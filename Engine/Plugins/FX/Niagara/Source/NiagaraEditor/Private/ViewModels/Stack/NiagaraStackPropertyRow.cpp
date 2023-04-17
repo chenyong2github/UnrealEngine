@@ -7,6 +7,7 @@
 #include "PropertyHandle.h"
 #include "IDetailPropertyRow.h"
 #include "ScopedTransaction.h"
+#include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackPropertyRow)
 
@@ -104,6 +105,7 @@ void UNiagaraStackPropertyRow::RefreshChildrenInternal(const TArray<UNiagaraStac
 			bool bChildIsTopLevelProperty = false;
 			ChildRow = NewObject<UNiagaraStackPropertyRow>(this);
 			ChildRow->Initialize(CreateDefaultChildRequiredData(), NodeChild, bChildIsTopLevelProperty, GetOwnerStackItemEditorDataKey(), GetStackEditorDataKey(), OwningNiagaraNode);
+			ChildRow->SetOwnerGuid(OwnerGuid);
 		}
 
 		NewChildren.Add(ChildRow);
@@ -228,3 +230,15 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackPropertyRow::Dr
 	return CanDropResponse;
 }
 
+bool UNiagaraStackPropertyRow::SupportsSummaryView() const
+{
+	return OwnerGuid.IsSet() && OwnerGuid->IsValid() && DetailTreeNode->GetNodeType() == EDetailNodeType::Item;
+}
+
+FNiagaraHierarchyIdentity UNiagaraStackPropertyRow::DetermineSummaryIdentity() const
+{
+	FNiagaraHierarchyIdentity Identity;
+	Identity.Guids.Add(OwnerGuid.GetValue());
+	Identity.Names.Add(DetailTreeNode->GetNodeName());
+	return Identity;
+}

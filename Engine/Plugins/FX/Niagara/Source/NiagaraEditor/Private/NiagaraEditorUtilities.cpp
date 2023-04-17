@@ -4164,20 +4164,55 @@ TSharedRef<SWidget> FNiagaraParameterUtilities::GetParameterWidget(FNiagaraVaria
 			.ToolTipText(TooltipText)
 		];
 	}
+
+	TSharedPtr<STextBlock> NameOverride;
+	if(Options.NameOverride.IsSet())
+	{
+		NameOverride = SNew(STextBlock)
+		.Text(Options.NameOverride.GetValue())
+		.TextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.HierarchyEditor.SummaryView.ModuleInputNameOverride"));
+
+		if(Options.NameOverrideVisibility.IsSet())
+		{
+			NameOverride->SetVisibility(Options.NameOverrideVisibility.GetValue());
+		}
+
+		if(Options.NameOverrideTooltip.IsSet())
+		{
+			NameOverride->SetToolTipText(Options.NameOverrideTooltip.GetValue());
+		}
+	}
 	
-	return SNew(SHorizontalBox)
+	TSharedRef<SHorizontalBox> ResultWidget = SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot()
 	.AutoWidth()
 	.VAlign(VAlign_Center)
 	[
-		GetParameterWidget(Variable, Options.bAddTypeIcon, Options.bShowValue)
-	]
-	+ SHorizontalBox::Slot()
-	.HAlign(HAlign_Right)
-	.VAlign(VAlign_Center)
-	[
-		IconBox
-	];	
+		FNiagaraParameterUtilities::GetParameterWidget(Variable, Options.bAddTypeIcon, Options.bShowValue)       	
+	];
+
+	if(NameOverride.IsValid())
+	{
+		ResultWidget->AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(4.f, 0.f)
+		[
+			NameOverride.ToSharedRef()
+		];
+	}
+
+	if(IconBox->NumSlots() > 0)
+	{
+		ResultWidget->AddSlot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		[
+			IconBox
+		];
+	}
+
+	return ResultWidget;
 }
 
 TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariable Variable, bool bShowValue, TSharedPtr<SWidget> AdditionalVerticalWidget,  TSharedPtr<SWidget> AdditionalHorizontalWidget)

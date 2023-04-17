@@ -10,11 +10,6 @@
 #include "SDropTarget.h"
 #include "Customizations/NiagaraScriptVariableCustomization.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/Stack/NiagaraStackViewModel.h"
-#include "Widgets/SNiagaraParameterName.h"
-#include "Widgets/Layout/SWrapBox.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraUserParametersHierarchyEditor"
 
@@ -22,15 +17,6 @@ void UNiagaraHierarchyUserParameter::Initialize(UNiagaraScriptVariable& InUserPa
 {
 	UserParameterScriptVariable = &InUserParameterScriptVariable;
 	SetIdentity(FNiagaraHierarchyIdentity({InUserParameterScriptVariable.Metadata.GetVariableGuid()}, {}));
-	System = &InSystem;
-}
-
-void UNiagaraHierarchyUserParameter::RefreshDataInternal()
-{	
-	if(System == nullptr || FNiagaraEditorUtilities::FindScriptVariableForUserParameter(GetPersistentIdentity().Guids[0], *System) == nullptr)
-	{
-		Finalize();
-	}
 }
 
 UObject* FNiagaraHierarchyUserParameterViewModel::GetDataForEditing()
@@ -41,6 +27,13 @@ UObject* FNiagaraHierarchyUserParameterViewModel::GetDataForEditing()
 	UserParametersHierarchyViewModel->GetSystemViewModel()->GetSystem().GetExposedParameters().RedirectUserVariable(ContainedVariable);
 	TObjectPtr<UNiagaraScriptVariable> ScriptVariable = FNiagaraEditorUtilities::GetScriptVariableForUserParameter(ContainedVariable, UserParametersHierarchyViewModel->GetSystemViewModel());
 	return ScriptVariable.Get();
+}
+
+bool FNiagaraHierarchyUserParameterViewModel::DoesExternalDataStillExist(const UNiagaraHierarchyDataRefreshContext* Context) const
+{
+	const UNiagaraHierarchyUserParameterRefreshContext* UserParameterRefreshContext = CastChecked<UNiagaraHierarchyUserParameterRefreshContext>(Context);
+	const UNiagaraSystem* System = UserParameterRefreshContext->GetSystem();
+	return FNiagaraEditorUtilities::FindScriptVariableForUserParameter(GetData()->GetPersistentIdentity().Guids[0], *System) != nullptr;
 }
 
 TSharedRef<FNiagaraSystemViewModel> UNiagaraUserParametersHierarchyViewModel::GetSystemViewModel() const
@@ -55,6 +48,11 @@ void UNiagaraUserParametersHierarchyViewModel::Initialize(TSharedRef<FNiagaraSys
 	SystemViewModelWeak = InSystemViewModel;
 	UNiagaraHierarchyViewModelBase::Initialize();
 
+	UNiagaraHierarchyUserParameterRefreshContext* UserParameterRefreshContext = NewObject<UNiagaraHierarchyUserParameterRefreshContext>(this);
+	UserParameterRefreshContext->SetSystem(&InSystemViewModel->GetSystem());
+
+	SetRefreshContext(UserParameterRefreshContext);
+	
 	UNiagaraSystemEditorData& SystemEditorData = InSystemViewModel->GetEditorData();
 	SystemEditorData.OnUserParameterScriptVariablesSynced().AddUObject(this, &UNiagaraUserParametersHierarchyViewModel::ForceFullRefresh);
 }
@@ -75,7 +73,7 @@ TSharedRef<SWidget> FNiagaraUserParameterHierarchyDragDropOp::CreateCustomDecora
 	return FNiagaraParameterUtilities::GetParameterWidget(GetUserParameter(), true, false);
 }
 
-UNiagaraHierarchyRoot* UNiagaraUserParametersHierarchyViewModel::GetHierarchyDataRoot() const
+UNiagaraHierarchyRoot* UNiagaraUserParametersHierarchyViewModel::GetHierarchyRoot() const
 {
 	UNiagaraHierarchyRoot* RootItem = GetSystemViewModel()->GetEditorData().UserParameterHierarchy;
 
@@ -87,18 +85,18 @@ TSharedPtr<FNiagaraHierarchyItemViewModelBase> UNiagaraUserParametersHierarchyVi
 {
 	if(UNiagaraHierarchyUserParameter* UserParameter = Cast<UNiagaraHierarchyUserParameter>(ItemBase))
 	{
-		return MakeShared<FNiagaraHierarchyUserParameterViewModel>(UserParameter, Parent, this);
+		return MakeShared<FNiagaraHierarchyUserParameterViewModel>(UserParameter, Parent, this, Parent.IsValid() ? Parent->IsForHierarchy() : false);
 	}
 	else if(UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(ItemBase))
 	{
-		return MakeShared<FNiagaraHierarchyCategoryViewModel>(Category, Parent, this);
+		return MakeShared<FNiagaraHierarchyCategoryViewModel>(Category, Parent, this, Parent.IsValid() ? Parent->IsForHierarchy() : false);
 	}
 
 	check(false);
 	return nullptr;
 }
 
-void UNiagaraUserParametersHierarchyViewModel::PrepareSourceItems()
+void UNiagaraUserParametersHierarchyViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* SourceRoot, TSharedPtr<FNiagaraHierarchyRootViewModel>)
 {	
 	TArray<FNiagaraVariable> UserParameters;
 	GetSystemViewModel()->GetSystem().GetExposedParameters().GetUserParameters(UserParameters);
@@ -127,9 +125,6 @@ void UNiagaraUserParametersHierarchyViewModel::PrepareSourceItems()
 		UserParameterHierarchyObject->Initialize(*ScriptVariable.Get(), GetSystemViewModel()->GetSystem());
 		SourceRoot->GetChildrenMutable().Add(UserParameterHierarchyObject);
 	}
-
-	// after we synced the data, we sync their view models that we display in the UI
-	SourceViewModelRoot->SyncToData();
 }
 
 void UNiagaraUserParametersHierarchyViewModel::SetupCommands()

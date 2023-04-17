@@ -99,6 +99,9 @@ public:
 	virtual bool GetIsInherited() const override;
 	virtual FText GetInheritanceMessage() const override;
 
+	virtual bool SupportsSummaryView() const override { return true; }
+	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
+	
 	bool IsScratchModule() const;
 
 	void SetOnRequestDeprecationRecommended(FOnRequestDeprecationRecommended InOnRequest)

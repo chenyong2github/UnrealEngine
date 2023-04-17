@@ -19,6 +19,7 @@
 
 #include "Internationalization/Internationalization.h"
 #include "ScopedTransaction.h"
+#include "ViewModels/HierarchyEditor/NiagaraSummaryViewViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackSimulationStageGroup)
 
@@ -103,6 +104,7 @@ void UNiagaraStackSimulationStagePropertiesItem::RefreshChildrenInternal(const T
 		SimulationStageObject = NewObject<UNiagaraStackObject>(this);
 		bool bIsTopLevelObject = true;
 		SimulationStageObject->Initialize(CreateDefaultChildRequiredData(), SimulationStage.Get(), bIsTopLevelObject, GetStackEditorDataKey());
+		SimulationStageObject->SetObjectGuid(SimulationStage->GetMergeId());
 	}
 
 	if ( SimulationStage.IsValid() )
@@ -147,6 +149,11 @@ void UNiagaraStackSimulationStagePropertiesItem::RefreshChildrenInternal(const T
 	bHasBaseSimulationStageCache.Reset();
 
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
+}
+
+FNiagaraHierarchyIdentity UNiagaraStackSimulationStagePropertiesItem::DetermineSummaryIdentity() const
+{
+	return UNiagaraHierarchySimStageProperties::MakeIdentity(*GetSimulationStage().Get());
 }
 
 void UNiagaraStackSimulationStagePropertiesItem::SimulationStagePropertiesChanged()
@@ -415,6 +422,13 @@ bool UNiagaraStackSimulationStageGroup::GetIsInherited() const
 FText UNiagaraStackSimulationStageGroup::GetInheritanceMessage() const
 {
 	return LOCTEXT("SimulationStageGroupInheritanceMessage", "This simulation stage is inherited from a parent emitter.  Inherited\nsimulation stages can only be deleted while editing the parent emitter.");
+}
+
+FNiagaraHierarchyIdentity UNiagaraStackSimulationStageGroup::DetermineSummaryIdentity() const
+{
+	FNiagaraHierarchyIdentity Identity;
+	Identity.Guids.Add(GetSimulationStage()->GetMergeId());
+	return Identity;
 }
 
 void UNiagaraStackSimulationStageGroup::SimulationStagePropertiesChanged()

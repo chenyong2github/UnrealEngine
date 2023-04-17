@@ -49,7 +49,7 @@ UNiagaraMergeable::FOnChanged& UNiagaraMergeable::OnChanged()
 	return OnChangedDelegate;
 }
 
-FGuid UNiagaraMergeable::GetMergeId()
+FGuid UNiagaraMergeable::GetMergeId() const
 {
 	return MergeId;
 }

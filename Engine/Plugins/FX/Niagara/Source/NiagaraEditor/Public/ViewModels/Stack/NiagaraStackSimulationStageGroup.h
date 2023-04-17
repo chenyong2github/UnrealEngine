@@ -29,11 +29,14 @@ public:
 
 	void SetSimulationStageEnabled(bool bIsEnabled);
 
+	TWeakObjectPtr<UNiagaraSimulationStageBase> GetSimulationStage() const { return SimulationStage; }
 protected:
 	virtual void FinalizeInternal() override;
 
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
+	virtual bool SupportsSummaryView() const override { return true; }
+	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 private:
 	void SimulationStagePropertiesChanged();
 
@@ -92,6 +95,8 @@ protected:
 
 	virtual TOptional<FDropRequestResponse> DropInternal(const FDropRequest& DropRequest) override;
 
+	virtual bool SupportsSummaryView() const override { return true; }
+	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 private:
 	void SimulationStagePropertiesChanged();
 

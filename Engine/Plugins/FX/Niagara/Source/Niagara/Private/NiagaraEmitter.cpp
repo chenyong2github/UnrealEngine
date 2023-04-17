@@ -777,6 +777,7 @@ void FVersionedNiagaraEmitterData::PostLoad(UNiagaraEmitter& Emitter, int32 Niag
 	if (EditorData != nullptr)
 	{
 		EditorData->ConditionalPostLoad();
+		EditorData->PostLoadFromOwner(&Emitter);
 	}
 	
 	if (!GPUComputeScript)
@@ -1309,6 +1310,16 @@ UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnPropertiesChanged()
 UNiagaraEmitter::FOnPropertiesChanged& UNiagaraEmitter::OnRenderersChanged()
 {
 	return OnRenderersChangedDelegate;
+}
+
+UNiagaraEmitter::FOnSimStagesChanged& UNiagaraEmitter::OnSimStagesChanged()
+{
+	return OnSimStagesChangedDelegate;
+}
+
+UNiagaraEmitter::FOnSimStagesChanged& UNiagaraEmitter::OnEventHandlersChanged()
+{
+	return OnEventHandlersChangedDelegate;
 }
 
 void UNiagaraEmitter::HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts, FGuid EmitterVersion)
@@ -3023,6 +3034,7 @@ void UNiagaraEmitter::AddEventHandler(FNiagaraEventScriptProperties EventHandler
 	EventHandler.Script->RapidIterationParameters.AddOnChangedHandler(
 		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
 	UpdateChangeId(TEXT("Event handler added"));
+	OnEventHandlersChangedDelegate.Broadcast();
 #endif
 }
 
@@ -3040,6 +3052,7 @@ void UNiagaraEmitter::RemoveEventHandlerByUsageId(FGuid EventHandlerUsageId, FGu
 #endif
 	EventHandlerScriptProps.RemoveAll(FindEventHandlerById);
 #if WITH_EDITOR
+	OnEventHandlersChangedDelegate.Broadcast();
 	UpdateChangeId(TEXT("Event handler removed"));
 #endif
 }
@@ -3060,6 +3073,7 @@ void UNiagaraEmitter::AddSimulationStage(UNiagaraSimulationStageBase* Simulation
 	SimulationStage->Script->RapidIterationParameters.AddOnChangedHandler(
 		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
 	UpdateChangeId(TEXT("Shader stage added"));
+	OnSimStagesChangedDelegate.Broadcast();
 #endif
 }
 
@@ -3073,6 +3087,7 @@ void UNiagaraEmitter::RemoveSimulationStage(UNiagaraSimulationStageBase* Simulat
 		SimulationStage->OnChanged().RemoveAll(this);
 		SimulationStage->Script->RapidIterationParameters.RemoveAllOnChangedHandlers(this);
 		UpdateChangeId(TEXT("Simulation stage removed"));
+		OnSimStagesChangedDelegate.Broadcast();
 	}
 #endif
 }
@@ -3092,6 +3107,7 @@ void UNiagaraEmitter::MoveSimulationStageToIndex(UNiagaraSimulationStageBase* Si
 		SimulationStages.Insert(SimulationStageToMove, AdjustedTargetIndex);
 #if WITH_EDITOR
 		UpdateChangeId("Simulation stage moved.");
+		OnSimStagesChangedDelegate.Broadcast();
 #endif
 	}
 }

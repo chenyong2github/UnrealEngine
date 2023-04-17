@@ -24,7 +24,7 @@ public:
 
 	FOnChanged& OnChanged();
 
-	FGuid GetMergeId();
+	FGuid GetMergeId() const;
 
 protected:
 	UNiagaraMergeable* StaticDuplicateWithNewMergeIdInternal(UObject* InOuter) const;

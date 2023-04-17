@@ -254,6 +254,11 @@ UNiagaraRendererProperties* UNiagaraStackRendererItem::GetRendererProperties()
 	return RendererProperties.Get();
 }
 
+const UNiagaraRendererProperties* UNiagaraStackRendererItem::GetRendererProperties() const
+{
+	return RendererProperties.Get();
+}
+
 FText UNiagaraStackRendererItem::GetDisplayName() const
 {
 	if(DisplayNameCache.IsSet() == false)
@@ -388,6 +393,13 @@ FText UNiagaraStackRendererItem::GetInheritanceMessage() const
 	return LOCTEXT("RendererItemInheritanceMessage", "This renderer is inherited from a parent emitter.  Inherited\nrenderers can only be deleted while editing the parent emitter.");
 }
 
+FNiagaraHierarchyIdentity UNiagaraStackRendererItem::DetermineSummaryIdentity() const
+{
+	FNiagaraHierarchyIdentity Identity;
+	Identity.Guids.Add(GetRendererProperties()->GetMergeId());
+	return Identity;
+}
+
 bool UNiagaraStackRendererItem::HasBaseRenderer() const
 {
 	if (HasBaseEmitter())
@@ -489,6 +501,7 @@ void UNiagaraStackRendererItem::RefreshChildrenInternal(const TArray<UNiagaraSta
 		RendererObject = NewObject<UNiagaraStackObject>(this);
 		bool bIsTopLevelObject = true;
 		RendererObject->Initialize(CreateDefaultChildRequiredData(), RendererProperties.Get(), bIsTopLevelObject, GetStackEditorDataKey());
+		RendererObject->SetObjectGuid(GetRendererProperties()->GetMergeId());
 	}
 
 	NewChildren.Add(RendererObject);

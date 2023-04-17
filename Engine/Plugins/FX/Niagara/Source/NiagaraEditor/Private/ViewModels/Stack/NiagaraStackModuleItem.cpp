@@ -1657,6 +1657,13 @@ FText UNiagaraStackModuleItem::GetInheritanceMessage() const
 	return LOCTEXT("ModuleItemInheritanceMessage", "This module is inherited from a parent emitter.  Inherited modules\ncan only be moved, deleted, and versioned while editing the parent emitter.");
 }
 
+FNiagaraHierarchyIdentity UNiagaraStackModuleItem::DetermineSummaryIdentity() const
+{
+	FNiagaraHierarchyIdentity Identity;
+	Identity.Guids.Add(GetModuleNode().NodeGuid);
+	return Identity;
+}
+
 bool UNiagaraStackModuleItem::IsScratchModule() const
 {
 	if (bIsScratchModuleCache.IsSet() == false)

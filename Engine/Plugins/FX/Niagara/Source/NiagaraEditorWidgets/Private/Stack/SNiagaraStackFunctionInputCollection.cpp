@@ -7,10 +7,10 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SWrapBox.h"
 
-void SNiagaraStackFunctionInputCollection::Construct(const FArguments& InArgs, UNiagaraStackFunctionInputCollectionBase* InInputCollection)
+void SNiagaraStackFunctionInputCollection::Construct(const FArguments& InArgs, UNiagaraStackValueCollection* PropertyCollectionBase)
 {
-	InputCollection = InInputCollection;
-	InputCollection->OnStructureChanged().AddSP(this, &SNiagaraStackFunctionInputCollection::InputCollectionStructureChanged);
+	PropertyCollection = PropertyCollectionBase;
+	PropertyCollection->OnStructureChanged().AddSP(this, &SNiagaraStackFunctionInputCollection::InputCollectionStructureChanged);
 
 	ChildSlot
 	[
@@ -21,9 +21,9 @@ void SNiagaraStackFunctionInputCollection::Construct(const FArguments& InArgs, U
 		[
 			SNew(STextBlock)
 			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
-			.ToolTipText_UObject(InputCollection, &UNiagaraStackEntry::GetTooltipText)
-			.Text_UObject(InputCollection, &UNiagaraStackEntry::GetDisplayName)
-			.IsEnabled_UObject(InputCollection, &UNiagaraStackEntry::GetOwnerIsEnabled)
+			.ToolTipText_UObject(PropertyCollection, &UNiagaraStackEntry::GetTooltipText)
+			.Text_UObject(PropertyCollection, &UNiagaraStackEntry::GetDisplayName)
+			.IsEnabled_UObject(PropertyCollection, &UNiagaraStackEntry::GetOwnerIsEnabled)
 			.Visibility(this, &SNiagaraStackFunctionInputCollection::GetLabelVisibility)
 		]
 		+ SVerticalBox::Slot()
@@ -41,13 +41,13 @@ void SNiagaraStackFunctionInputCollection::Construct(const FArguments& InArgs, U
 
 EVisibility SNiagaraStackFunctionInputCollection::GetLabelVisibility() const
 {
-	return InputCollection->GetShouldDisplayLabel() ? EVisibility::Visible : EVisibility::Collapsed;
+	return PropertyCollection->GetShouldDisplayLabel() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SNiagaraStackFunctionInputCollection::ConstructSectionButtons()
 {
 	SectionSelectorBox->ClearChildren();
-	for (FText Section : InputCollection->GetSections())
+	for (FText Section : PropertyCollection->GetSections())
 	{
 		SectionSelectorBox->AddSlot()
 		[
@@ -55,6 +55,7 @@ void SNiagaraStackFunctionInputCollection::ConstructSectionButtons()
 			.Style(FAppStyle::Get(), "DetailsView.SectionButton")
 			.OnCheckStateChanged(this, &SNiagaraStackFunctionInputCollection::OnSectionChecked, Section)
 			.IsChecked(this, &SNiagaraStackFunctionInputCollection::GetSectionCheckState, Section)
+			.ToolTipText(this, &SNiagaraStackFunctionInputCollection::GetTooltipText, Section)
 			[
 				SNew(STextBlock)
 				.TextStyle(FAppStyle::Get(), "SmallText")
@@ -71,13 +72,18 @@ void SNiagaraStackFunctionInputCollection::InputCollectionStructureChanged(ENiag
 
 ECheckBoxState SNiagaraStackFunctionInputCollection::GetSectionCheckState(FText Section) const
 {
-	return Section.IdenticalTo(InputCollection->GetActiveSection()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return Section.IdenticalTo(PropertyCollection->GetActiveSection()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 void SNiagaraStackFunctionInputCollection::OnSectionChecked(ECheckBoxState CheckState, FText Section)
 {
 	if (CheckState == ECheckBoxState::Checked)
 	{
-		InputCollection->SetActiveSection(Section);
+		PropertyCollection->SetActiveSection(Section);
 	}
+}
+
+FText SNiagaraStackFunctionInputCollection::GetTooltipText(FText Section) const
+{
+	return PropertyCollection->GetTooltipForSection(Section.ToString());
 }

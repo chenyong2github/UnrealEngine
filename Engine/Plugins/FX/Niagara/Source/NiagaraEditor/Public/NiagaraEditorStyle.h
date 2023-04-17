@@ -33,6 +33,7 @@ private:
 	void InitToolbarIcons();
 	void InitTabIcons();
 	void InitIcons();
+	void InitTextStyles();
 	void InitOverview();
 	void InitViewportStyle();
 	void InitEmitterDetails();

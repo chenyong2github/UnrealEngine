@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraEditorCommon.h"
+#include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/SExpanderArrow.h"
@@ -17,7 +18,7 @@ public:
 	SLATE_BEGIN_ARGS(SNiagaraStackFunctionInputCollection) {}
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UNiagaraStackFunctionInputCollectionBase* InInputCollection);
+	void Construct(const FArguments& InArgs, UNiagaraStackValueCollection* PropertyCollectionBase);
 
 private:
 	EVisibility GetLabelVisibility() const;
@@ -30,8 +31,10 @@ private:
 
 	void OnSectionChecked(ECheckBoxState CheckState, FText Section);
 
+	FText GetTooltipText(FText Section) const;
+
 private:
-	UNiagaraStackFunctionInputCollectionBase* InputCollection;
+	UNiagaraStackValueCollection* PropertyCollection;
 
 	TSharedPtr<SWrapBox> SectionSelectorBox;
 };

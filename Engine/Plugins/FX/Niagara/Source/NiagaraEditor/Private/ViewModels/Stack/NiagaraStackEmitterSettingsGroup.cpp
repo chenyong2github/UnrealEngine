@@ -16,10 +16,12 @@
 #include "PropertyHandle.h"
 #include "ScopedTransaction.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Styling/AppStyle.h"
 #include "IDetailTreeNode.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "Toolkits/SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
+#include "Widgets/SNiagaraHierarchy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackEmitterSettingsGroup)
 
@@ -325,26 +327,9 @@ FText UNiagaraStackEmitterSummaryItem::GetIconText() const
 
 void UNiagaraStackEmitterSummaryItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
-	if (GetEmitterViewModel()->GetSummaryIsInEditMode())
-	{
-		if (SummaryEditorData == nullptr)
-		{
-			SummaryEditorData = NewObject<UNiagaraStackObject>(this);
-			bool bIsTopLevelObject = true;
-			SummaryEditorData->Initialize(CreateDefaultChildRequiredData(), &GetEmitterViewModel()->GetOrCreateEditorData(), bIsTopLevelObject, GetStackEditorDataKey());
-			SummaryEditorData->SetOnSelectRootNodes(UNiagaraStackObject::FOnSelectRootNodes::CreateUObject(this,
-				&UNiagaraStackEmitterSummaryItem::SelectSummaryNodesFromEmitterEditorDataRootNodes));
-		}
-		NewChildren.Add(SummaryEditorData);
-	}
-	else
-	{
-		SummaryEditorData = nullptr;
-	}
-
 	if (FilteredObject == nullptr)
 	{
-		FilteredObject = NewObject<UNiagaraStackSummaryViewObject>(this);
+		FilteredObject = NewObject<UNiagaraStackSummaryViewCollection>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), FExecutionCategoryNames::Emitter, NAME_None, GetStackEditorData());
 		FilteredObject->Initialize(RequiredEntryData, Emitter, GetStackEditorDataKey());
 	}
@@ -387,21 +372,32 @@ void UNiagaraStackEmitterSummaryItem::SelectSummaryNodesFromEmitterEditorDataRoo
 	}
 }
 
-bool UNiagaraStackEmitterSummaryItem::GetEditModeIsActive() const
-{ 
-	return GetEmitterViewModel().IsValid() && GetEmitterViewModel()->GetSummaryIsInEditMode();
-}
-
-void UNiagaraStackEmitterSummaryItem::SetEditModeIsActive(bool bInEditModeIsActive)
+void UNiagaraStackEmitterSummaryItem::OnEditButtonClicked()
 {
 	if (GetEmitterViewModel().IsValid())
 	{
-		if (GetEmitterViewModel()->GetSummaryIsInEditMode() != bInEditModeIsActive)
-		{
-			GetEmitterViewModel()->SetSummaryIsInEditMode(bInEditModeIsActive);
-			RefreshChildren();
-		}
+		GetSystemViewModel()->FocusTab(FNiagaraSystemToolkitModeBase::EmitterSummaryViewEditorTabID, true);
 	}
+}
+
+TOptional<FText> UNiagaraStackEmitterSummaryItem::GetEditModeButtonText() const
+{
+	return LOCTEXT("EditSummaryViewButtonLabel", "Edit Summary");
+}
+
+TOptional<FText> UNiagaraStackEmitterSummaryItem::GetEditModeButtonTooltip() const
+{
+	return LOCTEXT("EditSummaryViewButtonTooltip", "Summons the Summary Editor that lets you define what inputs, renderers and properties (and more) should be displayed when looking at the Emitter Summary.");
+}
+
+EVisibility UNiagaraStackEmitterSummaryItem::IsEditButtonVisible() const
+{
+	if(GetEmitterViewModel().IsValid())
+	{
+		return GetEmitterViewModel()->GetEditorData().ShouldShowSummaryView() ? EVisibility::Collapsed : EVisibility::Visible;
+	}
+
+	return EVisibility::Collapsed;
 }
 
 UNiagaraStackEmitterSummaryGroup::UNiagaraStackEmitterSummaryGroup()
@@ -425,9 +421,6 @@ FText UNiagaraStackEmitterSummaryGroup::GetIconText() const
 {
 	return FText::FromString(FString(TEXT("\xf0ca")/* fa-list-ul */));
 }
-
-
-
 
 void UNiagaraStackSummaryViewCollapseButton::Initialize(FRequiredEntryData InRequiredEntryData)
 {

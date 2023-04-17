@@ -405,15 +405,9 @@ struct FNiagaraEmitterDiffResults
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> ModifiedBaseRenderers;
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> ModifiedOtherRenderers;
 
-	TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> RemovedInputSummaryEntries;
-	TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> AddedInputSummaryEntries;
-	TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> ModifiedInputSummaryEntries;
-	TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> ModifiedOtherInputSummaryEntries;
-
-	TArray<FNiagaraStackSection> RemovedBaseSummarySections;
-	TArray<FNiagaraStackSection> AddedOtherSummarySections;
-	TArray<FNiagaraStackSection> ModifiedBaseSummarySections;
-	TArray<FNiagaraStackSection> ModifiedOtherSummarySections;
+	TArray<UNiagaraHierarchyItemBase*> RemovedSummaryEntriesInBase;
+	TArray<UNiagaraHierarchyItemBase*> AddedSummaryEntriesInOther;	
+	TArray<UNiagaraHierarchySection*> AddedSummarySectionsInOther;
 
 	TOptional<bool> NewShouldShowSummaryViewValue;
 	
@@ -460,6 +454,9 @@ public:
 
 	bool IsModuleInputDifferentFromBase(const FVersionedNiagaraEmitter& Emitter, const FVersionedNiagaraEmitter& BaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId, FString InputName);
 
+	/** Check whether a given summary item identity exists in the parent of a given emitter. */
+	bool DoesSummaryItemExistInBase(const FVersionedNiagaraEmitter& Emitter, FNiagaraHierarchyIdentity Identity);
+	
 	FApplyDiffResults ResetModuleInputToBase(const FVersionedNiagaraEmitter& VersionedEmitter, const FVersionedNiagaraEmitter& VersionedBaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId, FString InputName);
 
 	bool HasBaseEventHandler(const FVersionedNiagaraEmitter& BaseEmitter, FGuid EventScriptUsageId);

@@ -12,16 +12,16 @@ class UNiagaraStackFunctionInput;
 class UNiagaraClipboardFunctionInput;
 class UEdGraphPin;
 
-
-
+/** A base class for value collections. Values can be all kinds of input data, such as module inputs, object properties etc.
+ * This has base functionality for sections.
+ */
 UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackFunctionInputCollectionBase : public UNiagaraStackItemContent
+class NIAGARAEDITOR_API UNiagaraStackValueCollection : public UNiagaraStackItemContent
 {
 	GENERATED_BODY()
-
 public:
 	void Initialize(FRequiredEntryData InRequiredEntryData, FString InOwningStackItemEditorDataKey, FString InStackEditorDataKey);
-
+	
 	bool GetShouldDisplayLabel() const { return bShouldDisplayLabel; }
 	void SetShouldDisplayLabel(bool bInShouldShowLabel);
 
@@ -31,89 +31,32 @@ public:
 
 	void SetActiveSection(FText InActiveSection);
 
-	virtual bool GetCanExpand() const override;
-	virtual bool GetShouldShowInStack() const override;
-
+	FText GetTooltipForSection(FString Section) const;
 public:
 	static FText UncategorizedName;
 
 	static FText AllSectionName;
-
 protected:
-
-	struct FInputData
-	{
-		FNiagaraVariable InputVariable;
-		int32 SortKey;
-		TOptional<FText> DisplayName;
-		FText Category;
-		bool bIsStatic;
-		bool bIsHidden;
-		bool bShouldShowInSummary;
-
-		UNiagaraNodeFunctionCall* ModuleNode;
-		UNiagaraNodeFunctionCall* InputFunctionCallNode;
-		
-		TArray<FInputData*> Children;
-		bool bIsChild = false;
-	};
-
-	struct FNiagaraParentData
-	{
-		FNiagaraVariable ParentVariable;
-		TArray<int32> ChildIndices;
-	};
-
-	struct FFunctionCallNodesState
-	{		
-		TArray<FInputData> InputDataCollection;
-		TMap<FName, FNiagaraParentData> ParentMapping;
-	};
-	
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
-
-	virtual int32 GetChildIndentLevel() const override;
-
-	void RefreshChildrenForFunctionCall(UNiagaraNodeFunctionCall* ModuleNode, UNiagaraNodeFunctionCall* InputFunctionCallNode, const TArray<UNiagaraStackEntry*>& CurrentChildren, 
-		TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues, bool bShouldApplySummaryFilter);
-	
-	void AppendInputsForFunctionCall(FFunctionCallNodesState& State, UNiagaraNodeFunctionCall* ModuleNode, UNiagaraNodeFunctionCall* InputFunctionCallNode, TArray<FStackIssue>& NewIssues, bool bShouldApplySummaryFilter);
-	
-	void ApplyAllFunctionInputsToChildren(FFunctionCallNodesState& State, const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues, bool bShouldApplySummaryFilter);
-
-	void RefreshIssues(UNiagaraNodeFunctionCall* InputFunctionCallNode, const TArray<FName>& DuplicateInputNames, const TArray<FName>& ValidAliasedInputNames, const TArray<FNiagaraVariable>& InputsWithInvalidTypes, const TMap<FName, UEdGraphPin*>& StaticSwitchInputs, TArray<FStackIssue>& NewIssues);
-
-	void OnFunctionInputsChanged();
-
-	FStackIssueFix GetNodeRemovalFix(UEdGraphPin* PinToRemove, FText FixDescription);
-
-	FStackIssueFix GetResetPinFix(UEdGraphPin* PinToReset, FText FixDescription);
-
-	FStackIssueFix GetUpgradeVersionFix(FText FixDescription);
-
-	void AddInvalidChildStackIssue(FName PinName, TArray<FStackIssue>& OutIssues);
-
-
-	void AddInputToCategory(const FInputData& InputData, const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren);
-
 	virtual void GetSectionsInternal(TArray<FNiagaraStackSection>& OutStackSections) const { }
-
-private:
-	bool FilterByActiveSection(const UNiagaraStackEntry& Child) const;
-
 	void UpdateCachedSectionData() const;
-
+	virtual bool FilterByActiveSection(const UNiagaraStackEntry& Child) const;
 private:
-	bool bShouldDisplayLabel;
-
+	virtual bool GetCanExpand() const override;
+	virtual bool GetShouldShowInStack() const override;
+	virtual int32 GetChildIndentLevel() const override;
+private:
 	mutable TOptional<TArray<FText>> SectionsCache;
 	mutable TOptional<TMap<FString, TArray<FText>>> SectionToCategoryMapCache;
+	mutable TOptional<TMap<FString, FText>> SectionToTooltipMapCache;
 	mutable TOptional<FText> ActiveSectionCache;
 	FText LastActiveSection;
+
+	bool bShouldDisplayLabel;
 };
 
 UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackFunctionInputCollection : public UNiagaraStackFunctionInputCollectionBase
+class NIAGARAEDITOR_API UNiagaraStackFunctionInputCollection : public UNiagaraStackValueCollection
 {
 	GENERATED_BODY()
 
@@ -144,7 +87,36 @@ public:
 
 	TArray<UNiagaraStackFunctionInput*> GetInlineParameterInputs() const;
 
-protected:
+private:
+
+	struct FInputData
+	{
+		FNiagaraVariable InputVariable;
+		int32 SortKey;
+		TOptional<FText> DisplayName;
+		FText Category;
+		bool bIsStatic;
+		bool bIsHidden;
+
+		UNiagaraNodeFunctionCall* ModuleNode;
+		UNiagaraNodeFunctionCall* InputFunctionCallNode;
+		
+		TArray<FInputData*> Children;
+		bool bIsChild = false;
+	};
+
+	struct FNiagaraParentData
+	{
+		FNiagaraVariable ParentVariable;
+		TArray<int32> ChildIndices;
+	};
+
+	struct FFunctionCallNodesState
+	{		
+		TArray<FInputData> InputDataCollection;
+		TMap<FName, FNiagaraParentData> ParentMapping;
+	};
+	
 	void OnScriptApplied(UNiagaraScript* NiagaraScript, FGuid Guid);
 	
 	virtual void FinalizeInternal() override;
@@ -152,6 +124,26 @@ protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 	virtual void GetSectionsInternal(TArray<FNiagaraStackSection>& OutStackSections) const override;
+	
+	void RefreshChildrenForFunctionCall(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues, bool bShouldApplySummaryFilter);
+	
+	void AppendInputsForFunctionCall(FFunctionCallNodesState& State, TArray<FStackIssue>& NewIssues, bool bShouldApplySummaryFilter);
+	
+	void ApplyAllFunctionInputsToChildren(FFunctionCallNodesState& State, const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues, bool bShouldApplySummaryFilter);
+
+	void RefreshIssues(const TArray<FName>& DuplicateInputNames, const TArray<FName>& ValidAliasedInputNames, const TArray<FNiagaraVariable>& InputsWithInvalidTypes, const TMap<FName, UEdGraphPin*>& StaticSwitchInputs, TArray<FStackIssue>& NewIssues);
+
+	void OnFunctionInputsChanged();
+
+	FStackIssueFix GetNodeRemovalFix(UEdGraphPin* PinToRemove, FText FixDescription);
+
+	FStackIssueFix GetResetPinFix(UEdGraphPin* PinToReset, FText FixDescription);
+
+	FStackIssueFix GetUpgradeVersionFix(FText FixDescription);
+
+	void AddInvalidChildStackIssue(FName PinName, TArray<FStackIssue>& OutIssues);
+	
+	void AddInputToCategory(const FInputData& InputData, const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren);
 	
 private:
 	UNiagaraNodeFunctionCall* ModuleNode;

@@ -7,6 +7,7 @@
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraNodeFunctionCall.h"
@@ -22,6 +23,10 @@
 #include "Styling/StyleColors.h"
 #include "ScopedTransaction.h"
 #include "NiagaraEmitterEditorData.h"
+#include "ViewModels/HierarchyEditor/NiagaraSummaryViewViewModel.h"
+#include "ViewModels/Stack/NiagaraStackPropertyRow.h"
+#include "ViewModels/Stack/NiagaraStackRendererItem.h"
+#include "ViewModels/Stack/NiagaraStackSimulationStageGroup.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackTableRow"
 
@@ -372,22 +377,44 @@ FReply SNiagaraStackTableRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 			FUIAction(FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::CollapseChildren)));
 		MenuBuilder.EndSection();
 
-
-		if (IsValidForSummaryView())
-		{
-			FUIAction ShowHideSummaryViewAction(
+		if(StackEntry->GetEmitterViewModel().IsValid() && StackEntry->GetEmitterViewModel())
+		{			
+			if(StackEntry->SupportsSummaryView())
+			{
+				FNiagaraHierarchyIdentity Identity = StackEntry->DetermineSummaryIdentity();
+				if(Identity.IsValid())
+				{
+					FUIAction ShowHideSummaryViewAction(
 			FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::ToggleShowInSummaryView),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &SNiagaraStackTableRow::ShouldShowInSummaryView));
-		
-			MenuBuilder.BeginSection("SummaryViewActions", LOCTEXT("SummaryViewActions", "Emitter Summary"));
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("SummaryViewShow", "Show in Emitter Summary"),
-				LOCTEXT("SummaryViewShowTooltip", "Should this parameter be visible in the emitter summary?"),
-				FSlateIcon(),
-				ShowHideSummaryViewAction,
-				NAME_None, EUserInterfaceActionType::ToggleButton);
-			MenuBuilder.EndSection();
+						FCanExecuteAction::CreateSP(this, &SNiagaraStackTableRow::CanToggleShowInSummary),
+						FIsActionChecked::CreateSP(this, &SNiagaraStackTableRow::IsStackEntryInSummary));
+			
+					MenuBuilder.BeginSection("SummaryViewActions", LOCTEXT("SummaryViewActions", "Emitter Summary"));
+						MenuBuilder.AddMenuEntry(
+							TAttribute<FText>::CreateLambda([this]
+							{
+								bool bIsInSummaryView = StackEntry->IsInSummaryView();
+								FText BaseText = LOCTEXT("SummaryViewShow", "{0} Emitter Summary");
+								return FText::FormatOrdered(BaseText, bIsInSummaryView ? LOCTEXT("HideSummaryItem", "Remove from") : LOCTEXT("AddSummaryItem", "Add to"));
+							}),
+							TAttribute<FText>::CreateSP(this, &SNiagaraStackTableRow::GetToggleShowSummaryActionTooltip),
+							FSlateIcon(),
+							ShowHideSummaryViewAction,
+							NAME_None, EUserInterfaceActionType::ToggleButton);
+
+					FUIAction ShowInSummaryViewAction(
+			FExecuteAction::CreateSP(this, &SNiagaraStackTableRow::NavigateToSummaryView),
+						FCanExecuteAction::CreateSP(this, &SNiagaraStackTableRow::IsStackEntryInSummary));
+					
+						MenuBuilder.AddMenuEntry(
+								LOCTEXT("ShowInSummaryEditorLabel", "Show in Summary Editor"),
+								LOCTEXT("ShowInSummaryEditorTooltip", "Summon the Summary Editor and navigate to the selected item"),
+								FSlateIcon(),
+								ShowInSummaryViewAction,
+								NAME_None, EUserInterfaceActionType::Button);
+					MenuBuilder.EndSection();
+				}						
+			}
 		}
 
 		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
@@ -495,81 +522,122 @@ void SNiagaraStackTableRow::NavigateTo(UNiagaraStackEntry* Item)
 	OwnerTree->RequestNavigateToItem(Item, 0);
 }
 
-bool SNiagaraStackTableRow::IsValidForSummaryView() const
+void SNiagaraStackTableRow::ToggleShowInSummaryView() const
 {
-	UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry);
-	const UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;
-
-	if (EditorData)
+	if(StackEntry->GetEmitterViewModel().IsValid())
 	{
-		UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
-		return FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput).IsSet();
-	}
-	return false;
-}
-
-void SNiagaraStackTableRow::ToggleShowInSummaryView()
-{
-	UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry);
-	UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
-	
-	if (EditorData)
-	{
-		UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
-		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
-	
-		if (Key.IsSet())
+		FNiagaraHierarchyIdentity Identity = StackEntry->DetermineSummaryIdentity();
+		if(Identity.IsValid())
 		{
-			// TODO: Move this parent handling to the UNiagaraStackFunctionInput and merge manager.
-			bool bHasParentSummaryData = false;;
-			FVersionedNiagaraEmitter ParentEmitter = FunctionInput->GetEmitterViewModel()->GetEmitter().GetEmitterData()->GetParent();
-			if (ParentEmitter.GetEmitterData())
+			bool bItemExistsInHierarchy = StackEntry->GetEmitterViewModel()->GetSummaryHierarchyViewModel()->GetHierarchyRootViewModel()->FindViewModelForChild(Identity, true) != nullptr;
+			if(bItemExistsInHierarchy)
 			{
-				if (UNiagaraEmitterEditorData* ParentEmitterEditorData = Cast<UNiagaraEmitterEditorData>(ParentEmitter.GetEmitterData()->GetEditorData()))
-				{
-					bHasParentSummaryData = ParentEmitterEditorData->GetSummaryViewMetaData(Key.GetValue()).IsSet();
-				}
+				StackEntry->GetEmitterViewModel()->GetSummaryHierarchyViewModel()->DeleteItemWithIdentity(Identity);
 			}
-
-			TOptional<FFunctionInputSummaryViewMetadata> SummaryViewMetaData = EditorData->GetSummaryViewMetaData(Key.GetValue());
-			if (SummaryViewMetaData.IsSet() == false)
+			else
 			{
-				SummaryViewMetaData = FFunctionInputSummaryViewMetadata();
+				UClass* HierarchyClass = DetermineHierarchyClassForSummaryView();
+				check(HierarchyClass);
+				StackEntry->GetEmitterViewModel()->GetSummaryHierarchyViewModel()->GetHierarchyRootViewModel()->AddChild(HierarchyClass, Identity);
 			}
-
-			FScopedTransaction ScopedTransaction(FText::Format(LOCTEXT("SummaryViewChangedInputVisibility", "Changed summary view visibility for {0}"), FunctionInput->GetDisplayName()));
-			EditorData->Modify();
-			
-			SummaryViewMetaData->bVisible = !SummaryViewMetaData->bVisible;
-			if (bHasParentSummaryData == false && SummaryViewMetaData->bVisible == false)
-			{
-				// If there is no parent summary data, and the input is no longer visible, reset the optional value
-				// to remove the input from the summary.
-				SummaryViewMetaData.Reset();
-			}
-			EditorData->SetSummaryViewMetaData(Key.GetValue(), SummaryViewMetaData);
 		}
-	}	
+	}
 }
 
-bool SNiagaraStackTableRow::ShouldShowInSummaryView() const
+bool SNiagaraStackTableRow::IsStackEntryInSummary() const
 {
-	UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry);
-	const UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;
-	
-	if (EditorData)
+	return StackEntry->IsInSummaryView();
+}
+
+bool SNiagaraStackTableRow::CanToggleShowInSummary() const
+{	
+	return StackEntry->IsAnyParentInSummaryView() == false && StackEntry->IsAnyChildInSummaryView() == false && StackEntry->ExistsInParentEmitterSummary() == false;
+}
+
+FText SNiagaraStackTableRow::GetToggleShowSummaryActionTooltip() const
+{
+	if(CanToggleShowInSummary())
 	{
-		UNiagaraStackFunctionInput* ParentInput = FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(FunctionInput);
-		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(ParentInput);
-	
-		if (Key.IsSet())
-		{
-			TOptional<FFunctionInputSummaryViewMetadata> Metadata = EditorData->GetSummaryViewMetaData(Key.GetValue());
-			return Metadata.IsSet() && Metadata->bVisible;
-		}			
+		return LOCTEXT("CanToggleSummaryStatus", "You can add or remove this item to or from summary view.\nTo view the emitter summary, please collapse the emitter node.");
 	}
 
-	return false;
+	FString ResultMessage;
+	FText CantToggleMessage = LOCTEXT("CantToggleSummaryViewBaseMessage", "You can not add or remove this item due to:\n");
+	FNiagaraHierarchyIdentity Identity = StackEntry->DetermineSummaryIdentity();
+	
+	bool bExistsInParentEmitter = StackEntry->ExistsInParentEmitterSummary();
+	bool bIsAnyParentInSummaryView = StackEntry->IsAnyParentInSummaryView();
+	bool bIsAnyChildInSummaryView = StackEntry->IsAnyChildInSummaryView(true);
+	
+	FText StackEntryAddedInParentEmitter = LOCTEXT("CantToggleSummaryDueToAddedInParentEmitter", "This item was added in the parent emitter and can't me modified.\n");
+	FText ParentStackEntryIsInSummaryText = LOCTEXT("CantToggleSummaryDueToParentStackEntryInSummary", "One of the parent items of this item was already added to the summary view, which prevents you from adding this separately.\nIf you wish to add or remove it, remove the parent item first.\n");
+	FText ChildStackEntryIsInSummaryText = LOCTEXT("CantToggleSummaryDueToChildStackEntryInSummary", "One of the child items of this item was already added to the summary view, which prevents you from adding this separately.\nIf you wish to add or remove it, remove the child item first.\n");
+
+	ResultMessage.Append(CantToggleMessage.ToString());
+	if(bExistsInParentEmitter)
+	{
+		ResultMessage.Append(StackEntryAddedInParentEmitter.ToString());
+	}
+
+	if(bIsAnyParentInSummaryView)
+	{
+		ResultMessage.Append(ParentStackEntryIsInSummaryText.ToString());
+	}
+
+	if(bIsAnyChildInSummaryView)
+	{
+		ResultMessage.Append(ChildStackEntryIsInSummaryText.ToString());
+	}
+
+	ResultMessage.RemoveFromEnd("\n");
+	return FText::FromString(ResultMessage);
+}
+
+bool SNiagaraStackTableRow::DoesItemExistInParentSummary() const
+{
+	return StackEntry->ExistsInParentEmitterSummary();
+}
+
+void SNiagaraStackTableRow::NavigateToSummaryView() const
+{
+	StackEntry->GetSystemViewModel()->FocusTab(FName("NiagaraSystemEditor_SummaryViewHierarchyEditor"), true);
+	StackEntry->GetEmitterViewModel()->GetSummaryHierarchyViewModel()->SetActiveHierarchySection(nullptr);
+	StackEntry->GetEmitterViewModel()->GetSummaryHierarchyViewModel()->NavigateToItemInHierarchy(StackEntry->DetermineSummaryIdentity());
+}
+
+TSubclassOf<UNiagaraHierarchyItemBase> SNiagaraStackTableRow::DetermineHierarchyClassForSummaryView() const
+{
+	if(UNiagaraStackFunctionInput* FunctionInput = Cast<UNiagaraStackFunctionInput>(StackEntry))
+	{
+		if(FunctionInput->GetInputFunctionCallNode().IsA<UNiagaraNodeAssignment>())
+		{
+			return UNiagaraHierarchyAssignmentInput::StaticClass();
+		}
+		
+		return UNiagaraHierarchyModuleInput::StaticClass();
+	}
+	else if(StackEntry->IsA<UNiagaraStackModuleItem>())
+	{
+		return UNiagaraHierarchyModule::StaticClass();
+	}
+	else if(StackEntry->IsA<UNiagaraStackRendererItem>())
+	{
+		return UNiagaraHierarchyRenderer::StaticClass();
+	}
+	else if(StackEntry->IsA<UNiagaraStackPropertyRow>())
+	{
+		return UNiagaraHierarchyObjectProperty::StaticClass();
+	}
+	else if(StackEntry->IsA<UNiagaraStackSimulationStageGroup>())
+	{
+		return UNiagaraHierarchySimStage::StaticClass();
+	}
+	else if(StackEntry->IsA<UNiagaraStackSimulationStagePropertiesItem>())
+	{
+		return UNiagaraHierarchySimStageProperties::StaticClass();
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

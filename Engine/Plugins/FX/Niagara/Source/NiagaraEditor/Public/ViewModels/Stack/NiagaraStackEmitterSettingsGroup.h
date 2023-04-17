@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraEmitter.h"
+#include "NiagaraStackSummaryViewInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "NiagaraStackEmitterSettingsGroup.generated.h"
@@ -10,7 +11,6 @@
 class FNiagaraEmitterViewModel;
 class FNiagaraScriptViewModel;
 class UNiagaraStackObject;
-class UNiagaraStackSummaryViewObject;
 class IDetailTreeNode;
 
 UCLASS()
@@ -70,8 +70,10 @@ public:
 	virtual bool GetShouldShowInOverview() const override { return false; }
 
 	virtual bool SupportsEditMode() const override { return true; }
-	virtual bool GetEditModeIsActive() const override;
-	virtual void SetEditModeIsActive(bool bInEditModeIsActive) override;
+	virtual void OnEditButtonClicked() override;
+	virtual TOptional<FText> GetEditModeButtonText() const override;
+	virtual TOptional<FText> GetEditModeButtonTooltip() const override;
+	virtual EVisibility IsEditButtonVisible() const override;
 
 protected:
 
@@ -84,10 +86,7 @@ private:
 	FVersionedNiagaraEmitterWeakPtr Emitter;
 
 	UPROPERTY()
-	TObjectPtr<UNiagaraStackSummaryViewObject> FilteredObject;
-
-	UPROPERTY()
-	TObjectPtr<UNiagaraStackObject> SummaryEditorData;
+	TObjectPtr<UNiagaraStackSummaryViewCollection> FilteredObject;
 };
 
 UCLASS()

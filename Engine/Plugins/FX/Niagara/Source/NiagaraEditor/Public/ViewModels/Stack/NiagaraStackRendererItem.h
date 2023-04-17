@@ -23,7 +23,8 @@ public:
 	void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraRendererProperties* InRendererProperties);
 
 	UNiagaraRendererProperties* GetRendererProperties();
-
+	const UNiagaraRendererProperties* GetRendererProperties() const;
+	
 	virtual FText GetDisplayName() const override;
 
 	virtual bool SupportsCut() const override { return true; }
@@ -49,6 +50,9 @@ public:
 	virtual bool SupportsInheritance() const override { return true; }
 	virtual bool GetIsInherited() const override;
 	virtual FText GetInheritanceMessage() const override;
+
+	virtual bool SupportsSummaryView() const override { return true; }
+	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 	
 	virtual bool SupportsRename() const override { return true; }
 

@@ -23,6 +23,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/SWindow.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/HierarchyEditor/NiagaraSummaryViewViewModel.h"
 
 #define LOCTEXT_NAMESPACE "EmitterEditorViewModel"
 
@@ -40,6 +41,7 @@ namespace NiagaraCommands
 FNiagaraEmitterViewModel::FNiagaraEmitterViewModel(bool bInIsForDataProcessingOnly)
 	: EmitterWeakPtr(FVersionedNiagaraEmitterWeakPtr(nullptr, FGuid()))
 	, SharedScriptViewModel(MakeShareable(new FNiagaraScriptViewModel(LOCTEXT("SharedDisplayName", "Graph"), ENiagaraParameterEditMode::EditAll, bInIsForDataProcessingOnly)))
+	, SummaryViewHierarchyViewModel(NewObject<UNiagaraSummaryViewViewModel>())
 	, bUpdatingSelectionInternally(false)
 	, ExecutionStateEnum(StaticEnum<ENiagaraExecutionState>())
 {	
@@ -64,6 +66,17 @@ void FNiagaraEmitterViewModel::Cleanup()
 		SharedScriptViewModel.Reset();
 	}
 
+	if(SummaryViewHierarchyViewModel != nullptr)
+	{
+		SummaryViewHierarchyViewModel->Finalize();
+		SummaryViewHierarchyViewModel = nullptr;
+	}
+
+	if(EmitterWeakPtr.IsValid())
+	{
+		GetOrCreateEditorData().OnPersistentDataChanged().RemoveAll(this);
+	}
+
 	RemoveScriptEventHandlers();
 }
 
@@ -71,13 +84,17 @@ bool FNiagaraEmitterViewModel::Initialize(const FVersionedNiagaraEmitter& InEmit
 {
 	SetEmitter(InEmitter);
 	SetSimulation(InSimulation);
-	bSummaryIsInEditMode = false;
+	SummaryViewHierarchyViewModel->Initialize(AsShared());
+	SummaryViewHierarchyViewModel->OnHierarchyChanged().AddSP(this, &FNiagaraEmitterViewModel::OnSummaryViewHierarchyChanged);
+	SummaryViewHierarchyViewModel->OnHierarchyPropertiesChanged().AddSP(this, &FNiagaraEmitterViewModel::OnSummaryViewHierarchyChanged);
 	return true;
 }
 
 void FNiagaraEmitterViewModel::Reset()
 {
 	SetEmitter(FVersionedNiagaraEmitter());
+	SummaryViewHierarchyViewModel->OnHierarchyChanged().RemoveAll(this);
+	SummaryViewHierarchyViewModel->OnHierarchyPropertiesChanged().RemoveAll(this);
 	SetSimulation(nullptr);
 }
 
@@ -300,6 +317,11 @@ FText FNiagaraEmitterViewModel::GetStatsText() const
 TSharedRef<FNiagaraScriptViewModel> FNiagaraEmitterViewModel::GetSharedScriptViewModel()
 {
 	return SharedScriptViewModel.ToSharedRef();
+}
+
+UNiagaraSummaryViewViewModel* FNiagaraEmitterViewModel::GetSummaryHierarchyViewModel()
+{
+	return SummaryViewHierarchyViewModel;
 }
 
 const UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetEditorData() const
@@ -579,6 +601,24 @@ void FNiagaraEmitterViewModel::OnEmitterPropertiesChanged()
 		// When the properties change we reset the scripts on the script view model because gpu/cpu or interpolation may have changed.
 		SharedScriptViewModel->SetScripts(EmitterWeakPtr.ResolveWeakPtr());
 		OnPropertyChangedDelegate.Broadcast();
+	}
+}
+
+void FNiagaraEmitterViewModel::OnSummaryViewHierarchyChanged()
+{
+	GetOrCreateEditorData().OnPersistentDataChanged().Broadcast();
+}
+
+FString FNiagaraEmitterViewModel::GetReferencerName() const
+{
+	return TEXT("EmitterViewModel");
+}
+
+void FNiagaraEmitterViewModel::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if(SummaryViewHierarchyViewModel != nullptr)
+	{
+		Collector.AddReferencedObject(SummaryViewHierarchyViewModel);
 	}
 }
 

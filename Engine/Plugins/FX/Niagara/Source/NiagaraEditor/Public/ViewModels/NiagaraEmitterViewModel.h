@@ -24,6 +24,7 @@ class FNiagaraEmitterHandleViewModel;
 struct FNiagaraEventScriptProperties;
 class UNiagaraScriptVariable;
 class UNiagaraParameterDefinitions;
+class UNiagaraSummaryViewViewModel;
 
 
 /** The view model for the UNiagaraEmitter objects */
@@ -31,6 +32,7 @@ class FNiagaraEmitterViewModel
 	: public TSharedFromThis<FNiagaraEmitterViewModel>
 	, public TNiagaraViewModelManager<UNiagaraEmitter, FNiagaraEmitterViewModel>
 	, public INiagaraParameterDefinitionsSubscriberViewModel
+	, public FGCObject
 {
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnEmitterChanged);
@@ -90,7 +92,9 @@ public:
 	
 	/** Geta a view model for the update/spawn Script. */
 	TSharedRef<FNiagaraScriptViewModel> GetSharedScriptViewModel();
-	
+
+	NIAGARAEDITOR_API UNiagaraSummaryViewViewModel* GetSummaryHierarchyViewModel();
+
 	/* Get the latest status of this view-model's script compilation.*/
 	ENiagaraScriptCompileStatus GetLatestCompileStatus();
 
@@ -121,9 +125,6 @@ public:
 	/** Add an event script to the owned emitter. Sets the Usage, UsageID and Source of the EventScriptProperties. */
 	NIAGARAEDITOR_API void AddEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, bool bResetGraphForOutput = false);
 
-	bool GetSummaryIsInEditMode() const { return bSummaryIsInEditMode; }
-	void SetSummaryIsInEditMode(bool bInSummaryIsInEditMode) { bSummaryIsInEditMode = bInSummaryIsInEditMode; }
-
 	void Cleanup();
 
 	/** When the parent emitter version is changed, this is set to generate the changelist in the stack. */
@@ -149,6 +150,11 @@ private:
 
 	void OnEmitterPropertiesChanged();
 
+	void OnSummaryViewHierarchyChanged();
+	
+	virtual FString GetReferencerName() const override;
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	
 	/** The text format stats display .*/
 	static const FText StatsFormat;
 
@@ -166,6 +172,8 @@ private:
 	
 	/** The view model for the update/spawn/event script. */
 	TSharedPtr<FNiagaraScriptViewModel> SharedScriptViewModel;
+
+	UNiagaraSummaryViewViewModel* SummaryViewHierarchyViewModel;
 
 	/** A flag to prevent reentrancy when updating selection sets. */
 	bool bUpdatingSelectionInternally;
@@ -197,6 +205,4 @@ private:
 	TMap<FObjectKey, FDelegateHandle> ScriptToOnParameterStoreChangedHandleMap;
 
 	TSharedPtr<SWindow> NewParentWindow;
-
-	bool bSummaryIsInEditMode;
 };

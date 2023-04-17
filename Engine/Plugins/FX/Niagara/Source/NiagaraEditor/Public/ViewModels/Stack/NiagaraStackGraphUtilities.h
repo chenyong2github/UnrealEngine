@@ -4,10 +4,10 @@
 
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
+#include "NiagaraParameterMapHistory.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "AssetRegistry/AssetData.h"
-#include "NiagaraStackEditorData.h"
 
 struct FNiagaraHierarchyIdentity;
 class UEdGraph;
@@ -30,6 +30,7 @@ class UNiagaraStackErrorItem;
 class FCompileConstantResolver;
 class INiagaraMessage;
 class FNiagaraParameterMapHistoryBuilder;
+class UNiagaraHierarchyModuleInput;
 struct FNiagaraStackModuleData;
 struct FNiagaraModuleDependency;
 
@@ -49,6 +50,9 @@ namespace FNiagaraStackGraphUtilities
 	void GetOrderedModuleNodes(UNiagaraNodeOutput& OutputNode, TArray<UNiagaraNodeFunctionCall*>& ModuleNodes);
 	TArray<UNiagaraNodeFunctionCall*> GetAllModuleNodes(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
 	TArray<UNiagaraNodeFunctionCall*> GetAllModuleNodes(UNiagaraGraph* Graph);
+
+	TArray<UNiagaraNodeFunctionCall*> GetAllSimStagesModuleNodes(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	TArray<UNiagaraNodeFunctionCall*> GetAllEventHandlerModuleNodes(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
 
 	UNiagaraNodeFunctionCall* GetPreviousModuleNode(UNiagaraNodeFunctionCall& CurrentNode);
 
@@ -89,6 +93,18 @@ namespace FNiagaraStackGraphUtilities
 	TArray<FName> StackContextResolution(FVersionedNiagaraEmitter OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain);
 	void BuildParameterMapHistoryWithStackContextResolution(FVersionedNiagaraEmitter OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain, UNiagaraNode* NodeToVisit, FNiagaraParameterMapHistoryBuilder& Builder, bool bRecursive = true, bool bFilterForCompilation = true);
 
+	struct FInputDataCollection
+	{
+		TMap<FGuid, UNiagaraNodeFunctionCall*> NodeGuidToModuleNodeMap;
+		TMap<UNiagaraHierarchyModuleInput*, FNiagaraVariable> HierarchyInputToAssignmentMap;
+		TMap<UNiagaraHierarchyModuleInput*, TObjectPtr<UNiagaraScriptVariable>> HierarchyInputToScriptVariableMap;
+		/** These two aren't currently in use as children inputs are handled manually by the author */
+		TMap<UNiagaraHierarchyModuleInput*, TArray<FGuid>> HierarchyInputToChildrenGuidMap;
+		TMap<FGuid, TObjectPtr<UNiagaraScriptVariable>> ChildrenGuidToScriptVariablesMap;
+	};
+	
+	void GatherInputRelationsForStack(FInputDataCollection& State, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+
 	enum class ENiagaraGetStackFunctionInputPinsOptions
 	{
 		AllInputs,
@@ -119,14 +135,55 @@ namespace FNiagaraStackGraphUtilities
 		FName InputName;
 		FNiagaraTypeDefinition Type;
 		FNiagaraVariableMetaData MetaData;
+		bool bIsHidden;
+		bool bIsStatic;
 		UNiagaraNodeFunctionCall* FunctionCallNode = nullptr;
 		TArray<FGuid> ChildrenInputGuids;
+		TArray<FGuid> HiddenChildrenInputGuids;
 	};
 
+	struct FInputDataCacheKey
+	{
+		FInputDataCacheKey(FGuid InNodeGuid, FGuid InVariableGuid) : NodeGuid(InNodeGuid), VariableGuid(InVariableGuid)	{}
+		
+		FGuid NodeGuid;
+		FGuid VariableGuid;
+		
+		bool operator==(const FInputDataCacheKey& OtherKey) const
+		{
+			return NodeGuid == OtherKey.NodeGuid && VariableGuid == OtherKey.VariableGuid;
+		}
+
+		bool operator!=(const FInputDataCacheKey& OtherKey) const
+		{
+			return !(*this == OtherKey);
+		}
+	};
+
+	FORCEINLINE uint32 GetTypeHash(const FInputDataCacheKey& InputDataCacheKey)
+	{
+		uint32 Hash = 0;
+		HashCombine(Hash, GetTypeHash(InputDataCacheKey.NodeGuid));
+		HashCombine(Hash, GetTypeHash(InputDataCacheKey.VariableGuid));
+		return Hash;
+	}
+
 	UNiagaraNodeFunctionCall* FindModuleNode(FGuid ModuleNodeGuid, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	UNiagaraNodeAssignment* FindAssignmentNode(FGuid AssignmentNodeGuid, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	UNiagaraNodeFunctionCall* FindDynamicInputNodeForInput(UNiagaraNodeFunctionCall& OwningFunctionNode, FName UnaliasedParameterName);
+	/** When you have the guid of the node available, we don't need to traverse pins and can just look up the correct node directly. */
+	UNiagaraNodeFunctionCall* FindFunctionCallNode(FGuid FunctionCallGuid, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	TArray<UNiagaraNodeFunctionCall*> FindModuleNodesForSimulationStage(UNiagaraSimulationStageBase& SimStage, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	TArray<UNiagaraNodeFunctionCall*> FindModuleNodesForEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
 	TOptional<FMatchingFunctionInputData> FindInputData(FNiagaraHierarchyIdentity ModuleInputIdentity, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
-	TOptional<FMatchingFunctionInputData> FindInputData(const UNiagaraNodeFunctionCall& FunctionCallNode, FGuid InputGuid, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel, bool bIncludeChildrenInputs = true);
+	/** A more optimized version of the function above. Assumes you already have the correct node. */
+	TOptional<FMatchingFunctionInputData> FindInputData(const UNiagaraNodeFunctionCall& FunctionCallNode, FNiagaraHierarchyIdentity InputIdentity, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	TOptional<FMatchingFunctionInputData> FindAssignmentInputData(const UNiagaraNodeAssignment& AssignmentNode, FName VariableName, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	/** Finds the input data for a given function call node and a variable guid. An optional cache can be used that, if specified, will be used to get variable data if found and if not, will write into the cache
+	 * This also means maintaining the cache becomes the responsibility of the caller */
+	TOptional<FMatchingFunctionInputData> FindModuleInputData(const UNiagaraNodeFunctionCall& FunctionCallNode, FGuid VariableGuid, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel, bool bIncludeChildrenInputs = true, TMap<FInputDataCacheKey, FMatchingFunctionInputData>* OptionalCache = nullptr);
 	TArray<FGuid> GetChildrenInputGuids(const UNiagaraNodeFunctionCall& FunctionCallNode, FName ParentInputName);
+	TSet<FGuid> GetHiddenChildrenInputGuids(const UNiagaraNodeFunctionCall& FunctionCallNode, FName ParentInput, TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
 	
 	/* Module script calls do not have direct inputs, but rely on the parameter map being initialized correctly. This utility function resolves which of the module's parameters are reachable during compilation and returns a list of pins on the parameter map node that do not have to be compiled. */
 	TArray<UEdGraphPin*> GetUnusedFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, FCompileConstantResolver ConstantResolver);

@@ -10,6 +10,7 @@
 #include "Styling/SlateTypes.h"
 #include "Layout/Visibility.h"
 
+class UNiagaraHierarchyItemBase;
 class UNiagaraStackViewModel;
 class UNiagaraStackEntry;
 class FNiagaraStackCommandContext;
@@ -87,10 +88,15 @@ private:
 
 	void NavigateTo(UNiagaraStackEntry* Item);
 
-	bool IsValidForSummaryView() const;
-	void ToggleShowInSummaryView();
-	bool ShouldShowInSummaryView() const;
+	void ToggleShowInSummaryView() const;
+	bool IsStackEntryInSummary() const;
+	bool CanToggleShowInSummary() const;
+	FText GetToggleShowSummaryActionTooltip() const;
+	bool DoesItemExistInParentSummary() const;
 
+	void NavigateToSummaryView() const;
+	
+	TSubclassOf<UNiagaraHierarchyItemBase> DetermineHierarchyClassForSummaryView() const;
 private:
 	UNiagaraStackViewModel* StackViewModel;
 	UNiagaraStackEntry* StackEntry;

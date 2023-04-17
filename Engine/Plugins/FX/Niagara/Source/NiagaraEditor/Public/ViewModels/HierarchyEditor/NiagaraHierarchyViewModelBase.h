@@ -7,6 +7,9 @@
 #include "PropertyEditorDelegates.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "ToolMenuSection.h"
+#include "IPropertyRowGenerator.h"
+#include "Misc/TransactionObjectEvent.h"
+#include "ScopedTransaction.h"
 #include "NiagaraHierarchyViewModelBase.generated.h"
 
 USTRUCT()
@@ -25,6 +28,11 @@ struct FNiagaraHierarchyIdentity
 	UPROPERTY()
 	TArray<FName> Names;
 
+	bool IsValid() const
+	{
+		return Guids.Num() > 0 || Names.Num() > 0;
+	}
+	
 	bool operator==(const FNiagaraHierarchyIdentity& OtherIdentity) const
 	{
 		if(Guids.Num() != OtherIdentity.Guids.Num() || Names.Num() != OtherIdentity.Names.Num())
@@ -50,10 +58,42 @@ struct FNiagaraHierarchyIdentity
 
 		return true;
 	}
+
+	bool operator!=(const FNiagaraHierarchyIdentity& OtherIdentity) const
+	{
+		return !(*this == OtherIdentity);
+	}
+};
+
+FORCEINLINE uint32 GetTypeHash(const FNiagaraHierarchyIdentity& Identity)
+{
+	uint32 Hash = 0;
+	
+	for(const FGuid& Guid : Identity.Guids)
+	{
+		HashCombine(Hash, GetTypeHash(Guid));
+	}
+	
+	for(const FName& Name : Identity.Names)
+	{
+		HashCombine(Hash, GetTypeHash(Name));
+	}
+	
+	return Hash;
+}
+
+/** A base class that is used to refresh data that represents external data. Inherit from this class if you need more context data. */
+UCLASS()
+class UNiagaraHierarchyDataRefreshContext : public UObject
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	TMap<FNiagaraHierarchyIdentity, TObjectPtr<UObject>> IdentityToObjectMap;
 };
 
 UCLASS()
-class UNiagaraHierarchyItemBase : public UObject
+class NIAGARAEDITOR_API UNiagaraHierarchyItemBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -66,6 +106,14 @@ public:
 
 	template<class ChildClass>
 	ChildClass* AddChild();
+
+	UNiagaraHierarchyItemBase* FindChildWithIdentity(FNiagaraHierarchyIdentity ChildIdentity, bool bSearchRecursively = false);
+
+	UNiagaraHierarchyItemBase* CopyAndAddItemAsChild(const UNiagaraHierarchyItemBase& ItemToCopy);
+	UNiagaraHierarchyItemBase* CopyAndAddItemUnderParentIdentity(const UNiagaraHierarchyItemBase& ItemToCopy, FNiagaraHierarchyIdentity ParentIdentity);
+	
+	/** Remove a child with a given identity. Can be searched recursively. This function operates under the assumption there will be only one item with a given identity. */
+	bool RemoveChildWithIdentity(FNiagaraHierarchyIdentity ChildIdentity, bool bSearchRecursively = false);
 	
 	template<class ChildClass>
 	bool DoesOneChildExist(bool bRecursive = false) const;
@@ -73,27 +121,18 @@ public:
 	template<class ChildClass>
 	TArray<ChildClass*> GetChildrenOfType(TArray<ChildClass*>& Out, bool bRecursive = false) const;
 
-	/** Used to clean out unneeded data using the bFinalized flag. */
-	void Refresh();
-
+	template<class PREDICATE_CLASS>
+	void SortChildren(const PREDICATE_CLASS& Predicate, bool bRecursive = false);
+	
 	virtual FString ToString() const { return GetName(); }
-
-	/** Finalize an item to mark it is no longer used and should be deleted. */
-	void Finalize();
-	bool IsFinalized() const { return bFinalized; }
 
 	/** An identity can be optionally set to create a mapping from previously existing guids or names to hierarchy items that represent them. */
 	void SetIdentity(FNiagaraHierarchyIdentity InIdentity) { Identity = InIdentity; }
-	virtual FNiagaraHierarchyIdentity GetPersistentIdentity() const { return Identity; }
+	FNiagaraHierarchyIdentity GetPersistentIdentity() const { return Identity; }
+	TArray<FNiagaraHierarchyIdentity> GetParentIdentities() const;
 	
-	virtual bool CanHaveChildren() const { return false; }
-
 	/** Overridden modify method to also mark all children as modified */
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
-
-protected:
-	/** Called by the public Refresh function. Can be overridden to further customize the refresh process, i.e. refreshing section data in the root. */
-	virtual void RefreshDataInternal() { }
 
 protected:
 	virtual void PostLoad() override;
@@ -107,9 +146,6 @@ protected:
 	/** An optional guid; can be used if hierarchy items represent outside items */
 	UPROPERTY()
 	FGuid Guid_DEPRECATED;
-
-	UPROPERTY(Transient)
-	bool bFinalized = false;
 };
 
 template <class ChildClass>
@@ -168,26 +204,43 @@ TArray<ChildClass*> UNiagaraHierarchyItemBase::GetChildrenOfType(TArray<ChildCla
 	return Out;
 }
 
+template <class PREDICATE_CLASS>
+void UNiagaraHierarchyItemBase::SortChildren(const PREDICATE_CLASS& Predicate, bool bRecursive)
+{
+	Children.Sort(Predicate);
+
+	if(bRecursive)
+	{
+		for(TObjectPtr<UNiagaraHierarchyItemBase> Child : Children)
+		{
+			Child->SortChildren(Predicate, bRecursive);
+		}
+	}
+}
+
 class UNiagaraHierarchySection;
 
 UCLASS()
-class UNiagaraHierarchyRoot : public UNiagaraHierarchyItemBase
+class NIAGARAEDITOR_API UNiagaraHierarchyRoot : public UNiagaraHierarchyItemBase
 {
 	GENERATED_BODY()
 public:
 	UNiagaraHierarchyRoot() {}
 	virtual ~UNiagaraHierarchyRoot() override {}
-	
-	virtual void RefreshDataInternal() override;
-	
-	virtual bool CanHaveChildren() const override { return true; }
-	
-	class UNiagaraHierarchySection* AddSection(FText InNewSectionName);
-	void RemoveSection(FText SectionName);
-	TSet<FName> GetSections() const;
+
 	const TArray<UNiagaraHierarchySection*>& GetSectionData() const { return Sections; }
 	TArray<UNiagaraHierarchySection*>& GetSectionDataMutable() { return Sections; }
+
+	TSet<FName> GetSections() const;
 	int32 GetSectionIndex(UNiagaraHierarchySection* Section) const;
+
+	UNiagaraHierarchySection* AddSection(FText InNewSectionName, int32 InsertIndex = INDEX_NONE);
+	UNiagaraHierarchySection* FindSectionByIdentity(FNiagaraHierarchyIdentity SectionIdentity);
+	/** This will copy the section element itself */
+	void DuplicateSectionFromOtherRoot(const UNiagaraHierarchySection& SectionToCopy);
+	void RemoveSection(FText SectionName);
+	void RemoveSectionByIdentity(FNiagaraHierarchyIdentity SectionIdentity);
+	
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 protected:
 
@@ -196,19 +249,16 @@ protected:
 };
 
 UCLASS()
-class UNiagaraHierarchyItem : public UNiagaraHierarchyItemBase
+class NIAGARAEDITOR_API UNiagaraHierarchyItem : public UNiagaraHierarchyItemBase
 {
 	GENERATED_BODY()
 public:
 	UNiagaraHierarchyItem() {}
 	virtual ~UNiagaraHierarchyItem() override {}
-
-	/** An item is assumed to not have any children. */
-	virtual bool CanHaveChildren() const override { return false; }
 };
 
 UCLASS()
-class UNiagaraHierarchyCategory : public UNiagaraHierarchyItemBase
+class NIAGARAEDITOR_API UNiagaraHierarchyCategory : public UNiagaraHierarchyItemBase
 {
 	GENERATED_BODY()
 public:
@@ -224,10 +274,13 @@ public:
 	void SetSection(UNiagaraHierarchySection* InSection) { Section = InSection; }
 	const UNiagaraHierarchySection* GetSection() const { return Section; }
 
-	virtual bool CanHaveChildren() const override { return true; }
-
 	virtual FString ToString() const override { return Category.ToString(); }
 
+	/** Since the category points to a section object, during merge or copy paste etc. it is possible the section pointer will point at a section from another root.
+	 *  We fix this up by looking through our available sections and match up via persistent identity.
+	 *  This function expects the correct section with the same identity to exist already at the root level
+	 */
+	void FixupSectionLinkage();
 private:
 	UPROPERTY(EditAnywhere, Category = "Category")
 	FName Category;
@@ -241,7 +294,7 @@ private:
 };
 
 UCLASS()
-class UNiagaraHierarchySection : public UNiagaraHierarchyItemBase
+class NIAGARAEDITOR_API UNiagaraHierarchySection : public UNiagaraHierarchyItemBase
 {
 	GENERATED_BODY()
 
@@ -264,6 +317,15 @@ private:
 	/** The tooltip used when the user is hovering this section */
 	UPROPERTY(EditAnywhere, Category = "Section")
 	FText Tooltip;
+};
+
+UCLASS()
+class NIAGARAEDITOR_API UNiagaraHierarchyObjectProperty : public UNiagaraHierarchyItem
+{
+	GENERATED_BODY()
+public:
+	/** To know what object this ObjectProperty is referring to, a persistent guid that can be mapped back to an object is required. */
+	void Initialize(FGuid ObjectGuid, FString PropertyName);
 };
 
 struct FNiagaraHierarchyItemViewModelBase;
@@ -312,45 +374,54 @@ public:
 };
 
 UCLASS(Abstract)
-class UNiagaraHierarchyViewModelBase : public UObject, public FEditorUndoClient
+class UNiagaraHierarchyViewModelBase : public UObject, public FSelfRegisteringEditorUndoClient
 {
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnHierarchyChanged)
-	DECLARE_DELEGATE_OneParam(FRefreshTreeWidget, bool bFullRefresh)
-	DECLARE_DELEGATE_RetVal_OneParam(bool, FIsItemSelected, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)
-	DECLARE_DELEGATE_OneParam(FSelectObjectInDetailsPanel, UObject* Object)
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSectionActivated, TSharedPtr<FNiagaraHierarchySectionViewModel> Section)
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemAdded, TSharedPtr<FNiagaraHierarchyItemViewModelBase> AddedItem)
+	DECLARE_MULTICAST_DELEGATE(FOnHierarchyPropertiesChanged)
+	DECLARE_DELEGATE_OneParam(FOnSectionActivated, TSharedPtr<FNiagaraHierarchySectionViewModel> Section)
+	DECLARE_DELEGATE_OneParam(FOnItemAdded, TSharedPtr<FNiagaraHierarchyItemViewModelBase> AddedItem)
+	DECLARE_DELEGATE_OneParam(FOnRefreshViewRequested, bool bForceFullRefresh)
+	DECLARE_DELEGATE_OneParam(FOnNavigateToItemInHierarchyRequested, FNiagaraHierarchyIdentity Identity)
 
 	GENERATED_BODY()
-	
+
 	UNiagaraHierarchyViewModelBase();
 	virtual ~UNiagaraHierarchyViewModelBase() override;
 
 	void Initialize();
 	void Finalize();
-
+	
 	void AddCategory() const;
 	void AddSection() const;
 
+	NIAGARAEDITOR_API void DeleteItemWithIdentity(FNiagaraHierarchyIdentity Identity);
+	NIAGARAEDITOR_API void DeleteItemsWithIdentities(TArray<FNiagaraHierarchyIdentity> Identities);
+
+	NIAGARAEDITOR_API void NavigateToItemInHierarchy(const FNiagaraHierarchyIdentity& NiagaraHierarchyIdentity);
+
 	/** Refreshes all data and widgets */
 	void ForceFullRefresh();
+	void ForceFullRefreshOnTimer();
+	void RequestFullRefreshNextFrame();
 
 	/** The hierarchy root the widget is editing. This should point to persistent data stored somewhere else as the serialized root of the hierarchy. */
-	virtual UNiagaraHierarchyRoot* GetHierarchyDataRoot() const PURE_VIRTUAL(UNiagaraHierarchyViewModelBase::GetHierarchyDataRoot, return nullptr;);
-	TSharedPtr<struct FNiagaraHierarchyRootViewModel> GetHierarchyViewModelRoot() const { return HierarchyViewModelRoot; }
-
+	virtual UNiagaraHierarchyRoot* GetHierarchyRoot() const PURE_VIRTUAL(UNiagaraHierarchyViewModelBase::GetHierarchyRoot, return nullptr;);
+	TSharedPtr<struct FNiagaraHierarchyRootViewModel> GetHierarchyRootViewModel() const { return HierarchyRootViewModel; }
+	
 	/** This function will create the view model for a given item. Override to customize view model behavior by providing custom classes. */
 	virtual TSharedPtr<FNiagaraHierarchyItemViewModelBase> CreateViewModelForData(UNiagaraHierarchyItemBase* ItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Parent);
 	
-	/** Source items reflect the base, unedited status of items to edit into a hierarchy */
-	const TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& GetSourceItems() const;
 	/** Hierarchy items reflect the already edited hierarchy. This should generally be constructed from persistent serialized data. */
 	const TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& GetHierarchyItems() const;
 	
-	/** Prepares the items we want to create a hierarchy for. The idea is to Drag & Drop these into the hierarchy or click on them to edit details.  */
-	virtual void PrepareSourceItems() PURE_VIRTUAL(UNiagaraHierarchyViewModelBase::PrepareSourceItems,);
-
+	const UNiagaraHierarchyDataRefreshContext* GetRefreshContext() const { return RefreshContext; }
+	void SetRefreshContext(UNiagaraHierarchyDataRefreshContext* InContext) { RefreshContext = InContext; }
+	
+	/** Prepares the items we want to create a hierarchy for. Primary purpose is to add children to the source root to gather the items to display in the source panel.
+	 * The root view model is also given as a way to forcefully sync view models to access additional functionality, if needed */
+	virtual void PrepareSourceItems(UNiagaraHierarchyRoot* SourceRoot, TSharedPtr<FNiagaraHierarchyRootViewModel> SourceRootViewModel) PURE_VIRTUAL(UNiagaraHierarchyViewModelBase::PrepareSourceItems,);
+	
 	/** Additional commands can be specified overriding the Commands function. */
 	virtual void SetupCommands() {}
 	TSharedRef<FUICommandList> GetCommands() const { return Commands.ToSharedRef(); }
@@ -358,80 +429,108 @@ public:
 	/** Function to implement for custom drag drop ops. */
 	virtual TSharedRef<FNiagaraHierarchyDragDropOp> CreateDragDropOp(TSharedRef<FNiagaraHierarchyItemViewModelBase> Item) PURE_VIRTUAL(UNiagaraHierarchyViewModelBase::CreateDragDropOp, return MakeShared<FNiagaraHierarchyDragDropOp>(nullptr););
 	
-	virtual void OnSelectionChanged(TSharedPtr<FNiagaraHierarchyItemViewModelBase> HierarchyItem) {}
-	
 	void OnGetChildren(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item, TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& OutChildren) const;
 	
 	virtual bool SupportsDetailsPanel() { return false; }
 	// Overriding this will give the details panel instance customizations for specific UClasses
 	virtual TArray<TTuple<UClass*, FOnGetDetailCustomizationInstance>> GetInstanceCustomizations() { return {}; }
-	
+
+	void RefreshAllViews(bool bFullRefresh = false) const;
 	void RefreshSourceView(bool bFullRefresh = false) const;
 	void RefreshHierarchyView(bool bFullRefresh = false) const;
-	void RefreshSectionsWidget() const;
+	void RefreshSectionsView() const;
 	
 	// Delegate that call functions from SNiagaraHierarchy
-	FRefreshTreeWidget& OnRefreshSourceView() { return RefreshSourceViewDelegate; }
-	FRefreshTreeWidget& OnRefreshHierarchyView() { return RefreshHierarchyWidgetDelegate; }
-	FSimpleDelegate& OnRefreshSections() { return RefreshSectionsWidgetDelegate; }
+	FSimpleDelegate& OnRefreshSourceItemsRequested() { return RefreshSourceItemsRequestedDelegate; }
+	FOnRefreshViewRequested& OnRefreshSourceView() { return RefreshSourceViewDelegate; }
+	FOnRefreshViewRequested& OnRefreshHierarchyView() { return RefreshHierarchyWidgetDelegate; }
+	FSimpleDelegate& OnRefreshSectionsView() { return RefreshSectionsViewDelegate; }
 
 	// Delegates for external systems
 	FOnHierarchyChanged& OnHierarchyChanged() { return OnHierarchyChangedDelegate; } 
-
+	FOnHierarchyChanged& OnHierarchyPropertiesChanged() { return OnHierarchyPropertiesChangedDelegate; } 
 	FOnItemAdded& OnItemAdded() { return OnItemAddedDelegate; }
+	FOnRefreshViewRequested& OnRefreshViewRequested() { return RefreshAllViewsRequestedDelegate; }
+	FOnNavigateToItemInHierarchyRequested& OnNavigateToItemInHierarchyRequested() { return OnNavigateToItemInHierarchyRequestedDelegate; }
+	FSimpleDelegate& OnInitialized() { return OnInitializedDelegate; }
 	
 	// Sections
-	void SetActiveSection(TSharedPtr<struct FNiagaraHierarchySectionViewModel>);
-	TSharedPtr<FNiagaraHierarchySectionViewModel> GetActiveSection() const;
-	UNiagaraHierarchySection* GetActiveSectionData() const;
-	bool IsSectionActive(const UNiagaraHierarchySection* Section) const;
-	FOnSectionActivated& OnSectionActivated() { return OnSectionActivatedDelegate; }
-	
-	FString OnItemToStringDebug(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemBaseViewModel) const; 
+	NIAGARAEDITOR_API void SetActiveHierarchySection(TSharedPtr<struct FNiagaraHierarchySectionViewModel>);
+	TSharedPtr<FNiagaraHierarchySectionViewModel> GetActiveHierarchySection() const;
+	UNiagaraHierarchySection* GetActiveHierarchySectionData() const;
+	bool IsHierarchySectionActive(const UNiagaraHierarchySection* Section) const;
+	FOnSectionActivated& OnHierarchySectionActivated() { return OnHierarchySectionActivatedDelegate; }
+
+	FString OnItemToStringDebug(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemBaseViewModel) const;
+
+	const TArray<TSharedRef<IDetailTreeNode>>& RequestDetailTreeNodesForObject(UObject* Object);
 protected:
 	virtual void InitializeInternal() {}
 	virtual void FinalizeInternal() {}
 	
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
-protected:
-	UPROPERTY()
-	TObjectPtr<UNiagaraHierarchyRoot> SourceRoot;
 
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
+private:
+	bool FilterForHierarchySection(TSharedPtr<const FNiagaraHierarchyItemViewModelBase> ItemViewModel) const;
+	bool FilterForUncategorizedRootItemsInAllSection(TSharedPtr<const FNiagaraHierarchyItemViewModelBase> ItemViewModel) const;
+protected:
 	UPROPERTY()
 	TObjectPtr<UNiagaraHierarchyRoot> HierarchyRoot;
+	
+	TSharedPtr<struct FNiagaraHierarchyRootViewModel> HierarchyRootViewModel;
 
-	TSharedPtr<struct FNiagaraHierarchyRootViewModel> SourceViewModelRoot;
-	TSharedPtr<struct FNiagaraHierarchyRootViewModel> HierarchyViewModelRoot;
+	TWeakPtr<struct FNiagaraHierarchySectionViewModel> ActiveHierarchySection;
 
-	TWeakPtr<struct FNiagaraHierarchySectionViewModel> ActiveSection;
 	TSharedPtr<FUICommandList> Commands;
 
+	TMap<UObject*, TSharedRef<IPropertyRowGenerator>> ObjectToPropertyRowGeneratorMap;
+	TMap<UObject*, TArray<TSharedRef<IDetailTreeNode>>> ObjectTreeNodeMap;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraHierarchyDataRefreshContext> RefreshContext = nullptr;
+	
 protected:
 	// delegate collection to call UI functions
-	FRefreshTreeWidget RefreshSourceViewDelegate;
-	FRefreshTreeWidget RefreshHierarchyWidgetDelegate;
-	FSimpleDelegate RefreshSectionsWidgetDelegate;
-
+	FSimpleDelegate RefreshSourceItemsRequestedDelegate;
+	FOnRefreshViewRequested RefreshAllViewsRequestedDelegate;
+	FOnRefreshViewRequested RefreshSourceViewDelegate;
+	FOnRefreshViewRequested RefreshHierarchyWidgetDelegate;
+	FSimpleDelegate RefreshSectionsViewDelegate;
+	FOnNavigateToItemInHierarchyRequested OnNavigateToItemInHierarchyRequestedDelegate;
+	
 	FOnItemAdded OnItemAddedDelegate;
-	FOnSectionActivated OnSectionActivatedDelegate;
+	FOnSectionActivated OnHierarchySectionActivatedDelegate;
+	FOnSectionActivated OnSourceSectionActivatedDelegate;
 	FOnHierarchyChanged OnHierarchyChangedDelegate;
+	FOnHierarchyPropertiesChanged OnHierarchyPropertiesChangedDelegate;
+	
+	FSimpleDelegate OnInitializedDelegate;
+
+	FTimerHandle FullRefreshNextFrameHandle;
 };
 
 struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FNiagaraHierarchyItemViewModelBase>, public FTickableEditorObject
 {
-	DECLARE_MULTICAST_DELEGATE(FOnSynced)
-
-	FNiagaraHierarchyItemViewModelBase(UNiagaraHierarchyItemBase* InItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel)
+	DECLARE_DELEGATE(FOnSynced)
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnFilterChild, const TSharedPtr<const FNiagaraHierarchyItemViewModelBase> Child);
+	DECLARE_DELEGATE_OneParam(FOnChildRequestedDeletion, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child)
+	
+	FNiagaraHierarchyItemViewModelBase(UNiagaraHierarchyItemBase* InItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel, bool bInIsForHierarchy)
 		: ItemBase(InItemBase)
 		, Parent(InParent)
 		, HierarchyViewModel(InHierarchyViewModel)
+		, bIsForHierarchy(bInIsForHierarchy)
 	{		
 		
 	}
-	
-	virtual ~FNiagaraHierarchyItemViewModelBase() {}
 
+	/** Can be implemented for additional logic that the constructor isn't valid for. */
+	virtual void Initialize() {}
+	
+	virtual ~FNiagaraHierarchyItemViewModelBase() override;
+	
 	UNiagaraHierarchyItemBase* GetDataMutable() const { return ItemBase; }
 	const UNiagaraHierarchyItemBase* GetData() const { return ItemBase; }
 	
@@ -440,54 +539,83 @@ struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FN
 	
 	template<class T>
 	const T* GetData() const { return Cast<T>(ItemBase); }
-
+	
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
 	
 	virtual FString ToString() const { return ItemBase->ToString(); }
-	
-	void SyncToData();
+	FText ToStringAsText() const { return FText::FromString(ToString()); }
+	virtual TArray<FString> GetSearchTerms() const { return {ToString()} ;}
+
+	void RefreshChildrenData();
+	void SyncViewModelsToData();
 	const TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& GetChildren() const { return Children; }
+	TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& GetChildrenMutable() { return Children; }
 	const TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>& GetFilteredChildren() const;
 
+	void AddChildFilter(FOnFilterChild InFilterChild);
+	
 	template<class DataClass, class ViewModelChildClass>
 	void GetChildrenViewModelsForType(TArray<TSharedPtr<ViewModelChildClass>>& OutChildren, bool bRecursive = false);
-
+	
 	bool HasParent(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ParentCandidate, bool bRecursive = false);
 
 	void AddChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item);
 	TSharedPtr<FNiagaraHierarchyItemViewModelBase> AddNewItem(TSubclassOf<UNiagaraHierarchyItemBase> NewItemClass);
-	void DuplicateToThis(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemToDuplicate, int32 InsertIndex = INDEX_NONE);
-	void ReparentToThis(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemToMove, int32 InsertIndex = INDEX_NONE);
+	TSharedRef<FNiagaraHierarchyItemViewModelBase> DuplicateToThis(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemToDuplicate, int32 InsertIndex = INDEX_NONE);
+	TSharedRef<FNiagaraHierarchyItemViewModelBase> ReparentToThis(TSharedPtr<FNiagaraHierarchyItemViewModelBase> ItemToMove, int32 InsertIndex = INDEX_NONE);
 
-	TSharedPtr<FNiagaraHierarchyItemViewModelBase> FindViewModelForChild(UNiagaraHierarchyItemBase* Child) const;
-	int32 FindIndexOfChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child) const;
+	TSharedPtr<FNiagaraHierarchyItemViewModelBase> FindViewModelForChild(UNiagaraHierarchyItemBase* Child, bool bSearchRecursively = false) const;
+	TSharedPtr<FNiagaraHierarchyItemViewModelBase> FindViewModelForChild(FNiagaraHierarchyIdentity ChildIdentity, bool bSearchRecursively = false) const;
 	int32 FindIndexOfChild(UNiagaraHierarchyItemBase* Child) const;
 	int32 FindIndexOfDataChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child) const;
 	int32 FindIndexOfDataChild(UNiagaraHierarchyItemBase* Child) const;
 
-	/** Deleting will finalize as well, but is a user triggered action whereas Finalize is an internal call. */
+	UNiagaraHierarchyItemBase* AddChild(TSubclassOf<UNiagaraHierarchyItemBase> NewChildClass, FNiagaraHierarchyIdentity ChildIdentity);
+	
+	/** Deleting will ask the parent to delete its child */
 	void Delete();
-	/** Finalizing the view model will finalize the data & the children as well as handle cleanup. */
-	void Finalize();
+	void DeleteChild(TSharedPtr<FNiagaraHierarchyItemViewModelBase> Child);
 
 	TWeakObjectPtr<UNiagaraHierarchyViewModelBase> GetHierarchyViewModel() const { return HierarchyViewModel; }
-	
-	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item)
+
+	/** Returns a set result if the item can accept a drop either above/onto/below the item.  */
+	TOptional<EItemDropZone> OnCanRowAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item);
+	virtual FReply OnDroppedOnRow(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item);
+	void OnRowDragLeave(const FDragDropEvent& DragDropEvent);
+
+	struct FCanPerformActionResults
 	{
-		return FReply::Unhandled();
-	}
+		FCanPerformActionResults(bool bInCanPerform) : bCanPerform(bInCanPerform) {}
+		
+		bool bCanPerform = false;
+		/** A message that is used when bCanPerform is false. Will either be used in tooltips in the hierarchy editor or as popup message. */
+		FText CanPerformMessage;
 
-	TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item);
-	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone);
+		bool operator==(const bool& bOther) const
+		{
+			return bCanPerform == bOther;
+		}
 
-	/** Should return true if draggable */
-	virtual bool CanDrag() { return false; }
+		bool operator!=(const bool& bOther) const
+		{
+			return !(*this==bOther);
+		}
+	};
 
-	/** Should return true if renamable */
-	virtual bool CanRename() { return false; }
+	/** Should return true if properties are supposed to be editable & needs to be true if typical operations should work on it (renaming, dragging, deleting etc.) */
+	virtual FCanPerformActionResults IsEditableByUser() { return FCanPerformActionResults(false); }
+	
+	/** Needs to be true in order to allow drag & drop operations to parent items to this item */
+	virtual bool CanHaveChildren() const { return false; }
+	
+	/** Should return true if an item should be draggable. An uneditable item can not be dragged even if CanDragInternal returns true. */
+	FCanPerformActionResults CanDrag();
+	
+	/** Returns true if renamable */
+	bool CanRename() { return IsEditableByUser().bCanPerform && CanRenameInternal(); }
 
-	virtual bool CanDelete() { return true; }
+	void Rename(FName NewName) { RenameInternal(NewName); HierarchyViewModel->OnHierarchyPropertiesChanged().Broadcast(); }
 
 	void RequestRename()
 	{
@@ -505,6 +633,27 @@ struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FN
 			bRenamePending = true;
 		}
 	}
+	
+	/** Returns true if deletable */
+	bool CanDelete() { return IsEditableByUser().bCanPerform && CanDeleteInternal(); }
+
+	/** Returns true if the given item can be dropped on the given target area. */
+	FCanPerformActionResults CanDropOn(TSharedPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem, EItemDropZone ItemDropZone) { return CanDropOnInternal(DraggedItem, ItemDropZone); }
+
+	/** Gets executed when an item was dropped on this. */
+	void OnDroppedOn(TSharedPtr<FNiagaraHierarchyItemViewModelBase> DroppedItem, EItemDropZone ItemDropZone) { OnDroppedOnInternal(DroppedItem, ItemDropZone); }
+
+	/** Determines the section this item belongs to. */
+	const UNiagaraHierarchySection* GetSection() const { return GetSectionInternal(); }
+	
+	/** For data cleanup that represents external data, this needs to return true in order for live cleanup to work. */
+	virtual bool RepresentsExternalData() const { return false; }
+	/** This function determines whether a hierarchy item that represents that external data should be maintained during data refresh
+	 * Needs to be implemented if RepresentsExternalData return true.
+	 * The context object can be used to add arbitrary data. */
+	virtual bool DoesExternalDataStillExist(const UNiagaraHierarchyDataRefreshContext* Context) const { return false; }
+
+	bool IsForHierarchy() const { return bIsForHierarchy; }
 
 	/** Override this to register dynamic context menu entries when right clicking a hierarchy item */
 	virtual void PopulateDynamicContextMenuSection(FToolMenuSection& DynamicSection) {}
@@ -519,22 +668,54 @@ struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FN
 
 	FSimpleDelegate& GetOnRequestRename() { return OnRequestRenameDelegate; }
 	FOnSynced& GetOnSynced() { return OnSyncedDelegate; }
+	FOnChildRequestedDeletion& OnChildRequestedDeletion() { return OnChildRequestedDeletionDelegate; }
 
 	TWeakPtr<FNiagaraHierarchyItemViewModelBase> GetParent() { return Parent; }
 
+protected:
+	/** Should return true if draggable. An optional message can be provided if false that will show as a slate notification. */
+	virtual FCanPerformActionResults CanDragInternal() { return false; }
+
+	/** Should return true if renamable */
+	virtual bool CanRenameInternal() { return false; }
+
+	virtual void RenameInternal(FName NewName) {}
+	
+	/** Should return true if deletable. By default, we can delete items in the hierarchy, not in the source. */
+	virtual bool CanDeleteInternal() { return IsForHierarchy(); }
+
+	/** Should return true if the given drag drop operation is allowed to succeed. */
+	virtual FCanPerformActionResults CanDropOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase>, EItemDropZone ItemDropZone);
+
+	/** Override this to handle drop-on logic. */
+	virtual void OnDroppedOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase>, EItemDropZone ItemDropZone) { }
+
+	/** Can be overridden to support custom sections.
+	 * In the hierarchy only categories can be parented directly to the root, but using this it is possible to add items to custom sections in the source panel.
+	 * This will only work for top-level objects, i.e. anything directly under the root. */
+	virtual const UNiagaraHierarchySection* GetSectionInternal() const { return nullptr; }
 private:
-	virtual void SyncChildrenViewModelsInternal() {}
+	/** View models can implement this to add or remove data. */
+	virtual void RefreshChildrenDataInternal() {}
+	/** View models can implement this to further customize the view model sync process.
+	 * An example for this is how the root view model handles sections, as sections exist outside the children hierarchy */
+	virtual void SyncViewModelsToDataInternal() {}
 	virtual void FinalizeInternal() {}
+
+	void PropagateOnChildSynced();
 protected:
 	UNiagaraHierarchyItemBase* const ItemBase;
 	/** Parent should be valid for all instances of this struct except for root objects */
 	TWeakPtr<FNiagaraHierarchyItemViewModelBase> Parent;
 	TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> Children;
+	TArray<FOnFilterChild> ChildFilters;
 	mutable TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> FilteredChildren;
 	TWeakObjectPtr<UNiagaraHierarchyViewModelBase> HierarchyViewModel;
 	FSimpleDelegate OnRequestRenameDelegate;
 	FOnSynced OnSyncedDelegate;
+	FOnChildRequestedDeletion OnChildRequestedDeletionDelegate;
 	bool bRenamePending = false;
+	bool bIsForHierarchy = false;
 };
 
 template <class DataClass, class ViewModelClass>
@@ -559,26 +740,46 @@ void FNiagaraHierarchyItemViewModelBase::GetChildrenViewModelsForType(TArray<TSh
 
 struct FNiagaraHierarchyRootViewModel : FNiagaraHierarchyItemViewModelBase
 {
-	FNiagaraHierarchyRootViewModel(UNiagaraHierarchyItemBase* InItem, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel) : FNiagaraHierarchyItemViewModelBase(InItem, nullptr, InHierarchyViewModel) {}
+	DECLARE_DELEGATE(FOnSyncPropagated)
+	DECLARE_DELEGATE(FOnSectionsChanged)
+	DECLARE_DELEGATE_OneParam(FOnSingleSectionChanged, TSharedPtr<FNiagaraHierarchySectionViewModel> AddedSection)
 	
-	virtual ~FNiagaraHierarchyRootViewModel() override {}
+	FNiagaraHierarchyRootViewModel(UNiagaraHierarchyItemBase* InItem, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel, bool bInIsForHierarchy) : FNiagaraHierarchyItemViewModelBase(InItem, nullptr, InHierarchyViewModel, bInIsForHierarchy) {}
+	virtual ~FNiagaraHierarchyRootViewModel() override;
 
-	virtual bool CanDrag() override { return false; }
+	virtual void Initialize() override;
+	
+	virtual FCanPerformActionResults CanDropOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem, EItemDropZone ItemDropZone) override;
+	virtual void OnDroppedOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase> DroppedItem, EItemDropZone ItemDropZone) override;
 
-	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone) override;
-	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) override;
+	virtual bool CanHaveChildren() const override { return true; }
 
-	TSharedPtr<struct FNiagaraHierarchySectionViewModel> AddNewSection();
+	TSharedPtr<struct FNiagaraHierarchySectionViewModel> AddSection();
+	void DeleteSection(TSharedPtr<FNiagaraHierarchyItemViewModelBase> SectionViewModel);
 	TArray<TSharedPtr<struct FNiagaraHierarchySectionViewModel>>& GetSectionViewModels() { return SectionViewModels; }
 
+	FOnSyncPropagated& OnSyncPropagated() { return OnSyncPropagatedDelegate; }
+
+	/** General purpose delegate for when sections change */
+	FOnSectionsChanged& OnSectionsChanged() { return OnSectionsChangedDelegate; }
+	/** Delegates for when a section is added or removed */
+	FOnSingleSectionChanged& OnSectionAdded() { return OnSectionAddedDelegate; }
+	FOnSingleSectionChanged& OnSectionDeleted() { return OnSectionDeletedDelegate; }
+
 private:
-	virtual void SyncChildrenViewModelsInternal() override;
+	void PropagateOnSynced();
+	virtual void SyncViewModelsToDataInternal() override;
 	TArray<TSharedPtr<struct FNiagaraHierarchySectionViewModel>> SectionViewModels;
+
+	FOnSyncPropagated OnSyncPropagatedDelegate;
+	FOnSingleSectionChanged OnSectionAddedDelegate;
+	FOnSingleSectionChanged OnSectionDeletedDelegate;
+	FOnSectionsChanged OnSectionsChangedDelegate;
 };
 
 struct FNiagaraHierarchySectionViewModel : FNiagaraHierarchyItemViewModelBase
 {
-	FNiagaraHierarchySectionViewModel(UNiagaraHierarchySection* InItem, TSharedPtr<FNiagaraHierarchyRootViewModel> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel) : FNiagaraHierarchyItemViewModelBase(InItem, InParent, InHierarchyViewModel) {}
+	FNiagaraHierarchySectionViewModel(UNiagaraHierarchySection* InItem, TSharedPtr<FNiagaraHierarchyRootViewModel> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel, bool bInIsForHierarchy) : FNiagaraHierarchyItemViewModelBase(InItem, InParent, InHierarchyViewModel, bInIsForHierarchy) {}
 	
 	virtual ~FNiagaraHierarchySectionViewModel() override {}
 
@@ -588,42 +789,62 @@ struct FNiagaraHierarchySectionViewModel : FNiagaraHierarchyItemViewModelBase
 	void SetSectionNameAsText(const FText& Text) const { Cast<UNiagaraHierarchySection>(ItemBase)->SetSectionNameAsText(Text); }
 	FText GetSectionNameAsText() const { return Cast<UNiagaraHierarchySection>(ItemBase)->GetSectionNameAsText(); }
 	FText GetSectionTooltip() const { return Cast<UNiagaraHierarchySection>(ItemBase)->GetTooltip(); }
-	virtual bool CanDrag() override { return false; }
-	virtual bool CanRename() override { return true; }
-	virtual bool CanDelete() override { return true; }
+	
+	void SetSectionImage(const FSlateBrush* InSectionImage) { SectionImage = InSectionImage; }
+	const FSlateBrush* GetSectionImage() const { return SectionImage; }
 
-	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone) override;
-	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) override;
+protected:
+	/** Only hierarchy sections are editable */
+	virtual FCanPerformActionResults IsEditableByUser() override { return FCanPerformActionResults(IsForHierarchy()); }
+	virtual bool CanHaveChildren() const override { return false; }
+	virtual FCanPerformActionResults CanDragInternal() override { return bIsForHierarchy; }
+	/** We can only rename hierarchy sections */
+	virtual bool CanRenameInternal() override { return IsForHierarchy(); }
+	virtual void RenameInternal(FName NewName) override { GetDataMutable<UNiagaraHierarchySection>()->SetSectionName(NewName); }
+
+	virtual void PopulateDynamicContextMenuSection(FToolMenuSection& DynamicSection) override;
+
+	virtual FCanPerformActionResults CanDropOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase> DraggedItem, EItemDropZone ItemDropZone) override;
+	virtual void OnDroppedOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase> DroppedItem, EItemDropZone ItemDropZone) override;
 
 	virtual void FinalizeInternal() override;
+
+private:
+	const FSlateBrush* SectionImage = nullptr;
 };
 
 struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModel : FNiagaraHierarchyItemViewModelBase
 {
-	FNiagaraHierarchyItemViewModel(UNiagaraHierarchyItem* InItem, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel) : FNiagaraHierarchyItemViewModelBase(InItem, InParent, InHierarchyViewModel) {}
+	FNiagaraHierarchyItemViewModel(UNiagaraHierarchyItem* InItem, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel, bool bInIsForHierarchy) : FNiagaraHierarchyItemViewModelBase(InItem, InParent, InHierarchyViewModel, bInIsForHierarchy) {}
 	
 	virtual ~FNiagaraHierarchyItemViewModel() override {}
 
-	virtual bool CanDrag() override { return true; }
+	virtual FCanPerformActionResults IsEditableByUser() override { return FCanPerformActionResults(true); }
+	virtual bool CanHaveChildren() const override { return false; }
+	virtual FCanPerformActionResults CanDragInternal() override { return true; }
 
-	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone) override;
-	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) override;
+	virtual FCanPerformActionResults CanDropOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase>, EItemDropZone ItemDropZone) override;
+	virtual void OnDroppedOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase> DroppedItem, EItemDropZone ItemDropZone) override;
 };
 
 struct FNiagaraHierarchyCategoryViewModel : FNiagaraHierarchyItemViewModelBase
 {
-	FNiagaraHierarchyCategoryViewModel(UNiagaraHierarchyCategory* InCategory, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel) : FNiagaraHierarchyItemViewModelBase(InCategory, InParent, InHierarchyViewModel) {}
+	FNiagaraHierarchyCategoryViewModel(UNiagaraHierarchyCategory* InCategory, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel, bool bInIsForHierarchy) : FNiagaraHierarchyItemViewModelBase(InCategory, InParent, InHierarchyViewModel, bInIsForHierarchy) {}
 	virtual ~FNiagaraHierarchyCategoryViewModel() override{}
 
-	virtual bool CanDrag() override { return true; }
-	virtual bool CanRename() override { return true; }
-
-	const UNiagaraHierarchySection* GetSection() const { return Cast<UNiagaraHierarchyCategory>(ItemBase)->GetSection(); }
+	FText GetCategoryName() const { return GetData<UNiagaraHierarchyCategory>()->GetCategoryAsText(); }
+	
+	virtual FCanPerformActionResults IsEditableByUser() override { return FCanPerformActionResults(true); }
+	virtual bool CanHaveChildren() const override { return true; }
+	virtual FCanPerformActionResults CanDragInternal() override { return true; }
+	virtual bool CanRenameInternal() override { return true; }
+	virtual void RenameInternal(FName NewName) override { GetDataMutable<UNiagaraHierarchyCategory>()->SetCategoryName(NewName); }
+	virtual const UNiagaraHierarchySection* GetSectionInternal() const override { return Cast<UNiagaraHierarchyCategory>(ItemBase)->GetSection(); }
 
 	bool IsTopCategoryActive() const;
 
-	virtual TOptional<EItemDropZone> OnCanAcceptDropInternal(TSharedPtr<FDragDropOperation> DragDropOp, EItemDropZone ItemDropZone) override;
-	virtual FReply OnDroppedOn(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Item) override;
+	virtual FCanPerformActionResults CanDropOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase>, EItemDropZone ItemDropZone) override;
+	virtual void OnDroppedOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase> DroppedItem, EItemDropZone ItemDropZone) override;
 };
 
 class FNiagaraSectionDragDropOp : public FNiagaraHierarchyDragDropOp

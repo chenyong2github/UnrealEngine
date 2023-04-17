@@ -162,6 +162,15 @@ void UNiagaraStackEventHandlerPropertiesItem::RefreshChildrenInternal(const TArr
 	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
 }
 
+FNiagaraHierarchyIdentity UNiagaraStackEventHandlerPropertiesItem::DetermineSummaryIdentity() const
+{
+	FNiagaraHierarchyIdentity Identity;
+	Identity.Guids.Add(GetEventScriptUsageId());
+	Identity.Names.Add("Category");
+	Identity.Names.Add("Properties");
+	return Identity;
+}
+
 void UNiagaraStackEventHandlerPropertiesItem::EventHandlerPropertiesChanged()
 {
 	bCanResetToBaseCache.Reset();
@@ -350,6 +359,13 @@ bool UNiagaraStackEventScriptItemGroup::GetIsInherited() const
 FText UNiagaraStackEventScriptItemGroup::GetInheritanceMessage() const
 {
 	return LOCTEXT("EventGroupInheritanceMessage", "This event handler is inherited from a parent emitter.  Inherited\nevent handlers can only be deleted while editing the parent emitter.");
+}
+
+FNiagaraHierarchyIdentity UNiagaraStackEventScriptItemGroup::DetermineSummaryIdentity() const
+{
+	FNiagaraHierarchyIdentity Identity;
+	Identity.Guids.Add(GetScriptUsageId());
+	return Identity;
 }
 
 bool UNiagaraStackEventScriptItemGroup::HasBaseEventHandler() const

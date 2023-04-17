@@ -11,6 +11,8 @@
 #include "NiagaraScriptMergeManager.h"
 #include "Misc/SecureHash.h"
 #include "ScopedTransaction.h"
+#include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
+#include "ViewModels/HierarchyEditor/NiagaraSummaryViewViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackEntry)
 
@@ -1088,6 +1090,91 @@ void UNiagaraStackEntry::OnRenamed(FText NewName)
 			AlternateDisplayNameChangedDelegate.Broadcast();
 		}
 	}
+}
+
+FNiagaraHierarchyIdentity UNiagaraStackEntry::DetermineSummaryIdentity() const
+{
+	return FNiagaraHierarchyIdentity();
+}
+
+bool UNiagaraStackEntry::IsInSummaryView() const
+{
+	if(GetEmitterViewModel().IsValid())
+	{
+		if(SupportsSummaryView())
+		{
+			FNiagaraHierarchyIdentity Identity = DetermineSummaryIdentity();
+			if(Identity.IsValid())
+			{
+				return GetEmitterViewModel()->GetSummaryHierarchyViewModel()->GetHierarchyRootViewModel()->FindViewModelForChild(Identity, true) != nullptr;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UNiagaraStackEntry::IsAnyParentInSummaryView() const
+{
+	if(GetEmitterViewModel().IsValid())
+	{
+		for(UNiagaraStackEntry* Parent = Cast<UNiagaraStackEntry>(GetOuter()); Parent != nullptr; Parent = Cast<UNiagaraStackEntry>(Parent->GetOuter()))
+		{
+			if(Parent->IsInSummaryView())
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UNiagaraStackEntry::IsAnyChildInSummaryView(bool bRecursive) const
+{
+	if(GetEmitterViewModel().IsValid())
+	{
+		TArray<UNiagaraStackEntry*> AllChildren;
+		GetUnfilteredChildren(AllChildren);
+		for(UNiagaraStackEntry* Child : AllChildren)
+		{
+			if(Child->IsInSummaryView())
+			{
+				return true;
+			}
+		}
+
+		if(bRecursive)
+		{
+			for(UNiagaraStackEntry* Child : AllChildren)
+			{
+				if(Child->IsAnyChildInSummaryView(bRecursive))
+				{
+					return true;
+				}
+			}			
+		}		
+	}
+
+	return false;
+}
+
+bool UNiagaraStackEntry::ExistsInParentEmitterSummary() const
+{
+	if(GetEmitterViewModel().IsValid())
+	{
+		if(GetEmitterViewModel()->GetParentEmitter().Emitter != nullptr)
+		{
+			FVersionedNiagaraEmitter BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
+			FNiagaraHierarchyIdentity Identity = DetermineSummaryIdentity();
+			if(BaseEmitter.GetEmitterData() != nullptr && Identity.IsValid())
+			{
+				return Cast<UNiagaraEmitterEditorData>(BaseEmitter.GetEmitterData()->GetEditorData())->GetSummaryRoot()->FindChildWithIdentity(Identity, true) != nullptr;
+			}
+		}
+	}
+
+	return false;
 }
 
 void UNiagaraStackSpacer::Initialize(FRequiredEntryData InRequiredEntryData, float InSpacerHeight, TAttribute<bool> InShouldShowInStack, FString InOwningStackItemEditorDataKey)

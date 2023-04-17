@@ -2267,6 +2267,90 @@ UNiagaraScriptVariable* UNiagaraGraph::GetScriptVariable(FName ParameterName) co
 	return nullptr;
 }
 
+UNiagaraScriptVariable* UNiagaraGraph::GetScriptVariable(FGuid VariableGuid) const
+{
+	check(!bIsForCompilationOnly);
+
+	for (auto& VariableToScriptVariableItem : VariableToScriptVariable)
+	{
+		if(VariableToScriptVariableItem.Value->Metadata.GetVariableGuid() == VariableGuid)
+		{
+			return VariableToScriptVariableItem.Value;
+		}
+	}
+	
+	return nullptr;
+}
+
+TArray<UNiagaraScriptVariable*> UNiagaraGraph::GetChildScriptVariablesForInput(FGuid VariableGuid) const
+{
+	check(!bIsForCompilationOnly);
+
+	TArray<UNiagaraScriptVariable*> ChildrenVariables;
+	
+	TOptional<FNiagaraVariable> FoundVariable;
+	for (auto& VariableToScriptVariableItem : VariableToScriptVariable)
+	{
+		if(VariableToScriptVariableItem.Value->Metadata.GetVariableGuid() == VariableGuid)
+		{
+			FoundVariable = VariableToScriptVariableItem.Key;
+		}
+	}
+
+	if(FoundVariable.IsSet())
+	{
+		for (auto& VariableToScriptVariableItem : VariableToScriptVariable)
+		{
+			if(VariableToScriptVariableItem.Value->Metadata.ParentAttribute == FoundVariable->GetName())
+			{
+				ChildrenVariables.Add(VariableToScriptVariableItem.Value);
+			}
+		}
+	}
+
+	ChildrenVariables.Sort([&](const UNiagaraScriptVariable& VariableA, const UNiagaraScriptVariable& VariableB)
+	{
+		return VariableA.Metadata.EditorSortPriority < VariableB.Metadata.EditorSortPriority;
+	});
+	
+	return ChildrenVariables;
+}
+
+TArray<FGuid> UNiagaraGraph::GetChildScriptVariableGuidsForInput(FGuid VariableGuid) const
+{
+	check(!bIsForCompilationOnly);
+
+	TArray<FGuid> ChildrenVariableGuids;
+	TMap<FGuid, int32> SortOrderMap;
+	TOptional<FNiagaraVariable> FoundVariable;
+	for (auto& VariableToScriptVariableItem : VariableToScriptVariable)
+	{
+		if(VariableToScriptVariableItem.Value->Metadata.GetVariableGuid() == VariableGuid)
+		{
+			FoundVariable = VariableToScriptVariableItem.Key;
+		}
+	}
+
+	if(FoundVariable.IsSet())
+	{
+		for (auto& VariableToScriptVariableItem : VariableToScriptVariable)
+		{
+			if(VariableToScriptVariableItem.Value->Metadata.ParentAttribute == FoundVariable->GetName())
+			{
+				ChildrenVariableGuids.Add(VariableToScriptVariableItem.Value->Metadata.GetVariableGuid());
+				SortOrderMap.Add(VariableToScriptVariableItem.Value->Metadata.GetVariableGuid(), VariableToScriptVariableItem.Value->Metadata.EditorSortPriority);
+			}
+		}
+	}
+
+	ChildrenVariableGuids.Sort([&](const FGuid& GuidA, const FGuid& GuidB)
+	{
+		return SortOrderMap[GuidA] < SortOrderMap[GuidB];
+	});
+	
+	return ChildrenVariableGuids;
+}
+
 UNiagaraScriptVariable* UNiagaraGraph::AddParameter(const FNiagaraVariable& Parameter, bool bIsStaticSwitch /*= false*/)
 {
 	check(!bIsForCompilationOnly);

@@ -7,6 +7,19 @@
 #include "NiagaraUserParametersHierarchyViewModel.generated.h"
 
 UCLASS()
+class UNiagaraHierarchyUserParameterRefreshContext : public UNiagaraHierarchyDataRefreshContext
+{
+	GENERATED_BODY()
+
+public:
+	void SetSystem(UNiagaraSystem* InSystem) { System = InSystem; }
+	const UNiagaraSystem* GetSystem() const { return System; }
+private:
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraSystem> System = nullptr;
+};
+
+UCLASS()
 class UNiagaraHierarchyUserParameter : public UNiagaraHierarchyItem
 {
 	GENERATED_BODY()
@@ -16,8 +29,6 @@ public:
 	virtual ~UNiagaraHierarchyUserParameter() override {}
 	
 	void Initialize(UNiagaraScriptVariable& InUserParameterScriptVariable, UNiagaraSystem& System);
-
-	virtual void RefreshDataInternal() override;
 	
 	const FNiagaraVariable& GetUserParameter() const { return UserParameterScriptVariable->Variable; }
 
@@ -25,18 +36,18 @@ public:
 private:
 	UPROPERTY()
 	TObjectPtr<UNiagaraScriptVariable> UserParameterScriptVariable;
-
-	UPROPERTY()
-	TObjectPtr<UNiagaraSystem> System;
 };
 
 struct FNiagaraHierarchyUserParameterViewModel : public FNiagaraHierarchyItemViewModel
 {
-	FNiagaraHierarchyUserParameterViewModel(UNiagaraHierarchyUserParameter* InItem, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel)
-	: FNiagaraHierarchyItemViewModel(InItem, InParent, InHierarchyViewModel) {}
+	FNiagaraHierarchyUserParameterViewModel(UNiagaraHierarchyUserParameter* InItem, TSharedPtr<FNiagaraHierarchyItemViewModelBase> InParent, TWeakObjectPtr<UNiagaraHierarchyViewModelBase> InHierarchyViewModel, bool bInIsForHierarchy)
+	: FNiagaraHierarchyItemViewModel(InItem, InParent, InHierarchyViewModel, bInIsForHierarchy) {}
 	
 	/** For editing in the details panel we want to handle the script variable that is represented by the hierarchy item, not the hierarchy item itself. */
 	virtual UObject* GetDataForEditing() override;
+
+	virtual bool RepresentsExternalData() const override { return true; }
+	virtual bool DoesExternalDataStillExist(const UNiagaraHierarchyDataRefreshContext* Context) const override;
 };
 
 UCLASS()
@@ -53,10 +64,10 @@ public:
 
 	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 	
-	virtual UNiagaraHierarchyRoot* GetHierarchyDataRoot() const override;
+	virtual UNiagaraHierarchyRoot* GetHierarchyRoot() const override;
 	virtual TSharedPtr<FNiagaraHierarchyItemViewModelBase> CreateViewModelForData(UNiagaraHierarchyItemBase* ItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Parent) override;
 	
-	virtual void PrepareSourceItems() override;
+	virtual void PrepareSourceItems(UNiagaraHierarchyRoot* SourceRoot, TSharedPtr<FNiagaraHierarchyRootViewModel>) override;
 	virtual void SetupCommands() override;
 	
 	virtual TSharedRef<FNiagaraHierarchyDragDropOp> CreateDragDropOp(TSharedRef<FNiagaraHierarchyItemViewModelBase> Item) override;

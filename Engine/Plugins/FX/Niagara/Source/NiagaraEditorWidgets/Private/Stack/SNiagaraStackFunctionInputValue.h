@@ -157,28 +157,6 @@ private:
 
 	FReply ScratchButtonPressed() const;
 
-	const FSlateBrush* GetFilteredViewIcon() const;
-	EVisibility GetFilteredViewContextButtonVisibility() const;
-	bool GetSummaryViewChangeEnabledStateAllowed() const;
-	bool GetSummaryViewChangeDisplayNameAllowed() const;
-	bool GetSummaryViewChangeCategoryAllowed() const;
-	TSharedRef<SWidget> GetFilteredViewPropertiesContent();
-	
-	FText GetFilteredViewDisplayName() const;
-	bool VerifyFilteredViewDisplayName(const FText& InText, FText& OutErrorMessage) const;
-	void FilteredViewDisplayNameTextCommitted(const FText& Text, ETextCommit::Type CommitType);
-
-	FText GetFilteredViewCategory() const;
-	bool VerifyFilteredViewCategory(const FText& InText, FText& OutErrorMessage) const;
-	void FilteredViewCategoryTextCommitted(const FText& Text, ETextCommit::Type CommitType);
-
-	FText GetFilteredViewSortIndex() const;
-	bool VerifyFilteredSortIndex(const FText& InText, FText& OutErrorMessage) const;
-	void FilteredSortIndexTextCommitted(const FText& Text, ETextCommit::Type CommitType);
-
-	ECheckBoxState GetFilteredViewVisibleCheckState() const;
-	void FilteredVisibleCheckStateChanged(ECheckBoxState CheckBoxState);
-
 private:
 	UNiagaraStackFunctionInput* FunctionInput;
 

@@ -555,6 +555,8 @@ public:
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnPropertiesChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnRenderersChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnSimStagesChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnEventHandlersChanged);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEmitterCompiled, FVersionedNiagaraEmitter);
 
 	struct NIAGARA_API PrivateMemberNames
@@ -582,6 +584,8 @@ public:
 	virtual void PostEditChangeVersionedProperty(FPropertyChangedEvent& PropertyChangedEvent, const FGuid& Version);
 	NIAGARA_API FOnPropertiesChanged& OnPropertiesChanged();
 	NIAGARA_API FOnRenderersChanged& OnRenderersChanged();
+	NIAGARA_API FOnSimStagesChanged& OnSimStagesChanged();
+	NIAGARA_API FOnSimStagesChanged& OnEventHandlersChanged();
 	/** Helper method for when a rename has been detected within the graph. Covers renaming the internal renderer bindings.*/
 	NIAGARA_API void HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts, FGuid EmitterVersion);
 	/** Helper method for when a rename has been detected within the graph. Covers resetting the internal renderer bindings.*/
@@ -980,6 +984,8 @@ private:
 #if WITH_EDITOR
 	FOnPropertiesChanged OnPropertiesChangedDelegate;
 	FOnRenderersChanged OnRenderersChangedDelegate;
+	FOnSimStagesChanged OnSimStagesChangedDelegate;
+	FOnEventHandlersChanged OnEventHandlersChangedDelegate;
 #endif
 
 	void GenerateStatID()const;

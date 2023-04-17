@@ -4,6 +4,8 @@
 
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "NiagaraTypes.h"
+#include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
+#include "ViewModels/HierarchyEditor/NiagaraSummaryViewViewModel.h"
 #include "NiagaraStackInputCategory.generated.h"
 
 class UNiagaraStackFunctionInput;
@@ -17,7 +19,37 @@ enum class EStackParameterBehavior
 };
 
 UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackInputCategory : public UNiagaraStackItemContent
+class NIAGARAEDITOR_API UNiagaraStackCategory : public UNiagaraStackItemContent
+{
+	GENERATED_BODY()
+
+public:
+	void Initialize(FRequiredEntryData InRequiredEntryData, FString InOwningStackItemEditorDataKey, FString InStackEditorDataKey);
+
+	//~ UNiagaraStackEntry interface
+	virtual FText GetDisplayName() const override;
+	virtual bool GetShouldShowInStack() const override;
+	virtual EStackRowStyle GetStackRowStyle() const override;
+	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
+
+	virtual bool IsTopLevelCategory() const { return false; }
+	virtual int32 GetChildIndentLevel() const override;
+
+protected:
+	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+private:
+private:
+	bool FilterForVisibleCondition(const UNiagaraStackEntry& Child) const;
+	bool FilterForIsInlineEditConditionToggle(const UNiagaraStackEntry& Child) const;
+protected:
+	bool bShouldShowInStack;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraStackSpacer> CategorySpacer;
+};
+
+UCLASS()
+class NIAGARAEDITOR_API UNiagaraStackInputCategory : public UNiagaraStackCategory
 {
 	GENERATED_BODY() 
 
@@ -29,18 +61,13 @@ public:
 		bool bInIsTopLevelCategory,
 		FString InOwnerStackItemEditorDataKey);
 	
-	const FText& GetCategoryName() const;
+	bool GetIsEnabled() const;
+
+	virtual FText GetDisplayName() const override;
 
 	void ResetInputs();
 
 	void AddInput(UNiagaraNodeFunctionCall* InModuleNode, UNiagaraNodeFunctionCall* InInputFunctionCallNode, FName InInputParameterHandle, FNiagaraTypeDefinition InInputType, EStackParameterBehavior InParameterBehavior, TOptional<FText> InOptionalDisplayName, bool bIsHidden, bool bIsChildInput);
-
-	//~ UNiagaraStackEntry interface
-	virtual FText GetDisplayName() const override;
-	virtual bool GetShouldShowInStack() const override;
-	virtual EStackRowStyle GetStackRowStyle() const override;
-	virtual bool GetIsEnabled() const override;
-	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
 
 	void SetShouldShowInStack(bool bInShouldShowInStack);
 
@@ -55,12 +82,7 @@ public:
 protected:
 	//~ UNiagaraStackEntry interface
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
-	virtual int32 GetChildIndentLevel() const override;
-
-private:
-	bool FilterForVisibleCondition(const UNiagaraStackEntry& Child) const;
-	bool FilterForIsInlineEditConditionToggle(const UNiagaraStackEntry& Child) const;
-
+	virtual bool IsTopLevelCategory() const override { return bIsTopLevelCategory; }
 private:
 	struct FInputParameterHandleAndType
 	{
@@ -74,13 +96,40 @@ private:
 		bool bIsChildInput;
 	};
 
-	TOptional<FText> DisplayName;
 	FText CategoryName;
-	TArray<FInputParameterHandleAndType> Inputs;
-
-	UPROPERTY()
-	TObjectPtr<UNiagaraStackSpacer> CategorySpacer;
-
-	bool bShouldShowInStack;
+	TOptional<FText> DisplayName;
 	bool bIsTopLevelCategory;
+
+	TArray<FInputParameterHandleAndType> Inputs;
+};
+
+void AddSummaryItem(UNiagaraHierarchyItemBase* HierarchyItem, UNiagaraStackEntry* Parent);
+
+UCLASS()
+class NIAGARAEDITOR_API UNiagaraStackSummaryCategory : public UNiagaraStackCategory
+{
+	GENERATED_BODY()
+
+public:
+	UNiagaraStackSummaryCategory() {}
+
+	void Initialize(
+		FRequiredEntryData InRequiredEntryData,
+		TSharedPtr<FNiagaraHierarchyCategoryViewModel> InCategory,
+		FString InOwnerStackItemEditorDataKey);
+
+	//~ UNiagaraStackEntry interface
+	virtual FText GetDisplayName() const override;
+	virtual bool GetIsEnabled() const override { return true; }
+	
+	TWeakPtr<FNiagaraHierarchyCategoryViewModel> GetHierarchyCategory() const { return CategoryViewModelWeakPtr; }
+
+protected:
+	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	virtual bool IsTopLevelCategory() const override;
+	virtual FText GetTooltipText() const override;
+	virtual int32 GetChildIndentLevel() const override;
+
+private:
+	TWeakPtr<FNiagaraHierarchyCategoryViewModel> CategoryViewModelWeakPtr;
 };

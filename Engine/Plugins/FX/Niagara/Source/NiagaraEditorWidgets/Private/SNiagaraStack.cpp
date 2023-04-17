@@ -936,9 +936,9 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 				.IsReadOnly(true)
 			);
 	}
-	else if (Item->IsA<UNiagaraStackFunctionInputCollectionBase>())
+	else if (Item->IsA<UNiagaraStackValueCollection>())
 	{
-		UNiagaraStackFunctionInputCollectionBase* InputCollection = CastChecked<UNiagaraStackFunctionInputCollectionBase>(Item);
+		UNiagaraStackValueCollection* InputCollection = CastChecked<UNiagaraStackValueCollection>(Item);
 		return FRowWidgets(SNew(SNiagaraStackFunctionInputCollection, InputCollection));
 	}
 	else if (Item->IsA<UNiagaraStackModuleItemOutputCollection>() ||
@@ -961,7 +961,7 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 
 		TAttribute<bool> IsEnabled;
 		IsEnabled.BindUObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled);
-
+		
 		Container->AddFillRowContextMenuHandler(FNiagaraStackPropertyRowUtilities::CreateOnFillRowContextMenu(PropertyRow->GetDetailTreeNode()->CreatePropertyHandle(), PropertyRowWidgets.Actions));
 
 		if (PropertyRowWidgets.WholeRowWidget.IsValid())
@@ -1062,6 +1062,18 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 			.Text(ItemTextContent->GetDisplayName())
 			.AutoWrapText(true)
 			.Justification(ETextJustify::Center));
+	}
+	else if (Item->IsA<UNiagaraStackSummaryCategory>())
+	{
+		Container->SetOverrideNameAlignment(HAlign_Left, VAlign_Center);
+		return FRowWidgets(SNew(STextBlock)
+			.TextStyle(&FAppStyle::GetWidgetStyle<FTextBlockStyle>("DetailsView.CategoryTextStyle"))
+			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
+			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
+			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
+			.HighlightText_UObject(StackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+			.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetOwnerIsEnabled),
+			SNullWidget::NullWidget);
 	}
 	else if (Item->IsA<UNiagaraStackSpacer>())
 	{

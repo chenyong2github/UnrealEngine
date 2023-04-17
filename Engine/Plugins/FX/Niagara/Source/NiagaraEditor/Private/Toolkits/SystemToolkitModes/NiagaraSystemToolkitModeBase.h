@@ -47,6 +47,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Versioning(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_UserParameters(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_UserParametersHierarchyEditor(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_SummaryViewEditor(const FSpawnTabArgs& Args);
 
 protected:
 	TWeakPtr<FNiagaraSystemToolkit> SystemToolkit;
@@ -55,6 +56,7 @@ protected:
 	FDelegateHandle LastParamPanelSelectionUpdateDelegate;
 	FDelegateHandle LastSystemSelectionUpdateDelegate;
 	FDelegateHandle LastGraphEditDelegate;
+	FDelegateHandle UpdateSummaryViewHandle;
 	int32 SwitcherIdx;
 	TSharedPtr<FNiagaraObjectSelection> ObjectSelection;
 	FText ObjectSelectionSubHeaderText;
@@ -65,9 +67,14 @@ protected:
 	void UpdateSelectionForActiveDocument();
 	void OnParameterPanelViewModelExternalSelectionChanged();
 	void OnEditedScriptGraphChanged(const FEdGraphEditAction& InAction);
+	
+	TSharedRef<SWidget> CreateSummaryViewWidget() const;
+	void UpdateSummaryViewOnSelectionChanged() const;
+	
+	void OnSummaryViewEditorClosed(TSharedRef<SDockTab> DockTab) const;
 
 	TWeakPtr< class FNiagaraScratchPadScriptViewModel > LastActiveDocumentModel;
-
+	TSharedPtr<class SBox> SummaryViewContainer;
 public:
 	static const FName ViewportTabID;
 	static const FName CurveEditorTabID;
@@ -90,5 +97,6 @@ public:
 	static const FName VersioningTabID;
 	static const FName UserParametersTabID;
 	static const FName UserParametersHierarchyTabID;
+	static const FName EmitterSummaryViewEditorTabID;;
 };
 

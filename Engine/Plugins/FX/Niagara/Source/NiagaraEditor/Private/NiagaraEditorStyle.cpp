@@ -388,11 +388,39 @@ void FNiagaraEditorStyle::InitIcons()
 	Set("NiagaraEditor.Message.CustomNote", new IMAGE_BRUSH("Icons/icon_custom_note_16x", Icon16x16));
 	Set("NiagaraEditor.Module.DynamicInput", new IMAGE_BRUSH_SVG("Icons/DynamicInput", Icon16x16));
 	Set("NiagaraEditor.Module.TypeIconPill", new IMAGE_BRUSH_SVG("Icons/TypeIconPill", FVector2D(5.0f, 16.0f)));
+
+	FLinearColor EmitterIconColor(FColor(126, 87, 67));
+	FLinearColor ParticleIconColor(FColor(87, 107, 61));
+	FLinearColor RendererIconColor(FColor(134, 80, 80));
+	Set("NiagaraEditor.Emitter.SpawnIcon", new IMAGE_BRUSH("Icons/Spawn", Icon12x12, EmitterIconColor));
+	Set("NiagaraEditor.Emitter.UpdateIcon", new IMAGE_BRUSH("Icons/Update", Icon12x12, EmitterIconColor));
+	Set("NiagaraEditor.Particle.SpawnIcon", new IMAGE_BRUSH("Icons/Spawn", Icon12x12, ParticleIconColor));
+	Set("NiagaraEditor.Particle.UpdateIcon", new IMAGE_BRUSH("Icons/Update", Icon12x12, ParticleIconColor));
+	Set("NiagaraEditor.EventIcon", new IMAGE_BRUSH("Icons/Event", Icon12x12, ParticleIconColor));
+	Set("NiagaraEditor.SimulationStageIcon", new IMAGE_BRUSH("Icons/SimulationStage", Icon12x12, ParticleIconColor));
+	Set("NiagaraEditor.RenderIcon", new IMAGE_BRUSH("Icons/Render", Icon12x12, RendererIconColor));
+	
+	Set("NiagaraEditor.HierarchyEditor.RootDropIcon", new IMAGE_BRUSH_SVG("Icons/caret-down", Icon20x20));
 	
 	FSlateBrush* SlateBrush = new FSlateBrush();
 	*SlateBrush = FAppStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox").BackgroundImageNormal;
 	SlateBrush->TintColor = FLinearColor(0.01f, 0.01f, 0.01f);
 	Set("NiagaraEditor.Module.InputTypeBorder", SlateBrush);
+}
+
+void FNiagaraEditorStyle::InitTextStyles()
+{
+	const FTextBlockStyle NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+
+	FInlineEditableTextBlockStyle HierarchyEditorCategoryStyle = FAppStyle::GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle");
+	HierarchyEditorCategoryStyle.TextStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("DetailsView.CategoryTextStyle");
+	HierarchyEditorCategoryStyle.TextStyle.SetFontSize(10.f);
+	Set("NiagaraEditor.HierarchyEditor.CategoryTextStyle", HierarchyEditorCategoryStyle);
+
+	FSlateFontInfo SummaryViewInputOverrideFontInfo = DEFAULT_FONT("Italic", 9);
+	FTextBlockStyle SummaryViewInputOverrideTextBlockStyle = FTextBlockStyle(NormalText)
+		.SetFont(SummaryViewInputOverrideFontInfo);
+	Set("NiagaraEditor.HierarchyEditor.SummaryView.ModuleInputNameOverride", SummaryViewInputOverrideTextBlockStyle);
 }
 
 void FNiagaraEditorStyle::InitOverview()
@@ -803,6 +831,7 @@ FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle"
 	InitToolbarIcons();
 	InitTabIcons();
 	InitIcons();
+	InitTextStyles();
 	InitOverview();
 	InitEmitterDetails();
 	InitAssetColors();

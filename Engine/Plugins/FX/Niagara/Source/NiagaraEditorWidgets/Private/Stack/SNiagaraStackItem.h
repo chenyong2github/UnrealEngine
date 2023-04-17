@@ -25,11 +25,9 @@ protected:
 	virtual TSharedRef<SWidget> AddContainerForRowWidgets(TSharedRef<SWidget> RowWidgets);
 
 private:
-	FText GetEditModeButtonToolTipText() const;
-
 	FReply EditModeButtonClicked();
-
-	FSlateColor GetEditModeButtonIconColor() const;
+	EVisibility IsEditButtonVisible() const;
+	FText GetEditModeButtonToolTipText() const;
 
 	EVisibility GetResetToBaseButtonVisibility() const;
 

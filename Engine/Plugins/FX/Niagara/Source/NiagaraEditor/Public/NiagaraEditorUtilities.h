@@ -472,6 +472,9 @@ namespace FNiagaraParameterUtilities
 		bool bShowVisibilityConditionIcon = false;
 		bool bShowEditConditionIcon = false;
 		bool bShowAdvanced = false;
+		TOptional<TAttribute<FText>> NameOverride;
+		TOptional<TAttribute<EVisibility>> NameOverrideVisibility;
+		TOptional<TAttribute<FText>> NameOverrideTooltip;
 	};
 	
 	/** A more advanced utility function that also makes use of parameter metadata to generate a parameter widget */

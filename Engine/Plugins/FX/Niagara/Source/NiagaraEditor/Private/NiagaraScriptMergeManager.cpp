@@ -45,6 +45,7 @@
 DECLARE_CYCLE_STAT(TEXT("Niagara - ScriptMergeManager - DiffEmitters"), STAT_NiagaraEditor_ScriptMergeManager_DiffEmitters, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - ScriptMergeManager - MergeEmitter"), STAT_NiagaraEditor_ScriptMergeManager_MergeEmitter, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - ScriptMergeManager - IsModuleInputDifferentFromBase"), STAT_NiagaraEditor_ScriptMergeManager_IsModuleInputDifferentFromBase, STATGROUP_NiagaraEditor);
+DECLARE_CYCLE_STAT(TEXT("Niagara - ScriptMergeManager - DoesSummaryItemExistInBase"), STAT_NiagaraEditor_ScriptMergeManager_DoesSummaryItemExistInBase, STATGROUP_NiagaraEditor)
 
 int32 GNiagaraForceFailIfPreviouslyNotSetOnMerge = 0;
 static FAutoConsoleVariableRef CVarForceErrorIfMissingDefaultOnMergeh(
@@ -1188,10 +1189,9 @@ bool FNiagaraEmitterDiffResults::IsEmpty() const
 		AddedOtherRenderers.Num() == 0 &&
 		ModifiedBaseRenderers.Num() == 0 &&
 		ModifiedOtherRenderers.Num() == 0 &&
-		RemovedInputSummaryEntries.Num() == 0 &&
-		AddedInputSummaryEntries.Num() == 0 &&
-		ModifiedInputSummaryEntries.Num() == 0 &&
-		ModifiedOtherInputSummaryEntries.Num() == 0 &&
+		AddedSummaryEntriesInOther.Num() == 0 &&
+		AddedSummarySectionsInOther.Num() == 0 &&
+		RemovedSummaryEntriesInBase.Num() == 0 && 
 		ModifiedStackEntryDisplayNames.Num() == 0 &&
 		bScratchPadModified == false &&
 		NewShouldShowSummaryViewValue.IsSet() == false;
@@ -1945,6 +1945,20 @@ bool FNiagaraScriptMergeManager::IsModuleInputDifferentFromBase(const FVersioned
 		ScriptStackDiffResults.ModifiedOtherInputOverrides.FindByPredicate(FindInputOverrideByInputName) != nullptr;
 }
 
+bool FNiagaraScriptMergeManager::DoesSummaryItemExistInBase(const FVersionedNiagaraEmitter& Emitter, FNiagaraHierarchyIdentity Identity)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptMergeManager_DoesSummaryItemExistInBase);
+
+	FVersionedNiagaraEmitter BaseEmitter = Emitter.GetEmitterData()->GetParent();
+	if(BaseEmitter.GetEmitterData() != nullptr)
+	{
+		TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter = GetEmitterMergeAdapterUsingCache(BaseEmitter);
+		return BaseEmitterAdapter->GetEditorData()->GetSummaryRoot()->FindChildWithIdentity(Identity, true) != nullptr;
+	}
+
+	return false;
+}
+
 FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ResetModuleInputToBase(const FVersionedNiagaraEmitter& VersionedEmitter, const FVersionedNiagaraEmitter& VersionedBaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId, FString InputName)
 {
 	TSharedRef<FNiagaraEmitterMergeAdapter> EmitterAdapter = GetEmitterMergeAdapterUsingCache(VersionedEmitter);
@@ -2430,85 +2444,43 @@ void FNiagaraScriptMergeManager::DiffRenderers(const TArray<TSharedRef<FNiagaraR
 
 void FNiagaraScriptMergeManager::DiffEmitterSummary(const UNiagaraEmitterEditorData* BaseEditorData, const UNiagaraEmitterEditorData* OtherEditorData, FNiagaraEmitterDiffResults& DiffResults) const
 {
-	TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> BaseSummaryViewEntries;
-	TArray<TSharedRef<FNiagaraInputSummaryMergeAdapter>> OtherSummaryViewEntries;
-
-	if (BaseEditorData)
-	{
-		for (const auto& Entry : BaseEditorData->GetSummaryViewMetaDataMap())
-		{
-			BaseSummaryViewEntries.Add(MakeShared<FNiagaraInputSummaryMergeAdapter>(Entry.Key, Entry.Value));
-		}
-	}
-
-	if (OtherEditorData)
-	{
-		for (const auto& Entry : OtherEditorData->GetSummaryViewMetaDataMap())
-		{
-			OtherSummaryViewEntries.Add(MakeShared<FNiagaraInputSummaryMergeAdapter>(Entry.Key, Entry.Value));
-		}		
-	}
+	TArray<UNiagaraHierarchyItemBase*> AddedItemsInOther;
+	TArray<UNiagaraHierarchyItemBase*> RemovedItemsInBase;
+	TArray<UNiagaraHierarchySection*> AddedSections;
 	
-	FListDiffResults<TSharedRef<FNiagaraInputSummaryMergeAdapter>> InputListDiffResults = DiffLists<TSharedRef<FNiagaraInputSummaryMergeAdapter>, FFunctionInputSummaryViewKey>(
-		BaseSummaryViewEntries,
-		OtherSummaryViewEntries,
-		[](TSharedRef<FNiagaraInputSummaryMergeAdapter> Entry) { return Entry->GetKey(); });
+	UNiagaraHierarchyRoot* BaseRoot = BaseEditorData->GetSummaryRoot();
+	UNiagaraHierarchyRoot* OtherRoot = OtherEditorData->GetSummaryRoot();	
 
-	DiffResults.RemovedInputSummaryEntries.Append(InputListDiffResults.RemovedBaseValues);
-	DiffResults.AddedInputSummaryEntries.Append(InputListDiffResults.AddedOtherValues);	
+	TArray<UNiagaraHierarchyItemBase*> BaseItems;
+	BaseRoot->GetChildrenOfType(BaseItems, true);
 
-	for (const FCommonValuePair<TSharedRef<FNiagaraInputSummaryMergeAdapter>>& CommonValuePair : InputListDiffResults.CommonValuePairs)
+	TArray<UNiagaraHierarchyItemBase*> OtherItems;
+	OtherRoot->GetChildrenOfType(OtherItems, true);
+	
+	FListDiffResults<UNiagaraHierarchyItemBase*> SummaryItemDiff = DiffLists<UNiagaraHierarchyItemBase*, FNiagaraHierarchyIdentity>(
+		BaseItems,
+		OtherItems,
+		[](UNiagaraHierarchyItemBase* HierarchyItem) { return HierarchyItem->GetPersistentIdentity(); });
+
+	DiffResults.RemovedSummaryEntriesInBase.Append(SummaryItemDiff.RemovedBaseValues);
+	DiffResults.AddedSummaryEntriesInOther.Append(SummaryItemDiff.AddedOtherValues);
+	
+	TArray<UNiagaraHierarchySection*> BaseSections = BaseRoot->GetSectionData();
+	TArray<UNiagaraHierarchySection*> OtherSections = OtherRoot->GetSectionData();
+
+	for (UNiagaraHierarchySection* OtherSection : OtherSections)
 	{
-		if (!(CommonValuePair.BaseValue->GetValue() == CommonValuePair.OtherValue->GetValue()))
+		FNiagaraHierarchyIdentity OtherSectionIdentity = OtherSection->GetPersistentIdentity();
+		if(!BaseSections.ContainsByPredicate([OtherSectionIdentity](UNiagaraHierarchySection* BaseSection)
 		{
-			DiffResults.ModifiedInputSummaryEntries.Add(CommonValuePair.BaseValue);
-			DiffResults.ModifiedOtherInputSummaryEntries.Add(CommonValuePair.OtherValue);
+			return BaseSection->GetPersistentIdentity() == OtherSectionIdentity;
+		}))
+		{
+			AddedSections.Add(OtherSection);
 		}
 	}
 
-	TArray<FNiagaraStackSection> BaseSections = BaseEditorData != nullptr ? BaseEditorData->GetSummarySections() : TArray<FNiagaraStackSection>();
-	TArray<FNiagaraStackSection> OtherSections = OtherEditorData != nullptr ? OtherEditorData->GetSummarySections() : TArray<FNiagaraStackSection>();
-	FListDiffResults<FNiagaraStackSection> SectionDiffResults = DiffLists<FNiagaraStackSection, FName>(
-		BaseSections,
-		OtherSections,
-		[](const FNiagaraStackSection& Section) { return Section.SectionIdentifier; });
-
-	DiffResults.RemovedBaseSummarySections.Append(SectionDiffResults.RemovedBaseValues);
-	DiffResults.AddedOtherSummarySections.Append(SectionDiffResults.AddedOtherValues);
-
-	for (const FCommonValuePair<FNiagaraStackSection>& CommonValuePair : SectionDiffResults.CommonValuePairs)
-	{
-		bool bSectionsMatch = true;
-		if (CommonValuePair.BaseValue.SectionDisplayName.CompareTo(CommonValuePair.OtherValue.SectionDisplayName) == 0 &&
-			CommonValuePair.BaseValue.bEnabled == CommonValuePair.OtherValue.bEnabled &&
-			CommonValuePair.BaseValue.Categories.Num() == CommonValuePair.OtherValue.Categories.Num())
-		{
-			for (int32 CategoryIndex = 0; CategoryIndex < CommonValuePair.BaseValue.Categories.Num(); ++CategoryIndex)
-			{
-				if (CommonValuePair.OtherValue.Categories.ContainsByPredicate([&CommonValuePair, CategoryIndex](const FText& Category)
-					{ return Category.CompareTo(CommonValuePair.BaseValue.Categories[CategoryIndex]) == 0; }) == false)
-				{
-					bSectionsMatch = false;
-					break;
-				}
-			}
-		}
-		else
-		{
-			bSectionsMatch = false;
-		}
-
-		if (bSectionsMatch == false)
-		{
-			DiffResults.ModifiedBaseSummarySections.Add(CommonValuePair.BaseValue);
-			DiffResults.ModifiedOtherSummarySections.Add(CommonValuePair.OtherValue);
-		}
-	}
-
-	if (BaseEditorData != nullptr && OtherEditorData != nullptr && BaseEditorData->ShouldShowSummaryView() != OtherEditorData->ShouldShowSummaryView())
-	{
-		DiffResults.NewShouldShowSummaryViewValue = OtherEditorData->ShouldShowSummaryView();
-	}	
+	DiffResults.AddedSummarySectionsInOther = AddedSections;
 }
 
 void FNiagaraScriptMergeManager::DiffScriptStacks(TSharedRef<FNiagaraScriptStackMergeAdapter> BaseScriptStackAdapter, TSharedRef<FNiagaraScriptStackMergeAdapter> OtherScriptStackAdapter, FNiagaraScriptStackDiffResults& DiffResults) const
@@ -3685,66 +3657,70 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyE
 	FVersionedNiagaraEmitterData* BaseEmitterData = BaseEmitter.GetEmitterData();
 	UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(BaseEmitterData->GetEditorData());
 
-	if (EditorData == nullptr)
-	{
-		EditorData = NewObject<UNiagaraEmitterEditorData>(BaseEmitter.Emitter, NAME_None, RF_Transactional);
-		BaseEmitter.Emitter->Modify();
-		BaseEmitter.Emitter->SetEditorData(EditorData, BaseEmitter.Version);
-	}
-
 	check(EditorData != GetDefault<UNiagaraEmitterEditorData>());
 	check(EditorData->GetOuter() == BaseEmitter.Emitter);
 	
 	EditorData->Modify();
-	for (TSharedRef<FNiagaraInputSummaryMergeAdapter> RemovedInput : DiffResults.RemovedInputSummaryEntries)
+
+	UNiagaraHierarchyRoot* BaseRoot = EditorData->GetSummaryRoot();
+
+	// this will copy over the section without any child elements
+	for (const UNiagaraHierarchySection* AddedOtherSection : DiffResults.AddedSummarySectionsInOther)
 	{
-		// Don't support removed summary inputs for now.  The user can change the visible flag if needed.
+		BaseRoot->DuplicateSectionFromOtherRoot(*AddedOtherSection);
 	}
 
-	for (TSharedRef<FNiagaraInputSummaryMergeAdapter> AddedInput : DiffResults.AddedInputSummaryEntries)
+	for (UNiagaraHierarchyItemBase* AddedInput : DiffResults.AddedSummaryEntriesInOther)
 	{
-		EditorData->SetSummaryViewMetaData(AddedInput->GetKey(), AddedInput->GetValue());
-	}
+		UNiagaraHierarchyItemBase* SummaryItemParent = AddedInput->GetTypedOuter<UNiagaraHierarchyItemBase>();
+		bool bParentIsRoot = SummaryItemParent->IsA<UNiagaraHierarchyRoot>();
+		FNiagaraHierarchyIdentity ParentIdentity = SummaryItemParent ? SummaryItemParent->GetPersistentIdentity() : FNiagaraHierarchyIdentity();
 
-	for (TSharedRef<FNiagaraInputSummaryMergeAdapter> ModifiedInput : DiffResults.ModifiedOtherInputSummaryEntries)
-	{
-		EditorData->SetSummaryViewMetaData(ModifiedInput->GetKey(), ModifiedInput->GetValue());
-	}
-
-	TArray<FNiagaraStackSection> SummarySections = EditorData->GetSummarySections();
-	for (const FNiagaraStackSection& RemovedBaseSection : DiffResults.RemovedBaseSummarySections)
-	{
-		// Don't support removed summary sections for now.  The user can change the enabled flag if needed.
-	}
-	
-	for (const FNiagaraStackSection& AddedOtherSection : DiffResults.AddedOtherSummarySections)
-	{
-		SummarySections.Add(AddedOtherSection);
-	}
-
-	for (int32 ModifiedSectionIndex = 0; ModifiedSectionIndex < DiffResults.ModifiedBaseSummarySections.Num(); ++ModifiedSectionIndex)
-	{
-		const FNiagaraStackSection& BaseSummarySection = DiffResults.ModifiedBaseSummarySections[ModifiedSectionIndex];
-		const FNiagaraStackSection& OtherSummarySection = DiffResults.ModifiedBaseSummarySections[ModifiedSectionIndex];
-		FNiagaraStackSection* ModifiedSectionPtr = SummarySections.FindByPredicate([BaseSummarySection](const FNiagaraStackSection& SummarySection)
-			{ return SummarySection.SectionDisplayName.CompareTo(BaseSummarySection.SectionDisplayName) == 0; });
-		if (ModifiedSectionPtr != nullptr)
+		if(ParentIdentity.IsValid())
 		{
-			// Use the enabled state in the child.
-			ModifiedSectionPtr->bEnabled = OtherSummarySection.bEnabled;
-			for (FText OtherSummarySectionCategory : OtherSummarySection.Categories)
+			// if the parent is the root, we can't use the parent identity to copy over the child as the two roots are supposed to be different, so we add it directly
+			if(bParentIsRoot)
 			{
-				// Add any categories added by the child, while ignoring any removed by the child.
-				if (ModifiedSectionPtr->Categories.ContainsByPredicate([OtherSummarySectionCategory](FText& Category)
-					{ return Category.CompareTo(OtherSummarySectionCategory) == 0; }) == false)
+				/** Core principal of adding new items:
+				 * Any added item should come without children, as the parent could have added the same child somewhere else
+				 * Otherwise we'd need to identify not just new items vs. old items, but also new items with old children.
+				 * The children we removed but actually belong will be added back during another iteration of the loop
+				*/
+				if(BaseRoot->FindChildWithIdentity(AddedInput->GetPersistentIdentity(), false) == nullptr)
 				{
-					ModifiedSectionPtr->Categories.Add(OtherSummarySectionCategory);
+					UNiagaraHierarchyItemBase* NewChild = BaseRoot->CopyAndAddItemAsChild(*AddedInput);
+					NewChild->GetChildrenMutable().Empty();
+					// for root level category, we have to fixup the section objects they point to as after duplicating them they will still point to the original section
+					if(UNiagaraHierarchyCategory* AsCategory = Cast<UNiagaraHierarchyCategory>(NewChild))
+					{
+						AsCategory->FixupSectionLinkage();
+					}
+				}				
+			}
+			else
+			{
+				// it's possible the child was already added via ownership link
+				// (i.e. if categoryA owns inputA and categoryA is copied first, inputA will be included too)
+				// we only want to add that child if it hasn't been added already
+				if(BaseRoot->FindChildWithIdentity(AddedInput->GetPersistentIdentity(), true) == nullptr)
+				{
+					UNiagaraHierarchyItemBase* NewChild = BaseRoot->CopyAndAddItemUnderParentIdentity(*AddedInput, ParentIdentity);
+					// see above
+					NewChild->GetChildrenMutable().Empty();
+					
+					if(!ensure(NewChild != nullptr))
+					{
+						UE_LOG(LogNiagaraEditor, Log, TEXT("Item %s could not be added during merge process"), *AddedInput->ToString());
+					}
 				}
 			}
 		}
 	}
 
-	EditorData->SetSummarySections(SummarySections);
+	for (UNiagaraHierarchyItemBase* RemovedInputInBase : DiffResults.RemovedSummaryEntriesInBase)
+	{
+		bool bChildRemoved = BaseRoot->RemoveChildWithIdentity(RemovedInputInBase->GetPersistentIdentity(), true);
+	}
 
 	if (DiffResults.NewShouldShowSummaryViewValue.IsSet())
 	{
@@ -3762,12 +3738,6 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyS
 	if (DiffResults.ModifiedStackEntryDisplayNames.Num() > 0)
 	{
 		UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(BaseEmitter.GetEmitterData()->GetEditorData());
-		if (EditorData == nullptr)
-		{
-			EditorData = NewObject<UNiagaraEmitterEditorData>(BaseEmitter.Emitter, NAME_None, RF_Transactional);
-			EditorData->Modify();
-			BaseEmitter.Emitter->SetEditorData(EditorData, BaseEmitter.Version);
-		}
 
 		for (auto& Pair : DiffResults.ModifiedStackEntryDisplayNames)
 		{

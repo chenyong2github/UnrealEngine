@@ -15,7 +15,7 @@ class NIAGARAEDITOR_API UNiagaraStackPropertyRow : public UNiagaraStackItemConte
 		
 public:
 	void Initialize(FRequiredEntryData InRequiredEntryData, TSharedRef<IDetailTreeNode> InDetailTreeNode, bool bInIsTopLevelProperty, FString InOwnerStackItemEditorDataKey, FString InOwnerStackEditorDataKey, UNiagaraNode* InOwningNiagaraNode);
-
+	
 	virtual EStackRowStyle GetStackRowStyle() const override;
 
 	TSharedRef<IDetailTreeNode> GetDetailTreeNode() const;
@@ -28,6 +28,7 @@ public:
 
 	virtual bool CanDrag() const override;
 
+	void SetOwnerGuid(TOptional<FGuid> InGuid) { OwnerGuid = InGuid; }
 protected:
 	virtual void FinalizeInternal() override;
 
@@ -41,6 +42,8 @@ protected:
 
 	virtual TOptional<FDropRequestResponse> DropInternal(const FDropRequest& DropRequest) override;
 
+	virtual bool SupportsSummaryView() const override;
+	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 private:
 	TSharedPtr<IDetailTreeNode> DetailTreeNode;
 	UNiagaraNode* OwningNiagaraNode;
@@ -48,6 +51,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackSpacer> CategorySpacer;
+
+	/** An optional guid that can be used to identify the parent object. The parent object is responsible for setting this. It is used to create the summary view identity */
+	TOptional<FGuid> OwnerGuid;
 
 	bool bCannotEditInThisContext;
 	bool bIsTopLevelProperty;

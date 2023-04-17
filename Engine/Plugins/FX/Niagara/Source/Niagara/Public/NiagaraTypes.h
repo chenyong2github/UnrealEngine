@@ -683,7 +683,7 @@ struct NIAGARA_API FNiagaraVariableMetaData
 		, StaticSwitchDefaultValue_DEPRECATED(0)
 	{};
 
-	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true, SkipForCompileHash = "true"))
+	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName="Tooltip", meta = (MultiLine = true, SkipForCompileHash = "true"))
 	FText Description;
 
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))

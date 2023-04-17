@@ -46,6 +46,9 @@ public:
 	virtual bool GetShouldShowInStack() const override;
 	virtual UObject* GetDisplayedObject() const override;
 
+	void SetObjectGuid(FGuid InGuid) { ObjectGuid = InGuid; }
+	virtual bool SupportsSummaryView() const override { return ObjectGuid.IsSet() && ObjectGuid->IsValid(); }
+	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 protected:
 	virtual void FinalizeInternal() override;
 
@@ -82,6 +85,9 @@ private:
 	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
 	bool bIsRefresingDataInterfaceErrors;
 
+	/** An optional object guid that can be provided to identify the object this stack entry represents. This can be used for summary view purposes and is also given to the child property rows. */
+	TOptional<FGuid> ObjectGuid;
+	
 	FGuid MessageManagerRegistrationKey;
 	TArray<FStackIssue> MessageManagerIssues;
 	FGuid MessageLogGuid;

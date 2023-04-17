@@ -27,6 +27,9 @@ struct FNiagaraStackSection
 	UPROPERTY(EditAnywhere, Category=Section)
 	TArray<FText> Categories;
 
+	UPROPERTY()
+	FText Tooltip;
+	
 	UPROPERTY(EditAnywhere, Category=Section)
 	bool bEnabled;
 };

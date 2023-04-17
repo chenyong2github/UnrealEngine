@@ -45,8 +45,4 @@ namespace FNiagaraStackEditorWidgetsUtilities
 	bool HandleDropForStackEntry(const FDragDropEvent& InDragDropEvent, EItemDropZone InDropZone, UNiagaraStackEntry* InTargetEntry, UNiagaraStackEntry::EDropOptions DropOptions);
 
 	FString StackEntryToStringForListDebug(UNiagaraStackEntry* StackEntry);
-	
-	TOptional<FFunctionInputSummaryViewKey> GetSummaryViewInputKeyForFunctionInput(UNiagaraStackFunctionInput* FunctionInput);
-
-	UNiagaraStackFunctionInput* GetParentInputForSummaryView(UNiagaraStackFunctionInput* FunctionInput);
 }

@@ -262,9 +262,6 @@ public:
 	const TArray<FNiagaraParameterPanelItem>& GetCachedViewedParameterItems() const;
 	
 	void SelectParameterItemByName(const FName ParameterName, const bool bRequestRename);
-
-	// TODO (me) Remove again when the user parameter tab goes live, since this is only used for the "Edit Hierarchy" button
-	virtual TSharedRef<SWidget> GenerateAdjacentWidget() { return SNullWidget::NullWidget; }
 	
 	FOnParameterPanelViewModelExternalSelectionChanged& GetOnExternalSelectionChangedDelegate() { return OnParameterPanelViewModelExternalSelectionChangedDelegate; };
 

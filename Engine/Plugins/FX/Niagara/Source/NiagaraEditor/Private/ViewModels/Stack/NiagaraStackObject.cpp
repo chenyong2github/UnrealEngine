@@ -15,6 +15,7 @@
 #include "IDetailTreeNode.h"
 
 #include "NiagaraPlatformSet.h"
+#include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
 #include "ViewModels/Stack/NiagaraStackObjectIssueGenerator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraStackObject)
@@ -85,6 +86,13 @@ bool UNiagaraStackObject::GetShouldShowInStack() const
 UObject* UNiagaraStackObject::GetDisplayedObject() const
 {
 	return WeakObject.Get();
+}
+
+FNiagaraHierarchyIdentity UNiagaraStackObject::DetermineSummaryIdentity() const
+{
+	FNiagaraHierarchyIdentity Identity;
+	Identity.Guids.Add(ObjectGuid.GetValue());
+	return Identity;
 }
 
 void UNiagaraStackObject::FinalizeInternal()
@@ -296,6 +304,7 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 			{
 				ChildRow = NewObject<UNiagaraStackPropertyRow>(this);
 				ChildRow->Initialize(CreateDefaultChildRequiredData(), RootTreeNode, bIsTopLevelObject, GetOwnerStackItemEditorDataKey(), GetOwnerStackItemEditorDataKey(), OwningNiagaraNode);
+				ChildRow->SetOwnerGuid(ObjectGuid);
 			}
 
 			NewChildren.Add(ChildRow);

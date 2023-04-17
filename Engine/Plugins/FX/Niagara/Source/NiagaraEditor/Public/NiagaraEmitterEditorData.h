@@ -1,3 +1,4 @@
+
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
@@ -5,6 +6,7 @@
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraStackSection.h"
+#include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
 #include "NiagaraEmitterEditorData.generated.h"
 
 class UNiagaraStackEditorData;
@@ -26,6 +28,7 @@ public:
 	UNiagaraEmitterEditorData(const FObjectInitializer& ObjectInitializer);
 
 	virtual void PostLoad() override;
+	virtual void PostLoadFromOwner(UObject* InOwner) override;
 #if WITH_EDITORONLY_DATA
 	NIAGARAEDITOR_API static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
@@ -42,13 +45,8 @@ public:
 	NIAGARAEDITOR_API void SetShowSummaryView(bool bInShouldShowSummaryView);
 	NIAGARAEDITOR_API void ToggleShowSummaryView();
 	
-	NIAGARAEDITOR_API const TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata>& GetSummaryViewMetaDataMap() const;
-	NIAGARAEDITOR_API TOptional<FFunctionInputSummaryViewMetadata> GetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key) const;
-	NIAGARAEDITOR_API void SetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key, TOptional<FFunctionInputSummaryViewMetadata> NewMetadata);
-
-	const TArray<FNiagaraStackSection>& GetSummarySections() const;
-	void SetSummarySections(const TArray<FNiagaraStackSection>& InSummarySections);
-
+	UNiagaraHierarchyRoot* GetSummaryRoot() const { return SummaryViewRoot; }
+	const TArray<UNiagaraHierarchySection*>& GetSummarySections() const;
 private:
 	UPROPERTY(Instanced)
 	TObjectPtr<UNiagaraStackEditorData> StackEditorData;
@@ -64,14 +62,19 @@ private:
 
 	/** Stores metadata for filtering function inputs when in Filtered/Simple view. */
 	UPROPERTY()
-	TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata> SummaryViewFunctionInputMetadata;
+	TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata> SummaryViewFunctionInputMetadata_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, Category=Summary)
-	TArray<FNiagaraStackSection> SummarySections;
+	UPROPERTY()
+	TArray<FNiagaraStackSection> SummarySections_DEPRECATED;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraHierarchyRoot> SummaryViewRoot = nullptr;
 
 	FSimpleMulticastDelegate OnSummaryViewStateChangedDelegate;
 	
-	void StackEditorDataChanged();	
+	void StackEditorDataChanged();
+
+	void PostLoad_TransferSummaryDataToNewFormat();
 };
 
 

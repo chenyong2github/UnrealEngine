@@ -112,6 +112,8 @@ public:
 	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
 	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
 	virtual bool HasOverridenContent() const override;
+	virtual bool SupportsSummaryView() const override;
+	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 	
 	/** Gets the tooltip that should be shown for the value of this input. */
 	FText GetValueToolTip() const;
@@ -119,7 +121,8 @@ public:
 	/** Gets the tooltip that should be shown for the value of this input. */
 	FText GetCollapsedStateText() const;
 
-	void SetSummaryViewDisiplayName(TOptional<FText> InDisplayName);
+	void SetSummaryViewDisplayName(TAttribute<FText> InDisplayName);
+	void SetSummaryViewTooltip(TAttribute<FText> InTooltipOverride);
 
 	/** Gets the path of parameter handles from the owning module to the function call which owns this input. */
 	const TArray<FNiagaraParameterHandle>& GetInputParameterHandlePath() const;
@@ -280,10 +283,6 @@ public:
 	//~ UNiagaraStackEntry interface
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
 
-	TOptional<FNiagaraVariableMetaData> GetMetadata() const;
-	TOptional<FGuid> GetMetadataGuid() const;
-
-
 	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
 
 	bool OpenSourceAsset() const;
@@ -427,7 +426,8 @@ private:
 
 	/** Optional override for the display name*/
 	TOptional<FText> DisplayNameOverride;
-	TOptional<FText> SummaryViewDisplayNameOverride;
+	TOptional<TAttribute<FText>> SummaryViewDisplayNameOverride;
+	TOptional<TAttribute<FText>> SummaryViewTooltipOverride;
 
 	/** The default value for this input defined in the defining script. */
 	FInputValues DefaultInputValues;

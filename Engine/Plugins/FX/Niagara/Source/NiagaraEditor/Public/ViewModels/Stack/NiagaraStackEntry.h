@@ -519,6 +519,13 @@ public:
 	/** Handler for when a rename is committed for this stack entry. */
 	virtual void OnRenamed(FText NewName);
 
+	virtual bool SupportsSummaryView() const { return false; }
+	virtual struct FNiagaraHierarchyIdentity DetermineSummaryIdentity() const;
+	bool IsInSummaryView() const;
+	bool IsAnyParentInSummaryView() const;
+	bool IsAnyChildInSummaryView(bool bRecursive = false) const;
+	bool ExistsInParentEmitterSummary() const;
+
 	virtual EIconMode GetSupportedIconMode() const { return EIconMode::None; }
 
 	virtual const FSlateBrush* GetIconBrush() const { return nullptr; }

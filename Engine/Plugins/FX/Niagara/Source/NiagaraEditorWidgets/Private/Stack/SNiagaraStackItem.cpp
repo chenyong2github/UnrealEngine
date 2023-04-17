@@ -72,23 +72,38 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 	// Edit Mode Button
 	if (Item->SupportsEditMode())
 	{
+		TSharedPtr<SButton> EditButton;
+		
 		RowBox->AddSlot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		.Padding(0, 0, 2, 0)
 		[
-			SNew(SButton)
+			SAssignNew(EditButton, SButton)
 			.IsFocusable(false)
 			.ToolTipText(this, &SNiagaraStackItem::GetEditModeButtonToolTipText)
-			.ButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.SimpleButton")
+			.ButtonStyle(FAppStyle::Get(), "RoundButton")
 			.OnClicked(this, &SNiagaraStackItem::EditModeButtonClicked)
 			.ContentPadding(1)
-			[
+			.Visibility(this, &SNiagaraStackItem::IsEditButtonVisible)
+		];
+
+		if(Item->GetEditModeButtonText().IsSet())
+		{
+			EditButton->SetContent
+			(
+				SNew(STextBlock)
+				.Text(Item->GetEditModeButtonText().GetValue())			
+			);
+		}
+		else
+		{
+			EditButton->SetContent
+			(
 				SNew(SImage)
 				.Image(FAppStyle::Get().GetBrush("Icons.Edit"))
-				.ColorAndOpacity(this, &SNiagaraStackItem::GetEditModeButtonIconColor)
-			]
-		];
+			);
+		}
 	}
 
 	// Reset to base button
@@ -191,25 +206,26 @@ TSharedRef<SWidget> SNiagaraStackItem::AddContainerForRowWidgets(TSharedRef<SWid
 
 FText SNiagaraStackItem::GetEditModeButtonToolTipText() const
 {
-	return Item->GetEditModeIsActive() 
-		? LOCTEXT("DisableEditModeToolTip", "Disable Edit Mode")
-		: LOCTEXT("EnableEditModeToolTip", "Enable Edit Mode");
+	return Item->GetEditModeButtonTooltip().IsSet() ? Item->GetEditModeButtonTooltip().GetValue() : LOCTEXT("EditButtonDefaultTooltip", "Activate Edit Mode");
 }
 
 FReply SNiagaraStackItem::EditModeButtonClicked()
 {
 	if (Item->SupportsEditMode())
 	{
-		Item->SetEditModeIsActive(!Item->GetEditModeIsActive());
+		Item->OnEditButtonClicked();
 	}
 	return FReply::Handled();
 }
 
-FSlateColor SNiagaraStackItem::GetEditModeButtonIconColor() const
+EVisibility SNiagaraStackItem::IsEditButtonVisible() const
 {
-	return Item->GetEditModeIsActive()
-		? FStyleColors::AccentYellow
-		: FSlateColor::UseSubduedForeground();
+	if(Item->SupportsEditMode())
+	{
+		return Item->IsEditButtonVisible();
+	}
+
+	return EVisibility::Collapsed;
 }
 
 EVisibility SNiagaraStackItem::GetResetToBaseButtonVisibility() const

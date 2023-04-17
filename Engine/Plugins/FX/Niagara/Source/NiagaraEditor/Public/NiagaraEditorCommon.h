@@ -221,6 +221,10 @@ public:
 		check(!InputName.IsNone());		
 	}
 
+	FGuid GetFunctionGuid() const { return FunctionGuid; }
+	FGuid GetInputGuid() const { return InputGuid; }
+	FName GetInputName() const { return InputName; }
+	
 	bool operator==(const FFunctionInputSummaryViewKey& Other) const
 	{
 		return FunctionGuid == Other.FunctionGuid && InputGuid == Other.InputGuid && InputName == Other.InputName;

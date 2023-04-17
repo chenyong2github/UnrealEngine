@@ -239,7 +239,7 @@ EUnit UNiagaraStackFunctionInput::GetInputDisplayUnit() const
 
 FText UNiagaraStackFunctionInput::GetTooltipText() const
 {
-	FText Description = InputMetaData.IsSet() ? InputMetaData->Description : FText::GetEmpty();
+	FText Description = SummaryViewTooltipOverride.IsSet() && !SummaryViewTooltipOverride->Get().IsEmptyOrWhitespace() ? SummaryViewTooltipOverride->Get() : InputMetaData.IsSet() ? InputMetaData->Description : FText::GetEmpty();
 	return FNiagaraEditorUtilities::FormatVariableDescription(Description, GetDisplayName(), InputType.GetNameText());
 }
 
@@ -380,6 +380,36 @@ bool UNiagaraStackFunctionInput::HasOverridenContent() const
 	return CanReset();
 }
 
+bool UNiagaraStackFunctionInput::SupportsSummaryView() const
+{
+	if(GetInputMetaData().IsSet())
+	{
+		if(GetInputMetaData()->bInlineEditConditionToggle || !GetInputMetaData()->ParentAttribute.IsNone())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+FNiagaraHierarchyIdentity UNiagaraStackFunctionInput::DetermineSummaryIdentity() const
+{
+	FNiagaraHierarchyIdentity Identity;
+	Identity.Guids.Add(GetInputFunctionCallNode().NodeGuid);
+	if(Cast<UNiagaraNodeAssignment>(&GetInputFunctionCallNode()) != nullptr)
+	{
+		Identity.Names.Add(GetInputParameterHandle().GetParameterHandleString());
+	}
+	else
+	{
+		FNiagaraVariable ThisInput(GetInputType(), GetInputParameterHandle().GetParameterHandleString());
+		Identity.Guids.Add(GetInputFunctionCallNode().GetCalledGraph()->GetScriptVariableGuid(ThisInput).GetValue());
+	}
+
+	return Identity;
+}
+
 TArray<UNiagaraStackFunctionInput*> UNiagaraStackFunctionInput::GetChildInputs() const
 {
 	TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
@@ -461,9 +491,14 @@ FText UNiagaraStackFunctionInput::GetCollapsedStateText() const
 	return CollapsedTextCache.GetValue();
 }
 
-void UNiagaraStackFunctionInput::SetSummaryViewDisiplayName(TOptional<FText> InDisplayName)
+void UNiagaraStackFunctionInput::SetSummaryViewDisplayName(TAttribute<FText> InDisplayName)
 {
 	SummaryViewDisplayNameOverride = InDisplayName;
+}
+
+void UNiagaraStackFunctionInput::SetSummaryViewTooltip(TAttribute<FText> InTooltipOverride)
+{
+	SummaryViewTooltipOverride = InTooltipOverride;
 }
 
 FText UNiagaraStackFunctionInput::GetValueToolTip() const
@@ -1238,7 +1273,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData(TArray<FStackIssue>& NewIss
 
 FText UNiagaraStackFunctionInput::GetDisplayName() const
 {
-	return SummaryViewDisplayNameOverride.IsSet()? SummaryViewDisplayNameOverride.GetValue() : DisplayNameOverride.IsSet() ? DisplayNameOverride.GetValue() : DisplayName;
+	return SummaryViewDisplayNameOverride.IsSet() && !SummaryViewDisplayNameOverride->Get().IsEmptyOrWhitespace() ? SummaryViewDisplayNameOverride->Get() : DisplayNameOverride.IsSet() ? DisplayNameOverride.GetValue() : DisplayName;
 }
 
 const TArray<FNiagaraParameterHandle>& UNiagaraStackFunctionInput::GetInputParameterHandlePath() const
@@ -2754,17 +2789,6 @@ void UNiagaraStackFunctionInput::GetSearchItems(TArray<FStackSearchItem>& Search
 		}
 	}
 }
-
-TOptional<FNiagaraVariableMetaData> UNiagaraStackFunctionInput::GetMetadata() const
-{
-	return InputMetaData;
-}
-
-TOptional<FGuid> UNiagaraStackFunctionInput::GetMetadataGuid() const
-{
-	return InputMetaData.IsSet() ? InputMetaData->GetVariableGuid() : TOptional<FGuid>();
-}
-
 
 const UNiagaraStackFunctionInput::FCollectedUsageData& UNiagaraStackFunctionInput::GetCollectedUsageData() const
 {
