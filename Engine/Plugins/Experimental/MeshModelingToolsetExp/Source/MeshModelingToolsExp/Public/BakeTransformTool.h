@@ -52,6 +52,10 @@ class MESHMODELINGTOOLSEXP_API UBakeTransformToolProperties : public UInteractiv
 public:
 	UBakeTransformToolProperties();
 
+	/** If checked, the baked transform will be applied to all available LODs. Has no effect on selections without LODs. */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bApplyToAllLODs = true;
+
 	/** Bake rotation */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bBakeRotation = true;

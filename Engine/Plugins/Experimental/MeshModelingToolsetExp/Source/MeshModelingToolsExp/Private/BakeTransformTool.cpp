@@ -125,7 +125,15 @@ void UBakeTransformTool::UpdateAssets()
 	TArray<FBox> BoundsOfScaledRotatedMesh;
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		const FMeshDescription* MeshDescription = UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx]);
+		bool bTargetSupportsLODs = false;
+		TArray<EMeshLODIdentifier> LODs = UE::ToolTarget::GetMeshDescriptionLODs(Targets[ComponentIdx], bTargetSupportsLODs, !BasicProperties->bApplyToAllLODs);
+		// Make sure all the LODs after the first are loaded, but don't do anything with them
+		for (int32 LODIdx = 1; LODIdx < LODs.Num(); ++LODIdx)
+		{
+			UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx], FGetMeshParameters(bTargetSupportsLODs, LODs[LODIdx]));
+		}
+		// Use the first LOD to update the bounds (or the default LOD, if LODs are not supported or if the update does not need to apply to all LODs)
+		const FMeshDescription* MeshDescription = UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx], FGetMeshParameters(bTargetSupportsLODs, LODs[0]));
 		if (MapToFirstOccurrences[ComponentIdx] < ComponentIdx)
 		{
 			BoundsOfScaledRotatedMesh.Add(BoundsOfScaledRotatedMesh[MapToFirstOccurrences[ComponentIdx]]);
@@ -296,20 +304,24 @@ void UBakeTransformTool::UpdateAssets()
 
 		if (MapToFirstOccurrences[ComponentIdx] == ComponentIdx)
 		{
-			// apply edit
-			FMeshDescription SourceMesh(UE::ToolTarget::GetMeshDescriptionCopy(Targets[ComponentIdx]));
-			FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(&SourceMesh);
-
-			MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBakePart);
-
-			FVector3d BakeScaleVec = ToBakePart.GetScale();
-			if (BakeScaleVec.X * BakeScaleVec.Y * BakeScaleVec.Z < 0)
+			bool bTargetSupportsLODs = false;
+			TArray<EMeshLODIdentifier> LODs = UE::ToolTarget::GetMeshDescriptionLODs(Targets[ComponentIdx], bTargetSupportsLODs, !BasicProperties->bApplyToAllLODs);
+			for (EMeshLODIdentifier LOD : LODs)
 			{
-				SourceMesh.ReverseAllPolygonFacing();
-			}
+				FMeshDescription SourceMesh(UE::ToolTarget::GetMeshDescriptionCopy(Targets[ComponentIdx], FGetMeshParameters(bTargetSupportsLODs, LOD)));
+				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(&SourceMesh);
 
-			// todo: support vertex-only update
-			UE::ToolTarget::CommitMeshDescriptionUpdate(Target, &SourceMesh);
+				MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBakePart);
+
+				FVector3d BakeScaleVec = ToBakePart.GetScale();
+				if (BakeScaleVec.X * BakeScaleVec.Y * BakeScaleVec.Z < 0)
+				{
+					SourceMesh.ReverseAllPolygonFacing();
+				}
+
+				// todo: support vertex-only update
+				UE::ToolTarget::CommitMeshDescriptionUpdate(Target, &SourceMesh, nullptr /*no material set changes*/, FCommitMeshParameters(bTargetSupportsLODs, LOD));
+			}
 
 			if (!bNeedSeparateTransactionForSimpleCollision)
 			{

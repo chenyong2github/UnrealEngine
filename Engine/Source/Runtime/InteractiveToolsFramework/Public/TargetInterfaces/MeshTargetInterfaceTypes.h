@@ -31,6 +31,11 @@ typedef EMeshLODIdentifier EStaticMeshEditingLOD;
  */
 struct INTERACTIVETOOLSFRAMEWORK_API FGetMeshParameters
 {
+	FGetMeshParameters() = default;
+	explicit FGetMeshParameters(bool bHaveRequestLOD, EMeshLODIdentifier RequestLOD)
+		: bHaveRequestLOD(bHaveRequestLOD), RequestLOD(RequestLOD)
+	{}
+
 	/** If true, RequestLOD specifies which mesh LOD should be returned, if available. If not available, behavior is implementation-dependent. */
 	bool bHaveRequestLOD = false;
 	/** Specify which LOD to fetch from a mesh-containing ToolTarget. Ignored unless bHaveRequestLOD == true. */
@@ -50,6 +55,11 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGetMeshParameters
  */
 struct INTERACTIVETOOLSFRAMEWORK_API FCommitMeshParameters
 {
+	FCommitMeshParameters() = default;
+	explicit FCommitMeshParameters(bool bHaveTargetLOD, EMeshLODIdentifier TargetLOD) :
+		bHaveTargetLOD(bHaveTargetLOD), TargetLOD(TargetLOD)
+	{}
+
 	/** If true, TargetLOD specifies which mesh LOD should be set/updated */
 	bool bHaveTargetLOD = false;
 	/** Specify which LOD to set in a mesh-containing ToolTarget. Ignored unless bHaveTargetLOD == true. */

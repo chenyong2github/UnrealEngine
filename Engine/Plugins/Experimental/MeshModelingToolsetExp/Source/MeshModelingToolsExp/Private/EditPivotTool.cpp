@@ -407,7 +407,12 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 	// TODO: this may not be necessary anymore. Also may not be the most efficient
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		const FMeshDescription* MeshDescription = UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx]);
+		bool bTargetSupportsLODs = false;
+		TArray<EMeshLODIdentifier> LODs = UE::ToolTarget::GetMeshDescriptionLODs(Targets[ComponentIdx], bTargetSupportsLODs, !TransformProps->bApplyToAllLODs);
+		for (EMeshLODIdentifier LOD : LODs)
+		{
+			UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx], FGetMeshParameters(bTargetSupportsLODs, LOD));
+		}
 	}
 
 	// If the targets have any convex hulls, we need to update those first in a separate transaction to work around a crash
@@ -595,16 +600,21 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 		}
 		else if (MapToFirstOccurrences[ComponentIdx] == ComponentIdx)
 		{
-			FMeshDescription SourceMesh(UE::ToolTarget::GetMeshDescriptionCopy(Target));
-			FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(&SourceMesh);
-			
-			for (const FTransformSRT3d& ToBake : BakeTransforms[ComponentIdx].GetTransforms())
+			bool bTargetSupportsLODs = false;
+			TArray<EMeshLODIdentifier> LODs = UE::ToolTarget::GetMeshDescriptionLODs(Targets[ComponentIdx], bTargetSupportsLODs, !TransformProps->bApplyToAllLODs);
+			for (EMeshLODIdentifier LOD : LODs)
 			{
-				MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBake);
+				FMeshDescription SourceMesh(UE::ToolTarget::GetMeshDescriptionCopy(Target, FGetMeshParameters(bTargetSupportsLODs, LOD)));
+				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(&SourceMesh);
+
+				for (const FTransformSRT3d& ToBake : BakeTransforms[ComponentIdx].GetTransforms())
+				{
+					MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBake);
+				}
+
+				// todo: support vertex-only update
+				UE::ToolTarget::CommitMeshDescriptionUpdate(Target, &SourceMesh, nullptr /*no material set changes*/, FCommitMeshParameters(bTargetSupportsLODs, LOD));
 			}
-			
-			// todo: support vertex-only update
-			UE::ToolTarget::CommitMeshDescriptionUpdate(Target, &SourceMesh);
 
 			// transform simple collision geometry
 			if (!bNeedSeparateTransactionForSimpleCollision)

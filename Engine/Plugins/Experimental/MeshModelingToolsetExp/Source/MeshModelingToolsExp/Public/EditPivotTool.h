@@ -59,6 +59,10 @@ class MESHMODELINGTOOLSEXP_API UEditPivotToolProperties : public UInteractiveToo
 	GENERATED_BODY()
 public:
 
+	/** If checked, the baked transform will be applied to all available LODs. Has no effect on selections without LODs. */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bApplyToAllLODs = true;
+
 	/** When enabled, click-drag to reposition the Pivot */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bEnableSnapDragging = false;
