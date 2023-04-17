@@ -796,7 +796,7 @@ void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	Super::PreSave(ObjectSaveContext);
 
-	RigVMClient.PreSave();
+	RigVMClient.PreSave(ObjectSaveContext);
 
 	SupportedEventNames.Reset();
 	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())

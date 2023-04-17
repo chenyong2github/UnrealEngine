@@ -5,6 +5,7 @@
 #include "Exporters/Exporter.h"
 #include "Algo/Sort.h"
 #include "UnrealExporter.h"
+#include "UObject/ObjectSaveContext.h"
 #include "RigVMModel/RigVMControllerActions.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMClient)
@@ -823,13 +824,29 @@ void FRigVMClient::PostDuplicateHost(const FString& InOldPathName, const FString
 	}
 }
 
-void FRigVMClient::PreSave()
+void FRigVMClient::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
-	for (URigVMNode* Node : FunctionLibrary->GetNodes())
+	if (!ObjectSaveContext.IsCooking())
 	{
-		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+		if (IRigVMClientHost* ClientHost = Cast<IRigVMClientHost>(GetOuter()))
 		{
-			UpdateGraphFunctionSerializedGraph(LibraryNode);
+			if (IRigVMGraphFunctionHost* FunctionHost = ClientHost->GetRigVMGraphFunctionHost())
+			{
+				if (FRigVMGraphFunctionStore* Store = FunctionHost->GetRigVMGraphFunctionStore())
+				{
+					for (URigVMNode* Node : FunctionLibrary->GetNodes())
+					{
+						if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+						{
+							FRigVMGraphFunctionIdentifier Identifier = LibraryNode->GetFunctionIdentifier();
+							if (Store->IsFunctionPublic(Identifier))
+							{
+								UpdateGraphFunctionSerializedGraph(LibraryNode);
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }

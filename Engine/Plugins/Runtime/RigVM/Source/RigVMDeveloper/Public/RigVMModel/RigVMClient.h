@@ -156,7 +156,7 @@ public:
 	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
 
 	// work to be done before saving
-	void PreSave();
+	void PreSave(FObjectPreSaveContext ObjectSaveContext);
 
 	void HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
