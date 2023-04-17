@@ -1216,13 +1216,6 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	if( TriRange.Num == 0 )
 		TriRange.Num = Cluster.NumTris;
 
-	// TODO: Ugly workaround
-	// The code was unconditionally reading RasterBin values even when bHasRasterBin was false.
-	// As RasterBin was 0 initialized, it would just render no triangles in that case.
-	// Keep doing that for now, until Jian submits the proper fix.
-	//if( TriRange.Num == 0 )
-	//	TriRange.Num = Cluster.NumTris;
-
 #if NANITE_VERT_REUSE_BATCH
 #if VERTEX_TO_TRIANGLE_MASKS
 	GroupVertToTriMasks[GroupThreadID] = 0;
