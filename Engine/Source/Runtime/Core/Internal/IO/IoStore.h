@@ -16,6 +16,7 @@
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoStore, Log, All);
 
 class FCbWriter;
+class FCbFieldView;
 
 /**
  * I/O store container format version
@@ -277,6 +278,8 @@ struct FIoStoreOnDemandTocHeader
 	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocHeader& Header);
 };
 
+CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FIoStoreOnDemandTocHeader& OutTocHeader);
+
 struct FIoStoreOnDemandTocEntry
 {
 	FIoHash Hash = FIoHash::Zero;
@@ -289,6 +292,8 @@ struct FIoStoreOnDemandTocEntry
 	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocEntry& Entry);
 };
 
+CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FIoStoreOnDemandTocEntry& OutTocEntry);
+
 struct FIoStoreOnDemandContainerEntry
 {
 	FString ContainerName;
@@ -299,6 +304,8 @@ struct FIoStoreOnDemandContainerEntry
 	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandContainerEntry& ContainerEntry);
 };
 
+CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FIoStoreOnDemandContainerEntry& OutContainer);
+
 struct FIoStoreOndemandTocResource
 {
 	FIoStoreOnDemandTocHeader Header;
@@ -308,3 +315,5 @@ struct FIoStoreOndemandTocResource
 
 	UE_NODISCARD CORE_API static TIoStatusOr<FString> Save(const TCHAR* Directory, const FIoStoreOndemandTocResource& TocResource);
 };
+
+CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FIoStoreOndemandTocResource& OutToc);

@@ -3244,7 +3244,7 @@ void FIoStoreReader::GetFilenamesByBlockIndex(const TArray<int32>& InBlockIndexL
 		});
 }
 
-//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocHeader& Header)
 {
@@ -3259,6 +3259,23 @@ FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocHeader& Header
 	return Writer;
 }
 
+bool LoadFromCompactBinary(FCbFieldView Field, FIoStoreOnDemandTocHeader& OutTocHeader)
+{
+	if (FCbObjectView Obj = Field.AsObjectView())
+	{
+		OutTocHeader.Magic = Obj["Magic"].AsUInt64();
+		OutTocHeader.Version = Obj["Version"].AsUInt32();
+		OutTocHeader.BlockSize = Obj["BlockSize"].AsUInt32();
+		OutTocHeader.CompressionFormat = FString(Obj["CompressionFormat"].AsString());
+		OutTocHeader.ChunksDirectory = FString(Obj["ChunksDirectory"].AsString());
+
+		return OutTocHeader.Magic == FIoStoreOnDemandTocHeader::ExpectedMagic &&
+			static_cast<EIoOnDemandTocVersion>(OutTocHeader.Version) != EIoOnDemandTocVersion::Invalid;
+	}
+
+	return false;
+}
+
 FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocEntry& Entry)
 {
 	Writer.BeginObject();
@@ -3271,6 +3288,30 @@ FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocEntry& Entry)
 	Writer.EndObject();
 
 	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FIoStoreOnDemandTocEntry& OutTocEntry)
+{
+	if (FCbObjectView Obj = Field.AsObjectView())
+	{
+		if (!LoadFromCompactBinary(Obj["ChunkId"], OutTocEntry.ChunkId))
+		{
+			return false;
+		}
+
+		OutTocEntry.Hash = Obj["Hash"].AsHash();
+		OutTocEntry.RawSize = Obj["RawSize"].AsUInt64(~uint64(0));
+		OutTocEntry.EncodedSize = Obj["EncodedSize"].AsUInt64(~uint64(0));
+		OutTocEntry.BlockOffset = Obj["BlockOffset"].AsUInt32(~uint32(0));
+		OutTocEntry.BlockCount = Obj["BlockCount"].AsUInt32();
+
+		return OutTocEntry.Hash != FIoHash::Zero &&
+			OutTocEntry.RawSize != ~uint64(0) &&
+			OutTocEntry.EncodedSize != ~uint64(0) &&
+			OutTocEntry.BlockOffset != ~uint32(0);
+	}
+
+	return false;
 }
 
 FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandContainerEntry& ContainerEntry)
@@ -3296,6 +3337,36 @@ FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandContainerEntry& C
 	Writer.EndObject();
 
 	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FIoStoreOnDemandContainerEntry& OutContainer)
+{
+	if (FCbObjectView Obj = Field.AsObjectView())
+	{
+		OutContainer.ContainerName = FString(Obj["Name"].AsString());
+		OutContainer.EncryptionKeyGuid = FString(Obj["EncryptionKeyGuid"].AsString());
+
+		FCbArrayView Entries = Obj["Entries"].AsArrayView();
+		OutContainer.Entries.Reserve(int32(Entries.Num()));
+		for (FCbFieldView ArrayField : Entries)
+		{
+			if (!LoadFromCompactBinary(ArrayField, OutContainer.Entries.AddDefaulted_GetRef()))
+			{
+				return false;
+			}
+		}
+
+		FCbArrayView BlockSizes = Obj["BlockSizes"].AsArrayView();
+		OutContainer.BlockSizes.Reserve(int32(BlockSizes.Num()));
+		for (FCbFieldView ArrayField : BlockSizes)
+		{
+			OutContainer.BlockSizes.Add(ArrayField.AsUInt32());
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOndemandTocResource& TocResource)
@@ -3346,4 +3417,29 @@ TIoStatusOr<FString> FIoStoreOndemandTocResource::Save(const TCHAR* Directory, c
 	}
 
 	return FIoStatus(EIoErrorCode::WriteError);
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FIoStoreOndemandTocResource& OutToc)
+{
+	if (FCbObjectView Obj = Field.AsObjectView())
+	{
+		if (!LoadFromCompactBinary(Obj["Header"], OutToc.Header))
+		{
+			return false;
+		}
+
+		FCbArrayView Containers = Obj["Containers"].AsArrayView();
+		OutToc.Containers.Reserve(int32(Containers.Num()));
+		for (FCbFieldView ArrayField : Containers)
+		{
+			if (!LoadFromCompactBinary(ArrayField, OutToc.Containers.AddDefaulted_GetRef()))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	return false;
 }
