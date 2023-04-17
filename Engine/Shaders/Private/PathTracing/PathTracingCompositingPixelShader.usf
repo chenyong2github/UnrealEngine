@@ -10,7 +10,7 @@ uint Iteration;
 uint MaxSamples;
 int ProgressDisplayEnabled;
 Texture2D<float4> RadianceTexture;
-
+Texture2D<float4> NormalDepthTexture;
 
 float TonemapGammaAndHDR(float Value)
 {
@@ -37,7 +37,8 @@ float Tonemap(float Value)
 
 void CompositeMain(
 	in noperspective float2 UV : TEXCOORD0,
-	out float4 OutColor : SV_Target0
+	out float4 OutColor : SV_Target0,
+	out float OutDepth : SV_DEPTH
 )
 {
 	float2 BufferSize = View.BufferSizeAndInvSize.xy;
@@ -103,4 +104,6 @@ void CompositeMain(
 		OutColor = 1 - Radiance.a; // visualize alpha channel
 	}
 #endif
+	
+	OutDepth = NormalDepthTexture.Load(TexCoord).w;
 }

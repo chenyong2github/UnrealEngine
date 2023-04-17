@@ -243,6 +243,65 @@ void AccumulateAlbedo(float3 SigmaS, float3 PathThroughput, float PathRoughness,
 	Albedo += SigmaS * PathThroughput;
 }
 
+#define DEBUG_DEPTH_SAMPLING 0
+
+struct FDepthContext
+{
+	float3 TranslatedWorldPos;
+	float Transparency;
+	uint HitCount;
+
+#if DEBUG_DEPTH_SAMPLING
+	// visualize the depth status for the ith ray hit.
+	int DebugHitCount;
+#endif
+
+	void AddHit(FPathTracingPayload Payload)
+	{
+		if (false
+#if DEBUG_DEPTH_SAMPLING
+			|| DebugHitCount == 0
+#endif
+			)
+		{
+			return;
+		}
+
+		
+		// The smaller the transparency color, the more opaque the material is.
+		// Ensure Transparency <= 0.5 specified in the material editor contributes to the depth.
+		//const float HalfTransparency = Luminance(PayloadDecodeLDRColor(PayloadEncodeLDRColor(0.5f)));
+		//  asfloat(0x3f0011c5); e.g., opacity >=0.4996 in the material editor for translucent material contributes to depth.
+		const float HalfTransparency = 0.500271142f;
+		const float HitTransparency = Luminance(Payload.TransparencyColor);
+
+		// ensure that 0.5 in the Material editor has a depth contribution.
+		const bool bShouldAcceptNewDepth =
+			Transparency > HalfTransparency && // current depth is not valid
+			HitTransparency < Transparency;    // since it's not valid, we should accept hit with smaller transparency color
+
+		if (bShouldAcceptNewDepth || HitCount == 0)
+		{
+			TranslatedWorldPos = Payload.TranslatedWorldPos;
+			Transparency = HitTransparency;
+			HitCount++;
+		}
+
+#if DEBUG_DEPTH_SAMPLING
+		DebugHitCount--;
+#endif
+	}
+};
+
+FDepthContext InitDepthContext()
+{
+	FDepthContext Context = (FDepthContext)0;
+#if DEBUG_DEPTH_SAMPLING
+	Context.DebugHitCount = View.GeneralPurposeTweak;
+#endif
+	return Context;
+}
+
 // returns an average roughness for the whole material (for the path roughness of shadow rays from this material)
 float GetAverageRoughness(FPathTracingPayload Payload)
 {

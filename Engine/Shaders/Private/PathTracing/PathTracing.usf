@@ -111,7 +111,10 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	FPathState PathState;
 	if (Bounce == 0)
 	{
-		PathState = CreatePathState(ComputePixelIndex(DispatchIdx));
+		PathState = CreatePathState(ComputePixelIndex(DispatchIdx), 
+									ComputeTextureIndex(uint2(LinearPixelIndex % DispatchDim.x,
+															  LinearPixelIndex / DispatchDim.x))
+								   );
 	}
 	else
 	{
@@ -147,8 +150,9 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 {
 	const uint2 DispatchIdx = DispatchRaysIndex().xy;
 	const uint2 DispatchDim = DispatchRaysDimensions().xy;
+	int2 TextureIndex = ComputeTextureIndex(DispatchIdx);
 
-	FPathState PathState = CreatePathState(ComputePixelIndex(DispatchIdx));
+	FPathState PathState = CreatePathState(ComputePixelIndex(DispatchIdx), TextureIndex);
 
 	for (int Bounce = 0; Bounce <= MaxBounces; Bounce++)
 	{
@@ -160,7 +164,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	}
 
 	// Accumulate radiance and update pixel variance
-	PathState.WritePixel(ComputeTextureIndex(DispatchIdx));
+	PathState.WritePixel();
 }
 
 #endif

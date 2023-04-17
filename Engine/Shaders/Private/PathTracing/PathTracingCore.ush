@@ -87,6 +87,10 @@ struct FPathState
 	uint FirstScatterType;          //  3 bits - packed in sign bits of SigmaT
 									// 80 bytes total (see FPathTracingPackedPathState)
 
+	// Temporary parameters not stored				
+	bool DepthResamplingWeight;		
+	int2 PrimaryRayTextureIndex;		// texture index cache to write to the frame buffer for primary ray operation like depth.	
+
 	bool HasMadeContributionScatter()
 	{
 		// The first scattering type that matters for the PATHTRACER_CONTRIBUTION_* flags is the first non-refractive one
@@ -173,7 +177,27 @@ struct FPathState
 		const float4 PixelValue = float4(Radiance, saturate(BackgroundVisibility));
 		RadianceTexture[TextureIndex] = lerp(OldPixel, PixelValue, BlendFactor);
 		AlbedoTexture[TextureIndex] = lerp(OldAlbedo, float4(Albedo, 0), BlendFactor);
-		NormalTexture[TextureIndex] = lerp(OldNormal, float4(Normal, 0), BlendFactor);
+		NormalTexture[TextureIndex].xyz = lerp(OldNormal.xyz,Normal.xyz, BlendFactor);
+	}
+
+	void WritePixel()
+	{
+		WritePixel(PrimaryRayTextureIndex);
+	}
+
+	void WriteDepth(FDepthContext DepthContext)
+	{
+		float OldDepth = Iteration > 0 ? NormalTexture[PrimaryRayTextureIndex].w : 0;
+		
+		float Depth = 0;
+		
+		if (DepthContext.HitCount > 0)
+		{
+			const float3 ViewZ = View.ViewToTranslatedWorld[2].xyz;
+			Depth = dot(DepthContext.TranslatedWorldPos, ViewZ);
+		}
+
+		NormalTexture[PrimaryRayTextureIndex].w = lerp(OldDepth, max(OldDepth, ConvertToDeviceZ(Depth)), DepthResamplingWeight);
 	}
 };
 
@@ -340,6 +364,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 	float2 RISRandSample = RandomSequence_GenerateSample2D(PathState.RandSequence);
 	FRISContext HitSample = InitRISContext(RISRandSample.x);
 	FRISContext VolSample = InitRISContext(RISRandSample.y);
+	FDepthContext DepthContext = InitDepthContext();
 
 	float3 PayloadThroughput = PathState.PathThroughput;
 	FPathTracingPayload Payload;
@@ -632,6 +657,11 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			break;
 		}
 
+		if (bIsCameraRay)
+		{
+			DepthContext.AddHit(HitPayload);
+		}
+
 		if (!bLastBounce)
 		{
 			float3 Contrib = PathState.PathThroughput * EstimateMaterialAlbedo(HitPayload);
@@ -674,6 +704,12 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		PathState.PathThroughput = 0;
 		Payload.SetMiss();
 	}
+
+	if (bIsCameraRay)
+	{
+		PathState.WriteDepth(DepthContext);
+	}
+
 	return Payload;
 }
 
@@ -1266,7 +1302,7 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 	return false;
 }
 
-FPathState CreatePathState(int2 PixelIndex)
+FPathState CreatePathState(int2 PixelIndex, int2 PrimaryRayTextureIndex)
 {
 	FPathState Output = (FPathState)0;
 
@@ -1296,6 +1332,9 @@ FPathState CreatePathState(int2 PixelIndex)
 
 		float2 ViewportUV = (LaunchIndex + AAJitter) * View.BufferSizeAndInvSize.zw;
 		Output.Ray = CreatePrimaryRay(ViewportUV);
+
+		// only record the depth within a square.
+		Output.DepthResamplingWeight = all(AAJitter >= 0.0) && all(AAJitter <= 1.0) ? 1 : 0;
 	}
 
 	if (CameraLensRadius.y > 0)
@@ -1325,6 +1364,7 @@ FPathState CreatePathState(int2 PixelIndex)
 	Output.PathRoughness = 0;
 	Output.SigmaT = float3(StartingExtinctionCoefficient[0], StartingExtinctionCoefficient[1], StartingExtinctionCoefficient[2]);
 	Output.FirstScatterType = PATHTRACER_SCATTER_CAMERA;
+	Output.PrimaryRayTextureIndex = PrimaryRayTextureIndex;
 
 	return Output;
 }

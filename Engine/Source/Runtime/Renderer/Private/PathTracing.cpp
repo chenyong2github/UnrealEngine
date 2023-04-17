@@ -355,6 +355,14 @@ TAutoConsoleVariable<int32> CVarPathTracingSubstrateCompileSimplifiedMaterial(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
+TAutoConsoleVariable<int32> CVarpathTracingOverrideDepth(
+	TEXT("r.PathTracing.Override.Depth"),
+	1,
+	TEXT("Override the scene depth z by the path tracing depth z")
+	TEXT("0: off\n")
+	TEXT("1: On (Default, translucent materials have better DOF with the post-process DOF.)\n"),
+	ECVF_RenderThreadSafe
+);
 
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
@@ -2096,6 +2104,7 @@ class FPathTracingCompositorPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, RadianceTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, NormalDepthTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(uint32, Iteration)
 		SHADER_PARAMETER(uint32, MaxSamples)
@@ -2187,6 +2196,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	const FViewInfo& View,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	FRDGTextureRef SceneColorOutputTexture,
+	FRDGTextureRef SceneDepthOutputTexture,
 	FPathTracingResources& PathTracingResources)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing");
@@ -2906,7 +2916,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	}
 	PathTracingState->LastConfig.DenoiserMode = DenoiserMode;
 
-	// now add a pixel shader pass to display our Radiance buffer
+	// now add a pixel shader pass to display our Radiance buffer and write to the depth buffer
 
 	FPathTracingCompositorPS::FParameters* DisplayParameters = GraphBuilder.AllocParameters<FPathTracingCompositorPS::FParameters>();
 	DisplayParameters->Iteration = Config.PathTracingData.Iteration;
@@ -2914,7 +2924,9 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	DisplayParameters->ProgressDisplayEnabled = CVarPathTracingProgressDisplay.GetValueOnRenderThread();
 	DisplayParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	DisplayParameters->RadianceTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(DenoisedRadianceTexture ? DenoisedRadianceTexture : RadianceTexture));
+	DisplayParameters->NormalDepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(NormalTexture));
 	DisplayParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorOutputTexture, ERenderTargetLoadAction::ELoad);
+	DisplayParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthOutputTexture,  ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
 	FScreenPassTextureViewport Viewport(SceneColorOutputTexture, View.ViewRect);
 
@@ -2936,15 +2948,30 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	}
 
 	TShaderMapRef<FPathTracingCompositorPS> PixelShader(View.ShaderMap);
+	TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
+	FRHIBlendState* BlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
+	FRHIDepthStencilState* DepthStencilState = nullptr;
+
+	if (CVarpathTracingOverrideDepth.GetValueOnRenderThread() != 0)
+	{
+		DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
+	}
+	else
+	{
+		DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+	}
+
 	AddDrawScreenPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("Path Tracer Display (%d x %d)", View.ViewRect.Size().X, View.ViewRect.Size().Y),
 		View,
 		Viewport,
 		Viewport,
+		VertexShader,
 		PixelShader,
-		DisplayParameters
-	);
+		BlendState,
+		DepthStencilState,
+		DisplayParameters);
 
 	// Setup the path tracing resources to be used by post process pass.
 	if (CVarPathTracingOutputPostProcessResources.GetValueOnRenderThread() != 0)
