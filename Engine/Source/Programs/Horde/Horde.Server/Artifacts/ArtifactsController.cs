@@ -239,7 +239,16 @@ namespace Horde.Server.Artifacts
 			}
 
 			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
-			TreeNodeRef<DirectoryNode> directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
+
+			TreeNodeRef<DirectoryNode> directoryRef;
+			try
+			{
+				directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
+			}
+			catch (RefNameNotFoundException)
+			{
+				return NotFound(artifact.NamespaceId, artifact.RefName);
+			}
 
 			if (path != null)
 			{

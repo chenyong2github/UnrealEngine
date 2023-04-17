@@ -247,6 +247,15 @@ namespace Horde.Server.Utilities
 		/// Returns a 404 response for the given object
 		/// </summary>
 		[NonAction]
+		protected ActionResult NotFound(NamespaceId namespaceId, RefName refName)
+		{
+			return NotFound("Ref {RefName} in namespace {NamespaceId} not found", refName, namespaceId);
+		}
+
+		/// <summary>
+		/// Returns a 404 response for the given object
+		/// </summary>
+		[NonAction]
 		protected ActionResult NotFound(StreamId streamId)
 		{
 			return NotFound("Stream {StreamId} not found", streamId);
