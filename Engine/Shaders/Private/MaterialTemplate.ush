@@ -1248,7 +1248,7 @@ MaterialFloat3 GetPerInstanceCustomData3Vector(FMaterialPixelParameters Paramete
 /** Get the per-instance custom data when instancing */
 MaterialFloat3 GetPerInstanceCustomData3Vector(FMaterialVertexParameters Parameters, int Index, MaterialFloat3 DefaultValue)
 {
-#if USE_INSTANCE_CULLING && USES_PER_INSTANCE_CUSTOM_DATA
+#if VF_USE_PRIMITIVE_SCENE_DATA && USES_PER_INSTANCE_CUSTOM_DATA
 		return float3(GetPerInstanceCustomData(Parameters, Index, DefaultValue.x), 
 					  GetPerInstanceCustomData(Parameters, Index + 1, DefaultValue.y),
 					  GetPerInstanceCustomData(Parameters, Index + 2, DefaultValue.z));
