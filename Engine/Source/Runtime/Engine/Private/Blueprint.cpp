@@ -1072,6 +1072,14 @@ void UBlueprint::GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* Targ
 		}
 	}
 
+	/*
+	 * Using GetExtendedAssetRegistryTagsForSave here because:
+	 *	- UBlueprint is an asset in editor builds only.
+	 *	- UBlueprintGeneratedClass is an asset in cooked builds only.
+	 *	- Extended tags are only present in editor builds.
+	 *
+	 * See UBlueprintGeneratedClass::GetAssetRegistryTags.
+	 */
 	if (AActor* BlueprintCDO = GeneratedClass ? Cast<AActor>(GeneratedClass->ClassDefaultObject) : nullptr)
 	{
 		FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(BlueprintCDO, OutTags);

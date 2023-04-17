@@ -32,6 +32,8 @@ public:
 	const TParentClassMap& GetParentClassMap() const { check(IsInitialized()); return ParentClassMap; }
 
 private:
+	void PrefetchClassDesc(UClass* InClass);
+
 	void RegisterClassDescriptor(FWorldPartitionActorDesc* InClassDesc);
 	void UnregisterClassDescriptor(FWorldPartitionActorDesc* InClassDesc);
 
@@ -43,7 +45,6 @@ private:
 	const FWorldPartitionActorDesc* GetClassDescDefaultForActor(const FTopLevelAssetPath& InClassPath) const;
 	const FWorldPartitionActorDesc* GetClassDescDefaultForClass(const FTopLevelAssetPath& InClassPath) const;
 
-	void OnAssetLoaded(UObject* InAssetLoaded);
 	void OnObjectPreSave(UObject* InObject, FObjectPreSaveContext InSaveContext);
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
 
