@@ -36,6 +36,7 @@
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "EdGraphUtilities.h"
 #include "ObjectTools.h"
+#include "NiagaraParameterMapHistory.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraScriptVariable.h"
@@ -44,6 +45,8 @@
 #include "NiagaraGraphDataCache.h"
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "NiagaraSettings.h"
+#include "NiagaraSimulationStageBase.h"
+#include "NiagaraEmitter.h"
 #include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
 #include "ViewModels/HierarchyEditor/NiagaraSummaryViewViewModel.h"
 

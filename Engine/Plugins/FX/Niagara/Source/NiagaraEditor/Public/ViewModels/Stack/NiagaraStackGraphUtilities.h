@@ -4,7 +4,6 @@
 
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
-#include "NiagaraParameterMapHistory.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "AssetRegistry/AssetData.h"
@@ -31,6 +30,8 @@ class FCompileConstantResolver;
 class INiagaraMessage;
 class FNiagaraParameterMapHistoryBuilder;
 class UNiagaraHierarchyModuleInput;
+class UNiagaraSimulationStageBase;
+struct FNiagaraEventScriptProperties;
 struct FNiagaraStackModuleData;
 struct FNiagaraModuleDependency;
 
