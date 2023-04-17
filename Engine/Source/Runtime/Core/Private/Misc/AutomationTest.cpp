@@ -43,6 +43,10 @@ namespace AutomationTest
 		TEXT("Whether to output blueprint functional test metadata to the log when test is running"));
 };
 
+bool FAutomationTestBase::bSuppressLogWarnings = false;
+bool FAutomationTestBase::bSuppressLogErrors = false;
+bool FAutomationTestBase::bElevateLogWarningsToErrors = false;
+TArray<FString> FAutomationTestBase::SuppressedLogCategories;
 
 CORE_API const TMap<FString, EAutomationTestFlags::Type>& EAutomationTestFlags::GetTestFlagsMap()
 {
@@ -88,10 +92,6 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 	// agrant-todo: these should be controlled by FAutomationTestBase for 4.27 with the same project-level override that
 	// FunctionalTest has. Now that warnings are correctly associated with tests they need to be something all tests
 	// can leverage, not just functional tests
-	static bool bSuppressLogWarnings = false;
-	static bool bSuppressLogErrors = false;
-	static bool bElevateLogWarningsToErrors = false;
-	static TArray<FString> SuppressedLogCategories;
 	static FAutomationTestBase* LastTest = nullptr;
 
 	if (AutomationTest::bCaptureLogEvents == false)
@@ -99,20 +99,16 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 		return ELogVerbosity::NoLogging;
 	}
 
-	if (CurrentTest != LastTest)
+	if (CurrentTest != LastTest) 
 	{
-		// These can be changed in the editor so can't just be cached for the whole session
-		SuppressedLogCategories.Empty();
-		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogErrors"), bSuppressLogErrors, GEngineIni);
-		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogWarnings"), bSuppressLogWarnings, GEngineIni);
-		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bElevateLogWarningsToErrors"), bElevateLogWarningsToErrors, GEngineIni);
-		GConfig->GetArray(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("SuppressedLogCategories"), SuppressedLogCategories, GEngineIni);
+		FAutomationTestBase::SuppressedLogCategories.Empty();
+		FAutomationTestBase::LoadDefaultLogSettings();
 		LastTest = CurrentTest;
 	}
 
 	if (CurrentTest)
 	{
-		if (CurrentTest->SuppressLogs() || SuppressedLogCategories.Contains(LogCategory.ToString()))
+		if (CurrentTest->SuppressLogs() || CurrentTest->GetSuppressedLogCategories().Contains(LogCategory.ToString()))
 		{
 			EffectiveVerbosity = ELogVerbosity::NoLogging;
 		}
@@ -120,11 +116,11 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 		{
 			if (EffectiveVerbosity == ELogVerbosity::Warning)
 			{
-				if (CurrentTest->SuppressLogWarnings() || bSuppressLogWarnings)
+				if (CurrentTest->SuppressLogWarnings())
 				{
 					EffectiveVerbosity = ELogVerbosity::NoLogging;
 				}
-				else if (CurrentTest->ElevateLogWarningsToErrors() || bElevateLogWarningsToErrors)
+				else if (CurrentTest->ElevateLogWarningsToErrors())
 				{
 					EffectiveVerbosity = ELogVerbosity::Error;
 				}
@@ -132,7 +128,7 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 
 			if (EffectiveVerbosity == ELogVerbosity::Error)
 			{
-				if (CurrentTest->SuppressLogErrors() ||  bSuppressLogErrors)
+				if (CurrentTest->SuppressLogErrors())
 				{
 					EffectiveVerbosity = ELogVerbosity::NoLogging;
 				}
@@ -1455,6 +1451,14 @@ bool FAutomationTestBase::LogCategoryMatchesSeverityInclusive(
 {
 	// Special case for "all", which should always match
 	return Actual == ELogVerbosity::All || MaximumVerbosity == ELogVerbosity::All || Actual <= MaximumVerbosity;
+}
+
+void FAutomationTestBase::LoadDefaultLogSettings()
+{
+	GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogErrors"), bSuppressLogErrors, GEngineIni);
+	GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogWarnings"), bSuppressLogWarnings, GEngineIni);
+	GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bElevateLogWarningsToErrors"), bElevateLogWarningsToErrors, GEngineIni);
+	GConfig->GetArray(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("SuppressedLogCategories"), SuppressedLogCategories, GEngineIni);
 }
 
 // --------------------------------------------------------------------------------------

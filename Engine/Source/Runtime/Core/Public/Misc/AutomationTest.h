@@ -1282,6 +1282,12 @@ public:
 		FAutomationTestFramework::Get().UnregisterAutomationTest( TestName );
 	}
 
+	/** Log flags */
+	static bool bSuppressLogWarnings;
+	static bool bSuppressLogErrors;
+	static bool bElevateLogWarningsToErrors;
+	static TArray<FString> SuppressedLogCategories;
+
 	/**
 	 * Pure virtual method; returns the flags associated with the given automation test
 	 *
@@ -1456,6 +1462,11 @@ public:
 	static bool LogCategoryMatchesSeverityInclusive(ELogVerbosity::Type Actual, ELogVerbosity::Type MaximumVerbosity);
 
 	/**
+	 * Enables log settings from config
+	*/
+	static void LoadDefaultLogSettings();
+	/**
+	
 	* Adds a regex pattern to an internal list that this test will expect to encounter in logs (of the specified verbosity) during its execution. If an expected pattern
 	* is not encountered, it will cause this test to fail.
 	*
@@ -1521,7 +1532,7 @@ public:
 	{
 		return bSuppressLogs;
 	}
-	
+
 	/**
 	 * Should the log category be captured and surfaced as part of the test.
 	 * If true will then go through the SuppressLogWarnings and SuppressLogErrors checks for if this should be suppressed further or not
@@ -1536,21 +1547,27 @@ public:
 	 *
 	 * @return false to make errors errors
 	 */
-	virtual bool SuppressLogErrors() { return false; }
+	virtual bool SuppressLogErrors() { return bSuppressLogErrors; }
 
 	/**
 	 * If returns true then logging with a level of Warning will not be recorded in test results
 	 *
 	 * @return true to make warnings errors
 	 */
-	virtual bool SuppressLogWarnings() { return false; }
+	virtual bool SuppressLogWarnings() { return bSuppressLogWarnings; }
 
 	/**
 	 * If returns true then logging with a level of Warning will be treated as an error
 	 *
 	 * @return true to make warnings errors
 	 */
-	virtual bool ElevateLogWarningsToErrors() { return false; }
+	virtual bool ElevateLogWarningsToErrors() { return bElevateLogWarningsToErrors; }
+
+	/**
+	 * Return suppressed log categories
+	 */
+	virtual TArray<FString> GetSuppressedLogCategories() { return SuppressedLogCategories; }
+
 
 	/**
 	 * Enqueues a new latent command.
