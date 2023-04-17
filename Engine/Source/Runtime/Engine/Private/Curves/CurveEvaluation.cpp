@@ -206,34 +206,41 @@ namespace UE
 		{
 			const float Diff = Key2.Time - Key1.Time;
 
-			if (Diff > 0.f && Key1.InterpMode != RCIM_Constant)
+			if (Diff > 0.f)
 			{
-				const float Alpha = (InTime - Key1.Time) / Diff;
-				const float P0 = Key1.Value;
-				const float P3 = Key2.Value;
-
-				if (Key1.InterpMode == RCIM_Linear)
+				if (Key1.InterpMode != RCIM_Constant)
 				{
-					return FMath::Lerp(P0, P3, Alpha);
-				}
-				else 
-				{					
-					if (IsItNotWeighted(Key1,Key2))
-					{
-					    const float OneThird = 1.0f / 3.0f;
-					    const float P1 = P0 + (Key1.LeaveTangent * Diff * OneThird);
-					    const float P2 = P3 - (Key2.ArriveTangent * Diff * OneThird);
+					const float Alpha = (InTime - Key1.Time) / Diff;
+					const float P0 = Key1.Value;
+					const float P3 = Key2.Value;
 
-					    return BezierInterp(P0, P1, P2, P3, Alpha);
-					}
-					//if (IsWeighted(Key1, Key2))//it's weighted
-					else	
+					if (Key1.InterpMode == RCIM_Linear)
 					{
-					return WeightedEvalForTwoKeys(
-						Key1.Value, Key1.Time, Key1.LeaveTangent, Key1.LeaveTangentWeight, Key1.TangentWeightMode,
-						Key2.Value, Key2.Time, Key2.ArriveTangent, Key2.ArriveTangentWeight, Key2.TangentWeightMode,
-						InTime);
+						return FMath::Lerp(P0, P3, Alpha);
 					}
+					else 
+					{					
+						if (IsItNotWeighted(Key1,Key2))
+						{
+							const float OneThird = 1.0f / 3.0f;
+							const float P1 = P0 + (Key1.LeaveTangent * Diff * OneThird);
+							const float P2 = P3 - (Key2.ArriveTangent * Diff * OneThird);
+
+							return BezierInterp(P0, P1, P2, P3, Alpha);
+						}
+						//if (IsWeighted(Key1, Key2))//it's weighted
+						else	
+						{
+						return WeightedEvalForTwoKeys(
+							Key1.Value, Key1.Time, Key1.LeaveTangent, Key1.LeaveTangentWeight, Key1.TangentWeightMode,
+							Key2.Value, Key2.Time, Key2.ArriveTangent, Key2.ArriveTangentWeight, Key2.TangentWeightMode,
+							InTime);
+						}
+					}
+				}
+				else
+				{
+					return InTime < Key2.Time ? Key1.Value : Key2.Value;
 				}
 			}
 			else

@@ -59,26 +59,33 @@ EvalForTwoKeys(
 	Diff /= DecimalRate;
 	const int CheckBothLinear = GSequencerLinearCubicInterpolation;
 
-	if (Diff > 0 && Key1.InterpMode != RCIM_Constant)
+	if (Diff > 0)
 	{
-		const double Alpha = ((double)(InTime - Key1Time).Value / DecimalRate) / Diff;
-		const CurveValueType P0 = Key1.Value;
-		const CurveValueType P3 = Key2.Value;
-
-		if (Key1.InterpMode == RCIM_Linear && (!CheckBothLinear || Key2.InterpMode != RCIM_Cubic))
+		if (Key1.InterpMode != RCIM_Constant)
 		{
-			return FMath::Lerp(P0, P3, Alpha);
+			const double Alpha = ((double)(InTime - Key1Time).Value / DecimalRate) / Diff;
+			const CurveValueType P0 = Key1.Value;
+			const CurveValueType P3 = Key2.Value;
+
+			if (Key1.InterpMode == RCIM_Linear && (!CheckBothLinear || Key2.InterpMode != RCIM_Cubic))
+			{
+				return FMath::Lerp(P0, P3, Alpha);
+			}
+			else
+			{
+				double LeaveTangent = Key1.Tangent.LeaveTangent * DecimalRate;
+				double ArriveTangent = Key2.Tangent.ArriveTangent * DecimalRate;
+
+				const double OneThird = 1.0 / 3.0;
+				const CurveValueType P1 = P0 + (LeaveTangent * Diff * OneThird);
+				const CurveValueType P2 = P3 - (ArriveTangent * Diff * OneThird);
+
+				return UE::Curves::BezierInterp(P0, P1, P2, P3, Alpha);
+			}
 		}
 		else
 		{
-			double LeaveTangent = Key1.Tangent.LeaveTangent * DecimalRate;
-			double ArriveTangent = Key2.Tangent.ArriveTangent * DecimalRate;
-
-			const double OneThird = 1.0 / 3.0;
-			const CurveValueType P1 = P0 + (LeaveTangent * Diff*OneThird);
-			const CurveValueType P2 = P3 - (ArriveTangent * Diff*OneThird);
-
-			return UE::Curves::BezierInterp(P0, P1, P2, P3, Alpha);
+			return InTime < Key2Time ? Key1.Value : Key2.Value;
 		}
 	}
 	else
