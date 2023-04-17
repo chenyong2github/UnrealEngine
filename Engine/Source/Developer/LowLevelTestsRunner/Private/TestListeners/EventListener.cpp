@@ -10,6 +10,10 @@
 #include <catch2/reporters/catch_reporter_registrars.hpp>
 #include <catch2/reporters/catch_reporter_streaming_base.hpp>
 
+#include <thread>
+#include <chrono>
+#include <string>
+
 namespace UE::LowLevelTests
 {
 
@@ -19,6 +23,32 @@ class FEventListener final : public Catch::EventListenerBase
 {
 private:
 	FDateTime TestStarted;
+	std::thread* TimeoutThread = nullptr;
+	std::string CurrentTest;
+
+	void logMessageOnTimeout()
+	{
+		std::string CurrentTestLocal;
+		if (ITestRunner* TestRunner = ITestRunner::Get())
+		{
+			while (true)
+			{
+				if (CurrentTestLocal != CurrentTest)
+				{
+					CurrentTestLocal = CurrentTest;
+					std::this_thread::sleep_for(std::chrono::minutes(TestRunner->GetTimeoutMinutes()));
+					UE_CLOG(CurrentTestLocal == CurrentTest, LogLowLevelTests, Error,
+						TEXT("Timeout detected: Test case \"%hs\" has been running for more than %d minute(s)"), CurrentTest.c_str(), TestRunner->GetTimeoutMinutes());
+					
+				}
+				else // test still running after timeout reached, prevent CPU spinning
+				{
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+				}
+			}
+		}
+	}
+
 public:
 	using EventListenerBase::EventListenerBase;
 
@@ -26,6 +56,13 @@ public:
 	{
 		if (ITestRunner* TestRunner = ITestRunner::Get())
 		{
+			CurrentTest = TestInfo.name;
+
+			if (TimeoutThread == nullptr && TestRunner->GetTimeoutMinutes() > 0)
+			{
+				TimeoutThread = new std::thread(&FEventListener::logMessageOnTimeout, this);
+			}
+
 			TestStarted = FDateTime::Now();
 			UE_CLOG(TestRunner->IsDebugMode(), LogLowLevelTests, Display,
 				TEXT("Started test case \"%hs\" at %hs(%" SIZE_T_FMT ") with tags %hs"),

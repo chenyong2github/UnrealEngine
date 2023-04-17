@@ -17,6 +17,8 @@ public:
 	virtual bool HasLogOutput() const = 0;
 	/** Returns true if the test runner has extra debug functionality enabled. */
 	virtual bool IsDebugMode() const = 0;
+	/** Returns a value indicating per test allowed timeout in minutes. */
+	virtual int GetTimeoutMinutes() const = 0;
 
 protected:
 	ITestRunner();

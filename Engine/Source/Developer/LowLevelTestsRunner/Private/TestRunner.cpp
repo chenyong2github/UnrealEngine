@@ -64,6 +64,8 @@ public:
 	bool HasLogOutput() const final { return bLogOutput || bDebugMode; }
 	bool IsDebugMode() const final { return bDebugMode; }
 
+	int32 GetTimeoutMinutes() const final { return TimeoutMinutes; }
+
 private:
 	TArray<const ANSICHAR*> CatchArgs;
 	FStringBuilderBase ExtraArgs;
@@ -75,6 +77,7 @@ private:
 	bool bWaitForInputToTerminate = false;
 	bool bAttachToDebugger = false;
 	int32 SleepOnInitSeconds = 0;
+	int32 TimeoutMinutes = 0;
 };
 
 FTestRunner::FTestRunner()
@@ -112,6 +115,10 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 		else if (Arg.StartsWith(ANSITEXTVIEW("--sleep=")))
 		{
 			LexFromString(SleepOnInitSeconds, WriteToString<16>(Arg.RightChop(8)).ToView());
+		}
+		else if (Arg.StartsWith(ANSITEXTVIEW("--timeout=")))
+		{
+			LexFromString(TimeoutMinutes, WriteToString<16>(Arg.RightChop(10)).ToView());
 		}
 		else if (Arg == ANSITEXTVIEW("--global-setup"))
 		{

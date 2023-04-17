@@ -173,6 +173,8 @@ namespace LowLevelTests
 		[AutoParam("console")]
 		public string ReportType;
 
+		public int Timeout;
+
 		public Type BuildSourceType { get; protected set; }
 
 		[AutoParam(UnrealTargetConfiguration.Development)]
@@ -210,6 +212,8 @@ namespace LowLevelTests
 			LogDir = Path.GetFullPath(LogDir);
 			TempDir = Path.GetFullPath(TempDir);
 
+			Timeout = Params.ParseValue("timeout=", 0);
+
 			Build = Params.ParseValue("build=", null);
 			TestApp = Globals.Params.ParseValue("testapp=", "");
 
@@ -244,16 +248,18 @@ namespace LowLevelTests
 		private int Sleep { get; set; }
 		private bool AttachToDebugger { get; set; }
 		private string ReportType { get; set; }
+		private int PerTestTimeout { get; set; }
 
 		public UnrealDeviceReservation UnrealDeviceReservation { get; private set; }
 
-		public LowLevelTestsSession(LowLevelTestsBuildSource InBuildSource, string InTags, int InSleep, bool InAttachToDebugger, string InReportType)
+		public LowLevelTestsSession(LowLevelTestsBuildSource InBuildSource, string InTags, int InSleep, bool InAttachToDebugger, string InReportType, int InPerTestTimeout = 0)
 		{
 			BuildSource = InBuildSource;
 			Tags = InTags;
 			Sleep = InSleep;
 			AttachToDebugger = InAttachToDebugger;
 			ReportType = InReportType;
+			PerTestTimeout = InPerTestTimeout;
 			UnrealDeviceReservation = new UnrealDeviceReservation();
 		}
 
@@ -277,7 +283,7 @@ namespace LowLevelTests
 
 			// TargetDevice<Platform> classes have a hard dependency on UnrealAppConfig instead of IAppConfig.
 			// More refactoring needed to support non-packaged applications that can be run natively from a path on the device.
-			UnrealAppConfig AppConfig = BuildSource.GetUnrealAppConfig(Tags, Sleep, AttachToDebugger, ReportType);
+			UnrealAppConfig AppConfig = BuildSource.GetUnrealAppConfig(Tags, Sleep, AttachToDebugger, ReportType, PerTestTimeout);
 
 			IEnumerable<ITargetDevice> DevicesToInstallOn = UnrealDeviceReservation.ReservedDevices.ToArray();
 			ITargetDevice Device = DevicesToInstallOn.Where(D => D.IsConnected && D.Platform == BuildSource.Platform).First();
@@ -396,12 +402,15 @@ namespace LowLevelTests
 
 		public UnrealDeviceTargetConstraint Constraint;
 
-		public LowLevelTestContext(LowLevelTestsBuildSource InBuildInfo, LowLevelTestRoleContext InRoleContext, LowLevelTestExecutorOptions InOptions)
+		public int PerTestTimeout { get; private set; }
+
+		public LowLevelTestContext(LowLevelTestsBuildSource InBuildInfo, LowLevelTestRoleContext InRoleContext, LowLevelTestExecutorOptions InOptions, int InPerTestTimeout = 0)
 		{
 			BuildInfo = InBuildInfo;
 			Options = InOptions;
 			TestParams = new Params(new string[0]);
 			RoleContext = InRoleContext;
+			PerTestTimeout = InPerTestTimeout;
 		}
 
 		public object Clone()
@@ -611,7 +620,7 @@ namespace LowLevelTests
 				.FirstOrDefault();
 		}
 
-		public UnrealAppConfig GetUnrealAppConfig(string InTags, int InSleep, bool InAttachToDebugger, string InReportType)
+		public UnrealAppConfig GetUnrealAppConfig(string InTags, int InSleep, bool InAttachToDebugger, string InReportType, int InPerTestTimeout = 0)
 		{
 			if (CachedConfig == null)
 			{
@@ -636,6 +645,10 @@ namespace LowLevelTests
 				if (InSleep > 0)
 				{
 					CachedConfig.CommandLineParams.AddRawCommandline(String.Format("--sleep={0}", InSleep));
+				}
+				if (InPerTestTimeout > 0)
+				{
+					CachedConfig.CommandLineParams.AddRawCommandline(String.Format("--timeout={0}", InPerTestTimeout));
 				}
 				CachedConfig.CommandLineParams.AddRawCommandline("--debug");
 				CachedConfig.CommandLineParams.AddRawCommandline("--log");

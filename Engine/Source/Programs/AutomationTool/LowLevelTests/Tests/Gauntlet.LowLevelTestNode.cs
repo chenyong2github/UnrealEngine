@@ -22,6 +22,9 @@ namespace LowLevelTests
 
 		public LowLevelTestsSession LowLevelTestsApp { get; private set; }
 
+		private int LastStdoutSeekPos = 0;
+		private string[] CurrentProcessedLines;
+
 		public LowLevelTests(LowLevelTestContext InContext)
 		{
 			Context = InContext;
@@ -37,11 +40,14 @@ namespace LowLevelTests
 
 		public override float MaxDuration { protected set; get; }
 
+		private DateTime InactivityStart = DateTime.MinValue;
+		private TimeSpan InactivityPeriod = TimeSpan.Zero;
+
 		public override bool IsReadyToStart()
 		{
 			if (LowLevelTestsApp == null)
 			{
-				LowLevelTestsApp = new LowLevelTestsSession(Context.BuildInfo, Context.Options.Tags, Context.Options.Sleep, Context.Options.AttachToDebugger, Context.Options.ReportType);
+				LowLevelTestsApp = new LowLevelTestsSession(Context.BuildInfo, Context.Options.Tags, Context.Options.Sleep, Context.Options.AttachToDebugger, Context.Options.ReportType, Context.Options.Timeout);
 			}
 
 			return LowLevelTestsApp.TryReserveDevices();
@@ -95,13 +101,48 @@ namespace LowLevelTests
 
 		public override void TickTest()
 		{
-			if (TestInstance != null && TestInstance.HasExited)
+			if (TestInstance != null)
 			{
-				if (TestInstance.WasKilled)
+				if (TestInstance.HasExited)
 				{
-					LowLevelTestResult = TestResult.Failed;
+					if (TestInstance.WasKilled)
+					{
+						LowLevelTestResult = TestResult.Failed;
+					}
+					MarkTestComplete();
 				}
-				MarkTestComplete();
+				else
+				{
+					ParseLowLevelTestsLog();
+
+					if (CheckForTimeout())
+					{
+						Log.Error("Timeout detected from application logged events, stopping.");
+						MarkTestComplete();
+						LowLevelTestResult = TestResult.TimedOut;
+					}
+					else if (CurrentProcessedLines != null && CurrentProcessedLines.Length > 0)
+					{
+						InactivityStart = DateTime.MinValue;
+					}
+					else if ((CurrentProcessedLines == null || CurrentProcessedLines.Length == 0) && InactivityStart == DateTime.MinValue)
+					{
+						InactivityStart = DateTime.Now;
+					}
+					else if (InactivityStart != DateTime.MinValue)
+					{
+						InactivityPeriod = DateTime.Now - InactivityStart;
+					}
+
+					if (Context.Options.Timeout != 0 && InactivityPeriod.TotalMinutes > Context.Options.Timeout + 0.5)
+					{
+						Log.Error($"Test application didn't log any test events after timeout period of {Context.Options.Timeout} minutes, stopping.");
+						MarkTestComplete();
+						LowLevelTestResult = TestResult.TimedOut;
+					}
+
+					CurrentProcessedLines = null;
+				}
 			}
 		}
 
@@ -139,7 +180,12 @@ namespace LowLevelTests
 				{
 					ClientOutputWriter.Write(StdOut);
 				}
-				File.Copy(ClientOutputLog, Path.Combine(LogDir, ClientLogFile));
+
+				string DestClientLogFile = Path.Combine(LogDir, ClientLogFile);
+				if (DestClientLogFile != ClientOutputLog)
+				{
+					File.Copy(ClientOutputLog, DestClientLogFile, true);
+				}
 			}
 
 			ILowLevelTestsReporting LowLevelTestsReporting = Gauntlet.Utils.InterfaceHelpers.FindImplementations<ILowLevelTestsReporting>(true)
@@ -162,7 +208,7 @@ namespace LowLevelTests
 			string ExitReason = "";
 			if (TestInstance.WasKilled)
 			{
-				if (InReason == StopReason.MaxDuration)
+				if (InReason == StopReason.MaxDuration || LowLevelTestResult == TestResult.TimedOut)
 				{
 					LowLevelTestResult = TestResult.TimedOut;
 					ExitReason = "Timed Out";
@@ -170,7 +216,7 @@ namespace LowLevelTests
 				else
 				{
 					LowLevelTestResult = TestResult.Failed;
-					ExitReason = "Process was killed by Gauntlet.";
+					ExitReason = $"Process was killed by Gauntlet with reason {InReason.ToString()}.";
 				}
 			}
 			else if (TestInstance.ExitCode != 0)
@@ -226,6 +272,36 @@ namespace LowLevelTests
 				LowLevelTestsApp.Dispose();
 				LowLevelTestsApp = null;
 			}
+		}
+
+		private void ParseLowLevelTestsLog()
+		{
+			// Parse new lines from Stdout, if any
+			if (LastStdoutSeekPos < TestInstance.StdOut.Length)
+			{
+				CurrentProcessedLines = TestInstance.StdOut
+					.Substring(LastStdoutSeekPos)
+					.Split("\n")
+					.Where(Line => Line.Contains("LogLowLevelTests"))
+					.ToArray();
+				LastStdoutSeekPos = TestInstance.StdOut.Length - 1;
+			}
+		}
+
+		private bool CheckForTimeout()
+		{
+			if (CurrentProcessedLines == null || CurrentProcessedLines.Length == 0)
+			{
+				return false;
+			}
+			foreach (string Line in CurrentProcessedLines)
+			{
+				if (Line.Contains("Timeout detected"))
+				{
+					return true;
+				}
+			}
+			return false;
 		}
 	}
 }
