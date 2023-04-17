@@ -178,7 +178,7 @@ public:
 	        This is the preferred method if meshes share skeleton.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
-	EAnimToTextureMode Mode;
+	EAnimToTextureMode Mode = EAnimToTextureMode::Bone;
 
 	/**
 	* Texture for storing vertex positions
@@ -237,6 +237,39 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	TArray<FAnimToTextureAnimSequenceInfo> AnimSequences;
+
+	// ------------------------------------------------------
+	// Material Layer Static Switches
+
+	/**
+	* AutoPlay will use Engine Time for driving the animation.
+	* This will be used by UpdateMaterialInstanceFromDataAsset and AssetActions for setting MaterialInstance static switches
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material")
+	bool bAutoPlay = true;
+
+	/**
+	* AnimationIndex Index of the animation to play.
+	* This will internally set Start and End Frame when using AutoPlay.
+	* This will be used by UpdateMaterialInstanceFromDataAsset and AssetActions for setting MaterialInstance static switches
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (EditCondition = "bAutoPlay"))
+	int32 AnimationIndex = 0;
+
+	/**
+	* Frame to play
+	* When not using AutoPlay, user is responsible of setting the frame.
+	* This will be used by UpdateMaterialInstanceFromDataAsset and AssetActions for setting MaterialInstance static switches
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (EditCondition = "!bAutoPlay"))
+	int32 Frame = 0;
+
+	/**
+	* Number of Bone Influences for deformation. More influences will produce smoother results at the cost of performance.
+	* This will be used by UpdateMaterialInstanceFromDataAsset and AssetActions for setting MaterialInstance static switches
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Material", meta = (EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
+	EAnimToTextureNumBoneInfluences NumBoneInfluences = EAnimToTextureNumBoneInfluences::Four;
 
 	// ------------------------------------------------------
 	// Info

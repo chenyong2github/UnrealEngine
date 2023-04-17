@@ -44,13 +44,9 @@ class UAnimToTextureBPLibrary : public UBlueprintFunctionLibrary
 
 	/**
 	* Updates a material's parameters to match those of an AnimToTexture DataAsset
-	* @param AnimationIndex Index of the animation to play.
-	* @param NumBoneInfluences Number of skinning influences. More influences will produce smoother deformation but slower performance. This is only used in Bone Mode.
 	*/
 	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
-	static void UpdateMaterialInstanceFromDataAsset(UAnimToTextureDataAsset* DataAsset, class UMaterialInstanceConstant* MaterialInstance, 
-		const bool bAutoPlay=true, const int32 AnimationIndex=0, 
-		const EAnimToTextureNumBoneInfluences NumBoneInfluences = EAnimToTextureNumBoneInfluences::One,
+	static void UpdateMaterialInstanceFromDataAsset(const UAnimToTextureDataAsset* DataAsset, class UMaterialInstanceConstant* MaterialInstance,
 		const EMaterialParameterAssociation MaterialParameterAssociation = EMaterialParameterAssociation::LayerParameter);
 
 #endif // WITH_EDITOR

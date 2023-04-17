@@ -87,11 +87,7 @@ void FAnimToTextureAssetActions::RunAnimToTexture(TArray<TWeakObjectPtr<UAnimToT
 				{
 					if (UMaterialInstanceConstant* MaterialInstanceConstant = Cast<UMaterialInstanceConstant>(StaticMaterial.MaterialInterface))
 					{
-						UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(DataAsset, MaterialInstanceConstant,
-							/*bAutoPlay*/ true, 
-							/*AnimationIndex*/ 0, 
-							EAnimToTextureNumBoneInfluences::Four,
-							EMaterialParameterAssociation::LayerParameter);
+						UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(DataAsset, MaterialInstanceConstant, EMaterialParameterAssociation::LayerParameter);
 					}
 				}
 			}

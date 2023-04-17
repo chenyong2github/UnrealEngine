@@ -600,9 +600,8 @@ int32 UAnimToTextureBPLibrary::GetBonePositionsAndRotations(const USkeletalMeshC
 }
 
 
-void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTextureDataAsset* DataAsset, UMaterialInstanceConstant* MaterialInstance, 
-	const bool bAutoPlay, const int32 AnimationIndex, 
-	const EAnimToTextureNumBoneInfluences NumBoneInfluences, const EMaterialParameterAssociation MaterialParameterAssociation)
+void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(const UAnimToTextureDataAsset* DataAsset, UMaterialInstanceConstant* MaterialInstance, 
+	const EMaterialParameterAssociation MaterialParameterAssociation)
 {
 	check(DataAsset);
 	check(MaterialInstance);
@@ -675,7 +674,7 @@ void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTexture
 		UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(MaterialInstance, AnimToTextureParamNames::BoneWeightsTexture, DataAsset->GetBoneWeightTexture(), MaterialParameterAssociation);
 
 		// Num Influences
-		switch (NumBoneInfluences)
+		switch (DataAsset->NumBoneInfluences)
 		{
 			case EAnimToTextureNumBoneInfluences::One:
 				UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseTwoInfluences, false, MaterialParameterAssociation);
@@ -690,15 +689,32 @@ void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTexture
 				UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::UseFourInfluences, true, MaterialParameterAssociation);
 				break;
 		}
-
 	}
 
 	// AutoPlay
-	if (bAutoPlay && DataAsset->Animations.IsValidIndex(AnimationIndex))
+	UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::AutoPlay, DataAsset->bAutoPlay, MaterialParameterAssociation);
+	if (DataAsset->bAutoPlay)
 	{
-		UMaterialEditingLibrary::SetMaterialInstanceStaticSwitchParameterValue(MaterialInstance, AnimToTextureParamNames::AutoPlay, true, MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::StartFrame, DataAsset->Animations[AnimationIndex].StartFrame, MaterialParameterAssociation);
-		UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::EndFrame, DataAsset->Animations[AnimationIndex].EndFrame, MaterialParameterAssociation);
+		if (DataAsset->Animations.IsValidIndex(DataAsset->AnimationIndex))
+		{
+			UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::StartFrame, DataAsset->Animations[DataAsset->AnimationIndex].StartFrame, MaterialParameterAssociation);
+			UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::EndFrame, DataAsset->Animations[DataAsset->AnimationIndex].EndFrame, MaterialParameterAssociation);
+		}
+		else
+		{
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid AnimationIndex: %i"), DataAsset->AnimationIndex);
+		}
+	}
+	else
+	{
+		if (DataAsset->Frame >= 0 && DataAsset->Frame < DataAsset->NumFrames)
+		{
+			UMaterialEditingLibrary::SetMaterialInstanceScalarParameterValue(MaterialInstance, AnimToTextureParamNames::Frame, DataAsset->Frame, MaterialParameterAssociation);
+		}
+		else
+		{
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Frame out of range: %i"), DataAsset->Frame);
+		}
 	}
 	
 	// NumFrames
