@@ -483,7 +483,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 					}
 					else
 					{
-						const FText Message = LOCTEXT("MissingTexture", "Unable to generate pass-through texture switch node. Required connection not found.");
+						const FText Message = LOCTEXT("MissingPassThroughTexture", "Unable to generate pass-through texture switch node. Required connection not found.");
 						GenerationContext.Compiler->CompilerLog(Message, Node);
 						return Result;
 					}

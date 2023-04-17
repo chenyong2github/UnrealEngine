@@ -1063,7 +1063,7 @@ FText UEdGraphSchema_CustomizableObject::GetPinCategoryName(const FName& PinCate
 	}
 	else if (PinCategory == UEdGraphSchema_CustomizableObject::PC_PassThroughImage)
 	{
-		return LOCTEXT("Image_Pin_Category", "PassThrough Texture");
+		return LOCTEXT("PassThrough_Image_Pin_Category", "PassThrough Texture");
 	}
 	else if (PinCategory == UEdGraphSchema_CustomizableObject::PC_Projector)
 	{
