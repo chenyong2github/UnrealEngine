@@ -1213,6 +1213,8 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 #endif
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+	if( TriRange.Num == 0 )
+		TriRange.Num = Cluster.NumTris;
 
 	// TODO: Ugly workaround
 	// The code was unconditionally reading RasterBin values even when bHasRasterBin was false.
