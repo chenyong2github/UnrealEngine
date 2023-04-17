@@ -78,13 +78,12 @@ bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 			return false;
 		}
 		const bool bCurveCompressionOk = FAnimationUtils::CompressAnimCurves(DataToCompress, OutData);
+		
+		bCompressionSuccessful = bBoneCompressionOk && bCurveCompressionOk;
 
 #if DO_CHECK
 		FString CompressionName = DataToCompress.BoneCompressionSettings->GetFullName();
-#endif
-
-		bCompressionSuccessful = bBoneCompressionOk && bCurveCompressionOk;
-
+		
 		ensureMsgf(bCompressionSuccessful, TEXT("Anim Compression failed for Sequence '%s' with compression scheme '%s': compressed data empty\n\tAnimIndex: %i\n\tMaxAnim:%i"), 
 											*DataToCompress.FullName,
 											*CompressionName,
@@ -93,6 +92,7 @@ bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 											CompressContext.Get()->MaxAnimations
 											PRAGMA_ENABLE_DEPRECATION_WARNINGS
 											);
+#endif
 	}
 
 	bCompressionSuccessful = bCompressionSuccessful && !DataToCompress.IsCancelled();
