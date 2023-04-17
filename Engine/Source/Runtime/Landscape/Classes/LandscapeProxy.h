@@ -51,6 +51,7 @@ struct FLandscapeInfoLayerSettings;
 struct FLandscapePerLODMaterialOverride;
 class FLandscapeProxyComponentDataChangedParams;
 struct FMeshDescription;
+struct FAsyncBuildData;
 enum class ENavDataGatheringMode : uint8;
 namespace UE::Landscape
 {
@@ -351,6 +352,33 @@ struct UE_DEPRECATED(5.1, "FLandscapeProxyMaterialOverride is deprecated; please
 	TObjectPtr<UMaterialInterface> Material = nullptr;
 };
 
+
+#if WITH_EDITOR
+// Tracks delayed updates triggered by landscape updates.
+// It's resposible for preventing expensive async operations while the user is still editing the landscape
+struct FAsyncWorkMonitor 
+{
+public:
+	enum class EAsyncWorkType : uint8
+	{
+		BuildNaniteMeshes,
+		Max
+	};
+
+	bool CheckIfUpdateTriggeredAndClear(EAsyncWorkType WorkType);
+	void SetDelayedUpdateTimer(EAsyncWorkType WorkType, float InSecondsUntilDelayedUpdateTrigger);
+	void Tick(float Detaltime);
+
+private:
+	struct FAsyncWorkTypeInfo
+	{
+		bool bUpdateTriggered = false;
+		float SecondsUntilDelayedUpdateTrigger = 0.0f;
+	};
+
+	TStaticArray<FAsyncWorkTypeInfo, static_cast<uint32>(EAsyncWorkType::Max)> WorkTypeInfos; // [static_cast<uint32>(EAsyncWorkType::Max)] ;
+};
+#endif 
 UCLASS(Abstract, MinimalAPI, NotBlueprintable, NotPlaceable, hidecategories=(Display, Attachment, Physics, Debug, Lighting), showcategories=(Lighting, Rendering, Transformation), hidecategories=(Mobility))
 class ALandscapeProxy : public APartitionActor, public ILandscapeSplineInterface
 {
@@ -1210,6 +1238,10 @@ public:
 	*/
 	LANDSCAPE_API bool ExportToRawMesh(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh) const;
 
+	LANDSCAPE_API TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> MakeAsyncNaniteBuildData() const;
+
+	bool ExportToRawMeshDataCopy(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh, const UE::Landscape::Nanite::FAsyncBuildData& AsyncData) const;
+
 	UE_DEPRECATED(5.1, "CheckGenerateLandscapePlatformData has been deprecated, please use CheckGenerateMobilePlatformData instead.")
 	LANDSCAPE_API void CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 
@@ -1221,6 +1253,9 @@ public:
 
 	/** Update Nanite representation if it's missing or outdated */
 	LANDSCAPE_API void UpdateNaniteRepresentation(const ITargetPlatform* InTargetPlatform);
+
+	/** Update Nanite representation if it's missing or outdated Async */
+	FGraphEventRef UpdateNaniteRepresentationAsync(const ITargetPlatform* InTargetPlatform);
 
 	/** 
 	* Invalidate and disable Nanite representation until a subsequent rebuild occurs
@@ -1304,6 +1339,7 @@ public:
 
 	LANDSCAPE_API virtual void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
 
+	FAsyncWorkMonitor& GetAsyncWorkMonitor() { return AsyncWorkMonitor; }
 protected:
 	friend class ALandscape;
 
@@ -1329,6 +1365,7 @@ protected:
 
 #endif // WITH_EDITOR
 private:
+
 	/** Returns Grass Update interval */
 	FORCEINLINE int32 GetGrassUpdateInterval() const 
 	{
@@ -1347,6 +1384,10 @@ private:
 
 #if WITH_EDITOR
 	void UpdateGrassDataStatus(TSet<UTexture2D*>* OutCurrentForcedStreamedTextures, TSet<UTexture2D*>* OutDesiredForcedStreamedTextures, TSet<ULandscapeComponent*>* OutComponentsNeedingGrassMapRender, TSet<ULandscapeComponent*>* OutOutdatedComponents, bool bInEnableForceResidentFlag, int32* OutOutdatedGrassMaps = nullptr) const;
+
+	/** Create Blank Nanite Component */
+	void CreateNaniteComponent();
+
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -1356,6 +1397,8 @@ public:
 private:
 	/** Maintain list of Proxies for faster iteration */
 	static TArray<ALandscapeProxy*> LandscapeProxies;
+
+	FAsyncWorkMonitor AsyncWorkMonitor;
 #endif
 };
 

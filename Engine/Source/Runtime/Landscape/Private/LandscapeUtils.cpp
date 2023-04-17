@@ -30,6 +30,7 @@ bool DoesPlatformSupportEditLayers(EShaderPlatform InShaderPlatform)
 
 #if WITH_EDITOR
 
+
 FString GetSharedAssetsPath(const FString& InPath)
 {
 	FString Path = InPath + TEXT("_sharedassets/");
