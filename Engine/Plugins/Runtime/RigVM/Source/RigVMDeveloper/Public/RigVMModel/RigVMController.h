@@ -1163,7 +1163,7 @@ private:
 	void ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode, bool bSetupUndoRedo);
 
 	// Changes Pin types if filtered types of a pin are unique
-	bool UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo, bool bInitializeDefaultValue = true);
+	bool UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo, bool bInitializeDefaultValue = true, TMap<URigVMPin*, TArray<TRigVMTypeIndex>> ProposedTypes = TMap<URigVMPin*, TArray<TRigVMTypeIndex>>());
 
 	bool ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true, bool bInitializeDefaultValue = true);
 	bool ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true, bool bInitializeDefaultValue = true);
@@ -1286,6 +1286,7 @@ protected:
 	FRigVMClientPatchResult PatchBranchNodesOnLoad();
 	FRigVMClientPatchResult PatchIfSelectNodesOnLoad();
 	FRigVMClientPatchResult PatchArrayNodesOnLoad();
+	FRigVMClientPatchResult PatchReduceArrayFloatDoubleConvertsionsOnLoad();
 	FRigVMClientPatchResult PatchInvalidLinksOnWildcards();
 
 	// work to do after a duplication of the host asset
