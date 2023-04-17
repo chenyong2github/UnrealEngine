@@ -5,10 +5,12 @@
 #include "Application/ThrottleManager.h"
 #include "Async/Async.h"
 #include "Engine/GameEngine.h"
-#include "Engine/RendererSettings.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineModule.h"
+#include "Engine/RendererSettings.h"
 #include "HAL/ThreadManager.h"
+#include "MediaCaptureHelper.h"
+#include "MediaCaptureRenderPass.h"
 #include "MediaCaptureSceneViewExtension.h"
 #include "MediaCaptureSources.h"
 #include "MediaIOFrameManager.h"
@@ -53,24 +55,10 @@ static TAutoConsoleVariable<int32> CVarMediaIOScheduleOnAnyThread(
 	TEXT("Whether to wait for resource readback in a separate thread. (Experimental)"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarMediaIOCapturePollTaskPriority(
-	TEXT("MediaIO.Capture.PollTaskPriority"), static_cast<int32>(LowLevelTasks::ETaskPriority::High),
-	TEXT("Priority of the task responsible to poll the render fence"),
-	ECVF_RenderThreadSafe);
-
-/** Time spent in media capture sending a frame. */
-DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread FrameCapture"), STAT_MediaCapture_RenderThread_FrameCapture, STATGROUP_Media);
-DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread LockResource"), STAT_MediaCapture_RenderThread_LockResource, STATGROUP_Media);
-DECLARE_CYCLE_STAT(TEXT("MediaCapture AnyThread LockResource"), STAT_MediaCapture_AnyThread_LockResource, STATGROUP_Media);
-DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread RHI Capture Callback"), STAT_MediaCapture_RenderThread_RHI_CaptureCallback, STATGROUP_Media);
-DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread CPU Capture Callback"), STAT_MediaCapture_RenderThread_CaptureCallback, STATGROUP_Media);
-DECLARE_GPU_STAT(MediaCapture_CaptureFrame);
-DECLARE_GPU_STAT(MediaCapture_CustomCapture);
-DECLARE_GPU_STAT(MediaCapture_Conversion);
-DECLARE_GPU_STAT(MediaCapture_Readback);
 DECLARE_GPU_STAT(MediaCapture_ProcessCapture);
-DECLARE_GPU_STAT(MediaCapture_SyncPointPass);
-
+DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread LockResource"), STAT_MediaCapture_RenderThread_LockResource, STATGROUP_Media);
+DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread CPU Capture Callback"), STAT_MediaCapture_RenderThread_CaptureCallback, STATGROUP_Media);
+DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread RHI Capture Callback"), STAT_MediaCapture_RenderThread_RHI_CaptureCallback, STATGROUP_Media);
 
 /* namespace MediaCaptureDetails definition
 *****************************************************************************/
@@ -84,14 +72,11 @@ namespace MediaCaptureDetails
 
 	void ShowSlateNotification();
 
-	/** Returns bytes per pixel based on pixel format */
-	int32 GetBytesPerPixel(EPixelFormat InPixelFormat);
-
 	static const FName LevelEditorName(TEXT("LevelEditor"));
 }
 
 #if WITH_EDITOR
-namespace MediaCaptureAnalytics
+namespace UE::MediaCaptureAnalytics
 {
 	/**
 	 * @EventName MediaFramework.CaptureStarted
@@ -111,946 +96,12 @@ namespace MediaCaptureAnalytics
 }
 #endif
 
-namespace UE::MediaCaptureData
-{
-	class FCaptureFrame : public FFrame
-	{
-	public:
-		FCaptureFrame(int32 InFrameId)
-			: FrameId(InFrameId)
-		{
-		}
-
-		virtual int32 GetId() const override
-		{
-			return FrameId;
-		}
-
-		virtual bool IsPending() const override
-		{
-			return bReadbackRequested || bDoingGPUCopy; 
-		}
-		
-		/** Returns true if its output resource is valid */
-		virtual bool HasValidResource() const = 0;
-		
-		virtual FRDGViewableResource* RegisterResource(FRDGBuilder& RDGBuilder) = 0;
-
-		/** Simple way to validate the resource type and cast safely */
-		virtual bool IsTextureResource() const = 0;
-		virtual bool IsBufferResource() const = 0;
-
-		/** Locks the readback resource and returns a pointer to access data from system memory */
-		virtual void* Lock(FRHICommandListImmediate& RHICmdList, int32& OutRowStride) = 0;
-
-		virtual void* Lock_Unsafe(int32& OutRowStride) { return nullptr; }
-
-		/** Unlocks the readback resource */
-		virtual void Unlock() = 0;
-
-		virtual void Unlock_Unsafe() {}
-
-		/** Returns true if the readback is ready to be used */
-		virtual bool IsReadbackReady(FRHIGPUMask GPUMask) = 0;
-		
-		virtual void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGViewableResource* ResourceToReadback, bool bIsAnyThreadSupported) = 0;
-		
-		virtual FRHITexture* GetTextureResource() { return nullptr; }
-		virtual FRHIBuffer* GetBufferResource() { return nullptr; }
-		virtual FRHIResource* GetRHIResource() = 0;
-
-		int32 FrameId = 0;
-		UMediaCapture::FCaptureBaseData CaptureBaseData;
-		std::atomic<bool> bReadbackRequested = false;
-		std::atomic<bool> bDoingGPUCopy = false;
-		std::atomic<bool> bMediaCaptureActive = true;
-		TSharedPtr<FMediaCaptureUserData> UserData;
-	};
-
-	/** Parameter to make our sync pass needing the convert pass as a prereq */
-	BEGIN_SHADER_PARAMETER_STRUCT(FMediaCaptureTextureSyncPassParameters, )
-		RDG_TEXTURE_ACCESS(Resource, ERHIAccess::CopySrc)
-	END_SHADER_PARAMETER_STRUCT()
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FMediaCaptureBufferSyncPassParameters, )
-		RDG_BUFFER_ACCESS(Resource, ERHIAccess::CopySrc)
-	END_SHADER_PARAMETER_STRUCT()
-	
-	class FTextureCaptureFrame : public FCaptureFrame
-	{
-	public:
-		/** Type alias for the output resource type used during capture frame */
-		using FOutputResourceType = FRDGTextureRef;
-		using PassParametersType = FMediaCaptureTextureSyncPassParameters;
-
-		FTextureCaptureFrame(int32 InFrameId)
-			: FCaptureFrame(InFrameId)
-		{
-		}
-
-		//~ Begin FCaptureFrame interface
-		virtual bool HasValidResource() const override
-		{
-			return RenderTarget != nullptr;
-		}
-
-		virtual bool IsTextureResource() const override
-		{
-			return true;
-		}
-
-		virtual bool IsBufferResource() const override
-		{
-			return false;
-		}
-
-		virtual void* Lock(FRHICommandListImmediate& RHICmdList, int32& OutRowStride) override
-		{
-			if (ReadbackTexture->IsReady() == false)
-			{
-				UE_LOG(LogMediaIOCore, Verbose, TEXT("Fence for texture readback was not ready"));
-			}
-
-			int32 ReadbackWidth;
-			void* ReadbackPointer = ReadbackTexture->Lock(ReadbackWidth);
-			OutRowStride = ReadbackWidth * MediaCaptureDetails::GetBytesPerPixel(RenderTarget->GetDesc().Format);
-			return ReadbackPointer;
-		}
-
-		virtual void* Lock_Unsafe(int32& OutRowStride) override
-		{
-			void* ReadbackPointer = nullptr;
-			int32 ReadbackWidth, ReadbackHeight;
-			GDynamicRHI->RHIMapStagingSurface(ReadbackTexture->DestinationStagingTextures[ReadbackTexture->GetLastCopyGPUMask().GetFirstIndex()], nullptr, ReadbackPointer, ReadbackWidth, ReadbackHeight, ReadbackTexture->GetLastCopyGPUMask().GetFirstIndex());
-			OutRowStride = ReadbackWidth * MediaCaptureDetails::GetBytesPerPixel(RenderTarget->GetDesc().Format);
-			return ReadbackPointer;
-		}
-
-		virtual void Unlock() override
-		{
-			ReadbackTexture->Unlock();
-		}
-
-		virtual void Unlock_Unsafe() override
-		{
-			GDynamicRHI->RHIUnmapStagingSurface(ReadbackTexture->DestinationStagingTextures[ReadbackTexture->GetLastCopyGPUMask().GetFirstIndex()], ReadbackTexture->GetLastCopyGPUMask().GetFirstIndex());
-		}
-
-		virtual bool IsReadbackReady(FRHIGPUMask GPUMask) override
-		{
-			return ReadbackTexture->IsReady(GPUMask);
-		}
-
-		//~ End FCaptureFrame interface
-
-		/** Registers an external texture to be tracked by the graph and returns a pointer to the tracked resource */
-		virtual FRDGViewableResource* RegisterResource(FRDGBuilder& RDGBuilder) override
-		{
-			return RDGBuilder.RegisterExternalTexture(RenderTarget, TEXT("OutputTexture"));
-		}
-
-		/** Adds a readback pass to the graph */
-		virtual void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGViewableResource* ResourceToReadback, bool bIsAnyThreadSupported) override
-		{
-			AddEnqueueCopyPass(RDGBuilder, ReadbackTexture.Get(), static_cast<FRDGTexture*>(ResourceToReadback));
-		}
-
-		virtual FRHITexture* GetTextureResource() override
-		{
-			return static_cast<FRHITexture*>(GetRHIResource());
-		}
-
-		/** Returns RHI resource of the allocated pooled resource */
-		virtual FRHIResource* GetRHIResource() override
-		{
-			return RenderTarget->GetRHI();
-		}
-		
-	public:
-		TRefCountPtr<IPooledRenderTarget> RenderTarget;
-		TUniquePtr<FRHIGPUTextureReadback> ReadbackTexture;
-	};
-
-	class FBufferCaptureFrame : public FCaptureFrame, public TSharedFromThis<UE::MediaCaptureData::FBufferCaptureFrame, ESPMode::ThreadSafe>
-	{
-	public:
-		/** Type alias for the output resource type used during capture frame */
-		using FOutputResourceType = FRDGBufferRef;
-		using PassParametersType = FMediaCaptureBufferSyncPassParameters;
-		
-		FBufferCaptureFrame(int32 InFrameId)
-			: FCaptureFrame(InFrameId)
-		{
-		}
-
-		//~ Begin FCaptureFrame interface
-		virtual bool HasValidResource() const override
-		{
-			return Buffer != nullptr;
-		}
-
-		virtual bool IsTextureResource() const override
-		{
-			return false;
-		}
-
-		virtual bool IsBufferResource() const override
-		{
-			return true;
-		}
-
-		virtual void* Lock(FRHICommandListImmediate& RHICmdList, int32& OutRowStride) override
-		{
-			if (ReadbackBuffer->IsReady() == false)
-			{
-				UE_LOG(LogMediaIOCore, Verbose, TEXT("Fence for buffer readback was not ready, blocking."));
-				RHICmdList.BlockUntilGPUIdle();
-			}
-
-			OutRowStride = Buffer->GetRHI()->GetStride();
-			return ReadbackBuffer->Lock(Buffer->GetRHI()->GetSize());
-		}
-
-		virtual void* Lock_Unsafe(int32& OutRowStride) override
-		{
-			void* ReadbackPointer = GDynamicRHI->RHILockStagingBuffer(DestinationStagingBuffers[LastCopyGPUMask.GetFirstIndex()], nullptr, 0, Buffer->GetRHI()->GetSize());
-			OutRowStride = Buffer->GetRHI()->GetStride();
-			return ReadbackPointer;
-		}
-		
-		virtual void Unlock() override
-		{
-			ReadbackBuffer->Unlock();
-		}
-		
-		virtual void Unlock_Unsafe() override
-		{
-			GDynamicRHI->RHIUnlockStagingBuffer(DestinationStagingBuffers[LastCopyGPUMask.GetFirstIndex()]);
-		}
-
-		virtual bool IsReadbackReady(FRHIGPUMask GPUMask) override
-		{
-			return ReadbackBuffer->IsReady(GPUMask);
-		}
-		//~ End FCaptureFrame interface
-
-		/** Registers an external texture to be tracked by the graph and returns a pointer to the tracked resource */
-		virtual FRDGViewableResource* RegisterResource(FRDGBuilder& RDGBuilder) override
-		{
-			return RDGBuilder.RegisterExternalBuffer(Buffer, TEXT("OutputBuffer"));
-		}
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FEnqueueCopyBufferPass, )
-		RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopySrc)
-		END_SHADER_PARAMETER_STRUCT()
-
-
-		/** Adds a readback pass to the graph */
-		virtual void EnqueueCopy(FRDGBuilder& RDGBuilder, FRDGViewableResource* ResourceToReadback, bool bIsAnyThreadSupported) override
-		{
-			if (bIsAnyThreadSupported)
-            {
-				FEnqueueCopyBufferPass* PassParameters = RDGBuilder.AllocParameters<FEnqueueCopyBufferPass>();
-				PassParameters->Buffer = static_cast<FRDGBuffer*>(ResourceToReadback);
-
-				TSharedPtr<FBufferCaptureFrame> CaptureFramePtr = AsShared();
-				RDGBuilder.AddPass(
-					RDG_EVENT_NAME("EnqueueCopy(%s)", ResourceToReadback->Name),
-					PassParameters,
-					ERDGPassFlags::Readback,
-					[CaptureFramePtr, ResourceToReadback](FRHICommandList& RHICmdList)
-				{
-					CaptureFramePtr->LastCopyGPUMask = RHICmdList.GetGPUMask();
-
-					for (uint32 GPUIndex : CaptureFramePtr->LastCopyGPUMask)
-					{
-						SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::FromIndex(GPUIndex));
-
-						if (!CaptureFramePtr->DestinationStagingBuffers[GPUIndex])
-						{
-							CaptureFramePtr->DestinationStagingBuffers[GPUIndex] = RHICreateStagingBuffer();
-						}
-
-						RHICmdList.CopyToStagingBuffer(static_cast<FRHIBuffer*>(ResourceToReadback->GetRHI()), CaptureFramePtr->DestinationStagingBuffers[GPUIndex], 0, CaptureFramePtr->Buffer->GetRHI()->GetSize());
-					}
-				});
-            }
-			else
-			{
-				AddEnqueueCopyPass(RDGBuilder, ReadbackBuffer.Get(), static_cast<FRDGBuffer*>(ResourceToReadback), Buffer->GetRHI()->GetSize());
-			}
-		}
-
-		virtual FRHIBuffer* GetBufferResource() override
-		{
-			return static_cast<FRHIBuffer*>(GetRHIResource());
-		}
-
-		/** Returns RHI resource of the allocated pooled resource */
-		virtual FRHIResource* GetRHIResource() override
-		{
-			return Buffer->GetRHI();
-		}
-
-	public:
-		TRefCountPtr<FRDGPooledBuffer> Buffer;
-		TUniquePtr<FRHIGPUBufferReadback> ReadbackBuffer;
-		
-// Used for the ExperimentalScheduling path
-#if WITH_MGPU
-		FStagingBufferRHIRef DestinationStagingBuffers[MAX_NUM_GPUS];
-#else
-		FStagingBufferRHIRef DestinationStagingBuffers[1];
-#endif
-
-		// Copied from FRHIGPUReadback.h
-		FRHIGPUMask LastCopyGPUMask;
-		uint32 LastLockGPUIndex = 0; 
-	};
-
-	/** Helper struct to contain arguments for CaptureFrame */
-	struct FCaptureFrameArgs
-	{
-		FRDGBuilder& GraphBuilder;
-		TObjectPtr<UMediaCapture> MediaCapture = nullptr;
-		FTexture2DRHIRef ResourceToCapture;
-		FRDGTextureRef RDGResourceToCapture = nullptr;
-		FIntPoint DesiredSize = FIntPoint::ZeroValue;
-		FIntRect SourceViewRect{0,0,0,0};
-
-		EPixelFormat GetFormat() const
-		{
-			if (RDGResourceToCapture)
-			{
-				return RDGResourceToCapture->Desc.Format;
-			}
-			return ResourceToCapture->GetFormat();
-		}
-
-		bool HasValidResource() const
-		{
-			return ResourceToCapture || RDGResourceToCapture;
-		}
-
-		FIntPoint GetSizeXY() const
-		{
-			if (RDGResourceToCapture)
-			{
-				return FIntPoint(RDGResourceToCapture->Desc.GetSize().X, RDGResourceToCapture->Desc.GetSize().Y);
-			}
-			return ResourceToCapture->GetSizeXY();
-		}
-
-		int32 GetSizeX() const
-		{
-			return GetSizeXY().X;
-		}
-
-		int32 GetSizeY() const
-		{
-			return GetSizeXY().Y;
-		}
-	};
-
-	/** Helper struct to contain arguments for AddConversionPass */
-	struct FConversionPassArgs
-	{
-		const FRDGTextureRef& SourceRGBTexture;
-		bool bRequiresFormatConversion = false;
-		FRHICopyTextureInfo CopyInfo;
-		FVector2D SizeU = FVector2D::ZeroVector;
-		FVector2D SizeV = FVector2D::ZeroVector;
-	};
-	
-	/** Helper class to be able to friend it and call methods on input media capture */
-	class FMediaCaptureHelper
-	{
-	public:
-
-		static bool AreInputsValid(const FCaptureFrameArgs& Args)
-		{
-			// If it is a simple rgba swizzle we can handle the conversion. Supported formats
-			// contained in SupportedRgbaSwizzleFormats. Warning would've been displayed on start of capture.
-			if (Args.MediaCapture->DesiredPixelFormat != Args.GetFormat() &&
-				(!UMediaCapture::GetSupportedRgbaSwizzleFormats().Contains(Args.GetFormat()) || !Args.MediaCapture->DesiredCaptureOptions.bConvertToDesiredPixelFormat))
-			{
-				UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source pixel format doesn't match with the user requested pixel format. %sRequested: %s Source: %s")
-					, *Args.MediaCapture->MediaOutputName
-					, (UMediaCapture::GetSupportedRgbaSwizzleFormats().Contains(Args.GetFormat()) && !Args.MediaCapture->DesiredCaptureOptions.bConvertToDesiredPixelFormat) ? TEXT("Please enable \"Convert To Desired Pixel Format\" option in Media Capture settings. ") : TEXT("")
-					, GetPixelFormatString(Args.MediaCapture->DesiredPixelFormat)
-					, GetPixelFormatString(Args.GetFormat()));
-
-				return false;
-			}
-
-			bool bFoundSizeMismatch = false;
-			FIntPoint RequestSize = FIntPoint::ZeroValue;
-			if (Args.MediaCapture->DesiredCaptureOptions.Crop == EMediaCaptureCroppingType::None)
-			{
-				if (Args.SourceViewRect.Area() != 0)
-				{
-					if (Args.DesiredSize.X != Args.SourceViewRect.Width() || Args.DesiredSize.Y != Args.SourceViewRect.Height())
-					{
-						RequestSize = { Args.SourceViewRect.Width(), Args.SourceViewRect.Height() };
-						bFoundSizeMismatch = true;
-					}
-					else
-					{
-						// If source view rect is passed, it will override the crop passed as argument.
-						Args.MediaCapture->DesiredCaptureOptions.Crop = EMediaCaptureCroppingType::Custom;
-						Args.MediaCapture->DesiredCaptureOptions.CustomCapturePoint = Args.SourceViewRect.Min;
-					}
-				}
-				else if (Args.SourceViewRect.Area() == 0 && (Args.DesiredSize.X != Args.GetSizeX() || Args.DesiredSize.Y != Args.GetSizeY()))
-				{
-					RequestSize = { Args.DesiredSize };
-					bFoundSizeMismatch = true;
-				}
-			}
-			else
-			{
-				FIntPoint StartCapturePoint = FIntPoint::ZeroValue;
-				if (Args.MediaCapture->DesiredCaptureOptions.Crop == EMediaCaptureCroppingType::Custom)
-				{
-					StartCapturePoint = Args.MediaCapture->DesiredCaptureOptions.CustomCapturePoint;
-				}
-
-				if ((Args.DesiredSize.X + StartCapturePoint.X) > Args.GetSizeX() || (Args.DesiredSize.Y + StartCapturePoint.Y) > Args.GetSizeY())
-				{
-					RequestSize = { Args.DesiredSize };
-					bFoundSizeMismatch = true;
-				}
-			}
-
-			if (bFoundSizeMismatch)
-			{
-				if (Args.MediaCapture->SupportsAutoRestart() 
-					&& Args.MediaCapture->bUseRequestedTargetSize 
-					&& Args.MediaCapture->DesiredCaptureOptions.bAutoRestartOnSourceSizeChange)
-				{
-					Args.MediaCapture->bIsAutoRestartRequired = true;
-
-					UE_LOG(LogMediaIOCore, Log, TEXT("The capture will auto restart for '%s'. The Source size doesn't match with the user requested size. Requested: %d,%d  Source: %d,%d")
-						, *Args.MediaCapture->MediaOutputName
-						, RequestSize.X, RequestSize.Y
-						, Args.GetSizeX(), Args.GetSizeY());
-					
-					return false;
-				}
-				else
-				{
-					UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source size doesn't match with the user requested size. Requested: %d,%d  Source: %d,%d")
-						, *Args.MediaCapture->MediaOutputName
-						, RequestSize.X, RequestSize.Y
-						, Args.GetSizeX(), Args.GetSizeY());
-
-					return false;
-				}
-			}
-
-			return true;
-		}
-
-		static void GetCopyInfo(const FCaptureFrameArgs& Args, FRHICopyTextureInfo& OutCopyInfo, FVector2D& OutSizeU, FVector2D& OutSizeV)
-		{
-			// Default to no crop
-			OutSizeU = { 0.0f, 1.0f };
-			OutSizeV = { 0.0f, 1.0f };
-			OutCopyInfo.Size = FIntVector(Args.DesiredSize.X, Args.DesiredSize.Y, 1);
-			if (Args.MediaCapture->DesiredCaptureOptions.Crop != EMediaCaptureCroppingType::None)
-			{
-				switch (Args.MediaCapture->DesiredCaptureOptions.Crop)
-				{
-				case EMediaCaptureCroppingType::Center:
-					OutCopyInfo.SourcePosition = FIntVector((Args.GetSizeX() - Args.DesiredSize.X) / 2, (Args.GetSizeY() - Args.DesiredSize.Y) / 2, 0);
-					break;
-				case EMediaCaptureCroppingType::TopLeft:
-					break;
-				case EMediaCaptureCroppingType::Custom:
-					OutCopyInfo.SourcePosition = FIntVector(Args.MediaCapture->DesiredCaptureOptions.CustomCapturePoint.X, Args.MediaCapture->DesiredCaptureOptions.CustomCapturePoint.Y, 0);
-					break;
-				default:
-					break;
-				}
-
-				OutSizeU.X = (float)(OutCopyInfo.SourcePosition.X)                      / (float)Args.GetSizeX();
-				OutSizeU.Y = (float)(OutCopyInfo.SourcePosition.X + OutCopyInfo.Size.X) / (float)Args.GetSizeX();
-				OutSizeV.X = (float)(OutCopyInfo.SourcePosition.Y)                      / (float)Args.GetSizeY();
-				OutSizeV.Y = (float)(OutCopyInfo.SourcePosition.Y + OutCopyInfo.Size.Y) / (float)Args.GetSizeY();
-			}
-		}
-
-		static void AddConversionPass(const FCaptureFrameArgs& Args, const FConversionPassArgs& ConversionPassArgs, FRDGViewableResource* OutputResource)
-		{
-			if (OutputResource->Type == FRDGBuffer::StaticType)
-			{
-				return;
-			}
-
-			check(OutputResource->Type == FRDGTexture::StaticType);
-			FRDGTexture* OutputTexture =  static_cast<FRDGTexture*>(OutputResource);
-			
-			//Based on conversion type, this might be changed
-			bool bRequiresFormatConversion = ConversionPassArgs.bRequiresFormatConversion;
-
-			// Rectangle area to use from source
-			const FIntRect ViewRect(ConversionPassArgs.CopyInfo.GetSourceRect());
-
-			// If no conversion was required, go through a simple copy
-			if (Args.MediaCapture->ConversionOperation == EMediaCaptureConversionOperation::NONE && !bRequiresFormatConversion)
-			{
-				AddCopyTexturePass(Args.GraphBuilder, ConversionPassArgs.SourceRGBTexture, OutputTexture, ConversionPassArgs.CopyInfo);
-			}
-			else
-			{
-				//At some point we should support color conversion (ocio) but for now we push incoming texture as is
-				const bool bDoLinearToSRGB = Args.MediaCapture->DesiredCaptureOptions.bApplyLinearToSRGBConversion;
-
-				FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-				TShaderMapRef<FScreenPassVS> VertexShader(GlobalShaderMap);
-
-				switch (Args.MediaCapture->ConversionOperation)
-				{
-				case EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT:
-				{
-					//Configure source/output viewport to get the right UV scaling from source texture to output texture
-					FScreenPassTextureViewport InputViewport(ConversionPassArgs.SourceRGBTexture, ViewRect);
-					FScreenPassTextureViewport OutputViewport(OutputTexture);
-					TShaderMapRef<FRGB8toUYVY8ConvertPS> PixelShader(GlobalShaderMap);
-					FRGB8toUYVY8ConvertPS::FParameters* Parameters = PixelShader->AllocateAndSetParameters(Args.GraphBuilder, ConversionPassArgs.SourceRGBTexture, MediaShaders::RgbToYuvRec709Scaled, MediaShaders::YUVOffset8bits, bDoLinearToSRGB, OutputTexture);
-					AddDrawScreenPass(Args.GraphBuilder, RDG_EVENT_NAME("RGBToUYVY 8 bit"), FScreenPassViewInfo(), OutputViewport, InputViewport, VertexShader, PixelShader, Parameters);
-				}
-				break;
-				case EMediaCaptureConversionOperation::RGB10_TO_YUVv210_10BIT:
-				{
-					//Configure source/output viewport to get the right UV scaling from source texture to output texture
-					const FIntPoint InExtent = FIntPoint((((ConversionPassArgs.SourceRGBTexture->Desc.Extent.X + 47) / 48) * 48), ConversionPassArgs.SourceRGBTexture->Desc.Extent.Y);;
-					FScreenPassTextureViewport InputViewport(ConversionPassArgs.SourceRGBTexture, ViewRect);
-					FScreenPassTextureViewport OutputViewport(OutputTexture);
-					TShaderMapRef<FRGB10toYUVv210ConvertPS> PixelShader(GlobalShaderMap);
-					FRGB10toYUVv210ConvertPS::FParameters* Parameters = PixelShader->AllocateAndSetParameters(Args.GraphBuilder, ConversionPassArgs.SourceRGBTexture, MediaShaders::RgbToYuvRec709Scaled, MediaShaders::YUVOffset10bits, bDoLinearToSRGB, OutputTexture);
-					AddDrawScreenPass(Args.GraphBuilder, RDG_EVENT_NAME("RGBToYUVv210"), FScreenPassViewInfo(), OutputViewport, InputViewport, VertexShader, PixelShader, Parameters);
-				}
-				break;
-				case EMediaCaptureConversionOperation::INVERT_ALPHA:
-					// fall through
-				case EMediaCaptureConversionOperation::SET_ALPHA_ONE:
-					// fall through
-				case EMediaCaptureConversionOperation::NONE:
-					bRequiresFormatConversion = true;
-				default:
-					if (bRequiresFormatConversion)
-					{
-						//Configure source/output viewport to get the right UV scaling from source texture to output texture
-						FScreenPassTextureViewport InputViewport(ConversionPassArgs.SourceRGBTexture, ViewRect);
-						FScreenPassTextureViewport OutputViewport(OutputTexture);
-
-						// In cases where texture is converted from a format that doesn't have A channel, we want to force set it to 1.
-						EMediaCaptureConversionOperation MediaConversionOperation = Args.MediaCapture->DesiredCaptureOptions.bForceAlphaToOneOnConversion ? EMediaCaptureConversionOperation::SET_ALPHA_ONE : Args.MediaCapture->ConversionOperation;
-						FModifyAlphaSwizzleRgbaPS::FPermutationDomain PermutationVector;
-						PermutationVector.Set<FModifyAlphaSwizzleRgbaPS::FConversionOp>(static_cast<int32>(MediaConversionOperation));
-
-						TShaderMapRef<FModifyAlphaSwizzleRgbaPS> PixelShader(GlobalShaderMap, PermutationVector);
-						FModifyAlphaSwizzleRgbaPS::FParameters* Parameters = PixelShader->AllocateAndSetParameters(Args.GraphBuilder, ConversionPassArgs.SourceRGBTexture, OutputTexture);
-						AddDrawScreenPass(Args.GraphBuilder, RDG_EVENT_NAME("MediaCaptureSwizzle"), FScreenPassViewInfo(), OutputViewport, InputViewport, VertexShader, PixelShader, Parameters);
-					}
-					break;
-				}
-			}
-		}
-
-		template <typename CaptureType>
-		static void OnReadbackComplete(FRHICommandList& RHICmdList, UMediaCapture* MediaCapture, TSharedPtr<CaptureType> ReadyFrame)
-		{
-			UE_LOG(LogMediaIOCore, Verbose, TEXT("[%s - %s] - Processing pending frame %d"), *MediaCapture->MediaOutputName, *FThreadManager::GetThreadName(FPlatformTLS::GetCurrentThreadId()), ReadyFrame->GetId());
-			TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::OnReadbackComplete);
-
-			{
-				ON_SCOPE_EXIT
-				{
-					if (IsInRenderingThread())
-					{
-						--MediaCapture->WaitingForRenderCommandExecutionCounter;
-					}
-				};
-
-
-
-				// Path where resource ready callback (readback / rhi capture) is on render thread (old method)
-				if (IsInRenderingThread())
-				{
-					// Scoped gpu mask shouldn't be needed for readback since we specify the gpu mask used during copy when we lock
-					// Keeping it for old render thread path
-					FRHIGPUMask GPUMask;
-#if WITH_MGPU
-					GPUMask = RHICmdList.GetGPUMask();
-
-					// If GPUMask is not set to a specific GPU we and since we are reading back the texture, it shouldn't matter which GPU we do this on.
-					if (!GPUMask.HasSingleIndex())
-					{
-						GPUMask = FRHIGPUMask::FromIndex(GPUMask.GetFirstIndex());
-					}
-					SCOPED_GPU_MASK(RHICmdList, GPUMask);
-#endif
-
-					// Are we doing a GPU Direct transfer
-					if (MediaCapture->ShouldCaptureRHIResource())
-					{
-						if (ReadyFrame->IsTextureResource())
-						{
-							{
-								TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::UnlockDMATexture_RenderThread);
-								MediaCapture->UnlockDMATexture_RenderThread(ReadyFrame->GetTextureResource());
-							}
-
-							TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::RHIResourceCaptured);
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapture Output Frame %d"), ReadyFrame->CaptureBaseData.SourceFrameNumberRenderThread));
-							SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_RHI_CaptureCallback)
-
-							MediaCapture->OnRHIResourceCaptured_RenderingThread(ReadyFrame->CaptureBaseData, ReadyFrame->UserData, ReadyFrame->GetTextureResource());
-						}
-						else
-						{
-							TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::RHIResourceCaptured);
-							MediaCapture->OnRHIResourceCaptured_RenderingThread(ReadyFrame->CaptureBaseData, ReadyFrame->UserData, ReadyFrame->GetBufferResource());
-						}
-					}
-					else
-					{
-						// Lock & read
-						void* ColorDataBuffer = nullptr;
-						int32 RowStride = 0;
-
-						// Readback should be ready since we're after the sync point.
-						SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_LockResource);
-						ColorDataBuffer = ReadyFrame->Lock(FRHICommandListExecutor::GetImmediateCommandList(), RowStride);
-
-						if (ensure(ColorDataBuffer))
-						{
-							{
-								TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapture Output Frame %d"), ReadyFrame->GetId()));
-								SCOPE_CYCLE_COUNTER(STAT_MediaCapture_AnyThread_LockResource)
-								MediaCapture->OnFrameCaptured_RenderingThread(ReadyFrame->CaptureBaseData, ReadyFrame->UserData, ColorDataBuffer, MediaCapture->DesiredOutputSize.X, MediaCapture->DesiredOutputSize.Y, RowStride);
-							}
-
-							ReadyFrame->Unlock();
-						}
-					}
-				}
-				else
-				{
-					// Are we doing a GPU Direct transfer
-					if (MediaCapture->ShouldCaptureRHIResource())
-					{
-						if (ReadyFrame->IsTextureResource())
-						{
-							{
-								TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::UnlockDMATexture_RenderThread);
-								MediaCapture->UnlockDMATexture_RenderThread(ReadyFrame->GetTextureResource());
-							}
-
-							TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::RHIResourceCaptured);
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapture Output Frame %d"), ReadyFrame->CaptureBaseData.SourceFrameNumberRenderThread));
-							SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_RHI_CaptureCallback)
-
-							MediaCapture->OnRHIResourceCaptured_AnyThread(ReadyFrame->CaptureBaseData, ReadyFrame->UserData, ReadyFrame->GetTextureResource());
-						}
-						else
-						{
-							TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::RHIResourceCaptured);
-							MediaCapture->OnRHIResourceCaptured_AnyThread(ReadyFrame->CaptureBaseData, ReadyFrame->UserData, ReadyFrame->GetBufferResource());
-						}
-					}
-					else
-					{
-						// Lock & read
-						void* ColorDataBuffer = nullptr;
-						int32 RowStride = 0;
-
-						// Readback should be ready since we're after the sync point.
-						SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_LockResource);
-						ColorDataBuffer = ReadyFrame->Lock_Unsafe(RowStride);
-
-						if (ensure(ColorDataBuffer))
-						{
-							{
-								TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapture Output Frame %d"), ReadyFrame->GetId()));
-								SCOPE_CYCLE_COUNTER(STAT_MediaCapture_AnyThread_LockResource)
-
-								UMediaCapture::FMediaCaptureResourceData ResourceData;
-								ResourceData.Buffer = ColorDataBuffer;
-								ResourceData.Width = MediaCapture->DesiredOutputSize.X;
-								ResourceData.Height = MediaCapture->DesiredOutputSize.Y;
-								ResourceData.BytesPerRow = RowStride;
-								MediaCapture->OnFrameCaptured_AnyThread(ReadyFrame->CaptureBaseData, ReadyFrame->UserData, MoveTemp(ResourceData));
-							}
-
-							ReadyFrame->Unlock_Unsafe();
-						}
-					}
-				}
-				
-				ReadyFrame->bDoingGPUCopy = false;
-				ReadyFrame->bReadbackRequested = false;
-
-				UE_LOG(LogMediaIOCore, Verbose, TEXT("[%s - %s] - Completed pending frame %d."), *MediaCapture->MediaOutputName, *FThreadManager::GetThreadName(FPlatformTLS::GetCurrentThreadId()), ReadyFrame->GetId());
-				MediaCapture->FrameManager->CompleteNextPending(*ReadyFrame);
-				--MediaCapture->PendingFrameCount;
-			};
-		}
-
-
-		template <typename CaptureType>
-		static void AddSyncPointPass(FRDGBuilder& GraphBuilder, UMediaCapture* MediaCapture, TSharedPtr<FCaptureFrame> CapturingFrame, FRDGViewableResource* OutputResource)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(MediaCaptureSyncPoint);
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCaptureSyncPoint_%d"), CapturingFrame->CaptureBaseData.SourceFrameNumberRenderThread));
-			RDG_GPU_STAT_SCOPE(GraphBuilder, MediaCapture_SyncPointPass);
-
-			// Initialize sync handlers only the first time. 
-			if (MediaCapture->bSyncHandlersInitialized == false)
-			{
-				MediaCapture->InitializeSyncHandlers_RenderThread();
-			}
-
-			// Add buffer output as a parameter to depend on the compute shader pass
-			typename CaptureType::PassParametersType* PassParameters = GraphBuilder.AllocParameters<typename CaptureType::PassParametersType>();
-			PassParameters->Resource = static_cast<typename CaptureType::FOutputResourceType>(OutputResource);
-
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("MediaCaptureCopySyncPass"),
-				PassParameters,
-				ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
-				[MediaCapture, CapturingFrame](FRHICommandListImmediate& RHICmdList)
-				{
-					if (CapturingFrame && CapturingFrame->bMediaCaptureActive)
-					{
-						// Get available sync handler to create a sync point
-						TSharedPtr<UMediaCapture::FMediaCaptureSyncData> SyncDataPtr = MediaCapture->GetAvailableSyncHandler();
-						if (ensure(SyncDataPtr))
-						{
-							// This will happen after the conversion pass has completed
-							RHICmdList.WriteGPUFence(SyncDataPtr->RHIFence);
-							SyncDataPtr->bIsBusy = true;
-
-							// Here we request a number to process the frames in order.
-							const uint32 ExecutionNumber = MediaCapture->OrderedAsyncGateCaptureReady.GetANumber();
-
-							// Spawn a task that will wait (poll) and continue the process of providing a new texture
-							UE::Tasks::FTask Task = UE::Tasks::Launch(UE_SOURCE_LOCATION, [MediaCapture, CapturingFrame, SyncDataPtr, ExecutionNumber]()
-								{
-									TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::SyncPass);
-
-									ON_SCOPE_EXIT
-									{
-										// Make sure that we give up our turn to execute when exiting this task,
-										// which will allow the other async tasks to execute after waiting for the fence.
-										MediaCapture->OrderedAsyncGateCaptureReady.GiveUpTurn(ExecutionNumber);
-									};
-
-									double WaitTime = 0.0;
-									bool bWaitedForCompletion = false;
-									{
-										FScopedDurationTimer Timer(WaitTime);
-									
-										// Wait until fence has been written (shader has completed)
-										while (true)
-										{
-											if (SyncDataPtr->RHIFence->Poll())
-											{
-												bWaitedForCompletion = true;
-												break;
-											}
-
-											if (!CapturingFrame->bMediaCaptureActive)
-											{
-												bWaitedForCompletion = false;
-												break;
-											}
-
-											constexpr float SleepTimeSeconds = 50 * 1E-6;
-											FPlatformProcess::SleepNoStats(SleepTimeSeconds);
-										}
-
-										SyncDataPtr->RHIFence->Clear();
-										SyncDataPtr->bIsBusy = false;
-									}
-
-									if (CapturingFrame->bMediaCaptureActive && bWaitedForCompletion && MediaCapture)
-									{
-										// Ensure that we do not run the following code out of order with respect to the other sibling async tasks,
-										// because the Pending Frames are expected to be processed in order.
-										if (!MediaCapture->OrderedAsyncGateCaptureReady.IsMyTurn(ExecutionNumber))
-										{
-											TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::SyncPass::OutOfOrderWait);
-
-											UE_LOG(LogMediaIOCore, Warning, TEXT(
-												"The wait for the GPU fence for the next frame of MediaCapture '%s' unexpectedly happened out of order. "
-												"Order will be enforced by waiting until the previous frames are processed. "),
-												*MediaCapture->MediaOutputName);
-
-											MediaCapture->OrderedAsyncGateCaptureReady.WaitForTurn(ExecutionNumber);
-										}
-
-										if (MediaCapture->UseAnyThreadCapture())
-										{
-											OnReadbackComplete(FRHICommandListExecutor::GetImmediateCommandList(), MediaCapture, CapturingFrame);
-										}
-										else
-										{
-											++MediaCapture->WaitingForRenderCommandExecutionCounter;
-
-											ENQUEUE_RENDER_COMMAND(MediaOutputCaptureReadbackComplete)([MediaCapture, CapturingFrame](FRHICommandList& RHICommandList)
-											{
-												OnReadbackComplete(RHICommandList, MediaCapture, CapturingFrame);
-											});
-										}
-									}
-
-								}, static_cast<LowLevelTasks::ETaskPriority>(CVarMediaIOCapturePollTaskPriority.GetValueOnRenderThread()));
-
-							{
-								// Add the task to the capture's list of pending tasks.
-								FScopeLock ScopedLock(&MediaCapture->PendingReadbackTasksCriticalSection);
-								MediaCapture->PendingReadbackTasks.Add(MoveTemp(Task));
-							}
-						}
-						else
-						{
-							UE_LOG(LogMediaIOCore, Error, TEXT(
-								"GetAvailableSyncHandler of MediaCapture '%s' failed to provide a fence, the captured buffers may not become available anymore."),
-								*MediaCapture->MediaOutputName);
-						}
-					}
-				});
-		}
-
-		static bool CaptureFrame(const FCaptureFrameArgs& Args, const TSharedPtr<UE::MediaCaptureData::FCaptureFrame> CapturingFrame)
-		{
-			RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_CaptureFrame)
-
-			// Validate if we have a resources used to capture source texture
-			if (!CapturingFrame->HasValidResource())
-			{
-				UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. A capture frame had an invalid render resource."), *Args.MediaCapture->MediaOutputName);
-				return false;
-			}
-
-			if (!Args.HasValidResource())
-			{
-				UE_LOG(LogMediaIOCore, Error, TEXT("Can't grab the Texture to capture for '%s'."), *Args.MediaCapture->MediaOutputName);
-				return false;
-			}
-
-			// If true, we will need to go through our different shader to convert from source format to out format (i.e RGB to YUV)
-			const bool bRequiresFormatConversion = Args.MediaCapture->DesiredPixelFormat != Args.GetFormat();
-
-			// Validate pixel formats and sizes before pursuing
-			if (!AreInputsValid(Args))
-			{
-				return false;
-			}
-
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::LockDMATexture_RenderThread);
-				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("LockDmaTexture Output Frame %d"), CapturingFrame->CaptureBaseData.SourceFrameNumberRenderThread));
-
-				if (CapturingFrame->IsTextureResource())
-				{
-					Args.MediaCapture->LockDMATexture_RenderThread(CapturingFrame->GetTextureResource());
-				}
-			}
-			
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::FrameCapture);
-				SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_FrameCapture);
-
-				FRHICopyTextureInfo CopyInfo;
-				FVector2D SizeU;
-				FVector2D SizeV;
-				GetCopyInfo(Args, CopyInfo, SizeU, SizeV);
-
-				FRDGTextureRef SourceRGBTexture = Args.RDGResourceToCapture;
-				
-				if (!SourceRGBTexture)
-				{
-					// If we weren't passed a rdg texture, register the external rhi texture.
-					SourceRGBTexture = Args.GraphBuilder.RegisterExternalTexture(CreateRenderTarget(Args.ResourceToCapture, TEXT("SourceTexture")));
-				}
-
-				// Register output resource used by the current capture method (texture or buffer)
-				FRDGViewableResource* OutputResource = CapturingFrame->RegisterResource(Args.GraphBuilder);
-
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::GraphSetup);
-					SCOPED_DRAW_EVENTF(Args.GraphBuilder.RHICmdList, MediaCapture, TEXT("MediaCapture"));
-
-					// If custom conversion was requested from implementation, give it useful information to apply 
-					if (Args.MediaCapture->ConversionOperation == EMediaCaptureConversionOperation::CUSTOM)
-					{
-						RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_CustomCapture)
-						TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::CustomCapture);
-						
-						if (CapturingFrame->IsTextureResource())
-						{
-							Args.MediaCapture->OnCustomCapture_RenderingThread(Args.GraphBuilder, CapturingFrame->CaptureBaseData, CapturingFrame->UserData
-								, SourceRGBTexture, static_cast<FRDGTextureRef>(OutputResource), CopyInfo, SizeU, SizeV);
-						}
-						else
-						{
-							Args.MediaCapture->OnCustomCapture_RenderingThread(Args.GraphBuilder, CapturingFrame->CaptureBaseData, CapturingFrame->UserData
-								, SourceRGBTexture, static_cast<FRDGBufferRef>(OutputResource), CopyInfo, SizeU, SizeV);
-						}
-					}
-					else
-					{
-						RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_Conversion)
-						TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::FormatConversion);
-						AddConversionPass(Args, { SourceRGBTexture, bRequiresFormatConversion,  CopyInfo, SizeU, SizeV }, OutputResource);
-					}
-				}
-
-				
-				if (Args.MediaCapture->bShouldCaptureRHIResource == false)
-				{
-					RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_Readback)
-					TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::EnqueueReadback);
-
-					CapturingFrame->EnqueueCopy(Args.GraphBuilder, OutputResource, Args.MediaCapture->UseAnyThreadCapture());
-					CapturingFrame->bReadbackRequested = true;
-				}
-				else
-				{
-					CapturingFrame->bDoingGPUCopy = true;
-				}
-
-				Args.MediaCapture->FrameManager->MarkPending(*CapturingFrame);
-				++Args.MediaCapture->PendingFrameCount;
-
-				if (Args.MediaCapture->UseExperimentalScheduling())
-				{
-					if (CapturingFrame->IsTextureResource())
-					{
-						AddSyncPointPass<FTextureCaptureFrame>(Args.GraphBuilder, Args.MediaCapture, CapturingFrame, OutputResource);
-					}
-					else
-					{
-						AddSyncPointPass<FBufferCaptureFrame>(Args.GraphBuilder, Args.MediaCapture, CapturingFrame, OutputResource);
-					}
-				}
-			}
-
-			return true;
-		}
-	};
-}
 
 /* FMediaCaptureOptions
 *****************************************************************************/
 FMediaCaptureOptions::FMediaCaptureOptions()
 	: Crop(EMediaCaptureCroppingType::None)
 	, CustomCapturePoint(FIntPoint::ZeroValue)
-	, bResizeSourceBuffer(false)
 	, bSkipFrameWhenRunningExpensiveTasks(true)
 	, bConvertToDesiredPixelFormat(true)
 	, bForceAlphaToOneOnConversion(false)
@@ -1199,7 +250,7 @@ bool UMediaCapture::StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCa
 	{
 		DesiredSize = InSource->GetSize();
 	}
-	else if (DesiredCaptureOptions.bResizeSourceBuffer)
+	else if (DesiredCaptureOptions.ResizeMethod == EMediaCaptureResizeMethod::ResizeSource)
 	{
 		InSource->ResizeSourceBuffer(DesiredSize);
 	}
@@ -1223,6 +274,8 @@ bool UMediaCapture::StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCa
 
 	// This could have been updated by the initialization done by the implementation
 	bShouldCaptureRHIResource = ShouldCaptureRHIResource();
+
+	CaptureRenderPipeline = MakePimpl<UE::MediaCapture::FRenderPipeline>(this);
 
 	if (bInitialized)
 	{
@@ -1262,7 +315,7 @@ bool UMediaCapture::StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCa
 	}
 
 #if WITH_EDITOR
-	MediaCaptureAnalytics::SendCaptureEvent(GetCaptureSourceType());
+	UE::MediaCaptureAnalytics::SendCaptureEvent(GetCaptureSourceType());
 #endif
 
 
@@ -1290,50 +343,51 @@ void UMediaCapture::CacheMediaOutput(EMediaCaptureSourceType InSourceType)
 
 void UMediaCapture::CacheOutputOptions()
 {
-	DesiredOutputSize = GetOutputSize(DesiredSize, ConversionOperation);
-	DesiredOutputResourceType = GetOutputResourceType(ConversionOperation);
-	DesiredOutputPixelFormat = GetOutputPixelFormat(DesiredPixelFormat, ConversionOperation);
-	DesiredOutputBufferDescription = GetOutputBufferDescription(ConversionOperation);
+	DesiredOutputSize = GetOutputSize();
+	DesiredOutputResourceType = GetOutputResourceType();
+	DesiredOutputPixelFormat = GetOutputPixelFormat();
+	DesiredOutputTextureDescription = GetOutputTextureDescription();
+	DesiredOutputBufferDescription = GetOutputBufferDescription();
 	MediaOutputName = *MediaOutput->GetName();
 	bShouldCaptureRHIResource = ShouldCaptureRHIResource();
 }
 
-FIntPoint UMediaCapture::GetOutputSize(const FIntPoint & InSize, const EMediaCaptureConversionOperation & InConversionOperation) const
+FIntPoint UMediaCapture::GetOutputSize() const
 {
-	switch (InConversionOperation)
+	switch (ConversionOperation)
 	{
 	case EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT:
-		return FIntPoint(InSize.X / 2, InSize.Y);
+		return FIntPoint(DesiredSize.X / 2, DesiredSize.Y);
 	case EMediaCaptureConversionOperation::RGB10_TO_YUVv210_10BIT:
 		// Padding aligned on 48 (16 and 6 at the same time)
-		return FIntPoint((((InSize.X + 47) / 48) * 48) / 6, InSize.Y);
+		return FIntPoint((((DesiredSize.X + 47) / 48) * 48) / 6, DesiredSize.Y);
 	case EMediaCaptureConversionOperation::CUSTOM:
-		return GetCustomOutputSize(InSize);
+		return GetCustomOutputSize(DesiredSize);
 	case EMediaCaptureConversionOperation::NONE:
 	default:
-		return InSize;
+		return DesiredSize;
 	}
 }
 
-EPixelFormat UMediaCapture::GetOutputPixelFormat(const EPixelFormat & InPixelFormat, const EMediaCaptureConversionOperation & InConversionOperation) const
+EPixelFormat UMediaCapture::GetOutputPixelFormat() const
 {
-	switch (InConversionOperation)
+	switch (ConversionOperation)
 	{
 	case EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT:
 		return EPixelFormat::PF_B8G8R8A8;
 	case EMediaCaptureConversionOperation::RGB10_TO_YUVv210_10BIT:
 		return EPixelFormat::PF_R32G32B32A32_UINT;
 	case EMediaCaptureConversionOperation::CUSTOM:
-		return GetCustomOutputPixelFormat(InPixelFormat);
+		return GetCustomOutputPixelFormat(DesiredPixelFormat);
 	case EMediaCaptureConversionOperation::NONE:
 	default:
-		return InPixelFormat;
+		return DesiredPixelFormat;
 	}
 }
 
-EMediaCaptureResourceType UMediaCapture::GetOutputResourceType(const EMediaCaptureConversionOperation& InConversionOperation) const
+EMediaCaptureResourceType UMediaCapture::GetOutputResourceType() const
 {
-	switch (InConversionOperation)
+	switch (ConversionOperation)
 	{
 	case EMediaCaptureConversionOperation::CUSTOM:
 		return GetCustomOutputResourceType();
@@ -1342,15 +396,24 @@ EMediaCaptureResourceType UMediaCapture::GetOutputResourceType(const EMediaCaptu
 	}
 }
 
-FRDGBufferDesc UMediaCapture::GetOutputBufferDescription(EMediaCaptureConversionOperation InConversionOperation) const
+FRDGBufferDesc UMediaCapture::GetOutputBufferDescription() const
 {
-	switch (InConversionOperation)
+	switch (ConversionOperation)
 	{
 	case EMediaCaptureConversionOperation::CUSTOM:
 		return GetCustomBufferDescription(DesiredSize);
 	default:
 		return FRDGBufferDesc();
 	}
+}
+
+FRDGTextureDesc UMediaCapture::GetOutputTextureDescription() const
+{
+	return FRDGTextureDesc::Create2D(
+					GetOutputSize(),
+					GetOutputPixelFormat(),
+					FClearValueBinding::None,
+					TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV);
 }
 
 bool UMediaCapture::UpdateSource(TSharedPtr<UE::MediaCapture::Private::FCaptureSource> InCaptureSource)
@@ -1366,7 +429,7 @@ bool UMediaCapture::UpdateSource(TSharedPtr<UE::MediaCapture::Private::FCaptureS
 	const TSharedPtr<UE::MediaCapture::Private::FCaptureSource> PreviousCaptureSource = CaptureSource;
 	CaptureSource = MoveTemp(InCaptureSource);
 
-	if (!bUseRequestedTargetSize && DesiredCaptureOptions.bResizeSourceBuffer)
+	if (!bUseRequestedTargetSize && DesiredCaptureOptions.ResizeMethod == EMediaCaptureResizeMethod::ResizeSource)
 	{
 		CaptureSource->ResizeSourceBuffer(DesiredSize);
 	}
@@ -1487,6 +550,7 @@ void UMediaCapture::StopCapture(bool bAllowPendingFrameToBeProcess)
 			DesiredCaptureOptions = FMediaCaptureOptions();
 			ConversionOperation = EMediaCaptureConversionOperation::NONE;
 			ViewExtension.Reset();
+			CaptureRenderPipeline.Reset();
 			
 			MediaOutputName.Reset();
 		}
@@ -1544,7 +608,7 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::CaptureImmediate_RenderThread);
 	
 	check(IsInRenderingThread());
-
+	
 	if (bIsAutoRestartRequired)
 	{
 		return;
@@ -1572,9 +636,9 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 		UE_LOG(LogMediaIOCore, Error, TEXT("[%s] - Trying to capture a RHI resource with another capture type."), *MediaOutputName);
 		SetState(EMediaCaptureState::Error);
 	}
-
+	
 	// Keep resource size up to date with incoming resource to capture
- 	StaticCastSharedPtr<UE::MediaCapture::Private::FRHIResourceCaptureSource>(CaptureSource)->ResourceDescription.ResourceSize = Args.GetSizeXY();
+    StaticCastSharedPtr<UE::MediaCapture::Private::FRHIResourceCaptureSource>(CaptureSource)->ResourceDescription.ResourceSize = Args.GetSizeXY();
 
 	if (GetState() != EMediaCaptureState::Capturing && GetState() != EMediaCaptureState::StopRequested)
 	{
@@ -2062,14 +1126,6 @@ void UMediaCapture::InitializeOutputResources(int32 InNumberOfBuffers)
 				if (This->DesiredOutputResourceType == EMediaCaptureResourceType::Texture)
 				{
 					TSharedPtr<FTextureCaptureFrame> NewFrame = MakeShared<FTextureCaptureFrame>(Index);
-					FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
-						This->DesiredOutputSize,
-						This->DesiredOutputPixelFormat,
-						FClearValueBinding::None,
-						TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV);
-
-
-					NewFrame->RenderTarget = AllocatePooledTexture(OutputDesc, *FString::Format(TEXT("MediaCapture RenderTarget {0}"), { Index }));
 					
 					// Only create CPU readback resource when we are using the CPU callback
 					if (!This->bShouldCaptureRHIResource)
@@ -2082,11 +1138,9 @@ void UMediaCapture::InitializeOutputResources(int32 InNumberOfBuffers)
 				else
 				{
 					TSharedPtr<FBufferCaptureFrame> NewFrame = MakeShared<FBufferCaptureFrame>(Index);
-
+					
 					if (This->DesiredOutputBufferDescription.NumElements > 0)
 					{
-						NewFrame->Buffer = AllocatePooledBuffer(This->DesiredOutputBufferDescription, *FString::Format(TEXT("MediaCapture BufferResource {0}"), { Index }));
-
 						// Only create CPU readback resource when we are using the CPU callback
 						if (!This->bShouldCaptureRHIResource)
 						{
@@ -2224,7 +1278,7 @@ void UMediaCapture::OnEndFrame_GameThread()
 	{
 		FlushRenderingCommands();
 	}
-
+	
 	if (bIsAutoRestartRequired)
 	{
 		return;
@@ -2273,7 +1327,7 @@ void UMediaCapture::OnEndFrame_GameThread()
 	ProcessCapture_GameThread();
 }
 
-bool UMediaCapture::ProcessCapture_RenderThread(const TSharedPtr<UE::MediaCaptureData::FCaptureFrame>& CapturingFrame, const UE::MediaCaptureData::FCaptureFrameArgs& Args)
+bool UMediaCapture::ProcessCapture_RenderThread(const TSharedPtr<UE::MediaCaptureData::FCaptureFrame>& CapturingFrame, UE::MediaCaptureData::FCaptureFrameArgs Args)
 {
 	using namespace UE::MediaCaptureData;
 	
@@ -2288,17 +1342,27 @@ bool UMediaCapture::ProcessCapture_RenderThread(const TSharedPtr<UE::MediaCaptur
 
 	if (CapturingFrame)
 	{
+		// Register the source texture with the render graph.
+		if (!Args.RDGResourceToCapture)
+		{
+			// If we weren't passed a rdg texture, register the external rhi texture.
+			Args.RDGResourceToCapture = Args.GraphBuilder.RegisterExternalTexture(CreateRenderTarget(Args.ResourceToCapture, TEXT("MediaCaptureSourceTexture")));
+		}
+
+		Args.MediaCapture->CaptureRenderPipeline->InitializeResources_RenderThread(CapturingFrame, Args.GraphBuilder, Args.RDGResourceToCapture);
+
 		// Call the capture frame algo based on the specific type of resource we are using
 		bool bHasCaptureSuceeded = false;
+		bool bBeforeCaptureSuccess = true;
 		if (DesiredOutputResourceType == EMediaCaptureResourceType::Texture)
 		{
 			if (ensure(CapturingFrame->IsTextureResource()))
 			{
 				Args.MediaCapture->BeforeFrameCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, CapturingFrame->GetTextureResource());
-				bHasCaptureSuceeded = FMediaCaptureHelper::CaptureFrame(Args, CapturingFrame);
 			}
 			else
 			{
+				bBeforeCaptureSuccess = false;
 				UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. Capture frame was expected to use Texture resource but wasn't."), *Args.MediaCapture->MediaOutputName);
 			}
 		}
@@ -2307,12 +1371,17 @@ bool UMediaCapture::ProcessCapture_RenderThread(const TSharedPtr<UE::MediaCaptur
 			if (ensure(CapturingFrame->IsBufferResource()))
 			{
 				Args.MediaCapture->BeforeFrameCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, CapturingFrame->GetBufferResource());
-				bHasCaptureSuceeded = FMediaCaptureHelper::CaptureFrame(Args, CapturingFrame);
 			}
 			else
 			{
+				bBeforeCaptureSuccess = false;
 				UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. Capture frame was expected to use Buffer resource but wasn't."), *Args.MediaCapture->MediaOutputName);
 			}
+		}
+
+		if (bBeforeCaptureSuccess)
+		{
+			bHasCaptureSuceeded = UE::MediaCaptureData::FMediaCaptureHelper::CaptureFrame(Args, CapturingFrame);
 		}
 		
 		if (bHasCaptureSuceeded == false)
@@ -2438,6 +1507,75 @@ void UMediaCapture::PrintFrameState()
 	UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("%s"), *FrameManager->GetFramesState());
 }
 
+int32 UMediaCapture::GetBytesPerPixel(EPixelFormat InPixelFormat)
+{
+	//We can capture viewports and render targets. Possible pixel format is limited by that
+	switch (InPixelFormat)
+	{
+
+	case PF_A8:
+	case PF_R8_UINT:
+	case PF_R8_SINT:
+	case PF_G8:
+		{
+			return 1;
+		}
+	case PF_R16_UINT:
+	case PF_R16_SINT:
+	case PF_R5G6B5_UNORM:
+	case PF_R8G8:
+	case PF_R16F:
+	case PF_R16F_FILTER:
+	case PF_V8U8:
+	case PF_R8G8_UINT:
+	case PF_B5G5R5A1_UNORM:
+		{
+			return 2;
+		}
+	case PF_R32_UINT:
+	case PF_R32_SINT:
+	case PF_R8G8B8A8:
+	case PF_A8R8G8B8:
+	case PF_FloatR11G11B10:
+	case PF_A2B10G10R10:
+	case PF_G16R16:
+	case PF_G16R16F:
+	case PF_G16R16F_FILTER:
+	case PF_R32_FLOAT:
+	case PF_R16G16_UINT:
+	case PF_R8G8B8A8_UINT:
+	case PF_R8G8B8A8_SNORM:
+	case PF_B8G8R8A8:
+	case PF_G16R16_SNORM:
+	case PF_FloatRGB: //Equivalent to R11G11B10
+	{
+			return 4;
+	}
+	case PF_R16G16B16A16_UINT:
+	case PF_R16G16B16A16_SINT:
+	case PF_A16B16G16R16:
+	case PF_G32R32F:
+	case PF_R16G16B16A16_UNORM:
+	case PF_R16G16B16A16_SNORM:
+	case PF_R32G32_UINT:
+	case PF_R64_UINT:
+	case PF_FloatRGBA: //Equivalent to R16G16B16A16
+	{
+			return 8;
+	}
+	case PF_A32B32G32R32F:
+	case PF_R32G32B32A32_UINT:
+		{
+			return 16;
+		}
+	default:
+		{
+			ensureMsgf(false, TEXT("MediaCapture - Pixel format (%d) not handled. Invalid bytes per pixel returned."), InPixelFormat);
+			return 0;
+		}
+	}
+}
+
 /* namespace MediaCaptureDetails implementation
 *****************************************************************************/
 namespace MediaCaptureDetails
@@ -2520,75 +1658,6 @@ namespace MediaCaptureDetails
 			}
 		}
 #endif // WITH_EDITOR
-	}
-
-	int32 GetBytesPerPixel(EPixelFormat InPixelFormat)
-	{
-		//We can capture viewports and render targets. Possible pixel format is limited by that
-		switch (InPixelFormat)
-		{
-
-		case PF_A8:
-		case PF_R8_UINT:
-		case PF_R8_SINT:
-		case PF_G8:
-		{
-			return 1;
-		}
-		case PF_R16_UINT:
-		case PF_R16_SINT:
-		case PF_R5G6B5_UNORM:
-		case PF_R8G8:
-		case PF_R16F:
-		case PF_R16F_FILTER:
-		case PF_V8U8:
-		case PF_R8G8_UINT:
-		case PF_B5G5R5A1_UNORM:
-		{
-			return 2;
-		}
-		case PF_R32_UINT:
-		case PF_R32_SINT:
-		case PF_R8G8B8A8:
-		case PF_A8R8G8B8:
-		case PF_FloatR11G11B10:
-		case PF_A2B10G10R10:
-		case PF_G16R16:
-		case PF_G16R16F:
-		case PF_G16R16F_FILTER:
-		case PF_R32_FLOAT:
-		case PF_R16G16_UINT:
-		case PF_R8G8B8A8_UINT:
-		case PF_R8G8B8A8_SNORM:
-		case PF_B8G8R8A8:
-		case PF_G16R16_SNORM:
-		case PF_FloatRGB: //Equivalent to R11G11B10
-		{
-			return 4;
-		}
-		case PF_R16G16B16A16_UINT:
-		case PF_R16G16B16A16_SINT:
-		case PF_A16B16G16R16:
-		case PF_G32R32F:
-		case PF_R16G16B16A16_UNORM:
-		case PF_R16G16B16A16_SNORM:
-		case PF_R32G32_UINT:
-		case PF_R64_UINT:
-		case PF_FloatRGBA: //Equivalent to R16G16B16A16
-		{
-			return 8;
-		}
-		case PF_A32B32G32R32F:
-		case PF_R32G32B32A32_UINT:
-		{
-			return 16;
-		}
-		default:
-		{
-			ensureMsgf(false, TEXT("MediaCapture - Pixel format (%d) not handled. Invalid bytes per pixel returned."), InPixelFormat);
-			return 0;
-		}
-		}
 	}
 }
 

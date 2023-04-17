@@ -28,7 +28,7 @@ FMediaFrameworkCaptureRenderTargetCameraOutputInfo::FMediaFrameworkCaptureRender
 
 UMediaFrameworkWorldSettingsAssetUserData::UMediaFrameworkWorldSettingsAssetUserData()
 {
-	CurrentViewportMediaOutput.CaptureOptions.bResizeSourceBuffer = true;
+	CurrentViewportMediaOutput.CaptureOptions.ResizeMethod = EMediaCaptureResizeMethod::ResizeSource;
 }
 
 

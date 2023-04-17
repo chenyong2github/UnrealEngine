@@ -30,6 +30,12 @@
 			"LoadingPhase": "PostConfigInit"
 		}
 	],
+	"Plugins": [
+		{
+			"Name": "OpenColorIO",
+			"Enabled": true
+		}
+	],
 	"DocsURL": "",
 	"IsExperimentalVersion": false
 }

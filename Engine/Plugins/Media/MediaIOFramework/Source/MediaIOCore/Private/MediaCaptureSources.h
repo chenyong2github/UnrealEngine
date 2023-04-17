@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/RendererSettings.h"
 #include "Math/IntPoint.h"
 #include "MediaCapture.h"
 #include "MediaIOCoreModule.h"
@@ -66,7 +67,7 @@ namespace UE::MediaCapture::Private
 		}
 
 		const FIntPoint SceneViewportSize = SceneViewport->GetRenderTargetTextureSizeXY();
-		if (!ValidateSize(SceneViewportSize, DesiredSize, CaptureOptions, bCurrentlyCapturing))
+		if (CaptureOptions.ResizeMethod != EMediaCaptureResizeMethod::ResizeInRenderPass && !ValidateSize(SceneViewportSize, DesiredSize, CaptureOptions, bCurrentlyCapturing))
 		{
 			return false;
 		}
@@ -104,7 +105,7 @@ namespace UE::MediaCapture::Private
 			return false;
 		}
 
-		if (!ValidateSize(FIntPoint(InRenderTarget2D->SizeX, InRenderTarget2D->SizeY), DesiredSize, CaptureOptions, bCurrentlyCapturing))
+		if (CaptureOptions.ResizeMethod != EMediaCaptureResizeMethod::ResizeInRenderPass && !ValidateSize(FIntPoint(InRenderTarget2D->SizeX, InRenderTarget2D->SizeY), DesiredSize, CaptureOptions, bCurrentlyCapturing))
 		{
 			return false;
 		}

@@ -614,7 +614,9 @@ void SMediaFrameworkCaptureCurrentViewportWidget::StartOutput()
 					ViewportClient.SetRealtime(true);
 					ViewportClient.bSetListenerPosition = false;
 					ViewportClient.bDrawAxes = false;
-					ViewportClient.bDisableInput = true;
+					// Disable input by default unless we're dynamically rezizing the viewport texture as we capture.
+					// Note that we originally disable input because click routing is broken when we resize the viewport through media capture at the moment.
+					ViewportClient.bDisableInput = CaptureOptions.ResizeMethod != EMediaCaptureResizeMethod::ResizeInRenderPass ? true : ViewportClient.bDisableInput;
 					ViewportClient.SetAllowCinematicControl(false);
 					ViewportClient.VisibilityDelegate.BindLambda([] { return true; });
 				}

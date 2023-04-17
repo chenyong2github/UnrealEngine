@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"MediaAssets",
 					"MediaUtils",
 					"MovieSceneCapture",
+					"OpenColorIO",
 					"Projects",
 					"RenderCore",
 					"RHI",

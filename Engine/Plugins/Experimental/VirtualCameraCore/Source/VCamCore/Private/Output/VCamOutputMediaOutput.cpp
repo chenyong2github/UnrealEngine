@@ -30,7 +30,7 @@ void UVCamOutputMediaOutput::StartCapturing()
 		if (MediaCapture)
 		{
 			FMediaCaptureOptions Options;
-			Options.bResizeSourceBuffer = true;
+			Options.ResizeMethod = EMediaCaptureResizeMethod::ResizeSource;
 
 			// If we are rendering from a ComposureOutputProvider, get the requested render target and use that instead of the viewport
 			if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(GetOtherOutputProviderByIndex(FromComposureOutputProviderIndex)))
