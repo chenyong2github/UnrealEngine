@@ -1540,7 +1540,12 @@ bool FEDLCookChecker::ReadFromCompactBinary(FCbFieldView Field)
 	};
 
 	FCbFieldView NodesField = Field["Nodes"];
-	Nodes.Reserve(NodesField.AsArrayView().Num() / 5);
+	const uint64 NumNodes = NodesField.AsArrayView().Num() / 5;
+	if (NumNodes > MAX_int32)
+	{
+		return false;
+	}
+	Nodes.Reserve(static_cast<int32>(NumNodes));
 	if (NodesField.HasError())
 	{
 		return false;
@@ -1567,7 +1572,12 @@ bool FEDLCookChecker::ReadFromCompactBinary(FCbFieldView Field)
 	}
 
 	FCbFieldView PrereqsField = Field["NodePrereqs"];
-	NodePrereqs.Reserve(PrereqsField.AsArrayView().Num() / 2);
+	const int64 NumNodePrereqs = PrereqsField.AsArrayView().Num() / 2;
+	if (NumNodePrereqs > MAX_int32)
+	{
+		return false;
+	}
+	NodePrereqs.Reserve(static_cast<int32>(NumNodePrereqs));
 	if (PrereqsField.HasError())
 	{
 		return false;
@@ -1585,7 +1595,12 @@ bool FEDLCookChecker::ReadFromCompactBinary(FCbFieldView Field)
 	}
 
 	FCbFieldView PackagesWithUnknownExportsField = Field["PackagesWithUnknownExports"];
-	PackagesWithUnknownExports.Reserve(PackagesWithUnknownExportsField.AsArrayView().Num());
+	const int64 NumPackagesWithUnknownExports = PackagesWithUnknownExportsField.AsArrayView().Num();
+	if (NumPackagesWithUnknownExports > MAX_int32)
+	{
+		return false;
+	}
+	PackagesWithUnknownExports.Reserve(static_cast<int32>(NumPackagesWithUnknownExports));
 	if (PackagesWithUnknownExportsField.HasError())
 	{
 		return false;
