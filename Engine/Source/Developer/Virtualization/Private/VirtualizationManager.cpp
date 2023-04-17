@@ -1784,9 +1784,8 @@ bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backe
 	if (Backend.PushData(Requests, Flags))
 	{
 #if ENABLE_COOK_STATS
-		Timer.AddHit(0);
-
 		const bool bIsInGameThread = IsInGameThread();
+		bool bWasDataPushed = false;
 
 		for (const FPushRequest& Request : Requests)
 		{
@@ -1794,7 +1793,14 @@ bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backe
 			{
 				Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter, 1l, bIsInGameThread);
 				Stats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes, Request.GetPayload().GetCompressedSize(), bIsInGameThread);
+
+				bWasDataPushed = true;
 			}
+		}
+
+		if (bWasDataPushed)
+		{
+			Timer.AddHit(0);
 		}
 #endif // ENABLE_COOK_STATS
 
