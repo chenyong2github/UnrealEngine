@@ -28,6 +28,16 @@ public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
+UENUM()
+enum class EWeldMeshEdgesAttributeUIMode : uint8
+{
+	/** Do not weld split-attributes*/
+	None,
+	/** Apply attribute welding only along the current mesh welds */
+	OnWeldedMeshEdgesOnly,
+	/** Apply attribute welding to all split-attributes */
+	OnFullMesh
+};
 
 
 UCLASS()
@@ -55,6 +65,28 @@ public:
 	/** Number of remaining open boundary edges */
 	UPROPERTY(VisibleAnywhere, Category = Statistics)
 	int32 RemainingEdges;
+
+	/** Controls split-attribute welding performed after the Mesh weld.  Applies to normals, tangents, UVs and colors. */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayName = "Split-Attribute Welding"))
+	EWeldMeshEdgesAttributeUIMode AttrWeldingMode = EWeldMeshEdgesAttributeUIMode::OnWeldedMeshEdgesOnly;
+
+
+	/** Threshold on the angle between normals used to determine if split normals should be merged*/
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (EditCondition = "AttrWeldingMode != EWeldMeshEdgesAttributeUIMode::None", UIMin = "0.0", UIMax = "180.0", ClampMin = "0.0", ClampMax = "180.0", DisplayName="Normal Angle Threshold"))
+	float SplitNormalThreshold = 0.1f;
+
+	/** Threshold on the angle between tangent used to determine if split tangents should be merged*/
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (EditCondition = "AttrWeldingMode != EWeldMeshEdgesAttributeUIMode::None", UIMin = "0.0", UIMax = "180.0", ClampMin = "0.0", ClampMax = "180.0", DisplayName="Tangent Angle Threshold"))
+	float SplitTangentsThreshold = 0.1f;
+
+	/** Threshold uv-distance used to determine if split UVs should be merged */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (EditCondition = "AttrWeldingMode != EWeldMeshEdgesAttributeUIMode::None",  UIMin = "0" , DisplayName = "UV Distance Threshold"))
+	float SplitUVThreshold = 0.01f;
+
+	/** Threshold color-distance used to determine if split colors should be merged */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (EditCondition = "AttrWeldingMode != EWeldMeshEdgesAttributeUIMode::None",  UIMin = "0", DisplayName = "Color Distance Threshold"))
+	float SplitColorThreshold = 0.01f;
+
 };
 
 

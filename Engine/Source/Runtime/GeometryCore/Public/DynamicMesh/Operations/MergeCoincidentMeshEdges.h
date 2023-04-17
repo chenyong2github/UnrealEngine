@@ -7,6 +7,7 @@
 #include "Math/UnrealMathSSE.h"
 #include "MathUtil.h"
 #include "VectorTypes.h"
+#include "SplitAttributeWelder.h"
 
 namespace UE
 {
@@ -51,6 +52,13 @@ public:
 	int32 InitialNumBoundaryEdges = 0;
 	/** Number of mesh boundary edges after merging */
 	int32 FinalNumBoundaryEdges = 0;
+
+	/** Enable / Disable attribute welding along merged mesh edges */
+	bool bWeldAttrsOnMergedEdges = false;
+
+	/** Used to weld attributes at the merged edges */
+	FSplitAttributeWelder  SplitAttributeWelder;
+
 
 public:
 	FMergeCoincidentMeshEdges(FDynamicMesh3* mesh) : Mesh(mesh)

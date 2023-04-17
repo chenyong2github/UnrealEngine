@@ -2,6 +2,7 @@
 
 
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
+#include "DynamicMesh/Operations/SplitAttributeWelder.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshAdapterUtil.h"
 #include "Spatial/PointSetHashTable.h"
@@ -177,6 +178,13 @@ bool FMergeCoincidentMeshEdges::Apply()
 				delete EquivalenceSets[other_eid];
 				EquivalenceSets[other_eid] = nullptr;
 				RemainingEdges.Remove(other_eid);
+
+				// weld attributes 
+				if (bWeldAttrsOnMergedEdges)
+				{ 
+					SplitAttributeWelder.WeldSplitElements(*Mesh, mergeInfo.KeptVerts[0]);
+					SplitAttributeWelder.WeldSplitElements(*Mesh, mergeInfo.KeptVerts[1]);
+				}
 			}
 		}
 

@@ -12,6 +12,8 @@
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "Operations/MeshResolveTJunctions.h"
 
+#include "Math/UnrealMathUtility.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WeldMeshEdgesTool)
 
 using namespace UE::Geometry;
@@ -32,13 +34,28 @@ USingleSelectionMeshEditingTool* UWeldMeshEdgesToolBuilder::CreateNewTool(const 
 
 class FWeldMeshEdgesOp : public  FDynamicMeshOperator
 {
+
 public:
+	enum class EWeldAttributeMode : uint8
+	{
+		/** Do not weld attributes*/
+		None,
+		/** Apply attribute merging on the mesh weld */
+		OnWeldedMeshEdgesOnly,
+		/** Apply attribute merging to all split attributes */
+		OnFullMesh
+	};
 
 	// parameters set by the tool
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SourceMesh;
 	double Tolerance;
 	bool bOnlyUnique;
 	bool bResolveTJunctions;
+	EWeldAttributeMode WeldAttributeMode;
+	float SplitNormalThreshold;
+	float SplitTangentsThreshold;
+	float SplitUVThreshold;
+	float SplitColorThreshold; 
 
 	int32 InitialNumBoundaryEdges = 0;
 	int32 FinalNumBoundaryEdges = 0;
@@ -48,6 +65,17 @@ public:
 
 	virtual void CalculateResult(FProgressCancel* Progress) override
 	{
+
+		auto SetAttributeWeldOptions = [this](FSplitAttributeWelder& SplitAttributeWelder)
+		{
+			constexpr float DegToRad = static_cast<float>(UE_PI / 180.f);
+
+			SplitAttributeWelder.UVDistSqrdThreshold = SplitUVThreshold * SplitUVThreshold;
+			SplitAttributeWelder.NormalVecDotThreshold = FMath::Abs(1.f - FMath::Cos( DegToRad * SplitNormalThreshold));
+			SplitAttributeWelder.TangentVecDotThreshold = FMath::Abs(1.f - FMath::Cos( DegToRad * SplitTangentsThreshold));
+			SplitAttributeWelder.ColorDistSqrdThreshold = SplitColorThreshold * SplitColorThreshold;
+		};
+
 		if ((Progress && Progress->Cancelled()) || !SourceMesh)
 		{
 			return;
@@ -74,6 +102,8 @@ public:
 		Merger.MergeVertexTolerance = Tolerance;
 		Merger.MergeSearchTolerance = 2 * Merger.MergeVertexTolerance;
 		Merger.OnlyUniquePairs = bOnlyUnique;
+		Merger.bWeldAttrsOnMergedEdges = (WeldAttributeMode == EWeldAttributeMode::OnWeldedMeshEdgesOnly);
+		SetAttributeWeldOptions(Merger.SplitAttributeWelder);
 
 		bool bOK = Merger.Apply();
 		FinalNumBoundaryEdges = Merger.FinalNumBoundaryEdges;
@@ -90,9 +120,19 @@ public:
 				SecondPassMerger.MergeVertexTolerance = Tolerance;
 				SecondPassMerger.MergeSearchTolerance = 2 * SecondPassMerger.MergeVertexTolerance;
 				SecondPassMerger.OnlyUniquePairs = bOnlyUnique;
+				SecondPassMerger.bWeldAttrsOnMergedEdges = (WeldAttributeMode == EWeldAttributeMode::OnWeldedMeshEdgesOnly);
+				SetAttributeWeldOptions(SecondPassMerger.SplitAttributeWelder);
+
 				bOK = SecondPassMerger.Apply();
 				FinalNumBoundaryEdges = SecondPassMerger.FinalNumBoundaryEdges;
 			}
+		}
+
+		if (WeldAttributeMode == EWeldAttributeMode::OnFullMesh)
+		{
+			FSplitAttributeWelder AttributeWelder;
+			SetAttributeWeldOptions(AttributeWelder);
+			AttributeWelder.WeldSplitElements(*ResultMesh.Get());
 		}
 
 		FDynamicMesh3::FValidityOptions UseValidityCheck = (bWasCleanMesh) ?
@@ -175,6 +215,11 @@ void UWeldMeshEdgesTool::Setup()
 	Settings->WatchProperty(Settings->Tolerance, [this](float) { PreviewCompute->InvalidateResult(); });
 	Settings->WatchProperty(Settings->bOnlyUnique, [this](bool) { PreviewCompute->InvalidateResult(); });
 	Settings->WatchProperty(Settings->bResolveTJunctions, [this](bool) { PreviewCompute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->AttrWeldingMode, [this](EWeldMeshEdgesAttributeUIMode) { PreviewCompute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->SplitUVThreshold, [this](float) { PreviewCompute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->SplitColorThreshold, [this](float) { PreviewCompute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->SplitNormalThreshold, [this](float) { PreviewCompute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->SplitTangentsThreshold, [this](float) { PreviewCompute->InvalidateResult(); });
 
 	// create mesh display
 	MeshElementsDisplay = NewObject<UMeshElementsVisualizer>(this);
@@ -264,9 +309,27 @@ void UWeldMeshEdgesTool::OnTick(float DeltaTime)
 
 void UWeldMeshEdgesTool::UpdateOpParameters(FWeldMeshEdgesOp& Op) const
 {
+	auto GetAttrMergeMode = [](const EWeldMeshEdgesAttributeUIMode& m)
+	{
+		switch (m)
+		{
+			case EWeldMeshEdgesAttributeUIMode::None :  return FWeldMeshEdgesOp::EWeldAttributeMode::None;
+			case EWeldMeshEdgesAttributeUIMode::OnWeldedMeshEdgesOnly: return FWeldMeshEdgesOp::EWeldAttributeMode::OnWeldedMeshEdgesOnly;
+			case EWeldMeshEdgesAttributeUIMode::OnFullMesh : return FWeldMeshEdgesOp::EWeldAttributeMode::OnFullMesh;
+			default : return FWeldMeshEdgesOp::EWeldAttributeMode::None;
+		}
+	};
+
 	Op.bOnlyUnique = Settings->bOnlyUnique;
 	Op.bResolveTJunctions = Settings->bResolveTJunctions;
 	Op.Tolerance = Settings->Tolerance;
+
+	Op.WeldAttributeMode = GetAttrMergeMode(Settings->AttrWeldingMode);
+	Op.SplitUVThreshold = Settings->SplitUVThreshold;
+	Op.SplitColorThreshold = Settings->SplitColorThreshold;
+	Op.SplitNormalThreshold = Settings->SplitNormalThreshold;
+	Op.SplitTangentsThreshold = Settings->SplitTangentsThreshold;
+	
 	Op.SourceMesh = SourceMesh;
 
 	FTransform LocalToWorld = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
