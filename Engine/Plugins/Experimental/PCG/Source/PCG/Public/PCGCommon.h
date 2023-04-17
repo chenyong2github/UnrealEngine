@@ -60,6 +60,11 @@ namespace PCGPinConstants
 	const FName DefaultInputLabel = TEXT("In");
 	const FName DefaultOutputLabel = TEXT("Out");
 	const FName DefaultParamsLabel = TEXT("Overrides");
+
+namespace Private
+{
+	const FName OldDefaultParamsLabel = TEXT("Params");
+}
 }
 
 // Metadata used by PCG

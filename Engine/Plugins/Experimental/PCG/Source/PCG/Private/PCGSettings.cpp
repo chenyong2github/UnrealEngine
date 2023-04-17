@@ -478,6 +478,11 @@ void UPCGSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<
 	{
 		PCGSettingsHelpers::DeprecationBreakOutParamsToNewPin(InOutNode, InputPins, OutputPins);
 	}
+
+	if (DataVersion < FPCGCustomVersion::RenameDefaultParamsToOverride)
+	{
+		InOutNode->RenameInputPin(PCGPinConstants::Private::OldDefaultParamsLabel, PCGPinConstants::DefaultParamsLabel);
+	}
 }
 #endif // WITH_EDITOR
 

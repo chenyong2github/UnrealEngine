@@ -35,6 +35,9 @@ struct PCG_API FPCGCustomVersion
 		// Renamed spline input and added bounding shape input.
 		SplineSamplerUpdatedNodeInputs = 8,
 
+		// Renamed params to override.
+		RenameDefaultParamsToOverride = 9,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
