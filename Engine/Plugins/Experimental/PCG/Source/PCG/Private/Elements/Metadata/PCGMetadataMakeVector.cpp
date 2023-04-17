@@ -147,15 +147,15 @@ bool UPCGMetadataMakeVectorSettings::IsSupportedInputType(uint16 TypeId, uint32 
 
 	if (Label == PCGMetadataMakeVectorConstants::XYZLabel)
 	{
-		return PCG::Private::IsOfTypes<FVector>(TypeId);
+		return PCG::Private::IsOfTypes<FVector, FVector2D, float, double, int32, int64>(TypeId);
 	}
 	else if (Label == PCGMetadataMakeVectorConstants::XYLabel || Label == PCGMetadataMakeVectorConstants::ZWLabel)
 	{
-		return PCG::Private::IsOfTypes<FVector2D>(TypeId);
+		return PCG::Private::IsOfTypes<FVector2D, float, double, int32, int64>(TypeId);
 	}
 	else
 	{
-		return PCG::Private::IsOfTypes<float, double>(TypeId);
+		return PCG::Private::IsOfTypes<float, double, int32, int64>(TypeId);
 	}
 }
 

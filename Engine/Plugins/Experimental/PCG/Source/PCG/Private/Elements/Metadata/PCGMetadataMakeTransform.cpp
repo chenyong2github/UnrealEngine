@@ -82,7 +82,7 @@ bool UPCGMetadataMakeTransformSettings::IsSupportedInputType(uint16 TypeId, uint
 	else
 	{
 		bHasSpecialRequirement = false;
-		return PCG::Private::IsOfTypes<FVector2D, FVector, FVector4>(TypeId);
+		return PCG::Private::IsOfTypes<FVector2D, FVector, FVector4, int32, int64, float , double>(TypeId);
 	}
 }
 
@@ -133,13 +133,17 @@ bool FPCGMetadataMakeTransformElement::DoOperation(FOperationData& OperationData
 	{
 		using AttributeType = decltype(DummyValue);
 
-		if constexpr (!PCG::Private::IsOfTypes<AttributeType, FVector2D, FVector, FVector4>())
+		if constexpr (PCG::Private::IsOfTypes<AttributeType, FVector2D, FVector, FVector4>())
 		{
-			return false;
+			return DoTernaryOp<AttributeType, FQuat, AttributeType>(OperationData, PCGMetadataMakeTransformSettings::MakeTransform<AttributeType>);
+		}
+		else if constexpr (PCG::Private::IsOfTypes<AttributeType, int32, int64, float, double>())
+		{
+			return DoTernaryOp<FVector, FQuat, FVector>(OperationData, PCGMetadataMakeTransformSettings::MakeTransform<FVector>);
 		}
 		else
 		{
-			return DoTernaryOp<AttributeType, FQuat, AttributeType>(OperationData, PCGMetadataMakeTransformSettings::MakeTransform<AttributeType>);
+			return false;
 		}
 	};
 
