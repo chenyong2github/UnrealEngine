@@ -1,0 +1,24 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/SparseVolumeTexture/SparseVolumeTextureCommon.ush"
+RWTexture3D<float4>	DestinationBuffer;
+
+SamplerState	TileDataTextureSampler;
+Texture3D<uint>	SparseVolumeTexturePageTable;
+Texture3D		SparseVolumeTextureA;
+uint4			PackedSVTUniforms0;
+uint4			PackedSVTUniforms1;
+int3			TextureSize;
+int				MipLevels;
+
+[numthreads(4, 4, 4)]
+void PerformCopyCS(uint3 Index : SV_DispatchThreadID)
+{
+	
+	float4 SVTSample;
+	const FSparseVolumeTextureUniforms Uniforms = SparseVolumeTextureUnpackUniforms(PackedSVTUniforms0, PackedSVTUniforms1);
+	const int3 VoxelCoord = SparseVolumeTextureLoadPageTable(SparseVolumeTexturePageTable, Uniforms, Index, 0);	
+
+	DestinationBuffer[Index] = SparseVolumeTextureA.Load(int4(VoxelCoord, 0));
+}
