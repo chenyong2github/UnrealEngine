@@ -2,7 +2,6 @@
 
 #include "Analytics/EngineAnalyticsSessionSummary.h"
 #include "AnalyticsSessionSummaryManager.h"
-#include "Containers/StringView.h"
 #include "Engine/EngineTypes.h"
 #include "GeneralProjectSettings.h"
 #include "Engine/Engine.h"
@@ -46,8 +45,6 @@ namespace EngineAnalyticsProperties
 	static const TAnalyticsProperty<bool> RunningOnBattery       = TEXT("RunningOnBattery");
 	static const TAnalyticsProperty<bool> IsUserLoggingOut       = FAnalyticsSessionSummaryManager::IsUserLoggingOutProperty;
 	static const TAnalyticsProperty<int32> ShutdownType          = FAnalyticsSessionSummaryManager::ShutdownTypeCodeProperty;
-	static const TAnalyticsProperty<FString> CalledDisallowedExecCommands = TEXT("CalledDisallowedExecCommands");
-	static const TAnalyticsProperty<FString> ParsedNamedCommands = TEXT("ParsedNamedCommands");
 
 	static FString UnknownUserActivity(TEXT("Unknown"));
 
@@ -120,23 +117,6 @@ namespace EngineAnalyticsProperties
 			return false;
 		}
 		return true; // Shutdown|Terminate|Abnormal can overwrite each other.
-	}
-
-	bool UpdateCommandValue(const FStringView Cmd, FString& Value)
-	{
-		constexpr int32 MaxAllowedStringSize = 128;
-		if (Value.Len() >= MaxAllowedStringSize || Value.Contains(Cmd))
-		{
-			return false;
-		}
-
-		if (!Value.IsEmpty())
-		{
-			Value += TEXT(",");
-		}
-
-		Value += Cmd;
-		return true;
 	}
 } // namespace EngineAnalyticsProperties
 
@@ -228,10 +208,6 @@ FEngineAnalyticsSessionSummary::FEngineAnalyticsSessionSummary(TSharedPtr<IAnaly
 	EngineAnalyticsProperties::ShutdownType.Set(GetStore(), (int32)EAnalyticsSessionShutdownType::Abnormal);
 	EngineAnalyticsProperties::RunningOnBattery.Set(GetStore(), FPlatformMisc::IsRunningOnBattery());
 
-	const uint32 CharCountCapacityHint = 128;
-	EngineAnalyticsProperties::CalledDisallowedExecCommands.Set(GetStore(), TEXT(""), CharCountCapacityHint);
-	EngineAnalyticsProperties::ParsedNamedCommands.Set(GetStore(), TEXT(""), CharCountCapacityHint);
-
 	Store->Flush();
 
 	// Listen to interesting events.
@@ -239,8 +215,6 @@ FEngineAnalyticsSessionSummary::FEngineAnalyticsSessionSummary(TSharedPtr<IAnaly
 	FCoreDelegates::ApplicationWillTerminateDelegate.AddRaw(this, &FEngineAnalyticsSessionSummary::OnTerminate); // WARNING: Don't assume this function is only called from game thread.
 	FCoreDelegates::IsVanillaProductChanged.AddRaw(this, &FEngineAnalyticsSessionSummary::OnVanillaStateChanged);
 	FCoreDelegates::OnUserLoginChangedEvent.AddRaw(this, &FEngineAnalyticsSessionSummary::OnUserLoginChanged);
-	FCoreDelegates::OnDisallowedExecCommandCalled.AddRaw(this, &FEngineAnalyticsSessionSummary::OnDisallowedExecCommandCalled);
-	FCoreDelegates::OnNamedCommandParsed.AddRaw(this, &FEngineAnalyticsSessionSummary::OnNamedCommandParsed);
 	FUserActivityTracking::OnActivityChanged.AddRaw(this, &FEngineAnalyticsSessionSummary::OnUserActivity);
 }
 
@@ -255,8 +229,6 @@ void FEngineAnalyticsSessionSummary::Shutdown()
 		FCoreDelegates::ApplicationWillTerminateDelegate.RemoveAll(this);
 		FCoreDelegates::IsVanillaProductChanged.RemoveAll(this);
 		FCoreDelegates::OnUserLoginChangedEvent.RemoveAll(this);
-		FCoreDelegates::OnDisallowedExecCommandCalled.RemoveAll(this);
-		FCoreDelegates::OnNamedCommandParsed.RemoveAll(this);
 		FUserActivityTracking::OnActivityChanged.RemoveAll(this);
 
 		EngineAnalyticsProperties::WasShutdown.Set(GetStore(), true);
@@ -326,33 +298,6 @@ void FEngineAnalyticsSessionSummary::OnVanillaStateChanged(bool bIsVanilla)
 {
 	EngineAnalyticsProperties::IsVanilla.Set(GetStore(), bIsVanilla);
 	UpdateSessionProgress();
-}
-
-void FEngineAnalyticsSessionSummary::OnDisallowedExecCommandCalled(const TCHAR* Cmd)
-{
-	FStringView CmdWithoutParams{Cmd};
-
-	// Don't send any command parameters as they could contain sensitive data
-	int32 SpacePos = INDEX_NONE;
-	if (CmdWithoutParams.FindChar(TEXT(' '), SpacePos) || CmdWithoutParams.FindChar(TEXT('\t'), SpacePos))
-	{
-		CmdWithoutParams.LeftInline(SpacePos);
-	}
-	
-	EngineAnalyticsProperties::CalledDisallowedExecCommands.Update(GetStore(),
-		[CmdWithoutParams](FString& Value)
-		{
-			return EngineAnalyticsProperties::UpdateCommandValue(CmdWithoutParams, Value);
-		});
-}
-
-void FEngineAnalyticsSessionSummary::OnNamedCommandParsed(const TCHAR* Cmd)
-{
-	EngineAnalyticsProperties::ParsedNamedCommands.Update(GetStore(),
-		[Cmd](FString& Value)
-		{
-			return EngineAnalyticsProperties::UpdateCommandValue(Cmd, Value);
-		});
 }
 
 void FEngineAnalyticsSessionSummary::LowDriveSpaceDetected()
