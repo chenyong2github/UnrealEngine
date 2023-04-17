@@ -184,6 +184,7 @@ public:
 			// (this frame or this rollback - they will need to restore their collision data since we are about to retick everyone in step)
 
 			QUICK_SCOPE_CYCLE_COUNTER(NP_Rollback_RestoreFrame);
+			TRACE_CPUPROFILER_EVENT_SCOPE(NetworkPrediction::RestoreFrame);
 
 			for (TConstSetBitIterator<> BitIt(InstanceBitArray); BitIt; ++BitIt)
 			{
