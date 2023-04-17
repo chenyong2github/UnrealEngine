@@ -34,6 +34,8 @@ namespace UnrealBuildTool.Rules
 			{
 				PublicDefinitions.Add("CHAOS_MEMORY_TRACKING=0");
 			}
+
+			SetupModuleChaosVisualDebuggerSupport(Target);
 			
 			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 

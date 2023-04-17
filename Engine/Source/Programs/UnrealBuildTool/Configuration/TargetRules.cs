@@ -781,6 +781,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bUseChaosMemoryTracking = false;
+		
+		/// <summary>
+		/// Whether to compile in Chaos Visual Debugger (CVD) support features to record the state of the physics simulation
+		/// </summary>
+		[XmlConfigFile(Name = "bCompileChaosVisualDebuggerSupport")]
+		[CommandLine("-CompileChaosVisualDebuggerSupport")]
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompileChaosVisualDebuggerSupport = false;
 
 		/// <summary>
 		/// Whether scene query acceleration is done by UE. The physx scene query structure is still created, but we do not use it.
@@ -2988,6 +2996,11 @@ namespace UnrealBuildTool
 		public bool bUseChaosMemoryTracking
 		{
 			get { return Inner.bUseChaosMemoryTracking; }
+		}
+
+		public bool bCompileChaosVisualDebuggerSupport
+		{
+			get { return Inner.bCompileChaosVisualDebuggerSupport; }
 		}
 
 		public bool bUseChaosChecked

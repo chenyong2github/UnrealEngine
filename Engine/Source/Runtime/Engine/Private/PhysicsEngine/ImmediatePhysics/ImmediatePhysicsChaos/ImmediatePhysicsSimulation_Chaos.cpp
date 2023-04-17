@@ -16,6 +16,7 @@
 #include "Chaos/Joint/ChaosJointLog.h"
 #include "Chaos/MassConditioning.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 #include "Stats/StatsTrace.h"
 
 
@@ -357,6 +358,10 @@ namespace ImmediatePhysics_Chaos
 		using namespace Chaos;
 
 		Implementation = MakeUnique<FImplementation>();
+
+#if CHAOS_DEBUG_NAME
+		DebugName = TEXT("RBAN");
+#endif
 
 		// RBAN collision customization
 		Implementation->Collisions.DisableHandles();
@@ -793,6 +798,8 @@ namespace ImmediatePhysics_Chaos
 	void FSimulation::Simulate(FReal InDeltaTime, FReal MaxStepTime, int32 MaxSubSteps, const FVector& InGravity)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ImmediateSimulate_Chaos);
+		CVD_SCOPE_TRACE_SOLVER_FRAME(FSimulation, *this);
+
 		using namespace Chaos;
 
 		// Reject DeltaTime outliers

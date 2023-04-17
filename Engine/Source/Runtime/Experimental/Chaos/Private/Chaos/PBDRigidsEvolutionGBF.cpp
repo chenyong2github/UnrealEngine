@@ -24,6 +24,8 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 
+#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
+
 //PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
@@ -246,6 +248,8 @@ void FPBDRigidsEvolutionGBF::Advance(const FReal Dt,const FReal MaxStepDt,const 
 
 void FPBDRigidsEvolutionGBF::AdvanceOneTimeStep(const FReal Dt,const FSubStepInfo& SubStepInfo)
 {
+	CVD_SCOPE_TRACE_SOLVER_STEP();
+		
 	PrepareTick();
 
 	AdvanceOneTimeStepImpl(Dt, SubStepInfo);
@@ -616,6 +620,8 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		// Run contact updates on probe constraints
 		GetCollisionConstraints().DetectProbeCollisions(Dt);
 	}
+
+	CVD_TRACE_PARTICLES(GetParticleHandles());
 
 #if !UE_BUILD_SHIPPING
 	if(SerializeEvolution)

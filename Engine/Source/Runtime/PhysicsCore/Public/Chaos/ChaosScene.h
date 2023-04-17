@@ -18,6 +18,8 @@
 #include "Chaos/SimCallbackInput.h"
 #include "Chaos/SimCallbackObject.h"
 
+#include "ChaosVisualDebugger/ChaosVDContextProvider.h"
+
 #ifndef CHAOS_DEBUG_NAME
 #define CHAOS_DEBUG_NAME 0
 #endif
@@ -189,4 +191,15 @@ private:
 	FGraphEventArray CompletionEvents;
 
 	FChaosSceneSimCallback* SimCallback;
+
+#if WITH_CHAOS_VISUAL_DEBUGGER
+private:
+	FChaosVDContext CVDContextData;
+
+public:
+	FChaosVDContext& GetChaosVDContextData()
+	{
+		return CVDContextData;
+	};
+#endif
 };

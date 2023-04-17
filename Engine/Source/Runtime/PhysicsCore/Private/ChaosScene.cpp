@@ -12,6 +12,10 @@
 #include "ChaosLog.h"
 #include "ChaosStats.h"
 
+#if WITH_CHAOS_VISUAL_DEBUGGER
+#include "ChaosVDRuntimeModule.h"
+#endif
+
 #include "Field/FieldSystem.h"
 
 #include "PhysicsProxy/PerSolverFieldSystem.h"
@@ -32,6 +36,7 @@
 #include "PhysicsSettingsCore.h"
 #include "Chaos/PhysicsSolverBaseImpl.h"
 
+#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 
 DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"),STAT_UpdateKinematicsOnDeferredSkelMeshesChaos,STATGROUP_Physics);
 CSV_DEFINE_CATEGORY(ChaosPhysics,true);
@@ -73,6 +78,11 @@ FChaosScene::FChaosScene(
 #endif
 		);
 	check(SceneSolver);
+
+#if WITH_CHAOS_VISUAL_DEBUGGER
+	SceneSolver->GetChaosVDContextData().OwnerID = GetChaosVDContextData().Id;
+	SceneSolver->GetChaosVDContextData().Id = FChaosVDRuntimeModule::Get().GenerateUniqueID();
+#endif
 
 	SceneSolver->PhysSceneHack = this;
 	SimCallback = SceneSolver->CreateAndRegisterSimCallbackObject_External<FChaosSceneSimCallback>();

@@ -11,6 +11,9 @@
 #include "Framework/Threading.h"
 #include "RewindData.h"
 
+#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
+#include "ChaosVisualDebugger/ChaosVDContextProvider.h"
+
 namespace Chaos
 {	
 	extern int GSingleThreadedPhysics;
@@ -118,6 +121,22 @@ namespace Chaos
 		Solver.SetGameThreadFrozen(false);
 		
 	}
+
+
+	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData* InPushData)
+		: Solver(InSolver)
+		, PushData(InPushData)
+	{
+		CVD_GET_CURRENT_CONTEXT(CVDContext);
+	}
+
+	void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		CVD_SCOPE_CONTEXT(CVDContext);
+
+		AdvanceSolver();
+	}
+
 
 	void FPhysicsSolverAdvanceTask::AdvanceSolver()
 	{
@@ -337,6 +356,9 @@ namespace Chaos
 
 	FGraphEventRef FPhysicsSolverBase::AdvanceAndDispatch_External(FReal InDt)
 	{
+
+		CVD_TRACE_SOLVER_START_FRAME(FPhysicsSolverBase, *this);
+
 		const bool bSubstepping = MMaxSubSteps > 1;
 		SetSolverSubstep_External(bSubstepping);
 		const FReal DtWithPause = bPaused_External ? 0.0f : InDt;

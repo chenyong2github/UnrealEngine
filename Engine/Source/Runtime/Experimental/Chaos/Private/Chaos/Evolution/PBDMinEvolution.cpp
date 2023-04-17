@@ -15,6 +15,7 @@
 #include "Chaos/PerParticlePBDGroundConstraint.h"
 #include "Chaos/PerParticlePBDUpdateFromDeltaPosition.h"
 #include "ChaosStats.h"
+#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -121,6 +122,7 @@ namespace Chaos
 	void FPBDMinEvolution::AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_AdvanceOneTimeStep);
+		CVD_SCOPE_TRACE_SOLVER_STEP();
 
 		Integrate(Dt);
 
@@ -140,6 +142,8 @@ namespace Chaos
 
 			ScatterOutput(Dt);
 		}
+
+		CVD_TRACE_PARTICLES(Particles.GetParticleHandles());
 	}
 
 	// A opportunity for systems to allocate buffers for the duration of the tick, if they have enough info to do so

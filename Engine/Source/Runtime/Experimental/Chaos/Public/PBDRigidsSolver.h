@@ -246,7 +246,8 @@ namespace Chaos
 		void PostTickDebugDraw(FReal Dt) const;
 
 		// Visual debugger (VDB) push methods
-		void PostEvolutionVDBPush() const;
+		UE_DEPRECATED(5.4, "This method will be removed in the future")
+		void PostEvolutionVDBPush() const {};
 
 		TArray<FGeometryCollectionPhysicsProxy*>& GetGeometryCollectionPhysicsProxies_Internal()
 		{

@@ -13,6 +13,10 @@
 #include "Chaos/ChaosMarshallingManager.h"
 #include "Stats/Stats2.h"
 
+#if WITH_CHAOS_VISUAL_DEBUGGER
+#include "ChaosVisualDebugger/ChaosVDContextProvider.h"
+#endif
+
 class FChaosSolversModule;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPreAdvance, Chaos::FReal);
@@ -118,21 +122,22 @@ namespace Chaos
 	{
 	public:
 
-		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData* InPushData)
-			: Solver(InSolver)
-			, PushData(InPushData)
-		{}
-
+		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData* InPushData);
+		
 		TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FPhysicsSolverAdvanceTask, STATGROUP_TaskGraphTasks); }
 		static ENamedThreads::Type GetDesiredThread();
 		static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) { AdvanceSolver(); }
+		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 		void AdvanceSolver();
 
 	private:
 
 		FPhysicsSolverBase& Solver;
 		FPushPhysicsData* PushData;
+
+#if WITH_CHAOS_VISUAL_DEBUGGER
+		FChaosVDContext CVDContext;
+#endif
 	};
 
 	struct CHAOS_API FAllSolverTasks
@@ -748,6 +753,17 @@ namespace Chaos
 	public:
 		void SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting);
 		void PopAndExecuteStolenAdvanceTask_ForTesting();
+#endif
+
+#if WITH_CHAOS_VISUAL_DEBUGGER
+	private:
+		FChaosVDContext CVDContextData;
+
+	public:
+		FChaosVDContext& GetChaosVDContextData()
+		{
+			return CVDContextData;
+		};
 #endif
 	};
 }

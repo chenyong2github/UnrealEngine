@@ -461,7 +461,6 @@ namespace Chaos
 					}
 
 					MSolver->GetEvolution()->AdvanceOneTimeStep(DeltaTime, MSubStepInfo);
-					MSolver->PostEvolutionVDBPush();
 					bFirstStep = false;
 				}
 
@@ -2186,21 +2185,6 @@ TRACE_COUNTER_SET(ChaosTraceCounter_##Name, Value)
 	const FSingleParticlePhysicsProxy* FPBDRigidsSolver::GetParticleProxy_PT(const FGeometryParticleHandle& Handle) const
 	{
 		return GetParticleProxy_PT(Handle.UniqueIdx());
-	}
-
-	void FPBDRigidsSolver::PostEvolutionVDBPush() const
-	{
-#if CHAOS_VISUAL_DEBUGGER_ENABLED
-		if (ChaosVisualDebuggerEnable)
-		{
-			const TGeometryParticleHandles<FReal, 3>&  AllParticleHandles = GetEvolution()->GetParticleHandles();
-			for (uint32 ParticelIndex = 0; ParticelIndex < AllParticleHandles.Size(); ParticelIndex++)
-			{
-				const TUniquePtr<FGeometryParticleHandle>& ParticleHandle = AllParticleHandles.Handle(ParticelIndex);
-				ChaosVisualDebugger::ParticlePositionLog(ParticleHandle->X());				
-			}
-		}
-#endif
 	}
 
 	void FPBDRigidsSolver::UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData)

@@ -1550,6 +1550,24 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Setup this module for Chaos Visual Debugger support (Required for recording debug data that will be visualized in the Chaos Visual Debugger tool)
+		/// </summary>
+		public void SetupModuleChaosVisualDebuggerSupport(ReadOnlyTargetRules Target)
+		{
+			bool bHasChaosVisualDebuggerSupport = Target.bCompileChaosVisualDebuggerSupport && Target.Configuration != UnrealTargetConfiguration.Shipping;
+			if (bHasChaosVisualDebuggerSupport)
+			{
+				PublicDependencyModuleNames.Add("ChaosVDRuntime");
+
+				PublicDefinitions.Add("WITH_CHAOS_VISUAL_DEBUGGER=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_CHAOS_VISUAL_DEBUGGER=0");
+			}
+		}
+
+		/// <summary>
 		/// Setup this module for physics support (based on the settings in UEBuildConfiguration)
 		/// </summary>
 		public void SetupModulePhysicsSupport(ReadOnlyTargetRules Target)
@@ -1569,6 +1587,8 @@ namespace UnrealBuildTool
 				);
 
 			PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
+
+			SetupModuleChaosVisualDebuggerSupport(Target);
 
 			// Modules may still be relying on appropriate definitions for physics.
 			// Nothing in engine should use these anymore as they were all deprecated and 

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ChaosVisualDebugger/ChaosVDContextProvider.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsCore_Chaos.h"
 
 #include "Engine/EngineTypes.h"
@@ -106,6 +107,33 @@ namespace ImmediatePhysics_Chaos
 
 		struct FImplementation;
 		TUniquePtr<FImplementation> Implementation;
+
+#if CHAOS_DEBUG_NAME
+	public:
+		void SetDebugName(const FName& Name)
+		{
+			DebugName = Name;
+		}
+
+		const FName& GetDebugName() const
+		{
+			return DebugName;
+		}
+
+	private:
+	FName DebugName;
+#endif
+
+#if WITH_CHAOS_VISUAL_DEBUGGER
+	private:
+		FChaosVDContext CVDContextData;
+
+	public:
+		FChaosVDContext& GetChaosVDContextData()
+		{
+			return CVDContextData;
+		};
+#endif
 	};
 
 }
