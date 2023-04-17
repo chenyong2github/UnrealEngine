@@ -10,8 +10,6 @@
 #include "Delegates/IDelegateInstance.h"
 #include "Delegates/DelegateMacros.h"
 
-struct FWeakObjectPtr;
-
 #if !defined(_WIN32) || defined(_WIN64) || (defined(ALLOW_DELEGATE_INLINE_ALLOCATORS_ON_WIN32) && ALLOW_DELEGATE_INLINE_ALLOCATORS_ON_WIN32)
 	typedef TAlignedBytes<16, 16> FAlignedInlineDelegateType;
 	#if !defined(NUM_DELEGATE_INLINE_BYTES) || NUM_DELEGATE_INLINE_BYTES == 0
@@ -27,8 +25,6 @@ struct FWeakObjectPtr;
 	typedef TAlignedBytes<16, 8> FAlignedInlineDelegateType;
 	typedef FHeapAllocator FDelegateAllocatorType;
 #endif
-
-struct FWeakObjectPtr;
 
 template <typename UserPolicy>
 class TMulticastDelegateBase;
