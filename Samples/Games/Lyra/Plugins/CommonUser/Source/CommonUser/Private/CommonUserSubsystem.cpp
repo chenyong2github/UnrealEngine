@@ -1712,7 +1712,7 @@ void UCommonUserSubsystem::HandleUserLoginCompleted(int32 PlatformUserIndex, boo
 		PlatformUserIndex,
 		(int32)bWasSuccessful,
 		ELoginStatus::ToString(NewStatus),
-		*NetId.ToString(),
+		*NewId.ToString(),
 		*ErrorString);
 
 	// Update any waiting login requests
