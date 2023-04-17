@@ -9,27 +9,27 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ImgMediaPlaybackComponent)
 
-UImgMediaPlaybackComponent::UImgMediaPlaybackComponent(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_ImgMediaPlaybackComponent::UDEPRECATED_ImgMediaPlaybackComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bAutoActivate = true;
 }
 
-void UImgMediaPlaybackComponent::BeginPlay()
+void UDEPRECATED_ImgMediaPlaybackComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
 	RegisterWithMipMapInfo();
 }
 
-void UImgMediaPlaybackComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void UDEPRECATED_ImgMediaPlaybackComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnregisterWithMipMapInfo();
 
 	Super::EndPlay(EndPlayReason);
 }
 
-void UImgMediaPlaybackComponent::RegisterWithMipMapInfo()
+void UDEPRECATED_ImgMediaPlaybackComponent::RegisterWithMipMapInfo()
 {
 	// Get all texures used by our actor.
 	AActor* Owner = GetOwner();
@@ -73,7 +73,7 @@ void UImgMediaPlaybackComponent::RegisterWithMipMapInfo()
 	}
 }
 
-void UImgMediaPlaybackComponent::UnregisterWithMipMapInfo()
+void UDEPRECATED_ImgMediaPlaybackComponent::UnregisterWithMipMapInfo()
 {
 	if (ObjectInfo != nullptr)
 	{

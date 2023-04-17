@@ -14,12 +14,12 @@ struct FMediaTextureTrackerObject;
  * Not necessary to do this, but if you do then you can get additional functionality
  * such as selective mipmap loading.
  */
-UCLASS(ClassGroup = Media, meta = (BlueprintSpawnableComponent))
-class IMGMEDIAENGINE_API UImgMediaPlaybackComponent : public UActorComponent
+UCLASS(Deprecated)
+class UE_DEPRECATED(5.3, "ImgMediaPlaybackComponent functionality is deprecated. Please update your project to use the features of the MediaPlate instead.")  IMGMEDIAENGINE_API UDEPRECATED_ImgMediaPlaybackComponent : public UActorComponent
 {
 	GENERATED_BODY()
 public:
-	UImgMediaPlaybackComponent(const FObjectInitializer& ObjectInitializer);
+	UDEPRECATED_ImgMediaPlaybackComponent(const FObjectInitializer& ObjectInitializer);
 
 	/** This will be added to the calculated mipmap level. E.g. if set to 2, and you would normally be at mipmap level 1, then you will actually be at level 3. */
 	UPROPERTY(EditAnywhere, Category = MipMaps)
