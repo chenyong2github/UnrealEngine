@@ -6061,10 +6061,10 @@ EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, b
 
 			// We are done loading the package for now. Whether it is done or not, let the package time tracker know.
 			FExclusiveLoadPackageTimeTracker::PopLoadPackage(Linker ? Linker->LinkerRoot : nullptr);
-
-			// End async loading, simulates EndLoad
-			EndAsyncLoad();
 		}
+
+		// End async loading, simulates EndLoad
+		EndAsyncLoad();
 
 		// Finish objects (removing EInternalObjectFlags::AsyncLoading, dissociate imports and forced exports, 
 		// call completion callback, ...
