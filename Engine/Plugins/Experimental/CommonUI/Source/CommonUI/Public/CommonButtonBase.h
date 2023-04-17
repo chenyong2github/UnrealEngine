@@ -675,6 +675,8 @@ protected:
 	virtual void NativeOnMouseEnter( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent ) override;
 	virtual void NativeOnMouseLeave( const FPointerEvent& InMouseEvent ) override;
 
+	void UpdateInputActionWidgetVisibility();
+
 	/** The minimum width of the button (only used if greater than the style's minimum) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (ClampMin = "0"))
 	int32 MinWidth;
@@ -887,7 +889,6 @@ private:
 	
 	void BuildStyles();
 	void SetButtonStyle();
-	void UpdateInputActionWidgetVisibility();
 
 	/** Enables this button (called in SetIsEnabled override) */
 	void EnableButton();
