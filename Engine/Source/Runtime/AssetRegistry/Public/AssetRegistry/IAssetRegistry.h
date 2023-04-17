@@ -648,14 +648,6 @@ public:
 	DECLARE_TS_MULTICAST_DELEGATE_OneParam( FInMemoryAssetDeletedEvent, UObject* );
 	virtual FInMemoryAssetDeletedEvent& OnInMemoryAssetDeleted() = 0;
 
-	/** Event for when Verse files are added to the registry */
-	DECLARE_TS_MULTICAST_DELEGATE_OneParam( FVerseAddedEvent, const FName /* VerseFilePath */);
-	virtual FVerseAddedEvent& OnVerseAdded() = 0;
-
-	/** Event for when Verse files are removed from the registry */
-	DECLARE_TS_MULTICAST_DELEGATE_OneParam( FVerseRemovedEvent, const FName /* VerseFilePath */);
-	virtual FVerseRemovedEvent& OnVerseRemoved() = 0;
-
 	/** Event for when the asset registry is done loading files */
 	DECLARE_TS_MULTICAST_DELEGATE( FFilesLoadedEvent );
 	virtual FFilesLoadedEvent& OnFilesLoaded() = 0;
