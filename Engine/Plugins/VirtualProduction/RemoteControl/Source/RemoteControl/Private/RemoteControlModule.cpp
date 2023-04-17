@@ -422,7 +422,7 @@ namespace RemoteControlSetterUtils
 
 		InOutArgs.Call.ParamData.SetNumUninitialized(InPropertyWithSetter->GetSize());
 		InPropertyWithSetter->InitializeValue(InOutArgs.Call.ParamData.GetData());
-		const void* ValuePtr = InPropertyWithSetter->ContainerPtrToValuePtr<uint8>(InFunctionArguments.GetStructMemory());
+		const void* ValuePtr = InPropertyWithSetter->ContainerPtrToValuePtr<uint8>(InOutArgs.Call.ParamStruct.GetStructMemory());
 		InPropertyWithSetter->CopyCompleteValue(InOutArgs.Call.ParamData.GetData(), ValuePtr);
 	}
 
