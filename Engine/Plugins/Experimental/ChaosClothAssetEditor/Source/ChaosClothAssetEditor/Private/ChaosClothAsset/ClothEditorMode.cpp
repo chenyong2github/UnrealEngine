@@ -55,7 +55,7 @@
 #include "ToolTargets/SkeletalMeshComponentToolTarget.h"
 #include "Dataflow/DataflowGraphEditor.h"
 #include "ContextObjectStore.h"
-
+#include "BaseGizmos/TransformGizmoUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorMode)
 
@@ -145,6 +145,8 @@ void UChaosClothAssetEditorMode::Enter()
 		}
 	});
 
+	// Register gizmo ContextObject for use inside interactive tools
+	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
 }
 
 void UChaosClothAssetEditorMode::AddToolTargetFactories()
@@ -198,7 +200,6 @@ void UChaosClothAssetEditorMode::RegisterPreviewTools()
 
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
 	RegisterClothTool(CommandInfos.BeginClothTrainingTool, FChaosClothAssetEditorCommands::BeginClothTrainingToolIdentifier, NewObject<UClothTrainingToolBuilder>(), PreviewSceneToolsContext);
-	RegisterClothTool(CommandInfos.BeginTransferSkinWeightsTool, FChaosClothAssetEditorCommands::BeginTransferSkinWeightsToolIdentifier, NewObject<UClothTransferSkinWeightsToolBuilder>(), PreviewSceneToolsContext);
 }
 
 void UChaosClothAssetEditorMode::RegisterTools()
@@ -216,6 +217,7 @@ void UChaosClothAssetEditorMode::RegisterTools()
 
 	RegisterClothTool(CommandInfos.BeginAttributeEditorTool, FChaosClothAssetEditorCommands::BeginAttributeEditorToolIdentifier, NewObject<UAttributeEditorToolBuilder>(), RestSpaceToolsContext);
 	RegisterClothTool(CommandInfos.BeginWeightMapPaintTool, FChaosClothAssetEditorCommands::BeginWeightMapPaintToolIdentifier, NewObject<UClothEditorWeightMapPaintToolBuilder>(), RestSpaceToolsContext);
+	RegisterClothTool(CommandInfos.BeginTransferSkinWeightsTool, FChaosClothAssetEditorCommands::BeginTransferSkinWeightsToolIdentifier, NewObject<UClothTransferSkinWeightsToolBuilder>(), RestSpaceToolsContext);
 }
 
 bool UChaosClothAssetEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const

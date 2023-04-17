@@ -1320,68 +1320,21 @@ void UClothEditorWeightMapPaintTool::AddNewNode(const FString& NewMapName)
 
 	// TODO: If we are operating on a single pattern, expand the weight map to cover the whole LOD
 
-	TSharedPtr<SDataflowGraphEditor> GraphEditor = ClothEditorContextObject->GetDataflowGraphEditor().Pin();
+	const FName ConnectionType(FManagedArrayCollection::StaticType());
+	UEdGraphNode* const CurrentlySelectedNode = ClothEditorContextObject->GetSingleSelectedNodeWithOutputType(ConnectionType);
+	checkf(CurrentlySelectedNode, TEXT("No node with FManagedArrayCollection output is currently selected in the Dataflow graph"));
 
-	//
-	// We want to turn this:
-	// 
-	// [SelectedNode] ----> [ExistingDownstreamNode(s)]
-	// 
-	// to this:
-	//
-	// [SelectedNode] ----> [NewNode] ----> [ExistingDownstreamNode(s)]
-	//
+	const FName NewNodeType(FChaosClothAssetAddWeightMapNode::StaticType());
+	UEdGraphNode* const NewNode = ClothEditorContextObject->CreateAndConnectNewNode(NewNodeType, *CurrentlySelectedNode, ConnectionType);
+	checkf(NewNode, TEXT("Unexpectedly failed to create a new FChaosClothAssetAddWeightMapNode"));
 
-	// First find the Collection output of the currently selected node, and any nodes it's connected to
-
-	const UEdGraphNode* const SingleSelectedNode = GraphEditor->GetSingleSelectedNode();
-	checkf(SingleSelectedNode, TEXT("There should be a single selected node in the Dataflow graph"));
-
-	const UDataflowEdNode* const SelectedDataflowEdNode = CastChecked<UDataflowEdNode>(SingleSelectedNode);
-	const TSharedPtr<const FDataflowNode> DataflowNode = SelectedDataflowEdNode->GetDataflowNode();
-	UEdGraphPin* SelectedNodeOutputPin = nullptr;
-	TArray<UEdGraphPin*> ExistingNodeInputPins;
-	for (const FDataflowOutput* Output : DataflowNode->GetOutputs())
-	{
-		if (Output->GetType() == FName("FManagedArrayCollection"))
-		{
-			SelectedNodeOutputPin = SelectedDataflowEdNode->FindPin(*Output->GetName().ToString(), EGPD_Output);
-			ExistingNodeInputPins = SelectedNodeOutputPin->LinkedTo;
-			break;
-		}
-	}
-
-	// Now add the new node and re-wire the graph
-
-	const TObjectPtr<UDataflow> Dataflow = ClothEditorContextObject->GetDataflowGraph();
-	const TSharedPtr<FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode> NodeAction = FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode::CreateAction(Dataflow, "FChaosClothAssetAddWeightMapNode");
-
-	UEdGraphNode* const NewEdNode = NodeAction->PerformAction(Dataflow, nullptr, GraphEditor->GetPasteLocation(), true);
-	UDataflowEdNode* const NewDataflowEdNode = CastChecked<UDataflowEdNode>(NewEdNode);
+	UDataflowEdNode* const NewDataflowEdNode = CastChecked<UDataflowEdNode>(NewNode);
 	const TSharedPtr<FDataflowNode> NewDataflowNode = NewDataflowEdNode->GetDataflowNode();
 	FChaosClothAssetAddWeightMapNode* const NewWeightMapNode = NewDataflowNode->AsType<FChaosClothAssetAddWeightMapNode>();
 
 	NewWeightMapNode->VertexWeights = CurrentWeights;
 	NewWeightMapNode->Name = AddWeightMapProperties->Name;
 	// NewWeightMapNode->SetName(FName(AddWeightMapProperties->NewMapName));   TODO: This doesn't seem to work to set the Node name
-
-	// Re-wire the graph
-	FDataflowInput* NewNodeCollectionInput = NewWeightMapNode->FindInput(&(NewWeightMapNode->Collection));
-	FDataflowOutput* NewNodeCollectionOutput = NewWeightMapNode->FindOutput(&(NewWeightMapNode->Collection));
-	UEdGraphPin* NewNodeInputPin = NewDataflowEdNode->FindPin(*NewNodeCollectionInput->GetName().ToString(), EGPD_Input);
-	UEdGraphPin* NewNodeOutputPin = NewDataflowEdNode->FindPin(*NewNodeCollectionInput->GetName().ToString(), EGPD_Output);
-
-	bool bWasAnythingChanged = Dataflow->GetSchema()->TryCreateConnection(SelectedNodeOutputPin, NewNodeInputPin);
-
-	for (UEdGraphPin* DownstreamInputPin : ExistingNodeInputPins)
-	{
-		bWasAnythingChanged |= Dataflow->GetSchema()->TryCreateConnection(NewNodeOutputPin, DownstreamInputPin);
-	}
-
-	if (bWasAnythingChanged)
-	{
-		Dataflow->NotifyGraphChanged();
-	}
 
 }
 

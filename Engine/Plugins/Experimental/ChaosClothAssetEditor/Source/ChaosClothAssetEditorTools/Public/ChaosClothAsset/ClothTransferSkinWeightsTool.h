@@ -2,20 +2,19 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "BoneIndices.h"
-#include "TransformTypes.h"
-
+#include "ModelingOperators.h"
 #include "ClothTransferSkinWeightsTool.generated.h"
 
-class UChaosClothComponent;
 class UClothTransferSkinWeightsTool;
 class USkeletalMesh;
-class UPreviewMesh;
-class USkeletalMeshComponent;
+class UClothEditorContextObject;
+class UTransformProxy;
+class UCombinedTransformGizmo;
+class UMeshOpPreviewWithBackgroundCompute;
+class AInternalToolFrameworkActor;
+class UDynamicMeshComponent;
 
 UCLASS()
 class CHAOSCLOTHASSETEDITORTOOLS_API UClothTransferSkinWeightsToolProperties : public UInteractiveToolPropertySet
@@ -28,6 +27,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Source)
 	FTransform SourceMeshTransform;
+
+	UPROPERTY(EditAnywhere, Category = Source)
+	int32 SourceMeshLOD = 0;
 
 	UPROPERTY(EditAnywhere, Category = Source)
 	bool bHideSourceMesh = false;
@@ -47,97 +49,75 @@ public:
 
 };
 
-UENUM()
-enum class EClothTransferSkinWeightsToolActions
-{
-	NoAction,
-	Transfer
-};
-
-UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothTransferSkinWeightsToolActionProperties : public UObject
-{
-	GENERATED_BODY()
-public:
-
-	TWeakObjectPtr<UClothTransferSkinWeightsTool> ParentTool;
-
-	void Initialize(UClothTransferSkinWeightsTool* ParentToolIn) { ParentTool = ParentToolIn; }
-
-	void PostAction(EClothTransferSkinWeightsToolActions Action);
-
-	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Transfer weights", DisplayPriority = 1))
-	void TransferWeights()
-	{
-		PostAction(EClothTransferSkinWeightsToolActions::Transfer);
-	}
-
-};
-
 
 UCLASS()
 class CHAOSCLOTHASSETEDITORTOOLS_API UClothTransferSkinWeightsToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
-protected:
+private:
 
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
-
-public:
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;	
 
-	virtual void PostSetupTool(UInteractiveTool* Tool, const FToolBuilderState& SceneState) const override;
 };
 
-
 UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothTransferSkinWeightsTool : public USingleSelectionMeshEditingTool
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothTransferSkinWeightsTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
-public:
+
+private:
+
+	friend class UClothTransferSkinWeightsToolBuilder;
 
 	// UInteractiveTool
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual bool HasAccept() const override { return true; }
+	virtual bool HasCancel() const override { return true; }
+	virtual bool CanAccept() const override;
 	virtual void OnTick(float DeltaTime) override;
 
-private:
+	// IDynamicMeshOperatorFactory
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
+	
+	void SetClothEditorContextObject(TObjectPtr<UClothEditorContextObject> InClothEditorContextObject);
 
-	friend class UClothTransferSkinWeightsToolActionProperties;
-	friend class UClothTransferSkinWeightsToolBuilder;
+	void AddNewNode();
 
-	UPROPERTY()
+	void SetPreviewMeshColorFunction();
+
+	void UpdateSourceMesh();
+
+	void PreviewMeshUpdatedCallback(UMeshOpPreviewWithBackgroundCompute* Preview);
+
+
+	UPROPERTY(Transient)
 	TObjectPtr<UClothTransferSkinWeightsToolProperties> ToolProperties;
 
-	UPROPERTY()
-	TObjectPtr<UClothTransferSkinWeightsToolActionProperties> ActionProperties;
+	UPROPERTY(Transient)
+	TObjectPtr<UClothEditorContextObject> ClothEditorContextObject;
 
-	EClothTransferSkinWeightsToolActions PendingAction = EClothTransferSkinWeightsToolActions::NoAction;
+	UPROPERTY(Transient)
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> TargetClothPreview;
 
-	UPROPERTY()
-	TObjectPtr<const UChaosClothComponent> ClothComponent;
+	UPROPERTY(Transient)
+	TObjectPtr<AInternalToolFrameworkActor> SourceMeshParentActor;
 
-	UPROPERTY()
-	TObjectPtr<USkeletalMeshComponent> SourceComponent;
+	UPROPERTY(Transient)
+	TObjectPtr<UDynamicMeshComponent> SourceMeshComponent;
 
+	// Source mesh transform gizmo support
+	UPROPERTY(Transient)
+	TObjectPtr<UTransformProxy> SourceMeshTransformProxy;
 
-	void RequestAction(EClothTransferSkinWeightsToolActions ActionType);
+	UPROPERTY(Transient)
+	TObjectPtr<UCombinedTransformGizmo> SourceMeshTransformGizmo;
 
-	void TransferWeights();
-
-	UPROPERTY()
-	TObjectPtr<UPreviewMesh> PreviewMesh;
-
+	// Used to lookup the index of the currently selected-by-name bone
 	TMap<FName, FBoneIndexType> TargetMeshBoneNameToIndex;
 
-	void UpdatePreviewMeshColor();
-	void UpdatePreviewMesh();
-
-	void UpdateSourceMeshRender();
+	bool bHasInvalidLODWarning = false;
 };
 
 

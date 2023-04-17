@@ -58,7 +58,8 @@ public class ChaosClothAssetEditorTools : ModuleRules
 				"ChaosClothAssetDataflowNodes",
 				"DataflowCore",
 				"DataflowEngine",
-				"DataflowEditor"
+				"DataflowEditor",
+				"Chaos"				// FManagedArrayCollection::StaticType
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
