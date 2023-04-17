@@ -717,6 +717,8 @@ void FMobileSceneRenderer::InitViews(
 
 	// Now that the indirect lighting cache is updated, we can update the uniform buffers.
 	UpdatePrimitiveIndirectLightingCacheBuffers();
+
+	UpdateDirectionalLightUniformBuffers(GraphBuilder, Views[0]);
 	
 	OnStartRender(RHICmdList);
 }
