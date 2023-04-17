@@ -48,7 +48,7 @@ public:
 	class FMount
 	{
 	public:
-		static FMount*	Create(FStore* InParent, asio::io_context& InIoContext, const FPath& InDir);
+		static FMount* Create(FStore* InParent, asio::io_context& InIoContext, const FPath& InDir, bool bCreate);
 						
 		void			Close();
 		uint32			GetId() const;
@@ -89,7 +89,7 @@ public:
 	void				OnSettingsChanged();
 
 private:
-	bool				AddMount(const FPath& Dir);
+	bool				AddMount(const FPath& Dir, bool bCreate);
 	bool				RemoveMount(uint32 Id);
 	FTrace*				GetTrace(uint32 Id, FMount** OutMount=nullptr) const;
 	void				Refresh();
