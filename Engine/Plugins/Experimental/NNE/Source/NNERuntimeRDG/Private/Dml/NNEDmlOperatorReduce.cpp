@@ -55,11 +55,18 @@ public:
 		const int32 KeepDims = Attributes.GetValueOrDefault<int32>(TEXT("keepdims"), 1);
 		
 		TArray<int32>	Axes;
-		
-		const FNNEAttributeValue* AxesAttr = Attributes.GetAttributeValue(TEXT("axes"));
-		if (AxesAttr)
+
+		if constexpr (ReduceFunc == DML_REDUCE_FUNCTION_ARGMAX || ReduceFunc == DML_REDUCE_FUNCTION_ARGMIN)
 		{
-			Axes = AxesAttr->GetValue<TArray<int32>>();
+			Axes.Add(Attributes.GetValueOrDefault<int32>(TEXT("axis"), 0));
+		}
+		else
+		{
+			const FNNEAttributeValue* AxesAttr = Attributes.GetAttributeValue(TEXT("axes"));
+			if (AxesAttr)
+			{
+				Axes = AxesAttr->GetValue<TArray<int32>>();
+			}
 		}
 
 		HandleNegativeAxes(Axes, InputTensors[0].GetShape().Rank());
@@ -119,15 +126,41 @@ public:
 			return false;
 		}
 
-		DML_REDUCE_OPERATOR_DESC OpDesc{};
+		if constexpr (ReduceFunc == DML_REDUCE_FUNCTION_ARGMAX)
+        {
+            DML_ARGMAX_OPERATOR_DESC OpDesc;
+            OpDesc.AxisDirection = (DML_AXIS_DIRECTION) Attributes.GetValueOrDefault<int32>(TEXT("select_last_index"), 0);
+            OpDesc.InputTensor = &DmlInputTensorDesc.Desc;
+			OpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+            OpDesc.Axes = DmlAxes.GetData();
+            OpDesc.AxisCount = (uint32) DmlAxes.Num();
 
-		OpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-		OpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
-		OpDesc.Function = ReduceFunc;
-		OpDesc.Axes = DmlAxes.GetData();
-		OpDesc.AxisCount = (uint32) DmlAxes.Num();
+			return CreateOperator(Device, DML_OPERATOR_DESC { DML_OPERATOR_ARGMAX, &OpDesc });
+        }
+        else if constexpr (ReduceFunc == DML_REDUCE_FUNCTION_ARGMIN)
+        {
+            DML_ARGMIN_OPERATOR_DESC OpDesc;
+            OpDesc.AxisDirection = (DML_AXIS_DIRECTION) Attributes.GetValueOrDefault<int32>(TEXT("select_last_index"), 0);
+            OpDesc.InputTensor = &DmlInputTensorDesc.Desc;
+			OpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+            OpDesc.Axes = DmlAxes.GetData();
+            OpDesc.AxisCount = (uint32) DmlAxes.Num();
 
-		return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_REDUCE, &OpDesc} );
+            return CreateOperator(Device, DML_OPERATOR_DESC { DML_OPERATOR_ARGMIN, &OpDesc });
+        }
+		else
+		{
+			DML_REDUCE_OPERATOR_DESC OpDesc{};
+
+			OpDesc.InputTensor = &DmlInputTensorDesc.Desc;
+			OpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+			OpDesc.Function = ReduceFunc;
+			OpDesc.Axes = DmlAxes.GetData();
+			OpDesc.AxisCount = (uint32) DmlAxes.Num();
+
+			return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_REDUCE, &OpDesc} );
+		}
+		
 	}
 };
 
@@ -148,6 +181,8 @@ struct FOperatorDmlReduceRegistrator
 		OP(ReduceProd,		DML_REDUCE_FUNCTION_MULTIPLY);
 		OP(ReduceSum,		DML_REDUCE_FUNCTION_SUM);
 		OP(ReduceSumSquare,	DML_REDUCE_FUNCTION_SUM_SQUARE);
+		OP(ArgMax,			DML_REDUCE_FUNCTION_ARGMAX);
+		OP(ArgMin,			DML_REDUCE_FUNCTION_ARGMIN);
 	}
 };
 

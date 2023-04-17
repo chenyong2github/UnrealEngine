@@ -530,6 +530,16 @@
 			]
 		},
 		{
+			"category": "ArgMaxMin",
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true }
+			],
+			"targets": [
+				{ "target": "ArgMax" },
+				{ "target": "ArgMin" }
+			]
+		},
+		{
 			"category": "Reshape",
 			"targets": [
 				{ "target": "Reshape" }
@@ -1286,6 +1296,36 @@
 			"datasets": [
 				{ "inputs": [ { "shape": [ 3, 2, 2 ] } ], "outputs": [ { "shape": [ 3, 1, 2 ] } ] }
 			]
+		},
+		{ 
+			"name": "ArgMaxMin.Default",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 2, 2 ] } ], "outputs": [ { "shape": [ 1, 2, 2 ], "type": "int64" } ] }
+			]
+		},
+		{ 
+			"name": "ArgMaxMin.Axis.SelectLastIndex",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 5, 7, 6 ] } ], "outputs": [ { "shape": [ 5, 1, 6 ], "type": "int64" } ] }
+			]
+		},
+		{ 
+			"name": "ArgMaxMin.Axis.Keepdims",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 2, 2 ] } ], "outputs": [ { "shape": [ 3, 1, 2 ], "type": "int64" } ] }
+			]
+		},
+		{ 
+			"name": "ArgMaxMin.Axis.DontKeepdims",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 2, 2 ] } ], "outputs": [ { "shape": [ 3, 2 ], "type": "int64" } ] }
+			]
+		},
+		{ 
+			"name": "ArgMaxMin.NegativeAxis.Keepdims",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 2, 2 ] } ], "outputs": [ { "shape": [ 3, 1, 2 ], "type": "int64" } ] }
+			]
 		}
 	],
 
@@ -1861,6 +1901,48 @@
 			"attribute_maps": [
 				{ "attributes": [ 
 						{ "name": "axes", "value": [-2], "type": "Int32Array" },
+						{ "name": "keepdims", "value": 1, "type": "Int32" }
+					]
+				}
+			]
+		},
+		{
+			"name": "ArgMaxMin.Axis.SelectLastIndex",
+			"attribute_maps": [
+				{
+					"attributes": [
+						{ "name": "axis", "value": 1, "type": "Int32" },
+						{ "name": "select_last_index", "value": 1, "type": "Int32" }
+					]
+				}
+			]
+		},
+		{
+			"name": "ArgMaxMin.Axis.Keepdims",
+			"attribute_maps": [
+				{
+					"attributes": [
+						{ "name": "axis", "value": 1, "type": "Int32" },
+						{ "name": "keepdims", "value": 1, "type": "Int32" }
+					]
+				}
+			]
+		},
+		{
+			"name": "ArgMaxMin.Axis.DontKeepdims",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "axis", "value": 1, "type": "Int32" },
+						{ "name": "keepdims", "value": 0, "type": "Int32" }
+					]
+				}
+			]
+		},
+		{
+			"name": "ArgMaxMin.NegativeAxis.Keepdims",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "axis", "value": -2, "type": "Int32" },
 						{ "name": "keepdims", "value": 1, "type": "Int32" }
 					]
 				}
