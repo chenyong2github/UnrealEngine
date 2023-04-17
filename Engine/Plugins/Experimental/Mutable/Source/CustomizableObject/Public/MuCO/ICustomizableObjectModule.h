@@ -6,8 +6,6 @@
 #include "Modules/ModuleManager.h"
 #include "MuCO/CustomizableObjectExtension.h"
 
-class UCustomizableSkeletalComponent;
-
 struct FRegisteredCustomizableObjectPinType
 {
 	TWeakObjectPtr<const UCustomizableObjectExtension> Extension;
@@ -78,7 +76,3 @@ public:
 	virtual TArrayView<const FRegisteredObjectNodeInputPin> GetAdditionalObjectNodePins() const = 0;
 };
 
-
-/* Utility function for commands*/
-CUSTOMIZABLEOBJECT_API
-UCustomizableSkeletalComponent* GetPlayerCustomizableSkeletalComponent(const int32 SlotID, const UWorld* CurrentWorld, const int32 PlayerIndex = 0);

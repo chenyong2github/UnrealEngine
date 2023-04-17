@@ -9,7 +9,7 @@
 
 void UDGGUI::OpenDGGUI(const int32 SlotID, UCustomizableSkeletalComponent* SelectedCustomizableSkeletalComponent, const UWorld* CurrentWorld, const int32 PlayerIndex)
 {
-#if !UE_BUILD_SHIPPING
+#if WITH_EDITOR
 	if (APlayerController* Player = UGameplayStatics::GetPlayerController(CurrentWorld, PlayerIndex))
 	{
 		FSoftClassPath DGUIPath(TEXT("/Mutable/UI/DynamicallyGeneratedGUI_DGGUI/DynamicallyGeneratedGUI_DGGUI.DynamicallyGeneratedGUI_DGGUI_C"));
@@ -24,12 +24,12 @@ void UDGGUI::OpenDGGUI(const int32 SlotID, UCustomizableSkeletalComponent* Selec
 			}
 		}
 	}
-#endif // !UE_BUILD_SHIPPING
+#endif // WITH_EDITOR
 }
 
 bool UDGGUI::CloseExistingDGGUI(const UWorld* CurrentWorld)
 {
-#if !UE_BUILD_SHIPPING
+#if WITH_EDITOR
 	bool bClosing = false;
 	for (TObjectIterator<UDGGUI> PreviousGUI; PreviousGUI; ++PreviousGUI)
 	{
@@ -51,6 +51,6 @@ bool UDGGUI::CloseExistingDGGUI(const UWorld* CurrentWorld)
 		}
 		return true;
 	}
-#endif // !UE_BUILD_SHIPPING
+#endif // WITH_EDITOR
 	return false;
 }
