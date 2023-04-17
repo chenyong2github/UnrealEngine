@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetRegistry/AssetData.h"
 #include "Components/Widget.h"
 #include "VPAssetThumbnailWrapperWidget.generated.h"
 

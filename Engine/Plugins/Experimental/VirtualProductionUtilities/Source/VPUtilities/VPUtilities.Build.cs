@@ -11,6 +11,7 @@ public class VPUtilities : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AssetRegistry",
 				"CinematicCamera",
 				"Composure",
 				"Core",
