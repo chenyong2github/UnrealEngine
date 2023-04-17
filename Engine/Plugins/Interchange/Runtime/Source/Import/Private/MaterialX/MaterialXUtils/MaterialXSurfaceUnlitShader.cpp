@@ -35,7 +35,7 @@ void FMaterialXSurfaceUnlitShader::Translate(mx::NodePtr SurfaceUnlitNode)
 		SurfaceUnlitShaderNode->SetCustomMaterialFunction(TEXT("/Interchange/Functions/MX_SurfaceUnlit.MX_SurfaceUnlit"));
 		NodeContainer.AddNode(SurfaceUnlitShaderNode);
 
-		ShaderNodes.Add(NodeName, SurfaceUnlitShaderNode);
+		ShaderNodes.Add({ NodeName, SurfaceUnlitNode->getNodeDef(mx::EMPTY_STRING, true)->getActiveOutputs()[0]->getName().c_str() }, SurfaceUnlitShaderNode);
 	}
 
 	using namespace UE::Interchange::Materials;

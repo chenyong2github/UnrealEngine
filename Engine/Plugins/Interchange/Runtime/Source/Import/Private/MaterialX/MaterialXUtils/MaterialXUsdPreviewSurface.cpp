@@ -38,7 +38,7 @@ void FMaterialXUsdPreviewSurface::Translate(MaterialX::NodePtr UsdPreviewSurface
 		UsdPreviewSurfaceShaderNode->SetCustomMaterialFunction(TEXT("/Interchange/Functions/MX_UsdPreviewSurface.MX_UsdPreviewSurface"));
 		NodeContainer.AddNode(UsdPreviewSurfaceShaderNode);
 
-		ShaderNodes.Add(NodeName, UsdPreviewSurfaceShaderNode);
+		ShaderNodes.Add({ NodeName, UsdPreviewSurfaceNode->getNodeDef(mx::EMPTY_STRING, true)->getActiveOutputs()[0]->getName().c_str()}, UsdPreviewSurfaceShaderNode);
 	}
 
 	// Inputs

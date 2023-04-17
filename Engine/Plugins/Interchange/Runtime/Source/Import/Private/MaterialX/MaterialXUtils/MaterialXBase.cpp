@@ -69,6 +69,7 @@ void FMaterialXBase::AddTexCoordToTiledImageNodes(MaterialX::ElementPtr Graph)
 													  {},
 													  { {"index", FAttributeValueArray{{"type", "integer"}, {"value", "0"}}} });
 
+				NodeTexCoord->setType(mx::Type::Vector2);
 				InputTexCoord = Node->addInput(mx::NodeGroup::Texture2D::Inputs::TexCoord, mx::Type::Vector2);
 				InputTexCoord->setNodeName(NodeTexCoord->getName());
 			}

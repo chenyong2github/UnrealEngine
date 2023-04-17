@@ -147,6 +147,16 @@ bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& B
 
 			if(Node)
 			{
+				// Validate that all nodes in the file are strictly respecting their node definition
+				if(!Node->getNodeDef())
+				{
+					UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+					Message->Text = FText::Format(LOCTEXT("NodeDefNotFound", "<{0}> has no matching NodeDef, aborting import..."),
+												  FText::FromString(Node->getName().c_str()));
+					bIsReferencesValid = false;
+					break;
+				}
+
 				bool bIsMaterialShader = Node->getType() == mx::Type::Material;
 				bool bIsLightShader = Node->getType() == mx::Type::LightShader;
 

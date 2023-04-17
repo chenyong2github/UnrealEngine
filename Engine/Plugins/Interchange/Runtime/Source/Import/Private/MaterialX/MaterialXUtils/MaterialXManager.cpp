@@ -67,7 +67,6 @@ FMaterialXManager::FMaterialXManager()
 		{{MaterialX::Category::Inside,         TEXT("mask")},      TEXT("B")},			  // Inside is treated as a Multiply node
 		{{MaterialX::Category::Invert,         TEXT("amount")},    TEXT("A")},
 		{{MaterialX::Category::Invert,         TEXT("in")},        TEXT("B")},
-		{{MaterialX::Category::Magnitude,      TEXT("in")},        TEXT("A")},
 		{{MaterialX::Category::Mix,            TEXT("fg")},        TEXT("B")},
 		{{MaterialX::Category::Mix,            TEXT("bg")},        TEXT("A")},
 		{{MaterialX::Category::Mix,            TEXT("mix")},		TEXT("Factor")},
@@ -81,7 +80,6 @@ FMaterialXManager::FMaterialXManager()
 		{{MaterialX::Category::Power,          TEXT("in1")},       TEXT("Base")},
 		{{MaterialX::Category::Power,	       TEXT("in2")},       TEXT("Exponent")},
 		{{MaterialX::Category::Rotate2D,       TEXT("amount")},    TEXT("RotationAngle")},
-		{{MaterialX::Category::Rotate2D,       TEXT("in")},        TEXT("Position")},
 		{{MaterialX::Category::Rotate3D,       TEXT("amount")},    TEXT("RotationAngle")},
 		{{MaterialX::Category::Rotate3D,       TEXT("axis")},		TEXT("NormalizedRotationAxis")},
 		{{MaterialX::Category::Rotate3D,       TEXT("in")},        TEXT("Position")},
@@ -155,7 +153,6 @@ FMaterialXManager::FMaterialXManager()
 		{MaterialX::Category::Fractal3D,    TEXT("MaterialXFractal3D")},
 		// Geometric nodes 
 		{MaterialX::Category::GeomColor,	TEXT("VertexColor")},
-		{MaterialX::Category::TexCoord,		TEXT("TextureCoordinate")},
 		// Adjustment nodes,
 		{MaterialX::Category::HsvToRgb,		TEXT("MaterialXHsvToRgb")},
 		{MaterialX::Category::Luminance,    TEXT("MaterialXLuminance")},

@@ -318,6 +318,7 @@ MATERIALX_NAMESPACE_BEGIN
 		static constexpr const char* Separate2 = "separate2";
 		static constexpr const char* Separate3 = "separate3";
 		static constexpr const char* Separate4 = "separate4";
+		static constexpr const char* Swizzle = "swizzle";
 		// Procedural nodes 
 		static constexpr const char* Constant = "constant";
 		// Procedural2D nodes 

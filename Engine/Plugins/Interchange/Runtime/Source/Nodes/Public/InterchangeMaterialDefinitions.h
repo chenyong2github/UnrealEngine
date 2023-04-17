@@ -137,6 +137,21 @@ namespace Interchange
 					}
 				}
 
+				namespace Swizzle
+				{
+					const FName Name = TEXT("MaterialXSwizzle");
+
+					namespace Inputs
+					{
+						const FName Input = TEXT("Input");
+					}
+
+					namespace Attributes
+					{
+						const FName Channels = TEXT("Channels");
+					}
+				}
+
 				namespace TextureCoordinate
 				{
 					const FName Name = TEXT("TextureCoordinate");

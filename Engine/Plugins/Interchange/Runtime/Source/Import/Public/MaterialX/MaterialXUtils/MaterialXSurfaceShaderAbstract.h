@@ -14,9 +14,29 @@ class FMaterialXSurfaceShaderAbstract : public FMaterialXBase
 {
 protected:
 
+	static FString EmptyString;
+
+	// MaterialX states the default output name of the different nodes is 'out'
+	static FString DefaultOutput;
+
 	friend class FMaterialXSurfaceMaterial;
 
-	DECLARE_DELEGATE_ThreeParams(FOnConnectNodeOutputToInput, MaterialX::NodePtr, UInterchangeShaderNode*, const FString&);
+	struct FConnectNode
+	{
+		// The MaterialX node of a given type used to create the appropriate shader node
+		MaterialX::NodePtr UpstreamNode;
+
+		// The shader node to connect to
+		UInterchangeShaderNode* ParentShaderNode;
+
+		// The input of the ParentShaderNode to connect to
+		FString InputChannelName;
+
+		// The output name of the MaterialX node, default name is 'out' as stated by the standard library
+		FString OutputName{ DefaultOutput };
+	};
+		
+	DECLARE_DELEGATE_OneParam(FOnConnectNodeOutputToInput, const FConnectNode&);
 
 	FMaterialXSurfaceShaderAbstract(UInterchangeBaseNodeContainer & BaseNodeContainer);
 
@@ -142,7 +162,7 @@ protected:
 	 *
 	 * @return true if a shader node has been successfully created and is connected to the given input
 	 */
-	bool ConnectMatchingNodeOutputToInput(MaterialX::NodePtr Node, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	bool ConnectMatchingNodeOutputToInput(const FConnectNode& Connect);
 
 	/**
 	 * Create and Connect manually the output of a MaterialX node to a shader node
@@ -169,70 +189,79 @@ protected:
 	/** Begin Connect MaterialX nodes*/
 
 	/** <constant> */
-	void ConnectConstantInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectConstantInputToOutput(const FConnectNode& Connect);
 
 	/** <extract> */
-	void ConnectExtractInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectExtractInputToOutput(const FConnectNode& Connect);
 
 	/** <dot> */
-	void ConnectDotInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectDotInputToOutput(const FConnectNode& Connect);
 
 	/** <transformpoint> */
-	void ConnectTransformPositionInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectTransformPositionInputToOutput(const FConnectNode& Connect);
 
 	/** <transformvector> */
-	void ConnectTransformVectorInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectTransformVectorInputToOutput(const FConnectNode& Connect);
 
 	/** <rotate3d> */
-	void ConnectRotate3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectRotate3DInputToOutput(const FConnectNode& Connect);
 
 	/** <image> */
-	void ConnectImageInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectImageInputToOutput(const FConnectNode& Connect);
 
 	/** <convert> */
-	void ConnectConvertInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectConvertInputToOutput(const FConnectNode& Connect);
 
 	/** <ifgreater> */
-	void ConnectIfGreaterInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectIfGreaterInputToOutput(const FConnectNode& Connect);
 
 	/** <ifgreatereq> */
-	void ConnectIfGreaterEqInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectIfGreaterEqInputToOutput(const FConnectNode& Connect);
 
 	/** <ifequal> */
-	void ConnectIfEqualInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectIfEqualInputToOutput(const FConnectNode& Connect);
 
 	/** <outside> */
-	void ConnectOutsideInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectOutsideInputToOutput(const FConnectNode& Connect);
 
 	/** <position> */
-	void ConnectPositionInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectPositionInputToOutput(const FConnectNode& Connect);
 
 	/** <normal> */
-	void ConnectNormalInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectNormalInputToOutput(const FConnectNode& Connect);
 
 	/** <tangent> */
-	void ConnectTangentInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectTangentInputToOutput(const FConnectNode& Connect);
 
 	/** <bitangent> */
-	void ConnectBitangentInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectBitangentInputToOutput(const FConnectNode& Connect);
 
 	/** <time> */
-	void ConnectTimeInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectTimeInputToOutput(const FConnectNode& Connect);
 
 	/** <noise3d> */
-	void ConnectNoise3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectNoise3DInputToOutput(const FConnectNode& Connect);
 
 	/** <cellnoise3d> */
-	void ConnectCellNoise3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectCellNoise3DInputToOutput(const FConnectNode& Connect);
 
 	/** <worleynoise3d> */
-	void ConnectWorleyNoise3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectWorleyNoise3DInputToOutput(const FConnectNode& Connect);
 
 	/** <heighttonormal> */
-	void ConnectHeightToNormalInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectHeightToNormalInputToOutput(const FConnectNode& Connect);
 
 	/** <blur> */
-	void ConnectBlurInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName);
+	void ConnectBlurInputToOutput(const FConnectNode& Connect);
+
+	/** <texcoord> */
+	void ConnectTexCoordInputToOutput(const FConnectNode& Connect);
+
+	/** <separate2/3/4> */
+	void ConnectSeparateInputToOutput(const FConnectNode& Connect);
+
+	/** <swizzle> */
+	void ConnectSwizzleInputToOutput(const FConnectNode& Connect);
 
 	/** End Connect MaterialX nodes*/
 
@@ -241,20 +270,21 @@ protected:
 	 *
 	 * @param RGBA - The mask component, e.g: 0b1011 -> Only RBA are toggled
 	 * @param NodeName - the name of the shader node
-	 *
+	 * @param OutputName - the name of the output of the MaterialX node, default name is 'out' as stated by the standard library
 	 * @return The ComponentMask node
 	 */
-	UInterchangeShaderNode* CreateMaskShaderNode(uint8 RGBA, const FString& NodeName);
+	UInterchangeShaderNode* CreateMaskShaderNode(uint8 RGBA, const FString& NodeName, const FString& OutputName = TEXT("out"));
 
 	/**
 	 * Helper function to create an InterchangeShaderNode
 	 *
 	 * @param NodeName - The name of the shader node
 	 * @param ShaderType - The shader node's type we want to create
+	 * @param OutputName - The output name of the MaterialX node, default name is 'out' as stated by the standard library
 	 *
 	 * @return The shader node that was created
 	 */
-	UInterchangeShaderNode* CreateShaderNode(const FString& NodeName, const FString& ShaderType);
+	UInterchangeShaderNode* CreateShaderNode(const FString& NodeName, const FString& ShaderType, const FString& OutputName = TEXT("out"));
 
 	/**
 	 * Helper function to create an InterchangeTextureNode
@@ -405,8 +435,14 @@ protected:
 
 protected:
 
+	/** 
+	 * @param Get<0>: node
+	 * @param Get<1>: output
+	 */
+	using FNodeOutput = TPair<FString, FString>;
+
 	/** Store the shader nodes only when we create the shader graph node*/
-	TMap<FString, UInterchangeShaderNode*> ShaderNodes;
+	TMap<FNodeOutput, UInterchangeShaderNode*> ShaderNodes;
 
 	/** Matching MaterialX category and Connect function*/
 	TMap<FString, FOnConnectNodeOutputToInput> MatchingConnectNodeDelegates;

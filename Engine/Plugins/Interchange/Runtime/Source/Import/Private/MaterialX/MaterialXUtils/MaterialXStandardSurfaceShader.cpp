@@ -37,7 +37,7 @@ void FMaterialXStandardSurfaceShader::Translate(mx::NodePtr StandardSurfaceNode)
 		StandardSurfaceShaderNode->SetCustomMaterialFunction(TEXT("/Interchange/Functions/MX_StandardSurface.MX_StandardSurface"));
 		NodeContainer.AddNode(StandardSurfaceShaderNode);
 
-		ShaderNodes.Add(NodeName, StandardSurfaceShaderNode);
+		ShaderNodes.Add({ NodeName, StandardSurfaceNode->getNodeDef(mx::EMPTY_STRING, true)->getActiveOutputs()[0]->getName().c_str() }, StandardSurfaceShaderNode);
 	}
 
 	// Inputs
