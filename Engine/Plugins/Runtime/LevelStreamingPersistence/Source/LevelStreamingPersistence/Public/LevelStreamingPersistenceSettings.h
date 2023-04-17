@@ -25,5 +25,5 @@ class LEVELSTREAMINGPERSISTENCE_API ULevelStreamingPersistenceSettings : public 
 	UPROPERTY(Config)
 	TArray<FLevelStreamingPersistentProperty> Properties;
 
-	friend class FLevelStreamingPersistentPropertiesInfo;
+	friend class ULevelStreamingPersistentPropertiesInfo;
 };

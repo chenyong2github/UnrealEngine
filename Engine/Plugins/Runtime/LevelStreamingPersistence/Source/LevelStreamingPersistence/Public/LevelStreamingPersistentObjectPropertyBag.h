@@ -8,15 +8,21 @@
 
 struct FLevelStreamingPersistentObjectPropertyBag
 {
-	bool Initialize(TFunctionRef<const UPropertyBag* ()> Func);
+	FLevelStreamingPersistentObjectPropertyBag() = default;
+	FLevelStreamingPersistentObjectPropertyBag(FLevelStreamingPersistentObjectPropertyBag&& InOther);
+	bool Initialize(TFunctionRef<const UPropertyBag* ()> InFunc);
 	bool IsValid() const { return PropertyBag.IsValid(); }
 	const UPropertyBag* GetPropertyBagStruct() const { return PropertyBag.GetPropertyBagStruct(); }
 	const FProperty* FindPropertyByName(const FName InPropertyName) const;
 	const FProperty* CopyPropertyValueFromObject(const UObject* InObject, const FProperty* InObjectProperty);
+	const FProperty* CopyPropertyValueFromPropertyBag(const FLevelStreamingPersistentObjectPropertyBag& InPropertyBag, const FProperty* InProperty);
 	const FProperty* CopyPropertyValueToObject(UObject* InObject, const FProperty* InObjectProperty) const;
+	const FProperty* GetCompatibleProperty(const FProperty* InObjectProperty) const;
 	bool ComparePropertyValueWithObject(const UObject* InObject, const FProperty* InObjectProperty, bool& bOutIsIdentical) const;
 	void ForEachProperty(TFunctionRef<void(const FProperty*)> Func) const;
 	void DumpContent(TFunctionRef<void(const FProperty*, const FString&)> Func, const TArray<const FProperty*>* InDumpProperties = nullptr);
+	void Serialize(FArchive& Ar);
+	friend FArchive& operator<<(FArchive& Ar, FLevelStreamingPersistentObjectPropertyBag& PropertyBag);
 
 	template<typename PropertyType>
 	bool SetPropertyValue(const FName InPropertyName, const PropertyType& InPropertyValue);

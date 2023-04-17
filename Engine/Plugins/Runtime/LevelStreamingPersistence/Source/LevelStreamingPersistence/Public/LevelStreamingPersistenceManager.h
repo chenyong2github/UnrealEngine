@@ -19,38 +19,67 @@ using FLevelStreamingPersistentPropertyArray = TArray<FCustomPropertyListNode, T
 
 struct FLevelStreamingPersistentObjectPrivateProperties
 {
-	// Payload data containing serialized changed properties
-	TArray<uint8> PayloadData;
+	FLevelStreamingPersistentObjectPrivateProperties() = default;
+	FLevelStreamingPersistentObjectPrivateProperties(FLevelStreamingPersistentObjectPrivateProperties&& Other);
+
 	// Initial snapshot used detect changed properties
 	FLevelStreamingPersistentObjectPropertyBag Snapshot;
+
+	// Object source class
+	FString SourceClassPathName;
+	// Payload data containing serialized changed properties
+	TArray<uint8> PayloadData;
 	// Persistent Properties
 	TArray<const FProperty*> PersistentProperties;
-	
+
+	const UClass* GetSourceClass() const { return LoadObject<UClass>(nullptr, *SourceClassPathName); }
 	void ForEachPersistentProperty(TFunctionRef<void(const FProperty*)> Func) const;
-	void BuildSerializedPropertyList(FLevelStreamingPersistentPropertyArray& OutCustomPropertyList) const;
+	bool Sanitize(const ULevelStreamingPersistenceManager& InManager);
+	void Serialize(FArchive& Ar);
+	friend FArchive& operator<<(FArchive& Ar, FLevelStreamingPersistentObjectPrivateProperties& PrivateProperties);
 };
 
 struct FLevelStreamingPersistentObjectPublicProperties
 {
+	FLevelStreamingPersistentObjectPublicProperties() = default;
+	FLevelStreamingPersistentObjectPublicProperties(FLevelStreamingPersistentObjectPublicProperties&& Other);
+
+	// Properties to persist (computed once)
+	TArray<const FProperty*> PropertiesToPersist;
+
+	// Object source class
+	FString SourceClassPathName;
 	// Public properties
 	FLevelStreamingPersistentObjectPropertyBag PropertyBag;
 	// Persistent Properties
 	TArray<const FProperty*> PersistentProperties;
 
+	const UClass* GetSourceClass() const { return LoadObject<UClass>(nullptr, *SourceClassPathName); }
 	void ForEachPersistentProperty(TFunctionRef<void(const FProperty*)> Func) const;
+	bool Sanitize(const ULevelStreamingPersistenceManager& InManager);
+	void Serialize(FArchive& Ar);
+	friend FArchive& operator<<(FArchive& Ar, FLevelStreamingPersistentObjectPublicProperties& PublicProperties);
 };
 
 struct FLevelStreamingPersistentPropertyValues
 {
+	bool bIsMakingVisibleCacheValid = false;
 	TMap<FString, FLevelStreamingPersistentObjectPrivateProperties> ObjectsPrivatePropertyValues;
 	TMap<FString, FLevelStreamingPersistentObjectPublicProperties> ObjectsPublicPropertyValues;
+
+	void Serialize(FArchive& Ar);
+	friend FArchive& operator<<(FArchive& Ar, FLevelStreamingPersistentPropertyValues& Properties);
 };
 
 // Helper class to access FLevelStreamingPersistentProperty's Properties
-class FLevelStreamingPersistentPropertiesInfo
+UCLASS()
+class ULevelStreamingPersistentPropertiesInfo : public UObject
 {
+	GENERATED_BODY()
+
 public:
 	void Initialize();
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	enum EPropertyType
 	{
@@ -61,16 +90,14 @@ public:
 
 	// Configurable persistent properties helper methods
 	const UPropertyBag* GetPropertyBagFromClass(EPropertyType InAccessSpecifier, const UClass* InClass) const;
-	const UClass* GetClassFromPropertyBag(EPropertyType InAccessSpecifier, const UPropertyBag* InPropertyBag) const;
 	void ForEachProperty(EPropertyType InAccessSpecifier, const UClass* InClass, TFunctionRef<void(FProperty*)> Func) const;
 	bool HasProperties(EPropertyType InAccessSpecifier, const UClass* InClass) const;
 	bool HasProperty(EPropertyType InAccessSpecifier, const FProperty* InProperty) const;
 
 private:
 	/* Acceleration maps to find properties for a given class */
-	TStaticArray<TMap<TWeakObjectPtr<const UClass>, TSet<FProperty*>>, PropertyType_Count> ClassesProperties;
-	TStaticArray<TMap<TWeakObjectPtr<const UClass>, FInstancedPropertyBag>, PropertyType_Count> ObjectClassToPropertyBag;
-	TStaticArray<TMap<const UPropertyBag*, TWeakObjectPtr<const UClass>>, PropertyType_Count> PropertyBagToObjectClass;
+	TStaticArray<TMap<const UClass*, TSet<FProperty*>>, PropertyType_Count> ClassesProperties;
+	TStaticArray<TMap<const UClass*, FInstancedPropertyBag>, PropertyType_Count> ObjectClassToPropertyBag;
 };
 
 UCLASS()
@@ -84,9 +111,12 @@ public:
 	~ULevelStreamingPersistenceManager() {}
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void PostInitialize() override;
 	virtual void Deinitialize() override;
 	//~ End WorldSubsystem
+
+	// Serialization
+	bool SerializeTo(TArray<uint8>& OutPayload);
+	bool InitializeFrom(const TArray<uint8>& InPayload);
 
 	// Sets property value and creates the entry if necessary, returns true on success.
 	template <typename ClassType, typename PropertyType>
@@ -118,7 +148,7 @@ private:
 	bool SaveLevelPersistentPropertyValues(const ULevel* InLevel);
 
 	// Restore persistent properties
-	bool RestoreLevelPersistentPropertyValues(ULevel* InLevel) const;
+	bool RestoreLevelPersistentPropertyValues(const ULevel* InLevel) const;
 	int32 RestorePrivateProperties(UObject* InObject, const FLevelStreamingPersistentObjectPrivateProperties& InPersistentProperties) const;
 	int32 RestorePublicProperties(UObject* InObject, const FLevelStreamingPersistentObjectPublicProperties& InPersistentProperties) const;
 
@@ -131,9 +161,12 @@ private:
 	const FString GetResolvedObjectPathName(const FString& InObjectPathName) const;
 	bool CopyPropertyBagValueToObject(const FLevelStreamingPersistentObjectPropertyBag* InPropertyBag, UObject* InObject, FProperty* InObjectProperty) const;
 	TPair<UObject*, FProperty*> GetObjectPropertyPair(const FString& InObjectPathName, const FName InPropertyName) const;
+#if !UE_BUILD_SHIPPING
 	void DumpContent() const;
+#endif
 	const FLevelStreamingPersistentObjectPropertyBag* GetPropertyBag(const FString& InObjectPathName) const;
 	FLevelStreamingPersistentObjectPropertyBag* GetPropertyBag(const FString& InObjectPathName);
+	bool SerializeManager(FArchive& Ar);
 
 	template <typename ClassType>
 	FLevelStreamingPersistentObjectPropertyBag* GetOrCreatePropertyBag(const FString& InObjectPathName, const FName InPropertyName);
@@ -142,6 +175,8 @@ private:
 	static class FAutoConsoleVariableRef EnableCommand;
 	static bool bIsEnabled;
 #if !UE_BUILD_SHIPPING
+	static class FAutoConsoleCommand SaveToFileCommand;
+	static class FAutoConsoleCommand LoadFromFileCommand;
 	static class FAutoConsoleCommand DumpContentCommand;
 	static class FAutoConsoleCommand SetPropertyValueCommand;
 	static class FAutoConsoleCommand GetPropertyValueCommand;
@@ -154,8 +189,14 @@ private:
 	ILevelStreamingPersistenceModule* PersistenceModule = nullptr;
 
 	// Persistent Properties Info
-	FLevelStreamingPersistentPropertiesInfo PersistentPropertiesInfo;
+	UPROPERTY(Transient)
+	TObjectPtr<ULevelStreamingPersistentPropertiesInfo> PersistentPropertiesInfo;
 
+	// Whether to use tagget property serialization
+	bool bUseTaggedPropertySerialization;
+
+	friend struct FLevelStreamingPersistentObjectPrivateProperties;
+	friend struct FLevelStreamingPersistentObjectPublicProperties;
 	friend class FPersistenceModule;
 };
 
@@ -212,12 +253,12 @@ FLevelStreamingPersistentObjectPropertyBag* ULevelStreamingPersistenceManager::G
 
 	if (FProperty* ObjectProperty = ObjectClass->FindPropertyByName(InPropertyName))
 	{
-		if (PersistentPropertiesInfo.HasProperty(FLevelStreamingPersistentPropertiesInfo::PropertyType_Public, ObjectProperty))
+		if (PersistentPropertiesInfo->HasProperty(ULevelStreamingPersistentPropertiesInfo::PropertyType_Public, ObjectProperty))
 		{
 			FLevelStreamingPersistentPropertyValues& LevelProperties = LevelsPropertyValues.FindOrAdd(LevelPathName);
 
 			FLevelStreamingPersistentObjectPublicProperties& ObjectPublicPropertyValues = LevelProperties.ObjectsPublicPropertyValues.FindOrAdd(ObjectPathName);
-			if (ObjectPublicPropertyValues.PropertyBag.Initialize([this, ObjectClass]() { return PersistentPropertiesInfo.GetPropertyBagFromClass(FLevelStreamingPersistentPropertiesInfo::PropertyType_Public, ObjectClass); }))
+			if (ObjectPublicPropertyValues.PropertyBag.Initialize([this, ObjectClass]() { return PersistentPropertiesInfo->GetPropertyBagFromClass(ULevelStreamingPersistentPropertiesInfo::PropertyType_Public, ObjectClass); }))
 			{
 				return &ObjectPublicPropertyValues.PropertyBag;
 			}

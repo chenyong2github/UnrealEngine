@@ -4,7 +4,12 @@
 #include "UObject/PropertyAccessUtil.h"
 #include "PropertyPathHelpers.h"
 
-bool FLevelStreamingPersistentObjectPropertyBag::Initialize(TFunctionRef<const UPropertyBag* ()> Func)
+FLevelStreamingPersistentObjectPropertyBag::FLevelStreamingPersistentObjectPropertyBag(FLevelStreamingPersistentObjectPropertyBag&& InOther)
+: PropertyBag(MoveTemp(InOther.PropertyBag))
+{
+}
+
+bool FLevelStreamingPersistentObjectPropertyBag::Initialize(TFunctionRef<const UPropertyBag* ()> InFunc)
 {
 	if (IsValid())
 	{
@@ -12,7 +17,7 @@ bool FLevelStreamingPersistentObjectPropertyBag::Initialize(TFunctionRef<const U
 	}
 	else
 	{
-		const UPropertyBag* DefaultClass = Func();
+		const UPropertyBag* DefaultClass = InFunc();
 		if (ensure(DefaultClass))
 		{
 			PropertyBag.InitializeFromBagStruct(DefaultClass);
@@ -43,6 +48,22 @@ bool FLevelStreamingPersistentObjectPropertyBag::ComparePropertyValueWithObject(
 	return true;
 }
 
+const FProperty* FLevelStreamingPersistentObjectPropertyBag::GetCompatibleProperty(const FProperty* InObjectProperty) const
+{
+	check(IsValid());
+	const FProperty* BagProperty = InObjectProperty ? FindPropertyByName(InObjectProperty->GetFName()) : nullptr;
+	if (!BagProperty)
+	{
+		return nullptr;
+	}
+
+	if (PropertyAccessUtil::ArePropertiesCompatible(BagProperty, InObjectProperty))
+	{
+		return BagProperty;
+	}
+	return nullptr;
+}
+
 const FProperty* FLevelStreamingPersistentObjectPropertyBag::CopyPropertyValueFromObject(const UObject* InObject, const FProperty* InObjectProperty)
 {
 	check(IsValid());
@@ -55,6 +76,20 @@ const FProperty* FLevelStreamingPersistentObjectPropertyBag::CopyPropertyValueFr
 	const void* BagValue = BagProperty->ContainerPtrToValuePtr<void>(PropertyBag.GetValue().GetMemory());
 	EPropertyAccessResultFlags Result = PropertyAccessUtil::GetPropertyValue_Object(InObjectProperty, InObject, BagProperty, const_cast<void*>(BagValue), INDEX_NONE);
 	return (Result == EPropertyAccessResultFlags::Success) ? BagProperty : nullptr;
+}
+
+const FProperty* FLevelStreamingPersistentObjectPropertyBag::CopyPropertyValueFromPropertyBag(const FLevelStreamingPersistentObjectPropertyBag& InSourcePropertyBag, const FProperty* InSourceProperty)
+{
+	check(IsValid());
+	const FProperty* TargetBagProperty = InSourceProperty ? FindPropertyByName(InSourceProperty->GetFName()) : nullptr;
+	if (!TargetBagProperty)
+	{
+		return nullptr;
+	}
+
+	const void* TargetBagValue = TargetBagProperty->ContainerPtrToValuePtr<void>(PropertyBag.GetValue().GetMemory());
+	EPropertyAccessResultFlags Result = PropertyAccessUtil::GetPropertyValue_InContainer(InSourceProperty, InSourcePropertyBag.PropertyBag.GetValue().GetMemory(), TargetBagProperty, const_cast<void*>(TargetBagValue), INDEX_NONE);
+	return (Result == EPropertyAccessResultFlags::Success) ? TargetBagProperty : nullptr;
 }
 
 const FProperty* FLevelStreamingPersistentObjectPropertyBag::CopyPropertyValueToObject(UObject* InObject, const FProperty* InObjectProperty) const
@@ -125,6 +160,17 @@ void FLevelStreamingPersistentObjectPropertyBag::DumpContent(TFunctionRef<void(c
 			DumpProperty(Property);
 		});
 	}
+}
+
+void FLevelStreamingPersistentObjectPropertyBag::Serialize(FArchive& Ar)
+{
+	PropertyBag.Serialize(Ar);
+}
+
+FArchive& operator<<(FArchive& Ar, FLevelStreamingPersistentObjectPropertyBag& PropertyBag)
+{
+	PropertyBag.Serialize(Ar);
+	return Ar;
 }
 
 template<> struct FLevelStreamingPersistentObjectPropertyBag::TPropertyBagPropertyType<bool> { static const EPropertyBagPropertyType Value = EPropertyBagPropertyType::Bool; };
