@@ -134,7 +134,7 @@ public:
 	/*virtual*/ FPCGElementPtr GetElement() const;
 	virtual UPCGNode* CreateNode() const;
 	
-	/** Return the concatenation of InputPinPropertiesand FillOverridableParamsPins */
+	/** Return the concatenation of InputPinProperties and FillOverridableParamsPins */
 	TArray<FPCGPinProperties> AllInputPinProperties() const;
 
 	/** For symmetry reason, do the same with output pins. For now forward just the call to OutputPinProperties */
@@ -162,6 +162,9 @@ public:
 	const FPCGCrc& GetCachedCrc() const { return CachedCrc; }
 
 #if WITH_EDITOR
+	/** Puts node title on node body, reducing overall node size */
+	virtual bool ShouldDrawNodeCompact() const { return false; }
+
 	/** UpdatePins will kick off invalid edges, so this is useful for moving edges around in case of pin changes. */
 	virtual void ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins);
 	/** Any final migration/recovery that can be done after pins are finalized. This function should also set DataVersion to LatestVersion. */

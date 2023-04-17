@@ -93,6 +93,12 @@ public:
 
 	/** Returns the current pin types, which can either be the static types from the pin properties, or a dynamic type based on connected edges. */
 	EPCGDataType GetCurrentTypes() const;
+
+	/** Returns true if a collapse is required to convert from upstream type to downstream type */
+	bool RequiresPointConversionToConnect(const UPCGPin* OtherPin) const;
+
+	/** Returns true if a data filter is required to convert from upstream type to downstream type */
+	bool RequiresFilterToConnect(const UPCGPin* OtherPin) const;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

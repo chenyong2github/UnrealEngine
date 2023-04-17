@@ -330,6 +330,12 @@ void UPCGEditorGraphNodeBase::UpdateErrorsAndWarnings()
 	}
 }
 
+bool UPCGEditorGraphNodeBase::ShouldDrawCompact() const
+{
+	UPCGSettings* Settings = PCGNode ? PCGNode->GetSettings() : nullptr;
+	return Settings && Settings->ShouldDrawNodeCompact();
+}
+
 void UPCGEditorGraphNodeBase::OnPickColor()
 {
 	FColorPickerArgs PickerArgs;

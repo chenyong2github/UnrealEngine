@@ -1,11 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGPin.h"
+
 #include "PCGEdge.h"
 #include "PCGNode.h"
 #include "PCGSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPin)
+
+namespace PCGPin
+{
+	bool SortPinsAndRetrieveTypes(const UPCGPin* InPinA, const UPCGPin* InPinB, const UPCGPin*& OutUpstreamPin, const UPCGPin*& OutDownstreamPin, EPCGDataType& OutUpstreamTypes, EPCGDataType& OutDownstreamTypes)
+	{
+		check(InPinA && InPinB);
+		const bool bPinAIsOutput = InPinA->IsOutputPin();
+
+		if (!ensure(bPinAIsOutput != InPinB->IsOutputPin()))
+		{
+			// Cannot connect two pins of same polarity
+			return false;
+		}
+
+		OutUpstreamPin = bPinAIsOutput ? InPinA : InPinB;
+		OutDownstreamPin = bPinAIsOutput ? InPinB : InPinA;
+
+		check(OutUpstreamPin && OutDownstreamPin);
+		OutUpstreamTypes = OutUpstreamPin->GetCurrentTypes();
+		OutDownstreamTypes = OutDownstreamPin->Properties.AllowedTypes;
+
+		return true;
+	}
+}
 
 FPCGPinProperties::FPCGPinProperties(const FName& InLabel, EPCGDataType InAllowedTypes, bool bInAllowMultipleConnections, bool bInAllowMultipleData, const FText& InTooltip)
 	: Label(InLabel), AllowedTypes(InAllowedTypes), bAllowMultipleData(bInAllowMultipleData), bAllowMultipleConnections(bInAllowMultipleConnections)
@@ -251,38 +276,38 @@ bool UPCGPin::IsCompatible(const UPCGPin* OtherPin) const
 		return false;
 	}
 
-	const bool bThisPinOutput = IsOutputPin();
-	if (!ensure(bThisPinOutput != OtherPin->IsOutputPin()))
+	const UPCGPin* UpstreamPin = nullptr;
+	const UPCGPin* DownstreamPin = nullptr;
+	EPCGDataType UpstreamTypes = EPCGDataType::None, DownstreamTypes = EPCGDataType::None;
+	if (!PCGPin::SortPinsAndRetrieveTypes(this, OtherPin, UpstreamPin, DownstreamPin, UpstreamTypes, DownstreamTypes))
 	{
-		// Cannot connect two pins of same polarity
+		return false;
+	}
+	check(UpstreamPin && DownstreamPin);
+
+	// Types missing
+	if (UpstreamTypes == EPCGDataType::None || DownstreamTypes == EPCGDataType::None)
+	{
 		return false;
 	}
 
-	// Sort pins
-	const UPCGPin* UpstreamPin = bThisPinOutput ? this : OtherPin;
-	const UPCGPin* DownstreamPin = bThisPinOutput ? OtherPin : this;
-	check(UpstreamPin && DownstreamPin);
-	const EPCGDataType UpstreamTypes = UpstreamPin->GetCurrentTypes();
-	const EPCGDataType DownstreamTypes = DownstreamPin->GetCurrentTypes();
-
 	// Concrete can always be used as a composite - allow connections from concrete to composite
-	const bool bUpstreamConcrete = !!(UpstreamTypes & EPCGDataType::Concrete);
-	const bool bDownstreamSpatial = !!(DownstreamTypes & EPCGDataType::Spatial);
-	if (bUpstreamConcrete && bDownstreamSpatial)
+	const bool bUpstreamInConcrete = !(UpstreamTypes & ~EPCGDataType::Concrete);
+	const bool bDownstreamIsSpatial = (DownstreamTypes == EPCGDataType::Spatial);
+	if (bUpstreamInConcrete && bDownstreamIsSpatial)
 	{
 		return true;
 	}
 
-	// Catch case when a composite type is being connected to a concrete type - that can require collapse
-	const bool bUpstreamSpatial = !!(UpstreamTypes & EPCGDataType::Spatial);
-	const bool bDownstreamConcrete = !!(DownstreamTypes & EPCGDataType::Concrete);
-	if (bUpstreamSpatial && bDownstreamConcrete)
+	// Anything spatial can collapse to point
+	const bool bUpstreamInSpatial = !(UpstreamTypes & ~EPCGDataType::Spatial);
+	const bool bDownstreamIsPoint = (DownstreamTypes == EPCGDataType::Point);
+	if (bUpstreamInSpatial && bDownstreamIsPoint)
 	{
-		// This will trigger a collapse, but let it slide for now.
-		// TODO in the future we should inject a conversion node.
 		return true;
 	}
 
+	// Otherwise allow if there is overlap. Don't detect wide -> narrow issues - conversion nodes deal with that
 	return !!(UpstreamTypes & DownstreamTypes);
 }
 
@@ -295,4 +320,84 @@ bool UPCGPin::AllowMultipleConnections() const
 bool UPCGPin::CanConnect(const UPCGPin* OtherPin) const
 {
 	return OtherPin && (Edges.IsEmpty() || AllowMultipleConnections());
+}
+
+bool UPCGPin::RequiresPointConversionToConnect(const UPCGPin* OtherPin) const
+{
+	if (!OtherPin)
+	{
+		return false;
+	}
+
+	const UPCGPin* UpstreamPin = nullptr;
+	const UPCGPin* DownstreamPin = nullptr;
+	EPCGDataType UpstreamTypes = EPCGDataType::None, DownstreamTypes = EPCGDataType::None;
+	if (!PCGPin::SortPinsAndRetrieveTypes(this, OtherPin, UpstreamPin, DownstreamPin, UpstreamTypes, DownstreamTypes))
+	{
+		return false;
+	}
+	check(UpstreamPin && DownstreamPin);
+
+	// This conversion requires downstream Point
+	if (DownstreamTypes != EPCGDataType::Point)
+	{
+		return false;
+	}
+
+	// Only collapse from Spatial to Point
+	const bool bUpstreamInSpatial = !(UpstreamTypes & ~EPCGDataType::Spatial);
+	if (!bUpstreamInSpatial)
+	{
+		return false;
+	}
+
+	// Requires conversion if upstream pin is broader than point
+	return !!(UpstreamTypes & (~EPCGDataType::Point));
+}
+
+bool UPCGPin::RequiresFilterToConnect(const UPCGPin* OtherPin) const
+{
+	if (!OtherPin)
+	{
+		return false;
+	}
+
+	const UPCGPin* UpstreamPin = nullptr;
+	const UPCGPin* DownstreamPin = nullptr;
+	EPCGDataType UpstreamTypes = EPCGDataType::None, DownstreamTypes = EPCGDataType::None;
+	if (!PCGPin::SortPinsAndRetrieveTypes(this, OtherPin, UpstreamPin, DownstreamPin, UpstreamTypes, DownstreamTypes))
+	{
+		return false;
+	}
+	check(UpstreamPin && DownstreamPin);
+
+	// Same types - no filter
+	if (DownstreamTypes == UpstreamTypes)
+	{
+		return false;
+	}
+
+	// No type - early out
+	if (!DownstreamTypes)
+	{
+		return false;
+	}
+
+	// Spatial -> Point - that uses conversion, not filter
+	const bool bUpstreamInSpatial = !(UpstreamTypes & ~EPCGDataType::Spatial);
+	if (bUpstreamInSpatial && DownstreamTypes == EPCGDataType::Point)
+	{
+		return false;
+	}
+
+	// Upstream type should be Any, Spatial, Concrete
+	if (UpstreamTypes != EPCGDataType::Any
+		&& UpstreamTypes != EPCGDataType::Spatial
+		&& UpstreamTypes != EPCGDataType::Concrete)
+	{
+		return false;
+	}
+
+	// Requires conversion if upstream type is broader than downstream type
+	return !!(UpstreamTypes & (~DownstreamTypes));
 }

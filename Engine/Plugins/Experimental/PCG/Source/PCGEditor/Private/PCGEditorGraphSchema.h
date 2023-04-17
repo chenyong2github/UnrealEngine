@@ -38,6 +38,8 @@ private:
 	void GetSubgraphElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
 	void GetSettingsElementActions(FGraphActionMenuBuilder& ActionMenuBuilder, bool bIsContextual) const;
 	void GetExtraElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
+
+	virtual bool TryCreateConnectionInternal(UEdGraphPin* A, UEdGraphPin* B, bool bAddConversionNodeIfNeeded) const;
 };
 
 class FPCGEditorConnectionDrawingPolicy : public FConnectionDrawingPolicy

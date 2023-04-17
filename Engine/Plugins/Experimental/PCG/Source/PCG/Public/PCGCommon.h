@@ -28,7 +28,7 @@ enum class EPCGDataType : uint32
 
 	Spline = 1 << 2,
 	LandscapeSpline = 1 << 3,
-	PolyLine = Spline | LandscapeSpline UMETA(Hidden),
+	PolyLine = Spline | LandscapeSpline UMETA(DisplayName = "Curve"),
 
 	Landscape = 1 << 4,
 	Texture = 1 << 5,

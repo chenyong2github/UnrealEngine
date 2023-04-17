@@ -587,8 +587,14 @@ void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings, EPCGChangeType Change
 {
 	if (InSettings == GetSettings())
 	{
-		const EPCGChangeType PinChangeType = UpdatePins();
-		OnNodeChangedDelegate.Broadcast(this, ChangeType | PinChangeType);
+		EPCGChangeType PinChangeType = ChangeType | UpdatePins();
+		if (InSettings->HasDynamicPins())
+		{
+			// Add in case dynamic pin types changed when settings changed.
+			PinChangeType |= EPCGChangeType::Node;
+		}
+
+		OnNodeChangedDelegate.Broadcast(this, PinChangeType);
 	}
 }
 

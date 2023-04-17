@@ -58,6 +58,9 @@ public:
 	/** Pulls current errors/warnings state from PCG subsystem. */
 	void UpdateErrorsAndWarnings();
 
+	/** Puts node title on node body, reducing overall node size */
+	bool ShouldDrawCompact() const;
+
 	DECLARE_DELEGATE(FOnPCGEditorGraphNodeChanged);
 	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;
 

@@ -2,10 +2,11 @@
 
 #include "PCGEditorGraphSchema.h"
 
-#include "Blueprint/BlueprintSupport.h"
 #include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGPin.h"
+#include "Elements/PCGCollapseElement.h"
+#include "Elements/PCGFilterByType.h"
 #include "Elements/PCGUserParameterGet.h"
 
 #include "PCGEditorCommon.h"
@@ -17,6 +18,7 @@
 #include "PCGEditorUtils.h"
 
 #include "AssetRegistry/AssetData.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "Engine/Blueprint.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
@@ -115,6 +117,16 @@ const FPinConnectionResponse UPCGEditorGraphSchema::CanCreateConnection(const UE
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypesIncompatible", "Pins are incompatible"));
 	}
 
+	if (InputPin->RequiresPointConversionToConnect(OutputPin))
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, LOCTEXT("ConnectionConversionToPoint", "Convert to Point"));
+	}
+
+	if (InputPin->RequiresFilterToConnect(OutputPin))
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, LOCTEXT("ConnectionUsingFilter", "Filter data to match type"));
+	}
+
 	if (!InputPin->AllowMultipleConnections() && InputPin->EdgeCount() > 0)
 	{
 		return FPinConnectionResponse((A->Direction == EGPD_Output) ? CONNECT_RESPONSE_BREAK_OTHERS_B : CONNECT_RESPONSE_BREAK_OTHERS_A, LOCTEXT("ConnectionBreakExisting", "Break existing connection?"));
@@ -125,34 +137,136 @@ const FPinConnectionResponse UPCGEditorGraphSchema::CanCreateConnection(const UE
 
 bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* InB) const
 {
-	// TODO: check if we need to verify connectivity first
-	const bool bModified = Super::TryCreateConnection(InA, InB);
+	return TryCreateConnectionInternal(InA, InB, /*bAddConversionNodeIfNeeded=*/true);
+}
 
-	if (bModified)
+bool UPCGEditorGraphSchema::TryCreateConnectionInternal(UEdGraphPin* InA, UEdGraphPin* InB, bool bAddConversionNodeIfNeeded) const
+{
+	check(InA && InB);
+	if (InA->Direction == InB->Direction)
 	{
-		check(InA && InB);
-		const UEdGraphPin* A = (InA->Direction == EGPD_Output) ? InA : InB;
-		const UEdGraphPin* B = (InA->Direction == EGPD_Input) ? InA : InB;
-		
-		check(A->Direction == EGPD_Output && B->Direction == EGPD_Input);
-
-		UEdGraphNode* NodeA = A->GetOwningNode();
-		UEdGraphNode* NodeB = B->GetOwningNode();
-
-		UPCGEditorGraphNodeBase* PCGGraphNodeA = CastChecked<UPCGEditorGraphNodeBase>(NodeA);
-		UPCGEditorGraphNodeBase* PCGGraphNodeB = CastChecked<UPCGEditorGraphNodeBase>(NodeB);
-
-		UPCGNode* PCGNodeA = PCGGraphNodeA->GetPCGNode();
-		UPCGNode* PCGNodeB = PCGGraphNodeB->GetPCGNode();
-		check(PCGNodeA && PCGNodeB);
-
-		UPCGGraph* PCGGraph = PCGNodeA->GetGraph();
-		check(PCGGraph);
-
-		PCGGraph->AddLabeledEdge(PCGNodeA, A->PinName, PCGNodeB, B->PinName);
+		// Don't connect same polarity
+		return false;
 	}
 
-	return bModified;
+	UEdGraphPin* A = (InA->Direction == EGPD_Output) ? InA : InB;
+	UEdGraphPin* B = (InA->Direction == EGPD_Input) ? InA : InB;
+	check(A->Direction == EGPD_Output && B->Direction == EGPD_Input);
+
+	UEdGraphNode* NodeA = A->GetOwningNode();
+	UEdGraphNode* NodeB = B->GetOwningNode();
+	check(NodeA && NodeB);
+
+	UPCGEditorGraphNodeBase* PCGEdGraphNodeA = CastChecked<UPCGEditorGraphNodeBase>(NodeA);
+	UPCGEditorGraphNodeBase* PCGEdGraphNodeB = CastChecked<UPCGEditorGraphNodeBase>(NodeB);
+
+	UPCGNode* PCGNodeA = PCGEdGraphNodeA->GetPCGNode();
+	UPCGNode* PCGNodeB = PCGEdGraphNodeB->GetPCGNode();
+	check(PCGNodeA && PCGNodeB);
+
+	const UPCGPin* PCGPinA = PCGNodeA->GetOutputPin(A->PinName);
+	const UPCGPin* PCGPinB = PCGNodeB->GetInputPin(B->PinName);
+	check(PCGPinA && PCGPinB);
+	if (!PCGPinA->IsCompatible(PCGPinB))
+	{
+		return false;
+	}
+
+	UPCGGraph* PCGGraph = PCGNodeA->GetGraph();
+	check(PCGGraph);
+
+	// Creates a connection via an intermediate conversion node.
+	auto ConnectViaIntermediate = [this, PCGGraph, NodeA, NodeB, A, B](UPCGNode* IntermediateNode)
+	{
+		UEdGraph* Graph = NodeA->GetGraph();
+		check(Graph);
+		Graph->Modify();
+
+		FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*Graph);
+		UPCGEditorGraphNode* ConversionNode = NodeCreator.CreateUserInvokedNode(/*bSelectNewNode=*/false);
+		ConversionNode->Construct(IntermediateNode);
+
+		// Put the conversion node between A & B but make it stay within a radius of B to keep things tidy.
+		{
+			// Initially place at mid point
+			ConversionNode->NodePosX = (NodeA->NodePosX + NodeB->NodePosX) / 2;
+			ConversionNode->NodePosY = (NodeA->NodePosY + NodeB->NodePosY) / 2;
+
+			// A hand tweaked distance that keeps it reasonably close.
+			constexpr float MaxDistFromB = 200;
+			const FVector2D OffsetFromB(ConversionNode->NodePosX - NodeB->NodePosX, ConversionNode->NodePosY - NodeB->NodePosY);
+			const float Dist = OffsetFromB.Length();
+			if (Dist > MaxDistFromB)
+			{
+				const float Scale = MaxDistFromB / Dist;
+				ConversionNode->NodePosX = NodeB->NodePosX + Scale * OffsetFromB.X;
+				ConversionNode->NodePosY = NodeB->NodePosY + Scale * OffsetFromB.Y;
+			}
+		}
+
+		NodeCreator.Finalize();
+
+		IntermediateNode->PositionX = ConversionNode->NodePosX;
+		IntermediateNode->PositionY = ConversionNode->NodePosY;
+
+		bool bModifiedA = false, bModifiedB = false;
+
+		UEdGraphPin*const* ConversionInputPin = ConversionNode->GetAllPins().FindByPredicate([](const UEdGraphPin* InPin)
+		{
+			return InPin->Direction == EGPD_Input && InPin->GetFName() == PCGPinConstants::DefaultInputLabel;
+		});
+
+		if (ensure(ConversionInputPin && *ConversionInputPin))
+		{
+			// Last argument: don't allow recursively adding conversion nodes.
+			bModifiedA = TryCreateConnectionInternal(A, *ConversionInputPin, /*bAddConversionNodeIfNeeded=*/false);
+		}
+
+		// Call GetAllPins() a second time. It's important that we wire up the pins one at a time. Wiring a pin can change dynamic pin types
+		// which can refresh the node, so we must re-query the pins after each connection is made.
+		UEdGraphPin*const* ConversionOutputPin = ConversionNode->GetAllPins().FindByPredicate([](const UEdGraphPin* InPin)
+		{
+			return InPin->Direction == EGPD_Output && InPin->GetFName() == PCGPinConstants::DefaultOutputLabel;
+		});
+
+		if (ensure(ConversionOutputPin && *ConversionOutputPin))
+		{
+			// Last argument: don't allow recursively adding conversion nodes.
+			bModifiedB = TryCreateConnectionInternal(*ConversionOutputPin, B, /*bAddConversionNodeIfNeeded=*/false);
+		}
+
+		return bModifiedA || bModifiedB;
+	};
+
+	if (bAddConversionNodeIfNeeded && PCGPinA->RequiresPointConversionToConnect(PCGPinB))
+	{
+		UPCGSettings* NodeSettings = nullptr;
+		UPCGNode* ConversionPCGNode = PCGGraph->AddNodeOfType(UPCGCollapseSettings::StaticClass(), NodeSettings);
+
+		return ConnectViaIntermediate(ConversionPCGNode);
+	}
+	else if (bAddConversionNodeIfNeeded && PCGPinA->RequiresFilterToConnect(PCGPinB))
+	{
+		UPCGSettings* NodeSettings = nullptr;
+		UPCGNode* ConversionPCGNode = PCGGraph->AddNodeOfType(UPCGFilterByTypeSettings::StaticClass(), NodeSettings);
+
+		// Setup the output pin based on the conversion target type, before new node is finalized.
+		UPCGFilterByTypeSettings* Settings = CastChecked<UPCGFilterByTypeSettings>(NodeSettings);
+		Settings->TargetType = PCGPinB->Properties.AllowedTypes;
+		ConversionPCGNode->UpdateAfterSettingsChangeDuringCreation();
+
+		return ConnectViaIntermediate(ConversionPCGNode);
+	}
+	else
+	{
+		const bool bModified = Super::TryCreateConnection(InA, InB);
+		if (bModified)
+		{
+			PCGGraph->AddLabeledEdge(PCGNodeA, A->PinName, PCGNodeB, B->PinName);
+		}
+
+		return bModified;
+	}
 }
 
 void UPCGEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotification) const

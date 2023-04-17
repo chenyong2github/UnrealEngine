@@ -8,15 +8,20 @@
 #include "PCGPin.h"
 #include "PCGSettings.h"
 
+#include "GraphEditorSettings.h"
+#include "SCommentBubble.h"
 #include "SGraphPin.h"
 #include "SLevelOfDetailBranchNode.h"
 #include "SPinTypeSelector.h"
+#include "TutorialMetaData.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/SBoxPanel.h"
+
+#define LOCTEXT_NAMESPACE "SPCGEditorGraphNode"
 
 /** PCG pin primarily to give more control over pin coloring. */
 class SPCGEditorGraphNodePin : public SGraphPin
@@ -257,6 +262,18 @@ void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNod
 	UpdateGraphNode();
 }
 
+void SPCGEditorGraphNode::UpdateGraphNode()
+{
+	if (PCGEditorGraphNode && PCGEditorGraphNode->ShouldDrawCompact())
+	{
+		UpdateCompactNode();
+	}
+	else
+	{
+		SGraphNode::UpdateGraphNode();
+	}
+}
+
 const FSlateBrush* SPCGEditorGraphNode::GetNodeBodyBrush() const
 {
 	if (PCGEditorGraphNode && PCGEditorGraphNode->GetPCGNode() && PCGEditorGraphNode->GetPCGNode()->IsInstance())
@@ -395,3 +412,196 @@ void SPCGEditorGraphNode::OnNodeChanged()
 {
 	UpdateGraphNode();
 }
+
+void SPCGEditorGraphNode::UpdateCompactNode()
+{
+	// Based on SGraphNodeK2Base::UpdateCompactNode. Changes:
+	// * Removed creation of tooltip widget, it did not port across trivially and the usage is fairly obvious for the current
+	//   compact nodes, but this could be re-added - TODO
+	// * Changed title style - reduced font size substantially
+	// * Layout differentiation for "pure" vs "impure" K2 nodes removed
+
+	InputPins.Empty();
+	OutputPins.Empty();
+
+	// Error handling set-up
+	SetupErrorReporting();
+
+	// Reset variables that are going to be exposed, in case we are refreshing an already setup node.
+	RightNodeBox.Reset();
+	LeftNodeBox.Reset();
+
+	// Setup a meta tag for this node
+	FGraphNodeMetaData TagMeta(TEXT("Graphnode"));
+	PopulateMetaTag(&TagMeta);
+	
+	TSharedPtr<SNodeTitle> NodeTitle = SNew(SNodeTitle, GraphNode);
+	TSharedRef<SOverlay> NodeOverlay = SNew(SOverlay);
+	
+	// Add optional node specific widget to the overlay:
+	TSharedPtr<SWidget> OverlayWidget = GraphNode->CreateNodeImage();
+	if(OverlayWidget.IsValid())
+	{
+		NodeOverlay->AddSlot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew( SBox )
+			.WidthOverride( 70.f )
+			.HeightOverride( 70.f )
+			[
+				OverlayWidget.ToSharedRef()
+			]
+		];
+	}
+
+	NodeOverlay->AddSlot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Padding(45.f, 0.f, 45.f, 0.f)
+		[
+			// MIDDLE
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.HAlign(HAlign_Center)
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+					.TextStyle(FAppStyle::Get(), "Graph.Node.NodeTitle" )
+					.Text( NodeTitle.Get(), &SNodeTitle::GetHeadTitle )
+					.WrapTextAt(128.0f)
+			]
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				NodeTitle.ToSharedRef()
+			]
+		];
+	
+	NodeOverlay->AddSlot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(0.f, 0.f, 55.f, 0.f)
+		[
+			// LEFT
+			SAssignNew(LeftNodeBox, SVerticalBox)
+		];
+
+	NodeOverlay->AddSlot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.Padding(55.f, 0.f, 0.f, 0.f)
+		[
+			// RIGHT
+			SAssignNew(RightNodeBox, SVerticalBox)
+		];
+
+	//
+	//             ______________________
+	//            | (>) L |      | R (>) |
+	//            | (>) E |      | I (>) |
+	//            | (>) F |   +  | G (>) |
+	//            | (>) T |      | H (>) |
+	//            |       |      | T (>) |
+	//            |_______|______|_______|
+	//
+	this->ContentScale.Bind( this, &SGraphNode::GetContentScale );
+	
+	TSharedRef<SVerticalBox> InnerVerticalBox =
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		[
+			// NODE CONTENT AREA
+			SNew( SOverlay)
+			+SOverlay::Slot()
+			[
+				SNew(SImage)
+				.Image( FAppStyle::GetBrush("Graph.VarNode.Body") )
+			]
+			+ SOverlay::Slot()
+			[
+				SNew(SImage)
+				.Image( FAppStyle::GetBrush("Graph.VarNode.Gloss") )
+			]
+			+SOverlay::Slot()
+			.Padding( FMargin(0,3) )
+			[
+				NodeOverlay
+			]
+		];
+	
+	TSharedPtr<SWidget> EnabledStateWidget = GetEnabledStateWidget();
+	if (EnabledStateWidget.IsValid())
+	{
+		InnerVerticalBox->AddSlot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Top)
+			.Padding(FMargin(2, 0))
+			[
+				EnabledStateWidget.ToSharedRef()
+			];
+	}
+
+	InnerVerticalBox->AddSlot()
+		.AutoHeight()
+		.Padding( FMargin(5.0f, 1.0f) )
+		[
+			ErrorReporting->AsWidget()
+		];
+
+	this->GetOrAddSlot( ENodeZone::Center )
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			InnerVerticalBox
+		];
+
+	CreatePinWidgets();
+
+	// Hide pin labels
+	for (auto InputPin: this->InputPins)
+	{
+		if (InputPin->GetPinObj()->ParentPin == nullptr)
+		{
+			InputPin->SetShowLabel(false);
+		}
+	}
+
+	for (auto OutputPin : this->OutputPins)
+	{
+		if (OutputPin->GetPinObj()->ParentPin == nullptr)
+		{
+			OutputPin->SetShowLabel(false);
+		}
+	}
+
+	// Create comment bubble
+	TSharedPtr<SCommentBubble> CommentBubble;
+	const FSlateColor CommentColor = GetDefault<UGraphEditorSettings>()->DefaultCommentNodeTitleColor;
+
+	SAssignNew( CommentBubble, SCommentBubble )
+		.GraphNode( GraphNode )
+		.Text( this, &SGraphNode::GetNodeComment )
+		.OnTextCommitted( this, &SGraphNode::OnCommentTextCommitted )
+		.ColorAndOpacity( CommentColor )
+		.AllowPinning( true )
+		.EnableTitleBarBubble( true )
+		.EnableBubbleCtrls( true )
+		.GraphLOD( this, &SGraphNode::GetCurrentLOD )
+		.IsGraphNodeHovered( this, &SGraphNode::IsHovered );
+
+	GetOrAddSlot( ENodeZone::TopCenter )
+		.SlotOffset(TAttribute<FVector2D>(CommentBubble.Get(), &SCommentBubble::GetOffset))
+		.SlotSize(TAttribute<FVector2D>(CommentBubble.Get(), &SCommentBubble::GetSize))
+		.AllowScaling(TAttribute<bool>(CommentBubble.Get(), &SCommentBubble::IsScalingAllowed))
+		.VAlign(VAlign_Top)
+		[
+			CommentBubble.ToSharedRef()
+		];
+
+	CreateInputSideAddButton(LeftNodeBox);
+	CreateOutputSideAddButton(RightNodeBox);
+}
+
+#undef LOCTEXT_NAMESPACE
