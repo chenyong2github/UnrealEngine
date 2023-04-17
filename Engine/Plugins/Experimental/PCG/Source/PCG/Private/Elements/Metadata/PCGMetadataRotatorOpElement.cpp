@@ -2,6 +2,7 @@
 
 #include "Elements/Metadata/PCGMetadataRotatorOpElement.h"
 
+#include "Elements/Metadata/PCGMetadataElementCommon.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataRotatorOpElement)
@@ -190,7 +191,7 @@ FPCGAttributePropertySelector UPCGMetadataRotatorSettings::GetInputSource(uint32
 
 FName UPCGMetadataRotatorSettings::AdditionalTaskName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataRotatorOperation"), true))
+	if (const UEnum* EnumPtr = StaticEnum<EPCGMedadataRotatorOperation>())
 	{
 		return FName(FString("Rotator: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
 	}
@@ -210,7 +211,23 @@ FText UPCGMetadataRotatorSettings::GetDefaultNodeTitle() const
 {
 	return NSLOCTEXT("PCGMetadataRotatorSettings", "NodeTitle", "Attribute Rotator Op");
 }
+
+TArray<FPCGPreConfiguredSettingsInfo> UPCGMetadataRotatorSettings::GetPreconfiguredInfo() const
+{
+	return PCGMetadataElementCommon::FillPreconfiguredSettingsInfoFromEnum<EPCGMedadataRotatorOperation>({ EPCGMedadataRotatorOperation::RotatorOp, EPCGMedadataRotatorOperation::TransformOp });
+}
 #endif // WITH_EDITOR
+
+void UPCGMetadataRotatorSettings::ApplyPreconfiguredSettings(const FPCGPreConfiguredSettingsInfo& PreconfiguredInfo)
+{
+	if (const UEnum* EnumPtr = StaticEnum<EPCGMedadataRotatorOperation>())
+	{
+		if (EnumPtr->IsValidEnumValue(PreconfiguredInfo.PreconfiguredIndex))
+		{
+			Operation = EPCGMedadataRotatorOperation(PreconfiguredInfo.PreconfiguredIndex);
+		}
+	}
+}
 
 FPCGElementPtr UPCGMetadataRotatorSettings::CreateElement() const
 {

@@ -6,6 +6,7 @@
 #include "PCGGraph.h"
 #include "PCGPin.h"
 #include "Elements/PCGCollapseElement.h"
+#include "Elements/PCGExecuteBlueprint.h"
 #include "Elements/PCGFilterByType.h"
 #include "Elements/PCGUserParameterGet.h"
 
@@ -339,9 +340,25 @@ void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& Act
 				const FText Category = StaticEnum<EPCGSettingsType>()->GetDisplayNameTextByValue(static_cast<__underlying_type(EPCGSettingsType)>(PCGSettings->GetType()));
 				const FText Description = PCGSettings->GetNodeTooltipText();
 
-				TSharedPtr<FPCGEditorGraphSchemaAction_NewNativeElement> NewAction(new FPCGEditorGraphSchemaAction_NewNativeElement(Category, MenuDesc, Description, 0));
-				NewAction->SettingsClass = SettingsClass;
-				ActionMenuBuilder.AddAction(NewAction);
+				TArray<FPCGPreConfiguredSettingsInfo> AllPreconfiguredInfo = PCGSettings->GetPreconfiguredInfo();
+
+				if (AllPreconfiguredInfo.IsEmpty() || !PCGSettings->OnlyExposePreconfiguredSettings())
+				{
+					TSharedPtr<FPCGEditorGraphSchemaAction_NewNativeElement> NewAction(new FPCGEditorGraphSchemaAction_NewNativeElement(Category, MenuDesc, Description, 0));
+					NewAction->SettingsClass = SettingsClass;
+					ActionMenuBuilder.AddAction(NewAction);
+				}
+
+				// Also add preconfigured settings
+				const FText NewCategory = FText::Format(LOCTEXT("PreconfiguredSettingsCategory", "{0}|{1}"), Category, MenuDesc);
+
+				for (FPCGPreConfiguredSettingsInfo PreconfiguredInfo : AllPreconfiguredInfo)
+				{
+					TSharedPtr<FPCGEditorGraphSchemaAction_NewNativeElement> NewPreconfiguredAction(new FPCGEditorGraphSchemaAction_NewNativeElement(NewCategory, PreconfiguredInfo.Label, PreconfiguredInfo.Tooltip.IsEmpty() ? Description : PreconfiguredInfo.Tooltip, 0));
+					NewPreconfiguredAction->SettingsClass = SettingsClass;
+					NewPreconfiguredAction->PreconfiguredInfo = std::move(PreconfiguredInfo);
+					ActionMenuBuilder.AddAction(NewPreconfiguredAction);
+				}
 			}
 		}
 	}
@@ -358,7 +375,7 @@ void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& Act
 
 					for (const FPropertyBagPropertyDesc& PropertyDesc : BagStruct->GetPropertyDescs())
 					{
-						const FText MenuDesc = FText::Format(FText::FromString(TEXT("Get {0}")), FText::FromName(PropertyDesc.Name));
+						const FText MenuDesc = FText::Format(LOCTEXT("GetterNodeName", "Get {0}"), FText::FromName(PropertyDesc.Name));
 						const FText Description = FText::Format(LOCTEXT("NodeTooltip", "Get the value from '{0}' parameter, can be overridden by the graph instance."), FText::FromName(PropertyDesc.Name));
 
 						TSharedPtr<FPCGEditorGraphSchemaAction_NewGetParameterElement> NewAction(new FPCGEditorGraphSchemaAction_NewGetParameterElement(Category, MenuDesc, Description, 0));
@@ -377,18 +394,44 @@ void UPCGEditorGraphSchema::GetBlueprintElementActions(FGraphActionMenuBuilder& 
 {
 	PCGEditorUtils::ForEachPCGBlueprintAssetData([&ActionMenuBuilder](const FAssetData& AssetData)
 	{
-		const bool bExposeToLibrary = AssetData.GetTagValueRef<bool>(TEXT("bExposeToLibrary"));
+		const bool bExposeToLibrary = AssetData.GetTagValueRef<bool>(GET_MEMBER_NAME_CHECKED(UPCGBlueprintElement, bExposeToLibrary));
+		const bool bOnlyExposePreconfiguredSettings = AssetData.GetTagValueRef<bool>(GET_MEMBER_NAME_CHECKED(UPCGBlueprintElement, bOnlyExposePreconfiguredSettings));
+
 		if (bExposeToLibrary)
 		{
 			const FText MenuDesc = FText::FromString(FName::NameToDisplayString(AssetData.AssetName.ToString(), false));
-			const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
-			const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
+			const FText Category = AssetData.GetTagValueRef<FText>(GET_MEMBER_NAME_CHECKED(UPCGBlueprintElement, Category));
+			const FText Description = AssetData.GetTagValueRef<FText>(GET_MEMBER_NAME_CHECKED(UPCGBlueprintElement, Description));
 
-			const FString GeneratedClass = AssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
+			const FSoftClassPath GeneratedClass = FSoftClassPath(AssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath));
 
-			TSharedPtr<FPCGEditorGraphSchemaAction_NewBlueprintElement> NewBlueprintAction(new FPCGEditorGraphSchemaAction_NewBlueprintElement(Category, MenuDesc, Description, 0));
-			NewBlueprintAction->BlueprintClassPath = FSoftClassPath(GeneratedClass);
-			ActionMenuBuilder.AddAction(NewBlueprintAction);
+			// Only load the class if we have enabled preconfigured settings.
+			TArray<FPCGPreConfiguredSettingsInfo> AllPreconfiguredInfo;
+			if (AssetData.GetTagValueRef<bool>(GET_MEMBER_NAME_CHECKED(UPCGBlueprintElement, bEnablePreconfiguredSettings)))
+			{
+				TSubclassOf<UPCGBlueprintElement> BlueprintClass = GeneratedClass.TryLoadClass<UPCGBlueprintElement>();
+				const UPCGBlueprintElement* BlueprintElement = BlueprintClass ? Cast<UPCGBlueprintElement>(BlueprintClass->GetDefaultObject()) : nullptr;
+
+				AllPreconfiguredInfo = BlueprintElement ? BlueprintElement->PreconfiguredInfo : TArray<FPCGPreConfiguredSettingsInfo>{};
+			}
+
+			if (AllPreconfiguredInfo.IsEmpty() || !bOnlyExposePreconfiguredSettings)
+			{
+				TSharedPtr<FPCGEditorGraphSchemaAction_NewBlueprintElement> NewBlueprintAction(new FPCGEditorGraphSchemaAction_NewBlueprintElement(Category, MenuDesc, Description, 0));
+				NewBlueprintAction->BlueprintClassPath = GeneratedClass;
+				ActionMenuBuilder.AddAction(NewBlueprintAction);
+			}
+
+			// Also add preconfigured settings
+			const FText NewCategory = FText::Format(LOCTEXT("PreconfiguredSettingsCategory", "{0}|{1}"), Category, MenuDesc);
+
+			for (FPCGPreConfiguredSettingsInfo PreconfiguredInfo : AllPreconfiguredInfo)
+			{
+				TSharedPtr<FPCGEditorGraphSchemaAction_NewBlueprintElement> NewPreconfiguredAction(new FPCGEditorGraphSchemaAction_NewBlueprintElement(NewCategory, PreconfiguredInfo.Label, PreconfiguredInfo.Tooltip.IsEmpty() ? Description : PreconfiguredInfo.Tooltip, 0));
+				NewPreconfiguredAction->BlueprintClassPath = GeneratedClass;
+				NewPreconfiguredAction->PreconfiguredInfo = std::move(PreconfiguredInfo);
+				ActionMenuBuilder.AddAction(NewPreconfiguredAction);
+			}
 		}
 
 		return true;

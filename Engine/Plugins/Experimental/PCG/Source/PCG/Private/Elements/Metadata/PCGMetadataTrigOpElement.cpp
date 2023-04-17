@@ -2,6 +2,7 @@
 
 #include "Elements/Metadata/PCGMetadataTrigOpElement.h"
 
+#include "Elements/Metadata/PCGMetadataElementCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataTrigOpElement)
 
@@ -104,7 +105,7 @@ uint16 UPCGMetadataTrigSettings::GetOutputType(uint16 InputTypeId) const
 
 FName UPCGMetadataTrigSettings::AdditionalTaskName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataTrigOperation"), true))
+	if (const UEnum* EnumPtr = StaticEnum<EPCGMedadataTrigOperation>())
 	{
 		return FName(FString("Trig: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
 	}
@@ -124,7 +125,23 @@ FText UPCGMetadataTrigSettings::GetDefaultNodeTitle() const
 {
 	return NSLOCTEXT("PCGMetadataTrigSettings", "NodeTitle", "Attribute Trig Op");
 }
+
+TArray<FPCGPreConfiguredSettingsInfo> UPCGMetadataTrigSettings::GetPreconfiguredInfo() const
+{
+	return PCGMetadataElementCommon::FillPreconfiguredSettingsInfoFromEnum<EPCGMedadataTrigOperation>();
+}
 #endif // WITH_EDITOR
+
+void UPCGMetadataTrigSettings::ApplyPreconfiguredSettings(const FPCGPreConfiguredSettingsInfo& PreconfiguredInfo)
+{
+	if (const UEnum* EnumPtr = StaticEnum<EPCGMedadataTrigOperation>())
+	{
+		if (EnumPtr->IsValidEnumValue(PreconfiguredInfo.PreconfiguredIndex))
+		{
+			Operation = EPCGMedadataTrigOperation(PreconfiguredInfo.PreconfiguredIndex);
+		}
+	}
+}
 
 FPCGElementPtr UPCGMetadataTrigSettings::CreateElement() const
 {

@@ -3,6 +3,8 @@
 #pragma once
 
 #include "EdGraph/EdGraphSchema.h"
+
+#include "PCGSettings.h"
 #include "Templates/SubclassOf.h"
 
 #include "PCGEditorGraphSchemaActions.generated.h"
@@ -11,7 +13,6 @@ class UEdGraph;
 class UEdGraphPin;
 class UPCGBlueprintElement;
 class UPCGNode;
-class UPCGSettings;
 class UPCGEditorGraph;
 
 UENUM()
@@ -39,6 +40,9 @@ struct FPCGEditorGraphSchemaAction_NewNativeElement : public FEdGraphSchemaActio
 	
 	UPROPERTY()
 	TSubclassOf<UPCGSettings> SettingsClass;
+
+	UPROPERTY()
+	FPCGPreConfiguredSettingsInfo PreconfiguredInfo;
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); }
@@ -115,6 +119,9 @@ struct FPCGEditorGraphSchemaAction_NewBlueprintElement : public FEdGraphSchemaAc
 
 	UPROPERTY()
 	FSoftClassPath BlueprintClassPath;
+
+	UPROPERTY()
+	FPCGPreConfiguredSettingsInfo PreconfiguredInfo;
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); }

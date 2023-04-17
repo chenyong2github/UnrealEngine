@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PCGSettings.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/Accessors/IPCGAttributeAccessor.h" // IWYU pragma: keep
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
@@ -82,5 +83,31 @@ namespace PCGMetadataElementCommon
 		}
 
 		return true;
+	}
+
+	/**
+	* Automatically fill all preconfigured settings depending on the enum operation.
+	* Can also specify explicitly values that should not be included, as metadata is not available in non-editor builds.
+	*/
+	template <typename EnumOperation>
+	TArray<FPCGPreConfiguredSettingsInfo> FillPreconfiguredSettingsInfoFromEnum(const TSet<EnumOperation>& InValuesToSkip = {})
+	{
+		TArray<FPCGPreConfiguredSettingsInfo> PreconfiguredInfo;
+
+		if (const UEnum* EnumPtr = StaticEnum<EnumOperation>())
+		{
+			PreconfiguredInfo.Reserve(EnumPtr->NumEnums());
+			for (int32 i = 0; i < EnumPtr->NumEnums(); ++i)
+			{
+				int64 Value = EnumPtr->GetValueByIndex(i);
+
+				if (Value != EnumPtr->GetMaxEnumValue() && !InValuesToSkip.Contains(EnumOperation(Value)))
+				{
+					PreconfiguredInfo.Emplace(Value, EnumPtr->GetDisplayNameTextByValue(Value));
+				}
+			}
+		}
+
+		return PreconfiguredInfo;
 	}
 }

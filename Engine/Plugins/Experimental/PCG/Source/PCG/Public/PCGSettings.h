@@ -69,6 +69,45 @@ struct FPCGSettingsOverridableParam
 	TArray<const FProperty*> Properties;
 };
 
+/**
+* Pre-configured settings info
+* Will be passed to the settings to pre-configure the settings on creation.
+* Example: Maths operations: Add, Mul, etc...
+*/
+USTRUCT(BlueprintType)
+struct FPCGPreConfiguredSettingsInfo
+{
+	GENERATED_BODY()
+
+	FPCGPreConfiguredSettingsInfo() = default;
+
+	explicit FPCGPreConfiguredSettingsInfo(int32 InIndex, FText InLabel = FText{})
+		: PreconfiguredIndex(InIndex)
+		, Label(std::move(InLabel))
+	{}
+
+#if WITH_EDITOR
+	FPCGPreConfiguredSettingsInfo(int32 InIndex, FText InLabel, FText InTooltip)
+		: PreconfiguredIndex(InIndex)
+		, Label(std::move(InLabel))
+		, Tooltip(std::move(InTooltip))
+	{}
+#endif // WITH_EDITOR
+
+	/* Index used by the settings to know which preconfigured settings it needs to set. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "")
+	int32 PreconfiguredIndex = -1;
+
+	/* Label for the exposed asset. Can also be used instead of the index, if it is easier to deal with strings. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "")
+	FText Label;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "")
+	FText Tooltip;
+#endif // WITH_EDITORONLY_DATA
+};
+
 
 UCLASS(Abstract)
 class PCG_API UPCGSettingsInterface : public UPCGData
@@ -183,7 +222,15 @@ public:
      */
 	virtual UObject* GetJumpTargetForDoubleClick() const;
 	virtual bool IsPropertyOverriddenByPin(const FProperty* InProperty) const;
+
+	/* Return preconfigured info that will be filled in the editor palette action, allowing to create pre-configured settings */
+	virtual TArray<FPCGPreConfiguredSettingsInfo> GetPreconfiguredInfo() const { return {}; }
+
+	/* If there are preconfigured info, we can skip the default settings and only expose pre-configured actions in the editor palette */
+	virtual bool OnlyExposePreconfiguredSettings() const { return false; }
 #endif
+
+	virtual void ApplyPreconfiguredSettings(const FPCGPreConfiguredSettingsInfo& PreconfigureInfo) {}
 
 	/** Derived classes can implement this to expose additional name information in the logs */
 	virtual FName AdditionalTaskName() const { return NAME_None; }

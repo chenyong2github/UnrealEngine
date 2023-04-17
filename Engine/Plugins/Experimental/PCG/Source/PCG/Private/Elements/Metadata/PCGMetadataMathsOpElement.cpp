@@ -2,6 +2,7 @@
 
 #include "Elements/Metadata/PCGMetadataMathsOpElement.h"
 
+#include "Elements/Metadata/PCGMetadataElementCommon.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include "Elements/Metadata/PCGMetadataMaths.inl"
@@ -254,7 +255,23 @@ FText UPCGMetadataMathsSettings::GetDefaultNodeTitle() const
 {
 	return NSLOCTEXT("PCGMetadataMathsSettings", "NodeTitle", "Attribute Maths Op");
 }
+
+TArray<FPCGPreConfiguredSettingsInfo> UPCGMetadataMathsSettings::GetPreconfiguredInfo() const
+{
+	return PCGMetadataElementCommon::FillPreconfiguredSettingsInfoFromEnum<EPCGMedadataMathsOperation>({ EPCGMedadataMathsOperation::UnaryOp, EPCGMedadataMathsOperation::BinaryOp, EPCGMedadataMathsOperation::TernaryOp });
+}
 #endif // WITH_EDITOR
+
+void UPCGMetadataMathsSettings::ApplyPreconfiguredSettings(const FPCGPreConfiguredSettingsInfo& PreconfiguredInfo)
+{
+	if (const UEnum* EnumPtr = StaticEnum<EPCGMedadataMathsOperation>())
+	{
+		if (EnumPtr->IsValidEnumValue(PreconfiguredInfo.PreconfiguredIndex))
+		{
+			Operation = EPCGMedadataMathsOperation(PreconfiguredInfo.PreconfiguredIndex);
+		}
+	}
+}
 
 FPCGElementPtr UPCGMetadataMathsSettings::CreateElement() const
 {

@@ -439,7 +439,25 @@ void UPCGBlueprintSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode
 		}
 	}
 }
+
+TArray<FPCGPreConfiguredSettingsInfo> UPCGBlueprintSettings::GetPreconfiguredInfo() const
+{
+	return BlueprintElementInstance ? BlueprintElementInstance->PreconfiguredInfo : TArray<FPCGPreConfiguredSettingsInfo>();
+}
+
+bool UPCGBlueprintSettings::OnlyExposePreconfiguredSettings() const
+{
+	return BlueprintElementInstance && BlueprintElementInstance->bOnlyExposePreconfiguredSettings;
+}
 #endif // WITH_EDITOR
+
+void UPCGBlueprintSettings::ApplyPreconfiguredSettings(const FPCGPreConfiguredSettingsInfo& InPreconfiguredInfo)
+{
+	if (BlueprintElementInstance)
+	{
+		BlueprintElementInstance->ApplyPreconfiguredSettings(InPreconfiguredInfo);
+	}
+}
 
 FName UPCGBlueprintSettings::AdditionalTaskName() const
 {
