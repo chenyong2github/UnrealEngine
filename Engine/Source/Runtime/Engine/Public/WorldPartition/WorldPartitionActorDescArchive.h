@@ -34,7 +34,7 @@ public:
 		{
 			FActorDescArchive& ActorDescAr = (FActorDescArchive&)Ar;
 			
-			check(ActorDescAr.ClassDesc);
+			check(ActorDescAr.ClassDesc || Ar.IsSaving());
 			check(ActorDescAr.ActorDesc);
 
 			Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
@@ -50,7 +50,7 @@ public:
 
 			if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorClassDescSerialize)
 			{
-				if (Ar.IsSaving())
+				if (Ar.IsSaving() && ActorDescAr.ClassDesc)
 				{
 					bSerialize = (V.Value != GetClassDefaultValue()) ? 1 : 0;
 				}
