@@ -12,6 +12,7 @@
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
 #include "Engine/Blueprint.h"
+#include "Engine/World.h"
 #include "EngineAnalytics.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "InterchangeAssetImportData.h"
@@ -1006,6 +1007,7 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 bool UInterchangeManager::ImportScene(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters)
 {
 	using namespace UE::Interchange;
+
 	TTuple<FAssetImportResultRef, FSceneImportResultRef> ImportResults = ImportInternal(ContentPath, SourceData, ImportAssetParameters, UE::Interchange::EImportType::ImportType_Scene);
 	
 	ImportResults.Get<0>()->WaitUntilDone();
@@ -1233,17 +1235,38 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				}
 			}
 		}
-		for (const TPair<FName, FInterchangePipelineStack>& PipelineStackInfo : DefaultPipelineStacks)
+
 		{
-			FName StackName = PipelineStackInfo.Key;
-			FInterchangeStackInfo& StackInfo = PipelineStacks.AddDefaulted_GetRef();
-			StackInfo.StackName = StackName;
-			for (int32 PipelineIndex = 0; PipelineIndex < PipelineStackInfo.Value.Pipelines.Num(); ++PipelineIndex)
+			UE::Interchange::FScopedTranslator ScopedTranslator(SourceData);
+			const UInterchangeTranslatorBase* Translator = ScopedTranslator.GetTranslator();
+
+			for (const TPair<FName, FInterchangePipelineStack>& PipelineStackInfo : DefaultPipelineStacks)
 			{
-				if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(PipelineStackInfo.Value.Pipelines[PipelineIndex]))
+				FName StackName = PipelineStackInfo.Key;
+				FInterchangeStackInfo& StackInfo = PipelineStacks.AddDefaulted_GetRef();
+				StackInfo.StackName = StackName;
+
+				const FInterchangePipelineStack& PipelineStack = PipelineStackInfo.Value;
+				const TArray<FSoftObjectPath>* Pipelines = &PipelineStack.Pipelines;
+
+				// If applicable, check to see if a specific pipeline stack is associated with this translator
+				for (const FInterchangeTranslatorPipelines& TranslatorPipelines : PipelineStack.PerTranslatorPipelines)
 				{
-					AdjustPipelineSettingForContext(GeneratedPipeline);
-					StackInfo.Pipelines.Add(GeneratedPipeline);
+					const UClass* TranslatorClass = TranslatorPipelines.Translator.LoadSynchronous();
+					if (Translator->IsA(TranslatorClass))
+					{
+						Pipelines = &TranslatorPipelines.Pipelines;
+						break;
+					}
+				}
+
+				for (int32 PipelineIndex = 0; PipelineIndex < Pipelines->Num(); ++PipelineIndex)
+				{
+					if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance((*Pipelines)[PipelineIndex]))
+					{
+						AdjustPipelineSettingForContext(GeneratedPipeline);
+						StackInfo.Pipelines.Add(GeneratedPipeline);
+					}
 				}
 			}
 		}

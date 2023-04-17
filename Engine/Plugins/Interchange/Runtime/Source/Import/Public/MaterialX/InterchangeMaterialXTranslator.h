@@ -13,7 +13,7 @@ class UInterchangeBaseLightNode;
 class UInterchangeSceneNode;
 
 UCLASS(BlueprintType)
-class UInterchangeMaterialXTranslator : public UInterchangeTranslatorBase, public IInterchangeTexturePayloadInterface
+class INTERCHANGEIMPORT_API UInterchangeMaterialXTranslator : public UInterchangeTranslatorBase, public IInterchangeTexturePayloadInterface
 {
 	GENERATED_BODY()
 

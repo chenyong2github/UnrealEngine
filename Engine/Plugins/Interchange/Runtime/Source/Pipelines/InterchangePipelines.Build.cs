@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"CinematicCamera",
 					"InterchangeImport",
+					"DeveloperSettings",
 				}
 			);
 

@@ -14,12 +14,28 @@
 class UInterchangeSourceData;
 
 USTRUCT()
+struct FInterchangeTranslatorPipelines
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "TranslatorPipelines", meta = (AllowedClasses = "/Script/InterchangeCore.InterchangeTranslatorBase"))
+	TSoftClassPtr<UInterchangeTranslatorBase> Translator;
+
+	UPROPERTY(EditAnywhere, Category = "TranslatorPipelines", meta = (AllowedClasses = "/Script/InterchangeCore.InterchangePipelineBase, /Script/InterchangeEngine.InterchangeBlueprintPipelineBase, /Script/InterchangeEngine.InterchangePythonPipelineAsset"))
+	TArray<FSoftObjectPath> Pipelines;
+};
+
+USTRUCT()
 struct FInterchangePipelineStack
 {
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere, Category = "Pipelines", meta = (AllowedClasses = "/Script/InterchangeCore.InterchangePipelineBase, /Script/InterchangeEngine.InterchangeBlueprintPipelineBase, /Script/InterchangeEngine.InterchangePythonPipelineAsset"))
 	TArray<FSoftObjectPath> Pipelines;
+
+	/** This tells Interchange which pipeline to add based on the type of the source */
+	UPROPERTY(EditAnywhere, Category = "TranslatorPipelines")
+	TArray<FInterchangeTranslatorPipelines> PerTranslatorPipelines;
 };
 
 USTRUCT()

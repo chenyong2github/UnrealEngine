@@ -31,55 +31,6 @@ enum class EInterchangeMaterialImportOption : uint8
 	ImportAsMaterialInstances,
 };
 
-
-UENUM(BlueprintType)
-enum class EInterchangeMaterialXShaders : uint8
-{
-	/** Default settings for Autodesk's Standard Surface shader	*/
-	StandardSurface,
-
-	/** Standard Surface shader used for translucency	*/
-	StandardSurfaceTransmission,
-
-	/** Shader used for unlit surface*/
-	SurfaceUnlit,
-
-	UsdPreviewSurface
-};
-
-USTRUCT(BlueprintType)
-struct INTERCHANGEPIPELINES_API FMaterialXPipelineSettings
-{
-	GENERATED_USTRUCT_BODY()
-
-public:
-	FMaterialXPipelineSettings();
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MaterialX", meta=(AllowedClasses="/Script/Engine.MaterialFunction"))
-	TMap<EInterchangeMaterialXShaders, FSoftObjectPath> SurfaceShader;
-
-	bool AreRequiredPackagesLoaded();
-
-	FString GetAssetPathString(EInterchangeMaterialXShaders ShaderType) const;
-
-private:
-
-#if WITH_EDITOR
-	friend class FInterchangeMaterialXPipelineSettingsCustomization;
-
-	static bool ShouldFilterAssets(UMaterialFunction* Asset, const TSet<FName>& Inputs, const TSet<FName>& Outputs);
-
-	static TSet<FName> StandardSurfaceInputs;
-	static TSet<FName> StandardSurfaceOutputs;
-	static TSet<FName> TransmissionSurfaceInputs;
-	static TSet<FName> TransmissionSurfaceOutputs;
-	static TSet<FName> SurfaceUnlitInputs;
-	static TSet<FName> SurfaceUnlitOutputs;
-	static TSet<FName> UsdPreviewSurfaceInputs;
-	static TSet<FName> UsdPreviewSurfaceOutputs;
-#endif // WITH_EDITOR
-};
-
 UCLASS(BlueprintType, editinlinenew)
 class INTERCHANGEPIPELINES_API UInterchangeGenericMaterialPipeline : public UInterchangePipelineBase
 {
@@ -101,9 +52,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Textures")
 	TObjectPtr<UInterchangeGenericTexturePipeline> TexturePipeline;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MaterialX", DisplayName = "Settings")
-	FMaterialXPipelineSettings MaterialXSettings;
 
 	/** BEGIN UInterchangePipelineBase overrides */
 	virtual void PreDialogCleanup(const FName PipelineStackName) override;
