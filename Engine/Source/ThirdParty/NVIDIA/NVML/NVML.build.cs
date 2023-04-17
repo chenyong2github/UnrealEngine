@@ -30,14 +30,14 @@ public class NVML : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Linux && Target.Architectures.Contains(UnrealArch.X64))
 		{
 			string Architecture = UnrealArch.X64.LinuxName;
-			DllPath = $"$(ModuleDir)/Binaries/{Platform}/{Architecture}/{ConfigFolder}/";
+			DllPath = $"{ModuleDirectory}/Binaries/{Platform}/{Architecture}/{ConfigFolder}/";
 			DllName = "libNvmlWrapper.so";
 
 			PublicAdditionalLibraries.Add(Path.Combine(DllPath, DllName));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			DllPath = $"$(ModuleDir)/Binaries/{Platform}/{ConfigFolder}/";
+			DllPath = $"{ModuleDirectory}/Binaries/{Platform}/{ConfigFolder}/";
 			DllName = "NvmlWrapper.dll";
 
 			PublicAdditionalLibraries.Add(Path.Combine(DllPath, "NvmlWrapper.lib"));
