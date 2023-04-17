@@ -66,6 +66,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (IsLoading())
 		{
 			ClassDesc = ClassDescRegistry.GetClassDescDefault(FTopLevelAssetPath(TEXT("/Script/Engine.Actor")));
+			check(ClassDesc);
+
 			UE_LOG(LogWorldPartition, Log, TEXT("Can't find class descriptor '%s' for loading '%s', using '%s'"), *ClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString(), *ClassDesc->GetActorSoftPath().ToString());
 		}
 		else
@@ -73,6 +75,5 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			UE_LOG(LogWorldPartition, Log, TEXT("Can't find class descriptor '%s' for saving '%s'"), *ClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString());
 		}
 	}
-	check(ClassDesc);
 }
 #endif
