@@ -21,7 +21,6 @@
 #include "Templates/UnrealTemplate.h"
 #include <type_traits>
 
-class FDelegateBase;
 class FDelegateHandle;
 class IDelegateInstance;
 struct FWeakObjectPtr;
@@ -53,7 +52,6 @@ class TDelegate<InRetValType(ParamTypes...), UserPolicy> : public TDelegateBase<
 	using FuncType                      = InRetValType (ParamTypes...);
 	using DelegateInstanceInterfaceType = IBaseDelegateInstance<FuncType, UserPolicy>;
 
-	static_assert(std::is_convertible_v<typename UserPolicy::FDelegateExtras*, FDelegateBase*>, "UserPolicy::FDelegateExtras should publicly inherit FDelegateBase");
 	static_assert(std::is_convertible_v<typename UserPolicy::FDelegateInstanceExtras*, IDelegateInstance*>, "UserPolicy::FDelegateInstanceExtras should publicly inherit IDelegateInstance");
 	static_assert(std::is_convertible_v<typename UserPolicy::FMulticastDelegateExtras*, TMulticastDelegateBase<UserPolicy>*> || std::is_convertible_v<typename UserPolicy::FMulticastDelegateExtras*, TTSMulticastDelegateBase<UserPolicy>*>, "UserPolicy::FMulticastDelegateExtras should publicly inherit TMulticastDelegateBase<UserPolicy> or TTSMulticastDelegateBase<UserPolicy>");
 
@@ -316,7 +314,7 @@ public:
 		if (&Other != this)
 		{
 			// this down-cast is OK! allows for managing invocation list in the base class without requiring virtual functions
-			DelegateInstanceInterfaceType* OtherInstance = Other.GetDelegateInstanceProtected();
+			const DelegateInstanceInterfaceType* OtherInstance = Other.GetDelegateInstanceProtected();
 
 			if (OtherInstance != nullptr)
 			{
@@ -525,7 +523,7 @@ public:
 	 */
 	FORCEINLINE RetValType Execute(ParamTypes... Params) const
 	{
-		DelegateInstanceInterfaceType* LocalDelegateInstance = GetDelegateInstanceProtected();
+		const DelegateInstanceInterfaceType* LocalDelegateInstance = GetDelegateInstanceProtected();
 
 		// If this assert goes off, Execute() was called before a function was bound to the delegate.
 		// Consider using ExecuteIfBound() instead.
@@ -548,7 +546,7 @@ public:
 	>
 	inline bool ExecuteIfBound(ParamTypes... Params) const
 	{
-		if (DelegateInstanceInterfaceType* Ptr = GetDelegateInstanceProtected())
+		if (const DelegateInstanceInterfaceType* Ptr = GetDelegateInstanceProtected())
 		{
 			return Ptr->ExecuteIfSafe(Params...);
 		}
@@ -560,9 +558,13 @@ protected:
 	/**
 	 * Returns a pointer to the correctly-typed delegate instance.
 	 */
-	FORCEINLINE DelegateInstanceInterfaceType* GetDelegateInstanceProtected() const
+	FORCEINLINE DelegateInstanceInterfaceType* GetDelegateInstanceProtected()
 	{
 		return static_cast<DelegateInstanceInterfaceType*>(Super::GetDelegateInstanceProtected());
+	}
+	FORCEINLINE const DelegateInstanceInterfaceType* GetDelegateInstanceProtected() const
+	{
+		return static_cast<const DelegateInstanceInterfaceType*>(Super::GetDelegateInstanceProtected());
 	}
 };
 

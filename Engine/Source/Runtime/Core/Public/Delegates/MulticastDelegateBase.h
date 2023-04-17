@@ -70,7 +70,7 @@ public:
 
 		for (const TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
-			IDelegateInstance* DelegateInstance = DelegateBaseRef.GetDelegateInstanceProtected();
+			const IDelegateInstance* DelegateInstance = DelegateBaseRef.GetDelegateInstanceProtected();
 			if ((DelegateInstance != nullptr) && DelegateInstance->HasSameObject(InUserObject))
 			{
 				return true;
@@ -174,10 +174,10 @@ protected:
 
 		for (const TDelegateBase<UserPolicy>& OtherDelegateRef : Other.GetInvocationList())
 		{
-			if (IDelegateInstance* OtherInstance = GetDelegateInstanceProtectedHelper(OtherDelegateRef))
+			if (const IDelegateInstance* OtherInstance = GetDelegateInstanceProtectedHelper(OtherDelegateRef))
 			{
 				DelegateType TempDelegate;
-				static_cast<DelegateInstanceInterfaceType*>(OtherInstance)->CreateCopy(TempDelegate);
+				static_cast<const DelegateInstanceInterfaceType*>(OtherInstance)->CreateCopy(TempDelegate);
 				AddDelegateInstance(MoveTemp(TempDelegate));
 			}
 		}
@@ -200,8 +200,8 @@ protected:
 				// this down-cast is OK! allows for managing invocation list in the base class without requiring virtual functions
 				const DelegateBaseType& DelegateBase = static_cast<const DelegateBaseType&>(LocalInvocationList[InvocationListIndex]);
 
-				IDelegateInstance* DelegateInstanceInterface = GetDelegateInstanceProtectedHelper(DelegateBase);
-				if (DelegateInstanceInterface == nullptr || !static_cast<DelegateInstanceInterfaceType*>(DelegateInstanceInterface)->ExecuteIfSafe(Params...))
+				const IDelegateInstance* DelegateInstanceInterface = GetDelegateInstanceProtectedHelper(DelegateBase);
+				if (DelegateInstanceInterface == nullptr || !static_cast<const DelegateInstanceInterfaceType*>(DelegateInstanceInterface)->ExecuteIfSafe(Params...))
 				{
 					NeedsCompaction = true;
 				}

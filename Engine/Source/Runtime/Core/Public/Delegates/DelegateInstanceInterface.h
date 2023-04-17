@@ -6,7 +6,6 @@
 #include "Templates/TypeCompatibleBytes.h"
 #include "Templates/Tuple.h"
 
-class FDelegateBase;
 class IDelegateInstance;
 
 template <typename FuncType, typename UserPolicy>
