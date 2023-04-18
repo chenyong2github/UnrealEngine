@@ -969,7 +969,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 	TArray<TSharedPtr<FNiagaraCompileRequestData, ESPMode::ThreadSafe>> DependentRequests;
 	FCompileConstantResolver EmptyResolver;
 
-	BasePtr->SourceName = InObj->GetName();
+	BasePtr->SourceName = LogName;
 
 	if (Script)
 	{
