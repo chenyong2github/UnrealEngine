@@ -760,9 +760,6 @@ public:
 	// FlushType: Flush Immediate
 	virtual bool RHIIsRenderingSuspended() { return false; };
 
-	UE_DEPRECATED(5.1, "No longer used: FCompression::UncompressMemory should be used instead")
-	virtual bool RHIEnqueueDecompress(uint8_t* SrcBuffer, uint8_t* DestBuffer, int CompressedSize, void* ErrorCodeBuffer) { return false; }
-
 	/**
 	*	Retrieve available screen resolutions.
 	*
