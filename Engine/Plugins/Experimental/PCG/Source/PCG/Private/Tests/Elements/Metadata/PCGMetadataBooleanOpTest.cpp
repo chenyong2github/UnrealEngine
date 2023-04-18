@@ -140,7 +140,7 @@ bool FPCGMetadataBooleanOpTest::RunTest(const FString& Parameters)
 	ParamTaggedData2.Pin = PCGMetadataSettingsBaseConstants::DoubleInputSecondLabel;
 	Settings->Operation = EPCGMedadataBooleanOperation::And;
 
-	AddExpectedError(TEXT("Attribute/Property Invalid is not a supported type for input"), EAutomationExpectedErrorFlags::Contains, 3);
+	AddExpectedError(TEXT("Attribute/Property 'Invalid' from pin"), EAutomationExpectedErrorFlags::Contains, 3);
 
 	{
 		Settings->InputSource1.SetAttributeName(InvalidAttribute);

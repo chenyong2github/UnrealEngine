@@ -13,7 +13,8 @@
 
 void FPCGNodeVisualLogs::Log(TWeakObjectPtr<const UPCGNode> InNode, TWeakObjectPtr<UPCGComponent> InComponent, ELogVerbosity::Type InVerbosity, const FText& InMessage)
 {
-	if (!ensure(InNode.Get()) || !ensure(InComponent.Get()))
+	// InNode can be null, in case of unit tests.
+	if (!InNode.Get() || !ensure(InComponent.Get()))
 	{
 		return;
 	}
