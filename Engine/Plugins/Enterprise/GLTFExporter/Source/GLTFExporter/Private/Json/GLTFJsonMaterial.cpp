@@ -33,6 +33,13 @@ void FGLTFJsonNormalTextureInfo::WriteObject(IGLTFJsonWriter& Writer) const
 	{
 		Writer.Write(TEXT("scale"), Scale);
 	}
+
+	if (!Transform.IsNearlyDefault(Writer.DefaultTolerance))
+	{
+		Writer.StartExtensions();
+		Writer.Write(EGLTFJsonExtension::KHR_TextureTransform, Transform);
+		Writer.EndExtensions();
+	}
 }
 
 void FGLTFJsonOcclusionTextureInfo::WriteObject(IGLTFJsonWriter& Writer) const
@@ -47,6 +54,13 @@ void FGLTFJsonOcclusionTextureInfo::WriteObject(IGLTFJsonWriter& Writer) const
 	if (!FMath::IsNearlyEqual(Strength, 1, Writer.DefaultTolerance))
 	{
 		Writer.Write(TEXT("strength"), Strength);
+	}
+
+	if (!Transform.IsNearlyDefault(Writer.DefaultTolerance))
+	{
+		Writer.StartExtensions();
+		Writer.Write(EGLTFJsonExtension::KHR_TextureTransform, Transform);
+		Writer.EndExtensions();
 	}
 }
 
