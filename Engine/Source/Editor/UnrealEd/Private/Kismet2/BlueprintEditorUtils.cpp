@@ -3622,9 +3622,8 @@ bool FBlueprintEditorUtils::DoesSupportTimelines(const UBlueprint* Blueprint)
 
 bool FBlueprintEditorUtils::DoesSupportEventGraphs(const UBlueprint* Blueprint)
 {
-	return Blueprint->SupportsEventGraphs()
-		&& (Blueprint->BlueprintType == BPTYPE_Normal
-			|| Blueprint->BlueprintType == BPTYPE_LevelScript);
+	return Blueprint->BlueprintType == BPTYPE_Normal
+			|| Blueprint->BlueprintType == BPTYPE_LevelScript;
 }
 
 /** Returns whether or not the blueprint supports implementing interfaces */
