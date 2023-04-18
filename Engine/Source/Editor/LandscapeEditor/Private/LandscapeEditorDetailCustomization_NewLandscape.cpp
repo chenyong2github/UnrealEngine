@@ -1005,7 +1005,6 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 	const bool bIsNewLandscape = LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::NewLandscape;
 	
 	UWorld* World = LandscapeEdMode->GetWorld();
-	const bool bIsTempPackage = FPackageName::IsTempPackage(World->GetPackage()->GetName());
 	
 	const bool bCreateLandscape = LandscapeEdMode != nullptr && 
 		World != nullptr &&
@@ -1015,7 +1014,8 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 	{
 		return FReply::Handled();
 	}
-	
+
+	const bool bIsTempPackage = FPackageName::IsTempPackage(World->GetPackage()->GetName());
 	ULandscapeEditorObject* UISettings = LandscapeEdMode->UISettings;
 	
 	const bool bIsWorldPartition = World->GetSubsystem<ULandscapeSubsystem>()->IsGridBased();
