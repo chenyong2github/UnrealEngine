@@ -27,7 +27,7 @@ namespace Horde.Server.Storage.Backends
 	/// <summary>
 	/// Storage backend using the filesystem
 	/// </summary>
-	public class FileSystemStorageBackend : IStorageBackend
+	public sealed class FileSystemStorageBackend : IStorageBackend
 	{
 		/// <summary>
 		/// Base directory for log files
@@ -53,6 +53,11 @@ namespace Horde.Server.Storage.Backends
 			_baseDir = DirectoryReference.Combine(Program.DataDir, options.BaseDir ?? "Storage");
 			_instanceId = Guid.NewGuid().ToString("N");
 			DirectoryReference.CreateDirectory(_baseDir);
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
 		}
 
 		/// <inheritdoc/>

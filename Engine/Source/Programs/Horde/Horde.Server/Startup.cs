@@ -519,6 +519,7 @@ namespace Horde.Server
 			}
 
 			// Storage providers
+			services.AddSingleton<IStorageBackendProvider, StorageBackendProvider>();
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollectionV1>());
 

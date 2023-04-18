@@ -12,12 +12,17 @@ namespace Horde.Server.Storage.Backends
 	/// <summary>
 	/// In-memory implementation of ILogFileStorage
 	/// </summary>
-	public class MemoryStorageBackend : IStorageBackend
+	public sealed class MemoryStorageBackend : IStorageBackend
 	{
 		/// <summary>
 		/// Data storage
 		/// </summary>
 		readonly ConcurrentDictionary<string, byte[]> _pathToData = new ConcurrentDictionary<string, byte[]>();
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+		}
 
 		/// <inheritdoc/>
 		public Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken)

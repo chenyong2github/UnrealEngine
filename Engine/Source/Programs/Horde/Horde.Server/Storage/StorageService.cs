@@ -2,26 +2,18 @@
 
 using System;
 using System.Buffers;
-using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
-using System.Composition;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Security.Claims;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Redis;
 using EpicGames.Redis.Utility;
-using Horde.Server.Acls;
 using Horde.Server.Server;
-using Horde.Server.Storage.Backends;
 using Horde.Server.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
@@ -260,42 +252,20 @@ namespace Horde.Server.Storage
 		}
 
 
-		class BackendInfo
-		{
-			public IStorageBackend Backend { get; }
-
-			int _refCount = 1;
-
-			public BackendInfo(IStorageBackend backend)
-			{
-				Backend = backend;
-			}
-
-			public void AddRef() => Interlocked.Increment(ref _refCount);
-
-			public void Release()
-			{
-				if (Interlocked.Decrement(ref _refCount) == 0 && Backend is IDisposable disposable)
-				{
-					disposable.Dispose();
-				}
-			}
-		}
-
 		class NamespaceInfo : IDisposable
 		{
 			public NamespaceConfig Config { get; }
 			public StorageClient Client { get; }
-			public BackendInfo Backend { get; }
+			public IStorageBackend Backend { get; }
 
-			public NamespaceInfo(NamespaceConfig config, StorageClient client, BackendInfo backend)
+			public NamespaceInfo(NamespaceConfig config, StorageClient client, IStorageBackend backend)
 			{
 				Config = config;
 				Client = client;
 				Backend = backend;
 			}
 
-			public void Dispose() => Backend.Release();
+			public void Dispose() => Backend.Dispose();
 		}
 
 		class State : IDisposable
@@ -455,7 +425,7 @@ namespace Horde.Server.Storage
 		readonly RedisService _redisService;
 		readonly IClock _clock;
 		readonly IMemoryCache _cache;
-		readonly IServiceProvider _serviceProvider;
+		readonly IStorageBackendProvider _storageBackendProvider;
 		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		readonly ILogger _logger;
 
@@ -470,19 +440,18 @@ namespace Horde.Server.Storage
 
 		State? _lastState;
 		string? _lastConfigRevision;
-		readonly Dictionary<IoHash, BackendInfo> _backends = new Dictionary<IoHash, BackendInfo>();
 
 		readonly AsyncCachedValue<State> _cachedState;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StorageService(MongoService mongoService, RedisService redisService, IClock clock, IMemoryCache cache, IServiceProvider serviceProvider, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<StorageService> logger)
+		public StorageService(MongoService mongoService, RedisService redisService, IClock clock, IMemoryCache cache, IStorageBackendProvider storageBackendProvider, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<StorageService> logger)
 		{
 			_redisService = redisService;
 			_clock = clock;
 			_cache = cache;
-			_serviceProvider = serviceProvider;
+			_storageBackendProvider = storageBackendProvider;
 			_cachedState = new AsyncCachedValue<State>(() => Task.FromResult(GetNextState()), TimeSpan.FromMinutes(1.0));
 			_globalConfig = globalConfig;
 			_logger = logger;
@@ -605,8 +574,8 @@ namespace Horde.Server.Storage
 				{
 					foreach (NamespaceConfig namespaceConfig in storageConfig.Namespaces)
 					{
-						BackendInfo backend = FindOrAddStorageBackend(namespaceConfig.BackendConfig);
-						StorageClient client = new StorageClient(this, namespaceConfig, backend.Backend);
+						IStorageBackend backend = _storageBackendProvider.CreateBackend(namespaceConfig.BackendConfig);
+						StorageClient client = new StorageClient(this, namespaceConfig, backend);
 						nextState.Namespaces.Add(namespaceConfig.Id, new NamespaceInfo(namespaceConfig, client, backend));
 					}
 				}
@@ -622,58 +591,6 @@ namespace Horde.Server.Storage
 				_lastConfigRevision = globalConfig.Revision;
 			}
 			return _lastState;
-		}
-
-		/// <summary>
-		/// Creates a storage backend with the given configuration
-		/// </summary>
-		/// <param name="config">Configuration for the backend</param>
-		/// <returns>New storage backend instance</returns>
-		BackendInfo FindOrAddStorageBackend(BackendConfig config)
-		{
-			// Compute the new hash of the configuration data
-			IoHash hash;
-			using (MemoryStream stream = new MemoryStream())
-			{
-				JsonSerializerOptions options = new JsonSerializerOptions();
-				Startup.ConfigureJsonSerializer(options);
-
-				JsonSerializer.Serialize(stream, config, options: options);
-
-				hash = IoHash.Compute(stream.ToArray());
-			}
-
-			// See if we've got an existing backend we can use
-			if (_backends.TryGetValue(hash, out BackendInfo? existingBackendInfo))
-			{
-				existingBackendInfo.AddRef();
-				return existingBackendInfo;
-			}
-
-			// Create a new backend
-			BackendInfo backendInfo = new BackendInfo(CreateStorageBackend(config));
-			_backends.Add(hash, backendInfo);
-			return backendInfo;
-		}
-
-		/// <summary>
-		/// Creates a storage backend with the given configuration
-		/// </summary>
-		/// <param name="config">Configuration for the backend</param>
-		/// <returns>New storage backend instance</returns>
-		IStorageBackend CreateStorageBackend(BackendConfig config)
-		{
-			switch (config.Type ?? StorageBackendType.FileSystem)
-			{
-				case StorageBackendType.FileSystem:
-					return new FileSystemStorageBackend(config);
-				case StorageBackendType.Aws:
-					return new AwsStorageBackend(_serviceProvider.GetRequiredService<IConfiguration>(), config, _serviceProvider.GetRequiredService<ILogger<AwsStorageBackend>>());
-				case StorageBackendType.Memory:
-					return new MemoryStorageBackend();
-				default:
-					throw new NotImplementedException();
-			}
 		}
 
 		#endregion

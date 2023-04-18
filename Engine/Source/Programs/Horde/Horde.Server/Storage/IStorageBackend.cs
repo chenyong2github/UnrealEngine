@@ -13,7 +13,7 @@ namespace Horde.Server.Storage
 	/// <summary>
 	/// Interface for a traditional location-addressed storage provider
 	/// </summary>
-	public interface IStorageBackend
+	public interface IStorageBackend : IDisposable
 	{
 		/// <summary>
 		/// Attempts to open a read stream for the given path.
@@ -104,7 +104,7 @@ namespace Horde.Server.Storage
 		/// Wrapper for <see cref="IStorageBackend"/>
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
-		class TypedStorageBackend<T> : IStorageBackend<T>
+		sealed class TypedStorageBackend<T> : IStorageBackend<T>
 		{
 			readonly IStorageBackend _inner;
 
@@ -113,6 +113,9 @@ namespace Horde.Server.Storage
 			/// </summary>
 			/// <param name="inner"></param>
 			public TypedStorageBackend(IStorageBackend inner) => _inner = inner;
+
+			/// <inheritdoc/>
+			public void Dispose() { }
 
 			/// <inheritdoc/>
 			public Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken) => _inner.TryReadAsync(path, cancellationToken);
