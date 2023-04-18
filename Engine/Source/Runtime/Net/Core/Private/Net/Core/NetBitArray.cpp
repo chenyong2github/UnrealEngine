@@ -1,10 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Net/Core/NetBitArray.h"
+
+#include "Net/Core/NetBitArrayPrinter.h"
+
 #include "Traits/IntType.h"
 
 namespace UE::Net
 {
+
+//*************************************************************************************************
+// FNetBitArray
+//*************************************************************************************************
+FString FNetBitArray::ToString() const
+{
+	return FNetBitArrayPrinter::PrintSetSummary(*this);
+}
+
+//*************************************************************************************************
+// FNetBitArrayView
+//*************************************************************************************************
+FString FNetBitArrayView::ToString() const
+{
+	return FNetBitArrayPrinter::PrintSetSummary(*this);
+}
+
+//*************************************************************************************************
+// FNetBitArrayHelper
+//*************************************************************************************************
 
 uint32 FNetBitArrayHelper::GetSetBitIndices(const FNetBitArrayHelper::StorageWordType* Storage, const uint32 BitCount, const uint32 StartIndex, const uint32 Count, uint32* const OutIndices, const uint32 OutIndicesCapacity)
 {
@@ -68,4 +91,4 @@ uint32 FNetBitArrayHelper::CountSetBits(const StorageWordType* Storage, const ui
 	return SetBitsCount;
 }
 
-}
+} // end namespace UE::Net

@@ -3,6 +3,7 @@
 #include "NetworkAutomationTest.h"
 #include "NetworkAutomationTestMacros.h"
 #include "Net/Core/NetBitArray.h"
+#include "Net/Core/NetBitArrayPrinter.h"
 
 namespace UE::Net::Private
 {
@@ -1044,6 +1045,25 @@ UE_NET_TEST(FNetBitArrayView, Or)
 			UE_NET_ASSERT_EQ(ExpectedWordBuffer[it], WordBufferA[it]);
 		}
 	}
+
+	// Test Multiple arrays
+	{
+		const uint32 ExpectedWordBuffer[] = { 0x0011, 0x0110, 0x1100, 0x1001 };
+		uint32 WordBufferA[] = { 0x0000, 0x0000, 0x0000, 0x0000 };
+		uint32 WordBufferB[] = { 0x0001, 0x0010, 0x0100, 0x1000 };
+		uint32 WordBufferC[] = { 0x0010, 0x0100, 0x1000, 0x0001 };
+
+		FNetBitArrayView BitArrayA(&WordBufferA[0], 128);
+		const FNetBitArrayView BitArrayB(&WordBufferB[0], 128);
+		const FNetBitArrayView BitArrayC(&WordBufferC[0], 128);
+
+		BitArrayA.CombineMultiple(WordOp, BitArrayB, WordOp, BitArrayC);
+
+		for (uint32 it = 0; it < UE_ARRAY_COUNT(ExpectedWordBuffer); ++it)
+		{
+			UE_NET_ASSERT_EQ(ExpectedWordBuffer[it], WordBufferA[it]);
+		}
+	}
 }
 
 UE_NET_TEST(FNetBitArrayView, And)
@@ -1088,6 +1108,25 @@ UE_NET_TEST(FNetBitArrayView, And)
 		const FNetBitArrayView BitArrayB(&WordBufferB[0], 128);
 
 		BitArrayA.Combine(BitArrayB, WordOp);
+
+		for (uint32 it = 0; it < UE_ARRAY_COUNT(ExpectedWordBuffer); ++it)
+		{
+			UE_NET_ASSERT_EQ(ExpectedWordBuffer[it], WordBufferA[it]);
+		}
+	}
+
+	// Test Multiple arrays
+	{
+		const uint32 ExpectedWordBuffer[] = { 0x0001, 0x0010, 0x0100, 0x1000 };
+		uint32 WordBufferA[] = { 0x0001, 0x0010, 0x0100, 0x1000 };
+		uint32 WordBufferB[] = { 0x0001, 0x0010, 0x0100, 0x1000 };
+		uint32 WordBufferC[] = { 0x0001, 0x0010, 0x0100, 0x1000 };
+
+		FNetBitArrayView BitArrayA(&WordBufferA[0], 128);
+		const FNetBitArrayView BitArrayB(&WordBufferB[0], 128);
+		const FNetBitArrayView BitArrayC(&WordBufferC[0], 128);
+
+		BitArrayA.CombineMultiple(WordOp, BitArrayB, WordOp, BitArrayC);
 
 		for (uint32 it = 0; it < UE_ARRAY_COUNT(ExpectedWordBuffer); ++it)
 		{
@@ -1144,6 +1183,25 @@ UE_NET_TEST(FNetBitArrayView, AndNot)
 			UE_NET_ASSERT_EQ(ExpectedWordBuffer[it], WordBufferA[it]);
 		}
 	}
+
+	// Test Multiple arrays
+	{
+		const uint32 ExpectedWordBuffer[] = { 0xFFFe, 0xFFeF, 0xFeFF, 0xeFFF };
+		uint32 WordBufferA[] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };
+		uint32 WordBufferB[] = { 0x0001, 0x0010, 0x0100, 0x1000 };
+		uint32 WordBufferC[] = { 0x0000, 0x0000, 0x0000, 0x0000 };
+
+		FNetBitArrayView BitArrayA(&WordBufferA[0], 128);
+		const FNetBitArrayView BitArrayB(&WordBufferB[0], 128);
+		const FNetBitArrayView BitArrayC(&WordBufferC[0], 128);
+
+		BitArrayA.CombineMultiple(WordOp, BitArrayB, WordOp, BitArrayC);
+
+		for (uint32 it = 0; it < UE_ARRAY_COUNT(ExpectedWordBuffer); ++it)
+		{
+			UE_NET_ASSERT_EQ(ExpectedWordBuffer[it], WordBufferA[it]);
+		}
+	}
 }
 
 UE_NET_TEST(FNetBitArrayView, Xor)
@@ -1194,6 +1252,50 @@ UE_NET_TEST(FNetBitArrayView, Xor)
 			UE_NET_ASSERT_EQ(ExpectedWordBuffer[it], WordBufferA[it]);
 		}
 	}
+
+	// Test Multiple arrays
+	{
+		const uint32 ExpectedWordBuffer[] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };
+		uint32 WordBufferA[] = { 0xFFee, 0xFeeF, 0xeeFF, 0xeFFe };
+		uint32 WordBufferB[] = { 0x0001, 0x0010, 0x0100, 0x1000 };
+		uint32 WordBufferC[] = { 0x0010, 0x0100, 0x1000, 0x0001 };
+
+		FNetBitArrayView BitArrayA(&WordBufferA[0], 128);
+		const FNetBitArrayView BitArrayB(&WordBufferB[0], 128);
+		const FNetBitArrayView BitArrayC(&WordBufferC[0], 128);
+
+		BitArrayA.CombineMultiple(WordOp, BitArrayB, WordOp, BitArrayC);
+
+		for (uint32 it = 0; it < UE_ARRAY_COUNT(ExpectedWordBuffer); ++it)
+		{
+			UE_NET_ASSERT_EQ(ExpectedWordBuffer[it], WordBufferA[it]);
+		}
+	}
+}
+
+UE_NET_TEST(FNetBitArrayView, TestCombineMultiple)
+{
+	auto&& FirstWordOp = FNetBitArrayView::OrOp;
+	auto&& SecondWordOp = FNetBitArrayView::AndOp;
+
+	// Test Multiple arrays
+	{
+		const uint32 ExpectedWordBuffer[] = { 0xFF10, 0xF10F, 0x10FF, 0x0FF1 };
+		uint32 WordBufferA[] = { 0xFF00, 0xF00F, 0x00FF, 0x0FF0 };
+		uint32 WordBufferB[] = { 0x0011, 0x0110, 0x1100, 0x1001 };
+		uint32 WordBufferC[] = { 0x0010, 0x0100, 0x1000, 0x0001 };
+
+		FNetBitArrayView BitArrayA(&WordBufferA[0], 128);
+		const FNetBitArrayView BitArrayB(&WordBufferB[0], 128);
+		const FNetBitArrayView BitArrayC(&WordBufferC[0], 128);
+
+		BitArrayA.CombineMultiple(FirstWordOp, BitArrayB, SecondWordOp, BitArrayC);
+
+		for (uint32 it = 0; it < UE_ARRAY_COUNT(ExpectedWordBuffer); ++it)
+		{
+			UE_NET_ASSERT_EQ(ExpectedWordBuffer[it], WordBufferA[it]);
+		}
+	}
 }
 
 UE_NET_TEST(FNetBitArrayView, Copy)
@@ -1228,6 +1330,55 @@ UE_NET_TEST(FNetBitArrayView, Copy)
 		{
 			UE_NET_ASSERT_EQ(WordBufferB[it], WordBufferA[it]);
 		}
+	}
+}
+
+UE_NET_TEST(FNetBitArrayView, PrintHelper)
+{
+	{
+		uint32 WordBufferA[] = { 0xFF00, 0xF00F, 0x00FF, 0x0FF0 };
+
+		FNetBitArray BitArrayB;
+		BitArrayB.Init(128);
+		BitArrayB.GetData()[0] = WordBufferA[0];
+		BitArrayB.GetData()[1] = WordBufferA[1];
+		BitArrayB.GetData()[2] = WordBufferA[2];
+		BitArrayB.GetData()[3] = WordBufferA[3];
+		
+		const FNetBitArrayView BitArrayA(&WordBufferA[0], 128);
+		FString PrintBufferA;
+		FString PrintBufferB;
+
+		PrintBufferA = FNetBitArrayPrinter::PrintSetBits(BitArrayA);
+		PrintBufferB = FNetBitArrayPrinter::PrintSetBits(BitArrayB);
+		UE_NET_ASSERT_EQ(PrintBufferA, PrintBufferB);
+
+		PrintBufferA = FNetBitArrayPrinter::PrintSetSummary(BitArrayA);
+		PrintBufferB = FNetBitArrayPrinter::PrintSetSummary(BitArrayB);
+		UE_NET_ASSERT_EQ(PrintBufferA, PrintBufferB);
+
+		PrintBufferA = BitArrayA.ToString();
+		PrintBufferB = BitArrayB.ToString();
+		UE_NET_ASSERT_EQ(PrintBufferA, PrintBufferB);
+
+		PrintBufferA = FNetBitArrayPrinter::PrintZeroBits(BitArrayA);
+		PrintBufferB = FNetBitArrayPrinter::PrintZeroBits(BitArrayB);
+		UE_NET_ASSERT_EQ(PrintBufferA, PrintBufferB);
+		
+		PrintBufferA = FNetBitArrayPrinter::PrintZeroSummary(BitArrayA);
+		PrintBufferB = FNetBitArrayPrinter::PrintZeroSummary(BitArrayB);
+		UE_NET_ASSERT_EQ(PrintBufferA, PrintBufferB);
+
+		uint32 WordBufferDelta[] = { 0x0011, 0xF00F, 0x1100, 0x0FF0 };
+		const FNetBitArrayView BitArrayDelta(&WordBufferDelta[0], 128);
+
+		PrintBufferA = FNetBitArrayPrinter::PrintDeltaSummary(BitArrayA, BitArrayDelta);
+		PrintBufferB = FNetBitArrayPrinter::PrintDeltaSummary(BitArrayDelta, BitArrayB);
+		UE_NET_ASSERT_EQ(PrintBufferA, PrintBufferB);
+
+		PrintBufferA = FNetBitArrayPrinter::PrintDeltaBits(BitArrayA, BitArrayDelta);
+		PrintBufferB = FNetBitArrayPrinter::PrintDeltaBits(BitArrayB, BitArrayDelta);
+		UE_NET_ASSERT_EQ(PrintBufferA, PrintBufferB);
 	}
 }
 
