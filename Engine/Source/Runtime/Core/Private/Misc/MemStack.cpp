@@ -345,7 +345,7 @@ void FMemStackBase::AllocateNewChunk(int32 MinSize)
 	// Create new chunk.
 	int32 TotalSize = MinSize + (int32)sizeof(FTaggedMemory);
 	uint32 AllocSize;
-	if (TopChunk || TotalSize > FPageAllocator::SmallPageSize)
+	if (TotalSize > FPageAllocator::SmallPageSize)
 	{
 		AllocSize = AlignArbitrary<int32>(TotalSize, FPageAllocator::PageSize);
 		if (AllocSize == FPageAllocator::PageSize)

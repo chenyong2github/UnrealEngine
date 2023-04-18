@@ -38,7 +38,7 @@ public:
 	enum
 	{
 		PageSize = 64 * 1024,
-		SmallPageSize = 1024-16 // allow a little extra space for allocator headers, etc
+		SmallPageSize = 1024
 	};
 #if UE_BUILD_SHIPPING
 	typedef TLockFreeFixedSizeAllocator<PageSize, PLATFORM_CACHE_LINE_SIZE, FNoopCounter> TPageAllocator;
