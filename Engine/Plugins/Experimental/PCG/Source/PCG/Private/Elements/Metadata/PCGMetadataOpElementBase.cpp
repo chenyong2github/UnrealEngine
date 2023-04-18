@@ -30,24 +30,16 @@ void UPCGMetadataSettingsBase::PostLoad()
 
 EPCGDataType UPCGMetadataSettingsBase::GetCurrentPinTypes(const UPCGPin* InPin) const
 {
-	if (GetInputPinNum() == 0)
+	check(InPin);
+	if (!InPin->IsOutputPin() || GetInputPinNum() == 0)
 	{
-		return EPCGDataType::Any;
+		// Fall back to default for input pins, or if no input pins present from which to obtain type
+		return Super::GetCurrentPinTypes(InPin);
 	}
 
-	check(InPin);
-	const FName FirstPinLabel = GetInputPinLabel(0);
-	if (InPin->Properties.Label == FirstPinLabel || InPin->IsOutputPin())
-	{
-		// First input pin, and any output pins, narrow to types connected to first pin
-		const EPCGDataType FirstPinTypeUnion = GetTypeUnionOfIncidentEdges(FirstPinLabel);
-		return FirstPinTypeUnion != EPCGDataType::None ? FirstPinTypeUnion : EPCGDataType::Any;
-	}
-	else
-	{
-		// Other input pins stay at Any
-		return EPCGDataType::Any;
-	}
+	// Output pin narrows to union of inputs on first pin
+	const EPCGDataType FirstPinTypeUnion = GetTypeUnionOfIncidentEdges(GetInputPinLabel(0));
+	return FirstPinTypeUnion != EPCGDataType::None ? FirstPinTypeUnion : EPCGDataType::Any;
 }
 
 TArray<FPCGPinProperties> UPCGMetadataSettingsBase::InputPinProperties() const

@@ -51,19 +51,15 @@ void UPCGCreateAttributeSettings::PostLoad()
 
 EPCGDataType UPCGCreateAttributeSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
 {
-	if (!HasDynamicPins())
+	check(InPin);
+	if (!HasDynamicPins() || !InPin->IsOutputPin())
 	{
 		return Super::GetCurrentPinTypes(InPin);
 	}
 
-	check(InPin);
-	if (InPin->Properties.Label == PCGPinConstants::DefaultInputLabel || InPin->Properties.Label == PCGPinConstants::DefaultOutputLabel)
-	{
-		const EPCGDataType PrimaryInputType = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
-		return (PrimaryInputType != EPCGDataType::None) ? PrimaryInputType : EPCGDataType::Any;
-	}
-
-	return Super::GetCurrentPinTypes(InPin);
+	// Output pin narrows to union of inputs on first pin
+	const EPCGDataType PrimaryInputType = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+	return (PrimaryInputType != EPCGDataType::None) ? PrimaryInputType : EPCGDataType::Any;
 }
 
 FName UPCGCreateAttributeSettings::AdditionalTaskName() const

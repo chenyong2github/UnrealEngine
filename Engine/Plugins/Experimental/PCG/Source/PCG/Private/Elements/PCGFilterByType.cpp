@@ -24,14 +24,13 @@ FText UPCGFilterByTypeSettings::GetNodeTooltipText() const
 
 EPCGDataType UPCGFilterByTypeSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
 {
-	// Output pin narrows to set type, input pin stays at Any to invite all connections
 	check(InPin);
-	if (InPin->Properties.Label == PCGPinConstants::DefaultOutputLabel)
+	if (!InPin->IsOutputPin())
 	{
-		return TargetType;
+		return Super::GetCurrentPinTypes(InPin);
 	}
 
-	return Super::GetCurrentPinTypes(InPin);
+	return TargetType;
 }
 
 FPCGElementPtr UPCGFilterByTypeSettings::CreateElement() const
