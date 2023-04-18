@@ -1225,6 +1225,12 @@ void FAutomationControllerManager::HandleFindWorkersResponseMessage(const FAutom
 		DeviceClusterManager.AddDeviceFromMessage(Context->GetSender(), Message, DeviceGroupFlags);
 	}
 
+	if (AutomationTestState == EAutomationControllerModuleState::Running)
+	{
+		UE_LOG(LogAutomationController, Verbose, TEXT("Already running test. Don't request tests from %s"), *Context->GetSender().ToString());
+		return;
+	}
+
 	RequestTests();
 
 	SetControllerStatus(EAutomationControllerModuleState::Ready);
