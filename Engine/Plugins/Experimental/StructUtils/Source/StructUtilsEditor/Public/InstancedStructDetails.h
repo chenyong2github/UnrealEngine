@@ -18,6 +18,8 @@ struct FInstancedStruct;
 class STRUCTUTILSEDITOR_API FInstancedStructDetails : public IPropertyTypeCustomization
 {
 public:
+	virtual ~FInstancedStructDetails() override;
+	
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
@@ -26,6 +28,10 @@ public:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
 private:
+
+	using FReplacementObjectMap = TMap<UObject*, UObject*>;
+	void OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap);
+	
 	FText GetDisplayValueString() const;
 	const FSlateBrush* GetDisplayValueIcon() const;
 	TSharedRef<SWidget> GenerateStructPicker();
@@ -33,11 +39,15 @@ private:
 
 	/** Handle to the struct property being edited */
 	TSharedPtr<IPropertyHandle> StructProperty;
-	
+
 	/** The base struct that we're allowing to be picked (controlled by the "BaseStruct" meta-data) */
 	UScriptStruct* BaseScriptStruct = nullptr;
 
 	TSharedPtr<class SComboButton> ComboButton;
+
+	TSharedPtr<IPropertyUtilities> PropUtils;
+	
+	FDelegateHandle OnObjectsReinstancedHandle;
 };
 
 /** 

@@ -14,6 +14,7 @@
 #include "Styling/SlateIconFinder.h"
 #include "Engine/UserDefinedStruct.h"
 #include "InstancedStruct.h"
+#include "IPropertyUtilities.h"
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "StructUtilsEditor"
@@ -340,13 +341,24 @@ TSharedRef<IPropertyTypeCustomization> FInstancedStructDetails::MakeInstance()
 	return MakeShared<FInstancedStructDetails>();
 }
 
+FInstancedStructDetails::~FInstancedStructDetails()
+{
+	if (OnObjectsReinstancedHandle.IsValid())
+	{
+		FCoreUObjectDelegates::OnObjectsReinstanced.Remove(OnObjectsReinstancedHandle);
+	}
+}
+
 void FInstancedStructDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	static const FName NAME_BaseStruct = "BaseStruct";
 	static const FName NAME_StructTypeConst = "StructTypeConst";
 
 	StructProperty = StructPropertyHandle;
+	PropUtils = StructCustomizationUtils.GetPropertyUtilities();
 
+	OnObjectsReinstancedHandle = FCoreUObjectDelegates::OnObjectsReinstanced.AddSP(this, &FInstancedStructDetails::OnObjectsReinstanced);
+	
 	const bool bEnableStructSelection = !StructProperty->HasMetaData(NAME_StructTypeConst);
 
 	BaseScriptStruct = nullptr;
@@ -396,6 +408,15 @@ void FInstancedStructDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> 
 				]
 			]
 		];
+}
+
+void FInstancedStructDetails::OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap)
+{
+	// Force update the details when BP is compiled, since we may cached hold references to the old object or class.
+	if (PropUtils.IsValid())
+	{
+		PropUtils->ForceRefresh();
+	}
 }
 
 void FInstancedStructDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
