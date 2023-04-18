@@ -40,6 +40,10 @@ public:
 	void Construct(const FArguments& InArgs, UEdGraphPin* InPin);
 
 	virtual FSlateColor GetPinColor() const override;
+	virtual FSlateColor GetPinTextColor() const override;
+
+private:
+	void ApplyUnusedPinStyle(FSlateColor& InOutColor) const;
 };
 
 void SPCGEditorGraphNodePin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
@@ -227,11 +231,8 @@ void SPCGEditorGraphNodePin::Construct(const FArguments& InArgs, UEdGraphPin* In
 
 }
 
-// Adapted from SGraphPin::GetPinColor
-FSlateColor SPCGEditorGraphNodePin::GetPinColor() const
+void SPCGEditorGraphNodePin::ApplyUnusedPinStyle(FSlateColor& InOutColor) const
 {
-	FSlateColor Color = SGraphPin::GetPinColor();
-
 	UEdGraphPin* GraphPin = GetPinObj();
 	if (GraphPin && !GraphPin->IsPendingKill())
 	{
@@ -239,12 +240,31 @@ FSlateColor SPCGEditorGraphNodePin::GetPinColor() const
 		const UPCGNode* PCGNode = EditorNode ? EditorNode->GetPCGNode() : nullptr;
 		const UPCGPin* PCGPin = PCGNode ? PCGNode->GetInputPin(GraphPin->GetFName()) : nullptr;
 
-		// Desaturate if pin is unused - intended to happen whether disabled or not
+		// Halve opacity if pin is unused - intended to happen whether disabled or not
 		if (PCGPin && !PCGNode->IsPinUsedByNodeExecution(PCGPin))
 		{
-			Color = Color.GetSpecifiedColor().Desaturate(0.7f);
+			FLinearColor Color = InOutColor.GetSpecifiedColor();
+			Color.A *= 0.5;
+			InOutColor = Color;
 		}
 	}
+}
+
+// Adapted from SGraphPin::GetPinColor
+FSlateColor SPCGEditorGraphNodePin::GetPinColor() const
+{
+	FSlateColor Color = SGraphPin::GetPinColor();
+
+	ApplyUnusedPinStyle(Color);
+
+	return Color;
+}
+
+FSlateColor SPCGEditorGraphNodePin::GetPinTextColor() const
+{
+	FSlateColor Color = SGraphPin::GetPinTextColor();
+
+	ApplyUnusedPinStyle(Color);
 
 	return Color;
 }

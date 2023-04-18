@@ -19,6 +19,7 @@ namespace PCGCreateAttributeConstants
 	const FName NodeNameCreateAttribute = TEXT("CreateAttribute");
 	const FText NodeTitleCreateAttribute = LOCTEXT("NodeTitleCreateAttribute", "Create Attribute");
 	const FName AttributesLabel = TEXT("Attributes");
+	const FText AttributesTooltip = LOCTEXT("AttributesTooltip", "Optional Attribute Set to create from. Not used if not connected.");
 }
 
 void UPCGCreateAttributeSettings::PostLoad()
@@ -77,16 +78,18 @@ FText UPCGCreateAttributeSettings::GetDefaultNodeTitle() const
 {
 	return PCGCreateAttributeConstants::NodeTitleAddAttribute;
 }
+
+bool UPCGCreateAttributeSettings::IsPinUsedByNodeExecution(const UPCGPin* InPin) const
+{
+	return !InPin || (InPin->Properties.Label != PCGCreateAttributeConstants::AttributesLabel) || InPin->IsConnected();
+}
 #endif // WITH_EDITOR
 
 TArray<FPCGPinProperties> UPCGCreateAttributeSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any);
-	if (bFromSourceParam)
-	{
-		PinProperties.Emplace(PCGCreateAttributeConstants::AttributesLabel, EPCGDataType::Param);
-	}
+	PinProperties.Emplace(PCGCreateAttributeConstants::AttributesLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/true, /*bAllowMultipleData=*/true, PCGCreateAttributeConstants::AttributesTooltip);
 
 	return PinProperties;
 }
@@ -107,7 +110,7 @@ FPCGElementPtr UPCGCreateAttributeSettings::CreateElement() const
 
 FName UPCGCreateAttributeSettings::AdditionalTaskNameInternal(FName NodeName) const
 {
-	if (bFromSourceParam)
+	if (ShouldAddAttributesPin())
 	{
 		if ((OutputAttributeName == NAME_None) && (SourceParamAttributeName == NAME_None))
 		{
@@ -174,14 +177,8 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 	UPCGParamData* SourceParamData = nullptr;
 	FName SourceParamAttributeName = NAME_None;
 
-	if (Settings->bFromSourceParam)
+	if (!SourceParams.IsEmpty())
 	{
-		if (SourceParams.IsEmpty())
-		{
-			PCGE_LOG(Error, GraphAndLog, LOCTEXT("ParamNotProvided", "Source attribute was not provided"));
-			return true;
-		}
-
 		SourceParamData = CastChecked<UPCGParamData>(SourceParams[0].Data);
 
 		if (!SourceParamData->Metadata)
@@ -253,11 +250,11 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		const FName OutputAttributeName = (Settings->bFromSourceParam && Settings->OutputAttributeName == NAME_None) ? SourceParamAttributeName : Settings->OutputAttributeName;
+		const FName OutputAttributeName = (SourceParamData && Settings->OutputAttributeName == NAME_None) ? SourceParamAttributeName : Settings->OutputAttributeName;
 
 		FPCGMetadataAttributeBase* Attribute = nullptr;
 
-		if (Settings->bFromSourceParam)
+		if (SourceParamData)
 		{
 			const FPCGMetadataAttributeBase* SourceAttribute = SourceParamData->Metadata->GetConstAttribute(SourceParamAttributeName);
 			Attribute = Metadata->CopyAttribute(SourceAttribute, OutputAttributeName, /*bKeepParent=*/false, /*bCopyEntries=*/bShouldAddNewEntry, /*bCopyValues=*/bShouldAddNewEntry);
@@ -278,7 +275,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 		Output.Data = OutputData;
 
 		// Add a new entry if it is a param data and not from source (because entries are already copied)
-		if (bShouldAddNewEntry && !Settings->bFromSourceParam)
+		if (bShouldAddNewEntry && !SourceParamData)
 		{
 			// If the metadata is empty, we need to add a new entry, so set it to PCGInvalidEntryKey.
 			// Otherwise, use the entry key 0.

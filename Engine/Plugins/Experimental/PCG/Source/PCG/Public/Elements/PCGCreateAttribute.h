@@ -32,6 +32,7 @@ public:
 	virtual FText GetDefaultNodeTitle() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 	virtual bool HasDynamicPins() const override { return true; }
+	virtual bool IsPinUsedByNodeExecution(const UPCGPin* InPin) const override;
 #endif // WITH_EDITOR
 	virtual EPCGDataType GetCurrentPinTypes(const UPCGPin* InPin) const override;
 
@@ -41,17 +42,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName OutputAttributeName = NAME_None;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = bDisplayFromSourceParamSetting, EditConditionHides, HideEditConditionToggle))
-	bool bFromSourceParam = false;
-
 	// This can be set false by inheriting nodes to hide the 'From Source Param' property.
 	UPROPERTY(Transient, meta = (EditCondition = false, EditConditionHides))
 	bool bDisplayFromSourceParamSetting = true;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bFromSourceParam", EditConditionHides))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bDisplayFromSourceParamSetting", EditConditionHides, HideEditConditionToggle))
 	FName SourceParamAttributeName = NAME_None;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bFromSourceParam", EditConditionHides, ShowOnlyInnerProperties, DisplayAfter = "bFromSourceParam"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties))
 	FPCGMetadataTypesConstantStruct AttributeTypes;
 
 #if WITH_EDITORONLY_DATA
@@ -108,6 +106,7 @@ protected:
 	FName AdditionalTaskNameInternal(FName NodeName) const;
 
 	virtual FPCGElementPtr CreateElement() const override;
+	virtual bool ShouldAddAttributesPin() const { return true; }
 };
 
 /* Creates a new Attribute Set. */
@@ -131,6 +130,8 @@ protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	//~End UPCGSettings interface
+
+	virtual bool ShouldAddAttributesPin() const override { return false; }
 };
 
 class FPCGCreateAttributeElement : public FSimplePCGElement
