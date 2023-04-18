@@ -15,10 +15,10 @@ public:
 	/** Sets the analytics provider for the flow tracker. */
 	ANALYTICSET_API void SetProvider(TSharedPtr<IAnalyticsProviderET>& AnalyticsProvider);
 
-	/** Begins a new flow tracking session. Will emit Flow and FlowStep events to the specified analytics provider */
+	/** Begins a new flow tracking session. Will emit Flow and SubFlow events to the specified analytics provider */
 	ANALYTICSET_API void StartSession();
 
-	/** Ends all open Flows and FlowSteps*/
+	/** Ends all open Flows and SubFlows*/
 	ANALYTICSET_API void EndSession();
 	
 	/** Start a new Flow, the existing flow context will be pushed onto a stack and the new flow will become the current context*/
@@ -34,25 +34,25 @@ public:
 	ANALYTICSET_API void EndFlow(const FGuid& FlowGuid, bool bSuccess = true, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes = {});
 
 	/** Start a new flow and add it to the current flow context */
-	ANALYTICSET_API FGuid StartFlowStep(const FName& FlowStepName);
+	ANALYTICSET_API FGuid StartSubFlow(const FName& SubFlowName);
 
 	/** Start a new flow step and add it to a specific flow context by GUID */
-	ANALYTICSET_API FGuid StartFlowStep(const FName& FlowStepName, const FGuid& FlowGuid);
+	ANALYTICSET_API FGuid StartSubFlow(const FName& SubFlowName, const FGuid& FlowGuid);
 
 	/** End an existing flow step by name */
-	ANALYTICSET_API void EndFlowStep(const FName& FlowStepName, bool bSuccess = true, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes = {});
+	ANALYTICSET_API void EndSubFlow(const FName& SubFlowName, bool bSuccess = true, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes = {});
 
 	/** End an existing flow step by GUID */
-	ANALYTICSET_API void EndFlowStep(const FGuid& FlowStepGuid, bool bSuccess = true, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes = {});
+	ANALYTICSET_API void EndSubFlow(const FGuid& SubFlowGuid, bool bSuccess = true, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes = {});
 
 private:
 
-	struct FFlowStepData
+	struct FSubFlowData
 	{
 		FName		FlowName;
 		FGuid		FlowGuid = FGuid();
-		FName		FlowStepName;
-		FGuid		FlowStepGuid;
+		FName		SubFlowName;
+		FGuid		SubFlowGuid;
 		FDateTime	StartTime = 0;
 		FDateTime	EndTime = 0;
 		double		TimeInSeconds = 0;
@@ -69,19 +69,19 @@ private:
 		FDateTime					StartTime = 0;
 		FDateTime					EndTime = 0;
 		double						TimeInSeconds = 0;
-		TArray<FGuid>				FlowStepDataArray;
-		TArray<FGuid>				FlowStepDataStack;
+		TArray<FGuid>				SubFlowDataArray;
+		TArray<FGuid>				SubFlowDataStack;
 	};
 
 	void EndFlowInternal(const FGuid& FlowGuid, bool bSuccess = true, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes = {});
 
-	FGuid StartFlowStepInternal(const FName& NewFlowStepName, const FGuid& FlowGuid);
-	void EndFlowStepInternal(const FGuid& FlowStepGuid, bool bSuccess = true, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes = {});
+	FGuid StartSubFlowInternal(const FName& NewSubFlowName, const FGuid& FlowGuid);
+	void EndSubFlowInternal(const FGuid& SubFlowGuid, bool bSuccess = true, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes = {});
 
 	TMap<FName, FGuid>			FlowGuidRegistry;
 	TMap<FGuid, FFlowData>		FlowDataRegistry;
-	TMap<FName, FGuid>			FlowStepGuidRegistry;
-	TMap<FGuid, FFlowStepData>	FlowStepDataRegistry;
+	TMap<FName, FGuid>			SubFlowGuidRegistry;
+	TMap<FGuid, FSubFlowData>	SubFlowDataRegistry;
 	TArray<FGuid>				FlowDataStack;
 	FCriticalSection			CriticalSection;
 	TSharedPtr<IAnalyticsProviderET> AnalyticsProvider;
@@ -89,8 +89,8 @@ private:
 	const uint32 FlowSchemaVersion = 4;
 	const FString FlowEventName = TEXT("Iteration.Flow");
 
-	const uint32 FlowStepSchemaVersion = 4;
-	const FString FlowStepEventName = TEXT("Iteration.FlowStep");
+	const uint32 SubFlowSchemaVersion = 4;
+	const FString SubFlowEventName = TEXT("Iteration.SubFlow");
 };
 
 

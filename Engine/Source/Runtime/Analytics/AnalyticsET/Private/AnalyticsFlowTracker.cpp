@@ -51,100 +51,100 @@ FGuid FAnalyticsFlowTracker::StartFlow(const FName& NewFlowName)
 	return NewFlowGuid;
 }
 
-FGuid FAnalyticsFlowTracker::StartFlowStep(const FName& NewFlowStepName)
+FGuid FAnalyticsFlowTracker::StartSubFlow(const FName& NewSubFlowName)
 {
 	FScopeLock ScopeLock(&CriticalSection);
 	
 	if (FlowDataStack.Num()>0)
 	{
-		return StartFlowStepInternal(NewFlowStepName, FlowDataStack.Last(0));
+		return StartSubFlowInternal(NewSubFlowName, FlowDataStack.Last(0));
 	}
 
 	return FGuid();
 }
 
-FGuid FAnalyticsFlowTracker::StartFlowStep(const FName& NewFlowStepName, const FGuid& FlowGuid)
+FGuid FAnalyticsFlowTracker::StartSubFlow(const FName& NewSubFlowName, const FGuid& FlowGuid)
 {
 	FScopeLock ScopeLock(&CriticalSection);
-	return StartFlowStepInternal(NewFlowStepName, FlowGuid);
+	return StartSubFlowInternal(NewSubFlowName, FlowGuid);
 }
 
-FGuid FAnalyticsFlowTracker::StartFlowStepInternal(const FName& NewFlowStepName, const FGuid& FlowGuid)
+FGuid FAnalyticsFlowTracker::StartSubFlowInternal(const FName& NewSubFlowName, const FGuid& FlowGuid)
 {
 	FFlowData* FlowData = FlowDataRegistry.Find(FlowGuid);
 
-	if (ensureMsgf(FlowData, TEXT("FlowStep started outside of a valid flow scope")))
+	if (ensureMsgf(FlowData, TEXT("SubFlow started outside of a valid flow scope")))
 	{
-		TRACE_BOOKMARK(TEXT("STARTFLOWSTEP: %s"), *NewFlowStepName.ToString());
+		TRACE_BOOKMARK(TEXT("STARTSUBFLOW: %s"), *NewSubFlowName.ToString());
 
-		// Create a new Guid for this FlowStep, can we assume it is unique?
-		FGuid NewFlowStepGuid = FGuid::NewGuid();
-		ensureMsgf(FlowStepDataRegistry.Find(NewFlowStepGuid) == nullptr, TEXT("Could not generate a unique FlowStep guid."));
-
-		// Register the name and guid pair
-		FlowStepGuidRegistry.Add(NewFlowStepName, NewFlowStepGuid);
-
-		FFlowStepData NewFlowStep;
-
-		NewFlowStep.FlowStepGuid = NewFlowStepGuid;
-		NewFlowStep.FlowStepName = NewFlowStepName;
-		NewFlowStep.StartTime = FDateTime::UtcNow();
-		NewFlowStep.EndTime = 0;
-		NewFlowStep.ScopeDepth = FlowData->FlowStepDataStack.Num();
-
-		// Add FlowStep to Flow
-		NewFlowStep.FlowGuid = FlowData->FlowGuid;
-		NewFlowStep.FlowName = FlowData->FlowName;
-		FlowData->FlowStepDataArray.Add(NewFlowStepGuid);
-		FlowData->FlowStepDataStack.Add(NewFlowStepGuid);
+		// Create a new Guid for this SubFlow, can we assume it is unique?
+		FGuid NewSubFlowGuid = FGuid::NewGuid();
+		ensureMsgf(SubFlowDataRegistry.Find(NewSubFlowGuid) == nullptr, TEXT("Could not generate a unique SubFlow guid."));
 
 		// Register the name and guid pair
-		FlowStepGuidRegistry.Add(NewFlowStepName, NewFlowStepGuid);
-		FlowStepDataRegistry.Add(NewFlowStepGuid, NewFlowStep);
+		SubFlowGuidRegistry.Add(NewSubFlowName, NewSubFlowGuid);
 
-		return NewFlowStepGuid;
+		FSubFlowData NewSubFlow;
+
+		NewSubFlow.SubFlowGuid = NewSubFlowGuid;
+		NewSubFlow.SubFlowName = NewSubFlowName;
+		NewSubFlow.StartTime = FDateTime::UtcNow();
+		NewSubFlow.EndTime = 0;
+		NewSubFlow.ScopeDepth = FlowData->SubFlowDataStack.Num();
+
+		// Add SubFlow to Flow
+		NewSubFlow.FlowGuid = FlowData->FlowGuid;
+		NewSubFlow.FlowName = FlowData->FlowName;
+		FlowData->SubFlowDataArray.Add(NewSubFlowGuid);
+		FlowData->SubFlowDataStack.Add(NewSubFlowGuid);
+
+		// Register the name and guid pair
+		SubFlowGuidRegistry.Add(NewSubFlowName, NewSubFlowGuid);
+		SubFlowDataRegistry.Add(NewSubFlowGuid, NewSubFlow);
+
+		return NewSubFlowGuid;
 	}
 
 	return FGuid();
 }
 
-void FAnalyticsFlowTracker::EndFlowStepInternal(const FGuid& FlowStepGuid, bool bSuccess, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes)
+void FAnalyticsFlowTracker::EndSubFlowInternal(const FGuid& SubFlowGuid, bool bSuccess, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes)
 {
-	if (FlowStepGuid.IsValid() == false)
+	if (SubFlowGuid.IsValid() == false)
 		return;
 
-	FFlowStepData* FlowStepData = FlowStepDataRegistry.Find(FlowStepGuid);
+	FSubFlowData* SubFlowData = SubFlowDataRegistry.Find(SubFlowGuid);
 
-	if (ensureMsgf(FlowStepData, TEXT("FlowStep does not exist.")))
+	if (ensureMsgf(SubFlowData, TEXT("SubFlow does not exist.")))
 	{
-		const FGuid FlowGuid = FlowStepData->FlowGuid;
+		const FGuid FlowGuid = SubFlowData->FlowGuid;
 
-		if (FlowStepData->TimeInSeconds == 0)
+		if (SubFlowData->TimeInSeconds == 0)
 		{
 			// Don't record again if it has already ended
-			FlowStepData->EndTime = FDateTime::UtcNow();
-			FlowStepData->bSuccess = bSuccess;
+			SubFlowData->EndTime = FDateTime::UtcNow();
+			SubFlowData->bSuccess = bSuccess;
 
-			TRACE_BOOKMARK(TEXT("ENDFLOWSTEP: %s"), *FlowStepData->FlowStepName.ToString());
+			TRACE_BOOKMARK(TEXT("ENDSUBFLOW: %s"), *SubFlowData->SubFlowName.ToString());
 
-			const FTimespan TimeTaken = FlowStepData->EndTime - FlowStepData->StartTime;
-			FlowStepData->TimeInSeconds = TimeTaken.GetTotalSeconds();
-			FlowStepData->AdditionalEventAttributes = AdditionalAttributes;
+			const FTimespan TimeTaken = SubFlowData->EndTime - SubFlowData->StartTime;
+			SubFlowData->TimeInSeconds = TimeTaken.GetTotalSeconds();
+			SubFlowData->AdditionalEventAttributes = AdditionalAttributes;
 
 			TArray<FAnalyticsEventAttribute> EventAttributes = AdditionalAttributes;
 
-			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("SchemaVersion"), FlowStepSchemaVersion));
-			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FlowStepGUID"), *FlowStepData->FlowStepGuid.ToString()));
-			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FlowStepName"), *FlowStepData->FlowStepName.ToString()));
-			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FlowGUID"), FlowStepData->FlowGuid.ToString()));
-			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FlowName"), *FlowStepData->FlowName.ToString()));
-			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("StartUTC"), FlowStepData->StartTime.ToUnixTimestampDecimal()));
-			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("TimeInSec"), FlowStepData->TimeInSeconds));
-			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Success"), FlowStepData->bSuccess));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("SchemaVersion"), SubFlowSchemaVersion));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("SubFlowGUID"), *SubFlowData->SubFlowGuid.ToString()));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("SubFlowName"), *SubFlowData->SubFlowName.ToString()));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FlowGUID"), SubFlowData->FlowGuid.ToString()));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FlowName"), *SubFlowData->FlowName.ToString()));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("StartUTC"), SubFlowData->StartTime.ToUnixTimestampDecimal()));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("TimeInSec"), SubFlowData->TimeInSeconds));
+			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Success"), SubFlowData->bSuccess));
 
 			if (AnalyticsProvider.IsValid())
 			{
-				AnalyticsProvider->RecordEvent(FlowStepEventName, EventAttributes);
+				AnalyticsProvider->RecordEvent(SubFlowEventName, EventAttributes);
 			}
 
 			FFlowData* FlowData = FlowDataRegistry.Find(FlowGuid);
@@ -152,12 +152,12 @@ void FAnalyticsFlowTracker::EndFlowStepInternal(const FGuid& FlowStepGuid, bool 
 			if (ensureMsgf(FlowData, TEXT("A sub flow does not belong to a valid flow.")))
 			{
 				// Most likely it will be the ending item
-				for (int32 index = FlowData->FlowStepDataStack.Num() - 1; index >= 0; index--)
+				for (int32 index = FlowData->SubFlowDataStack.Num() - 1; index >= 0; index--)
 				{
-					if (FlowData->FlowStepDataStack[index] == FlowStepGuid)
+					if (FlowData->SubFlowDataStack[index] == SubFlowGuid)
 					{
 						// Remove the sub flow from the stack
-						FlowData->FlowStepDataStack.RemoveAt(index);
+						FlowData->SubFlowDataStack.RemoveAt(index);
 						break;
 					}
 				}
@@ -166,22 +166,22 @@ void FAnalyticsFlowTracker::EndFlowStepInternal(const FGuid& FlowStepGuid, bool 
 	}
 }
 
-void FAnalyticsFlowTracker::EndFlowStep(const FGuid& FlowStepGuid, bool bSuccess, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes)
+void FAnalyticsFlowTracker::EndSubFlow(const FGuid& SubFlowGuid, bool bSuccess, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes)
 {
 	FScopeLock ScopeLock(&CriticalSection);
-	if (FlowStepGuid.IsValid())
+	if (SubFlowGuid.IsValid())
 	{
-		EndFlowStepInternal(FlowStepGuid, bSuccess, AdditionalAttributes);
+		EndSubFlowInternal(SubFlowGuid, bSuccess, AdditionalAttributes);
 	}
 }
 
-void FAnalyticsFlowTracker::EndFlowStep(const FName& FlowStepName, bool bSuccess, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes)
+void FAnalyticsFlowTracker::EndSubFlow(const FName& SubFlowName, bool bSuccess, const TArray<FAnalyticsEventAttribute>& AdditionalAttributes)
 {
 	FScopeLock ScopeLock(&CriticalSection);
-	FGuid* FlowStepGuid = FlowGuidRegistry.Find(FlowStepName);
-	if (FlowStepGuid)
+	FGuid* SubFlowGuid = FlowGuidRegistry.Find(SubFlowName);
+	if (SubFlowGuid)
 	{
-		EndFlowStepInternal(*FlowStepGuid, bSuccess, AdditionalAttributes);
+		EndSubFlowInternal(*SubFlowGuid, bSuccess, AdditionalAttributes);
 	}
 }
 
@@ -262,19 +262,19 @@ void FAnalyticsFlowTracker::EndFlowInternal(const FGuid& FlowGuid, bool bSuccess
 
 		double TotalTimeInSeconds = 0;
 
-		for (FGuid FlowStepGuid : FlowData->FlowStepDataArray)
+		for (FGuid SubFlowGuid : FlowData->SubFlowDataArray)
 		{
-			EndFlowStepInternal(FlowStepGuid);
+			EndSubFlowInternal(SubFlowGuid);
 
-			FFlowStepData* FlowStepData = FlowStepDataRegistry.Find(FlowStepGuid);
+			FSubFlowData* SubFlowData = SubFlowDataRegistry.Find(SubFlowGuid);
 
-			if (ensureMsgf(FlowStepData, TEXT("FlowStep does not exist.")))
+			if (ensureMsgf(SubFlowData, TEXT("SubFlow does not exist.")))
 			{
 				// Aggregate the additional attributes from the sub flows
-				AggregateAttributes(EventAttributes, FlowStepData->AdditionalEventAttributes);
+				AggregateAttributes(EventAttributes, SubFlowData->AdditionalEventAttributes);
 
-				TotalTimeInSeconds += FlowStepData->TimeInSeconds;
-				EventAttributes.Add(FAnalyticsEventAttribute(FlowStepData->FlowStepName.ToString(), FlowStepData->TimeInSeconds));
+				TotalTimeInSeconds += SubFlowData->TimeInSeconds;
+				EventAttributes.Add(FAnalyticsEventAttribute(SubFlowData->SubFlowName.ToString(), SubFlowData->TimeInSeconds));
 			}
 		}
 
@@ -286,15 +286,15 @@ void FAnalyticsFlowTracker::EndFlowInternal(const FGuid& FlowGuid, bool bSuccess
 		}
 
 		// Clear up our data
-		for (FGuid FlowStepGuid : FlowData->FlowStepDataArray)
+		for (FGuid SubFlowGuid : FlowData->SubFlowDataArray)
 		{
-			FFlowStepData* FlowStepData = FlowStepDataRegistry.Find(FlowStepGuid);
+			FSubFlowData* SubFlowData = SubFlowDataRegistry.Find(SubFlowGuid);
 
-			if (ensureMsgf(FlowStepData, TEXT("FlowStep does not exist.")))
+			if (ensureMsgf(SubFlowData, TEXT("SubFlow does not exist.")))
 			{
-				// Remove the FlowStep and guid from the registry
-				FlowStepDataRegistry.Remove(FlowStepGuid);
-				FlowStepGuidRegistry.Remove(FlowStepData->FlowStepName);
+				// Remove the SubFlow and guid from the registry
+				SubFlowDataRegistry.Remove(SubFlowGuid);
+				SubFlowGuidRegistry.Remove(SubFlowData->SubFlowName);
 			}
 		}
 
