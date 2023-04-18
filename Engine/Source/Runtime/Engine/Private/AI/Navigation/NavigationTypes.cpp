@@ -88,7 +88,6 @@ uint32 FNavPathType::NextUniqueId = 0;
 //----------------------------------------------------------------------//
 // FNavDataConfig
 //----------------------------------------------------------------------//
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FNavDataConfig::FNavDataConfig(float Radius, float Height)
 	: FNavAgentProperties(Radius, Height)
 	, Name(TEXT("Default"))
@@ -98,15 +97,8 @@ FNavDataConfig::FNavDataConfig(float Radius, float Height)
 {
 }
 
-FNavDataConfig::FNavDataConfig(const FNavDataConfig& Other)
-	: FNavAgentProperties(Other)
-	, Name(Other.Name)
-	, Color(Other.Color)
-	, DefaultQueryExtent(Other.DefaultQueryExtent)
-	, NavDataClass(Other.NavDataClass)
-{
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+FNavDataConfig::FNavDataConfig(const FNavDataConfig& Other) = default;
+FNavDataConfig& FNavDataConfig::operator=(const FNavDataConfig& Other) = default;
 
 void FNavDataConfig::SetNavDataClass(UClass* InNavDataClass)
 {
@@ -313,16 +305,8 @@ void FNavHeightfieldSamples::Empty()
 //----------------------------------------------------------------------//
 const FNavAgentProperties FNavAgentProperties::DefaultProperties;
 
-FNavAgentProperties::FNavAgentProperties(const FNavAgentProperties& Other)
-	: Super(Other)
-	, AgentRadius(Other.AgentRadius)
-	, AgentHeight(Other.AgentHeight)
-	, AgentStepHeight(Other.AgentStepHeight)
-	, NavWalkingSearchHeightScale(Other.NavWalkingSearchHeightScale)
-	, PreferredNavData(Other.PreferredNavData)
-{
-
-}
+FNavAgentProperties::FNavAgentProperties(const FNavAgentProperties& Other) = default;
+FNavAgentProperties& FNavAgentProperties::operator=(const FNavAgentProperties& Other) = default;
 
 void FNavAgentProperties::UpdateWithCollisionComponent(UShapeComponent* CollisionComponent)
 {

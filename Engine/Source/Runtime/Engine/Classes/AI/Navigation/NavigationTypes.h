@@ -316,7 +316,6 @@ struct FMovementProperties
 		, bCanFly(false)
 	{
 	}
-	FMovementProperties(const FMovementProperties& Other) = default;
 };
 
 /** Properties of representation of an 'agent' (or Pawn) used by AI navigation/pathfinding. */
@@ -348,7 +347,9 @@ struct ENGINE_API FNavAgentProperties : public FMovementProperties
 	FNavAgentProperties(float Radius = -1.f, float Height = -1.f)
 		: AgentRadius(Radius), AgentHeight(Height), AgentStepHeight(-1), NavWalkingSearchHeightScale(0.5f)
 	{}
+
 	FNavAgentProperties(const FNavAgentProperties& Other);
+	FNavAgentProperties& operator=(const FNavAgentProperties& Other);
 
 	void UpdateWithCollisionComponent(class UShapeComponent* CollisionComponent);
 
@@ -414,7 +415,9 @@ protected:
 
 public:	
 	FNavDataConfig(float Radius = FNavigationSystem::FallbackAgentRadius, float Height = FNavigationSystem::FallbackAgentHeight);
+
 	FNavDataConfig(const FNavDataConfig& Other);
+	FNavDataConfig& operator=(const FNavDataConfig& Other);
 
 	bool IsValid() const 
 	{
