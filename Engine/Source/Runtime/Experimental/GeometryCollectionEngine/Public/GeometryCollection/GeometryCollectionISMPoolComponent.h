@@ -10,8 +10,8 @@
 #include "GeometryCollectionISMPoolComponent.generated.h"
 
 class AActor;
-class UInstancedStaticMeshComponent;
 class UGeometryCollectionISMPoolComponent;
+class UInstancedStaticMeshComponent;
 
 /** 
  * Structure containing a set of allocated instance ranges in an FGeometryCollectionISM which is the manager for a single ISM component.
@@ -236,6 +236,7 @@ struct FGeometryCollectionISMPool
 {
 	using FISMIndex = int32;
 
+	FISMIndex AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance);
 	FGeometryCollectionMeshInfo AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats);
 	bool BatchUpdateInstancesTransforms(FGeometryCollectionMeshInfo& MeshInfo, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport);
 	void RemoveISM(const FGeometryCollectionMeshInfo& MeshInfo);
@@ -244,7 +245,6 @@ struct FGeometryCollectionISMPool
 	void Clear();
 
 	TMap<FGeometryCollectionStaticMeshInstance, FISMIndex> MeshToISMIndex;
-	TMap<UInstancedStaticMeshComponent*, FISMIndex> ISMComponentToISMIndex;
 	TArray<FGeometryCollectionISM> ISMs;
 	TArray<int32> FreeList;
 };
@@ -277,11 +277,17 @@ public:
 	/** destroy  a mesh group and its associated resources */
 	void DestroyMeshGroup(FMeshGroupId MeshGroupId);
 
-	/** Add a static mesh for a nmesh group */
+	/** Add a static mesh for a mesh group */
 	FMeshId AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats);
 
 	/** Add a static mesh for a mesh group */
 	bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
+
+	/** 
+	 * Preallocate an ISM in the pool. 
+	 * Doing this early for known mesh instance descriptions can reduce the component registration cost of AddMeshToGroup() for newly discovered mesh descriptions.
+	 */
+	void PreallocateMeshInstance(const FGeometryCollectionStaticMeshInstance& MeshInstance);
 
 private:
 	uint32 NextMeshGroupId = 0;
