@@ -4,14 +4,14 @@
 
 #include "Misc/FrameNumber.h"
 #include "Templates/SharedPointer.h"
-#include "BakingAnimationKeySettings.h"
 
-class UMovieSceneSection;
+class IMovieSceneConstrainedSection;
 class UTransformableHandle;
 class UTickableTransformConstraint;
 class ISequencer;
 class UWorld;
 struct FFrameNumber;
+
 struct FConstraintBaker
 {
 public:
@@ -20,15 +20,7 @@ public:
 		UWorld* InWorld,
 		UTickableTransformConstraint* InConstraint,
 		const TSharedPtr<ISequencer>& InSequencer,
-		const TOptional< FBakingAnimationKeySettings>& InSettings,
 		const TOptional<TArray<FFrameNumber>>& InFrames);
-	
-	/** Bake Multiple Constraints using settings*/
-	static bool BakeMultiple(
-		UWorld* InWorld,
-		TArray< UTickableTransformConstraint*>& InConstraints,
-		const TSharedPtr<ISequencer>& InSequencer,
-		const FBakingAnimationKeySettings& Settings);
 	
 private:
 
@@ -37,8 +29,7 @@ private:
 		UWorld* InWorld,
 		const UTickableTransformConstraint* InConstraint,
 		const TSharedPtr<ISequencer>& InSequencer,
-		UMovieSceneSection* InSection,
-		const TOptional< FBakingAnimationKeySettings>& Settings,
+		IMovieSceneConstrainedSection* InSection,
 		TArray<FFrameNumber>& OutFramesToBake);
 };
 

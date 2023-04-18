@@ -23,7 +23,6 @@ class ULevelSequence;
 class UTickableConstraint;
 class UTickableTransformConstraint;
 class UTransformableHandle;
-struct FBakingAnimationKeySettings;
 
 USTRUCT(BlueprintType)
 struct FControlRigSequencerBindingProxy
@@ -143,22 +142,13 @@ public:
 	* Bake the constraint to keys based on the passed in frames. This will use the open sequencer to bake. See ConstraintsScriptingLibrary to get the list of available constraints
 	* @param World The active world
 	* @param Constraint The Constraint to bake. After baking it will be keyed to be inactive of the range of frames that are baked
-	* @param Frames The frames to bake, if the array is empty it will use the active time ranges of the constraint to determine where it should bake
+	* @param Frames The frames to bake, if the array is empty it will use the active time ranges of the constraint to deteremine where it should bake
 	* @param TimeUnit Unit for all frame and time values, either in display rate or tick resolution
 	* @return Returns True if successful, False otherwise
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static bool BakeConstraint(UWorld* World, UTickableConstraint* Constraint, const TArray<FFrameNumber>& Frames, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
 
-	/**
-	* Bake the constraint to keys based on the passed in settings. This will use the open sequencer to bake. See ConstraintsScriptingLibrary to get the list of available constraints
-	* @param World The active world
-	* @param InConstraints The Constraints tobake.  After baking they will be keyed to be inactive of the range of frames that are baked
-	* @param InSettings Settings to use for baking
-	* @return Returns True if successful, False otherwise
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	static bool BakeConstraints(UWorld* World, TArray<UTickableConstraint*>& InConstraints,const FBakingAnimationKeySettings& InSettings);
 	/**
 	* Add a constraint possibly adding to sequencer also if one is open.
 	* @param World The active world
@@ -935,16 +925,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static bool CollapseControlRigAnimLayers(ULevelSequence* InSequence,UMovieSceneControlRigParameterTrack* InTrack, bool bKeyReduce = false, float Tolerance = 0.001f);
-
-	/*
-	 * Collapse and bake all sections and layers on a control rig track to just one section using passed in settings.
-	 *
-	 * @param InSequence Sequence that has track to collapse
-	 * @param InTrack Track for layers to collapse
-	 * @param InSettings Settings that determine how to collapse
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	static bool CollapseControlRigAnimLayersWithSettings(ULevelSequence* InSequence, UMovieSceneControlRigParameterTrack* InTrack, const FBakingAnimationKeySettings& InSettings);
 
 	/*
 	 * Get the default parent key, can be used a parent space.

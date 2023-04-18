@@ -18,7 +18,6 @@
 #include "MovieSceneSpawnableAnnotation.h"
 #include "Sections/MovieSceneConstrainedSection.h"
 #include "MovieSceneToolsModule.h"
-#include "Channels/MovieSceneChannelTraits.h"
 #include "Constraints/TransformConstraintChannelInterface.h"
 
 
@@ -1003,104 +1002,6 @@ void FMovieSceneConstraintChannelHelper::CompensateIfNeeded(
 		InSequencer->ForceEvaluate();
 	}
 }
-FConstraintSections FMovieSceneConstraintChannelHelper::GetConstraintSectionAndChannel(
-	const UTickableTransformConstraint* InConstraint,
-	const TSharedPtr<ISequencer>& InSequencer)
-{
-	FConstraintSections ReturnValue;
-
-	if (InSequencer.IsValid() == false)
-	{
-		return ReturnValue;
-	}
-	const TObjectPtr<UTransformableHandle>& ChildHandle = InConstraint->ChildTRSHandle;
-
-	const FConstraintChannelInterfaceRegistry& InterfaceRegistry = FConstraintChannelInterfaceRegistry::Get();
-	ReturnValue.Interface = InterfaceRegistry.FindConstraintChannelInterface(ChildHandle->GetClass());
-	if (!ReturnValue.Interface)
-	{
-		return ReturnValue;
-	}
-	//get the section to be used later to delete the extra transform keys at the frame -1 times, abort if not there for some reason
-	ReturnValue.ConstraintSection = ReturnValue.Interface->GetHandleConstraintSection(ChildHandle, InSequencer);
-	ReturnValue.ChildTransformSection = ReturnValue.Interface->GetHandleSection(ChildHandle, InSequencer);
-
-	ITransformConstraintChannelInterface* ParentInterface = InterfaceRegistry.FindConstraintChannelInterface(InConstraint->ParentTRSHandle->GetClass());
-	if (ParentInterface)
-	{
-		ReturnValue.ParentTransformSection = ParentInterface->GetHandleSection(InConstraint->ParentTRSHandle, InSequencer);
-	}
-	IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(ReturnValue.ConstraintSection);
-	if (ConstrainedSection == nullptr )
-	{
-		return ReturnValue;
-	}
-
-	ReturnValue.ActiveChannel = ConstrainedSection->GetConstraintChannel(InConstraint->GetFName());
-	return ReturnValue;
-}
-
- void FMovieSceneConstraintChannelHelper::GetTransformFramesForConstraintHandles(
-	const UTickableTransformConstraint* InConstraint,
-	const TSharedPtr<ISequencer>& InSequencer,
-	const FFrameNumber& StartFrame,
-	const FFrameNumber& EndFrame,
-	TArray<FFrameNumber>& OutFramesToBake)
-{
-	if (!InConstraint && !InConstraint->ChildTRSHandle && !InConstraint->ParentTRSHandle)
-	{
-		return;
-	}
-
-	FConstraintSections ConstraintSections = FMovieSceneConstraintChannelHelper::GetConstraintSectionAndChannel(
-		InConstraint, InSequencer);
-	if (ConstraintSections.ChildTransformSection)
-	{
-		const TArrayView<FMovieSceneFloatChannel*> FloatTransformChannels = InConstraint->ChildTRSHandle->GetFloatChannels(ConstraintSections.ChildTransformSection);
-		TArray<FFrameNumber> TransformFrameTimes = FMovieSceneConstraintChannelHelper::GetTransformTimes(
-			FloatTransformChannels, StartFrame, EndFrame);
-		//add transforms keys to bake
-		{
-			for (FFrameNumber& Frame : TransformFrameTimes)
-			{
-				OutFramesToBake.Add(Frame);
-			}
-		}
-		const TArrayView<FMovieSceneDoubleChannel*> DoubleTransformChannels = InConstraint->ChildTRSHandle->GetDoubleChannels(ConstraintSections.ChildTransformSection);
-		TransformFrameTimes = FMovieSceneConstraintChannelHelper::GetTransformTimes(
-			DoubleTransformChannels, StartFrame, EndFrame);
-		//add transforms keys to bake
-		{
-			for (FFrameNumber& Frame : TransformFrameTimes)
-			{
-				OutFramesToBake.Add(Frame);
-			}
-		}
-	}
-	if (ConstraintSections.ParentTransformSection)
-	{
-		const TArrayView<FMovieSceneFloatChannel*> FloatTransformChannels = InConstraint->ParentTRSHandle->GetFloatChannels(ConstraintSections.ParentTransformSection);
-		TArray<FFrameNumber> TransformFrameTimes = FMovieSceneConstraintChannelHelper::GetTransformTimes(
-			FloatTransformChannels, StartFrame, EndFrame);
-		//add transforms keys to bake
-		{
-			for (FFrameNumber& Frame : TransformFrameTimes)
-			{
-				OutFramesToBake.Add(Frame);
-			}
-		}
-		const TArrayView<FMovieSceneDoubleChannel*> DoubleTransformChannels = InConstraint->ParentTRSHandle->GetDoubleChannels(ConstraintSections.ParentTransformSection);
-		TransformFrameTimes = FMovieSceneConstraintChannelHelper::GetTransformTimes(
-			DoubleTransformChannels, StartFrame, EndFrame);
-		//add transforms keys to bake
-		{
-			for (FFrameNumber& Frame : TransformFrameTimes)
-			{
-				OutFramesToBake.Add(Frame);
-			}
-		}
-	}
-}
 
 ITransformConstraintChannelInterface* FMovieSceneConstraintChannelHelper::GetHandleInterface(const UTransformableHandle* InHandle)
 {
@@ -1112,7 +1013,6 @@ ITransformConstraintChannelInterface* FMovieSceneConstraintChannelHelper::GetHan
 	const FConstraintChannelInterfaceRegistry& InterfaceRegistry = FConstraintChannelInterfaceRegistry::Get();	
 	return InterfaceRegistry.FindConstraintChannelInterface(InHandle->GetClass());
 }
-
 
 void FMovieSceneConstraintChannelHelper::CreateBindingIDForHandle(const TSharedPtr<ISequencer>& InSequencer, UTransformableHandle* InHandle)
 {

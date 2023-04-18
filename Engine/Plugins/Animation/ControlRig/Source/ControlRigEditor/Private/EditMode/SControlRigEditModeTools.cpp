@@ -42,8 +42,6 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigEditModeTools"
 
-//statics to reuse in the UI
-FRigSpacePickerBakeSettings SControlRigEditModeTools::BakeSpaceSettings;
 
 void SControlRigEditModeTools::SetControlRigs(const TArrayView<TWeakObjectPtr<UControlRig>>& InControlRigs)
 {
@@ -403,7 +401,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 					}
 				})
 			]
-			
+
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -923,6 +921,7 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 		if (ControlRig.IsValid() && SpacePickerWidget->GetHierarchy() == ControlRig->GetHierarchy())
 		{
 
+			FRigSpacePickerBakeSettings Settings;
 			//Find default target space, just use first control and find space at current sequencer time
 			//Then Find range
 
@@ -939,24 +938,42 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 				FFrameNumber CurrentTime = FrameTime.GetFrame();
 				FMovieSceneControlRigSpaceBaseKey Value;
 				using namespace UE::MovieScene;
-				//set up settings if not setup
-				if (BakeSpaceSettings.TargetSpace == FRigElementKey())
+				Settings.TargetSpace = URigHierarchy::GetDefaultParentKey();
+
+				TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
+				TArray<FFrameNumber> Keys;
+				TArray < FKeyHandle> KeyHandles;
+
+				Settings.StartFrame = Range.GetLowerBoundValue();
+				Settings.EndFrame = Range.GetUpperBoundValue();
+				if (Keys.Num() > 0)
 				{
-					BakeSpaceSettings.TargetSpace = URigHierarchy::GetDefaultParentKey();
-					TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
-					BakeSpaceSettings.Settings.StartFrame = Range.GetLowerBoundValue();
-					BakeSpaceSettings.Settings.EndFrame = Range.GetUpperBoundValue();
+					int32 Index = Algo::LowerBound(Keys, CurrentTime);
+					if (Index >= 0 && Index < (Keys.Num() - 1))
+					{
+						Settings.StartFrame = Keys[Index];
+						Settings.EndFrame = Keys[Index + 1];
+
+					}
 				}
 
 				TSharedRef<SRigSpacePickerBakeWidget> BakeWidget =
 					SNew(SRigSpacePickerBakeWidget)
-					.Settings(BakeSpaceSettings)
+					.Settings(Settings)
 					.Hierarchy(SpacePickerWidget->GetHierarchy())
 					.Controls(ControlKeys) // use the cached controls here since the selection is not recovered until next tick.
 					.Sequencer(Sequencer)
 					.GetControlCustomization(this, &SControlRigEditModeTools::HandleGetControlElementCustomization)
-					.OnBake_Lambda([Sequencer, ControlRig, TickResolution](URigHierarchy* InHierarchy, TArray<FRigElementKey> InControls, FRigSpacePickerBakeSettings& InSettings)
-						{		
+					.OnBake_Lambda([Sequencer, ControlRig, TickResolution](URigHierarchy* InHierarchy, TArray<FRigElementKey> InControls, FRigSpacePickerBakeSettings InSettings)
+						{
+							TArray<FFrameNumber> Frames;
+
+							const FFrameRate& FrameRate = Sequencer->GetFocusedDisplayRate();
+							FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
+							for (FFrameNumber& Frame = InSettings.StartFrame; Frame <= InSettings.EndFrame; Frame += FrameRateInFrameNumber)
+							{
+								Frames.Add(Frame);
+							}
 							FScopedTransaction Transaction(LOCTEXT("BakeControlToSpace", "Bake Control In Space"));
 							for (const FRigElementKey& ControlKey : InControls)
 							{
@@ -965,9 +982,8 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 								if (SpaceChannelAndSection.SpaceChannel)
 								{
 									FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig.Get(), Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
-										InHierarchy, ControlKey, InSettings);
+										Frames, InHierarchy, ControlKey, InSettings);
 								}
-								SControlRigEditModeTools::BakeSpaceSettings = InSettings;
 							}
 							return FReply::Handled();
 						});

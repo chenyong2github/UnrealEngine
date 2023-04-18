@@ -16,7 +16,6 @@ class UTickableParentConstraint;
 class UTransformableHandle;
 struct FMovieSceneConstraintChannel;
 struct FFrameNumber;
-struct FConstraintAndActiveChannel;
 
 
 struct MOVIESCENETOOLS_API FCompensationEvaluator
@@ -42,14 +41,6 @@ private:
 	UTransformableHandle* Handle = nullptr;
 };
 
-struct MOVIESCENETOOLS_API FConstraintSections
-{
-	UMovieSceneSection* ConstraintSection = nullptr;
-	UMovieSceneSection* ChildTransformSection = nullptr;
-	UMovieSceneSection* ParentTransformSection = nullptr;
-	FConstraintAndActiveChannel* ActiveChannel = nullptr;
-	ITransformConstraintChannelInterface* Interface = nullptr;
-};
 struct MOVIESCENETOOLS_API FMovieSceneConstraintChannelHelper
 {
 public:
@@ -92,20 +83,6 @@ public:
 		const FMovieSceneConstraintChannel* InConstraintChannel,
 		UMovieSceneSection* InSection,
 		const FFrameNumber& InCurrentFrame, const FFrameNumber& InNextFrame);
-
-	/* Get the section and the channel for the given constraint, will be nullptr's if it doesn't exist in Sequencer*/
-	static FConstraintSections  GetConstraintSectionAndChannel(
-		const UTickableTransformConstraint* InConstraint,
-		const TSharedPtr<ISequencer>& InSequencer);
-
-	/* For the given constraint get all of the transform keys for it's child and parent handles*/
-	static void GetTransformFramesForConstraintHandles(
-		const UTickableTransformConstraint* InConstraint,
-		const TSharedPtr<ISequencer>& InSequencer,
-		const FFrameNumber& StartFrame,
-		const FFrameNumber& EndFrame,
-		TArray<FFrameNumber>& OutFramesToBake);
-
 
 	/** @todo documentation. */
 	template<typename ChannelType>
@@ -150,25 +127,6 @@ public:
 		const FPropertyChangedEvent& InPropertyChangedEvent,
 		const TSharedPtr<ISequencer>& InSequencer,
 		UMovieSceneSection* InSection);
-
-	template< typename ChannelType >
-	static TArray<FFrameNumber> GetTransformTimes(
-		const TArrayView<ChannelType*>& InChannels,
-		const FFrameNumber& StartTime, 
-		const FFrameNumber& EndTime);
-
-	template< typename ChannelType >
-	static  void DeleteTransformTimes(
-		const TArrayView<ChannelType*>& InChannels,
-		const FFrameNumber& StartTime,
-		const FFrameNumber& EndTime);
-
-	/** this will only set the value son channels with keys at the specified time, reusing tangent time etc. */
-	template< typename ChannelType >
-	static void SetTransformTimes(
-		const TArrayView<ChannelType*>& InChannels,
-		const TArray<FFrameNumber>& Frames,
-		const TArray<FTransform>& Transforms);
 
 	static bool bDoNotCompensate;
 

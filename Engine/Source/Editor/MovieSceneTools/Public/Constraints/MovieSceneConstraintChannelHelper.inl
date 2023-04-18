@@ -9,7 +9,6 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneSection.h"
 #include "Algo/Unique.h"
-#include "Containers/SortedMap.h"
 
 template<typename ChannelType>
 void FMovieSceneConstraintChannelHelper::GetFramesToCompensate(
@@ -258,82 +257,6 @@ void FMovieSceneConstraintChannelHelper::DeleteTransformKeys(
 		if (Times.IsValidIndex(KeyIndex) && Times[KeyIndex] == InTime)
 		{
 			Data.RemoveKey(KeyIndex);
-		}
-	}
-}
-
-template< typename ChannelType >
-TArray<FFrameNumber> FMovieSceneConstraintChannelHelper::GetTransformTimes(
-	const TArrayView<ChannelType*>& InChannels,
-	const FFrameNumber& StartTime,
-	const FFrameNumber& EndTime)
-{
-	TSortedMap<FFrameNumber, FFrameNumber> FrameSet;
-	TRange<FFrameNumber> WithinRange(0, 0);
-	WithinRange.SetLowerBoundValue(StartTime);
-	WithinRange.SetUpperBoundValue(EndTime);
-	TArray<FFrameNumber> KeyTimes;
-	TArray<FKeyHandle> KeyHandles;
-	for (ChannelType* Channel : InChannels)
-	{
-		TMovieSceneChannelData<typename ChannelType::ChannelValueType> Data = Channel->GetData();
-		KeyTimes.SetNum(0);
-		KeyHandles.SetNum(0);
-		Data.GetKeys(WithinRange, &KeyTimes,&KeyHandles);
-		for (const FFrameNumber& FrameNumber : KeyTimes)
-		{
-			FrameSet.Add(FrameNumber,FrameNumber);
-		}
-	}
-	TArray<FFrameNumber> Frames;
-	FrameSet.GenerateKeyArray(Frames);
-	return Frames;
-}
-
-template< typename ChannelType >
- void FMovieSceneConstraintChannelHelper::DeleteTransformTimes(
-	 const TArrayView<ChannelType*>& InChannels,
-	 const FFrameNumber& StartTime,
-	 const FFrameNumber& EndTime)
-{
-	 TRange<FFrameNumber> WithinRange(0, 0);
-	 WithinRange.SetLowerBoundValue(StartTime);
-	 WithinRange.SetUpperBoundValue(EndTime);
-	 TArray<FFrameNumber> KeyTimes;
-	 TArray<FKeyHandle> KeyHandles;
-	 for (ChannelType* Channel : InChannels)
-	 {
-		 TMovieSceneChannelData<typename ChannelType::ChannelValueType> Data = Channel->GetData();
-		 KeyTimes.SetNum(0);
-		 KeyHandles.SetNum(0);
-		 Data.GetKeys(WithinRange, &KeyTimes, &KeyHandles);
-		 Data.DeleteKeys(KeyHandles);
-	 }
-}
-
-/** this will only set the values on channels with keys at the specified time, reusing tangents  etc. */
-template< typename ChannelType >
-void FMovieSceneConstraintChannelHelper::SetTransformTimes(
-	const TArrayView<ChannelType*>& InChannels,
-	const TArray<FFrameNumber>& Frames,
-	const TArray<FTransform>& Transforms)
-{
-	if (Frames.Num() != Transforms.Num())
-	{
-		return;
-	}
-	for (ChannelType* Channel : InChannels)
-	{
-		TMovieSceneChannelData<typename ChannelType::ChannelValueType> Data = Channel->GetData();
-		const TArrayView<const FFrameNumber> Times = Data.GetTimes();
-		for (int32 Index = 0; Index < Frames.Num(); ++Index)
-		{
-			FFrameNumber Time = Frames[0];
-			const int32 KeyIndex = Algo::LowerBound(Times, Time);
-			if (Times.IsValidIndex(KeyIndex) && Times[KeyIndex] == Time)
-			{
-				Data.GetValues()[KeyIndex] = 1.0;//todo 
-			}
 		}
 	}
 }

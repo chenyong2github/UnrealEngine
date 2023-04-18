@@ -6,14 +6,12 @@
 #include "Widgets/Views/SListView.h"
 #include "Constraint.h"
 #include "EditorUndoClient.h"
-#include "IStructureDetailsView.h"
-#include "BakingAnimationKeySettings.h"
-#include "ConstraintsManager.h"
 
 class AActor;
 class SConstraintsCreationWidget;
 class SConstraintsEditionWidget;
-class ISequencer;
+class UTickableConstraint;
+
 DECLARE_DELEGATE(FOnConstraintCreated);
 
 /**
@@ -149,36 +147,22 @@ class FEditableConstraintItem
 {
 public:
 	static TSharedRef<FEditableConstraintItem> Make(
-		UTickableConstraint* InConstraint,
-		ETransformConstraintType InType)
+		const FName& InName,
+		ETransformConstraintType InType,
+		const FString& InLabel)
 	{
-		return MakeShareable(new FEditableConstraintItem(InConstraint, InType));
+		return MakeShareable(new FEditableConstraintItem(InName, InType, InLabel));
 	}
 	
-	TWeakObjectPtr<UTickableConstraint> Constraint = nullptr;
+	FName Name = NAME_None;
 	ETransformConstraintType Type = ETransformConstraintType::Parent;
-
-	FName GetName() const
-	{
-		if (Constraint.IsValid())
-		{
-			return Constraint->GetFName();
-		}
-		return NAME_None;
-	}
-	FString GetLabel() const
-	{
-		if (Constraint.IsValid())
-		{
-			return Constraint->GetLabel();
-		}
-		return FString();
-	}
+	FString Label;
 
 private:
-	FEditableConstraintItem(UTickableConstraint* InConstraint, ETransformConstraintType InType)
-		: Constraint(InConstraint)
+	FEditableConstraintItem(const FName& InName, ETransformConstraintType InType, const FString& InLabel)
+		: Name(InName)
 		, Type(InType)
+		, Label(InLabel)
 	{}
 	FEditableConstraintItem() {}
 };
@@ -206,55 +190,10 @@ private:
 };
 
 /**
-* Constraint List Shared by Edit Widget and Bake Widget
-*/
-
-class CONTROLRIGEDITOR_API FBaseConstraintListWidget : public FEditorUndoClient
-{
-public:
-
-	virtual ~FBaseConstraintListWidget() override;
-	/* FEditorUndoClient interface */
-	virtual void PostUndo(bool bSuccess);
-	virtual void PostRedo(bool bSuccess);
-	/* End FEditorUndoClient interface */
-
-	/** Invalidates the constraint list for further rebuild. */
-	void InvalidateConstraintList();
-
-	/** Rebuild the constraint list based on the current selection. */
-	virtual int32 RefreshConstraintList();
-
-	/** Triggers a constraint list invalidation when selection in the level viewport. */
-	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
-
-protected:
-	/** Types */
-	using ItemSharedPtr = TSharedPtr<FEditableConstraintItem>;
-	using ConstraintItemListView = SListView< ItemSharedPtr >;
-
-
-	void RegisterSelectionChanged();
-	void UnregisterSelectionChanged();
-
-	/** List view that shows constraint types*/
-	TSharedPtr< ConstraintItemListView > ListView;
-
-	/** List of constraint types */
-	TArray< ItemSharedPtr > ListItems;
-
-	/** Boolean used to handle the items list refresh. */
-	bool bNeedsRefresh = false;
-
-	FDelegateHandle OnSelectionChangedHandle;
-
-};
-
-/**
  * SConstraintsEditionWidget
  */
 
-class CONTROLRIGEDITOR_API SConstraintsEditionWidget : public SCompoundWidget, public FBaseConstraintListWidget
+class CONTROLRIGEDITOR_API SConstraintsEditionWidget : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SConstraintsEditionWidget)	{}
@@ -262,9 +201,19 @@ public:
 
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs);
+	virtual ~SConstraintsEditionWidget() override;
 
 	/** Override for SWidget::Tick */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	/** Invalidates the constraint list for further rebuild. */
+	void InvalidateConstraintList();
+	
+	/** Rebuild the constraint list based on the current selection. */
+	int32 RefreshConstraintList();
+
+	/** Triggers a constraint list invalidation when selection in the level viewport. */
+	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
 
 	/**  */
 	bool CanMoveUp(const TSharedPtr<FEditableConstraintItem>& Item) const;
@@ -277,80 +226,34 @@ public:
 	/**  */
 	void RemoveItem(const TSharedPtr<FEditableConstraintItem>& Item);
 
+	/* FEditorUndoClient interface */
+	virtual void PostUndo(bool bSuccess);
+	virtual void PostRedo(bool bSuccess);
+	/* End FEditorUndoClient interface */
+
 private:
-
-	/** Generates a widget for the specified item */
-	TSharedRef<ITableRow> OnGenerateWidgetForItem(ItemSharedPtr InItem, const TSharedRef<STableViewBase>& OwnerTable);
-
 	/** Types */
 	using ItemSharedPtr = TSharedPtr<FEditableConstraintItem>;
 	using ConstraintItemListView = SListView< ItemSharedPtr >;
 
-	/** @todo documentation. */
-	TSharedPtr< SWidget > CreateContextMenu();
-	void OnItemDoubleClicked(ItemSharedPtr InItem);
-
-	FReply OnBakeClicked();
-};
-
-/** Widget allowing baking of constraints */
-class CONTROLRIGEDITOR_API SConstraintBakeWidget : public SCompoundWidget, public FBaseConstraintListWidget
-{
-public:
-
-	SLATE_BEGIN_ARGS(SConstraintBakeWidget)
-		: _Sequencer(nullptr)
-	{}
-
-	SLATE_ARGUMENT(TSharedPtr<ISequencer>, Sequencer)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs);
-	virtual ~SConstraintBakeWidget() override {}
-
-	FReply OpenDialog(bool bModal = true);
-	void CloseDialog();
-
-	//SWidget overrides
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-
-	//FBaseConstraintListWidget overrides
-	virtual int32 RefreshConstraintList() override;
-
-private:
-	void BakeSelected();
-
 	/** Generates a widget for the specified item */
 	TSharedRef<ITableRow> OnGenerateWidgetForItem(ItemSharedPtr InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
-	TSharedPtr<ISequencer> Sequencer;
-	//static to be reused
-	static TOptional<FBakingAnimationKeySettings> BakeConstraintSettings;
-	//structonscope for details panel
-	TSharedPtr < TStructOnScope<FBakingAnimationKeySettings>> Settings;
-	TWeakPtr<SWindow> DialogWindow;
-	TSharedPtr<IStructureDetailsView> DetailsView;
+	/** @todo documentation. */
+	TSharedPtr< SWidget > CreateContextMenu();
+	void OnItemDoubleClicked(ItemSharedPtr InItem);
+	
+	void RegisterSelectionChanged();
+	void UnregisterSelectionChanged();
+	
+	/** List view that shows constraint types*/
+	TSharedPtr< ConstraintItemListView > ListView;
 
-};
+	/** List of constraint types */
+	TArray< ItemSharedPtr > ListItems;
 
-/**
- * SBakeConstraintItem
- */
+	/** Boolean used to handle the items list refresh. */
+	bool bNeedsRefresh = false;
 
-class SBakeConstraintItem : public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(SBakeConstraintItem) {}
-	SLATE_END_ARGS()
-
-		/** Constructs this widget with InArgs and the actual tree item. */
-		void Construct(
-			const FArguments& InArgs,
-			const TSharedPtr<FEditableConstraintItem>& InItem,
-			TSharedPtr<SConstraintBakeWidget> InConstraintsWidget);
-
-private:
-	/** TSharedPtr to the tree item. */
-	TSharedPtr<FEditableConstraintItem> ConstraintItem;
-	TWeakPtr<SConstraintBakeWidget> ConstraintsWidget;
+	FDelegateHandle OnSelectionChangedHandle;
 };

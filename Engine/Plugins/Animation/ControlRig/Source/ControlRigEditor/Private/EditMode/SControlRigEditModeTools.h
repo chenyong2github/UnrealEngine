@@ -59,12 +59,7 @@ public:
 	virtual bool IsPropertyKeyingEnabled() const override;
 	virtual void OnKeyPropertyClicked(const IPropertyHandle& KeyedPropertyHandle) override;
 	virtual bool IsPropertyAnimated(const class IPropertyHandle& PropertyHandle, UObject *ParentObject) const override;
-
-	//reuse settings for space and constraint baking baking
-	static FRigSpacePickerBakeSettings BakeSpaceSettings;
-
 private:
-
 	/** Sequencer we are currently bound to */
 
 	TWeakPtr<ISequencer> WeakSequencer;

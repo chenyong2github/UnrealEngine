@@ -26,8 +26,6 @@
 #include "Tools/BakingHelper.h"
 #include "MovieSceneToolHelpers.h"
 #include "Styling/SlateIconFinder.h"
-#include "Widgets/Input/NumericTypeInterface.h"
-#include "FrameNumberDetailsCustomization.h"
 
 #define LOCTEXT_NAMESPACE "SConstraintsWidget"
 
@@ -111,7 +109,7 @@ TArray<AActor*> GetCurrentSelection()
 	});	
 }
 
-static TWeakPtr<ISequencer> GetSequencerChecked()
+TWeakPtr<ISequencer> GetSequencerChecked()
 {
 	const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
 	if (!WeakSequencer.IsValid() || !WeakSequencer.Pin()->GetFocusedMovieSceneSequence())
@@ -158,6 +156,7 @@ void SDroppableConstraintItem::Construct(
 	.Padding(FMargin(8.f, 2.f, 12.f, 2.f))
 	[
 		SNew(SOverlay)
+
 		+SOverlay::Slot()
 		[
 			SNew(SBorder)
@@ -454,6 +453,7 @@ TSharedRef<ITableRow> SConstraintsCreationWidget::OnGenerateWidgetForItem(
 	const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(STableRow<ItemSharedPtr>, OwnerTable)
+	.Style(&FAppStyle::Get(), "PlacementBrowser.PlaceableItemRow")
 	[
 		SNew(SDroppableConstraintItem, InItem.ToSharedRef(), SharedThis(this))
 	];
@@ -494,13 +494,7 @@ void SEditableConstraintItem::Construct(
 		}
 		
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-		UTickableConstraint* Constraint = ConstraintItem->Constraint.Get();
-		int32 Index = Controller.GetConstraintsArray().Find(Constraint);
-		if (Index == INDEX_NONE)
-		{
-			return nullptr;
-		}
-		return Constraint;
+		return Controller.GetConstraint(ConstraintItem->Name);
 	};
 	TWeakObjectPtr<UTickableConstraint> Constraint = GetConstraint();
 
@@ -509,10 +503,10 @@ void SEditableConstraintItem::Construct(
 	
 	// labels
 	FString ParentLabel(TEXT("undefined")), ChildLabel(TEXT("undefined"));
-	if (!InItem->GetLabel().IsEmpty())
+	if (!InItem->Label.IsEmpty())
 	{
-		ChildLabel = InItem->GetLabel();
-		InItem->GetLabel().Split(TEXT("."), &ParentLabel, &ChildLabel);
+		ChildLabel = InItem->Label;
+		InItem->Label.Split(TEXT("."), &ParentLabel, &ChildLabel);
 	}
 	
 	FString ParentFullLabel = ParentLabel, ChildFullLabel = ChildLabel;
@@ -720,17 +714,43 @@ void SEditableConstraintItem::Construct(
 	];
 }
 
-//////////////////////////////////////////////////////////////
-/// FBaseConstraintListWidget
-///////////////////////////////////////////////////////////
+/**
+ * SConstraintsEditionWidget
+ */
 
+void SConstraintsEditionWidget::Construct(const FArguments& InArgs)
+{
+	ChildSlot
+	[
+		SNew( SVerticalBox )
 
-FBaseConstraintListWidget::~FBaseConstraintListWidget()
+		+ SVerticalBox::Slot()
+		.Padding(FMargin(0.0f, 3.f))
+		[
+			SNew(SOverlay)
+
+			+ SOverlay::Slot()
+			[
+				SAssignNew(ListView, ConstraintItemListView)
+				.SelectionMode(ESelectionMode::Single)
+				.ListItemsSource( &ListItems )
+				.OnGenerateRow(this, &SConstraintsEditionWidget::OnGenerateWidgetForItem)
+				.OnContextMenuOpening(this, &SConstraintsEditionWidget::CreateContextMenu)
+				.OnMouseButtonDoubleClick(this, &SConstraintsEditionWidget::OnItemDoubleClicked)
+			]
+		]
+	];
+
+	RefreshConstraintList();
+	RegisterSelectionChanged();
+}
+
+SConstraintsEditionWidget::~SConstraintsEditionWidget()
 {
 	UnregisterSelectionChanged();
 }
 
-void FBaseConstraintListWidget::RegisterSelectionChanged()
+void SConstraintsEditionWidget::RegisterSelectionChanged()
 {
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	FLevelEditorModule::FActorSelectionChangedEvent& ActorSelectionChangedEvent = LevelEditor.OnActorSelectionChanged();
@@ -743,10 +763,10 @@ void FBaseConstraintListWidget::RegisterSelectionChanged()
 	}
 
 	// register
-	ActorSelectionChangedEvent.AddRaw(this, &FBaseConstraintListWidget::OnActorSelectionChanged);
+	ActorSelectionChangedEvent.AddRaw( this, &SConstraintsEditionWidget::OnActorSelectionChanged );
 }
 
-void FBaseConstraintListWidget::UnregisterSelectionChanged()
+void SConstraintsEditionWidget::UnregisterSelectionChanged()
 {
 	if (OnSelectionChangedHandle.IsValid())
 	{
@@ -755,158 +775,6 @@ void FBaseConstraintListWidget::UnregisterSelectionChanged()
 		OnSelectionChangedHandle.Reset();
 	}
 }
-
-void FBaseConstraintListWidget::PostUndo(bool bSuccess)
-{
-	InvalidateConstraintList();
-}
-
-void FBaseConstraintListWidget::PostRedo(bool bSuccess)
-{
-	InvalidateConstraintList();
-}
-
-void FBaseConstraintListWidget::InvalidateConstraintList()
-{
-	bNeedsRefresh = true;
-
-	// NOTE: this is a hack to disable the picker if the selection changes. The picker should trigger the escape key
-	// but this is an editor wide change
-	static const FActorPickerModeModule& ActorPickerMode = FModuleManager::Get().GetModuleChecked<FActorPickerModeModule>("ActorPickerMode");
-	if (ActorPickerMode.IsInActorPickingMode())
-	{
-		ActorPickerMode.EndActorPickingMode();
-	}
-}
-
-int32 FBaseConstraintListWidget::RefreshConstraintList()
-{
-	// get constraints
-	UWorld* World = GetCurrentWorld();
-	if (!IsValid(World))
-	{
-		return 0;
-	}
-
-	const TArray<AActor*> Selection = GetCurrentSelection();
-
-	const bool bIsConstraintsActor = Selection.Num() == 1 && Selection[0]->IsA<AConstraintsActor>();
-
-	TArray< TObjectPtr<UTickableConstraint> > Constraints;
-	if (bIsConstraintsActor)
-	{
-		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-		static constexpr bool bSorted = true;
-		Constraints = Controller.GetAllConstraints(bSorted);
-	}
-	else
-	{
-		for (const AActor* Actor : Selection)
-		{
-			FTransformConstraintUtils::GetParentConstraints(World, Actor, Constraints);
-		}
-	}
-
-	// rebuild item list
-	ListItems.Empty();
-
-	const UEnum* ETransformConstraintTypeEnum = StaticEnum<ETransformConstraintType>();
-	for (const TObjectPtr<UTickableConstraint>& Constraint : Constraints)
-	{
-		const int8 Type = FConstraintInfo::GetType(Constraint->GetClass());
-		if (ETransformConstraintTypeEnum->IsValidEnumValue(Type))
-		{
-			const ETransformConstraintType ConstraintType = static_cast<ETransformConstraintType>(Type);
-			ListItems.Emplace(FEditableConstraintItem::Make(Constraint, ConstraintType));
-		}
-	}
-
-	// refresh tree
-	ListView->RequestListRefresh();
-
-	return ListItems.Num();
-}
-
-void FBaseConstraintListWidget::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh)
-{
-	// NOTE we use this delegate to trigger an tree update, however, control actors are not selected as they are 
-	// Temporary Editor Actors so NewSelection won't contain the controls
-	InvalidateConstraintList();
-}
-
-
-//////////////////////////////////////////////////////////////
-/// SConstraintsEditionWidget
-///////////////////////////////////////////////////////////
-
-
-void SConstraintsEditionWidget::Construct(const FArguments& InArgs)
-{
-
-	ChildSlot
-	[
-		SNew(SBorder)
-		.Visibility(EVisibility::Visible)
-		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
-		[
-
-			SNew( SVerticalBox )
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(FMargin(0.0f, 0.f))
-			[
-				SNew(SOverlay)
-
-				+ SOverlay::Slot()
-				[
-					SAssignNew(ListView, ConstraintItemListView)
-					.SelectionMode(ESelectionMode::Single)
-					.ListItemsSource( &ListItems )
-					.OnGenerateRow(this, &SConstraintsEditionWidget::OnGenerateWidgetForItem)
-					.OnContextMenuOpening(this, &SConstraintsEditionWidget::CreateContextMenu)
-					.OnMouseButtonDoubleClick(this, &SConstraintsEditionWidget::OnItemDoubleClicked)
-				]
-
-			]
-	
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(FMargin(0.0f, 0.f))
-				[
-		
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.f)
-					.HAlign(HAlign_Fill)
-					[
-						SNew(SSpacer)
-					]
-		
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Right)
-					.Padding(1.f)
-					[
-						SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
-						.Text(LOCTEXT("BakeButton", "Bake..."))
-						.OnClicked(this, &SConstraintsEditionWidget::OnBakeClicked)
-						.IsEnabled_Lambda([this]()
-						{
-							return (ListItems.Num() > 0);
-						})
-						.ToolTipText(LOCTEXT("BakeConstraintButtonToolTip", "Bake selected contraints"))
-					]
-				]
-		]
-	];
-
-	RefreshConstraintList();
-	RegisterSelectionChanged();
-}
-
 
 void SConstraintsEditionWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
@@ -919,16 +787,15 @@ void SConstraintsEditionWidget::Tick(const FGeometry& AllottedGeometry, const do
 	}
 }
 
-
 TSharedRef<ITableRow> SConstraintsEditionWidget::OnGenerateWidgetForItem(
 	ItemSharedPtr InItem,
 	const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(STableRow<ItemSharedPtr>, OwnerTable)
-		.Style(&FAppStyle::Get(), "PlacementBrowser.PlaceableItemRow")
-		[
-			SNew(SEditableConstraintItem, InItem.ToSharedRef(), SharedThis(this))
-		];
+	.Style(&FAppStyle::Get(), "PlacementBrowser.PlaceableItemRow")
+	[
+		SNew(SEditableConstraintItem, InItem.ToSharedRef(), SharedThis(this))
+	];
 }
 
 bool SConstraintsEditionWidget::CanMoveUp(const TSharedPtr<FEditableConstraintItem>& Item) const
@@ -972,8 +839,8 @@ void SConstraintsEditionWidget::MoveItemUp(const TSharedPtr<FEditableConstraintI
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
 
 		// the current item needs to tick before the previous item 
-		const FName BeforeName(ListItems[Index]->GetName().ToString());
-		const FName AfterName(ListItems[Index-1]->GetName().ToString());
+		const FName BeforeName(ListItems[Index]->Name.ToString());
+		const FName AfterName(ListItems[Index-1]->Name.ToString());
 		Controller.SetConstraintsDependencies(BeforeName, AfterName);
 		
 		RefreshConstraintList();
@@ -999,8 +866,8 @@ void SConstraintsEditionWidget::MoveItemDown(const TSharedPtr<FEditableConstrain
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
 
 		// the current item needs to tick after the next item 
-		const FName BeforeName(ListItems[Index+1]->GetName().ToString());
-		const FName AfterName(ListItems[Index]->GetName().ToString());
+		const FName BeforeName(ListItems[Index+1]->Name.ToString());
+		const FName AfterName(ListItems[Index]->Name.ToString());
 		Controller.SetConstraintsDependencies(BeforeName, AfterName);
 		
 		RefreshConstraintList();
@@ -1019,25 +886,88 @@ void SConstraintsEditionWidget::RemoveItem(const TSharedPtr<FEditableConstraintI
 	
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
 	
-	Controller.RemoveConstraint(Item->Constraint.Get());
+	const FName ConstraintName(Item->Name.ToString());
+	Controller.RemoveConstraint(ConstraintName);
 
 	RefreshConstraintList();
 }
 
-FReply SConstraintsEditionWidget::OnBakeClicked()
+void SConstraintsEditionWidget::PostUndo(bool bSuccess)
 {
-	UTickableTransformConstraint* InConstraint = nullptr;
-	TWeakPtr<ISequencer> WeakSequencer = GetSequencerChecked();
-	if (!WeakSequencer.IsValid() || ListItems.Num() < 1)
-	{
-		return FReply::Unhandled();
-	}
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-	TSharedRef<SConstraintBakeWidget> BakeWidget =
-		SNew(SConstraintBakeWidget)
-		.Sequencer(Sequencer);
+	InvalidateConstraintList();
+}
 
-	return BakeWidget->OpenDialog(true);
+void SConstraintsEditionWidget::PostRedo(bool bSuccess)
+{
+	InvalidateConstraintList();
+}
+
+void SConstraintsEditionWidget::InvalidateConstraintList()
+{
+	bNeedsRefresh = true;
+
+	// NOTE: this is a hack to disable the picker if the selection changes. The picker should trigger the escape key
+	// but this is an editor wide change
+	static const FActorPickerModeModule& ActorPickerMode = FModuleManager::Get().GetModuleChecked<FActorPickerModeModule>("ActorPickerMode");
+	if (ActorPickerMode.IsInActorPickingMode())
+	{
+		ActorPickerMode.EndActorPickingMode();
+	}
+}
+
+int32 SConstraintsEditionWidget::RefreshConstraintList()
+{
+	// get constraints
+	UWorld* World = GetCurrentWorld();
+	if (!IsValid(World))
+	{
+		return 0;
+	}
+	
+	const TArray<AActor*> Selection = GetCurrentSelection();
+	
+	const bool bIsConstraintsActor = Selection.Num() == 1 && Selection[0]->IsA<AConstraintsActor>();
+	
+	TArray< TObjectPtr<UTickableConstraint> > Constraints;
+	if (bIsConstraintsActor)
+	{
+		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+		static constexpr bool bSorted = true;
+		Constraints = Controller.GetAllConstraints(bSorted);
+	}
+	else
+	{
+		for (const AActor* Actor : Selection)
+		{
+			FTransformConstraintUtils::GetParentConstraints(World, Actor, Constraints);
+		}
+	}
+	
+	// rebuild item list
+	ListItems.Empty();
+	
+	const UEnum* ETransformConstraintTypeEnum = StaticEnum<ETransformConstraintType>();
+	for (const TObjectPtr<UTickableConstraint>& Constraint: Constraints)
+	{
+		const int8 Type = FConstraintInfo::GetType(Constraint->GetClass()); 
+		if (ETransformConstraintTypeEnum->IsValidEnumValue(Type))
+		{
+			const ETransformConstraintType ConstraintType = static_cast<ETransformConstraintType>(Type);
+			ListItems.Emplace( FEditableConstraintItem::Make(Constraint->GetFName(), ConstraintType, Constraint->GetLabel()) );
+		}
+	}
+
+	// refresh tree
+	ListView->RequestListRefresh();
+	
+	return ListItems.Num();
+}
+
+void SConstraintsEditionWidget::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh)
+{
+	// NOTE we use this delegate to trigger an tree update, however, control actors are not selected as they are 
+	// Temporary Editor Actors so NewSelection won't contain the controls
+	InvalidateConstraintList();
 }
 
 TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
@@ -1061,9 +991,8 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 	}
 	
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-	UTickableConstraint* Constraint = ListItems[Index]->Constraint.Get();
-	int32 ContIndex = Controller.GetConstraintsArray().Find(Constraint);
-	if (ContIndex == INDEX_NONE)
+	UTickableConstraint* Constraint = Controller.GetConstraint(ListItems[Index]->Name);
+	if (!Constraint)
 	{
 		return SNullWidget::NullWidget;
 	}
@@ -1131,7 +1060,7 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 	// transform constraint options
 	if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
 	{
-		const FText ConstraintLabel = FText::FromName(ListItems[Index]->GetName());
+		const FText ConstraintLabel = FText::FromName(ListItems[Index]->Name);
 	
 		// baking (note that this will probably be moved)
 		MenuBuilder.BeginSection("BakeConstraint", LOCTEXT("BakeConstraintHeader", "Bake Constraint"));
@@ -1149,8 +1078,9 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 						{
 							return;
 						}
+						
 						FScopedTransaction Transaction(LOCTEXT("BakeConstraint", "Bake Constraint"));
-						FConstraintBaker::Bake(World, TransformConstraint, WeakSequencer.Pin(), TOptional< FBakingAnimationKeySettings>(), TOptional<TArray<FFrameNumber>>());
+						FConstraintBaker::Bake(World, TransformConstraint, WeakSequencer.Pin(), TOptional<TArray<FFrameNumber>>());
 
 					}
 				})),
@@ -1218,376 +1148,13 @@ void SConstraintsEditionWidget::OnItemDoubleClicked(ItemSharedPtr InItem)
 	}
 	
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-	UTickableConstraint* Constraint = InItem->Constraint.Get();
-	int32 ContIndex = Controller.GetConstraintsArray().Find(Constraint);
-	if (ContIndex != INDEX_NONE)
+	UTickableConstraint* Constraint = Controller.GetConstraint(InItem->Name);
+	if (!Constraint)
 	{
-		Constraint->SetActive(!Constraint->Active);
-	}
-}
-
-//////////////////////////////////////////////////////////////
-/// SConstraintBakeWidget
-///////////////////////////////////////////////////////////
-
-TOptional<FBakingAnimationKeySettings> SConstraintBakeWidget::BakeConstraintSettings;
-
-void SConstraintBakeWidget::Construct(const FArguments& InArgs)
-{
-	check(InArgs._Sequencer);
-	Sequencer = InArgs._Sequencer;
-
-	if (BakeConstraintSettings.IsSet() == false)
-	{
-		BakeConstraintSettings = FBakingAnimationKeySettings();
-		const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
-		const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
-		FFrameNumber CurrentTime = FrameTime.GetFrame();
-
-		TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
-		TArray<FFrameNumber> Keys;
-		TArray < FKeyHandle> KeyHandles;
-
-		BakeConstraintSettings.GetValue().StartFrame = Range.GetLowerBoundValue();
-		BakeConstraintSettings.GetValue().EndFrame = Range.GetUpperBoundValue();
+		return;
 	}
 
-
-	Settings = MakeShared<TStructOnScope<FBakingAnimationKeySettings>>();
-	Settings->InitializeAs<FBakingAnimationKeySettings>(BakeConstraintSettings.GetValue());
-
-	FStructureDetailsViewArgs StructureViewArgs;
-	StructureViewArgs.bShowObjects = true;
-	StructureViewArgs.bShowAssets = true;
-	StructureViewArgs.bShowClasses = true;
-	StructureViewArgs.bShowInterfaces = true;
-
-	FDetailsViewArgs ViewArgs;
-	ViewArgs.bAllowSearch = false;
-	ViewArgs.bHideSelectionTip = false;
-	ViewArgs.bShowObjectLabel = false;
-
-	FPropertyEditorModule& PropertyEditor = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-
-	DetailsView = PropertyEditor.CreateStructureDetailView(ViewArgs, StructureViewArgs, TSharedPtr<FStructOnScope>());
-	TSharedPtr<INumericTypeInterface<double>> NumericTypeInterface = Sequencer->GetNumericTypeInterface();
-	DetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber",
-		FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]() {return MakeShared<FFrameNumberDetailsCustomization>(NumericTypeInterface); }));
-	DetailsView->SetStructureData(Settings);
-
-
-	ChildSlot
-		[
-			SNew(SBorder)
-			.Visibility(EVisibility::Visible)
-			[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.Padding(FMargin(0.0f, 0.f))
-			[
-				SAssignNew(ListView, ConstraintItemListView)
-				.SelectionMode(ESelectionMode::Multi)
-				.ListItemsSource(&ListItems)
-				.OnGenerateRow(this, &SConstraintBakeWidget::OnGenerateWidgetForItem)
-
-			]
-			
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.f, 8.f, 0.f, 0.f)
-				[
-					DetailsView->GetWidget().ToSharedRef()
-				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.f, 16.f, 0.f, 8.f)
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.f)
-					[
-						SNew(SSpacer)
-					]
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(8.f, 0.f, 0.f, 0.f)
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
-					.Text(LOCTEXT("OK", "OK"))
-					.OnClicked_Lambda([this, InArgs]()
-						{
-							BakeSelected();
-							CloseDialog();
-							return FReply::Handled();
-
-						})
-						.IsEnabled_Lambda([this]()
-						{
-							return (ListItems.Num() > 0 && Settings.IsValid());
-						})
-			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.Padding(8.f, 0.f, 16.f, 0.f)
-			[
-				SNew(SButton)
-				.HAlign(HAlign_Center)
-				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
-				.Text(LOCTEXT("Cancel", "Cancel"))
-				.OnClicked_Lambda([this]()
-					{
-						CloseDialog();
-					return FReply::Handled();
-					})
-				]
-			]
-		]
-	];
-	RefreshConstraintList();
-	RegisterSelectionChanged();
-}
-
-TSharedRef<ITableRow> SConstraintBakeWidget::OnGenerateWidgetForItem(
-	ItemSharedPtr InItem,
-	const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return SNew(STableRow<ItemSharedPtr>, OwnerTable)
-		[
-			SNew(SBakeConstraintItem, InItem.ToSharedRef(), SharedThis(this))
-		];
-		
-}
-
-void SConstraintBakeWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
-	if (bNeedsRefresh)
-	{
-		RefreshConstraintList();
-		bNeedsRefresh = false;
-	}
-}
-
-//for the bake we auto select averything when selection or something chagnes
-int32 SConstraintBakeWidget::RefreshConstraintList()
-{
-	int32 Num = FBaseConstraintListWidget::RefreshConstraintList();
-	ListView->SetItemSelection(ListItems, true, ESelectInfo::Direct);
-	return Num;
-}
-
-void SConstraintBakeWidget::BakeSelected()
-{
-	TArray<TSharedPtr<FEditableConstraintItem>> Selection = ListView->GetSelectedItems();
-	TArray<UTickableTransformConstraint*> Constraints;
-	for (TSharedPtr<FEditableConstraintItem>& Item : Selection)
-	{
-		if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Item->Constraint.Get()))
-		{
-			Constraints.Add(TransformConstraint);
-		}
-	}
-	UWorld* World = GetCurrentWorld();
-
-	FBakingAnimationKeySettings* BakeSettings = Settings->Get();
-	
-	FScopedTransaction Transaction(LOCTEXT("BakeConstraints", "Bake Constraints"));
-	FConstraintBaker::BakeMultiple(World,Constraints, Sequencer,*BakeSettings );
-	BakeConstraintSettings = *BakeSettings;
-	InvalidateConstraintList();
-}
-
-class SConstraintBakedWidgetWindow : public SWindow
-{
-};
-
-
-
-FReply SConstraintBakeWidget::OpenDialog(bool bModal)
-{
-	check(!DialogWindow.IsValid());
-
-	const FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
-
-	TSharedRef<SConstraintBakedWidgetWindow> Window = SNew(SConstraintBakedWidgetWindow)
-		.Title(LOCTEXT("SConstraintsBakeWidgetTitle", "Bake Constraints"))
-		.CreateTitleBar(true)
-		.Type(EWindowType::Normal)
-		.SizingRule(ESizingRule::Autosized)
-		.ScreenPosition(CursorPos)
-		.FocusWhenFirstShown(true)
-		.ActivationPolicy(EWindowActivationPolicy::FirstShown)
-		[
-			AsShared()
-		];
-
-	Window->SetWidgetToFocusOnActivate(AsShared());
-
-	DialogWindow = Window;
-
-	Window->MoveWindowTo(CursorPos);
-
-	if (bModal)
-	{
-		GEditor->EditorAddModalWindow(Window);
-	}
-	else
-	{
-		FSlateApplication::Get().AddWindow(Window);
-	}
-
-	return FReply::Handled();
-}
-
-void SConstraintBakeWidget::CloseDialog()
-{
-	if (DialogWindow.IsValid())
-	{
-		DialogWindow.Pin()->RequestDestroyWindow();
-		DialogWindow.Reset();
-	}
-}
-
-//////////////////////////////////////////////////////////////
-/// SBakeConstraintItem
-///////////////////////////////////////////////////////////
-
-
-void SBakeConstraintItem::Construct(
-	const FArguments& InArgs,
-	const TSharedPtr<FEditableConstraintItem>& InItem,
-	TSharedPtr<SConstraintBakeWidget> InConstraintsWidget)
-{
-	ConstraintItem = InItem;
-	ConstraintsWidget = InConstraintsWidget;
-
-	static const FSlateBrush* RoundedBoxBrush = FControlRigEditorStyle::Get().GetBrush(TEXT("ControlRig.SpacePicker.RoundedRect"));
-
-	// enum to string
-	const uint8 ConstraintType = static_cast<uint8>(InItem->Type);
-
-
-	// constraint
-	auto GetConstraint = [this]() -> UTickableConstraint*
-	{
-		UWorld* World = GetCurrentWorld();
-		if (!IsValid(World))
-		{
-			return nullptr;
-		}
-
-		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-		UTickableConstraint* Constraint = ConstraintItem->Constraint.Get();
-		int32 Index = Controller.GetConstraintsArray().Find(Constraint);
-		if (Index == INDEX_NONE)
-		{
-			return nullptr;
-		}
-		return Constraint;
-	};
-	TWeakObjectPtr<UTickableConstraint> Constraint = GetConstraint();
-
-	// sequencer
-	TWeakPtr<ISequencer> WeakSequencer = GetSequencerChecked();
-
-	// labels
-	FString ParentLabel(TEXT("undefined")), ChildLabel(TEXT("undefined"));
-	if (!InItem->GetLabel().IsEmpty())
-	{
-		ChildLabel = InItem->GetLabel();
-		InItem->GetLabel().Split(TEXT("."), &ParentLabel, &ChildLabel);
-	}
-
-	FString ParentFullLabel = ParentLabel, ChildFullLabel = ChildLabel;
-	if (IsValid(Constraint.Get()))
-	{
-		Constraint->GetFullLabel().Split(TEXT("."), &ParentFullLabel, &ChildFullLabel);
-	}
-
-	// widgets
-	ChildSlot
-		.Padding(FMargin(8.f, 2.f, 12.f, 2.f))
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Fill)
-			.Padding(0)
-			[
-			SNew(SBorder)
-			.Padding(FMargin(5.0, 2.0, 5.0, 2.0))
-			.BorderImage(RoundedBoxBrush)
-			.BorderBackgroundColor_Lambda([Constraint]()
-				{
-					return FStyleColors::Transparent;
-				})	
-				.Content()
-				[
-					SNew(SHorizontalBox)
-
-					// constraint icon
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					.Padding(FMargin(0.f, 0.f, 3.f, 0.f))
-					[
-						SNew(SImage)
-						.Image(FConstraintInfo::GetBrush(ConstraintType))
-						.ColorAndOpacity(FSlateColor::UseForeground())
-					]
-
-				// constraint name
-				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Left)
-					.Padding(0)
-					[
-						SNew(STextBlock)
-						.Text_Lambda([ParentLabel]()
-							{
-								return FText::FromString(ParentLabel);
-							})
-					.Font_Lambda([Constraint]()
-						{
-							if (!Constraint.IsValid() || !IsValid(Constraint.Get()))
-							{
-								return IDetailLayoutBuilder::GetDetailFont();
-							}
-							return Constraint->Active ? IDetailLayoutBuilder::GetDetailFont() : IDetailLayoutBuilder::GetDetailFontItalic();
-						})
-								.ToolTipText_Lambda([Constraint, ParentFullLabel, ChildFullLabel]()
-									{
-										if (!Constraint.IsValid() || !IsValid(Constraint.Get()))
-										{
-											return FText();
-										}
-
-						static constexpr TCHAR ToolTipFormat[] = TEXT("%s constraint between parent '%s' and child '%s'.");
-						const FString TypeLabel = Constraint->GetTypeLabel();
-						const FString FullLabel = FString::Printf(ToolTipFormat, *TypeLabel, *ParentFullLabel, *ChildFullLabel);
-						return FText::FromString(FullLabel);
-									})
-					]
-					]
-		]
-
-	
-		];
+	Constraint->SetActive(!Constraint->Active);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

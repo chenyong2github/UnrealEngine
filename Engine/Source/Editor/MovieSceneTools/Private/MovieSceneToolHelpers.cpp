@@ -77,8 +77,6 @@
 #include "FrameNumberDetailsCustomization.h"
 #include "PropertyEditorDelegates.h"
 #include "INodeAndChannelMappings.h"
-#include "BakingAnimationKeySettings.h"
-#include "Channels/MovieSceneChannelTraits.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneByteChannel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -4616,63 +4614,41 @@ void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatV
 	}
 }
 
-void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, const FMovieSceneFloatValue& Value)
-{
-	int32 ExistingIndex = ChannelData.FindKey(Time);
-	if (ExistingIndex != INDEX_NONE)
-	{
-		FMovieSceneFloatValue& FloatValue = ChannelData.GetValues()[ExistingIndex]; //-V758
-		FloatValue.Value = Value.Value;
-	}
-	else
-	{
-		ChannelData.AddKey(Time, Value);
-	}
-}
-
 void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value, 
 		float ArriveTangent, float LeaveTangent, ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode, 
 		FFrameRate FrameRate, ERichCurveTangentWeightMode WeightedMode, float ArriveTangentWeight, float LeaveTangentWeight)
 {
-	FMovieSceneFloatValue NewKey(Value);
+	if (ChannelData.FindKey(Time) == INDEX_NONE)
+	{
+		FMovieSceneFloatValue NewKey(Value);
 
-	NewKey.InterpMode = InterpMode;
-	NewKey.TangentMode = TangentMode;
-	NewKey.Tangent.ArriveTangent = ArriveTangent / FrameRate.AsDecimal();
-	NewKey.Tangent.LeaveTangent = LeaveTangent / FrameRate.AsDecimal();
-	NewKey.Tangent.TangentWeightMode = WeightedMode;
-	NewKey.Tangent.ArriveTangentWeight = ArriveTangentWeight;
-	NewKey.Tangent.LeaveTangentWeight = LeaveTangentWeight;
-	ChannelData.AddKey(Time, NewKey);
-	MovieSceneToolHelpers::SetOrAddKey(ChannelData, Time, NewKey);
+		NewKey.InterpMode = InterpMode;
+		NewKey.TangentMode = TangentMode;
+		NewKey.Tangent.ArriveTangent = ArriveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.LeaveTangent = LeaveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.TangentWeightMode = WeightedMode;
+		NewKey.Tangent.ArriveTangentWeight = ArriveTangentWeight;
+		NewKey.Tangent.LeaveTangentWeight = LeaveTangentWeight;
+		ChannelData.AddKey(Time, NewKey);
+	}
 }
 
 void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value, 
 		float ArriveTangent, float LeaveTangent, ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode, 
 		FFrameRate FrameRate, ERichCurveTangentWeightMode WeightedMode, float ArriveTangentWeight, float LeaveTangentWeight)
 {
-	FMovieSceneDoubleValue NewKey(Value);
-	NewKey.InterpMode = InterpMode;
-	NewKey.TangentMode = TangentMode;
-	NewKey.Tangent.ArriveTangent = ArriveTangent / FrameRate.AsDecimal();
-	NewKey.Tangent.LeaveTangent = LeaveTangent / FrameRate.AsDecimal();
-	NewKey.Tangent.TangentWeightMode = WeightedMode;
-	NewKey.Tangent.ArriveTangentWeight = ArriveTangentWeight;
-	NewKey.Tangent.LeaveTangentWeight = LeaveTangentWeight;
-	MovieSceneToolHelpers::SetOrAddKey(ChannelData, Time, NewKey);
-}
+	if (ChannelData.FindKey(Time) == INDEX_NONE)
+	{
+		FMovieSceneDoubleValue NewKey(Value);
 
-void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, FMovieSceneDoubleValue Value)
-{
-	int32 ExistingIndex = ChannelData.FindKey(Time);
-	if (ExistingIndex != INDEX_NONE)
-	{
-		FMovieSceneDoubleValue& DoubleValue = ChannelData.GetValues()[ExistingIndex]; //-V758
-		DoubleValue.Value = Value.Value;
-	}
-	else
-	{
-		ChannelData.AddKey(Time, Value);
+		NewKey.InterpMode = InterpMode;
+		NewKey.TangentMode = TangentMode;
+		NewKey.Tangent.ArriveTangent = ArriveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.LeaveTangent = LeaveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.TangentWeightMode = WeightedMode;
+		NewKey.Tangent.ArriveTangentWeight = ArriveTangentWeight;
+		NewKey.Tangent.LeaveTangentWeight = LeaveTangentWeight;
+		ChannelData.AddKey(Time, NewKey);
 	}
 }
 
@@ -4740,7 +4716,6 @@ void MovieSceneToolHelpers::CalculateFramesBetween(
 	const UMovieScene* MovieScene,
 	FFrameNumber StartFrame,
 	FFrameNumber EndFrame,
-	int32 FrameInc,
 	TArray<FFrameNumber>& OutFrames)
 {
 	const bool bReverse = StartFrame > EndFrame;
@@ -4764,319 +4739,20 @@ void MovieSceneToolHelpers::CalculateFramesBetween(
 
 	if (bReverse)
 	{
-		int32 FrameIndex = 0;
 		for (FFrameNumber DisplayFrameNumber = EndTimeInDisplay; DisplayFrameNumber >= StartTimeInDisplay; --DisplayFrameNumber)
 		{
-			if (FrameIndex % FrameInc == 0)
-			{
-				FFrameNumber TickFrameNumber = FFrameRate::TransformTime(FFrameTime(DisplayFrameNumber), DisplayResolution, TickResolution).FrameNumber;
-				OutFrames.Add(TickFrameNumber);
-			}
-			++FrameIndex;
+			FFrameNumber TickFrameNumber = FFrameRate::TransformTime(FFrameTime(DisplayFrameNumber), DisplayResolution, TickResolution).FrameNumber;
+			OutFrames.Add(TickFrameNumber);
 		}
 	}
 	else
 	{
 		for (FFrameNumber DisplayFrameNumber = StartTimeInDisplay; DisplayFrameNumber <= EndTimeInDisplay; ++DisplayFrameNumber)
 		{
-			int32 FrameIndex = 0;
-			if (FrameIndex % FrameInc == 0)
-			{
-				FFrameNumber TickFrameNumber = FFrameRate::TransformTime(FFrameTime(DisplayFrameNumber), DisplayResolution, TickResolution).FrameNumber;
-				OutFrames.Add(TickFrameNumber);
-			}
-			++FrameIndex;
+			FFrameNumber TickFrameNumber = FFrameRate::TransformTime(FFrameTime(DisplayFrameNumber), DisplayResolution, TickResolution).FrameNumber;
+			OutFrames.Add(TickFrameNumber);
 		}
 	}
-}
-
-UENUM(BlueprintType)
-enum class FChannelMergeAlgorithm : uint8
-{
-	/**Average values together*/
-	Average,
-	/**Add values together*/
-	Add
-};
-
-//merge the channels onto the first one using the passed in algorithm, we may skip the last channel also (since it may be weight).
-template<typename ChannelType>
-static bool MergeChannels(TArray<ChannelType*>& Channels,const  TArray<UMovieSceneSection*>& Sections, const TRange<FFrameNumber>& Range,
-	FChannelMergeAlgorithm MergeAlgorithm)
-{
-	if (Channels.Num() < 2 && Channels.Num() != Sections.Num())
-	{
-		return false;
-	}
-	using ChannelValueType = typename ChannelType::ChannelValueType;
-	using CurveValueType = typename ChannelType::CurveValueType;
-
-	//base channel we set values on
-	ChannelType* BaseChannel = Channels[0];
-	TMovieSceneChannelData<ChannelValueType> BaseChannelData = BaseChannel->GetData();
-	//iterate over each key
-	TArray<FFrameNumber> KeyTimes;
-	TArray<FKeyHandle> Handles;
-	//cached set that we set at the end
-	TArray<TPair< FFrameNumber, ChannelValueType>> KeysToSet;
-	for (int32 ChannelIndex = 0; ChannelIndex < Channels.Num(); ++ChannelIndex)
-	{
-		KeyTimes.Reset();
-		Handles.Reset();
-		ChannelType* Channel = Channels[ChannelIndex];
-		Channel->GetKeys(Range, &KeyTimes, &Handles);
-		double DNumChannels = (double)(Channels.Num());
-		for (int32 FrameIndex = 0; FrameIndex < KeyTimes.Num(); ++FrameIndex)
-		{
-			const FFrameNumber& Frame = KeyTimes[FrameIndex];
-			const FFrameTime FrameTime(Frame);
-			int32 KeyIndex = Channel->GetData().GetIndex(Handles[FrameIndex]);
-			ChannelValueType Value = Channel->GetData().GetValues()[KeyIndex];
-			//got value with tangents and times, now we perform the operation
-			Value.Value = 0.0; //zero out the value we calculate it 
-			if (MergeAlgorithm == FChannelMergeAlgorithm::Average)
-			{
-				for (int32 WeightIndex = 0; WeightIndex < Sections.Num(); ++WeightIndex)
-				{
-					float Weight = Sections[WeightIndex]->GetTotalWeightValue(FrameTime);
-					CurveValueType WeightedValue = 0.0;
-					ChannelType* EachChannel = Channels[WeightIndex];
-					EachChannel->Evaluate(FrameTime, WeightedValue);
-					WeightedValue *= ((double)Weight / DNumChannels);
-					Value.Value += WeightedValue;
-				}
-			}
-			else if (MergeAlgorithm == FChannelMergeAlgorithm::Add)
-			{
-				for (int32 WeightIndex = 0; WeightIndex < Sections.Num(); ++WeightIndex)
-				{
-					float Weight = Sections[WeightIndex]->GetTotalWeightValue(FrameTime);
-					CurveValueType WeightedValue = 0.0;
-					ChannelType* EachChannel = Channels[WeightIndex];
-					EachChannel->Evaluate(FrameTime, WeightedValue);
-					WeightedValue *= Weight;
-					Value.Value += WeightedValue;
-				}
-			}
-			KeysToSet.Add(TPair<FFrameNumber, ChannelValueType>(Frame, Value));
-		}
-	}
-	for (TPair<FFrameNumber, ChannelValueType>& KeyToSet : KeysToSet)
-	{
-		MovieSceneToolHelpers::SetOrAddKey(BaseChannelData, KeyToSet.Key, KeyToSet.Value);
-	}
-
-	return true;
-}
-
-bool MovieSceneToolHelpers::OptimizeSection(const FKeyDataOptimizationParams& InParams, UMovieSceneSection* InSection)
-{
-	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-	for (FMovieSceneFloatChannel* Channel : FloatChannels)
-	{
-		Channel->Optimize(InParams);
-	}
-	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
-	for (FMovieSceneDoubleChannel* Channel : DoubleChannels)
-	{
-		Channel->Optimize(InParams);
-	}
-	return true;
-}
-
-template<typename ChannelType>
-static bool MergeSections(UMovieSceneSection* BaseSection, TArrayView<ChannelType*> BaseDoubleChannels, TArray<UMovieSceneSection*>& AbsoluteSections, TArray<UMovieSceneSection*>& AdditiveSections,
-	const TRange<FFrameNumber>& Range,bool bSkipLastChannel)
-{
-	TArrayView<ChannelType*> BaseChannels = BaseSection->GetChannelProxy().GetChannels<ChannelType>();
-	if (BaseChannels.Num() > 0)
-	{
-		int32 SectionIndex = 0;
-		//sanity check to make sure channels are the same size
-		for (SectionIndex = 0; SectionIndex < AbsoluteSections.Num(); ++SectionIndex)
-		{
-			TArrayView<ChannelType*>Channels = AbsoluteSections[SectionIndex]->GetChannelProxy().GetChannels<ChannelType>();
-			if (Channels.Num() != BaseChannels.Num())
-			{
-				UE_LOG(LogMovieScene, Warning, TEXT("MergeSections:: Invalid number of channels"));
-				return false;
-			}
-		}
-		for (SectionIndex = 0; SectionIndex < AdditiveSections.Num(); ++SectionIndex)
-		{
-			TArrayView<ChannelType*>Channels = AdditiveSections[SectionIndex]->GetChannelProxy().GetChannels<ChannelType>();
-			if (Channels.Num() != BaseChannels.Num())
-			{
-				UE_LOG(LogMovieScene, Warning, TEXT("MergeSections:: Invalid number of channels"));
-				return false;
-			}
-		}
-		BaseSection->Modify();
-
-		TArray<ChannelType*> Channels;
-		int32 ChannelIndex = 0;
-		bSkipLastChannel = false;
-		int32 BaseChannelsNum = bSkipLastChannel ? BaseChannels.Num() - 1 : BaseChannels.Num();
-		for (ChannelIndex = 0; ChannelIndex < BaseChannels.Num(); ++ChannelIndex)
-		{
-			if (AbsoluteSections.Num() > 0)
-			{
-				Channels.Reset();
-				for (SectionIndex = 0; SectionIndex < AbsoluteSections.Num(); ++SectionIndex)
-				{
-					TArrayView<ChannelType*>OurChannels = AbsoluteSections[SectionIndex]->GetChannelProxy().GetChannels<ChannelType>();
-					Channels.Add(OurChannels[ChannelIndex]);
-				}
-				//now blend them
-				if (MergeChannels(Channels, AbsoluteSections, Range,
-					FChannelMergeAlgorithm::Average) == false)
-				{
-					UE_LOG(LogMovieScene, Warning, TEXT("MergeSections:: Could not merge channels"));
-					return false;
-				}
-			}
-			if (AdditiveSections.Num() > 0)
-			{
-				//now do additives
-				Channels.Reset();
-				for (SectionIndex = 0; SectionIndex < AdditiveSections.Num(); ++SectionIndex)
-				{
-					TArrayView<ChannelType*>OurChannels = AdditiveSections[SectionIndex]->GetChannelProxy().GetChannels<ChannelType>();
-					Channels.Add(OurChannels[ChannelIndex]);
-				}
-				//now blend them
-				if (MergeChannels(Channels, AdditiveSections, Range,
-					FChannelMergeAlgorithm::Add) == false)
-				{
-					UE_LOG(LogMovieScene, Warning, TEXT("MergeSections:: Could not merge channels"));
-					return false;
-				}
-			}
-		}
-		for (ChannelType* Channel : BaseChannels)
-		{
-			Channel->AutoSetTangents();
-		}
-	}
-	else
-	{
-		return false;
-	}
-	return true;
-}
-
-bool MovieSceneToolHelpers::CollapseSection(TSharedPtr<ISequencer>& SequencerPtr, UMovieSceneTrack* OwnerTrack, TArray<UMovieSceneSection*> Sections,
-	const FBakingAnimationKeySettings& InSettings)
-{
-	if (SequencerPtr.IsValid() && Sections.Num() > 1)
-	{
-		TRange<FFrameNumber> Range(InSettings.StartFrame, InSettings.EndFrame);
-		//we get the  first absolute section or if no absolute sections, first additive,
-		// that's the one we collapse onto
-		UMovieSceneSection* BaseSection = nullptr;
-		//get first absolute
-		for (UMovieSceneSection* Section: Sections)
-		{
-			if (Section->IsActive() == false)
-			{
-				continue;
-			}
-			if (Section->GetBlendType().Get() == EMovieSceneBlendType::Absolute)
-			{
-				BaseSection = Section;
-				break;
-			}
-			else if (Section->GetBlendType().Get() == EMovieSceneBlendType::Additive)
-			{
-				if (BaseSection == nullptr)
-				{
-					BaseSection = Section; //don't stop though may have an absolute later
-				}
-			}
-		}
-		if (BaseSection == nullptr)
-		{
-			UE_LOG(LogMovieScene, Warning, TEXT("CollapseSection:: Invalid section(s) to collapse"));
-			return false;
-		}
-		//now find other sections.
-		TArray<UMovieSceneSection*> AbsoluteSections;
-		TArray<UMovieSceneSection*> AdditiveSections;
-		for (UMovieSceneSection* Section : Sections)
-		{
-			if (Section != BaseSection && Section->IsActive())
-			{
-				if (Section->GetBlendType().Get() == EMovieSceneBlendType::Absolute)
-				{
-					AbsoluteSections.Add(Section);
-				}
-				else if (Section->GetBlendType().Get() == EMovieSceneBlendType::Additive)
-				{
-					AdditiveSections.Add(Section);
-				}
-			}
-		}
-		//now make sure we have sections to blend with and if so add base section to them
-		if (AbsoluteSections.Num() > 0 || AdditiveSections.Num() > 0)
-		{
-			if (AbsoluteSections.Num() > 0)
-			{
-				AbsoluteSections.Insert(BaseSection, 0);
-			}
-			if (AdditiveSections.Num() > 0)
-			{
-				AdditiveSections.Insert(BaseSection, 0);
-			}
-		}
-		else
-		{
-			UE_LOG(LogMovieScene, Warning, TEXT("CollapseSection:: Invalid section(s) to collapse"));
-			return false;
-		}
-
-		FScopedTransaction Transaction(NSLOCTEXT("MovieSceneTools", "CollapseAllSections", "Collapse All Sections"));
-
-		TArrayView<FMovieSceneFloatChannel*> BaseFloatChannels = BaseSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-		TArrayView<FMovieSceneDoubleChannel*> BaseDoubleChannels = BaseSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
-		if (BaseDoubleChannels.Num() > 0) //transforms
-		{
-			if (MergeSections(BaseSection, BaseDoubleChannels, AbsoluteSections, AdditiveSections, Range, false /*bSkipLastChannel*/) == false)
-			{
-				Transaction.Cancel();
-				return false;
-			}
-		}
-		else if(BaseFloatChannels.Num() > 0) //control rig
-		{
-			//skip weight channel for control rig
-			if (MergeSections(BaseSection, BaseFloatChannels, AbsoluteSections, AdditiveSections, Range, true /*bSkipLastChannel*/) == false)
-			{
-				Transaction.Cancel();
-				return false;
-			}
-		}
-		//delete other sections
-		OwnerTrack->Modify();
-		for (int32 SectionIndex = Sections.Num() - 1; SectionIndex >= 0; --SectionIndex)
-		{
-			if (Sections[SectionIndex] != BaseSection)
-			{
-				TArray<UMovieSceneSection*> AllSections = OwnerTrack->GetAllSections();
-				int32 TrackSectionIndex = INDEX_NONE;
-				if (AllSections.Find(Sections[SectionIndex], TrackSectionIndex))
-				{
-					if (TrackSectionIndex != INDEX_NONE)
-					{
-						OwnerTrack->RemoveSectionAt(TrackSectionIndex);
-					}
-				}
-			}
-		}
-		//reset everything back
-		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
-	}
-	return true;
-
 }
 
 UMovieScene3DTransformSection* MovieSceneToolHelpers::GetTransformSection(

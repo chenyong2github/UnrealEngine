@@ -33,7 +33,7 @@ struct FMovieSceneControlRigSpaceChannel;
 struct FMovieSceneChannel;
 struct FKeyAddOrDeleteEventItem;
 struct FKeyMoveEventItem;
-struct FBakingAnimationKeySettings;
+
 /**
  * Tools for animation tracks
  */
@@ -229,7 +229,7 @@ public:
 	bool ModifyOurGeneratedKeysByCurrentAndWeight(UObject* Object, UControlRig* InControlRig, FName RigControlName, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber EvaluateTime, FGeneratedTrackKeys& InOutGeneratedTotalKeys, float Weight) const;
 
 	//**Function to collapse all layers from this section onto the first absoluate layer.*/
-	static bool CollapseAllLayers(TSharedPtr<ISequencer>& SequencerPtr, UMovieSceneTrack* OwnerTrack, const FBakingAnimationKeySettings& InSettings);
+	static bool CollapseAllLayers(TSharedPtr<ISequencer>& SequencerPtr, UMovieSceneTrack* OwnerTrack, UMovieSceneControlRigParameterSection* ParameterSection, bool bKeyReduce = false, float Tolerance = 0.001f);
 
 private:
 	FDelegateHandle SelectionChangedHandle;
