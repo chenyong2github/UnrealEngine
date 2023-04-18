@@ -1033,13 +1033,44 @@ static bool CompileAndProcessD3DShaderFXCExt(
 }
 
 bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource,
-	uint32 CompileFlags,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
 	FString& EntryPointName,
-	const TCHAR* ShaderProfile, bool bSecondPassAferUnusedInputRemoval,
+	const TCHAR* ShaderProfile,
+	bool bSecondPassAferUnusedInputRemoval,
 	FShaderCompilerOutput& Output)
 {
+	// @TODO - implement different material path to allow us to remove backwards compat flag on sm5 shaders
+	uint32 CompileFlags = D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY
+		// Unpack uniform matrices as row-major to match the CPU layout.
+		| D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
+
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_GenerateSymbols))
+	{
+		CompileFlags |= D3DCOMPILE_DEBUG;
+	}
+
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_Debug))
+	{
+		CompileFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+	}
+	else
+	{
+		if (Input.Environment.CompilerFlags.Contains(CFLAG_StandardOptimization))
+		{
+			CompileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL1;
+		}
+		else
+		{
+			CompileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
+		}
+	}
+
+	Input.Environment.CompilerFlags.Iterate([&CompileFlags](uint32 Flag)
+		{
+			CompileFlags |= TranslateCompilerFlagD3D11((ECompilerFlags)Flag);
+		});
+
 	TArray<FString> FilteredErrors;
 	const bool bSuccess = CompileAndProcessD3DShaderFXCExt(PreprocessedShaderSource, CompileFlags, Input, ShaderParameterParser, EntryPointName, ShaderProfile, false, FilteredErrors, Output);
 
@@ -1207,40 +1238,9 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 	}
 	#endif // UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
 
-	// @TODO - implement different material path to allow us to remove backwards compat flag on sm5 shaders
-	uint32 CompileFlags = D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY
-		// Unpack uniform matrices as row-major to match the CPU layout.
-		| D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
-
-	if (Input.Environment.CompilerFlags.Contains(CFLAG_GenerateSymbols))
-	{
-		CompileFlags |= D3DCOMPILE_DEBUG;
-	}
-
-	if (Input.Environment.CompilerFlags.Contains(CFLAG_Debug)) 
-	{
-		CompileFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-	}
-	else
-	{
-		if (Input.Environment.CompilerFlags.Contains(CFLAG_StandardOptimization))
-		{
-			CompileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL1;
-		}
-		else
-		{
-			CompileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
-		}
-	}
-
-	Input.Environment.CompilerFlags.Iterate([&CompileFlags](uint32 Flag)
-		{
-			CompileFlags |= TranslateCompilerFlagD3D11((ECompilerFlags)Flag);
-		});
-
 	const bool bSuccess = bUseDXC
-		? CompileAndProcessD3DShaderDXC(PreprocessedShaderSource, CompileFlags, Input, ShaderParameterParser, EntryPointName, ShaderProfile, Language, false, Output)
-		: CompileAndProcessD3DShaderFXC(PreprocessedShaderSource, CompileFlags, Input, ShaderParameterParser, EntryPointName, ShaderProfile, false, Output);
+		? CompileAndProcessD3DShaderDXC(PreprocessedShaderSource, Input, ShaderParameterParser, EntryPointName, ShaderProfile, Language, false, Output)
+		: CompileAndProcessD3DShaderFXC(PreprocessedShaderSource, Input, ShaderParameterParser, EntryPointName, ShaderProfile, false, Output);
 
 	if (!bSuccess && !Output.Errors.Num())
 	{

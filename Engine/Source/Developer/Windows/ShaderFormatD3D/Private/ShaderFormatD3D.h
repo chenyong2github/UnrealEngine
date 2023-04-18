@@ -28,19 +28,20 @@ void CompileShader_Windows(const struct FShaderCompilerInput& Input,struct FShad
  * @param bSecondPassAferUnusedInputRemoval whether we're compiling the shader second time, after having removed the unused inputs discovered in the first pass
  */
 bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource,
-	uint32 CompileFlags,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
 	FString& EntryPointName,
-	const TCHAR* ShaderProfile, bool bSecondPassAferUnusedInputRemoval,
+	const TCHAR* ShaderProfile,
+	bool bSecondPassAferUnusedInputRemoval,
 	FShaderCompilerOutput& Output);
 
 bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
-	uint32 CompileFlags,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
-	FString& EntryPointName,
-	const TCHAR* ShaderProfile, ELanguage Language, bool bProcessingSecondTime,
+	const FString& EntryPointName,
+	const TCHAR* ShaderProfile,
+	ELanguage Language,
+	bool bProcessingSecondTime,
 	FShaderCompilerOutput& Output);
 
 bool ValidateResourceCounts(uint32 NumSRVs, uint32 NumSamplers, uint32 NumUAVs, uint32 NumCBs, TArray<FString>& OutFilteredErrors);
