@@ -61,6 +61,7 @@
 #include "CurveEditorSettings.h"
 #include "TimeToPixel.h"
 #include "Templates/Tuple.h"
+#include "Sequencer/ControlRigSequencerHelpers.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditMode"
 
@@ -860,53 +861,19 @@ void FControlRigSpaceChannelHelpers::GetFramesInThisSpaceAfterThisTime(
 }
 
 void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* ControlRig, ISequencer* Sequencer, FMovieSceneControlRigSpaceChannel* Channel, UMovieSceneSection* SectionToKey,
-	TArray<FFrameNumber> Frames, URigHierarchy* RigHierarchy, const FRigElementKey& ControlKey, FRigSpacePickerBakeSettings Settings)
+	URigHierarchy* RigHierarchy, const FRigElementKey& ControlKey, FRigSpacePickerBakeSettings Settings)
 {
 	if (bDoNotCompensate == true)
 	{
 		return;
 	}
-	if (ControlRig && Sequencer && Channel && SectionToKey && Frames.Num() > 0 && RigHierarchy
+	if (ControlRig && Sequencer && Channel && SectionToKey && (Settings.Settings.StartFrame != Settings.Settings.EndFrame) && RigHierarchy
 		&& Sequencer->GetFocusedMovieSceneSequence() && Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene())
 	{
+	
 		if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(SectionToKey))
 		{
-			TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
-			TArray<FTransform> ControlRigParentWorldTransforms;
-			ControlRigParentWorldTransforms.SetNum(Frames.Num());
-			for (FTransform& Transform : ControlRigParentWorldTransforms)
-			{
-				Transform = FTransform::Identity;
-			}
-			//Store transforms
-			FControlRigSnapper Snapper;
-			TArray<FTransform> ControlWorldTransforms;
-			Snapper.GetControlRigControlTransforms(Sequencer, ControlRig, ControlKey.Name, Frames, ControlRigParentWorldTransforms, ControlWorldTransforms);
-
-			//Find all space keys in range and delete them since it will get replaced with new space when we components.
-			Section->Modify();
-			FFrameNumber StartFrame = Frames[0];
-			FFrameNumber EndFrame = Frames[Frames.Num() - 1];
-			TArray<FFrameNumber> Keys;
-			TArray < FKeyHandle> KeyHandles;
-			TRange<FFrameNumber> Range(StartFrame, EndFrame);
-			Channel->GetKeys(Range, &Keys, &KeyHandles);
-			Channel->DeleteKeys(KeyHandles);
-			//also delete any transform keys at the deleted key times and times -1.
-			for (const FFrameNumber& DeleteFrame : Keys)
-			{
-				FControlRigSpaceChannelHelpers::DeleteTransformKeysAtThisTime(ControlRig, Section, ControlKey.Name, DeleteFrame - 1);
-				FControlRigSpaceChannelHelpers::DeleteTransformKeysAtThisTime(ControlRig, Section, ControlKey.Name, DeleteFrame);
-			}
-
-			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
-
-			//now find space at start and end see if different than the new space if so we need to compensate
-			FMovieSceneControlRigSpaceBaseKey StartFrameValue, EndFrameValue;
-			using namespace UE::MovieScene;
-			EvaluateChannel(Channel, StartFrame, StartFrameValue);
-			EvaluateChannel(Channel, EndFrame, EndFrameValue);
-
+			//get the setting as a rig element key to use for comparisons for smart baking, 
 			FMovieSceneControlRigSpaceBaseKey Value;
 			if (Settings.TargetSpace == RigHierarchy->GetWorldSpaceReferenceKey())
 			{
@@ -929,6 +896,164 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 					Value.ControlRigElement = Settings.TargetSpace;
 				}
 			}
+			TArrayView<FMovieSceneFloatChannel*> Channels = FControlRigSequencerHelpers::GetFloatChannels(ControlRig,
+				ControlKey.Name, Section);
+			//if smart baking we 1) Don't do any baking over times where the Settings.TargetSpace is active, 
+			//and 2) we just bake over key frames
+			//need to store these times first since we will still delete all of these space keys
+
+			TArray<FFrameNumber> Frames;
+			const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+			const FFrameRate  FrameRate = Sequencer->GetFocusedDisplayRate();
+			//get space keys so we can delete them and use them for smart baking at them
+			TArray<FFrameNumber> Keys;
+			TArray < FKeyHandle> KeyHandles;
+			FFrameNumber StartFrame = Settings.Settings.StartFrame;
+			FFrameNumber EndFrame = Settings.Settings.EndFrame;
+			TRange<FFrameNumber> Range(StartFrame, EndFrame);
+			Channel->GetKeys(Range, &Keys, &KeyHandles);
+			TArray<FFrameNumber> MinusOneFrames; //frames we need to delete
+			TArray<TPair<FFrameNumber, TArray<FMovieSceneTangentData>>> StoredTangents; //need to set tangents at the space switch locations
+			TSet<FFrameNumber> ParentFrames; // these are parent frames we keep track of so we can 
+			if (Settings.Settings.BakingKeySettings == EBakingKeySettings::KeysOnly)
+			{
+				TSet<FFrameNumber> MinusOneKeys; 
+				TSortedMap<FFrameNumber,FFrameNumber> FrameMap;
+				//add space keys to bake
+				{
+					for (FFrameNumber& Frame : Keys)
+					{
+						FMovieSceneControlRigSpaceBaseKey SpaceValue;
+						using namespace UE::MovieScene;
+						EvaluateChannel(Channel, Frame, SpaceValue);
+						if (SpaceValue != Value)
+						{
+							FChannelMapInfo* pChannelIndex = nullptr;
+							FRigControlElement* ControlElement = nullptr;
+							int32 NumChannels = 0;
+							int32 ChannelIndex = 0;
+							Tie(ControlElement, pChannelIndex, NumChannels, ChannelIndex) = GetControlAndChannelInfos(ControlRig, Section, ControlKey.Name);
+
+							if (pChannelIndex && ControlElement && NumChannels > 0)
+							{
+								TPair<FFrameNumber, TArray<FMovieSceneTangentData>> FrameAndTangent;
+								FrameAndTangent.Key = Frame;
+								EvaluateTangentAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, Section, Frame, FrameAndTangent.Value);
+								StoredTangents.Add(FrameAndTangent);
+							}
+							FrameMap.Add(Frame,Frame);
+						}
+						MinusOneKeys.Add(Frame - 1);
+					}
+				}
+
+				TArray<FFrameNumber> TransformFrameTimes = FMovieSceneConstraintChannelHelper::GetTransformTimes(
+					Channels, Settings.Settings.StartFrame, Settings.Settings.EndFrame);
+				//add transforms keys to bake
+				{
+					for (FFrameNumber& Frame : TransformFrameTimes)
+					{
+						if (MinusOneKeys.Contains(Frame) == false)
+						{
+							FrameMap.Add(Frame);
+						}
+					}
+				}
+				//also need to add transform keys for the parent control rig intervals over the time we bake
+				TArray<FSpaceRange> SpaceRanges = Channel->FindSpaceIntervals();
+				for (const FSpaceRange& SpaceRange : SpaceRanges)
+				{
+					if (SpaceRange.Key.SpaceType == EMovieSceneControlRigSpaceType::ControlRig && SpaceRange.Key.ControlRigElement.IsValid())
+					{
+						TRange<FFrameNumber> Overlap = TRange<FFrameNumber>::Intersection(Range, SpaceRange.Range);
+						if (Overlap.IsEmpty() == false)
+						{
+							TArrayView<FMovieSceneFloatChannel*> ParentChannels = FControlRigSequencerHelpers::GetFloatChannels(ControlRig,
+								SpaceRange.Key.ControlRigElement.Name, Section);
+
+							TArray<FFrameNumber> ParentFrameTimes = FMovieSceneConstraintChannelHelper::GetTransformTimes(
+								ParentChannels, StartFrame, EndFrame);
+							for (FFrameNumber& Frame : ParentFrameTimes)
+							{
+								//if we don't have a key at the parent time, add the frame AND store it's tangent.
+								if (FrameMap.Contains(Frame) == false)
+								{
+									FrameMap.Add(Frame);
+									ParentFrames.Add(Frame);
+
+									FChannelMapInfo* pChannelIndex = nullptr;
+									FRigControlElement* ControlElement = nullptr;
+									int32 NumChannels = 0;
+									int32 ChannelIndex = 0;
+									Tie(ControlElement, pChannelIndex, NumChannels, ChannelIndex) = GetControlAndChannelInfos(ControlRig, Section, SpaceRange.Key.ControlRigElement.Name);
+									TPair<FFrameNumber, TArray<FMovieSceneTangentData>> FrameAndTangent;
+									FrameAndTangent.Key = Frame;
+									EvaluateTangentAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, Section, Frame, FrameAndTangent.Value);
+									StoredTangents.Add(FrameAndTangent);
+								}
+							}
+						}
+					}
+				
+				}
+				FrameMap.GenerateKeyArray(Frames);
+
+			}
+			else
+			{
+				FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
+				if (Settings.Settings.FrameIncrement > 1) //increment per frame by increment
+				{
+					FrameRateInFrameNumber.Value *= Settings.Settings.FrameIncrement;
+				}
+				for (FFrameNumber& Frame = Settings.Settings.StartFrame; Frame <= Settings.Settings.EndFrame; Frame += FrameRateInFrameNumber)
+				{
+					Frames.Add(Frame);
+				}
+
+			}
+			if (Frames.Num() == 0)
+			{
+				return;
+			}
+			TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+			TArray<FTransform> ControlRigParentWorldTransforms;
+			ControlRigParentWorldTransforms.SetNum(Frames.Num());
+			for (FTransform& Transform : ControlRigParentWorldTransforms)
+			{
+				Transform = FTransform::Identity;
+			}
+			//Store transforms
+			FControlRigSnapper Snapper;
+			TArray<FTransform> ControlWorldTransforms;
+			Snapper.GetControlRigControlTransforms(Sequencer, ControlRig, ControlKey.Name, Frames, ControlRigParentWorldTransforms, ControlWorldTransforms);
+
+			//Need to delete keys, if smart baking we only delete the -1 keys,
+			//if not, we need to delete all transform
+			//and always delete space keys
+			Section->Modify();
+			Channel->DeleteKeys(KeyHandles);
+			if (Settings.Settings.BakingKeySettings == EBakingKeySettings::KeysOnly)
+			{
+				for (const FFrameNumber& DeleteFrame : Keys)
+				{
+					FControlRigSpaceChannelHelpers::DeleteTransformKeysAtThisTime(ControlRig, Section, ControlKey.Name, DeleteFrame - 1);
+				}
+			}
+			else
+			{
+				FMovieSceneConstraintChannelHelper::DeleteTransformTimes(Channels, StartFrame, EndFrame);
+			}
+			
+
+			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+
+			//now find space at start and end see if different than the new space if so we need to compensate
+			FMovieSceneControlRigSpaceBaseKey StartFrameValue, EndFrameValue;
+			using namespace UE::MovieScene;
+			EvaluateChannel(Channel, StartFrame, StartFrameValue);
+			EvaluateChannel(Channel, EndFrame, EndFrameValue);
+			
 			const bool bCompensateStart = StartFrameValue != Value;
 			TRange<FFrameNumber> PlaybackRange = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
 			const bool bCompensateEnd = (EndFrameValue != Value && PlaybackRange.GetUpperBoundValue() != EndFrame);
@@ -948,9 +1073,7 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 			//now set all of the key values
 			FRigControlModifiedContext Context;
 			Context.SetKey = EControlRigSetKey::Always;
-
-			FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
-
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::AllTransform;
 			URigHierarchy::TElementDependencyMap Dependencies = RigHierarchy->GetDependenciesForVM(ControlRig->GetVM());
 			RigHierarchy->SwitchToParent(ControlKey, Settings.TargetSpace, false, true, Dependencies, nullptr);
 			ControlRig->Evaluate_AnyThread();
@@ -972,6 +1095,16 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 				//evaluate control rig
 				ControlRig->Evaluate_AnyThread();
 				Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
+				
+				//if doing smart baking only set keys on those that exist IF not a key from the parent, in that case we need to key the  whole transform.
+				if (Settings.Settings.BakingKeySettings == EBakingKeySettings::KeysOnly && ParentFrames.Contains(Frame) == false)
+				{
+					Context.KeyMask = (uint32)GetCurrentTransformKeysAtThisTime(ControlRig, ControlKey.Name, SectionToKey, Frame);
+				}
+				else
+				{
+					Context.KeyMask = (uint32)EControlRigContextChannelToKey::AllTransform;
+				}
 				ControlRig->SetControlGlobalTransform(ControlKey.Name, GlobalTransform, true, Context);
 			}
 
@@ -1006,66 +1139,38 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 				ChannelInterface.AddKey(EndFrame, Forward<FMovieSceneControlRigSpaceBaseKey>(EndFrameValue));
 				const FTransform GlobalTransform = ControlWorldTransforms[Frames.Num() - 1];
 				Context.LocalTime = TickResolution.AsSeconds(FFrameTime(EndFrame));
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::AllTransform;
 				ControlRig->SetControlGlobalTransform(ControlKey.Name, GlobalTransform, true, Context);
 			}
-		
-			// Fix any Rotation Channels
-			Section->FixRotationWinding(ControlKey.Name, Frames[0], Frames[Frames.Num() - 1]);
-			// Then reduce
-			if (Settings.bReduceKeys)
+			//Fix tangents at removed space switches if needed
+			for (TPair<FFrameNumber, TArray<FMovieSceneTangentData>>& StoredTangent : StoredTangents)
 			{
-				TArrayView<FMovieSceneFloatChannel*> FloatChannels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-				FChannelMapInfo* pChannelIndex = Section->ControlChannelMap.Find(ControlKey.Name);
-				if (pChannelIndex != nullptr)
+				FChannelMapInfo* pChannelIndex = nullptr;
+				FRigControlElement* ControlElement = nullptr;
+				int32 NumChannels = 0;
+				int32 ChannelIndex = 0;
+				Tie(ControlElement, pChannelIndex, NumChannels, ChannelIndex) = GetControlAndChannelInfos(ControlRig, Section, ControlKey.Name);
+
+				if (pChannelIndex && ControlElement && NumChannels > 0)
 				{
-					int32 ChannelIndex = pChannelIndex->ChannelIndex;
-
-					if (FRigControlElement* ControlElement = ControlRig->FindControl(ControlKey.Name))
-					{
-						FKeyDataOptimizationParams Params;
-						Params.bAutoSetInterpolation = true;
-						Params.Tolerance = Settings.Tolerance;
-						Params.Range = TRange <FFrameNumber>(Frames[0], Frames[Frames.Num() - 1]);
-
-						switch (ControlElement->Settings.ControlType)
-						{
-						case ERigControlType::Position:
-						case ERigControlType::Scale:
-						case ERigControlType::Rotator:
-						{
-							FloatChannels[ChannelIndex]->Optimize(Params);
-							FloatChannels[ChannelIndex + 1]->Optimize(Params);
-							FloatChannels[ChannelIndex + 2]->Optimize(Params);
-							break;
-						}
-
-						case ERigControlType::Transform:
-						case ERigControlType::TransformNoScale:
-						case ERigControlType::EulerTransform:
-						{
-
-							FloatChannels[ChannelIndex]->Optimize(Params);
-							FloatChannels[ChannelIndex + 1]->Optimize(Params);
-							FloatChannels[ChannelIndex + 2]->Optimize(Params);
-							FloatChannels[ChannelIndex + 3]->Optimize(Params);
-							FloatChannels[ChannelIndex + 4]->Optimize(Params);
-							FloatChannels[ChannelIndex + 5]->Optimize(Params);
-
-							if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
-								ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
-							{
-								FloatChannels[ChannelIndex + 6]->Optimize(Params);
-								FloatChannels[ChannelIndex + 7]->Optimize(Params);
-								FloatChannels[ChannelIndex + 8]->Optimize(Params);
-							}
-							break;
-
-						}
-						}
-					}
+					SetTangentsAtThisTime<FMovieSceneFloatChannel>(ChannelIndex, NumChannels, Section, StoredTangent.Key, StoredTangent.Value);
 				}
 			}
-			
+			// Fix any Rotation Channels
+			Section->FixRotationWinding(ControlKey.Name, Frames[0], Frames[Frames.Num() - 1]);
+			// Then optimize
+			if (Settings.Settings.BakingKeySettings == EBakingKeySettings::AllFrames && Settings.Settings.bReduceKeys)
+			{
+				FKeyDataOptimizationParams Params;
+				Params.bAutoSetInterpolation = true;
+				Params.Tolerance = Settings.Settings.Tolerance;
+				Params.Range = TRange <FFrameNumber>(Frames[0], Frames[Frames.Num() - 1]);
+				Section->OptimizeSection(ControlKey.Name, Params);
+			}
+			else  //need to auto set tangents, the above section will do that also
+			{
+				Section->AutoSetTangents(ControlKey.Name);
+			}	
 		}
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded); //may have added channel
 	}
@@ -1333,16 +1438,16 @@ FReply FControlRigSpaceChannelHelpers::OpenBakeDialog(ISequencer* Sequencer, FMo
 			Settings.TargetSpace = URigHierarchy::GetDefaultParentKey();
 
 			TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
-			Settings.StartFrame = Range.GetLowerBoundValue();
-			Settings.EndFrame = Range.GetUpperBoundValue();
+			Settings.Settings.StartFrame = Range.GetLowerBoundValue();
+			Settings.Settings.EndFrame = Range.GetUpperBoundValue();
 			TMovieSceneChannelData<FMovieSceneControlRigSpaceBaseKey> ChannelData = Channel->GetData();
 			TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
 			if (KeyIndex >= 0 && KeyIndex < Times.Num())
 			{
-				Settings.StartFrame = Times[KeyIndex];
+				Settings.Settings.StartFrame = Times[KeyIndex];
 				if (KeyIndex + 1 < Times.Num())
 				{
-					Settings.EndFrame = Times[KeyIndex + 1];
+					Settings.Settings.EndFrame = Times[KeyIndex + 1];
 				}
 			}
 			TArray<FRigElementKey> Controls;
@@ -1362,14 +1467,7 @@ FReply FControlRigSpaceChannelHelpers::OpenBakeDialog(ISequencer* Sequencer, FMo
 				})
 				.OnBake_Lambda([Sequencer, ControlRig, TickResolution](URigHierarchy* InHierarchy, TArray<FRigElementKey> InControls, FRigSpacePickerBakeSettings InSettings)
 				{
-					TArray<FFrameNumber> Frames;
-
-					const FFrameRate& FrameRate = Sequencer->GetFocusedDisplayRate();
-					FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
-					for (FFrameNumber& Frame = InSettings.StartFrame; Frame <= InSettings.EndFrame; Frame += FrameRateInFrameNumber)
-					{
-						Frames.Add(Frame);
-					}
+					
 					FScopedTransaction Transaction(LOCTEXT("BakeControlToSpace", "Bake Control In Space"));
 					for (const FRigElementKey& ControlKey : InControls)
 					{
@@ -1377,7 +1475,7 @@ FReply FControlRigSpaceChannelHelpers::OpenBakeDialog(ISequencer* Sequencer, FMo
 						if (SpaceChannelAndSection.SpaceChannel)
 						{
 							FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
-								Frames, InHierarchy, ControlKey, InSettings);
+								InHierarchy, ControlKey, InSettings);
 						}
 					}
 					return FReply::Handled();

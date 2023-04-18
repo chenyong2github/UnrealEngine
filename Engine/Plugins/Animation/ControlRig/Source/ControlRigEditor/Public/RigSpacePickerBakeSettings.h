@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Rigs/RigHierarchyDefines.h"
+#include "BakingAnimationKeySettings.h"
 #include "RigSpacePickerBakeSettings.generated.h"
+
 
 USTRUCT(BlueprintType)
 struct CONTROLRIGEDITOR_API FRigSpacePickerBakeSettings
@@ -14,24 +16,28 @@ struct CONTROLRIGEDITOR_API FRigSpacePickerBakeSettings
 	FRigSpacePickerBakeSettings()
 	{
 		TargetSpace = FRigElementKey();
-		StartFrame = 0;
-		EndFrame = 100;
-		bReduceKeys = false;
-		Tolerance = 0.001f;
+		Settings = FBakingAnimationKeySettings();
 	}
 
 	UPROPERTY(BlueprintReadWrite, Category = "Settings")
 	FRigElementKey TargetSpace;
 
-	UPROPERTY(BlueprintReadWrite,EditAnywhere, Category = "Settings")
-	FFrameNumber StartFrame;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Bake", meta = (ShowOnlyInnerProperties))
+	FBakingAnimationKeySettings Settings;
 
-	UPROPERTY(BlueprintReadWrite,EditAnywhere, Category = "Settings")
-	FFrameNumber EndFrame;
+	/** DEPRECATED 5.3 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Settings.StartFrame instead"))
+	FFrameNumber StartFrame_DEPRECATED;
 
-	UPROPERTY(BlueprintReadWrite,EditAnywhere, Category = "Settings")
-	bool bReduceKeys;
+	/** DEPRECATED 5.3 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Settings.EndFrame instead"))
+	FFrameNumber EndFrame_DEPRECATED;
 
-	UPROPERTY(BlueprintReadWrite,EditAnywhere, Category = "Settings")
-	float Tolerance;
+	/** DEPRECATED 5.3 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Settings.bReduceKeys instead"))
+	bool bReduceKeys_DEPRECATED;
+
+	/** DEPRECATED 5.3 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Settings.Tolerance instead"))
+	float Tolerance_DEPRECATED;
 };

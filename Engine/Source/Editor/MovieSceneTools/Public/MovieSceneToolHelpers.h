@@ -39,6 +39,8 @@ class ACameraActor;
 struct FActorForWorldTransforms;
 class UMovieScene3DTransformSection;
 class UMovieSceneSubTrack;
+struct FBakingAnimationKeySettings;
+struct FKeyDataOptimizationParams;
 class UMovieSceneSubSection;
 enum class EMovieSceneTransformChannel : uint32;
 
@@ -546,6 +548,16 @@ public:
 	*/
 	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value);
 
+	/*
+	* Set or add a key onto a float channel based on key value.
+	*/
+	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& Curve, FFrameNumber Time, const FMovieSceneFloatValue& Value);
+
+	/*
+	* Set or add a key onto a double channel based on key value.
+	*/
+	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, FMovieSceneDoubleValue Value);
+
 	/* 
 	* Set or add a key onto a float channel based on rich curve data.
 	*/
@@ -578,11 +590,17 @@ public:
 	 */
 	static bool IsValidAsset(UMovieSceneSequence* Sequence, const FAssetData& InAssetData);
 
+	static bool CollapseSection(TSharedPtr<ISequencer>& SequencerPtr, UMovieSceneTrack* OwnerTrack, TArray<UMovieSceneSection*> Sections,
+		const FBakingAnimationKeySettings& InSettings);
+
+	static bool OptimizeSection(const FKeyDataOptimizationParams& InParams, UMovieSceneSection* InSection);
+
 	/** Returns the frame numbers between start and end. */
 	static void CalculateFramesBetween(
 		const UMovieScene* MovieScene,
 		FFrameNumber StartFrame,
 		FFrameNumber EndFrame,
+		int FrameIncrement,
 		TArray<FFrameNumber>& OutFrames);
 
 	/** Returns the transform section for that guid. */

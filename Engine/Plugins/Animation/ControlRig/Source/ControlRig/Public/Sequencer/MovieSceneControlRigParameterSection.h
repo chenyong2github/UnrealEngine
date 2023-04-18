@@ -24,6 +24,7 @@
 
 class UAnimSequence;
 class USkeletalMeshComponent;
+struct FKeyDataOptimizationParams;
 
 struct CONTROLRIG_API FControlRigBindingHelper
 {
@@ -197,7 +198,9 @@ public:
 	TArray<FIntegerParameterNameAndCurve>& GetIntegerParameterNamesAndCurves();
 	const TArray<FIntegerParameterNameAndCurve>& GetIntegerParameterNamesAndCurves() const;
 
-	void FixRotationWinding(FName ControlName, FFrameNumber StartFrame, FFrameNumber EndFrame);
+	void FixRotationWinding(const FName& ControlName, FFrameNumber StartFrame, FFrameNumber EndFrame);
+	void OptimizeSection(const FName& ControlName, const FKeyDataOptimizationParams& InParams);
+	void AutoSetTangents(const FName& ControlName);
 
 	TArray<FSpaceControlNameAndChannel>& GetSpaceChannels();
 	const TArray< FSpaceControlNameAndChannel>& GetSpaceChannels() const;
