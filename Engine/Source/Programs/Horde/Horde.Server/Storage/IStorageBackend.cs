@@ -16,6 +16,11 @@ namespace Horde.Server.Storage
 	public interface IStorageBackend : IDisposable
 	{
 		/// <summary>
+		/// Whether this storage backend supports redirects or not
+		/// </summary>
+		bool SupportsRedirects { get; }
+
+		/// <summary>
 		/// Attempts to open a read stream for the given path.
 		/// </summary>
 		/// <param name="path">Relative path within the bucket</param>
@@ -63,28 +68,22 @@ namespace Horde.Server.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Sequence of object paths</returns>
 		IAsyncEnumerable<string> EnumerateAsync(CancellationToken cancellationToken = default);
-	}
 
-	/// <summary>
-	/// Storage backend that supports redirecting HTTP traffic (eg. using S3 presigned urls)
-	/// </summary>
-	public interface IStorageBackendWithRedirects : IStorageBackend
-	{
 		/// <summary>
-		/// Gets a redirect for a read request
+		/// Gets a HTTP redirect for a read request
 		/// </summary>
 		/// <param name="path">Path to read from</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Path to upload the data to</returns>
-		ValueTask<Uri?> GetReadRedirectAsync(string path, CancellationToken cancellationToken = default);
+		ValueTask<Uri?> TryGetReadRedirectAsync(string path, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Gets a redirect for a write request
+		/// Gets a HTTP redirect for a write request
 		/// </summary>
 		/// <param name="path">Path to write to</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Path to upload the data to</returns>
-		ValueTask<Uri?> GetWriteRedirectAsync(string path, CancellationToken cancellationToken = default);
+		ValueTask<Uri?> TryGetWriteRedirectAsync(string path, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -108,6 +107,9 @@ namespace Horde.Server.Storage
 		{
 			readonly IStorageBackend _inner;
 
+			/// <inheritdoc/>
+			public bool SupportsRedirects => _inner.SupportsRedirects;
+
 			/// <summary>
 			/// Constructor
 			/// </summary>
@@ -115,7 +117,7 @@ namespace Horde.Server.Storage
 			public TypedStorageBackend(IStorageBackend inner) => _inner = inner;
 
 			/// <inheritdoc/>
-			public void Dispose() { }
+			public void Dispose() => _inner.Dispose();
 
 			/// <inheritdoc/>
 			public Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken) => _inner.TryReadAsync(path, cancellationToken);
@@ -134,6 +136,12 @@ namespace Horde.Server.Storage
 
 			/// <inheritdoc/>
 			public IAsyncEnumerable<string> EnumerateAsync(CancellationToken cancellationToken = default) => _inner.EnumerateAsync(cancellationToken);
+
+			/// <inheritdoc/>
+			public ValueTask<Uri?> TryGetReadRedirectAsync(string path, CancellationToken cancellationToken = default) => _inner.TryGetReadRedirectAsync(path, cancellationToken);
+
+			/// <inheritdoc/>
+			public ValueTask<Uri?> TryGetWriteRedirectAsync(string path, CancellationToken cancellationToken = default) => _inner.TryGetWriteRedirectAsync(path, cancellationToken);
 		}
 
 		/// <summary>

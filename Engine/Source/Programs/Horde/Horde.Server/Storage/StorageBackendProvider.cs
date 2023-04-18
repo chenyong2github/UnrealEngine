@@ -65,6 +65,9 @@ namespace Horde.Server.Storage
 			#region IStorageBackend Implementation
 
 			/// <inheritdoc/>
+			public bool SupportsRedirects => _backend.SupportsRedirects;
+
+			/// <inheritdoc/>
 			public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken = default) => _backend.ExistsAsync(path, cancellationToken);
 
 			/// <inheritdoc/>
@@ -81,6 +84,12 @@ namespace Horde.Server.Storage
 
 			/// <inheritdoc/>
 			public Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken = default) => _backend.WriteAsync(path, stream, cancellationToken);
+
+			/// <inheritdoc/>
+			public ValueTask<Uri?> TryGetReadRedirectAsync(string path, CancellationToken cancellationToken = default) => _backend.TryGetReadRedirectAsync(path, cancellationToken);
+
+			/// <inheritdoc/>
+			public ValueTask<Uri?> TryGetWriteRedirectAsync(string path, CancellationToken cancellationToken = default) => _backend.TryGetWriteRedirectAsync(path, cancellationToken);
 
 			#endregion
 		}

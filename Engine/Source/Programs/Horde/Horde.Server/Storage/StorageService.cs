@@ -103,7 +103,7 @@ namespace Horde.Server.Storage
 				_outer = outer;
 				Config = config;
 				Backend = backend;
-				SupportsRedirects = (backend is IStorageBackendWithRedirects) && !config.EnableAliases;
+				SupportsRedirects = backend.SupportsRedirects && !config.EnableAliases;
 
 				_prefix = config.Prefix;
 				if (_prefix.Length > 0 && !_prefix.EndsWith("/", StringComparison.Ordinal))
@@ -131,15 +131,7 @@ namespace Horde.Server.Storage
 			}
 
 			/// <inheritdoc/>
-			public ValueTask<Uri?> GetReadRedirectAsync(BlobLocator locator, CancellationToken cancellationToken = default)
-			{
-				IStorageBackendWithRedirects? redirectBackend = Backend as IStorageBackendWithRedirects;
-				if (redirectBackend == null)
-				{
-					return new ValueTask<Uri?>((Uri?)null);
-				}
-				return redirectBackend.GetReadRedirectAsync(GetBlobPath(locator.BlobId), cancellationToken);
-			}
+			public ValueTask<Uri?> GetReadRedirectAsync(BlobLocator locator, CancellationToken cancellationToken = default) => Backend.TryGetReadRedirectAsync(GetBlobPath(locator.BlobId), cancellationToken);
 
 			/// <inheritdoc/>
 			public override async Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default)
@@ -204,8 +196,7 @@ namespace Horde.Server.Storage
 			/// <inheritdoc/>
 			public async ValueTask<(BlobLocator, Uri)?> GetWriteRedirectAsync(Utf8String prefix = default, CancellationToken cancellationToken = default)
 			{
-				IStorageBackendWithRedirects? redirectBackend = Backend as IStorageBackendWithRedirects;
-				if (redirectBackend == null)
+				if (!Backend.SupportsRedirects)
 				{
 					return null;
 				}
@@ -213,7 +204,7 @@ namespace Horde.Server.Storage
 				BlobLocator locator = await _outer.AddBlobAsync(NamespaceId, prefix, null, cancellationToken);
 				string path = GetBlobPath(locator.BlobId);
 
-				Uri? url = await redirectBackend.GetWriteRedirectAsync(path, cancellationToken);
+				Uri? url = await Backend.TryGetWriteRedirectAsync(path, cancellationToken);
 				if (url == null)
 				{
 					return null;
@@ -250,7 +241,6 @@ namespace Horde.Server.Storage
 
 			#endregion
 		}
-
 
 		class NamespaceInfo : IDisposable
 		{

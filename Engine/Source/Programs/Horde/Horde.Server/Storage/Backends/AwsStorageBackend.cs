@@ -103,7 +103,7 @@ namespace Horde.Server.Storage.Backends
 	/// <summary>
 	/// FileStorage implementation using an s3 bucket
 	/// </summary>
-	public sealed class AwsStorageBackend : IStorageBackendWithRedirects, IDisposable
+	public sealed class AwsStorageBackend : IStorageBackend, IDisposable
 	{
 		/// <summary>
 		/// S3 Client
@@ -129,6 +129,9 @@ namespace Horde.Server.Storage.Backends
 		/// Logger interface
 		/// </summary>
 		private readonly ILogger _logger;
+
+		/// <inheritdoc/>
+		public bool SupportsRedirects => true;
 
 		/// <summary>
 		/// Constructor
@@ -300,10 +303,10 @@ namespace Horde.Server.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public ValueTask<Uri?> GetReadRedirectAsync(string path, CancellationToken cancellationToken = default) => new ValueTask<Uri?>(GetPresignedUrl(path, HttpVerb.GET));
+		public ValueTask<Uri?> TryGetReadRedirectAsync(string path, CancellationToken cancellationToken = default) => new ValueTask<Uri?>(GetPresignedUrl(path, HttpVerb.GET));
 
 		/// <inheritdoc/>
-		public ValueTask<Uri?> GetWriteRedirectAsync(string path, CancellationToken cancellationToken = default) => new ValueTask<Uri?>(GetPresignedUrl(path, HttpVerb.PUT));
+		public ValueTask<Uri?> TryGetWriteRedirectAsync(string path, CancellationToken cancellationToken = default) => new ValueTask<Uri?>(GetPresignedUrl(path, HttpVerb.PUT));
 
 		/// <summary>
 		/// Helper method to generate a presigned URL for a request

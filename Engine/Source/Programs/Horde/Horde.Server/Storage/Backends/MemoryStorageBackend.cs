@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -18,6 +19,9 @@ namespace Horde.Server.Storage.Backends
 		/// Data storage
 		/// </summary>
 		readonly ConcurrentDictionary<string, byte[]> _pathToData = new ConcurrentDictionary<string, byte[]>();
+
+		/// <inheritdoc/>
+		public bool SupportsRedirects => false;
 
 		/// <inheritdoc/>
 		public void Dispose()
@@ -82,5 +86,11 @@ namespace Horde.Server.Storage.Backends
 				await Task.Yield();
 			}
 		}
+
+		/// <inheritdoc/>
+		public ValueTask<Uri?> TryGetReadRedirectAsync(string path, CancellationToken cancellationToken = default) => default;
+
+		/// <inheritdoc/>
+		public ValueTask<Uri?> TryGetWriteRedirectAsync(string path, CancellationToken cancellationToken = default) => default;
 	}
 }

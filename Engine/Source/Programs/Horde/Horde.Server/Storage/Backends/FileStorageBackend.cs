@@ -44,6 +44,9 @@ namespace Horde.Server.Storage.Backends
 		/// </summary>
 		private int _uniqueId;
 
+		/// <inheritdoc/>
+		public bool SupportsRedirects => false;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -195,5 +198,11 @@ namespace Horde.Server.Storage.Backends
 				}
 			}
 		}
+
+		/// <inheritdoc/>
+		public ValueTask<Uri?> TryGetReadRedirectAsync(string path, CancellationToken cancellationToken = default) => default;
+
+		/// <inheritdoc/>
+		public ValueTask<Uri?> TryGetWriteRedirectAsync(string path, CancellationToken cancellationToken = default) => default;
 	}
 }
