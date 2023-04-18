@@ -36,20 +36,6 @@ FRemoteConfigAsyncIOInfo::FRemoteConfigAsyncIOInfo(const TCHAR* InDefaultIniFile
 }
 
 
-FRemoteConfigAsyncIOInfo& FRemoteConfigAsyncIOInfo::operator=(const FRemoteConfigAsyncIOInfo& Other)
-{
-	Buffer = Other.Buffer;
-	TimeStamp = Other.TimeStamp;
-	StartReadTime = Other.StartReadTime;
-	StartWriteTime = Other.StartWriteTime;
-	bReadIOFailed = Other.bReadIOFailed;
-	bWasProcessed = Other.bWasProcessed;
-	FMemory::Memcpy(DefaultIniFile, Other.DefaultIniFile, 1024);
-
-	return *this;
-}
-
-
 /*-----------------------------------------------------------------------------
    FRemoteConfigAsyncWorker
 -----------------------------------------------------------------------------*/

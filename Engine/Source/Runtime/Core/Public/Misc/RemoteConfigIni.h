@@ -23,9 +23,6 @@ struct FRemoteConfigAsyncIOInfo
 	FRemoteConfigAsyncIOInfo() { }
 	FRemoteConfigAsyncIOInfo(const TCHAR* InDefaultIniFile);
 
-	/** Assignment operator */
-	FRemoteConfigAsyncIOInfo& operator=(const FRemoteConfigAsyncIOInfo& Other);
-
 	/** Stores the contents of the remote config file */
 	FString Buffer;
 
