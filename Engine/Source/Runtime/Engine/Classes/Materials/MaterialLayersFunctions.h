@@ -199,9 +199,8 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 #endif // WITH_EDITOR
 
 	static const FGuid BackgroundGuid;
-		
+
 	FMaterialLayersFunctions() = default;
-	FMaterialLayersFunctions(const FMaterialLayersFunctions& Rhs) = default;
 	FMaterialLayersFunctions(const FMaterialLayersFunctionsRuntimeData&) = delete;
 
 	FMaterialLayersFunctionsRuntimeData& GetRuntime() { return *this; }

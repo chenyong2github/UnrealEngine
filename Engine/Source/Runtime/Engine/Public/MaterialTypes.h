@@ -121,8 +121,6 @@ public:
 		, Association(Rhs.Association)
 	{}
 
-	FMemoryImageMaterialParameterInfo(const FMemoryImageMaterialParameterInfo& Rhs) = default;
-
 	FORCEINLINE FName GetName() const { return ScriptNameToName(Name); }
 
 	friend FArchive& operator<<(FArchive& Ar, FMemoryImageMaterialParameterInfo& Ref)
