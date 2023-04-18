@@ -30,11 +30,6 @@ public:
 	{
 		Mesh = mesh;
 	}
-	FMeshFaceSelection(const FMeshFaceSelection& copy)
-	{
-		Mesh = copy.Mesh;
-		Selected = copy.Selected;
-	}
 
 	// convert vertex selection to face selection. Require at least minCount verts of
 	// tri to be selected (valid values are 1,2,3)

@@ -148,8 +148,6 @@ class GeodesicSingleTriangleUtils::FTangentTri2
 public:
 	FTangentTri2() = default;
 
-	FTangentTri2(const FTangentTri2& other) = default;
-
 	// The PrimaryEdge will be aligned with the x-axis in 2d ( and must be one of the edges of the triangle indicated by TriID)
 	FTangentTri2(const FDynamicMesh3& Mesh, int32 TriID, int32 PrimaryEdgeID);
 
