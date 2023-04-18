@@ -26,6 +26,7 @@ namespace UE
 {
 	class FSdfPath;
 	class FUsdAttribute;
+	class FUsdPayloads;
 	class FUsdReferences;
 
 	namespace Internal
@@ -116,14 +117,17 @@ namespace UE
 		TArray< FUsdPrim > GetFilteredChildren( bool bTraverseInstanceProxies ) const;
 
 		bool HasVariantSets() const;
-		bool HasAuthoredReferences() const;
 
+		FUsdPayloads GetPayloads() const;
+		bool HasAuthoredPayloads() const;
+		UE_DEPRECATED(5.3, "Please use HasAuthoredPayloads() instead.")
 		bool HasPayload() const;
 		bool IsLoaded() const;
 		void Load( EUsdLoadPolicy Policy = EUsdLoadPolicy::UsdLoadWithDescendants );
 		void Unload();
 
 		FUsdReferences GetReferences() const;
+		bool HasAuthoredReferences() const;
 
 		bool RemoveProperty( FName PropName ) const;
 

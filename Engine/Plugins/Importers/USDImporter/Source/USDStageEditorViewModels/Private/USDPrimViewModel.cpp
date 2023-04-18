@@ -141,7 +141,7 @@ void FUsdPrimViewModel::RefreshData( bool bRefreshChildren )
 	RowData->bHasCompositionArcs = UsdUtils::HasCompositionArcs( UsdPrim );
 
 	RowData->Type = bIsPseudoRoot ? FText::GetEmpty() : FText::FromName( UsdPrim.GetTypeName() );
-	RowData->bHasPayload = UsdPrim.HasPayload();
+	RowData->bHasPayload = UsdPrim.HasAuthoredPayloads();
 	RowData->bIsLoaded = UsdPrim.IsLoaded();
 
 	bool bOldVisibility = RowData->bIsVisible;
@@ -210,7 +210,7 @@ void FUsdPrimViewModel::ToggleVisibility()
 
 void FUsdPrimViewModel::TogglePayload()
 {
-	if ( UsdPrim && UsdPrim.HasPayload() )
+	if ( UsdPrim && UsdPrim.HasAuthoredPayloads() )
 	{
 		if ( UsdPrim.IsLoaded() )
 		{

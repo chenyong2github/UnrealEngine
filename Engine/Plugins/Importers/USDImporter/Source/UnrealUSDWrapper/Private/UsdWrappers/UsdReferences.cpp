@@ -48,7 +48,6 @@ namespace UE
 
 	FUsdReferences::FUsdReferences()
 	{
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdReferencesImpl>();
 	}
 
@@ -82,7 +81,6 @@ namespace UE
 
 	FUsdReferences& FUsdReferences::operator=(FUsdReferences&& Other)
 	{
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MoveTemp(Other.Impl);
 
 		return *this;
@@ -90,7 +88,6 @@ namespace UE
 
 	FUsdReferences::~FUsdReferences()
 	{
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl.Reset();
 	}
 
@@ -121,7 +118,6 @@ namespace UE
 		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdReferencesImpl>(InPrim);
 	}
-
 #endif // #if USE_USD_SDK
 
 	bool FUsdReferences::AddReference(const FSdfReference& Reference, EUsdListPosition Position)
@@ -140,19 +136,15 @@ namespace UE
 			const pxr::SdfPath UsdPrimPath(Reference.PrimPath);
 			const pxr::SdfLayerOffset UsdLayerOffset(Reference.LayerOffset.Offset, Reference.LayerOffset.Scale);
 
-			pxr::SdfReference UsdReference(AssetPath, UsdPrimPath, UsdLayerOffset);
+			const pxr::SdfReference UsdReference(AssetPath, UsdPrimPath, UsdLayerOffset);
 
 			return Impl->PxrUsdPrim.Get().GetReferences().AddReference(
 				UsdReference,
 				static_cast<pxr::UsdListPosition>(Position));
 		}
-		else
-		{
-			return false;
-		}
-#else
-		return false;
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
 	bool FUsdReferences::AddReference(
@@ -173,13 +165,9 @@ namespace UE
 			return Impl->PxrUsdPrim.Get().GetReferences().AddReference(
 				UsdIdentifier, UsdPrimPath, UsdLayerOffset, static_cast<pxr::UsdListPosition>(Position));
 		}
-		else
-		{
-			return false;
-		}
-#else
-		return false;
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
 	bool FUsdReferences::AddReference(
@@ -198,13 +186,9 @@ namespace UE
 			return Impl->PxrUsdPrim.Get().GetReferences().AddReference(
 				UsdIdentifier, UsdLayerOffset, static_cast<pxr::UsdListPosition>(Position));
 		}
-		else
-		{
-			return false;
-		}
-#else
-		return false;
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
 	bool FUsdReferences::AddInternalReference(
@@ -223,13 +207,9 @@ namespace UE
 			return Impl->PxrUsdPrim.Get().GetReferences().AddInternalReference(
 				UsdPrimPath, UsdLayerOffset, static_cast<pxr::UsdListPosition>(Position));
 		}
-		else
-		{
-			return false;
-		}
-#else
-		return false;
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
 	bool FUsdReferences::RemoveReference(const FSdfReference& Reference)
@@ -243,17 +223,13 @@ namespace UE
 			const pxr::SdfPath UsdPrimPath(Reference.PrimPath);
 			const pxr::SdfLayerOffset UsdLayerOffset(Reference.LayerOffset.Offset, Reference.LayerOffset.Scale);
 
-			pxr::SdfReference UsdReference(AssetPath, UsdPrimPath, UsdLayerOffset);
+			const pxr::SdfReference UsdReference(AssetPath, UsdPrimPath, UsdLayerOffset);
 
 			return Impl->PxrUsdPrim.Get().GetReferences().RemoveReference(UsdReference);
 		}
-		else
-		{
-			return false;
-		}
-#else
-		return false;
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
 	bool FUsdReferences::ClearReferences()
@@ -265,13 +241,9 @@ namespace UE
 
 			return Impl->PxrUsdPrim.Get().GetReferences().ClearReferences();
 		}
-		else
-		{
-			return false;
-		}
-#else
-		return false;
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
 	bool FUsdReferences::SetReferences(const TArray<FSdfReference>& Items)
@@ -282,6 +254,7 @@ namespace UE
 			FScopedUsdAllocs UsdAllocs;
 
 			std::vector<pxr::SdfReference> UsdReferences;
+			UsdReferences.reserve(Items.Num());
 
 			for (const FSdfReference& Item : Items)
 			{
@@ -294,13 +267,9 @@ namespace UE
 
 			return Impl->PxrUsdPrim.Get().GetReferences().SetReferences(UsdReferences);
 		}
-		else
-		{
-			return false;
-		}
-#else
-		return false;
 #endif // #if USE_USD_SDK
+
+		return false;
 	}
 
 	FUsdPrim FUsdReferences::GetPrim() const
@@ -310,12 +279,8 @@ namespace UE
 		{
 			return FUsdPrim(Impl->PxrUsdPrim.Get());
 		}
-		else
-		{
-			return FUsdPrim{};
-		}
-#else
-		return FUsdPrim{};
 #endif // #if USE_USD_SDK
+
+		return FUsdPrim{};
 	}
 }

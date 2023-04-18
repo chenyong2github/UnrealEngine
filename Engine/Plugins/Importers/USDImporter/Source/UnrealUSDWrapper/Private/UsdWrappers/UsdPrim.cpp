@@ -6,6 +6,7 @@
 
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdAttribute.h"
+#include "UsdWrappers/UsdPayloads.h"
 #include "UsdWrappers/UsdReferences.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -492,22 +493,28 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
-	bool FUsdPrim::HasAuthoredReferences() const
+	FUsdPayloads FUsdPrim::GetPayloads() const
 	{
 #if USE_USD_SDK
-		return Impl->PxrUsdPrim.Get().HasAuthoredReferences();
+		return FUsdPayloads(Impl->PxrUsdPrim.Get());
+#else
+		return FUsdPayloads{};
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::HasAuthoredPayloads() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdPrim.Get().HasAuthoredPayloads();
 #else
 		return false;
 #endif // #if USE_USD_SDK
 	}
 
+	// Deprecated in 5.3
 	bool FUsdPrim::HasPayload() const
 	{
-#if USE_USD_SDK
-		return Impl->PxrUsdPrim.Get().HasPayload();
-#else
-		return false;
-#endif // #if USE_USD_SDK
+		return HasAuthoredPayloads();
 	}
 
 	bool FUsdPrim::IsLoaded() const
@@ -558,6 +565,15 @@ namespace UE
 		return FUsdReferences( Impl->PxrUsdPrim.Get() );
 #else
 		return FUsdReferences{};
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::HasAuthoredReferences() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdPrim.Get().HasAuthoredReferences();
+#else
+		return false;
 #endif // #if USE_USD_SDK
 	}
 

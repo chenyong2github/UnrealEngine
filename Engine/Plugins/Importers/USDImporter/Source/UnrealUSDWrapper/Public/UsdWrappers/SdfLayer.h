@@ -31,6 +31,30 @@ namespace UE
 		double Scale = 1.0;
 	};
 
+	struct UNREALUSDWRAPPER_API FSdfPayload
+	{
+		FSdfPayload(
+			const FString& InAssetPath = {},
+			const FSdfPath& InPrimPath = {},
+			const FSdfLayerOffset& InLayerOffset = {})
+			: AssetPath(InAssetPath)
+			, PrimPath(InPrimPath)
+			, LayerOffset(InLayerOffset)
+		{
+		}
+
+		FString AssetPath;
+		FSdfPath PrimPath;
+		FSdfLayerOffset LayerOffset;
+	};
+
+	// In the USD API, pxr::SdfPayload and pxr::SdfReference are very similar
+	// except that the latter includes support for a custom data dictionary.
+	// The UE wrapping of SdfReference does not currently include support for
+	// that custom data, leaving the FSdfReference wrapper identical to the
+	// FSdfPayload wrapper. We keep them as distinct types though to better
+	// mimic the USD API and in case support for custom data dictionaries on
+	// references is added to the FSdfReference wrapper in the future.
 	struct UNREALUSDWRAPPER_API FSdfReference
 	{
 		FSdfReference(

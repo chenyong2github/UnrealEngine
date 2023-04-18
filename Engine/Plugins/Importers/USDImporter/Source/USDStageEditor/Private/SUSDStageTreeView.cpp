@@ -1500,7 +1500,7 @@ void SUsdStageTreeView::OnToggleAllPayloads( EPayloadsTrigger PayloadsTrigger )
 			{
 				UE::FUsdPrim& UsdPrim = InSelectedItem->UsdPrim;
 
-				if ( UsdPrim.HasPayload() )
+				if ( UsdPrim.HasAuthoredPayloads() )
 				{
 					bool bPrimIsLoaded = UsdPrim.IsLoaded();
 
