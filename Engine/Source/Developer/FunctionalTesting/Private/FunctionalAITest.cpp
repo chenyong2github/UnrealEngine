@@ -105,7 +105,7 @@ void AFunctionalAITestBase::OnTimeout()
 		UE_LOG(LogFunctionalTest, Log, TEXT("Test timed out, log details for: %s"), *GetNameSafe(Navmesh));
 		UE_LOG(LogFunctionalTest, Log, TEXT("> dirty areas? %s"), NavSys->HasDirtyAreasQueued() ? TEXT("YES") : TEXT("no"));
 
-		FNavigationOctree* NavigationOctree = NavSys->GetMutableNavOctree();
+		const FNavigationOctree* NavigationOctree = NavSys->GetNavOctree();
 		
 		FNavigationOctreeFilter AreaFilter;
 		AreaFilter.bIncludeAreas = true;

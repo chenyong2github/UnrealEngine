@@ -1869,7 +1869,7 @@ bool FRecastTileGenerator::DoWork()
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_DoWork);
 
 	TSharedPtr<FNavDataGenerator, ESPMode::ThreadSafe> ParentGenerator = ParentGeneratorWeakPtr.Pin();
-	bool bSucceess = true;
+	bool bSuccess = true;
 
 	if (ParentGenerator.IsValid())
 	{
@@ -1878,12 +1878,12 @@ bool FRecastTileGenerator::DoWork()
 			GatherGeometryFromSources();
 		}
 
-		bSucceess = GenerateTile();
+		bSuccess = GenerateTile();
 
 		DumpAsyncData();
 	}
 
-	return bSucceess;
+	return bSuccess;
 }
 
 void FRecastTileGenerator::DumpAsyncData()
@@ -1960,7 +1960,7 @@ void FRecastTileGenerator::PrepareGeometrySources(const FRecastNavMeshGenerator&
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_PrepareGeometrySources);
 
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(ParentGenerator.GetWorld());
-	FNavigationOctree* NavOctreeInstance = NavSys ? NavSys->GetMutableNavOctree() : nullptr;
+	const FNavigationOctree* NavOctreeInstance = NavSys ? NavSys->GetNavOctree() : nullptr;
 	check(NavOctreeInstance);
 	NavigationRelevantData.Reset();
 	NavSystem = NavSys;
@@ -2014,7 +2014,7 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_GatherGeometry);
 
 	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(ParentGenerator.GetWorld());
-	FNavigationOctree* NavigationOctree = NavSys ? NavSys->GetMutableNavOctree() : nullptr;
+	const FNavigationOctree* NavigationOctree = NavSys ? NavSys->GetNavOctree() : nullptr;
 	if (NavigationOctree == nullptr)
 	{
 		return;
@@ -5082,7 +5082,7 @@ void FRecastNavMeshGenerator::TickAsyncBuild(float DeltaSeconds)
 #endif//WITH_EDITOR
 
 	const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-	if (!ensureMsgf(NavSys != nullptr, TEXT("FRecastNavMeshGenerator can't found valid navigation system: Owner=[%s] World=[%s]"), *GetFullNameSafe(GetOwner()), *GetFullNameSafe(GetWorld())))
+	if (!ensureMsgf(NavSys != nullptr, TEXT("FRecastNavMeshGenerator can't find valid navigation system: Owner=[%s] World=[%s]"), *GetFullNameSafe(GetOwner()), *GetFullNameSafe(GetWorld())))
 	{
 		return;
 	}

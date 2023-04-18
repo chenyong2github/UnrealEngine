@@ -161,7 +161,7 @@ struct FRecastRawGeometryElement
 	TArray<int32>				GeomIndices;
 	
 	// Per instance transformations in unreal coords
-	// When empty geometry is in world space
+	// When empty, geometry is in world space
 	TArray<FTransform>	PerInstanceTransform;
 
 	rcRasterizationFlags RasterizationFlags;
@@ -172,7 +172,7 @@ struct FRecastAreaNavModifierElement
 	TArray<FAreaNavModifier> Areas;
 	
 	// Per instance transformations in unreal coords
-	// When empty areas are in world space
+	// When empty, areas are in world space
 	TArray<FTransform>	PerInstanceTransform;
 
 	bool bMaskFillCollisionUnderneathForNavmesh = false;
