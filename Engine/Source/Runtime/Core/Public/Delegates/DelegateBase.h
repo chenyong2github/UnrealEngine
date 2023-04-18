@@ -6,9 +6,9 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Math/UnrealMathUtility.h"
 #include "UObject/NameTypes.h"
+#include "Delegates/DelegateAccessHandler.h"
 #include "Delegates/DelegateSettings.h"
 #include "Delegates/IDelegateInstance.h"
-#include "Delegates/DelegateMacros.h"
 
 #if !defined(_WIN32) || defined(_WIN64) || (defined(ALLOW_DELEGATE_INLINE_ALLOCATORS_ON_WIN32) && ALLOW_DELEGATE_INLINE_ALLOCATORS_ON_WIN32)
 	typedef TAlignedBytes<16, 16> FAlignedInlineDelegateType;
@@ -79,12 +79,20 @@ struct FDefaultTSDelegateUserPolicy
  * Base class for unicast delegates.
  */
 template <typename UserPolicy>
-class TDelegateBase
+class TDelegateBase : public FDelegateAccessHandlerBaseChecked
 {
+private:
+	using Super = FDelegateAccessHandlerBaseChecked;
+
 	template <typename>
 	friend class TMulticastDelegateBase;
 
 protected:
+	using typename Super::FReadAccessScope;
+	using Super::GetReadAccessScope;
+	using typename Super::FWriteAccessScope;
+	using Super::GetWriteAccessScope;
+
 	explicit TDelegateBase() = default;
 
 public:
@@ -109,7 +117,7 @@ public:
 	 */
 	FORCEINLINE void Unbind()
 	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
 		if (IDelegateInstance* Ptr = GetDelegateInstanceProtected())
 		{
@@ -225,7 +233,7 @@ public:
 	template<typename DelegateInstanceType, typename... DelegateInstanceParams>
 	void CreateDelegateInstance(DelegateInstanceParams&&... Params)
 	{
-		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+		FReadAccessScope ReadScope = GetReadAccessScope();
 
 		IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
 		if (DelegateInstance)
@@ -245,14 +253,14 @@ protected:
 	 */
 	FORCEINLINE IDelegateInstance* GetDelegateInstanceProtected()
 	{
-		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+		FReadAccessScope ReadScope = GetReadAccessScope();
 
 		return DelegateSize ? (IDelegateInstance*)DelegateAllocator.GetAllocation() : nullptr;
 	}
 
 	FORCEINLINE const IDelegateInstance* GetDelegateInstanceProtected() const
 	{
-		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+		FReadAccessScope ReadScope = GetReadAccessScope();
 
 		return DelegateSize ? (const IDelegateInstance*)DelegateAllocator.GetAllocation() : nullptr;
 	}
@@ -260,7 +268,7 @@ protected:
 private:
 	void* Allocate(int32 Size)
 	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
 		int32 NewDelegateSize = FMath::DivideAndRoundUp(Size, (int32)sizeof(FAlignedInlineDelegateType));
 		if (DelegateSize != NewDelegateSize)
@@ -281,7 +289,7 @@ private:
 
 	void MoveAssign(TDelegateBase&& Other)
 	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
 		Unbind();
 		DelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
@@ -292,6 +300,4 @@ private:
 private:
 	FDelegateAllocatorType::ForElementType<FAlignedInlineDelegateType> DelegateAllocator;
 	int32 DelegateSize = 0;
-
-	UE_DELEGATES_MT_ACCESS_DETECTOR(AccessDetector);
 };

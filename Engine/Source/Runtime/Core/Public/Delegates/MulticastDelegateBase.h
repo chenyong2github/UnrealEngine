@@ -21,16 +21,22 @@
  * Abstract base class for multicast delegates.
  */
 template<typename UserPolicy>
-class TMulticastDelegateBase
+class TMulticastDelegateBase : public FDelegateAccessHandlerBaseChecked
 {
 protected:
+	using Super = FDelegateAccessHandlerBaseChecked;
+	using typename Super::FReadAccessScope;
+	using Super::GetReadAccessScope;
+	using typename Super::FWriteAccessScope;
+	using Super::GetWriteAccessScope;
+
 	using InvocationListType = TArray<TDelegateBase<UserPolicy>, FMulticastInvocationListAllocatorType>;
 
 public:
 	/** Removes all functions from this delegate's invocation list. */
 	void Clear( )
 	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
 		for (TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
@@ -47,7 +53,7 @@ public:
 	 */
 	inline bool IsBound( ) const
 	{
-		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+		FReadAccessScope ReadScope = GetReadAccessScope();
 	
 		for (const TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
@@ -66,7 +72,7 @@ public:
 	 */
 	inline bool IsBoundToObject( void const* InUserObject ) const
 	{
-		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
+		FReadAccessScope ReadScope = GetReadAccessScope();
 
 		for (const TDelegateBase<UserPolicy>& DelegateBaseRef : InvocationList)
 		{
@@ -89,7 +95,7 @@ public:
 	 */
 	int32 RemoveAll( const void* InUserObject )
 	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
 		int32 Result = 0;
 		if (InvocationListLockCount > 0)
@@ -166,7 +172,7 @@ protected:
 	template<typename DelegateInstanceInterfaceType, typename DelegateType>
 	void CopyFrom(const TMulticastDelegateBase& Other)
 	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
 		checkSlow(&Other != this);
 
@@ -186,7 +192,8 @@ protected:
 	template<typename DelegateInstanceInterfaceType, typename DelegateBaseType, typename... ParamTypes>
 	void Broadcast(ParamTypes... Params) const
 	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+		// the `const` on the method is a lie
+		FWriteAccessScope WriteScope = const_cast<TMulticastDelegateBase*>(this)->GetWriteAccessScope();
 
 		bool NeedsCompaction = false;
 
@@ -223,7 +230,7 @@ protected:
 	template <typename NewDelegateType>
 	inline FDelegateHandle AddDelegateInstance(NewDelegateType&& NewDelegateBaseRef)
 	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
 		FDelegateHandle Result;
 		if (NewDelegateBaseRef.IsBound())
@@ -244,7 +251,7 @@ protected:
 	 */
 	bool RemoveDelegateInstance(FDelegateHandle Handle)
 	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
 		for (int32 InvocationListIndex = 0; InvocationListIndex < InvocationList.Num(); ++InvocationListIndex)
 		{
@@ -363,6 +370,4 @@ private:
 
 	/** Holds a lock counter for the invocation list. */
 	mutable int32 InvocationListLockCount;
-
-	UE_DELEGATES_MT_ACCESS_DETECTOR(AccessDetector);
 };

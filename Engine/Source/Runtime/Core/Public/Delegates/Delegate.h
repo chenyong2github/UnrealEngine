@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Delegates/DelegateMacros.h"
 #include "Misc/AssertionMacros.h"
 #include "UObject/NameTypes.h"
 #include "Templates/SharedPointer.h"
