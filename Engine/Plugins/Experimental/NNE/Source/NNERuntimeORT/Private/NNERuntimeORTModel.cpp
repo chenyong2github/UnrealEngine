@@ -6,6 +6,7 @@
 
 #if PLATFORM_WINDOWS
 
+#include "HAL/PlatformProcess.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <unknwn.h>
 #include "Microsoft/COMPointer.h"
@@ -55,8 +56,8 @@ namespace UE::NNERuntimeORT::Private
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelORT_Init"), STAT_FModelORT_Init, STATGROUP_NNE);
 		
 		// Get the header size
-		int32 GuidSize = sizeof(UNNERuntimeORTDmlImpl::GUID);
-		int32 VersionSize = sizeof(UNNERuntimeORTDmlImpl::Version);
+		int32 GuidSize = sizeof(UNNERuntimeORTGpuImpl::GUID);
+		int32 VersionSize = sizeof(UNNERuntimeORTGpuImpl::Version);
 
 		// Clean previous networks
 		bIsLoaded = false;
@@ -383,12 +384,62 @@ namespace UE::NNERuntimeORT::Private
 
 		ID3D12CommandQueue* CmdQ = RHI->RHIGetCommandQueue();
 
-		//OrtSessionOptionsAppendExecutionProvider_DML(*SessionOptions.Get(), ORTConfiguration.DeviceId);
-
 		OrtStatusPtr Status = OrtSessionOptionsAppendExecutionProviderEx_DML(*SessionOptions.Get(), DmlDevice, CmdQ);
 		if (Status)
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize session options for ORT Dml EP: %s"), ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
+			return false;
+		}
+
+
+		return true;
+	}
+
+	bool FModelORTCuda::InitializedAndConfigureMembers()
+	{
+		if (!FModelORT::InitializedAndConfigureMembers())
+		{
+			return false;
+		}
+
+		SessionOptions->EnableCpuMemArena();
+
+		//Notes: Atm we do not offer multi gpu capability/configuration
+		int DeviceId = 0;
+		OrtStatusPtr Status = OrtSessionOptionsAppendExecutionProvider_CUDA(*SessionOptions.Get(), DeviceId);
+		if (Status)
+		{
+			UE_LOG(LogNNE, Warning, TEXT("Failed to add the Cuda Execution provider to Onnx runtime %s session.\n"
+				"Please ensure Cuda %s and Cudnn %s are installed, see https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html.\n"
+				"OnnxRuntime error: %s."), 
+				TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIMEEDITOR_VERSION)),
+				TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIMEEDITOR_CUDA_VERSION)),
+				TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIMEEDITOR_CUDNN_VERSION)),
+				ANSI_TO_TCHAR(Ort::GetApi().GetErrorMessage(Status)));
+
+#if PLATFORM_WINDOWS
+			void* DllHandle = FPlatformProcess::GetDllHandle(TEXT("cudnn64_8.dll"));
+			if (DllHandle == nullptr)
+			{
+				UE_LOG(LogNNE, Warning, TEXT("Cudnn64_8.dll can't be loaded. Please check Cudnn installation in particular the PATH setup and accessibility."));
+				UE_LOG(LogNNE, Warning, TEXT("The installation guide for Cudnn can be found here https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html."));
+			}
+			else
+			{
+				FPlatformProcess::FreeDllHandle(DllHandle);
+			}
+
+			DllHandle = FPlatformProcess::GetDllHandle(TEXT("cudart64_110.dll"));
+			if (DllHandle == nullptr)
+			{
+				UE_LOG(LogNNE, Warning, TEXT("cudart64_110.dll can't be loaded. Please check Cuda toolkit installation in particular the PATH setup and accessibility."));
+				UE_LOG(LogNNE, Warning, TEXT("The installation guide for Cuda toolkit can be found here https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/."));
+			}
+			else
+			{
+				FPlatformProcess::FreeDllHandle(DllHandle);
+			}
+#endif
 			return false;
 		}
 

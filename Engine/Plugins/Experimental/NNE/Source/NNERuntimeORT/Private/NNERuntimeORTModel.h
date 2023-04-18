@@ -86,7 +86,17 @@ namespace UE::NNERuntimeORT::Private
 		FModelORTDml(Ort::Env* InORTEnvironment, const FRuntimeConf& InRuntimeConf) : FModelORT(InORTEnvironment, InRuntimeConf) {}
 		virtual ~FModelORTDml() = default;
 	private:
-		virtual bool InitializedAndConfigureMembers();
+		virtual bool InitializedAndConfigureMembers() override;
+	};
+
+	class FModelORTCuda : public FModelORT
+	{
+	public:
+		FModelORTCuda() {}
+		FModelORTCuda(Ort::Env* InORTEnvironment, const FRuntimeConf& InRuntimeConf) : FModelORT(InORTEnvironment, InRuntimeConf) {}
+		virtual ~FModelORTCuda() = default;
+	private:
+		virtual bool InitializedAndConfigureMembers() override;
 	};
 #endif
 	

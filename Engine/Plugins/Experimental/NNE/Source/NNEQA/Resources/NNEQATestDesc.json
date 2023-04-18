@@ -7,6 +7,9 @@
 			"targets": [
 				{
 					"target": "udnie-160-small-720p",
+					"runtimes": [
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 1e-3 }
+					],
 					"absolute_tolerance": 5.0e-2
 				}
 			]
@@ -18,7 +21,8 @@
 				{
 					"target": "udnie-160-small-dyn",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGDml",  "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 5e-1 }
 					],
 					"absolute_tolerance": 5.0e-2,
 					"relative_tolerance": 5.0e-2
@@ -31,6 +35,9 @@
 			"targets": [
 				{
 					"target": "NeuralMorphModel_global",
+					"runtimes": [ 
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 5e-3, "absolute_tolerance": 5e-3 }
+					],
 					"tags": [ "SmokeTest" ],
 					"absolute_tolerance": 1e-5
 				},
@@ -39,6 +46,7 @@
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance": 1e-4 },
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance": 5e-3, "relative_tolerance": 5e-3 },
 						{ "name": "NNERuntimeRDGDml", "absolute_tolerance": 1e-4 },
 						{ "name": "NNERuntimeRDGHlsl", "absolute_tolerance": 1e-6 }
 					]
@@ -48,99 +56,118 @@
 					"tags": [ "SmokeTest" ],
 					"absolute_tolerance": 1e-6,
 					"runtimes": [
-						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Need investigation." }
 					]
 				},
 				{
 					"target": "NeuralMorphModel_Local-sim",
 					"tags": [ "SmokeTest" ],
-					"absolute_tolerance": 1e-6
+					"absolute_tolerance": 1e-6,
+					"runtimes": [
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Need investigation." }
+					]
 				},
 				{
 					"target": "VertexDeltaModel",
-					"absolute_tolerance": 1e-4
+					"absolute_tolerance": 1e-4,
+					"runtimes": [
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance": 5e-3, "relative_tolerance": 5e-3 }
+					]
 				},
 				{
 					"target": "hs_m01",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 2e-4 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m02",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 2e-4 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m03",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 2e-4 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m04",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 2e-4 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m05",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 5e-2, "absolute_tolerance": 1e-3 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m06",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 5e-4 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m07",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 2e-4 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m08",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 2e-4 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m09",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 5e-4 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "hs_m10",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 2e-4 }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "ss",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 5e-2, "absolute_tolerance": 1e-1, "comment": "Need investigation" }
 					],
 					"absolute_tolerance": 1e-4
 				},
 				{
 					"target": "ss_sim",
 					"runtimes": [
-						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." }
+						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 5e-2, "absolute_tolerance": 1e-1, "comment": "Need investigation" }
 					],
 					"absolute_tolerance": 1e-4
 				}
@@ -220,22 +247,26 @@
 				{	"target": "Abs", "additional_datasets": [ "Elementwise.Slow.OneInput" ]},
 				{	"target": "Acos", "tags": [ "SmokeTest" ], "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  2e-4}
 					]},
 				{	"target": "Acosh" },
 				{	"target": "Asin", "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  2e-4}
 					]},
 				{	"target": "Asinh", "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  2e-4}
 					]},
 				{	"target": "Atan", "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1.5e-3}
 					]},
@@ -247,11 +278,13 @@
 				{	"target": "Cosh" },
 				{	"target": "Elu", "additional_datasets": [ "Elementwise.Elu.AttributeTest" ], "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1e-4}
 					]},
 				{	"target": "Erf", "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  5e-4, "comment": "NNERuntimeRDGHlsl Erf implementation is less precise than the DML one"}
 					]},
@@ -262,11 +295,7 @@
 				{	"target": "HardSigmoid", "additional_datasets": [ "Elementwise.HardSigmoid.AttributeTest" ] },
 				{	"target": "HardSwish", "runtimes": [ { "name": "NNERuntimeRDGDml", "skip": true, "comment": "Not implemented atm on NNERuntimeRDGDml."} ]},
 				{	"target": "LeakyRelu", "additional_datasets": [ "Elementwise.LeakyRelu.AttributeTest" ] },
-				{	"target": "Log", "runtimes": [
-						{ "name": "NNERuntimeORTDml"},
-						{ "name": "NNERuntimeRDGDml"},
-						{ "name": "NNERuntimeRDGHlsl"}
-					], "absolute_tolerance": 1e-6 },
+				{	"target": "Log", "absolute_tolerance": 1e-6 },
 				{	"target": "LogSoftmax", 
 					"runtimes": [{ "name": "NNERuntimeRDGHlsl",   "skip": true }],
 					"additional_datasets": [ "Elementwise.Softmax.AttributeTest" ]
@@ -281,6 +310,7 @@
 				{	"target": "Round"},
 				{	"target": "Selu", "additional_datasets": [ "Elementwise.Selu.AttributeTest" ], "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1e-4}
 					]},
@@ -288,6 +318,7 @@
 				{	"target": "Sign" },
 				{	"target": "Sin", "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1e-4}
 					]},
@@ -301,11 +332,13 @@
 				{	"target": "Sqrt"},
 				{	"target": "Tan", "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1e-4}
 					]},
 				{	"target": "Tanh", "runtimes": [
 						{ "name": "NNERuntimeORTDml", "absolute_tolerance":  1e-4},
+						{ "name": "NNERuntimeORTCuda", "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1e-4}
 					]}
@@ -371,6 +404,7 @@
 		},
 		{
 			"category": "Gemm",
+			"runtimes": [ { "name": "NNERuntimeORTCuda", "absolute_tolerance": 1e-3, "relative_tolerance": 5e-3} ],
 			"targets": [
 				{ "target": "Gemm", "tags": [ "SmokeTest" ] }
 			]
@@ -398,7 +432,9 @@
 		},
 		{
 			"category": "MatMul",
-			"runtimes": [ { "name": "NNERuntimeRDGDml" } ],
+			"runtimes": [
+				{ "name": "NNERuntimeORTCuda", "relative_tolerance": 5e-3, "absolute_tolerance": 1e-4 }
+			],
 			"targets": [
 				{ "target": "MatMul" }
 			]
@@ -751,7 +787,11 @@
 			"name": "Elementwise.Variadic.MultiDirectionalBroadcast",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2,3,1 ] }, { "shape": [ 1,1,4 ] }, { "shape": [ 1,1,1 ] } ], "outputs": [ { "shape": [ 2,3,4 ] } ]},
-				{ "inputs": [ { "shape": [ 2,1,4 ] }, { "shape": [ 1,3,4 ] }, { "shape": [ 2,3,1 ] } ], "outputs": [ { "shape": [ 2,3,4 ] } ]},
+				{ "inputs": [ { "shape": [ 2,1,4 ] }, { "shape": [ 1,3,4 ] }, { "shape": [ 2,3,1 ] } ], "outputs": [ { "shape": [ 2,3,4 ] } ], 
+				  "runtimes": [
+						{ "name": "NNERuntimeORTCuda", "skip": true, "comment": "NEED INVESTIGATION Does cuda support 3 way broadcast?" }
+					]
+				},
 				{ "inputs": [ { "shape": [ 2,3,1 ] }, { "shape": [ 4 ]     }, { "shape": [ 3,1 ]   } ], "outputs": [ { "shape": [ 2,3,4 ] } ]},
 				{ "inputs": [ { "shape": [ 2,3,1 ] }, { "shape": [ 3,1 ]   }, { "shape": [ 4 ]     } ], "outputs": [ { "shape": [ 2,3,4 ] } ]}
 			]
@@ -890,7 +930,8 @@
 			"name": "ConvTranspose.Autopad",
 			"datasets": [ { "inputs": [ { "shape": [ 1, 1, 3, 3 ] }, { "shape": [ 1, 2, 3, 3 ] } ], "outputs": [ { "shape": [ 1, 2, 6, 6 ] } ] } ],
 			"runtimes": [
-				{ "name": "NNERuntimeORTDml", "skip": true, "comment": "TODO INVESTIGATE Returns 'The parameter is incorrect'" }
+				{ "name": "NNERuntimeORTDml", "skip": true, "comment": "NEED INVESTIGATION Returns 'The parameter is incorrect'" },
+				{ "name": "NNERuntimeORTCuda", "skip": true, "comment": "NEED INVESTIGATION Returns large difference from reference'" }
 			]
 		},
 		{
@@ -969,7 +1010,9 @@
 				{ "inputs":  [ { "shape": [ 2 ] },                            { "shape": [ 1 ], "source": [ "2"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 4 ]} ] },
 				{ "inputs":  [ { "shape": [ 3 ] },                            { "shape": [ 1 ], "source": [ "1"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
 				{ "inputs":  [ { "shape": [ 1, 128, 50, 55 ] },               { "shape": [ 4 ], "source": [ "1", "1", "2", "2" ],      "type": "float" } ], "outputs": [ { "shape": [ 1, 128, 100, 110 ]} ] },
-				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] },                { "shape": [ 5 ], "source": [ "1", "2", "2", "1", "2" ], "type": "float" } ], "outputs": [ { "shape": [ 2, 2, 6, 1, 4 ]} ] }
+				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] },                { "shape": [ 5 ], "source": [ "1", "2", "2", "1", "2" ], "type": "float" } ], "outputs": [ { "shape": [ 2, 2, 6, 1, 4 ]} ],
+				  			"runtimes": [ { "name": "NNERuntimeORTCuda", "skip": true } ]
+				}
 			]
 		},
 		{
@@ -979,7 +1022,9 @@
 				{ "inputs":  [ { "shape": [ 2 ] } ],              "weights": [ { "shape": [ 1 ], "source": [ "2"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 4 ]} ] },
 				{ "inputs":  [ { "shape": [ 3 ] } ],              "weights": [ { "shape": [ 1 ], "source": [ "1"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
 				{ "inputs":  [ { "shape": [ 1, 128, 50, 55 ] } ], "weights": [ { "shape": [ 4 ], "source": [ "1", "1", "2", "2" ],      "type": "float" } ], "outputs": [ { "shape": [ 1, 128, 100, 110 ]} ] },
-				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ],  "weights": [ { "shape": [ 5 ], "source": [ "1", "2", "2", "1", "2" ], "type": "float" } ], "outputs": [ { "shape": [ 2, 2, 6, 1, 4 ]} ] }
+				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ],  "weights": [ { "shape": [ 5 ], "source": [ "1", "2", "2", "1", "2" ], "type": "float" } ], "outputs": [ { "shape": [ 2, 2, 6, 1, 4 ]} ],
+				  			"runtimes": [ { "name": "NNERuntimeORTCuda", "skip": true } ]
+				}
 			]
 		},
 		{

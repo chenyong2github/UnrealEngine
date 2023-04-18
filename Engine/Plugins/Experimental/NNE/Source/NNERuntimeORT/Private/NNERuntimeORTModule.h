@@ -8,18 +8,19 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-class UNNERuntimeORTDmlImpl;
+class UNNERuntimeORTGpuImpl;
 
 class FNNERuntimeORTModule : public IModuleInterface
 {
 
 public:
-	TWeakObjectPtr<UNNERuntimeORTDmlImpl> NNERuntimeORTDml{ nullptr };
+	TWeakObjectPtr<UNNERuntimeORTGpuImpl> NNERuntimeORTDml{ nullptr };
+	TWeakObjectPtr<UNNERuntimeORTGpuImpl> NNERuntimeORTCuda{ nullptr };
 
 	// Begin IModuleInterface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
 private:
-	void* OrtLibHandle{};
+	TArray<void*> DllHandles;
 };

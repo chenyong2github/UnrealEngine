@@ -19,22 +19,31 @@ NNE_THIRD_PARTY_INCLUDES_END
 
 #include "NNERuntimeORT.generated.h"
 
+UENUM()
+enum class ENNERuntimeORTGpuProvider : uint8
+{
+	None,
+	Dml,
+	Cuda
+};
+
 UCLASS()
-class UNNERuntimeORTDmlImpl : public UObject, public INNERuntime, public INNERuntimeGPU
+class UNNERuntimeORTGpuImpl : public UObject, public INNERuntime, public INNERuntimeGPU
 {
 	GENERATED_BODY()
 
 public:
 	static FGuid GUID;
 	static int32 Version;
+	ENNERuntimeORTGpuProvider Provider;
 
 	TUniquePtr<Ort::Env> ORTEnvironment;
-	UNNERuntimeORTDmlImpl() {};
-	virtual ~UNNERuntimeORTDmlImpl() {}
+	UNNERuntimeORTGpuImpl() {};
+	virtual ~UNNERuntimeORTGpuImpl() {}
 
-	void Init();
+	void Init(ENNERuntimeORTGpuProvider Provider);
 
-	virtual FString GetRuntimeName() const override { return TEXT("NNERuntimeORTDml"); };
+	virtual FString GetRuntimeName() const override;
 	virtual bool IsPlatformSupported(const ITargetPlatform* TargetPlatform) const override { return true; };
 
 	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const override;

@@ -16,42 +16,68 @@ NNE_THIRD_PARTY_INCLUDES_START
 #include "core/session/onnxruntime_cxx_api.h"
 NNE_THIRD_PARTY_INCLUDES_END
 
+namespace UE::NNERuntimeORT::Private::DllHelper
+{
+	bool GetDllHandle(const FString& DllPath, TArray<void*>& DllHandles)
+	{
+		void *DllHandle = nullptr;
+
+		if (!FPaths::FileExists(DllPath))
+		{
+			UE_LOG(LogNNE, Error, TEXT("Failed to find the third party library %s."), *DllPath);
+			return false;
+		}
+		
+		DllHandle = FPlatformProcess::GetDllHandle(*DllPath);
+
+		if (!DllHandle)
+		{
+			UE_LOG(LogNNE, Error, TEXT("Failed to load the third party library %s."), *DllPath);
+			return false;
+		}
+
+		DllHandles.Add(DllHandle);
+		return true;
+	}
+}
+
 void FNNERuntimeORTModule::StartupModule()
 {
 #if PLATFORM_WINDOWS
 	const FString PluginDir = IPluginManager::Get().FindPlugin("NNE")->GetBaseDir();
 	const FString OrtBinPath = FPaths::Combine(PluginDir, TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIME_PLATFORM_PATH)));
-	const FString OrtLibPath = FPaths::Combine(OrtBinPath, TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIME_DLL_NAME)));
+	bool bAreDllsLoaded = true;
 
-	if (!FPaths::FileExists(OrtLibPath))
+	bAreDllsLoaded &= UE::NNERuntimeORT::Private::DllHelper::GetDllHandle(FPaths::Combine(OrtBinPath, TEXT("onnxruntime.dll")), DllHandles);
+	bAreDllsLoaded &= UE::NNERuntimeORT::Private::DllHelper::GetDllHandle(FPaths::Combine(OrtBinPath, TEXT("onnxruntime_providers_shared.dll")), DllHandles);
+	//Note: onnxruntime_providers_cuda.dll should not be loaded explicitly. ORT will however load it from the same path onnxruntime_providers_shared.dll was loaded from.
+
+	if (!bAreDllsLoaded)
 	{
-		UE_LOG(LogNNE, Error, TEXT("Failed to find the third party library %s. Plug-in will not be functional."), *OrtLibPath);
-		return;
-	}
-
-	{
-		// FPlatformProcess::PushDllDirectory(*OrtBinPath);
-
-		OrtLibHandle = FPlatformProcess::GetDllHandle(*OrtLibPath);
-
-		// FPlatformProcess::PopDllDirectory(*OrtBinPath);
-	}
-
-	if (!OrtLibHandle)
-	{
-		UE_LOG(LogNNE, Error, TEXT("Failed to load the third party library %s. Plug-in will not be functional."), *OrtLibPath);
+		UE_LOG(LogNNE, Error, TEXT("Failed to load OnnxRuntime Dlls. ORT Runtimes won't be available."));
 		return;
 	}
 
 	Ort::InitApi();
+
+	// NNE runtime ORT Cuda startup
+	NNERuntimeORTCuda = NewObject<UNNERuntimeORTGpuImpl>();
+	if (NNERuntimeORTCuda.IsValid())
+	{
+		TWeakInterfacePtr<INNERuntime> RuntimeCudaInterface(NNERuntimeORTCuda.Get());
+
+		NNERuntimeORTCuda->Init(ENNERuntimeORTGpuProvider::Cuda);
+		NNERuntimeORTCuda->AddToRoot();
+		UE::NNECore::RegisterRuntime(RuntimeCudaInterface);
+	}
 	
 	// NNE runtime ORT Dml startup
-	NNERuntimeORTDml = NewObject<UNNERuntimeORTDmlImpl>();
+	NNERuntimeORTDml = NewObject<UNNERuntimeORTGpuImpl>();
 	if (NNERuntimeORTDml.IsValid())
 	{
 		TWeakInterfacePtr<INNERuntime> RuntimeDmlInterface(NNERuntimeORTDml.Get());
 
-		NNERuntimeORTDml->Init();
+		NNERuntimeORTDml->Init(ENNERuntimeORTGpuProvider::Dml);
 		NNERuntimeORTDml->AddToRoot();
 		UE::NNECore::RegisterRuntime(RuntimeDmlInterface);
 	}
@@ -68,15 +94,26 @@ void FNNERuntimeORTModule::ShutdownModule()
 
 		UE::NNECore::UnregisterRuntime(RuntimeDmlInterface);
 		NNERuntimeORTDml->RemoveFromRoot();
-		NNERuntimeORTDml = TWeakObjectPtr<UNNERuntimeORTDmlImpl>(nullptr);
+		NNERuntimeORTDml = TWeakObjectPtr<UNNERuntimeORTGpuImpl>(nullptr);
 	}
 
-	// Free the dll handle
-	if (OrtLibHandle)
+	// NNE runtime ORT Cuda shutdown
+	if (NNERuntimeORTCuda.IsValid())
 	{
-		FPlatformProcess::FreeDllHandle(OrtLibHandle);
-		OrtLibHandle = nullptr;
+		TWeakInterfacePtr<INNERuntime> RuntimeCudaInterface(NNERuntimeORTCuda.Get());
+
+		UE::NNECore::UnregisterRuntime(RuntimeCudaInterface);
+		NNERuntimeORTCuda->RemoveFromRoot();
+		NNERuntimeORTCuda = TWeakObjectPtr<UNNERuntimeORTGpuImpl>(nullptr);
 	}
+
+	// Free the dll handles
+	for(void* DllHandle : DllHandles)
+	{
+		FPlatformProcess::FreeDllHandle(DllHandle);
+	}
+	DllHandles.Empty();
+	
 #endif
 }
 
