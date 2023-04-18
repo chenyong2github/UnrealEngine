@@ -109,6 +109,31 @@
 [shader("callable")] void name(inout params_type params_name)
 #endif //RAY_TRACING_ENTRY_CALLABLE
 
+// Helper macro to set common entry point for passes that have both inline (CS) and non-inline (RGS) version.
+// Given "name" it will create "nameCS" entry point for compute and "nameRGS" for raygen shader.
+#ifndef RAY_TRACING_ENTRY_RAYGEN_OR_INLINE
+
+#if COMPUTESHADER && PLATFORM_SUPPORTS_INLINE_RAY_TRACING
+
+#define RAY_TRACING_ENTRY_RAYGEN_OR_INLINE(name)\
+void name##_INTERNAL(uint3 DispatchThreadIndex);\
+[numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]\
+void name##CS(uint3 DispatchThreadIndex : SV_DispatchThreadID) {\
+	name##_INTERNAL(DispatchThreadIndex);}\
+void name##_INTERNAL(uint3 DispatchThreadIndex)
+
+#else // COMPUTESHADER && PLATFORM_SUPPORTS_INLINE_RAY_TRACING
+
+#define RAY_TRACING_ENTRY_RAYGEN_OR_INLINE(name)\
+void name##_INTERNAL(uint3 DispatchThreadIndex);\
+RAY_TRACING_ENTRY_RAYGEN(name##RGS){\
+name##_INTERNAL(DispatchRaysIndex());}\
+void name##_INTERNAL(uint3 DispatchThreadIndex)
+
+#endif // COMPUTESHADER && PLATFORM_SUPPORTS_INLINE_RAY_TRACING
+
+#endif // RAY_TRACING_ENTRY_RAYGEN_OR_INLINE
+
 #ifndef OVERRIDE_PLATFORM_RAYTRACING_INSTANCE_DESCRITOR
 
 // Must match D3D12_RAYTRACING_INSTANCE_FLAGS / VkGeometryInstanceFlagBitsKHR
@@ -437,10 +462,6 @@ struct FRayDesc
 	}
 };
 
-#endif // !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
-
-#if !COMPUTESHADER
-
 float3 TranslatedWorldRayOrigin()
 {
 	return TLASWorldToTranslatedWorld(WorldRayOrigin());
@@ -455,10 +476,6 @@ void ApplyCameraRelativeDepthBias(inout FRayDesc Ray, uint2 PixelCoord, float De
 {
 	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelCoord, DeviceZ, WorldNormal, AbsoluteNormalBias);
 }
-
-#endif // !COMPUTESHADER
-
-#if !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
 
 FRayDesc CreatePrimaryRay(float2 UV)
 {
@@ -511,7 +528,7 @@ uint TranslateRayTracingInstanceFlags(uint InFlags)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Material payload
 
-#if !COMPUTESHADER
+#if !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
 
 #if STRATA_ENABLED
 
@@ -934,7 +951,7 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 CHECK_RT_PAYLOAD_SIZE(FPackedMaterialClosestHitPayload)
 #endif
 
-#endif // !COMPUTESHADER
+#endif // !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Decal parameters
@@ -1005,7 +1022,11 @@ CHECK_RT_PAYLOAD_SIZE(FDecalShaderPayload)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Tracing util functions
 
-#if !COMPUTESHADER
+#if !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
+
+#if COMPUTESHADER
+#include "TraceRayInline.ush"
+#endif // COMPUTESHADER
 
 void TraceVisibilityRayPacked(
 	inout FPackedMaterialClosestHitPayload PackedPayload,
@@ -1024,6 +1045,21 @@ void TraceVisibilityRayPacked(
 
 	// Trace the ray
 
+#if COMPUTESHADER
+
+	FTraceRayInlineContext TraceRayInlineContext = CreateTraceRayInlineContext();
+
+	FTraceRayInlineResult TraceRayResult = TraceRayInline(
+		TLAS,
+		RayFlags,
+		InstanceInclusionMask,
+		Ray.GetNativeDesc(),
+		TraceRayInlineContext
+	);
+	PackedPayload.HitT = TraceRayResult.HitT;
+
+#else
+
 	TraceRay(
 		TLAS,
 		RayFlags,
@@ -1033,6 +1069,8 @@ void TraceVisibilityRayPacked(
 		MissShaderIndex,
 		Ray.GetNativeDesc(),
 		PackedPayload);
+
+#endif // COMPUTESHADER
 }
 
 FMinimalPayload TraceVisibilityRay(
@@ -1076,6 +1114,8 @@ FMinimalPayload TraceVisibilityRay(
 		InstanceInclusionMask,
 		Ray);
 }
+
+#if !COMPUTESHADER
 
 void TraceMaterialRayPacked(
 	inout FPackedMaterialClosestHitPayload Payload,
@@ -1171,5 +1211,7 @@ FMaterialClosestHitPayload TraceMaterialRay(
 }
 
 #endif // !COMPUTESHADER
+
+#endif // !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
 
 #endif // RAYTRACINGCOMMON_USH_INCLUDED // Workarround for UE-66460

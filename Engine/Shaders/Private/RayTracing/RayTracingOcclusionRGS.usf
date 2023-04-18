@@ -634,9 +634,9 @@ float DecodeSamplingSSSProfileRadius(FGBufferData GBufferData)
 }
 #endif
 
-RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
+RAY_TRACING_ENTRY_RAYGEN_OR_INLINE(Occlusion)
 {
-	const uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy + PixelOffset;
+	uint2 PixelCoord = DispatchThreadIndex.xy + View.ViewRectMin.xy + PixelOffset;
 
 	FOcclusionResult Occlusion = InitOcclusionResult();
 	FOcclusionResult HairOcclusion = InitOcclusionResult();

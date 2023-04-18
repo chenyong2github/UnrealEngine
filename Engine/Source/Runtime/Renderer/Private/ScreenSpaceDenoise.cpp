@@ -775,7 +775,7 @@ static bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, ESha
 		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion)
 	{
 		// Only for ray tracing denoising.
-		return RHISupportsRayTracingShaders(Platform);
+		return RHISupportsRayTracing(Platform);
 	}
 	else if (SignalProcessing == ESignalProcessing::PolychromaticPenumbraHarmonic)
 	{
