@@ -388,8 +388,7 @@ void FCookDirector::AssignRequests(TArray<FWorkerId>&& InWorkers, TArray<TRefCou
 		if (!WorkerId.IsLocal())
 		{
 			uint8 RemoteIndex = WorkerId.GetRemoteIndex();
-			check(RemoteIndex < RemoteBatches.Num());
-			if (!RemoteIndexIsValid[RemoteIndex])
+			if (RemoteIndex >= RemoteBatches.Num() || !RemoteIndexIsValid[RemoteIndex])
 			{
 				UE_LOG(LogCook, Error, TEXT("Package %s can only be cooked by a now-disconnected CookWorker. The package can not be cooked."),
 					*Requests[RequestIndex]->GetPackageName().ToString());
