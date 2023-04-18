@@ -14,9 +14,6 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectInstanceDescriptor)
 
 
-const FString EmptyString;
-
-
 FString GetAvailableOptionsString(const UCustomizableObject& CustomizableObject, const int32 ParameterIndexInObject)
 {
 	FString OptionsString;
@@ -1155,7 +1152,7 @@ const FString& FCustomizableObjectInstanceDescriptor::GetIntParameterSelectedOpt
 		}
 	}
 
-	return EmptyString;
+	return FCustomizableObjectBoolParameterValue::DEFAULT_PARAMETER_VALUE_NAME;
 }
 
 
@@ -1257,7 +1254,7 @@ float FCustomizableObjectInstanceDescriptor::GetFloatParameterSelectedOption(con
 		}
 	}
 
-	return -1.0f; 
+	return 	FCustomizableObjectFloatParameterValue::DEFAULT_PARAMETER_VALUE; 
 }
 
 
@@ -1320,7 +1317,7 @@ uint64 FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOption(
 		}
 	}
 
-	return -1; 
+	return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE; 
 }
 
 
@@ -1388,7 +1385,7 @@ FLinearColor FCustomizableObjectInstanceDescriptor::GetColorParameterSelectedOpt
 		return VectorParameters[ColorParamIndex].ParameterValue;
 	}
 
-	return FLinearColor::Black;
+	return FCustomizableObjectVectorParameterValue::DEFAULT_PARAMETER_VALUE;
 }
 
 
@@ -1411,7 +1408,7 @@ bool FCustomizableObjectInstanceDescriptor::GetBoolParameterSelectedOption(const
 		return BoolParameters[BoolParamIndex].ParameterValue;
 	}
 
-	return false;
+	return FCustomizableObjectBoolParameterValue::DEFAULT_PARAMETER_VALUE;
 }
 
 
@@ -1769,7 +1766,7 @@ FCustomizableObjectProjector FCustomizableObjectInstanceDescriptor::GetProjector
 		}
 	}
 
-	return FCustomizableObjectProjector();
+	return FCustomizableObjectProjectorParameterValue::DEFAULT_PARAMETER_VALUE;
 }
 
 
@@ -1896,6 +1893,19 @@ int32 FCustomizableObjectInstanceDescriptor::AddValueToFloatRange(const FString&
 		// TODO: Define the default float in the editor instead of [0.5f], like it's currently defined for GetProjectorDefaultValue()
 		return floatParameter.ParameterRangeValues.Add(0.5f);
 	}
+	return -1;
+}
+
+
+int32 FCustomizableObjectInstanceDescriptor::AddValueToTextureRange(const FString& ParamName)
+{
+	const int32 TextureParameterIndex = FindTextureParameterNameIndex(ParamName);
+	if (TextureParameterIndex != -1)
+	{
+		FCustomizableObjectTextureParameterValue& TextureParameter = TextureParameters[TextureParameterIndex];
+		return TextureParameter.ParameterRangeValues.Add(FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE);		
+	}
+	
 	return -1;
 }
 

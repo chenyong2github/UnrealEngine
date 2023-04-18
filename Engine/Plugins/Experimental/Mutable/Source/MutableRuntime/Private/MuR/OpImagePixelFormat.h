@@ -15,13 +15,6 @@ namespace mu
     //! \return false if the conversion failed, usually because not enough memory was allocated in
     //!     the result. This is only checked for RLE compression.
     //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern bool ImagePixelFormatInPlace( int quality, Image* pResult, const Image* pBase,
+	bool ImagePixelFormatInPlace( int quality, Image* pResult, const Image* pBase,
                                          int onlyLOD = -1 );
-
-    //---------------------------------------------------------------------------------------------
-    //! Wrapper for the above method that allocates the destination image.
-    //---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern ImagePtr ImagePixelFormat( int quality, const Image* pBase, EImageFormat targetFormat,
-                                      int onlyLOD = -1 );
-
 }

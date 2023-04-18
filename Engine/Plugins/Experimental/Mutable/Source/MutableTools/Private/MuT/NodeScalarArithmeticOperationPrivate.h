@@ -8,7 +8,6 @@
 
 namespace mu
 {
-
     MUTABLE_DEFINE_ENUM_SERIALISABLE(NodeScalarArithmeticOperation::OPERATION)
 
     class NodeScalarArithmeticOperation::Private : public NodeScalar::Private

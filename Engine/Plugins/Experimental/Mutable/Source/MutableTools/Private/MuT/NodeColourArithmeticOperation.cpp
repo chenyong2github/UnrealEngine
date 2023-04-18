@@ -10,6 +10,7 @@
 
 namespace mu
 {
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(NodeColourArithmeticOperation::OPERATION)
 
 	//---------------------------------------------------------------------------------------------
 	// Static initialisation

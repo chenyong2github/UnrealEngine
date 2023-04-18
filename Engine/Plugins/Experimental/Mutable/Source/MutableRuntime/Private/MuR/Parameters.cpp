@@ -17,7 +17,11 @@
 
 namespace mu
 {
+    MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(PARAMETER_TYPE)              
+    MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(PARAMETER_DETAILED_TYPE)     
+    MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(PROJECTOR_TYPE)
 
+	
 	//---------------------------------------------------------------------------------------------
 	Parameters::Parameters()
 	{
@@ -580,7 +584,7 @@ namespace mu
              ||
              GetType(index) != PARAMETER_TYPE::T_FLOAT )
         {
-            return false;
+            return 0.0f;
         }
 
         // Single value case
@@ -768,6 +772,16 @@ namespace mu
         check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_IMAGE );
 
+		// Early out in case of invalid parameters
+        if ( index < 0
+             ||
+             index >= (int)m_pD->m_values.Num()
+             ||
+             GetType(index) != PARAMETER_TYPE::T_IMAGE )
+        {
+            return 0;
+        }
+		
 		// Single value case
 		if (!pos)
 		{

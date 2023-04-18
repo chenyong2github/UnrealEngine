@@ -5,7 +5,6 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
-#include "MuR/SerialisationPrivate.h"
 #include "Containers/Array.h"
 #include "Misc/AssertionMacros.h"
 #include "Math/IntVector.h"
@@ -178,24 +177,10 @@ namespace mu
 
 
 			//!
-			void Serialise(OutputArchive& arch) const
-			{
-				arch << m_min;
-				arch << m_size;
-				arch << m_id;
-				arch << m_priority;
-				arch << bUseSymmetry;
-			}
+			void Serialise(OutputArchive& arch) const;
 
 			//!
-			void Unserialise(InputArchive& arch)
-			{
-				arch >> m_min;
-				arch >> m_size;
-				arch >> m_id;
-				arch >> m_priority;
-				arch >> bUseSymmetry;
-			}
+			void Unserialise(InputArchive& arch);
 
 			//!
 			inline bool operator==(const FBlock& o) const
@@ -217,14 +202,7 @@ namespace mu
 			}
 
 			//!
-			void UnserialiseOldVersion(InputArchive& Archive, const int32 Version)
-			{
-				// Use the version if the Layout version changes to 6
-				Archive >> m_min;
-				Archive >> m_size;
-				Archive >> m_id;
-				Archive >> m_priority;
-			}
+			void UnserialiseOldVersion(InputArchive& Archive, const int32 Version);
 		};
 
 
@@ -245,62 +223,10 @@ namespace mu
 
 
 		//!
-		void Serialise(OutputArchive& arch) const
-		{
-			uint32 ver = 5;
-			arch << ver;
-
-			arch << m_size;
-			arch << m_blocks;
-
-			arch << m_maxsize;
-			arch << uint32(m_strategy);
-			arch << FirstLODToIgnoreWarnings;
-			arch << uint32(ReductionMethod);
-		}
+		void Serialise(OutputArchive& arch) const;
 
 		//!
-		void Unserialise(InputArchive& arch)
-		{
-			uint32 ver;
-			arch >> ver;
-			check(ver <= 5);
-
-			arch >> m_size;
-
-			if (ver < 5)
-			{
-				uint32_t Size = 0;
-				arch >> Size;
-				m_blocks.SetNum(Size);
-
-				for (uint32_t BlockIndex = 0; BlockIndex < Size; ++BlockIndex)
-				{
-					m_blocks[BlockIndex].UnserialiseOldVersion(arch, ver);
-				}
-			}
-			else
-			{
-				arch >> m_blocks;
-			}
-
-			arch >> m_maxsize;
-
-			uint32 temp;
-			arch >> temp;
-			m_strategy = EPackStrategy(temp);
-
-			if (ver >= 4)
-			{
-				arch >> FirstLODToIgnoreWarnings;
-			}
-
-			if (ver >= 5)
-			{
-				arch >> temp;
-				ReductionMethod = EReductionMethod(temp);
-			}
-		}
+		void Unserialise(InputArchive& arch);
 
 		//!
 		bool IsSimilar(const Layout& o) const;

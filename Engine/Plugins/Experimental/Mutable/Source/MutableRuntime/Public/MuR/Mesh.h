@@ -15,7 +15,7 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
-#include "MuR/SerialisationPrivate.h"
+#include "MuR/Serialisation.h"
 #include "MuR/Skeleton.h"
 #include "Templates/Tuple.h"
 
@@ -71,7 +71,6 @@ namespace mu
 
 	};
 
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(MESH_SURFACE);
 
 	enum class EBoneUsageFlags : uint32
 	{
@@ -87,7 +86,6 @@ namespace mu
 	};
 
 	ENUM_CLASS_FLAGS(EBoneUsageFlags);
-	MUTABLE_DEFINE_ENUM_SERIALISABLE(EBoneUsageFlags)
 
 	//!
 	enum class EMeshBufferType
@@ -98,7 +96,6 @@ namespace mu
 		PhysicsBodyDeformSelection,
 		PhysicsBodyDeformOffsets
 	};
-	MUTABLE_DEFINE_ENUM_SERIALISABLE(EMeshBufferType)
 
 	//!
 	enum class EShapeBindingMethod : uint32
@@ -108,7 +105,6 @@ namespace mu
 		ClipDeformClosestToSurface = 2,
 		ClipDeformNormalProject = 3	
 	};
-	MUTABLE_DEFINE_ENUM_SERIALISABLE(EShapeBindingMethod)
 
 	enum class EMeshCloneFlags : uint32
 	{
@@ -365,24 +361,10 @@ namespace mu
 			string m_name;
 			TArray<int32> m_faces;
 
-			inline void Serialise(OutputArchive& arch) const
-			{
-				const int32 ver = 0;
-				arch << ver;
+			inline void Serialise(OutputArchive& arch) const;
 
-				arch << m_name;
-				arch << m_faces;
-			}
 
-			inline void Unserialise(InputArchive& arch)
-			{
-				int32 ver = 0;
-				arch >> ver;
-				check(ver == 0);
-
-				arch >> m_name;
-				arch >> m_faces;
-			}
+			inline void Unserialise(InputArchive& arch);
 
 			//!
 			inline bool operator==(const FACE_GROUP& o) const
@@ -403,37 +385,10 @@ namespace mu
 			EBoneUsageFlags BoneUsageFlags = EBoneUsageFlags::None;
 			FTransform3f BoneTransform;
 
-			inline void Serialise(OutputArchive& arch) const
-			{
-				const int32 ver = 1;
-				arch << ver;
+			inline void Serialise(OutputArchive& arch) const;
 
-				arch << BoneName;
-				arch << BoneUsageFlags;
-				arch << BoneTransform;
-			}
 
-			inline void Unserialise(InputArchive& arch)
-			{
-				int32 ver = 0;
-				arch >> ver;
-				check(ver <= 1);
-
-				arch >> BoneName;
-
-				if (ver == 0)
-				{
-					uint8 Skinned = 0;
-					arch >> Skinned;
-					BoneUsageFlags = Skinned ? EBoneUsageFlags::Skinning : EBoneUsageFlags::None;
-				}
-				else
-				{
-					arch >> BoneUsageFlags;
-				}
-
-				arch >> BoneTransform;
-			}
+			inline void Unserialise(InputArchive& arch);
 
 
 			//!
@@ -448,93 +403,13 @@ namespace mu
 		TArray<FBonePose> BonePoses;
 
 		//!
-		inline void Serialise(OutputArchive& arch) const
-		{
-			uint32 ver = 15;
-			arch << ver;
+		inline void Serialise(OutputArchive& arch) const;
 
-			arch << m_IndexBuffers;
-			arch << m_VertexBuffers;
-			arch << m_FaceBuffers;
-			arch << m_AdditionalBuffers;
-			arch << m_layouts;
-
-			arch << SkeletonIDs;
-
-			arch << m_pSkeleton;
-			arch << m_pPhysicsBody;
-
-			arch << m_staticFormatFlags;
-			arch << m_surfaces;
-			arch << m_faceGroups;
-
-			arch << m_tags;
-
-			arch << BonePoses;
-
-			arch << AdditionalPhysicsBodies;
-		}
-
-		//!
-		inline void Unserialise(InputArchive& arch)
-		{
-			uint32 ver;
-			arch >> ver;
-			check(ver <= 15);
-
-			arch >> m_IndexBuffers;
-			arch >> m_VertexBuffers;
-			arch >> m_FaceBuffers;
-			arch >> m_AdditionalBuffers;
-			arch >> m_layouts;
-
-			if (ver >= 14)
-			{
-				arch >> SkeletonIDs;
-			}
-
-			arch >> m_pSkeleton;
-			if (ver >= 12)
-			{ 
-				arch >> m_pPhysicsBody;
-			}
-			else
-			{
-				m_pPhysicsBody = nullptr;
-			}
-
-			arch >> m_staticFormatFlags;
-			arch >> m_surfaces;
-			arch >> m_faceGroups;
-
-			arch >> m_tags;
-
-			if (ver >= 13)
-			{
-				arch >> BonePoses;
-			}
-			else if (m_pSkeleton)
-			{
-				const int32 NumBones = m_pSkeleton->GetBoneCount();
-				BonePoses.SetNum(NumBones);
-				check(m_pSkeleton->m_boneTransforms_DEPRECATED.Num() == NumBones);
-
-				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
-				{
-					BonePoses[BoneIndex].BoneName = m_pSkeleton->GetBoneName(BoneIndex);
-					BonePoses[BoneIndex].BoneUsageFlags = EBoneUsageFlags::Skinning;
-					BonePoses[BoneIndex].BoneTransform = m_pSkeleton->m_boneTransforms_DEPRECATED[BoneIndex];
-				}
-			}
-
-			if (ver >= 15)
-			{
-				arch >> AdditionalPhysicsBodies;
-			}
-		}
+        //!
+		inline void Unserialise(InputArchive& arch);
 
 
-		//!
+        //!
 		inline bool operator==(const Mesh& o) const
 		{
 			bool equal = (m_IndexBuffers == o.m_IndexBuffers);
@@ -645,5 +520,9 @@ namespace mu
     };
 
 
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(MESH_SURFACE)
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(EBoneUsageFlags)
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(EMeshBufferType)
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(EShapeBindingMethod)
 }
 

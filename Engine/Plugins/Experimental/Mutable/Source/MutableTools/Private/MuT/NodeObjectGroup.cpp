@@ -16,6 +16,7 @@
 
 namespace mu
 {
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(NodeObjectGroup::CHILD_SELECTION)
 
 
 	//---------------------------------------------------------------------------------------------

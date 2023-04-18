@@ -13,6 +13,31 @@ namespace mu
     class Image;
 	class Model;
 
+
+#define MUTABLE_DEFINE_POD_SERIALISABLE(T)							\
+	template<>														\
+	void DLLEXPORT operator<< <T>(OutputArchive& arch, const T& t);	\
+																	\
+	template<>														\
+	void DLLEXPORT operator>> <T>(InputArchive& arch, T& t);		\
+
+
+#define MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(T)							\
+	template<>																\
+	void DLLEXPORT operator<< <T>(OutputArchive& arch, const TArray<T>& v);	\
+																			\
+	template<>																\
+	void DLLEXPORT operator>> <T>(InputArchive& arch, TArray<T>& v);		\
+
+
+#define MUTABLE_DEFINE_ENUM_SERIALISABLE(T)							\
+	template<>														\
+    void DLLEXPORT operator<< <T>(OutputArchive& arch, const T& t);	\
+																	\
+	template<>														\
+    void DLLEXPORT operator>> <T>(InputArchive& arch, T& t);		\
+	
+	
     //! \brief
     //! \ingroup model
     template<class R>
@@ -285,6 +310,57 @@ namespace mu
         Private* m_pD;
 
     };
+
+
+	template< typename T >
+	void operator<< ( OutputArchive& arch, const T& t )
+	{
+        t.Serialise( arch );
+	}
+
+	template< typename T >
+	void operator>> ( InputArchive& arch, T& t )
+	{
+        t.Unserialise( arch );
+	}
+
+
+	MUTABLE_DEFINE_POD_SERIALISABLE(float);
+	MUTABLE_DEFINE_POD_SERIALISABLE(double);
+
+    MUTABLE_DEFINE_POD_SERIALISABLE( int8 );
+    MUTABLE_DEFINE_POD_SERIALISABLE( int16 );
+    MUTABLE_DEFINE_POD_SERIALISABLE( int32 );
+    MUTABLE_DEFINE_POD_SERIALISABLE( int64 );
+
+    MUTABLE_DEFINE_POD_SERIALISABLE( uint8 );
+    MUTABLE_DEFINE_POD_SERIALISABLE( uint16 );
+    MUTABLE_DEFINE_POD_SERIALISABLE( uint32 );
+    MUTABLE_DEFINE_POD_SERIALISABLE( uint64 );
+	
+	
+	//---------------------------------------------------------------------------------------------
+	template<typename T> void operator<<(OutputArchive& arch, const TArray<T>& v)
+	{
+		// TODO: Optimise for vectors of PODs
+		arch << (uint32)v.Num();
+		for (std::size_t i = 0; i < v.Num(); ++i)
+		{
+			arch << v[i];
+		}
+	}
+
+	template<typename T> void operator>>(InputArchive& arch, TArray<T>& v)
+	{
+		// TODO: Optimise for vectors of PODs
+		uint32 size;
+		arch >> size;
+		v.SetNum(size);
+		for (std::size_t i = 0; i < size; ++i)
+		{
+			arch >> v[i];
+		}
+	}
 
 }
 

@@ -19,6 +19,8 @@
 
 namespace mu
 {
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(TABLE_COLUMN_TYPE)
+
 
 	//---------------------------------------------------------------------------------------------
 	Table::Table()

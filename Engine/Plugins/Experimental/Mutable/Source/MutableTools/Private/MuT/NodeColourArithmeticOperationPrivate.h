@@ -9,8 +9,6 @@
 namespace mu
 {
 
-	MUTABLE_DEFINE_ENUM_SERIALISABLE(NodeColourArithmeticOperation::OPERATION)
-
 	class NodeColourArithmeticOperation::Private : public NodeColour::Private
 	{
 	public:

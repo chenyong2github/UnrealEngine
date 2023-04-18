@@ -8,11 +8,17 @@
 #include "Math/UnrealMathSSE.h"
 #include "Misc/AssertionMacros.h"
 #include "MuR/MutableTrace.h"
+#include "MuR/SerialisationPrivate.h"
 
 
 namespace mu
 {
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(MESH_BUFFER_CHANNEL);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(MESH_BUFFER_CHANNEL);
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(MESH_BUFFER_FORMAT);
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(MESH_BUFFER_SEMANTIC);
 
+	
 	//---------------------------------------------------------------------------------------------
 	static FMeshBufferFormatData s_meshBufferFormatData[MBF_COUNT] =
 	{
@@ -49,6 +55,22 @@ namespace mu
 		check(format >= 0);
 		check(format < MBF_COUNT);
 		return s_meshBufferFormatData[format];
+	}
+
+
+	//-----------------------------------------------------------------------------------------
+	void FMeshBufferSet::Serialise(OutputArchive& arch) const
+	{
+		arch << m_elementCount;
+		arch << m_buffers;
+	}
+
+
+	//-----------------------------------------------------------------------------------------
+	void FMeshBufferSet::Unserialise(InputArchive& arch)
+	{
+		arch >> m_elementCount;
+		arch >> m_buffers;
 	}
 
 
@@ -605,4 +627,23 @@ namespace mu
 			m_buffers[b].m_elementSize = offset;
 	}
 
+	
+	//-----------------------------------------------------------------------------------------
+	void MESH_BUFFER::Serialise(OutputArchive& arch) const
+	{
+		arch << m_channels;
+		arch << m_data;
+		arch << m_elementSize;
+	}
+
+	
+	//-----------------------------------------------------------------------------------------
+	void MESH_BUFFER::Unserialise(InputArchive& arch)
+	{
+		arch >> m_channels;
+		arch >> m_data;
+		arch >> m_elementSize;
+	}
+	
 }
+

@@ -60,6 +60,8 @@ namespace mu
     using SystemPtrConst=Ptr<const System>;
 
 
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(ETextureCompressionStrategy);
+
 
 	/** */
 	enum class EExecutionStrategy : uint8

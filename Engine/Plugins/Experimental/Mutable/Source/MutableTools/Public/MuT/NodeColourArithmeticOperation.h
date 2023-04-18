@@ -4,6 +4,7 @@
 
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
+#include "MuR/Serialisation.h"
 #include "MuT/Node.h"
 #include "MuT/NodeColour.h"
 
@@ -96,4 +97,6 @@ namespace mu
 	};
 
 
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(NodeColourArithmeticOperation::OPERATION)
+	
 }

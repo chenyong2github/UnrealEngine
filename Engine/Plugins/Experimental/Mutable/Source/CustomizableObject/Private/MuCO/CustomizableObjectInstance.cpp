@@ -26,10 +26,7 @@
 #include "MuCO/ICustomizableObjectModule.h"
 #include "MuCO/UnrealConversionUtils.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
-#include "MuR/OpImagePixelFormat.h"
 #include "MuR/Model.h"
-#include "MuR/OpImagePixelFormat.h"
-#include "MuR/OpImageSwizzle.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Rendering/Texture2DResource.h"
 #include "RenderingThread.h"
@@ -3309,6 +3306,7 @@ FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatfo
 }
 
 
+
 void UCustomizableInstancePrivateData::ConvertImage(UTexture2D* Texture, mu::ImagePtrConst MutableImage, const FMutableModelImageProperties& Props, int OnlyLOD, int32 ExtractChannel )
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::ConvertImage);
@@ -6141,6 +6139,7 @@ void UCustomizableInstancePrivateData::ProcessTextureCoverageQueries(const TShar
 		}
 	}
 }
+
 
 
 void UCustomizableInstancePrivateData::UpdateParameterDecorationsEngineResources(const TSharedPtr<FMutableOperationData>& OperationData)

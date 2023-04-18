@@ -7,10 +7,14 @@
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
 #include "MuT/NodeScalarArithmeticOperationPrivate.h"
+#include "MuR/Serialisation.h"
+
 
 namespace mu
 {
+    MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(NodeScalarArithmeticOperation::OPERATION)
 
+	
 	//---------------------------------------------------------------------------------------------
 	// Static initialisation
 	//---------------------------------------------------------------------------------------------

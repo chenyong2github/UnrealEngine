@@ -25,6 +25,12 @@ namespace
 
 namespace mu
 {
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( EBlendType );
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( EMipmapFilterType );
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( ECompositeImageMode );
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( ESamplingMethod );
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( EMinFilterMethod );
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( EImageFormat );
 
     //---------------------------------------------------------------------------------------------
     static FImageFormatData s_imageFormatData[uint32(EImageFormat::IF_COUNT)] =
