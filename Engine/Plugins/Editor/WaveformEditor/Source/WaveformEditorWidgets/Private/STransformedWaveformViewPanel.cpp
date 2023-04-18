@@ -2,28 +2,37 @@
 
  #include "STransformedWaveformViewPanel.h"
 
+#include "AudioWidgetsSlateTypes.h"
+#include "DSP/Dsp.h"
 #include "SampledSequenceDisplayUnit.h"
-#include "SPlayheadOverlay.h"
 #include "SFixedSampledSequenceRuler.h"
 #include "SFixedSampledSequenceViewer.h"
-#include "SWaveformTransformationsOverlay.h"
+#include "SPlayheadOverlay.h"
+#include "SSampledSequenceValueGridOverlay.h"
 #include "SWaveformEditorInputRoutingOverlay.h"
+#include "SWaveformTransformationsOverlay.h"
 #include "WaveformEditorGridData.h"
 #include "WaveformEditorStyle.h"
+#include "WaveformEditorWidgetsSettings.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SOverlay.h"
 
-void STransformedWaveformViewPanel::Construct(const FArguments& InArgs, const FFixedSampledSequenceView& InView)
+#define LOCTEXT_NAMESPACE "TransformedWaveformViewPanel"
+
+void STransformedWaveformViewPanel::Construct(const FArguments& InArgs, const FFixedSampledSequenceView& InData)
 {
 	DisplayUnit = ESampledSequenceDisplayUnit::Seconds;
-	DataView = InView;
+	DataView = InData;
 
 	WaveformEditorStyle = &FWaveformEditorStyle::Get();
 	check(WaveformEditorStyle);
 
 	SetUpGridData();
+	SetUpBackground();
 	SetUpWaveformViewer(GridData.ToSharedRef(), DataView);
+	SetUpValueGridOverlay();
 
 	if (InArgs._TransformationsOverlay)
 	{
@@ -34,6 +43,11 @@ void STransformedWaveformViewPanel::Construct(const FArguments& InArgs, const FF
 	SetUpInputRoutingOverlay();
 	SetUpTimeRuler(GridData.ToSharedRef());
 	SetUpInputOverrides(InArgs);
+
+	const UWaveformEditorWidgetsSettings* Settings = GetWaveformEditorWidgetsSettings();
+	check(Settings)
+	Settings->OnSettingChanged().AddSP(this, &STransformedWaveformViewPanel::OnWaveEditorWidgetSettingsUpdated);
+
 	CreateLayout();
 }
 
@@ -44,10 +58,23 @@ void STransformedWaveformViewPanel::CreateLayout()
 	check(InputRoutingOverlay);
 
 	TSharedPtr<SOverlay> WaveformView = SNew(SOverlay);
+
+	WaveformView->AddSlot()
+	[
+		BackgroundBorder.ToSharedRef()
+	];
+
+	WaveformView->AddSlot()
+	[
+		ValueGridOverlay.ToSharedRef()
+	];
+
 	WaveformView->AddSlot()
 	[
 		WaveformViewer.ToSharedRef()
 	];
+
+
 
 	if (WaveformTransformationsOverlay)
 	{
@@ -119,12 +146,13 @@ void STransformedWaveformViewPanel::SetupPlayheadOverlay()
 	PlayheadOverlayStyle->OnStyleUpdated.AddSP(PlayheadOverlay.ToSharedRef(), &SPlayheadOverlay::OnStyleUpdated);
 }
 
-void STransformedWaveformViewPanel::SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InGridData, const FFixedSampledSequenceView& InView)
+void STransformedWaveformViewPanel::SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InGridData, const FFixedSampledSequenceView& InData)
 {
 	FSampledSequenceViewerStyle* WaveViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
 	check(WaveViewerStyle);
 
-	WaveformViewer = SNew(SFixedSampledSequenceViewer, InView.SampleData, InView.NumDimensions, InGridData).Style(WaveViewerStyle);
+	WaveformViewer = SNew(SFixedSampledSequenceViewer, InData.SampleData, InData.NumDimensions, InGridData).Style(WaveViewerStyle).HideBackground(true);
+		
 	WaveViewerStyle->OnStyleUpdated.AddSP(WaveformViewer.ToSharedRef(), &SFixedSampledSequenceViewer::OnStyleUpdated);
 	GridData->OnGridMetricsUpdated.AddSP(WaveformViewer.ToSharedRef(), &SFixedSampledSequenceViewer::UpdateGridMetrics);
 }
@@ -150,6 +178,11 @@ void STransformedWaveformViewPanel::ReceiveSequenceView(const FFixedSampledSeque
 	if (WaveformViewer)
 	{
 		WaveformViewer->UpdateView(InView.SampleData, InView.NumDimensions);
+	}
+
+	if (ValueGridOverlay)
+	{
+		ValueGridOverlay->ForceRedraw();
 	}
 }
 
@@ -230,6 +263,66 @@ void STransformedWaveformViewPanel::UpdatePlayheadPosition(const float PaintedWi
 	}
 }
 
+void STransformedWaveformViewPanel::UpdateBackground(const FNotifyingAudioWidgetStyle& UpdatedStyle)
+{
+	FSampledSequenceViewerStyle* ViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
+
+	check(ViewerStyle);
+
+	if (&UpdatedStyle != ViewerStyle)
+	{
+		return;
+	}
+
+	BackgroundBorder->SetBorderImage(&ViewerStyle->BackgroundBrush);
+	BackgroundBorder->SetBorderBackgroundColor(ViewerStyle->SequenceBackgroundColor);
+}
+
+void STransformedWaveformViewPanel::OnWaveEditorWidgetSettingsUpdated(const FName& PropertyName, const UWaveformEditorWidgetsSettings* Settings)
+{
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, ShowLoudnessGrid))
+	{
+		if (ValueGridOverlay)
+		{
+			ValueGridOverlay->SetHideGrid(!Settings->ShowLoudnessGrid);
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, ShowLoudnessGridDecibelValues))
+	{
+		if (ValueGridOverlay)
+		{
+			ValueGridOverlay->SetHideLabels(!Settings->ShowLoudnessGridDecibelValues);
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, MaxLoudnessGridDivisions))
+	{
+		if (ValueGridOverlay)
+		{
+			ValueGridOverlay->SetMaxDivisionParameter(Settings->MaxLoudnessGridDivisions);
+		}
+	}
+}
+
+const UWaveformEditorWidgetsSettings* STransformedWaveformViewPanel::GetWaveformEditorWidgetsSettings()
+{
+	const UWaveformEditorWidgetsSettings* WaveformEditorWidgetsSettings = GetDefault<UWaveformEditorWidgetsSettings>();
+	check(WaveformEditorWidgetsSettings);
+
+	return WaveformEditorWidgetsSettings;
+}
+
+void STransformedWaveformViewPanel::SetUpBackground()
+{
+	FSampledSequenceViewerStyle* ViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
+	check(ViewerStyle);
+
+	ViewerStyle->OnStyleUpdated.AddSP(this, &STransformedWaveformViewPanel::UpdateBackground);
+
+	BackgroundBorder = SNew(SBorder)
+		.BorderImage(&ViewerStyle->BackgroundBrush)
+		.BorderBackgroundColor(ViewerStyle->SequenceBackgroundColor);
+}
+
 void STransformedWaveformViewPanel::SetUpInputOverrides(const FArguments& InArgs)
 {
 	SetOnPlayheadOverlayMouseButtonUp(InArgs._OnPlayheadOverlayMouseButtonUp);
@@ -240,3 +333,39 @@ void STransformedWaveformViewPanel::SetUpInputOverrides(const FArguments& InArgs
 	
 	SetOnMouseWheel(InArgs._OnMouseWheel);
 }
+
+void STransformedWaveformViewPanel::SetUpValueGridOverlay()
+{
+	auto ValueGridDBConverter = [](const double InLabelValue)
+	{
+		
+		const float AbsAmplitude = FMath::Abs(InLabelValue * 2.f - 1);
+		const float GridLineValue = Audio::ConvertToDecibels(AbsAmplitude);
+		const float MinDecibelNumericLimit = -160;
+		FNumberFormattingOptions Formatting; 
+		Formatting.SetMaximumFractionalDigits(1);
+		return FText::Format(LOCTEXT("WaveformEditorValueGridLabel", "{0}"), (GridLineValue <= MinDecibelNumericLimit ? LOCTEXT("WaveformEditorValueGridLabel", "-inf") : FText::AsNumber(GridLineValue, &Formatting)));
+	};
+
+	const UWaveformEditorWidgetsSettings* Settings = GetWaveformEditorWidgetsSettings();
+	const bool bShowGrid = Settings ? Settings->ShowLoudnessGrid : true;
+	const bool bShowLabels = Settings ? Settings->ShowLoudnessGridDecibelValues : true;
+	const uint32 NumValueGridDivision = Settings ? Settings->MaxLoudnessGridDivisions : 3;
+
+
+	FSampledSequenceValueGridOverlayStyle* ValueGridStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceValueGridOverlayStyle>("WaveformEditorValueGrid.Style").Get();
+	
+	ValueGridOverlay = SNew(SSampledSequenceValueGridOverlay)
+		.DivideMode(SampledSequenceValueGridOverlay::EGridDivideMode::MidSplit)
+		.ValueGridLabelGenerator(ValueGridDBConverter)
+		.NumDimensions(DataView.NumDimensions)
+		.MaxDivisionParameter(NumValueGridDivision)
+		.HideLabels(!bShowLabels)
+		.HideGrid(!bShowGrid)
+		.Style(ValueGridStyle);
+
+	ValueGridStyle->OnStyleUpdated.AddSP(ValueGridOverlay.ToSharedRef(), &SSampledSequenceValueGridOverlay::OnStyleUpdated);
+}
+
+#undef LOCTEXT_NAMESPACE
+

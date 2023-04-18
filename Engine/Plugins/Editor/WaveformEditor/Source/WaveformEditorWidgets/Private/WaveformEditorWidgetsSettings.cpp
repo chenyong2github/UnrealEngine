@@ -9,7 +9,6 @@ UWaveformEditorWidgetsSettings::UWaveformEditorWidgetsSettings(const FObjectInit
 	, WaveformLineThickness(1.f)
 	, SampleMarkersSize(2.5f)
 	, WaveformBackgroundColor(FLinearColor(0.02f, 0.02f, 0.02f, 1.f))
-	, ZeroCrossingLineColor(FLinearColor::Black)
 	, ZeroCrossingLineThickness(1.f)
 	, MajorGridColor(FLinearColor::Black)
 	, MinorGridColor(FLinearColor(0.f, 0.f, 0.f, 0.5f))
@@ -17,6 +16,14 @@ UWaveformEditorWidgetsSettings::UWaveformEditorWidgetsSettings(const FObjectInit
 	, RulerTicksColor(FLinearColor(1.f, 1.f, 1.f, 0.9f))
 	, RulerTextColor(FLinearColor(1.f, 1.f, 1.f, 0.9f))
 	, RulerFontSize(10.f)
+	, ShowLoudnessGrid(true)
+	, ShowLoudnessGridDecibelValues(true)
+	, MaxLoudnessGridDivisions(3)
+	, LoudnessGridThickness(1.f)
+	, LoudnessGridColor(FLinearColor::Black)
+	, LoudnessGridTextColor(FLinearColor(1.f, 1.f, 1.f, 0.9f))
+	, LoudnessGridTextSize(10.f)
+
 {
 }
 

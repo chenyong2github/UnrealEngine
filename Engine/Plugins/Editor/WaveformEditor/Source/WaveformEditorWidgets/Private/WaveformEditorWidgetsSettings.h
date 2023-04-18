@@ -47,9 +47,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer")
 	FLinearColor WaveformBackgroundColor;
 
-	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer")
-	FLinearColor ZeroCrossingLineColor;
-
 	UPROPERTY(config, EditAnywhere, Category = "Waveform Viewer", Meta = (ClampMin = "1", ClampMax = "10"))
 	float ZeroCrossingLineThickness;
 
@@ -70,6 +67,29 @@ public:
 
 	UPROPERTY(config, EditAnywhere, Category = "Ruler", Meta = (ClampMin = "1", ClampMax = "15"))
 	float RulerFontSize;
+
+	UPROPERTY(config, EditAnywhere, Category = "Loudness Grid")
+	bool ShowLoudnessGrid;
+
+	UPROPERTY(config, EditAnywhere, Category = "Loudness Grid")
+	bool ShowLoudnessGridDecibelValues;
+
+	UPROPERTY(config, EditAnywhere, Category = "Loudness Grid", Meta = (ClampMin = "1", ClampMax = "10"))
+	uint8 MaxLoudnessGridDivisions;
+
+	UPROPERTY(config, EditAnywhere, Category = "Loudness Grid", Meta = (ClampMin = "1", ClampMax = "10"))
+	float LoudnessGridThickness;
+
+	UPROPERTY(config, EditAnywhere, Category = "Loudness Grid")
+	FLinearColor LoudnessGridColor;
+
+	UPROPERTY(config, EditAnywhere, Category = "Loudness Grid")
+	FLinearColor LoudnessGridTextColor;
+
+	UPROPERTY(config, EditAnywhere, Category = "Loudness Grid", Meta = (ClampMin = "1", ClampMax = "15"))
+	float LoudnessGridTextSize;
+
+	
 
 private: 
 	static FOnWaveformEditorWidgetsSettingsChanged SettingsChangedDelegate;

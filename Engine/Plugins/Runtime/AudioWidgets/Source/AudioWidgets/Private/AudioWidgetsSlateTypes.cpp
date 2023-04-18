@@ -155,3 +155,21 @@ void FFixedSampleSequenceRulerStyle::GetResources(TArray< const FSlateBrush* >& 
 	OutBrushes.Add(&HandleBrush);
 	OutBrushes.Add(&BackgroundBrush);
 }
+
+FSampledSequenceValueGridOverlayStyle::FSampledSequenceValueGridOverlayStyle()
+	: GridColor(FLinearColor::Black)
+	, GridThickness(1.f)
+	, LabelTextColor(FLinearColor::Black)
+	, LabelTextFont(FAppStyle::GetFontStyle("Regular"))
+	, DesiredWidth(AudioWidgetStylesSharedParams::DefaultWidth)
+	, DesiredHeight(AudioWidgetStylesSharedParams::DefaultHeight)
+{
+}
+
+const FSampledSequenceValueGridOverlayStyle& FSampledSequenceValueGridOverlayStyle::GetDefault()
+{
+	static FSampledSequenceValueGridOverlayStyle Default;
+	return Default;
+}
+
+const FName FSampledSequenceValueGridOverlayStyle::TypeName("FSampledSequenceValueGridOverlayStyle");

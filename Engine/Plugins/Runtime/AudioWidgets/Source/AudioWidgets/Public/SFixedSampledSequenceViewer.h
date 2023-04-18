@@ -19,10 +19,13 @@ class AUDIOWIDGETS_API SFixedSampledSequenceViewer : public SLeafWidget
 public:
 
 	SLATE_BEGIN_ARGS(SFixedSampledSequenceViewer) 
+		: _HideBackground(false)
 	{
 	}
 	
 	SLATE_ARGUMENT(SampledSequenceDrawingUtils::FSampledSequenceDrawingParams, SequenceDrawingParams)
+
+	SLATE_ARGUMENT(bool, HideBackground)
 
 	SLATE_STYLE_ARGUMENT(FSampledSequenceViewerStyle, Style)
 		
@@ -63,12 +66,12 @@ private:
 	float DesiredWidth = 0.f;
 	float SampleMarkersSize = 2.5f;
 	float SequenceLineThickness = 1.f;
-	
+	bool bHideBackground;
 
 	uint32 CachedPixelWidth = 0; 
 	float CachedPixelHeight = 0.f;
 	TArray<SampledSequenceViewerWidget::SampleRange> CachedPeaks;
-	TArray<SampledSequenceDrawingUtils::FSampleBinCoordinates> CachedBinsDrawCoordinates;
+	TArray<SampledSequenceDrawingUtils::F2DLineCoordinates> CachedBinsDrawCoordinates;
 	SampledSequenceDrawingUtils::FSampledSequenceDrawingParams DrawingParams;
 	TArray<FVector2D> CachedSampleDrawCoordinates;
 

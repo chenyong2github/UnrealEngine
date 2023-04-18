@@ -7,16 +7,21 @@
 #include "IFixedSampledSequenceViewReceiver.h"
 
 enum class ESampledSequenceDisplayUnit;
+struct FNotifyingAudioWidgetStyle;
+
+class FSparseSampledSequenceTransportCoordinator;
+class FWaveformEditorGridData;
+class FWaveformEditorRenderData;
+class FWaveformEditorStyle;
+class FWaveformEditorZoomController;
+class SBorder;
+class SFixedSampledSequenceRuler;
+class SFixedSampledSequenceViewer;
+class SPlayheadOverlay;
+class SSampledSequenceValueGridOverlay;
 class SWaveformEditorInputRoutingOverlay;
 class SWaveformTransformationsOverlay;
-class SPlayheadOverlay;
-class SFixedSampledSequenceViewer;
-class SFixedSampledSequenceRuler;
-class FWaveformEditorZoomController;
-class FWaveformEditorStyle;
-class FWaveformEditorRenderData;
-class FWaveformEditorGridData;
-class FSparseSampledSequenceTransportCoordinator;
+class UWaveformEditorWidgetsSettings;
 
 class WAVEFORMEDITORWIDGETS_API STransformedWaveformViewPanel : public SCompoundWidget, public IFixedSampledSequenceViewReceiver 
 {
@@ -50,7 +55,6 @@ public:
 	void SetOnTimeRulerMouseMove(FPointerEventHandler InEventHandler);
 	void SetOnMouseWheel(FPointerEventHandler InEventHandler);
 
-
 private:
 	void CreateLayout();
 
@@ -60,9 +64,15 @@ private:
 	void SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InGridData, const FFixedSampledSequenceView& InView);
 	void SetUpInputRoutingOverlay();
 	void SetUpInputOverrides(const FArguments& InArgs);
+	void SetUpValueGridOverlay();
+	void SetUpBackground();
+
 
 	void UpdateDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit);
 	void UpdatePlayheadPosition(const float PaintedWidth);
+	void UpdateBackground(const FNotifyingAudioWidgetStyle& UpdatedStyle);
+
+	void OnWaveEditorWidgetSettingsUpdated(const FName& PropertyName, const UWaveformEditorWidgetsSettings* Settings);
 
 	TSharedPtr<FWaveformEditorGridData> GridData;
 
@@ -71,6 +81,8 @@ private:
  	TSharedPtr<SWaveformTransformationsOverlay> WaveformTransformationsOverlay;
 	TSharedPtr<SWaveformEditorInputRoutingOverlay> InputRoutingOverlay;
 	TSharedPtr<SPlayheadOverlay> PlayheadOverlay;
+	TSharedPtr<SSampledSequenceValueGridOverlay> ValueGridOverlay;
+	TSharedPtr<SBorder> BackgroundBorder;
 
 	float CachedPixelWidth = 0.f;
 
@@ -81,4 +93,5 @@ private:
 	FFixedSampledSequenceView DataView;
 	
 	float CachedPlayheadRatio = 0.f;
+	const UWaveformEditorWidgetsSettings* GetWaveformEditorWidgetsSettings();
 };

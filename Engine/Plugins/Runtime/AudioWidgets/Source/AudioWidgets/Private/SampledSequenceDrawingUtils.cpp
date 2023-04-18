@@ -4,17 +4,61 @@
 
 #include "Layout/Geometry.h"
 
-SampledSequenceDrawingUtils::FHorizontalDimensionSlot::FHorizontalDimensionSlot(const uint16 DimensionToDraw, const uint16 TotalNumDimensions, const FGeometry& InAllottedGeometry)
+namespace SampledSequenceDrawingUtilsPrivate
 {
-	Height = InAllottedGeometry.GetLocalSize().Y / TotalNumDimensions;
-	float ChannelSlotMidPoint = Height / 2.f;
+	void DivideLineIteratively(const float StartPoint, const float EndPoint, int32 Depth, TArray<double>& HalfPoints)
+	{
+		const double HalfPoint = (StartPoint + EndPoint) / 2.f;
+		HalfPoints.Add(HalfPoint);
 
-	Top = Height * DimensionToDraw;
-	Center = Top + ChannelSlotMidPoint;
-	Bottom = Top + Height;
+		if (--Depth > 0)
+		{
+			SampledSequenceDrawingUtilsPrivate::DivideLineIteratively(StartPoint, HalfPoint, Depth, HalfPoints);
+			SampledSequenceDrawingUtilsPrivate::DivideLineIteratively(HalfPoint, EndPoint, Depth, HalfPoints);
+		}
+	}
+
+	void GenerateGridDataFromMidPoints(const uint16 NDimensions, const FGeometry& InAllottedGeometry, const SampledSequenceDrawingUtils::FSampledSequenceDrawingParams& Params, const TArray<double>& MidPoints, const TArray<float>& MidPointsRatios, TArray<SampledSequenceDrawingUtils::FGridData>& OutGridData)
+	{
+		for (uint16 Dimension = 0; Dimension < NDimensions; ++Dimension)
+		{
+			SampledSequenceDrawingUtils::FGridData DimensionGridData;
+			SampledSequenceDrawingUtils::FDimensionSlot DimensionSlot(Dimension, NDimensions, InAllottedGeometry, Params);
+
+			for (int32 PointIndex = 0; PointIndex < MidPoints.Num(); ++PointIndex)
+			{
+				const float MidPointCoordinate = MidPoints[PointIndex] + DimensionSlot.Top;
+
+				FVector2D PointA = Params.Orientation == SampledSequenceDrawingUtils::ESampledSequenceDrawOrientation::Horizontal ? FVector2D(0, MidPointCoordinate) : FVector2D(MidPointCoordinate, 0);
+				FVector2D PointB = Params.Orientation == SampledSequenceDrawingUtils::ESampledSequenceDrawOrientation::Horizontal ? FVector2D(InAllottedGeometry.GetLocalSize().X, MidPointCoordinate) : FVector2D(MidPointCoordinate, InAllottedGeometry.GetLocalSize().Y);
+
+				DimensionGridData.DrawCoordinates.Add({ PointA, PointB });
+				DimensionGridData.PositionRatios.Add(MidPointsRatios[PointIndex]);
+			}
+
+			OutGridData.Add(DimensionGridData);
+		}
+	}
 }
 
-void SampledSequenceDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(TArray<FSampleBinCoordinates>& OutDrawCoordinates, const FGeometry& InAllottedGeometry, const TArray<TRange<float>>& InSampleBins, const uint16 NDimensions, const FSampledSequenceDrawingParams Params)
+SampledSequenceDrawingUtils::FDimensionSlot::FDimensionSlot(const uint16 DimensionToDraw, const uint16 TotalNumDimensions, const FGeometry& InAllottedGeometry, const FSampledSequenceDrawingParams& Params)
+{
+	check(TotalNumDimensions > 0)
+
+	const float& GeometryLength = Params.Orientation == ESampledSequenceDrawOrientation::Horizontal ? InAllottedGeometry.GetLocalSize().Y : InAllottedGeometry.GetLocalSize().X;
+
+	const double FullSlotHeight = GeometryLength / TotalNumDimensions;
+	const double MarginedTop = (FullSlotHeight * DimensionToDraw) + Params.DimensionSlotMargin;
+	Height = FMath::Clamp(FullSlotHeight - (Params.DimensionSlotMargin * 2), FullSlotHeight * Params.MinSequenceHeightRatio, GeometryLength / TotalNumDimensions);
+	const double MarginedBottom = MarginedTop + Height;
+
+	Center = MarginedTop + ((MarginedBottom - MarginedTop) / 2.f);
+	Height *= Params.MaxSequenceHeightRatio;
+	Top = Center - Height / 2;
+	Bottom = Center + Height / 2;
+}
+
+void SampledSequenceDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(TArray<F2DLineCoordinates>& OutDrawCoordinates, const FGeometry& InAllottedGeometry, const TArray<TRange<float>>& InSampleBins, const uint16 NDimensions, const FSampledSequenceDrawingParams Params)
 {
 	if (!ensure(NDimensions != 0))
 	{
@@ -24,29 +68,29 @@ void SampledSequenceDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(TArra
 	const uint32 PixelWidth = FMath::FloorToInt(InAllottedGeometry.GetLocalSize().X);
 	check(PixelWidth * NDimensions == InSampleBins.Num());
 
-	const float HeightScale = InAllottedGeometry.GetLocalSize().Y / (2.f * Params.MaxDisplayedValue * NDimensions) * Params.MaxSequenceHeight * Params.VerticalZoomFactor;
+	const float HeightScale = InAllottedGeometry.GetLocalSize().Y / (2.f * Params.MaxDisplayedValue * NDimensions) * Params.MaxSequenceHeightRatio * Params.VerticalZoomFactor;
 
 
 	OutDrawCoordinates.SetNumUninitialized(InSampleBins.Num());
-	FSampleBinCoordinates* OutCoordinatesData = OutDrawCoordinates.GetData();
+	F2DLineCoordinates* OutCoordinatesData = OutDrawCoordinates.GetData();
 
 	for (uint16 Channel = 0; Channel < NDimensions; ++Channel)
 	{
-		const FHorizontalDimensionSlot ChannelBoundaries(Channel, NDimensions, InAllottedGeometry);
+		const FDimensionSlot ChannelBoundaries(Channel, NDimensions, InAllottedGeometry, Params);
 
 		for (uint32 Pixel = 0; Pixel < PixelWidth; ++Pixel)
 		{
 			uint32 PeakIndex = Pixel * NDimensions + Channel;
 			const TRange<float>& MinMaxBin = InSampleBins[PeakIndex];
 
-			const float SampleMaxScaled = MinMaxBin.GetUpperBoundValue() * HeightScale > Params.MinScaledBinValue ? MinMaxBin.GetUpperBoundValue() * HeightScale : Params.MinSequenceHeight;
-			const float SampleMinScaled = MinMaxBin.GetLowerBoundValue() * HeightScale < -1 * Params.MinScaledBinValue ? MinMaxBin.GetLowerBoundValue() * HeightScale : -1.f * Params.MinSequenceHeight;
+			const float SampleMaxScaled = MinMaxBin.GetUpperBoundValue() * HeightScale > Params.MinScaledBinValue ? MinMaxBin.GetUpperBoundValue() * HeightScale : Params.MinSequenceHeightRatio;
+			const float SampleMinScaled = MinMaxBin.GetLowerBoundValue() * HeightScale < -1 * Params.MinScaledBinValue ? MinMaxBin.GetLowerBoundValue() * HeightScale : -1.f * Params.MinSequenceHeightRatio;
 
-			const float Top = FMath::Max(ChannelBoundaries.Center - SampleMaxScaled, ChannelBoundaries.Top + Params.DimensionSlotMargin);
-			const float Bottom = FMath::Min(ChannelBoundaries.Center - SampleMinScaled, ChannelBoundaries.Bottom - Params.DimensionSlotMargin);
+			const float Top = FMath::Max(ChannelBoundaries.Center - SampleMaxScaled, ChannelBoundaries.Top);
+			const float Bottom = FMath::Min(ChannelBoundaries.Center - SampleMinScaled, ChannelBoundaries.Bottom);
 
-			OutCoordinatesData[PeakIndex].Top = FVector2D(Pixel, Top);
-			OutCoordinatesData[PeakIndex].Bottom = FVector2D(Pixel, Bottom);
+			OutCoordinatesData[PeakIndex].A = FVector2D(Pixel, Top);
+			OutCoordinatesData[PeakIndex].B = FVector2D(Pixel, Bottom);
 		}
 	}
 }
@@ -62,11 +106,11 @@ void SampledSequenceDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry
 
 	const uint32 NumFramesToDisplay = InSampleData.Num() / NDimensions;
 
-	TArray<FHorizontalDimensionSlot> ChannelSlotsBoundaries;
+	TArray<FDimensionSlot> ChannelSlotsBoundaries;
 
 	for (uint16 Channel = 0; Channel < NDimensions; ++Channel)
 	{
-		ChannelSlotsBoundaries.Emplace(Channel, NDimensions, InAllottedGeometry);
+		ChannelSlotsBoundaries.Emplace(Channel, NDimensions, InAllottedGeometry, Params);
 	}
 
 	uint32 FrameIndex = 0;
@@ -80,14 +124,13 @@ void SampledSequenceDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry
 		{
 			for (uint16 Channel = 0; Channel < NDimensions; ++Channel)
 			{
-				const FHorizontalDimensionSlot& ChannelBoundaries = ChannelSlotsBoundaries[Channel];
+				const FDimensionSlot& ChannelBoundaries = ChannelSlotsBoundaries[Channel];
 				const uint32 SampleIndex = FrameIndex * NDimensions + Channel;
 				const float SampleValue = InSampleData[SampleIndex];
 
-				const float SampleValueRatio = SampleValue / Params.MaxDisplayedValue * Params.MaxSequenceHeight * Params.VerticalZoomFactor;
-				const float TopBoundary = ChannelBoundaries.Top + Params.DimensionSlotMargin;
-				const float BottomBoundary = ChannelBoundaries.Bottom - Params.DimensionSlotMargin;
-				const float SampleY = FMath::Clamp((SampleValueRatio * ChannelBoundaries.Height / 2.f) + ChannelBoundaries.Center, TopBoundary, BottomBoundary);
+				const float SampleValueRatio = SampleValue / Params.MaxDisplayedValue * Params.VerticalZoomFactor;
+				const float HeightRatio = SampleValueRatio * ChannelBoundaries.Height / 2.f;
+				const float SampleY = FMath::Clamp(ChannelBoundaries.Center - HeightRatio, ChannelBoundaries.Top, ChannelBoundaries.Bottom);
 
 				const FVector2D SampleCoordinates(FrameX, SampleY);
 
@@ -97,4 +140,97 @@ void SampledSequenceDrawingUtils::GenerateSequencedSamplesCoordinatesForGeometry
 			FrameIndex++;
 		}
 	}
+}
+
+void SampledSequenceDrawingUtils::GenerateEvenlySplitGridForGeometry(TArray<FGridData>& OutGridData, const FGeometry& InAllottedGeometry, const uint16 NDimensions, const uint32 NumGridDivisions /*= 5*/, const FSampledSequenceDrawingParams Params /*= FSampledSequenceDrawingParams()*/)
+{
+	if (!ensure(NDimensions != 0))
+	{
+		return;
+	}
+
+	OutGridData.Empty();
+
+	FDimensionSlot FirstDimensionSlot(0, NDimensions, InAllottedGeometry, Params);
+	TArray<double> MidPoints;
+	TArray<float> MidPointsRatios;
+	SampledSequenceDrawingUtils::GenerateEvenlySplitGridForLine(MidPoints, MidPointsRatios, FirstDimensionSlot.Height, NumGridDivisions);
+	SampledSequenceDrawingUtilsPrivate::GenerateGridDataFromMidPoints(NDimensions, InAllottedGeometry, Params, MidPoints, MidPointsRatios, OutGridData);
+
+}
+
+void SampledSequenceDrawingUtils::GenerateMidpointSplitGridForGeometry(TArray<FGridData>& OutGridData, const FGeometry& InAllottedGeometry, const uint16 NDimensions, const uint32 DivisionDepth /*= 3*/, const FSampledSequenceDrawingParams Params /*= FSampledSequenceDrawingParams()*/)
+{
+	if (!ensure(NDimensions != 0))
+	{
+		return;
+	}
+
+	OutGridData.Empty();
+
+	FDimensionSlot FirstDimensionSlot(0, NDimensions, InAllottedGeometry, Params);
+	TArray<double> MidPoints;
+	TArray<float> MidPointsRatios;
+	SampledSequenceDrawingUtils::GenerateMidpointSplitGridForLine(MidPoints, MidPointsRatios, FirstDimensionSlot.Height, DivisionDepth);
+	SampledSequenceDrawingUtilsPrivate::GenerateGridDataFromMidPoints(NDimensions, InAllottedGeometry, Params, MidPoints, MidPointsRatios, OutGridData);
+}
+
+
+void SampledSequenceDrawingUtils::GenerateMidpointSplitGridForLine(TArray<double>& OutDrawCoordinates, TArray<float>& OutLinePositionRatios, const float LineLength, const uint32 DivisionDepth /*= 3*/, bool bEmptyOutArrays /*= true*/)
+{
+	if (bEmptyOutArrays)
+	{
+		OutDrawCoordinates.Empty();
+		OutLinePositionRatios.Empty();
+	}
+
+	const bool bAddBorders = DivisionDepth > 0;
+	
+	if (bAddBorders)
+	{
+		OutDrawCoordinates.Add(0);
+		OutLinePositionRatios.Add(0.f);
+	}
+
+
+	TArray<double> MidPoints;
+	SampledSequenceDrawingUtilsPrivate::DivideLineIteratively(0, LineLength, DivisionDepth, MidPoints);
+
+	MidPoints.Sort();
+
+	for (const double MidPoint : MidPoints)
+	{
+		const float MidPointRatio = MidPoint / LineLength;
+		OutLinePositionRatios.Add(MidPointRatio);
+		OutDrawCoordinates.Add(MidPoint);
+	}
+
+	if (bAddBorders)
+	{
+		OutDrawCoordinates.Add(LineLength);
+		OutLinePositionRatios.Add(1);
+	}
+
+	
+}
+
+void SampledSequenceDrawingUtils::GenerateEvenlySplitGridForLine(TArray<double>& OutDrawCoordinates, TArray<float>& OutLinePositionRatios, const float LineLength, const uint32 NumGridDivisions /*= 2*/, bool bEmptyOutArrays /*= true*/)
+{
+	if (bEmptyOutArrays)
+	{
+		OutDrawCoordinates.Empty();
+		OutLinePositionRatios.Empty();
+	}
+
+	const double GridStep = LineLength / NumGridDivisions;
+
+	for (double GridLineCoordinate = 0; GridLineCoordinate < LineLength; GridLineCoordinate += GridStep)
+	{
+		const float GridValue = GridLineCoordinate / LineLength;
+		OutLinePositionRatios.Add(GridValue);
+		OutDrawCoordinates.Add(GridLineCoordinate);
+	}
+
+	OutLinePositionRatios.Add(1.f);
+	OutDrawCoordinates.Add(LineLength);
 }

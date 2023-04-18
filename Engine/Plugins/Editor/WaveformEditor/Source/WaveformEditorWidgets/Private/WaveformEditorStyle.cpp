@@ -6,9 +6,11 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "WaveformEditorWidgetsSettings.h"
 
-static FLazyName WaveformViewerStyleName("WaveformViewer.Style");
 static FLazyName PlayheadOverlayStyleName("WaveformEditorPlayheadOverlay.Style");
+static FLazyName ValueGridOverlayStyleName("WaveformEditorValueGrid.Style");
 static FLazyName WaveformEditorRulerStyleName("WaveformEditorRuler.Style");
+static FLazyName WaveformViewerStyleName("WaveformViewer.Style");
+
 
 FName FWaveformEditorStyle::StyleName("WaveformEditorStyle");
 TUniquePtr<FWaveformEditorStyle> FWaveformEditorStyle::StyleInstance = nullptr;
@@ -51,7 +53,7 @@ void FWaveformEditorStyle::Init()
 		.SetSampleMarkersSize(Settings->SampleMarkersSize)
 		.SetMajorGridLineColor(Settings->MajorGridColor)
 		.SetMinorGridLineColor(Settings->MinorGridColor)
-		.SetZeroCrossingLineColor(Settings->ZeroCrossingLineColor)
+		.SetZeroCrossingLineColor(Settings->LoudnessGridColor)
 		.SetZeroCrossingLineThickness(Settings->ZeroCrossingLineThickness);
 
 	StyleInstance->Set(WaveformViewerStyleName, WaveViewerStyle);
@@ -70,8 +72,16 @@ void FWaveformEditorStyle::Init()
 
 	StyleInstance->Set(WaveformEditorRulerStyleName, TimeRulerStyle);
 
-	FSlateStyleRegistry::RegisterSlateStyle(StyleInstance->Get());
+	//ValueGridOverlayStyle
+	FSampledSequenceValueGridOverlayStyle ValueGridOverlayStyle = FSampledSequenceValueGridOverlayStyle()
+		.SetGridColor(Settings->LoudnessGridColor)
+		.SetGridThickness(Settings->LoudnessGridThickness)
+		.SetLabelTextColor(Settings->LoudnessGridTextColor)
+		.SetLabelTextFontSize(Settings->LoudnessGridTextSize);
 
+	StyleInstance->Set(ValueGridOverlayStyleName, ValueGridOverlayStyle);
+
+	FSlateStyleRegistry::RegisterSlateStyle(StyleInstance->Get());
 }
 
 const UWaveformEditorWidgetsSettings* FWaveformEditorStyle::GetWidgetsSettings() 
@@ -87,6 +97,8 @@ void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, co
 	TSharedRef<FSampledSequenceViewerStyle> WaveformViewerStyle = GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>(WaveformViewerStyleName);
 	TSharedRef<FPlayheadOverlayStyle> PlayheadOverlayStyle = GetRegisteredWidgetStyle<FPlayheadOverlayStyle>(PlayheadOverlayStyleName);
 	TSharedRef<FFixedSampleSequenceRulerStyle> WaveformEditorTimeRulerStyle = GetRegisteredWidgetStyle<FFixedSampleSequenceRulerStyle>(WaveformEditorRulerStyleName);
+	TSharedRef<FSampledSequenceValueGridOverlayStyle> ValueGridOverlayStyle = GetRegisteredWidgetStyle<FSampledSequenceValueGridOverlayStyle>(ValueGridOverlayStyleName);
+
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, WaveformColor))
 	{
@@ -111,10 +123,6 @@ void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, co
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, MinorGridColor))
 	{
 		WaveformViewerStyle->SetMinorGridLineColor(Settings->MinorGridColor);
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, ZeroCrossingLineColor))
-	{
-		WaveformViewerStyle->SetZeroCrossingLineColor(Settings->ZeroCrossingLineColor);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, ZeroCrossingLineThickness))
 	{
@@ -141,4 +149,22 @@ void FWaveformEditorStyle::OnWidgetSettingsUpdated(const FName& PropertyName, co
 	{
 		WaveformEditorTimeRulerStyle->SetFontSize(Settings->RulerFontSize);
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, LoudnessGridColor))
+	{
+		ValueGridOverlayStyle->SetGridColor(Settings->LoudnessGridColor);
+		WaveformViewerStyle->SetZeroCrossingLineColor(Settings->LoudnessGridColor);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, LoudnessGridThickness))
+	{
+		ValueGridOverlayStyle->SetGridThickness(Settings->LoudnessGridThickness);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, LoudnessGridTextColor))
+	{
+		ValueGridOverlayStyle->SetLabelTextColor(Settings->LoudnessGridTextColor);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaveformEditorWidgetsSettings, LoudnessGridTextSize))
+	{
+		ValueGridOverlayStyle->SetLabelTextFontSize(Settings->LoudnessGridTextSize);
+	}
+
 }

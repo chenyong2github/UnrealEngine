@@ -9,6 +9,7 @@ void SFixedSampledSequenceViewer::Construct(const FArguments& InArgs, TArrayView
 
 	Style = InArgs._Style;
 	DrawingParams = InArgs._SequenceDrawingParams;
+	bHideBackground = InArgs._HideBackground;
 
 	check(Style);
 	SequenceColor = Style->SequenceColor;
@@ -38,14 +39,18 @@ int32 SFixedSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeomet
 {
 	float PixelWidth = MyCullingRect.GetSize().X;
 
-	FSlateDrawElement::MakeBox(
-		OutDrawElements,
-		++LayerId,
-		AllottedGeometry.ToPaintGeometry(),
-		&BackgroundBrush,
-		ESlateDrawEffect::None, 
-		BackgroundColor.GetSpecifiedColor()
-	);
+	if (!bHideBackground)
+	{
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			++LayerId,
+			AllottedGeometry.ToPaintGeometry(),
+			&BackgroundBrush,
+			ESlateDrawEffect::None,
+			BackgroundColor.GetSpecifiedColor()
+		);
+	}
+
 
 	if (PixelWidth > 0)
 	{
@@ -56,10 +61,10 @@ int32 SFixedSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeomet
 			TArray<FVector2D> BinDrawPoints;
 			BinDrawPoints.SetNumUninitialized(2);
 
-			for (const SampledSequenceDrawingUtils::FSampleBinCoordinates& BinCoordinates : CachedBinsDrawCoordinates)
+			for (const SampledSequenceDrawingUtils::F2DLineCoordinates& BinCoordinates : CachedBinsDrawCoordinates)
 			{
-				BinDrawPoints[0] = BinCoordinates.Top;
-				BinDrawPoints[1] = BinCoordinates.Bottom;
+				BinDrawPoints[0] = BinCoordinates.A;
+				BinDrawPoints[1] = BinCoordinates.B;
 
 				FSlateDrawElement::MakeLines(
 					OutDrawElements,
@@ -216,7 +221,7 @@ void SFixedSampledSequenceViewer::DrawGridLines(const FGeometry& AllottedGeometr
 
 	for (uint16 Channel = 0; Channel < NChannels; ++Channel)
 	{
-		const SampledSequenceDrawingUtils::FHorizontalDimensionSlot ChannelBoundaries(Channel, NChannels, AllottedGeometry);
+		const SampledSequenceDrawingUtils::FDimensionSlot ChannelBoundaries(Channel, NChannels, AllottedGeometry, DrawingParams);
 
 		LinePoints[0] = FVector2D(0.f, ChannelBoundaries.Center);
 		LinePoints[1] = FVector2D(AllottedGeometry.Size.X, ChannelBoundaries.Center);

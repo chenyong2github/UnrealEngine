@@ -96,27 +96,37 @@ namespace SampledSequenceDrawingUtils
 		* Params for drawing sequences of samples/sample bins
 		* @param MaxDisplayedValue					The highest value a sample can take
 		* @param DimensionSlotMargin				Margin to keep from the dimension slot boundaries (pixels)
-		* @param MinSequenceHeight					The minimum height (ratio) the drawn sequence can take in a channel slot
-		* @param MaxSequenceHeight					The maximum height (ratio) the drawn sequence can take in a channel slot
+		* @param MinSequenceHeightRatio				The minimum height (ratio) the drawn sequence can take in a channel slot
+		* @param MaxSequenceHeightRatio				The maximum height (ratio) the drawn sequence can take in a channel slot
 		* @param MinScaledBinValue					Minimum value a scaled bin can have
 		* @param VerticalZoomFactor					Sequence zoom factor
 	*/
+
+	enum class ESampledSequenceDrawOrientation
+	{
+		Horizontal = 0, 
+		Vertical, 
+		COUNT
+	};
+
+
 	struct FSampledSequenceDrawingParams
 	{
-		double MaxDisplayedValue = 1.f;
+		double MaxDisplayedValue = 1;
 		float DimensionSlotMargin = 2.f;
-		float MaxSequenceHeight = 0.9f;
-		float MinSequenceHeight = 0.1f;
+		float MaxSequenceHeightRatio = 0.95f;
+		float MinSequenceHeightRatio = 0.1f;
 		float MinScaledBinValue = 0.001f;
 		float VerticalZoomFactor = 1.f;
+		ESampledSequenceDrawOrientation Orientation = ESampledSequenceDrawOrientation::Horizontal;
 	};
 
 	/**
-		* Represents an horizontal slot in which samples or sample bins can be drawn
+	* Represents a dimensional slot in which samples, sample bins or a grid can be drawn
 	*/
-	struct FHorizontalDimensionSlot
+	struct FDimensionSlot
 	{
-		explicit FHorizontalDimensionSlot(const uint16 DimensionToDraw, const uint16 TotalNumDimensions, const FGeometry& InAllottedGeometry);
+		explicit FDimensionSlot(const uint16 DimensionToDraw, const uint16 TotalNumDimensions, const FGeometry& InAllottedGeometry, const FSampledSequenceDrawingParams& Params);
 
 		float Top;
 		float Center;
@@ -124,10 +134,20 @@ namespace SampledSequenceDrawingUtils
 		float Height;
 	};
 
-	struct FSampleBinCoordinates
+	struct F2DLineCoordinates
 	{
-		FVector2D Top;
-		FVector2D Bottom;
+		FVector2D A;
+		FVector2D B;
+	};
+
+	/**
+	 * DrawCoordinates: Coordinates of different grid lines
+	 * PositionRatios: the Ratio of each grid line position in relationship to the main axis length
+	 */
+	struct FGridData
+	{
+		TArray<F2DLineCoordinates> DrawCoordinates;
+		TArray<float> PositionRatios;
 	};
 
 	/**
@@ -140,7 +160,7 @@ namespace SampledSequenceDrawingUtils
 		* @param NDimensions				Number of interleaved dimensions in the time series
 		* @param Params						Drawing Params
 	*/
-	void GenerateSampleBinsCoordinatesForGeometry(TArray<FSampleBinCoordinates>& OutDrawCoordinates, const FGeometry& InAllottedGeometry, const TArray<TRange<float>>& InSampleBins, const uint16 NDimensions, const FSampledSequenceDrawingParams Params = FSampledSequenceDrawingParams());
+	void GenerateSampleBinsCoordinatesForGeometry(TArray<F2DLineCoordinates>& OutDrawCoordinates, const FGeometry& InAllottedGeometry, const TArray<TRange<float>>& InSampleBins, const uint16 NDimensions, const FSampledSequenceDrawingParams Params = FSampledSequenceDrawingParams());
 
 	/**
 	* Generates an array of coordinates to draw single samples in succession horizontally.
@@ -154,4 +174,30 @@ namespace SampledSequenceDrawingUtils
 	*/
 	void GenerateSequencedSamplesCoordinatesForGeometry(TArray<FVector2D>& OutDrawCoordinates, TArrayView<const float> InSampleData, const FGeometry& InAllottedGeometry, const uint16 NDimensions, const FFixedSampledSequenceGridMetrics InGridMetrics, const FSampledSequenceDrawingParams Params = FSampledSequenceDrawingParams());
 
+	/**
+	* Generates an evenly divided grid from a given geometry, following the orientation provided in the Params struct argument.
+	*
+	* @param OutGridData			The generated grid coordinates and ratios per each dimension
+	* @param InAllottedGeometry		The geometry the grid will be drawn into
+	* @param NDimensions			Dimensions to account for in the given geometry
+	* @param NumGridDivisions		Number of divisions the grid should be split into 
+	* @param Params					Drawing Params
+	*/
+	void GenerateEvenlySplitGridForGeometry(TArray<FGridData>& OutGridData, const FGeometry& InAllottedGeometry, const uint16 NDimensions, const uint32 NumGridDivisions /*= 5*/, const FSampledSequenceDrawingParams Params = FSampledSequenceDrawingParams());
+	
+	void AUDIOWIDGETS_API GenerateEvenlySplitGridForLine(TArray<double>& OutDrawCoordinates, TArray<float>& OutLinePositionRatios, const float LineLength, const uint32 NumGridDivisions /*= 2*/, bool bEmptyOutArrays = true);
+
+	/**
+	* Generates a midline divided grid from a given geometry, following the orientation provided in the Params struct argument.
+	* The grid space will be divided in half, with the resulting halves being divided again and so on until the desired Division Depth is reached. 
+	*
+	* @param OutGridData			The generated grid coordinates and ratios per each dimension
+	* @param InAllottedGeometry		The geometry the grid will be drawn into
+	* @param NDimensions			Dimensions to account for in the given geometry
+	* @param DivisionDepth			Number of divisions that should be run
+	* @param Params					Drawing Params
+	*/
+	void GenerateMidpointSplitGridForGeometry(TArray<FGridData>& OutGridData, const FGeometry& InAllottedGeometry, const uint16 NDimensions, const uint32 DivisionDepth = 3, const FSampledSequenceDrawingParams Params = FSampledSequenceDrawingParams());
+	
+	void AUDIOWIDGETS_API GenerateMidpointSplitGridForLine(TArray<double>& OutDrawCoordinates, TArray<float>& OutLinePositionRatios, const float LineLength, const uint32 DivisionDepth = 3, bool bEmptyOutArrays = true);
 }
