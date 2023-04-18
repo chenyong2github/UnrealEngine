@@ -86,11 +86,15 @@ void AMassClientBubbleInfoBase::BeginPlay()
 
 void AMassClientBubbleInfoBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	for (const FMassClientBubbleSerializerBase* Serializer : Serializers)
+	for (FMassClientBubbleSerializerBase* Serializer : Serializers)
 	{
-		check(Serializer->GetClientHandler());
+		if (ensure(Serializer))
+		{
+			Serializer->ShutDown();
 
-		Serializer->GetClientHandler()->Reset();
+			check(Serializer->GetClientHandler());
+			Serializer->GetClientHandler()->Reset();
+		}
 	}
 
 	Super::EndPlay(EndPlayReason);

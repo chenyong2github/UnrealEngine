@@ -41,6 +41,8 @@ public:
 	void SetClientHandler(IClientBubbleHandlerInterface& InClientHandler) { ClientHandler = &InClientHandler; }
 	IClientBubbleHandlerInterface* GetClientHandler() const { return ClientHandler; }
 
+	void ShutDown();
+
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UWorld> World = nullptr;

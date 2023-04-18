@@ -5,6 +5,14 @@
 #include "MassEntityUtils.h"
 
 
+void FMassClientBubbleSerializerBase::ShutDown()
+{
+	EntityManager = nullptr;
+	World = nullptr;
+	SpawnerSubsystem = nullptr;
+	ReplicationSubsystem = nullptr;
+}
+
 void FMassClientBubbleSerializerBase::InitializeForWorld(UWorld& InWorld)
 {
 	World = &InWorld;
