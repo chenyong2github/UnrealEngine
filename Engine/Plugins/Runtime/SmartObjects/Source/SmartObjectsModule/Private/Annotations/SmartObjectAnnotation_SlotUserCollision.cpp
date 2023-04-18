@@ -64,10 +64,13 @@ void FSmartObjectAnnotation_SlotUserCollision::DrawVisualization(FSmartObjectVis
 
 	const FSmartObjectTraceParams& OverlapParameters = ValidationParams.GetTransitionTraceParameters();
 	FCollisionQueryParams OverlapQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), OverlapParameters.bTraceComplex);
+	OverlapQueryParams.bIgnoreTouches = true;
+
 	if (VisContext.PreviewActor)
 	{
 		OverlapQueryParams.AddIgnoredActor(VisContext.PreviewActor);
 	}
+	
 	if (UE::SmartObject::Annotations::TestCollidersOverlap(VisContext.World, Colliders, OverlapParameters, OverlapQueryParams))
 	{
 		Color = UE::SmartObject::Annotations::CapsuleCollisionColor;
@@ -149,6 +152,8 @@ void FSmartObjectAnnotation_SlotUserCollision::CollectDataForGameplayDebugger(FS
 
 	const FSmartObjectTraceParams& OverlapParameters = ValidationParams.GetTransitionTraceParameters();
 	FCollisionQueryParams OverlapQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), OverlapParameters.bTraceComplex);
+	OverlapQueryParams.bIgnoreTouches = true;
+
 	if (DebugContext.SmartObjectOwnerActor)
 	{
 		OverlapQueryParams.AddIgnoredActor(DebugContext.SmartObjectOwnerActor);

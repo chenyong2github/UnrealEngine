@@ -204,8 +204,13 @@ namespace UE::SmartObject::Annotations
 		const FSmartObjectSlotValidationParams& ValidationParams = PreviewValidationFilter->GetEntryValidationParams(); 
 		const FSmartObjectTraceParams& GroundTraceParameters = ValidationParams.GetGroundTraceParameters();
 		const FSmartObjectTraceParams& TransitionTraceParameters = ValidationParams.GetTransitionTraceParameters();
+
 		FCollisionQueryParams GroundTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), GroundTraceParameters.bTraceComplex);
 		FCollisionQueryParams TransitionTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), TransitionTraceParameters.bTraceComplex);
+
+		GroundTraceQueryParams.bIgnoreTouches = true;
+		TransitionTraceQueryParams.bIgnoreTouches = true;
+		
 		if (PreviewSmartObjectActor)
 		{
 			GroundTraceQueryParams.AddIgnoredActor(PreviewSmartObjectActor);

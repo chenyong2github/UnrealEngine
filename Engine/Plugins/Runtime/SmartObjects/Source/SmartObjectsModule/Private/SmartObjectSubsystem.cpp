@@ -1719,6 +1719,9 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 	FCollisionQueryParams GroundTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), GroundTraceParameters.bTraceComplex);
 	FCollisionQueryParams TransitionTraceQueryParams(SCENE_QUERY_STAT(SmartObjectTrace), TransitionTraceParameters.bTraceComplex);
 
+	GroundTraceQueryParams.bIgnoreTouches = true;
+	TransitionTraceQueryParams.bIgnoreTouches = true;
+	
 	const AActor* SmartObjectActor = nullptr;
 	if (const FSmartObjectRuntime* Runtime = GetRuntimeInstance(SlotView.GetOwnerRuntimeObject()))
 	{
