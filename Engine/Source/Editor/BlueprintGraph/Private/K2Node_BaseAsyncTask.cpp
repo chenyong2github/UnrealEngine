@@ -57,6 +57,7 @@ UK2Node_BaseAsyncTask::UK2Node_BaseAsyncTask(const FObjectInitializer& ObjectIni
 	, ProxyActivateFunctionName(NAME_None)
 	, bPinTooltipsValid(false)
 {
+	OrphanedPinSaveMode = ESaveOrphanPinMode::SaveAll;
 }
 
 FText UK2Node_BaseAsyncTask::GetTooltipText() const
