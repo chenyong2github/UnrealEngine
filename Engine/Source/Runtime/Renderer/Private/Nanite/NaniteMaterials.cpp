@@ -306,6 +306,7 @@ class FEmitSceneDepthPS : public FNaniteGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetRenderTargetOutputFormat(0, PF_R32_UINT);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
