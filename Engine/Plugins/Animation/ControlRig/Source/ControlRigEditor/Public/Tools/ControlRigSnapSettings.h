@@ -7,11 +7,12 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "ControlRig.h"
+#include "BakingAnimationKeySettings.h"
 #include "ControlRigSnapSettings.generated.h"
 
 
 UCLASS(config = EditorPerProjectUserSettings)
-class CONTROLRIG_API UControlRigSnapSettings : public UObject
+class CONTROLRIGEDITOR_API UControlRigSnapSettings : public UObject
 {
 
 public:
@@ -34,6 +35,18 @@ public:
 	/** When snapping, also snap scale */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Snap Settings", meta = (ToolTip = "When snapping, also snap scale"))
 	bool bSnapScale = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Bake")
+	EBakingKeySettings BakingKeySettings = EBakingKeySettings::KeysOnly;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Bake", meta = (ClampMin = "1", UIMin = "1", EditCondition = "BakingKeySettings == EBakingKeySettings::AllFrames"))
+	int32 FrameIncrement = 1;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Bake", meta = (EditCondition = "BakingKeySettings == EBakingKeySettings::AllFrames"))
+	bool bReduceKeys = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Bake", meta = (EditCondition = "BakingKeySettings == EBakingKeySettings::AllFrames || bReduceKeys"))
+	float Tolerance = 0.001f;
 
 };
 

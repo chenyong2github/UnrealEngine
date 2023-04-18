@@ -83,6 +83,9 @@
 #include "Constraints/ControlRigTransformableHandle.h"
 #include "PropertyEditorModule.h"
 #include "Constraints/TransformConstraintChannelInterface.h"
+#include "BakingAnimationKeySettings.h"
+#include "FrameNumberDetailsCustomization.h"
+#include "Sequencer/ControlRigSequencerHelpers.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 
@@ -4242,141 +4245,385 @@ void FControlRigParameterTrackEditor::SelectFKBonesToAnimate(UFKControlRig* Auto
 
 	//reconstruct all channel proxies TODO or not to do that is the question
 }
-bool FControlRigParameterTrackEditor::CollapseAllLayers(TSharedPtr<ISequencer>& SequencerPtr, UMovieSceneTrack* OwnerTrack, UMovieSceneControlRigParameterSection* ParameterSection, bool bKeyReduce, float Tolerance)
-{
 
-	if (SequencerPtr.IsValid() && OwnerTrack && ParameterSection && ParameterSection->GetControlRig())
+//////////////////////////////////////////////////////////////
+/// SCollapseControlsWidget
+///////////////////////////////////////////////////////////
+
+/** Widget allowing collapsing of controls */
+class SCollapseControlsWidget : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(SCollapseControlsWidget)
+		: _Sequencer(nullptr), _OwnerTrack(nullptr)
+	{}
+
+	SLATE_ARGUMENT(TSharedPtr<ISequencer>, Sequencer)
+	SLATE_ARGUMENT(UMovieSceneTrack*, OwnerTrack)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+	virtual ~SCollapseControlsWidget() override {}
+
+	FReply OpenDialog(bool bModal = true);
+	void CloseDialog();
+
+
+private:
+	void Collapse();
+
+	TSharedPtr<ISequencer> Sequencer;
+	TWeakObjectPtr<UMovieSceneTrack> OwnerTrack;
+	//static to be reused
+	static TOptional<FBakingAnimationKeySettings> CollapseControlsSettings;
+	//structonscope for details panel
+	TSharedPtr < TStructOnScope<FBakingAnimationKeySettings>> Settings;
+	TWeakPtr<SWindow> DialogWindow;
+	TSharedPtr<IStructureDetailsView> DetailsView;
+};
+
+
+TOptional<FBakingAnimationKeySettings> SCollapseControlsWidget::CollapseControlsSettings;
+
+void SCollapseControlsWidget::Construct(const FArguments& InArgs)
+{
+	check(InArgs._Sequencer);
+	Sequencer = InArgs._Sequencer;
+	OwnerTrack = InArgs._OwnerTrack;
+
+	if (CollapseControlsSettings.IsSet() == false)
+	{
+		CollapseControlsSettings = FBakingAnimationKeySettings();
+		const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+		const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
+		FFrameNumber CurrentTime = FrameTime.GetFrame();
+
+		TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
+		TArray<FFrameNumber> Keys;
+		TArray < FKeyHandle> KeyHandles;
+
+		CollapseControlsSettings.GetValue().StartFrame = Range.GetLowerBoundValue();
+		CollapseControlsSettings.GetValue().EndFrame = Range.GetUpperBoundValue();
+	}
+
+
+	Settings = MakeShared<TStructOnScope<FBakingAnimationKeySettings>>();
+	Settings->InitializeAs<FBakingAnimationKeySettings>(CollapseControlsSettings.GetValue());
+
+	FStructureDetailsViewArgs StructureViewArgs;
+	StructureViewArgs.bShowObjects = true;
+	StructureViewArgs.bShowAssets = true;
+	StructureViewArgs.bShowClasses = true;
+	StructureViewArgs.bShowInterfaces = true;
+
+	FDetailsViewArgs ViewArgs;
+	ViewArgs.bAllowSearch = false;
+	ViewArgs.bHideSelectionTip = false;
+	ViewArgs.bShowObjectLabel = false;
+
+	FPropertyEditorModule& PropertyEditor = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+
+	DetailsView = PropertyEditor.CreateStructureDetailView(ViewArgs, StructureViewArgs, TSharedPtr<FStructOnScope>());
+	TSharedPtr<INumericTypeInterface<double>> NumericTypeInterface = Sequencer->GetNumericTypeInterface();
+	DetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber",
+		FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]() {return MakeShared<FFrameNumberDetailsCustomization>(NumericTypeInterface); }));
+	DetailsView->SetStructureData(Settings);
+
+	ChildSlot
+		[
+			SNew(SBorder)
+			.Visibility(EVisibility::Visible)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 8.f, 0.f, 0.f)
+				[
+					DetailsView->GetWidget().ToSharedRef()
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(FMargin(0.0f, 0.f))
+				[
+
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.f)
+					.HAlign(HAlign_Fill)
+					[
+						SNew(SSpacer)
+					]
+
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Right)
+					.Padding(0.f)
+					[
+						SNew(SButton)
+						.HAlign(HAlign_Center)
+						.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+						.Text(LOCTEXT("OK", "OK"))
+						.OnClicked_Lambda([this, InArgs]()
+							{
+								Collapse();
+								CloseDialog();
+								return FReply::Handled();
+
+							})
+						.IsEnabled_Lambda([this]()
+							{
+								return (Settings.IsValid());
+							})
+					]
+				]
+			]
+		];
+}
+
+
+void  SCollapseControlsWidget::Collapse()
+{
+	FBakingAnimationKeySettings* BakeSettings = Settings->Get();
+	FControlRigParameterTrackEditor::CollapseAllLayers(Sequencer, OwnerTrack.Get(), *BakeSettings);
+
+	CollapseControlsSettings = *BakeSettings;
+}
+
+class SCollapseControlsWidgetWindow : public SWindow
+{
+};
+
+FReply SCollapseControlsWidget::OpenDialog(bool bModal)
+{
+	check(!DialogWindow.IsValid());
+
+	const FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
+
+	TSharedRef<SCollapseControlsWidgetWindow> Window = SNew(SCollapseControlsWidgetWindow)
+		.Title(LOCTEXT("CollapseControls", "Collapse Controls"))
+		.CreateTitleBar(true)
+		.Type(EWindowType::Normal)
+		.SizingRule(ESizingRule::Autosized)
+		.ScreenPosition(CursorPos)
+		.FocusWhenFirstShown(true)
+		.ActivationPolicy(EWindowActivationPolicy::FirstShown)
+		[
+			AsShared()
+		];
+
+	Window->SetWidgetToFocusOnActivate(AsShared());
+
+	DialogWindow = Window;
+
+	Window->MoveWindowTo(CursorPos);
+
+	if (bModal)
+	{
+		GEditor->EditorAddModalWindow(Window);
+	}
+	else
+	{
+		FSlateApplication::Get().AddWindow(Window);
+	}
+
+	return FReply::Handled();
+}
+
+void SCollapseControlsWidget::CloseDialog()
+{
+	if (DialogWindow.IsValid())
+	{
+		DialogWindow.Pin()->RequestDestroyWindow();
+		DialogWindow.Reset();
+	}
+}
+///////////////
+//end of SCollapseControlsWidget
+/////////////////////
+struct FKeyAndValuesAtFrame
+{
+	FFrameNumber Frame;
+	TArray<FMovieSceneFloatValue> KeyValues;
+	float FinalValue;
+};
+
+bool CollapseAllLayersPerKey(TSharedPtr<ISequencer>& SequencerPtr, UMovieSceneTrack* OwnerTrack, const FBakingAnimationKeySettings& InSettings)
+{
+	if (SequencerPtr.IsValid() && OwnerTrack)
 	{
 		TArray<UMovieSceneSection*> Sections = OwnerTrack->GetAllSections();
-		//make sure right type
-		if (ParameterSection->GetBlendType().Get() != EMovieSceneBlendType::Absolute && Sections.Num() > 0 && Sections[0] != ParameterSection)
-		{
-			UE_LOG(LogControlRigEditor, Log, TEXT("Section wrong type or not first when collapsing layers"));
-			return false;
-		}
-		FScopedTransaction Transaction(LOCTEXT("CollapseAllSections", "Collapse All Sections"));
-		ParameterSection->Modify();
-		UControlRig* ControlRig = ParameterSection->GetControlRig();
-		TRange<FFrameNumber> Range = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
-		FFrameNumber StartFrame = Range.GetLowerBoundValue();
-		FFrameNumber EndFrame = Range.GetUpperBoundValue();
-		const FFrameRate& FrameRate = SequencerPtr->GetFocusedDisplayRate();
-		const FFrameRate& TickResolution = SequencerPtr->GetFocusedTickResolution();
-		FMovieSceneSequenceTransform RootToLocalTransform = SequencerPtr->GetFocusedMovieSceneSequenceTransform();
-
-		FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
-		TArray<FFrameNumber> Frames;
-		for (FFrameNumber& Frame = StartFrame; Frame <= EndFrame; Frame += FrameRateInFrameNumber)
-		{
-			Frames.Add(Frame);
-		}
-		//Store transforms
-		TArray<TPair<FName, TArray<FTransform>>> ControlLocalTransforms;
-		TArray<FRigControlElement*> Controls;
-		ControlRig->GetControlsInOrder(Controls);
-
-		for (FRigControlElement* ControlElement : Controls)
-		{
-			if (!ControlRig->GetHierarchy()->IsAnimatable(ControlElement))
-			{
-				continue;
-			}
-			TPair<FName, TArray<FTransform>> NameTransforms;
-			NameTransforms.Key = ControlElement->GetName();
-			NameTransforms.Value.SetNum(Frames.Num());
-			ControlLocalTransforms.Add(NameTransforms);
-		}
-
-		//get all of the local 
-		int32 Index = 0;
-		for (Index = 0; Index < Frames.Num(); ++Index)
-		{
-			const FFrameNumber& FrameNumber = Frames[Index];
-			FFrameTime GlobalTime(FrameNumber);
-			GlobalTime = GlobalTime * RootToLocalTransform.InverseLinearOnly();
-
-			FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), SequencerPtr->GetPlaybackStatus()).SetHasJumped(true);
-
-			SequencerPtr->GetEvaluationTemplate().EvaluateSynchronousBlocking(Context, *SequencerPtr);
-			ControlRig->Evaluate_AnyThread();
-			for (TPair<FName, TArray<FTransform>>& TrailControlTransform : ControlLocalTransforms)
-			{
-				TrailControlTransform.Value[Index] = ControlRig->GetControlLocalTransform(TrailControlTransform.Key);
-			}
-		}
-		//delete other sections
-		OwnerTrack->Modify();
-		for (Index = Sections.Num() - 1; Index >= 0; --Index)
-		{
-			if (Sections[Index] != ParameterSection)
-			{
-				OwnerTrack->RemoveSectionAt(Index);
-			}
-		}
-
-		//remove all keys, except Space Channels, from the Section.
-		ParameterSection->RemoveAllKeys(false /*bIncludedSpaceKeys*/);
-
-		FRigControlModifiedContext Context;
-		Context.SetKey = EControlRigSetKey::Always;
-
-
-		FScopedSlowTask Feedback(Frames.Num(), LOCTEXT("CollapsingSections", "Collapsing Sections"));
-		Feedback.MakeDialog(true);
-
-		const ERichCurveInterpMode InterpMode = bKeyReduce ? RCIM_Cubic : RCIM_Linear;
-
-		Index = 0;
-		for (Index = 0; Index < Frames.Num(); ++Index)
-		{
-			Feedback.EnterProgressFrame(1, LOCTEXT("CollapsingSections", "Collapsing Sections"));
-			const FFrameNumber& FrameNumber = Frames[Index];
-			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(FrameNumber));
-			//need to do the twice hack since controls aren't really in order
-			for (int32 TwiceHack = 0; TwiceHack < 2; ++TwiceHack)
-			{
-				for (TPair<FName, TArray<FTransform>>& TrailControlTransform : ControlLocalTransforms)
-				{
-					ControlRig->SetControlLocalTransform(TrailControlTransform.Key, TrailControlTransform.Value[Index],false, Context, false);
-				}
-			}
-			ControlRig->Evaluate_AnyThread();
-			ParameterSection->RecordControlRigKey(FrameNumber, true, InterpMode);
-
-			if (Feedback.ShouldCancel())
-			{
-				Transaction.Cancel();
-				SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
-				return false;
-			}
-		}
-		if (bKeyReduce)
-		{
-			FKeyDataOptimizationParams Params;
-			Params.bAutoSetInterpolation = true;
-			Params.Tolerance = Tolerance;
-			FMovieSceneChannelProxy& ChannelProxy = ParameterSection->GetChannelProxy();
-			TArrayView<FMovieSceneFloatChannel*> FloatChannels = ChannelProxy.GetChannels<FMovieSceneFloatChannel>();
-
-			for (FMovieSceneFloatChannel* Channel : FloatChannels)
-			{
-				Channel->Optimize(Params); //should also auto tangent
-			}
-		}
-		//reset everything back
-		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
-		return true;
+		return MovieSceneToolHelpers::CollapseSection(SequencerPtr, OwnerTrack, Sections, InSettings);
 	}
 	return false;
 }
+
+bool FControlRigParameterTrackEditor::CollapseAllLayers(TSharedPtr<ISequencer>&SequencerPtr, UMovieSceneTrack * OwnerTrack, const FBakingAnimationKeySettings &InSettings)
+{
+	return CollapseAllLayersPerKey(SequencerPtr, OwnerTrack, InSettings);
+	if (SequencerPtr.IsValid() && OwnerTrack)
+	{
+		TArray<UMovieSceneSection*> Sections = OwnerTrack->GetAllSections();
+		//make sure right type
+		if (Sections.Num() < 1)
+		{
+			UE_LOG(LogControlRigEditor, Log, TEXT("CollapseAllSections::No sections on track"));
+			return false;
+		}
+		if (UMovieSceneControlRigParameterSection* ParameterSection = Cast<UMovieSceneControlRigParameterSection>(Sections[0]))
+		{
+			if (ParameterSection->GetBlendType().Get() == EMovieSceneBlendType::Absolute)
+			{
+				FScopedTransaction Transaction(LOCTEXT("CollapseAllSections", "Collapse All Sections"));
+				ParameterSection->Modify();
+				UControlRig* ControlRig = ParameterSection->GetControlRig();
+				FMovieSceneSequenceTransform RootToLocalTransform = SequencerPtr->GetFocusedMovieSceneSequenceTransform();
+
+				FFrameNumber StartFrame = InSettings.StartFrame;
+				FFrameNumber EndFrame = InSettings.EndFrame;
+				TRange<FFrameNumber> Range(StartFrame, EndFrame);
+				const FFrameRate& FrameRate = SequencerPtr->GetFocusedDisplayRate();
+				const FFrameRate& TickResolution = SequencerPtr->GetFocusedTickResolution();
+				
+				//frames and (optional) tangents
+				TArray<TPair<FFrameNumber, TArray<FMovieSceneTangentData>>> StoredTangents; //store tangents so we can reset them
+				TArray<FFrameNumber> Frames;
+				FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
+				for (FFrameNumber& Frame = StartFrame; Frame <= EndFrame; Frame += FrameRateInFrameNumber)
+				{
+					Frames.Add(Frame);
+				}
+				
+				//Store transforms
+				TArray<TPair<FName, TArray<FTransform>>> ControlLocalTransforms;
+				TArray<FRigControlElement*> Controls;
+				ControlRig->GetControlsInOrder(Controls);
+
+				for (FRigControlElement* ControlElement : Controls)
+				{
+					if (!ControlRig->GetHierarchy()->IsAnimatable(ControlElement))
+					{
+						continue;
+					}
+					TPair<FName, TArray<FTransform>> NameTransforms;
+					NameTransforms.Key = ControlElement->GetName();
+					NameTransforms.Value.SetNum(Frames.Num());
+					ControlLocalTransforms.Add(NameTransforms);
+				}
+
+				//get all of the local 
+				int32 Index = 0;
+				for (Index = 0; Index < Frames.Num(); ++Index)
+				{
+					const FFrameNumber& FrameNumber = Frames[Index];
+					FFrameTime GlobalTime(FrameNumber);
+					GlobalTime = GlobalTime * RootToLocalTransform.InverseLinearOnly();
+
+					FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), SequencerPtr->GetPlaybackStatus()).SetHasJumped(true);
+
+					SequencerPtr->GetEvaluationTemplate().EvaluateSynchronousBlocking(Context, *SequencerPtr);
+					ControlRig->Evaluate_AnyThread();
+					for (TPair<FName, TArray<FTransform>>& TrailControlTransform : ControlLocalTransforms)
+					{
+						TrailControlTransform.Value[Index] = ControlRig->GetControlLocalTransform(TrailControlTransform.Key);
+					}
+				}
+				//delete other sections
+				OwnerTrack->Modify();
+				for (Index = Sections.Num() - 1; Index >= 0; --Index)
+				{
+					if (Sections[Index] != ParameterSection)
+					{
+						OwnerTrack->RemoveSectionAt(Index);
+					}
+				}
+
+				//remove all keys, except Space Channels, from the Section.
+				ParameterSection->RemoveAllKeys(false /*bIncludedSpaceKeys*/);
+
+				FRigControlModifiedContext Context;
+				Context.SetKey = EControlRigSetKey::Always;
+
+				FScopedSlowTask Feedback(Frames.Num(), LOCTEXT("CollapsingSections", "Collapsing Sections"));
+				Feedback.MakeDialog(true);
+
+				const ERichCurveInterpMode InterpMode = InSettings.bReduceKeys ? RCIM_Cubic : RCIM_Linear;
+
+				Index = 0;
+				for (Index = 0; Index < Frames.Num(); ++Index)
+				{
+					Feedback.EnterProgressFrame(1, LOCTEXT("CollapsingSections", "Collapsing Sections"));
+					const FFrameNumber& FrameNumber = Frames[Index];
+					Context.LocalTime = TickResolution.AsSeconds(FFrameTime(FrameNumber));
+					//need to do the twice hack since controls aren't really in order
+					for (int32 TwiceHack = 0; TwiceHack < 2; ++TwiceHack)
+					{
+						for (TPair<FName, TArray<FTransform>>& TrailControlTransform : ControlLocalTransforms)
+						{
+							ControlRig->SetControlLocalTransform(TrailControlTransform.Key, TrailControlTransform.Value[Index], false, Context, false);
+						}
+					}
+					ControlRig->Evaluate_AnyThread();
+					ParameterSection->RecordControlRigKey(FrameNumber, true, InterpMode);
+
+					if (Feedback.ShouldCancel())
+					{
+						Transaction.Cancel();
+						SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+						return false;
+					}
+				}
+				if (InSettings.bReduceKeys)
+				{
+					FKeyDataOptimizationParams Params;
+					Params.bAutoSetInterpolation = true;
+					Params.Tolerance = InSettings.Tolerance;
+					FMovieSceneChannelProxy& ChannelProxy = ParameterSection->GetChannelProxy();
+					TArrayView<FMovieSceneFloatChannel*> FloatChannels = ChannelProxy.GetChannels<FMovieSceneFloatChannel>();
+
+					for (FMovieSceneFloatChannel* Channel : FloatChannels)
+					{
+						Channel->Optimize(Params); //should also auto tangent
+					}
+				}
+				//reset everything back
+				SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+				return true;
+			}
+			else
+			{
+				UE_LOG(LogControlRigEditor, Log, TEXT("CollapseAllSections:: First section is not additive"));
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogControlRigEditor, Log, TEXT("CollapseAllSections:: No Control Rig section"));
+			return false;
+		}
+	}
+	UE_LOG(LogControlRigEditor, Log, TEXT("CollapseAllSections:: Sequencer or track is invalid"));
+	return false;
+}
+
 void FControlRigParameterSection::CollapseAllLayers()
 {
 	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
-	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
-	UMovieSceneTrack* OwnerTrack = ParameterSection->GetTypedOuter<UMovieSceneTrack>();
-	FControlRigParameterTrackEditor::CollapseAllLayers(SequencerPtr,OwnerTrack, ParameterSection);
+	if (UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get()))
+	{
+		UMovieSceneTrack* OwnerTrack = ParameterSection->GetTypedOuter<UMovieSceneTrack>();
+		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+		TSharedRef<SCollapseControlsWidget> BakeWidget =
+			SNew(SCollapseControlsWidget)
+			.Sequencer(Sequencer)
+			.OwnerTrack(OwnerTrack);
 
+		BakeWidget->OpenDialog(true);
+	}
 }
+
+
 void FControlRigParameterSection::KeyZeroValue()
 {
 	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());

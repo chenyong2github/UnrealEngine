@@ -21,6 +21,8 @@
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 #include "Tools/ControlRigSnapSettings.h"
 #include "MovieSceneToolsModule.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -29,6 +31,10 @@
 #include "LevelSequencePlayer.h"
 #include "LevelSequenceActor.h"
 #include "Tools/BakingHelper.h"
+#include "Containers/SortedMap.h"
+#include "Sequencer/ControlRigSequencerHelpers.h"
+#include "Constraints/MovieSceneConstraintChannelHelper.inl"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSnapper)
 
@@ -190,7 +196,7 @@ struct FGuidAndActor
 		const TArray<FTransform>& WorldTransformsToSnapTo, const UControlRigSnapSettings* SnapSettings) const
 	{
 		// get section
-		const UMovieScene3DTransformSection* TransformSection = MovieSceneToolHelpers::GetTransformSection(Sequencer, Guid);
+		UMovieScene3DTransformSection* TransformSection = MovieSceneToolHelpers::GetTransformSection(Sequencer, Guid);
 		if (!TransformSection)
 		{
 			return false;
@@ -241,6 +247,18 @@ struct FGuidAndActor
 
 		// add keys
 		MovieSceneToolHelpers::AddTransformKeys(TransformSection, Frames, LocalTransforms, Channels);
+
+		if (SnapSettings && SnapSettings->BakingKeySettings != EBakingKeySettings::KeysOnly
+			&& SnapSettings->bReduceKeys == true && Frames.Num() > 2)
+		{
+			FKeyDataOptimizationParams Param;
+			Param.bAutoSetInterpolation = true;
+			Param.Tolerance = SnapSettings->Tolerance;
+			TRange<FFrameNumber> Range(Frames[0], Frames[Frames.Num() -1]);
+			Param.Range = Range;
+			MovieSceneToolHelpers::OptimizeSection(Param, TransformSection);
+		}
+
 
 		// notify
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
@@ -305,7 +323,173 @@ static bool CalculateWorldTransformsFromParents(ISequencer* Sequencer, const FCo
 	return false;
 }
 
+//to do handle constraints and spaces, but for now we just output a single actor parent.
+static void GetActorParents(const FActorForWorldTransforms& ActorSelection,
+	TArray<FActorForWorldTransforms>& OutParentActors, TArray<FControlRigForWorldTransforms>& OutControlRigs)
+{
+	if (ActorSelection.Actor.IsValid())
+	{
+		//has component so parent is next component
+		if (ActorSelection.Component.IsValid() && ActorSelection.Component->GetAttachParent())
+		{
+			FActorForWorldTransforms OutParentActor;
+			OutParentActor.Actor = ActorSelection.Actor;
+			OutParentActor.Component = ActorSelection.Component->GetAttachParent();
+			OutParentActors.Add(OutParentActor);
+			GetActorParents(OutParentActor, OutParentActors, OutControlRigs);
+		}
+		else if (AActor* ParentActor = ActorSelection.Actor->GetAttachParentActor())
+		{
+			FActorForWorldTransforms OutParentActor;
+			OutParentActor.Actor = ParentActor;
+			OutParentActors.Add(OutParentActor);
+			GetActorParents(OutParentActor, OutParentActors, OutControlRigs);
+		}
+	}
+}
 
+//todo handle constraints/spaces
+static void GetControlRigParents(const FControlRigForWorldTransforms& ControlRigAndSelection, 
+	TArray<FActorForWorldTransforms>& OutParentActors, TArray<FControlRigForWorldTransforms>& OutControlRigs)
+{
+
+	if (UControlRig* ControlRig = ControlRigAndSelection.ControlRig.Get())
+	{
+		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+		for (const FName& ControlName : ControlRigAndSelection.ControlNames)
+		{
+			if (FRigControlElement* ControlElement = ControlRig->FindControl(ControlName))
+			{
+				if (FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Hierarchy->GetFirstParent(ControlElement)))
+				{
+					FControlRigForWorldTransforms OutControlRig;
+					OutControlRig.ControlRig = ControlRig;
+					OutControlRig.ControlNames.Add(ParentControlElement->GetKey().Name);
+					OutControlRigs.Add(OutControlRig);
+					GetControlRigParents(OutControlRig, OutParentActors, OutControlRigs);
+				}
+				else
+				{
+					if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+					{
+						USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
+						if (!Component)
+						{
+							continue;
+						}
+						AActor* Actor = Component->GetTypedOuter< AActor >();
+						if (!Actor)
+						{
+							continue;
+						}
+						FActorForWorldTransforms OutParentActor;
+						OutParentActor.Actor = Actor;
+						OutParentActors.Add(OutParentActor);
+						GetActorParents(OutParentActor, OutParentActors, OutControlRigs);
+					}
+				}
+			}
+		}
+	}
+}
+
+static UMovieSceneControlRigParameterSection* GetControlRigSection(ISequencer* Sequencer, const UControlRig* ControlRig)
+{
+
+	if (ControlRig == nullptr || Sequencer == nullptr)
+	{
+		return nullptr;
+	}
+	UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	if (!MovieScene)
+	{
+		return nullptr;
+	}
+	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+	for (const FMovieSceneBinding& Binding : Bindings)
+	{
+		UMovieSceneControlRigParameterTrack* ControlRigParameterTrack = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
+		if (ControlRigParameterTrack && ControlRigParameterTrack->GetControlRig() == ControlRig)
+		{
+			UMovieSceneControlRigParameterSection* ActiveSection = Cast<UMovieSceneControlRigParameterSection>(ControlRigParameterTrack->GetSectionToKey());
+			if (ActiveSection)
+			{
+				return ActiveSection;
+			}
+		}
+	}
+	return nullptr;
+}
+
+//Get Transform frames for specified snap items, will add them to the OutFrameMap
+static void GetTransformFrames(ISequencer * Sequencer, const FControlRigSnapperSelection& SnapItem, FFrameNumber StartFrame, FFrameNumber EndFrame, TSortedMap<FFrameNumber, FFrameNumber>& OutFrameMap)
+{
+	TArray<FFrameNumber> FramesToUse;
+	TArray<FActorForWorldTransforms> ParentActors;
+	TArray<FControlRigForWorldTransforms> ParentControlRigs;
+
+	for (const FActorForWorldTransforms& ActorsFor : SnapItem.Actors)
+	{
+		FramesToUse.Reset();
+		ParentActors.Reset();
+		ParentControlRigs.Reset();
+		ParentActors.Add(ActorsFor);
+		GetActorParents(ActorsFor, ParentActors, ParentControlRigs);
+
+	}
+	for (const FControlRigForWorldTransforms& ControlRigsFor : SnapItem.ControlRigs)
+	{
+		FramesToUse.Reset();
+		ParentActors.Reset();
+		ParentControlRigs.Reset();
+		ParentControlRigs.Add(ControlRigsFor);
+		GetControlRigParents(ControlRigsFor, ParentActors, ParentControlRigs);
+	}
+
+	for (FActorForWorldTransforms& Actor : ParentActors)
+	{
+		FGuid Guid;
+		if (Actor.Component.Get())
+		{
+			Guid = Sequencer->GetHandleToObject(Actor.Component.Get(), false);
+		}
+		if (!Guid.IsValid())
+		{
+			Guid = Sequencer->GetHandleToObject(Actor.Actor.Get(), false);
+		}
+		if (Guid.IsValid())
+		{
+			if (UMovieScene3DTransformSection* TransformSection = MovieSceneToolHelpers::GetTransformSection(Sequencer, Guid))
+			{
+				TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+				TArray<FFrameNumber> TransformFrameTimes = FMovieSceneConstraintChannelHelper::GetTransformTimes(
+					Channels, StartFrame, EndFrame);
+				for (FFrameNumber& FrameNumber : TransformFrameTimes)
+				{
+					OutFrameMap.Add(FrameNumber);
+				}
+			}
+		}
+	}
+	for (FControlRigForWorldTransforms& ControlRig : ParentControlRigs)
+	{
+		UMovieSceneControlRigParameterSection* Section = GetControlRigSection(Sequencer, ControlRig.ControlRig.Get());
+		if (Section)
+		{
+			for (FName& ControlName : ControlRig.ControlNames)
+			{
+				TArrayView<FMovieSceneFloatChannel*> Channels = FControlRigSequencerHelpers::GetFloatChannels(ControlRig.ControlRig.Get(),
+					ControlName, Section);
+				TArray<FFrameNumber> TransformFrameTimes = FMovieSceneConstraintChannelHelper::GetTransformTimes(
+					Channels, StartFrame, EndFrame);
+				for (FFrameNumber& FrameNumber : TransformFrameTimes)
+				{
+					OutFrameMap.Add(FrameNumber);
+				}
+			}
+		}
+	}
+}
 bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,const FControlRigSnapperSelection& ActorToSnap,
 	const FControlRigSnapperSelection& ParentToSnap, const UControlRigSnapSettings* SnapSettings)
 {
@@ -320,8 +504,18 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 		MovieScene->Modify();
 		
 		TArray<FFrameNumber> Frames;
-		MovieSceneToolHelpers::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
+		if (SnapSettings->BakingKeySettings == EBakingKeySettings::AllFrames)
+		{
+			MovieSceneToolHelpers::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, SnapSettings->FrameIncrement,Frames);
+		}
+		else
+		{
+			TSortedMap<FFrameNumber, FFrameNumber> FrameMap;
+			GetTransformFrames(Sequencer, ParentToSnap, StartFrame, EndFrame, FrameMap);
+			GetTransformFrames(Sequencer, ActorToSnap,  StartFrame, EndFrame, FrameMap);
+			FrameMap.GenerateKeyArray(Frames);
 
+		}
 		TArray<FTransform> WorldTransformToSnap;
 		bool bSnapToFirstFrameNotParents = !CalculateWorldTransformsFromParents(Sequencer, ParentToSnap, Frames, WorldTransformToSnap);
 		if (Frames.Num() != WorldTransformToSnap.Num())
@@ -479,6 +673,18 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 							FTransform GlobalTransform = WorldTransformToSnap[Index].GetRelativeTransform(ControlRigParentWorldTransforms[Index]);
 							ControlRig->SetControlGlobalTransform(Name, GlobalTransform, true, Context);
 						}
+					}
+
+					UMovieSceneControlRigParameterSection* ControlRigSection = GetControlRigSection(Sequencer, ControlRig);
+					if (ControlRigSection && SnapSettings && SnapSettings->BakingKeySettings != EBakingKeySettings::KeysOnly
+						&& SnapSettings->bReduceKeys == true && Frames.Num() > 2)
+					{
+						FKeyDataOptimizationParams Param;
+						Param.bAutoSetInterpolation = true;
+						Param.Tolerance = SnapSettings->Tolerance;
+						TRange<FFrameNumber> Range(Frames[0], Frames[Frames.Num() - 1]);
+						Param.Range = Range;
+						MovieSceneToolHelpers::OptimizeSection(Param, ControlRigSection);
 					}
 				}
 			}

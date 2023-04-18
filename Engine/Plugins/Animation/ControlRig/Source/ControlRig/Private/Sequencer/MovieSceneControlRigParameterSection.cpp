@@ -2583,7 +2583,7 @@ void UMovieSceneControlRigParameterSection::SetControlRig(UControlRig* InControl
 	ControlRigClass = ControlRig ? ControlRig->GetClass() : nullptr;
 }
 
-void UMovieSceneControlRigParameterSection::FixRotationWinding(FName ControlName, FFrameNumber StartFrame, FFrameNumber EndFrame)
+void UMovieSceneControlRigParameterSection::FixRotationWinding(const FName& ControlName, FFrameNumber StartFrame, FFrameNumber EndFrame)
 {
 	FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ControlName);
 	if (pChannelIndex == nullptr || GetControlRig() == nullptr)
@@ -2630,6 +2630,107 @@ void UMovieSceneControlRigParameterSection::FixRotationWinding(FName ControlName
 	}
 }
 
+void UMovieSceneControlRigParameterSection::OptimizeSection(const FName& ControlName, const FKeyDataOptimizationParams& Params)
+{
+	TArrayView<FMovieSceneFloatChannel*> FloatChannels = GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ControlName);
+	if (pChannelIndex != nullptr)
+	{
+		int32 ChannelIndex = pChannelIndex->ChannelIndex;
+
+		if (FRigControlElement* ControlElement = ControlRig->FindControl(ControlName))
+		{
+			switch (ControlElement->Settings.ControlType)
+			{
+				case ERigControlType::Position:
+				case ERigControlType::Scale:
+				case ERigControlType::Rotator:
+				{
+					FloatChannels[ChannelIndex]->Optimize(Params);
+					FloatChannels[ChannelIndex + 1]->Optimize(Params);
+					FloatChannels[ChannelIndex + 2]->Optimize(Params);
+					break;
+				}
+
+				case ERigControlType::Transform:
+				case ERigControlType::TransformNoScale:
+				case ERigControlType::EulerTransform:
+				{
+
+					FloatChannels[ChannelIndex]->Optimize(Params);
+					FloatChannels[ChannelIndex + 1]->Optimize(Params);
+					FloatChannels[ChannelIndex + 2]->Optimize(Params);
+					FloatChannels[ChannelIndex + 3]->Optimize(Params);
+					FloatChannels[ChannelIndex + 4]->Optimize(Params);
+					FloatChannels[ChannelIndex + 5]->Optimize(Params);
+
+					if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
+						ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+					{
+						FloatChannels[ChannelIndex + 6]->Optimize(Params);
+						FloatChannels[ChannelIndex + 7]->Optimize(Params);
+						FloatChannels[ChannelIndex + 8]->Optimize(Params);
+					}
+					break;
+
+				}
+				default:
+					break;
+			}
+		}
+	}
+}
+
+void UMovieSceneControlRigParameterSection::AutoSetTangents(const FName& ControlName)
+{
+	TArrayView<FMovieSceneFloatChannel*> FloatChannels = GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ControlName);
+	if (pChannelIndex != nullptr)
+	{
+		int32 ChannelIndex = pChannelIndex->ChannelIndex;
+
+		if (FRigControlElement* ControlElement = ControlRig->FindControl(ControlName))
+		{
+			switch (ControlElement->Settings.ControlType)
+			{
+			case ERigControlType::Position:
+			case ERigControlType::Scale:
+			case ERigControlType::Rotator:
+			{
+				FloatChannels[ChannelIndex]->AutoSetTangents();
+				FloatChannels[ChannelIndex + 1]->AutoSetTangents();
+				FloatChannels[ChannelIndex + 2]->AutoSetTangents();
+				break;
+			}
+
+			case ERigControlType::Transform:
+			case ERigControlType::TransformNoScale:
+			case ERigControlType::EulerTransform:
+			{
+
+				FloatChannels[ChannelIndex]->AutoSetTangents();
+				FloatChannels[ChannelIndex + 1]->AutoSetTangents();
+				FloatChannels[ChannelIndex + 2]->AutoSetTangents();
+				FloatChannels[ChannelIndex + 3]->AutoSetTangents();
+				FloatChannels[ChannelIndex + 4]->AutoSetTangents();
+				FloatChannels[ChannelIndex + 5]->AutoSetTangents();
+
+				if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
+					ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+				{
+					FloatChannels[ChannelIndex + 6]->AutoSetTangents();
+					FloatChannels[ChannelIndex + 7]->AutoSetTangents();
+					FloatChannels[ChannelIndex + 8]->AutoSetTangents();
+				}
+				break;
+
+			}
+			default:
+				break;
+			}
+		}
+	}
+}
 #if WITH_EDITOR
 
 void UMovieSceneControlRigParameterSection::RecordControlRigKey(FFrameNumber FrameNumber, bool bSetDefault, ERichCurveInterpMode InInterpMode)

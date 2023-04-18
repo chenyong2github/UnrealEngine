@@ -18,27 +18,30 @@
 
 #define LOCTEXT_NAMESPACE "ConstraintBaker"
 
+
 // at this stage, we suppose that any of these arguments are safe to use. Make sure to test them before using that function
 void FConstraintBaker::GetMinimalFramesToBake(
 	UWorld* InWorld,
 	const UTickableTransformConstraint* InConstraint,
 	const TSharedPtr<ISequencer>& InSequencer,
-	IMovieSceneConstrainedSection* InSection,
+	UMovieSceneSection* InSection,
+	const TOptional< FBakingAnimationKeySettings>& InSettings,
 	TArray<FFrameNumber>& OutFramesToBake)
 {
 	const UMovieSceneSequence* MovieSceneSequence = InSequencer->GetFocusedMovieSceneSequence();
 	const UMovieScene* MovieScene = MovieSceneSequence ? MovieSceneSequence->GetMovieScene() : nullptr;
-	if (!MovieScene)
+	if (!MovieScene || !InConstraint || !InConstraint->ChildTRSHandle || !InSection)
 	{
 		return;
 	}
+	IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(InSection);
 
 	// get constraint channel data if any
 	TArrayView<const FFrameNumber> ConstraintFrames;
 	TArrayView<const bool> ConstraintValues;
 
 	// note that we might want to bake a constraint which is not animated
-	FConstraintAndActiveChannel* ThisActiveChannel = InSection->GetConstraintChannel(InConstraint->GetFName());
+	FConstraintAndActiveChannel* ThisActiveChannel = ConstrainedSection->GetConstraintChannel(InConstraint->GetFName());
 	if (ThisActiveChannel)
 	{
 		const TMovieSceneChannelData<const bool> ConstraintChannelData = ThisActiveChannel->ActiveChannel.GetData();
@@ -54,56 +57,86 @@ void FConstraintBaker::GetMinimalFramesToBake(
 	}
 
 	// default init bounds to the scene bounds
-	FFrameNumber FirstBakingFrame = MovieScene->GetPlaybackRange().GetLowerBoundValue();
-	FFrameNumber LastBakingFrame = MovieScene->GetPlaybackRange().GetUpperBoundValue();
+	FFrameNumber FirstBakingFrame = InSettings.IsSet() ? InSettings.GetValue().StartFrame : MovieScene->GetPlaybackRange().GetLowerBoundValue();
+	FFrameNumber LastBakingFrame = InSettings.IsSet() ? InSettings.GetValue().EndFrame : MovieScene->GetPlaybackRange().GetUpperBoundValue();
 	
-	// set start to first active frame if any
-	const int32 FirstActiveIndex = ConstraintValues.IndexOfByKey(true);
-	if (ConstraintValues.IsValidIndex(FirstActiveIndex))
+	// set start to first active frame if any, if we have no range
+	if (InSettings.IsSet() == false)
 	{
-		FirstBakingFrame = ConstraintFrames[FirstActiveIndex];
-	}
+		const int32 FirstActiveIndex = ConstraintValues.IndexOfByKey(true);
+		if (ConstraintValues.IsValidIndex(FirstActiveIndex))
+		{
+			FirstBakingFrame = ConstraintFrames[FirstActiveIndex];
+		}
 
-	// set end to the last key if inactive
-	const bool bIsLastKeyInactive = (ConstraintValues.Last() == false);
-	if (bIsLastKeyInactive)
-	{
-		LastBakingFrame = ConstraintFrames.Last();
+		// set end to the last key if inactive
+		const bool bIsLastKeyInactive = (ConstraintValues.Last() == false);
+		if (bIsLastKeyInactive)
+		{
+			LastBakingFrame = ConstraintFrames.Last();
+		}
 	}
-
-	// then compute range from first to last
-	TArray<FFrameNumber> Frames;
-	MovieSceneToolHelpers::CalculateFramesBetween(MovieScene, FirstBakingFrame, LastBakingFrame, Frames);
-		
-	// Fill the frames we want to bake
+	// keep frames within active state
+	auto IsConstraintActive = [InConstraint, ThisActiveChannel](const FFrameNumber& Time)
 	{
+		if (ThisActiveChannel)
+		{
+			bool bIsActive = false; ThisActiveChannel->ActiveChannel.Evaluate(Time, bIsActive);
+			return bIsActive;
+		}
+		return InConstraint->IsFullyActive();
+	};
+
+	if (InSettings.IsSet() == false || InSettings.GetValue().BakingKeySettings != EBakingKeySettings::KeysOnly)
+	{
+		TArray<FFrameNumber> Frames;
+		MovieSceneToolHelpers::CalculateFramesBetween(MovieScene, FirstBakingFrame, LastBakingFrame,  1 /* use increment of 1 since we reduce later*/,
+			Frames);
+
+		// Fill the frames we want to bake
+
 		// add constraint keys
-		for (const FFrameNumber& ConstraintFrame: ConstraintFrames)
+		for (const FFrameNumber& ConstraintFrame : ConstraintFrames)
 		{
 			OutFramesToBake.Add(ConstraintFrame);
 		}
-		
-		// keep frames within active state
-		auto IsConstraintActive = [InConstraint, ThisActiveChannel](const FFrameNumber& Time)
+
+		int32 FrameInc = (InSettings.IsSet() == true) ? InSettings.GetValue().FrameIncrement : 1;
+		for (int32 FrameIndex = 0; FrameIndex < Frames.Num(); ++FrameIndex)
 		{
-			if (ThisActiveChannel)
+			if (FrameIndex % FrameInc == 0)
 			{
-				bool bIsActive = false; ThisActiveChannel->ActiveChannel.Evaluate(Time, bIsActive);
-				return bIsActive;
-			}
-			return InConstraint->IsFullyActive();
-		};
-		
-		for (const FFrameNumber& InFrame: Frames)
-		{
-			if (IsConstraintActive(InFrame))
-			{
-				OutFramesToBake.Add(InFrame);
+				const FFrameNumber& InFrame = Frames[FrameIndex];
+				if (IsConstraintActive(InFrame))
+				{
+					OutFramesToBake.Add(InFrame);
+				}
 			}
 		}
+		if (FrameInc > 1) //if skipping make sure we get all transforms
+		{
+			FMovieSceneConstraintChannelHelper::GetTransformFramesForConstraintHandles(InConstraint, InSequencer,
+				InSettings.GetValue().StartFrame, InSettings.GetValue().EndFrame, OutFramesToBake);
+		}
+		
+	}
+	else //doing per frame key get constraint keys and transform keys
+	{
+		for (const FFrameNumber& Frame : ConstraintFrames)
+		{
+			if (Frame >= FirstBakingFrame && Frame <= LastBakingFrame)
+			{
+				OutFramesToBake.Add(Frame);
+			}
+		}
+
+		FMovieSceneConstraintChannelHelper::GetTransformFramesForConstraintHandles(InConstraint, InSequencer,
+			InSettings.GetValue().StartFrame, InSettings.GetValue().EndFrame, OutFramesToBake);
+
 	}
 
 	// we also need to store which T-1 frames need to be kept for other constraints compensation
+	// and also store transform key locations for parents if doing per key or per frame with non-1 increments
 	{
 		// gather the sorted child's constraint
 		static constexpr bool bSorted = true;
@@ -120,9 +153,17 @@ void FConstraintBaker::GetMinimalFramesToBake(
 			if (TransformConstraint && TransformConstraint->NeedsCompensation() && TransformConstraint != InConstraint) 
 			{
 				const FName ConstraintName = TransformConstraint->GetFName();
-				if (FConstraintAndActiveChannel* ConstraintChannel = InSection->GetConstraintChannel(ConstraintName))
+				if (FConstraintAndActiveChannel* ConstraintChannel = ConstrainedSection->GetConstraintChannel(ConstraintName))
 				{
 					OtherChannels.Add(ConstraintChannel);
+				}
+
+				//if doing keys or per frame increments we need to also 
+				if (InSettings.IsSet() == true &&
+					(InSettings.GetValue().BakingKeySettings == EBakingKeySettings::KeysOnly || InSettings.GetValue().FrameIncrement > 1))
+				{
+					FMovieSceneConstraintChannelHelper::GetTransformFramesForConstraintHandles(TransformConstraint, InSequencer,
+						InSettings.GetValue().StartFrame, InSettings.GetValue().EndFrame, OutFramesToBake);
 				}
 			}
 		}
@@ -155,9 +196,25 @@ void FConstraintBaker::GetMinimalFramesToBake(
 	OutFramesToBake.SetNum(Algo::Unique(OutFramesToBake));
 }
 
+bool FConstraintBaker::BakeMultiple(
+	UWorld* InWorld,
+	TArray< UTickableTransformConstraint*>& InConstraints,
+	const TSharedPtr<ISequencer>& InSequencer,
+	const FBakingAnimationKeySettings& InSettings)
+{
+	TOptional<TArray<FFrameNumber>> Frames;
+	TOptional< FBakingAnimationKeySettings> Settings = InSettings;
+	for (UTickableTransformConstraint* Constraint : InConstraints)
+	{
+		FConstraintBaker::Bake(InWorld, Constraint, InSequencer, Settings, Frames);
+	}
+	return true;
+}
+
 void FConstraintBaker::Bake(UWorld* InWorld, 
 	UTickableTransformConstraint* InConstraint,
 	const TSharedPtr<ISequencer>& InSequencer, 
+	const TOptional< FBakingAnimationKeySettings>& InSettings,
 	const TOptional<TArray<FFrameNumber>>& InFrames)
 {
 	if ((InFrames && InFrames->IsEmpty()) || (InConstraint == nullptr) || (InConstraint->ChildTRSHandle == nullptr))
@@ -167,29 +224,13 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 
 	const TObjectPtr<UTransformableHandle>& Handle = InConstraint->ChildTRSHandle;
 
-	const FConstraintChannelInterfaceRegistry& InterfaceRegistry = FConstraintChannelInterfaceRegistry::Get();	
-	ITransformConstraintChannelInterface* Interface = InterfaceRegistry.FindConstraintChannelInterface(Handle->GetClass());
-	if (!Interface)
+	FConstraintSections ConstraintSections = FMovieSceneConstraintChannelHelper::GetConstraintSectionAndChannel(
+		InConstraint, InSequencer);
+	IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(ConstraintSections.ConstraintSection);
+	if (ConstrainedSection == nullptr) 
 	{
 		return;
 	}
-	
-	//get the section to be used later to delete the extra transform keys at the frame -1 times, abort if not there for some reason
-	UMovieSceneSection* ConstraintSection = Interface->GetHandleConstraintSection(Handle, InSequencer);
-	const UMovieSceneSection* TransformSection = Interface->GetHandleSection(Handle, InSequencer);
-
-	IMovieSceneConstrainedSection* ConstrainedSection = Cast<IMovieSceneConstrainedSection>(ConstraintSection);
-	if (ConstrainedSection == nullptr || TransformSection == nullptr)
-	{
-		return;
-	}
-	
-	FConstraintAndActiveChannel* ActiveChannel = ConstrainedSection->GetConstraintChannel(InConstraint->GetFName());
-	if (ActiveChannel == nullptr)
-	{
-		return;
-	}
-
 	// compute transforms
 	TArray<FFrameNumber> FramesToBake;
 	if (InFrames)
@@ -198,12 +239,12 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 	}
 	else
 	{
-		GetMinimalFramesToBake(InWorld, InConstraint, InSequencer, ConstrainedSection, FramesToBake);
+		GetMinimalFramesToBake(InWorld, InConstraint, InSequencer, ConstraintSections.ConstraintSection, InSettings, FramesToBake);
 
 		// if it needs recomposition 
-		if (ConstraintSection != TransformSection && !FramesToBake.IsEmpty())
+		if (ConstraintSections.ConstraintSection != ConstraintSections.ChildTransformSection && !FramesToBake.IsEmpty())
 		{
-			const TMovieSceneChannelData<const bool> ConstraintChannelData = ActiveChannel->ActiveChannel.GetData();
+			const TMovieSceneChannelData<const bool> ConstraintChannelData = ConstraintSections.ActiveChannel->ActiveChannel.GetData();
 			const TArrayView<const FFrameNumber> ConstraintFrames = ConstraintChannelData.GetTimes();
 			const TArrayView<const bool> ConstraintValues = ConstraintChannelData.GetValues();
 			for (int32 Index = 0; Index < ConstraintFrames.Num(); ++Index)
@@ -236,15 +277,15 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 		return;
 	}
 	
-	ConstraintSection->Modify();
+	ConstraintSections.ConstraintSection->Modify();
 
 	// disable constraint and delete extra transform keys
-	TMovieSceneChannelData<bool> ConstraintChannelData = ActiveChannel->ActiveChannel.GetData();
+	TMovieSceneChannelData<bool> ConstraintChannelData = ConstraintSections.ActiveChannel->ActiveChannel.GetData();
 	const TArrayView<const FFrameNumber> ConstraintFrames = ConstraintChannelData.GetTimes();
 	
 	// get transform channels
-	const TArrayView<FMovieSceneFloatChannel*> FloatTransformChannels = Handle->GetFloatChannels(TransformSection);
-	const TArrayView<FMovieSceneDoubleChannel*> DoubleTransformChannels = Handle->GetDoubleChannels(TransformSection);
+	const TArrayView<FMovieSceneFloatChannel*> FloatTransformChannels = Handle->GetFloatChannels(ConstraintSections.ChildTransformSection);
+	const TArrayView<FMovieSceneDoubleChannel*> DoubleTransformChannels = Handle->GetDoubleChannels(ConstraintSections.ChildTransformSection);
 
 	for (int32 Index = 0; Index < ConstraintFrames.Num(); ++Index)
 	{
@@ -270,8 +311,18 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 
 	// now bake to channel curves
 	const EMovieSceneTransformChannel Channels = InConstraint->GetChannelsToKey();
-	Interface->AddHandleTransformKeys(InSequencer, Handle, FramesToBake, Transforms, Channels);
+	ConstraintSections.Interface->AddHandleTransformKeys(InSequencer, Handle, FramesToBake, Transforms, Channels);
 
+	if (InSettings.IsSet() && InSettings.GetValue().BakingKeySettings != EBakingKeySettings::KeysOnly
+		&& InSettings.GetValue().bReduceKeys == true)
+	{
+		FKeyDataOptimizationParams Param;
+		Param.bAutoSetInterpolation = true;
+		Param.Tolerance = InSettings.GetValue().Tolerance;
+		TRange<FFrameNumber> Range(InSettings.GetValue().StartFrame, InSettings.GetValue().EndFrame);
+		Param.Range = Range;
+		MovieSceneToolHelpers::OptimizeSection(Param, ConstraintSections.ConstraintSection);
+	}
 	// notify
 	InSequencer->RequestEvaluate();
 }

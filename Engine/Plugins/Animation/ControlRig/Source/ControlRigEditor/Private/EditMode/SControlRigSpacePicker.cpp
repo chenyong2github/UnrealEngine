@@ -276,21 +276,9 @@ FReply SControlRigSpacePicker::OnBakeControlsToNewSpaceButtonClicked()
 		Settings.TargetSpace = URigHierarchy::GetDefaultParentKey();
 
 		TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
-		TArray<FFrameNumber> Keys;
-		TArray < FKeyHandle> KeyHandles;
 
-		Settings.StartFrame = Range.GetLowerBoundValue();
-		Settings.EndFrame = Range.GetUpperBoundValue();
-		if (Keys.Num() > 0)
-		{
-			int32 Index = Algo::LowerBound(Keys, CurrentTime);
-			if (Index >= 0 && Index < (Keys.Num() - 1))
-			{
-				Settings.StartFrame = Keys[Index];
-				Settings.EndFrame = Keys[Index + 1];
-
-			}
-		}
+		Settings.Settings.StartFrame = Range.GetLowerBoundValue();
+		Settings.Settings.EndFrame = Range.GetUpperBoundValue();
 
 		TSharedRef<SRigSpacePickerBakeWidget> BakeWidget =
 			SNew(SRigSpacePickerBakeWidget)
@@ -301,14 +289,7 @@ FReply SControlRigSpacePicker::OnBakeControlsToNewSpaceButtonClicked()
 			.GetControlCustomization(this, &SControlRigSpacePicker::HandleGetControlElementCustomization)
 			.OnBake_Lambda([Sequencer, ControlRig, TickResolution](URigHierarchy* InHierarchy, TArray<FRigElementKey> InControls, FRigSpacePickerBakeSettings InSettings)
 		{
-			TArray<FFrameNumber> Frames;
-
-			const FFrameRate& FrameRate = Sequencer->GetFocusedDisplayRate();
-			FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
-			for (FFrameNumber& Frame = InSettings.StartFrame; Frame <= InSettings.EndFrame; Frame += FrameRateInFrameNumber)
-			{
-				Frames.Add(Frame);
-			}
+	
 			FScopedTransaction Transaction(LOCTEXT("BakeControlToSpace", "Bake Control In Space"));
 			for (const FRigElementKey& ControlKey : InControls)
 			{
@@ -317,7 +298,7 @@ FReply SControlRigSpacePicker::OnBakeControlsToNewSpaceButtonClicked()
 				if (SpaceChannelAndSection.SpaceChannel)
 				{
 					FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
-						Frames, InHierarchy, ControlKey, InSettings);
+						InHierarchy, ControlKey, InSettings);
 				}
 			}
 			return FReply::Handled();

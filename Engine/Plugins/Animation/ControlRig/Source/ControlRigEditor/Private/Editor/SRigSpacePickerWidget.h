@@ -205,7 +205,7 @@ public:
 
 private:
 
-	//FRigSpacePickerBakeSettings Settings;
+	//used for setting up the details
 	TSharedPtr<TStructOnScope<FRigSpacePickerBakeSettings>> Settings;
 
 	ISequencer* Sequencer;
