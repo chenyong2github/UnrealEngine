@@ -2,24 +2,24 @@
 
 #if WITH_EDITOR
 
-#include "MaterialXUsdPreviewSurface.h"
+#include "MaterialXUsdPreviewSurfaceShader.h"
 
 namespace mx = MaterialX;
 
-FMaterialXUsdPreviewSurface::FMaterialXUsdPreviewSurface(UInterchangeBaseNodeContainer& BaseNodeContainer)
+FMaterialXUsdPreviewSurfaceShader::FMaterialXUsdPreviewSurfaceShader(UInterchangeBaseNodeContainer& BaseNodeContainer)
 	: FMaterialXSurfaceShaderAbstract(BaseNodeContainer)
 {
 	NodeDefinition = mx::NodeDefinition::UsdPreviewSurface;
 }
 
-TSharedRef<FMaterialXBase> FMaterialXUsdPreviewSurface::MakeInstance(UInterchangeBaseNodeContainer& BaseNodeContainer)
+TSharedRef<FMaterialXBase> FMaterialXUsdPreviewSurfaceShader::MakeInstance(UInterchangeBaseNodeContainer& BaseNodeContainer)
 {
-	TSharedRef<FMaterialXUsdPreviewSurface> Result = MakeShared<FMaterialXUsdPreviewSurface>(BaseNodeContainer);
+	TSharedRef<FMaterialXUsdPreviewSurfaceShader> Result = MakeShared<FMaterialXUsdPreviewSurfaceShader>(BaseNodeContainer);
 	Result->RegisterConnectNodeOutputToInputDelegates();
 	return Result;
 }
 
-void FMaterialXUsdPreviewSurface::Translate(MaterialX::NodePtr UsdPreviewSurfaceNode)
+void FMaterialXUsdPreviewSurfaceShader::Translate(MaterialX::NodePtr UsdPreviewSurfaceNode)
 {
 	this->SurfaceShaderNode = UsdPreviewSurfaceNode;
 

@@ -6,14 +6,14 @@
 
 #include "MaterialX/MaterialXUtils/MaterialXSurfaceShaderAbstract.h"
 
-class FMaterialXUsdPreviewSurface : public FMaterialXSurfaceShaderAbstract
+class FMaterialXUsdPreviewSurfaceShader : public FMaterialXSurfaceShaderAbstract
 {
 protected:
 
 	template<typename T, ESPMode>
 	friend class SharedPointerInternals::TIntrusiveReferenceController;
 
-	FMaterialXUsdPreviewSurface(UInterchangeBaseNodeContainer& BaseNodeContainer);
+	FMaterialXUsdPreviewSurfaceShader(UInterchangeBaseNodeContainer& BaseNodeContainer);
 
 public:
 
