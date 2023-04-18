@@ -262,8 +262,6 @@ struct TAxisAlignedBox3
 			TMathUtil<RealType>::Max3(A.Z, B.Z, C.Z));
 	}
 
-	TAxisAlignedBox3(const TAxisAlignedBox3& OtherBox) = default;
-
 	template<typename OtherRealType>
 	explicit TAxisAlignedBox3(const TAxisAlignedBox3<OtherRealType>& OtherBox)
 	{
@@ -614,8 +612,6 @@ struct TAxisAlignedBox2
 		: Min(Min), Max(Max)
 	{
 	}
-
-	TAxisAlignedBox2(const TAxisAlignedBox2& OtherBox) = default;
 
 	template<typename OtherRealType>
 	explicit TAxisAlignedBox2(const TAxisAlignedBox2<OtherRealType>& OtherBox)
