@@ -2,12 +2,13 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
-#include "Misc/AutomationTest.h"
 #include "Templates/Atomic.h"
 #include "Templates/EnableIf.h"
 #include "Traits/IntType.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
+
+#include "Tests/TestHarnessAdapter.h"
 
 namespace
 {
@@ -362,8 +363,7 @@ namespace
 	}
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAtomicSmokeTest, "System.Core.Misc.Atomic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-bool FAtomicSmokeTest::RunTest( const FString& Parameters )
+TEST_CASE_NAMED(FAtomicSmokeTest, "System::Core::Misc::Atomic", "[ApplicationContextMask][SmokeFilter]")
 {
 	RunNumericAtomicTests<int8>  ();
 	RunNumericAtomicTests<uint8> ();
@@ -403,8 +403,6 @@ bool FAtomicSmokeTest::RunTest( const FString& Parameters )
 	RunPointerAtomicTests<const volatile int32*>();
 	RunPointerAtomicTests<const volatile int64*>();
 	RunPointerAtomicTests<const volatile FString*>();
-
-	return true;
 }
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS

@@ -9,12 +9,10 @@
 #include "Misc/FrameRate.h"
 #include "Misc/Timecode.h"
 #include "Misc/Timespan.h"
-#include "Misc/AutomationTest.h"
+#include "Tests/TestHarnessAdapter.h"
 
 
-#if WITH_DEV_AUTOMATION_TESTS
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTimecodeTest, "System.Core.Misc.Timecode", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+#if WITH_TESTS
 
 /**
  * Run a suite of timecode conversion operations to validate conversion from timecode to timespan/FrameNumber are working
@@ -25,7 +23,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTimecodeTest, "System.Core.Misc.Timecode", EAu
  * 01:00:59:28 ; 01:00:59:29 ; 01:01:00:02 ; 01:01:00:03 (every minute, we skip frame 0 and 1)
  * 01:09:59:28 ; 01:09:59:29 ; 01:10:00:00 ; 01:10:00:01 (except every 10th minute, we include frame 0 and 1)
  */
-bool FTimecodeTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FTimecodeTest, "System::Core::Misc::Timecode", "[ApplicationContextMask][EngineFilter]")
 {
 	FFrameRate CommonFrameRates[]{
 		FFrameRate(12, 1),
@@ -46,7 +44,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 		FFrameRate(60000, 1001),
 	};
 
-	auto ConversionWithFrameRateTest = [this](const FFrameRate FrameRate)
+	auto ConversionWithFrameRateTest = [](const FFrameRate FrameRate)
 	{
 		const bool bIsDropFrame = FTimecode::IsDropFormatTimecodeSupported(FrameRate);
 		int32 NumberOfErrors = 0;
@@ -65,7 +63,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 				const FFrameNumber ExpectedFrameNumber = TimecodeValue.ToFrameNumber(FrameRate);
 				if (FrameNumber != ExpectedFrameNumber)
 				{
-					AddError(FString::Printf(TEXT("Timecode '%s' didn't convert properly from FrameNumber '%d' for FrameRate '%s'.")
+					FAIL_CHECK(FString::Printf(TEXT("Timecode '%s' didn't convert properly from FrameNumber '%d' for FrameRate '%s'.")
 						, *TimecodeValue.ToString()
 						, FrameNumber.Value
 						, *FrameRate.ToPrettyText().ToString()
@@ -84,7 +82,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 
 				if (TimecodeFromTimespanWithoutRollover != TimecodeValue)
 				{
-					AddError(FString::Printf(TEXT("Timecode '%s' didn't convert properly from Timespan '%f' with rollover for frame rate '%s'.")
+					FAIL_CHECK(FString::Printf(TEXT("Timecode '%s' didn't convert properly from Timespan '%f' with rollover for frame rate '%s'.")
 						, *TimecodeValue.ToString()
 						, TimespanFromTimecode.GetTotalSeconds()
 						, *FrameRate.ToPrettyText().ToString()
@@ -94,7 +92,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 				}
 				else if (TimecodeFromTimespanWithoutRollover.Minutes != TimecodeValue.Minutes || TimecodeFromTimespanWithoutRollover.Seconds != TimecodeValue.Seconds || TimecodeFromTimespanWithoutRollover.Frames != TimecodeValue.Frames)
 				{
-					AddError(FString::Printf(TEXT("Timecode '%s' didn't convert properly from Timespan '%f' without rollover for frame rate '%s'.")
+					FAIL_CHECK(FString::Printf(TEXT("Timecode '%s' didn't convert properly from Timespan '%f' without rollover for frame rate '%s'.")
 						, *TimecodeValue.ToString()
 						, TimespanFromTimecode.GetTotalSeconds()
 						, *FrameRate.ToPrettyText().ToString()
@@ -116,7 +114,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 					const bool bSecondsAreValid = FrameSeconds == TimespanFromTimecode.GetSeconds();
 					if (!bHoursAreValid || !bMinutesAreValid || !bSecondsAreValid)
 					{
-						AddError(FString::Printf(TEXT("Timecode hours/minutes/seconds doesn't matches with Timespan '%s' from frame rate '%s'.")
+						FAIL_CHECK(FString::Printf(TEXT("Timecode hours/minutes/seconds doesn't matches with Timespan '%s' from frame rate '%s'.")
 							, *TimespanFromTimecode.ToString()
 							, *FrameRate.ToPrettyText().ToString()
 						));
@@ -149,7 +147,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 
 				if (bWrongFrame || bWrongSeconds || bWrongMinutes)
 				{
-					AddError(FString::Printf(TEXT("Timecode '%s' is not a continuity of the previous timecode '%s' from frame rate '%s'.")
+					FAIL_CHECK(FString::Printf(TEXT("Timecode '%s' is not a continuity of the previous timecode '%s' from frame rate '%s'.")
 						, *TimecodeValue.ToString()
 						, *PreviousTimecodeValue.ToString()
 						, *FrameRate.ToPrettyText().ToString()
@@ -166,7 +164,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 				const FTimecode EquivalentTimecodeValue = FTimecode::FromFrameNumber(FrameNumber, EquivalentFrameRate, bIsDropFrame);
 				if (TimecodeValue != EquivalentTimecodeValue)
 				{
-					AddError(FString::Printf(TEXT("Timecode '%s' didn't convert properly from FrameNumber '%d' when the frame rate is tripled.")
+					FAIL_CHECK(FString::Printf(TEXT("Timecode '%s' didn't convert properly from FrameNumber '%d' when the frame rate is tripled.")
 						, *TimecodeValue.ToString()
 						, FrameNumber.Value
 					));
@@ -178,7 +176,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 			// If we have a lot of errors with this frame rate, there is no need to log them all.
 			if (NumberOfErrors > 10)
 			{
-				AddWarning(FString::Printf(TEXT("Skip test for frame rate '%s'. Other errors may exists.")
+				WARN(FString::Printf(TEXT("Skip test for frame rate '%s'. Other errors may exists.")
 					, *FrameRate.ToPrettyText().ToString()
 				));
 				break;
@@ -206,7 +204,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 
 			if (FromTimespanTimecodeValueWithRollover != FromSecondsTimecodeValueWithRollover)
 			{
-				AddError(FString::Printf(TEXT("The timecode '%s' do not match timecode '%s' when converted from the computer clock's time and the frame rate is '%s'")
+				FAIL_CHECK(FString::Printf(TEXT("The timecode '%s' do not match timecode '%s' when converted from the computer clock's time and the frame rate is '%s'")
 					, *FromTimespanTimecodeValueWithRollover.ToString()
 					, *FromSecondsTimecodeValueWithRollover.ToString()
 					, *FrameRate.ToPrettyText().ToString()
@@ -215,7 +213,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 			}
 			else if (FromTimespanTimecodeValueWithoutRollover != FromSecondsTimecodeValueWithoutRollover)
 			{
-				AddError(FString::Printf(TEXT("The timecode '%s' do not match timecode '%s' when converted from the computer clock's time and the frame rate is '%s'")
+				FAIL_CHECK(FString::Printf(TEXT("The timecode '%s' do not match timecode '%s' when converted from the computer clock's time and the frame rate is '%s'")
 					, *FromTimespanTimecodeValueWithoutRollover.ToString()
 					, *FromSecondsTimecodeValueWithoutRollover.ToString()
 					, *FrameRate.ToPrettyText().ToString()
@@ -225,7 +223,7 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 			// Can't really test frame number matching between rollver timecode labels. We would need to exclude NDF fractional frame rates
 		}
 
-		AddInfo(FString::Printf(TEXT("Timecode test was completed with frame rate '%s'"), *FrameRate.ToPrettyText().ToString()));
+		INFO(FString::Printf(TEXT("Timecode test was completed with frame rate '%s'"), *FrameRate.ToPrettyText().ToString()));
 
 		return NumberOfErrors == 0;
 	};
@@ -244,8 +242,8 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 		bSuccessfully = bSuccessfully && Future.Get();
 	}
 
-	return bSuccessfully;
+	REQUIRE(bSuccessfully);
 }
 
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS

@@ -1,43 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_TESTS
+
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
-#include "Misc/AutomationTest.h"
+#include "Tests/TestHarnessAdapter.h"
 #include "Containers/TripleBuffer.h"
 #include "Math/RandomStream.h"
+#if WITH_LOW_LEVEL_TESTS
+#include "TestCommon/Comparisons.h"
+#endif
 
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTripleBufferTest, "System.Core.Misc.TripleBuffer", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-
-
-bool FTripleBufferTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FTripleBufferTest, "System::Core::Misc::TripleBuffer", "[ApplicationContextMask][SmokeFilter]")
 {
 	// uninitialized buffer
 	{
 		TTripleBuffer<int32> Buffer(NoInit);
 
-		TestFalse(TEXT("Uninitialized triple buffer must not be dirty"), Buffer.IsDirty());
+		CHECK_FALSE_MESSAGE(TEXT("Uninitialized triple buffer must not be dirty"), Buffer.IsDirty());
 	}
 
 	// initialized buffer
 	{
 		TTripleBuffer<int32> Buffer(1);
 
-		TestFalse(TEXT("Initialized triple buffer must not be dirty"), Buffer.IsDirty());
-		TestEqual(TEXT("Initialized triple buffer must have correct read buffer value"), Buffer.Read(), 1);
+		CHECK_FALSE_MESSAGE(TEXT("Initialized triple buffer must not be dirty"), Buffer.IsDirty());
+		CHECK_EQUALS(TEXT("Initialized triple buffer must have correct read buffer value"), Buffer.Read(), 1);
 
 		Buffer.SwapReadBuffers();
 
-		TestEqual(TEXT("Initialized triple buffer must have correct temp buffer value"), Buffer.Read(), 1);
+		CHECK_EQUALS(TEXT("Initialized triple buffer must have correct temp buffer value"), Buffer.Read(), 1);
 
 		Buffer.SwapWriteBuffers();
 
-		TestTrue(TEXT("Write buffer swap must set dirty flag"), Buffer.IsDirty());
+		CHECK_MESSAGE(TEXT("Write buffer swap must set dirty flag"), Buffer.IsDirty());
 
 		Buffer.SwapReadBuffers();
 
-		TestFalse(TEXT("Read buffer swap must clear dirty flag"), Buffer.IsDirty());
-		TestEqual(TEXT("Initialized triple buffer must have correct temp buffer value"), Buffer.Read(), 1);
+		CHECK_FALSE_MESSAGE(TEXT("Read buffer swap must clear dirty flag"), Buffer.IsDirty());
+		CHECK_EQUALS(TEXT("Initialized triple buffer must have correct temp buffer value"), Buffer.Read(), 1);
 	}
 
 	// pre-set buffer
@@ -46,18 +47,18 @@ bool FTripleBufferTest::RunTest(const FString& Parameters)
 		TTripleBuffer<int32> Buffer(Array);
 
 		int32 Read = Buffer.Read();
-		TestEqual(TEXT("Pre-set triple buffer must have correct Read buffer value"), Read, 3);
+		CHECK_EQUALS(TEXT("Pre-set triple buffer must have correct Read buffer value"), Read, 3);
 
 		Buffer.SwapReadBuffers();
 
 		int32 Temp = Buffer.Read();
-		TestEqual(TEXT("Pre-set triple buffer must have correct Temp buffer value"), Temp, 1);
+		CHECK_EQUALS(TEXT("Pre-set triple buffer must have correct Temp buffer value"), Temp, 1);
 
 		Buffer.SwapWriteBuffers();
 		Buffer.SwapReadBuffers();
 
 		int32 Write = Buffer.Read();
-		TestEqual(TEXT("Pre-set triple buffer must have correct Write buffer value"), Write, 2);
+		CHECK_EQUALS(TEXT("Pre-set triple buffer must have correct Write buffer value"), Write, 2);
 	}
 
 	// operations
@@ -68,7 +69,7 @@ bool FTripleBufferTest::RunTest(const FString& Parameters)
 		{
 			int32& Write = Buffer.GetWriteBuffer(); Write = Index; Buffer.SwapWriteBuffers();
 			Buffer.SwapReadBuffers();
-			TestEqual(*FString::Printf(TEXT("Triple buffer must read correct value (%i)"), Index), Buffer.Read(), Index);
+			CHECK_EQUALS(*FString::Printf(TEXT("Triple buffer must read correct value (%i)"), Index), Buffer.Read(), Index);
 		}
 
 		FRandomStream Rand;
@@ -95,12 +96,12 @@ bool FTripleBufferTest::RunTest(const FString& Parameters)
 
 				Buffer.SwapReadBuffers();
 				int32 Read = Buffer.Read();
-				TestTrue(TEXT("Triple buffer must read in increasing order"), Read > LastRead);
+				CHECK_MESSAGE(TEXT("Triple buffer must read in increasing order"), Read > LastRead);
 				LastRead = Read;
 				--Reads;
 			}
 		}
 	}
-
-	return true;
 }
+
+#endif //WITH_TESTS

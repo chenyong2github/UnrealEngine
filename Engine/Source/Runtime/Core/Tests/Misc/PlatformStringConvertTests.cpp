@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreTypes.h"
-#include "Misc/AutomationTest.h"
+#include "Tests/TestHarnessAdapter.h"
 #include <type_traits>
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringConvertTest, "System.Core.Misc.StringConvertTests", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-
-bool FStringConvertTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FStringConvertTest, "System::Core::Misc::StringConvertTests", "[ApplicationContextMask][SmokeFilter]")
 {
-	auto CheckNullTerminatedStringConversion = [this](const TCHAR* TestName, const auto* From, const auto* To)
+	auto CheckNullTerminatedStringConversion = [](const TCHAR* TestName, const auto* From, const auto* To)
 	{
 		using ToType = std::decay_t<decltype(*To)>;
 
@@ -48,15 +46,15 @@ bool FStringConvertTest::RunTest(const FString& Parameters)
 
 		ToType* End = FPlatformString::Convert(Ptr + 4, ConvertedLength, From);
 
-		TestTrue(FString::Printf(TEXT("%s converted length matches"), TestName), End == Ptr + 4 + ConvertedLength);
+		CHECK_MESSAGE(FString::Printf(TEXT("%s converted length matches"), TestName), End == Ptr + 4 + ConvertedLength);
 
 		// != changed to < because of false positive in MSVC's static analyzer: warning C6295: Ill-defined for-loop.  Loop executes infinitely.
 		for (int i = 0; i < 4 * sizeof(ToType); ++i)
 		{
-			TestTrue(FString::Printf(TEXT("%s guard block is preserved"), TestName), ((unsigned char*)Ptr)[i] == 0xCD && ((unsigned char*)End)[i] == 0xCD);
+			CHECK_MESSAGE(FString::Printf(TEXT("%s guard block is preserved"), TestName), ((unsigned char*)Ptr)[i] == 0xCD && ((unsigned char*)End)[i] == 0xCD);
 		}
 
-		TestTrue(FString::Printf(TEXT("%s converted string matches"), TestName), Strcmp(To, Ptr + 4) == 0);
+		CHECK_MESSAGE(FString::Printf(TEXT("%s converted string matches"), TestName), Strcmp(To, Ptr + 4) == 0);
 	};
 
 	// We need to do UTF-8 literals like below because MSVC doesn't encode numeric escape sequences properly in u8"" literals:
@@ -95,7 +93,6 @@ bool FStringConvertTest::RunTest(const FString& Parameters)
 		CheckNullTerminatedStringConversion(TEXT("Orphaned UTF-16 low surrogate"),  (const UTF16CHAR*)UTF16TEXT("q\xDC69q"),       (const UTF8CHAR*)"q?q");
 	}
 
-	return !HasAnyErrors();
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS

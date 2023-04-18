@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_TESTS
+
 #include "PathTests.h"
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Containers/UnrealString.h"
 #include "Misc/Paths.h"
-#include "Misc/AutomationTest.h"
-
-#if WITH_DEV_AUTOMATION_TESTS
+#include "Tests/TestHarnessAdapter.h"
+#if WITH_LOW_LEVEL_TESTS
+#include "TestCommon/Comparisons.h"
+#endif
 
 const FStringView PathTest::BaseDir = TEXTVIEW("/root");
 
@@ -25,21 +28,19 @@ const PathTest::FTestPair PathTest::ExpectedRelativeToAbsolutePaths[10] =
 	{ TEXTVIEW("/a/b/../c"),		TEXTVIEW("/a/c") },
 };
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathTests, "System.Core.Misc.Paths", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-
-bool FPathTests::RunTest( const FString& Parameters )
+TEST_CASE_NAMED(FPathTests, "System::Core::Misc::Paths", "[ApplicationContextMask][SmokeFilter]")
 {
-	TestCollapseRelativeDirectories<FPaths, FString>(*this);
+	TestCollapseRelativeDirectories<FPaths, FString>();
 
 	// Extension texts
 	{
-		auto RunGetExtensionTest = [this](const TCHAR* InPath, const TCHAR* InExpectedExt)
+		auto RunGetExtensionTest = [](const TCHAR* InPath, const TCHAR* InExpectedExt)
 		{
 			// Run test
 			const FString Ext = FPaths::GetExtension(FString(InPath));
 			if (Ext != InExpectedExt)
 			{
-				AddError(FString::Printf(TEXT("Path '%s' failed to get the extension (got '%s', expected '%s')."), InPath, *Ext, InExpectedExt));
+				FAIL_CHECK(FString::Printf(TEXT("Path '%s' failed to get the extension (got '%s', expected '%s')."), InPath, *Ext, InExpectedExt));
 			}
 		};
 
@@ -53,13 +54,13 @@ bool FPathTests::RunTest( const FString& Parameters )
 		RunGetExtensionTest(TEXT("C:/Folder/First.Last/file.txt"),			TEXT("txt"));
 		RunGetExtensionTest(TEXT("C:/Folder/First.Last/file.tar.gz"),		TEXT("gz"));
 
-		auto RunSetExtensionTest = [this](const TCHAR* InPath, const TCHAR* InNewExt, const FString& InExpectedPath)
+		auto RunSetExtensionTest = [](const TCHAR* InPath, const TCHAR* InNewExt, const FString& InExpectedPath)
 		{
 			// Run test
 			const FString NewPath = FPaths::SetExtension(FString(InPath), FString(InNewExt));
 			if (NewPath != InExpectedPath)
 			{
-				AddError(FString::Printf(TEXT("Path '%s' failed to set the extension (got '%s', expected '%s')."), InPath, *NewPath, *InExpectedPath));
+				FAIL_CHECK(FString::Printf(TEXT("Path '%s' failed to set the extension (got '%s', expected '%s')."), InPath, *NewPath, *InExpectedPath));
 			}
 		};
 
@@ -73,13 +74,13 @@ bool FPathTests::RunTest( const FString& Parameters )
 		RunSetExtensionTest(TEXT("C:/Folder/First.Last/file.txt"),			TEXT("log"),	TEXT("C:/Folder/First.Last/file.log"));
 		RunSetExtensionTest(TEXT("C:/Folder/First.Last/file.tar.gz"),		TEXT("gz2"),	TEXT("C:/Folder/First.Last/file.tar.gz2"));
 
-		auto RunChangeExtensionTest = [this](const TCHAR* InPath, const TCHAR* InNewExt, const FString& InExpectedPath)
+		auto RunChangeExtensionTest = [](const TCHAR* InPath, const TCHAR* InNewExt, const FString& InExpectedPath)
 		{
 			// Run test
 			const FString NewPath = FPaths::ChangeExtension(FString(InPath), FString(InNewExt));
 			if (NewPath != InExpectedPath)
 			{
-				AddError(FString::Printf(TEXT("Path '%s' failed to change the extension (got '%s', expected '%s')."), InPath, *NewPath, *InExpectedPath));
+				FAIL_CHECK(FString::Printf(TEXT("Path '%s' failed to change the extension (got '%s', expected '%s')."), InPath, *NewPath, *InExpectedPath));
 			}
 		};
 
@@ -96,13 +97,13 @@ bool FPathTests::RunTest( const FString& Parameters )
 
 	// IsUnderDirectory
 	{
-		auto RunIsUnderDirectoryTest = [this](const TCHAR* InPath1, const TCHAR* InPath2, bool ExpectedResult)
+		auto RunIsUnderDirectoryTest = [](const TCHAR* InPath1, const TCHAR* InPath2, bool ExpectedResult)
 		{
 			// Run test
 			bool Result = FPaths::IsUnderDirectory(FString(InPath1), FString(InPath2));
 			if (Result != ExpectedResult)
 			{
-				AddError(FString::Printf(TEXT("FPaths::IsUnderDirectory('%s', '%s') != %s."), InPath1, InPath2, ExpectedResult ? TEXT("true") : TEXT("false")));
+				FAIL_CHECK(FString::Printf(TEXT("FPaths::IsUnderDirectory('%s', '%s') != %s."), InPath1, InPath2, ExpectedResult ? TEXT("true") : TEXT("false")));
 			}
 		};
 
@@ -119,7 +120,7 @@ bool FPathTests::RunTest( const FString& Parameters )
 		RunIsUnderDirectoryTest(TEXT("C:/Folder/Subdir/"),	TEXT("C:/Folder/"), true);
 	}
 
-	TestRemoveDuplicateSlashes<FPaths, FString>(*this);
+	TestRemoveDuplicateSlashes<FPaths, FString>();
 
 	// ConvertRelativePathToFull
 	{
@@ -128,11 +129,9 @@ bool FPathTests::RunTest( const FString& Parameters )
 		for (FTestPair Pair : ExpectedRelativeToAbsolutePaths)
 		{
 			FString Actual = FPaths::ConvertRelativePathToFull(FString(BaseDir), FString(Pair.Input));
-			TestEqual(TEXT("ConvertRelativePathToFull"), FStringView(Actual), Pair.Expected);
+			CHECK_EQUALS(TEXT("ConvertRelativePathToFull"), FStringView(Actual), Pair.Expected);
 		}
 	}
-
-	return true;
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS

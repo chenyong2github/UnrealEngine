@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_TESTS
+
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Containers/Array.h"
@@ -11,14 +13,14 @@
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
 #include "Misc/ScopeExit.h"
-#include "Misc/AutomationTest.h"
-
-#if WITH_DEV_AUTOMATION_TESTS
+#include "Tests/TestHarnessAdapter.h"
+#if WITH_LOW_LEVEL_TESTS
+#include "TestCommon/Comparisons.h"
+#endif
 
 // These file tests are designed to ensure expected file writing behavior, as well as cross-platform consistency
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFileTruncateTest, "System.Core.Misc.FileTruncate", EAutomationTestFlags::EditorContext | EAutomationTestFlags::CriticalPriority | EAutomationTestFlags::EngineFilter)
-bool FFileTruncateTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FFileTruncateTest, "System::Core::Misc::FileTruncate", "[.][EditorContext][CriticalPriority][EngineFilter]")
 {
 	const FString TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir());
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
@@ -52,58 +54,34 @@ bool FFileTruncateTest::RunTest(const FString& Parameters)
 		{
 			const int64 ActualEOFPos = TestFile->Tell();
 			const int64 ExpectedEOFPos = (sizeof(int32) * 4);
-			if (ActualEOFPos != ExpectedEOFPos)
-			{
-				AddError(FString::Printf(TEXT("File was not the expected size (got %d, expected %d): %s"), ActualEOFPos, ExpectedEOFPos, *TempFilename));
-				return false;
-			}
+			REQUIRE_MESSAGE(FString::Printf(TEXT("File was not the expected size (got %d, expected %d): %s"), ActualEOFPos, ExpectedEOFPos, *TempFilename), ActualEOFPos == ExpectedEOFPos);
 
 			const int64 ActualFileSize = TestFile->Size();
-			if (ActualFileSize != ExpectedEOFPos)
-			{
-				AddError(FString::Printf(TEXT("File was not the expected size (got %d, expected %d): %s"), ActualFileSize, ExpectedEOFPos, *TempFilename));
-				return false;
-			}
+			REQUIRE_MESSAGE(FString::Printf(TEXT("File was not the expected size (got %d, expected %d): %s"), ActualFileSize, ExpectedEOFPos, *TempFilename), ActualFileSize == ExpectedEOFPos);
 		}
 
 		// Truncate the file at our test pos
-		if (!TestFile->Truncate(ExpectedTruncatePos))
-		{
-			AddError(FString::Printf(TEXT("File truncation request failed: %s"), *TempFilename));
-			return false;
-		}
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File truncation request failed: %s"), *TempFilename), TestFile->Truncate(ExpectedTruncatePos));
 
 		// Validate that the size is reported correctly
 		{
 			const int64 ActualFileSize = TestFile->Size();
-			if (ActualFileSize != ExpectedTruncatePos)
-			{
-				AddError(FString::Printf(TEXT("File was not the expected size after truncation (got %d, expected %d): %s"), ActualFileSize, ExpectedTruncatePos, *TempFilename));
-				return false;
-			}
+			REQUIRE_MESSAGE(FString::Printf(TEXT("File was not the expected size after truncation (got %d, expected %d): %s"), ActualFileSize, ExpectedTruncatePos, *TempFilename), ActualFileSize == ExpectedTruncatePos);
 		}
 
 		// Validate that we can't read past the truncation point
 		{
 			int32 Dummy = 0;
-			if (TestFile->Seek(TestReadPos) && TestFile->Read((uint8*)&Dummy, sizeof(Dummy)))
-			{
-				AddError(FString::Printf(TEXT("File read seek outside the truncated range: %s"), *TempFilename));
-				return false;
-			}
+			REQUIRE_MESSAGE(FString::Printf(TEXT("File read seek outside the truncated range: %s"), *TempFilename), !(TestFile->Seek(TestReadPos) && TestFile->Read((uint8*)&Dummy, sizeof(Dummy))));
 		}
 	}
 	else
 	{
-		AddError(FString::Printf(TEXT("File failed to open: %s"), *TempFilename));
-		return false;
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to open: %s"), *TempFilename), false);
 	}
-
-	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFileAppendTest, "System.Core.Misc.FileAppend", EAutomationTestFlags::EditorContext | EAutomationTestFlags::CriticalPriority | EAutomationTestFlags::EngineFilter)
-bool FFileAppendTest::RunTest( const FString& Parameters )
+TEST_CASE_NAMED(FFileAppendTest, "System::Core::Misc::FileAppend", "[.][EditorContext][CriticalPriority][EngineFilter]")
 {
 	const FString TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir());
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
@@ -126,24 +104,14 @@ bool FFileAppendTest::RunTest( const FString& Parameters )
 	}
 	else
 	{
-		AddError(FString::Printf(TEXT("File failed to open when new: %s"), *TempFilename));
-		return false;
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to open when new: %s"), *TempFilename), false);
 	}
 
 	// Confirm same data
 	{
 		TArray<uint8> ReadData;
-		if (!FFileHelper::LoadFileToArray(ReadData, *TempFilename))
-		{
-			AddError(FString::Printf(TEXT("File failed to load after writing: %s"), *TempFilename));
-			return false;
-		}
-
-		if (ReadData != TestData)
-		{
-			AddError(FString::Printf(TEXT("File data was incorrect after writing: %s"), *TempFilename));
-			return false;
-		}
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to load after writing: %s"), *TempFilename), FFileHelper::LoadFileToArray(ReadData, *TempFilename));
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File data was incorrect after writing: %s"), *TempFilename), ReadData == TestData);
 	}
 
 	// Using append flag should open the file, and writing data immediately should append to the end.
@@ -154,11 +122,7 @@ bool FFileAppendTest::RunTest( const FString& Parameters )
 		{
 			const int64 ActualEOFPos = TestFile->Tell();
 			const int64 ExpectedEOFPos = TestFile->Size();
-			if (ActualEOFPos != ExpectedEOFPos)
-			{
-				AddError(FString::Printf(TEXT("File did not seek to the end when opening (got %d, expected %d): %s"), ActualEOFPos, ExpectedEOFPos, *TempFilename));
-				return false;
-			}
+			REQUIRE_MESSAGE(FString::Printf(TEXT("File did not seek to the end when opening (got %d, expected %d): %s"), ActualEOFPos, ExpectedEOFPos, *TempFilename), ActualEOFPos == ExpectedEOFPos);
 		}
 
 		TestData.Add(One);
@@ -170,24 +134,14 @@ bool FFileAppendTest::RunTest( const FString& Parameters )
 	}
 	else
 	{
-		AddError(FString::Printf(TEXT("File failed to open when appending: %s"), *TempFilename));
-		return false;
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to open when appending: %s"), *TempFilename), false);
 	}
 
 	// Confirm same data
 	{
 		TArray<uint8> ReadData;
-		if (!FFileHelper::LoadFileToArray(ReadData, *TempFilename))
-		{
-			AddError(FString::Printf(TEXT("File failed to load after appending: %s"), *TempFilename));
-			return false;
-		}
-
-		if (ReadData != TestData)
-		{
-			AddError(FString::Printf(TEXT("File data was incorrect after appending: %s"), *TempFilename));
-			return false;
-		}
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to load after appending: %s"), *TempFilename), FFileHelper::LoadFileToArray(ReadData, *TempFilename));
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File data was incorrect after appending: %s"), *TempFilename), ReadData == TestData);
 	}
 
 	// No append should clobber existing file
@@ -200,31 +154,18 @@ bool FFileAppendTest::RunTest( const FString& Parameters )
 	}
 	else
 	{
-		AddError(FString::Printf(TEXT("File failed to open when clobbering: %s"), *TempFilename));
-		return false;
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to open when clobbering: %s"), *TempFilename), false);
 	}
 
 	// Confirm same data
 	{
 		TArray<uint8> ReadData;
-		if (!FFileHelper::LoadFileToArray(ReadData, *TempFilename))
-		{
-			AddError(FString::Printf(TEXT("File failed to load after clobbering: %s"), *TempFilename));
-			return false;
-		}
-
-		if (ReadData != TestData)
-		{
-			AddError(FString::Printf(TEXT("File data was incorrect after clobbering: %s"), *TempFilename));
-			return false;
-		}
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to load after clobbering: %s"), *TempFilename), FFileHelper::LoadFileToArray(ReadData, *TempFilename));
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File data was incorrect after clobbering: %s"), *TempFilename), ReadData == TestData);
 	}
-
-	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFileShrinkBuffersTest, "System.Core.Misc.FileShrinkBuffers", EAutomationTestFlags::EditorContext | EAutomationTestFlags::CriticalPriority | EAutomationTestFlags::EngineFilter)
-bool FFileShrinkBuffersTest::RunTest( const FString& Parameters )
+TEST_CASE_NAMED(FFileShrinkBuffersTest, "System::Core::Misc::FileShrinkBuffers", "[.][EditorContext][CriticalPriority][EngineFilter]")
 {
 	const FString TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir());
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
@@ -250,62 +191,49 @@ bool FFileShrinkBuffersTest::RunTest( const FString& Parameters )
 	}
 	else
 	{
-		AddError(FString::Printf(TEXT("File failed to open when new: %s"), *TempFilename));
-		return false;
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to open when new: %s"), *TempFilename), false);
 	}
 
 	// Confirm same data
 	{
 		TArray<uint8> ReadData;
-		if (!FFileHelper::LoadFileToArray(ReadData, *TempFilename))
-		{
-			AddError(FString::Printf(TEXT("File failed to load after writing: %s"), *TempFilename));
-			return false;
-		}
-
-		if (ReadData != TestData)
-		{
-			AddError(FString::Printf(TEXT("File data was incorrect after writing: %s"), *TempFilename));
-			return false;
-		}
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to load after writing: %s"), *TempFilename), FFileHelper::LoadFileToArray(ReadData, *TempFilename));
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File data was incorrect after writing: %s"), *TempFilename), ReadData == TestData);
 	}
 
 	// Using ShrinkBuffers should not disrupt our read position in the file
 	if (TUniquePtr<IFileHandle> TestFile = TUniquePtr<IFileHandle>(PlatformFile.OpenRead(*TempFilename, /*bAllowWrite*/false)))
 	{
 		// Validate the file actually opened and is of the right size
-		TestEqual(TEXT("File not of expected size at time of ShrinkBuffers read test"), TestFile->Size(), static_cast<decltype(TestFile->Size())>(TestData.Num()));
+		CHECK_EQUALS(TEXT("File not of expected size at time of ShrinkBuffers read test"), TestFile->Size(), static_cast<decltype(TestFile->Size())>(TestData.Num()));
 
 		const int32 FirstHalfSize = TestData.Num() / 2;
 		const int32 SecondHalfSize = TestData.Num() - FirstHalfSize;
 
 		TArray<uint8> FirstHalfReadData;
 		FirstHalfReadData.AddUninitialized(FirstHalfSize);
-		TestTrue(TEXT("Failed to read first half of test file"), TestFile->Read(FirstHalfReadData.GetData(), FirstHalfReadData.Num()));
-		
+		CHECK_MESSAGE(TEXT("Failed to read first half of test file"), TestFile->Read(FirstHalfReadData.GetData(), FirstHalfReadData.Num()));
+
 		for (int32 i = 0; i < FirstHalfSize; ++i)
 		{
-			TestEqual(TEXT("Mismatch in data before ShrinkBuffers was called"), FirstHalfReadData[i], TestData[i]);
+			CHECK_EQUALS(TEXT("Mismatch in data before ShrinkBuffers was called"), FirstHalfReadData[i], TestData[i]);
 		}
 
 		TestFile->ShrinkBuffers();
 
 		TArray<uint8> SecondHalfReadData;
 		SecondHalfReadData.AddUninitialized(SecondHalfSize);
-		TestTrue(TEXT("Failed to read second half of test file"), TestFile->Read(SecondHalfReadData.GetData(), SecondHalfReadData.Num()));
+		CHECK_MESSAGE(TEXT("Failed to read second half of test file"), TestFile->Read(SecondHalfReadData.GetData(), SecondHalfReadData.Num()));
 
 		for (int32 i = 0; i < SecondHalfSize; ++i)
 		{
-			TestEqual(TEXT("Mismatch in data after ShrinkBuffers was called"), SecondHalfReadData[i], TestData[FirstHalfSize + i]);
+			CHECK_EQUALS(TEXT("Mismatch in data after ShrinkBuffers was called"), SecondHalfReadData[i], TestData[FirstHalfSize + i]);
 		}
 	}
 	else
 	{
-		AddError(FString::Printf(TEXT("File failed to open file for reading: %s"), *TempFilename));
-		return false;
+		REQUIRE_MESSAGE(FString::Printf(TEXT("File failed to open file for reading: %s"), *TempFilename), false);
 	}
-
-	return true;
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS

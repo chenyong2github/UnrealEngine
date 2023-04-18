@@ -3,14 +3,17 @@
 #pragma once
 
 #include "Containers/StringView.h"
-#include "Misc/AutomationTest.h"
+#include "Tests/TestHarnessAdapter.h"
+#if WITH_LOW_LEVEL_TESTS
+#include "TestCommon/Comparisons.h"
+#endif
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
 
 template<class PathType, class StringType>
-void TestCollapseRelativeDirectories(FAutomationTestBase& Test)
+void TestCollapseRelativeDirectories()
 {
-	auto Run = [&](const TCHAR* Path, const TCHAR* Expected)
+	auto Run = [](const TCHAR* Path, const TCHAR* Expected)
 	{
 		// Run test
 		StringType Actual;
@@ -22,7 +25,7 @@ void TestCollapseRelativeDirectories(FAutomationTestBase& Test)
 			// If we're looking for a result, make sure it was returned correctly
 			if (!bValid || FCString::Strcmp(*Actual, Expected) != 0)
 			{
-				Test.AddError(FString::Printf(TEXT("Path '%s' failed to collapse correctly (got '%s', expected '%s')."), Path, *Actual, Expected));
+				FAIL_CHECK(FString::Printf(TEXT("Path '%s' failed to collapse correctly (got '%s', expected '%s')."), Path, *Actual, Expected));
 			}
 		}
 		else
@@ -30,7 +33,7 @@ void TestCollapseRelativeDirectories(FAutomationTestBase& Test)
 			// Otherwise, make sure it failed
 			if (bValid)
 			{
-				Test.AddError(FString::Printf(TEXT("Path '%s' collapsed unexpectedly."), Path));
+				FAIL_CHECK(FString::Printf(TEXT("Path '%s' collapsed unexpectedly."), Path));
 			}
 		}
 	};
@@ -94,14 +97,14 @@ void TestCollapseRelativeDirectories(FAutomationTestBase& Test)
 }
 
 template<class PathType, class StringType>
-void TestRemoveDuplicateSlashes(FAutomationTestBase& Test)
+void TestRemoveDuplicateSlashes()
 {
 	auto Run = [&](const TCHAR* Path, const TCHAR* Expected)
 	{
 		StringType Actual;
 		Actual += Path;	
 		PathType::RemoveDuplicateSlashes(Actual);
-		Test.TestEqual(TEXT("RemoveDuplicateSlashes"), *Actual, Expected);
+		CHECK_EQUALS(TEXT("RemoveDuplicateSlashes"), *Actual, Expected);
 	};
 
 	Run(TEXT(""), TEXT(""));
@@ -132,4 +135,4 @@ extern const FTestPair ExpectedRelativeToAbsolutePaths[10];
 
 }
 
-#endif
+#endif //WITH_TESTS

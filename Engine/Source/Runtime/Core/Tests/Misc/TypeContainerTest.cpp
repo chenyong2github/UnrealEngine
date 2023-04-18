@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_TESTS
+
 #include "CoreTypes.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Containers/UnrealString.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 #include "Delegates/Delegate.h"
-#include "Misc/AutomationTest.h"
+#include "Tests/TestHarnessAdapter.h"
 #include "Async/Async.h"
 #include "Misc/TypeContainer.h"
-
-#if WITH_DEV_AUTOMATION_TESTS
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTypeContainerTest, "System.Core.Misc.TypeContainer", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
-
+#if WITH_LOW_LEVEL_TESTS
+#include "TestCommon/Comparisons.h"
+#endif
 
 /* Helpers
  *****************************************************************************/
@@ -80,7 +80,7 @@ Expose_TNameOf(ISmoothie<>)
 /* Tests
  *****************************************************************************/
 
-bool FTypeContainerTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FTypeContainerTest, "System::Core::Misc::TypeContainer", "[ApplicationContextMask][EngineFilter]")
 {
 	// existing instance test
 	{
@@ -95,8 +95,8 @@ bool FTypeContainerTest::RunTest(const FString& Parameters)
 
 		auto Instance = Container.GetInstance<IFruit>();
 
-		TestEqual(TEXT("Correct instance must be returned"), Instance, Fruit);
-		TestNotEqual(TEXT("Incorrect instance must not be returned"), Instance, StaticCastSharedRef<IFruit>(Berry));
+		CHECK_EQUALS(TEXT("Correct instance must be returned"), Instance, Fruit);
+		CHECK_NOT_EQUALS(TEXT("Incorrect instance must not be returned"), Instance, StaticCastSharedRef<IFruit>(Berry));
 	}
 
 	// per instance test
@@ -111,9 +111,9 @@ bool FTypeContainerTest::RunTest(const FString& Parameters)
 		auto Smoothie1 = Container.GetInstance<ISmoothie<>>();
 		auto Smoothie2 = Container.GetInstance<ISmoothie<>>();
 
-		TestNotEqual(TEXT("For per-instances classes, a unique instance must be returned each time"), Smoothie1, Smoothie2);
-		TestNotEqual(TEXT("For per-instances dependencies, a unique instance must be returned each time [1]"), Smoothie1->GetBerry(), Smoothie2->GetBerry());
-		TestNotEqual(TEXT("For per-instances dependencies, a unique instance must be returned each time [2]"), Smoothie1->GetFruit(), Smoothie2->GetFruit());
+		CHECK_NOT_EQUALS(TEXT("For per-instances classes, a unique instance must be returned each time"), Smoothie1, Smoothie2);
+		CHECK_NOT_EQUALS(TEXT("For per-instances dependencies, a unique instance must be returned each time [1]"), Smoothie1->GetBerry(), Smoothie2->GetBerry());
+		CHECK_NOT_EQUALS(TEXT("For per-instances dependencies, a unique instance must be returned each time [2]"), Smoothie1->GetFruit(), Smoothie2->GetFruit());
 	}
 
 	// per thread test
@@ -141,10 +141,10 @@ bool FTypeContainerTest::RunTest(const FString& Parameters)
 		auto One2 = Smoothies2.Get().One;
 		auto Two2 = Smoothies2.Get().Two;
 
-		TestEqual(TEXT("For per-thread classes, the same instance must be returned from the same thread [1]"), One1, Two1);
-		TestEqual(TEXT("For per-thread classes, the same instance must be returned from the same thread [2]"), One2, Two2);
-		TestNotEqual(TEXT("For per-thread classes, different instances must be returned from different threads [1]"), One1, One2);
-		TestNotEqual(TEXT("For per-thread classes, different instances must be returned from different threads [2]"), Two1, Two2);
+		CHECK_EQUALS(TEXT("For per-thread classes, the same instance must be returned from the same thread [1]"), One1, Two1);
+		CHECK_EQUALS(TEXT("For per-thread classes, the same instance must be returned from the same thread [2]"), One2, Two2);
+		CHECK_NOT_EQUALS(TEXT("For per-thread classes, different instances must be returned from different threads [1]"), One1, One2);
+		CHECK_NOT_EQUALS(TEXT("For per-thread classes, different instances must be returned from different threads [2]"), Two1, Two2);
 	}
 
 	// per process test
@@ -172,10 +172,10 @@ bool FTypeContainerTest::RunTest(const FString& Parameters)
 		auto One2 = Smoothies2.Get().One;
 		auto Two2 = Smoothies2.Get().Two;
 
-		TestEqual(TEXT("For per-process classes, the same instance must be returned from the same thread [1]"), One1, Two1);
-		TestEqual(TEXT("For per-process classes, the same instance must be returned from the same thread [2]"), One2, Two2);
-		TestEqual(TEXT("For per-process classes, the same instance must be returned from different threads [1]"), One1, One2);
-		TestEqual(TEXT("For per-process classes, the same instance must be returned from different threads [1]"), Two1, Two2);
+		CHECK_EQUALS(TEXT("For per-process classes, the same instance must be returned from the same thread [1]"), One1, Two1);
+		CHECK_EQUALS(TEXT("For per-process classes, the same instance must be returned from the same thread [2]"), One2, Two2);
+		CHECK_EQUALS(TEXT("For per-process classes, the same instance must be returned from different threads [1]"), One1, One2);
+		CHECK_EQUALS(TEXT("For per-process classes, the same instance must be returned from different threads [1]"), Two1, Two2);
 	}
 
 	// factory test
@@ -245,7 +245,6 @@ bool FTypeContainerTest::RunTest(const FString& Parameters)
 		auto Smoothie = Container.GetInstance<ISmoothie<>>();
 	}
 
-	return true;
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS
