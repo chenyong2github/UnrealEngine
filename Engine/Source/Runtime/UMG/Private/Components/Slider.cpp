@@ -3,6 +3,7 @@
 #include "Components/Slider.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSlider.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Slider)
@@ -11,12 +12,6 @@
 
 /////////////////////////////////////////////////////
 // USlider
-
-static FSliderStyle* DefaultSliderStyle = nullptr;
-
-#if WITH_EDITOR
-static FSliderStyle* EditorSliderStyle = nullptr;
-#endif 
 
 USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -32,29 +27,12 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MouseUsesStep = false;
 	RequiresControllerLock = true;
 
-	if (DefaultSliderStyle == nullptr)
-	{
-		DefaultSliderStyle = new FSliderStyle(FUMGCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider"));
-
-		// Unlink UMG default colors.
-		DefaultSliderStyle->UnlinkColors();
-	}
-
-	WidgetStyle = *DefaultSliderStyle;
-
-
-#if WITH_EDITOR 
-	if (EditorSliderStyle == nullptr)
-	{
-		EditorSliderStyle = new FSliderStyle(FCoreStyle::Get().GetWidgetStyle<FSliderStyle>("Slider"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorSliderStyle->UnlinkColors();
-	}
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetSliderStyle();
 	
+#if WITH_EDITOR 
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorSliderStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetSliderStyle();
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();

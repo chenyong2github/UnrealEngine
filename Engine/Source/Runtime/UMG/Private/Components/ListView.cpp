@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Blueprint/ListViewDesignerPreviewItem.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 #include "UMGPrivate.h"
 
@@ -15,58 +16,21 @@
 /////////////////////////////////////////////////////
 // UListView
 
-static FTableViewStyle* DefaultListViewStyle = nullptr;
-static FScrollBarStyle* DefaultListViewScrollBarStyle = nullptr;
-
-#if WITH_EDITOR
-static FTableViewStyle* EditorListViewStyle = nullptr;
-static FScrollBarStyle* EditorListViewScrollBarStyle = nullptr;
-#endif 
-
 UListView::UListView(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Orientation(EOrientation::Orient_Vertical)
 {
-	if (DefaultListViewStyle == nullptr)
-	{
-		DefaultListViewStyle = new FTableViewStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView"));
-
-		// Unlink UMG default colors.
-		DefaultListViewStyle->UnlinkColors();
-	}
-
-	if (DefaultListViewScrollBarStyle == nullptr)
-	{
-		DefaultListViewScrollBarStyle = new FScrollBarStyle(FUMGCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar"));
-
-		// Unlink UMG default colors.
-		DefaultListViewScrollBarStyle->UnlinkColors();
-	}
-
-	WidgetStyle = *DefaultListViewStyle;
-	ScrollBarStyle = *DefaultListViewScrollBarStyle;
-
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetListViewStyle();
+	ScrollBarStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetScrollBarStyle();
+	
 #if WITH_EDITOR 
-	if (EditorListViewStyle == nullptr)
-	{
-		EditorListViewStyle = new FTableViewStyle(FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView"));
-
-		// Unlink UMG default colors.
-		EditorListViewStyle->UnlinkColors();
-	}
-
-	if (EditorListViewScrollBarStyle == nullptr)
-	{
-		EditorListViewScrollBarStyle = new FScrollBarStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar"));
-
-		// Unlink UMG default colors.
-		EditorListViewScrollBarStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorListViewStyle;
-		ScrollBarStyle = *EditorListViewScrollBarStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetListViewStyle();
+		ScrollBarStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetScrollBarStyle();
+
+		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
+		PostEditChange();
 	}
 #endif // WITH_EDITOR
 }

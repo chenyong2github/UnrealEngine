@@ -2,6 +2,7 @@
 
 #include "Components/ScrollBar.h"
 #include "UObject/EditorObjectVersion.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ScrollBar)
@@ -10,15 +11,6 @@
 
 /////////////////////////////////////////////////////
 // UScrollBar
-
-namespace
-{
-	static FScrollBarStyle* DefaultScrollBarStyle = nullptr;
-}
-
-#if WITH_EDITOR
-static FScrollBarStyle* EditorScrollBarStyle = nullptr;
-#endif 
 
 UScrollBar::UScrollBar(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -31,35 +23,19 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Orientation = Orient_Vertical;
 	Thickness = FVector2D(16.0f, 16.0f);
 	Padding = FMargin(2.0f);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	if (DefaultScrollBarStyle == nullptr)
-	{
-		DefaultScrollBarStyle = new FScrollBarStyle(FUMGCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar"));
 
-		// Unlink UMG default colors.
-		DefaultScrollBarStyle->UnlinkColors();
-	}
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	WidgetStyle = *DefaultScrollBarStyle;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetScrollBarStyle();
+	
 #if WITH_EDITOR 
-	if (EditorScrollBarStyle == nullptr)
-	{
-		EditorScrollBarStyle = new FScrollBarStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("Scrollbar"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorScrollBarStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		WidgetStyle = *EditorScrollBarStyle;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetScrollBarStyle();
+
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
 #endif // WITH_EDITOR
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UScrollBar::ReleaseSlateResources(bool bReleaseChildren)

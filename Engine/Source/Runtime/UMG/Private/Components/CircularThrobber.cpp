@@ -5,6 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Widgets/Images/SThrobber.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CircularThrobber)
@@ -14,40 +15,18 @@
 /////////////////////////////////////////////////////
 // UCircularThrobber
 
-static FSlateBrush* DefaultCircularThrobberBrushStyle = nullptr;
-
-#if WITH_EDITOR
-static FSlateBrush* EditorCircularThrobberBrushStyle = nullptr;
-#endif 
-
 UCircularThrobber::UCircularThrobber(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bEnableRadius(true)
 {
-	if (DefaultCircularThrobberBrushStyle == nullptr)
-	{
-		DefaultCircularThrobberBrushStyle = new FSlateBrush(*FUMGCoreStyle::Get().GetBrush("Throbber.CircleChunk"));
-
-		// Unlink UMG default colors.
-		DefaultCircularThrobberBrushStyle->UnlinkColors();
-	}
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Image = *DefaultCircularThrobberBrushStyle;
-
+	Image = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetCircularThrobberBrushStyle();
+	
 #if WITH_EDITOR 
-	if (EditorCircularThrobberBrushStyle == nullptr)
-	{
-		EditorCircularThrobberBrushStyle = new FSlateBrush(*FCoreStyle::Get().GetBrush("Throbber.CircleChunk"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorCircularThrobberBrushStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-		Image = *EditorCircularThrobberBrushStyle;
-		
+		Image = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetCircularThrobberBrushStyle();
+
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}

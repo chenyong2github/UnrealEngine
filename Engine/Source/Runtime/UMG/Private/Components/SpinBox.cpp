@@ -3,6 +3,7 @@
 #include "Components/SpinBox.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Font.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SpinBox)
@@ -11,12 +12,6 @@
 
 /////////////////////////////////////////////////////
 // USpinBox
-
-static FSpinBoxStyle* DefaultSpinBoxStyle = nullptr;
-
-#if WITH_EDITOR
-static FSpinBoxStyle* EditorSpinBoxStyle = nullptr;
-#endif 
 
 USpinBox::USpinBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -43,38 +38,19 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ClearKeyboardFocusOnCommit = false;
 	SelectAllTextOnCommit = true;
 	KeyboardType = EVirtualKeyboardType::Number;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	if (DefaultSpinBoxStyle == nullptr)
-	{
-		DefaultSpinBoxStyle = new FSpinBoxStyle(FUMGCoreStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox"));
-
-		// Unlink UMG default colors.
-		DefaultSpinBoxStyle->UnlinkColors();
-	}
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	WidgetStyle = *DefaultSpinBoxStyle;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#if WITH_EDITOR 
-	if (EditorSpinBoxStyle == nullptr)
-	{
-		EditorSpinBoxStyle = new FSpinBoxStyle(FCoreStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorSpinBoxStyle->UnlinkColors();
-	}
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetSpinBoxStyle();
 	
+#if WITH_EDITOR 
 	if (IsEditorWidget())
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		WidgetStyle = *EditorSpinBoxStyle;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetSpinBoxStyle();
+
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
 #endif // WITH_EDITOR
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ForegroundColor = WidgetStyle.ForegroundColor;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

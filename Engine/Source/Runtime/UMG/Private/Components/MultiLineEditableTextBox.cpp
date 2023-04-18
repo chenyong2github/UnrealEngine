@@ -7,6 +7,7 @@
 #include "Engine/Font.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MultiLineEditableTextBox)
@@ -16,27 +17,13 @@
 /////////////////////////////////////////////////////
 // UMultiLineEditableTextBox
 
-static FEditableTextBoxStyle* DefaultMultiLineEditableTextBoxStyle = nullptr;
-
-#if WITH_EDITOR
-static FEditableTextBoxStyle* EditorMultiLineEditableTextBoxStyle = nullptr;
-#endif 
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	if (DefaultMultiLineEditableTextBoxStyle == nullptr)
-	{
-		DefaultMultiLineEditableTextBoxStyle = new FEditableTextBoxStyle(FUMGCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"));
-
-		// Unlink UMG default colors.
-		DefaultMultiLineEditableTextBoxStyle->UnlinkColors();
-	}
-
-	WidgetStyle = *DefaultMultiLineEditableTextBoxStyle;
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetEditableTextBoxStyle();
 #if WITH_EDITOR
-	TextStyle_DEPRECATED = DefaultMultiLineEditableTextBoxStyle->TextStyle;
+	TextStyle_DEPRECATED = WidgetStyle.TextStyle;
 #endif
 
 	if (!IsRunningDedicatedServer())
@@ -47,20 +34,12 @@ UMultiLineEditableTextBox::UMultiLineEditableTextBox(const FObjectInitializer& O
 		//so in the case the Font object is replaced by a null one, we have to keep the composite one as a fallback.
 		Font.CompositeFont = WidgetStyle.TextStyle.Font.CompositeFont;
 	}
-
-#if WITH_EDITOR 
-	if (EditorMultiLineEditableTextBoxStyle == nullptr)
-	{
-		EditorMultiLineEditableTextBoxStyle = new FEditableTextBoxStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorMultiLineEditableTextBoxStyle->UnlinkColors();
-	}
 	
+#if WITH_EDITOR 
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorMultiLineEditableTextBoxStyle;
-		TextStyle_DEPRECATED = DefaultMultiLineEditableTextBoxStyle->TextStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetEditableTextBoxStyle();
+		TextStyle_DEPRECATED = WidgetStyle.TextStyle;
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();

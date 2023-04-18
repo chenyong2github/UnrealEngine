@@ -8,6 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 #include "Components/ButtonSlot.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 #include "Blueprint/WidgetTree.h"
 
@@ -18,38 +19,18 @@
 /////////////////////////////////////////////////////
 // UButton
 
-static FButtonStyle* DefaultButtonStyle = nullptr;
-
-#if WITH_EDITOR
-static FButtonStyle* EditorButtonStyle = nullptr;
-#endif 
-
 UButton::UButton(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	if (DefaultButtonStyle == nullptr)
-	{
-		DefaultButtonStyle = new FButtonStyle(FUMGCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
-
-		// Unlink UMG default colors.
-		DefaultButtonStyle->UnlinkColors();
-	}
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	WidgetStyle = *DefaultButtonStyle;
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetButtonStyle();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #if WITH_EDITOR 
-	if (EditorButtonStyle == nullptr)
-	{
-		EditorButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("EditorUtilityButton"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorButtonStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		WidgetStyle = *EditorButtonStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetButtonStyle();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO

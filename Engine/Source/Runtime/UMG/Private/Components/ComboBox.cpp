@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/ComboBox.h"
-#include "DefaultStyleCache.h"
+#include "Styling/DefaultStyleCache.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ComboBox)
 
@@ -14,7 +14,7 @@ UComboBox::UComboBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bIsFocusable = true;
-	ScrollBarStyle = FDefaultStyleCache::Get().GetScrollBarStyle();
+	ScrollBarStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetScrollBarStyle();
 }
 
 void UComboBox::ReleaseSlateResources(bool bReleaseChildren)

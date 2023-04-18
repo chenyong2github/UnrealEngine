@@ -5,6 +5,7 @@
 #include "Engine/Font.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 #include "Materials/MaterialInterface.h"
 
@@ -15,38 +16,16 @@
 /////////////////////////////////////////////////////
 // UMultiLineEditableText
 
-static FTextBlockStyle* DefaultMultiLineEditableTextStyle = nullptr;
-
-#if WITH_EDITOR
-static FTextBlockStyle* EditorMultiLineEditableTextStyle = nullptr;
-#endif 
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UMultiLineEditableText::UMultiLineEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	if (DefaultMultiLineEditableTextStyle == nullptr)
-	{
-		DefaultMultiLineEditableTextStyle = new FTextBlockStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
-
-		// Unlink UMG default colors.
-		DefaultMultiLineEditableTextStyle->UnlinkColors();
-	}
-
-	WidgetStyle = *DefaultMultiLineEditableTextStyle;
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetTextBlockStyle();
 	
 #if WITH_EDITOR 
-	if (EditorMultiLineEditableTextStyle == nullptr)
-	{
-		EditorMultiLineEditableTextStyle = new FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorMultiLineEditableTextStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorMultiLineEditableTextStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetTextBlockStyle();
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();

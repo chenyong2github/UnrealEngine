@@ -2,11 +2,11 @@
 
 #include "Components/ComboBoxString.h"
 
-#include "DefaultStyleCache.h"
 #include "Widgets/SNullWidget.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Font.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ComboBoxString)
@@ -20,16 +20,16 @@ UComboBoxString::UComboBoxString(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	WidgetStyle = FDefaultStyleCache::Get().GetComboBoxStyle();
-	ItemStyle = FDefaultStyleCache::Get().GetComboBoxRowStyle();
-	ScrollBarStyle = FDefaultStyleCache::Get().GetScrollBarStyle();
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetComboBoxStyle();
+	ItemStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetTableRowStyle();
+	ScrollBarStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetScrollBarStyle();
 
 #if WITH_EDITOR 
 	if (IsEditorWidget())
 	{
-		WidgetStyle = FDefaultStyleCache::Get().GetEditorComboBoxStyle();
-		ItemStyle = FDefaultStyleCache::Get().GetEditorComboBoxRowStyle();
-		ScrollBarStyle = FDefaultStyleCache::Get().GetEditorScrollBarStyle();
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetComboBoxStyle();
+		ItemStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetTableRowStyle();
+		ScrollBarStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetScrollBarStyle();
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();

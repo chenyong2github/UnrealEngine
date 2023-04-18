@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/TreeView.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TreeView)
@@ -8,37 +9,18 @@
 /////////////////////////////////////////////////////
 // UTreeView
 
-static FTableViewStyle* DefaultTreeViewStyle = nullptr;
-
-#if WITH_EDITOR
-static FTableViewStyle* EditorTreeViewStyle = nullptr;
-#endif 
-
 UTreeView::UTreeView(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	if (DefaultTreeViewStyle == nullptr)
-	{
-		DefaultTreeViewStyle = new FTableViewStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView"));
-
-		// Unlink UMG default colors.
-		DefaultTreeViewStyle->UnlinkColors();
-	}
-
-	WidgetStyle = *DefaultTreeViewStyle;
-
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetTreeViewStyle();
+	
 #if WITH_EDITOR 
-	if (EditorTreeViewStyle == nullptr)
-	{
-		EditorTreeViewStyle = new FTableViewStyle(FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView"));
-
-		// Unlink UMG default colors.
-		EditorTreeViewStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorTreeViewStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetTreeViewStyle();
+
+		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
+		PostEditChange();
 	}
 #endif // WITH_EDITOR
 }

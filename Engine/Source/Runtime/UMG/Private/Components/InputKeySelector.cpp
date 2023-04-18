@@ -7,70 +7,31 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SInputKeySelector.h"
 #include "Internationalization/Internationalization.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputKeySelector)
 
 #define LOCTEXT_NAMESPACE "UMG"
 
-static FButtonStyle* DefaultInputKeySelectorButtonStyle = nullptr;
-static FTextBlockStyle* DefaultInputKeySelectorTextStyle = nullptr;
-
-#if WITH_EDITOR 
-static FButtonStyle* EditorInputKeySelectorButtonStyle = nullptr;
-static FTextBlockStyle* EditorInputKeySelectorTextStyle = nullptr;
-#endif
-
 UInputKeySelector::UInputKeySelector( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
-	if (DefaultInputKeySelectorButtonStyle == nullptr)
-	{
-		DefaultInputKeySelectorButtonStyle = new FButtonStyle(FUMGCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
-
-		// Unlink UMG default colors.
-		DefaultInputKeySelectorButtonStyle->UnlinkColors();
-	}
-
-	if (DefaultInputKeySelectorTextStyle == nullptr)
-	{
-		DefaultInputKeySelectorTextStyle = new FTextBlockStyle(FUMGCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
-
-		// Unlink UMG default colors.
-		DefaultInputKeySelectorTextStyle->UnlinkColors();
-	}
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	WidgetStyle = *DefaultInputKeySelectorButtonStyle;
-	TextStyle = *DefaultInputKeySelectorTextStyle;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetButtonStyle();
+	TextStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetTextBlockStyle();
+	
 #if WITH_EDITOR 
-	if (EditorInputKeySelectorButtonStyle == nullptr)
-	{
-		EditorInputKeySelectorButtonStyle = new FButtonStyle(FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorInputKeySelectorButtonStyle->UnlinkColors();
-	}
-
-	if (EditorInputKeySelectorTextStyle == nullptr)
-	{
-		EditorInputKeySelectorTextStyle = new FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorInputKeySelectorTextStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		WidgetStyle = *EditorInputKeySelectorButtonStyle;
-		TextStyle = *EditorInputKeySelectorTextStyle;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetButtonStyle();
+		TextStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetTextBlockStyle();
+
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
 #endif // WITH_EDITOR
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	KeySelectionText = NSLOCTEXT("InputKeySelector", "DefaultKeySelectionText", "...");
 	NoKeySpecifiedText = NSLOCTEXT("InputKeySelector", "DefaultEmptyText", "Empty");
 	SelectedKey = FInputChord(EKeys::Invalid);

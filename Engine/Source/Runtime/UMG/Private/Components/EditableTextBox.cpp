@@ -7,6 +7,7 @@
 #include "Engine/Font.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditableTextBox)
@@ -16,19 +17,13 @@
 /////////////////////////////////////////////////////
 // UEditableTextBox
 
-static FEditableTextBoxStyle* DefaultEditableTextBoxStyle = nullptr;
-
-#if WITH_EDITOR
-static FEditableTextBoxStyle* EditorEditableTextBoxStyle = nullptr;
-#endif 
-
 UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 #if WITH_EDITOR
 	bIsFontDeprecationDone = false;
 #endif
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	IsReadOnly = false;
 	IsPassword = false;
 	MinimumDesiredWidth = 0.0f;
@@ -40,17 +35,9 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	AllowContextMenu = true;
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	OverflowPolicy = ETextOverflowPolicy::Clip;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	if (DefaultEditableTextBoxStyle == nullptr)
-	{
-		DefaultEditableTextBoxStyle = new FEditableTextBoxStyle(FUMGCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"));
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetEditableTextBoxStyle();
 
-		// Unlink UMG default colors.
-		DefaultEditableTextBoxStyle->UnlinkColors();
-	}
-
-	WidgetStyle = *DefaultEditableTextBoxStyle;
 	if (!IsRunningDedicatedServer())
 	{
 		static ConstructorHelpers::FObjectFinder<UFont> DefaultFontObj(*UWidget::GetDefaultFontName());
@@ -61,24 +48,17 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 
 		WidgetStyle.SetFont(Font);
 	}
-
+	
 #if WITH_EDITOR 
-	if (EditorEditableTextBoxStyle == nullptr)
-	{
-		EditorEditableTextBoxStyle = new FEditableTextBoxStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorEditableTextBoxStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorEditableTextBoxStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetEditableTextBoxStyle();
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
 #endif // WITH_EDITOR
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;

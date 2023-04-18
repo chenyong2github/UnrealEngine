@@ -2,7 +2,7 @@
 
 #include "Components/ComboBoxKey.h"
 
-#include "DefaultStyleCache.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Widgets/Layout/SBox.h"
@@ -23,9 +23,9 @@ UComboBoxKey::UComboBoxKey()
 	{
 #if WITH_EDITOR 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		WidgetStyle = IsEditorWidget() ? FDefaultStyleCache::Get().GetEditorComboBoxStyle() : FDefaultStyleCache::Get().GetComboBoxStyle();
-		ItemStyle = IsEditorWidget() ? FDefaultStyleCache::Get().GetEditorComboBoxRowStyle() : FDefaultStyleCache::Get().GetComboBoxRowStyle();
-		ScrollBarStyle = IsEditorWidget() ? FDefaultStyleCache::Get().GetEditorScrollBarStyle() : FDefaultStyleCache::Get().GetScrollBarStyle();
+		WidgetStyle = IsEditorWidget() ? UE::Slate::Private::FDefaultStyleCache::GetEditor().GetComboBoxStyle() : UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetComboBoxStyle();
+		ItemStyle = IsEditorWidget() ? UE::Slate::Private::FDefaultStyleCache::GetEditor().GetTableRowStyle() : UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetTableRowStyle();
+		ScrollBarStyle = IsEditorWidget() ? UE::Slate::Private::FDefaultStyleCache::GetEditor().GetScrollBarStyle() : UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetScrollBarStyle();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (IsEditorWidget())
@@ -35,9 +35,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 #else
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		WidgetStyle = FDefaultStyleCache::Get().GetComboBoxStyle();
-		ItemStyle = FDefaultStyleCache::Get().GetComboBoxRowStyle();
-		ScrollBarStyle = FDefaultStyleCache::Get().GetScrollBarStyle();
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetComboBoxStyle();
+		ItemStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetTableRowStyle();
+		ScrollBarStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetScrollBarStyle();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 	}

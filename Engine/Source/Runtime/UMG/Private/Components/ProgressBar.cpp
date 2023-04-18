@@ -2,6 +2,7 @@
 
 #include "Components/ProgressBar.h"
 #include "Slate/SlateBrushAsset.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ProgressBar)
@@ -11,38 +12,16 @@
 /////////////////////////////////////////////////////
 // UProgressBar
 
-static FProgressBarStyle* DefaultProgressBarStyle = nullptr;
-
-#if WITH_EDITOR
-static FProgressBarStyle* EditorProgressBarStyle = nullptr;
-#endif 
-
 UProgressBar::UProgressBar(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	if (DefaultProgressBarStyle == nullptr)
-	{
-		DefaultProgressBarStyle = new FProgressBarStyle(FUMGCoreStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar"));
-
-		// Unlink UMG default colors.
-		DefaultProgressBarStyle->UnlinkColors();
-	}
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	WidgetStyle = *DefaultProgressBarStyle;
-
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetProgressBarStyle();
+	
 #if WITH_EDITOR 
-	if (EditorProgressBarStyle == nullptr)
-	{
-		EditorProgressBarStyle = new FProgressBarStyle(FCoreStyle::Get().GetWidgetStyle<FProgressBarStyle>("ProgressBar"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorProgressBarStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorProgressBarStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetProgressBarStyle();
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();

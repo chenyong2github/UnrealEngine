@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Slate/SlateBrushAsset.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CheckBox)
@@ -16,38 +17,16 @@
 /////////////////////////////////////////////////////
 // UCheckBox
 
-static FCheckBoxStyle* DefaultCheckboxStyle = nullptr;
-
-#if WITH_EDITOR
-static FCheckBoxStyle* EditorCheckboxStyle = nullptr;
-#endif 
-
 UCheckBox::UCheckBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	if (DefaultCheckboxStyle == nullptr)
-	{
-		DefaultCheckboxStyle = new FCheckBoxStyle(FUMGCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("Checkbox"));
-
-		// Unlink UMG default colors.
-		DefaultCheckboxStyle->UnlinkColors();
-	}
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	WidgetStyle = *DefaultCheckboxStyle;
-
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetCheckboxStyle();
+	
 #if WITH_EDITOR 
-	if (EditorCheckboxStyle == nullptr)
-	{
-		EditorCheckboxStyle = new FCheckBoxStyle(FCoreStyle::Get().GetWidgetStyle<FCheckBoxStyle>("Checkbox"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorCheckboxStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorCheckboxStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetCheckboxStyle();
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();

@@ -6,6 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Slate/SlateBrushAsset.h"
+#include "Styling/DefaultStyleCache.h"
 #include "Styling/UMGCoreStyle.h"
 #include "Materials/MaterialInterface.h"
 
@@ -16,24 +17,13 @@
 /////////////////////////////////////////////////////
 // UEditableText
 
-static FEditableTextStyle* DefaultEditableTextStyle = nullptr;
-
-#if WITH_EDITOR
-static FEditableTextStyle* EditorEditableTextStyle = nullptr;
-#endif 
-
 UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	if (DefaultEditableTextStyle == nullptr)
-	{
-		DefaultEditableTextStyle = new FEditableTextStyle(FUMGCoreStyle::Get().GetWidgetStyle<FEditableTextStyle>("NormalEditableText"));
 
-		// Unlink UMG default colors.
-		DefaultEditableTextStyle->UnlinkColors();
-	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetRuntime().GetEditableTextStyle();
 
-	WidgetStyle = *DefaultEditableTextStyle;
 	if (!IsRunningDedicatedServer())
 	{
 		static ConstructorHelpers::FObjectFinder<UFont> DefaultFontObj(*UWidget::GetDefaultFontName());
@@ -43,27 +33,17 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 		Font.CompositeFont = WidgetStyle.Font.CompositeFont;
 		WidgetStyle.SetFont(Font);
 	}
-
-
+	
 #if WITH_EDITOR 
-	if (EditorEditableTextStyle == nullptr)
-	{
-		EditorEditableTextStyle = new FEditableTextStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextStyle>("NormalEditableText"));
-
-		// Unlink UMG Editor colors from the editor settings colors.
-		EditorEditableTextStyle->UnlinkColors();
-	}
-
 	if (IsEditorWidget())
 	{
-		WidgetStyle = *EditorEditableTextStyle;
+		WidgetStyle = UE::Slate::Private::FDefaultStyleCache::GetEditor().GetEditableTextStyle();
 
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
 #endif // WITH_EDITOR
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	IsReadOnly = false;
 	IsPassword = false;
 	MinimumDesiredWidth = 0.0f;
@@ -77,7 +57,7 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	SetClipping(EWidgetClipping::ClipToBounds);
 	OverflowPolicy = ETextOverflowPolicy::Clip;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
