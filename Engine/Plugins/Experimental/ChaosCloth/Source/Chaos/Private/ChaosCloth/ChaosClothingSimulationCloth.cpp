@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
 #include "ChaosCloth/ChaosClothingSimulationMesh.h"
@@ -27,6 +28,7 @@ namespace ClothingSimulationClothDefault
 	constexpr float DampingCoefficient = 0.01f;
 	constexpr float Drag = 0.035f;
 	constexpr float Lift = 0.035f;
+	constexpr float Pressure = 0.f;
 	constexpr float AirDensity = 1.225e-6f;
 	constexpr float GravityScale = 1.f;
 	constexpr float GravityZOverride = -980.665f;
@@ -44,7 +46,7 @@ struct FClothingSimulationCloth::FLODData
 	// Input mesh
 	const int32 NumParticles;
 	const TConstArrayView<uint32> Indices;
-	const TArray<TConstArrayView<FRealSingle>> WeightMaps;
+	const TMap<FString, TConstArrayView<FRealSingle>> WeightMaps;
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>> Tethers;
 
 	const FClothingPatternData PatternData;
@@ -67,7 +69,7 @@ struct FClothingSimulationCloth::FLODData
 		const TConstArrayView<FVector2f>& InPatternPositions,
 		const TConstArrayView<uint32>& InPatternIndices,
 		const TConstArrayView<uint32>& InPatternToWeldedIndices,
-		const TArray<TConstArrayView<FRealSingle>>& InWeightMaps,
+		TMap<FString, TConstArrayView<FRealSingle>>&& InWeightMaps,
 		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers);
 
 	void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, int32 LODIndex);
@@ -88,11 +90,11 @@ FClothingSimulationCloth::FLODData::FLODData(
 	const TConstArrayView<FVector2f>& InPatternPositions,
 	const TConstArrayView<uint32>& InPatternIndices,
 	const TConstArrayView<uint32>& InPatternToWeldedIndices,
-	const TArray<TConstArrayView<FRealSingle>>& InWeightMaps,
+	TMap<FString, TConstArrayView<FRealSingle>>&& InWeightMaps,
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers)
 	: NumParticles(InNumParticles)
 	, Indices(InIndices)
-	, WeightMaps(InWeightMaps)
+	, WeightMaps(MoveTemp(InWeightMaps))
 	, Tethers(InTethers)
 	, PatternData(NumParticles, Indices, InPatternPositions, InPatternIndices, InPatternToWeldedIndices)
 {
@@ -149,17 +151,37 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Initialize the normals, in case the sim data is queried before the simulation steps
 	UpdateNormals(Solver);
 
-	// Set the particle masses
-	const TConstArrayView<FRealSingle>& MaxDistances = WeightMaps[(int32)EChaosWeightMapTarget::MaxDistance];
-	static const FRealSingle KinematicDistanceThreshold = 0.1f;  // TODO: This is not the same value as set in the painting UI but we might want to expose this value as parameter
-	auto KinematicPredicate =
-		[MaxDistances](int32 Index)
-		{
-			return MaxDistances.IsValidIndex(Index) && MaxDistances[Index] < KinematicDistanceThreshold;
-		};
-
+	// Retrieve config properties
 	check(Cloth->Config);
 	const Softs::FCollectionPropertyFacade& ConfigProperties = Cloth->Config->GetProperties();
+
+	// Retrieve MaxDistance information (weight map and Low/High values)
+	int32 MaxDistancePropertyKeyIndex;
+	FString MaxDistanceString = TEXT("MaxDistance");
+	MaxDistanceString = ConfigProperties.GetStringValue(MaxDistanceString, MaxDistanceString, &MaxDistancePropertyKeyIndex);
+
+	FRealSingle MaxDistanceBase;
+	FRealSingle MaxDistanceRange;
+	if (MaxDistancePropertyKeyIndex != INDEX_NONE)
+	{
+		MaxDistanceBase = (FRealSingle)ConfigProperties.GetLowValue<float>(MaxDistancePropertyKeyIndex);
+		MaxDistanceRange = (FRealSingle)ConfigProperties.GetHighValue<float>(MaxDistancePropertyKeyIndex) - MaxDistanceBase;
+	}
+	else
+	{
+		MaxDistanceBase = (FRealSingle)0.;
+		MaxDistanceRange = (FRealSingle)1.;
+	}
+
+	const TConstArrayView<FRealSingle> MaxDistances = WeightMaps.FindRef(MaxDistanceString);
+
+	// Set the particle masses
+	static const FRealSingle KinematicDistanceThreshold = 0.1f;  // TODO: This is not the same value as set in the painting UI but we might want to expose this value as parameter
+	auto KinematicPredicate =
+		[MaxDistances, MaxDistanceBase, MaxDistanceRange](int32 Index)
+		{
+			return MaxDistances.IsValidIndex(Index) && MaxDistanceBase + MaxDistanceRange * MaxDistances[Index] < KinematicDistanceThreshold;
+		};
 
 	const int32 MassMode = ConfigProperties.GetValue<int32>(TEXT("MassMode"), ClothingSimulationClothDefault::MassMode);
 	const FRealSingle MassValue = (FRealSingle)ConfigProperties.GetValue<float>(TEXT("MassValue"), ClothingSimulationClothDefault::MassValue);
@@ -185,7 +207,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Create constraints
 	const bool bEnabled = false;  // Set constraint disabled by default
-	ClothConstraints.AddRules(ConfigProperties, TriangleMesh, WeightMaps, Tethers, MeshScale, bEnabled, &PatternData);
+	ClothConstraints.AddRules(ConfigProperties, TriangleMesh, &PatternData, WeightMaps, Tethers, MeshScale, bEnabled);
 
 	// Update LOD stats
 	const TConstArrayView<Softs::FSolverReal> InvMasses(Solver->GetParticleInvMasses(Offset), NumParticles);
@@ -225,7 +247,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_AB
 	const Softs::FSolverReal MeshScale = Cloth->Mesh->GetScale();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	const Softs::FSolverReal MaxDistancesScale = (Softs::FSolverReal)Cloth->MaxDistancesMultiplier;
-	ClothConstraints.Update(Cloth->Config->GetProperties(), MeshScale, MaxDistancesScale);
+	ClothConstraints.Update(Cloth->Config->GetProperties(), WeightMaps, MeshScale, MaxDistancesScale);
 }
 
 void FClothingSimulationCloth::FLODData::Enable(FClothingSimulationSolver* Solver, bool bEnable) const
@@ -479,18 +501,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Max distance
 	{
 		const int32 MaxDistanceIndex = Properties.AddProperty(TEXT("MaxDistance"));
-		Properties.SetWeightedValue(MaxDistanceIndex, 1.f, 1.f);  // Backward compatibility with legacy mask means can't be different from 1.
+		Properties.SetWeightedValue(MaxDistanceIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
 		Properties.SetStringValue(MaxDistanceIndex, TEXT("MaxDistance"));
 	}
 
 	// Backstop
 	{
 		const int32 BackstopScaleIndex = Properties.AddProperty(TEXT("BackstopDistance"));
-		Properties.SetWeightedValue(BackstopScaleIndex, 1.f, 1.f);  // Backward compatibility with legacy mask means can't be different from 1.
+		Properties.SetWeightedValue(BackstopScaleIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
 		Properties.SetStringValue(BackstopScaleIndex, TEXT("BackstopDistance"));
 
 		const int32 BackstopRadiusIndex = Properties.AddProperty(TEXT("BackstopRadius"));
-		Properties.SetWeightedValue(BackstopRadiusIndex, 1.f, 1.f);  // Backward compatibility with legacy mask means can't be different from 1.
+		Properties.SetWeightedValue(BackstopRadiusIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
 		Properties.SetStringValue(BackstopRadiusIndex, TEXT("BackstopRadius"));
 
 		Properties.AddValue(TEXT("UseLegacyBackstop"), bInUseLegacyBackstop);
@@ -517,22 +539,40 @@ void FClothingSimulationCloth::SetMesh(FClothingSimulationMesh* InMesh)
 {
 	Mesh = InMesh;
 
+	// Build weight map index lookup
+	const TMap<FString, int32> WeightMapIndices = Mesh ? Mesh->GetWeightMapIndices() : TMap<FString, int32>();
+
 	// Reset LODs
 	const int32 NumLODs = Mesh ? Mesh->GetNumLODs() : 0;
 	LODData.Reset(NumLODs);
 
 	const ETetherMode TetherMode = (ETetherMode)Config->GetProperties().GetValue<int32>(TEXT("TetherMode"), ClothingSimulationClothDefault::TetherMode);
 	const bool bUseGeodesicTethers = (TetherMode == ETetherMode::Geodesic);
-	for (int32 Index = 0; Index < NumLODs; ++Index)
+	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 	{
+		// Regenerate LOD weight maps lookup map
+		TMap<FString, TConstArrayView<FRealSingle>> WeightMaps;
+		WeightMaps.Reserve(WeightMapIndices.Num());
+
+		const TArray<TConstArrayView<FRealSingle>> WeightMapArray = Mesh->GetWeightMaps(LODIndex);
+
+		for (const TPair<FString, int32>& WeightMapIndex : WeightMapIndices)
+		{
+			WeightMaps.Add(WeightMapIndex.Key,
+				WeightMapArray.IsValidIndex(WeightMapIndex.Value) ?
+					WeightMapArray[WeightMapIndex.Value] :
+					TConstArrayView<FRealSingle>());
+		}
+
+		// Add LOD data
 		LODData.Add(MakeUnique<FLODData>(
-			Mesh->GetNumPoints(Index),
-			Mesh->GetIndices(Index),
-			Mesh->GetPatternPositions(Index),
-			Mesh->GetPatternIndices(Index),
-			Mesh->GetPatternToWeldedIndices(Index),
-			Mesh->GetWeightMaps(Index),
-			Mesh->GetTethers(Index, bUseGeodesicTethers)));
+			Mesh->GetNumPoints(LODIndex),
+			Mesh->GetIndices(LODIndex),
+			Mesh->GetPatternPositions(LODIndex),
+			Mesh->GetPatternIndices(LODIndex),
+			Mesh->GetPatternToWeldedIndices(LODIndex),
+			MoveTemp(WeightMaps),
+			Mesh->GetTethers(LODIndex, bUseGeodesicTethers)));
 	}
 
 	// Iterate all known solvers
@@ -548,14 +588,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FClothingSimulationCloth::SetConfig(FClothingSimulationConfig* InConfig)
 {
+	// If the PropertyCollection is owned by this object, so does the current config object
+	if (PropertyCollection.IsValid())
+	{
+		delete Config;
+		PropertyCollection.Reset();
+	}
+
 	if (InConfig)
 	{
-		// If the PropertyCollection is owned by this object, so does the current config object
-		if (InConfig && PropertyCollection.IsValid())
-		{
-			delete Config;
-			PropertyCollection.Reset();
-		}
 		Config = InConfig;
 	}
 	else
@@ -755,11 +796,24 @@ const FTriangleMesh& FClothingSimulationCloth::GetTriangleMesh(const FClothingSi
 	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex]->SolverData.FindChecked(Solver).TriangleMesh : EmptyTriangleMesh;
 }
 
+// Deprecated for 5.3
 const TArray<TConstArrayView<FRealSingle>>& FClothingSimulationCloth::GetWeightMaps(const FClothingSimulationSolver* Solver) const
 {
-	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	static const TArray<TConstArrayView<FRealSingle>> EmptyWeightMaps;
-	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex]->WeightMaps : EmptyWeightMaps;
+	return EmptyWeightMaps;  // Can't return a reference anymore, so returning an empty weightmap array is probably the safest for existing code
+}
+
+TConstArrayView<FRealSingle> FClothingSimulationCloth::GetWeightMapByName(const FClothingSimulationSolver* Solver, const FString& Name) const
+{
+	const int32 LODIndex = LODIndices.FindChecked(Solver);
+	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex]->WeightMaps.FindRef(Name) : TConstArrayView<FRealSingle>();
+}
+
+TConstArrayView<FRealSingle> FClothingSimulationCloth::GetWeightMapByProperty(const FClothingSimulationSolver* Solver, const FString& Property) const
+{
+	check(Config);
+	const FString PropertyString = Config->GetProperties().GetStringValue(Property);
+	return GetWeightMapByName(Solver, PropertyString);
 }
 
 const TArray<TConstArrayView<TTuple<int32, int32, float>>>& FClothingSimulationCloth::GetTethers(const FClothingSimulationSolver* Solver) const
@@ -842,6 +896,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_AB
 	Mesh->Update(Solver, PrevLODIndex, LODIndex, PrevOffset, Offset);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	check(Config);
+	const Softs::FCollectionPropertyFacade& ConfigProperties = Config->GetProperties();
+
 	// LOD Switching
 	if (LODIndex != PrevLODIndex)
 	{
@@ -871,9 +928,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				Solver->GetParticleVs(Offset));
 
 				// Update the wind velocity field for the new LOD mesh
-				const TConstArrayView<FRealSingle>& DragMultipliers = LODData[LODIndex]->WeightMaps[(int32)EChaosWeightMapTarget::Drag];
-				const TConstArrayView<FRealSingle>& LiftMultipliers = LODData[LODIndex]->WeightMaps[(int32)EChaosWeightMapTarget::Lift];
-				const TConstArrayView<FRealSingle>& PressureMultipliers = LODData[LODIndex]->WeightMaps[(int32)EChaosWeightMapTarget::Pressure];
+				FString DragString = TEXT("Drag");            // The default name is the property name
+				FString LiftString = TEXT("Lift");            //
+				FString PressureString = TEXT("Pressure");    //
+				DragString = ConfigProperties.GetStringValue(DragString, DragString);
+				LiftString = ConfigProperties.GetStringValue(LiftString, LiftString);
+				PressureString = ConfigProperties.GetStringValue(PressureString, PressureString);
+				const TConstArrayView<FRealSingle> DragMultipliers = LODData[LODIndex]->WeightMaps.FindRef(DragString);
+				const TConstArrayView<FRealSingle> LiftMultipliers = LODData[LODIndex]->WeightMaps.FindRef(LiftString);
+				const TConstArrayView<FRealSingle> PressureMultipliers = LODData[LODIndex]->WeightMaps.FindRef(PressureString);
 
 				Solver->SetWindAndPressureGeometry(GroupId, GetTriangleMesh(Solver), DragMultipliers, LiftMultipliers, PressureMultipliers);
 		}
@@ -886,9 +949,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (LODIndex != INDEX_NONE)
 	{
-		check(Config);
-		const Softs::FCollectionPropertyFacade& ConfigProperties = Config->GetProperties();
-
 		// Update Cloth group parameters  TODO: Cloth groups should exist as their own node object so that they can be used by several cloth objects
 		LODData[LODIndex]->Update(Solver, this);
 
@@ -942,18 +1002,47 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const bool bUsePointBasedWindModel = ConfigProperties.GetValue<bool>(TEXT("UsePointBasedWindModel"));
 		Solver->AddExternalForces(GroupId, bUsePointBasedWindModel);
 
-		const FVec2f Pressure = ConfigProperties.GetWeightedFloatValue(TEXT("Pressure"));
+		int32 PressurePropertyKeyIndex;
+		const FVec2f Pressure(ConfigProperties.GetWeightedFloatValue(TEXT("Pressure"), ClothingSimulationClothDefault::Pressure, &PressurePropertyKeyIndex));
 		if (bUsePointBasedWindModel && ClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
 		{
 			Solver->SetWindAndPressureProperties(GroupId, TVec2<FRealSingle>(0.), TVec2<FRealSingle>(0.), (FRealSingle)0., Pressure);  // Disable the wind velocity field
+			
+			if (ConfigProperties.IsStringDirty(PressurePropertyKeyIndex))
+			{
+				const FString& PressureString = ConfigProperties.GetStringValue(PressurePropertyKeyIndex);
+				Solver->SetWindAndPressureMultipliers(
+					GroupId,
+					TConstArrayView<FRealSingle>(),
+					TConstArrayView<FRealSingle>(),
+					LODData[LODIndex]->WeightMaps.FindRef(PressureString));
+			}
 		}
 		else
 		{
-			const FVec2f Drag = ConfigProperties.GetWeightedFloatValue(TEXT("Drag"), ClothingSimulationClothDefault::Drag);
-			const FVec2f Lift = ConfigProperties.GetWeightedFloatValue(TEXT("Lift"), ClothingSimulationClothDefault::Lift);
+			int32 DragPropertyKeyIndex;
+			int32 LiftPropertyKeyIndex;
+			const FVec2f Drag(ConfigProperties.GetWeightedFloatValue(TEXT("Drag"), ClothingSimulationClothDefault::Drag, &DragPropertyKeyIndex));
+			const FVec2f Lift(ConfigProperties.GetWeightedFloatValue(TEXT("Lift"), ClothingSimulationClothDefault::Lift, &LiftPropertyKeyIndex));
 			const FRealSingle AirDensity = ConfigProperties.GetValue<float>(TEXT("AirDensity"), ClothingSimulationClothDefault::AirDensity);
+
 			Solver->SetWindAndPressureProperties(GroupId, Drag, Lift, AirDensity, Pressure);
+
+			if (ConfigProperties.IsStringDirty(DragPropertyKeyIndex) ||
+				ConfigProperties.IsStringDirty(LiftPropertyKeyIndex) ||
+				ConfigProperties.IsStringDirty(PressurePropertyKeyIndex))
+			{
+				const FString& DragString = ConfigProperties.GetStringValue(DragPropertyKeyIndex);
+				const FString& LiftString = ConfigProperties.GetStringValue(LiftPropertyKeyIndex);
+				const FString& PressureString = ConfigProperties.GetStringValue(PressurePropertyKeyIndex);
+				Solver->SetWindAndPressureMultipliers(
+					GroupId,
+					LODData[LODIndex]->WeightMaps.FindRef(DragString),
+					LODData[LODIndex]->WeightMaps.FindRef(LiftString),
+					LODData[LODIndex]->WeightMaps.FindRef(PressureString));
+			}
 		}
+
 		const FVec3f WindVelocity = ConfigProperties.GetValue<FVector3f>(TEXT("WindVelocity"));
 		Solver->SetWindVelocity(GroupId, WindVelocity + Solver->GetWindVelocity());
 
@@ -988,6 +1077,9 @@ void FClothingSimulationCloth::PostUpdate(FClothingSimulationSolver* Solver)
 		// Update normals
 		LODData[LODIndex]->UpdateNormals(Solver);
 	}
+
+	// Clear the cloth config dirty flags
+	Config->GetProperties().ClearDirtyFlags();
 }
 
 void FClothingSimulationCloth::UpdateFromCache(const FClothingSimulationCacheData& CacheData)

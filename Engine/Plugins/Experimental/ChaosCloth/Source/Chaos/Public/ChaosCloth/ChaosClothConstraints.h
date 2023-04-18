@@ -44,12 +44,28 @@ namespace Chaos
 		void AddRules(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			const FTriangleMesh& TriangleMesh,
-			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const FClothingPatternData* PatternData,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 			Softs::FSolverReal MeshScale,
-			bool bEnabled,
-			const FClothingPatternData* PatternData = nullptr);
+			bool bEnabled);
 
+		UE_DEPRECATED(5.3, "Use AddRules() with WeightMaps and optional PatternData instead.")
+		void AddRules(
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
+			const FTriangleMesh& TriangleMesh,
+			const TArray<TConstArrayView<FRealSingle>>& WeightMapArray,
+			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
+			Softs::FSolverReal MeshScale,
+			bool bEnabled);
+
+		void Update(
+			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+			Softs::FSolverReal MeshScale,
+			Softs::FSolverReal MaxDistancesScale = (Softs::FSolverReal)1.);
+
+		UE_DEPRECATED(5.3, "Use Update() with WeightMaps instead.")
 		void Update(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 			Softs::FSolverReal MeshScale,
@@ -182,34 +198,34 @@ namespace Chaos
 			const FTriangleMesh& TriangleMesh);
 		void CreateStretchConstraints(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 			const FTriangleMesh& TriangleMesh,
 			const FClothingPatternData* PatternData);
 		void CreateBendingConstraints(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 			const FTriangleMesh& TriangleMesh,
 			const FClothingPatternData* PatternData);
 		void CreateAreaConstraints(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 			const FTriangleMesh& TriangleMesh);
 		void CreateLongRangeConstraints(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 			Softs::FSolverReal MeshScale);
 		void CreateMaxDistanceConstraints(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 			Softs::FSolverReal MeshScale);
 		void CreateBackstopConstraints(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-			const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 			Softs::FSolverReal MeshScale);
 		void CreateAnimDriveConstraints(
 			const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-			const TArray<TConstArrayView<FRealSingle>>& WeightMaps);
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 
 		//~ Begin deprecated constraints
 		TSharedPtr<Softs::FPBDSpringConstraints> EdgeConstraints_Deprecated;

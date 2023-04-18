@@ -61,34 +61,15 @@ public:
 		}
 	}
 
+	void SetProperties(
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps,
+		FSolverReal WorldScale);
+
+	UE_DEPRECATED(5.3, "Use SetProperties(const FCollectionPropertyConstFacade&, const TMap<FString, TConstArrayView<FRealSingle>>&, FSolverReal) instead.")
 	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection, FSolverReal WorldScale)
 	{
-		if (IsFluidDensityMutable(PropertyCollection))
-		{
-			constexpr FSolverReal OneQuarter = (FSolverReal)0.25;
-			QuarterRho = (FSolverReal)GetFluidDensity(PropertyCollection) * OneQuarter;
-		}
-
-		if (IsDragMutable(PropertyCollection))
-		{
-			const FSolverVec2 Drag(GetWeightedFloatDrag(PropertyCollection));
-			DragBase = FMath::Clamp(Drag[0], MinCoefficient, MaxCoefficient);
-			DragRange = FMath::Clamp(Drag[1], MinCoefficient, MaxCoefficient) - DragBase;
-		}
-
-		if (IsLiftMutable(PropertyCollection))
-		{
-			const FSolverVec2 Lift(GetWeightedFloatLift(PropertyCollection));
-			LiftBase = FMath::Clamp(Lift[0], MinCoefficient, MaxCoefficient);
-			LiftRange = FMath::Clamp(Lift[1], MinCoefficient, MaxCoefficient) - LiftBase;
-		}
-
-		if (IsPressureMutable(PropertyCollection))
-		{
-			const FSolverVec2 Pressure(GetWeightedFloatPressure(PropertyCollection));
-			PressureBase = Pressure[0] / WorldScale;
-			PressureRange = Pressure[1] / WorldScale - PressureBase;
-		}
+		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>(), WorldScale);
 	}
 
 	void SetProperties(const FSolverVec2& Drag, const FSolverVec2& Lift, const FSolverReal FluidDensity, const FSolverVec2& Pressure = FSolverVec2::ZeroVector)
@@ -111,6 +92,10 @@ public:
 	}
 
 	void SetGeometry(const FTriangleMesh* TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers, const TConstArrayView<FRealSingle>& PressureMultipliers = TConstArrayView<FRealSingle>());
+	void SetMultipliers(
+		const TConstArrayView<FRealSingle>& DragMultipliers,
+		const TConstArrayView<FRealSingle>& LiftMultipliers,
+		const TConstArrayView<FRealSingle>& PressureMultipliers);
 
 	void SetVelocity(const FSolverVec3& InVelocity) { Velocity = InVelocity; }
 

@@ -50,7 +50,12 @@ public:
 		FSolverReal InParameterFitBase = DefaultParameterFitBase,  // Logarithm base to use in the PBD stiffness parameter fit function
 		FSolverReal MaxStiffness = DefaultPBDMaxStiffness);
 
-	~FPBDStiffness() {}
+	virtual ~FPBDStiffness() override = default;
+
+	FPBDStiffness(const FPBDStiffness&) = default;
+	FPBDStiffness(FPBDStiffness&&) = default;
+	FPBDStiffness& operator=(const FPBDStiffness&) = default;
+	FPBDStiffness& operator=(FPBDStiffness&&) = default;
 
 	/**
 	 * Set the low and high values of the weight map.
@@ -73,8 +78,8 @@ public:
 	inline void ApplyXPBDValues(const FSolverReal MaxStiffnesss);
 
 private:
-	const FSolverReal ParameterFitBase;
-	const FSolverReal ParameterFitLogBase;
+	FSolverReal ParameterFitBase;
+	FSolverReal ParameterFitLogBase;
 	FSolverReal PrevDtOrMaxStiffness = (FSolverReal)0.;
 	int32 PrevNumIterations = 0;
 	using FPBDWeightMap::bIsDirty;

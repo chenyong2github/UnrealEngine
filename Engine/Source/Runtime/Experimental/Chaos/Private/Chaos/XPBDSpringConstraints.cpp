@@ -30,7 +30,7 @@ static int32 Chaos_XPBDSpring_ParallelConstraintCount = 100;
 FAutoConsoleVariableRef CVarChaosXPBDSpringParallelConstraintCount(TEXT("p.Chaos.XPBDSpring.ParallelConstraintCount"), Chaos_XPBDSpring_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
 #endif
 
-void FXPBDSpringConstraints::InitColor(const FSolverParticles& Particles, const int32 ParticleOffset, const int32 ParticleCount)
+void FXPBDSpringConstraints::InitColor(const FSolverParticles& Particles)
 {
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -253,6 +253,96 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 				const FSolverReal DampingRatioValue = DampingHasWeightMap ? DampingRatio[ConstraintIndex] : DampingNoMap;
 				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue, DampingRatioValue);
 			}
+		}
+	}
+}
+
+void FXPBDEdgeSpringConstraints::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
+{
+	if (IsXPBDEdgeSpringStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDEdgeSpringStiffness(PropertyCollection));
+		if (IsXPBDEdgeSpringStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDEdgeSpringStiffnessString(PropertyCollection);
+			Stiffness = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(Constraints),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			Stiffness.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDEdgeSpringDampingMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDEdgeSpringDamping(PropertyCollection)).ClampAxes(MinDampingRatio, MaxDampingRatio);
+		if (IsXPBDEdgeSpringDampingStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDEdgeSpringDampingString(PropertyCollection);
+			DampingRatio = FPBDWeightMap(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(Constraints),
+				ParticleOffset,
+				ParticleCount);
+		}
+		else
+		{
+			DampingRatio.SetWeightedValue(WeightedValue);
+		}
+	}
+}
+
+void FXPBDBendingSpringConstraints::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
+{
+	if (IsXPBDBendingSpringStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDBendingSpringStiffness(PropertyCollection));
+		if (IsXPBDBendingSpringStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBendingSpringStiffnessString(PropertyCollection);
+			Stiffness = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(Constraints),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			Stiffness.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDBendingSpringDampingMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDBendingSpringDamping(PropertyCollection)).ClampAxes(MinDampingRatio, MaxDampingRatio);
+		if (IsXPBDBendingSpringDampingStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBendingSpringDampingString(PropertyCollection);
+			DampingRatio = FPBDWeightMap(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(Constraints),
+				ParticleOffset,
+				ParticleCount);
+		}
+		else
+		{
+			DampingRatio.SetWeightedValue(WeightedValue);
 		}
 	}
 }

@@ -37,9 +37,6 @@ struct FChaosClothSimulationLodModel
 	UPROPERTY()
 	TArray<FClothVertBoneData> BoneData;
 
-	UPROPERTY()
-	TArray<float> MaxDistance;
-
 	/** 2d pattern positions. */
 	UPROPERTY()
 	TArray<FVector2f> PatternPositions;
@@ -51,6 +48,21 @@ struct FChaosClothSimulationLodModel
 	/** Map from PatternsPositions indices to Positions indices. */
 	UPROPERTY()
 	TArray<uint32> PatternToWeldedIndices;
+
+	/** Weight maps for storing painted attributes modifiers on constraint properties. */
+	TMap<FName, TArray<float>> WeightMaps;
+
+	// Custom serialize for weight maps
+	bool Serialize(FArchive& Ar);
+};
+
+template<>
+struct TStructOpsTypeTraits<FChaosClothSimulationLodModel> : public TStructOpsTypeTraitsBase2<FChaosClothSimulationLodModel>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
 };
 
 /**

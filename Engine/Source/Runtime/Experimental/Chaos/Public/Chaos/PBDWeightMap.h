@@ -41,7 +41,12 @@ public:
 		int32 TableSize = 16,  // Size of the lookup table, can't be more than 256 values, the larger the table the longer it takes to apply changes to the stiffness values
 		typename TEnableIf<Valence >= 2 && Valence <= 4>::Type* = nullptr);  // Prevents incorrect valence, the value is actually unused
 
-	~FPBDWeightMap() {}
+	virtual ~FPBDWeightMap() = default;
+
+	FPBDWeightMap(const FPBDWeightMap&) = default;
+	FPBDWeightMap(FPBDWeightMap&&) = default;
+	FPBDWeightMap& operator=(const FPBDWeightMap&) = default;
+	FPBDWeightMap& operator=(FPBDWeightMap&&) = default;
 
 	/** Return the number of values stored in the weight map. */
 	int32 Num() const { return Indices.Num(); }

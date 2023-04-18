@@ -140,9 +140,10 @@ protected:
 protected:
 	static constexpr int32 TableSize = 16;  // The size of the weightmaps lookup table
 	const TArray<TConstArrayView<FTether>>& Tethers;  // Array view on the tether provided to this constraint
+	const int32 ParticleOffset;  // Index of the first usable particle
+	const int32 ParticleCount;
 	FPBDStiffness Stiffness;  // Stiffness weightmap lookup table
 	FPBDWeightMap TetherScale;  // Scale weightmap lookup table
-	const int32 ParticleOffset;  // Index of the first usable particle
 
 	UE_DEPRECATED(5.2, "Use TetherScale instead")
 	TArray<uint8> ScaleIndices;
@@ -150,7 +151,5 @@ protected:
 	TArray<FSolverReal> ScaleTable;
 	UE_DEPRECATED(5.2, "Use TetherScale instead")
 	FSolverVec2 Scale;
-	UE_DEPRECATED(5.2, "Use TetherScale.Num() or Stiffness.Num(), instead")
-	const int32 ParticleCount = 0;
 };
 }  // End namespace Chaos::Softs

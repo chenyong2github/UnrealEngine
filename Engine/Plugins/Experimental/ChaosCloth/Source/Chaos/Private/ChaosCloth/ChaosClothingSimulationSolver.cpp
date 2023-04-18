@@ -786,11 +786,25 @@ void FClothingSimulationSolver::SetWindVelocity(uint32 GroupId, const TVec3<FRea
 	VelocityField.SetVelocity(Softs::FSolverVec3(InWindVelocity));
 }
 
-void FClothingSimulationSolver::SetWindAndPressureGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers,
+void FClothingSimulationSolver::SetWindAndPressureGeometry(
+	uint32 GroupId,
+	const FTriangleMesh& TriangleMesh,
+	const TConstArrayView<FRealSingle>& DragMultipliers,
+	const TConstArrayView<FRealSingle>& LiftMultipliers,
 	const TConstArrayView<FRealSingle>& PressureMultipliers)
 {
 	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
 	VelocityField.SetGeometry(&TriangleMesh, DragMultipliers, LiftMultipliers, PressureMultipliers);
+}
+
+void FClothingSimulationSolver::SetWindAndPressureMultipliers(
+	uint32 GroupId,
+	const TConstArrayView<FRealSingle>& DragMultipliers,
+	const TConstArrayView<FRealSingle>& LiftMultipliers,
+	const TConstArrayView<FRealSingle>& PressureMultipliers)
+{
+	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
+	VelocityField.SetMultipliers(DragMultipliers, LiftMultipliers, PressureMultipliers);
 }
 
 void FClothingSimulationSolver::SetWindAndPressureProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity, const TVec2<FRealSingle>& Pressure)
@@ -1175,6 +1189,9 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 			FClothingSimulationCloth* const Cloth = Cloths[ClothIndex];
 			Cloth->PostUpdate(this);
 		}, /*bForceSingleThreaded =*/ !bClothSolverParallelClothPostUpdate);
+
+		// Clear the solver config dirty flags
+		Config->GetProperties().ClearDirtyFlags();
 	}
 
 	// Save old space location for next update

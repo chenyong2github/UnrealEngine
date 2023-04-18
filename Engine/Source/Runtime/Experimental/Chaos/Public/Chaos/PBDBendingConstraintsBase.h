@@ -14,8 +14,8 @@ class FPBDBendingConstraintsBase
 {
 public:
 	FPBDBendingConstraintsBase(const FSolverParticles& InParticles,
-		int32 ParticleOffset,
-		int32 ParticleCount, 
+		int32 InParticleOffset,
+		int32 InParticleCount, 
 		TArray<TVec4<int32>>&& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers,
@@ -26,6 +26,8 @@ public:
 		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness)
 		: Constraints(bTrimKinematicConstraints ? TrimKinematicConstraints(InConstraints, InParticles): MoveTemp(InConstraints))
 		, ConstraintSharedEdges(ExtractConstraintSharedEdges(Constraints))
+		, ParticleOffset(InParticleOffset)
+		, ParticleCount(InParticleCount)
 		, Stiffness(
 			InStiffness,
 			StiffnessMultipliers,
@@ -58,8 +60,10 @@ public:
 
 	UE_DEPRECATED(5.2, "Use one of the other constructors instead.")
 	FPBDBendingConstraintsBase(const FSolverParticles& InParticles, TArray<TVec4<int32>>&& InConstraints, const FSolverReal InStiffness = (FSolverReal)1.)
-	    : Constraints(MoveTemp(InConstraints))
+		: Constraints(MoveTemp(InConstraints))
 		, ConstraintSharedEdges(ExtractConstraintSharedEdges(Constraints))
+		, ParticleOffset(0)
+		, ParticleCount(InParticles.Size())
 		, Stiffness(FSolverVec2(InStiffness))
 		, BucklingRatio(0.f)
 		, BucklingStiffness(FSolverVec2(InStiffness))
@@ -256,6 +260,9 @@ private:
 protected:
 	TArray<TVec4<int32>> Constraints;
 	TArray<TVec2<int32>> ConstraintSharedEdges; // Only shared edges are used for calculating weighted stiffnesses.
+
+	const int32 ParticleOffset;
+	const int32 ParticleCount;
 
 	FPBDStiffness Stiffness;
 	FSolverReal BucklingRatio;

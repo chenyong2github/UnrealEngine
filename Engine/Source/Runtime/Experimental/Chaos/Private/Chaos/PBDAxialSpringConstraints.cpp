@@ -23,7 +23,7 @@ namespace Chaos::Softs {
 int32 Chaos_AxialSpring_ParallelConstraintCount = 100;
 FAutoConsoleVariableRef CVarChaosAxialSpringParallelConstraintCount(TEXT("p.Chaos.AxialSpring.ParallelConstraintCount"), Chaos_AxialSpring_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
 
-void FPBDAxialSpringConstraints::InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount)
+void FPBDAxialSpringConstraints::InitColor(const FSolverParticles& InParticles)
 {
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -184,6 +184,30 @@ void FPBDAxialSpringConstraints::Apply(FSolverParticles& Particles, const FSolve
 				const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
 				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
 			}
+		}
+	}
+}
+
+void FPBDAreaSpringConstraints::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
+{
+	if (IsAreaSpringStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatAreaSpringStiffness(PropertyCollection));
+		if (IsAreaSpringStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetAreaSpringStiffnessString(PropertyCollection);
+			Stiffness = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec3<int32>>(Constraints),
+				ParticleOffset,
+				ParticleCount);
+		}
+		else
+		{
+			Stiffness.SetWeightedValue(WeightedValue);
 		}
 	}
 }

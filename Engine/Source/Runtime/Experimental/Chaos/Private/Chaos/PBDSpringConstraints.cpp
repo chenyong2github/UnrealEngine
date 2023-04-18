@@ -30,7 +30,7 @@ static int32 Chaos_Spring_ParallelConstraintCount = 100;
 FAutoConsoleVariableRef CVarChaosSpringParallelConstraintCount(TEXT("p.Chaos.Spring.ParallelConstraintCount"), Chaos_Spring_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
 #endif
 
-void FPBDSpringConstraints::InitColor(const FSolverParticles& Particles, const int32 ParticleOffset, const int32 ParticleCount)
+void FPBDSpringConstraints::InitColor(const FSolverParticles& Particles)
 {
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -180,6 +180,44 @@ void FPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverReal
 				const FSolverReal ExpStiffnessValue = Stiffness[ConstraintIndex];
 				ApplyHelper(Particles, Dt, ConstraintIndex, ExpStiffnessValue);
 			}
+		}
+	}
+}
+
+void FPBDEdgeSpringConstraints::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
+{
+	if (IsEdgeSpringStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatEdgeSpringStiffness(PropertyCollection));
+		if (IsEdgeSpringStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetEdgeSpringStiffnessString(PropertyCollection);
+			Stiffness = FPBDStiffness(WeightedValue, WeightMaps.FindRef(WeightMapName), ParticleCount);
+		}
+		else
+		{
+			Stiffness.SetWeightedValue(WeightedValue);
+		}
+	}
+}
+
+void FPBDBendingSpringConstraints::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
+{
+	if (IsBendingSpringStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatBendingSpringStiffness(PropertyCollection));
+		if (IsBendingSpringStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetBendingSpringStiffnessString(PropertyCollection);
+			Stiffness = FPBDStiffness(WeightedValue, WeightMaps.FindRef(WeightMapName), ParticleCount);
+		}
+		else
+		{
+			Stiffness.SetWeightedValue(WeightedValue);
 		}
 	}
 }

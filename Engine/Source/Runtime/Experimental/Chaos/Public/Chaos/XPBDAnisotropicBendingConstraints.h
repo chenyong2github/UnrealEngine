@@ -30,23 +30,17 @@ public:
 	}
 
 	FXPBDAnisotropicBendingConstraints(const FSolverParticles& InParticles,
-		int32 ParticleOffset,
-		int32 ParticleCount,
+		int32 InParticleOffset,
+		int32 InParticleCount,
 		const FTriangleMesh& TriangleMesh,
 		const TArray<TVec3<FVec2f>>& FaceVertexPatternPositions,
-		const TConstArrayView<FRealSingle>& StiffnessWarpMultipliers,
-		const TConstArrayView<FRealSingle>& StiffnessWeftMultipliers,
-		const TConstArrayView<FRealSingle>& StiffnessBiasMultipliers,
-		const TConstArrayView<FRealSingle>& BucklingStiffnessWarpMultipliers,
-		const TConstArrayView<FRealSingle>& BucklingStiffnessWeftMultipliers,
-		const TConstArrayView<FRealSingle>& BucklingStiffnessBiasMultipliers,
-		const TConstArrayView<FRealSingle>& DampingMultipliers,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints = false);
 
 	FXPBDAnisotropicBendingConstraints(const FSolverParticles& InParticles,
-		int32 ParticleOffset,
-		int32 ParticleCount,
+		int32 InParticleOffset,
+		int32 InParticleCount,
 		const FTriangleMesh& TriangleMesh,
 		const TArray<TVec3<FVec2f>>& FaceVertexPatternPositions,
 		const TConstArrayView<FRealSingle>& StiffnessWarpMultipliers,
@@ -75,40 +69,14 @@ public:
 		FPBDBendingConstraintsBase::Init(InParticles);
 	}
 
+	void SetProperties(
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
+
+	UE_DEPRECATED(5.3, "Use SetProperties(const FCollectionPropertyConstFacade&, const TMap<FString, TConstArrayView<FRealSingle>>&, FSolverReal) instead.")
 	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
-		if (IsXPBDBendingElementStiffnessWarpMutable(PropertyCollection))
-		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDBendingElementStiffnessWarp(PropertyCollection)), MaxStiffness);
-		}
-		if (IsXPBDBendingElementStiffnessWeftMutable(PropertyCollection))
-		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDBendingElementStiffnessWeft(PropertyCollection)), MaxStiffness);
-		}
-		if (IsXPBDBendingElementStiffnessBiasMutable(PropertyCollection))
-		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDBendingElementStiffnessBias(PropertyCollection)), MaxStiffness);
-		}
-		if (IsXPBDBucklingRatioMutable(PropertyCollection))
-		{
-			BucklingRatio = FMath::Clamp(GetXPBDBucklingRatio(PropertyCollection), (FSolverReal)0., (FSolverReal)1.);
-		}
-		if (IsXPBDBucklingStiffnessWarpMutable(PropertyCollection))
-		{
-			BucklingStiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDBucklingStiffnessWarp(PropertyCollection)), MaxStiffness);
-		}
-		if (IsXPBDBucklingStiffnessWeftMutable(PropertyCollection))
-		{
-			BucklingStiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDBucklingStiffnessWeft(PropertyCollection)), MaxStiffness);
-		}
-		if (IsXPBDBucklingStiffnessBiasMutable(PropertyCollection))
-		{
-			BucklingStiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDBucklingStiffnessBias(PropertyCollection)), MaxStiffness);
-		}
-		if (IsXPBDBendingElementDampingMutable(PropertyCollection))
-		{
-			DampingRatio.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDBendingElementDamping(PropertyCollection)).ClampAxes(MinDamping, MaxDamping));
-		}
+		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>());
 	}
 
 	// Update stiffness table, as well as the simulation stiffness exponent
@@ -126,13 +94,15 @@ public:
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 private:
-	void InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount);
+	void InitColor(const FSolverParticles& InParticles);
 	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverVec3& ExpStiffnessValues, 
 		const FSolverVec3& ExpBucklingStiffnessValues, const FSolverReal DampingRatioValue) const;
 
 	TArray<FSolverVec3> GenerateWarpWeftBiasBaseMultipliers(const TArray<TVec3<FVec2f>>& FaceVertexPatternPositions, const FTriangleMesh& TriangleMesh) const;
 
 	using Base::Constraints;
+	using Base::ParticleOffset;
+	using Base::ParticleCount;
 	using Base::RestAngles;
 	using Base::Stiffness; // Warp
 	using Base::BucklingStiffness; // Warp

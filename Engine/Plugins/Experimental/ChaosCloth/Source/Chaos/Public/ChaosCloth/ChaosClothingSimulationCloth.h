@@ -161,7 +161,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		int32 GetNumParticles(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD mesh.
 		const FTriangleMesh& GetTriangleMesh(const FClothingSimulationSolver* Solver) const;
-		// Return the current LOD weightmaps.
+		// Return the weight map of the specified name if available on the current LOD, or an empty array view otherwise.
+		TConstArrayView<FRealSingle> GetWeightMapByName(const FClothingSimulationSolver* Solver, const FString& Name) const;
+		// Return the weight map of the specified property name if it exists and is available on the current LOD, or an empty array view otherwise.
+		TConstArrayView<FRealSingle> GetWeightMapByProperty(const FClothingSimulationSolver* Solver, const FString& Property) const;
+		UE_DEPRECATED(5.3, "Returns an empty array from 5.3. Update your code with GetWeightMapByName and GetWeightMapByProperty to return the current LOD weight map instead.")
 		const TArray<TConstArrayView<FRealSingle>>& GetWeightMaps(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD tethers.
 		const TArray<TConstArrayView<TTuple<int32, int32, float>>>& GetTethers(const FClothingSimulationSolver* Solver) const;

@@ -20,7 +20,9 @@ namespace Chaos
 		Initialize(InPropertyCollection);
 	}
 
-	void FClothingSimulationConfig::Initialize(const UChaosClothConfig* ClothConfig, const UChaosClothSharedSimConfig* ClothSharedConfig)
+	FClothingSimulationConfig::~FClothingSimulationConfig() = default;
+
+	void FClothingSimulationConfig::Initialize(const UChaosClothConfig* ClothConfig, const UChaosClothSharedSimConfig* ClothSharedConfig, bool bUseLegacyConfig)
 	{
 		constexpr bool bEnable = true;
 		constexpr bool bAnimatable = true;
@@ -184,23 +186,26 @@ namespace Chaos
 			// Max distance
 			{
 				const int32 MaxDistanceIndex = Properties->AddProperty(TEXT("MaxDistance"));
-				Properties->SetWeightedValue(MaxDistanceIndex, 1.f, 1.f);  // Backward compatibility with legacy mask means it can't be different from 1.
+				Properties->SetWeightedValue(MaxDistanceIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
 				Properties->SetStringValue(MaxDistanceIndex, TEXT("MaxDistance"));
 			}
 
 			// Backstop
 			{
 				const int32 BackstopDistanceIndex = Properties->AddProperty(TEXT("BackstopDistance"));
-				Properties->SetWeightedValue(BackstopDistanceIndex, 1.f, 1.f);  // Backward compatibility with legacy mask means it can't be different from 1.
+				Properties->SetWeightedValue(BackstopDistanceIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
 				Properties->SetStringValue(BackstopDistanceIndex, TEXT("BackstopDistance"));
 
 				const int32 BackstopRadiusIndex = Properties->AddProperty(TEXT("BackstopRadius"));
-				Properties->SetWeightedValue(BackstopRadiusIndex, 1.f, 1.f);  // Backward compatibility with legacy mask means it can't be different from 1.
+				Properties->SetWeightedValue(BackstopRadiusIndex, 0.f, 1.f);  // Backward compatibility with legacy mask must use a unit range since the multiplier is in the mask
 				Properties->SetStringValue(BackstopRadiusIndex, TEXT("BackstopRadius"));
 
 				Properties->AddValue(TEXT("UseLegacyBackstop"), ClothConfig->bUseLegacyBackstop);
 			}
 		}
+
+		// Mark this as a potential legacy config, but leave the behavior control to the client code
+		Properties->AddValue(TEXT("UseLegacyConfig"), bUseLegacyConfig);
 	}
 
 	void FClothingSimulationConfig::Initialize(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection)

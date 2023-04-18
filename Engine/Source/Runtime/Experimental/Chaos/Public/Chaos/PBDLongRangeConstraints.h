@@ -26,6 +26,28 @@ public:
 		const int32 InParticleOffset,
 		const int32 InParticleCount,
 		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		FSolverReal MeshScale)
+		: FPBDLongRangeConstraintsBase(
+			Particles,
+			InParticleOffset,
+			InParticleCount,
+			InTethers,
+			WeightMaps.FindRef(GetTetherStiffnessString(PropertyCollection, TetherStiffnessName.ToString())),
+			WeightMaps.FindRef(GetTetherScaleString(PropertyCollection, TetherScaleName.ToString())),
+			FSolverVec2(GetWeightedFloatTetherStiffness(PropertyCollection, 1.f)),
+			FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection, 1.f)),  // Scale clamping done in constructor
+			FPBDStiffness::DefaultPBDMaxStiffness,
+			MeshScale)
+	{}
+
+	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
+	FPBDLongRangeConstraints(
+		const FSolverParticles& Particles,
+		const int32 InParticleOffset,
+		const int32 InParticleCount,
+		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const FCollectionPropertyConstFacade& PropertyCollection,
@@ -69,25 +91,27 @@ public:
 
 	using Base::SetProperties;
 
-	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection, FSolverReal MeshScale)
+	void SetProperties(
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+		FSolverReal MeshScale);
+
+	UE_DEPRECATED(5.3, "Use SetProperties(const FCollectionPropertyConstFacade&, const TMap<FString, TConstArrayView<FRealSingle>>&, FSolverReal) instead.")
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
-		if (IsTetherStiffnessMutable(PropertyCollection))
-		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatTetherStiffness(PropertyCollection)));
-		}
-		if (IsTetherScaleMutable(PropertyCollection))
-		{
-			TetherScale.SetWeightedValue(FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection)).ClampAxes(MinTetherScale, MaxTetherScale) * MeshScale);
-		}
+		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>(), (FSolverReal)1.);
 	}
 
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 private:
+	using Base::MinTetherScale;
+	using Base::MaxTetherScale;
 	using Base::Tethers;
 	using Base::Stiffness;
 	using Base::TetherScale;
 	using Base::ParticleOffset;
+	using Base::ParticleCount;
 
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(TetherStiffness, float);
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(TetherScale, float);

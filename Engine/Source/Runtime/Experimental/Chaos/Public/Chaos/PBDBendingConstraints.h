@@ -18,8 +18,31 @@ public:
 	}
 
 	FPBDBendingConstraints(const FSolverParticles& InParticles,
-		int32 ParticleOffset,
-		int32 ParticleCount,
+		int32 InParticleOffset,
+		int32 InParticleCount,
+		TArray<TVec4<int32>>&& InConstraints,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		bool bTrimKinematicConstraints = false)
+		: Base(
+			InParticles,
+			InParticleOffset,
+			InParticleCount,
+			MoveTemp(InConstraints),
+			WeightMaps.FindRef(GetBendingElementStiffnessString(PropertyCollection, BendingElementStiffnessName.ToString())),
+			WeightMaps.FindRef(GetBucklingStiffnessString(PropertyCollection, BucklingStiffnessName.ToString())),
+			FSolverVec2(GetWeightedFloatBendingElementStiffness(PropertyCollection, 1.f)),
+			(FSolverReal)GetBucklingRatio(PropertyCollection, 0.f),  // BucklingRatio is clamped in base class
+			FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection, 1.f)),
+			bTrimKinematicConstraints)
+	{
+		InitColor(InParticles);
+	}
+
+	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
+	FPBDBendingConstraints(const FSolverParticles& InParticles,
+		int32 InParticleOffset,
+		int32 InParticleCount,
 		TArray<TVec4<int32>>&& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers,
@@ -27,8 +50,8 @@ public:
 		bool bTrimKinematicConstraints = false)
 		: Base(
 			InParticles,
-			ParticleOffset,
-			ParticleCount,
+			InParticleOffset,
+			InParticleCount,
 			MoveTemp(InConstraints),
 			StiffnessMultipliers,
 			BucklingStiffnessMultipliers,
@@ -37,7 +60,7 @@ public:
 			FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection, 1.f)),
 			bTrimKinematicConstraints) 
 	{
-		InitColor(InParticles, ParticleOffset, ParticleCount);
+		InitColor(InParticles);
 	}
 
 	FPBDBendingConstraints(const FSolverParticles& InParticles,
@@ -62,7 +85,7 @@ public:
 			InBucklingStiffness,
 			bTrimKinematicConstraints) 
 	{
-		InitColor(InParticles, ParticleOffset, ParticleCount);
+		InitColor(InParticles);
 	}
 
 	UE_DEPRECATED(5.2, "Use one of the other constructors instead.")
@@ -78,29 +101,25 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	using Base::SetProperties;
 
+	void SetProperties(
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
+
+	UE_DEPRECATED(5.3, "Use SetProperties(const FCollectionPropertyConstFacade&, const TMap<FString, TConstArrayView<FRealSingle>>&, FSolverReal) instead.")
 	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
-		if (IsBendingElementStiffnessMutable(PropertyCollection))
-		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBendingElementStiffness(PropertyCollection)));
-		}
-		if (IsBucklingRatioMutable(PropertyCollection))
-		{
-			BucklingRatio = (FSolverReal)FMath::Clamp(GetBucklingRatio(PropertyCollection), 0.f, 1.);
-		}
-		if (IsBucklingStiffnessMutable(PropertyCollection))
-		{
-			BucklingStiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection)));
-		}
+		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>());
 	}
 
 	void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const;
 
 private:
-	void InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount);
+	void InitColor(const FSolverParticles& InParticles);
 	void ApplyHelper(FSolverParticles& InParticles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue, const FSolverReal ExpBucklingValue) const;
 
 	using Base::Constraints;
+	using Base::ParticleOffset;
+	using Base::ParticleCount;
 	using Base::Stiffness;
 	using Base::BucklingRatio;
 	using Base::BucklingStiffness;

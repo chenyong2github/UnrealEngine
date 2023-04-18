@@ -23,7 +23,7 @@ namespace Chaos::Softs {
 int32 Chaos_Bending_ParallelConstraintCount = 100;
 FAutoConsoleVariableRef CVarChaosBendingParallelConstraintCount(TEXT("p.Chaos.Bending.ParallelConstraintCount"), Chaos_Bending_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
 
-void FPBDBendingConstraints::InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount)
+void FPBDBendingConstraints::InitColor(const FSolverParticles& InParticles)
 {
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -65,6 +65,52 @@ void FPBDBendingConstraints::InitColor(const FSolverParticles& InParticles, cons
 		RestAngles = MoveTemp(ReorderedRestAngles);
 		Stiffness.ReorderIndices(OrigToReorderedIndices);
 		BucklingStiffness.ReorderIndices(OrigToReorderedIndices);
+	}
+}
+
+void FPBDBendingConstraints::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
+{
+	if (IsBendingElementStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatBendingElementStiffness(PropertyCollection));
+		if (IsBendingElementStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetBendingElementStiffnessString(PropertyCollection);
+			Stiffness = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount);
+		}
+		else
+		{
+			Stiffness.SetWeightedValue(WeightedValue);
+		}
+	}
+	if (IsBucklingRatioMutable(PropertyCollection))
+	{
+		BucklingRatio = (FSolverReal)FMath::Clamp(GetBucklingRatio(PropertyCollection), 0.f, 1.);
+	}
+	if (IsBucklingStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatBucklingStiffness(PropertyCollection));
+		if (IsBucklingStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetBucklingStiffnessString(PropertyCollection);
+			BucklingStiffness = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount);
+		}
+		else
+		{
+			BucklingStiffness.SetWeightedValue(WeightedValue);
+		}
 	}
 }
 

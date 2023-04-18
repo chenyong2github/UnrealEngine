@@ -77,17 +77,49 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return TConstArrayView<uint32>(ClothSimulationModel.GetPatternToWeldedIndices(LODIndex));
 	}
 
+	TArray<FName> FClothSimulationMesh::GetWeightMapNames() const
+	{
+		TArray<FName> WeightMapNames;
+		if (ClothSimulationModel.ClothSimulationLodModels.Num())
+		{
+			ClothSimulationModel.ClothSimulationLodModels[0].WeightMaps.GetKeys(WeightMapNames);
+		}
+		return WeightMapNames;
+	}
+
+	TMap<FString, int32> FClothSimulationMesh::GetWeightMapIndices() const
+	{
+		TMap<FString, int32> WeightMapIndices;
+
+		// Retrieve weight map names for this cloth
+		const TArray<FName> WeightMapNames = GetWeightMapNames();
+		WeightMapIndices.Reserve(WeightMapNames.Num());
+
+		for (int32 WeightMapIndex = 0; WeightMapIndex < WeightMapNames.Num(); ++WeightMapIndex)
+		{
+			const FName& WeightMapName = WeightMapNames[WeightMapIndex];
+			WeightMapIndices.Emplace(WeightMapName.ToString(), WeightMapIndex);
+		}
+		return WeightMapIndices;
+	}
+
 	TArray<TConstArrayView<::Chaos::FRealSingle>> FClothSimulationMesh::GetWeightMaps(int32 LODIndex) const
 	{
-		constexpr int32 MaxNumWeightMaps = 15; // TODO: Refactor how weight maps are used in base simulation classes
-
 		TArray<TConstArrayView<::Chaos::FRealSingle>> WeightMaps;
-		WeightMaps.SetNum(MaxNumWeightMaps);
 
-		// Set max distance weight map
-		constexpr int32 MaxDistanceWeightMapTarget = 1;		// EWeightMapTargetCommon::MaxDistance
-		WeightMaps[MaxDistanceWeightMapTarget] = TConstArrayView<::Chaos::FRealSingle>(ClothSimulationModel.ClothSimulationLodModels[LODIndex].MaxDistance);
+		// Retrieve weight map names for this cloth
+		const TArray<FName> WeightMapNames = GetWeightMapNames();
+		WeightMaps.Reserve(WeightMapNames.Num());
 
+		for (int32 WeightMapIndex = 0; WeightMapIndex < WeightMapNames.Num(); ++WeightMapIndex)
+		{
+			const FName& WeightMapName = WeightMapNames[WeightMapIndex];
+
+			const TArray<float>& WeightMap = ClothSimulationModel.ClothSimulationLodModels[LODIndex].WeightMaps.FindChecked(WeightMapName);
+			static_assert(std::is_same_v<::Chaos::FRealSingle, float>, "FRealSingle must be same as float for the Array View to match.");
+
+			WeightMaps.Emplace(TConstArrayView<::Chaos::FRealSingle>(WeightMap));
+		}
 		return WeightMaps;
 	}
 

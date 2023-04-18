@@ -36,6 +36,8 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	FSolverReal MaxStiffness,
 	FSolverReal MeshScale)
 	: Tethers(InTethers)
+	, ParticleOffset(InParticleOffset)
+	, ParticleCount(InParticleCount)
 	, Stiffness(
 		InStiffness,
 		StiffnessMultipliers,
@@ -47,7 +49,6 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 		InScale.ClampAxes(MinTetherScale, MaxTetherScale) * MeshScale,
 		ScaleMultipliers,
 		InParticleCount)
-	, ParticleOffset(InParticleOffset)
 {
 	// Apply default properties
 	ApplyProperties((FSolverReal)(1. / FPBDStiffness::ParameterFrequency), 1);

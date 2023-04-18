@@ -369,7 +369,8 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 
 	// Create cloth config runtime simulation object
 	const int32 ClothConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>());
-	Configs[ClothConfigIndex]->Initialize(ClothConfig, nullptr);
+	constexpr bool bUseLegacyConfig = true;  // Make the config a legacy cloth config, so that the constraints disable themselves with missing masks, ...etc.
+	Configs[ClothConfigIndex]->Initialize(ClothConfig, nullptr, bUseLegacyConfig);
 
 	// Create cloth runtime simulation object
 	const int32 ClothIndex = Cloths.Emplace(MakeUnique<FClothingSimulationCloth>(
@@ -436,7 +437,8 @@ void FClothingSimulation::UpdateSimulationFromSharedSimConfig()
 			SolverConfig = Configs[SolverConfigIndex].Get();
 			Solver->SetConfig(SolverConfig);
 		}
-		SolverConfig->Initialize(nullptr, ClothSharedSimConfig);
+		constexpr bool bUseLegacyConfig = true;  // Make the config a legacy cloth config, so that the constraints disable themselves with missing masks, ...etc.
+		SolverConfig->Initialize(nullptr, ClothSharedSimConfig, bUseLegacyConfig);
 	}
 }
 
@@ -790,7 +792,8 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 		// Update cloth config runtime simulation object
 		FClothingSimulationConfig* const Config = Cloth->GetConfig();
 		check(Config);
-		Config->Initialize(ClothConfig, nullptr);
+		constexpr bool bUseLegacyConfig = true;  // Make the config a legacy cloth config, so that the constraints disable themselves with missing masks, ...etc.
+		Config->Initialize(ClothConfig, nullptr, bUseLegacyConfig);
 
 		// Recreate cloth runtime simulation object
 		Cloth = MakeUnique<FClothingSimulationCloth>(

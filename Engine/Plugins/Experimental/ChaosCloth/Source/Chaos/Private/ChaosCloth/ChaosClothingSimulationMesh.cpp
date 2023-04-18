@@ -149,6 +149,42 @@ TConstArrayView<uint32> FClothingSimulationMesh::GetPatternToWeldedIndices(int32
 	return TConstArrayView<uint32>();
 }
 
+TArray<FName> FClothingSimulationMesh::GetWeightMapNames() const
+{
+	TArray<FName> WeightMapNames;
+
+	const UEnum* const ChaosWeightMapTargetEnum = StaticEnum<EChaosWeightMapTarget>();
+	const int32 NumWeightMaps = (int32)ChaosWeightMapTargetEnum->GetMaxEnumValue() + 1;
+
+	WeightMapNames.SetNum(NumWeightMaps);
+
+	for (int32 EnumIndex = 0; EnumIndex < ChaosWeightMapTargetEnum->NumEnums(); ++EnumIndex)
+	{
+		const int32 TargetIndex = (int32)ChaosWeightMapTargetEnum->GetValueByIndex(EnumIndex);
+		WeightMapNames[TargetIndex] = FName(ChaosWeightMapTargetEnum->GetNameStringByIndex(EnumIndex));
+	}
+	return WeightMapNames;
+}
+
+TMap<FString, int32> FClothingSimulationMesh::GetWeightMapIndices() const
+{
+	TMap<FString, int32> WeightMapIndices;
+
+	const UEnum* const ChaosWeightMapTargetEnum = StaticEnum<EChaosWeightMapTarget>();
+	const int32 NumWeightMaps = (int32)ChaosWeightMapTargetEnum->GetMaxEnumValue() + 1;
+
+	WeightMapIndices.Reserve(NumWeightMaps);
+
+	for (int32 EnumIndex = 0; EnumIndex < ChaosWeightMapTargetEnum->NumEnums(); ++EnumIndex)
+	{
+		const int32 TargetIndex = (int32)ChaosWeightMapTargetEnum->GetValueByIndex(EnumIndex);
+		const FString WeightMapName = ChaosWeightMapTargetEnum->GetNameStringByIndex(EnumIndex);
+
+		WeightMapIndices.Emplace(WeightMapName, TargetIndex);
+	}
+	return WeightMapIndices;
+}
+
 TArray<TConstArrayView<FRealSingle>> FClothingSimulationMesh::GetWeightMaps(int32 LODIndex) const
 {
 	TArray<TConstArrayView<FRealSingle>> WeightMaps;

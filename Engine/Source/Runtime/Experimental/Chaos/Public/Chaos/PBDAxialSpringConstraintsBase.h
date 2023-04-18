@@ -16,8 +16,8 @@ class FPBDAxialSpringConstraintsBase
 public:
 	FPBDAxialSpringConstraintsBase(
 		const FSolverParticles& Particles,
-		int32 ParticleOffset,
-		int32 ParticleCount,
+		int32 InParticleOffset,
+		int32 InParticleCount,
 		const TArray<TVec3<int32>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const FSolverVec2& InStiffness,
@@ -28,6 +28,8 @@ public:
 			{
 				return bTrimKinematicConstraints && Particles.InvM(Index0) == (FSolverReal)0. && Particles.InvM(Index1) == (FSolverReal)0. && Particles.InvM(Index2) == (FSolverReal)0.;
 			}))
+		, ParticleOffset(InParticleOffset)
+		, ParticleCount(InParticleCount)
 		, Stiffness(
 			InStiffness,
 			StiffnessMultipliers,
@@ -162,6 +164,8 @@ private:
 
 protected:
 	TArray<TVec3<int32>> Constraints;
+	const int32 ParticleOffset;
+	const int32 ParticleCount;
 	TArray<FSolverReal> Barys;
 	TArray<FSolverReal> Dists;
 	FPBDStiffness Stiffness;

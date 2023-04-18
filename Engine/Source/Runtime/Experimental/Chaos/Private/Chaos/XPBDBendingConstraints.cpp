@@ -23,7 +23,7 @@ namespace Chaos::Softs {
 int32 Chaos_XPBDBending_ParallelConstraintCount = 100;
 FAutoConsoleVariableRef CVarChaosXPBDBendingParallelConstraintCount(TEXT("p.Chaos.XPBDBending.ParallelConstraintCount"), Chaos_XPBDBending_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
 
-void FXPBDBendingConstraints::InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount)
+void FXPBDBendingConstraints::InitColor(const FSolverParticles& InParticles)
 {
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -65,6 +65,76 @@ void FXPBDBendingConstraints::InitColor(const FSolverParticles& InParticles, con
 		RestAngles = MoveTemp(ReorderedRestAngles);
 		Stiffness.ReorderIndices(OrigToReorderedIndices);
 		BucklingStiffness.ReorderIndices(OrigToReorderedIndices);
+	}
+}
+
+void FXPBDBendingConstraints::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
+{
+	if (IsXPBDBendingElementStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDBendingElementStiffness(PropertyCollection));
+		if (IsXPBDBendingElementStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBendingElementStiffnessString(PropertyCollection);
+			Stiffness = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			Stiffness.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDBucklingRatioMutable(PropertyCollection))
+	{
+		BucklingRatio = FMath::Clamp(GetXPBDBucklingRatio(PropertyCollection), (FSolverReal)0., (FSolverReal)1.);
+	}
+	if (IsXPBDBucklingStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDBucklingStiffness(PropertyCollection));
+		if (IsXPBDBucklingStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBucklingStiffnessString(PropertyCollection);
+			BucklingStiffness = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			BucklingStiffness.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDBendingElementDampingMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDBendingElementDamping(PropertyCollection)).ClampAxes(MinDamping, MaxDamping);
+		if (IsXPBDBendingElementDampingStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBendingElementDampingString(PropertyCollection);
+			DampingRatio = FPBDWeightMap(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount);
+		}
+		else
+		{
+			DampingRatio.SetWeightedValue(WeightedValue);
+		}
 	}
 }
 

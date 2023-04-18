@@ -15,6 +15,39 @@ FAutoConsoleVariableRef CVarChaosLongRangeISPCEnabled(TEXT("p.Chaos.LongRange.IS
 
 namespace Chaos::Softs {
 
+void FPBDLongRangeConstraints::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+	FSolverReal MeshScale)
+{
+	if (IsTetherStiffnessMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatTetherStiffness(PropertyCollection));
+		if (IsTetherStiffnessStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetTetherStiffnessString(PropertyCollection);
+			Stiffness = FPBDStiffness(WeightedValue, WeightMaps.FindRef(WeightMapName), ParticleCount);
+		}
+		else
+		{
+			Stiffness.SetWeightedValue(WeightedValue);
+		}
+	}
+	if (IsTetherScaleMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection)).ClampAxes(MinTetherScale, MaxTetherScale) * MeshScale;
+		if (IsTetherScaleStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetTetherScaleString(PropertyCollection);
+			TetherScale = FPBDWeightMap(WeightedValue, WeightMaps.FindRef(WeightMapName), ParticleCount);
+		}
+		else
+		{
+			TetherScale.SetWeightedValue(WeightedValue);
+		}
+	}
+}
+
 void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverReal /*Dt*/) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDLongRangeConstraints_Apply);

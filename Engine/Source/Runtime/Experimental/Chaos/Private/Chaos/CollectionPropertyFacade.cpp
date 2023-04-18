@@ -61,13 +61,14 @@ namespace Chaos::Softs
 	template<typename T, typename ElementType>
 	T FCollectionPropertyConstFacade::GetValue(int32 KeyIndex, const TConstArrayView<ElementType>& ValueArray) const
 	{
-		return ValueArray[KeyIndex];
+		return (T)ValueArray[KeyIndex];
 	}
 	template CHAOS_API FVector3f FCollectionPropertyConstFacade::GetValue<FVector3f, FVector3f>(int32 KeyIndex, const TConstArrayView<FVector3f>& ValueArray) const;
 	template CHAOS_API const FVector3f& FCollectionPropertyConstFacade::GetValue<const FVector3f&, FVector3f>(int32 KeyIndex, const TConstArrayView<FVector3f>& ValueArray) const;
 	template CHAOS_API FString FCollectionPropertyConstFacade::GetValue<FString, FString>(int32 KeyIndex, const TConstArrayView<FString>& ValueArray) const;
 	template CHAOS_API const FString& FCollectionPropertyConstFacade::GetValue<const FString&, FString>(int32 KeyIndex, const TConstArrayView<FString>& ValueArray) const;
 	template CHAOS_API uint8 FCollectionPropertyConstFacade::GetValue<uint8, uint8>(int32 KeyIndex, const TConstArrayView<uint8>& ValueArray) const;
+	template CHAOS_API ECollectionPropertyFlags FCollectionPropertyConstFacade::GetValue<ECollectionPropertyFlags, uint8>(int32 KeyIndex, const TConstArrayView<uint8>& ValueArray) const;
 
 	template<> CHAOS_API
 	bool FCollectionPropertyConstFacade::GetValue<bool, FVector3f>(int32 KeyIndex, const TConstArrayView<FVector3f>& ValueArray) const
@@ -85,16 +86,6 @@ namespace Chaos::Softs
 	float FCollectionPropertyConstFacade::GetValue<float, FVector3f>(int32 KeyIndex, const TConstArrayView<FVector3f>& ValueArray) const
 	{
 		return ValueArray[KeyIndex].X;
-	}
-
-	FVector2f FCollectionPropertyConstFacade::GetWeightedFloatValue(const FString& Key, const float& Default, int32* OutKeyIndex) const
-	{
-		const int32 KeyIndex = GetKeyIndex(Key);
-		if (OutKeyIndex)
-		{
-			*OutKeyIndex = KeyIndex;
-		}
-		return KeyIndex != INDEX_NONE ? GetWeightedFloatValue(KeyIndex) : FVector2f(Default, Default);
 	}
 
 	template <typename T>
@@ -116,36 +107,33 @@ namespace Chaos::Softs
 	{
 	}
 
-	int32 FCollectionPropertyFacade::SetWeightedFloatValue(const FString& Key, const FVector2f& Value)
+	void FCollectionPropertyFacade::ClearDirtyFlags()
 	{
-		const int32 KeyIndex = GetKeyIndex(Key);
-		if (KeyIndex != INDEX_NONE)
+		for (ECollectionPropertyFlags& Flags : GetFlagsArray())
 		{
-			SetWeightedFloatValue(KeyIndex, Value);
+			EnumRemoveFlags(Flags, ECollectionPropertyFlags::StringDirty | ECollectionPropertyFlags::Dirty);
 		}
-		return KeyIndex;
 	}
 
-	void FCollectionPropertyFacade::EnableFlag(int32 KeyIndex, ECollectionPropertyFlag Flag, bool bEnable)
+	void FCollectionPropertyFacade::EnableFlags(int32 KeyIndex, ECollectionPropertyFlags Flags, bool bEnable)
 	{
+		const ECollectionPropertyFlags CurrentFlags = GetFlagsArray()[KeyIndex];
+
 		if (bEnable)
 		{
-			EnumAddFlags(GetFlagsArray()[KeyIndex], (uint8)Flag);
+			if (!EnumHasAllFlags(CurrentFlags, Flags))
+			{
+				EnumAddFlags(GetFlagsArray()[KeyIndex], Flags | ECollectionPropertyFlags::Dirty);  // Changing any flags adds the dirty flag
+			}
 		}
 		else
 		{
-			EnumRemoveFlags(GetFlagsArray()[KeyIndex], (uint8)Flag);
+			if (EnumHasAnyFlags(CurrentFlags, Flags))
+			{
+				EnumRemoveFlags(GetFlagsArray()[KeyIndex], Flags);
+				EnumAddFlags(GetFlagsArray()[KeyIndex], ECollectionPropertyFlags::Dirty);  // Changing any flags adds the dirty flag, dirty flags can only be removed from the ClearDirtyFlags function
+			}
 		}
-	}
-
-	int32 FCollectionPropertyFacade::EnableFlag(const FString& Key, ECollectionPropertyFlag Flag, bool bEnable)
-	{
-		const int32 KeyIndex = GetKeyIndex(Key);
-		if (KeyIndex != INDEX_NONE)
-		{
-			EnableFlag(KeyIndex, Flag, bEnable);
-		}
-		return KeyIndex;
 	}
 
 	FCollectionPropertyMutableFacade::FCollectionPropertyMutableFacade(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection)
@@ -170,7 +158,9 @@ namespace Chaos::Softs
 	int32 FCollectionPropertyMutableFacade::AddProperty(const FString& Key, bool bEnabled, bool bAnimatable)
 	{
 		const int32 Index = GetManagedArrayCollection()->AddElements(1, PropertyFacadeNames::PropertyGroup);
-		const uint8 Flags = (bEnabled ? (uint8)ECollectionPropertyFlag::Enabled : 0) | (bAnimatable ? (uint8)ECollectionPropertyFlag::Animatable : 0);
+		const ECollectionPropertyFlags Flags =
+			(bEnabled ? ECollectionPropertyFlags::Enabled : ECollectionPropertyFlags::None) |
+			(bAnimatable ? ECollectionPropertyFlags::Animatable : ECollectionPropertyFlags::None);
 
 		// Update the arrayviews in case the new element triggered a reallocation 
 		UpdateArrays();
@@ -191,7 +181,9 @@ namespace Chaos::Softs
 		if (const int32 NumProperties = Keys.Num())
 		{
 			const int32 StartIndex = GetManagedArrayCollection()->AddElements(NumProperties, PropertyFacadeNames::PropertyGroup);
-			const uint8 Flags = (bEnabled ? (uint8)ECollectionPropertyFlag::Enabled : 0) | (bAnimatable ? (uint8)ECollectionPropertyFlag::Animatable : 0);
+			const ECollectionPropertyFlags Flags =
+				(bEnabled ? ECollectionPropertyFlags::Enabled : ECollectionPropertyFlags::None) |
+				(bAnimatable ? ECollectionPropertyFlags::Animatable : ECollectionPropertyFlags::None);
 
 			// Update the arrayviews in case the new elements triggered a reallocation 
 			UpdateArrays();

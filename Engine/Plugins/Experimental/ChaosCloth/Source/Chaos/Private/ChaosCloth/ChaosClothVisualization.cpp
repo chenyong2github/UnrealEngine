@@ -234,7 +234,8 @@ namespace Chaos
 				continue;
 			}
 
-			const TConstArrayView<FRealSingle>& MaxDistances = Cloth->GetWeightMaps(Solver)[(int32)EChaosWeightMapTarget::MaxDistance];
+
+			const TConstArrayView<FRealSingle>& MaxDistances = Cloth->GetWeightMapByProperty(Solver, TEXT("MaxDistance"));
 			if (!MaxDistances.Num())
 			{
 				continue;
@@ -1057,8 +1058,9 @@ namespace Chaos
 			if (const Softs::FPBDSphericalBackstopConstraint* const BackstopConstraint = ClothConstraints.GetBackstopConstraints().Get())
 			{
 				const bool bUseLegacyBackstop = BackstopConstraint->UseLegacyBackstop();
-				const TConstArrayView<FRealSingle>& BackstopDistances = Cloth->GetWeightMaps(Solver)[(int32)EChaosWeightMapTarget::BackstopDistance];
-				const TConstArrayView<FRealSingle>& BackstopRadiuses = Cloth->GetWeightMaps(Solver)[(int32)EChaosWeightMapTarget::BackstopRadius];
+
+				const TConstArrayView<FRealSingle>& BackstopDistances = Cloth->GetWeightMapByProperty(Solver, TEXT("BackstopDistance"));
+				const TConstArrayView<FRealSingle>& BackstopRadiuses = Cloth->GetWeightMapByProperty(Solver, TEXT("BackstopRadius"));
 				const TConstArrayView<Softs::FSolverVec3> AnimationPositions = Cloth->GetAnimationPositions(Solver);
 				const TConstArrayView<Softs::FSolverVec3> AnimationNormals = Cloth->GetAnimationNormals(Solver);
 				const TConstArrayView<Softs::FSolverVec3> ParticlePositions = Cloth->GetParticlePositions(Solver);
@@ -1116,8 +1118,8 @@ namespace Chaos
 			if (const Softs::FPBDSphericalBackstopConstraint* const BackstopConstraint = ClothConstraints.GetBackstopConstraints().Get())
 			{
 				const bool bUseLegacyBackstop = BackstopConstraint->UseLegacyBackstop();
-				const TConstArrayView<FRealSingle>& BackstopDistances = Cloth->GetWeightMaps(Solver)[(int32)EChaosWeightMapTarget::BackstopDistance];
-				const TConstArrayView<FRealSingle>& BackstopRadiuses = Cloth->GetWeightMaps(Solver)[(int32)EChaosWeightMapTarget::BackstopRadius];
+				const TConstArrayView<FRealSingle>& BackstopDistances = Cloth->GetWeightMapByProperty(Solver, TEXT("BackstopDistance"));
+				const TConstArrayView<FRealSingle>& BackstopRadiuses = Cloth->GetWeightMapByProperty(Solver, TEXT("BackstopRadius"));
 				const TConstArrayView<Softs::FSolverVec3> AnimationPositions = Cloth->GetAnimationPositions(Solver);
 				const TConstArrayView<Softs::FSolverVec3> AnimationNormals = Cloth->GetAnimationNormals(Solver);
 
@@ -1159,7 +1161,7 @@ namespace Chaos
 				continue;
 			}
 
-			const TConstArrayView<FRealSingle>& MaxDistances = Cloth->GetWeightMaps(Solver)[(int32)EChaosWeightMapTarget::MaxDistance];
+			const TConstArrayView<FRealSingle>& MaxDistances = Cloth->GetWeightMapByProperty(Solver, TEXT("MaxDistance"));
 			if (!MaxDistances.Num())
 			{
 				continue;
@@ -1212,7 +1214,7 @@ namespace Chaos
 			const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 			if (const Softs::FPBDAnimDriveConstraint* const AnimDriveConstraint = ClothConstraints.GetAnimDriveConstraints().Get())
 			{
-				const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers = Cloth->GetWeightMaps(Solver)[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
+				const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers = Cloth->GetWeightMapByProperty(Solver, TEXT("AnimDriveStiffness"));
 				const TConstArrayView<Softs::FSolverVec3> AnimationPositions = Cloth->GetAnimationPositions(Solver);
 				const TConstArrayView<Softs::FSolverVec3> ParticlePositions = Cloth->GetParticlePositions(Solver);
 				check(ParticlePositions.Num() == AnimationPositions.Num());

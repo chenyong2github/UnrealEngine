@@ -18,8 +18,8 @@ public:
 	template<int32 Valence, TEMPLATE_REQUIRES(Valence >= 2 && Valence <= 4)>
 	FPBDSpringConstraintsBase(
 		const FSolverParticles& Particles,
-		int32 ParticleOffset,
-		int32 ParticleCount,
+		int32 InParticleOffset,
+		int32 InParticleCount,
 		const TArray<TVector<int32, Valence>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const FSolverVec2& InStiffness,
@@ -30,6 +30,8 @@ public:
 			{
 				return bTrimKinematicConstraints && Particles.InvM(Index0) == (FSolverReal)0. && Particles.InvM(Index1) == (FSolverReal)0.;
 			}))
+		, ParticleOffset(InParticleOffset)
+		, ParticleCount(InParticleCount)
 		, Stiffness(
 			InStiffness,
 			StiffnessMultipliers,
@@ -113,6 +115,8 @@ private:
 protected:
 	TArray<TVec2<int32>> Constraints;
 	TArray<FSolverReal> Dists;
+	const int32 ParticleOffset;
+	const int32 ParticleCount;
 	FPBDStiffness Stiffness;
 };
 

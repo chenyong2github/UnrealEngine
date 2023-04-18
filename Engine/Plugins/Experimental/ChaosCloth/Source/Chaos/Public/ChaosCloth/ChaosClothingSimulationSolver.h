@@ -145,6 +145,13 @@ namespace Chaos
 			SetWindAndPressureGeometry(GroupId, TriangleMesh, DragMultipliers, LiftMultipliers, TConstArrayView<FRealSingle>());
 		}
 
+		// Set new weight maps for the wind and pressure multipliers
+		void SetWindAndPressureMultipliers(
+			uint32 GroupId,
+			const TConstArrayView<FRealSingle>& DragMultipliers,
+			const TConstArrayView<FRealSingle>& LiftMultipliers,
+			const TConstArrayView<FRealSingle>& PressureMultipliers);
+
 		// Set the wind and pressure properties.
 		void SetWindAndPressureProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity = 1.225e-6f, const TVec2<FRealSingle>& Pressure = TVec2<FRealSingle>::ZeroVector);
 		UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.")

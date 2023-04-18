@@ -23,26 +23,20 @@ namespace Chaos::Softs {
 extern int32 Chaos_XPBDBending_ParallelConstraintCount;
 
 FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSolverParticles& InParticles,
-	int32 ParticleOffset,
-	int32 ParticleCount,
+	int32 InParticleOffset,
+	int32 InParticleCount,
 	const FTriangleMesh& TriangleMesh,
 	const TArray<TVec3<FVec2f>>& FaceVertexPatternPositions,
-	const TConstArrayView<FRealSingle>& StiffnessWarpMultipliers,
-	const TConstArrayView<FRealSingle>& StiffnessWeftMultipliers,
-	const TConstArrayView<FRealSingle>& StiffnessBiasMultipliers,
-	const TConstArrayView<FRealSingle>& BucklingStiffnessWarpMultipliers,
-	const TConstArrayView<FRealSingle>& BucklingStiffnessWeftMultipliers,
-	const TConstArrayView<FRealSingle>& BucklingStiffnessBiasMultipliers,
-	const TConstArrayView<FRealSingle>& DampingMultipliers,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 	const FCollectionPropertyConstFacade& PropertyCollection,
 	bool bTrimKinematicConstraints)
 	: Base(
 		InParticles,
-		ParticleOffset,
-		ParticleCount,
+		InParticleOffset,
+		InParticleCount,
 		TriangleMesh.GetUniqueAdjacentElements(),
-		StiffnessWarpMultipliers,
-		BucklingStiffnessWarpMultipliers,
+		WeightMaps.FindRef(GetXPBDBendingElementStiffnessWarpString(PropertyCollection, XPBDBendingElementStiffnessWarpName.ToString())),
+		WeightMaps.FindRef(GetXPBDBucklingStiffnessWarpString(PropertyCollection, XPBDBucklingStiffnessWarpName.ToString())),
 		FSolverVec2(GetWeightedFloatXPBDBendingElementStiffnessWarp(PropertyCollection, MaxStiffness)),
 		(FSolverReal)GetXPBDBucklingRatio(PropertyCollection, 0.f),
 		FSolverVec2(GetWeightedFloatXPBDBucklingStiffnessWarp(PropertyCollection, MaxStiffness)),
@@ -50,7 +44,7 @@ FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSo
 		MaxStiffness)
 	, StiffnessWeft(
 		FSolverVec2(GetWeightedFloatXPBDBendingElementStiffnessWeft(PropertyCollection, MaxStiffness)),
-		StiffnessWeftMultipliers,
+		WeightMaps.FindRef(GetXPBDBendingElementStiffnessWeftString(PropertyCollection, XPBDBendingElementStiffnessWeftName.ToString())),
 		TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 		ParticleOffset,
 		ParticleCount,
@@ -59,7 +53,7 @@ FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSo
 		MaxStiffness)
 	, StiffnessBias(
 		FSolverVec2(GetWeightedFloatXPBDBendingElementStiffnessBias(PropertyCollection, MaxStiffness)),
-		StiffnessBiasMultipliers,
+		WeightMaps.FindRef(GetXPBDBendingElementStiffnessBiasString(PropertyCollection, XPBDBendingElementStiffnessBiasName.ToString())),
 		TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 		ParticleOffset,
 		ParticleCount,
@@ -68,7 +62,7 @@ FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSo
 		MaxStiffness)
 	, BucklingStiffnessWeft(
 		FSolverVec2(GetWeightedFloatXPBDBucklingStiffnessWeft(PropertyCollection, MaxStiffness)),
-		BucklingStiffnessWeftMultipliers,
+		WeightMaps.FindRef(GetXPBDBucklingStiffnessWeftString(PropertyCollection, XPBDBucklingStiffnessWeftName.ToString())),
 		TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 		ParticleOffset,
 		ParticleCount,
@@ -77,7 +71,7 @@ FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSo
 		MaxStiffness)
 	, BucklingStiffnessBias(
 		FSolverVec2(GetWeightedFloatXPBDBucklingStiffnessBias(PropertyCollection, MaxStiffness)),
-		BucklingStiffnessBiasMultipliers,
+		WeightMaps.FindRef(GetXPBDBucklingStiffnessBiasString(PropertyCollection, XPBDBucklingStiffnessBiasName.ToString())),
 		TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 		ParticleOffset,
 		ParticleCount,
@@ -86,14 +80,14 @@ FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSo
 		MaxStiffness)
 	, DampingRatio(
 		FSolverVec2(GetWeightedFloatXPBDBendingElementDamping(PropertyCollection, MinDamping)).ClampAxes(MinDamping, MaxDamping),
-		DampingMultipliers,
+		WeightMaps.FindRef(GetXPBDBendingElementDampingString(PropertyCollection, XPBDBendingElementDampingName.ToString())),
 		TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 		ParticleOffset,
 		ParticleCount)
 	, WarpWeftBiasBaseMultipliers(GenerateWarpWeftBiasBaseMultipliers(FaceVertexPatternPositions, TriangleMesh))
 {
 	Lambdas.Init((FSolverReal)0., Constraints.Num());
-	InitColor(InParticles, ParticleOffset, ParticleCount);
+	InitColor(InParticles);
 }
 
 FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSolverParticles& InParticles,
@@ -174,7 +168,7 @@ FXPBDAnisotropicBendingConstraints::FXPBDAnisotropicBendingConstraints(const FSo
 	, WarpWeftBiasBaseMultipliers(GenerateWarpWeftBiasBaseMultipliers(FaceVertexPatternPositions, TriangleMesh))
 {
 	Lambdas.Init((FSolverReal)0., Constraints.Num());
-	InitColor(InParticles, ParticleOffset, ParticleCount);
+	InitColor(InParticles);
 }
 
 TArray<FSolverVec3> FXPBDAnisotropicBendingConstraints::GenerateWarpWeftBiasBaseMultipliers(const TArray<TVec3<FVec2f>>& FaceVertexPatternPositions, const FTriangleMesh& TriangleMesh) const
@@ -232,7 +226,7 @@ TArray<FSolverVec3> FXPBDAnisotropicBendingConstraints::GenerateWarpWeftBiasBase
 	return WarpWeftBaseMultiplierResult;
 }
 
-void FXPBDAnisotropicBendingConstraints::InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount)
+void FXPBDAnisotropicBendingConstraints::InitColor(const FSolverParticles& InParticles)
 {
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -283,6 +277,160 @@ void FXPBDAnisotropicBendingConstraints::InitColor(const FSolverParticles& InPar
 		BucklingStiffnessWeft.ReorderIndices(OrigToReorderedIndices);
 		BucklingStiffnessBias.ReorderIndices(OrigToReorderedIndices);
 		DampingRatio.ReorderIndices(OrigToReorderedIndices);
+	}
+}
+
+void FXPBDAnisotropicBendingConstraints::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
+{
+	if (IsXPBDBendingElementStiffnessWarpMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDBendingElementStiffnessWarp(PropertyCollection));
+		if (IsXPBDBendingElementStiffnessWarpStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBendingElementStiffnessWarpString(PropertyCollection);
+			Stiffness = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			Stiffness.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDBendingElementStiffnessWeftMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDBendingElementStiffnessWeft(PropertyCollection));
+		if (IsXPBDBendingElementStiffnessWeftStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBendingElementStiffnessWeftString(PropertyCollection);
+			StiffnessWeft = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			StiffnessWeft.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDBendingElementStiffnessBiasMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDBendingElementStiffnessBias(PropertyCollection));
+		if (IsXPBDBendingElementStiffnessBiasStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBendingElementStiffnessBiasString(PropertyCollection);
+			StiffnessBias = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			StiffnessBias.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDBucklingRatioMutable(PropertyCollection))
+	{
+		BucklingRatio = FMath::Clamp(GetXPBDBucklingRatio(PropertyCollection), (FSolverReal)0., (FSolverReal)1.);
+	}
+	if (IsXPBDBucklingStiffnessWarpMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDBucklingStiffnessWarp(PropertyCollection));
+		if (IsXPBDBucklingStiffnessWarpStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBucklingStiffnessWarpString(PropertyCollection);
+			BucklingStiffness = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			BucklingStiffness.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDBucklingStiffnessWeftMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDBucklingStiffnessWeft(PropertyCollection));
+		if (IsXPBDBucklingStiffnessWeftStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBucklingStiffnessWeftString(PropertyCollection);
+			BucklingStiffnessWeft = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			BucklingStiffnessWeft.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDBucklingStiffnessBiasMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDBucklingStiffnessBias(PropertyCollection));
+		if (IsXPBDBucklingStiffnessBiasStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBucklingStiffnessBiasString(PropertyCollection);
+			BucklingStiffnessBias = FPBDStiffness(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount,
+				FPBDStiffness::DefaultTableSize,
+				FPBDStiffness::DefaultParameterFitBase,
+				MaxStiffness);
+		}
+		else
+		{
+			BucklingStiffnessBias.SetWeightedValue(WeightedValue, MaxStiffness);
+		}
+	}
+	if (IsXPBDBendingElementDampingMutable(PropertyCollection))
+	{
+		const FSolverVec2 WeightedValue = FSolverVec2(GetXPBDBendingElementDamping(PropertyCollection)).ClampAxes(MinDamping, MaxDamping);
+		if (IsXPBDBendingElementDampingStringDirty(PropertyCollection))
+		{
+			const FString& WeightMapName = GetXPBDBendingElementDampingString(PropertyCollection);
+			DampingRatio = FPBDWeightMap(
+				WeightedValue,
+				WeightMaps.FindRef(WeightMapName),
+				TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+				ParticleOffset,
+				ParticleCount);
+		}
+		else
+		{
+			DampingRatio.SetWeightedValue(WeightedValue);
+		}
 	}
 }
 

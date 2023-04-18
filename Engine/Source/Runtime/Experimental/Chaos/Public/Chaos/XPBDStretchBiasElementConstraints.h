@@ -39,12 +39,7 @@ public:
 		int32 ParticleCount,
 		const FTriangleMesh& TriangleMesh,
 		const TArray<TVec3<FVec2f>>& FaceVertexUVs,
-		const TConstArrayView<FRealSingle>& StiffnessWarpMultipliers,
-		const TConstArrayView<FRealSingle>& StiffnessWeftMultipliers,
-		const TConstArrayView<FRealSingle>& StiffnessBiasMultipliers,
-		const TConstArrayView<FRealSingle>& DampingMultipliers,
-		const TConstArrayView<FRealSingle>& WarpScaleMultipliers,
-		const TConstArrayView<FRealSingle>& WeftScaleMultipliers,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints = false);
 
@@ -76,33 +71,9 @@ public:
 		Lambdas.AddZeroed(Constraints.Num());
 	}
 
-	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
-	{
-		if (IsXPBDStretchBiasElementStiffnessWarpMutable(PropertyCollection))
-		{
-			StiffnessWarp.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDStretchBiasElementStiffnessWarp(PropertyCollection)), MaxStiffness);
-		}
-		if (IsXPBDStretchBiasElementStiffnessWeftMutable(PropertyCollection))
-		{
-			StiffnessWeft.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDStretchBiasElementStiffnessWeft(PropertyCollection)), MaxStiffness);
-		}
-		if (IsXPBDStretchBiasElementStiffnessBiasMutable(PropertyCollection))
-		{
-			StiffnessBias.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDStretchBiasElementStiffnessBias(PropertyCollection)), MaxStiffness);
-		}
-		if (IsXPBDStretchBiasElementDampingMutable(PropertyCollection))
-		{
-			DampingRatio.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDStretchBiasElementDamping(PropertyCollection)).ClampAxes(MinDamping, MaxDamping));
-		}
-		if (IsXPBDStretchBiasElementWarpScaleMutable(PropertyCollection))
-		{
-			WarpScale.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDStretchBiasElementWarpScale(PropertyCollection)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale));
-		}
-		if (IsXPBDStretchBiasElementWeftScaleMutable(PropertyCollection))
-		{
-			WeftScale.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDStretchBiasElementWeftScale(PropertyCollection)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale));
-		}
-	}
+	void SetProperties(
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 
 	void SetProperties(const FSolverVec2& InStiffnessWarp, const FSolverVec2& InStiffnessWeft, const FSolverVec2& InStiffnessBias, const FSolverVec2& InDampingRatio, const FSolverVec2& InWarpScale, const FSolverVec2& InWeftScale)
 	{
@@ -130,11 +101,12 @@ public:
 private:
 	void InitConstraintsAndRestData(const FSolverParticles& InParticles, const FTriangleMesh& TriangleMesh,
 		const TArray<TVec3<FVec2f>>& FaceVertexUVs, const bool bUse3dRestLengths, const bool bTrimKinematicConstraints);
-	void InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount);
+	void InitColor(const FSolverParticles& InParticles);
 	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverVec3& ExpStiffnessValue, const FSolverReal DampingRatioValue, const FSolverReal WarpScaleValue, const FSolverReal WeftScaleValue) const;
 
 	TArray<TVec3<int32>> Constraints;
-
+	const int32 ParticleOffset;
+	const int32 ParticleCount;
 	FPBDStiffness StiffnessWarp;
 	FPBDStiffness StiffnessWeft;
 	FPBDStiffness StiffnessBias;

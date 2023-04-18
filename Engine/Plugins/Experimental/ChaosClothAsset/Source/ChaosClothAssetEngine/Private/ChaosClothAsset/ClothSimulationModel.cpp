@@ -104,6 +104,7 @@ namespace UE::Chaos::ClothAsset
 		return ReferenceBoneIndex;
 	}
 
+	// TODO: Check which welding implementation is best and if we should use this one instead
 	// Welded weights are averaged. TODO: add other welding options such as Max and Min
 	static TArray<float> WeldWeightMap(const TConstArrayView<float>& UnweldedMap, const TArray<uint32>& PatternToWeldedIndices, const int32 NumWelded)
 	{
@@ -133,11 +134,30 @@ namespace UE::Chaos::ClothAsset
 
 }  // End namespace UE::Chaos::ClothAsset
 
+bool FChaosClothSimulationLodModel::Serialize(FArchive& Ar)
+{
+	// Serialize normal tagged property data
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		UScriptStruct* const Struct = FChaosClothSimulationLodModel::StaticStruct();
+		Struct->SerializeTaggedProperties(Ar, (uint8*)this, Struct, nullptr);
+	}
+
+	// Serialize weight maps (not a tagged property)
+	Ar << WeightMaps;
+
+	// Return true to confirm that serialization has already been taken care of
+	return true;
+}
+
 FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const FManagedArrayCollection>& ClothCollection, const FReferenceSkeleton& ReferenceSkeleton)
 {
 	using namespace UE::Chaos::ClothAsset;
 
 	const FCollectionClothConstFacade Cloth(ClothCollection);
+
+	// Retrieve weigh map names
+	const TArray<FName> WeightMapNames = Cloth.GetWeightMapNames();
 
 	// Initialize LOD models
 	const int32 NumLods = Cloth.GetNumLods();
@@ -150,39 +170,68 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const FM
 		TArray<int32> WeldingMap;
 		ClothLod.BuildSimulationMesh(LodModel.Positions, LodModel.Normals, LodModel.Indices, WeldingMap, LodModel.PatternPositions, LodModel.PatternIndices, LodModel.PatternToWeldedIndices);
 
-		static const FName MaxDistanceName = TEXT("MaxDistance");
-		const TConstArrayView<float> MaxDistanceValues = ClothLod.GetWeightMap(MaxDistanceName);
+		// Build welding index lookup  // TODO: Could probably do this better in the BuildSimulationMesh function
+		const int32 LodModelNumSimVertices = LodModel.Positions.Num();
+		const int32 ClothLodNumSimVertices = ClothLod.GetNumSimVertices();
 
-		if (MaxDistanceValues.Num() == LodModel.Positions.Num())
-		{
-			LodModel.MaxDistance = MaxDistanceValues;
-		}
-		else if(MaxDistanceValues.Num() > 0)
-		{
-			LodModel.MaxDistance = WeldWeightMap(MaxDistanceValues, LodModel.PatternToWeldedIndices, LodModel.Positions.Num());
-		}
-		else
-		{
-			LodModel.MaxDistance.Init(1.0, LodModel.Positions.Num());
-		}
-
-		TConstArrayView<int32> NumBoneInfluences = ClothLod.GetSimNumBoneInfluences();
-		TConstArrayView<TArray<int32>> SimBoneIndices = ClothLod.GetSimBoneIndices();
-		TConstArrayView<TArray<float>> SimBoneWeights = ClothLod.GetSimBoneWeights();
-		LodModel.BoneData.SetNum(LodModel.Positions.Num());
-
-		uint32 WeldedIndex = 0;
-		for (int32 VertexIndex = 0; VertexIndex <  ClothLod.GetNumSimVertices(); ++VertexIndex)
+		TArray<int32> ReverseWeldingMap;
+		ReverseWeldingMap.Reserve(LodModelNumSimVertices);
+		TMap<int32, TArray<int32>> SourceVertexIndicesMap;
+		SourceVertexIndicesMap.Reserve(ClothLodNumSimVertices);
+			
+		for (int32 VertexIndex = 0; VertexIndex < ClothLodNumSimVertices; ++VertexIndex)
 		{
 			if (WeldingMap[VertexIndex] == VertexIndex)
 			{
-				LodModel.BoneData[WeldedIndex].NumInfluences = NumBoneInfluences[VertexIndex];
-				for (int BoneIndex = 0; BoneIndex < LodModel.BoneData[WeldedIndex].NumInfluences; ++BoneIndex)
+				SourceVertexIndicesMap.Emplace(VertexIndex, { VertexIndex } );
+				ReverseWeldingMap.Emplace(VertexIndex);
+			}
+			else
+			{
+				TArray<int32>& SourceVertexIndices = SourceVertexIndicesMap.FindChecked(WeldingMap[VertexIndex]);
+				SourceVertexIndices.Emplace(VertexIndex);
+			}
+		}
+
+		// Copy and weld (average) weight maps
+		LodModel.WeightMaps.Reserve(WeightMapNames.Num());
+
+		for (const FName& WeightMapName : WeightMapNames)
+		{
+			const TConstArrayView<float> ClothLodWeightMap = ClothLod.GetWeightMap(WeightMapName);
+			TArray<float>& LodModelWeightMap = LodModel.WeightMaps.Add(WeightMapName);
+
+			LodModelWeightMap.SetNumZeroed(LodModelNumSimVertices);
+
+			for (int32 WeldedIndex = 0; WeldedIndex < LodModelNumSimVertices; ++WeldedIndex)
+			{
+				const int32 BaseSourceVertexIndex = ReverseWeldingMap[WeldedIndex];
+				const TArray<int32>& SourceVertexIndices = SourceVertexIndicesMap.FindChecked(BaseSourceVertexIndex);
+				check(SourceVertexIndices.Num());
+
+				for (const int32 VertexIndex : SourceVertexIndices)
 				{
-					LodModel.BoneData[WeldedIndex].BoneIndices[BoneIndex] = SimBoneIndices[VertexIndex][BoneIndex];
-					LodModel.BoneData[WeldedIndex].BoneWeights[BoneIndex] = SimBoneWeights[VertexIndex][BoneIndex];
+					LodModelWeightMap[WeldedIndex] += ClothLodWeightMap[VertexIndex];
 				}
-				++WeldedIndex;
+
+				LodModelWeightMap[WeldedIndex] /= (float)SourceVertexIndices.Num();
+			}
+		}
+
+		// Weld bone influences
+		TConstArrayView<int32> NumBoneInfluences = ClothLod.GetSimNumBoneInfluences();
+		TConstArrayView<TArray<int32>> SimBoneIndices = ClothLod.GetSimBoneIndices();
+		TConstArrayView<TArray<float>> SimBoneWeights = ClothLod.GetSimBoneWeights();
+		LodModel.BoneData.SetNum(LodModelNumSimVertices);
+
+		for (int32 WeldedIndex = 0; WeldedIndex < LodModelNumSimVertices; ++WeldedIndex)
+		{
+			const int32 SourceVertexIndex = ReverseWeldingMap[WeldedIndex];
+			LodModel.BoneData[WeldedIndex].NumInfluences = NumBoneInfluences[SourceVertexIndex];
+			for (int32 BoneIndex = 0; BoneIndex < LodModel.BoneData[WeldedIndex].NumInfluences; ++BoneIndex)
+			{
+				LodModel.BoneData[WeldedIndex].BoneIndices[BoneIndex] = SimBoneIndices[SourceVertexIndex][BoneIndex];
+				LodModel.BoneData[WeldedIndex].BoneWeights[BoneIndex] = SimBoneWeights[SourceVertexIndex][BoneIndex];
 			}
 		}
 	}

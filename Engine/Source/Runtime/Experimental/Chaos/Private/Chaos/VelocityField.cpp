@@ -16,6 +16,56 @@ FAutoConsoleVariableRef CVarChaosVelocityFieldISPCEnabled(TEXT("p.Chaos.Velocity
 
 namespace Chaos::Softs {
 
+void FVelocityAndPressureField::SetProperties(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps,
+	FSolverReal WorldScale)
+{
+	if (IsFluidDensityMutable(PropertyCollection))
+	{
+		constexpr FSolverReal OneQuarter = (FSolverReal)0.25;
+		QuarterRho = (FSolverReal)GetFluidDensity(PropertyCollection) * OneQuarter;
+	}
+
+	bool bCheckForWeightMapUpdate = false;
+
+	if (IsDragMutable(PropertyCollection))
+	{
+		const FSolverVec2 Drag(GetWeightedFloatDrag(PropertyCollection));
+		DragBase = FMath::Clamp(Drag[0], MinCoefficient, MaxCoefficient);
+		DragRange = FMath::Clamp(Drag[1], MinCoefficient, MaxCoefficient) - DragBase;
+		bCheckForWeightMapUpdate = true;
+	}
+
+	if (IsLiftMutable(PropertyCollection))
+	{
+		const FSolverVec2 Lift(GetWeightedFloatLift(PropertyCollection));
+		LiftBase = FMath::Clamp(Lift[0], MinCoefficient, MaxCoefficient);
+		LiftRange = FMath::Clamp(Lift[1], MinCoefficient, MaxCoefficient) - LiftBase;
+		bCheckForWeightMapUpdate = true;
+	}
+
+	if (IsPressureMutable(PropertyCollection))
+	{
+		const FSolverVec2 Pressure(GetWeightedFloatPressure(PropertyCollection));
+		PressureBase = Pressure[0] / WorldScale;
+		PressureRange = Pressure[1] / WorldScale - PressureBase;
+		bCheckForWeightMapUpdate = true;
+	}
+
+	if (bCheckForWeightMapUpdate && (
+		IsDragStringDirty(PropertyCollection) ||
+		IsLiftStringDirty(PropertyCollection) ||
+		IsPressureStringDirty(PropertyCollection)))
+	{
+		const TConstArrayView<FRealSingle> DragMultipliers = Weightmaps.FindRef(GetDragString(PropertyCollection));
+		const TConstArrayView<FRealSingle> LiftMultipliers = Weightmaps.FindRef(GetLiftString(PropertyCollection));
+		const TConstArrayView<FRealSingle> PressureMultipliers = Weightmaps.FindRef(GetPressureString(PropertyCollection));
+
+		SetMultipliers(DragMultipliers, LiftMultipliers, PressureMultipliers);
+	}
+}
+
 void FVelocityAndPressureField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers, const TConstArrayView<FRealSingle>& PressureMultipliers)
 {
 	if (TriangleMesh)
@@ -28,35 +78,6 @@ void FVelocityAndPressureField::SetGeometry(const FTriangleMesh* TriangleMesh, c
 		NumParticles = 1 + Range[1] - Offset;
 
 		Forces.SetNumUninitialized(Elements.Num());
-
-		const bool bHasDragMultipliers = DragMultipliers.Num() == NumParticles;
-		const bool bHasLiftMultipliers = LiftMultipliers.Num() == NumParticles;
-		const bool bHasPressureMultipliers = PressureMultipliers.Num() == NumParticles;
-
-		if (!bHasDragMultipliers && !bHasLiftMultipliers && !bHasPressureMultipliers)
-		{
-			Multipliers.Reset();
-		}
-		else
-		{
-			constexpr FSolverReal OneThird = (FSolverReal)1. / (FSolverReal)3.;
-
-			Multipliers.SetNumUninitialized(Elements.Num());
-
-			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
-			{
-				const TVec3<int32>& Element = Elements[ElementIndex];
-				const int32 I0 = Element[0] - Offset;
-				const int32 I1 = Element[1] - Offset;
-				const int32 I2 = Element[2] - Offset;
-
-				const FSolverReal DragMultiplier = bHasDragMultipliers ? (FSolverReal)(DragMultipliers[I0] + DragMultipliers[I1] + DragMultipliers[I2]) * OneThird : (FSolverReal)0.;
-				const FSolverReal LiftMultiplier = bHasLiftMultipliers ? (FSolverReal)(LiftMultipliers[I0] + LiftMultipliers[I1] + LiftMultipliers[I2]) * OneThird : (FSolverReal)0.;
-				const FSolverReal PressureMultiplier = bHasPressureMultipliers ? (FSolverReal)(PressureMultipliers[I0] + PressureMultipliers[I1] + PressureMultipliers[I2]) * OneThird : (FSolverReal)0.;
-
-				Multipliers[ElementIndex] = FSolverVec3(DragMultiplier, LiftMultiplier, PressureMultiplier);
-			}
-		}
 	}
 	else
 	{
@@ -65,12 +86,44 @@ void FVelocityAndPressureField::SetGeometry(const FTriangleMesh* TriangleMesh, c
 		Offset = 0;
 		NumParticles = 0;
 		Forces.Reset();
-		Multipliers.Reset();
 		SetProperties(FSolverVec2(0.), FSolverVec2(0.), (FSolverReal)0., FSolverVec2(0.));
 	}
+
+	SetMultipliers(DragMultipliers, LiftMultipliers, PressureMultipliers);
 }
 
+void FVelocityAndPressureField::SetMultipliers(
+	const TConstArrayView<FRealSingle>& DragMultipliers,
+	const TConstArrayView<FRealSingle>& LiftMultipliers,
+	const TConstArrayView<FRealSingle>& PressureMultipliers)
+{
+	Multipliers.Reset();
 
+	const bool bHasDragMultipliers = DragMultipliers.Num() == NumParticles;
+	const bool bHasLiftMultipliers = LiftMultipliers.Num() == NumParticles;
+	const bool bHasPressureMultipliers = PressureMultipliers.Num() == NumParticles;
+
+	if (bHasDragMultipliers || bHasLiftMultipliers || bHasPressureMultipliers)
+	{
+		constexpr FSolverReal OneThird = (FSolverReal)1. / (FSolverReal)3.;
+
+		Multipliers.SetNumUninitialized(Elements.Num());
+
+		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
+		{
+			const TVec3<int32>& Element = Elements[ElementIndex];
+			const int32 I0 = Element[0] - Offset;
+			const int32 I1 = Element[1] - Offset;
+			const int32 I2 = Element[2] - Offset;
+
+			const FSolverReal DragMultiplier = bHasDragMultipliers ? (FSolverReal)(DragMultipliers[I0] + DragMultipliers[I1] + DragMultipliers[I2]) * OneThird : (FSolverReal)0.;
+			const FSolverReal LiftMultiplier = bHasLiftMultipliers ? (FSolverReal)(LiftMultipliers[I0] + LiftMultipliers[I1] + LiftMultipliers[I2]) * OneThird : (FSolverReal)0.;
+			const FSolverReal PressureMultiplier = bHasPressureMultipliers ? (FSolverReal)(PressureMultipliers[I0] + PressureMultipliers[I1] + PressureMultipliers[I2]) * OneThird : (FSolverReal)0.;
+
+			Multipliers[ElementIndex] = FSolverVec3(DragMultiplier, LiftMultiplier, PressureMultiplier);
+		}
+	}
+}
 
 void FVelocityAndPressureField::UpdateForces(const FSolverParticles& InParticles, const FSolverReal /*Dt*/)
 {

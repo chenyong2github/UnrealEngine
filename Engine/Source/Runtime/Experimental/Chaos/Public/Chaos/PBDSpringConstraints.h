@@ -13,16 +13,23 @@ public:
 	template<int32 Valence>
 	FPBDSpringConstraints(
 		const FSolverParticles& Particles,
-		int32 ParticleOffset,
-		int32 ParticleCount,
+		int32 InParticleOffset,
+		int32 InParticleCount,
 		const TArray<TVector<int32, Valence>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const FSolverVec2& InStiffness,
 		bool bTrimKinematicConstraints = false,
 		typename TEnableIf<Valence >= 2 && Valence <= 4>::Type* = nullptr)
-		: Base(Particles, ParticleOffset, ParticleCount, InConstraints, StiffnessMultipliers, InStiffness, bTrimKinematicConstraints)
+		: Base(
+			Particles,
+			InParticleOffset,
+			InParticleCount,
+			InConstraints,
+			StiffnessMultipliers,
+			InStiffness,
+			bTrimKinematicConstraints)
 	{
-		InitColor(Particles, ParticleOffset, ParticleCount);
+		InitColor(Particles);
 	}
 
 	virtual ~FPBDSpringConstraints() override {}
@@ -35,9 +42,11 @@ protected:
 	typedef FPBDSpringConstraintsBase Base;
 	using Base::Constraints;
 	using Base::Stiffness;
+	using Base::ParticleOffset;
+	using Base::ParticleCount;
 
 private:
-	void InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount);
+	void InitColor(const FSolverParticles& InParticles);
 	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const;
 
 private:
@@ -52,6 +61,25 @@ public:
 		return IsEdgeSpringStiffnessEnabled(PropertyCollection, false);
 	}
 
+	FPBDEdgeSpringConstraints(
+		const FSolverParticles& Particles,
+		int32 ParticleOffset,
+		int32 ParticleCount,
+		const TArray<TVec3<int32>>& InConstraints,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		bool bTrimKinematicConstraints = false)
+		: FPBDSpringConstraints(
+			Particles,
+			ParticleOffset,
+			ParticleCount,
+			InConstraints,
+			WeightMaps.FindRef(GetEdgeSpringStiffnessString(PropertyCollection, EdgeSpringStiffnessName.ToString())),
+			FSolverVec2(GetWeightedFloatEdgeSpringStiffness(PropertyCollection, 1.f)),
+			bTrimKinematicConstraints)
+	{}
+
+	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
 	FPBDEdgeSpringConstraints(
 		const FSolverParticles& Particles,
 		int32 ParticleOffset,
@@ -72,15 +100,19 @@ public:
 
 	virtual ~FPBDEdgeSpringConstraints() override = default;
 
+	void SetProperties(
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
+
+	UE_DEPRECATED(5.3, "Use SetProperties(const FCollectionPropertyConstFacade&, const TMap<FString, TConstArrayView<FRealSingle>>&, FSolverReal) instead.")
 	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
-		if (IsEdgeSpringStiffnessMutable(PropertyCollection))
-		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatEdgeSpringStiffness(PropertyCollection)));
-		}
+		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>());
 	}
 
 private:
+	using FPBDSpringConstraints::ParticleCount;
+
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(EdgeSpringStiffness, float);
 };
 
@@ -92,6 +124,25 @@ public:
 		return IsBendingSpringStiffnessEnabled(PropertyCollection, false);
 	}
 
+	FPBDBendingSpringConstraints(
+		const FSolverParticles& Particles,
+		int32 ParticleOffset,
+		int32 ParticleCount,
+		const TArray<TVec2<int32>>& InConstraints,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		bool bTrimKinematicConstraints = false)
+		: FPBDSpringConstraints(
+			Particles,
+			ParticleOffset,
+			ParticleCount,
+			InConstraints,
+			WeightMaps.FindRef(GetBendingSpringStiffnessString(PropertyCollection, BendingSpringStiffnessName.ToString())),
+			FSolverVec2(GetWeightedFloatBendingSpringStiffness(PropertyCollection, 1.f)),
+			bTrimKinematicConstraints)
+	{}
+
+	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
 	FPBDBendingSpringConstraints(
 		const FSolverParticles& Particles,
 		int32 ParticleOffset,
@@ -112,15 +163,19 @@ public:
 
 	virtual ~FPBDBendingSpringConstraints() override = default;
 
+	void SetProperties(
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
+
+	UE_DEPRECATED(5.3, "Use SetProperties(const FCollectionPropertyConstFacade&, const TMap<FString, TConstArrayView<FRealSingle>>&, FSolverReal) instead.")
 	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
-		if (IsBendingSpringStiffnessMutable(PropertyCollection))
-		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBendingSpringStiffness(PropertyCollection)));
-		}
+		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>());
 	}
 
 private:
+	using FPBDSpringConstraints::ParticleCount;
+
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(BendingSpringStiffness, float);
 };
 

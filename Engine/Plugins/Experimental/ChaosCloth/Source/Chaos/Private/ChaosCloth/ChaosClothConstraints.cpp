@@ -101,11 +101,38 @@ void FClothConstraints::Enable(bool bEnable)
 void FClothConstraints::AddRules(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const FTriangleMesh& TriangleMesh,
-	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+	const TArray<TConstArrayView<FRealSingle>>& WeightMapArray,
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 	Softs::FSolverReal MeshScale,
-	bool bEnabled,
-	const FClothingPatternData* PatternData)
+	bool bEnabled)
+{
+	// Build new weight map container from the old legacy weight map enum
+	TMap<FString, TConstArrayView<FRealSingle>> WeightMaps;
+
+	const UEnum* const ChaosWeightMapTargetEnum = StaticEnum<EChaosWeightMapTarget>();
+	const int32 NumWeightMaps = (int32)ChaosWeightMapTargetEnum->GetMaxEnumValue() + 1;
+
+	WeightMaps.Reserve(NumWeightMaps);
+
+	for (int32 EnumIndex = 0; EnumIndex < ChaosWeightMapTargetEnum->NumEnums(); ++EnumIndex)
+	{
+		const int32 TargetIndex = (int32)ChaosWeightMapTargetEnum->GetValueByIndex(EnumIndex);
+		const FString WeightMapName = ChaosWeightMapTargetEnum->GetNameByIndex(EnumIndex).ToString();
+
+		WeightMaps.Add(WeightMapName, WeightMapArray[TargetIndex]);
+	}
+
+	// Call new AddRules function
+	AddRules(ConfigProperties, TriangleMesh, nullptr, WeightMaps, Tethers, MeshScale, bEnabled);
+}
+
+void FClothConstraints::AddRules(
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
+	const FTriangleMesh& TriangleMesh,
+	const FClothingPatternData* PatternData,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
+	Softs::FSolverReal MeshScale, bool bEnabled)
 {
 	// Self collisions
 	CreateSelfCollisionConstraints(ConfigProperties, TriangleMesh);
@@ -190,29 +217,19 @@ void FClothConstraints::CreateSelfCollisionConstraints(const Softs::FCollectionP
 
 void FClothConstraints::CreateStretchConstraints(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 	const FTriangleMesh& TriangleMesh,
 	const FClothingPatternData* PatternData)
 {
 	if (PatternData && PatternData->PatternPositions.Num() && Softs::FXPBDStretchBiasElementConstraints::IsEnabled(ConfigProperties))
 	{
-		// TODO: separate warp, weft, Bias multipliers
-		const TConstArrayView<FRealSingle>& EdgeStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::EdgeStiffness];
-		const TConstArrayView<FRealSingle> DampingMultipliers;  // TODO: Damping multiplier
-		const TConstArrayView<FRealSingle> WarpWeftScaleMultipliers; // TODO: separate multipliers for warp and weft scale
-
 		XStretchBiasConstraints = MakeShared<Softs::FXPBDStretchBiasElementConstraints>(
 			Evolution->Particles(),
 			ParticleOffset,
 			NumParticles,
 			TriangleMesh,
 			PatternData->WeldedFaceVertexPatternPositions,
-			EdgeStiffnessMultipliers,
-			EdgeStiffnessMultipliers,
-			EdgeStiffnessMultipliers,
-			DampingMultipliers,
-			WarpWeftScaleMultipliers,
-			WarpWeftScaleMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -221,16 +238,12 @@ void FClothConstraints::CreateStretchConstraints(
 	}
 	else if (Softs::FXPBDEdgeSpringConstraints::IsEnabled(ConfigProperties))
 	{
-		const TConstArrayView<FRealSingle>& EdgeStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::EdgeStiffness];
-		const TConstArrayView<FRealSingle> DampingMultipliers;  // TODO: Damping multiplier
-
 		XEdgeConstraints = MakeShared<Softs::FXPBDEdgeSpringConstraints>(
 			Evolution->Particles(),
 			ParticleOffset,
 			NumParticles,
 			TriangleMesh.GetSurfaceElements(),
-			EdgeStiffnessMultipliers,
-			DampingMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -239,14 +252,12 @@ void FClothConstraints::CreateStretchConstraints(
 	}
 	else if (Softs::FPBDEdgeSpringConstraints::IsEnabled(ConfigProperties))
 	{
-		const TConstArrayView<FRealSingle>& EdgeStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::EdgeStiffness];
-
 		EdgeConstraints = MakeShared<Softs::FPBDEdgeSpringConstraints>(
 			Evolution->Particles(),
 			ParticleOffset,
 			NumParticles,
 			TriangleMesh.GetSurfaceElements(),
-			EdgeStiffnessMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -257,27 +268,18 @@ void FClothConstraints::CreateStretchConstraints(
 
 void FClothConstraints::CreateBendingConstraints(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 	const FTriangleMesh& TriangleMesh,
 	const FClothingPatternData* PatternData)
 {
 	if (PatternData && PatternData->PatternPositions.Num() && Softs::FXPBDAnisotropicBendingConstraints::IsEnabled(ConfigProperties))
 	{
-		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
-		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BucklingStiffness];
-		const TConstArrayView<FRealSingle> DampingMultipliers;
 		XAnisoBendingElementConstraints = MakeShared<Softs::FXPBDAnisotropicBendingConstraints>(
 			Evolution->Particles(),
 			ParticleOffset, NumParticles,
 			TriangleMesh,
 			PatternData->WeldedFaceVertexPatternPositions,
-			BendingStiffnessMultipliers,
-			BendingStiffnessMultipliers,
-			BendingStiffnessMultipliers,
-			BucklingStiffnessMultipliers,
-			BucklingStiffnessMultipliers,
-			BucklingStiffnessMultipliers,
-			DampingMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -287,17 +289,12 @@ void FClothConstraints::CreateBendingConstraints(
 	else if (Softs::FXPBDBendingConstraints::IsEnabled(ConfigProperties))
 	{
 		TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
-		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
-		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BucklingStiffness];
-		const TConstArrayView<FRealSingle> DampingMultipliers;
 
 		XBendingElementConstraints = MakeShared<Softs::FXPBDBendingConstraints>(
 			Evolution->Particles(),
 			ParticleOffset, NumParticles,
 			MoveTemp(BendingElements),
-			BendingStiffnessMultipliers,
-			BucklingStiffnessMultipliers,
-			DampingMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -307,15 +304,12 @@ void FClothConstraints::CreateBendingConstraints(
 	else if (Softs::FPBDBendingConstraints::IsEnabled(ConfigProperties))
 	{
 		TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
-		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
-		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BucklingStiffness];
 
 		BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(
 			Evolution->Particles(),
 			ParticleOffset, NumParticles,
 			MoveTemp(BendingElements),
-			BendingStiffnessMultipliers,
-			BucklingStiffnessMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -325,15 +319,12 @@ void FClothConstraints::CreateBendingConstraints(
 	else if (Softs::FXPBDBendingSpringConstraints::IsEnabled(ConfigProperties))
 	{
 		const TArray<Chaos::TVec2<int32>> CrossEdges = TriangleMesh.GetUniqueAdjacentPoints();
-		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
-		const TConstArrayView<FRealSingle> DampingMultipliers;
 
 		XBendingConstraints = MakeShared<Softs::FXPBDBendingSpringConstraints>(
 			Evolution->Particles(),
 			ParticleOffset, NumParticles,
 			CrossEdges,
-			BendingStiffnessMultipliers,
-			DampingMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -343,14 +334,13 @@ void FClothConstraints::CreateBendingConstraints(
 	else if (Softs::FPBDBendingSpringConstraints::IsEnabled(ConfigProperties))
 	{
 		const TArray<Chaos::TVec2<int32>> CrossEdges = TriangleMesh.GetUniqueAdjacentPoints();
-		const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
 
 		BendingConstraints = MakeShared<Softs::FPBDBendingSpringConstraints>(
 			Evolution->Particles(),
 			ParticleOffset,
 			NumParticles,
 			CrossEdges,
-			BendingStiffnessMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -361,19 +351,17 @@ void FClothConstraints::CreateBendingConstraints(
 
 void FClothConstraints::CreateAreaConstraints(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 	const FTriangleMesh& TriangleMesh)
 {
 	if (Softs::FXPBDAreaSpringConstraints::IsEnabled(ConfigProperties))
 	{
-		const TConstArrayView<FRealSingle>& AreaStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AreaStiffness];
-
 		XAreaConstraints = MakeShared<Softs::FXPBDAreaSpringConstraints>(
 			Evolution->Particles(),
 			ParticleOffset,
 			NumParticles,
 			TriangleMesh.GetSurfaceElements(),
-			AreaStiffnessMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -382,14 +370,12 @@ void FClothConstraints::CreateAreaConstraints(
 	}
 	else if (Softs::FPBDAreaSpringConstraints::IsEnabled(ConfigProperties))
 	{
-		const TConstArrayView<FRealSingle>& AreaStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AreaStiffness];
-
 		AreaConstraints = MakeShared<Softs::FPBDAreaSpringConstraints>(
 			Evolution->Particles(),
 			ParticleOffset,
 			NumParticles,
 			TriangleMesh.GetSurfaceElements(),
-			AreaStiffnessMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			/*bTrimKinematicConstraints =*/ true);
 
@@ -400,23 +386,19 @@ void FClothConstraints::CreateAreaConstraints(
 
 void FClothConstraints::CreateLongRangeConstraints(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 	Softs::FSolverReal MeshScale)
 {
 	if (Softs::FPBDLongRangeConstraints::IsEnabled(ConfigProperties))
 	{
-		const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherStiffness];
-		const TConstArrayView<FRealSingle>& TetherScaleMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherScale];
-
 		//  Now that we're only doing a single iteration of Long range constraints, and they're more of a fake constraint to jump start our initial guess, it's not clear that using XPBD makes sense here.
 		LongRangeConstraints = MakeShared<Softs::FPBDLongRangeConstraints>(
 			Evolution->Particles(),
 			ParticleOffset,
 			NumParticles,
 			Tethers,
-			TetherStiffnessMultipliers,
-			TetherScaleMultipliers,
+			WeightMaps,
 			ConfigProperties,
 			MeshScale);
 
@@ -426,17 +408,27 @@ void FClothConstraints::CreateLongRangeConstraints(
 
 void FClothConstraints::CreateMaxDistanceConstraints(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 	Softs::FSolverReal MeshScale)
 {
-	const TConstArrayView<FRealSingle>& MaxDistances = WeightMaps[(int32)EChaosWeightMapTarget::MaxDistance];
-	if (MaxDistances.Num() == NumParticles && Softs::FPBDSphericalConstraint::IsEnabled(ConfigProperties))
+	if (ConfigProperties.GetValue("UseLegacyConfig", false))
+	{
+		FString MaxDistanceString = TEXT("MaxDistance");
+		MaxDistanceString = ConfigProperties.GetStringValue(MaxDistanceString, MaxDistanceString);  // Uses the same string for both the default weight map name and the property name
+		const TConstArrayView<FRealSingle> MaxDistances = WeightMaps.FindRef(MaxDistanceString);
+		if (MaxDistances.Num() != NumParticles)
+		{
+			return;  // Legacy configs disable the constraint when the weight map is missing
+		}
+	}
+
+	if (Softs::FPBDSphericalConstraint::IsEnabled(ConfigProperties))
 	{
 		MaximumDistanceConstraints = MakeShared<Softs::FPBDSphericalConstraint>(
 			ParticleOffset,
 			NumParticles,
 			*AnimationPositions,
-			MaxDistances,
+			WeightMaps,
 			ConfigProperties,
 			MeshScale);
 
@@ -446,37 +438,45 @@ void FClothConstraints::CreateMaxDistanceConstraints(
 
 void FClothConstraints::CreateBackstopConstraints(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
-	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 	Softs::FSolverReal MeshScale)
 {
+	if (ConfigProperties.GetValue("UseLegacyConfig", false))
+	{
+		FString BackstopRadiusString = TEXT("BackstopRadius");
+		FString BackstopDistanceString = TEXT("BackstopDistance");
+		BackstopRadiusString = ConfigProperties.GetStringValue(BackstopRadiusString, BackstopRadiusString);        // Uses the same string for both the default weight map name and the property name
+		BackstopDistanceString = ConfigProperties.GetStringValue(BackstopDistanceString, BackstopDistanceString);  //
+		const TConstArrayView<FRealSingle> BackstopRadiuses = WeightMaps.FindRef(BackstopRadiusString);
+		const TConstArrayView<FRealSingle> BackstopDistances = WeightMaps.FindRef(BackstopDistanceString);
+
+		if (BackstopRadiuses.Num() != NumParticles || BackstopDistances.Num() != NumParticles)
+		{
+			return;  // Legacy configs disable the constraint when the weight maps are missing
+		}
+	}
+
 	if (Softs::FPBDSphericalBackstopConstraint::IsEnabled(ConfigProperties))
 	{
-		const TConstArrayView<FRealSingle>& BackstopDistances = WeightMaps[(int32)EChaosWeightMapTarget::BackstopDistance];
-		const TConstArrayView<FRealSingle>& BackstopRadiuses = WeightMaps[(int32)EChaosWeightMapTarget::BackstopRadius];
+		BackstopConstraints = MakeShared<Softs::FPBDSphericalBackstopConstraint>(
+			ParticleOffset,
+			NumParticles,
+			*AnimationPositions,
+			*AnimationNormals,
+			WeightMaps,
+			ConfigProperties,
+			MeshScale);
 
-		if (BackstopRadiuses.Num() == NumParticles && BackstopDistances.Num() == NumParticles)
-		{
-			BackstopConstraints = MakeShared<Softs::FPBDSphericalBackstopConstraint>(
-				ParticleOffset,
-				NumParticles,
-				*AnimationPositions,
-				*AnimationNormals,
-				BackstopRadiuses,
-				BackstopDistances,
-				ConfigProperties,
-				MeshScale);
-
-			++NumConstraintRules;
-		}
+		++NumConstraintRules;
 	}
 }
 
-void FClothConstraints::CreateAnimDriveConstraints(const Softs::FCollectionPropertyConstFacade& ConfigProperties, const TArray<TConstArrayView<FRealSingle>>& WeightMaps)
+void FClothConstraints::CreateAnimDriveConstraints(
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
 {
 	if (Softs::FPBDAnimDriveConstraint::IsEnabled(ConfigProperties))
 	{
-		const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
-		const TConstArrayView<FRealSingle>& AnimDriveDampingMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveDamping];
 		check(AnimationVelocities); // Legacy code didn't use to have AnimationVelocities
 
 		AnimDriveConstraints = MakeShared<Softs::FPBDAnimDriveConstraint>(
@@ -484,8 +484,7 @@ void FClothConstraints::CreateAnimDriveConstraints(const Softs::FCollectionPrope
 			NumParticles,
 			*AnimationPositions,
 			*AnimationVelocities,
-			AnimDriveStiffnessMultipliers,
-			AnimDriveDampingMultipliers,
+			WeightMaps,
 			ConfigProperties);
 
 		++NumConstraintInits;  // Uses init to update the property tables
@@ -1189,52 +1188,53 @@ void FClothConstraints::SetSelfCollisionConstraints(const FTriangleMesh& Triangl
 
 void FClothConstraints::Update(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 	Softs::FSolverReal MeshScale,
 	Softs::FSolverReal MaxDistancesScale)
 {
 	if (XEdgeConstraints)
 	{
-		XEdgeConstraints->SetProperties(ConfigProperties);
+		XEdgeConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	else if (EdgeConstraints)
 	{
-		EdgeConstraints->SetProperties(ConfigProperties);
+		EdgeConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	if (XBendingConstraints)
 	{
-		XBendingConstraints->SetProperties(ConfigProperties);
+		XBendingConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	else if (BendingConstraints)
 	{
-		BendingConstraints->SetProperties(ConfigProperties);
+		BendingConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	if (XBendingElementConstraints)
 	{
-		XBendingElementConstraints->SetProperties(ConfigProperties);
+		XBendingElementConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	else if (BendingElementConstraints)
 	{
-		BendingElementConstraints->SetProperties(ConfigProperties);
+		BendingElementConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	if (XAreaConstraints)
 	{
-		XAreaConstraints->SetProperties(ConfigProperties);
+		XAreaConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	else if (AreaConstraints)
 	{
-		AreaConstraints->SetProperties(ConfigProperties);
+		AreaConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	if (LongRangeConstraints)
 	{
-		LongRangeConstraints->SetProperties(ConfigProperties, MeshScale);
+		LongRangeConstraints->SetProperties(ConfigProperties, WeightMaps, MeshScale);
 	}
 	if (MaximumDistanceConstraints)
 	{
-		MaximumDistanceConstraints->SetProperties(ConfigProperties, MeshScale * MaxDistancesScale);
+		MaximumDistanceConstraints->SetProperties(ConfigProperties, WeightMaps, MeshScale * MaxDistancesScale);
 	}
 	if (AnimDriveConstraints)
 	{
-		AnimDriveConstraints->SetProperties(ConfigProperties);
+		AnimDriveConstraints->SetProperties(ConfigProperties, WeightMaps);
 	}
 	if (SelfCollisionConstraints)
 	{
@@ -1242,8 +1242,17 @@ void FClothConstraints::Update(
 	}
 	if (BackstopConstraints)
 	{
-		BackstopConstraints->SetProperties(ConfigProperties, MeshScale);
+		BackstopConstraints->SetProperties(ConfigProperties, WeightMaps, MeshScale);
 	}
+}
+
+// Deprecated
+void FClothConstraints::Update(
+	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
+	Softs::FSolverReal MeshScale,
+	Softs::FSolverReal MaxDistancesScale)
+{
+	Update(ConfigProperties, TMap<FString, TConstArrayView<FRealSingle>>(), MeshScale, MaxDistancesScale);
 }
 
 void FClothConstraints::SetEdgeProperties(const Softs::FSolverVec2& EdgeStiffness, const Softs::FSolverVec2& DampingRatio)
@@ -1321,8 +1330,7 @@ void FClothConstraints::SetMaximumDistanceProperties(Softs::FSolverReal MeshScal
 {
 	if (MaximumDistanceConstraints)
 	{
-		constexpr Softs::FSolverReal MaxDistancesMultiplier = (Softs::FSolverReal)1.;
-		MaximumDistanceConstraints->SetScale(MaxDistancesMultiplier, MeshScale);
+		MaximumDistanceConstraints->SetScale(MeshScale);
 	}
 }
 
@@ -1353,8 +1361,7 @@ void FClothConstraints::SetBackstopProperties(bool bEnabled, Softs::FSolverReal 
 	if (BackstopConstraints)
 	{
 		BackstopConstraints->SetEnabled(bEnabled);
-		constexpr Softs::FSolverReal BackstopDistancesMultiplier = (Softs::FSolverReal)1.;
-		BackstopConstraints->SetScale(BackstopDistancesMultiplier, MeshScale);
+		BackstopConstraints->SetScale(MeshScale);
 	}
 }
 

@@ -30,6 +30,35 @@ public:
 		const int32 InParticleOffset,
 		const int32 InParticleCount,
 		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		FSolverReal MeshScale)
+		: FPBDLongRangeConstraintsBase(
+			Particles,
+			InParticleOffset,
+			InParticleCount,
+			InTethers,
+			WeightMaps.FindRef(GetXPBDTetherStiffnessString(PropertyCollection, XPBDTetherStiffnessName.ToString())),
+			WeightMaps.FindRef(GetXPBDTetherScaleString(PropertyCollection, XPBDTetherScaleName.ToString())),
+			FSolverVec2(GetWeightedFloatXPBDTetherStiffness(PropertyCollection, MaxStiffness)),
+			FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection, 1.f)),  // Scale clamping done in constructor
+			MaxStiffness,
+			MeshScale)
+	{
+		NumTethers = 0;
+		for (const TConstArrayView<FTether>& TetherBatch : Tethers)
+		{
+			NumTethers += TetherBatch.Num();
+		}
+		Lambdas.Reserve(NumTethers);
+	}
+
+	UE_DEPRECATED(5.3, "Use weight map constructor instead.")
+	FXPBDLongRangeConstraints(
+		const FSolverParticles& Particles,
+		const int32 InParticleOffset,
+		const int32 InParticleCount,
+		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const FCollectionPropertyConstFacade& PropertyCollection)
@@ -82,23 +111,56 @@ public:
 
 	virtual ~FXPBDLongRangeConstraints() override {}
 
-	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection, FSolverReal MeshScale)
+	void SetProperties(
+		const FCollectionPropertyConstFacade& PropertyCollection,
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+		FSolverReal MeshScale)
 	{
 		if (IsXPBDTetherStiffnessMutable(PropertyCollection))
 		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDTetherStiffness(PropertyCollection)));
+			const FSolverVec2 WeightedValue(GetWeightedFloatXPBDTetherStiffness(PropertyCollection));
+			if (IsXPBDTetherStiffnessStringDirty(PropertyCollection))
+			{
+				const FString& WeightMapName = GetXPBDTetherStiffnessString(PropertyCollection);
+				Stiffness = FPBDStiffness(
+					WeightedValue,
+					WeightMaps.FindRef(WeightMapName),
+					ParticleCount,
+					FPBDStiffness::DefaultTableSize,
+					FPBDStiffness::DefaultParameterFitBase,
+					MaxStiffness);
+			}
+			else
+			{
+				Stiffness.SetWeightedValue(WeightedValue, MaxStiffness);
+			}
 		}
 		if (IsXPBDTetherScaleMutable(PropertyCollection))
 		{
-			TetherScale.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection)).ClampAxes(Base::MinTetherScale, Base::MaxTetherScale) * MeshScale);
+			const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection)).ClampAxes(MinTetherScale, MaxTetherScale) * MeshScale;
+			if (IsXPBDTetherScaleStringDirty(PropertyCollection))
+			{
+				const FString& WeightMapName = GetXPBDTetherScaleString(PropertyCollection);
+				TetherScale = FPBDWeightMap(WeightedValue, WeightMaps.FindRef(WeightMapName), ParticleCount);
+			}
+			else
+			{
+				TetherScale.SetWeightedValue(WeightedValue);
+			}
 		}
+	}
+
+	UE_DEPRECATED(5.3, "Use SetProperties(const FCollectionPropertyConstFacade&, const TMap<FString, TConstArrayView<FRealSingle>>&, FSolverReal) instead.")
+	void SetProperties(const FCollectionPropertyConstFacade& PropertyCollection, FSolverReal MeshScale)
+	{
+		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>(), MeshScale);
 	}
 
 	// Set the stiffness and scale values used by the constraint
 	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InTetherScale, FSolverReal MeshScale = (FSolverReal)1)
 	{
 		Stiffness.SetWeightedValue(InStiffness, MaxStiffness);
-		TetherScale.SetWeightedValue(InTetherScale.ClampAxes(Base::MinTetherScale, Base::MaxTetherScale) * MeshScale);
+		TetherScale.SetWeightedValue(InTetherScale.ClampAxes(MinTetherScale, MaxTetherScale) * MeshScale);
 	}
 
 	// Set stiffness offset and range, as well as the simulation stiffness exponent
@@ -210,7 +272,11 @@ private:
 		Lambda += DLambda;
 	}
 
+	using Base::MinTetherScale;
+	using Base::MaxTetherScale;
 	using Base::Tethers;
+	using Base::ParticleOffset;
+	using Base::ParticleCount;
 	using Base::Stiffness;
 	using Base::TetherScale;
 

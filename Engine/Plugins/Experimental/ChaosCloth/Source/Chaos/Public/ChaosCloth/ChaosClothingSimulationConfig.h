@@ -24,15 +24,20 @@ namespace Chaos
 		FClothingSimulationConfig();
 		FClothingSimulationConfig(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection);
 
-		~FClothingSimulationConfig() = default;
+		~FClothingSimulationConfig();
 
 		FClothingSimulationConfig(const FClothingSimulationConfig&) = delete;
 		FClothingSimulationConfig(FClothingSimulationConfig&&) = delete;
 		FClothingSimulationConfig& operator=(const FClothingSimulationConfig&) = delete;
 		FClothingSimulationConfig& operator=(FClothingSimulationConfig&&) = delete;
 
-		/** Initialize configuration from cloth config UObjects. */
-		void Initialize(const UChaosClothConfig* ClothConfig, const UChaosClothSharedSimConfig* ClothSharedConfig);
+		/**
+		 * Initialize configuration from cloth config UObjects.
+		 * @param ClothConfig The cloth config UObject.
+		 * @param ClothSharedConfig The cloth solver shared config UObject.
+		 * @param bUseLegacyConfig Whether to make the config a legacy cloth config, so that the constraints disable themselves with missing masks, ...etc.
+		 */
+		void Initialize(const UChaosClothConfig* ClothConfig, const UChaosClothSharedSimConfig* ClothSharedConfig, bool bUseLegacyConfig = false);
 
 		/** Initialize config from a property collection. */
 		void Initialize(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection);
