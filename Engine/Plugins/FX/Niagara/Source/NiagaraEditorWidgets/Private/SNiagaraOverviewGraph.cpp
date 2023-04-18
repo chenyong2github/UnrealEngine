@@ -18,6 +18,7 @@
 #include "NiagaraOverviewNode.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
+#include "NiagaraStackEditorData.h"
 #include "SNiagaraAssetPickerList.h"
 #include "SNiagaraOverviewGraphTitleBar.h"
 #include "SNiagaraStack.h"
