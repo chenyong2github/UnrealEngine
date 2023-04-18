@@ -4,6 +4,7 @@
 
 #include "SkeletalMeshModelingToolsEditorModeToolkit.h"
 #include "SkeletalMeshModelingToolsCommands.h"
+#include "SkeletalMeshGizmoUtils.h"
 
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "EdMode.h"
@@ -19,6 +20,7 @@
 #include "DisplaceMeshTool.h"
 #include "DynamicMeshSculptTool.h"
 #include "EditMeshPolygonsTool.h"
+#include "EditorInteractiveGizmoManager.h"
 #include "HoleFillTool.h"
 #include "LatticeDeformerTool.h"
 #include "MeshAttributePaintTool.h"
@@ -38,6 +40,7 @@
 #include "WeldMeshEdgesTool.h"
 
 #include "SkeletalMeshNotifier.h"
+#include "Animation/DebugSkelMeshComponent.h"
 #include "SkeletalMesh/SkeletalMeshEditionInterface.h"
 
 #include "SkeletalMesh/SkeletonEditingTool.h"
@@ -167,11 +170,14 @@ void USkeletalMeshModelingToolsEditorMode::Enter()
 {
 	UEdMode::Enter();
 
-	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<USkeletalMeshComponentToolTargetFactory>(GetInteractiveToolsContext()->TargetManager));
+	UEditorInteractiveToolsContext* InteractiveToolsContext = GetInteractiveToolsContext();
+	
+	InteractiveToolsContext->TargetManager->AddTargetFactory(NewObject<USkeletalMeshComponentToolTargetFactory>(InteractiveToolsContext->TargetManager));
 
 	StylusStateTracker = MakeUnique<FStylusStateTracker>();
 	// register gizmo helper
-	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
+	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(InteractiveToolsContext);
+	UE::SkeletalMeshGizmoUtils::RegisterTransformGizmoContextObject(InteractiveToolsContext);
 
 	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
 
@@ -237,9 +243,23 @@ void USkeletalMeshModelingToolsEditorMode::Enter()
 	GetInteractiveToolsContext()->ToolManager->SelectActiveToolType(EToolSide::Left, TEXT("BeginSkinWeightsPaintTool"));
 }
 
+UDebugSkelMeshComponent* USkeletalMeshModelingToolsEditorMode::GetSkelMeshComponent() const
+{
+	FToolBuilderState State; GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(State);
+	UActorComponent* SkeletalMeshComponent = ToolBuilderUtil::FindFirstComponent(State, [&](UActorComponent* Component)
+	{
+		return IsValid(Component) && Component->IsA<UDebugSkelMeshComponent>();
+	});
+
+	return Cast<UDebugSkelMeshComponent>(SkeletalMeshComponent);
+}
 
 void USkeletalMeshModelingToolsEditorMode::Exit()
 {
+	UEditorInteractiveToolsContext* InteractiveToolsContext = GetInteractiveToolsContext();
+	UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(InteractiveToolsContext);
+	UE::SkeletalMeshGizmoUtils::UnregisterTransformGizmoContextObject(InteractiveToolsContext);
+	
 	StylusStateTracker = nullptr;
 
 	UEdMode::Exit();
@@ -357,7 +377,7 @@ void USkeletalMeshModelingToolsEditorMode::SetEditorBinding(TSharedPtr<ISkeletal
 
 ISkeletalMeshEditionInterface* USkeletalMeshModelingToolsEditorMode::GetSkeletonInterface(UInteractiveTool* InTool)
 {
-	if (!IsValid(InTool) && !InTool->Implements<USkeletalMeshEditionInterface>())
+	if (!IsValid(InTool) || !InTool->Implements<USkeletalMeshEditionInterface>())
 	{
 		return nullptr;
 	}
@@ -396,6 +416,8 @@ void USkeletalMeshModelingToolsEditorMode::ConnectTool(UInteractiveTool* InTool)
 				BindingPtr->GetNotifier().HandleNotification(BoneNames, InNotifyType);
 			});
 		}
+
+		SkeletonInterface->GetNotifier().HandleNotification(BindingPtr->GetSelectedBones(), ESkeletalMeshNotifyType::BonesSelected);
 	}
 }
 
@@ -419,6 +441,22 @@ void USkeletalMeshModelingToolsEditorMode::DisconnectTool(UInteractiveTool* InTo
 		FromToolNotifierHandle.Reset();
 		SkeletonInterface->Unbind();
 	}
+}
+
+bool USkeletalMeshModelingToolsEditorMode::NeedsTransformGizmo() const
+{
+	UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+	if (const ISkeletalMeshEditionInterface* SkeletonInterface = GetSkeletonInterface(Tool))
+	{
+		return !SkeletonInterface->GetSelectedBones().IsEmpty();
+	}
+
+	if (Binding.IsValid())
+	{
+		return !Binding.Pin()->GetSelectedBones().IsEmpty();
+	}
+	
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

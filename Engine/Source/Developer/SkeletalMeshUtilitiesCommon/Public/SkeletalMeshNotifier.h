@@ -33,9 +33,11 @@ public:
 	virtual void HandleNotification(const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType) = 0;
 
 	void Notify(const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType) const;
-	
+	bool Notifying() const;
+
 private:
 	FSkeletalMeshNotifyDelegate NotifyDelegate;
+	mutable bool bNotifying = false;
 };
 
 class SKELETALMESHUTILITIESCOMMON_API ISkeletalMeshEditorBinding

@@ -31,6 +31,11 @@ void UTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
 
 void UTransformGizmo::Setup()
 {
+	if (IsValid(GizmoElementRoot))
+	{
+		return;
+	}
+	
 	UInteractiveGizmo::Setup();
 
 	SetupBehaviors();
@@ -110,14 +115,23 @@ void UTransformGizmo::Shutdown()
 
 FTransform UTransformGizmo::GetGizmoTransform() const
 {
-	float Scale = 1.0f;
-
-	if (TransformGizmoSource)
+	const float Scale = TransformGizmoSource ? TransformGizmoSource->GetGizmoScale() : 1.0f;
+	
+	auto GetCoordinateSystem = [&]()
 	{
-		Scale = TransformGizmoSource->GetGizmoScale();
+		if (TransformGizmoSource)
+		{
+			return TransformGizmoSource->GetGizmoCoordSystemSpace(); 
+		}
+		return GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
+	};
+	const bool bLocal = GetCoordinateSystem() == EToolContextCoordinateSystem::Local;
+	
+	FTransform GizmoLocalToWorldTransform(CurrentTransform.GetTranslation());
+	if (bLocal)
+	{
+		GizmoLocalToWorldTransform.SetRotation(CurrentTransform.GetRotation());
 	}
-
-	FTransform GizmoLocalToWorldTransform = CurrentTransform;
 	GizmoLocalToWorldTransform.SetScale3D(FVector(Scale, Scale, Scale));
 
 	return GizmoLocalToWorldTransform;
@@ -242,11 +256,46 @@ FInputRayHit UTransformGizmo::CanBeginClickDragSequence(const FInputDeviceRay& P
 
 void UTransformGizmo::UpdateMode()
 {
-	if (TransformGizmoSource && TransformGizmoSource->GetVisible())
+	auto GetTransformMode = [&]()
 	{
-		EGizmoTransformMode NewMode = TransformGizmoSource->GetGizmoMode();
-		EAxisList::Type NewAxisToDraw = TransformGizmoSource->GetGizmoAxisToDraw(NewMode);
+		if (TransformGizmoSource)
+		{
+			return TransformGizmoSource->GetGizmoMode();
+		}
+		
+		const EToolContextTransformGizmoMode ActiveGizmoMode = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentTransformGizmoMode();
+		switch (ActiveGizmoMode)
+		{
+			case EToolContextTransformGizmoMode::Translation: return EGizmoTransformMode::Translate;
+			case EToolContextTransformGizmoMode::Rotation: return EGizmoTransformMode::Rotate;
+			case EToolContextTransformGizmoMode::Scale: return EGizmoTransformMode::Scale;
+		}
+		return EGizmoTransformMode::None;
+	};
 
+	auto GetAxisToDraw = [&]()
+	{
+		if (TransformGizmoSource)
+		{
+			return TransformGizmoSource->GetGizmoAxisToDraw(TransformGizmoSource->GetGizmoMode());
+		}
+		return EAxisList::Type::All;
+	};
+
+	auto GetVisible = [&]()
+	{
+		if (TransformGizmoSource)
+		{
+			return TransformGizmoSource->GetVisible();
+		}
+		return true;
+	};
+	
+	if (GetVisible())
+	{
+		const EGizmoTransformMode NewMode = GetTransformMode();
+		const EAxisList::Type NewAxisToDraw = GetAxisToDraw();
+		
 		if (NewMode != CurrentMode)
 		{
 			EnableMode(CurrentMode, EAxisList::None);
@@ -554,7 +603,7 @@ void UTransformGizmo::Tick(float DeltaTime)
 	UpdateCameraAxisSource();
 }
 
-void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider)
+void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider, IGizmoStateTarget* InStateTarget)
 {
 	if (ActiveTarget != nullptr)
 	{
@@ -577,9 +626,17 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 	{
 		TransactionProvider = GetGizmoManager();
 	}
-	
-	StateTarget = UGizmoObjectModifyStateTarget::Construct(Target,
-		LOCTEXT("UTransformGizmoTransaction", "Transform"), TransactionProvider, this);
+
+	if (InStateTarget)
+	{
+		StateTarget = Cast<UObject>(InStateTarget);
+	}
+	else
+	{
+		StateTarget = UGizmoObjectModifyStateTarget::Construct(Target,
+			LOCTEXT("UTransformGizmoTransaction", "Transform"), TransactionProvider, this);	
+	}
+
 
 	CameraAxisSource = NewObject<UGizmoConstantFrameAxisSource>(this);
 }
@@ -819,7 +876,16 @@ FQuat UTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
 
 FVector UTransformGizmo::GetWorldAxis(const FVector& InAxis)
 {
-	if (TransformGizmoSource->GetGizmoCoordSystemSpace() == EToolContextCoordinateSystem::Local)
+	auto GetCoordinateSystem = [&]()
+	{
+		if (TransformGizmoSource)
+		{
+			return TransformGizmoSource->GetGizmoCoordSystemSpace(); 
+		}
+		return GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
+	};
+	
+	if (GetCoordinateSystem() == EToolContextCoordinateSystem::Local)
 	{
 		return CurrentTransform.TransformVectorNoScale(InAxis);
 	}
@@ -1284,7 +1350,16 @@ void UTransformGizmo::OnClickDragScale(const FInputDeviceRay& DragPos)
 {
 	FVector2D ScreenDelta = DragPos.ScreenPosition - InteractionScreenCurrPos;
 
-	if (TransformGizmoSource->GetScaleType() != EGizmoTransformScaleType::PercentageBased)
+	auto GetScaleType = [&]()
+	{
+		if (TransformGizmoSource)
+		{
+			return TransformGizmoSource->GetScaleType();
+		}
+		return EGizmoTransformScaleType::Default;
+	};
+	
+	if (GetScaleType() != EGizmoTransformScaleType::PercentageBased)
 	{
 		ScreenDelta *= ScaleMultiplier;
 	}
@@ -1337,7 +1412,7 @@ FVector UTransformGizmo::ComputeScaleDelta(const FVector2D& InStartPos, const FV
 
 void UTransformGizmo::OnClickPressRotateXAxis(const FInputDeviceRay& PressPos)
 {
-	InteractionScreenAxisDirection = GetScreenRotateAxisDir(FVector::YAxisVector, FVector::ZAxisVector).GetSafeNormal();
+	InteractionScreenAxisDirection = GetScreenRotateAxisDir(FVector::ZAxisVector, FVector::YAxisVector).GetSafeNormal();
 	InteractionAxisList = EAxisList::X;
 	InteractionScreenStartPos = InteractionScreenCurrPos = PressPos.ScreenPosition;
 	bInInteraction = true;
@@ -1345,7 +1420,7 @@ void UTransformGizmo::OnClickPressRotateXAxis(const FInputDeviceRay& PressPos)
 
 void UTransformGizmo::OnClickPressRotateYAxis(const FInputDeviceRay& PressPos)
 {
-	InteractionScreenAxisDirection = GetScreenRotateAxisDir(FVector::ZAxisVector, FVector::XAxisVector).GetSafeNormal();
+	InteractionScreenAxisDirection = GetScreenRotateAxisDir(FVector::XAxisVector, FVector::ZAxisVector).GetSafeNormal();
 	InteractionAxisList = EAxisList::Y;
 	InteractionScreenStartPos = InteractionScreenCurrPos = PressPos.ScreenPosition;
 	bInInteraction = true;
@@ -1372,9 +1447,10 @@ FVector2D UTransformGizmo::GetScreenRotateAxisDir(const FVector& InAxis0, const 
 	const bool bMirrorAxis1 = (FVector::DotProduct(Axis1, DirectionToWidget) <= 0.0f);
 	const float Direction = (bMirrorAxis0 ^ bMirrorAxis1) ? -1.0f : 1.0f;
 
-	const FVector AxisDir = (Axis1 - Axis0) * Direction;
-
-	return GetScreenProjectedAxis(GizmoViewContext, AxisDir);
+	const FVector2D Axis0Screen = GetScreenProjectedAxis(GizmoViewContext, bMirrorAxis0 ? Axis0:-Axis0);
+	const FVector2D Axis1Screen = GetScreenProjectedAxis(GizmoViewContext, bMirrorAxis1 ? Axis1:-Axis1);
+	
+	return ((Axis1Screen - Axis0Screen) * Direction).GetSafeNormal();
 }
 
 void UTransformGizmo::OnClickDragRotateAxis(const FInputDeviceRay& DragPos)
@@ -1401,8 +1477,16 @@ FQuat UTransformGizmo::ComputeAxisRotateDelta(const FVector2D& InStartPos, const
 		DeltaRot.Yaw = FVector2D::DotProduct(InteractionScreenAxisDirection, DragDir);
 	}
 
-	check(TransformGizmoSource);
-	if (TransformGizmoSource->GetGizmoCoordSystemSpace() == EToolContextCoordinateSystem::Local)
+	auto GetCoordinateSystem = [&]()
+	{
+		if (TransformGizmoSource)
+		{
+			return TransformGizmoSource->GetGizmoCoordSystemSpace(); 
+		}
+		return GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
+	};
+	
+	if (GetCoordinateSystem() == EToolContextCoordinateSystem::Local)
 	{
 		check(ActiveTarget);
 		FMatrix CurrCoordSystem = ActiveTarget->GetTransform().ToMatrixNoScale();

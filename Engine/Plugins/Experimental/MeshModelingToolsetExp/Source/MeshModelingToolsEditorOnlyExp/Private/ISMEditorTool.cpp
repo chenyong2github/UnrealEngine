@@ -555,7 +555,7 @@ static void AddInstancedComponentInstance(UInstancedStaticMeshComponent* ISMC, i
 			ISMC->GetInstanceTransform(Index, Tmp, true);
 			return Tmp;
 		},
-		[ISMC, Index](FTransform NewTransform) {
+		[ISMC, Index](const FTransform& NewTransform) {
 			ISMC->UpdateInstanceTransform(Index, NewTransform, true, true, true);
 		},
 		Index, bModifyOnTransform

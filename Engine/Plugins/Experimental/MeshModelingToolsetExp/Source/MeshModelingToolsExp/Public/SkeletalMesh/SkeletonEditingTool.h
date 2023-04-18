@@ -9,6 +9,8 @@
 #include "SkeletonModifier.h"
 #include "SkeletalMesh/SkeletalMeshEditionInterface.h"
 #include "Engine/World.h"
+#include "Changes/ValueWatcher.h"
+#include "Misc/EnumClassFlags.h"
 
 #include "SkeletonEditingTool.generated.h"
 
@@ -16,6 +18,9 @@ class USingleClickInputBehavior;
 class UGizmoViewContext;
 class UTransformGizmo;
 class USkeletonEditingTool;
+class USkeletonTransformProxy;
+class USkeletalMeshGizmoContextObjectBase;
+class USkeletalMeshGizmoWrapperBase;
 
 namespace SkeletonEditingTool
 {
@@ -110,12 +115,14 @@ public:
 	virtual bool CanAccept() const override { return true; }
 
 	// ICLickDragBehaviorTarget overrides
-	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& InPressPos) override;
 	
-	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
-	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
-	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
+	virtual void OnClickPress(const FInputDeviceRay& InPressPos) override;
+	virtual void OnClickDrag(const FInputDeviceRay& InDragPos) override;
+	virtual void OnClickRelease(const FInputDeviceRay& InReleasePos) override;
 	virtual void OnTerminateDragSequence() override;
+	
+	virtual void OnTick(float DeltaTime) override;
 
 	// IInteractiveToolCameraFocusAPI overrides
 	virtual FBox GetWorldSpaceFocusBox() override;
@@ -125,13 +132,13 @@ public:
 	void RenameBones();
 	void MoveBones();
 	void OrientBones();
-	
-	int32 ParentIndex = INDEX_NONE;
-	FName CurrentBone = NAME_None;
 
-	UPROPERTY()
-	TObjectPtr<USkeletonModifier> Modifier;
-	
+	// ISkeletalMeshEditionInterface overrides
+	virtual TArray<FName> GetSelectedBones() const override;
+
+	// IModifierToggleBehaviorTarget overrides
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+
 protected:
 
 	// UInteractiveTool overrides
@@ -146,8 +153,9 @@ protected:
 	void UnParentBones();
 	void ParentBones(const FName& InParentName);
 
-	TArray<FName> GetSelectedBones() const;
-
+	UPROPERTY()
+	TObjectPtr<USkeletonModifier> Modifier;
+	
 	UPROPERTY()
 	TObjectPtr<USkeletonEditingProperties> Properties;
 
@@ -175,12 +183,56 @@ protected:
 	UPROPERTY()
 	EEditingOperation Operation = EEditingOperation::Select;
 
+	// gizmo
+	UPROPERTY()
+	TWeakObjectPtr<USkeletalMeshGizmoContextObjectBase> GizmoContext = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<USkeletalMeshGizmoWrapperBase> GizmoWrapper = nullptr;
+
+	void UpdateGizmo() const;
+	
 	// ref skeleton transactions
 	void BeginChange();
 	void EndChange();
 	void CancelChange();
 	TUniquePtr<SkeletonEditingTool::FRefSkeletonChange> ActiveChange;
+
+	friend class SkeletonEditingTool::FRefSkeletonChange;
+	
+private:
+	TArray<int32> GetSelectedBoneIndexes() const;
+	
+	enum class EBoneSelectionMode : uint8
+	{
+		Single				= 0,
+		Additive			= 1 << 0,
+		Toggle				= 1 << 1
+	};
+	FRIEND_ENUM_CLASS_FLAGS(USkeletonEditingTool::EBoneSelectionMode)
+	
+
+	// flags used to identify behavior modifier keys/buttons
+	static constexpr int AddToSelectionModifier = 1;
+	static constexpr int ToggleSelectionModifier = 2;
+	EBoneSelectionMode SelectionMode = EBoneSelectionMode::Single;
+
+	TArray<FName> Selection;
+	
+	void SelectBone(const FName& InBoneName);
+	FName GetCurrentBone() const;
+
+	void NormalizeSelection();
+
+	TValueWatcher<TArray<FName>> SelectionWatcher;
+	TValueWatcher<EToolContextCoordinateSystem> CoordinateSystemWatcher; 
+	
+	int32 ParentIndex = INDEX_NONE;
+
+	TFunction<void()> PendingFunction;
 };
+
+ENUM_CLASS_FLAGS(USkeletonEditingTool::EBoneSelectionMode);
 
 /**
  * USkeletonEditingProperties

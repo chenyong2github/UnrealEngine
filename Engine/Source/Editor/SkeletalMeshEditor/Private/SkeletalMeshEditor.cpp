@@ -1668,7 +1668,10 @@ void FSkeletalMeshEditorNotifier::HandleNotification(const TArray<FName>& BoneNa
 		SkeletonTree->DeselectAll();
 		if (!BoneNames.IsEmpty())
 		{
-			SkeletonTree->SetSelectedBone(BoneNames[0], ESelectInfo::Direct);
+			for (const FName BoneName: BoneNames)
+			{
+				SkeletonTree->SetSelectedBone(BoneName, ESelectInfo::Direct);
+			}
 		}
 		break;
 	case ESkeletalMeshNotifyType::BonesRenamed:

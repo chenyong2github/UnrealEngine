@@ -7,8 +7,17 @@ FSkeletalMeshNotifyDelegate& ISkeletalMeshNotifier::Delegate()
 	return NotifyDelegate;
 }
 
+bool ISkeletalMeshNotifier::Notifying() const
+{
+	return bNotifying;
+}
+
 void ISkeletalMeshNotifier::Notify(const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType) const
 {
-	NotifyDelegate.Broadcast(BoneNames, InNotifyType);
+	if (!bNotifying)
+	{
+		TGuardValue<bool> RecursionGuard(bNotifying, true);
+		NotifyDelegate.Broadcast(BoneNames, InNotifyType);
+	}
 }
 

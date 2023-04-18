@@ -39,6 +39,12 @@ TOptional<FName> ISkeletalMeshEditionInterface::GetBoneName(HHitProxy* InHitProx
 	return Binding.IsValid() && Binding.Pin()->GetNameFunction() ? Binding.Pin()->GetNameFunction()(InHitProxy) : TOptional<FName>();
 }
 
+TArray<FName> ISkeletalMeshEditionInterface::GetSelectedBones() const
+{
+	static const TArray<FName> Dummy;
+	return Binding.IsValid() ? Binding.Pin()->GetSelectedBones() : Dummy;
+}
+
 FSkeletalMeshToolNotifier::FSkeletalMeshToolNotifier(TWeakInterfacePtr<ISkeletalMeshEditionInterface> InInterface)
 	: ISkeletalMeshNotifier()
 	, Interface(InInterface)

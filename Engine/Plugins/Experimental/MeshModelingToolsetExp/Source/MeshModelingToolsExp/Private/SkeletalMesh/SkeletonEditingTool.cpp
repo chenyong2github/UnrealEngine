@@ -17,6 +17,8 @@
 #include "BaseGizmos/GizmoViewContext.h"
 
 #include "Algo/Count.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
+#include "SkeletalMesh/SkeletonTransformProxy.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #define LOCTEXT_NAMESPACE "USkeletonEditingTool"
@@ -42,12 +44,14 @@ void FRefSkeletonChange::Apply(UObject* Object)
 { // redo
 	USkeletonEditingTool* Tool = CastChecked<USkeletonEditingTool>(Object);
 	Tool->Modifier->ExternalUpdate(PostChangeSkeleton, PostBoneTracker);
+	Tool->UpdateGizmo();
 }
 
 void FRefSkeletonChange::Revert(UObject* Object)
 { // undo
 	USkeletonEditingTool* Tool = CastChecked<USkeletonEditingTool>(Object);
 	Tool->Modifier->ExternalUpdate(PreChangeSkeleton, PreBoneTracker);
+	Tool->UpdateGizmo();
 }
 
 }
@@ -85,7 +89,10 @@ UInteractiveTool* USkeletonEditingToolBuilder::BuildTool(const FToolBuilderState
 void USkeletonEditingTool::Init(const FToolBuilderState& InSceneState)
 {
 	TargetWorld = InSceneState.World;
-	ViewContext = InSceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
+
+	const UContextObjectStore* ContextObjectStore = InSceneState.ToolManager->GetContextObjectStore();
+	ViewContext = ContextObjectStore->FindContext<UGizmoViewContext>();
+	GizmoContext = ContextObjectStore->FindContext<USkeletalMeshGizmoContextObjectBase>();
 }
 
 void USkeletonEditingTool::Setup()
@@ -93,7 +100,7 @@ void USkeletonEditingTool::Setup()
 	Super::Setup();
 
 	const IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	const USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(TargetComponent->GetOwnerComponent());
+	USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(TargetComponent->GetOwnerComponent());
 
 	USkeletalMesh* SkeletalMesh = Component ? Component->GetSkeletalMeshAsset() : nullptr;
 	if (!SkeletalMesh)
@@ -112,7 +119,7 @@ void USkeletonEditingTool::Setup()
 
 	if (NumBones)
 	{
-		CurrentBone = RootBoneName;
+		Selection = {RootBoneName};
 	}
 
 	// setup preview
@@ -136,6 +143,7 @@ void USkeletonEditingTool::Setup()
 	{
 		Properties = NewObject<USkeletonEditingProperties>();
 		Properties->Initialize(this);
+		Properties->Name = GetCurrentBone();
 		Properties->RestoreProperties(this);
 		AddToolPropertySource(Properties);
 
@@ -159,9 +167,122 @@ void USkeletonEditingTool::Setup()
 	{
 		UClickDragInputBehavior* ClickDragBehavior = NewObject<UClickDragInputBehavior>(this);
 		ClickDragBehavior->Initialize(this);
+		ClickDragBehavior->Modifiers.RegisterModifier(AddToSelectionModifier, FInputDeviceState::IsShiftKeyDown);
+		ClickDragBehavior->Modifiers.RegisterModifier(ToggleSelectionModifier, FInputDeviceState::IsCtrlKeyDown);
 		AddInputBehavior(ClickDragBehavior);
 	}
+
+	// setup gizmo
+	if (GizmoContext.IsValid())
+	{
+		UGizmoLambdaStateTarget* NewTarget = NewObject<UGizmoLambdaStateTarget>(this);
+		NewTarget->BeginUpdateFunction = [this]()
+		{
+			TGuardValue OperationGuard(Operation, EEditingOperation::Transform);
+			BeginChange();
+		};
+		NewTarget->EndUpdateFunction = [&]()
+		{
+			TGuardValue OperationGuard(Operation, EEditingOperation::Transform);
+			EndChange();
+
+			const IToolsContextQueriesAPI* ToolsContextQueries = GetToolManager()->GetPairedGizmoManager()->GetContextQueriesAPI();
+			check(ToolsContextQueries);
+			if (ToolsContextQueries->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
+			{
+				UpdateGizmo();
+			}
+		};
+		
+		GizmoWrapper = GizmoContext->GetNewWrapper(GetToolManager(), this, NewTarget);
+		if (GizmoWrapper)
+		{
+			GizmoWrapper->Component = Component;
+		}
+	}
+
+	// setup watchers
+	SelectionWatcher.Initialize(
+	[this]()
+	{
+		return this->Selection;
+	},
+	[this](TArray<FName> InBoneNames)
+	{
+		UpdateGizmo();
+		if (NeedsNotification())
+		{
+			GetNotifier().Notify(InBoneNames, ESkeletalMeshNotifyType::BonesSelected);
+		}
+	},
+	this->Selection);
+
+	IToolsContextQueriesAPI* ToolsContextQueries = GetToolManager()->GetPairedGizmoManager()->GetContextQueriesAPI();
+	CoordinateSystemWatcher.Initialize(
+	[ToolsContextQueries]()
+	{
+		check(ToolsContextQueries);
+		return ToolsContextQueries->GetCurrentCoordinateSystem();
+	},
+	[this](EToolContextCoordinateSystem)
+	{
+		UpdateGizmo();
+	},
+	ToolsContextQueries->GetCurrentCoordinateSystem());
+	
 }
+
+void USkeletonEditingTool::UpdateGizmo() const
+{	
+	if (!GizmoWrapper)
+	{
+		return;
+	}
+
+	GizmoWrapper->Initialize();
+
+	const bool bUseGizmo = Operation == EEditingOperation::Select || Operation == EEditingOperation::Transform; 
+	if (Selection.IsEmpty() || !bUseGizmo)
+	{
+		return;
+	}
+
+	const IToolsContextQueriesAPI* ToolsContextQueries = GetToolManager()->GetPairedGizmoManager()->GetContextQueriesAPI();
+	const bool bWorld = ToolsContextQueries->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World;
+	
+	const TArray<int32> BoneIndexes = GetSelectedBoneIndexes();
+	FTransform InitTransform = Modifier->GetTransform(BoneIndexes.Last(), true);
+	if (bWorld)
+	{
+		InitTransform = FTransform(FQuat::Identity, InitTransform.GetTranslation(), InitTransform.GetScale3D());
+	}
+	GizmoWrapper->Initialize(InitTransform, ToolsContextQueries->GetCurrentCoordinateSystem());
+
+	const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
+	const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton.GetRawRefBoneInfo();
+	for (const int32 BoneIndex: BoneIndexes)
+	{
+		const FName BoneName = BoneInfos[BoneIndex].Name;
+		const int32 ParentBoneIndex = BoneInfos[BoneIndex].ParentIndex;
+		const FTransform& ParentGlobal = Modifier->GetTransform(ParentBoneIndex, true);
+		
+		GizmoWrapper->HandleBoneTransform(
+			[this, BoneIndex, bWorld]()
+			{
+				return Modifier->GetTransform(BoneIndex, bWorld);
+			},
+			[this, BoneName, ParentGlobal, bWorld](const FTransform& InNewTransform)
+			{
+				if (bWorld)
+				{
+					const FTransform NewLocal = InNewTransform.GetRelativeTransform(ParentGlobal);
+					return Modifier->SetBoneTransform(BoneName, NewLocal, true);
+				}
+				return Modifier->SetBoneTransform(BoneName, InNewTransform, true);
+			});
+	}
+}
+
 
 void USkeletonEditingTool::Shutdown(EToolShutdownType ShutdownType)
 {
@@ -191,11 +312,17 @@ void USkeletonEditingTool::Shutdown(EToolShutdownType ShutdownType)
 	// show the skeletal mesh component
 	UE::ToolTarget::ShowSourceObject(Target);
 
-	//save properties	
+	// save properties	
 	Properties->SaveProperties(this);
 	ProjectionProperties->SaveProperties(this);
 	MirroringProperties->SaveProperties(this);
 	OrientingProperties->SaveProperties(this);
+
+	// clear gizmo
+	if (GizmoWrapper)
+	{
+		GizmoWrapper->Clear();
+	}
 }
 
 void USkeletonEditingTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
@@ -216,6 +343,7 @@ void USkeletonEditingTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		[this]()
 		{
 			Operation = EEditingOperation::Create;
+			UpdateGizmo();
 			GetToolManager()->DisplayMessage(LOCTEXT("Create", "Click & Drag to place a new bone."), EToolMessageLevel::UserNotification);
 		});
 	
@@ -258,6 +386,7 @@ void USkeletonEditingTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		[this]()
 		{
 			Operation = EEditingOperation::Parent;
+			UpdateGizmo();
 			GetToolManager()->DisplayMessage(LOCTEXT("Parent", "Click on a bone to be set as the new parent."), EToolMessageLevel::UserNotification);
 		});
 }
@@ -272,7 +401,8 @@ void USkeletonEditingTool::CreateNewBone()
 	BeginChange();
 
 	const FName BoneName = Modifier->GetUniqueName(Properties->DefaultName);
-	const bool bBoneAdded = Modifier->AddBone(BoneName, CurrentBone, Properties->Transform);
+	const FName ParentName = Selection.IsEmpty() ? NAME_None : Selection.Last(); 
+	const bool bBoneAdded = Modifier->AddBone(BoneName, ParentName, Properties->Transform);
 	if (bBoneAdded)
 	{
 		if (NeedsNotification())
@@ -280,8 +410,8 @@ void USkeletonEditingTool::CreateNewBone()
 			GetNotifier().Notify({BoneName}, ESkeletalMeshNotifyType::BonesAdded);
 		}
 	
-		CurrentBone = BoneName;
-		Properties->Name = CurrentBone;
+		Selection = {BoneName};
+		Properties->Name = BoneName;
 
 		EndChange();
 		return;
@@ -315,10 +445,15 @@ void USkeletonEditingTool::RemoveBones()
 	const bool bBonesRemoved = Modifier->RemoveBones(BonesToRemove, true);
 	if (bBonesRemoved)
 	{
-		// if (NeedsNotification())
-		// {
-		// 	GetNotifier().Notify(BonesToRemove, ESkeletalMeshNotifyType::BonesRemoved);
-		// }
+		Selection.RemoveAll([&](const FName& BoneName)
+		{
+			return BonesToRemove.Contains(BoneName);
+		});
+		
+		if (NeedsNotification())
+		{
+			GetNotifier().Notify(BonesToRemove, ESkeletalMeshNotifyType::BonesRemoved);
+		}
 		
 		EndChange();
 		return;
@@ -401,6 +536,7 @@ void USkeletonEditingTool::MoveBones()
 
 void USkeletonEditingTool::RenameBones()
 {
+	const FName CurrentBone = GetCurrentBone();
 	if (CurrentBone == Properties->Name || Properties->Name == NAME_None)
 	{
 		return;
@@ -418,12 +554,12 @@ void USkeletonEditingTool::RenameBones()
 	const bool bBoneRenamed = Modifier->RenameBone(CurrentBone, Properties->Name);
 	if (bBoneRenamed)
 	{
-		CurrentBone = Properties->Name;
+		Selection.Last() = Properties->Name;
 
-		// if (NeedsNotification())
-		// {
-		// 	GetNotifier().Notify({CurrentBone}, ESkeletalMeshNotifyType::BonesRenamed);
-		// }
+		if (NeedsNotification())
+		{
+			GetNotifier().Notify({CurrentBone}, ESkeletalMeshNotifyType::BonesRenamed);
+		}
 		
 		EndChange();
 		return;
@@ -432,15 +568,25 @@ void USkeletonEditingTool::RenameBones()
 	CancelChange();
 }
 
-void USkeletonEditingTool::OnClickPress(const FInputDeviceRay& PressPos)
+void USkeletonEditingTool::OnClickPress(const FInputDeviceRay& InPressPos)
 {
+	if (PendingFunction)
+	{
+		PendingFunction();
+		PendingFunction.Reset();
+	}
 	BeginChange();
 }
 
-void USkeletonEditingTool::OnClickDrag(const FInputDeviceRay& DragPos)
+void USkeletonEditingTool::OnClickDrag(const FInputDeviceRay& InDragPos)
 {
+	if (Operation != EEditingOperation::Create)
+	{
+		return;
+	}
+	
 	FVector HitPoint;
-	if (ProjectionProperties->GetProjectionPoint(DragPos, HitPoint))
+	if (ProjectionProperties->GetProjectionPoint(InDragPos, HitPoint))
 	{
 		const FTransform& ParentGlobal = Modifier->GetTransform(ParentIndex, true);
 		Properties->Transform.SetLocation(ParentGlobal.InverseTransformPosition(HitPoint));
@@ -451,7 +597,7 @@ void USkeletonEditingTool::OnClickDrag(const FInputDeviceRay& DragPos)
 			BeginChange();
 		}
 
-		const bool bBoneMoved = Modifier->SetBoneTransform(CurrentBone, Properties->Transform, Properties->bUpdateChildren);
+		const bool bBoneMoved = Modifier->SetBoneTransform(GetCurrentBone(), Properties->Transform, Properties->bUpdateChildren);
 		if (!bBoneMoved)
 		{
 			CancelChange();
@@ -501,7 +647,121 @@ void USkeletonEditingTool::OrientBones()
 	CancelChange();
 }
 
-void USkeletonEditingTool::OnClickRelease(const FInputDeviceRay& ReleasePos)
+void USkeletonEditingTool::OnUpdateModifierState(int InModifierID, bool bIsOn)
+{
+	auto UpdateFlag = [this, bIsOn](EBoneSelectionMode InFlag)
+	{
+		if (bIsOn)
+		{
+			EnumAddFlags(SelectionMode, InFlag);
+		}
+		else
+		{
+			EnumRemoveFlags(SelectionMode, InFlag);
+		}		
+	};
+	
+	if (InModifierID == AddToSelectionModifier)
+	{
+		UpdateFlag(EBoneSelectionMode::Additive);
+	}
+	else if (InModifierID == ToggleSelectionModifier)
+	{
+		UpdateFlag(EBoneSelectionMode::Toggle);
+	}
+}
+
+void USkeletonEditingTool::SelectBone(const FName& InBoneName)
+{
+	TArray<FName> NewSelection = Selection;
+
+	if (EnumHasAnyFlags(SelectionMode, EBoneSelectionMode::Additive))
+	{
+		if (InBoneName != NAME_None)
+		{
+			NewSelection.AddUnique(InBoneName);
+		}		
+	}
+	else if (EnumHasAnyFlags(SelectionMode, EBoneSelectionMode::Toggle))
+	{
+		const bool bSelected = NewSelection.Contains(InBoneName);
+		if (bSelected)
+		{
+			NewSelection.Remove(InBoneName);
+		}
+		else
+		{
+			NewSelection.Add(InBoneName);
+		}
+	}
+	else
+	{
+		NewSelection.Empty();
+		if (InBoneName != NAME_None)
+		{
+			NewSelection.Add(InBoneName);
+		}
+	}
+
+	Selection = MoveTemp(NewSelection);
+	NormalizeSelection();
+}
+
+void USkeletonEditingTool::NormalizeSelection()
+{
+	if (Selection.Num() < 2)
+	{
+		return;
+	}
+	
+	const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
+
+	// ensure they are known and unique
+	TArray<int32> Indexes;
+	for (const FName& BoneName: Selection)
+	{
+		const int32 BoneIndex = ReferenceSkeleton.FindRawBoneIndex(BoneName);
+		if (BoneIndex != INDEX_NONE)
+		{
+			Indexes.AddUnique(BoneIndex);
+		}
+	}
+
+	if (Indexes.IsEmpty())
+	{
+		Selection.Reset();
+		return;
+	}
+
+	// sort them so that parents are placed after one of their children 
+	const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton.GetRawRefBoneInfo();
+	Indexes.StableSort([&](const int32 Index0, const int32 Index1)
+	{
+		int32 P0 = BoneInfos[Index0].ParentIndex;
+		while (P0 != INDEX_NONE)
+		{
+			if (P0 == Index1)
+			{ // Index1 is a parent
+				return true;
+			}
+			if (Indexes.Contains(P0))
+			{ // parent is selected
+				return true;
+			}
+			P0 = BoneInfos[P0].ParentIndex;
+		}
+		return false;
+	});
+
+	// transform back to names
+	Selection.Reset();
+	Algo::Transform(Indexes, Selection, [&](const int32 Index)
+	{
+		return BoneInfos[Index].Name;
+	});	
+}
+
+void USkeletonEditingTool::OnClickRelease(const FInputDeviceRay& InReleasePos)
 {
 	TGuardValue OperationGuard(Operation, EEditingOperation::Transform);
 	EndChange();
@@ -510,17 +770,37 @@ void USkeletonEditingTool::OnClickRelease(const FInputDeviceRay& ReleasePos)
 void USkeletonEditingTool::OnTerminateDragSequence()
 {}
 
-FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceRay& ClickPos)
+void USkeletonEditingTool::OnTick(float DeltaTime)
 {
+	if (PendingFunction)
+	{
+		PendingFunction();
+		PendingFunction.Reset();
+	}
+	
+	SelectionWatcher.CheckAndUpdate();
+	CoordinateSystemWatcher.CheckAndUpdate();
+}
+
+FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceRay& InPressPos)
+{
+	PendingFunction.Reset();
+	ParentIndex = INDEX_NONE;
+	
 	FViewport* Viewport = GetToolManager()->GetContextQueriesAPI()->GetFocusedViewport();
-	if (!Viewport || !Viewport->HasFocus())
+	if (!Viewport)
+	{
+		return FInputRayHit();
+	}
+	
+	if (GizmoWrapper && GizmoWrapper->IsGizmoHit(InPressPos))
 	{
 		return FInputRayHit();
 	}
 	
 	auto PickBone = [&]() -> int32
 	{
-		if (HHitProxy* HitProxy = Viewport->GetHitProxy(ClickPos.ScreenPosition.X, ClickPos.ScreenPosition.Y))
+		if (HHitProxy* HitProxy = Viewport->GetHitProxy(InPressPos.ScreenPosition.X, InPressPos.ScreenPosition.Y))
 		{
 			if (TOptional<FName> OptBoneName = GetBoneName(HitProxy))
 			{
@@ -534,35 +814,31 @@ FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceR
 	// pick bone in viewport
 	const int32 BoneIndex = PickBone();
 
-	// update parent
-	const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
-	ParentIndex = INDEX_NONE;
-
 	// update projection properties
 	const FVector GlobalPosition = Modifier->GetTransform(BoneIndex, true).GetTranslation();
 	ProjectionProperties->UpdatePlane(*ViewContext, GlobalPosition);
-
+	
 	// if we picked a new bone
 	if (BoneIndex > INDEX_NONE)
 	{
 		// parent selection without changing the selection
 		if (Operation == EEditingOperation::Parent)
-		{	
+		{
+			const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
 			ParentBones(ReferenceSkeleton.GetBoneName(BoneIndex));
 			return FInputRayHit();
 		}
 		
 		// otherwise, update current selection
-		CurrentBone = ReferenceSkeleton.GetBoneName(BoneIndex);
-
-		Properties->Name = CurrentBone;
-		Properties->Transform = ReferenceSkeleton.GetRefBonePose()[BoneIndex];
-		ParentIndex = ReferenceSkeleton.GetParentIndex(BoneIndex);
-		
-		if (NeedsNotification())
+		PendingFunction = [this, BoneIndex]
 		{
-			GetNotifier().Notify({CurrentBone}, ESkeletalMeshNotifyType::BonesSelected);
-		}
+			const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
+			SelectBone(ReferenceSkeleton.GetBoneName(BoneIndex));
+
+			Properties->Name = GetCurrentBone();
+			Properties->Transform = ReferenceSkeleton.GetRefBonePose()[BoneIndex];
+			ParentIndex = ReferenceSkeleton.GetParentIndex(BoneIndex);
+		};
 	
 		return FInputRayHit(0.0);
 	}
@@ -570,15 +846,8 @@ FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceR
 	// if we didn't pick anything
 	if (Operation == EEditingOperation::Select)
 	{
-		// unselect all
-		CurrentBone = NAME_None;
-		Properties->Name = CurrentBone; 
-		
-		if (NeedsNotification())
-		{
-			GetNotifier().Notify({CurrentBone}, ESkeletalMeshNotifyType::BonesSelected);
-		}
-		
+		Selection.Empty();
+		Properties->Name = GetCurrentBone();
 		return FInputRayHit();
 	}
 
@@ -586,15 +855,19 @@ FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceR
 	if (Operation == EEditingOperation::Create)
 	{
 		FVector HitPoint;
-		if (ProjectionProperties->GetProjectionPoint(ClickPos, HitPoint))
+		if (ProjectionProperties->GetProjectionPoint(InPressPos, HitPoint))
 		{
 			// CurrentBone is gonna be the parent
-			ParentIndex = ReferenceSkeleton.FindRawBoneIndex(CurrentBone);
-			const FTransform& ParentGlobalTransform = Modifier->GetTransform(ParentIndex, true);
+			PendingFunction = [&]
+			{
+				const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
+				ParentIndex = ReferenceSkeleton.FindRawBoneIndex(GetCurrentBone());
+				const FTransform& ParentGlobalTransform = Modifier->GetTransform(ParentIndex, true);
 
-			// Create the new bone under mouse
-			Properties->Transform.SetLocation(ParentGlobalTransform.InverseTransformPosition(HitPoint));
-			CreateNewBone();
+				// Create the new bone under mouse
+				Properties->Transform.SetLocation(ParentGlobalTransform.InverseTransformPosition(HitPoint));
+				CreateNewBone();
+			};
 			
 			return FInputRayHit(0.0);
 		}
@@ -603,33 +876,47 @@ FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceR
 	return FInputRayHit();
 }
 
-void USkeletonEditingTool::HandleSkeletalMeshModified(const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
+void USkeletonEditingTool::HandleSkeletalMeshModified(const TArray<FName>& InBoneNames, const ESkeletalMeshNotifyType InNotifyType)
 {
-	const FName BoneName = BoneNames.IsEmpty() ? NAME_None : BoneNames[0];
+	if (GetNotifier().Notifying())
+	{
+		return;
+	}
+
+	TArray<FName> BoneNames(InBoneNames);
+	const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
+	BoneNames.RemoveAll([&](const FName& BoneName)
+	{
+		return RefSkeleton.FindRawBoneIndex(BoneName) == INDEX_NONE;
+	});
+
 	switch (InNotifyType)
 	{
 		case ESkeletalMeshNotifyType::BonesAdded:
-			CurrentBone = BoneName;
+			Selection = BoneNames;
 			break;
 		case ESkeletalMeshNotifyType::BonesRemoved:
-			if (BoneNames.Contains(CurrentBone))
+			Selection.RemoveAll([&](const FName& BoneName)
 			{
-				CurrentBone = NAME_None;
-			}
+				return BoneNames.Contains(BoneName);
+			});
 			break;
 		case ESkeletalMeshNotifyType::BonesMoved:
-			CurrentBone = BoneName;
 			break;
 		case ESkeletalMeshNotifyType::BonesSelected:
-			CurrentBone = BoneName;
+			Selection.Reset();
+			Selection = BoneNames;
 			break;
 		case ESkeletalMeshNotifyType::BonesRenamed:
-			CurrentBone = BoneName;
+			Selection = BoneNames;
 			break;
 		default:
 			break;
 	}
-	Properties->Name = CurrentBone;
+
+	NormalizeSelection();
+	
+	Properties->Name = GetCurrentBone();
 }
 
 void USkeletonEditingTool::Render(IToolsContextRenderAPI* RenderAPI)
@@ -678,24 +965,13 @@ void USkeletonEditingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		HitProxies.Add(new HBoneHitProxy(Index, RefSkeleton.GetBoneName(Index)));
 	}
 
-	// FIXME cache this
-	TArray<int32> SelectedBones;
-	for (const FName& BoneName: GetSelectedBones())
-	{
-		int32 SelectedIndex = RefSkeleton.FindRawBoneIndex(CurrentBone);
-		if (SelectedIndex > INDEX_NONE)
-		{
-			SelectedBones.Add(SelectedIndex);
-		}
-	}
-
 	SkeletalDebugRendering::DrawBones(
 		PDI,
 		ComponentTransform.GetLocation(),
 		RequiredBones,
 		RefSkeleton,
 		WorldTransforms,
-		SelectedBones,
+		GetSelectedBoneIndexes(),
 		BoneColors,
 		HitProxies,
 		DrawConfig
@@ -704,17 +980,15 @@ void USkeletonEditingTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 FBox USkeletonEditingTool::GetWorldSpaceFocusBox()
 {
-	const TArray<FName> Selection = GetSelectedBones();
-	if (!Selection.IsEmpty())
+	const TArray<int32> BoneIndexes = GetSelectedBoneIndexes();
+	if (!BoneIndexes.IsEmpty())
 	{
 		FBox Box(EForceInit::ForceInit);
 		TSet<int32> AllChildren;
 
 		const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
-		
-		for (const FName& BoneName: Selection)
+		for (const int32 BoneIndex: BoneIndexes)
 		{
-			const int32 BoneIndex = RefSkeleton.FindRawBoneIndex(BoneName);
 			Box += Modifier->GetTransform(BoneIndex, true).GetTranslation();
 
 			// get direct children
@@ -741,22 +1015,25 @@ FBox USkeletonEditingTool::GetWorldSpaceFocusBox()
 
 TArray<FName> USkeletonEditingTool::GetSelectedBones() const
 {
-	if (Binding.IsValid())
-	{
-		const TArray<FName> Selection = Binding.Pin()->GetSelectedBones();
-		if (!Selection.IsEmpty())
-		{
-			return Selection;
-		}
-	}
+	return Selection;
+}
 
-	if (CurrentBone != NAME_None)
-	{
-		return {CurrentBone};
-	}
+FName USkeletonEditingTool::GetCurrentBone() const
+{
+	return Selection.IsEmpty() ? NAME_None : Selection.Last(); 
+}
 
-	const TArray<FName> Dummy;
-	return Dummy;
+TArray<int32> USkeletonEditingTool::GetSelectedBoneIndexes() const
+{
+	TArray<int32> Indexes;
+	
+	const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
+	Algo::Transform(Selection, Indexes, [&](const FName& BoneName)
+	{
+		return ReferenceSkeleton.FindRawBoneIndex(BoneName);
+	});
+	
+	return Indexes;
 }
 
 void USkeletonEditingTool::BeginChange()
@@ -802,7 +1079,6 @@ void USkeletonEditingTool::CancelChange()
 void USkeletonEditingProperties::Initialize(USkeletonEditingTool* ParentToolIn)
 {
 	ParentTool = ParentToolIn;
-	Name = ParentTool->CurrentBone;
 }
 
 #if WITH_EDITOR

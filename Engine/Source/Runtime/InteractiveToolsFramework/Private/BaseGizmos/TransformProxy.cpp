@@ -35,7 +35,7 @@ void UTransformProxy::AddComponent(USceneComponent* Component, bool bModifyCompo
 void UTransformProxy::AddComponentCustom(
 	USceneComponent* Component,
 	TUniqueFunction<FTransform(void)> GetTransformFunc,
-	TUniqueFunction<void(FTransform)> SetTransformFunc,
+	TUniqueFunction<void(const FTransform&)> SetTransformFunc,
 	int64 UserDefinedIndex,
 	bool bModifyComponentOnTransform)
 {

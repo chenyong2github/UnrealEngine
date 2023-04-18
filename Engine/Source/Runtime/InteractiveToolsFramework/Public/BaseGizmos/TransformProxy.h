@@ -60,7 +60,7 @@ public:
 	virtual void AddComponentCustom(
 		USceneComponent* Component, 
 		TUniqueFunction<FTransform(void)> GetTransformFunc,
-		TUniqueFunction<void(FTransform)> SetTransformFunc,
+		TUniqueFunction<void(const FTransform&)> SetTransformFunc,
 		int64 UserDefinedIndex = 0,
 		bool bModifyComponentOnTransform = true);
 
@@ -162,7 +162,7 @@ protected:
 		int64 UserDefinedIndex;		// no current purpose, reserved for subclass/future use
 
 		TUniqueFunction<FTransform(void)> GetTransformFunc;
-		TUniqueFunction<void(FTransform)> SetTransformFunc;
+		TUniqueFunction<void(const FTransform&)> SetTransformFunc;
 
 		/** The initial transform of the object, set during UpdateSharedTransform() */
 		FTransform StartTransform;

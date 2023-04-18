@@ -187,7 +187,7 @@ public:
 	 * @param Target active target
 	 * @param TransactionProvider optional IToolContextTransactionProvider implementation to use - by default uses GizmoManager
 	 */
-	virtual void SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider = nullptr);
+	virtual void SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider = nullptr, IGizmoStateTarget* InStateTarget = nullptr);
 
 	/**
 	 * Clear the active target object for the Gizmo
@@ -362,10 +362,10 @@ protected:
 	// internal function that updates CameraAxisSource by getting current view state from GizmoManager
 	void UpdateCameraAxisSource();
 
-	/** The state target is created internally during SetActiveTarget() */
+	/** The state target is created internally during SetActiveTarget() if no one is provided. */
 	UPROPERTY()
-	TObjectPtr<UGizmoObjectModifyStateTarget> StateTarget;
-
+	TScriptInterface<IGizmoStateTarget> StateTarget;
+	
 	/**
 	 * These are used to let the translation subgizmos use raycasts into the scene to align the gizmo with scene geometry.
 	 * See comment for SetWorldAlignmentFunctions().

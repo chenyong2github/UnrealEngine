@@ -14,6 +14,7 @@ class ISkeletalMeshNotifier;
 class ISkeletalMeshEditorBinding;
 class ISkeletalMeshEditionInterface;
 class HHitProxy;
+class UDebugSkelMeshComponent;
 
 UCLASS()
 class USkeletalMeshModelingToolsEditorMode : 
@@ -55,8 +56,12 @@ private:
 
 	static ISkeletalMeshEditionInterface* GetSkeletonInterface(UInteractiveTool* InTool);
 
+	UDebugSkelMeshComponent* GetSkelMeshComponent() const;
+
 	void ConnectTool(UInteractiveTool* InTool);
 	void DisconnectTool(UInteractiveTool* InTool);
+
+	bool NeedsTransformGizmo() const;
 
 	FDelegateHandle ToToolNotifierHandle;
 	FDelegateHandle FromToolNotifierHandle;
