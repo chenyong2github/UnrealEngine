@@ -186,7 +186,7 @@ float3 ComputeOrbitVelocity(float Time, float RandomOrbit)
  * @param Position - Position of the particle.
  * @param PerParticleScale - Amount by which to scale the influence on this particle.
  */
-void EvaluateVectorFields(out float3 OutForce, out float4 OutVelocity, float3 Position, float PerParticleScale)
+void EvaluateVectorFields(out float3 OutForce, out float4 OutVelocity, FLWCVector3 LWCPosition, float PerParticleScale)
 {
 	float3 TotalForce = 0;
 	float3 WeightedVelocity = 0;
@@ -195,11 +195,14 @@ void EvaluateVectorFields(out float3 OutForce, out float4 OutVelocity, float3 Po
 
 	for (int VectorFieldIndex = 0; VectorFieldIndex < VectorFields.Count; ++VectorFieldIndex)
 	{
+		FLWCVector3 WorldToVolumeTile = MakeLWCVector3(VectorFields.WorldToVolumeTile[VectorFieldIndex].xyz, 0.0f);
+		float3 Position = LWCToFloat(LWCSubtract(LWCPosition, WorldToVolumeTile));
+
 		float2 IntensityAndTightness = VectorFields.IntensityAndTightness[VectorFieldIndex].xy;
 		float Intensity = IntensityAndTightness.x * PerParticleScale;
 		float Tightness = IntensityAndTightness.y;
 		float3 VolumeSize = VectorFields.VolumeSize[VectorFieldIndex].xyz;
-		float3 VolumeUV = mul(float4(Position.xyz,1), VectorFields.WorldToVolume[VectorFieldIndex]).xyz;
+		float3 VolumeUV = mul(float4(Position, 1.0f), VectorFields.WorldToVolume[VectorFieldIndex]).xyz;
 		//Tile the UVs if needed. TilingAxes will be 1.0 or 0.0 in each channel depending on which axes are being tiled, if any.
 		VolumeUV -= floor(VolumeUV * VectorFields.TilingAxes[VectorFieldIndex].xyz);
 
@@ -563,7 +566,7 @@ void PixelMain(
 		// Evalute vector fields.
 		float3 FieldForce = 0;
 		float4 FieldVelocity = 0;
-		EvaluateVectorFields(FieldForce, FieldVelocity, LWCHackToFloat(Position), PerParticleVectorFieldScale);		//LWC_TODO: This needs to be rebased
+		EvaluateVectorFields(FieldForce, FieldVelocity, Position, PerParticleVectorFieldScale);
 
 		// Add in force from vector fields.
 		Force += FieldForce;
@@ -576,7 +579,7 @@ void PixelMain(
 		Force += ComputeDrag(Velocity.xyz, DragCoefficient);
 
 		// Compute force to a point gravity source.
-		Force += ComputeAttractionForce(LWCHackToFloat(Position));	//LWC_TODO: This needs to be rebased
+		Force += ComputeAttractionForce(PositionSample);
 
 		// Compute the acceleration to apply to the particle this frame.
 		float3 Acceleration = Force * DeltaSeconds;

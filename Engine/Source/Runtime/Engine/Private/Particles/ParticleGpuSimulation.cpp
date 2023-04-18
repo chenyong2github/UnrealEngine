@@ -858,6 +858,7 @@ FParticlePerFrameSimulationShaderParameters GetParticlePerFrameSimulationShaderP
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FVectorFieldUniformParameters,)
 	SHADER_PARAMETER( int32, Count )
+	SHADER_PARAMETER_ARRAY( FVector4f, WorldToVolumeTile, [MAX_VECTOR_FIELDS] )
 	SHADER_PARAMETER_ARRAY( FMatrix44f, WorldToVolume, [MAX_VECTOR_FIELDS] )
 	SHADER_PARAMETER_ARRAY( FMatrix44f, VolumeToWorld, [MAX_VECTOR_FIELDS] )
 	SHADER_PARAMETER_ARRAY( FVector4f, IntensityAndTightness, [MAX_VECTOR_FIELDS] )
@@ -3151,7 +3152,7 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 
 			}
 			
-			FVector3f PointAttractorPosition((FVector4f)ComponentToWorld.TransformPosition(EmitterInfo.PointAttractorPosition));	// LWC_TODO: Precision loss
+			const FVector3f PointAttractorPosition = FVector4f(ComponentToWorld.TransformPosition(EmitterInfo.PointAttractorPosition));
 			DynamicData->PerFrameSimulationParameters.PointAttractor = FVector4f(PointAttractorPosition, EmitterInfo.PointAttractorRadiusSq);
 			DynamicData->PerFrameSimulationParameters.PositionOffsetAndAttractorStrength = FVector4f(FVector3f(PositionOffsetThisTick), PointAttractorStrength);
 			DynamicData->PerFrameSimulationParameters.LocalToWorldScale = DynamicData->EmitterDynamicParameters.LocalToWorldScale;
@@ -4345,7 +4346,10 @@ static void SetParametersForVectorField(FVectorFieldUniformParameters& OutParame
 			Tightness = FMath::Clamp<float>(VectorFieldInstance->Tightness, 0.0f, 1.0f);
 		}
 
-		OutParameters.WorldToVolume[Index] = FMatrix44f(VectorFieldInstance->WorldToVolume);		// LWC_TODO: Precision loss
+		const FLargeWorldRenderPosition WorldToVolumeOrigin(VectorFieldInstance->VolumeToWorld.GetOrigin());
+
+		OutParameters.WorldToVolumeTile[Index] = WorldToVolumeOrigin.GetTile();
+		OutParameters.WorldToVolume[Index] = FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(WorldToVolumeOrigin.GetTileOffset(), VectorFieldInstance->VolumeToWorld).Inverse();
 		OutParameters.VolumeToWorld[Index] = FMatrix44f(VectorFieldInstance->VolumeToWorldNoScale);
 		OutParameters.VolumeSize[Index] = FVector4f(Resource->SizeX, Resource->SizeY, Resource->SizeZ, 0);
 		OutParameters.IntensityAndTightness[Index] = FVector4f(Intensity, Tightness, 0, 0 );
