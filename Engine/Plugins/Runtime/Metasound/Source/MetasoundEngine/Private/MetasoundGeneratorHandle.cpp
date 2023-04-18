@@ -431,6 +431,13 @@ void UMetasoundGeneratorHandle::OnSourceDestroyedAGenerator(uint64 InAudioCompon
 			OnGeneratorHandleDetached.Broadcast();
 		}
 		CachedGeneratorPtr = nullptr;
+
+		// Clear out the watchers, but keep track of what we had in case the sound comes back
+		for (const Metasound::Private::FMetasoundOutputWatcher& Watcher : OutputWatchers)
+		{
+			OutputAnalyzersToAdd.Enqueue(Watcher.GetAddress());
+		}
+		OutputWatchers.Empty();
 	}
 }
 

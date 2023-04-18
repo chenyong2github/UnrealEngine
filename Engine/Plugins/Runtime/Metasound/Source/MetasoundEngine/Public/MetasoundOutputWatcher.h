@@ -19,6 +19,12 @@ namespace Metasound::Private
 		FMetasoundOutputWatcher(Frontend::FAnalyzerAddress&& Address, const FOperatorSettings& OperatorSettings);
 
 		const FName Name;
+
+		/**
+		 * Get the address of the analyzer being watched
+		 * @return The analyzer address
+		 */
+		Frontend::FAnalyzerAddress GetAddress() const;
 		
 		/**
 		 * Update the watched outputs

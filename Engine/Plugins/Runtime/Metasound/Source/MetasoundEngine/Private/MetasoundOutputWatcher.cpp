@@ -30,6 +30,11 @@ namespace Metasound::Private
 		}
 	}
 
+	Frontend::FAnalyzerAddress FMetasoundOutputWatcher::GetAddress() const
+	{
+		return View.AnalyzerAddress;
+	}
+
 	void FMetasoundOutputWatcher::Update(const TFunctionRef<void(FName, const FMetaSoundOutput&)> OnOutputChanged)
 	{
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetasoundOutputWatcher::Update);
