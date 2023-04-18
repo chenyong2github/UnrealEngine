@@ -97,6 +97,7 @@ public:
 		: _InitialCategoryFilter(EContentBrowserItemCategoryFilter::IncludeAll)
 		, _ThumbnailLabel( EThumbnailLabel::ClassName )
 		, _AllowThumbnailHintLabel(true)
+		, _bShowPathViewFilters(false)
 		, _InitialViewType(EAssetViewType::Tile)
 		, _InitialThumbnailSize(EThumbnailSize::Medium)
 		, _ShowBottomToolbar(true)
