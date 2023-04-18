@@ -11,6 +11,14 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceParticleReadDetails"
 
+FNiagaraDataInterfaceParticleReadDetails::~FNiagaraDataInterfaceParticleReadDetails()
+{
+	if (ReadDataInterfaceWeak.IsValid())
+	{
+		ReadDataInterfaceWeak->OnChanged().RemoveAll(this);
+	}
+}
+
 void FNiagaraDataInterfaceParticleReadDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	FNiagaraDataInterfaceDetailsBase::CustomizeDetails(DetailBuilder);
@@ -25,6 +33,8 @@ void FNiagaraDataInterfaceParticleReadDetails::CustomizeDetails(IDetailLayoutBui
 	UNiagaraDataInterfaceParticleRead* ReadDataInterface = CastChecked<UNiagaraDataInterfaceParticleRead>(SelectedObjects[0].Get());
 	ReadDataInterfaceWeak = ReadDataInterface;
 	NiagaraSystemWeak = ReadDataInterface->GetTypedOuter<UNiagaraSystem>();
+
+	ReadDataInterface->OnChanged().AddSP(this, &FNiagaraDataInterfaceParticleReadDetails::OnDataInterfaceChanged);
 
 	static const FName ReadCategoryName = TEXT("ParticleRead");
 	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(ReadCategoryName);
@@ -46,14 +56,15 @@ void FNiagaraDataInterfaceParticleReadDetails::CustomizeDetails(IDetailLayoutBui
 				]
 				.ValueContent()
 				[
-					SNew(SSuggestionTextBox)
+					SAssignNew(TextBoxWidget, SSuggestionTextBox)
 						.ForegroundColor(FSlateColor::UseForeground())
 						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.Text(FText::FromString(ReadDataInterface->EmitterName))
 						.OnTextCommitted(this, &FNiagaraDataInterfaceParticleReadDetails::EmitterName_SetText)
 						.HintText(LOCTEXT("EmitterNameHint", "Enter Emitter Name..."))
 						.OnShowingSuggestions(this, &FNiagaraDataInterfaceParticleReadDetails::EmitterName_GetSuggestions)
 				];
+
+			OnDataInterfaceChanged();
 		}
 		else
 		{
@@ -65,6 +76,14 @@ void FNiagaraDataInterfaceParticleReadDetails::CustomizeDetails(IDetailLayoutBui
 TSharedRef<IDetailCustomization> FNiagaraDataInterfaceParticleReadDetails::MakeInstance()
 {
 	return MakeShared<FNiagaraDataInterfaceParticleReadDetails>();
+}
+
+void FNiagaraDataInterfaceParticleReadDetails::OnDataInterfaceChanged()
+{
+	if (UNiagaraDataInterfaceParticleRead* ReadDataInterface = ReadDataInterfaceWeak.Get())
+	{
+		TextBoxWidget->SetText(FText::FromString(ReadDataInterface->EmitterName));
+	}
 }
 
 void FNiagaraDataInterfaceParticleReadDetails::EmitterName_SetText(const FText& NewText, ETextCommit::Type CommitInfo)

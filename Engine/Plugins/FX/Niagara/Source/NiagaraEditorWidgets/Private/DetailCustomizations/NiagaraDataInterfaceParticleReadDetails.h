@@ -19,14 +19,18 @@ class SNiagaraNamePropertySelector;
 class FNiagaraDataInterfaceParticleReadDetails : public FNiagaraDataInterfaceDetailsBase
 {
 public:
+	virtual ~FNiagaraDataInterfaceParticleReadDetails();
+
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
 private:
+	void OnDataInterfaceChanged();
 	void EmitterName_SetText(const FText& NewText, ETextCommit::Type CommitInfo);
 	void EmitterName_GetSuggestions(const FString& CurrText, TArray<FString>& OutSuggestions);
 
 	TWeakObjectPtr<UNiagaraDataInterfaceParticleRead> ReadDataInterfaceWeak;
 	TWeakObjectPtr<UNiagaraSystem> NiagaraSystemWeak;
 	TSharedPtr<IPropertyHandle> EmitterNameHandle;
+	TSharedPtr<class SSuggestionTextBox> TextBoxWidget;
 };
