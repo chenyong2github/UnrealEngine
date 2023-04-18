@@ -2439,6 +2439,8 @@ bool FOpenXRHMD::IsEmulatingStereoLayers()
 void FOpenXRHMD::SetupFrameLayers_RenderThread(FRHICommandListImmediate& RHICmdList)
 {
 	ensure(IsInRenderingThread());
+
+	TArray<uint32> LayerIds;
 	if (GetStereoLayersDirty())
 	{
 		// When SetupFrameLayers_RenderThread is called more than once with GetStereoLayersDirty = true,
@@ -2454,8 +2456,10 @@ void FOpenXRHMD::SetupFrameLayers_RenderThread(FRHICommandListImmediate& RHICmdL
 		NativeLayers.Reset();
 
 		// Go over the dirtied layers to bin them into either native or emulated
-		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
+		ForEachLayer([&](uint32 LayerId, FOpenXRLayer& Layer)
 		{
+			LayerIds.Add(LayerId);
+
 			if (IsEmulatingStereoLayers())
 			{
 				// Only quad layers are supported by emulation.
@@ -2513,6 +2517,15 @@ void FOpenXRHMD::SetupFrameLayers_RenderThread(FRHICommandListImmediate& RHICmdL
 		BackgroundCompositedEmulatedLayers.Sort(LayerCompare);
 		EmulatedFaceLockedLayers.Sort(LayerCompare);
 		NativeLayers.Sort(LayerCompare);
+	} //GetStereoLayersDirty()
+	else
+	{
+		// If GetStereoLayersDirty() is false, we still need to recover
+		// all the layer ids to allow plugins to access them in OnSetupLayers_RenderThread.
+		ForEachLayer([&LayerIds](uint32 LayerId, FOpenXRLayer& Layer)
+		{
+			LayerIds.Add(LayerId);
+		});
 	}
 
 	PipelinedLayerStateRendering.LayerStateFlags |= !EmulatedFaceLockedLayers.IsEmpty() ? EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer : EOpenXRLayerStateFlags::None;
@@ -2539,6 +2552,11 @@ void FOpenXRHMD::SetupFrameLayers_RenderThread(FRHICommandListImmediate& RHICmdL
 		TArray<FXrCompositionLayerUnion> Headers = Layer.CreateOpenXRLayer(InvTrackingToWorld, WorldToMeters, Space);
 		PipelinedLayerStateRendering.NativeOverlays.Append(Headers);
 		UpdateLayerSwapchainTexture(Layer, RHICmdList);
+	}
+
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		Module->OnSetupLayers_RenderThread(Session, LayerIds);
 	}
 }
 
@@ -3359,6 +3377,11 @@ void FOpenXRHMD::AddLayersToHeaders(TArray<const XrCompositionLayerBaseHeader*>&
 	for (const FXrCompositionLayerUnion& Layer : PipelinedLayerStateRHI.NativeOverlays)
 	{
 		Headers.Add(reinterpret_cast<const XrCompositionLayerBaseHeader*>(&Layer.Header));
+	}
+
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		Module->UpdateCompositionLayers(Session, Headers);
 	}
 }
 

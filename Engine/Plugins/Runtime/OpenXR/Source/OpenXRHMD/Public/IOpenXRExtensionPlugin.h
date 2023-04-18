@@ -375,6 +375,16 @@ public:
 	virtual const void* OnBeginDepthInfo(XrSession InSession, int32 InLayerIndex, int32 InViewIndex, const void* InNext)
 	{
 		return InNext;
+	}	
+	
+	// FOpenXRHMD::OnBeginRendering_RenderThread
+	virtual void OnSetupLayers_RenderThread(XrSession InSession, const TArray<uint32>& LayerIds)
+	{
+	}
+
+	// FOpenXRHMD::OnFinishRendering_RHIThread
+	virtual void UpdateCompositionLayers(XrSession InSession, TArray<const XrCompositionLayerBaseHeader*>& Headers)
+	{
 	}
 
 	virtual const void* OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags)
