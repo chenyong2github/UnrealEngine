@@ -54,6 +54,7 @@ Pass::Status AndroidDriverPatchPass::Process() {
 
   for (auto& val : get_module()->types_values()) {
     modified |= FixupOpTypeImage(&val);
+    modified |= FixupOpTypeAccelerationStructure(&val);
   };
 
   return modified ? Status::SuccessWithChange : Status::SuccessWithoutChange;
@@ -337,6 +338,76 @@ bool AndroidDriverPatchPass::FixupOpTypeImage(Instruction* inst) {
   }
 
   inst->SetInOperand(2, {0});
+
+  return true;
+}
+
+bool AndroidDriverPatchPass::FixupOpTypeAccelerationStructure(Instruction* inst) {
+  if (inst->opcode() != spv::Op::OpTypeAccelerationStructureKHR) {
+    return false;
+  }
+
+  Instruction* AccelerationPointer = nullptr;
+
+  // Find pointer
+  context()->get_def_use_mgr()->WhileEachUser(
+    inst, [&AccelerationPointer](Instruction* user) {
+      if (user->opcode() == spv::Op::OpTypePointer) {
+        spv::StorageClass storage_class = static_cast<spv::StorageClass>(user->GetSingleWordOperand(1));
+        if (storage_class == spv::StorageClass::UniformConstant) {
+          AccelerationPointer = user;
+          return false;
+        }
+      }
+        return true;
+    });
+
+  if (AccelerationPointer == nullptr) {
+    return false;
+  }
+
+  // Find acceleration structure variable
+  Instruction* TLASVariable = nullptr;
+  context()->get_def_use_mgr()->WhileEachUser(
+    AccelerationPointer, [&TLASVariable](Instruction* user) {
+      if (user->opcode() == spv::Op::OpVariable) {
+        spv::StorageClass storage_class = static_cast<spv::StorageClass>(user->GetSingleWordOperand(2));
+        if (storage_class == spv::StorageClass::UniformConstant) {
+          TLASVariable = user;
+          return false;
+        }
+      }
+      return true;
+    });
+
+  if (TLASVariable == nullptr) {
+    return false;
+  }
+
+  std::vector<Instruction*> OpStores;
+  std::vector<Instruction*> OpLoads;
+
+  // Find OpLoad/OpStores, remove and replace uses with the TLAS variable
+  context()->get_def_use_mgr()->ForEachUser(inst, [this, inst, &OpStores, &OpLoads](Instruction* InOpLoad) {
+    if (InOpLoad->opcode() == spv::Op::OpLoad && InOpLoad->GetOperand(0).words[0] == inst->result_id()) {
+      context()->get_def_use_mgr()->ForEachUser(InOpLoad, [InOpLoad, &OpStores](Instruction* InOpStore) {
+        if (InOpStore->opcode() == spv::Op::OpStore && InOpStore->GetOperand(1).words[0] == InOpLoad->result_id()) {
+		  OpStores.push_back(InOpStore);
+        }
+	  });
+      OpLoads.push_back(InOpLoad);
+    }
+  }); 
+
+
+  for (auto& load : OpLoads) {
+	load->GetOperand(2).words[0] = TLASVariable->result_id();
+    context()->UpdateDefUse(TLASVariable);
+  }
+  
+  for (auto& removeInst : OpStores) {
+    context()->KillInst(removeInst);
+  }
 
   return true;
 }
