@@ -724,6 +724,7 @@ public:
 	FStrataMaterialInfo(EStrataShadingModel InShadingModel) { AddShadingModel(InShadingModel); }
 
 	bool Serialize(FArchive& Ar);
+	void PostSerialize(const FArchive& Ar);
 
 	// Shading model
 	void AddShadingModel(EStrataShadingModel InShadingModel) { check(InShadingModel < SSM_NUM); ShadingModelField |= (uint16)(1 << (uint16)InShadingModel); }
@@ -801,6 +802,7 @@ struct TStructOpsTypeTraits<FStrataMaterialInfo> : public TStructOpsTypeTraitsBa
 	enum
 	{
 		WithSerializer = true,
+		WithPostSerialize = true,
 	};
 };
 

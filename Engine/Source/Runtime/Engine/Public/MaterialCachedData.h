@@ -367,5 +367,6 @@ struct TStructOpsTypeTraits<FMaterialCachedExpressionData> : public TStructOpsTy
 	enum
 	{
 		WithSerializer = true,
+		WithPostSerialize = true,
 	};
 };

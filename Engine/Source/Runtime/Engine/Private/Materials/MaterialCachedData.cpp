@@ -1103,7 +1103,17 @@ void FMaterialCachedExpressionData::GetParameterValueByIndex(EMaterialParameterT
 bool FStrataMaterialInfo::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	return false;
+}
 
+bool FMaterialCachedExpressionData::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	return false;
+}
+
+void FStrataMaterialInfo::PostSerialize(const FArchive& Ar)
+{
 	if (Ar.IsLoading())
 	{
 		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IncreaseMaterialAttributesInputMask)
@@ -1111,14 +1121,10 @@ bool FStrataMaterialInfo::Serialize(FArchive& Ar)
 			ConnectedPropertyMask = uint64(ConnectedProperties_DEPRECATED);
 		}
 	}
-
-	return true;
 }
 
-bool FMaterialCachedExpressionData::Serialize(FArchive& Ar)
+void FMaterialCachedExpressionData::PostSerialize(const FArchive& Ar)
 {
-	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
-
 	if (Ar.IsLoading())
 	{
 		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IncreaseMaterialAttributesInputMask)
@@ -1127,11 +1133,6 @@ bool FMaterialCachedExpressionData::Serialize(FArchive& Ar)
 		}
 	}
 
-	return true;
-}
-
-void FMaterialCachedExpressionData::PostSerialize(const FArchive& Ar)
-{
 #if WITH_EDITORONLY_DATA
 	if(Ar.IsLoading())
 	{
