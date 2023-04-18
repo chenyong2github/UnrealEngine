@@ -8,7 +8,6 @@
 #include "GameFramework/InputSettings.h"
 #include "IOpenXRExtensionPlugin.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
-#include "Epic_openxr.h"
 
 #include "EnhancedInputLibrary.h"
 #include "EnhancedInputSubsystemInterface.h"
@@ -805,7 +804,7 @@ void FOpenXRInputPlugin::FOpenXRInput::SyncActions(XrSession Session)
 		}
 
 		XrActionsSyncInfo SyncInfo = { XR_TYPE_ACTIONS_SYNC_INFO };
-		XrActiveActionSetPrioritiesEXT PrioritiesInfo = { XR_TYPE_ACTIVE_ACTION_SET_PRIORITY_EXT };
+		XrActiveActionSetPrioritiesEXT PrioritiesInfo = { XR_TYPE_ACTIVE_ACTION_SET_PRIORITIES_EXT };
 		SyncInfo.next = &PrioritiesInfo;
 
 		for (IOpenXRExtensionPlugin* Plugin : OpenXRHMD->GetExtensionPlugins())
@@ -815,7 +814,7 @@ void FOpenXRInputPlugin::FOpenXRInput::SyncActions(XrSession Session)
 			SyncInfo.next = Plugin->OnSyncActions(Session, SyncInfo.next);
 		}
 
-		PrioritiesInfo.countActionSetPriorities = ActivePriorities.Num();
+		PrioritiesInfo.actionSetPriorityCount = ActivePriorities.Num();
 		PrioritiesInfo.actionSetPriorities = ActivePriorities.GetData();
 		SyncInfo.countActiveActionSets = ActiveActionSets.Num();
 		SyncInfo.activeActionSets = ActiveActionSets.GetData();
