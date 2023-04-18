@@ -55,13 +55,6 @@ struct FIcmpEchoResult
 		, ReplyFrom()
 		, Time(-1)
 	{}
-
-	FIcmpEchoResult(const FIcmpEchoResult& Other)
-		: Status(Other.Status)
-		, ResolvedAddress(Other.ResolvedAddress)
-		, ReplyFrom(Other.ReplyFrom)
-		, Time(Other.Time)
-	{}
 };
 
 typedef TFunction<void(FIcmpEchoResult)> FIcmpEchoResultCallback;
