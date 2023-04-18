@@ -430,6 +430,8 @@ UInterchangeStaticMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateStatic
 		break;
 	}
 
+	StaticMeshFactoryNode->SetCustomLODGroup(LodGroup);
+
 	//Common meshes build options
 	StaticMeshFactoryNode->SetCustomRecomputeNormals(CommonMeshesProperties->bRecomputeNormals);
 	StaticMeshFactoryNode->SetCustomRecomputeTangents(CommonMeshesProperties->bRecomputeTangents);

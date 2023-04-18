@@ -4,6 +4,8 @@
 
 #include "IDetailCustomization.h"
 #include "UObject/WeakObjectPtr.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
 class SWidget;
 
@@ -43,6 +45,17 @@ private:
 	void LockPropertyHandleRow(const TSharedPtr<IPropertyHandle> PropertyHandle, IDetailPropertyRow& PropertyRow) const;
 	void AddSubCategory(IDetailLayoutBuilder& DetailBuilder, TMap<FName, TMap<FName, TArray<FInternalPropertyData>>>& SubCategoriesPropertiesPerMainCategory);
 	void InternalGetPipelineProperties(const UInterchangePipelineBase* Pipeline, const TArray<FName>& AllCategoryNames, TMap<FName, TArray<FName>>& PropertiesPerCategorys) const;
+	
+	void SetTextComboBoxWidget(IDetailPropertyRow& PropertyRow, const TSharedPtr<IPropertyHandle>& Handle, const TArray<FString>& PossibleValues);
+	void OnTextComboBoxChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo, TWeakPtr<IPropertyHandle> HandlePtr);
+	struct FInternalComboBoxData
+	{
+		TArray<TSharedPtr<FString>> StringSharedOptions;
+		TArray<FString> StringOptions;
+		TArray<FName> NameOptions;
+	};
+	TMap<TSharedPtr<IPropertyHandle>, FInternalComboBoxData> ComboBoxDataPerProperty;
+
 	/** Use MakeInstance to create an instance of this class */
 	FInterchangePipelineBaseDetailsCustomization();
 

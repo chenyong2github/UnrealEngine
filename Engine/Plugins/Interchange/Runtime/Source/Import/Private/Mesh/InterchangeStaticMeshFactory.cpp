@@ -674,6 +674,17 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::EndIm
 	}
 #endif // WITH_EDITORONLY_DATA
 #if WITH_EDITOR
+	//Lod group need to use the static mesh API and cannot use the apply delegate
+	if (!Arguments.ReimportObject)
+	{
+		FName LodGroup = NAME_None;
+		if (StaticMeshFactoryNode->GetCustomLODGroup(LodGroup) && LodGroup != NAME_None)
+		{
+			constexpr bool bRebuildImmediately = false;
+			constexpr bool bAllowModify = false;
+			StaticMesh->SetLODGroup(LodGroup, bRebuildImmediately, bAllowModify);
+		}
+	}
 	FMeshBudgetProjectSettingsUtils::SetLodGroupForStaticMesh(StaticMesh);
 #endif
 

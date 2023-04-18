@@ -104,6 +104,30 @@ void UInterchangeGenericMeshPipeline::PreDialogCleanup(const FName PipelineStack
 	PhysicsAsset = nullptr;
 }
 
+#if WITH_EDITOR
+bool UInterchangeGenericMeshPipeline::GetPropertyPossibleValues(const FName PropertyPath, TArray<FString>& PossibleValues)
+{
+	FString PropertyPathString = PropertyPath.ToString();
+	int32 PropertyNameIndex = INDEX_NONE;
+	if (PropertyPathString.FindLastChar(':', PropertyNameIndex))
+	{
+		PropertyPathString = PropertyPathString.RightChop(PropertyNameIndex+1);
+	}
+	if (PropertyPathString.Equals(GET_MEMBER_NAME_STRING_CHECKED(UInterchangeGenericMeshPipeline, LodGroup)))
+	{
+		TArray<FName> LODGroupNames;
+		UStaticMesh::GetLODGroups(LODGroupNames);
+		for (int32 GroupIndex = 0; GroupIndex < LODGroupNames.Num(); ++GroupIndex)
+		{
+			PossibleValues.Add(LODGroupNames[GroupIndex].GetPlainNameString());
+		}
+		return true;
+	}
+	//If we did not find any property call the super implementation
+	return Super::GetPropertyPossibleValues(PropertyPath, PossibleValues);
+}
+#endif
+
 void UInterchangeGenericMeshPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	if (!InBaseNodeContainer)

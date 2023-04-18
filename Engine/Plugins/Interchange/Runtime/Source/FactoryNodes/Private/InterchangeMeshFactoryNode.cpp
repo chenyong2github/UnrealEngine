@@ -182,6 +182,17 @@ bool UInterchangeMeshFactoryNode::RemoveSlotMaterialDependencyUid(const FString&
 	return false;
 }
 
+bool UInterchangeMeshFactoryNode::GetCustomLODGroup(FName& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(LODGroup, FName)
+}
+
+bool UInterchangeMeshFactoryNode::SetCustomLODGroup(const FName& AttributeValue, bool bAddApplyDelegate)
+{
+	//The LOD Group must be setup directly by the factory with the static mesh API
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(LODGroup, FName)
+}
+
 bool UInterchangeMeshFactoryNode::GetCustomRecomputeNormals(bool& AttributeValue) const
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(RecomputeNormals, bool)
@@ -348,7 +359,6 @@ void UInterchangeMeshFactoryNode::CopyWithObject(const UInterchangeFactoryBaseNo
 	if (const UInterchangeMeshFactoryNode* MeshFactoryNode = Cast<UInterchangeMeshFactoryNode>(SourceNode))
 	{
 		UClass* Class = GetObjectClass();
-
 		COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(MeshFactoryNode, UInterchangeMeshFactoryNode, RecomputeNormals, bool, Class)
 		COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(MeshFactoryNode, UInterchangeMeshFactoryNode, RecomputeTangents, bool, Class)
 		COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(MeshFactoryNode, UInterchangeMeshFactoryNode, UseMikkTSpace, bool, Class)

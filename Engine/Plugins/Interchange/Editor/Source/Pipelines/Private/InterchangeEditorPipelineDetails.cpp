@@ -10,6 +10,7 @@
 #include "ScopedTransaction.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "InterchangeEditorPipelineDetails"
@@ -105,6 +106,149 @@ void FInterchangePipelineBaseDetailsCustomization::AddSubCategory(IDetailLayoutB
 TSharedRef<IDetailCustomization> FInterchangePipelineBaseDetailsCustomization::MakeInstance()
 {
 	return MakeShareable(new FInterchangePipelineBaseDetailsCustomization);
+}
+
+void FInterchangePipelineBaseDetailsCustomization::SetTextComboBoxWidget(IDetailPropertyRow& PropertyRow, const TSharedPtr<IPropertyHandle>& Handle, const TArray<FString>& PossibleValues)
+{
+	if (!Handle.IsValid() || !Handle->IsValidHandle() || PossibleValues.Num() < 1)
+	{
+		//We customize only valid handle and if there is some possible values
+		return;
+	}
+
+	FProperty* PropertyPtr = Handle->GetProperty();
+	if (!PropertyPtr)
+	{
+		return;
+	}
+	const bool bIsNameProperty = PropertyPtr->IsA(FNameProperty::StaticClass());
+	const bool bIsStringProperty = PropertyPtr->IsA(FStrProperty::StaticClass());
+	if (!bIsNameProperty && ! bIsStringProperty)
+	{
+		//We support only FName and FString property
+		return;
+	}
+
+	//Create the data in the Map
+	FInternalComboBoxData& InternalComboBoxData = ComboBoxDataPerProperty.FindOrAdd(Handle);
+	//Generate a combo box row with all the possible value
+	InternalComboBoxData.StringSharedOptions.Reset(PossibleValues.Num());
+	if (bIsNameProperty)
+	{
+		InternalComboBoxData.NameOptions.Reset(PossibleValues.Num());
+		InternalComboBoxData.StringOptions.Empty();
+	}
+	else
+	{
+		InternalComboBoxData.NameOptions.Empty();
+		InternalComboBoxData.StringOptions.Reset(PossibleValues.Num());
+	}
+	
+	for (int32 ValueIndex = 0; ValueIndex < PossibleValues.Num(); ++ValueIndex)
+	{
+		const FString& Value = PossibleValues[ValueIndex];
+		InternalComboBoxData.StringSharedOptions.Add(MakeShareable(new FString(Value)));
+		if (bIsNameProperty)
+		{
+			InternalComboBoxData.NameOptions.Add(FName(*Value));
+		}
+		else
+		{
+			InternalComboBoxData.StringOptions.Add(Value);
+		}
+	}
+
+	TSharedPtr<SWidget> NameWidget;
+	TSharedPtr<SWidget> ValueWidget;
+	FDetailWidgetRow Row;
+	PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+	if (PropertyRow.CustomNameWidget())
+	{
+		//Keep the customize name widget
+		NameWidget = PropertyRow.CustomNameWidget()->Widget;
+	}
+
+	int32 ComboBoxIndex = INDEX_NONE;
+	if (bIsNameProperty)
+	{
+		FName InitialValue;
+		ensure(Handle->GetValue(InitialValue) == FPropertyAccess::Success);
+		ComboBoxIndex = InternalComboBoxData.NameOptions.Find(InitialValue);
+		if (ComboBoxIndex == INDEX_NONE && InternalComboBoxData.NameOptions.Num() > 0)
+		{
+			ComboBoxIndex = 0;
+			ensure(Handle->SetValue(InternalComboBoxData.NameOptions[ComboBoxIndex]) == FPropertyAccess::Success);
+		}
+	}
+	else
+	{
+		FString InitialValue;
+		ensure(Handle->GetValue(InitialValue) == FPropertyAccess::Success);
+		ComboBoxIndex = InternalComboBoxData.StringOptions.Find(InitialValue);
+		if (ComboBoxIndex == INDEX_NONE && InternalComboBoxData.StringOptions.Num() > 0)
+		{
+			ComboBoxIndex = 0;
+			ensure(Handle->SetValue(InternalComboBoxData.StringOptions[ComboBoxIndex]) == FPropertyAccess::Success);
+		}
+	}
+	
+	check(ComboBoxIndex != INDEX_NONE);
+	TWeakPtr<IPropertyHandle> HandlePtr = Handle;
+
+	const bool bShowChildren = true;
+	PropertyRow.CustomWidget(bShowChildren)
+		.NameContent()
+		.MinDesiredWidth(Row.NameWidget.MinWidth)
+		.MaxDesiredWidth(Row.NameWidget.MaxWidth)
+		.HAlign(HAlign_Fill)
+		[
+			NameWidget.ToSharedRef()
+		]
+		.ValueContent()
+		.MinDesiredWidth(Row.ValueWidget.MinWidth)
+		.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextComboBox)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.OptionsSource(&InternalComboBoxData.StringSharedOptions)
+			.InitiallySelectedItem(InternalComboBoxData.StringSharedOptions[ComboBoxIndex])
+			.OnSelectionChanged(this, &FInterchangePipelineBaseDetailsCustomization::OnTextComboBoxChanged, HandlePtr)
+		];
+}
+
+void FInterchangePipelineBaseDetailsCustomization::OnTextComboBoxChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo, TWeakPtr<IPropertyHandle> HandlePtr)
+{
+	TSharedPtr<IPropertyHandle> Handle = HandlePtr.Pin();
+	if (Handle.IsValid() && Handle->IsValidHandle())
+	{
+		FProperty* PropertyPtr = Handle->GetProperty();
+		if (!PropertyPtr)
+		{
+			return;
+		}
+		FInternalComboBoxData& InternalComboBoxData = ComboBoxDataPerProperty.FindChecked(Handle);
+		const bool bIsNameProperty = PropertyPtr->IsA(FNameProperty::StaticClass());
+		const bool bIsStringProperty = PropertyPtr->IsA(FStrProperty::StaticClass());
+		if (!bIsNameProperty && !bIsStringProperty)
+		{
+			//We support only FName and FString property
+			return;
+		}
+
+		int32 GroupIndex = InternalComboBoxData.StringSharedOptions.Find(NewValue);
+		if (ensure(GroupIndex != INDEX_NONE))
+		{
+			if (bIsNameProperty)
+			{
+				ensure(Handle->SetValue(InternalComboBoxData.NameOptions[GroupIndex]) == FPropertyAccess::Success);
+			}
+			else
+			{
+				ensure(Handle->SetValue(InternalComboBoxData.StringOptions[GroupIndex]) == FPropertyAccess::Success);
+			}
+		}
+	}
 }
 
 void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -203,6 +347,16 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 				{
 					LockPropertyHandleRow(PropertyHandle, PropertyRow);
 				}
+
+				//Customize FName and FString properties if the pipeline define some possible value for this property
+				if (PropertyPtr->IsA(FNameProperty::StaticClass()) || PropertyPtr->IsA(FStrProperty::StaticClass()))
+				{
+					TArray<FString> PossibleValues;
+					if (InterchangePipeline->GetPropertyPossibleValues(PropertyPath, PossibleValues))
+					{
+						SetTextComboBoxWidget(PropertyRow, PropertyHandle, PossibleValues);
+					}
+				}
 			}
 			//This is the asset editor mode, we allow users to set default value and locks
 			else
@@ -210,6 +364,7 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 				constexpr bool bShowChildren = true;
 				GetGroupPtr();
 				IDetailPropertyRow& PropertyRow = GroupPtr ? GroupPtr->AddPropertyRow(PropertyHandle) : Category.AddProperty(PropertyHandle);
+				
 				TSharedPtr<SWidget> NameWidget;
 				TSharedPtr<SWidget> ValueWidget;
 				FDetailWidgetRow Row;
@@ -387,6 +542,16 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 				[
 					ValueWidget.ToSharedRef()
 				];
+
+				//Customize FName and FString properties if the pipeline define some possible value for this property
+				if (PropertyPtr->IsA(FNameProperty::StaticClass()) || PropertyPtr->IsA(FStrProperty::StaticClass()))
+				{
+					TArray<FString> PossibleValues;
+					if (InterchangePipeline->GetPropertyPossibleValues(PropertyPath, PossibleValues))
+					{
+						SetTextComboBoxWidget(PropertyRow, PropertyHandle, PossibleValues);
+					}
+				}
 			}
 		}
 	}

@@ -300,6 +300,18 @@ public:
 	bool CanEditPropertiesStates() { return bAllowPropertyStatesEdition; }
 	bool IsReimportContext() { return bIsReimportContext; }
 
+#if WITH_EDITOR
+	/*
+	 * FName or FString properties can have a dynamic set of possible values. When displaying 
+	 * a pipeline property in the property editor, this function will be call for all FString and FName
+	 * properties and will generate a combo box with the PossibleValues if the function return true.
+	 */
+	virtual bool GetPropertyPossibleValues(const FName PropertyPath, TArray<FString>& PossibleValues)
+	{
+		return false;
+	}
+#endif //WITH_EDITOR
+
 protected:
 
 	UE_DEPRECATED(5.2, "This function is replace by ExecutePipeline.")

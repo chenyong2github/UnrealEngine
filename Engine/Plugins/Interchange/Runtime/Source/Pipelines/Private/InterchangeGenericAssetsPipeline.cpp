@@ -119,6 +119,39 @@ void UInterchangeGenericAssetsPipeline::AdjustSettingsForContext(EInterchangePip
 	}
 }
 
+#if WITH_EDITOR
+bool UInterchangeGenericAssetsPipeline::GetPropertyPossibleValues(const FName PropertyPath, TArray<FString>& PossibleValues)
+{
+	const FString PropertyPathString = PropertyPath.ToString();
+	if (MaterialPipeline && PropertyPathString.StartsWith(UInterchangeGenericMaterialPipeline::StaticClass()->GetPathName()))
+	{
+		if (MaterialPipeline->GetPropertyPossibleValues(PropertyPath, PossibleValues))
+		{
+			return true;
+		}
+	}
+	
+	if (MeshPipeline && PropertyPathString.StartsWith(UInterchangeGenericMeshPipeline::StaticClass()->GetPathName()))
+	{
+		if (MeshPipeline->GetPropertyPossibleValues(PropertyPath, PossibleValues))
+		{
+			return true;
+		}
+	}
+	
+	if (AnimationPipeline && PropertyPathString.StartsWith(UInterchangeGenericAnimationPipeline::StaticClass()->GetPathName()))
+	{
+		if (AnimationPipeline->GetPropertyPossibleValues(PropertyPath, PossibleValues))
+		{
+			return true;
+		}
+	}
+
+	//If we did not find any property call the super implementation
+	return Super::GetPropertyPossibleValues(PropertyPath, PossibleValues);
+}
+#endif
+
 void UInterchangeGenericAssetsPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	check(CommonSkeletalMeshesAndAnimationsProperties);
