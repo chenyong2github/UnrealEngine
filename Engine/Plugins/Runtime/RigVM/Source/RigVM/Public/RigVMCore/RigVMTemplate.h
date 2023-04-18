@@ -346,6 +346,9 @@ public:
 	// returns true if the template was able to resolve to at least one permutation
 	bool Resolve(FTypeMap& InOutTypes, TArray<int32> & OutPermutationIndices, bool bAllowFloatingPointCasts) const;
 
+	// returns true if the template was able to resolve to at least one permutation
+	bool ContainsPermutation(const FTypeMap& InTypes) const;
+
 	// returns true if the template can resolve an argument to a new type
 	bool ResolveArgument(const FName& InArgumentName, const TRigVMTypeIndex InTypeIndex, FTypeMap& InOutTypes) const;
 
