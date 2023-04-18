@@ -396,6 +396,45 @@ void RHIInit(bool bHasEditorToken)
 
 #if WITH_EDITOR
 	FGenericDataDrivenShaderPlatformInfo::UpdatePreviewPlatforms();
+
+	// add an ability to override the shader platform, intended for preview platforms only
+	FString ShaderPlatformName;
+	if (FParse::Value(FCommandLine::Get(), TEXT("OverrideSP"), ShaderPlatformName) && !ShaderPlatformName.IsEmpty())
+	{
+		EShaderPlatform OverrideShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(*ShaderPlatformName);
+		if (OverrideShaderPlatform != SP_NumPlatforms)
+		{
+			// only allow to override to preview shader platform (to avoid complications), and make sure the SP matches current feature level
+			if (FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(OverrideShaderPlatform))
+			{
+				if (GetMaxSupportedFeatureLevel(OverrideShaderPlatform) == GMaxRHIFeatureLevel)
+				{
+					UE_LOG(LogRHI, Log, TEXT("Overriding shader platform to use from %s to %s"),
+						*LexToString(GMaxRHIShaderPlatform, false),
+						*LexToString(OverrideShaderPlatform, false));
+
+					GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel] = OverrideShaderPlatform;
+					GMaxRHIShaderPlatform = OverrideShaderPlatform;
+				}
+				else
+				{
+					UE_LOG(LogRHI, Log, TEXT("Cannot override to use shaderplatform %s, its max feature level %s does not match current max feature level %s"),
+						*LexToString(OverrideShaderPlatform, false),
+						*LexToString(GetMaxSupportedFeatureLevel(OverrideShaderPlatform)),
+						*LexToString(GMaxRHIFeatureLevel)
+						);
+				}
+			}
+			else
+			{
+				UE_LOG(LogRHI, Log, TEXT("Cannot override to use shader platform %s, it is not a preview platform"), *LexToString(OverrideShaderPlatform, false));
+			}
+		}
+		else
+		{
+			UE_LOG(LogRHI, Log, TEXT("Shader platform %s is not a valid platform, cannot use it."), *LexToString(OverrideShaderPlatform, false));
+		}
+	}
 #endif
 }
 

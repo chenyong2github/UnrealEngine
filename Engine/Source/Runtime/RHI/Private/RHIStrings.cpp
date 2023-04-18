@@ -110,12 +110,16 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 		}
 		else if (Platform > SP_CUSTOM_PLATFORM_FIRST && Platform < SP_CUSTOM_PLATFORM_LAST)
 		{
+#if WITH_EDITOR
+			return FString::Printf(TEXT("SP_CUSTOM_PLATFORM_%d (%s)"), Platform - SP_CUSTOM_PLATFORM_FIRST, *FDataDrivenShaderPlatformInfo::GetFriendlyName(Platform).ToString());
+#else
 			return FString::Printf(TEXT("SP_CUSTOM_PLATFORM_%d"), Platform - SP_CUSTOM_PLATFORM_FIRST);
+#endif
 		}
 		else
 		{
 			checkf(!bError, TEXT("Unknown or removed EShaderPlatform %d!"), (int32)Platform);
-			return TEXT("");
+			return FString::Printf(TEXT("Unknown or removed EShaderPlatform %d"), (int32)Platform);
 		}
 	}
 }
