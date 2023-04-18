@@ -440,6 +440,10 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
 	TArray<FString> AttributesToPreserve;
 
+	/** This determines how emitters will be added to a system by default. If summary view is setup, consider setting this to 'Summary'. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options")
+	ENiagaraEmitterDefaultSummaryState AddEmitterDefaultViewState = ENiagaraEmitterDefaultSummaryState::Default;
+	
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties EmitterSpawnScriptProps;
 
@@ -640,6 +644,8 @@ public:
 	template <typename TAction>
 	void ForEachVersionData(TAction Func) const;
 
+	template <typename TAction>
+	void ForEachVersionData(TAction Func);
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API virtual TSharedPtr<FNiagaraVersionDataAccessor> GetVersionDataAccessor(const FGuid& Version) override; 
 
@@ -1009,6 +1015,15 @@ template <typename TAction>
 void UNiagaraEmitter::ForEachVersionData(TAction Func) const
 {
 	for (const FVersionedNiagaraEmitterData& Data : VersionData)
+	{
+		Func(Data);
+	}
+}
+
+template <typename TAction>
+void UNiagaraEmitter::ForEachVersionData(TAction Func)
+{
+	for (FVersionedNiagaraEmitterData& Data : VersionData)
 	{
 		Func(Data);
 	}

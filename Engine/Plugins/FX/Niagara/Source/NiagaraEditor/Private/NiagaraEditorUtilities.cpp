@@ -2100,7 +2100,8 @@ const FGuid FNiagaraEditorUtilities::AddEmitterToSystem(UNiagaraSystem& InSystem
 		EmitterHandle = FNiagaraEmitterHandle(InEmitterToAdd, EmitterVersion);
 		InSystem.AddEmitterHandleDirect(EmitterHandle);		
 	}
-	
+
+	Cast<UNiagaraEmitterEditorData>(EmitterHandle.GetEmitterData()->GetEditorData())->SetShowSummaryView(InEmitterToAdd.GetEmitterData(EmitterVersion)->AddEmitterDefaultViewState == ENiagaraEmitterDefaultSummaryState::Summary ? true : false);
 	FNiagaraStackGraphUtilities::RebuildEmitterNodes(InSystem);
 	SystemEditorData->SynchronizeOverviewGraphWithSystem(InSystem);
 

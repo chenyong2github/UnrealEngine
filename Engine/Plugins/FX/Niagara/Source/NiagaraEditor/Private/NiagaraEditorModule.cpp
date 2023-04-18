@@ -208,14 +208,19 @@ class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
 
 	virtual UNiagaraEditorDataBase* CreateDefaultEditorData(UObject* InOuter) const override
 	{
-		UNiagaraSystem* System = Cast<UNiagaraSystem>(InOuter);
-		if (System != nullptr)
+		if (UNiagaraSystem* System = Cast<UNiagaraSystem>(InOuter))
 		{
 			UNiagaraSystemEditorData* SystemEditorData = NewObject<UNiagaraSystemEditorData>(InOuter);
 			SystemEditorData->SetFlags(RF_Transactional);
 			SystemEditorData->SynchronizeOverviewGraphWithSystem(*System);
 			SystemEditorData->InitOnSyncScriptVariables(*System);
 			return SystemEditorData;
+		}
+		else if(UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(InOuter))
+		{
+			UNiagaraEmitterEditorData* EmitterEditorData = NewObject<UNiagaraEmitterEditorData>(InOuter);
+			EmitterEditorData->SetFlags(RF_Transactional);
+			return EmitterEditorData;
 		}
 		return nullptr;
 	}

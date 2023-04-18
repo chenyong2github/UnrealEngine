@@ -35,7 +35,7 @@ void UNiagaraStackSummaryViewCollection::Initialize(FRequiredEntryData InRequire
 	Super::Initialize(InRequiredEntryData, InOwningStackItemEditorDataKey, ObjectStackEditorDataKey);
 
 	Emitter = InEmitter;
-	GetEmitterViewModel()->GetOrCreateEditorData().OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackSummaryViewCollection::OnViewStateChanged);
+	GetEmitterViewModel()->GetEditorData().OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackSummaryViewCollection::OnViewStateChanged);
 	GetEmitterViewModel()->GetSummaryHierarchyViewModel()->OnHierarchyChanged().AddUObject(this, &UNiagaraStackSummaryViewCollection::OnViewStateChanged);
 	GetEmitterViewModel()->GetSummaryHierarchyViewModel()->OnHierarchyPropertiesChanged().AddUObject(this, &UNiagaraStackSummaryViewCollection::OnViewStateChanged);
 }
@@ -45,7 +45,7 @@ void UNiagaraStackSummaryViewCollection::FinalizeInternal()
 	TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModelPtr = GetEmitterViewModel();
 	if (EmitterViewModelPtr.IsValid() && GetEmitterViewModel()->GetEmitter().GetEmitterData())
 	{
-		GetEmitterViewModel()->GetOrCreateEditorData().OnSummaryViewStateChanged().RemoveAll(this);
+		GetEmitterViewModel()->GetEditorData().OnSummaryViewStateChanged().RemoveAll(this);
 	}
 
 	if(EmitterViewModelPtr.IsValid() && EmitterViewModelPtr->GetSummaryHierarchyViewModel() != nullptr)
@@ -73,7 +73,7 @@ void UNiagaraStackSummaryViewCollection::RefreshChildrenInternal(const TArray<UN
 	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModelPinned = ViewModel->GetSharedScriptViewModel();
 	checkf(ScriptViewModelPinned.IsValid(), TEXT("Can not refresh children when the script view model has been deleted."));
 
-	const UNiagaraHierarchyRoot* Root = ViewModel->GetOrCreateEditorData().GetSummaryRoot();
+	const UNiagaraHierarchyRoot* Root = ViewModel->GetEditorData().GetSummaryRoot();
 	TSharedPtr<FNiagaraHierarchyRootViewModel> RootViewModel = ViewModel->GetSummaryHierarchyViewModel()->GetHierarchyRootViewModel();
 	
 	FNiagaraStackGraphUtilities::FInputDataCollection State;
@@ -489,7 +489,7 @@ void UNiagaraStackSummaryViewCollection::GetSectionsInternal(TArray<FNiagaraStac
 	TMap<const UNiagaraHierarchySection*, TArray<UNiagaraHierarchyCategory*>> SectionToCategoryMap;
 
 	TSharedPtr<FNiagaraEmitterViewModel> ViewModel = GetEmitterViewModel();
-	const UNiagaraHierarchyRoot* Root = ViewModel->GetOrCreateEditorData().GetSummaryRoot();
+	const UNiagaraHierarchyRoot* Root = ViewModel->GetEditorData().GetSummaryRoot();
 	
 	TArray<UNiagaraHierarchyCategory*> HierarchyCategories;
 	Root->GetChildrenOfType<UNiagaraHierarchyCategory>(HierarchyCategories, false);
@@ -521,7 +521,7 @@ const TArray<UNiagaraHierarchySection*>& UNiagaraStackSummaryViewCollection::Get
 {
 	if (GetEmitterViewModel().IsValid())
 	{
-		return GetEmitterViewModel()->GetOrCreateEditorData().GetSummarySections();
+		return GetEmitterViewModel()->GetEditorData().GetSummarySections();
 	}
 
 	static TArray<UNiagaraHierarchySection*> Dummy;

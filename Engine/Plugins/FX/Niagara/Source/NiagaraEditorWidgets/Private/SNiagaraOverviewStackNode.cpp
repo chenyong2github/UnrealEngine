@@ -1003,7 +1003,7 @@ FText SNiagaraOverviewStackNode::GetSummaryViewCollapseTooltipText() const
 
 FReply SNiagaraOverviewStackNode::ExpandSummaryViewClicked()
 {
-	if (UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr)
+	if (UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetEditorData() : nullptr)
 	{
 		EditorData->ToggleShowSummaryView();
 	}

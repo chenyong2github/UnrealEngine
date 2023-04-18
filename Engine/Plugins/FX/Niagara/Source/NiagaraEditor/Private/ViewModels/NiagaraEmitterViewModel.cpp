@@ -74,7 +74,7 @@ void FNiagaraEmitterViewModel::Cleanup()
 
 	if(EmitterWeakPtr.IsValid())
 	{
-		GetOrCreateEditorData().OnPersistentDataChanged().RemoveAll(this);
+		GetEditorData().OnPersistentDataChanged().RemoveAll(this);
 	}
 
 	RemoveScriptEventHandlers();
@@ -327,26 +327,13 @@ UNiagaraSummaryViewViewModel* FNiagaraEmitterViewModel::GetSummaryHierarchyViewM
 const UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetEditorData() const
 {
 	check(EmitterWeakPtr.Emitter.IsValid());
-
-	const UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(EmitterWeakPtr.GetEmitterData()->GetEditorData());
-	if (EditorData == nullptr)
-	{
-		EditorData = GetDefault<UNiagaraEmitterEditorData>();
-	}
-	return *EditorData;
+	return *Cast<UNiagaraEmitterEditorData>(EmitterWeakPtr.GetEmitterData()->GetEditorData());
 }
 
-UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetOrCreateEditorData()
+UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetEditorData()
 {
 	check(EmitterWeakPtr.IsValid());
-	UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(EmitterWeakPtr.GetEmitterData()->GetEditorData());
-	if (EditorData == nullptr)
-	{
-		EditorData = NewObject<UNiagaraEmitterEditorData>(EmitterWeakPtr.Emitter.Get(), NAME_None, RF_Transactional);
-		EmitterWeakPtr.Emitter->Modify(); 
-		EmitterWeakPtr.Emitter->SetEditorData(EditorData, EmitterWeakPtr.Version);
-	}
-	return *EditorData;
+	return *Cast<UNiagaraEmitterEditorData>(EmitterWeakPtr.GetEmitterData()->GetEditorData());
 }
 
 void FNiagaraEmitterViewModel::AddEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, bool bResetGraphForOutput /*= false*/)
@@ -606,7 +593,7 @@ void FNiagaraEmitterViewModel::OnEmitterPropertiesChanged()
 
 void FNiagaraEmitterViewModel::OnSummaryViewHierarchyChanged()
 {
-	GetOrCreateEditorData().OnPersistentDataChanged().Broadcast();
+	GetEditorData().OnPersistentDataChanged().Broadcast();
 }
 
 FString FNiagaraEmitterViewModel::GetReferencerName() const

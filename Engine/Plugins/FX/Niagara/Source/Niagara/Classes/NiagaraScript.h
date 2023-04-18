@@ -87,8 +87,18 @@ enum class ENiagaraScriptTemplateSpecification : uint8
 {
 	None,
 	Template,
-	Behavior UMETA(DisplayName = "Behavior Example")
+	Behavior UMETA(DisplayName = "Learning Example")
 };
+
+UENUM()
+enum class ENiagaraEmitterDefaultSummaryState : uint8
+{
+	/** The emitter will be added in default, full view by default. */
+	Default,
+	/** The emitter will be added in summary state by default. */
+	Summary
+};
+
 
 /** Defines different usages for a niagara script's module dependecies. */
 UENUM()

@@ -121,7 +121,7 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 
 			if (UNiagaraEmitter* Emitter = EmitterViewModel->GetEmitter().Emitter)
 			{
-				EmitterViewModel->GetOrCreateEditorData().OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackViewModel::RequestRefreshDeferred);
+				EmitterViewModel->GetEditorData().OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackViewModel::RequestRefreshDeferred);
 			}
 
 		}
@@ -170,7 +170,7 @@ void UNiagaraStackViewModel::InitializeWithRootEntry(UNiagaraStackEntry* InRootE
 	if (EmitterHandleViewModelPinned.IsValid())
 	{
 		TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = EmitterHandleViewModelPinned->GetEmitterViewModel();
-		EmitterViewModel->GetOrCreateEditorData().OnSummaryViewStateChanged().RemoveAll(this);
+		EmitterViewModel->GetEditorData().OnSummaryViewStateChanged().RemoveAll(this);
 	}
 }
 
@@ -198,7 +198,7 @@ void UNiagaraStackViewModel::Reset()
 		EmitterViewModel->OnParentRemoved().RemoveAll(this);
 		if (EmitterViewModel->GetEmitter().GetEmitterData())
 		{
-			EmitterViewModel->GetOrCreateEditorData().OnSummaryViewStateChanged().RemoveAll(this);
+			EmitterViewModel->GetEditorData().OnSummaryViewStateChanged().RemoveAll(this);
 		}
 	}
 
@@ -761,7 +761,7 @@ void UNiagaraStackViewModel::SetLastScrollPosition(double InLastScrollPosition)
 	// TODO: Fix this with the new overview paradigm.
 	if (EmitterHandleViewModel.IsValid())
 	{
-		EmitterHandleViewModel.Pin()->GetEmitterViewModel()->GetOrCreateEditorData().GetStackEditorData().SetLastScrollPosition(InLastScrollPosition);
+		EmitterHandleViewModel.Pin()->GetEmitterViewModel()->GetEditorData().GetStackEditorData().SetLastScrollPosition(InLastScrollPosition);
 	}
 }
 

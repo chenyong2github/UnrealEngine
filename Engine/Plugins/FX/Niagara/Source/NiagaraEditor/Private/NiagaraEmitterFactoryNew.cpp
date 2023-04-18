@@ -12,6 +12,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraConstants.h"
+#include "NiagaraEmitterEditorData.h"
 #include "NiagaraNodeAssignment.h"
 #include "SNewEmitterDialog.h"
 #include "Misc/MessageDialog.h"
@@ -143,6 +144,13 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 		NewEmitter = NewObject<UNiagaraEmitter>(InParent, Class, Name, Flags | RF_Transactional);
 		InitializeEmitter(NewEmitter, bAddDefaultModulesAndRenderersToEmptyEmitter);
 	}
+	
+	NewEmitter->ForEachVersionData([](FVersionedNiagaraEmitterData& EmitterVersionData)
+	{
+		UNiagaraEmitterEditorData* EmitterEditorData = CastChecked<UNiagaraEmitterEditorData>(EmitterVersionData.GetEditorData());
+		EmitterEditorData->SetShowSummaryView(EmitterVersionData.AddEmitterDefaultViewState == ENiagaraEmitterDefaultSummaryState::Summary ? true : false);
+	});
+	
 	return NewEmitter;
 }
 

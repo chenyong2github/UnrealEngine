@@ -403,7 +403,7 @@ FText SNiagaraTemplateTabBox::DetermineControlLabel(ENiagaraScriptTemplateSpecif
 			case ENiagaraScriptTemplateSpecification::Template:
 				return LOCTEXT("EmitterTemplateTabLabel", "Templates");
 			case ENiagaraScriptTemplateSpecification::Behavior:
-				return LOCTEXT("EmitterBehaviorExampleTabLabel", "Behavior Examples");
+				return LOCTEXT("EmitterLearningExampleTabLabel", "Learning Examples");
 			default:
 				return FText::GetEmpty();
 			}
@@ -417,7 +417,7 @@ FText SNiagaraTemplateTabBox::DetermineControlLabel(ENiagaraScriptTemplateSpecif
 			case ENiagaraScriptTemplateSpecification::Template:
 				return LOCTEXT("SystemTemplateTabLabel", "Templates");
 			case ENiagaraScriptTemplateSpecification::Behavior:
-				return LOCTEXT("SystemBehaviorExampleTabLabel", "Behavior Examples");
+				return LOCTEXT("SystemLearningExampleTabLabel", "Learning Examples");
 			default:
 				return FText::GetEmpty();
 			}

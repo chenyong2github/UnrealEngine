@@ -259,11 +259,20 @@ void FVersionedNiagaraEmitterData::PostInitProperties(UNiagaraEmitter* Outer)
 		GPUComputeScript->SetUsage(ENiagaraScriptUsage::ParticleGPUComputeScript);
 
 #if WITH_EDITORONLY_DATA && WITH_EDITOR
-	if (EditorParameters == nullptr)
+	if(EditorParameters == nullptr || EditorData == nullptr)
 	{
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
-		EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(Outer);
-	}
+
+		if(EditorParameters == nullptr)
+		{
+			EditorParameters = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorParameters(Outer);
+		}
+
+		if(EditorData == nullptr)
+		{
+			EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(Outer);
+		}
+	}	
 #endif
 }
 
@@ -778,6 +787,11 @@ void FVersionedNiagaraEmitterData::PostLoad(UNiagaraEmitter& Emitter, int32 Niag
 	{
 		EditorData->ConditionalPostLoad();
 		EditorData->PostLoadFromOwner(&Emitter);
+	}
+	else
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		EditorData = NiagaraModule.GetEditorOnlyDataUtilities().CreateDefaultEditorData(&Emitter);
 	}
 	
 	if (!GPUComputeScript)

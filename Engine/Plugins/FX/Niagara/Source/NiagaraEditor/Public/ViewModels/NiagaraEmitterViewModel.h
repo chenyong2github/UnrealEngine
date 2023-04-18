@@ -120,7 +120,7 @@ public:
 	NIAGARAEDITOR_API const UNiagaraEmitterEditorData& GetEditorData() const;
 
 	/** Gets editor specific data which is stored per emitter.  If this data hasn't been created then it will be created. */
-	NIAGARAEDITOR_API UNiagaraEmitterEditorData& GetOrCreateEditorData();
+	NIAGARAEDITOR_API UNiagaraEmitterEditorData& GetEditorData();
 
 	/** Add an event script to the owned emitter. Sets the Usage, UsageID and Source of the EventScriptProperties. */
 	NIAGARAEDITOR_API void AddEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, bool bResetGraphForOutput = false);
