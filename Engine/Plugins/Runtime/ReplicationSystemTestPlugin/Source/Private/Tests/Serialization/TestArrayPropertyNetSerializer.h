@@ -21,3 +21,16 @@ struct FStructWithDynamicArrayOfComplexTypeForArrayPropertyNetSerializerTest
 	UPROPERTY()
 	TArray<FStructWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest> ArrayOfStructWithArray;
 };
+
+UCLASS()
+class UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(Replicated)
+	TArray<uint32> ArrayOfUint;
+
+protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+};

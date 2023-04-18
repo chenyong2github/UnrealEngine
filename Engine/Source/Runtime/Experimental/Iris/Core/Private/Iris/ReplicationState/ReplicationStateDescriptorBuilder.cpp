@@ -11,6 +11,7 @@
 #include "Iris/ReplicationState/PropertyNetSerializerInfoRegistry.h"
 #include "Iris/ReplicationState/InternalPropertyReplicationState.h"
 #include "Iris/ReplicationState/IrisFastArraySerializer.h"
+#include "Iris/ReplicationState/PropertyReplicationState.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptorConfig.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptorRegistry.h"
 #include "Iris/ReplicationSystem/ReplicationOperations.h"
@@ -49,7 +50,11 @@ static const FName PropertyNetSerializerRegistry_NAME_ChangeMaskStorage("ChangeM
 static const FName ReplicationStateDescriptorBuilder_NAME_NetCullDistanceSquared("NetCullDistanceSquared");
 static const FName ReplicationStateDescriptorBuilder_NAME_RoleGroup("RoleGroup");
 
-static TAutoConsoleVariable<int32> CVarIrisUseNativeFastArray(TEXT("net.Iris.UseNativeFastArray"), 1, TEXT("Enable or disable IrisNativeFastArray."));
+static bool bIrisUseNativeFastArray = true;
+static FAutoConsoleVariableRef CVarIrisUseNativeFastArray(TEXT("net.Iris.UseNativeFastArray"), bIrisUseNativeFastArray, TEXT("Enable or disable IrisNativeFastArray."));
+
+static bool bIrisUseChangeMaskForTArray = true;
+static FAutoConsoleVariableRef CVarIrisUseChangeMaskForTArray(TEXT("net.Iris.UseChangeMaskForTArray"), bIrisUseChangeMaskForTArray, TEXT("Enable or disable the use of a changemask for individual elements in TArrays. When enabled and packet loss occurs the received array may not reflect a state which was ever present on the sending side since the array won't be replicated atomically. Enabled by default."));
 
 static bool bWarnAboutStructsWithCustomSerialization = true;
 static FAutoConsoleVariableRef CVarIrisWarnAboutStructsWithCustomSerialization(TEXT("net.Iris.WarnAboutStructsWithCustomSerialization"), bWarnAboutStructsWithCustomSerialization, TEXT("Warn when generating descriptors for structs with custom serialization."));
@@ -73,7 +78,8 @@ enum class EMemberPropertyTraits : uint32
 	HasCustomObjectReference			= HasObjectReference << 1U,
 	IsSourceTriviallyConstructible		= HasCustomObjectReference << 1U,
 	IsSourceTriviallyDestructible		= IsSourceTriviallyConstructible << 1U,
-	IsFastArray							= IsSourceTriviallyDestructible << 1U,
+	IsTArray							= IsSourceTriviallyDestructible << 1U,
+	IsFastArray							= IsTArray << 1U,
 	IsNativeFastArray					= IsFastArray << 1U,
 	IsFastArrayWithExtraProperties		= IsNativeFastArray << 1U,
 	IsFastArrayItem						= IsFastArrayWithExtraProperties << 1U,
@@ -1865,6 +1871,7 @@ void FPropertyReplicationStateDescriptorBuilder::GetIrisPropertyTraits(FMemberPr
 
 	Traits |= ((Property->PropertyFlags & (CPF_NoDestructor | CPF_IsPlainOldData)) != 0 ? EMemberPropertyTraits::IsSourceTriviallyDestructible : EMemberPropertyTraits::None);
 	Traits |= ((Property->PropertyFlags & (CPF_ZeroConstructor | CPF_IsPlainOldData)) != 0 ? EMemberPropertyTraits::IsSourceTriviallyConstructible : EMemberPropertyTraits::None);
+	Traits |= (Property->IsA(FArrayProperty::StaticClass()) ? EMemberPropertyTraits::IsTArray : EMemberPropertyTraits::None);
 
 	if (Data)
 	{
@@ -1933,6 +1940,13 @@ bool FPropertyReplicationStateDescriptorBuilder::IsSupportedProperty(FMemberProp
 	if (EnumHasAnyFlags(OutMemberProperty.Traits, EMemberPropertyTraits::IsFastArray))
 	{
 		OutMemberProperty.ChangeMaskBits = 1U + FIrisFastArraySerializer::IrisFastArrayChangeMaskBits;
+	}
+	else if (EnumHasAnyFlags(OutMemberProperty.Traits, EMemberPropertyTraits::IsTArray))
+	{
+		if (bIrisUseChangeMaskForTArray)
+		{
+			OutMemberProperty.ChangeMaskBits = 1U + FPropertyReplicationState::TArrayElementChangeMaskBits;
+		}
 	}
 
 	// Structs with custom serializers may have a default custom replication fragment.
@@ -2190,7 +2204,7 @@ EMemberPropertyTraits FPropertyReplicationStateDescriptorBuilder::GetFastArrayPr
 				EMemberPropertyTraits Traits = EMemberPropertyTraits::IsFastArray;
 
 				// If the struct is derived from FIrisFastArraySerializer and has a single property we can treat it as a native FastArray
-				const bool bUseNativeFastArray = CVarIrisUseNativeFastArray.GetValueOnAnyThread() != 0 && ReplicatedPropertyCount == 1U;
+				const bool bUseNativeFastArray = bIrisUseNativeFastArray && ReplicatedPropertyCount == 1U;
 				if (bUseNativeFastArray && Struct->IsChildOf(FIrisFastArraySerializer::StaticStruct()))
 				{
 					Traits |= EMemberPropertyTraits::HasPushBasedDirtiness | EMemberPropertyTraits::IsNativeFastArray;

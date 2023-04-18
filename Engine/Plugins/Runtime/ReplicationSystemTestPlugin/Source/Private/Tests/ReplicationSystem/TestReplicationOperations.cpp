@@ -44,7 +44,7 @@ struct FTestReplicationOperationsFixture : public FReplicationSystemTestFixture
 
 	FMemStackBase& GetTempAllocator() { return *TempLinearAllocator; }
 
-	uint8 ChangeMaskBuffer[16];
+	alignas(16) uint8 ChangeMaskBuffer[32];
 	FNetBitStreamWriter ChangeMaskWriter;
 	FMemStackBase* TempLinearAllocator;
 
@@ -54,7 +54,7 @@ struct FTestReplicationOperationsFixture : public FReplicationSystemTestFixture
 	{ 
 		check((BitCount >> 3) < sizeof(ChangeMaskBuffer));
 		FMemory::Memset(ChangeMaskBuffer, 0);
-		ChangeMaskWriter.InitBytes(ChangeMaskBuffer, 16);
+		ChangeMaskWriter.InitBytes(ChangeMaskBuffer, sizeof(ChangeMaskBuffer));
 
 		return &ChangeMaskWriter;
 	}

@@ -2,6 +2,7 @@
 
 #include "Iris/ReplicationState/PropertyReplicationState.h"
 #include "Iris/ReplicationState/InternalPropertyReplicationState.h"
+#include "Iris/ReplicationState/InternalReplicationStateDescriptorUtils.h"
 #include "Iris/ReplicationState/ReplicationStateUtil.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
 #include "Net/Core/NetBitArray.h"
@@ -128,32 +129,17 @@ void FPropertyReplicationState::InjectState(const FReplicationStateDescriptor* D
 
 void FPropertyReplicationState::Set(const FPropertyReplicationState& Other)
 {
-	if (IsValid())
+	if (IsValid() && this != &Other)
 	{
 		const FReplicationStateDescriptor* Descriptor = ReplicationStateDescriptor;
-		uint8* DstStateBuffer = StateBuffer;
-		uint8* SrcStateBuffer = Other.StateBuffer;
-
 		const FReplicationStateMemberDescriptor* MemberDescriptors = Descriptor->MemberDescriptors;
-		const FProperty*const* Properties = Descriptor->MemberProperties;
-		const uint32 MemberCount = Descriptor->MemberCount;
 
-		for (uint32 MemberIt = 0; MemberIt < MemberCount; ++MemberIt)
+		const uint8* SrcStateBuffer = Other.StateBuffer;
+		for (uint32 MemberIt = 0, MemberEndIt = Descriptor->MemberCount; MemberIt < MemberEndIt; ++MemberIt)
 		{
 			const FReplicationStateMemberDescriptor& MemberDescriptor = MemberDescriptors[MemberIt];
-			const FProperty* Property = Properties[MemberIt];
-
-			uint8* DstValue = DstStateBuffer + MemberDescriptor.ExternalMemberOffset;
-			uint8* SrcValue = SrcStateBuffer + MemberDescriptor.ExternalMemberOffset;
-	
-			// $IRIS TODO: Could use serializer IsEqual.
-			if (!IsDirty(MemberIt) && IsCustomConditionEnabled(MemberIt) && !Property->Identical(SrcValue, DstValue))
-			{
-				MarkDirty(MemberIt);
-			}
-
-			// We need to use the internal copy as we do not want to run custom assign/copy constructors as we want a true copy of all replicated data
-			Private::InternalCopyPropertyValue(Descriptor, MemberIt, DstValue, SrcValue);
+			const uint8* SrcValue = SrcStateBuffer + MemberDescriptor.ExternalMemberOffset;
+			SetPropertyValue(MemberIt, SrcValue);
 		}
 	}
 }
@@ -163,12 +149,31 @@ void FPropertyReplicationState::SetPropertyValue(uint32 Index, const void* SrcVa
 	const FReplicationStateDescriptor* Descriptor = ReplicationStateDescriptor;
 	void* DstValue = StateBuffer + Descriptor->MemberDescriptors[Index].ExternalMemberOffset;
 
+	// Special handling for top level arrays with changemask bits for elements
+	const FReplicationStateMemberSerializerDescriptor& MemberSerializerDescriptor = Descriptor->MemberSerializerDescriptors[Index];
+	if (IsUsingArrayPropertyNetSerializer(MemberSerializerDescriptor))
+	{
+		const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskInfo = Descriptor->MemberChangeMaskDescriptors[Index];
+		if (!IsInitState() && IsCustomConditionEnabled(Index) && ChangeMaskInfo.BitCount > 1U)
+		{
+			FNetBitArrayView MemberChangeMask = Private::GetMemberChangeMask(StateBuffer, Descriptor);
+
+			const bool bArraysAreEqual = Private::InternalCompareAndCopyArrayWithElementChangeMask(Descriptor, Index, DstValue, SrcValue, MemberChangeMask);
+			if (!bArraysAreEqual && !MemberChangeMask.GetBit(ChangeMaskInfo.BitOffset + TArrayPropertyChangeMaskBitIndex))
+			{
+				MarkArrayDirty(Index);
+			}
+
+			return;
+		}
+	}
+
 	if (!IsDirty(Index) && IsCustomConditionEnabled(Index) && !Private::InternalCompareMember(Descriptor, Index, SrcValue, DstValue))
 	{
 		MarkDirty(Index);
 	}
 
-	Private::InternalCopyPropertyValue(Descriptor, Index, DstValue, SrcValue);		
+	Private::InternalCopyPropertyValue(Descriptor, Index, DstValue, SrcValue);
 }
 
 void FPropertyReplicationState::GetPropertyValue(uint32 Index, void* DstValue) const
@@ -215,6 +220,32 @@ bool FPropertyReplicationState::IsDirty(uint32 Index) const
 		const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskInfo = Descriptor->MemberChangeMaskDescriptors[Index];
 
 		return MemberChangeMask.IsAnyBitSet(ChangeMaskInfo.BitOffset, ChangeMaskInfo.BitCount);
+	}
+}
+
+void FPropertyReplicationState::MarkArrayDirty(uint32 Index)
+{
+	const FReplicationStateDescriptor* Descriptor = ReplicationStateDescriptor;
+	FReplicationStateHeader& Header = Private::GetReplicationStateHeader(StateBuffer, Descriptor);
+
+	if (IsInitState())
+	{
+		if (!Private::FReplicationStateHeaderAccessor::GetIsInitStateDirty(Header))
+		{
+			Private::FReplicationStateHeaderAccessor::MarkInitStateDirty(Header);
+			if (Header.IsBound())
+			{
+				MarkNetObjectStateDirty(Header);
+			}
+		}
+	}
+	else
+	{
+		FNetBitArrayView MemberChangeMask = Private::GetMemberChangeMask(StateBuffer, Descriptor);
+		FReplicationStateMemberChangeMaskDescriptor ChangeMaskInfo = Descriptor->MemberChangeMaskDescriptors[Index];
+		ChangeMaskInfo.BitOffset += TArrayPropertyChangeMaskBitIndex;
+		ChangeMaskInfo.BitCount = 1;
+		Private::MarkDirty(Header, MemberChangeMask, ChangeMaskInfo);
 	}
 }
 

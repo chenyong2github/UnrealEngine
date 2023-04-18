@@ -61,8 +61,9 @@ void UTestObjectReferences_TestClassWithDefaultSubObject::GetLifetimeReplicatedP
 namespace UE::Net::Private
 {
 
-struct FTestObjectReferencesFixture : public FReplicationSystemServerClientTestFixture
+class FTestObjectReferencesFixture : public FReplicationSystemServerClientTestFixture
 {
+public:
 	struct FReferenceCollector
 	{
 		void Reset() { References.Reset(); }
@@ -125,6 +126,13 @@ struct FTestObjectReferencesFixture : public FReplicationSystemServerClientTestF
 				ReferenceCollector.BitArray.SetBit(Info.ChangeMaskInfo.BitOffset);
 			}				
 		}
+	}
+
+	void SetMemberDirty(FNetBitArrayView ChangeMask, uint32 MemberIndex)
+	{
+		const FReplicationStateDescriptor* Descriptor = TestObjectProtocol->ReplicationStateDescriptors[1];
+		const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskDesciptor = Descriptor->MemberChangeMaskDescriptors[MemberIndex];
+		ChangeMask.SetBits(ChangeMaskDesciptor.BitOffset, ChangeMaskDesciptor.BitCount);
 	}
 
 	FReferenceCollector CollectAllCollector;
@@ -684,9 +692,8 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestVisitAllDirty)
 	TestObject->TestStructWithNestedRefCArray_CArray[1].StructWithRef_CArray[1].Ref_CArray[1] = TestReferences[CurrentReferenceIndex++]; // 13
 	TestObject->TestStructWithNestedRefCArray_CArray[2].StructWithRef_CArray[2].Ref_CArray[2] = TestReferences[CurrentReferenceIndex++]; // 14
 
-	uint32 ChangeMaskData[8];
-
-	FNetBitArrayView ChangeMask(ChangeMaskData, TestObjectProtocol->ChangeMaskBitCount, FNetBitArrayView::ResetOnInit);
+	FNetBitArray ChangeMaskStorage(TestObjectProtocol->ChangeMaskBitCount);
+	FNetBitArrayView ChangeMask = MakeNetBitArrayView(ChangeMaskStorage);
 
 	// To trigger copy of data
 	Server->PreSendUpdate();
@@ -706,20 +713,23 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestVisitAllDirty)
 
 		VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 		UE_NET_ASSERT_EQ((uint32)Collector.References.Num(), 1U);
-		UE_NET_ASSERT_TRUE(Collector.References[0].GetRefHandle() == TestReferences[0]->NetRefHandle);
+		UE_NET_ASSERT_EQ(Collector.References[0].GetRefHandle(), TestReferences[0]->NetRefHandle);
 	}
 
 	// Partial
 	{
 		FCollectValidReferenceCollector Collector(false, ChangeMask);
 		ChangeMask.Reset();
-		ChangeMask.SetBit(11);
+
+		// Mark member 11 as dirty. This corresponds to TestStructWithNestedRefTArray_TArray.
+		SetMemberDirty(ChangeMask, 11);
+
 		VisitReferences(TestObjectStateBuffer, TestObjectProtocol, Collector);
 
 		UE_NET_ASSERT_EQ(Collector.References.Num(), 3);
 		for (int32 It = 0; It < Collector.References.Num(); ++It)
 		{
-			UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It + 20]->NetRefHandle);
+			UE_NET_ASSERT_EQ(Collector.References[It].GetRefHandle(), TestReferences[It + 20]->NetRefHandle);
 		}
 	}
 
@@ -732,7 +742,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestVisitAllDirty)
 		UE_NET_ASSERT_EQ((uint32)Collector.References.Num(), CurrentReferenceIndex);
 		for (int32 It = 0; It < Collector.References.Num(); ++It)
 		{
-			UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It]->NetRefHandle);
+			UE_NET_ASSERT_EQ(Collector.References[It].GetRefHandle(), TestReferences[It]->NetRefHandle);
 		}
 	}
 
@@ -745,7 +755,7 @@ UE_NET_TEST_FIXTURE(FTestObjectReferencesFixture, TestVisitAllDirty)
 		UE_NET_ASSERT_EQ((uint32)Collector.References.Num(), CurrentReferenceIndex - 1);
 		for (int32 It = 0; It < Collector.References.Num(); ++It)
 		{
-			UE_NET_ASSERT_TRUE(Collector.References[It].GetRefHandle() == TestReferences[It + 1]->NetRefHandle);
+			UE_NET_ASSERT_EQ(Collector.References[It].GetRefHandle(), TestReferences[It + 1]->NetRefHandle);
 		}
 	}
 }

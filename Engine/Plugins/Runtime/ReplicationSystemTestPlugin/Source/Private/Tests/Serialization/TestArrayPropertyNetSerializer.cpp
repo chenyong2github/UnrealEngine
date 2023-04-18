@@ -4,11 +4,15 @@
 #include "TestNetSerializerFixture.h"
 #include "Iris/ReplicationState/InternalReplicationStateDescriptorUtils.h"
 #include "Iris/ReplicationState/PropertyNetSerializerInfoRegistry.h"
+#include "Iris/ReplicationState/PropertyReplicationState.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptorBuilder.h"
+#include "Iris/ReplicationState/ReplicationStateUtil.h"
 #include "Iris/Serialization/InternalNetSerializers.h"
 #include "Iris/Serialization/NetSerializers.h"
 #include "Iris/Serialization/InternalNetSerializationContext.h"
-#include "MockNetSerializer.h"
+#include "Net/Core/NetBitArray.h"
+#include "Net/UnrealNetwork.h"
+#include "Tests/Serialization/MockNetSerializer.h"
 
 namespace UE::Net::Private
 {
@@ -122,6 +126,13 @@ protected:
 	FStructWithDynamicArrayOfComplexTypeForArrayPropertyNetSerializerTest NonEmptyArrayInstance1;
 };
 
+class FTestElementChangeMaskForArrayPropertyNetSerializer : public FTestArrayPropertyNetSerializerBase
+{
+protected:
+	virtual void SetUp() override;
+	virtual void TearDown() override;
+};
+
 // Basic tests
 UE_NET_TEST_FIXTURE(FTestArrayPropertyNetSerializerBase, TestHasIsForwardingSerializerTrait)
 {
@@ -208,6 +219,231 @@ UE_NET_TEST_FIXTURE(FTestComplexArrayPropertyNetSerializer, TestCloneDynamicStat
 UE_NET_TEST_FIXTURE(FTestComplexArrayPropertyNetSerializer, TestFreeDynamicState)
 {
 	TestFreeDynamicState();
+}
+
+// Tests for array element changemask
+UE_NET_TEST_FIXTURE(FTestElementChangeMaskForArrayPropertyNetSerializer, TestChangeMaskIsModifiedWhenAddingElements)
+{
+	FPropertyReplicationState ReplicationState(ReplicationStateDescriptor);
+	TObjectPtr<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest> Source = NewObject<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest>();
+
+	FNetBitArrayView ArrayChangeMask = UE::Net::Private::GetMemberChangeMask(ReplicationState.GetStateBuffer(), ReplicationStateDescriptor);
+	ArrayChangeMask.Reset();
+
+	// Add one element at a time until the last bit in the changemask is set and make sure the array is always marked as dirty as well as the corresponding element
+	for (unsigned ElementIt = 0, ElementEndIt = FPropertyReplicationState::TArrayElementChangeMaskBits; ElementIt != ElementEndIt; ++ElementIt)
+	{
+		Source->ArrayOfUint.Add(0);
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+		
+		UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayPropertyChangeMaskBitIndex));
+		UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayElementChangeMaskBitOffset + ElementIt));
+		UE_NET_ASSERT_EQ(ArrayChangeMask.CountSetBits(), 2U);
+
+		ArrayChangeMask.Reset();
+	}
+}
+
+UE_NET_TEST_FIXTURE(FTestElementChangeMaskForArrayPropertyNetSerializer, TestChangeMaskIsModifiedWhenAddingElementsBeyondChangeMaskCapacity)
+{
+	FPropertyReplicationState ReplicationState(ReplicationStateDescriptor);
+	TObjectPtr<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest> Source = NewObject<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest>();
+
+	FNetBitArrayView ArrayChangeMask = UE::Net::Private::GetMemberChangeMask(ReplicationState.GetStateBuffer(), ReplicationStateDescriptor);
+	ArrayChangeMask.Reset();
+
+	// First add elements up to the max element changemask capacity.
+	{
+		Source->ArrayOfUint.SetNum(FPropertyReplicationState::TArrayElementChangeMaskBits);
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+
+		UE_NET_ASSERT_EQ(ArrayChangeMask.CountSetBits(), ArrayChangeMask.GetNumBits());
+		ArrayChangeMask.Reset();
+	}
+
+	// Double the array size by adding one element at a time until the last bit in the changemask is set and make sure the array is always marked as dirty as well as the corresponding element.
+	for (unsigned ElementIt = 0, ElementEndIt = FPropertyReplicationState::TArrayElementChangeMaskBits; ElementIt != ElementEndIt; ++ElementIt)
+	{
+		Source->ArrayOfUint.Add(0);
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+		
+		UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayPropertyChangeMaskBitIndex));
+		UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayElementChangeMaskBitOffset + ElementIt));
+		UE_NET_ASSERT_EQ(ArrayChangeMask.CountSetBits(), 2U);
+
+		ArrayChangeMask.Reset();
+	}
+}
+
+UE_NET_TEST_FIXTURE(FTestElementChangeMaskForArrayPropertyNetSerializer, TestChangeMaskIsModifiedWhenModifyingElements)
+{
+	FPropertyReplicationState ReplicationState(ReplicationStateDescriptor);
+	TObjectPtr<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest> Source = NewObject<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest>();
+
+	FNetBitArrayView ArrayChangeMask = UE::Net::Private::GetMemberChangeMask(ReplicationState.GetStateBuffer(), ReplicationStateDescriptor);
+
+	// First add elements up to the max element changemask capacity.
+	{
+		Source->ArrayOfUint.SetNum(FPropertyReplicationState::TArrayElementChangeMaskBits);
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+
+		ArrayChangeMask.Reset();
+	}
+
+	// Modify one element at a time until the last bit in the changemask is set and make sure the array is always marked as dirty as well as the corresponding element
+	for (unsigned ElementIt = 0, ElementEndIt = FPropertyReplicationState::TArrayElementChangeMaskBits; ElementIt != ElementEndIt; ++ElementIt)
+	{
+		Source->ArrayOfUint[ElementIt] ^= 7U;
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+		
+		UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayPropertyChangeMaskBitIndex));
+		UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayElementChangeMaskBitOffset + ElementIt));
+		UE_NET_ASSERT_EQ(ArrayChangeMask.CountSetBits(), 2U);
+
+		ArrayChangeMask.Reset();
+	}
+}
+
+UE_NET_TEST_FIXTURE(FTestElementChangeMaskForArrayPropertyNetSerializer, TestChangeMaskIsModifiedWhenModifyingElementsBeyondChangeMaskCapacity)
+{
+	FPropertyReplicationState ReplicationState(ReplicationStateDescriptor);
+	TObjectPtr<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest> Source = NewObject<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest>();
+
+	FNetBitArrayView ArrayChangeMask = UE::Net::Private::GetMemberChangeMask(ReplicationState.GetStateBuffer(), ReplicationStateDescriptor);
+	ArrayChangeMask.Reset();
+
+	// First add elements up to double the max element changemask capacity.
+	{
+		Source->ArrayOfUint.SetNum(2*FPropertyReplicationState::TArrayElementChangeMaskBits);
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+
+		ArrayChangeMask.Reset();
+	}
+
+	// Double the array size by adding one element at a time until the last bit in the changemask is set and make sure the array is always marked as dirty as well as the corresponding element.
+	for (unsigned ElementIt = 0, ElementEndIt = FPropertyReplicationState::TArrayElementChangeMaskBits; ElementIt != ElementEndIt; ++ElementIt)
+	{
+		Source->ArrayOfUint[FPropertyReplicationState::TArrayElementChangeMaskBits + ElementIt] ^= 7U;
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+		
+		UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayPropertyChangeMaskBitIndex));
+		UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayElementChangeMaskBitOffset + ElementIt));
+		UE_NET_ASSERT_EQ(ArrayChangeMask.CountSetBits(), 2U);
+
+		ArrayChangeMask.Reset();
+	}
+}
+
+UE_NET_TEST_FIXTURE(FTestElementChangeMaskForArrayPropertyNetSerializer, TestChangeMaskIsModifiedWhenModifyingMultipleArbitraryElements)
+{
+	FPropertyReplicationState ReplicationState(ReplicationStateDescriptor);
+	TObjectPtr<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest> Source = NewObject<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest>();
+
+	FNetBitArrayView ArrayChangeMask = UE::Net::Private::GetMemberChangeMask(ReplicationState.GetStateBuffer(), ReplicationStateDescriptor);
+	ArrayChangeMask.Reset();
+
+	constexpr int32 ElementCount = 17;
+	// First add some elements
+	{
+		Source->ArrayOfUint.SetNum(ElementCount);
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+
+		ArrayChangeMask.Reset();
+	}
+
+	// Modify some arbitrary elements
+	const int32 ElementIndicesToModify[] = {3, 7, 11};
+	for (int32 ElementIndex : ElementIndicesToModify)
+	{
+		Source->ArrayOfUint[ElementIndex] ^= 471147114711U;
+	}
+
+	ReplicationState.PollPropertyReplicationState(Source.Get());
+
+	// Verify the elements were marked as dirty
+	UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayPropertyChangeMaskBitIndex));
+	UE_NET_ASSERT_EQ(ArrayChangeMask.CountSetBits(), uint32(UE_ARRAY_COUNT(ElementIndicesToModify) + 1U));
+
+	for (int32 ElementIndex : ElementIndicesToModify)
+	{
+		UE_NET_ASSERT_TRUE(ArrayChangeMask.GetBit(FPropertyReplicationState::TArrayElementChangeMaskBitOffset + ElementIndex));
+	}
+}
+
+UE_NET_TEST_FIXTURE(FTestElementChangeMaskForArrayPropertyNetSerializer, TestSerializingFewElementsUsesLessBandwidth)
+{
+	FPropertyReplicationState ReplicationState(ReplicationStateDescriptor);
+	TObjectPtr<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest> Source = NewObject<UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest>();
+
+	FNetBitArrayView ArrayChangeMask = UE::Net::Private::GetMemberChangeMask(ReplicationState.GetStateBuffer(), ReplicationStateDescriptor);
+	ArrayChangeMask.Reset();
+
+	constexpr int32 ElementCount = 17;
+	// First add some elements
+	{
+		Source->ArrayOfUint.SetNum(ElementCount);
+
+		// Modify all elements
+		for (uint32& Element : Source->ArrayOfUint)
+		{
+			Element ^= 101U;
+		}
+
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+	}
+
+	NetSerializationContext.SetChangeMask(&ArrayChangeMask);
+
+	FNetSerializeArgs SerializeArgs = {};
+	{
+		SerializeArgs.Version = ArrayPropertyNetSerializer->Version;
+		SerializeArgs.NetSerializerConfig = NetSerializerConfigParam(ArrayPropertyNetSerializerConfig);
+		SerializeArgs.Source = NetSerializerValuePointer(StateBuffer0);
+		SerializeArgs.ChangeMaskInfo = FNetSerializerChangeMaskParam{0, static_cast<uint16>(ArrayChangeMask.GetNumBits())};
+	}
+
+	uint32 BitsWrittenForFullArray = 0;
+	{
+		Quantize(Source->ArrayOfUint, StateBuffer0);
+
+		Writer.InitBytes(BitStreamBuffer0, sizeof(BitStreamBuffer0));
+		ArrayPropertyNetSerializer->Serialize(NetSerializationContext, SerializeArgs);
+		Writer.CommitWrites();
+
+		BitsWrittenForFullArray = Writer.GetPosBits();
+		UE_NET_ASSERT_GT(BitsWrittenForFullArray, 0U);
+
+		FreeDynamicState(StateBuffer0);
+	}
+
+	// Modify a few elements
+	{
+		ArrayChangeMask.Reset();
+
+		const int32 ElementIndicesToModify[] = {3, 7, 11};
+		for (int32 ElementIndex : ElementIndicesToModify)
+		{
+			Source->ArrayOfUint[ElementIndex] += 1U;
+		}
+
+		ReplicationState.PollPropertyReplicationState(Source.Get());
+	}
+
+	uint32 BitsWrittenForPartialArray = 0;
+	{
+		Quantize(Source->ArrayOfUint, StateBuffer0);
+
+		Writer.InitBytes(BitStreamBuffer0, sizeof(BitStreamBuffer0));
+		ArrayPropertyNetSerializer->Serialize(NetSerializationContext, SerializeArgs);
+		Writer.CommitWrites();
+
+		BitsWrittenForPartialArray = Writer.GetPosBits();
+		UE_NET_ASSERT_GT(BitsWrittenForPartialArray, 0U);
+
+		FreeDynamicState(StateBuffer0);
+	}
+
+	UE_NET_ASSERT_LT(BitsWrittenForPartialArray, BitsWrittenForFullArray);
 }
 
 // FTestArrayPropertyNetSerializerBase implementation
@@ -782,7 +1018,7 @@ void FTestSimpleArrayPropertyNetSerializer::TestIsEqual()
 	// Check non-empty non-identical arrays aren't considered equal when using proper element serializer
 	for (const bool bIsUsingMockSerializer : {false, true})
 	{
-		bIsUsingMockSerializer? SetupForMockSerializer() : SetupForOriginalSerializer();
+		bIsUsingMockSerializer ? SetupForMockSerializer() : SetupForOriginalSerializer();
 
 		FStructWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest NonEmptyArrayInstance = NonEmptyArrayInstance0;
 		NonEmptyArrayInstance.ArrayOfUint[1] = NonEmptyArrayInstance0.ArrayOfUint[1] ^ 1U;
@@ -1049,4 +1285,31 @@ void FTestComplexArrayPropertyNetSerializer::TestFreeDynamicState()
 	UE_NET_ASSERT_EQ(MockNetSerializerCallCounter.FreeDynamicState, uint32(NonEmptyArrayInstance0.ArrayOfStructWithArray.Num()));
 }
 
+// FTestElementChangeMaskForArrayPropertyNetSerializer
+void FTestElementChangeMaskForArrayPropertyNetSerializer::SetUp()
+{
+	FTestArrayPropertyNetSerializerBase::SetUp();
+
+	FReplicationStateDescriptorBuilder::FResult Descriptors;
+	FReplicationStateDescriptorBuilder::CreateDescriptorsForClass(Descriptors, UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest::StaticClass());
+	UE_NET_ASSERT_GT(Descriptors.Num(), 0);
+	ReplicationStateDescriptor = Descriptors[0];
+	ArrayPropertyNetSerializerConfig = const_cast<FArrayPropertyNetSerializerConfig*>(static_cast<const FArrayPropertyNetSerializerConfig*>(ReplicationStateDescriptor->MemberSerializerDescriptors[0].SerializerConfig));
+
+	NetSerializationContext = FNetSerializationContext(&Reader, &Writer);
+	NetSerializationContext.SetInternalContext(&InternalContext);
+}
+
+void FTestElementChangeMaskForArrayPropertyNetSerializer::TearDown()
+{
+	ReplicationStateDescriptor.SafeRelease();
+
+	FTestArrayPropertyNetSerializerBase::TearDown();
+}
+
+}
+
+void UClassWithDynamicArrayOfPrimitiveTypeForArrayPropertyNetSerializerTest::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	DOREPLIFETIME(ThisClass, ArrayOfUint);
 }

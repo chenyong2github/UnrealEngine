@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Iris/ReplicationState/InternalPropertyReplicationState.h"
-#include "CoreTypes.h"
-#include "Net/Core/NetBitArray.h"
+#include "Iris/ReplicationState/PropertyReplicationState.h"
 #include "Iris/ReplicationState/ReplicationStateUtil.h"
 #include "Iris/ReplicationState/InternalReplicationStateDescriptorUtils.h"
 #include "Iris/Serialization/NetSerializers.h"
+#include "Net/Core/NetBitArray.h"
 #include "UObject/UnrealType.h"
 
 namespace UE::Net::Private
@@ -293,6 +293,60 @@ void InternalCopyPropertyValue(const FReplicationStateDescriptor* Descriptor, ui
 	// Default handling for all properties except for structs and arrays that have some non-replicated members
 	const FProperty* Property = Descriptor->MemberProperties[MemberIndex];
 	Property->CopySingleValue(Dst, Src);
+}
+
+bool InternalCompareAndCopyArrayWithElementChangeMask(const FReplicationStateDescriptor* Descriptor, uint32 MemberIndex, const void* RESTRICT DstArray, const void* RESTRICT SrcArray, UE::Net::FNetBitArrayView& ChangeMask)
+{
+	bool bArrayIsEqual = true;
+
+	const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskInfo = Descriptor->MemberChangeMaskDescriptors[MemberIndex];
+
+	const FReplicationStateMemberSerializerDescriptor& ArrayDescriptor = Descriptor->MemberSerializerDescriptors[MemberIndex];
+	const FArrayPropertyNetSerializerConfig* ArrayConfig = static_cast<const FArrayPropertyNetSerializerConfig*>(ArrayDescriptor.SerializerConfig);
+
+	FScriptArrayHelper SrcScriptArray(ArrayConfig->Property.Get(), SrcArray);
+	FScriptArrayHelper DstScriptArray(ArrayConfig->Property.Get(), DstArray);
+
+	// Detect size change and adjust the destination array size as needed and clear bits that don't relate to any elements.
+	const uint32 SrcElementCount = SrcScriptArray.Num();
+	const uint32 DstElementCount = DstScriptArray.Num();
+	if (SrcElementCount != DstElementCount)
+	{
+		bArrayIsEqual = false;
+
+		DstScriptArray.Resize(SrcElementCount);
+
+		// If array has shrunk then mask off bits in the changemask pertaining to elements that no longer exist. For a growing array we skip compare and set it to dirty in the element loop.
+		if (SrcElementCount < DstElementCount)
+		{
+			if (SrcElementCount + 1U < ChangeMaskInfo.BitCount)
+			{
+				const uint32 BitOffsetToClear = ChangeMaskInfo.BitOffset + FPropertyReplicationState::TArrayElementChangeMaskBitOffset + SrcElementCount;
+				const uint32 BitCountToClear = ChangeMaskInfo.BitCount - 1U - SrcElementCount;
+				ChangeMask.ClearBits(BitOffsetToClear, BitCountToClear);
+			}
+		}
+	}
+
+	const FReplicationStateDescriptor* ElementDescriptor = ArrayConfig->StateDescriptor;
+	const uint32 ElementChangeMaskBitOffset = ChangeMaskInfo.BitOffset + FPropertyReplicationState::TArrayElementChangeMaskBitOffset;
+	for (uint32 ElementIt = 0, ElementEndIt = SrcElementCount; ElementIt < ElementEndIt; ++ElementIt)
+	{
+		const uint8* SrcElement = SrcScriptArray.GetRawPtr(ElementIt);
+		uint8* DstElement = DstScriptArray.GetRawPtr(ElementIt);
+
+		// Compare elements up to the previous element count, i.e. at most DstElementCount. New elements will be considered different and always copied.
+		const bool bIsNewElement = ElementIt >= DstElementCount;
+		if (bIsNewElement || !InternalCompareStructProperty(ElementDescriptor, DstElement, SrcElement))
+		{
+			bArrayIsEqual = false;
+			const uint32 ElementBitOffset = ElementChangeMaskBitOffset + (ElementIt % FPropertyReplicationState::TArrayElementChangeMaskBits);
+			ChangeMask.SetBit(ElementBitOffset);
+			InternalCopyStructProperty(ElementDescriptor, DstElement, SrcElement);
+		}
+	}
+
+	return bArrayIsEqual;
 }
 
 }
