@@ -1566,7 +1566,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				CompileAction.bCanCache = CompileEnvironment.bDeterministic;
+				CompileAction.bCanCache = CompileEnvironment.bDeterministic && !Target.WindowsPlatform.Compiler.IsClang();
 
 				// Don't farm out creation of precompiled headers as it is the critical path task.
 				CompileAction.bCanExecuteRemotely =
@@ -1708,8 +1708,6 @@ namespace UnrealBuildTool
 				{
 					CompileAction.WriteResponseFile(Graph, Logger);
 				}
-
-				CompileAction.bCanCache = CompileEnvironment.bDeterministic;
 
 				// When compiling with SN-DBS, modules that contain a #import must be built locally
 				CompileAction.bCanExecuteRemotelyWithSNDBS = CompileAction.bCanExecuteRemotely;
