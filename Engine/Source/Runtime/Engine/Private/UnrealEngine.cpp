@@ -12620,7 +12620,6 @@ DEFINE_STAT(STAT_StaticMeshTriangles);
 /** Skeletal stats */
 DEFINE_STAT(STAT_SkinningTime);
 DEFINE_STAT(STAT_UpdateClothVertsTime);
-DEFINE_STAT(STAT_UpdateSoftBodyVertsTime);
 DEFINE_STAT(STAT_SkelMeshTriangles);
 DEFINE_STAT(STAT_SkelMeshDrawCalls);
 DEFINE_STAT(STAT_CPUSkinVertices);
