@@ -9,6 +9,8 @@
 #include "TestCommon/Comparisons.h"
 #endif
 
+#pragma warning(disable : 6011)
+
 TEST_CASE_NAMED(FCircularQueueTest, "System::Core::Misc::CircularQueue", "[ApplicationContextMask][SmokeFilter]")
 {
 	const uint32 QueueSize = 8;
@@ -133,5 +135,7 @@ TEST_CASE_NAMED(FCircularQueueTest, "System::Core::Misc::CircularQueue", "[Appli
 	}
 
 }
+
+#pragma warning(default : 6011)
 
 #endif //WITH_TESTS
