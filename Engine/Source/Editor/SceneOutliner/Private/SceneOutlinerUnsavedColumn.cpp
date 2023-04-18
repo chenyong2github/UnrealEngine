@@ -153,10 +153,14 @@ void FSceneOutlinerActorUnsavedColumn::SortItems(TArray<FSceneOutlinerTreeItemPt
 		/** Sort by unsaved first */
 		.Primary([this](const ISceneOutlinerTreeItem& Item)
 		{
-			if (const TSharedRef<SUnsavedActorWidget>* FoundWidget = UnsavedActorWidgets.Find(USourceControlHelpers::PackageFilename(SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(Item))))
+			FString LongPackageName = SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(Item);
+			if (!LongPackageName.IsEmpty())
 			{
-				// return the inverse because we want items with Unsaved = TRUE to show up on top in ascending sort (default)
-				return !(*FoundWidget)->IsUnsaved();
+				if (const TSharedRef<SUnsavedActorWidget>* FoundWidget = UnsavedActorWidgets.Find(USourceControlHelpers::PackageFilename(LongPackageName)))
+				{
+					// return the inverse because we want items with Unsaved = TRUE to show up on top in ascending sort (default)
+					return !(*FoundWidget)->IsUnsaved();
+				}
 			}
 			return true;
 		}, SortMode)
