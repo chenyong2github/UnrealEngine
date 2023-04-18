@@ -973,6 +973,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Chaos")
 	FOnChaosCrumblingEvent OnChaosCrumblingEvent;
 
+	// todo(chaos) remove when no longer necessary
+	FOnChaosBreakEvent OnRootBreakEvent;
+
 	void DispatchBreakEvent(const FChaosBreakEvent& Event);
 
 	void DispatchRemovalEvent(const FChaosRemovalEvent& Event);

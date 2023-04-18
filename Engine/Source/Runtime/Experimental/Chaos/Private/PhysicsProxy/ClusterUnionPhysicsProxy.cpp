@@ -190,18 +190,21 @@ namespace Chaos
 		Solver->EnqueueCommandImmediate(
 			[this, bIsAnchored]() mutable
 			{
-				if (Particle_Internal->IsAnchored() != bIsAnchored)
+				if (Particle_Internal)
 				{
-					if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
+					if (Particle_Internal->IsAnchored() != bIsAnchored)
 					{
-						Particle_Internal->SetIsAnchored(bIsAnchored);
-						if (!bIsAnchored && !Particle_Internal->IsDynamic())
+						if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
 						{
-							FKinematicTarget NoKinematicTarget;
-							Evolution->SetParticleObjectState(Particle_Internal, EObjectStateType::Dynamic);
-							Evolution->SetParticleKinematicTarget(Particle_Internal, NoKinematicTarget);
+							Particle_Internal->SetIsAnchored(bIsAnchored);
+							if (!bIsAnchored && !Particle_Internal->IsDynamic())
+							{
+								FKinematicTarget NoKinematicTarget;
+								Evolution->SetParticleObjectState(Particle_Internal, EObjectStateType::Dynamic);
+								Evolution->SetParticleKinematicTarget(Particle_Internal, NoKinematicTarget);
+							}
+							Evolution->GetParticles().MarkTransientDirtyParticle(Particle_Internal);
 						}
-						Evolution->GetParticles().MarkTransientDirtyParticle(Particle_Internal);
 					}
 				}
 			}
@@ -228,11 +231,14 @@ namespace Chaos
 		Solver->EnqueueCommandImmediate(
 			[this, State]() mutable
 			{
-				if (Particle_Internal->ObjectState() != State)
+				if (Particle_Internal)
 				{
-					if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
+					if (Particle_Internal->ObjectState() != State)
 					{
-						Evolution->SetParticleObjectState(Particle_Internal, State);
+						if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
+						{
+							Evolution->SetParticleObjectState(Particle_Internal, State);
+						}
 					}
 				}
 			}

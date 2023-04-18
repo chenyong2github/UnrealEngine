@@ -121,9 +121,28 @@ FAutoConsoleVariableRef CVarMaxGeometryCollectionAsyncPhysicsTickIdleTimeMs(TEXT
 float GeometryCollectionRemovalMultiplier = 1.0f;
 FAutoConsoleVariableRef CVarGeometryCollectionRemovalTimerMultiplier(TEXT("p.Chaos.GC.RemovalTimerMultiplier"), GeometryCollectionRemovalMultiplier, TEXT("Multiplier for the removal time evaluation ( > 1 : faster removal , > 1 slower"));
 
+// temporary cvar , shoul dbe removed when the root event is no longer no ecessary
+bool GeometryCollectionEmitRootBreakingEvent = true;
+FAutoConsoleVariableRef CVarGeometryCollectionEmitRootBreakingEvent(TEXT("p.Chaos.GC.EmitRootBreakingEvent"), GeometryCollectionEmitRootBreakingEvent, TEXT("When true send a breaking event when root is breaking"));
+
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 extern FGeometryCollectionDynamicDataPool GDynamicDataPool;
+
+static void GetGeometryCollectionComponentDebugDebugName(const UGeometryCollectionComponent& Comp, FString& DebugName)
+{
+	// Setup names
+	// Make the debug name for this geometry...
+	DebugName.Reset();
+
+#if WITH_EDITOR
+	if (Comp.GetOwner())
+	{
+		DebugName += FString::Printf(TEXT("Actor: '%s' "), *Comp.GetOwner()->GetActorLabel(false));
+	}
+#endif
+	DebugName += FString::Printf(TEXT("Component: '%s' "), *Comp.GetPathName());
+}
 
 FString NetModeToString(ENetMode InMode)
 {
@@ -2687,7 +2706,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 	FSimulationParameters SimulationParameters;
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		SimulationParameters.Name = GetPathName();
+		GetGeometryCollectionComponentDebugDebugName(*this, SimulationParameters.Name);
 #endif
 		EClusterConnectionTypeEnum ClusterCollectionType = ClusterConnectionType_DEPRECATED;
 		float ConnectionGraphBoundsFilteringMargin = 0;
@@ -2836,6 +2855,16 @@ void UGeometryCollectionComponent::OnPostPhysicsSync()
 	{
 		if (!PrimaryComponentTick.IsTickFunctionEnabled())
 		{ 
+			if (GeometryCollectionEmitRootBreakingEvent)
+			{
+				if (OnRootBreakEvent.IsBound())
+				{
+					FChaosBreakEvent Event;
+					Event.Index = GetRootIndex();
+					OnRootBreakEvent.Broadcast(Event);
+				}
+			}
+
 			PrimaryComponentTick.SetTickFunctionEnable(true);
 		}
 	}
