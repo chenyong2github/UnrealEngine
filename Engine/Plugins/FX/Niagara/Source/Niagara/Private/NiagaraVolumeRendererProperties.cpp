@@ -232,7 +232,7 @@ void UNiagaraVolumeRendererProperties::GetUsedMaterials(const FNiagaraEmitterIns
 	UMaterialInterface* MaterialInterface = nullptr;
 	if (InEmitter != nullptr)
 	{
-		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialParameterBinding.Parameter));
+		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialParameterBinding.ResolvedParameter));
 	}
 
 #if WITH_EDITORONLY_DATA

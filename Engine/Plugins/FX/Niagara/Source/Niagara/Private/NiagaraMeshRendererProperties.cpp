@@ -141,18 +141,19 @@ namespace NiagaraMeshRendererPropertiesInternal
 		OutStaticMesh = nullptr;
 		if (EmitterInstance)
 		{
-			if (MeshProperties.MeshParameterBinding.Parameter.IsValid())
+			const FNiagaraVariableBase& MeshParameter = MeshProperties.MeshParameterBinding.ResolvedParameter;
+			if (MeshParameter.IsValid())
 			{
-				if (MeshProperties.MeshParameterBinding.Parameter.IsDataInterface())
+				if (MeshParameter.IsDataInterface())
 				{
-					OutInterface = Cast<INiagaraRenderableMeshInterface>(EmitterInstance->GetRendererBoundVariables().GetDataInterface(MeshProperties.MeshParameterBinding.Parameter));
+					OutInterface = Cast<INiagaraRenderableMeshInterface>(EmitterInstance->GetRendererBoundVariables().GetDataInterface(MeshParameter));
 					if (OutInterface != nullptr)
 					{
 						return;
 					}
 				}
 
-				UStaticMesh* BoundMesh = Cast<UStaticMesh>(EmitterInstance->GetRendererBoundVariables().GetUObject(MeshProperties.MeshParameterBinding.Parameter));
+				UStaticMesh* BoundMesh = Cast<UStaticMesh>(EmitterInstance->GetRendererBoundVariables().GetUObject(MeshParameter));
 				if (BoundMesh && BoundMesh->GetRenderData())
 				{
 					OutStaticMesh = BoundMesh;
@@ -229,7 +230,7 @@ FNiagaraRenderableMeshPtr FNiagaraMeshRendererMeshProperties::ResolveRenderableM
 
 bool FNiagaraMeshRendererMeshProperties::HasValidRenderableMesh() const
 {
-	return Mesh || MeshParameterBinding.Parameter.IsValid();
+	return Mesh || MeshParameterBinding.ResolvedParameter.IsValid();
 }
 
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
@@ -718,9 +719,9 @@ bool UNiagaraMeshRendererProperties::PopulateRequiredBindings(FNiagaraParameterS
 
 	for (FNiagaraMeshRendererMeshProperties& Binding : Meshes)
 	{
-		if (Binding.MeshParameterBinding.Parameter.IsValid())
+		if (Binding.MeshParameterBinding.ResolvedParameter.IsValid())
 		{
-			InParameterStore.AddParameter(Binding.MeshParameterBinding.Parameter, false);
+			InParameterStore.AddParameter(Binding.MeshParameterBinding.ResolvedParameter, false);
 			bAnyAdded = true;
 		}
 	}
@@ -757,7 +758,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 #if WITH_EDITORONLY_DATA
 		if (MeshProperties.UserParamBinding_DEPRECATED.Parameter.GetName().IsNone() == false)
 		{
-			MeshProperties.MeshParameterBinding.Parameter = MeshProperties.UserParamBinding_DEPRECATED.Parameter;
+			MeshProperties.MeshParameterBinding.ResolvedParameter = MeshProperties.UserParamBinding_DEPRECATED.Parameter;
 			MeshProperties.MeshParameterBinding.AliasedParameter = MeshProperties.UserParamBinding_DEPRECATED.Parameter;
 		}
 #endif
@@ -880,10 +881,10 @@ void UNiagaraMeshRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmi
 		}
 
 		// we override the previous thumbnail tooltip with a text indicating parameter binding, if it exists
-		if(MeshProperties.MeshParameterBinding.Parameter.IsValid())
+		if(MeshProperties.MeshParameterBinding.ResolvedParameter.IsValid())
 		{
 			TooltipWidget = SNew(STextBlock)
-				.Text(FText::Format(LOCTEXT("MeshBoundTooltip", "Mesh slot is bound to parameter {0}"), FText::FromName(MeshProperties.MeshParameterBinding.Parameter.GetName())));
+				.Text(FText::Format(LOCTEXT("MeshBoundTooltip", "Mesh slot is bound to parameter {0}"), FText::FromName(MeshProperties.MeshParameterBinding.ResolvedParameter.GetName())));
 		}
 		
 		OutWidgets.Add(TooltipWidget);

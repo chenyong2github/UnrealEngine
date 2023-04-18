@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraTypes.h"
 #include "NiagaraScriptBase.h"
 
 struct FNiagaraSimulationStageCompilationData
@@ -9,6 +10,7 @@ struct FNiagaraSimulationStageCompilationData
 	FGuid                           StageGuid;
 	FName                           StageName;
 	FName                           EnabledBinding;
+	FIntVector3						ElementCount = FIntVector::ZeroValue;
 	FName                           ElementCountXBinding;
 	FName                           ElementCountYBinding;
 	FName                           ElementCountZBinding;
@@ -27,4 +29,7 @@ struct FNiagaraSimulationStageCompilationData
 	ENiagaraDirectDispatchElementType DirectDispatchElementType = ENiagaraDirectDispatchElementType::NumThreads;
 	bool                            bOverrideGpuDispatchNumThreads = false;
 	FIntVector                      OverrideGpuDispatchNumThreads = FIntVector(1, 1, 1);
+	FNiagaraVariableBase			OverrideGpuDispatchNumThreadsXBinding;
+	FNiagaraVariableBase			OverrideGpuDispatchNumThreadsYBinding;
+	FNiagaraVariableBase			OverrideGpuDispatchNumThreadsZBinding;
 };

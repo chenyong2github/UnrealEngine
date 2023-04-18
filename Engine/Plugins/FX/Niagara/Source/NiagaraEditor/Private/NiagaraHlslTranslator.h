@@ -129,6 +129,12 @@ public:
 	TArray<FNiagaraVariable> StaticVariables;
 	TArray<FNiagaraVariable> StaticVariablesWithMultipleWrites;
 
+	template<typename T> T GetStaticVariableValue(const FNiagaraVariableBase Variable, const T DefaultValue) const
+	{
+		const int32 Index = StaticVariables.Find(Variable);
+		return Index != INDEX_NONE && StaticVariables[Index].IsDataAllocated() ? StaticVariables[Index].GetValue<T>() : DefaultValue;
+	}
+
 	void CompareAgainst(FNiagaraGraphCachedBuiltHistory* InCachedDataBase);
 
 	static void SortOutputNodesByDependencies(TArray<class UNiagaraNodeOutput*>& NodesToSort, const TArray<class UNiagaraSimulationStageBase*>* SimStages);
@@ -374,6 +380,7 @@ public:
 	FName IterationDirectBinding;
 	int32 SimulationStageIndex = -1;
 	FName EnabledBinding;
+	FIntVector3 ElementCount = FIntVector3::ZeroValue;
 	FName ElementCountXBinding;
 	FName ElementCountYBinding;
 	FName ElementCountZBinding;

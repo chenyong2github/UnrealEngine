@@ -71,6 +71,10 @@ public:
 
 	/** Optional binding to manually specify the element count. */
 	UPROPERTY()
+	FIntVector ElementCount = FIntVector::ZeroValue;
+
+	/** Optional binding to manually specify the element count. */
+	UPROPERTY()
 	FName ElementCountXBinding;
 
 	/** Optional binding to manually specify the element count. */

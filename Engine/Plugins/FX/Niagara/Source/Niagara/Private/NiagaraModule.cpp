@@ -1041,6 +1041,12 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::ToStaticDef() const
 	return Def;
 }
 
+FNiagaraTypeDefinition FNiagaraTypeDefinition::RemoveStaticDef() const
+{
+	FNiagaraTypeDefinition Def(*this);
+	Def.Flags &= ~TF_Static;
+	return Def;
+}
 
 #if WITH_EDITORONLY_DATA
 bool FNiagaraTypeDefinition::IsInternalType() const

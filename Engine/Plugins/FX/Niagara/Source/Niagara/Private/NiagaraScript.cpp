@@ -1131,13 +1131,20 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 					if (const UNiagaraSimulationStageGeneric* SimStageGeneric = Cast<const UNiagaraSimulationStageGeneric>(SimStageBase))
 					{
 						AddAttributeToPreserve(SimStageGeneric->EnabledBinding.GetParamMapBindableVariable().GetName());
+
 						if (SimStageGeneric->IterationSource == ENiagaraIterationSource::DirectSet)
 						{
-							AddAttributeToPreserve(SimStageGeneric->ElementCountXBinding.GetParamMapBindableVariable().GetName());
-							AddAttributeToPreserve(SimStageGeneric->ElementCountYBinding.GetParamMapBindableVariable().GetName());
-							AddAttributeToPreserve(SimStageGeneric->ElementCountZBinding.GetParamMapBindableVariable().GetName());
+							AddAttributeToPreserve(SimStageGeneric->ElementCountX.ResolvedParameter.GetName());
+							AddAttributeToPreserve(SimStageGeneric->ElementCountY.ResolvedParameter.GetName());
+							AddAttributeToPreserve(SimStageGeneric->ElementCountZ.ResolvedParameter.GetName());
 						}
-						AddAttributeToPreserve(SimStageGeneric->NumIterationsBinding.GetParamMapBindableVariable().GetName());
+						AddAttributeToPreserve(SimStageGeneric->NumIterations.ResolvedParameter.GetName());
+						if ( SimStageGeneric->bOverrideGpuDispatchNumThreads )
+						{
+							AddAttributeToPreserve(SimStageGeneric->OverrideGpuDispatchNumThreadsX.ResolvedParameter.GetName());
+							AddAttributeToPreserve(SimStageGeneric->OverrideGpuDispatchNumThreadsY.ResolvedParameter.GetName());
+							AddAttributeToPreserve(SimStageGeneric->OverrideGpuDispatchNumThreadsZ.ResolvedParameter.GetName());
+						}
 					}
 				}
 

@@ -349,6 +349,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Changed the material property connected bitmasks from 32bit to 64bit
 		IncreaseMaterialAttributesInputMask,
 
+		// Combines proprties into a new binding so users can select constant or binding
+		NiagaraSimStageNumIterationsBindings,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

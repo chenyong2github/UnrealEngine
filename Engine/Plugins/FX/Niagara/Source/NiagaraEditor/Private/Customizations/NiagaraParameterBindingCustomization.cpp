@@ -14,6 +14,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SComboButton.h"
 
+#include "INiagaraEditorTypeUtilities.h"
+#include "NiagaraEditorModule.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraParameterMapHistory.h"
@@ -22,6 +24,7 @@
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraSystem.h"
 #include "NiagaraParameterBinding.h"
+#include "SNiagaraParameterEditor.h"
 #include "Customizations/NiagaraTypeCustomizations.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SNiagaraParameterName.h"
@@ -31,27 +34,46 @@
 #define LOCTEXT_NAMESPACE "NiagaraParameterBindingCustomization"
 
 FNiagaraParameterBindingAction::FNiagaraParameterBindingAction()
-	: FEdGraphSchemaAction(
-		FText(),
-		LOCTEXT("None", "None"),
-		LOCTEXT("NoneTooltip", "Not bound to any variable will use the default value"),
-		1,
-		FText()
-	)
+	: FEdGraphSchemaAction(FText(), FText(), FText(), 0)
 {
 }
 
-FNiagaraParameterBindingAction::FNiagaraParameterBindingAction(FNiagaraVariableBase InAliasedParameter, FNiagaraVariableBase InParameter)
-	: FEdGraphSchemaAction(
-		FText(),
-		FText::FromName(InAliasedParameter.GetName()),
-		FText::Format(LOCTEXT("VariableBindActionTooltip", "Bind to variable \"{0}\""), FText::FromName(InAliasedParameter.GetName())),
-		0,
-		FText()
-	)
-	, AliasedParameter(InAliasedParameter)
-	, Parameter(InParameter)
+FNiagaraParameterBindingAction::FNiagaraParameterBindingAction(FText InName, FText InTooltip)
+	: FEdGraphSchemaAction(FText(), InName, InTooltip, 0)
 {
+}
+
+TSharedRef<FNiagaraParameterBindingAction> FNiagaraParameterBindingAction::MakeNone()
+{
+	TSharedRef<FNiagaraParameterBindingAction> Action = MakeShared<FNiagaraParameterBindingAction>(
+		LOCTEXT("None", "None"),
+		LOCTEXT("NoneTooltip", "Not bound to any parameter.")
+	);
+	Action->Grouping = 1;
+	return Action;
+}
+
+TSharedRef<FNiagaraParameterBindingAction> FNiagaraParameterBindingAction::MakeConstant(const FNiagaraTypeDefinition& TypeDef, const uint8* ValueData)
+{
+	TSharedRef<FNiagaraParameterBindingAction> Action = MakeShared<FNiagaraParameterBindingAction>(
+		FText::Format(LOCTEXT("ConstantFormat", "Constant Value \"{0}\""), FText::FromString(TypeDef.ToString(ValueData))),
+		LOCTEXT("ConstantTooltip", "Use user defined constant value, not bound to any parameter.")
+	);
+	Action->Grouping = 1;
+	return Action;
+}
+
+TSharedRef<FNiagaraParameterBindingAction> FNiagaraParameterBindingAction::MakeParameter(FNiagaraVariableBase InAliasedParameter, FNiagaraVariableBase InResolvedParameter)
+{
+	TSharedRef<FNiagaraParameterBindingAction> Action = MakeShared<FNiagaraParameterBindingAction>(
+		FText::FromName(InAliasedParameter.GetName()),
+		FText::Format(LOCTEXT("VariableBindActionTooltip", "Bind to variable \"{0}\""), FText::FromName(InAliasedParameter.GetName()))
+	);
+	Action->Grouping = 0;
+	Action->bIsValidParameter = true;
+	Action->AliasedParameter = InAliasedParameter;
+	Action->ResolvedParameter = InResolvedParameter;
+	return Action;
 }
 
 TSharedRef<IPropertyTypeCustomization> FNiagaraParameterBindingCustomization::MakeInstance()
@@ -66,10 +88,11 @@ void FNiagaraParameterBindingCustomization::CustomizeHeader(TSharedRef<IProperty
 	SystemWeakPtr.Reset();
 
 	// We only handle single object
+	UObject* OwnerObject = nullptr;
 	{
 		TArray<UObject*> OuterObjects;
 		PropertyHandle->GetOuterObjects(OuterObjects);
-		UObject* OwnerObject = OuterObjects.Num() == 1 ? OuterObjects[0] : nullptr;
+		OwnerObject = OuterObjects.Num() == 1 ? OuterObjects[0] : nullptr;
 		if (OwnerObject == nullptr)
 		{
 			HeaderRow
@@ -87,11 +110,59 @@ void FNiagaraParameterBindingCustomization::CustomizeHeader(TSharedRef<IProperty
 
 			return;
 		}
-
-		OwnerWeakPtr = OwnerObject;
-		EmitterWeakPtr = OwnerObject->GetTypedOuter<UNiagaraEmitter>();
-		SystemWeakPtr = OwnerObject->GetTypedOuter<UNiagaraSystem>();
 	}
+
+	InPropertyHandle->SetOnPropertyResetToDefault(FSimpleDelegate::CreateLambda([]() { }));
+	PropertyHandle->MarkResetToDefaultCustomized(true);
+
+	OwnerWeakPtr = OwnerObject;
+	EmitterWeakPtr = OwnerObject->GetTypedOuter<UNiagaraEmitter>();
+	SystemWeakPtr = OwnerObject->GetTypedOuter<UNiagaraSystem>();
+
+	TSharedPtr<SHorizontalBox> ParameterPanel = SNew(SHorizontalBox);
+
+	FNiagaraParameterBinding* ParameterBinding = GetParameterBinding();
+	if (ParameterBinding && ParameterBinding->HasDefaultValueEditorOnly())
+	{
+		const FNiagaraVariableBase& DefaultParameter = ParameterBinding->GetDefaultAliasedParameter();
+		TConstArrayView<uint8> DefaultValue = ParameterBinding->GetDefaultValueEditorOnly();
+		DefaultValueStructOnScope = MakeShared<FStructOnScope>(DefaultParameter.GetType().GetStruct());
+		FMemory::Memcpy(DefaultValueStructOnScope->GetStructMemory(), DefaultValue.GetData(), DefaultValue.Num());
+
+		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+		TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(DefaultParameter.GetType());
+		if (TypeEditorUtilities.IsValid())
+		{
+			DefaultValueParameterEditor = TypeEditorUtilities->CreateParameterEditor(ParameterBinding->ResolvedParameter.GetType());
+			DefaultValueParameterEditor->UpdateInternalValueFromStruct(DefaultValueStructOnScope.ToSharedRef());
+			DefaultValueParameterEditor->SetOnValueChanged(SNiagaraParameterEditor::FOnValueChange::CreateSP(this, &FNiagaraParameterBindingCustomization::OnValueChanged));
+
+			ParameterPanel->AddSlot()
+			.AutoWidth()
+			.Padding(0, 0, 0, 3)
+			[
+				SNew(SBox)
+				.HAlign(DefaultValueParameterEditor->GetHorizontalAlignment())
+				.VAlign(DefaultValueParameterEditor->GetVerticalAlignment())
+				.IsEnabled(this, &FNiagaraParameterBindingCustomization::IsConstantEnabled)
+				.Visibility(this, &FNiagaraParameterBindingCustomization::IsConstantVisibile)
+				[
+					DefaultValueParameterEditor.ToSharedRef()
+				]
+			];
+		}
+	}
+
+	ParameterPanel->AddSlot()
+	.AutoWidth()
+	[
+		SNew(SNiagaraParameterName)
+		.ParameterName(this, &FNiagaraParameterBindingCustomization::GetVariableName)
+		.IsReadOnly(true)
+		.IsEnabled(this, &FNiagaraParameterBindingCustomization::IsBindingEnabled)
+		.Visibility(this, &FNiagaraParameterBindingCustomization::IsBindingVisibile)
+		.ToolTipText(this, &FNiagaraParameterBindingCustomization::GetTooltipText)
+	];
 
 	HeaderRow
 	.NameContent()
@@ -102,18 +173,39 @@ void FNiagaraParameterBindingCustomization::CustomizeHeader(TSharedRef<IProperty
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
+		[
+			ParameterPanel.ToSharedRef()
+		]
+		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
-		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+		.HAlign(HAlign_Right)
+		.Padding(3, 0, 0, 0)
 		[
 			SNew(SComboButton)					
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+			.ForegroundColor(FSlateColor::UseForeground())
 			.OnGetMenuContent(this, &FNiagaraParameterBindingCustomization::OnGetMenuContent)
-			.ContentPadding(1)
+			.ContentPadding(2)
+			.MenuPlacement(MenuPlacement_BelowRightAnchor)
 			.ToolTipText(this, &FNiagaraParameterBindingCustomization::GetTooltipText)
-			.ButtonContent()
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(2, 1)
+		[
+			SNew(SButton)
+			.IsFocusable(false)
+			.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
+			.ContentPadding(0)
+			.Visibility(this, &FNiagaraParameterBindingCustomization::IsResetToDefaultsVisible)
+			.OnClicked(this, &FNiagaraParameterBindingCustomization::OnResetToDefaultsClicked)
+			.Content()
 			[
-				SNew(SNiagaraParameterName)
-				.ParameterName(this, &FNiagaraParameterBindingCustomization::GetVariableName)
-				.IsReadOnly(true)
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
 	];
@@ -156,21 +248,18 @@ TSharedRef<SWidget> FNiagaraParameterBindingCustomization::OnGetMenuContent() co
 		];
 }
 
-void FNiagaraParameterBindingCustomization::CollectAllActions(FGraphActionListBuilderBase& OutAllActions) const
+bool FNiagaraParameterBindingCustomization::ForEachBindableVariable(TFunction<bool(FNiagaraVariableBase, FNiagaraVariableBase)> Delegate) const
 {
-	// Add the unbound action this is where we will fallback to the value only
-	OutAllActions.AddAction(MakeShared<FNiagaraParameterBindingAction>());
-
 	// Add bindings from system
 	FNiagaraParameterBinding* ParameterBinding = GetParameterBinding();
 	UNiagaraSystem* NiagaraSystem = SystemWeakPtr.Get();
 	UNiagaraEmitter* NiagaraEmitter = EmitterWeakPtr.Get();
 	if (ParameterBinding == nullptr || NiagaraSystem == nullptr)
 	{
-		return;
+		return true;
 	}
 
-	TArray<FNiagaraParameterMapHistory> Histories;
+	TArray<FNiagaraParameterMapHistory, TInlineAllocator<2>> Histories;
 	if (UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(NiagaraSystem->GetSystemUpdateScript()->GetLatestSource()))
 	{
 		Histories.Append(UNiagaraNodeParameterMapBase::GetParameterMaps(Source->NodeGraph));
@@ -198,7 +287,7 @@ void FNiagaraParameterBindingCustomization::CollectAllActions(FGraphActionListBu
 		}
 	}
 
-	TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase>> AllowedVariables;
+	TArray<FNiagaraVariable> VisitedVariables;
 
 	const FStringView NiagaraEmitterName = NiagaraEmitter ? NiagaraEmitter->GetUniqueEmitterName() : FStringView();
 	for (const FNiagaraParameterMapHistory& History : Histories)
@@ -206,10 +295,13 @@ void FNiagaraParameterBindingCustomization::CollectAllActions(FGraphActionListBu
 		for (const FNiagaraVariable& Variable : History.Variables)
 		{
 			FNiagaraVariableBase AliasedParameter = Variable;
-			if (ParameterBinding->CanBindTo(Variable, AliasedParameter, NiagaraEmitterName))
+			if (ParameterBinding->CanBindTo(Variable, AliasedParameter, NiagaraEmitterName) && !VisitedVariables.Contains(Variable))
 			{
-				AllowedVariables.AddUnique({ AliasedParameter, Variable });
-				continue;
+				if (Delegate(AliasedParameter, Variable) == false)
+				{
+					return false;
+				}
+				VisitedVariables.Add(Variable);
 			}
 		}
 	}
@@ -218,17 +310,51 @@ void FNiagaraParameterBindingCustomization::CollectAllActions(FGraphActionListBu
 	{
 		for (const FNiagaraVariableBase& Variable : NiagaraSystem->GetExposedParameters().ReadParameterVariables())
 		{
-			if (ParameterBinding->CanBindTo(Variable.GetType()))
+			if (ParameterBinding->CanBindTo(Variable.GetType()) && !VisitedVariables.Contains(Variable))
 			{
-				AllowedVariables.AddUnique({ Variable, Variable });
+				if (Delegate(Variable, Variable) == false)
+				{
+					return false;
+				}
+				VisitedVariables.Add(Variable);
 			}
 		}
 	}
+	return true;
+}
 
-	for (const TPair<FNiagaraVariableBase, FNiagaraVariableBase>& AllowedVariable : AllowedVariables)
+
+void FNiagaraParameterBindingCustomization::CollectAllActions(FGraphActionListBuilderBase& OutAllActions) const
+{
+	// Add default action
+	bool bHasConstantValue = false;
+	if (FNiagaraParameterBinding* ParameterBinding = GetParameterBinding())
 	{
-		OutAllActions.AddAction(MakeShared<FNiagaraParameterBindingAction>(AllowedVariable.Key, AllowedVariable.Value));
+		UNiagaraSystem* NiagaraSystem = SystemWeakPtr.Get();
+		UNiagaraEmitter* NiagaraEmitter = EmitterWeakPtr.Get();
+
+		if (ParameterBinding->HasDefaultValueEditorOnly())
+		{
+			OutAllActions.AddAction(FNiagaraParameterBindingAction::MakeConstant(ParameterBinding->GetDefaultAliasedParameter().GetType(), ParameterBinding->GetDefaultValueEditorOnly().GetData()));
+		}
+		else
+		{
+			OutAllActions.AddAction(FNiagaraParameterBindingAction::MakeNone());
+		}
 	}
+	else
+	{
+		OutAllActions.AddAction(FNiagaraParameterBindingAction::MakeNone());
+	}
+
+	// Add each variable
+	ForEachBindableVariable(
+		[&OutAllActions](FNiagaraVariableBase AliasedVariable, FNiagaraVariableBase ResolvedVariable)
+		{
+			OutAllActions.AddAction(FNiagaraParameterBindingAction::MakeParameter(AliasedVariable, ResolvedVariable));
+			return true;
+		}
+	);
 }
 
 TSharedRef<SWidget> FNiagaraParameterBindingCustomization::OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData) const
@@ -236,16 +362,31 @@ TSharedRef<SWidget> FNiagaraParameterBindingCustomization::OnCreateWidgetForActi
 	const FNiagaraParameterBindingAction* BindingAction = static_cast<const FNiagaraParameterBindingAction*>(InCreateData->Action.Get());
 	check(BindingAction);
 
-	return
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SNiagaraParameterName)
-			.ParameterName(BindingAction->AliasedParameter.GetName())
-			.IsReadOnly(true)
-			.ToolTipText(InCreateData->Action->GetTooltipDescription())
-		];
+	if (BindingAction->bIsValidParameter)
+	{
+		return
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SNiagaraParameterName)
+				.ParameterName(BindingAction->AliasedParameter.GetName())
+				.IsReadOnly(true)
+				.ToolTipText(InCreateData->Action->GetTooltipDescription())
+			];
+	}
+	else
+	{
+		return
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(InCreateData->Action->GetMenuDescription())
+				.ToolTipText(InCreateData->Action->GetTooltipDescription())
+			];
+	}
 }
 
 void FNiagaraParameterBindingCustomization::OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedActions, ESelectInfo::Type InSelectionType) const
@@ -261,7 +402,7 @@ void FNiagaraParameterBindingCustomization::OnActionSelected(const TArray<TShare
 		if (EdAction.IsValid())
 		{
 			FNiagaraParameterBindingAction* BindAction = static_cast<FNiagaraParameterBindingAction*>(EdAction.Get());
-			FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeParameterBinding", " Change Parameter Binding to \"{0}\" "), FText::FromName(BindAction->Parameter.GetName())));
+			FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangeParameterBinding", " Change Parameter Binding to \"{0}\" "), FText::FromName(BindAction->ResolvedParameter.GetName())));
 			FSlateApplication::Get().DismissAllMenus();
 
 			TArray<UObject*> Objects;
@@ -272,8 +413,16 @@ void FNiagaraParameterBindingCustomization::OnActionSelected(const TArray<TShare
 			}
 			PropertyHandle->NotifyPreChange();
 
-			ParameterBinding->AliasedParameter = BindAction->AliasedParameter;
-			ParameterBinding->Parameter = BindAction->Parameter;
+			if (BindAction->bIsValidParameter)
+			{
+				ParameterBinding->AliasedParameter = BindAction->AliasedParameter;
+				ParameterBinding->ResolvedParameter = BindAction->ResolvedParameter;
+			}
+			else
+			{
+				ParameterBinding->AliasedParameter = FNiagaraVariableBase();
+				ParameterBinding->ResolvedParameter = FNiagaraVariableBase();
+			}
 
 			PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 			PropertyHandle->NotifyFinishedChangingProperties();
@@ -281,22 +430,87 @@ void FNiagaraParameterBindingCustomization::OnActionSelected(const TArray<TShare
 	}
 }
 
+void FNiagaraParameterBindingCustomization::OnValueChanged() const
+{
+	FNiagaraParameterBinding* ParameterBinding = GetParameterBinding();
+	if (ParameterBinding == nullptr || !PropertyHandle.IsValid())
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("ChangeParameterBinding", " Change Parameter Value"));
+
+	TArray<UObject*> Objects;
+	PropertyHandle->GetOuterObjects(Objects);
+	for (UObject* Obj : Objects)
+	{
+		Obj->Modify();
+	}
+	PropertyHandle->NotifyPreChange();
+
+	DefaultValueParameterEditor->UpdateStructFromInternalValue(DefaultValueStructOnScope.ToSharedRef());
+	ParameterBinding->SetDefaultValueEditorOnly(DefaultValueStructOnScope->GetStructMemory());
+
+	PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+	PropertyHandle->NotifyFinishedChangingProperties();
+}
+
+EVisibility FNiagaraParameterBindingCustomization::IsBindingVisibile() const
+{
+	FNiagaraParameterBinding* ParameterBinding = GetParameterBinding();
+	if (ParameterBinding && ParameterBinding->HasDefaultValueEditorOnly())
+	{
+		return ParameterBinding->ResolvedParameter.GetName().IsNone() ? EVisibility::Collapsed : EVisibility::Visible;
+	}
+	return EVisibility::Visible;
+}
+
+EVisibility FNiagaraParameterBindingCustomization::IsConstantVisibile() const
+{
+	return IsBindingVisibile() == EVisibility::Visible ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+bool FNiagaraParameterBindingCustomization::IsBindingEnabled() const
+{
+	FNiagaraParameterBinding* ParameterBinding = GetParameterBinding();
+	if (ParameterBinding && ParameterBinding->HasDefaultValueEditorOnly())
+	{
+		return ParameterBinding->ResolvedParameter.GetName().IsNone() == false;
+	}
+	return true;
+}
+
+bool FNiagaraParameterBindingCustomization::IsConstantEnabled() const
+{
+	return !IsBindingEnabled();
+}
+
 FText FNiagaraParameterBindingCustomization::GetTooltipText() const
 {
 	if ( FNiagaraParameterBinding* ParameterBinding = GetParameterBinding() )
 	{
-		const FName BoundParameterName = ParameterBinding->AliasedParameter.GetName();
-		const FText BoundText =
-			BoundParameterName.IsNone() ?
-			LOCTEXT("BindingTooltip_UnboundParameter", "Not bound to any parameter.") :
-			FText::Format(LOCTEXT("BindingTooltip_BoundParameter", "Bound to variable \"{0}\""), FText::FromName(BoundParameterName));
-
-		const FText ValueText =
-			//ParameterBinding->Parameter.IsValid() && ParameterBinding->Parameter.GetAllocatedSizeInBytes() > 0 ?
-			//FText::Format(LOCTEXT("BindingTooltip_Value", "Default value \"{0}\""), FText::FromString(ParameterBinding->Parameter.ToString())) :
-			LOCTEXT("BindingTooltip_NoValue", "No default value");
-
-		return FText::Format(LOCTEXT("BindingTooltip", "{0}\n{1}"), BoundText, ValueText);
+		if (ParameterBinding->AliasedParameter.GetName().IsNone())
+		{
+			if (ParameterBinding->HasDefaultValueEditorOnly())
+			{
+				const FNiagaraTypeDefinition ConstantType = ParameterBinding->GetDefaultAliasedParameter().GetType();
+				return FText::Format(LOCTEXT("BindingTooltip_BoundConstant", "Bound to constant value \"{0}\" type \"{1}\""),
+					FText::FromString(ConstantType.ToString(ParameterBinding->GetDefaultValueEditorOnly().GetData())),
+					FText::FromString(ConstantType.GetName())
+				);
+			}
+			else
+			{
+				return LOCTEXT("BindingTooltip_UnboundParameter", "Not bound to any parameter.");
+			}
+		}
+		else
+		{
+			return FText::Format(LOCTEXT("BindingTooltip_BoundParameter", "Bound to parameter \"{0}\" type \"{1}\""),
+				FText::FromName(ParameterBinding->AliasedParameter.GetName()),
+				FText::FromString(ParameterBinding->AliasedParameter.GetType().GetName())
+			);
+		}
 	}
 	return FText::FromString(TEXT("Missing"));
 }
@@ -307,9 +521,27 @@ FName FNiagaraParameterBindingCustomization::GetVariableName() const
 	return ParameterBinding ? ParameterBinding->AliasedParameter.GetName() : FName();
 }
 
-void FNiagaraParameterBindingCustomization::ResetToDefault()
+EVisibility FNiagaraParameterBindingCustomization::IsResetToDefaultsVisible() const
 {
+	FNiagaraParameterBinding* ParameterBinding = GetParameterBinding();
+	return ParameterBinding && ParameterBinding->IsSetoToDefault() ? EVisibility::Hidden : EVisibility::Visible;
+}
 
+FReply FNiagaraParameterBindingCustomization::OnResetToDefaultsClicked()
+{
+	if (FNiagaraParameterBinding* ParameterBinding = GetParameterBinding())
+	{
+		ParameterBinding->SetToDefault();
+
+		if (DefaultValueStructOnScope.IsValid())
+		{
+			TConstArrayView<uint8> DefaultValue = ParameterBinding->GetDefaultValueEditorOnly();
+			FMemory::Memcpy(DefaultValueStructOnScope->GetStructMemory(), DefaultValue.GetData(), DefaultValue.Num());
+			DefaultValueParameterEditor->UpdateInternalValueFromStruct(DefaultValueStructOnScope.ToSharedRef());
+		}
+	}
+
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -243,15 +243,15 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 						// This will cause a PVS warning, if we add something before this enum entry add the code back in
 						//if (SimStageMetaData.GpuDispatchType >= ENiagaraGpuDispatchType::OneD)
 						{
-							ElementCountXYZ.X = SimStageMetaData.ElementCountXBinding.IsNone() ? 0 : BoundParamStore.GetParameterValueOrDefault(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountXBinding), 0);
+							ElementCountXYZ.X = SimStageMetaData.ElementCountXBinding.IsNone() ? SimStageMetaData.ElementCount.X : BoundParamStore.GetParameterValueOrDefault(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountXBinding), 0);
 						}
 						if (SimStageMetaData.GpuDispatchType >= ENiagaraGpuDispatchType::TwoD)
 						{
-							ElementCountXYZ.Y = SimStageMetaData.ElementCountYBinding.IsNone() ? 0 : BoundParamStore.GetParameterValueOrDefault(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountYBinding), 0);
+							ElementCountXYZ.Y = SimStageMetaData.ElementCountYBinding.IsNone() ? SimStageMetaData.ElementCount.Y : BoundParamStore.GetParameterValueOrDefault(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountYBinding), 0);
 						}
 						if (SimStageMetaData.GpuDispatchType >= ENiagaraGpuDispatchType::ThreeD)
 						{
-							ElementCountXYZ.Z = SimStageMetaData.ElementCountZBinding.IsNone() ? 0 : BoundParamStore.GetParameterValueOrDefault(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountZBinding), 0);
+							ElementCountXYZ.Z = SimStageMetaData.ElementCountZBinding.IsNone() ? SimStageMetaData.ElementCount.Z : BoundParamStore.GetParameterValueOrDefault(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ElementCountZBinding), 0);
 						}
 
 						// If any of the element count values are <= 0 we can kill the stage as it won't execute

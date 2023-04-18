@@ -5,6 +5,7 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
+#include "Layout/Visibility.h"
 
 #include "NiagaraCommon.h"
 #include "NiagaraParameterBindingCustomization.generated.h"
@@ -20,6 +21,7 @@ class SWidget;
 class UNiagaraEmitter;
 class UNiagaraSystem;
 struct FNiagaraParameterBinding;
+class SNiagaraParameterEditor;
 
 USTRUCT()
 struct FNiagaraParameterBindingAction : public FEdGraphSchemaAction
@@ -27,10 +29,15 @@ struct FNiagaraParameterBindingAction : public FEdGraphSchemaAction
 	GENERATED_USTRUCT_BODY();
 
 	FNiagaraParameterBindingAction();
-	FNiagaraParameterBindingAction(FNiagaraVariableBase InAliasedParameter, FNiagaraVariableBase InParameter);
+	explicit FNiagaraParameterBindingAction(FText InName, FText InTooltip);
 
+	static TSharedRef<FNiagaraParameterBindingAction> MakeNone();
+	static TSharedRef<FNiagaraParameterBindingAction> MakeConstant(const FNiagaraTypeDefinition& TypeDef, const uint8* ValueData);
+	static TSharedRef<FNiagaraParameterBindingAction> MakeParameter(FNiagaraVariableBase InAliasedParameter, FNiagaraVariableBase InResolvedParameter);
+
+	bool bIsValidParameter = false;
 	FNiagaraVariableBase AliasedParameter;
-	FNiagaraVariableBase Parameter;
+	FNiagaraVariableBase ResolvedParameter;
 };
 
 class FNiagaraParameterBindingCustomization : public IPropertyTypeCustomization
@@ -48,18 +55,30 @@ public:
 	FNiagaraParameterBinding* GetDefaultParameterBinding() const;
 
 	TSharedRef<SWidget> OnGetMenuContent() const;
+	bool ForEachBindableVariable(TFunction<bool(FNiagaraVariableBase, FNiagaraVariableBase)> Delegate) const;
 	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions) const;
 	TSharedRef<SWidget> OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData) const;
 	void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedActions, ESelectInfo::Type InSelectionType) const;
+	void OnValueChanged() const;
+
+	bool IsBindingValid(FNiagaraParameterBinding* ParameterBinding) const;
+	EVisibility IsBindingVisibile() const;
+	EVisibility IsConstantVisibile() const;
+	bool IsBindingEnabled() const;
+	bool IsConstantEnabled() const;
 
 	FText GetTooltipText() const;
 	FName GetVariableName() const;
 
-	void ResetToDefault();
+	EVisibility IsResetToDefaultsVisible() const;
+	FReply OnResetToDefaultsClicked();
 
 protected:
 	TSharedPtr<IPropertyHandle>		PropertyHandle;
 	TWeakObjectPtr<UObject>			OwnerWeakPtr;
 	TWeakObjectPtr<UNiagaraEmitter>	EmitterWeakPtr;
 	TWeakObjectPtr<UNiagaraSystem>	SystemWeakPtr;
+
+	TSharedPtr<SNiagaraParameterEditor>	DefaultValueParameterEditor;
+	TSharedPtr<FStructOnScope>			DefaultValueStructOnScope;
 };

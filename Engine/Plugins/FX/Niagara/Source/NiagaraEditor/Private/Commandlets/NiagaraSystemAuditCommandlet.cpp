@@ -345,7 +345,7 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 						UNiagaraSimulationStageGeneric* SimStageGeneric = Cast<UNiagaraSimulationStageGeneric>(SimStage);
 						if (SimStage->bEnabled && SimStageGeneric)
 						{
-							TotalIterations += SimStageGeneric->Iterations;
+							TotalIterations += SimStageGeneric->NumIterations.GetDefaultValue<int32>();
 						}
 					}
 					EmittersWithSimulationStages.Appendf(TEXT("%s(%d Stages %d Iterations) "), EmitterData->GetDebugSimName(), SimulationStages.Num(), TotalIterations);

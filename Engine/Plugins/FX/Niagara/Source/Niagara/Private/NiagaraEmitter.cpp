@@ -1332,14 +1332,13 @@ void UNiagaraEmitter::HandleVariableRenamed(const FNiagaraVariable& InOldVariabl
 		Prop->RenameVariable(InOldVariable, InNewVariable, FVersionedNiagaraEmitter(this, EmitterVersion));
 	}
 
-	// Rename any simulation stage iteration sources
+	// Rename any simulation stage variables
 	for (UNiagaraSimulationStageBase* SimStage : Data->SimulationStages)
 	{
-		UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage);
-		if (GenericStage && GenericStage->DataInterface.BoundVariable.GetName() == InOldVariable.GetName())
+		if (UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage))
 		{
 			GenericStage->Modify(false);
-			GenericStage->DataInterface.BoundVariable = InNewVariable;
+			GenericStage->RenameVariable(InOldVariable, InNewVariable, FVersionedNiagaraEmitter(this, EmitterVersion));
 		}
 	}
 
@@ -1359,6 +1358,16 @@ void UNiagaraEmitter::HandleVariableRemoved(const FNiagaraVariable& InOldVariabl
 	{
 		Prop->Modify(false);
 		Prop->RemoveVariable(InOldVariable, FVersionedNiagaraEmitter(this, EmitterVersion));
+	}
+
+	// Remove any simulation stage variables
+	for (UNiagaraSimulationStageBase* SimStage : Data->SimulationStages)
+	{
+		if (UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage))
+		{
+			GenericStage->Modify(false);
+			GenericStage->RemoveVariable(InOldVariable, FVersionedNiagaraEmitter(this, EmitterVersion));
+		}
 	}
 
 	Data->RebuildRendererBindings(*this);
@@ -2903,6 +2912,15 @@ void FVersionedNiagaraEmitterData::SyncEmitterAlias(const FString& InOldName, co
 			{
 				Renderer->Modify(false);
 				Renderer->RenameEmitter(*InOldName, &InEmitter);
+			}
+		}
+
+		for (UNiagaraSimulationStageBase* SimStage : SimulationStages)
+		{
+			if (UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage))
+			{
+				GenericStage->Modify(false);
+				GenericStage->RenameEmitter(*InOldName, &InEmitter);
 			}
 		}
 	}

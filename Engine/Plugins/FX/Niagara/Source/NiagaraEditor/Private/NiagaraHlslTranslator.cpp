@@ -1293,6 +1293,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].bCopyPreviousParams = false;
 					TranslationStages[Index].SimulationStageIndex = DestSimStageIndex;					
 					TranslationStages[Index].EnabledBinding = CompileSimStageData.EnabledBinding;
+					TranslationStages[Index].ElementCount = CompileSimStageData.ElementCount;
 					TranslationStages[Index].ElementCountXBinding = CompileSimStageData.ElementCountXBinding;
 					TranslationStages[Index].ElementCountYBinding = CompileSimStageData.ElementCountYBinding;
 					TranslationStages[Index].ElementCountZBinding = CompileSimStageData.ElementCountZBinding;
@@ -1311,6 +1312,13 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].DirectDispatchElementType = CompileSimStageData.DirectDispatchElementType;
 					TranslationStages[Index].bOverrideGpuDispatchNumThreads = CompileSimStageData.bOverrideGpuDispatchNumThreads;
 					TranslationStages[Index].OverrideGpuDispatchNumThreads = CompileSimStageData.OverrideGpuDispatchNumThreads;
+
+					if (CompileSimStageData.bOverrideGpuDispatchNumThreads)
+					{
+						TranslationStages[Index].OverrideGpuDispatchNumThreads.X = CompileData->GetStaticVariableValue(CompileSimStageData.OverrideGpuDispatchNumThreadsXBinding, TranslationStages[Index].OverrideGpuDispatchNumThreads.X);
+						TranslationStages[Index].OverrideGpuDispatchNumThreads.Y = CompileData->GetStaticVariableValue(CompileSimStageData.OverrideGpuDispatchNumThreadsYBinding, TranslationStages[Index].OverrideGpuDispatchNumThreads.Y);
+						TranslationStages[Index].OverrideGpuDispatchNumThreads.Z = CompileData->GetStaticVariableValue(CompileSimStageData.OverrideGpuDispatchNumThreadsZBinding, TranslationStages[Index].OverrideGpuDispatchNumThreads.Z);
+					}
 
 					ParamMapHistories.AddDefaulted(1);
 					ParamMapHistoriesSourceInOtherHistories.AddDefaulted(1);
@@ -1369,6 +1377,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					FSimulationStageMetaData& SimulationStageMetaData = CompilationOutput.ScriptData.SimulationStageMetaData.AddDefaulted_GetRef();
 					SimulationStageMetaData.SimulationStageName = InCompileData->CompileSimStageData[SourceSimStageIndex].StageName;
 					SimulationStageMetaData.EnabledBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].EnabledBinding;
+					SimulationStageMetaData.ElementCount = InCompileData->CompileSimStageData[SourceSimStageIndex].ElementCount;
 					SimulationStageMetaData.ElementCountXBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].ElementCountXBinding;
 					SimulationStageMetaData.ElementCountYBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].ElementCountYBinding;
 					SimulationStageMetaData.ElementCountZBinding = InCompileData->CompileSimStageData[SourceSimStageIndex].ElementCountZBinding;

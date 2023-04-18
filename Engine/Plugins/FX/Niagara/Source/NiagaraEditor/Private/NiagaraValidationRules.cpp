@@ -843,15 +843,16 @@ void UNiagaraValidationRule_SimulationStageBudget::CheckValidity(const FNiagaraV
 				continue;
 			}
 
+			const int32 StageNumIterations = SimStage->NumIterations.GetDefaultValue<int32>();
 			++TotalEnabledStages;
-			TotalIterations += SimStage->Iterations;
-			if ( bMaxIterationsPerStageEnabled && SimStage->Iterations > MaxIterationsPerStage )
+			TotalIterations += StageNumIterations;
+			if ( bMaxIterationsPerStageEnabled && StageNumIterations > MaxIterationsPerStage)
 			{
 				UNiagaraStackEmitterPropertiesItem* EmitterProperties = NiagaraValidation::GetStackEntry<UNiagaraStackEmitterPropertiesItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
 				OutResults.Emplace_GetRef(
 					Severity,
 					FText::Format(LOCTEXT("SimStageTooManyIterationsFormat", "Simulation Stage '{0}' has too many iterations"), FText::FromName(SimStage->SimulationStageName)),
-					FText::Format(LOCTEXT("SimStageTooManyIterationsDetailedFormat", "Simulation Stage '{0}' has {1} iterations and we only allow {2}"), FText::FromName(SimStage->SimulationStageName), FText::AsNumber(SimStage->Iterations), FText::AsNumber(MaxIterationsPerStage)),
+					FText::Format(LOCTEXT("SimStageTooManyIterationsDetailedFormat", "Simulation Stage '{0}' has {1} iterations and we only allow {2}"), FText::FromName(SimStage->SimulationStageName), FText::AsNumber(StageNumIterations), FText::AsNumber(MaxIterationsPerStage)),
 					EmitterProperties
 				);
 			}

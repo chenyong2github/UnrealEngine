@@ -1021,7 +1021,8 @@ public:
 	bool IsIndexWildcard() const { return ClassStructOrEnum == FNiagaraTypeDefinition::GetWildcardStruct(); }
 
 	FNiagaraTypeDefinition ToStaticDef() const;
-	
+	FNiagaraTypeDefinition RemoveStaticDef() const;
+
 	int32 GetSize() const
 	{
 		if (Size == INDEX_NONE)

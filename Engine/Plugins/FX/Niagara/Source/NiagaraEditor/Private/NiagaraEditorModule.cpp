@@ -961,6 +961,10 @@ void FNiagaraEditorModule::StartupModule()
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraParameterBindingCustomization::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraParameterBindingWithValue::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraParameterBindingCustomization::MakeInstance));
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraScriptVariableBinding::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptVariableBindingCustomization::MakeInstance));
 

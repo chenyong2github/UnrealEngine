@@ -377,7 +377,7 @@ UMaterialInterface* UNiagaraDecalRendererProperties::GetMaterial(const FNiagaraE
 	UMaterialInterface* MaterialInterface = nullptr;
 	if (InEmitter != nullptr)
 	{
-		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialParameterBinding.Parameter));
+		MaterialInterface = Cast<UMaterialInterface>(InEmitter->FindBinding(MaterialParameterBinding.ResolvedParameter));
 	}
 
 #if WITH_EDITORONLY_DATA
