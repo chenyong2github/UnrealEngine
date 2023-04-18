@@ -452,7 +452,7 @@ bool FPCGGraphSetValueUserParametersPropagates::RunTest(const FString& Parameter
 	});
 
 	// Setting MyProperty to 3.0
-	constexpr double NewValue = 3.0;
+	const double NewValue = 3.0;
 	PCGTests::EmulateModifyingUserParametersValue(Graph, MyPropertyName, [Graph, MyPropertyName, NewValue]()
 	{
 		const FPropertyBagPropertyDesc* PropertyDesc = Graph->GetUserParametersStruct()->FindPropertyDescByName(MyPropertyName);
