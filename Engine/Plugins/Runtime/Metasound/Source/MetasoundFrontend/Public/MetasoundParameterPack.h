@@ -449,8 +449,6 @@ public:
 		: ParameterStoragePtr(Data)
 	{}
 
-	FMetasoundParameterPackProxy(const FMetasoundParameterPackProxy& Other) = default;
-
 	FSharedMetasoundParameterStoragePtr GetParamStorage()
 	{
 		return ParameterStoragePtr;
