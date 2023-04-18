@@ -11,6 +11,7 @@
 #include "NiagaraDataInterfaceRenderTargetCommon.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSettings.h"
+#include "NiagaraSVTShaders.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraStats.h"
 #include "NiagaraShaderParametersBuilder.h"
@@ -844,34 +845,6 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheEndWrite(UObject* StorageO
 
 	return true;
 }
-
-
-
-class FNiagaraCopySVTToDenseBufferCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FNiagaraCopySVTToDenseBufferCS);
-	SHADER_USE_PARAMETER_STRUCT(FNiagaraCopySVTToDenseBufferCS, FGlobalShader);
-	
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);		
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, DestinationBuffer)
-		SHADER_PARAMETER_SAMPLER(SamplerState, TileDataTextureSampler)
-		SHADER_PARAMETER_TEXTURE(Texture3D<uint>, SparseVolumeTexturePageTable)
-		SHADER_PARAMETER_TEXTURE(Texture3D, SparseVolumeTextureA)		
-		SHADER_PARAMETER(FUintVector4, PackedSVTUniforms0)
-		SHADER_PARAMETER(FUintVector4, PackedSVTUniforms1)
-		SHADER_PARAMETER(FIntVector, TextureSize)
-		SHADER_PARAMETER(int32, MipLevel)
-	END_SHADER_PARAMETER_STRUCT()
-};
-
-IMPLEMENT_GLOBAL_SHADER(FNiagaraCopySVTToDenseBufferCS, "/Plugin/FX/Niagara/Private/NiagaraSVTToDenseBuffer.usf", "PerformCopyCS", SF_Compute);
-
 
 bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* StorageObject, int FrameA, int FrameB, float Interp, FNiagaraSystemInstance* SystemInstance, void* OptionalPerInstanceData)
 {
