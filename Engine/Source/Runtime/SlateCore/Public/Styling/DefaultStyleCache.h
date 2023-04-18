@@ -14,6 +14,8 @@ namespace UE::Slate::Private
  */
 struct SLATECORE_API FDefaultStyleCache
 {
+	FDefaultStyleCache();
+
 	/**
 	 * Internal style default holder struct, used so that one can get a bundle of defaults relevant for runtime or editor
 	 */
@@ -108,8 +110,6 @@ private:
 	static FDefaultStyleCache& Get();
 
 	friend class FLazySingleton;
-
-	FDefaultStyleCache();
 
 	FStyles Runtime;
 
