@@ -731,13 +731,25 @@ public:
 
 	inline bool EvaluateWorldPositionOffset() const { return bEvaluateWorldPositionOffset; }
 	inline bool AnyMaterialHasWorldPositionOffset() const { return bAnyMaterialHasWorldPositionOffset; }
-	inline float GetMaxWorldPositionOffsetDisplacement() const
+	inline float GetMaxWorldPositionOffsetExtent() const
 	{
 		if (EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
 		{
-			return MaxWPODisplacement;
+			return MaxWPOExtent;
 		}
 		return 0.0f;
+	}
+
+	inline const FVector2f& GetMinMaxMaterialDisplacement() const
+	{
+		return MinMaxMaterialDisplacement;
+	}
+
+	inline float GetAbsMaxDisplacement() const
+	{
+		// TODO: DISP - Fix me
+		const float AbsMaxMaterialDisplacement = FMath::Max(-GetMinMaxMaterialDisplacement().X, GetMinMaxMaterialDisplacement().Y);
+		return GetMaxWorldPositionOffsetExtent() + AbsMaxMaterialDisplacement;
 	}
 	
 	/** Returns true if this proxy can change transform so that we should cache previous transform for calculating velocity. */
@@ -1435,7 +1447,9 @@ protected:
 	 * Maximum distance of World Position Offset used by materials. Values > 0.0 will cause the WPO to be clamped and the primitive's
 	 * bounds to be padded to account for it. Value of zero will not clamp the WPO of materials nor pad bounds (legacy behavior)
 	 */
-	float MaxWPODisplacement;
+	float MaxWPOExtent;
+
+	FVector2f MinMaxMaterialDisplacement;
 
 	/** Array of runtime virtual textures that this proxy should render to. */
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;

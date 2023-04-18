@@ -10,6 +10,7 @@
 
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
+#include "NaniteCullingCommon.ush"
 
 RWTexture2D<float4>		DebugOutput;
 
@@ -23,6 +24,7 @@ Texture2D<float>		MaterialZDecoded;
 Texture2D<uint4>		MaterialZLayout;
 Texture2D<uint>			ShadingMask;
 
+StructuredBuffer<FNaniteRasterBinMeta> RasterBinMeta;
 StructuredBuffer<FNaniteShadingBinMeta> ShadingBinMeta;
 
 ByteAddressBuffer		MaterialSlotTable;
@@ -547,13 +549,19 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 		const float4x4 LocalToWorld = LWCHackToFloat(InstanceData.LocalToWorld);
 
-		// if WPO is enabled, the cluster bounds will have been dilated to account for max WPO distance
-		const float3 WPOExtent = bWPOEnabled ? abs(PrimitiveData.MaxWPODisplacement * InstanceData.InvNonUniformScale) : (float3)0;
+		const float3 WPOExtent = bWPOEnabled ? abs(PrimitiveData.MaxWPOExtent * InstanceData.InvNonUniformScale) : (float3)0;
+	#if ACCURATE_DISPLACEMENT_BOUNDS
+		const float AbsMaxMaterialDisplacement = GetAbsMaxMaterialDisplacement(RasterBinMeta, FeedbackResults.RasterBin);
+	#else
+		const float AbsMaxMaterialDisplacement = GetAbsMaxMaterialDisplacement(PrimitiveData);
+	#endif
+
+		// If WPO and/or material displacement is enabled, the cluster bounds will have been dilated to account for max displacement
 		const float3 ClusterBoxBoundsCenter = Cluster.BoxBoundsCenter;
-		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent + WPOExtent;
+		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent + WPOExtent + AbsMaxMaterialDisplacement.xxx;
 
 		const float3 InstanceBoxBoundsCenter = InstanceData.LocalBoundsCenter;
-		const float3 InstanceBoxBoundsExtent = InstanceData.LocalBoundsExtent;
+		const float3 InstanceBoxBoundsExtent = InstanceData.LocalBoundsExtent; // TODO: Verify WPO and material disp. is baked in already
 
 		AddOBBWS(
 			ClusterBoxBoundsCenter - ClusterBoxBoundsExtent,

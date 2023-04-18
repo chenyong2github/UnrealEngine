@@ -232,9 +232,9 @@ struct FNaniteTraversalClusterCullCallback
 			float4 LODBounds = HierarchyNodeSlice.LODBounds;
 
 			const float3 LocalWPOExtent = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u ?
-				abs(GetPrimitiveData(InstanceData.PrimitiveId).MaxWPODisplacement * InstanceData.InvNonUniformScale) : (float3)0;
+				abs(GetPrimitiveData(InstanceData.PrimitiveId).MaxWPOExtent * InstanceData.InvNonUniformScale) : (float3)0;
 			const float3 NodeBoxBoundsCenter = HierarchyNodeSlice.BoxBoundsCenter;
-			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent + LocalWPOExtent;
+			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent + LocalWPOExtent + GetAbsMaxMaterialDisplacement(GetPrimitiveData(InstanceData.PrimitiveId)).xxx;
 
 			FBoxCull Cull;
 			Cull.Init( NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, InstanceData.NonUniformScale.xyz, DynamicData.LocalToTranslatedWorld, DynamicData.PrevLocalToTranslatedWorld );
@@ -398,9 +398,9 @@ struct FNaniteTraversalClusterCullCallback
 
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 		const float3 LocalWPOExtent = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) ?
-			abs(PrimitiveData.MaxWPODisplacement * InstanceData.InvNonUniformScale) : (float3)0;
+			abs(PrimitiveData.MaxWPOExtent * InstanceData.InvNonUniformScale) : (float3)0;
 		const float3 ClusterBoxBoundsCenter = Cluster.BoxBoundsCenter;
-		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent + LocalWPOExtent;
+		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent + LocalWPOExtent + GetAbsMaxMaterialDisplacement(PrimitiveData);
 		
 		bool bUseHWRaster = false;
 		

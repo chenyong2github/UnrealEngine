@@ -194,7 +194,8 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.CacheShadowAsStatic(PrimitiveSceneInfo->ShouldCacheShadowAsStatic())
 		.OutputVelocity(bOutputVelocity)
 		.EvaluateWorldPositionOffset(Proxy->EvaluateWorldPositionOffset() && Proxy->AnyMaterialHasWorldPositionOffset())
-		.MaxWorldPositionOffsetDisplacement(Proxy->GetMaxWorldPositionOffsetDisplacement())
+		.MaxWorldPositionOffsetExtent(Proxy->GetMaxWorldPositionOffsetExtent())
+		.MinMaxMaterialDisplacement(Proxy->GetMinMaxMaterialDisplacement())
 		.CastContactShadow(Proxy->CastsContactShadow())
 		.CastShadow(Proxy->CastsDynamicShadow())
 		.CastHiddenShadow(Proxy->CastsHiddenShadow())
@@ -334,9 +335,10 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[30].Z = PrimitiveUniformShaderParameters.InstanceWPODisableDistanceSquared;
 	Data[30].W = FMath::AsFloat(PrimitiveUniformShaderParameters.NaniteRayTracingDataOffset);
 
-	Data[31].X = PrimitiveUniformShaderParameters.MaxWPODisplacement;
-	Data[31].Y = FMath::AsFloat(PrimitiveUniformShaderParameters.CustomStencilValueAndMask);
-	// .ZW Unused
+	Data[31].X = PrimitiveUniformShaderParameters.MaxWPOExtent;
+	Data[31].Y = PrimitiveUniformShaderParameters.MinMaterialDisplacement;
+	Data[31].Z = PrimitiveUniformShaderParameters.MaxMaterialDisplacement;
+	Data[31].W = FMath::AsFloat(PrimitiveUniformShaderParameters.CustomStencilValueAndMask);
 
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
 	const int32 CustomPrimitiveDataStartIndex = 32;

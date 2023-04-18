@@ -1387,12 +1387,12 @@ void FPixelShaderInOut_MainPS(
 				Emissive = OutOfBoundsMaskLuminance;
 				Opacity = 1;
 			}
-			else if (PrimitiveData.MaxWPODisplacement > 0.0f)
+			else if (PrimitiveData.MaxWPOExtent > 0.0f)
 			{
 				// this highlights pixels that are close to Max WPO Distance boundary (and might be getting clamped)
 				const float3 OffsetAmt = abs(MaterialParameters.WorldPosition_CamRelative - MaterialParameters.WorldPosition_NoOffsets_CamRelative);
 				const float MaxOffsetDim = max3(OffsetAmt.x, OffsetAmt.y, OffsetAmt.z);
-				const float Proximity = 1.0f - saturate(abs(MaxOffsetDim - PrimitiveData.MaxWPODisplacement) / 0.05f);
+				const float Proximity = 1.0f - saturate(abs(MaxOffsetDim - PrimitiveData.MaxWPOExtent) / 0.05f);
 				Emissive = Proximity * float3(1, 0 ,1);
 				Opacity = sign(Proximity);
 			}

@@ -13,11 +13,38 @@
 #include "NaniteHZBCull.ush"
 #include "NaniteCulling.ush"
 
+#ifndef DISABLE_DISPLACEMENT_BOUNDS
+#define DISABLE_DISPLACEMENT_BOUNDS 0
+#endif
+
+#ifndef ACCURATE_DISPLACEMENT_BOUNDS
+#define ACCURATE_DISPLACEMENT_BOUNDS 0
+#endif
+
+float GetAbsMaxMaterialDisplacement(StructuredBuffer<FNaniteRasterBinMeta> RasterBinMeta, uint RasterBin)
+{
+#if DISABLE_DISPLACEMENT_BOUNDS
+	return 0.0f;
+#else
+	const float MinMaterialDisplacement = RasterBinMeta[RasterBin].MinMaterialDisplacement;
+	const float MaxMaterialDisplacement = RasterBinMeta[RasterBin].MaxMaterialDisplacement;
+	return max(-MinMaterialDisplacement, MaxMaterialDisplacement);
+#endif
+}
+
+float GetAbsMaxMaterialDisplacement(FPrimitiveSceneData PrimitiveData)
+{
+#if DISABLE_DISPLACEMENT_BOUNDS
+	return 0.0f;
+#else
+	return max(-PrimitiveData.MinMaterialDisplacement, PrimitiveData.MaxMaterialDisplacement);
+#endif
+}
+
 float GetGlobalClipPlaneDistance(FNaniteView NaniteView, float3 TranslatedWorldPosition)
 {
 	return dot(NaniteView.TranslatedGlobalClipPlane, float4(TranslatedWorldPosition, 1.0f));
 }
-
 
 struct FBoxCull
 {

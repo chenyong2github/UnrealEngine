@@ -2998,10 +2998,10 @@ bool ShouldEnableWorldPositionOffset(FMaterialVertexParameters Parameters)
 float3 ClampWorldPositionOffset(FMaterialVertexParameters Parameters, float3 InOffset)
 {
 #if (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1 && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
-	// Do not use WPO clamping on mobile platforms as MaxWPODisplacement has to be pulled from PrimitiveUB breaking auto-instancing
+	// Do not use WPO clamping on mobile platforms as MaxWPOExtent has to be pulled from PrimitiveUB breaking auto-instancing
 	return InOffset;
 #else
-	const float MaxWPODim = GetPrimitiveData(Parameters).MaxWPODisplacement;
+	const float MaxWPODim = GetPrimitiveData(Parameters).MaxWPOExtent;
 	return MaxWPODim <= 0.0f ? InOffset : clamp(InOffset, -MaxWPODim.xxx, MaxWPODim.xxx);
 #endif
 }

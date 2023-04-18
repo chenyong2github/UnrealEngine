@@ -346,7 +346,7 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 				MaterialRelevance |= UMaterial::GetDefaultMaterial(MD_Surface)->GetRelevance(FeatureLevel);
 			}
 
-			MaxWPODisplacement = FMath::Max(MaxWPODisplacement, SectionInfo.Material->GetMaxWorldPositionOffsetDisplacement());
+			MaxWPOExtent = FMath::Max(MaxWPOExtent, SectionInfo.Material->GetMaxWorldPositionOffsetDisplacement());
 		}
 	}
 

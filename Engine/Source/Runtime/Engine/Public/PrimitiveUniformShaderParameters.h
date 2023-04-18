@@ -62,7 +62,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector2f,		InstanceDrawDistanceMinMaxSquared)
 	SHADER_PARAMETER(float,			InstanceWPODisableDistanceSquared)
 	SHADER_PARAMETER(uint32,		NaniteRayTracingDataOffset)
-	SHADER_PARAMETER(float,			MaxWPODisplacement)
+	SHADER_PARAMETER(float,			MaxWPOExtent)
+	SHADER_PARAMETER(float,			MinMaterialDisplacement)
+	SHADER_PARAMETER(float,			MaxMaterialDisplacement)
 	SHADER_PARAMETER(uint32,		CustomStencilValueAndMask)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -139,9 +141,11 @@ public:
 		bHasWPODisableDistance						= false;
 		bWritesCustomDepthStencil					= false;
 		bReverseCulling								= false;
-		bHoldout                                    = false;
+		bHoldout									= false;
 
-		Parameters.MaxWPODisplacement					= 0.0f;
+		Parameters.MaxWPOExtent						= 0.0f;
+		Parameters.MinMaterialDisplacement			= 0.0f;
+		Parameters.MaxMaterialDisplacement			= 0.0f;
 
 		// Default colors
 		Parameters.WireframeColor					= FVector3f(1.0f, 1.0f, 1.0f);
@@ -223,9 +227,16 @@ public:
 		return *this;
 	}
 
-	inline FPrimitiveUniformShaderParametersBuilder& MaxWorldPositionOffsetDisplacement(float InMaxDisplacement)
+	inline FPrimitiveUniformShaderParametersBuilder& MaxWorldPositionOffsetExtent(float InMaxExtent)
 	{
-		Parameters.MaxWPODisplacement = InMaxDisplacement;
+		Parameters.MaxWPOExtent = InMaxExtent;
+		return *this;
+	}
+
+	inline FPrimitiveUniformShaderParametersBuilder& MinMaxMaterialDisplacement(const FVector2f& InMinMaxDisplacement)
+	{
+		Parameters.MinMaterialDisplacement = InMinMaxDisplacement.X;
+		Parameters.MaxMaterialDisplacement = InMinMaxDisplacement.Y;
 		return *this;
 	}
 

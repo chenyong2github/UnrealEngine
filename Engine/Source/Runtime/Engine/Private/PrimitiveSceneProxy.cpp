@@ -344,7 +344,8 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	VirtualTextureMinCoverage(InComponent->VirtualTextureMinCoverage)
 ,	DynamicIndirectShadowMinVisibility(0)
 ,	DistanceFieldSelfShadowBias(0.0f)
-,	MaxWPODisplacement(0.0f)
+,	MaxWPOExtent(0.0f)
+,	MinMaxMaterialDisplacement(0.0f, 0.0f)
 ,	PrimitiveComponentId(InComponent->ComponentId)
 ,	Scene(InComponent->GetScene())
 ,	PrimitiveSceneInfo(nullptr)
@@ -588,7 +589,8 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer(FRHICommandList& RHICmdList)
 				.CacheShadowAsStatic(PrimitiveSceneInfo ? PrimitiveSceneInfo->ShouldCacheShadowAsStatic() : false)
 				.OutputVelocity(bOutputVelocity)
 				.EvaluateWorldPositionOffset(EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
-				.MaxWorldPositionOffsetDisplacement(GetMaxWorldPositionOffsetDisplacement())
+				.MaxWorldPositionOffsetExtent(GetMaxWorldPositionOffsetExtent())
+				.MinMaxMaterialDisplacement(GetMinMaxMaterialDisplacement())
 				.LightingChannelMask(GetLightingChannelMask())
 				.LightmapDataIndex(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0)
 				.LightmapUVIndex(GetLightMapCoordinateIndex())
@@ -683,8 +685,9 @@ void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBo
 	LocalToWorld = InLocalToWorld;
 	bIsLocalToWorldDeterminantNegative = LocalToWorld.Determinant() < 0.0f;
 
-	// Update the cached bounds. Pad them to account for max WPO
-	const float PadAmount = GetMaxWorldPositionOffsetDisplacement();
+	// Update the cached bounds. Pad them to account for max WPO and material displacement
+	// TODO: DISP - Fix me
+	const float PadAmount = GetAbsMaxDisplacement();
 	Bounds = PadBounds(InBounds, PadAmount);
 	LocalBounds = PadLocalBounds(InLocalBounds, LocalToWorld, PadAmount);
 	ActorPosition = InActorPosition;
@@ -887,13 +890,14 @@ bool FPrimitiveSceneProxy::WouldSetTransformBeRedundant_AnyThread(const FMatrix&
 
 	// Can be called by any thread, so be careful about modifying this.
 
-	// Account for padding that will be added to the bounds in SetTransform
-	const float PadAmount = GetMaxWorldPositionOffsetDisplacement();
-
 	if (ActorPosition != InActorPosition)
 	{
 		return false;
 	}
+
+	// Account for padding that will be added to the bounds in SetTransform
+	// TODO: DISP - Fix me
+	const float PadAmount = GetAbsMaxDisplacement();
 
 	if (LocalBounds != PadLocalBounds(InLocalBounds, InLocalToWorld, PadAmount))
 	{
@@ -1088,7 +1092,8 @@ void FPrimitiveSceneProxy::GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds)
 {
 	// if we padded the local bounds for WPO, un-pad them for the "pre-skinned" bounds
 	// (the idea being that WPO is a form of deformation, similar to skinning)
-	OutBounds = PadLocalBounds(LocalBounds, GetLocalToWorld(), -GetMaxWorldPositionOffsetDisplacement());
+	// TODO: DISP - Fix me
+	OutBounds = PadLocalBounds(LocalBounds, GetLocalToWorld(), -GetAbsMaxDisplacement());
 }
 
 /**
@@ -1140,8 +1145,9 @@ void FPrimitiveSceneProxy::SetLightingChannels_GameThread(FLightingChannels Ligh
 
 void FPrimitiveSceneProxy::SetInstanceLocalBounds(uint32 InstanceIndex, const FRenderBounds& InBounds, bool bPadForWPO)
 {
+	// TODO: DISP - Fix me
 	InstanceLocalBounds[InstanceIndex] = bPadForWPO ? 
-		PadLocalRenderBounds(InBounds, GetLocalToWorld(), GetMaxWorldPositionOffsetDisplacement()) : InBounds;
+		PadLocalRenderBounds(InBounds, GetLocalToWorld(), GetAbsMaxDisplacement()) : InBounds;
 }
 
 #if ENABLE_DRAW_DEBUG

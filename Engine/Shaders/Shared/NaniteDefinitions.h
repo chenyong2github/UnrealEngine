@@ -364,6 +364,9 @@ struct FNaniteRasterBinMeta
 	UINT_TYPE BinHWCount;
 	UINT_TYPE ClusterOffset;
 	UINT_TYPE MaterialFlags;
+
+	float MinMaterialDisplacement;
+	float MaxMaterialDisplacement;
 };
 
 struct FNaniteShadingBinMeta

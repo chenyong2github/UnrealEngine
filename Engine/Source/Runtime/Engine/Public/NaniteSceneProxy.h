@@ -160,7 +160,9 @@ public:
 		HHitProxy* HitProxy = nullptr;
 	#endif
 		int32 MaterialIndex = INDEX_NONE;
-		float MaxWPODisplacement = 0.0f;
+		float MaxWPOExtent = 0.0f;
+
+		FDisplacementScaling DisplacementScaling;
 
 		FMaterialRelevance MaterialRelevance;
 
@@ -266,7 +268,7 @@ public:
 
 protected:
 	ENGINE_API void DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* PDI, const FLightCacheInterface* LCI);
-	ENGINE_API void CalculateMaxWPODisplacement();
+	ENGINE_API void CalculateMinMaxDisplacement();
 
 protected:
 	TArray<FMaterialSection> MaterialSections;

@@ -530,12 +530,23 @@ void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* 
 	}
 }
 
-void FSceneProxyBase::CalculateMaxWPODisplacement()
+void FSceneProxyBase::CalculateMinMaxDisplacement()
 {
-	MaxWPODisplacement = 0.0f;
+	MaxWPOExtent = 0.0f;
+	MinMaxMaterialDisplacement = FVector2f::Zero();
+
 	for (const auto& MaterialSection : GetMaterialSections())
 	{
-		MaxWPODisplacement = FMath::Max(MaxWPODisplacement, MaterialSection.MaxWPODisplacement);
+		MaxWPOExtent = FMath::Max(MaxWPOExtent, MaterialSection.MaxWPOExtent);
+
+		if (MaterialSection.MaterialRelevance.bUsesDisplacement)
+		{
+			const float MinDisplacement = (0.0f - MaterialSection.DisplacementScaling.Center) * MaterialSection.DisplacementScaling.Magnitude;
+			const float MaxDisplacement = (1.0f - MaterialSection.DisplacementScaling.Center) * MaterialSection.DisplacementScaling.Magnitude;
+
+			MinMaxMaterialDisplacement.X = FMath::Min(MinMaxMaterialDisplacement.X, MinDisplacement);
+			MinMaxMaterialDisplacement.Y = FMath::Max(MinMaxMaterialDisplacement.Y, MaxDisplacement);
+		}
 	}
 }
 
@@ -693,7 +704,12 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 		if (bEvaluateWorldPositionOffset && MaterialSection.MaterialRelevance.bUsesWorldPositionOffset)
 		{
 			bProgrammableRasterMaterial = true;
-			MaterialSection.MaxWPODisplacement = ShadingMaterial->GetMaxWorldPositionOffsetDisplacement();
+			MaterialSection.MaxWPOExtent = ShadingMaterial->GetMaxWorldPositionOffsetDisplacement();
+		}
+
+		if (MaterialSection.MaterialRelevance.bUsesDisplacement)
+		{
+			MaterialSection.DisplacementScaling = ShadingMaterial->GetDisplacementScaling();
 		}
 
 		// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full raster bin
@@ -713,8 +729,8 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 		bHasProgrammableRaster |= bProgrammableRasterMaterial;
 	}
 
-	// Now that the material sections are initialized, we can determine MaxWPODisplacement
-	CalculateMaxWPODisplacement();
+	// Now that the material sections are initialized, we can determine MaxWPOExtent and MinMaxMaterialDisplacement
+	CalculateMinMaxDisplacement();
 
 	// Nanite supports distance field representation for fully opaque meshes.
 	bSupportsDistanceFieldRepresentation = CombinedMaterialRelevance.bOpaque && DistanceFieldData && DistanceFieldData->IsValid();;

@@ -12,8 +12,9 @@
 
 #if NANITE_TESSELLATION
 
-//uint RegularMaterialRasterSlotCount;
-//ByteAddressBuffer MaterialSlotTable;
+uint RegularMaterialRasterSlotCount;
+ByteAddressBuffer MaterialSlotTable;
+StructuredBuffer<FNaniteRasterBinMeta> RasterBinMeta;
 
 struct FSplitTask
 {
@@ -90,6 +91,13 @@ uint FSplitTask::Run()
 
 	FCluster Cluster = GetCluster( VisibleCluster.PageIndex, VisibleCluster.ClusterIndex );
 
+	const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+
+#if ACCURATE_DISPLACEMENT_BOUNDS
+	const bool bSecondaryBin = !bWPOEnabled; // use secondary bin where applicable when WPO disabled
+	const uint RasterBin = GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, Patch.TriIndex, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
+#endif
+
 	uint3 VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
 	float3 Verts[3] = 
 	{
@@ -101,11 +109,17 @@ uint FSplitTask::Run()
 	FNaniteRawAttributeData RawAttributeData[3];
 	GetRawAttributeData3( RawAttributeData, Cluster, VertIndexes, 0 );
 
-	const float DisplacementBase = 0.8;
-	const float DisplacementScale = 5.0;
-
-	float DisplacementMin = ( 0 - DisplacementBase ) * DisplacementScale;
-	float DisplacementMax = ( 1 - DisplacementBase ) * DisplacementScale;
+	// TODO: Handle GetPrimitiveData(InstanceData.PrimitiveId).MaxWPOExtent?
+#if DISABLE_DISPLACEMENT_BOUNDS
+	const float DisplacementMin = 0.0f;
+	const float DisplacementMax = 0.0f;
+#elif ACCURATE_DISPLACEMENT_BOUNDS
+	const float DisplacementMin = RasterBinMeta[RasterBin].MinMaterialDisplacement;
+	const float DisplacementMax = RasterBinMeta[RasterBin].MaxMaterialDisplacement;
+#else
+	const float DisplacementMin = GetPrimitiveData(InstanceData.PrimitiveId).MinMaterialDisplacement;
+	const float DisplacementMax = GetPrimitiveData(InstanceData.PrimitiveId).MaxMaterialDisplacement;
+#endif
 
 	float3 BoundsMin = +INFINITE_FLOAT;
 	float3 BoundsMax = -INFINITE_FLOAT;
@@ -173,9 +187,7 @@ uint FSplitTask::Run()
 	Cull.GlobalClipPlane();
 
 #if VIRTUAL_TEXTURE_TARGET
-	const bool bMaterialInvalidates = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
-	const bool bHasMoved = InstanceDynamicData.bHasMoved || bMaterialInvalidates;
-
+	const bool bHasMoved = InstanceDynamicData.bHasMoved || bWPOEnabled;
 	Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 #endif
 
