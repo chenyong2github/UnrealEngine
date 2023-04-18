@@ -62,6 +62,20 @@ FDownloadFile::FDownloadFile(FStringView InTargetDirectory, EVerbosity InVerbosi
 	}
 }
 
+FSharedBuffer FDownloadFile::GetFileData(const FStringView& Filename)
+{
+	const uint32 Hash = GetTypeHash(Filename);
+	FSharedBuffer* Buffer = FileDataMap.FindByHash(Hash, Filename);
+	if (Buffer != nullptr)
+	{
+		return *Buffer;
+	}
+	else
+	{
+		return FSharedBuffer();
+	}
+}
+
 FCreateWorkspace::FCreateWorkspace(FStringView InWorkspaceName, FStringView InWorkspaceRoot)
 	: WorkspaceName(InWorkspaceName)
 {

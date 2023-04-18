@@ -3095,7 +3095,7 @@ bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InComma
 
 				for (int32 Index = 0; Index < InCommand.Files.Num(); ++Index)
 				{
-					Operation->AddFileData(InCommand.Files[Index], FilesData[Index]);
+					Operation->__Internal_AddFileData(InCommand.Files[Index], FilesData[Index]);
 				}
 			}
 		}
