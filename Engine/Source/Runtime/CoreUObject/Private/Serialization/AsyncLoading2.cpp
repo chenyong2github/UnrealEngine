@@ -6612,7 +6612,10 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_PostLoadExportBundle(FAsyncL
 		const bool bAsyncPostLoadEnabled = FAsyncLoadingThreadSettings::Get().bAsyncPostLoadEnabled;
 		const bool bIsMultithreaded = Package->AsyncLoadingThread.IsMultithreaded();
 
+		{
 #if WITH_EDITOR
+		UE::Core::Private::FPlayInEditorLoadingScope PlayInEditorIDScope(Package->Desc.PIEInstanceID);
+
 		const FAsyncPackageHeaderData* HeaderData;
 		if (InExportBundleIndex == 1)
 		{
@@ -6666,6 +6669,8 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_PostLoadExportBundle(FAsyncL
 				} while (false);
 			}
 			++Package->ExportBundleEntryIndex;
+		}
+
 		}
 
 		// End async loading, simulates EndLoad
@@ -8124,14 +8129,20 @@ void FAsyncPackage2::CreateUPackage()
 		bCreatedLinkerRoot = true;
 	}
 
+#if WITH_EDITOR
+	// Do not overwrite PIEInstanceID for package that might already have one from a previous load
+	// or an in-memory only package created specifically for PIE.
+	if (!LinkerRoot->bHasBeenFullyLoaded && LinkerRoot->GetLoadedPath().IsEmpty())
+	{
+		LinkerRoot->SetPIEInstanceID(Desc.PIEInstanceID);
+	}
+#endif
+
 	LinkerRoot->SetFlags(RF_Public | RF_WasLoaded);
 	LinkerRoot->SetLoadedPath(Desc.PackagePathToLoad);
 	LinkerRoot->SetCanBeImportedFlag(Desc.bCanBeImported);
 	LinkerRoot->SetPackageId(Desc.UPackageId);
 	LinkerRoot->SetPackageFlags(Desc.PackageFlags);
-#if WITH_EDITOR
-	LinkerRoot->SetPIEInstanceID(Desc.PIEInstanceID);
-#endif
 
 	EInternalObjectFlags FlagsToSet = EInternalObjectFlags::Async;
 	if (Desc.bCanBeImported)
