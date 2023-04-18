@@ -312,6 +312,18 @@ Spawns Helm and waits for it to complete.
 | WorkingDir      | String    | Optional | Base directory for running the command                                            |
 | If              | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
 
+### Horde-CreateReport
+
+Creates a Horde report file, which will be displayed on the dashboard with any job running this task.
+
+|           |           |          |                                                                                   |
+| --------- | --------- | -------- | --------------------------------------------------------------------------------- |
+| Name      | String    | Required | Name for the report                                                               |
+| Scope     | String    | Required | Where to display the report                                                       |
+| Placement | String    | Required | Where to show the report                                                          |
+| Text      | String    | Required | Text to be displayed                                                              |
+| If        | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
+
 ### Kubectl
 
 Spawns Kubectl and waits for it to complete.
