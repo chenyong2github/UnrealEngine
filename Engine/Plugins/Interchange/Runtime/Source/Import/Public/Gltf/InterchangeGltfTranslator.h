@@ -97,6 +97,8 @@ private:
 
 	GLTF::FAsset GltfAsset;
 	mutable FNodeUidMap NodeUidMap;
+
+	bool bRenderSettingsClearCoatEnableSecondNormal = false;
 };
 
 
