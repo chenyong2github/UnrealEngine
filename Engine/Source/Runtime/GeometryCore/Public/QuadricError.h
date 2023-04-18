@@ -125,22 +125,6 @@ struct TQuadricError
 		Subtract(b);
 	}
 
-	TQuadricError& operator=(const TQuadricError& b)
-	{
-		Axx = b.Axx;
-		Axy = b.Axy;
-		Axz = b.Axz;
-		Ayy = b.Ayy;
-		Ayz = b.Ayz;
-		Azz = b.Azz;
-		bx = b.bx;
-		by = b.by;
-		bz = b.bz;
-		c = b.c;
-
-		return *this;
-	}
-
 	/** 
 	* Scale this quadric by the weight 'w'
 	*/
@@ -374,13 +358,6 @@ public:
 	}
 
 
-	TVolPresQuadricError& operator=(const TVolPresQuadricError& other)
-	{
-		BaseStruct::operator=(other);
-		PlaneData = other.PlaneData;
-		return *this;
-	}
-
 	/**
 	* The optimal point minimizing the quadric error with respect to a volume conserving constraint
 	*/
@@ -575,24 +552,6 @@ public:
 		d[2] += w * other.d[2];
 	}
 
-
-	TAttrBasedQuadricError& operator=(const TAttrBasedQuadricError& other)
-	{
-		BaseClass::operator=(other);
-
-		a = other.a;
-		attrweight = other.attrweight;
-
-		grad[0] = other.grad[0];
-		grad[1] = other.grad[1];
-		grad[2] = other.grad[2];
-
-		d[0] = other.d[0];
-		d[1] = other.d[1];
-		d[2] = other.d[2];
-
-		return *this;
-	}
 
 	/**
 	* The optimal point minimizing the quadric error with respect to a volume conserving constraint
