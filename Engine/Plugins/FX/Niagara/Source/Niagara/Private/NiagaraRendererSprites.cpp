@@ -247,13 +247,18 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 	ParticleSpriteRenderData.bHasTranslucentMaterials = IsTranslucentBlendMode(Material);
 
 	// If these conditions change please update the DebugHUD display also to reflect it
-	const bool bLowLatencyTranslucencyEnabled =
+	bool bLowLatencyTranslucencyEnabled =
 		ParticleSpriteRenderData.bHasTranslucentMaterials &&
 		bGpuLowLatencyTranslucency &&
 		GpuReadyTickStage >= CurrentParticleData->GetGPUDataReadyStage() &&
-		Material.IsTranslucencyWritingCustomDepth() &&
 		!SceneProxy->CastsVolumetricTranslucentShadow() &&
 		ViewFamilySupportLowLatencyTranslucency(ViewFamily);
+
+	if (bLowLatencyTranslucencyEnabled && SceneProxy->ShouldRenderCustomDepth())
+	{
+		bLowLatencyTranslucencyEnabled &= !Material.IsTranslucencyWritingCustomDepth();
+	}
+
 
 	ParticleSpriteRenderData.SourceParticleData = ParticleSpriteRenderData.DynamicDataSprites->GetParticleDataToRender(bLowLatencyTranslucencyEnabled);
 	if ( !ParticleSpriteRenderData.SourceParticleData || (SourceMode == ENiagaraRendererSourceDataMode::Particles && ParticleSpriteRenderData.SourceParticleData->GetNumInstances() == 0) )

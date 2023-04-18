@@ -27,7 +27,7 @@ bool UE::FXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(
 	const FMaterial& Material)
 {
 	// Opaque materials & translucent that write custom depth will always need to render before FFXSystemInterface::PostOpaqueRender
-	if (!IsTranslucentBlendMode(Material) || Material.IsTranslucencyWritingCustomDepth())
+	if (!IsTranslucentBlendMode(Material) || (SceneProxy.ShouldRenderCustomDepth() && Material.IsTranslucencyWritingCustomDepth()))
 	{
 		return true;
 	}
