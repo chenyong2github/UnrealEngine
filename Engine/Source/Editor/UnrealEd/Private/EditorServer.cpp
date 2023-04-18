@@ -5391,11 +5391,13 @@ void UEditorEngine::BroadcastPostUndoRedo(const FTransactionContext& UndoContext
 	// This sanitization code can be removed once blueprint ::Conform(ImplementedEvents/ImplementedInterfaces) 
 	// functions have been fixed. For the time being it improves editor stability, though:
 	UEdGraphPin::SanitizePinsPostUndoRedo();
-
+	
+	check(InflightUndoClients.IsEmpty());
+	
 	// Note that we use a copy here as clients can register/unregister with the undo system while in PostUndo()/PostRedo()
 	// which modifies UndoClients during the loop. This can cause an infinite loop where the iterator never finishes.
-	const TSet<FEditorUndoClient*> UndoClientsCopy = UndoClients;
-	for (auto UndoIt = UndoClientsCopy.CreateConstIterator(); UndoIt; ++UndoIt)
+	InflightUndoClients = UndoClients;
+	for (auto UndoIt = InflightUndoClients.CreateConstIterator(); UndoIt; ++UndoIt)
 	{
 		FEditorUndoClient* Client = *UndoIt;
 		if (Client && Client->MatchesContext(UndoContext, CurrentUndoRedoContext->TransactionObjects))
@@ -5414,6 +5416,7 @@ void UEditorEngine::BroadcastPostUndoRedo(const FTransactionContext& UndoContext
 	// Invalidate all viewports
 	InvalidateAllViewportsAndHitProxies();
 
+	InflightUndoClients.Empty();
 	FEditorDelegates::PostUndoRedo.Broadcast();
 }
 
@@ -6892,6 +6895,7 @@ void UEditorEngine::UnregisterForUndo( FEditorUndoClient* Client)
 	if (Client)
 	{
 		UndoClients.Remove(Client);
+		InflightUndoClients.Remove(Client);
 	}
 }
 
