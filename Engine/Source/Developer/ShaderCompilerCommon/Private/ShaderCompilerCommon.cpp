@@ -910,7 +910,7 @@ void AddUnboundShaderParameterError(
 	check(CompilerInput.RootParametersStructure);
 
 	const FShaderParameterParser::FParsedShaderParameter& Member = ShaderParameterParser.FindParameterInfos(ParameterBindingName);
-	check(!Member.IsBindable());
+	check(!Member.bIsBindable);
 
 	FShaderCompilerError Error(FString::Printf(
 		TEXT("Error: Shader parameter %s could not be bound to %s's shader parameter structure %s."),

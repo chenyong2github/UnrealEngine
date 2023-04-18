@@ -25,7 +25,11 @@ public:
 	{
 	public:
 		/** Original information about the member. */
-		const FShaderParametersMetadata::FMember* Member = nullptr;
+		EUniformBufferBaseType BaseType;
+		EShaderPrecisionModifier::Type PrecisionModifier;
+		uint32 NumRows;
+		uint32 NumColumns;
+		uint32 MemberSize;
 
 		/** Information found about the member when parsing the preprocessed code. */
 		FStringView ParsedName; /** View into FShaderParameterParser::OriginalParsedShader */
@@ -41,12 +45,6 @@ public:
 			return !ParsedType.IsEmpty();
 		}
 
-		/** Returns whether the shader parameter is bindable to the shader parameter structure. */
-		bool IsBindable() const
-		{
-			return Member != nullptr;
-		}
-
 		int32 ParsedPragmaLineoffset = 0;
 		int32 ParsedLineOffset = 0;
 
@@ -58,6 +56,7 @@ public:
 		EShaderParameterType ConstantBufferParameterType{};
 
 		bool bGloballyCoherent = false;
+		bool bIsBindable = false;
 
 		friend class FShaderParameterParser;
 	};

@@ -212,10 +212,18 @@ public:
 		/** Returns the metadata of the struct. */
 		const FShaderParametersMetadata* GetStructMetadata() const { return Struct; }
 
+		inline bool IsVariableNativeType() const
+		{
+			return 
+				BaseType == UBMT_INT32 ||
+				BaseType == UBMT_UINT32 ||
+				BaseType == UBMT_FLOAT32;
+		}
+
 		/** Returns the size of the member. */
 		inline uint32 GetMemberSize() const
 		{
-			check(BaseType == UBMT_FLOAT32 || BaseType == UBMT_INT32 || BaseType == UBMT_UINT32);
+			check(IsVariableNativeType());
 			uint32 ElementSize = sizeof(uint32) * NumRows * NumColumns;
 
 			/** If this an array, the alignment of the element are changed. */
@@ -226,6 +234,14 @@ public:
 			return ElementSize;
 		}
 
+		static void GenerateShaderParameterType(
+			FString& Result,
+			bool bSupportsPrecisionModifier,
+			EUniformBufferBaseType BaseType,
+			EShaderPrecisionModifier::Type PrecisionModifier,
+			uint32 NumRows,
+			uint32 NumColumns
+		);
 		void GenerateShaderParameterType(FString& Result, bool bSupportsPrecisionModifier) const;
 		void GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const;
 

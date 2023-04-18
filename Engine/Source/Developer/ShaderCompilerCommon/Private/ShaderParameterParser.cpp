@@ -170,10 +170,13 @@ bool FShaderParameterParser::ParseParameters(
 				uint16 ByteOffset)
 			{
 				FParsedShaderParameter ParsedParameter;
-				ParsedParameter.Member = &Member;
+				ParsedParameter.bIsBindable = true;
 				ParsedParameter.ConstantBufferOffset = ByteOffset;
-				check(ParsedParameter.IsBindable());
-
+				ParsedParameter.BaseType = Member.GetBaseType();
+				ParsedParameter.PrecisionModifier = Member.GetPrecision();
+				ParsedParameter.NumRows = Member.GetNumRows();
+				ParsedParameter.NumColumns = Member.GetNumColumns();
+				ParsedParameter.MemberSize = Member.IsVariableNativeType() ? Member.GetMemberSize() : 0u;
 				ParsedParameters.Add(ShaderBindingName, ParsedParameter);
 			});
 	}
@@ -319,9 +322,9 @@ bool FShaderParameterParser::ParseParameters(
 						ParsedParameter = ParsedParameters.FindChecked(ParsedParameterKey);
 
 						// Erase the parameter to move it into the root constant buffer.
-						if (bNeedToMoveToRootConstantBuffer && ParsedParameter.IsBindable())
+						if (bNeedToMoveToRootConstantBuffer && ParsedParameter.bIsBindable)
 						{
-							const EUniformBufferBaseType BaseType = ParsedParameter.Member->GetBaseType();
+							const EUniformBufferBaseType BaseType = ParsedParameter.BaseType;
 							bMoveToRootConstantBuffer =
 								BaseType == UBMT_INT32 ||
 								BaseType == UBMT_UINT32 ||
@@ -1016,10 +1019,16 @@ void FShaderParameterParser::ValidateShaderParameterType(
 	if (!bBindlessHack)
 	{
 		FString ExpectedShaderType;
-		ParsedParameter.Member->GenerateShaderParameterType(ExpectedShaderType, bPlatformSupportsPrecisionModifier);
+		FShaderParametersMetadata::FMember::GenerateShaderParameterType(
+			ExpectedShaderType, 
+			bPlatformSupportsPrecisionModifier,
+			ParsedParameter.BaseType,
+			ParsedParameter.PrecisionModifier,
+			ParsedParameter.NumRows,
+			ParsedParameter.NumColumns);
 
-		const bool bShouldBeInt = ParsedParameter.Member->GetBaseType() == UBMT_INT32;
-		const bool bShouldBeUint = ParsedParameter.Member->GetBaseType() == UBMT_UINT32;
+		const bool bShouldBeInt = ParsedParameter.BaseType == UBMT_INT32;
+		const bool bShouldBeUint = ParsedParameter.BaseType == UBMT_UINT32;
 
 		// Match parsed type with expected shader type
 		bool bIsTypeCorrect = ParsedParameter.ParsedType == ExpectedShaderType;
@@ -1035,7 +1044,7 @@ void FShaderParameterParser::ValidateShaderParameterType(
 			};
 
 			// Accept half-precision floats when single-precision was requested
-			if (ParsedParameter.ParsedType.StartsWith(TEXT("half")) && ParsedParameter.Member->GetBaseType() == UBMT_FLOAT32)
+			if (ParsedParameter.ParsedType.StartsWith(TEXT("half")) && ParsedParameter.BaseType == UBMT_FLOAT32)
 			{
 				bIsTypeCorrect = CheckTypeCorrect(4, 5);
 			}
@@ -1095,7 +1104,7 @@ void FShaderParameterParser::ValidateShaderParameterType(
 	}
 
 	// Validate parameter size, in case this is an array.
-	if (!bBindlessHack && ReflectionSize > int32(ParsedParameter.Member->GetMemberSize()))
+	if (!bBindlessHack && ReflectionSize > int32(ParsedParameter.MemberSize))
 	{
 		FString CppCodeName = CompilerInput.RootParametersStructure->GetFullMemberCodeName(ParsedParameter.ConstantBufferOffset);
 
@@ -1105,7 +1114,7 @@ void FShaderParameterParser::ValidateShaderParameterType(
 			*ShaderBindingName,
 			ReflectionSize,
 			*CppCodeName,
-			ParsedParameter.Member->GetMemberSize());
+			ParsedParameter.MemberSize);
 		GetParameterFileAndLine(ParsedParameter, Error.ErrorVirtualFilePath, Error.ErrorLineString);
 
 		CompilerOutput.Errors.Add(Error);

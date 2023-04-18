@@ -68,22 +68,28 @@ TMap<FHashedName, FShaderParametersMetadata*>& FShaderParametersMetadata::GetNam
 	return NameStructMap;
 }
 
-void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Result, bool bSupportsPrecisionModifier) const
+void FShaderParametersMetadata::FMember::GenerateShaderParameterType(
+	FString& Result,
+	bool bSupportsPrecisionModifier,
+	EUniformBufferBaseType BaseType,
+	EShaderPrecisionModifier::Type PrecisionModifier,
+	uint32 NumRows,
+	uint32 NumColumns)
 {
-	switch (GetBaseType())
+	switch (BaseType)
 	{
 	case UBMT_INT32:   Result = TEXT("int"); break;
 	case UBMT_UINT32:  Result = TEXT("uint"); break;
 	case UBMT_FLOAT32:
-		if (GetPrecision() == EShaderPrecisionModifier::Float || !bSupportsPrecisionModifier)
+		if (PrecisionModifier == EShaderPrecisionModifier::Float || !bSupportsPrecisionModifier)
 		{
 			Result = TEXT("float");
 		}
-		else if (GetPrecision() == EShaderPrecisionModifier::Half)
+		else if (PrecisionModifier == EShaderPrecisionModifier::Half)
 		{
 			Result = TEXT("half");
 		}
-		else if (GetPrecision() == EShaderPrecisionModifier::Fixed)
+		else if (PrecisionModifier == EShaderPrecisionModifier::Fixed)
 		{
 			Result = TEXT("fixed");
 		}
@@ -93,14 +99,19 @@ void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Re
 	};
 
 	// Generate the type dimensions for vectors and matrices.
-	if (GetNumRows() > 1)
+	if (NumRows > 1)
 	{
-		Result = FString::Printf(TEXT("%s%ux%u"), *Result, GetNumRows(), GetNumColumns());
+		Result = FString::Printf(TEXT("%s%ux%u"), *Result, NumRows, NumColumns);
 	}
-	else if (GetNumColumns() > 1)
+	else if (NumColumns > 1)
 	{
-		Result = FString::Printf(TEXT("%s%u"), *Result, GetNumColumns());
+		Result = FString::Printf(TEXT("%s%u"), *Result, NumColumns);
 	}
+}
+
+void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Result, bool bSupportsPrecisionModifier) const
+{
+	GenerateShaderParameterType(Result, bSupportsPrecisionModifier, GetBaseType(), GetPrecision(), GetNumRows(), GetNumColumns());
 }
 
 void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const
@@ -530,10 +541,7 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 			BaseType == UBMT_SRV ||
 			BaseType == UBMT_SAMPLER);
 		const bool bIsRDGResource = IsRDGResourceReferenceShaderParameterType(BaseType);
-		const bool bIsVariableNativeType = (
-			BaseType == UBMT_INT32 ||
-			BaseType == UBMT_UINT32 ||
-			BaseType == UBMT_FLOAT32);
+		const bool bIsVariableNativeType = CurrentMember.IsVariableNativeType();
 
 		LayoutInitializer.bHasNonGraphOutputs |= BaseType == UBMT_UAV;
 

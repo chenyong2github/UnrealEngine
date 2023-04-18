@@ -80,10 +80,7 @@ struct FShaderParameterStructBindingContext
 			const bool bIsRDGResource =
 				IsRDGResourceReferenceShaderParameterType(BaseType);
 
-			const bool bIsVariableNativeType = (
-				BaseType == UBMT_INT32 ||
-				BaseType == UBMT_UINT32 ||
-				BaseType == UBMT_FLOAT32);
+			const bool bIsVariableNativeType = Member.IsVariableNativeType();
 
 			checkf(BaseType != UBMT_BOOL, TEXT("Should have failed in FShaderParametersMetadata::InitializeLayout()"));
 
