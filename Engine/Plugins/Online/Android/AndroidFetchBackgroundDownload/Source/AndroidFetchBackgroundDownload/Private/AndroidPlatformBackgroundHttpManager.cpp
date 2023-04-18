@@ -302,19 +302,18 @@ void FAndroidPlatformBackgroundHttpManager::ActivatePendingRequests()
 			UE_LOG(LogBackgroundHttpManager, Display, TEXT("Adding %d requests to UEDownloadableWorker's DownloadDescription list for active work to be done."), RequestsToSendToJavaLayer.Num());
 			for (FAndroidBackgroundHttpRequestPtr& Request : RequestsToSendToJavaLayer)
 			{
-				if (IsValidRequestToEnqueue(Request))
-				{
-					FScopedJavaObject<jstring> JavaJSONString = FJavaHelper::ToJavaString(Env, Request->ToJSon());
-					FScopedJavaObject<jobject> Description = NewScopedJavaObject(Env, Env->CallStaticObjectMethod(FAndroidPlatformBackgroundHttpManager::JavaInfo.DownloadDescriptionClass, FAndroidPlatformBackgroundHttpManager::JavaInfo.CreateDownloadDescriptionFromJsonMethod, *JavaJSONString));
+				const FString RequestJSONString = Request->ToJSon();
+				FScopedJavaObject<jstring> JavaJSONString = FJavaHelper::ToJavaString(Env, RequestJSONString);
+				FScopedJavaObject<jobject> Description = NewScopedJavaObject(Env, Env->CallStaticObjectMethod(FAndroidPlatformBackgroundHttpManager::JavaInfo.DownloadDescriptionClass, FAndroidPlatformBackgroundHttpManager::JavaInfo.CreateDownloadDescriptionFromJsonMethod, *JavaJSONString));
+				UE_LOG(LogBackgroundHttpManager, VeryVerbose, TEXT("Generated JSON for request %s. || %s"), *Request->GetRequestID(), *RequestJSONString);
 
-					bool bAddedRequestAsDescription = FJavaWrapper::CallBooleanMethod(Env, *DescriptionArray, ArrayPutMethod, *Description);
-					if (!bAddedRequestAsDescription)
-					{
-						ensureAlwaysMsgf(false, TEXT("Failed to create and add valid DownloadDescription for request %s"), *Request->GetRequestID());
-						//We failed to add this request to our download worker so just mark it as completed so it can send a failure completion
-						MarkUnderlyingJavaRequestAsCompleted(Request, false);
-					}
-				}				
+				bool bAddedRequestAsDescription = FJavaWrapper::CallBooleanMethod(Env, *DescriptionArray, ArrayPutMethod, *Description);
+				if (!bAddedRequestAsDescription)
+				{
+					ensureAlwaysMsgf(false, TEXT("Failed to create and add valid DownloadDescription for request %s"), *Request->GetRequestID());
+					//We failed to add this request to our download worker so just mark it as completed so it can send a failure completion
+					MarkUnderlyingJavaRequestAsCompleted(Request, false);
+				}
 			}
 				
 			//Call JNI function that saves our passed in ArrayList<DownloadDescription> to a file
@@ -352,7 +351,7 @@ void FAndroidPlatformBackgroundHttpManager::ActivatePendingRequests()
 				FText UpdatedContentText = FText::Format(AndroidBackgroundHTTPManagerDefaultLocalizedText.DefaultNotificationText_Content.GetText(), Arguments);
 				WorkParams.AddDataToWorkerParameters(FAndroidNativeDownloadWorkerParameterKeys::NOTIFICATION_CONTENT_TEXT_KEY, UpdatedContentText);
 
-				UE_LOG(LogBackgroundHttpManager, Display, TEXT("Attempting to schedule UEDownloadableWorker for background work"));
+				UE_LOG(LogBackgroundHttpManager, Display, TEXT("Attempting to schedule UEDownloadableWorker for background work. DownloadDescriptionList FileName:%s"), *FileNameForDownloadDescList);
 				bDidSuccessfullyScheduleWork  = FUEWorkManagerNativeWrapper::ScheduleBackgroundWork(BackgroundHTTPWorkID, WorkParams);
 			}
 			
@@ -478,7 +477,8 @@ void FAndroidPlatformBackgroundHttpManager::PauseRequest(FBackgroundHttpRequestP
 	if (ensureAlwaysMsgf(IsInGameThread(), TEXT("Should only ever call PauseRequest from GameThread! Can not pause!")))
 	{
 		const FString RequestID = Request->GetRequestID();
-		
+		UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("PauseRequest called on %s"), *RequestID);
+
 		//Flag our request as paused
 		FAndroidBackgroundHttpRequestPtr AndroidRequest = StaticCastSharedPtr<FAndroidPlatformBackgroundHttpRequest>(Request);
 		if (ensureAlwaysMsgf(AndroidRequest.IsValid(), TEXT("Invalid request in Active Requests!")))
@@ -508,6 +508,7 @@ void FAndroidPlatformBackgroundHttpManager::ResumeRequest(FBackgroundHttpRequest
 	if (ensureAlwaysMsgf(IsInGameThread(), TEXT("Should only ever call ResumeRequest from GameThread! Can not Resume!")))
 	{
 		const FString RequestID = Request->GetRequestID();
+		UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("ResumeRequest called on %s"), *RequestID);
 
 		//Flag our request as resumed
 		FAndroidBackgroundHttpRequestPtr AndroidRequest = StaticCastSharedPtr<FAndroidPlatformBackgroundHttpRequest>(Request);
@@ -538,6 +539,7 @@ void FAndroidPlatformBackgroundHttpManager::CancelRequest(FBackgroundHttpRequest
 	if (ensureAlwaysMsgf(IsInGameThread(), TEXT("Should only ever call CancelRequest from GameThread! Can not Cancel!")))
 	{
 		const FString RequestID = Request->GetRequestID();
+		UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("CancelRequest called on %s"), *RequestID);
 
 		//Go ahead and remove our request since its cancelled
 		RemoveRequest(Request);
@@ -724,25 +726,6 @@ bool FAndroidPlatformBackgroundHttpManager::HasUnderlyingJavaCompletedRequest(FA
 	}
 	
 	return false;
-}
-
-bool FAndroidPlatformBackgroundHttpManager::IsValidRequestToEnqueue(FBackgroundHttpRequestPtr Request)
-{
-	FAndroidBackgroundHttpRequestPtr AndroidRequest = StaticCastSharedPtr<FAndroidPlatformBackgroundHttpRequest>(Request);
-	if (ensureAlwaysMsgf((AndroidRequest.IsValid()), TEXT("Invalid Non-Android request checked for valid request! Returning false")))
-	{
-		return IsValidRequestToEnqueue(AndroidRequest);
-	}
-
-	return false;
-}
-
-bool FAndroidPlatformBackgroundHttpManager::IsValidRequestToEnqueue(FAndroidBackgroundHttpRequestPtr Request)
-{
-	const bool bIsComplete = HasUnderlyingJavaCompletedRequest(Request);
-	const bool bIsPaused = FPlatformAtomics::AtomicRead(&(Request->bIsPaused));
-
-	return (!bIsComplete && !bIsPaused);
 }
 
 void FAndroidPlatformBackgroundHttpManager::Java_OnWorkerStart(FString WorkID, jobject UnderlyingWorker)

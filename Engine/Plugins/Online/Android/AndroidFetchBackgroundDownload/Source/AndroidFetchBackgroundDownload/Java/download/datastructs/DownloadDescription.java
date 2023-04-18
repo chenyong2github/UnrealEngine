@@ -36,14 +36,22 @@ public class DownloadDescription
 	public boolean bHasCompleted = false;
 
 	//
+	//Serliazed AND state Members -- Initial state is pulled from WorkerParameters but further
+	//changes are made to track download information
+	//
+
+	//If our download is currently paused.
+	public boolean bIsPaused = false;
+
 	//Non-serialized members -- Used to track download information
 	//
 	public int CurrentRetryCount = 0;
 	public int CachedFetchID = 0;
-	public boolean bIsPaused = false;
+	
 	public boolean bIsCancelled = false;
-	public long PreviousDownloadedBytes = 0;
+
 	public int PreviousDownloadPercent = 0;
+	public long PreviousDownloadedBytes = 0;
 	public long TotalBytesNeeded = 0;
 	public long TotalDownloadedBytes = 0;
 	public DownloadProgressListener ProgressListener = null;
@@ -215,6 +223,12 @@ public class DownloadDescription
 			{
 				ReturnedDescription.bHasCompleted = jObject.optBoolean(bHasCompletedKey);
 			}
+
+			if (false == jObject.isNull(bIsPausedKey))
+			{
+				ReturnedDescription.bIsPaused = jObject.optBoolean(bIsPausedKey);
+			}
+
 		}
 		catch( JSONException e )
 		{
@@ -313,4 +327,5 @@ public class DownloadDescription
 	private static final String RequestPriorityKey = "RequestPriority";
 	private static final String GroupIDKey = "GroupId";
 	private static final String bHasCompletedKey = "bHasCompleted";
+	private static final String bIsPausedKey = "bIsPaused";
 }

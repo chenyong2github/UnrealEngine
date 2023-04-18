@@ -135,7 +135,7 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
        //Have to have parsed some DownloadDescriptions to have any meaningful work to do
 		if ((QueueDescription == null) || (QueueDescription.DownloadDescriptions.size() == 0))
 		{
-			Log.error("Invalid QueueDescription! No DownloadDescription list for queued UEDownloadWorker!");
+			Log.error("Invalid QueueDescription! No DownloadDescription list for queued UEDownloadWorker! Worker InputData:" + getInputData());
 			SetWorkResult_Failure();
 			return;
 		}
@@ -175,7 +175,6 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 		if (!bReceivedResult && bHasEnqueueHappened && !bForceStopped)
 		{
 			mFetchManager.RequestGroupProgressUpdate(QueueDescription.DownloadGroupID,  this);
-			mFetchManager.RequestCheckDownloadsStillActive(this);
 
 			nativeAndroidBackgroundDownloadOnTick();
 		}

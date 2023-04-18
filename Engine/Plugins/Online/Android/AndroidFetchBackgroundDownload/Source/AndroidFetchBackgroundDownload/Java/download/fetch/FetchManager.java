@@ -320,8 +320,8 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 		NewDescription.TotalBytesNeeded = OldDescription.TotalBytesNeeded;
 		NewDescription.TotalDownloadedBytes = OldDescription.TotalDownloadedBytes;
 
-		// Purposefully don't copy bIsPaused or bIsCancelled as we want that to come from the new description in case 
-		// this has been set on C++ side but not yet received by our Worker before new work was queued. C++ state should be definitive
+		// Purposefully don't copy bIsCancelled as this isn't tracked on the C++ side and if we are asking for this to be re-queued then
+		// we no longer want this download cancelled and should redo it
 
 		//Purposefully don't copy DownloadProgressListener as we set this based on the new QueueDescription already and likely
 		//don't want to keep the old one (although in current code they match).

@@ -41,6 +41,7 @@ private:
 	static const FString RequestPriorityKey;
 	static const FString GroupIDKey;
 	static const FString bHasCompletedKey;
+	static const FString bIsPausedKey;
 
 private:
 	volatile int32 bIsPaused;

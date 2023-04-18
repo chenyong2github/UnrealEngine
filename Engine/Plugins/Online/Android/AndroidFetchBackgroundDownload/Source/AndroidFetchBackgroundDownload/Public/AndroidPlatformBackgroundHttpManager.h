@@ -92,10 +92,6 @@ protected:
 	void MarkUnderlyingJavaRequestAsCompleted(FBackgroundHttpRequestPtr Request, bool bSuccess = true );
 	void MarkUnderlyingJavaRequestAsCompleted(FAndroidBackgroundHttpRequestPtr Request, bool bSuccess = true);
 
-	//returns true if this request is a valid request to send through to our underlying Java worker. Makes sure the request is not completed or paused
-	bool IsValidRequestToEnqueue(FBackgroundHttpRequestPtr Request);
-	bool IsValidRequestToEnqueue(FAndroidBackgroundHttpRequestPtr Request);
-
 	//Array used to store Pause/Resume/Cancel requests in a thread-safe non-locking way. This way we can utilize the _Java lists in our Java_OnTick
 	//without worrying about blocking the java thread
 	TArray<FString> RequestsToPauseByID_GT;
