@@ -8,10 +8,32 @@
 
 class FCanvas;
 class FRenderTarget;
+class ASkeletalMeshActor;
+enum class ERetargetSourceOrTarget : uint8;
+
+class IKRIGEDITOR_API FIKRetargeterThumbnailScene : public FThumbnailPreviewScene
+{
+public:
+	
+	FIKRetargeterThumbnailScene();
+
+	// sets the retargeter to use in the next CreateView()
+	void SetSkeletalMeshes(USkeletalMesh* SourceMesh, USkeletalMesh* TargetMesh) const;
+
+protected:
+	// FThumbnailPreviewScene implementation
+	virtual void GetViewMatrixParameters(const float InFOVDegrees, FVector& OutOrigin, float& OutOrbitPitch, float& OutOrbitYaw, float& OutOrbitZoom) const override;
+
+private:
+	// the skeletal mesh actors used to display all skeletal mesh thumbnails
+	ASkeletalMeshActor* SourceActor;
+	ASkeletalMeshActor* TargetActor;
+};
+
 
 // this thumbnail renderer displays a given IK Rig in the asset icon
 UCLASS(config=Editor, MinimalAPI)
-class UIKRetargeterThumbnailRenderer : public USkeletalMeshThumbnailRenderer
+class UIKRetargeterThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 {
 	GENERATED_BODY()
 
@@ -21,6 +43,10 @@ class UIKRetargeterThumbnailRenderer : public USkeletalMeshThumbnailRenderer
 	IKRIGEDITOR_API virtual EThumbnailRenderFrequency GetThumbnailRenderFrequency(UObject* Object) const override;
 	// End UThumbnailRenderer Object
 	
-	USkeletalMesh* GetPreviewMeshFromAsset(UObject* Object) const;
+	USkeletalMesh* GetPreviewMeshFromAsset(UObject* Object, ERetargetSourceOrTarget SourceOrTarget) const;
+	bool HasSourceOrTargetMesh(UObject* Object) const;
+
+protected:
+	TObjectInstanceThumbnailScene<FIKRetargeterThumbnailScene, 128> ThumbnailSceneCache;
 };
 
