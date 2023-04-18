@@ -118,6 +118,24 @@ public:
 	}
 
 
+	/**
+	 * Remove any Hole polygons for which RemoveHolePredicateFunc(Hole) returns true
+	 */
+	void FilterHoles(TFunctionRef<bool(const TPolygon2<T>&)> RemoveHolePredicateFunc)
+	{
+		int32 NumHoles = Holes.Num();
+		for (int32 k = 0; k < NumHoles; ++k)
+		{
+			if ( RemoveHolePredicateFunc(Holes[k]) )
+			{
+				Holes.RemoveAtSwap(k);
+				k--;		// need to reconsider index k
+				NumHoles--;
+			}
+		}
+	}
+
+
     double SignedArea() const
     {
         double Sign = (bOuterIsCW) ? -1.0 : 1.0;
@@ -163,7 +181,8 @@ public:
     }
 
 
-	void Translate(TVector2<T> translate) {
+	void Translate(TVector2<T> translate) 
+	{
 		Outer.Translate(translate);
 		for (TPolygon2<T>& Hole : Holes)
 		{
@@ -311,6 +330,21 @@ public:
 			Hole.Simplify(ClusterTol, LineDeviationTol);
 		}
     }
+
+
+	/**
+	 * Offset each polygon by the given Distance along vertex "normal" direction (ie for positive offset, outer polygon grows and holes shrink)
+	 * @param OffsetDistance the distance to offset
+	 * @param bUseFaceAvg if true, we offset by the average-face normal instead of the perpendicular-tangent normal
+	 */
+	void VtxNormalOffset(T OffsetDistance, bool bUseFaceAvg = false)
+	{
+		Outer.VtxNormalOffset(OffsetDistance, bUseFaceAvg);
+		for (TPolygon2<T>& Hole : Holes)
+		{
+			Hole.VtxNormalOffset(OffsetDistance, bUseFaceAvg);
+		}
+	}
 
 };
 
