@@ -31,7 +31,7 @@ public:
 	static UAsyncAction_PerformTargeting* PerformFilteringRequest(AActor* SourceActor, UTargetingPreset* TargetingPreset, bool bUseAsyncTargeting, const TArray<AActor*> InTargets);
 
 	UFUNCTION(BlueprintPure, Category = "Targeting")
-	const FTargetingRequestHandle& GetTargetingHandle() const { return TargetingHandle; }
+	FTargetingRequestHandle GetTargetingHandle() const { return TargetingHandle; }
 
 	virtual void Activate() override;
 
