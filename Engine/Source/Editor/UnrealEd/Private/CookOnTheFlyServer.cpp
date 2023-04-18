@@ -9113,6 +9113,8 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	FinalizePackageStore();
 	ShutdownCookSession();
 
+	CookByTheBookFinishedEvent.Broadcast();
+
 	UE_LOG(LogCook, Display, TEXT("Done!"));
 }
 

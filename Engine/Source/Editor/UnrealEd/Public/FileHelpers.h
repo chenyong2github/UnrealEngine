@@ -198,6 +198,13 @@ public:
 		GCO_CollectGarbage			= 1,
 	};
 
+	DECLARE_MULTICAST_DELEGATE(FOnLoadMapStart);
+	static UNREALED_API FOnLoadMapStart& GetOnLoadMapStartDelegate();
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLoadMapEnd, const FString& Filename);
+	static UNREALED_API FOnLoadMapEnd& GetOnLoadMapEndDelegate();
+
+
 	/** Sets the active level filename so that "Save" operates on this file and "SaveAs" must be used on others */
 	static void RegisterLevelFilename(UObject* Object, const FString& NewLevelFilename);
 	
@@ -675,4 +682,8 @@ private:
 
 	// Set of packages which should no longer prompt for checkouts / to be made writable
 	static TSet<FString> PackagesNotToPromptAnyMore;
+
+	static FOnLoadMapStart OnLoadMapStart;
+	static FOnLoadMapEnd OnLoadMapEnd;
+
 };

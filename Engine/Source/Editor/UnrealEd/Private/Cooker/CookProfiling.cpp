@@ -904,58 +904,6 @@ void LogCookStats(ECookMode::Type CookMode)
 		return;
 	}
 
-	if (FStudioAnalytics::IsAvailable() && IsCookByTheBookMode(CookMode))
-	{
-		const int SchemaVersion = 2;
-
-		// convert filtered stats directly to an analytics event
-		TArray<FAnalyticsEventAttribute> Attributes;
-
-		Attributes.Emplace(TEXT("SchemaVersion"), SchemaVersion);
-
-		// Sends each cook stat to the studio analytics system.
-		auto SendCookStatsToAnalytics = [&Attributes](const FString& StatName, const TArray<FCookStatsManager::StringKeyValue>& StatAttributes)
-		{
-			for (const auto& Attr : StatAttributes)
-			{
-				FString FormattedAttrName = (StatName + "_" + Attr.Key).Replace(TEXT("."), TEXT("_"));
-
-				if (Attr.Value.IsNumeric())
-				{
-					Attributes.Emplace(FormattedAttrName, FCString::Atof(*Attr.Value));
-				}
-				else
-				{
-					Attributes.Emplace(FormattedAttrName, Attr.Value);
-				}
-			}
-		};
-
-		// Now actually grab the stats 
-		FCookStatsManager::LogCookStats(SendCookStatsToAnalytics);
-
-		// Gather DDC analytics
-		GetDerivedDataCacheRef().GatherAnalytics(Attributes);
-
-		// Gather Virtualization analytics
-		UE::Virtualization::IVirtualizationSystem::Get().GatherAnalytics(Attributes);
-
-#if UE_WITH_ZEN
-		// Gather Zen analytics
-		if (UE::Zen::IsDefaultServicePresent())
-		{
-			UE::Zen::GetDefaultServiceInstance().GatherAnalytics(Attributes);
-		}
-#endif
-
-		GShaderCompilingManager->GatherAnalytics(Attributes);
-
-		// Record them all under cooking event
-		FStudioAnalytics::GetProvider().RecordEvent(TEXT("Core.Cooking"), Attributes);
-
-		FStudioAnalytics::GetProvider().BlockUntilFlushed(60.0f);
-	}
-
 	/** Used for custom logging of DDC Resource usage stats. */
 	struct FDDCResourceUsageStat
 	{
@@ -1181,11 +1129,6 @@ void LogCookStats(ECookMode::Type CookMode)
 	if (UE::Virtualization::IVirtualizationSystem::IsInitialized())
 	{
 		UE::Virtualization::IVirtualizationSystem::Get().DumpStats();
-	}
-
-	if (IsCookByTheBookMode(CookMode))
-	{
-		FStudioAnalytics::FireEvent_Loading(TEXT("CookByTheBook"), DetailedCookStats::CookWallTimeSec);
 	}
 }
 

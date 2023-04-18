@@ -21,7 +21,6 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Engine/Engine.h"
-#include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "Styling/StarshipCoreStyle.h"
 
@@ -477,8 +476,6 @@ void FFeedbackContextEditor::StartSlowTask( const FText& Task, bool bShowCancelB
 
 				SlowTaskWindowRef->ShowWindow();
 
-				SlowTaskStartTime = FStudioAnalytics::GetAnalyticSeconds();
-
 				TickSlate(SlowTaskWindow.Pin());
 			}
 
@@ -491,12 +488,7 @@ void FFeedbackContextEditor::FinalizeSlowTask()
 {
 	auto Window = SlowTaskWindow.Pin();
 	if (Window.IsValid())
-	{
-		const double SlowTaskDialogTime = FStudioAnalytics::GetAnalyticSeconds() - SlowTaskStartTime;
-		
-		const FText TaskName = ScopeStack.Num() > 0 ? ScopeStack[0]->DefaultMessage : FText::GetEmpty();
-		FStudioAnalytics::FireEvent_Loading(TEXT("SlowTaskDialog"), SlowTaskDialogTime, { FAnalyticsEventAttribute(TEXT("Task"), TaskName.ToString()), FAnalyticsEventAttribute(TEXT("MapName"), TEXT("SlowTask")) });
-
+	{	
 		Window->SetContent(SNullWidget::NullWidget);
 		Window->RequestDestroyWindow();
 		SlowTaskWindow.Reset();

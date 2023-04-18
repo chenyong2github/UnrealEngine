@@ -222,6 +222,7 @@ class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorO
 	UCookOnTheFlyServer(FVTableHelper& Helper); // Declare the FVTableHelper constructor manually so that we can forward-declare-only TUniquePtrs in the header without getting compile error in generated cpp
 
 private:
+
 	using FPollFunction = TUniqueFunction<void(UE::Cook::FTickStackData&)>;
 	/**
 	 * Wrapper around a function for cooker tasks that need to be ticked on a schedule.
@@ -829,6 +830,8 @@ public:
 	void OnObjectUpdated( UObject *Object );
 	void OnObjectSaved( UObject *ObjectSaved, FObjectPreSaveContext SaveContext );
 
+	DECLARE_MULTICAST_DELEGATE(FOnCookByTheBookFinished);
+	FOnCookByTheBookFinished& OnCookByTheBookFinished() { return CookByTheBookFinishedEvent; };
 	/**
 	* Marks a package as dirty for cook
 	* causes package to be recooked on next request (and all dependent packages which are currently cooked)
@@ -1439,6 +1442,9 @@ private:
 	double LoadBusyWarnTimeSeconds = MAX_flt;
 	/** Tracking for the ticking of tickable cook objects */
 	double LastCookableObjectTickTime = 0.;
+
+	// Cook events that can be listenned to
+	FOnCookByTheBookFinished CookByTheBookFinishedEvent;
 
 	// These structs are TUniquePtr rather than inline members so we can keep their headers private.
 	// See class header comments for their purpose.

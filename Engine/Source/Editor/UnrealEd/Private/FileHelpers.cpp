@@ -71,7 +71,6 @@
 #include "AutoSaveUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/NamePermissionList.h"
-#include "StudioAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "HierarchicalLOD.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
@@ -96,6 +95,8 @@ bool FEditorFileUtils::bIsPromptingForCheckoutAndSave = false;
 bool FEditorFileUtils::bSkipExternalObjectSave = false;
 TSet<FString> FEditorFileUtils::PackagesNotSavedDuringSaveAll;
 TSet<FString> FEditorFileUtils::PackagesNotToPromptAnyMore;
+FEditorFileUtils::FOnLoadMapStart FEditorFileUtils::OnLoadMapStart;
+FEditorFileUtils::FOnLoadMapEnd FEditorFileUtils::OnLoadMapEnd;
 
 namespace EditorFileUtils
 {
@@ -2829,8 +2830,8 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 {
 	UE_SCOPED_ENGINE_ACTIVITY(TEXT("Loading Map %s"), *InFilename);
 
-	double LoadStartTime = FStudioAnalytics::GetAnalyticSeconds();
-	
+	OnLoadMapStart.Broadcast();
+		
 	// Fire delegate when a map is about to be loaded in, with an out-value to report failures from external dependencies which can prevent the map from loading
 	FCanLoadMap OutCanLoadMap;
 	FEditorDelegates::OnMapLoad.Broadcast(InFilename, OutCanLoadMap);
@@ -2948,20 +2949,9 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 		FMessageLog("MapCheck").Open( EMessageSeverity::Warning );
 	}
 
-	// Track time spent loading map.
-	const double MapLoadTime = FStudioAnalytics::GetAnalyticSeconds() - LoadStartTime;
-	UE_LOG(LogFileHelpers, Log, TEXT("Loading map '%s' took %.3f"), *FPaths::GetBaseFilename(Filename), MapLoadTime);
-
 	TRACE_BOOKMARK(TEXT("LoadMap"));
 
-	static bool bReportFirstTime = true;
-
-	FStudioAnalytics::FireEvent_Loading(TEXT("LoadMap"), MapLoadTime, {
-		FAnalyticsEventAttribute(TEXT("MapName"), FPaths::GetBaseFilename(Filename)),
-		FAnalyticsEventAttribute(TEXT("FirstTime"), bReportFirstTime)
-	});
-
-	bReportFirstTime = false;
+	OnLoadMapEnd.Broadcast(FPaths::GetBaseFilename(Filename));
 
 	if (GUnrealEd)
 	{
@@ -5333,6 +5323,16 @@ void FEditorFileUtils::GetDirtyPackages(TArray<UPackage*>& OutDirtyPackages, con
 {
 	GetDirtyWorldPackages(OutDirtyPackages, ShouldIgnorePackageFunction);
 	GetDirtyContentPackages(OutDirtyPackages, ShouldIgnorePackageFunction);
+}
+
+FEditorFileUtils::FOnLoadMapStart& FEditorFileUtils::GetOnLoadMapStartDelegate()
+{
+	return OnLoadMapStart;
+}
+
+FEditorFileUtils::FOnLoadMapEnd& FEditorFileUtils::GetOnLoadMapEndDelegate()
+{
+	return OnLoadMapEnd;
 }
 
 UWorld* UEditorLoadingAndSavingUtils::LoadMap(const FString& Filename)

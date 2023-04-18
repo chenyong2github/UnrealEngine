@@ -188,6 +188,7 @@ void FFeedbackContext::UpdateUI()
 /**** Begin legacy API ****/
 void FFeedbackContext::BeginSlowTask( const FText& Task, bool ShowProgressDialog, bool bShowCancelButton )
 {
+	TaskName = Task;
 	ensure(IsInGameThread());
 
 	TUniquePtr<FSlowTask> NewScope(new FSlowTask(0, Task, true, *this));

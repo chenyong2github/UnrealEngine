@@ -315,8 +315,6 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 {
 	SCOPE_STALL_REPORTER(UAssetEditorSubsystem::OpenEditorForAsset, 2.0);
 
-	const double OpenAssetStartTime = FStudioAnalytics::GetAnalyticSeconds();
-
 	if (!Asset)
 	{
 		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Opening Asset editor failed because asset is null"));
@@ -441,12 +439,6 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 				RecentlyOpenedAssets->AddMRUItem(AssetPath);
 			}
 		}
-
-		const double OpenTime = FStudioAnalytics::GetAnalyticSeconds() - OpenAssetStartTime;
-		FStudioAnalytics::FireEvent_Loading(TEXT("OpenAssetEditor"), OpenTime, {
-			FAnalyticsEventAttribute(TEXT("AssetPath"), Asset->GetFullName()),
-			FAnalyticsEventAttribute(TEXT("AssetType"), Asset->GetClass()->GetName())
-			});
 	}
 	
 	return true;

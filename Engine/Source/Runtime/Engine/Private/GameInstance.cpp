@@ -30,7 +30,6 @@
 #include "Settings/LevelEditorPlayNetworkEmulationSettings.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Editor/EditorEngine.h"
-#include "StudioAnalytics.h"
 #else
 #include "TimerManager.h"
 #include "UObject/Package.h"
@@ -277,7 +276,7 @@ static ENetMode GetNetModeFromPlayNetMode(const EPlayNetMode InPlayNetMode, cons
 
 FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanceIndex, const FGameInstancePIEParameters& Params)
 {
-	PIEStartTime = Params.PIEStartTime;
+	FWorldDelegates::OnPIEStarted.Broadcast(this);
 
 	UEditorEngine* const EditorEngine = CastChecked<UEditorEngine>(GetEngine());
 
@@ -375,6 +374,7 @@ void UGameInstance::ReportPIEStartupTime()
 		static bool bHasRunPIEThisSession = false;
 
 		bool bReportFirstTime = false;
+		
 		if (!bHasRunPIEThisSession)
 		{
 			bReportFirstTime = true;
@@ -382,12 +382,9 @@ void UGameInstance::ReportPIEStartupTime()
 		}
 
 		bReportedPIEStartupTime = true;
-		const double TimeToStartPIE = FStudioAnalytics::GetAnalyticSeconds() - PIEStartTime;
-		FStudioAnalytics::FireEvent_Loading(TEXT("PIE.TotalStartupTime"), TimeToStartPIE, {
-			FAnalyticsEventAttribute(TEXT("MapName"), UWorld::RemovePIEPrefix(FPackageName::GetShortName(PIEMapName))),
-			FAnalyticsEventAttribute(TEXT("FirstTime"), bReportFirstTime)
-			});
 	}
+
+	FWorldDelegates::OnPIEReady.Broadcast(this);
 #endif
 }
 

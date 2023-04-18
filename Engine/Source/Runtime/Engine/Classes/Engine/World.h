@@ -4176,6 +4176,19 @@ public:
 	static FWorldPostRenameEvent OnPostWorldRename;
 
 	static FWorldCurrentLevelChangedEvent OnCurrentLevelChanged;
+
+	// PIE has started
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWorldPIEStarted, UGameInstance*);
+	static FOnWorldPIEStarted OnPIEStarted;
+
+	// PIE is ready
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWorldPIEReady, UGameInstance*);
+	static FOnWorldPIEStarted OnPIEReady;
+
+	// PIE has ended
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWorldPIEEnded, UGameInstance*);
+	static FOnWorldPIEEnded OnPIEEnded;
+
 #endif // WITH_EDITOR
 
 	// Post duplication event.

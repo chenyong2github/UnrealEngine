@@ -169,6 +169,10 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOpenReferenceViewer, const TArray<FAssetIdentifier>, const FReferenceViewerParams);
 	/** delegate type for when the editor requests a restart, enables overriding how a restart is performed */
 	DECLARE_DELEGATE_RetVal_OneParam(bool /*bSuccess*/, FOnRestartRequested, const FString& /*ProjectName*/);
+	/** delegate for when the editor has booted */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEditorBoot, double Duration);
+	/** delegate for when the editor has fully initialized */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEditorInitialized, double Duration);
 
 	/** Called when the CurrentLevel is switched to a new level.  Note that this event won't be fired for temporary
 		changes to the current level, such as when copying/pasting actors. */
@@ -349,6 +353,10 @@ struct UNREALED_API FEditorDelegates
 	static FOnViewAssetIdentifiers OnEditAssetIdentifiers;
 	/** Called when the editor requests a restart */
 	static FOnRestartRequested OnRestartRequested;
+	/** Called when the editor has booted */
+	static FOnEditorBoot OnEditorBoot;
+	/** Called when the editor has initialized */
+	static FOnEditorInitialized OnEditorInitialized;
 };
 
 /**

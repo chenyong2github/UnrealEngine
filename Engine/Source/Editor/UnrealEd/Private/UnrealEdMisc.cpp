@@ -324,10 +324,11 @@ void FUnrealEdMisc::OnInit()
 		FPlatformSplash::Show();
 	}
 
-	const double InitialEditorStartupTime = (FStudioAnalytics::GetAnalyticSeconds() - GStartTime);
+	const double InitialEditorStartupTime = (FPlatformTime::Seconds() - GStartTime);
 	UE_LOG(LogUnrealEdMisc, Log, TEXT("Loading editor; pre map load, took %.3f"), InitialEditorStartupTime);
 
-	FStudioAnalytics::FireEvent_Loading(TEXT("InitializeEditor"), InitialEditorStartupTime, { FAnalyticsEventAttribute(TEXT("FirstTime"), true ), FAnalyticsEventAttribute(TEXT("MapName"), TEXT("EditorBoot"))});
+	FEditorDelegates::OnEditorBoot.Broadcast(InitialEditorStartupTime);
+	
 	// Check for automated build/submit option
 	const bool bDoAutomatedMapBuild = FParse::Param( ParsedCmdLine, TEXT("AutomatedMapBuild") );
 
@@ -541,13 +542,13 @@ void FUnrealEdMisc::OnInit()
 	// Handles "Enable World Composition" option in WorldSettings
 	UWorldComposition::EnableWorldCompositionEvent.BindRaw(this, &FUnrealEdMisc::EnableWorldComposition);
 
-	const double TotalEditorStartupTime = (FStudioAnalytics::GetAnalyticSeconds() - GStartTime);
+	const double TotalEditorStartupTime = (FPlatformTime::Seconds() - GStartTime);
 	UE_LOG(LogUnrealEdMisc, Log, TEXT("Total Editor Startup Time, took %.3f"), TotalEditorStartupTime);
 
 	TRACE_BOOKMARK(TEXT("Editor Startup"));
 
-	FStudioAnalytics::FireEvent_Loading(TEXT("TotalEditorStartup"), TotalEditorStartupTime, { FAnalyticsEventAttribute(TEXT("FirstTime"), true ), FAnalyticsEventAttribute(TEXT("MapName"), TEXT("EditorBoot")) } );
-
+	FEditorDelegates::OnEditorInitialized.Broadcast(TotalEditorStartupTime);
+	
 	GShaderCompilingManager->PrintStats(true);
 }
 

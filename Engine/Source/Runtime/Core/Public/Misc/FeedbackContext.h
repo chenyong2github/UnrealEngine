@@ -47,6 +47,13 @@ public:
 		return ScopeStack;
 	}
 
+	DECLARE_EVENT_OneParam(FFeedbackContext, FOnStartSlowTask, const FText& TaskName );
+	FOnStartSlowTask& OnStartSlowTask() { return StartSlowTaskEvent; }
+
+	DECLARE_EVENT_OneParam(FFeedbackContext, FOnFinalizeSlowTask, const FText& TaskName);
+	FOnFinalizeSlowTask& OnFinalizeSlowTask() { return FinalizeSlowTaskEvent; }
+
+
 	/**** Legacy API - not deprecated as it's still in heavy use, but superceded by FScopedSlowTask ****/
 	void BeginSlowTask( const FText& Task, bool ShowProgressDialog, bool bShowCancelButton=false );
 	void UpdateProgress( int32 Numerator, int32 Denominator );
@@ -62,7 +69,9 @@ protected:
 	 */
 	virtual void StartSlowTask( const FText& Task, bool bShowCancelButton=false )
 	{
+		TaskName = Task;
 		GIsSlowTask = true;
+		StartSlowTaskEvent.Broadcast(TaskName);
 	}
 
 	/**
@@ -70,6 +79,7 @@ protected:
 	 */
 	virtual void FinalizeSlowTask( )
 	{
+		FinalizeSlowTaskEvent.Broadcast(TaskName);
 		GIsSlowTask = false;
 	}
 
@@ -149,6 +159,11 @@ private:
 	TArray<FString> Errors;
 	/** Guard for the errors and warnings history */
 	mutable FCriticalSection WarningsAndErrorsCritical;
+
+	/** The name of any task we are running */
+	FText TaskName;
+	FOnStartSlowTask StartSlowTaskEvent;
+	FOnFinalizeSlowTask FinalizeSlowTaskEvent;
 
 protected:
 	
