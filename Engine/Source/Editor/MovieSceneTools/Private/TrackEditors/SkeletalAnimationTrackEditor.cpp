@@ -80,6 +80,7 @@
 #include "LevelSequenceAnimSequenceLink.h"
 #include "AnimSequenceLevelSequenceLink.h"
 #include "UObject/SavePackage.h"
+#include "AnimSequencerInstanceProxy.h"
 
 int32 FSkeletalAnimationTrackEditor::NumberActive = 0;
 
@@ -1874,34 +1875,75 @@ void FSkeletalAnimationTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBui
 			NSLOCTEXT("Sequencer", "BlendFirstChildOfRootTooltip", "If True, do not blend and match the root bones but instead the first child bone of the root. Toggle this on when the matched sequences in the track have no motion on the root."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]()->void {
+				FExecuteAction::CreateLambda([SequencerPtr,SkeletalAnimationTrack]()->void {
 					SkeletalAnimationTrack->bBlendFirstChildOfRoot = SkeletalAnimationTrack->bBlendFirstChildOfRoot ? false : true;
-					SkeletalAnimationTrack->SetRootMotionsDirty();
-					SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+		SkeletalAnimationTrack->SetRootMotionsDirty();
+		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 
 					}),
-				FCanExecuteAction::CreateLambda([=]()->bool { return SequencerPtr && SkeletalAnimationTrack != nullptr; }),
-						FIsActionChecked::CreateLambda([=]()->bool { return SkeletalAnimationTrack != nullptr && SkeletalAnimationTrack->bBlendFirstChildOfRoot; })),
+				FCanExecuteAction::CreateLambda([SequencerPtr, SkeletalAnimationTrack]()->bool { return SequencerPtr && SkeletalAnimationTrack != nullptr; }),
+						FIsActionChecked::CreateLambda([SequencerPtr, SkeletalAnimationTrack]()->bool { return SkeletalAnimationTrack != nullptr && SkeletalAnimationTrack->bBlendFirstChildOfRoot; })),
 			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-			);
+						EUserInterfaceActionType::ToggleButton
+						);
 
 		MenuBuilder.AddMenuEntry(
 			NSLOCTEXT("Sequencer", "ShowRootMotionTrails", "Show Root Motion Trail"),
 			NSLOCTEXT("Sequencer", "ShowRootMotionTrailsTooltip", "Show the Root Motion Trail for all Animation Clips."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]()->void {
+				FExecuteAction::CreateLambda([SequencerPtr, SkeletalAnimationTrack]()->void {
 					SkeletalAnimationTrack->ToggleShowRootMotionTrail();
-					SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 
 					}),
-				FCanExecuteAction::CreateLambda([=]()->bool { return SequencerPtr && SkeletalAnimationTrack != nullptr; }),
-						FIsActionChecked::CreateLambda([=]()->bool { return SkeletalAnimationTrack != nullptr && SkeletalAnimationTrack->bShowRootMotionTrail; })),
+				FCanExecuteAction::CreateLambda([SequencerPtr, SkeletalAnimationTrack]()->bool { return SequencerPtr && SkeletalAnimationTrack != nullptr; }),
+						FIsActionChecked::CreateLambda([SequencerPtr, SkeletalAnimationTrack]()->bool { return SkeletalAnimationTrack != nullptr && SkeletalAnimationTrack->bShowRootMotionTrail; })),
 			NAME_None,
 						EUserInterfaceActionType::ToggleButton
-			);
+						);
 
+
+		MenuBuilder.AddMenuEntry(
+			NSLOCTEXT("Sequencer", "SwapRootBoneNone", "Swap Root Bone None"),
+			NSLOCTEXT("Sequencer", "SwapRootBoneNoneTooltip", "Do not swap root bone for all sections."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([SkeletalAnimationTrack]()->void {
+					SkeletalAnimationTrack->SetSwapRootBone(ESwapRootBone::SwapRootBone_None);
+					}),
+				FCanExecuteAction::CreateLambda([SkeletalAnimationTrack]()->bool { return  SkeletalAnimationTrack != nullptr; }),
+				FIsActionChecked::CreateLambda([SkeletalAnimationTrack]()->bool { return SkeletalAnimationTrack != nullptr && SkeletalAnimationTrack->SwapRootBone == ESwapRootBone::SwapRootBone_None; })),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			NSLOCTEXT("Sequencer", "SwapRootBoneActor", "Swap Root Bone Actor"),
+			NSLOCTEXT("Sequencer", "SwapRootBoneActorTooltip", "Swap root bone on root actor component for all sections."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([SkeletalAnimationTrack]()->void {
+					SkeletalAnimationTrack->SetSwapRootBone(ESwapRootBone::SwapRootBone_Actor);
+					}),
+				FCanExecuteAction::CreateLambda([SkeletalAnimationTrack]()->bool { return  SkeletalAnimationTrack != nullptr; }),
+				FIsActionChecked::CreateLambda([SkeletalAnimationTrack]()->bool { return SkeletalAnimationTrack != nullptr && SkeletalAnimationTrack->SwapRootBone == ESwapRootBone::SwapRootBone_Actor; })),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
+			);
+		MenuBuilder.AddMenuEntry(
+			NSLOCTEXT("Sequencer", "SwapRootBoneComponent", "Swap Root Bone Component"),
+			NSLOCTEXT("Sequencer", "SwapRootBoneComponentTooltip", "Swap root bone on current component for all sections."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([SkeletalAnimationTrack]()->void {
+					SkeletalAnimationTrack->SetSwapRootBone(ESwapRootBone::SwapRootBone_Component);
+					}),
+				FCanExecuteAction::CreateLambda([SkeletalAnimationTrack]()->bool { return  SkeletalAnimationTrack != nullptr; }),
+				FIsActionChecked::CreateLambda([SkeletalAnimationTrack]()->bool { return SkeletalAnimationTrack != nullptr && SkeletalAnimationTrack->SwapRootBone == ESwapRootBone::SwapRootBone_Component; })),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
+			);
 	}
 	MenuBuilder.EndSection();
 	MenuBuilder.AddSeparator();

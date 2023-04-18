@@ -16,6 +16,7 @@
 #include "SkeletalDebugRendering.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "BoneContainer.h"
+#include "AnimSequencerInstanceProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSkeletalAnimationTrack)
 
@@ -44,6 +45,7 @@ UMovieSceneSkeletalAnimationTrack::UMovieSceneSkeletalAnimationTrack(const FObje
 	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
 
 	EvalOptions.bEvaluateNearestSection_DEPRECATED = EvalOptions.bCanEvaluateNearestSection = true;
+	SwapRootBone = ESwapRootBone::SwapRootBone_None;
 }
 
 
@@ -95,6 +97,8 @@ TArray<UMovieSceneSection*> UMovieSceneSkeletalAnimationTrack::GetAnimSectionsAt
 void UMovieSceneSkeletalAnimationTrack::PostLoad()
 {
 	// UMovieSceneTrack::PostLoad removes null sections. However, RemoveAtSection requires SetupRootMotions, which accesses AnimationSections, so remove null sections here before anything else 
+	TOptional<ESwapRootBone> SectionsSwapRootBone;
+	bool bAllSectionsSameSwapRootBone = false;
 	for (int32 SectionIndex = 0; SectionIndex < AnimationSections.Num(); )
 	{
 		UMovieSceneSection* Section = AnimationSections[SectionIndex];
@@ -116,7 +120,27 @@ void UMovieSceneSkeletalAnimationTrack::PostLoad()
 		else
 		{
 			++SectionIndex;
+			if (UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section))
+			{
+				if (SectionsSwapRootBone.IsSet())
+				{
+					if (SectionsSwapRootBone.GetValue() != AnimSection->Params.SwapRootBone)
+					{
+						bAllSectionsSameSwapRootBone = false;
+					}
+				}
+				else
+				{
+					SectionsSwapRootBone = AnimSection->Params.SwapRootBone;
+					bAllSectionsSameSwapRootBone = true;
+				}
+			}
 		}
+	}
+	//if we have all sections with the same swap root bone, set that, probably from a previous version
+	if (bAllSectionsSameSwapRootBone && SectionsSwapRootBone.IsSet())
+	{
+		SwapRootBone = SectionsSwapRootBone.GetValue();
 	}
 
 	Super::PostLoad();
@@ -126,6 +150,26 @@ void UMovieSceneSkeletalAnimationTrack::PostLoad()
 		bUseLegacySectionIndexBlend = true;
 	}
 }
+
+void UMovieSceneSkeletalAnimationTrack::SetSwapRootBone(ESwapRootBone InValue)
+{
+	SwapRootBone = InValue;
+	for (UMovieSceneSection* Section : AnimationSections)
+	{
+		UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
+		if (AnimSection)
+		{
+			AnimSection->Params.SwapRootBone = SwapRootBone;
+		}
+	}
+	RootMotionParams.bRootMotionsDirty = true;
+}
+
+ESwapRootBone UMovieSceneSkeletalAnimationTrack::GetSwapRootBone() const
+{
+	return SwapRootBone;
+}
+
 #if WITH_EDITOR
 void UMovieSceneSkeletalAnimationTrack::PostEditImport()
 {
@@ -186,6 +230,7 @@ void UMovieSceneSkeletalAnimationTrack::AddSection(UMovieSceneSection& Section)
 	UMovieSceneSkeletalAnimationSection* AnimSection = Cast< UMovieSceneSkeletalAnimationSection>(&Section);
 	if (AnimSection)
 	{
+		AnimSection->Params.SwapRootBone = SwapRootBone;
 		SetUpRootMotions(true);
 	}
 }
@@ -623,7 +668,8 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 			}
 		}
 
-		if (bAnySectionsHaveOffset == false)
+		//if we are swapping root bone turn on root motion matching anyway
+		if (bAnySectionsHaveOffset == false && SwapRootBone == ESwapRootBone::SwapRootBone_None)
 		{
 #if WITH_EDITORONLY_DATA
 			RootMotionParams.RootTransforms.SetNum(0);

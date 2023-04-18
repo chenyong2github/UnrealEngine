@@ -36,6 +36,9 @@
 #include "Systems/WeightAndEasingEvaluatorSystem.h"
 
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimationPoseData.h"
+#include "BonePose.h"
+#include "Animation/BuiltInAttributeTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSkeletalAnimationSystem)
 
@@ -236,6 +239,75 @@ TAutoRegisterPreAnimatedStorageID<FPreAnimatedSkeletalAnimationAnimInstanceStora
 
 /** ------------------------------------------------------------------------- */
 
+/** FBoneTransformFinalizeData used for setting up root motion*/
+
+FBoneTransformFinalizeData::FBoneTransformFinalizeData() : SkeletalMeshComponent(nullptr), SwapRootBone(ESwapRootBone::SwapRootBone_None)
+{
+}
+
+void FBoneTransformFinalizeData::Register(USkeletalMeshComponent* InSkeleletalMeshCompononent, ESwapRootBone InSwapRootBone, FTransform& InCurrentTransform,TOptional<FTransform> InInitialTransform)
+{
+	if (OnBoneTransformsFinalizedHandle.IsValid() == false)
+	{
+		SkeletalMeshComponent = InSkeleletalMeshCompononent;
+		SwapRootBone = InSwapRootBone;
+		CurrentTransform = InCurrentTransform;
+		InitialTransform = InInitialTransform;
+		OnBoneTransformsFinalizedHandle = SkeletalMeshComponent->RegisterOnBoneTransformsFinalizedDelegate(
+			FOnBoneTransformsFinalizedMultiCast::FDelegate::CreateLambda([this]()
+				{
+					BoneTransformFinalized();
+				}));
+	}
+}
+
+void FBoneTransformFinalizeData::Unregister()
+{
+	if (SkeletalMeshComponent)
+	{
+		SkeletalMeshComponent->UnregisterOnBoneTransformsFinalizedDelegate(OnBoneTransformsFinalizedHandle);
+	}
+	OnBoneTransformsFinalizedHandle.Reset();
+}
+
+void FBoneTransformFinalizeData::BoneTransformFinalized()
+{
+	if (SkeletalMeshComponent && SwapRootBone != ESwapRootBone::SwapRootBone_None)
+	{
+		FTransform RelativeTransform = CurrentTransform;
+		
+		if (InitialTransform.IsSet())
+		{
+			RelativeTransform = RelativeTransform * InitialTransform.GetValue();
+		}
+		const bool bIsGameWorld = (SkeletalMeshComponent->GetWorld()->IsGameWorld());
+
+		if (SwapRootBone == ESwapRootBone::SwapRootBone_Component)
+		{
+			SkeletalMeshComponent->SetRelativeLocationAndRotation(RelativeTransform.GetLocation(), RelativeTransform.GetRotation().Rotator());
+		}
+		else if (SwapRootBone == ESwapRootBone::SwapRootBone_Actor)
+		{
+			AActor* Actor = SkeletalMeshComponent->GetOwner();
+			if (Actor && Actor->GetRootComponent())
+			{
+				Actor->GetRootComponent()->SetRelativeLocationAndRotation(RelativeTransform.GetLocation(), RelativeTransform.GetRotation().Rotator());
+			}
+		}
+	}
+}
+
+void FSkeletalAnimationSystemData::ResetSkeletalAnimations()
+{
+	//clear out the delegates
+	for (TTuple<UObject*, FBoundObjectActiveSkeletalAnimations>& Pair : SkeletalAnimations)
+	{
+		Pair.Value.BoneTransformFinalizeData.Unregister();
+	}
+	SkeletalAnimations.Reset();
+}
+
+/** ------------------------------------------------------------------------- */
 /** Task for gathering active skeletal animations */
 struct FGatherSkeletalAnimations
 {
@@ -399,12 +471,13 @@ private:
 		// Evaluate each group for the given bound object.
 		for (const TTuple<IMovieScenePlayer*, FBoundObjectActiveSkeletalAnimations>& Pair : SkeletalAnimationsPerPlayer)
 		{
-			EvaluateSkeletalAnimationsForPlayer(*Pair.Key, SkeletalMeshComponent, ExistingAnimInstance, SequencerInstance, Pair.Value);
+			EvaluateSkeletalAnimationsForPlayer(*Pair.Key,InObject, SkeletalMeshComponent, ExistingAnimInstance, SequencerInstance, Pair.Value);
 		}
 	}
 
 	void EvaluateSkeletalAnimationsForPlayer(
 			IMovieScenePlayer& InPlayer, 
+			UObject* InObject,
 			USkeletalMeshComponent* InSkeletalMeshComponent, 
 			UAnimInstance* InExistingAnimInstance, 
 			ISequencerAnimationSupport* InSequencerInstance, 
@@ -455,7 +528,7 @@ private:
 			UMovieSceneMotionVectorSimulationSystem* MotionVectorSim = InPlayer.GetEvaluationTemplate().GetEntitySystemLinker()->FindSystem<UMovieSceneMotionVectorSimulationSystem>();
 			if (MotionVectorSim && MotionVectorSim->IsSimulationEnabled())
 			{
-				ApplyAnimations(InPlayer, InSkeletalMeshComponent, InSkeletalAnimations.SimulatedAnimations, bPreviewPlayback, bFireNotifies, bResetDynamics);
+				ApplyAnimations(InPlayer, InObject, InSkeletalMeshComponent, InSkeletalAnimations.SimulatedAnimations, bPreviewPlayback, bFireNotifies, bResetDynamics);
 				InSkeletalMeshComponent->TickAnimation(0.f, false);
 				InSkeletalMeshComponent->ForceMotionVector();
 		
@@ -463,7 +536,7 @@ private:
 			}
 		}
 
-		ApplyAnimations(InPlayer, InSkeletalMeshComponent, InSkeletalAnimations.Animations, bPreviewPlayback, bFireNotifies, bResetDynamics);
+		ApplyAnimations(InPlayer, InObject, InSkeletalMeshComponent, InSkeletalAnimations.Animations, bPreviewPlayback, bFireNotifies, bResetDynamics);
 
 		// If the skeletal component has already ticked this frame because tick prerequisites weren't set up yet or a new binding was created, forcibly tick this component to update.
 		// This resolves first frame issues where the skeletal component ticks first, then the sequencer binding is resolved which sets up tick prerequisites
@@ -577,6 +650,7 @@ private:
 
 	void ApplyAnimations(
 		IMovieScenePlayer& Player,
+		UObject* InObject,
 		USkeletalMeshComponent* SkeletalMeshComponent,
 		TArrayView<const FActiveSkeletalAnimation> SkeletalAnimations,
 		bool bPreviewPlayback,
@@ -589,6 +663,18 @@ private:
 		{
 			const UMovieSceneSkeletalAnimationSection* AnimSection = SkeletalAnimation.AnimSection;
 			const FMovieSceneSkeletalAnimationParams& AnimParams = AnimSection->Params;
+			UMovieSceneSkeletalAnimationSection::FRootMotionParams RootMotionParams;
+			AnimSection->GetRootMotion(SkeletalAnimation.Context.GetTime().RoundToFrame(), RootMotionParams);
+			//set up root motion/bone transform delegates
+			if (AnimSection->Params.SwapRootBone != ESwapRootBone::SwapRootBone_None)
+			{
+				FTransform Transform = RootMotionParams.Transform.IsSet() ? RootMotionParams.Transform.GetValue() : FTransform::Identity;
+				TOptional<FTransform> InitialTransform = GetCurrentTransform(AnimSection->Params.SwapRootBone, SkeletalMeshComponent);
+				if (FBoundObjectActiveSkeletalAnimations* BoundObjectAnimations = SystemData.SkeletalAnimations.Find(InObject)) //InObject may be an AActor
+				{
+					BoundObjectAnimations->BoneTransformFinalizeData.Register(SkeletalMeshComponent, AnimSection->Params.SwapRootBone,Transform, InitialTransform);
+				}
+			}
 
 			// Don't fire notifies if looping around.
 			bool bLooped = false;
@@ -744,6 +830,7 @@ private:
 
 			int32 InstanceId = (SectionData) ? SectionData->MontageInstanceId : INDEX_NONE;
 
+
 			const float AssetPlayRate = FMath::IsNearlyZero(AnimParams.Animation->RateScale) ? 1.0f : AnimParams.Animation->RateScale;
 			TWeakObjectPtr<UAnimMontage> WeakMontage = FAnimMontageInstance::SetSequencerMontagePosition(
 					AnimParams.SlotName, 
@@ -759,6 +846,7 @@ private:
 			UAnimMontage* Montage = WeakMontage.Get();
 			if (Montage)
 			{
+
 				FMontagePlayerPerSectionData& DataContainer = SystemData.MontageData.FindOrAdd(Params.Section);
 				DataContainer.Montage = WeakMontage;
 				DataContainer.MontageInstanceId = InstanceId;
@@ -835,7 +923,7 @@ private:
 			FMontagePlayerPerSectionData* SectionData = SystemData.MontageData.Find(Params.Section);
 
 			int32 InstanceId = SectionData ? SectionData->MontageInstanceId : INDEX_NONE;
-
+		
 			const float AssetPlayRate = FMath::IsNearlyZero(AnimParams.Animation->RateScale) ? 1.0f : AnimParams.Animation->RateScale;
 			TWeakObjectPtr<UAnimMontage> WeakMontage = FAnimMontageInstance::PreviewSequencerMontagePosition(
 					AnimParams.SlotName,
@@ -853,6 +941,7 @@ private:
 			UAnimMontage* Montage = WeakMontage.Get();
 			if (Montage)
 			{
+
 				FMontagePlayerPerSectionData& DataContainer = SystemData.MontageData.FindOrAdd(Params.Section);
 				DataContainer.Montage = WeakMontage;
 				DataContainer.MontageInstanceId = InstanceId;
@@ -916,7 +1005,7 @@ void UMovieSceneSkeletalAnimationSystem::OnRun(FSystemTaskPrerequisites& InPrere
 	FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
 
 	// Start fresh every frame, gathering all active skeletal animations.
-	SystemData.SkeletalAnimations.Reset();
+	SystemData.ResetSkeletalAnimations();
 
 	FGraphEventRef GatherTask = FEntityTaskBuilder()
 	.ReadEntityIDs()
@@ -946,6 +1035,7 @@ void UMovieSceneSkeletalAnimationSystem::OnRun(FSystemTaskPrerequisites& InPrere
 
 void UMovieSceneSkeletalAnimationSystem::CleanSystemData()
 {
+	SystemData.ResetSkeletalAnimations();
 	// Clean-up old montage data.
 	for (auto It = SystemData.MontageData.CreateIterator(); It; ++It)
 	{

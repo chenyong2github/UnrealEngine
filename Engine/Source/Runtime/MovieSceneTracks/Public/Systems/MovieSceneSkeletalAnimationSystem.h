@@ -11,6 +11,7 @@
 class IMovieScenePlayer;
 class UAnimMontage;
 class UMovieSceneSkeletalAnimationSection;
+enum class ESwapRootBone : uint8;
 
 namespace UE::MovieScene
 {
@@ -29,6 +30,22 @@ struct FActiveSkeletalAnimation
 	bool bWantsRestoreState;
 };
 
+/** DelegateHandle and Skeletal Mesh for bone transform finalized */
+struct FBoneTransformFinalizeData
+{
+	FBoneTransformFinalizeData();
+	USkeletalMeshComponent* SkeletalMeshComponent;
+	ESwapRootBone SwapRootBone;
+	FTransform CurrentTransform;
+	TOptional<FTransform> InitialTransform;
+	/** Delegate Handle for skel mesh bone transform finalized callback*/
+	FDelegateHandle OnBoneTransformsFinalizedHandle;
+
+	void Register(USkeletalMeshComponent* InSkeleletalMeshCompononent, ESwapRootBone InSwapRootBone, FTransform& InCurrentTransform, TOptional<FTransform> InTransform);
+	void Unregister();
+	void BoneTransformFinalized();
+};
+
 /** Information for all skeletal animations playing on a bound object */
 struct FBoundObjectActiveSkeletalAnimations
 {
@@ -38,6 +55,9 @@ struct FBoundObjectActiveSkeletalAnimations
 	FAnimationArray Animations;
 	/** Motion vector simulation animations on the corresponding bound object */
 	FAnimationArray SimulatedAnimations;
+	/** SkelMesh and the bone finalize Delegate*/
+	FBoneTransformFinalizeData  BoneTransformFinalizeData;
+
 };
 
 /** Temporary information about montage setups. */
@@ -49,6 +69,8 @@ struct FMontagePlayerPerSectionData
 
 struct FSkeletalAnimationSystemData
 {
+	void ResetSkeletalAnimations();
+
 	/** Map of active skeletal animations for each bound object */
 	TMap<UObject*, FBoundObjectActiveSkeletalAnimations> SkeletalAnimations;
 
