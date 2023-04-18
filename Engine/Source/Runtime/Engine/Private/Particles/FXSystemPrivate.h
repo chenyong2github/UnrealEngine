@@ -223,7 +223,7 @@ public:
 	/**
 	 * Retrieve shaderplatform that this FXSystem was created for
 	 */
-	EShaderPlatform GetShaderPlatform() const { return ShaderPlatform; }
+	EShaderPlatform GetShaderPlatform() const { return GShaderPlatformForFeatureLevel[FeatureLevel]; }
 
 	/**
 	 * Add a new GPU simulation to the system.
@@ -376,8 +376,6 @@ private:
 	FParticleSimulationResources* ParticleSimulationResources;
 	/** Feature level of this effects system */
 	ERHIFeatureLevel::Type FeatureLevel;
-	/** Shader platform that will be rendering this effects system */
-	EShaderPlatform ShaderPlatform;
 
 	/** The shared GPUSortManager, used to register GPU sort tasks in order to generate sorted particle indices per emitter. */
 	TRefCountPtr<FGPUSortManager> GPUSortManager;

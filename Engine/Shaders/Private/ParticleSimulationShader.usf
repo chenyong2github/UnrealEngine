@@ -84,7 +84,7 @@ void VertexMain(
 /** Define to 1 to force no collision in the shader. */
 #define FORCE_NO_COLLISION 0
 
-#if FORCE_NO_COLLISION || (FEATURE_LEVEL < FEATURE_LEVEL_SM4 && !VULKAN_PROFILE)
+#if FORCE_NO_COLLISION
 	#undef DEPTH_BUFFER_COLLISION
 	#define DEPTH_BUFFER_COLLISION 0
 	#undef DISTANCE_FIELD_COLLISION

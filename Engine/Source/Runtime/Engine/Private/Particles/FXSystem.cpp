@@ -33,7 +33,7 @@ bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EParticleColli
 	case PCM_DepthBuffer:
 		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
 	case PCM_DistanceField:
-		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
+		return FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields(InPlatform);
 	}
 	check(0);
 	return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
@@ -224,7 +224,6 @@ namespace FXConsoleVariables
 FFXSystem::FFXSystem(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, FGPUSortManager* InGPUSortManager)
 	: ParticleSimulationResources(NULL)
 	, FeatureLevel(InFeatureLevel)
-	, ShaderPlatform(InShaderPlatform)
 	, GPUSortManager(nullptr)
 #if WITH_EDITOR
 	, bSuspended(false)
