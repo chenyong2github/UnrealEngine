@@ -28,6 +28,9 @@ struct OPENCOLORIO_API FOpenColorIORenderPassResources
 
 	/** Color transform string description. */
 	FString TransformName = FString();
+
+	/** Resources are valid when the shader resource is not null. */
+	bool IsValid() const { return ShaderResource != nullptr; }
 };
 
 /** Option to transform the render target alpha before applying the color transform. */
@@ -54,6 +57,16 @@ public:
 	 * @return True if a rendering command to apply the transform was queued.
 	 */
 	static bool ApplyColorTransform(UWorld* InWorld, const FOpenColorIOColorConversionSettings& InSettings, UTexture* InTexture, UTextureRenderTarget2D* OutRenderTarget);
+
+
+	/**
+	 * Get render pass resources on the game thread, to be enqueue-copied for later use by the `AddPass_RenderThread` function.
+	 *
+	 * @param InSettings Settings describing the color space transform to apply
+	 * @param InFeatureLevel Rendering feature level
+	 * @return FOpenColorIORenderPassResources Render pass resources to be enqueue-copied onto the render thread.
+	 */
+	static FOpenColorIORenderPassResources GetRenderPassResources(const FOpenColorIOColorConversionSettings& InSettings, ERHIFeatureLevel::Type InFeatureLevel);
 
 	/**
 	 * Applies the color transform RDG pass with the provided resources.

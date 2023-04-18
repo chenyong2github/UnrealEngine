@@ -104,6 +104,37 @@ void FOpenColorIORendering::AddPass_RenderThread(
 }
 
 // static
+FOpenColorIORenderPassResources FOpenColorIORendering::GetRenderPassResources(const FOpenColorIOColorConversionSettings& InSettings, ERHIFeatureLevel::Type InFeatureLevel)
+{
+	FOpenColorIORenderPassResources Result = { nullptr, {}, InSettings.ToString() };
+
+	if (InSettings.ConfigurationSource != nullptr)
+	{
+		const bool bFoundTransform = InSettings.ConfigurationSource->GetRenderResources(
+			InFeatureLevel,
+			InSettings,
+			Result.ShaderResource,
+			Result.TextureResources
+		);
+
+		if (bFoundTransform)
+		{
+			// Transform was found, so shader must be there but doesn't mean the actual shader is available
+			check(Result.ShaderResource);
+			if (Result.ShaderResource->GetShaderGameThread<FOpenColorIOPixelShader>().IsNull())
+			{
+				ensureMsgf(false, TEXT("Can't apply display look - Shader was invalid for Resource %s"), *Result.ShaderResource->GetFriendlyName());
+
+				//Invalidate shader resource
+				Result.ShaderResource = nullptr;
+			}
+		}
+	}
+
+	return Result;
+}
+
+// static
 bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColorIOColorConversionSettings& InSettings, UTexture* InTexture, UTextureRenderTarget2D* OutRenderTarget)
 {
 	check(IsInGameThread());

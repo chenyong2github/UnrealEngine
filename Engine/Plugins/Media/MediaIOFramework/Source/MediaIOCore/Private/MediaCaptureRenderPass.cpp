@@ -148,34 +148,7 @@ namespace UE::MediaCapture::ColorConversion
 
 		if (MediaCapture && MediaCapture->GetDesiredCaptureOptions().ColorConversionSettings.IsValid())
 		{
-			const FMediaCaptureOptions& DesiredCaptureOptions = MediaCapture->GetDesiredCaptureOptions();
-			FOpenColorIOTransformResource* ShaderResource = nullptr;
-			TSortedMap<int32, FTextureResource*> TransformTextureResources;
-
-			if (DesiredCaptureOptions.ColorConversionSettings.ConfigurationSource != nullptr)
-			{
-				const bool bFoundTransform = DesiredCaptureOptions.ColorConversionSettings.ConfigurationSource->GetRenderResources(
-					GMaxRHIFeatureLevel
-					, DesiredCaptureOptions.ColorConversionSettings
-					, ShaderResource
-					, TransformTextureResources);
-
-				if (bFoundTransform)
-				{
-					// Transform was found, so shader must be there but doesn't mean the actual shader is available
-					check(ShaderResource);
-					if (ShaderResource->GetShaderGameThread<FOpenColorIOPixelShader>().IsNull())
-					{
-						ensureMsgf(false, TEXT("Can't apply display look - Shader was invalid for Resource %s"), *ShaderResource->GetFriendlyName());
-
-						//Invalidate shader resource
-						ShaderResource = nullptr;
-					}
-				}
-			}
-
-			OCIOResources.ShaderResource = ShaderResource;
-			OCIOResources.TextureResources = TransformTextureResources;
+			OCIOResources = FOpenColorIORendering::GetRenderPassResources(MediaCapture->GetDesiredCaptureOptions().ColorConversionSettings, GMaxRHIFeatureLevel);
 		}
 
 		return OCIOResources;

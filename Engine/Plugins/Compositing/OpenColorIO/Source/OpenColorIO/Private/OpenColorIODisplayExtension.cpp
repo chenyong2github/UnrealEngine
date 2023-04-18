@@ -51,51 +51,24 @@ void FOpenColorIODisplayExtension::AddReferencedObjects(FReferenceCollector& Col
 
 void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView)
 {
-	//Cache render resource so they are available on the render thread (Can't access UObjects on RT)
-	//If something fails, cache invalid resources to invalidate them
-	FOpenColorIOTransformResource* ShaderResource = nullptr;
-	TSortedMap<int32, FTextureResource*> TransformTextureResources;
-	const FOpenColorIOColorConversionSettings& ConversionSettings = DisplayConfiguration.ColorConfiguration;
+	FOpenColorIORenderPassResources PassResources = FOpenColorIORendering::GetRenderPassResources(DisplayConfiguration.ColorConfiguration, InViewFamily.GetFeatureLevel());
 
-	if (ConversionSettings.ConfigurationSource != nullptr)
+	if (PassResources.IsValid())
 	{
-		const bool bFoundTransform = ConversionSettings.ConfigurationSource->GetRenderResources(
-			InViewFamily.GetFeatureLevel()
-			, ConversionSettings
-			, ShaderResource
-			, TransformTextureResources);
+		//Force ToneCurve to be off while we'are alive to make sure the input color space is the working space : srgb linear
+		InViewFamily.EngineShowFlags.SetToneCurve(false);
+		// This flags sets tonampper to output to ETonemapperOutputDevice::LinearNoToneCurve
+		InViewFamily.SceneCaptureSource = SCS_FinalColorHDR;
 
-		if (bFoundTransform)
-		{
-			// Transform was found, so shader must be there but doesn't mean the actual shader is available
-			check(ShaderResource);
-			if (ShaderResource->GetShaderGameThread<FOpenColorIOPixelShader>().IsNull())
-			{
-				ensureMsgf(false, TEXT("Can't apply display look - Shader was invalid for Resource %s"), *ShaderResource->GetFriendlyName());
-
-				//Invalidate shader resource
-				ShaderResource = nullptr;
-			}
-			else
-			{
-				//Force ToneCurve to be off while we'are alive to make sure the input color space is the working space : srgb linear
-				InViewFamily.EngineShowFlags.SetToneCurve(false);
-				// This flags sets tonampper to output to ETonemapperOutputDevice::LinearNoToneCurve
-				InViewFamily.SceneCaptureSource = SCS_FinalColorHDR;
-
-				InView.FinalPostProcessSettings.bOverride_ToneCurveAmount = 1;
-				InView.FinalPostProcessSettings.ToneCurveAmount = 0.0;
-			}
-		}
+		InView.FinalPostProcessSettings.bOverride_ToneCurveAmount = 1;
+		InView.FinalPostProcessSettings.ToneCurveAmount = 0.0;
 	}
 
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
-		[this, ShaderResource, TextureResources = MoveTemp(TransformTextureResources), TransformName = ConversionSettings.ToString()](FRHICommandListImmediate& RHICmdList)
+		[this, ResourcesRenderThread = MoveTemp(PassResources)](FRHICommandListImmediate& RHICmdList)
 		{
 			//Caches render thread resource to be used when applying configuration in PostRenderViewFamily_RenderThread
-			CachedResourcesRenderThread.ShaderResource = ShaderResource;
-			CachedResourcesRenderThread.TextureResources = TextureResources;
-			CachedResourcesRenderThread.TransformName = TransformName;
+			CachedResourcesRenderThread = ResourcesRenderThread;
 		}
 	);
 }

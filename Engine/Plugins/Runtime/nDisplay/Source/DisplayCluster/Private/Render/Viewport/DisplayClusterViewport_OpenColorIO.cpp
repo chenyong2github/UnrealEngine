@@ -56,50 +56,15 @@ void FDisplayClusterViewport_OpenColorIO::UpdateOpenColorIORenderPassResources()
 		return;
 	}
 
-	FOpenColorIOTransformResource* ShaderResource = nullptr;
-	TSortedMap<int32, FTextureResource*> TransformTextureResources;
+	FOpenColorIORenderPassResources PassResources = FOpenColorIORendering::GetRenderPassResources(ConversionSettings, GMaxRHIFeatureLevel);
 
-	if (ConversionSettings.ConfigurationSource != nullptr)
-	{
-		const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
-
-		const bool bFoundTransform = ConversionSettings.ConfigurationSource->GetRenderResources(
-			FeatureLevel
-			, ConversionSettings
-			, ShaderResource
-			, TransformTextureResources);
-
-		if (bFoundTransform)
-		{
-			// Transform was found, so shader must be there but doesn't mean the actual shader is available
-			check(ShaderResource);
-			if (ShaderResource->GetShaderGameThread<FOpenColorIOPixelShader>().IsNull())
-			{
-				ensureMsgf(false, TEXT("Can't apply display look - Shader was invalid for Resource %s"), *ShaderResource->GetFriendlyName());
-
-				//Invalidate shader resource
-				ShaderResource = nullptr;
-			}
-			else
-			{
-				bShaderResourceValid = true;
-			}
-		}
-	}
-
-	if (!bShaderResourceValid)
-	{
-		ShaderResource = nullptr;
-		TransformTextureResources.Empty();
-	}
+	bShaderResourceValid = PassResources.IsValid();
 
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
-		[This = SharedThis(this), ShaderResource, TextureResources = MoveTemp(TransformTextureResources), TransformName = ConversionSettings.ToString()](FRHICommandListImmediate& RHICmdList)
+		[This = SharedThis(this), PassResourcesRenderThread = MoveTemp(PassResources)](FRHICommandListImmediate& RHICmdList)
 		{
 			//Caches render thread resource to be used when applying configuration in PostRenderViewFamily_RenderThread
-			This->CachedResourcesRenderThread.ShaderResource = ShaderResource;
-			This->CachedResourcesRenderThread.TextureResources = TextureResources;
-			This->CachedResourcesRenderThread.TransformName = TransformName;
+			This->CachedResourcesRenderThread = PassResourcesRenderThread;
 		}
 	);
 }
