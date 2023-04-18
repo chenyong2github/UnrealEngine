@@ -62,7 +62,7 @@ namespace Horde.Server.Perforce
 		{
 			GlobalConfig globalConfig = _globalConfig.Value;
 
-			if (!globalConfig.Authorize(AclAction.AdminRead, User))
+			if (!globalConfig.Authorize(AdminAclAction.AdminRead, User))
 			{
 				return Forbid();
 			}

@@ -105,6 +105,11 @@ namespace Horde.Server.Acls
 		/// <returns>True if the given principal is allowed to perform a particular action</returns>
 		public static bool Authorize(this IAclScope scope, AclAction action, ClaimsPrincipal principal)
 		{
+			if (principal.HasAdminClaim())
+			{
+				return true;
+			}
+
 			for (IAclScope? next = scope; next != null; next = next.ParentScope)
 			{
 				if (next.Acl != null)

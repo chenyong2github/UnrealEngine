@@ -84,9 +84,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(create.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.CreateJob, User))
+			if (!streamConfig.Authorize(JobAclAction.CreateJob, User))
 			{
-				return Forbid(AclAction.CreateJob, streamConfig.Id);
+				return Forbid(JobAclAction.CreateJob, streamConfig.Id);
 			}
 
 			// Get the name of the template ref
@@ -98,9 +98,9 @@ namespace Horde.Server.Jobs
 			{
 				return BadRequest($"Template {create.TemplateId} is not available for stream {streamConfig.Id}");
 			}
-			if (!templateRefConfig.Authorize(AclAction.CreateJob, User))
+			if (!templateRefConfig.Authorize(JobAclAction.CreateJob, User))
 			{
-				return Forbid(AclAction.CreateJob, streamConfig.Id);
+				return Forbid(JobAclAction.CreateJob, streamConfig.Id);
 			}
 
 			ITemplate? template = await _templateCollection.GetOrAddAsync(templateRefConfig);
@@ -251,9 +251,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(jobId);
 			}
-			if (!_globalConfig.Value.Authorize(job, AclAction.DeleteJob, User))
+			if (!_globalConfig.Value.Authorize(job, JobAclAction.DeleteJob, User))
 			{
-				return Forbid(AclAction.DeleteJob, jobId);
+				return Forbid(JobAclAction.DeleteJob, jobId);
 			}
 			if (!await _jobService.DeleteJobAsync(job))
 			{
@@ -283,9 +283,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.UpdateJob, User))
+			if (!streamConfig.Authorize(JobAclAction.UpdateJob, User))
 			{
-				return Forbid(AclAction.UpdateJob, jobId);
+				return Forbid(JobAclAction.UpdateJob, jobId);
 			}
 
 			// Convert legacy behavior of clearing out the argument to setting the aborted flag
@@ -330,9 +330,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.CreateSubscription, User))
+			if (!streamConfig.Authorize(NotificationAclAction.CreateSubscription, User))
 			{
-				return Forbid(AclAction.CreateSubscription, jobId);
+				return Forbid(NotificationAclAction.CreateSubscription, jobId);
 			}
 
 			ObjectId triggerId = job.NotificationTriggerId ?? ObjectId.GenerateNewId();
@@ -367,9 +367,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.CreateSubscription, User))
+			if (!streamConfig.Authorize(NotificationAclAction.CreateSubscription, User))
 			{
-				return Forbid(AclAction.CreateSubscription, jobId);
+				return Forbid(NotificationAclAction.CreateSubscription, jobId);
 			}
 
 			INotificationSubscription? subscription;
@@ -407,9 +407,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, job.StreamId);
+				return Forbid(JobAclAction.ViewJob, job.StreamId);
 			}
 			if (modifiedAfter != null && job.UpdateTimeUtc <= modifiedAfter.Value)
 			{
@@ -417,7 +417,7 @@ namespace Horde.Server.Jobs
 			}
 
 			IGraph graph = await _jobService.GetGraphAsync(job);
-			bool includeCosts = streamConfig.Authorize(AclAction.ViewCosts, User);
+			bool includeCosts = streamConfig.Authorize(AdminAclAction.ViewCosts, User);
 			return await CreateJobResponseAsync(job, graph, includeCosts, filter);
 		}
 
@@ -551,9 +551,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			IGraph graph = await _jobService.GetGraphAsync(job);
@@ -582,9 +582,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			IJobTiming jobTiming = await _jobService.GetJobTimingAsync(job);
@@ -653,7 +653,7 @@ namespace Horde.Server.Jobs
 			List<IJob> jobs = await _jobService.FindJobsByStreamWithTemplatesAsync(new StreamId(streamId), templateRefIds, count: count, consistentRead: false);
 
 			Dictionary<string, GetJobTimingResponse> jobTimings = await jobs.ToAsyncEnumerable()
-				.Where(job => _globalConfig.Value.Authorize(job, AclAction.ViewJob, User))
+				.Where(job => _globalConfig.Value.Authorize(job, JobAclAction.ViewJob, User))
 				.ToDictionaryAwaitAsync(x => ValueTask.FromResult(x.Id.ToString()), async job =>
 				{
 					IJobTiming jobTiming = await _jobService.GetJobTimingAsync(job);
@@ -686,9 +686,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			ITemplate? template = await _templateCollection.GetAsync(job.TemplateHash);
@@ -828,9 +828,9 @@ namespace Horde.Server.Jobs
 			foreach(IGrouping<StreamId, IJob> grouping in jobs.GroupBy(x => x.StreamId))
 			{
 				StreamConfig? streamConfig;
-				if (_globalConfig.Value.TryGetStream(grouping.Key, out streamConfig) && streamConfig.Authorize(AclAction.ViewJob, User))
+				if (_globalConfig.Value.TryGetStream(grouping.Key, out streamConfig) && streamConfig.Authorize(JobAclAction.ViewJob, User))
 				{
-					bool includeCosts = streamConfig.Authorize(AclAction.ViewCosts, User);
+					bool includeCosts = streamConfig.Authorize(AdminAclAction.ViewCosts, User);
 					foreach (IJob job in grouping)
 					{
 						IGraph graph = await _jobService.GetGraphAsync(job);
@@ -864,9 +864,9 @@ namespace Horde.Server.Jobs
 				{
 					return NotFound(job.StreamId);
 				}
-				if (!streamConfig.Authorize(AclAction.ExecuteJob, User))
+				if (!streamConfig.Authorize(JobAclAction.ExecuteJob, User))
 				{
-					return Forbid(AclAction.ExecuteJob, jobId);
+					return Forbid(JobAclAction.ExecuteJob, jobId);
 				}
 
 				IGraph graph = await _jobService.GetGraphAsync(job);
@@ -902,9 +902,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			IGraph graph = await _jobService.GetGraphAsync(job);
@@ -934,9 +934,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			IGraph graph = await _jobService.GetGraphAsync(job);
@@ -970,9 +970,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			IGraph graph = await _jobService.GetGraphAsync(job);
@@ -1007,9 +1007,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			IGraph graph = await _jobService.GetGraphAsync(job);
@@ -1047,12 +1047,12 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, job.StreamId);
+				return Forbid(JobAclAction.ViewJob, job.StreamId);
 			}
 
-			bool includeCosts = streamConfig.Authorize(AclAction.ViewCosts, User);
+			bool includeCosts = streamConfig.Authorize(AdminAclAction.ViewCosts, User);
 
 			List<object> responses = new List<object>();
 			foreach (IJobStepBatch batch in job.Batches)
@@ -1124,12 +1124,12 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, job.StreamId);
+				return Forbid(JobAclAction.ViewJob, job.StreamId);
 			}
 
-			bool includeCosts = streamConfig.Authorize(AclAction.ViewCosts, User);
+			bool includeCosts = streamConfig.Authorize(AdminAclAction.ViewCosts, User);
 			foreach (IJobStepBatch batch in job.Batches)
 			{
 				if (batch.Id == batchId)
@@ -1165,9 +1165,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			foreach (IJobStepBatch batch in job.Batches)
@@ -1226,16 +1226,16 @@ namespace Horde.Server.Jobs
 
 			if (request.Retry != null || request.Priority != null)
 			{
-				if (!streamConfig.Authorize(AclAction.RetryJobStep, User))
+				if (!streamConfig.Authorize(JobAclAction.RetryJobStep, User))
 				{
-					return Forbid(AclAction.RetryJobStep, jobId);
+					return Forbid(JobAclAction.RetryJobStep, jobId);
 				}
 			}
 			if (request.Properties != null)
 			{
-				if (!streamConfig.Authorize(AclAction.UpdateJob, User))
+				if (!streamConfig.Authorize(JobAclAction.UpdateJob, User))
 				{
-					return Forbid(AclAction.UpdateJob, jobId);
+					return Forbid(JobAclAction.UpdateJob, jobId);
 				}
 			}
 
@@ -1322,9 +1322,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			foreach (IJobStepBatch batch in job.Batches)
@@ -1369,9 +1369,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.CreateSubscription, User))
+			if (!streamConfig.Authorize(NotificationAclAction.CreateSubscription, User))
 			{
-				return Forbid(AclAction.CreateSubscription, jobId);
+				return Forbid(NotificationAclAction.CreateSubscription, jobId);
 			}
 
 			if (!job.TryGetBatch(batchId, out IJobStepBatch? batch))
@@ -1430,9 +1430,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.CreateSubscription, User))
+			if (!streamConfig.Authorize(NotificationAclAction.CreateSubscription, User))
 			{
-				return Forbid(AclAction.CreateSubscription, jobId);
+				return Forbid(NotificationAclAction.CreateSubscription, jobId);
 			}
 
 			INotificationSubscription? subscription;
@@ -1470,9 +1470,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			if (!job.TryGetBatch(batchId, out IJobStepBatch? batch))
@@ -1516,9 +1516,9 @@ namespace Horde.Server.Jobs
 			{
 				return NotFound(job.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, jobId);
+				return Forbid(JobAclAction.ViewJob, jobId);
 			}
 
 			if (!job.TryGetBatch(batchId, out IJobStepBatch? batch))
@@ -1565,9 +1565,9 @@ namespace Horde.Server.Jobs
 				{
 					return NotFound(job.StreamId);
 				}
-				if (!streamConfig.Authorize(AclAction.CreateSubscription, User))
+				if (!streamConfig.Authorize(NotificationAclAction.CreateSubscription, User))
 				{
-					return Forbid(AclAction.CreateSubscription, jobId);
+					return Forbid(NotificationAclAction.CreateSubscription, jobId);
 				}
 
 				ObjectId newTriggerId;

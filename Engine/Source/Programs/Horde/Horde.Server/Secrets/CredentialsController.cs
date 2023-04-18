@@ -42,7 +42,7 @@ namespace Horde.Server.Secrets
 		[Route("/api/v1/credentials")]
 		public async Task<ActionResult<CreateCredentialResponse>> CreateCredentialAsync([FromBody] CreateCredentialRequest create)
 		{
-			if(!_globalConfig.Value.Authorize(AclAction.CreateCredential, User))
+			if(!_globalConfig.Value.Authorize(CredentialAclAction.CreateCredential, User))
 			{
 				return Forbid();
 			}
@@ -62,7 +62,7 @@ namespace Horde.Server.Secrets
 		[ProducesResponseType(typeof(List<GetCredentialResponse>), 200)]
 		public async Task<ActionResult<object>> FindCredentialAsync([FromQuery] string? name = null, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ListCredentials, User))
+			if (!_globalConfig.Value.Authorize(CredentialAclAction.ListCredentials, User))
 			{
 				return Forbid();
 			}
@@ -72,7 +72,7 @@ namespace Horde.Server.Secrets
 			List<object> responses = new List<object>();
 			foreach (Credential credential in credentials)
 			{
-				if (_globalConfig.Value.Authorize(AclAction.ViewCredential, User))
+				if (_globalConfig.Value.Authorize(CredentialAclAction.ViewCredential, User))
 				{
 					responses.Add(new GetCredentialResponse(credential).ApplyFilter(filter));
 				}
@@ -99,7 +99,7 @@ namespace Horde.Server.Secrets
 				return NotFound();
 			}
 
-			if (!_globalConfig.Value.Authorize(AclAction.ViewCredential, User))
+			if (!_globalConfig.Value.Authorize(CredentialAclAction.ViewCredential, User))
 			{
 				return Forbid();
 			}
@@ -125,11 +125,7 @@ namespace Horde.Server.Secrets
 				return NotFound();
 			}
 
-			if (!_globalConfig.Value.Authorize(AclAction.UpdateCredential, User))
-			{
-				return Forbid();
-			}
-			if (update.Acl != null && !_globalConfig.Value.Authorize(AclAction.ChangePermissions, User))
+			if (!_globalConfig.Value.Authorize(CredentialAclAction.UpdateCredential, User))
 			{
 				return Forbid();
 			}
@@ -154,7 +150,7 @@ namespace Horde.Server.Secrets
 			{
 				return NotFound();
 			}
-			if (!_globalConfig.Value.Authorize(AclAction.DeleteCredential, User))
+			if (!_globalConfig.Value.Authorize(CredentialAclAction.DeleteCredential, User))
 			{
 				return Forbid();
 			}

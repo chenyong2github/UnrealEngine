@@ -154,9 +154,9 @@ namespace Horde.Server.Artifacts
 			{
 				return NotFound(id);
 			}
-			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			if (!_globalConfig.Authorize(artifact.AclScope, ArtifactAclAction.ReadArtifact, User))
 			{
-				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+				return Forbid(ArtifactAclAction.ReadArtifact, artifact.AclScope);
 			}
 
 			return PropertyFilter.Apply(new GetArtifactResponse(artifact), filter);
@@ -180,9 +180,9 @@ namespace Horde.Server.Artifacts
 			{
 				return NotFound(id);
 			}
-			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			if (!_globalConfig.Authorize(artifact.AclScope, ArtifactAclAction.ReadArtifact, User))
 			{
-				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+				return Forbid(ArtifactAclAction.ReadArtifact, artifact.AclScope);
 			}
 			if (!locator.BlobId.WithinFolder(artifact.RefName.Text))
 			{
@@ -207,9 +207,9 @@ namespace Horde.Server.Artifacts
 			{
 				return NotFound(id);
 			}
-			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			if (!_globalConfig.Authorize(artifact.AclScope, ArtifactAclAction.ReadArtifact, User))
 			{
-				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+				return Forbid(ArtifactAclAction.ReadArtifact, artifact.AclScope);
 			}
 
 			return StorageController.ReadRefInternalAsync(_storageService, artifact.NamespaceId, artifact.RefName, cancellationToken);
@@ -233,9 +233,9 @@ namespace Horde.Server.Artifacts
 			{
 				return NotFound(id);
 			}
-			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			if (!_globalConfig.Authorize(artifact.AclScope, ArtifactAclAction.ReadArtifact, User))
 			{
-				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+				return Forbid(ArtifactAclAction.ReadArtifact, artifact.AclScope);
 			}
 
 			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
@@ -328,9 +328,9 @@ namespace Horde.Server.Artifacts
 			{
 				return NotFound(id);
 			}
-			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			if (!_globalConfig.Authorize(artifact.AclScope, ArtifactAclAction.ReadArtifact, User))
 			{
-				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+				return Forbid(ArtifactAclAction.ReadArtifact, artifact.AclScope);
 			}
 
 			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
@@ -395,9 +395,9 @@ namespace Horde.Server.Artifacts
 			{
 				return NotFound(id);
 			}
-			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			if (!_globalConfig.Authorize(artifact.AclScope, ArtifactAclAction.ReadArtifact, User))
 			{
-				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+				return Forbid(ArtifactAclAction.ReadArtifact, artifact.AclScope);
 			}
 
 			FileFilter? filter = null;
@@ -434,7 +434,7 @@ namespace Horde.Server.Artifacts
 			FindArtifactsResponse response = new FindArtifactsResponse();
 			await foreach (IArtifact artifact in _artifactCollection.FindAsync(ids, keys, HttpContext.RequestAborted))
 			{
-				if (_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+				if (_globalConfig.Authorize(artifact.AclScope, ArtifactAclAction.ReadArtifact, User))
 				{
 					response.Artifacts.Add(new GetArtifactResponse(artifact));
 				}

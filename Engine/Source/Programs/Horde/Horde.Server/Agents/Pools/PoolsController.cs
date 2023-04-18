@@ -43,9 +43,9 @@ namespace Horde.Server.Agents.Pools
 		[Route("/api/v1/pools")]
 		public async Task<ActionResult<CreatePoolResponse>> CreatePoolAsync([FromBody] CreatePoolRequest create)
 		{
-			if(!_globalConfig.Value.Authorize(AclAction.CreatePool, User))
+			if(!_globalConfig.Value.Authorize(PoolAclAction.CreatePool, User))
 			{
-				return Forbid(AclAction.CreatePool);
+				return Forbid(PoolAclAction.CreatePool);
 			}
 
 			List<PoolSizeStrategyInfo>? sizeStrategies = create.SizeStrategies?.Select(x => x.Convert()).ToList();
@@ -74,9 +74,9 @@ namespace Horde.Server.Agents.Pools
 		[ProducesResponseType(typeof(List<GetPoolResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetPoolsAsync([FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ListPools, User))
+			if (!_globalConfig.Value.Authorize(PoolAclAction.ListPools, User))
 			{
-				return Forbid(AclAction.ListPools);
+				return Forbid(PoolAclAction.ListPools);
 			}
 
 			List<IPool> pools = await _poolService.GetPoolsAsync();
@@ -100,9 +100,9 @@ namespace Horde.Server.Agents.Pools
 		[ProducesResponseType(typeof(GetPoolResponse), 200)]
 		public async Task<ActionResult<object>> GetPoolAsync(string poolId, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ViewPool, User))
+			if (!_globalConfig.Value.Authorize(PoolAclAction.ViewPool, User))
 			{
-				return Forbid(AclAction.ViewPool);
+				return Forbid(PoolAclAction.ViewPool);
 			}
 
 			PoolId poolIdValue = new PoolId(poolId);
@@ -126,9 +126,9 @@ namespace Horde.Server.Agents.Pools
 		[Route("/api/v1/pools/{poolId}")]
 		public async Task<ActionResult> UpdatePoolAsync(string poolId, [FromBody] UpdatePoolRequest update)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.UpdatePool, User))
+			if (!_globalConfig.Value.Authorize(PoolAclAction.UpdatePool, User))
 			{
-				return Forbid(AclAction.UpdatePool);
+				return Forbid(PoolAclAction.UpdatePool);
 			}
 
 			PoolId poolIdValue = new PoolId(poolId);
@@ -160,9 +160,9 @@ namespace Horde.Server.Agents.Pools
 		[Route("/api/v1/pools/{poolId}")]
 		public async Task<ActionResult> DeletePoolAsync(string poolId)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.DeletePool, User))
+			if (!_globalConfig.Value.Authorize(PoolAclAction.DeletePool, User))
 			{
-				return Forbid(AclAction.DeletePool);
+				return Forbid(PoolAclAction.DeletePool);
 			}
 
 			PoolId poolIdValue = new PoolId(poolId);
@@ -182,9 +182,9 @@ namespace Horde.Server.Agents.Pools
 		[Route("/api/v1/pools")]
 		public async Task<ActionResult> UpdatePoolAsync([FromBody] List<BatchUpdatePoolRequest> batchUpdates)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.UpdatePool, User))
+			if (!_globalConfig.Value.Authorize(PoolAclAction.UpdatePool, User))
 			{
-				return Forbid(AclAction.UpdatePool);
+				return Forbid(PoolAclAction.UpdatePool);
 			}
 
 			foreach (BatchUpdatePoolRequest update in batchUpdates)

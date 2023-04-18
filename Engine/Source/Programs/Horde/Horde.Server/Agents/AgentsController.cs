@@ -48,9 +48,9 @@ namespace Horde.Server.Agents
 		[Route("/api/v1/agents")]
 		public async Task<ActionResult<CreateAgentResponse>> CreateAgentAsync([FromBody] CreateAgentRequest request)
 		{
-			if(!_globalConfig.Value.Authorize(AclAction.CreateAgent, User))
+			if(!_globalConfig.Value.Authorize(AgentAclAction.CreateAgent, User))
 			{
-				return Forbid(AclAction.CreateAgent);
+				return Forbid(AgentAclAction.CreateAgent);
 			}
 
 			IAgent agent = await _agentService.CreateAgentAsync(request.Name, request.Enabled, request.Pools?.ConvertAll(x => new PoolId(x)));
@@ -72,9 +72,9 @@ namespace Horde.Server.Agents
 		[ProducesResponseType(typeof(List<GetAgentResponse>), 200)]
 		public async Task<ActionResult<List<object>>> FindAgentsAsync([FromQuery] PoolId? poolId = null, [FromQuery] int? index = null, [FromQuery] int? count = null, [FromQuery] DateTimeOffset? modifiedAfter = null, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ListAgents, User))
+			if (!_globalConfig.Value.Authorize(AgentAclAction.ListAgents, User))
 			{
-				return Forbid(AclAction.ListAgents);
+				return Forbid(AgentAclAction.ListAgents);
 			}
 
 			List<IAgent> agents = await _agentService.FindAgentsAsync(poolId, modifiedAfter?.UtcDateTime, index, count);
@@ -99,9 +99,9 @@ namespace Horde.Server.Agents
 		[ProducesResponseType(typeof(GetAgentResponse), 200)]
 		public async Task<ActionResult<object>> GetAgentAsync(AgentId agentId, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ViewAgent, User))
+			if (!_globalConfig.Value.Authorize(AgentAclAction.ViewAgent, User))
 			{
-				return Forbid(AclAction.ViewAgent, agentId);
+				return Forbid(AgentAclAction.ViewAgent, agentId);
 			}
 
 			IAgent? agent = await _agentService.GetAgentAsync(agentId);
@@ -119,7 +119,7 @@ namespace Horde.Server.Agents
 		async ValueTask<object> GetAgentResponseAsync(IAgent agent, PropertyFilter? filter = null)
 		{
 			double? rate = null;
-			if (_globalConfig.Value.Authorize(AclAction.ViewCosts, User))
+			if (_globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User))
 			{
 				rate = await _agentService.GetRateAsync(agent.Id);
 			}
@@ -144,9 +144,9 @@ namespace Horde.Server.Agents
 		[Route("/api/v1/agents/{agentId}")]
 		public async Task<ActionResult> UpdateAgentAsync(AgentId agentId, [FromBody] UpdateAgentRequest update)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.UpdateAgent, User))
+			if (!_globalConfig.Value.Authorize(AgentAclAction.UpdateAgent, User))
 			{
-				return Forbid(AclAction.UpdateAgent, agentId);
+				return Forbid(AgentAclAction.UpdateAgent, agentId);
 			}
 
 			List<PoolId>? updatePools = update.Pools?.ConvertAll(x => new PoolId(x));
@@ -214,9 +214,9 @@ namespace Horde.Server.Agents
 		[Route("/api/v1/agents/{agentId}")]
 		public async Task<ActionResult> DeleteAgentAsync(AgentId agentId)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.DeleteAgent, User))
+			if (!_globalConfig.Value.Authorize(AgentAclAction.DeleteAgent, User))
 			{
-				return Forbid(AclAction.DeleteAgent, agentId);
+				return Forbid(AgentAclAction.DeleteAgent, agentId);
 			}
 
 			IAgent? agent = await _agentService.GetAgentAsync(agentId);
@@ -261,9 +261,9 @@ namespace Horde.Server.Agents
 		[Route("/api/v1/agents/{agentId}/sessions")]
 		public async Task<ActionResult<List<GetAgentSessionResponse>>> FindSessionsAsync(AgentId agentId, [FromQuery] DateTimeOffset? startTime, [FromQuery] DateTimeOffset? finishTime, [FromQuery] int index = 0, [FromQuery] int count = 50)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ViewSession, User))
+			if (!_globalConfig.Value.Authorize(SessionAclAction.ViewSession, User))
 			{
-				return Forbid(AclAction.ViewSession, agentId);
+				return Forbid(SessionAclAction.ViewSession, agentId);
 			}
 
 			IAgent? agent = await _agentService.GetAgentAsync(agentId);
@@ -286,9 +286,9 @@ namespace Horde.Server.Agents
 		[Route("/api/v1/agents/{agentId}/sessions/{sessionId}")]
 		public async Task<ActionResult<GetAgentSessionResponse>> GetSessionAsync(AgentId agentId, SessionId sessionId)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ViewSession, User))
+			if (!_globalConfig.Value.Authorize(SessionAclAction.ViewSession, User))
 			{
-				return Forbid(AclAction.ViewSession, agentId);
+				return Forbid(SessionAclAction.ViewSession, agentId);
 			}
 
 			IAgent? agent = await _agentService.GetAgentAsync(agentId);
@@ -322,9 +322,9 @@ namespace Horde.Server.Agents
 		[ProducesResponseType(200, Type = typeof(List<GetAgentLeaseResponse>))]
 		public async Task<ActionResult<List<object>>> FindLeasesAsync(AgentId agentId, [FromQuery] SessionId? sessionId, [FromQuery] DateTimeOffset? startTime, [FromQuery] DateTimeOffset? finishTime, [FromQuery] int index = 0, [FromQuery] int count = 1000, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ViewLeases, User))
+			if (!_globalConfig.Value.Authorize(LeaseAclAction.ViewLeases, User))
 			{
-				return Forbid(AclAction.ViewLeases, agentId);
+				return Forbid(LeaseAclAction.ViewLeases, agentId);
 			}
 
 			IAgent? agent = await _agentService.GetAgentAsync(agentId);
@@ -336,7 +336,7 @@ namespace Horde.Server.Agents
 			List<ILease> leases = await _agentService.FindLeasesAsync(agentId, sessionId, startTime?.UtcDateTime, finishTime?.UtcDateTime, index, count);
 
 			double? agentRate = null;
-			if (_globalConfig.Value.Authorize(AclAction.ViewCosts, User))
+			if (_globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User))
 			{
 				agentRate = await _agentService.GetRateAsync(agentId);
 			}
@@ -361,9 +361,9 @@ namespace Horde.Server.Agents
 		[Route("/api/v1/agents/{agentId}/leases/{leaseId}")]
 		public async Task<ActionResult<GetAgentLeaseResponse>> GetLeaseAsync(AgentId agentId, LeaseId leaseId)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ViewLeases, User))
+			if (!_globalConfig.Value.Authorize(LeaseAclAction.ViewLeases, User))
 			{
-				return Forbid(AclAction.ViewLeases, agentId);
+				return Forbid(LeaseAclAction.ViewLeases, agentId);
 			}
 
 			IAgent? agent = await _agentService.GetAgentAsync(agentId);
@@ -379,7 +379,7 @@ namespace Horde.Server.Agents
 			}
 
 			double? agentRate = null;
-			if (_globalConfig.Value.Authorize(AclAction.ViewCosts, User))
+			if (_globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User))
 			{
 				agentRate = await _agentService.GetRateAsync(agentId);
 			}

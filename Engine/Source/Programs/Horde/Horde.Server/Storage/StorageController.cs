@@ -193,9 +193,9 @@ namespace Horde.Server.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.WriteBlobs, User) && !HasPathClaim(User, HordeClaimTypes.WriteNamespace, namespaceId, prefix ?? String.Empty))
+			if (!namespaceConfig.Authorize(StorageAclAction.WriteBlobs, User) && !HasPathClaim(User, HordeClaimTypes.WriteNamespace, namespaceId, prefix ?? String.Empty))
 			{
-				return Forbid(AclAction.WriteBlobs, namespaceId);
+				return Forbid(StorageAclAction.WriteBlobs, namespaceId);
 			}
 
 			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
@@ -272,9 +272,9 @@ namespace Horde.Server.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User) && !HasPathClaim(User, HordeClaimTypes.ReadNamespace, namespaceId, locator.Inner.ToString()))
+			if (!namespaceConfig.Authorize(StorageAclAction.ReadBlobs, User) && !HasPathClaim(User, HordeClaimTypes.ReadNamespace, namespaceId, locator.Inner.ToString()))
 			{
-				return Forbid(AclAction.ReadBlobs, namespaceId);
+				return Forbid(StorageAclAction.ReadBlobs, namespaceId);
 			}
 
 			return await ReadBlobInternalAsync(_storageService, namespaceId, locator, offset, length, cancellationToken);
@@ -337,9 +337,9 @@ namespace Horde.Server.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User))
+			if (!namespaceConfig.Authorize(StorageAclAction.ReadBlobs, User))
 			{
-				return Forbid(AclAction.ReadBlobs, namespaceId);
+				return Forbid(StorageAclAction.ReadBlobs, namespaceId);
 			}
 
 			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
@@ -374,9 +374,9 @@ namespace Horde.Server.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.WriteRefs, User) && !HasPathClaim(User, HordeClaimTypes.WriteNamespace, namespaceId, refName.ToString()))
+			if (!namespaceConfig.Authorize(StorageAclAction.WriteRefs, User) && !HasPathClaim(User, HordeClaimTypes.WriteNamespace, namespaceId, refName.ToString()))
 			{
-				return Forbid(AclAction.WriteRefs, namespaceId);
+				return Forbid(StorageAclAction.WriteRefs, namespaceId);
 			}
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
@@ -401,9 +401,9 @@ namespace Horde.Server.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.ReadRefs, User) && !HasPathClaim(User, HordeClaimTypes.ReadNamespace, namespaceId, refName.ToString()))
+			if (!namespaceConfig.Authorize(StorageAclAction.ReadRefs, User) && !HasPathClaim(User, HordeClaimTypes.ReadNamespace, namespaceId, refName.ToString()))
 			{
-				return Forbid(AclAction.ReadRefs, namespaceId);
+				return Forbid(StorageAclAction.ReadRefs, namespaceId);
 			}
 
 			return await ReadRefInternalAsync(_storageService, namespaceId, refName, cancellationToken);
@@ -484,9 +484,9 @@ namespace Horde.Server.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User))
+			if (!namespaceConfig.Authorize(StorageAclAction.ReadBlobs, User))
 			{
-				return Forbid(AclAction.ReadBlobs, namespaceId);
+				return Forbid(StorageAclAction.ReadBlobs, namespaceId);
 			}
 
 			IStorageClient storageClient = await _storageService.GetClientAsync(namespaceId, cancellationToken);
@@ -566,9 +566,9 @@ namespace Horde.Server.Storage
 			{
 				return NotFound(namespaceId);
 			}
-			if (!namespaceConfig.Authorize(AclAction.ReadBlobs, User))
+			if (!namespaceConfig.Authorize(StorageAclAction.ReadBlobs, User))
 			{
-				return Forbid(AclAction.ReadBlobs, namespaceId);
+				return Forbid(StorageAclAction.ReadBlobs, namespaceId);
 			}
 
 			IStorageClient storageClient = await _storageService.GetClientAsync(namespaceId, cancellationToken);

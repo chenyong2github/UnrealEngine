@@ -22,11 +22,6 @@ namespace Horde.Server.Utilities
 		public const string Role = Prefix + "role";
 
 		/// <summary>
-		/// Claim for a well known internal role (eg. admin)
-		/// </summary>
-		public const string InternalRole = Prefix + "internal-role";
-
-		/// <summary>
 		/// Claim for a particular session
 		/// </summary>
 		public const string AgentId = Prefix + "agent";

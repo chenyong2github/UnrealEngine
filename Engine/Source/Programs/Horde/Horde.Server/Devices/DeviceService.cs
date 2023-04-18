@@ -558,7 +558,7 @@ namespace Horde.Server.Devices
 		{
 			// This is deprecated and device auth should be going through GetUserPoolAuthorizationsAsync
 
-			if (action == AclAction.DeviceRead)
+			if (action == DeviceAclAction.DeviceRead)
 			{
 				return true;
 			}
@@ -568,7 +568,7 @@ namespace Horde.Server.Devices
 				return true;
 			}
 
-			if (globalConfig.Authorize(AclAction.AdminWrite, user))
+			if (globalConfig.Authorize(AdminAclAction.AdminWrite, user))
 			{
 				return true;
 			}
@@ -605,8 +605,8 @@ namespace Horde.Server.Devices
 
 				if (globalConfig.TryGetProject(projectId, out ProjectConfig? projectConfig))
 				{
-					deviceRead.Add(projectId, projectConfig.Authorize(AclAction.DeviceRead, user));
-					deviceWrite.Add(projectId, projectConfig.Authorize(AclAction.DeviceWrite, user));
+					deviceRead.Add(projectId, projectConfig.Authorize(DeviceAclAction.DeviceRead, user));
+					deviceWrite.Add(projectId, projectConfig.Authorize(DeviceAclAction.DeviceWrite, user));
 				}
 			}
 
@@ -615,7 +615,7 @@ namespace Horde.Server.Devices
 
 			if (!globalPoolAccess)
 			{
-				if (globalConfig.Authorize(AclAction.AdminWrite, user))
+				if (globalConfig.Authorize(AdminAclAction.AdminWrite, user))
 				{
 					globalPoolAccess = true;
 				}

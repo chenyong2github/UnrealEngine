@@ -599,11 +599,7 @@ namespace Horde.Server
 			switch (settings.AuthMethod)
 			{
 				case AuthMethod.Anonymous:
-					authBuilder.AddAnonymous(options =>
-					{
-						options.AdminClaimType = settings.AdminClaimType;
-						options.AdminClaimValue = settings.AdminClaimValue;
-					});
+					authBuilder.AddAnonymous(options => { });
 					schemes.Add(AnonymousAuthenticationHandler.AuthenticationScheme);
 					break;
 						
@@ -971,6 +967,15 @@ namespace Horde.Server
 			}
 		}
 
+		public sealed class AclActionBsonSerializer : SerializerBase<AclAction>
+		{
+			/// <inheritdoc/>
+			public override AclAction Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) => new AclAction(context.Reader.ReadString());
+
+			/// <inheritdoc/>
+			public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, AclAction value) => context.Writer.WriteString(value.Name);
+		}
+
 		static int s_haveConfiguredMongoDb = 0;
 
 		public static void ConfigureMongoDbClient()
@@ -990,6 +995,7 @@ namespace Horde.Server
 				BsonSerializer.RegisterSerializer(new RefNameBsonSerializer());
 				BsonSerializer.RegisterSerializer(new IoHashBsonSerializer());
 				BsonSerializer.RegisterSerializer(new NamespaceIdBsonSerializer());
+				BsonSerializer.RegisterSerializer(new AclActionBsonSerializer());
 				BsonSerializer.RegisterSerializer(new ConditionSerializer());
 				BsonSerializer.RegisterSerializationProvider(new BsonSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new StringIdBsonSerializationProvider());

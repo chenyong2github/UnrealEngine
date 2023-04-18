@@ -73,7 +73,7 @@ namespace Horde.Server.Server
 			if (User.Identity?.IsAuthenticated ?? false)
 			{
 				content.Append(CultureInfo.InvariantCulture, $"<p>User <b>{User.Identity?.Name}</b> is logged in. <a href=\"/account/logout\">Log out</a></p>");
-				if (_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+				if (_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 				{
 					content.Append("<p>");
 					content.Append("<a href=\"/api/v1/admin/token\">Get bearer token</a><br/>");

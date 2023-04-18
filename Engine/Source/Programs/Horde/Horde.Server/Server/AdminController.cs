@@ -75,9 +75,9 @@ namespace Horde.Server.Server
 		[Route("/api/v1/admin/token")]
 		public async Task<ActionResult<string>> GetTokenAsync()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.IssueBearerToken, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.IssueBearerToken, User))
 			{
-				return Forbid(AclAction.IssueBearerToken);
+				return Forbid(AdminAclAction.IssueBearerToken);
 			}
 
 			return await _aclService.IssueBearerTokenAsync(User.Claims, GetDefaultExpiryTime());
@@ -90,9 +90,9 @@ namespace Horde.Server.Server
 		[Route("/api/v1/admin/config")]
 		public ActionResult<object> GetConfig()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
-				return Forbid(AclAction.AdminRead);
+				return Forbid(AdminAclAction.AdminRead);
 			}
 
 			return _globalConfig.Value;
@@ -107,9 +107,9 @@ namespace Horde.Server.Server
 		[Route("/api/v1/admin/roletoken")]
 		public async Task<ActionResult<string>> GetRoleTokenAsync([FromQuery] string roles)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
-				return Forbid(AclAction.AdminWrite);
+				return Forbid(AdminAclAction.AdminWrite);
 			}
 
 			List<Claim> claims = new List<Claim>();
@@ -126,9 +126,9 @@ namespace Horde.Server.Server
 		[Route("/api/v1/admin/registrationtoken")]
 		public async Task<ActionResult<string>> GetRegistrationTokenAsync()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
-				return Forbid(AclAction.AdminWrite);
+				return Forbid(AdminAclAction.AdminWrite);
 			}
 
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();
@@ -146,9 +146,9 @@ namespace Horde.Server.Server
 		[Route("/api/v1/admin/softwaretoken")]
 		public async Task<ActionResult<string>> GetSoftwareTokenAsync()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
-				return Forbid(AclAction.AdminWrite);
+				return Forbid(AdminAclAction.AdminWrite);
 			}
 
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();
@@ -166,9 +166,9 @@ namespace Horde.Server.Server
 		[Route("/api/v1/admin/softwaredownloadtoken")]
 		public async Task<ActionResult<string>> GetSoftwareDownloadTokenAsync()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
-				return Forbid(AclAction.AdminRead);
+				return Forbid(AdminAclAction.AdminRead);
 			}
 
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();
@@ -186,9 +186,9 @@ namespace Horde.Server.Server
 		[Route("/api/v1/admin/configtoken")]
 		public async Task<ActionResult<string>> GetConfigToken()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
-				return Forbid(AclAction.AdminRead);
+				return Forbid(AdminAclAction.AdminRead);
 			}
 
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();
@@ -206,9 +206,9 @@ namespace Horde.Server.Server
 		[Route("/api/v1/admin/chainedjobtoken")]
 		public async Task<ActionResult<string>> GetChainedJobToken()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
-				return Forbid(AclAction.AdminRead);
+				return Forbid(AdminAclAction.AdminRead);
 			}
 
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();

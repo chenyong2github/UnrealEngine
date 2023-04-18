@@ -152,7 +152,7 @@ namespace Horde.Server.Dashboard
 		[Route("/api/v1/dashboard/preview")]
 		public async Task<ActionResult<GetDashboardPreviewResponse>> CreateDashbordPreview([FromBody] CreateDashboardPreviewRequest request)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}
@@ -182,7 +182,7 @@ namespace Horde.Server.Dashboard
 		[Route("/api/v1/dashboard/preview")]
 		public async Task<ActionResult<GetDashboardPreviewResponse>> UpdateDashbordPreview([FromBody] UpdateDashboardPreviewRequest request)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}

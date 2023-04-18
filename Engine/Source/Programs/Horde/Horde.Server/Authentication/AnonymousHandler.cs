@@ -15,8 +15,6 @@ namespace Horde.Server.Authentication
 {
 	class AnonymousAuthenticationOptions : AuthenticationSchemeOptions
 	{
-		public string? AdminClaimType { get; set; }
-		public string? AdminClaimValue { get; set; }
 	}
 
 	class AnonymousAuthenticationHandler : AuthenticationHandler<AnonymousAuthenticationOptions>
@@ -36,11 +34,7 @@ namespace Horde.Server.Authentication
 			List<Claim> claims = new List<Claim>();
 			claims.Add(new Claim(ClaimTypes.Name, AuthenticationScheme));
 			claims.Add(new Claim(HordeClaimTypes.UserId, UserId.Anonymous.ToString()));
-
-			if (Options.AdminClaimType != null && Options.AdminClaimValue != null)
-			{
-				claims.Add(new Claim(Options.AdminClaimType, Options.AdminClaimValue));
-			}
+			claims.Add(new Claim(HordeClaims.AdminClaim.Type, HordeClaims.AdminClaim.Value));
 
 			ClaimsIdentity identity = new ClaimsIdentity(claims, Scheme.Name);
 

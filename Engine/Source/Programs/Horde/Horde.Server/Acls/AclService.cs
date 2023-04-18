@@ -98,6 +98,11 @@ namespace Horde.Server.Acls
 
     internal static class ClaimExtensions
 	{
+		public static bool HasAdminClaim(this ClaimsPrincipal user)
+		{
+			return user.HasClaim(HordeClaims.AdminClaim.Type, HordeClaims.AdminClaim.Value);
+		}
+
 		public static bool HasLeaseClaim(this ClaimsPrincipal user, LeaseId leaseId)
 		{
 			return user.HasClaim(HordeClaimTypes.Lease, leaseId.ToString());

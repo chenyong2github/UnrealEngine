@@ -36,9 +36,12 @@ namespace Horde.Server.Tests
 					ControllerContext controllerContext = new ControllerContext();
 					controllerContext.HttpContext = new DefaultHttpContext();
 					controllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(
-						new List<Claim> {new Claim(ServerSettings.AdminClaimType, ServerSettings.AdminClaimValue),
-					new Claim(ClaimTypes.Name, "TestUser"),
-					new Claim(HordeClaimTypes.UserId, user.Id.ToString()) }
+						new List<Claim>
+						{ 
+							HordeClaims.AdminClaim.ToClaim(),
+							new Claim(ClaimTypes.Name, "TestUser"),
+							new Claim(HordeClaimTypes.UserId, user.Id.ToString()) 
+						}
 						, "TestAuthType"));
 					_deviceController.ControllerContext = controllerContext;
 

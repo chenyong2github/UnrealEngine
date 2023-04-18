@@ -129,7 +129,7 @@ namespace Horde.Server.Jobs.TestData
 			// authorize streams
 			foreach (StreamId streamId in streamIdValues)
 			{
-				if (_globalConfig.Value.TryGetStream(streamId, out StreamConfig? streamConfig) && streamConfig.Authorize(AclAction.ViewJob, User))
+				if (_globalConfig.Value.TryGetStream(streamId, out StreamConfig? streamConfig) && streamConfig.Authorize(JobAclAction.ViewJob, User))
 				{
 					queryStreams.Add(streamId);
 				}
@@ -269,7 +269,7 @@ namespace Horde.Server.Jobs.TestData
 			// authorize streams
 			foreach (StreamId streamId in streamIdValues)
 			{
-				if (_globalConfig.Value.TryGetStream(streamId, out StreamConfig? streamConfig) && streamConfig.Authorize(AclAction.ViewJob, User))
+				if (_globalConfig.Value.TryGetStream(streamId, out StreamConfig? streamConfig) && streamConfig.Authorize(JobAclAction.ViewJob, User))
 				{
 					queryStreams.Add(streamId);
 				}
@@ -300,7 +300,7 @@ namespace Horde.Server.Jobs.TestData
 			{
 				return NotFound();
 			}
-			if (!_globalConfig.Value.Authorize(job, AclAction.UpdateJob, User))
+			if (!_globalConfig.Value.Authorize(job, JobAclAction.UpdateJob, User))
 			{
 				return Forbid();
 			}
@@ -344,7 +344,7 @@ namespace Horde.Server.Jobs.TestData
 			List<ITestData> documents = await _testDataCollection.FindAsync(streamIdValue, minChange, maxChange, (jobId == null)? null : JobId.Parse(jobId), jobStepId?.ToSubResourceId(), key, index, count);
 			foreach (ITestData document in documents)
 			{
-				if (await _jobService.AuthorizeAsync(document.JobId, AclAction.ViewJob, User, _globalConfig.Value))
+				if (await _jobService.AuthorizeAsync(document.JobId, JobAclAction.ViewJob, User, _globalConfig.Value))
 				{
 					results.Add(PropertyFilter.Apply(new GetTestDataResponse(document), filter));
 				}
@@ -369,7 +369,7 @@ namespace Horde.Server.Jobs.TestData
 			{
 				return NotFound();
 			}
-			if (!await _jobService.AuthorizeAsync(testData.JobId, AclAction.ViewJob, User, _globalConfig.Value))
+			if (!await _jobService.AuthorizeAsync(testData.JobId, JobAclAction.ViewJob, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}

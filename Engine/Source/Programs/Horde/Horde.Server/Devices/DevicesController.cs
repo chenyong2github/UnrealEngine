@@ -300,7 +300,7 @@ namespace Horde.Server.Devices
 		[Route("/api/v2/devices/{deviceId}")]
 		public async Task<ActionResult> DeleteDeviceAsync(string deviceId)
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -334,7 +334,7 @@ namespace Horde.Server.Devices
 		[Route("/api/v2/devices/platforms")]
 		public async Task<ActionResult<CreateDevicePlatformResponse>> CreatePlatformAsync([FromBody] CreateDevicePlatformRequest request)
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -359,7 +359,7 @@ namespace Horde.Server.Devices
 		[Route("/api/v2/devices/platforms/{platformId}")]
 		public async Task<ActionResult<CreateDevicePlatformResponse>> UpdatePlatformAsync(string platformId, [FromBody] UpdateDevicePlatformRequest request)
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -378,7 +378,7 @@ namespace Horde.Server.Devices
 		[ProducesResponseType(typeof(List<GetDevicePlatformResponse>), 200)]
 		public async Task<ActionResult<List<object>>> GetDevicePlatformsAsync()
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceRead, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceRead, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -406,7 +406,7 @@ namespace Horde.Server.Devices
 		[Route("/api/v2/devices/pools")]
 		public async Task<ActionResult<CreateDevicePoolResponse>> CreatePoolAsync([FromBody] CreateDevicePoolRequest request)
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -494,7 +494,7 @@ namespace Horde.Server.Devices
 			[FromQuery] int index = 0,
 			[FromQuery] int count = 1024)
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceRead, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceRead, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -542,7 +542,7 @@ namespace Horde.Server.Devices
 		[ProducesResponseType(typeof(CreateDeviceReservationResponse), 200)]
 		public async Task<ActionResult<CreateDeviceReservationResponse>> CreateDeviceReservation([FromBody] CreateDeviceReservationRequest request)
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -624,7 +624,7 @@ namespace Horde.Server.Devices
 		[ProducesResponseType(typeof(List<GetDeviceReservationResponse>), 200)]
 		public async Task<ActionResult<List<GetDeviceReservationResponse>>> GetDeviceReservations()
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceRead, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceRead, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -666,7 +666,7 @@ namespace Horde.Server.Devices
 		[Route("/api/v2/devices/reservations/{reservationId}")]
 		public async Task<ActionResult> UpdateReservationAsync(string reservationId)
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -691,7 +691,7 @@ namespace Horde.Server.Devices
 		[Route("/api/v2/devices/reservations/{reservationId}")]
 		public async Task<ActionResult> DeleteReservationAsync(string reservationId)
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceWrite, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceWrite, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}
@@ -726,7 +726,7 @@ namespace Horde.Server.Devices
 			[FromQuery] int index = 0,
 			[FromQuery] int count = 1024)
 		{
-			if (!DeviceService.Authorize(AclAction.DeviceRead, User, _globalConfig.Value))
+			if (!DeviceService.Authorize(DeviceAclAction.DeviceRead, User, _globalConfig.Value))
 			{
 				return Forbid();
 			}

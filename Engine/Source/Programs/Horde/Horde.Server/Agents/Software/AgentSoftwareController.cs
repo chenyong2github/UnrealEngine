@@ -59,7 +59,7 @@ namespace Horde.Server.Agents.Software
 		[ProducesResponseType(typeof(GetAgentSoftwareChannelResponse), 200)]
 		public async Task<ActionResult<object>> FindSoftwareAsync()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.DownloadSoftware, User))
+			if (!_globalConfig.Value.Authorize(AgentSoftwareAclAction.DownloadSoftware, User))
 			{
 				return Forbid();
 			}
@@ -89,7 +89,7 @@ namespace Horde.Server.Agents.Software
 		[Route("/api/v1/agentsoftware/default/zip")]
 		public async Task<ActionResult> GetArchiveAsync(CancellationToken cancellationToken)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.DownloadSoftware, User))
+			if (!_globalConfig.Value.Authorize(AgentSoftwareAclAction.DownloadSoftware, User))
 			{
 				return Forbid();
 			}

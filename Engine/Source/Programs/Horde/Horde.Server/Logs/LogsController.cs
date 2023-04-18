@@ -12,6 +12,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Logs;
 using EpicGames.Horde.Storage;
 using Horde.Server.Acls;
+using Horde.Server.Agents.Sessions;
 using Horde.Server.Issues;
 using Horde.Server.Jobs;
 using Horde.Server.Logs.Data;
@@ -85,7 +86,7 @@ namespace Horde.Server.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
+			if (!await AuthorizeAsync(logFile, LogAclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -111,7 +112,7 @@ namespace Horde.Server.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.WriteLogData, User))
+			if (!await AuthorizeAsync(logFile, LogAclAction.WriteLogData, User))
 			{
 				return Forbid();
 			}
@@ -142,7 +143,7 @@ namespace Horde.Server.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
+			if (!await AuthorizeAsync(logFile, LogAclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -177,7 +178,7 @@ namespace Horde.Server.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
+			if (!await AuthorizeAsync(logFile, LogAclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -272,7 +273,7 @@ namespace Horde.Server.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
+			if (!await AuthorizeAsync(logFile, LogAclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -301,7 +302,7 @@ namespace Horde.Server.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.ViewLog, User))
+			if (!await AuthorizeAsync(logFile, LogAclAction.ViewLog, User))
 			{
 				return Forbid();
 			}
@@ -345,7 +346,7 @@ namespace Horde.Server.Logs
 			{
 				return NotFound();
 			}
-			if (!await AuthorizeAsync(logFile, AclAction.WriteLogData, User))
+			if (!await AuthorizeAsync(logFile, LogAclAction.WriteLogData, User))
 			{
 				return Forbid();
 			}
@@ -380,7 +381,7 @@ namespace Horde.Server.Logs
 			{
 				return true;
 			}
-			if (action == AclAction.ViewLog && logFile.SessionId != null && globalConfig.Authorize(AclAction.ViewSession, user))
+			if (action == LogAclAction.ViewLog && logFile.SessionId != null && globalConfig.Authorize(SessionAclAction.ViewSession, user))
 			{
 				return true;
 			}

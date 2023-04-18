@@ -52,7 +52,7 @@ namespace Horde.Server.Server.Notices
 		[HttpPost("/api/v1/notices")]
 		public async Task<ActionResult> AddNoticeAsync(CreateNoticeRequest request)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}
@@ -71,7 +71,7 @@ namespace Horde.Server.Server.Notices
 		[HttpPut("/api/v1/notices")]
 		public async Task<ActionResult> UpdateNoticeAsync(UpdateNoticeRequest request)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}
@@ -86,7 +86,7 @@ namespace Horde.Server.Server.Notices
 		[HttpDelete("/api/v1/notices/{id}")]
 		public async Task<ActionResult> DeleteNoticeAsync(string id)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
 				return Forbid();
 			}

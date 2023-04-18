@@ -92,9 +92,9 @@ namespace Horde.Server.Issues
 				{
 					return NotFound(streamId.Value);
 				}
-				if (!streamConfig.Authorize(AclAction.ViewStream, User))
+				if (!streamConfig.Authorize(StreamAclAction.ViewStream, User))
 				{
-					return Forbid(AclAction.ViewStream, streamId.Value);
+					return Forbid(StreamAclAction.ViewStream, streamId.Value);
 				}
 
 				List<IIssueSpan> spans = await _issueCollection.FindSpansAsync(null, ids, streamId.Value, minChange, maxChange, resolved);
@@ -245,9 +245,9 @@ namespace Horde.Server.Issues
 				{
 					return NotFound(jobId.Value);
 				}
-				if(!_globalConfig.Value.Authorize(job, AclAction.ViewJob, User))
+				if(!_globalConfig.Value.Authorize(job, JobAclAction.ViewJob, User))
 				{
-					return Forbid(AclAction.ViewJob, jobId.Value);
+					return Forbid(JobAclAction.ViewJob, jobId.Value);
 				}
 
 				IGraph graph = await _jobService.GetGraphAsync(job);
@@ -360,7 +360,7 @@ namespace Horde.Server.Issues
 			List<object> responses = new List<object>();
 			foreach (IGrouping<StreamId, IIssueSpan> spanGroup in issue.Spans.GroupBy(x => x.StreamId))
 			{
-				if (_globalConfig.Value.TryGetStream(spanGroup.Key, out StreamConfig? streamConfig) && streamConfig.Authorize(AclAction.ViewStream, User))
+				if (_globalConfig.Value.TryGetStream(spanGroup.Key, out StreamConfig? streamConfig) && streamConfig.Authorize(StreamAclAction.ViewStream, User))
 				{
 					HashSet<ObjectId> spanIds = new HashSet<ObjectId>(spanGroup.Select(x => x.Id));
 					List<IIssueStep> steps = issue.Steps.Where(x => spanIds.Contains(x.SpanId)).ToList();
@@ -391,9 +391,9 @@ namespace Horde.Server.Issues
 			{
 				return NotFound(streamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewStream, User))
+			if (!streamConfig.Authorize(StreamAclAction.ViewStream, User))
 			{
-				return Forbid(AclAction.ViewStream, streamId);
+				return Forbid(StreamAclAction.ViewStream, streamId);
 			}
 
 			List<IIssueSpan> spans = details.Spans.Where(x => x.StreamId == streamId).ToList();
@@ -505,7 +505,7 @@ namespace Horde.Server.Issues
 					logFile = await _logFileService.GetLogFileAsync(logEvent.LogId, cancellationToken);
 					logFiles[logEvent.LogId] = logFile;
 				}
-				if (logFile != null && await _jobService.AuthorizeAsync(logFile.JobId, AclAction.ViewLog, User, _globalConfig.Value))
+				if (logFile != null && await _jobService.AuthorizeAsync(logFile.JobId, LogAclAction.ViewLog, User, _globalConfig.Value))
 				{
 					ILogEventData data = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount, cancellationToken);
 					GetLogEventResponse response = new GetLogEventResponse(logEvent, data, issueId);
@@ -524,7 +524,7 @@ namespace Horde.Server.Issues
 		{
 			foreach (StreamId streamId in issue.Spans.Select(x => x.StreamId).Distinct())
 			{
-				if (_globalConfig.Value.TryGetStream(streamId, out StreamConfig? streamConfig) && streamConfig.Authorize(AclAction.ViewStream, User))
+				if (_globalConfig.Value.TryGetStream(streamId, out StreamConfig? streamConfig) && streamConfig.Authorize(StreamAclAction.ViewStream, User))
 				{
 					return true;
 				}
@@ -620,9 +620,9 @@ namespace Horde.Server.Issues
 			{
 				return NotFound(streamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewStream, User))
+			if (!streamConfig.Authorize(StreamAclAction.ViewStream, User))
 			{
-				return Forbid(AclAction.ViewStream, streamId);
+				return Forbid(StreamAclAction.ViewStream, streamId);
 			}
 
 			List<GetExternalIssueResponse> response = new List<GetExternalIssueResponse>();
@@ -659,9 +659,9 @@ namespace Horde.Server.Issues
 			{
 				return NotFound(streamIdValue);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewStream, User))
+			if (!streamConfig.Authorize(StreamAclAction.ViewStream, User))
 			{
-				return Forbid(AclAction.ViewStream, streamIdValue);
+				return Forbid(StreamAclAction.ViewStream, streamIdValue);
 			}
 
 
@@ -702,9 +702,9 @@ namespace Horde.Server.Issues
 			{
 				return NotFound(streamIdValue);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewStream, User))
+			if (!streamConfig.Authorize(StreamAclAction.ViewStream, User))
 			{
-				return Forbid(AclAction.ViewStream, streamIdValue);
+				return Forbid(StreamAclAction.ViewStream, streamIdValue);
 			}
 
 			List<IExternalIssueProject> projects = await _externalIssueService.GetProjects(streamConfig);

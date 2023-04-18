@@ -12,6 +12,11 @@ namespace Horde.Server.Utilities
 	public static class HordeClaims
 	{
 		/// <summary>
+		/// Claim which gives unfettered access to all Horde endpoints
+		/// </summary>
+		public static AclClaimConfig AdminClaim { get; } = new AclClaimConfig(HordeClaimTypes.Role, "admin");
+
+		/// <summary>
 		/// Name of the role that can be used to administer agents
 		/// </summary>
 		public static AclClaimConfig AgentRegistrationClaim { get; } = new AclClaimConfig(HordeClaimTypes.Role, "agent-registration");

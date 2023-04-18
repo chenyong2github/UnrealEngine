@@ -63,12 +63,12 @@ namespace Horde.Server.Agents.Leases
 			[FromQuery] int count = 1000,
 			[FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ViewLeases, User))
+			if (!_globalConfig.Value.Authorize(LeaseAclAction.ViewLeases, User))
 			{
-				return Forbid(AclAction.ViewLeases);
+				return Forbid(LeaseAclAction.ViewLeases);
 			}
 
-			bool includeCosts = _globalConfig.Value.Authorize(AclAction.ViewCosts, User);
+			bool includeCosts = _globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User);
 
 			List<ILease> leases;
 			if (minFinishTime == null && maxFinishTime == null)
@@ -112,9 +112,9 @@ namespace Horde.Server.Agents.Leases
 		[Route("/api/v1/leases/{leaseId}")]
 		public async Task<ActionResult<GetAgentLeaseResponse>> GetLeaseAsync(LeaseId leaseId)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.ViewLeases, User))
+			if (!_globalConfig.Value.Authorize(LeaseAclAction.ViewLeases, User))
 			{
-				return Forbid(AclAction.ViewLeases);
+				return Forbid(LeaseAclAction.ViewLeases);
 			}
 
 			ILease? lease = await _agentService.GetLeaseAsync(leaseId);
@@ -130,7 +130,7 @@ namespace Horde.Server.Agents.Leases
 			}
 
 			double? agentRate = null;
-			if (_globalConfig.Value.Authorize(AclAction.ViewCosts, User))
+			if (_globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User))
 			{
 				agentRate = await _agentService.GetRateAsync(agent.Id);
 			}
@@ -149,9 +149,9 @@ namespace Horde.Server.Agents.Leases
 		[Route("/api/v1/leases/{leaseId}")]
 		public async Task<ActionResult> UpdateLeaseAsync(LeaseId leaseId, [FromBody] UpdateLeaseRequest request)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
-				return Forbid(AclAction.AdminWrite);
+				return Forbid(AdminAclAction.AdminWrite);
 			}
 
 			// only update supported right now is abort

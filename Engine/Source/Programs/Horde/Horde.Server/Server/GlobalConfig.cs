@@ -273,7 +273,7 @@ namespace Horde.Server.Server
 			}
 			else
 			{
-				return this.Authorize(AclAction.Impersonate, user);
+				return this.Authorize(AdminAclAction.Impersonate, user);
 			}
 		}
 

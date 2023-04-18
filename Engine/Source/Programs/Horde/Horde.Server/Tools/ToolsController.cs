@@ -219,9 +219,9 @@ namespace Horde.Server.Tools
 			{
 				return NotFound(id);
 			}
-			if (!tool.Config.Authorize(AclAction.UploadTool, User))
+			if (!tool.Config.Authorize(ToolAclAction.UploadTool, User))
 			{
-				return Forbid(AclAction.UploadTool, id);
+				return Forbid(ToolAclAction.UploadTool, id);
 			}
 
 			using (Stream stream = file.OpenReadStream())
@@ -248,9 +248,9 @@ namespace Horde.Server.Tools
 			{
 				return NotFound(id);
 			}
-			if (!tool.Config.Authorize(AclAction.UploadTool, User))
+			if (!tool.Config.Authorize(ToolAclAction.UploadTool, User))
 			{
-				return Forbid(AclAction.UploadTool, id);
+				return Forbid(ToolAclAction.UploadTool, id);
 			}
 
 			if (request.State != null)
@@ -342,7 +342,7 @@ namespace Horde.Server.Tools
 			}
 			if (!AuthorizeDownload(tool.Config))
 			{
-				return Forbid(AclAction.DownloadTool, id);
+				return Forbid(ToolAclAction.DownloadTool, id);
 			}
 
 			if (action == GetToolAction.Info)
@@ -385,7 +385,7 @@ namespace Horde.Server.Tools
 			}
 			if (!AuthorizeDownload(tool.Config))
 			{
-				return Forbid(AclAction.DownloadTool, id);
+				return Forbid(ToolAclAction.DownloadTool, id);
 			}
 
 			IToolDeployment? deployment = tool.GetCurrentDeployment(phase, _clock.UtcNow);
@@ -412,7 +412,7 @@ namespace Horde.Server.Tools
 			}
 			if (!AuthorizeDownload(tool.Config))
 			{
-				return Forbid(AclAction.DownloadTool, id);
+				return Forbid(ToolAclAction.DownloadTool, id);
 			}
 
 			IToolDeployment? deployment = tool.Deployments.FirstOrDefault(x => x.Id == deploymentId);
@@ -482,7 +482,7 @@ namespace Horde.Server.Tools
 			}
 			if (!AuthorizeDownload(tool.Config))
 			{
-				return Forbid(AclAction.DownloadTool, id);
+				return Forbid(ToolAclAction.DownloadTool, id);
 			}
 
 			if (!locator.BlobId.WithinFolder(tool.Id.Id.Text))
@@ -502,7 +502,7 @@ namespace Horde.Server.Tools
 				{
 					return false;
 				}
-				if (!toolConfig.Authorize(AclAction.DownloadTool, User))
+				if (!toolConfig.Authorize(ToolAclAction.DownloadTool, User))
 				{
 					return false;
 				}

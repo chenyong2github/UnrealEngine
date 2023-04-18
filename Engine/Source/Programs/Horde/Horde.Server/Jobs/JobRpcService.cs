@@ -235,7 +235,7 @@ namespace Horde.Server.Jobs
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Stream {StreamId} does not exist", request.StreamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewStream, context.GetHttpContext().User))
+			if (!streamConfig.Authorize(StreamAclAction.ViewStream, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Not authenticated to access stream {StreamId}", request.StreamId);
 			}
@@ -750,7 +750,7 @@ namespace Horde.Server.Jobs
 		/// <returns>Information about the new agent</returns>
 		public async Task<Empty> CreateEvents(CreateEventsRequest request, ServerCallContext context)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.CreateEvent, context.GetHttpContext().User))
+			if (!_globalConfig.Value.Authorize(LogAclAction.CreateEvent, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Access denied");
 			}

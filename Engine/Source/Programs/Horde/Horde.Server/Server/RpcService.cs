@@ -266,7 +266,7 @@ namespace Horde.Server.Server
 			IAgent? agent = await _agentService.GetAgentAsync(agentId);
 			if (agent == null)
 			{
-				if (!globalConfig.Authorize(AclAction.CreateAgent, context.GetHttpContext().User))
+				if (!globalConfig.Authorize(AgentAclAction.CreateAgent, context.GetHttpContext().User))
 				{
 					throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create new agents");
 				}
@@ -275,7 +275,7 @@ namespace Horde.Server.Server
 			}
 
 			// Make sure we're allowed to create sessions on this agent
-			if (!globalConfig.Authorize(AclAction.CreateSession, context.GetHttpContext().User))
+			if (!globalConfig.Authorize(SessionAclAction.CreateSession, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create session for {AgentId}", request.Name);
 			}
@@ -430,7 +430,7 @@ namespace Horde.Server.Server
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, $"Missing tool {toolId}");
 			}
-			if (!toolConfig.Authorize(AclAction.DownloadTool, context.GetHttpContext().User))
+			if (!toolConfig.Authorize(ToolAclAction.DownloadTool, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Access to software is forbidden");
 			}

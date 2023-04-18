@@ -281,7 +281,7 @@ namespace Horde.Server.Server
 		[Route("/api/v1/debug/environment")]
 		public ActionResult GetServerEnvVars()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -307,7 +307,7 @@ namespace Horde.Server.Server
 		[Route("/api/v1/debug/queue")]
 		public ActionResult<object> GetQueueStatus()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -323,7 +323,7 @@ namespace Horde.Server.Server
 		[Route("/api/v1/debug/config")]
 		public ActionResult GetConfig()
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -349,7 +349,7 @@ namespace Horde.Server.Server
 			[FromQuery] int argCount = 0,
 			[FromQuery] int argLen = 10)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -402,7 +402,7 @@ namespace Horde.Server.Server
 		[ProducesResponseType(200, Type = typeof(GetGraphResponse))]
 		public async Task<ActionResult<List<object>>> GetGraphsAsync([FromQuery] int? index = null, [FromQuery] int? count = null, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -420,7 +420,7 @@ namespace Horde.Server.Server
 		[ProducesResponseType(200, Type = typeof(GetGraphResponse))]
 		public async Task<ActionResult<object>> GetGraphAsync(string graphId, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -439,7 +439,7 @@ namespace Horde.Server.Server
 		[Route("/api/v1/debug/logs/{LogFileId}")]
 		public async Task<ActionResult<object>> GetLogAsync(LogId logFileId, [FromQuery] PropertyFilter? filter = null)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
 				return Forbid();
 			}
@@ -461,7 +461,7 @@ namespace Horde.Server.Server
 		[Route("/api/v1/debug/collections/{Name}")]
 		public async Task<ActionResult<object>> GetDocumentsAsync(string name, [FromQuery] string? filter = null, [FromQuery] int index = 0, [FromQuery] int count = 10)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
 			{
 				return Forbid();
 			}

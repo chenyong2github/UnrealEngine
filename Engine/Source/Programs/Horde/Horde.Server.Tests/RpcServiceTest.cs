@@ -53,7 +53,7 @@ namespace Horde.Server.Tests
 	[TestClass]
 	public class RpcServiceTest : TestSetup
 	{
-		private readonly ServerCallContext _adminContext = new ServerCallContextStub("app-horde-admins");
+		private readonly ServerCallContext _adminContext = new ServerCallContextStub(HordeClaims.AdminClaim.ToClaim());
 
 		sealed class HttpContextStub : HttpContext
 		{
@@ -69,11 +69,11 @@ namespace Horde.Server.Tests
 			public override ClaimsPrincipal User { get; set; }
 			public override WebSocketManager WebSockets { get; } = null!;
 
-			public HttpContextStub(string roleClaimType)
+			public HttpContextStub(Claim roleClaimType)
 			{
 				User = new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 				{
-					new Claim(HordeClaimTypes.Role, roleClaimType),
+					roleClaimType
 				}, "TestAuthType"));
 			}
 			
@@ -97,7 +97,7 @@ namespace Horde.Server.Tests
 			{
 				return new ServerCallContextStub(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 				{
-					new Claim(HordeClaimTypes.Role, "app-horde-admins"),
+					HordeClaims.AdminClaim.ToClaim(),
 					new Claim(HordeClaimTypes.AgentSessionId, agentSessionId),
 				}, "TestAuthType")));
 			}
@@ -106,11 +106,11 @@ namespace Horde.Server.Tests
 			{
 				return new ServerCallContextStub(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 				{
-					new Claim(HordeClaimTypes.Role, "app-horde-admins"),
+					HordeClaims.AdminClaim.ToClaim()
 				}, "TestAuthType")));
 			}
 
-			public ServerCallContextStub(string roleClaimType)
+			public ServerCallContextStub(Claim roleClaimType)
 			{
 				// The GetHttpContext extension falls back to getting the HttpContext from UserState
 				// We can piggyback on that behavior during tests
@@ -431,7 +431,7 @@ namespace Horde.Server.Tests
 			SessionId sessionId = SessionId.GenerateNewId();
 			ServerCallContext context = new ServerCallContextStub(new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 			{
-				new Claim(HordeClaimTypes.Role, "app-horde-admins"),
+				HordeClaims.AdminClaim.ToClaim(),
 				new Claim(HordeClaimTypes.AgentSessionId, sessionId.ToString()),
 			}, "TestAuthType")));
 

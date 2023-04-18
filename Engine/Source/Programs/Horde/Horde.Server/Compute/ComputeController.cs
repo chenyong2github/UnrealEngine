@@ -98,9 +98,9 @@ namespace Horde.Server.Compute
 			{
 				return NotFound(clusterId);
 			}
-			if(!clusterConfig.Authorize(AclAction.AddComputeTasks, User))
+			if(!clusterConfig.Authorize(ComputeAclAction.AddComputeTasks, User))
 			{
-				return Forbid(AclAction.AddComputeTasks, clusterId);
+				return Forbid(ComputeAclAction.AddComputeTasks, clusterId);
 			}
 
 			Requirements requirements = request.Requirements ?? new Requirements();

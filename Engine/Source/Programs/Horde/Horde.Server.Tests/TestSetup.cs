@@ -166,8 +166,6 @@ namespace Horde.Server.Tests
 			{
 			}
 
-			settings.AdminClaimType = HordeClaimTypes.Role;
-			settings.AdminClaimValue = "app-horde-admins";
 			settings.WithAws = true;
 
 			settings.ForceConfigUpdateOnStartup = true;
@@ -328,12 +326,12 @@ namespace Horde.Server.Tests
 			return controller;
 		}
 		
-		private ControllerContext GetControllerContext()
+		private static ControllerContext GetControllerContext()
 		{
 			ControllerContext controllerContext = new ControllerContext();
 			controllerContext.HttpContext = new DefaultHttpContext();
 			controllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(
-				new List<Claim> {new Claim(ServerSettings.AdminClaimType, ServerSettings.AdminClaimValue)}, "TestAuthType"));
+				new List<Claim> { HordeClaims.AdminClaim.ToClaim() }, "TestAuthType"));
 			return controllerContext;
 		}
 		

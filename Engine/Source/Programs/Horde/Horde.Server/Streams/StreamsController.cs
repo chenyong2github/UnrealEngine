@@ -74,7 +74,7 @@ namespace Horde.Server.Streams
 				{
 					foreach (StreamConfig streamConfig in projectConfig.Streams)
 					{
-						if (streamConfig.Authorize(AclAction.ViewStream, User))
+						if (streamConfig.Authorize(StreamAclAction.ViewStream, User))
 						{
 							IStream stream = await _streamCollection.GetAsync(streamConfig);
 							GetStreamResponse response = await CreateGetStreamResponseAsync(stream);
@@ -107,7 +107,7 @@ namespace Horde.Server.Streams
 				{
 					foreach (StreamConfig streamConfig in projectConfig.Streams)
 					{
-						if (streamConfig.Authorize(AclAction.ViewStream, User))
+						if (streamConfig.Authorize(StreamAclAction.ViewStream, User))
 						{
 							IStream stream = await _streamCollection.GetAsync(streamConfig);
 							GetStreamResponseV2 response = await CreateGetStreamResponseV2Async(stream, false);
@@ -136,9 +136,9 @@ namespace Horde.Server.Streams
 			{
 				return NotFound(streamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewStream, User))
+			if (!streamConfig.Authorize(StreamAclAction.ViewStream, User))
 			{
-				return Forbid(AclAction.ViewStream, streamId);
+				return Forbid(StreamAclAction.ViewStream, streamId);
 			}
 
 			IStream stream = await _streamCollection.GetAsync(streamConfig);
@@ -162,9 +162,9 @@ namespace Horde.Server.Streams
 			{
 				return NotFound(streamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewStream, User))
+			if (!streamConfig.Authorize(StreamAclAction.ViewStream, User))
 			{
-				return Forbid(AclAction.ViewStream, streamId);
+				return Forbid(StreamAclAction.ViewStream, streamId);
 			}
 
 			bool includeConfig = !String.Equals(config, streamConfig.Revision, StringComparison.Ordinal);
@@ -189,7 +189,7 @@ namespace Horde.Server.Streams
 				templateScope.Span.SetTag("templateName", pair.Value.Config.Name);
 
 				ITemplateRef templateRef = pair.Value;
-				if (templateRef.Config.Authorize(AclAction.ViewTemplate, User))
+				if (templateRef.Config.Authorize(StreamAclAction.ViewTemplate, User))
 				{
 					List<GetTemplateStepStateResponse>? stepStates = null;
 					if (templateRef.StepStates != null)
@@ -244,9 +244,9 @@ namespace Horde.Server.Streams
 			{
 				return NotFound(streamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewChanges, User))
+			if (!streamConfig.Authorize(StreamAclAction.ViewChanges, User))
 			{
-				return Forbid(AclAction.ViewChanges, streamId);
+				return Forbid(StreamAclAction.ViewChanges, streamId);
 			}
 
 			List<CommitTag>? commitTags = null;
@@ -284,9 +284,9 @@ namespace Horde.Server.Streams
 			{
 				return NotFound(streamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewChanges, User))
+			if (!streamConfig.Authorize(StreamAclAction.ViewChanges, User))
 			{
-				return Forbid(AclAction.ViewChanges, streamId);
+				return Forbid(StreamAclAction.ViewChanges, streamId);
 			}
 
 			ICommit? changeDetails = await _commitService.GetCollection(streamConfig).GetAsync(changeNumber);
@@ -322,9 +322,9 @@ namespace Horde.Server.Streams
 			{
 				return NotFound(streamId);
 			}
-			if (!streamConfig.Authorize(AclAction.ViewJob, User))
+			if (!streamConfig.Authorize(JobAclAction.ViewJob, User))
 			{
-				return Forbid(AclAction.ViewJob, streamId);
+				return Forbid(JobAclAction.ViewJob, streamId);
 			}
 
 			TemplateId templateIdValue = new TemplateId(templateId);
@@ -356,9 +356,9 @@ namespace Horde.Server.Streams
 			{
 				return NotFound(streamId, templateId);
 			}
-			if (!templateConfig.Authorize(AclAction.ViewTemplate, User))
+			if (!templateConfig.Authorize(StreamAclAction.ViewTemplate, User))
 			{
-				return Forbid(AclAction.ViewTemplate, streamId);
+				return Forbid(StreamAclAction.ViewTemplate, streamId);
 			}
 
 			ITemplate template = await _templateCollection.GetOrAddAsync(templateConfig);
@@ -373,9 +373,9 @@ namespace Horde.Server.Streams
 		[Route("/api/v1/streams/{streamId}/templates/{templateRefId}")]
 		public async Task<ActionResult> UpdateStreamTemplateRefAsync(StreamId streamId, TemplateId templateRefId, [FromBody] UpdateTemplateRefRequest update)
 		{
-			if (!_globalConfig.Value.Authorize(AclAction.AdminWrite, User))
+			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminWrite, User))
 			{
-				return Forbid(AclAction.AdminWrite);
+				return Forbid(AdminAclAction.AdminWrite);
 			}
 
 			StreamConfig? streamConfig;

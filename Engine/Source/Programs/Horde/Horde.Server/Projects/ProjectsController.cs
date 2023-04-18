@@ -52,12 +52,12 @@ namespace Horde.Server.Projects
 			List<object> responses = new List<object>();
 			foreach (ProjectConfig projectConfig in globalConfig.Projects)
 			{
-				if (projectConfig.Authorize(AclAction.ViewProject, User))
+				if (projectConfig.Authorize(ProjectAclAction.ViewProject, User))
 				{
 					List<StreamConfig>? visibleStreams = null;
 					if (includeStreams || includeCategories)
 					{
-						visibleStreams = projectConfig.Streams.Where(x => x.Authorize(AclAction.ViewStream, User)).ToList();
+						visibleStreams = projectConfig.Streams.Where(x => x.Authorize(StreamAclAction.ViewStream, User)).ToList();
 					}
 					responses.Add(GetProjectResponse.FromConfig(projectConfig, includeStreams, includeCategories, visibleStreams).ApplyFilter(filter));
 				}
@@ -81,9 +81,9 @@ namespace Horde.Server.Projects
 			{
 				return NotFound(projectId);
 			}
-			if (!projectConfig.Authorize(AclAction.ViewProject, User))
+			if (!projectConfig.Authorize(ProjectAclAction.ViewProject, User))
 			{
-				return Forbid(AclAction.ViewProject, projectId);
+				return Forbid(ProjectAclAction.ViewProject, projectId);
 			}
 
 			bool includeStreams = PropertyFilter.Includes(filter, nameof(GetProjectResponse.Streams));
@@ -92,7 +92,7 @@ namespace Horde.Server.Projects
 			List<StreamConfig>? visibleStreams = null;
 			if (includeStreams || includeCategories)
 			{
-				visibleStreams = projectConfig.Streams.Where(x => x.Authorize(AclAction.ViewStream, User)).ToList();
+				visibleStreams = projectConfig.Streams.Where(x => x.Authorize(StreamAclAction.ViewStream, User)).ToList();
 			}
 
 			return GetProjectResponse.FromConfig(projectConfig, includeStreams, includeCategories, visibleStreams).ApplyFilter(filter);
@@ -112,9 +112,9 @@ namespace Horde.Server.Projects
 			{
 				return NotFound(projectId);
 			}
-			if (!projectConfig.Authorize(AclAction.ViewProject, User))
+			if (!projectConfig.Authorize(ProjectAclAction.ViewProject, User))
 			{
-				return Forbid(AclAction.ViewProject, projectId);
+				return Forbid(ProjectAclAction.ViewProject, projectId);
 			}
 
 			ConfigResource? logoResource = projectConfig.Logo;

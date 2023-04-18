@@ -148,5 +148,10 @@ namespace Horde.Server.Acls
 			Type = type;
 			Value = value;
 		}
+
+		/// <summary>
+		/// Converts this object to a regular <see cref="Claim"/> object.
+		/// </summary>
+		public Claim ToClaim() => new Claim(Type, Value);
 	}
 }
