@@ -58,7 +58,7 @@ public class libcurl : ModuleRules
 				"zlib"
 			});
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		else if (Target.Platform == UnrealTargetPlatform.Win64 && !Target.WindowsPlatform.bUseXCurl)
 		{
 			PublicSystemIncludePaths.Add(Path.Combine(WinLibCurlPath, "include"));
 			PublicAdditionalLibraries.Add(Path.Combine(WinLibCurlPath, "lib", Target.Platform.ToString(), "Release", "libcurl.lib"));

@@ -16,12 +16,18 @@ public class HTTP : ModuleRules
 	{
 		get
 		{
-			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
+			return (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && !Target.WindowsPlatform.bUseXCurl) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Android);
 		}
 	}
-	protected virtual bool bPlatformSupportsXCurl { get { return false; } }
+	protected virtual bool bPlatformSupportsXCurl
+	{ 
+		get 
+		{ 
+			return (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.bUseXCurl); 
+		} 
+	}
 
 	private bool bPlatformSupportsCurl { get { return bPlatformSupportsLibCurl || bPlatformSupportsXCurl; } }
 
@@ -53,7 +59,11 @@ public class HTTP : ModuleRules
 				}
 			);
 
-			if (bPlatformSupportsLibCurl && !bPlatformSupportsXCurl)
+			if (bPlatformSupportsXCurl)
+			{
+				PublicDependencyModuleNames.Add("XCurl");
+			}
+			else if (bPlatformSupportsLibCurl)
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
 

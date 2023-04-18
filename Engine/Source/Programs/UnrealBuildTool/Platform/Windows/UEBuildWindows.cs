@@ -528,6 +528,12 @@ namespace UnrealBuildTool
 		public bool bUseBundledDbgHelp = true;
 
 		/// <summary>
+		/// Whether this build will use Microsoft's custom XCurl instead of libcurl
+		/// Note that XCurl is not part of the normal Windows SDK and will require additional downloads
+		/// </summary>
+		public bool bUseXCurl = false;
+
+		/// <summary>
 		/// Settings for PVS studio
 		/// </summary>
 		public PVSTargetSettings PVS = new PVSTargetSettings();
@@ -883,6 +889,11 @@ namespace UnrealBuildTool
 		public bool bUseBundledDbgHelp
 		{
 			get { return Inner.bUseBundledDbgHelp; }
+		}
+
+		public bool bUseXCurl
+		{
+			get { return Inner.bUseXCurl; }
 		}
 
 		public ReadOnlyPVSTargetSettings PVS
