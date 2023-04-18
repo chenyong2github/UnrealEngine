@@ -509,7 +509,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 					if (!MaterialResource->IsGameThreadShaderMapComplete())
 					{
 #if WITH_EDITOR
-						MaterialResource->SubmitCompileJobs_GameThread(EShaderCompileJobPriority::ForceLocal);
+						MaterialResource->SubmitCompileJobs_GameThread(EShaderCompileJobPriority::High);
 #endif
 						bHasIncompleteShaderMaps = true;
 					}
