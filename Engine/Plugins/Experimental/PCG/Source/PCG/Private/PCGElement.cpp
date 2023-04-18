@@ -19,10 +19,27 @@ static TAutoConsoleVariable<bool> CVarPCGValidatePointMetadata(
 	true,
 	TEXT("Controls whether we validate that the metadata entry keys on the output point data are consistent"));
 
+#if WITH_EDITOR
+#define PCG_ELEMENT_EXECUTION_BREAKPOINT() \
+	if (Context && Context->GetInputSettingsInterface() && Context->GetInputSettingsInterface()->bBreakDebugger) \
+	{ \
+		if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGExecutionPhase"), true)) \
+		{ \
+			PCGE_LOG(Log, LogOnly, FText::Format(LOCTEXT("BreakExecution", "Execution halted, phase: {0}"), \
+				FText::FromName(EnumPtr->GetNameByValue(static_cast<int>(Context->CurrentPhase))))); \
+		} \
+		PLATFORM_BREAK(); \
+	}
+#else
+#define PCG_ELEMENT_EXECUTION_BREAKPOINT()
+#endif
+
 bool IPCGElement::Execute(FPCGContext* Context) const
 {
 	check(Context && Context->AsyncState.NumAvailableTasks > 0 && Context->CurrentPhase < EPCGExecutionPhase::Done);
 	check(Context->AsyncState.bIsRunningOnMainThread || !CanExecuteOnlyOnMainThread(Context));
+
+	PCG_ELEMENT_EXECUTION_BREAKPOINT();
 
 	while (Context->CurrentPhase != EPCGExecutionPhase::Done)
 	{

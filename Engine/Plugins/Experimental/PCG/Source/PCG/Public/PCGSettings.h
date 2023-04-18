@@ -135,6 +135,10 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Debug, meta = (ShowOnlyInnerProperties))
 	FPCGDebugVisualizationSettings DebugSettings;
+
+	/** If a debugger is attached, triggers a breakpoint inside IPCGElement::Execute(). Editor only. */
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = Debug)
+	bool bBreakDebugger = false;
 #endif
 };
 
