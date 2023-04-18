@@ -13,6 +13,7 @@ public:
 
 	static const FGLTFProxyMaterialTextureParameterInfo Emissive;
 	static const TGLTFProxyMaterialParameterInfo<FLinearColor> EmissiveFactor;
+	static const TGLTFProxyMaterialParameterInfo<float> EmissiveStrength;
 
 	static const FGLTFProxyMaterialTextureParameterInfo MetallicRoughness;
 	static const TGLTFProxyMaterialParameterInfo<float> MetallicFactor;

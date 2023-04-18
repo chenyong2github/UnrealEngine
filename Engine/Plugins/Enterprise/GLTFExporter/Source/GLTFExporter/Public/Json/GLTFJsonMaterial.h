@@ -96,6 +96,7 @@ struct GLTFEXPORTER_API FGLTFJsonMaterial : IGLTFJsonIndexedObject
 
 	FGLTFJsonTextureInfo EmissiveTexture;
 	FGLTFJsonColor3 EmissiveFactor;
+	float EmissiveStrength;
 
 	EGLTFJsonAlphaMode AlphaMode;
 	float AlphaCutoff;
@@ -114,6 +115,7 @@ protected:
 		: IGLTFJsonIndexedObject(Index)
 		, ShadingModel(EGLTFJsonShadingModel::Default)
 		, EmissiveFactor(FGLTFJsonColor3::Black)
+		, EmissiveStrength(1.0f)
 		, AlphaMode(EGLTFJsonAlphaMode::Opaque)
 		, AlphaCutoff(0.5f)
 		, DoubleSided(false)

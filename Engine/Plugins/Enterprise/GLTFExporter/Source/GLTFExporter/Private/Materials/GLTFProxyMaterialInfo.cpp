@@ -7,6 +7,7 @@ const TGLTFProxyMaterialParameterInfo<FLinearColor> FGLTFProxyMaterialInfo::Base
 
 const FGLTFProxyMaterialTextureParameterInfo FGLTFProxyMaterialInfo::Emissive = { TEXT("Emissive") };
 const TGLTFProxyMaterialParameterInfo<FLinearColor> FGLTFProxyMaterialInfo::EmissiveFactor = { TEXT("Emissive Factor") };
+const TGLTFProxyMaterialParameterInfo<float> FGLTFProxyMaterialInfo::EmissiveStrength = { TEXT("Emissive Strength") };
 
 const FGLTFProxyMaterialTextureParameterInfo FGLTFProxyMaterialInfo::MetallicRoughness = { TEXT("Metallic Roughness") };
 const TGLTFProxyMaterialParameterInfo<float> FGLTFProxyMaterialInfo::MetallicFactor = { TEXT("Metallic Factor") };

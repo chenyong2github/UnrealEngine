@@ -6,6 +6,7 @@ enum class EGLTFJsonExtension
 {
 	KHR_LightsPunctual,
 	KHR_MaterialsClearCoat,
+	KHR_MaterialsEmissiveStrength,
 	KHR_MaterialsUnlit,
 	KHR_MaterialsVariants,
 	KHR_MeshQuantization,

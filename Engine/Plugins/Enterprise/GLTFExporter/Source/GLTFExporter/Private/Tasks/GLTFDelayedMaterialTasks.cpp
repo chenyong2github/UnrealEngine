@@ -214,17 +214,18 @@ FString FGLTFDelayedMaterialTask::GetBakedTextureName(const FString& PropertyNam
 
 void FGLTFDelayedMaterialTask::GetProxyParameters(FGLTFJsonMaterial& OutMaterial) const
 {
-	GetProxyParameter(FGLTFProxyMaterialInfo::BaseColorFactor, OutMaterial.PBRMetallicRoughness.BaseColorFactor);
 	GetProxyParameter(FGLTFProxyMaterialInfo::BaseColor, OutMaterial.PBRMetallicRoughness.BaseColorTexture);
+	GetProxyParameter(FGLTFProxyMaterialInfo::BaseColorFactor, OutMaterial.PBRMetallicRoughness.BaseColorFactor);
 
 	if (OutMaterial.ShadingModel == EGLTFJsonShadingModel::Default || OutMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 	{
-		GetProxyParameter(FGLTFProxyMaterialInfo::EmissiveFactor, OutMaterial.EmissiveFactor);
 		GetProxyParameter(FGLTFProxyMaterialInfo::Emissive, OutMaterial.EmissiveTexture);
+		GetProxyParameter(FGLTFProxyMaterialInfo::EmissiveFactor, OutMaterial.EmissiveFactor);
+		GetProxyParameter(FGLTFProxyMaterialInfo::EmissiveStrength, OutMaterial.EmissiveStrength);
 
+		GetProxyParameter(FGLTFProxyMaterialInfo::MetallicRoughness, OutMaterial.PBRMetallicRoughness.MetallicRoughnessTexture);
 		GetProxyParameter(FGLTFProxyMaterialInfo::MetallicFactor, OutMaterial.PBRMetallicRoughness.MetallicFactor);
 		GetProxyParameter(FGLTFProxyMaterialInfo::RoughnessFactor, OutMaterial.PBRMetallicRoughness.RoughnessFactor);
-		GetProxyParameter(FGLTFProxyMaterialInfo::MetallicRoughness, OutMaterial.PBRMetallicRoughness.MetallicRoughnessTexture);
 
 		if (HasProxyParameter(FGLTFProxyMaterialInfo::Normal.Texture))
 		{
@@ -236,24 +237,24 @@ void FGLTFDelayedMaterialTask::GetProxyParameters(FGLTFJsonMaterial& OutMaterial
 			}
 			else
 			{
-				GetProxyParameter(FGLTFProxyMaterialInfo::NormalScale, OutMaterial.NormalTexture.Scale);
 				GetProxyParameter(FGLTFProxyMaterialInfo::Normal, OutMaterial.NormalTexture);
+				GetProxyParameter(FGLTFProxyMaterialInfo::NormalScale, OutMaterial.NormalTexture.Scale);
 			}
 		}
 
-		GetProxyParameter(FGLTFProxyMaterialInfo::OcclusionStrength, OutMaterial.OcclusionTexture.Strength);
 		GetProxyParameter(FGLTFProxyMaterialInfo::Occlusion, OutMaterial.OcclusionTexture);
+		GetProxyParameter(FGLTFProxyMaterialInfo::OcclusionStrength, OutMaterial.OcclusionTexture.Strength);
 
 		if (OutMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 		{
-			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatFactor, OutMaterial.ClearCoat.ClearCoatFactor);
 			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoat, OutMaterial.ClearCoat.ClearCoatTexture);
+			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatFactor, OutMaterial.ClearCoat.ClearCoatFactor);
 
-			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatRoughnessFactor, OutMaterial.ClearCoat.ClearCoatRoughnessFactor);
 			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatRoughness, OutMaterial.ClearCoat.ClearCoatRoughnessTexture);
+			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatRoughnessFactor, OutMaterial.ClearCoat.ClearCoatRoughnessFactor);
 
-			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatNormalScale, OutMaterial.ClearCoat.ClearCoatNormalTexture.Scale);
 			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatNormal, OutMaterial.ClearCoat.ClearCoatNormalTexture);
+			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatNormalScale, OutMaterial.ClearCoat.ClearCoatNormalTexture.Scale);
 		}
 	}
 }
@@ -579,7 +580,7 @@ bool FGLTFDelayedMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRou
 	OutPBRParams.BaseColorTexture.TexCoord = CombinedTexCoord;
 	OutPBRParams.BaseColorTexture.Index = CombinedTexture;
 
-	// TODO: add support for KHR_materials_emissive_strength
+	// TODO: add warning if BaseColorScale exceeds 1.0 (maybe suggest disabling unlit materials?)
 	OutPBRParams.BaseColorFactor = FGLTFCoreUtilities::ConvertColor(FLinearColor(BaseColorScale, BaseColorScale, BaseColorScale));
 
 	return true;
@@ -817,51 +818,82 @@ bool FGLTFDelayedMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtens
 
 bool FGLTFDelayedMaterialTask::TryGetEmissive(FGLTFJsonMaterial& OutMaterial, const FMaterialPropertyEx& EmissiveProperty)
 {
-	// TODO: right now we allow EmissiveFactor to be > 1.0 to support very bright emission, although it's not valid according to the glTF standard.
-	// We may want to change this behaviour and store factors above 1.0 using a custom extension instead.
-
-	if (TryGetConstantColor(OutMaterial.EmissiveFactor, MP_EmissiveColor))
+	FLinearColor ConstantColor;
+	if (TryGetConstantColor(ConstantColor, MP_EmissiveColor))
 	{
-		return true;
+		const float EmissiveStrength = ConstantColor.GetMax();
+		if (EmissiveStrength > 1.0)
+		{
+			ConstantColor *= 1.0f / EmissiveStrength;
+			OutMaterial.EmissiveStrength = EmissiveStrength;
+		}
+
+		OutMaterial.EmissiveFactor = FGLTFCoreUtilities::ConvertColor3(ConstantColor);
 	}
-
-	if (TryGetSourceTexture(OutMaterial.EmissiveTexture, EmissiveProperty, DefaultColorInputMasks))
+	else if (TryGetSourceTexture(OutMaterial.EmissiveTexture, EmissiveProperty, DefaultColorInputMasks))
 	{
-		OutMaterial.EmissiveFactor = FGLTFJsonColor3::White;	// make sure texture is not multiplied with black
-		return true;
-	}
-
-	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
-	{
-		Builder.LogWarning(FString::Printf(
-			TEXT("%s for material %s needs to bake, but material baking is disabled by export options"),
-			*EmissiveProperty.ToString(),
-			*Material->GetName()));
-		return false;
-	}
-
-	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(EmissiveProperty, OutMaterial.EmissiveTexture.TexCoord);
-	const float EmissiveScale = PropertyBakeOutput.EmissiveScale;
-
-	if (PropertyBakeOutput.bIsConstant)
-	{
-		const FLinearColor EmissiveColor = PropertyBakeOutput.ConstantValue;
-		OutMaterial.EmissiveFactor = FGLTFCoreUtilities::ConvertColor3(EmissiveColor * EmissiveScale);
+		// TODO: what if texture is HDR and one or more pixel components exceeds 1.0? Should we process it and add emissive strength?
+		OutMaterial.EmissiveFactor = FGLTFJsonColor3::White; // make sure texture is not multiplied with black
 	}
 	else
 	{
-		if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
+		if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
 		{
-			OutMaterial.EmissiveTexture.Index = nullptr;
-			return true;
-		}
-
-		if (!StoreBakedPropertyTexture(OutMaterial.EmissiveTexture, PropertyBakeOutput, TEXT("Emissive")))
-		{
+			Builder.LogWarning(FString::Printf(
+				TEXT("%s for material %s needs to bake, but material baking is disabled by export options"),
+				*EmissiveProperty.ToString(),
+				*Material->GetName()));
 			return false;
 		}
 
-		OutMaterial.EmissiveFactor = { EmissiveScale, EmissiveScale, EmissiveScale };
+		FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(EmissiveProperty, OutMaterial.EmissiveTexture.TexCoord);
+
+		if (PropertyBakeOutput.bIsConstant)
+		{
+			FLinearColor EmissiveColor = PropertyBakeOutput.ConstantValue;
+			const float EmissiveScale = PropertyBakeOutput.EmissiveScale;
+
+			if (EmissiveScale < 1.0f)
+			{
+				EmissiveColor *= EmissiveScale;
+			}
+			else
+			{
+				OutMaterial.EmissiveStrength = EmissiveScale;
+			}
+
+			OutMaterial.EmissiveFactor = FGLTFCoreUtilities::ConvertColor3(EmissiveColor);
+		}
+		else
+		{
+			if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
+			{
+				OutMaterial.EmissiveTexture.Index = nullptr;
+				return true;
+			}
+
+			if (!StoreBakedPropertyTexture(OutMaterial.EmissiveTexture, PropertyBakeOutput, TEXT("Emissive")))
+			{
+				return false;
+			}
+
+			const float EmissiveScale = PropertyBakeOutput.EmissiveScale;
+			if (EmissiveScale < 1.0f)
+			{
+				OutMaterial.EmissiveFactor = { EmissiveScale, EmissiveScale, EmissiveScale };
+			}
+			else
+			{
+				OutMaterial.EmissiveFactor = FGLTFJsonColor3::White;
+				OutMaterial.EmissiveStrength = EmissiveScale;
+			}
+		}
+	}
+
+	if (OutMaterial.EmissiveStrength > 1.0f && !Builder.ExportOptions->bExportEmissiveStrength)
+	{
+		// TODO: add warning about clamping emissive strength?
+		OutMaterial.EmissiveStrength = 1.0f;
 	}
 
 	return true;
