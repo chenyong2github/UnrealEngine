@@ -672,12 +672,6 @@ struct ENGINE_API FAudioComponentCommandInfo
 {
 	FAudioComponentCommandInfo() {}
 
-	FAudioComponentCommandInfo(const FAudioComponentCommandInfo& Other)
-		: Subscriber(Other.Subscriber)
-		, AnticapatoryBoundary(Other.AnticapatoryBoundary)
-		, CommandID(Other.CommandID)
-	{}
-
  	FAudioComponentCommandInfo(Audio::FQuartzGameThreadSubscriber InSubscriber, FQuartzQuantizationBoundary InAnticaptoryBoundary)
 		: Subscriber(InSubscriber)
 		, AnticapatoryBoundary(InAnticaptoryBoundary)
