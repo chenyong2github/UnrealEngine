@@ -526,6 +526,14 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 		ensureMsgf(RegisteredSOComponents.Find(&SmartObjectComponent) == INDEX_NONE
 			, TEXT("Adding %s to RegisteredSOColleciton, but it has already been added. Missing unregister call?"), *SmartObjectComponent.GetFullName());
 		RegisteredSOComponents.Add(&SmartObjectComponent);
+
+#if UE_ENABLE_DEBUG_DRAWING
+		// Refresh debug draw
+		if (RenderingActor != nullptr)
+		{
+			RenderingActor->MarkComponentsRenderStateDirty();
+		}
+#endif // UE_ENABLE_DEBUG_DRAWING
 	}
 	else
 	{
@@ -545,7 +553,7 @@ bool USmartObjectSubsystem::RemoveSmartObject(USmartObjectComponent& SmartObject
 		return UnregisterSmartObjectInternal(SmartObjectComponent, /*bDestroyRuntimeState=*/true);
 	}
 
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to remove %s since it doesn't seem registered"),
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to remove %s since it doesn't seem registered or has already been unregistered."),
 		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
 		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
 
@@ -560,7 +568,7 @@ bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartOb
 			/*bDestroyRuntimeState=*/SmartObjectComponent.GetRegistrationType() == ESmartObjectRegistrationType::Dynamic);
 	}
 
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to unregister %s. Already unregistered"),
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to unregister %s since it doesn't seem registered or has already been unregistered."),
 		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
 		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
 
@@ -2413,6 +2421,7 @@ void USmartObjectSubsystem::IterativelyBuildCollections()
 		return;
 	}
 
+	TArray<USmartObjectComponent*> ComponentsToRestore = RegisteredSOComponents;
 	TArray<USmartObjectComponent*> RelevantComponents;
 	for (TWeakObjectPtr<ASmartObjectPersistentCollection>& WeakCollection : RegisteredCollections)
 	{
@@ -2424,11 +2433,9 @@ void USmartObjectSubsystem::IterativelyBuildCollections()
 			{
 				Collection->AppendToCollection(RelevantComponents);
 
-				// A component can belong to only a single collection. We remove objects added to the collection so that 
-				// they do get added to another collection. Also, the subsequent GetRegisteredSmartObjectsCompatibleWithCollection
-				// calls get less data to consider.
-				// Note: This function is to be run as part of a WorldBuilding commandlet and as such doesn't require 
-				// proper SmartObject unregistration.
+				// A component can belong to only a single collection.
+				// We remove objects added to the collection so that they do not get added to another collection.
+				// Also, the subsequent GetRegisteredSmartObjectsCompatibleWithCollection calls get less data to consider.
 				for (USmartObjectComponent* SOComponent : RelevantComponents)
 				{
 					RegisteredSOComponents.RemoveSingleSwap(SOComponent);
@@ -2436,6 +2443,9 @@ void USmartObjectSubsystem::IterativelyBuildCollections()
 			}
 		}
 	}
+
+	// Restore registered components so they can be unregistered properly by the normal streaming flow (i.e. not reporting any warnings/errors)
+	RegisteredSOComponents = MoveTemp(ComponentsToRestore);
 }
 #endif // WITH_EDITOR
 

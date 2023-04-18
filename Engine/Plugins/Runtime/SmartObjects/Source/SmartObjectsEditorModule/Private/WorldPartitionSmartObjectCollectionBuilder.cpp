@@ -36,15 +36,25 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PreRun(UWorld* World, FPackage
 		return false;
 	}
 	
+	// We are about to rebuild all collections from scratch so we backup their
+	// entry count and hash to dirty and save only the modified ones at the end of the run.
 	NumSmartObjectsBefore.Reserve(SmartObjectSubsystem->GetRegisteredCollections().Num());
 	OriginalContentsHash.Reserve(SmartObjectSubsystem->GetRegisteredCollections().Num());
-	for (const TWeakObjectPtr<ASmartObjectPersistentCollection>& WeakCollection : SmartObjectSubsystem->GetRegisteredCollections())
+
+	// Work on a copy of the registered components since it will be modified while unregistering/registering the collections.
+	TArray<TWeakObjectPtr<ASmartObjectPersistentCollection>> RegisteredCollections(SmartObjectSubsystem->GetRegisteredCollections());
+	for (const TWeakObjectPtr<ASmartObjectPersistentCollection>& WeakCollection : RegisteredCollections)
 	{
 		if (ASmartObjectPersistentCollection* Collection = WeakCollection.Get())
 		{
 			NumSmartObjectsBefore.Add(Collection->GetEntries().Num());
 			OriginalContentsHash.Add(GetTypeHash(Collection->GetSmartObjectContainer()));
+
+			// The subsystem container might contain entries related to the collection (if not empty) so we need to unregister it
+			// to remove their entries and be able to registered it again after it has been reset.
+			SmartObjectSubsystem->UnregisterCollection(*Collection);
 			Collection->ResetCollection();
+			SmartObjectSubsystem->RegisterCollection(*Collection);
 		}
 		else
 		{

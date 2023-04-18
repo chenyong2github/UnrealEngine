@@ -391,14 +391,16 @@ public:
 	bool RegisterSmartObject(USmartObjectComponent& SmartObjectComponent);
 	
 	/**
-	 * Unregisters a SmartObject component from the runtime simulation.
+	 * Unbinds a SmartObject component from the runtime simulation and handles the associated runtime data
+	 * according to the component registration type (i.e. runtime data associated to components from persistent collections
+	 * will remain in the simulation).
 	 * @param SmartObjectComponent SmartObject component to unregister
 	 * @return true when component is successfully unregistered, false otherwise
 	 */
 	bool UnregisterSmartObject(USmartObjectComponent& SmartObjectComponent);
 
 	/**
-	 * Removes a SmartObject component from the runtime simulation.
+	 * Unbinds a SmartObject component from the runtime simulation and removes its runtime data.
 	 * @param SmartObjectComponent SmartObject component to remove
 	 * @return whether SmartObject data has been successfully found and removed
 	 */

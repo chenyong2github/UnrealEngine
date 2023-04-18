@@ -690,9 +690,10 @@ void ASmartObjectPersistentCollection::AppendToCollection(const TConstArrayView<
 				UE_VLOG_UELOG(Owner, LogSmartObject, Warning, TEXT("%s: found '%s' duplicates while adding component array to %s.")
 					, ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(Component), *GetFullName());
 			}
-			else if (FSmartObjectCollectionEntry* Entry = SmartObjectContainer.CollectionEntries.FindByPredicate(UE::SmartObjects::FEntryFinder(Component->GetRegisteredHandle())))
+			else if (SmartObjectContainer.CollectionEntries.ContainsByPredicate(UE::SmartObjects::FEntryFinder(Component->GetRegisteredHandle())))
 			{
-				UE_VLOG_UELOG(Owner, LogSmartObject, Warning, TEXT("%s: Attempting to add '%s' to collection '%s', but it has already been added previously.")
+				// When populated by World building commandlet same actor can be loaded multiple time so simply use a verbose log when it happens
+				UE_VLOG_UELOG(Owner, LogSmartObject, Verbose, TEXT("%s: Attempting to add '%s' to collection '%s', but it has already been added previously.")
 					, ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(Component), *GetFullName());
 			}
 			else
