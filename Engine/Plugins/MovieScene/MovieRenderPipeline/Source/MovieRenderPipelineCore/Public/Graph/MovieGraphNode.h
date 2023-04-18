@@ -21,7 +21,7 @@ class UMovieGraphMember;
 class UMovieGraphOutput;
 class UMovieGraphPin;
 class UMovieGraphVariable;
-struct FMovieGraphTraversalContext;
+struct FMovieGraphEvaluationContext;
 
 #if WITH_EDITOR
 class UEdGraphNode;
@@ -75,7 +75,7 @@ public:
 	* inherited classes and change that if you need custom logic, such as boolean nodes that want 
 	* to choose one or the other based on the results of a conditional property.
 	*/
-	virtual TArray<UMovieGraphPin*> EvaluatePinsToFollow(const FMovieGraphTraversalContext& InContext) const;
+	virtual TArray<UMovieGraphPin*> EvaluatePinsToFollow(FMovieGraphEvaluationContext& InContext) const;
 
 	/**
 	* When a non-branch pin type is being evaluated on a node, the calling node will ask this node

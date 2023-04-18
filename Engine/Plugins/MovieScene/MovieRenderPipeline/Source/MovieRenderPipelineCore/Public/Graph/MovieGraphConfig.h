@@ -11,6 +11,7 @@
 
 // Forward Declare
 class UMovieGraphNode;
+class UMovieGraphSubgraphNode;
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphVariableChanged, class UMovieGraphMember*);
@@ -37,6 +38,9 @@ public:
 
 	/** Determines if this member can be deleted. */
 	virtual bool IsDeletable() const { return true; }
+
+	/** Gets whether this member is editable via the UI. */
+	virtual bool IsEditable() const { return bIsEditable; }
 
 public:
 	// TODO: Need a details customization that validates whether or not the name is valid/unique
@@ -99,10 +103,24 @@ private:
 };
 
 /**
+ * Common base class for input/output members on the graph.
+ */
+UCLASS(Abstract)
+class MOVIERENDERPIPELINECORE_API UMovieGraphInterfaceBase : public UMovieGraphMember
+{
+	GENERATED_BODY()
+
+public:
+	/** Whether this interface member represents a branch. If not a branch, then a value is associated with it. */
+	UPROPERTY(EditAnywhere, Category = "Value", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
+	bool bIsBranch = true;
+};
+
+/**
  * An input exposed on the graph that will be available for nodes to connect to.
  */
 UCLASS(BlueprintType)
-class MOVIERENDERPIPELINECORE_API UMovieGraphInput : public UMovieGraphMember
+class MOVIERENDERPIPELINECORE_API UMovieGraphInput : public UMovieGraphInterfaceBase
 {
 	GENERATED_BODY()
 
@@ -125,7 +143,7 @@ public:
  * An output exposed on the graph that will be available for nodes to connect to.
  */
 UCLASS(BlueprintType)
-class MOVIERENDERPIPELINECORE_API UMovieGraphOutput : public UMovieGraphMember
+class MOVIERENDERPIPELINECORE_API UMovieGraphOutput : public UMovieGraphInterfaceBase
 {
 	GENERATED_BODY()
 
@@ -229,6 +247,19 @@ public:
 	*/
 	UPROPERTY()
 	TSet<TObjectPtr<UMovieGraphNode>> VisitedNodes;
+
+	/**
+	* The pin that is currently being followed in the traversal process.
+	*/
+	UPROPERTY()
+	TObjectPtr<UMovieGraphPin> PinBeingFollowed;
+
+	/**
+	* The current stack of subgraphs that are being visited. The last subgraph in the stack is the one currently being
+	* visited. If no subgraphs are in this stack, then the parent-most graph is being traversed currently.
+	*/
+	UPROPERTY()
+	TArray<TObjectPtr<const UMovieGraphSubgraphNode>> SubgraphStack;
 };
 
 
@@ -307,6 +338,7 @@ public:
 	void SetEditorOnlyNodes(const TArray<TObjectPtr<const UObject>>& InNodes);
 #endif
 
+	UFUNCTION(BlueprintCallable, Category="Experimental")
 	UMovieGraphEvaluatedConfig* CreateFlattenedGraph(const FMovieGraphTraversalContext& InContext);
 
 	template<typename NodeType>

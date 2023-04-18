@@ -21,20 +21,35 @@ struct FMovieGraphPinProperties
 		, bAllowMultipleConnections(bInAllowMultipleConnections)
 	{}
 
+	static FMovieGraphPinProperties MakeBranchProperties(const FName& InLabel = NAME_None)
+	{
+		FMovieGraphPinProperties Properties(InLabel, EMovieGraphValueType::None, false);
+		Properties.bIsBranch = true;
+		return MoveTemp(Properties);
+	}
+
+	/** The name assigned to the pin. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
 	FName Label = NAME_None;
 
+	/** The type of the pin. If the pin represents a branch, this type is ignored. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
 	EMovieGraphValueType Type = EMovieGraphValueType::Float;
 
+	/** Whether this pin can accept multiple connections. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
 	bool bAllowMultipleConnections = true;
+
+	/** Whether this pin represents a branch. If it does not represent a branch, then it is a value-providing pin. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+	bool bIsBranch = false;
 
 	bool operator==(const FMovieGraphPinProperties& Other) const
 	{
 		return Label == Other.Label
 			&& Type == Other.Type
-			&& bAllowMultipleConnections == Other.bAllowMultipleConnections;
+			&& bAllowMultipleConnections == Other.bAllowMultipleConnections
+			&& bIsBranch == Other.bIsBranch;
 	}
 
 	bool operator !=(const FMovieGraphPinProperties& Other) const

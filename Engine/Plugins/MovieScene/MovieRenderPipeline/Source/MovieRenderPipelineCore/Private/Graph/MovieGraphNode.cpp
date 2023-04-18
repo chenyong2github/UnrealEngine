@@ -208,7 +208,7 @@ void UMovieGraphNode::PostLoad()
 	RegisterDelegates();
 }
 
-TArray<UMovieGraphPin*> UMovieGraphNode::EvaluatePinsToFollow(const FMovieGraphTraversalContext& InContext) const
+TArray<UMovieGraphPin*> UMovieGraphNode::EvaluatePinsToFollow(FMovieGraphEvaluationContext& InContext) const
 {
 	TArray<UMovieGraphPin*> PinsToFollow;
 
@@ -217,7 +217,7 @@ TArray<UMovieGraphPin*> UMovieGraphNode::EvaluatePinsToFollow(const FMovieGraphT
 	// as branch or switch nodes.
 	for (const TObjectPtr<UMovieGraphPin>& InputPin : GetInputPins())
 	{
-		if (InputPin->Properties.Type == EMovieGraphValueType::Branch)
+		if (InputPin->Properties.bIsBranch)
 		{
 			PinsToFollow.Add(InputPin);
 		}
@@ -228,13 +228,13 @@ TArray<UMovieGraphPin*> UMovieGraphNode::EvaluatePinsToFollow(const FMovieGraphT
 TArray<FMovieGraphPinProperties> UMovieGraphSettingNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMovieGraphSettingNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
 	return Properties;
 }

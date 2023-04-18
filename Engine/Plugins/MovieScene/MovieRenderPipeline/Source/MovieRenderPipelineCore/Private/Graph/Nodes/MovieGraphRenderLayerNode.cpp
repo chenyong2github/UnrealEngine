@@ -13,14 +13,14 @@ UMovieGraphRenderLayerNode::UMovieGraphRenderLayerNode()
 TArray<FMovieGraphPinProperties> UMovieGraphRenderLayerNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMovieGraphRenderLayerNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
 	return Properties;
 }
 

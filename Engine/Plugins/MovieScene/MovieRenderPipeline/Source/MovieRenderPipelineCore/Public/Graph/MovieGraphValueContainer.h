@@ -226,6 +226,6 @@ private:
 	// of a property which can have its type changed, 3) the ability to set the value of the property from both Python
 	// and C++, and 4) the ability to change the property at runtime.
 	/** The value held by this object. */
-	UPROPERTY(EditAnywhere, meta=(ShowOnlyInnerProperties), Category = "General")
+	UPROPERTY(EditAnywhere, meta=(ShowOnlyInnerProperties), Category = "Value")
 	FInstancedPropertyBag Value;
 };

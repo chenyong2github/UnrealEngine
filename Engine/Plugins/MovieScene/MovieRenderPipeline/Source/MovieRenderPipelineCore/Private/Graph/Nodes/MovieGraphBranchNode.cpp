@@ -17,7 +17,7 @@ namespace UE::MovieGraph::BranchNode
 	static const FName Condition("Condition");
 }
 
-TArray<UMovieGraphPin*> UMovieGraphBranchNode::EvaluatePinsToFollow(const FMovieGraphTraversalContext& InContext) const
+TArray<UMovieGraphPin*> UMovieGraphBranchNode::EvaluatePinsToFollow(FMovieGraphEvaluationContext& InContext) const
 {
 	TArray<UMovieGraphPin*> PinsToFollow;
 
@@ -87,8 +87,8 @@ TArray<FMovieGraphPinProperties> UMovieGraphBranchNode::GetInputPinProperties() 
 {
 	TArray<FMovieGraphPinProperties> Properties;
 	
-	Properties.Add(FMovieGraphPinProperties(UE::MovieGraph::BranchNode::TrueBranch, EMovieGraphValueType::Branch, false));
-	Properties.Add(FMovieGraphPinProperties(UE::MovieGraph::BranchNode::FalseBranch, EMovieGraphValueType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties(UE::MovieGraph::BranchNode::TrueBranch));
+	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties(UE::MovieGraph::BranchNode::FalseBranch));
 	Properties.Add(FMovieGraphPinProperties(UE::MovieGraph::BranchNode::Condition, EMovieGraphValueType::Bool, false));
 	return Properties;
 }
@@ -96,7 +96,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphBranchNode::GetInputPinProperties() 
 TArray<FMovieGraphPinProperties> UMovieGraphBranchNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
 	return Properties;
 }
 

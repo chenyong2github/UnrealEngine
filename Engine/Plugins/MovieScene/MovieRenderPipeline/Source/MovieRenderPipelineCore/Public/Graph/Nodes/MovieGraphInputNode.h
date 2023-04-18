@@ -14,8 +14,10 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphInputNode : public UMovieGraphNode
 
 public:
 	UMovieGraphInputNode();
-	
+
+	//~ Begin UMovieGraphNode interface
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
+	virtual TArray<UMovieGraphPin*> EvaluatePinsToFollow(FMovieGraphEvaluationContext& InContext) const override;
 
 #if WITH_EDITOR
 	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
@@ -23,6 +25,7 @@ public:
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 #endif
+	//~ End UMovieGraphNode interface
 
 private:
 	virtual void RegisterDelegates() const override;

@@ -29,15 +29,11 @@ enum class EMovieGraphValueType : uint8
 	Class UMETA(Hidden),
 	SoftClass UMETA(Hidden),
 
-	Branch UMETA(Hidden),	// Added for MRQ purposes
-	Unknown UMETA(Hidden),	// Added for MRQ purposes
-
 	Count UMETA(Hidden)
 };
 
-// Note: The +2 is to account for the MRQ-added items in the enum
 // TODO: We may want a method which converts between these enum types instead
-static_assert((uint8)EMovieGraphValueType::Count == (uint8)EPropertyBagPropertyType::Count + 2);
+static_assert((uint8)EMovieGraphValueType::Count == (uint8)EPropertyBagPropertyType::Count);
 
 // Note: Also a copy of the property bag's container types for the same reason as EMovieGraphValueType.
 /** The container type of a graph member's value. */

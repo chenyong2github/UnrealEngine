@@ -3,6 +3,7 @@
 #include "Graph/Nodes/MovieGraphInputNode.h"
 
 #include "Graph/MovieGraphConfig.h"
+#include "Graph/Nodes/MovieGraphSubgraphNode.h"
 #include "Styling/AppStyle.h"
 
 UMovieGraphInputNode::UMovieGraphInputNode()
@@ -27,11 +28,56 @@ TArray<FMovieGraphPinProperties> UMovieGraphInputNode::GetOutputPinProperties() 
 	{
 		for (const UMovieGraphInput* Input : ParentGraph->GetInputs())
 		{
-			Properties.Add(FMovieGraphPinProperties(FName(Input->Name), EMovieGraphValueType::Branch, false));
+			FMovieGraphPinProperties PinProperties(FName(Input->Name), Input->GetValueType(), false);
+			PinProperties.bIsBranch = Input->bIsBranch;
+			Properties.Add(MoveTemp(PinProperties));
 		}
 	}
 	
 	return Properties;
+}
+
+TArray<UMovieGraphPin*> UMovieGraphInputNode::EvaluatePinsToFollow(FMovieGraphEvaluationContext& InContext) const
+{
+	TArray<UMovieGraphPin*> PinsToFollow;
+	
+	if (!ensure(InContext.PinBeingFollowed))
+	{
+		return PinsToFollow;
+	}
+
+	// If this input node occurs in a subgraph (ie, the subgraph stack is not empty), follow the pin to the input pin on
+	// the subgraph node in the parent graph.
+	//
+	//    Subgraph
+	//    +------------------
+	//    | Inputs node
+	//    | +--------+ 
+	// In1| |    In1 | <--- Pin being followed ---
+	// In2| |    In2 | 
+	// In3| |    In3 | 
+	//    | +--------+   
+	//    +------------------
+
+	if (InContext.SubgraphStack.IsEmpty())
+	{
+		// This was not an input node in a subgraph; nothing to continue following
+		return PinsToFollow;
+	}
+
+	// Pop the subgraph node off the stack and continue traversal in the parent graph
+	const TObjectPtr<const UMovieGraphSubgraphNode> ParentSubgraphNode = InContext.SubgraphStack.Pop();
+	if (!ensure(ParentSubgraphNode.Get()))
+	{
+		return PinsToFollow;
+	}
+
+	if (UMovieGraphPin* InputPin = ParentSubgraphNode->GetInputPin(InContext.PinBeingFollowed->Properties.Label))
+	{
+		PinsToFollow.Add(InputPin);
+	}
+	
+	return PinsToFollow;
 }
 
 #if WITH_EDITOR
@@ -92,6 +138,8 @@ void UMovieGraphInputNode::UpdateExistingPins(UMovieGraphMember* ChangedInput) c
 			for (int32 Index = 0; Index < InputMembers.Num(); ++Index)
 			{
 				OutputPins[Index]->Properties.Label = FName(InputMembers[Index]->Name);
+				OutputPins[Index]->Properties.Type = InputMembers[Index]->GetValueType();
+				OutputPins[Index]->Properties.bIsBranch = InputMembers[Index]->bIsBranch;
 			}
 		}
 		

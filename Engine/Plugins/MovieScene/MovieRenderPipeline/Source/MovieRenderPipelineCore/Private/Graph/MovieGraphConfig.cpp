@@ -795,10 +795,12 @@ void UMovieGraphConfig::CreateFlattenedGraph_Recursive(UMovieGraphEvaluatedConfi
 	}
 
 	// We only follow execution pins during traversal.
-	if (!ensureMsgf(InPinToFollow->Properties.Type == EMovieGraphValueType::Branch, TEXT("Only Branch pins should be contained by InPinToFollow!")))
+	if (!ensureMsgf(InPinToFollow->Properties.bIsBranch, TEXT("Only Branch pins should be contained by InPinToFollow!")))
 	{
 		return;
 	}
+
+	InEvaluationContext.PinBeingFollowed = InPinToFollow;
 
 	// Check to see if our flattened evaluation graph already has a copy of this node.
 	InEvaluationContext.VisitedNodes.Add(Node);
@@ -829,7 +831,7 @@ void UMovieGraphConfig::CreateFlattenedGraph_Recursive(UMovieGraphEvaluatedConfi
 	
 	// Now that we've potentially resolved the values on this node, continue to travel up-stream along any execution pins,
 	// potentially following re-route nodes, sub-graph nodes, through branches, etc.
-	TArray<UMovieGraphPin*> NewPinsToFollow = Node->EvaluatePinsToFollow(InEvaluationContext.UserContext);
+	TArray<UMovieGraphPin*> NewPinsToFollow = Node->EvaluatePinsToFollow(InEvaluationContext);
 	
 	for(UMovieGraphPin* Pin : NewPinsToFollow)
 	{
