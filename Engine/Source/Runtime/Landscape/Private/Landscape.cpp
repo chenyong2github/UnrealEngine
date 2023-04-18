@@ -100,7 +100,6 @@ Landscape.cpp: Terrain rendering
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/Texture2D.h"
-#include "AssetCompilingManager.h"
 #endif
 
 /** Landscape stats */
@@ -156,17 +155,11 @@ static FAutoConsoleVariableRef CVarRenderCaptureNextHeightmapRenders(
 
 #if WITH_EDITOR
 
-float LandscapeNaniteAsyncDebugWait = 0.0f;
-static FAutoConsoleVariableRef CVarNaniteAsyncDebugWait(
-	TEXT("landscape.NaniteAsyncDebugWait"),
-	LandscapeNaniteAsyncDebugWait,
-	TEXT("Time in seconds to pause the async Nanite build. Used for debugging"));
-
-float LandscapeNaniteBuildLag = 0.25f;
-static FAutoConsoleVariableRef CVarNaniteUpdateLag(
-	TEXT("landscape.NaniteUpdateLag"),
-	LandscapeNaniteBuildLag,
-	TEXT("Time to wait in seconds after the last landscape update before triggering a nanite rebuild"));
+int32 LiveRebuildNaniteOnModification = 0;
+static FAutoConsoleVariableRef CVarLiveRebuildNaniteOnModification(
+	TEXT("landscape.LiveRebuildNaniteOnModification"),
+	LiveRebuildNaniteOnModification,
+	TEXT("Trigger a rebuild of Nanite representation immediately when a modification is performed"));
 
 static FAutoConsoleVariable CVarForceInvalidateNaniteOnLoad(
 	TEXT("landscape.ForceInvalidateNaniteOnLoad"),
@@ -311,78 +304,35 @@ bool ALandscapeProxy::IsNaniteMeshUpToDate() const
 	return true;
 }
 
-FGraphEventRef ALandscapeProxy::UpdateNaniteRepresentationAsync(const ITargetPlatform* InTargetPlatform)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::UpdateNaniteRepresentationAsync);
-	FGraphEventRef BatchBuildEvent;
-
-	if (IsNaniteEnabled() && !HasAnyFlags(RF_ClassDefaultObject) && LandscapeComponents.Num() > 0)
-	{
-		const FGuid NaniteContentId = GetNaniteContentId();
-
-		if (NaniteComponent == nullptr)
-		{
-			CreateNaniteComponent();
-		}
-
-		if (NaniteComponent->GetProxyContentId() != NaniteContentId)
-		{
-			ULandscapeSubsystem* Subsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>();
-			FGraphEventArray UpdateDependencies{ NaniteComponent->InitializeForLandscapeAsync(this, NaniteContentId, Subsystem->IsMultithreadedNaniteBuildEnabled()) };
-
-			// TODO: Add a flag that only initializes the platform if we called InitializeForLandscape during the PreSave for this or a previous platform
-			BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([Proxy = this, InTargetPlatform]() {
-					Proxy->NaniteComponent->InitializePlatformForLandscape(Proxy, InTargetPlatform);
-					Proxy->NaniteComponent->UpdatedSharedPropertiesFromActor();
-				},
-				TStatId(),
-				&UpdateDependencies,
-				ENamedThreads::GameThread);
-		}
-
-	}
-	else
-	{
-		InvalidateNaniteRepresentation(/* bInCheckContentId = */false);
-	}
-
-	return BatchBuildEvent;
-}
-
 void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* InTargetPlatform)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::UpdateNaniteRepresentation);
-
 	if (IsNaniteEnabled() && !HasAnyFlags(RF_ClassDefaultObject) && LandscapeComponents.Num() > 0)
 	{
 		const FGuid NaniteContentId = GetNaniteContentId();
-
-		bool bSuccess = true;
 		if (NaniteComponent == nullptr)
 		{
-			CreateNaniteComponent();
-			bSuccess = true;
+			NaniteComponent = NewObject<ULandscapeNaniteComponent>(this, TEXT("LandscapeNaniteComponent"));
+
+			NaniteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+			NaniteComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			NaniteComponent->SetMobility(EComponentMobility::Static);
+			NaniteComponent->SetGenerateOverlapEvents(false);
+			NaniteComponent->SetCanEverAffectNavigation(false);
+			NaniteComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
+			NaniteComponent->bSelectable = false;
+			NaniteComponent->DepthPriorityGroup = SDPG_World;
+			NaniteComponent->bForceNaniteForMasked = true;
+			NaniteComponent->RegisterComponent();
+			NaniteComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		}
 
+		bool bSuccess = true;
 		if (NaniteComponent->GetProxyContentId() != NaniteContentId)
 		{
-			ULandscapeSubsystem* Subsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>();
-			if (!Subsystem->IsMultithreadedNaniteBuildEnabled())
-			{
-				FScopedSlowTask ProgressDialog(1, LOCTEXT("BuildingLandscapeNanite", "Building Landscape Nanite Data"));
-				ProgressDialog.MakeDialogDelayed(/*Threshold = */1.0f);
-				NaniteComponent->InitializeForLandscape(this, NaniteContentId);
-			}
-			else
-			{
-				FGraphEventArray UpdateDependencies { NaniteComponent->InitializeForLandscapeAsync(this, NaniteContentId, Subsystem->IsMultithreadedNaniteBuildEnabled())};
+			FScopedSlowTask ProgressDialog(1, LOCTEXT("BuildingLandscapeNanite", "Building Landscape Nanite Data"));
+			ProgressDialog.MakeDialogDelayed(/*Threshold = */1.0f);
 
-				FGraphEventRef BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([Proxy = this]() {
-					},
-					TStatId(),
-					& UpdateDependencies,
-					ENamedThreads::GameThread);
-			}			
+			bSuccess &= NaniteComponent->InitializeForLandscape(this, NaniteContentId);
 		}
 
 		if (bSuccess)
@@ -423,10 +373,7 @@ void ALandscapeProxy::InvalidateNaniteRepresentation(bool bInCheckContentId)
 
 void ALandscapeProxy::InvalidateOrUpdateNaniteRepresentation(bool bInCheckContentId, const ITargetPlatform* InTargetPlatform)
 {
-	TRACE_BOOKMARK(TEXT("ALandscapeProxy::InvalidateOrUpdateNaniteRepresentation"));	
-
-	ULandscapeSubsystem* Subsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>();
-	if (Subsystem->IsLiveNaniteRebuildEnabled())
+	if (LiveRebuildNaniteOnModification != 0)
 	{
 		UpdateNaniteRepresentation(InTargetPlatform);
 	}
@@ -903,19 +850,6 @@ bool ULandscapeComponent::ComponentHasVisibilityPainted() const
 	}
 
 	return false;
-}
-
-ULandscapeLayerInfoObject* ULandscapeComponent::GetVisibilityLayer() const
-{
-	for (const FWeightmapLayerAllocationInfo& Allocation : WeightmapLayerAllocations)
-	{
-		if (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer)
-		{
-			return Allocation.LayerInfo;
-		}
-	}
-
-	return nullptr;
 }
 
 void ULandscapeComponent::GetLayerDebugColorKey(int32& R, int32& G, int32& B) const
@@ -3033,12 +2967,6 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		Component->GrassData->bIsDirty = false;
 	}
 
-	ULandscapeSubsystem* Subsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>();
-	if (Subsystem->IsLiveNaniteRebuildEnabled())
-	{
-		GetLandscapeInfo()->UpdateNanite(ObjectSaveContext.GetTargetPlatform());
-	}
-	
 	if (ALandscape* Landscape = GetLandscapeActor())
 	{
 		for (ULandscapeComponent* LandscapeComponent : LandscapeComponents)
@@ -3054,10 +2982,9 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 				}
 			});
 		}
-		
+
 		UpdateNaniteRepresentation(ObjectSaveContext.GetTargetPlatform());
 		UpdateRenderingMethod();
-		
 	}
 
 	if (LandscapeGuid.IsValid())
@@ -4431,57 +4358,6 @@ void ULandscapeInfo::ForEachLandscapeProxy(TFunctionRef<bool(ALandscapeProxy*)> 
 	}
 }
 
-void ULandscapeInfo::UpdateNanite(const ITargetPlatform* InTargetPlatform)
-{
-	ALandscape* Landscape = LandscapeActor.Get();
-	if (!Landscape)
-	{
-		return;
-	}
-
-#if WITH_EDITOR
-	if (!Landscape->IsNaniteEnabled())
-	{
-		return;
-	}
-
-	UWorld* World = nullptr;
-	FGraphEventArray AsyncEvents;
-	ForEachLandscapeProxy([&AsyncEvents, InTargetPlatform, &World](ALandscapeProxy* LandscapeProxy)
-		{
-			AsyncEvents.Add(LandscapeProxy->UpdateNaniteRepresentationAsync(InTargetPlatform));
-			if (!World)
-			{
-				World = LandscapeProxy->GetWorld();
-			}
-			
-			return true;
-		});
-
-
-	if (!World)
-	{
-		return;
-	}
-
-	FGraphEventRef WaitForAllNaniteUpdates = FFunctionGraphTask::CreateAndDispatchWhenReady([]() {
-		},
-		TStatId(),
-			&AsyncEvents,
-			ENamedThreads::GameThread);
-
-	// we have to drain the game thread tasks and static mesh builds
-	ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>();
-	while (LandscapeSubsystem->AreNaniteBuildsInProgress())
-	{
-		ENamedThreads::Type CurrentThread = FTaskGraphInterface::Get().GetCurrentThreadIfKnown();
-		FTaskGraphInterface::Get().ProcessThreadUntilIdle(CurrentThread);
-		FAssetCompilingManager::Get().ProcessAsyncTasks();
-	}
-#endif //WITH_EDITOR
-
-}
-
 bool ULandscapeInfo::IsRegistered(const ALandscapeProxy* Proxy) const
 {
 	if (Proxy == nullptr)
@@ -5190,28 +5066,12 @@ void ULandscapeMeshProxyComponent::InitializeForLandscape(ALandscapeProxy* Lands
 
 	if (InProxyLOD != INDEX_NONE)
 	{
+		ProxyLOD = static_cast<int8>(FMath::Clamp<int32>(InProxyLOD, 0, FMath::CeilLogTwo(Landscape->SubsectionSizeQuads + 1) - 1));
 		ProxyLOD = FMath::Clamp<int8>(InProxyLOD, 0, static_cast<int8>(FMath::CeilLogTwo(Landscape->SubsectionSizeQuads + 1) - 1));
 	}
 }
 
 #if WITH_EDITOR
-
-void  ALandscapeProxy::CreateNaniteComponent() 
-{
-	NaniteComponent = NewObject<ULandscapeNaniteComponent>(this, TEXT("LandscapeNaniteComponent"));
-	NaniteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-	NaniteComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	NaniteComponent->SetMobility(EComponentMobility::Static);
-	NaniteComponent->SetGenerateOverlapEvents(false);
-	NaniteComponent->SetCanEverAffectNavigation(false);
-	NaniteComponent->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
-	NaniteComponent->bSelectable = false;
-	NaniteComponent->DepthPriorityGroup = SDPG_World;
-	NaniteComponent->bForceNaniteForMasked = true;
-	NaniteComponent->RegisterComponent();
-	NaniteComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-}
-
 void ALandscapeProxy::SerializeStateHashes(FArchive& Ar)
 {
 	for (FLandscapePerLODMaterialOverride& MaterialOverride : PerLODOverrideMaterials)
@@ -5417,16 +5277,8 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeCo
 		Proxy->FlushGrassComponents(&Iter.Value());
 
 	#if WITH_EDITOR
-		ULandscapeSubsystem* Subsystem = Proxy->GetWorld()->GetSubsystem<ULandscapeSubsystem>();
-		if (Subsystem->IsLiveNaniteRebuildEnabled())
-		{
-			Proxy->GetAsyncWorkMonitor().SetDelayedUpdateTimer(FAsyncWorkMonitor::EAsyncWorkType::BuildNaniteMeshes, LandscapeNaniteBuildLag);
-		}
-		else
-		{
-			Proxy->InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
-		}
-		
+		Proxy->InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
+
 		FLandscapeProxyComponentDataChangedParams ChangeParams(Iter.Value());
 		Proxy->OnComponentDataChanged.Broadcast(Iter.Key(), ChangeParams);
 	#endif
@@ -5449,7 +5301,8 @@ void ALandscapeProxy::UpdateRenderingMethod()
 	}
 
 	bool bNaniteActive = false;
-	if (GRenderNaniteLandscape != 0)
+
+	if (NaniteComponent != nullptr && GRenderNaniteLandscape != 0)
 	{
 		bNaniteActive = UseNanite(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
 #if WITH_EDITOR
@@ -5463,19 +5316,11 @@ void ALandscapeProxy::UpdateRenderingMethod()
 				}
 			}
 		}
-#endif //WITH_EDITOR
+#endif
 	}
-
-#if WITH_EDITOR
-	if (bNaniteActive)
-	{
-		bNaniteActive = NaniteComponent && NaniteComponent->GetProxyContentId() == GetNaniteContentId();
-	}
-#endif //WITH_EDITOR
 
 	if (bNaniteActive)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::UpdateRenderingMethod-AuditMaterials);
 		Nanite::FMaterialAudit NaniteMaterials;
 		Nanite::AuditMaterials(NaniteComponent, NaniteMaterials);
 
@@ -5513,40 +5358,6 @@ void FLandscapeProxyComponentDataChangedParams::ForEachComponent(TFunctionRef<vo
 	for (ULandscapeComponent* Component : Components)
 	{
 		Func(Component);
-	}
-}
-
-
-
-bool FAsyncWorkMonitor::CheckIfUpdateTriggeredAndClear(EAsyncWorkType WorkType)
-{
-	bool& bUpdateTriggered = WorkTypeInfos[static_cast<uint32>(WorkType)].bUpdateTriggered;
-
-	bool bReturn = bUpdateTriggered;
-	bUpdateTriggered = false;
-	return bReturn;
-}
-
-void FAsyncWorkMonitor::SetDelayedUpdateTimer(EAsyncWorkType WorkType, float InSecondsUntilDelayedUpdateTrigger)
-{
-	FAsyncWorkTypeInfo& Info = WorkTypeInfos[static_cast<uint32>(WorkType)];
-	Info.SecondsUntilDelayedUpdateTrigger = InSecondsUntilDelayedUpdateTrigger;
-}
-
-void FAsyncWorkMonitor::Tick(float Detaltime)
-{
-	for (FAsyncWorkTypeInfo& Info : WorkTypeInfos)
-	{
-		if (Info.SecondsUntilDelayedUpdateTrigger > 0.0f)
-		{
-			Info.SecondsUntilDelayedUpdateTrigger -= Detaltime;
-
-			if (Info.SecondsUntilDelayedUpdateTrigger <= 0.0f)
-			{
-				Info.SecondsUntilDelayedUpdateTrigger = 0.0f;
-				Info.bUpdateTriggered = true;
-			}
-		}
 	}
 }
 #endif // WITH_EDITOR

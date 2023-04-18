@@ -131,11 +131,16 @@ private:
 	TMap<UTexture2D*, TArray<FLockedMipDataInfo> > LockedMipInfoMap;
 };
 	
-
-struct FLandscapeComponentDataInterfaceBase
+//
+// FLandscapeComponentDataInterface
+//
+struct FLandscapeComponentDataInterface
 {
-	LANDSCAPE_API FLandscapeComponentDataInterfaceBase() {}
-	LANDSCAPE_API FLandscapeComponentDataInterfaceBase(ULandscapeComponent* InComponent, int32 InMipLevel, bool InWorkOnEditingLayer = true);
+	friend struct FLandscapeDataInterface;
+
+	// tors
+	LANDSCAPE_API FLandscapeComponentDataInterface(ULandscapeComponent* InComponent, int32 InMipLevel = 0, bool InWorkOnEditingLayer = true);
+	LANDSCAPE_API ~FLandscapeComponentDataInterface();
 
 	// Accessors
 	void VertexIndexToXY(int32 VertexIndex, int32& OutX, int32& OutY) const
@@ -209,68 +214,6 @@ struct FLandscapeComponentDataInterfaceBase
 		return TexelY * ComponentNumSubsections * SubsectionSizeVerts + TexelX;
 	}
 
-	uint16 GetHeight(int32 LocalX, int32 LocalY, const TArray<FColor>& HeightAndNormals) const
-	{
-		const FColor* Texel = GetHeightData(LocalX, LocalY, HeightAndNormals);
-		return (Texel->R << 8) + Texel->G;
-	}
-
-	FVector GetLocalVertex(int32 LocalX, int32 LocalY, const TArray<FColor>& HeightAndNormals) const
-	{
-		const float ScaleFactor = (float)ComponentSizeQuads / (float)(ComponentSizeVerts - 1);
-		
-		return FVector(LocalX * ScaleFactor , LocalY * ScaleFactor, LandscapeDataAccess::GetLocalHeight(GetHeight(LocalX, LocalY, HeightAndNormals)));
-	}
-
-	const FColor* GetHeightData(int32 LocalX, int32 LocalY, const TArray<FColor>& HeightAndNormals) const
-	{
-#if LANDSCAPE_VALIDATE_DATA_ACCESS
-		check(LocalX >= 0 && LocalY >= 0 && LocalX < ComponentSizeVerts&& LocalY < HeightmapStride);
-#endif
-
-		int32 TexelX, TexelY;
-		VertexXYToTexelXY(LocalX, LocalY, TexelX, TexelY);
-
-		return &HeightAndNormals[TexelX + HeightmapComponentOffsetX + (TexelY + HeightmapComponentOffsetY) * HeightmapStride];
-	}
-
-	void GetLocalTangentVectors(int32 LocalX, int32 LocalY, FVector& LocalTangentX, FVector& LocalTangentY, FVector& LocalTangentZ, const TArray<FColor>& HeightAndNormals) const
-	{
-		// Note: these are still pre-scaled, just not rotated
-		const FColor* Data = GetHeightData(LocalX, LocalY, HeightAndNormals);
-		LocalTangentZ = LandscapeDataAccess::UnpackNormal(*Data);
-		LocalTangentX = FVector(-LocalTangentZ.Z, 0.f, LocalTangentZ.X);
-		LocalTangentY = FVector(0.f, LocalTangentZ.Z, -LocalTangentZ.Y);
-	}
-
-	int32 GetComponentSizeVerts() const { return ComponentSizeVerts; }
-
-public:
-	// offset of this component's data into heightmap texture
-	int32 HeightmapStride = 0;
-	int32 HeightmapComponentOffsetX = 0;
-	int32 HeightmapComponentOffsetY = 0;
-	int32 HeightmapSubsectionOffset = 0;
-	const int32 MipLevel = 0;
-
-protected:
-	int32 ComponentSizeQuads = 0;
-	int32 ComponentSizeVerts = 0;
-	int32 SubsectionSizeVerts = 0;
-	int32 ComponentNumSubsections = 0;
-};
-
-//
-// FLandscapeComponentDataInterface
-//
-struct FLandscapeComponentDataInterface : public FLandscapeComponentDataInterfaceBase
-{
-	friend struct FLandscapeDataInterface;
-
-	// tors
-	LANDSCAPE_API FLandscapeComponentDataInterface(ULandscapeComponent* InComponent, int32 InMipLevel = 0, bool InWorkOnEditingLayer = true);
-	LANDSCAPE_API ~FLandscapeComponentDataInterface();
-
 	FColor* GetRawHeightData() const
 	{
 		return HeightMipData;
@@ -304,7 +247,7 @@ struct FLandscapeComponentDataInterface : public FLandscapeComponentDataInterfac
 #if LANDSCAPE_VALIDATE_DATA_ACCESS
 		check(Component);
 		check(HeightMipData);
-		check(LocalX >=0 && LocalY >=0 && LocalX < ComponentSizeVerts && LocalY < ComponentSizeVerts);
+		check(LocalX >=0 && LocalY >=0 && LocalX < ComponentSizeVerts && LocalY < ComponentSizeVerts );
 #endif
 
 		int32 TexelX, TexelY;
@@ -407,10 +350,22 @@ private:
 	ULandscapeComponent* Component;
 	bool bWorkOnEditingLayer;
 
+public:
+	// offset of this component's data into heightmap texture
+	int32 HeightmapStride;
+	int32 HeightmapComponentOffsetX;
+	int32 HeightmapComponentOffsetY;
+	int32 HeightmapSubsectionOffset;
+
 private:
 	FColor* HeightMipData;
 	FColor* XYOffsetMipData;
-	
+
+	int32 ComponentSizeVerts;
+	int32 SubsectionSizeVerts;
+	int32 ComponentNumSubsections;
+public:
+	const int32 MipLevel;
 };
 
 // Helper functions

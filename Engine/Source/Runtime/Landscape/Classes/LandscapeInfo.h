@@ -181,8 +181,6 @@ private:
 	bool bDirtyOnlyInMode;
 
 	friend struct FLandscapeDirtyOnlyInModeScope;
-
-	
 #endif // WITH_EDITORONLY_DATA
 
 	TSet<ULandscapeComponent*> SelectedComponents;
@@ -190,8 +188,6 @@ private:
 	TSet<ULandscapeComponent*> SelectedRegionComponents;
 
 	FIntRect XYComponentBounds;
-
-	
 
 public:
 	TMap<FIntPoint,float> SelectedRegion;
@@ -399,8 +395,6 @@ public:
 	 * });
 	 */
 	LANDSCAPE_API void ForEachLandscapeProxy(TFunctionRef<bool(ALandscapeProxy*)> Fn) const;
-
-	void UpdateNanite(const ITargetPlatform* InTargetPlatform);
 
 	/** Associates passed actor with this info object
  *  @param	Proxy		Landscape actor to register

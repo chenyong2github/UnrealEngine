@@ -115,7 +115,7 @@ LANDSCAPE_API FName ALandscape::AffectsLandscapeActorDescProperty(TEXT("AffectsL
 // Channel remapping
 extern const size_t ChannelOffsets[4];
 
-extern float LandscapeNaniteBuildLag;
+extern int32 LiveRebuildNaniteOnModification;
 
 ULandscapeLayerInfoObject* ALandscapeProxy::VisibilityLayer = nullptr;
 #endif //WITH_EDITOR
@@ -3604,72 +3604,9 @@ int32 ALandscapeProxy::FRawMeshExportParams::GetNumUVChannelsNeeded() const
 	return Result;
 }
 
-
-TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> ALandscapeProxy::MakeAsyncNaniteBuildData() const
-{
-	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = MakeShared<UE::Landscape::Nanite::FAsyncBuildData>();
-
-	AsyncBuildData->LOD = GetLandscapeActor()->NaniteLODIndex;
-	AsyncBuildData->LandscapeWeakRef = MakeWeakObjectPtr(const_cast<ALandscapeProxy*>(this));
-	AsyncBuildData->LandscapeSubSystemWeakRef = MakeWeakObjectPtr(GetWorld()->GetSubsystem<ULandscapeSubsystem>());
-
-	for (ULandscapeComponent* Component : LandscapeComponents)
-	{
-		UMaterialInterface* Material = nullptr;
-		if (Component)
-		{
-			Material = Component->GetMaterialInstance(0u);
-			AsyncBuildData->InputMaterialSlotNames.Add(FName(*FString::Format(TEXT("LandscapeMat_{0}"), { AsyncBuildData->InputComponents.Num() })));
-			AsyncBuildData->InputMaterials.Add(Material ? Material : UMaterial::GetDefaultMaterial(MD_Surface));
-			AsyncBuildData->InputComponents.Add(Component);
-		}
-	}
-
-	if (AsyncBuildData->InputComponents.Num() == 0)
-	{
-		UE_LOG(LogLandscape, Verbose, TEXT("%s : no Nanite mesh to export"), *GetActorNameOrLabel());
-	}
-
-	if (AsyncBuildData->InputMaterials.Num() > NANITE_MAX_CLUSTER_MATERIALS)
-	{
-		UE_LOG(LogLandscape, Warning, TEXT("%s : Nanite landscape mesh would have more than %i materials, which is currently not supported. Please reduce the number of components in this landscape actor to enable Nanite."), *GetActorNameOrLabel(), NANITE_MAX_CLUSTER_MATERIALS)
-	}
-
-	// take a copy of the height and visility data for each component.
-	// Add an sync version of ForEachComponent?  
-	ForEachComponent<ULandscapeComponent>(true, [AsyncBuildData](ULandscapeComponent* LandscapeComponent)
-		{
-			int32 MipLevel = 0;
-			TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::MakeAsyncBuildData-CopyHeightAndVisibility);
-			FLandscapeComponentDataInterface DataInterface(LandscapeComponent, MipLevel, false);
-
-			UE::Landscape::Nanite::FAsyncComponentData AsyncComponentData;
-
-			DataInterface.GetHeightmapTextureData(AsyncComponentData.HeightAndNormalData, false);
-			DataInterface.GetWeightmapTextureData(LandscapeComponent->GetVisibilityLayer(), AsyncComponentData.Visibility);
-
-		
-			AsyncComponentData.ComponentDataInterface = MakeShared<FLandscapeComponentDataInterfaceBase>(LandscapeComponent, 0, false);
-			int32 HeightmapSize = ((LandscapeComponent->SubsectionSizeQuads + 1) * LandscapeComponent->NumSubsections) >> MipLevel;
-			AsyncComponentData.ComponentDataInterface->HeightmapStride = HeightmapSize;
-			AsyncComponentData.ComponentDataInterface->HeightmapComponentOffsetX = 0;
-			AsyncComponentData.ComponentDataInterface->HeightmapComponentOffsetY = 0;
-			AsyncBuildData->ComponentData.Add(LandscapeComponent, AsyncComponentData);
-		}
-	);
-
-	return AsyncBuildData;
-}
-
 bool ALandscapeProxy::ExportToRawMesh(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh) const
 {
-	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = MakeAsyncNaniteBuildData();
-	return ExportToRawMeshDataCopy(InExportParams, OutRawMesh, AsyncBuildData.Get());
-}
-
-bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh, const UE::Landscape::Nanite::FAsyncBuildData& AsyncData) const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::ExportToRawMeshDataCopy);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::ExportToRawMesh);
 
 	TArray<ULandscapeComponent*> ComponentsToExport;
 	if (InExportParams.ComponentsToExport.IsSet())
@@ -3724,8 +3661,6 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 	OutRawMesh.ReserveNewPolygonGroups(bGenerateOnePolygroupPerComponent ? ComponentsToExport.Num() : 1);
 	for (ULandscapeComponent* Component : ComponentsToExport)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::ExportToRawMesh-Component);
-
 		ON_SCOPE_EXIT
 		{
 			++ComponentIndex;
@@ -3753,7 +3688,7 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 		// For this component, what unique UV mapping types should we compute?
 		const FRawMeshExportParams::FUVConfiguration& ComponentUVConfiguration = InExportParams.GetUVConfiguration(ComponentIndex);
 
-		const FLandscapeComponentDataInterfaceBase& CDI = *AsyncData.ComponentData.Find(Component)->ComponentDataInterface;
+		FLandscapeComponentDataInterface CDI(Component, LandscapeLODToExport);
 		const int32 ComponentSizeQuadsLOD = ((Component->ComponentSizeQuads + 1) >> LandscapeLODToExport) - 1;
 		const int32 SubsectionSizeQuadsLOD = ((Component->SubsectionSizeQuads + 1) >> LandscapeLODToExport) - 1;
 		float LODScale = (float)ComponentSizeQuadsLOD / ComponentSizeQuads;
@@ -3772,7 +3707,7 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 
 		const int32 NumFaces = FMath::Square(ComponentSizeQuadsLOD) * 2;
 		const int32 NumVertices = NumFaces * 3;
-		
+
 		OutRawMesh.ReserveNewVertices(NumVertices);
 		OutRawMesh.ReserveNewPolygons(NumFaces);
 		OutRawMesh.ReserveNewVertexInstances(NumVertices);
@@ -3787,9 +3722,17 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 
 		// Check if there are any holes
 		const int32 VisThreshold = 170;
+		TArray<uint8> VisDataMap;
+		const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations();
 
-		const TArray<FColor>& HeightAndNormals = AsyncData.ComponentData.Find(Component)->HeightAndNormalData;
-		const TArray<uint8>& VisDataMap = AsyncData.ComponentData.Find(Component)->Visibility;
+		for (int32 AllocIdx = 0; AllocIdx < ComponentWeightmapLayerAllocations.Num(); AllocIdx++)
+		{
+			const FWeightmapLayerAllocationInfo& AllocInfo = ComponentWeightmapLayerAllocations[AllocIdx];
+			if (AllocInfo.LayerInfo == ALandscapeProxy::VisibilityLayer)
+			{
+				CDI.GetWeightmapTextureData(AllocInfo.LayerInfo, VisDataMap);
+			}
+		}
 
 		const FIntPoint QuadPattern[6] =
 		{
@@ -3819,7 +3762,7 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 				{
 					int32 VertexX = x + QuadPattern[i].X;
 					int32 VertexY = y + QuadPattern[i].Y;
-					FVector Position = ComponentToExportCoordinatesTransform.TransformPosition(CDI.GetLocalVertex(VertexX, VertexY, HeightAndNormals));
+					FVector Position = ComponentToExportCoordinatesTransform.TransformPosition(CDI.GetLocalVertex(VertexX, VertexY));
 
 					// If at least one vertex is within the given bounds we should process the quad  
 					new(VertIndexAndZ)FIndexAndZ(CurrentIndex, (FVector3f)Position);
@@ -3874,7 +3817,7 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 				{
 					int32 VertexX = x + QuadPattern[i].X;
 					int32 VertexY = y + QuadPattern[i].Y;
-					LocalPositions[i] = CDI.GetLocalVertex(VertexX, VertexY, HeightAndNormals);
+					LocalPositions[i] = CDI.GetLocalVertex(VertexX, VertexY);
 					Positions[i] = ComponentToExportCoordinatesTransform.TransformPosition(LocalPositions[i]);
 
 					// If at least one vertex is within the given bounds we should process the quad  
@@ -3938,7 +3881,7 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 								int32 VertexY = y + QuadPattern[i].Y;
 
 								FVector LocalTangentX, LocalTangentY, LocalTangentZ;
-								CDI.GetLocalTangentVectors(VertexX, VertexY, LocalTangentX, LocalTangentY, LocalTangentZ, HeightAndNormals);
+								CDI.GetLocalTangentVectors(VertexX, VertexY, LocalTangentX, LocalTangentY, LocalTangentZ);
 
 								VertexInstanceTangents[VertexInstanceIDs[i]] = FVector3f(LocalTangentX);
 								VertexInstanceBinormalSigns[VertexInstanceIDs[i]] = GetBasisDeterminantSign(LocalTangentX, LocalTangentY, LocalTangentZ);
@@ -4024,7 +3967,6 @@ bool ALandscapeProxy::ExportToRawMeshDataCopy(const FRawMeshExportParams& InExpo
 	}
 
 	//Compact the MeshDescription, if there was visibility mask or some bounding box clip, it need to be compacted so the sparse array are from 0 to n with no invalid data in between. 
-	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::ExportToRawMesh-Compact);
 	FElementIDRemappings ElementIDRemappings;
 	OutRawMesh.Compact(ElementIDRemappings);
 	return OutRawMesh.Polygons().Num() > 0;
@@ -5561,7 +5503,8 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			bEnableNanite = Parent->IsNaniteEnabled();
 		}
-		InvalidateGeneratedComponentData(/* bInvalidateLightingCache = */false);
+		InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
+		UpdateRenderingMethod();
 		MarkComponentsRenderStateDirty();
 	}
 	if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, NaniteLODIndex))
@@ -5571,7 +5514,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			NaniteLODIndex = Parent->GetNaniteLODIndex();
 		}
-		InvalidateGeneratedComponentData(/* bInvalidateLightingCache = */false);
+		InvalidateOrUpdateNaniteRepresentation(/* bInCheckContentId = */true, /*InTargetPlatform = */nullptr);
 		MarkComponentsRenderStateDirty();
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bUseDynamicMaterialInstance))

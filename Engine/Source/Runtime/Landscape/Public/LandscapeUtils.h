@@ -26,7 +26,6 @@ LANDSCAPE_API bool DoesPlatformSupportEditLayers(EShaderPlatform InShaderPlatfor
 
 #if WITH_EDITOR
 
-
 struct FTextureCopyRequest
 {
 	UTexture2D* Source = nullptr;

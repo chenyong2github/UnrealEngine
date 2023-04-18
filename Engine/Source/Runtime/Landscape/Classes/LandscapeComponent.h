@@ -1036,8 +1036,6 @@ public:
 	/** Returns true if this component has visibility painted */
 	LANDSCAPE_API bool ComponentHasVisibilityPainted() const;
 
-	LANDSCAPE_API ULandscapeLayerInfoObject* GetVisibilityLayer() const;
-
 	/**
 	 * Generate a key for a component's layer allocations to use with MaterialInstanceConstantMap.
 	 */

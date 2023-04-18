@@ -6,29 +6,24 @@
 #if WITH_EDITOR
 
 
-FLandscapeComponentDataInterfaceBase::FLandscapeComponentDataInterfaceBase(ULandscapeComponent* InComponent, int32 InMipLevel, bool InWorkOnEditingLayer): 
-	MipLevel(InMipLevel)
-{
-	UTexture2D* HeightMapTexture = InComponent->GetHeightmap(InWorkOnEditingLayer);
-	HeightmapStride = HeightMapTexture->Source.GetSizeX() >> InMipLevel;
-	HeightmapComponentOffsetX = FMath::RoundToInt((HeightMapTexture->Source.GetSizeX() >> InMipLevel) * InComponent->HeightmapScaleBias.Z);
-	HeightmapComponentOffsetY = FMath::RoundToInt((HeightMapTexture->Source.GetSizeY() >> InMipLevel) * InComponent->HeightmapScaleBias.W);
-	HeightmapSubsectionOffset = (InComponent->SubsectionSizeQuads + 1) >> InMipLevel;
-
-	ComponentSizeQuads = InComponent->ComponentSizeQuads;
-	ComponentSizeVerts = (InComponent->ComponentSizeQuads + 1) >> InMipLevel;
-	SubsectionSizeVerts = (InComponent->SubsectionSizeQuads + 1) >> InMipLevel;
-	ComponentNumSubsections = InComponent->NumSubsections;
-}
-
 LANDSCAPE_API FLandscapeComponentDataInterface::FLandscapeComponentDataInterface(ULandscapeComponent* InComponent, int32 InMipLevel, bool InWorkOnEditingLayer) :
-	FLandscapeComponentDataInterfaceBase(InComponent, InMipLevel, InWorkOnEditingLayer),
 	Component(InComponent),
 	bWorkOnEditingLayer(InWorkOnEditingLayer),
 	HeightMipData(NULL),
-	XYOffsetMipData(NULL)
+	XYOffsetMipData(NULL),
+	MipLevel(InMipLevel)
 {
+	// Offset and stride for this component's data in heightmap texture
 	UTexture2D* HeightMapTexture = Component->GetHeightmap(bWorkOnEditingLayer);
+	HeightmapStride = HeightMapTexture->Source.GetSizeX() >> MipLevel;
+	HeightmapComponentOffsetX = FMath::RoundToInt32((HeightMapTexture->Source.GetSizeX() >> MipLevel) * Component->HeightmapScaleBias.Z);
+	HeightmapComponentOffsetY = FMath::RoundToInt32((HeightMapTexture->Source.GetSizeY() >> MipLevel) * Component->HeightmapScaleBias.W);
+	HeightmapSubsectionOffset = (Component->SubsectionSizeQuads + 1) >> MipLevel;
+
+	ComponentSizeVerts = (Component->ComponentSizeQuads + 1) >> MipLevel;
+	SubsectionSizeVerts = (Component->SubsectionSizeQuads + 1) >> MipLevel;
+	ComponentNumSubsections = Component->NumSubsections;
+
 	if (MipLevel < HeightMapTexture->Source.GetNumMips())
 	{
 		HeightMipData = (FColor*)DataInterface.LockMip(HeightMapTexture, MipLevel);
@@ -130,7 +125,7 @@ LANDSCAPE_API FColor* FLandscapeComponentDataInterface::GetXYOffsetData(int32 Lo
 {
 #if LANDSCAPE_VALIDATE_DATA_ACCESS
 	check(Component);
-	check(LocalX >= 0 && LocalY >= 0 && LocalX < ComponentSizeQuads + 1 && LocalY < ComponentSizeQuads + 1);
+	check(LocalX >= 0 && LocalY >= 0 && LocalX < Component->ComponentSizeQuads + 1 && LocalY < Component->ComponentSizeQuads + 1);
 #endif
 
 	const int32 WeightmapSize = ((Component->SubsectionSizeQuads + 1) * Component->NumSubsections) >> MipLevel;
@@ -145,7 +140,7 @@ LANDSCAPE_API FColor* FLandscapeComponentDataInterface::GetXYOffsetData(int32 Lo
 
 LANDSCAPE_API FVector FLandscapeComponentDataInterface::GetLocalVertex(int32 LocalX, int32 LocalY) const
 {
-	const float ScaleFactor = (float)ComponentSizeQuads / (float)(ComponentSizeVerts - 1);
+	const float ScaleFactor = (float)Component->ComponentSizeQuads / (float)(ComponentSizeVerts - 1);
 	float XOffset, YOffset;
 	GetXYOffset(LocalX, LocalY, XOffset, YOffset);
 	return FVector(LocalX * ScaleFactor + XOffset, LocalY * ScaleFactor + YOffset, LandscapeDataAccess::GetLocalHeight(GetHeight(LocalX, LocalY)));
@@ -177,7 +172,7 @@ LANDSCAPE_API void FLandscapeComponentDataInterface::GetWorldPositionTangents(in
 
 	float Height = LandscapeDataAccess::UnpackHeight(*Data);
 
-	const float ScaleFactor = (float)ComponentSizeQuads / (float)(ComponentSizeVerts - 1);
+	const float ScaleFactor = (float)Component->ComponentSizeQuads / (float)(ComponentSizeVerts - 1);
 	float XOffset, YOffset;
 	GetXYOffset(LocalX, LocalY, XOffset, YOffset);
 	WorldPos = Component->GetComponentTransform().TransformPosition(FVector(LocalX * ScaleFactor + XOffset, LocalY * ScaleFactor + YOffset, Height));
