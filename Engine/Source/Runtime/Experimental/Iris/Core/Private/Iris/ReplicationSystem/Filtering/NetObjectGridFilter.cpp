@@ -33,10 +33,8 @@ void UNetObjectGridFilter::RemoveConnection(uint32 ConnectionId)
 
 bool UNetObjectGridFilter::AddObject(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params)
 {
-	
 	// We support either a world location in the state, tagged with RepTag_WorldLocation, or via the WorldLocations instance.
-	UE::Net::FRepTagFindInfo WorldLocationTagInfo;
-	const bool bHasLocation = BuildLocationTagInfo(WorldLocationTagInfo, ObjectIndex, Params);
+	const bool bHasLocation = BuildObjectInfo(ObjectIndex, Params);
 
 	if (!bHasLocation)
 	{
@@ -44,27 +42,12 @@ bool UNetObjectGridFilter::AddObject(uint32 ObjectIndex, FNetObjectFilterAddObje
 	}
 
 	FObjectLocationInfo& ObjectLocationInfo = static_cast<FObjectLocationInfo&>(Params.OutInfo);
-	ObjectLocationInfo.SetLocationStateOffset(WorldLocationTagInfo.ExternalStateOffset);
-	ObjectLocationInfo.SetLocationStateIndex(WorldLocationTagInfo.StateIndex);
-
+	
 	const uint32 InfoIndex = AllocObjectInfo();
 	ObjectLocationInfo.SetInfoIndex(InfoIndex);
 
 	FPerObjectInfo& PerObjectInfo = ObjectInfos[InfoIndex];
 	PerObjectInfo.ObjectIndex = ObjectIndex;
-
-	// NetCullDistanceSqr is optional. 
-	{
-		UE::Net::FRepTagFindInfo NetCullDistanceSqrTagInfo;
-		if (UE::Net::FindRepTag(Params.Protocol, UE::Net::RepTag_CullDistanceSqr, NetCullDistanceSqrTagInfo))
-		{
-			if ((NetCullDistanceSqrTagInfo.ExternalStateOffset < MAX_uint16) && (NetCullDistanceSqrTagInfo.StateIndex < MAX_uint16))
-			{
-				PerObjectInfo.CullDistanceSqrStateIndex = NetCullDistanceSqrTagInfo.StateIndex;
-				PerObjectInfo.CullDistanceSqrStateOffset = NetCullDistanceSqrTagInfo.ExternalStateOffset;
-			}
-		}
-	}
 
 	AddCellInfoForObject(ObjectLocationInfo, Params.InstanceProtocol);
 	
@@ -84,6 +67,8 @@ void UNetObjectGridFilter::RemoveObject(uint32 ObjectIndex, const FNetObjectFilt
 	const FObjectLocationInfo& ObjectLocationInfo = static_cast<const FObjectLocationInfo&>(Info);
 	RemoveCellInfoForObject(ObjectLocationInfo);
 
+	OnObjectRemoved(ObjectIndex);
+
 	const uint32 InfoIndex = ObjectLocationInfo.GetInfoIndex();
 	FreeObjectInfo(InfoIndex);
 }
@@ -97,7 +82,7 @@ void UNetObjectGridFilter::UpdateObjects(FNetObjectFilterUpdateParams& Params)
 		const uint32 ObjectIndex = Params.ObjectIndices[ObjectIt];
 
 		const FObjectLocationInfo& ObjectLocationInfo = static_cast<const FObjectLocationInfo&>(Params.FilteringInfos[ObjectIndex]);
-		const UE::Net::FReplicationInstanceProtocol* InstanceProtocol = Params.InstanceProtocols[ObjectIt];
+		const UE::Net::FReplicationInstanceProtocol* InstanceProtocol = Params.InstanceProtocols ? Params.InstanceProtocols[ObjectIt] : nullptr;
 		UpdateCellInfoForObject(ObjectLocationInfo, InstanceProtocol);
 	}
 }
@@ -362,24 +347,15 @@ void UNetObjectGridFilter::UpdateCellInfoForObject(const FObjectLocationInfo& Ob
 
 void UNetObjectGridFilter::UpdatePositionAndCullDistance(const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, UNetObjectGridFilter::FPerObjectInfo& PerObjectInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol)
 {
-	// Update position
+	// Update position & culldistance
 	{
-		UpdateObjectPosition(PerObjectInfo, ObjectLocationInfo, InstanceProtocol);
+		UpdateObjectInfo(PerObjectInfo, ObjectLocationInfo, InstanceProtocol);
 	}
 
 	// Optionally update cull distance
 	if (NetCullDistanceOverrides->HasCullDistanceOverride(PerObjectInfo.ObjectIndex))
 	{
 		const float CullDistanceSqr = NetCullDistanceOverrides->GetCullDistanceSqr(PerObjectInfo.ObjectIndex);
-		PerObjectInfo.CullDistance = FPlatformMath::Sqrt(CullDistanceSqr);
-	}
-	else if (PerObjectInfo.CullDistanceSqrStateOffset != InvalidStateOffset)
-	{
-		TArrayView<const UE::Net::FReplicationInstanceProtocol::FFragmentData> FragmentDatas = MakeArrayView(InstanceProtocol->FragmentData, InstanceProtocol->FragmentCount);
-
-		const UE::Net::FReplicationInstanceProtocol::FFragmentData& FragmentData = FragmentDatas[PerObjectInfo.CullDistanceSqrStateIndex];
-		const uint8* CullDistanceSqrAddress = FragmentData.ExternalSrcBuffer + PerObjectInfo.CullDistanceSqrStateOffset;
-		const float CullDistanceSqr = *reinterpret_cast<const float*>(CullDistanceSqrAddress);
 		PerObjectInfo.CullDistance = FPlatformMath::Sqrt(CullDistanceSqr);
 	}
 }
@@ -422,7 +398,9 @@ bool UNetObjectGridFilter::DoesCellContainCoord(const UNetObjectGridFilter::FCel
 	return (Coord.X >= Cell.MinX) & (Coord.X <= Cell.MaxX) & (Coord.Y >= Cell.MinY) & (Coord.Y <= Cell.MaxY);
 }
 
+//*************************************************************************************************
 // UNetObjectGridWorldLocFilter
+//*************************************************************************************************
 
 void UNetObjectGridWorldLocFilter::Init(FNetObjectFilterInitParams& Params)
 {
@@ -431,39 +409,95 @@ void UNetObjectGridWorldLocFilter::Init(FNetObjectFilterInitParams& Params)
 	WorldLocations = &Params.ReplicationSystem->GetWorldLocations();
 }
 
-void UNetObjectGridWorldLocFilter::UpdateObjectPosition(UNetObjectGridFilter::FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol)
+void UNetObjectGridWorldLocFilter::UpdateObjectInfo(UNetObjectGridFilter::FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol)
 {
 	check(ObjectLocationInfo.IsUsingWorldLocations());
+
+	const UE::Net::FWorldLocations::FObjectInfo& CachedObjectInfo = WorldLocations->GetObjectInfo(PerObjectInfo.ObjectIndex);
 	
-	PerObjectInfo.Position = WorldLocations->GetWorldLocation(PerObjectInfo.ObjectIndex);
+	PerObjectInfo.Position = CachedObjectInfo.WorldLocation;
+	PerObjectInfo.CullDistance = CachedObjectInfo.CullDistance;
 }
 
-bool UNetObjectGridWorldLocFilter::BuildLocationTagInfo(UE::Net::FRepTagFindInfo& OutWorldLocationTagInfo, uint32 ObjectIndex, FNetObjectFilterAddObjectParams&)
+bool UNetObjectGridWorldLocFilter::BuildObjectInfo(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params)
 {
-	check(WorldLocations->HasWorldLocation(ObjectIndex));
+	checkf(WorldLocations->HasInfoForObject(ObjectIndex), TEXT("UNetObjectGridWorldLocFilter only supports objects with valid world location data."));
 
 	// Craft tag info that will let us know we need to retrieve the location from WorldLocations
-	OutWorldLocationTagInfo.StateIndex = InvalidStateIndex;
-	OutWorldLocationTagInfo.ExternalStateOffset = InvalidStateOffset;
-	
+	FObjectLocationInfo& ObjectLocationInfo = static_cast<FObjectLocationInfo&>(Params.OutInfo);
+	ObjectLocationInfo.SetLocationStateOffset(InvalidStateOffset);
+	ObjectLocationInfo.SetLocationStateIndex(InvalidStateIndex);
+
 	return true;
 }
 
+//*************************************************************************************************
 // UNetObjectGridFragmentLocFilter
+//*************************************************************************************************
 
-void UNetObjectGridFragmentLocFilter::UpdateObjectPosition(UNetObjectGridFilter::FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol)
+void UNetObjectGridFragmentLocFilter::Init(FNetObjectFilterInitParams& InitParams)
+{
+	Super::Init(InitParams);
+}
+
+bool UNetObjectGridFragmentLocFilter::BuildObjectInfo(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params)
+{
+	UE::Net::FRepTagFindInfo WorldLocationTagInfo;
+
+	if (UE::Net::FindRepTag(Params.Protocol, UE::Net::RepTag_WorldLocation, WorldLocationTagInfo))
+	{
+		FObjectLocationInfo& ObjectLocationInfo = static_cast<FObjectLocationInfo&>(Params.OutInfo);
+		ObjectLocationInfo.SetLocationStateOffset(WorldLocationTagInfo.ExternalStateOffset);
+		ObjectLocationInfo.SetLocationStateIndex(WorldLocationTagInfo.StateIndex);
+
+
+		// NetCullDistanceSqr is optional. 
+		UE::Net::FRepTagFindInfo NetCullDistanceSqrTagInfo;
+		if (UE::Net::FindRepTag(Params.Protocol, UE::Net::RepTag_CullDistanceSqr, NetCullDistanceSqrTagInfo))
+		{
+			if ((NetCullDistanceSqrTagInfo.ExternalStateOffset < MAX_uint16) && (NetCullDistanceSqrTagInfo.StateIndex < MAX_uint16))
+			{
+				FCullDistanceFragmentInfo FragmentInfo;
+				FragmentInfo.CullDistanceSqrStateIndex = NetCullDistanceSqrTagInfo.StateIndex;
+				FragmentInfo.CullDistanceSqrStateOffset = NetCullDistanceSqrTagInfo.ExternalStateOffset;
+
+				CullDistanceFragments.Add(ObjectIndex, MoveTemp(FragmentInfo));
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+void UNetObjectGridFragmentLocFilter::OnObjectRemoved(uint32 ObjectIndex)
+{
+	CullDistanceFragments.Remove(ObjectIndex);
+}
+
+void UNetObjectGridFragmentLocFilter::UpdateObjectInfo(UNetObjectGridFilter::FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol)
 {
 	check(ObjectLocationInfo.IsUsingWorldLocations() == false);
+	check(InstanceProtocol);
 
 	TArrayView<const UE::Net::FReplicationInstanceProtocol::FFragmentData> FragmentDatas = MakeArrayView(InstanceProtocol->FragmentData, InstanceProtocol->FragmentCount);
 
-	const UE::Net::FReplicationInstanceProtocol::FFragmentData& FragmentData = FragmentDatas[ObjectLocationInfo.GetLocationStateIndex()];
-	const uint8* LocationAddress = FragmentData.ExternalSrcBuffer + ObjectLocationInfo.GetLocationStateOffset();
-	const float* LocationComponents = reinterpret_cast<const float*>(LocationAddress);
-	PerObjectInfo.Position = FVector(LocationComponents[0], LocationComponents[1], LocationComponents[2]);
+	// Update the location
+	{
+		const UE::Net::FReplicationInstanceProtocol::FFragmentData& FragmentData = FragmentDatas[ObjectLocationInfo.GetLocationStateIndex()];
+		const uint8* LocationAddress = FragmentData.ExternalSrcBuffer + ObjectLocationInfo.GetLocationStateOffset();
+		const float* LocationComponents = reinterpret_cast<const float*>(LocationAddress);
+		PerObjectInfo.Position = FVector(LocationComponents[0], LocationComponents[1], LocationComponents[2]);
+	}
+
+	// Update the culldistance
+	if( FCullDistanceFragmentInfo* CullDistanceFragmentInfo = CullDistanceFragments.Find(PerObjectInfo.ObjectIndex) )
+	{
+		const UE::Net::FReplicationInstanceProtocol::FFragmentData& FragmentData = FragmentDatas[CullDistanceFragmentInfo->CullDistanceSqrStateIndex];
+		const uint8* CullDistanceSqrAddress = FragmentData.ExternalSrcBuffer + CullDistanceFragmentInfo->CullDistanceSqrStateOffset;
+		const float CullDistanceSqr = *reinterpret_cast<const float*>(CullDistanceSqrAddress);
+		PerObjectInfo.CullDistance = FPlatformMath::Sqrt(CullDistanceSqr);
+	}
 }
 
-bool UNetObjectGridFragmentLocFilter::BuildLocationTagInfo(UE::Net::FRepTagFindInfo& OutWorldLocationTagInfo, uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params)
-{
-	return UE::Net::FindRepTag(Params.Protocol, UE::Net::RepTag_WorldLocation, OutWorldLocationTagInfo);
-}

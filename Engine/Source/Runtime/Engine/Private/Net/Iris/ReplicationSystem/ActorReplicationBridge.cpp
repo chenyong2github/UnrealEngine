@@ -85,14 +85,13 @@ void ActorReplicationBridgePreUpdateFunction(FNetRefHandle Handle, UObject* Inst
 	}
 }
 
-FVector ActorReplicationBridgeGetActorWorldLocation(FNetRefHandle Handle, const UObject* Instance)
+void ActorReplicationBridgeGetActorWorldObjectInfo(FNetRefHandle Handle, const UObject* Instance, FVector& OutWorldLocation, float& OutCullDistance)
 {
 	if (const AActor* Actor = Cast<AActor>(Instance))
 	{
-		return Actor->GetActorLocation();
+		OutWorldLocation = Actor->GetActorLocation();
+		OutCullDistance = Actor->NetCullDistanceSquared > 0.0f ? FMath::Sqrt(Actor->NetCullDistanceSquared) : 0.0f;
 	}
-
-	return FVector::Zero();
 }
 
 }
@@ -105,7 +104,7 @@ UActorReplicationBridge::UActorReplicationBridge()
 , SpawnInfoFlags(0U)
 {
 	SetInstancePreUpdateFunction(UE::Net::Private::ActorReplicationBridgePreUpdateFunction);
-	SetInstanceGetWorldLocationFunction(UE::Net::Private::ActorReplicationBridgeGetActorWorldLocation);
+	SetInstanceGetWorldObjectInfoFunction(UE::Net::Private::ActorReplicationBridgeGetActorWorldObjectInfo);
 }
 
 void UActorReplicationBridge::Initialize(UReplicationSystem* InReplicationSystem)

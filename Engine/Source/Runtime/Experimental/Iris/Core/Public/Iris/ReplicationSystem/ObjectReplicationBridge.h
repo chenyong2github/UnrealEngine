@@ -45,23 +45,24 @@ public:
 
 	struct FCreateNetRefHandleParams
 	{
-		uint32 bCanReceive : 1;
-		uint32 bNeedsPreUpdate : 1;
-		uint32 bNeedsWorldLocationUpdate : 1;
-		uint32 bAllowDynamicFilter : 1;
+		bool bCanReceive = false;
+		bool bNeedsPreUpdate = false;
+		bool bNeedsWorldLocationUpdate = false;
+		bool bAllowDynamicFilter = false;
 
 		/**
 		  * If StaticPriority is > 0 the ReplicationSystem will use that as priority when scheduling objects.
 		  * If it's <= 0.0f one will look for a world location support and then use the default spatial prioritizer.
 		  */
-		float StaticPriority;
+		float StaticPriority = 0.0f;
 
 		/**
 		  * How often the object should be polled for dirtiness, including calling the InstancePreUpdate function.
 		  * The period is zero based so 0 means poll every frame and 255 means poll every 256th frame.
 		  */
-		uint8 PollFramePeriod;
+		uint8 PollFramePeriod = 0;
 	};
+
 	IRISCORE_API static FCreateNetRefHandleParams DefaultCreateNetRefHandleParams;
 
 	IRISCORE_API UObjectReplicationBridge();
@@ -196,11 +197,11 @@ protected:
 	/** Set the function that we should call before copying state data. */
 	IRISCORE_API void SetInstancePreUpdateFunction(FInstancePreUpdateFunction InPreUpdateFunction);
 	
-	/** Helper method to get the world location for replicated instances with the HasWorldLocation trait. */
-	using FInstanceGetWorldLocationFunction = FVector(*)(FNetRefHandle, const UObject*);
+	/** Helper method to get the world location & cull distance for replicated instances with the HasWorldLocation trait. */
+	using FInstanceGetWorldObjectInfoFunction = TFunction<void(UE::Net::FNetRefHandle, const UObject*, FVector&, float&)>;
 
 	/** Set the function that we should call to get the world location of an object. */
-	IRISCORE_API void SetInstanceGetWorldLocationFunction(FInstanceGetWorldLocationFunction InGetWorldLocationFunction);
+	IRISCORE_API void SetInstanceGetWorldObjectInfoFunction(FInstanceGetWorldObjectInfoFunction InGetWorldObjectInfoFunction);
 	
 	// Poll frequency support
 
@@ -249,7 +250,8 @@ private:
 	bool ShouldClassBeDeltaCompressed(const UClass* Class);
 
 	FInstancePreUpdateFunction PreUpdateInstanceFunction;
-	FInstanceGetWorldLocationFunction GetInstanceWorldLocationFunction;
+	FInstanceGetWorldObjectInfoFunction GetInstanceWorldObjectInfoFunction;
+	
 
 	FName GetConfigClassPathName(const UClass* Class);
 

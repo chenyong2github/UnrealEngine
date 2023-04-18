@@ -579,8 +579,7 @@ void UReplicationBridge::RemoveDestructionInfosForGroup(UE::Net::FNetObjectGroup
 
 		for (FInternalNetRefIndex InternalReplicationIndex : MakeArrayView(ObjectIndicesToRemove))
 		{
-			constexpr bool bHasWorldLocation = false;
-			WorldLocations.SetHasWorldLocation(InternalReplicationIndex, bHasWorldLocation);
+			WorldLocations.RemoveObjectInfoCache(InternalReplicationIndex);
 		}
 	}
 	else
@@ -594,8 +593,7 @@ void UReplicationBridge::RemoveDestructionInfosForGroup(UE::Net::FNetObjectGroup
 		// Remove from WorldLocations
 		for (const auto& It : StaticObjectsPendingDestroy)
 		{
-			constexpr bool bHasWorldLocation = false;
-			WorldLocations.SetHasWorldLocation(It.Value.InternalReplicationIndex, bHasWorldLocation);
+			WorldLocations.RemoveObjectInfoCache(It.Value.InternalReplicationIndex);
 		}
 
 		StaticObjectsPendingDestroy.Empty();
@@ -828,8 +826,8 @@ UE::Net::FNetRefHandle UReplicationBridge::InternalAddDestructionInfo(FNetRefHan
 	{
 		// Use WorldLocations to feed the location of the destruction info so that it can be prioritized properly.
 		FWorldLocations& WorldLocations = GetReplicationSystem()->GetReplicationSystemInternal()->GetWorldLocations();
-		WorldLocations.SetHasWorldLocation(InternalReplicationIndex, true);
-		WorldLocations.SetWorldLocation(InternalReplicationIndex, Parameters.Location);
+		WorldLocations.InitObjectInfoCache(InternalReplicationIndex);
+		WorldLocations.UpdateWorldLocation(InternalReplicationIndex, Parameters.Location);
 
 		GetReplicationSystem()->SetPrioritizer(DestructionInfoHandle, DefaultSpatialNetObjectPrioritizerHandle);
 	}

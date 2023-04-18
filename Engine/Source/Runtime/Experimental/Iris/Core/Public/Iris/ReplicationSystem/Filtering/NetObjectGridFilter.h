@@ -108,18 +108,20 @@ protected:
 	// We can't fit all info we need in 4x16bits.
 	struct FPerObjectInfo
 	{
-		FVector Position = { 0,0,0 };
+		FVector Position = { 0.f,0.f,0.f };
 		FCellBox CellBox = {};
-		float CullDistance = 0;
-		uint32 ObjectIndex = 0;
-		uint16 CullDistanceSqrStateIndex = InvalidStateIndex;
-		uint16 CullDistanceSqrStateOffset = InvalidStateOffset;
+		float CullDistance = 0.0f;
+		uint32 ObjectIndex = 0U;
 	};
 
-	/** Sets the current position of the object based on how we access it's given location */
-	virtual void UpdateObjectPosition(FPerObjectInfo& PerObjectInfo, const FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol) {}
+	/** Sets the current position of the object based on how we access it's given location. */
+	virtual void UpdateObjectInfo(FPerObjectInfo& PerObjectInfo, const FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol) {}
 
-	virtual bool BuildLocationTagInfo(UE::Net::FRepTagFindInfo& OutWorldLocationTagInfo, uint32 ObjectIndex, FNetObjectFilterAddObjectParams&) { return false; }
+	/** Build the data needed to properly filter this object. */
+	virtual bool BuildObjectInfo(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params) { return false; }
+
+	/** Callback when an object is removed from the grid. Useful to cleanup data tied to the object. */
+	virtual void OnObjectRemoved(uint32 ObjectIndex) {}
 
 private:
 
@@ -198,10 +200,8 @@ class UNetObjectGridWorldLocFilter : public UNetObjectGridFilter
 protected:
 
 	virtual void Init(FNetObjectFilterInitParams&) override;
-
-	virtual void UpdateObjectPosition(FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol) override;
-
-	virtual bool BuildLocationTagInfo(UE::Net::FRepTagFindInfo& OutWorldLocationTagInfo, uint32 ObjectIndex, FNetObjectFilterAddObjectParams&) override;
+	virtual void UpdateObjectInfo(FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol) override;
+	virtual bool BuildObjectInfo(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params) override;
 
 private:
 
@@ -220,9 +220,19 @@ class UNetObjectGridFragmentLocFilter : public UNetObjectGridFilter
 
 protected:
 
-	virtual void UpdateObjectPosition(FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol) override;
+	virtual void Init(FNetObjectFilterInitParams&) override;
+	virtual void UpdateObjectInfo(FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol) override;
+	virtual bool BuildObjectInfo(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params) override;
+	virtual void OnObjectRemoved(uint32 ObjectIndex) override;
 
-	virtual bool BuildLocationTagInfo(UE::Net::FRepTagFindInfo& OutWorldLocationTagInfo, uint32 ObjectIndex, FNetObjectFilterAddObjectParams&) override;
+private:
+	struct FCullDistanceFragmentInfo
+	{
+		uint16 CullDistanceSqrStateIndex = InvalidStateIndex;
+		uint16 CullDistanceSqrStateOffset = InvalidStateOffset;
+	};
+
+	TMap<uint32, FCullDistanceFragmentInfo> CullDistanceFragments;
 };
 
 //

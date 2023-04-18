@@ -8,27 +8,44 @@ namespace UE::Net
 
 void FWorldLocations::Init(const FWorldLocationsInitParams& InitParams)
 {
-	ValidWorldLocations.Init(InitParams.MaxObjectCount);
+	ValidInfoIndexes.Init(InitParams.MaxObjectCount);
 }
 
-void FWorldLocations::SetHasWorldLocation(uint32 ObjectIndex, bool bHasWorldLocation)
+void FWorldLocations::InitObjectInfoCache(uint32 ObjectIndex)
 {
-	ValidWorldLocations.SetBitValue(ObjectIndex, bHasWorldLocation);
-	if (bHasWorldLocation)
+	if (ValidInfoIndexes.IsBitSet(ObjectIndex))
 	{
-		if (ObjectIndex >= uint32(WorldLocations.Num()))
-		{
-			LLM_SCOPE_BYTAG(Iris);
-			WorldLocations.Add(ObjectIndex + 1U - WorldLocations.Num());
-		}
-		WorldLocations[ObjectIndex] = FVector::Zero();
+		// Only init on first assignment
+		return;
 	}
+
+	ValidInfoIndexes.SetBit(ObjectIndex);
+	
+	if (ObjectIndex >= uint32(StoredObjectInfo.Num()))
+	{
+		LLM_SCOPE_BYTAG(Iris);
+		StoredObjectInfo.Add(ObjectIndex + 1U - StoredObjectInfo.Num());
+	}
+
+	StoredObjectInfo[ObjectIndex].WorldLocation = FVector::Zero();
+	StoredObjectInfo[ObjectIndex].CullDistance = 0.0f;
 }
 
-void FWorldLocations::SetWorldLocation(uint32 ObjectIndex, const FVector& WorldLocation)
+void FWorldLocations::RemoveObjectInfoCache(uint32 ObjectIndex)
 {
-	checkSlow(ValidWorldLocations.GetBit(ObjectIndex));
-	WorldLocations[ObjectIndex] = WorldLocation;
+	ValidInfoIndexes.ClearBit(ObjectIndex);
+}
+
+void FWorldLocations::SetObjectInfo(uint32 ObjectIndex, const FWorldLocations::FObjectInfo& ObjectInfo)
+{
+	checkSlow(ValidInfoIndexes.IsBitSet(ObjectIndex));
+	StoredObjectInfo[ObjectIndex] = ObjectInfo;
+}
+
+void FWorldLocations::UpdateWorldLocation(uint32 ObjectIndex, const FVector& WorldLocation)
+{
+	checkSlow(ValidInfoIndexes.GetBit(ObjectIndex));
+	StoredObjectInfo[ObjectIndex].WorldLocation = WorldLocation;
 }
 
 }

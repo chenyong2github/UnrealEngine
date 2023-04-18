@@ -951,7 +951,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	Item.ObjectRef = ServerReferencedObjectC;
 	ServerFastArray.Items.Add(Item);
 	ServerFastArray.MarkItemDirty(ServerFastArray.Items[2]);
+#if !UE_BUILD_SHIPPING
 	UE::Net::IrisDebugHelper::DebugOutputNetObjectState(ServerObject->NetRefHandle.GetId(), ServerObject->NetRefHandle.GetReplicationSystemId());
+#endif
 
 	// Make sure that references are not replicated to client
 	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetRefHandle);
@@ -985,7 +987,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestOutOfOrderRes
 	Server->SendAndDeliverTo(Client, true);
 	Server->PostSendUpdate();
 
+#if !UE_BUILD_SHIPPING
 	UE::Net::IrisDebugHelper::DebugOutputNetObjectState(ClientObject->NetRefHandle.GetId(), ClientObject->NetRefHandle.GetReplicationSystemId());
+#endif
 
 	// Verify that we managed to resolve objectA even though we have other unresolved objects in the array
 	UE_NET_ASSERT_TRUE(ClientFastArray.Items[0].ObjectRef != nullptr);

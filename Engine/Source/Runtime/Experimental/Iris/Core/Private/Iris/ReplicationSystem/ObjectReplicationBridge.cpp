@@ -64,10 +64,10 @@ static FAutoConsoleVariableRef CVarEnableFilterMappings(
 
 UObjectReplicationBridge::FCreateNetRefHandleParams UObjectReplicationBridge::DefaultCreateNetRefHandleParams =
 {
-	0U, // bCanReceive
-	0U, // bNeedsPreUpdate
-	0U, // bNeedsWorldLocationUpdate
-	1U, // bAllowDynamicFilter
+	false, // bCanReceive
+	false, // bNeedsPreUpdate
+	false, // bNeedsWorldLocationUpdate
+	true, // bAllowDynamicFilter
 	0.0f, // StaticPriority
 	0U, // PollFramePeriod
 };
@@ -301,7 +301,11 @@ UE::Net::FNetRefHandle UObjectReplicationBridge::BeginReplication(UObject* Insta
 
 			{
 				FWorldLocations& WorldLocations = ReplicationSystem->GetReplicationSystemInternal()->GetWorldLocations();
-				WorldLocations.SetHasWorldLocation(InternalReplicationIndex, Params.bNeedsWorldLocationUpdate);
+
+				if (Params.bNeedsWorldLocationUpdate)
+				{
+					WorldLocations.InitObjectInfoCache(InternalReplicationIndex);
+				}
 			}
 
 			// Set prioritizer
@@ -687,9 +691,9 @@ void UObjectReplicationBridge::SetInstancePreUpdateFunction(FInstancePreUpdateFu
 	PreUpdateInstanceFunction = InPreUpdateFunction;
 }
 
-void UObjectReplicationBridge::SetInstanceGetWorldLocationFunction(FInstanceGetWorldLocationFunction InGetWorldLocationFunction)
+void UObjectReplicationBridge::SetInstanceGetWorldObjectInfoFunction(FInstanceGetWorldObjectInfoFunction InGetWorldObjectInfoFunction)
 {
-	GetInstanceWorldLocationFunction = InGetWorldLocationFunction;
+	GetInstanceWorldObjectInfoFunction = InGetWorldObjectInfoFunction;
 }
 
 void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
@@ -972,7 +976,7 @@ void UObjectReplicationBridge::UpdateInstancesWorldLocation()
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
 
-	if (!GetInstanceWorldLocationFunction)
+	if (!GetInstanceWorldObjectInfoFunction)
 	{
 		return;
 	}
@@ -989,8 +993,10 @@ void UObjectReplicationBridge::UpdateInstancesWorldLocation()
 		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 		if (ObjectData.InstanceProtocol && EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsWorldLocationUpdate))
 		{
-			FVector WorldLocation = (*GetInstanceWorldLocationFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex]);
-			WorldLocations.SetWorldLocation(InternalObjectIndex, WorldLocation);
+			FWorldLocations::FObjectInfo CachedObjectInfo;
+			
+			GetInstanceWorldObjectInfoFunction(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], CachedObjectInfo.WorldLocation, CachedObjectInfo.CullDistance);
+			WorldLocations.SetObjectInfo(InternalObjectIndex, CachedObjectInfo);
 		}
 	};
 

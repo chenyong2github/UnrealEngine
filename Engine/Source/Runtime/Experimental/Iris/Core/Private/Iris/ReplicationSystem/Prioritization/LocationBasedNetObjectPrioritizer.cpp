@@ -24,7 +24,7 @@ bool ULocationBasedNetObjectPrioritizer::AddObject(uint32 ObjectIndex, FNetObjec
 	// We support either a world location in the state, tagged with RepTag_WorldLocation, or via the WorldLocations instance.
 	UE::Net::FRepTagFindInfo TagInfo;
 	bool bHasWorldLocation = false;
-	if (WorldLocations->HasWorldLocation(ObjectIndex))
+	if (WorldLocations->HasInfoForObject(ObjectIndex))
 	{
 		bHasWorldLocation = true;
 		// Craft tag info that will let us know we need to retrieve the location from WorldLocations
