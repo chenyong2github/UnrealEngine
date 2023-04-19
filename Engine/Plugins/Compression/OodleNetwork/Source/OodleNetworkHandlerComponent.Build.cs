@@ -6,7 +6,7 @@ using UnrealBuildTool;
 
 public class OodleNetworkHandlerComponent : ModuleRules 
 {
-	protected virtual string OodleVersion { get { return "2.9.9"; } }
+	protected virtual string OodleVersion { get { return "2.9.10"; } }
 
 	// Platform Extensions need to override these
 	protected virtual string LibRootDirectory { get { return ModuleDirectory; } }
