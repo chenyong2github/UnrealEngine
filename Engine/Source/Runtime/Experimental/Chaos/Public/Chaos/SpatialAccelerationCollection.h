@@ -693,10 +693,9 @@ private:
 	}
 
 	TSpatialAccelerationCollection<TSpatialAccelerationTypes...>& operator=(const TSpatialAccelerationCollection<TSpatialAccelerationTypes...>& Other) = delete;
-	virtual ISpatialAcceleration<TPayloadType, FReal, 3>& operator=(const ISpatialAcceleration<TPayloadType, FReal, 3>& Other) override
+	virtual void DeepAssign(const ISpatialAcceleration<TPayloadType, FReal, 3>& Other) override
 	{
 		check(false);	//not implemented
-		return *this;
 	}
 	
 	static constexpr uint32 ClampedIdx(uint32 Idx)

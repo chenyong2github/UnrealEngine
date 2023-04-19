@@ -79,16 +79,16 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 	{
 	}
 
-	CHAOS_API virtual ISpatialAcceleration<int32, T, d>& operator=(const ISpatialAcceleration<int32, T, d>& Other) override
+	CHAOS_API virtual void DeepAssign(const ISpatialAcceleration<int32, T, d>& Other) override
 	{
 
 		check(Other.GetType() == ESpatialAcceleration::AABBTreeBV);
-		return operator=(static_cast<const TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>&>(Other));
+		*this = static_cast<const TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>&>(Other);
 	}
 
 	CHAOS_API TBoundingVolumeHierarchy& operator=(const TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_TYPE, T, d>& Other)
 	{
-		ISpatialAcceleration<int32, T, d>::operator=(Other);
+		ISpatialAcceleration<int32, T, d>::DeepAssign(Other);
 		MObjects = Other.MObjects;
 		MGlobalObjects = Other.MGlobalObjects;
 		MWorldSpaceBoxes = Other.MWorldSpaceBoxes;

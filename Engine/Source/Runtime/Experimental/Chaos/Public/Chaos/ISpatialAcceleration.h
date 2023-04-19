@@ -255,6 +255,7 @@ template <typename TPayloadType, typename T, int d>
 class CHAOS_API ISpatialAcceleration
 {
 public:
+	UE_NONCOPYABLE(ISpatialAcceleration)
 
 	ISpatialAcceleration(SpatialAccelerationType InType = static_cast<SpatialAccelerationType>(ESpatialAcceleration::Unknown))
 		: Type(InType), SyncTimestamp(0), AsyncTimeSlicingComplete(true)
@@ -317,12 +318,11 @@ public:
 		return nullptr;
 	}
 
-	virtual ISpatialAcceleration<TPayloadType, T, d>& operator=(const ISpatialAcceleration<TPayloadType, T, d>& Other)
+	virtual void DeepAssign(const ISpatialAcceleration<TPayloadType, T, d>& Other)
 	{
 		Type = Other.Type;
 		SyncTimestamp = Other.SyncTimestamp;
 		AsyncTimeSlicingComplete = Other.AsyncTimeSlicingComplete;
-		return *this;
 	}
 
 #if !UE_BUILD_SHIPPING

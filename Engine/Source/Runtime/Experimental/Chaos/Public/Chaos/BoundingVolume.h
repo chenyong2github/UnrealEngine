@@ -164,16 +164,16 @@ class TBoundingVolume final : public ISpatialAcceleration<InPayloadType, T,d>
 
 public:
 
-	virtual ISpatialAcceleration<TPayloadType, T, d>& operator=(const ISpatialAcceleration<TPayloadType, T, d>& Other) override
+	virtual void DeepAssign(const ISpatialAcceleration<TPayloadType, T, d>& Other) override
 	{
 
 		check(Other.GetType() == ESpatialAcceleration::BoundingVolume);
-		return operator=(static_cast<const TBoundingVolume<TPayloadType, T, d>&>(Other));
+		*this = static_cast<const TBoundingVolume<TPayloadType, T, d>&>(Other);
 	}
 
 	TBoundingVolume<TPayloadType, T, d>& operator=(const TBoundingVolume<TPayloadType, T, d>& Other)
 	{
-		ISpatialAcceleration<TPayloadType, FReal, 3>::operator=(Other);
+		ISpatialAcceleration<TPayloadType, FReal, 3>::DeepAssign(Other);
 		MGlobalPayloads = Other.MGlobalPayloads;
 		MGrid = Other.MGrid;
 		MElements = Other.MElements;

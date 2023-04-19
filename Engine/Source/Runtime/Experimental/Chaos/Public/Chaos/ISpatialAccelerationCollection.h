@@ -22,6 +22,8 @@ template <typename TPayloadType, typename T, int d>
 class CHAOS_API ISpatialAccelerationCollection : public ISpatialAcceleration<TPayloadType, T, d>
 {
 public:
+	UE_NONCOPYABLE(ISpatialAccelerationCollection)
+
 	ISpatialAccelerationCollection()
 	: ISpatialAcceleration<TPayloadType, T, d>(StaticType)
 	, ActiveBucketsMask(0)
@@ -45,18 +47,16 @@ public:
 	bool IsAllAsyncTasksComplete() const { return AllAsyncTasksComplete; }
 	void SetAllAsyncTasksComplete(bool State) { AllAsyncTasksComplete = State; }
 
-	ISpatialAccelerationCollection<TPayloadType, FReal, 3>& operator=(const ISpatialAccelerationCollection<TPayloadType, FReal, 3>& Other)
+	void DeepAssign(const ISpatialAccelerationCollection<TPayloadType, FReal, 3>& Other)
 	{
-		ISpatialAcceleration<TPayloadType, FReal, 3>::operator=(Other);
+		ISpatialAcceleration<TPayloadType, FReal, 3>::DeepAssign(Other);
 		check(ActiveBucketsMask == Other.ActiveBucketsMask);
 		AllAsyncTasksComplete = Other.AllAsyncTasksComplete;
-		return *this;
 	}
 
-	virtual ISpatialAcceleration<TPayloadType, FReal, 3>& operator=(const ISpatialAcceleration<TPayloadType, FReal, 3>& Other) override
+	virtual void DeepAssign(const ISpatialAcceleration<TPayloadType, FReal, 3>& Other) override
 	{
 		check(false);	//not implemented
-		return *this;
 	}
 
 #if !UE_BUILD_SHIPPING

@@ -1998,7 +1998,7 @@ public:
 
 		// Copy all the small objects first
 
-		ISpatialAcceleration<TPayloadType, T, 3>::operator=(From);
+		ISpatialAcceleration<TPayloadType, T, 3>::DeepAssign(From);
 
 		DirtyElementGridCellSize = From.DirtyElementGridCellSize;
 		DirtyElementGridCellSizeInv = From.DirtyElementGridCellSizeInv;
@@ -3544,16 +3544,15 @@ private:
 		}
 	}
 
-	virtual ISpatialAcceleration<TPayloadType, T, 3>& operator=(const ISpatialAcceleration<TPayloadType, T, 3>& Other) override
+	virtual void DeepAssign(const ISpatialAcceleration<TPayloadType, T, 3>& Other) override
 	{
-		
 		check(Other.GetType() == ESpatialAcceleration::AABBTree);
-		return operator=(static_cast<const TAABBTree<TPayloadType, TLeafType, bMutable, T>&>(Other));
+		*this = static_cast<const TAABBTree<TPayloadType, TLeafType, bMutable, T>&>(Other);
 	}
 
 	TAABBTree<TPayloadType,TLeafType, bMutable, T>& operator=(const TAABBTree<TPayloadType,TLeafType,bMutable, T>& Rhs)
 	{
-		ISpatialAcceleration<TPayloadType, T, 3>::operator=(Rhs);
+		ISpatialAcceleration<TPayloadType, T, 3>::DeepAssign(Rhs);
 		ensure(Rhs.WorkStack.Num() == 0);
 		//ensure(Rhs.WorkPool.Num() == 0);
 		//ensure(Rhs.WorkPoolFreeList.Num() == 0);
