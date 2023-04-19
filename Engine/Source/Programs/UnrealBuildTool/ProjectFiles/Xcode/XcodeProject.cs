@@ -9,6 +9,7 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis;
 
 /*****
 
@@ -200,7 +201,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			if (File == null)
 			{
-				// if null, we assume UpdateTemplate, since xcode can update "nothing" to something useful
+				// if null, we assume UpdateTemplate, since xcode can update "nothing" to something useful (for plist), or we ignore 
+				// UpdateTemplate for entitlements
 				Mode = MetadataMode.UpdateTemplate;
 			}
 			else
@@ -217,6 +219,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 	{
 		public Dictionary<MetadataPlatform, MetadataItem> PlistFiles = new();
 		public Dictionary<MetadataPlatform, MetadataItem> EntitlementsFiles = new();
+		public Dictionary<MetadataPlatform, MetadataItem> ShippingEntitlementsFiles = new();
 
 
 		public Metadata(DirectoryReference ProductDirectory, DirectoryReference XcodeProject, ConfigHierarchy Ini, bool bSupportsMac, bool bSupportsIOSOrTVOS, ILogger Logger)
@@ -228,11 +231,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				PlistFiles[MetadataPlatform.Mac] = new MetadataItem(ProductDirectory, XcodeProject, Ini, "premade:PremadeMacPlist", "template:TemplateMacPlist");
 				EntitlementsFiles[MetadataPlatform.MacEditor] = new MetadataItem(ProductDirectory, XcodeProject, Ini, "premade:PremadeMacEditorEntitlements");
 				EntitlementsFiles[MetadataPlatform.Mac] = new MetadataItem(ProductDirectory, XcodeProject, Ini, "premade:PremadeMacEntitlements");
+				ShippingEntitlementsFiles[MetadataPlatform.MacEditor] = new MetadataItem(ProductDirectory, XcodeProject, Ini, "premade:ShippingSpecificMacEditorEntitlements");
+				ShippingEntitlementsFiles[MetadataPlatform.Mac] = new MetadataItem(ProductDirectory, XcodeProject, Ini, "premade:ShippingSpecificMacEntitlements");
 			}
 			if (bSupportsIOSOrTVOS)
 			{
 				PlistFiles[MetadataPlatform.IOS] = new MetadataItem(ProductDirectory, XcodeProject, Ini, "premade:PremadeIOSPlist", "template:TemplateIOSPlist");
 				EntitlementsFiles[MetadataPlatform.IOS] = new MetadataItem(ProductDirectory, XcodeProject, Ini, "premade:PremadeIOSEntitlements");
+				ShippingEntitlementsFiles[MetadataPlatform.IOS] = new MetadataItem(ProductDirectory, XcodeProject, Ini, "premade:ShippingSpecificIOSEntitlements");
 			}
 		}
 	}
@@ -331,7 +337,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			this.bIsStubProject = bIsStubProject;
 			this.bMakeProjectPerTarget = bMakeProjectPerTarget;
 			this.bForDistribution = bIsForDistribution;
-			this.BundleIdentifier = string.IsNullOrEmpty(BundleID) ? "$(UE_SIGNING_PREFIX).$(UE_PRODUCT_NAME_STRIPPED)" : BundleID;
+			this.BundleIdentifier = BundleID;
 			this.DisplayName = string.IsNullOrEmpty(AppName) ? "$(UE_PRODUCT_NAME)" : AppName;
 		}
 
@@ -360,6 +366,17 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			this.Logger = Logger;
 
 			FindUProjectFileLocation(ProjectFile);
+
+			// setup BundleIdentifier from ini file (if there's a specified plist file with one, that will override this)
+			if (string.IsNullOrEmpty(BundleIdentifier))
+			{
+				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UProjectFileLocation?.Directory, UnrealTargetPlatform.Mac);
+				Ini.GetString($"XcodeConfiguration", "ModernBundleIdentifier", out BundleIdentifier);
+			}
+			if (string.IsNullOrEmpty(BundleIdentifier))
+			{
+				BundleIdentifier = "$(UE_SIGNING_PREFIX).$(UE_PRODUCT_NAME_STRIPPED)";
+			}
 
 			// make sure ProjectDir is something good
 			if (UProjectFileLocation != null)
@@ -1227,7 +1244,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				"if [[ ! ${SRC_EXE} -ef ${DEST_EXE} ]]; then",
 				"  echo Copying executable...",
 				"  mkdir -p `dirname ${DEST_EXE}`",
-				"  cp ${SRC_EXE} ${DEST_EXE}",
+				"  ditto ${SRC_EXE} ${DEST_EXE}",
 				"fi",
 				""
 			});
@@ -1283,10 +1300,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			DsymScript.AddRange(new string[]
 			{
-				"# Generate the dsym when making an archive, then stripping the executable",
-				"rm -rf \\\"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\\\"",
-				"dsymutil \\\"${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_PATH}\\\" -o \\\"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\\\"",
-				"strip -D \\\"${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_PATH}\\\"",
+				"set -e",
+				"",
+				"# Run the wrapper dsym geneerator",
+				"\\\"${UE_ENGINE_DIR}/Build/BatchFiles/Mac/GenerateUniversalDSYM.sh\\\" \\\"${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_PATH}\\\" \\\"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\\\"",
+				"strip -no_code_signature_warning -D \\\"${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_PATH}\\\"",
+				"",
+				"# Remove any unused architectures from dylibs in the .app (param1) that don't match the executable (param2). Also error if a dylib is missing arches",
+				"\\\"${UE_ENGINE_DIR}/Build/BatchFiles/Mac/ThinApp.sh\\\" \\\"${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}\\\" \\\"${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_PATH}\\\"",
 			});
 			string DsymScriptInput = $"\\\"$(CONFIGURATION_BUILD_DIR)/$(EXECUTABLE_PATH)\\\"";
 			string DsymScriptOutput = $"\\\"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)\\\"";
@@ -1454,6 +1475,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			bool bAutomaticSigning = true;
 			string? SigningTeam;
 			string? SigningPrefix;
+			string? AppCategory;
 			string SupportedPlatforms;
 			string SDKRoot;
 			DirectoryReference ConfigBuildDir;
@@ -1463,13 +1485,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			string? ProvisioningProfile = null;
 			string? SupportedDevices = null;
 			string? MarketingVersion = null;
-			string BundleIdentifier;
+			string? BundleIdentifier;
 			List<string> ExtraConfigLines = new();
 
 			// get codesigning info (all platforms)
 			PlatformIni.TryGetValue("XcodeConfiguration", "bUseModernCodeSigning", out bAutomaticSigning);
 			PlatformIni.TryGetValue("XcodeConfiguration", "ModernSigningTeam", out SigningTeam);
 			PlatformIni.TryGetValue("XcodeConfiguration", "ModernSigningPrefix", out SigningPrefix);
+			PlatformIni.TryGetValue("XcodeConfiguration", "AppCategory", out AppCategory);
 
 
 			if (Platform == UnrealTargetPlatform.Mac)
@@ -1540,9 +1563,10 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			// get metadata for the platform set above
 			MetadataItem PlistMetadata = UnrealData.Metadata!.PlistFiles[MetadataPlatform];
-			MetadataItem EntitlementsMetadata = UnrealData.Metadata!.PlistFiles[MetadataPlatform];
 			// now pull the bundle id's out, as xcode will warn if they don't match (this has to happen after each platform set bundle id above)
 			XcodeUtils.FindPlistId(PlistMetadata, "CFBundleIdentifier", ref BundleIdentifier);
+			// if the user had a ini setting, but also set it in the template plist, the plist one should win (this is only used if we are updating a template plist)
+			XcodeUtils.FindPlistId(PlistMetadata, "LSApplicationCategoryType", ref AppCategory);
 
 
 			// include another xcconfig for versions that UBT writes out
@@ -1613,6 +1637,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Xcconfig.AppendLine($"ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon");
 				Xcconfig.AppendLine($"CURRENT_PROJECT_VERSION = $(UE_{Platform.ToString().ToUpper()}_BUILD_VERSION)");
 				Xcconfig.AppendLine($"MARKETING_VERSION = {MarketingVersion}");
+				Xcconfig.AppendLine($"INFOPLIST_KEY_LSApplicationCategoryType = {AppCategory}");
 			}
 
 			if (UnrealData.bWriteCodeSigningSettings)
@@ -1620,10 +1645,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Xcconfig.AppendLine("");
 				Xcconfig.AppendLine("// Code-signing settings");
 				Xcconfig.AppendLine("CODE_SIGN_STYLE = " + (bAutomaticSigning ? "Automatic" : "Manual"));
-				if (EntitlementsMetadata.Mode == MetadataMode.UsePremade)
-				{
-					Xcconfig.AppendLine($"CODE_SIGN_ENTITLEMENTS = {EntitlementsMetadata.XcodeProjectRelative}");
-				}
 				if (!string.IsNullOrEmpty(SigningTeam))
 				{
 					Xcconfig.AppendLine($"DEVELOPMENT_TEAM = {SigningTeam}");
@@ -1671,13 +1692,29 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				// hook up the Buildconfig that matches this info to this xcconfig file
 				XcconfigFile ConfigXcconfig = MatchedConfig.Xcconfig!;
 
+				MetadataItem EntitlementsMetadata = UnrealData.Metadata!.EntitlementsFiles[MetadataPlatform];
+				
+				// if we have shipping specified, use it instead
+				if (Config.BuildConfig == UnrealTargetConfiguration.Shipping)
+				{
+					MetadataItem ShippingEntitlementsMetadata = UnrealData.Metadata!.ShippingEntitlementsFiles[MetadataPlatform];
+					if (ShippingEntitlementsMetadata.Mode == MetadataMode.UsePremade)
+					{
+						EntitlementsMetadata = ShippingEntitlementsMetadata;
+					}
+				}
+
 				ConfigXcconfig.AppendLine("// pull in the shared settings for all configs for this target");
 				ConfigXcconfig.AppendLine($"#include \"{Xcconfig.Name}.xcconfig\"");
 				ConfigXcconfig.AppendLine("");
 				ConfigXcconfig.AppendLine("// Unreal per-config variables");
 				ConfigXcconfig.AppendLine($"UE_TARGET_CONFIG = {Config.BuildConfig}");
-				ConfigXcconfig.AppendLine($"PRODUCT_NAME = {ProductName}");
 				ConfigXcconfig.AppendLine($"{ExecutableKey} = {ExecutableName}");
+				ConfigXcconfig.AppendLine($"PRODUCT_NAME = {ProductName}");
+				if (EntitlementsMetadata.Mode == MetadataMode.UsePremade)
+				{
+					ConfigXcconfig.AppendLine($"CODE_SIGN_ENTITLEMENTS = {EntitlementsMetadata.XcodeProjectRelative}");
+				}
 
 				// debug settings
 				if (Config.BuildConfig == UnrealTargetConfiguration.Debug)

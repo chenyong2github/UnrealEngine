@@ -136,7 +136,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		}
 
 
-		public static void FindPlistId(MetadataItem PlistItem, string Key, ref string BundleId)
+		public static void FindPlistId(MetadataItem PlistItem, string Key, ref string? BundleId)
 		{
 			if (PlistItem.File == null || !FileReference.Exists(PlistItem.File))
 			{

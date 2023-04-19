@@ -94,34 +94,25 @@ public class CEF3 : ModuleRules
 			{
 				string WrapperPath = LibraryPath + "/libcef_dll_wrapper.a";
 				
-				// we have separate frameworks for x86 and arm64 because they are so large, some single-architecture builds don't want
-				// to pay the cost of both of them (ideally we would make this universal, and then remove the unused architectures during staging)
-				string FrameworkPathX86 = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework x86.framework";
-				string FrameworkPathArm64 = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework arm64.framework";
-
 				PublicAdditionalLibraries.Add(WrapperPath);
 
 				if (Target.MacPlatform.bUseModernXcode)
 				{
-					DirectoryReference ModuleDir = new(GetModuleDirectory("CEF3"));
-					
-					if (Target.Architectures.Contains(UnrealArch.Arm64))
-					{
-						string FrameworkPathArm64Zip = new DirectoryReference(FrameworkPathArm64 + ".zip").MakeRelativeTo(ModuleDir);
-						PublicAdditionalFrameworks.Add(
-							new Framework(Path.GetFileNameWithoutExtension(FrameworkPathArm64), FrameworkPathArm64Zip, Framework.FrameworkMode.Copy, null)
-							);
-					}
-					if (Target.Architectures.Contains(UnrealArch.X64))
-					{
-						string FrameworkPathX86Zip = new DirectoryReference(FrameworkPathX86 + ".zip").MakeRelativeTo(ModuleDir);
-						PublicAdditionalFrameworks.Add(
-							new Framework(Path.GetFileNameWithoutExtension(FrameworkPathX86), FrameworkPathX86Zip, Framework.FrameworkMode.Copy, null)
-							);
-					}
+					FileReference ZipFile = FileReference.Combine(new DirectoryReference(Target.UEThirdPartyBinariesDirectory), "CEF3/Mac/Chromium Embedded Framework.framework.zip");
+					// this is relative to module dir
+					string FrameworkPath = ZipFile.MakeRelativeTo(new DirectoryReference(ModuleDirectory));
+
+					PublicAdditionalFrameworks.Add(
+						new Framework("Chromium Embedded Framework", FrameworkPath, Framework.FrameworkMode.Copy, null)
+						);
 				}
 				else
 				{
+					// we have separate frameworks for x86 and arm64 because they are so large, some single-architecture builds don't want
+					// to pay the cost of both of them (ideally we would make this universal, and then remove the unused architectures during staging)
+					string FrameworkPathX86 = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework x86.framework";
+					string FrameworkPathArm64 = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework arm64.framework";
+
 					if (Directory.Exists(LibraryPath + "/locale"))
 					{
 						var LocaleFolders = Directory.GetFileSystemEntries(LibraryPath + "/locale", "*.lproj");

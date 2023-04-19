@@ -9,20 +9,18 @@
 #include "HAL/FileManager.h"
 #include "Misc/OutputDeviceFile.h"
 #include "CEF3UtilsLog.h"
-#if WITH_CEF3
-#	if PLATFORM_MAC
-#		include "include/wrapper/cef_library_loader.h"
-#		define CEF3_BIN_DIR TEXT("Binaries/ThirdParty/CEF3")
-#     if PLATFORM_MAC_ARM64
-#		define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework arm64.framework")
-#		define CEF3_BUNDLE_DIR TEXT("../Frameworks/Chromium Embedded Framework arm64.framework")
-#     else
-#		define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework x86.framework")
-#		define CEF3_BUNDLE_DIR TEXT("../Frameworks/Chromium Embedded Framework arm64.framework")
-#     endif
-#		define CEF3_FRAMEWORK_EXE CEF3_FRAMEWORK_DIR TEXT("/Chromium Embedded Framework")
-#		define CEF3_BUNDLE_EXE CEF3_BUNDLE_DIR TEXT("/Chromium Embedded Framework")
-#	endif
+#if WITH_CEF3 && PLATFORM_MAC
+#  include "include/wrapper/cef_library_loader.h"
+#  define CEF3_BIN_DIR TEXT("Binaries/ThirdParty/CEF3")
+#  if PLATFORM_MAC_ARM64
+#    define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework arm64.framework")
+#  else
+#    define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework x86.framework")
+#  endif
+#  define CEF3_FRAMEWORK_EXE CEF3_FRAMEWORK_DIR TEXT("/Chromium Embedded Framework")
+
+#  define CEF3_BUNDLE_DIR TEXT("../Frameworks/Chromium Embedded Framework.framework")
+#  define CEF3_BUNDLE_EXE CEF3_BUNDLE_DIR TEXT("/Chromium Embedded Framework")
 #endif
 
 DEFINE_LOG_CATEGORY(LogCEF3Utils);
