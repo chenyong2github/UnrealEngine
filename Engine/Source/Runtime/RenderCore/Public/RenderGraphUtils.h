@@ -47,6 +47,9 @@ class FRHIGPUBufferReadback;
 class FRHIGPUTextureReadback;
 class FShaderParametersMetadata;
 
+// Callback to modify pass parameters just prior to dispatch, used for indirect dispatches where the group count callback cannot be used for this purpose.
+using FRDGDispatchLateParamCallback = TFunction<void()>;
+
 /** Returns whether the resource was produced by a prior pass. */
 inline bool HasBeenProduced(FRDGViewableResource* Resource)
 {
@@ -598,7 +601,8 @@ struct RENDERCORE_API FComputeShaderUtils
 		const TShaderRef<TShaderClass>& ComputeShader,
 		typename TShaderClass::FParameters* Parameters,
 		FRDGBufferRef IndirectArgsBuffer,
-		uint32 IndirectArgsOffset)
+		uint32 IndirectArgsOffset,
+		FRDGDispatchLateParamCallback&& DispatchLateParamCallback = FRDGDispatchLateParamCallback())
 	{
 		checkf(PassFlags == ERDGPassFlags::Compute || PassFlags == ERDGPassFlags::AsyncCompute, TEXT("AddPass only supports 'Compute' or 'AsyncCompute'."));
 		checkf(IndirectArgsBuffer->Desc.Usage & BUF_DrawIndirect, TEXT("The buffer %s was not flagged for indirect draw parameters"), IndirectArgsBuffer->Name);
@@ -610,12 +614,16 @@ struct RENDERCORE_API FComputeShaderUtils
 			Forward<FRDGEventName>(PassName),
 			Parameters,
 			PassFlags,
-			[Parameters, ComputeShader, IndirectArgsBuffer, IndirectArgsOffset](FRHIComputeCommandList& RHICmdList)
+			[Parameters, ComputeShader, IndirectArgsBuffer, IndirectArgsOffset, DispatchLateParamCallback = MoveTemp(DispatchLateParamCallback)](FRHIComputeCommandList& RHICmdList)
 		{			
 			// Marks the indirect draw parameter as used by the pass manually, given it can't be bound directly by any of the shader,
 			// meaning SetShaderParameters() won't be able to do it.
 			IndirectArgsBuffer->MarkResourceAsUsed();
 
+			if (DispatchLateParamCallback)
+			{
+				DispatchLateParamCallback();
+			}
 			FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *Parameters, IndirectArgsBuffer->GetIndirectRHICallBuffer(), IndirectArgsOffset);
 		});
 	}
@@ -627,9 +635,10 @@ struct RENDERCORE_API FComputeShaderUtils
 		const TShaderRef<TShaderClass>& ComputeShader,
 		typename TShaderClass::FParameters* Parameters,
 		FRDGBufferRef IndirectArgsBuffer,
-		uint32 IndirectArgsOffset)
+		uint32 IndirectArgsOffset,
+		FRDGDispatchLateParamCallback&& DispatchLateParamCallback = FRDGDispatchLateParamCallback())
 	{
-		return AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, Parameters, IndirectArgsBuffer, IndirectArgsOffset);
+		return AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, Parameters, IndirectArgsBuffer, IndirectArgsOffset, MoveTemp(DispatchLateParamCallback));
 	}
 
 	static void ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAV, uint32 ClearValue);
@@ -991,6 +1000,23 @@ FORCEINLINE FRDGBufferRef CreateUploadBuffer(
 	}
 	return CreateUploadBuffer(GraphBuilder, Name, sizeof(ElementType), InitialData.Num(), InitialData.GetData(), sizeof(ElementType) * InitialData.Num(), InitialDataFlags);
 }
+
+/**
+ * Helper to create a structured upload buffer with initial data from a TArray.
+ * NOTE: does not provide a 1-size fallback for empty initial data.
+ */
+template <typename ElementType, typename AllocatorType>
+FORCEINLINE FRDGBufferRef CreateStructuredUploadBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	const TArray<ElementType, AllocatorType> &InitialData,
+	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None)
+{
+	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredUploadDesc(sizeof(ElementType), InitialData.Num()), Name);
+	GraphBuilder.QueueBufferUpload(Buffer, TConstArrayView<ElementType>(InitialData), InitialDataFlags);
+	return Buffer;
+}
+
 
 /** Creates a vertex buffer with initial data by creating an upload pass. */
 RENDERCORE_API FRDGBufferRef CreateVertexBuffer(

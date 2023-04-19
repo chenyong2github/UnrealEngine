@@ -19,11 +19,26 @@ static uint64 GetMaxUploadBufferElements()
 enum class EByteBufferResourceType
 {
 	Float4_Buffer,
-	Float4_StructuredBuffer,
+	StructuredBuffer,
 	Uint_Buffer,
 	Uint4Aligned_Buffer,
 	Float4_Texture,
 	Count
+};
+
+enum class EByteBufferStructuredSize
+{
+	Uint1,
+	Uint2,
+	Uint4,
+	Uint8,
+	Count
+};
+
+// placeholder struct, not really used (on the host side)
+struct FUint8
+{
+	uint32 Values[8];
 };
 
 class FByteBufferShader : public FGlobalShader
@@ -36,8 +51,9 @@ class FByteBufferShader : public FGlobalShader
 	{}
 
 	class ResourceTypeDim : SHADER_PERMUTATION_INT("RESOURCE_TYPE", (int)EByteBufferResourceType::Count);
+	class StructuredElementSizeDim : SHADER_PERMUTATION_INT("STRUCTURED_ELEMENT_SIZE", (int)EByteBufferStructuredSize::Count);
 
-	using FPermutationDomain = TShaderPermutationDomain<ResourceTypeDim>;
+	using FPermutationDomain = TShaderPermutationDomain<ResourceTypeDim, StructuredElementSizeDim>;
 
 	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
 	{
@@ -53,6 +69,12 @@ class FByteBufferShader : public FGlobalShader
 		{
 			return true;
 		}
+
+		// Don't compile structured buffer size variations unless we need them
+		if (ResourceType != EByteBufferResourceType::StructuredBuffer && static_cast<EByteBufferStructuredSize>(PermutationVector.Get<StructuredElementSizeDim>()) != EByteBufferStructuredSize::Uint4)
+		{
+			return false;
+		}
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
@@ -62,7 +84,7 @@ class FByteBufferShader : public FGlobalShader
 		SHADER_PARAMETER(uint32, DstOffset)
 		SHADER_PARAMETER(uint32, Float4sPerLine)
 		SHADER_PARAMETER_UAV(RWBuffer<float4>, DstBuffer)
-		SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, DstStructuredBuffer)
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, DstStructuredBuffer4x)
 		SHADER_PARAMETER_UAV(RWByteAddressBuffer, DstByteAddressBuffer)
 		SHADER_PARAMETER_UAV(RWTexture2D<float4>, DstTexture)
 	END_SHADER_PARAMETER_STRUCT()
@@ -72,6 +94,17 @@ class FMemsetBufferCS : public FByteBufferShader
 {
 	DECLARE_GLOBAL_SHADER( FMemsetBufferCS );
 	SHADER_USE_PARAMETER_STRUCT( FMemsetBufferCS, FByteBufferShader );
+
+	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
+	{
+		FPermutationDomain PermutationVector( Parameters.PermutationId );
+		// Don't compile structured buffer size variations
+		if (static_cast<EByteBufferStructuredSize>(PermutationVector.Get<StructuredElementSizeDim>()) != EByteBufferStructuredSize::Uint4)
+		{
+			return false;
+		}
+		return FByteBufferShader::ShouldCompilePermutation(Parameters);
+	}
 };
 IMPLEMENT_GLOBAL_SHADER( FMemsetBufferCS, "/Engine/Private/ByteBuffer.usf", "MemsetBufferCS", SF_Compute );
 
@@ -80,10 +113,21 @@ class FMemcpyCS : public FByteBufferShader
 	DECLARE_GLOBAL_SHADER( FMemcpyCS );
 	SHADER_USE_PARAMETER_STRUCT( FMemcpyCS, FByteBufferShader );
 
+	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
+	{
+		FPermutationDomain PermutationVector( Parameters.PermutationId );
+		// Don't compile structured buffer size variations
+		if (static_cast<EByteBufferStructuredSize>(PermutationVector.Get<StructuredElementSizeDim>()) != EByteBufferStructuredSize::Uint4)
+		{
+			return false;
+		}
+		return FByteBufferShader::ShouldCompilePermutation(Parameters);
+	}
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FByteBufferShader::FParameters, Common)
 		SHADER_PARAMETER_SRV(Buffer<float4>, SrcBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SrcStructuredBuffer)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SrcStructuredBuffer4x)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, SrcByteAddressBuffer)
 		SHADER_PARAMETER_SRV(Texture2D<float4>, SrcTexture)
 	END_SHADER_PARAMETER_STRUCT()
@@ -95,11 +139,22 @@ class FScatterCopyCS : public FByteBufferShader
 	DECLARE_GLOBAL_SHADER( FScatterCopyCS );
 	SHADER_USE_PARAMETER_STRUCT( FScatterCopyCS, FByteBufferShader );
 
+	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
+	{
+		FPermutationDomain PermutationVector( Parameters.PermutationId );
+		// Don't compile structured buffer size variations
+		if (static_cast<EByteBufferStructuredSize>(PermutationVector.Get<StructuredElementSizeDim>()) != EByteBufferStructuredSize::Uint4)
+		{
+			return false;
+		}
+		return FByteBufferShader::ShouldCompilePermutation(Parameters);
+	}
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FByteBufferShader::FParameters, Common)
 		SHADER_PARAMETER(uint32, NumScatters)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, UploadByteAddressBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, UploadStructuredBuffer)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, UploadStructuredBuffer4x)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ScatterByteAddressBuffer)
 		SHADER_PARAMETER_SRV(StructuredBuffer<uint>, ScatterStructuredBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -158,8 +213,9 @@ class FRDGByteBufferShader : public FGlobalShader
 		: FGlobalShader(Initializer)
 	{}
 
-	class ResourceTypeDim : SHADER_PERMUTATION_INT("RESOURCE_TYPE", (int)EByteBufferResourceType::Count);
-	using FPermutationDomain = TShaderPermutationDomain<ResourceTypeDim>;
+	using ResourceTypeDim = FByteBufferShader::ResourceTypeDim;
+	using StructuredElementSizeDim = FByteBufferShader::StructuredElementSizeDim;
+	using FPermutationDomain = FByteBufferShader::FPermutationDomain;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -173,7 +229,10 @@ class FRDGByteBufferShader : public FGlobalShader
 		SHADER_PARAMETER(uint32, DstOffset)
 		SHADER_PARAMETER(uint32, Float4sPerLine)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, DstBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, DstStructuredBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FUint8>, DstStructuredBuffer8x)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint4>, DstStructuredBuffer4x)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint2>, DstStructuredBuffer2x)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, DstStructuredBuffer1x)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, DstByteAddressBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DstTexture)
 	END_SHADER_PARAMETER_STRUCT()
@@ -194,7 +253,10 @@ class FRDGMemcpyCS : public FRDGByteBufferShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRDGByteBufferShader::FParameters, Common)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, SrcBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SrcStructuredBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FUint8>, SrcStructuredBuffer8x)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, SrcStructuredBuffer4x)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, SrcStructuredBuffer2x)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, SrcStructuredBuffer1x)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, SrcByteAddressBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, SrcTexture)
 	END_SHADER_PARAMETER_STRUCT()
@@ -210,7 +272,10 @@ class FRDGScatterCopyCS : public FRDGByteBufferShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRDGByteBufferShader::FParameters, Common)
 		SHADER_PARAMETER(uint32, NumScatters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, UploadByteAddressBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, UploadStructuredBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FUint8>, UploadStructuredBuffer8x)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, UploadStructuredBuffer4x)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, UploadStructuredBuffer2x)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, UploadStructuredBuffer1x)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ScatterByteAddressBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ScatterStructuredBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -259,12 +324,24 @@ void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGBuffer* DstResource, FRDGBuff
 	MemcpyResource(GraphBuilder, GraphBuilder.CreateUAV(DstResource, ERDGUnorderedAccessViewFlags::SkipBarrier), GraphBuilder.CreateSRV(SrcResource), Params);
 }
 
+static EByteBufferStructuredSize GetStructuredBufferElementSize(FRDGBufferUAV * RDGBufferUAV)
+{
+	int32 BytesPerElement = RDGBufferUAV->Desc.Buffer->Desc.BytesPerElement;
+	uint32 Log2NumElements = FMath::FloorLog2(BytesPerElement / 4);
+	checkf((BytesPerElement % 4) == 0 && FMath::IsPowerOfTwo(BytesPerElement / 4) && Log2NumElements < uint32(EByteBufferStructuredSize::Count), TEXT("Unsupported structured buffer BytesPerElement size (%d) for buffer '%s' (supported sizes are 4,8,16,32)."), BytesPerElement, RDGBufferUAV->Name);
+
+	return static_cast<EByteBufferStructuredSize>(Log2NumElements);
+
+}
+
 void MemsetResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* UAV, const FMemsetResourceParams& Params)
 {
 	check(UAV);
 	FRDGViewableResource* Resource = UAV->GetParent();
 
 	EByteBufferResourceType ResourceTypeEnum = EByteBufferResourceType::Count;
+	// This is only used for structured buffers, since that is where we must match the format specified when it is created / used or whatever the platform happens to care about.
+	EByteBufferStructuredSize ByteBufferStructuredSize = EByteBufferStructuredSize::Uint4;
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FRDGMemsetBufferCS::FParameters>();
 	PassParameters->Value = Params.Value;
@@ -286,9 +363,29 @@ void MemsetResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* UAV, con
 		PassParameters->DstBuffer = GetAs<FRDGBufferUAV>(UAV);
 		break;
 	case EResourceType::STRUCTURED_BUFFER:
-		ResourceTypeEnum = EByteBufferResourceType::Float4_StructuredBuffer;
-		PassParameters->DstStructuredBuffer = GetAs<FRDGBufferUAV>(UAV);
+	{
+		ResourceTypeEnum = EByteBufferResourceType::StructuredBuffer;
+		FRDGBufferUAV * RDGBufferUAV = GetAs<FRDGBufferUAV>(UAV);
+		ByteBufferStructuredSize = GetStructuredBufferElementSize(RDGBufferUAV);
+		switch(ByteBufferStructuredSize)
+		{
+		case EByteBufferStructuredSize::Uint1:
+			PassParameters->DstStructuredBuffer1x = RDGBufferUAV;
+			break;
+		case EByteBufferStructuredSize::Uint2:
+			PassParameters->DstStructuredBuffer2x = RDGBufferUAV;
+			break;
+		case EByteBufferStructuredSize::Uint4:
+			PassParameters->DstStructuredBuffer4x = RDGBufferUAV;
+			break;
+		case EByteBufferStructuredSize::Uint8:
+			PassParameters->DstStructuredBuffer8x = RDGBufferUAV;
+			break;
+		default:
+			break;
+		};
 		break;
+	}
 	case EResourceType::TEXTURE:
 		ResourceTypeEnum = EByteBufferResourceType::Float4_Texture;
 		PassParameters->DstTexture = GetAs<FRDGTextureUAV>(UAV);
@@ -300,6 +397,7 @@ void MemsetResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* UAV, con
 
 	FRDGMemsetBufferCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRDGMemsetBufferCS::ResourceTypeDim >((int)ResourceTypeEnum);
+	PermutationVector.Set<FRDGMemsetBufferCS::StructuredElementSizeDim >((int)ByteBufferStructuredSize);
 	TShaderMapRef<FRDGMemsetBufferCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
 	FComputeShaderUtils::AddPass(
@@ -332,6 +430,7 @@ void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* UAV, FRD
 		const uint32 NumElementsPerDispatch = FMath::Min(FMath::Max(NumWaves, 1u) * Divisor * 64, Params.Count - NumElementsProcessed);
 
 		EByteBufferResourceType ResourceTypeEnum = EByteBufferResourceType::Count;
+		EByteBufferStructuredSize ByteBufferStructuredSize = EByteBufferStructuredSize::Uint4;
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FRDGMemcpyCS::FParameters>();
 		PassParameters->Common.Size = NumElementsPerDispatch;
@@ -346,10 +445,34 @@ void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* UAV, FRD
 			PassParameters->Common.DstByteAddressBuffer    = GetAs<FRDGBufferUAV>(UAV);
 			break;
 		case EResourceType::STRUCTURED_BUFFER:
-			ResourceTypeEnum = EByteBufferResourceType::Float4_StructuredBuffer;
-			PassParameters->SrcStructuredBuffer            = GetAs<FRDGBufferSRV>(SRV);
-			PassParameters->Common.DstStructuredBuffer     = GetAs<FRDGBufferUAV>(UAV);
+		{
+			ResourceTypeEnum = EByteBufferResourceType::StructuredBuffer;
+
+			FRDGBufferUAV * RDGBufferUAV = GetAs<FRDGBufferUAV>(UAV);
+			ByteBufferStructuredSize = GetStructuredBufferElementSize(RDGBufferUAV);
+			switch(ByteBufferStructuredSize)
+			{
+			case EByteBufferStructuredSize::Uint1:
+				PassParameters->SrcStructuredBuffer1x = GetAs<FRDGBufferSRV>(SRV);
+				PassParameters->Common.DstStructuredBuffer1x = RDGBufferUAV;
+				break;
+			case EByteBufferStructuredSize::Uint2:
+				PassParameters->SrcStructuredBuffer2x = GetAs<FRDGBufferSRV>(SRV);
+				PassParameters->Common.DstStructuredBuffer2x = RDGBufferUAV;
+				break;
+			case EByteBufferStructuredSize::Uint4:
+				PassParameters->SrcStructuredBuffer4x = GetAs<FRDGBufferSRV>(SRV);
+				PassParameters->Common.DstStructuredBuffer4x = RDGBufferUAV;
+				break;
+			case EByteBufferStructuredSize::Uint8:
+				PassParameters->SrcStructuredBuffer8x = GetAs<FRDGBufferSRV>(SRV);
+				PassParameters->Common.DstStructuredBuffer8x = RDGBufferUAV;
+				break;
+			default:
+				break;
+			};
 			break;
+		}
 		case EResourceType::BUFFER:
 			ResourceTypeEnum = EByteBufferResourceType::Float4_Buffer;
 			PassParameters->SrcBuffer                      = GetAs<FRDGBufferSRV>(SRV);
@@ -367,6 +490,7 @@ void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* UAV, FRD
 
 		FRDGMemcpyCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRDGMemcpyCS::ResourceTypeDim >((int)ResourceTypeEnum);
+		PermutationVector.Set<FRDGMemcpyCS::StructuredElementSizeDim >((int)ByteBufferStructuredSize);
 		TShaderMapRef<FRDGMemcpyCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -533,19 +657,124 @@ struct FScatterUploadComputeConfig
 	uint32 NumLoops;
 };
 
-FScatterUploadComputeConfig GetScatterUploadComputeConfig(uint32 NumScatters, uint32 NumBytesPerElement)
+FScatterUploadComputeConfig GetScatterUploadComputeConfig(uint32 NumScatters, uint32 NumBytesPerElement, int32 NumElementsPerScatter = -1)
 {
 	constexpr uint32 ThreadGroupSize = 64u;
 
 	FScatterUploadComputeConfig Config;
 	Config.ThreadGroupSize = ThreadGroupSize;
-	Config.NumBytesPerThread = (NumBytesPerElement & 15) == 0 ? 16 : 4;
-	Config.NumThreadsPerScatter = NumBytesPerElement / Config.NumBytesPerThread;
+	if (NumElementsPerScatter != INDEX_NONE)
+	{
+		Config.NumBytesPerThread = NumBytesPerElement;
+		Config.NumThreadsPerScatter = NumElementsPerScatter; 
+	}
+	else
+	{
+		Config.NumBytesPerThread = (NumBytesPerElement & 15) == 0 ? 16 : 4;
+		Config.NumThreadsPerScatter = NumBytesPerElement / Config.NumBytesPerThread;
+	}
 	Config.NumThreads = NumScatters * Config.NumThreadsPerScatter;
 	Config.NumDispatches = FMath::DivideAndRoundUp(Config.NumThreads, Config.ThreadGroupSize);
 	Config.NumLoops = FMath::DivideAndRoundUp(Config.NumDispatches, (uint32)GMaxComputeDispatchDimension);
 	return Config;
 }
+
+
+void ScatterCopyResource(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, FRDGBufferSRV* ScatterBufferSRV, FRDGBufferSRV* UploadBufferSRV, const FScatterCopyParams &Params)
+{
+	const FScatterUploadComputeConfig ComputeConfig = GetScatterUploadComputeConfig(Params.NumScatters, Params.NumBytesPerElement, Params.NumElementsPerScatter);
+	const EResourceType DstResourceType = GetResourceType(DstResource);
+
+	EByteBufferResourceType ResourceTypeEnum = EByteBufferResourceType::Count;
+	EByteBufferStructuredSize ByteBufferStructuredSize = EByteBufferStructuredSize::Uint4;
+
+	FRDGScatterCopyCS::FParameters Parameters;
+	Parameters.Common.Size = ComputeConfig.NumThreadsPerScatter;
+	Parameters.NumScatters = Params.NumScatters;
+
+	if (DstResourceType == EResourceType::BYTEBUFFER)
+	{
+		if (ComputeConfig.NumBytesPerThread == 16)
+		{
+			ResourceTypeEnum = EByteBufferResourceType::Uint4Aligned_Buffer;
+		}
+		else
+		{
+			ResourceTypeEnum = EByteBufferResourceType::Uint_Buffer;
+		}
+		Parameters.UploadByteAddressBuffer = UploadBufferSRV;
+		Parameters.ScatterByteAddressBuffer = ScatterBufferSRV;
+		Parameters.Common.DstByteAddressBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
+	else if (DstResourceType == EResourceType::STRUCTURED_BUFFER)
+	{
+		ResourceTypeEnum = EByteBufferResourceType::StructuredBuffer;
+
+		FRDGBufferUAV * RDGBufferUAV = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
+		ByteBufferStructuredSize = GetStructuredBufferElementSize(RDGBufferUAV);
+		switch(ByteBufferStructuredSize)
+		{
+		case EByteBufferStructuredSize::Uint1:
+			Parameters.UploadStructuredBuffer1x = UploadBufferSRV;
+			Parameters.Common.DstStructuredBuffer1x = RDGBufferUAV;
+			break;
+		case EByteBufferStructuredSize::Uint2:
+			Parameters.UploadStructuredBuffer2x = UploadBufferSRV;
+			Parameters.Common.DstStructuredBuffer2x = RDGBufferUAV;
+			break;
+		case EByteBufferStructuredSize::Uint4:
+			Parameters.UploadStructuredBuffer4x = UploadBufferSRV;
+			Parameters.Common.DstStructuredBuffer4x = RDGBufferUAV;
+			break;
+		case EByteBufferStructuredSize::Uint8:
+			Parameters.UploadStructuredBuffer8x = UploadBufferSRV;
+			Parameters.Common.DstStructuredBuffer8x = RDGBufferUAV;
+			break;
+		default:
+			break;
+		};
+		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
+	}
+	else if (DstResourceType == EResourceType::BUFFER)
+	{
+		ResourceTypeEnum = EByteBufferResourceType::Float4_Buffer;
+
+		Parameters.UploadStructuredBuffer4x = UploadBufferSRV;
+		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
+		Parameters.Common.DstBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
+	else if (DstResourceType == EResourceType::TEXTURE)
+	{
+		ResourceTypeEnum = EByteBufferResourceType::Float4_Texture;
+
+		Parameters.UploadStructuredBuffer4x = UploadBufferSRV;
+		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
+		Parameters.Common.DstTexture = GraphBuilder.CreateUAV(GetAsTexture(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
+
+		Parameters.Common.Float4sPerLine = CalculateFloat4sPerLine();
+	}
+
+	FRDGScatterCopyCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FRDGScatterCopyCS::ResourceTypeDim>((int)ResourceTypeEnum);
+	PermutationVector.Set<FRDGScatterCopyCS::StructuredElementSizeDim >((int)ByteBufferStructuredSize);
+	TShaderMapRef<FRDGScatterCopyCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+
+	for (uint32 LoopIdx = 0; LoopIdx < ComputeConfig.NumLoops; ++LoopIdx)
+	{
+		Parameters.Common.SrcOffset = LoopIdx * (uint32)GMaxComputeDispatchDimension * ComputeConfig.ThreadGroupSize;
+
+		uint32 LoopNumDispatch = FMath::Min(ComputeConfig.NumDispatches - LoopIdx * (uint32)GMaxComputeDispatchDimension, (uint32)GMaxComputeDispatchDimension);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("ScatterUpload[%d] (Resource: %s, Offset: %u, GroupSize: %u)", LoopIdx, DstResource->Name, Parameters.Common.SrcOffset, LoopNumDispatch),
+			ComputeShader,
+			GraphBuilder.AllocParameters(&Parameters),
+			FIntVector(LoopNumDispatch, 1, 1));
+	}
+}
+
+
 
 void FRDGScatterUploadBuffer::Init(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* Name)
 {
@@ -611,78 +840,12 @@ void FRDGScatterUploadBuffer::ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGVi
 		return;
 	}
 
-	const FScatterUploadComputeConfig ComputeConfig = GetScatterUploadComputeConfig(NumScatters, NumBytesPerElement);
-
 	const EResourceType DstResourceType = GetResourceType(DstResource);
 	check(bFloat4Buffer != (DstResourceType == EResourceType::BYTEBUFFER));
 
-	EByteBufferResourceType ResourceTypeEnum = EByteBufferResourceType::Count;
-
-	FRDGScatterCopyCS::FParameters Parameters;
-	Parameters.Common.Size = ComputeConfig.NumThreadsPerScatter;
-	Parameters.NumScatters = NumScatters;
-
 	FRDGBufferSRV* ScatterBufferSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ScatterBuffer));
 	FRDGBufferSRV* UploadBufferSRV  = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(UploadBuffer));
-
-	if (DstResourceType == EResourceType::BYTEBUFFER)
-	{
-		if (ComputeConfig.NumBytesPerThread == 16)
-		{
-			ResourceTypeEnum = EByteBufferResourceType::Uint4Aligned_Buffer;
-		}
-		else
-		{
-			ResourceTypeEnum = EByteBufferResourceType::Uint_Buffer;
-		}
-		Parameters.UploadByteAddressBuffer = UploadBufferSRV;
-		Parameters.ScatterByteAddressBuffer = ScatterBufferSRV;
-		Parameters.Common.DstByteAddressBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
-	}
-	else if (DstResourceType == EResourceType::STRUCTURED_BUFFER)
-	{
-		ResourceTypeEnum = EByteBufferResourceType::Float4_StructuredBuffer;
-
-		Parameters.UploadStructuredBuffer = UploadBufferSRV;
-		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
-		Parameters.Common.DstStructuredBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
-	}
-	else if (DstResourceType == EResourceType::BUFFER)
-	{
-		ResourceTypeEnum = EByteBufferResourceType::Float4_Buffer;
-
-		Parameters.UploadStructuredBuffer = UploadBufferSRV;
-		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
-		Parameters.Common.DstBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
-	}
-	else if (DstResourceType == EResourceType::TEXTURE)
-	{
-		ResourceTypeEnum = EByteBufferResourceType::Float4_Texture;
-
-		Parameters.UploadStructuredBuffer = UploadBufferSRV;
-		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
-		Parameters.Common.DstTexture = GraphBuilder.CreateUAV(GetAsTexture(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
-
-		Parameters.Common.Float4sPerLine = CalculateFloat4sPerLine();
-	}
-
-	FRDGByteBufferShader::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FRDGByteBufferShader::ResourceTypeDim>((int)ResourceTypeEnum);
-	TShaderMapRef<FRDGScatterCopyCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
-
-	for (uint32 LoopIdx = 0; LoopIdx < ComputeConfig.NumLoops; ++LoopIdx)
-	{
-		Parameters.Common.SrcOffset = LoopIdx * (uint32)GMaxComputeDispatchDimension * ComputeConfig.ThreadGroupSize;
-
-		uint32 LoopNumDispatch = FMath::Min(ComputeConfig.NumDispatches - LoopIdx * (uint32)GMaxComputeDispatchDimension, (uint32)GMaxComputeDispatchDimension);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("ScatterUpload[%d] (Resource: %s, Offset: %u, GroupSize: %u)", LoopIdx, DstResource->Name, Parameters.Common.SrcOffset, LoopNumDispatch),
-			ComputeShader,
-			GraphBuilder.AllocParameters(&Parameters),
-			FIntVector(LoopNumDispatch, 1, 1));
-	}
+	ScatterCopyResource(GraphBuilder, DstResource, ScatterBufferSRV, UploadBufferSRV, FScatterCopyParams { NumScatters, NumBytesPerElement, INDEX_NONE});
 
 	Reset();
 }
@@ -790,6 +953,7 @@ void FRDGAsyncScatterUploadBuffer::End(FRDGBuilder& GraphBuilder, FRDGScatterUpl
 	const EResourceType DstResourceType = GetResourceType(DstResource);
 
 	EByteBufferResourceType ResourceTypeEnum = EByteBufferResourceType::Count;
+	EByteBufferStructuredSize ByteBufferStructuredSize = EByteBufferStructuredSize::Uint4;
 
 	if (DstResourceType == EResourceType::BYTEBUFFER)
 	{
@@ -807,17 +971,38 @@ void FRDGAsyncScatterUploadBuffer::End(FRDGBuilder& GraphBuilder, FRDGScatterUpl
 	}
 	else if (DstResourceType == EResourceType::STRUCTURED_BUFFER)
 	{
-		ResourceTypeEnum = EByteBufferResourceType::Float4_StructuredBuffer;
+		ResourceTypeEnum = EByteBufferResourceType::StructuredBuffer;
 
-		Parameters.UploadStructuredBuffer = UploadBufferSRV;
+		FRDGBufferUAV * RDGBufferUAV = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
+		ByteBufferStructuredSize = GetStructuredBufferElementSize(RDGBufferUAV);
+		switch(ByteBufferStructuredSize)
+		{
+		case EByteBufferStructuredSize::Uint1:
+			Parameters.UploadStructuredBuffer1x = UploadBufferSRV;
+			Parameters.Common.DstStructuredBuffer1x = RDGBufferUAV;
+			break;
+		case EByteBufferStructuredSize::Uint2:
+			Parameters.UploadStructuredBuffer2x = UploadBufferSRV;
+			Parameters.Common.DstStructuredBuffer2x = RDGBufferUAV;
+			break;
+		case EByteBufferStructuredSize::Uint4:
+			Parameters.UploadStructuredBuffer4x = UploadBufferSRV;
+			Parameters.Common.DstStructuredBuffer4x = RDGBufferUAV;
+			break;
+		case EByteBufferStructuredSize::Uint8:
+			Parameters.UploadStructuredBuffer8x = UploadBufferSRV;
+			Parameters.Common.DstStructuredBuffer8x = RDGBufferUAV;
+			break;
+		default:
+			break;
+		};
 		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
-		Parameters.Common.DstStructuredBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
 	}
 	else if (DstResourceType == EResourceType::BUFFER)
 	{
 		ResourceTypeEnum = EByteBufferResourceType::Float4_Buffer;
 
-		Parameters.UploadStructuredBuffer = UploadBufferSRV;
+		Parameters.UploadStructuredBuffer4x = UploadBufferSRV;
 		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
 		Parameters.Common.DstBuffer = GraphBuilder.CreateUAV(GetAsBuffer(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
 	}
@@ -825,15 +1010,16 @@ void FRDGAsyncScatterUploadBuffer::End(FRDGBuilder& GraphBuilder, FRDGScatterUpl
 	{
 		ResourceTypeEnum = EByteBufferResourceType::Float4_Texture;
 
-		Parameters.UploadStructuredBuffer = UploadBufferSRV;
+		Parameters.UploadStructuredBuffer4x = UploadBufferSRV;
 		Parameters.ScatterStructuredBuffer = ScatterBufferSRV;
 		Parameters.Common.DstTexture = GraphBuilder.CreateUAV(GetAsTexture(DstResource), ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 		Parameters.Common.Float4sPerLine = CalculateFloat4sPerLine();
 	}
 
-	FRDGByteBufferShader::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FRDGByteBufferShader::ResourceTypeDim>((int)ResourceTypeEnum);
+	FRDGScatterCopyCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FRDGScatterCopyCS::ResourceTypeDim>((int)ResourceTypeEnum);
+	PermutationVector.Set<FRDGScatterCopyCS::StructuredElementSizeDim >(static_cast<int32>(ByteBufferStructuredSize));
 	TShaderMapRef<FRDGScatterCopyCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
 	for (uint32 LoopIdx = 0; LoopIdx < ComputeConfig.NumLoops; ++LoopIdx)
@@ -915,9 +1101,9 @@ void MemsetResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, 
 	}
 	else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::STRUCTURED_BUFFER)
 	{
-		ResourceTypeEnum = EByteBufferResourceType::Float4_StructuredBuffer;
+		ResourceTypeEnum = EByteBufferResourceType::StructuredBuffer;
 
-		Parameters.DstStructuredBuffer = DstBuffer.UAV;
+		Parameters.DstStructuredBuffer4x = DstBuffer.UAV;
 	}
 	else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::TEXTURE)
 	{
@@ -929,6 +1115,7 @@ void MemsetResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, 
 
 	FMemcpyCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FMemcpyCS::ResourceTypeDim >((int)ResourceTypeEnum);
+	PermutationVector.Set<FMemcpyCS::StructuredElementSizeDim>((int32)EByteBufferStructuredSize::Uint4);
 
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
@@ -972,10 +1159,10 @@ void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, 
 		}
 		else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::STRUCTURED_BUFFER)
 		{
-			ResourceTypeEnum = EByteBufferResourceType::Float4_StructuredBuffer;
+			ResourceTypeEnum = EByteBufferResourceType::StructuredBuffer;
 
-			Parameters.SrcStructuredBuffer = SrcBuffer.SRV;
-			Parameters.Common.DstStructuredBuffer = DstBuffer.UAV;
+			Parameters.SrcStructuredBuffer4x = SrcBuffer.SRV;
+			Parameters.Common.DstStructuredBuffer4x = DstBuffer.UAV;
 		}
 		else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::BUFFER)
 		{
@@ -999,6 +1186,7 @@ void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, 
 
 		FMemcpyCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FMemcpyCS::ResourceTypeDim >((int)ResourceTypeEnum);
+		PermutationVector.Set<FMemcpyCS::StructuredElementSizeDim>((int32)EByteBufferStructuredSize::Uint4);
 
 		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FMemcpyCS >(PermutationVector);
 
@@ -1495,7 +1683,9 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, const R
 	}
 
 	if (NumScatters == 0)
+	{
 		return;
+	}
 
 	constexpr uint32 ThreadGroupSize = 64u;
 	uint32 NumBytesPerThread = (NumBytesPerElement & 15) == 0 ? 16 : 4;
@@ -1528,17 +1718,17 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, const R
 	}
 	else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::STRUCTURED_BUFFER)
 	{
-		ResourceTypeEnum = EByteBufferResourceType::Float4_StructuredBuffer;
+		ResourceTypeEnum = EByteBufferResourceType::StructuredBuffer;
 
-		Parameters.UploadStructuredBuffer = UploadBuffer.SRV;
+		Parameters.UploadStructuredBuffer4x = UploadBuffer.SRV;
 		Parameters.ScatterStructuredBuffer = ScatterBuffer.SRV;
-		Parameters.Common.DstStructuredBuffer = DstBuffer.UAV;
+		Parameters.Common.DstStructuredBuffer4x = DstBuffer.UAV;
 	}
 	else if (ResourceTypeTraits<ResourceType>::Type == EResourceType::BUFFER)
 	{
 		ResourceTypeEnum = EByteBufferResourceType::Float4_Buffer;
 
-		Parameters.UploadStructuredBuffer = UploadBuffer.SRV;
+		Parameters.UploadStructuredBuffer4x = UploadBuffer.SRV;
 		Parameters.ScatterStructuredBuffer = ScatterBuffer.SRV;
 		Parameters.Common.DstBuffer = DstBuffer.UAV;
 	}
@@ -1546,7 +1736,7 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, const R
 	{
 		ResourceTypeEnum = EByteBufferResourceType::Float4_Texture;
 
-		Parameters.UploadStructuredBuffer = UploadBuffer.SRV;
+		Parameters.UploadStructuredBuffer4x = UploadBuffer.SRV;
 		Parameters.ScatterStructuredBuffer = ScatterBuffer.SRV;
 		Parameters.Common.DstTexture = DstBuffer.UAV;
 
@@ -1555,6 +1745,7 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, const R
 
 	FByteBufferShader::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FByteBufferShader::ResourceTypeDim>((int)ResourceTypeEnum);
+	PermutationVector.Set<FMemcpyCS::StructuredElementSizeDim>((int32)EByteBufferStructuredSize::Uint4);
 
 	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FScatterCopyCS>(PermutationVector);
 

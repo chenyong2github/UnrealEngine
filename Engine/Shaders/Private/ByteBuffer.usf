@@ -3,10 +3,15 @@
 #include "Common.ush"
 
 #define RESOURCE_TYPE_FLOAT4_BUFFER				(0)
-#define RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER	(1)
+#define RESOURCE_TYPE_STRUCTURED_BUFFER			(1)
 #define RESOURCE_TYPE_UINT_BUFFER				(2)
 #define RESOURCE_TYPE_UINT4_ALIGNED_BUFFER		(3)
 #define RESOURCE_TYPE_FLOAT4_TEXTURE			(4)
+
+#define STRUCTURED_ELEMENT_SIZE_UINT1 (0)
+#define STRUCTURED_ELEMENT_SIZE_UINT2 (1)
+#define STRUCTURED_ELEMENT_SIZE_UINT4 (2)
+#define STRUCTURED_ELEMENT_SIZE_UINT8 (3)
 
 uint Value;
 uint Size;
@@ -15,20 +20,65 @@ uint NumScatters;
 uint SrcOffset;
 uint DstOffset;
 
+struct FUint8
+{
+	uint Value0;
+	uint Value1;
+	uint Value2;
+	uint Value3;
+	uint Value4;
+	uint Value5;
+	uint Value6;
+	uint Value7;
+};
+
+#if STRUCTURED_ELEMENT_SIZE_UINT1 == STRUCTURED_ELEMENT_SIZE
+	#define STRUCTURED_BUFFER_ACCESS(BufferName, Index) BufferName##1x[(Index)]
+	#define STRUCTURED_VALUE Value
+#elif STRUCTURED_ELEMENT_SIZE_UINT2 == STRUCTURED_ELEMENT_SIZE
+	#define STRUCTURED_BUFFER_ACCESS(BufferName, Index) BufferName##2x[(Index)]
+	#define STRUCTURED_VALUE uint2(Value, Value)
+#elif STRUCTURED_ELEMENT_SIZE_UINT4 == STRUCTURED_ELEMENT_SIZE
+	#define STRUCTURED_BUFFER_ACCESS(BufferName, Index) BufferName##4x[(Index)]
+	#define STRUCTURED_VALUE uint4(Value,Value,Value,Value)
+#elif STRUCTURED_ELEMENT_SIZE_UINT8 == STRUCTURED_ELEMENT_SIZE
+	#define STRUCTURED_BUFFER_ACCESS(BufferName, Index) BufferName##8x[(Index)]
+	FUint8 MakeUint8(uint InValue)
+	{
+		const FUint8 Uint8Value = {InValue,InValue,InValue,InValue,InValue,InValue,InValue,InValue };
+		return Uint8Value;
+	}
+	#define STRUCTURED_VALUE MakeUint8(Value)
+#endif
+
 #if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_BUFFER
 	StructuredBuffer<uint>			ScatterStructuredBuffer;
 	Buffer<float4>					SrcBuffer;
-	StructuredBuffer<float4>		UploadStructuredBuffer;
+	StructuredBuffer<float4>		UploadStructuredBuffer4x;
 	RWBuffer<float4>				DstBuffer;
-#elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
+#elif RESOURCE_TYPE == RESOURCE_TYPE_STRUCTURED_BUFFER
+
 	StructuredBuffer<uint>			ScatterStructuredBuffer;
-	StructuredBuffer<float4>		SrcStructuredBuffer;
-	StructuredBuffer<float4>		UploadStructuredBuffer;
-	RWStructuredBuffer<float4>		DstStructuredBuffer;
+
+	StructuredBuffer<uint>		UploadStructuredBuffer1x;
+	StructuredBuffer<uint2>		UploadStructuredBuffer2x;
+	StructuredBuffer<uint4>		UploadStructuredBuffer4x;
+	StructuredBuffer<FUint8>		UploadStructuredBuffer8x;
+
+	StructuredBuffer<uint>		SrcStructuredBuffer1x;
+	StructuredBuffer<uint2>		SrcStructuredBuffer2x;
+	StructuredBuffer<uint4>		SrcStructuredBuffer4x;
+	StructuredBuffer<FUint8>		SrcStructuredBuffer8x;
+
+	RWStructuredBuffer<uint>	DstStructuredBuffer1x;
+	RWStructuredBuffer<uint2>	DstStructuredBuffer2x;
+	RWStructuredBuffer<uint4>	DstStructuredBuffer4x;
+	RWStructuredBuffer<FUint8>	DstStructuredBuffer8x;
+	
 #elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_TEXTURE
 	StructuredBuffer<uint>			ScatterStructuredBuffer;
 	Texture2D<float4>				SrcTexture;
-	StructuredBuffer<float4>		UploadStructuredBuffer;
+	StructuredBuffer<float4>		UploadStructuredBuffer4x;
 	RWTexture2D<float4>				DstTexture;
 #elif RESOURCE_TYPE == RESOURCE_TYPE_UINT_BUFFER || RESOURCE_TYPE == RESOURCE_TYPE_UINT4_ALIGNED_BUFFER
 	ByteAddressBuffer				ScatterByteAddressBuffer;
@@ -46,11 +96,11 @@ void MemsetBufferCS( uint ThreadId : SV_DispatchThreadID )
 	{
 		DstBuffer[DstOffset + ThreadId] = asfloat(Value);
 	}
-#elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
+#elif RESOURCE_TYPE == RESOURCE_TYPE_STRUCTURED_BUFFER
 	// Size is in float4s
 	if( ThreadId < Size )
 	{
-		DstStructuredBuffer[ DstOffset + ThreadId ] = asfloat( Value );
+		STRUCTURED_BUFFER_ACCESS(DstStructuredBuffer, DstOffset + ThreadId) = STRUCTURED_VALUE;
 	}
 #elif RESOURCE_TYPE == RESOURCE_TYPE_UINT_BUFFER || RESOURCE_TYPE == RESOURCE_TYPE_UINT4_ALIGNED_BUFFER
 	// Size and offset is in dwords
@@ -95,11 +145,11 @@ void MemcpyCS( uint ThreadId : SV_DispatchThreadID )
 	{
 		DstBuffer[DstOffset + ThreadId] = SrcBuffer[SrcOffset + ThreadId];
 	}
-#elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
+#elif RESOURCE_TYPE == RESOURCE_TYPE_STRUCTURED_BUFFER
 	// Size is in float4s
 	if( ThreadId < Size )
 	{
-		DstStructuredBuffer[ DstOffset + ThreadId ] = SrcStructuredBuffer[ SrcOffset + ThreadId ];
+		STRUCTURED_BUFFER_ACCESS(DstStructuredBuffer, DstOffset + ThreadId) = STRUCTURED_BUFFER_ACCESS(SrcStructuredBuffer, SrcOffset + ThreadId);
 	}
 #elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_TEXTURE
 	uint2 IndexTexture;
@@ -154,11 +204,11 @@ void ScatterCopyCS( uint DispatchThreadId : SV_DispatchThreadID )
 #if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_BUFFER
 		uint DstIndex = ScatterStructuredBuffer[ScatterIndex] * Size + ScatterOffset;
 		uint SrcIndex = ThreadId;
-		DstBuffer[DstIndex] = UploadStructuredBuffer[SrcIndex];
-#elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
+		DstBuffer[DstIndex] = UploadStructuredBuffer4x[SrcIndex];
+#elif RESOURCE_TYPE == RESOURCE_TYPE_STRUCTURED_BUFFER
 		uint DstIndex = ScatterStructuredBuffer[ ScatterIndex ] * Size + ScatterOffset;
 		uint SrcIndex = ThreadId;
-		DstStructuredBuffer[ DstIndex ] = UploadStructuredBuffer[ SrcIndex ];
+		STRUCTURED_BUFFER_ACCESS(DstStructuredBuffer, DstIndex) = STRUCTURED_BUFFER_ACCESS(UploadStructuredBuffer, SrcIndex);
 #elif RESOURCE_TYPE == RESOURCE_TYPE_UINT4_ALIGNED_BUFFER
 		uint DstIndex = ScatterByteAddressBuffer.Load( ScatterIndex * 4 ) * Size + ScatterOffset;
 		uint SrcIndex = ThreadId;
@@ -171,7 +221,7 @@ void ScatterCopyCS( uint DispatchThreadId : SV_DispatchThreadID )
 		IndexTexture.y = DstIndex / (Float4sPerLine);
 		IndexTexture.x = DstIndex % (Float4sPerLine);
 
-		float4 srvResourceVal = UploadStructuredBuffer[SrcIndex];
+		float4 srvResourceVal = asfloat(UploadStructuredBuffer4x[SrcIndex]);
 		DstTexture[IndexTexture.xy] = srvResourceVal;
 #elif RESOURCE_TYPE == RESOURCE_TYPE_UINT_BUFFER
 		uint DstIndex = ScatterByteAddressBuffer.Load( ScatterIndex * 4 ) * Size + ScatterOffset;

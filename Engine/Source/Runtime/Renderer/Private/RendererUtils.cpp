@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RendererUtils.h"
+#include "RendererPrivateUtils.h"
 #include "RenderTargetPool.h"
 #include "RHIDefinitions.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "VisualizeTexture.h"
 #include "ScenePrivate.h"
 #include "SystemTextures.h"
+#include "UnifiedBuffer.h"
 
 class FRTWriteMaskDecodeCS : public FGlobalShader
 {
@@ -223,4 +225,29 @@ namespace Strata
 
 		return nullptr;
 	}
+}
+
+FPersistentStructuredBuffer::FPersistentStructuredBuffer(int32 InMinimumNumElementsReserved, const TCHAR *InName, bool bInRoundUpToPOT)
+	: MinimumNumElementsReserved(InMinimumNumElementsReserved)
+	, Name(InName)
+	, bRoundUpToPOT(bInRoundUpToPOT)
+{
+}
+
+FRDGBuffer* FPersistentStructuredBuffer::ResizeBufferIfNeeded(FRDGBuilder& GraphBuilder, int32 InNewMinNumElements, int32 BytesPerElement)
+{
+	int32 NewMinNumElements = FMath::Max(MinimumNumElementsReserved, bRoundUpToPOT ? int32(FMath::RoundUpToPowerOfTwo(InNewMinNumElements)) : InNewMinNumElements);
+	FRDGBuffer* BufferRDG = ::ResizeBufferIfNeeded(GraphBuilder, PooledBuffer, FRDGBufferDesc::CreateStructuredDesc(BytesPerElement, NewMinNumElements), Name);
+	return BufferRDG;
+}
+
+FRDGBuffer* FPersistentStructuredBuffer::Register(FRDGBuilder& GraphBuilder) 
+{ 
+	return GraphBuilder.RegisterExternalBuffer(PooledBuffer); 
+}
+
+void FStructuredBufferScatterUploader::UploadTo(FRDGBuilder& GraphBuilder, FRDGBuffer *DestBuffer, FRDGBuffer *ScatterOffsets, FRDGBuffer *Values, uint32 NumScatters, uint32 NumBytesPerElement, uint32 NumValuesPerScatter)
+{
+	FScatterCopyParams ScatterCopyParams { NumScatters, NumBytesPerElement, NumValuesPerScatter };
+	ScatterCopyResource(GraphBuilder, DestBuffer, GraphBuilder.CreateSRV(ScatterOffsets), GraphBuilder.CreateSRV(Values), ScatterCopyParams);
 }
