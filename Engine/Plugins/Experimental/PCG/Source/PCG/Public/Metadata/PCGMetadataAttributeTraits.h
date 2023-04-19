@@ -742,7 +742,7 @@ namespace PCG
 		template<>
 		struct MetadataTraits<FName>
 		{
-			enum { CompressData = true };
+			enum { CompressData = false };
 			enum { CanMinMax = false };
 			enum { CanSubAdd = false };
 			enum { CanMulDiv = false };
