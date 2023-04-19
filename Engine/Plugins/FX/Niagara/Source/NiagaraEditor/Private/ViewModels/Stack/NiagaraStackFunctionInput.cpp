@@ -8,7 +8,6 @@
 #include "Editor.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraClipboard.h"
-#include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
 #include "NiagaraConvertInPlaceUtilityBase.h"
 #include "NiagaraEditorModule.h"
@@ -29,7 +28,6 @@
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraScriptSource.h"
-#include "NiagaraScriptVariable.h"
 #include "NiagaraSettings.h"
 #include "ViewModels/NiagaraSystemScriptViewModel.h"
 #include "ScopedTransaction.h"
@@ -37,7 +35,6 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
-#include "Toolkits/NiagaraSystemToolkit.h"
 #include "UObject/StructOnScope.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraPlaceholderDataInterfaceManager.h"
@@ -2374,8 +2371,9 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 
 		UNiagaraClipboardContent* OldClipboardContent = nullptr;
 		UNiagaraScript* OldScript = InputValues.DynamicNode->FunctionScript;
-		FVersionedNiagaraScriptData* ScriptData = DynamicInputScript->GetLatestScriptData();
-		if (ScriptData->ConversionUtility != nullptr)
+		FVersionedNiagaraScriptData* OldScriptData = InputValues.DynamicNode->GetScriptData();
+		FVersionedNiagaraScriptData* NewScriptData = DynamicInputScript->GetLatestScriptData();
+		if (NewScriptData->ConversionUtility || OldScriptData->bUsePythonScriptConversion)
 		{
 			OldClipboardContent = UNiagaraClipboardContent::Create();
 			Copy(OldClipboardContent);
@@ -2402,18 +2400,18 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		InputValues.DynamicNode->MarkNodeRequiresSynchronization(TEXT("Dynamic input script reassigned."), true);
 		RefreshChildren();
 		
-		if (ScriptData->ConversionUtility != nullptr && OldClipboardContent != nullptr)
+		if (NewScriptData->ConversionUtility != nullptr && OldClipboardContent != nullptr)
 		{
-			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), ScriptData->ConversionUtility);
+			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), NewScriptData->ConversionUtility);
 
 			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
 			Copy(NewClipboardContent);
 			TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
 			GetUnfilteredChildrenOfType(DynamicInputCollections);
 
-			FText ConvertMessage;
 			if (ConversionUtility && DynamicInputCollections.Num() == 0)
 			{
+				FText ConvertMessage;
 				bool bConverted = ConversionUtility->Convert(OldScript, OldClipboardContent, DynamicInputScript, DynamicInputCollections[0], NewClipboardContent, InputValues.DynamicNode.Get(), ConvertMessage);
 				if (!ConvertMessage.IsEmptyOrWhitespace())
 				{
@@ -2426,7 +2424,31 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 				}
 			}
 		}
-
+		else if (NewScriptData && OldScriptData && OldScriptData->bUsePythonScriptConversion && OldClipboardContent != nullptr)
+		{
+			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
+			UNiagaraClipboardContent* NewPythonContent = nullptr;
+			Copy(NewClipboardContent);
+			if (OldClipboardContent->FunctionInputs.Num() == 1 && OldClipboardContent->FunctionInputs[0]->Dynamic)
+			{
+				OldClipboardContent->FunctionInputs = OldClipboardContent->FunctionInputs[0]->Dynamic->Inputs;
+			}
+			if (NewClipboardContent->FunctionInputs.Num() == 1 && NewClipboardContent->FunctionInputs[0]->Dynamic)
+			{
+				NewPythonContent = UNiagaraClipboardContent::Create();
+				NewPythonContent->FunctionInputs = NewClipboardContent->FunctionInputs[0]->Dynamic->Inputs;
+			}
+			InputValues.DynamicNode->PythonUpgradeScriptWarnings.Empty();
+			FText Warnings;
+			if (UNiagaraClipboardContent* NewInputs = FNiagaraEditorUtilities::RunPythonConversionScript(*NewScriptData, NewPythonContent, *OldScriptData, OldClipboardContent, Warnings))
+			{
+				NewClipboardContent->FunctionInputs[0]->Dynamic->Inputs = NewInputs->FunctionInputs;
+				Paste(NewClipboardContent, Warnings);
+				if (!Warnings.IsEmpty()) {
+					InputValues.DynamicNode->PythonUpgradeScriptWarnings = Warnings.ToString();
+				}
+			}			
+		}
 	}
 }
 

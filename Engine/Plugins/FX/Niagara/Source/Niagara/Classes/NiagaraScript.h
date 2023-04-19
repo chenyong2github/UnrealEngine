@@ -9,7 +9,6 @@
 #include "NiagaraCommon.h"
 #include "NiagaraScriptBase.h"
 #include "NiagaraShared.h"
-#include "NiagaraShader.h"
 #include "NiagaraParameters.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraScriptExecutionParameterStore.h"
@@ -654,8 +653,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = Script)
 	TObjectPtr<UNiagaraScript> DeprecationRecommendation;
 
-	/* Custom logic to convert the contents of an existing script assignment to this script.*/
+	/* If true then a python script will be executed when changing from this script to the selected deprectation recommendation. This allows the current script to transfer its inputs to the new script. */
 	UPROPERTY(EditAnywhere, Category = Script)
+	bool bUsePythonScriptConversion = false;
+
+	/** Reference to a python script that is executed when the user updates from a previous version to this version. */
+	UPROPERTY(EditAnywhere, Category = Script, meta=(EditCondition="bUsePythonScriptConversion", EditConditionHides))
+	ENiagaraPythonUpdateScriptReference ConversionScriptExecution = ENiagaraPythonUpdateScriptReference::ScriptAsset;
+
+	/** Python script to run when converting this script to the recommended deprecation update script. */
+	UPROPERTY(EditAnywhere, Category = Script, meta=(EditCondition="bUsePythonScriptConversion && ConversionScriptExecution == ENiagaraPythonUpdateScriptReference::DirectTextEntry", EditConditionHides))
+	FString PythonConversionScript;
+
+	/** Asset reference to a python script to run when converting this script to the recommended deprecation update script. */
+	UPROPERTY(EditAnywhere, Category = Script, meta=(EditCondition="bUsePythonScriptConversion && ConversionScriptExecution == ENiagaraPythonUpdateScriptReference::ScriptAsset", EditConditionHides))
+	FFilePath ConversionScriptAsset;
+
+	/* Custom logic to convert the contents of an existing script assignment to this script.*/
+	UPROPERTY(EditAnywhere, Category = Script, meta=(EditCondition="!bUsePythonScriptConversion", EditConditionHides))
 	TSubclassOf<UNiagaraConvertInPlaceUtilityBase> ConversionUtility;
 
 	/** Is this script experimental and less supported? */

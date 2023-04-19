@@ -11,6 +11,7 @@
 
 #include "Async/Async.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "NiagaraShader.h"
 #include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"

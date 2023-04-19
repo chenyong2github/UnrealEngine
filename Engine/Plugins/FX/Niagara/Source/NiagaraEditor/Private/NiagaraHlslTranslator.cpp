@@ -39,6 +39,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/CoreMiscDefines.h"
 #include "NiagaraDataInterfaceUtilities.h"
+#include "NiagaraShader.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 

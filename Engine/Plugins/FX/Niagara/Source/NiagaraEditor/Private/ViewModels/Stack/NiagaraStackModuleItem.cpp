@@ -1395,11 +1395,12 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 
 		const FString OldName = FunctionCallNode->GetFunctionName();
 		UNiagaraScript* OldScript = FunctionCallNode->FunctionScript;
+		FVersionedNiagaraScriptData* OldScriptData = FunctionCallNode->GetScriptData();
 
 		FunctionCallNode->Modify();
 		UNiagaraClipboardContent* OldClipboardContent = nullptr;
-		FVersionedNiagaraScriptData* ScriptData = ModuleScript->GetLatestScriptData();
-		if (ScriptData->ConversionUtility != nullptr)
+		FVersionedNiagaraScriptData* NewScriptData = ModuleScript->GetLatestScriptData();
+		if (NewScriptData->ConversionUtility || OldScriptData->bUsePythonScriptConversion)
 		{
 			OldClipboardContent = UNiagaraClipboardContent::Create();
 			Copy(OldClipboardContent);
@@ -1422,16 +1423,16 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 			RefreshChildren();
 		}
 		
-		if (ScriptData->ConversionUtility != nullptr && OldClipboardContent != nullptr)
+		if (NewScriptData->ConversionUtility != nullptr && OldClipboardContent != nullptr)
 		{
-			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), ScriptData->ConversionUtility);
-			FText ConvertMessage;
+			UNiagaraConvertInPlaceUtilityBase* ConversionUtility = NewObject< UNiagaraConvertInPlaceUtilityBase>(GetTransientPackage(), NewScriptData->ConversionUtility);
 
 			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
 			Copy(NewClipboardContent);
 
 			if (ConversionUtility )
 			{
+				FText ConvertMessage;
 				bool bConverted = ConversionUtility->Convert(OldScript, OldClipboardContent, ModuleScript, InputCollection, NewClipboardContent, FunctionCallNode, ConvertMessage);
 				if (!ConvertMessage.IsEmptyOrWhitespace())
 				{
@@ -1443,6 +1444,30 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 					FSlateNotificationManager::Get().AddNotification(Msg);
 				}
 			}
+		}
+		else if (NewScriptData && OldScriptData && OldScriptData->bUsePythonScriptConversion && OldClipboardContent != nullptr)
+		{
+			UNiagaraClipboardContent* NewClipboardContent = UNiagaraClipboardContent::Create();
+			Copy(NewClipboardContent);
+			if (OldClipboardContent->Functions.Num() > 0)
+			{
+				OldClipboardContent->FunctionInputs = OldClipboardContent->Functions[0]->Inputs;
+				OldClipboardContent->Functions.Empty();
+			}
+			if (NewClipboardContent->Functions.Num() > 0)
+			{
+				NewClipboardContent->FunctionInputs = NewClipboardContent->Functions[0]->Inputs;
+				NewClipboardContent->Functions.Empty();
+			}
+			FunctionCallNode->PythonUpgradeScriptWarnings.Empty();
+			FText Warnings;
+			if (UNiagaraClipboardContent* NewInputs = FNiagaraEditorUtilities::RunPythonConversionScript(*NewScriptData, NewClipboardContent, *OldScriptData, OldClipboardContent, Warnings))
+			{
+				Paste(NewInputs, Warnings);
+				if (!Warnings.IsEmpty()) {
+					FunctionCallNode->PythonUpgradeScriptWarnings = Warnings.ToString();
+				}
+			}			
 		}
 	}
 }

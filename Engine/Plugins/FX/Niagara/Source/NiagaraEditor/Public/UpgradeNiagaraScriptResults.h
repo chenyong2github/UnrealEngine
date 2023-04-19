@@ -143,6 +143,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Scripting")
     void SetLinkedInput(const FString& InputName, FString Value);
 
+	UFUNCTION(BlueprintCallable, Category = "Scripting")
+	void SetNewInput(const FString& InputName, UNiagaraPythonScriptModuleInput* Value);
+
 private:
 	UNiagaraPythonScriptModuleInput* GetNewInput(const FName& InputName) const;
 

@@ -13,6 +13,7 @@
 #include "ViewModels/NiagaraSystemScalabilityViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 
+class UNiagaraClipboardContent;
 class UNiagaraNodeInput;
 class UNiagaraNodeOutput;
 class UNiagaraNodeFunctionCall;
@@ -44,6 +45,7 @@ struct FNiagaraNamespaceMetadata;
 class FNiagaraParameterHandle;
 class INiagaraParameterDefinitionsSubscriberViewModel;
 struct FNiagaraScriptVersionUpgradeContext;
+struct FNiagaraScriptConversionContext;
 class UUpgradeNiagaraEmitterContext;
 
 enum class ENiagaraFunctionDebugState : uint8;
@@ -345,6 +347,9 @@ namespace FNiagaraEditorUtilities
 	TSharedPtr<INiagaraParameterDefinitionsSubscriberViewModel> GetOwningLibrarySubscriberViewModelForGraph(const UNiagaraGraph* Graph);
 
 	TArray<UNiagaraParameterDefinitions*> DowncastParameterDefinitionsBaseArray(const TArray<UNiagaraParameterDefinitionsBase*> BaseArray);
+	
+	// Executes python conversion script on the given source node
+    UNiagaraClipboardContent* RunPythonConversionScript(FVersionedNiagaraScriptData& NewScriptVersionData, UNiagaraClipboardContent* NewScriptInputs, FVersionedNiagaraScriptData& OldScriptVersionData, UNiagaraClipboardContent* OldScriptInputs, FText& OutWarnings);
 
 	// Executes python upgrade scripts on the given source node for all the given in-between versions
 	void RunPythonUpgradeScripts(UNiagaraNodeFunctionCall* SourceNode, const TArray<FVersionedNiagaraScriptData*>& UpgradeVersionData, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, FString& OutWarnings);

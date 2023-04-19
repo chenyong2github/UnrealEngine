@@ -300,6 +300,25 @@ void UUpgradeNiagaraScriptResults::SetLinkedInput(const FString& InputName, FStr
 	}
 }
 
+void UUpgradeNiagaraScriptResults::SetNewInput(const FString& InputName, UNiagaraPythonScriptModuleInput* Value)
+{
+	for (int i = 0; i < NewInputs.Num(); i++)
+	{
+		UNiagaraPythonScriptModuleInput* ModuleInput = NewInputs[i];
+		UNiagaraClipboardFunctionInput* FunctionInput = const_cast<UNiagaraClipboardFunctionInput*>(ModuleInput->Input.Get());
+		if (Value && FunctionInput && FunctionInput->InputName == InputName && FunctionInput->InputType == Value->Input->InputType)
+		{
+			FunctionInput->Data = Value->Input->Data;
+			FunctionInput->Dynamic = Value->Input->Dynamic;
+			FunctionInput->Expression = Value->Input->Expression;
+			FunctionInput->Linked = Value->Input->Linked;
+			FunctionInput->Local = Value->Input->Local;
+			FunctionInput->ValueMode = Value->Input->ValueMode;
+			return;
+		}
+	}
+}
+
 UNiagaraPythonScriptModuleInput* UUpgradeNiagaraScriptResults::GetNewInput(const FName& InputName) const
 {
 	for (UNiagaraPythonScriptModuleInput* ModuleInput : NewInputs)

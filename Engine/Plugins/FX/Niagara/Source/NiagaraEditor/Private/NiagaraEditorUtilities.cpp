@@ -3230,11 +3230,9 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 	FNiagaraEditorUtilities::CompileExistingEmitters(AffectedEmitters);
 }
 
-TArray<UNiagaraPythonScriptModuleInput*> GetFunctionCallInputs(const FNiagaraScriptVersionUpgradeContext& UpgradeContext)
+TArray<UNiagaraPythonScriptModuleInput*> GetFunctionCallInputs(UNiagaraClipboardContent* ClipboardContent)
 {
 	TArray<UNiagaraPythonScriptModuleInput*> ScriptInputs;
-	UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
-	UpgradeContext.CreateClipboardCallback(ClipboardContent);
 	for (const UNiagaraClipboardFunctionInput* FunctionInput : ClipboardContent->FunctionInputs)
 	{
 		UNiagaraPythonScriptModuleInput* ScriptInput = NewObject<UNiagaraPythonScriptModuleInput>();
@@ -3242,6 +3240,23 @@ TArray<UNiagaraPythonScriptModuleInput*> GetFunctionCallInputs(const FNiagaraScr
 		ScriptInputs.Add(ScriptInput);
 	}
 	return ScriptInputs;
+}
+
+TArray<UNiagaraPythonScriptModuleInput*> GetFunctionCallInputs(const FNiagaraScriptVersionUpgradeContext& UpgradeContext)
+{
+	UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+	UpgradeContext.CreateClipboardCallback(ClipboardContent);
+	return GetFunctionCallInputs(ClipboardContent);
+}
+
+void AddStackWarning(const FText& ToAdd, bool& bLoggedWarning, FText& OutWarnings)
+{
+	if (!bLoggedWarning)
+	{
+		OutWarnings = LOCTEXT("NewWarningHeader", "Python conversion script:\n");
+	}
+	bLoggedWarning = true;
+	OutWarnings = FText::Format(FText::FromString("{0}  * {1}\n"), OutWarnings, ToAdd);
 }
 
 void AddStackWarning(const FNiagaraAssetVersion& FromVersion, const FNiagaraAssetVersion& ToVersion, const FString& ToAdd, bool& bLoggedWarning, FString& OutWarnings)
@@ -3262,6 +3277,84 @@ const FString PythonUpgradeScriptStub = TEXT(
 	"{1}\n"
 	"### End User Script ###\n"
 	"upgrade_context.cancelled_by_python_error = False\n");
+
+UNiagaraClipboardContent* FNiagaraEditorUtilities::RunPythonConversionScript(FVersionedNiagaraScriptData& NewScriptVersionData, UNiagaraClipboardContent* NewScriptInputs, FVersionedNiagaraScriptData& OldScriptVersionData, UNiagaraClipboardContent* OldScriptInputs, FText& OutWarnings)
+{
+	UUpgradeNiagaraScriptResults* Results = NewObject<UUpgradeNiagaraScriptResults>();
+	
+	FString PythonScript;
+	if (OldScriptVersionData.ConversionScriptExecution == ENiagaraPythonUpdateScriptReference::DirectTextEntry)
+	{
+		PythonScript = OldScriptVersionData.PythonConversionScript;
+	}
+	else if (OldScriptVersionData.ConversionScriptExecution == ENiagaraPythonUpdateScriptReference::ScriptAsset && !OldScriptVersionData.ConversionScriptAsset.FilePath.IsEmpty())
+	{
+		FFileHelper::LoadFileToString(PythonScript, *OldScriptVersionData.ConversionScriptAsset.FilePath);
+	}
+
+	if (PythonScript.IsEmpty() || NewScriptInputs == nullptr ||OldScriptInputs == nullptr)
+	{
+		return nullptr;
+	}
+
+	// set up script context
+	bool bLoggedWarning = false;
+	Results->OldInputs = GetFunctionCallInputs(OldScriptInputs);
+	Results->NewInputs = GetFunctionCallInputs(NewScriptInputs);
+	Results->Init();
+	
+	// save python script to a temp file to execute
+	FString TempScriptFile = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir(), TEXT("ScriptConversion-"), TEXT(".py"));
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	ON_SCOPE_EXIT
+	{
+		// Delete temp script file
+		if (GNiagaraDeletePythonFilesOnError || !Results->bCancelledByPythonError)
+		{
+			PlatformFile.DeleteFile(*TempScriptFile);
+		}
+	};
+	if (!FFileHelper::SaveStringToFile(FString::Format(*PythonUpgradeScriptStub, {Results->GetPathName(), PythonScript}), *TempScriptFile))
+	{
+		UE_LOG(LogNiagaraEditor, Error, TEXT("Unable to save python script to file %s"), *TempScriptFile);
+		AddStackWarning(LOCTEXT("CreatePythonError", "Cannot create python script file!"), bLoggedWarning, OutWarnings);
+		return nullptr;
+	}
+
+	Results->bCancelledByPythonError = true;
+	FPythonCommandEx PythonCommand = FPythonCommandEx();
+	PythonCommand.ExecutionMode = EPythonCommandExecutionMode::ExecuteFile;
+	PythonCommand.Command = TempScriptFile;
+
+	// execute python script
+	IPythonScriptPlugin::Get()->ExecPythonCommandEx(PythonCommand);
+
+	UNiagaraClipboardContent* ResultClipboard = UNiagaraClipboardContent::Create();
+	if (Results->bCancelledByPythonError)
+	{
+		UE_LOG(LogNiagaraEditor, Error, TEXT("%s\n\nPython script:\n%s\nTo keep the intermediate script around, set fx.Niagara.DeletePythonFilesOnError to 0."), *PythonCommand.CommandResult, *PythonCommand.Command);
+		AddStackWarning(LOCTEXT("PythonExecutionError", "Python script ended with error, check the log!"), bLoggedWarning, OutWarnings);
+	}
+	else
+	{
+		for (UNiagaraPythonScriptModuleInput* ModuleInput : Results->NewInputs)
+		{
+			ResultClipboard->FunctionInputs.Add(ModuleInput->Input);	
+		}
+	}
+	if (PythonCommand.LogOutput.Num() > 0)
+	{
+		for (FPythonLogOutputEntry& Entry : PythonCommand.LogOutput)
+		{
+			AddStackWarning(FText::FromString(Entry.Output), bLoggedWarning, OutWarnings);
+		}
+	}
+	if (ResultClipboard->FunctionInputs.Num() > 0)
+	{
+		return ResultClipboard;
+	}
+	return nullptr;
+}
 
 void FNiagaraEditorUtilities::RunPythonUpgradeScripts(UNiagaraNodeFunctionCall* SourceNode,	const TArray<FVersionedNiagaraScriptData*>& UpgradeVersionData, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, FString& OutWarnings)
 {

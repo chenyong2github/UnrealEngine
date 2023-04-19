@@ -17,6 +17,7 @@ the same VectorVM byte code / compute shader code
 #include "RenderGraphUtils.h"
 #include "RHIResources.h"
 #include "RendererInterface.h"
+#include "RendererUtils.h"
 
 enum class EGPUSortFlags : uint32;
 struct FNiagaraGPUSortInfo;
