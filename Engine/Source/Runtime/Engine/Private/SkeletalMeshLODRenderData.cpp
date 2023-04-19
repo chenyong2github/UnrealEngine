@@ -281,6 +281,8 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 		BeginInitResource(&MorphTargetVertexInfoBuffers);
 	}
 
+	VertexAttributeBuffers.InitResources();
+
 #if RHI_RAYTRACING
 	if (IsRayTracingAllowed())
 	{
@@ -313,6 +315,7 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, SkinWeightProfilesData.GetResourcesSize());
 	SkinWeightProfilesData.ReleaseResources();
 
+	VertexAttributeBuffers.ReleaseResources();
 #if RHI_RAYTRACING
 	if (IsRayTracingAllowed())
 	{
@@ -353,19 +356,23 @@ void FSkeletalMeshLODRenderData::DecrementMemoryStats()
 }
 
 #if WITH_EDITOR
-void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* ImportedModel, ESkeletalMeshVertexFlags BuildFlags)
+void FSkeletalMeshLODRenderData::BuildFromLODModel(
+	const FSkeletalMeshLODModel* InLODModel,
+	TConstArrayView<FSkeletalMeshVertexAttributeInfo> InVertexAttributeInfos,
+	ESkeletalMeshVertexFlags InBuildFlags
+	)
 {
-	const bool bUseFullPrecisionUVs = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::UseFullPrecisionUVs);
-	const bool bUseHighPrecisionTangentBasis = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::UseHighPrecisionTangentBasis);
-	const bool bHasVertexColors = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::HasVertexColors);
-	const bool bUseBackwardsCompatibleF16TruncUVs = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::UseBackwardsCompatibleF16TruncUVs);
-	const bool bUseHighPrecisionWeights = EnumHasAllFlags(BuildFlags, ESkeletalMeshVertexFlags::UseHighPrecisionWeights);
+	const bool bUseFullPrecisionUVs = EnumHasAllFlags(InBuildFlags, ESkeletalMeshVertexFlags::UseFullPrecisionUVs);
+	const bool bUseHighPrecisionTangentBasis = EnumHasAllFlags(InBuildFlags, ESkeletalMeshVertexFlags::UseHighPrecisionTangentBasis);
+	const bool bHasVertexColors = EnumHasAllFlags(InBuildFlags, ESkeletalMeshVertexFlags::HasVertexColors);
+	const bool bUseBackwardsCompatibleF16TruncUVs = EnumHasAllFlags(InBuildFlags, ESkeletalMeshVertexFlags::UseBackwardsCompatibleF16TruncUVs);
+	const bool bUseHighPrecisionWeights = EnumHasAllFlags(InBuildFlags, ESkeletalMeshVertexFlags::UseHighPrecisionWeights);
 
 	// Copy required info from source sections
 	RenderSections.Empty();
-	for (int32 SectionIndex = 0; SectionIndex < ImportedModel->Sections.Num(); SectionIndex++)
+	for (int32 SectionIndex = 0; SectionIndex < InLODModel->Sections.Num(); SectionIndex++)
 	{
-		const FSkelMeshSection& ModelSection = ImportedModel->Sections[SectionIndex];
+		const FSkelMeshSection& ModelSection = InLODModel->Sections[SectionIndex];
 
 		FSkelMeshRenderSection NewRenderSection;
 		NewRenderSection.MaterialIndex = ModelSection.MaterialIndex;
@@ -388,7 +395,7 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 	}
 
 	TArray<FSoftSkinVertex> Vertices;
-	ImportedModel->GetVertices(Vertices);
+	InLODModel->GetVertices(Vertices);
 
 	// match UV and tangent precision for mesh vertex buffer to setting from parent mesh
 	StaticVertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(bUseFullPrecisionUVs);
@@ -396,19 +403,19 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 
 	// init vertex buffer with the vertex array
 	StaticVertexBuffers.PositionVertexBuffer.Init(Vertices.Num());
-	StaticVertexBuffers.StaticMeshVertexBuffer.Init(Vertices.Num(), ImportedModel->NumTexCoords);
+	StaticVertexBuffers.StaticMeshVertexBuffer.Init(Vertices.Num(), InLODModel->NumTexCoords);
 
 	for (int32 i = 0; i < Vertices.Num(); i++)
 	{
 		StaticVertexBuffers.PositionVertexBuffer.VertexPosition(i) = Vertices[i].Position;
 		StaticVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(i, Vertices[i].TangentX, Vertices[i].TangentY, Vertices[i].TangentZ);
-		for (uint32 j = 0; j < ImportedModel->NumTexCoords; j++)
+		for (uint32 j = 0; j < InLODModel->NumTexCoords; j++)
 		{
 			StaticVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(i, j, Vertices[i].UVs[j], bUseBackwardsCompatibleF16TruncUVs);
 		}
 	}
 
-	int32 MaxBoneInfluences = ImportedModel->GetMaxBoneInfluences();
+	int32 MaxBoneInfluences = InLODModel->GetMaxBoneInfluences();
 	if (!bUseHighPrecisionWeights)
 	{
 		// Re-normalize the weights for 8-bits to ensure that they are distributed using the old algorithm
@@ -445,7 +452,7 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 	// Init skin weight buffer
 	SkinWeightVertexBuffer.SetNeedsCPUAccess(true);
 	SkinWeightVertexBuffer.SetMaxBoneInfluences(MaxBoneInfluences);
-	SkinWeightVertexBuffer.SetUse16BitBoneIndex(ImportedModel->DoSectionsUse16BitBoneIndex());
+	SkinWeightVertexBuffer.SetUse16BitBoneIndex(InLODModel->DoSectionsUse16BitBoneIndex());
 	SkinWeightVertexBuffer.SetUse16BitBoneWeight(bUseHighPrecisionWeights);
 	SkinWeightVertexBuffer.Init(Vertices);
 
@@ -455,17 +462,17 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 		StaticVertexBuffers.ColorVertexBuffer.InitFromColorArray(&Vertices[0].Color, Vertices.Num(), sizeof(FSoftSkinVertex));
 	}
 
-	if (ImportedModel->HasClothData())
+	if (InLODModel->HasClothData())
 	{
 		TArray<FMeshToMeshVertData> MappingData;
 		TArray<FClothBufferIndexMapping> ClothIndexMapping;
-		ImportedModel->GetClothMappingData(MappingData, ClothIndexMapping);
+		InLODModel->GetClothMappingData(MappingData, ClothIndexMapping);
 		ClothVertexBuffer.Init(MappingData, ClothIndexMapping);
 	}
 
-	const uint8 DataTypeSize = (ImportedModel->NumVertices < MAX_uint16) ? sizeof(uint16) : sizeof(uint32);
+	const uint8 DataTypeSize = (InLODModel->NumVertices < MAX_uint16) ? sizeof(uint16) : sizeof(uint32);
 
-	MultiSizeIndexContainer.RebuildIndexBuffer(DataTypeSize, ImportedModel->IndexBuffer);
+	MultiSizeIndexContainer.RebuildIndexBuffer(DataTypeSize, InLODModel->IndexBuffer);
 	
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 
@@ -473,14 +480,33 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 
 	SkinWeightProfilesData.Init(&SkinWeightVertexBuffer);
 	// Generate runtime version of skin weight profile data, containing all required per-skin weight override data
-	for (const auto& Pair : ImportedModel->SkinWeightProfiles)
+	for (const auto& Pair : InLODModel->SkinWeightProfiles)
 	{
 		FRuntimeSkinWeightProfileData& Override = SkinWeightProfilesData.AddOverrideData(Pair.Key);
-		MeshUtilities.GenerateRuntimeSkinWeightData(ImportedModel, Pair.Value.SkinWeights, bUseHighPrecisionWeights, Override);
+		MeshUtilities.GenerateRuntimeSkinWeightData(InLODModel, Pair.Value.SkinWeights, bUseHighPrecisionWeights, Override);
 	}
 
-	ActiveBoneIndices = ImportedModel->ActiveBoneIndices;
-	RequiredBones = ImportedModel->RequiredBones;
+	for (const FSkeletalMeshVertexAttributeInfo& VertexAttributeInfo: InVertexAttributeInfos)
+	{
+		if (!VertexAttributeInfo.IsEnabledForRender())
+		{
+			continue;
+		}
+
+		const FSkeletalMeshModelVertexAttribute* VertexAttribute = InLODModel->VertexAttributes.Find(VertexAttributeInfo.Name);
+		if (ensure(VertexAttribute))
+		{
+			VertexAttributeBuffers.AddAttribute(
+				VertexAttributeInfo.Name,
+				VertexAttributeInfo.DataType,
+				InLODModel->NumVertices,
+				VertexAttribute->ComponentCount,
+				VertexAttribute->Values);
+		}
+	}
+
+	ActiveBoneIndices = InLODModel->ActiveBoneIndices;
+	RequiredBones = InLODModel->RequiredBones;
 }
 
 #endif // WITH_EDITOR
@@ -503,6 +529,7 @@ void FSkeletalMeshLODRenderData::ReleaseCPUResources(bool bForStreaming)
 			ClothVertexBuffer.CleanUp();
 			StaticVertexBuffers.ColorVertexBuffer.CleanUp();
 			SkinWeightProfilesData.ReleaseCPUResources();
+			VertexAttributeBuffers.CleanUp();
 		}
 	}
 }
@@ -524,7 +551,8 @@ void FSkeletalMeshLODRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeRe
 	CumulativeResourceSize.AddUnknownMemoryBytes(TEXT("SkinWeightVertexBuffer"), SkinWeightVertexBuffer.GetVertexDataSize());
 	CumulativeResourceSize.AddUnknownMemoryBytes(TEXT("ColorVertexBuffer"), StaticVertexBuffers.ColorVertexBuffer.GetAllocatedSize());
 	CumulativeResourceSize.AddUnknownMemoryBytes(TEXT("ClothVertexBuffer"), ClothVertexBuffer.GetVertexDataSize());
-	CumulativeResourceSize.AddUnknownMemoryBytes(TEXT("SkinWeightProfilesData"), SkinWeightProfilesData.GetResourcesSize());	
+	CumulativeResourceSize.AddUnknownMemoryBytes(TEXT("SkinWeightProfilesData"), SkinWeightProfilesData.GetResourcesSize());
+	CumulativeResourceSize.AddUnknownMemoryBytes(TEXT("VertexAttributeData"), VertexAttributeBuffers.GetResourceSize());
 }
 
 SIZE_T FSkeletalMeshLODRenderData::GetCPUAccessMemoryOverhead() const
@@ -795,6 +823,10 @@ void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkinnedAss
 #endif
 			}
 		}
+	}
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SkeletalVertexAttributes)
+	{
+		Ar << VertexAttributeBuffers;
 	}
 }
 

@@ -211,6 +211,10 @@ public:
 		bool bUseMikkTSpace,
 		bool bComputeWeightedNormals);
 
+	
+	/** Build the vertex attributes */
+	static bool UpdateLODInfoVertexAttributes(USkeletalMesh *InSkeletalMesh, int32 InSourceLODIndex, int32 InTargetLODIndex, bool bInCopyAttributeValues);
+	
 	/**
 	 * Re-generate all (editor-only) skin weight profile, used whenever we rebuild the skeletal mesh data which could change the chunking and bone indices
 	 * 

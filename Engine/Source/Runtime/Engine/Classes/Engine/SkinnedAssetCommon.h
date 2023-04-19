@@ -12,6 +12,8 @@
 #include "Engine/EngineTypes.h"
 #include "PerPlatformProperties.h"
 #include "SkeletalMeshReductionSettings.h"
+#include "Animation/SkeletalMeshVertexAttribute.h"
+
 #include "SkinnedAssetCommon.generated.h"
 
 
@@ -182,6 +184,10 @@ struct FSkeletalMeshLODInfo
 	UPROPERTY(EditAnywhere, Category = SkeletalMeshLODInfo)
 	uint8 bAllowCPUAccess : 1;
 
+	/** List of vertex attributes to include for rendering and what type they should be */
+	UPROPERTY(EditAnywhere, Category = SkeletalMeshLODInfo, AdvancedDisplay, EditFixedSize, Meta=(NoResetToDefault))
+	TArray<FSkeletalMeshVertexAttributeInfo> VertexAttributes;	
+	
 	/**
 	Mesh supports uniformly distributed sampling in constant time.
 	Memory cost is 8 bytes per triangle.

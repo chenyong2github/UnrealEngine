@@ -256,6 +256,18 @@ namespace SkeletalSimplifier
 
 		};
 
+		/** Dynamic vertex attributes. Distinguished from the BoneSparseVertexAttrs. Based on SparseVecD, rather than
+		 *  using dense vector wrappers, because of requirements by the simplifier. 
+		 */
+		class DynamicVertexAttrs : public SparseVecD
+		{
+		public:
+			static void Correct()
+			{
+				// Do nothing.
+			}
+		};  
+
 		/**
 		* Sparse attributes.
 		* Used to hold bone weights where the bone ID is the attribute key.

@@ -154,6 +154,10 @@ private:
 	*/
 	struct FPrioritizedFeatures;
 
+	/*
+	 * Vertex attribute information
+	 */
+	struct FVertexAttributeInfo;
 private:
 
 	/**
@@ -202,7 +206,8 @@ private:
 	* @param SrcLODModel    - the original model
 	* @param BoneMatrices   - define the configuration of the model
 	* @param LODIndex       - target index for the result.
-	* @param OutSkinnedMesh - the posed mesh 
+	* @param OutSkinnedMesh - the posed mesh
+	* @param VertexAttributeInfos The vertex attribute information from the original and how it is packed in the skinned mesh.
 	* @param VerToSectionMap - if provided, on return this array will allow VertexID to SectionID lookup
 	*/
 	void ConvertToFSkinnedSkeletalMesh( const FSkeletalMeshLODModel& SrcLODModel,
@@ -210,6 +215,7 @@ private:
 		                                const int32 LODIndex,
 		                                SkeletalSimplifier::FSkinnedSkeletalMesh& OutSkinnedMesh,
 										const FString& SkeletalMeshName,
+										TArray<FVertexAttributeInfo>& VertexAttributeInfos, 
 										TArray<int32>* VertToSectionMap = nullptr) const;
 
 	/**
@@ -219,6 +225,7 @@ private:
 	* @param SrcLODModel     - Reference model - provided in case some closest per-vertex data needs to be transfered (e.g. alternate weights) 
 	* @param SkinnedMesh     - the source mesh
 	* @param RefSkeleton    - reference skeleton
+	* @param VertexAttributeInfos The vertex attribute information from the original and how it is packed in the skinned mesh.
 	* @param NewModel       - resulting MeshLODModel
 	*/
 	void ConvertToFSkeletalMeshLODModel( const FString& SkeletalMeshName,
@@ -226,6 +233,7 @@ private:
 		                                 const FSkeletalMeshLODModel& SrcLODModel,
 		                                 const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
 		                                 const FReferenceSkeleton& RefSkeleton,
+		                                 const TArray<FVertexAttributeInfo>& VertexAttributeInfos,
 		                                 FSkeletalMeshLODModel& NewModel,
 										 const bool bReducingSourceModel,
 										 const ITargetPlatform* TargetPlatform) const;
@@ -328,6 +336,19 @@ struct FQuadricSkeletalMeshReduction::FPrioritizedFeatures
 		return (BoneIds.Num() >0 || SectionIds.Num() > 0);
 	}
 };
+
+struct FQuadricSkeletalMeshReduction::FVertexAttributeInfo
+{
+	/* The name of the vertex attribute */
+	FName AttributeName;
+	
+	/* Number of float components per vertex for this attribute */
+	int32 ComponentCount;
+	
+	/* Offset into the reducers's compacted attribute storage for unpacking. */
+	int32 Offset;
+};
+
 /**
 *  Required MeshReduction Interface.
 */
@@ -477,12 +498,15 @@ bool FQuadricSkeletalMeshReduction::RemoveMeshSection(FSkeletalMeshLODModel& Mod
 }
 
 
-void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkeletalMeshLODModel& SrcLODModel,
-	                                                               const TArray<FMatrix>& BoneMatrices,
-	                                                               const int32 LODIndex,
-	                                                               SkeletalSimplifier::FSkinnedSkeletalMesh& OutSkinnedMesh,
-																   const FString& SkeletalMeshName,
-																   TArray<int32>* VertToSectionMap) const
+void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh(
+	const FSkeletalMeshLODModel& SrcLODModel,
+	const TArray<FMatrix>& BoneMatrices,
+	const int32 LODIndex,
+	SkeletalSimplifier::FSkinnedSkeletalMesh& OutSkinnedMesh,
+	const FString& SkeletalMeshName,
+	TArray<FVertexAttributeInfo>& VertexAttributeInfos,
+	TArray<int32>* VertToSectionMap
+	) const
 {
 
 
@@ -609,6 +633,15 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 		int32 MaxLODIndex = SrcLODModel.Sections[SectionIndex].GenerateUpToLodIndex;
 		return (MaxLODIndex != -1 && MaxLODIndex < LODIndex);
 	};
+
+	// Fill in the attribute infos
+	VertexAttributeInfos.Reset();
+	int32 AttributeOffset = 0;
+	for (const TPair<FName, FSkeletalMeshModelVertexAttribute>& Attribute: SrcLODModel.VertexAttributes)
+	{
+		VertexAttributeInfos.Add({Attribute.Key, Attribute.Value.ComponentCount, AttributeOffset});
+		AttributeOffset += Attribute.Value.ComponentCount; 
+	}
 
 	// Count the total number of verts, but only the number of triangles that
 	// are used in sections we don't skip.
@@ -777,6 +810,23 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 				if (Influence > 0)
 				{
 					SparseBones.SetElement((int32)boneId, boneWeight);
+				}
+			}
+		}
+
+		// Copy over the attributes. 
+		for (const FVertexAttributeInfo& AttributeInfo: VertexAttributeInfos)
+		{
+			const FSkeletalMeshModelVertexAttribute& VertexAttribute = SrcLODModel.VertexAttributes[AttributeInfo.AttributeName]; 			
+			
+			for (int32 Vertex = VertexRange.Begin; Vertex < VertexRange.End; ++Vertex)
+			{
+				auto& VertexAttrs  = OutVertexBuffer[Vertex].AdditionalAttributes;
+				const float* AttributeData = VertexAttribute.Values.GetData() + Vertex * VertexAttribute.ComponentCount; 
+				
+				for (int32 Component = 0; Component < VertexAttribute.ComponentCount; Component++)
+				{
+					VertexAttrs.SetElement(AttributeInfo.Offset + Component, AttributeData[Component]); 
 				}
 			}
 		}
@@ -1653,14 +1703,16 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 
 
 
-void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const FString& SkeletalMeshName,
-	                                                                const int32 MaxBonesPerVertex,
-	                                                                const FSkeletalMeshLODModel& SrcLODModel,
-	                                                                const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
-	                                                                const FReferenceSkeleton& RefSkeleton,
-	                                                                FSkeletalMeshLODModel& NewModel,
-																	const bool bReducingSourceModel,
-																    const ITargetPlatform* TargetPlatform) const
+void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel(
+	const FString& SkeletalMeshName,
+	const int32 MaxBonesPerVertex,
+	const FSkeletalMeshLODModel& SrcLODModel,
+	const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
+	const FReferenceSkeleton& RefSkeleton,
+	const TArray<FVertexAttributeInfo>& VertexAttributeInfos,
+	FSkeletalMeshLODModel& NewModel,
+	const bool bReducingSourceModel,
+	const ITargetPlatform* TargetPlatform) const
 {
 	// We might be re-using this model - so clear it.
 
@@ -1679,8 +1731,6 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const FStrin
 
 		AddSourceModelInfluences(SrcLODModel, SkinnedMesh, NewModel, SkeletalMeshName);
 	}
-	
-
 
 	// Create dummy map of 'point to original'
 
@@ -1723,6 +1773,27 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const FStrin
 	// Set texture coordinate count on the new model.
 	NewModel.NumTexCoords = SkeletalMeshData.TexCoordCount;
 
+	// Copy back the vertex attributes, if any. Use the MeshToImportVertexMap on the NewModel to map from the new point location to the
+	// one in the reduction mesh.
+	for (const FVertexAttributeInfo& AttributeInfo: VertexAttributeInfos)
+	{
+		FSkeletalMeshModelVertexAttribute& VertexAttribute = NewModel.VertexAttributes.FindOrAdd(AttributeInfo.AttributeName);
+
+		VertexAttribute.ComponentCount = AttributeInfo.ComponentCount;
+		VertexAttribute.Values.Reserve(SkinnedMesh.NumVertices() * VertexAttribute.ComponentCount);
+
+		for (int32 Index = 0; Index < SkinnedMesh.NumVertices(); Index++)
+		{
+			const int32 OriginalIndex = NewModel.MeshToImportVertexMap[Index];
+			const auto& Vertex = SkinnedMesh.VertexBuffer[OriginalIndex];
+			for (int32 Component = 0; Component < VertexAttribute.ComponentCount; Component++)
+			{
+				VertexAttribute.Values.Add(static_cast<float>(Vertex.AdditionalAttributes.GetElement(AttributeInfo.Offset + Component)));
+			}
+		}
+	}
+
+	
 
 	//if (!bReducingSourceModel)
 	{
@@ -1776,9 +1847,10 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 	}
 	
 	// Generate a single skinned mesh form the SrcModel.  This mesh has per-vertex tangent space.
-	TArray<int32> VertToOriginalSectionId; 
+	TArray<int32> VertToOriginalSectionId;
+	TArray<FVertexAttributeInfo> VertexAttributeInfos;
 	SkeletalSimplifier::FSkinnedSkeletalMesh SkinnedSkeletalMesh;
-	ConvertToFSkinnedSkeletalMesh(SrcModel, BoneMatrices, LODIndex, SkinnedSkeletalMesh, SkeletalMeshName, &VertToOriginalSectionId);
+	ConvertToFSkinnedSkeletalMesh(SrcModel, BoneMatrices, LODIndex, SkinnedSkeletalMesh, SkeletalMeshName, VertexAttributeInfos, &VertToOriginalSectionId);
 
 	int32 IterationNum = 0;
 	//We keep the original MaxNumVerts because if we iterate we want to still compare with the original request.
@@ -1819,8 +1891,9 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 		}
 
 		// Convert to SkeletalMeshLODModel. 
-
-		ConvertToFSkeletalMeshLODModel(SkeletalMeshName, Settings.MaxBonesPerVertex, SrcModel, SkinnedSkeletalMesh, RefSkeleton, OutSkeletalMeshLODModel, bReducingSourceModel, TargetPlatform);
+		ConvertToFSkeletalMeshLODModel(
+			SkeletalMeshName, Settings.MaxBonesPerVertex, SrcModel, SkinnedSkeletalMesh, RefSkeleton, 
+			VertexAttributeInfos, OutSkeletalMeshLODModel, bReducingSourceModel, TargetPlatform);
 
 		// We may need to do additional simplification if the user specified a hard number limit for verts and
 		// the internal chunking during conversion split some verts.
@@ -1844,7 +1917,7 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 				}
 
 				UE_LOG(LogSkeletalMeshReduction, Log, TEXT("Chunking to limit unique bones per section generated additional vertices - continuing simplification of LOD %d "), LODIndex);
-				ConvertToFSkinnedSkeletalMesh(SrcModel, BoneMatrices, LODIndex, SkinnedSkeletalMesh, SkeletalMeshName);
+				ConvertToFSkinnedSkeletalMesh(SrcModel, BoneMatrices, LODIndex, SkinnedSkeletalMesh, SkeletalMeshName, VertexAttributeInfos);
 			}
 			else
 			{

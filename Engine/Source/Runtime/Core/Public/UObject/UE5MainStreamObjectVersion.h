@@ -342,7 +342,7 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Change the default for facing & alignment to be automatic
 		NiagaraSpriteRendererFacingAlignmentAutoDefault,
-
+		
 		// Change the default for facing & alignment to be automatic
 		GroomAssetRemoveInAssetSerialization,
 
@@ -352,6 +352,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Combines proprties into a new binding so users can select constant or binding
 		NiagaraSimStageNumIterationsBindings,
 
+		// Skeletal vertex attributes
+		SkeletalVertexAttributes,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

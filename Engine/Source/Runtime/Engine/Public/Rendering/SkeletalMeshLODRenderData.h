@@ -14,11 +14,13 @@
 #include "BoneIndices.h"
 #include "StaticMeshResources.h"
 #include "GPUSkinVertexFactory.h"
+#include "Animation/SkeletalMeshVertexAttribute.h"
 #include "Animation/SkinWeightProfile.h"
 
 class USkinnedAsset;
 #if WITH_EDITOR
 class FSkeletalMeshLODModel;
+struct FSkeletalMeshVertexAttributeInfo;
 #endif // WITH_EDITOR
 
 struct FSkelMeshRenderSection
@@ -141,6 +143,8 @@ public:
 	/** Skin weight profile data structures, can contain multiple profiles and their runtime FSkinWeightVertexBuffer */
 	FSkinWeightProfilesData SkinWeightProfilesData;
 
+	FSkeletalMeshVertexAttributeRenderData VertexAttributeBuffers;
+
 	TArray<FBoneIndexType> ActiveBoneIndices;
 
 	TArray<FBoneIndexType> RequiredBones;
@@ -229,9 +233,15 @@ public:
 #if WITH_EDITOR
 	/**
 	 * Initialize render data (e.g. vertex buffers) from model info
-	 * @param BuildFlags See ESkeletalMeshVertexFlags.
+	 * @param InLODModel The model to build the render data from.
+	 * @param InVertexAttributeInfos The vertex attributes to possibly include and their stored data type.
+	 * @param InBuildFlags See ESkeletalMeshVertexFlags.
 	 */
-	void ENGINE_API BuildFromLODModel(const FSkeletalMeshLODModel* LODModel, ESkeletalMeshVertexFlags BuildFlags = ESkeletalMeshVertexFlags::None);
+	void ENGINE_API BuildFromLODModel(
+		const FSkeletalMeshLODModel* InLODModel,
+		TConstArrayView<FSkeletalMeshVertexAttributeInfo> InVertexAttributeInfos = {},
+		ESkeletalMeshVertexFlags InBuildFlags = ESkeletalMeshVertexFlags::None
+		);
 #endif // WITH_EDITOR
 
 	uint32 GetNumVertices() const

@@ -23,9 +23,9 @@ namespace SkeletalSimplifier
 	*  Define the Simplifier types needed.
 	*/
  
-	typedef VertexTypes::TBasicVertexAttrs<MAX_TEXCOORDS>                      BasicAttrArray;
-	typedef VertexTypes::BoneSparseVertexAttrs                                 SparseAttrArray;
-	typedef VertexTypes::BoneSparseVertexAttrs                                 BoneAttrArray;
+	typedef VertexTypes::TBasicVertexAttrs<MAX_TEXCOORDS>	BasicAttrArray;
+	typedef VertexTypes::DynamicVertexAttrs                 SparseAttrArray;
+	typedef VertexTypes::BoneSparseVertexAttrs              BoneAttrArray;
 
 	typedef VertexTypes::TSkeletalSimpVert<BasicAttrArray, SparseAttrArray, BoneAttrArray>    MeshVertType;
 

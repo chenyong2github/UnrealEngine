@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Animation/SkeletalMeshVertexAttribute.h"
 
 #if WITH_EDITOR
 
@@ -380,6 +381,9 @@ public:
 
 	/** Set of skin weight profile, identified by a FName which matches FSkinWeightProfileInfo.Name in the owning Skeletal Mesh*/
 	TMap<FName, FImportedSkinWeightProfileData> SkinWeightProfiles;
+
+	/** Set of vertex attributes identified by an FName */
+	TMap<FName, FSkeletalMeshModelVertexAttribute> VertexAttributes;
 
 	/** Mapping from final mesh vertex index to raw import vertex index. Needed for vertex animation, which only stores positions for import verts. */
 	TArray<int32>				MeshToImportVertexMap;

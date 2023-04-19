@@ -331,8 +331,8 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkin
 			{
 				Owner->BuildLODModel(TargetPlatform, LODIndex);
 
-				FSkeletalMeshLODModel* LODModel = &(SkelMeshModel->LODModels[LODIndex]);
-				FSkeletalMeshLODInfo* LODInfo = Owner->GetLODInfo(LODIndex);
+				const FSkeletalMeshLODModel* LODModel = &(SkelMeshModel->LODModels[LODIndex]);
+				const FSkeletalMeshLODInfo* LODInfo = Owner->GetLODInfo(LODIndex);
 				check(LODInfo);
 
 				FSkeletalMeshLODRenderData* LODData = new FSkeletalMeshLODRenderData();
@@ -362,7 +362,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkin
 						VertexBufferBuildFlags |= ESkeletalMeshVertexFlags::UseHighPrecisionWeights;
 					}
 				}
-				LODData->BuildFromLODModel(LODModel, VertexBufferBuildFlags);
+				LODData->BuildFromLODModel(LODModel, LODInfo->VertexAttributes, VertexBufferBuildFlags);
 			}
 
 			FLargeMemoryWriter Ar(0, /*bIsPersistent=*/ true);

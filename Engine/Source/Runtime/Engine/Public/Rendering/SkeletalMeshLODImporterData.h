@@ -4,27 +4,18 @@
 
 #if WITH_EDITOR
 
-#include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "BoneIndices.h"
-#include "SkeletalMeshTypes.h"
 #include "Serialization/BulkData.h"
 #include "Components.h"
 #include "Math/GenericOctree.h"
 #include "Animation/MorphTarget.h"
 #include "Templates/DontCopy.h"
 
-#include "SkeletalMeshLODImporterData.generated.h"
-
 struct FMeshDescription;
 class FSkeletalMeshLODModel;
 
-#endif
 
-//////////////////////////////////////////////////////////////////////////
-//uenum class cannot be inside a preprocessor like #if WITH_EDITOR
-
-UENUM()
 enum class ESkeletalMeshGeoImportVersions : uint8
 {
 	Before_Versionning = 0,
@@ -35,7 +26,6 @@ enum class ESkeletalMeshGeoImportVersions : uint8
 	LatestVersion = VersionPlusOne - 1
 };
 
-UENUM()
 enum class ESkeletalMeshSkinningImportVersions : uint8
 {
 	Before_Versionning = 0,
@@ -46,10 +36,6 @@ enum class ESkeletalMeshSkinningImportVersions : uint8
 	LatestVersion = VersionPlusOne - 1
 };
 
-// End of enum declaration
-//////////////////////////////////////////////////////////////////////////
-
-#if WITH_EDITOR
 
 namespace SkeletalMeshImportData
 {
@@ -328,6 +314,19 @@ namespace SkeletalMeshImportData
 		}
 	};
 
+	struct FVertexAttribute
+	{
+		TArray<float> AttributeValues;
+		int32 ComponentCount;
+		
+		friend FArchive &operator<<(FArchive& Ar, FVertexAttribute& A)
+		{
+			Ar << A.AttributeValues;
+			Ar << A.ComponentCount;
+
+			return Ar;
+		}
+	};
 }
 
 template <> struct TIsPODType<SkeletalMeshImportData::FMeshWedge> { enum { Value = true }; };
@@ -367,6 +366,8 @@ public:
 	TArray<FSkeletalMeshImportData> AlternateInfluences;
 	TArray<FString> AlternateInfluenceProfileNames;
 	
+	TArray<SkeletalMeshImportData::FVertexAttribute> VertexAttributes;
+	TArray<FString> VertexAttributeNames;
 
 	//////////////////////////////////////////////////////////////////////////
 

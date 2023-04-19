@@ -118,6 +118,20 @@ FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGrou
 	SerializeBuildSettingsForDDC(Ar, BuildSettings);
 	SerializeReductionSettingsForDDC(Ar, RealReductionSettings);
 
+	int32 NumRenderableAttributes = 0;
+	for (const FSkeletalMeshVertexAttributeInfo& VertexAttributeInfo: VertexAttributes)
+	{
+		if (VertexAttributeInfo.IsEnabledForRender())
+		{
+			FString AttributeName(VertexAttributeInfo.Name.ToString());
+			Ar << AttributeName;
+			Ar << VertexAttributeInfo.DataType;
+			NumRenderableAttributes++;
+		}
+	}
+	Ar << NumRenderableAttributes;
+	
+
 	FSHA1 Sha;
 	Sha.Update(TempBytes.GetData(), TempBytes.Num() * TempBytes.GetTypeSize());
 	Sha.Final();

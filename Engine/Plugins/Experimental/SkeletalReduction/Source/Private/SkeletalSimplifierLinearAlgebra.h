@@ -885,6 +885,12 @@ namespace SkeletalSimplifier
 				Size = size;
 			}
 
+			TDenseArrayWrapper(TArrayView<DataType> InArrayView)
+			{
+				Data = InArrayView.GetData();
+				Size = InArrayView.Num();
+			}
+
 			int32 Num() const { return Size; }
 
 			void SetElement(const int32 j, const DataType Value) { checkSlow(j < Size);  Data[j] = Value; }
@@ -895,7 +901,7 @@ namespace SkeletalSimplifier
 			DataType& operator() (const int32 j) { return operator[](j); }
 			DataType operator() (const int32 j) const { return operator[](j); }
 
-			TDenseArrayWrapper& operator*= (const double& Scalar)
+			TDenseArrayWrapper& operator*= (double Scalar)
 			{
 				int32 Num = Size;
 				for (int32 i = 0; i < Num; ++i) Data[i] *= Scalar;

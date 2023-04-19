@@ -2,49 +2,47 @@
 
 #include "LODUtilities.h"
 
-#include "BoneWeights.h"
-
 #if WITH_EDITOR
 
-#include "Misc/MessageDialog.h"
-#include "Misc/FeedbackContext.h"
-#include "Modules/ModuleManager.h"
-#include "UObject/UObjectIterator.h"
-#include "Components/SkinnedMeshComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "Animation/MorphTarget.h"
-#include "UObject/GarbageCollection.h"
-#include "Rendering/SkeletalMeshModel.h"
-#include "Rendering/SkeletalMeshLODModel.h"
-#include "GenericQuadTree.h"
+#include "Animation/SkinWeightProfile.h"
+#include "Async/ParallelFor.h"
+#include "BoneWeights.h"
+#include "ClothingAsset.h"
+#include "ComponentReregisterContext.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "EditorFramework/AssetImportData.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshLODSettings.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Engine/SkinnedAssetAsyncCompileUtils.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Engine/Texture2D.h"
-#include "EditorFramework/AssetImportData.h"
-#include "MeshUtilities.h"
-#include "MeshUtilitiesCommon.h"
-#include "ClothingAsset.h"
-#include "OverlappingCorners.h"
 #include "Framework/Commands/UIAction.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "GenericQuadTree.h"
 #include "HAL/ThreadSafeBool.h"
+#include "IMeshReductionManagerModule.h"
 #include "ImageCore.h"
 #include "ImageCoreUtils.h"
-#include "Rendering/SkeletalMeshLODImporterData.h"
-#include "ObjectTools.h"
-
-#include "ComponentReregisterContext.h"
-#include "IMeshReductionManagerModule.h"
-#include "Animation/SkinWeightProfile.h"
-
-#include "Async/ParallelFor.h"
+#include "ImportUtils/SkelImport.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "MeshUtilities.h"
+#include "MeshUtilitiesCommon.h"
 #include "Misc/CoreMisc.h"
-
-#include "Framework/Notifications/NotificationManager.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/MessageDialog.h"
+#include "Modules/ModuleManager.h"
+#include "ObjectTools.h"
+#include "OverlappingCorners.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
+#include "Rendering/SkeletalMeshLODModel.h"
+#include "Rendering/SkeletalMeshModel.h"
+#include "Tasks/Task.h"
+#include "UObject/GarbageCollection.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #include <limits>
@@ -1643,11 +1641,14 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 			{
 				ClearGeneratedMorphTarget(SkeletalMesh, DesiredLOD);
 			}
+
+			// Update the vertex attribute information in the LOD info.
+			UpdateLODInfoVertexAttributes(SkeletalMesh, ReductionSettings.BaseLOD, DesiredLOD, false);
 		}
 
 		if (IsInGameThread())
 		{
-			SkeletalMesh->MarkPackageDirty();
+			(void)SkeletalMesh->MarkPackageDirty();
 		}
 		else if(OutNeedsPackageDirtied)
 		{
@@ -2531,6 +2532,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(
 	return bBuildSuccess;
 }
 
+
 bool FLODUtilities::UpdateAlternateSkinWeights(
 	FSkeletalMeshLODModel& LODModelDest,
 	FSkeletalMeshImportData& ImportDataDest,
@@ -2761,6 +2763,94 @@ void FLODUtilities::RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODMod
 		GenerateImportedSkinWeightProfileData(LODModelDest, ProfilePair.Value, BoneInfluenceLimit, TargetPlatform);
 	}
 }
+
+
+
+bool FLODUtilities::UpdateLODInfoVertexAttributes(
+	USkeletalMesh *InSkeletalMesh,
+	int32 InSourceLODIndex, 
+	int32 InTargetLODIndex, 
+	bool bInCopyAttributeValues
+	)
+{
+	FSkeletalMeshImportData SkeletalMeshImportData;
+	InSkeletalMesh->LoadLODImportedData(InSourceLODIndex, SkeletalMeshImportData);
+	
+	FSkeletalMeshLODModel& TargetLODModel = InSkeletalMesh->GetImportedModel()->LODModels[InTargetLODIndex];
+	
+	TArray<FSkeletalMeshVertexAttributeInfo>& SkelMeshAttributeInfos = InSkeletalMesh->GetLODInfo(InTargetLODIndex)->VertexAttributes; 
+
+	// Retain any existing attribute infos and match based on names.
+	TMap<FName, FSkeletalMeshVertexAttributeInfo> ExistingAttributeInfos;
+	for (FSkeletalMeshVertexAttributeInfo& AttributeInfo: SkelMeshAttributeInfos)
+	{
+		ExistingAttributeInfos.Add(AttributeInfo.Name, MoveTemp(AttributeInfo));
+	}
+
+	SkelMeshAttributeInfos.Reset(SkeletalMeshImportData.VertexAttributes.Num());
+
+	// If we're not copying the values, leave the existing data in place.
+	if (bInCopyAttributeValues)
+	{
+		TargetLODModel.VertexAttributes.Reset();
+	}
+	
+	TArray<UE::Tasks::FTask> ConversionTasks;
+	
+	for (int32 AttributeIndex = 0; AttributeIndex < SkeletalMeshImportData.VertexAttributes.Num(); AttributeIndex++)
+	{
+		const SkeletalMeshImportData::FVertexAttribute& ImportAttribute = SkeletalMeshImportData.VertexAttributes[AttributeIndex];
+		const FName AttributeName(SkeletalMeshImportData.VertexAttributeNames[AttributeIndex]);
+
+		// Did this definition already exist? Try to retain as much of the existing information as possible.
+		FSkeletalMeshVertexAttributeInfo Info;
+		
+		if (ExistingAttributeInfos.Contains(AttributeName))
+		{
+			Info = MoveTemp(ExistingAttributeInfos[AttributeName]);
+		}
+		else
+		{
+			Info.Name = AttributeName;
+		}
+
+		SkelMeshAttributeInfos.Add(Info);
+
+		if (Info.IsEnabledForRender() && bInCopyAttributeValues)
+		{
+			FSkeletalMeshModelVertexAttribute& ModelAttribute = TargetLODModel.VertexAttributes.FindOrAdd(AttributeName);
+
+			ModelAttribute.DataType = Info.DataType;
+			ModelAttribute.ComponentCount = ImportAttribute.ComponentCount;
+
+			if (InTargetLODIndex == InSourceLODIndex)
+			{
+				ConversionTasks.Add(
+					UE::Tasks::Launch(UE_SOURCE_LOCATION, [&TargetLODModel, &ModelAttribute, &ImportAttribute]()
+					{
+						ModelAttribute.Values.SetNumUninitialized(TargetLODModel.NumVertices);
+						for(uint32 VertexIndex = 0; VertexIndex < TargetLODModel.NumVertices; VertexIndex++)
+						{
+							const int32 ImportVertexIndex = TargetLODModel.MeshToImportVertexMap[VertexIndex];
+							ModelAttribute.Values[VertexIndex] = ImportAttribute.AttributeValues[ImportVertexIndex];
+						}
+					})
+				);
+			}
+			else
+			{
+				// Initialize with zero data, matching the vertex count.
+				ModelAttribute.Values.SetNumZeroed(TargetLODModel.NumVertices);
+			}
+		}
+	}
+
+	// Wait for all the attribute conversion tasks to complete.
+	UE::Tasks::Wait(ConversionTasks);
+
+	return true;
+}
+
 
 void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 LODIndex, const ITargetPlatform* TargetPlatform)
 {
