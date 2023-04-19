@@ -86,67 +86,33 @@ UE::Learning::FNeuralNetworkCriticFunction& ULearningAgentsCritic::GetCriticObje
 	return *CriticObject;
 }
 
-void ULearningAgentsCritic::LoadCriticFromSnapshot(const FDirectoryPath& Directory, const FString Filename)
+void ULearningAgentsCritic::LoadCriticFromSnapshot(const FFilePath& File)
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
-	TArray64<uint8> NetworkData;
-	const FString FilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
-	if (FFileHelper::LoadFileToArray(NetworkData, *FilePath))
-	{
-		const int32 TotalByteNum = UE::Learning::FNeuralNetwork::GetSerializationByteNum(
-			Network->NeuralNetwork->GetInputNum(),
-			Network->NeuralNetwork->GetOutputNum(),
-			Network->NeuralNetwork->GetHiddenNum(),
-			Network->NeuralNetwork->GetLayerNum());
-
-		if (NetworkData.Num() != TotalByteNum)
-		{
-			UE_LOG(LogLearning, Error, TEXT("%s: Failed to load network from file %s. File size incorrect."), *GetName(), *FilePath);
-			return;
-		}
-
-		Network->NeuralNetwork->DeserializeFromBytes(NetworkData);
-	}
-	else
-	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Failed to load network. File not found: %s"), *GetName(), *FilePath);
-	}
+	Network->LoadNetworkFromSnapshot(File);
 }
 
-void ULearningAgentsCritic::SaveCriticToSnapshot(const FDirectoryPath& Directory, const FString Filename) const
+void ULearningAgentsCritic::SaveCriticToSnapshot(const FFilePath& File) const
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
-	TArray64<uint8> NetworkData;
-	NetworkData.SetNumUninitialized(UE::Learning::FNeuralNetwork::GetSerializationByteNum(
-		Network->NeuralNetwork->GetInputNum(),
-		Network->NeuralNetwork->GetOutputNum(),
-		Network->NeuralNetwork->GetHiddenNum(),
-		Network->NeuralNetwork->GetLayerNum()));
-
-	Network->NeuralNetwork->SerializeToBytes(NetworkData);
-
-	const FString FilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
-	if (!FFileHelper::SaveArrayToFile(NetworkData, *FilePath))
-	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Failed to save network to file: %s"), *GetName(), *FilePath);
-	}
+	Network->SaveNetworkToSnapshot(File);
 }
 
 void ULearningAgentsCritic::LoadCriticFromAsset(const ULearningAgentsNeuralNetwork* NeuralNetworkAsset)
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -170,7 +136,7 @@ void ULearningAgentsCritic::SaveCriticToAsset(ULearningAgentsNeuralNetwork* Neur
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -209,7 +175,7 @@ void ULearningAgentsCritic::EvaluateCritic()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -224,7 +190,7 @@ float ULearningAgentsCritic::GetEstimatedDiscountedReturn(const int32 AgentId) c
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return 0.0f;
 	}
 

@@ -101,12 +101,25 @@ namespace UE::Learning
 		*/
 		LEARNINGTRAINING_API float DiscountFactorFromHalfLifeSteps(const int32 HalfLifeSteps);
 
-#if WITH_EDITOR
-		LEARNINGTRAINING_API FString DefaultEditorPythonExecutablePath();
-		LEARNINGTRAINING_API FString DefaultEditorSitePackagesPath();
-		LEARNINGTRAINING_API FString DefaultEditorPythonContentPath();
-		LEARNINGTRAINING_API FString DefaultEditorIntermediatePath();
-#endif
+		/**
+		* Gets the python executable path from the engine directory.
+		*/
+		LEARNINGTRAINING_API FString GetPythonExecutablePath(const FString& EngineDir);
+
+		/**
+		* Gets the PythonFoundationPackages site-packages path from the engine directory.
+		*/
+		LEARNINGTRAINING_API FString GetSitePackagesPath(const FString& EngineDir);
+
+		/**
+		* Gets the LearningAgents Content path from the engine directory.
+		*/
+		LEARNINGTRAINING_API FString GetPythonContentPath(const FString& EngineDir);
+
+		/**
+		* Gets the LearningAgents Intermediate path from the intermediate directory.
+		*/
+		LEARNINGTRAINING_API FString GetIntermediatePath(const FString& IntermediateDir);
 	}
 
 }

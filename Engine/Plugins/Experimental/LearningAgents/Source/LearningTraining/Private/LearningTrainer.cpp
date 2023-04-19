@@ -2,9 +2,7 @@
 
 #include "LearningTrainer.h"
 
-#include "Misc/Paths.h"
-#include "Interfaces/IPluginManager.h"
-#include "HAL/FileManager.h"
+#include "HAL/Platform.h"
 
 namespace UE::Learning::Trainer
 {
@@ -43,34 +41,26 @@ namespace UE::Learning::Trainer
 		return FMath::Pow(0.5f, 1.0f / FMath::Max(HalfLifeSteps, 1));
 	}
 
-#if WITH_EDITOR
-
-	FString DefaultEditorPythonExecutablePath()
+	FString GetPythonExecutablePath(const FString& EngineDir)
 	{
 		UE_LEARNING_CHECKF(PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_LINUX, TEXT("Python only supported on Windows, Mac, and Linux."));
 
-		return IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(
-			*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Python3") / FPlatformMisc::GetUBTPlatform() / (PLATFORM_WINDOWS ? TEXT("python.exe") : TEXT("bin/python"))));
+		return EngineDir / TEXT("Binaries/ThirdParty/Python3") / FPlatformMisc::GetUBTPlatform() / (PLATFORM_WINDOWS ? TEXT("python.exe") : TEXT("bin/python"));
 	}
 
-	FString DefaultEditorSitePackagesPath()
+	FString GetSitePackagesPath(const FString& EngineDir)
 	{
-		return IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(
-			*(IPluginManager::Get().FindPlugin(TEXT("PythonFoundationPackages"))->GetBaseDir() / TEXT("Content/Python/Lib") / FPlatformMisc::GetUBTPlatform() / TEXT("site-packages")));
+		return EngineDir / TEXT("Plugins/Experimental/PythonFoundationPackages/Content/Python/Lib") / FPlatformMisc::GetUBTPlatform() / TEXT("site-packages");
 	}
 
-	FString DefaultEditorPythonContentPath()
+	FString GetPythonContentPath(const FString& EngineDir)
 	{
-		return  IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(
-			*(IPluginManager::Get().FindPlugin(TEXT("LearningAgents"))->GetBaseDir() / TEXT("Content/Python")));
+		return EngineDir / TEXT("Plugins/Experimental/LearningAgents/Content/Python/");
 	}
 
-	FString DefaultEditorIntermediatePath()
+	FString GetIntermediatePath(const FString& IntermediateDir)
 	{
-		return IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(
-			*(IPluginManager::Get().FindPlugin(TEXT("LearningAgents"))->GetBaseDir() / TEXT("Intermediate")));
+		return IntermediateDir / TEXT("LearningAgents");
 	}
-
-#endif
 
 }

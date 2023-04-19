@@ -181,6 +181,54 @@ public:
 	ELearningAgentsTrainerDevice Device = ELearningAgentsTrainerDevice::GPU;
 };
 
+/** The path settings for the trainer. */
+USTRUCT(BlueprintType, Category = "LearningAgents")
+struct FLearningAgentsTrainerPathSettings
+{
+	GENERATED_BODY()
+
+public:
+
+	FLearningAgentsTrainerPathSettings();
+
+	/** The relative path to the engine for editor builds. Defaults to FPaths::EngineDir. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (RelativePath))
+	FDirectoryPath EditorEngineRelativePath;
+
+	/**
+	* The relative path to the editor engine folder for non-editor builds.
+	* 
+	* If we want to run training in cooked, non-editor builds, then by default we wont have access to python and the
+	* LearningAgents training scripts - these are editor-only things and are stripped during the cooking process.
+	*
+	* However, running training in non-editor builds can be very important - we probably want to disable rendering
+	* and sound while we are training to make experience gathering as fast as possible - and for any non-trivial game
+	* is simply may not be realistic to run it for a long time in play-in-editor.
+	*
+	* For this reason even in non-editor builds we let you provide the path where all of these editor-only things can 
+	* be found. This allows you to run training when these things actually exist somewhere accessible to the executable, 
+	* which will usually be the case on a normal development machine or cloud machine if it is set up that way.
+	*
+	* Since non-editor builds can be produced in a number of different ways, this is not set by default and cannot 
+	* use a directory picker since it is relative to the final location of where your cooked, non-editor executable 
+	* will exist rather than the current with-editor executable.
+	*/
+	UPROPERTY(EditAnywhere, Category = "LearningAgents")
+	FString NonEditorEngineRelativePath;
+
+	/** The relative path to the Intermediate directory. Defaults to FPaths::ProjectIntermediateDir. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (RelativePath))
+	FDirectoryPath IntermediateRelativePath;
+
+public:
+
+	/** Gets the Relative Editor Engine Path accounting for if this is an editor build or not  */
+	FString GetEditorEnginePath() const;
+
+	/** Gets the Relative Intermediate Path  */
+	FString GetIntermediatePath() const;
+};
+
 /**
 * The ULearningAgentsTrainer is the core class for reinforcement learning training. It has a few responsibilities:
 *   1) It keeps track of which agents are gathering training data.
@@ -305,16 +353,18 @@ public:
 
 	/**
 	* Begins the training process with the provided settings.
-	* @param TrainingSettings The settings for this training run.
-	* @param GameSettings The settings that will affect the game's simulation.
+	* @param TrainerTrainingSettings The settings for this training run.
+	* @param TrainerGameSettings The settings that will affect the game's simulation.
+	* @param TrainerPathSettings The path settings used by the trainer.
 	* @param CriticSettings The settings for the critic (if we are using one).
 	* @param bReinitializePolicyNetwork If true, reinitialize the policy. Set this to false if your policy is pre-trained, e.g. with imitation learning.
 	* @param bReinitializeCriticNetwork If true, reinitialize the critic. Set this to false if your critic is pre-trained.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void BeginTraining(
-		const FLearningAgentsTrainerTrainingSettings& TrainingSettings = FLearningAgentsTrainerTrainingSettings(),
-		const FLearningAgentsTrainerGameSettings& GameSettings = FLearningAgentsTrainerGameSettings(),
+		const FLearningAgentsTrainerTrainingSettings& TrainerTrainingSettings = FLearningAgentsTrainerTrainingSettings(),
+		const FLearningAgentsTrainerGameSettings& TrainerGameSettings = FLearningAgentsTrainerGameSettings(),
+		const FLearningAgentsTrainerPathSettings& TrainerPathSettings = FLearningAgentsTrainerPathSettings(),
 		const FLearningAgentsCriticSettings& CriticSettings = FLearningAgentsCriticSettings(),
 		const bool bReinitializePolicyNetwork = true,
 		const bool bReinitializeCriticNetwork = true);
@@ -356,16 +406,18 @@ public:
 	* Convenience function that runs a basic training loop. If training has not been started, it will start it, and 
 	* then call RunInference. On each following call to this function, it will call EvaluateRewards, 
 	* EvaluateCompletions, and ProcessExperience, followed by RunInference.
-	* @param TrainingSettings The settings for this training run.
-	* @param GameSettings The settings that will affect the game's simulation.
+	* @param TrainerTrainingSettings The settings for this training run.
+	* @param TrainerGameSettings The settings that will affect the game's simulation.
+	* @param TrainerPathSettings The path settings used by the trainer.
 	* @param CriticSettings The settings for the critic (if we are using one).
 	* @param bReinitializePolicyNetwork If true, reinitialize the policy. Set this to false if your policy is pre-trained, e.g. with imitation learning.
 	* @param bReinitializeCriticNetwork If true, reinitialize the critic. Set this to false if your critic is pre-trained.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void RunTraining(
-		const FLearningAgentsTrainerTrainingSettings& TrainingSettings = FLearningAgentsTrainerTrainingSettings(),
-		const FLearningAgentsTrainerGameSettings& GameSettings = FLearningAgentsTrainerGameSettings(),
+		const FLearningAgentsTrainerTrainingSettings& TrainerTrainingSettings = FLearningAgentsTrainerTrainingSettings(),
+		const FLearningAgentsTrainerGameSettings& TrainerGameSettings = FLearningAgentsTrainerGameSettings(),
+		const FLearningAgentsTrainerPathSettings& TrainerPathSettings = FLearningAgentsTrainerPathSettings(),
 		const FLearningAgentsCriticSettings& CriticSettings = FLearningAgentsCriticSettings(),
 		const bool bReinitializePolicyNetwork = true,
 		const bool bReinitializeCriticNetwork = true);

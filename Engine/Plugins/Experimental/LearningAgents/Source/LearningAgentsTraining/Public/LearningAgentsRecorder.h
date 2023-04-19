@@ -10,8 +10,27 @@
 
 #include "LearningAgentsRecorder.generated.h"
 
-class ULearningAgentsDataStorage;
-class ULearningAgentsRecord;
+struct FLearningAgentsRecord;
+class ULearningAgentsRecording;
+
+/** The path settings for the recorder. */
+USTRUCT(BlueprintType, Category = "LearningAgents")
+struct FLearningAgentsRecorderPathSettings
+{
+	GENERATED_BODY()
+
+public:
+
+	FLearningAgentsRecorderPathSettings();
+
+	/** The relative path to the Intermediate directory. Defaults to FPaths::ProjectIntermediateDir. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (RelativePath))
+	FDirectoryPath IntermediateRelativePath;
+
+	/** The name of the sub-directory to use in the intermediate directory */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (RelativePath))
+	FString RecordingsSubdirectory = TEXT("Recordings");
+};
 
 /** A component that can be used to create recordings of training data for imitation learning. */
 UCLASS(BlueprintType, Blueprintable)
@@ -32,16 +51,19 @@ public:
 
 	/**
 	* Initializes this object and runs the setup functions for the underlying data storage.
+	* @param InAgentManager The agent manager we are associated with.
 	* @param InInteractor The agent interactor we are recording with.
+	* @param RecorderPathSettings The path settings used by the recorder.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupRecorder(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor);
+	void SetupRecorder(
+		ALearningAgentsManager* InAgentManager, 
+		ULearningAgentsInteractor* InInteractor,
+		const FLearningAgentsRecorderPathSettings& RecorderPathSettings = FLearningAgentsRecorderPathSettings());
 
 public:
 
 	//~ Begin ULearningAgentsManagerComponent Interface
-	virtual bool AddAgent(const int32 AgentId) override;
-
 	virtual bool RemoveAgent(const int32 AgentId) override;
 	//~ End ULearningAgentsManagerComponent Interface
 
@@ -49,24 +71,57 @@ public:
 public:
 
 	/**
-	* Adds experience to the added agents' recordings. Call this after ULearningAgentsInteractor::EncodeObservations and
-	* either ULearningAgentsController::EncodeActions (if recording a human/AI demonstration) or
-	* ULearningAgentsInteractor::DecodeActions (if recording another policy).
+	* Begins the recording of the observations and actions of each added agent.
+	* @param bReinitializeRecording If to reinitialize the current recording object.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void BeginRecording(bool bReinitializeRecording = true);
+
+	/**
+	* Ends the recording of the observations and actions of each agent and stores them in the current recording object.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void EndRecording();
+
+	/** Returns true if recording is active; Otherwise, false. */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	bool IsRecording() const;
+
+	/**
+	* While recording, adds the current observations and actions of the added agents to the internal buffer. Call this 
+	* after ULearningAgentsInteractor::EncodeObservations and either ULearningAgentsController::EncodeActions (if 
+	* recording a human/AI demonstration) or ULearningAgentsInteractor::DecodeActions (if recording another policy).
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void AddExperience();
 
-	/** Begin new recordings for each added agent. */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void BeginRecording();
+	/** Gets the current recording object. Note: this may be empty until EndRecording has been called. */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	const ULearningAgentsRecording* GetCurrentRecording() const;
 
-	/** End all recordings. */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void EndRecording();
+// ----- Load / Save -----
+public:
 
-	/** Returns true if the recorder is currently recording; Otherwise, false. */
+	/** Loads the current recording object from a file */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void LoadRecordingFromFile(const FFilePath& File);
+
+	/** Saves the current recording object to a file */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void SaveRecordingToFile(const FFilePath& File) const;
+
+	/** Loads the current recording object from the given recording asset */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	bool IsRecording() const;
+	void LoadRecordingFromAsset(const ULearningAgentsRecording* Asset);
+
+	/** Saves the current recording object to the given recording asset */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DevelopmentOnly))
+	void SaveRecordingToAsset(ULearningAgentsRecording* Asset) const;
+
+	/** Appends the current recording object to the given recording asset */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DevelopmentOnly))
+	void AppendRecordingToAsset(ULearningAgentsRecording* Asset) const;
+
 
 // ----- Private Data ----- 
 private:
@@ -75,29 +130,42 @@ private:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsInteractor> Interactor;
 
-// ----- Recorder Configuration -----
-private:
-
-	/** Directory where records will be saved. If not set, SetupRecorder will automatically set this to the editor's default intermediate folder. */
-	UPROPERTY(EditDefaultsOnly, Category = "LearningAgents")
-	FDirectoryPath DataDirectory;
-
-	/** If true, recorder will automatically save all records on EndRecording. Set this to false if you want to manually save records. */
-	UPROPERTY(EditAnywhere, Category = "LearningAgents")
-	bool bSaveDataOnEndPlay = true;
-
-// ----- Recorder State -----
-private:
+	/** The current recording object. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
+	TObjectPtr<ULearningAgentsRecording> Recording;
 
 	/** True if recording is currently in-progress. Otherwise, false. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	bool bIsRecording = false;
 
-	/** The data storage manager. It can be used to save/load agent records. */
-	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TObjectPtr<ULearningAgentsDataStorage> DataStorage;
+// ----- Private Data ----- 
+private:
 
-	/** All records which are currently being written to. */
-	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TMap<int32, TObjectPtr<ULearningAgentsRecord>> CurrentRecords;
+	FString RecordingDirectory;
+
+	/** Basic structure used to buffer the observations and actions of each agent. */
+	struct FAgentRecordBuffer
+	{
+		const int32 ChunkSize = 1024;
+		int32 SampleNum = 0;
+		TArray<TLearningArray<2, float>, TInlineAllocator<16>> Observations;
+		TArray<TLearningArray<2, float>, TInlineAllocator<16>> Actions;
+
+		TLearningArrayView<1, float> GetObservation(const int32 SampleIdx);
+		TLearningArrayView<1, float> GetAction(const int32 SampleIdx);
+		TLearningArrayView<1, const float> GetObservation(const int32 SampleIdx) const;
+		TLearningArrayView<1, const float> GetAction(const int32 SampleIdx) const;
+
+		bool IsEmpty() const;
+
+		void Empty();
+
+		void Push(
+			const TLearningArrayView<1, const float> Observation,
+			const TLearningArrayView<1, const float> Action);
+
+		void CopyToRecord(FLearningAgentsRecord& Record) const;
+	};
+
+	TArray<FAgentRecordBuffer, TInlineAllocator<32>> RecordBuffers;
 };

@@ -28,8 +28,8 @@ namespace UE::Learning
 	*/
 	struct LEARNING_API FNeuralNetwork
 	{
-		void DeserializeFromBytes(const TLearningArrayView<1, const uint8> RawBytes);
-		void SerializeToBytes(TLearningArrayView<1, uint8> OutRawBytes) const;
+		void DeserializeFromBytes(int32& InOutOffset, const TLearningArrayView<1, const uint8> RawBytes);
+		void SerializeToBytes(int32& InOutOffset, TLearningArrayView<1, uint8> OutRawBytes) const;
 
 		static int32 GetSerializationByteNum(
 			const int32 InputNum,

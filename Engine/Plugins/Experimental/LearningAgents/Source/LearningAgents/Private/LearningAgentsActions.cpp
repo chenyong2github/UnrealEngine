@@ -14,11 +14,11 @@
 namespace UE::Learning::Agents::Actions::Private
 {
 	template<typename ActionUObject, typename ActionFObject, typename... InArgTypes>
-	ActionUObject* AddAction(ULearningAgentsInteractor* InInteractor, const FName Name, InArgTypes&& ...Args)
+	ActionUObject* AddAction(ULearningAgentsInteractor* InInteractor, const FName Name, const TCHAR* FunctionName, InArgTypes&& ...Args)
 	{
 		if (!InInteractor)
 		{
-			UE_LOG(LogLearning, Error, TEXT("InInteractor is nullptr."));
+			UE_LOG(LogLearning, Error, TEXT("%s: InInteractor is nullptr."), FunctionName);
 			return nullptr;
 		}
 
@@ -31,6 +31,9 @@ namespace UE::Learning::Agents::Actions::Private
 			InInteractor->GetAgentManager()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
+		// We assume all supported action feature objects can be encoded and decoded
+		UE_LEARNING_CHECK(Action->FeatureObject->IsEncodable() && Action->FeatureObject->IsDecodable());
+
 		InInteractor->AddAction(Action, Action->FeatureObject.ToSharedRef());
 
 		return Action;
@@ -41,7 +44,7 @@ namespace UE::Learning::Agents::Actions::Private
 
 UFloatAction* UFloatAction::AddFloatAction(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Actions::Private::AddAction<UFloatAction, UE::Learning::FFloatFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UFloatAction,UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddFloatAction"), 1, Scale);
 }
 
 float UFloatAction::GetFloatAction(const int32 AgentId) const
@@ -95,11 +98,11 @@ UFloatArrayAction* UFloatArrayAction::AddFloatArrayAction(ULearningAgentsInterac
 {
 	if (Num < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), Num);
+		UE_LOG(LogLearning, Error, TEXT("AddFloatArrayAction: Number of elements in array must be at least 1, got %i."), Num);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Actions::Private::AddAction<UFloatArrayAction, UE::Learning::FFloatFeature>(InInteractor, Name, Num, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UFloatArrayAction, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddFloatArrayAction"), Num, Scale);
 }
 
 void UFloatArrayAction::GetFloatArrayAction(const int32 AgentId, TArray<float>& OutValues) const
@@ -165,7 +168,7 @@ void UFloatArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 UVectorAction* UVectorAction::AddVectorAction(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Actions::Private::AddAction<UVectorAction, UE::Learning::FFloatFeature>(InInteractor, Name, 3, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UVectorAction, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddVectorAction"), 3, Scale);
 }
 
 FVector UVectorAction::GetVectorAction(const int32 AgentId) const
@@ -238,11 +241,11 @@ UVectorArrayAction* UVectorArrayAction::AddVectorArrayAction(ULearningAgentsInte
 {
 	if (Num < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), Num);
+		UE_LOG(LogLearning, Error, TEXT("AddVectorArrayAction: Number of elements in array must be at least 1, got %i."), Num);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Actions::Private::AddAction<UVectorArrayAction, UE::Learning::FFloatFeature>(InInteractor, Name, Num * 3, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UVectorArrayAction, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddVectorArrayAction"), Num * 3, Scale);
 }
 
 void UVectorArrayAction::GetVectorArrayAction(const int32 AgentId, TArray<FVector>& OutVectors) const
@@ -340,7 +343,7 @@ void UVectorArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) cons
 
 URotationAction* URotationAction::AddRotationAction(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Actions::Private::AddAction<URotationAction, UE::Learning::FRotationVectorFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<URotationAction, UE::Learning::FRotationVectorFeature>(InInteractor, Name, TEXT("AddRotationAction"), 1, Scale);
 }
 
 FRotator URotationAction::GetRotationAction(const int32 AgentId) const
@@ -416,11 +419,11 @@ URotationArrayAction* URotationArrayAction::AddRotationArrayAction(ULearningAgen
 {
 	if (RotationNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), RotationNum);
+		UE_LOG(LogLearning, Error, TEXT("AddRotationArrayAction: Number of elements in array must be at least 1, got %i."), RotationNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Actions::Private::AddAction<URotationArrayAction, UE::Learning::FRotationVectorFeature>(InInteractor, Name, RotationNum, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<URotationArrayAction, UE::Learning::FRotationVectorFeature>(InInteractor, Name, TEXT("AddRotationArrayAction"), RotationNum, Scale);
 }
 
 void URotationArrayAction::GetRotationArrayAction(const int32 AgentId, TArray<FRotator>& OutRotations) const

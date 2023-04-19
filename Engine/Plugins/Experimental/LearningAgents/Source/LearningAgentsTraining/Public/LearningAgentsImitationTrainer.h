@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "LearningAgentsTrainer.h" // Included for ELearningAgentsTrainerDevice
+#include "LearningAgentsTrainer.h" // Included for ELearningAgentsTrainerDevice and FLearningAgentsTrainerPathSettings
 #include "LearningArray.h"
 
 #include "Templates/SharedPointer.h"
@@ -18,6 +18,7 @@ namespace UE::Learning
 
 class ULearningAgentsInteractor;
 class ULearningAgentsPolicy;
+class ULearningAgentsRecording;
 
 /** The configurable settings for the training process. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
@@ -94,15 +95,17 @@ public:
 	/**
 	* Begins the training process with the provided settings.
 	* @param InPolicy The policy to train.
-	* @param Records The data to train on.
-	* @param TrainingSettings The settings for this training run.
+	* @param Recording The data to train on.
+	* @param ImitationTrainerTrainingSettings The settings for this training run.
+	* @param ImitationTrainerPathSettings The path settings used by the imitation trainer.
 	* @param bReinitializePolicyNetwork If true, reinitialize the policy. Set this to false if your policy is pre-trained.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void BeginTraining(
 		ULearningAgentsPolicy* InPolicy,
-		const TArray<ULearningAgentsRecord*>& Records,
-		const FLearningAgentsImitationTrainerTrainingSettings& TrainingSettings = FLearningAgentsImitationTrainerTrainingSettings(),
+		const ULearningAgentsRecording* Recording,
+		const FLearningAgentsImitationTrainerTrainingSettings& ImitationTrainerTrainingSettings = FLearningAgentsImitationTrainerTrainingSettings(),
+		const FLearningAgentsTrainerPathSettings& ImitationTrainerPathSettings = FLearningAgentsTrainerPathSettings(),
 		const bool bReinitializePolicyNetwork = true);
 
 	/** Stops the training process. */

@@ -15,11 +15,11 @@
 namespace UE::Learning::Agents::Completions::Private
 {
 	template<typename CompletionUObject, typename CompletionFObject, typename... InArgTypes>
-	CompletionUObject* AddCompletion(ULearningAgentsTrainer* InAgentTrainer, const FName Name, InArgTypes&& ...Args)
+	CompletionUObject* AddCompletion(ULearningAgentsTrainer* InAgentTrainer, const FName Name, const TCHAR* FunctionName, InArgTypes&& ...Args)
 	{
 		if (!InAgentTrainer)
 		{
-			UE_LOG(LogLearning, Error, TEXT("InAgentTrainer is nullptr."));
+			UE_LOG(LogLearning, Error, TEXT("%s: InAgentTrainer is nullptr."), FunctionName);
 			return nullptr;
 		}
 
@@ -42,7 +42,7 @@ namespace UE::Learning::Agents::Completions::Private
 
 UConditionalCompletion* UConditionalCompletion::AddConditionalCompletion(ULearningAgentsTrainer* InAgentTrainer, const FName Name, const ELearningAgentsCompletion InCompletionMode)
 {
-	return UE::Learning::Agents::Completions::Private::AddCompletion<UConditionalCompletion, UE::Learning::FConditionalCompletion>(InAgentTrainer, Name, UE::Learning::Agents::GetCompletionMode(InCompletionMode));
+	return UE::Learning::Agents::Completions::Private::AddCompletion<UConditionalCompletion, UE::Learning::FConditionalCompletion>(InAgentTrainer, Name, TEXT("AddConditionalCompletion"), UE::Learning::Agents::GetCompletionMode(InCompletionMode));
 }
 
 void UConditionalCompletion::SetConditionalCompletion(const int32 AgentId, const bool bIsComplete)
@@ -84,7 +84,7 @@ void UConditionalCompletion::VisualLog(const UE::Learning::FIndexSet Instances) 
 
 UTimeElapsedCompletion* UTimeElapsedCompletion::AddTimeElapsedCompletion(ULearningAgentsTrainer* InAgentTrainer, const FName Name, const float Threshold, const ELearningAgentsCompletion InCompletionMode)
 {
-	return UE::Learning::Agents::Completions::Private::AddCompletion<UTimeElapsedCompletion, UE::Learning::FTimeElapsedCompletion>(InAgentTrainer, Name, Threshold, UE::Learning::Agents::GetCompletionMode(InCompletionMode));
+	return UE::Learning::Agents::Completions::Private::AddCompletion<UTimeElapsedCompletion, UE::Learning::FTimeElapsedCompletion>(InAgentTrainer, Name, TEXT("AddTimeElapsedCompletion"), Threshold, UE::Learning::Agents::GetCompletionMode(InCompletionMode));
 }
 
 void UTimeElapsedCompletion::SetTimeElapsedCompletion(const int32 AgentId, const float Time)
@@ -137,6 +137,7 @@ UPlanarPositionDifferenceCompletion* UPlanarPositionDifferenceCompletion::AddPla
 	return UE::Learning::Agents::Completions::Private::AddCompletion<UPlanarPositionDifferenceCompletion, UE::Learning::FPlanarPositionDifferenceCompletion>(
 		InAgentTrainer,
 		Name,
+		TEXT("AddPlanarPositionDifferenceCompletion"),
 		1,
 		Threshold,
 		UE::Learning::Agents::GetCompletionMode(InCompletionMode),
@@ -235,6 +236,7 @@ UPlanarPositionSimilarityCompletion* UPlanarPositionSimilarityCompletion::AddPla
 	return UE::Learning::Agents::Completions::Private::AddCompletion<UPlanarPositionSimilarityCompletion, UE::Learning::FPlanarPositionSimilarityCompletion>(
 		InAgentTrainer,
 		Name,
+		TEXT("AddPlanarPositionSimilarityCompletion"),
 		1,
 		Threshold,
 		UE::Learning::Agents::GetCompletionMode(InCompletionMode),

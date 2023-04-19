@@ -11,7 +11,7 @@
 #include "LearningLog.h"
 #include "LearningNeuralNetwork.h"
 #include "LearningImitationTrainer.h"
-#include "LearningAgentsDataStorage.h"
+#include "LearningAgentsRecording.h"
 #include "LearningAgentsPolicy.h"
 #include "LearningNeuralNetworkObject.h"
 #include "Misc/Paths.h"
@@ -32,13 +32,14 @@ void ULearningAgentsImitationTrainer::EndPlay(const EEndPlayReason::Type EndPlay
 
 void ULearningAgentsImitationTrainer::BeginTraining(
 	ULearningAgentsPolicy* InPolicy, 
-	const TArray<ULearningAgentsRecord*>& Records, 
-	const FLearningAgentsImitationTrainerTrainingSettings& TrainingSettings,
+	const ULearningAgentsRecording* Recording,
+	const FLearningAgentsImitationTrainerTrainingSettings& ImitationTrainerTrainingSettings,
+	const FLearningAgentsTrainerPathSettings& ImitationTrainerPathSettings,
 	const bool bReinitializePolicyNetwork)
 {
 	if (IsTraining())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Already Training!"), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Cannot begin training as we are already training!"), *GetName());
 		return;
 	}
 
@@ -54,79 +55,95 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 		return;
 	}
 
-	if (Records.IsEmpty())
+	if (!Recording)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Records list is empty! Imitation Trainer needs at least one record."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Recording is nullptr."), *GetName());
+		return;
+	}
+
+	if (Recording->Records.IsEmpty())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Recording is empty!"), *GetName());
 		return;
 	}
 
 	Policy = InPolicy;
 
-	// Get Number of Steps
+	// Check Paths
 
-	int32 StepNum = 0;
-	for (const ULearningAgentsRecord* Record : Records)
+	const FString PythonExecutablePath = UE::Learning::Trainer::GetPythonExecutablePath(ImitationTrainerPathSettings.GetEditorEnginePath());
+
+	if (!FPaths::FileExists(PythonExecutablePath))
 	{
-		if (!Record)
-		{
-			UE_LOG(LogLearning, Warning, TEXT("%s: Record is nullptr."));
-			continue;
-		}
+		UE_LOG(LogLearning, Error, TEXT("%s: Can't find Python executable \"%s\"."), *GetName(), *PythonExecutablePath);
+		return;
+	}
+	const FString PythonContentPath = UE::Learning::Trainer::GetPythonContentPath(ImitationTrainerPathSettings.GetEditorEnginePath());
 
-		// Assuming everyone has been trimmed already
-		for (const TLearningArray<2, float>& Chunk : Record->GetObservations())
-		{
-			StepNum += Chunk.Num<0>();
-		}
+	if (!FPaths::DirectoryExists(PythonContentPath))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Can't find LearningAgents plugin Content \"%s\"."), *GetName(), *PythonContentPath);
+		return;
 	}
 
-	// Parse into Flat Arrays
+	const FString SitePackagesPath = UE::Learning::Trainer::GetSitePackagesPath(ImitationTrainerPathSettings.GetEditorEnginePath());
+
+	if (!FPaths::DirectoryExists(SitePackagesPath))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Can't find Python site-packages \"%s\"."), *GetName(), *SitePackagesPath);
+		return;
+	}
+
+	const FString IntermediatePath = UE::Learning::Trainer::GetIntermediatePath(ImitationTrainerPathSettings.GetIntermediatePath());
+
+	// Sizes
 
 	const int32 PolicyInputNum = Policy->GetPolicyNetwork().GetInputNum();
 	const int32 PolicyOutputNum = Policy->GetPolicyNetwork().GetOutputNum();
 
-	RecordedObservations.SetNumUninitialized({ StepNum, PolicyInputNum });
-	RecordedActions.SetNumUninitialized({ StepNum, PolicyOutputNum / 2 });
+	// Get Number of Steps
 
-	int32 DataIndex = 0;
-	for (const ULearningAgentsRecord* Record : Records)
+	int32 TotalSampleNum = 0;
+	for (const FLearningAgentsRecord& Record : Recording->Records)
 	{
-		if (!Record) { continue; }
-
-		TConstArrayView<TLearningArray<2, float>> RecordObsChunks = Record->GetObservations();
-		TConstArrayView<TLearningArray<2, float>> RecordActionChunks = Record->GetActions();
-
-		for (int32 Idx = 0; Idx < RecordObsChunks.Num(); Idx++)
+		if (Record.ObservationDimNum != PolicyInputNum)
 		{
-			if (RecordObsChunks[Idx].Num<1>() == PolicyInputNum &&
-				RecordActionChunks[Idx].Num<1>() == PolicyOutputNum / 2)
-			{
-				int32 ChunkLength = RecordObsChunks[Idx].Num<0>();
-				UE::Learning::Array::Copy(RecordedObservations.Slice(DataIndex, ChunkLength), RecordObsChunks[Idx]);
-				UE::Learning::Array::Copy(RecordedActions.Slice(DataIndex, ChunkLength), RecordActionChunks[Idx]);
-				DataIndex += ChunkLength;
-			}
-			else
-			{
-				UE_LOG(LogLearning, Warning, TEXT("%s: Record input or output size does not match policy."), *GetName());
-			}
+			UE_LOG(LogLearning, Warning, TEXT("%s: Record has wrong dimensionality for observations, got %i, policy expected %i."), *GetName(), Record.ObservationDimNum, PolicyInputNum);
+			continue;
 		}
+
+		if (Record.ActionDimNum != PolicyOutputNum / 2)
+		{
+			UE_LOG(LogLearning, Warning, TEXT("%s: Record has wrong dimensionality for actions, got %i, policy expected %i."), *GetName(), Record.ActionDimNum, PolicyOutputNum / 2);
+			continue;
+		}
+
+		TotalSampleNum += Record.SampleNum;
 	}
 
-	// Return if no valid records found
-
-	if (DataIndex == 0)
+	if (TotalSampleNum == 0)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("%s: input contains no valid training data."), *GetName());
-		RecordedObservations.Empty();
-		RecordedActions.Empty();
+		UE_LOG(LogLearning, Warning, TEXT("%s: Recording contains no valid training data."), *GetName());
 		return;
 	}
 
-	// Resize to final size
+	// Copy into Flat Arrays
 
-	RecordedObservations.SetNumUninitialized({ DataIndex, PolicyInputNum });
-	RecordedActions.SetNumUninitialized({ DataIndex, PolicyOutputNum / 2 });
+	RecordedObservations.SetNumUninitialized({ TotalSampleNum, PolicyInputNum });
+	RecordedActions.SetNumUninitialized({ TotalSampleNum, PolicyOutputNum / 2 });
+
+	int32 SampleIdx = 0;
+	for (const FLearningAgentsRecord& Record : Recording->Records)
+	{
+		if (Record.ObservationDimNum != PolicyInputNum) { continue; }
+		if (Record.ActionDimNum != PolicyOutputNum / 2) { continue; }
+
+		UE::Learning::Array::Copy(RecordedObservations.Slice(SampleIdx, Record.SampleNum), Record.Observations);
+		UE::Learning::Array::Copy(RecordedActions.Slice(SampleIdx, Record.SampleNum), Record.Actions);
+		SampleIdx += Record.SampleNum;
+	}
+
+	UE_LEARNING_CHECK(SampleIdx == TotalSampleNum);
 
 	// Begin Training Properly
 
@@ -136,30 +153,15 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 	bIsTrainingComplete = false;
 	bRequestImitationTrainingStop = false;
 
-#if WITH_EDITOR
-	const FString PythonExecutablePath = UE::Learning::Trainer::DefaultEditorPythonExecutablePath();
-	const FString SitePackagesPath = UE::Learning::Trainer::DefaultEditorSitePackagesPath();
-	const FString PythonContentPath = UE::Learning::Trainer::DefaultEditorPythonContentPath();
-	const FString IntermediatePath = UE::Learning::Trainer::DefaultEditorIntermediatePath();
-#else
-	UE_LEARNING_CHECKF(PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_LINUX, TEXT("Python only supported on Windows, Mac, and Linux."));
-	const FString PythonExe = PLATFORM_WINDOWS ? TEXT("python.exe") : TEXT("bin/python");
-	const FString EnginePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*(FPaths::RootDir() / TEXT("../../../../../../Engine")));
-	const FString PythonExecutablePath = EnginePath / TEXT("Binaries/ThirdParty/Python3") / FPlatformMisc::GetUBTPlatform() / PythonExe;
-	const FString SitePackagesPath = EnginePath / TEXT("Plugins/Experimental/PythonFoundationPackages/Content/Python/Lib/") / FPlatformMisc::GetUBTPlatform() / TEXT("site-packages");
-	const FString PythonContentPath = EnginePath / TEXT("Plugins/Experimental/LearningAgents/Content/Python/");
-	const FString IntermediatePath = EnginePath / TEXT("Plugins/Experimental/LearningAgents/Intermediate");
-#endif
-
 	UE::Learning::FImitationTrainerTrainingSettings ImitationTrainingSettings;
-	ImitationTrainingSettings.IterationNum = TrainingSettings.NumberOfIterations;
-	ImitationTrainingSettings.LearningRateActor = TrainingSettings.LearningRate;
-	ImitationTrainingSettings.LearningRateDecay = TrainingSettings.LearningRateDecay;
-	ImitationTrainingSettings.WeightDecay = TrainingSettings.WeightDecay;
-	ImitationTrainingSettings.BatchSize = TrainingSettings.BatchSize;
-	ImitationTrainingSettings.Seed = TrainingSettings.RandomSeed;
-	ImitationTrainingSettings.Device = TrainingSettings.Device == ELearningAgentsTrainerDevice::CPU ? UE::Learning::ETrainerDevice::CPU : UE::Learning::ETrainerDevice::GPU;
-	ImitationTrainingSettings.bUseTensorboard = TrainingSettings.bUseTensorboard;
+	ImitationTrainingSettings.IterationNum = ImitationTrainerTrainingSettings.NumberOfIterations;
+	ImitationTrainingSettings.LearningRateActor = ImitationTrainerTrainingSettings.LearningRate;
+	ImitationTrainingSettings.LearningRateDecay = ImitationTrainerTrainingSettings.LearningRateDecay;
+	ImitationTrainingSettings.WeightDecay = ImitationTrainerTrainingSettings.WeightDecay;
+	ImitationTrainingSettings.BatchSize = ImitationTrainerTrainingSettings.BatchSize;
+	ImitationTrainingSettings.Seed = ImitationTrainerTrainingSettings.RandomSeed;
+	ImitationTrainingSettings.Device = ImitationTrainerTrainingSettings.Device == ELearningAgentsTrainerDevice::CPU ? UE::Learning::ETrainerDevice::CPU : UE::Learning::ETrainerDevice::GPU;
+	ImitationTrainingSettings.bUseTensorboard = ImitationTrainerTrainingSettings.bUseTensorboard;
 
 	const UE::Learning::EImitationTrainerFlags TrainerFlags = 
 		bReinitializePolicyNetwork ? 
@@ -196,7 +198,7 @@ void ULearningAgentsImitationTrainer::EndTraining()
 {
 	if (!IsTraining())
 	{
-		UE_LOG(LogLearning, Warning, TEXT("%s: Not Training!"), *GetName());
+		UE_LOG(LogLearning, Warning, TEXT("%s: Cannot end training as we are not training!"), *GetName());
 		return;
 	}
 

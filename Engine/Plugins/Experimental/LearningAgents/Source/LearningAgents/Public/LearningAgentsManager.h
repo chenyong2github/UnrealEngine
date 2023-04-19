@@ -109,7 +109,26 @@ public:
 	 * @return The agent object.
 	 */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1", DeterminesOutputType = "AgentClass"))
-	UObject* GetAgent(const int32 AgentId, const TSubclassOf<UObject> AgentClass);
+	UObject* GetAgent(const int32 AgentId, const TSubclassOf<UObject> AgentClass) const;
+
+	/**
+	 * Gets the agents associated with a set of ids. Calling this from blueprint with the appropriate AgentClass will 
+	 * automatically cast the object to the given type.
+	 * @param AgentIds The ids of the agents to get.
+	 * @param AgentClass The class to cast the agent objects to (in blueprint).
+	 * @param OutAgents The output array of agent objects.
+	 */
+	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass", DynamicOutputParam = "OutAgents"))
+	void GetAgents(const TArray<int32>& AgentIds, const TSubclassOf<UObject> AgentClass, TArray<UObject*>& OutAgents) const;
+
+	/**
+	 * Gets the current added agents. Calling this from blueprint with the appropriate AgentClass will automatically
+	 * cast the object to the given type.
+	 * @param AgentClass The class to cast the agent objects to (in blueprint).
+	 * @param OutAgents The output array of agent objects.
+	 */
+	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass", DynamicOutputParam = "OutAgents"))
+	void GetAddedAgents(const TSubclassOf<UObject> AgentClass, TArray<UObject*>& OutAgents) const;
 
 	/**
 	* Returns true if the given object is an agent in this manager; Otherwise, false.

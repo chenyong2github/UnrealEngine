@@ -47,6 +47,18 @@ void ULearningAgentsInteractor::SetupInteractor(ALearningAgentsManager* InAgentM
 		InAgentManager->GetInstanceData().ToSharedRef(),
 		InAgentManager->GetMaxInstanceNum());
 
+	if (ObservationObjects.Num() == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: No observations added to Interactor during SetupObservations."), *GetName());
+		return;
+	}
+
+	if (Observations->DimNum() == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Observation vector is zero-sized - all added observations have no size."), *GetName());
+		return;
+	}
+
 	// Setup Actions
 	ActionObjects.Empty();
 	ActionFeatures.Empty();
@@ -55,6 +67,18 @@ void ULearningAgentsInteractor::SetupInteractor(ALearningAgentsManager* InAgentM
 		TLearningArrayView<1, const TSharedRef<UE::Learning::FFeatureObject>>(ActionFeatures),
 		InAgentManager->GetInstanceData().ToSharedRef(),
 		InAgentManager->GetMaxInstanceNum());
+
+	if (ActionObjects.Num() == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: No actions added to Interactor during SetupActions."), *GetName());
+		return;
+	}
+
+	if (Actions->DimNum() == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Action vector is zero-sized -  all added actions have no size."), *GetName());
+		return;
+	}
 
 	bIsSetup = true;
 }
@@ -119,7 +143,7 @@ void ULearningAgentsInteractor::EncodeObservations()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -144,7 +168,7 @@ void ULearningAgentsInteractor::DecodeActions()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -166,7 +190,7 @@ void ULearningAgentsInteractor::GetObservationVector(const int32 AgentId, TArray
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		OutObservationVector.Empty();
 		return;
 	}
@@ -186,7 +210,7 @@ void ULearningAgentsInteractor::GetActionVector(const int32 AgentId, TArray<floa
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		OutActionVector.Empty();
 		return;
 	}

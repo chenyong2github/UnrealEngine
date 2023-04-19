@@ -16,7 +16,7 @@ USplineComponentHelper* USplineComponentHelper::AddSplineComponentHelper(ULearni
 {
 	if (!InManagerComponent)
 	{
-		UE_LOG(LogLearning, Error, TEXT("InManagerComponent is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("AddSplineComponentHelper: InManagerComponent is nullptr."));
 		return nullptr;
 	}
 
@@ -24,6 +24,162 @@ USplineComponentHelper* USplineComponentHelper::AddSplineComponentHelper(ULearni
 	Helper->ManagerComponent = InManagerComponent;
 	InManagerComponent->AddHelper(Helper);
 	return Helper;
+}
+
+FVector USplineComponentHelper::GetNearestPositionOnSpline(const int32 AgentId, const USplineComponent* SplineComponent, const FVector Position, const ESplineCoordinateSpace::Type CoordinateSpace) const
+{
+	if (!ManagerComponent->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return FVector::ZeroVector;
+	}
+
+	if (!SplineComponent)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: SplineComponent is nullptr."), *GetName());
+		return FVector::ZeroVector;
+	}
+
+	const FVector SplinePosition = SplineComponent->FindLocationClosestToWorldLocation(Position, CoordinateSpace);
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+	{
+		UE_LEARNING_AGENTS_VLOG_LOCATION(this, LogLearning, Display,
+			SplinePosition,
+			10.0f,
+			VisualLogColor.ToFColor(true),
+			TEXT(""));
+
+		UE_LEARNING_AGENTS_VLOG_SEGMENT(this, LogLearning, Display,
+			Position,
+			SplinePosition,
+			VisualLogColor.ToFColor(true),
+			TEXT("GetNearestPositionOnSpline\nAgent %i\nPosition: [% 6.1f % 6.1f % 6.1f]\nSpline Position: [% 6.1f % 6.1f % 6.1f]"),
+			AgentId,
+			Position.X, Position.Y, Position.Z,
+			SplinePosition.X, SplinePosition.Y, SplinePosition.Z);
+
+		UE_LEARNING_AGENTS_VLOG_LOCATION(this, LogLearning, Display,
+			Position,
+			10.0f,
+			VisualLogColor.ToFColor(true),
+			TEXT(""));
+	}
+#endif
+
+	return SplinePosition;
+}
+
+float USplineComponentHelper::GetDistanceAlongSplineAtPosition(const int32 AgentId, const USplineComponent* SplineComponent, const FVector Position, const ESplineCoordinateSpace::Type CoordinateSpace) const
+{
+	if (!ManagerComponent->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return 0.0f;
+	}
+
+	if (!SplineComponent)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: SplineComponent is nullptr."), *GetName());
+		return 0.0f;
+	}
+
+	const float DistanceAlongSpline = SplineComponent->GetDistanceAlongSplineAtLocation(Position, CoordinateSpace);
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+	{
+		const FVector SplinePosition = SplineComponent->GetLocationAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::World);
+
+		UE_LEARNING_AGENTS_VLOG_LOCATION(this, LogLearning, Display,
+			SplinePosition,
+			10.0f,
+			VisualLogColor.ToFColor(true),
+			TEXT(""));
+
+		UE_LEARNING_AGENTS_VLOG_SEGMENT(this, LogLearning, Display,
+			Position,
+			SplinePosition,
+			VisualLogColor.ToFColor(true),
+			TEXT("GetDistanceAlongSplineAtPosition\nAgent %i\nPosition: [% 6.1f % 6.1f % 6.1f]\nDistance Along Spline: [% 6.1f]"),
+			AgentId,
+			Position.X, Position.Y, Position.Z,
+			DistanceAlongSpline);
+
+		UE_LEARNING_AGENTS_VLOG_LOCATION(this, LogLearning, Display,
+			Position,
+			10.0f,
+			VisualLogColor.ToFColor(true),
+			TEXT(""));
+	}
+#endif
+
+	return DistanceAlongSpline;
+}
+
+FVector USplineComponentHelper::GetPositionAtDistanceAlongSpline(const int32 AgentId, const USplineComponent* SplineComponent, const float DistanceAlongSpline, const ESplineCoordinateSpace::Type CoordinateSpace) const
+{
+	if (!ManagerComponent->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return FVector::ZeroVector;
+	}
+
+	if (!SplineComponent)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: SplineComponent is nullptr."), *GetName());
+		return FVector::ZeroVector;
+	}
+
+	const FVector Position = SplineComponent->GetLocationAtDistanceAlongSpline(DistanceAlongSpline, CoordinateSpace);
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+	{
+		UE_LEARNING_AGENTS_VLOG_LOCATION(this, LogLearning, Display,
+			Position,
+			10.0f,
+			VisualLogColor.ToFColor(true),
+			TEXT("GetPositionAtDistanceAlongSpline\nAgent %i\nDistance Along Spline: [% 6.1f]\nPosition: [% 6.1f % 6.1f % 6.1f]"),
+			AgentId,
+			DistanceAlongSpline,
+			Position.X, Position.Y, Position.Z);
+	}
+#endif
+
+	return Position;
+}
+
+FVector USplineComponentHelper::GetDirectionAtDistanceAlongSpline(const int32 AgentId, const USplineComponent* SplineComponent, const float DistanceAlongSpline, const ESplineCoordinateSpace::Type CoordinateSpace) const
+{
+	if (!ManagerComponent->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return FVector::ZeroVector;
+	}
+
+	if (!SplineComponent)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: SplineComponent is nullptr."), *GetName());
+		return FVector::ZeroVector;
+	}
+
+	const FVector Direction = SplineComponent->GetDirectionAtDistanceAlongSpline(DistanceAlongSpline, CoordinateSpace);
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+	{
+		const FVector Position = SplineComponent->GetLocationAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::World);
+
+		UE_LEARNING_AGENTS_VLOG_ARROW(this, LogLearning, Display,
+			Position,
+			Position + Direction * 100.0f,
+			VisualLogColor.ToFColor(true),
+			TEXT("GetDirectionAtDistanceAlongSpline\nAgent %i\nDistance Along Spline: [% 6.1f]\nDirection: [% 6.3f % 6.3f % 6.3f]"),
+			AgentId,
+			DistanceAlongSpline,
+			Direction.X, Direction.Y, Direction.Z);
+	}
+#endif
+
+	return Direction;
 }
 
 float USplineComponentHelper::GetProportionAlongSpline(const int32 AgentId, const USplineComponent* SplineComponent, const float DistanceAlongSpline) const
@@ -266,7 +422,7 @@ UProjectionHelper* UProjectionHelper::AddProjectionHelper(ULearningAgentsManager
 {
 	if (!InManagerComponent)
 	{
-		UE_LOG(LogLearning, Error, TEXT("InManagerComponent is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("AddProjectionHelper: InManagerComponent is nullptr."));
 		return nullptr;
 	}
 
@@ -375,7 +531,7 @@ UMeshComponentHelper* UMeshComponentHelper::AddMeshComponentHelper(ULearningAgen
 {
 	if (!InManagerComponent)
 	{
-		UE_LOG(LogLearning, Error, TEXT("InManagerComponent is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("AddMeshComponentHelper: InManagerComponent is nullptr."));
 		return nullptr;
 	}
 
@@ -448,7 +604,7 @@ URayCastHelper* URayCastHelper::AddRayCastHelper(ULearningAgentsManagerComponent
 {
 	if (!InManagerComponent)
 	{
-		UE_LOG(LogLearning, Error, TEXT("InInteractor is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("AddRayCastHelper: InManagerComponent is nullptr."));
 		return nullptr;
 	}
 

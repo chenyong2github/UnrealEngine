@@ -292,6 +292,26 @@ namespace UE::Learning
 	LEARNING_API void SlicedParallelFor(const int32 Num, const int32 MinSliceElementNum, const TFunctionRef<void(const int32 Start, const int32 Length)> Body);
 
 	/**
+	* Serialize an integer to bytes
+	*/
+	static inline void SerializeToBytes(int32& InOutOffset, TLearningArrayView<1, uint8> Bytes, const int32 InValue)
+	{
+		UE_LEARNING_CHECK(InOutOffset + sizeof(int32) <= Bytes.Num());
+		FMemory::Memcpy(&Bytes[InOutOffset], (uint8*)&InValue, sizeof(int32));
+		InOutOffset += sizeof(int32);
+	}
+
+	/**
+	* Serialize an integer from bytes
+	*/
+	static inline void DeserializeFromBytes(int32& InOutOffset, TLearningArrayView<1, const uint8> Bytes, int32& OutValue)
+	{
+		UE_LEARNING_CHECK(InOutOffset + sizeof(int32) <= Bytes.Num());
+		FMemory::Memcpy((uint8*)&OutValue, &Bytes[InOutOffset], sizeof(int32));
+		InOutOffset += sizeof(int32);
+	}
+
+	/**
 	* Some additional functions that act on arrays such as copy, set, zero, etc.
 	* 
 	* Unfortunately most of these functions need to be duplicated for Array, ArrayView and their
@@ -943,6 +963,55 @@ namespace UE::Learning
 				}
 				Ar.Serialize(Array.GetData(), Array.Num() * sizeof(InElementType));
 			}
+		}
+
+		/**
+		* Serialization byte num
+		*/
+		template<uint8 InDimNum, typename InElementType>
+		inline int32 SerializationByteNum(const TLearningArrayShape<InDimNum> Shape)
+		{
+			return sizeof(int32) + sizeof(int32) * InDimNum + sizeof(InElementType) * Shape.Total();
+		}
+
+		/**
+		* Serialize an array to bytes
+		*/
+		template<uint8 InDimNum, typename InElementType, typename Allocator>
+		inline void SerializeToBytes(int32& InOutOffset, TLearningArrayView<1, uint8> Bytes, const TLearningArray<InDimNum, InElementType, Allocator>& InArray)
+		{
+			Learning::SerializeToBytes(InOutOffset, Bytes, (int32)InDimNum);
+			for (uint8 ShapeIdx = 0; ShapeIdx < InDimNum; ShapeIdx++)
+			{
+				Learning::SerializeToBytes(InOutOffset, Bytes, InArray.Shape()[ShapeIdx]);
+			}
+
+			UE_LEARNING_CHECK(InOutOffset + sizeof(InElementType) * InArray.Num() <= Bytes.Num());
+			FMemory::Memcpy(&Bytes[InOutOffset], (uint8*)InArray.GetData(), sizeof(InElementType) * InArray.Num());
+			InOutOffset += sizeof(InElementType) * InArray.Num();
+		}
+
+		/**
+		* Serialize an array from bytes
+		*/
+		template<uint8 InDimNum, typename InElementType, typename Allocator>
+		inline void DeserializeFromBytes(int32& InOutOffset, TLearningArrayView<1, const uint8> Bytes, TLearningArray<InDimNum, InElementType, Allocator>& OutArray)
+		{
+			int32 DimNum = INDEX_NONE;
+			Learning::DeserializeFromBytes(InOutOffset, Bytes, DimNum);
+			UE_LEARNING_CHECK(DimNum == InDimNum);
+
+			TLearningArrayShape<InDimNum> Shape;
+			for (uint8 ShapeIdx = 0; ShapeIdx < InDimNum; ShapeIdx++)
+			{
+				Learning::DeserializeFromBytes(InOutOffset, Bytes, Shape[ShapeIdx]);
+			}
+
+			OutArray.SetNumUninitialized(Shape);
+
+			UE_LEARNING_CHECK(InOutOffset + sizeof(InElementType) * OutArray.Num() <= Bytes.Num());
+			FMemory::Memcpy((uint8*)OutArray.GetData(), &Bytes[InOutOffset],  sizeof(InElementType) * OutArray.Num());
+			InOutOffset += sizeof(InElementType) * OutArray.Num();
 		}
 
 		template<typename InElementType>

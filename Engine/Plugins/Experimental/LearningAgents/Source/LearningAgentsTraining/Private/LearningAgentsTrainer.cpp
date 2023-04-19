@@ -52,6 +52,32 @@ namespace UE::Learning::Agents
 		}
 	}
 }
+
+FLearningAgentsTrainerPathSettings::FLearningAgentsTrainerPathSettings()
+{
+	EditorEngineRelativePath.Path = FPaths::EngineDir();
+	IntermediateRelativePath.Path = FPaths::ProjectIntermediateDir();
+}
+
+FString FLearningAgentsTrainerPathSettings::GetEditorEnginePath() const
+{
+#if WITH_EDITOR
+	return EditorEngineRelativePath.Path;
+#else
+	if (NonEditorEngineRelativePath.IsEmpty())
+	{
+		UE_LOG(LogLearning, Warning, TEXT("GetEditorEnginePath: NonEditorEngineRelativePath not set"));
+	}
+
+	return NonEditorEngineRelativePath;
+#endif
+}
+
+FString FLearningAgentsTrainerPathSettings::GetIntermediatePath() const
+{
+	return IntermediateRelativePath.Path;
+}
+
 ULearningAgentsTrainer::ULearningAgentsTrainer() : ULearningAgentsManagerComponent() {}
 ULearningAgentsTrainer::ULearningAgentsTrainer(FVTableHelper& Helper) : ULearningAgentsTrainer() {}
 ULearningAgentsTrainer::~ULearningAgentsTrainer() {}
@@ -132,6 +158,12 @@ void ULearningAgentsTrainer::SetupTrainer(
 		AgentManager->GetInstanceData().ToSharedRef(),
 		AgentManager->GetMaxInstanceNum());
 
+	if (RewardObjects.Num() == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: No rewards added to Trainer during SetupRewards."), *GetName());
+		return;
+	}
+
 	// Setup Completions
 	CompletionObjects.Empty();
 	CompletionFeatures.Empty();
@@ -140,6 +172,12 @@ void ULearningAgentsTrainer::SetupTrainer(
 		TLearningArrayView<1, const TSharedRef<UE::Learning::FCompletionObject>>(CompletionFeatures),
 		AgentManager->GetInstanceData().ToSharedRef(),
 		AgentManager->GetMaxInstanceNum());
+
+	if (RewardObjects.Num() == 0)
+	{
+		// Not an error or warning because it's fine to run training without any completions.
+		UE_LOG(LogLearning, Display, TEXT("%s: No completions added to Trainer during SetupCompletions."), *GetName());
+	}
 
 	// Create Episode Buffer
 	EpisodeBuffer = MakeUnique<UE::Learning::FEpisodeBuffer>();
@@ -234,15 +272,16 @@ const bool ULearningAgentsTrainer::IsTraining() const
 }
 
 void ULearningAgentsTrainer::BeginTraining(
-	const FLearningAgentsTrainerTrainingSettings& TrainingSettings, 
+	const FLearningAgentsTrainerTrainingSettings& TrainerTrainingSettings,
 	const FLearningAgentsTrainerGameSettings& TrainerGameSettings,
+	const FLearningAgentsTrainerPathSettings& TrainerPathSettings,
 	const FLearningAgentsCriticSettings& CriticSettings,
 	const bool bReinitializePolicyNetwork,
 	const bool bReinitializeCriticNetwork)
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -251,6 +290,34 @@ void ULearningAgentsTrainer::BeginTraining(
 		UE_LOG(LogLearning, Error, TEXT("%s: Already Training!"), *GetName());
 		return;
 	}
+
+	// Check Paths
+
+	const FString PythonExecutablePath = UE::Learning::Trainer::GetPythonExecutablePath(TrainerPathSettings.GetEditorEnginePath());
+
+	if (!FPaths::FileExists(PythonExecutablePath))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Can't find Python executable \"%s\"."), *GetName(), *PythonExecutablePath);
+		return;
+	}
+
+	const FString PythonContentPath = UE::Learning::Trainer::GetPythonContentPath(TrainerPathSettings.GetEditorEnginePath());
+
+	if (!FPaths::DirectoryExists(PythonContentPath))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Can't find LearningAgents plugin Content \"%s\"."), *GetName(), *PythonContentPath);
+		return;
+	}
+
+	const FString SitePackagesPath = UE::Learning::Trainer::GetSitePackagesPath(TrainerPathSettings.GetEditorEnginePath());
+
+	if (!FPaths::DirectoryExists(SitePackagesPath))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Can't find Python site-packages \"%s\"."), *GetName(), *SitePackagesPath);
+		return;
+	}
+
+	const FString IntermediatePath = UE::Learning::Trainer::GetIntermediatePath(TrainerPathSettings.GetIntermediatePath());
 
 	// Record GameState Settings
 
@@ -305,42 +372,15 @@ void ULearningAgentsTrainer::BeginTraining(
 
 	// Start Trainer
 
-#if WITH_EDITOR
-	const FString PythonExecutablePath = UE::Learning::Trainer::DefaultEditorPythonExecutablePath();
-	const FString SitePackagesPath = UE::Learning::Trainer::DefaultEditorSitePackagesPath();
-	const FString PythonContentPath = UE::Learning::Trainer::DefaultEditorPythonContentPath();
-	const FString IntermediatePath = UE::Learning::Trainer::DefaultEditorIntermediatePath();
-#else
-	// If we want to run training in a cooked, non-editor build, then by default we wont have access to python or the 
-	// learning training scripts - these are editor-only and will be stripped during the cooking process.
-	//
-	// However, running training in non-editor builds can be very important - we probably want to disable rendering 
-	// and sound while we are training to make experience gathering as fast as possible - and for any non-trivial game 
-	// is simply may not be realistic to run it for a long time in play-in-editor mode.
-	//
-	// For this reason even in non-editor builds we let you provide paths the `python.exe` provided by the editor, 
-	// as well as PythonFoundationPackages site-packages, and the Learning training scripts. This allows you to 
-	// run training when these things actually exist somewhere on your machine, which will usually be the case on 
-	// a normal development machine.
-
-	UE_LEARNING_CHECKF(PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_LINUX, TEXT("Python only supported on Windows, Mac, and Linux."));
-	const FString PythonExe = PLATFORM_WINDOWS ? TEXT("python.exe") : TEXT("bin/python");
-	const FString EnginePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*(FPaths::RootDir() / TEXT("../../../../../../Engine")));
-	const FString PythonExecutablePath = EnginePath / TEXT("Binaries/ThirdParty/Python3") / FPlatformMisc::GetUBTPlatform() / PythonExe;
-	const FString SitePackagesPath = EnginePath / TEXT("Plugins/Experimental/PythonFoundationPackages/Content/Python/Lib/") / FPlatformMisc::GetUBTPlatform() / TEXT("site-packages");
-	const FString PythonContentPath = EnginePath / TEXT("Plugins/Experimental/LearningAgents/Content/Python/");
-	const FString IntermediatePath = EnginePath / TEXT("Plugins/Experimental/LearningAgents/Intermediate");
-#endif
-
 	UE::Learning::FPPOTrainerTrainingSettings PPOTrainingSettings;
-	PPOTrainingSettings.IterationNum = TrainingSettings.NumberOfIterations;
-	PPOTrainingSettings.bUseTensorboard = TrainingSettings.bUseTensorboard;
-	PPOTrainingSettings.InitialActionScale = TrainingSettings.InitialActionScale;
-	PPOTrainingSettings.DiscountFactor = TrainingSettings.DiscountFactor;
-	PPOTrainingSettings.Seed = TrainingSettings.RandomSeed;
-	PPOTrainingSettings.TrimEpisodeStartStepNum = TrainingSettings.NumberOfStepsToTrimAtStartOfEpisode;
-	PPOTrainingSettings.TrimEpisodeEndStepNum = TrainingSettings.NumberOfStepsToTrimAtEndOfEpisode;
-	PPOTrainingSettings.Device = TrainingSettings.Device == ELearningAgentsTrainerDevice::CPU ? UE::Learning::ETrainerDevice::CPU : UE::Learning::ETrainerDevice::GPU;
+	PPOTrainingSettings.IterationNum = TrainerTrainingSettings.NumberOfIterations;
+	PPOTrainingSettings.bUseTensorboard = TrainerTrainingSettings.bUseTensorboard;
+	PPOTrainingSettings.InitialActionScale = TrainerTrainingSettings.InitialActionScale;
+	PPOTrainingSettings.DiscountFactor = TrainerTrainingSettings.DiscountFactor;
+	PPOTrainingSettings.Seed = TrainerTrainingSettings.RandomSeed;
+	PPOTrainingSettings.TrimEpisodeStartStepNum = TrainerTrainingSettings.NumberOfStepsToTrimAtStartOfEpisode;
+	PPOTrainingSettings.TrimEpisodeEndStepNum = TrainerTrainingSettings.NumberOfStepsToTrimAtEndOfEpisode;
+	PPOTrainingSettings.Device = TrainerTrainingSettings.Device == ELearningAgentsTrainerDevice::CPU ? UE::Learning::ETrainerDevice::CPU : UE::Learning::ETrainerDevice::GPU;
 
 	UE::Learning::FPPOTrainerNetworkSettings PPONetworkSettings;
 	PPONetworkSettings.PolicyActionNoiseMin = Policy->GetPolicyObject().Settings.ActionNoiseMin;
@@ -494,7 +534,7 @@ void ULearningAgentsTrainer::EvaluateRewards()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -519,7 +559,7 @@ void ULearningAgentsTrainer::EvaluateCompletions()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -542,7 +582,7 @@ void ULearningAgentsTrainer::ProcessExperience()
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -655,7 +695,7 @@ void ULearningAgentsTrainer::ResetAllEpisodes()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -665,22 +705,29 @@ void ULearningAgentsTrainer::ResetAllEpisodes()
 }
 
 void ULearningAgentsTrainer::RunTraining(
-	const FLearningAgentsTrainerTrainingSettings& TrainingSettings,
+	const FLearningAgentsTrainerTrainingSettings& TrainerTrainingSettings,
 	const FLearningAgentsTrainerGameSettings& TrainerGameSettings,
+	const FLearningAgentsTrainerPathSettings& TrainerPathSettings,
 	const FLearningAgentsCriticSettings& CriticSettings,
 	const bool bReinitializePolicyNetwork,
 	const bool bReinitializeCriticNetwork)
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
 	// If we aren't training yet, then start training and do the first inference step.
 	if (!IsTraining())
 	{
-		BeginTraining(TrainingSettings, TrainerGameSettings, CriticSettings, bReinitializePolicyNetwork, bReinitializeCriticNetwork);
+		BeginTraining(
+			TrainerTrainingSettings,
+			TrainerGameSettings, 
+			TrainerPathSettings, 
+			CriticSettings, 
+			bReinitializePolicyNetwork, 
+			bReinitializeCriticNetwork);
 
 		if (!IsTraining())
 		{
@@ -702,7 +749,7 @@ float ULearningAgentsTrainer::GetReward(const int32 AgentId) const
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return 0.0f;
 	}
 
@@ -719,7 +766,7 @@ bool ULearningAgentsTrainer::IsCompleted(const int32 AgentId, ELearningAgentsCom
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		OutCompletion = ELearningAgentsCompletion::Termination;
 		return false;
 	}

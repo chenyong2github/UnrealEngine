@@ -66,58 +66,39 @@ namespace UE::Learning
 		return Weights[0].Num<1>();
 	}
 
-	void FNeuralNetwork::DeserializeFromBytes(const TLearningArrayView<1, const uint8> RawBytes)
+	void FNeuralNetwork::DeserializeFromBytes(int32& InOutOffset, const TLearningArrayView<1, const uint8> RawBytes)
 	{
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(Learning::FNeuralNetwork::DeserializeFromBytes);
 
-		const int32 TotalByteNum = GetSerializationByteNum(GetInputNum(), GetOutputNum(), GetHiddenNum(), GetLayerNum());
+		int32 ActivationFunctionInt;
+		UE::Learning::DeserializeFromBytes(InOutOffset, RawBytes, ActivationFunctionInt);
+		ActivationFunction = (EActivationFunction)ActivationFunctionInt;
 
-		UE_LEARNING_CHECK(RawBytes.Num() == TotalByteNum);
+		int32 LayerNum;
+		UE::Learning::DeserializeFromBytes(InOutOffset, RawBytes, LayerNum);
 
-		const int32 LayerNum = Weights.Num();
-
-		int32 Offset = 0;
+		Weights.SetNum(LayerNum);
+		Biases.SetNum(LayerNum);
 
 		for (int32 LayerIdx = 0; LayerIdx < LayerNum; LayerIdx++)
 		{
-			const int32 WeightByteNum = Weights[LayerIdx].Num() * sizeof(float);
-			FMemory::Memcpy((uint8*)Weights[LayerIdx].GetData(), &RawBytes[Offset], WeightByteNum);
-			Array::Check(Weights[LayerIdx]);
-			Offset += WeightByteNum;
-
-			const int32 BiasByteNum = Biases[LayerIdx].Num() * sizeof(float);
-			FMemory::Memcpy((uint8*)Biases[LayerIdx].GetData(), &RawBytes[Offset], BiasByteNum);
-			Array::Check(Biases[LayerIdx]);
-			Offset += BiasByteNum;
+			UE::Learning::Array::DeserializeFromBytes(InOutOffset, RawBytes, Weights[LayerIdx]);
+			UE::Learning::Array::DeserializeFromBytes(InOutOffset, RawBytes, Biases[LayerIdx]);
 		}
-
-		UE_LEARNING_CHECK(Offset == TotalByteNum);
 	}
 
-	void FNeuralNetwork::SerializeToBytes(TLearningArrayView<1, uint8> OutRawBytes) const
+	void FNeuralNetwork::SerializeToBytes(int32& InOutOffset, TLearningArrayView<1, uint8> OutRawBytes) const
 	{
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(Learning::FNeuralNetwork::SerializeToBytes);
 
-		const int32 TotalByteNum = GetSerializationByteNum(GetInputNum(), GetOutputNum(), GetHiddenNum(), GetLayerNum());
+		UE::Learning::SerializeToBytes(InOutOffset, OutRawBytes, (int32)ActivationFunction);
+		UE::Learning::SerializeToBytes(InOutOffset, OutRawBytes, GetLayerNum());
 
-		UE_LEARNING_CHECK(OutRawBytes.Num() == TotalByteNum);
-
-		const int32 LayerNum = Weights.Num();
-
-		int32 Offset = 0;
-
-		for (int32 LayerIdx = 0; LayerIdx < LayerNum; LayerIdx++)
+		for (int32 LayerIdx = 0; LayerIdx < GetLayerNum(); LayerIdx++)
 		{
-			const int32 WeightByteNum = Weights[LayerIdx].Num() * sizeof(float);
-			FMemory::Memcpy(&OutRawBytes[Offset], (uint8*)Weights[LayerIdx].GetData(), WeightByteNum);
-			Offset += WeightByteNum;
-
-			const int32 BiasByteNum = Biases[LayerIdx].Num() * sizeof(float);
-			FMemory::Memcpy(&OutRawBytes[Offset], (uint8*)Biases[LayerIdx].GetData(), BiasByteNum);
-			Offset += BiasByteNum;
+			UE::Learning::Array::SerializeToBytes(InOutOffset, OutRawBytes, Weights[LayerIdx]);
+			UE::Learning::Array::SerializeToBytes(InOutOffset, OutRawBytes, Biases[LayerIdx]);
 		}
-
-		UE_LEARNING_CHECK(Offset == TotalByteNum);
 	}
 
 	int32 FNeuralNetwork::GetSerializationByteNum(
@@ -127,18 +108,20 @@ namespace UE::Learning
 		const int32 LayerNum)
 	{
 		int32 Total = 0;
-
-		Total += InputNum * HiddenNum * sizeof(float);
-		Total += HiddenNum * sizeof(float);
+			
+		Total += sizeof(int32);  // Activation
+		Total += sizeof(int32);  // Layer Num
+		Total += UE::Learning::Array::SerializationByteNum<2, float>({ InputNum, HiddenNum });
+		Total += UE::Learning::Array::SerializationByteNum<1, float>({ HiddenNum });
 
 		for (int32 LayerIdx = 0; LayerIdx < LayerNum - 2; LayerIdx++)
 		{
-			Total += HiddenNum * HiddenNum * sizeof(float);
-			Total += HiddenNum * sizeof(float);
+			Total += UE::Learning::Array::SerializationByteNum<2, float>({ HiddenNum, HiddenNum });
+			Total += UE::Learning::Array::SerializationByteNum<1, float>({ HiddenNum });
 		}
 
-		Total += HiddenNum * OutputNum * sizeof(float);
-		Total += OutputNum * sizeof(float);
+		Total += UE::Learning::Array::SerializationByteNum<2, float>({ HiddenNum, OutputNum });
+		Total += UE::Learning::Array::SerializationByteNum<1, float>({ OutputNum });
 
 		return Total;
 	}

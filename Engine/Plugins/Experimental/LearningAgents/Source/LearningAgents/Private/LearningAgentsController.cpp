@@ -65,7 +65,7 @@ void ULearningAgentsController::EncodeActions()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
@@ -101,7 +101,7 @@ void ULearningAgentsController::RunController()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 

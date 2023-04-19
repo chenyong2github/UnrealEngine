@@ -50,5 +50,21 @@ public:
 	/** Serialize this neural network to/from the given archive. */
 	virtual void Serialize(FArchive& Ar) override;
 
+	/**
+	* Load this network from a snapshot.
+	* @param File The snapshot file.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void LoadNetworkFromSnapshot(const FFilePath& File);
+
+	/**
+	* Save this network into a snapshot.
+	* @param File The snapshot file.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void SaveNetworkToSnapshot(const FFilePath& File) const;
+
+public:
+
 	TSharedPtr<UE::Learning::FNeuralNetwork> NeuralNetwork;
 };

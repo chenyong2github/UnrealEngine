@@ -14,11 +14,11 @@
 namespace UE::Learning::Agents::Observations::Private
 {
 	template<typename ObservationUObject, typename ObservationFObject, typename... InArgTypes>
-	ObservationUObject* AddObservation(ULearningAgentsInteractor* InInteractor, const FName Name, InArgTypes&& ...Args)
+	ObservationUObject* AddObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const TCHAR* FunctionName, InArgTypes&& ...Args)
 	{
 		if (!InInteractor)
 		{
-			UE_LOG(LogLearning, Error, TEXT("InInteractor is nullptr."));
+			UE_LOG(LogLearning, Error, TEXT("%s: InInteractor is nullptr."), FunctionName);
 			return nullptr;
 		}
 
@@ -31,6 +31,9 @@ namespace UE::Learning::Agents::Observations::Private
 			InInteractor->GetAgentManager()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
+		// We assume all supported observation feature objects can be encoded
+		UE_LEARNING_CHECK(Observation->FeatureObject->IsEncodable());
+
 		InInteractor->AddObservation(Observation, Observation->FeatureObject.ToSharedRef());
 
 		return Observation;
@@ -41,7 +44,7 @@ namespace UE::Learning::Agents::Observations::Private
 
 UFloatObservation* UFloatObservation::AddFloatObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UFloatObservation, UE::Learning::FFloatFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UFloatObservation, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddFloatObservation"), 1, Scale);
 }
 
 void UFloatObservation::SetFloatObservation(const int32 AgentId, const float Value)
@@ -86,11 +89,11 @@ UFloatArrayObservation* UFloatArrayObservation::AddFloatArrayObservation(ULearni
 {
 	if (Num < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), Num);
+		UE_LOG(LogLearning, Error, TEXT("AddFloatArrayObservation: Number of elements in array must be at least 1, got %i."), Num);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UFloatArrayObservation, UE::Learning::FFloatFeature>(InInteractor, Name, Num, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UFloatArrayObservation, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddFloatArrayObservation"), Num, Scale);
 }
 
 void UFloatArrayObservation::SetFloatArrayObservation(const int32 AgentId, const TArray<float>& Values)
@@ -141,7 +144,7 @@ void UFloatArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) 
 
 UVectorObservation* UVectorObservation::AddVectorObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UVectorObservation, UE::Learning::FFloatFeature>(InInteractor, Name, 3, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UVectorObservation, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddVectorObservation"), 3, Scale);
 }
 
 void UVectorObservation::SetVectorObservation(const int32 AgentId, const FVector Vector)
@@ -201,11 +204,11 @@ UVectorArrayObservation* UVectorArrayObservation::AddVectorArrayObservation(ULea
 {
 	if (Num < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), Num);
+		UE_LOG(LogLearning, Error, TEXT("AddVectorArrayObservation: Number of elements in array must be at least 1, got %i."), Num);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UVectorArrayObservation, UE::Learning::FFloatFeature>(InInteractor, Name, Num * 3, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UVectorArrayObservation, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddVectorArrayObservation"), Num * 3, Scale);
 }
 
 void UVectorArrayObservation::SetVectorArrayObservation(const int32 AgentId, const TArray<FVector>& Vectors)
@@ -283,17 +286,17 @@ UEnumObservation* UEnumObservation::AddEnumObservation(ULearningAgentsInteractor
 {
 	if (!EnumType)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Invalid Enum."));
+		UE_LOG(LogLearning, Error, TEXT("AddEnumObservation: Invalid Enum."));
 		return nullptr;
 	}
 
 	if (EnumType->NumEnums() < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Enum requires at least one entry to be used as an observation."));
+		UE_LOG(LogLearning, Error, TEXT("AddEnumObservation: Enum requires at least one entry to be used as an observation."));
 		return nullptr;
 	}
 
-	UEnumObservation* Observation = UE::Learning::Agents::Observations::Private::AddObservation<UEnumObservation, UE::Learning::FFloatFeature>(InInteractor, Name, EnumType->NumEnums());
+	UEnumObservation* Observation = UE::Learning::Agents::Observations::Private::AddObservation<UEnumObservation, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddEnumObservation"), EnumType->NumEnums());
 	if (Observation) { Observation->Enum = EnumType; }
 	
 	return Observation;
@@ -370,23 +373,23 @@ UEnumArrayObservation* UEnumArrayObservation::AddEnumArrayObservation(ULearningA
 {
 	if (!EnumType)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Invalid Enum."));
+		UE_LOG(LogLearning, Error, TEXT("AddEnumArrayObservation: Invalid Enum."));
 		return nullptr;
 	}
 
 	if (EnumType->NumEnums() < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Enum requires at least one entry to be used as an observation."));
+		UE_LOG(LogLearning, Error, TEXT("AddEnumArrayObservation: Enum requires at least one entry to be used as an observation."));
 		return nullptr;
 	}
 
 	if (EnumNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), EnumNum);
+		UE_LOG(LogLearning, Error, TEXT("AddEnumArrayObservation: Number of elements in array must be at least 1, got %i."), EnumNum);
 		return nullptr;
 	}
 
-	UEnumArrayObservation* Observation = UE::Learning::Agents::Observations::Private::AddObservation<UEnumArrayObservation, UE::Learning::FFloatFeature>(InInteractor, Name, EnumNum * EnumType->NumEnums());
+	UEnumArrayObservation* Observation = UE::Learning::Agents::Observations::Private::AddObservation<UEnumArrayObservation, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddEnumArrayObservation"), EnumNum * EnumType->NumEnums());
 	if (Observation) { Observation->Enum = EnumType; }
 
 	return Observation;
@@ -455,7 +458,7 @@ void UEnumArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 UTimeObservation* UTimeObservation::AddTimeObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UTimeObservation, UE::Learning::FTimeFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UTimeObservation, UE::Learning::FTimeFeature>(InInteractor, Name, TEXT("AddTimeObservation"), 1, Scale);
 }
 
 void UTimeObservation::SetTimeObservation(const int32 AgentId, const float Time, const float RelativeTime)
@@ -504,11 +507,11 @@ UTimeArrayObservation* UTimeArrayObservation::AddTimeArrayObservation(ULearningA
 {
 	if (TimeNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), TimeNum);
+		UE_LOG(LogLearning, Error, TEXT("AddTimeArrayObservation: Number of elements in array must be at least 1, got %i."), TimeNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UTimeArrayObservation, UE::Learning::FTimeFeature>(InInteractor, Name, TimeNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UTimeArrayObservation, UE::Learning::FTimeFeature>(InInteractor, Name, TEXT("AddTimeArrayObservation"), TimeNum, Scale);
 }
 
 void UTimeArrayObservation::SetTimeArrayObservation(const int32 AgentId, const TArray<float>& Times, const float RelativeTime)
@@ -563,7 +566,7 @@ void UTimeArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 UAngleObservation* UAngleObservation::AddAngleObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UAngleObservation, UE::Learning::FAngleFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UAngleObservation, UE::Learning::FAngleFeature>(InInteractor, Name, TEXT("AddAngleObservation"), 1, Scale);
 }
 
 void UAngleObservation::SetAngleObservation(const int32 AgentId, const float Angle, const float RelativeAngle)
@@ -615,11 +618,11 @@ UAngleArrayObservation* UAngleArrayObservation::AddAngleArrayObservation(ULearni
 {
 	if (AngleNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), AngleNum);
+		UE_LOG(LogLearning, Error, TEXT("AddAngleArrayObservation: Number of elements in array must be at least 1, got %i."), AngleNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UAngleArrayObservation, UE::Learning::FAngleFeature>(InInteractor, Name, AngleNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UAngleArrayObservation, UE::Learning::FAngleFeature>(InInteractor, Name, TEXT("AddAngleArrayObservation"), AngleNum, Scale);
 }
 
 void UAngleArrayObservation::SetAngleArrayObservation(const int32 AgentId, const TArray<float>& Angles, const float RelativeAngle)
@@ -697,7 +700,7 @@ void UAngleArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) 
 
 URotationObservation* URotationObservation::AddRotationObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<URotationObservation, UE::Learning::FRotationFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<URotationObservation, UE::Learning::FRotationFeature>(InInteractor, Name, TEXT("AddRotationObservation"), 1, Scale);
 }
 
 void URotationObservation::SetRotationObservation(const int32 AgentId, const FRotator Rotation, const FRotator RelativeRotation)
@@ -760,11 +763,11 @@ URotationArrayObservation* URotationArrayObservation::AddRotationArrayObservatio
 {
 	if (RotationNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), RotationNum);
+		UE_LOG(LogLearning, Error, TEXT("AddRotationArrayObservation: Number of elements in array must be at least 1, got %i."), RotationNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<URotationArrayObservation, UE::Learning::FRotationFeature>(InInteractor, Name, RotationNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<URotationArrayObservation, UE::Learning::FRotationFeature>(InInteractor, Name, TEXT("AddRotationArrayObservation"), RotationNum, Scale);
 }
 
 void URotationArrayObservation::SetRotationArrayObservation(const int32 AgentId, const TArray<FRotator>& Rotations, const FRotator RelativeRotation)
@@ -865,7 +868,7 @@ void URotationArrayObservation::VisualLog(const UE::Learning::FIndexSet Instance
 
 UDirectionObservation* UDirectionObservation::AddDirectionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UDirectionObservation, UE::Learning::FDirectionFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UDirectionObservation, UE::Learning::FDirectionFeature>(InInteractor, Name, TEXT("AddDirectionObservation"), 1, Scale);
 }
 
 void UDirectionObservation::SetDirectionObservation(const int32 AgentId, const FVector Direction, const FRotator RelativeRotation)
@@ -927,11 +930,11 @@ UDirectionArrayObservation* UDirectionArrayObservation::AddDirectionArrayObserva
 {
 	if (DirectionNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), DirectionNum);
+		UE_LOG(LogLearning, Error, TEXT("AddDirectionArrayObservation: Number of elements in array must be at least 1, got %i."), DirectionNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UDirectionArrayObservation, UE::Learning::FDirectionFeature>(InInteractor, Name, DirectionNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UDirectionArrayObservation, UE::Learning::FDirectionFeature>(InInteractor, Name, TEXT("AddDirectionArrayObservation"), DirectionNum, Scale);
 }
 
 void UDirectionArrayObservation::SetDirectionArrayObservation(const int32 AgentId, const TArray<FVector>& Directions, const FRotator RelativeRotation)
@@ -1008,7 +1011,7 @@ void UDirectionArrayObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 
 UPlanarDirectionObservation* UPlanarDirectionObservation::AddPlanarDirectionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionObservation, UE::Learning::FPlanarDirectionFeature>(InInteractor, Name, 1, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionObservation, UE::Learning::FPlanarDirectionFeature>(InInteractor, Name, TEXT("AddPlanarDirectionObservation"), 1, Scale, Axis0, Axis1);
 }
 
 void UPlanarDirectionObservation::SetPlanarDirectionObservation(const int32 AgentId, const FVector Direction, const FRotator RelativeRotation)
@@ -1076,7 +1079,13 @@ void UPlanarDirectionObservation::VisualLog(const UE::Learning::FIndexSet Instan
 
 UPlanarDirectionArrayObservation* UPlanarDirectionArrayObservation::AddPlanarDirectionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 DirectionNum, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionArrayObservation, UE::Learning::FPlanarDirectionFeature>(InInteractor, Name, DirectionNum, Scale, Axis0, Axis1);
+	if (DirectionNum < 1)
+	{
+		UE_LOG(LogLearning, Error, TEXT("AddPlanarDirectionArrayObservation: Number of elements in array must be at least 1, got %i."), DirectionNum);
+		return nullptr;
+	}
+
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionArrayObservation, UE::Learning::FPlanarDirectionFeature>(InInteractor, Name, TEXT("AddPlanarDirectionArrayObservation"), DirectionNum, Scale, Axis0, Axis1);
 }
 
 void UPlanarDirectionArrayObservation::SetPlanarDirectionArrayObservation(const int32 AgentId, const TArray<FVector>& Directions, const FRotator RelativeRotation)
@@ -1165,7 +1174,7 @@ void UPlanarDirectionArrayObservation::VisualLog(const UE::Learning::FIndexSet I
 
 UPositionObservation* UPositionObservation::AddPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPositionObservation, UE::Learning::FPositionFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPositionObservation, UE::Learning::FPositionFeature>(InInteractor, Name, TEXT("AddPositionObservation"), 1, Scale);
 }
 
 void UPositionObservation::SetPositionObservation(const int32 AgentId, const FVector Position, const FVector RelativePosition, const FRotator RelativeRotation)
@@ -1228,11 +1237,11 @@ UPositionArrayObservation* UPositionArrayObservation::AddPositionArrayObservatio
 {
 	if (PositionNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), PositionNum);
+		UE_LOG(LogLearning, Error, TEXT("AddPositionArrayObservation: Number of elements in array must be at least 1, got %i."), PositionNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPositionArrayObservation, UE::Learning::FPositionFeature>(InInteractor, Name, PositionNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPositionArrayObservation, UE::Learning::FPositionFeature>(InInteractor, Name, TEXT("AddPositionArrayObservation"), PositionNum, Scale);
 }
 
 void UPositionArrayObservation::SetPositionArrayObservation(const int32 AgentId, const TArray<FVector>& Positions, const FVector RelativePosition, const FRotator RelativeRotation)
@@ -1310,7 +1319,7 @@ void UPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet Instance
 
 UScalarPositionObservation* UScalarPositionObservation::AddScalarPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarPositionObservation, UE::Learning::FScalarPositionFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarPositionObservation, UE::Learning::FScalarPositionFeature>(InInteractor, Name, TEXT("AddScalarPositionObservation"), 1, Scale);
 }
 
 void UScalarPositionObservation::SetScalarPositionObservation(const int32 AgentId, const float Position, const float RelativePosition)
@@ -1362,11 +1371,11 @@ UScalarPositionArrayObservation* UScalarPositionArrayObservation::AddScalarPosit
 {
 	if (PositionNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), PositionNum);
+		UE_LOG(LogLearning, Error, TEXT("AddScalarPositionArrayObservation: Number of elements in array must be at least 1, got %i."), PositionNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarPositionArrayObservation, UE::Learning::FScalarPositionFeature>(InInteractor, Name, PositionNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarPositionArrayObservation, UE::Learning::FScalarPositionFeature>(InInteractor, Name, TEXT("AddScalarPositionArrayObservation"), PositionNum, Scale);
 }
 
 void UScalarPositionArrayObservation::SetScalarPositionArrayObservation(const int32 AgentId, const TArray<float>& Positions, const float RelativePosition)
@@ -1445,7 +1454,7 @@ void UScalarPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 UPlanarPositionObservation* UPlanarPositionObservation::AddPlanarPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionObservation, UE::Learning::FPlanarPositionFeature>(InInteractor, Name, 1, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionObservation, UE::Learning::FPlanarPositionFeature>(InInteractor, Name, TEXT("AddPlanarPositionObservation"), 1, Scale, Axis0, Axis1);
 }
 
 void UPlanarPositionObservation::SetPlanarPositionObservation(const int32 AgentId, const FVector Position, const FVector RelativePosition, const FRotator RelativeRotation)
@@ -1516,11 +1525,11 @@ UPlanarPositionArrayObservation* UPlanarPositionArrayObservation::AddPlanarPosit
 {
 	if (PositionNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), PositionNum);
+		UE_LOG(LogLearning, Error, TEXT("AddPlanarPositionArrayObservation: Number of elements in array must be at least 1, got %i."), PositionNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionArrayObservation, UE::Learning::FPlanarPositionFeature>(InInteractor, Name, PositionNum, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionArrayObservation, UE::Learning::FPlanarPositionFeature>(InInteractor, Name, TEXT("AddPlanarPositionArrayObservation"), PositionNum, Scale, Axis0, Axis1);
 }
 
 void UPlanarPositionArrayObservation::SetPlanarPositionArrayObservation(const int32 AgentId, const TArray<FVector>& Positions, const FVector RelativePosition, const FRotator RelativeRotation)
@@ -1609,7 +1618,7 @@ void UPlanarPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 UVelocityObservation* UVelocityObservation::AddVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UVelocityObservation, UE::Learning::FVelocityFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UVelocityObservation, UE::Learning::FVelocityFeature>(InInteractor, Name, TEXT("AddVelocityObservation"), 1, Scale);
 }
 
 void UVelocityObservation::SetVelocityObservation(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
@@ -1671,11 +1680,11 @@ UVelocityArrayObservation* UVelocityArrayObservation::AddVelocityArrayObservatio
 {
 	if (VelocityNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), VelocityNum);
+		UE_LOG(LogLearning, Error, TEXT("AddVelocityArrayObservation: Number of elements in array must be at least 1, got %i."), VelocityNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UVelocityArrayObservation, UE::Learning::FVelocityFeature>(InInteractor, Name, VelocityNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UVelocityArrayObservation, UE::Learning::FVelocityFeature>(InInteractor, Name, TEXT("AddVelocityArrayObservation"), VelocityNum, Scale);
 }
 
 void UVelocityArrayObservation::SetVelocityArrayObservation(const int32 AgentId, const TArray<FVector>& Velocities, const FRotator RelativeRotation)
@@ -1752,7 +1761,7 @@ void UVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet Instance
 
 UScalarVelocityObservation* UScalarVelocityObservation::AddScalarVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarVelocityObservation, UE::Learning::FScalarVelocityFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarVelocityObservation, UE::Learning::FScalarVelocityFeature>(InInteractor, Name, TEXT("AddScalarVelocityObservation"), 1, Scale);
 }
 
 void UScalarVelocityObservation::SetScalarVelocityObservation(const int32 AgentId, const float Velocity)
@@ -1801,11 +1810,11 @@ UScalarVelocityArrayObservation* UScalarVelocityArrayObservation::AddScalarVeloc
 {
 	if (VelocityNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), VelocityNum);
+		UE_LOG(LogLearning, Error, TEXT("AddScalarVelocityArrayObservation: Number of elements in array must be at least 1, got %i."), VelocityNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarVelocityArrayObservation, UE::Learning::FScalarVelocityFeature>(InInteractor, Name, VelocityNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarVelocityArrayObservation, UE::Learning::FScalarVelocityFeature>(InInteractor, Name, TEXT("AddScalarVelocityArrayObservation"), VelocityNum, Scale);
 }
 
 void UScalarVelocityArrayObservation::SetScalarVelocityArrayObservation(const int32 AgentId, const TArray<float>& Velocities)
@@ -1879,7 +1888,7 @@ void UScalarVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 UPlanarVelocityObservation* UPlanarVelocityObservation::AddPlanarVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityObservation, UE::Learning::FPlanarVelocityFeature>(InInteractor, Name, 1, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityObservation, UE::Learning::FPlanarVelocityFeature>(InInteractor, Name, TEXT("AddPlanarVelocityObservation"), 1, Scale, Axis0, Axis1);
 }
 
 void UPlanarVelocityObservation::SetPlanarVelocityObservation(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
@@ -1950,11 +1959,11 @@ UPlanarVelocityArrayObservation* UPlanarVelocityArrayObservation::AddPlanarVeloc
 {
 	if (VelocityNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), VelocityNum);
+		UE_LOG(LogLearning, Error, TEXT("AddPlanarVelocityArrayObservation: Number of elements in array must be at least 1, got %i."), VelocityNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityArrayObservation, UE::Learning::FPlanarVelocityFeature>(InInteractor, Name, VelocityNum, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityArrayObservation, UE::Learning::FPlanarVelocityFeature>(InInteractor, Name, TEXT("AddPlanarVelocityArrayObservation"), VelocityNum, Scale, Axis0, Axis1);
 }
 
 void UPlanarVelocityArrayObservation::SetPlanarVelocityArrayObservation(const int32 AgentId, const TArray<FVector>& Velocities, const FRotator RelativeRotation)
@@ -2041,7 +2050,7 @@ void UPlanarVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 UAngularVelocityObservation* UAngularVelocityObservation::AddAngularVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UAngularVelocityObservation, UE::Learning::FAngularVelocityFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UAngularVelocityObservation, UE::Learning::FAngularVelocityFeature>(InInteractor, Name, TEXT("AddAngularVelocityObservation"), 1, Scale);
 }
 
 void UAngularVelocityObservation::SetAngularVelocityObservation(const int32 AgentId, const FVector AngularVelocity, const FRotator RelativeRotation)
@@ -2103,11 +2112,11 @@ UAngularVelocityArrayObservation* UAngularVelocityArrayObservation::AddAngularVe
 {
 	if (AngularVelocityNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), AngularVelocityNum);
+		UE_LOG(LogLearning, Error, TEXT("AddAngularVelocityArrayObservation: Number of elements in array must be at least 1, got %i."), AngularVelocityNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UAngularVelocityArrayObservation, UE::Learning::FAngularVelocityFeature>(InInteractor, Name, AngularVelocityNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UAngularVelocityArrayObservation, UE::Learning::FAngularVelocityFeature>(InInteractor, Name, TEXT("AddAngularVelocityArrayObservation"), AngularVelocityNum, Scale);
 }
 
 void UAngularVelocityArrayObservation::SetAngularVelocityArrayObservation(const int32 AgentId, const TArray<FVector>& AngularVelocities, const FRotator RelativeRotation)
@@ -2184,7 +2193,7 @@ void UAngularVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet I
 
 UScalarAngularVelocityObservation* UScalarAngularVelocityObservation::AddScalarAngularVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarAngularVelocityObservation, UE::Learning::FScalarAngularVelocityFeature>(InInteractor, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarAngularVelocityObservation, UE::Learning::FScalarAngularVelocityFeature>(InInteractor, Name, TEXT("AddScalarAngularVelocityObservation"), 1, Scale);
 }
 
 void UScalarAngularVelocityObservation::SetScalarAngularVelocityObservation(const int32 AgentId, const float AngularVelocity)
@@ -2233,11 +2242,11 @@ UScalarAngularVelocityArrayObservation* UScalarAngularVelocityArrayObservation::
 {
 	if (AngularVelocityNum < 1)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), AngularVelocityNum);
+		UE_LOG(LogLearning, Error, TEXT("AddScalarAngularVelocityArrayObservation: Number of elements in array must be at least 1, got %i."), AngularVelocityNum);
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarAngularVelocityArrayObservation, UE::Learning::FScalarAngularVelocityFeature>(InInteractor, Name, AngularVelocityNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarAngularVelocityArrayObservation, UE::Learning::FScalarAngularVelocityFeature>(InInteractor, Name, TEXT("AddScalarAngularVelocityArrayObservation"), AngularVelocityNum, Scale);
 }
 
 void UScalarAngularVelocityArrayObservation::SetScalarAngularVelocityArrayObservation(const int32 AgentId, const TArray<float>& AngularVelocities)

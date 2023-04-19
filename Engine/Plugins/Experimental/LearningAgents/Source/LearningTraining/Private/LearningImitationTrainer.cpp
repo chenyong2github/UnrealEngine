@@ -13,6 +13,7 @@
 #include "Misc/MonitoredProcess.h"
 #include "Misc/Guid.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonSerializer.h"
@@ -36,7 +37,7 @@ int32 ULearningSocketImitationTrainerServerCommandlet::Main(const FString& Comma
 
 	UCommandlet::ParseCommandLine(*Commandline, Tokens, Switches, Params);
 
-	const FString* PythonExecutiblePathParam = Params.Find(TEXT("PythonExecutiblePath"));
+	const FString* PythonExecutablePathParam = Params.Find(TEXT("PythonExecutablePath"));
 	const FString* SitePackagesPathParam = Params.Find(TEXT("SitePackagesPath"));
 	const FString* PythonContentPathParam = Params.Find(TEXT("PythonContentPath"));
 	const FString* IntermediatePathParam = Params.Find(TEXT("IntermediatePath"));
@@ -45,13 +46,13 @@ int32 ULearningSocketImitationTrainerServerCommandlet::Main(const FString& Comma
 	const FString* LogSettingsParam = Params.Find(TEXT("LogSettings"));
 
 #if WITH_EDITOR
-	const FString PythonExecutiblePath = PythonExecutiblePathParam ? *PythonExecutiblePathParam : UE::Learning::Trainer::DefaultEditorPythonExecutablePath();
-	const FString SitePackagesPath = SitePackagesPathParam ? *SitePackagesPathParam : UE::Learning::Trainer::DefaultEditorSitePackagesPath();
-	const FString PythonContentPath = PythonContentPathParam ? *PythonContentPathParam : UE::Learning::Trainer::DefaultEditorPythonContentPath();
-	const FString IntermediatePath = IntermediatePathParam ? *IntermediatePathParam : UE::Learning::Trainer::DefaultEditorIntermediatePath();
+	const FString PythonExecutablePath = PythonExecutablePathParam ? *PythonExecutablePathParam : UE::Learning::Trainer::GetPythonExecutablePath(FPaths::EngineDir());
+	const FString SitePackagesPath = SitePackagesPathParam ? *SitePackagesPathParam : UE::Learning::Trainer::GetSitePackagesPath(FPaths::EngineDir());
+	const FString PythonContentPath = PythonContentPathParam ? *PythonContentPathParam : UE::Learning::Trainer::GetPythonContentPath(FPaths::EngineDir());
+	const FString IntermediatePath = IntermediatePathParam ? *IntermediatePathParam : UE::Learning::Trainer::GetIntermediatePath(FPaths::EngineDir());
 #else
 	UE_LEARNING_NOT_IMPLEMENTED();
-	const FString PythonExecutiblePath = TEXT("");
+	const FString PythonExecutablePath = TEXT("");
 	const FString SitePackagesPath = TEXT("");
 	const FString PythonContentPath = TEXT("");
 	const FString IntermediatePath = TEXT("");
@@ -79,7 +80,7 @@ int32 ULearningSocketImitationTrainerServerCommandlet::Main(const FString& Comma
 	}
 
 	UE_LOG(LogLearning, Display, TEXT("---  Imitation Training Server Arguments ---"));
-	UE_LOG(LogLearning, Display, TEXT("PythonExecutiblePath: %s"), *PythonExecutiblePath);
+	UE_LOG(LogLearning, Display, TEXT("PythonExecutablePath: %s"), *PythonExecutablePath);
 	UE_LOG(LogLearning, Display, TEXT("SitePackagesPath: %s"), *SitePackagesPath);
 	UE_LOG(LogLearning, Display, TEXT("PythonContentPath: %s"), *PythonContentPath);
 	UE_LOG(LogLearning, Display, TEXT("IntermediatePath: %s"), *IntermediatePath);
@@ -88,7 +89,7 @@ int32 ULearningSocketImitationTrainerServerCommandlet::Main(const FString& Comma
 	UE_LOG(LogLearning, Display, TEXT("LogSettings: %s"), LogSettings == UE::Learning::ELogSetting::Normal ? TEXT("Normal") : TEXT("Silent"));
 
 	UE::Learning::FSocketImitationTrainerServerProcess ServerProcess(
-		PythonExecutiblePath,
+		PythonExecutablePath,
 		SitePackagesPath,
 		PythonContentPath,
 		IntermediatePath,
@@ -109,7 +110,7 @@ namespace UE::Learning
 {
 	FSharedMemoryImitationTrainer::FSharedMemoryImitationTrainer(
 		const FString& TaskName,
-		const FString& PythonExecutiblePath,
+		const FString& PythonExecutablePath,
 		const FString& SitePackagesPath,
 		const FString& PythonContentPath,
 		const FString& IntermediatePath,
@@ -122,6 +123,10 @@ namespace UE::Learning
 		const ESubprocessFlags TrainingProcessFlags,
 		const ELogSetting LogSettings)
 	{
+		UE_LEARNING_CHECK(FPaths::FileExists(PythonExecutablePath));
+		UE_LEARNING_CHECK(FPaths::DirectoryExists(PythonContentPath));
+		UE_LEARNING_CHECK(FPaths::DirectoryExists(SitePackagesPath));
+
 		const int32 TotalPolicyByteNum = FNeuralNetwork::GetSerializationByteNum(
 			ObservationDimNum,
 			2 * ActionDimNum,
@@ -143,6 +148,7 @@ namespace UE::Learning
 
 		// Write Config
 
+		IFileManager& FileManager = IFileManager::Get();
 		const FString TimeStamp = FDateTime::Now().ToFormattedString(TEXT("%Y-%m-%d_%H-%M-%S"));
 		const FString TrainerMethod = TEXT("Imitation");
 		const FString TrainerType = TEXT("SharedMemory");
@@ -154,8 +160,8 @@ namespace UE::Learning
 		ConfigObject->SetStringField(TEXT("TrainerType"), TrainerType);
 		ConfigObject->SetStringField(TEXT("TimeStamp"), *TimeStamp);
 
-		ConfigObject->SetStringField(TEXT("SitePackagesPath"), *SitePackagesPath);
-		ConfigObject->SetStringField(TEXT("IntermediatePath"), *IntermediatePath);
+		ConfigObject->SetStringField(TEXT("SitePackagesPath"), *FileManager.ConvertToAbsolutePathForExternalAppForRead(*SitePackagesPath));
+		ConfigObject->SetStringField(TEXT("IntermediatePath"), *FileManager.ConvertToAbsolutePathForExternalAppForRead(*IntermediatePath));
 
 		ConfigObject->SetStringField(TEXT("PolicyGuid"), *Policy.Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 		ConfigObject->SetStringField(TEXT("ControlsGuid"), *Controls.Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
@@ -194,10 +200,12 @@ namespace UE::Learning
 
 		// Start Python Sub-process
 
-		const FString CommandLineArguments = FString::Printf(TEXT("\"%s\" SharedMemory \"%s\""), *(PythonContentPath / TEXT("train_imitation.py")), *ConfigPath);
+		const FString CommandLineArguments = FString::Printf(TEXT("\"%s\" SharedMemory \"%s\""), 
+			*FileManager.ConvertToAbsolutePathForExternalAppForRead(*(PythonContentPath / TEXT("train_imitation.py"))),
+			*FileManager.ConvertToAbsolutePathForExternalAppForRead(*ConfigPath));
 
 		TrainingProcess = MakeShared<FMonitoredProcess>(
-			PythonExecutiblePath, 
+			FileManager.ConvertToAbsolutePathForExternalAppForRead(*PythonExecutablePath),
 			CommandLineArguments,
 			!(TrainingProcessFlags & ESubprocessFlags::ShowWindow),
 			!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput));
@@ -342,7 +350,7 @@ namespace UE::Learning
 
 
 	FSocketImitationTrainerServerProcess::FSocketImitationTrainerServerProcess(
-		const FString& PythonExecutiblePath,
+		const FString& PythonExecutablePath,
 		const FString& SitePackagesPath,
 		const FString& PythonContentPath,
 		const FString& IntermediatePath,
@@ -351,11 +359,21 @@ namespace UE::Learning
 		const ESubprocessFlags TrainingProcessFlags,
 		const ELogSetting LogSettings)
 	{
+		UE_LEARNING_CHECK(FPaths::FileExists(PythonExecutablePath));
+		UE_LEARNING_CHECK(FPaths::DirectoryExists(PythonContentPath));
+		UE_LEARNING_CHECK(FPaths::DirectoryExists(SitePackagesPath));
+
+		IFileManager& FileManager = IFileManager::Get();
 		const FString CommandLineArguments = FString::Printf(TEXT("\"%s\" Socket \"%s:%i\" \"%s\" \"%s\" %i"),
-			*(PythonContentPath / TEXT("train_imitation.py")), IpAddress, Port, *SitePackagesPath, *IntermediatePath, LogSettings == ELogSetting::Normal ? 1 : 0);
+			*FileManager.ConvertToAbsolutePathForExternalAppForRead(*(PythonContentPath / TEXT("train_imitation.py"))), 
+			IpAddress, 
+			Port, 
+			*FileManager.ConvertToAbsolutePathForExternalAppForRead(*SitePackagesPath),
+			*FileManager.ConvertToAbsolutePathForExternalAppForRead(*IntermediatePath),
+			LogSettings == ELogSetting::Normal ? 1 : 0);
 
 		TrainingProcess = MakeShared<FMonitoredProcess>(
-			PythonExecutiblePath, 
+			FileManager.ConvertToAbsolutePathForExternalAppForRead(*PythonExecutablePath),
 			CommandLineArguments,
 			!(TrainingProcessFlags & ESubprocessFlags::ShowWindow),
 			!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput));

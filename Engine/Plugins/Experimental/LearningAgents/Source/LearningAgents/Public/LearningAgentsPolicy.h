@@ -17,7 +17,7 @@ namespace UE::Learning
 	struct FNeuralNetworkPolicyFunction;
 }
 
-struct FDirectoryPath;
+struct FFilePath;
 class ULearningAgentsNeuralNetwork;
 
 /** The configurable settings for a ULearningAgentsPolicy. */
@@ -85,19 +85,17 @@ public:
 
 	/**
 	* Load a snapshot's weights into this policy.
-	* @param Directory The directory the snapshot file is in.
-	* @param Filename The filename of the snapshot, including the file extension.
+	* @param File The snapshot file.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void LoadPolicyFromSnapshot(const FDirectoryPath& Directory, const FString Filename);
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void LoadPolicyFromSnapshot(const FFilePath& File);
 
 	/**
 	* Save this policy's weights into a snapshot.
-	* @param Directory The directory to save the snapshot file in.
-	* @param Filename The filename of the snapshot, including the file extension.
+	* @param File The snapshot file.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SavePolicyToSnapshot(const FDirectoryPath& Directory, const FString Filename) const;
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void SavePolicyToSnapshot(const FFilePath& File) const;
 
 	/**
 	* Load a ULearningAgentsNeuralNetwork asset's weights into this policy.

@@ -81,7 +81,8 @@ namespace UE::Learning::SharedMemoryTraining
 		// Read the policy
 		{
 			FScopeNullableWriteLock ScopeLock(NetworkLock);
-			OutNetwork.DeserializeFromBytes(Policy);
+			int32 Offset = 0;
+			OutNetwork.DeserializeFromBytes(Offset, Policy);
 		}
 
 		// Confirm we have read the policy
@@ -121,7 +122,8 @@ namespace UE::Learning::SharedMemoryTraining
 		// Read the critic
 		{
 			FScopeNullableWriteLock ScopeLock(NetworkLock);
-			OutNetwork.DeserializeFromBytes(Critic);
+			int32 Offset = 0;
+			OutNetwork.DeserializeFromBytes(Offset, Critic);
 		}
 
 		// Confirm we have read the critic
@@ -161,7 +163,8 @@ namespace UE::Learning::SharedMemoryTraining
 		// Write the policy
 		{
 			FScopeNullableReadLock ScopeLock(NetworkLock);
-			Network.SerializeToBytes(Policy);
+			int32 Offset = 0;
+			Network.SerializeToBytes(Offset, Policy);
 		}
 
 		// Confirm we have written the policy
@@ -201,7 +204,8 @@ namespace UE::Learning::SharedMemoryTraining
 		// Write the critic
 		{
 			FScopeNullableReadLock ScopeLock(NetworkLock);
-			Network.SerializeToBytes(Critic);
+			int32 Offset = 0;
+			Network.SerializeToBytes(Offset, Critic);
 		}
 
 		// Confirm we have written the critic

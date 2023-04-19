@@ -185,15 +185,37 @@ bool ALearningAgentsManager::HasAgentById(const int32 AgentId) const
 	return OccupiedAgentSet.Contains(AgentId);
 }
 
-UObject* ALearningAgentsManager::GetAgent(const int32 AgentId, const TSubclassOf<UObject> AgentClass)
+UObject* ALearningAgentsManager::GetAgent(const int32 AgentId, const TSubclassOf<UObject> AgentClass) const
 {
 	if (!OccupiedAgentSet.Contains(AgentId))
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found. Be sure to only use AgentIds returned by AddAgent() and check that the agent has not be removed."), *GetName(), AgentId);
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found. Be sure to only use AgentIds returned by AddAgent and check that the agent has not be removed."), *GetName(), AgentId);
 		return nullptr;
 	}
 
 	return Agents[AgentId];
+}
+
+void ALearningAgentsManager::GetAgents(const TArray<int32>& AgentIds, const TSubclassOf<UObject> AgentClass, TArray<UObject*>& OutAgents) const
+{
+	OutAgents.SetNumUninitialized(AgentIds.Num());
+
+	for (int32 AgentIdIdx = 0; AgentIdIdx < AgentIds.Num(); AgentIdIdx++)
+	{
+		if (!OccupiedAgentSet.Contains(AgentIds[AgentIdIdx]))
+		{
+			UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found. Be sure to only use AgentIds returned by AddAgent and check that the agent has not be removed."), *GetName(), AgentIds[AgentIdIdx]);
+			OutAgents.Empty();
+			return;
+		}
+
+		OutAgents[AgentIdIdx] = Agents[AgentIds[AgentIdIdx]];
+	}
+}
+
+void ALearningAgentsManager::GetAddedAgents(const TSubclassOf<UObject> AgentClass, TArray<UObject*>& OutAgents) const
+{
+	GetAgents(OccupiedAgentIds, AgentClass, OutAgents);
 }
 
 const UObject* ALearningAgentsManager::GetAgent(const int32 AgentId) const

@@ -14,11 +14,11 @@
 namespace UE::Learning::Agents::Rewards::Private
 {
 	template<typename RewardUObject, typename RewardFObject, typename... InArgTypes>
-	RewardUObject* AddReward(ULearningAgentsTrainer* InAgentTrainer, const FName Name, InArgTypes&& ...Args)
+	RewardUObject* AddReward(ULearningAgentsTrainer* InAgentTrainer, const FName Name, const TCHAR* FunctionName, InArgTypes&& ...Args)
 	{
 		if (!InAgentTrainer)
 		{
-			UE_LOG(LogLearning, Error, TEXT("InAgentTrainer is nullptr."));
+			UE_LOG(LogLearning, Error, TEXT("%s: InAgentTrainer is nullptr."), FunctionName);
 			return nullptr;
 		}
 
@@ -41,7 +41,7 @@ namespace UE::Learning::Agents::Rewards::Private
 
 UFloatReward* UFloatReward::AddFloatReward(ULearningAgentsTrainer* InAgentTrainer, const FName Name, const float Weight)
 {
-	return UE::Learning::Agents::Rewards::Private::AddReward<UFloatReward, UE::Learning::FFloatReward>(InAgentTrainer, Name, Weight);
+	return UE::Learning::Agents::Rewards::Private::AddReward<UFloatReward, UE::Learning::FFloatReward>(InAgentTrainer, Name, TEXT("AddFloatReward"), Weight);
 }
 
 void UFloatReward::SetFloatReward(const int32 AgentId, const float Reward)
@@ -85,7 +85,7 @@ void UFloatReward::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 UScalarVelocityReward* UScalarVelocityReward::AddScalarVelocityReward(ULearningAgentsTrainer* InAgentTrainer, const FName Name, const float Weight, const float Scale)
 {
-	return UE::Learning::Agents::Rewards::Private::AddReward<UScalarVelocityReward, UE::Learning::FScalarVelocityReward>(InAgentTrainer, Name, Weight, Scale);
+	return UE::Learning::Agents::Rewards::Private::AddReward<UScalarVelocityReward, UE::Learning::FScalarVelocityReward>(InAgentTrainer, Name, TEXT("AddScalarVelocityReward"), Weight, Scale);
 }
 
 void UScalarVelocityReward::SetScalarVelocityReward(int32 AgentId, float Velocity)
@@ -129,7 +129,7 @@ void UScalarVelocityReward::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 ULocalDirectionalVelocityReward* ULocalDirectionalVelocityReward::AddLocalDirectionalVelocityReward(ULearningAgentsTrainer* InAgentTrainer, const FName Name, const float Weight, const float Scale, const FVector Axis)
 {
-	return UE::Learning::Agents::Rewards::Private::AddReward<ULocalDirectionalVelocityReward, UE::Learning::FLocalDirectionalVelocityReward>(InAgentTrainer, Name, Weight, Scale, Axis);
+	return UE::Learning::Agents::Rewards::Private::AddReward<ULocalDirectionalVelocityReward, UE::Learning::FLocalDirectionalVelocityReward>(InAgentTrainer, Name, TEXT("AddLocalDirectionalVelocityReward"), Weight, Scale, Axis);
 }
 
 void ULocalDirectionalVelocityReward::SetLocalDirectionalVelocityReward(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
@@ -216,7 +216,7 @@ UPlanarPositionDifferencePenalty* UPlanarPositionDifferencePenalty::AddPlanarPos
 	const FVector Axis0,
 	const FVector Axis1)
 {
-	return UE::Learning::Agents::Rewards::Private::AddReward<UPlanarPositionDifferencePenalty, UE::Learning::FPlanarPositionDifferencePenalty>(InAgentTrainer, Name, Weight, Scale, Threshold, Axis0, Axis1);
+	return UE::Learning::Agents::Rewards::Private::AddReward<UPlanarPositionDifferencePenalty, UE::Learning::FPlanarPositionDifferencePenalty>(InAgentTrainer, Name, TEXT("AddPlanarPositionDifferencePenalty"), Weight, Scale, Threshold, Axis0, Axis1);
 }
 
 void UPlanarPositionDifferencePenalty::SetPlanarPositionDifferencePenalty(const int32 AgentId, const FVector Position0, const FVector Position1)
@@ -311,7 +311,13 @@ UPositionArraySimilarityReward* UPositionArraySimilarityReward::AddPositionArray
 	const float Weight,
 	const float Scale)
 {
-	return UE::Learning::Agents::Rewards::Private::AddReward<UPositionArraySimilarityReward, UE::Learning::FPositionArraySimilarityReward>(InAgentTrainer, Name, PositionNum, Weight, Scale);
+	if (PositionNum < 1)
+	{
+		UE_LOG(LogLearning, Error, TEXT("AddPositionArraySimilarityReward: Number of elements in array must be at least 1, got %i."), PositionNum);
+		return nullptr;
+	}
+
+	return UE::Learning::Agents::Rewards::Private::AddReward<UPositionArraySimilarityReward, UE::Learning::FPositionArraySimilarityReward>(InAgentTrainer, Name, TEXT("AddPositionArraySimilarityReward"), PositionNum, Weight, Scale);
 }
 
 void UPositionArraySimilarityReward::SetPositionArraySimilarityReward(

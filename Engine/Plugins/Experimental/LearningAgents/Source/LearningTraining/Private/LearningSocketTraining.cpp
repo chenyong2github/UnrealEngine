@@ -119,7 +119,8 @@ namespace UE::Learning::SocketTraining
 
 		{
 			FScopeNullableWriteLock ScopeLock(NetworkLock);
-			OutNetwork.DeserializeFromBytes(OutNetworkBuffer);
+			int32 Offset = 0;
+			OutNetwork.DeserializeFromBytes(Offset, OutNetworkBuffer);
 		}
 
 		return ETrainerResponse::Success;
@@ -152,7 +153,8 @@ namespace UE::Learning::SocketTraining
 
 		{
 			FScopeNullableWriteLock ScopeLock(NetworkLock);
-			OutNetwork.DeserializeFromBytes(OutNetworkBuffer);
+			int32 Offset = 0;
+			OutNetwork.DeserializeFromBytes(Offset, OutNetworkBuffer);
 		}
 
 		return ETrainerResponse::Success;
@@ -235,7 +237,8 @@ namespace UE::Learning::SocketTraining
 
 		{
 			FScopeNullableReadLock ScopeLock(NetworkLock);
-			Network.SerializeToBytes(NetworkBuffer);
+			int32 Offset = 0;
+			Network.SerializeToBytes(Offset, NetworkBuffer);
 		}
 
 		const uint8 Signal = (uint8)ESignal::SendPolicy;
@@ -263,7 +266,8 @@ namespace UE::Learning::SocketTraining
 
 		{
 			FScopeNullableReadLock ScopeLock(NetworkLock);
-			Network.SerializeToBytes(NetworkBuffer);
+			int32 Offset = 0;
+			Network.SerializeToBytes(Offset, NetworkBuffer);
 		}
 
 		const uint8 Signal = (uint8)ESignal::SendCritic;

@@ -17,7 +17,7 @@ namespace UE::Learning
 	struct FNeuralNetworkCriticFunction;
 }
 
-struct FDirectoryPath;
+struct FFilePath;
 class ULearningAgentsNeuralNetwork;
 
 /** The configurable settings for a ULearningAgentsCritic. */
@@ -66,19 +66,17 @@ public:
 
 	/**
 	* Load a snapshot's weights into this critic.
-	* @param Directory The directory the snapshot file is in.
-	* @param Filename The filename of the snapshot, including the file extension.
+	* @param File The snapshot file.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void LoadCriticFromSnapshot(const FDirectoryPath& Directory, const FString Filename);
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void LoadCriticFromSnapshot(const FFilePath& File);
 
 	/**
 	* Save this critic's weights into a snapshot.
-	* @param Directory The directory to save the snapshot file in.
-	* @param Filename The filename of the snapshot, including the file extension.
+	* @param File The snapshot file.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SaveCriticToSnapshot(const FDirectoryPath& Directory, const FString Filename) const;
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void SaveCriticToSnapshot(const FFilePath& File) const;
 
 	/**
 	* Load a ULearningAgentsNeuralNetwork asset's weights into this critic.
