@@ -12,6 +12,8 @@
 
 //------------------------------------------------------- PARAMETERS
 
+float PerceptionAdd;
+
 Texture2D<tsr_half3> SceneColorTexture;
 RWTexture2D<tsr_half> MoireLumaOutput;
 
@@ -56,7 +58,7 @@ void MainCS(
 				uint2 InputPixelPos = OutputPixelOrigin + PixelOffset;
 			
 				tsr_half3 Color = ColorArray[x + y * TILE_ROWS];
-				Color *= rcp(tsr_half(1.0) + Color);
+				Color *= rcp(tsr_half(PerceptionAdd) + Color);
 
 				InputPixelPos.x = select(all(InputPixelPos < InputInfo_ViewportMax), InputPixelPos.x, uint(~0));
 				

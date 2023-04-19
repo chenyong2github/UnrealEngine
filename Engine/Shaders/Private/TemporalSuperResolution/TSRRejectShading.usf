@@ -98,6 +98,7 @@ float3 HistoryGuideQuantizationError;
 float FlickeringFramePeriod;
 float TheoricBlendFactor;
 uint TileOverscan;
+float PerceptionAdd;
 
 
 Texture2D<tsr_halfC> InputTexture;
@@ -242,10 +243,6 @@ void MainCS(
 		OriginalInput = min(OriginalInput, tsr_simd_halfC::Const(LargestSceneColorRGB));
 	#endif
 
-	// Convert input to LDR
-	OriginalOpaqueInput = OriginalOpaqueInput * rcp(OriginalOpaqueInput + tsr_simd_halfC::Const(1.0));
-	OriginalInput = OriginalInput * rcp(OriginalInput + tsr_simd_halfC::Const(1.0));
-	
 	// Analyses the moire pattern overtime.
 	#if CONFIG_MOIRE_DETECTION
 	tsr_simd_half4 FinalMoire = tsr_simd_half4::Const(0.0);
@@ -265,6 +262,9 @@ void MainCS(
 		tsr_simd_half InputLumaModification;
 		{
 			const tsr_half InputLumaEncodingError = tsr_half(0.5 / 255.0);
+			
+			OriginalOpaqueInput = OriginalOpaqueInput * rcp(OriginalOpaqueInput + tsr_simd_halfC::Const(tsr_half(PerceptionAdd)));
+
 
 			tsr_simd_half SceneColorLuma;
 			UNROLL_N(SIMD_SIZE)
@@ -407,34 +407,43 @@ void MainCS(
 	}
 	#endif
 
-	// Top secret sauce with paper and salt.
-	tsr_simd_halfC ClampedInput = OriginalInput;
-	tsr_simd_halfC ClampedHistory = OriginalHistory;
-	#if CONFIG_FIREFLY_REMOVAL
-	{
-		ClampedInput   = ClampFireFliersWithGuide(OriginalInput  , /* Guide = */ OriginalHistory);
-		ClampedHistory = ClampFireFliersWithGuide(OriginalHistory, /* Guide = */ OriginalInput);
-	}
-	#endif
-
-	// Filter clamped input and history to increase quantization of the rejection detection
-	tsr_simd_halfC FilteredInput   = Blur3x3(ClampedInput);
-	tsr_simd_halfC FilteredHistory = Blur3x3(ClampedHistory);
-	
 	// Measure rejection
 	tsr_simd_half RejectionBlendFinal = tsr_simd_half::Const(1.0);
 	tsr_simd_half RejectionClampBlend = tsr_simd_half::Const(1.0);
 	#if 1
 	{
 		const tsr_half FilteringWeight = rcp(tsr_half(1.0 + 4 * 0.5 + 4 * 0.25));
+		const tsr_simd_halfC BackbufferQuantizationErrorVector = tsr_simd_halfC::Const(MeasureBackbufferLDRQuantizationError());
+		
+		// Convert input to LDR
+		tsr_simd_halfC ExposedInput = OriginalInput * rcp(OriginalInput + tsr_simd_halfC::Const(tsr_half(PerceptionAdd)));
+	
+		// Change the exposure of history for the shading rejection
+		tsr_simd_halfC ExposedHistory = OriginalHistory;
+		{
+			ExposedHistory = ExposedHistory * rcp(tsr_simd_halfC::Const(1.0) - ExposedHistory);
+			ExposedHistory = ExposedHistory * rcp(ExposedHistory + tsr_simd_halfC::Const(tsr_half(PerceptionAdd)));
+		}
 
-		tsr_simd_halfC BackbufferError = tsr_simd_halfC::Const(MeasureBackbufferLDRQuantizationError());
+		// Top secret sauce with paper and salt.
+		tsr_simd_halfC ClampedInput = ExposedInput;
+		tsr_simd_halfC ClampedHistory = ExposedHistory;
+		#if CONFIG_FIREFLY_REMOVAL
+		{
+			ClampedInput   = ClampFireFliersWithGuide(ClampedInput  , /* Guide = */ ExposedHistory);
+			ClampedHistory = ClampFireFliersWithGuide(ClampedHistory, /* Guide = */ ExposedInput);
+		}
+		#endif
 
+		// Filter clamped input and history to increase quantization of the rejection detection
+		tsr_simd_halfC FilteredInput   = Blur3x3(ClampedInput);
+		tsr_simd_halfC FilteredHistory = Blur3x3(ClampedHistory);
+	
 		tsr_simd_halfC FilteredBoxMin;
 		tsr_simd_halfC FilteredBoxMax;
 		MinMax3x3(FilteredInput, /* out */ FilteredBoxMin, /* out */ FilteredBoxMax);
-		FilteredBoxMin = FilteredBoxMin - BackbufferError;
-		FilteredBoxMax = FilteredBoxMax + BackbufferError;
+		FilteredBoxMin = FilteredBoxMin - BackbufferQuantizationErrorVector;
+		FilteredBoxMax = FilteredBoxMax + BackbufferQuantizationErrorVector;
 		
 		tsr_simd_halfC FlickeringClampedFilteredHistory = fastClamp(FilteredHistory, FilteredBoxMin, FilteredBoxMax);
 
@@ -470,10 +479,9 @@ void MainCS(
 		
 		tsr_simd_halfC OriginalBoxMin;
 		tsr_simd_halfC OriginalBoxMax;
-		MinMax3x3(OriginalInput, /* out */ OriginalBoxMin, /* out */ OriginalBoxMax);
-		tsr_simd_halfC BoxSize = (OriginalBoxMax - OriginalBoxMin + (BackbufferError + BackbufferError)) * FilteringWeight;
+		MinMax3x3(ExposedInput, /* out */ OriginalBoxMin, /* out */ OriginalBoxMax);
+		tsr_simd_halfC BoxSize = (OriginalBoxMax - OriginalBoxMin + (BackbufferQuantizationErrorVector + BackbufferQuantizationErrorVector)) * FilteringWeight;
 		
-		const tsr_simd_halfC BackbufferQuantizationErrorVector = tsr_simd_halfC::Const(MeasureBackbufferLDRQuantizationError());
 		tsr_simd_halfC RawClampedEnergy = abs(ClampedFilteredHistory - FilteredHistory);
 
 		tsr_simd_halfC FilteredClampedEnergy;
@@ -518,6 +526,11 @@ void MainCS(
 	// Update the guide for next frame.
 	tsr_simd_halfC FinalGuide;
 	{
+		
+		// Convert input to LDR
+		tsr_simd_halfC ExposedInput = OriginalInput * rcp(OriginalInput + tsr_simd_halfC::Const(tsr_half(1.0)));
+	
+
 		tsr_simd_half BlendFinal;
 		// Completely discard the history
 		UNROLL_N(SIMD_SIZE)
@@ -534,7 +547,7 @@ void MainCS(
 			BlendFinal.SetElement(SimdIndex, max(RejectedBlendFactor, TotalBlend));
 		}
 		
-		FinalGuide = OriginalInput * tsr_simd_halfC::Vectorize(BlendFinal) - OriginalHistory * tsr_simd_halfC::Vectorize(BlendFinal - 1.0);
+		FinalGuide = ExposedInput * tsr_simd_halfC::Vectorize(BlendFinal) - OriginalHistory * tsr_simd_halfC::Vectorize(BlendFinal - 1.0);
 	}
 
 	// Mark the top left corner of the tile for debugging purposes.
