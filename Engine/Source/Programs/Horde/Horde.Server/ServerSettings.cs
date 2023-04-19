@@ -466,6 +466,16 @@ namespace Horde.Server
 		public int JwtExpiryTimeHours { get; set; } = 8;
 
 		/// <summary>
+		/// The claim type for administrators
+		/// </summary>
+		public string? AdminClaimType { get; set; }
+
+		/// <summary>
+		/// Value of the claim type for administrators
+		/// </summary>
+		public string? AdminClaimValue { get; set; }
+
+		/// <summary>
 		/// Whether to enable Cors, generally for development purposes
 		/// </summary>
 		public bool CorsEnabled { get; set; } = false;

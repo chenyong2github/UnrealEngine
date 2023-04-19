@@ -34,7 +34,7 @@ namespace Horde.Server.Authentication
 			_userCollection = userCollection;
 		}
 
-		public static void AddUserInfoClaims(JsonElement userInfo, ClaimsIdentity identity)
+		public static void AddUserInfoClaims(JsonElement userInfo, ServerSettings settings, ClaimsIdentity identity)
 		{
 			JsonElement userElement;
 			if (userInfo.TryGetProperty("preferred_username", out userElement))
@@ -66,6 +66,14 @@ namespace Horde.Server.Authentication
 			if (userInfo.TryGetProperty("email", out emailElement) && identity.FindFirst(ClaimTypes.Email) == null)
 			{
 				identity.AddClaim(new Claim(ClaimTypes.Email, emailElement.ToString()!));
+			}
+
+			if (!String.IsNullOrEmpty(settings.AdminClaimType) && !String.IsNullOrEmpty(settings.AdminClaimValue))
+			{
+				if (identity.HasClaim(settings.AdminClaimType, settings.AdminClaimValue))
+				{
+					identity.AddClaim(HordeClaims.AdminClaim.ToClaim());
+				}
 			}
 		}
 
@@ -101,18 +109,21 @@ namespace Horde.Server.Authentication
 	{
 		class MapRolesClaimAction : ClaimAction
 		{
-			public MapRolesClaimAction()
+			readonly ServerSettings _settings;
+
+			public MapRolesClaimAction(ServerSettings settings)
 				: base(ClaimTypes.Role, ClaimTypes.Role)
 			{
+				_settings = settings;
 			}
 
 			public override void Run(JsonElement userData, ClaimsIdentity identity, string issuer)
 			{
-				OktaHandler.AddUserInfoClaims(userData, identity);
+				OktaHandler.AddUserInfoClaims(userData, _settings, identity);
 			}
 		}
 
-		static void ApplyDefaultOktaOptions(OpenIdConnectOptions options, Action<OpenIdConnectOptions> handler)
+		static void ApplyDefaultOktaOptions(OpenIdConnectOptions options, ServerSettings settings, Action<OpenIdConnectOptions> handler)
 		{
 			options.Scope.Add("profile");
 			options.Scope.Add("groups");
@@ -121,15 +132,15 @@ namespace Horde.Server.Authentication
 			options.GetClaimsFromUserInfoEndpoint = true;
 			options.SaveTokens = true;
 			options.TokenValidationParameters.NameClaimType = "name";
-			options.ClaimActions.Add(new MapRolesClaimAction());
+			options.ClaimActions.Add(new MapRolesClaimAction(settings));
 
 			handler(options);
 		}
 
-		public static void AddOkta(this AuthenticationBuilder builder, string authenticationScheme, string displayName, Action<OpenIdConnectOptions> handler)
+		public static void AddOkta(this AuthenticationBuilder builder, ServerSettings settings, string authenticationScheme, string displayName, Action<OpenIdConnectOptions> handler)
 		{
 			builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IPostConfigureOptions<OpenIdConnectOptions>, OpenIdConnectPostConfigureOptions>());
-			builder.AddRemoteScheme<OpenIdConnectOptions, OktaHandler>(authenticationScheme, displayName, options => ApplyDefaultOktaOptions(options, handler));
+			builder.AddRemoteScheme<OpenIdConnectOptions, OktaHandler>(authenticationScheme, displayName, options => ApplyDefaultOktaOptions(options, settings, handler));
 		}
 	}
 }

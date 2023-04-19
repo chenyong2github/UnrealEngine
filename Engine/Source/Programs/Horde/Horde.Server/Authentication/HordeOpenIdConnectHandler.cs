@@ -74,6 +74,14 @@ namespace Horde.Server.Authentication
 					identity.AddClaim(new Claim(ClaimTypes.Role, groupsElement[idx].ToString()!));
 				}
 			}
+
+			if (!String.IsNullOrEmpty(settings.AdminClaimType) && !String.IsNullOrEmpty(settings.AdminClaimValue))
+			{
+				if (identity.HasClaim(settings.AdminClaimType, settings.AdminClaimValue))
+				{
+					identity.AddClaim(HordeClaims.AdminClaim.ToClaim());
+				}
+			}
 		}
 
 		protected override async Task<HandleRequestResult> HandleRemoteAuthenticateAsync()
