@@ -596,6 +596,18 @@ namespace UnrealBuildTool
 				AddSystemIncludePath(Arguments, DirectoryReference.Combine(EnvVars.CompilerDir, "crt", "src"), Target.WindowsPlatform.Compiler);
 			}
 
+			if (Target.WindowsPlatform.bEnableLibFuzzer)
+			{
+				if (Target.WindowsPlatform.Compiler.IsClang())
+				{
+					Arguments.Add("-fsanitize=fuzzer");
+				}
+				else
+				{
+					Arguments.Add("/fsanitize=fuzzer");
+				}
+			}
+
 			//
 			//	Debug
 			//

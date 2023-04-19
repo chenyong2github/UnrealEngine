@@ -365,6 +365,13 @@ namespace UnrealBuildTool
 		public bool bEnableAddressSanitizer = false;
 
 		/// <summary>
+		/// Enables LibFuzzer. Only supported for Visual Studio 2022 17.0.0 and up.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bEnableLibFuzzer")]
+		[CommandLine("-EnableLibFuzzer")]
+		public bool bEnableLibFuzzer = false;
+
+		/// <summary>
 		/// Whether .sarif files containing errors and warnings are written alongside each .obj, if supported
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bWriteSarif")]
@@ -771,6 +778,11 @@ namespace UnrealBuildTool
 			get { return Inner.bEnableAddressSanitizer; }
 		}
 
+		public bool bEnableLibFuzzer
+		{ 
+			get { return Inner.bEnableLibFuzzer; }
+		}
+        
 		public bool bWriteSarif
 		{
 			get { return Inner.bWriteSarif; }
@@ -1182,6 +1194,12 @@ namespace UnrealBuildTool
 			if (Target.WindowsPlatform.bEnableAddressSanitizer && Target.WindowsPlatform.Environment.CompilerVersion < new VersionNumber(14, 27, 0))
 			{
 				throw new BuildException("Address sanitizer requires Visual Studio 2019 16.7 or later.");
+			}
+
+			// Ensure we're using recent enough version of Visual Studio to support LibFuzzer.
+			if (Target.WindowsPlatform.bEnableLibFuzzer && Target.WindowsPlatform.Environment.CompilerVersion < new VersionNumber(14, 30, 0))
+			{
+				throw new BuildException("LibFuzzer MSVC support requires Visual Studio 2022 17.0 or later (14.30.0). The current compiler version was detected as: {0}", Target.WindowsPlatform.Environment.CompilerVersion.ToString());
 			}
 
 //			@Todo: Still getting reports of frequent OOM issues with this enabled as of 15.7.

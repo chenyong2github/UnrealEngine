@@ -27,6 +27,13 @@ namespace UnrealBuildTool
 		public bool bEnableAddressSanitizer = false;
 
 		/// <summary>
+		/// Enables LibFuzzer.
+		/// </summary>
+		[CommandLine("-EnableLibFuzzer")]
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bEnableLibFuzzer")]
+		public bool bEnableLibFuzzer = false;
+
+		/// <summary>
 		/// Enables thread sanitizer (TSan).
 		/// </summary>
 		[CommandLine("-EnableTSan")]
@@ -95,6 +102,11 @@ namespace UnrealBuildTool
 		public bool bEnableAddressSanitizer
 		{
 			get { return Inner.bEnableAddressSanitizer; }
+		}
+
+		public bool bEnableLibFuzzer
+		{
+			get { return Inner.bEnableLibFuzzer; }
 		}
 
 		public bool bEnableThreadSanitizer

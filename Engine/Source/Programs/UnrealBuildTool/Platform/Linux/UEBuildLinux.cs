@@ -55,6 +55,13 @@ namespace UnrealBuildTool
 		public bool bEnableAddressSanitizer = false;
 
 		/// <summary>
+		/// Enables LibFuzzer
+		/// </summary>
+		[CommandLine("-EnableLibFuzzer")]
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bEnableLibFuzzer")]
+		public bool bEnableLibFuzzer = false;
+
+		/// <summary>
 		/// Enables thread sanitizer (TSan)
 		/// </summary>
 		[CommandLine("-EnableTSan")]
@@ -132,6 +139,11 @@ namespace UnrealBuildTool
 		public bool bEnableAddressSanitizer
 		{
 			get { return Inner.bEnableAddressSanitizer; }
+		}
+
+		public bool bEnableLibFuzzer
+		{
+			get { return Inner.bEnableLibFuzzer; }
 		}
 
 		public bool bEnableThreadSanitizer
@@ -254,6 +266,10 @@ namespace UnrealBuildTool
 				else if (Target.LinuxPlatform.bEnableMemorySanitizer)
 				{
 					SanitizerSuffix = "MSan";
+				}
+				if (Target.LinuxPlatform.bEnableLibFuzzer)
+				{
+					SanitizerSuffix += "LibFuzzer";
 				}
 
 				if (!String.IsNullOrEmpty(SanitizerSuffix))
@@ -599,6 +615,15 @@ namespace UnrealBuildTool
 			if (Target.LinuxPlatform.bDisableDumpSyms)
 			{
 				Options |= ClangToolChainOptions.DisableDumpSyms;
+			}
+			if (Target.LinuxPlatform.bEnableLibFuzzer)
+			{
+				Options |= ClangToolChainOptions.EnableLibFuzzer;
+
+				if (Target.LinkType != TargetLinkType.Monolithic)
+				{
+					throw new BuildException("LibFuzzer is unsupported for non-monolithic builds.");
+				}
 			}
 			if (Target.bAllowLTCG && Target.bPreferThinLTO)
 			{

@@ -291,7 +291,10 @@ namespace UnrealBuildTool
 				Arguments.Add("-Wl,-fatal_warnings");
 			}
 
-			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableLibFuzzer))
 			{
 				Arguments.Add("-g");
 				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
@@ -305,6 +308,10 @@ namespace UnrealBuildTool
 				else if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 				{
 					Arguments.Add("-fsanitize=undefined");
+				}
+				if (Options.HasFlag(ClangToolChainOptions.EnableLibFuzzer))
+				{
+					Arguments.Add("-fsanitize=fuzzer");
 				}
 			}
 

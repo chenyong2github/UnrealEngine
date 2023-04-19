@@ -107,6 +107,11 @@ namespace UnrealBuildTool
 		/// Indicates that the AutoRTFM Clang compiler should be used instead of the standard clang compiler
 		/// </summary>
 		UseAutoRTFMCompiler = 1 << 17,
+
+		/// <summary>
+		/// Enable LibFuzzer
+		/// </summary>
+		EnableLibFuzzer = 1 << 18,
 	}
 
 	abstract class ClangToolChain : ISPCToolChain
@@ -768,6 +773,12 @@ namespace UnrealBuildTool
 			if (Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
 			{
 				Arguments.Add("-fsanitize=memory");
+			}
+
+			// LibFuzzer
+			if (Options.HasFlag(ClangToolChainOptions.EnableLibFuzzer))
+			{
+				Arguments.Add("-fsanitize=fuzzer");
 			}
 		}
 

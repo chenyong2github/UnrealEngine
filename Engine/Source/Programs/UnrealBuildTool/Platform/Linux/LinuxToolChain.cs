@@ -453,6 +453,12 @@ namespace UnrealBuildTool
 				Arguments.Add("-fsanitize-memory-track-origins");
 				Arguments.Add("-DFORCE_ANSI_ALLOCATOR=1");
 			}
+
+			// LibFuzzer
+			if (Options.HasFlag(ClangToolChainOptions.EnableLibFuzzer))
+			{
+				Arguments.Add("-fsanitize=fuzzer");
+			}
 		}
 
 		/// <inheritdoc/>
@@ -585,7 +591,8 @@ namespace UnrealBuildTool
 			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ||
 				Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ||
 				Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
-				Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
+				Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableLibFuzzer))
 			{
 				Arguments.Add("-g");
 
@@ -616,6 +623,11 @@ namespace UnrealBuildTool
 					// -fsanitize-memory-track-origins adds a 1.5x-2.5x slow ontop of MSan normal amount of overhead
 					// -fsanitize-memory-track-origins=1 is faster but collects only allocation points but not intermediate stores
 					Arguments.Add("-fsanitize=memory -fsanitize-memory-track-origins");
+				}
+
+				if (Options.HasFlag(ClangToolChainOptions.EnableLibFuzzer))
+				{
+					Arguments.Add("-fsanitize=fuzzer");
 				}
 
 				if (CrossCompiling())
@@ -780,7 +792,8 @@ namespace UnrealBuildTool
 			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ||
 				Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ||
 				Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
-				Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
+				Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableLibFuzzer))
 			{
 				string SanitizerInfo = "Building with:";
 				string StaticOrShared = Options.HasFlag(ClangToolChainOptions.EnableSharedSanitizer) ? " dynamically" : " statically";
@@ -789,6 +802,7 @@ namespace UnrealBuildTool
 				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ? StaticOrShared + " linked ThreadSanitizer" : "";
 				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer) ? StaticOrShared + " linked UndefinedBehaviorSanitizer" : "";
 				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer) ? StaticOrShared + " linked MemorySanitizer" : "";
+				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableLibFuzzer) ? StaticOrShared + " linked LibFuzzer" : "";
 
 				Logger.LogInformation("{SanitizerInfo}", SanitizerInfo);
 			}
