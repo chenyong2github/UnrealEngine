@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Tests/PCGTestsCommon.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
