@@ -1080,6 +1080,7 @@ namespace IncludeTool
 							&& !File.Location.FullName.Contains("NNI")
 							&& !File.Location.FullName.Contains("NNE")
 							&& !File.Location.FullName.Contains("PhyaLib")
+							&& !File.Location.FullName.Contains("RiderLink")
 							)
 						{
 							Log.WriteLine("{0}({1}): warning: external file is including non-external file ('{2}')", IncludedFile.Location.FullName, Markup.Location.LineIdx + 1, Markup.IncludedFile.Location);

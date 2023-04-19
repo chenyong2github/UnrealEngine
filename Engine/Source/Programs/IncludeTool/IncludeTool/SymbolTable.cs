@@ -181,24 +181,14 @@ namespace IncludeTool
 						// UE-150382 workaround
 						// It appears that symbols are being added to Lookup whether or not branches have been taken
 						string FileName = Symbols.First().Fragment.File.Location.GetFileName();
-						if (FileName.Equals("TaskGraphInterfaces.h", StringComparison.OrdinalIgnoreCase))
+						if (Rules.ReportConflictingSymbolsForFile(Symbols.First().Fragment.File.Location))
 						{
-							continue;
-						}
-						if (FileName.Equals("RigVMTypeIndex.h", StringComparison.OrdinalIgnoreCase))
-						{
-							continue;
-						}
-						if (FileName.Equals("TaskGraphFwd.h", StringComparison.OrdinalIgnoreCase))
-						{
-							continue;
-						}
-
-						Log.WriteLine("warning: conflicting declarations of '{0}':", SymbolName);
-						foreach(Symbol Symbol in Symbols)
-						{
-							string RelativePath = Symbol.Fragment.File.Location.MakeRelativeTo(InputDir);
-							Log.WriteLine($"  {Symbol.Type} at {RelativePath}:{Symbol.Location.LineIdx+1}");
+							Log.WriteLine("warning: conflicting declarations of '{0}':", SymbolName);
+							foreach (Symbol Symbol in Symbols)
+							{
+								string RelativePath = Symbol.Fragment.File.Location.MakeRelativeTo(InputDir);
+								Log.WriteLine($"  {Symbol.Type} at {RelativePath}:{Symbol.Location.LineIdx + 1}");
+							}
 						}
 					}
 				}

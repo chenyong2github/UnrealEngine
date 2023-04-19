@@ -39,6 +39,7 @@ namespace IncludeTool
 			"/engine/source/thirdparty/mcpp/mcpp-2.7.2/test-c/",
 			"/engine/source/programs/unrealswarm/private/",
 			"/engine/plugins/runtime/packethandlers/compressioncomponents/oodle/source/thirdparty/notforlicensees/oodle/213/win/examples/",
+			"/engine/plugins/developer/riderlink/",
 		};
 
 		/// <summary>
@@ -221,6 +222,11 @@ namespace IncludeTool
 			{
 				return true;
 			}
+			// Ignore Rider's RiderLink code.
+			if (NormalizedPath.Contains("/riderlink/source/riderlink/") || NormalizedPath.Contains("/riderlink/source/rd/"))
+			{
+				return true;
+			}
 			return false;
 		}
 
@@ -251,6 +257,7 @@ namespace IncludeTool
 			{ "/portal/source/layers/", "/engine/source/editor/unrealed/" },
 			{ "/portal/source/layers/", "/engine/source/runtime/online/icmp/" },
 			{ "/engine/source/programs/unreallightmass/", "/engine/source/runtime/engine/" },
+
 		};
 
 		/// <summary>
@@ -674,5 +681,24 @@ namespace IncludeTool
             }
             return true;
         }
+
+
+		static readonly string[] PathsToIgnoreConflictingSymbols = new string[] {
+			"/Engine/Source/Runtime/Core/Public/Async/TaskGraphInterfaces.h",
+			"/Engine/Source/Runtime/Core/Public/Async/TaskGraphFwd.h",
+			"/Engine/Source/Runtime/Core/Public/Delegates/DelegateAccessHandler.h",
+			"/Engine/Plugins/Runtime/RigVM/Source/RigVM/Public/RigVMCore/RigVMTypeIndex.h",
+		};
+
+		/// <summary>
+		/// Returns true if the file given should be included in report about conflicting symbols.
+		/// </summary>
+		/// <param name="Location">The file reference to check for inclusion</param>
+		/// <returns>True to report conclicts for this file</returns>
+		public static bool ReportConflictingSymbolsForFile(FileReference Location)
+		{
+			string LocationString = Location.ToString().Replace("\\", "/");
+			return !PathsToIgnoreConflictingSymbols.Any(x => LocationString.Contains(x));
+		}
 	}
 }
