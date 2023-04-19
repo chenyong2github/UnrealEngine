@@ -1047,7 +1047,7 @@ FConstraintSections FMovieSceneConstraintChannelHelper::GetConstraintSectionAndC
 	const FFrameNumber& EndFrame,
 	TArray<FFrameNumber>& OutFramesToBake)
 {
-	if (!InConstraint && !InConstraint->ChildTRSHandle && !InConstraint->ParentTRSHandle)
+	if ((InConstraint == nullptr) || (InConstraint->ChildTRSHandle == nullptr) || (InConstraint->ParentTRSHandle == nullptr))
 	{
 		return;
 	}
