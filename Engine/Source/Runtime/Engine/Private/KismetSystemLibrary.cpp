@@ -257,6 +257,13 @@ int64 UKismetSystemLibrary::GetFrameCount()
 	return (int64) GFrameCounter;
 }
 
+#if WITH_EDITOR
+double UKismetSystemLibrary::GetPlatformTime_Seconds()
+{
+	return FPlatformTime::Seconds();
+}
+#endif//WITH_EDITOR
+
 bool UKismetSystemLibrary::IsServer(const UObject* WorldContextObject)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);

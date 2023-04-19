@@ -209,6 +209,17 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	static int64 GetFrameCount();
 
+#if WITH_EDITOR
+	/** 
+	 * Returns the current platform time in seconds. Not coupled to any gameplay or other containerization logic - this
+	 * function is useful for timing execution time or timestamping data. Marked as callable rather than pure because 
+	 * implicit evaluation may be confusing, both for blueprint authors and blueprint readers. For implicit execution 
+	 * simply wrap it in a blueprint pure function.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Time")
+	static double GetPlatformTime_Seconds();
+#endif // WITH_EDITOR
+
 	/** Returns whether the world this object is in is the host or not */
 	UFUNCTION(BlueprintPure, Category="Networking", meta=(WorldContext="WorldContextObject") )
 	static bool IsServer(const UObject* WorldContextObject);
