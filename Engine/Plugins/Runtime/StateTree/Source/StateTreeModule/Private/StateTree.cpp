@@ -9,6 +9,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "StateTreeDelegates.h"
 #include "Logging/LogScopedVerbosityOverride.h"
+#include "Misc/DataValidation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTree)
 
@@ -202,6 +203,17 @@ void UStateTree::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray
 			OutTagsAndValuesToUpdate.Add(FAssetRegistryTag(SchemaTag, SchemaTagClassPathName.ToString(), FAssetRegistryTag::TT_Alphabetical));
 		}
 	}
+}
+
+EDataValidationResult UStateTree::IsDataValid(FDataValidationContext& Context)
+{
+	if (!Link())
+	{
+		Context.AddError(FText::FromString(FString::Printf(TEXT("%s failed to link. Please recompile the State Tree for more details errors."), *GetFullName())));
+		return EDataValidationResult::Invalid;
+	}
+
+	return Super::IsDataValid(Context);
 }
 
 #endif // WITH_EDITOR
