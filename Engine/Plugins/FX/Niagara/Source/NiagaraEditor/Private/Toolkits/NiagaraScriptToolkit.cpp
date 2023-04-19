@@ -219,12 +219,16 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	VersionMetadata = NewObject<UNiagaraVersionMetaData>(InputScript, "VersionMetadata", RF_Transient);
 	SAssignNew(VersionsWidget, SNiagaraScriptVersionWidget, EditedNiagaraScript.Script, VersionMetadata, InputScript->GetOutermost()->GetName())
 		.OnChangeToVersion(this, &FNiagaraScriptToolkit::SwitchToVersion)
-		.OnVersionDataChanged_Lambda([this]()
+		.OnVersionDataChanged_Lambda([this](const FPropertyChangedEvent* PropertyChangedEvent, FGuid SelectedVersion)
 		{
 	        if (UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(EditedNiagaraScript.Script->GetSource(EditedNiagaraScript.Version)))
 	        {
 	            ScriptSource->NodeGraph->NotifyGraphChanged();
 	        }
+
+			static FProperty* VersionProperty = FindFProperty<FProperty>(UNiagaraScript::StaticClass(), FName("VersionData"));
+			FPropertyChangedEvent ChangeEvent = PropertyChangedEvent ? *PropertyChangedEvent : FPropertyChangedEvent(VersionProperty);
+			EditedNiagaraScript.Script->PostEditChangeVersionedProperty(ChangeEvent, SelectedVersion);
 		});
 
 	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_Layout_v12")

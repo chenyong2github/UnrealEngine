@@ -236,7 +236,7 @@ void SNiagaraVersionWidget::NotifyPostChange(const FPropertyChangedEvent& Proper
 		VersionInListSelected(ObjectData->GetObjectVersion());
 	}
 
-	OnVersionDataChanged.ExecuteIfBound();
+	OnVersionDataChanged.ExecuteIfBound(&PropertyChangedEvent, SelectedVersion);
 }
 
 void SNiagaraVersionWidget::PostUndo(bool bSuccess)
@@ -252,7 +252,7 @@ void SNiagaraVersionWidget::PostRedo(bool bSuccess)
 	PostUndo(bSuccess);
 }
 
-void SNiagaraVersionWidget::SetOnVersionDataChanged(FSimpleDelegate InOnVersionDataChanged)
+void SNiagaraVersionWidget::SetOnVersionDataChanged(FOnVersionPropertyChangedDelegate InOnVersionDataChanged)
 {
 	OnVersionDataChanged = InOnVersionDataChanged;
 }
@@ -325,7 +325,7 @@ FReply SNiagaraVersionWidget::EnableVersioning()
 {
 	FScopedTransaction Transaction(LOCTEXT("EnableVersioning", "Enable versioning"));
 	VersionedObject->EnableVersioning();
-	OnVersionDataChanged.ExecuteIfBound();
+	OnVersionDataChanged.ExecuteIfBound(nullptr, SelectedVersion);
 	
 	return FReply::Handled();
 }
@@ -348,7 +348,7 @@ void SNiagaraVersionWidget::ExecuteDeleteAction(FNiagaraAssetVersion AssetVersio
 	
 	VersionListWidget->RefreshAllActions(true);
 	VersionInListSelected(VersionedObject->GetExposedVersion());
-	OnVersionDataChanged.ExecuteIfBound();
+	OnVersionDataChanged.ExecuteIfBound(nullptr, SelectedVersion);
 }
 
 void SNiagaraVersionWidget::ExecuteExposeAction(FNiagaraAssetVersion AssetVersion)
@@ -358,7 +358,7 @@ void SNiagaraVersionWidget::ExecuteExposeAction(FNiagaraAssetVersion AssetVersio
 
 	VersionListWidget->RefreshAllActions(true);
 	VersionInListSelected(AssetVersion);
-	OnVersionDataChanged.ExecuteIfBound();
+	OnVersionDataChanged.ExecuteIfBound(nullptr, SelectedVersion);
 }
 
 TSharedRef<ITableRow> SNiagaraVersionWidget::HandleVersionViewGenerateRow(TSharedRef<FNiagaraAssetVersion> Item, const TSharedRef<STableViewBase>& OwnerTable)
@@ -465,7 +465,7 @@ void SNiagaraVersionWidget::AddNewMajorVersion()
 	VersionListWidget->SelectItemByName(FName(ItemName.ToString()));
 
 	OnChangeToVersion.ExecuteIfBound(NewVersion);
-	OnVersionDataChanged.ExecuteIfBound();
+	OnVersionDataChanged.ExecuteIfBound(nullptr, SelectedVersion);
 }
 
 void SNiagaraVersionWidget::AddNewMinorVersion()
@@ -481,7 +481,7 @@ void SNiagaraVersionWidget::AddNewMinorVersion()
 	VersionListWidget->SelectItemByName(FName(ItemName.ToString()));
 
 	OnChangeToVersion.ExecuteIfBound(NewVersion);
-	OnVersionDataChanged.ExecuteIfBound();
+	OnVersionDataChanged.ExecuteIfBound(nullptr, SelectedVersion);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

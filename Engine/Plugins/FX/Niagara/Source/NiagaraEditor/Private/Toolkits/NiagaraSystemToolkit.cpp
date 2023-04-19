@@ -312,13 +312,13 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	VersionMetadata = NewObject<UNiagaraVersionMetaData>(ToolkitObject, "VersionMetadata", RF_Transient);
 	SAssignNew(VersionsWidget, SNiagaraEmitterVersionWidget, HasEmitter() ? GetEditedEmitterViewModel()->GetEmitter().Emitter : nullptr, VersionMetadata, HasEmitter() ? Emitter->GetOutermost()->GetName() : TEXT(""))
 		.OnChangeToVersion(this, &FNiagaraSystemToolkit::SwitchToVersion)
-		.OnVersionDataChanged_Lambda([this]()
+		.OnVersionDataChanged_Lambda([this](const FPropertyChangedEvent* InChangedEvent, FGuid SelectedVersion)
 		{
 			if (TSharedPtr<FNiagaraEmitterViewModel> EditableEmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel())
 			{
 				FVersionedNiagaraEmitter EditableEmitter = EditableEmitterViewModel->GetEmitter();
 				FProperty* VersionProperty = FindFProperty<FProperty>(UNiagaraEmitter::StaticClass(), FName("VersionData"));
-				FPropertyChangedEvent ChangeEvent(VersionProperty);
+				FPropertyChangedEvent ChangeEvent = InChangedEvent ? *InChangedEvent : FPropertyChangedEvent(VersionProperty);
 				EditableEmitter.Emitter->PostEditChangeProperty(ChangeEvent);
 			}
 		});

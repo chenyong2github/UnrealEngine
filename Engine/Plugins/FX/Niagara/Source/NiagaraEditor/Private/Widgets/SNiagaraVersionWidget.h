@@ -23,6 +23,7 @@ class UNiagaraVersionMetaData;
 class UNiagaraScript;
 
 DECLARE_DELEGATE_OneParam(FOnSwitchToVersionDelegate, FGuid);
+DECLARE_DELEGATE_TwoParams(FOnVersionPropertyChangedDelegate, const FPropertyChangedEvent*, FGuid);
 
 struct FNiagaraVersionMenuAction : FNiagaraMenuAction
 {
@@ -39,7 +40,7 @@ public:
 	{}
 
 	/** Called when the version data of the script was edited by the user */
-	SLATE_EVENT(FSimpleDelegate, OnVersionDataChanged)
+	SLATE_EVENT(FOnVersionPropertyChangedDelegate, OnVersionDataChanged)
 
 	/** Called when the user does something that prompts the editor to change the current active version, e.g. delete a version or add a new version */
     SLATE_EVENT(FOnSwitchToVersionDelegate, OnChangeToVersion)
@@ -62,7 +63,7 @@ public:
 	// End of FEditorUndoClient
 
 	/** See OnVersionDataChanged event */
-	void SetOnVersionDataChanged(FSimpleDelegate InOnVersionDataChanged);
+	void SetOnVersionDataChanged(FOnVersionPropertyChangedDelegate InOnVersionDataChanged);
 
 protected:
 	virtual FText GetInfoHeaderText() const;
@@ -72,12 +73,12 @@ private:
 	FNiagaraVersionedObject* VersionedObject = nullptr;
 	bool bAssetVersionsChanged = false;
 	UNiagaraVersionMetaData* VersionMetadata = nullptr;
-	FGuid SelectedVersion;
 	
-	FSimpleDelegate OnVersionDataChanged;
+	FOnVersionPropertyChangedDelegate OnVersionDataChanged;
 	FOnSwitchToVersionDelegate OnChangeToVersion;
 	TSharedPtr<IDetailsView> VersionSettingsDetails;
 	TSharedPtr<SGraphActionMenu> VersionListWidget;
+	FGuid SelectedVersion;
 
 	void AddNewMajorVersion();
 	void AddNewMinorVersion();
