@@ -218,7 +218,7 @@ void MainCS(
 
 	#if CONFIG_COMPOSE_TRANSLUCENCY
 	{
-		tsr_simd_half4 FilteredTranslucencyInput = Blur3x3(OriginalTranslucencyInput, bIsValid);
+		tsr_simd_half4 FilteredTranslucencyInput = Blur3x3(OriginalTranslucencyInput);
 
 		UNROLL_N(SIMD_SIZE)
 		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
@@ -277,8 +277,8 @@ void MainCS(
 		}
 		
 		// Convolve the input luma to have the exact same moire pattern as FilteredInput below.
-		InputLuma = Blur3x3(InputLuma, bIsValid);
-		InputLumaModification = Blur3x3(InputLumaModification, bIsValid);
+		InputLuma = Blur3x3(InputLuma);
+		InputLumaModification = Blur3x3(InputLumaModification);
 
 		// Unpack history
 		tsr_simd_half PrevFlickeringHistory = PrevMoire[0];
@@ -418,8 +418,8 @@ void MainCS(
 	#endif
 
 	// Filter clamped input and history to increase quantization of the rejection detection
-	tsr_simd_halfC FilteredInput   = Blur3x3(ClampedInput  , bIsValid);
-	tsr_simd_halfC FilteredHistory = Blur3x3(ClampedHistory, bIsValid);
+	tsr_simd_halfC FilteredInput   = Blur3x3(ClampedInput);
+	tsr_simd_halfC FilteredHistory = Blur3x3(ClampedHistory);
 	
 	// Measure rejection
 	tsr_simd_half RejectionBlendFinal = tsr_simd_half::Const(1.0);
