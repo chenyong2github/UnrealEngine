@@ -90,7 +90,7 @@ struct FHairChunkRequest
 
 struct FHairResourceRequest
 {
-	void Request(FHairStrandsBulkCommon& In, bool bWait=false, bool bFillBulkData=false);
+	void Request(FHairStrandsBulkCommon& In, bool bWait=false, bool bFillBulkData=false, const FName& InOwnerName = NAME_None);
 	bool IsNone() const ;
 	bool IsCompleted() const;
 

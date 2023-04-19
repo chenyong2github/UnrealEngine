@@ -188,7 +188,7 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 
 		using namespace UE::DerivedData;
 		FCachePutValueRequest& Out = OutWriteDDC->AddDefaulted_GetRef();
-		Out.Name 	= Owner->GetPathName();
+		if (Owner) { Out.Name = Owner->GetPathName(); }
 		Out.Key 	= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix);
 		Out.Value 	= FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)));
 		Out.Policy 	= ECachePolicy::Default;
