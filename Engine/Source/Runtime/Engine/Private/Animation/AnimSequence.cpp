@@ -1090,15 +1090,41 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 		EndCacheDerivedData(KeyHash);
 	}
 
+	auto LogCookedDataWarning = [this, TargetPlatform, KeyHash]()
+	{
+		// This means cooked data is expected, but it it currently invalid and no task is running to generate it
+		UE_LOG(LogAnimation, Warning, TEXT("Expecting either valid compressed Animation Data, or an in-flight compression task for asset %s\nPlatform: %s\nHash: %s"), *GetPathName(), *TargetPlatform->DisplayName().ToString(), *LexToString(KeyHash));
+	};
+
 	if (KeyHash == DataKeyHash)
 	{
-		return CompressedData.IsValid(this) && !CacheTasksByKeyHash.Contains(KeyHash);
+		if (CompressedData.IsValid(this) && !CacheTasksByKeyHash.Contains(KeyHash))
+		{
+			return true;
+		}
+		else if (!CacheTasksByKeyHash.Contains(KeyHash))
+		{
+			LogCookedDataWarning();
+			CompressedData.IsValid(this, true);
+		}
 	}
 	else
 	{
 		if(const TUniquePtr<FCompressedAnimSequence>* CompressedDataPtr = DataByPlatformKeyHash.Find(KeyHash))
 		{
-			return (*CompressedDataPtr)->IsValid(this) && !CacheTasksByKeyHash.Contains(KeyHash);
+			if ((*CompressedDataPtr)->IsValid(this) && !CacheTasksByKeyHash.Contains(KeyHash))
+			{
+				return true;
+			}
+			else if (!CacheTasksByKeyHash.Contains(KeyHash))
+			{
+				LogCookedDataWarning();
+				(*CompressedDataPtr)->IsValid(this, true);
+			}
+		}
+		else if (!CacheTasksByKeyHash.Contains(KeyHash))
+		{
+			LogCookedDataWarning();
 		}
 	}
 

@@ -843,7 +843,7 @@ public:
 	void ClearCompressedBoneData();
 	void ClearCompressedCurveData();
 
-	bool IsValid(const UAnimSequence* AnimSequence) const;
+	bool IsValid(const UAnimSequence* AnimSequence, bool bLogInformation=false) const;
 };
 
 struct FRootMotionReset
