@@ -21,6 +21,8 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, ImageCore);
  */
 static void InitImageStorage(FImage& Image)
 {
+	//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.InitImageStorage);
+
 	check( Image.IsImageInfoValid() );
 
 	int64 NumBytes = Image.GetImageSizeBytes();
@@ -279,6 +281,8 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 	if ( SrcImage.Format == DestImage.Format &&
 		SrcImage.GammaSpace == DestImage.GammaSpace )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CopyImage.memcpy);
+
 		int64 Bytes = SrcImage.GetImageSizeBytes();
 		check( DestImage.GetImageSizeBytes() == Bytes );
 		memcpy(DestImage.RawData,SrcImage.RawData,Bytes);

@@ -601,6 +601,8 @@ public:
 
 	void GetOodleCompressParameters(EPixelFormat * OutCompressedPixelFormat,int * OutRDOLambda, OodleTex_EncodeEffortLevel * OutEffortLevel, bool * bOutDebugColor, OodleTex_RDO_UniversalTiling* OutRDOUniversalTiling, const struct FTextureBuildSettings& InBuildSettings, bool bHasAlpha) const
 	{
+		//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GetOodleCompressParameters);
+
 		FName TextureFormatName = InBuildSettings.TextureFormatName;
 
 		EPixelFormat CompressedPixelFormat = PF_Unknown;
@@ -1006,7 +1008,7 @@ public:
 		return true;
 	}
 
-	virtual bool CompressImage(FImage& InImage, const FTextureBuildSettings& InBuildSettings, const FIntVector3& InMip0Dimensions,
+	virtual bool CompressImage(const FImage& InImage, const FTextureBuildSettings& InBuildSettings, const FIntVector3& InMip0Dimensions,
 		int32 InMip0NumSlicesNoDepth, int32 InMipIndex, int32 InMipCount, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TFOodle_CompressImage);
@@ -1162,16 +1164,21 @@ public:
 		FImage ImageCopy;
 		if (bNeedsImageCopy)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_FormatChange);
+
                         //not sure if we should bill this alloc to OodleTexture or the calling context (TextureCompressor)
                         //we are freeing the previous Image alloc to replace it with a changed format
 			//LLM_SCOPE_BYTAG(OodleTexture);
 
 			InImage.CopyTo(ImageCopy, ImageFormat, Gamma);
-			
+
 			// after we copy the image, we can free the source
 			//	can reduce peak mem use to do so immediately
 			//	(source is usually/often F32 RGBA (when not VT) so quite fat)
-			InImage.RawData.Empty();
+
+// -> no longer possible because Hashing Source is on a thread
+//  needs a refcount on the source Image to make that work again
+
 		}
 		const FImage& Image = bNeedsImageCopy ? ImageCopy : InImage;
 
@@ -1363,7 +1370,10 @@ public:
 		OutImage.SizeY = Image.SizeY;
 		// note: cubes come in as 6 slices and go out as 1
 		OutImage.SizeZ = (InBuildSettings.bVolume || InBuildSettings.bTextureArray) ? Image.NumSlices : 1;
+		{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_Alloc);
 		OutImage.RawData.AddUninitialized(OutBytesTotal);
+		}
 
 		UE_LOG(LogTextureFormatOodle, Verbose, TEXT("TFO out size=%dx%d stride=%d total=%d"),
 			OutImage.SizeX,OutImage.SizeY,

@@ -16,6 +16,10 @@
 * 
 * ImageCore does not use Engine, only Core
 * it can be used in standalone apps that don't have Engine
+*
+* note to authors: as much as possible, write functions that act on FImageView
+*  for example reading and modifying pixels? use FImageView
+* use FImage when you may need to change the format or allocate a new image.
 * 
 */
 
@@ -141,7 +145,17 @@ struct FImageInfo
 		, GammaSpace(InGammaSpace)
 	{
 	}
-		
+	
+	FORCEINLINE bool operator == (const FImageInfo & rhs) const
+	{
+		return 
+			SizeX == rhs.SizeX &&
+			SizeY == rhs.SizeY &&
+			NumSlices == rhs.NumSlices &&
+			Format == rhs.Format &&
+			GammaSpace == rhs.GammaSpace;
+	}
+
 	FORCEINLINE bool IsImageInfoValid() const
 	{
 		if ( SizeX < 0 || SizeY < 0 || NumSlices < 0 ) return false;

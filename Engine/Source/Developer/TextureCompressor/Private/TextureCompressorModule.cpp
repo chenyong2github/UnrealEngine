@@ -3083,10 +3083,9 @@ void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescript
 }
 
 // compress mip-maps in InMipChain and add mips to Texture, might alter the source content
-// MipChain FImage payloads are freed by this function (RawData.Empty() is called)
 static bool CompressMipChain(
 	const ITextureFormat* TextureFormat,
-	TArray<FImage>& MipChain, 
+	const TArray<FImage>& MipChain,
 	const FTextureBuildSettings& Settings,
 	const bool bImageHasAlphaChannel,
 	FStringView DebugTexturePathName,
@@ -3171,6 +3170,9 @@ static bool CompressMipChain(
 				OutMips[MipIndex]
 			);
 
+			// no longer possible, because hashing is done on a thread
+			// todo: restore this by making the images refcounted to track lifetime better
+			/*
 			// note: MipChain[MipIndex].RawData may be freed or mutated by CompressImage
 			// do not use it after the call to CompressImage
 			// go ahead and free it now if CompressImage didn't :
@@ -3178,6 +3180,7 @@ static bool CompressMipChain(
 			{
 				MipChain[MipIndex+MipSubIndex].RawData.Empty();
 			}
+			*/
 		}
 
 		return bSuccess;
@@ -3441,6 +3444,44 @@ public:
 	FTextureCompressorModule()
 	{
 	}
+	
+	// compute a hash used to identify the contents of a mip chain
+	// this is used by bulkdata diff tool, stored in asset registry
+	// it is for debug tools only and skipping it is optional
+	static FIoHash ComputeMipChainHash(const TArray<FImage> & IntermediateMipChain)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.ComputeMipChainHash);
+
+		// @todo: ComputeMipChainHash is quite slow and often not necessary
+		//	todo: use xxhash instead of blake3
+		//  todo: don't do it at all when it's not needed
+		//	  eg. in interactive Editor runs and in UEFN contentworker
+
+		// Hash the mips before we compress them. This gets saved as part of the derived data and then added to the
+		// diff tags during cook so we can catch determinism issues.
+		FIoHashBuilder MipHashBuilder;
+		for (const FImage& Mip : IntermediateMipChain)
+		{
+			const FImageInfo* Info = &Mip;
+			// Can't just hash FImageInfo due to struct padding RNG making the hash non-deterministic.
+			MipHashBuilder.Update(&Info->SizeX, sizeof(Info->SizeX));
+			MipHashBuilder.Update(&Info->SizeY, sizeof(Info->SizeY));
+			MipHashBuilder.Update(&Info->NumSlices, sizeof(Info->NumSlices));
+			MipHashBuilder.Update(&Info->Format, sizeof(Info->Format));
+			MipHashBuilder.Update(&Info->GammaSpace, sizeof(Info->GammaSpace));
+
+			check( Mip.RawData.Num() != 0 );
+
+			// show perf of hash function :
+			//double t1 = FPlatformTime::Seconds();
+			MipHashBuilder.Update(Mip.RawData.GetData(), Mip.RawData.Num());
+			//double t2 = FPlatformTime::Seconds();
+			//UE_LOG(LogTextureCompressor, Display, TEXT("Hashed %lld bytes in %.3f millis = %.3f GB/s"),Mip.RawData.Num(),(t2-t1)*1000,(Mip.RawData.Num()/(t2-t1))/(1000*1000*1000));
+			//Blake3 is ~3.5 GB/s , around 4X slower than xxHash
+		}
+
+		return MipHashBuilder.Finalize();
+	}
 
 	virtual bool BuildTexture(
 		const TArray<FImage>& SourceMips,
@@ -3545,9 +3586,20 @@ public:
 		// shown this to be 99.9% the same, and allows us to get the pixel format earlier.
 		const bool bImageHasAlphaChannel = BuildSettings.GetTextureExpectsAlphaInPixelFormat(FImageCore::DetectAlphaChannel(IntermediateMipChain[0]));
 		
+		UE::Tasks::TTask<FIoHash> HashingTask;
+		TArray<FImageInfo> SaveImageInfos;
+		
+		//FIoHash DebugOnly_HashBefore = ComputeMipChainHash(IntermediateMipChain);
+
 		if (OutMetadata)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Texture.MipHashBuilder);
+
+			SaveImageInfos.SetNum(IntermediateMipChain.Num());
+			for (int32 i=0;i<IntermediateMipChain.Num();++i)
+			{
+				SaveImageInfos[i] = IntermediateMipChain[i];
+			}
 
 			// The metadata is about trying to determine bImageHasAlphaChannel _before_ we launch a task, which 
 			// means it must be on the actual source mips, not the post-processed mips. At some point enough textures
@@ -3555,25 +3607,41 @@ public:
 			// back out so that when textures happen to get saved, it goes with it.
 			OutMetadata->bSourceMipsAlphaDetected = bSourceMipsAlphaDetected;
 
-			// Hash the mips before we compress them. This gets saved as part of the derived data and then added to the
-			// diff tags during cook so we can catch determinism issues.
-			FIoHashBuilder MipHashBuilder;
-			for (const FImage& Mip : IntermediateMipChain)
-			{
-				const FImageInfo* Info = &Mip;
-				// Can't just hash FImageInfo due to struct padding RNG making the hash non-deterministic.
-				MipHashBuilder.Update(&Info->SizeX, sizeof(Info->SizeX));
-				MipHashBuilder.Update(&Info->SizeY, sizeof(Info->SizeY));
-				MipHashBuilder.Update(&Info->NumSlices, sizeof(Info->NumSlices));
-				MipHashBuilder.Update(&Info->Format, sizeof(Info->Format));
-				MipHashBuilder.Update(&Info->GammaSpace, sizeof(Info->GammaSpace));
-				MipHashBuilder.Update(Mip.RawData.GetData(), Mip.RawData.Num());
-			}
-			OutMetadata->PreEncodeMipsHash = MipHashBuilder.Finalize();
+			// hash value is not needed immediately, so don't block on it :
+			HashingTask = UE::Tasks::Launch(TEXT("Texture.MipHashBuilder.Task"), [&](){ return ComputeMipChainHash(IntermediateMipChain); } );
 		}
 		
 		bool bCompressSucceeded = CompressMipChain(TextureFormat, IntermediateMipChain, BuildSettings, bImageHasAlphaChannel, DebugTexturePathName,
 					OutTextureMips, OutNumMipsInTail, OutExtData);
+		
+		// make sure IntermediateMipChain isn't changed:
+		//FIoHash DebugOnly_HashAfter = ComputeMipChainHash(IntermediateMipChain);
+		//check( DebugOnly_HashBefore == DebugOnly_HashAfter );
+
+		if (OutMetadata)
+		{
+			// now block on the hash task
+			OutMetadata->PreEncodeMipsHash = HashingTask.GetResult();
+		
+			//check( DebugOnly_HashBefore == OutMetadata->PreEncodeMipsHash );
+		
+			// (rough) check that IntermediateMipChain was not modified by the TextureFormats :
+			check( SaveImageInfos.Num() == IntermediateMipChain.Num() );
+			for (int32 i=0;i<IntermediateMipChain.Num();++i)
+			{
+				// check that FImageInfo is the same
+				// does not check pixel values
+				check( SaveImageInfos[i] == IntermediateMipChain[i] );
+			}
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Free_IntermediateMipChain);
+
+			// @@CB this is quite slow; detach to an async task?
+
+			IntermediateMipChain.Empty();
+		}
 
 		return bCompressSucceeded;
 	}
@@ -3906,9 +3974,14 @@ private:
 							DestGammaSpace = EGammaSpace::Linear;
 						}
 						Image.CopyTo(*Mip, DestFormat, DestGammaSpace);
+
+						//@@CB todo : when Mip format == Image format, we can Move instead of Copy
+						//	have to make sure that's okay with SourceMips/TextureData
 					}
 				}
 			}
+
+			//@todo Oodle: free SourceMips as we consume them?
 
 			if (BuildSettings.Downscale > 1.f)
 			{		
@@ -3995,7 +4068,7 @@ private:
 			
 			// Parallel on the mips, but not on tiny mips :
 			int32 NumParallelMips = OutMipChain.Num();
-			while ( NumParallelMips > 0 && OutMipChain[NumParallelMips-1].GetNumPixels() < 4096 )
+			while ( NumParallelMips > 0 && OutMipChain[NumParallelMips-1].GetNumPixels() < 16384 )
 			{
 				NumParallelMips--;
 			}

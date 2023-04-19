@@ -174,7 +174,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 	}
 
 	virtual bool CompressImage(
-		FImage& InImage,
+		const FImage& InImage,
 		const FTextureBuildSettings& BuildSettings,
 		const FIntVector3& InMip0Dimensions,
 		int32 InMip0NumSlicesNoDepth,

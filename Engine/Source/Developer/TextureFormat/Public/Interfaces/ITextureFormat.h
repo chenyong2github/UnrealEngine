@@ -494,7 +494,7 @@ public:
 	 * @returns true on success, false otherwise.
 	 */
 	virtual bool CompressImage(
-		FImage& Image,
+		const FImage& Image,
 		const FTextureBuildSettings& BuildSettings,
 		const FIntVector3& InMip0Dimensions,
 		int32 InMip0NumSlicesNoDepth,
@@ -522,7 +522,7 @@ public:
 	 * @returns true on success, false otherwise.
 	 */
 	virtual bool CompressImageEx(
-		FImage* Images,
+		const FImage* Images,
 		const uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
 		const FIntVector3& InMip0Dimensions,
@@ -563,7 +563,7 @@ public:
 	 * @returns true on success, false otherwise.
 	 */
 	virtual bool CompressImageTiled(
-		FImage* Images,
+		const FImage* Images,
 		uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
 		FStringView DebugTexturePathName,

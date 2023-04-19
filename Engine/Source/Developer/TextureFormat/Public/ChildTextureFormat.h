@@ -208,7 +208,7 @@ public:
 	}
 
 	bool CompressBaseImage(
-		FImage& InImage,
+		const FImage& InImage,
 		const FTextureBuildSettings& BuildSettings,
 		const FIntVector3& InMip0Dimensions, 
 		int32 InMip0NumSlicesNoDepth,
@@ -231,7 +231,7 @@ public:
 	}
 
 	bool CompressBaseImageTiled(
-		FImage* Images,
+		const FImage* Images,
 		uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
 		FStringView DebugTexturePathName,
