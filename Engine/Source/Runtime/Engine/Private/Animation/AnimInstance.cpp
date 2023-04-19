@@ -374,8 +374,6 @@ void UAnimInstance::UninitializeAnimation()
 			SharedLinkedAnimLayers->Reset();
 		}
 	}
-
-	TRACE_OBJECT_LIFETIME_END(this);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1363,6 +1361,8 @@ void UAnimInstance::BeginDestroy()
 #endif // WITH_EDITOR
 
 	Super::BeginDestroy();
+	
+	TRACE_OBJECT_LIFETIME_END(this);
 }
 
 void UAnimInstance::PostInitProperties()
