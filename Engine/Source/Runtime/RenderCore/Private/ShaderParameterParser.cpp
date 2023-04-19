@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShaderParameterParser.h"
-#include "ShaderCompilerCommon.h"
+#include "Containers/UnrealString.h"
+#include "ShaderCompilerCore.h"
+#include "String/RemoveFrom.h"
 #include "Misc/StringBuilder.h"
 
 template<typename TParameterFunction>
@@ -151,6 +153,113 @@ FShaderParameterParser::FShaderParameterParser(
 {
 }
 
+static const TCHAR* const s_AllSRVTypes[] =
+{
+	TEXT("Texture1D"),
+	TEXT("Texture1DArray"),
+	TEXT("Texture2D"),
+	TEXT("Texture2DArray"),
+	TEXT("Texture2DMS"),
+	TEXT("Texture2DMSArray"),
+	TEXT("Texture3D"),
+	TEXT("TextureCube"),
+	TEXT("TextureCubeArray"),
+
+	TEXT("Buffer"),
+	TEXT("ByteAddressBuffer"),
+	TEXT("StructuredBuffer"),
+	TEXT("ConstantBuffer"),
+	TEXT("RaytracingAccelerationStructure"),
+};
+
+static const TCHAR* const s_AllUAVTypes[] =
+{
+	TEXT("AppendStructuredBuffer"),
+	TEXT("RWBuffer"),
+	TEXT("RWByteAddressBuffer"),
+	TEXT("RWStructuredBuffer"),
+	TEXT("RWTexture1D"),
+	TEXT("RWTexture1DArray"),
+	TEXT("RWTexture2D"),
+	TEXT("RWTexture2DArray"),
+	TEXT("RWTexture3D"),
+	TEXT("RasterizerOrderedTexture2D"),
+};
+
+static const TCHAR* const s_AllSamplerTypes[] =
+{
+	TEXT("SamplerState"),
+	TEXT("SamplerComparisonState"),
+};
+
+EShaderParameterType FShaderParameterParser::ParseParameterType(
+	FStringView InType,
+	TArrayView<const TCHAR* const> InExtraSRVTypes,
+	TArrayView<const TCHAR* const> InExtraUAVTypes)
+{
+	TArrayView<const TCHAR* const> AllSamplerTypes(s_AllSamplerTypes);
+	TArrayView<const TCHAR* const> AllSRVTypes(s_AllSRVTypes);
+	TArrayView<const TCHAR* const> AllUAVTypes(s_AllUAVTypes);
+
+	if (AllSamplerTypes.Contains(InType))
+	{
+		return EShaderParameterType::Sampler;
+	}
+
+	FStringView UntemplatedType = InType;
+	if (int32 Index = InType.Find(TEXT("<")); Index != INDEX_NONE)
+	{
+		// Remove the template argument but don't forget to clean up the type name
+		const int32 NumChars = InType.Len() - Index;
+		UntemplatedType = InType.LeftChop(NumChars).TrimEnd();
+	}
+
+	if (AllSRVTypes.Contains(UntemplatedType) || InExtraSRVTypes.Contains(UntemplatedType))
+	{
+		return EShaderParameterType::SRV;
+	}
+
+	if (AllUAVTypes.Contains(UntemplatedType) || InExtraUAVTypes.Contains(UntemplatedType))
+	{
+		return EShaderParameterType::UAV;
+	}
+
+	return EShaderParameterType::LooseData;
+}
+
+EShaderParameterType FShaderParameterParser::ParseAndRemoveBindlessParameterPrefix(FStringView& InName)
+{
+	const FStringView OriginalName = InName;
+
+	if (InName = UE::String::RemoveFromStart(InName, FStringView(kBindlessResourcePrefix)); InName != OriginalName)
+	{
+		return EShaderParameterType::BindlessResourceIndex;
+	}
+
+	if (InName = UE::String::RemoveFromStart(InName, FStringView(kBindlessSamplerPrefix)); InName != OriginalName)
+	{
+		return EShaderParameterType::BindlessSamplerIndex;
+	}
+
+	return EShaderParameterType::LooseData;
+}
+
+EShaderParameterType FShaderParameterParser::ParseAndRemoveBindlessParameterPrefix(FString& InName)
+{
+	FStringView Name(InName);
+	const EShaderParameterType ParameterType = ParseAndRemoveBindlessParameterPrefix(Name);
+	InName = FString(Name);
+
+	return ParameterType;
+}
+
+bool FShaderParameterParser::RemoveBindlessParameterPrefix(FString& InName)
+{
+	return InName.RemoveFromStart(kBindlessResourcePrefix)
+		|| InName.RemoveFromStart(kBindlessSamplerPrefix);
+}
+
+
 bool FShaderParameterParser::ParseParameters(
 	const FShaderCompilerInput& CompilerInput,
 	FShaderCompilerOutput& CompilerOutput)
@@ -273,7 +382,7 @@ bool FShaderParameterParser::ParseParameters(
 
 				FStringView Leftovers = ShaderSource.Mid(NameEndPos + 1, (Cursor - 1) - (NameEndPos + 1) + 1);
 
-				EShaderParameterType ParsedParameterType = UE::ShaderCompilerCommon::ParseAndRemoveBindlessParameterPrefix(Name);
+				EShaderParameterType ParsedParameterType = ParseAndRemoveBindlessParameterPrefix(Name);
 				const bool bBindlessIndex = (ParsedParameterType == EShaderParameterType::BindlessResourceIndex || ParsedParameterType == EShaderParameterType::BindlessSamplerIndex);
 
 				EBindlessConversionType BindlessConversionType = EBindlessConversionType::None;
@@ -281,7 +390,7 @@ bool FShaderParameterParser::ParseParameters(
 
 				if ((bBindlessResources || bBindlessSamplers) && ParsedParameterType == EShaderParameterType::LooseData)
 				{
-					ParsedParameterType = UE::ShaderCompilerCommon::ParseParameterType(Type, ExtraSRVTypes, ExtraUAVTypes);
+					ParsedParameterType = ParseParameterType(Type, ExtraSRVTypes, ExtraUAVTypes);
 
 					if (bBindlessResources && (ParsedParameterType == EShaderParameterType::SRV || ParsedParameterType == EShaderParameterType::UAV))
 					{
@@ -973,7 +1082,7 @@ bool FShaderParameterParser::ParseAndModify(
 		return true;
 	}
 
-	bNeedToMoveToRootConstantBuffer = ConstantBufferType != nullptr && (CompilerInput.IsRayTracingShader() || UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer(CompilerInput));
+	bNeedToMoveToRootConstantBuffer = ConstantBufferType != nullptr && (CompilerInput.IsRayTracingShader() || CompilerInput.ShouldUseStableConstantBuffer());
 	OriginalParsedShader = PreprocessedShaderSource;
 
 	if (!ParseParameters(CompilerInput, CompilerOutput))
@@ -1002,7 +1111,7 @@ void FShaderParameterParser::ValidateShaderParameterType(
 {
 	FString BindingName(ShaderBindingName);
 
-	const bool bBindlessHack = UE::ShaderCompilerCommon::RemoveBindlessParameterPrefix(BindingName);
+	const bool bBindlessHack = RemoveBindlessParameterPrefix(BindingName);
 
 	const FShaderParameterParser::FParsedShaderParameter& ParsedParameter = FindParameterInfos(BindingName);
 

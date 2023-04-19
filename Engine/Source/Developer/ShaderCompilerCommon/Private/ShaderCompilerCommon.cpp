@@ -475,90 +475,12 @@ TCHAR* FindNextUniformBufferReference(TCHAR* SearchPtr, const TCHAR* SearchStrin
 	return nullptr;
 }
 
-bool UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer(const FShaderCompilerInput& Input)
-{
-	// stable constant buffer is for the FShaderParameterBindings::BindForLegacyShaderParameters() code path.
-	// Ray tracing shaders use FShaderParameterBindings::BindForRootShaderParameters instead.
-	if (Input.IsRayTracingShader())
-	{
-		return false;
-	}
-
-	return Input.RootParametersStructure != nullptr;
-}
-
-static const TCHAR* const s_AllSRVTypes[] =
-{
-	TEXT("Texture1D"),
-	TEXT("Texture1DArray"),
-	TEXT("Texture2D"),
-	TEXT("Texture2DArray"),
-	TEXT("Texture2DMS"),
-	TEXT("Texture2DMSArray"),
-	TEXT("Texture3D"),
-	TEXT("TextureCube"),
-	TEXT("TextureCubeArray"),
-
-	TEXT("Buffer"),
-	TEXT("ByteAddressBuffer"),
-	TEXT("StructuredBuffer"),
-	TEXT("ConstantBuffer"),
-	TEXT("RaytracingAccelerationStructure"),
-};
-
-static const TCHAR* const s_AllUAVTypes[] =
-{
-	TEXT("AppendStructuredBuffer"),
-	TEXT("RWBuffer"),
-	TEXT("RWByteAddressBuffer"),
-	TEXT("RWStructuredBuffer"),
-	TEXT("RWTexture1D"),
-	TEXT("RWTexture1DArray"),
-	TEXT("RWTexture2D"),
-	TEXT("RWTexture2DArray"),
-	TEXT("RWTexture3D"),
-	TEXT("RasterizerOrderedTexture2D"),
-};
-
-static const TCHAR* const s_AllSamplerTypes[] =
-{
-	TEXT("SamplerState"),
-	TEXT("SamplerComparisonState"),
-};
-
 EShaderParameterType UE::ShaderCompilerCommon::ParseParameterType(
 	FStringView InType,
 	TArrayView<const TCHAR* const> InExtraSRVTypes,
 	TArrayView<const TCHAR* const> InExtraUAVTypes)
 {
-	TArrayView<const TCHAR* const> AllSamplerTypes(s_AllSamplerTypes);
-	TArrayView<const TCHAR* const> AllSRVTypes(s_AllSRVTypes);
-	TArrayView<const TCHAR* const> AllUAVTypes(s_AllUAVTypes);
-
-	if (AllSamplerTypes.Contains(InType))
-	{
-		return EShaderParameterType::Sampler;
-	}
-
-	FStringView UntemplatedType = InType;
-	if (int32 Index = InType.Find(TEXT("<")); Index != INDEX_NONE)
-	{
-		// Remove the template argument but don't forget to clean up the type name
-		const int32 NumChars = InType.Len() - Index;
-		UntemplatedType = InType.LeftChop(NumChars).TrimEnd();
-	}
-
-	if (AllSRVTypes.Contains(UntemplatedType) || InExtraSRVTypes.Contains(UntemplatedType))
-	{
-		return EShaderParameterType::SRV;
-	}
-
-	if (AllUAVTypes.Contains(UntemplatedType) || InExtraUAVTypes.Contains(UntemplatedType))
-	{
-		return EShaderParameterType::UAV;
-	}
-
-	return EShaderParameterType::LooseData;
+	return FShaderParameterParser::ParseParameterType(InType, InExtraSRVTypes, InExtraUAVTypes);
 }
 
 FStringView UE::ShaderCompilerCommon::RemoveConstantBufferPrefix(FStringView InName)
@@ -573,34 +495,17 @@ FString UE::ShaderCompilerCommon::RemoveConstantBufferPrefix(const FString& InNa
 
 EShaderParameterType UE::ShaderCompilerCommon::ParseAndRemoveBindlessParameterPrefix(FStringView& InName)
 {
-	const FStringView OriginalName = InName;
-
-	if (InName = UE::String::RemoveFromStart(InName, FStringView(UE::ShaderCompilerCommon::kBindlessResourcePrefix)); InName != OriginalName)
-	{
-		return EShaderParameterType::BindlessResourceIndex;
-	}
-
-	if (InName = UE::String::RemoveFromStart(InName, FStringView(UE::ShaderCompilerCommon::kBindlessSamplerPrefix)); InName != OriginalName)
-	{
-		return EShaderParameterType::BindlessSamplerIndex;
-	}
-
-	return EShaderParameterType::LooseData;
+	return FShaderParameterParser::ParseAndRemoveBindlessParameterPrefix(InName);
 }
 
 EShaderParameterType UE::ShaderCompilerCommon::ParseAndRemoveBindlessParameterPrefix(FString& InName)
 {
-	FStringView Name(InName);
-	const EShaderParameterType ParameterType = ParseAndRemoveBindlessParameterPrefix(Name);
-	InName = FString(Name);
-
-	return ParameterType;
+	return FShaderParameterParser::ParseAndRemoveBindlessParameterPrefix(InName);
 }
 
 bool UE::ShaderCompilerCommon::RemoveBindlessParameterPrefix(FString& InName)
 {
-	return InName.RemoveFromStart(UE::ShaderCompilerCommon::kBindlessResourcePrefix)
-		|| InName.RemoveFromStart(UE::ShaderCompilerCommon::kBindlessSamplerPrefix);
+	return FShaderParameterParser::RemoveBindlessParameterPrefix(InName);
 }
 
 bool UE::ShaderCompilerCommon::ValidatePackedResourceCounts(FShaderCompilerOutput& Output, const FShaderCodePackedResourceCounts& PackedResourceCounts)
@@ -732,7 +637,7 @@ void HandleReflectedGlobalConstantBufferMember(
 )
 {
 	FString MemberName = InMemberName;
-	const EShaderParameterType ParameterType = UE::ShaderCompilerCommon::ParseAndRemoveBindlessParameterPrefix(MemberName);
+	const EShaderParameterType ParameterType = FShaderParameterParser::ParseAndRemoveBindlessParameterPrefix(MemberName);
 
 	Output.ParameterMap.AddParameterAllocation(
 		*MemberName,
@@ -751,7 +656,7 @@ void HandleReflectedUniformBufferConstantBufferMember(
 )
 {
 	FString MemberName = InMemberName;
-	const EShaderParameterType ParameterType = UE::ShaderCompilerCommon::ParseAndRemoveBindlessParameterPrefix(MemberName);
+	const EShaderParameterType ParameterType = FShaderParameterParser::ParseAndRemoveBindlessParameterPrefix(MemberName);
 
 	if (ParameterType != EShaderParameterType::LooseData)
 	{

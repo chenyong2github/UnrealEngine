@@ -37,7 +37,7 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 
 			if (bGlobalCB)
 			{
-				if (UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer(Input))
+				if (Input.ShouldUseStableConstantBuffer())
 				{
 					// Each member found in the global constant buffer means it was not in RootParametersStructure or
 					// it would have been moved by ShaderParameterParser.ParseAndModify().
@@ -81,7 +81,7 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 					}
 				}
 			}
-			else if (bIsRootCB && UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer(Input))
+			else if (bIsRootCB && Input.ShouldUseStableConstantBuffer())
 			{
 				if (CBIndex == FShaderParametersMetadata::kRootCBufferBindingIndex)
 				{

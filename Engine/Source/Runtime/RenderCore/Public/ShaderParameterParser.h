@@ -18,7 +18,7 @@ enum class EBindlessConversionType : uint8
 };
 
 /** Validates and moves all the shader loose data parameter defined in the root scope of the shader into the root uniform buffer. */
-class SHADERCOMPILERCOMMON_API FShaderParameterParser
+class RENDERCORE_API FShaderParameterParser
 {
 public:
 	struct FParsedShaderParameter
@@ -65,6 +65,14 @@ public:
 	FShaderParameterParser(const TCHAR* InConstantBufferType);
 	FShaderParameterParser(const TCHAR* InConstantBufferType, TArrayView<const TCHAR* const> InExtraSRVTypes, TArrayView<const TCHAR* const> InExtraUAVTypes);
 	virtual ~FShaderParameterParser();
+
+	static constexpr const TCHAR* kBindlessResourcePrefix = TEXT("BindlessResource_");
+	static constexpr const TCHAR* kBindlessSamplerPrefix = TEXT("BindlessSampler_");
+
+	static EShaderParameterType ParseParameterType(FStringView InType, TArrayView<const TCHAR* const> InExtraSRVTypes, TArrayView<const TCHAR* const> InExtraUAVTypes);
+	static EShaderParameterType ParseAndRemoveBindlessParameterPrefix(FStringView& InName);
+	static EShaderParameterType ParseAndRemoveBindlessParameterPrefix(FString& InName);
+	static bool RemoveBindlessParameterPrefix(FString& InName);
 
 	/** Parses the preprocessed shader code and applies the necessary modifications to it. */
 	bool ParseAndModify(

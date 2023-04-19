@@ -1105,7 +1105,7 @@ static void BuildShaderOutput(
 		);
 
 		FString ParamName = PackedGlobal.Name;
-		UE::ShaderCompilerCommon::RemoveBindlessParameterPrefix(ParamName);
+		FShaderParameterParser::RemoveBindlessParameterPrefix(ParamName);
 		NEWEntryTypes.Add(ParamName, FVulkanShaderHeader::PackedGlobal);
 
 		uint32& Size = PackedGlobalArraySize.FindOrAdd((CrossCompiler::EPackedTypeName)PackedGlobal.PackedType);

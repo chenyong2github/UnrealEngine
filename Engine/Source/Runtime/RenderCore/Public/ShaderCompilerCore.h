@@ -371,6 +371,18 @@ struct FShaderCompilerInput
 		return IsRayTracingShaderFrequency(Target.GetFrequency());
 	}
 
+	bool ShouldUseStableConstantBuffer() const
+	{
+		// stable constant buffer is for the FShaderParameterBindings::BindForLegacyShaderParameters() code path.
+		// Ray tracing shaders use FShaderParameterBindings::BindForRootShaderParameters instead.
+		if (IsRayTracingShader())
+		{
+			return false;
+		}
+
+		return RootParametersStructure != nullptr;
+	}
+
 	/** Returns whether this shader input *can* be compiled with the legacy FXC compiler. */
 	bool CanCompileWithLegacyFxc() const
 	{
@@ -578,17 +590,10 @@ extern RENDERCORE_API void CompileShader(const TArray<const IShaderFormat*>& Sha
 extern RENDERCORE_API void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCompileJob& Job, const FString& WorkingDirectory, int32* CompileCount = nullptr);
 extern RENDERCORE_API void CompileShaderPipeline(const TArray<const IShaderFormat*>& ShaderFormats, FShaderPipelineCompileJob* PipelineJob, const FString& WorkingDirectory, int32* CompileCount = nullptr);
 
-UE_DEPRECATED(5.2, "Functionality has moved to UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer")
+UE_DEPRECATED(5.2, "Functionality has moved to FShaderCompilerInput::ShouldUseStableConstantBuffer")
 inline bool ShouldUseStableConstantBuffer(const FShaderCompilerInput& Input)
 {
-	// stable constant buffer is for the FShaderParameterBindings::BindForLegacyShaderParameters() code path.
-	// Ray tracing shaders use FShaderParameterBindings::BindForRootShaderParameters instead.
-	if (Input.IsRayTracingShader())
-	{
-		return false;
-	}
-
-	return Input.RootParametersStructure != nullptr;
+	return Input.ShouldUseStableConstantBuffer();
 }
 
 
