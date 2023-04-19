@@ -3,25 +3,148 @@
 #if WITH_STATETREE_DEBUGGER
 
 #include "SStateTreeDebuggerView.h"
-
-#include "Editor.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IMessageLogListing.h"
-#include "Kismet2/DebuggerCommands.h"
-#include "MessageLogModule.h"
-#include "Modules/ModuleManager.h"
-#include "StateTree.h"
 #include "Debugger/StateTreeDebugger.h"
-#include "Debugger/StateTreeTraceTypes.h"
+#include "DetailsViewArgs.h"
+#include "Editor.h"
+#include "Factories.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IStructureDetailsView.h"
+#include "Kismet2/DebuggerCommands.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "StateTree.h"
 #include "StateTreeDebuggerCommands.h"
+#include "StateTreeExecutionContext.h"
 #include "StateTreeState.h"
-#include "StateTreeTaskBase.h"
 #include "StateTreeViewModel.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
+
+//----------------------------------------------------------------------//
+// FStateTreeTraceTextObjectFactory
+//----------------------------------------------------------------------//
+struct FStateTreeTraceTextObjectFactory : FCustomizableTextObjectFactory
+{
+	UObject* NodeInstanceObject = nullptr;
+	FStateTreeTraceTextObjectFactory() : FCustomizableTextObjectFactory(GWarn) {}
+
+protected:
+	virtual bool CanCreateClass(UClass* ObjectClass, bool& bOmitSubObjs) const override
+	{
+		return true;
+	}
+
+	virtual void ProcessConstructedObject(UObject* CreatedObject) override
+	{
+		NodeInstanceObject = CreatedObject;
+	}
+};
+
+
+//----------------------------------------------------------------------//
+// SStateTreeDebuggerTableRow
+//----------------------------------------------------------------------//
+class SStateTreeDebuggerTableRow : public SMultiColumnTableRow<TSharedPtr<FTreeElement>>
+{
+public:
+	void Construct(const FArguments& InArgs, const TSharedPtr<STableViewBase>& InOwnerTableView, const TSharedPtr<FTreeElement>& InElement, const TSharedRef<FStateTreeViewModel>& InStateTreeViewModel)
+	{
+		Item = InElement;
+		StateTreeViewModel = InStateTreeViewModel.ToSharedPtr();
+		SMultiColumnTableRow::Construct(InArgs, InOwnerTableView.ToSharedRef());
+	}
+
+	// SMultiColumnTableRow overrides
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
+	{
+		const TSharedPtr<SHorizontalBox> Contents = SNew(SHorizontalBox);
+
+		Contents->AddSlot()
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Left)
+			.AutoWidth()
+			[
+				SNew(SExpanderArrow, SharedThis(this))
+				.ShouldDrawWires(true)
+				.IndentAmount(32)
+				.BaseIndentLevel(0)
+			];
+		
+		if (ColumnName == FName("Desc"))
+		{
+			Contents->AddSlot()
+				.Padding(5, 0)
+				.FillWidth(1.f)
+				[
+					SNew(STextBlock)
+					.Font(FCoreStyle::GetDefaultFontStyle("Mono", 9))
+					.Text_Lambda([&Event=Item->Event, &StateTreeViewModel=StateTreeViewModel]()
+					{
+						const UStateTree* StateTree = StateTreeViewModel->GetStateTree();
+						
+						// Use log event messages directly
+						if (const FStateTreeTraceLogEvent* LogEvent = Event.TryGet<FStateTreeTraceLogEvent>())
+						{
+							if (LogEvent->Message.Len())
+							{
+								return FText::FromString(*LogEvent->Message);
+							}							
+						}
+						// Process state events (index has a different meaning)
+						else if (const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>())
+						{
+							const FStateTreeStateHandle StateHandle(StateEvent->Idx);
+							if (const FCompactStateTreeState* CompactState = StateTree->GetStateFromHandle(StateHandle))
+							{
+								return FText::FromString(FString::Printf(TEXT("%s State '%s'"),
+												*StaticEnum<EStateTreeTraceNodeEventType>()->GetNameStringByValue((int64)StateEvent->EventType),
+												*CompactState->Name.ToString()));
+							}
+						}
+						// Process Tasks events
+						else if (const FStateTreeTraceTaskEvent* TaskEvent = Event.TryGet<FStateTreeTraceTaskEvent>())
+						{
+							const FConstStructView NodeView = StateTree->GetNode(TaskEvent->Idx);
+							const FStateTreeNodeBase* Node = NodeView.GetPtr<const FStateTreeNodeBase>();
+							
+							return FText::FromString(FString::Printf(TEXT("%s:%s %s '%s'"),
+									*StaticEnum<EStateTreeTraceNodeEventType>()->GetNameStringByValue((int64)TaskEvent->EventType),
+									*StaticEnum<EStateTreeRunStatus>()->GetNameStringByValue((int64)TaskEvent->Status),
+									*NodeView.GetScriptStruct()->GetName(),
+									Node != nullptr ? *Node->Name.ToString() : *LexToString(TaskEvent->Idx)));
+						}
+						// Process Conditions events
+						else if (const FStateTreeTraceConditionEvent* ConditionEvent = Event.TryGet<FStateTreeTraceConditionEvent>())
+						{
+							const FConstStructView NodeView = StateTree->GetNode(ConditionEvent->Idx);
+							const FStateTreeNodeBase* Node = NodeView.GetPtr<const FStateTreeNodeBase>();
+							
+							return FText::FromString(FString::Printf(TEXT("%s %s '%s'"),
+									*StaticEnum<EStateTreeTraceNodeEventType>()->GetNameStringByValue((int64)ConditionEvent->EventType),
+									*NodeView.GetScriptStruct()->GetName(),
+									Node != nullptr ? *Node->Name.ToString() : *LexToString(ConditionEvent->Idx)));
+						}
+						
+						return FText(); 
+					})
+				];
+		}
+
+		return Contents.ToSharedRef();
+	}
+
+	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
+	TSharedPtr<FTreeElement> Item;
+};
+
+
+//----------------------------------------------------------------------//
+// SStateTreeDebuggerView
+//----------------------------------------------------------------------//
 SStateTreeDebuggerView::SStateTreeDebuggerView()
 {
 	FEditorDelegates::BeginPIE.AddRaw(this, &SStateTreeDebuggerView::OnPIEStarted);
@@ -33,6 +156,18 @@ SStateTreeDebuggerView::SStateTreeDebuggerView()
 
 SStateTreeDebuggerView::~SStateTreeDebuggerView()
 {
+	if (SelectedNodeDataObject.IsValid())
+	{
+		SelectedNodeDataObject->RemoveFromRoot();
+	}
+
+	if (Debugger)
+	{
+		Debugger->OnTracesUpdated.Unbind();
+		Debugger->OnBreakpointHit.Unbind();
+		Debugger->OnDebuggedInstanceSet.Unbind();
+	}
+
 	FEditorDelegates::BeginPIE.RemoveAll(this);
 	FEditorDelegates::EndPIE.RemoveAll(this);
 	FEditorDelegates::PausePIE.RemoveAll(this);
@@ -42,11 +177,6 @@ SStateTreeDebuggerView::~SStateTreeDebuggerView()
 
 void SStateTreeDebuggerView::OnPIEStarted(const bool bIsSimulating) const
 {
-	if (DebuggerTraceListing)
-	{
-		DebuggerTraceListing->ClearMessages();
-	}
-
 	if (!Debugger->IsAnalysisSessionActive())
 	{
 		Debugger->StartLastLiveSessionAnalysis();
@@ -73,7 +203,7 @@ void SStateTreeDebuggerView::OnPIESingleStepped(bool bSimulating) const
 	Debugger->SyncToCurrentSessionDuration();
 }
 
-void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTree* InStateTree, const TSharedRef<FStateTreeViewModel> InStateTreeViewModel, const TSharedRef<FUICommandList> InCommandList)
+void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTree* InStateTree, const TSharedRef<FStateTreeViewModel>& InStateTreeViewModel, const TSharedRef<FUICommandList>& InCommandList)
 {
 	StateTreeViewModel = InStateTreeViewModel;
 	StateTree = InStateTree;
@@ -87,17 +217,6 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	}
 
 	BindDebuggerToolbarCommands(InCommandList);
-
-	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-	FMessageLogInitializationOptions LogOptions;
-	LogOptions.bShowPages = false;
-	LogOptions.bShowFilters = false;
-	LogOptions.bAllowClear = false;
-	LogOptions.bScrollToBottom = true;
-	LogOptions.MaxPageCount = 1;
-
-	DebuggerTraceListing = MessageLogModule.CreateLogListing("StateTreeDebugger", LogOptions);
-	DebuggerTraces = MessageLogModule.CreateLogListingWidget(DebuggerTraceListing.ToSharedRef());
 
 	const TSharedRef<FUICommandList> CommandList = MakeShareable(new FUICommandList);
 
@@ -159,9 +278,124 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	InCommandList->Append(CommandList);
 
 	TSharedPtr<FUICommandList> ActionList = InCommandList;
-		Debugger->OnTracesUpdated.BindSP(this, &SStateTreeDebuggerView::OnTracesUpdated);
-	Debugger->OnBreakpointHit.BindSP(this, &SStateTreeDebuggerView::OnBreakpointHit, ActionList);
 
+	Debugger->OnTracesUpdated.BindSP(this, &SStateTreeDebuggerView::OnTracesUpdated);
+	Debugger->OnBreakpointHit.BindSP(this, &SStateTreeDebuggerView::OnBreakpointHit, ActionList);
+	Debugger->OnDebuggedInstanceSet.BindSP(this, &SStateTreeDebuggerView::OnDebuggedInstanceSet);
+
+	PropertiesBorder = SNew(SBorder);
+	
+	// TreeView
+	TreeView = SNew(STreeView<TSharedPtr<FTreeElement>>)
+		.HeaderRow(SNew(SHeaderRow)
+			+SHeaderRow::Column("Desc")
+			.DefaultLabel(LOCTEXT("DescriptionColumnHeader", "Description")))
+		    .OnGenerateRow_Lambda([this](const TSharedPtr<FTreeElement>& InElement, const TSharedRef<STableViewBase>& InOwnerTableView)
+		    {
+			    return SNew(SStateTreeDebuggerTableRow, InOwnerTableView, InElement, StateTreeViewModel.ToSharedRef());
+		    } )
+		    .OnGetChildren_Lambda([](const TSharedPtr<const FTreeElement>& InParent, TArray<TSharedPtr<FTreeElement>>& OutChildren)
+		    {
+			    if (const FTreeElement* Parent = InParent.Get())
+			    {
+				    OutChildren.Append(Parent->Children);
+			    }
+		    })
+		.TreeItemsSource(&TreeElements)
+		.ItemHeight(32)
+		.OnSelectionChanged_Lambda([this](const TSharedPtr<FTreeElement>& InSelectedItem, ESelectInfo::Type SelectionType)
+		{
+			if (!InSelectedItem.IsValid())
+			{
+				return;
+			}
+
+			TSharedPtr<SWidget> DetailsView;
+
+			FString TypePath;
+			FString InstanceDataAsText;
+
+			if (const FStateTreeTraceConditionEvent* ConditionEvent = InSelectedItem->Event.TryGet<FStateTreeTraceConditionEvent>())
+			{
+				TypePath = ConditionEvent->TypePath;
+				InstanceDataAsText = ConditionEvent->InstanceDataAsText;
+			}
+			else if (const FStateTreeTraceTaskEvent* TaskEvent = InSelectedItem->Event.TryGet<FStateTreeTraceTaskEvent>())
+			{
+				TypePath = TaskEvent->TypePath;
+				InstanceDataAsText = TaskEvent->InstanceDataAsText;
+			}
+
+			if (!TypePath.IsEmpty())
+			{
+				FDetailsViewArgs DetailsViewArgs;
+				DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+
+				UScriptStruct* ScriptStruct = FindObject<UScriptStruct>(nullptr, *TypePath, /*ExactClass*/false);
+				if (ScriptStruct == nullptr)
+				{
+					ScriptStruct = LoadObject<UScriptStruct>(nullptr, *TypePath);
+				}
+
+				if (ScriptStruct != nullptr)
+				{
+					SelectedNodeDataStruct.InitializeAs(ScriptStruct);
+
+					ScriptStruct->ImportText(*InstanceDataAsText, SelectedNodeDataStruct.GetMutableMemory(), /*OwnerObject*/nullptr, PPF_None, GLog, ScriptStruct->GetName());
+
+					SelectedNodeDataStruct.GetScriptStruct();
+					FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+					const TSharedPtr<FStructOnScope> InstanceDataStruct = MakeShared<FStructOnScope>(SelectedNodeDataStruct.GetScriptStruct(), const_cast<uint8*>(SelectedNodeDataStruct.GetMemory()));
+
+					FStructureDetailsViewArgs StructureViewArgs;
+					StructureViewArgs.bShowObjects = true;
+					StructureViewArgs.bShowAssets = true;
+					StructureViewArgs.bShowClasses = true;
+					StructureViewArgs.bShowInterfaces = true;
+					const TSharedRef<IStructureDetailsView> StructDetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, InstanceDataStruct);
+
+					DetailsView = StructDetailsView->GetDetailsView()->AsShared();
+				}
+
+				// UObject
+				UClass* Class = FindObject<UClass>(nullptr, *TypePath, /*ExactClass*/false);
+				if (Class == nullptr)
+				{
+					Class = LoadObject<UClass>(nullptr, *TypePath);
+				}
+
+				if (Class != nullptr)
+				{
+					if (SelectedNodeDataObject.IsValid())
+					{
+						SelectedNodeDataObject->RemoveFromRoot();
+					}
+					FStateTreeTraceTextObjectFactory ObjectFactory;
+					if (ObjectFactory.CanCreateObjectsFromText(InstanceDataAsText))
+					{
+						ObjectFactory.ProcessBuffer(GetTransientPackage(), RF_Transactional, InstanceDataAsText);
+						SelectedNodeDataObject = ObjectFactory.NodeInstanceObject;
+						SelectedNodeDataObject->AddToRoot();
+
+						FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+						const TSharedRef<IDetailsView> ObjectDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+						ObjectDetailsView->SetObject(SelectedNodeDataObject.Get());
+						DetailsView = ObjectDetailsView->AsShared();
+					}
+				}
+			}
+
+			if (DetailsView)
+			{
+				PropertiesBorder->SetContent(DetailsView.ToSharedRef());
+			}
+			else
+			{
+				PropertiesBorder->ClearContent();
+			}
+		})
+		.AllowOverscroll(EAllowOverscroll::No);
+	
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -184,16 +418,22 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 			.FillHeight(1.0f)
 			.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 			[
-				SNew(SBox)
+				SNew(SSplitter)
+				.Orientation(Orient_Horizontal)
+				+ SSplitter::Slot()
 				[
-					DebuggerTraces.ToSharedRef()
+					TreeView.ToSharedRef()
+				]
+				+ SSplitter::Slot()
+				[
+					PropertiesBorder.ToSharedRef()
 				]
 			]
 		]
 	];
 }
 
-void SStateTreeDebuggerView::BindDebuggerToolbarCommands(const TSharedRef<FUICommandList> ToolkitCommands)
+void SStateTreeDebuggerView::BindDebuggerToolbarCommands(const TSharedRef<FUICommandList>& ToolkitCommands)
 {
 	const FStateTreeDebuggerCommands& Commands = FStateTreeDebuggerCommands::Get();
 	
@@ -263,9 +503,9 @@ void SStateTreeDebuggerView::ToggleBreakpoint() const
 void SStateTreeDebuggerView::OnTracesUpdated(
 	const TConstArrayView<const FStateTreeTraceEventVariantType> Events,
 	const TConstArrayView<UE::StateTreeDebugger::FFrameIndexSpan> Spans
-	) const
+	)
 {
-	DebuggerTraceListing->ClearMessages();
+	TreeElements.Reset();
 	
 	if (Events.IsEmpty())
 	{
@@ -273,59 +513,114 @@ void SStateTreeDebuggerView::OnTracesUpdated(
 	}
 
 	check(Spans.Num());
-
-	TArray<TSharedRef<FTokenizedMessage>> Messages;
-	Messages.Reserve(Events.Num());
-
 	check(StateTree.IsValid());
 
 	int32 SpanIdx = INDEX_NONE;
+
+	TArray<TSharedPtr<FTreeElement>, TInlineAllocator<8>> ParentStack;
+	EStateTreeUpdatePhase LastPhase = EStateTreeUpdatePhase::Unset;
+	EStateTreeUpdatePhase EventPhase = EStateTreeUpdatePhase::Unset;
+	
 	for (int32 EventIdx = 0; EventIdx < Events.Num(); EventIdx++)
 	{
 		const FStateTreeTraceEventVariantType& Event = Events[EventIdx];
-		
+		EventPhase = LastPhase;
+
 		if (SpanIdx == INDEX_NONE
 			|| (Spans.IsValidIndex(SpanIdx+1) && EventIdx >= Spans[SpanIdx+1].EventIdx))
 		{
 			SpanIdx = SpanIdx == INDEX_NONE ? 0 : SpanIdx+1;
-			Messages.Add(FTokenizedMessage::Create(EMessageSeverity::Info,
-				FText::FromString(FString::Printf(TEXT("---------------- Frame: %s ----------------"), *LexToString(Spans[SpanIdx].FrameIdx)))));
+
+			while (ParentStack.Num())
+			{
+				TSharedPtr<FTreeElement> RemovedElement = ParentStack.Pop();
+				if (RemovedElement->Children.IsEmpty())
+				{
+					if (ParentStack.Num())
+					{
+						ParentStack.Last()->Children.Remove(RemovedElement);
+					}
+					TreeElements.Remove(RemovedElement);
+				}
+			}
+
+			LastPhase = EStateTreeUpdatePhase::Unset;
+
+			// Create fake event to create a parent node with frame info
+			FStateTreeTraceLogEvent DummyEvent(EStateTreeUpdatePhase::Unset, FString::Printf(TEXT("Frame: %s"), *LexToString(Spans[SpanIdx].Frame.Index)));
+
+			ParentStack.Push(TreeElements.Add_GetRef(MakeShareable(new FTreeElement(
+				Spans[SpanIdx].Frame,
+				FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceLogEvent>(), DummyEvent)))));
 		}
-		
-		// Add log event messages directly
+
+		// Need to test each type explicitly with TVariant even if they are all FStateTreeTracePhaseEvent
 		if (const FStateTreeTraceLogEvent* LogEvent = Event.TryGet<FStateTreeTraceLogEvent>())
 		{
-			if (LogEvent->Message.Len())
-			{
-				Messages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, FText::FromString(LogEvent->Message)));	
-			}			
-			continue;	
+			EventPhase = LogEvent->Phase;
+		}
+		else if (const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>())
+		{
+			EventPhase = StateEvent->Phase;
+		}
+		else if (const FStateTreeTraceTaskEvent* TaskEvent = Event.TryGet<FStateTreeTraceTaskEvent>())
+		{
+			EventPhase = TaskEvent->Phase;
+		}
+		else if (const FStateTreeTraceConditionEvent* ConditionEvent = Event.TryGet<FStateTreeTraceConditionEvent>())
+		{
+			EventPhase = ConditionEvent->Phase;
 		}
 
-		// Add messages for state events 
-		if (const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>())
+		// Create a hierarchy level for each update phase
+		if (EventPhase != LastPhase)
 		{
-			const FStateTreeStateHandle StateHandle(StateEvent->StateIdx);
-			if (const FCompactStateTreeState* CompactState = StateTree->GetStateFromHandle(StateHandle))
+			// Remove valid previous phase from parent stack 
+			if (ensure(ParentStack.Num()) && LastPhase != EStateTreeUpdatePhase::Unset)
 			{
-				Messages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, FText::FromString(FString::Printf(TEXT("%s State '%s'"),
-								*StaticEnum<EStateTreeTraceNodeEventType>()->GetNameStringByValue((int64)StateEvent->EventType),
-								*CompactState->Name.ToString()))));
+				TSharedPtr<FTreeElement> RemovedElement = ParentStack.Pop();
+				if (RemovedElement->Children.IsEmpty())
+				{
+					if (ParentStack.Num())
+					{
+						ParentStack.Last()->Children.Remove(RemovedElement);	
+					}
+				}
 			}
+
+			LastPhase = EventPhase;
+
+			// Create fake log event to describe the phase
+			FStateTreeTraceLogEvent DummyEvent(EStateTreeUpdatePhase::Unset,
+				FString::Printf(TEXT("%s"), *StaticEnum<EStateTreeUpdatePhase>()->GetNameStringByValue((int64)EventPhase)));
+
+			// Add to the list of children of the frame element
+			check(ParentStack.Num());
+			ParentStack.Push(ParentStack.Last()->Children.Add_GetRef(MakeShareable(new FTreeElement(
+				Spans[SpanIdx].Frame,
+				FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceLogEvent>(), DummyEvent)))));
 		}
 
-		if (const FStateTreeTraceTaskEvent* TaskEvent = Event.TryGet<FStateTreeTraceTaskEvent>())
+		if (ensure(ParentStack.Num()))
 		{
-			FConstStructView NodeView = StateTree->GetNode(TaskEvent->TaskIdx);
-			const FStateTreeTaskBase* Task = NodeView.GetPtr<const FStateTreeTaskBase>();
-					
-			Messages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, FText::FromString(FString::Printf(TEXT("  %s Task '%s'"),
-				*StaticEnum<EStateTreeTraceNodeEventType>()->GetNameStringByValue((int64)TaskEvent->EventType),
-				Task != nullptr ? *Task->Name.ToString() : *LexToString(TaskEvent->TaskIdx)))));
+			ParentStack.Last()->Children.Add(MakeShareable(new FTreeElement(Spans[SpanIdx].Frame, Event)));
 		}
 	}
 
-	DebuggerTraceListing->AddMessages(Messages, /*bMirrorToOutputLog*/false);
+	while (ParentStack.Num())
+	{
+		TSharedPtr<FTreeElement> RemovedElement = ParentStack.Pop();
+		if (RemovedElement->Children.IsEmpty())
+		{
+			if (ParentStack.Num())
+			{
+				ParentStack.Last()->Children.Remove(RemovedElement);
+			}
+			TreeElements.Remove(RemovedElement);
+		}
+	}
+
+	TreeView->RequestTreeRefresh();
 }
 
 void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId InstanceId, const FStateTreeStateHandle StateHandle, const TSharedPtr<FUICommandList> ActionList) const
@@ -353,6 +648,17 @@ void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId Ins
 			ActionList->ExecuteAction(FPlayWorldCommands::Get().PausePlaySession.ToSharedRef());
 		}
 	}
+}
+
+void SStateTreeDebuggerView::OnDebuggedInstanceSet()
+{
+	TreeElements.Reset();
+	if (TreeView)
+	{
+		TreeView->RequestTreeRefresh();	
+	}
+				
+	PropertiesBorder->ClearContent();
 }
 
 TSharedRef<SWidget> SStateTreeDebuggerView::OnGetDebuggerTracesMenu() const

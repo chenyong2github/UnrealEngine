@@ -6,6 +6,7 @@
 #include "Debugger/StateTreeDebugger.h"
 #include "Debugger/StateTreeTraceProvider.h"
 #include "Debugger/StateTreeTraceTypes.h"
+#include "Serialization/MemoryReader.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
 FStateTreeTraceAnalyzer::FStateTreeTraceAnalyzer(TraceServices::IAnalysisSession& InSession, FStateTreeTraceProvider& InProvider)
@@ -22,6 +23,7 @@ void FStateTreeTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_LogMessage, "StateTreeDebugger", "LogEvent");
 	Builder.RouteEvent(RouteId_State, "StateTreeDebugger", "StateEvent");
 	Builder.RouteEvent(RouteId_Task, "StateTreeDebugger", "TaskEvent");
+	Builder.RouteEvent(RouteId_Condition, "StateTreeDebugger", "ConditionEvent");
 	Builder.RouteEvent(RouteId_ActiveStates, "StateTreeDebugger", "ActiveStatesEvent");
 }
 
@@ -49,19 +51,19 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 				FGCScopeGuard Guard;
 				WeakStateTree = FindObject<UStateTree>(Path);
 			}
-			
+
 			if (const UStateTree* StateTree = WeakStateTree.Get())
 			{
 				const uint32 CompiledDataHash = EventData.GetValue<uint32>("CompiledDataHash");
 				if (StateTree->LastCompiledEditorDataHash == CompiledDataHash)
 				{
-					const FStateTreeInstanceDebugId InstanceId(
-						EventData.GetValue<uint32>("InstanceId"),
-						EventData.GetValue<uint32>("InstanceSerial"));
 					FString InstanceName;
 					EventData.GetString("InstanceName", InstanceName);
-					const EStateTreeTraceInstanceEventType EventType = EventData.GetValue<EStateTreeTraceInstanceEventType>("EventType");
-					Provider.AppendInstance(StateTree, InstanceId, *InstanceName, EventType);
+
+					Provider.AppendInstance(StateTree,
+						FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
+						*InstanceName,
+						EventData.GetValue<EStateTreeTraceInstanceEventType>("EventType"));
 				}
 				else
 				{
@@ -76,67 +78,71 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 		}
 	case RouteId_LogMessage:
 		{
-			const uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-			const FStateTreeInstanceDebugId InstanceId(
-				EventData.GetValue<uint32>("InstanceId"),
-				EventData.GetValue<uint32>("InstanceSerial"));
+			FString Message;
+        	EventData.GetString("Message", Message);
+			const FStateTreeTraceLogEvent Event(EventData.GetValue<EStateTreeUpdatePhase>("Phase"), Message);
 
-			FStateTreeTraceLogEvent Event;
-			EventData.GetString("Message", Event.Message);
-
-			Provider.AppendEvent(
-				InstanceId,
-				Context.EventTime.AsSeconds(Cycle),
+			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
+				Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
 				FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceLogEvent>(), Event));
 			break;
 		}
 	case RouteId_State:
 		{
-			const uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-			const FStateTreeInstanceDebugId InstanceId(
-				EventData.GetValue<uint32>("InstanceId"),
-				EventData.GetValue<uint32>("InstanceSerial"));
+			const FStateTreeTraceStateEvent Event(
+				EventData.GetValue<EStateTreeUpdatePhase>("Phase"),
+				EventData.GetValue<int16>("Idx"),
+				EventData.GetValue<EStateTreeTraceNodeEventType>("EventType"));
 
-			FStateTreeTraceStateEvent Event;
-			Event.StateIdx = EventData.GetValue<uint16>("StateIdx");
-			Event.EventType = EventData.GetValue<EStateTreeTraceNodeEventType>("EventType");
-
-			Provider.AppendEvent(
-				InstanceId,
-				Context.EventTime.AsSeconds(Cycle),
+			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
+				Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
 				FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceStateEvent>(), Event));
 			break;
 		}
 	case RouteId_Task:
 		{
-			const uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-			const FStateTreeInstanceDebugId InstanceId(
-				EventData.GetValue<uint32>("InstanceId"),
-				EventData.GetValue<uint32>("InstanceSerial"));
+			FString TypePath, DataAsText;
+			FMemoryReaderView Archive(EventData.GetArrayView<uint8>("DataView"));
+			Archive << TypePath;
+			Archive << DataAsText;
 
-			FStateTreeTraceTaskEvent Event;
-			Event.TaskIdx = EventData.GetValue<uint16>("TaskIdx");
-			Event.EventType = EventData.GetValue<EStateTreeTraceNodeEventType>("EventType");
+			const FStateTreeTraceTaskEvent Event(
+				EventData.GetValue<EStateTreeUpdatePhase>("Phase"),
+				EventData.GetValue<int16>("Idx"),
+				EventData.GetValue<EStateTreeTraceNodeEventType>("EventType"),
+				EventData.GetValue<EStateTreeRunStatus>("Status"),
+				TypePath, DataAsText);
 
-			Provider.AppendEvent(
-				InstanceId,
-				Context.EventTime.AsSeconds(Cycle),
+			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
+				Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
 				FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceTaskEvent>(), Event));
+			break;
+		}
+	case RouteId_Condition:
+		{
+			FString TypePath, DataAsText;
+			FMemoryReaderView Archive(EventData.GetArrayView<uint8>("DataView"));
+			Archive << TypePath;
+			Archive << DataAsText;
+
+			const FStateTreeTraceConditionEvent Event(
+				EventData.GetValue<EStateTreeUpdatePhase>("Phase"),
+				EventData.GetValue<int16>("Idx"),
+				EventData.GetValue<EStateTreeTraceNodeEventType>("EventType"),
+				TypePath, DataAsText);
+			
+			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
+				Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
+				FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceConditionEvent>(), Event));
 			break;
 		}
 	case RouteId_ActiveStates:
 		{
-			const uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-			const FStateTreeInstanceDebugId InstanceId(
-				EventData.GetValue<uint32>("InstanceId"),
-				EventData.GetValue<uint32>("InstanceSerial"));
-
 			FStateTreeTraceActiveStatesEvent Event;
 			Event.ActiveStates = EventData.GetArrayView<uint16>("ActiveStates");
 
-			Provider.AppendEvent(
-				InstanceId,
-				Context.EventTime.AsSeconds(Cycle),
+			Provider.AppendEvent(FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
+				Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
 				FStateTreeTraceEventVariantType(TInPlaceType<FStateTreeTraceActiveStatesEvent>(), Event));
 			break;
 		}

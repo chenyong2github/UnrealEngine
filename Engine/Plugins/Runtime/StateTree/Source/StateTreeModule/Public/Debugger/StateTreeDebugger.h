@@ -26,14 +26,14 @@ namespace UE::StateTreeDebugger
 	struct FFrameIndexSpan
 	{
 		FFrameIndexSpan() = default;
-		FFrameIndexSpan(const uint64 FrameIdx, const uint32 EventIdx)
-			: FrameIdx(FrameIdx)
+		FFrameIndexSpan(const TraceServices::FFrame& Frame, const uint32 EventIdx)
+			: Frame(Frame)
 			, EventIdx(EventIdx)
 		{
 		}
 
 		/** Frame index in the analysis session */
-		uint64 FrameIdx = INDEX_NONE;
+		TraceServices::FFrame Frame;
 
 		/** Index of the first event for that Frame index */
 		int32 EventIdx = INDEX_NONE;
@@ -76,6 +76,7 @@ DECLARE_DELEGATE_TwoParams(FOnStateTreeDebuggerTracesUpdated, TConstArrayView<FS
 DECLARE_DELEGATE_TwoParams(FOnStateTreeDebuggerBreakpointHit, FStateTreeInstanceDebugId InstanceId, FStateTreeStateHandle StateHandle);
 DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerBreakpointsChanged, TConstArrayView<FStateTreeStateHandle> Breakpoints);
 DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerActiveStatesChanges, TConstArrayView<FStateTreeStateHandle> ActiveStates);
+DECLARE_DELEGATE(FOnStateTreeDebuggerDebuggedInstanceSet);
 
 struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 {
@@ -114,6 +115,7 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	void StepForward();
 	
 	bool IsAnalysisSessionActive() const { return GetAnalysisSession() != nullptr; }
+	const TraceServices::IAnalysisSession* GetAnalysisSession() const;
 
 	TConstArrayView<FStateTreeDebuggerInstanceDesc> GetActiveInstances() const;
 	const FStateTreeDebuggerInstanceDesc& GetDebuggedInstance() const;
@@ -130,6 +132,7 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	
 	void ToggleBreakpoints(const TConstArrayView<FStateTreeStateHandle> SelectedStates);
 
+	FOnStateTreeDebuggerDebuggedInstanceSet OnDebuggedInstanceSet;
 	FOnStateTreeDebuggerTracesUpdated OnTracesUpdated;
 	FOnStateTreeDebuggerBreakpointHit OnBreakpointHit;
 	FOnStateTreeDebuggerBreakpointsChanged OnBreakpointsChanged;
@@ -158,7 +161,6 @@ private:
 
 	void SetActiveStates(const TConstArrayView<FStateTreeStateHandle> NewActiveStates);
 	
-	const TraceServices::IAnalysisSession* GetAnalysisSession() const;
 	UE::Trace::FStoreClient* GetStoreClient() const;
 	void GetSessionActiveInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const;
 

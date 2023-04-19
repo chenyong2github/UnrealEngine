@@ -4,8 +4,12 @@
 
 #if WITH_STATETREE_DEBUGGER
 
+#include "StateTreeTypes.h"
 #include "Debugger/StateTreeTraceTypes.h"
+#include "InstancedStruct.h"
+#include "Widgets/Views/STreeView.h"
 #include "Widgets/SCompoundWidget.h"
+#include "TraceServices/Model/Frames.h"
 
 namespace UE::StateTreeDebugger { struct FFrameIndexSpan; }
 struct FStateTreeDebugger;
@@ -13,8 +17,22 @@ struct FStateTreeInstanceDebugId;
 class FStateTreeEditor;
 class FStateTreeViewModel;
 class FUICommandList;
-class IMessageLogListing;
 class UStateTree;
+
+/** An item in the tree */
+class FTreeElement : public TSharedFromThis<FTreeElement>
+{
+public:
+	explicit FTreeElement(const TraceServices::FFrame& Frame, const FStateTreeTraceEventVariantType& Event)
+		: Frame(Frame), Event(Event)
+	{
+	}
+
+	TraceServices::FFrame Frame;
+	FStateTreeTraceEventVariantType Event;
+	TArray<TSharedPtr<FTreeElement>> Children;
+};
+
 
 class SStateTreeDebuggerView : public SCompoundWidget
 {
@@ -25,7 +43,7 @@ public:
 	SStateTreeDebuggerView();
 	~SStateTreeDebuggerView();
 
-	void Construct(const FArguments& InArgs, const UStateTree* InStateTree, TSharedRef<FStateTreeViewModel> InStateTreeViewModel, TSharedRef<FUICommandList> InCommandList);
+	void Construct(const FArguments& InArgs, const UStateTree* InStateTree, const TSharedRef<FStateTreeViewModel>& InStateTreeViewModel, const TSharedRef<FUICommandList>& InCommandList);
 
 private:
 	TSharedRef<SWidget> OnGetDebuggerInstancesMenu() const;
@@ -37,10 +55,11 @@ private:
 	void OnPIEResumed(bool bIsSimulating) const;
 	void OnPIESingleStepped(bool bIsSimulating) const;
 	
-	void OnTracesUpdated(const TConstArrayView<const FStateTreeTraceEventVariantType> Events, const TConstArrayView<UE::StateTreeDebugger::FFrameIndexSpan> Spans) const;
+	void OnTracesUpdated(const TConstArrayView<const FStateTreeTraceEventVariantType> Events, const TConstArrayView<UE::StateTreeDebugger::FFrameIndexSpan> Spans);
 	void OnBreakpointHit(const FStateTreeInstanceDebugId InstanceId, const FStateTreeStateHandle StateHandle, const TSharedPtr<FUICommandList> ActionList) const;
+	void OnDebuggedInstanceSet();
 
-	void BindDebuggerToolbarCommands(const TSharedRef<FUICommandList> ToolkitCommands);
+	void BindDebuggerToolbarCommands(const TSharedRef<FUICommandList>& ToolkitCommands);
 
 	/**
 	 * Stores raw log information so it can be processed
@@ -75,9 +94,13 @@ private:
 	TSharedPtr<FStateTreeDebugger> Debugger;
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 	TWeakObjectPtr<const UStateTree> StateTree;
-	
-	TSharedPtr<SWidget> DebuggerTraces;
-	TSharedPtr<IMessageLogListing> DebuggerTraceListing;
+
+	TSharedPtr<STreeView<TSharedPtr<FTreeElement>>> TreeView;
+	TArray<TSharedPtr<FTreeElement>> TreeElements;
+
+	TSharedPtr<SBorder> PropertiesBorder;
+	FInstancedStruct SelectedNodeDataStruct;
+	TWeakObjectPtr<UObject> SelectedNodeDataObject;
 };
 
 #endif // WITH_STATETREE_DEBUGGER

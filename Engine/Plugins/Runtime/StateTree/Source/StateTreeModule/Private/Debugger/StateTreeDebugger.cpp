@@ -184,6 +184,8 @@ void FStateTreeDebugger::SetDebuggedInstance(const FStateTreeDebuggerInstanceDes
 		bProcessingInitialEvents = true;
 		SyncToCurrentSessionDuration();
 		bProcessingInitialEvents = false;
+
+		OnDebuggedInstanceSet.ExecuteIfBound();
 	}
 }
 
@@ -405,7 +407,7 @@ bool FStateTreeDebugger::CanStepBack() const
 	return bPaused && CurrentFrameIndex != INDEX_NONE
 		&& FramesWithEvents.ContainsByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
 		{
-			return IteratedFrame.FrameIdx < CurrentIndex;
+			return IteratedFrame.Frame.Index < CurrentIndex;
 		});
 }
 
@@ -413,7 +415,7 @@ void FStateTreeDebugger::StepBack()
 {
 	const int32 PrevFrameIndex = FramesWithEvents.FindLastByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
 	{
-		return IteratedFrame.FrameIdx < CurrentIndex;
+		return IteratedFrame.Frame.Index < CurrentIndex;
 	});
 	
 	if (PrevFrameIndex != INDEX_NONE)
@@ -421,8 +423,8 @@ void FStateTreeDebugger::StepBack()
 		// Rebuild from beginning up to previous frame with events
 		Events.Reset();
 		LastTraceReadTime = UnsetTime;
-		ReadTrace(FramesWithEvents[PrevFrameIndex].FrameIdx);
-		check(CurrentFrameIndex == FramesWithEvents[PrevFrameIndex].FrameIdx);
+		ReadTrace(FramesWithEvents[PrevFrameIndex].Frame.Index);
+		check(CurrentFrameIndex == FramesWithEvents[PrevFrameIndex].Frame.Index);
 	}
 }
 
@@ -431,7 +433,7 @@ bool FStateTreeDebugger::CanStepForward() const
 	return bPaused && CurrentFrameIndex != INDEX_NONE
 		&& FramesWithEvents.ContainsByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
 		{
-			return IteratedFrame.FrameIdx > CurrentIndex;
+			return IteratedFrame.Frame.Index > CurrentIndex;
 		});
 }
 
@@ -439,12 +441,12 @@ void FStateTreeDebugger::StepForward()
 {
 	const UE::StateTreeDebugger::FFrameIndexSpan* NextFrame = FramesWithEvents.FindByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
 	{
-		return IteratedFrame.FrameIdx > CurrentIndex;
+		return IteratedFrame.Frame.Index > CurrentIndex;
 	});
 	
 	if (NextFrame != nullptr)
 	{
-		const uint64 FrameIndex = (*NextFrame).FrameIdx; 
+		const uint64 FrameIndex = (*NextFrame).Frame.Index; 
 		ReadTrace(FrameIndex);
 		check(CurrentFrameIndex == FrameIndex);
 	}
@@ -578,14 +580,14 @@ void FStateTreeDebugger::ReadTrace(
 
 	if (FramesWithEvents.ContainsByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
 		{
-			return IteratedFrame.FrameIdx == CurrentIndex;
+			return IteratedFrame.Frame.Index == CurrentIndex;
 		}))
 	{
 		CurrentFrameIndex = Frame.Index;	
 	}
 	else if (FramesWithEvents.Num())
 	{
-		CurrentFrameIndex = FramesWithEvents.Last().FrameIdx;
+		CurrentFrameIndex = FramesWithEvents.Last().Frame.Index;
 	}
 }
 
@@ -627,7 +629,7 @@ bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId
 
 				if (DebuggedInstance.IsValid() || InstanceStateTree == DebuggedAsset)
 				{
-					HitBreakpointStateIndex = StatesWithBreakpoint.Find(FStateTreeStateHandle(StateEvent->StateIdx));
+					HitBreakpointStateIndex = StatesWithBreakpoint.Find(FStateTreeStateHandle(StateEvent->Idx));
 					if (HitBreakpointStateIndex != INDEX_NONE)
 					{
 						HitBreakpointInstanceId = InstanceId;
@@ -639,9 +641,9 @@ bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId
 		// Store events for currently debugged entry 
 		if (DebuggedInstance.Id == InstanceId)
 		{
-			if (FramesWithEvents.IsEmpty() || FramesWithEvents.Last().FrameIdx < Frame.Index)
+			if (FramesWithEvents.IsEmpty() || FramesWithEvents.Last().Frame.Index < Frame.Index)
 			{
-				FramesWithEvents.Add(UE::StateTreeDebugger::FFrameIndexSpan(Frame.Index, Events.Num()));
+				FramesWithEvents.Add(UE::StateTreeDebugger::FFrameIndexSpan(Frame, Events.Num()));
 			}
 
 			Events.Emplace(Event);

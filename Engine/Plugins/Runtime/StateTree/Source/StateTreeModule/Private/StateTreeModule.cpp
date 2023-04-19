@@ -6,6 +6,7 @@
 #if WITH_STATETREE_DEBUGGER
 #include "Debugger/StateTreeTraceModule.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "ProfilingDebugging/TraceAuxiliary.h"
 #include "StateTreeSettings.h"
@@ -52,6 +53,21 @@ class FStateTreeModule : public IStateTreeModule
 	
 	FStateTreeTraceModule StateTreeTraceModule;
 	FDelegateHandle StoreServiceHandle;
+
+	FAutoConsoleCommand EnableDebugger = FAutoConsoleCommand(
+		TEXT("statetree.enabledebugger"),
+		TEXT("Sets `bUseDebugger` to true in StateTreeSettings and turns on traces if not already active."),
+		FConsoleCommandDelegate::CreateLambda(
+			[]()
+		{
+				UStateTreeSettings& Settings = UStateTreeSettings::Get();
+				if (Settings.bUseDebugger == false)
+				{
+					Settings.bUseDebugger = true;
+					FStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<FStateTreeModule>("StateTree");
+					StateTreeModule.StartTraces();	
+				}
+		}));
 #endif // WITH_STATETREE_DEBUGGER
 };
 

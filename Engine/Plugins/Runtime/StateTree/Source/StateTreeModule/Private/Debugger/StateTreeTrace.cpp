@@ -4,6 +4,8 @@
 
 #include "Debugger/StateTreeTrace.h"
 #include "Debugger/StateTreeDebugger.h"
+#include "Exporters/Exporter.h"
+#include "Serialization/BufferArchive.h"
 #include "StateTree.h"
 #include "UObject/Package.h"
 #include "Trace/Trace.inl"
@@ -25,6 +27,7 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, LogEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
+	UE_TRACE_EVENT_FIELD(uint8, Phase)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Message)
 UE_TRACE_EVENT_END()
 
@@ -32,7 +35,8 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, StateEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
-	UE_TRACE_EVENT_FIELD(uint16, StateIdx)
+	UE_TRACE_EVENT_FIELD(uint8, Phase)
+	UE_TRACE_EVENT_FIELD(uint16, Idx)
 	UE_TRACE_EVENT_FIELD(uint8, EventType)
 UE_TRACE_EVENT_END()
 
@@ -40,7 +44,20 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, TaskEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
-	UE_TRACE_EVENT_FIELD(uint16, TaskIdx)
+	UE_TRACE_EVENT_FIELD(uint8, Phase)
+	UE_TRACE_EVENT_FIELD(uint16, Idx)
+	UE_TRACE_EVENT_FIELD(uint8[], DataView)
+	UE_TRACE_EVENT_FIELD(uint8, EventType)
+	UE_TRACE_EVENT_FIELD(uint8, Status)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(StateTreeDebugger, ConditionEvent)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
+	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
+	UE_TRACE_EVENT_FIELD(uint8, Phase)
+	UE_TRACE_EVENT_FIELD(uint16, Idx)
+	UE_TRACE_EVENT_FIELD(uint8[], DataView)
 	UE_TRACE_EVENT_FIELD(uint8, EventType)
 UE_TRACE_EVENT_END()
 
@@ -51,11 +68,44 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, ActiveStatesEvent)
 	UE_TRACE_EVENT_FIELD(uint16[], ActiveStates)
 UE_TRACE_EVENT_END()
 
+namespace UE::StateTreeTrace
+{
+	void SerializeDataViewToArchive(FBufferArchive Ar, const FStateTreeDataView DataView)
+	{
+		if (const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(DataView.GetStruct()))
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UE::StateTree::ExportStructAsText)
+			FString StructPath = ScriptStruct->GetPathName();
+			FString TextValue;
+
+			ScriptStruct->ExportText(TextValue, DataView.GetMemory(), DataView.GetMemory(), /*OwnerObject*/nullptr, PPF_None, /*ExportRootScope*/nullptr);
+
+			Ar << StructPath;		
+			Ar << TextValue;
+		}
+		else if (const UClass* Class = Cast<const UClass>(DataView.GetStruct()))
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UE::StateTree::ExportObjectAsText)
+			FString StructPath = Class->GetPathName();
+			FStringOutputDevice OutputDevice;
+			UObject* Object = DataView.GetMutablePtr<UObject>();
+
+			// Not using on scope FExportObjectInnerContext since it is very costly to build.
+			// Passing a null context will make the export use an already built thread local context.
+			UExporter::ExportToOutputDevice(nullptr, Object, /*Exporter*/nullptr, OutputDevice, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, Object->GetOuter());
+
+			Ar << StructPath;
+			Ar << OutputDevice;
+		}
+	}
+}
+
 void UE::StateTreeTrace::OutputInstanceLifetimeEvent(
 	const FStateTreeInstanceDebugId InstanceId,
 	const UStateTree* StateTree,
 	const TCHAR* InstanceName,
-	const EStateTreeTraceInstanceEventType EventType)
+	const EStateTreeTraceInstanceEventType EventType
+	)
 {
 	if (StateTree == nullptr)
 	{
@@ -75,7 +125,11 @@ void UE::StateTreeTrace::OutputInstanceLifetimeEvent(
 		<< InstanceEvent.EventType(static_cast<uint8>(EventType));
 }
 
-void UE::StateTreeTrace::OutputLogEventTrace(const FStateTreeInstanceDebugId InstanceId, const TCHAR* Fmt, ...)
+void UE::StateTreeTrace::OutputLogEventTrace(
+	const FStateTreeInstanceDebugId InstanceId,
+	const EStateTreeUpdatePhase Phase,
+	const TCHAR* Fmt, ...
+	)
 {
 	static TCHAR TraceStaticBuffer[8192];
 	GET_VARARGS(TraceStaticBuffer, UE_ARRAY_COUNT(TraceStaticBuffer), UE_ARRAY_COUNT(TraceStaticBuffer) - 1, Fmt, Fmt);
@@ -84,30 +138,74 @@ void UE::StateTreeTrace::OutputLogEventTrace(const FStateTreeInstanceDebugId Ins
 		<< LogEvent.Cycle(FPlatformTime::Cycles64())
 		<< LogEvent.InstanceId(InstanceId.Id)
 		<< LogEvent.InstanceSerial(InstanceId.SerialNumber)
+		<< LogEvent.Phase(static_cast<uint8>(Phase))
 		<< LogEvent.Message(TraceStaticBuffer);
 }
 
-void UE::StateTreeTrace::OutputStateEventTrace(const FStateTreeInstanceDebugId InstanceId, const uint16 StateIdx, const EStateTreeTraceNodeEventType EventType)
+void UE::StateTreeTrace::OutputStateEventTrace(
+	const FStateTreeInstanceDebugId InstanceId,
+	const EStateTreeUpdatePhase Phase,
+	const uint16 StateIdx,
+	const EStateTreeTraceNodeEventType EventType
+	)
 {
 	UE_TRACE_LOG(StateTreeDebugger, StateEvent, StateTreeDebugChannel)
 		<< StateEvent.Cycle(FPlatformTime::Cycles64())
 		<< StateEvent.InstanceId(InstanceId.Id)
 		<< StateEvent.InstanceSerial(InstanceId.SerialNumber)
-		<< StateEvent.StateIdx(StateIdx)
+		<< StateEvent.Phase(static_cast<uint8>(Phase))
+		<< StateEvent.Idx(StateIdx)
 		<< StateEvent.EventType(static_cast<uint8>(EventType));
 }
 
-void UE::StateTreeTrace::OutputTaskEventTrace(const FStateTreeInstanceDebugId InstanceId, const uint16 TaskIdx, const EStateTreeTraceNodeEventType EventType)
+void UE::StateTreeTrace::OutputTaskEventTrace(
+	const FStateTreeInstanceDebugId InstanceId,
+	const EStateTreeUpdatePhase Phase,
+	const uint16 TaskIdx,
+	const FStateTreeDataView DataView,
+	const EStateTreeTraceNodeEventType EventType,
+	const EStateTreeRunStatus Status
+	)
 {
+	FBufferArchive Archive;
+	SerializeDataViewToArchive(Archive, DataView);
+
 	UE_TRACE_LOG(StateTreeDebugger, TaskEvent, StateTreeDebugChannel)
 		<< TaskEvent.Cycle(FPlatformTime::Cycles64())
 		<< TaskEvent.InstanceId(InstanceId.Id)
 		<< TaskEvent.InstanceSerial(InstanceId.SerialNumber)
-		<< TaskEvent.TaskIdx(TaskIdx)
-		<< TaskEvent.EventType(static_cast<uint8>(EventType));
+		<< TaskEvent.Phase(static_cast<uint8>(Phase))
+		<< TaskEvent.Idx(TaskIdx)
+		<< TaskEvent.DataView(Archive.GetData(), Archive.Num())
+		<< TaskEvent.EventType(static_cast<uint8>(EventType))
+		<< TaskEvent.Status(static_cast<uint8>(Status));
 }
 
-void UE::StateTreeTrace::OutputActiveStatesEventTrace(const FStateTreeInstanceDebugId InstanceId, const FStateTreeActiveStates& ActiveStates)
+void UE::StateTreeTrace::OutputConditionEventTrace(
+	const FStateTreeInstanceDebugId InstanceId,
+	const EStateTreeUpdatePhase Phase,
+	const uint16 ConditionIdx,
+	const FStateTreeDataView DataView,
+	const EStateTreeTraceNodeEventType EventType
+	)
+{
+	FBufferArchive Archive;
+	SerializeDataViewToArchive(Archive, DataView);
+	
+	UE_TRACE_LOG(StateTreeDebugger, ConditionEvent, StateTreeDebugChannel)
+	<< ConditionEvent.Cycle(FPlatformTime::Cycles64())
+	<< ConditionEvent.InstanceId(InstanceId.Id)
+	<< ConditionEvent.InstanceSerial(InstanceId.SerialNumber)
+	<< ConditionEvent.Phase(static_cast<uint8>(Phase))
+	<< ConditionEvent.Idx(ConditionIdx)
+	<< ConditionEvent.DataView(Archive.GetData(), Archive.Num())
+	<< ConditionEvent.EventType(static_cast<uint8>(EventType));
+}
+
+void UE::StateTreeTrace::OutputActiveStatesEventTrace(
+	const FStateTreeInstanceDebugId InstanceId,
+	const FStateTreeActiveStates& ActiveStates
+	)
 {
 	TArray<uint16, TInlineAllocator<FStateTreeActiveStates::MaxStates>> StatesIndices;
 	for (int32 i = 0; i < ActiveStates.Num(); i++)

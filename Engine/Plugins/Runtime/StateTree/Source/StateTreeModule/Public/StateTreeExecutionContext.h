@@ -6,6 +6,12 @@
 #include "StateTreeNodeBase.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
 
+#if WITH_STATETREE_DEBUGGER
+#include "Debugger/StateTreeTraceTypes.h"
+#endif // WITH_STATETREE_DEBUGGER
+
+#include "StateTreeExecutionContext.generated.h"
+
 struct FGameplayTag;
 struct FInstancedPropertyBag;
 
@@ -15,6 +21,27 @@ struct FStateTreeConditionBase;
 struct FStateTreeEvent;
 struct FStateTreeTransitionRequest;
 struct FStateTreeInstanceDebugId;
+
+/**
+ * Enumeration for the different update phases.
+ * This is used as context information when tracing debug events.   
+ */
+UENUM()
+enum class EStateTreeUpdatePhase : uint8
+{
+	Unset,
+	TickingGlobalTasks,
+	StateSelection,
+	TickingTasks,
+	StateTransition,
+	TriggerTransitions,
+	RequestTransition,
+	StartGlobalTasks,
+	StopGlobalTasks,
+	StartTree,
+	StopTree
+};
+
 
 /**
  * StateTree Execution Context is a helper that is used to update and access StateTree instance data.
@@ -439,6 +466,11 @@ protected:
 
 	/** Current state we're processing, or invalid if not applicable. */
 	FStateTreeStateHandle CurrentlyProcessedState;
+
+#if WITH_STATETREE_DEBUGGER
+	/** Current phase in the update. Used for debugging events */
+	EStateTreeUpdatePhase CurrentUpdatePhase = EStateTreeUpdatePhase::Unset;
+#endif // WITH_STATETREE_DEBUGGER
 
 	/** True if transitions are allowed to be requested directly instead of buffering. */
 	bool bAllowDirectTransitions = false;

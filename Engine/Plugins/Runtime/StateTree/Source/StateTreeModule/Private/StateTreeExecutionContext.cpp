@@ -14,6 +14,20 @@
 #define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 #define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 
+#if WITH_STATETREE_DEBUGGER
+	#define STATETREE_SCOPED_PHASE(Phase) TGuardValue<EStateTreeUpdatePhase> ScopedPhase(CurrentUpdatePhase, Phase)
+    #define STATETREE_TRACE_LOG_EVENT(Format, ...) TRACE_STATETREE_LOG_EVENT(GetInstanceDebugId(), CurrentUpdatePhase, Format, ##__VA_ARGS__)
+	#define STATETREE_TRACE_STATE_EVENT(Index, EventType) TRACE_STATETREE_STATE_EVENT(GetInstanceDebugId(), CurrentUpdatePhase, Index, EventType);
+	#define STATETREE_TRACE_TASK_EVENT(Index, DataView, EventType, Status) TRACE_STATETREE_TASK_EVENT(GetInstanceDebugId(), CurrentUpdatePhase, Index, DataView, EventType, Status);
+	#define STATETREE_TRACE_CONDITION_EVENT(Index, DataViews, EventType) TRACE_STATETREE_CONDITION_EVENT(GetInstanceDebugId(), CurrentUpdatePhase, Index, DataView, EventType);	
+#else
+	#define STATETREE_SCOPED_PHASE(Phase)
+	#define STATETREE_TRACE_LOG_EVENT(Format, ...)
+	#define STATETREE_TRACE_STATE_EVENT(Index, EventType)
+	#define STATETREE_TRACE_TASK_EVENT(Index, DataView, EventType, Status)
+	#define STATETREE_TRACE_CONDITION_EVENT(Index, DataViews, EventType)
+#endif // WITH_STATETREE_DEBUGGER
+
 namespace UE::StateTree
 {
 	constexpr int32 DebugIndentSize = 2;	// Debug printing indent for hierarchical data.
@@ -159,6 +173,7 @@ void FStateTreeExecutionContext::UpdateSubtreeStateParameters(const FCompactStat
 EStateTreeRunStatus FStateTreeExecutionContext::Start()
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Start);
+	STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::StartTree);
 
 	if (!IsValid())
 	{
@@ -252,6 +267,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 EStateTreeRunStatus FStateTreeExecutionContext::Stop()
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Stop);
+	STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::StopTree);
 
 	if (!IsValid())
 	{
@@ -347,6 +363,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 
 	if (Exec->LastTickStatus == EStateTreeRunStatus::Running)
 	{
+		STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::TickingTasks);
+
 		// Tick tasks on active states.
 		Exec->LastTickStatus = TickTasks(DeltaTime);
 		
@@ -362,6 +380,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 	static constexpr int32 MaxIterations = 5;
 	for (int32 Iter = 0; Iter < MaxIterations; Iter++)
 	{
+		STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::TriggerTransitions);
+
 		// Append events accumulated during the tick, so that transitions can immediately act on them.
 		// We'll consume the events only if they lead to state change below (EnterState is treated the same as Tick),
 		// or let them be processed next frame if no transition.
@@ -469,7 +489,7 @@ void FStateTreeExecutionContext::SendEvent(const FGameplayTag Tag, const FConstS
 	}
 
 	STATETREE_LOG(Verbose, TEXT("Send Event '%s'"), *Tag.ToString());
-	TRACE_STATETREE_LOG_EVENT(GetInstanceDebugId(), TEXT("Send Event '%s'"), *Tag.ToString());
+	STATETREE_TRACE_LOG_EVENT(TEXT("Send Event '%s'"), *Tag.ToString());
 
 	FStateTreeEventQueue& EventQueue = InstanceData.GetMutableEventQueue();
 	EventQueue.SendEvent(&Owner, Tag, Payload, Origin);
@@ -478,6 +498,7 @@ void FStateTreeExecutionContext::SendEvent(const FGameplayTag Tag, const FConstS
 void FStateTreeExecutionContext::RequestTransition(const FStateTreeTransitionRequest& Request)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_RequestTransition);
+	STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::RequestTransition);
 
 	if (!IsValid())
 	{
@@ -684,7 +705,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 	}
 	
 	STATETREE_LOG(Log, TEXT("Enter state '%s' (%d)"), *DebugGetStatePath(Transition.NextActiveStates), Exec.StateChangeCount);
-	TRACE_STATETREE_STATE_EVENT(GetInstanceDebugId(), Transition.NextActiveStates.Last().Index, EStateTreeTraceNodeEventType::OnEnter);
+	STATETREE_TRACE_STATE_EVENT(Transition.NextActiveStates.Last().Index, EStateTreeTraceNodeEventType::OnEnter);
 
 	for (int32 Index = 0; Index < Transition.NextActiveStates.Num() && Result != EStateTreeRunStatus::Failed; Index++)
 	{
@@ -736,13 +757,18 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 			if (bIsEnteringState && bShouldCallStateChange)
 			{
 				STATETREE_LOG(Verbose, TEXT("%*s  Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
-				TRACE_STATETREE_TASK_EVENT(GetInstanceDebugId(), TaskIndex, EStateTreeTraceNodeEventType::OnEnter);
-				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_EnterState);
-				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_EnterState);
-				const EStateTreeRunStatus Status = Task.EnterState(*this, CurrentTransition);
+
+				EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+				{
+					QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_EnterState);
+					CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_EnterState);
+				
+					Status = Task.EnterState(*this, CurrentTransition);
+				}
 
 				if (Status != EStateTreeRunStatus::Running)
 				{
+					STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceNodeEventType::OnTaskCompleted, Status);
 					// Store the first state that completed, will be used to decide where to trigger transitions.
 					if (!Exec.CompletedStateHandle.IsValid())
 					{
@@ -857,7 +883,7 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 		CurrentTransition.ChangeType = ExitedStateChangeType[Index];
 
 		STATETREE_LOG(Log, TEXT("%*sState '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Transition.CurrentActiveStates, ExitedStateActiveIndex[Index]), *UEnum::GetDisplayValueAsText(CurrentTransition.ChangeType).ToString());
-		TRACE_STATETREE_STATE_EVENT(GetInstanceDebugId(), CurrentHandle.Index, EStateTreeTraceNodeEventType::OnExit);
+		STATETREE_TRACE_STATE_EVENT(CurrentHandle.Index, EStateTreeTraceNodeEventType::OnExit);
 
 		// Tasks
 		for (int32 TaskIndex = (State.TasksBegin + State.TasksNum) - 1; TaskIndex >= State.TasksBegin; TaskIndex--)
@@ -875,7 +901,6 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 				if (bShouldCallStateChange)
 				{
 					STATETREE_LOG(Verbose, TEXT("%*s  Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
-					TRACE_STATETREE_TASK_EVENT(GetInstanceDebugId(), TaskIndex, EStateTreeTraceNodeEventType::OnExit);
 					{
 						QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_ExitState);
 						CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_ExitState);
@@ -910,7 +935,7 @@ void FStateTreeExecutionContext::StateCompleted()
 		FCurrentlyProcessedStateScope StateScope(*this, CurrentHandle);
 		
 		STATETREE_LOG(Verbose, TEXT("%*sState '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Exec.ActiveStates, Index));
-		TRACE_STATETREE_STATE_EVENT(GetInstanceDebugId(), CurrentHandle.Index, EStateTreeTraceNodeEventType::OnCompleted);
+		STATETREE_TRACE_STATE_EVENT(CurrentHandle.Index, EStateTreeTraceNodeEventType::OnStateCompleted);
 
 		// Notify Tasks
 		for (int32 TaskIndex = (State.TasksBegin + State.TasksNum) - 1; TaskIndex >= State.TasksBegin; TaskIndex--)
@@ -923,7 +948,6 @@ void FStateTreeExecutionContext::StateCompleted()
 				const FStateTreeTaskBase& Task = StateTree.Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
 
 				STATETREE_LOG(Verbose, TEXT("%*s  Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
-				TRACE_STATETREE_TASK_EVENT(GetInstanceDebugId(), TaskIndex, EStateTreeTraceNodeEventType::OnCompleted);
 				Task.StateCompleted(*this, Exec.LastTickStatus, Exec.ActiveStates);
 			}
 		}
@@ -933,6 +957,7 @@ void FStateTreeExecutionContext::StateCompleted()
 EStateTreeRunStatus FStateTreeExecutionContext::TickEvaluatorsAndGlobalTasks(const float DeltaTime, bool bTickGlobalTasks)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TickEvaluators);
+	STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::TickingGlobalTasks);
 
 	STATETREE_CLOG(StateTree.EvaluatorsNum > 0, VeryVerbose, TEXT("Ticking Evaluators"));
 
@@ -985,22 +1010,24 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickEvaluatorsAndGlobalTasks(con
 				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, DataViews[Task.DataViewIndex.Get()]);
 			}
 
+			EStateTreeRunStatus TaskResult = EStateTreeRunStatus::Unset;
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_Tick);
 				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_Tick);
 
-				const EStateTreeRunStatus TaskResult = Task.Tick(*this, DeltaTime);
+				TaskResult = Task.Tick(*this, DeltaTime);
+			}
 
-				// If a global task succeeds or fails, it will stop the whole tree.
-				if (TaskResult != EStateTreeRunStatus::Running)
-				{
-					Result = TaskResult;
-				}
-					
-				if (TaskResult == EStateTreeRunStatus::Failed)
-				{
-					bShouldTickTasks = false;
-				}
+			// If a global task succeeds or fails, it will stop the whole tree.
+			if (TaskResult != EStateTreeRunStatus::Running)
+			{
+				STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceNodeEventType::OnTaskCompleted, TaskResult);
+				Result = TaskResult;
+			}
+				
+			if (TaskResult == EStateTreeRunStatus::Failed)
+			{
+				bShouldTickTasks = false;
 			}
 		}
 	}
@@ -1011,6 +1038,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickEvaluatorsAndGlobalTasks(con
 bool FStateTreeExecutionContext::StartEvaluatorsAndGlobalTasks(FStateTreeIndex16& OutLastInitializedTaskIndex)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_StartEvaluators);
+	STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::StartGlobalTasks);
 
 	STATETREE_CLOG(StateTree.EvaluatorsNum > 0 || StateTree.GlobalTasksNum > 0, Verbose, TEXT("Start Evaluators & Global tasks"));
 
@@ -1070,6 +1098,7 @@ bool FStateTreeExecutionContext::StartEvaluatorsAndGlobalTasks(FStateTreeIndex16
 void FStateTreeExecutionContext::StopEvaluatorsAndGlobalTasks(const FStateTreeIndex16 LastInitializedTaskIndex)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_StopEvaluators);
+	STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::StopGlobalTasks);
 
 	STATETREE_CLOG(StateTree.EvaluatorsNum > 0, Verbose, TEXT("Stop Evaluators & Global Tasks"));
 
@@ -1199,28 +1228,31 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 			{
 				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, DataViews[Task.DataViewIndex.Get()]);
 			}
-			
+
+			EStateTreeRunStatus TaskResult = EStateTreeRunStatus::Unset;
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_Tick);
 				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_Tick);
 
-				const EStateTreeRunStatus TaskResult = Task.Tick(*this, DeltaTime);
+				TaskResult = Task.Tick(*this, DeltaTime);
+			}
 
-				// TODO: Add more control over which states can control the failed/succeeded result.
-				if (TaskResult != EStateTreeRunStatus::Running)
+			// TODO: Add more control over which states can control the failed/succeeded result.
+			if (TaskResult != EStateTreeRunStatus::Running)
+			{
+				STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceNodeEventType::OnTaskCompleted, TaskResult);
+
+				// Store the first state that completed, will be used to decide where to trigger transitions.
+				if (!Exec.CompletedStateHandle.IsValid())
 				{
-					// Store the first state that completed, will be used to decide where to trigger transitions.
-					if (!Exec.CompletedStateHandle.IsValid())
-					{
-						Exec.CompletedStateHandle = CurrentHandle;
-					}
-					Result = TaskResult;
+					Exec.CompletedStateHandle = CurrentHandle;
 				}
-				
-				if (TaskResult == EStateTreeRunStatus::Failed)
-				{
-					bShouldTickTasks = false;
-				}
+				Result = TaskResult;
+			}
+			
+			if (TaskResult == EStateTreeRunStatus::Failed)
+			{
+				bShouldTickTasks = false;
 			}
 		}
 		NumTotalTasks += State.TasksNum;
@@ -1252,19 +1284,20 @@ bool FStateTreeExecutionContext::TestAllConditions(const int32 ConditionsOffset,
 	for (int32 Index = 0; Index < ConditionsNum; Index++)
 	{
 		const FStateTreeConditionBase& Cond = StateTree.Nodes[ConditionsOffset + Index].Get<const FStateTreeConditionBase>();
+		FStateTreeDataView& DataView = DataViews[Cond.DataViewIndex.Get()]; 
 		if (Cond.bInstanceIsObject)
 		{
-			DataViews[Cond.DataViewIndex.Get()] = SharedInstanceData->GetMutableObject(Cond.InstanceIndex.Get());
+			DataView = SharedInstanceData->GetMutableObject(Cond.InstanceIndex.Get());
 		}
 		else
 		{
-			DataViews[Cond.DataViewIndex.Get()] = SharedInstanceData->GetMutableStruct(Cond.InstanceIndex.Get());
+			DataView = SharedInstanceData->GetMutableStruct(Cond.InstanceIndex.Get());
 		}
 
 		// Copy bound properties.
 		if (Cond.BindingsBatch.IsValid())
 		{
-			if (!StateTree.PropertyBindings.CopyTo(DataViews, Cond.BindingsBatch, DataViews[Cond.DataViewIndex.Get()]))
+			if (!StateTree.PropertyBindings.CopyTo(DataViews, Cond.BindingsBatch, DataView))
 			{
 				// If the source data cannot be accessed, the whole expression evaluates to false.
 				Values[0] = false;
@@ -1273,11 +1306,12 @@ bool FStateTreeExecutionContext::TestAllConditions(const int32 ConditionsOffset,
 		}
 
 		const bool bValue = Cond.TestCondition(*this);
+		STATETREE_TRACE_CONDITION_EVENT(ConditionsOffset + Index, DataView, bValue ? EStateTreeTraceNodeEventType::Passed : EStateTreeTraceNodeEventType::Failed);	
 
 		// Reset copied properties that might contain object references.
 		if (Cond.BindingsBatch.IsValid())
 		{
-			StateTree.PropertyBindings.ResetObjects(Cond.BindingsBatch, DataViews[Cond.DataViewIndex.Get()]);
+			StateTree.PropertyBindings.ResetObjects(Cond.BindingsBatch, DataView);
 		}
 
 		const int32 DeltaIndent = Cond.DeltaIndent;
@@ -1708,6 +1742,7 @@ bool FStateTreeExecutionContext::SelectState(const FStateTreeStateHandle NextSta
 bool FStateTreeExecutionContext::SelectStateInternal(const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState, FStateTreeActiveStates& VisitedStates)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_SelectState);
+	STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::StateSelection);
 
 	const FStateTreeExecutionState& Exec = GetExecState();
 
