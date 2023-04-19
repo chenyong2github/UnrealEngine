@@ -3337,11 +3337,23 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		UMaterialFunction* DefaultMF = LoadObject<UMaterialFunction>(nullptr, TEXT("/Engine/Functions/Strata/SMF_UE4Disney.SMF_UE4Disney"));
 		if (DefaultMF)
 		{
-			UMaterialExpressionMaterialFunctionCall* MFCallNode = NewObject<UMaterialExpressionMaterialFunctionCall>(this);
-			MFCallNode->SetMaterialFunction(DefaultMF);
+			DefaultMF->UpdateFromFunctionResource();
+			DefaultMF->PostEditChange();
+			DefaultMF->PostLoad();
 
-			SetPosXAndMoveReferenceToTheRight(MFCallNode);
-			EditorOnly->FrontMaterial.Connect(0, MFCallNode);
+			UMaterialExpressionMaterialFunctionCall* MFCallNode = NewObject<UMaterialExpressionMaterialFunctionCall>(this);
+			if (MFCallNode->SetMaterialFunction(DefaultMF))
+			{
+				// This is needed for input/output expressions to be set correctly, otherwise compilation will fail.
+				GetExpressionCollection().AddExpression(MFCallNode);
+
+				SetPosXAndMoveReferenceToTheRight(MFCallNode);
+				EditorOnly->FrontMaterial.Connect(0, MFCallNode);
+
+				MFCallNode->UpdateFromFunctionResource();
+				MFCallNode->PostEditChange();
+				MFCallNode->PostLoad();
+			}
 		}
 		else
 		{
