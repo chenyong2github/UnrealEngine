@@ -6,9 +6,9 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraSystemEditorData.h"
+#include "NiagaraStackEditorData.h"
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
-
 #include "Framework/Notifications/NotificationManager.h"
 #include "Logging/LogMacros.h"
 #include "Widgets/Notifications/SNotificationList.h"
