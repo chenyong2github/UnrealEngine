@@ -46,17 +46,6 @@ namespace Audio
 			, Semitones(0.0f)
 			, Cents(0.0f)
 		{}
-
-		FOscFrequencyMod(const FOscFrequencyMod& Other)
-			: Scale(Other.Scale)
-			, ExternalMod(Other.ExternalMod)
-			, Mod(Other.Mod)
-			, Detune(Other.Detune)
-			, PitchBend(Other.PitchBend)
-			, Octave(Other.Octave)
-			, Semitones(Other.Semitones)
-			, Cents(Other.Cents)
-		{}
 	};
 
 	// Oscillator base class
