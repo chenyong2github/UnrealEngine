@@ -15,6 +15,7 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraStats.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraShader.h"
 #include "NiagaraGpuComputeDebugInterface.h"
 #include "VolumeCache.h"
 #include "RenderGraphBuilder.h"
