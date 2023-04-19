@@ -219,49 +219,19 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::Impor
 		return ImportAssetResult;
 	}
 
-	const UClass* StaticMeshClass = StaticMeshFactoryNode->GetObjectClass();
-	check(StaticMeshClass && StaticMeshClass->IsChildOf(GetFactoryClass()));
-
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
-
-	const bool bReimport = Arguments.ReimportObject&& ExistingAsset;
-	UObject* StaticMeshObject = nullptr;
-
-	// create a new static mesh or overwrite existing asset, if possible
-	if (!ExistingAsset)
-	{
-		// NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
-		// The UObject should have been created by calling CreateEmptyAsset on the main thread.
-		if (IsInGameThread())
-		{
-			StaticMeshObject = NewObject<UObject>(Arguments.Parent, StaticMeshClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-		}
-		else
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset [%s] outside of the game thread"), *Arguments.AssetName);
-			return ImportAssetResult;
-		}
-	}
-	else if(ExistingAsset->GetClass()->IsChildOf(StaticMeshClass))
-	{
-		//This is a reimport, we are just re-updating the source data
-		StaticMeshObject = ExistingAsset;
-	}
+	UObject* StaticMeshObject = UE::Interchange::FFactoryCommon::AsyncFindObject(StaticMeshFactoryNode, GetFactoryClass(), Arguments.Parent, Arguments.AssetName);
+	const bool bReimport = Arguments.ReimportObject && StaticMeshObject;
 
 	if (!StaticMeshObject)
 	{
-		if (!Arguments.ReimportObject)
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
-		}
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not import the StaticMesh asset %s, because the asset do not exist."), *Arguments.AssetName);
 		return ImportAssetResult;
 	}
 
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(StaticMeshObject);
 	if (!ensure(StaticMesh))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not cast to StaticMesh asset %s"), *Arguments.AssetName);
 		return ImportAssetResult;
 	}
 

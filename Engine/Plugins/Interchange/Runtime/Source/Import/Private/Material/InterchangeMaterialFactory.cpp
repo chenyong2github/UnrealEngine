@@ -630,11 +630,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeMaterialFactory::ImportA
 		return ImportAssetResult;
 	}
 
-	const UClass* MaterialClass = MaterialFactoryNode->GetObjectClass();
-	check(MaterialClass && MaterialClass->IsChildOf(GetFactoryClass()));
-
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* MaterialObject = UE::Interchange::FFactoryCommon::AsyncFindObject(MaterialFactoryNode, GetFactoryClass(), Arguments.Parent, Arguments.AssetName);
 
 	//Do not override an asset we skip
 	if (bSkipImport)
@@ -642,32 +638,18 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeMaterialFactory::ImportA
 		ImportAssetResult.ImportedObject = ExistingAsset;
 		return ImportAssetResult;
 	}
-
-	UObject* MaterialObject = nullptr;
-	// create a new material or overwrite existing asset, if possible
-	if (!ExistingAsset)
-	{
-		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
-		//The UObject should have been created by calling CreateEmptyAsset on the main thread.
-		if (IsInGameThread())
-		{
-			MaterialObject = NewObject<UObject>(Arguments.Parent, MaterialClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-		}
-		else
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create Material asset [%s] outside of the game thread"), *Arguments.AssetName);
-			return ImportAssetResult;
-		}
-	}
-	else if(ExistingAsset->GetClass()->IsChildOf(MaterialClass))
-	{
-		//This is a reimport, we are just re-updating the source data
-		MaterialObject = ExistingAsset;
-	}
+	const bool bReimport = Arguments.ReimportObject && MaterialObject;
 
 	if (!MaterialObject)
 	{
-		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not import the Material asset %s, because the asset do not exist."), *Arguments.AssetName);
+		return ImportAssetResult;
+	}
+
+	UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialObject);
+	if (!ensure(MaterialInterface))
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not cast to Material asset %s"), *Arguments.AssetName);
 		return ImportAssetResult;
 	}
 
@@ -675,7 +657,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeMaterialFactory::ImportA
 	//TODO: Design a re-import process for the material (expressions and input connections)
 	if(!Arguments.ReimportObject)
 	{
-		if (UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialObject))
+		if (MaterialInterface)
 		{
 #if WITH_EDITOR
 			if (UMaterial* Material = Cast<UMaterial>(MaterialObject))
@@ -706,9 +688,8 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeMaterialFactory::ImportA
 
 	//Getting the file Hash will cache it into the source data
 	Arguments.SourceData->GetFileContentHash();
-
-	//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all material in parallel
-	ImportAssetResult.ImportedObject = MaterialObject;
+		//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all material in parallel
+	}
 	return ImportAssetResult;
 }
 
@@ -1475,11 +1456,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeMaterialFunctionFactory:
 		return ImportAssetResult;
 	}
 
-	const UClass* MaterialClass = MaterialFactoryNode->GetObjectClass();
-	check(MaterialClass && MaterialClass->IsChildOf(GetFactoryClass()));
-
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* MaterialObject = UE::Interchange::FFactoryCommon::AsyncFindObject(Arguments.AssetNode, GetFactoryClass(), Arguments.Parent, Arguments.AssetName);
 
 	//Do not override an asset we skip
 	if (bSkipImport)
@@ -1487,56 +1464,30 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeMaterialFunctionFactory:
 		ImportAssetResult.ImportedObject = ExistingAsset;
 		return ImportAssetResult;
 	}
-
-	UObject* MaterialObject = nullptr;
-	// create a new material or overwrite existing asset, if possible
-	if (!ExistingAsset)
-	{
-		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
-		//The UObject should have been created by calling CreateEmptyAsset on the main thread.
-		if (IsInGameThread())
-		{
-			MaterialObject = NewObject<UObject>(Arguments.Parent, MaterialClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-		}
-		else
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create Material asset [%s] outside of the game thread"), *Arguments.AssetName);
-			return ImportAssetResult;
-		}
-	}
-	else if (ExistingAsset->GetClass()->IsChildOf(MaterialClass))
-	{
-		//This is a reimport, we are just re-updating the source data
-		MaterialObject = ExistingAsset;
-	}
+	const bool bReimport = Arguments.ReimportObject && MaterialObject;
 
 	if (!MaterialObject)
 	{
-		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create Material asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not import the Material asset %s, because the asset do not exist."), *Arguments.AssetName);
 		return ImportAssetResult;
 	}
 
-	if (MaterialObject)
+	//Currently material re-import will not touch the material at all
+	//TODO design a re-import process for the material (expressions and input connections)
+	if (!Arguments.ReimportObject)
 	{
-		//Currently material re-import will not touch the material at all
-		//TODO design a re-import process for the material (expressions and input connections)
-		if (!Arguments.ReimportObject)
+		if (UMaterialFunction* MaterialFunction = Cast<UMaterialFunction>(MaterialObject))
 		{
-			if (UMaterialFunction* MaterialFunction = Cast<UMaterialFunction>(MaterialObject))
-			{
 #if WITH_EDITOR
-				SetupMaterial(MaterialFunction, Arguments, MaterialFactoryNode);
+			SetupMaterial(MaterialFunction, Arguments, MaterialFactoryNode);
 #endif // #if WITH_EDITOR
 
-				MaterialFactoryNode->ApplyAllCustomAttributeToObject(MaterialObject);
-			}
+			MaterialFactoryNode->ApplyAllCustomAttributeToObject(MaterialObject);
 		}
-
-		//Getting the file Hash will cache it into the source data
-		Arguments.SourceData->GetFileContentHash();
-
-		//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all material in parallel
 	}
+
+	//Getting the file Hash will cache it into the source data
+	Arguments.SourceData->GetFileContentHash();
 
 	ImportAssetResult.ImportedObject = MaterialObject;
 	return ImportAssetResult;

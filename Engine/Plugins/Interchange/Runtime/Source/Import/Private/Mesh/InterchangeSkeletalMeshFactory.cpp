@@ -979,54 +979,18 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeSkeletalMeshFactory::Imp
 		return ImportAssetResult;
 	}
 
-	const UClass* SkeletalMeshClass = SkeletalMeshFactoryNode->GetObjectClass();
-	check(SkeletalMeshClass && SkeletalMeshClass->IsChildOf(GetFactoryClass()));
-
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
-
-	UObject* SkeletalMeshObject = nullptr;
-	// create a new material or overwrite existing asset, if possible
-	if (!ExistingAsset)
-	{
-		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
-		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
-		if (IsInGameThread())
-		{
-			SkeletalMeshObject = NewObject<UObject>(Arguments.Parent, SkeletalMeshClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-		}
-		else
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create SkeletalMesh asset [%s] outside of the game thread"), *Arguments.AssetName);
-			return ImportAssetResult;
-		}
-	}
-	else if(ExistingAsset->GetClass()->IsChildOf(SkeletalMeshClass))
-	{
-		//This is a reimport, we are just re-updating the source data
-		SkeletalMeshObject = ExistingAsset;
-	}
+	UObject* SkeletalMeshObject = UE::Interchange::FFactoryCommon::AsyncFindObject(SkeletalMeshFactoryNode, GetFactoryClass(), Arguments.Parent, Arguments.AssetName);
 
 	if (!SkeletalMeshObject)
 	{
-		if (!Arguments.ReimportObject)
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
-		}
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not import the SkeletalMesh asset %s, because the asset do not exist."), *Arguments.AssetName);
 		return ImportAssetResult;
 	}
 
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(SkeletalMeshObject);
 	if (!ensure(SkeletalMesh))
 	{
-		if (Arguments.ReimportObject == nullptr)
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create skeletalMesh asset %s"), *Arguments.AssetName);
-		}
-		else
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not find reimported skeletalMesh asset %s"), *Arguments.AssetName);
-		}
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not cast to SkeletalMesh asset %s"), *Arguments.AssetName);
 		return ImportAssetResult;
 	}
 

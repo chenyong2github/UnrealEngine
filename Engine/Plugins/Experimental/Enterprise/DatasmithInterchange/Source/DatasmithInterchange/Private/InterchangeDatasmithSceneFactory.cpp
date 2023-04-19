@@ -92,19 +92,15 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeDatasmithSceneFactory::I
 		return ImportAssetResult;
 	}
 
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* ExistingAsset = nullptr;
+	FSoftObjectPath ReferenceObject;
+	if (Arguments.AssetNode->GetCustomReferenceObject(ReferenceObject))
+	{
+		ExistingAsset = ReferenceObject.TryLoad();
+	}
 	UDatasmithScene* DatasmithScene = nullptr;
 
-	// create a new texture or overwrite existing asset, if possible
-	if (!ExistingAsset)
-	{
-		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
-		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
-		check(IsInGameThread());
-		DatasmithScene = NewObject<UDatasmithScene>(Arguments.Parent, DatasmithSceneClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-	}
-	else if (ExistingAsset->GetClass()->IsChildOf(DatasmithSceneClass))
+	if (ExistingAsset && ExistingAsset->GetClass()->IsChildOf(DatasmithSceneClass))
 	{
 		//This is a reimport, we are just re-updating the source data
 		DatasmithScene = static_cast<UDatasmithScene*>(ExistingAsset);

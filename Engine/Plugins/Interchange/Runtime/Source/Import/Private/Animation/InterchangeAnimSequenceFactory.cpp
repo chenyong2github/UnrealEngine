@@ -781,7 +781,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeAnimSequenceFactory::Beg
 		return ImportAssetResult;
 	}
 
-	const UInterchangeAnimSequenceFactoryNode* AnimSequenceFactoryNode = Cast<UInterchangeAnimSequenceFactoryNode>(Arguments.AssetNode);
+	UInterchangeAnimSequenceFactoryNode* AnimSequenceFactoryNode = Cast<UInterchangeAnimSequenceFactoryNode>(Arguments.AssetNode);
 	if (AnimSequenceFactoryNode == nullptr)
 	{
 		return ImportAssetResult;
@@ -813,7 +813,10 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeAnimSequenceFactory::Beg
 		return ImportAssetResult;
 	}
 
+	AnimSequenceFactoryNode->SetCustomReferenceObject(FSoftObjectPath(AnimSequence));
+
 	AnimSequence->PreEditChange(nullptr);
+
 
 	ImportAssetResult.ImportedObject = ImportObjectSourceData(Arguments);
 	return ImportAssetResult;
@@ -899,56 +902,22 @@ UObject* UInterchangeAnimSequenceFactory::ImportObjectSourceData(const FImportAs
 		return nullptr;
 	}
 
-	const UClass* AnimSequenceClass = AnimSequenceFactoryNode->GetObjectClass();
-	check(AnimSequenceClass && AnimSequenceClass->IsChildOf(GetFactoryClass()));
-
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
-
-	UObject* AnimSequenceObject = nullptr;
-	// create a new material or overwrite existing asset, if possible
-	if (!ExistingAsset)
-	{
-		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
-		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
-		if (IsInGameThread())
-		{
-			AnimSequenceObject = NewObject<UObject>(Arguments.Parent, AnimSequenceClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-		}
-		else
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create AnimSequence asset [%s] outside of the game thread"), *Arguments.AssetName);
-			return nullptr;
-		}
-	}
-	else if (ExistingAsset->GetClass()->IsChildOf(AnimSequenceClass))
-	{
-		//This is a reimport, we are just re-updating the source data
-		AnimSequenceObject = ExistingAsset;
-	}
+	UObject* AnimSequenceObject = UE::Interchange::FFactoryCommon::AsyncFindObject(AnimSequenceFactoryNode, GetFactoryClass(), Arguments.Parent, Arguments.AssetName);
 
 	if (!AnimSequenceObject)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Could not create AnimSequence asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not import the AnimSequence asset %s, because the asset do not exist."), *Arguments.AssetName);
 		return nullptr;
 	}
 
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceObject);
-
-	const bool bIsReImport = (Arguments.ReimportObject != nullptr);
-
 	if (!ensure(AnimSequence))
 	{
-		if (!bIsReImport)
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create AnimSequence asset %s"), *Arguments.AssetName);
-		}
-		else
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not find reimported AnimSequence asset %s"), *Arguments.AssetName);
-		}
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not cast to AnimSequence asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
+
+	const bool bIsReImport = (Arguments.ReimportObject != nullptr);
 
 	//Fill the animsequence data, we need to retrieve the skeleton and then ask the payload for every joint
 	{

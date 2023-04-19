@@ -6,6 +6,7 @@
 #include "InterchangeAnimationTrackSetFactoryNode.h"
 #include "InterchangeAnimationTrackSetNode.h"
 #include "InterchangeAnimSequenceFactoryNode.h"
+#include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeResult.h"
 #include "InterchangeSourceData.h"
@@ -677,7 +678,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeAnimationTrackSetFactory
 		return ImportAssetResult;
 	}
 
-	const UInterchangeAnimationTrackSetFactoryNode* FactoryNode = Cast<UInterchangeAnimationTrackSetFactoryNode>(Arguments.AssetNode);
+	UInterchangeAnimationTrackSetFactoryNode* FactoryNode = Cast<UInterchangeAnimationTrackSetFactoryNode>(Arguments.AssetNode);
 	if (FactoryNode == nullptr)
 	{
 		return ImportAssetResult;
@@ -708,6 +709,8 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeAnimationTrackSetFactory
 		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create LevelSequence asset %s"), *Arguments.AssetName);
 		return ImportAssetResult;
 	}
+
+	FactoryNode->SetCustomReferenceObject(LevelSequence);
 
 	LevelSequence->PreEditChange(nullptr);
 
@@ -758,33 +761,15 @@ UObject* UInterchangeAnimationTrackSetFactory::ImportObjectSourceData(const FImp
 		return nullptr;
 	}
 
-	const UClass* LevelSequenceClass = FactoryNode->GetObjectClass();
-	check(LevelSequenceClass && LevelSequenceClass->IsChildOf(GetFactoryClass()));
+	UObject* ExistingAsset = UE::Interchange::FFactoryCommon::AsyncFindObject(FactoryNode, GetFactoryClass(), Arguments.Parent, Arguments.AssetName);
 
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
-
-	ULevelSequence* LevelSequence = nullptr;
-	// create a new level sequence or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
-		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
-		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
-		if (IsInGameThread())
-		{
-			LevelSequence = NewObject<ULevelSequence>(Arguments.Parent, LevelSequenceClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-		}
-		else
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create LevelSequence asset [%s] outside of the game thread"), *Arguments.AssetName);
-			return nullptr;
-		}
+		UE_LOG(LogInterchangeImport, Error, TEXT("Could not import the LevelSequence asset %s, because the asset do not exist."), *Arguments.AssetName);
+		return nullptr;
 	}
-	else if (ExistingAsset->GetClass()->IsChildOf(LevelSequenceClass))
-	{
-		//This is a reimport, we are just re-updating the source data
-		LevelSequence =  Cast<ULevelSequence>(ExistingAsset);
-	}
+
+	ULevelSequence* LevelSequence = Cast<ULevelSequence>(ExistingAsset);
 
 	if (!ensure(LevelSequence))
 	{

@@ -127,5 +127,10 @@ namespace UE::Interchange
 		 * @oaram SubPathString: Optional subobject name
 		 */
 		static 	const UInterchangeFactoryBaseNode* GetFactoryNode(UObject* ReimportObject, const FString& PackageName, const FString& AssetName, const FString& SubPathString = FString());
+		
+		/**
+		 * Factory helper use to find the object we have create in the game thread when we do the async part of the factory import.
+		 */
+		static UObject* AsyncFindObject(UInterchangeFactoryBaseNode* FactoryNode, const UClass* FactoryClass, UObject* Parent, const FString& AssetName);
 	};
 } //ns UE::Interchange
