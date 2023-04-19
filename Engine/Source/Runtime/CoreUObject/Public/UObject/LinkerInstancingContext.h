@@ -16,10 +16,16 @@ public:
 		InstancedToOriginal,
 	};
 
-	FLinkerInstancedPackageMap() = default;
+	FLinkerInstancedPackageMap() :
+		FLinkerInstancedPackageMap(EInstanceMappingDirection::OriginalToInstanced) {}
 
 	explicit FLinkerInstancedPackageMap(EInstanceMappingDirection MappingDirection)
 		: InstanceMappingDirection(MappingDirection)
+#if WITH_EDITOR
+		, bEnableNonEditorPath(false)
+#else
+		, bEnableNonEditorPath(true)
+#endif
 	{
 	}
 
@@ -47,6 +53,8 @@ public:
 
 private:
 	friend class FLinkerInstancingContext;
+	friend class FLinkerInstancingContextTests;
+	void EnableAutomationTest() { bEnableNonEditorPath = true; }
 
 	/**
 	 * Map between the original package name and its instance counterpart.
@@ -58,11 +66,15 @@ private:
 	/**
 	 * In which direction has this mapping been built?
 	 */
-	EInstanceMappingDirection InstanceMappingDirection = EInstanceMappingDirection::OriginalToInstanced;
+	EInstanceMappingDirection InstanceMappingDirection;
 
 	/** Data needed to re-map world partition cells */
 	FString GeneratedPackagesFolder;
+	FString InstancedPackagePrefix;
 	FString InstancedPackageSuffix;
+
+	/** Allows tests to run non editor path from editor build. */
+	bool bEnableNonEditorPath;
 };
 
 /**
@@ -165,6 +177,8 @@ public:
 	void FixupSoftObjectPath(FSoftObjectPath& InOutSoftObjectPath) const;
 
 private:
+	void EnableAutomationTest() { InstancedPackageMap.EnableAutomationTest(); }
+
 	void BuildPackageMapping(FName Original, FName Instanced)
 	{
 		InstancedPackageMap.BuildPackageMapping(Original, Instanced, GetSoftObjectPathRemappingEnabled());
@@ -177,6 +191,7 @@ private:
 
 	friend class FLinkerLoad;
 	friend struct FAsyncPackage2;
+	friend class FLinkerInstancingContextTests;
 
 	/** Map of original package name to their instance counterpart. */
 	FLinkerInstancedPackageMap InstancedPackageMap;

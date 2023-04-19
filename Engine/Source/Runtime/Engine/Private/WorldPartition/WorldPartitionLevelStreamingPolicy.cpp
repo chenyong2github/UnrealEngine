@@ -167,12 +167,18 @@ bool UWorldPartitionLevelStreamingPolicy::ConvertEditorPathToRuntimePath(const F
 	}
 
 	// In the editor, the _LevelInstance_ID is appended to the persistent level, while at runtime it is appended to each cell package, so we need to remap it there if present.
+	// Also handle prefixes like "/Temp"
 	FString LevelInstanceSuffix;
+	FString LevelInstancePrefix;
 	const FString WorldAssetPackageName = WorldAssetPath.GetPackageName().ToString();
 	const FString SourceWorldAssetPackageName = SourceWorldAssetPath.GetPackageName().ToString();
-	if (WorldAssetPackageName.StartsWith(SourceWorldAssetPackageName))
+	if (WorldAssetPackageName.Len() > SourceWorldAssetPackageName.Len())
 	{
-		LevelInstanceSuffix = WorldAssetPackageName.Mid(SourceWorldAssetPackageName.Len());
+		if (const int32 Index = WorldAssetPackageName.Find(SourceWorldAssetPackageName); Index != INDEX_NONE)
+		{
+			LevelInstancePrefix = WorldAssetPackageName.Mid(0, Index);
+			LevelInstanceSuffix = WorldAssetPackageName.Mid(Index + SourceWorldAssetPackageName.Len());
+		}
 	}
 
 	FString SubAssetName;
@@ -200,7 +206,7 @@ bool UWorldPartitionLevelStreamingPolicy::ConvertEditorPathToRuntimePath(const F
 #endif
 			else
 			{
-				OutPath = FString::Printf(TEXT("%s/_Generated_/%s%s.%s:%s"), *SourceWorldAssetPackageName, *(CellName->ToString()), *LevelInstanceSuffix, *WorldAssetPath.GetAssetName().ToString(), *InPath.GetSubPathString());
+				OutPath = FString::Printf(TEXT("%s%s/_Generated_/%s%s.%s:%s"), *LevelInstancePrefix, *SourceWorldAssetPackageName, *(CellName->ToString()), *LevelInstanceSuffix, *WorldAssetPath.GetAssetName().ToString(), *InPath.GetSubPathString());
 			}
 
 #if WITH_EDITOR
