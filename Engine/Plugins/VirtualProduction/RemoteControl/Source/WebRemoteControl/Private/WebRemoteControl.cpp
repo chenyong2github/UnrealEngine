@@ -995,7 +995,6 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 {
 	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
-	bool bResetToDefault = false;
 	FRCObjectReference ObjectRef;
 	FRCObjectRequest DeserializedRequest;
 	if (!WebRemoteControl::ResolveObjectPropertyForRequest(Request, OnComplete, Response, ObjectRef, DeserializedRequest))
@@ -1022,7 +1021,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	case ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS:
 	{
 		const FBlockDelimiters& PropertyValueDelimiters = DeserializedRequest.GetStructParameters().FindChecked(FRCObjectRequest::PropertyValueLabel());
-		if (bResetToDefault)
+		if (DeserializedRequest.ResetToDefault)
 		{
 			constexpr bool bAllowIntercept = true;
 			if (IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bAllowIntercept))

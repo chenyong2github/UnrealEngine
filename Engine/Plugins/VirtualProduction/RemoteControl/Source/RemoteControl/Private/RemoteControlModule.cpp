@@ -1760,13 +1760,35 @@ bool FRemoteControlModule::ResetObjectProperties(const FRCObjectReference& Objec
 		else
 #endif
 		{
-			// Copy the value from the field on the CDO.
 			FRCFieldPathInfo FieldPathInfo = ObjectAccess.PropertyPathInfo;
 			void* TargetAddress = FieldPathInfo.GetResolvedData().ContainerAddress;
+
 			UObject* DefaultObject = Object->GetClass()->GetDefaultObject();
-			FieldPathInfo.Resolve(DefaultObject);
-			FRCFieldResolvedData DefaultObjectResolvedData = FieldPathInfo.GetResolvedData();
-			ObjectAccess.Property->CopyCompleteValue_InContainer(TargetAddress, DefaultObjectResolvedData.ContainerAddress);
+			if (FieldPathInfo.Resolve(DefaultObject))
+			{
+				// Copy the value from the field on the CDO
+				FRCFieldResolvedData DefaultObjectResolvedData = FieldPathInfo.GetResolvedData();
+				ObjectAccess.Property->CopyCompleteValue_InContainer(TargetAddress, DefaultObjectResolvedData.ContainerAddress);
+			}
+			else if (UStruct* ContainerStruct = ObjectAccess.ContainerType.Get())
+			{
+				// Structs have no CDO, so initialize a new instance of the struct and copy the value from there
+				TArray<uint8> NewStructDataArray;
+				const int32 StructureSize = ContainerStruct->GetStructureSize();
+				NewStructDataArray.SetNumUninitialized(StructureSize);
+
+				void* NewStructData = NewStructDataArray.GetData();
+				ContainerStruct->InitializeStruct(NewStructData);
+
+				ObjectAccess.Property->CopyCompleteValue_InContainer(TargetAddress, NewStructData);
+
+				ContainerStruct->DestroyStruct(NewStructData);
+			}
+			else
+			{
+				// Containing object has no default value, so fall back to the initial value for this property type
+				ObjectAccess.Property->InitializeValue_InContainer(TargetAddress);
+			}
 		}
 
 		// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
