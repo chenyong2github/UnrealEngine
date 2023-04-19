@@ -1567,7 +1567,7 @@ void FSlateApplication::TickPlatform(float DeltaTime)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlateApplicationInput);
 
-		const bool bCanSpawnNewTooltip = true;
+		const bool bCanSpawnNewTooltip = PlatformApplication->IsCursorDirectlyOverSlateWindow();
 		ForEachUser([this, bCanSpawnNewTooltip](FSlateUser& User) {
 			User.UpdateCursor();
 			User.UpdateTooltip(MenuStack, bCanSpawnNewTooltip);
