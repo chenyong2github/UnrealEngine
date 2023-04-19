@@ -75,12 +75,17 @@ namespace ArrayViewPrivate
 	{
 	private:
 		using NaturalElementType = typename TRemovePointer<decltype(GetData(DeclVal<RangeType&>()))>::Type;
+		using TypeCompat = TContainerElementTypeCompatibility<NaturalElementType>;
 
 	public:
 		static constexpr bool Value = 
-			!std::is_same_v<typename TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretType, NaturalElementType>
+			!std::is_same_v<typename TypeCompat::ReinterpretType, NaturalElementType>
 			&&
-			TIsCompatibleElementType<typename TContainerElementTypeCompatibility<NaturalElementType>::ReinterpretType, ElementType>::Value;
+			TIsCompatibleElementType<typename TypeCompat::ReinterpretType, ElementType>::Value
+			&&
+			(!UE_DEPRECATE_MUTABLE_TOBJECTPTR
+			 || std::is_same_v<ElementType, std::remove_pointer_t<typename TypeCompat::ReinterpretType>* const>
+			 || std::is_same_v<ElementType, const std::remove_pointer_t<typename TypeCompat::ReinterpretType>* const>);
 
 		template <typename T>
 		static decltype(auto) GetData(T&& Arg)

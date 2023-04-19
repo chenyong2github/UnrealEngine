@@ -987,7 +987,7 @@ using TPointedToType = typename TPointedToTypeImpl<T>::Type;
 
 //------------------------------------------------------------------------------
 
-namespace UE::Core::Private
+namespace UE::Core::Private // private facilities; not for direct use
 {
 	namespace Unsafe
 	{
@@ -1075,7 +1075,7 @@ namespace UE::Core::Private
 */
 
 template <typename T>
-UE::Core::Private::TMutableView<T> MutableView(T& A)
+[[nodiscard]] UE::Core::Private::TMutableView<T> MutableView(T& A)
 {
 	return UE::Core::Private::TMutableView<T>{A};
 }

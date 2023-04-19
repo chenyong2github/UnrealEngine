@@ -2300,7 +2300,8 @@ public:
 		return *Ptr;
 	}
 
-	/** Implicit conversion operator to container of compatible element type. */
+#if !UE_DEPRECATE_MUTABLE_TOBJECTPTR
+	/** Mutable implicit conversion operator to container of compatible element type. */
 	template <
 		typename AliasElementType = ElementType,
 		std::enable_if_t<TIsContainerElementTypeReinterpretable<AliasElementType>::Value>* = nullptr
@@ -2311,8 +2312,9 @@ public:
 		ElementCompat::ReinterpretRangeContiguous(begin(), end(), Num());
 		return *reinterpret_cast<TArray<typename ElementCompat::ReinterpretType>*>(this);
 	}
-
-	/** Implicit conversion operator to constant container of compatible element type. */
+#endif
+  
+	/** Immutable implicit conversion operator to constant container of compatible element type. */
 	template <
 		typename AliasElementType = ElementType,
 		typename std::enable_if_t<TIsContainerElementTypeReinterpretable<AliasElementType>::Value>* = nullptr

@@ -65,3 +65,7 @@ Can be overridden by setting to 1 or 0 in the project's .Target.cs files.
 #ifndef NO_CVARS
 	#define NO_CVARS 0
 #endif
+
+#ifndef UE_DEPRECATE_MUTABLE_TOBJECTPTR
+#define UE_DEPRECATE_MUTABLE_TOBJECTPTR 0
+#endif
