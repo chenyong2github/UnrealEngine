@@ -297,6 +297,7 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 			.setOnlyAlertOnce (true)
 			.setSmallIcon(Description.SmallIconResourceID)
 			.addAction(Description.CancelIconResourceID, Description.CancelText, CancelIntent)
+			.setNotificationSilent()
 			.build();
 
 		return notification;
@@ -328,6 +329,7 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 			.setOnlyAlertOnce (true)
 			.setSmallIcon(Description.SmallIconResourceID)
 			.addAction(Description.CancelIconResourceID, Description.CancelText, CancelIntent)
+			.setNotificationSilent()
 			.build();
 
 		return notification;
