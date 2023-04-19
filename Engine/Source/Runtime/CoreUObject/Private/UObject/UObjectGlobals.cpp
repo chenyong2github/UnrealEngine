@@ -1125,7 +1125,7 @@ bool ResolveName(UObject*& InPackage, FString& InOutName, bool Create, bool Thro
 			Create         = false;
 		}
 		
-		int32 DotIndex = DelimiterOrEnd - *InOutName;
+		const int32 DotIndex = static_cast<int32>(DelimiterOrEnd - *InOutName);
 
 		TStringBuilder<FName::StringBufferSize> PartialName;
 		PartialName.Append(*InOutName, DotIndex);
