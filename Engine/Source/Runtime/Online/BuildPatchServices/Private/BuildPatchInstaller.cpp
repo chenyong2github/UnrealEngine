@@ -53,6 +53,10 @@
 #include "Installer/Statistics/VerifierStatistics.h"
 #include "Installer/Statistics/FileOperationTracker.h"
 
+#if !defined(ENABLE_PATCH_DISK_OVERFLOW_STORE)
+#	define ENABLE_PATCH_DISK_OVERFLOW_STORE 1
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogBPSInstallerConfig, Log, All);
 
 namespace ConfigHelpers
@@ -1254,15 +1258,21 @@ namespace BuildPatchServices
 			TSet<FGuid> ReferencedChunks = ChunkReferenceTracker->GetReferencedChunks();
 			TUniquePtr<IChunkEvictionPolicy> MemoryEvictionPolicy(FChunkEvictionPolicyFactory::Create(
 				ChunkReferenceTracker.Get()));
+#if ENABLE_PATCH_DISK_OVERFLOW_STORE
 			TUniquePtr<IDiskChunkStore> DiskOverflowStore(FDiskChunkStoreFactory::Create(
 				FileSystem.Get(),
 				ChunkDataSerialization.Get(),
 				DiskChunkStoreStatistics.Get(),
 				FDiskChunkStoreConfig(DataStagingDir)));
+#endif // ENABLE_PATCH_DISK_OVERFLOW_STORE
 			TUniquePtr<IMemoryChunkStore> CloudChunkStore(FMemoryChunkStoreFactory::Create(
 				ChunkStoreMemorySize,
 				MemoryEvictionPolicy.Get(),
+#if ENABLE_PATCH_DISK_OVERFLOW_STORE
 				DiskOverflowStore.Get(),
+#else
+				nullptr,
+#endif // ENABLE_PATCH_DISK_OVERFLOW_STORE
 				MemoryChunkStoreStatistics.Get()));
 			TUniquePtr<IChunkDbChunkSource> ChunkDbChunkSource(FChunkDbChunkSourceFactory::Create(
 				BuildChunkDbSourceConfig(),
@@ -1333,7 +1343,9 @@ namespace BuildPatchServices
 			{
 				ChainedChunkSource->AddRepeatRequirement(LostChunk);
 			};
+#if ENABLE_PATCH_DISK_OVERFLOW_STORE
 			DiskOverflowStore->SetLostChunkCallback(LostChunkCallback);
+#endif // ENABLE_PATCH_DISK_OVERFLOW_STORE
 			CloudChunkStore->SetLostChunkCallback(LostChunkCallback);
 
 
