@@ -623,6 +623,15 @@
 			"runtimes": [
 				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
 			]
+		},
+		{
+			"category": "CumSum",
+			"targets": [
+				{ "target": "CumSum" }
+			],
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
+			]
 		}
 	],
 
@@ -1318,6 +1327,30 @@
 				{ "inputs": [ { "shape": [ 1, 1, 6, 2 ] } ], "outputs": [ { "shape": [ 1, 1, 6, 1 ] }, { "shape": [ 1, 1, 6, 1 ] } ] }
 			]
 		},
+		{
+			"name": "CumSum.1D",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 5 ] } ], "weights": [ { "shape": [ 1 ], "source": [ "0" ], "type": "int64" } ], "outputs": [ { "shape": [ 5 ] } ] }
+			]
+		},
+		{
+			"name": "CumSum.2DAxis0",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 3 ] } ], "weights": [ { "shape": [ 1 ], "source": [ "0" ], "type": "int64" } ], "outputs": [ { "shape": [ 2, 3 ] } ] }
+			]
+		},
+		{
+			"name": "CumSum.2DAxis1",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 4 ] } ], "weights": [ { "shape": [ 1 ], "source": [ "1" ], "type": "int64" } ], "outputs": [ { "shape": [ 3, 4 ] } ] }
+			]
+		},
+		{
+			"name": "CumSum.2DNegativeAxis",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 3, 2 ] } ], "weights": [ { "shape": [ 1 ], "source": [ "-1" ], "type": "int64" } ], "outputs": [ { "shape": [ 3, 2 ] } ] }
+			]
+		},
 		{ 
 			"name": "Reduce.Default",
 			"datasets": [
@@ -1918,6 +1951,29 @@
 						{ "name": "split", "value": [1, 1], "type": "Int32Array" }
 					]
 				}
+			]
+		},
+		{
+			"name": "CumSum.1D",
+			"attribute_maps": [
+				{ 
+					"attributes": [ 
+						{ "name": "reverse", "value": 0, "type": "Int32" }
+					]
+				},
+				{ 
+					"attributes": [ 
+						{ "name": "reverse", "value": 1, "type": "Int32" }
+					]
+				}
+			]
+		},
+		{
+			"name": "CumSum.1D.Exclusive",
+			"multiply_with_attribute_sets": [ "CumSum.1D" ],
+			"attribute_maps": [
+				{ "attributes": [ { "name": "exclusive", "value": 0, "type": "Int32" } ] },
+				{ "attributes": [ { "name": "exclusive", "value": 1, "type": "Int32" } ] }
 			]
 		},
 		{

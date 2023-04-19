@@ -62,6 +62,17 @@ namespace DmlUtil
 	using FSmallUIntArray = TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
 
 	template<typename InputType, typename OutputType>
+	inline bool IsOverflowing(InputType Input)
+	{
+		OutputType Output = static_cast<OutputType>(Input);
+		if(Input != static_cast<InputType>(Output))
+		{
+			return true;
+		}
+		return false;
+	}
+
+	template<typename InputType, typename OutputType>
 	inline bool ConvertArrayViewNoOverflow(TConstArrayView<InputType> InputView, TArrayView<OutputType>& OutputView)
 	{
 		OutputView = MakeArrayView((OutputType*) InputView.GetData(), InputView.Num());
