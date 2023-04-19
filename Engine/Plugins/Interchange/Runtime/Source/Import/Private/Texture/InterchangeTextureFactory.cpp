@@ -1677,9 +1677,12 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeTextureFactory::ImportAs
 		return ImportAssetResult;
 	}
 
-	// create an asset if it doesn't exist
-	// typically ExistingAsset should already exist, made by CreateEmptyAsset on the main thread
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* ExistingAsset = nullptr;
+	FSoftObjectPath ReferenceObject;
+	if (Arguments.AssetNode->GetCustomReferenceObject(ReferenceObject))
+	{
+		ExistingAsset = ReferenceObject.TryLoad();
+	}
 
 	//Do not override an asset we skip
 	if (bSkipImport)
@@ -1712,13 +1715,6 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeTextureFactory::ImportAs
 	{
 		ImportTextureErrorLog(LOCTEXT("TextureFactory_Async_CannotRetrievePayload", "UInterchangeTextureFactory: Invalid translator couldn't retrive a payload."));
 		return ImportAssetResult;
-	}
-
-	UObject* ExistingAsset = nullptr;
-	FSoftObjectPath ReferenceObject;
-	if (Arguments.AssetNode->GetCustomReferenceObject(ReferenceObject))
-	{
-		ExistingAsset = ReferenceObject.TryLoad();
 	}
 
 	UTexture* Texture = nullptr;

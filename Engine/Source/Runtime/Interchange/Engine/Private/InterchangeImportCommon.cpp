@@ -311,42 +311,6 @@ namespace UE::Interchange
 				break;
 			}
 		}
-
-		UObject* FFactoryCommon::AsyncFindObject(UInterchangeFactoryBaseNode* FactoryNode, const UClass* FactoryClass, UObject* Parent, const FString& AssetName)
-		{
-			if (!FactoryNode)
-			{
-				return nullptr;
-			}
-
-			const UClass* AssetClass = FactoryNode->GetObjectClass();
-			if (!ensure(AssetClass && AssetClass->IsChildOf(FactoryClass)))
-			{
-				UE_LOG(LogInterchangeEngine, Error, TEXT("The asset class %s is not compatible with the factory class %s. Cannot import asset %s ."), *AssetClass->GetName(), *FactoryClass->GetName(), * AssetName);
-				return nullptr;
-			}
-
-			UObject* ExistingAsset = nullptr;
-			FSoftObjectPath ReferenceObject;
-			if (FactoryNode->GetCustomReferenceObject(ReferenceObject))
-			{
-				ExistingAsset = ReferenceObject.TryLoad();
-			}
-
-			// create a new static mesh or overwrite existing asset, if possible
-			if (!ExistingAsset)
-			{
-				UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot import the %s asset [%s], because it was not create on the game thread."), *AssetClass->GetName(), *AssetName);
-				return nullptr;
-			}
-			
-			if (!ExistingAsset->GetClass()->IsChildOf(AssetClass))
-			{
-				UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot import the %s asset [%s], because it will override an asset of a different class (%s)."), *AssetClass->GetName(), *AssetName, *ExistingAsset->GetClass()->GetName());
-				return nullptr;
-			}
-			return ExistingAsset;
-		}
 	}
 
 	UObject* FFactoryCommon::GetObjectToReimport(UObject* ReimportObject, const FString& PackageName, const FString& AssetName, const FString& SubPathString)
@@ -371,5 +335,41 @@ namespace UE::Interchange
 #endif
 
 		return nullptr;
+	}
+
+	UObject* FFactoryCommon::AsyncFindObject(UInterchangeFactoryBaseNode* FactoryNode, const UClass* FactoryClass, UObject* Parent, const FString& AssetName)
+	{
+		if (!FactoryNode)
+		{
+			return nullptr;
+		}
+
+		const UClass* AssetClass = FactoryNode->GetObjectClass();
+		if (!ensure(AssetClass && AssetClass->IsChildOf(FactoryClass)))
+		{
+			UE_LOG(LogInterchangeEngine, Error, TEXT("The asset class %s is not compatible with the factory class %s. Cannot import asset %s ."), *AssetClass->GetName(), *FactoryClass->GetName(), *AssetName);
+			return nullptr;
+		}
+
+		UObject* ExistingAsset = nullptr;
+		FSoftObjectPath ReferenceObject;
+		if (FactoryNode->GetCustomReferenceObject(ReferenceObject))
+		{
+			ExistingAsset = ReferenceObject.TryLoad();
+		}
+
+		// create a new static mesh or overwrite existing asset, if possible
+		if (!ExistingAsset)
+		{
+			UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot import the %s asset [%s], because it was not create on the game thread."), *AssetClass->GetName(), *AssetName);
+			return nullptr;
+		}
+
+		if (!ExistingAsset->GetClass()->IsChildOf(AssetClass))
+		{
+			UE_LOG(LogInterchangeEngine, Error, TEXT("Cannot import the %s asset [%s], because it will override an asset of a different class (%s)."), *AssetClass->GetName(), *AssetName, *ExistingAsset->GetClass()->GetName());
+			return nullptr;
+		}
+		return ExistingAsset;
 	}
 }

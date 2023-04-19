@@ -635,7 +635,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeMaterialFactory::ImportA
 	//Do not override an asset we skip
 	if (bSkipImport)
 	{
-		ImportAssetResult.ImportedObject = ExistingAsset;
+		ImportAssetResult.ImportedObject = MaterialObject;
 		return ImportAssetResult;
 	}
 	const bool bReimport = Arguments.ReimportObject && MaterialObject;
@@ -688,8 +688,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeMaterialFactory::ImportA
 
 	//Getting the file Hash will cache it into the source data
 	Arguments.SourceData->GetFileContentHash();
-		//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all material in parallel
-	}
+
 	return ImportAssetResult;
 }
 
@@ -1461,9 +1460,10 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeMaterialFunctionFactory:
 	//Do not override an asset we skip
 	if (bSkipImport)
 	{
-		ImportAssetResult.ImportedObject = ExistingAsset;
+		ImportAssetResult.ImportedObject = MaterialObject;
 		return ImportAssetResult;
 	}
+
 	const bool bReimport = Arguments.ReimportObject && MaterialObject;
 
 	if (!MaterialObject)
