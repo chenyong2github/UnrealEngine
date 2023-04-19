@@ -69,6 +69,9 @@ namespace Chaos
 		EObjectStateType GetObjectState_External() const;
 		void SetObjectState_External(EObjectStateType State);
 
+		// Set GT geometry - this is only for smoothing over any changes until the PT syncs back to the GT.
+		void SetSharedGeometry_External(const TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>& Geometry, const TArray<FPBDRigidParticle*>& ShapeParticles);
+
 		// Cluster union proxy initialization happens in two first on the game thread (external) then on the
 		// physics thread (internal). Cluster unions are a primarily physics concept so the things exposed to
 		// an external context is just there to be able to safely query the state on the physics thread and to

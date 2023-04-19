@@ -33,7 +33,6 @@ namespace Chaos
 		// Some parameters aren't relevant after creation.
 		NewUnion.ClusterUnionParameters.UniqueIndex = nullptr;
 
-
 		if (ensure(NewUnion.InternalCluster != nullptr))
 		{
 			NewUnion.InternalCluster->SetInternalCluster(true);
@@ -94,7 +93,6 @@ namespace Chaos
 		}
 
 		// TODO: Can we do something better than a union?
-
 		const FRigidTransform3 ClusterWorldTM(Union.InternalCluster->X(), Union.InternalCluster->R());
 		TArray<TUniquePtr<FImplicitObject>> Objects;
 		Objects.Reserve(Union.ChildParticles.Num());
@@ -115,9 +113,7 @@ namespace Chaos
 
 			if (Child->Geometry())
 			{
-				FImplicitObjectTransformed* TransformedChildGeometry = new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame);
-				TransformedChildGeometry->SetSharedObject(Child->SharedGeometry());
-				Objects.Add(TUniquePtr<FImplicitObject>(TransformedChildGeometry));
+				Objects.Add(TUniquePtr<FImplicitObject>(CreateTransformGeometryForClusterUnion<EThreadContext::Internal>(Child, Frame)));
 			}
 		}
 

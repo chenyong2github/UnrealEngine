@@ -78,6 +78,22 @@ namespace Chaos
 	class CHAOS_API FClusterUnionManager
 	{
 	public:
+
+		template<EThreadContext Id>
+		static FImplicitObjectTransformed* CreateTransformGeometryForClusterUnion(TThreadRigidParticle<Id>* Child, const FTransform& Frame)
+		{
+			FImplicitObjectTransformed* TransformedChildGeometry = new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame);
+			if constexpr (Id == EThreadContext::External)
+			{
+				TransformedChildGeometry->SetSharedObject(Child->GeometrySharedLowLevel());
+			}
+			else
+			{
+				TransformedChildGeometry->SetSharedObject(Child->SharedGeometry());
+			}
+			return TransformedChildGeometry;
+		}
+
 		FClusterUnionManager(FRigidClustering& InClustering, FPBDRigidsEvolutionGBF& InEvolution);
 
 		// Creates a new cluster union with an automatically assigned cluster union index.

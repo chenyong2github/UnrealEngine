@@ -245,6 +245,57 @@ namespace Chaos
 		);
 	}
 
+	void FClusterUnionPhysicsProxy::SetSharedGeometry_External(const TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>& Geometry, const TArray<FPBDRigidParticle*>& ShapeParticles)
+	{
+		if (!ensure(Particle_External))
+		{
+			return;
+		}
+
+		// In the cases where this is necessary, the SQ should have a valid state - it's just the geometry itself that isn't valid.
+		Particle_External->SetGeometry(Geometry);
+
+		// Need to fill in query/sim data because the input geometry will not have it set properly.
+		// TODO: This duplicates some code in Chaos::FClusterUnionManager and has the same assumptions.
+		if (ShapeParticles.Num() == Particle_External->ShapesArray().Num())
+		{
+			int32 Index = 0;
+			for (const TUniquePtr<FPerShapeData>& ShapeData : Particle_External->ShapesArray())
+			{
+				if (Index >= ShapeParticles.Num() || ShapeParticles[Index]->ShapesArray().IsEmpty())
+				{
+					++Index;
+					continue;
+				}
+
+				const TUniquePtr<Chaos::FPerShapeData>& TemplateShape = ShapeParticles[Index]->ShapesArray()[0];
+				if (ShapeData && TemplateShape)
+				{
+					{
+						FCollisionData Data = TemplateShape->GetCollisionData();
+						Data.UserData = nullptr;
+						ShapeData->SetCollisionData(Data);
+					}
+
+					{
+						FCollisionFilterData Data = TemplateShape->GetQueryData();
+						Data.Word0 = InitData.ActorId;
+						ShapeData->SetQueryData(Data);
+					}
+
+					{
+						FCollisionFilterData Data = TemplateShape->GetSimData();
+						Data.Word0 = 0;
+						Data.Word2 = InitData.ComponentId;
+						ShapeData->SetSimData(Data);
+					}
+				}
+
+				++Index;
+			}
+		}
+	}
+
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionPhysicsProxy::PushToPhysicsState"), STAT_ClusterUnionPhysicsProxyPushToPhysicsState, STATGROUP_Chaos);
 	void FClusterUnionPhysicsProxy::PushToPhysicsState(const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyProxy& Dirty)
 	{
@@ -324,16 +375,16 @@ namespace Chaos
 			return false;
 		}
 
-		const FClusterUnionProxyTimestamp* ProxyTimestamp = PullData.GetTimestamp();
+		const FDirtyClusterUnionData& CurrentPullData = NextPullData ? *NextPullData : PullData;
+		const FClusterUnionProxyTimestamp* ProxyTimestamp = CurrentPullData.GetTimestamp();
 		if (!ProxyTimestamp)
 		{
 			return false;
 		}
 
-		
-		SyncedData_External.bIsAnchored = PullData.bIsAnchored;
-		SyncedData_External.ChildParticles.Empty(PullData.ChildParticles.Num());
-		for (const FDirtyClusterUnionParticleData& InData : PullData.ChildParticles)
+		SyncedData_External.bIsAnchored = CurrentPullData.bIsAnchored;
+		SyncedData_External.ChildParticles.Empty(CurrentPullData.ChildParticles.Num());
+		for (const FDirtyClusterUnionParticleData& InData : CurrentPullData.ChildParticles)
 		{
 			FClusterUnionChildData ConvertedData;
 			ConvertedData.ParticleIdx = InData.ParticleIdx;
@@ -341,27 +392,27 @@ namespace Chaos
 			SyncedData_External.ChildParticles.Add(ConvertedData);
 		}
 
-		Particle_External->SetGeometry(PullData.SharedGeometry);
-		Particle_External->SetObjectState(PullData.ObjectState, true, /*bInvalidate=*/false);
+		Particle_External->SetGeometry(CurrentPullData.SharedGeometry);
+		Particle_External->SetObjectState(CurrentPullData.ObjectState, true, /*bInvalidate=*/false);
 
 		const FShapesArray& ShapeArray = Particle_External->ShapesArray();
 		for (int32 ShapeIndex = 0; ShapeIndex < ShapeArray.Num(); ++ShapeIndex)
 		{
 			if (const TUniquePtr<Chaos::FPerShapeData>& ShapeData = ShapeArray[ShapeIndex])
 			{
-				if (PullData.CollisionData.IsValidIndex(ShapeIndex))
+				if (CurrentPullData.CollisionData.IsValidIndex(ShapeIndex))
 				{
-					ShapeData->SetCollisionData(PullData.CollisionData[ShapeIndex]);
+					ShapeData->SetCollisionData(CurrentPullData.CollisionData[ShapeIndex]);
 				}
 
-				if (PullData.QueryData.IsValidIndex(ShapeIndex))
+				if (CurrentPullData.QueryData.IsValidIndex(ShapeIndex))
 				{
-					ShapeData->SetQueryData(PullData.QueryData[ShapeIndex]);
+					ShapeData->SetQueryData(CurrentPullData.QueryData[ShapeIndex]);
 				}
 
-				if (PullData.SimData.IsValidIndex(ShapeIndex))
+				if (CurrentPullData.SimData.IsValidIndex(ShapeIndex))
 				{
-					ShapeData->SetSimData(PullData.SimData[ShapeIndex]);
+					ShapeData->SetSimData(CurrentPullData.SimData[ShapeIndex]);
 				}
 			}
 		}

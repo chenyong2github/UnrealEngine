@@ -43,14 +43,15 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 		return;
 	}
 
+	FClusterUnionPendingAddData PendingData;
+	PendingData.BoneIds = BoneIds;
+
 	if (!InComponent->HasValidPhysicsState())
 	{
 		if (!PendingComponentsToAdd.Contains(InComponent))
 		{
 			// Early out - defer adding the component to the cluster until the component has a valid physics state.
-			FClusterUnionPendingAddData Data;
-			Data.BoneIds = BoneIds;
-			PendingComponentsToAdd.Add(InComponent, Data);
+			PendingComponentsToAdd.Add(InComponent, PendingData);
 			InComponent->OnComponentPhysicsStateChanged.AddDynamic(this, &UClusterUnionComponent::HandleComponentPhysicsStateChange);
 		}
 		return;
@@ -105,7 +106,15 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 		return;
 	}
 
+	PendingData.BoneIds.Empty(Objects.Num());
+	for (Chaos::FPhysicsObjectHandle Object : Objects)
+	{
+		PendingData.BoneIds.Add(Chaos::FPhysicsObjectInterface::GetId(Object));
+	}
+
+	PendingComponentSync.Add(InComponent, PendingData);
 	PhysicsProxy->AddPhysicsObjects_External(Objects);
+	ForceRebuildGTParticleGeometry();
 }
 
 void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InComponent)
@@ -129,6 +138,7 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 		// We need to mark the replicated proxy as pending deletion.
 		// This way anyone who tries to use the replicated proxy component knows that it
 		// doesn't actually denote a meaningful cluster union relationship.
+		ComponentData->bPendingDeletion = true;
 		if (IsAuthority())
 		{
 			if (UClusterUnionReplicatedProxyComponent* Component = ComponentData->ReplicatedProxyComponent.Get())
@@ -150,6 +160,55 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 	}
 
 	PhysicsProxy->RemovePhysicsObjects_External(PhysicsObjectsToRemove);
+	ForceRebuildGTParticleGeometry();
+}
+
+void UClusterUnionComponent::ForceRebuildGTParticleGeometry()
+{
+	if (!PhysicsProxy)
+	{
+		return;
+	}
+
+	// This is an assumption that all the physics objects are part of this scene and thus this is the right thing to lock.
+	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(GetWorld()->GetPhysicsScene());
+
+	const FTransform ClusterWorldTM = GetComponentTransform();
+	TArray<UPrimitiveComponent*> Components = GetAllCurrentChildComponents();
+	// This code is similar-ish to FClusterUnionManager::ForceRecreateClusterUnionSharedGeometry but not enough to make it necessary
+	// to reshare exactly the same code.
+	TArray<TUniquePtr<Chaos::FImplicitObject>> Objects;
+	TArray<Chaos::FPBDRigidParticle*> Particles;
+
+	// Should be a good number to reserve for now since it's a generally safe assumption we'll be working with 1 particle per component added.
+	Objects.Reserve(Components.Num());
+	Particles.Reserve(Components.Num());
+
+	for (UPrimitiveComponent* Child : Components)
+	{
+		check(Child != nullptr);
+		TArray<int32> BoneIds = GetAddedBoneIdsForComponent(Child);
+		TArray<Chaos::FPhysicsObjectHandle> PhysicsObjects;
+		PhysicsObjects.Reserve(BoneIds.Num());
+		for (int32 Id : BoneIds)
+		{
+			PhysicsObjects.Add(Child->GetPhysicsObjectById(Id));
+		}
+
+		for (Chaos::FPBDRigidParticle* Particle : Interface->GetAllRigidParticles(PhysicsObjects))
+		{
+			if (Particle && Particle->Geometry())
+			{
+				const FTransform ChildWorldTM{ Particle->R(), Particle->X() };
+				const FTransform Frame = ChildWorldTM.GetRelativeTransform(ClusterWorldTM);
+				Objects.Add(TUniquePtr<Chaos::FImplicitObject>(Chaos::FClusterUnionManager::CreateTransformGeometryForClusterUnion<Chaos::EThreadContext::External>(Particle, Frame)));
+				Particles.Add(Particle);
+			}
+		}
+	}
+
+	TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> NewGeometry = Objects.IsEmpty() ? MakeShared<Chaos::FImplicitObjectUnionClustered>() : MakeShared<Chaos::FImplicitObjectUnion>(MoveTemp(Objects));
+	PhysicsProxy->SetSharedGeometry_External(NewGeometry, Particles);
 }
 
 TArray<UPrimitiveComponent*> UClusterUnionComponent::GetPrimitiveComponents()
@@ -408,6 +467,7 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 
 	const bool bIsNew = !ComponentToPhysicsObjects.Contains(ChangedComponent);
 	FClusteredComponentData& ComponentData = ComponentToPhysicsObjects.FindOrAdd(ChangedComponent);
+	PendingComponentSync.Remove(ChangedComponent);
 
 	// If this is a *new* component that we're keeping track of then there's additional book-keeping
 	// we need to do to make sure we don't forget what exactly we're tracking. Additionally, we need to
@@ -459,14 +519,13 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 		}
 	}
 
+	PerBoneChildToParent.GetKeys(ComponentData.BoneIds);
+
 	if (IsAuthority() && ComponentData.ReplicatedProxyComponent.IsValid())
 	{
 		// We really only need to do modifications on the server since that's where we're changing the replicated proxy to broadcast this data change.
-		TSet<int32> BoneIds;
-		PerBoneChildToParent.GetKeys(BoneIds);
-
 		TObjectPtr<UClusterUnionReplicatedProxyComponent> ReplicatedProxy = ComponentData.ReplicatedProxyComponent.Get();
-		ReplicatedProxy->SetParticleBoneIds(BoneIds.Array());
+		ReplicatedProxy->SetParticleBoneIds(ComponentData.BoneIds.Array());
 		for (const TPair<int32, FTransform>& Kvp : PerBoneChildToParent)
 		{
 			ReplicatedProxy->SetParticleChildToParent(Kvp.Key, Kvp.Value);
@@ -610,9 +669,9 @@ bool UClusterUnionComponent::LineTraceComponent(FHitResult& OutHit, const FVecto
 {
 	bool bHasHit = false;
 	OutHit.Distance = TNumericLimits<float>::Max();
-	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	for (UPrimitiveComponent* Component : GetAllCurrentChildComponents())
 	{
-		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr())
+		if (Component)
 		{
 			FHitResult ComponentHit;
 			if (Component->LineTraceComponent(ComponentHit, Start, End, Params) && ComponentHit.Distance < OutHit.Distance)
@@ -629,9 +688,9 @@ bool UClusterUnionComponent::SweepComponent(FHitResult& OutHit, const FVector St
 {
 	bool bHasHit = false;
 	OutHit.Distance = TNumericLimits<float>::Max();
-	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	for (UPrimitiveComponent* Component : GetAllCurrentChildComponents())
 	{
-		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr())
+		if (Component)
 		{
 			FHitResult ComponentHit;
 			if (Component->SweepComponent(ComponentHit, Start, End, ShapeWorldRotation, CollisionShape, bTraceComplex) && ComponentHit.Distance < OutHit.Distance)
@@ -647,9 +706,9 @@ bool UClusterUnionComponent::SweepComponent(FHitResult& OutHit, const FVector St
 bool UClusterUnionComponent::OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape, TArray<FOverlapResult>& OutOverlap) const
 {
 	bool bHasOverlap = false;
-	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	for (UPrimitiveComponent* Component : GetAllCurrentChildComponents())
 	{
-		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr())
+		if (Component)
 		{
 			TArray<FOverlapResult> SubOverlaps;
 			if (Component->OverlapComponentWithResult(Pos, Rot, CollisionShape, SubOverlaps))
@@ -680,9 +739,9 @@ bool UClusterUnionComponent::ComponentOverlapComponentWithResultImpl(const class
 		IgnoredComponents.Add(Id);
 	}
 
-	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	for (UPrimitiveComponent* Component : GetAllCurrentChildComponents())
 	{
-		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr())
+		if (Component)
 		{
 			if (IgnoredComponents.Contains(Component->GetUniqueID()))
 			{
@@ -706,6 +765,45 @@ bool UClusterUnionComponent::ComponentOverlapComponentWithResultImpl(const class
 		}
 	}
 	return bHasOverlap;
+}
+
+TArray<UPrimitiveComponent*> UClusterUnionComponent::GetAllCurrentChildComponents() const
+{
+	TArray<UPrimitiveComponent*> Components;
+	Components.Reserve(ComponentToPhysicsObjects.Num() + PendingComponentSync.Num());
+
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData>& Kvp : PendingComponentSync)
+	{
+		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr(); Component && Component->HasValidPhysicsState())
+		{
+			Components.Add(Component);
+		}
+	}
+
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	{
+		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr(); Component && Component->HasValidPhysicsState() && !Kvp.Value.bPendingDeletion)
+		{
+			Components.Add(Component);
+		}
+	}
+
+	return Components;
+}
+
+TArray<int32> UClusterUnionComponent::GetAddedBoneIdsForComponent(UPrimitiveComponent* Component) const
+{
+	if (const FClusteredComponentData* Data = ComponentToPhysicsObjects.Find(Component))
+	{
+		return Data->BoneIds.Array();
+	}
+
+	if (const FClusterUnionPendingAddData* Data = PendingComponentSync.Find(Component))
+	{
+		return Data->BoneIds;
+	}
+
+	return {};
 }
 
 void UClusterUnionComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -733,6 +831,14 @@ void UClusterUnionComponent::AddReferencedObjects(UObject* InThis, FReferenceCol
 	{
 		const UScriptStruct* ScriptStruct = FClusterUnionPendingAddData::StaticStruct();
 		for (TPair<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData>& Kvp : This->PendingComponentsToAdd)
+		{
+			Collector.AddReferencedObjects(ScriptStruct, reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
+		}
+	}
+
+	{
+		const UScriptStruct* ScriptStruct = FClusterUnionPendingAddData::StaticStruct();
+		for (TPair<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData>& Kvp : This->PendingComponentSync)
 		{
 			Collector.AddReferencedObjects(ScriptStruct, reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
 		}

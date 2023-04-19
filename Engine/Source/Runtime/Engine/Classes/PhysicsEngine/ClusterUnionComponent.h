@@ -34,6 +34,9 @@ struct FClusteredComponentData
 	// Set of physics objects that we actually added into the cluster union.
 	TSet<Chaos::FPhysicsObjectHandle> PhysicsObjects;
 
+	// Set of bone Ids that we actually added into the cluster union.
+	TSet<int32> BoneIds;
+
 	// Every physics object associated with this particular component.
 	TArray<Chaos::FPhysicsObjectHandle> AllPhysicsObjects;
 
@@ -44,6 +47,9 @@ struct FClusteredComponentData
 
 	UPROPERTY()
 	bool bWasReplicating = true;
+
+	UPROPERTY()
+	bool bPendingDeletion = false;
 };
 
 USTRUCT()
@@ -160,6 +166,8 @@ protected:
 	UFUNCTION()
 	void ForceSetChildToParent(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds, const TArray<FTransform>& ChildToParent);
 
+	TArray<int32> GetAddedBoneIdsForComponent(UPrimitiveComponent* Component) const;
+
 private:
 	// These are the statically clustered components. These should
 	// be specified in the editor and never change.
@@ -178,8 +186,14 @@ private:
 	TMap<TObjectKey<AActor>, FClusteredActorData> ActorToComponents;
 
 	// Sometimes we might be in the process of waiting for a component to create it physics state before adding to the cluster.
-	// Make sure we don't try to add the component multiples times while the add is pending.
+	// Make sure we don't try to add the component multiples times while the add is pending. Gets removed finally when PT syncs
+	// back to the GT with this component.
 	TMap<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData> PendingComponentsToAdd;
+
+	// After we add to a cluster union, we need to wait for the sync from the PT back to the GT before removing the component from PendingComponentSync.
+	// Before that happens, we need to perform operations on the GT assuming that the component was added already otherwise there'll be a few frames
+	// where the component hasn't been added to the cluster union on the GT causing a mismatch in behavior.
+	TMap<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData> PendingComponentSync;
 
 	// Given a unique index of a particle that we're adding to the cluster union - map it back to the component that owns it.
 	// This works decently because we assume that when we're using a cluster union component, we will only try to add to the
@@ -215,9 +229,15 @@ private:
 	void HandleAddOrModifiedClusteredComponent(UPrimitiveComponent* ChangedComponent, const TMap<int32, FTransform>& PerBoneChildToParent);
 	void HandleRemovedClusteredComponent(UPrimitiveComponent* ChangedComponent, bool bDestroyReplicatedProxy);
 
+	TArray<UPrimitiveComponent*> GetAllCurrentChildComponents() const;
+
 	// Whether or not this code is running on the server.
 	UFUNCTION()
 	bool IsAuthority() const;
+
+	// Force a rebuild of the GT geometry. This needs to happen immediately when we add/remove on the GT so that the SQ is up to date
+	// and doesn't need to wait for the next OnSyncBodies.
+	void ForceRebuildGTParticleGeometry();
 
 	//~ Begin UActorComponent Interface
 public:

@@ -47,8 +47,10 @@ using FLockedWritePhysicsObjectExternalInterface = FLockedPhysicsObjectExternalI
 class ENGINE_API FPhysicsObjectExternalInterface : public Chaos::FPhysicsObjectInterface, public PhysicsObjectPhysicsCoreInterface
 {
 public:
+	static FLockedReadPhysicsObjectExternalInterface LockRead(FChaosScene* Scene);
 	static FLockedReadPhysicsObjectExternalInterface LockRead(Chaos::FConstPhysicsObjectHandle InObject);
 	static FLockedReadPhysicsObjectExternalInterface LockRead(TArrayView<const Chaos::FConstPhysicsObjectHandle> InObjects);
+	static FLockedWritePhysicsObjectExternalInterface LockWrite(FChaosScene* Scene);
 	static FLockedWritePhysicsObjectExternalInterface LockWrite(TArrayView<const Chaos::FPhysicsObjectHandle> InObjects);
 
 	static Chaos::FReadPhysicsObjectInterface_External GetRead_AssumesLocked();
