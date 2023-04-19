@@ -45,7 +45,7 @@ struct ENGINE_API FTrajectorySample
 
 // A container of ordered trajectory samples and associated sampling rate
 USTRUCT(BlueprintType, Category="Motion Trajectory")
-struct ENGINE_API FTrajectorySampleRange
+struct UE_DEPRECATED(5.3, "Use FPoseSearchQueryTrajectory instead") ENGINE_API FTrajectorySampleRange
 {
 	GENERATED_BODY()
 

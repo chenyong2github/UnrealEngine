@@ -3,10 +3,10 @@
 #pragma once
 
 #include "Animation/AnimNode_AssetPlayerBase.h"
-#include "Animation/MotionTrajectoryTypes.h"
 #include "GameplayTagContainer.h"
 #include "PoseSearch/AnimNode_BlendStack.h"
 #include "PoseSearch/PoseSearchLibrary.h"
+#include "PoseSearch/PoseSearchTrajectoryTypes.h"
 #include "AnimNode_MotionMatching.generated.h"
 
 class UPoseSearchDatabase;
@@ -26,7 +26,7 @@ private:
 
 	// Motion Trajectory samples for pose search queries in Motion Matching.These are expected to be in the space of the SkeletalMeshComponent.This is provided with the CharacterMovementTrajectory Component output.
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(PinShownByDefault))
-	FTrajectorySampleRange Trajectory;
+	FPoseSearchQueryTrajectory Trajectory;
 
 	// Settings for the core motion matching node.
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(PinHiddenByDefault))

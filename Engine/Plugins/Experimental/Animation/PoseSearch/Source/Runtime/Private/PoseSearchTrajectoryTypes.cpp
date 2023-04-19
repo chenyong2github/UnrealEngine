@@ -3,7 +3,9 @@
 #include "PoseSearch/PoseSearchTrajectoryTypes.h"
 
 #include "Animation/AnimTypes.h"
+#include "Components/SceneComponent.h"
 #include "DrawDebugHelpers.h"
+#include "PoseSearch/PoseSearchDefines.h"
 
 FPoseSearchQueryTrajectorySample FPoseSearchQueryTrajectorySample::Lerp(const FPoseSearchQueryTrajectorySample& Other, float Alpha) const
 {
@@ -12,13 +14,17 @@ FPoseSearchQueryTrajectorySample FPoseSearchQueryTrajectorySample::Lerp(const FP
 
 	FPoseSearchQueryTrajectorySample Result;
 	
-	Result.Facing = FQuat::FastLerp(Facing, Other.Facing, Alpha);
+	Result.Facing = FQuat::FastLerp(Facing, Other.Facing, Alpha).GetNormalized();
 	Result.Position = FMath::Lerp(Position, Other.Position, Alpha);
 	Result.AccumulatedSeconds = FMath::Lerp(AccumulatedSeconds, Other.AccumulatedSeconds, Alpha);
-	
-	Result.Facing.Normalize();
 
 	return Result;
+}
+
+void FPoseSearchQueryTrajectorySample::SetTransform(const FTransform& Transform)
+{
+	Position = Transform.GetTranslation();
+	Facing = Transform.GetRotation();
 }
 
 FPoseSearchQueryTrajectorySample FPoseSearchQueryTrajectory::GetSampleAtTime(float Time, bool bExtrapolate) const
@@ -53,14 +59,19 @@ FPoseSearchQueryTrajectorySample FPoseSearchQueryTrajectory::GetSampleAtTime(flo
 	return FPoseSearchQueryTrajectorySample();
 }
 
+void FPoseSearchQueryTrajectory::TransformReferenceFrame(const FTransform& DeltaTransform)
+{
+	const FTransform InverseDeltaTransform = DeltaTransform.Inverse();
+	for (FPoseSearchQueryTrajectorySample& Sample : Samples)
+	{
+		const FTransform Transform = InverseDeltaTransform * Sample.GetTransform() * DeltaTransform;
+		Sample.SetTransform(Transform);
+	}
+}
+
 #if ENABLE_ANIM_DEBUG
 void FPoseSearchQueryTrajectory::DebugDrawTrajectory(const UWorld* World, const FTransform& TransformWS) const
 {
-	if (Samples.Num() <= 1)
-	{
-		return;
-	}
-
 	for (int32 Index = 0; Index < Samples.Num(); ++Index)
 	{
 		const FVector CurrentSamplePositionWS = TransformWS.TransformPosition(Samples[Index].Position);

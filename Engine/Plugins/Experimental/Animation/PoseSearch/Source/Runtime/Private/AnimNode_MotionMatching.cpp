@@ -7,7 +7,6 @@
 #include "Animation/AnimRootMotionProvider.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
-#include "Animation/MotionTrajectoryTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
 #include "PoseSearch/PoseSearchDatabase.h"

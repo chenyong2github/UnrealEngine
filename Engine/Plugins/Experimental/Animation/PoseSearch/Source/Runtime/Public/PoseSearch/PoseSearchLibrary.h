@@ -20,7 +20,7 @@ namespace UE::PoseSearch
 } // namespace UE::PoseSearch
 
 struct FAnimationUpdateContext;
-struct FTrajectorySampleRange;
+struct FPoseSearchQueryTrajectory;
 
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
 struct POSESEARCH_API FMotionMatchingSettings
@@ -140,7 +140,7 @@ public:
 	static void UpdateMotionMatchingState(
 		const FAnimationUpdateContext& Context,
 		const TArray<TObjectPtr<const UPoseSearchDatabase>>& Databases,
-		const FTrajectorySampleRange& Trajectory,
+		const FPoseSearchQueryTrajectory& Trajectory,
 		const FMotionMatchingSettings& Settings,
 		FMotionMatchingState& InOutMotionMatchingState,
 		bool bForceInterrupt);
@@ -167,7 +167,7 @@ public:
 	static void MotionMatch(
 		UAnimInstance* AnimInstance,
 		const UPoseSearchDatabase* Database,
-		const FTrajectorySampleRange Trajectory,
+		const FPoseSearchQueryTrajectory Trajectory,
 		const FName PoseHistoryName,
 		UAnimationAsset*& SelectedAnimation,
 		float& SelectedTime,

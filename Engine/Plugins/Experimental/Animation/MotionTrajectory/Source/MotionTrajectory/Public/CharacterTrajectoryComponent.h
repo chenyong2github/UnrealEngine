@@ -2,13 +2,8 @@
 
 #pragma once
 
-#include "Animation/MotionTrajectoryTypes.h"
 #include "Components/ActorComponent.h"
 #include "PoseSearch/PoseSearchTrajectoryTypes.h"
-
-// This is temporary to support compatibility with existing data until we switch Motion Matching to use FPoseSearchTrajectory.
-#include "Animation/MotionTrajectoryTypes.h"
-
 #include "CharacterTrajectoryComponent.generated.h"
 
 class UCharacterMovementComponent;
@@ -35,12 +30,13 @@ protected:
 	UFUNCTION()
 	void OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity);
 
+	UFUNCTION(BlueprintCallable, Category="Trajectory")
+	FPoseSearchQueryTrajectory GetCharacterRelativeTrajectory() const;
+
 	void UpdateHistory(float DeltaSeconds, const FTransform& DeltaTransformCS);
 	void UpdatePrediction(const FVector& VelocityCS, const FVector& AccelerationCS, const FRotator& ControllerRotationRate);
 
 	FRotator CalculateControllerRotationRate(float DeltaSeconds, bool bShouldRemainVertical);
-
-protected:
 
 	// Trajectory stored in component space so it can be directly passed to Motion Matching.
 	UPROPERTY(BlueprintReadOnly, Category = "Trajectory")
@@ -87,8 +83,4 @@ protected:
 	FQuat ForwardFacingCS = FQuat::Identity;
 
 	FRotator DesiredControllerRotationLastUpdate = FRotator::ZeroRotator;
-
-	// This is temporary to support compatibility with existing data until we switch Motion Matching to use FPoseSearchQueryTrajectory.
-	UPROPERTY(BlueprintReadOnly, Category = "Trajectory")
-	FTrajectorySampleRange Temp_TrajectorySampleRange;
 };

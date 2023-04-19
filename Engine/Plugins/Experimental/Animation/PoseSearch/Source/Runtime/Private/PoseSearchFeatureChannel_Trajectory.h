@@ -6,8 +6,6 @@
 #include "UObject/ObjectSaveContext.h"
 #include "PoseSearchFeatureChannel_Trajectory.generated.h"
 
-struct FTrajectorySampleRange;
-
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EPoseSearchTrajectoryFlags : uint32
 {

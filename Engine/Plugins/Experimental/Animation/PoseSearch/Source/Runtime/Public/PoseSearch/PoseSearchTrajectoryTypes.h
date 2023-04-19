@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Animation/AnimTypes.h"
+#include "Animation/MotionTrajectoryTypes.h"
 
 #include "PoseSearchTrajectoryTypes.generated.h"
 
@@ -21,6 +22,8 @@ struct POSESEARCH_API FPoseSearchQueryTrajectorySample
 	float AccumulatedSeconds = 0.f;
 
 	FPoseSearchQueryTrajectorySample Lerp(const FPoseSearchQueryTrajectorySample& Other, float Alpha) const;
+	void SetTransform(const FTransform& Transform);
+	FTransform GetTransform() const { return FTransform(Facing, Position); }
 };
 
 USTRUCT(BlueprintType, Category = "Motion Trajectory")
@@ -32,7 +35,9 @@ struct POSESEARCH_API FPoseSearchQueryTrajectory
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pose Search Query Trajectory")
 	TArray<FPoseSearchQueryTrajectorySample> Samples;
 
-	FPoseSearchQueryTrajectorySample GetSampleAtTime(float Time, bool bExtrapolate) const;
+	FPoseSearchQueryTrajectorySample GetSampleAtTime(float Time, bool bExtrapolate = true) const;
+	
+	void TransformReferenceFrame(const FTransform& DeltaTransform);
 
 #if ENABLE_ANIM_DEBUG
 	void DebugDrawTrajectory(const UWorld* World, const FTransform& TransformWS) const;

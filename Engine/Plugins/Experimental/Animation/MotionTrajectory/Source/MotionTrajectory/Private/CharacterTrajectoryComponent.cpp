@@ -9,9 +9,6 @@
 #include "HAL/IConsoleManager.h"
 #include "MotionTrajectory.h"
 
-#include "MotionTrajectoryCharacterMovement.h"
-#include "MotionTrajectoryLibrary.h"
-
 #if ENABLE_ANIM_DEBUG
 TAutoConsoleVariable<int32> CVarCharacterTrajectoryDebug(TEXT("a.CharacterTrajectory.Debug"), 0, TEXT("Turn on debug drawing for Character trajectory"));
 #endif // ENABLE_ANIM_DEBUG
@@ -98,15 +95,22 @@ void UCharacterTrajectoryComponent::BeginPlay()
 
 	// History + current sample + prediction
 	Trajectory.Samples.Init(DefaultSample, NumHistorySamples + 1 + NumPredictionSamples);
+
+	// initializing history samples AccumulatedSeconds
+	for (int32 i = 0; i < NumHistorySamples; ++i)
+	{
+		Trajectory.Samples[i].AccumulatedSeconds = SecondsPerHistorySample * (i - NumHistorySamples);
+	}
+
+	// initializing history samples AccumulatedSeconds
+	for (int32 i = NumHistorySamples + 1; i < Trajectory.Samples.Num(); ++i)
+	{
+		Trajectory.Samples[i].AccumulatedSeconds = SecondsPerPredictionSample * (i - NumHistorySamples);
+	}
 }
 
 void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity)
 {
-	if (FMath::IsNearlyZero(DeltaSeconds))
-	{
-		return;
-	}
-
 	if (!ensure(CharacterMovementComponent != nullptr && SkelMeshComponent != nullptr))
 	{
 		return;
@@ -124,23 +128,21 @@ void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVecto
 	UpdatePrediction(VelocityCS, AccelerationCS, ControllerRotationRate);
 
 #if ENABLE_ANIM_DEBUG
-	if (CVarCharacterTrajectoryDebug.GetValueOnAnyThread() == 1)
+	if (CVarCharacterTrajectoryDebug.GetValueOnAnyThread())
 	{
 		Trajectory.DebugDrawTrajectory(GetWorld(), SkelMeshComponentTransformWS);
 	}
 #endif // ENABLE_ANIM_DEBUG
+}
 
-	// Convert to FTrajectorySampleRange for testing with the Motion Matching node.
-	// This is temporary to support compatibility with existing data until we switch Motion Matching to use FPoseSearchTrajectory.
-	Temp_TrajectorySampleRange.Samples.Reset(Trajectory.Samples.Num());
-	for (const FPoseSearchQueryTrajectorySample& Sample : Trajectory.Samples)
-	{
-		FTrajectorySample TempSample;
-		TempSample.Transform.SetLocation(Sample.Position);
-		TempSample.AccumulatedSeconds = Sample.AccumulatedSeconds;
-
-		Temp_TrajectorySampleRange.Samples.Add(TempSample);
-	}
+FPoseSearchQueryTrajectory UCharacterTrajectoryComponent::GetCharacterRelativeTrajectory() const
+{
+	FPoseSearchQueryTrajectory CharacterRelativeTrajectory = Trajectory;
+	const FTransform OwnerTransformWS = GetOwner()->GetActorTransform();
+	const FTransform ComponentTransformWS = SkelMeshComponent->GetComponentTransform();
+	const FTransform ReferenceChangeTransform = OwnerTransformWS.GetRelativeTransform(ComponentTransformWS);
+	CharacterRelativeTrajectory.TransformReferenceFrame(ReferenceChangeTransform);
+	return CharacterRelativeTrajectory;
 }
 
 void UpdateHistorySample(FPoseSearchQueryTrajectorySample& Sample, float DeltaSeconds, const FTransform& DeltaTransformCS)
@@ -161,8 +163,7 @@ void UCharacterTrajectoryComponent::UpdateHistory(float DeltaSeconds, const FTra
 	check(NumHistorySamples <= Trajectory.Samples.Num());
 
 	// Shift history Samples when it's time to record a new one.
-	if (NumHistorySamples > 0 &&
-		(FMath::Abs(Trajectory.Samples[NumHistorySamples - 1].AccumulatedSeconds) >= SecondsPerHistorySample))
+	if (NumHistorySamples > 0 && FMath::Abs(Trajectory.Samples[NumHistorySamples - 1].AccumulatedSeconds) >= SecondsPerHistorySample)
 	{
 		for (int32 Index = 0; Index < NumHistorySamples; ++Index)
 		{

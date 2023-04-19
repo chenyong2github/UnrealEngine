@@ -2,11 +2,11 @@
 
 #include "PoseSearch/PoseSearchContext.h"
 #include "Animation/AnimInstanceProxy.h"
-#include "Animation/MotionTrajectoryTypes.h"
 #include "AnimationRuntime.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchHistory.h"
 #include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearch/PoseSearchTrajectoryTypes.h"
 #include "PoseSearchFeatureChannel_Position.h"
 
 namespace UE::PoseSearch
@@ -259,7 +259,7 @@ void FDebugDrawParams::DrawFeatureVector(int32 PoseIdx)
 
 //////////////////////////////////////////////////////////////////////////
 // FSearchContext
-FSearchContext::FSearchContext(const FTrajectorySampleRange* InTrajectory, const IPoseHistory* InHistory, float InDesiredPermutationTimeOffset, const FPoseIndicesHistory* InPoseIndicesHistory,
+FSearchContext::FSearchContext(const FPoseSearchQueryTrajectory* InTrajectory, const IPoseHistory* InHistory, float InDesiredPermutationTimeOffset, const FPoseIndicesHistory* InPoseIndicesHistory,
 	EPoseSearchBooleanRequest InQueryMirrorRequest, const FSearchResult& InCurrentResult, float InPoseJumpThresholdTime, bool bInForceInterrupt, bool bInCanAdvance)
 : Trajectory(InTrajectory)
 , History(InHistory)
@@ -362,8 +362,8 @@ FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchem
 	else
 	{
 		check(Trajectory);
-		const FTrajectorySample TrajectorySample = Trajectory->GetSampleAtTime(SampleTime);
-		RootTransform = TrajectorySample.Transform;
+		const FPoseSearchQueryTrajectorySample TrajectorySample = Trajectory->GetSampleAtTime(SampleTime);
+		RootTransform = TrajectorySample.GetTransform();
 	}
 
 	const FBoneIndexType BoneIndexType = Schema->GetBoneIndexType(SchemaBoneIdx);

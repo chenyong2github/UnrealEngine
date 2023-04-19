@@ -8,7 +8,7 @@
 #include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearch/PoseSearchResult.h"
 
-struct FTrajectorySampleRange;
+struct FPoseSearchQueryTrajectory;
 class UPoseSearchDatabase;
 class UPoseSearchFeatureChannel_Position;
 
@@ -138,7 +138,7 @@ private:
 
 struct POSESEARCH_API FSearchContext
 {
-	FSearchContext(const FTrajectorySampleRange* InTrajectory, const IPoseHistory* InHistory, float InDesiredPermutationTimeOffset,
+	FSearchContext(const FPoseSearchQueryTrajectory* InTrajectory, const IPoseHistory* InHistory, float InDesiredPermutationTimeOffset,
 		const FPoseIndicesHistory* InPoseIndicesHistory = nullptr, EPoseSearchBooleanRequest InQueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent,
 		const FSearchResult& InCurrentResult = FSearchResult(), float InPoseJumpThresholdTime = 0.f, bool bInForceInterrupt = false, bool bInCanAdvance = true);
 
@@ -167,7 +167,7 @@ struct POSESEARCH_API FSearchContext
 	const FPoseIndicesHistory* GetPoseIndicesHistory() const { return PoseIndicesHistory; }
 	const IPoseHistory* GetHistory() const { return History; }
 	float GetDesiredPermutationTimeOffset() const { return DesiredPermutationTimeOffset; }
-	const FTrajectorySampleRange* GetTrajectory() const { return Trajectory; }
+	const FPoseSearchQueryTrajectory* GetTrajectory() const { return Trajectory; }
 	bool CanAdvance() const { return bCanAdvance; }
 	bool IsForceInterrupt() const { return bForceInterrupt; }
 
@@ -176,7 +176,7 @@ private:
 	FTransform GetComponentSpaceTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx);
 	FVector GetSamplePositionInternal(float SampleTime, float OriginTime, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false);
 
-	const FTrajectorySampleRange* Trajectory = nullptr;
+	const FPoseSearchQueryTrajectory* Trajectory = nullptr;
 	const IPoseHistory* History = nullptr;
 	float DesiredPermutationTimeOffset = 0.f;
 	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;

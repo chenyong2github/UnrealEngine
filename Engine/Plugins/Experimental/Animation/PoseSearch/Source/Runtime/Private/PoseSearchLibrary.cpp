@@ -228,10 +228,10 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 	if (DeltaTime > SMALL_NUMBER && SearchContext.GetTrajectory())
 	{
 		// simulation
-		const FTrajectorySample PrevSample = SearchContext.GetTrajectory()->GetSampleAtTime(-DeltaTime);
-		const FTrajectorySample CurrSample = SearchContext.GetTrajectory()->GetSampleAtTime(0.f);
+		const FPoseSearchQueryTrajectorySample PrevSample = SearchContext.GetTrajectory()->GetSampleAtTime(-DeltaTime);
+		const FPoseSearchQueryTrajectorySample CurrSample = SearchContext.GetTrajectory()->GetSampleAtTime(0.f);
 
-		const FTransform SimDelta = CurrSample.Transform.GetRelativeTransform(PrevSample.Transform);
+		const FTransform SimDelta = CurrSample.GetTransform().GetRelativeTransform(PrevSample.GetTransform());
 
 		TraceState.SimLinearVelocity = SimDelta.GetTranslation().Size() / DeltaTime;
 		TraceState.SimAngularVelocity = FMath::RadiansToDegrees(SimDelta.GetRotation().GetAngle()) / DeltaTime;
@@ -253,7 +253,7 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 void UPoseSearchLibrary::UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,
 	const TArray<TObjectPtr<const UPoseSearchDatabase>>& Databases,
-	const FTrajectorySampleRange& Trajectory,
+	const FPoseSearchQueryTrajectory& Trajectory,
 	const FMotionMatchingSettings& Settings,
 	FMotionMatchingState& InOutMotionMatchingState,
 	bool bForceInterrupt)
@@ -401,7 +401,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 void UPoseSearchLibrary::MotionMatch(
 	UAnimInstance* AnimInstance,
 	const UPoseSearchDatabase* Database,
-	const FTrajectorySampleRange Trajectory,
+	const FPoseSearchQueryTrajectory Trajectory,
 	const FName PoseHistoryName,
 	UAnimationAsset*& SelectedAnimation,
 	float& SelectedTime,
@@ -508,9 +508,9 @@ void UPoseSearchLibrary::MotionMatch(
 					FCSPose<FCompactPose> ComponentSpacePose;
 					ComponentSpacePose.InitPose(Pose);
 
-					const FTrajectorySample TrajectorySample = Trajectory.GetSampleAtTime(ExtractionTime);
+					const FPoseSearchQueryTrajectorySample TrajectorySample = Trajectory.GetSampleAtTime(ExtractionTime);
 					const FTransform& ComponentTransform = AnimInstance->GetOwningComponent()->GetComponentTransform();
-					const FTransform FutureComponentTransform = TrajectorySample.Transform * ComponentTransform;
+					const FTransform FutureComponentTransform = TrajectorySample.GetTransform() * ComponentTransform;
 
 					ExtendedPoseHistory.AddFuturePose(FutureAnimationTime, ComponentSpacePose, FutureComponentTransform);
 				}
