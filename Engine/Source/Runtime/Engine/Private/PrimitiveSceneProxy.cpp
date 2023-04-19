@@ -112,6 +112,9 @@ bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch)
 		// Cached mesh commands only allow for a single mesh element per batch.
 		(MeshBatch.Elements.Num() == 1) &&
 
+		// View dependent arguments can't be cached
+		(MeshBatch.bViewDependentArguments == 0) &&
+
 		// Vertex factory needs to support caching.
 		MeshBatch.VertexFactory->GetType()->SupportsCachingMeshDrawCommands();
 }
