@@ -1515,7 +1515,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 	if(UsageMap.Contains(ENiagaraScriptUsage::EmitterSpawnScript))
 	{
 		FText SectionName = FText::FromString("Emitter Spawn");
-		UNiagaraHierarchySection** FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
+		auto* FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
 		{
 			return Candidate->GetSectionNameAsText().EqualTo(SectionName);
 		});
@@ -1542,7 +1542,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 	if(UsageMap.Contains(ENiagaraScriptUsage::EmitterUpdateScript))
 	{
 		FText SectionName = FText::FromString("Emitter Update");
-		UNiagaraHierarchySection** FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
+		auto* FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
 		{
 			return Candidate->GetSectionNameAsText().EqualTo(SectionName);
 		});
@@ -1569,7 +1569,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 	if(UsageMap.Contains(ENiagaraScriptUsage::ParticleSpawnScript))
 	{
 		FText SectionName = FText::FromString("Particle Spawn");
-		UNiagaraHierarchySection** FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
+		auto* FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
 		{
 			return Candidate->GetSectionNameAsText().EqualTo(SectionName);
 		});
@@ -1596,7 +1596,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 	if(UsageMap.Contains(ENiagaraScriptUsage::ParticleUpdateScript))
 	{
 		FText SectionName = FText::FromString("Particle Update");
-		UNiagaraHierarchySection** FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
+		auto* FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
 		{
 			return Candidate->GetSectionNameAsText().EqualTo(SectionName);
 		});
@@ -1623,7 +1623,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 	if(HierarchyEventHandlers.Num() > 0)
 	{
 		FText SectionName = FText::FromString("Events");
-		UNiagaraHierarchySection** FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
+		auto* FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
 		{
 			return Candidate->GetSectionNameAsText().EqualTo(SectionName);
 		});
@@ -1650,7 +1650,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 	if(HierarchySimStages.Num() > 0)
 	{
 		FText SectionName = FText::FromString("Sim Stages");
-		UNiagaraHierarchySection** FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
+		auto* FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
 		{
 			return Candidate->GetSectionNameAsText().EqualTo(SectionName);
 		});
@@ -1677,7 +1677,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 	if(HierarchyRenderers.Num() > 0)
 	{
 		FText SectionName = FText::FromString("Renderers");
-		UNiagaraHierarchySection** FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
+		auto* FoundHierarchySection = SourceRootViewModel->GetDataMutable<UNiagaraHierarchyRoot>()->GetSectionDataMutable().FindByPredicate([SectionName](UNiagaraHierarchySection* Candidate)
 		{
 			return Candidate->GetSectionNameAsText().EqualTo(SectionName);
 		});

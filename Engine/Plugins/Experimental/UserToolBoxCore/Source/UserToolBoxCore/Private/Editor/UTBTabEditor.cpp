@@ -676,7 +676,7 @@ inline void FUTBTabEditor::CreateOrRebuildUTBTabTabWidget()
 		
 		TSharedPtr<SWrapBox> PanelWidget= SNew(SWrapBox)
 		.UseAllottedSize(true);
-		TArray<UUTBBaseCommand*>& CurrentSectionArray=Tab->GetOrCreateSection(CurrentSection)->Commands;
+		TArray<TObjectPtr<UUTBBaseCommand>>& CurrentSectionArray=Tab->GetOrCreateSection(CurrentSection)->Commands;
 		int Index=0;
 		for (UUTBBaseCommand* Data:CurrentSectionArray)
 		{

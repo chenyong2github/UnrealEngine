@@ -1217,7 +1217,7 @@ void FNiagaraHierarchySectionViewModel::OnDroppedOnInternal(TSharedPtr<FNiagaraH
 		int32 IndexOfThis = HierarchyViewModel->GetHierarchyRoot()->GetSectionData().Find(GetDataMutable<UNiagaraHierarchySection>());
 		int32 DraggedSectionIndex = HierarchyViewModel->GetHierarchyRoot()->GetSectionData().Find(DraggedSectionData);
 
-		TArray<UNiagaraHierarchySection*>& SectionData = HierarchyViewModel->GetHierarchyRoot()->GetSectionDataMutable();
+		TArray<TObjectPtr<UNiagaraHierarchySection>>& SectionData = HierarchyViewModel->GetHierarchyRoot()->GetSectionDataMutable();
 		int32 Count = SectionData.Num();
 
 		bool bDropSucceeded = false;

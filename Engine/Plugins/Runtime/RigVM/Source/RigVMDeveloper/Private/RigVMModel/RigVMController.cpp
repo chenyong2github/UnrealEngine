@@ -6318,7 +6318,7 @@ bool URigVMController::RemoveNodes(TArray<URigVMNode*> InNodes, bool bSetupUndoR
 								TArray<FRigVMExternalVariable> ExternalVariablesWithoutVariableNode;
 								{
 									URigVMGraph* EditedGraph = InNode->GetGraph();
-									TGuardValue<TArray<URigVMNode*>> TemporaryRemoveNodes(EditedGraph->Nodes, TArray<URigVMNode*>());
+									TGuardValue<TArray<TObjectPtr<URigVMNode>>> TemporaryRemoveNodes(EditedGraph->Nodes, TArray<TObjectPtr<URigVMNode>>());
 									ExternalVariablesWithoutVariableNode = EditedGraph->GetExternalVariables();
 								}
 

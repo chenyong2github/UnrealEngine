@@ -280,7 +280,7 @@ public:
 	bool AddRenderLayer(UMoviePipelineRenderLayer* RenderLayer);
 
 	UFUNCTION(BlueprintCallable, Category = "Render Layers")
-	TArray<UMoviePipelineRenderLayer*>& GetRenderLayers() { return RenderLayers; }
+	const TArray<UMoviePipelineRenderLayer*>& GetRenderLayers() { return RenderLayers; }
 
 	UFUNCTION(BlueprintCallable, Category = "Render Layers")
 	void RemoveRenderLayer(const FString& RenderLayerName);

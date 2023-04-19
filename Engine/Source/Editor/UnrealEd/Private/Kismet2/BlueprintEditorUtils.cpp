@@ -6903,10 +6903,10 @@ void FBlueprintEditorUtils::CleanNullGraphReferencesInArray(UBlueprint* Blueprin
 
 void FBlueprintEditorUtils::PurgeNullGraphs(UBlueprint* Blueprint)
 {
-	CleanNullGraphReferencesInArray(Blueprint, Blueprint->UbergraphPages);
-	CleanNullGraphReferencesInArray(Blueprint, Blueprint->FunctionGraphs);
-	CleanNullGraphReferencesInArray(Blueprint, Blueprint->DelegateSignatureGraphs);
-	CleanNullGraphReferencesInArray(Blueprint, Blueprint->MacroGraphs);
+	CleanNullGraphReferencesInArray(Blueprint, MutableView(Blueprint->UbergraphPages));
+	CleanNullGraphReferencesInArray(Blueprint, MutableView(Blueprint->FunctionGraphs));
+	CleanNullGraphReferencesInArray(Blueprint, MutableView(Blueprint->DelegateSignatureGraphs));
+	CleanNullGraphReferencesInArray(Blueprint, MutableView(Blueprint->MacroGraphs));
 }
 
 struct FConformCallsToParentFunctionUtils

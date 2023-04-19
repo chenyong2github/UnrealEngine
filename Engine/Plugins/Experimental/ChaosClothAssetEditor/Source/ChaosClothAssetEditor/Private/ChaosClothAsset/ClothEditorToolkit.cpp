@@ -570,7 +570,7 @@ void FChaosClothAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabM
 UChaosClothAsset* FChaosClothAssetEditorToolkit::GetAsset() const
 {
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
-	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
+	OwningAssetEditor->GetObjectsToEdit(MutableView(ObjectsToEdit));
 	
 	UObject* ObjectToEdit = nullptr;
 	if (ensure(ObjectsToEdit.Num() == 1))
@@ -681,7 +681,7 @@ TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_NodeDetails(const F
 void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 {
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
-	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
+	OwningAssetEditor->GetObjectsToEdit(MutableView(ObjectsToEdit));
 
 	if (ObjectsToEdit.Num() > 0)
 	{
@@ -970,7 +970,7 @@ void FChaosClothAssetEditorToolkit::OnClothAssetChanged()
 	ClothPreviewViewportClient->ClearSelectedComponents();
 
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
-	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
+	OwningAssetEditor->GetObjectsToEdit(MutableView(ObjectsToEdit));
 
 	UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
 

@@ -277,7 +277,7 @@ void FComponentElementEditorPasteImporter::Import(FContext& Context)
 	else if (PotentialSelection.Actor)
 	{
 		FString Text(Context.Text);
-		GUnrealEd->PasteComponents(ImportedComponents, PotentialSelection.Actor, true, &Text);
+		GUnrealEd->PasteComponents(MutableView(ImportedComponents), PotentialSelection.Actor, true, &Text);
 	}
 }
 

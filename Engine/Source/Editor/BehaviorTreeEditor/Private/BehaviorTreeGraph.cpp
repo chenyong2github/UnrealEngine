@@ -919,7 +919,7 @@ void UBehaviorTreeGraph::CreateBTFromGraph(UBehaviorTreeGraphNode* RootEdNode)
 		uint16 DummyExecutionIndex = MAX_uint16;
 		BTGraphHelpers::CollectDecorators(BTAsset
 			, RootEdNode
-			, BTAsset->RootDecorators
+			, MutableView(BTAsset->RootDecorators)
 			, BTAsset->RootDecoratorOps
 			, /*bInitializeNodes*/false
 			, /*RootNode*/nullptr

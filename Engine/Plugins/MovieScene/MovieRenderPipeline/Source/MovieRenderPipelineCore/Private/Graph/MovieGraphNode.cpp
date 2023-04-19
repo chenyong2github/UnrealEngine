@@ -119,8 +119,8 @@ void UMovieGraphNode::UpdatePins()
 		// return bAppliedEdgeChanges ? EPCGChangeType::Edge : None) | (bChangedPins ? EPCGChangeType::Node : None
 	};
 
-	UpdatePins(InputPins, InputPinProperties);
-	UpdatePins(OutputPins, OutputPinProperties);
+	UpdatePins(MutableView(InputPins), InputPinProperties);
+	UpdatePins(MutableView(OutputPins), OutputPinProperties);
 
 	OnNodeChangedDelegate.Broadcast(this);
 }
