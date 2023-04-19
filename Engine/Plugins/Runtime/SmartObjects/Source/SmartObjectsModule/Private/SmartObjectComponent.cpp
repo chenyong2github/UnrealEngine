@@ -43,12 +43,31 @@ void USmartObjectComponent::PostInitProperties()
 #endif // WITH_EDITORONLY_DATA
 }
 
+#if WITH_EDITOR
 void USmartObjectComponent::OnRegister()
 {
 	Super::OnRegister();
 
-	RegisterToSubsystem();
+	// Component gets registered on BeginPlay for game worlds
+	const UWorld* World = GetWorld();
+	if (World != nullptr && !World->IsGameWorld())
+	{
+		RegisterToSubsystem();
+	}
 }
+
+void USmartObjectComponent::OnUnregister()
+{
+	// Component gets unregistered on EndPlay for game worlds
+	const UWorld* World = GetWorld();
+	if (World != nullptr && World->IsGameWorld() == false)
+	{
+		UnregisterFromSubsystem(ESmartObjectUnregistrationType::RegularProcess);
+	}
+
+	Super::OnUnregister();
+}
+#endif // WITH_EDITOR
 
 void USmartObjectComponent::RegisterToSubsystem()
 {
@@ -64,12 +83,7 @@ void USmartObjectComponent::RegisterToSubsystem()
 	{
 		return;
 	}
-#endif
-
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		return;
-	}
+#endif // WITH_EDITOR
 
 	// Note: we don't report error or ensure on missing subsystem since it might happen
 	// in various scenarios (e.g. inactive world)
@@ -79,10 +93,8 @@ void USmartObjectComponent::RegisterToSubsystem()
 	}
 }
 
-void USmartObjectComponent::OnUnregister()
+void USmartObjectComponent::UnregisterFromSubsystem(const ESmartObjectUnregistrationType UnregistrationType)
 {
-	Super::OnUnregister();
-
 	const UWorld* World = GetWorld();
 	if (World == nullptr)
 	{
@@ -95,47 +107,46 @@ void USmartObjectComponent::OnUnregister()
 	{
 		return;
 	}
-#endif
-
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		return;
-	}
-
-	/** Do not register components that don't have a valid definition */
-	if (!IsValid(DefinitionAsset))
-	{
-		return;
-	}
+#endif // WITH_EDITOR
 
 	if (GetRegisteredHandle().IsValid())
 	{
 		if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
 		{
-			if (!IsBeingDestroyed())
+			if (UnregistrationType == ESmartObjectUnregistrationType::ForceRemove
+				|| IsBeingDestroyed()
+				|| (GetOwner() && GetOwner()->IsActorBeingDestroyed()))
 			{
-				Subsystem->UnregisterSmartObject(*this);
+				// note that this case is really only expected in the editor when the component is being unregistered 
+				// as part of DestroyComponent (or from its owner destruction).
+				// In default game flow EndPlay will get called first and once we make it here the RegisteredHandle should already be Invalid
+				Subsystem->RemoveSmartObject(*this);
 			}
 			else
 			{
-				// note that this case is really only expected in the editor when the component is being unregistered 
-				// as part of DestroyComponent. In default game flow EndPlay will get called first and once we make 
-				// it here the RegisteredHandle should already be Invalid
-				Subsystem->RemoveSmartObject(*this);
+				Subsystem->UnregisterSmartObject(*this);
 			}
 		}
 	}
 }
 
+void USmartObjectComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	checkf(GetWorld() && GetWorld()->IsGameWorld(), TEXT("Expected to be called for game worlds only since component is registered by OnRegister for the other scenarios."));	
+	RegisterToSubsystem();
+}
+
 void USmartObjectComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{	
-	if (EndPlayReason == EEndPlayReason::Destroyed && GetRegisteredHandle().IsValid())
-	{
-		if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(GetWorld()))
-		{
-			Subsystem->RemoveSmartObject(*this);
-		}
-	}
+{
+	// When the object gets streamed out we unregister the component according to its registration type to preserve runtime data for persistent objects.
+	// In all other scenarios (e.g. Destroyed, EndPIE, Quit, etc.) we always remove the runtime data
+	const ESmartObjectUnregistrationType UnregistrationType =
+		(EndPlayReason == EEndPlayReason::RemovedFromWorld) ? ESmartObjectUnregistrationType::RegularProcess : ESmartObjectUnregistrationType::ForceRemove;
+
+	checkf(GetWorld() && GetWorld()->IsGameWorld(), TEXT("Expected to be called for game worlds only since component is unregistered by OnUnregister for the other scenarios."));
+	UnregisterFromSubsystem(UnregistrationType);
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -223,11 +234,16 @@ void FSmartObjectComponentInstanceData::ApplyToComponent(UActorComponent* Compon
 		if (SmartObjectComponent->DefinitionAsset != DefinitionAsset && SmartObjectComponent->DefinitionAsset == nullptr)
 		{
 			SmartObjectComponent->DefinitionAsset = DefinitionAsset;
-			// Registering to the subsystem should only be attempted on registered component
-			// otherwise the OnRegister callback will take care of it.
-			if (SmartObjectComponent->IsRegistered())
+
+			const UWorld* World = SmartObjectComponent->GetWorld();
+			if (World != nullptr && !World->IsGameWorld())
 			{
-				SmartObjectComponent->RegisterToSubsystem();
+				// Registering to the subsystem should only be attempted on registered component
+				// otherwise the OnRegister callback will take care of it.
+				if (SmartObjectComponent->IsRegistered())
+				{
+					SmartObjectComponent->RegisterToSubsystem();
+				}
 			}
 		}
 	}

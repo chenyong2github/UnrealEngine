@@ -23,6 +23,16 @@ enum class ESmartObjectRegistrationType : uint8
 	Dynamic
 };
 
+enum class ESmartObjectUnregistrationType : uint8
+{
+	/**
+	 * Component registered by a collection (WithCollection) will be unbound from the simulation but its associated runtime data will persist.
+	 * Otherwise (Dynamic), runtime data will also be destroyed.
+	 */
+	RegularProcess,
+	/** Component will be unbound from the simulation and its runtime data will be destroyed regardless of the registration type */
+	ForceRemove
+};
 
 UCLASS(Blueprintable, ClassGroup = Gameplay, meta = (BlueprintSpawnableComponent), config = Game, HideCategories = (Activation, AssetUserData, Collision, Cooking, HLOD, Lighting, LOD, Mobile, Mobility, Navigation, Physics, RayTracing, Rendering, Tags, TextureStreaming))
 class SMARTOBJECTSMODULE_API USmartObjectComponent : public USceneComponent
@@ -70,17 +80,22 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = SmartObject, meta=(DisplayName = "OnSmartObjectEventReceived"))
 	void ReceiveOnEvent(const FSmartObjectEventData& EventData, const AActor* Interactor);
 
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostInitProperties() override;
 
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	
+protected:
 #if WITH_EDITOR
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
+
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 	void RegisterToSubsystem();
+	void UnregisterFromSubsystem(const ESmartObjectUnregistrationType UnregistrationType);
 
 	UPROPERTY(EditAnywhere, Category = SmartObject, BlueprintReadWrite)
 	TObjectPtr<USmartObjectDefinition> DefinitionAsset;
