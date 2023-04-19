@@ -3594,6 +3594,19 @@ enum class EInstancePropertyValueFlags
 
 ENUM_CLASS_FLAGS(EInstancePropertyValueFlags)
 
+enum class EObjectInstancingGraphOptions
+{
+	None = 0x00,
+
+	// if set, start with component instancing disabled
+	DisableInstancing = 0x01,
+
+	// if set, instance only subobject template values
+	InstanceTemplatesOnly = 0x02,
+};
+
+ENUM_CLASS_FLAGS(EObjectInstancingGraphOptions)
+
 struct COREUOBJECT_API FObjectInstancingGraph
 {
 public:
@@ -3602,14 +3615,21 @@ public:
 	 * Default Constructor 
 	 * @param bDisableInstancing - if true, start with component instancing disabled
 	**/
-	FObjectInstancingGraph(bool bDisableInstancing = false);
+	explicit FObjectInstancingGraph(bool bDisableInstancing = false);
+
+	/**
+	 * Constructor with options
+	 * @param InOptions Additional options to modify the behavior of this graph
+	**/
+	explicit FObjectInstancingGraph(EObjectInstancingGraphOptions InOptions);
 
 	/**
 	 * Standard constructor
 	 *
 	 * @param	DestinationSubobjectRoot	the top-level object that is being created
+	 * @param	InOptions					Additional options to modify the behavior of this graph
 	 */
-	FObjectInstancingGraph( class UObject* DestinationSubobjectRoot );
+	explicit FObjectInstancingGraph( class UObject* DestinationSubobjectRoot, EObjectInstancingGraphOptions InOptions = EObjectInstancingGraphOptions::None);
 
 	/**
 	 * Returns whether this instancing graph has a valid destination root.
@@ -3731,7 +3751,14 @@ public:
 	 */
 	void EnableSubobjectInstancing( bool bEnabled )
 	{
-		bEnableSubobjectInstancing = bEnabled;
+		if (bEnabled)
+		{
+			InstancingOptions &= ~EObjectInstancingGraphOptions::DisableInstancing;
+		}
+		else
+		{
+			InstancingOptions |= EObjectInstancingGraphOptions::DisableInstancing;
+		}
 	}
 
 	/**
@@ -3739,7 +3766,7 @@ public:
 	 */
 	bool IsSubobjectInstancingEnabled() const
 	{
-		return bEnableSubobjectInstancing;
+		return !(InstancingOptions & EObjectInstancingGraphOptions::DisableInstancing);
 	}
 
 	/**
@@ -3825,15 +3852,13 @@ private:
 	 */
 	class		UObject*						DestinationRoot;
 
+	/** Subobject instancing options */
+	EObjectInstancingGraphOptions				InstancingOptions;
+
 	/**
 	 * Indicates whether we are currently instancing components for an archetype.  true if we are creating or updating an archetype.
 	 */
 	bool										bCreatingArchetype;
-
-	/**
-	 * If false, components will not be instanced.
-	 */
-	bool										bEnableSubobjectInstancing;
 
 	/**
 	 * true when loading object data from disk.
