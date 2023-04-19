@@ -2064,6 +2064,8 @@ void UNiagaraSystem::RegisterDataChannelUse(const UNiagaraDataChannel* DataChann
 
 void UNiagaraSystem::OnCompiledDataInterfaceChanged()
 {
+	// We need to make sure our execution ready parameter stores are invalidated so that the DI's will rebind functions
+	ForEachScript([&](UNiagaraScript* Script) { Script->InvalidateExecutionReadyParameterStores(); });
 	UpdatePostCompileDIInfo();
 	UpdateDITickFlags();
 }
