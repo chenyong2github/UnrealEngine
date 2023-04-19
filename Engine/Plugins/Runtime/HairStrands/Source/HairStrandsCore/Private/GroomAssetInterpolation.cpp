@@ -129,13 +129,14 @@ void FHairGroupsLOD::BuildDDCKey(FArchive& Ar)
 
 	for (FHairLODSettings& LOD : LODs)
 	{
-		if (LOD.GeometryType == EGroomGeometryType::Strands)
-		{
-			Ar << LOD.CurveDecimation;
-			Ar << LOD.VertexDecimation;
-			Ar << LOD.AngularThreshold;
-			Ar << LOD.ScreenSize;
-			Ar << LOD.ThicknessScale;
-		}
+		Ar << LOD.CurveDecimation;
+		Ar << LOD.VertexDecimation;
+		Ar << LOD.AngularThreshold;
+		Ar << LOD.ScreenSize;
+		Ar << LOD.ThicknessScale;
+		Ar << LOD.bVisible;
+		Ar << LOD.BindingType;
+		Ar << LOD.Simulation;
+		Ar << LOD.GlobalInterpolation;
 	}
 }

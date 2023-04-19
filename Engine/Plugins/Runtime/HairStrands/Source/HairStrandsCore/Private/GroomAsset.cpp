@@ -1539,6 +1539,30 @@ static bool IsStrandsInterpolationAttributes(const FName PropertyName)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, bUseUniqueGuide);
 }
 
+static bool IsStrandsLODAttributes(const FName PropertyName)
+{
+	return
+		// LOD count needs for cluster rebuilding
+		PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsLOD)
+
+		// LOD groups needs for cluster rebuilding
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsLOD, ClusterWorldSize)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsLOD, ClusterScreenSizeScale)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsLOD, LODs)
+
+		// LOD settings needs for cluster rebuilding
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, CurveDecimation)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, VertexDecimation)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, AngularThreshold)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, ScreenSize)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, ThicknessScale)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, bVisible)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, GeometryType)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, BindingType)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, Simulation)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, GlobalInterpolation);
+}
+
 void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -1568,9 +1592,9 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		}
 	}
 
-	// Rebuild the groom asset if some decimation attribute has changed
-	const bool bStrandsInterpolationChanged = IsStrandsInterpolationAttributes(PropertyName);
-	if (bStrandsInterpolationChanged)
+	// Rebuild the groom cached data if interpolation or LODs have changed
+	const bool bNeedRebuildDerivedData = IsStrandsInterpolationAttributes(PropertyName) || IsStrandsLODAttributes(PropertyName);
+	if (bNeedRebuildDerivedData)
 	{
 		CacheDerivedDatas();
 	}
@@ -1589,7 +1613,7 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	// Cards should be refresh only under user action
 	// By pass update if bStrandsInterpolationChanged has the resources have already been recreated
 	const bool bCardsToolUpdate = IsCardsProceduralAttributes(PropertyName);
-	if (!bCardsToolUpdate && !bStrandsInterpolationChanged)
+	if (!bCardsToolUpdate && !bNeedRebuildDerivedData)
 	{
 		FGroomComponentRecreateRenderStateContext Context(this);
 		UpdateResource();
@@ -1607,7 +1631,7 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	const bool bCardMaterialChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, Material);
 	const bool bMeshMaterialChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsMeshesSourceDescription, Material);
 
-	if (bStrandsInterpolationChanged || bGeometryTypeChanged || bCardMaterialChanged || bMeshMaterialChanged)
+	if (bNeedRebuildDerivedData || bGeometryTypeChanged || bCardMaterialChanged || bMeshMaterialChanged)
 	{
 		// Delegate used for notifying groom data & groom resoures invalidation
 		OnGroomAssetResourcesChanged.Broadcast();
@@ -3304,23 +3328,6 @@ void UGroomAsset::InitStrandsResources()
 
 			if (GroupData.Strands.ClusterCullingBulkData.IsValid())
 			{
-				const uint32 HairGroupLODCount = HairGroupsLOD[GroupIndex].LODs.Num();
-				bool bLastVisibility = true;
-				// LOD visibility is not serialized into FHairStrandsClusterCullingBulkData as it does not affect the actual generated data. For consistency we 
-				// patch the LOD visibility with the groom asset value, which might be different from what has been serialized
-				for (uint32 LODIt = 0, LODCount = GroupData.Strands.ClusterCullingBulkData.Header.LODVisibility.Num(); LODIt < LODCount; ++LODIt)
-				{
-					if (LODIt < HairGroupLODCount)
-					{
-						bLastVisibility = HairGroupsLOD[GroupIndex].LODs[LODIt].bVisible;
-						GroupData.Strands.ClusterCullingBulkData.Header.LODVisibility[LODIt] = bLastVisibility;
-					}
-					else
-					{
-						GroupData.Strands.ClusterCullingBulkData.Header.LODVisibility[LODIt] = bLastVisibility;
-					}
-				}
-
 				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData, ResourceName, OwnerName);
 			}
 
