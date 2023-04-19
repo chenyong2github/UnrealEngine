@@ -264,13 +264,44 @@ public:
 		//RunEqualsLessTest(TEXT("C:/A/B"), TEXT("C:/A/../A/./B"), 0); // Collapsing .. and . is not yet implemented
 		RunEqualsLessTest(TEXT("/"), TEXT("/"), 0);
 		RunEqualsLessTest(TEXT("/"), TEXT("//"), -1);
-		RunEqualsLessTest(TEXT("/"), TEXT("C:/"), -1); // int('/') == 47 < int('C') == 67
+		RunEqualsLessTest(TEXT("/"), TEXT("C:/"), -1); // '/' sorts less than 'C'
+		RunEqualsLessTest(TEXT("/"), TEXT("C:\\"), -1); // '\\' sorts less than 'C'
+		RunEqualsLessTest(TEXT("/"), TEXT("c:/"), -1); // '/' sorts less than 'c'
+		RunEqualsLessTest(TEXT("/"), TEXT("c:\\"), -1); // '\\' sorts less than 'c'
 		RunEqualsLessTest(TEXT("/"), TEXT("A"), -1);
 		RunEqualsLessTest(TEXT("//"), TEXT("//"), 0);
 		RunEqualsLessTest(TEXT("//"), TEXT("C:/"), -1);
 		RunEqualsLessTest(TEXT("//"), TEXT("A"), -1);
 		RunEqualsLessTest(TEXT("C:/"), TEXT("C:/"), 0);
 		RunEqualsLessTest(TEXT("C:/"), TEXT("C"), 1);
+		// The directory separator is less than all characters except for '\0', so that shorter directories come before longer directories.
+		// This is true for all wchar; to save time we test it just for all ascii characters.
+		const TCHAR* ForwardSlashTestString = TEXT("0/1");
+		const TCHAR* BackSlashTestString = TEXT("0\\1");
+		TCHAR CharTestString[] = TEXT("0_1");
+		for (int IntC = 1; IntC < 128; IntC++)
+		{
+			char c = (char)IntC;
+			if (c == '/' || c == '\\')
+			{
+				continue;
+			}
+			CharTestString[1] = c;
+			RunEqualsLessTest(ForwardSlashTestString, CharTestString, -1);
+			RunEqualsLessTest(CharTestString, ForwardSlashTestString, 1);
+			RunEqualsLessTest(BackSlashTestString, CharTestString, -1);
+			RunEqualsLessTest(CharTestString, BackSlashTestString, 1);
+		}
+		// These tests use hyphen, which has int('-') == 45 < int("/") == 47 < int("\\") == 92
+		// Foo is a shorter string than Foo-Bar so it comes first, aka / sorts earlier than all other characters
+		RunEqualsLessTest(TEXT("Foo/Leaf"), TEXT("Foo-Bar/Leaf"), -1);
+		RunEqualsLessTest(TEXT("Foo\\Leaf"), TEXT("Foo-Bar\\Leaf"), -1);
+		// When the / is terminating, sort order needs to match what it is when it is in the middle
+		RunEqualsLessTest(TEXT("Foo/"), TEXT("Foo-Bar/"), -1); 
+		// When the terminating / is omitted, sort order needs to match when it is present
+		RunEqualsLessTest(TEXT("Foo"), TEXT("Foo-Bar"), -1); 
+		RunEqualsLessTest(TEXT("Foo"), TEXT("Foo-Bar/"), -1); 
+		RunEqualsLessTest(TEXT("Foo/"), TEXT("Foo-Bar/"), -1); 
 
 		return true;
 	}

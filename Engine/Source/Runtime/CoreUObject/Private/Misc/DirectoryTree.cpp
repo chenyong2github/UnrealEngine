@@ -43,7 +43,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDirectoryTreeTest, "System.Core.DirectoryTree"
 bool FDirectoryTreeTest::RunTest(const FString& Parameters)
 {
 	constexpr int32 NumPathTypes = 5;
-	constexpr int32 NumPaths = 7;
+	constexpr int32 NumPaths = 9;
 	FStringView PathsByTypeAndIndex[NumPathTypes][NumPaths] =
 	{
 		{
@@ -54,6 +54,9 @@ bool FDirectoryTreeTest::RunTest(const FString& Parameters)
 			TEXTVIEW("/Plugin1/Dir2/Path2"),
 			TEXTVIEW("/Engine/Path1"),
 			TEXTVIEW("/Plugin2/Path1"),
+			// Make sure we handle suffixes of an existing string with a leading value that sorts after /
+			TEXTVIEW("/Game/Foo/Leaf"),
+			TEXTVIEW("/Game/Foo-Bar/Leaf"),
 		},
 		{
 			TEXTVIEW("d:\\root\\Project\\Content\\Dir2"),
@@ -63,6 +66,8 @@ bool FDirectoryTreeTest::RunTest(const FString& Parameters)
 			TEXTVIEW("d:\\root\\Project\\Plugins\\Plugin1\\Content\\Dir2\\Path2.uasset"),
 			TEXTVIEW("d:\\root\\Engine\\Content\\Path1.uasset"),
 			TEXTVIEW("e:\\root\\Project\\Plugins\\Plugin2\\Content\\Path1.uasset"),
+			TEXTVIEW("d:\\root\\Project\\Content\\Foo\\Leaf"),
+			TEXTVIEW("d:\\root\\Project\\Content\\Foo-Bar\\Leaf"),
 		},
 		{
 			TEXTVIEW("d:/root/Project/Content/Dir2"),
@@ -72,6 +77,8 @@ bool FDirectoryTreeTest::RunTest(const FString& Parameters)
 			TEXTVIEW("d:/root/Project/Plugins/Plugin1/Content/Dir2/Path2.uasset"),
 			TEXTVIEW("d:/root/Engine/Content/Path1.uasset"),
 			TEXTVIEW("e:/root/Project/Plugins/Plugin2/Content/Path1.uasset"),
+			TEXTVIEW("d:/root/Project/Content/Foo/Leaf"),
+			TEXTVIEW("d:/root/Project/Content/Foo-Bar/Leaf"),
 		},
 		{
 			TEXTVIEW("..\\..\\..\\Project\\Content\\Dir2"),
@@ -81,6 +88,8 @@ bool FDirectoryTreeTest::RunTest(const FString& Parameters)
 			TEXTVIEW("..\\..\\..\\Project\\Plugins\\Plugin1\\Content\\Dir2\\Path2.uasset"),
 			TEXTVIEW("..\\..\\..\\Engine\\Content\\Path1.uasset"),
 			TEXTVIEW("e:\\root\\Project\\Plugins\\Plugin2\\Content\\Path1.uasset"),
+			TEXTVIEW("..\\..\\..\\Project\\Content\\Foo\\Leaf"),
+			TEXTVIEW("..\\..\\..\\Project\\Content\\Foo-Bar\\Leaf"),
 		},
 		{
 			TEXTVIEW("../../../Project/Content/Dir2"),
@@ -90,8 +99,11 @@ bool FDirectoryTreeTest::RunTest(const FString& Parameters)
 			TEXTVIEW("../../../Project/Plugins/Plugin1/Content/Dir2/Path2.uasset"),
 			TEXTVIEW("../../../Engine/Content/Path1.uasset"),
 			TEXTVIEW("e:/root/Project/Plugins/Plugin2/Content/Path1.uasset"),
+			TEXTVIEW("../../../Project/Content/Foo/Leaf"),
+			TEXTVIEW("../../../Project/Content/Foo-Bar/Leaf"),
 		},
 	};
+	// PathSub0SubPath[i] provides a sub path of PathsByTypeAndIndex[i][0]
 	FStringView Path0SubPath[NumPathTypes] =
 	{
 		TEXTVIEW("/Game/Dir2/Sub"),
@@ -100,7 +112,7 @@ bool FDirectoryTreeTest::RunTest(const FString& Parameters)
 		TEXTVIEW("..\\..\\..\\Project\\Content\\Dir2"),
 		TEXTVIEW("../../../Project/Content/Dir2/Sub"),
 	};
-	int32 ValueByIndex[NumPaths] = { 1,2,3,4,5,6,7 };
+	int32 ValueByIndex[NumPaths] = { 1,2,3,4,5,6,7,8,9 };
 	FStringView NonPathsByTypeAndIndex0[] =
 		{
 			TEXTVIEW(""),
@@ -190,8 +202,8 @@ bool FDirectoryTreeTest::RunTest(const FString& Parameters)
 	constexpr int32 NumPermutations = 2;
 	int32 Permutations[NumPermutations][NumPaths] =
 	{
-		{ 0, 1, 2, 3, 4, 5, 6 },
-		{ 6, 5, 4, 3, 2, 1, 0 },
+		{ 0, 1, 2, 3, 4, 5, 6, 7, 8 },
+		{ 8, 7, 6, 5, 4, 3, 2, 1, 0 },
 	};
 
 	auto GetDirTreeTestName = [](FStringView InTestName, int32 PathType, int32 Permutation, int32 EditPermutationIndex,

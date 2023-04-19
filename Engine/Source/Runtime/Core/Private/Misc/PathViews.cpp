@@ -120,8 +120,12 @@ namespace UE4PathViews_Private
 			{
 				if (!IsSlashOrBackslash(BChar))
 				{
-					return AChar < BChar;
+					return true;
 				}
+			}
+			else if (IsSlashOrBackslash(BChar))
+			{
+				return false;
 			}
 			else
 			{
