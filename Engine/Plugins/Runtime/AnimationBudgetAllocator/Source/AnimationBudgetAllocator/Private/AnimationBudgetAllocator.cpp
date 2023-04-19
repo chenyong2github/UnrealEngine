@@ -365,18 +365,21 @@ int32 FAnimationBudgetAllocator::CalculateWorkDistributionAndQueue(float InDelta
 		const int32 PrerequisiteHandle = InComponentData.RootPrerequisite != nullptr ? InComponentData.RootPrerequisite->GetAnimationBudgetHandle() : INDEX_NONE;
 		const FAnimBudgetAllocatorComponentData& ComponentDataToCheck = PrerequisiteHandle != INDEX_NONE ? AllComponentData[PrerequisiteHandle] : InComponentData;
 
-		// Calculate interp alpha even when interpolation or ticking is disabled as this is used to decide how much root motion to consume
-		// each frame by character movement
-		float Alpha = (InComponentData.TickRate > 1) ? FMath::Clamp((1.0f / (InComponentData.TickRate - InComponentData.SkippedTicks + 1)), 0.0f, 1.0f) : 1.f;
-		InComponentData.Component->SetExternalInterpolationAlpha(Alpha);
-
 		// Using (frame offset + frame counter) % tick rate allows us to only tick at the specified interval,
 		// but at a roughly even distribution over all registered components
 		const bool bTickThisFrame = (((GFrameCounter + ComponentDataToCheck.FrameOffset) % ComponentDataToCheck.TickRate) == 0);
+		// Calculate interp alpha even when interpolation or ticking is disabled as this is used to decide how much root motion to consume
+		// each frame by character movement
+		InComponentData.SkippedTicks = bTickThisFrame ? 0 : (InComponentData.SkippedTicks + 1);
+		
+		// Each frame we replace the source pose with the interpolated pose, so Alpha is set to blend from the current pose, one tick closer to the final pose.
+		const int TicksRemaining = InComponentData.TickRate - InComponentData.SkippedTicks;
+		float Alpha = (InComponentData.TickRate > 1) ? FMath::Clamp((1.0f / TicksRemaining), 0.0f, 1.0f) : 1.f;
+		InComponentData.Component->SetExternalInterpolationAlpha(Alpha);
+
 		if((ComponentDataToCheck.bInterpolate && ComponentDataToCheck.bOnScreen) || bTickThisFrame)
 		{
 			InComponentData.bInterpolate = ComponentDataToCheck.bInterpolate;
-			InComponentData.SkippedTicks = bTickThisFrame ? 0 : (InComponentData.SkippedTicks + 1);
 
 			// Reset completion time as it may not always be run
 			InComponentData.GameThreadLastCompletionTimeMs = 0.0f;

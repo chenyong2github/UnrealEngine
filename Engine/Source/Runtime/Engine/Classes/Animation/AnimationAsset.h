@@ -783,12 +783,10 @@ public:
 
 	FRootMotionMovementParams ConsumeRootMotion(float Alpha)
 	{
-		const ScalarRegister VAlpha(Alpha);
-		FTransform PartialRootMotion = (RootMotionTransform*VAlpha);
-		PartialRootMotion.SetScale3D(RootMotionScale); // Reset scale after multiplication above
-		PartialRootMotion.NormalizeRotation();
+		FTransform PartialRootMotion(FQuat::Slerp(FQuat::Identity, RootMotionTransform.GetRotation(), Alpha), RootMotionTransform.GetTranslation()*Alpha, RootMotionScale);
+
+		// remove the part of the root motion we are applying now and leave the remainder in RootMotionTransform
 		RootMotionTransform = RootMotionTransform.GetRelativeTransform(PartialRootMotion);
-		RootMotionTransform.NormalizeRotation(); //Make sure we are normalized, this needs to be investigated further
 
 		FRootMotionMovementParams ReturnParams;
 		ReturnParams.Set(PartialRootMotion);
