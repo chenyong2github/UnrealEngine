@@ -91,16 +91,6 @@ public:
 		: Handle( Other )
 	{ }
 
-	/** Assignment operator. */
-	FORCEINLINE TProcHandle& operator=( const TProcHandle& Other )
-	{
-		if( this != &Other )
-		{
-			Handle = Other.Handle;
-		}
-		return *this;
-	}
-
 	/** Accessors. */
 	FORCEINLINE T Get() const
 	{
