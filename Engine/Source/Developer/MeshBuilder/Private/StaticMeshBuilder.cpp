@@ -131,14 +131,16 @@ static bool BuildNanite(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FStaticMeshBuilder::BuildNanite );
 
-	if( !SourceModel.IsMeshDescriptionValid() )
+	if (!SourceModel.IsMeshDescriptionValid())
 	{
+		UE_LOG(LogStaticMeshBuilder, Error, TEXT("Invalid mesh description during Nanite build [%s]."), *StaticMesh->GetFullName());
 		return false;
 	}
 
 	FMeshDescription MeshDescription; 
 	if (!SourceModel.CloneMeshDescription(MeshDescription))
 	{
+		UE_LOG(LogStaticMeshBuilder, Error, TEXT("Failed to clone mesh description during Nanite build [%s]."), *StaticMesh->GetFullName());
 		return false;
 	}
 
