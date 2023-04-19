@@ -296,8 +296,8 @@ void FSkeletalMeshModelingToolsEditorModeToolkit::BuildToolPalette(FName Palette
 	}
 	else if (PaletteName == SkinWeightsTabName)
 	{
-		// TODO: Need attribute support on skelmeshes.
-		// ToolbarBuilder.AddToolBarButton(Commands.BeginMeshAttributePaintTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshAttributePaintTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSkinWeightsPaintTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSkinWeightsBindingTool);
 	}
