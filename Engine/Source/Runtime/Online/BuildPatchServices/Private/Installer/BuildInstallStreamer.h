@@ -34,6 +34,17 @@ namespace BuildPatchServices
 	class IDownloadService;
 	class IMessagePump;
 
+	struct FBuildInstallStreamerStats
+	{
+		float MegaBytesDownloaded;
+		int32 AmountRequestsCompleted;
+		int32 AmountRequestsCancelled;
+		int32 AmountRequestsMade;
+		float VFCCachedTotalSize;
+		float VFCCachedUsedSize;
+		float VFCRequestedFileWrite;
+	};
+
 	class FBuildInstallStreamer
 		: public IBuildInstallStreamer
 		, public TSharedFromThis<FBuildInstallStreamer, ESPMode::ThreadSafe>
@@ -62,6 +73,7 @@ namespace BuildPatchServices
 		void CallOnDelegateThread(const TFunction<void()>& Callback);
 
 	private:
+
 		const FBuildInstallStreamerConfiguration Configuration;
 		FBuildPatchAppManifestPtr BuildPatchManifest;
 		FBuildPatchProgress BuildProgress;
@@ -94,6 +106,7 @@ namespace BuildPatchServices
 		TQueue<TFunction<void()>, EQueueMode::Spsc> TickQueue;
 		FEvent* RequestTrigger;
 		FEvent* CloudTrigger;
+		FBuildInstallStreamerStats BuildStats;
 	};
 
 	/**

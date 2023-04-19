@@ -1041,6 +1041,17 @@ void FFileTable::Empty()
 	UsedSize = -1;
 }
 
+
+int64 FFileTable::GetUsedSize() const
+{
+	return UsedSize;
+}
+
+int64 FFileTable::GetTotalSize() const
+{
+	return TotalSize;
+}
+
 double FFileTable::CurrentFragmentation() const
 {
 	double RangesPerFile = 0;
@@ -1205,7 +1216,6 @@ void FFileTable::CalculateSizes()
 	TotalSize = Sum;
 	UsedSize = Sum - FreeSize;
 }
-
 
 FString FFileTable::GetBlockFilename(const FBlockFile& File) const
 {

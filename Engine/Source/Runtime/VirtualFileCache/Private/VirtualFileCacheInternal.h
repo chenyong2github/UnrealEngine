@@ -113,6 +113,8 @@ struct IFileTableReader
 	virtual TIoStatusOr<uint64> GetSizeForChunk(const VFCKey& Id) const = 0;
 	virtual bool DoesChunkExist(const VFCKey& Id) const = 0;
 	virtual double CurrentFragmentation() const = 0;
+	virtual int64 GetUsedSize() const = 0;
+	virtual int64 GetTotalSize() const = 0;
 };
 
 struct FFileTable : IFileTableReader
@@ -180,6 +182,8 @@ public:
 	virtual TIoStatusOr<uint64> GetSizeForChunk(const VFCKey& Id) const override;
 	virtual bool DoesChunkExist(const VFCKey& Id) const override;
 	virtual double CurrentFragmentation() const override;
+	virtual int64 GetUsedSize() const override;
+	virtual int64 GetTotalSize() const override;
 	// \IFileTableReader
 
 	friend FArchive& operator<<(FArchive& Ar, FFileTable& FileTable);
@@ -412,6 +416,8 @@ public:
 	virtual TIoStatusOr<uint64> GetSizeForChunk(const VFCKey& Id) const override;
 	virtual double CurrentFragmentation() const override;
 	virtual void Defragment() override;
+	virtual int64 GetTotalSize() const override;
+	virtual int64 GetUsedSize() const override;
 
 	FString GetTableFilename() const { return Thread.GetTableFilename(); }
 

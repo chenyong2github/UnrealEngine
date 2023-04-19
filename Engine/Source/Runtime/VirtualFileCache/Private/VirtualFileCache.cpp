@@ -104,3 +104,15 @@ void FVirtualFileCache::Defragment()
 	FFileTableWriter FileTable = Thread.ModifyFileTable();
 	return FileTable->Defragment();
 }
+
+int64 FVirtualFileCache::GetTotalSize() const
+{
+	FFileTableReader FileTable = Thread.ReadFileTable();
+	return FileTable->GetTotalSize();
+}
+
+int64 FVirtualFileCache::GetUsedSize() const
+{
+	FFileTableReader FileTable = Thread.ReadFileTable();
+	return FileTable->GetUsedSize();
+}

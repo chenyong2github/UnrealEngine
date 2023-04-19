@@ -26,8 +26,11 @@
 #include "Installer/Statistics/MemoryChunkStoreStatistics.h"
 #include "Installer/VirtualFileConstructor.h"
 #include "VirtualFileCache.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBuildInstallStreamer, Log, All);
+
+CSV_DEFINE_CATEGORY(CosmeticStreamingCsv, true);
 
 namespace BuildPatchServices
 {
@@ -67,6 +70,8 @@ namespace BuildPatchServices
 		, bIsShuttingDown(false)
 		, RequestTrigger(FPlatformProcess::GetSynchEventFromPool(false))
 		, CloudTrigger(FPlatformProcess::GetSynchEventFromPool(false))
+		, BuildStats(FBuildInstallStreamerStats())
+		
 	{
 		RequestWorker = Async(EAsyncExecution::ThreadIfForkSafe, [this]()
 			{
@@ -147,6 +152,7 @@ namespace BuildPatchServices
 
 		auto CompleteRequest = [this, &Requests, &RequestTime]()
 		{
+			uint64 TotalDownload = DownloadServiceStatistics->GetBytesDownloaded();
 			for (FStreamRequest& Request : Requests)
 			{
 				FBuildPatchStreamResult Result;
@@ -154,10 +160,13 @@ namespace BuildPatchServices
 				Result.ErrorType = InstallerError->GetErrorType();
 				Result.ErrorCode = InstallerError->GetErrorCode();
 				// TODO: Not accurate.. How to fix this
-				Result.TotalDownloaded = DownloadServiceStatistics->GetBytesDownloaded();
+				Result.TotalDownloaded = TotalDownload;
+				
+				BuildStats.AmountRequestsCompleted++;
 				UE_LOG(LogBuildInstallStreamer, Verbose, TEXT("Completed request %s in %s"), *FString::Join(Result.Request, TEXT(",")), *FPlatformTime::PrettyTime(RequestTime));
 				Request.Get<2>().ExecuteIfBound(MoveTemp(Result));
 			}
+			BuildStats.MegaBytesDownloaded += (TotalDownload / 1024.0f / 1024.0f);
 		};
 
 		auto CancelRequest = [this, &Requests]()
@@ -169,6 +178,7 @@ namespace BuildPatchServices
 				Result.ErrorType = InstallerError->GetErrorType();
 				Result.ErrorCode = InstallerError->GetErrorCode();
 				Result.TotalDownloaded = 0;
+				BuildStats.AmountRequestsCancelled++;
 				UE_LOG(LogBuildInstallStreamer, Verbose, TEXT("Cancelled request %s"), *FString::Join(Result.Request, TEXT(",")));
 				Request.Get<2>().ExecuteIfBound(MoveTemp(Result));
 			}
@@ -179,6 +189,7 @@ namespace BuildPatchServices
 			// If we were asked to cancel all requests, then do this first
 			if (InstallerError->IsCancelled())
 			{
+				
 				while (RequestQueue.Dequeue(Requests.AddDefaulted_GetRef())) {}
 				Requests.Pop();
 				if (Requests.Num() > 0)
@@ -203,6 +214,7 @@ namespace BuildPatchServices
 			{
 				for (const FStreamRequest& Request : Requests)
 				{
+					BuildStats.AmountRequestsMade++;
 					UE_LOG(LogBuildInstallStreamer, Verbose, TEXT("Begin request %s"), *FString::Join(Request.Get<0>(), TEXT(",")));
 				}
 
@@ -211,6 +223,13 @@ namespace BuildPatchServices
 				AsyncHelpers::ExecuteOnCustomThread<void>([this]() { DownloadServiceStatistics->Reset(); }, TickQueue);
 				TSharedPtr<IVirtualFileCache, ESPMode::ThreadSafe> VirtualFileCache = IVirtualFileCache::CreateVirtualFileCache();
 				InstallerError->Reset();
+#if CSV_PROFILER
+				//Used and Total size is calulcated on VFC Start.
+				//Used + Requested write will always result in new total. Doing this to recalculating all blocks.
+				BuildStats.VFCCachedUsedSize = (VirtualFileCache->GetUsedSize() / 1024.0f / 1024.0f);
+				BuildStats.VFCCachedTotalSize = (VirtualFileCache->GetTotalSize()  / 1024.0f / 1024.0f);
+#endif
+
 
 				// Setup file build list.
 				FVirtualFileConstructorConfiguration VFCConfig;
@@ -234,6 +253,10 @@ namespace BuildPatchServices
 					if (FileManifest != nullptr && VirtualFileCache->DoesChunkExist(FileManifest->FileHash))
 					{
 						FileIt.RemoveCurrent();
+					}
+					else
+					{
+						BuildStats.VFCRequestedFileWrite += (FileManifest->FileSize / 1024.0f / 1024.0f);
 					}
 				}
 
@@ -349,6 +372,16 @@ namespace BuildPatchServices
 		{
 			TickFunc();
 		}
+
+#if !UE_BUILD_SHIPPING
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.VFCRequestedFileWrite,		BuildStats.VFCRequestedFileWrite, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.VFCCachedUsedSize,			BuildStats.VFCCachedUsedSize + BuildStats.VFCRequestedFileWrite, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.VFCCachedTotalSize,		BuildStats.VFCCachedTotalSize, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.MegaBytesDownloaded,		BuildStats.MegaBytesDownloaded, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.AmountRequestsCompleted,	BuildStats.AmountRequestsCompleted, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.AmountRequestsCancelled,	BuildStats.AmountRequestsCancelled, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.AmountRequestsMade,		BuildStats.AmountRequestsMade, ECsvCustomStatOp::Set);
+#endif
 
 		return bKeepTicking;
 	}
