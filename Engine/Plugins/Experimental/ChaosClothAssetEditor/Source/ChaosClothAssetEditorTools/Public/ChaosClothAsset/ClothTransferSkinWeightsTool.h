@@ -5,6 +5,9 @@
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "BoneIndices.h"
 #include "ModelingOperators.h"
+#include "Transforms/TransformGizmoDataBinder.h"
+
+
 #include "ClothTransferSkinWeightsTool.generated.h"
 
 class UClothTransferSkinWeightsTool;
@@ -15,6 +18,7 @@ class UCombinedTransformGizmo;
 class UMeshOpPreviewWithBackgroundCompute;
 class AInternalToolFrameworkActor;
 class UDynamicMeshComponent;
+class FTransformGizmoDataBinder;
 
 UCLASS()
 class CHAOSCLOTHASSETEDITORTOOLS_API UClothTransferSkinWeightsToolProperties : public UInteractiveToolPropertySet
@@ -25,8 +29,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = Source)
 	TObjectPtr<USkeletalMesh> SourceMesh;
 
-	UPROPERTY(EditAnywhere, Category = Source)
-	FTransform SourceMeshTransform;
+	UPROPERTY(EditAnywhere, Category = Source, meta = (EditCondition = "SourceMesh != nullptr"))
+	FVector3d SourceMeshTranslation;
+
+	UPROPERTY(EditAnywhere, Category = Source, meta = (EditCondition = "SourceMesh != nullptr"))
+	FVector3d SourceMeshRotation;
+
+	UPROPERTY(EditAnywhere, Category = Source, meta = (EditCondition = "SourceMesh != nullptr"))
+	FVector3d SourceMeshScale;
+
 
 	UPROPERTY(EditAnywhere, Category = Source)
 	int32 SourceMeshLOD = 0;
@@ -87,7 +98,11 @@ private:
 
 	void SetPreviewMeshColorFunction();
 
+	FTransform TransformFromProperties() const;
+
 	void UpdateSourceMesh();
+
+	void OpFinishedCallback(const UE::Geometry::FDynamicMeshOperator* Op);
 
 	void PreviewMeshUpdatedCallback(UMeshOpPreviewWithBackgroundCompute* Preview);
 
@@ -114,10 +129,13 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UCombinedTransformGizmo> SourceMeshTransformGizmo;
 
+	TSharedPtr<FTransformGizmoDataBinder> DataBinder;
+
 	// Used to lookup the index of the currently selected-by-name bone
 	TMap<FName, FBoneIndexType> TargetMeshBoneNameToIndex;
 
 	bool bHasInvalidLODWarning = false;
+	bool bHasOpFailedWarning = false;
 };
 
 
