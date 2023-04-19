@@ -82,6 +82,10 @@ namespace MeshTranslationImpl
 	// Example: Receives UsdPreviewSurfaceTwoSidedTranslucent -> Returns UsdPreviewSurfaceTwoSidedTranslucent
 	// Example: Receives SomeOtherReferenceMaterial -> Returns nullptr
 	UMaterialInterface* GetTwoSidedVersionOfReferencePreviewSurfaceMaterial( UMaterialInterface* ReferenceMaterial );
+
+	// Returns whether the Material is one of the UsdPreviewSurface reference materials (which can be reassigned by the
+	// user on a per project basis)
+	bool IsReferencePreviewSurfaceMaterial(UMaterialInterface* Material);
 }
 
 #endif // #if USE_USD_SDK

@@ -103,6 +103,10 @@ namespace UsdSkelRootTranslatorImpl
 
 #if WITH_EDITOR
 		UUsdMeshAssetImportData* ImportData = Cast< UUsdMeshAssetImportData>( SkeletalMesh->GetAssetImportData() );
+		ensureMsgf(ImportData, TEXT("Skeletal Mesh '%s' generated for prim '%s' should have an UUsdMeshAssetImportData at this point!"),
+			*SkeletalMesh->GetPathName(),
+			*UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath())
+		);
 #endif // WITH_EDITOR
 
 		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
@@ -425,12 +429,9 @@ namespace UsdSkelRootTranslatorImpl
 		FName& OutSkeletonName,
 		UsdUtils::FBlendShapeMap* OutBlendShapes,
 		TSet<FString>& InOutUsedMorphTargetNames,
-		const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarsUVSetNames,
-		float InTime,
 		const UUsdAssetCache2& AssetCache,
 		bool bInInterpretLODs,
-		const pxr::TfToken& RenderContext,
-		const pxr::TfToken& MaterialPurpose
+		const UsdToUnreal::FUsdMeshConversionOptions& Options
 	)
 	{
 		if ( !InSkeletonRoot )
@@ -500,13 +501,10 @@ namespace UsdSkelRootTranslatorImpl
 			&LODIndexToSkeletalMeshImportDataMap,
 			&LODIndexToMaterialInfoMap,
 			&SkelQuery,
-			InTime,
-			&InMaterialToPrimvarsUVSetNames,
 			&InOutUsedMorphTargetNames,
 			OutBlendShapes,
 			&StageInfo,
-			RenderContext,
-			MaterialPurpose
+			Options
 		]
 		( const pxr::UsdGeomMesh& LODMesh, int32 LODIndex )
 		{
@@ -522,7 +520,7 @@ namespace UsdSkelRootTranslatorImpl
 			}
 
 			FSkeletalMeshImportData& LODImportData = LODIndexToSkeletalMeshImportDataMap.FindOrAdd( LODIndex );
-			TArray<UsdUtils::FUsdPrimMaterialSlot>& LODSlots = LODIndexToMaterialInfoMap.FindOrAdd( LODIndex ).Slots;
+			UsdUtils::FUsdPrimMaterialAssignmentInfo& LODMaterialInfo = LODIndexToMaterialInfoMap.FindOrAdd( LODIndex );
 
 			// BlendShape data is respective to point indices for each mesh in isolation, but we combine all points
 			// into one FSkeletalMeshImportData per LOD, so we need to remap the indices using this
@@ -532,10 +530,8 @@ namespace UsdSkelRootTranslatorImpl
 				SkinningQuery,
 				SkelQuery,
 				LODImportData,
-				LODSlots,
-				InMaterialToPrimvarsUVSetNames,
-				RenderContext,
-				MaterialPurpose
+				LODMaterialInfo,
+				Options
 			);
 			if ( !bSuccess )
 			{
@@ -1269,9 +1265,6 @@ namespace UsdSkelRootTranslatorImpl
 				// No point in importing blend shapes if the import context doesn't want them
 				UsdUtils::FBlendShapeMap* OutBlendShapes = Context->BlendShapesByPath ? &NewBlendShapes : nullptr;
 
-				TMap< FString, TMap< FString, int32 > > Unused;
-				const TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex : &Unused;
-
 				pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
 				if ( !Context->RenderContext.IsNone() )
 				{
@@ -1284,6 +1277,11 @@ namespace UsdSkelRootTranslatorImpl
 					MaterialPurposeToken = UnrealToUsd::ConvertToken( *Context->MaterialPurpose.ToString() ).Get();
 				}
 
+				UsdToUnreal::FUsdMeshConversionOptions Options;
+				Options.TimeCode = Context->Time;
+				Options.RenderContext = RenderContextToken;
+				Options.MaterialPurpose = MaterialPurposeToken;
+
 				const bool bContinueTaskChain = UsdSkelRootTranslatorImpl::LoadAllSkeletalData(
 					SkeletonCache.Get(),
 					pxr::UsdSkelRoot( GetPrim() ),
@@ -1293,12 +1291,9 @@ namespace UsdSkelRootTranslatorImpl
 					SkeletonName,
 					OutBlendShapes,
 					UsedMorphTargetNames,
-					*MaterialToPrimvarToUVIndex,
-					Context->Time,
 					*Context->AssetCache.Get(),
 					Context->bAllowInterpretingLODs,
-					RenderContextToken,
-					MaterialPurposeToken
+					Options
 				);
 
 				return bContinueTaskChain;

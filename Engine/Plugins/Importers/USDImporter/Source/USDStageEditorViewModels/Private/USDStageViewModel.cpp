@@ -354,7 +354,6 @@ void FUsdStageViewModel::ImportStage( const TCHAR* TargetContentFolder, UUsdStag
 			ImportContext.AssetCache = StageActor->UsdAssetCache;
 			ImportContext.InfoCache = StageActor->GetInfoCache();
 			ImportContext.LevelSequenceHelper.SetInfoCache(StageActor->GetInfoCache());
-			ImportContext.MaterialToPrimvarToUVIndex = StageActor->GetMaterialToPrimvarToUVIndex();
 
 			ImportContext.TargetSceneActorAttachParent = StageActor->GetRootComponent()->GetAttachParent();
 			ImportContext.TargetSceneActorTargetTransform = StageActor->GetActorTransform();

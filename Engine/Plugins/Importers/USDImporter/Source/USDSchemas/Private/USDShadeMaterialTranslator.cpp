@@ -162,6 +162,8 @@ namespace UE::UsdShadeTranslator::Private
 								}
 								NewMID->CopyParameterOverrides( MID );
 
+								// TODO: Copy asset user data over to NewMID
+
 								if (Context->AssetCache->CanRemoveAsset(Hash) && Context->AssetCache->RemoveAsset(Hash))
 								{
 									Context->AssetCache->CacheAsset(Hash, NewMID);
@@ -266,23 +268,12 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 			*IUsdClassesModule::SanitizeObjectName(FPaths::GetBaseFilename(PrimPathString))
 		);
 
-		// TODO: There is an issue here: Note how we're only ever going to write the material prim's primvars into
-		// this PrimvarToUVIndex map when first creating the material, and not if we find it in the asset cache.
-		// This because finding the primvars to use essentially involves parsing the entire material again, so we
-		// likely shouldn't do it every time.
-		// This means that a mesh with float2 UV sets and materials that use them will likely end up with no UVs once
-		// the stage reloads...
-		TMap<FString, int32> Unused;
-		TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex
-			? Context->MaterialToPrimvarToUVIndex->FindOrAdd(PrimPathString)
-			: Unused;
-
 #if WITH_EDITOR
 		if ( GIsEditor ) // Also have to prevent Standalone game from going with MaterialInstanceConstants
 		{
 			if ( UMaterialInstanceConstant* NewMaterial = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), InstanceName, Context->ObjectFlags | EObjectFlags::RF_Transient ) )
 			{
-				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( NewMaterial, TEXT( "USDAssetImportData" ) );
+				UUsdMaterialAssetImportData* ImportData = NewObject<UUsdMaterialAssetImportData>(NewMaterial, TEXT("USDAssetImportData"));
 				ImportData->PrimPath = PrimPath.GetString();
 				NewMaterial->AssetImportData = ImportData;
 
@@ -290,7 +281,6 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 					ShadeMaterial,
 					*NewMaterial,
 					Context->AssetCache.Get(),
-					PrimvarToUVIndex,
 					*Context->RenderContext.ToString()
 				);
 				if ( !bSuccess )
@@ -383,7 +373,9 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 				{
 					NewMaterial->SetFlags(RF_Transient);
 
-					if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), PrimvarToUVIndex, *Context->RenderContext.ToString() ) )
+					// TODO: Create asset user data here so that ConvertMaterial can store the primvars used on each UV index
+
+					if (UsdToUnreal::ConvertMaterial(ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), *Context->RenderContext.ToString()))
 					{
 						TSet<UTexture*> VTTextures;
 						TSet<UTexture*> NonVTTextures;
@@ -431,20 +423,6 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 			}
 		}
 	}
-	else if ( Context->MaterialToPrimvarToUVIndex && Context->InfoCache )
-	{
-		const TSet<UE::FSdfPath> FoundPrimPaths = Context->InfoCache->GetPrimsForAsset(ConvertedMaterial);
-		if (FoundPrimPaths.Num() > 0)
-		{
-			const UE::FSdfPath& FoundPrimPath = *FoundPrimPaths.CreateConstIterator();
-
-			if (TMap<FString, int32>* PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex->Find(FoundPrimPath.GetString()))
-			{
-				// Copy the Material -> Primvar -> UV index mapping from the cached material prim path to this prim path
-				Context->MaterialToPrimvarToUVIndex->FindOrAdd(PrimPath.GetString()) = *PrimvarToUVIndex;
-			}
-		}
-	}
 
 	PostImportMaterial(MaterialHashString, ConvertedMaterial);
 }
@@ -467,10 +445,10 @@ void FUsdShadeMaterialTranslator::PostImportMaterial(const FString& MaterialHash
 	}
 
 #if WITH_EDITOR
-	UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>(ImportedMaterial->AssetImportData);
+	UUsdMaterialAssetImportData* ImportData = Cast<UUsdMaterialAssetImportData>(ImportedMaterial->AssetImportData);
 	if (!ImportData)
 	{
-		ImportData = NewObject<UUsdAssetImportData>(ImportedMaterial, TEXT("USDAssetImportData"));
+		ImportData = NewObject<UUsdMaterialAssetImportData>(ImportedMaterial, TEXT("USDAssetImportData"));
 		ImportedMaterial->AssetImportData = ImportData;
 	}
 	ImportData->PrimPath = PrimPath.GetString();
@@ -538,7 +516,7 @@ void FUsdShadeMaterialTranslator::PostImportMaterial(const FString& MaterialHash
 				UUsdAssetImportData* TextureImportData = Cast<UUsdAssetImportData>(Texture->AssetImportData);
 				if (!TextureImportData)
 				{
-					TextureImportData = NewObject<UUsdAssetImportData>(ImportedMaterial, TEXT("USDAssetImportData"));
+					TextureImportData = NewObject<UUsdAssetImportData>(Texture, TEXT("USDAssetImportData"));
 					Texture->AssetImportData = TextureImportData;
 				}
 				TextureImportData->PrimPath = PrimPath.GetString();

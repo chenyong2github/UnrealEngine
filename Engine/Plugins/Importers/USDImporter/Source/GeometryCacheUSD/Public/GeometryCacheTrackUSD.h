@@ -23,6 +23,15 @@ public:
 	void Initialize(
 		const UE::FUsdStage& InStage,
 		const FString& InPrimPath,
+		int32 InStartFrameIndex,
+		int32 InEndFrameIndex,
+		FReadUsdMeshFunction InReadFunc
+	);
+
+	UE_DEPRECATED(5.3, "The RenderContext and InMaterialToPrimvarToUVIndex parameters are no longer used.")
+	void Initialize(
+		const UE::FUsdStage& InStage,
+		const FString& InPrimPath,
 		const FName& InRenderContext,
 		const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarToUVIndex,
 		int32 InStartFrameIndex,
@@ -56,11 +65,9 @@ public:
 	void UnloadUsdStage();
 
 public:
-	FName RenderContext;
 	double FramesPerSecond;
 	int32 StartFrameIndex;
 	int32 EndFrameIndex;
-	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
 
 	FString PrimPath;
 

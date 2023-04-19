@@ -256,8 +256,6 @@ void UGeometryCacheTrackUsd::UnloadUsdStage()
 void UGeometryCacheTrackUsd::Initialize(
 	const UE::FUsdStage& InStage,
 	const FString& InPrimPath,
-	const FName& InRenderContext,
-	const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarToUVIndex,
 	int32 InStartFrameIndex,
 	int32 InEndFrameIndex,
 	FReadUsdMeshFunction InReadFunc
@@ -268,8 +266,6 @@ void UGeometryCacheTrackUsd::Initialize(
 	StageRootLayerPath = CurrentStagePinned ? CurrentStagePinned.GetRootLayer().GetRealPath() : FString();
 
 	PrimPath = InPrimPath;
-	RenderContext = InRenderContext;
-	MaterialToPrimvarToUVIndex = InMaterialToPrimvarToUVIndex;
 	StartFrameIndex = InStartFrameIndex;
 	EndFrameIndex = InEndFrameIndex;
 	FramesPerSecond = CurrentStagePinned.GetTimeCodesPerSecond();
@@ -289,6 +285,19 @@ void UGeometryCacheTrackUsd::Initialize(
 	UsdStream.Reset(new FGeometryCacheUsdStream(this, InReadFunc));
 	IGeometryCacheStreamer::Get().RegisterTrack(this, UsdStream.Get());
 	UsdStream->Prefetch(StartFrameIndex);
+}
+
+void UGeometryCacheTrackUsd::Initialize(
+	const UE::FUsdStage& InStage,
+	const FString& InPrimPath,
+	const FName& InRenderContext,
+	const TMap< FString, TMap< FString, int32 > >& InMaterialToPrimvarToUVIndex,
+	int32 InStartFrameIndex,
+	int32 InEndFrameIndex,
+	FReadUsdMeshFunction InReadFunc
+)
+{
+	Initialize(InStage, InPrimPath, InStartFrameIndex, InEndFrameIndex, InReadFunc);
 }
 
 void UGeometryCacheTrackUsd::UpdateTime(float Time, bool bLooping)

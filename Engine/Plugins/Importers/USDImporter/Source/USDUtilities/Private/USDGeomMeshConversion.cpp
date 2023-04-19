@@ -617,6 +617,135 @@ namespace UE::UsdGeomMeshConversion::Private
 
 		return bSuccess;
 	}
+
+	void RecursivelyCollectPrimvars(
+		const pxr::UsdPrim& Prim,
+		const UsdToUnreal::FUsdMeshConversionOptions& Options,
+		TSet<FString>& InOutAllPrimvars,
+		TSet<FString>& InOutPreferredPrimvars,
+		bool bIsFirstPrim
+	)
+	{
+		FScopedUsdAllocs Allocs;
+
+		// This should always replicate the same traversal pattern of RecursivelyCollapseChildMeshes
+
+		if (!EnumHasAllFlags(Options.PurposesToLoad, IUsdPrim::GetPurpose(Prim)))
+		{
+			return;
+		}
+
+		if (!bIsFirstPrim)
+		{
+			if (pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable(Prim))
+			{
+				if (pxr::UsdAttribute VisibilityAttr = UsdGeomImageable.GetVisibilityAttr())
+				{
+					pxr::TfToken VisibilityToken;
+					if (VisibilityAttr.Get(&VisibilityToken) && VisibilityToken == pxr::UsdGeomTokens->invisible)
+					{
+						return;
+					}
+				}
+			}
+		}
+
+		bool bTraverseChildren = true;
+
+		if (pxr::UsdGeomMesh Mesh = pxr::UsdGeomMesh(Prim))
+		{
+			TArray<TUsdStore<pxr::UsdGeomPrimvar>> MeshPrimvars = UsdUtils::GetUVSetPrimvars(
+				Mesh,
+				TNumericLimits<int32>::Max()
+			);
+
+			for (const TUsdStore<pxr::UsdGeomPrimvar>& MeshPrimvar : MeshPrimvars)
+			{
+				FString PrimvarName = UsdToUnreal::ConvertToken(MeshPrimvar.Get().GetName());
+				PrimvarName.RemoveFromStart(TEXT("primvars:"));
+
+				InOutAllPrimvars.Add(PrimvarName);
+
+				// Keep track of which primvars are texCoord2f as we always want to prefer these over other float2s
+				if (MeshPrimvar.Get().GetTypeName().GetRole() == pxr::SdfValueTypeNames->TexCoord2f.GetRole())
+				{
+					InOutPreferredPrimvars.Add(PrimvarName);
+				}
+			}
+		}
+		else if (pxr::UsdGeomPointInstancer PointInstancer = pxr::UsdGeomPointInstancer{Prim})
+		{
+			pxr::SdfPathVector PrototypePaths;
+			if (!PointInstancer.GetPrototypesRel().GetTargets(&PrototypePaths))
+			{
+				return;
+			}
+
+			pxr::UsdStageRefPtr Stage = Prim.GetStage();
+			for (const pxr::SdfPath& PrototypePath : PrototypePaths)
+			{
+				pxr::UsdPrim PrototypeUsdPrim = Stage->GetPrimAtPath(PrototypePath);
+				if (!PrototypeUsdPrim)
+				{
+					continue;
+				}
+
+				const bool bChildIsFirstPrim = false;
+				RecursivelyCollectPrimvars(
+					PrototypeUsdPrim,
+					Options,
+					InOutAllPrimvars,
+					InOutPreferredPrimvars,
+					bChildIsFirstPrim
+				);
+			}
+
+			// We never want to step into point instancers when fetching prims for drawing
+			bTraverseChildren = false;
+		}
+
+		if (bTraverseChildren)
+		{
+			for (const pxr::UsdPrim& ChildPrim : Prim.GetFilteredChildren(pxr::UsdTraverseInstanceProxies()))
+			{
+				const bool bChildIsFirstPrim = false;
+				RecursivelyCollectPrimvars(
+					ChildPrim,
+					Options,
+					InOutAllPrimvars,
+					InOutPreferredPrimvars,
+					bChildIsFirstPrim
+				);
+			}
+		}
+	}
+
+	/**
+	 * Returns the set of primvar names that can be used for each UV index for a mesh collapsed from the subtree
+	 * starting at RootPrim.
+	 */
+	TMap<FString, int32> CollectSubtreePrimvars(
+		const pxr::UsdPrim& RootPrim,
+		const UsdToUnreal::FUsdMeshConversionOptions& Options,
+		bool bIsFirstPrim
+	)
+	{
+		TSet<FString> AllPrimvars;
+		TSet<FString> PreferredPrimvars;
+
+		RecursivelyCollectPrimvars(
+			RootPrim,
+			Options,
+			AllPrimvars,
+			PreferredPrimvars,
+			bIsFirstPrim
+		);
+
+		return UsdUtils::CombinePrimvarsIntoUVSets(
+			AllPrimvars,
+			PreferredPrimvars
+		);
+	}
 }
 namespace UsdGeomMeshImpl = UE::UsdGeomMeshConversion::Private;
 
@@ -630,7 +759,6 @@ namespace UsdToUnreal
 		, RenderContext( pxr::UsdShadeTokens->universalRenderContext )
 		, MaterialPurpose( pxr::UsdShadeTokens->allPurpose )
 		, TimeCode( pxr::UsdTimeCode::EarliestTime() )
-		, MaterialToPrimvarToUVIndex( nullptr )
 		, bMergeIdenticalMaterialSlots( true )
 	{
 	}
@@ -869,20 +997,41 @@ bool UsdToUnreal::ConvertGeomMesh(
 
 		TArray< FUVSet > UVSets;
 
-		TArray< TUsdStore< pxr::UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars( UsdMesh, *Options.MaterialToPrimvarToUVIndex, LocalInfo );
+		TOptional<int32> ProvidedNumUVSets;
+
+		// If we already have a primvar to UV index assignment, let's just use that.
+		// When collapsing, we'll do a pre-pass on all meshes to translate and determine this beforehand.
+		TArray<TUsdStore<pxr::UsdGeomPrimvar>> PrimvarsByUVIndex;
+		if (OutMaterialAssignments.PrimvarToUVIndex.Num() > 0)
+		{
+			int32 HighestProvidedUVIndex = 0;
+			for (const TPair<FString, int32>& Pair : OutMaterialAssignments.PrimvarToUVIndex)
+			{
+				HighestProvidedUVIndex = FMath::Max(HighestProvidedUVIndex, Pair.Value);
+			}
+			ProvidedNumUVSets = HighestProvidedUVIndex + 1;
+
+			TArray<TUsdStore<pxr::UsdGeomPrimvar>> AllMeshUVPrimvars =
+				UsdUtils::GetUVSetPrimvars(UsdMesh, TNumericLimits<int32>::Max());
+
+			PrimvarsByUVIndex =
+				UsdUtils::AssemblePrimvarsIntoUVSets(AllMeshUVPrimvars, OutMaterialAssignments.PrimvarToUVIndex);
+		}
+		// Let's use the best primvar assignment for this particular mesh instead
+		else
+		{
+			PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars(UsdMesh);
+
+			OutMaterialAssignments.PrimvarToUVIndex =
+				UsdUtils::AssemblePrimvarsIntoPrimvarToUVIndexMap(PrimvarsByUVIndex);
+		}
 
 		int32 HighestAddedUVChannel = 0;
-		for ( int32 UVChannelIndex = 0; UVChannelIndex < PrimvarsByUVIndex.Num(); ++UVChannelIndex )
+		for (int32 UVChannelIndex = 0; UVChannelIndex < PrimvarsByUVIndex.Num(); ++UVChannelIndex)
 		{
-			if ( !PrimvarsByUVIndex.IsValidIndex( UVChannelIndex ) )
+			pxr::UsdGeomPrimvar& Primvar = PrimvarsByUVIndex[UVChannelIndex].Get();
+			if (!Primvar)
 			{
-				break;
-			}
-
-			pxr::UsdGeomPrimvar& Primvar = PrimvarsByUVIndex[ UVChannelIndex ].Get();
-			if ( !Primvar )
-			{
-				// The user may have name their UV sets 'uv4' and 'uv5', in which case we have no UV sets below 4, so just skip them
 				continue;
 			}
 
@@ -916,13 +1065,25 @@ bool UsdToUnreal::ConvertGeomMesh(
 			}
 		}
 
-		// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
+		// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of UVs
 		{
 			int32 ExistingUVCount = MeshDescriptionUVs.GetNumChannels();
 			int32 NumUVs = FMath::Max( HighestAddedUVChannel + 1, ExistingUVCount );
+
+			// When we provide a PrimvarToUVIndex map to this function it means we'll end up combining this
+			// MeshDescription with others later (e.g. due to collapsing or multiple-LOD meshes).
+			// In that case we can get better results by making sure all of the individual MeshDescriptions have the
+			// same total number of UV sets, even if the unused ones are empty.
+			// Otherwise, if we e.g. have a material reading UVIndex3 when we only have a single UV set, UE seems to
+			// just read that one UV set anyway, which is somewhat unexpected and can be misleading
+			if (ProvidedNumUVSets.IsSet())
+			{
+				NumUVs = FMath::Max<int32>(ProvidedNumUVSets.GetValue(), NumUVs);
+			}
+
 			NumUVs = FMath::Min<int32>( MAX_MESH_TEXTURE_COORDS_MD, NumUVs );
 			// At least one UV set must exist.
-			NumUVs = FMath::Max<int32>( 1, NumUVs );
+			NumUVs = FMath::Max<int32>(1, NumUVs);
 
 			//Make sure all Vertex instance have the correct number of UVs
 			MeshDescriptionUVs.SetNumChannels( NumUVs );
@@ -1152,7 +1313,6 @@ bool UsdToUnreal::ConvertGeomMesh(
 {
 	FUsdMeshConversionOptions Options;
 	Options.AdditionalTransform = AdditionalTransform;
-	Options.MaterialToPrimvarToUVIndex = &MaterialToPrimvarsUVSetNames;
 	Options.TimeCode = TimeCode;
 	Options.RenderContext = RenderContext;
 	Options.bMergeIdenticalMaterialSlots = bMergeIdenticalMaterialSlots;
@@ -1367,6 +1527,16 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 	// provide the options object to ConvertGeomMesh and ConvertPointInstancerToMesh
 	FUsdMeshConversionOptions OptionsCopy = Options;
 
+	// Prepass to figure out the best primvars to use for the entire collapsed mesh UV sets
+	if (OutMaterialAssignments.PrimvarToUVIndex.Num() == 0)
+	{
+		OutMaterialAssignments.PrimvarToUVIndex = UsdGeomMeshImpl::CollectSubtreePrimvars(
+			Prim,
+			Options,
+			bSkipRootPrimTransformAndVisibility
+		);
+	}
+
 	return UsdGeomMeshImpl::RecursivelyCollapseChildMeshes(
 		Prim,
 		OutMeshDescription,
@@ -1393,7 +1563,6 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 	Options.TimeCode = TimeCode;
 	Options.PurposesToLoad = PurposesToLoad;
 	Options.RenderContext = RenderContext;
-	Options.MaterialToPrimvarToUVIndex = &MaterialToPrimvarToUVIndex;
 	Options.bMergeIdenticalMaterialSlots = bMergeIdenticalMaterialSlots;
 
 	return ConvertGeomMeshHierarchy(

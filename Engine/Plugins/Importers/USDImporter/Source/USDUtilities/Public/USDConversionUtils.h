@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MeshDescription.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -135,16 +136,25 @@ namespace UsdUtils
 	 * @param PrimvarName - Name of the primvar that should be used as UV set
 	 * @return UV index that should be used for this primvar
 	 */
+	UE_DEPRECATED(5.3, "This heuristic is no longer used. Check GetUVSetPrimvars for the new behavior.")
 	USDUTILITIES_API int32 GetPrimvarUVIndex( FString PrimvarName );
 
 	/**
-	 * Gets the names of the primvars that should be used as UV sets, per index, for this mesh.
-	 * (e.g. first item of array is primvar for UV set 0, second for UV set 1, etc).
-	 * This overload will only return primvars with 'texcoord2f' role.	 *
+	 * Gets the primvars that should be used as UV sets, per index, for this UsdMesh.
+	 * This will return between 0 and MaxNumPrimvars primvars, where the first item of array is the primvar that should be used for
+	 * UV index 0 (if any), the second the primvar that should be used for UV set 1, etc.
+	 *
+	 * In case there are more than MaxNumPrimvars available primvars, the returned list will contain all the 'texCoord2f' role
+	 * primvars (sorted lexicographically), followed by the regular float2 primvars (also separately sorted lexicographically).
+	 *
 	 * @param UsdMesh - Mesh that contains primvars that can be used as texture coordinates.
-	 * @return Array where each index gives the primvar that should be used for that UV index
+	 * @param MaxNumPrimvars - Maximum number of primvars to return from this function.
+	 * @return Array of up to MaxNumPrimvars primvars sorted by priority (most important come first)
 	 */
-	USDUTILITIES_API TArray< TUsdStore< pxr::UsdGeomPrimvar > > GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh );
+	USDUTILITIES_API TArray<TUsdStore<pxr::UsdGeomPrimvar>> GetUVSetPrimvars(
+		const pxr::UsdGeomMesh& UsdMesh,
+		int32 MaxNumPrimvars = MAX_MESH_TEXTURE_COORDS_MD
+	);
 
 	/**
 	 * Gets the names of the primvars that should be used as UV sets, per index, for this mesh.
@@ -157,13 +167,73 @@ namespace UsdUtils
 	 * @param MaterialPurpose - Specific material purpose to use when parsing the UsdMesh's material bindings
 	 * @return Array where each index gives the primvar that should be used for that UV index
 	 */
+	UE_DEPRECATED(5.3, "Use the signature that just receives an UsdMesh, as the returned primvars no longer depend on material assignment information.")
 	USDUTILITIES_API TArray< TUsdStore< pxr::UsdGeomPrimvar > > GetUVSetPrimvars(
 		const pxr::UsdGeomMesh& UsdMesh,
-		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
+		const TMap<FString, TMap<FString, int32>>& MaterialToPrimvarsUVSetNames,
 		const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext,
 		const pxr::TfToken& MaterialPurpose = pxr::UsdShadeTokens->allPurpose
 	);
-	USDUTILITIES_API TArray< TUsdStore< pxr::UsdGeomPrimvar > > GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const UsdUtils::FUsdPrimMaterialAssignmentInfo& UsdMeshMaterialAssignmentInfo );
+	UE_DEPRECATED(5.3, "Use the signature that just receives an UsdMesh, as the returned primvars no longer depend on material assignment information.")
+	USDUTILITIES_API TArray< TUsdStore< pxr::UsdGeomPrimvar > > GetUVSetPrimvars(
+		const pxr::UsdGeomMesh& UsdMesh,
+		const TMap<FString, TMap<FString, int32>>& MaterialToPrimvarsUVSetNames,
+		const UsdUtils::FUsdPrimMaterialAssignmentInfo& UsdMeshMaterialAssignmentInfo
+	);
+
+	/**
+	 * Rearranges an array of primvars into another array of up to MAX_MESH_TEXTURE_COORDS_MD primvars, describing which
+	 * primvars should be used for each UV set according to the provided AllowedPrimvarsToUVIndex mapping.
+	 *
+	 * The intent is to use this when e.g. a Mesh prim is to be collapsed together with other Mesh prims into a single
+	 * StaticMesh, and they all need consistent UV sets across them. So even though AllMeshUVPrimvars contains [aaa,
+	 * bbb, eee], AllowedPrimvarsToUVIndex may instruct us to assign these to UV indices [0, 1, 4] (and not just [0, 1,
+	 * 2]) because our Mesh is to be merged with another Mesh prim that contains [aaa, bbb, ccc, ddd], so that ccc can
+	 * be put on index 2 and ddd on index 3.
+	 *
+	 * @param AllMeshUVPrimvars - Array of primvars extracted from some mesh sorted by priority (most important come
+	 * first)
+	 * @param AllowedPrimvarsToUVIndex - Mapping from primvar names to the UV index that they're allowed to be assigned
+	 * to
+	 * @return Array where each index gives the primvar that should be used for that UV index
+	 */
+	USDUTILITIES_API TArray<TUsdStore<pxr::UsdGeomPrimvar>> AssemblePrimvarsIntoUVSets(
+		const TArray<TUsdStore<pxr::UsdGeomPrimvar>>& AllMeshUVPrimvars,
+		const TMap<FString, int32>& AllowedPrimvarsToUVIndex
+	);
+
+	/**
+	 * Constructs a mapping from primvar name to their position in the provided AllMeshUVPrimvars array.
+	 * @param AllMeshUVPrimvars - Array of primvars extracted from some mesh sorted by priority (most important come
+	 * first)
+	 * @return Mapping from primvar names to the UV index
+	 */
+	USDUTILITIES_API TMap<FString, int32> AssemblePrimvarsIntoPrimvarToUVIndexMap(
+		const TArray<TUsdStore<pxr::UsdGeomPrimvar>>& AllMeshUVPrimvars
+	);
+
+	/**
+	 * Given an array of primvars, and an array of which of those are preferred (AllPrimvars should also include
+	 * PreferredPrimvars), this will sort lexicographically and return a prioritized PrimvarToUVIndex assignment map of
+	 * up to MAX_MESH_TEXTURE_COORDS_MD UV indices
+	 */
+	USDUTILITIES_API TMap<FString, int32> CombinePrimvarsIntoUVSets(
+		const TSet<FString>& AllPrimvars,
+		const TSet<FString>& PreferredPrimvars
+	);
+
+	template<typename T, typename U>
+	FString StringifyMap(const TMap<T, U>& Map)
+	{
+		FString Result = TEXT("{");
+		for (const TPair<T, U>& Pair : Map)
+		{
+			Result += FString::Printf(TEXT("'%s': %s, "), *LexToString(Pair.Key), *LexToString(Pair.Value));
+		}
+		Result.RemoveFromEnd(TEXT(", "));
+		Result += TEXT("}");
+		return Result;
+	}
 
 	USDUTILITIES_API bool IsAnimated( const pxr::UsdPrim& Prim );
 	USDUTILITIES_API bool HasAnimatedVisibility( const pxr::UsdPrim& Prim );

@@ -1242,10 +1242,8 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 	const pxr::UsdSkelSkinningQuery& SkinningQuery,
 	const pxr::UsdSkelSkeletonQuery& SkeletonQuery,
 	FSkeletalMeshImportData& SkelMeshImportData,
-	TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments,
-	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
-	const pxr::TfToken& RenderContext,
-	const pxr::TfToken& MaterialPurpose
+	UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
+	const FUsdMeshConversionOptions& CommonOptions
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertSkinnedMesh );
@@ -1400,8 +1398,8 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 		SkinningPrim,
 		pxr::UsdTimeCode::EarliestTime(),
 		bProvideMaterialIndices,
-		RenderContext,
-		MaterialPurpose
+		CommonOptions.RenderContext,
+		CommonOptions.MaterialPurpose
 	);
 	TArray< UsdUtils::FUsdPrimMaterialSlot >& LocalMaterialSlots = LocalInfo.Slots;
 	TArray< int32 >& FaceMaterialIndices = LocalInfo.MaterialIndices;
@@ -1414,9 +1412,9 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 	TArray<int32> LocalToCombinedMaterialIndex;
 	LocalToCombinedMaterialIndex.SetNumZeroed( LocalInfo.Slots.Num() );
 
-	for (int32 Index = 0; Index < MaterialAssignments.Num(); ++Index)
+	for (int32 Index = 0; Index < MaterialAssignments.Slots.Num(); ++Index)
 	{
-		const UsdUtils::FUsdPrimMaterialSlot& Slot = MaterialAssignments[ Index ];
+		const UsdUtils::FUsdPrimMaterialSlot& Slot = MaterialAssignments.Slots[Index];
 
 		// Combine entries in this way so that we can append PrimPaths
 		TMap< UsdUtils::FUsdPrimMaterialSlot, int32 >::TKeyIterator KeyIt = SlotToCombinedMaterialIndex.CreateKeyIterator( Slot );
@@ -1445,14 +1443,14 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 		}
 		else
 		{
-			int32 NewIndex = MaterialAssignments.Add( LocalSlot );
-			SlotToCombinedMaterialIndex.Add( LocalSlot, NewIndex );
-			LocalToCombinedMaterialIndex[ LocalIndex ] = NewIndex;
+			int32 NewIndex = MaterialAssignments.Slots.Add(LocalSlot);
+			SlotToCombinedMaterialIndex.Add(LocalSlot, NewIndex);
+			LocalToCombinedMaterialIndex[LocalIndex] = NewIndex;
 		}
 	}
 	// Now that we merged all prim paths into they keys of CombinedMaterialSlotsToIndex, let's copy them back into
 	// our output
-	for ( UsdUtils::FUsdPrimMaterialSlot& Slot : MaterialAssignments )
+	for (UsdUtils::FUsdPrimMaterialSlot& Slot : MaterialAssignments.Slots)
 	{
 		TMap< UsdUtils::FUsdPrimMaterialSlot, int32 >::TKeyIterator KeyIt = SlotToCombinedMaterialIndex.CreateKeyIterator( Slot );
 		ensure( KeyIt );
@@ -1594,12 +1592,24 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 
 	TArray< FUVSet > UVSets;
 
-	TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars(
-		UsdMesh,
-		MaterialToPrimvarsUVSetNames,
-		RenderContext,
-		MaterialPurpose
-	);
+	// If we already have a primvar to UV index assignment, let's just use that.
+	// When collapsing, we'll do a pre-pass on all meshes to translate and determine this beforehand.
+	TArray<TUsdStore<pxr::UsdGeomPrimvar>> PrimvarsByUVIndex;
+	if (MaterialAssignments.PrimvarToUVIndex.Num() > 0)
+	{
+		TArray<TUsdStore<pxr::UsdGeomPrimvar>> AllMeshUVPrimvars =
+			UsdUtils::GetUVSetPrimvars(UsdMesh, TNumericLimits<int32>::Max());
+
+		PrimvarsByUVIndex =
+			UsdUtils::AssemblePrimvarsIntoUVSets(AllMeshUVPrimvars, MaterialAssignments.PrimvarToUVIndex);
+	}
+	// Let's use the best primvar assignment for this particular mesh instead
+	else
+	{
+		PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars(UsdMesh);
+
+		MaterialAssignments.PrimvarToUVIndex = UsdUtils::AssemblePrimvarsIntoPrimvarToUVIndexMap(PrimvarsByUVIndex);
+	}
 
 	int32 UVChannelIndex = 0;
 	while ( true )
@@ -1880,6 +1890,35 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 }
 
 bool UsdToUnreal::ConvertSkinnedMesh(
+	const pxr::UsdSkelSkinningQuery& SkinningQuery,
+	const pxr::UsdSkelSkeletonQuery& SkeletonQuery,
+	FSkeletalMeshImportData& SkelMeshImportData,
+	TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments,
+	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
+	const pxr::TfToken& RenderContext,
+	const pxr::TfToken& MaterialPurpose
+)
+{
+	FUsdMeshConversionOptions Options;
+	Options.RenderContext = RenderContext;
+	Options.MaterialPurpose = MaterialPurpose;
+
+	UsdUtils::FUsdPrimMaterialAssignmentInfo TempInfo;
+	TempInfo.Slots = MaterialAssignments;
+
+	const bool bResult = ConvertSkinnedMesh(
+		SkinningQuery,
+		SkeletonQuery,
+		SkelMeshImportData,
+		TempInfo,
+		Options
+	);
+
+	MaterialAssignments = TempInfo.Slots;
+	return bResult;
+}
+
+bool UsdToUnreal::ConvertSkinnedMesh(
 	const pxr::UsdSkelSkinningQuery& UsdSkinningQuery,
 	const FTransform& AdditionalTransform,
 	FSkeletalMeshImportData& SkelMeshImportData,
@@ -1952,16 +1991,23 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 			break;
 		}
 
-		// We really only ever deal with the first binding, so we can return here
-		return ConvertSkinnedMesh(
+		UsdToUnreal::FUsdMeshConversionOptions Options;
+		Options.RenderContext = RenderContext;
+		Options.MaterialPurpose = MaterialPurpose;
+
+		UsdUtils::FUsdPrimMaterialAssignmentInfo Info;
+		Swap(Info.Slots, MaterialAssignments);
+		const bool bSuccess = ConvertSkinnedMesh(
 			UsdSkinningQuery,
 			SkelQuery,
 			SkelMeshImportData,
-			MaterialAssignments,
-			MaterialToPrimvarsUVSetNames,
-			RenderContext,
-			MaterialPurpose
+			Info,
+			Options
 		);
+		Swap(Info.Slots, MaterialAssignments);
+
+		// We really only ever deal with the first binding, so we can return here
+		return bSuccess;
 	}
 
 	return false;

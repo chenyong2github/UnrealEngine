@@ -45,6 +45,13 @@ namespace UsdToUnreal
 	/** Common options to mesh conversion functions */
 	struct USDUTILITIES_API FUsdMeshConversionOptions
 	{
+		// These need to be explicitly defaulted surrounded by the deprecation macros or else the implicit versions will
+		// be generated elsewhere, use MaterialToPrimvarToUVIndex and trigger the deprecation warnings
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FUsdMeshConversionOptions(const FUsdMeshConversionOptions& Other) = default;
+		FUsdMeshConversionOptions& operator=(const FUsdMeshConversionOptions& Other) = default;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 		const static FUsdMeshConversionOptions DefaultOptions;
 		FUsdMeshConversionOptions();
 
@@ -66,6 +73,7 @@ namespace UsdToUnreal
 		// Maps from a material prim path, to pairs indicating which primvar names are used as 'st' coordinates for
 		// this mesh, and which UVIndex materials will sample from( e.g.[ "st0", 0 ], [ "myUvSet2", 2 ], etc ).
 		// This is used to pick which primvars will become UV sets.
+		UE_DEPRECATED(5.3, "No longer used, now this information is stored directly on generated Material AssetImportData/AssetUserData")
 		const TMap< FString, TMap<FString, int32> >* MaterialToPrimvarToUVIndex;
 
 		// Whether to try reusing material slots (both local and the ones already in MaterialAssignments) when
@@ -74,18 +82,22 @@ namespace UsdToUnreal
 	};
 
 	/**
-	 * Converts an UsdGeomMesh and appends the converted data to OutMeshDescription and OutMaterialAssignments.
+	 * Converts an UsdGeomMesh and appends the converted data to InOutMeshDescription and InOutMaterialAssignments.
+	 *
+	 * If a PrimvarToUVIndex mapping is provided in InOutMaterialAssignments, it will be used to remap the read
+	 * primvars into UV sets. Otherwise, a new PrimvarToUVIndex map will be constructed on-demand and assigned
+	 * to InOutMaterialAssignments instead.
 	 *
 	 * @param Mesh - Mesh prim to convert
-	 * @param OutMeshDescription - Output parameter that will be filled with the converted data
-	 * @param OutMaterialAssignments - Output parameter that will be filled with the material data extracted from Mesh
+	 * @param InOutMeshDescription - Input/Output parameter that will be filled with the converted data
+	 * @param InOutMaterialAssignments - Input/Output parameter that will be filled with the material data extracted from Mesh
 	 * @param CommonOptions - Shared options used for the conversion
 	 * @return Whether the conversion was successful or not.
 	 */
 	USDUTILITIES_API bool ConvertGeomMesh(
 		const pxr::UsdGeomMesh& Mesh,
-		FMeshDescription& OutMeshDescription,
-		UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
+		FMeshDescription& InOutMeshDescription,
+		UsdUtils::FUsdPrimMaterialAssignmentInfo& InOutMaterialAssignments,
 		const FUsdMeshConversionOptions& CommonOptions = FUsdMeshConversionOptions::DefaultOptions
 	);
 	UE_DEPRECATED( 5.1, "Please use the overload that receives FUsdMeshConversionOptions." )
@@ -139,17 +151,21 @@ namespace UsdToUnreal
 	 * putting the resulting mesh data within OutMeshDescription and OutMaterialAssignments. It will not bake Prim's
 	 * own transform into the Mesh data.
 	 *
+	 * If a PrimvarToUVIndex mapping is provided in InOutMaterialAssignments, it will be used to remap the read
+	 * primvars into UV sets. Otherwise, a new PrimvarToUVIndex map will be constructed on-demand and assigned
+	 * to the InOutMaterialAssignments instead.
+	 *
 	 * @param Prim - Prim that will be converted (result will include its mesh and its children's)
-	 * @param OutMeshDescription - Output parameter that will be filled with the converted mesh descriptions
-	 * @param OutMaterialAssignments - Output parameter that will be filled with the material data extracted from
+	 * @param OutMeshDescription - Input/Output parameter that will be filled with the converted mesh descriptions
+	 * @param OutMaterialAssignments - Input/Output parameter that will be filled with the material data extracted from
 									   UsdSchema. Each item of the array matches the mesh description of same index
 	 * @param CommonOptions - Shared options used for the conversion
 	 * @return Whether the conversion was successful or not.
 	 */
 	USDUTILITIES_API bool ConvertGeomMeshHierarchy(
 		const pxr::UsdPrim& Prim,
-		FMeshDescription& OutMeshDescription,
-		UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
+		FMeshDescription& InOutMeshDescription,
+		UsdUtils::FUsdPrimMaterialAssignmentInfo& InOutMaterialAssignments,
 		const FUsdMeshConversionOptions& CommonOptions = FUsdMeshConversionOptions::DefaultOptions,
 		bool bSkipRootPrimTransformAndVisibility = false
 	);
@@ -266,8 +282,11 @@ namespace UsdUtils
 	{
 		TArray<FUsdPrimMaterialSlot> Slots;
 
-		/** Describes the index of the Slot that each polygon/face of a mesh uses. Matches the order Slots */
+		/** Describes the index of the Slot that each polygon/face of a mesh uses. Matches the order in Slots */
 		TArray<int32> MaterialIndices;
+
+		/** Describes which primvars should be assigned to each UV index for this mesh. */
+		TMap<FString, int32> PrimvarToUVIndex;
 	};
 }
 

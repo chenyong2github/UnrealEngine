@@ -8,6 +8,7 @@
 #include "UObject/ObjectMacros.h"
 
 #include "USDConversionUtils.h"
+#include "USDGeomMeshConversion.h"
 #include "UsdWrappers/ForwardDeclarations.h"
 
 #if USE_USD_SDK
@@ -44,6 +45,7 @@ namespace SkeletalMeshImportData
 namespace UsdUtils
 {
 	struct FUsdPrimMaterialSlot;
+	struct FUsdPrimMaterialAssignmentInfo;
 }
 
 #endif // #if USE_USD_SDK
@@ -158,6 +160,11 @@ namespace UsdToUnreal
 
 	/**
 	 * Extracts skeletal mesh data fro UsdSkinningQuery, and places the results in SkelMeshImportData.
+	 *
+	 * If a PrimvarToUVIndex mapping is provided in MaterialAssignments, it will be used to remap the read
+	 * primvars into UV sets. Otherwise, a new PrimvarToUVIndex map will be constructed on-demand and assigned
+	 * to MaterialAssignments instead.
+	 *
 	 * @param UsdSkinningQuery - SkinningQuery with the data to convert
 	 * @param SkeletonQuery - Query object for the skeleton this mesh is bound to
 	 * @param AdditionalTransform - Additional transform to apply to the vertices of the mesh (Note: No longer used, even in the deprecated overload of this function)
@@ -168,6 +175,14 @@ namespace UsdToUnreal
 	 * @param MaterialPurpose - Material purpose to use when parsing the skinned Mesh prim's material bindings
 	 * @return Whether the conversion was successful or not.
 	 */
+	USDUTILITIES_API bool ConvertSkinnedMesh(
+		const pxr::UsdSkelSkinningQuery& UsdSkinningQuery,
+		const pxr::UsdSkelSkeletonQuery& SkeletonQuery,
+		FSkeletalMeshImportData& SkelMeshImportData,
+		UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
+		const FUsdMeshConversionOptions& CommonOptions = FUsdMeshConversionOptions::DefaultOptions
+	);
+	UE_DEPRECATED( 5.3, "Please use the overload with an FUsdPrimMaterialAssignmentInfo parameter." )
 	USDUTILITIES_API bool ConvertSkinnedMesh(
 		const pxr::UsdSkelSkinningQuery& UsdSkinningQuery,
 		const pxr::UsdSkelSkeletonQuery& SkeletonQuery,

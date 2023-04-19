@@ -7,8 +7,8 @@
 
 #include "USDAssetImportData.generated.h"
 
-UCLASS(AutoExpandCategories = (Options), MinimalAPI)
-class UUsdAssetImportData : public UAssetImportData
+UCLASS()
+class USDCLASSES_API UUsdAssetImportData : public UAssetImportData
 {
 	GENERATED_BODY()
 
@@ -22,8 +22,8 @@ public:
 	TObjectPtr<class UObject> ImportOptions;
 };
 
-UCLASS(AutoExpandCategories = (Options), MinimalAPI)
-class UUsdAnimSequenceAssetImportData : public UUsdAssetImportData
+UCLASS()
+class USDCLASSES_API UUsdAnimSequenceAssetImportData : public UUsdAssetImportData
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ public:
 
 /** Simple wrapper because we're not allowed to have TMap properties with TArray<FString> as values */
 USTRUCT()
-struct FUsdPrimPathList
+struct USDCLASSES_API FUsdPrimPathList
 {
 	GENERATED_BODY()
 
@@ -49,9 +49,37 @@ struct FUsdPrimPathList
 	TArray<FString> PrimPaths;
 };
 
-/** We assign these to UStaticMeshes or USkeletalMeshes generated from USD */
-UCLASS( AutoExpandCategories = ( Options ), MinimalAPI )
-class UUsdMeshAssetImportData : public UUsdAssetImportData
+/** AssetImportData assigned to Unreal materials that are generated when parsing USD Material prims */
+UCLASS()
+class USDCLASSES_API UUsdMaterialAssetImportData : public UUsdAssetImportData
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * In the context of our reference materials that just read a single texture for each material parameter, this
+	 * describes the primvar that the USD material is sampling for each texture.
+	 * e.g. {'BaseColor': 'st0', 'Metallic': 'st1'}
+	 */
+	UPROPERTY()
+	TMap<FString, FString> ParameterToPrimvar;
+
+	/**
+	 * In the context of our reference materials that just read a single texture for each material parameter, this
+	 * describes the Unreal UV index that will be used for sampling by each USD primvar. The idea is to use this in
+	 * combination with ParameterToPrimvar, in order to describe which UV index the material has currently assigned to
+	 * each parameter. When assigning the material to meshes later, we'll compare this member with the
+	 * UUsdMeshAssetImportData's own PrimvarToUVIndex to see if they are compatible or not, and if not spawn a new
+	 * material instance that is.
+	 * e.g. {'firstPrimvar': 0, 'st': 1, 'st1': 2}
+	 */
+	UPROPERTY()
+	TMap<FString, int32> PrimvarToUVIndex;
+};
+
+/** We assign these to UStaticMeshes, UGeometryCaches or USkeletalMeshes generated from USD */
+UCLASS()
+class USDCLASSES_API UUsdMeshAssetImportData : public UUsdAssetImportData
 {
 	GENERATED_BODY()
 
@@ -63,4 +91,8 @@ public:
 	 */
 	UPROPERTY()
 	TMap< int32, FUsdPrimPathList > MaterialSlotToPrimPaths;
+
+	/** Describes which primvars should be assigned to each UV index. */
+	UPROPERTY()
+	TMap<FString, int32> PrimvarToUVIndex;
 };

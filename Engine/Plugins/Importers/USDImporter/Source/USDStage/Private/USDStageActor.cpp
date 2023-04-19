@@ -120,7 +120,6 @@ struct FUsdStageActorImpl
 		TranslationContext->MaterialPurpose = StageActor->MaterialPurpose;
 		TranslationContext->RootMotionHandling = StageActor->RootMotionHandling;
 		TranslationContext->MaterialXOptions = StageActor->MaterialXOptions;
-		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
 		TranslationContext->BlendShapesByPath = &StageActor->BlendShapesByPath;
 		TranslationContext->InfoCache = StageActor->InfoCache;
 		TranslationContext->bTranslateOnlyUsedMaterials = true;  // There is no point in turning this off when just opening a stage
@@ -2057,7 +2056,6 @@ void AUsdStageActor::OnObjectsReplaced(const TMap<UObject*, UObject*>& ObjectRep
 			NewActor->LevelSequenceHelper = MoveTemp(LevelSequenceHelper);
 			NewActor->LevelSequence = LevelSequence;
 			NewActor->BlendShapesByPath = MoveTemp(BlendShapesByPath);
-			NewActor->MaterialToPrimvarToUVIndex = MoveTemp(MaterialToPrimvarToUVIndex);
 
 			NewActor->UsdListener.Register(NewActor->UsdStage);
 

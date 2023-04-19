@@ -87,6 +87,12 @@
 
 #define LOCTEXT_NAMESPACE "USDConversionUtils"
 
+static bool GParseUVSetsFromFloat2Primvars = true;
+static FAutoConsoleVariableRef CVarParseUVSetsFromFloat2Primvars(
+	TEXT("USD.ParseUVSetsFromFloat2Primvars"),
+	GParseUVSetsFromFloat2Primvars,
+	TEXT("Primvars with the 'texCoord2f' role will always be parsed when handling potential UV sets. If this cvar is enabled, we'll also handle primvars declared as just 'float2' however. You could disable this cvar if your pipeline emits many 'float2' primvars that you do not wish to be parsed as UV sets."));
+
 namespace USDConversionUtilsImpl
 {
 	/** Show some warnings if the UVSet primvars show some unsupported/problematic behavior */
@@ -658,152 +664,194 @@ int32 UsdUtils::GetPrimvarUVIndex( FString PrimvarName )
 	return 0;
 }
 
-TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh )
-{
-	return UsdUtils::GetUVSetPrimvars(UsdMesh, {});
-}
-
-TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars(
+TArray<TUsdStore<pxr::UsdGeomPrimvar>> UsdUtils::GetUVSetPrimvars(
 	const pxr::UsdGeomMesh& UsdMesh,
-	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
-	const pxr::TfToken& RenderContext,
-	const pxr::TfToken& MaterialPurpose
+	int32 MaxNumPrimvars
 )
 {
-	if ( !UsdMesh )
-	{
-		return {};
-	}
-
-	const bool bProvideMaterialIndices = false;
-	UsdUtils::FUsdPrimMaterialAssignmentInfo Info = UsdUtils::GetPrimMaterialAssignments(
-		UsdMesh.GetPrim(),
-		pxr::UsdTimeCode( 0.0 ),
-		bProvideMaterialIndices,
-		RenderContext,
-		MaterialPurpose
-	);
-
-	return UsdUtils::GetUVSetPrimvars( UsdMesh, MaterialToPrimvarsUVSetNames, Info );
-}
-
-TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const UsdUtils::FUsdPrimMaterialAssignmentInfo& UsdMeshMaterialAssignmentInfo )
-{
-	if ( !UsdMesh )
+	if (!UsdMesh)
 	{
 		return {};
 	}
 
 	FScopedUsdAllocs Allocs;
 
+	TArray<TUsdStore<pxr::UsdGeomPrimvar>> TexCoord2fPrimvars;
+	TArray<TUsdStore<pxr::UsdGeomPrimvar>> Float2Primvars;
+
 	// Collect all primvars that could be used as UV sets
-	TMap<FString, pxr::UsdGeomPrimvar> PrimvarsByName;
-	TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsablePrimvarsByUVIndex;
-	pxr::UsdGeomPrimvarsAPI PrimvarsAPI{ UsdMesh };
-	for ( const pxr::UsdGeomPrimvar& Primvar : PrimvarsAPI.GetPrimvars() )
+	pxr::UsdGeomPrimvarsAPI PrimvarsAPI{UsdMesh};
+	for (const pxr::UsdGeomPrimvar& Primvar : PrimvarsAPI.GetPrimvars())
 	{
-		if ( !Primvar || !Primvar.HasValue() )
+		if (!Primvar || !Primvar.HasValue())
 		{
 			continue;
 		}
 
 		// We only care about primvars that can be used as float2[]. TexCoord2f is included
 		const pxr::SdfValueTypeName& TypeName = Primvar.GetTypeName();
-		if ( !TypeName.GetType().IsA( pxr::SdfValueTypeNames->Float2Array.GetType() ) )
+		if (!TypeName.GetType().IsA(pxr::SdfValueTypeNames->Float2Array.GetType()))
 		{
 			continue;
 		}
 
-		FString PrimvarName = UsdToUnreal::ConvertToken( Primvar.GetBaseName() );
-		int32 TargetUVIndex = UsdUtils::GetPrimvarUVIndex( PrimvarName );
-
-		UsablePrimvarsByUVIndex.FindOrAdd( TargetUVIndex ).Add( Primvar );
-		PrimvarsByName.Add( PrimvarName, Primvar );
+		if (Primvar.GetTypeName().GetRole() == pxr::SdfValueTypeNames->TexCoord2f.GetRole())
+		{
+			TexCoord2fPrimvars.Add(Primvar);
+		}
+		else if (GParseUVSetsFromFloat2Primvars)
+		{
+			Float2Primvars.Add(Primvar);
+		}
 	}
 
-	// Collect all primvars that are in fact used by the materials assigned to this mesh
-	TMap<int32, TArray<pxr::UsdGeomPrimvar>> PrimvarsUsedByAssignedMaterialsPerUVIndex;
+	TexCoord2fPrimvars.Sort([](const TUsdStore<pxr::UsdGeomPrimvar>& A, const TUsdStore<pxr::UsdGeomPrimvar>& B)
 	{
-		const bool bProvideMaterialIndices = false;
-		for ( const FUsdPrimMaterialSlot& Slot : UsdMeshMaterialAssignmentInfo.Slots )
+		return A.Get().GetName() < B.Get().GetName();
+	});
+	Float2Primvars.Sort([](const TUsdStore<pxr::UsdGeomPrimvar>& A, const TUsdStore<pxr::UsdGeomPrimvar>& B)
+	{
+		return A.Get().GetName() < B.Get().GetName();
+	});
+
+	TArray<TUsdStore<pxr::UsdGeomPrimvar>> Result;
+	Result.Reserve(FMath::Min(TexCoord2fPrimvars.Num() + Float2Primvars.Num(), MaxNumPrimvars));
+
+	int32 TexCoordPrimvarIndex = 0;
+	while (Result.Num() < MaxNumPrimvars && TexCoord2fPrimvars.IsValidIndex(TexCoordPrimvarIndex))
+	{
+		Result.Add(TexCoord2fPrimvars[TexCoordPrimvarIndex++]);
+	}
+
+	int32 Float2PrimvarIndex = 0;
+	while (Result.Num() < MaxNumPrimvars && Float2Primvars.IsValidIndex(Float2PrimvarIndex))
+	{
+		Result.Add(Float2Primvars[Float2PrimvarIndex++]);
+	}
+
+	return Result;
+}
+
+TArray<TUsdStore<pxr::UsdGeomPrimvar>> UsdUtils::GetUVSetPrimvars(
+	const pxr::UsdGeomMesh& UsdMesh,
+	const TMap<FString, TMap<FString, int32>>& MaterialToPrimvarsUVSetNames,
+	const pxr::TfToken& RenderContext,
+	const pxr::TfToken& MaterialPurpose
+)
+{
+	return UsdUtils::GetUVSetPrimvars(UsdMesh);
+}
+
+TArray<TUsdStore<pxr::UsdGeomPrimvar>> UsdUtils::GetUVSetPrimvars(
+	const pxr::UsdGeomMesh& UsdMesh,
+	const TMap<FString, TMap<FString, int32>>& MaterialToPrimvarsUVSetNames,
+	const UsdUtils::FUsdPrimMaterialAssignmentInfo& UsdMeshMaterialAssignmentInfo
+)
+{
+	return UsdUtils::GetUVSetPrimvars(UsdMesh);
+}
+
+TArray<TUsdStore<pxr::UsdGeomPrimvar>> UsdUtils::AssemblePrimvarsIntoUVSets(
+	const TArray<TUsdStore<pxr::UsdGeomPrimvar>>& AllMeshUVPrimvars,
+	const TMap<FString, int32>& AllowedPrimvarsToUVIndex
+)
+{
+	TArray<TUsdStore<pxr::UsdGeomPrimvar>> PrimvarsByUVIndex;
+
+	if (AllowedPrimvarsToUVIndex.Num() > 0)
+	{
+		for (const TUsdStore<pxr::UsdGeomPrimvar>& MeshUVPrimvar : AllMeshUVPrimvars)
 		{
-			if ( Slot.AssignmentType == EPrimAssignmentType::MaterialPrim )
+			FString PrimvarName = UsdToUnreal::ConvertToken(MeshUVPrimvar.Get().GetName());
+			PrimvarName.RemoveFromStart(TEXT("primvars:"));
+
+			if (const int32* FoundTargetUVIndex = AllowedPrimvarsToUVIndex.Find(PrimvarName))
 			{
-				const FString& MaterialPath = Slot.MaterialSource;
-				if ( const TMap< FString, int32 >* FoundMaterialPrimvars = MaterialToPrimvarsUVSetNames.Find( MaterialPath ) )
+				int32 TargetUVIndex = *FoundTargetUVIndex;
+				if (TargetUVIndex < 0)
 				{
-					for ( const TPair<FString, int32>& PrimvarAndUVIndex : *FoundMaterialPrimvars )
+					continue;
+				}
+
+				if (!PrimvarsByUVIndex.IsValidIndex(TargetUVIndex))
+				{
+					if (TargetUVIndex < MAX_MESH_TEXTURE_COORDS_MD)
 					{
-						if ( pxr::UsdGeomPrimvar* FoundPrimvar = PrimvarsByName.Find( PrimvarAndUVIndex.Key ) )
-						{
-							PrimvarsUsedByAssignedMaterialsPerUVIndex.FindOrAdd( PrimvarAndUVIndex.Value ).AddUnique( *FoundPrimvar );
-						}
+						PrimvarsByUVIndex.SetNum(TargetUVIndex + 1);
 					}
+					else
+					{
+						continue;
+					}
+				}
+
+				TUsdStore<pxr::UsdGeomPrimvar>& ExistingPrimvar = PrimvarsByUVIndex[TargetUVIndex];
+				if (!ExistingPrimvar.Get())
+				{
+					PrimvarsByUVIndex[TargetUVIndex] = MeshUVPrimvar;
 				}
 			}
 		}
 	}
 
-	// Sort all primvars we found by name, so we get consistent results
-	for ( TPair<int32, TArray<pxr::UsdGeomPrimvar>>& UVIndexToPrimvars : UsablePrimvarsByUVIndex )
+	return PrimvarsByUVIndex;
+}
+
+TMap<FString, int32> UsdUtils::AssemblePrimvarsIntoPrimvarToUVIndexMap(
+	const TArray<TUsdStore<pxr::UsdGeomPrimvar>>& AllMeshUVPrimvars
+)
+{
+	TMap<FString, int32> Result;
+	Result.Reserve(AllMeshUVPrimvars.Num());
+
+	for (int32 UVIndex = 0; UVIndex < AllMeshUVPrimvars.Num(); ++UVIndex)
 	{
-		TArray<pxr::UsdGeomPrimvar>& Primvars = UVIndexToPrimvars.Value;
-		Primvars.Sort( []( const pxr::UsdGeomPrimvar& A, const pxr::UsdGeomPrimvar& B )
-		{
-			return A.GetName() < B.GetName();
-		} );
-	}
-	for ( TPair<int32, TArray<pxr::UsdGeomPrimvar>>& UVIndexToPrimvars : PrimvarsUsedByAssignedMaterialsPerUVIndex )
-	{
-		TArray<pxr::UsdGeomPrimvar>& Primvars = UVIndexToPrimvars.Value;
-		Primvars.Sort( []( const pxr::UsdGeomPrimvar& A, const pxr::UsdGeomPrimvar& B )
-		{
-			return A.GetName() < B.GetName();
-		} );
-	}
+		const TUsdStore<pxr::UsdGeomPrimvar>& Primvar = AllMeshUVPrimvars[UVIndex];
+		FString PrimvarName = UsdToUnreal::ConvertToken(Primvar.Get().GetName());
+		PrimvarName.RemoveFromStart(TEXT("primvars:"));
 
-	// A lot of things can go wrong, so show some feedback in case they do
-	FString MeshPath = UsdToUnreal::ConvertPath( UsdMesh.GetPrim().GetPath() );
-	USDConversionUtilsImpl::CheckUVSetPrimvars( UsablePrimvarsByUVIndex, PrimvarsUsedByAssignedMaterialsPerUVIndex, MeshPath );
-
-	// Assemble our final results by picking the best primvar we can find for each UV index.
-	// Note that we should keep searching even if we don't find our ideal case, because we don't
-	// want to just discard potential UV sets if the material we happen to have bound doesn't use them, as the
-	// user may just want to assign another material that does.
-	TArray< TUsdStore< pxr::UsdGeomPrimvar > > Result;
-	Result.SetNum( MAX_STATIC_TEXCOORDS );
-	for ( int32 UVIndex = 0; UVIndex < MAX_STATIC_TEXCOORDS; ++UVIndex )
-	{
-		// Best case scenario: float2[]-like primvars that are actually being used by texture readers as texcoords, regardless of role
-		TArray<pxr::UsdGeomPrimvar>* FoundUsedPrimvars = PrimvarsUsedByAssignedMaterialsPerUVIndex.Find( UVIndex );
-		if ( FoundUsedPrimvars && FoundUsedPrimvars->Num() > 0 )
-		{
-			Result[ UVIndex ] = ( *FoundUsedPrimvars )[ 0 ];
-			continue;
-		}
-
-		TArray<pxr::UsdGeomPrimvar>* FoundUsablePrimvars = UsablePrimvarsByUVIndex.Find( UVIndex );
-		if ( FoundUsablePrimvars && FoundUsablePrimvars->Num() > 0 )
-		{
-			pxr::UsdGeomPrimvar* FoundTexcoordPrimvar = FoundUsablePrimvars->FindByPredicate( []( const pxr::UsdGeomPrimvar& Primvar )
-			{
-				return Primvar.GetTypeName().GetRole() == pxr::SdfValueTypeNames->TexCoord2f.GetRole();
-			} );
-
-			// Second-best case: Primvars with texcoord2f role
-			if ( FoundTexcoordPrimvar )
-			{
-				Result[ UVIndex ] = *FoundTexcoordPrimvar;
-				continue;
-			}
-
-			// Third-best case: Any valid primvar
-			// Disabled for now as these could be any other random data the user may have as float2[]
-			// Result[UVIndex] = FoundUsedPrimvars[0];
-		}
+		Result.Add(PrimvarName, UVIndex);
 	}
 
 	return Result;
+}
+
+TMap<FString, int32> UsdUtils::CombinePrimvarsIntoUVSets(
+	const TSet<FString>& AllPrimvars,
+	const TSet<FString>& PreferredPrimvars
+)
+{
+	TArray<FString> SortedPrimvars = AllPrimvars.Array();
+
+	// Promote a deterministic primvar-to-UV-index assignment preferring texCoord2f primvars
+	SortedPrimvars.Sort(
+		[&PreferredPrimvars](const FString& LHS, const FString& RHS)
+		{
+			const bool bLHSPreferred = PreferredPrimvars.Contains(LHS);
+			const bool bRHSPreferred = PreferredPrimvars.Contains(RHS);
+			if (bLHSPreferred == bRHSPreferred)
+			{
+				return LHS < RHS;
+			}
+			else
+			{
+				return bLHSPreferred < bRHSPreferred;
+			}
+		}
+	);
+
+	// We can only have up to MAX_MESH_TEXTURE_COORDS_MD UV sets
+	SortedPrimvars.SetNum(FMath::Min(SortedPrimvars.Num(), (int32)MAX_MESH_TEXTURE_COORDS_MD));
+
+	TMap<FString, int32> PrimvarToUVIndex;
+	PrimvarToUVIndex.Reserve(SortedPrimvars.Num());
+	int32 UVIndex = 0;
+	for (const FString& Primvar : SortedPrimvars)
+	{
+		PrimvarToUVIndex.Add(Primvar, UVIndex++);
+	}
+
+	return PrimvarToUVIndex;
 }
 
 bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
