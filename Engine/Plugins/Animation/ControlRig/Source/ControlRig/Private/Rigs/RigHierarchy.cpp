@@ -453,8 +453,23 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 	EnsureCacheValidity();
 }
 
+uint32 URigHierarchy::GetNameHash() const
+{
+	FScopeLock Lock(&ElementsLock);
+	
+	uint32 Hash = GetTypeHash(GetTopologyVersion());
+	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	{
+		const FRigBaseElement* Element = Elements[ElementIndex];
+		Hash = HashCombine(Hash, GetTypeHash(Element->GetName()));
+	}
+	return Hash;	
+}
+
 uint32 URigHierarchy::GetTopologyHash(bool bIncludeTopologyVersion, bool bIncludeTransientControls) const
 {
+	FScopeLock Lock(&ElementsLock);
+	
 	uint32 Hash = bIncludeTopologyVersion ? TopologyVersion : 0;
 
 	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
