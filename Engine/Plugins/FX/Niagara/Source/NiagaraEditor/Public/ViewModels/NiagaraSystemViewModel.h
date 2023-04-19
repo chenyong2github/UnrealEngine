@@ -206,7 +206,7 @@ public:
 	TSharedPtr<FNiagaraSystemScriptViewModel> GetSystemScriptViewModel();
 
 	/** Gets a niagara component for previewing the simulated System. */
-	UNiagaraComponent* GetPreviewComponent();
+	NIAGARAEDITOR_API UNiagaraComponent* GetPreviewComponent();
 
 	/** Gets the sequencer for this System for displaying the timeline. */
 	TSharedPtr<ISequencer> GetSequencer();
