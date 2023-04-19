@@ -139,6 +139,7 @@ struct FPackedPathTracingPayload : FMinimalPayload
 
 	uint GetFlags() { return (PackedData[0] >> 20) & 0x1FF; }
 	void SetFlag(uint Flag) { PackedData[0] |= Flag << 20; }
+	void RemoveFlag(uint Flag) { PackedData[0] &= ~(Flag << 20); }
 	uint GetPrimitiveLightingChannelMask() { return (PackedData[0] >> 29) & 0x7; }
 
 	// Flag methods

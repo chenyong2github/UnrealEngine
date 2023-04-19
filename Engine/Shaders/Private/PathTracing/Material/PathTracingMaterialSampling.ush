@@ -356,10 +356,9 @@ float GetAverageRoughness(FPathTracingPayload Payload)
 #endif
 }
 
-FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload PackedInput, FRayDesc Ray, bool bApplyOverrides)
+void AdjustPayloadAfterUnpack(inout FPathTracingPayload HitPayload, bool bApplyOverrides)
 {
 	// This function can also do a bit of per-material post-processing to simplify the rest of the code
-	FPathTracingPayload HitPayload = UnpackPathTracingPayload(PackedInput, Ray);
 	if (bApplyOverrides)
 	{
 		HitPayload.DiffuseColor  = HitPayload.DiffuseColor  * View.DiffuseOverrideParameter.w + View.DiffuseOverrideParameter.xyz;
@@ -475,7 +474,6 @@ FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload P
 #endif
 	}
 #endif // PATHTRACING_STRATA_PAYLOAD
-	return HitPayload;
 }
 
 struct FSSSRandomWalkInfo

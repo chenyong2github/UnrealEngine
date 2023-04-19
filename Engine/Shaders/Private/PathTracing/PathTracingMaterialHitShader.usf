@@ -1030,6 +1030,26 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		// terminal case for the conditionals above
 	}
 
+	// adjust after everything else (because SSS profile case needs to decode the dual spec info from the unmodified roughness)
+	Payload.Roughness = AdjustMaterialRoughness(Payload.Roughness, PackedPayload.GetPathRoughness());
+
+#endif // STRATA_ENABLED
+
+	// Only opaque surfaces can recieve decals. This is both for compatibility with raster and improving performance when we have stacks of transparent surfaces
+#if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
+	if ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0)
+	{
+#if USE_DBUFFER
+		Payload.SetDecalReceiver(MATERIALDECALRESPONSEMASK);
+#	if MATERIAL_USES_DECAL_LOOKUP
+		Payload.SetUseDBufferLookup();
+#	endif
+#else
+		Payload.SetDecalReceiver(0x07);
+#endif
+	}
+#endif
+
 #if MATERIALBLENDING_ALPHAHOLDOUT
 	// the material is already a holdout, no need to do anything else
 #else
@@ -1054,27 +1074,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		}
 	}
 #endif
-
-	// Only opaque surfaces can recieve decals. This is both for compatibility with raster and improving performance when we have stacks of transparent surfaces
-#if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
-	if ((PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0)
-	{
-#if USE_DBUFFER
-		Payload.SetDecalReceiver(MATERIALDECALRESPONSEMASK);
-#	if MATERIAL_USES_DECAL_LOOKUP
-		Payload.SetUseDBufferLookup();
-#	endif
-#else
-		Payload.SetDecalReceiver(0x07);
-#endif
-	}
-#endif
-
-	// adjust after everything else (because SSS profile case needs to decode the dual spec info from the unmodified roughness)
-	Payload.Roughness = AdjustMaterialRoughness(Payload.Roughness, PackedPayload.GetPathRoughness());
-
-#endif
-
 
 	PackedPayload = PackPathTracingPayload(Payload);
 }

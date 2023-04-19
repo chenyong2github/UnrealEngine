@@ -6,6 +6,8 @@
 // This should be good enough for ray tracing and avoids having to bind an extra buffer
 #define EYE_ADAPTATION_PREV_FRAME_EXPOSURE 1
 
+#define STRATA_INLINE_SHADING 1
+
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 
@@ -20,6 +22,75 @@
 #define DecalWriteFlags RayTracingDecalParameters.DecalWriteFlags
 
 #include "/Engine/Generated/Material.ush"
+
+
+struct FDecalData
+{
+	float Opacity;
+	float3 BaseColor;
+	float3 WorldNormal;
+	float3 MetallicSpecularRoughness;
+	float3 Emissive;
+
+	void WriteToPayload(inout FDecalShaderPayload Payload, uint WriteFlags, float OpacityMult)
+	{
+		Opacity *= OpacityMult;
+		if (WriteFlags & DECAL_WRITE_BASE_COLOR_FLAG)
+		{
+			Payload.SetBaseColor(BaseColor * Opacity);
+		}
+		if (WriteFlags & DECAL_WRITE_NORMAL_FLAG)
+		{
+			Payload.SetWorldNormal(WorldNormal * Opacity);
+		}
+		if (WriteFlags & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
+		{
+			Payload.SetMetallicSpecularRoughness(MetallicSpecularRoughness * Opacity);
+		}
+		if (WriteFlags & DECAL_WRITE_EMISSIVE_FLAG)
+		{
+			Payload.SetEmissive(Emissive * Opacity);
+		}
+		Payload.SetTransparency(1.0f - Opacity);
+		Payload.SetFlags(WriteFlags);
+	}
+};
+
+
+
+FDecalData GetDecalData(FPixelMaterialInputs PixelMaterialInputs, FMaterialPixelParameters MaterialParameters)
+{
+	FDecalData Result = (FDecalData)0;
+#if STRATA_ENABLED
+	FStrataPixelHeader StrataHeader = MaterialParameters.GetFrontStrataHeader();
+
+	if (StrataHeader.StrataTree.BSDFCount > 0)
+	{
+		FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
+		const float3 V = MaterialParameters.CameraVector;
+
+		// Update tree (coverage/transmittance/luminace weights)
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, false /*bRoughDiffuseEnabled*/, 0, false/*bRoughnessTracking*/);
+		StrataHeader.StrataUpdateTree(NullStrataAddressing, V, Settings);
+
+		// Since the Convert-To-Decal node forces parameter blending for the entire Strata tree, the BSDF we are interested in will be in 0.
+		FStrataDBuffer DBuffer = StrataHeader.StrataConvertToDBuffer(StrataHeader.StrataTree.BSDFs[0]);
+		Result.Opacity = DBuffer.Coverage;
+		Result.BaseColor = DBuffer.BaseColor;
+		Result.WorldNormal = DBuffer.WorldNormal;
+		Result.MetallicSpecularRoughness = float3(DBuffer.Metallic, DBuffer.Specular, DBuffer.Roughness);
+		Result.Emissive = DBuffer.Emissive;
+	}
+#else // STRATA_ENABLED
+	Result.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	Result.BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
+	Result.WorldNormal = MaterialParameters.WorldNormal;
+	Result.MetallicSpecularRoughness = float3(GetMaterialMetallic(PixelMaterialInputs), GetMaterialSpecular(PixelMaterialInputs), GetMaterialRoughness(PixelMaterialInputs));
+	Result.Emissive = GetMaterialEmissive(PixelMaterialInputs);
+#endif // STRATA_ENABLED
+	return Result;
+}
+
 
 #if RAYCALLABLESHADER
 RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderPayload, Payload)
@@ -69,30 +140,9 @@ RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderPayload, P
 	CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 
 	const float DecalFading = saturate(4 - 4 * abs(SwizzlePos.z * 2 - 1)) * DecalParams.x;
-	const float Opacity = GetMaterialOpacity(PixelMaterialInputs) * DecalFading;
-	Payload.SetTransparency(1.0f - Opacity);
 
-	if (DecalWriteFlags & DECAL_WRITE_BASE_COLOR_FLAG)
-	{
-		Payload.SetBaseColor(GetMaterialBaseColor(PixelMaterialInputs) * Opacity);
-	}
-
-	if (DecalWriteFlags & DECAL_WRITE_NORMAL_FLAG)
-	{
-		Payload.SetWorldNormal(MaterialParameters.WorldNormal * Opacity);
-	}
-
-	if (DecalWriteFlags & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
-	{
-		Payload.SetMetallicSpecularRoughness(float3(GetMaterialMetallic(PixelMaterialInputs), GetMaterialSpecular(PixelMaterialInputs), GetMaterialRoughness(PixelMaterialInputs)) * Opacity);
-	}
-
-	if (DecalWriteFlags & DECAL_WRITE_EMISSIVE_FLAG)
-	{
-		Payload.SetEmissive(GetMaterialEmissive(PixelMaterialInputs) * Opacity);
-	}
-
-	Payload.SetFlags(DecalWriteFlags);
+	FDecalData Data = GetDecalData(PixelMaterialInputs, MaterialParameters);
+	Data.WriteToPayload(Payload, DecalWriteFlags, DecalFading);
 }
 #endif // RAYCALLABLESHADER
 
@@ -139,6 +189,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDecalMaterialCHS,
 		const float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
 		const bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
 
+		MaterialParameters.CameraVector = -WorldRayDirection();
+
 		// #dxr_todo: UE-72130 support world position offset 
 		// #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
 		// CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
@@ -147,32 +199,9 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDecalMaterialCHS,
 		// #endif
 	}
 
-	const float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	Payload.SetTransparency(1.0f - Opacity);
+	FDecalData Data = GetDecalData(PixelMaterialInputs, MaterialParameters);
+	Data.WriteToPayload(Payload, DECAL_PAYLOAD_FLAGS, 1.0);
 
-	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_BASE_COLOR_FLAG)
-	{
-		Payload.SetBaseColor(GetMaterialBaseColor(PixelMaterialInputs) * Opacity);
-	}
-
-	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_NORMAL_FLAG)
-	{
-		Payload.SetWorldNormal(MaterialParameters.WorldNormal * Opacity);
-	}
-
-	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
-	{
-		Payload.SetMetallicSpecularRoughness(float3(GetMaterialMetallic(PixelMaterialInputs), GetMaterialSpecular(PixelMaterialInputs), GetMaterialRoughness(PixelMaterialInputs)) * Opacity);
-	}
-
-	if (DECAL_PAYLOAD_FLAGS & DECAL_WRITE_EMISSIVE_FLAG)
-	{
-		Payload.SetEmissive(GetMaterialEmissive(PixelMaterialInputs) * Opacity);
-	}
-
-	Payload.SetFlags(DECAL_PAYLOAD_FLAGS);
-
-	return;
 }
 
 #if USE_MATERIAL_ANY_HIT_SHADER
@@ -203,7 +232,7 @@ RAY_TRACING_ENTRY_ANY_HIT(RayTracingDecalMaterialAHS,
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 	}
 
-	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	const float Opacity = GetDecalData(PixelMaterialInputs, MaterialParameters).Opacity;
 	if (Opacity <= 0.00001f)
 	{
 		IgnoreHit();
