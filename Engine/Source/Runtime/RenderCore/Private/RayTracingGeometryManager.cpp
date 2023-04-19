@@ -109,7 +109,7 @@ void FRayTracingGeometryManager::ReleaseRayTracingGeometryHandle(RayTracingGeome
 	}	
 }
 
-void FRayTracingGeometryManager::Tick()
+void FRayTracingGeometryManager::Tick(bool bHasRayTracingEnableChanged)
 {
 	if (GetRayTracingMode() != ERayTracingMode::Dynamic)
 	{
@@ -118,6 +118,30 @@ void FRayTracingGeometryManager::Tick()
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRayTracingGeometryManager::Tick);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRayTracingGeometryManager_Tick);
+
+	if (!bHasRayTracingEnableChanged)
+	{
+// If the code below triggers a check then dynamic ray tracing is not going to work as expected ie. not all memory will be released or we'll be missing geometry.
+#if DO_CHECK
+		if (IsRayTracingEnabled())
+		{
+			FScopeLock ScopeLock(&RequestCS);
+			for (FRayTracingGeometry* Geometry : RegisteredGeometries)
+			{
+				checkf(Geometry->RayTracingGeometryRHI != nullptr, TEXT("Ray tracing geometry should be valid at this point."));
+			}
+		}
+		else
+		{
+			FScopeLock ScopeLock(&RequestCS);
+			for (FRayTracingGeometry* Geometry : RegisteredGeometries)
+			{
+				checkf(Geometry->RayTracingGeometryRHI == nullptr, TEXT("Ray tracing geometry should not be valid at this point"));
+			}
+		}
+#endif
+		return;
+	}
 
 	if (IsRayTracingEnabled())
 	{

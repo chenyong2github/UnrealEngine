@@ -36,7 +36,7 @@ public:
 	void ForceBuildIfPending(FRHIComputeCommandList& InCmdList, const TArrayView<const FRayTracingGeometry*> InGeometries);
 	void ProcessBuildRequests(FRHIComputeCommandList& InCmdList, bool bInBuildAll = false);
 
-	void Tick();
+	void Tick(bool bHasRayTracingEnableChanged);
 
 	RayTracingGeometryHandle RegisterRayTracingGeometry(FRayTracingGeometry* InGeometry);
 	void ReleaseRayTracingGeometryHandle(RayTracingGeometryHandle Handle);
