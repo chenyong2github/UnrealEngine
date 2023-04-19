@@ -21,6 +21,9 @@ FAutoConsoleVariableRef CVarChaosNumPushOutIterationsOverride(TEXT("p.ChaosNumPu
 int32 ChaosNumContactIterationsOverride = -1;
 FAutoConsoleVariableRef CVarChaosNumContactIterationsOverride(TEXT("p.ChaosNumContactIterationsOverride"), ChaosNumContactIterationsOverride, TEXT("Override for num contact iterations if >= 0. [def:-1]"));
 
+int32 ChaosEnableAccelerationStructureConsistencyFix = 1;
+FAutoConsoleVariableRef CVarChaosEnableAccelerationStructureConsistencyFix(TEXT("p.ChaosEnableAccelerationStructureConsistencyFix"), ChaosEnableAccelerationStructureConsistencyFix, TEXT("Temporary CVAR used for debugging"));
+
 namespace Chaos
 {
 	CHAOS_API int32 FixBadAccelerationStructureRemoval = 1;
@@ -524,11 +527,12 @@ namespace Chaos
 
 	void FPBDRigidsEvolutionBase::ApplyParticlePendingData(const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache, bool bUpdateDynamicTrees)
 	{
-		if (SpatialData.bDelete)
+		if (SpatialData.Operation ==  EPendingSpatialDataOperation::Delete)
 		{
 			if (bUpdateDynamicTrees || !FDefaultCollectionFactory::IsDynamicTree(SpatialData.SpatialIdx))
 			{
-				AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
+				const bool Existed = AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
+				//ensure(Existed);
 			}
 
 			if (bUpdateCache)
@@ -555,7 +559,19 @@ namespace Chaos
 			if (bUpdateDynamicTrees || !FDefaultCollectionFactory::IsDynamicTree(SpatialData.SpatialIdx))
 			{
 				//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBTreeUpdate)
-				AccelerationStructure.UpdateElementIn(UpdateParticle, UpdateParticle->WorldSpaceInflatedBounds(), UpdateParticle->HasBounds(), SpatialData.SpatialIdx);
+				const bool Existed = AccelerationStructure.UpdateElementIn(UpdateParticle, UpdateParticle->WorldSpaceInflatedBounds(), UpdateParticle->HasBounds(), SpatialData.SpatialIdx);
+				if (SpatialData.Operation == EPendingSpatialDataOperation::Add)
+				{
+					//ensure(Existed == false);
+				}
+				else
+				{
+					//ensure(Existed == true);
+					if (Existed == false && ChaosEnableAccelerationStructureConsistencyFix == 1)
+					{
+						AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);  // This element was deleted! And we accidentally added it with the update. Fix our mistake
+					}
+				}
 			}
 
 			if (bUpdateCache)
@@ -634,9 +650,10 @@ namespace Chaos
 			{
 				//operation still pending so update structure
 				//note: do we care about roll over? if game ticks at 60fps we'd get 385+ days
-				if(SpatialData.bDelete)
+				if(SpatialData.Operation == EPendingSpatialDataOperation::Delete)
 				{
-					Acceleration.RemoveElementFrom(SpatialData.AccelerationHandle,SpatialData.SpatialIdx);
+					const bool Existed = Acceleration.RemoveElementFrom(SpatialData.AccelerationHandle,SpatialData.SpatialIdx);
+					//ensure(Existed);
 				}
 				else
 				{
@@ -648,7 +665,19 @@ namespace Chaos
 						TRigidTransform<FReal,3> WorldTM(UpdateParticle->X(),UpdateParticle->R());
 						WorldBounds = UpdateParticle->Geometry()->BoundingBox().TransformedAABB(WorldTM);
 					}
-					Acceleration.UpdateElementIn(UpdateParticle,WorldBounds,bHasBounds,SpatialData.SpatialIdx);
+					const bool Existed = Acceleration.UpdateElementIn(UpdateParticle,WorldBounds,bHasBounds,SpatialData.SpatialIdx);
+					if (SpatialData.Operation == EPendingSpatialDataOperation::Add)
+					{
+						//ensure(Existed == false);
+					}
+					else
+					{
+						//ensure(Existed == true);
+						if (Existed == false && ChaosEnableAccelerationStructureConsistencyFix == 1)
+						{
+							Acceleration.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);  // This element was deleted! And we accidentally added it with the update. Fix our mistake
+						}
+					}
 				}
 			}
 			else

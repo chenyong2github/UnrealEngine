@@ -558,14 +558,17 @@ public:
 		{
 			//TODO: distinguish between new particles and dirty particles
 			const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
-			FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
-			ensure(SpatialData.bDelete == false);
+			FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx, EPendingSpatialDataOperation::Update);
+			ensure(SpatialData.Operation != EPendingSpatialDataOperation::Delete);
+			
 			SpatialData.AccelerationHandle = FAccelerationStructureHandle(Particle);
 			SpatialData.SpatialIdx = Particle.SpatialIdx();
 
-			auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
-			ensure(SpatialData.bDelete == false);
-			AsyncSpatialData = SpatialData;
+			auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx, EPendingSpatialDataOperation::Update);
+			// ensure(AsyncSpatialData.Operation != EPendingSpatialDataOperation::Delete); // TODO: This may be hit: check for potential UniqueIdx reuse bug
+			
+			AsyncSpatialData.AccelerationHandle = FAccelerationStructureHandle(Particle);
+			AsyncSpatialData.SpatialIdx = Particle.SpatialIdx();
 		}
 	}
 
@@ -952,9 +955,9 @@ public:
 		//TODO: at the moment we don't distinguish between the first time a particle is created and when it's just moved
 		// If we had this distinction we could simply remove the entry for the async queue
 		const FUniqueIdx UniqueIdx = ParticleHandle.UniqueIdx();
-		FPendingSpatialData& SpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
+		FPendingSpatialData& SpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx, EPendingSpatialDataOperation::Delete);
 
-		SpatialData.bDelete = true;
+		SpatialData.Operation = EPendingSpatialDataOperation::Delete;
 		SpatialData.SpatialIdx = ParticleHandle.SpatialIdx();
 		SpatialData.AccelerationHandle = FAccelerationStructureHandle(ParticleHandle);
 

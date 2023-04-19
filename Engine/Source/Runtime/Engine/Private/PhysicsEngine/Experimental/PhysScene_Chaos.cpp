@@ -21,6 +21,7 @@
 #include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
+#include "Chaos/PendingSpatialData.h"
 #include "EventsData.h"
 #include "Chaos/PhysicsSolverBaseImpl.h"
 
@@ -700,7 +701,7 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 			RemoveActorFromAccelerationStructureImp(GTParticle);
 			if (Solver)
 			{
-				Solver->UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/true); // ensures deletion will be applied to structures passed from physics thread.
+				Solver->UpdateParticleInAccelerationStructure_External(GTParticle,Chaos::EPendingSpatialDataOperation::Delete); // ensures deletion will be applied to structures passed from physics thread.
 			}
 		}
 	}
@@ -721,7 +722,7 @@ void FPhysScene_Chaos::RemoveObject(Chaos::FClusterUnionPhysicsProxy* InObject)
 
 	if (Solver)
 	{
-		Solver->UpdateParticleInAccelerationStructure_External(InObject->GetParticle_External(), true);
+		Solver->UpdateParticleInAccelerationStructure_External(InObject->GetParticle_External(), Chaos::EPendingSpatialDataOperation::Delete);
 		Solver->UnregisterObject(InObject);
 	}
 
