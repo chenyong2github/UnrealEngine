@@ -1009,15 +1009,6 @@ COREUOBJECT_API FName GetClassTraceScope(const UObjectBaseUtility* Object);
 class FScopeCycleCounterUObject : public FCycleCounter
 {
 public:
-#if USE_MALLOC_PROFILER
-	/** Package path being tracked */
-	FName PackageTag;
-	/** Class path being tracked */
-	FName ClassTag;
-	/** Object path being tracked */
-	FName ObjectTag;
-#endif
-
 	/**
 	 * Constructor, starts timing
 	 */
@@ -1040,13 +1031,6 @@ public:
 			}
 #endif
 		}
-
-#if USE_MALLOC_PROFILER
-		if (Object)
-		{
-			TrackObjectForMallocProfiling(Object);
-		}
-#endif
 	}
 	/**
 	 * Constructor, starts timing with an alternate enable stat to use high performance disable for only SOME UObject stats
@@ -1073,13 +1057,6 @@ public:
 			}
 #endif
 		}
-
-#if USE_MALLOC_PROFILER
-		if (Object)
-		{
-			TrackObjectForMallocProfiling(Object);
-		}
-#endif
 	}
 
 #if CPUPROFILERTRACE_ENABLED
@@ -1092,17 +1069,7 @@ public:
 	FORCEINLINE_STATS ~FScopeCycleCounterUObject()
 	{
 		Stop();
-
-#if USE_MALLOC_PROFILER
-		UntrackObjectForMallocProfiling();
-#endif
 	}
-
-#if USE_MALLOC_PROFILER
-	COREUOBJECT_API void TrackObjectForMallocProfiling(const UObjectBaseUtility *InObject);
-	COREUOBJECT_API void TrackObjectForMallocProfiling(const FName InPackageName, const FName InClassName, const FName InObjectName);
-	COREUOBJECT_API void UntrackObjectForMallocProfiling();
-#endif
 };
 
 /** Declares a scope cycle counter for a specific object with a Name context */

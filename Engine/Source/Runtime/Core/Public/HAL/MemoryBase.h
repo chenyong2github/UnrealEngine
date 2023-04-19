@@ -32,9 +32,6 @@ enum
 CORE_API extern class FMalloc* GMalloc;
 CORE_API extern class FMalloc** GFixedMallocLocationPtr;
 
-/** Global FMallocProfiler variable to allow multiple malloc profilers to communicate. */
-MALLOC_PROFILER( CORE_API extern class FMallocProfiler* GMallocProfiler; )
-
 /** Holds generic memory stats, internally implemented as a map. */
 struct FGenericMemoryStats;
 

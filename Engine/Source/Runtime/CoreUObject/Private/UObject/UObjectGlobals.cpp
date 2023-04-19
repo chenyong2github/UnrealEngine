@@ -82,10 +82,6 @@
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
-#if USE_MALLOC_PROFILER
-#include "ProfilingDebugging/MallocProfiler.h"
-#endif
-
 int32 GAllowUnversionedContentInEditor = 0;
 
 static FAutoConsoleVariableRef CVarAllowUnversionedContentInEditor(

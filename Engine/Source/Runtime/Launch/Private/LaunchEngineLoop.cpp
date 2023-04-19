@@ -5673,9 +5673,6 @@ void FEngineLoop::Tick()
 		// Calculates average FPS/MS (outside STATS on purpose)
 		CalculateFPSTimings();
 
-		// Note the start of a new frame
-		MALLOC_PROFILER(GMalloc->Exec(nullptr, *FString::Printf(TEXT("SNAPSHOTMEMORYFRAME")),*GLog));
-
 		// handle some per-frame tasks on the rendering thread
 		ENQUEUE_RENDER_COMMAND(ResetDeferredUpdates)(
 			[](FRHICommandList& RHICmdList)
@@ -6678,8 +6675,6 @@ void FEngineLoop::AppPreExit( )
 	UE_LOG(LogExit, Log, TEXT("Preparing to exit.") );
 
 	FCoreDelegates::OnPreExit.Broadcast();
-
-	MALLOC_PROFILER( GMalloc->Exec(nullptr, TEXT("MPROF STOP"), *GLog);	);
 
 #if WITH_ENGINE
 	if (FString(FCommandLine::Get()).Contains(TEXT("CreatePak")) && GetDerivedDataCache())

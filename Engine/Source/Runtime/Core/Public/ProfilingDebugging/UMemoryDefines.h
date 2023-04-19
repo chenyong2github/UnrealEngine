@@ -15,23 +15,3 @@
 #ifndef MIMALLOC_ALLOCATOR_ALLOWED
 	#define MIMALLOC_ALLOCATOR_ALLOWED 1
 #endif
-
-/**
- *	IMPORTANT:	The malloc proxy flags are mutually exclusive.
- *				You can have either none of them set or only one of them.
- */
-/** USE_MALLOC_PROFILER				- Define this to use the FMallocProfiler allocator.			*/
-/**									  Make sure to enable Stack Frame pointers:					*/
-/**									  bOmitFramePointers = false, or /Oy-						*/
-
-#ifndef USE_MALLOC_PROFILER
-#define USE_MALLOC_PROFILER				0
-#endif
-
-#if USE_MALLOC_PROFILER
-#define MALLOC_PROFILER(x)	x	
-#else
-#define MALLOC_PROFILER(...)
-#endif
-
-

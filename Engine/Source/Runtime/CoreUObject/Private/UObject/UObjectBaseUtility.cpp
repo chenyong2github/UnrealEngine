@@ -12,7 +12,6 @@
 #include "UObject/Interface.h"
 #include "Misc/StringBuilder.h"
 #include "Modules/ModuleManager.h"
-#include "ProfilingDebugging/MallocProfiler.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Containers/VersePath.h"
@@ -606,120 +605,6 @@ UClass* GetParentNativeClass(UClass* Class)
 
 	return Class;
 }
-
-#if STATS && USE_MALLOC_PROFILER
-void FScopeCycleCounterUObject::TrackObjectForMallocProfiling(const UObjectBaseUtility *InObject)
-{
-	// Get the package name from the outermost item (if available - can't use GetOutermost here)
-	FName PackageName;
-	if (InObject->GetOuter())
-	{
-		UObjectBaseUtility* Top = InObject->GetOuter();
-		for (;;)
-		{
-			UObjectBaseUtility* CurrentOuter = Top->GetOuter();
-			if (!CurrentOuter)
-			{
-				PackageName = Top->GetFName();
-				break;
-			}
-			Top = CurrentOuter;
-		}
-	}
-
-	// Get the class name (if available)
-	FName ClassName;
-	if (InObject->GetClass())
-	{
-		ClassName = InObject->GetClass()->GetFName();
-	}
-
-	TrackObjectForMallocProfiling(PackageName, ClassName, InObject->GetFName());
-}
-void FScopeCycleCounterUObject::TrackObjectForMallocProfiling(const FName InPackageName, const FName InClassName, const FName InObjectName)
-{
-	static const TCHAR PackageTagCategory[] = TEXT("Package:");
-	static const TCHAR ObjectTagCategory[] = TEXT("Object:");
-	static const TCHAR ClassTagCategory[] = TEXT("Class:");
-
-	// We use an array rather than an FString to try and minimize heap allocations
-	TArray<TCHAR, TInlineAllocator<256>> ScratchSpaceBuffer;
-
-	auto AppendNameToBuffer = [&](const FName InName)
-	{
-		const FNameEntry* NameEntry = InName.GetDisplayNameEntry();
-		if (NameEntry->IsWide())
-		{
-			WIDECHAR WideName[NAME_SIZE];
-			NameEntry->GetWideName(WideName);
-			const WIDECHAR* NameCharPtr = WideName;
-			while (*NameCharPtr != 0)
-			{
-				ScratchSpaceBuffer.Add((TCHAR)*NameCharPtr++);
-			}
-		}
-		else
-		{
-			ANSICHAR AnsiName[NAME_SIZE];
-			NameEntry->GetAnsiName(AnsiName);
-			const ANSICHAR* NameCharPtr = AnsiName;
-			while (*NameCharPtr != 0)
-			{
-				ScratchSpaceBuffer.Add((TCHAR)*NameCharPtr++);
-			}
-		}
-	};
-
-	if (!InPackageName.IsNone())
-	{
-		// "Package:/Path/To/Package"
-		ScratchSpaceBuffer.Reset();
-		ScratchSpaceBuffer.Append(PackageTagCategory, UE_ARRAY_COUNT(PackageTagCategory) - 1);
-		AppendNameToBuffer(InPackageName);
-		ScratchSpaceBuffer.Add(0);
-		PackageTag = FName(ScratchSpaceBuffer.GetData());
-		GMallocProfiler->AddTag(PackageTag);
-
-		// "Object:/Path/To/Package/ObjectName"
-		ScratchSpaceBuffer.Reset();
-		ScratchSpaceBuffer.Append(ObjectTagCategory, UE_ARRAY_COUNT(ObjectTagCategory) - 1);
-		AppendNameToBuffer(InPackageName);
-		ScratchSpaceBuffer.Add(TEXT('/'));
-		AppendNameToBuffer(InObjectName);
-		ScratchSpaceBuffer.Add(0);
-		ObjectTag = FName(ScratchSpaceBuffer.GetData());
-		GMallocProfiler->AddTag(ObjectTag);
-	}
-
-	if (!InClassName.IsNone())
-	{
-		// "Class:ClassName"
-		ScratchSpaceBuffer.Reset();
-		ScratchSpaceBuffer.Append(ClassTagCategory, UE_ARRAY_COUNT(ClassTagCategory) - 1);
-		AppendNameToBuffer(InClassName);
-		ScratchSpaceBuffer.Add(0);
-		ClassTag = FName(ScratchSpaceBuffer.GetData());
-		GMallocProfiler->AddTag(ClassTag);
-	}
-}
-void FScopeCycleCounterUObject::UntrackObjectForMallocProfiling()
-{
-	if (!PackageTag.IsNone())
-	{
-		GMallocProfiler->RemoveTag(PackageTag);
-	}
-
-	if (!ClassTag.IsNone())
-	{
-		GMallocProfiler->RemoveTag(ClassTag);
-	}
-
-	if (!ObjectTag.IsNone())
-	{
-		GMallocProfiler->RemoveTag(ObjectTag);
-	}
-}
-#endif
 
 #if !STATS && !ENABLE_STATNAMEDEVENTS && USE_LIGHTWEIGHT_STATS_FOR_HITCH_DETECTION && USE_HITCH_DETECTION && USE_LIGHTWEIGHT_UOBJECT_STATS_FOR_HITCH_DETECTION
 #include "HAL/ThreadHeartBeat.h"

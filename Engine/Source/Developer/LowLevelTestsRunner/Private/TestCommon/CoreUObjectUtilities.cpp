@@ -100,7 +100,6 @@ void CleanupCoreUObject()
 	IPackageResourceManager::Shutdown();
 
 	FCoreDelegates::OnPreExit.Broadcast();
-	MALLOC_PROFILER(GMalloc->Exec(nullptr, TEXT("MPROF STOP"), *GLog); );
 	FCoreDelegates::OnExit.Broadcast();
 }
 

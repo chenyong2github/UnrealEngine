@@ -14631,7 +14631,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	FDisableHitchDetectorScope SuspendHitchDetector;
 
 	NETWORK_PROFILER(GNetworkProfiler.TrackSessionChange(true,URL));
-	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapStart( URL.Map ) );
+
 	FMoviePlayerProxyBlock MoviePlayerBlock;
 	Error = TEXT("");
 
@@ -14867,8 +14867,6 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	}
 
 	FMoviePlayerProxy::BlockingTick();
-
-	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapMid( URL.Map ); )
 
 	WorldContext.OwningGameInstance->PreloadContentForURL(URL);
 
@@ -15217,7 +15215,6 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "LoadMapComplete - " ) + URL.Map )) );
 	TRACE_BOOKMARK(TEXT("LoadMapComplete - %s"), *URL.Map);
-	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapEnd( URL.Map ); )
 
 	double StopTime = FPlatformTime::Seconds();
 
