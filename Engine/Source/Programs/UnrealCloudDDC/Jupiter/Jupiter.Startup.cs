@@ -109,6 +109,7 @@ namespace Jupiter
             services.AddOptions<StaticPeerServiceDiscoverySettings>().Configure(o => Configuration.GetSection("ServiceDiscovery").Bind(o)).ValidateDataAnnotations();
 
             services.AddOptions<MemoryCacheReferencesSettings>().Configure(o => Configuration.GetSection("CacheRef").Bind(o)).ValidateDataAnnotations();
+            services.AddOptions<MemoryCacheContentIdSettings>().Configure(o => Configuration.GetSection("CacheContentId").Bind(o)).ValidateDataAnnotations();
 
             services.AddSingleton(typeof(CompressedBufferUtils), CreateCompressedBufferUtils);
 

@@ -54,7 +54,7 @@ namespace Jupiter.Implementation
                 if (_scyllaSessionManager.IsScylla)
                 {
                     // lower content_weight means its a better candidate to resolve to
-                    foreach (ScyllaContentId? resolvedContentId in await _mapper.FetchAsync<ScyllaContentId>("WHERE content_id = ? ORDER BY content_weight DESC", new ScyllaBlobIdentifier(contentId)))
+                    foreach (ScyllaContentId? resolvedContentId in await _mapper.FetchAsync<ScyllaContentId>("WHERE content_id = ? ORDER BY content_weight ASC", new ScyllaBlobIdentifier(contentId)))
                     {
                         if (resolvedContentId == null)
                         {
@@ -78,7 +78,7 @@ namespace Jupiter.Implementation
                 else
                 {
                     // lower content_weight means its a better candidate to resolve to
-                    foreach (CassandraContentId? resolvedContentId in await _mapper.FetchAsync<CassandraContentId>("WHERE content_id = ? ORDER BY content_weight DESC", contentId.HashData))
+                    foreach (CassandraContentId? resolvedContentId in await _mapper.FetchAsync<CassandraContentId>("WHERE content_id = ? ORDER BY content_weight ASC", contentId.HashData))
                     {
                         if (resolvedContentId == null)
                         {
