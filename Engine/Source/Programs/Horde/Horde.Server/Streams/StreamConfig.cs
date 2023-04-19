@@ -177,6 +177,11 @@ namespace Horde.Server.Streams
 		public List<TabConfig> Tabs { get; set; } = new List<TabConfig>();
 
 		/// <summary>
+		/// Global environment variables for all agents in this stream
+		/// </summary>
+		public Dictionary<string, string>? Environment { get; set; }
+
+		/// <summary>
 		/// Map of agent name to type
 		/// </summary>
 		public Dictionary<string, AgentConfig> AgentTypes { get; set; } = new Dictionary<string, AgentConfig>();
@@ -247,6 +252,18 @@ namespace Horde.Server.Streams
 			foreach (TemplateRefConfig template in Templates)
 			{
 				template.PostLoad(this);
+			}
+
+			if (Environment != null && Environment.Count > 0)
+			{
+				foreach (AgentConfig agentConfig in AgentTypes.Values)
+				{
+					agentConfig.Environment ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+					foreach ((string key, string value) in Environment)
+					{
+						agentConfig.Environment.TryAdd(key, value);
+					}
+				}
 			}
 		}
 

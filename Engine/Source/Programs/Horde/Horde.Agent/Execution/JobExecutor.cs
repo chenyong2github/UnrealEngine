@@ -1247,18 +1247,28 @@ namespace Horde.Agent.Execution
 		{
 			List<DirectoryReference> dirs = new();
 			dirs.Add(workspaceDir);
-			if (sharedStorageDir != null) dirs.Add(sharedStorageDir);
-			if (envVars.TryGetValue("UE_SDKS_ROOT", out string? autoSdkDirPath)) dirs.Add(new DirectoryReference(autoSdkDirPath));
+			if (sharedStorageDir != null)
+			{
+				dirs.Add(sharedStorageDir);
+			}
+			if (envVars.TryGetValue("UE_SDKS_ROOT", out string? autoSdkDirPath))
+			{
+				dirs.Add(new DirectoryReference(autoSdkDirPath));
+			}
 			return dirs;
 		}
-		
+
 		async Task<int> ExecuteCommandAsync(BeginStepResponse step, DirectoryReference workspaceDir, DirectoryReference? sharedStorageDir, string fileName, string arguments, ILogger jobLogger, CancellationToken cancellationToken)
 		{
+			// Method for expanding environment variable properties related to this step
+			Dictionary<string, string> properties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			properties.Add("RootDir", workspaceDir.FullName);
+
 			// Combine all the supplied environment variables together
 			Dictionary<string, string> newEnvVars = new Dictionary<string, string>(_envVars, StringComparer.Ordinal);
 			foreach (KeyValuePair<string, string> envVar in step.EnvVars)
 			{
-				newEnvVars[envVar.Key] = envVar.Value;
+				newEnvVars[envVar.Key] = StringUtils.ExpandProperties(envVar.Value, properties);
 			}
 			foreach (KeyValuePair<string, string> envVar in step.Credentials)
 			{
