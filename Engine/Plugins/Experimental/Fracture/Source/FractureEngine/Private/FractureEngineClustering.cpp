@@ -2,6 +2,10 @@
 
 #include "FractureEngineClustering.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/GeometryCollectionUtility.h"
+#include "GeometryCollection/Facades/CollectionTransformSelectionFacade.h"
+#include "GeometryCollection/Facades/CollectionTransformFacade.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "Math/BoxSphereBounds.h"
@@ -745,3 +749,100 @@ TArray<FVector> FFractureEngineClustering::GenerateGridSites(
 	return PartitionPositions;
 }
 
+
+bool FFractureEngineClustering::ClusterSelected(
+	FGeometryCollection& GeometryCollection,
+	TArray<int32>& Selection)
+{
+	GeometryCollection::Facades::FCollectionTransformSelectionFacade SelectionFacade(GeometryCollection);
+	SelectionFacade.RemoveRootNodes(Selection);
+	SelectionFacade.Sanitize(Selection);
+
+	if (Selection.Num() <= 1)
+	{
+		// Don't make a cluster of 1
+		return false;
+	}
+
+	Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(GeometryCollection);
+	int32 StartTransformCount = GeometryCollection.NumElements(FGeometryCollection::TransformGroup);
+	int32 LowestCommonAncestor = FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(&GeometryCollection, Selection);
+	// Cluster selected bones beneath common parent
+	if (LowestCommonAncestor != INDEX_NONE)
+	{
+		FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNodeWithParent(&GeometryCollection, LowestCommonAncestor, Selection, true);
+		GeometryCollection::GenerateTemporaryGuids(&GeometryCollection, StartTransformCount, true);
+		FGeometryCollectionClusteringUtility::RemoveDanglingClusters(&GeometryCollection);
+		HierarchyFacade.GenerateLevelAttribute();
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FFractureEngineClustering::MergeSelectedClusters(FGeometryCollection& GeometryCollection, TArray<int32>& Selection)
+{
+	Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(GeometryCollection);
+
+	GeometryCollection::Facades::FCollectionTransformSelectionFacade SelectionFacade(GeometryCollection);
+	SelectionFacade.ConvertEmbeddedSelectionToParents(Selection); // embedded geo must stay attached to parent
+
+	// Collect children of context clusters
+	TArray<int32> ChildBones;
+	int32 StartTransformCount = GeometryCollection.NumElements(FGeometryCollection::TransformGroup);
+	ChildBones.Reserve(StartTransformCount);
+	bool bHasClusters = false;
+	for (int32 Select : Selection)
+	{
+		if (GeometryCollection.SimulationType[Select] == FGeometryCollection::ESimulationTypes::FST_Clustered)
+		{
+			bHasClusters = true;
+			ChildBones.Append(HierarchyFacade.GetChildrenAsArray(Select));
+		}
+		else
+		{
+			ChildBones.Add(Select);
+		}
+	}
+
+	// If there were no clusters in the selection, we create a cluster
+	if (!bHasClusters)
+	{
+		// Cluster selected bones beneath common parent
+		int32 LowestCommonAncestor = FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(&GeometryCollection, Selection);
+		if (LowestCommonAncestor != INDEX_NONE)
+		{
+			FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNodeWithParent(&GeometryCollection, LowestCommonAncestor, Selection, true);
+			GeometryCollection::GenerateTemporaryGuids(&GeometryCollection, StartTransformCount, true);
+			Selection.SetNum(1);
+			Selection[0] = LowestCommonAncestor;
+			if (FGeometryCollectionClusteringUtility::RemoveDanglingClusters(&GeometryCollection))
+			{
+				// Bone index is unreliable after removal of some bones
+				Selection.Empty();
+			}
+			HierarchyFacade.GenerateLevelAttribute();
+			return true;
+		}
+	}
+	else
+	{
+		int32 MergeNode = FGeometryCollectionClusteringUtility::PickBestNodeToMergeTo(&GeometryCollection, Selection);
+		if (MergeNode >= 0)
+		{
+			FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(&GeometryCollection, MergeNode, ChildBones);
+			Selection.SetNum(1);
+			Selection[0] = MergeNode;
+			if (FGeometryCollectionClusteringUtility::RemoveDanglingClusters(&GeometryCollection))
+			{
+				// Bone index is unreliable after removal of some bones
+				Selection.Empty();
+			}
+			HierarchyFacade.GenerateLevelAttribute();
+			return true;
+		}
+	}
+
+	return false;
+}

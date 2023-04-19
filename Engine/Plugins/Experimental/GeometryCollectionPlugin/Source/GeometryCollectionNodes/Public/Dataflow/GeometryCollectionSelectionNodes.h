@@ -467,17 +467,17 @@ public:
 
 /**
  *
- * Selects the level of the selected bones
+ * Expand the selection to include all nodes with the same level as the selected nodes
  *
  */
 USTRUCT(meta = (DataflowGeometryCollection))
 struct FCollectionTransformSelectionLevelDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionTransformSelectionLevelDataflowNode, "CollectionTransformSelectLevel", "GeometryCollection|Selection|Transform", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionTransformSelectionLevelDataflowNode, "CollectionTransformSelectLevels", "GeometryCollection|Selection|Transform", "")
 
 public:
-	/** Array of the selected bone indicies */
+	/** Array of the selected bone indices */
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "TransformSelection", DataflowPassthrough = "TransformSelection", DataflowIntrinsic))
 	FDataflowTransformSelection TransformSelection;
 
@@ -497,6 +497,49 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 };
+
+
+/**
+ *
+ * Selects the root bones in the Collection
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionTransformSelectionTargetLevelDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionTransformSelectionTargetLevelDataflowNode, "CollectionTransformSelectTargetLevel", "GeometryCollection|Selection|Transform", "")
+
+public:
+	/** GeometryCollection for the selection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Level to select */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DataflowInput, ClampMin = 0))
+	int32 TargetLevel = 1;
+
+	/** Whether to avoid embedded geometry in the selection (i.e., only select rigid and cluster nodes) */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bSkipEmbedded = false;
+
+	/** Array of the selected bone indices */
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "TransformSelection"))
+	FDataflowTransformSelection TransformSelection;
+
+	FCollectionTransformSelectionTargetLevelDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&TargetLevel);
+		RegisterOutputConnection(&TransformSelection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
 
 
 /**

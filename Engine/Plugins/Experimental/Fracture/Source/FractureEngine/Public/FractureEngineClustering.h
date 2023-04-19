@@ -130,6 +130,20 @@ public:
 		const int32 GridY,
 		const int32 GridZ,
 		FBox* OutBounds = nullptr);
+
+	// Cluster the chosen transform indices (and update the selection array to remove any that were not clustered, i.e. invalid or root transforms)
+	// @return true if the GeometryCollection was updated
+	static bool ClusterSelected(
+		FGeometryCollection& GeometryCollection,
+		TArray<int32>& InOutSelection
+	);
+
+	// Merge selected clusters. Non-clusters in the selection are converted to the closest (parent) clusters.
+	// On success, returns true and InOutSelection holds the index of the cluster to which the selection was merged.
+	static bool MergeSelectedClusters(
+		FGeometryCollection& GeometryCollection,
+		TArray<int32>& InOutSelection
+	);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

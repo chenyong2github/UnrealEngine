@@ -122,7 +122,7 @@ public:
 	static void MoveUpOneHierarchyLevel(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones);
 
 	/** Find the lowest common ancestor index of currently selected nodes. Returns INDEX_NODE if there is no common ancestor. */
-	static int32 FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones);
+	static int32 FindLowestCommonAncestor(const FManagedArrayCollection* GeometryCollection, const TArray<int32>& SelectedBones);
 
 	/** Delete any cluster nodes discovered to have no children. Returns true if any nodes were removed. */
 	static bool RemoveDanglingClusters(FGeometryCollection* GeometryCollection);
@@ -132,7 +132,7 @@ public:
 
 	static void ValidateResults(FGeometryCollection* GeometryCollection);
 
-	static int32 PickBestNodeToMergeTo(const FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements);
+	static int32 PickBestNodeToMergeTo(const FManagedArrayCollection* Collection, const TArray<int32>& SourceElements);
 
 private:
 	// #todo: intend to remove reliance on custom attributes for slider by making use of Rest/Dynamic collections
@@ -140,5 +140,5 @@ private:
 	
 	static void RecursivelyUpdateHierarchyLevelOfChildren(TManagedArray<int32>& Levels, const TManagedArray<TSet<int32>>& Children, int32 ParentElement);
 
-	static int32 FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, int32 N0, int32 N1);
+	static int32 FindLowestCommonAncestor(const FManagedArrayCollection* GeometryCollection, int32 N0, int32 N1);
 };

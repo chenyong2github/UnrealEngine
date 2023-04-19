@@ -48,8 +48,11 @@ namespace GeometryCollection::Facades
 		/**  */
 		bool HasSelectedAncestor(const TArray<int32>& InSelection, const int32 Index) const;
 
-		/**  */
+		/** Get bones filtered by the level as they would be in the editor; i.e., the bones with level <= the target Level, but with some additional logic for filtering, etc */
 		TArray<int32> GetBonesByLevel(const int32 Level, bool bOnlyClusteredOrRigid, bool bSkipFiltered) const;
+
+		/** Get bones exactly at a target level. A target level of -1 will return all bones. */
+		TArray<int32> GetBonesExactlyAtLevel(const int32 TargetLevel, bool bOnlyClusteredOrRigid) const;
 
 		/**  */
 		void Sanitize(TArray<int32>& InSelection, bool bFavorParents = true) const;
@@ -63,6 +66,8 @@ namespace GeometryCollection::Facades
 
 		/** Replace any Embedded or Rigid transforms in InOutSelection with their parent cluster. If there is just a rigid root node selected, optionally keep it if bLeaveRigidRoot is true. */
 		void ConvertSelectionToClusterNodes(TArray<int32>& InOutSelection, bool bLeaveRigidRoots = true) const;
+
+		void ConvertEmbeddedSelectionToParents(TArray<int32>& InOutSelection) const;
 
 		/**  */
 		bool CanSelectRootBones() const { return ParentAttribute.IsValid(); }

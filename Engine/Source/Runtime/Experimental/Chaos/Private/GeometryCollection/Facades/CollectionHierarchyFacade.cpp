@@ -65,6 +65,15 @@ namespace Chaos::Facades
 		return ChildrenArray;
 	}
 
+	const TSet<int32>* FCollectionHierarchyFacade::FindChildren(int32 TransformIndex) const
+	{
+		if (ChildrenAttribute.IsValid() && ChildrenAttribute.IsValidIndex(TransformIndex))
+		{
+			return &ChildrenAttribute[TransformIndex];
+		}
+		return nullptr;
+	}
+
 	int32 FCollectionHierarchyFacade::GetParent(int32 TransformIndex) const
 	{
 		return ParentAttribute[TransformIndex];

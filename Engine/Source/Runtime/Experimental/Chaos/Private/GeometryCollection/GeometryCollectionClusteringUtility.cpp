@@ -381,14 +381,13 @@ void FGeometryCollectionClusteringUtility::RenameBone(FGeometryCollection* Geome
 	}
 }
 
-int32 FGeometryCollectionClusteringUtility::PickBestNodeToMergeTo(const FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements)
+int32 FGeometryCollectionClusteringUtility::PickBestNodeToMergeTo(const FManagedArrayCollection* Collection, const TArray<int32>& SourceElements)
 {
-	if (!ensure(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup)))
+	const Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(*Collection);
+	if (!HierarchyFacade.IsValid() || !HierarchyFacade.HasLevelAttribute())
 	{
 		return -1;
 	}
-	const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
-	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
 
 	// which of the source elements is the most significant, closest to the root that has children (is a cluster)
 	int32 ElementClosestToRoot = -1;
@@ -396,9 +395,11 @@ int32 FGeometryCollectionClusteringUtility::PickBestNodeToMergeTo(const FGeometr
 
 	for (int32 Element : SourceElements)
 	{
-		if (Children[Element].Num() > 0 && (Levels[Element] < LevelClosestToRoot || LevelClosestToRoot == -1))
+		const TSet<int32>* Children = HierarchyFacade.FindChildren(Element);
+		int32 Level = HierarchyFacade.GetInitialLevel(Element);
+		if (Children && !Children->IsEmpty() && (Level < LevelClosestToRoot || LevelClosestToRoot == -1))
 		{
-			LevelClosestToRoot = Levels[Element];
+			LevelClosestToRoot = Level;
 			ElementClosestToRoot = Element;
 		}
 	}
@@ -874,7 +875,7 @@ void FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(FGeometryColl
 }
 
 
-int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones)
+int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(const FManagedArrayCollection* Collection, const TArray<int32>& SelectedBones)
 {
 	const int32 SelectionCount = SelectedBones.Num();
 	if (SelectionCount == 0)
@@ -889,21 +890,25 @@ int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCo
 		{
 			return INDEX_NONE;
 		}
-		LCA = FindLowestCommonAncestor(GeometryCollection, LCA, SelectedBones[Index]);
+		LCA = FindLowestCommonAncestor(Collection, LCA, SelectedBones[Index]);
 	}
 	return LCA;
 }
 
-int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, int32 N0, int32 N1)
+int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(const FManagedArrayCollection* Collection, int32 N0, int32 N1)
 {
-	const TManagedArray<int32>& Parent = GeometryCollection->GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+	const TManagedArray<int32>* Parent = Collection->FindAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+	if (!Parent)
+	{
+		return INDEX_NONE;
+	}
 
 	// Record the path to root from the first 
 	TArray<int32> PathToRoot0;
 	PathToRoot0.Add(N0);
 	while (PathToRoot0.Last() != INDEX_NONE)
 	{
-		PathToRoot0.Add(Parent[PathToRoot0.Last()]);
+		PathToRoot0.Add((*Parent)[PathToRoot0.Last()]);
 	}
 
 	// Traverse from the second node to root and return the first node found that is in the first path.
@@ -914,7 +919,7 @@ int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCo
 		{
 			return LCA;
 		}
-		LCA = Parent[LCA];
+		LCA = (*Parent)[LCA];
 	}
 
 	// No common ancestor

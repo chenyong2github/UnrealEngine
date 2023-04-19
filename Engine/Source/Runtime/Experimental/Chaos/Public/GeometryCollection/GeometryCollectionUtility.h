@@ -165,7 +165,7 @@ namespace GeometryCollection
 	*/
 	void 
 	CHAOS_API
-	GenerateTemporaryGuids(FTransformCollection* Collection, int32 StartIdx = 0, bool bForceInit=false);
+	GenerateTemporaryGuids(FManagedArrayCollection* Collection, int32 StartIdx = 0, bool bForceInit=false);
 
 	/***
 	* Compute inner and outer radius from a set of vertices 

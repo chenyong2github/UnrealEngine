@@ -132,6 +132,45 @@ namespace GeometryCollection::Facades
 		return OutBones;
 	}
 
+	TArray<int32> FCollectionTransformSelectionFacade::GetBonesExactlyAtLevel(const int32 Level, bool bOnlyClusteredOrRigid) const
+	{
+		TArray<int32> OutBones;
+
+		if (LevelAttribute.IsValid() && SimulationTypeAttribute.IsValid())
+		{
+			const TManagedArray<int32>& Levels = LevelAttribute.Get();
+			bool bHasSimType = SimulationTypeAttribute.IsValid();
+
+			if (!bHasSimType)
+			{
+				// cannot filter by cluster/rigid if simulation type is not available
+				ensure(!bOnlyClusteredOrRigid);
+				bOnlyClusteredOrRigid = false;
+			}
+
+			bool bAllLevels = Level == INDEX_NONE;
+
+			const int32 NumTransforms = ParentAttribute.Num();
+			for (int32 BoneIdx = 0; BoneIdx < NumTransforms; BoneIdx++)
+			{
+				bool bIsRigid = bHasSimType && SimulationTypeAttribute[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_Rigid;
+				bool bIsClustered = bHasSimType && SimulationTypeAttribute[BoneIdx] == FGeometryCollection::ESimulationTypes::FST_Clustered;
+				if (
+					// (if skipping embedded) sim type is clustered or rigid 
+					(!bOnlyClusteredOrRigid || bIsClustered || bIsRigid)
+					&&
+					// level is at or before the target
+					(bAllLevels || Levels[BoneIdx] == Level)
+					)
+				{
+					OutBones.Add(BoneIdx);
+				}
+			}
+		}
+
+		return OutBones;
+	}
+
 	void FCollectionTransformSelectionFacade::Sanitize(TArray<int32>& InOutSelection, bool bFavorParents) const
 	{
 		if (ParentAttribute.IsValid())
@@ -186,6 +225,37 @@ namespace GeometryCollection::Facades
 		}
 
 		InOutSelection = RigidSelection;
+	}
+
+	void FCollectionTransformSelectionFacade::ConvertEmbeddedSelectionToParents(TArray<int32>& InOutSelection) const
+	{
+		if (!SimulationTypeAttribute.IsValid()) // if no simulation type, no embedded to convert
+		{
+			return;
+		}
+
+		const TManagedArray<int32>& Parents = ParentAttribute.Get();
+		const TManagedArray<int32>& SimulationType = SimulationTypeAttribute.Get();
+
+		Sanitize(InOutSelection);
+
+		for (int32 SelBoneIdx = 0; SelBoneIdx < InOutSelection.Num(); ++SelBoneIdx)
+		{
+			int32 Bone = InOutSelection[SelBoneIdx];
+			if (SimulationType[Bone] == FGeometryCollection::ESimulationTypes::FST_None)
+			{
+				int32 Parent = Parents[Bone];
+				if (Parent != INDEX_NONE)
+				{
+					InOutSelection[SelBoneIdx] = Parent;
+				}
+				else // embedded should always have a parent, but if it somehow does not, just remove from selection
+				{
+					InOutSelection.RemoveAtSwap(SelBoneIdx, 1, false);
+					--SelBoneIdx; // reconsider swapped-in-element at this idx next iter
+				}
+			}
+		}
 	}
 
 	void FCollectionTransformSelectionFacade::ConvertSelectionToClusterNodes(TArray<int32>& InOutSelection, bool bLeaveRigidRoots) const

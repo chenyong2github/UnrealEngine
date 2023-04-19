@@ -478,7 +478,7 @@ namespace GeometryCollection
 	}
 
 
-	void GenerateTemporaryGuids(FTransformCollection* Collection, int32 StartIdx, bool bForceInit)
+	void GenerateTemporaryGuids(FManagedArrayCollection* Collection, int32 StartIdx, bool bForceInit)
 	{
 		bool bNeedsInit = false;
 		if (!Collection->HasAttribute("GUID", FTransformCollection::TransformGroup))

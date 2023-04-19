@@ -47,6 +47,9 @@ namespace Chaos::Facades
 		/** Get direct children from a specific transform index. Assumes parent attribute is valid. */
 		TArray<int32> GetChildrenAsArray(int32 TransformIndex) const;
 
+		/** Get set of children from a transform index, or nullptr if not available */
+		const TSet<int32>* FindChildren(int32 TransformIndex) const;
+
 		/** Get parent of a specific transform index */
 		int32 GetParent(int32 TransformIndex) const;
 

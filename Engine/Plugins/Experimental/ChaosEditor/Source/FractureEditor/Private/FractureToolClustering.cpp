@@ -7,6 +7,7 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "FractureEngineClustering.h"
 #include "ScopedTransaction.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolClustering)
@@ -121,23 +122,8 @@ void UFractureToolCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolki
 		{
 			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
 
-			int32 StartTransformCount = Context.GetGeometryCollection()->Transform.Num();
-			
-			Context.RemoveRootNodes();
-			Context.Sanitize();
-
-			if (Context.GetSelection().Num() > 1)
+			if (FFractureEngineClustering::ClusterSelected(*Context.GetGeometryCollection(), Context.GetSelection()))
 			{
-				// Cluster selected bones beneath common parent
-				int32 LowestCommonAncestor = FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(Context.GetGeometryCollection().Get(), Context.GetSelection());
-
-				if (LowestCommonAncestor != INDEX_NONE)
-				{
-					FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNodeWithParent(Context.GetGeometryCollection().Get(), LowestCommonAncestor, Context.GetSelection(), true);
-				}
-
-				Context.GenerateGuids(StartTransformCount);
-
 				Refresh(Context, Toolkit);
 			}
 		}
@@ -293,52 +279,9 @@ void UFractureToolClusterMerge::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 		{
 			FGeometryCollectionEdit Edit(Context.GetGeometryCollectionComponent(), GeometryCollection::EEditUpdate::RestPhysicsDynamic);
 
-			const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->Children;
-
-			Context.ConvertEmbeddedSelectionToParents(); // embedded geo must stay attached to parent
-
-			// Collect children of context clusters
-			TArray<int32> ChildBones;
-			ChildBones.Reserve(Context.GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup));
-			bool bHasClusters = false;
-			for (int32 Select : Context.GetSelection())
+			if (FFractureEngineClustering::MergeSelectedClusters(*Context.GetGeometryCollection(), Context.GetSelection()))
 			{
-				if (Context.GetGeometryCollection()->SimulationType[Select] == FGeometryCollection::ESimulationTypes::FST_Clustered)
-				{
-					bHasClusters = true;
-					ChildBones.Append(Children[Select].Array());
-				}
-				else
-				{
-					ChildBones.Add(Select);
-				}
-			}
-			
-			// If there were no clusters in the selection, we create a cluster -- i.e., follow the logic of UFractureToolCluster::Execute
-			if (!bHasClusters)
-			{
-				// Cluster selected bones beneath common parent
-				int32 LowestCommonAncestor = FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(Context.GetGeometryCollection().Get(), Context.GetSelection());
-				if (LowestCommonAncestor != INDEX_NONE)
-				{
-					int32 StartTransformCount = Context.GetGeometryCollection()->Transform.Num();
-					FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNodeWithParent(Context.GetGeometryCollection().Get(), LowestCommonAncestor, Context.GetSelection(), true);
-					Context.GenerateGuids(StartTransformCount);
-					Context.SetSelection({ LowestCommonAncestor });
-					Refresh(Context, Toolkit);
-				}
-			}
-			else
-			{
-				int32 MergeNode = FGeometryCollectionClusteringUtility::PickBestNodeToMergeTo(Context.GetGeometryCollection().Get(), Context.GetSelection());
-				if (MergeNode >= 0)
-				{
-					FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(Context.GetGeometryCollection().Get(), MergeNode, ChildBones);
-					FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
-
-					Context.SetSelection({ MergeNode });
-					Refresh(Context, Toolkit);
-				}
+				Refresh(Context, Toolkit);
 			}
 		}
 
