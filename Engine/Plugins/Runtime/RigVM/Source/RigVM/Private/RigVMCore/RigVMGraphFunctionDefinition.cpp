@@ -38,10 +38,10 @@ bool FRigVMGraphFunctionHeader::IsMutable() const
 	return false;
 }
 
-IRigVMGraphFunctionHost* FRigVMGraphFunctionHeader::GetFunctionHost() const
+IRigVMGraphFunctionHost* FRigVMGraphFunctionHeader::GetFunctionHost(bool bLoadIfNecessary) const
 {
 	UObject* HostObj = LibraryPointer.HostObject.ResolveObject();
-	if (!HostObj)
+	if (!HostObj && bLoadIfNecessary)
 	{
 		HostObj = LibraryPointer.HostObject.TryLoad();
 	}
@@ -52,9 +52,9 @@ IRigVMGraphFunctionHost* FRigVMGraphFunctionHeader::GetFunctionHost() const
 	return nullptr;
 }
 
-FRigVMGraphFunctionData* FRigVMGraphFunctionHeader::GetFunctionData() const
+FRigVMGraphFunctionData* FRigVMGraphFunctionHeader::GetFunctionData(bool bLoadIfNecessary) const
 {
-	if (IRigVMGraphFunctionHost* Host = GetFunctionHost())
+	if (IRigVMGraphFunctionHost* Host = GetFunctionHost(bLoadIfNecessary))
 	{
 		return Host->GetRigVMGraphFunctionStore()->FindFunction(LibraryPointer);
 	}

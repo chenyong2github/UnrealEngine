@@ -92,9 +92,13 @@ TArray<FRigVMExternalVariable> URigVMFunctionReferenceNode::GetExternalVariables
 	
 	if(!bRemapped)
 	{
-		if (const FRigVMGraphFunctionData* FunctionData = GetReferencedFunctionData())
+		if (const FRigVMGraphFunctionData* FunctionData = GetReferencedFunctionData(false))
 		{
 			Variables = FunctionData->Header.ExternalVariables;
+		}
+		else
+		{
+			Variables = GetReferencedFunctionHeader().ExternalVariables;
 		}
 	}
 	else
@@ -162,9 +166,9 @@ uint32 URigVMFunctionReferenceNode::GetStructureHash() const
 	return Hash;
 }
 
-const FRigVMGraphFunctionData* URigVMFunctionReferenceNode::GetReferencedFunctionData() const
+const FRigVMGraphFunctionData* URigVMFunctionReferenceNode::GetReferencedFunctionData(bool bLoadIfNecessary) const
 {
-	if (IRigVMGraphFunctionHost* Host = ReferencedFunctionHeader.GetFunctionHost())
+	if (IRigVMGraphFunctionHost* Host = ReferencedFunctionHeader.GetFunctionHost(bLoadIfNecessary))
 	{
 		return Host->GetRigVMGraphFunctionStore()->FindFunction(ReferencedFunctionHeader.LibraryPointer);
 	}

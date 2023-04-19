@@ -386,9 +386,9 @@ struct RIGVM_API FRigVMGraphFunctionHeader
 		return LibraryPointer == Other.LibraryPointer;
 	}
 
-	IRigVMGraphFunctionHost* GetFunctionHost() const;
+	IRigVMGraphFunctionHost* GetFunctionHost(bool bLoadIfNecessary = true) const;
 
-	FRigVMGraphFunctionData* GetFunctionData() const;
+	FRigVMGraphFunctionData* GetFunctionData(bool bLoadIfNecessary = true) const;
 
 	friend FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionHeader& Data)
 	{

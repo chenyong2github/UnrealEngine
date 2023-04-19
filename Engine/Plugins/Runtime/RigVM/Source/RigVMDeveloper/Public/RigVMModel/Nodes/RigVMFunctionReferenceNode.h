@@ -49,7 +49,7 @@ public:
 	virtual uint32 GetStructureHash() const override;
 	const FRigVMGraphFunctionHeader& GetReferencedFunctionHeader() const { return ReferencedFunctionHeader; }
 
-	const FRigVMGraphFunctionData* GetReferencedFunctionData() const;
+	const FRigVMGraphFunctionData* GetReferencedFunctionData(bool bLoadIfNecessary = true) const;
 
 	
 private:
