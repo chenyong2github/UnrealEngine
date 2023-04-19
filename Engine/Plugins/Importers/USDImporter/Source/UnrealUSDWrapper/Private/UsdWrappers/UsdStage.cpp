@@ -687,6 +687,19 @@ namespace UE
 	}
 
 	template<typename PtrType>
+	FUsdPrim FUsdStageBase<PtrType>::CreateClassPrim(const FSdfPath& RootPrimPath)
+	{
+#if USE_USD_SDK
+		if (PtrType& Ptr = Impl->GetInner())
+		{
+			return FUsdPrim(Ptr->CreateClassPrim(RootPrimPath));
+		}
+#endif // #if USE_USD_SDK
+
+		return FUsdPrim();
+	}
+
+	template<typename PtrType>
 	bool FUsdStageBase<PtrType>::RemovePrim( const FSdfPath & Path )
 	{
 #if USE_USD_SDK

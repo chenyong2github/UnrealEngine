@@ -110,6 +110,7 @@ namespace UE
 
 		FUsdPrim OverridePrim( const FSdfPath& Path );
 		FUsdPrim DefinePrim( const FSdfPath& Path, const TCHAR* TypeName = TEXT("") );
+		FUsdPrim CreateClassPrim(const FSdfPath& RootPrimPath);
 		bool RemovePrim( const FSdfPath& Path );
 
 	private:
