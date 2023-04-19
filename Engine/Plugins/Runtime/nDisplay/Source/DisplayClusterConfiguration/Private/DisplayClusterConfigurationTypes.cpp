@@ -309,7 +309,7 @@ void UDisplayClusterConfigurationData_Base::Serialize(FArchive& Ar)
 		ClearFlags(RF_Transient);
 		
 		ExportedObjects.Reset();
-		GetObjectsToExport(ExportedObjects);
+		GetObjectsToExport(MutableView(ExportedObjects));
 		for (UObject* Object : ExportedObjects)
 		{
 			if (!ensure(Object != nullptr))

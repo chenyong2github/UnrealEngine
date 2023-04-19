@@ -6475,7 +6475,7 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 		UEdGraphNode* Entry = nullptr;
 		UEdGraphNode* Result = nullptr;
 		FunctionGraph->Modify();
-		MoveNodesToGraph(FunctionGraph->Nodes, EventGraph, ExpandedNodes, &Entry, &Result, false);
+		MoveNodesToGraph(MutableView(FunctionGraph->Nodes), EventGraph, ExpandedNodes, &Entry, &Result, false);
 
 		MoveNodesToAveragePos(ExpandedNodes, FVector2D(SpawnPos.X + 500.0f, SpawnPos.Y));
 		
@@ -8925,7 +8925,7 @@ void FBlueprintEditor::ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSour
 
 	const bool bIsCollapsedGraph = InNodeToExpand->IsA<UK2Node_Composite>();
 
-	MoveNodesToGraph(SourceGraph->Nodes, DestinationGraph, OutExpandedNodes, &Entry, &Result, bIsCollapsedGraph);
+	MoveNodesToGraph(MutableView(SourceGraph->Nodes), DestinationGraph, OutExpandedNodes, &Entry, &Result, bIsCollapsedGraph);
 
 	UEdGraphPin* OutputExecPinReconnect = nullptr;
 	if(UK2Node_CallFunction* CallFunction = Cast<UK2Node_CallFunction>(InNodeToExpand))

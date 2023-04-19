@@ -196,7 +196,7 @@ void SControlRigMappingWindow::AddNodeMapping(UBlueprint* NewSourceControlRig)
 		// this all can get very messy, so for now, we just support one for each
 		// create new mapper object
 		USkeletalMesh* SkeletalMesh = EditableSkeletalMeshPtr.Get();
-		TArray<UNodeMappingContainer*>& NodeMappingData = SkeletalMesh->GetNodeMappingData();
+		TArray<TObjectPtr<UNodeMappingContainer>>& NodeMappingData = SkeletalMesh->GetNodeMappingData();
 		for (int32 Index = 0; Index < NodeMappingData.Num(); ++Index)
 		{
 			if (NewSourceControlRig == NodeMappingData[Index]->GetSourceAsset())
@@ -229,7 +229,7 @@ FReply SControlRigMappingWindow::OnDeleteNodeMappingButtonClicked()
 
 	// create new mapper object
 	USkeletalMesh* SkeletalMesh = EditableSkeletalMeshPtr.Get();
-	TArray<UNodeMappingContainer*>& NodeMappingData = SkeletalMesh->GetNodeMappingData();
+	TArray<TObjectPtr<UNodeMappingContainer>>& NodeMappingData = SkeletalMesh->GetNodeMappingData();
 	if (NodeMappingData.IsValidIndex(CurrentlySelectedIndex))
 	{
 		SkeletalMesh->Modify();
@@ -340,7 +340,7 @@ void SControlRigMappingWindow::RefreshList()
 	// @todo: have to make sure there is no duplicated name. If so, we'll have to create fake name
 	// for now, do path name
 	MappingOptionBoxList.Empty();
-	TArray<UNodeMappingContainer*>& NodeMappingData = EditableSkeletalMeshPtr->GetNodeMappingData();
+	TArray<TObjectPtr<UNodeMappingContainer>>& NodeMappingData = EditableSkeletalMeshPtr->GetNodeMappingData();
 	for (int32 Index = 0; Index < NodeMappingData.Num(); ++Index)
 	{
 		class UNodeMappingContainer* MappingData = NodeMappingData[Index];
@@ -367,7 +367,7 @@ class UNodeMappingContainer* SControlRigMappingWindow::GetCurrentBoneMappingCont
 	if (EditableSkeletalMeshPtr.IsValid())
 	{
 		USkeletalMesh* Mesh = EditableSkeletalMeshPtr.Get();
-		TArray<UNodeMappingContainer*>& NodeMappingData = Mesh->GetNodeMappingData();
+		TArray<TObjectPtr<UNodeMappingContainer>>& NodeMappingData = Mesh->GetNodeMappingData();
 		if (NodeMappingData.IsValidIndex(CurrentlySelectedIndex))
 		{
 			return NodeMappingData[CurrentlySelectedIndex];

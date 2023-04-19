@@ -271,7 +271,7 @@ void FLightmapResRatioAdjustSettings::AddRequiredLevels( AdjustLevels InLevelOpt
 		break;
 	case AdjustLevels::Selected:
 		{
-			TArray<class ULevel*>& SelectedLevels = InWorld->GetSelectedLevels();
+			TArray<TObjectPtr<class ULevel>>& SelectedLevels = InWorld->GetSelectedLevels();
 			for(auto It = SelectedLevels.CreateIterator(); It; ++It)
 			{
 				ULevel* Level = *It;

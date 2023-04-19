@@ -44,7 +44,7 @@ public:
 	//~ End UNiagaraEditorParametersBase
 
 	/** Get All UNiagaraScriptVariables owned directly by this editor data. */
-	virtual TArray<UNiagaraScriptVariable*>& GetParameters() { return EditorOnlyScriptVars; };
+	virtual TArray<TObjectPtr<UNiagaraScriptVariable>>& GetParameters() { return EditorOnlyScriptVars; };
 
 	/** Synchronize a specific dest UNiagaraScriptVariable directly owned by the editor data with a specific source UNiagaraScriptVariable. */
 	TOptional<TTuple<FName /*SyncedOldName*/, FName /*SyncedNewName*/>> SynchronizeEditorOnlyScriptVar(const UNiagaraScriptVariable* SourceScriptVar, UNiagaraScriptVariable* DestScriptVar = nullptr);

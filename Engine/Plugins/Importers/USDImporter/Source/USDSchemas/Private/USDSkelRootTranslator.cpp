@@ -403,7 +403,7 @@ namespace UsdSkelRootTranslatorImpl
 		{
 			SkeletalMeshComponent.ActiveMorphTargets.Reset();
 			SkeletalMeshComponent.MorphTargetWeights.Reset();
-			TArray<UMorphTarget*>& MorphTargets = SkeletalMesh->GetMorphTargets();
+			TArray<TObjectPtr<UMorphTarget>>& MorphTargets = SkeletalMesh->GetMorphTargets();
 			for ( int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargets.Num(); ++MorphTargetIndex )
 			{
 				SkeletalMeshComponent.ActiveMorphTargets.Add( MorphTargets[ MorphTargetIndex ], MorphTargetIndex );

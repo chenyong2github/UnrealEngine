@@ -113,15 +113,15 @@ void UDataprepActionAsset::Execute(const TArray<UObject*>& InObjects)
 			{
 				UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
 
-				TArray<UObject*>& Objects = OperationContext->Context->Objects;
-				OperationContext->Context->Objects = Filter->FilterObjects( TArrayView<UObject*>( Objects.GetData(), Objects.Num() ) );
+				TArray<TObjectPtr<UObject>>& Objects = OperationContext->Context->Objects;
+				OperationContext->Context->Objects = Filter->FilterObjects( TArrayView<TObjectPtr<UObject>>( Objects.GetData(), Objects.Num() ) );
 			}
 			else if ( StepType == UDataprepFilterNoFetcher::StaticClass() )
 			{
 				UDataprepFilterNoFetcher* Filter = static_cast<UDataprepFilterNoFetcher*>( StepObject );
 
-				TArray<UObject*>& Objects = OperationContext->Context->Objects;
-				OperationContext->Context->Objects = Filter->FilterObjects( TArrayView<UObject*>( Objects.GetData(), Objects.Num() ) );
+				TArray<TObjectPtr<UObject>>& Objects = OperationContext->Context->Objects;
+				OperationContext->Context->Objects = Filter->FilterObjects( TArrayView<TObjectPtr<UObject>>( Objects.GetData(), Objects.Num() ) );
 			}
 			else if ( StepType == UDataprepSelectionTransform::StaticClass() )
 			{
@@ -607,7 +607,7 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 	ContextPtr = InActionsContext;
 	check(ContextPtr.IsValid());
 
-	TArray<UObject*>& SelectedObjects = OperationContext->Context->Objects;
+	TArray<TObjectPtr<UObject>>& SelectedObjects = OperationContext->Context->Objects;
 
 	// Make sure cached packages are pointing to the right path, if not reset
 	if (PackageForTexture.IsValid() && !PackageForTexture->GetName().StartsWith(ContextPtr->TransientContentFolder))
@@ -640,7 +640,7 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 		}
 	}
 
-	FDataprepCoreUtils::GetActorsFromWorld( ContextPtr->WorldPtr.Get(), SelectedObjects );
+	FDataprepCoreUtils::GetActorsFromWorld( ContextPtr->WorldPtr.Get(), MutableView(SelectedObjects) );
 
 	OperationContext->DataprepLogger = ContextPtr->LoggerPtr;
 	OperationContext->DataprepProgressReporter = ContextPtr->ProgressReporterPtr;

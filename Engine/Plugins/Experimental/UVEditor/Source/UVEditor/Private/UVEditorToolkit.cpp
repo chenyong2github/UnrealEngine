@@ -137,7 +137,7 @@ FUVEditorToolkit::~FUVEditorToolkit()
 	if (UVSubsystem)
 	{
 		TArray<TObjectPtr<UObject>> ObjectsWeWereEditing;
-		OwningAssetEditor->GetObjectsToEdit(ObjectsWeWereEditing);
+		OwningAssetEditor->GetObjectsToEdit(MutableView(ObjectsWeWereEditing));
 		UVSubsystem->NotifyThatUVEditorClosed(ObjectsWeWereEditing);
 	}
 }
@@ -433,7 +433,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	ModeUILayer->SetModeMenuCategory( UVEditorMenuCategory );
 
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
-	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
+	OwningAssetEditor->GetObjectsToEdit(MutableView(ObjectsToEdit));
 
 	// TODO: get these when possible (from level editor selection, for instance), and set them to something reasonable otherwise.
 	TArray<FTransform> ObjectTransforms;

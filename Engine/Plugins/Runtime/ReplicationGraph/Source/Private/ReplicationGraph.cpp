@@ -572,8 +572,8 @@ void UReplicationGraph::RemoveClientConnection(UNetConnection* NetConnection)
 
 	int32 ConnectionNum = 0;
 
-	UNetReplicationGraphConnection* ActiveGraphConnectionRemoved = FixGraphConnectionList(Connections, ConnectionNum, NetConnection);
-	UNetReplicationGraphConnection* PendingGraphConnectionRemoved = FixGraphConnectionList(PendingConnections, ConnectionNum, NetConnection);
+	UNetReplicationGraphConnection* ActiveGraphConnectionRemoved = FixGraphConnectionList(MutableView(Connections), ConnectionNum, NetConnection);
+	UNetReplicationGraphConnection* PendingGraphConnectionRemoved = FixGraphConnectionList(MutableView(PendingConnections), ConnectionNum, NetConnection);
 
 	if (ActiveGraphConnectionRemoved)
 	{
@@ -6275,4 +6275,3 @@ FAutoConsoleCommandWithWorldAndArgs ChangeActorDiscoveryBudget(TEXT("Net.RepGrap
 }));
 
 #endif // WITH_SERVER_CODE
-

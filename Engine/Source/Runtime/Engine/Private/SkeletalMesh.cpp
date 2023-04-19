@@ -665,7 +665,7 @@ UClothingAssetBase* USkeletalMesh::GetSectionClothingAsset(int32 InLodIndex, int
 
 				if (ClothingAssetGuid.IsValid())
 				{
-					UClothingAssetBase** FoundAsset = GetMeshClothingAssets().FindByPredicate([&](UClothingAssetBase* InAsset)
+					auto* FoundAsset = GetMeshClothingAssets().FindByPredicate([&](UClothingAssetBase* InAsset)
 					{
 						return InAsset && InAsset->GetAssetGuid() == ClothingAssetGuid;
 					});
@@ -921,7 +921,7 @@ void USkeletalMesh::InitResources()
 
 		// TODO : Update RenderData->CurrentFirstLODIdx based on whether IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::SkeletalMesh).
 
-		SkelMeshRenderData->InitResources(GetHasVertexColors(), GetMorphTargets(), this);
+		SkelMeshRenderData->InitResources(GetHasVertexColors(), MutableView(GetMorphTargets()), this);
 		CachedSRRState.bHasPendingInitHint = true;
 
 		// For now in the editor force all LODs to stream to make sure tools have all LODs available
@@ -3695,7 +3695,7 @@ bool USkeletalMesh::RegisterMorphTarget(UMorphTarget* MorphTarget, bool bInvalid
 
 		bool bRegistered = false;
 		const FName MorphTargetName = MorphTarget->GetFName();
-		TArray<UMorphTarget*>& RegisteredMorphTargets = GetMorphTargets();
+		TArray<TObjectPtr<UMorphTarget>>& RegisteredMorphTargets = GetMorphTargets();
 		for ( int32 Index = 0; Index < RegisteredMorphTargets.Num(); ++Index )
 		{
 			if (RegisteredMorphTargets[Index]->GetFName() == MorphTargetName )
@@ -3754,7 +3754,7 @@ void USkeletalMesh::InitMorphTargets()
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::InitMorphTargets);
 	GetMorphTargetIndexMap().Empty();
 
-	TArray<UMorphTarget*>& MorphTargetsLocal = GetMorphTargets();
+	TArray<TObjectPtr<UMorphTarget>>& MorphTargetsLocal = GetMorphTargets();
 	for (int32 Index = 0; Index < MorphTargetsLocal.Num(); ++Index)
 	{
 		UMorphTarget* MorphTarget = MorphTargetsLocal[Index];
@@ -4117,7 +4117,7 @@ FMatrix USkeletalMesh::GetComposedRefPoseMatrix(int32 InBoneIndex) const
 	return GetCachedComposedRefPoseMatrices()[InBoneIndex];
 }
 
-TArray<USkeletalMeshSocket*>& USkeletalMesh::GetMeshOnlySocketList()
+TArray<TObjectPtr<USkeletalMeshSocket>>& USkeletalMesh::GetMeshOnlySocketList()
 {
 	return Sockets;
 }

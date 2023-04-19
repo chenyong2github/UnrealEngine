@@ -2952,7 +2952,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 		}
 
 		ActiveCompileRoots.Empty();
-		RequestDuplicateData->GetDuplicatedObjects(ActiveCompileRoots);
+		RequestDuplicateData->GetDuplicatedObjects(MutableView(ActiveCompileRoots));
 
 		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ScriptData->ModuleUsageBitmask, ScriptPathName, GetFullName(), GetName());
 		int32 JobHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), RequestDuplicateData.Get(), Options);
@@ -3746,7 +3746,7 @@ void UNiagaraScript::ResolveParameterCollectionReferences()
 
 #endif
 
-TArray<UNiagaraParameterCollection*>& UNiagaraScript::GetCachedParameterCollectionReferences()
+TArray<TObjectPtr<UNiagaraParameterCollection>>& UNiagaraScript::GetCachedParameterCollectionReferences()
 {
 #if WITH_EDITORONLY_DATA
 	ResolveParameterCollectionReferences();
@@ -4114,4 +4114,3 @@ bool UNiagaraScript::HasValidParameterBindings() const
 
 	return true;
 }
-

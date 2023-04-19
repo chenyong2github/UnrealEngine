@@ -270,7 +270,7 @@ void FChaosClothAssetEditorToolkit::InitializeEdMode(UBaseCharacterFXEditorMode*
 	ClothMode->SetPreviewScene(ClothPreviewScene.Get());
 
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
-	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
+	OwningAssetEditor->GetObjectsToEdit(MutableView(ObjectsToEdit));
 
 	ClothMode->InitializeTargets(ObjectsToEdit);
 

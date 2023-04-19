@@ -179,8 +179,8 @@ void ULODSyncComponent::UninitializeSyncComponents()
 
 	};
 
-	ResetComponentList(DriveComponents);
-	ResetComponentList(SubComponents);
+	ResetComponentList(MutableView(DriveComponents));
+	ResetComponentList(MutableView(SubComponents));
 }
 
 void ULODSyncComponent::UpdateLOD()

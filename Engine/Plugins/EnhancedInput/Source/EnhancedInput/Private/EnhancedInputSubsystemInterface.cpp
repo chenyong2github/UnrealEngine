@@ -855,12 +855,12 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 					FEnhancedActionKeyMapping& NewMapping = PlayerInput->EnhancedActionMappings[NewMappingIndex];
 
 					// Re-instance modifiers
-					DeepCopyPtrArray<UInputModifier>(Mapping.Modifiers, NewMapping.Modifiers);
+					DeepCopyPtrArray<UInputModifier>(Mapping.Modifiers, MutableView(NewMapping.Modifiers));
 
 					ApplyAxisPropertyModifiers(PlayerInput, NewMapping);
 
 					// Re-instance triggers
-					DeepCopyPtrArray<UInputTrigger>(Mapping.Triggers, NewMapping.Triggers);
+					DeepCopyPtrArray<UInputTrigger>(Mapping.Triggers, MutableView(NewMapping.Triggers));
 
 					if (bHasChords)
 					{

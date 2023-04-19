@@ -864,7 +864,7 @@ void FNiagaraHierarchyRendererViewModel::RefreshChildrenDataInternal()
 			PropertyIdentity.Guids.Add(GetRendererProperties()->GetMergeId());
 			PropertyIdentity.Names.Add(FName(PropertyName));
 			
-			UNiagaraHierarchyItemBase** FoundItem = GetDataMutable()->GetChildrenMutable().FindByPredicate([PropertyIdentity](UNiagaraHierarchyItemBase* Candidate)
+			auto* FoundItem = GetDataMutable()->GetChildrenMutable().FindByPredicate([PropertyIdentity](UNiagaraHierarchyItemBase* Candidate)
 			{
 				return Candidate->GetPersistentIdentity() == PropertyIdentity;
 			});
@@ -946,7 +946,7 @@ void FNiagaraHierarchyEventHandlerViewModel::RefreshChildrenDataInternal()
 	// First we add the properties item
 	FNiagaraHierarchyIdentity PropertiesIdentity = UNiagaraHierarchyEventHandlerProperties::MakeIdentity(*GetEventScriptProperties());	
 
-	UNiagaraHierarchyItemBase** FoundProperties = GetDataMutable()->GetChildrenMutable().FindByPredicate([PropertiesIdentity](UNiagaraHierarchyItemBase* Candidate)
+	auto* FoundProperties = GetDataMutable()->GetChildrenMutable().FindByPredicate([PropertiesIdentity](UNiagaraHierarchyItemBase* Candidate)
 	{
 		return Candidate->GetPersistentIdentity() == PropertiesIdentity;
 	});
@@ -973,7 +973,7 @@ void FNiagaraHierarchyEventHandlerViewModel::RefreshChildrenDataInternal()
 		UNiagaraHierarchyModule* HierarchyEventHandlerModule = nullptr;
 		FNiagaraHierarchyIdentity ModuleIdentity;
 		ModuleIdentity.Guids.Add(EventHandlerModule->NodeGuid);
-		UNiagaraHierarchyItemBase** FoundHierarchySimStageModule = GetDataMutable()->GetChildrenMutable().FindByPredicate([ModuleIdentity](UNiagaraHierarchyItemBase* Candidate)
+		auto* FoundHierarchySimStageModule = GetDataMutable()->GetChildrenMutable().FindByPredicate([ModuleIdentity](UNiagaraHierarchyItemBase* Candidate)
 		{
 			return Candidate->GetPersistentIdentity() == ModuleIdentity;
 		});
@@ -1161,7 +1161,7 @@ void FNiagaraHierarchySimStageViewModel::RefreshChildrenDataInternal()
 	PropertiesIdentity.Names.Add(FName("Category"));
 	PropertiesIdentity.Names.Add(FName("Properties"));
 
-	UNiagaraHierarchyItemBase** FoundProperties = GetDataMutable()->GetChildrenMutable().FindByPredicate([PropertiesIdentity](UNiagaraHierarchyItemBase* Candidate)
+	auto* FoundProperties = GetDataMutable()->GetChildrenMutable().FindByPredicate([PropertiesIdentity](UNiagaraHierarchyItemBase* Candidate)
 	{
 		return Candidate->GetPersistentIdentity() == PropertiesIdentity;
 	});
@@ -1188,7 +1188,7 @@ void FNiagaraHierarchySimStageViewModel::RefreshChildrenDataInternal()
 		UNiagaraHierarchyModule* HierarchySimStageModule = nullptr;
 		FNiagaraHierarchyIdentity ModuleIdentity;
 		ModuleIdentity.Guids.Add(SimStageModule->NodeGuid);
-		UNiagaraHierarchyItemBase** FoundHierarchySimStageModule = GetDataMutable()->GetChildrenMutable().FindByPredicate([ModuleIdentity](UNiagaraHierarchyItemBase* Candidate)
+		auto* FoundHierarchySimStageModule = GetDataMutable()->GetChildrenMutable().FindByPredicate([ModuleIdentity](UNiagaraHierarchyItemBase* Candidate)
 		{
 			return Candidate->GetPersistentIdentity() == ModuleIdentity;
 		});
@@ -1272,7 +1272,7 @@ void FNiagaraHierarchySimStagePropertiesViewModel::RefreshChildrenDataInternal()
 			PropertyIdentity.Guids.Add(GetSimStage()->GetMergeId());
 			PropertyIdentity.Names.Add(FName(PropertyName));
 			
-			UNiagaraHierarchyItemBase** FoundPropertyItem = GetDataMutable()->GetChildrenMutable().FindByPredicate([PropertyIdentity](UNiagaraHierarchyItemBase* Candidate)
+			auto* FoundPropertyItem = GetDataMutable()->GetChildrenMutable().FindByPredicate([PropertyIdentity](UNiagaraHierarchyItemBase* Candidate)
 			{
 				return Candidate->GetPersistentIdentity() == PropertyIdentity;
 			});
@@ -1404,7 +1404,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 		UNiagaraHierarchyModule* HierarchyModule = nullptr;
 		FNiagaraHierarchyIdentity ModuleIdentity;
 		ModuleIdentity.Guids.Add(ModuleNode->NodeGuid);
-		UNiagaraHierarchyItemBase** FoundItem = SourceRoot->GetChildrenMutable().FindByPredicate([ModuleIdentity](UNiagaraHierarchyItemBase* ItemBase)
+		auto* FoundItem = SourceRoot->GetChildrenMutable().FindByPredicate([ModuleIdentity](UNiagaraHierarchyItemBase* ItemBase)
 		{
 			return ItemBase->GetPersistentIdentity() == ModuleIdentity;
 		});
@@ -1431,7 +1431,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 		EventHandlerIdentity.Guids.Add(ScriptPropertiesItem.Script->GetUsageId());
 		EventHandlerIdentity.Guids.Add(ScriptPropertiesItem.SourceEmitterID);
 
-		UNiagaraHierarchyItemBase** FoundItem = SourceRoot->GetChildrenMutable().FindByPredicate([EventHandlerIdentity](UNiagaraHierarchyItemBase* ItemBase)
+		auto* FoundItem = SourceRoot->GetChildrenMutable().FindByPredicate([EventHandlerIdentity](UNiagaraHierarchyItemBase* ItemBase)
 		{
 			return ItemBase->GetPersistentIdentity() == EventHandlerIdentity;
 		});
@@ -1458,7 +1458,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 		FNiagaraHierarchyIdentity SimStageID;
 		SimStageID.Guids.Add(SimStage->GetMergeId());
 
-		UNiagaraHierarchyItemBase** FoundItem = SourceRoot->GetChildrenMutable().FindByPredicate([SimStageID](UNiagaraHierarchyItemBase* ItemBase)
+		auto* FoundItem = SourceRoot->GetChildrenMutable().FindByPredicate([SimStageID](UNiagaraHierarchyItemBase* ItemBase)
 		{
 			return ItemBase->GetPersistentIdentity() == SimStageID;
 		});
@@ -1485,7 +1485,7 @@ void UNiagaraSummaryViewViewModel::PrepareSourceItems(UNiagaraHierarchyRoot* Sou
 		FNiagaraHierarchyIdentity RendererIdentity;
 		RendererIdentity.Guids.Add(RendererProperties->GetMergeId());
 
-		UNiagaraHierarchyItemBase** FoundItem = SourceRoot->GetChildrenMutable().FindByPredicate([RendererIdentity](UNiagaraHierarchyItemBase* ItemBase)
+		auto* FoundItem = SourceRoot->GetChildrenMutable().FindByPredicate([RendererIdentity](UNiagaraHierarchyItemBase* ItemBase)
 		{
 			return ItemBase->GetPersistentIdentity() == RendererIdentity;
 		});

@@ -22,7 +22,7 @@ public:
 	int32 AddDebugVisInstance(const uint16 VisualType);
 	/** returns index to the newly created VisualDataTable entry */
 	uint16 AddDebugVisType(const FAgentDebugVisualization& Data);
-	TArrayView<UHierarchicalInstancedStaticMeshComponent*> GetVisualDataISMCs() { return MakeArrayView(VisualDataISMCs); }
+	TArrayView<UHierarchicalInstancedStaticMeshComponent* const> GetVisualDataISMCs() { return MakeArrayView(VisualDataISMCs); }
 
 	void Clear();
 protected:

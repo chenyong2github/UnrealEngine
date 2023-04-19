@@ -500,7 +500,7 @@ void FStateTreeViewModel::AddState(UStateTreeState* AfterState)
 			TreeData->Modify();
 		}
 
-		TArray<UStateTreeState*>& ParentArray = ParentState ? ParentState->Children : TreeData->SubTrees;
+		TArray<TObjectPtr<UStateTreeState>>& ParentArray = ParentState ? ParentState->Children : TreeData->SubTrees;
 
 		const int32 TargetIndex = ParentArray.Find(AfterState);
 		if (TargetIndex != INDEX_NONE)
@@ -598,7 +598,7 @@ void FStateTreeViewModel::RemoveSelectedStates()
 					TreeData->Modify();
 				}
 				
-				TArray<UStateTreeState*>& ArrayToRemoveFrom = ParentState ? ParentState->Children : TreeData->SubTrees;
+				TArray<TObjectPtr<UStateTreeState>>& ArrayToRemoveFrom = ParentState ? ParentState->Children : TreeData->SubTrees;
 				const int32 ItemIndex = ArrayToRemoveFrom.Find(StateToRemove);
 				if (ItemIndex != INDEX_NONE)
 				{
@@ -676,7 +676,7 @@ void FStateTreeViewModel::PasteStatesAsChildrenFromClipboard(UStateTreeState* Pa
 	UE::StateTree::Editor::FStateTreeStateTextFactory Factory;
 	Factory.ProcessBuffer(Outer, RF_Transactional, TextToImport);
 
-	TArray<UStateTreeState*>& ParentArray = ParentState ? ParentState->Children : TreeData->SubTrees;
+	TArray<TObjectPtr<UStateTreeState>>& ParentArray = ParentState ? ParentState->Children : TreeData->SubTrees;
 	const int32 TargetIndex = (Index == INDEX_NONE) ? ParentArray.Num() : Index;
 	ParentArray.Insert(Factory.States, TargetIndex);
 
@@ -823,7 +823,7 @@ void FStateTreeViewModel::MoveSelectedStates(UStateTreeState* TargetState, const
 				UStateTreeState* SelectedParent = SelectedState->Parent;
 
 				// Remove from current parent
-				TArray<UStateTreeState*>& ArrayToRemoveFrom = SelectedParent ? SelectedParent->Children : TreeData->SubTrees;
+				TArray<TObjectPtr<UStateTreeState>>& ArrayToRemoveFrom = SelectedParent ? SelectedParent->Children : TreeData->SubTrees;
 				const int32 ItemIndex = ArrayToRemoveFrom.Find(SelectedState);
 				if (ItemIndex != INDEX_NONE)
 				{
@@ -840,7 +840,7 @@ void FStateTreeViewModel::MoveSelectedStates(UStateTreeState* TargetState, const
 				}
 				else
 				{
-					TArray<UStateTreeState*>& ArrayToMoveTo = TargetParent ? TargetParent->Children : TreeData->SubTrees;
+					TArray<TObjectPtr<UStateTreeState>>& ArrayToMoveTo = TargetParent ? TargetParent->Children : TreeData->SubTrees;
 					const int32 TargetIndex = ArrayToMoveTo.Find(TargetState);
 					if (TargetIndex != INDEX_NONE)
 					{

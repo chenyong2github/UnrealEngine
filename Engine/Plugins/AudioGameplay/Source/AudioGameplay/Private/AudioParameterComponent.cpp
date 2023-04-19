@@ -101,7 +101,7 @@ void UAudioParameterComponent::SetParameters(TArray<FAudioParameter>&& InValues)
 
 	// Forward to any AudioComponents currently playing on this actor (if any)
 	TArray<TObjectPtr<UAudioComponent>> Components;
-	GetAllAudioComponents(Components);
+	GetAllAudioComponents(MutableView(Components));
 
 	for (auto& Component : Components)
 	{

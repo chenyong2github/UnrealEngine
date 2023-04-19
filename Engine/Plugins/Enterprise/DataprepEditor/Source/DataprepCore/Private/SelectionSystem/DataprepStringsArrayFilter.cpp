@@ -35,7 +35,7 @@ bool UDataprepStringsArrayFilter::Filter(const TArray<FString>& StringArray) con
 	return bResult;
 }
 
-TArray<UObject*> UDataprepStringsArrayFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
+TArray<UObject*> UDataprepStringsArrayFilter::FilterObjects(const TArrayView<UObject* const>& Objects) const
 {
 	if ( StringsArrayFetcher )
 	{

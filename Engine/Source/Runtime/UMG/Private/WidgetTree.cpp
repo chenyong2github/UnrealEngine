@@ -301,7 +301,7 @@ void UWidgetTree::PreSave(FObjectPreSaveContext ObjectSaveContext)
 #if WITH_EDITORONLY_DATA
 		// Update AllWidgets array used during serialization to match the current state of the WidgetTree
 		AllWidgets.Empty();
-		GetAllWidgets(AllWidgets);
+		GetAllWidgets(MutableView(AllWidgets));
 #endif
 	}
 

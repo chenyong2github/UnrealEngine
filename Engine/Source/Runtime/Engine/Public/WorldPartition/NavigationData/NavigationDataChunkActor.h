@@ -29,7 +29,7 @@ public:
 #endif // WITH_EDITOR
 
 	const TArray<UNavigationDataChunk*>& GetNavDataChunk() const { return NavDataChunks; }
-	TArray<UNavigationDataChunk*>& GetMutableNavDataChunk() { return NavDataChunks; }
+	TArray<TObjectPtr<UNavigationDataChunk>>& GetMutableNavDataChunk() { return NavDataChunks; }
 
 	void CollectNavData(const FBox& QueryBounds, FBox& OutTilesBounds);
 

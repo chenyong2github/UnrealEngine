@@ -412,7 +412,7 @@ void FLevelCollectionModel::SetSelectedLevels(const FLevelModelList& InList)
 
 void FLevelCollectionModel::SetSelectedLevelsFromWorld()
 {
-	TArray<ULevel*>& SelectedLevelObjects = CurrentWorld->GetSelectedLevels();
+	TArray<TObjectPtr<ULevel>>& SelectedLevelObjects = CurrentWorld->GetSelectedLevels();
 	FLevelModelList LevelsToSelect;
 	for (ULevel* LevelObject : SelectedLevelObjects)
 	{

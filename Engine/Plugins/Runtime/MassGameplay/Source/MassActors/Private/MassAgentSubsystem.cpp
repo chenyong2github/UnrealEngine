@@ -311,7 +311,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 		check(EntityTemplatePtr);
 		const FMassEntityTemplate& EntityTemplate = EntityTemplatePtr->Get();
 		
-		TArray<UMassAgentComponent*>& AgentComponents = Data.Get<1>().AgentComponents;
+		TArray<TObjectPtr<UMassAgentComponent>>& AgentComponents = Data.Get<1>().AgentComponents;
 		const int32 NewEntityCount = AgentComponents.Num();
 		
 		if (NewEntityCount <= 0)
@@ -357,7 +357,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 
 		const FMassArchetypeCompositionDescriptor TemplateDescriptor = EntityTemplate.GetCompositionDescriptor();
 
-		TArray<UMassAgentComponent*>& AgentComponents = Data.Get<1>().AgentComponents;
+		TArray<TObjectPtr<UMassAgentComponent>>& AgentComponents = Data.Get<1>().AgentComponents;
 
 		for (UMassAgentComponent* AgentComp : AgentComponents)
 		{

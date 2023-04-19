@@ -6789,7 +6789,7 @@ void FBlueprintEditorUtils::RemoveInterface(UBlueprint* Blueprint, const FName& 
 
 bool FBlueprintEditorUtils::RemoveInterfaceFunction(UBlueprint* Blueprint, FBPInterfaceDescription& Interface, UFunction* Function, bool bPreserveFunction)
 {
-	for (TArray<UEdGraph*>::TIterator it(Interface.Graphs); it; ++it)
+	for (auto it = Interface.Graphs.CreateIterator(); it; ++it)
 	{
 		UEdGraph* CurrentGraph = *it;
 		if (Function->GetFName() == CurrentGraph->GetFName())

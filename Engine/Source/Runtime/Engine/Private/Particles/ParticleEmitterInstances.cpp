@@ -2959,7 +2959,7 @@ void FParticleEmitterInstance::Tick_MaterialOverrides(int32 EmitterIndex)
 	{
 	        TArray<FName>& NamedOverrides = LODLevel->RequiredModule->NamedMaterialOverrides;
 	        TArray<FNamedEmitterMaterial>& Slots = Component->Template->NamedMaterialSlots;
-	        TArray<UMaterialInterface*>& EmitterMaterials = Component->EmitterMaterials;
+	        TArray<TObjectPtr<UMaterialInterface>>& EmitterMaterials = Component->EmitterMaterials;
 	        if (NamedOverrides.Num() > 0)
 	        {
 		        //If we have named material overrides then get it's index into the emitter materials array.
@@ -3411,7 +3411,7 @@ void FParticleMeshEmitterInstance::Tick_MaterialOverrides(int32 EmitterIndex)
 	{
 		TArray<FName>& NamedOverrides = LODLevel->RequiredModule->NamedMaterialOverrides;
 		TArray<FNamedEmitterMaterial>& Slots = Component->Template->NamedMaterialSlots;
-		TArray<UMaterialInterface*>& EmitterMaterials = Component->EmitterMaterials;
+		TArray<TObjectPtr<UMaterialInterface>>& EmitterMaterials = Component->EmitterMaterials;
 		if (NamedOverrides.Num() > 0)
 		{
 			CurrentMaterials.SetNumZeroed(NamedOverrides.Num());

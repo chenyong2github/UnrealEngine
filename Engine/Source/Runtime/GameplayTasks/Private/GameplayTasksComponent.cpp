@@ -780,7 +780,7 @@ EGameplayTaskRunResult UGameplayTasksComponent::RunGameplayTask(IGameplayTaskOwn
 	return EGameplayTaskRunResult::Error;
 }
 
-TArray<UGameplayTask*>& UGameplayTasksComponent::GetSimulatedTasks_Mutable()
+TArray<TObjectPtr<UGameplayTask>>& UGameplayTasksComponent::GetSimulatedTasks_Mutable()
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(UGameplayTasksComponent, SimulatedTasks, this);
 	return SimulatedTasks;

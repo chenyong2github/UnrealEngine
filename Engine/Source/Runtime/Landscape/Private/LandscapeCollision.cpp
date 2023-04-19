@@ -733,7 +733,7 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 
 			// Prepare heightfield data
 			static FName PhysicsFormatName(FPlatformProperties::GetPhysicsFormat());
-			CookCollisionData(PhysicsFormatName, false, bCheckDDC, CookedCollisionData, CookedPhysicalMaterials);
+			CookCollisionData(PhysicsFormatName, false, bCheckDDC, CookedCollisionData, MutableView(CookedPhysicalMaterials));
 
 			// The World will clean up any speculatively-loaded data we didn't end up using.
 			SpeculativeDDCRequest.Reset();
@@ -1417,7 +1417,7 @@ void ULandscapeMeshCollisionComponent::CreateCollisionObject()
 
 			// Create cooked physics data
 			static FName PhysicsFormatName(FPlatformProperties::GetPhysicsFormat());
-			CookCollisionData(PhysicsFormatName, false, bCheckDDC, CookedCollisionData, CookedPhysicalMaterials);
+			CookCollisionData(PhysicsFormatName, false, bCheckDDC, CookedCollisionData, MutableView(CookedPhysicalMaterials));
 #endif // WITH_EDITOR
 
 			if (CookedCollisionData.Num())
@@ -2031,7 +2031,7 @@ void ULandscapeHeightfieldCollisionComponent::Serialize(FArchive& Ar)
 		if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
 		{
 			FName Format = Ar.CookingTarget()->GetPhysicsFormat(nullptr);
-			CookCollisionData(Format, false, true, CookedCollisionData, CookedPhysicalMaterials);
+			CookCollisionData(Format, false, true, CookedCollisionData, MutableView(CookedPhysicalMaterials));
 		}
 	}
 #endif// WITH_EDITOR

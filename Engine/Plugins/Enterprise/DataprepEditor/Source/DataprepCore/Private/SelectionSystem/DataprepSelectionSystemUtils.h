@@ -13,7 +13,7 @@ class UDataprepFilter;
 namespace DataprepSelectionSystemUtils
 {
 	template< class FilterClass, class FetcherClass, class FetchedDataType>
-	void DoFiltering(const FilterClass& Filter, const FetcherClass& Fetcher, const TArrayView<UObject*>& Objects, TFunctionRef<void (int32 Index, bool bFetchSucceded, const FetchedDataType& FetchedData)> FilteringFunction)
+	void DoFiltering(const FilterClass& Filter, const FetcherClass& Fetcher, const TArrayView<UObject* const>& Objects, TFunctionRef<void (int32 Index, bool bFetchSucceded, const FetchedDataType& FetchedData)> FilteringFunction)
 	{
 		if ( Filter.IsThreadSafe() && Fetcher.IsThreadSafe() && bool( Fetcher.GetClass()->ClassFlags & CLASS_Native ) )
 		{
@@ -78,7 +78,7 @@ namespace DataprepSelectionSystemUtils
 	 * This implementation is already multi-threaded when it's possible.
 	 */
 	template< class FilterClass, class FetcherClass, class FetchedDataType>
-	TArray<UObject*> FilterObjects(const FilterClass& Filter, const FetcherClass& Fetcher, const TArrayView<UObject*>& Objects)
+	TArray<UObject*> FilterObjects(const FilterClass& Filter, const FetcherClass& Fetcher, const TArrayView<UObject* const>& Objects)
 	{
 		static_assert( TIsDerivedFrom< FilterClass, UDataprepFilter >::IsDerived, "This implementation wasn't tested for a filter that isn't a child of DataprepFilter" );
 		static_assert( TIsDerivedFrom< FetcherClass, UDataprepFetcher >::IsDerived, "This implementation wasn't tested for a fetcher that isn't a child of DataprepFetcher" );

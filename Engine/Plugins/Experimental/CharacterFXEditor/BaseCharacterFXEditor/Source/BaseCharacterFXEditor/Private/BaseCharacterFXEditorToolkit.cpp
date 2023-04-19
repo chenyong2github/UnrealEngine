@@ -204,7 +204,7 @@ void FBaseCharacterFXEditorToolkit::PostInitAssetEditor()
 void FBaseCharacterFXEditorToolkit::InitializeEdMode(UBaseCharacterFXEditorMode* EdMode)
 {
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
-	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
+	OwningAssetEditor->GetObjectsToEdit(MutableView(ObjectsToEdit));
 
 	EdMode->InitializeTargets(ObjectsToEdit);
 }

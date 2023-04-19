@@ -513,7 +513,7 @@ void USimpleConstructionScript::FixupSceneNodeHierarchy()
 		USCS_Node* PendingParent;
 	};
 
-	FSceneHierarchyMapper HierarchyMapper(RootNodes);
+	FSceneHierarchyMapper HierarchyMapper(MutableView(RootNodes));
 	// identify orphan (root) nodes, and fixup cyclic hierarchies
 	HierarchyMapper.MapHierarchy(AllNodes);
 	// nest all orphaned nodes under the primary root node

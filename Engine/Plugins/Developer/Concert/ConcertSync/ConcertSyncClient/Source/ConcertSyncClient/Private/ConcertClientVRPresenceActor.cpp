@@ -281,8 +281,8 @@ void AConcertClientVRPresenceActor::InitPresence(const class UConcertAssetContai
 			LaserSplineMeshComponents.Add(SplineSegment);
 		}
 	};
-	AddSplinePoints(LeftLaserSplineMeshComponents);
-	AddSplinePoints(RightLaserSplineMeshComponents);
+	AddSplinePoints(MutableView(LeftLaserSplineMeshComponents));
+	AddSplinePoints(MutableView(RightLaserSplineMeshComponents));
 }
 
 void AConcertClientVRPresenceActor::SetPresenceColor(const FLinearColor& InColor)

@@ -1135,7 +1135,7 @@ void FAnimBlueprintCompilerContext::ExpandSplitPins(UEdGraph* InGraph)
 {
 	BP_SCOPED_COMPILER_EVENT_STAT(EAnimBlueprintCompilerStats_ExpandSplitPins);
 
-	for (TArray<UEdGraphNode*>::TIterator NodeIt(InGraph->Nodes); NodeIt; ++NodeIt)
+	for (auto NodeIt = InGraph->Nodes.CreateIterator(); NodeIt; ++NodeIt)
 	{
 		UK2Node* K2Node = Cast<UK2Node>(*NodeIt);
 		if (K2Node != nullptr)

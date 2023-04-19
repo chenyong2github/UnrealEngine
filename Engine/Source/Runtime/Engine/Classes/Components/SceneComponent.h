@@ -1614,7 +1614,7 @@ public:
 struct FDirectAttachChildrenAccessor
 {
 private:
-	static TArray<USceneComponent*>& Get(USceneComponent* Component)
+	static TArray<TObjectPtr<USceneComponent>>& Get(USceneComponent* Component)
 	{ 
 		return Component->AttachChildren;
 	}

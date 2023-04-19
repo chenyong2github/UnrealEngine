@@ -369,7 +369,7 @@ void USCS_Node::PreloadChain()
 		}
 	}
 
-	for( TArray<USCS_Node*>::TIterator ChildIt(ChildNodes); ChildIt; ++ChildIt )
+	for( decltype(ChildNodes)::TIterator ChildIt(ChildNodes); ChildIt; ++ChildIt )
 	{
 		USCS_Node* CurrentChild = *ChildIt;
 		if( CurrentChild )

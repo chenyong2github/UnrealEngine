@@ -1549,7 +1549,7 @@ void UNiagaraStackModuleItem::Copy(UNiagaraClipboardContent* ClipboardContent) c
 
 	ClipboardFunction->DisplayName = GetAlternateDisplayName().Get(FText::GetEmpty());
 
-	InputCollection->ToClipboardFunctionInputs(ClipboardFunction, ClipboardFunction->Inputs);
+	InputCollection->ToClipboardFunctionInputs(ClipboardFunction, MutableView(ClipboardFunction->Inputs));
 	ClipboardContent->Functions.Add(ClipboardFunction);
 }
 
@@ -1743,4 +1743,3 @@ bool UNiagaraStackModuleItem::OpenSourceAsset() const
 }
 
 #undef LOCTEXT_NAMESPACE
-

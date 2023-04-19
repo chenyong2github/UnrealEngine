@@ -237,7 +237,7 @@ void SDeviceProfileCreateProfilePanel::HandleProfileTypeChanged(TSharedPtr<FStri
 	AvailableBaseObjects.Empty();
 	if( NewSelection.IsValid() )
 	{
-		for (TArray<UDeviceProfile*>::TIterator DeviceProfileIt(DeviceProfileManager->Profiles); DeviceProfileIt; ++DeviceProfileIt)
+		for (decltype(DeviceProfileManager->Profiles)::TIterator DeviceProfileIt(DeviceProfileManager->Profiles); DeviceProfileIt; ++DeviceProfileIt)
 		{
 			UDeviceProfile* CurrentProfile = *DeviceProfileIt;
 			if( CurrentProfile->DeviceType == *NewSelection )

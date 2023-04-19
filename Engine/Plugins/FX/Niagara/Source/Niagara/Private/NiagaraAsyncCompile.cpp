@@ -100,10 +100,10 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 		PrecompileDuplicateData = NiagaraModule.PrecompileDuplicate(SystemPrecompiledData.Get(), System, OwningEmitter, TargetScript, FGuid());
 		PrecompileDuplicateDatas.Add(PrecompileDuplicateData);
 
-		PrecompileDuplicateData->GetDuplicatedObjects(CompilationRootObjects);
+		PrecompileDuplicateData->GetDuplicatedObjects(MutableView(CompilationRootObjects));
 		for (int32 i = 0; i < PrecompileDuplicateData->GetDependentRequestCount(); i++)
 		{
-			PrecompileDuplicateData->GetDependentRequest(i)->GetDuplicatedObjects(CompilationRootObjects);
+			PrecompileDuplicateData->GetDependentRequest(i)->GetDuplicatedObjects(MutableView(CompilationRootObjects));
 		}
 	}
 
@@ -815,4 +815,3 @@ void FNiagaraSystemCompileRequest::Launch(UNiagaraSystem* OwningSystem, TConstAr
 #endif // WITH_EDITORONLY_DATA
 
 #undef LOCTEXT_NAMESPACE // NiagaraAsyncCompile
-

@@ -1844,7 +1844,7 @@ void UAbilitySystemComponent::OnPeriodicGameplayEffectExecuteOnSelf(UAbilitySyst
 	OnPeriodicGameplayEffectExecuteDelegateOnSelf.Broadcast(Source, SpecExecuted, ActiveHandle);
 }
 
-TArray<UGameplayTask*>&	UAbilitySystemComponent::GetAbilityActiveTasks(UGameplayAbility* Ability)
+TArray<TObjectPtr<UGameplayTask>>&	UAbilitySystemComponent::GetAbilityActiveTasks(UGameplayAbility* Ability)
 {
 	return Ability->ActiveTasks;
 }
@@ -2909,7 +2909,7 @@ void UAbilitySystemComponent::SetSpawnedAttributesListDirty()
 	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, SpawnedAttributes, this);
 }
 
-TArray<UAttributeSet*>& UAbilitySystemComponent::GetSpawnedAttributes_Mutable()
+TArray<TObjectPtr<UAttributeSet>>& UAbilitySystemComponent::GetSpawnedAttributes_Mutable()
 {
 	SetSpawnedAttributesListDirty();
 	return SpawnedAttributes;
@@ -2954,7 +2954,7 @@ void UAbilitySystemComponent::OnRep_SpawnedAttributes(const TArray<UAttributeSet
 
 void UAbilitySystemComponent::AddReplicatedInstancedAbility(UGameplayAbility* GameplayAbility)
 {
-	TArray<UGameplayAbility*>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
+	TArray<TObjectPtr<UGameplayAbility>>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
 	if (ReplicatedAbilities.Find(GameplayAbility) == INDEX_NONE)
 	{
 		ReplicatedAbilities.Add(GameplayAbility);
@@ -2977,7 +2977,7 @@ void UAbilitySystemComponent::RemoveReplicatedInstancedAbility(UGameplayAbility*
 
 void UAbilitySystemComponent::RemoveAllReplicatedInstancedAbilities()
 {
-	TArray<UGameplayAbility*>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
+	TArray<TObjectPtr<UGameplayAbility>>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
 
 	if (IsUsingRegisteredSubObjectList() && IsReadyForReplication())
 	{
@@ -3105,4 +3105,3 @@ const FMinimalReplicationTagCountMap& UAbilitySystemComponent::GetReplicatedLoos
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE
-

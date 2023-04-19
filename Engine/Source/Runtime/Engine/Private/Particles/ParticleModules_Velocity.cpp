@@ -487,7 +487,7 @@ void UParticleModuleVelocityCone::Render3DPreview(FParticleEmitterInstance* Owne
 	Velocity.GetOutRange(ConeMinVelocity, ConeMaxVelocity);
 
 	float MaxLifetime = 0.0f;
-	TArray<UParticleModule*>& Modules = Owner->SpriteTemplate->GetCurrentLODLevel(Owner)->Modules;
+	TArray<TObjectPtr<UParticleModule>>& Modules = Owner->SpriteTemplate->GetCurrentLODLevel(Owner)->Modules;
 	for (int32 ModuleIndex = 0; ModuleIndex < Modules.Num(); ModuleIndex++)
 	{
 		UParticleModuleLifetimeBase* LifetimeMod = Cast<UParticleModuleLifetimeBase>(Modules[ModuleIndex]);

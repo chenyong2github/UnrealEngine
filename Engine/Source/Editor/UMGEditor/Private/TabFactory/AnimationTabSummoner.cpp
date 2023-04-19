@@ -819,7 +819,7 @@ private:
 
 		UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditorPin->GetWidgetBlueprintObj();
 
-		TArray<UWidgetAnimation*>& WidgetAnimations = WidgetBlueprint->Animations;
+		TArray<TObjectPtr<UWidgetAnimation>>& WidgetAnimations = WidgetBlueprint->Animations;
 
 		{
 			const FScopedTransaction Transaction(LOCTEXT("DeleteAnimationTransaction", "Delete Animation"));

@@ -529,7 +529,7 @@ namespace DatasmithRuntime
 #endif
 
 			// Allocate memory or not for override materials
-			TArray< UMaterialInterface* >& OverrideMaterials = MeshComponent->OverrideMaterials;
+			TArray< TObjectPtr<UMaterialInterface> >& OverrideMaterials = MeshComponent->OverrideMaterials;
 
 			// There are override materials, make sure the slots are allocated
 			if (MeshActorElement->GetMaterialOverridesCount() > 0)

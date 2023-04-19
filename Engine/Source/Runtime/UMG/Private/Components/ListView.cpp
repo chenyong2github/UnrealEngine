@@ -45,7 +45,7 @@ void UListView::ReleaseSlateResources(bool bReleaseChildren)
 #if WITH_EDITOR
 void UListView::OnRefreshDesignerItems()
 {
-	RefreshDesignerItems<UObject*>(ListItems, [this] () {return NewObject<UListViewDesignerPreviewItem>(this); });
+	RefreshDesignerItems<TObjectPtr<UObject>>(ListItems, [this] () {return NewObject<UListViewDesignerPreviewItem>(this); });
 }
 #endif
 

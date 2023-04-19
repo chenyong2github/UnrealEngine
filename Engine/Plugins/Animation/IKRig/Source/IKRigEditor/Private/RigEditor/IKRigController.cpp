@@ -1099,7 +1099,7 @@ FName UIKRigController::GetBoneForGoal(const FName GoalName) const
 
 FName UIKRigController::GetGoalNameForBone(const FName BoneName) const
 {
-	TArray<UIKRigEffectorGoal*>& AllGoals = GetAllGoals();
+	const TArray<UIKRigEffectorGoal*>& AllGoals = GetAllGoals();
 	for (UIKRigEffectorGoal* Goal : AllGoals)
 	{
 		if (Goal->BoneName == BoneName)
@@ -1191,7 +1191,7 @@ bool UIKRigController::IsGoalConnectedToAnySolver(const FName GoalName) const
 	return false;
 }
 
-TArray<UIKRigEffectorGoal*>& UIKRigController::GetAllGoals() const
+const TArray<UIKRigEffectorGoal*>& UIKRigController::GetAllGoals() const
 {
 	return Asset->Goals;
 }
@@ -1332,4 +1332,3 @@ void UIKRigController::BroadcastNeedsReinitialized() const
 }
 
 #undef LOCTEXT_NAMESPACE
-

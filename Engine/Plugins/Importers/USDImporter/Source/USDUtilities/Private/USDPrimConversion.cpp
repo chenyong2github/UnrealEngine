@@ -2735,7 +2735,7 @@ bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsd
 	UnrealToUsd::ConvertJointsAttribute( RefSkeleton, JointsAttr );
 
 	// Build active morph targets array if it isn't setup already
-	TArray<UMorphTarget*>& MorphTargets = SkeletalMesh->GetMorphTargets();
+	TArray<TObjectPtr<UMorphTarget>>& MorphTargets = SkeletalMesh->GetMorphTargets();
 	if ( Component.ActiveMorphTargets.Num() != Component.MorphTargetWeights.Num() && MorphTargets.Num() != 0 )
 	{
 		for ( int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargets.Num(); ++MorphTargetIndex )

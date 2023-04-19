@@ -185,7 +185,7 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeChainProperty(FPro
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 	
 	// For consistency with Matrix, handling modulator class changes in runtime utils
-	FDMXPixelMappingRuntimeUtils::HandleModulatorPropertyChange(this, PropertyChangedChainEvent, ModulatorClasses, Modulators);
+	FDMXPixelMappingRuntimeUtils::HandleModulatorPropertyChange(this, PropertyChangedChainEvent, ModulatorClasses, MutableView(Modulators));
 }
 #endif // WITH_EDITOR
 

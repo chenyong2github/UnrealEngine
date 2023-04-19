@@ -63,7 +63,7 @@ struct StaticMeshLightingInfoStatsGenerator
 			break;
 		case StaticMeshLightingInfoObjectSets_SelectedLevels:
 			{
-				TArray<class ULevel*>& SelectedLevels = InWorld->GetSelectedLevels();
+				TArray<TObjectPtr<class ULevel>>& SelectedLevels = InWorld->GetSelectedLevels();
 				for(auto It = SelectedLevels.CreateIterator(); It; ++It)
 				{
 					ULevel* Level = *It;

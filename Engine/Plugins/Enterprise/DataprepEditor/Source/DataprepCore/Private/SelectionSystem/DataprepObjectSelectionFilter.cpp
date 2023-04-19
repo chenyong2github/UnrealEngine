@@ -9,7 +9,7 @@
 #include "Materials/MaterialInterface.h"
 #include "GameFramework/Actor.h"
 
-TArray<UObject*> UDataprepObjectSelectionFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
+TArray<UObject*> UDataprepObjectSelectionFilter::FilterObjects(const TArrayView<UObject* const>& Objects) const
 {
 	TArray<UObject*> FilteredObjects;
 
@@ -95,7 +95,7 @@ void UDataprepObjectSelectionFilter::SetSelection( const FString& InTransientCon
 	}
 }
 
-void UDataprepObjectSelectionFilter::RunFilter(const TArrayView<UObject*>& InputObjects, TArray<UObject*>& FilteredObjects, const TArrayView<bool>* OutFilterResults) const
+void UDataprepObjectSelectionFilter::RunFilter(const TArrayView<UObject* const>& InputObjects, TArray<UObject*>& FilteredObjects, const TArrayView<bool>* OutFilterResults) const
 {
 	TArray<AActor*> InputActors;
 

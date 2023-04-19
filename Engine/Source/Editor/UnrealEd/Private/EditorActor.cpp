@@ -929,7 +929,7 @@ bool UUnrealEdEngine::DeleteActors(const TArray<AActor*>& InActorsToDelete, UWor
 		// the world first and build a map of actors referenced by other actors. We can then quickly look this up later on in the loop.
 		if (bWarnAboutReferences)
 		{
-			FBlueprintEditorUtils::GetActorReferenceMap(InWorld, ClassesToIgnoreDeleteReferenceWarning, ReferencingActorsMap);
+			FBlueprintEditorUtils::GetActorReferenceMap(InWorld,MutableView(ClassesToIgnoreDeleteReferenceWarning), ReferencingActorsMap);
 
 			if (bWarnAboutSoftReferences)
 			{

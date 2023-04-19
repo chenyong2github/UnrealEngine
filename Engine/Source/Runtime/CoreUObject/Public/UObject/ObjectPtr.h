@@ -987,6 +987,99 @@ using TPointedToType = typename TPointedToTypeImpl<T>::Type;
 
 //------------------------------------------------------------------------------
 
+namespace UE::Core::Private
+{
+	namespace Unsafe
+	{
+		template <typename T, typename AllocatorType>
+		TArray<T*, AllocatorType>& Decay(TArray<TObjectPtr<T>, AllocatorType>& A)
+		{
+			return *reinterpret_cast<TArray<T*, AllocatorType>*>(&A);
+		}
+	}
+
+	template <typename T>
+	struct TMutableViewTraits
+	{
+		static_assert(sizeof(T) == 0, "TMutableView not supported for this type. (Should it be?)");
+	};
+
+	template <typename T, typename AllocatorType>
+	struct TMutableViewTraits<TArray<TObjectPtr<T>, AllocatorType>>
+	{
+		using ViewType = TArray<T*, AllocatorType>;
+
+		static ViewType& Open(TArray<TObjectPtr<T>, AllocatorType>& Array)
+		{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
+			for (TObjectPtr<T>& Obj : Array)
+			{
+				Obj.Get();
+			}
+#endif
+			return Unsafe::Decay(Array);
+		}
+
+		static void Close(ViewType& View)
+		{
+ 			// TODO: reenable this once GC Barriers merge
+			//RunGCBarriers(reinterpret_cast<const UObject* const*>(View.GetData()), View.Num());
+		}
+	};
+
+	template <typename T>
+	class TMutableView
+	{
+		using TraitType = UE::Core::Private::TMutableViewTraits<T>;
+		using ViewType = typename TraitType::ViewType;
+
+	public:
+		explicit TMutableView(T& Value)
+			: View{&TraitType::Open(Value)}
+		{
+		}
+
+		~TMutableView()
+		{
+			TraitType::Close(*View);
+		}
+
+		TMutableView(const TMutableView&) = delete;
+		TMutableView(TMutableView&&) = delete;
+		TMutableView& operator=(const TMutableView&) = delete;
+		TMutableView& operator=(TMutableView&&) = delete;
+
+		operator ViewType&()
+		{
+			return *View;
+		}
+
+	private:
+		ViewType* View;
+	};
+}
+
+/*
+	MutableView: safely obtain temporary mutable access to a TObjectPtr's
+							 underlying storage.
+
+	Eg:
+
+	void MutatingFunc(TArray<UObject*>& MutableArray);
+
+	TArray<TObjectPtr<UObject>> Array;
+	MutatingFunc(Array);							 // unsafe; compile error
+
+	MutatingFunc(MutableView(Array));			 // ok; Array will safely "catch up" on TObjectPtr
+																				 // semantics when MutatingFunc returns.
+*/
+
+template <typename T>
+UE::Core::Private::TMutableView<T> MutableView(T& A)
+{
+	return UE::Core::Private::TMutableView<T>{A};
+}
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "UObject/Class.h"
 #endif

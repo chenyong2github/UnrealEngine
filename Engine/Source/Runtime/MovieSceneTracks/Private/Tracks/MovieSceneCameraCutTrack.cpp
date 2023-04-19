@@ -62,16 +62,16 @@ UMovieSceneCameraCutSection* UMovieSceneCameraCutTrack::AddNewCameraCut(const FM
 	}
 
 	// When a new CameraCut is added, sort all CameraCuts to ensure they are in the correct order
-	MovieSceneHelpers::SortConsecutiveSections(Sections);
+	MovieSceneHelpers::SortConsecutiveSections(MutableView(Sections));
 
 	// Once CameraCuts are sorted fixup the surrounding CameraCuts to fix any gaps
 	if (bCanBlend)
 	{
-		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, *NewSection, false);
+		MovieSceneHelpers::FixupConsecutiveBlendingSections(MutableView(Sections), *NewSection, false);
 	}
 	else
 	{
-		MovieSceneHelpers::FixupConsecutiveSections(Sections, *NewSection, false);
+		MovieSceneHelpers::FixupConsecutiveSections(MutableView(Sections), *NewSection, false);
 	}
 
 	return NewSection;
@@ -188,11 +188,11 @@ void UMovieSceneCameraCutTrack::RemoveSection(UMovieSceneSection& Section)
 
 	if (bCanBlend)
 	{
-		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, Section, true);
+		MovieSceneHelpers::FixupConsecutiveBlendingSections(MutableView(Sections), Section, true);
 	}
 	else
 	{
-		MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, true);
+		MovieSceneHelpers::FixupConsecutiveSections(MutableView(Sections), Section, true);
 	}
 
 	// @todo Sequencer: The movie scene owned by the section is now abandoned.  Should we offer to delete it?  
@@ -203,15 +203,15 @@ void UMovieSceneCameraCutTrack::RemoveSectionAt(int32 SectionIndex)
 	UMovieSceneSection* SectionToDelete = Sections[SectionIndex];
 	if (bCanBlend)
 	{
-		MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, *SectionToDelete, true);
+		MovieSceneHelpers::FixupConsecutiveBlendingSections(MutableView(Sections), *SectionToDelete, true);
 	}
 	else
 	{
-		MovieSceneHelpers::FixupConsecutiveSections(Sections, *SectionToDelete, true);
+		MovieSceneHelpers::FixupConsecutiveSections(MutableView(Sections), *SectionToDelete, true);
 	}
 
 	Sections.RemoveAt(SectionIndex);
-	MovieSceneHelpers::SortConsecutiveSections(Sections);
+	MovieSceneHelpers::SortConsecutiveSections(MutableView(Sections));
 }
 
 void UMovieSceneCameraCutTrack::RemoveAllAnimationData()
@@ -234,11 +234,11 @@ EMovieSceneSectionMovedResult UMovieSceneCameraCutTrack::OnSectionMoved(UMovieSc
 	bool bCleanUpDone = false;
 	if (bCanBlend)
 	{
-		bCleanUpDone = MovieSceneHelpers::FixupConsecutiveBlendingSections(Sections, Section, false, bCleanUp);
+		bCleanUpDone = MovieSceneHelpers::FixupConsecutiveBlendingSections(MutableView(Sections), Section, false, bCleanUp);
 	}
 	else
 	{
-		bCleanUpDone = MovieSceneHelpers::FixupConsecutiveSections(Sections, Section, false, bCleanUp);
+		bCleanUpDone = MovieSceneHelpers::FixupConsecutiveSections(MutableView(Sections), Section, false, bCleanUp);
 	}
 
 	return bCleanUpDone ? EMovieSceneSectionMovedResult::SectionsChanged : EMovieSceneSectionMovedResult::None;

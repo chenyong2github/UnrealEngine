@@ -28,7 +28,7 @@ bool UDataprepFloatFilter::Filter(float Float) const
 	return false;
 }
 
-TArray<UObject*> UDataprepFloatFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
+TArray<UObject*> UDataprepFloatFilter::FilterObjects(const TArrayView<UObject* const>& Objects) const
 {
 	if ( FloatFetcher )
 	{

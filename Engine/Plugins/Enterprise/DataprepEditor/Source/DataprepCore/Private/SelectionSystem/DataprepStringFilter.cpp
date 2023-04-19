@@ -49,7 +49,7 @@ bool UDataprepStringFilter::Filter(const FString& String) const
 	return false;
 }
 
-TArray<UObject*> UDataprepStringFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
+TArray<UObject*> UDataprepStringFilter::FilterObjects(const TArrayView<UObject* const>& Objects) const
 {
 	if ( StringFetcher )
 	{

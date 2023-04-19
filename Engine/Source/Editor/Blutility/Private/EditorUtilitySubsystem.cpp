@@ -435,7 +435,7 @@ void UEditorUtilitySubsystem::RegisterAndExecuteTask(UEditorUtilityTask* NewTask
 		NewTask->MyParentTask = OptionalParentTask;
 
 		// Always append the task to the set array of tasks associated with the parent - which may be null.
-		TArray<UEditorUtilityTask*>& PendingChildTasks = PendingTasks.FindOrAdd(OptionalParentTask);
+		TArray<TObjectPtr<UEditorUtilityTask>>& PendingChildTasks = PendingTasks.FindOrAdd(OptionalParentTask);
 		PendingChildTasks.Add(NewTask);
 	}
 }

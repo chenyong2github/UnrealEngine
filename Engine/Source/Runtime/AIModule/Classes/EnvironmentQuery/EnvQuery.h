@@ -50,6 +50,6 @@ public:
 
 	FName GetQueryName() const { return QueryName; }
 
-	TArray<UEnvQueryOption*>& GetOptionsMutable() { return Options; }
+	TArray<TObjectPtr<UEnvQueryOption>>& GetOptionsMutable() { return Options; }
 	const TArray<UEnvQueryOption*>& GetOptions() const { return Options; }
 };

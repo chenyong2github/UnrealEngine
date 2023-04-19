@@ -13,7 +13,7 @@ bool UDataprepBoolFilter::Filter(const bool bResult) const
 	return bResult;
 }
 
-TArray<UObject*> UDataprepBoolFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
+TArray<UObject*> UDataprepBoolFilter::FilterObjects(const TArrayView<UObject* const>& Objects) const
 {
 	if ( BoolFetcher )
 	{

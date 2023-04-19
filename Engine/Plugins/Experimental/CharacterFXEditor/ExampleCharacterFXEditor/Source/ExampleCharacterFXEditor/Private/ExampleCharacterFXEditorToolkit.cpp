@@ -32,7 +32,7 @@ FExampleCharacterFXEditorToolkit::~FExampleCharacterFXEditorToolkit()
 	if (Subsystem)
 	{
 		TArray<TObjectPtr<UObject>> ObjectsWeWereEditing;
-		OwningAssetEditor->GetObjectsToEdit(ObjectsWeWereEditing);
+		OwningAssetEditor->GetObjectsToEdit(MutableView(ObjectsWeWereEditing));
 		Subsystem->NotifyThatExampleCharacterFXEditorClosed(ObjectsWeWereEditing);
 	}
 }

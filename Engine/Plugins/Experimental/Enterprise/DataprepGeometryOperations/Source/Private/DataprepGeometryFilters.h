@@ -25,7 +25,7 @@ public:
 	void SetMergeDistance(float NewMergeDistance);
 
 	//~ Begin UDataprepFilter Interface
-	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject*>& Objects) const override;
+	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject* const>& Objects) const override;
 	virtual void FilterAndGatherInfo(const TArrayView<UObject*>& InObjects, const TArrayView<FDataprepSelectionInfo>& OutFilterResults) const override;
 	virtual void FilterAndStoreInArrayView(const TArrayView<UObject*>& InObjects, const TArrayView<bool>& OutFilterResults) const override;
 	virtual bool IsThreadSafe() const override { return true; }
@@ -34,7 +34,7 @@ public:
 	//~ End UDataprepFilter Interface
 
 private:
-	void ExecuteJacketing(const TArrayView<UObject*>& InputObjects, TArray<UObject*>& FilteredObjects, const TArrayView<bool>* OutFilterResults) const;
+	void ExecuteJacketing(const TArrayView<UObject* const>& InputObjects, TArray<UObject*>& FilteredObjects, const TArrayView<bool>* OutFilterResults) const;
 
 private:
 	/** Accuracy of the distance field approximation, in cm. */

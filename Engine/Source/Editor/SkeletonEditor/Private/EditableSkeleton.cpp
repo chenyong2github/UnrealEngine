@@ -243,14 +243,14 @@ void FEditableSkeleton::RefreshBoneTree()
 
 bool FEditableSkeleton::DoesSocketAlreadyExist(const USkeletalMeshSocket* InSocket, const FText& InSocketName, ESocketParentType SocketParentType, USkeletalMesh* InSkeletalMesh) const
 {
-	TArray<USkeletalMeshSocket*>* SocketArrayPtr = nullptr;
+	TArray<TObjectPtr<USkeletalMeshSocket>>* SocketArrayPtr = nullptr;
 	if (SocketParentType == ESocketParentType::Mesh && InSkeletalMesh)
 	{
 		SocketArrayPtr = &InSkeletalMesh->GetMeshOnlySocketList();
 	}
 	else if(SocketParentType == ESocketParentType::Skeleton)
 	{
-		SocketArrayPtr = &ToRawPtrTArrayUnsafe(Skeleton->Sockets);
+		SocketArrayPtr = &Skeleton->Sockets;
 	}
 
 	if (SocketArrayPtr != nullptr)

@@ -2405,7 +2405,7 @@ void ULandscapeComponent::InitializeLayersWeightmapUsage(const FGuid& InLayerGui
 
 	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InLayerGuid);
 	const TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InLayerGuid);
-	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InLayerGuid);
+	TArray<TObjectPtr<ULandscapeWeightmapUsage>>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InLayerGuid);
 
 	ComponentWeightmapTexturesUsage.Reset();
 	ComponentWeightmapTexturesUsage.AddDefaulted(ComponentWeightmapTextures.Num());
@@ -5774,7 +5774,7 @@ void ALandscape::ReallocateLayersWeightmaps(FUpdateLayersContentContext& InUpdat
 			BaseWeightmapAllocation.Free();
 		}
 
-		TArray<ULandscapeWeightmapUsage*>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
+		TArray<TObjectPtr<ULandscapeWeightmapUsage>>& WeightmapTexturesUsage = Component->GetWeightmapTexturesUsage();
 		for (int32 i = 0; i < WeightmapTexturesUsage.Num(); ++i)
 		{
 			ULandscapeWeightmapUsage* Usage = WeightmapTexturesUsage[i];

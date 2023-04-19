@@ -578,12 +578,12 @@ void FAnimationViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterf
 			{
 				if (PreviewMeshComponent->bSkeletonSocketsVisible && PreviewMeshComponent->GetSkeletalMeshAsset()->GetSkeleton() )
 				{
-					DrawSockets(PreviewMeshComponent, PreviewMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->Sockets, GetAnimPreviewScene()->GetSelectedSocket(), PDI, true);
+					DrawSockets(PreviewMeshComponent, MutableView(PreviewMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->Sockets), GetAnimPreviewScene()->GetSelectedSocket(), PDI, true);
 				}
 
 				if ( PreviewMeshComponent->bMeshSocketsVisible )
 				{
-					DrawSockets(PreviewMeshComponent, PreviewMeshComponent->GetSkeletalMeshAsset()->GetMeshOnlySocketList(), GetAnimPreviewScene()->GetSelectedSocket(), PDI, false);
+					DrawSockets(PreviewMeshComponent, MutableView(PreviewMeshComponent->GetSkeletalMeshAsset()->GetMeshOnlySocketList()), GetAnimPreviewScene()->GetSelectedSocket(), PDI, false);
 				}
 			}
 

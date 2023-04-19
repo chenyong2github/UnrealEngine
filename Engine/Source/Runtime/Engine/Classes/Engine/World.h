@@ -3251,7 +3251,7 @@ public:
 	/**
 	 * Return the list of selected levels in this world.
 	 */
-	TArray<class ULevel*>& GetSelectedLevels();
+	TArray<TObjectPtr<class ULevel>>& GetSelectedLevels();
 
 	/** Shrink level elements to their minimum size. */
 	void ShrinkLevel();

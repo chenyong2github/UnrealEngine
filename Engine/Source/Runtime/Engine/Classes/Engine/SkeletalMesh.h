@@ -1470,7 +1470,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	TArray<class UNodeMappingContainer*>& GetNodeMappingData()
+	TArray<TObjectPtr<class UNodeMappingContainer>>& GetNodeMappingData()
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::NodeMappingData);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2176,7 +2176,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	TArray<UClothingAssetBase*>& GetMeshClothingAssets()
+	TArray<TObjectPtr<UClothingAssetBase>>& GetMeshClothingAssets()
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MeshClothingAssets);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2564,7 +2564,7 @@ public:
 	 * Returns the mesh only socket list - this ignores any sockets in the skeleton
 	 * Return value is a non-const reference so the socket list can be changed
 	 */
-	TArray<USkeletalMeshSocket*>& GetMeshOnlySocketList();
+	TArray<TObjectPtr<USkeletalMeshSocket>>& GetMeshOnlySocketList();
 
 	/**
 	 * Const version

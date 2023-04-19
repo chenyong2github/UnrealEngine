@@ -83,7 +83,7 @@ protected:
 	}
 
 	UE_DEPRECATED(5.1, "This will be removed in future versions. Use AddSimulatedTask or RemoveSimulatedTask to modify the array")
-	TArray<UGameplayTask*>& GetSimulatedTasks_Mutable();
+	TArray<TObjectPtr<UGameplayTask>>& GetSimulatedTasks_Mutable();
 
 	/** Remove all current tasks and register the one in the passed array. It's optimal to use Add/Remove of single tasks directly if possible.*/
 	void SetSimulatedTasks(const TArray<UGameplayTask*>& NewSimulatedTasks);

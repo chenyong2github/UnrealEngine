@@ -184,7 +184,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	void SetSpawnedAttributes(const TArray<UAttributeSet*>& NewAttributeSet);
 
 	UE_DEPRECATED(5.1, "This function will be made private. Use Add/Remove SpawnedAttributes instead")
-	TArray<UAttributeSet*>& GetSpawnedAttributes_Mutable();
+	TArray<TObjectPtr<UAttributeSet>>& GetSpawnedAttributes_Mutable();
 
 	/** Access the spawned attributes list when you don't intend to modify the list. */
 	const TArray<UAttributeSet*>& GetSpawnedAttributes() const;
@@ -1794,7 +1794,7 @@ protected:
 
 	void CheckDurationExpired(FActiveGameplayEffectHandle Handle);
 		
-	TArray<UGameplayTask*>&	GetAbilityActiveTasks(UGameplayAbility* Ability);
+	TArray<TObjectPtr<UGameplayTask>>&	GetAbilityActiveTasks(UGameplayAbility* Ability);
 	
 	/** Contains all of the gameplay effects that are currently active on this component */
 	UPROPERTY(Replicated)
@@ -1868,7 +1868,7 @@ private:
 
     // Private accessor to the AllReplicatedInstancedAbilities array until the deprecation tag on it is removed and we can reference the array directly again.
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TArray<UGameplayAbility*>& GetReplicatedInstancedAbilities_Mutable() { return AllReplicatedInstancedAbilities; }
+	TArray<TObjectPtr<UGameplayAbility>>& GetReplicatedInstancedAbilities_Mutable() { return AllReplicatedInstancedAbilities; }
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 private:

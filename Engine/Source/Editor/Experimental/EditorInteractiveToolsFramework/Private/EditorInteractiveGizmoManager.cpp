@@ -92,13 +92,13 @@ TArray<UInteractiveGizmo*> UEditorInteractiveGizmoManager::CreateGizmosForCurren
 		QueriesAPI->GetCurrentSelectionState(CurrentSceneState);
 
 		TArray<TObjectPtr<UInteractiveGizmoBuilder>> FoundBuilders;
-		GetQualifiedEditorGizmoBuilders(EEditorGizmoCategory::Primary, CurrentSceneState, FoundBuilders);
+		GetQualifiedEditorGizmoBuilders(EEditorGizmoCategory::Primary, CurrentSceneState, MutableView(FoundBuilders));
 
 		bool bHasPrimaryBuilder = (FoundBuilders.Num() > 0);
 
 		if (!bHasPrimaryBuilder)
 		{
-			GetQualifiedEditorGizmoBuilders(EEditorGizmoCategory::Accessory, CurrentSceneState, FoundBuilders);
+			GetQualifiedEditorGizmoBuilders(EEditorGizmoCategory::Accessory, CurrentSceneState, MutableView(FoundBuilders));
 
 			UInteractiveGizmoBuilder* TransformBuilder = GetTransformGizmoBuilder();
 

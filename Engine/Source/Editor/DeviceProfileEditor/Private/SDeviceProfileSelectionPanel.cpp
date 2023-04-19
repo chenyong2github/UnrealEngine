@@ -321,7 +321,7 @@ TSharedRef< ITableRow > SDeviceProfileSelectionPanel::OnGenerateWidgetForDeviceP
 void SDeviceProfileSelectionPanel::RegenerateProfileList()
 {
 	DeviceProfiles.Empty();
-	for( TArray<UDeviceProfile*>::TIterator It(DeviceProfileManager->Profiles); It; It++  )
+	for( auto It = DeviceProfileManager->Profiles.CreateIterator(); It; It++  )
 	{
 		DeviceProfiles.Add(*It);
 	}

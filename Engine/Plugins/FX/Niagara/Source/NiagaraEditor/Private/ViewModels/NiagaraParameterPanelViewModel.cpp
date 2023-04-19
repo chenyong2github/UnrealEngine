@@ -1160,14 +1160,14 @@ void FNiagaraSystemToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable
 		else
 		{
 			UNiagaraEditorParametersAdapter* EditorParametersAdapter = SystemViewModel->GetEditorOnlyParametersAdapter();
-			TArray<UNiagaraScriptVariable*>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
+			TArray<TObjectPtr<UNiagaraScriptVariable>>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
 			bool bNewScriptVarAlreadyExists = EditorOnlyScriptVars.ContainsByPredicate([&NewVariable](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Variable == NewVariable; });
 
 			// unless the namespace prevents name changes we make sure the new parameter has a unique name  
 			if (bMakeUniqueName && !Category.NamespaceMetaData.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName))
 			{
 				TSet<FName> Names;
-				for (UNiagaraScriptVariable* ScriptVar : EditorOnlyScriptVars)
+				for (const auto& ScriptVar : EditorOnlyScriptVars)
 				{
 					Names.Add(ScriptVar->Variable.GetName());
 				}
@@ -1223,7 +1223,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::FindOrAddParameter(FNiagaraVa
 	else
 	{
 		UNiagaraEditorParametersAdapter* EditorParametersAdapter = SystemViewModel->GetEditorOnlyParametersAdapter();
-		TArray<UNiagaraScriptVariable*>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
+		TArray<TObjectPtr<UNiagaraScriptVariable>>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
 		bool bNewScriptVarAlreadyExists = EditorOnlyScriptVars.ContainsByPredicate([&Variable](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Variable == Variable; });
 		
 		if (bNewScriptVarAlreadyExists == false)
@@ -1668,7 +1668,7 @@ TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParam
 		{
 			TSet<FName> Names;
 			UNiagaraEditorParametersAdapter* EditorParametersAdapter = SystemViewModel->GetEditorOnlyParametersAdapter();
-			TArray<UNiagaraScriptVariable*>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
+			TArray<TObjectPtr<UNiagaraScriptVariable>>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
 			for (UNiagaraScriptVariable* ScriptVar : EditorOnlyScriptVars)
 			{
 				Names.Add(ScriptVar->Variable.GetName());
@@ -2201,7 +2201,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::AddScriptVariable(const UNiag
 	else
 	{
 		UNiagaraEditorParametersAdapter* EditorParametersAdapter = SystemViewModel->GetEditorOnlyParametersAdapter();
-		TArray<UNiagaraScriptVariable*>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
+		TArray<TObjectPtr<UNiagaraScriptVariable>>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
 		const FGuid& NewScriptVarId = NewScriptVar->Metadata.GetVariableGuid();
 		bool bNewScriptVarAlreadyExists = EditorOnlyScriptVars.ContainsByPredicate([&NewScriptVarId](const UNiagaraScriptVariable* ScriptVar){ return ScriptVar->Metadata.GetVariableGuid() == NewScriptVarId; });
 		if (bNewScriptVarAlreadyExists == false)

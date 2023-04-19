@@ -634,8 +634,8 @@ void UPCGNode::CreateDefaultPins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator
 
 	UPCGSettings* Settings = GetSettings();
 	check(Settings);
-	CreatePins(InputPins, Settings->DefaultInputPinProperties());
-	CreatePins(OutputPins, Settings->DefaultOutputPinProperties());
+	CreatePins(MutableView(InputPins), Settings->DefaultInputPinProperties());
+	CreatePins(MutableView(OutputPins), Settings->DefaultOutputPinProperties());
 }
 
 EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator)
@@ -787,8 +787,8 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 	};
 
 	EPCGChangeType ChangeType = EPCGChangeType::None;
-	ChangeType |= UpdatePins(InputPins, InboundPinProperties);
-	ChangeType |= UpdatePins(OutputPins, OutboundPinProperties);
+	ChangeType |= UpdatePins(MutableView(InputPins), InboundPinProperties);
+	ChangeType |= UpdatePins(MutableView(OutputPins), OutboundPinProperties);
 
 #if WITH_EDITOR
 	for (UPCGNode* Node : TouchedNodes)

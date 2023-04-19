@@ -169,7 +169,7 @@ void UGameSettingPanel::RefreshSettingsList()
 		if (Registry->IsFinishedInitializing())
 		{
 			VisibleSettings.Reset();
-			Registry->GetSettingsForFilter(FilterState, VisibleSettings);
+			Registry->GetSettingsForFilter(FilterState, MutableView(VisibleSettings));
 
 			ListView_Settings->SetListItems(VisibleSettings);
 

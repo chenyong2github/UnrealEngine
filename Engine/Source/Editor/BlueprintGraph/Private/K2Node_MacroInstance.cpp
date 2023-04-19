@@ -121,7 +121,7 @@ void UK2Node_MacroInstance::AllocateDefaultPins()
 			FBlueprintEditorUtils::PreloadMembers(MacroGraph);
 		}
 
-		for (TArray<UEdGraphNode*>::TIterator NodeIt(MacroGraph->Nodes); NodeIt; ++NodeIt)
+		for (decltype(MacroGraph->Nodes)::TIterator NodeIt(MacroGraph->Nodes); NodeIt; ++NodeIt)
 		{
 			if (UK2Node_Tunnel* TunnelNode = Cast<UK2Node_Tunnel>(*NodeIt))
 			{

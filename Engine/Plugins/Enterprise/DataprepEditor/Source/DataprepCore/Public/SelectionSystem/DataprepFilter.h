@@ -37,7 +37,7 @@ public:
 	 * @param Objects The object to filter
 	 * @return The object that passed the filtering
 	 */
-	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject*>& Objects) const { return {}; }
+	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject* const>& Objects) const { return {}; }
 
 	/**
 	 * Take an array of object and output the result into the arrays
@@ -159,7 +159,7 @@ public:
 	 * @param Objects The object to filter
 	 * @return The object that passed the filtering
 	 */
-	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject*>& Objects) const { return {}; }
+	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject* const>& Objects) const { return {}; }
 
 	/**
 	 * Take an array of object and output the result into the arrays

@@ -937,7 +937,7 @@ void FWidgetBlueprintEditor::Tick(float DeltaTime)
 	// update is deferred to tick since some edit operations (e.g. drag/drop) cause large numbers of changes to the data.
 	if ( bRefreshGeneratedClassAnimations )
 	{
-		TArray<UWidgetAnimation*>& PreviewAnimations = Cast<UWidgetBlueprintGeneratedClass>( PreviewBlueprint->GeneratedClass )->Animations;
+		TArray<TObjectPtr<UWidgetAnimation>>& PreviewAnimations = Cast<UWidgetBlueprintGeneratedClass>( PreviewBlueprint->GeneratedClass )->Animations;
 		PreviewAnimations.Empty();
 		for ( UWidgetAnimation* WidgetAnimation : PreviewBlueprint->Animations )
 		{

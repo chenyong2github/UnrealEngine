@@ -931,7 +931,7 @@ void UDataRegistry::RefreshRuntimeSources()
 			}
 
 			Source->RefreshRuntimeSources();
-			Source->AddRuntimeSources(RuntimeSources);
+			Source->AddRuntimeSources(MutableView(RuntimeSources));
 		}
 	}
 
@@ -1193,4 +1193,3 @@ class FTimerManager* UDataRegistry::GetTimerManager()
 }
 
 #undef LOCTEXT_NAMESPACE
-

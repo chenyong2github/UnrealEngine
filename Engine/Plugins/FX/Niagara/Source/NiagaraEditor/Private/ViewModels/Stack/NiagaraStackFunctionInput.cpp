@@ -2616,7 +2616,7 @@ const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFun
 		GetUnfilteredChildrenOfType(DynamicInputCollections);
 		for (UNiagaraStackFunctionInputCollection* DynamicInputCollection : DynamicInputCollections)
 		{
-			DynamicInputCollection->ToClipboardFunctionInputs(ClipboardInput->Dynamic, ClipboardInput->Dynamic->Inputs);
+			DynamicInputCollection->ToClipboardFunctionInputs(ClipboardInput->Dynamic, MutableView(ClipboardInput->Dynamic->Inputs));
 		}
 
 		break;
@@ -3220,4 +3220,3 @@ bool UNiagaraStackFunctionInput::SupportsCustomExpressions() const
 }
 
 #undef LOCTEXT_NAMESPACE
-

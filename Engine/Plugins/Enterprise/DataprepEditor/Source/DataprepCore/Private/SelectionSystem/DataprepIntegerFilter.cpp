@@ -31,7 +31,7 @@ bool UDataprepIntegerFilter::Filter(int Integer) const
 	return false;
 }
 
-TArray<UObject*> UDataprepIntegerFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
+TArray<UObject*> UDataprepIntegerFilter::FilterObjects(const TArrayView<UObject* const>& Objects) const
 {
 	if ( IntFetcher )
 	{

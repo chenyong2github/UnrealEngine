@@ -191,7 +191,7 @@ void SDataprepGraphEditor::OnDataprepAssetActionChanged(UObject* InObject, FData
 		case FDataprepAssetChangeType::ActionRemoved:
 		{
 			TArray<UEdGraphNode*> ToDelete;
-			TArray<UEdGraphNode*>& Nodes = GetCurrentGraph()->Nodes;
+			TArray<TObjectPtr<UEdGraphNode>>& Nodes = GetCurrentGraph()->Nodes;
 			for(UEdGraphNode* NodeObject : Nodes)
 			{
 				if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))
@@ -491,7 +491,7 @@ void SDataprepGraphEditor::DeleteSelectedNodes()
 					ensure(Index != INDEX_NONE);
 					ActionsToDelete.Add(Index);
 
-					TArray<class UEdGraphNode*>& Nodes = EdGraph->Nodes;
+					TArray<TObjectPtr<class UEdGraphNode>>& Nodes = EdGraph->Nodes;
 					for(Index = 0; Index < Nodes.Num(); ++Index)
 					{
 						if(UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(Nodes[Index]))
@@ -527,7 +527,7 @@ void SDataprepGraphEditor::DeleteSelectedNodes()
 		}
 	}
 
-	TArray<UEdGraphNode*>& Nodes = EdGraph->Nodes;
+	TArray<TObjectPtr<UEdGraphNode>>& Nodes = EdGraph->Nodes;
 	for(UObject* NodeObject : SelectedNodes)
 	{
 		if (UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(NodeObject))

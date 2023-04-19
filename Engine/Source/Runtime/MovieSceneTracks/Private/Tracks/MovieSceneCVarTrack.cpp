@@ -81,7 +81,7 @@ void UMovieSceneCVarTrack::RemoveSectionAt(int32 SectionIndex)
 {
 	UMovieSceneSection* SectionToDelete = Sections[SectionIndex];
 	Sections.RemoveAt(SectionIndex);
-	MovieSceneHelpers::SortConsecutiveSections(Sections);
+	MovieSceneHelpers::SortConsecutiveSections(MutableView(Sections));
 }
 
 void UMovieSceneCVarTrack::RemoveAllAnimationData()

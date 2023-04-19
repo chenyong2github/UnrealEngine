@@ -37,7 +37,7 @@ void UDebugVisLocationProcessor::Execute(FMassEntityManager& EntityManager, FMas
 		UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>();
 		UMassDebugVisualizationComponent* Visualizer = Debugger.GetVisualizationComponent();
 		check(Visualizer);
-		TArrayView<UHierarchicalInstancedStaticMeshComponent*> VisualDataISMCs = Visualizer->GetVisualDataISMCs();
+		TArrayView<UHierarchicalInstancedStaticMeshComponent* const> VisualDataISMCs = Visualizer->GetVisualDataISMCs();
 		if (VisualDataISMCs.Num() > 0)
 		{
 			const int32 NumEntities = Context.GetNumEntities();

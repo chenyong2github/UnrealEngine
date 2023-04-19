@@ -30,7 +30,7 @@ public:
 	bool Filter(int Integer) const;
 
 	//~ Begin UDataprepFilter Interface
-	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject*>& Objects) const override;
+	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject* const>& Objects) const override;
 	virtual void FilterAndGatherInfo(const TArrayView<UObject*>& InObjects, const TArrayView<FDataprepSelectionInfo>& OutFilterResults) const override;
 	virtual void FilterAndStoreInArrayView(const TArrayView<UObject*>& InObjects, const TArrayView<bool>& OutFilterResults) const override;
 	virtual bool IsThreadSafe() const override { return true; }

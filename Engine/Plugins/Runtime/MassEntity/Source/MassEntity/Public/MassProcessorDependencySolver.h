@@ -143,7 +143,7 @@ public:
 		}
 	};
 
-	MASSENTITY_API FMassProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const bool bIsGameRuntime = true);
+	MASSENTITY_API FMassProcessorDependencySolver(TArrayView<UMassProcessor* const> InProcessors, const bool bIsGameRuntime = true);
 	MASSENTITY_API void ResolveDependencies(TArray<FMassProcessorOrderInfo>& OutResult, TSharedPtr<FMassEntityManager> EntityManager = nullptr, FResult* InOutOptionalResult = nullptr);
 
 	MASSENTITY_API static void CreateSubGroupNames(FName InGroupName, TArray<FString>& SubGroupNames);
@@ -173,7 +173,7 @@ protected:
 	// friend struct FDumpGraphDependencyUtils;
 	// void DumpGraph(FArchive& LogFile) const;
 
-	TArrayView<UMassProcessor*> Processors;
+	TArrayView<UMassProcessor* const> Processors;
 	bool bAnyCyclesDetected = false;
 	/**
 	 * indicates whether we're generating processor order to be run in single- or multi-threaded environment (usually

@@ -647,7 +647,7 @@ void UAbilitySystemComponent::CheckForClearedAbilities()
 		// We leave around the empty trigger stub, it's likely to be added again
 	}
 
-	TArray<UGameplayAbility*>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
+	TArray<TObjectPtr<UGameplayAbility>>& ReplicatedAbilities = GetReplicatedInstancedAbilities_Mutable();
 	for (int32 i = 0; i < ReplicatedAbilities.Num(); i++)
 	{
 		UGameplayAbility* Ability = ReplicatedAbilities[i];

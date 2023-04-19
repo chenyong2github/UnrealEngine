@@ -101,7 +101,7 @@ public:
 	UNiagaraHierarchyItemBase() { Identity.Guids.Add(FGuid::NewGuid()); }
 	virtual ~UNiagaraHierarchyItemBase() override {}
 
-	TArray<UNiagaraHierarchyItemBase*>& GetChildrenMutable() { return Children; }
+	TArray<TObjectPtr<UNiagaraHierarchyItemBase>>& GetChildrenMutable() { return Children; }
 	const TArray<UNiagaraHierarchyItemBase*>& GetChildren() const;
 
 	template<class ChildClass>

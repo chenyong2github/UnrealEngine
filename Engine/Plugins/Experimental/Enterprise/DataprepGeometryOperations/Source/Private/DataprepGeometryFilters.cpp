@@ -5,7 +5,7 @@
 #include "JacketingProcess.h"
 #include "GameFramework/Actor.h"
 
-void UDataprepJacketingFilter::ExecuteJacketing(const TArrayView<UObject*>& InputObjects, TArray<UObject*>& FilteredObjects, const TArrayView<bool>* OutFilterResults) const
+void UDataprepJacketingFilter::ExecuteJacketing(const TArrayView<UObject* const>& InputObjects, TArray<UObject*>& FilteredObjects, const TArrayView<bool>* OutFilterResults) const
 {
 	TArray<AActor*> InputActors;
 
@@ -78,7 +78,7 @@ void UDataprepJacketingFilter::SetMergeDistance(float NewMergeDistance)
 	}
 }
 
-TArray<UObject*> UDataprepJacketingFilter::FilterObjects(const TArrayView<UObject*>& Objects) const
+TArray<UObject*> UDataprepJacketingFilter::FilterObjects(const TArrayView<UObject* const>& Objects) const
 {
 	TArray<UObject*> FilteredObjects;
 

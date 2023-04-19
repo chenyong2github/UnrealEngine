@@ -19,7 +19,7 @@ public:
 	UDataprepObjectSelectionFilter() : NumAssets( 0 ), NumActors( 0 ) {}
 
 	//~ Begin UDataprepFilterNoFetcher Interface
-	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject*>& Objects) const override;
+	virtual TArray<UObject*> FilterObjects(const TArrayView<UObject* const>& Objects) const override;
 	virtual void FilterAndGatherInfo(const TArrayView<UObject*>& InObjects, const TArrayView<FDataprepSelectionInfo>& OutFilterResults) const override;
 	virtual void FilterAndStoreInArrayView(const TArrayView<UObject*>& InObjects, const TArrayView<bool>& OutFilterResults) const override;
 	virtual bool IsThreadSafe() const override { return true; }
@@ -33,7 +33,7 @@ public:
 	int32 GetNumActors() const { return NumActors; }
 
 private:
-	void RunFilter(const TArrayView<UObject*>& InputObjects, TArray<UObject*>& FilteredObjects, const TArrayView<bool>* OutFilterResults) const;
+	void RunFilter(const TArrayView<UObject* const>& InputObjects, TArray<UObject*>& FilteredObjects, const TArrayView<bool>* OutFilterResults) const;
 
 private:
 	// Partial paths of objects.

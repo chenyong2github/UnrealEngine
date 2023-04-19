@@ -184,7 +184,7 @@ public:
 
 	// Get access to the list of Goals. 
 	UFUNCTION(BlueprintCallable, Category=IKRig)
-	TArray<UIKRigEffectorGoal*>& GetAllGoals() const;
+  const TArray<UIKRigEffectorGoal*>& GetAllGoals() const;
 
 	// Get the UObject for the settings associated with the given Goal in the given Solver.
 	// Solvers can define their own per-Goal settings depending on their needs. These are termed "Effectors".

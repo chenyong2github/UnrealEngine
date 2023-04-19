@@ -1979,7 +1979,7 @@ void FKismetCompilerContext::PruneIsolatedNodes(UEdGraph* InGraph, bool bInInclu
 	UE::KismetCompiler::Private::GatherRootSet(InGraph, RootSet, bInIncludeNodesThatCouldBeExpandedToRootSet);
 
 	// Find the connected subgraph starting at the root node and prune out unused nodes
-	PruneIsolatedNodes(RootSet, InGraph->Nodes);
+	PruneIsolatedNodes(RootSet, MutableView(InGraph->Nodes));
 }
 
 /** Prunes any nodes that weren't visited from the graph, printing out a warning */
@@ -3707,7 +3707,7 @@ void FKismetCompilerContext::MergeUbergraphPagesIn(UEdGraph* Ubergraph)
 {
 	BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_MergeUbergraphPagesIn);
 	
-	for (TArray<UEdGraph*>::TIterator It(Blueprint->UbergraphPages); It; ++It)
+	for (decltype(Blueprint->UbergraphPages)::TIterator It(Blueprint->UbergraphPages); It; ++It)
 	{
 		UEdGraph* SourceGraph = *It;
 
@@ -4143,7 +4143,7 @@ void FKismetCompilerContext::ExpandTunnelsAndMacros(UEdGraph* SourceGraph)
 	const bool bIsLoading = Blueprint ? Blueprint->bIsRegeneratingOnLoad : false;
 
 	// Collapse any remaining tunnels
-	for (TArray<UEdGraphNode*>::TIterator NodeIt(SourceGraph->Nodes); NodeIt; ++NodeIt)
+	for (decltype(SourceGraph->Nodes)::TIterator NodeIt(SourceGraph->Nodes); NodeIt; ++NodeIt)
 	{
 		UEdGraphNode* CurrentNode = *NodeIt;
 		if (!CurrentNode || !CurrentNode->ShouldMergeChildGraphs())

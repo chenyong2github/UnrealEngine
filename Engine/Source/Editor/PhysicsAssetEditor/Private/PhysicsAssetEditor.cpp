@@ -2347,7 +2347,7 @@ bool FPhysicsAssetEditor::IsCopyProperties() const
 void FPhysicsAssetEditor::FixPhysicsState()
 {
 	UPhysicsAsset * PhysicsAsset = SharedData->PhysicsAsset;
-	TArray<USkeletalBodySetup*>& BodySetup = PhysicsAsset->SkeletalBodySetups;
+	TArray<TObjectPtr<USkeletalBodySetup>>& BodySetup = PhysicsAsset->SkeletalBodySetups;
 
 	if(!SharedData->bRunningSimulation)
 	{
@@ -2461,7 +2461,7 @@ void FPhysicsAssetEditor::SetupSelectedSimulation()
 	if(SharedData->bRunningSimulation == false)
 	{
 		UPhysicsAsset * PhysicsAsset = SharedData->PhysicsAsset;
-		TArray<USkeletalBodySetup*>& BodySetup = PhysicsAsset->SkeletalBodySetups;
+		TArray<TObjectPtr<USkeletalBodySetup>>& BodySetup = PhysicsAsset->SkeletalBodySetups;
 
 		//first we fix all the bodies
 		for(int32 i=0; i<SharedData->PhysicsAsset->SkeletalBodySetups.Num(); ++i)
@@ -2474,7 +2474,7 @@ void FPhysicsAssetEditor::SetupSelectedSimulation()
 
 		//constraints need some more work
 		TArray<int32> BodyIndices;
-		TArray<UPhysicsConstraintTemplate*> & ConstraintSetup = PhysicsAsset->ConstraintSetup;
+		TArray<TObjectPtr<UPhysicsConstraintTemplate>> & ConstraintSetup = PhysicsAsset->ConstraintSetup;
 		for(int32 i=0; i<SharedData->SelectedConstraints.Num(); ++i)
 		{
 			int32 ConstraintIndex = SharedData->SelectedConstraints[i].Index;

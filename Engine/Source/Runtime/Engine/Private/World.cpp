@@ -8218,7 +8218,7 @@ int32 UWorld::GetNumSelectedLevels() const
 	return SelectedLevels.Num();
 }
 
-TArray<class ULevel*>& UWorld::GetSelectedLevels()
+TArray<TObjectPtr<class ULevel>>& UWorld::GetSelectedLevels()
 {
 	return SelectedLevels;
 }

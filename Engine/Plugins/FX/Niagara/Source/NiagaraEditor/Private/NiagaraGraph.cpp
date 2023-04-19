@@ -3478,7 +3478,7 @@ void UNiagaraGraph::RebuildCachedCompileIds()
 		NewUsageCache[i].UsageType = OutputNode->GetUsage();
 		NewUsageCache[i].UsageId = OutputNode->GetUsageId();
 
-		BuildTraversal(NewUsageCache[i].Traversal, OutputNode);
+		BuildTraversal(MutableView(NewUsageCache[i].Traversal), OutputNode);
 
 		int32 FoundMatchIdx = INDEX_NONE;
 		for (int32 j = 0; j < CachedUsageInfo.Num(); j++)
@@ -4270,4 +4270,3 @@ bool UNiagaraGraph::ReferencesStaticVariable(FNiagaraStaticVariableSearchContext
 
 #undef NIAGARA_SCOPE_CYCLE_COUNTER
 #undef LOCTEXT_NAMESPACE
-

@@ -707,7 +707,7 @@ bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParam
 			case EMetasoundFrontendLiteralType::UObjectArray:
 			{
 				Params.ParamType = EAudioParameterType::ObjectArray;
-				ensure(Input.DefaultLiteral.TryGet(Params.ArrayObjectParam));
+				ensure(Input.DefaultLiteral.TryGet(MutableView(Params.ArrayObjectParam)));
 			}
 			break;
 

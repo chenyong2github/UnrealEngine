@@ -3694,7 +3694,7 @@ void UCustomizableInstancePrivateData::BuildMeshSockets(const TSharedPtr<FMutabl
 
 	const uint32 SocketCount = RefSkeletalMeshData->Sockets.Num();
 
-	TArray<USkeletalMeshSocket*>& Sockets = SkeletalMesh->GetMeshOnlySocketList();
+	TArray<TObjectPtr<USkeletalMeshSocket>>& Sockets = SkeletalMesh->GetMeshOnlySocketList();
 	Sockets.Empty(SocketCount);
 	TMap<FName, TTuple<int32, int32>> SocketMap; // Maps Socket name to Sockets Array index and priority
 	
@@ -3792,7 +3792,7 @@ void UCustomizableInstancePrivateData::CopyMeshSockets(USkeletalMesh* SrcSkeleta
 	check(DestSkeletalMesh);
 
 	const TArray<USkeletalMeshSocket*>& SrcSockets = SrcSkeletalMesh->GetMeshOnlySocketList();
-	TArray<USkeletalMeshSocket*>& DestSockets = DestSkeletalMesh->GetMeshOnlySocketList();
+	TArray<TObjectPtr<USkeletalMeshSocket>>& DestSockets = DestSkeletalMesh->GetMeshOnlySocketList();
 	DestSockets.Empty(SrcSockets.Num());
 
 	for (const USkeletalMeshSocket* SrcSocket : SrcSockets)

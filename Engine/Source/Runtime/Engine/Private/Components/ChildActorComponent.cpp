@@ -274,7 +274,7 @@ void UChildActorComponent::PostEditUndo()
 	// This hack exists to fix up known cases where the AttachChildren array is broken in very problematic ways.
 	// The correct fix will be to use a Transaction Annotation at the SceneComponent level, however, it is too risky
 	// to do right now, so this will go away when that is done.
-	for (USceneComponent*& Component : FDirectAttachChildrenAccessor::Get(this))
+	for (auto& Component : FDirectAttachChildrenAccessor::Get(this))
 	{
 		if (Component)
 		{

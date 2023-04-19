@@ -269,7 +269,7 @@ void FMassProcessorDependencySolver::FNode::IncreaseWaitingNodesCount(TArrayView
 //----------------------------------------------------------------------//
 //  FProcessorDependencySolver
 //----------------------------------------------------------------------//
-FMassProcessorDependencySolver::FMassProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const bool bIsGameRuntime)
+FMassProcessorDependencySolver::FMassProcessorDependencySolver(TArrayView<UMassProcessor* const> InProcessors, const bool bIsGameRuntime)
 	: Processors(InProcessors)
 	, bGameRuntime(bIsGameRuntime)
 {}

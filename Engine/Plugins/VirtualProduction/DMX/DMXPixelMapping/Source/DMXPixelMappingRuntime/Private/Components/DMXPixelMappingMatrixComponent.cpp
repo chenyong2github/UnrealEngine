@@ -228,7 +228,7 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChang
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
 	// For consistency with GroupItem, handling modulator class changes in runtime utils
-	FDMXPixelMappingRuntimeUtils::HandleModulatorPropertyChange(this, PropertyChangedChainEvent, ModulatorClasses, Modulators);
+	FDMXPixelMappingRuntimeUtils::HandleModulatorPropertyChange(this, PropertyChangedChainEvent, ModulatorClasses, MutableView(Modulators));
 }
 #endif // WITH_EDITOR
 

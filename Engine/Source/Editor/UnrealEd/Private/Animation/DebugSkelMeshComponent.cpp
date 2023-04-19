@@ -1169,7 +1169,7 @@ void UDebugSkelMeshComponent::RefreshSelectedClothingSkinnedPositions()
 {
 	if(GetSkeletalMeshAsset() && SelectedClothingGuidForPainting.IsValid())
 	{
-		UClothingAssetBase** Asset = GetSkeletalMeshAsset()->GetMeshClothingAssets().FindByPredicate([&](UClothingAssetBase* Item)
+		auto* Asset = GetSkeletalMeshAsset()->GetMeshClothingAssets().FindByPredicate([&](UClothingAssetBase* Item)
 		{
 			return Item && SelectedClothingGuidForPainting == Item->GetAssetGuid();
 		});

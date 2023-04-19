@@ -938,7 +938,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 private:
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TArray<UAnimInstance*>& GetLinkedAnimInstances() { return LinkedInstances; }
+	TArray<TObjectPtr<UAnimInstance>>& GetLinkedAnimInstances() { return LinkedInstances; }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Clear the linked anim instances and mark them pending kill */
