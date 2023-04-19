@@ -13,7 +13,6 @@ public class DotNetPerforceLibTarget : TargetRules
 		bShouldCompileAsDLL = true;
 
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 		bCompileICU = false;
 		bBuildWithEditorOnlyData = false;
 		bCompileAgainstEngine = false;

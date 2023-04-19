@@ -16,7 +16,6 @@ public class BootstrapPackagedGameTarget : TargetRules
 		bUseStaticCRT = true;
 
 		bUseSharedPCHs = false;
-		bUseMallocProfiler = false;
 
 		// Disable all parts of the editor.
 		bBuildDeveloperTools = false;

@@ -13,7 +13,6 @@ public class UnrealVersionSelectorTarget : TargetRules
 		LaunchModuleName = "UnrealVersionSelector";
 		
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 
 		bool bUsingSlate = (Target.Platform == UnrealTargetPlatform.Linux);
 

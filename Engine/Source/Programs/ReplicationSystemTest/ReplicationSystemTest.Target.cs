@@ -12,8 +12,6 @@ public class ReplicationSystemTestTarget : TargetRules
 		LinkType = TargetLinkType.Monolithic;
 		LaunchModuleName = "ReplicationSystemTest";
 
-		bUseMallocProfiler = false;
-
 		// No editor-only data is needed
 		bBuildWithEditorOnlyData = false;
 

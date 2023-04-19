@@ -25,7 +25,6 @@ public abstract class DatasmithRevitBaseTarget : TargetRules
 		LinkType = TargetLinkType.Monolithic;
 
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;

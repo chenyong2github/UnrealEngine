@@ -14,7 +14,6 @@ public class BenchmarkToolTarget : TargetRules
 		LaunchModuleName = "BenchmarkTool";
 
 		bBuildDeveloperTools			= false;
-		bUseMallocProfiler				= false;
 		bBuildWithEditorOnlyData		= false;
 		bCompileAgainstEngine			= false;
 		bCompileAgainstCoreUObject		= false;

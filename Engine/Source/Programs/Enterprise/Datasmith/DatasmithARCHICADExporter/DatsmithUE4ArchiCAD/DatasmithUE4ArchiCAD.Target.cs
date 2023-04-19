@@ -26,7 +26,6 @@ public class DatasmithUE4ArchiCADTarget : TargetRules
 		}
 
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;

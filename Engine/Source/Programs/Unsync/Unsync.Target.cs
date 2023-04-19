@@ -12,7 +12,6 @@ public class UnsyncTarget : TargetRules
 		LinkType = TargetLinkType.Monolithic;
 		LaunchModuleName = "Unsync";		
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 		bCompileICU = false;
 		bBuildWithEditorOnlyData = false;
 		bCompileAgainstEngine = false;

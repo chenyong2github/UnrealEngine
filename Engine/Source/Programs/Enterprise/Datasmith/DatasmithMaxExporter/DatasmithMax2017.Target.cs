@@ -22,7 +22,6 @@ public abstract class DatasmithMaxBaseTarget : TargetRules
 		WindowsPlatform.bStrictConformanceMode = false;
 
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;

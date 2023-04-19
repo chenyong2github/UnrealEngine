@@ -14,7 +14,6 @@ public class UnrealVirtualizationToolTarget : TargetRules
 		LaunchModuleName = "UnrealVirtualizationTool";
 
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 
 		bCompileAgainstEditor = false;
 		bBuildWithEditorOnlyData = true;

@@ -24,7 +24,6 @@ public class ZenDashboardTarget : TargetRules
 		bCompileICU 					= false;
 		bWithLiveCoding					= false;
 		bBuildDeveloperTools			= false;
-		bUseMallocProfiler				= false;
 		bBuildWithEditorOnlyData		= false;
 		bCompileAgainstEngine			= false;
 		bCompileAgainstCoreUObject		= true;

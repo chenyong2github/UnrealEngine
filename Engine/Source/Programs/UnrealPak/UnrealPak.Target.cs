@@ -26,7 +26,6 @@ public class UnrealPakTarget : TargetRules
 		bCompileICU 						= false;
 		bWithLiveCoding						= false;
 		bBuildDeveloperTools				= false;
-		bUseMallocProfiler					= false;
 		bBuildWithEditorOnlyData			= true;
 		bCompileAgainstEngine				= false;
 		bCompileAgainstCoreUObject			= true;

@@ -30,7 +30,6 @@ public class DatasmithSDKTarget : TargetRules
 		bShouldCompileAsDLL = true;
 
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;

@@ -14,7 +14,6 @@ public class UnrealObjectPtrToolTarget : TargetRules
 		LaunchModuleName = "UnrealObjectPtrTool";
 
 		bBuildDeveloperTools			= false;
-		bUseMallocProfiler				= false;
 		bBuildWithEditorOnlyData		= false;
 		bCompileAgainstEngine			= false;
 		bCompileAgainstCoreUObject		= false;

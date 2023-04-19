@@ -23,7 +23,6 @@ public abstract class DatasmithNavisworksBaseTarget : TargetRules
 		LinkType = TargetLinkType.Monolithic;
 
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = false;

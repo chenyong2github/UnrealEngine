@@ -12,10 +12,6 @@ public class UnrealHeaderToolTarget : TargetRules
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "UnrealHeaderTool";
 
-		// Never use malloc profiling in Unreal Header Tool.  We set this because often UHT is compiled right before the engine
-		// automatically by Unreal Build Tool, but if bUseMallocProfiler is defined, UHT can operate incorrectly.
-		bUseMallocProfiler = false;
-
         bCompileICU = false;
         // Editor-only data, however, is needed
 		bBuildWithEditorOnlyData = true;

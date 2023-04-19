@@ -14,7 +14,6 @@ public class LiveCodingConsoleTarget : TargetRules
 		LaunchModuleName = "LiveCodingConsole";
 
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 		bCompileWithPluginSupport = true;
 		bIncludePluginsForTargetPlatforms = true;
 		bWithLiveCoding = true;

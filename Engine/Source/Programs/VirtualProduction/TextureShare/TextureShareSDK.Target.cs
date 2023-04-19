@@ -73,9 +73,6 @@ public class TextureShareSDKTarget : TargetRules
 		bUseLoggingInShipping = true;
 		bUseChecksInShipping = true;
 
-		// Disable memory profiling in the build
-		bUseMallocProfiler = false;
-
 		// Whether to include ICU unicode/i18n support in Core
 		bCompileICU = false;
 

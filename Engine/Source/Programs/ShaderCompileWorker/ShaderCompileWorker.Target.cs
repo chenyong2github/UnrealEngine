@@ -42,9 +42,6 @@ public class ShaderCompileWorkerTarget : TargetRules
 		bBuildWithEditorOnlyData = true;
 		bCompileCEF3 = false;
 
-		// Never use malloc profiling in ShaderCompileWorker.
-		bUseMallocProfiler = false;
-
 		// Force all shader formats to be built and included.
 		bForceBuildShaderFormats = true;
 

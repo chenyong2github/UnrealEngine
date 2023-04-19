@@ -13,7 +13,6 @@ public class UnrealEditorServicesTarget : TargetRules
 		LaunchModuleName = "UnrealEditorServices";
 
 		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
 
 		bCompileICU = false;
 		// Editor-only data, however, is needed

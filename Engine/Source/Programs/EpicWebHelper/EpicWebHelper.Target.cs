@@ -39,9 +39,6 @@ public class EpicWebHelperTarget : TargetRules
 		bCompileAgainstCoreUObject = false;
 		bBuildWithEditorOnlyData = true;
 
-		// Never use malloc profiling in CEFSubProcess.
-		bUseMallocProfiler = false;
-
 		// Force all shader formats to be built and included.
 		//bForceBuildShaderFormats = true;
 

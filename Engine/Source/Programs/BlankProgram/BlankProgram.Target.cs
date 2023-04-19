@@ -16,10 +16,6 @@ public class BlankProgramTarget : TargetRules
 		// Lean and mean
 		bBuildDeveloperTools = false;
 
-		// Never use malloc profiling in Unreal Header Tool.  We set this because often UHT is compiled right before the engine
-		// automatically by Unreal Build Tool, but if bUseMallocProfiler is defined, UHT can operate incorrectly.
-		bUseMallocProfiler = false;
-
 		// Editor-only is enabled for desktop platforms to run unit tests that depend on editor-only data
 		// It's disabled in test and shipping configs to make profiling similar to the game
 		bool bDebugOrDevelopment = Target.Configuration == UnrealTargetConfiguration.Debug || Target.Configuration == UnrealTargetConfiguration.Development;

@@ -25,7 +25,6 @@ public abstract class DerivedDataBuildWorkerTarget : TargetRules
 		bCompileICU 					= false;
 		bWithLiveCoding					= false;
 		bBuildDeveloperTools			= false;
-		bUseMallocProfiler				= false;
 		bBuildWithEditorOnlyData		= true;
 		bCompileAgainstEngine			= false;
 		bCompileAgainstCoreUObject		= false;
