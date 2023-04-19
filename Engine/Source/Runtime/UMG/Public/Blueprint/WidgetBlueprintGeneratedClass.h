@@ -75,12 +75,6 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UWidgetBlueprintGeneratedClassExtension>> Extensions;
 
-	/** List Field Notifies. No index here on purpose to prevent saving them. */
-	UPROPERTY()
-	TArray<FFieldNotificationId> FieldNotifyNames;
-
-	int32 FieldNotifyStartBitNumber;
-
 	/** The classes native parent requires a native tick */
 	UPROPERTY()
 	uint32 bClassRequiresNativeTick :1;
@@ -136,14 +130,10 @@ public:
 	// Walks up the hierarchy looking for a valid widget tree.
 	UWidgetBlueprintGeneratedClass* FindWidgetTreeOwningClass() const;
 
-	// Execute the callback for every FieldId defined in the BP class
-	void ForEachField(TFunctionRef<bool(::UE::FieldNotification::FFieldId FielId)> Callback, bool bIncludeSuper = true) const;
-
 	//~ Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual bool NeedsLoadForServer() const override;
-	virtual void PostLoadDefaultObject(UObject* Object) override;
 	//~ End UObject interface
 
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;
@@ -154,8 +144,6 @@ public:
 	 * binding and wiring necessary to have the user's widget perform as desired.
 	 */
 	void InitializeWidget(UUserWidget* UserWidget) const;
-
-	void InitializeFieldNotification(const UUserWidget*);
 
 	static void InitializeWidgetStatic(UUserWidget* UserWidget
 		, const UClass* InClass

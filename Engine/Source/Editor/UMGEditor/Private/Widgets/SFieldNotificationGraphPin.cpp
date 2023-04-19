@@ -11,6 +11,7 @@
 #include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
 #include "K2Node.h"
+#include "K2Node_CallFunction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -107,6 +108,17 @@ void SFieldNotificationGraphPin::Construct(const FArguments& InArgs, UEdGraphPin
 TSharedRef<SWidget> SFieldNotificationGraphPin::GetDefaultValueWidget()
 {
 	UEdGraphPin* SelfPin = GraphPinObj->GetOwningNode()->FindPin(UEdGraphSchema_K2::PSC_Self);
+	if (UK2Node_CallFunction* CallFunction = Cast<UK2Node_CallFunction>(GraphPinObj->GetOwningNode()))
+	{
+		if (UFunction* Function = CallFunction->GetTargetFunction())
+		{
+			const FString& PinName = Function->GetMetaData("FieldNotifyInterfaceParam");
+			if (PinName.Len() != 0)
+			{
+				SelfPin = GraphPinObj->GetOwningNode()->FindPin(*PinName);
+			}
+		}
+	}
 
 	return SNew(SFieldNotificationPicker)
 		.Value(this, &SFieldNotificationGraphPin::GetValue)

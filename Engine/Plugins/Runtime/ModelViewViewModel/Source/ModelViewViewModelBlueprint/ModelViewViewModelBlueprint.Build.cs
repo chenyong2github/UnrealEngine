@@ -33,7 +33,5 @@ public class ModelViewViewModelBlueprint : ModuleRules
 				"UMGEditor",
 				"UnrealEd",
 			});
-
-		PublicDefinitions.Add("UE_MVVM_WITH_VIEWMODEL_EDITOR=0");
 	}
 }

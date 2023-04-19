@@ -405,7 +405,6 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 	NewWidgetBlueprintClass->Animations.Empty();
 	NewWidgetBlueprintClass->Bindings.Empty();
 	NewWidgetBlueprintClass->Extensions.Empty();
-	NewWidgetBlueprintClass->FieldNotifyNames.Empty();
 
 	if (UWidgetBlueprintGeneratedClass* WidgetClassToClean = Cast<UWidgetBlueprintGeneratedClass>(ClassToClean))
 	{
@@ -596,16 +595,6 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 		{
 			InExtension->CreateClassVariablesFromBlueprint(FCreateVariableContext(*Self));
 		});
-
-	//Add FieldNotifyNames
-	for (TFieldIterator<const FProperty> PropertyIt(NewClass, EFieldIterationFlags::None); PropertyIt; ++PropertyIt)
-	{
-		const FProperty* Property = *PropertyIt;
-		if (Property->HasMetaData(UE::FieldNotification::FCustomizationHelper::MetaData_FieldNotify))
-		{
-			NewWidgetBlueprintClass->FieldNotifyNames.Emplace(Property->GetFName());
-		}
-	}
 }
 
 void FWidgetBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* DefaultObject)
@@ -1127,11 +1116,6 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 	Super::FinishCompilingClass(Class);
 
 	CA_ASSUME(BPGClass);
-	if (UUserWidget* UserWidget = Cast<UUserWidget>(BPGClass->GetDefaultObject()))
-	{
-		BPGClass->InitializeFieldNotification(UserWidget);
-	}
-
 	UWidgetBlueprintExtension::ForEachExtension(WidgetBlueprint(), [BPGClass](UWidgetBlueprintExtension* InExtension)
 		{
 			InExtension->FinishCompilingClass(BPGClass);
@@ -1297,25 +1281,6 @@ void FWidgetBlueprintCompilerContext::VerifyEventReplysAreNotEmpty(FKismetFuncti
 				}
 			}
 		}
-	}
-}
-
-void FWidgetBlueprintCompilerContext::PostcompileFunction(FKismetFunctionContext& Context)
-{
-	Super::PostcompileFunction(Context);
-
-	VerifyFieldNotifyFunction(Context);
-}
-
-void FWidgetBlueprintCompilerContext::VerifyFieldNotifyFunction(FKismetFunctionContext& Context)
-{
-	if (Context.Function && Context.Function->HasMetaData(UE::FieldNotification::FCustomizationHelper::MetaData_FieldNotify))
-	{
-		if (!UE::FieldNotification::Helpers::IsValidAsField(Context.Function))
-		{
-			MessageLog.Error(*LOCTEXT("FieldNotify_IsEventGraph", "Function @@ cannot be a FieldNotify. A function needs to be const, returns a single properties, has no inputs, not be an event or a net function.").ToString(), Context.EntryPoint);
-		}
-		NewWidgetBlueprintClass->FieldNotifyNames.Emplace(Context.Function->GetFName());
 	}
 }
 

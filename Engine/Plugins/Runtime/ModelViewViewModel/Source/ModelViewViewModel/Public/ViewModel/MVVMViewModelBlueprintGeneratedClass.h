@@ -16,30 +16,12 @@ namespace UE::MVVM
 	class FViewModelBlueprintCompilerContext;
 }//namespace
 
+
+/** Will be deprecated in the next version. */
 UCLASS()
 class MODELVIEWVIEWMODEL_API UMVVMViewModelBlueprintGeneratedClass : public UBlueprintGeneratedClass
 {
 	GENERATED_BODY()
-
-	friend UE::MVVM::FViewModelBlueprintCompilerContext;
-
-public:
-	UMVVMViewModelBlueprintGeneratedClass();
-
-	//~ Begin UBlueprintGeneratedClass interface
-	virtual void PostLoadDefaultObject(UObject* Object) override;
-	virtual void PurgeClass(bool bRecompilingOnLoad) override;
-	//~ End UBlueprintGeneratedClass interface
-
-	void InitializeFieldNotification(const UMVVMViewModelBase* ViewModel);
-	void ForEachField(TFunctionRef<bool(::UE::FieldNotification::FFieldId FieldId)> Callback) const;
-
-private:
-	/** List Field Notifies. No index here on purpose to prevent saving them. */
-	UPROPERTY()
-	TArray<FFieldNotificationId> FieldNotifyNames;
-
-	int32 FieldNotifyStartBitNumber;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
