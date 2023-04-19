@@ -19,6 +19,8 @@
 #include "Editor.h"
 #include "Editor/Transactor.h"
 #include "EditorAssetLibrary.h"
+#include "ILevelSequenceEditorToolkit.h"
+#include "ISequencer.h"
 #include "ITakeRecorderModule.h"
 #include "LevelEditor.h"
 #include "LevelEditorSubsystem.h"
@@ -29,6 +31,7 @@
 #include "Recorder/TakeRecorderPanel.h"
 #include "SLevelViewport.h"
 #include "SceneView.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "TakesCoreBlueprintLibrary.h"
 #include "TakePreset.h"
 #include "VPUtilitiesEditorBlueprintLibrary.h"
@@ -554,3 +557,45 @@ TArray<UObject*> UVCamBlueprintFunctionLibrary::GetBoundObjects(FMovieSceneObjec
 #endif
 	return BoundObjectsArray;
 }
+
+float UVCamBlueprintFunctionLibrary::GetPlaybackSpeed()
+{
+#if WITH_EDITOR
+	TWeakPtr<ISequencer> Sequencer = GetSequencer();
+	if (Sequencer.IsValid())
+	{
+		return Sequencer.Pin()->GetPlaybackSpeed();
+	}
+#endif
+	return 0.0f;
+}
+
+void UVCamBlueprintFunctionLibrary::SetPlaybackSpeed(float Value)
+{
+#if WITH_EDITOR
+	TWeakPtr<ISequencer> Sequencer = GetSequencer();
+	if (Sequencer.IsValid())
+	{
+		Sequencer.Pin()->SetPlaybackSpeed(Value);
+	}
+#endif
+}
+
+#if WITH_EDITOR
+TWeakPtr<ISequencer> UVCamBlueprintFunctionLibrary::GetSequencer()
+{
+	if (!GEditor)
+	{
+		return nullptr;
+	}
+
+	if (ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence())
+	{
+		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+		IAssetEditorInstance* AssetEditor = AssetEditorSubsystem->FindEditorForAsset(LevelSequence, false);
+		const ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
+		return LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
+	}
+	return nullptr;
+}
+#endif

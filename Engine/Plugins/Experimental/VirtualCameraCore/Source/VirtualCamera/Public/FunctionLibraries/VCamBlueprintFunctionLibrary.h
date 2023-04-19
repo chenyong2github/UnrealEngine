@@ -17,6 +17,10 @@ class USceneCaptureComponent2D;
 class UVirtualCameraClipsMetaData;
 class UVirtualCameraUserSettings; 
 
+#if WITH_EDITOR
+class ISequencer;
+#endif
+
 UCLASS(config=VirtualCamera, BlueprintType)
 class VIRTUALCAMERA_API UVCamBlueprintFunctionLibrary : public UBlueprintFunctionLibrary
 {
@@ -179,7 +183,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera|Take Recorder")
 	static void SetOnTakeRecorderSlateChanged(FOnTakeRecorderSlateChanged_VCam OnTakeRecorderSlateChanged);
 	
+	/* Get playback speed in Sequencer*/
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Sequencer")
+	static float GetPlaybackSpeed();
+
+	/* Set playback speed in Sequencer*/
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera|Sequencer")
+	static void SetPlaybackSpeed(float Value=1.0);
+
 private:
 
 	static bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection);
+
+#if WITH_EDITOR
+	/** Returns the current sequencer. */
+	static TWeakPtr<ISequencer> GetSequencer();
+#endif
 };
