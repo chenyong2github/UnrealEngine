@@ -8,6 +8,8 @@ namespace UnrealBuildTool.Rules
 		public CADKernel(ReadOnlyTargetRules Target)
 			: base(Target)
 		{
+			DeterministicWarningLevel = WarningLevel.Off; // __DATE__ in Private/CADKernel/Core/System.cpp
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
