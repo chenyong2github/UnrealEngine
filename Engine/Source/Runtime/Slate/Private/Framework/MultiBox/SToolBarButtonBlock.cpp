@@ -264,32 +264,43 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	}
 	else
 	{
+		const FMargin IconPadding = LabelVisibility.Get() == EVisibility::Collapsed ? ToolBarStyle.IconPaddingWithCollapsedLabel :
+						ToolBarStyle.IconPaddingWithVisibleLabel;
+		const TSharedRef ContentVBox = 
+			SNew(SVerticalBox)
+					// Icon image
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(IconPadding)
+					.HAlign(HAlign_Center)	// Center the icon horizontally, so that large labels don't stretch out the artwork
+					[
+						IconWidget
+					]
+					// Label text
+					+ SVerticalBox::Slot().AutoHeight()
+				.Padding(ToolBarStyle.LabelPadding)
+					.HAlign(HAlign_Center)	// Center the label text horizontally
+					[
+						SNew(STextBlock)
+					.Visibility(LabelVisibility)
+						.Text(ActualLabel)
+						.TextStyle(&ToolBarStyle.LabelStyle)	// Smaller font for tool tip labels
+					];
+
 		ButtonContent =
 			SNew(SHorizontalBox)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TutorialHighlightName))
-			+ SHorizontalBox::Slot()
-			.FillWidth(1)
-			.VAlign(VAlign_Center)
+			+ ( MultiBox->GetType() == EMultiBoxType::VerticalToolBar ?
+				SHorizontalBox::Slot()
+			.MaxWidth(ToolBarStyle.ButtonContentMaxWidth)
+			.SizeParam(FStretch())
+			.VAlign(VAlign_Center) :
+			SHorizontalBox::Slot()
+			.FillWidth(ToolBarStyle.ButtonContentFillWidth)
+			.AutoWidth()
+			.VAlign(VAlign_Center))
 			[
-				SNew(SVerticalBox)
-				// Icon image
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(ToolBarStyle.IconPadding)
-				.HAlign(HAlign_Center)	// Center the icon horizontally, so that large labels don't stretch out the artwork
-				[
-					IconWidget
-				]
-				// Label text
-				+ SVerticalBox::Slot().AutoHeight()
-				.Padding(ToolBarStyle.LabelPadding)
-				.HAlign(HAlign_Center)	// Center the label text horizontally
-				[
-					SNew(STextBlock)
-					.Visibility(LabelVisibility)
-					.Text(ActualLabel)
-					.TextStyle(&ToolBarStyle.LabelStyle)	// Smaller font for tool tip labels
-				]
+				ContentVBox
 			];
 		}
 
@@ -342,6 +353,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 		const TSharedPtr<SWidget> CheckBox = SNew(SCheckBox)
 						// Use the tool bar style for this check box
 						.Style(CheckStyle)
+						.CheckBoxContentUsesAutoWidth(false)
 						.IsFocusable(bIsFocusable)
 						.ToolTip( FMultiBoxSettings::ToolTipConstructor.Execute( ActualToolTip, nullptr, Action.Pin()))		
 						.OnCheckStateChanged(this, &SToolBarButtonBlock::OnCheckStateChanged )

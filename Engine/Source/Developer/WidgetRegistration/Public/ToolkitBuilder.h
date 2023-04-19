@@ -6,7 +6,6 @@
 #include "IDetailsView.h"
 #include "Framework/MultiBox/SToolBarButtonBlock.h"
 #include "Framework/Commands/UICommandInfo.h"
-#include "InteractiveToolManager.h"
 #include "ToolElementRegistry.h"
 #include "ToolkitBuilderConfig.h"
 #include "ToolMenus.h"
@@ -99,6 +98,33 @@ protected:
 	FGetEditableToolPaletteConfigManager GetConfigManager;
 };
 
+/*
+ * A simple struct to carry initialization data for an FToolkitBuilder
+ */
+struct FToolkitBuilderArgs
+{
+	FToolkitBuilderArgs(const FName& InToolbarCustomizationName) : ToolbarCustomizationName(InToolbarCustomizationName) 
+	{
+	}
+	
+	/** Name of the toolbar this mode uses and can be used by external systems to customize that mode toolbar */
+	const FName& ToolbarCustomizationName;
+
+	/** A TSharedPointer to the FUICommandList for the current mode */
+	TSharedPtr<FUICommandList> ToolkitCommandList;
+
+	/** The FToolkitSections which holds the sections defined for this Toolkit */
+	TSharedPtr<FToolkitSections> ToolkitSections;
+
+	/** If bShowCategoryButtonLabels == true, the category button
+	* labels should be, else they are not displayed  */	
+	bool bShowCategoryButtonLabels;
+
+	/** If SelectedCategoryTitleVisibility == EVisibility::Visible, the selected
+	 * category title is visible, else it is not displayed  */	
+	EVisibility SelectedCategoryTitleVisibility;
+};
+
 
 /**
  * The FToolElementRegistrationArgs which is specified for Toolkits
@@ -107,9 +133,53 @@ class WIDGETREGISTRATION_API FToolkitBuilder : public FToolElementRegistrationAr
 {
 public:
 	FToolkitBuilder(
-		FName InToolbarCustomizationName,
-		TSharedPtr<FUICommandList> InToolkitCommandList,
-		TSharedPtr<FToolkitSections> InToolkitSections);
+		FName ToolbarCustomizationName,
+		TSharedPtr<FUICommandList> ToolkitCommandList,
+		TSharedPtr<FToolkitSections> ToolkitSections);
+
+	FToolkitBuilder(const FToolkitBuilderArgs& Args);
+	
+	virtual  ~FToolkitBuilder() override;
+	
+	/*
+	 * Initializes the data to necessary to build the category toolbar
+	 *
+	 * @param InitLoadToolPaletteMap If true, the map which holds the load
+	 * action names as keys and the ToolPalettes as value will be cleared and available
+	 * to add new data when the method completes. Otherwise, the map will keep
+	 * the load action name to ToolPalette mappings that it was initially set up with. 
+	 */
+	void InitializeCategoryToolbar(bool InitLoadToolPaletteMap = false);
+
+	/**
+	 * Initializes the category toolbar container VBox, and the children inside it.
+	 * On any repeat calls, the SVerticalBox created on the first pass will be
+	 * emptied and the children repopulated.
+	 */
+	void InitCategoryToolbarContainerWidget();
+
+	/**
+	 * Sets category button label visibility to Visiblity. It also reinitializes the
+	 * category toolbar data, as the toolbar's LabelVisibility member is now stale.
+	 *
+	 * @param Visibility If Visibility == EVisibility::Collapsed, the category button labels
+	 * will be shown, else they will not be shown.
+	 */
+	void SetCategoryButtonLabelVisibility(EVisibility Visibility);
+
+	/**
+	 * Sets category button label visibility to Visiblity. It also reinitializes the
+	 * category toolbar data, as the toolbar's LabelVisibility member is now stale.
+	 *
+	 * @param bIsCategoryButtonLabelVisible If bIsCategoryButtonLabelVisible == true,
+	 * the category button labels will be shown, else they will not be shown.
+	 */
+	void SetCategoryButtonLabelVisibility(bool bIsCategoryButtonLabelVisible);
+
+	/**
+	 * RefreshCategoryToolbarWidget refreshes the UI display of the category toolbar 
+	 */
+	void RefreshCategoryToolbarWidget();
 
 	/**
 	 * Adds the FToolPalette Palette to this FToolkitBuilder
@@ -266,6 +336,13 @@ private:
 
 	void DefineWidget();
 
+	/** The SVerticalBox which contains the category toolbar */
+	TSharedPtr<SVerticalBox> CategoryToolbarVBox;
+
+	/** The array of Tool Palettes on display. This array is used to keep a handle
+	 * on all of the created FToolElements so that we can unregister them upon destruction */
+	TArray<TSharedRef<FToolElement>> ToolPaletteElementArray;
+
 	/** The SVerticalBox which holds all but the vertical toolbar in a Toolkit */
 	TSharedPtr<SVerticalBox> ToolkitWidgetVBox;
 
@@ -281,4 +358,11 @@ private:
 	/** The current FToolkitWidgetStyle */
 	FToolkitWidgetStyle Style;
 
+	/** If SelectedCategoryTitleVisibility == EVisibility::Visible, the selected
+	 * category title is visible, else it is not displayed  */	
+	EVisibility SelectedCategoryTitleVisibility;
+
+	/** If CategoryButtonLabelVisibility == EVisibility::Visible, the category button
+	 * labels are visible, else they are not displayed  */	
+	EVisibility CategoryButtonLabelVisibility;
 };

@@ -177,6 +177,10 @@ private:
 	bool IsPresetEnabled() const;
 	void ClearPresetComboList();
 
+	/**
+	 *  Updates the category button labels' visibility based off of the current editor preference for it
+	 */
+	void UpdateCategoryButtonLabelVisibility(UObject* Obj, FPropertyChangedEvent& ChangeEvent);
 
 	TArray<TSharedPtr<FString>> AssetLODModes;
 	TSharedPtr<STextBlock> AssetLODModeLabel;

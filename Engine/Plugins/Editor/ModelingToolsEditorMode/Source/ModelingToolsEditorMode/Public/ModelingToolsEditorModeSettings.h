@@ -339,7 +339,12 @@ public:
 	TArray<FModelingModeAssetCollectionSet> BrushAlphaSets;
 
 
-
+	/**
+	 * If true, the category labels will be shown on the toolbar buttons, else they will be hidden
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
+	bool bShowCategoryButtonLabels = true;
+	
 public:
 
 	// saved-state for various mode settings that are configured via UI toggles/etc, and not exposed in settings dialog
