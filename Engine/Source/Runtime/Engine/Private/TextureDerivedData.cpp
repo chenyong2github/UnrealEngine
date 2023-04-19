@@ -31,6 +31,7 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataRequestOwner.h"
+#include "ImageCoreUtils.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITextureFormat.h"
@@ -899,12 +900,30 @@ static void GetTextureBuildSettings(
 
 	// Virtual textures must have mips as VT memory management relies on a 1:1 texel/pixel mapping, which in turn
 	// requires that we be able to swap in lower mips when that density gets too high for a given texture.
-	if (bVirtualTextureStreaming &&
-		(MipGenSettings == TMGS_NoMipmaps || MipGenSettings == TMGS_LeaveExistingMips)
-		)
+	if (bVirtualTextureStreaming && MipGenSettings == TMGS_NoMipmaps)
 	{
 		MipGenSettings = TMGS_SimpleAverage;
-		UE_LOG(LogTexture, Warning, TEXT("Texture %s is virtual and has NoMips / LeaveExistingMips - forcing to SimpleAverage."), *Texture.GetPathName());
+		UE_LOG(LogTexture, Warning, TEXT("Texture %s is virtual and has NoMips - forcing to SimpleAverage."), *Texture.GetPathName());
+	}
+	if (bVirtualTextureStreaming && MipGenSettings == TMGS_LeaveExistingMips)
+	{
+		for (int32 BlockIndex = 0; BlockIndex < Texture.Source.GetNumBlocks(); BlockIndex++)
+		{
+			FTextureSourceBlock Block;
+			Texture.Source.GetBlock(BlockIndex, Block);
+
+			int32 ExpectedNumMips = FImageCoreUtils::GetMipCountFromDimensions(Block.SizeX, Block.SizeY, 0, false);
+			if (Block.NumMips != ExpectedNumMips)
+			{
+				MipGenSettings = TMGS_SimpleAverage;
+				UE_LOG(LogTexture, Warning, TEXT("Texture %s is virtual and has LeaveExistingMips with an incomplete mip chain - forcing to SimpleAverage (Block %d has %d mips, expected %d)."), 
+					*Texture.GetPathName(),
+					BlockIndex,
+					Block.NumMips,
+					ExpectedNumMips
+					);
+			}
+		}
 	}
 
 	const FIntPoint SourceSize = Texture.Source.GetLogicalSize();

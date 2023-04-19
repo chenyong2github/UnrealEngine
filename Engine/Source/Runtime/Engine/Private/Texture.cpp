@@ -594,9 +594,9 @@ void UTexture::ValidateSettingsAfterImportOrEdit(bool * pRequiresNotifyMaterials
 				VirtualTextureStreaming = false;
 				bRequiresNotifyMaterials = true;
 			}
-			if (MipGenSettings == TMGS_LeaveExistingMips || MipGenSettings == TMGS_NoMipmaps)
+			if (MipGenSettings == TMGS_NoMipmaps)
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Virtual textures require mips and MipGenSettings is NoMipmaps or LeaveExistingMips: Forcing to SimpleAverage (%s)"), *GetName());
+				UE_LOG(LogTexture, Warning, TEXT("Virtual textures require mips and MipGenSettings is NoMipmaps: Forcing to SimpleAverage (%s)"), *GetName());
 				MipGenSettings = TMGS_SimpleAverage;
 			}
 		}
