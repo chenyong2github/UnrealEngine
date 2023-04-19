@@ -1412,6 +1412,7 @@ TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTextur
 		{
 			return TOptional<UE::Interchange::FImportImage>();
 		}
+		SourceTranslator->SetResultsContainer(Results);
 
 		AlternateTexturePath = TextureFilePath;
 

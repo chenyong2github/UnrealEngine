@@ -230,6 +230,8 @@ TOptional<UE::Interchange::FImportImage> UInterchangeMaterialXTranslator::GetTex
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
+	SourceTranslator->SetResultsContainer(Results);
+
 	AlternateTexturePath = Filename;
 
 	TOptional<UE::Interchange::FImportImage> TexturePayloadData = TextureTranslator->GetTexturePayloadData(PayloadKey, AlternateTexturePath);

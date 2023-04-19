@@ -545,6 +545,8 @@ TOptional<UE::Interchange::FImportImage> UInterchangeDatasmithTranslator::GetTex
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
+	SourceTranslator->SetResultsContainer(Results);
+
 	AlternateTexturePath = TextureElement->GetFile();
 
 	return TextureTranslator->GetTexturePayloadData(PayloadKey, AlternateTexturePath);

@@ -1093,6 +1093,8 @@ TOptional<UE::Interchange::FImportImage> UInterchangeOBJTranslator::GetTexturePa
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
+	SourceTranslator->SetResultsContainer(Results);
+
 	AlternateTexturePath = PayLoadKey;
 
 	return TextureTranslator->GetTexturePayloadData(PayLoadKey, AlternateTexturePath);
