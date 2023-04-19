@@ -1821,6 +1821,7 @@ FTAAHistoryPayload SampleHistory(in float2 HistoryScreenPosition)
 		#endif
 
 		FCatmullRomSamples Samples = GetBicubic2DCatmullRomSamples(HistoryBufferUV, HistoryBufferSize.xy, HistoryBufferSize.zw);
+		UNROLL
 		for (uint i = 0; i < Samples.Count; i++)
 		{
 			float2 SampleUV = Samples.UV[i];
