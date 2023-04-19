@@ -441,7 +441,7 @@ namespace UnrealBuildTool
 			// Create DWARF format debug info if wanted,
 			if (CompileEnvironment.bCreateDebugInfo)
 			{
-				Arguments.Add("-gdwarf-2");
+				Arguments.Add("-gdwarf-4");
 			}
 		}
 
