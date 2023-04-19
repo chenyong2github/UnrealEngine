@@ -59,6 +59,7 @@ public:
 	virtual void HandleCreateFunctionList() override;
 	virtual void HandleFinishCompilingClass(UWidgetBlueprintGeneratedClass* Class) override;
 	virtual void HandleEndCompilation() override;
+	virtual FSearchData HandleGatherSearchData(const UBlueprint* OwningBlueprint) const override;
 	//~ End UWidgetBlueprintExtension interface
 
 	void SetFilterSettings(FMVVMViewBindingFilterSettings InFilterSettings);

@@ -38,6 +38,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
+#include "Blueprint/BlueprintExtension.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -74,6 +75,7 @@ const FText FFindInBlueprintSearchTags::FiB_UberGraphs = LOCTEXT("Uber", "Uber")
 const FText FFindInBlueprintSearchTags::FiB_Functions = LOCTEXT("Functions", "Functions");
 const FText FFindInBlueprintSearchTags::FiB_Macros = LOCTEXT("Macros", "Macros");
 const FText FFindInBlueprintSearchTags::FiB_SubGraphs = LOCTEXT("Sub", "Sub");
+const FText FFindInBlueprintSearchTags::FiB_Extensions = LOCTEXT("Extensions", "Extensions");
 
 const FText FFindInBlueprintSearchTags::FiB_Name = LOCTEXT("Name", "Name");
 const FText FFindInBlueprintSearchTags::FiB_NativeName = LOCTEXT("NativeName", "Native Name");
@@ -529,12 +531,12 @@ namespace BlueprintSearchMetaDataHelpers
 
 	/** Json Writer used for serializing FText's in the correct format for Find-in-Blueprints */
 	class FFindInBlueprintJsonWriter : public TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>
-			{
+	{
 	public:
 		FFindInBlueprintJsonWriter(FString* const InOutString, int32 InFormatVersion)
 			:TFindInBlueprintJsonStringWriter<TCondensedJsonPrintPolicy<TCHAR>>(InOutString, InFormatVersion)
 			,JsonOutput(InOutString)
-				{
+		{
 		}
 
 		virtual bool Close() override
@@ -1193,6 +1195,63 @@ namespace BlueprintSearchMetaDataHelpers
 	}
 
 	template<class PrintPolicy>
+	void GatherExtensionsSearchData_Recursive(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const UBlueprintExtension::FSearchData& SearchData)
+	{
+		for (const UBlueprintExtension::FSearchTagDataPair& Data : SearchData.Datas)
+		{
+			InWriter->WriteValue(Data.Key, Data.Value);
+		}
+
+		for (const TUniquePtr<UBlueprintExtension::FSearchArrayData>& ArrayData : SearchData.SearchArrayDatas)
+		{
+			InWriter->WriteArrayStart(ArrayData->Identifier.IsEmpty() ? FFindInBlueprintSearchTags::FiB_Extensions : ArrayData->Identifier);
+			for (const UBlueprintExtension::FSearchData& Data : ArrayData->SearchSubList)
+			{
+				InWriter->WriteObjectStart();
+				GatherExtensionsSearchData_Recursive(InWriter, Data);
+				InWriter->WriteObjectEnd();
+			}
+			InWriter->WriteArrayEnd();
+		}
+	}
+
+	template<class PrintPolicy>
+	void GatherExtensionsSearchData(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const UBlueprint* InBlueprint)
+	{
+		if (InBlueprint->GetExtensions().Num() > 0)
+		{
+			// Collect all extensions
+			bool bExtensionArrayStarted = false;
+			for (UBlueprintExtension* Extension : InBlueprint->GetExtensions())
+			{
+				if (Extension)
+				{
+					if (!bExtensionArrayStarted)
+					{
+						InWriter->WriteArrayStart(FFindInBlueprintSearchTags::FiB_Extensions);
+						bExtensionArrayStarted = true;
+					}
+
+					InWriter->WriteObjectStart();
+					InWriter->WriteValue(FFindInBlueprintSearchTags::FiB_Name, FText::FromString(Extension->GetName()));
+					InWriter->WriteValue(FFindInBlueprintSearchTags::FiB_ClassName, FText::FromString(Extension->GetClass()->GetName()));
+
+					// Retrieve the custom search metadata from the extension.
+					UBlueprintExtension::FSearchData SearchData = Extension->GatherSearchData(InBlueprint);
+					GatherExtensionsSearchData_Recursive(InWriter, SearchData);
+
+					InWriter->WriteObjectEnd();
+				}
+			}
+
+			if (bExtensionArrayStarted)
+			{
+				InWriter->WriteArrayEnd();
+			}
+		}
+	}
+
+	template<class PrintPolicy>
 	void GatherBlueprintSearchMetadata(const TSharedRef<TFindInBlueprintJsonStringWriter<PrintPolicy>>& InWriter, const UBlueprint* Blueprint)
 	{
 		FTemporarilyUseFriendlyNodeTitles TemporarilyUseFriendlyNodeTitles;
@@ -1272,6 +1331,8 @@ namespace BlueprintSearchMetaDataHelpers
 			}
 			InWriter->WriteArrayEnd(); // Components
 		}
+
+		GatherExtensionsSearchData(InWriter, Blueprint);
 
 		InWriter->WriteObjectEnd();
 		InWriter->Close();

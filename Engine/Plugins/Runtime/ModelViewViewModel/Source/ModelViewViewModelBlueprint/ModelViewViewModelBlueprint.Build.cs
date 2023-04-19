@@ -23,6 +23,7 @@ public class ModelViewViewModelBlueprint : ModuleRules
 			new string[]
 			{
 				"BlueprintGraph",
+				"Kismet",
 				"KismetCompiler",
 				"PropertyEditor",
 				"PropertyPath",

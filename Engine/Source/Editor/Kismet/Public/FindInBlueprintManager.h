@@ -90,6 +90,8 @@ struct KISMET_API FFindInBlueprintSearchTags
 	static const FText FiB_Macros;
 	/** Sub graph tag, for any sub-graphs in a Blueprint */
 	static const FText FiB_SubGraphs;
+	/** Blueprint extension tag. */
+	static const FText FiB_Extensions;
 
 	/** Name tag */
 	static const FText FiB_Name;

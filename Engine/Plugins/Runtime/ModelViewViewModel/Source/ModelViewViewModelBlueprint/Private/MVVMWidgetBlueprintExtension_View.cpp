@@ -5,8 +5,11 @@
 #include "MVVMViewBlueprintCompiler.h"
 #include "View/MVVMViewClass.h"
 
+#include "FindInBlueprintManager.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMWidgetBlueprintExtension_View)
 
+#define LOCTEXT_NAMESPACE "MVVMBlueprintExtensionView"
 
 namespace UE::MVVM::Private
 {
@@ -133,6 +136,38 @@ void UMVVMWidgetBlueprintExtension_View::HandleFinishCompilingClass(UWidgetBluep
 	}
 }
 
+UMVVMWidgetBlueprintExtension_View::FSearchData UMVVMWidgetBlueprintExtension_View::HandleGatherSearchData(const UBlueprint* OwningBlueprint) const
+{
+	UMVVMWidgetBlueprintExtension_View::FSearchData SearchData;
+	if (GetBlueprintView())
+	{
+		{
+			TUniquePtr<FSearchArrayData> ViewModelContextSearchData = MakeUnique<FSearchArrayData>();
+			ViewModelContextSearchData->Identifier = LOCTEXT("ViewmodelSearchTag", "Viewmodels");
+			for (const FMVVMBlueprintViewModelContext& ViewModelContext : GetBlueprintView()->GetViewModels())
+			{
+				FSearchData& ViewModelSearchData = ViewModelContextSearchData->SearchSubList.AddDefaulted_GetRef();
+				ViewModelSearchData.Datas.Emplace(LOCTEXT("ViewmodelGuidSearchTag", "Guid"), FText::FromString(ViewModelContext.GetViewModelId().ToString(EGuidFormats::Digits)));
+				ViewModelSearchData.Datas.Emplace(FFindInBlueprintSearchTags::FiB_Name, ViewModelContext.GetDisplayName());
+				ViewModelSearchData.Datas.Emplace(FFindInBlueprintSearchTags::FiB_ClassName, ViewModelContext.GetViewModelClass() ? ViewModelContext.GetViewModelClass()->GetDisplayNameText() : FText::GetEmpty());
+				ViewModelSearchData.Datas.Emplace(LOCTEXT("ViewmodelCreationTypeSearchTag", "CreationType"), StaticEnum<EMVVMBlueprintViewModelContextCreationType>()->GetDisplayNameTextByValue((int64)ViewModelContext.CreationType));
+			}
+			SearchData.SearchArrayDatas.Add(MoveTemp(ViewModelContextSearchData));
+		}
+		{
+			TUniquePtr<FSearchArrayData> BindingContextSearchData = MakeUnique<FSearchArrayData>();
+			BindingContextSearchData->Identifier = LOCTEXT("BindingSearchTag", "Bindings");
+			for (const FMVVMBlueprintViewBinding& Binding : GetBlueprintView()->GetBindings())
+			{
+				FSearchData& BindingSearchData = BindingContextSearchData->SearchSubList.AddDefaulted_GetRef();
+				BindingSearchData.Datas.Emplace(LOCTEXT("ViewBindingSearchTag", "Binding"), FText::FromString(Binding.GetDisplayNameString(GetWidgetBlueprint())));
+			}
+			SearchData.SearchArrayDatas.Add(MoveTemp(BindingContextSearchData));
+		}
+	}
+	return SearchData;
+}
+
 void UMVVMWidgetBlueprintExtension_View::SetFilterSettings(FMVVMViewBindingFilterSettings InFilterSettings)
 {
 	FilterSettings = InFilterSettings;
@@ -149,3 +184,5 @@ void UMVVMWidgetBlueprintExtension_View::PostInitProperties()
 	}
 }
 #endif
+
+#undef LOCTEXT_NAMESPACE
