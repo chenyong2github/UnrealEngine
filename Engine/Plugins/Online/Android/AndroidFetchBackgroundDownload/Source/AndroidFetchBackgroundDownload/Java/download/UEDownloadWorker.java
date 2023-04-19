@@ -176,6 +176,9 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 		{
 			mFetchManager.RequestGroupProgressUpdate(QueueDescription.DownloadGroupID,  this);
 
+			//Keeping the code path to insert a watch dog later on
+			//mFetchManager.RequestCheckDownloadsStillActive(this);
+
 			nativeAndroidBackgroundDownloadOnTick();
 		}
 	}

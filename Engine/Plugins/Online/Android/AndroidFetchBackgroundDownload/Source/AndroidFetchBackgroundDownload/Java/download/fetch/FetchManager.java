@@ -869,10 +869,7 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 	{
 		if (!bHasActiveDownloads)
 		{
-			Log.error("No active downloads in FetchInstance, but still waiting on downloads to finish! Acting as if all downloads completed.");
-			//Send a failure download complete notification since we have an unexpected error where we are still trying to do work
-			//without any active downloads in our FetchManager
-			SendAllDownloadsCompleteNotification(ProgressListener, true);
+			Log.debug("No active downloads in FetchInstance, but still waiting on downloads to finish!");
 		}
 	}
 
