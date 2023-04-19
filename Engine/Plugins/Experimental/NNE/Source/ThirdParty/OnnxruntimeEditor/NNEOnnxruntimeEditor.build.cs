@@ -41,8 +41,8 @@ public class NNEOnnxruntimeEditor : ModuleRules
 
 			// PublicDefinitions
 			// see https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html
-			PublicDefinitions.Add("ONNXRUNTIMEEDITOR_VERSION=1.11.1");
-			PublicDefinitions.Add("ONNXRUNTIMEEDITOR_CUDA_VERSION=1.14.1");
+			PublicDefinitions.Add("ONNXRUNTIMEEDITOR_VERSION=1.13.1");
+			PublicDefinitions.Add("ONNXRUNTIMEEDITOR_CUDA_VERSION=1.16");
 			PublicDefinitions.Add("ONNXRUNTIMEEDITOR_CUDNN_VERSION=8.2.2.26");
 
 			PublicDefinitions.Add("ONNXRUNTIME_USE_DLLS");

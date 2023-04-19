@@ -6,6 +6,7 @@
 
 #if PLATFORM_WINDOWS
 
+#include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/PlatformProcess.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <unknwn.h>
@@ -150,13 +151,15 @@ namespace UE::NNERuntimeORT::Private
 
 		TArray<NNECore::FTensorDesc>& SymbolicTensorDescs = bIsInput ? InputSymbolicTensors : OutputSymbolicTensors;
 		TArray<ONNXTensorElementDataType>& TensorsORTType = bIsInput ? InputTensorsORTType : OutputTensorsORTType;
-		TArray<const char*>& TensorNames = bIsInput ? InputTensorNames : OutputTensorNames;
+		TArray<char*>& TensorNames = bIsInput ? InputTensorNames : OutputTensorNames;
+		TArray<Ort::AllocatedStringPtr>& TensorNameValues = bIsInput ? InputTensorNameValues : OutputTensorNameValues;
 
 		for (uint32 TensorIndex = 0; TensorIndex < NumberTensors; ++TensorIndex)
 		{
 			// Get Tensor name
-			const char* CurTensorName = bIsInput ? Session->GetInputName(TensorIndex, *Allocator) : Session->GetOutputName(TensorIndex, *Allocator);
-			TensorNames.Emplace(CurTensorName);
+			Ort::AllocatedStringPtr CurTensorName = bIsInput ? Session->GetInputNameAllocated(TensorIndex, *Allocator) : Session->GetOutputNameAllocated(TensorIndex, *Allocator);
+			TensorNameValues.Emplace(MoveTemp(CurTensorName));
+			TensorNames.Emplace(TensorNameValues.Last().get());
 
 			// Get node type
 			Ort::TypeInfo CurrentTypeInfo = bIsInput ? Session->GetInputTypeInfo(TensorIndex) : Session->GetOutputTypeInfo(TensorIndex);
@@ -176,7 +179,7 @@ namespace UE::NNERuntimeORT::Private
 			}
 
 			NNECore::FSymbolicTensorShape Shape = NNECore::FSymbolicTensorShape::Make(ShapeData);
-			NNECore::FTensorDesc SymbolicTensorDesc = NNECore::FTensorDesc::Make(FString(CurTensorName), Shape, TypeAndSize.first);
+			NNECore::FTensorDesc SymbolicTensorDesc = NNECore::FTensorDesc::Make(FString(TensorNames.Last()), Shape, TypeAndSize.first);
 
 			check(SymbolicTensorDesc.GetElemByteSize() == TypeAndSize.second);
 			SymbolicTensorDescs.Emplace(SymbolicTensorDesc);
@@ -401,6 +404,18 @@ namespace UE::NNERuntimeORT::Private
 		{
 			return false;
 		}
+
+#if PLATFORM_WINDOWS
+		FString CudnnPath(TEXT("CUDNN\\v"));
+		if (!FPlatformMisc::GetEnvironmentVariable(TEXT("PATH")).Contains(CudnnPath + TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIMEEDITOR_CUDNN_VERSION))))
+		{
+			// Other version of Cudnn should work too https://docs.nvidia.com/deeplearning/cudnn/support-matrix/index.html 
+			// however we have seen instability so we enforce the version we test with.
+			UE_LOG(LogNNE, Warning, TEXT("Can't find Cudnn %s in PATH. Please ensure the exact version is installed"), TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIMEEDITOR_CUDNN_VERSION)));
+			UE_LOG(LogNNE, Warning, TEXT("The installation guide for Cudnn can be found here https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html."));
+			return false;
+		}
+#endif 
 
 		SessionOptions->EnableCpuMemArena();
 

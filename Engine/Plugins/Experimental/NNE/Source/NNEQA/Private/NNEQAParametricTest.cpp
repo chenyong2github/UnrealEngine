@@ -72,7 +72,7 @@ private:
 	{
 #if PLATFORM_WINDOWS
 		//Heuristic: if Cudnn is installed it should be in the PATH and we run the test.
-		if (FPlatformMisc::GetEnvironmentVariable(TEXT("PATH")).Contains("CUDNN"))
+		if (FPlatformMisc::GetEnvironmentVariable(TEXT("PATH")).Contains(TEXT("CUDNN")))
 		{
 			return false;
 		}
