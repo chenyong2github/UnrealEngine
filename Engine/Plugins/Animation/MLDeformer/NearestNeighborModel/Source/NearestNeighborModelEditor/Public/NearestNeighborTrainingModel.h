@@ -12,6 +12,7 @@ namespace UE::NearestNeighborModel
 }
 
 class UNearestNeighborModel;
+class UNearestNeighborModelInstance;
 
 UCLASS(Blueprintable)
 class NEARESTNEIGHBORMODELEDITOR_API UNearestNeighborTrainingModel
@@ -79,6 +80,12 @@ private:
 
 	UFUNCTION(BlueprintPure, Category = "Python")
 	const TArray<int32> GetMeshIndexBuffer() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Python")
+	UNearestNeighborModelInstance* CreateModelInstance();
+
+	UFUNCTION(BlueprintCallable, Category = "Python")
+	void DestroyModelInstance(UNearestNeighborModelInstance* ModelInstance);
 
 	UNearestNeighborModel* NearestNeighborModel = nullptr;
 };

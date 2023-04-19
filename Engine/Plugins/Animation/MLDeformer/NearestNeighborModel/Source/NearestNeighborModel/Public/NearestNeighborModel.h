@@ -14,7 +14,7 @@ struct FSkelMeshImportedMeshInfo;
 class USkeletalMesh;
 class UGeometryCache;
 class UAnimSequence;
-class UNeuralNetwork;
+class UNNEModelData;
 class UMLDeformerAsset;
 class USkeleton;
 class IPropertyHandle;
@@ -255,14 +255,16 @@ private:
 	virtual int32 GetNumFloatsPerCurve() const override { return NearestNeighborNumFloatsPerCurve; }
 
 	bool DoesUseOptimizedNetwork() const;
-	bool DoesMeetOptimizedNetworkPrerequisites() const;
+	bool ShouldUseOptimizedNetwork() const;
 	UNearestNeighborOptimizedNetwork* GetOptimizedNetwork() const { return OptimizedNetwork.Get(); }
 	int32 GetOptimizedNetworkNumOutputs() const;
 	void SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InOptimizedNetwork);
 	bool LoadOptimizedNetwork(const FString& OnnxPath);
 
-	UNeuralNetwork* GetNNINetwork() const;
-	void SetNNINetwork(UNeuralNetwork* InNeuralNetwork, bool bBroadcast = true);
+	void SetNNEModelData(TObjectPtr<UNNEModelData> ModelData, bool bBroadcast);
+	TObjectPtr<UNNEModelData> GetNNEModelData() const;
+
+	const FString GetNNERuntimeName() const {return TEXT("NNERuntimeORTDml"); }
 
 #if WITH_EDITORONLY_DATA
 	TObjectPtr<UAnimSequence> GetNearestNeighborSkeletons(int32 PartId);
@@ -290,7 +292,6 @@ private:
 	bool IsClothPartDataValid() const { return bClothPartDataValid; }
 	bool IsNearestNeighborDataValid() const { return bNearestNeighborDataValid; }
 	bool IsMorphTargetDataValid() const { return bMorphTargetDataValid; }
-	bool DoesEditorSupportOptimizedNetwork() const;
 	void SetUseOptimizedNetwork(bool bInUseOptimizedNetwork);
 #endif
 
@@ -454,12 +455,9 @@ private:
 	UPROPERTY()
 	TObjectPtr<UNearestNeighborOptimizedNetwork> OptimizedNetwork = nullptr;
 
-	/** The NNI neural network. */
+	/** The NNE neural network model. */
 	UPROPERTY()
-	TObjectPtr<UNeuralNetwork> NNINetwork;
-
-	UPROPERTY()
-	bool bDoesMeetOptimizedNetworkPrerequisites = false;
+	TObjectPtr<UNNEModelData> NNEModel;
 
 	UPROPERTY()
 	bool bUseOptimizedNetwork = true;
