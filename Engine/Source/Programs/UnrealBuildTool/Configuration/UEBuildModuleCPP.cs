@@ -1151,6 +1151,18 @@ namespace UnrealBuildTool
 				}
 			}
 
+			if (CompileEnvironment.bDeterministic != BaseCompileEnvironment.bDeterministic)
+			{
+				if (CompileEnvironment.bDeterministic)
+				{
+					Variant += ".Determ";
+				}
+				else
+				{
+					Variant += ".NonDeterm";
+				}
+			}
+
 			if (CompileEnvironment.CppStandard != BaseCompileEnvironment.CppStandard)
 			{
 				Variant += String.Format(".{0}", CompileEnvironment.CppStandard);

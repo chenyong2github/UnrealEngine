@@ -541,7 +541,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/Ob0");
 			}
 
-			// Experimental deterministic compile support
+			// Deterministic compile support
 			if (CompileEnvironment.bDeterministic)
 			{
 				if (Target.WindowsPlatform.Compiler.IsMSVC())
@@ -1271,7 +1271,7 @@ namespace UnrealBuildTool
 			// Don't embed the full PDB path; we want to be able to move binaries elsewhere. They will always be side by side.
 			Arguments.Add("/PDBALTPATH:%_PDB%");
 
-			// Experimental deterministic link support
+			// Deterministic link support
 			if (LinkEnvironment.bDeterministic)
 			{
 				if (Target.WindowsPlatform.Compiler.IsMSVC())

@@ -277,9 +277,9 @@ namespace UnrealBuildTool
 		public bool bIgnoreUnresolvedSymbols;
 
 		/// <summary>
-		/// Set flags for determinstic compiles (experimental).
+		/// Set flags for determinstic compiles.
 		/// </summary>
-		public bool bDeterministic = false;
+		public bool bDeterministic;
 
 		/// <summary>
 		/// Whether to log detailed timing information

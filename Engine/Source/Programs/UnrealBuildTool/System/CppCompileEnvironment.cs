@@ -646,12 +646,12 @@ namespace UnrealBuildTool
 		public EngineIncludeOrderVersion IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		/// <summary>
-		/// Set flags for determinstic compiles (experimental).
+		/// Set flags for determinstic compiles.
 		/// </summary>
-		public bool bDeterministic = false;
+		public bool bDeterministic;
 
 		/// <summary>
-		/// Set flags for determinstic warnings (experimental).
+		/// Set flags for determinstic compile warnings.
 		/// </summary>
 		public WarningLevel DeterministicWarningLevel = WarningLevel.Off;
 
