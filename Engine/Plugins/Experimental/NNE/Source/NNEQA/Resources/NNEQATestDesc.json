@@ -616,6 +616,15 @@
 			]
 		},
 		{
+			"category": "MaxUnpool",
+			"targets": [
+				{ "target": "MaxUnpool" }
+			],
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
+			]
+		},
+		{
 			"category": "Split",
 			"targets": [
 				{ "target": "Split" }
@@ -1316,6 +1325,22 @@
 			]
 		},
 		{
+			"name": "MaxUnpool.WithOutputShape",
+			"datasets": [
+				{
+					"inputs": [ { "shape": [ 1, 1, 2, 2 ] }, { "shape": [ 1, 1, 2, 2 ], "source": [ "5", "7", "13", "15" ], "type": "int64" } ],
+					"weights": [ { "shape": [ 4 ], "source": [ "1", "1", "5", "5" ], "type": "int64" } ], 
+					"outputs": [ { "shape": [ 1, 1, 5, 5 ] } ] 
+				}
+			]
+		},
+		{
+			"name": "MaxUnpool.WithoutOutputShape",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 1, 2, 2 ] }, { "shape": [ 1, 1, 2, 2 ], "source": [ "5", "7", "13", "15" ], "type": "int64" } ], "outputs": [ { "shape": [ 1, 1, 4, 4 ] } ] }
+			]
+		},
+		{
 			"name": "Split.Axis2",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 1, 1, 6, 2 ] } ], "outputs": [ { "shape": [ 1, 1, 2, 2 ] }, { "shape": [ 1, 1, 1, 2 ] }, { "shape": [ 1, 1, 3, 2 ] } ] }
@@ -1929,6 +1954,26 @@
 						{ "name": "kernel_shape", "value": [2, 2], "type": "Int32Array" },
 						{ "name": "pads", "value": [0, 0, 0, 0], "type": "Int32Array" },
 						{ "name": "strides", "value": [2, 2], "type": "Int32Array" } 
+					]
+				}
+			]
+		},
+		{
+			"name": "MaxUnpool.WithOutputShape",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "kernel_shape", "value": [2, 2], "type": "Int32Array" },
+						{ "name": "strides", "value": [2, 2], "type": "Int32Array" }
+					]
+				}
+			]
+		},
+		{
+			"name": "MaxUnpool.WithoutOutputShape",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "kernel_shape", "value": [2, 2], "type": "Int32Array" },
+						{ "name": "strides", "value": [2, 2], "type": "Int32Array" }
 					]
 				}
 			]
