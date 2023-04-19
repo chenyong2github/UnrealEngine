@@ -344,7 +344,7 @@ void STransformedWaveformViewPanel::SetUpValueGridOverlay()
 		const float MinDecibelNumericLimit = -160;
 		FNumberFormattingOptions Formatting; 
 		Formatting.SetMaximumFractionalDigits(1);
-		return FText::Format(LOCTEXT("WaveformEditorValueGridLabel", "{0}"), (GridLineValue <= MinDecibelNumericLimit ? LOCTEXT("WaveformEditorValueGridLabel", "-inf") : FText::AsNumber(GridLineValue, &Formatting)));
+		return FText::Format(LOCTEXT("WaveformEditorValueGridLabel", "{0}"), (GridLineValue <= MinDecibelNumericLimit ? LOCTEXT("WaveformEditorValueGridNegativeInf", "-inf") : FText::AsNumber(GridLineValue, &Formatting)));
 	};
 
 	const UWaveformEditorWidgetsSettings* Settings = GetWaveformEditorWidgetsSettings();
