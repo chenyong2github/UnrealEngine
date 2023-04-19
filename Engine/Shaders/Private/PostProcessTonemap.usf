@@ -23,8 +23,7 @@
 	#define DIM_OUTPUT_DEVICE (TONEMAPPER_OUTPUT_sRGB)
 #endif
 
-// 0 / 1(slower, visualize multiple internals side by side for the same image portion, see DebugTile)
-#define DEBUG_TONEMAPPER 0
+#define DEBUG_GRAIN_QUANTIZATION 0
 
 SCREEN_PASS_TEXTURE_VIEWPORT(Color)
 SCREEN_PASS_TEXTURE_VIEWPORT(Output)
@@ -74,6 +73,7 @@ float4 ScreenPosToFilmGrainTextureUV;
 	StructuredBuffer<float4> FilmGrainTextureConstants;
 #endif // SUPPORTS_FILM_GRAIN
 
+float GrainQuantization;
 float EditorNITLevel;
 
 uint bOutputInHDR;
@@ -218,7 +218,11 @@ void TonemapCommonVS(
 
 	// Grain
 	OutGrainUV.xy = TexCoord + Color_ExtentInverse * float2(-0.5,0.5);
-	OutGrainUV.zw = TexCoord + GrainRandomFull.xy;
+	#if DEBUG_GRAIN_QUANTIZATION
+		OutGrainUV.zw = TexCoord;
+	#else
+		OutGrainUV.zw = TexCoord + GrainRandomFull.xy;
+	#endif
 
 	// Fringe
 	OutScreenPos = UVToScreenPos(TexCoord, Color_Extent);
@@ -486,26 +490,6 @@ float4 TonemapCommonPS(
 		half LuminanceForPostProcessAA = dot(OutDeviceColor, half3(0.299f, 0.587f, 0.114f));
 		OutLuminance = LuminanceForPostProcessAA;
 
-		#if USE_GRAIN_QUANTIZATION
-			half Grain = GrainFromUV(GrainUV.zw);
-
-			#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_NoToneCurve
-				#error LinearNoToneCurve device requires no Grain Quantization
-			#endif
-			#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve
-				#error LinearWithToneCurve device requires no Grain Quantization
-			#endif
-		// Needs to go after tonemapping. 
-			#if USE_LINEAR_FLOAT_RT
-				half GrainQuantization = 1.0/1024.0;
-			#else
-				half GrainQuantization = 1.0/256.0;
-			#endif
-
-			half GrainAdd = (Grain * GrainQuantization) + (-0.5 * GrainQuantization);
-			OutDeviceColor.rgb += GrainAdd;
-		#endif
-
 		// RETURN_COLOR not needed unless writing to SceneColor
 		OutColor.rgb = OutDeviceColor;
 
@@ -540,6 +524,54 @@ float4 TonemapCommonPS(
         OutColor.rgb = LinearToPostTonemapSpace(OutColor.rgb);
 	}
 #endif
+
+	#if USE_GRAIN_QUANTIZATION && !USE_GAMMA_ONLY
+	{
+		#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_NoToneCurve
+			#error LinearNoToneCurve device requires no Grain Quantization
+		#endif
+		#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve
+			#error LinearWithToneCurve device requires no Grain Quantization
+		#endif
+
+		// Compute uniform grain on [0;1]
+		half UniformGrainOP = GrainFromUV(GrainUV.zw); //TODO: verify the quality of GrainFromUV()
+
+		// Compute uniform grain on [-1;1]
+		half UniformGrainNP = UniformGrainOP * 2.0 - 1.0;
+		half UniformGrainNPSign = clamp(UniformGrainNP * POSITIVE_INFINITY, half(-1.0), half(1.0));
+		
+		// Compute triangular grain on [-1;1]
+		// half TriangularGrainOP = UniformGrainNPSign * (1.0 - sqrt(1.0 - abs(UniformGrainNP)));
+		half TriangularGrainOP = UniformGrainNPSign - UniformGrainNPSign * sqrt(saturate(half(1.0) - abs(UniformGrainNP)));
+		
+		// Selects the grain to use.
+		half FinalGrain = 0.0;
+		#if DEBUG_GRAIN_QUANTIZATION
+			if (ScreenPos.y > 1.0 / 3.0)
+				FinalGrain = TriangularGrainOP;
+			else if (ScreenPos.y < -1.0 / 3.0)
+				FinalGrain = UniformGrainOP - 0.5;
+		#elif 0
+			FinalGrain = UniformGrainOP - 0.5;
+		#else
+			FinalGrain = TriangularGrainOP;
+		#endif
+
+		// Debug grain quantization.
+		#if DEBUG_GRAIN_QUANTIZATION
+		{
+			half Quantization = 10.0;
+			
+			OutColor.rgb = round(OutColor.rgb * Quantization + FinalGrain) * rcp(Quantization);
+			OutColor.rgb = OutColor.ggg;
+		}
+		#else
+			OutColor.rgb += FinalGrain * GrainQuantization;
+		#endif
+	}
+	#endif
+
 	return OutColor;
 }
 

@@ -337,6 +337,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER(float, LUTScale)
 	SHADER_PARAMETER(float, LUTOffset)
 	SHADER_PARAMETER(float, EditorNITLevel)
+	SHADER_PARAMETER(float, GrainQuantization)
 	SHADER_PARAMETER(uint32, bOutputInHDR)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -653,6 +654,16 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	}
 	#endif
 
+	float GrainQuantization = 1.0f / 1024.0f;
+	if (View.Family->RenderTarget && View.Family->RenderTarget->GetRenderTargetTexture())
+	{
+		EPixelFormat BackbufferPixelFormat = View.Family->RenderTarget->GetRenderTargetTexture()->GetFormat();
+		if (BackbufferPixelFormat == PF_B8G8R8A8 || BackbufferPixelFormat == PF_R8G8B8A8)
+		{
+			GrainQuantization = 1.0 / 256.0;
+		}
+	}
+
 	FTonemapParameters CommonParameters;
 	CommonParameters.View = View.ViewUniformBuffer;
 
@@ -768,6 +779,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	CommonParameters.ChromaticAberrationParams = ChromaticAberrationParams;
 	CommonParameters.TonemapperParams = FVector4f(PostProcessSettings.VignetteIntensity, SharpenDiv6, 0.0f, 0.0f);
 	CommonParameters.EditorNITLevel = EditorNITLevel;
+	CommonParameters.GrainQuantization = GrainQuantization;
 	CommonParameters.bOutputInHDR = ViewFamily.bIsHDR;
 	CommonParameters.LUTSize = LUTSize;
 	CommonParameters.InvLUTSize = 1.0f / LUTSize;
