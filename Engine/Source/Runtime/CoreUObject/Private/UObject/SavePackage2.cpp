@@ -2605,7 +2605,16 @@ void ClearCachedPlatformCookedData(FSaveContext& SaveContext)
 void PostSavePackage(FSaveContext& SaveContext)
 {
 	UPackage* Package = SaveContext.GetPackage();
+	// restore initial packages flags since the save can currently mutate the package flags in an undesirable fashion, (i.e. clearing/adding editor only filtering)
+	Package->SetPackageFlagsTo(SaveContext.GetInitialPackageFlags());
 
+	// Do not run the rest of post save and send out events if the save wasn't succesful
+	if (SaveContext.Result != ESavePackageResult::Success)
+	{
+		return;
+	}
+
+	// then adjust flags that should be modified at the outcome of a save
 	if (!SaveContext.IsFromAutoSave() && !SaveContext.IsProceduralSave())
 	{
 		// Package has been saved, so unmark the NewlyCreated flag.
@@ -2646,7 +2655,6 @@ void PostSavePackage(FSaveContext& SaveContext)
 		GRedirectCollector.CollectSavedSoftPackageReferences(Package->GetFName(), SaveContext.GetSoftPackagesUsedInGame(), false);
 	}
 #endif
-
 
 	// Send a message that the package was saved
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
@@ -3117,10 +3125,7 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 
 	// PostSave Package - edit in memory package and send events if save was successful
 	SlowTask.EnterProgressFrame();
-	if (SaveContext.Result == ESavePackageResult::Success)
-	{
-		PostSavePackage(SaveContext);
-	}
+	PostSavePackage(SaveContext);
 	return SaveContext.GetFinalResult();
 }
 

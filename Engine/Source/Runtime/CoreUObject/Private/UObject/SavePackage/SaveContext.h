@@ -430,7 +430,7 @@ public:
 		checkf(!IsCooking() || PackageWriter, TEXT("Cook saves require an IPackageWriter"));
 
 		// Store initial state
-		PreviousPackageFlags = Package->GetPackageFlags();
+		InitialPackageFlags = Package->GetPackageFlags();
 
 		SaveArgs.TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(SaveArgs.TopLevelFlags, IsCooking());
 		if (PackageWriter)
@@ -475,8 +475,11 @@ public:
 		{
 			UE::SavePackageUtilities::CallPostSaveRoot(Asset, ObjectSaveContext, bNeedPreSaveCleanup);
 		}
-		// restore initial state
-		Package->SetPackageFlagsTo(PreviousPackageFlags);
+	}
+
+	uint32 GetInitialPackageFlags() const
+	{
+		return InitialPackageFlags;
 	}
 
 	const FSavePackageArgs& GetSaveArgs() const
@@ -1092,7 +1095,7 @@ private:
 	bool bIsSaveAutoOptional = false;
 
 	// Mutated package state
-	uint32 PreviousPackageFlags;
+	uint32 InitialPackageFlags;
 
 	// Config classes shared with the old Save
 	FCanSkipEditorReferencedPackagesWhenCooking SkipEditorRefCookingSetting;
