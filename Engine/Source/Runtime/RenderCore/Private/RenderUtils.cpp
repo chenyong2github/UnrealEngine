@@ -531,11 +531,11 @@ RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel
 
 RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform)
 {
-	static FShaderPlatformCachedIniValue<bool> CVarMobileEarlyZPassOnlyMaterialMasking(TEXT("r.Mobile.EarlyZPassOnlyMaterialMasking"));
+	static FShaderPlatformCachedIniValue<int32> CVarMobileEarlyZPass(TEXT("r.Mobile.EarlyZPass"));
 	static IConsoleVariable* CVarEarlyZPassOnlyMaterialMasking = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPassOnlyMaterialMasking"));
 	if (IsMobilePlatform(Platform))
 	{
-		return CVarMobileEarlyZPassOnlyMaterialMasking.Get(Platform) == 1;
+		return CVarMobileEarlyZPass.Get(Platform) == 2 || MobileUsesFullDepthPrepass(Platform);
 	}
 	else
 	{
@@ -648,9 +648,33 @@ RENDERCORE_API bool MobileBasePassAlwaysUsesCSM(const FStaticShaderPlatform Plat
 
 RENDERCORE_API bool MobileUsesFullDepthPrepass(const FStaticShaderPlatform Platform)
 {
-	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EarlyZPassOnlyMaterialMasking"));
+	static FShaderPlatformCachedIniValue<int32> CVarMobileEarlyZPass(TEXT("r.Mobile.EarlyZPass"));
+	return MobileUsesShadowMaskTexture(Platform) || IsMobileAmbientOcclusionEnabled(Platform) || (CVarMobileEarlyZPass.Get(Platform) == 1);
+}
 
-	return MobileUsesShadowMaskTexture(Platform) || IsMobileAmbientOcclusionEnabled(Platform) || (CVar && CVar->GetValueOnAnyThread() == 1);
+RENDERCORE_API bool ShouldForceFullDepthPass(const FStaticShaderPlatform Platform)
+{
+	if (IsMobilePlatform(Platform))
+	{
+		return MobileUsesFullDepthPrepass(Platform);
+	}
+	else
+	{
+		const bool bNaniteEnabled = UseNanite(Platform);
+		const bool bDBufferAllowed = IsUsingDBuffers(Platform);
+		const bool bVirtualTextureEnabled = UseVirtualTexturing(Platform);
+
+		static const auto StencilLODDitherCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.StencilForLODDither"));
+		const bool bStencilLODDither = StencilLODDitherCVar->GetValueOnAnyThread() != 0;
+
+		static const auto AOComputeCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AmbientOcclusion.Compute"));
+		const bool bAOCompute = AOComputeCVar->GetValueOnAnyThread() > 0;
+
+		const bool bEarlyZMaterialMasking = MaskedInEarlyPass(Platform);
+
+		// Note: ShouldForceFullDepthPass affects which static draw lists meshes go into, so nothing it depends on can change at runtime, unless you do a FGlobalComponentRecreateRenderStateContext to propagate the cvar change
+		return bNaniteEnabled || bAOCompute || bDBufferAllowed || bVirtualTextureEnabled || bStencilLODDither || bEarlyZMaterialMasking || IsForwardShadingEnabled(Platform) || IsUsingSelectiveBasePassOutputs(Platform);
+	}
 }
 
 RENDERCORE_API bool SupportsGen4TAA(const FStaticShaderPlatform Platform)

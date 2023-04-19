@@ -2220,17 +2220,8 @@ struct FMarkRelevantStaticMeshesForViewData
 		MinScreenRadiusForCSMDepthSquared = GMinScreenRadiusForCSMDepth * GMinScreenRadiusForCSMDepth;
 		MinScreenRadiusForDepthPrepassSquared = GMinScreenRadiusForDepthPrepass * GMinScreenRadiusForDepthPrepass;
 
-		extern bool ShouldForceFullDepthPass(EShaderPlatform ShaderPlatform);
 		EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
-		if (IsMobilePlatform(ShaderPlatform))
-		{
-			FScene* Scene = View.Family->Scene->GetRenderScene();
-			bFullEarlyZPass = (Scene && Scene->EarlyZPassMode == DDM_AllOpaque);
-		}
-		else
-		{
-			bFullEarlyZPass = ShouldForceFullDepthPass(ShaderPlatform);
-		}
+		bFullEarlyZPass = ShouldForceFullDepthPass(ShaderPlatform);
 	}
 };
 

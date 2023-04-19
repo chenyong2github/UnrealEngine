@@ -151,16 +151,13 @@ ENGINE_API uint32 GetDefaultMSAACount(const FStaticFeatureLevel InFeatureLevel, 
 			{
 				bool bMobilePixelProjectedReflection = IsUsingMobilePixelProjectedReflection(ShaderPlatform);
 				
-				static const auto MobileEarlyZPassCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EarlyZPass"));
-				const bool bMobileAmbientOcclusion = IsMobileAmbientOcclusionEnabled(ShaderPlatform);
-				const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(ShaderPlatform);
-				bool bIsFullDepthPrepassEnabled = bMobileAmbientOcclusion || bMobileUsesShadowMaskTexture || MobileEarlyZPassCVar->GetValueOnAnyThread() > 0;
+				bool bIsFullDepthPrepassEnabled = MobileUsesFullDepthPrepass(ShaderPlatform);
 
 				bRendererSupportMSAA = bRHISupportsMSAA && !bMobilePixelProjectedReflection && !bIsFullDepthPrepassEnabled;
 
 				if (!bRendererSupportMSAA)
 				{
-					FailedReason = FString::Printf(TEXT("RHISupportsMSAA %d, MobilePixelProjectedReflection %d, MobileAmbientOcclusion %d, MobileUsesShadowMaskTexture %d, MobileEarlyZPass %d"), bRHISupportsMSAA ? 1 : 0, bMobilePixelProjectedReflection ? 1 : 0, bMobileAmbientOcclusion ? 1 : 0, bMobileUsesShadowMaskTexture? 1 : 0, MobileEarlyZPassCVar->GetValueOnAnyThread());
+					FailedReason = FString::Printf(TEXT("RHISupportsMSAA %d, MobilePixelProjectedReflection %d, MobileFullDepthPrepass %d"), bRHISupportsMSAA ? 1 : 0, bMobilePixelProjectedReflection ? 1 : 0, bIsFullDepthPrepassEnabled ? 1 : 0);
 				}
 			}
 			else

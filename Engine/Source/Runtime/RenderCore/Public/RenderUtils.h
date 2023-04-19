@@ -323,6 +323,8 @@ RENDERCORE_API bool MobileBasePassAlwaysUsesCSM(const FStaticShaderPlatform Plat
 
 RENDERCORE_API bool MobileUsesFullDepthPrepass(const FStaticShaderPlatform Platform);
 
+RENDERCORE_API bool ShouldForceFullDepthPass(const FStaticShaderPlatform Platform);
+
 RENDERCORE_API bool SupportsGen4TAA(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool SupportsTSR(const FStaticShaderPlatform Platform);
