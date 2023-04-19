@@ -82,6 +82,11 @@ void FRigVMGraphFunctionHeader::PostDuplicateHost(const FString& InOldPathName, 
 
 	ReplacePathName(LibraryPointer.LibraryNode);
 	ReplacePathName(LibraryPointer.HostObject);
+	for (TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : Dependencies)
+	{
+		ReplacePathName(Pair.Key.LibraryNode);
+		ReplacePathName(Pair.Key.HostObject);
+	}
 }
 
 bool FRigVMGraphFunctionData::IsMutable() const
