@@ -1538,6 +1538,29 @@ protected:
 
 
 
+
+namespace Debug
+{
+	/*
+	 * Store a copy of Mesh in a global Debug Meshes TMap<DebugMeshName, Mesh>.
+	 * The mesh will exist until the Engine exits, unless FetchDebugMesh or ClearAllDebugMeshes removes it
+	 */
+	GEOMETRYCORE_API void StashDebugMesh(const FDynamicMesh3& Mesh, FString DebugMeshName);
+
+	/**
+	 * If a mesh was previously stored via StashDebugMesh with the given DebugMeshName, 
+	 * copy it to MeshOut, and optionally remove it from the Debug Meshes map
+	 */
+	GEOMETRYCORE_API bool FetchDebugMesh(FString DebugMeshName, FDynamicMesh3& MeshOut, bool bClear);
+
+	/**
+	 * Discard all debug meshes stored in the global Debug Meshes map
+	 */
+	GEOMETRYCORE_API void ClearAllDebugMeshes();
+}
+
+
+
 } // end namespace UE::Geometry
 } // end namespace UE
 

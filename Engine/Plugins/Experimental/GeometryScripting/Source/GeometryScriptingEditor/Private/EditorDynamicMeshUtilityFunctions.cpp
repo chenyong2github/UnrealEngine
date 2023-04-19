@@ -86,3 +86,30 @@ UDynamicMesh* UGeometryScriptLibrary_EditorDynamicMeshFunctions::EmitTrackedMesh
 	return TargetMesh;
 }
 
+
+
+UDynamicMesh* UGeometryScriptLibrary_EditorDynamicMeshFunctions::StashDebugMesh(UDynamicMesh* TargetMesh, FString DebugMeshName)
+{
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+	{
+		UE::Geometry::Debug::StashDebugMesh(ReadMesh, DebugMeshName);
+	});
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_EditorDynamicMeshFunctions::FetchDebugMesh(FString DebugMeshName, UDynamicMesh* ToTargetMesh, bool bClearDebugMesh, bool& bDebugMeshExists)
+{
+	bDebugMeshExists = false;
+	FDynamicMesh3 ResultMesh;
+	if (UE::Geometry::Debug::FetchDebugMesh(DebugMeshName, ResultMesh, bClearDebugMesh))
+	{
+		ToTargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			EditMesh = MoveTemp(ResultMesh);
+		});
+		bDebugMeshExists = true;
+	}
+
+	return ToTargetMesh;
+}

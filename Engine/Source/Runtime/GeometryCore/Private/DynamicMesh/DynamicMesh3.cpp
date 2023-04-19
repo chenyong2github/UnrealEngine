@@ -4,6 +4,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Generators/MeshShapeGenerator.h"
 #include "Templates/UniquePtr.h"
+#include "HAL/IConsoleManager.h"	// required for cvars
 
 using namespace UE::Geometry;
 
@@ -1344,4 +1345,86 @@ int FDynamicMesh3::FindEdgeFromTriPair(int TriA, int TriB) const
 	return InvalidID;
 }
 
+
+
+
+
+static TAutoConsoleVariable<bool> CVarDynamicMeshDebugMeshesEnabled(
+	TEXT("geometry.DynamicMesh.EnableDebugMeshes"),
+	false,
+	TEXT("Enable/Disable FDynamicMesh3 Global Debug Mesh support. Debug Mesh support is only available in the Editor."));
+
+static FAutoConsoleCommand DynamicMeshClearDebugMeshesCmd(
+	TEXT("geometry.DynamicMesh.ClearDebugMeshes"),
+	TEXT("Discard all debug meshes currently stored in the FDynamicMesh3 Global Debug Mesh set. This command only works in the Editor."),
+	FConsoleCommandDelegate::CreateStatic(UE::Geometry::Debug::ClearAllDebugMeshes) );
+
+
+namespace UELocal
+{
+#if WITH_EDITOR
+	TMap<FString, TUniquePtr<FDynamicMesh3>> GlobalDebugMeshes;
+#endif
+}
+
+void UE::Geometry::Debug::ClearAllDebugMeshes()
+{
+#if WITH_EDITOR
+	if (CVarDynamicMeshDebugMeshesEnabled.GetValueOnAnyThread() == false )
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("ClearAllDebugMeshes() called but geometry.DynamicMesh.EnableDebugMeshes CVar is disabled"));
+		return;
+	}
+
+	UELocal::GlobalDebugMeshes.Reset();
+#else
+	UE_LOG(LogGeometry, Warning, TEXT("DynamicMesh3 Global Debug Mesh support is only available in-Editor"));
+#endif
+}
+
+void UE::Geometry::Debug::StashDebugMesh(const FDynamicMesh3& Mesh, FString DebugMeshName)
+{
+#if WITH_EDITOR
+	if (CVarDynamicMeshDebugMeshesEnabled.GetValueOnAnyThread() == false )
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("StashDebugMesh() called but geometry.DynamicMesh.EnableDebugMeshes CVar is disabled"))
+		return;
+	}
+
+	UELocal::GlobalDebugMeshes.Add( DebugMeshName, MakeUnique<FDynamicMesh3>(Mesh) );
+#else
+	UE_LOG(LogGeometry, Warning, TEXT("DynamicMesh3 Global Debug Mesh support is only available in-Editor"));
+#endif
+}
+
+bool UE::Geometry::Debug::FetchDebugMesh(FString DebugMeshName, FDynamicMesh3& MeshOut, bool bClear)
+{
+#if WITH_EDITOR
+	if (CVarDynamicMeshDebugMeshesEnabled.GetValueOnAnyThread() == false )
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("FetchDebugMesh() called but geometry.DynamicMesh.EnableDebugMeshes CVar is disabled"));
+		return false;
+	}
+
+	TUniquePtr<FDynamicMesh3>* FoundMesh = UELocal::GlobalDebugMeshes.Find(DebugMeshName);
+	if (FoundMesh == nullptr)
+	{
+		return false;
+	}
+
+	if (bClear)
+	{
+		MeshOut = MoveTemp(**FoundMesh);
+		UELocal::GlobalDebugMeshes.Remove(DebugMeshName);
+	}
+	else
+	{
+		MeshOut = **FoundMesh;
+	}
+	return true;
+#else
+	UE_LOG(LogGeometry, Warning, TEXT("DynamicMesh3 Global Debug Mesh support is only available in-Editor"));
+	return false;
+#endif
+}
 

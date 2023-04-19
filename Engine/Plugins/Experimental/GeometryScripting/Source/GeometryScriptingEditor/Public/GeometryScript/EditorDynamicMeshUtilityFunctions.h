@@ -62,4 +62,24 @@ public:
 	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
 	EmitTrackedMeshChange(UDynamicMesh* TargetMesh, UPARAM(ref) FDynamicMeshChangeContainer& ChangeTracker);
 
+
+	/**
+	 * Store a copy of TargetMesh with name DebugMeshName.
+	 * The mesh can later be recovered via FetchDebugMesh.
+	 * @warning This function stores the mesh in a global data structure, the caller must take care to avoid storing large numbers of debug meshes
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DynamicMesh|Changes")
+	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
+	StashDebugMesh(UDynamicMesh* TargetMesh, FString DebugMeshName);
+
+
+	/**
+	 * Fetch a debug FDynamicMesh3 saved with DebugMeshName from the global debug mesh storage and copy to ToTargetMesh.
+	 * If DebugMeshName does not exist, a cube will be returned.
+	 * @param bClearDebugMesh if true, debug mesh will be removed from global storage
+	 * @param bDebugMeshExists will return as true if DebugMeshName existed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DynamicMesh|Changes")
+	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
+	FetchDebugMesh(FString DebugMeshName, UDynamicMesh* ToTargetMesh, bool bClearDebugMesh, bool& bDebugMeshExists);
 };
