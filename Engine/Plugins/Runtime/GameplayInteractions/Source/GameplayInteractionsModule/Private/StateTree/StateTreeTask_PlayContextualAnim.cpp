@@ -257,7 +257,7 @@ EStateTreeRunStatus UStateTreeTask_PlayContextualAnim_InstanceData::OnTick(const
 
 	if (!bLoopForever && CompletedLoops >= LoopsToRun)
 	{
-		return EStateTreeRunStatus::Failed;
+		return EStateTreeRunStatus::Succeeded;
 	}
 
 	// If it's not set we are running an animation, otherwise we need to run one or are waiting on the delay
