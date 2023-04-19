@@ -21,8 +21,9 @@ namespace AnimToTextureParamNames
 	static const FName EndFrame = TEXT("EndFrame");
 	static const FName SampleRate = TEXT("SampleRate");
 	static const FName NumFrames = TEXT("NumFrames");
-	static const FName BoundingBoxMin = TEXT("MinBBox");
-	static const FName BoundingBoxScale = TEXT("SizeBBox");
+	static const FName MinBBox = TEXT("MinBBox");
+	static const FName SizeBBox = TEXT("SizeBBox");
+	static const FName NumBones = TEXT("NumBones");
 	static const FName RowsPerFrame = TEXT("RowsPerFrame");
 	static const FName BoneWeightRowsPerFrame = TEXT("BoneWeightsRowsPerFrame");
 	static const FName VertexPositionTexture = TEXT("PositionTexture");
@@ -278,14 +279,18 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info")
 	int32 NumFrames = 0;
 
+	/* Total Number of Bones */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
+	int32 NumBones = 0;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (EditCondition = "Mode == EAnimToTextureMode::Vertex", EditConditionHides))
 	int32 VertexRowsPerFrame = 1;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (DisplayName = "MinBBox", EditCondition = "Mode == EAnimToTextureMode::Vertex", EditConditionHides))
-	FVector VertexMinBBox;
+	FVector3f VertexMinBBox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (DisplayName = "SizeBBox", EditCondition = "Mode == EAnimToTextureMode::Vertex", EditConditionHides))
-	FVector VertexSizeBBox;
+	FVector3f VertexSizeBBox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
 	int32 BoneWeightRowsPerFrame = 1;
@@ -294,10 +299,10 @@ public:
 	int32 BoneRowsPerFrame = 1;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (DisplayName = "MinBBox", EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
-	FVector BoneMinBBox;
+	FVector3f BoneMinBBox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info", Meta = (DisplayName = "SizeBBox", EditCondition = "Mode == EAnimToTextureMode::Bone", EditConditionHides))
-	FVector BoneSizeBBox;
+	FVector3f BoneSizeBBox;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Info")
 	TArray<FAnimToTextureAnimInfo> Animations;

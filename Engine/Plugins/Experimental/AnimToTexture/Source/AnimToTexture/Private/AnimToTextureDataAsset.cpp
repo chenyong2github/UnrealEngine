@@ -27,12 +27,13 @@ void UAnimToTextureDataAsset::ResetInfo()
 
 	// Vertex Info
 	VertexRowsPerFrame = 1;
-	VertexMinBBox = FVector::ZeroVector;
-	VertexSizeBBox = FVector::ZeroVector;
+	VertexMinBBox = FVector3f::ZeroVector;
+	VertexSizeBBox = FVector3f::ZeroVector;
 
 	// Bone Info
+	NumBones = 0;
 	BoneRowsPerFrame = 1;
 	BoneWeightRowsPerFrame = 1;
-	BoneMinBBox = FVector::ZeroVector;
-	BoneSizeBBox = FVector::ZeroVector;
+	BoneMinBBox = FVector3f::ZeroVector;
+	BoneSizeBBox = FVector3f::ZeroVector;
 };

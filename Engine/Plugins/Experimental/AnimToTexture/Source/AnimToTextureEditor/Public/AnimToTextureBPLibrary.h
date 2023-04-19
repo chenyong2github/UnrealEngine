@@ -71,24 +71,24 @@ private:
 
 	// Gets RefPose Bone Position and Rotations.
 	static int32 GetRefBonePositionsAndRotations(const USkeletalMesh* SkeletalMesh, 
-		TArray<FVector3f>& OutBoneRefPositions, TArray<FVector4>& OutBoneRefRotations);
+		TArray<FVector3f>& OutBoneRefPositions, TArray<FVector4f>& OutBoneRefRotations);
 
 	// Gets Bone Position and Rotations for Current Pose.	
 	// The BonePosition is returned relative to the RefPose
 	static int32 GetBonePositionsAndRotations(const USkeletalMeshComponent* SkeletalMeshComponent, const TArray<FVector3f>& BoneRefPositions,
-		TArray<FVector3f>& BonePositions, TArray<FVector4>& BoneRotations);
+		TArray<FVector3f>& BonePositions, TArray<FVector4f>& BoneRotations);
 
 	// Normalizes Deltas and Normals between [0-1] with Bounding Box
 	static void NormalizeVertexData(
 		const TArray<FVector3f>& Deltas, const TArray<FVector3f>& Normals,
-		FVector& OutMinBBox, FVector& OutSizeBBox,
+		FVector3f& OutMinBBox, FVector3f& OutSizeBBox,
 		TArray<FVector3f>& OutNormalizedDeltas, TArray<FVector3f>& OutNormalizedNormals);
 
 	// Normalizes Positions and Rotations between [0-1] with Bounding Box
 	static void NormalizeBoneData(
-		const TArray<FVector3f>& Positions, const TArray<FVector4>& Rotations,
-		FVector& OutMinBBox, FVector& OutSizeBBox,
-		TArray<FVector3f>& OutNormalizedPositions, TArray<FVector4>& OutNormalizedRotations);
+		const TArray<FVector3f>& Positions, const TArray<FVector4f>& Rotations,
+		FVector3f& OutMinBBox, FVector3f& OutSizeBBox,
+		TArray<FVector3f>& OutNormalizedPositions, TArray<FVector4f>& OutNormalizedRotations);
 
 	/* Returns best resolution for the given data. 
 	*  Returns false if data doesnt fit in the the max range */

@@ -8,7 +8,6 @@
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
 
-
 namespace AnimToTexture_Private
 {
 
@@ -26,7 +25,7 @@ struct FLowPrecision
 	static constexpr EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8;
 	static constexpr ETextureSourceFormat TextureSourceFormat = ETextureSourceFormat::TSF_BGRA8;
 	static constexpr TextureCompressionSettings CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
-	static constexpr ColorType DefaultColor = FColor(0, 0, 0);		
+	static constexpr ColorType DefaultColor = FColor(0, 0, 0, 0);		
 };
 
 struct FHighPrecision
@@ -49,7 +48,8 @@ bool WriteVectorsToTexture(const TArray<V>& Vectors,
 /* Writes list of skinweights into texture.
 *  The SkinWeights data is already in uint8 & uint16 format, no need for normalizing it.
 */
-bool WriteSkinWeightsToTexture(const TArray<VertexSkinWeightFour>& SkinWeights,
+template<class TextureSettings>
+bool WriteSkinWeightsToTexture(const TArray<VertexSkinWeightFour>& SkinWeights, const int32 NumBones,
 	const int32 RowsPerFrame,
 	const int32 Height, const int32 Width,
 	UTexture2D* Texture);
@@ -58,17 +58,18 @@ bool WriteSkinWeightsToTexture(const TArray<VertexSkinWeightFour>& SkinWeights,
 template<class TextureSettings>
 bool WriteToTexture(UTexture2D* Texture, const uint32 Height, const uint32 Width, const TArray<typename TextureSettings::ColorType>& Data);
 
-template<class V /* FVector / FVector4 / FIntVector */, class C /* FColor / FLinearColor */>
+template<class V /* FVector3f / FVector4f */, class C /* FColor / FVector4u16 */>
 void VectorToColor(const V& Vector, C& Color);
 
 /* Decomposes Transform in Translation and AxisAndAngle */
-void DecomposeTransformation(const FTransform& Transform, FVector3f& OutTranslation, FVector4& OutRotation);
-void DecomposeTransformations(const TArray<FTransform>& Transforms, TArray<FVector3f>& OutTranslations, TArray<FVector4>& OutRotations);
+void DecomposeTransformation(const FTransform& Transform, FVector3f& OutTranslation, FVector4f& OutRotation);
+void DecomposeTransformations(const TArray<FTransform>& Transforms, TArray<FVector3f>& OutTranslations, TArray<FVector4f>& OutRotations);
 
 } // end namespace AnimToTexture_Private
 
 // ----------------------------------------------------------------------------
 
+// LowPrecision
 template<>
 FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector3f& Vector, FColor& Color)
 {
@@ -79,18 +80,12 @@ FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector3f& Vector, F
 	Color.R = (uint8)FMath::RoundToInt(ClampedX * 255.f);
 	Color.G = (uint8)FMath::RoundToInt(ClampedY * 255.f);
 	Color.B = (uint8)FMath::RoundToInt(ClampedZ * 255.f);
-	Color.A = 255;
+	Color.A = TNumericLimits<uint8>::Max();
 }
 
+// LowPrecision
 template<>
-FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector3d& Vector, FColor& Color)
-{
-	VectorToColor((FVector3f)Vector, Color);
-}
-
-
-template<>
-FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector4& Vector, FColor& Color)
+FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector4f& Vector, FColor& Color)
 {
 	const float ClampedX = FMath::Clamp(Vector.X, 0.f, 1.f);
 	const float ClampedY = FMath::Clamp(Vector.Y, 0.f, 1.f);
@@ -103,72 +98,28 @@ FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector4& Vector, FC
 	Color.A = (uint8)FMath::RoundToInt(ClampedW * 255.f);
 }
 
-template<>
-FORCEINLINE void AnimToTexture_Private::VectorToColor(const FIntVector& Vector, FColor& Color)
-{
-	const int32 ClampedX = FMath::Clamp(Vector.X, 0, 1);
-	const int32 ClampedY = FMath::Clamp(Vector.Y, 0, 1);
-	const int32 ClampedZ = FMath::Clamp(Vector.Z, 0, 1);
-
-	Color.R = (uint8)(ClampedX * 255);
-	Color.G = (uint8)(ClampedY * 255);
-	Color.B = (uint8)(ClampedZ * 255);
-	Color.A = 255;
-}
-
-template<>
-FORCEINLINE void AnimToTexture_Private::VectorToColor(const FIntVector4& Vector, FColor& Color)
-{
-	const int32 ClampedX = FMath::Clamp(Vector.X, 0, 1);
-	const int32 ClampedY = FMath::Clamp(Vector.Y, 0, 1);
-	const int32 ClampedZ = FMath::Clamp(Vector.Z, 0, 1);
-	const int32 ClampedW = FMath::Clamp(Vector.W, 0, 1);
-
-	Color.R = (uint8)(ClampedX * 255);
-	Color.G = (uint8)(ClampedY * 255);
-	Color.B = (uint8)(ClampedZ * 255);
-	Color.A = (uint8)(ClampedW * 255);
-}
-
-template<>
-FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector3f& Vector, FLinearColor& Color)
-{
-	Color.R = Vector.X;
-	Color.G = Vector.Y;
-	Color.B = Vector.Z;
-	Color.A = 1.f;
-}
-
-template<>
-FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector4& Vector, FLinearColor& Color)
-{
-	Color.R = Vector.X;
-	Color.G = Vector.Y;
-	Color.B = Vector.Z;
-	Color.A = Vector.W;
-}
-
+// HighPrecision
 template<>
 FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector3f& Vector, FVector4u16& Color)
 {
-	Color.X = FMath::RoundToInt(FMath::Clamp(Vector.X, 0.f, 1.f) * MAX_uint16);
-	Color.Y = FMath::RoundToInt(FMath::Clamp(Vector.Y, 0.f, 1.f) * MAX_uint16);
-	Color.Z = FMath::RoundToInt(FMath::Clamp(Vector.Z, 0.f, 1.f) * MAX_uint16);
-	Color.W = MAX_uint16;
+	Color.X = FMath::RoundToInt(FMath::Clamp(Vector.X, 0.f, 1.f) * TNumericLimits<uint16>::Max());
+	Color.Y = FMath::RoundToInt(FMath::Clamp(Vector.Y, 0.f, 1.f) * TNumericLimits<uint16>::Max());
+	Color.Z = FMath::RoundToInt(FMath::Clamp(Vector.Z, 0.f, 1.f) * TNumericLimits<uint16>::Max());
+	Color.W = TNumericLimits<uint16>::Max();
 }
 
+// HighPrecision
 template<>
-FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector4& Vector, FVector4u16& Color)
+FORCEINLINE void AnimToTexture_Private::VectorToColor(const FVector4f& Vector, FVector4u16& Color)
 {
-	Color.X = FMath::RoundToInt(FMath::Clamp(Vector.X, 0.f, 1.f) * MAX_uint16);
-	Color.Y = FMath::RoundToInt(FMath::Clamp(Vector.Y, 0.f, 1.f) * MAX_uint16);
-	Color.Z = FMath::RoundToInt(FMath::Clamp(Vector.Z, 0.f, 1.f) * MAX_uint16);
-	Color.W = FMath::RoundToInt(FMath::Clamp(Vector.W, 0.f, 1.f) * MAX_uint16);
+	Color.X = FMath::RoundToInt(FMath::Clamp(Vector.X, 0.f, 1.f) * TNumericLimits<uint16>::Max());
+	Color.Y = FMath::RoundToInt(FMath::Clamp(Vector.Y, 0.f, 1.f) * TNumericLimits<uint16>::Max());
+	Color.Z = FMath::RoundToInt(FMath::Clamp(Vector.Z, 0.f, 1.f) * TNumericLimits<uint16>::Max());
+	Color.W = FMath::RoundToInt(FMath::Clamp(Vector.W, 0.f, 1.f) * TNumericLimits<uint16>::Max());
 }
-
 
 template<class V, class TextureSettings>
-FORCEINLINE bool AnimToTexture_Private::WriteVectorsToTexture(const TArray<V>& Vectors,
+FORCEINLINE_DEBUGGABLE bool AnimToTexture_Private::WriteVectorsToTexture(const TArray<V>& Vectors,
 	const int32 NumFrames, const int32 RowsPerFrame,
 	const int32 Height, const int32 Width, UTexture2D* Texture)
 {
@@ -204,15 +155,59 @@ FORCEINLINE bool AnimToTexture_Private::WriteVectorsToTexture(const TArray<V>& V
 }
 
 template<class TextureSettings>
-FORCEINLINE bool AnimToTexture_Private::WriteToTexture(
+FORCEINLINE_DEBUGGABLE bool AnimToTexture_Private::WriteSkinWeightsToTexture(const TArray<AnimToTexture_Private::VertexSkinWeightFour>& SkinWeights, const int32 NumBones,
+	const int32 RowsPerFrame, const int32 Height, const int32 Width, UTexture2D* Texture)
+{
+	check(Texture);
+	
+	const int32 NumVertices = SkinWeights.Num();
+
+	// Allocate PixelData.
+	TArray<typename TextureSettings::ColorType> Pixels;
+	Pixels.Init(TextureSettings::DefaultColor, Height * Width);
+
+	for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+	{
+		const VertexSkinWeightFour& VertexSkinWeight = SkinWeights[VertexIndex];
+
+		// Normalize BoneIndices
+		const FVector4f BoneIndices(
+			(float)VertexSkinWeight.MeshBoneIndices[0] / float(NumBones),
+			(float)VertexSkinWeight.MeshBoneIndices[1] / float(NumBones),
+			(float)VertexSkinWeight.MeshBoneIndices[2] / float(NumBones),
+			(float)VertexSkinWeight.MeshBoneIndices[3] / float(NumBones));
+
+		// Normalize BoneWeights
+		const FVector4f BoneWeights(
+			(float)VertexSkinWeight.BoneWeights[0] / 255.f,
+			(float)VertexSkinWeight.BoneWeights[1] / 255.f,
+			(float)VertexSkinWeight.BoneWeights[2] / 255.f,
+			(float)VertexSkinWeight.BoneWeights[3] / 255.f);
+
+		// Write BoneIndex
+		{
+			typename TextureSettings::ColorType& Pixel = Pixels[VertexIndex];
+			VectorToColor<FVector4f, typename TextureSettings::ColorType>(BoneIndices, Pixel);
+		}
+		
+		// Write BoneWeight
+		{
+			typename TextureSettings::ColorType& Pixel = Pixels[RowsPerFrame * Width + VertexIndex];
+			VectorToColor<FVector4f, typename TextureSettings::ColorType>(BoneWeights, Pixel);
+		}
+	};
+
+	// Write to Texture
+	return WriteToTexture<TextureSettings>(Texture, Height, Width, Pixels);
+}
+
+template<class TextureSettings>
+FORCEINLINE_DEBUGGABLE bool AnimToTexture_Private::WriteToTexture(
 	UTexture2D* Texture,
 	const uint32 Height, const uint32 Width,
 	const TArray<typename TextureSettings::ColorType>& Pixels)
 {
-	if (!Texture)
-	{
-		return false;
-	}
+	check(Texture);
 
 	// ------------------------------------------------------------------------
 	// Get Texture Platform
@@ -274,5 +269,3 @@ FORCEINLINE bool AnimToTexture_Private::WriteToTexture(
 
 	return true;
 }
-
-
