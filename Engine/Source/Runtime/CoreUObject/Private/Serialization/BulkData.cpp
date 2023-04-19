@@ -1470,11 +1470,6 @@ void FBulkData::DetachFromArchive( FArchive* Ar, bool bEnsureBulkDataIsLoaded )
 }
 #endif // WITH_EDITOR
 
-void FBulkData::StoreCompressedOnDisk(ECompressionFlags CompressionFlags)
-{
-	StoreCompressedOnDisk(FCompression::GetCompressionFormatFromDeprecatedFlags(CompressionFlags));
-}
-
 void FBulkData::StoreCompressedOnDisk( FName CompressionFormat )
 {
 	if( CompressionFormat != GetDecompressionFormat() )

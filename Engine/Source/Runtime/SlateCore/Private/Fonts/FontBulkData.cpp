@@ -75,15 +75,6 @@ const void* UFontBulkData::Lock(int64& OutFontDataSizeBytes) const
 	return Data;
 }
 
-const void* UFontBulkData::Lock(int32& OutFontDataSizeBytes) const
-{
-	int64 Out64;
-	const void* Result = Lock(Out64);
-	ensureAlways(Out64 <= std::numeric_limits<int32>::max());
-	OutFontDataSizeBytes = (int32)Out64;
-	return Result;
-}
-
 void UFontBulkData::Unlock()
 {
 	bool bWasLoaded = BulkData.IsBulkDataLoaded();

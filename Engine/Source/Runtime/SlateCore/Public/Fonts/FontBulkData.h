@@ -26,10 +26,6 @@ public:
 	/** Locks the bulk font data and returns a read-only pointer to it */
 	const void* Lock(int64& OutFontDataSizeBytes) const;
 
-	/** Locks the bulk font data and returns a read-only pointer to it */
-	UE_DEPRECATED(5.0, "Lock with 32 bits is deprecated, use the 64 bits version.")
-	const void* Lock(int32& OutFontDataSizeBytes) const;
-
 	/** Unlock the bulk font data, after which point the pointer returned by Lock no longer is valid */
 	void Unlock();
 
