@@ -116,6 +116,7 @@ public:
 	 * Get the neural network inference handle.
 	 * @return Returns the handle. This is -1 for an invalid handle.
 	 */
+	UE_DEPRECATED(5.3, "The NNI API has been removed - please use NNE instead")
 	int32 GetNeuralNetworkInferenceHandle() const;
 
 	/** Set whether we had a successful call to UMLDeformerModel::PostMLDeformerComponentInit. */
@@ -225,9 +226,6 @@ protected:
 
 	/** The compatibility error text, in case bIsCompatible is false. */
 	FString ErrorText;
-
-	/** Inference handle for neural network inference. */
-	int32 NeuralNetworkInferenceHandle = -1;
 
 	/** Are the deformer asset and the used skeletal mesh component compatible? */
 	bool bIsCompatible = false;

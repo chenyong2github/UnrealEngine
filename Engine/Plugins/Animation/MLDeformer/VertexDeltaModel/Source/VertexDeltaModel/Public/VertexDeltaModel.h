@@ -5,12 +5,13 @@
 #include "CoreTypes.h"
 #include "MLDeformerGeomCacheModel.h"
 #include "VertexDeltaModelVizSettings.h"
+#include "NNECoreRuntimeRDG.h"
 #include "VertexDeltaModel.generated.h"
 
 VERTEXDELTAMODEL_API DECLARE_LOG_CATEGORY_EXTERN(LogVertexDeltaModel, Log, All);
 
 class UNeuralNetwork;
-
+class UNNEModelData;
 /** 
  * The vertex delta model, which uses a GPU based neural network.
  * This model acts more as an example of how to implement a model that only uses the GPU.
@@ -41,9 +42,6 @@ public:
 #endif
 	// ~END UMLDeformerModel overrides.
 
-	UNeuralNetwork* GetNNINetwork() const;
-	void SetNNINetwork(UNeuralNetwork* InNeuralNetwork);
-
 #if WITH_EDITORONLY_DATA
 	int32 GetNumHiddenLayers() const						{ return NumHiddenLayers; }
 	int32 GetNumNeuronsPerLayer() const						{ return NumNeuronsPerLayer; }
@@ -51,12 +49,13 @@ public:
 	int32 GetBatchSize() const								{ return BatchSize; }
 	float GetLearningRate() const							{ return LearningRate; }
 #endif
-
-
+	void SetNNEModelData(TObjectPtr<UNNEModelData> ModelData);
+	const FString GetNNERuntimeName() const { return TEXT("NNERuntimeRDGDml"); }
 public:
-	/** The NNI neural network. */
+
+	/** The NNE neural network model. */
 	UPROPERTY()
-	TObjectPtr<UNeuralNetwork> NNINetwork;
+	TObjectPtr<UNNEModelData> NNEModel; 
 
 #if WITH_EDITORONLY_DATA
 	/** The number of hidden layers that the neural network model will have.\nHigher numbers will slow down performance but can deal with more complex deformations. */
@@ -79,4 +78,5 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "0.000001", ClampMax = "1.0"))
 	float LearningRate = 0.001f;
 #endif // WITH_EDITORONLY_DATA
+
 };

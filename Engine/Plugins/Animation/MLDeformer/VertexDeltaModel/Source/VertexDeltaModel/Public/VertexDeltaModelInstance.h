@@ -3,6 +3,10 @@
 #pragma once
 
 #include "MLDeformerModelInstance.h"
+#include "NNECore.h"
+#include "NNECoreRuntime.h"
+#include "NNECoreModelData.h"
+#include "NNECoreRuntimeRDG.h"
 #include "VertexDeltaModelInstance.generated.h"
 
 class UVertexDeltaModel;
@@ -24,5 +28,43 @@ public:
 	// ~END UMLDeformerModelInstance overrides.
 
 	UVertexDeltaModel* GetVertexDeltaModel() const;
-	UNeuralNetwork* GetNNINetwork() const;
+	virtual void PostMLDeformerComponentInit() override;
+
+	/**
+	 * Get the RDG Neural Network Model
+	 * @return The IModelRDG if successfully created, or nullptr
+	 */
+	UE::NNECore::IModelRDG* GetNNEModelRDG() const;
+
+	/**
+	 * Get the output vertex delta buffer
+	 * @return The FRDGBuffer for vertex deltas
+	 */
+	FRDGBuffer* GetOutputRDGBuffer() const;
+
+	/**
+	 * Get the render graph buffer description required for the output of a neural network. Return false if a flat buffer is not appropriate
+	 * @return True if the OutputTensorDescs can be rppresented by a flat float  FRDGBuffer
+	 */
+	bool GetRDGVertexBufferDesc(TConstArrayView<UE::NNECore::FTensorDesc>& InOutputTensorDescs, FRDGBufferDesc& OutBufferDesc);
+
+private:
+
+	void CreateRDGBuffers(TConstArrayView<UE::NNECore::FTensorDesc>& OutputTensorDescs);
+	void CreateNNEModel();
+
+	// Input Buffer for Joint Matrices / Curve Floats
+	FRDGBuffer* RDGInputBuffer = nullptr;
+
+	// Output Buffer for Vertex Deltas
+	FRDGBuffer* RDGVertexDeltaBuffer = nullptr;
+
+	// The NNE RDG Model 
+	TUniquePtr<UE::NNECore::IModelRDG> ModelRDG;
+	
+	// The CPU Input Tensor Buffer
+	TArray<float> NNEInputTensorBuffer;
+
+	// Only attempt to create NNE Model once
+	bool bNNECreationAttempted = false;
 };

@@ -14,7 +14,6 @@
 #include "UObject/GCObjectScopeGuard.h"
 #include "PreviewScene.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "NeuralNetwork.h"
 #include "GeometryCache.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"

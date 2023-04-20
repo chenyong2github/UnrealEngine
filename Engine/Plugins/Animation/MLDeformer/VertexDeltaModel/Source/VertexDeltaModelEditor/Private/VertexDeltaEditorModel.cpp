@@ -5,7 +5,10 @@
 #include "VertexDeltaModelVizSettings.h"
 #include "VertexDeltaTrainingModel.h"
 #include "MLDeformerAsset.h"
-#include "NeuralNetwork.h"
+#include "NNECore.h"
+#include "NNECoreModelData.h"
+#include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
 
 #define LOCTEXT_NAMESPACE "VertexDeltaEditorModel"
 
@@ -28,22 +31,23 @@ namespace UE::VertexDeltaModel
 		return TrainModel<UVertexDeltaTrainingModel>(this);
 	}
 
-	UNeuralNetwork* FVertexDeltaEditorModel::LoadNeuralNetworkFromOnnx(const FString& Filename) const
+	TObjectPtr<UNNEModelData>  FVertexDeltaEditorModel::LoadNeuralNetworkFromOnnx(const FString& Filename) const
 	{
 		const FString OnnxFile = FPaths::ConvertRelativePathToFull(Filename);
 		if (FPaths::FileExists(OnnxFile))
 		{
 			UE_LOG(LogVertexDeltaModel, Display, TEXT("Loading Onnx file '%s'..."), *OnnxFile);
-			UNeuralNetwork* Result = NewObject<UNeuralNetwork>(Model, UNeuralNetwork::StaticClass());		
-			if (Result->Load(OnnxFile))
+			TArray<uint8> RawModelData;
+			const bool bIsModelInMem = FFileHelper::LoadFileToArray(RawModelData, *OnnxFile);
+	
+			if (bIsModelInMem)
 			{
-				Result->SetDeviceType(ENeuralDeviceType::GPU, ENeuralDeviceType::CPU, ENeuralDeviceType::GPU);	
-				if (Result->GetDeviceType() != ENeuralDeviceType::GPU || Result->GetOutputDeviceType() != ENeuralDeviceType::GPU || Result->GetInputDeviceType() != ENeuralDeviceType::CPU)
-				{
-					UE_LOG(LogVertexDeltaModel, Error, TEXT("Neural net in ML Deformer '%s' cannot run on the GPU, it will not be active."), *Model->GetDeformerAsset()->GetName());
-				}
+				TObjectPtr<UNNEModelData> ModelData = NewObject<UNNEModelData>();
+
+				ModelData->Init(FString("onnx"), RawModelData);
+				// TODO - add some real verification
 				UE_LOG(LogVertexDeltaModel, Display, TEXT("Successfully loaded Onnx file '%s'..."), *OnnxFile);
-				return Result;
+				return ModelData;
 			}
 			else
 			{
@@ -55,16 +59,16 @@ namespace UE::VertexDeltaModel
 			UE_LOG(LogVertexDeltaModel, Error, TEXT("Onnx file '%s' does not exist!"), *OnnxFile);
 		}
 
-		return nullptr;
+		return TObjectPtr<UNNEModelData>();
 	}
 
 	bool FVertexDeltaEditorModel::LoadTrainedNetwork() const
 	{
 		const FString OnnxFile = GetTrainedNetworkOnnxFile();
-		UNeuralNetwork* Network = LoadNeuralNetworkFromOnnx(OnnxFile);
-		if (Network)
+		TObjectPtr<UNNEModelData> ModelData = LoadNeuralNetworkFromOnnx(OnnxFile);
+		if (ModelData)
 		{
-			GetVertexDeltaModel()->SetNNINetwork(Network);
+			GetVertexDeltaModel()->SetNNEModelData(ModelData);
 			return true;
 		}
 
@@ -73,7 +77,7 @@ namespace UE::VertexDeltaModel
 
 	bool FVertexDeltaEditorModel::IsTrained() const
 	{
-		return (GetVertexDeltaModel()->GetNNINetwork() != nullptr);
+		return GetVertexDeltaModel()->NNEModel != nullptr;
 	}
 
 	FString FVertexDeltaEditorModel::GetHeatMapDeformerGraphPath() const

@@ -56,7 +56,7 @@ UMLDeformerComponent* UMLDeformerModelInstance::GetMLDeformerComponent() const
 
 int32 UMLDeformerModelInstance::GetNeuralNetworkInferenceHandle() const
 { 
-	return NeuralNetworkInferenceHandle;
+	return -1;
 }
 
 void UMLDeformerModelInstance::SetHasPostInitialized(bool bHasInitialized)

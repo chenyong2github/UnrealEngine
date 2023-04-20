@@ -29,7 +29,6 @@ class USkeletalMesh;
 class UAnimSequence;
 class UMaterial;
 class UGeometryCache;
-class UNeuralNetwork;
 class UMorphTarget;
 class FMorphTargetVertexInfoBuffers;
 
@@ -514,9 +513,6 @@ namespace UE::MLDeformer
 		 * mesh deformer is used.
 		 */
 		virtual void UpdateDeformerGraph();
-
-		UE_DEPRECATED(5.2, "This method will be deleted and will just return a nullptr right now.")
-		UNeuralNetwork* LoadNeuralNetworkFromOnnx(const FString& Filename) const { return nullptr; }
 
 		/**
 		 * Sample the vertex deltas between the training base model and target model.

@@ -19,7 +19,6 @@ class UMLDeformerVizSettings;
 class UMLDeformerModelInstance;
 class UMLDeformerComponent;
 class UMLDeformerInputInfo;
-class UNeuralNetwork;
 
 /** The channel to get the mask data from. */
 UENUM()
@@ -186,11 +185,6 @@ public:
 	 */
 	void SetSkeletalMesh(USkeletalMesh* SkelMesh)			{ SkeletalMesh = SkelMesh; }
 
-	UE_DEPRECATED(5.2, "This method will be deleted. We are moving neural networks into the derived models instead. This method will not do anything.")
-	virtual void SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork) {}
-
-	UE_DEPRECATED(5.2, "This method will be deleted. We are moving neural networks into the derived models instead. A nullptr will be returned.")
-	UNeuralNetwork* GetNeuralNetwork() const				{ return nullptr; }
 
 #if WITH_EDITORONLY_DATA
 	/**
