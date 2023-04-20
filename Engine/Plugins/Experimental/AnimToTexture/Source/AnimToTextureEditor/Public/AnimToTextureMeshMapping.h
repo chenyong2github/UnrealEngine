@@ -13,7 +13,6 @@ struct FSourceVertexDriverTriangleData
 	uint8               TangentLocalIndex;
 	float               InverseDistanceWeight;
 	FIntVector3         Triangle;
-	FVector3f           ClosestPoint;
 	FVector3f           BarycentricCoords;
 	FMatrix44f          InvMatrix;
 	VertexSkinWeightMax SkinWeights;
@@ -27,7 +26,7 @@ public:
 	
 	void Update(const FVector3f& SourceVertex,
 		const TArray<FVector3f>& DriverVertices, const TArray<FIntVector3>& DriverTriangles, const TArray<VertexSkinWeightMax>& DriverSkinWeights, 
-		const float Sigma=1.f);
+		const int32 NumDrivers, const float Sigma=1.f);
 
 	// DriverTriangle Data specific to this SourceVertex
 	TArray<FSourceVertexDriverTriangleData> DriverTriangleData;
@@ -42,7 +41,8 @@ public:
 	FSourceMeshToDriverMesh() = default;
 	
 	void Update(const UStaticMesh* StaticMesh, const int32 StaticMeshLODIndex,
-		const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex);
+		const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex, 
+		const int32 NumDrivers, const float Sigma=1.f);
 
 	// Returns Number of Source Vertices
 	int32 GetNumSourceVertices() const;

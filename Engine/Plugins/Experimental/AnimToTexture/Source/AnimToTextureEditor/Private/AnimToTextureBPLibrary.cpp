@@ -58,7 +58,7 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		ProgressBar.MakeDialog(false /*bShowCancelButton*/, false /*bAllowInPIE*/);
 
 		Mapping.Update(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex,
-			DataAsset->GetSkeletalMesh(), DataAsset->SkeletalLODIndex);
+			DataAsset->GetSkeletalMesh(), DataAsset->SkeletalLODIndex, DataAsset->NumDriverTriangles, DataAsset->Sigma);
 	}
 
 	// Get Number of Source Vertices (StaticMesh)

@@ -394,8 +394,7 @@ void GetSkinnedVertices(const USkeletalMeshComponent* SkeletalMeshComponent, con
 	};
 };
 
-FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C, 
-	int32& OutOnPointLocalIndex)
+FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C)
 {
 	const FVector3f AB = B - A;
 	const FVector3f AC = C - A;
@@ -405,7 +404,6 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float D2 = FVector3f::DotProduct(AC, AP);
 	if (D1 <= 0.f && D2 <= 0.f)
 	{
-		OutOnPointLocalIndex = 0;
 		return A;
 	}
 
@@ -414,7 +412,6 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float D4 = FVector3f::DotProduct(AC, BP);
 	if (D3 >= 0.f && D4 <= D3)
 	{
-		OutOnPointLocalIndex = 1;
 		return B;
 	}
 
@@ -423,14 +420,12 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float D6 = FVector3f::DotProduct(AC, CP);
 	if (D6 >= 0.f && D5 <= D6)
 	{
-		OutOnPointLocalIndex = 2;
 		return C;
 	}
 
 	const float VC = D1 * D4 - D3 * D2;
 	if (VC <= 0.f && D1 >= 0.f && D3 <= 0.f)
 	{
-		OutOnPointLocalIndex = INDEX_NONE;
 		const float V = D1 / (D1 - D3);
 		return A + V * AB;
 	}
@@ -438,7 +433,6 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float VB = D5 * D2 - D1 * D6;
 	if (VB <= 0.f && D2 >= 0.f && D6 <= 0.f)
 	{
-		OutOnPointLocalIndex = INDEX_NONE;
 		const float V = D2 / (D2 - D6);
 		return A + V * AC;
 	}
@@ -446,12 +440,10 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float VA = D3 * D6 - D5 * D4;
 	if (VA <= 0.f && (D4 - D3) >= 0.f && (D5 - D6) >= 0.f)
 	{
-		OutOnPointLocalIndex = INDEX_NONE;
 		const float V = (D4 - D3) / ((D4 - D3) + (D5 - D6));
 		return B + V * (C - B);
 	}
 
-	OutOnPointLocalIndex = INDEX_NONE;
 	const float Denom = 1.0f / (VA + VB + VC);
 	const float V = VB * Denom;
 	const float W = VC * Denom;
@@ -532,13 +524,14 @@ FVector3f BarycentricCoordinates(const FVector3f& P, const FVector3f& A, const F
 	return FVector3f(U, V, W);
 }
 
-int32 InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Points,
-	TArray<float>& OutWeights, float Sigma)
+void InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Points,
+	TArray<float>& OutWeights, const float Sigma)
 {
 	// Allocate
 	const int32 Count = Points.Num();
 	OutWeights.SetNumZeroed(Count);
 
+	const float SafeSigma = FMath::Max(UE_KINDA_SMALL_NUMBER, Sigma);
 	float SumInverseDistance = 0.f;
 	TArray<float> InverseDistances;
 	InverseDistances.SetNumUninitialized(Count);
@@ -551,14 +544,10 @@ int32 InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Po
 		if (Distance < UE_KINDA_SMALL_NUMBER)
 		{
 			OutWeights[Index] = 1.f;
-			return Index;
+			return;
 		}
 
-		InverseDistances[Index] = 1.f / FMath::Pow(Distance, Sigma);
-		if (InverseDistances[Index] < UE_KINDA_SMALL_NUMBER)
-		{
-			InverseDistances[Index] = 0.f;
-		}
+		InverseDistances[Index] = 1.f / FMath::Pow(Distance, SafeSigma);
 		SumInverseDistance += InverseDistances[Index];
 	}
 
@@ -567,8 +556,6 @@ int32 InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Po
 	{
 		OutWeights[Index] = InverseDistances[Index] / SumInverseDistance;
 	}
-
-	return INDEX_NONE;
 }
 
 

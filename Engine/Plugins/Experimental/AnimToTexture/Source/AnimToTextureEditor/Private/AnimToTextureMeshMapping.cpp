@@ -7,34 +7,58 @@ namespace AnimToTexture_Private
 
 void FSourceVertexData::Update(const FVector3f& SourceVertex,
 	const TArray<FVector3f>& DriverVertices, const TArray<FIntVector3>& DriverTriangles, const TArray<VertexSkinWeightMax>& DriverSkinWeights, 
-	const float Sigma)
+	const int32 NumDrivers, const float Sigma)
 {	
 	const int32 NumDriverTriangles = DriverTriangles.Num();
+	const int32 NDriverTriangles = FMath::Clamp(NumDrivers, 1, NumDriverTriangles);
 
-	// Get ClosestPoint to Triangles
+	// Get Distances from Vertex to Each Triangle (ClosestPoint)
+	TArray<TPair<float, int32>> SortedDistances;
 	TArray<FVector3f> ClosestPoints;
-	ClosestPoints.SetNumUninitialized(NumDriverTriangles);
-
-	for (int32 DriverTriangleIndex = 0; DriverTriangleIndex < NumDriverTriangles; DriverTriangleIndex++)
 	{
-		const FIntVector3& DriverTriangle = DriverTriangles[DriverTriangleIndex];
-		const FVector3f& A = DriverVertices[DriverTriangle.X];
-		const FVector3f& B = DriverVertices[DriverTriangle.Y];
-		const FVector3f& C = DriverVertices[DriverTriangle.Z];
+		SortedDistances.SetNumUninitialized(NumDriverTriangles);
+		ClosestPoints.SetNumUninitialized(NumDriverTriangles);
 
-		// ClosestPoint To Triangle 
-		int32 OnPointLocalIndex = INDEX_NONE;
-		ClosestPoints[DriverTriangleIndex] = FindClosestPointToTriangle(SourceVertex, A, B, C, OnPointLocalIndex);
-	};
+		for (int32 DriverTriangleIndex = 0; DriverTriangleIndex < NumDriverTriangles; DriverTriangleIndex++)
+		{
+			const FIntVector3& DriverTriangle = DriverTriangles[DriverTriangleIndex];
+			const FVector3f& A = DriverVertices[DriverTriangle.X];
+			const FVector3f& B = DriverVertices[DriverTriangle.Y];
+			const FVector3f& C = DriverVertices[DriverTriangle.Z];
 
-	// Get Inverse Distance Weighting from Vertex to each DriverTriangle (ClosestPoint)
-	TArray<float> Weights;
-	AnimToTexture_Private::InverseDistanceWeights(SourceVertex, ClosestPoints, Weights, Sigma);
+			// ClosestPoint To Triangle 
+			ClosestPoints[DriverTriangleIndex] = FindClosestPointToTriangle(SourceVertex, A, B, C);
 
-	for (int32 DriverTriangleIndex = 0; DriverTriangleIndex < NumDriverTriangles; DriverTriangleIndex++)
+			// Distance To Triangle
+			const float Distance = FVector3f::Distance(SourceVertex, ClosestPoints[DriverTriangleIndex]);
+			SortedDistances[DriverTriangleIndex] = TPair<float, int32>(Distance, DriverTriangleIndex);
+		};
+
+		// Sort By Distance
+		SortedDistances.Sort();
+	}
+
+	// Get Inverse Distance from Vertex to N-Closest Triangles
+	TArray<float> NWeights;
 	{
-		// no need to store data if weight is small
-		if (Weights[DriverTriangleIndex] > UE_KINDA_SMALL_NUMBER)
+		TArray<FVector3f> NClosestPoints;
+		NClosestPoints.SetNumUninitialized(NDriverTriangles);
+
+		for (int32 Index = 0; Index < NDriverTriangles; Index++)
+		{
+			const int32& DriverTriangleIndex = SortedDistances[Index].Value;
+			NClosestPoints[Index] = ClosestPoints[DriverTriangleIndex];
+		}
+
+		AnimToTexture_Private::InverseDistanceWeights(SourceVertex, NClosestPoints, NWeights, Sigma);
+	}
+
+	DriverTriangleData.Reserve(NDriverTriangles);
+	for (int32 Index = 0; Index < NDriverTriangles; Index++)
+	{
+		const int32& DriverTriangleIndex = SortedDistances[Index].Value;
+
+		if (NWeights[Index] > UE_KINDA_SMALL_NUMBER)
 		{
 			const FVector3f& ClosestPoint = ClosestPoints[DriverTriangleIndex];
 			const FIntVector3& DriverTriangle = DriverTriangles[DriverTriangleIndex];
@@ -43,7 +67,7 @@ void FSourceVertexData::Update(const FVector3f& SourceVertex,
 			const FVector3f& C = DriverVertices[DriverTriangle.Z];
 
 			FSourceVertexDriverTriangleData TriangleData;
-			TriangleData.InverseDistanceWeight = Weights[DriverTriangleIndex];
+			TriangleData.InverseDistanceWeight = NWeights[Index];
 			TriangleData.Triangle = DriverTriangle;
 			TriangleData.BarycentricCoords = BarycentricCoordinates(ClosestPoint, A, B, C);
 			TriangleData.TangentLocalIndex = GetTriangleTangentLocalIndex(ClosestPoint, A, B, C);
@@ -61,7 +85,8 @@ void FSourceVertexData::Update(const FVector3f& SourceVertex,
 
 
 void FSourceMeshToDriverMesh::Update(const UStaticMesh* StaticMesh, const int32 StaticMeshLODIndex, 
-	const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex)
+	const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex, 
+	const int32 NumDrivers, const float Sigma)
 {
 	check(StaticMesh);
 	check(SkeletalMesh);
@@ -86,7 +111,7 @@ void FSourceMeshToDriverMesh::Update(const UStaticMesh* StaticMesh, const int32 
 	{	
 		// Create Mapping from StaticMesh Vertex to SkeletalMesh Triangles
 		SourceVerticesData[SourceVertexIndex].Update(SourceVertices[SourceVertexIndex], 
-			DriverVertices, DriverTriangles, DriverSkinWeights, 1.f /*Sigma*/);
+			DriverVertices, DriverTriangles, DriverSkinWeights, NumDrivers, Sigma);
 
 		// UE_LOG(LogTemp, Warning, TEXT("Vertex: %i NumTriangles: %i."), SourceVertexIndex, SourceVerticesData[SourceVertexIndex].DriverTriangleData.Num());
 

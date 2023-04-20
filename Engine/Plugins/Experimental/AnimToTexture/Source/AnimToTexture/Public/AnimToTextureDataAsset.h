@@ -143,6 +143,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StaticMesh")
 	int32 UVChannel = 1;
 
+	/**
+	* Number of Driver Triangles
+	* Each StaticMesh Vertex will be influenced by N SkeletalMesh (Driver) Triangles.
+	* Increasing the Number of Driver Triangles will increase the Mapping computation.
+	* Using a single Driver Triangle will do a Rigid Binding to Closest Triangle.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StaticMesh|Mapping")
+	int32 NumDriverTriangles = 10;
+
+	/**
+	* Inverse Distance Weighting
+	* This exponent value will be used for computing weights for the DriverTriangles.
+	* Larger number will create a more contrasted weighting, but it might 
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StaticMesh|Mapping")
+	float Sigma = 1.f;
+
 	// ------------------------------------------------------
 	// Texture
 
