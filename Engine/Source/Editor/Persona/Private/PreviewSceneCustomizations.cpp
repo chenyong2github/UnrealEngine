@@ -283,6 +283,7 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 
 	DetailBuilder.EditCategory("Physics")
 	.AddCustomRow(LOCTEXT("PhysicsClothingSimulationFactory", "Clothing Simulation Factory Option"))
+	.RowTag("PhysicsClothingSimulationFactory")
 	.NameContent()
 	[
 		SNew(STextBlock)
