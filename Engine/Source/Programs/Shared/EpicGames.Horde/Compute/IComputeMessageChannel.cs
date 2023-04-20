@@ -46,6 +46,23 @@ namespace EpicGames.Horde.Compute
 	public static class ComputeMessageChannelExtensions
 	{
 		/// <summary>
+		/// Reads a message from the channel
+		/// </summary>
+		/// <param name="channel">Channel to receive on</param>
+		/// <param name="type">Expected type of the message</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Data for a message that was read. Must be disposed.</returns>
+		public static async ValueTask<IComputeMessage> ReceiveAsync(this IComputeMessageChannel channel, ComputeMessageType type, CancellationToken cancellationToken = default)
+		{
+			IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
+			if (message.Type != type)
+			{
+				throw new ComputeInvalidMessageException(message);
+			}
+			return message;
+		}
+
+		/// <summary>
 		/// Waits for the remote machine to send a 'ready' response
 		/// </summary>
 		/// <param name="channel">Channel to receive on</param>

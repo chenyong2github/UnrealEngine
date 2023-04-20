@@ -44,12 +44,12 @@ namespace EpicGames.Horde.Compute
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public async Task RunAsync(IComputeSocket socket, CancellationToken cancellationToken)
 		{
-			await RunAsync(socket, 0, cancellationToken);
+			await RunAsync(socket, 0, 4 * 1024 * 1024, cancellationToken);
 		}
 
-		async Task RunAsync(IComputeSocket socket, int channelId, CancellationToken cancellationToken)
+		async Task RunAsync(IComputeSocket socket, int channelId, int bufferSize, CancellationToken cancellationToken)
 		{
-			using (IComputeMessageChannel channel = socket.CreateMessageChannel(channelId, 4 * 1024 * 1024, _logger))
+			using (IComputeMessageChannel channel = socket.CreateMessageChannel(channelId, bufferSize, _logger))
 			{
 				await channel.SendReadyAsync(cancellationToken);
 
@@ -64,6 +64,12 @@ namespace EpicGames.Horde.Compute
 						case ComputeMessageType.None:
 							await Task.WhenAll(childTasks);
 							return;
+						case ComputeMessageType.Fork:
+							{
+								ForkMessage fork = message.ParseForkMessage();
+								childTasks.Add(Task.Run(() => RunAsync(socket, fork.channelId, fork.bufferSize, cancellationToken), cancellationToken));
+							}
+							break;
 						case ComputeMessageType.WriteFiles:
 							{
 								UploadFilesMessage writeFiles = message.ParseUploadFilesMessage();

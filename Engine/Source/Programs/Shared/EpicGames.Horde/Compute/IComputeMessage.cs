@@ -32,6 +32,11 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		Exception = 0x02,
 
+		/// <summary>
+		/// Fork the message loop into a new channel
+		/// </summary>
+		Fork = 0x03,
+
 		#region Process Management
 
 		/// <summary>
@@ -117,6 +122,13 @@ namespace EpicGames.Horde.Compute
 	public record struct ExceptionMessage(string Message, string Description);
 
 	/// <summary>
+	/// Message requesting that the message loop be forked
+	/// </summary>
+	/// <param name="channelId">New channel to communicate on</param>
+	/// <param name="bufferSize">Size of the buffer</param>
+	public record struct ForkMessage(int channelId, int bufferSize);
+
+	/// <summary>
 	/// Extract files from a bundle to a path in the remote sandbox
 	/// </summary>
 	/// <param name="Name">Path to extract the files to</param>
@@ -162,9 +174,18 @@ namespace EpicGames.Horde.Compute
 	public static class ComputeMessageExtensions
 	{
 		/// <summary>
+		/// Closes the remote message loop
+		/// </summary>
+		public static async ValueTask CloseAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
+		{
+			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.None, cancellationToken);
+			message.Send();
+		}
+
+		/// <summary>
 		/// Sends a message to the remote indicating that we're ready to receive messages on the given channel
 		/// </summary>
-		public static async ValueTask SendReadyAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken)
+		public static async ValueTask SendReadyAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
 		{
 			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.Ready, cancellationToken);
 			message.Send();
@@ -173,12 +194,12 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Sends an exception response to the remote
 		/// </summary>
-		public static ValueTask SendExceptionAsync(this IComputeMessageChannel channel, Exception ex, CancellationToken cancellationToken) => SendExceptionAsync(channel, ex.Message, ex.ToString(), cancellationToken);
+		public static ValueTask SendExceptionAsync(this IComputeMessageChannel channel, Exception ex, CancellationToken cancellationToken = default) => SendExceptionAsync(channel, ex.Message, ex.ToString(), cancellationToken);
 
 		/// <summary>
 		/// Sends an exception response to the remote
 		/// </summary>
-		public static async ValueTask SendExceptionAsync(this IComputeMessageChannel channel, string description, string trace, CancellationToken cancellationToken)
+		public static async ValueTask SendExceptionAsync(this IComputeMessageChannel channel, string description, string trace, CancellationToken cancellationToken = default)
 		{
 			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.Exception, cancellationToken);
 			message.WriteString(description);
@@ -196,9 +217,30 @@ namespace EpicGames.Horde.Compute
 			return new ExceptionMessage(msg, description);
 		}
 
+		/// <summary>
+		/// Sends an exception response to the remote
+		/// </summary>
+		public static async ValueTask ForkAsync(this IComputeMessageChannel channel, int channelId, int bufferSize, CancellationToken cancellationToken = default)
+		{
+			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.Fork, cancellationToken);
+			message.WriteInt32(channelId);
+			message.WriteInt32(bufferSize);
+			message.Send();
+		}
+
+		/// <summary>
+		/// Parses a message as an <see cref="ExceptionMessage"/>
+		/// </summary>
+		public static ForkMessage ParseForkMessage(this IComputeMessage message)
+		{
+			int channelId = message.ReadInt32();
+			int bufferSize = message.ReadInt32();
+			return new ForkMessage(channelId, bufferSize);
+		}
+
 		#region Process
 
-		static async Task<IComputeMessage> RunStorageServer(this IComputeMessageChannel channel, IStorageClient storage, CancellationToken cancellationToken)
+		static async Task<IComputeMessage> RunStorageServer(this IComputeMessageChannel channel, IStorageClient storage, CancellationToken cancellationToken = default)
 		{
 			for (; ; )
 			{

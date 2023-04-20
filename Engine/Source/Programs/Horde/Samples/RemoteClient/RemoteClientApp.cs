@@ -79,12 +79,18 @@ namespace RemoteClient
 		static async Task RunRemoteAsync(IComputeLease lease, DirectoryReference uploadDir, string executable, List<string> arguments, ILogger logger)
 		{
 			// Create a message channel on channel id 0. The Horde Agent always listens on this channel for requests.
-			const int ControlChannelId = 0;
-			using (IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(ControlChannelId, 4 * 1024 * 1024, logger))
+			const int PrimaryChannelId = 0;
+			using (IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(PrimaryChannelId, 4 * 1024 * 1024, logger))
 			{
 				await channel.WaitForAttachAsync();
 
-				// Upload the sandbox
+				// Fork another message loop on channel id 2. We'll use this to run an XOR task in the background.
+				const int BackgroundChannelId = 2;
+				using IComputeMessageChannel backgroundChannel = lease.Socket.CreateMessageChannel(BackgroundChannelId, 4 * 1024 * 1024, logger);
+				await using BackgroundTask otherChannelTask = BackgroundTask.StartNew(ctx => RunBackgroundXorAsync(backgroundChannel));
+				await channel.ForkAsync(BackgroundChannelId, 4 * 1024 * 1024, default);
+
+				// Upload the sandbox to the primary channel.
 				MemoryStorageClient storage = new MemoryStorageClient();
 				using (TreeWriter treeWriter = new TreeWriter(storage))
 				{
@@ -110,7 +116,7 @@ namespace RemoteClient
 			}
 			await lease.CloseAsync();
 		}
-
+		
 		static async Task WriteNumbersAsync(IComputeSocket socket, ILogger logger, CancellationToken cancellationToken)
 		{
 			// Generate data into a buffer attached to channel 1. The remote server will echo them back to us as it receives them, then exit when the channel is complete/closed.
@@ -127,6 +133,25 @@ namespace RemoteClient
 			}
 
 			await socket.MarkCompleteAsync(DataChannelId, cancellationToken);
+		}
+
+		static async Task RunBackgroundXorAsync(IComputeMessageChannel channel)
+		{
+			await channel.WaitForAttachAsync();
+
+			byte[] dataToXor = new byte[] { 1, 2, 3, 4, 5 };
+			await channel.SendXorRequestAsync(dataToXor, 123);
+
+			using IComputeMessage response = await channel.ReceiveAsync(ComputeMessageType.XorResponse);
+			for (int idx = 0; idx < dataToXor.Length; idx++)
+			{
+				if (response.Data.Span[idx] != (byte)(dataToXor[idx] ^ 123))
+				{
+					throw new InvalidOperationException();
+				}
+			}
+
+			await channel.CloseAsync();
 		}
 
 		static async Task<IComputeClient> CreateClientAsync(ClientAppOptions options, ILogger logger)
