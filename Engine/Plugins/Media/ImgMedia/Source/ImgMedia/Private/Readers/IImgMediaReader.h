@@ -77,9 +77,7 @@ struct FImgMediaFrame
 	/** The frame's horizontal stride (in bytes). */
 	uint32 Stride = 0;
 
-	/** Sample converter is used by Media Texture Resource to convert the texture or data. */
-	TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> SampleConverter;
-
+	// This should only be used if you do not need to make changes to sample converter.
 	virtual IMediaTextureSampleConverter* GetSampleConverter()
 	{
 		if (!SampleConverter.IsValid())
@@ -91,6 +89,24 @@ struct FImgMediaFrame
 
 	/** Virtual non trivial destructor. */
 	virtual ~FImgMediaFrame() {};
+
+	template <class T>
+	TSharedPtr<T, ESPMode::ThreadSafe> GetOrCreateSampleConverter()
+	{
+		FScopeLock ScopedLock(SampleConverterCriticalSection.Get());
+		if (!SampleConverter.IsValid())
+		{
+			SampleConverter = MakeShared<T>();
+		}
+		return StaticCastSharedPtr<T>(SampleConverter);
+	}
+
+private:
+	/** Lock to be used exclusively on reader threads.*/
+	TSharedPtr<FCriticalSection, ESPMode::ThreadSafe> SampleConverterCriticalSection = MakeShared<FCriticalSection>();
+
+	/** Sample converter is used by Media Texture Resource to convert the texture or data. */
+	TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> SampleConverter;
 };
 
 

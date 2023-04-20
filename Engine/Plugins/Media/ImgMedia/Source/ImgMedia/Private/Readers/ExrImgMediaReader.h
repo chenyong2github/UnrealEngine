@@ -12,6 +12,7 @@
 class FImgMediaLoader;
 class FOpenExrHeaderReader;
 class FRgbaInputFile;
+struct FSampleConverterParameters;
 
 /**
  * Implements a reader for EXR image sequences.
@@ -51,49 +52,6 @@ protected:
 		Skipped
 	};
 
-	/* 
-	* These are all the required parameters to produce Buffer to Texture converter. 
-	*/
-	struct FSampleConverterParameters
-	{
-		/** General file information including its header. */
-		FImgMediaFrameInfo FrameInfo;
-
-		/** Frame Id. */
-		int32 FrameId;
-
-		/** Resolution of the highest quality mip. */
-		FIntPoint FullResolution;
-
-		/** Dimension of the tile including the overscan borders. */
-		FIntPoint TileDimWithBorders;
-
-		/** Used for rendering tiles in bulk regions per mip level. */
-		TMap<int32, TArray<FIntRect>> Viewports;
-
-#if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
-		/** Contain information about individual tiles. Used to convert buffer data into a 2D Texture. 
-		* The size of this array is the exact number of complete and partial tiles for each mip level.
-		*/
-		TArray<TArray<FExrReader::FTileDesc>> TileInfoPerMipLevel;
-#endif
-
-		/** Number of mip levels read. */
-		int32 NumMipLevels;
-
-		/** Pixel stride in bytes. I.e. 2 bytes per pixel x 3 channels = 6. */
-		int32 PixelSize;
-
-		/** Identifies this exr as custom, therefore all data should be swizzled. */
-		bool bCustomExr;
-
-		/** Indicates if mips stored in individual files.*/
-		bool bMipsInSeparateFiles;
-
-		/** A lower quality mip will be upscaled if value is 0 or above. At 0 highest quality mip will always be read fully. */
-		int32 UpscaleMip = -1;
-	};
-
 	/**
 	 * Get the frame information from the given input file.
 	 *
@@ -119,7 +77,6 @@ protected:
 		( uint16* Buffer
 		, int64 BufferSize
 		, const FString& ImagePath
-		, int32 FrameId
 		, const TArray<FIntRect>& TileRegions
 		, TSharedPtr<FSampleConverterParameters> ConverterParams
 		, const int32 CurrentMipLevel

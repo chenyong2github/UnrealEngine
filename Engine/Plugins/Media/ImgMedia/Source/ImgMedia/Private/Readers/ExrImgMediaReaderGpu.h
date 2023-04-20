@@ -35,21 +35,15 @@ struct FStructuredBufferPoolItem
 	*/
 	FShaderResourceViewRHIRef ShaderResourceView;
 
-	/** 
-	* A Gpu fence that identifies if this pool item is available for use again.
-	*/
-	FGPUFenceRHIRef RenderFence;
-
-	/**
-	* This boolean is used as a flag in combination with fences to indicate if rendering thread 
-	* is currently using it.
-	*/
-	bool bWillBeSignaled = false;
-
 	/**
 	* Keep track of our reader in case it gets destroyed.
 	*/
 	TWeakPtr<FExrImgMediaReaderGpu, ESPMode::ThreadSafe> Reader;
+
+	/**
+	* Destructure to clean up render resources
+	*/
+	~FStructuredBufferPoolItem();
 };
 
 /**
@@ -79,7 +73,6 @@ public:
 	* For performance reasons we want to pre-allocate structured buffers to at least the number of concurrent frames.
 	*/
 	virtual void PreAllocateMemoryPool(int32 NumFrames, const FImgMediaFrameInfo& FrameInfo, const bool bCustomExr) override;
-	virtual void OnTick() override;
 
 protected:
 
@@ -100,8 +93,7 @@ protected:
 	/**
 	* Creates Sample converter to be used by Media Texture Resource.
 	*/
-	static void CreateSampleConverterCallback
-		(FExrMediaTextureSampleConverter* SampleConverter, TSharedPtr<FSampleConverterParameters> ConverterParams);
+	static void CreateSampleConverterCallback(TSharedPtr<FExrMediaTextureSampleConverter, ESPMode::ThreadSafe> SampleConverter);
 
 	/**
 	* A function that reads one mip level.
@@ -110,35 +102,27 @@ protected:
 		( const int32 CurrentMipLevel
 		, const FImgMediaTileSelection& CurrentTileSelection
 		, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame
-		, TSharedPtr<FSampleConverterParameters> ConverterParams
-		, FExrMediaTextureSampleConverter* SampleConverter
+		, TSharedPtr<FExrMediaTextureSampleConverter, ESPMode::ThreadSafe> SampleConverter
 		, const FString& ImagePath
 		, bool bHasTiles);
 
 public:
 
 	/** Typically we would need the (ImageResolution.x*y)*NumChannels*ChannelSize */
-	FStructuredBufferPoolItemSharedPtr AllocateGpuBufferFromPool(uint32 AllocSize, bool bWait = true);
+	virtual FStructuredBufferPoolItemSharedPtr AllocateGpuBufferFromPool(uint32 AllocSize, bool bWait = true);
 
 	/** Either return or Add new chunk of memory to the pool based on its size. */
-	static void ReturnGpuBufferToStagingPool(uint32 AllocSize, FStructuredBufferPoolItem* Buffer);
+	void ReturnGpuBufferToPool(uint32 AllocSize, FStructuredBufferPoolItem* Buffer);
 
-	/** Transfer from Staging buffer to Memory pool. */
-	void TransferFromStagingBuffer();
+	
 
 private:
 
 	/** A critical section used for memory allocation and pool management. */
 	FCriticalSection AllocatorCriticalSecion;
 
-	/** Main memory pool from where we are allowed to take buffers. */
+	/** Memory pool from where we are allowed to take buffers. */
 	TMultiMap<uint32, FStructuredBufferPoolItem*> MemoryPool;
-
-	/** 
-	* This pool could contain potentially in use buffers and every tick it is processed
-	* and those buffers that are ready to be used returned back to Main memory pool
-	*/
-	TMultiMap<uint32, FStructuredBufferPoolItem*> StagingMemoryPool;
 
 	/** Frame that was last ticked so we don't tick more than once. */
 	uint64 LastTickedFrameCounter;
@@ -150,7 +134,52 @@ private:
 	bool bFallBackToCPU;
 };
 
-FUNC_DECLARE_DELEGATE(FExrConvertBufferCallback, bool, FRHICommandListImmediate& /*RHICmdList*/, FTexture2DRHIRef /*RenderTargetTextureRHI*/, TMap<int32, FStructuredBufferPoolItemSharedPtr>& /*MipBuffers*/ )
+
+/*
+* These are all the required parameters to convert Buffer to Texture converter.
+*/
+struct FSampleConverterParameters
+{
+	/** General file information including its header. */
+	FImgMediaFrameInfo FrameInfo;
+
+	/** Frame Id. */
+	int32 FrameId;
+
+	/** Resolution of the highest quality mip. */
+	FIntPoint FullResolution;
+
+	/** Dimension of the tile including the overscan borders. */
+	FIntPoint TileDimWithBorders;
+
+	/** Used for rendering tiles in bulk regions per mip level. */
+	TMap<int32, TArray<FIntRect>> Viewports;
+
+#if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
+	/** Contain information about individual tiles. Used to convert buffer data into a 2D Texture.
+	* The size of this array is the exact number of complete and partial tiles for each mip level.
+	*/
+	TArray<TArray<FExrReader::FTileDesc>> TileInfoPerMipLevel;
+#endif
+
+	/** Number of mip levels read. */
+	int32 NumMipLevels;
+
+	/** Pixel stride in bytes. I.e. 2 bytes per pixel x 3 channels = 6. */
+	int32 PixelSize;
+
+	/** Identifies this exr as custom, therefore all data should be swizzled. */
+	bool bCustomExr;
+
+	/** Indicates if mips stored in individual files.*/
+	bool bMipsInSeparateFiles;
+
+	/** A lower quality mip will be upscaled if value is 0 or above. At 0 highest quality mip will always be read fully. */
+	int32 UpscaleMip = -1;
+};
+
+
+FUNC_DECLARE_DELEGATE(FExrConvertBufferCallback, bool, FRHICommandListImmediate& /*RHICmdList*/, FTexture2DRHIRef /*RenderTargetTextureRHI*/, TMap<int32, FStructuredBufferPoolItemSharedPtr>& /*MipBuffers*/, const FSampleConverterParameters & /*ConverterParams*/)
 
 class FExrMediaTextureSampleConverter: public IMediaTextureSampleConverter
 {
@@ -193,6 +222,9 @@ public:
 		check(!MipBuffers.Contains(RequestedMipLevel));
 		MipBuffers.Add(RequestedMipLevel, Buffer);
 	}
+public:
+	/** These are all required parameters to convert the buffer into texture successfully. */
+	TSharedPtr<FSampleConverterParameters> ConverterParams = MakeShared<FSampleConverterParameters>();
 
 private:
 	FCriticalSection ConverterCallbacksCriticalSection;
