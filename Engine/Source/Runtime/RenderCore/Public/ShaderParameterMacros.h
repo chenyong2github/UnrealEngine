@@ -599,8 +599,7 @@ private:
 struct FDepthStencilBinding
 {
 	FDepthStencilBinding() = default;
-	FDepthStencilBinding(const FDepthStencilBinding&) = default;
-	
+
 	/**
 	 * Creates a render target binding informations for a depth/stencil texture.
 	 *
