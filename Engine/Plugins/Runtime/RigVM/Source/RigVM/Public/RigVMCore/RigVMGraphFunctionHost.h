@@ -73,6 +73,13 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionStore& Host)
 	{
 		Ar << Host.PublicFunctions;
+		
+		// This is only added to make sure SoftObjectPaths can be gathered and fixed up in the case of asset rename
+		// It should not affect data on disk
+		if (Ar.IsObjectReferenceCollector())
+		{
+			Ar << Host.PrivateFunctions;
+		}
 		return Ar;
 	}
 
