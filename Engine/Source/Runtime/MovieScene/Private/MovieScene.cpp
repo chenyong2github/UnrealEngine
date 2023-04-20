@@ -72,6 +72,7 @@ UMovieScene::UMovieScene(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	bReadOnly = false;
 	bPlaybackRangeLocked = false;
+	bMarkedFramesLocked = false;
 	PlaybackRange.MigrationDefault = FFloatRange::Empty();
 	EditorData.WorkingRange_DEPRECATED = EditorData.ViewRange_DEPRECATED = TRange<float>::Empty();
 
@@ -650,6 +651,16 @@ bool UMovieScene::IsPlaybackRangeLocked() const
 void UMovieScene::SetPlaybackRangeLocked(bool bLocked)
 {
 	bPlaybackRangeLocked = bLocked;
+}
+
+bool UMovieScene::AreMarkedFramesLocked() const
+{
+	return bMarkedFramesLocked;
+}
+
+void UMovieScene::SetMarkedFramesLocked(bool bLocked)
+{
+	bMarkedFramesLocked = bLocked;
 }
 #endif
 

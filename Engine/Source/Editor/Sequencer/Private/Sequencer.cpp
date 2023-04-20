@@ -571,7 +571,9 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		.OnSetMarkedFrame(this, &FSequencer::SetMarkedFrame)
 		.OnAddMarkedFrame(this, &FSequencer::AddMarkedFrame)
 		.OnDeleteMarkedFrame(this, &FSequencer::DeleteMarkedFrame)
-		.OnDeleteAllMarkedFrames(this, &FSequencer::DeleteAllMarkedFrames )
+		.OnDeleteAllMarkedFrames(this, &FSequencer::DeleteAllMarkedFrames)
+		.AreMarkedFramesLocked(this, &FSequencer::AreMarkedFramesLocked)
+		.OnToggleMarkedFramesLocked(this, &FSequencer::ToggleMarkedFramesLocked)
 		.SubSequenceRange( this, &FSequencer::GetSubSequenceRange )
 		.OnPlaybackRangeChanged( this, &FSequencer::SetPlaybackRange )
 		.OnPlaybackRangeBeginDrag( this, &FSequencer::OnPlaybackRangeBeginDrag )
@@ -9954,6 +9956,48 @@ void FSequencer::StepToPreviousMark()
 	}
 }
 
+bool FSequencer::AreMarkedFramesLocked() const
+{
+	if (IsReadOnly())
+	{
+		return true;
+	}
+	
+	UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
+	if (FocusedMovieSceneSequence != nullptr)
+	{
+		UMovieScene* MovieScene = FocusedMovieSceneSequence->GetMovieScene();
+
+		if (MovieScene->IsReadOnly())
+		{
+			return true;
+		}
+	
+		return MovieScene->AreMarkedFramesLocked();
+	}
+
+	return false;
+}
+
+void FSequencer::ToggleMarkedFramesLocked()
+{
+	UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
+	if ( FocusedMovieSceneSequence != nullptr )
+	{
+		UMovieScene* MovieScene = FocusedMovieSceneSequence->GetMovieScene();
+
+		if (MovieScene->IsReadOnly())
+		{
+			FSequencerUtilities::ShowReadOnlyError();
+			return;
+		}
+
+		FScopedTransaction ToggleMarkedFramesLockTransaction( NSLOCTEXT( "Sequencer", "ToggleMarkedFramesLocked", "Toggle marked frames lock" ) );
+		MovieScene->Modify();
+		MovieScene->SetMarkedFramesLocked( !MovieScene->AreMarkedFramesLocked() );
+	}
+}
+
 void GatherTracksAndObjectsToCopy(TSharedRef<UE::Sequencer::FViewModel> Node, TArray<TSharedPtr<UE::Sequencer::FViewModel>>& TracksToCopy, TArray<TSharedPtr<UE::Sequencer::FObjectBindingModel>>& ObjectsToCopy, TArray<UMovieSceneFolder*>& FoldersToCopy)
 {
 	using namespace UE::Sequencer;
@@ -10931,6 +10975,12 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.StepToPreviousMark,
 		FExecuteAction::CreateSP( this, &FSequencer::StepToPreviousMark));
+
+	SequencerCommandBindings->MapAction(
+		Commands.ToggleMarksLocked,
+		FExecuteAction::CreateSP(this, &FSequencer::ToggleMarkedFramesLocked),
+		FCanExecuteAction::CreateLambda( [this] { return GetFocusedMovieSceneSequence() != nullptr;	} ),
+		FIsActionChecked::CreateSP(this, &FSequencer::AreMarkedFramesLocked));
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleAutoScroll,

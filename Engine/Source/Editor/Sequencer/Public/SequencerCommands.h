@@ -289,6 +289,9 @@ public:
 	/** Step to previous mark */
 	TSharedPtr< FUICommandInfo > StepToPreviousMark;
 
+	/** Toggle locking marks */
+	TSharedPtr< FUICommandInfo > ToggleMarksLocked;
+
 	/** Rotates through the supported formats for displaying times/frames/timecode. */
 	TSharedPtr< FUICommandInfo > ChangeTimeDisplayFormat;
 

@@ -237,6 +237,12 @@ public:
 		/** Called when all marked frames should be deleted */
 		SLATE_EVENT( FSimpleDelegate, OnDeleteAllMarkedFrames)
 
+		/** Whether marked frames are locked */
+		SLATE_ATTRIBUTE( bool, AreMarkedFramesLocked )
+
+		/** Called when the user toggles the marked frames lock */
+		SLATE_EVENT( FSimpleDelegate, OnToggleMarkedFramesLocked )
+
 		/** Called when the user changes the clamp range */
 		SLATE_EVENT( FOnTimeRangeChanged, OnClampRangeChanged )
 

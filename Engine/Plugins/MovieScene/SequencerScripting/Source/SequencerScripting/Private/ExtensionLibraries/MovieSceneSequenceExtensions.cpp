@@ -1217,3 +1217,77 @@ bool UMovieSceneSequenceExtensions::IsReadOnly(UMovieSceneSequence* Sequence)
 	return false;
 }
 
+void UMovieSceneSequenceExtensions::SetPlaybackRangeLocked(UMovieSceneSequence* Sequence, bool bInLocked)
+{
+	if (!Sequence)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetPlaybackRangeLocked on a null sequence"), ELogVerbosity::Error);
+		return;
+	}
+
+#if WITH_EDITORONLY_DATA
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+		MovieScene->SetPlaybackRangeLocked(bInLocked);
+	}
+#endif
+}
+
+bool UMovieSceneSequenceExtensions::IsPlaybackRangeLocked(UMovieSceneSequence* Sequence)
+{
+	if (!Sequence)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call IsPlaybackRangeLocked on a null sequence"), ELogVerbosity::Error);
+		return false;
+	}
+
+#if WITH_EDITORONLY_DATA
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+
+		return MovieScene->IsPlaybackRangeLocked();
+	}
+#endif
+
+	return false;
+}
+
+void UMovieSceneSequenceExtensions::SetMarkedFramesLocked(UMovieSceneSequence* Sequence, bool bInLocked)
+{
+	if (!Sequence)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetMarkedFramesLocked on a null sequence"), ELogVerbosity::Error);
+		return;
+	}
+
+#if WITH_EDITORONLY_DATA
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+		MovieScene->SetMarkedFramesLocked(bInLocked);
+	}
+#endif
+}
+
+bool UMovieSceneSequenceExtensions::AreMarkedFramesLocked(UMovieSceneSequence* Sequence)
+{
+	if (!Sequence)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call AreMarkedFramesLocked on a null sequence"), ELogVerbosity::Error);
+		return false;
+	}
+
+#if WITH_EDITORONLY_DATA
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+
+		return MovieScene->AreMarkedFramesLocked();
+	}
+#endif
+
+	return false;
+}
+

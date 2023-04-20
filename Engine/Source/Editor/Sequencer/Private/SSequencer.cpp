@@ -224,6 +224,8 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.OnAddMarkedFrame = InArgs._OnAddMarkedFrame;
 		TimeSliderArgs.OnDeleteMarkedFrame = InArgs._OnDeleteMarkedFrame;
 		TimeSliderArgs.OnDeleteAllMarkedFrames = InArgs._OnDeleteAllMarkedFrames;
+		TimeSliderArgs.AreMarkedFramesLocked = InArgs._AreMarkedFramesLocked;
+		TimeSliderArgs.OnToggleMarkedFramesLocked = InArgs._OnToggleMarkedFramesLocked;
 
 		TimeSliderArgs.NumericTypeInterface = GetNumericTypeInterface();
 	}

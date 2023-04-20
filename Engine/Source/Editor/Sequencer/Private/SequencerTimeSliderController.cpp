@@ -1026,6 +1026,8 @@ FReply FSequencerTimeSliderController::OnMouseMoveImpl( SWidget& WidgetOwner, co
 	bool bHandleRightMouseButton = MouseEvent.IsMouseButtonDown( EKeys::RightMouseButton ) && TimeSliderArgs.AllowZoom;
 	bool bHandleMiddleMouseButton = MouseEvent.IsMouseButtonDown(EKeys::MiddleMouseButton);
 
+	const bool bLockedMarkedFrames = TimeSliderArgs.AreMarkedFramesLocked.Get();
+
 	HoverMarkIndex = INDEX_NONE;
 
 	if (bHandleRightMouseButton)
@@ -1121,7 +1123,7 @@ FReply FSequencerTimeSliderController::OnMouseMoveImpl( SWidget& WidgetOwner, co
 					MouseDragType = DRAG_PLAYBACK_START;
 					TimeSliderArgs.OnPlaybackRangeBeginDrag.ExecuteIfBound();
 				}
-				else if (!bReadOnly && !bHitScrubber && HitTestMark(MyGeometry, RangeToScreen, MouseDownPixel, bFromTimeSlider, &DragMarkIndex, &DragMarkReferenceFrameNumber) && bHandleMiddleMouseButton == false)
+				else if (!bLockedMarkedFrames && !bHitScrubber && HitTestMark(MyGeometry, RangeToScreen, MouseDownPixel, bFromTimeSlider, &DragMarkIndex, &DragMarkReferenceFrameNumber) && bHandleMiddleMouseButton == false)
 				{
 					MouseDragType = DRAG_MARK;
 					DragMarkCurrentFrameNumber = DragMarkReferenceFrameNumber;
@@ -1213,7 +1215,7 @@ FReply FSequencerTimeSliderController::OnMouseMoveImpl( SWidget& WidgetOwner, co
 			}
 		}
 	}
-	else if (bFromTimeSlider && DragMarkIndex == INDEX_NONE)
+	else if (bFromTimeSlider && !bLockedMarkedFrames && DragMarkIndex == INDEX_NONE)
 	{
 		// Update hover state of marked frames.
 		TRange<double> LocalViewRange = GetViewRange();
@@ -1315,6 +1317,7 @@ FCursorReply FSequencerTimeSliderController::OnCursorQuery( TSharedRef<const SWi
 	const bool       bReadOnly        = Sequencer->IsReadOnly();
 	const FFrameRate TickResolution   = GetTickResolution();
 	const bool       bLockedPlayRange = TimeSliderArgs.IsPlaybackRangeLocked.Get();
+	const bool       bLockedMarkedFrames = TimeSliderArgs.AreMarkedFramesLocked.Get();
 	const float      HitTestPixel     = MyGeometry.AbsoluteToLocal(CursorEvent.GetScreenSpacePosition()).X;
 	const bool       bHitScrubber     = GetHitTestScrubPixelMetrics(RangeToScreen).HandleRangePx.Contains(HitTestPixel);
 
@@ -1340,7 +1343,7 @@ FCursorReply FSequencerTimeSliderController::OnCursorQuery( TSharedRef<const SWi
 	}
 
 	const bool bFromTimeSlider = true;
-	if (MouseDragType == DRAG_MARK || (!bReadOnly && !bHitScrubber && HitTestMark(MyGeometry, RangeToScreen, HitTestPixel, bFromTimeSlider)))
+	if (MouseDragType == DRAG_MARK || (!bLockedMarkedFrames && !bHitScrubber && HitTestMark(MyGeometry, RangeToScreen, HitTestPixel, bFromTimeSlider)))
 	{
 		return FCursorReply::Cursor(EMouseCursor::CardinalCross);
 	}
@@ -1638,7 +1641,10 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 				}
 			};
 
+			const bool bLockedMarkedFrames = TimeSliderArgs.AreMarkedFramesLocked.Get();
+
 			TSharedRef<SMarkedFramePropertyWidget> Widget = SNew(SMarkedFramePropertyWidget, MovieScene, MarkedIndex, WeakSequencer);
+			Widget->SetEnabled(!bLockedMarkedFrames);
 			MenuBuilder.AddWidget(Widget, FText::GetEmpty(), false);
 		}
 
@@ -1648,7 +1654,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda( [=]{ AddMarkAtFrame(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return !bReadOnly && MarkedIndex == INDEX_NONE; }))
+				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.AreMarkedFramesLocked.Get() && MarkedIndex == INDEX_NONE; }))
 		);
 
 		MenuBuilder.AddMenuEntry( 
@@ -1657,16 +1663,28 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([=]{ DeleteMarkAtIndex(MarkedIndex); }),
-				FCanExecuteAction::CreateLambda([=]{ return !bReadOnly && MarkedIndex != INDEX_NONE; }))
+				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.AreMarkedFramesLocked.Get() && MarkedIndex != INDEX_NONE; }))
 		);
 
 		MenuBuilder.AddMenuEntry( 
-			LOCTEXT("Delete All Marks", "Delete All Marks"),
+			LOCTEXT("DeleteAllMarks", "Delete All Marks"),
 			FText(),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([=]{ DeleteAllMarks(); }),
-				FCanExecuteAction::CreateLambda([=]{ return !bReadOnly && bHasMarks; }))
+				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.AreMarkedFramesLocked.Get() && bHasMarks; }))
+			);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleLockedMarks", "Locked"),
+			LOCTEXT("ToggleLockedMarksTooltip", "Lock/Unlock all marked frames"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([=]{ TimeSliderArgs.OnToggleMarkedFramesLocked.ExecuteIfBound(); }),
+				FCanExecuteAction::CreateLambda([=]{ return !bReadOnly; }),
+				FIsActionChecked::CreateLambda([=]{ return TimeSliderArgs.AreMarkedFramesLocked.Get(); })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 			);
 	}
 	MenuBuilder.EndSection(); // SequencerMarkMenu

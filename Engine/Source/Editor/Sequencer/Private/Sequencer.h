@@ -311,6 +311,8 @@ protected:
 	void ToggleMarkAtPlayPosition();
 	void StepToNextMark();
 	void StepToPreviousMark();
+	bool AreMarkedFramesLocked() const;
+	void ToggleMarkedFramesLocked();
 
 	/**
 	 * @param InMarkIndex The marked frame index to set

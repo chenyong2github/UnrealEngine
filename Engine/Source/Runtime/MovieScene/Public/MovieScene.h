@@ -1022,6 +1022,16 @@ public:
 	void SetPlaybackRangeLocked(bool bLocked);
 
 	/**
+	 * Return whether marked frames are locked.
+	 */
+	bool AreMarkedFramesLocked() const;
+
+	/**
+	 * Set whether marked frames are locked.
+	 */
+	void SetMarkedFramesLocked(bool bLocked);
+
+	/**
 	 * @return The editor only data for use with this movie scene
 	 */
 	FMovieSceneEditorData& GetEditorData()
@@ -1268,6 +1278,10 @@ private:
 	/** User-defined playback range is locked. */
 	UPROPERTY()
 	bool bPlaybackRangeLocked;
+
+	/** User-defined marked frames are locked. */
+	UPROPERTY()
+	bool bMarkedFramesLocked;
 
 	/** Maps object GUIDs to user defined display names. */
 	UPROPERTY()

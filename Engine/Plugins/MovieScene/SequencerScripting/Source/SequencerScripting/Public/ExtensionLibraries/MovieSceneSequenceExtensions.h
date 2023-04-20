@@ -612,6 +612,38 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
 	static bool IsReadOnly(UMovieSceneSequence* Sequence);
+
+	/*
+	 * Set playback range locked
+	 *
+	 * @bInLocked Whether the movie scene playback range should be locked
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
+	static void SetPlaybackRangeLocked(UMovieSceneSequence* Sequence, bool bInLocked);
+
+	/*
+	 * Is playback ranged locked
+	 *
+	 * @return Whether the movie scene playback range is locked
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
+	static bool IsPlaybackRangeLocked(UMovieSceneSequence* Sequence);
+
+	/*
+	 * Set marked frames locked
+	 *
+	 * @bInLocked Whether the movie scene marked frames should be locked
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
+	static void SetMarkedFramesLocked(UMovieSceneSequence* Sequence, bool bInLocked);
+
+	/*
+	 * Are marked frames locked
+	 *
+	 * @return Whether the movie scene marked frames are locked
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
+	static bool AreMarkedFramesLocked(UMovieSceneSequence* Sequence);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
