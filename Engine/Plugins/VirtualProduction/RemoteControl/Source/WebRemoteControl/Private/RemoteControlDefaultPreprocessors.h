@@ -334,7 +334,7 @@ namespace UE::WebRemoteControl
 						{
 							PeerAddress = ForwardedIP->Last();
 
-							if (GetDefault<URemoteControlSettings>()->IsClientAllowed(PeerAddress))
+							if (GetDefault<URemoteControlSettings>()->IsClientAllowed(PeerAddress) || IsLocal(PeerAddress))
 							{
 								return FPreprocessorResult::Passthrough();
 							}

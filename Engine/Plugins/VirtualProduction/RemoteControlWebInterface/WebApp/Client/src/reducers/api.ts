@@ -351,11 +351,16 @@ reducer
       }
 
       _preset = preset;
-      _api.presets.load(preset)
+
+      // Delay loading the preset so it happens after we pull the initial list of presets.
+      //If it happens intertwined with or before these requests, the result will get overwritten with an empty preset since we haven't loaded it.
+      setTimeout(() => {
+        _api.presets.load(preset)
           .then(() => Promise.all([
               _api.views.get(preset),
               _api.payload.get(preset),
           ]));
+      },200);
 
       return { ...state, preset, view: { tabs: [] }, payload: {} };
     }
