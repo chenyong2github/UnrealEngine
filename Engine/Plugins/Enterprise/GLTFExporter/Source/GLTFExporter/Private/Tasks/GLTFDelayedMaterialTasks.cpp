@@ -521,8 +521,8 @@ bool FGLTFDelayedMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRou
 	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, GetPropertyGroup(BaseColorProperty));
 	const TextureFilter TextureFilter = Builder.GetBakeFilterForMaterialProperty(Material, GetPropertyGroup(BaseColorProperty));
 
-	const FGLTFPropertyBakeOutput BaseColorBakeOutput = BakeMaterialProperty(BaseColorProperty, BaseColorTexCoord, TextureSize, false);
-	const FGLTFPropertyBakeOutput OpacityBakeOutput = BakeMaterialProperty(OpacityProperty, OpacityTexCoord, TextureSize, false);
+	const FGLTFPropertyBakeOutput BaseColorBakeOutput = BakeMaterialProperty(BaseColorProperty, BaseColorTexCoord, BaseColorTransform, TextureSize, false);
+	const FGLTFPropertyBakeOutput OpacityBakeOutput = BakeMaterialProperty(OpacityProperty, OpacityTexCoord, OpacityTransform, TextureSize, false);
 	const float BaseColorScale = BaseColorProperty == MP_EmissiveColor ? BaseColorBakeOutput.EmissiveScale : 1;
 
 	// Detect when both baked properties are constants, which means we can avoid exporting a texture
@@ -541,15 +541,18 @@ bool FGLTFDelayedMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRou
 	}
 
 	int32 CombinedTexCoord;
+	FGLTFJsonTextureTransform CombinedTransform;
 
 	// If one is constant, it means we can use the other's texture coords
 	if (BaseColorBakeOutput.bIsConstant || BaseColorTexCoord == OpacityTexCoord)
 	{
 		CombinedTexCoord = OpacityTexCoord;
+		CombinedTransform = OpacityTransform; // If texcoord the same, then transform also the same
 	}
 	else if (OpacityBakeOutput.bIsConstant)
 	{
 		CombinedTexCoord = BaseColorTexCoord;
+		CombinedTransform = BaseColorTransform;
 	}
 	else
 	{
@@ -577,8 +580,9 @@ bool FGLTFDelayedMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRou
 		TextureAddress,
 		TextureFilter);
 
-	OutPBRParams.BaseColorTexture.TexCoord = CombinedTexCoord;
 	OutPBRParams.BaseColorTexture.Index = CombinedTexture;
+	OutPBRParams.BaseColorTexture.TexCoord = CombinedTexCoord;
+	OutPBRParams.BaseColorTexture.Transform = CombinedTransform;
 
 	// TODO: add warning if BaseColorScale exceeds 1.0 (maybe suggest disabling unlit materials?)
 	OutPBRParams.BaseColorFactor = FGLTFCoreUtilities::ConvertColor(FLinearColor(BaseColorScale, BaseColorScale, BaseColorScale));
@@ -640,8 +644,8 @@ bool FGLTFDelayedMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRo
 	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, GetPropertyGroup(MetallicProperty));
 	const TextureFilter TextureFilter = Builder.GetBakeFilterForMaterialProperty(Material, GetPropertyGroup(MetallicProperty));
 
-	FGLTFPropertyBakeOutput MetallicBakeOutput = BakeMaterialProperty(MetallicProperty, MetallicTexCoord, TextureSize, false);
-	FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, TextureSize, false);
+	FGLTFPropertyBakeOutput MetallicBakeOutput = BakeMaterialProperty(MetallicProperty, MetallicTexCoord, MetallicTransform, TextureSize, false);
+	FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, RoughnessTransform, TextureSize, false);
 
 	// Detect when both baked properties are constants, which means we can use factors and avoid exporting a texture
 	if (MetallicBakeOutput.bIsConstant && RoughnessBakeOutput.bIsConstant)
@@ -657,15 +661,18 @@ bool FGLTFDelayedMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRo
 	}
 
 	int32 CombinedTexCoord;
+	FGLTFJsonTextureTransform CombinedTransform;
 
 	// If one is constant, it means we can use the other's texture coords
 	if (MetallicBakeOutput.bIsConstant || MetallicTexCoord == RoughnessTexCoord)
 	{
 		CombinedTexCoord = RoughnessTexCoord;
+		CombinedTransform = RoughnessTransform; // If texcoord the same, then transform also the same
 	}
 	else if (RoughnessBakeOutput.bIsConstant)
 	{
 		CombinedTexCoord = MetallicTexCoord;
+		CombinedTransform = MetallicTransform;
 	}
 	else
 	{
@@ -693,8 +700,9 @@ bool FGLTFDelayedMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRo
 		TextureAddress,
 		TextureFilter);
 
-	OutPBRParams.MetallicRoughnessTexture.TexCoord = CombinedTexCoord;
 	OutPBRParams.MetallicRoughnessTexture.Index = CombinedTexture;
+	OutPBRParams.MetallicRoughnessTexture.TexCoord = CombinedTexCoord;
+	OutPBRParams.MetallicRoughnessTexture.Transform = CombinedTransform;
 
 	return true;
 }
@@ -755,8 +763,8 @@ bool FGLTFDelayedMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtens
 	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material,GetPropertyGroup(IntensityProperty));
 	const TextureFilter TextureFilter = Builder.GetBakeFilterForMaterialProperty(Material, GetPropertyGroup(IntensityProperty));
 
-	const FGLTFPropertyBakeOutput IntensityBakeOutput = BakeMaterialProperty(IntensityProperty, IntensityTexCoord, TextureSize, false);
-	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, TextureSize, false);
+	const FGLTFPropertyBakeOutput IntensityBakeOutput = BakeMaterialProperty(IntensityProperty, IntensityTexCoord, IntensityTransform, TextureSize, false);
+	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, RoughnessTransform, TextureSize, false);
 
 	// Detect when both baked properties are constants, which means we can use factors and avoid exporting a texture
 	if (IntensityBakeOutput.bIsConstant && RoughnessBakeOutput.bIsConstant)
@@ -772,15 +780,18 @@ bool FGLTFDelayedMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtens
 	}
 
 	int32 CombinedTexCoord;
+	FGLTFJsonTextureTransform CombinedTransform;
 
 	// If one is constant, it means we can use the other's texture coords
 	if (IntensityBakeOutput.bIsConstant || IntensityTexCoord == RoughnessTexCoord)
 	{
 		CombinedTexCoord = RoughnessTexCoord;
+		CombinedTransform = RoughnessTransform; // If texcoord the same, then transform also the same
 	}
 	else if (RoughnessBakeOutput.bIsConstant)
 	{
 		CombinedTexCoord = IntensityTexCoord;
+		CombinedTransform = IntensityTransform;
 	}
 	else
 	{
@@ -810,8 +821,10 @@ bool FGLTFDelayedMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtens
 
 	OutExtParams.ClearCoatTexture.Index = CombinedTexture;
 	OutExtParams.ClearCoatTexture.TexCoord = CombinedTexCoord;
+	OutExtParams.ClearCoatTexture.Transform = CombinedTransform;
 	OutExtParams.ClearCoatRoughnessTexture.Index = CombinedTexture;
 	OutExtParams.ClearCoatRoughnessTexture.TexCoord = CombinedTexCoord;
+	OutExtParams.ClearCoatRoughnessTexture.Transform = CombinedTransform;
 
 	return true;
 }
@@ -846,7 +859,7 @@ bool FGLTFDelayedMaterialTask::TryGetEmissive(FGLTFJsonMaterial& OutMaterial, co
 			return false;
 		}
 
-		FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(EmissiveProperty, OutMaterial.EmissiveTexture.TexCoord);
+		FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(EmissiveProperty, OutMaterial.EmissiveTexture.TexCoord, OutMaterial.EmissiveTexture.Transform);
 
 		if (PropertyBakeOutput.bIsConstant)
 		{
@@ -1318,7 +1331,7 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 		return false;
 	}
 
-	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, OutTexInfo.TexCoord);
+	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, OutTexInfo.TexCoord, OutTexInfo.Transform);
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
@@ -1352,7 +1365,7 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 		return false;
 	}
 
-	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, OutTexInfo.TexCoord);
+	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, OutTexInfo.TexCoord, OutTexInfo.Transform);
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
@@ -1386,7 +1399,7 @@ inline bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextu
 		return false;
 	}
 
-	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, OutTexInfo.TexCoord);
+	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, OutTexInfo.TexCoord, OutTexInfo.Transform);
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
@@ -1420,7 +1433,7 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 		return false;
 	}
 
-	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, OutTexInfo.TexCoord);
+	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, OutTexInfo.TexCoord, OutTexInfo.Transform);
 
 	if (!PropertyBakeOutput.bIsConstant)
 	{
@@ -1469,14 +1482,17 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 	return true;
 }
 
-FGLTFPropertyBakeOutput FGLTFDelayedMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord)
+FGLTFPropertyBakeOutput FGLTFDelayedMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, FGLTFJsonTextureTransform& OutTransform)
 {
 	const FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, GetPropertyGroup(Property));
-	return BakeMaterialProperty(Property, OutTexCoord, TextureSize, true);
+	return BakeMaterialProperty(Property, OutTexCoord, OutTransform, TextureSize, true);
 }
 
-FGLTFPropertyBakeOutput FGLTFDelayedMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, const FIntPoint& TextureSize, bool bFillAlpha)
+FGLTFPropertyBakeOutput FGLTFDelayedMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, FGLTFJsonTextureTransform& OutTransform, const FIntPoint& TextureSize, bool bFillAlpha)
 {
+	const FBox2f DefaultTexCoordBounds = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
+	FBox2f TexCoordBounds;
+
 	if (MeshData == nullptr)
 	{
 		FGLTFIndexArray TexCoords;
@@ -1500,11 +1516,30 @@ FGLTFPropertyBakeOutput FGLTFDelayedMaterialTask::BakeMaterialProperty(const FMa
 		{
 			OutTexCoord = 0;
 		}
+
+		TexCoordBounds = DefaultTexCoordBounds;
 	}
 	else
 	{
-		OutTexCoord = MeshData->BakeUsingTexCoord;
 		MeshDataBakedProperties.Add(Property);
+		OutTexCoord = MeshData->BakeUsingTexCoord;
+		TexCoordBounds = UVBoundsCalculator.GetOrAdd(&MeshData->Description, SectionIndices, OutTexCoord);
+
+		if (Builder.ExportOptions->bExportTextureTransforms)
+		{
+			const FVector2f Scale = { 1.0f / (TexCoordBounds.Max.X - TexCoordBounds.Min.X), 1.0f / (TexCoordBounds.Max.Y - TexCoordBounds.Min.Y) };
+			const FVector2f Offset = -TexCoordBounds.Min * Scale;
+			OutTransform.Offset = FGLTFCoreUtilities::ConvertUV(Offset);
+			OutTransform.Scale = FGLTFCoreUtilities::ConvertUV(Scale);
+		}
+		else if (!TexCoordBounds.Equals(DefaultTexCoordBounds))
+		{
+			Builder.LogSuggestion(FString::Printf(
+				TEXT("Export and baking of %s for material %s could be improved, by enabling texture transform in export options"),
+				*Property.ToString(),
+				*Material->GetName()));
+			TexCoordBounds = DefaultTexCoordBounds;
+		}
 	}
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
@@ -1513,6 +1548,7 @@ FGLTFPropertyBakeOutput FGLTFDelayedMaterialTask::BakeMaterialProperty(const FMa
 		TextureSize,
 		Property,
 		Material,
+		TexCoordBounds,
 		OutTexCoord,
 		MeshData,
 		SectionIndices,

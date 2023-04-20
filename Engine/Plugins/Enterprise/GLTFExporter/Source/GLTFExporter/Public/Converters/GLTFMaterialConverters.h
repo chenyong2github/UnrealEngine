@@ -8,6 +8,7 @@
 #include "Converters/GLTFMeshData.h"
 #include "Converters/GLTFIndexArray.h"
 #include "Converters/GLTFUVOverlapChecker.h"
+#include "Converters/GLTFUVBoundsCalculator.h"
 #include "Converters/GLTFUVDegenerateChecker.h"
 
 typedef TGLTFConverter<FGLTFJsonMaterial*, const UMaterialInterface*, const FGLTFMeshData*, FGLTFIndexArray> IGLTFMaterialConverter;
@@ -27,5 +28,6 @@ protected:
 private:
 
 	FGLTFUVOverlapChecker UVOverlapChecker;
+	FGLTFUVBoundsCalculator UVBoundsCalculator;
 	FGLTFUVDegenerateChecker UVDegenerateChecker;
 };

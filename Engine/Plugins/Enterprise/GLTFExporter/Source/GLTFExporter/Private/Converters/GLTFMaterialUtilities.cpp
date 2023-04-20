@@ -15,7 +15,6 @@
 #endif
 #include "Engine/RendererSettings.h"
 #include "Modules/ModuleManager.h"
-#include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 
@@ -109,11 +108,11 @@ UMaterialExpressionCustomOutput* FGLTFMaterialUtilities::GetCustomOutputByName(c
 	return nullptr;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialUtilities::BakeMaterialProperty(const FIntPoint& OutputSize, const FMaterialPropertyEx& Property, const UMaterialInterface* Material, int32 TexCoord, const FGLTFMeshData* MeshData, const FGLTFIndexArray& MeshSectionIndices, bool bFillAlpha, bool bAdjustNormalmaps)
+FGLTFPropertyBakeOutput FGLTFMaterialUtilities::BakeMaterialProperty(const FIntPoint& OutputSize, const FMaterialPropertyEx& Property, const UMaterialInterface* Material, const FBox2f& TexCoordBounds, int32 TexCoordIndex, const FGLTFMeshData* MeshData, const FGLTFIndexArray& MeshSectionIndices, bool bFillAlpha, bool bAdjustNormalmaps)
 {
 	FMeshData MeshSet;
-	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
-	MeshSet.TextureCoordinateIndex = TexCoord;
+	MeshSet.TextureCoordinateBox = FBox2D(TexCoordBounds);
+	MeshSet.TextureCoordinateIndex = TexCoordIndex;
 	MeshSet.MaterialIndices = MeshSectionIndices; // NOTE: MaterialIndices is actually section indices
 	if (MeshData != nullptr)
 	{

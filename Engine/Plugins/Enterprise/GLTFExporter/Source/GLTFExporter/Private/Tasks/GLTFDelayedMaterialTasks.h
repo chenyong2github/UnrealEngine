@@ -5,6 +5,7 @@
 #include "Tasks/GLTFDelayedTask.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Converters/GLTFUVOverlapChecker.h"
+#include "Converters/GLTFUVBoundsCalculator.h"
 #include "Converters/GLTFMeshData.h"
 #include "Materials/GLTFProxyMaterialParameterInfo.h"
 #include "Materials/Material.h"
@@ -18,10 +19,11 @@ class FGLTFDelayedMaterialTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFDelayedMaterialTask(FGLTFConvertBuilder& Builder, FGLTFUVOverlapChecker& UVOverlapChecker, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices, FGLTFJsonMaterial* JsonMaterial)
+	FGLTFDelayedMaterialTask(FGLTFConvertBuilder& Builder, FGLTFUVOverlapChecker& UVOverlapChecker, FGLTFUVBoundsCalculator& UVBoundsCalculator, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices, FGLTFJsonMaterial* JsonMaterial)
 		: FGLTFDelayedTask(EGLTFTaskPriority::Material)
 		, Builder(Builder)
 		, UVOverlapChecker(UVOverlapChecker)
+		, UVBoundsCalculator(UVBoundsCalculator)
 		, Material(Material)
 		, MeshData(MeshData)
 		, SectionIndices(SectionIndices)
@@ -40,6 +42,7 @@ private:
 
 	FGLTFConvertBuilder& Builder;
 	FGLTFUVOverlapChecker& UVOverlapChecker;
+	FGLTFUVBoundsCalculator& UVBoundsCalculator;
 	const UMaterialInterface* Material;
 	const FGLTFMeshData* MeshData;
 	const FGLTFIndexArray SectionIndices;
@@ -87,8 +90,8 @@ private:
 	bool TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTexInfo, float& OutConstant, const FMaterialPropertyEx& Property, const FString& PropertyName);
 	bool TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTexInfo, const FMaterialPropertyEx& Property, const FString& PropertyName);
 
-	FGLTFPropertyBakeOutput BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord);
-	FGLTFPropertyBakeOutput BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, const FIntPoint& TextureSize, bool bFillAlpha);
+	FGLTFPropertyBakeOutput BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, FGLTFJsonTextureTransform& OutTransform);
+	FGLTFPropertyBakeOutput BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, FGLTFJsonTextureTransform& OutTransform, const FIntPoint& TextureSize, bool bFillAlpha);
 
 	bool StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexInfo, FGLTFPropertyBakeOutput& PropertyBakeOutput, const FString& PropertyName) const;
 

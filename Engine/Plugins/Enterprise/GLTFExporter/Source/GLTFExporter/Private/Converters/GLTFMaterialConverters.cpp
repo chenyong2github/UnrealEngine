@@ -48,7 +48,7 @@ FGLTFJsonMaterial* FGLTFMaterialConverter::Convert(const UMaterialInterface* Mat
 	if (Material != FGLTFMaterialUtilities::GetDefaultMaterial())
 	{
 		FGLTFJsonMaterial* JsonMaterial = Builder.AddMaterial();
-		Builder.ScheduleSlowTask<FGLTFDelayedMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, JsonMaterial);
+		Builder.ScheduleSlowTask<FGLTFDelayedMaterialTask>(Builder, UVOverlapChecker, UVBoundsCalculator, Material, MeshData, SectionIndices, JsonMaterial);
 		return JsonMaterial;
 	}
 

@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/StaticArray.h"
-
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFIndexArray.h"
+#include "Containers/StaticArray.h"
 
 struct FMeshDescription;
 
