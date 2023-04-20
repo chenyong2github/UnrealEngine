@@ -1874,7 +1874,6 @@ void FVulkanPipelineStateCacheManager::NotifyDeletedGraphicsPSO(FRHIGraphicsPipe
 		FScopeLock Lock(&GraphicsPSOLockedCS);
 		FVulkanRHIGraphicsPipelineState** Contained = GraphicsPSOLockedMap.Find(Key);
 		check(Contained && *Contained == PSO);
-		GraphicsPSOLockedMap.Remove(Key);
 		VkPSO->bIsRegistered = false;
 		if(bUseLRU)
 		{
@@ -1886,7 +1885,7 @@ void FVulkanPipelineStateCacheManager::NotifyDeletedGraphicsPSO(FRHIGraphicsPipe
 			(*Contained)->DeleteVkPipeline(true);
 			check(VkPSO->GetVulkanPipeline() == 0 );
 		}
-		
+		GraphicsPSOLockedMap.Remove(Key);
 	}
 	else
 	{

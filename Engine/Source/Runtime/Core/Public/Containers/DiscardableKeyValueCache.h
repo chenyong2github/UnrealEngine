@@ -281,9 +281,8 @@ protected:
 			if (!Found && BackfillFound)
 			{
 				// if shared refs, add/remove order is important
-				CurrentMap->Add(Key, *BackfillFound);
+				Found = &CurrentMap->Add(Key, *BackfillFound);
 				BackfillMap->Remove(Key);
-				Found = BackfillFound;
 			}
 		}
 
