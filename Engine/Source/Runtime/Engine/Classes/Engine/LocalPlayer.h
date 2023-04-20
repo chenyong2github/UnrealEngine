@@ -44,7 +44,6 @@ struct ENGINE_API FLocalPlayerContext
 	FLocalPlayerContext();
 	FLocalPlayerContext(const class ULocalPlayer* InLocalPlayer, UWorld* InWorld = nullptr);
 	FLocalPlayerContext(const class APlayerController* InPlayerController);
-	FLocalPlayerContext(const FLocalPlayerContext& InPlayerContext);
 
 	/** Is this context initialized and still valid? */
 	bool IsValid() const;

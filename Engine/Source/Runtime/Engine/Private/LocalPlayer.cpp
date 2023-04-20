@@ -88,13 +88,6 @@ FLocalPlayerContext::FLocalPlayerContext( const class APlayerController* InPlaye
 	SetPlayerController( InPlayerController );
 }
 
-FLocalPlayerContext::FLocalPlayerContext( const FLocalPlayerContext& InPlayerContext )
-	: World(InPlayerContext.World)
-{
-	check(InPlayerContext.GetLocalPlayer());
-	SetLocalPlayer(InPlayerContext.GetLocalPlayer());
-}
-
 bool FLocalPlayerContext::IsValid() const
 {
 	if (ULocalPlayer* LocalPlayerPtr = LocalPlayer.Get())
