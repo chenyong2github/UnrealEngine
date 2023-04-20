@@ -29,17 +29,7 @@ public:
 	void UpdateColumns(const bool bReset);
 
 	void UpdateRows(const bool bRefresh);
-
-	void UpdateBufferSelectionList();
 	
-	TSharedRef<SWidget> BufferSelectionGenerateWidget(TSharedPtr<FBufferSelectionInfo> InItem);
-
-	void BufferSelectionChanged(TSharedPtr<FBufferSelectionInfo> NewSelection, ESelectInfo::Type SelectInfo);
-
-	FText GetBufferSelectionText() const;
-
-	void OnComponentFilterChange(const FText& InFilter);
-
 	void OnSimCacheChanged();
 
 	void OnViewDataChanged(const bool bFullRefresh);
@@ -51,11 +41,7 @@ private:
 
 	TArray<TSharedPtr<int32>>					RowItems;
 	TSharedPtr<FNiagaraSimCacheViewModel>		SimCacheViewModel;
-
-	TArray<TSharedPtr<FBufferSelectionInfo>>	BufferSelectionList;
 	
 	TSharedPtr<SHeaderRow>						HeaderRowWidget;
 	TSharedPtr<SListView<TSharedPtr<int32>>>	ListViewWidget;
-
-	TArray<FString>								StringFilterArray;
 };

@@ -49,14 +49,13 @@ public:
 
 	void SetComponentFilters(const TArray<FString>& NewComponentFilterArray)
 	{
+		bComponentFilterActive = true;
 		ComponentFilterArray.Empty();
 		ComponentFilterArray.Append(NewComponentFilterArray);
 		OnViewDataChangedDelegate.Broadcast(true);
 	}
 
 	bool IsComponentFilterActive() const { return bComponentFilterActive; }
-
-	void SetComponentFilterActive(bool bNewActive);
 	
 	int32 GetNumInstances() const { return NumInstances; }
 

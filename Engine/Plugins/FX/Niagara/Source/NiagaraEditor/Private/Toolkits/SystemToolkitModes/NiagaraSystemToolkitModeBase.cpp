@@ -60,7 +60,6 @@ const FName FNiagaraSystemToolkitModeBase::SystemParameterDefinitionsTabID(TEXT(
 const FName FNiagaraSystemToolkitModeBase::DetailsTabID(TEXT("NiagaraSystemEditor_Details"));
 const FName FNiagaraSystemToolkitModeBase::SelectedEmitterGraphTabID(TEXT("NiagaraSystemEditor_SelectedEmitterGraph"));
 const FName FNiagaraSystemToolkitModeBase::DebugSpreadsheetTabID(TEXT("NiagaraSystemEditor_DebugAttributeSpreadsheet"));
-const FName FNiagaraSystemToolkitModeBase::DebugCaptureTabID(TEXT("NiagaraSystemEditor_DebugCacheCapture"));
 const FName FNiagaraSystemToolkitModeBase::DebugCacheSpreadsheetTabID(TEXT("NiagaraSystemEditor_DebugCacheSpreadsheet"));
 const FName FNiagaraSystemToolkitModeBase::PreviewSettingsTabId(TEXT("NiagaraSystemEditor_PreviewSettings"));
 const FName FNiagaraSystemToolkitModeBase::GeneratedCodeTabID(TEXT("NiagaraSystemEditor_GeneratedCode"));
@@ -284,12 +283,7 @@ void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager>
 		.SetAutoGenerateMenuEntry(GbShowNiagaraDeveloperWindows != 0);
 
 	InTabManager->RegisterTabSpawner(DebugSpreadsheetTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_DebugSpreadsheet))
-		.SetDisplayName(LOCTEXT("DebugSpreadsheet", "Attribute Spreadsheet"))
-		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.Spreadsheet"));
-
-	InTabManager->RegisterTabSpawner(DebugCaptureTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_DebugCapture))
-		.SetDisplayName(LOCTEXT("DebugCapture", "Attribute Capture"))
+		.SetDisplayName(LOCTEXT("DebugSpreadsheet", "Attribute Spreadsheet (Legacy)"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.Spreadsheet"));
 
@@ -696,25 +690,6 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_DebugSpreadsheet(co
 	return SpawnedTab;
 }
 
-TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_DebugCapture(const FSpawnTabArgs& Args)
-{
-	check(Args.GetTabId().TabType == DebugCaptureTabID);
-	TSharedPtr<SNiagaraDebugCaptureView> DebugCaptureTab;
-
-	TSharedRef<SDockTab> SpawnedTab =
-		SNew(SDockTab)
-		[
-			SAssignNew(DebugCaptureTab, SNiagaraDebugCaptureView, SystemToolkit.Pin()->GetSystemViewModel().ToSharedRef(), SystemToolkit.Pin()->GetSimCacheViewModel().ToSharedRef())
-		];
-
-	DebugCaptureTab->OnRequestSpreadsheetTab().BindLambda([this]()
-	{
-		SystemToolkit.Pin()->GetTabManager()->TryInvokeTab(DebugCacheSpreadsheetTabID);
-	});
-	
-	return SpawnedTab;
-}
-
 TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_DebugCacheSpreadsheet(const FSpawnTabArgs& Args)
 {
 	check(Args.GetTabId().TabType == DebugCacheSpreadsheetTabID);
@@ -722,6 +697,9 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_DebugCacheSpreadshe
 	TSharedRef<SNiagaraSimCacheView> SimCacheSpreadsheetView =
 		SNew(SNiagaraSimCacheView)
 		.SimCacheViewModel(SystemToolkit.Pin()->GetSimCacheViewModel());
+
+	TSharedRef<SNiagaraDebugCaptureView> DebugCaptureView =
+		SNew(SNiagaraDebugCaptureView, SystemToolkit.Pin()->GetSystemViewModel().ToSharedRef(), SystemToolkit.Pin()->GetSimCacheViewModel().ToSharedRef());
 
 	const TSharedRef<SVerticalBox> Contents = SNew(SVerticalBox);
 
@@ -731,28 +709,19 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_DebugCacheSpreadshe
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			[
-				SimCacheSpreadsheetView
-			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.0f)
+				SNew(SSplitter)
+				.Orientation(Orient_Vertical)
+				+SSplitter::Slot()
+				.SizeRule(SSplitter::SizeToContent)
 				[
-					SNew(SNiagaraSimCacheViewTransportControls)
-					.WeakViewModel(SystemToolkit.Pin()->GetSimCacheViewModel())
+					DebugCaptureView
 				]
-				+SHorizontalBox::Slot()
-				.Padding(4.0f)
+				+SSplitter::Slot()
+				.Value(0.8f)
 				[
-					SNew(SNiagaraSimCacheViewTimeline)
-					.WeakViewModel(SystemToolkit.Pin()->GetSimCacheViewModel())
+					SimCacheSpreadsheetView
 				]
-				
 			]
-			
 		];
 
 	TSharedRef<SDockTab> SpawnedTab =

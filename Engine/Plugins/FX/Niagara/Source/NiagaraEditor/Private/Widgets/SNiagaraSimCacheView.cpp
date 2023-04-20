@@ -2,12 +2,9 @@
 
 #include "SNiagaraSimCacheView.h"
 #include "ViewModels/NiagaraSimCacheViewModel.h"
-#include "NiagaraSimCache.h"
 
 #include "CoreMinimal.h"
 
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Views/SListView.h"
@@ -70,11 +67,6 @@ public:
 	TSharedPtr<FNiagaraSimCacheViewModel>   SimCacheViewModel;
 };
 
-bool SNiagaraSimCacheView::IsStringFilterEnabled() const
-{
-	return !SimCacheViewModel->IsComponentFilterActive();
-}
-
 void SNiagaraSimCacheView::Construct(const FArguments& InArgs)
 {
 	SimCacheViewModel = InArgs._SimCacheViewModel;
@@ -87,7 +79,6 @@ void SNiagaraSimCacheView::Construct(const FArguments& InArgs)
 
 	UpdateColumns(true);
 	UpdateRows(false);
-	UpdateBufferSelectionList();
 
 	TSharedRef<SScrollBar> HorizontalScrollBar =
 		SNew(SScrollBar)
@@ -104,57 +95,6 @@ void SNiagaraSimCacheView::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			// Select cache buffer
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(10.0f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("CacheBufferSelection", "Cache Buffer Selection"))
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				SNew(SComboBox<TSharedPtr<FBufferSelectionInfo>>)
-				.OptionsSource(&BufferSelectionList)
-				.OnGenerateWidget(this, &SNiagaraSimCacheView::BufferSelectionGenerateWidget)
-				.OnSelectionChanged(this, &SNiagaraSimCacheView::BufferSelectionChanged)
-				.InitiallySelectedItem(BufferSelectionList[0])
-				[
-					SNew(STextBlock)
-					.Text(this, &SNiagaraSimCacheView::GetBufferSelectionText)
-				]
-			]
-			// Component Filter
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(10.0f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ComponentFilter", "Component Filter"))
-				.IsEnabled(this, &SNiagaraSimCacheView::IsStringFilterEnabled)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				SNew(SEditableTextBox)
-				.OnTextChanged(this, &SNiagaraSimCacheView::OnComponentFilterChange)
-				.MinDesiredWidth(100)
-				.IsEnabled(this, &SNiagaraSimCacheView::IsStringFilterEnabled)
-			]
-		]
 		//// Main Spreadsheet View
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
@@ -205,6 +145,11 @@ void SNiagaraSimCacheView::GenerateColumns()
 	//  Give columns a width to prevent them from being shrunk when filtering. 
 	constexpr float ManualWidth = 125.0f;
 	HeaderRowWidget->ClearColumns();
+
+	if(!SimCacheViewModel->IsCacheValid())
+	{
+		return;
+	}
 	
 	// Generate instance count column
 	HeaderRowWidget->AddColumn(
@@ -244,26 +189,8 @@ void SNiagaraSimCacheView::UpdateColumns(const bool bReset)
 		GenerateColumns();
 	}
 	
-	TArray<FString> FilterArray;
-
-	// There are two filtering methods, from the tree view and from the spreadsheet view.
-	// The spreadsheet view uses a filter string input by the user. The tree view uses component item selection.
-	const bool bUseComponentFilter = SimCacheViewModel->IsComponentFilterActive();
-
-	FilterArray = bUseComponentFilter ? SimCacheViewModel->GetComponentFilters() : StringFilterArray;
-
-	// If the component filter is active, always apply the filter. If using the string filter, only apply it if it's not empty.
-	const bool bApplyFilter = bUseComponentFilter || !FilterArray.IsEmpty();
-
-	// If the columns are newly generated, and there are no filters to apply they are already up to date.
-	const bool bColumnsUpToDate = bReset && !bApplyFilter;
-
-	FString ColumnName;
+	HeaderRowWidget->RefreshColumns();
 	
-	if(!bColumnsUpToDate)
-	{
-		HeaderRowWidget->RefreshColumns();
-	}
 }
 
 void SNiagaraSimCacheView::UpdateRows(const bool bRefresh)
@@ -280,67 +207,10 @@ void SNiagaraSimCacheView::UpdateRows(const bool bRefresh)
 	}
 }
 
-void SNiagaraSimCacheView::UpdateBufferSelectionList()
-{
-	BufferSelectionList.Empty();
-
-	if (SimCacheViewModel->IsCacheValid())
-	{
-		BufferSelectionList.Emplace(MakeShared<FBufferSelectionInfo>(INDEX_NONE, LOCTEXT("SystemInstance", "System Instance")));
-		for (int32 i = 0; i < SimCacheViewModel->GetNumEmitterLayouts(); ++i)
-		{
-			BufferSelectionList.Emplace(
-				MakeShared<FBufferSelectionInfo>(i, FText::Format(LOCTEXT("EmitterFormat", "Emitter - {0}"), FText::FromName(SimCacheViewModel->GetEmitterLayoutName(i))))
-			);
-		}
-	}
-	else
-	{
-		BufferSelectionList.Emplace(MakeShared<FBufferSelectionInfo>(INDEX_NONE, LOCTEXT("InvalidCache", "Invalid Cache")));
-	}
-}
-
-TSharedRef<SWidget> SNiagaraSimCacheView::BufferSelectionGenerateWidget(TSharedPtr<FBufferSelectionInfo> InItem)
-{
-	return
-		SNew(STextBlock)
-		.Text(InItem->Value);
-}
-
-void SNiagaraSimCacheView::BufferSelectionChanged(TSharedPtr<FBufferSelectionInfo> NewSelection, ESelectInfo::Type SelectInfo)
-{
-	if(!NewSelection.IsValid() || NewSelection->Key == SimCacheViewModel->GetEmitterIndex())
-	{
-		return;
-	}
-	
-	SimCacheViewModel->SetEmitterIndex(NewSelection->Key);
-}
-
-FText SNiagaraSimCacheView::GetBufferSelectionText() const
-{
-	const int32 EmitterIndex = SimCacheViewModel->GetEmitterIndex();
-	for (const TSharedPtr<FBufferSelectionInfo>& SelectionInfo : BufferSelectionList)
-	{
-		if (SelectionInfo->Key == EmitterIndex)
-		{
-			return SelectionInfo->Value;
-		}
-	}
-	return FText::GetEmpty();
-}
-
-void SNiagaraSimCacheView::OnComponentFilterChange(const FText& InFilter)
-{
-	InFilter.ToString().ParseIntoArray(StringFilterArray, TEXT(","));
-	UpdateColumns(false);
-}
-
 void SNiagaraSimCacheView::OnSimCacheChanged()
 {
 	UpdateRows(true);
 	UpdateColumns(true);
-	UpdateBufferSelectionList();
 }
 
 void SNiagaraSimCacheView::OnViewDataChanged(const bool bFullRefresh)
@@ -361,18 +231,9 @@ void SNiagaraSimCacheView::OnBufferChanged()
 bool SNiagaraSimCacheView::GetShouldGenerateWidget(FName Name)
 {
 	TArray<FString> FilterArray;
+	FilterArray = SimCacheViewModel->GetComponentFilters();
 
-	// There are two filtering methods, from the tree view and from the spreadsheet view.
-	// The spreadsheet view uses a filter string input by the user. The tree view uses component item selection.
-	const bool bUseComponentFilter = SimCacheViewModel->IsComponentFilterActive();
-
-	FilterArray = bUseComponentFilter ? SimCacheViewModel->GetComponentFilters() : StringFilterArray;
-
-	// If the component filter is active, always apply the filter. If using the string filter, only apply it if it's not empty.
-	const bool bApplyFilter = bUseComponentFilter || !FilterArray.IsEmpty();
-
-	// If no filter to apply, all columns are visible.
-	if(!bApplyFilter)
+	if(!SimCacheViewModel->IsComponentFilterActive())
 	{
 		return true;
 	}
@@ -389,20 +250,8 @@ bool SNiagaraSimCacheView::GetShouldGenerateWidget(FName Name)
 	{
 		return ColumnName.Equals(ComponentFilter);
 	};
-
-	auto StringFilterPred = [&ColumnName](const FString& StringFilter)
-	{
-		return ColumnName.Contains(StringFilter);
-	};
-
-	bool bPassedFilter = true;
-
-	if(bApplyFilter)
-	{
-		bPassedFilter = bUseComponentFilter ? FilterArray.ContainsByPredicate(ComponentFilterPred) : FilterArray.ContainsByPredicate(StringFilterPred);
-	}
-
-	return bPassedFilter;
+	
+	return FilterArray.ContainsByPredicate(ComponentFilterPred);
 }
 
 #undef LOCTEXT_NAMESPACE

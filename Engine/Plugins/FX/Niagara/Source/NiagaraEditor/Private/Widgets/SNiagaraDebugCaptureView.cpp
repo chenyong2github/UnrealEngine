@@ -2,11 +2,15 @@
 
 #include "SNiagaraDebugCaptureView.h"
 
+#include "NiagaraComponent.h"
+#include "NiagaraEditorUtilities.h"
+#include "NiagaraSettings.h"
 #include "PropertyEditorModule.h"
+#include "ToolBuilderUtil.h"
+#include "UObject/UObjectIterator.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDebugCaptureView"
@@ -16,151 +20,341 @@ void SNiagaraDebugCaptureView::OnNumFramesChanged(int32 InNumFrames)
 	NumFrames = FMath::Max(1, InNumFrames);
 }
 
+void SNiagaraDebugCaptureView::CreateComponentSelectionMenuContent(FMenuBuilder& MenuBuilder) 
+{
+	for(TObjectIterator<UNiagaraComponent> NiagaraComponent; NiagaraComponent; ++NiagaraComponent)
+	{
+		// Ignore dying or CDO versions of data..
+		// No need to check the unreachable flag here as TObjectIterator already does that
+		if(!IsValid(*NiagaraComponent) || NiagaraComponent->HasAnyFlags(RF_ClassDefaultObject))
+		{
+			continue;
+		}
+
+		// Ignore any component not referencing this system.
+		if (NiagaraComponent->GetAsset() != &SystemViewModel->GetSystem())
+		{
+			continue;
+		}
+
+		if(!NiagaraComponent->GetWorld())
+		{
+			continue;
+		}
+
+		FText ComponentName;
+		FText ComponentTooltip;
+		GetComponentNameAndTooltip(*NiagaraComponent, ComponentName, ComponentTooltip);
+
+		MenuBuilder.AddMenuEntry(
+			ComponentName,
+			ComponentTooltip,
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([&, NiagaraComponent]()
+			{
+				TargetComponent = *NiagaraComponent;
+			})));
+	}
+}
+
+void SNiagaraDebugCaptureView::GetComponentNameAndTooltip(const UNiagaraComponent* InComponent, FText& OutName, FText& OutTooltip) const
+{
+	const UNiagaraComponent* PreviewComponent = SystemViewModel->GetPreviewComponent();
+
+    if (InComponent == nullptr)
+    {
+    	OutName = LOCTEXT("NullComponentLabel", "Unknown");
+    	OutTooltip = LOCTEXT("NullComponentTooltip", "Unknown");
+    }
+    else if (PreviewComponent == InComponent)
+    {
+    	OutName = LOCTEXT("PreviewComponentLabel", "Editor Viewport");
+    	OutTooltip = LOCTEXT("PreviewComponentTooltip", "The instance of the Niagara Component in the Niagara editor viewport.");
+    }
+    else
+    {
+	    const UWorld* World = InComponent->GetWorld();
+    	const AActor* Actor = InComponent->GetOwner();
+    	OutName = FText::Format(LOCTEXT("SourceComponentLabel","World: \"{0}\" Actor: \"{1}\""), World ? FText::FromString(World->GetName()) : FText::GetEmpty(), Actor ? FText::FromString(Actor->GetActorNameOrLabel()) : FText::GetEmpty());
+    	OutTooltip = OutName;
+    }
+}
+
+TSharedRef<SWidget> SNiagaraDebugCaptureView::GenerateCaptureMenuContent()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	MenuBuilder.BeginSection("CaptureFrameMode", LOCTEXT("CaptureModeMenu", "Capture Mode"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("SingleFrameCaptureMode", "Single Frame"),
+			LOCTEXT("SingleFrameCaptureModeTooltip", "Capture a single frame and display it in the current window."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this](){FrameMode = ENiagaraDebugCaptureFrameMode::SingleFrame;}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([&]()
+				{
+					return FrameMode == ENiagaraDebugCaptureFrameMode::SingleFrame;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::Check
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("MultiFrameCaptureMode", "Multi Frame (Standalone Editor)"),
+			LOCTEXT("MultiFrameCaptureModeTooltip", "Capture the specified number of frames and open the results in the standalone Sim Cache editor."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this](){FrameMode = ENiagaraDebugCaptureFrameMode::MultiFrame;}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([&]()
+				{
+					return FrameMode == ENiagaraDebugCaptureFrameMode::MultiFrame;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::Check
+		);
+		
+	}
+	MenuBuilder.EndSection();
+	MenuBuilder.BeginSection("TargetSelection", LOCTEXT("TargetSelectionMenu", "Component Selection"));
+	{
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("TargetSelection", "Target Component"),
+			LOCTEXT("TargetSelectionTooltip", "Select the Niagara Component of this system for capturing."),
+			FNewMenuDelegate::CreateRaw(this, &SNiagaraDebugCaptureView::CreateComponentSelectionMenuContent)
+		);
+	}
+	MenuBuilder.EndSection();
+
+	
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SNiagaraDebugCaptureView::GenerateFilterMenuContent()
+{
+	TSharedRef<SWidget> Content = SNew(SBox)
+	.MinDesiredHeight(400.0f)
+	.MinDesiredWidth(200.0f)
+	[
+		OverviewFilterWidget.ToSharedRef()
+	];
+	
+	return Content;
+}
+
+FText SNiagaraDebugCaptureView::GetCaptureLabel()
+{
+	switch(FrameMode)
+	{
+	case ENiagaraDebugCaptureFrameMode::SingleFrame:
+		return LOCTEXT("CaptureSingle", "Capture (Single)");
+	case ENiagaraDebugCaptureFrameMode::MultiFrame:
+		return LOCTEXT("CaptureMulti", "Capture (Multi)");
+	default:
+		return FText();
+	}
+}
+
+FText SNiagaraDebugCaptureView::GetCaptureTooltip()
+{
+	switch(FrameMode)
+	{
+	case ENiagaraDebugCaptureFrameMode::SingleFrame:
+		return LOCTEXT("CapturSingleToolTip", "Captures a single frame, and displays it in the current window.");
+	case ENiagaraDebugCaptureFrameMode::MultiFrame:
+		return LOCTEXT("CaptureMultiToolTip", "Captures the specified number of frames, and opens the cache in a standalone editor.");
+	default:
+		return FText();
+	}
+}
+
+FSlateIcon SNiagaraDebugCaptureView::GetCaptureIcon()
+{
+	switch(FrameMode)
+	{
+	case ENiagaraDebugCaptureFrameMode::SingleFrame:
+		return FSlateIcon();
+	case ENiagaraDebugCaptureFrameMode::MultiFrame:
+		return FSlateIcon();
+	default:
+		return FSlateIcon();
+	}
+}
+
 void SNiagaraDebugCaptureView::Construct(const FArguments& InArgs, const TSharedRef<FNiagaraSystemViewModel> InSystemViewModel, const TSharedRef<FNiagaraSimCacheViewModel> InSimCacheViewModel)
 {
+	NumFrames = FMath::Max(1, GetDefault<UNiagaraSettings>()->QuickSimCacheCaptureFrameCount);
+
 	TargetComponent = InSystemViewModel->GetPreviewComponent();
 	SimCacheViewModel = InSimCacheViewModel;
 	SystemViewModel = InSystemViewModel;
 
-	CapturedCache = NewObject<UNiagaraSimCache>(GetTransientPackage());
+	CapturedCache = NewObject<UNiagaraSimCache>(GetTransientPackage(), FNiagaraEditorUtilities::GetUniqueObjectName<UNiagaraSimCache>(GetTransientPackage(), "TempCache"));
 	SimCacheViewModel.Get()->Initialize(CapturedCache);
 	CapturedCache->SetFlags(RF_Standalone);
 
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bShowOptions = false;
+
+	SAssignNew(OverviewFilterWidget, SNiagaraSimCacheOverview)
+			.SimCacheViewModel(SimCacheViewModel);
+	
+	FSlimHorizontalToolBarBuilder DebugCaptureToolbarBuilder (MakeShareable(new FUICommandList), FMultiBoxCustomization::None);
+
+	DebugCaptureToolbarBuilder.BeginSection("Filter");
+	{
+		DebugCaptureToolbarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateRaw(this, &SNiagaraDebugCaptureView::GenerateFilterMenuContent),
+			FText::GetEmpty(),
+			LOCTEXT("FilterCombo_Tooltip", "Change filter and selection"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(),"Icons.Filter")
+		);
+	}
+	DebugCaptureToolbarBuilder.EndSection();
+
+	DebugCaptureToolbarBuilder.BeginSection("Capture");
+	{
+		DebugCaptureToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &SNiagaraDebugCaptureView::OnCaptureSelected)),
+			NAME_None,
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &SNiagaraDebugCaptureView::GetCaptureLabel)),
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &SNiagaraDebugCaptureView::GetCaptureTooltip)),
+			TAttribute< FSlateIcon >::Create(TAttribute< FSlateIcon >::FGetter::CreateRaw(this, &SNiagaraDebugCaptureView::GetCaptureIcon))
+		);
+		DebugCaptureToolbarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateRaw(this, &SNiagaraDebugCaptureView::GenerateCaptureMenuContent),
+			LOCTEXT("CaptureCombo_Label", "Capture Options"),
+			LOCTEXT("CaptureCombo_Tooltip", "Capture Options Menu"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(),"LevelEditor.Build"),
+			true
+		);
+	}
+	
+	DebugCaptureToolbarBuilder.EndSection();
+
+	DebugCaptureToolbarBuilder.BeginSection("Frames");
+	{
+		DebugCaptureToolbarBuilder.AddWidget(
+			SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("NumberOfFrames", "Frames"))
+					.IsEnabled_Lambda([this]{return FrameMode == ENiagaraDebugCaptureFrameMode::MultiFrame;})
+				]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SSpinBox<int32>)
+					.Value(NumFrames)
+					.MinValue(1)
+					.OnValueChanged(this, &SNiagaraDebugCaptureView::OnNumFramesChanged)
+					.IsEnabled_Lambda([this]{return FrameMode == ENiagaraDebugCaptureFrameMode::MultiFrame;})
+				]
+		);
+	}
+
+	DebugCaptureToolbarBuilder.EndSection();
 	
 	ChildSlot
 	[
-		SNew(SSplitter)
-		.Orientation(Orient_Vertical)
-		+SSplitter::Slot()
-		.SizeRule(SSplitter::SizeToContent)
-		[
-			// Capture controls
-			SNew(SSplitter)
-			.Orientation(Orient_Vertical)
-			+SSplitter::Slot()
-			.Resizable(false)
-			.SizeRule(SSplitter::SizeToContent)
-			[
-				// Header
-				SNew(SBorder)
-				.BorderImage(FAppStyle::GetNoBrush())
-				.Padding(5.0f)
-				[
-					SNew(STextBlock)
-					.Justification(ETextJustify::Center)
-					.Text(LOCTEXT("CaptureControlsLabel", "Capture"))
-				]
-			]
-			+SSplitter::Slot()
-			.SizeRule(SSplitter::SizeToContent)
-			[
-				SNew(SUniformGridPanel)
-				.SlotPadding(2.0f)
-				// Capture Single Frame
-				+ SUniformGridPanel::Slot(0, 0)
-				[
-					SNew(SButton)
-					.OnClicked(this, &SNiagaraDebugCaptureView::OnSingleFrameSelected)
-					.ToolTipText(LOCTEXT("SingleFrameButtonTooltip", "Capture a single frame."))
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("SingleFrameButton", "Single"))
-					]
-				]
-				// Capture Multi Frame
-				+SUniformGridPanel::Slot(1, 0)
-				[
-					SNew(SButton)
-					.OnClicked(this, &SNiagaraDebugCaptureView::OnMultiFrameSelected)
-					.ToolTipText(LOCTEXT("MultiFrameButtonTooltip", "Capture multiple frames."))
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("MultiFrameButton", "Multi"))
-					]
-				]
-				// Capture Until Complete
-				+SUniformGridPanel::Slot(2, 0)
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("NumberOfFrames", "Frames"))
-					]
-					+SHorizontalBox::Slot()
-					[
-						SNew(SSpinBox<int32>)
-						.Value(1)
-						.MinValue(1)
-						.OnValueChanged(this, &SNiagaraDebugCaptureView::OnNumFramesChanged)
-					]
-				]
-			]
-		]
-		+SSplitter::Slot()
-		.Value(0.99f)
-		[
-			SNew(SNiagaraSimCacheOverview)
-			.SimCacheViewModel(SimCacheViewModel)
-		]
+		DebugCaptureToolbarBuilder.MakeWidget()
 	];
+	
+}
+
+SNiagaraDebugCaptureView::SNiagaraDebugCaptureView()
+{
+	CapturedCache = nullptr;
 }
 
 SNiagaraDebugCaptureView::~SNiagaraDebugCaptureView()
 {
-	if(CapturedCache)
+	if(CapturedCache.IsValid())
 	{
 		CapturedCache->ClearFlags(RF_Standalone);
 		CapturedCache->MarkAsGarbage();
+		CapturedCache.Reset();
 	}
 }
 
-FReply SNiagaraDebugCaptureView::OnSingleFrameSelected()
+void SNiagaraDebugCaptureView::OnCaptureSelected()
 {
-	if(!bIsCaptureActive && TargetComponent && CapturedCache)
+	switch(FrameMode)
 	{
-		SystemViewModel.Get()->GetSequencer().Get()->OnPlay(false);
+	case ENiagaraDebugCaptureFrameMode::SingleFrame:
+		OnSingleFrameSelected();
+		break;
+	case ENiagaraDebugCaptureFrameMode::MultiFrame:
+		OnMultiFrameSelected();
+		break;
+	default:
+		break;
+	}
+}
+
+void SNiagaraDebugCaptureView::OnSingleFrameSelected()
+{
+	// The captured cache can be have its standalone flag cleared if a world in the transient package is cleaned up.
+	// @TODO fix the accidental GC issue by making the view model a GC Object, so we can capture single frames after closing another Niagara editor.
+	if(!bIsCaptureActive && TargetComponent && CapturedCache.IsValid())
+	{
+		TSharedPtr<ISequencer> Sequencer = SystemViewModel.Get()->GetSequencer();
+		Sequencer->OnPlay(false);
 
 		const FNiagaraSimCacheCreateParameters CreateParameters;
 
-		SimCacheCapture.CaptureCurrentFrameImmediate(CapturedCache, CreateParameters, TargetComponent, CapturedCache, true);
+		FQualifiedFrameTime StartTime = Sequencer->GetGlobalTime();
+		float CurrentAge = TargetComponent->GetDesiredAge();
 
-		if(CapturedCache)
+		UNiagaraSimCache* OutCache = CapturedCache.Get();
+
+		SimCacheCapture.CaptureCurrentFrameImmediate(CapturedCache.Get(), CreateParameters, TargetComponent, OutCache, true, 0.01666f);
+
+		if(OutCache)
 		{
-			OnCaptureComplete(CapturedCache);
+			
+			// 60fps
+			FFrameRate SystemFrameRate (60, 1);
+
+			FFrameTime NewTime = StartTime.ConvertTo(SystemFrameRate) + FQualifiedFrameTime(1, SystemFrameRate).Time;
+
+			
+			TargetComponent->SetDesiredAge(CurrentAge + 0.01666f);
+			
+			Sequencer->SetGlobalTime(ConvertFrameTime(NewTime, SystemFrameRate, StartTime.Rate));
+			
+			OnCaptureComplete(CapturedCache.Get());
 		}
-		
 	}
-	return FReply::Handled();
 }
 
-FReply SNiagaraDebugCaptureView::OnMultiFrameSelected()
+void SNiagaraDebugCaptureView::OnMultiFrameSelected()
 {
-	if(!bIsCaptureActive && TargetComponent && CapturedCache)
+	if(!bIsCaptureActive && TargetComponent)
 	{
+		UNiagaraSimCache* MultiFrameCache = NewObject<UNiagaraSimCache>(GetTransientPackage(), FNiagaraEditorUtilities::GetUniqueObjectName<UNiagaraSimCache>(GetTransientPackage(), "TempCache"));
+		MultiFrameCache->SetFlags(RF_Transient);
 		const FNiagaraSimCacheCreateParameters CreateParameters;
 		
 		FNiagaraSimCacheCaptureParameters CaptureParameters;
 		CaptureParameters.NumFrames = NumFrames;
-
-		SystemViewModel.Get()->GetSequencer().Get()->OnPlay(false);
+		CaptureParameters.bManuallyAdvanceSimulation = true;
+		CaptureParameters.AdvanceDeltaTime = 0.01666f;
 		
 		bIsCaptureActive = true;
 
-		SimCacheCapture.CaptureNiagaraSimCache(CapturedCache, CreateParameters, TargetComponent, CaptureParameters);
-		
 		SimCacheCapture.OnCaptureComplete().AddSP(this, &SNiagaraDebugCaptureView::OnCaptureComplete);
+		
+		SimCacheCapture.CaptureNiagaraSimCache(MultiFrameCache, CreateParameters, TargetComponent, CaptureParameters);
 	}
-
-	return FReply::Handled();
 }
 
 void SNiagaraDebugCaptureView::OnCaptureComplete(UNiagaraSimCache* CapturedSimCache)
@@ -190,7 +384,19 @@ void SNiagaraDebugCaptureView::OnCaptureComplete(UNiagaraSimCache* CapturedSimCa
 		}
 	}
 
-	RequestSpreadsheetTab.ExecuteIfBound();
+	switch(FrameMode)
+	{
+	case ENiagaraDebugCaptureFrameMode::SingleFrame:
+		RequestSpreadsheetTab.ExecuteIfBound();
+		break;
+	case ENiagaraDebugCaptureFrameMode::MultiFrame:
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CapturedSimCache, EToolkitMode::Standalone);
+		break;
+	default:
+		break;
+	}
+
+	
 }
 
 #undef LOCTEXT_NAMESPACE

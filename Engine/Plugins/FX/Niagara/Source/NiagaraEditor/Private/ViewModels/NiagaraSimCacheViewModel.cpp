@@ -140,14 +140,6 @@ FText FNiagaraSimCacheViewModel::GetComponentText(const FName ComponentName, con
 	return LOCTEXT("Error", "Error");
 }
 
-void FNiagaraSimCacheViewModel::SetComponentFilterActive(bool bNewActive)
-{
-	if(bNewActive != bComponentFilterActive)
-	{
-		bComponentFilterActive = bNewActive;
-		OnViewDataChangedDelegate.Broadcast(true);
-	}
-}
 
 int32 FNiagaraSimCacheViewModel::GetNumFrames() const
 {

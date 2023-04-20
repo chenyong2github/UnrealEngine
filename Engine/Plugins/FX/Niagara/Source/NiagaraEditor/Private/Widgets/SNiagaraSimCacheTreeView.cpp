@@ -61,7 +61,6 @@ void SNiagaraSimCacheTreeViewFilterWidget::Construct(const FArguments& InArgs, T
 			SNew(SButton)
 			.Text(LOCTEXT("ClearAll", "Clear All"))
 			.OnClicked(this, &SNiagaraSimCacheTreeViewFilterWidget::OnClearAllReleased)
-			.IsEnabled(this, &SNiagaraSimCacheTreeViewFilterWidget::IsFilterActive)
 		]
 		+SHorizontalBox::Slot()
 		.AutoWidth()
@@ -71,42 +70,8 @@ void SNiagaraSimCacheTreeViewFilterWidget::Construct(const FArguments& InArgs, T
 			SNew(SButton)
 			.Text(LOCTEXT("SelectAll", "Select All"))
 			.OnClicked(this, &SNiagaraSimCacheTreeViewFilterWidget::OnSelectAllReleased)
-			.IsEnabled(this, &SNiagaraSimCacheTreeViewFilterWidget::IsFilterActive)
-		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(2.0f)
-		[
-
-			// Filter Toggle
-			SNew(SCheckBox)
-			.Type(ESlateCheckBoxType::ToggleButton)
-			.HAlign(HAlign_Right)
-			//.ToolTip(LOCTEXT("ToggleFiltering", "Toggle Filtering"))
-			.Style(FNiagaraEditorStyle::Get(),"NiagaraEditor.SimCache.FilterToggleStyle")
-			.OnCheckStateChanged(this, &SNiagaraSimCacheTreeViewFilterWidget::OnCheckStateChanged)
-			.IsChecked(this, &SNiagaraSimCacheTreeViewFilterWidget::GetFilterState)
-			.Padding(FMargin(3.0f, 2.0f))
-			[
-					
-				SNew(SImage)
-				.Image(FAppStyle::GetBrush("Icons.Filter"))
-					
-			]
 		]
 	];
-}
-
-void SNiagaraSimCacheTreeViewFilterWidget::OnCheckStateChanged(ECheckBoxState InState)
-{
-	TSharedPtr<SNiagaraSimCacheTreeView> TreeView = WeakTreeView.Pin();
-
-	if(TreeView.IsValid())
-	{
-		const bool bCurrentlyActive = InState == ECheckBoxState::Checked;
-		TreeView->SetFilterActive(bCurrentlyActive);
-	}
-	
 }
 
 FReply SNiagaraSimCacheTreeViewFilterWidget::OnClearAllReleased()
@@ -135,23 +100,6 @@ FReply SNiagaraSimCacheTreeViewFilterWidget::OnSelectAllReleased()
 	return FReply::Unhandled();
 }
 
-ECheckBoxState SNiagaraSimCacheTreeViewFilterWidget::GetFilterState() const
-{
-	return IsFilterActive() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-bool SNiagaraSimCacheTreeViewFilterWidget::IsFilterActive() const
-{
-	TSharedPtr<SNiagaraSimCacheTreeView> TreeView = WeakTreeView.Pin();
-
-	if(TreeView.IsValid())
-	{
-		return TreeView->IsFilterActive();
-	}
-
-	return false;
-}
-
 //// Visibility Widget //////
 
 void SSimCacheTreeViewVisibilityWidget::Construct(const FArguments& InArgs, TWeakPtr<FNiagaraSimCacheTreeItem> InTreeItem, TWeakPtr<SNiagaraSimCacheTreeView> InWeakTreeView)
@@ -166,7 +114,6 @@ void SSimCacheTreeViewVisibilityWidget::Construct(const FArguments& InArgs, TWea
 		SNew(SCheckBox)
 		.OnCheckStateChanged(this, &SSimCacheTreeViewVisibilityWidget::OnCheckStateChanged)
 		.IsChecked(this, &SSimCacheTreeViewVisibilityWidget::GetCheckedState)
-		.IsEnabled(this, &SSimCacheTreeViewVisibilityWidget::IsFilterActive)
 	];
 	
 }
@@ -195,18 +142,6 @@ bool SSimCacheTreeViewVisibilityWidget::IsInFilter() const
 	if(TreeView.IsValid() && TreeItem.IsValid())
 	{
 		return TreeView->IsItemInFilter(TreeItem);
-	}
-
-	return false;
-}
-
-bool SSimCacheTreeViewVisibilityWidget::IsFilterActive() const
-{
-	const TSharedPtr<SNiagaraSimCacheTreeView> TreeView = WeakTreeView.Pin();
-
-	if(TreeView.IsValid())
-	{
-		return TreeView->IsFilterActive();
 	}
 
 	return false;
@@ -254,6 +189,8 @@ void SNiagaraSimCacheTreeView::Construct(const FArguments& InArgs)
 	.SelectionMode(ESelectionMode::Multi)
 	.TreeItemsSource(ViewModel->GetCurrentRootEntries())
 	.OnGenerateRow(this, &SNiagaraSimCacheTreeView::OnGenerateRow)
+	.OnGeneratePinnedRow(this, &SNiagaraSimCacheTreeView::OnGenerateRow)
+	.ShouldStackHierarchyHeaders(true)
 	.OnGetChildren(this, &SNiagaraSimCacheTreeView::OnGetChildren);
 
 	SetupRootEntries();
@@ -297,6 +234,7 @@ void SNiagaraSimCacheTreeView::OnBufferChanged()
 	TreeView->RequestTreeRefresh();
 	SelectionForFilter.Empty();
 	ViewModel->SetComponentFilters(TArray<FString>());
+	SelectAll();
 	TreeView->SetItemExpansion((*ViewModel->GetCurrentRootEntries())[0], true);
 }
 
@@ -349,19 +287,9 @@ void SNiagaraSimCacheTreeView::UpdateSelectionFilter(TSharedRef<FNiagaraSimCache
 	UpdateStringFilters();
 }
 
-bool SNiagaraSimCacheTreeView::IsFilterActive() const
-{
-	return ViewModel->IsComponentFilterActive();
-}
-
 bool SNiagaraSimCacheTreeView::IsItemInFilter(TSharedPtr<FNiagaraSimCacheTreeItem> InItem) const
 {
 	return ViewModel->GetComponentFilters().Contains(InItem->GetFilterName());
-}
-
-void SNiagaraSimCacheTreeView::SetFilterActive(bool bNewActive)
-{
-	ViewModel->SetComponentFilterActive(bNewActive);
 }
 
 void SNiagaraSimCacheTreeView::VisibilityButtonClicked(TSharedRef<FNiagaraSimCacheTreeItem> InItem)
@@ -396,6 +324,11 @@ void SNiagaraSimCacheTreeView::UpdateStringFilters()
 
 void SNiagaraSimCacheTreeView::SelectAll()
 {
+	if(!ViewModel->IsCacheValid())
+	{
+		return;
+	}
+	
 	RecursiveAddToSelectionFilter(*ViewModel->GetCurrentRootEntries());
 
 	UpdateStringFilters();

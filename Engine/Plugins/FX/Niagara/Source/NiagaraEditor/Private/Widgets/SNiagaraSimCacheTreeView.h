@@ -8,7 +8,6 @@
 #include "Widgets/SNiagaraPinTypeSelector.h"
 #include "EdGraphSchema_Niagara.h"
 #include "SNiagaraSimCacheOverview.h"
-#include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Layout/SScaleBox.h"
 
 class SNiagaraSimCacheTreeView;
@@ -28,11 +27,8 @@ public:
 
 protected:
 	
-	void OnCheckStateChanged(ECheckBoxState InState);
 	FReply OnClearAllReleased();
 	FReply OnSelectAllReleased();
-	ECheckBoxState GetFilterState() const;
-	bool IsFilterActive() const;
 
 private:
 	TWeakPtr<FNiagaraSimCacheTreeItem> WeakTreeItem;
@@ -54,7 +50,6 @@ protected:
 	ECheckBoxState GetCheckedState() const;
 	
 	bool IsInFilter() const;
-	bool IsFilterActive() const;
 	bool IsItemSelected() const;
 private:
 	TWeakPtr<FNiagaraSimCacheTreeItem> WeakTreeItem;
@@ -72,9 +67,7 @@ SLATE_END_ARGS()
 	void SetupRootEntries();
 	void Construct(const FArguments& InArgs);
 	bool HasSelectionFilter() const {return !SelectionForFilter.IsEmpty();}
-	bool IsFilterActive() const;
 	bool IsItemInFilter(TSharedPtr<FNiagaraSimCacheTreeItem> InItem) const;
-	void SetFilterActive(bool bNewActive);
 	void VisibilityButtonClicked(TSharedRef<FNiagaraSimCacheTreeItem> InItem);
 	bool IsItemSelected(TSharedRef<FNiagaraSimCacheTreeItem> InItem);
 	void ClearFilterSelection();
@@ -215,7 +208,7 @@ struct FNiagaraSimCacheComponentTreeItem : public FNiagaraSimCacheTreeItem
 		Contents->AddSlot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
-		.AutoWidth()
+		.FillWidth(1.0f)
 		.Padding(5, 0)
 		[
 			SNew(STextBlock)
@@ -225,7 +218,7 @@ struct FNiagaraSimCacheComponentTreeItem : public FNiagaraSimCacheTreeItem
 
 		Contents->AddSlot()
 		.HAlign(HAlign_Right)
-		.FillWidth(1.0f)
+		.AutoWidth()
 		[
 			SAssignNew(VisibilityWidget, SSimCacheTreeViewVisibilityWidget, SharedThis(this), Owner)
 		];
