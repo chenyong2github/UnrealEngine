@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/BoneReference.h"
 #include "BoneContainer.h"
@@ -17,14 +17,14 @@ bool FBoneReference::Initialize(const FBoneContainer& RequiredBones)
 	bUseSkeletonIndex = false;
 	// If bone name is not found, look into the leader skeleton to see if it's found there.
 	// SkeletalMeshes can exclude bones from the leader skeleton, and that's OK.
-	// If it's not found in the leader skeleton, the bone does not exist at all! so we should report it as a warning.
+	// If it's not found in the leader skeleton, the bone does not exist at all! so we should log it.
 	if (BoneIndex == INDEX_NONE && BoneName != NAME_None)
 	{
 		if (USkeleton* SkeletonAsset = RequiredBones.GetSkeletonAsset())
 		{
 			if (SkeletonAsset->GetReferenceSkeleton().FindBoneIndex(BoneName) == INDEX_NONE)
 			{
-				UE_LOG(LogAnimation, Warning, TEXT("FBoneReference::Initialize BoneIndex for Bone '%s' does not exist in Skeleton '%s'"),
+				UE_LOG(LogAnimation, Log, TEXT("FBoneReference::Initialize BoneIndex for Bone '%s' does not exist in Skeleton '%s'"),
 					*BoneName.ToString(), *GetNameSafe(SkeletonAsset));
 			}
 		}
