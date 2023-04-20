@@ -9,6 +9,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Async/Mutex.h"
 
 struct FClusterNode;
 struct FFoliageElementParams;
@@ -44,6 +45,7 @@ class ENGINE_API FHierarchicalStaticMeshSceneProxy final : public FInstancedStat
 	int32 LastOcclusionNode;
 	TArray<FBoxSphereBounds> OcclusionBounds;
 	TMap<uint32, FFoliageOcclusionResults> OcclusionResults;
+	UE::FMutex OcclusionResultsMutex;
 	EHISMViewRelevanceType ViewRelevance;
 	bool bDitheredLODTransitions;
 	uint32 SceneProxyCreatedFrameNumberRenderThread;

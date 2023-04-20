@@ -2007,6 +2007,9 @@ void FHierarchicalStaticMeshSceneProxy::AcceptOcclusionResults(const FSceneView*
 	// Don't accept subprimitive occlusion results from a previously-created sceneproxy - the tree may have been different
 	if (OcclusionBounds.Num() == NumResults && SceneProxyCreatedFrameNumberRenderThread < GFrameNumberRenderThread)
 	{
+		// This lock is necessary to guard against access from multiple views.
+		OcclusionResultsMutex.Lock();
+
 		uint32 ViewId = View->GetViewKey();
 		FFoliageOcclusionResults* OldResults = OcclusionResults.Find(ViewId);
 		if (OldResults)
@@ -2028,6 +2031,8 @@ void FHierarchicalStaticMeshSceneProxy::AcceptOcclusionResults(const FSceneView*
 			}
 			OcclusionResults.Add(ViewId, FFoliageOcclusionResults(Results, ResultsStart, NumResults));
 		}
+
+		OcclusionResultsMutex.Unlock();
 	}
 }
 
