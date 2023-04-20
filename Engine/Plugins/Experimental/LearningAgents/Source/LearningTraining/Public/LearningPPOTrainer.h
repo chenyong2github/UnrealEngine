@@ -80,7 +80,7 @@ namespace UE::Learning
 		float LearningRatePolicy = 0.0001f;
 
 		// Learning rate of the critic network. To avoid instability generally the critic 
-		// should have a larger learning rate then the actor.
+		// should have a larger learning rate than the policy.
 		float LearningRateCritic = 0.001f;
 
 		// Ratio by which to decay the learning rate every 1000 iterations.
@@ -96,12 +96,13 @@ namespace UE::Learning
 		float InitialActionScale = 0.1f;
 
 		// Batch size to use for training. Smaller values tend to produce better results 
-		// at the cost of slowing down training.
+		// at the cost of slowing down training. Large batch sizes are much more computationally efficient 
+		// when training on the GPU.
 		uint32 BatchSize = 128;
 
 		// Clipping ratio to apply to policy updates. Keeps the training "on-policy". 
 		// Larger values may speed up training at the cost of stability. Conversely, too small 
-		// values will keep the policy from being unable to learn an optimal policy.
+		// values will keep the policy from being able to learn an optimal policy.
 		float EpsilonClip = 0.2f;
 
 		// Weight used to regularize actions. Larger values will encourage smaller actions but too large
@@ -116,12 +117,12 @@ namespace UE::Learning
 		// an exponential smoothing/decay. Typical values should be between 0.9 and 1.0.
 		float GaeLambda = 0.9f;
 
-		// If to clip very large or small advantages. This has few downsides and helps 
-		// with numerical stability.
+		// When true, very large or small advantages will be clipped. This has few downsides 
+		// and helps with numerical stability.
 		bool bClipAdvantages = true;
 
-		// If to normalize advantages. This tends to makes training more robust to adjustments 
-		// of the scale of rewards.
+		// When true, advantages are normalized. This tends to makes training more robust to 
+		// adjustments of the scale of rewards. 
 		bool bAdvantageNormalization = true;
 
 		// Number of steps to trim from the start of each episode during training. This can

@@ -23,6 +23,7 @@ namespace UE::Learning
 	struct FSumReward;
 	struct FCompletionObject;
 	enum class ECompletionMode : uint8;
+	enum class ETrainerDevice : uint8;
 }
 
 class ALearningAgentsManager;
@@ -42,6 +43,7 @@ enum class ELearningAgentsCompletion : uint8
 	/** Episode ended early and zero reward was expected for all future steps. */
 	Termination	UMETA(DisplayName = "Termination"),
 };
+
 namespace UE::Learning::Agents
 {
 	/** Get the learning agents completion from the UE::Learning completion. */
@@ -128,6 +130,15 @@ enum class ELearningAgentsTrainerDevice : uint8
 	GPU,
 };
 
+namespace UE::Learning::Agents
+{
+	/** Get the learning agents trainer device from the UE::Learning trainer device. */
+	LEARNINGAGENTSTRAINING_API ELearningAgentsTrainerDevice GetLearningAgentsTrainerDevice(const ETrainerDevice Device);
+
+	/** Get the UE::Learning trainer device from the learning agents trainer device. */
+	LEARNINGAGENTSTRAINING_API ETrainerDevice GetTrainerDevice(const ELearningAgentsTrainerDevice Device);
+}
+
 /** The configurable settings for the training process. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
 struct FLearningAgentsTrainerTrainingSettings
@@ -136,35 +147,89 @@ struct FLearningAgentsTrainerTrainingSettings
 
 public:
 
-	/** The number of iterations to run before training is complete. */
+	/** The number of iterations to run before ending training. */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", UIMin = "0"))
 	int32 NumberOfIterations = 1000000;
 
-	/** If true, TensorBoard logs will be emitted to Intermediate\TensorBoard. Otherwise, no logs will be emitted. */
-	UPROPERTY(EditAnywhere, Category = "LearningAgents")
-	bool bUseTensorboard = false;
+	/** Learning rate of the policy network. Typical values are between 0.001 and 0.0001. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float LearningRatePolicy = 0.0001f;
+
+	/**
+	* Learning rate of the critic network. To avoid instability generally the critic should have a larger learning 
+	* rate than the policy. Typically this can be set to 10x the rate of the policy.
+	*/
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float LearningRateCritic = 0.001f;
+
+	/** Ratio by which to decay the learning rate every 1000 iterations. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float LearningRateDecay = 0.99f;
+
+	/**
+	* Amount of weight decay to apply to the network. Larger values encourage network weights to be smaller but too 
+	* large a value can cause the network weights to collapse to all zeros.
+	*/
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float WeightDecay = 0.001f;
 
 	/**
 	* The initial scaling for the weights of the output layer of the neural network. Typically, you would use this to
-	* scale down the initial weights as it can stabilize the initial training and speed up convergence.
+	* scale down the initial actions as it can stabilize the training and speed up convergence.
 	*/
-	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "10.0"))
 	float InitialActionScale = 0.1f;
 
 	/**
-	* The discount factor to use during training. This affects how much the agent cares about future rewards vs
-	* near-term rewards. Should typically be a value less than but near 1. 
+	* Batch size to use for training. Smaller values tend to produce better results at the cost of slowing down 
+	* training. Large batch sizes are much more computationally efficient when training on the GPU.
 	*/
-	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
-	float DiscountFactor = 0.99f;
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", ClampMax = "4096", UIMin = "0", UIMax = "4096"))
+	int32 BatchSize = 128;
 
-	/** The seed used for any random sampling the trainer will perform, e.g. for weight initialization. */
-	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", UIMin = "0"))
-	int32 RandomSeed = 1234;
+	/**
+	* Clipping ratio to apply to policy updates. Keeps the training "on-policy". Larger values may speed up training at 
+	* the cost of stability. Conversely, too small values will keep the policy from being able to learn an 
+	* optimal policy.
+	*/
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float EpsilonClip = 0.2f;
 
-	/** 
+	/**
+	* Weight used to regularize actions. Larger values will encourage smaller actions but too large will cause actions 
+	* to become always zero.
+	*/
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float ActionRegularizationWeight = 0.001f;
+
+	/**
+	* Weighting used for the entropy bonus. Larger values encourage larger action noise and therefore greater 
+	* exploration but can make actions very noisy.
+	*/
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float EntropyWeight = 0.01f;
+
+	/**
+	* This is used in the Generalized Advantage Estimation as what is essentially an exponential smoothing/decay. 
+	* Typical values should be between 0.9 and 1.0.
+	*/
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float GaeLambda = 0.9f;
+
+	/**
+	* When true, very large or small advantages will be clipped. This has few downsides and helps with numerical 
+	* stability.
+	*/
+	UPROPERTY(EditAnywhere, Category = "LearningAgents")
+	bool bClipAdvantages = true;
+
+	/** When true, advantages are normalized. This tends to makes training more robust to adjustments of the scale of rewards. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents")
+	bool bAdvantageNormalization = true;
+
+	/**
 	* The number of steps to trim from the start of the episode, e.g. can be useful if some things are still getting
-	* setup at the start of the episode.
+	* setup at the start of the episode and you don't want them used for training.
 	*/
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", UIMin = "0"))
 	int32 NumberOfStepsToTrimAtStartOfEpisode = 0;
@@ -176,9 +241,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", UIMin = "0"))
 	int32 NumberOfStepsToTrimAtEndOfEpisode = 0;
 
+	/** The seed used for any random sampling the trainer will perform, e.g. for weight initialization. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", UIMin = "0"))
+	int32 RandomSeed = 1234;
+
+	/**
+	* The discount factor to use during training. This affects how much the agent cares about future rewards vs
+	* near-term rewards. Should typically be a value less than but near 1.0. 
+	*/
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float DiscountFactor = 0.99f;
+
 	/** The device to train on. */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents")
 	ELearningAgentsTrainerDevice Device = ELearningAgentsTrainerDevice::GPU;
+
+	/** If true, TensorBoard logs will be emitted to the intermediate directory. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents")
+	bool bUseTensorboard = false;
 };
 
 /** The path settings for the trainer. */

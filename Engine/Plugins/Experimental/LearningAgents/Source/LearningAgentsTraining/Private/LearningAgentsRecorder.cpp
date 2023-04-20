@@ -334,7 +334,7 @@ void ULearningAgentsRecorder::BeginRecording(bool bReinitializeRecording)
 
 	if (IsRecording())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Cannot being recording as we are already Recording!"), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Cannot begin recording as we are already Recording!"), *GetName());
 		return;
 	}
 

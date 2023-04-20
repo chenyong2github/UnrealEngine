@@ -160,7 +160,7 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 	ImitationTrainingSettings.WeightDecay = ImitationTrainerTrainingSettings.WeightDecay;
 	ImitationTrainingSettings.BatchSize = ImitationTrainerTrainingSettings.BatchSize;
 	ImitationTrainingSettings.Seed = ImitationTrainerTrainingSettings.RandomSeed;
-	ImitationTrainingSettings.Device = ImitationTrainerTrainingSettings.Device == ELearningAgentsTrainerDevice::CPU ? UE::Learning::ETrainerDevice::CPU : UE::Learning::ETrainerDevice::GPU;
+	ImitationTrainingSettings.Device = UE::Learning::Agents::GetTrainerDevice(ImitationTrainerTrainingSettings.Device);
 	ImitationTrainingSettings.bUseTensorboard = ImitationTrainerTrainingSettings.bUseTensorboard;
 
 	const UE::Learning::EImitationTrainerFlags TrainerFlags = 

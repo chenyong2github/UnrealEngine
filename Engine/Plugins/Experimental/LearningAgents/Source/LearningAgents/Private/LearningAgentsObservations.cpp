@@ -1011,7 +1011,14 @@ void UDirectionArrayObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 
 UPlanarDirectionObservation* UPlanarDirectionObservation::AddPlanarDirectionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionObservation, UE::Learning::FPlanarDirectionFeature>(InInteractor, Name, TEXT("AddPlanarDirectionObservation"), 1, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionObservation, UE::Learning::FPlanarDirectionFeature>(
+		InInteractor, 
+		Name, 
+		TEXT("AddPlanarDirectionObservation"), 
+		1, 
+		Scale, 
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector), 
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
 }
 
 void UPlanarDirectionObservation::SetPlanarDirectionObservation(const int32 AgentId, const FVector Direction, const FRotator RelativeRotation)
@@ -1085,7 +1092,14 @@ UPlanarDirectionArrayObservation* UPlanarDirectionArrayObservation::AddPlanarDir
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionArrayObservation, UE::Learning::FPlanarDirectionFeature>(InInteractor, Name, TEXT("AddPlanarDirectionArrayObservation"), DirectionNum, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionArrayObservation, UE::Learning::FPlanarDirectionFeature>(
+		InInteractor, 
+		Name, 
+		TEXT("AddPlanarDirectionArrayObservation"), 
+		DirectionNum, 
+		Scale, 
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector),
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
 }
 
 void UPlanarDirectionArrayObservation::SetPlanarDirectionArrayObservation(const int32 AgentId, const TArray<FVector>& Directions, const FRotator RelativeRotation)
@@ -1454,7 +1468,14 @@ void UScalarPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 UPlanarPositionObservation* UPlanarPositionObservation::AddPlanarPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionObservation, UE::Learning::FPlanarPositionFeature>(InInteractor, Name, TEXT("AddPlanarPositionObservation"), 1, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionObservation, UE::Learning::FPlanarPositionFeature>(
+		InInteractor, 
+		Name, 
+		TEXT("AddPlanarPositionObservation"), 
+		1, 
+		Scale, 
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector),
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
 }
 
 void UPlanarPositionObservation::SetPlanarPositionObservation(const int32 AgentId, const FVector Position, const FVector RelativePosition, const FRotator RelativeRotation)
@@ -1529,7 +1550,14 @@ UPlanarPositionArrayObservation* UPlanarPositionArrayObservation::AddPlanarPosit
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionArrayObservation, UE::Learning::FPlanarPositionFeature>(InInteractor, Name, TEXT("AddPlanarPositionArrayObservation"), PositionNum, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionArrayObservation, UE::Learning::FPlanarPositionFeature>(
+		InInteractor, 
+		Name, 
+		TEXT("AddPlanarPositionArrayObservation"), 
+		PositionNum, 
+		Scale, 
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector),
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
 }
 
 void UPlanarPositionArrayObservation::SetPlanarPositionArrayObservation(const int32 AgentId, const TArray<FVector>& Positions, const FVector RelativePosition, const FRotator RelativeRotation)
@@ -1888,7 +1916,14 @@ void UScalarVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 UPlanarVelocityObservation* UPlanarVelocityObservation::AddPlanarVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityObservation, UE::Learning::FPlanarVelocityFeature>(InInteractor, Name, TEXT("AddPlanarVelocityObservation"), 1, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityObservation, UE::Learning::FPlanarVelocityFeature>(
+		InInteractor, 
+		Name, 
+		TEXT("AddPlanarVelocityObservation"), 
+		1, 
+		Scale, 
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector),
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
 }
 
 void UPlanarVelocityObservation::SetPlanarVelocityObservation(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
@@ -1963,7 +1998,14 @@ UPlanarVelocityArrayObservation* UPlanarVelocityArrayObservation::AddPlanarVeloc
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityArrayObservation, UE::Learning::FPlanarVelocityFeature>(InInteractor, Name, TEXT("AddPlanarVelocityArrayObservation"), VelocityNum, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityArrayObservation, UE::Learning::FPlanarVelocityFeature>(
+		InInteractor, 
+		Name, 
+		TEXT("AddPlanarVelocityArrayObservation"), 
+		VelocityNum, 
+		Scale, 
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector),
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
 }
 
 void UPlanarVelocityArrayObservation::SetPlanarVelocityArrayObservation(const int32 AgentId, const TArray<FVector>& Velocities, const FRotator RelativeRotation)

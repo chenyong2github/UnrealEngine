@@ -141,8 +141,8 @@ UPlanarPositionDifferenceCompletion* UPlanarPositionDifferenceCompletion::AddPla
 		1,
 		Threshold,
 		UE::Learning::Agents::GetCompletionMode(InCompletionMode),
-		Axis0,
-		Axis1);
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector),
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
 }
 
 void UPlanarPositionDifferenceCompletion::SetPlanarPositionDifferenceCompletion(const int32 AgentId, const FVector Position0, const FVector Position1)
@@ -240,8 +240,8 @@ UPlanarPositionSimilarityCompletion* UPlanarPositionSimilarityCompletion::AddPla
 		1,
 		Threshold,
 		UE::Learning::Agents::GetCompletionMode(InCompletionMode),
-		Axis0,
-		Axis1);
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector),
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
 }
 
 void UPlanarPositionSimilarityCompletion::SetPlanarPositionSimilarityCompletion(const int32 AgentId, const FVector Position0, const FVector Position1)

@@ -28,30 +28,30 @@ struct FLearningAgentsImitationTrainerTrainingSettings
 
 public:
 
-	/** The number of iterations to run before training is complete. */
+	/** The number of iterations to run before ending training. */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", UIMin = "0"))
 	int32 NumberOfIterations = 1000000;
 
-	/** Learning rate of the policy network. Typical values are between 0.001f and 0.0001f. */
-	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	/** Learning rate of the policy network. Typical values are between 0.001 and 0.0001. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float LearningRate = 0.0001f;
 
 	/** Ratio by which to decay the learning rate every 1000 iterations. */
-	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float LearningRateDecay = 0.99f;
 
 	/**
 	* Amount of weight decay to apply to the network. Larger values encourage network weights to be smaller but too
 	* large a value can cause the network weights to collapse to all zeros.
 	*/
-	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float WeightDecay = 0.001f;
 
 	/**
 	* Batch size to use for training. Smaller values tend to produce better results at the cost of slowing down
-	* training.
+	* training. Large batch sizes are much more computationally efficient when training on the GPU.
 	*/
-	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "1", UIMin = "1"))
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", ClampMax = "4096", UIMin = "0", UIMax = "4096"))
 	uint32 BatchSize = 128;
 
 	/** The seed used for any random sampling the trainer will perform, e.g. for weight initialization. */
@@ -62,7 +62,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "LearningAgents")
 	ELearningAgentsTrainerDevice Device = ELearningAgentsTrainerDevice::CPU;
 
-	/** If true, TensorBoard logs will be emitted to Intermediate\TensorBoard. Otherwise, no logs will be emitted. */
+	/** If true, TensorBoard logs will be emitted to the intermediate directory. */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents")
 	bool bUseTensorboard = false;
 };

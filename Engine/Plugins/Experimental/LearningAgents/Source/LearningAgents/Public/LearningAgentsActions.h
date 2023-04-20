@@ -36,6 +36,7 @@ class LEARNINGAGENTS_API ULearningAgentsAction : public UObject
 
 public:
 
+	/** Reference to the Interactor this action is associated with. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsInteractor> Interactor;
 

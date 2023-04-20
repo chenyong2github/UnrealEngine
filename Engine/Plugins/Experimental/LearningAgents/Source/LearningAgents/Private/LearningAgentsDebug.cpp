@@ -4,6 +4,16 @@
 
 namespace UE::Learning::Agents::Debug
 {
+	FMatrix PlaneMatrix(const FQuat Rotation, const FVector Position, const FVector Axis0, const FVector Axis1)
+	{
+		// Here we reconstruct the transformation matrix from the plane axes assuming the first axis is forward, and second is to the right.
+		const FVector ForwardAxis = Rotation.RotateVector(Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector));
+		const FVector InitialRightAxis = Rotation.RotateVector(Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
+		const FVector UpAxis = ForwardAxis.Cross(InitialRightAxis).GetSafeNormal(UE_SMALL_NUMBER, FVector::UpVector);
+		const FVector RightAxis = UpAxis.Cross(ForwardAxis).GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector);
+		return FMatrix(ForwardAxis, RightAxis, UpAxis, Position);
+	}
+
 	FVector GridOffsetForIndex(const int32 Idx, const int32 Num, const float Spacing, const float Height)
 	{
 		const int32 RowNum = FMath::Max(FMath::CeilToInt(FMath::Sqrt((float)Num)), 1);

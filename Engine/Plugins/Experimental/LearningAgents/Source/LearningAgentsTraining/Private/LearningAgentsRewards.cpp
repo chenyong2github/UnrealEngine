@@ -129,7 +129,7 @@ void UScalarVelocityReward::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 ULocalDirectionalVelocityReward* ULocalDirectionalVelocityReward::AddLocalDirectionalVelocityReward(ULearningAgentsTrainer* InAgentTrainer, const FName Name, const float Weight, const float Scale, const FVector Axis)
 {
-	return UE::Learning::Agents::Rewards::Private::AddReward<ULocalDirectionalVelocityReward, UE::Learning::FLocalDirectionalVelocityReward>(InAgentTrainer, Name, TEXT("AddLocalDirectionalVelocityReward"), Weight, Scale, Axis);
+	return UE::Learning::Agents::Rewards::Private::AddReward<ULocalDirectionalVelocityReward, UE::Learning::FLocalDirectionalVelocityReward>(InAgentTrainer, Name, TEXT("AddLocalDirectionalVelocityReward"), Weight, Scale, Axis.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector));
 }
 
 void ULocalDirectionalVelocityReward::SetLocalDirectionalVelocityReward(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
@@ -216,7 +216,15 @@ UPlanarPositionDifferencePenalty* UPlanarPositionDifferencePenalty::AddPlanarPos
 	const FVector Axis0,
 	const FVector Axis1)
 {
-	return UE::Learning::Agents::Rewards::Private::AddReward<UPlanarPositionDifferencePenalty, UE::Learning::FPlanarPositionDifferencePenalty>(InAgentTrainer, Name, TEXT("AddPlanarPositionDifferencePenalty"), Weight, Scale, Threshold, Axis0, Axis1);
+	return UE::Learning::Agents::Rewards::Private::AddReward<UPlanarPositionDifferencePenalty, UE::Learning::FPlanarPositionDifferencePenalty>(
+		InAgentTrainer, 
+		Name, 
+		TEXT("AddPlanarPositionDifferencePenalty"), 
+		Weight, 
+		Scale, 
+		Threshold, 
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector),
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
 }
 
 void UPlanarPositionDifferencePenalty::SetPlanarPositionDifferencePenalty(const int32 AgentId, const FVector Position0, const FVector Position1)

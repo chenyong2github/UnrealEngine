@@ -43,6 +43,7 @@ class LEARNINGAGENTSTRAINING_API ULearningAgentsCompletion : public UObject
 
 public:
 
+	/** Reference to the Trainer this completion is associated with. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsTrainer> AgentTrainer;
 

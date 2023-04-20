@@ -39,6 +39,7 @@ class LEARNINGAGENTSTRAINING_API ULearningAgentsReward : public UObject
 
 public:
 
+	/** Reference to the Trainer this reward is associated with. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsTrainer> AgentTrainer;
 

@@ -53,6 +53,29 @@ namespace UE::Learning::Agents
 	}
 }
 
+namespace UE::Learning::Agents
+{
+	ELearningAgentsTrainerDevice GetLearningAgentsTrainerDevice(const ETrainerDevice Device)
+	{
+		switch (Device)
+		{
+		case ETrainerDevice::CPU: return ELearningAgentsTrainerDevice::CPU;
+		case ETrainerDevice::GPU: return ELearningAgentsTrainerDevice::GPU;
+		default:UE_LOG(LogLearning, Error, TEXT("Unknown Trainer Device.")); return ELearningAgentsTrainerDevice::CPU;
+		}
+	}
+
+	ETrainerDevice GetTrainerDevice(const ELearningAgentsTrainerDevice Device)
+	{
+		switch (Device)
+		{
+		case ELearningAgentsTrainerDevice::CPU: return ETrainerDevice::CPU;
+		case ELearningAgentsTrainerDevice::GPU: return ETrainerDevice::GPU;
+		default:UE_LOG(LogLearning, Error, TEXT("Unknown Trainer Device.")); return ETrainerDevice::CPU;
+		}
+	}
+}
+
 FLearningAgentsTrainerPathSettings::FLearningAgentsTrainerPathSettings()
 {
 	EditorEngineRelativePath.Path = FPaths::EngineDir();
@@ -374,13 +397,24 @@ void ULearningAgentsTrainer::BeginTraining(
 
 	UE::Learning::FPPOTrainerTrainingSettings PPOTrainingSettings;
 	PPOTrainingSettings.IterationNum = TrainerTrainingSettings.NumberOfIterations;
-	PPOTrainingSettings.bUseTensorboard = TrainerTrainingSettings.bUseTensorboard;
+	PPOTrainingSettings.LearningRatePolicy = TrainerTrainingSettings.LearningRatePolicy;
+	PPOTrainingSettings.LearningRateCritic = TrainerTrainingSettings.LearningRateCritic;
+	PPOTrainingSettings.LearningRateDecay = TrainerTrainingSettings.LearningRateDecay;
+	PPOTrainingSettings.WeightDecay = TrainerTrainingSettings.WeightDecay;
 	PPOTrainingSettings.InitialActionScale = TrainerTrainingSettings.InitialActionScale;
-	PPOTrainingSettings.DiscountFactor = TrainerTrainingSettings.DiscountFactor;
-	PPOTrainingSettings.Seed = TrainerTrainingSettings.RandomSeed;
+	PPOTrainingSettings.BatchSize = TrainerTrainingSettings.BatchSize;
+	PPOTrainingSettings.EpsilonClip = TrainerTrainingSettings.EpsilonClip;
+	PPOTrainingSettings.ActionRegularizationWeight = TrainerTrainingSettings.ActionRegularizationWeight;
+	PPOTrainingSettings.EntropyWeight = TrainerTrainingSettings.EntropyWeight;
+	PPOTrainingSettings.GaeLambda = TrainerTrainingSettings.GaeLambda;
+	PPOTrainingSettings.bClipAdvantages = TrainerTrainingSettings.bClipAdvantages;
+	PPOTrainingSettings.bAdvantageNormalization = TrainerTrainingSettings.bAdvantageNormalization;
 	PPOTrainingSettings.TrimEpisodeStartStepNum = TrainerTrainingSettings.NumberOfStepsToTrimAtStartOfEpisode;
 	PPOTrainingSettings.TrimEpisodeEndStepNum = TrainerTrainingSettings.NumberOfStepsToTrimAtEndOfEpisode;
-	PPOTrainingSettings.Device = TrainerTrainingSettings.Device == ELearningAgentsTrainerDevice::CPU ? UE::Learning::ETrainerDevice::CPU : UE::Learning::ETrainerDevice::GPU;
+	PPOTrainingSettings.Seed = TrainerTrainingSettings.RandomSeed;
+	PPOTrainingSettings.DiscountFactor = TrainerTrainingSettings.DiscountFactor;
+	PPOTrainingSettings.Device = UE::Learning::Agents::GetTrainerDevice(TrainerTrainingSettings.Device);
+	PPOTrainingSettings.bUseTensorboard = TrainerTrainingSettings.bUseTensorboard;
 
 	UE::Learning::FPPOTrainerNetworkSettings PPONetworkSettings;
 	PPONetworkSettings.PolicyActionNoiseMin = Policy->GetPolicyObject().Settings.ActionNoiseMin;
