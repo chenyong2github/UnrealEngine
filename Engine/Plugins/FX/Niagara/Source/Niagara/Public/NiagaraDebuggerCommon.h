@@ -417,7 +417,7 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	bool IsEnabled() const
 	{
 	#if WITH_EDITORONLY_DATA
-		return bWidgetEnabled && bHudEnabled;
+		return bHudEnabled && (!GIsEditor || bWidgetEnabled);
 	#else
 		return bHudEnabled;
 	#endif
