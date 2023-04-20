@@ -47,14 +47,42 @@ static inline int32 ParallelForComputeNumJobs(int64 & OutNumItemsPerJob,int64 Nu
 		return 1;
 	}
 	
-	// ParallelFor will actually make 6*NumWorkers batches and then make NumWorkers tasks that pop the batches
-	//	this helps with mismatched thread runtime
-	//	here we only make NumWorkers batches max
-	//	but this is rarely a problem in image cook because it is parallelized already at a the higher level
+	// Always use ParallelFor with "Unbalanced"  so it does not do weird things to your job count
 
 	const int32 NumWorkers = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
 	int32 NumJobs = (int32)(NumItems / MinNumItemsPerJob); // round down
-	NumJobs = FMath::Clamp(NumJobs, int32(1), NumWorkers); 
+
+	// NumJobs is now the maximum number of jobs we would want to do
+	//	(eg. one for each small packet of MinNumItemsPerJob)
+	//	but that's often way too many
+
+	// Assign 1,2, or 3 jobs per worker
+	// never make jobs that will be smaller than MinNumItemsPerJob (eg. NumJobs is only adjusted downward)
+	// more jobs per worker provides load balancing, if one worker stalls others can pick up the jobs he didn't do
+
+	if ( NumJobs >= NumWorkers*3 )
+	{
+		// enough jobs to evenly distribute 3 per worker
+		// reduce job count to provide some slack for stalling workers
+		NumJobs = NumWorkers*3 - 1;
+	}
+	else if ( NumJobs >= NumWorkers*2 )
+	{
+		// enough jobs to evenly distribute 2 per worker
+		NumJobs = NumWorkers*2 - 1;
+	}
+	else
+	{
+		// not enough jobs to evenly distribute more than 1 per worker
+		NumJobs = FMath::Clamp(NumJobs, int32(1), NumWorkers); 
+	}
+
+	if ( NumJobs > 16 )
+	{
+		// add some slack; assume one thread will not be available
+		//	slightly under-subscribing reduces the chance of a much higher latency
+		NumJobs--;
+	}
 
 	OutNumItemsPerJob = (NumItems + NumJobs-1) / NumJobs; // round up
 	check( NumJobs*OutNumItemsPerJob >= NumItems );
@@ -103,7 +131,7 @@ static void ParallelLoop(const TCHAR* DebugName, int32 NumJobs, int64 TexelsPerJ
 		{
 			Func(TexelIndex);
 		}
-	});
+	}, EParallelForFlags::Unbalanced);
 }
 
 // ParallelOr : call Func() on all texels ; returns true if Func is true for any texel
@@ -128,7 +156,7 @@ static bool ParallelOr(const TCHAR* DebugName, int32 NumJobs, int64 TexelsPerJob
 		// if Func was really slow, you might want to check if merged_bool was set to true on some other thread
 		//	and terminate our loop when that is true
 		//  but that causes cache traffic for the shared variable, so should not be done in tight loops
-	});
+	}, EParallelForFlags::Unbalanced);
 
 	bool ret = merged_bool.load(std::memory_order_acquire);
 	return ret;
@@ -158,7 +186,7 @@ static void ParallelLoop(const TCHAR* DebugName, int32 NumJobs, int64 TexelsPerJ
 			Func(TexelIndex);
 			++TexelIndex;
 		}
-	});
+	}, EParallelForFlags::Unbalanced);
 }
 
 
@@ -363,7 +391,7 @@ IMAGECORE_API void FImageCore::CopyImage(const FImageView & SrcImage,const FImag
 							const int64 Count = FMath::Min(TexelsPerJob, NumTexels - StartIndex);
 							ConvertFLinearColorsToFColorSRGB(&SrcColors[StartIndex], &DestColors[StartIndex], Count);
 						}
-					);
+					, EParallelForFlags::Unbalanced);
 				}
 				else
 				{

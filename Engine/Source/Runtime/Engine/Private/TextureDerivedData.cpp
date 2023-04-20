@@ -1183,6 +1183,8 @@ void UnpackTextureBuildMetadataFromPlatformData(UE::TextureBuildUtilities::FText
  */
 int64 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined, bool bReplaceExistingDDC)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.PutDerivedDataInCache);
+
 	TArray64<uint8> RawDerivedData;
 	FString DerivedDataKey;
 	int64 TotalBytesPut = 0;

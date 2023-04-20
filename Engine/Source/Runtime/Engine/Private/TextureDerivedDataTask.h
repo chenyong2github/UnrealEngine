@@ -103,6 +103,8 @@ struct FTextureSourceData
 
 	void ReleaseMemory()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.ReleaseMemory);
+
 		// Unload BulkData loaded with LoadBulkDataWithFileReader
 		AsyncSource.RemoveBulkData();
 		Blocks.Empty();

@@ -463,7 +463,7 @@ static FVector4f ComputeAlphaCoverage(const FVector4f Thresholds, const FVector4
 			}
 
 			FPlatformAtomics::InterlockedAdd(&CommonResult, LocalCoverage);
-		});
+		}, EParallelForFlags::Unbalanced);
 
 		Coverage[3] = float(CommonResult) / float( (int64) SourceImageData.SizeX * SourceImageData.SizeY);
 		
@@ -515,7 +515,7 @@ static FVector4f ComputeAlphaCoverage(const FVector4f Thresholds, const FVector4
 			{
 				FPlatformAtomics::InterlockedAdd(&CommonResults[i], LocalCoverage[i]);
 			}
-		});
+		}, EParallelForFlags::Unbalanced);
 
 		for (int32 i = 0; i < 4; ++i)
 		{
@@ -619,7 +619,7 @@ static void GenerateMip2x2Simple(
 				DestRow += 4;
 			}
 		}
-	});
+	}, EParallelForFlags::Unbalanced);
 }
 
 template <EMipGenAddressMode AddressMode>
@@ -649,7 +649,7 @@ static void GenerateMipUnfiltered(const FImageView2D& SourceImageData, FImageVie
 				VectorStore(FilteredColor, &DestImageData.Access(DestX, DestY).Component(0));
 			}
 		}
-	});
+	}, EParallelForFlags::Unbalanced);
 }
 
 template <EMipGenAddressMode AddressMode>
@@ -684,7 +684,7 @@ static void GenerateMip2x2(const FImageView2D& SourceImageData, FImageView2D& De
 				VectorStore(FilteredColor, &DestImageData.Access(DestX, DestY).Component(0));
 			}
 		}
-	});
+	}, EParallelForFlags::Unbalanced);
 }
 
 static void AllocateTempForMips(
@@ -831,7 +831,7 @@ static void GenerateMipSharpened(
 				}
 			}
 		}
-	});
+	}, EParallelForFlags::Unbalanced);
 }
 
 template <EMipGenAddressMode AddressMode, int KernelSize = 0>
@@ -903,7 +903,7 @@ static void GenerateMipSharpenedSeparable(
 				VectorStore(Color, &DestImageData.Access(DestX, DestY).Component(0));
 			}
 		}
-	});
+	}, EParallelForFlags::Unbalanced);
 }
 
 /**
@@ -1711,6 +1711,10 @@ void ITextureCompressorModule::GenerateMipChain(
 			FImageView2D DestView(DestImage, SliceIndex);
 			FImageView2D IntermediateDstView(IntermediateDst, SliceIndex);
 
+			// @@CB these two mipgens can run in parallel I believe?
+			//	and the one to the output mip is not blocking
+			//	we only need to block on the downsample one
+
 			// DestView is the output mip
 			GenerateSharpenedMipB8G8R8A8(
 				IntermediateSrcView, 
@@ -1758,6 +1762,8 @@ void ITextureCompressorModule::GenerateMipChain(
 
 		if ( Settings.bDownsampleWithAverage == false )
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GenerateMipChain.memcpy);
+
 			FMemory::Memcpy( (&IntermediateDst.AsRGBA32F()[0]), (&DestImage.AsRGBA32F()[0]),
 				IntermediateDst.SizeX * IntermediateDst.SizeY * IntermediateDst.NumSlices * sizeof(FLinearColor) );
 		}
@@ -1796,6 +1802,15 @@ void ITextureCompressorModule::GenerateMipChain(
 		IntermediateDstPtr->SizeX = FMath::Max<uint32>( 1, IntermediateSrcPtr->SizeX >> 1 );
 		IntermediateDstPtr->SizeY = FMath::Max<uint32>( 1, IntermediateSrcPtr->SizeY >> 1 );
 		IntermediateDstPtr->NumSlices = Settings.bVolume ? FMath::Max<uint32>( 1, IntermediateSrcPtr->NumSlices >> 1 ) : SrcNumSlices;
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GenerateMipChain.Free);
+		
+		// @@CB this is significant; detach trick again?
+
+		FirstTempImage = FImage();
+		SecondTempImage = FImage();
 	}
 }
 
@@ -1993,7 +2008,7 @@ void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage
 					MipView.Access(x, y) = LongLatView.LookupLongLatDouble(DirectionWS);
 				}
 			}
-		});
+		}, EParallelForFlags::Unbalanced);
 	}
 }
 
@@ -2719,7 +2734,7 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 			{
 				AdjustColorsOld(First, Count, InBuildSettings);
 			}
-		} );
+		}, EParallelForFlags::Unbalanced);
 	}
 }
 
@@ -3271,7 +3286,7 @@ static void NormalizeMip(FImage& InOutMip)
 
 			Color = FLinearColor(Normal.X * 0.5f + 0.5f, Normal.Y * 0.5f + 0.5f, Normal.Z * 0.5f + 0.5f, Color.A);
 		}
-	});
+	}, EParallelForFlags::Unbalanced);
 }
 
 
@@ -3638,9 +3653,23 @@ public:
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Free_IntermediateMipChain);
 
-			// @@CB this is quite slow; detach to an async task?
+			// this is quite slow; detach to an async task?
+			//IntermediateMipChain.Empty();
 
-			IntermediateMipChain.Empty();
+			TArray<FImage>* PtrIntermediateMipChain = new TArray<FImage>( MoveTemp(IntermediateMipChain) );
+			
+			//TArray<FImage>* PtrIntermediateMipChain = new TArray<FImage>;
+			//Swap(*PtrIntermediateMipChain,IntermediateMipChain);
+
+			UE::Tasks::Launch(TEXT("Texture.Free_IntermediateMipChain.Task"),
+				[PtrIntermediateMipChain]() // by value, not ref
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Free_IntermediateMipChain.Task);
+					PtrIntermediateMipChain->Empty();
+					delete PtrIntermediateMipChain;
+					return true;
+				},
+				LowLevelTasks::ETaskPriority::BackgroundNormal);
 		}
 
 		return bCompressSucceeded;
@@ -4088,7 +4117,7 @@ private:
 				{
 					NormalizeMip(OutMipChain[Mip]);
 				}
-			});
+			}, EParallelForFlags::Unbalanced);
 
 		}
 	
