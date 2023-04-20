@@ -641,6 +641,24 @@
 			"runtimes": [
 				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
 			]
+		},
+		{
+			"category": "DepthToSpace",
+			"targets": [
+				{ "target": "DepthToSpace" }
+			],
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
+			]
+		},
+		{
+			"category": "SpaceToDepth",
+			"targets": [
+				{ "target": "SpaceToDepth" }
+			],
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
+			]
 		}
 	],
 
@@ -1376,6 +1394,30 @@
 				{ "inputs": [ { "shape": [ 3, 2 ] } ], "weights": [ { "shape": [ 1 ], "source": [ "-1" ], "type": "int64" } ], "outputs": [ { "shape": [ 3, 2 ] } ] }
 			]
 		},
+		{
+			"name": "DepthToSpace.CRD",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 8, 2, 3 ] } ], "outputs": [ { "shape": [ 1, 2, 4, 6 ] } ] }
+			]
+		},
+		{
+			"name": "DepthToSpace.DCR",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 8, 2, 3 ] } ], "outputs": [ { "shape": [ 1, 2, 4, 6 ] } ] }
+			]
+		},
+		{
+			"name": "SpaceToDepth.BlockSize2",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 1, 4, 6 ] } ], "outputs": [ { "shape": [ 1, 4, 2, 3 ] } ] }
+			]
+		},
+		{
+			"name": "SpaceToDepth.BlockSize4",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 2, 1, 12, 20 ] } ], "outputs": [ { "shape": [ 2, 16, 3, 5 ] } ] }
+			]
+		},
 		{ 
 			"name": "Reduce.Default",
 			"datasets": [
@@ -2019,6 +2061,40 @@
 			"attribute_maps": [
 				{ "attributes": [ { "name": "exclusive", "value": 0, "type": "Int32" } ] },
 				{ "attributes": [ { "name": "exclusive", "value": 1, "type": "Int32" } ] }
+			]
+		},
+		{
+			"name": "DepthToSpace.CRD",
+			"attribute_maps": [
+				{ "attributes": [ 
+					{ "name": "blocksize", "value": 2, "type": "Int32" },
+					{ "name": "mode", "value": "CRD", "type": "String" }
+					] }
+			]
+		},
+		{
+			"name": "DepthToSpace.DCR",
+			"attribute_maps": [
+				{ "attributes": [ 
+					{ "name": "blocksize", "value": 2, "type": "Int32" },
+					{ "name": "mode", "value": "DCR", "type": "String" }
+					] }
+			]
+		},
+		{
+			"name": "SpaceToDepth.BlockSize2",
+			"attribute_maps": [
+				{ "attributes": [ 
+					{ "name": "blocksize", "value": 2, "type": "Int32" }
+					] }
+			]
+		},
+		{
+			"name": "SpaceToDepth.BlockSize4",
+			"attribute_maps": [
+				{ "attributes": [ 
+					{ "name": "blocksize", "value": 4, "type": "Int32" }
+					] }
 			]
 		},
 		{
