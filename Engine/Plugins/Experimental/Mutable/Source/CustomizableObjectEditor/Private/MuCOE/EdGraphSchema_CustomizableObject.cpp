@@ -719,46 +719,89 @@ bool UEdGraphSchema_CustomizableObject::ShouldHidePinDefaultValue(UEdGraphPin* P
 
 void UEdGraphSchema_CustomizableObject::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
-	if (Context && !Context->Pin && Context->Node)
+	if (Context && Context->Node)
 	{
-		if (!Context->bIsDebugging)
+		if (!Context->Pin) // On Node right click
 		{
-			// Node contextual actions
-			FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
-			Section.AddMenuEntry(FGenericCommands::Get().Delete);
-			Section.AddMenuEntry(FGenericCommands::Get().Cut);
-			Section.AddMenuEntry(FGenericCommands::Get().Copy);
-			Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
-			Section.AddMenuEntry(FGraphEditorCommands::Get().ReconstructNodes);
-			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
-
-			// In the case of a UCustomizableObjectNodeObjectGroup, add the option to refresh all Customizable Object Material Node nodes of all the children of this node
-			const UCustomizableObjectNodeObjectGroup* TypedNode = Cast<UCustomizableObjectNodeObjectGroup>(Context->Node);
-			if (TypedNode != nullptr)
+			if (!Context->bIsDebugging)
 			{
-				Section.AddMenuEntry( FCustomizableObjectEditorNodeContextCommands::Get().RefreshMaterialNodesInAllChildren );
-			}
-		}
+				// Node contextual actions
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
+				Section.AddMenuEntry(FGenericCommands::Get().Delete);
+				Section.AddMenuEntry(FGenericCommands::Get().Cut);
+				Section.AddMenuEntry(FGenericCommands::Get().Copy);
+				Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().ReconstructNodes);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 
-		struct SCommentUtility
-		{
-			static void CreateComment(const UEdGraphSchema_CustomizableObject* Schema, UEdGraph* Graph)
-			{
-				if (Schema && Graph)
+				// In the case of a UCustomizableObjectNodeObjectGroup, add the option to refresh all Customizable Object Material Node nodes of all the children of this node
+				const UCustomizableObjectNodeObjectGroup* TypedNode = Cast<UCustomizableObjectNodeObjectGroup>(Context->Node);
+				if (TypedNode != nullptr)
 				{
-					Schema->AddComment(Graph, NULL, FVector2D::ZeroVector, true);
+					Section.AddMenuEntry(FCustomizableObjectEditorNodeContextCommands::Get().RefreshMaterialNodesInAllChildren);
 				}
 			}
-		};
 
-		FToolMenuSection& section = Menu->AddSection("SchemaActionComment", LOCTEXT("MultiCommentHeader", "Comment Group"));
-		section.AddMenuEntry("MultiCommentDesc", LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
-			LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateStatic(SCommentUtility::CreateComment, this, const_cast<UEdGraph*>(ToRawPtr(Context->Graph)))));
+			struct SCommentUtility
+			{
+				static void CreateComment(const UEdGraphSchema_CustomizableObject* Schema, UEdGraph* Graph)
+				{
+					if (Schema && Graph)
+					{
+						Schema->AddComment(Graph, NULL, FVector2D::ZeroVector, true);
+					}
+				}
+			};
+
+			FToolMenuSection& section = Menu->AddSection("SchemaActionComment", LOCTEXT("MultiCommentHeader", "Comment Group"));
+			section.AddMenuEntry("MultiCommentDesc", LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
+				LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateStatic(SCommentUtility::CreateComment, this, const_cast<UEdGraph*>(ToRawPtr(Context->Graph)))));
+		}
+		else // On Pin right click
+		{
+			UCustomizableObjectNodeTable* TableNode = Cast<UCustomizableObjectNodeTable>(Context->Node);
+			UEdGraphPin* TexturePin = (UEdGraphPin*)Context->Pin;
+
+			if (TableNode && TexturePin && !TexturePin->LinkedTo.Num() && (TexturePin->PinType.PinCategory == PC_Image || TexturePin->PinType.PinCategory == PC_PassThroughImage))
+			{
+				FText ActionText = FText::Format(LOCTEXT("ChangeTexturePinMode_Label", 
+					"Set as {0} texture"), Context->Pin->PinType.PinCategory == PC_PassThroughImage ? FText::FromString("Mutable") : FText::FromString("Pass Through"));
+				
+				FText ToolTipText = FText::Format(LOCTEXT("ChangeTexturePinMode_Tooltip",
+					"Set the texture pin as {0} texture."), Context->Pin->PinType.PinCategory == PC_PassThroughImage ? FText::FromString("Mutable") : FText::FromString("Pass Through"));
+
+				FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
+				Section.InitSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"), FToolMenuInsert());
+
+				Section.AddMenuEntry
+				(
+					"ChangeTexturePinMode", ActionText, ToolTipText, FSlateIcon(),
+					FUIAction(FExecuteAction::CreateLambda([TableNode, TexturePin]()
+						{
+							TableNode->ChangeImagePinMode(TexturePin);
+						}))
+				);
+
+				if (!TableNode->IsImagePinDefault(TexturePin))
+				{
+					Section.AddMenuEntry
+					(
+						"SetTexturePinModeDefault",
+						LOCTEXT("SetTexturePinModeDefault_Label","Set pin as default."),
+						LOCTEXT("SetTexturePinModeDefault_Tooltip","Set the selected texture pin to use the default node mode."),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda([TableNode, TexturePin]()
+							{
+								TableNode->ChangeImagePinMode(TexturePin, true);
+							}))
+					);
+				}
+			}
+		}
 	}
 }
-
 
 
 void UEdGraphSchema_CustomizableObject::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotification) const
@@ -767,6 +810,7 @@ void UEdGraphSchema_CustomizableObject::BreakPinLinks(UEdGraphPin& TargetPin, bo
 	
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotification);
 }
+
 
 void UEdGraphSchema_CustomizableObject::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const
 {
@@ -793,6 +837,7 @@ TSharedPtr<ICustomizableObjectEditor> UEdGraphSchema_CustomizableObject::GetCust
 
 	return nullptr;
 }
+
 
 UEdGraphNode* UEdGraphSchema_CustomizableObject::AddComment(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/) const
 {
@@ -923,6 +968,7 @@ void UEdGraphSchema_CustomizableObject::DroppedAssetsOnGraph(const TArray<FAsset
 	}
 }
 
+
 bool UEdGraphSchema_CustomizableObject::IsSpawnableAsset(const FAssetData& InAsset, ESpawnableObjectType& OutObjectType) const
 {
 	UObject* Object = InAsset.GetAsset();
@@ -1008,6 +1054,7 @@ void UEdGraphSchema_CustomizableObject::GetAssetsGraphHoverMessage(const TArray<
 		}
 	}
 }
+
 
 bool UEdGraphSchema_CustomizableObject::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
 {

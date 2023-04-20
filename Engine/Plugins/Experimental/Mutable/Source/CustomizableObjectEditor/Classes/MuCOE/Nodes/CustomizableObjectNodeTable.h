@@ -4,6 +4,7 @@
 
 #include "Engine/DataTable.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
 
 #include "CustomizableObjectNodeTable.generated.h"
 
@@ -11,11 +12,21 @@ namespace ENodeTitleType { enum Type : int; }
 
 class UCustomizableObjectLayout;
 class UCustomizableObjectNodeRemapPins;
+class UCustomizableObjectNodeRemapPinsByName;
 class UEdGraphPin;
 class UObject;
 class USkeletalMesh;
 class UTexture2D;
 struct FGuid;
+
+
+/** Enum class for the different types of image pins */
+UENUM()
+enum class ETableTextureType : uint8
+{
+	PASSTHROUGH_TEXTURE = 0 UMETA(DisplayName = "Passthrough"),
+	MUTABLE_TEXTURE = 1 UMETA(DisplayName = "Mutable")
+};
 
 
 /** Base class for all Table Pins. */
@@ -33,7 +44,30 @@ public:
 };
 
 
-/** Additional data for a Mesh pins. */
+/** Additional data for Image pins. */
+UCLASS()
+class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeTableImagePinData : public UCustomizableObjectNodeTableObjectPinData
+{
+	GENERATED_BODY()
+
+public:
+
+	bool IsDefaultImageMode() { return bIsDefault; }
+	void SetDefaultImageMode(bool bValue) { bIsDefault = bValue; }
+
+	// Pin Type
+	UPROPERTY()
+	ETableTextureType ImageMode = ETableTextureType::MUTABLE_TEXTURE;
+
+private:
+
+	UPROPERTY()
+	bool bIsDefault = true;
+
+};
+
+
+/** Additional data for Mesh pins. */
 UCLASS()
 class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeTableMeshPinData : public UCustomizableObjectNodeTableObjectPinData
 {
@@ -71,6 +105,20 @@ public:
 
 
 UCLASS()
+class UCustomizableObjectNodeTableRemapPins : public UCustomizableObjectNodeRemapPinsByName
+{
+	GENERATED_BODY()
+public:
+
+	// Specific method to decide when two pins are equal
+	virtual bool Equal(const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const override;
+
+	// Method to use in the RemapPins step of the node reconstruction process
+	virtual void RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) override;
+};
+
+
+UCLASS()
 class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeTable : public UCustomizableObjectNode
 {
 public:
@@ -92,7 +140,13 @@ public:
 	/** If there is a bool column in the table, checked rows will not be compiled */
 	UPROPERTY(EditAnywhere, Category = TableProperties)
 	bool bDisableCheckedRows = true;
-	
+
+	/** Decides the default type of the texture pins (passtrhough or mutable)
+	*   Right click on a non-linked image pin to customize its image mode
+	*/
+	UPROPERTY(EditAnywhere, Category = TableProperties)
+	ETableTextureType DefaultImageMode = ETableTextureType::MUTABLE_TEXTURE;
+
 	UPROPERTY(EditAnywhere, Category = UI, meta = (DisplayName = "Parameter UI Metadata"))
 	FMutableParamUIMetadata ParamUIMetadata;
 
@@ -105,14 +159,17 @@ public:
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	FLinearColor GetNodeTitleColor() const override;
 	FText GetTooltipText() const override;
+	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	
 	// UCustomizableObjectNode interface
 	virtual void PostBackwardsCompatibleFixup() override;
+	virtual void BackwardsCompatibleFixup() override;
 	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
 	bool IsNodeOutDatedAndNeedsRefresh() override;
 	FString GetRefreshMessage() const override;
 	virtual bool ProvidesCustomPinRelevancyTest() const override;
 	virtual bool IsPinRelevant(const UEdGraphPin* Pin) const override;
+	UCustomizableObjectNodeTableRemapPins* CreateRemapPinsDefault() const;
 
 	/*** Allows to perform work when remapping the pin data. */
 	virtual void RemapPinsData(const TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap) override;
@@ -227,6 +284,13 @@ public:
 	// Returns the name if the row has a bool column set as false (true == disabled)
 	TArray<FName> GetRowNames() const;
 
+	// Changes the image mode of a pin
+	// bSetDefault param: if true sets the pin to be equal to the default mode (same as node)
+	void ChangeImagePinMode(UEdGraphPin* Pin, bool bSetDefault = false);
+
+	// Returns true if the pin is in the default mode (same as node)
+	bool IsImagePinDefault(UEdGraphPin* Pin);
+
 private:
 
 	/** Number of properties to know when the node needs an update */
@@ -240,4 +304,6 @@ private:
 
 	// Checks if a pin already exists and if it has the same type as before the node refresh
 	bool CheckPinUpdated(const FString& PinName, const FName& PinType) const;
+
+
 };
