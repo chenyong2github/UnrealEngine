@@ -20,7 +20,7 @@ TSharedRef<SWidget> CreateRandomizeColumnWidget(UChooserTable* Chooser, FChooser
 	FRandomizeColumn* RandomizeColumn = static_cast<FRandomizeColumn*>(Column);
 	if (Row < 0)
 	{
-		const FSlateBrush* ColumnIcon = ColumnIcon = FAppStyle::Get().GetBrush("Icons.Help");
+		const FSlateBrush* ColumnIcon = FAppStyle::Get().GetBrush("Icons.Help");
 		
 		TSharedRef<SWidget> ColumnHeaderWidget = SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth()
