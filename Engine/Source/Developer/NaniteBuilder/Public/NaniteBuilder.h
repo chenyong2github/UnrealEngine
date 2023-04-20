@@ -14,6 +14,8 @@ struct FMeshNaniteSettings;
 namespace Nanite
 {
 
+const int32 MaxSectionArraySize = 64;
+
 struct FResources;
 
 class IBuilderModule : public IModuleInterface

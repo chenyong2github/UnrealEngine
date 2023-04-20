@@ -770,7 +770,7 @@ bool FBuilderModule::Build(
 
 bool FBuilderModule::BuildMaterialIndices(const FStaticMeshSectionArray& SectionArray, const uint32 TriangleCount, TArray<int32>& OutMaterialIndices)
 {
-	if (SectionArray.IsEmpty() || SectionArray.Num() > 64)
+	if (SectionArray.IsEmpty() || SectionArray.Num() > MaxSectionArraySize)
 	{
 		UE_LOG(LogStaticMesh, Log, TEXT("Unable to build Nanite data. Unsupported number of sections: %d."), SectionArray.Num());
 		return false;
