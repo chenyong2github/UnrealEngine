@@ -524,10 +524,12 @@ struct FRegisterOpenFunction
 // Macro-based variants so we completely compile away when not in use, even in debug builds
 #if UE_AUTORTFM
 #define UE_AUTORTFM_OPEN(x) AutoRTFM::Open([&]() { x })
+#define UE_AUTORTFM_OPENABORT(x) AutoRTFM::OpenAbort([=]() { x })
 #define UE_AUTORTFM_OPENCOMMIT(x) AutoRTFM::OpenCommit([=]() { x })
 #define UE_AUTORTFM_TRANSACT(x) AutoRTFM::Transact([&]() { x })
 #else
 #define UE_AUTORTFM_OPEN(x) do { x } while (false)
+#define UE_AUTORTFM_OPENABORT(x) do { /* do nothing */ } while (false)
 #define UE_AUTORTFM_OPENCOMMIT(x) do { x } while (false)
 #define UE_AUTORTFM_TRANSACT(x) do { x } while (false)
 #endif

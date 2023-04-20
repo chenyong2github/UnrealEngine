@@ -115,12 +115,24 @@ namespace SharedPointerInternals
 				// in response to the increment, so there's nothing to order with.
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-				// We do a regular SC increment here because it maps to an _InterlockedIncrement (lock inc).
-				// The codegen for a relaxed fetch_add is actually much worse under MSVC (lock xadd).
-				++SharedReferenceCount;
+				UE_AUTORTFM_OPEN(
+				{
+					// We do a regular SC increment here because it maps to an _InterlockedIncrement (lock inc).
+					// The codegen for a relaxed fetch_add is actually much worse under MSVC (lock xadd).
+					++SharedReferenceCount;
+				});
 #else
-				SharedReferenceCount.fetch_add(1, std::memory_order_relaxed);
+				UE_AUTORTFM_OPEN(
+				{
+					SharedReferenceCount.fetch_add(1, std::memory_order_relaxed);
+				});
 #endif
+
+				// If the transaction would abort, we need to undo adding the shared reference.
+				UE_AUTORTFM_OPENABORT(
+				{
+					ReleaseSharedReference();
+				});
 			}
 			else
 			{
