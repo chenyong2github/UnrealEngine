@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
 #include "Templates/TypeCompatibleBytes.h"
+#include "Templates/UnrealTemplate.h"
 #include <atomic>
 #include <type_traits>
 
@@ -21,7 +22,7 @@ namespace UE
 	 * Consumes elements in FIFO order.
 	 */
 	template<typename T, typename AllocatorType = FMemory>
-	class TDepletableMpmcQueue final
+	class UE_DEPRECATED(5.3, "This concurrent queue was deprecated because it uses spin-waiting that can cause priority inversion and subsequently deadlocks on some platforms. Please use TConsumeAllMpmcQueue.") TDepletableMpmcQueue final
 	{
 	private:
 		struct FNode
@@ -146,6 +147,8 @@ namespace UE
 		}
 	};
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	template<typename T, typename AllocatorType = FMemory>
-	using TDepletableMpscQueue UE_DEPRECATED(5.2, "The queue was renamed to TDepletableMpmcQueue as now it supports multiple concurrent consumers. Please consider switching to TConsumeAllMpmcQueue that is not vulnerable to live locking.") = TDepletableMpmcQueue<T, AllocatorType>;
+	using TDepletableMpscQueue UE_DEPRECATED(5.2, "This concurrent queue was deprecated because it uses spin-waiting that can cause priority inversion and subsequently deadlocks on some platforms. Please use TConsumeAllMpmcQueue.") = TDepletableMpmcQueue<T, AllocatorType>;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

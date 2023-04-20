@@ -4,7 +4,7 @@
 
 #include "Async/EventCount.h"
 #include "Containers/BitArray.h"
-#include "Containers/DepletableMpmcQueue.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
@@ -120,7 +120,7 @@ struct FOutputDeviceRedirectorState
 	uint8 OutputDevicesLockPadding[CalculateRedirectorCacheLinePadding(sizeof(OutputDevicesLock) + sizeof(OutputDevicesLockState))]{};
 
 	/** A queue of items logged by non-primary threads. */
-	TDepletableMpmcQueue<FOutputDeviceItem, FOutputDeviceLinearAllocator> BufferedItems;
+	TConsumeAllMpmcQueue<FOutputDeviceItem, FOutputDeviceLinearAllocator> BufferedItems;
 
 	/** Array of output devices to redirect to from the primary thread. */
 	TArray<FOutputDevice*> BufferedOutputDevices;
@@ -469,14 +469,14 @@ void FOutputDeviceRedirectorState::FlushBufferedItems()
 
 	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	bool bIsPanicThread = this->IsPanicThread(ThreadId);
-	BufferedItems.Deplete([this, ThreadId, bIsPanicThread](FOutputDeviceItem&& Item)
+	BufferedItems.ConsumeAllFifo([this, ThreadId, bIsPanicThread](FOutputDeviceItem&& Item)
 	{
 		if (!bIsPanicThread && HasPanicThread())
 		{
 			// Enqueuing during Deplete is okay because the items passed to the Deplete consumer
 			// are a moved list that is no longer associated with the queue; Deplete will return
 			// even though new items are in the queue.
-			BufferedItems.Enqueue(MoveTemp(Item));
+			BufferedItems.ProduceItem(MoveTemp(Item));
 		}
 		else
 		{
@@ -653,7 +653,7 @@ void FOutputDeviceRedirector::SerializeRecord(const UE::FLogRecord& Record)
 	}
 
 	// Queue the record to serialize to buffered output devices from the primary thread.
-	if (State->BufferedItems.EnqueueAndReturnWasEmpty(Record))
+	if (State->BufferedItems.ProduceItem(Record) == UE::EConsumeAllMpmcQueueResult::WasEmpty)
 	{
 		State->ThreadWakeEvent.Notify();
 	}
@@ -714,7 +714,7 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 	}
 
 	// Queue the line to serialize to buffered output devices from the primary thread.
-	if (State->BufferedItems.EnqueueAndReturnWasEmpty(Data, Category, Verbosity, RealTime))
+	if (State->BufferedItems.ProduceItem(Data, Category, Verbosity, RealTime) == UE::EConsumeAllMpmcQueueResult::WasEmpty)
 	{
 		State->ThreadWakeEvent.Notify();
 	}

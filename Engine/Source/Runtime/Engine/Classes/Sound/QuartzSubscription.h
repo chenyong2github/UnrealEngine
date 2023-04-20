@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Sound/QuartzQuantizationUtilities.h"
-#include "Containers/DepletableMpmcQueue.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 
 // forwards
 class UQuartzSubsystem;
@@ -88,24 +88,24 @@ namespace Audio
 		template <typename T>
 		void PushEvent(const T& Data)
 		{
-			CommandQueue.Enqueue([InData = Data](ListenerType* Listener) { Listener->ExecCommand(InData); });
+			CommandQueue.ProduceItem([InData = Data](ListenerType* Listener) { Listener->ExecCommand(InData); });
 		}
 
 		void PushCommand(TFunction<void(ListenerType*)> InCommand)
 		{
-			CommandQueue.Enqueue([=](ListenerType* Listener) { InCommand(Listener); });
+			CommandQueue.ProduceItem([=](ListenerType* Listener) { InCommand(Listener); });
 		}
 
 		void PumpCommandQueue(ListenerType* InListener)
 		{
-			CommandQueue.Deplete([InListener](TFunction<void(ListenerType*)> Command)
+			CommandQueue.ConsumeAllFifo([InListener](TFunction<void(ListenerType*)> Command)
 			{
 				Command(InListener);
 			});
 		}
 
 	private:
-		UE::TDepletableMpmcQueue<TFunction<void(ListenerType*)>> CommandQueue;
+		UE::TConsumeAllMpmcQueue<TFunction<void(ListenerType*)>> CommandQueue;
 	};
 
 } // namespace Audio

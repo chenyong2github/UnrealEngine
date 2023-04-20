@@ -122,7 +122,7 @@
 #include "IAssetViewport.h"
 #include "IPIEAuthorizer.h"
 #include "Features/IModularFeatures.h"
-#include "Containers/DepletableMpmcQueue.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 #include "TickableEditorObject.h"
 
 DEFINE_LOG_CATEGORY(LogPlayLevel);
@@ -166,7 +166,7 @@ public:
 			}
 			else
 			{
-				QueuedLines.Enqueue(MoveTemp(Line));
+				QueuedLines.ProduceItem(MoveTemp(Line));
 			}
 		}
 	}
@@ -180,7 +180,7 @@ public:
 
 	virtual void Tick(float DeltaTime) final
 	{
-		QueuedLines.Deplete(LogLine);
+		QueuedLines.ConsumeAllFifo(LogLine);
 	}
 
 	virtual ETickableTickType GetTickableTickType() const final
@@ -216,7 +216,7 @@ private:
 		}
 	}
 
-	UE::TDepletableMpmcQueue<FLine> QueuedLines;
+	UE::TConsumeAllMpmcQueue<FLine> QueuedLines;
 };
 
 void UEditorEngine::EndPlayMap()

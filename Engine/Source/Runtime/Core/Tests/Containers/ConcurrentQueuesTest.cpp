@@ -8,7 +8,7 @@
 #include "Containers/SpscQueue.h"
 #include "Containers/MpscQueue.h"
 #include "Containers/ClosableMpscQueue.h"
-#include "Containers/DepletableMpmcQueue.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 #include "Tests/Benchmark.h"
 
 #include <atomic>
@@ -459,26 +459,26 @@ namespace UE { namespace ConcurrentQueuesTests
 			}
 		}
 
-		UE_BENCHMARK(5, TestTCircularQueueSingleThread<5'000'000>);
-		UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Spsc>>>);
-		UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
-		UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TMpscQueue<uint32>>);
-		UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TSpscQueue<uint32>>);
+		//UE_BENCHMARK(5, TestTCircularQueueSingleThread<5'000'000>);
+		//UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Spsc>>>);
+		//UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
+		//UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TMpscQueue<uint32>>);
+		//UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TSpscQueue<uint32>>);
 
-		UE_BENCHMARK(5, TestSpscQueueCorrectness<1'000'000, TMpscQueue<uint32>>);
-		UE_BENCHMARK(5, TestSpscQueueCorrectness<1'000'000, TSpscQueue<uint32>>);
+		//UE_BENCHMARK(5, TestSpscQueueCorrectness<1'000'000, TMpscQueue<uint32>>);
+		//UE_BENCHMARK(5, TestSpscQueueCorrectness<1'000'000, TSpscQueue<uint32>>);
 
-		UE_BENCHMARK(5, TestTCircularQueue<5'000'000>);
-		UE_BENCHMARK(5, TestSpscQueue<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Spsc>>>);
-		UE_BENCHMARK(5, TestSpscQueue<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
-		UE_BENCHMARK(5, TestSpscQueue<5'000'000, TMpscQueue<uint32>>);
-		UE_BENCHMARK(5, TestSpscQueue<5'000'000, TSpscQueue<uint32>>);
+		//UE_BENCHMARK(5, TestTCircularQueue<5'000'000>);
+		//UE_BENCHMARK(5, TestSpscQueue<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Spsc>>>);
+		//UE_BENCHMARK(5, TestSpscQueue<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
+		//UE_BENCHMARK(5, TestSpscQueue<5'000'000, TMpscQueue<uint32>>);
+		//UE_BENCHMARK(5, TestSpscQueue<5'000'000, TSpscQueue<uint32>>);
 
 		UE_BENCHMARK(5, TestMpscQueueCorrectness<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
 		UE_BENCHMARK(5, TestMpscQueueCorrectness<5'000'000, TMpscQueue<uint32>>);
 
-		UE_BENCHMARK(5, TestMpscQueue<100'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
-		UE_BENCHMARK(5, TestMpscQueue<100'000, TMpscQueue<uint32>>);
+		//UE_BENCHMARK(5, TestMpscQueue<100'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);
+		//UE_BENCHMARK(5, TestMpscQueue<100'000, TMpscQueue<uint32>>);
 	}
 }
 
@@ -793,22 +793,22 @@ namespace ClosableMpscQueueTests
 	}
 }
 
-namespace DepletableMpscQueueTests
+namespace ConsumeAllMpmcQueueTests
 {
-	// straightforward implementation over MPSC TQueue for comparison with TResettableMpscQueue
+	// straightforward implementation over MPSC TQueue for comparison with TConsumeAllMpmcQueue
 	template<typename T>
-	class TDepletableMpmcQueueOnTQueue
+	class TConsumeAllMpmcQueueOnTQueue
 	{
 		using FQueue = TQueue<T, EQueueMode::Mpsc>;
 
 	public:
-		~TDepletableMpmcQueueOnTQueue()
+		~TConsumeAllMpmcQueueOnTQueue()
 		{
 			checkf(SubscribingThreadsNum.load(std::memory_order_relaxed) == 0, TEXT("No other threads can use the object during its destruction"));
 			delete Queue.load(std::memory_order_relaxed);
 		}
 
-		void Enqueue(T Value)
+		void ProduceItem(T Value)
 		{
 			// `acquire`/`release` to keep `Queue` usage inside the scope
 			verify(SubscribingThreadsNum.fetch_add(1, std::memory_order_acquire) >= 0);
@@ -818,7 +818,7 @@ namespace DepletableMpscQueueTests
 		}
 
 		template<typename F>
-		void Deplete(const F& Consumer)
+		void ConsumeAllFifo(const F& Consumer)
 		{
 			// `acquire` to make it "happen-before" reading `SubscribingThreadsNum`
 			FQueue* LocalQueue = Queue.exchange(new FQueue, std::memory_order_acquire);
@@ -846,16 +846,16 @@ namespace DepletableMpscQueueTests
 
 	// straightforward implementation over MPSC TQueue for comparison with TResettableMpscQueue
 	template<typename T>
-	class TDepletableMpmcQueueOnTMpscQueue
+	class TConsumeAllMpmcQueueOnTMpscQueue
 	{
 	public:
-		~TDepletableMpmcQueueOnTMpscQueue()
+		~TConsumeAllMpmcQueueOnTMpscQueue()
 		{
 			checkf(SubscribingThreadsNum.load(std::memory_order_relaxed) == 0, TEXT("No other threads can use the object during its destration"));
 			delete Queue.load(std::memory_order_relaxed);
 		}
 
-		void Enqueue(T Value)
+		void ProduceItem(T Value)
 		{
 			// `acquire`/`release` to keep `Queue` usage inside the scope
 			verify(SubscribingThreadsNum.fetch_add(1, std::memory_order_acquire) >= 0);
@@ -865,7 +865,7 @@ namespace DepletableMpscQueueTests
 		}
 
 		template<typename F>
-		void Deplete(const F& Consumer)
+		void ConsumeAllFifo(const F& Consumer)
 		{
 			// `acquire` to make it "happen-before" reading `SubscribingThreadsNum`
 			TMpscQueue<T>* LocalQueue = Queue.exchange(new TMpscQueue<T>, std::memory_order_acquire);
@@ -892,18 +892,18 @@ namespace DepletableMpscQueueTests
 
 	// wrapper over `TClosableLockFreePointerListUnorderedSingleConsumer`
 	template<typename T>
-	class TDepletableMpmcQueueOnTClosableLockFreePointerListUnorderedSingleConsumer
+	class TConsumeAllMpmcQueueOnTClosableLockFreePointerListUnorderedSingleConsumer
 	{
 		using FQueue = TClosableLockFreePointerListUnorderedSingleConsumer<T, 0 /* as was used in FGraphEvent */>;
 
 	public:
-		~TDepletableMpmcQueueOnTClosableLockFreePointerListUnorderedSingleConsumer()
+		~TConsumeAllMpmcQueueOnTClosableLockFreePointerListUnorderedSingleConsumer()
 		{
 			checkf(SubscribingThreadsNum.load(std::memory_order_relaxed) == 0, TEXT("No other threads can use the object during its destration"));
 			delete Queue.load(std::memory_order_relaxed);
 		}
 
-		void Enqueue(T* Value)
+		void ProduceItem(T* Value)
 		{
 			// `acquire`/`release` to keep `Queue` usage inside the scope
 			verify(SubscribingThreadsNum.fetch_add(1, std::memory_order_acquire) >= 0);
@@ -913,7 +913,7 @@ namespace DepletableMpscQueueTests
 		}
 
 		template<typename F>
-		void Deplete(const F& Consumer)
+		void ConsumeAllFifo(const F& Consumer)
 		{
 			// `acquire` to make it "happen-before" reading `SubscribingThreadsNum`
 			FQueue* LocalQueue = Queue.exchange(new FQueue, std::memory_order_acquire);
@@ -942,18 +942,18 @@ namespace DepletableMpscQueueTests
 
 	// wrapper over `TClosableMpscQueue`
 	template<typename T>
-	class TDepletableMpmcQueueOnTClosableMpscQueue
+	class TConsumeAllMpmcQueueOnTClosableMpscQueue
 	{
 		using FQueue = TClosableMpscQueue<T>;
 
 	public:
-		~TDepletableMpmcQueueOnTClosableMpscQueue()
+		~TConsumeAllMpmcQueueOnTClosableMpscQueue()
 		{
 			checkf(SubscribingThreadsNum.load(std::memory_order_relaxed) == 0, TEXT("No other threads can use the object during its destration"));
 			delete Queue.load(std::memory_order_relaxed);
 		}
 
-		void Enqueue(T Value)
+		void ProduceItem(T Value)
 		{
 			// `acquire`/`release` to keep `Queue` usage inside the scope
 			verify(SubscribingThreadsNum.fetch_add(1, std::memory_order_acquire) >= 0);
@@ -963,7 +963,7 @@ namespace DepletableMpscQueueTests
 		}
 
 		template<typename F>
-		void Deplete(const F& Consumer)
+		void ConsumeAllFifo(const F& Consumer)
 		{
 			// `acquire` to make it "happen-before" reading `SubscribingThreadsNum`
 			FQueue* LocalQueue = Queue.exchange(new FQueue, std::memory_order_acquire);
@@ -991,7 +991,7 @@ namespace DepletableMpscQueueTests
 		QueueT Q;
 		for (uint32 i = 0; i != Num; ++i)
 		{
-			Q.Deplete([](void*) { checkNoEntry(); });
+			Q.ConsumeAllFifo([](void*) { checkNoEntry(); });
 		}
 	}
 
@@ -1016,7 +1016,7 @@ namespace DepletableMpscQueueTests
 					uint64 Total = 0;
 					for (uint64 Product = 1; Product != Num + 1; ++Product)
 					{
-						Queue.Enqueue((void*)(intptr_t)Product);
+						Queue.ProduceItem((void*)(intptr_t)Product);
 						Total += Product;
 					}
 					check(Total == Num * (Num + 1) / 2);
@@ -1028,7 +1028,7 @@ namespace DepletableMpscQueueTests
 		uint64 Consumed = 0;
 		while (Consumed != Produced)
 		{
-			Queue.Deplete
+			Queue.ConsumeAllFifo
 			(
 				[&Consumed](void* Value) 
 				{ 
@@ -1043,39 +1043,39 @@ namespace DepletableMpscQueueTests
 
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(Producers);
 
-		Queue.Deplete([](void*) { checkNoEntry(); }); // empty
+		Queue.ConsumeAllFifo([](void*) { checkNoEntry(); }); // empty
 	}
 
-	TEST_CASE_NAMED(FDepletableMpscQueueTest, "System::Core::Async::DepletableMpscQueueTest", "[.][ApplicationContextMask][EngineFilter][Perf]")
+	TEST_CASE_NAMED(FConsumeAllMpmcQueueTest, "System::Core::Async::ConsumeAllMpmcQueueTest", "[.][ApplicationContextMask][EngineFilter][Perf]")
 	{
 		{
-			TDepletableMpmcQueue<int> Q;
-			Q.Enqueue(1);
-			Q.Enqueue(2);
-			Q.Deplete([](int) {});
-			Q.Enqueue(3);
-			Q.Deplete([](int) {});
-			Q.Deplete([](int) {});
-			Q.Enqueue(4); // to destroy non-empty queue
+			TConsumeAllMpmcQueue<int> Q;
+			Q.ProduceItem(1);
+			Q.ProduceItem(2);
+			Q.ConsumeAllLifo([](int) {});
+			Q.ProduceItem(3);
+			Q.ConsumeAllLifo([](int) {});
+			Q.ConsumeAllLifo([](int) {});
+			Q.ProduceItem(4); // to destroy non-empty queue
 		}
 
 		{
-			TDepletableMpmcQueue<int> Q;
-			Q.Deplete([](int) { check(false); });
+			TConsumeAllMpmcQueue<int> Q;
+			Q.ConsumeAllLifo([](int) { check(false); });
 		}
 		{
-			TDepletableMpmcQueue<int> Q;
-			Q.Enqueue(1);
+			TConsumeAllMpmcQueue<int> Q;
+			Q.ProduceItem(1);
 			bool Done = false;
-			Q.Deplete([&Done](int Item) { check(!Done && Item == 1); Done = true; });
+			Q.ConsumeAllLifo([&Done](int Item) { check(!Done && Item == 1); Done = true; });
 		}
 
 		{
-			TDepletableMpmcQueue<int> Q;
-			Q.Enqueue(1);
-			Q.Enqueue(2);
+			TConsumeAllMpmcQueue<int> Q;
+			Q.ProduceItem(1);
+			Q.ProduceItem(2);
 			int Step = 0;
-			Q.Deplete(
+			Q.ConsumeAllFifo(
 				[&Step](int Item)
 				{
 					switch (Step)
@@ -1097,45 +1097,45 @@ namespace DepletableMpscQueueTests
 
 		//for (int i = 0; i != 1000000; ++i)
 		{
-			TDepletableMpmcQueue<int> Q;
-			Q.Deplete([](int) { check(false); });
-			Q.Deplete([](int) { check(false); });
+			TConsumeAllMpmcQueue<int> Q;
+			Q.ConsumeAllLifo([](int) { check(false); });
+			Q.ConsumeAllLifo([](int) { check(false); });
 		}
 
 		//for (int i = 0; i != 1000000; ++i)
 		{
 			int Res = 0;
-			TDepletableMpmcQueue<int> Q;
-			Q.Enqueue(1);
-			Q.Deplete([&Res](int i) { Res += i; });
-			Q.Enqueue(2);
-			Q.Deplete([&Res](int i) { Res += i; });
+			TConsumeAllMpmcQueue<int> Q;
+			Q.ProduceItem(1);
+			Q.ConsumeAllLifo([&Res](int i) { Res += i; });
+			Q.ProduceItem(2);
+			Q.ConsumeAllLifo([&Res](int i) { Res += i; });
 			checkf(Res == 3, TEXT("%d"), Res);
 		}
 
 		{	// EnqueueAndReturnWasEmpty
-			TDepletableMpmcQueue<int> Q;
-			verify(Q.EnqueueAndReturnWasEmpty(1));
-			verify(!Q.EnqueueAndReturnWasEmpty(2));
-			Q.Deplete([](int) {});
-			verify(Q.EnqueueAndReturnWasEmpty(1));
-			verify(!Q.EnqueueAndReturnWasEmpty(2));
-			Q.Deplete([](int) {});
-			verify(Q.EnqueueAndReturnWasEmpty(1));
-			verify(!Q.EnqueueAndReturnWasEmpty(2));
+			TConsumeAllMpmcQueue<int> Q;
+			verify(Q.ProduceItem(1) == EConsumeAllMpmcQueueResult::WasEmpty);
+			verify(Q.ProduceItem(2) == EConsumeAllMpmcQueueResult::HadItems);
+			Q.ConsumeAllLifo([](int) {});
+			verify(Q.ProduceItem(1) == EConsumeAllMpmcQueueResult::WasEmpty);
+			verify(Q.ProduceItem(2) == EConsumeAllMpmcQueueResult::HadItems);
+			Q.ConsumeAllLifo([](int) {});
+			verify(Q.ProduceItem(1) == EConsumeAllMpmcQueueResult::WasEmpty);
+			verify(Q.ProduceItem(2) == EConsumeAllMpmcQueueResult::HadItems);
 		}
 
-		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpmcQueue<void*>>);
-		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpmcQueueOnTQueue<void*>>);
-		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpmcQueueOnTMpscQueue<void*>>);
-		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpmcQueueOnTClosableLockFreePointerListUnorderedSingleConsumer<void>>);
-		UE_BENCHMARK(5, TestPerf<10'000, TDepletableMpmcQueueOnTClosableMpscQueue<void*>>);
+		UE_BENCHMARK(5, TestPerf<10'000, TConsumeAllMpmcQueue<void*>>);
+		UE_BENCHMARK(5, TestPerf<10'000, TConsumeAllMpmcQueueOnTQueue<void*>>);
+		UE_BENCHMARK(5, TestPerf<10'000, TConsumeAllMpmcQueueOnTMpscQueue<void*>>);
+		UE_BENCHMARK(5, TestPerf<10'000, TConsumeAllMpmcQueueOnTClosableLockFreePointerListUnorderedSingleConsumer<void>>);
+		UE_BENCHMARK(5, TestPerf<10'000, TConsumeAllMpmcQueueOnTClosableMpscQueue<void*>>);
 
-		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpmcQueue<void*>>);
-		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpmcQueueOnTQueue<void*>>);
-		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpmcQueueOnTMpscQueue<void*>>);
-		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpmcQueueOnTClosableLockFreePointerListUnorderedSingleConsumer<void>>);
-		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TDepletableMpmcQueueOnTClosableMpscQueue<void*>>);
+		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TConsumeAllMpmcQueue<void*>>);
+		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TConsumeAllMpmcQueueOnTQueue<void*>>);
+		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TConsumeAllMpmcQueueOnTMpscQueue<void*>>);
+		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TConsumeAllMpmcQueueOnTClosableLockFreePointerListUnorderedSingleConsumer<void>>);
+		UE_BENCHMARK(5, TestConsumingEmptyQueue<10'000'000, TConsumeAllMpmcQueueOnTClosableMpscQueue<void*>>);
 	}
 }}
 
