@@ -10,6 +10,8 @@
 #include "GameFeatures/GameFeatureAction_WorldActionBase.h"
 #include "InputMappingContext.h"
 #include "Character/LyraHeroComponent.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
+#include "System/LyraAssetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddInputContextMapping)
 
@@ -17,6 +19,13 @@
 
 //////////////////////////////////////////////////////////////////////
 // UGameFeatureAction_AddInputContextMapping
+
+void UGameFeatureAction_AddInputContextMapping::OnGameFeatureRegistering()
+{
+	Super::OnGameFeatureRegistering();
+
+	RegisterInputMappingContexts();
+}
 
 void UGameFeatureAction_AddInputContextMapping::OnGameFeatureActivating(FGameFeatureActivatingContext& Context)
 {
@@ -39,6 +48,121 @@ void UGameFeatureAction_AddInputContextMapping::OnGameFeatureDeactivating(FGameF
 		Reset(*ActiveData);
 	}
 }
+
+void UGameFeatureAction_AddInputContextMapping::OnGameFeatureUnregistering()
+{
+	Super::OnGameFeatureUnregistering();	
+	
+	UnregisterInputMappingContexts();
+}
+
+void UGameFeatureAction_AddInputContextMapping::RegisterInputMappingContexts()
+{
+	RegisterInputContextMappingsForGameInstanceHandle = FWorldDelegates::OnStartGameInstance.AddUObject(this, &UGameFeatureAction_AddInputContextMapping::RegisterInputContextMappingsForGameInstance);
+
+	const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+	for (TIndirectArray<FWorldContext>::TConstIterator WorldContextIterator = WorldContexts.CreateConstIterator(); WorldContextIterator; ++WorldContextIterator)
+	{
+		RegisterInputContextMappingsForGameInstance(WorldContextIterator->OwningGameInstance);
+	}
+}
+
+void UGameFeatureAction_AddInputContextMapping::RegisterInputContextMappingsForGameInstance(UGameInstance* GameInstance)
+{
+	if (GameInstance != nullptr && !GameInstance->OnLocalPlayerAddedEvent.IsBoundToObject(this))
+	{
+		GameInstance->OnLocalPlayerAddedEvent.AddUObject(this, &UGameFeatureAction_AddInputContextMapping::RegisterInputMappingContextsForLocalPlayer);
+		GameInstance->OnLocalPlayerRemovedEvent.AddUObject(this, &UGameFeatureAction_AddInputContextMapping::UnregisterInputMappingContextsForLocalPlayer);
+		
+		for (TArray<ULocalPlayer*>::TConstIterator LocalPlayerIterator = GameInstance->GetLocalPlayerIterator(); LocalPlayerIterator; ++LocalPlayerIterator)
+		{
+			RegisterInputMappingContextsForLocalPlayer(*LocalPlayerIterator);
+		}
+	}
+}
+
+void UGameFeatureAction_AddInputContextMapping::RegisterInputMappingContextsForLocalPlayer(ULocalPlayer* LocalPlayer)
+{
+	if (ensure(LocalPlayer))
+	{
+		ULyraAssetManager& AssetManager = ULyraAssetManager::Get();
+		
+		if (UEnhancedInputLocalPlayerSubsystem* EISubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
+		{
+			if (UEnhancedInputUserSettings* Settings = EISubsystem->GetUserSettings())
+			{
+				for (const FInputMappingContextAndPriority& Entry : InputMappings)
+				{
+					// Skip entries that don't want to be registered
+					if (!Entry.bRegisterWithSettings)
+					{
+						continue;
+					}
+
+					// Register this IMC with the settings!
+					if (UInputMappingContext* IMC = AssetManager.GetAsset(Entry.InputMapping))
+					{
+						Settings->RegisterInputMappingContext(IMC);
+					}
+				}
+			}
+		}
+	}
+}
+
+void UGameFeatureAction_AddInputContextMapping::UnregisterInputMappingContexts()
+{
+	FWorldDelegates::OnStartGameInstance.Remove(RegisterInputContextMappingsForGameInstanceHandle);
+	RegisterInputContextMappingsForGameInstanceHandle.Reset();
+
+	const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+	for (TIndirectArray<FWorldContext>::TConstIterator WorldContextIterator = WorldContexts.CreateConstIterator(); WorldContextIterator; ++WorldContextIterator)
+	{
+		UnregisterInputContextMappingsForGameInstance(WorldContextIterator->OwningGameInstance);
+	}
+}
+
+void UGameFeatureAction_AddInputContextMapping::UnregisterInputContextMappingsForGameInstance(UGameInstance* GameInstance)
+{
+	if (GameInstance != nullptr)
+	{
+		GameInstance->OnLocalPlayerAddedEvent.RemoveAll(this);
+		GameInstance->OnLocalPlayerRemovedEvent.RemoveAll(this);
+
+		for (TArray<ULocalPlayer*>::TConstIterator LocalPlayerIterator = GameInstance->GetLocalPlayerIterator(); LocalPlayerIterator; ++LocalPlayerIterator)
+		{
+			UnregisterInputMappingContextsForLocalPlayer(*LocalPlayerIterator);
+		}
+	}
+}
+
+void UGameFeatureAction_AddInputContextMapping::UnregisterInputMappingContextsForLocalPlayer(ULocalPlayer* LocalPlayer)
+{
+	if (ensure(LocalPlayer))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* EISubsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
+		{
+			if (UEnhancedInputUserSettings* Settings = EISubsystem->GetUserSettings())
+			{
+				for (const FInputMappingContextAndPriority& Entry : InputMappings)
+				{
+					// Skip entries that don't want to be registered
+					if (!Entry.bRegisterWithSettings)
+					{
+						continue;
+					}
+
+					// Register this IMC with the settings!
+					if (UInputMappingContext* IMC = Entry.InputMapping.Get())
+					{
+						Settings->UnregisterInputMappingContext(IMC);
+					}
+				}
+			}
+		}
+	}
+}
+
 
 #if WITH_EDITOR
 EDataValidationResult UGameFeatureAction_AddInputContextMapping::IsDataValid(TArray<FText>& ValidationErrors)

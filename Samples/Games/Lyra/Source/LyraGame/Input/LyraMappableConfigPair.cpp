@@ -10,6 +10,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraMappableConfigPair)
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 bool FMappableConfigPair::CanBeActivated() const
 {
 	const FGameplayTagContainer& PlatformTraits = ICommonUIModule::GetSettings().GetPlatformTraits();
@@ -59,3 +61,4 @@ void FMappableConfigPair::UnregisterPair(const FMappableConfigPair& Pair)
 	}
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

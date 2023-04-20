@@ -34,6 +34,7 @@ protected:
 	void HandlePrimaryKeyClicked();
 	void HandleSecondaryKeyClicked();
 	void HandleClearClicked();
+	void HandleResetToDefaultClicked();
 
 	void HandlePrimaryKeySelected(FKey InKey, UGameSettingPressAnyKey* PressAnyKeyPanel);
 	void HandleSecondaryKeySelected(FKey InKey, UGameSettingPressAnyKey* PressAnyKeyPanel);
@@ -68,4 +69,7 @@ private:	// Bound Widgets
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget, BlueprintProtected = true, AllowPrivateAccess = true))
 	TObjectPtr<ULyraButtonBase> Button_Clear;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget, BlueprintProtected = true, AllowPrivateAccess = true))
+	TObjectPtr<ULyraButtonBase> Button_ResetToDefault;
 };

@@ -4,7 +4,7 @@
 
 #include "Components/GameFrameworkInitStateInterface.h"
 #include "Components/PawnComponent.h"
-
+#include "GameFeatures/GameFeatureAction_AddInputContextMapping.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "LyraHeroComponent.generated.h"
 
@@ -100,8 +100,13 @@ protected:
 	 * NOTE: You should only add to this if you do not have a game feature plugin accessible to you.
 	 * If you do, then use the GameFeatureAction_AddInputConfig instead. 
 	 */
-	UPROPERTY(EditAnywhere)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "DefaultInputConfigs have been deprecated, use DefaultInputMappings instead")
 	TArray<FMappableConfigPair> DefaultInputConfigs;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+	UPROPERTY(EditAnywhere)
+	TArray<FInputMappingContextAndPriority> DefaultInputMappings;
 	
 	/** Camera mode set by an ability. */
 	UPROPERTY()

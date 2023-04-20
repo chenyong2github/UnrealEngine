@@ -10,6 +10,7 @@
 
 class UPlayerMappableInputConfig;
 
+// TODO: Deprecate
 /** A container to organize loaded player mappable configs to their CommonUI input type */
 USTRUCT(BlueprintType)
 struct FLoadedMappableConfigPair
@@ -36,6 +37,7 @@ struct FLoadedMappableConfigPair
 	bool bIsActive = false;
 };
 
+// TODO: Deprecate
 /** A container to organize potentially unloaded player mappable configs to their CommonUI input type */
 USTRUCT()
 struct FMappableConfigPair

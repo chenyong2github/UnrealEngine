@@ -10,6 +10,8 @@
 #include "Player/LyraLocalPlayer.h"
 #include "Rendering/SlateRenderer.h"
 #include "SubtitleDisplaySubsystem.h"
+#include "EnhancedInputSubsystems.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraSettingsShared)
 
@@ -86,6 +88,15 @@ void ULyraSettingsShared::SaveSettings()
 {
 	// Schedule an async save because it's okay if it fails
 	AsyncSaveGameToSlotForLocalPlayer();
+
+	// TODO_BH: Move this to the serialize function instead with a bumped version number
+	if (UEnhancedInputLocalPlayerSubsystem* System = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(OwningPlayer))
+	{
+		if (UEnhancedInputUserSettings* InputSettings = System->GetUserSettings())
+		{
+			InputSettings->AsyncSaveSettings();
+		}
+	}
 }
 
 void ULyraSettingsShared::ApplySettings()
@@ -93,6 +104,14 @@ void ULyraSettingsShared::ApplySettings()
 	ApplySubtitleOptions();
 	ApplyBackgroundAudioSettings();
 	ApplyCultureSettings();
+
+	if (UEnhancedInputLocalPlayerSubsystem* System = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(OwningPlayer))
+	{
+		if (UEnhancedInputUserSettings* InputSettings = System->GetUserSettings())
+		{
+			InputSettings->ApplySettings();
+		}
+	}
 }
 
 void ULyraSettingsShared::SetColorBlindStrength(int32 InColorBlindStrength)

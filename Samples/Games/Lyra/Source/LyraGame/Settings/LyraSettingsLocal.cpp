@@ -335,6 +335,7 @@ namespace LyraSettingsHelpers
 
 //////////////////////////////////////////////////////////////////////
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ULyraSettingsLocal::ULyraSettingsLocal()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject) && FSlateApplication::IsInitialized())
@@ -344,6 +345,7 @@ ULyraSettingsLocal::ULyraSettingsLocal()
 
 	SetToDefaults();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void ULyraSettingsLocal::SetToDefaults()
 {
@@ -1267,6 +1269,8 @@ FName ULyraSettingsLocal::GetControllerPlatform() const
 	return ControllerPlatform;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void ULyraSettingsLocal::RegisterInputConfig(ECommonInputType Type, const UPlayerMappableInputConfig* NewConfig, const bool bIsActive)
 {
 	if (NewConfig)
@@ -1424,6 +1428,8 @@ void ULyraSettingsLocal::ResetKeybindingsToDefault(ULyraLocalPlayer* LocalPlayer
 		Subsystem->RemoveAllPlayerMappedKeys();
 	}
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void ULyraSettingsLocal::LoadUserControlBusMix()
 {
