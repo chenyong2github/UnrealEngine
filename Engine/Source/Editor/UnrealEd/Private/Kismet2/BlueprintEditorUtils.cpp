@@ -4,6 +4,7 @@
 #include "Algo/AnyOf.h"
 #include "Algo/Copy.h"
 #include "Algo/RemoveIf.h"
+#include "Algo/Sort.h"
 #include "Algo/Transform.h"
 #include "BlueprintCompilationManager.h"
 #include "UObject/Interface.h"
@@ -10638,6 +10639,112 @@ bool FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(const UFuncti
 	}
 	
 	return false;
+}
+
+bool FBlueprintEditorUtils::HasRestrictedNodes(const UBlueprint* BP, TArray<UEdGraphNode*>* OutRestrictedNodes /* = nullptr */)
+{
+	if (!BP)
+	{
+		return false;
+	}
+
+	UBlueprintEditorSettings* BlueprintEditorSettings = GetMutableDefault<UBlueprintEditorSettings>();
+	check(BlueprintEditorSettings);
+
+	// No need to continue if we're not restricting anything.
+	if (!BlueprintEditorSettings->HasClassFiltering()
+		&& !BlueprintEditorSettings->GetFunctionPermissions().HasFiltering())
+	{
+		return false;
+	}
+
+	if (OutRestrictedNodes)
+	{
+		OutRestrictedNodes->Reset();
+	}
+
+	// Check for any disallowed node types.
+	auto IsRestrictedNodeType = [BlueprintEditorSettings](const UEdGraphNode* InNode) -> bool
+	{
+		return BlueprintEditorSettings->IsClassAllowed(InNode->GetClass());
+	};
+
+	// Check for any disallowed event graph implementations. The event node is considered restricted in this case.
+	auto IsRestrictedEventGraph = [BP, BlueprintEditorSettings](const UEdGraphNode* InNode) -> bool
+	{
+		const UK2Node_Event* EventNode = Cast<UK2Node_Event>(InNode);
+		return EventNode && !BlueprintEditorSettings->IsFunctionAllowed(BP, EventNode->EventReference.GetMemberName());
+	};
+
+	// Check for any disallowed function override graphs. Its entry node is considered to be restricted in this case.
+	auto IsRestrictedFunctionGraph = [BP, BlueprintEditorSettings](const UEdGraphNode* InNode) -> bool
+	{
+		const UK2Node_FunctionEntry* EntryNode = Cast<UK2Node_FunctionEntry>(InNode);
+		return EntryNode && !BlueprintEditorSettings->IsFunctionAllowed(BP, EntryNode->FunctionReference.GetMemberName());
+	};
+
+	TArray<UEdGraphNode*> AllNodes;
+	GetAllNodesOfClass(BP, AllNodes);
+	for (UEdGraphNode* Node : AllNodes)
+	{
+		if (!Node)
+		{
+			continue;
+		}
+
+		if (IsRestrictedNodeType(Node)
+			|| IsRestrictedEventGraph(Node)
+			|| IsRestrictedFunctionGraph(Node))
+		{
+			if (OutRestrictedNodes)
+			{
+				OutRestrictedNodes->Add(Node);
+			}
+			else
+			{
+				// We found a restricted node and/or graph entry point, so we can return immediately since we're not populating the output list.
+				return true;
+			}
+		}
+	}
+
+	if (OutRestrictedNodes && OutRestrictedNodes->Num() > 0)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+void FBlueprintEditorUtils::SanitizeRestrictedContentOnSave(UBlueprint* BP)
+{
+	TArray<UEdGraphNode*> RestrictedNodes;
+	if (HasRestrictedNodes(BP, &RestrictedNodes))
+	{
+		// Front-load entry nodes so that their graphs can be removed first.
+		Algo::Sort(RestrictedNodes, [](const UEdGraphNode* A, const UEdGraphNode* B)
+		{
+			return A->IsA<UK2Node_Event>() || A->IsA<UK2Node_FunctionEntry>();
+		});
+
+		for (UEdGraphNode* Node : RestrictedNodes)
+		{
+			// Remove the entire graph if this node represents an entry point for an event/function.
+			if (Node->IsA<UK2Node_Event>()
+				|| Node->IsA<UK2Node_FunctionEntry>())
+			{
+				RemoveGraph(BP, Node->GetGraph(), EGraphRemoveFlags::MarkTransient);
+			}
+			else
+			{
+				// If the top-level graph is transient/removed, there's no need to remove the node here.
+				if (!GetTopLevelGraph(Node->GetGraph())->HasAnyFlags(RF_Transient))
+				{
+					RemoveNode(BP, Node, /*bDontRecompile =*/ true);
+				}
+			}
+		}
+	}
 }
 
 bool FBlueprintEditorUtils::ShouldOpenWithDataOnlyEditor(const UBlueprint* Blueprint)

@@ -14,6 +14,7 @@
 #include "EdGraphSchema_K2.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Engine/Blueprint.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
@@ -284,11 +285,12 @@ bool UBlueprintEditorSettings::IsFunctionAllowed(const UBlueprint* InBlueprint, 
 		return true;
 	}
 
-	if (InBlueprint && InBlueprint->ParentClass)
+	const UClass* NativeParentClass = FBlueprintEditorUtils::FindFirstNativeClass(InBlueprint->ParentClass);
+	if (InBlueprint && NativeParentClass)
 	{
-		if (const UFunction* ParentFunction = InBlueprint->ParentClass->FindFunctionByName(FunctionName))
+		if (const UFunction* NativeParentFunction = NativeParentClass->FindFunctionByName(FunctionName))
 		{
-			if (FunctionPermissions.PassesFilter(ParentFunction->GetPathName()))
+			if (FunctionPermissions.PassesFilter(NativeParentFunction->GetPathName()))
 			{
 				return true;
 			}

@@ -1925,6 +1925,19 @@ public:
 	 */
 	static bool HasFunctionBlueprintThreadSafeMetaData(const UFunction* InFunction);
 
+	/**
+	 * Returns true if the given Blueprint is found to contain one or more nodes that are disallowed (restricted) within
+	 * the current editor mode context.
+	 * 
+	 * @param OutRestrictedNodes	(Optional) If non-NULL, will be populated with references to any nodes that are restricted.
+	 */
+	static bool HasRestrictedNodes(const UBlueprint* BP, TArray<UEdGraphNode*>* OutRestrictedNodes = nullptr);
+
+	/**
+	 * Checks the given Blueprint for any restricted content within the current editor context and sanitizes it prior to saving.
+	 */
+	static void SanitizeRestrictedContentOnSave(UBlueprint* BP);
+
 public:
 	static bool ShouldOpenWithDataOnlyEditor(const UBlueprint* Blueprint);
 };

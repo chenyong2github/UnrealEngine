@@ -410,6 +410,11 @@ void UBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		// Cache the BP for use (immediate, since we're about to save)
 		FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(this, Flags, OverrideVersion);
 	}
+
+#if WITH_EDITOR
+	// Sanitize the Blueprint by clearing out any objects/types that are restricted within the current editor context.
+	FBlueprintEditorUtils::SanitizeRestrictedContentOnSave(this);
+#endif	// WITH_EDITOR
 }
 
 void UBlueprint::GetPreloadDependencies(TArray<UObject*>& OutDeps)
