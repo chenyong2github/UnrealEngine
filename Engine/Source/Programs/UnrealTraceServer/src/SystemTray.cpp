@@ -4,6 +4,8 @@
 #include "StoreService.h"
 #include "Version.h"
 
+#if TS_USING(TS_PLATFORM_WINDOWS)
+
 #define TS_WITH_SYSTEM_TRAY TS_OFF
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -148,5 +150,7 @@ void RemoveFromSystemTray()
 	delete GSystemTray;
 #endif
 }
+
+#endif //TS_PLATFORM_WINDOWS
 
 /* vim: set noexpandtab : */
