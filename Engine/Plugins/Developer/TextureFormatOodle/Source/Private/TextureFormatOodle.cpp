@@ -918,7 +918,9 @@ public:
 
 			// concatenate VersionString without . characters which are illegal in DDC
 			// version is something like "2.9.5" , we'll add something like "_V295"
-			FString VersionString = InBuildSettings.OodleTextureSdkVersion.ToString();
+			FName UseOodleTextureSdkVersion = ValidateOodleTextureSdkVersion(InBuildSettings.OodleTextureSdkVersion);
+
+			FString VersionString = UseOodleTextureSdkVersion.ToString();
 			for(int32 i=0;i<VersionString.Len();i++)
 			{
 				if ( VersionString[i] != TEXT('.') )
@@ -934,6 +936,25 @@ public:
 		#endif
 
 		return DDCString;
+	}
+
+	FName ValidateOodleTextureSdkVersion(FName DesiredOodleTextureSdkVersion) const
+	{
+		const FOodleTextureVTable * VTable = GetOodleTextureVTable(DesiredOodleTextureSdkVersion);
+		if (VTable == nullptr)
+		{
+			UE_LOG(LogTextureFormatOodle,Warning,
+				TEXT("Unsupported OodleTextureSdkVersion: %s ; instead using: %s"),
+				*DesiredOodleTextureSdkVersion.ToString(),
+				*OodleTextureVersionLatest.ToString()
+				);
+			
+			return OodleTextureVersionLatest;
+		}
+		else
+		{
+			return DesiredOodleTextureSdkVersion;
+		}
 	}
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
@@ -1028,13 +1049,17 @@ public:
 			return false;			
 		}
 
-		FName CompressOodleTextureVersion(InBuildSettings.OodleTextureSdkVersion);
+		FName CompressOodleTextureVersion;
 
-		if ( CompressOodleTextureVersion.IsNone() )
+		if ( InBuildSettings.OodleTextureSdkVersion.IsNone() )
 		{
 			// legacy texture without version, and no remap is set up in prefs
 			// use default:
 			CompressOodleTextureVersion = OodleTextureSdkVersionToUseIfNone;
+		}
+		else
+		{
+			CompressOodleTextureVersion = ValidateOodleTextureSdkVersion(InBuildSettings.OodleTextureSdkVersion);
 		}
 
 		const FOodleTextureVTable * VTable = GetOodleTextureVTable(CompressOodleTextureVersion);
@@ -1176,8 +1201,8 @@ public:
 			//	can reduce peak mem use to do so immediately
 			//	(source is usually/often F32 RGBA (when not VT) so quite fat)
 
-// -> no longer possible because Hashing Source is on a thread
-//  needs a refcount on the source Image to make that work again
+			// -> no longer possible because Hashing Source is on a thread
+			//  needs a refcount on the source Image to make that work again
 
 		}
 		const FImage& Image = bNeedsImageCopy ? ImageCopy : InImage;
