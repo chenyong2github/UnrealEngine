@@ -882,9 +882,20 @@ protected:
 	bool PollCacheDerivedData(const FIoHash& KeyHash) const;
 	void EndCacheDerivedData(const FIoHash& KeyHash);
 
+	void LogCompressionRequestTimings() const;
+
 	FIoHash DataKeyHash;
 	TMap<FIoHash, TUniquePtr<FCompressedAnimSequence>> DataByPlatformKeyHash;
 	TMap<FIoHash, TPimplPtr<UE::Anim::FAnimationSequenceAsyncCacheTask>> CacheTasksByKeyHash;
+
+	struct FCompressionRequestTimings
+	{
+		FDateTime LastBeginCacheRequest;
+		FDateTime LastApplyCacheData;
+		FDateTime LastClearCache;
+		FDateTime LastWillNeverCook;
+	};
+	TMap<FIoHash, FCompressionRequestTimings> TimingsByKeyHash;
 protected:
 	bool TryCancelAsyncTasks();
 	void FinishAsyncTasks();
