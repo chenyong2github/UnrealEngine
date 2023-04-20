@@ -21,8 +21,8 @@ class ULandscapeLayerInfoObject;
 
 namespace LandscapeDataAccess
 {
-	inline constexpr int32 MaxValue = 65535;
-	inline constexpr float MidValue = 32768.f;
+	inline const int32 MaxValue = 65535;
+	inline const float MidValue = 32768.f;
 	// Reserved 2 bits for other purpose
 	// Most significant bit - Visibility, 0 is visible(default), 1 is invisible
 	// 2nd significant bit - Triangle flip, not implemented yet

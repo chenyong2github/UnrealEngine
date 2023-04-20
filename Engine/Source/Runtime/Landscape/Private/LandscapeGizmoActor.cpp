@@ -62,14 +62,6 @@ public:
 
 	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 	{
-		auto GetColor = [](const FMatrix::FReal* MatrixColumn)
-		{
-			return FLinearColor(static_cast<float>(MatrixColumn[0]),
-			                    static_cast<float>(MatrixColumn[1]),
-			                    static_cast<float>(MatrixColumn[2]),
-			                    static_cast<float>(MatrixColumn[3]));
-		};
-		
 		switch (Type)
 		{
 		case EMaterialParameterType::Vector:
@@ -80,22 +72,22 @@ public:
 			}
 			else if (ParameterInfo.Name == FName(TEXT("MatrixRow1")))
 			{
-				OutValue = GetColor(WorldToLandscapeMatrix.M[0]);
+				OutValue = FLinearColor(WorldToLandscapeMatrix.M[0][0], WorldToLandscapeMatrix.M[0][1], WorldToLandscapeMatrix.M[0][2], WorldToLandscapeMatrix.M[0][3]);
 				return true;
 			}
 			else if (ParameterInfo.Name == FName(TEXT("MatrixRow2")))
 			{
-				OutValue = GetColor(WorldToLandscapeMatrix.M[1]);
+				OutValue = FLinearColor(WorldToLandscapeMatrix.M[1][0], WorldToLandscapeMatrix.M[1][1], WorldToLandscapeMatrix.M[1][2], WorldToLandscapeMatrix.M[1][3]);
 				return true;
 			}
 			else if (ParameterInfo.Name == FName(TEXT("MatrixRow3")))
 			{
-				OutValue = GetColor(WorldToLandscapeMatrix.M[2]);
+				OutValue = FLinearColor(WorldToLandscapeMatrix.M[2][0], WorldToLandscapeMatrix.M[2][1], WorldToLandscapeMatrix.M[2][2], WorldToLandscapeMatrix.M[2][3]);
 				return true;
 			}
 			else if (ParameterInfo.Name == FName(TEXT("MatrixRow4")))
 			{
-				OutValue = GetColor(WorldToLandscapeMatrix.M[3]);
+				OutValue = FLinearColor(WorldToLandscapeMatrix.M[3][0], WorldToLandscapeMatrix.M[3][1], WorldToLandscapeMatrix.M[3][2], WorldToLandscapeMatrix.M[3][3]);
 				return true;
 			}
 			break;
@@ -162,9 +154,9 @@ public:
 			ULandscapeInfo* LandscapeInfo = Gizmo->TargetLandscapeInfo;
  			if (LandscapeInfo && LandscapeInfo->GetLandscapeProxy() && !FMath::IsNearlyZero(LandscapeInfo->DrawScale.X))
 			{
-				const float ScaleXY = static_cast<float>(LandscapeInfo->DrawScale.X);
-				SampleSizeX = static_cast<float>(Gizmo->SampleSizeX);
-				SampleSizeY = static_cast<float>(Gizmo->SampleSizeY);
+				const float ScaleXY = LandscapeInfo->DrawScale.X;
+				SampleSizeX = Gizmo->SampleSizeX;
+				SampleSizeY = Gizmo->SampleSizeY;
 				bHeightmapRendering = (Gizmo->DataType & LGT_Height);
 				FTransform LToW = LandscapeInfo->GetLandscapeProxy()->LandscapeActorToWorld();
 				const float W = Gizmo->Width / 2;
@@ -201,13 +193,7 @@ public:
 				{
 					MeshRT = FTranslationMatrix(FVector(-W / ScaleXY + 0.5, -H / ScaleXY + 0.5, 0) * GizmoScale3D) * FRotationTranslationMatrix(FRotator(0, Gizmo->GetActorRotation().Yaw, 0), FVector(BaseLocation.X, BaseLocation.Y, 0)) * LToW.ToMatrixWithScale();
 
-					HeightmapRenderProxy = new FLandscapeGizmoMeshRenderProxy(Gizmo->GizmoMeshMaterial->GetRenderProxy(),
-					                                                          static_cast<float>(BaseLocation.Z + L),
-					                                                          static_cast<float>(BaseLocation.Z),
-					                                                          Gizmo->GizmoTexture,
-					                                                          FLinearColor(static_cast<float>(Gizmo->TextureScale.X),
-					                                                                       static_cast<float>(Gizmo->TextureScale.Y), 0.0f, 0.0f),
-					                                                          WToL);
+					HeightmapRenderProxy = new FLandscapeGizmoMeshRenderProxy( Gizmo->GizmoMeshMaterial->GetRenderProxy(), BaseLocation.Z + L, BaseLocation.Z, Gizmo->GizmoTexture, FLinearColor(Gizmo->TextureScale.X, Gizmo->TextureScale.Y, 0, 0), WToL );
 					GizmoRenderProxy = (Gizmo->DataType != LGT_None) ? Gizmo->GizmoDataMaterial->GetRenderProxy() : Gizmo->GizmoMaterial->GetRenderProxy();
 
 					FScaleMatrix Mat(FVector(ScaleX, ScaleY, L));
@@ -224,7 +210,7 @@ public:
 							FVector SampledPos = Gizmo->SampledHeight[X + Y * ALandscapeGizmoActiveActor::DataTexSize];
 							SampledPos.X *= ScaleX;
 							SampledPos.Y *= ScaleY;
-							SampledPos.Z = Gizmo->GetLandscapeHeight(static_cast<float>(SampledPos.Z));
+							SampledPos.Z = Gizmo->GetLandscapeHeight(SampledPos.Z);
 
 							FVector SampledNormal = NormalM.TransformVector(Gizmo->SampledNormal[X + Y * ALandscapeGizmoActiveActor::DataTexSize]);
 							SampledNormal = SampledNormal.GetSafeNormal();
@@ -319,23 +305,17 @@ public:
 
 					if (bHeightmapRendering)
 					{
-						auto GetSampleIndex = [this](int32 X, int32 Y) -> int32
-						{
-							return static_cast<int32>(X + Y * SampleSizeX);
-						};
-
 						FDynamicMeshBuilder MeshBuilder(View->GetFeatureLevel());
 
 						for (int32 Y = 0; Y < SampleSizeY; ++Y)
 						{
 							for (int32 X = 0; X < SampleSizeX; ++X)
 							{
-								const int32 SampleIndex = GetSampleIndex(X, Y);
-								FVector SampledNormal = SampledNormals[SampleIndex];
+								FVector SampledNormal = SampledNormals[X + Y * SampleSizeX];
 								FVector TangentX(SampledNormal.Z, 0, -SampledNormal.X);
 								TangentX = TangentX.GetSafeNormal();
 
-								MeshBuilder.AddVertex((FVector3f)SampledPositions[SampleIndex], FVector2f((float)X / (SampleSizeX), (float)Y / (SampleSizeY)), (FVector3f)TangentX, FVector3f(SampledNormal^TangentX), (FVector3f)SampledNormal, FColor::White);
+								MeshBuilder.AddVertex((FVector3f)SampledPositions[X + Y * SampleSizeX], FVector2f((float)X / (SampleSizeX), (float)Y / (SampleSizeY)), (FVector3f)TangentX, FVector3f(SampledNormal^TangentX), (FVector3f)SampledNormal, FColor::White);
 							}
 						}
 
@@ -345,8 +325,8 @@ public:
 							{
 								if (X < SampleSizeX - 1 && Y < SampleSizeY - 1)
 								{
-									MeshBuilder.AddTriangle(GetSampleIndex(X + 0, Y + 0), GetSampleIndex(X + 1, Y + 1), GetSampleIndex(X + 1, Y + 0));
-									MeshBuilder.AddTriangle(GetSampleIndex(X + 0, Y + 0), GetSampleIndex(X + 0, Y + 1), GetSampleIndex(X + 1, Y + 1));
+									MeshBuilder.AddTriangle( (X+0) + (Y+0) * SampleSizeX, (X+1) + (Y+1) * SampleSizeX, (X+1) + (Y+0) * SampleSizeX );
+									MeshBuilder.AddTriangle( (X+0) + (Y+0) * SampleSizeX, (X+0) + (Y+1) * SampleSizeX, (X+1) + (Y+1) * SampleSizeX );
 								}
 							}
 						}
@@ -373,7 +353,7 @@ public:
 	}
 
 	virtual uint32 GetMemoryFootprint( void ) const override { return( sizeof( *this ) + GetAllocatedSize() ); }
-	uint32 GetAllocatedSize( void ) const { return static_cast<uint32>(FPrimitiveSceneProxy::GetAllocatedSize()); }
+	uint32 GetAllocatedSize( void ) const { return( FPrimitiveSceneProxy::GetAllocatedSize() ); }
 };
 
 ULandscapeGizmoRenderComponent::ULandscapeGizmoRenderComponent(const FObjectInitializer& ObjectInitializer)
@@ -597,7 +577,7 @@ FVector ALandscapeGizmoActiveActor::SnapToLandscapeGrid(const FVector& GizmoLoca
 		switch (SnapType)
 		{
 		case ELandscapeGizmoSnapType::Component:
-			SnapDimension = static_cast<float>(LandscapeProxy->ComponentSizeQuads);
+			SnapDimension = LandscapeProxy->ComponentSizeQuads;
 			break;
 		case ELandscapeGizmoSnapType::Texel:
 			SnapDimension = 1.0f;
@@ -622,7 +602,7 @@ FVector ALandscapeGizmoActiveActor::SnapToLandscapeGrid(const FVector& GizmoLoca
 
 		if (bFollowTerrainHeight)
 		{
-			ResultLocation.Z = LandscapeProxy->GetHeightAtLocation(ResultLocation, EHeightfieldSource::Editor).Get(static_cast<float>(GizmoLocation.Z));
+			ResultLocation.Z = LandscapeProxy->GetHeightAtLocation(ResultLocation, EHeightfieldSource::Editor).Get(GizmoLocation.Z);
 		}
 	}
 	
@@ -732,8 +712,8 @@ void ALandscapeGizmoActiveActor::SetTargetLandscape(ULandscapeInfo* LandscapeInf
 		// if there's no copied data, try to move somewhere useful
 		if (TargetLandscapeInfo && DataType == LGT_None)
 		{
-			MarginZ = static_cast<float>(TargetLandscapeInfo->DrawScale.Z * 3);
-			Width = Height = static_cast<float>(TargetLandscapeInfo->DrawScale.X * (TargetLandscapeInfo->ComponentSizeQuads + 1));
+			MarginZ = TargetLandscapeInfo->DrawScale.Z * 3;
+			Width = Height = TargetLandscapeInfo->DrawScale.X * (TargetLandscapeInfo->ComponentSizeQuads + 1);
 
 			float NewLengthZ;
 			FVector NewLocation = TargetLandscapeInfo->GetLandscapeCenterPos(NewLengthZ);
@@ -776,9 +756,9 @@ void ALandscapeGizmoActiveActor::FitToSelection()
 		{
 			const FVector LocalScale3D = GetRootComponent()->GetRelativeScale3D();
 
-			const float ScaleXY = static_cast<float>(TargetLandscapeInfo->DrawScale.X);
-			Width = static_cast<float>(ScaleXY * (MaxX - MinX + 1) / LocalScale3D.X);
-			Height = static_cast<float>(ScaleXY * (MaxY - MinY + 1) / LocalScale3D.Y);
+			float ScaleXY = TargetLandscapeInfo->DrawScale.X;
+			Width = ScaleXY * (MaxX - MinX + 1) / (LocalScale3D.X);
+			Height = ScaleXY * (MaxY - MinY + 1) / (LocalScale3D.Y);
 			float NewLengthZ;
 			FVector NewLocation = TargetLandscapeInfo->GetLandscapeCenterPos(NewLengthZ, MinX, MinY, MaxX, MaxY);
 			SetLength(NewLengthZ);
@@ -807,8 +787,8 @@ void ALandscapeGizmoActiveActor::FitMinMaxHeight()
 
 		if (MinZ != UE_OLD_HALF_WORLD_MAX && MaxZ > MinZ + KINDA_SMALL_NUMBER)
 		{
-			MinRelativeZ = static_cast<float>(MinZ);
-			RelativeScaleZ = static_cast<float>(1.f / (MaxZ - MinZ));
+			MinRelativeZ = MinZ;
+			RelativeScaleZ = 1.f / (MaxZ - MinZ);
 			ReregisterAllComponents();
 		}
 	}
@@ -826,9 +806,7 @@ float ALandscapeGizmoActiveActor::GetNormalizedHeight(uint16 LandscapeHeight) co
 			if (ZScale > KINDA_SMALL_NUMBER)
 			{
 				FVector LocalGizmoPos = Proxy->LandscapeActorToWorld().InverseTransformPosition(GetActorLocation());
-				return FMath::Clamp<float>(
-					static_cast<float>((LandscapeDataAccess::GetLocalHeight(LandscapeHeight) - LocalGizmoPos.Z) * TargetLandscapeInfo->DrawScale.Z / ZScale),
-					0.f, 1.f);
+				return FMath::Clamp<float>( (( LandscapeDataAccess::GetLocalHeight(LandscapeHeight) - LocalGizmoPos.Z) * TargetLandscapeInfo->DrawScale.Z) / ZScale, 0.f, 1.f );
 			}
 		}
 	}
@@ -846,7 +824,7 @@ float ALandscapeGizmoActiveActor::GetWorldHeight(float NormalizedHeight) const
 			if (ZScale > KINDA_SMALL_NUMBER)
 			{
 				FVector LocalGizmoPos = Proxy->LandscapeActorToWorld().InverseTransformPosition(GetActorLocation());
-				return static_cast<float>(NormalizedHeight * ZScale + LocalGizmoPos.Z * TargetLandscapeInfo->DrawScale.Z);
+				return NormalizedHeight * ZScale + LocalGizmoPos.Z * TargetLandscapeInfo->DrawScale.Z;
 			}
 		}
 	}
@@ -858,7 +836,7 @@ float ALandscapeGizmoActiveActor::GetLandscapeHeight(float NormalizedHeight) con
 	if (TargetLandscapeInfo)
 	{
 		NormalizedHeight = (NormalizedHeight - MinRelativeZ) * RelativeScaleZ;
-		const float ScaleZ = static_cast<float>(TargetLandscapeInfo->DrawScale.Z);
+		float ScaleZ = TargetLandscapeInfo->DrawScale.Z;
 		return (GetWorldHeight(NormalizedHeight) / ScaleZ);
 	}
 	return 0.f;
@@ -938,11 +916,11 @@ void ALandscapeGizmoActiveActor::SampleData(int32 SizeX, int32 SizeY)
 				FGizmoSelectData* Data11 = SelectedData.Find(FIntPoint(LX+1, LY+1));
 
 				// Invert Tex Data to show selected region more visible
-				TexData[X + Y*GizmoTexSizeX] = static_cast<uint8>(255 - FMath::Lerp(
+				TexData[X + Y*GizmoTexSizeX] = 255 - FMath::Lerp(
 					FMath::Lerp(Data00 ? Data00->Ratio : 0, Data10 ? Data10->Ratio : 0, FracX),
 					FMath::Lerp(Data01 ? Data01->Ratio : 0, Data11 ? Data11->Ratio : 0, FracX),
 					FracY
-					) * 255);
+					) * 255;
 
 				if (DataType & LGT_Height)
 				{
@@ -983,7 +961,7 @@ LANDSCAPE_API void ALandscapeGizmoActiveActor::Import( int32 VertsX, int32 Verts
 
 	ClearGizmoData();
 
-	CachedScaleXY = static_cast<float>(TargetLandscapeInfo->DrawScale.X);
+	CachedScaleXY = TargetLandscapeInfo->DrawScale.X;
 	CachedWidth = CachedScaleXY * VertsX; // (DrawScale * DrawScale3D.X);
 	CachedHeight = CachedScaleXY * VertsY; // (DrawScale * DrawScale3D.Y);
 	
@@ -1085,7 +1063,7 @@ void ALandscapeGizmoActiveActor::Export(int32 Index, TArray<FString>& Filenames)
 						int32 Idx = (X-MinX) + Y *(1+MaxX-MinX);
 						if (!bExportOneTarget || Index == -1)
 						{
-							pHeightData[Idx] = FMath::Clamp<uint16>(static_cast<uint16>(Data->HeightData * LandscapeDataAccess::MaxValue), 0, LandscapeDataAccess::MaxValue);
+							pHeightData[Idx] = FMath::Clamp<uint16>(Data->HeightData * LandscapeDataAccess::MaxValue, 0, LandscapeDataAccess::MaxValue);
 						}
 
 						for( int32 i=1;i<Filenames.Num();i++ )
@@ -1093,7 +1071,7 @@ void ALandscapeGizmoActiveActor::Export(int32 Index, TArray<FString>& Filenames)
 							if (!bExportOneTarget || Index == i-1)
 							{
 								TArray<uint8>& WeightData = WeightDatas[i-1];
-								WeightData[Idx] = FMath::Clamp<uint8>(static_cast<uint8>(Data->WeightDataMap.FindRef(LayerInfos[i-1])), 0, 255);
+								WeightData[Idx] = FMath::Clamp<uint8>(Data->WeightDataMap.FindRef(LayerInfos[i-1]), 0, 255);
 							}
 						}
 					}
