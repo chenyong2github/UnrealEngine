@@ -224,6 +224,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Settings)
 	void RemoveAxisMapping(const FInputAxisKeyMapping& KeyMapping, bool bForceRebuildKeymaps = true);
 
+#if WITH_EDITOR	
+	/**
+	 * Returns all known legacy action and axis names that is useful for
+	 * properties that you want a drop down selection of the available names
+	 * on a UPROPERTY
+	 * i.e.
+	 *
+	 * meta=(GetOptions="Engine.InputSettings.GetAllActionAndAxisNames")
+	 */
+	UFUNCTION()
+	static const TArray<FName>& GetAllActionAndAxisNames();
+#endif// WITH_EDITOR
+
 	/** Flush the current mapping values to the config file */
 	UFUNCTION(BlueprintCallable, Category=Settings)
 	void SaveKeyMappings();

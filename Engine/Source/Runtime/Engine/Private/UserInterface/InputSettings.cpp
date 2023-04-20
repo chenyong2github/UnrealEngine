@@ -336,6 +336,26 @@ void UInputSettings::GetAxisNames(TArray<FName>& AxisNames) const
 	}
 }
 
+#if WITH_EDITOR
+const TArray<FName>& UInputSettings::GetAllActionAndAxisNames()
+{
+	static TArray<FName> OutNames;
+	OutNames.Reset();
+
+	const UInputSettings* InputSettings = GetDefault<UInputSettings>();
+	check(InputSettings);
+
+	TArray<FName> ActionNames;
+	InputSettings->GetActionNames(ActionNames);
+	OutNames.Append(ActionNames);
+	
+	InputSettings->GetAxisNames(ActionNames);
+	OutNames.Append(ActionNames);
+	
+	return OutNames;
+}
+#endif // WITH_EDITOR
+
 void UInputSettings::ForceRebuildKeymaps()
 {
 	for (TObjectIterator<UPlayerInput> It; It; ++It)
