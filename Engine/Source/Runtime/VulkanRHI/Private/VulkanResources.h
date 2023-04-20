@@ -570,9 +570,6 @@ public:
 		return DefaultView->GetBindlessHandle();
 	}
 
-	// @todo - SRV/UAV refactor - fix this
-	//void CopyBindlessHandle(FVulkanCommandListContext& Context, FRHIDescriptorHandle DestHandle);
-
 	struct FImageCreateInfo
 	{
 		VkImageCreateInfo ImageCreateInfo;

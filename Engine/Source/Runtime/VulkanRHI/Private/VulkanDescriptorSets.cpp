@@ -6,6 +6,7 @@
 
 #include "VulkanRHIPrivate.h"
 #include "VulkanDescriptorSets.h"
+#include "VulkanContext.h"
 
 
 int32 GVulkanBindlessEnabled = 0;
@@ -720,7 +721,7 @@ FRHIDescriptorHandle FVulkanBindlessDescriptorManager::ReserveDescriptor(VkDescr
 	return FRHIDescriptorHandle();
 }
 
-void FVulkanBindlessDescriptorManager::UpdateDescriptor(FRHIDescriptorHandle DescriptorHandle, VkDescriptorDataEXT DescriptorData)
+void FVulkanBindlessDescriptorManager::UpdateDescriptor(FRHIDescriptorHandle DescriptorHandle, VkDescriptorDataEXT DescriptorData, bool bImmediateUpdate)
 {
 	checkf(DescriptorHandle.IsValid(), TEXT("Attemping to update invalid descriptor handle!"));
 
@@ -734,7 +735,53 @@ void FVulkanBindlessDescriptorManager::UpdateDescriptor(FRHIDescriptorHandle Des
 	Info.data = DescriptorData;
 	VulkanRHI::vkGetDescriptorEXT(Device->GetInstanceHandle(), &Info, State.DescriptorSize, &State.DebugDescriptors[ByteOffset]);
 
-	FMemory::Memcpy(&State.MappedPointer[ByteOffset], &State.DebugDescriptors[ByteOffset], State.DescriptorSize);
+	if (bImmediateUpdate)
+	{
+		FMemory::Memcpy(&State.MappedPointer[ByteOffset], &State.DebugDescriptors[ByteOffset], State.DescriptorSize);
+	}
+	else
+	{
+		check(!IsInRenderingThread() || FRHICommandListExecutor::GetImmediateCommandList().Bypass() || !IsRunningRHIInSeparateThread());
+		FVulkanCmdBuffer* CmdBuffer = Device->GetImmediateContext().GetCommandBufferManager()->GetActiveCmdBuffer();
+
+		// :todo-jn:  Hack to avoid barriers/copies in renderpasses
+		if (CmdBuffer->IsInsideRenderPass())
+		{
+			FMemory::Memcpy(&State.MappedPointer[ByteOffset], &State.DebugDescriptors[ByteOffset], State.DescriptorSize);
+		}
+		else
+		{
+			FStagingBuffer* StagingBuffer = Device->GetStagingManager().AcquireBuffer(State.DescriptorSize);
+			FMemory::Memcpy(StagingBuffer->GetMappedPointer(), &State.DebugDescriptors[ByteOffset], State.DescriptorSize);
+			{
+				VkMemoryBarrier2 MemoryBarrier;
+				ZeroVulkanStruct(MemoryBarrier, VK_STRUCTURE_TYPE_MEMORY_BARRIER_2);
+				MemoryBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+				MemoryBarrier.srcAccessMask = VK_ACCESS_2_DESCRIPTOR_BUFFER_READ_BIT_EXT | VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+				MemoryBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+				MemoryBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+				VkDependencyInfo DependencyInfo;
+				ZeroVulkanStruct(DependencyInfo, VK_STRUCTURE_TYPE_DEPENDENCY_INFO);
+				DependencyInfo.memoryBarrierCount = 1;
+				DependencyInfo.pMemoryBarriers = &MemoryBarrier;
+				VulkanRHI::vkCmdPipelineBarrier2KHR(CmdBuffer->GetHandle(), &DependencyInfo);
+
+				VkBufferCopy Region = {};
+				Region.srcOffset = 0;
+				Region.dstOffset = ByteOffset;
+				Region.size = State.DescriptorSize;
+				VulkanRHI::vkCmdCopyBuffer(CmdBuffer->GetHandle(), StagingBuffer->GetHandle(), State.BufferHandle, 1, &Region);
+
+				MemoryBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+				MemoryBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
+				MemoryBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+				MemoryBarrier.dstAccessMask = VK_ACCESS_2_DESCRIPTOR_BUFFER_READ_BIT_EXT;
+				VulkanRHI::vkCmdPipelineBarrier2KHR(CmdBuffer->GetHandle(), &DependencyInfo);
+			}
+			Device->GetStagingManager().ReleaseBuffer(CmdBuffer, StagingBuffer);
+		}
+	}
 
 	UpdateStatsForHandle(DescriptorHandle);
 }
@@ -745,11 +792,11 @@ void FVulkanBindlessDescriptorManager::UpdateSampler(FRHIDescriptorHandle Descri
 	{
 		VkDescriptorDataEXT DescriptorData;
 		DescriptorData.pSampler = &VulkanSampler;
-		UpdateDescriptor(DescriptorHandle, DescriptorData);
+		UpdateDescriptor(DescriptorHandle, DescriptorData, true);
 	}
 }
 
-void FVulkanBindlessDescriptorManager::UpdateImage(FRHIDescriptorHandle DescriptorHandle, VkImageView ImageView, bool bIsDepthStencil)
+void FVulkanBindlessDescriptorManager::UpdateImage(FRHIDescriptorHandle DescriptorHandle, VkImageView ImageView, bool bIsDepthStencil, bool bImmediateUpdate)
 {
 	if (bIsSupported)
 	{
@@ -764,11 +811,11 @@ void FVulkanBindlessDescriptorManager::UpdateImage(FRHIDescriptorHandle Descript
 
 		VkDescriptorDataEXT DescriptorData;
 		DescriptorData.pSampledImage = &DescriptorImageInfo;  // same pointer for storage, it's a union
-		UpdateDescriptor(DescriptorHandle, DescriptorData);
+		UpdateDescriptor(DescriptorHandle, DescriptorData, bImmediateUpdate);
 	}
 }
 
-void FVulkanBindlessDescriptorManager::UpdateBuffer(FRHIDescriptorHandle DescriptorHandle, VkBuffer VulkanBuffer, VkDeviceSize BufferOffset, VkDeviceSize BufferSize)
+void FVulkanBindlessDescriptorManager::UpdateBuffer(FRHIDescriptorHandle DescriptorHandle, VkBuffer VulkanBuffer, VkDeviceSize BufferOffset, VkDeviceSize BufferSize, bool bImmediateUpdate)
 {
 	if (bIsSupported)
 	{
@@ -788,11 +835,11 @@ void FVulkanBindlessDescriptorManager::UpdateBuffer(FRHIDescriptorHandle Descrip
 
 		VkDescriptorDataEXT DescriptorData;
 		DescriptorData.pStorageBuffer = &AddressInfo;  // same pointer for uniform, it's a union
-		UpdateDescriptor(DescriptorHandle, DescriptorData);
+		UpdateDescriptor(DescriptorHandle, DescriptorData, bImmediateUpdate);
 	}
 }
 
-void FVulkanBindlessDescriptorManager::UpdateTexelBuffer(FRHIDescriptorHandle DescriptorHandle, const VkBufferViewCreateInfo& ViewInfo)
+void FVulkanBindlessDescriptorManager::UpdateTexelBuffer(FRHIDescriptorHandle DescriptorHandle, const VkBufferViewCreateInfo& ViewInfo, bool bImmediateUpdate)
 {
 	if (bIsSupported)
 	{
@@ -813,11 +860,11 @@ void FVulkanBindlessDescriptorManager::UpdateTexelBuffer(FRHIDescriptorHandle De
 
 		VkDescriptorDataEXT DescriptorData;
 		DescriptorData.pUniformTexelBuffer = &AddressInfo;  // same pointer for storage, it's a union
-		UpdateDescriptor(DescriptorHandle, DescriptorData);
+		UpdateDescriptor(DescriptorHandle, DescriptorData, bImmediateUpdate);
 	}
 }
 
-void FVulkanBindlessDescriptorManager::UpdateAccelerationStructure(FRHIDescriptorHandle DescriptorHandle, VkAccelerationStructureKHR AccelerationStructure)
+void FVulkanBindlessDescriptorManager::UpdateAccelerationStructure(FRHIDescriptorHandle DescriptorHandle, VkAccelerationStructureKHR AccelerationStructure, bool bImmediateUpdate)
 {
 #if VULKAN_RHI_RAYTRACING
 	if (bIsSupported)
@@ -832,7 +879,7 @@ void FVulkanBindlessDescriptorManager::UpdateAccelerationStructure(FRHIDescripto
 
 		VkDescriptorDataEXT DescriptorData;
 		DescriptorData.accelerationStructure = BufferAddress;
-		UpdateDescriptor(DescriptorHandle, DescriptorData);
+		UpdateDescriptor(DescriptorHandle, DescriptorData, bImmediateUpdate);
 	}
 #endif
 }
@@ -884,45 +931,3 @@ void FVulkanBindlessDescriptorManager::Unregister(FRHIDescriptorHandle Descripto
 	}
 }
 
-void FVulkanBindlessDescriptorManager::CopyDescriptor(VkCommandBuffer CommandBuffer, FRHIDescriptorHandle DstHandle, const FRHIDescriptorHandle SrcHandle)
-{
-	checkf(bIsSupported, TEXT("Trying to CopyDescriptor but bindless is not supported!"));
-	checkf(DstHandle.IsValid(), TEXT("Destination handle for CopyDescriptor not valid!"));
-	checkf(SrcHandle.IsValid(), TEXT("Source handle for CopyDescriptor not valid!"));
-	checkf(DstHandle.GetRawType() == SrcHandle.GetRawType(), TEXT("Handles types for CopyDescriptor do not match!"));
-
-	const uint8 SetIndex = DstHandle.GetRawType();
-	BindlessSetState& State = BindlessSetStates[SetIndex];
-	const uint32 SrcByteOffset = SrcHandle.GetIndex() * State.DescriptorSize;
-	const uint32 DstByteOffset = DstHandle.GetIndex() * State.DescriptorSize;
-
-	FMemory::Memcpy(&State.DebugDescriptors[DstByteOffset], &State.DebugDescriptors[SrcByteOffset], State.DescriptorSize);
-
-	// Can debug using a copy directly instead of using GPU, timing will not be correct however
-	//FMemory::Memcpy(&State.MappedPointer[DstByteOffset], &State.DebugDescriptors[DstByteOffset], State.DescriptorSize);
-
-	VkMemoryBarrier2 MemoryBarrier;
-	ZeroVulkanStruct(MemoryBarrier, VK_STRUCTURE_TYPE_MEMORY_BARRIER_2);
-	MemoryBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-	MemoryBarrier.srcAccessMask = VK_ACCESS_2_DESCRIPTOR_BUFFER_READ_BIT_EXT;
-	MemoryBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-	MemoryBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
-
-	VkDependencyInfo DependencyInfo;
-	ZeroVulkanStruct(DependencyInfo, VK_STRUCTURE_TYPE_DEPENDENCY_INFO);
-	DependencyInfo.memoryBarrierCount = 1;
-	DependencyInfo.pMemoryBarriers = &MemoryBarrier;
-	VulkanRHI::vkCmdPipelineBarrier2KHR(CommandBuffer, &DependencyInfo);
-
-	VkBufferCopy Region = {};
-	Region.srcOffset = SrcByteOffset;
-	Region.dstOffset = DstByteOffset;
-	Region.size = State.DescriptorSize;
-	VulkanRHI::vkCmdCopyBuffer(CommandBuffer, State.BufferHandle, State.BufferHandle, 1, &Region);
-
-	MemoryBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-	MemoryBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
-	MemoryBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-	MemoryBarrier.dstAccessMask = VK_ACCESS_2_DESCRIPTOR_BUFFER_READ_BIT_EXT;
-	VulkanRHI::vkCmdPipelineBarrier2KHR(CommandBuffer, &DependencyInfo);
-}

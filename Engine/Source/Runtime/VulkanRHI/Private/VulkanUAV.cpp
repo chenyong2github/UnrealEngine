@@ -67,7 +67,7 @@ void FVulkanView::Invalidate()
 FVulkanView* FVulkanView::InitAsTypedBufferView(FVulkanResourceMultiBuffer* Buffer, EPixelFormat UEFormat, uint32 InOffset, uint32 InSize)
 {
 	// We will need a deferred update if the descriptor was already in use
-	const bool bDeferredUpdate = IsInitialized();
+	const bool bImmediateUpdate = !IsInitialized();
 
 	check(GetViewType() == EType::Null);
 	Storage.Emplace<FTypedBufferView>();
@@ -105,7 +105,7 @@ FVulkanView* FVulkanView::InitAsTypedBufferView(FVulkanResourceMultiBuffer* Buff
 	INC_DWORD_STAT(STAT_VulkanNumBufferViews);
 	// :todo-jn: the buffer view is actually not needed in bindless anymore
 
-	Device.GetBindlessDescriptorManager()->UpdateTexelBuffer(BindlessHandle, ViewInfo);
+	Device.GetBindlessDescriptorManager()->UpdateTexelBuffer(BindlessHandle, ViewInfo, bImmediateUpdate);
 
 	return this;
 }
@@ -124,7 +124,7 @@ FVulkanView* FVulkanView::InitAsTextureView(
 	, VkImageUsageFlags ImageUsageFlags)
 {
 	// We will need a deferred update if the descriptor was already in use
-	const bool bDeferredUpdate = IsInitialized();
+	const bool bImmediateUpdate = !IsInitialized();
 
 	check(GetViewType() == EType::Null);
 	Storage.Emplace<FTextureView>();
@@ -202,7 +202,7 @@ FVulkanView* FVulkanView::InitAsTextureView(
 	}
 
 	const bool bDepthOrStencilAspect = (AspectFlags & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) != 0;
-	Device.GetBindlessDescriptorManager()->UpdateImage(BindlessHandle, TV.View, bDepthOrStencilAspect);
+	Device.GetBindlessDescriptorManager()->UpdateImage(BindlessHandle, TV.View, bDepthOrStencilAspect, bImmediateUpdate);
 
 	return this;
 }
@@ -210,7 +210,7 @@ FVulkanView* FVulkanView::InitAsTextureView(
 FVulkanView* FVulkanView::InitAsStructuredBufferView(FVulkanResourceMultiBuffer* Buffer, uint32 InOffset, uint32 InSize)
 {
 	// We will need a deferred update if the descriptor was already in use
-	const bool bDeferredUpdate = IsInitialized();
+	const bool bImmediateUpdate = !IsInitialized();
 
 	check(GetViewType() == EType::Null);
 	Storage.Emplace<FStructuredBufferView>();
@@ -223,8 +223,7 @@ FVulkanView* FVulkanView::InitAsStructuredBufferView(FVulkanResourceMultiBuffer*
 	SBV.Offset = TotalOffset;
 	SBV.Size = InSize;
 
-	Device.GetBindlessDescriptorManager()->UpdateBuffer(
-		BindlessHandle, Buffer->GetHandle(), TotalOffset, InSize);
+	Device.GetBindlessDescriptorManager()->UpdateBuffer(BindlessHandle, Buffer->GetHandle(), TotalOffset, InSize, bImmediateUpdate);
 
 	return this;
 }

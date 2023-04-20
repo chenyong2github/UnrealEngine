@@ -870,17 +870,6 @@ void FVulkanTexture::SetInitialImageState(FVulkanCommandListContext& Context, Vk
 	CmdBuffer->GetLayoutManager().SetFullLayout(*this, InitialLayout);
 }
 
-// @todo - SRV/UAV refactor - fix this
-/*void FVulkanTexture::CopyBindlessHandle(FVulkanCommandListContext& Context, FRHIDescriptorHandle DestHandle)
-{
-	FVulkanCmdBuffer* CmdBuffer = Context.GetCommandBufferManager()->GetActiveCmdBuffer();
-
-	// Copy the our descriptor in the old texture's slot
-	checkSlow(DefaultBindlessHandle.IsValid());
-	checkSlow(DestHandle.IsValid());
-	Device->GetBindlessDescriptorManager()->CopyDescriptor(CmdBuffer->GetHandle(), DestHandle, DefaultBindlessHandle);
-}*/
-
 
 
 /*-----------------------------------------------------------------------------
@@ -921,20 +910,42 @@ uint32 FVulkanDynamicRHI::RHIComputeMemorySize(FRHITexture* TextureRHI)
 	return ResourceCast(TextureRHI)->GetMemorySize();
 }
 
-void FVulkanDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture)
+void FVulkanDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* InNewTexture)
 {
 	if (Device->SupportsBindless())
 	{
-		checkNoEntry(); // @todo - SRV/UAV refactor - fix this
-		/*if (TextureRef->GetReferencedTexture() && NewTexture)
+		FRHITexture* NewTexture = InNewTexture ? InNewTexture : FRHITextureReference::GetDefaultTexture();
+
+		if (FRHIShaderResourceView* TextureRefSRV = TextureRef ? TextureRef->GetBindlessView() : nullptr)
 		{
-			// Continue using the old slot for the new texture, this way indexes stored in buffers are still valid
-			FVulkanTexture* NextTexture = ResourceCast(NewTexture);
-			NextTexture->CopyBindlessHandle(Device->GetImmediateContext(), TextureRef->GetDefaultBindlessHandle());
-		}*/
+			FVulkanShaderResourceView* VulkanTextureRefSRV = ResourceCast(TextureRefSRV);
+			FRHIDescriptorHandle DestHandle = VulkanTextureRefSRV->GetBindlessHandle();
+
+			if (DestHandle.IsValid())
+			{
+				checkf(VulkanTextureRefSRV->IsInitialized(), TEXT("TextureReference should always be created with a view of the default texture at least"));
+
+				FVulkanTexture* NewVulkanTexture = ResourceCast(NewTexture);
+				const FRHITextureDesc& Desc = NewVulkanTexture->GetDesc();
+
+				VulkanTextureRefSRV->Invalidate();
+				VulkanTextureRefSRV->InitAsTextureView(
+					  NewVulkanTexture->Image
+					, NewVulkanTexture->GetViewType()
+					, NewVulkanTexture->GetPartialAspectMask()
+					, Desc.Format
+					, NewVulkanTexture->ViewFormat
+					, 0u
+					, FMath::Max(Desc.NumMips, (uint8)1u)
+					, 0u
+					, NewVulkanTexture->GetNumberOfArrayLevels()
+					, !NewVulkanTexture->SupportsSampling());
+			}
+		}
+
 	}
 
-	FDynamicRHI::RHIUpdateTextureReference(TextureRef, NewTexture);
+	FDynamicRHI::RHIUpdateTextureReference(TextureRef, InNewTexture);
 }
 
 /*-----------------------------------------------------------------------------
