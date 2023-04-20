@@ -2719,7 +2719,12 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 
 #if WITH_EDITOR
 		// Reconnect callbacks
-		PCGComponent->GraphInstance->FixCallbacks();
+		if (PCGComponent->GraphInstance)
+		{
+			PCGComponent->GraphInstance->FixCallbacks();
+			PCGComponent->GraphInstance->OnGraphChangedDelegate.RemoveAll(PCGComponent);
+			PCGComponent->GraphInstance->OnGraphChangedDelegate.AddUObject(PCGComponent, &UPCGComponent::OnGraphChanged);
+		}
 #endif // WITH_EDITOR
 
 		bool bDoActorMapping = PCGComponent->bGenerated || PCGHelpers::IsRuntimeOrPIE();
