@@ -10,9 +10,9 @@
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraSystem.h"
 
-#define LOCTEXT_NAMESPACE "NiagaraResolveDIHelpers"
-
 #if WITH_EDITORONLY_DATA
+
+#define LOCTEXT_NAMESPACE "NiagaraResolveDIHelpers"
 
 namespace FNiagaraResolveDIHelpers
 {
