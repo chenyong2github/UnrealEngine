@@ -1246,11 +1246,6 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 			LandscapeVertexFactory->InitResource();
 			SharedBuffers->FixedGridVertexFactory = LandscapeVertexFactory;
 		}
-
-		if (Culling::UseCulling(GetScene().GetShaderPlatform()))
-		{
-			Culling::InitSharedBuffers(*SharedBuffers, FeatureLevel);
-		}
 	}
 
 	SharedBuffers->AddRef();
@@ -1261,7 +1256,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 
 	if (!bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()))
 	{
-		Culling::RegisterLandscape(LandscapeKey, SubsectionSizeVerts, NumSubsections);
+		Culling::RegisterLandscape(*SharedBuffers, FeatureLevel, LandscapeKey, SubsectionSizeVerts, NumSubsections);
 	}
 	
 	// Assign LandscapeUniformShaderParameters
@@ -1450,6 +1445,7 @@ void FLandscapeComponentSceneProxy::DestroyRenderThreadResources()
 	FPrimitiveSceneProxy::DestroyRenderThreadResources();
 	FLandscapeRenderSystem::UnregisterSection(this);
 	FLandscapeRenderSystem::DestroyResources(this);
+	Culling::UnregisterLandscape(LandscapeKey);
 }
 
 bool FLandscapeComponentSceneProxy::OnLevelAddedToWorld_RenderThread()
@@ -1476,12 +1472,7 @@ FLandscapeComponentSceneProxy::~FLandscapeComponentSceneProxy()
 {
 	// Free the subsection uniform buffer
 	LandscapeUniformShaderParameters.ReleaseResource();
-
-	if (Culling::UseCulling(GetScene().GetShaderPlatform()))
-	{
-		Culling::UnregisterLandscape(LandscapeKey);
-	}
-	
+		
 	// Free the lod uniform buffers
 	for (int32 i = 0; i < LandscapeFixedGridUniformShaderParameters.Num(); ++i)
 	{
@@ -2864,6 +2855,7 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 	, NumIndexBuffers(FMath::CeilLogTwo(InSubsectionSizeQuads + 1))
 	, SubsectionSizeVerts(InSubsectionSizeQuads + 1)
 	, NumSubsections(InNumSubsections)
+	, TileMesh(nullptr)
 	, VertexFactory(nullptr)
 	, FixedGridVertexFactory(nullptr)
 	, VertexBuffer(nullptr)
@@ -2916,8 +2908,6 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 
 FLandscapeSharedBuffers::~FLandscapeSharedBuffers()
 {
-	Culling::DeleteSharedBuffers(*this);
-	
 	delete VertexBuffer;
 
 	for (int32 i = 0; i < NumIndexBuffers; i++)
@@ -2949,6 +2939,10 @@ FLandscapeSharedBuffers::~FLandscapeSharedBuffers()
 #endif
 
 	delete VertexFactory;
+
+	delete TileMesh;
+	delete TileDataBuffer;
+	delete TileVertexFactory;
 }
 
 //

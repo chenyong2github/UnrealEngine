@@ -358,6 +358,7 @@ public:
 	FLandscapeVertexFactory* FixedGridVertexFactory;
 	FLandscapeVertexBuffer* VertexBuffer;
 	
+	FRenderResource* TileMesh;
 	FLandscapeVertexFactory* TileVertexFactory;
 	FVertexBuffer* TileDataBuffer;
 	

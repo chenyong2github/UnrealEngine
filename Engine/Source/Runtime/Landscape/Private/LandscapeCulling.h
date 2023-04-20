@@ -38,10 +38,8 @@ namespace UE {
 			
 			FVertexFactoryType* GetTileVertexFactoryType();
 
-			void InitSharedBuffers(FLandscapeSharedBuffers& SharedBuffers, ERHIFeatureLevel::Type FeatureLevel);
-			void DeleteSharedBuffers(FLandscapeSharedBuffers& SharedBuffers);
 			void SetupMeshBatch(const FLandscapeSharedBuffers& SharedBuffers, FMeshBatch& MeshBatch);
-			void RegisterLandscape(uint32 LandscapeKey, int32 SubsectionSizeVerts, int32 NumSubsections);
+			void RegisterLandscape(FLandscapeSharedBuffers& SharedBuffers, ERHIFeatureLevel::Type FeatureLevel, uint32 LandscapeKey, int32 SubsectionSizeVerts, int32 NumSubsections);
 			void UnregisterLandscape(uint32 LandscapeKey);
 
 			void PreRenderViewFamily(FSceneViewFamily& InViewFamily);

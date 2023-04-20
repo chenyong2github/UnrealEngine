@@ -416,8 +416,6 @@ struct FCullingEntry
 
 struct FCullingSystem
 {
-	FLandscapeTileMesh* TileMesh = nullptr;
-	
 	TArray<FCullingEntry> Landscapes; 
 	TArray<uint32, TInlineAllocator<2>> ViewStateKeys;
 };
@@ -451,46 +449,23 @@ void PreRenderViewFamily(FSceneViewFamily& InViewFamily)
 
 void InitSharedBuffers(FLandscapeSharedBuffers& SharedBuffers, const ERHIFeatureLevel::Type InFeatureLevel)
 {
-	if (!EnableGPUCullingForSection(SharedBuffers.SubsectionSizeVerts, SharedBuffers.NumSubsections))
+	if (SharedBuffers.TileVertexFactory == nullptr)
 	{
-		SharedBuffers.TileVertexFactory = nullptr;
-		SharedBuffers.TileDataBuffer = nullptr;
-		return;
-	}
+		uint32 SubsectionSizeQuads = (SharedBuffers.SubsectionSizeVerts - 1);
 
-	if (GCullingSystem.TileMesh == nullptr)
-	{
-		GCullingSystem.TileMesh = new FLandscapeTileMesh();
-	}
+		FLandscapeTileMesh* TileMesh = new FLandscapeTileMesh();
+		FLandscapeTileDataBuffer* TileDataBuffer = new FLandscapeTileDataBuffer(SharedBuffers.NumSubsections, SubsectionSizeQuads);
+		FLandscapeTileVertexFactory* TileVF = new FLandscapeTileVertexFactory(InFeatureLevel);
 
-	uint32 SubsectionSizeQuads = (SharedBuffers.SubsectionSizeVerts - 1);
+		uint32 TileDataStride = TILE_DATA_ENTRY_NUM_BYTES;
 
-	FLandscapeTileMesh* TileMesh = GCullingSystem.TileMesh;
-	FLandscapeTileDataBuffer* TileDataBuffer = new FLandscapeTileDataBuffer(SharedBuffers.NumSubsections, SubsectionSizeQuads);
-	FLandscapeTileVertexFactory* TileVF = new FLandscapeTileVertexFactory(InFeatureLevel);
+		TileVF->Data.PositionComponent = FVertexStreamComponent(&TileMesh->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_UByte4);
+		TileVF->Data.TileDataComponent = FVertexStreamComponent(TileDataBuffer, 0, TileDataStride, VET_UByte4, EVertexStreamUsage::Instancing);
+		TileVF->InitResource();
 
-	uint32 TileDataStride = TILE_DATA_ENTRY_NUM_BYTES;
-
-	TileVF->Data.PositionComponent = FVertexStreamComponent(&TileMesh->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_UByte4);
-	TileVF->Data.TileDataComponent = FVertexStreamComponent(TileDataBuffer, 0, TileDataStride, VET_UByte4, EVertexStreamUsage::Instancing);
-	TileVF->InitResource();
-
-	SharedBuffers.TileVertexFactory = TileVF;
-	SharedBuffers.TileDataBuffer = TileDataBuffer;
-}
-
-void DeleteSharedBuffers(FLandscapeSharedBuffers& SharedBuffers)
-{
-	delete SharedBuffers.TileDataBuffer;
-	SharedBuffers.TileDataBuffer = nullptr;
-	
-	delete SharedBuffers.TileVertexFactory;
-	SharedBuffers.TileVertexFactory = nullptr;
-	
-	if (GCullingSystem.Landscapes.Num() == 0)
-	{
-		delete GCullingSystem.TileMesh;
-		GCullingSystem.TileMesh = nullptr;
+		SharedBuffers.TileMesh = TileMesh;
+		SharedBuffers.TileVertexFactory = TileVF;
+		SharedBuffers.TileDataBuffer = TileDataBuffer;
 	}
 }
 
@@ -511,7 +486,7 @@ void SetupMeshBatch(const FLandscapeSharedBuffers& SharedBuffers, FMeshBatch& Me
 		MeshBatch.VertexFactory = SharedBuffers.TileVertexFactory;
 
 		FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
-		BatchElement.IndexBuffer = &GCullingSystem.TileMesh->IndexBuffer;
+		BatchElement.IndexBuffer = &static_cast<FLandscapeTileMesh*>(SharedBuffers.TileMesh)->IndexBuffer;
 		BatchElement.NumPrimitives = FMath::Square(LANDSCAPE_TILE_QUADS) * 2u;
 		BatchElement.NumInstances = FMath::Square(FMath::DivideAndRoundUp(SubsectionSizeQuads, LANDSCAPE_TILE_QUADS)) * FMath::Square(SharedBuffers.NumSubsections);
 		BatchElement.FirstIndex = 0;
@@ -520,12 +495,14 @@ void SetupMeshBatch(const FLandscapeSharedBuffers& SharedBuffers, FMeshBatch& Me
 	}
 }
 
-void RegisterLandscape(uint32 LandscapeKey, int32 SubsectionSizeVerts, int32 NumSubsections)
+void RegisterLandscape(FLandscapeSharedBuffers& SharedBuffers, ERHIFeatureLevel::Type FeatureLevel, uint32 LandscapeKey, int32 SubsectionSizeVerts, int32 NumSubsections)
 {
 	if (!EnableGPUCullingForSection(SubsectionSizeVerts, NumSubsections))
 	{
 		return;
 	}
+
+	InitSharedBuffers(SharedBuffers, FeatureLevel);
 
 	FCullingEntry* CullingEntryPtr = GCullingSystem.Landscapes.FindByPredicate([LandscapeKey](const FCullingEntry& Other) {
 		return Other.LandscapeKey == LandscapeKey;
