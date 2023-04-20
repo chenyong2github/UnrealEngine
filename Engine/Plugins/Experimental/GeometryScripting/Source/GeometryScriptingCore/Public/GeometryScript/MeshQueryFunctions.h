@@ -48,6 +48,12 @@ public:
 	static void GetMeshVolumeArea( UDynamicMesh* TargetMesh, float& SurfaceArea, float& Volume );
 
 	/**
+	 * Computes the volume, area and center-of-mass of the mesh.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries", meta = (ScriptMethod))
+	static void GetMeshVolumeAreaCenter(UDynamicMesh* TargetMesh, float& SurfaceArea, float& Volume, FVector& CenterOfMass);
+
+	/**
 	* Returns true if the mesh is closed, such as no topological boundary edges.
 	*/
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|MeshQueries", meta=(ScriptMethod))

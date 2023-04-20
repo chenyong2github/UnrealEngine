@@ -91,6 +91,20 @@ void UGeometryScriptLibrary_MeshQueryFunctions::GetMeshVolumeArea( UDynamicMesh*
 	});
 }
 
+void UGeometryScriptLibrary_MeshQueryFunctions::GetMeshVolumeAreaCenter(UDynamicMesh* TargetMesh, float& SurfaceArea, float& Volume, FVector& CenterOfMass)
+{
+	SurfaceArea = Volume = 0;
+	CenterOfMass = FVector::ZeroVector;
+	SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) {
+		FVector3d CoM;
+		FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeAreaCenter(Mesh, CoM);
+		Volume = VolArea.X;
+		SurfaceArea = VolArea.Y;
+		CenterOfMass = (FVector)CoM;
+		return true;
+	});
+}
+
 bool UGeometryScriptLibrary_MeshQueryFunctions::GetIsClosedMesh( UDynamicMesh* TargetMesh )
 {
 	return SimpleMeshQuery<bool>(TargetMesh, true, [&](const FDynamicMesh3& Mesh) { return Mesh.IsClosed(); });
