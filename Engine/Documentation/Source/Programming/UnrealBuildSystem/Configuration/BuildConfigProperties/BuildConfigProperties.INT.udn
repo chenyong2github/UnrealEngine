@@ -108,7 +108,7 @@ $ bUsePDBFiles : Whether PDB files should be used for Visual C++ builds.
 
 $ bUsePCHFiles : Whether PCH files should be used.
 
-$ bDeterministic : Set flags require for deterministic compiling and linking (experimental).
+$ bDeterministic : Set flags require for deterministic compiling and linking.
 
 $ bChainPCHs : Whether PCHs should be chained when compiling with clang.
 
