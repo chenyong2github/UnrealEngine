@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 using System.Diagnostics;
 
 namespace UnrealBuildTool
@@ -47,7 +48,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
 		/// <param name="Logger"></param>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -339,7 +340,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			return 0;
+			return Task.FromResult(0);
 		}
 
 		class HeaderSortComparison : IComparer<string>

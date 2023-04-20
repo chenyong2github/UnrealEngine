@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using OpenTracing.Util;
 using UnrealBuildTool;
@@ -97,7 +98,7 @@ namespace UnrealBuildTool
 
 		private BuildConfiguration BuildConfiguration = new();
 
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -119,7 +120,7 @@ namespace UnrealBuildTool
 
 			if (Query == null)
 			{
-				return 0;
+				return Task.FromResult(0);
 			}
 
 			var ResponseOptions = new JsonSerializerOptions
@@ -131,16 +132,16 @@ namespace UnrealBuildTool
 			{
 				case QueryType.Capabilities:
 					Logger.LogInformation("QueryCapabilities");
-					return QueryCapabilities(Arguments, Logger, ResponseOptions);
+					return Task.FromResult(QueryCapabilities(Arguments, Logger, ResponseOptions));
 				case QueryType.AvailableTargets:
 					Logger.LogInformation("QueryAvailableTargets");
-					return QueryAvailableTargets(Arguments, Logger, ResponseOptions);
+					return Task.FromResult(QueryAvailableTargets(Arguments, Logger, ResponseOptions));
 				case QueryType.TargetDetails:
 					Logger.LogInformation("QueryTargetDetails");
-					return QueryTargetDetails(Arguments, Logger, ResponseOptions);
+					return Task.FromResult(QueryTargetDetails(Arguments, Logger, ResponseOptions));
 			}
 
-			return 0;
+			return Task.FromResult(0);
 		}
 
 		private int QueryCapabilities(CommandLineArguments Arguments, ILogger Logger, JsonSerializerOptions JsonOptions)

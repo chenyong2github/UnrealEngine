@@ -14,6 +14,7 @@ using System.ServiceProcess;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
@@ -214,7 +215,12 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		public override bool ExecuteActions(IEnumerable<LinkedAction> Actions, ILogger Logger)
+		public override Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger)
+		{
+			return Task.FromResult(ExecuteActions(ActionsToExecute, Logger));
+		}
+
+		bool ExecuteActions(IEnumerable<LinkedAction> Actions, ILogger Logger)
 		{
 			if (!Actions.Any())
 			{

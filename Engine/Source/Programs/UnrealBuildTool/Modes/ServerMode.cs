@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using OpenTracing.Util;
 using UnrealBuildTool;
@@ -140,7 +141,7 @@ namespace UnrealBuildTool
 		private TargetIntellisenseInfo? CurrentTargetIntellisenseInfo = null;
 		private GetBrowseConfigurationResponse CurrentBrowseConfiguration;
 
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -171,7 +172,7 @@ namespace UnrealBuildTool
 				if (Line == null) { continue; }
 				HandleCommand(Line, Logger);
 			}
-			return 0;
+			return Task.FromResult(0);
 		}
 
 		private void HandleCommand(string CommandString, ILogger Logger)

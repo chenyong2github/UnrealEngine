@@ -24,6 +24,7 @@ using System.Text.RegularExpressions;
 using UnrealBuildBase;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -459,7 +460,7 @@ namespace UnrealBuildTool
 		}
 
 		[SupportedOSPlatform("windows")]
-		public override bool ExecuteActions(IEnumerable<LinkedAction> Actions, ILogger Logger)
+		public override async Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> Actions, ILogger Logger)
 		{
 			if (!Actions.Any())
 			{
@@ -478,7 +479,7 @@ namespace UnrealBuildTool
 				return ExecuteBffFile(FASTBuildFilePath, Logger);
 			}
 
-			return LocalExecutor.ExecuteActions(Actions, Logger);
+			return await LocalExecutor.ExecuteActionsAsync(Actions, Logger);
 		}
 
 		private void AddText(string StringToWrite)

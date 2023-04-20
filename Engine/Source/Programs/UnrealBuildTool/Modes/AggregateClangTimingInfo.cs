@@ -170,7 +170,7 @@ namespace UnrealBuildTool
 
 		private ConcurrentDictionary<FileReference, ClangTrace> ClangTraceCache = new();
 
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			FileReference ManifestFile = Arguments.GetFileReference("-ManifestFile=");
 			IEnumerable<FileReference> SourceFiles = FileReference.ReadAllLines(ManifestFile).Select(x => new FileReference(x));
@@ -256,7 +256,7 @@ namespace UnrealBuildTool
 				File.Move(TempFilePath, ArchiveFile.FullName, true);
 			}
 
-			return 0;
+			return Task.FromResult(0);
 		}
 
 

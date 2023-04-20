@@ -40,7 +40,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
 		/// <param name="Logger"></param>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			// Output a message if there are any arguments that are still unused
 			Arguments.ApplyTo(this);
@@ -71,7 +71,7 @@ namespace UnrealBuildTool
 					Logger.LogInformation("##PlatformValidate: {Platform} INVALID {PlatformSdkString}", Platform.ToString(), PlatformSDKString);
 				}
 			} 
-			return 0;
+			return Task.FromResult(0);
 		}
 	}
 }

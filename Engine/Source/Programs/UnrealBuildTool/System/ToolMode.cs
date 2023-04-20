@@ -101,6 +101,6 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">List of command line arguments</param>
 		/// <param name="Logger"></param>
 		/// <returns>Exit code for the process</returns>
-		public abstract int Execute(CommandLineArguments Arguments, ILogger Logger);
+		public abstract Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger);
 	}
 }

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
@@ -19,7 +20,7 @@ namespace UnrealBuildTool
 	{
 		const string TimingDataRegex = @"^\t\t(?<Indent>\t*)(?<Name>[^\t]+):\s*(?<Duration>[0-9\.]+)s$";
 
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			FileReference InputFile = Arguments.GetFileReference("-TimingFile=");
 
@@ -28,7 +29,7 @@ namespace UnrealBuildTool
 			if (Arguments.HasOption("-Tracing"))
 			{
 				ParseTimingDataToTracingFiles(InputFile);
-				return 0;
+				return Task.FromResult(0);
 			}
 
 			// Break the input file into the various sections for processing.
@@ -111,7 +112,7 @@ namespace UnrealBuildTool
 				Writer.Write(Summary);
 			}
 
-			return 0;
+			return Task.FromResult(0);
 		}
 
 		TimingData SummarizeParsedTimingData(string SummaryName, TimingDataType TimingType,  IEnumerable<string> Lines)

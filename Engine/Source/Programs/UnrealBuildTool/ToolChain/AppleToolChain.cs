@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
 using System.Text;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
@@ -576,7 +577,7 @@ namespace UnrealBuildTool
 		[CommandLine("-XmlConfigCache=")]
 		public FileReference? XmlConfigCache = null;
 
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 			Arguments.CheckAllArgumentsUsed();
@@ -585,7 +586,7 @@ namespace UnrealBuildTool
 			ApplePostBuildSyncTarget Target = BinaryFormatterUtils.Load<ApplePostBuildSyncTarget>(InputFile!);
 			PostBuildSync(Target, Logger);
 
-			return 0;
+			return Task.FromResult(0);
 		}
 
 		private void PostBuildSync(ApplePostBuildSyncTarget Target, ILogger Logger)

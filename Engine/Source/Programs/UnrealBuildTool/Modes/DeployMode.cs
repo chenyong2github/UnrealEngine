@@ -28,7 +28,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
 		/// <param name="Logger"></param>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			// Apply the arguments
 			Arguments.ApplyTo(this);
@@ -39,7 +39,7 @@ namespace UnrealBuildTool
 			Logger.LogInformation("Deploying {ReceiptTargetName} {ReceiptPlatform} {ReceiptConfiguration}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
 			UEBuildPlatform.GetBuildPlatform(Receipt.Platform).Deploy(Receipt);
 
-			return (int)CompilationResult.Succeeded;
+			return Task.FromResult((int)CompilationResult.Succeeded);
 		}
 	}
 }

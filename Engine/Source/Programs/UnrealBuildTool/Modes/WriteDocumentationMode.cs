@@ -43,7 +43,7 @@ namespace UnrealBuildTool
 		/// Entry point for this command
 		/// </summary>
 		/// <returns></returns>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 			Arguments.CheckAllArgumentsUsed();
@@ -62,7 +62,7 @@ namespace UnrealBuildTool
 				default:
 					throw new BuildException("Invalid documentation type: {0}", Type);
 			}
-			return 0;
+			return Task.FromResult(0);
 		}
 	}
 }

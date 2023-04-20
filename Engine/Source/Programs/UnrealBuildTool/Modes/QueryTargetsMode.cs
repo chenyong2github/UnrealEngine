@@ -41,7 +41,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns></returns>
 		/// <param name="Logger"></param>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -70,7 +70,7 @@ namespace UnrealBuildTool
 			// Write information about these targets
 			WriteTargetInfo(ProjectFile, Assembly, OutputFile, Arguments, Logger, bIncludeAllTargets);
 			Logger.LogInformation("Written {OutputFile}", OutputFile);
-			return 0;
+			return Task.FromResult(0);
 		}
 
 		/// <summary>

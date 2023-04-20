@@ -413,7 +413,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ArgumentsArray">Command line arguments</param>
 		/// <returns>Zero on success, non-zero on error</returns>
-		private static int Main(string[] ArgumentsArray)
+		private static async Task<int> Main(string[] ArgumentsArray)
 		{
 			FileReference? RunFile = null;
 			DirectoryReference? TempDirectory = null;
@@ -652,7 +652,7 @@ namespace UnrealBuildTool
 				ToolMode Mode = (ToolMode)Activator.CreateInstance(ModeType)!;
 
 				// Execute the mode
-				int Result = Mode.Execute(Arguments, Logger);
+				int Result = await Mode.ExecuteAsync(Arguments, Logger);
 				if((ModeOptions & ToolModeOptions.ShowExecutionTime) != 0)
 				{
 					Logger.LogInformation("Total execution time: {Time:0.00} seconds", Timeline.Elapsed.TotalSeconds);

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
@@ -24,7 +25,7 @@ namespace UnrealBuildTool.Modes
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
 		/// <param name="Logger"></param>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -47,7 +48,7 @@ namespace UnrealBuildTool.Modes
 				}
 			}
 
-			return 0;
+			return Task.FromResult(0);
 		}
 
 		class ModuleInfo

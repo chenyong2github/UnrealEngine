@@ -181,11 +181,16 @@ namespace UnrealBuildTool
 			Error,
 		}
 
+		public override Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger)
+		{
+			return Task.FromResult(ExecuteActions(ActionsToExecute, Logger));
+		}
+
 		/// <summary>
 		/// Executes the specified actions locally.
 		/// </summary>
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
-		public override bool ExecuteActions(IEnumerable<LinkedAction> InputActions, ILogger Logger)
+		bool ExecuteActions(IEnumerable<LinkedAction> InputActions, ILogger Logger)
 		{
 			if (!InputActions.Any())
 			{

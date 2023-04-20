@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
@@ -110,7 +111,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
 		/// <param name="Logger"></param>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override async Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -168,7 +169,7 @@ namespace UnrealBuildTool
 				ModuleList.SortBy(module => module.Name);
 				foreach (UEBuildModule Module in ModuleList)
 				{					
-					CompileModule(BuildConfiguration, TargetDescriptor, Target, Module, Logger);
+					await CompileModuleAsync(BuildConfiguration, TargetDescriptor, Target, Module, Logger);
 				}
 			}
 
@@ -178,7 +179,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Compile the module multiple times looking for the best unity size 
 		/// </summary>
-		private void CompileModule(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, UEBuildTarget Target, UEBuildModule Module, ILogger Logger)
+		private async Task CompileModuleAsync(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, UEBuildTarget Target, UEBuildModule Module, ILogger Logger)
 		{
 			TargetDescriptor.OnlyModuleNames.Clear();
 			TargetDescriptor.OnlyModuleNames.Add(Module.Name);
@@ -192,16 +193,16 @@ namespace UnrealBuildTool
 			int TargetUnitySize = Target.Rules.NumIncludedBytesPerUnityCPP;
 
 			int BuildNum = 1;
-			CompileModule($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, CurrentModuleUnitySize, true, false);
+			await CompileModuleAsync($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, CurrentModuleUnitySize, true, false);
 			
-			TimingData CurrentCompileTime = GetBestCompileModuleTime($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, CurrentModuleUnitySize, false, false);
+			TimingData CurrentCompileTime = await GetBestCompileModuleTimeAsync($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, CurrentModuleUnitySize, false, false);
 			if (!CurrentCompileTime.IsValid())
 			{
 				Logger.LogInformation($"Skipping module because it doesn't compile with current settings.");
 				return;
 			}
 
-			TimingData DisableUnityCompileTime = GetBestCompileModuleTime($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, TargetUnitySize, false, true);
+			TimingData DisableUnityCompileTime = await GetBestCompileModuleTimeAsync($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, TargetUnitySize, false, true);
 
 			int MaxUnitySize = TargetUnitySize * 2;
 			List<TimingData> Timings = new();
@@ -209,7 +210,7 @@ namespace UnrealBuildTool
 			int CurrentUnitySize = UnitySizeInc;
 			for (int UnitySizeIndex = 0; UnitySizeIndex < UnitySizeDivision; UnitySizeIndex++)
 			{
-				TimingData NewTiming = GetBestCompileModuleTime($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, CurrentUnitySize, false, false);
+				TimingData NewTiming = await GetBestCompileModuleTimeAsync($"  [{BuildNum++}/{TotalBuilds}] ", BuildConfiguration, TargetDescriptor, Module, Logger, CurrentUnitySize, false, false);
 				Timings.Add(NewTiming);
 				CurrentUnitySize += UnitySizeInc;
 
@@ -270,13 +271,13 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Returns best compile timings after building the module times
 		/// </summary>
-		private TimingData GetBestCompileModuleTime(string LogPrefix, BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, UEBuildModule Module, ILogger Logger, int UnitySize, bool bPriming, bool bDisableUnity)
+		private async Task<TimingData> GetBestCompileModuleTimeAsync(string LogPrefix, BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, UEBuildModule Module, ILogger Logger, int UnitySize, bool bPriming, bool bDisableUnity)
 		{
 			const int CompileCount = 3;
 			List<TimingData> AllTimingData = new();
 			for (int CompileIndex = 0; CompileIndex < CompileCount; CompileIndex++)
 			{
-				TimingData NewTimingData = CompileModule(LogPrefix, BuildConfiguration, TargetDescriptor, Module, Logger, UnitySize, bPriming, bDisableUnity);
+				TimingData NewTimingData = await CompileModuleAsync(LogPrefix, BuildConfiguration, TargetDescriptor, Module, Logger, UnitySize, bPriming, bDisableUnity);
 				if (!NewTimingData.IsValid())
 				{
 					return NewTimingData;
@@ -296,7 +297,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Compiles the module and returns the timing information
 		/// </summary>
-		private TimingData CompileModule(string LogPrefix, BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, UEBuildModule Module, ILogger Logger, int UnitySize, bool bPriming, bool bDisableUnity)
+		private async Task<TimingData> CompileModuleAsync(string LogPrefix, BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, UEBuildModule Module, ILogger Logger, int UnitySize, bool bPriming, bool bDisableUnity)
 		{
 			// Store the old arguments
 			string[] OldArgs = TargetDescriptor.AdditionalArguments.GetRawArray();
@@ -345,7 +346,7 @@ namespace UnrealBuildTool
 					}
 
 					TimingLogger NewTimingLogger = new(Logger);
-					BuildMode.Build(new List<TargetDescriptor>() { TargetDescriptor }, BuildConfiguration, WorkingSet, BuildOptions.None, null, NewTimingLogger);
+					await BuildMode.BuildAsync(new List<TargetDescriptor>() { TargetDescriptor }, BuildConfiguration, WorkingSet, BuildOptions.None, null, NewTimingLogger);
 					NewTimingData = NewTimingLogger.TimingData;
 				}
 			}

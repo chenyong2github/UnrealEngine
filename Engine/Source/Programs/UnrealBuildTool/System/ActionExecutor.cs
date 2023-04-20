@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace UnrealBuildTool
 {
@@ -53,7 +54,7 @@ namespace UnrealBuildTool
 			MemoryPerActionBytesOverride = Math.Max(MemoryPerActionBytesOverride, MemoryPerActionOverrideGB * 1024 * 1024 * 1024);
 		}
 
-		public abstract bool ExecuteActions(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger);
+		public abstract Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger);
 
 		protected void WriteToolOutput(string Line)
 		{

@@ -29,7 +29,7 @@ namespace UnrealBuildTool
 		private ConcurrentBag<TimingData> AggregateFunctions = new ConcurrentBag<TimingData>();
 		private object AddFileLock = new object();
 
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			FileReference ManifestFile = Arguments.GetFileReference("-ManifestFile=");
 			string[] ParsedFileNames = FileReference.ReadAllLines(ManifestFile);
@@ -87,7 +87,7 @@ namespace UnrealBuildTool
 				FileReference.WriteAllText(CompileTimingFile, JsonCompileTimes);
 			}
 
-			return 0;
+			return Task.FromResult(0);
 		}
 
 		private void GroupTimingDataOnName(TimingData AggregateData, string TimingName, IEnumerable<TimingData> UngroupedData)

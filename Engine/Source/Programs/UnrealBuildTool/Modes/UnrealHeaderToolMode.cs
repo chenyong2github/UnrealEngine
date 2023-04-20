@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 
@@ -1113,7 +1114,7 @@ namespace UnrealBuildTool.Modes
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
 		/// <param name="Logger"></param>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override async Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			try
 			{
@@ -1205,7 +1206,7 @@ namespace UnrealBuildTool.Modes
 					Arguments.ApplyTo(BuildConfiguration);
 
 					// Create the makefile
-					TargetMakefile Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDesc, Logger, true);
+					TargetMakefile Makefile = await Target.BuildAsync(BuildConfiguration, WorkingSet, TargetDesc, Logger, true);
 
 					FileReference ModuleInfoFileName = ExternalExecution.GetUHTModuleInfoFileName(Makefile, Target.TargetName);
 					FileReference DepsFileName = ExternalExecution.GetUHTDepsFileName(ModuleInfoFileName);

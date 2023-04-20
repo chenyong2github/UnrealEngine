@@ -346,7 +346,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
 		/// <param name="Logger"></param>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override async Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Logger.LogInformation($"====================================================");
 			Logger.LogInformation($"Running IWYU. {(bWrite ? "" : "(Preview mode. Add -Write to write modifications to files)")}");
@@ -598,7 +598,7 @@ namespace UnrealBuildTool
 					TargetMakefile Makefile;
 					try
 					{
-						Makefile = BuildMode.CreateMakefile(BuildConfiguration, Descriptor, WorkingSet, Logger);
+						Makefile = await BuildMode.CreateMakefileAsync(BuildConfiguration, Descriptor, WorkingSet, Logger);
 					}
 					finally
 					{
@@ -610,7 +610,7 @@ namespace UnrealBuildTool
 					{
 						try
 						{
-							BuildMode.Build(new TargetMakefile[] { Makefile }, new List<TargetDescriptor>() { Descriptor }, BuildConfiguration, BuildOptions.None, null, Logger);
+							await BuildMode.BuildAsync(new TargetMakefile[] { Makefile }, new List<TargetDescriptor>() { Descriptor }, BuildConfiguration, BuildOptions.None, null, Logger);
 						}
 						finally
 						{

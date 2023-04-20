@@ -61,7 +61,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
 		/// <param name="Logger"></param>
-		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
+		public override Task<int> ExecuteAsync(CommandLineArguments Arguments, ILogger Logger)
 		{
 			// Apply any command line arguments to this class
 			Arguments.ApplyTo(this);
@@ -254,13 +254,13 @@ namespace UnrealBuildTool
 
 				if (!bGenerateSuccess)
 				{
-					return (int)CompilationResult.OtherCompilationError;
+					return Task.FromResult((int)CompilationResult.OtherCompilationError);
 				}
 
 				// any further generators can skip one-time operations
 				bPerformOneTimeOperations = false;
 			}
-			return (int)CompilationResult.Succeeded;
+			return Task.FromResult((int)CompilationResult.Succeeded);
 		}
 
 		/// <summary>
