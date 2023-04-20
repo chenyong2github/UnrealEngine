@@ -97,11 +97,6 @@ public:
 	FDisplayClusterShaderParameters_ICVFX()
 	{ }
 
-	FDisplayClusterShaderParameters_ICVFX(const FDisplayClusterShaderParameters_ICVFX& InParameters)
-	{
-		SetParameters(InParameters);
-	}
-
 public:
 	inline bool IsLightCardOverUsed() const
 	{
