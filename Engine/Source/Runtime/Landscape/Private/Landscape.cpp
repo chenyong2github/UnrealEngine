@@ -650,8 +650,8 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		{
 			// These are used for SM5 rendering
 			UTexture2D* BackupXYOffsetmapTexture = nullptr;
-			TArray<UMaterialInstanceConstant*> BackupMaterialInstances;
-			TArray<UTexture2D*> BackupWeightmapTextures;
+			TArray<TObjectPtr<UMaterialInstanceConstant>> BackupMaterialInstances;
+			TArray<TObjectPtr<UTexture2D>> BackupWeightmapTextures;
 
 			Exchange(BackupXYOffsetmapTexture, XYOffsetmapTexture);
 			Exchange(BackupMaterialInstances, MaterialInstances);
@@ -666,8 +666,8 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		else if (!Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering))
 		{
 			// These properties are only for Mobile
-			TArray<UMaterialInterface*> BackupMobileMaterialInterfaces;
-			TArray<UTexture2D*> BackupMobileWeightmapTextures;
+			TArray<TObjectPtr<UMaterialInterface>> BackupMobileMaterialInterfaces;
+			TArray<TObjectPtr<UTexture2D>> BackupMobileWeightmapTextures;
 
 			Exchange(MobileMaterialInterfaces, BackupMobileMaterialInterfaces);
 			Exchange(MobileWeightmapTextures, BackupMobileWeightmapTextures);

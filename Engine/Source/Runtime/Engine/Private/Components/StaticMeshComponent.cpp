@@ -2044,7 +2044,7 @@ void UStaticMeshComponent::PostLoad()
 		if (GetStaticMesh()->HasValidRenderData()
 			&& GetStaticMesh()->GetRenderData()->MaterialIndexToImportIndex.Num())
 		{
-			TArray<UMaterialInterface*> OldMaterials;
+			TArray<TObjectPtr<UMaterialInterface>> OldMaterials;
 			const TArray<int32>& MaterialIndexToImportIndex = GetStaticMesh()->GetRenderData()->MaterialIndexToImportIndex;
 
 			Exchange(OverrideMaterials, OldMaterials);

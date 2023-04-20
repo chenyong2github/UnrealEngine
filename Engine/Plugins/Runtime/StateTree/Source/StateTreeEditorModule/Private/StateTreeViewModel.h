@@ -59,7 +59,7 @@ public:
 	const UStateTree* GetStateTree() const;
 	
 	// Returns array of subtrees to edit.
-	TArray<UStateTreeState*>* GetSubTrees() const;
+	TArray<TObjectPtr<UStateTreeState>>* GetSubTrees() const;
 	int32 GetSubTreeCount() const;
 	void GetSubTrees(TArray<TWeakObjectPtr<UStateTreeState>>& OutSubtrees) const;
 

@@ -18171,7 +18171,7 @@ void URigVMController::ProcessDetachedLinks(const FRestoreLinkedPathSettings& In
 	}
 
 	// remove the links from the graph first
-	TArray<URigVMLink*> DetachedLinks;
+	TArray<TObjectPtr<URigVMLink>> DetachedLinks;
 	Swap(GetGraph()->DetachedLinks, DetachedLinks);
 
 	// destroy the links finally

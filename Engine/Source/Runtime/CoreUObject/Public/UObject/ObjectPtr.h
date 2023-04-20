@@ -692,7 +692,13 @@ FORCEINLINE T* ToRawPtr(T* Ptr)
 }
 
 template <typename T, SIZE_T Size>
-FORCEINLINE T** ToRawPtrArrayUnsafe(TObjectPtr<T>(&ArrayOfPtr)[Size])
+#if UE_DEPRECATE_MUTABLE_TOBJECTPTR
+FORCEINLINE T* const *
+#else
+UE_OBJPTR_DEPRECATED(5.3, "Mutable ToRawPtrArrayUnsafe() is deprecated. Use MutableView() or TArray<TObjectPtr<...>> instead.")
+FORCEINLINE T**
+#endif
+ToRawPtrArrayUnsafe(TObjectPtr<T>(&ArrayOfPtr)[Size])
 {
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
 	for (TObjectPtr<T>& Item : ArrayOfPtr)
@@ -701,7 +707,12 @@ FORCEINLINE T** ToRawPtrArrayUnsafe(TObjectPtr<T>(&ArrayOfPtr)[Size])
 		Item.Get();
 	}
 #endif
+
+	#if UE_DEPRECATE_MUTABLE_TOBJECTPTR
+	return reinterpret_cast<T* const *>(ArrayOfPtr);
+	#else
 	return reinterpret_cast<T**>(ArrayOfPtr);
+	#endif
 }
 
 template <typename T>
@@ -716,7 +727,13 @@ template <
 	typename ArrayTypeNoRef = std::remove_reference_t<ArrayType>,
 	std::enable_if_t<TIsTArray_V<ArrayTypeNoRef>>* = nullptr
 >
-decltype(auto) ToRawPtrTArrayUnsafe(ArrayType&& Array)
+#if UE_DEPRECATE_MUTABLE_TOBJECTPTR
+const auto&
+#else
+UE_OBJPTR_DEPRECATED(5.3, "Mutable ToRawPtrTArrayUnsafe() is deprecated. Use MutableView() or TArray<TObjectPtr<...>> instead.")
+decltype(auto)
+#endif
+ToRawPtrTArrayUnsafe(ArrayType&& Array)
 {
 	using ArrayElementType         = typename ArrayTypeNoRef::ElementType;
 	using ArrayAllocatorType       = typename ArrayTypeNoRef::AllocatorType;
@@ -876,6 +893,8 @@ inline void Swap(T*& A, TObjectPtr<T>& B)
 }
 
 /** Swap variants between TArray<TObjectPtr<T>> and TArray<T*> */
+#if !UE_DEPRECATE_MUTABLE_TOBJECTPTR
+UE_OBJPTR_DEPRECATED(5.3, "Swap between TObjectPtr arrays and raw pointer arrays is deprecated. Swap TArray<TObjectPtr<...>> values instead.")
 template <typename T>
 inline void Swap(TArray<TObjectPtr<T>>& A, TArray<T*>& B)
 {
@@ -886,6 +905,7 @@ inline void Swap(TArray<T*>& A, TArray<TObjectPtr<T>>& B)
 {
 	Swap(A, ToRawPtrTArrayUnsafe(B));
 }
+#endif
 
 /** Exchange variants between TObjectPtr<T> and raw pointer to T */
 template <typename T>
@@ -899,7 +919,9 @@ inline void Exchange(T*& A, TObjectPtr<T>& B)
 	Swap(A, (T*&)B);
 }
 
+#if !UE_DEPRECATE_MUTABLE_TOBJECTPTR
 /** Exchange variants between TArray<TObjectPtr<T>> and TArray<T*> */
+UE_OBJPTR_DEPRECATED(5.3, "Exchange between TObjectPtr arrays and raw pointer arrays is deprecated. Exchange TArray<TObjectPtr<...>> values instead.")
 template <typename T>
 inline void Exchange(TArray<TObjectPtr<T>>& A, TArray<T*>& B)
 {
@@ -910,6 +932,7 @@ inline void Exchange(TArray<T*>& A, TArray<TObjectPtr<T>>& B)
 {
 	Swap(A, ToRawPtrTArrayUnsafe(B));
 }
+#endif
 
 /**
  * Returns a pointer to a valid object if the Test object passes IsValid() tests, otherwise null
@@ -1031,9 +1054,10 @@ namespace UE::Core::Private // private facilities; not for direct use
 	class TMutableView
 	{
 		using TraitType = UE::Core::Private::TMutableViewTraits<T>;
-		using ViewType = typename TraitType::ViewType;
 
 	public:
+		using ViewType = typename TraitType::ViewType;
+
 		explicit TMutableView(T& Value)
 			: View{&TraitType::Open(Value)}
 		{
@@ -1072,12 +1096,26 @@ namespace UE::Core::Private // private facilities; not for direct use
 
 	MutatingFunc(MutableView(Array));			 // ok; Array will safely "catch up" on TObjectPtr
 																				 // semantics when MutatingFunc returns.
+
+	// it's generally preferable to pass references around (to avoid nullptr),
+	// but for compat with existing functions that take a pointer:
+
+	void NeedsAPointer(TArray<UObject*>* MutableArrayPtr);
+
+	NeedsAPointer(ToRawPtr(MutableView(Array)));
 */
 
 template <typename T>
 [[nodiscard]] UE::Core::Private::TMutableView<T> MutableView(T& A)
 {
 	return UE::Core::Private::TMutableView<T>{A};
+}
+
+template <typename T>
+[[nodiscard]] decltype(auto) ToRawPtr(UE::Core::Private::TMutableView<T>&& X)
+{
+	typename UE::Core::Private::TMutableView<T>::ViewType& Ref = X;
+	return &Ref;
 }
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3

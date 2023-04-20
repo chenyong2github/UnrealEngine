@@ -359,7 +359,7 @@ void IEnhancedInputSubsystemInterface::ApplyAxisPropertyModifiers(UEnhancedPlaye
 	FInputAxisProperties AxisProperties;
 	if (PlayerInput->GetAxisProperties(Mapping.Key, AxisProperties))
 	{
-		TArray<UInputModifier*> Modifiers;
+		TArray<TObjectPtr<UInputModifier>> Modifiers;
 
 		// If a modifier already exists it should override axis properties.
 		auto HasExistingModifier = [&Mapping](UClass* OfType)

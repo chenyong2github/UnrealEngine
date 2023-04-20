@@ -285,10 +285,10 @@ void FStateTreeViewModel::NotifyStatesChangedExternally(const TSet<UStateTreeSta
 	OnStatesChanged.Broadcast(ChangedStates, PropertyChangedEvent);
 }
 
-TArray<UStateTreeState*>* FStateTreeViewModel::GetSubTrees() const
+TArray<TObjectPtr<UStateTreeState>>* FStateTreeViewModel::GetSubTrees() const
 {
 	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
-	return TreeData != nullptr ? &ToRawPtrTArrayUnsafe(TreeData->SubTrees) : nullptr;
+	return TreeData != nullptr ? &TreeData->SubTrees : nullptr;
 }
 
 int32 FStateTreeViewModel::GetSubTreeCount() const

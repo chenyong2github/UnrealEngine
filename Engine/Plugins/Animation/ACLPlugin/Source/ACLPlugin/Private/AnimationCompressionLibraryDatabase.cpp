@@ -442,7 +442,7 @@ void UAnimationCompressionLibraryDatabase::UpdatePreviewState(bool bBuildDatabas
 bool UAnimationCompressionLibraryDatabase::UpdateReferencingAnimSequenceList()
 {
 	// Grab every anim sequence that references us
-	TArray<UAnimSequence*> ReferencingAnimSequences;
+	TArray<TObjectPtr<UAnimSequence>> ReferencingAnimSequences;
 	for (TObjectIterator<UAnimSequence> It; It; ++It)
 	{
 		UAnimSequence* AnimSeq = *It;
