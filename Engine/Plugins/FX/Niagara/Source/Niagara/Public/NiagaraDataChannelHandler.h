@@ -18,6 +18,7 @@ Some more complex handlers may want to divide up the scene in various different 
 /** Base class for all UNiagaraDataChannelHandler's Render Thread Proxies. */
 struct FNiagaraDataChannelHandlerRTProxyBase
 {
+	virtual ~FNiagaraDataChannelHandlerRTProxyBase() = default;
 };
 
 UCLASS(Experimental, abstract, BlueprintType)
