@@ -22,6 +22,7 @@ using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using UnrealBuildTool;
+using System.Xml.Linq;
 
 
 namespace UnrealBuildTool
@@ -3495,6 +3496,54 @@ namespace UnrealBuildTool
 				foreach (var ModuleInfo in ModuleInfos[SharedPCHIndex])
 				{
 					ModuleInfo.Item1.FindOrCreateSharedPCH(ToolChain, GlobalCompileEnvironment.SharedPCHs[SharedPCHIndex], ModuleInfo.Item2, Graph);
+				}
+			}
+
+			// Throw warnings/errors if there are PCH performance issues
+			if (Target.PCHPerformanceIssueWarningLevel != WarningLevel.Off)
+			{
+				bool bFoundIssues = false;
+				LogLevel PCHLoggerLevel = Target.PCHPerformanceIssueWarningLevel == WarningLevel.Warning ? LogLevel.Warning : LogLevel.Error;
+				string Prefix = Target.PCHPerformanceIssueWarningLevel == WarningLevel.Warning ? "Warning:" : "Error:";
+				for (int SharedPCHIndex = NumSharedPCHs - 1; SharedPCHIndex >= 0; SharedPCHIndex--)
+				{
+					// Throw warnings or errors if there are module settings that could result in PCH performance issues
+					PrecompiledHeaderTemplate SharedPCH = GlobalCompileEnvironment.SharedPCHs[SharedPCHIndex];
+					if (SharedPCH.Instances.Any())
+					{
+						// UnsafeTypeCastWarningLevel
+						foreach (PrecompiledHeaderInstance UnsafeTypeCastWarningInstance in SharedPCH.Instances.Where(instance => instance.Modules.First().Rules.UnsafeTypeCastWarningLevel == WarningLevel.Warning))
+						{
+							CppCompileEnvironment UpdatedCppCompileEnvironment = new CppCompileEnvironment(UnsafeTypeCastWarningInstance.CompileEnvironment);
+							UpdatedCppCompileEnvironment.UnsafeTypeCastWarningLevel = WarningLevel.Error;
+							foreach (PrecompiledHeaderInstance UnsafeTypeCastErrorInstance in SharedPCH.Instances.Where(instance => instance.Modules.First().Rules.UnsafeTypeCastWarningLevel == WarningLevel.Error))
+							{
+								if (UEBuildModuleCPP.IsCompatibleForSharedPCH(UnsafeTypeCastErrorInstance.CompileEnvironment, UpdatedCppCompileEnvironment))
+								{
+									foreach (UEBuildModuleCPP Module in UnsafeTypeCastWarningInstance.Modules)
+									{
+										Logger.Log(PCHLoggerLevel, $"{Prefix} Module '{Module.Name}': Please set 'UnsafeTypeCastWarningLevel' to 'WarningLevel.Error' instead of 'WarningLevel.Warning'. This creates PCH permutations.");
+										bFoundIssues = true;
+									}
+								}
+							}
+						}
+
+						// OptimizeCode
+						foreach (PrecompiledHeaderInstance Instance in SharedPCH.Instances.Where(instance => instance.Modules.First().Rules.OptimizeCode == ModuleRules.CodeOptimization.Never))
+						{
+							foreach (var Module in Instance.Modules)
+							{
+								Logger.Log(PCHLoggerLevel, $"{Prefix} Module '{Module.Name}': Do not set 'OptimizeCode' to 'CodeOptimization.Never'. This creates PCH permutations.");
+								bFoundIssues = true;
+							}
+						}
+					}
+				}
+
+				if (bFoundIssues && PCHLoggerLevel == LogLevel.Error)
+				{
+					throw new BuildException("PCH performance issues were found.");
 				}
 			}
 		}

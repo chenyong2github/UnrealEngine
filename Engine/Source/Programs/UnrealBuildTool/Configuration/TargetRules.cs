@@ -1562,6 +1562,13 @@ namespace UnrealBuildTool
 		public bool bUndefinedIdentifierErrors = true;
 
 		/// <summary>
+		/// Indicates what warning/error level to treat potential PCH performance issues.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-PCHPerformanceIssueWarningLevel=")]
+		public WarningLevel PCHPerformanceIssueWarningLevel = WarningLevel.Off;
+
+		/// <summary>
 		/// How to treat general module include path validation messages
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -3462,6 +3469,11 @@ namespace UnrealBuildTool
 		public bool bUndefinedIdentifierErrors
 		{
 			get { return Inner.bUndefinedIdentifierErrors; }
+		}
+
+		public WarningLevel PCHPerformanceIssueWarningLevel
+		{
+			get { return Inner.PCHPerformanceIssueWarningLevel; }
 		}
 
 		public WarningLevel ModuleIncludePathWarningLevel

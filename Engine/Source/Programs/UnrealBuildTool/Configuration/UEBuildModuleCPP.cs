@@ -1024,7 +1024,7 @@ namespace UnrealBuildTool
 		/// <param name="ModuleCompileEnvironment">The module compile environment</param>
 		/// <param name="CompileEnvironment">The shared PCH compile environment</param>
 		/// <returns>True if the two compile enviroments are compatible</returns>
-		static private bool IsCompatibleForSharedPCH(CppCompileEnvironment ModuleCompileEnvironment, CppCompileEnvironment CompileEnvironment)
+		static internal bool IsCompatibleForSharedPCH(CppCompileEnvironment ModuleCompileEnvironment, CppCompileEnvironment CompileEnvironment)
 		{
 			if(ModuleCompileEnvironment.bOptimizeCode != CompileEnvironment.bOptimizeCode)
 			{
