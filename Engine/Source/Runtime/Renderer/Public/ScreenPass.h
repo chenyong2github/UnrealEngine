@@ -255,11 +255,6 @@ struct FScreenTransform
 		, Bias(InBias)
 	{ }
 
-	inline FScreenTransform(const FScreenTransform& AToB)
-		: Scale(AToB.Scale)
-		, Bias(AToB.Bias)
-	{ }
-
 
 	// A * FScreenTransform::Identity = A
 	static RENDERER_API const FScreenTransform Identity;
