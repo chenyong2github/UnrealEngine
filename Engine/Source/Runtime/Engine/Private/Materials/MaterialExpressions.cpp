@@ -13806,6 +13806,19 @@ void UMaterialFunctionInterface::PostInitProperties()
 	StateId = FGuid::NewGuid();
 }
 
+void UMaterialFunctionInterface::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	static const auto CVarDuplicateVerbatim = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("r.MaterialsDuplicateVerbatim"));
+	const bool bKeepStateId = StateId.IsValid() && HasAnyFlags(RF_WasLoaded) && CVarDuplicateVerbatim->GetValueOnAnyThread();
+	if (!bKeepStateId)
+	{
+		// Initialize StateId to something unique, in case this is a new function
+		StateId = FGuid::NewGuid();
+	}
+}
+
 void UMaterialFunctionInterface::PostLoad()
 {
 	Super::PostLoad();

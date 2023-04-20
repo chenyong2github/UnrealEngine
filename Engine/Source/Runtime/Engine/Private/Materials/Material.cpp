@@ -129,6 +129,13 @@ static TAutoConsoleVariable<bool> CVarMaterialLogErrorOnFailure(
 	TEXT("When enabled, when a material fails to compile it will issue an Error instead of a Warning.\n")
 	TEXT("Default: false"),
 	ECVF_RenderThreadSafe);
+	
+static TAutoConsoleVariable<bool> CVarMaterialsDuplicateVerbatim(
+	TEXT("r.MaterialsDuplicateVerbatim"),
+	false,
+	TEXT("When enabled, when a material or material function is duplicated, it will not change StateId (which influences DDC keys) pre-emptively.\n")
+	TEXT("Default: false"),
+	ECVF_Default);
 
 namespace MaterialImpl
 {
@@ -2870,8 +2877,11 @@ void UMaterial::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
 
-	// Reset the StateId on duplication since it needs to be unique for each material.
-	FPlatformMisc::CreateGuid(StateId);
+	if (!CVarMaterialsDuplicateVerbatim.GetValueOnAnyThread())
+	{
+		// Reset the StateId on duplication since it needs to be unique for each material.
+		FPlatformMisc::CreateGuid(StateId);
+	}
 }
 
 void UMaterial::BackwardsCompatibilityInputConversion()
