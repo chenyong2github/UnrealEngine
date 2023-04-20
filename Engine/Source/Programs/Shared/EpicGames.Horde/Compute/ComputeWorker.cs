@@ -85,7 +85,7 @@ namespace EpicGames.Horde.Compute
 						case ComputeMessageType.Execute:
 							{
 								ExecuteProcessMessage executeProcess = message.ParseExecuteProcessMessage();
-								await ExecuteProcessAsync(socket, channel, executeProcess.Executable, executeProcess.Arguments, executeProcess.WorkingDir, executeProcess.EnvVars, cancellationToken);
+								await ExecuteProcessAsync(socket, channel, executeProcess.ChannelId, executeProcess.Executable, executeProcess.Arguments, executeProcess.WorkingDir, executeProcess.EnvVars, cancellationToken);
 							}
 							break;
 						case ComputeMessageType.XorRequest:
@@ -148,13 +148,13 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		async Task ExecuteProcessAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		async Task ExecuteProcessAsync(IComputeSocket socket, IComputeMessageChannel channel, int newChannelId, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
 			try
 			{
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					await ExecuteProcessWindowsAsync(socket, channel, executable, arguments, workingDir, envVars, cancellationToken);
+					await ExecuteProcessWindowsAsync(socket, channel, newChannelId, executable, arguments, workingDir, envVars, cancellationToken);
 				}
 				else
 				{
@@ -167,16 +167,15 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, IComputeMessageChannel channel, int newChannelId, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
-			const int ChannelId = 1;
 			string baseBufferName = $"Local\\Compute-{Guid.NewGuid()}";
 
 			using IComputeBuffer sendBuffer = SharedMemoryBuffer.CreateNew(ComputeChannel.GetSendBufferName(baseBufferName), 4096).ToSharedInstance();
-			socket.AttachSendBuffer(ChannelId, sendBuffer);
+			socket.AttachSendBuffer(newChannelId, sendBuffer);
 
 			using IComputeBuffer recvBuffer = SharedMemoryBuffer.CreateNew(ComputeChannel.GetRecvBufferName(baseBufferName), 4096).ToSharedInstance();
-			socket.AttachRecvBuffer(ChannelId, recvBuffer);
+			socket.AttachRecvBuffer(newChannelId, recvBuffer);
 
 			Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
 			if (envVars != null)

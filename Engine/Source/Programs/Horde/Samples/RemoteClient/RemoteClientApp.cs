@@ -76,16 +76,18 @@ namespace RemoteClient
 			}
 		}
 
+		const int PrimaryChannelId = 0;
+		const int BackgroundChannelId = 1;
+		const int ChildProcessChannelId = 2;
+
 		static async Task RunRemoteAsync(IComputeLease lease, DirectoryReference uploadDir, string executable, List<string> arguments, ILogger logger)
 		{
 			// Create a message channel on channel id 0. The Horde Agent always listens on this channel for requests.
-			const int PrimaryChannelId = 0;
 			using (IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(PrimaryChannelId, 4 * 1024 * 1024, logger))
 			{
 				await channel.WaitForAttachAsync();
 
 				// Fork another message loop on channel id 2. We'll use this to run an XOR task in the background.
-				const int BackgroundChannelId = 2;
 				using IComputeMessageChannel backgroundChannel = lease.Socket.CreateMessageChannel(BackgroundChannelId, 4 * 1024 * 1024, logger);
 				await using BackgroundTask otherChannelTask = BackgroundTask.StartNew(ctx => RunBackgroundXorAsync(backgroundChannel));
 				await channel.ForkAsync(BackgroundChannelId, 4 * 1024 * 1024, default);
@@ -101,7 +103,7 @@ namespace RemoteClient
 				}
 
 				// Run the task remotely in the background and echo the output to the console
-				await using (IComputeProcess process = await channel.ExecuteAsync(executable, arguments, null, null))
+				await using (IComputeProcess process = await channel.ExecuteAsync(ChildProcessChannelId, executable, arguments, null, null))
 				{
 					string? line = await process.ReadLineAsync();
 					logger.LogInformation("[REMOTE] {Line}", line);
@@ -119,8 +121,7 @@ namespace RemoteClient
 		
 		static async Task WriteNumbersAsync(IComputeSocket socket, ILogger logger, CancellationToken cancellationToken)
 		{
-			// Generate data into a buffer attached to channel 1. The remote server will echo them back to us as it receives them, then exit when the channel is complete/closed.
-			const int DataChannelId = 1;
+			// Write data to the child process channel. The remote server will echo them back to us as it receives them, then exit when the channel is complete/closed.
 
 			byte[] buffer = new byte[4];
 			for (int idx = 0; idx < 3; idx++)
@@ -128,11 +129,11 @@ namespace RemoteClient
 				cancellationToken.ThrowIfCancellationRequested();
 				logger.LogInformation("Writing value: {Value}", idx);
 				BinaryPrimitives.WriteInt32LittleEndian(buffer, idx);
-				await socket.SendAsync(DataChannelId, buffer, cancellationToken);
+				await socket.SendAsync(ChildProcessChannelId, buffer, cancellationToken);
 				await Task.Delay(1000, cancellationToken);
 			}
 
-			await socket.MarkCompleteAsync(DataChannelId, cancellationToken);
+			await socket.MarkCompleteAsync(ChildProcessChannelId, cancellationToken);
 		}
 
 		static async Task RunBackgroundXorAsync(IComputeMessageChannel channel)
