@@ -19,7 +19,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPropertyValueChanged, FName, Prop
  * Base of property view allows you to display the value of an object properties.
  */
 UCLASS(Abstract)
-class EDITORWIDGETS_API UPropertyViewBase : public UWidget
+class UMGEDITOR_API UPropertyViewBase : public UWidget
 {
 	GENERATED_BODY()
 
