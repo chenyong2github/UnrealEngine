@@ -10,7 +10,7 @@ struct FKey;
 
 class APlayerController;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogEnhancedInput, Log, All);
+ENHANCEDINPUT_API DECLARE_LOG_CATEGORY_EXTERN(LogEnhancedInput, Log, All);
 
 struct ENHANCEDINPUT_API FEnhancedInputKeys
 {
