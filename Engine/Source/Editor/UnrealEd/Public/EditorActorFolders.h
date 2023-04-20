@@ -193,6 +193,9 @@ private:
 	/** Called when the actor list of the current world has changed */
 	void OnLevelActorListChanged();
 
+	/** Called when all the levels have been changed */
+	void OnAllLevelsChanged();
+
 	/** Called when an actor folder is added */
 	void OnActorFolderAdded(UActorFolder* InActorFolder);
 
@@ -222,6 +225,8 @@ private:
 
 	/** Delegate used to notify changes to ActorEditorContextSubsystem */
 	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
+
+	bool bAnyLevelsChanged;
 
 	friend UWorldFolders;
 };

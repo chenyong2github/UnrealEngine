@@ -4221,6 +4221,7 @@ void UWorld::UpdateLevelStreaming()
 		}
 	}
 
+	AllLevelsChangedEvent.Broadcast();
 	StreamingLevelsToConsider.EndConsideration();
 
 	const int32 CurrentNumLevelsPendingPurge = FLevelStreamingGCHelper::GetNumLevelsPendingPurge();

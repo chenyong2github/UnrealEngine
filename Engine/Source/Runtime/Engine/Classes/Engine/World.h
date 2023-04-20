@@ -1660,6 +1660,12 @@ private:
 	/** Broadcasts whenever the number of levels changes */
 	FOnLevelsChangedEvent LevelsChangedEvent;
 
+	/** Called when all the levels have changed. */
+	DECLARE_EVENT(UWorld, FOnAllLevelsChangedEvent);
+
+	/** Broadcasts whenever all the levels change */
+	FOnAllLevelsChangedEvent AllLevelsChangedEvent;
+
 	DECLARE_EVENT(UWorld, FOnBeginTearingDownEvent);
 
 	/** Broadcasted on UWorld::BeginTearingDown */
@@ -3759,6 +3765,9 @@ public:
 
 	/** Returns the LevelsChangedEvent member. */
 	FOnLevelsChangedEvent& OnLevelsChanged() { return LevelsChangedEvent; }
+
+	/** Returns the AllLevelsChangedEvent member. */
+	FOnAllLevelsChangedEvent& OnAllLevelsChanged() { return AllLevelsChangedEvent; }
 
 	/** Returns the BeginTearingDownEvent member. */
 	UE_DEPRECATED(4.26, "OnBeginTearingDown has been replaced by FWorldDelegates::OnWorldBeginTearDown")

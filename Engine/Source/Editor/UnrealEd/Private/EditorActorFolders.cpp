@@ -54,6 +54,7 @@ FActorFolders::FActorFolders()
 
 	check(GEditor);
 	UActorEditorContextSubsystem::Get()->RegisterClient(this);
+	bAnyLevelsChanged = false;
 }
 
 FActorFolders::~FActorFolders()
@@ -135,6 +136,17 @@ void FActorFolders::BroadcastOnActorFolderMoved(UWorld& InWorld, const FFolder& 
 
 void FActorFolders::OnLevelActorListChanged()
 {
+	bAnyLevelsChanged = true;
+}
+
+void FActorFolders::OnAllLevelsChanged()
+{
+	if (!bAnyLevelsChanged)
+	{
+		return;
+	}
+	QUICK_SCOPE_CYCLE_COUNTER(FActorFolders_OnAllLevelsChanged);
+	bAnyLevelsChanged = false;
 	Housekeeping();
 
 	check(GEngine);
@@ -239,6 +251,7 @@ UWorldFolders& FActorFolders::CreateWorldFolders(UWorld& InWorld)
 	Housekeeping();
 
 	InWorld.OnLevelsChanged().AddRaw(this, &FActorFolders::OnLevelActorListChanged);
+	InWorld.OnAllLevelsChanged().AddRaw(this, &FActorFolders::OnAllLevelsChanged);
 
 	// We intentionally don't pass RF_Transactional to ConstructObject so that we don't record the creation of the object into the undo buffer
 	// (to stop it getting deleted on undo as we manage its lifetime), but we still want it to be RF_Transactional so we can record any changes later
