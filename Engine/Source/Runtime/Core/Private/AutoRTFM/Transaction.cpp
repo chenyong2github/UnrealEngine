@@ -71,8 +71,18 @@ bool FTransaction::AttemptToCommit()
 
 void FTransaction::Undo()
 {
-    for (FWriteLogEntry& Entry : WriteLog)
+	const bool bVerboseUndo = false;
+
+	if (bVerboseUndo)
+	{
+		fprintf(GetLogFile(), "[FTransaction::Undo] START\n");
+	}
+
+	int VerboseCounter = 0;
+	for(auto Iter = WriteLog.rbegin(); Iter != WriteLog.rend(); ++Iter)
     {
+		FWriteLogEntry& Entry = *Iter;
+
         // Skip writes to our current transaction nest if we're scoped. We're about to
 		// leave so the changes don't matter. 
         if (IsScopedTransaction() && Context->IsInnerTransactionStack(Entry.OriginalAndSize.Get()))
@@ -83,8 +93,41 @@ void FTransaction::Undo()
         void* const Original = Entry.OriginalAndSize.Get();
         const size_t Size = Entry.OriginalAndSize.GetTopTag();
         void* const Copy = Entry.Copy;
+
+		if (bVerboseUndo)
+		{
+			FILE* LogFile = GetLogFile();
+			fprintf(LogFile, "%4d [UNDO] %p %4llu : ", VerboseCounter, Original, Size);
+
+			unsigned char* Current = (unsigned char*)Original;
+			unsigned char* Old = (unsigned char*)Copy;
+
+			fprintf(LogFile, "[");
+
+			for(size_t i = 0; i < Size; i++)
+			{
+				fprintf(LogFile, "%02X ", Current[i]);
+			}
+
+			fprintf(LogFile, "] -> [");
+
+			for(size_t i = 0; i < Size; i++)
+			{
+				fprintf(LogFile, "%02X ", Old[i]);
+			}
+
+			fprintf(LogFile, "]\n");
+		}
+
         memcpy(Original, Copy, Size);
+
+		VerboseCounter++;
     }
+
+	if (bVerboseUndo)
+	{
+		fprintf(GetLogFile(), "[FTransaction::Undo] END\n");
+	}
 }
 
 void FTransaction::AbortNested()
