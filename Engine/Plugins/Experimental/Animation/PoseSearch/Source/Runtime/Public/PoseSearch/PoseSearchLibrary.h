@@ -8,6 +8,7 @@
 #include "Animation/AnimNodeReference.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchHistory.h"
 #include "PoseSearch/PoseSearchResult.h"
 #include "SequenceEvaluatorLibrary.h"
@@ -95,9 +96,10 @@ struct POSESEARCH_API FMotionMatchingState
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=State)
 	bool bJumpedToPose = false;
 
-	// Root motion delta for currently playing animation. Only required when UE_POSE_SEARCH_TRACE_ENABLED is active.
-	UPROPERTY(Transient)
+#if UE_POSE_SEARCH_TRACE_ENABLED
+	// Root motion delta for currently playing animation.
 	FTransform RootMotionTransformDelta = FTransform::Identity;
+#endif //UE_POSE_SEARCH_TRACE_ENABLED
 
 	// @todo: add ContinuingPoseCost / BruteForcePoseCost / PoseCost graphs to rewind debugger 
 //#if WITH_EDITORONLY_DATA
@@ -114,6 +116,8 @@ UCLASS()
 class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
+
+#if UE_POSE_SEARCH_TRACE_ENABLED
 	static void TraceMotionMatchingState(
 		const UPoseSearchDatabase* Database,
 		UE::PoseSearch::FSearchContext& SearchContext,
@@ -125,6 +129,7 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 		int32 NodeId,
 		float DeltaTime,
 		bool bSearch);
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 
 public:
 	/**

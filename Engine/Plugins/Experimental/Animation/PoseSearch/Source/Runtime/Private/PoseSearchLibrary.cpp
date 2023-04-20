@@ -137,6 +137,7 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 	}
 }
 
+#if UE_POSE_SEARCH_TRACE_ENABLED
 void UPoseSearchLibrary::TraceMotionMatchingState(
 	const UPoseSearchDatabase* Database,
 	UE::PoseSearch::FSearchContext& SearchContext,
@@ -149,7 +150,6 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 	float DeltaTime,
 	bool bSearch)
 {
-#if UE_POSE_SEARCH_TRACE_ENABLED
 	using namespace UE::PoseSearch;
 	
 	auto AddUniqueDatabase = [](TArray<FTraceMotionMatchingStateDatabaseEntry>& DatabaseEntries, const UPoseSearchDatabase* Database, UE::PoseSearch::FSearchContext& SearchContext) -> int32
@@ -247,8 +247,8 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 	TraceState.DeltaTime = DeltaTime;
 
 	TraceState.Output(AnimInstance, NodeId);
-#endif
 }
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 
 void UPoseSearchLibrary::UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,

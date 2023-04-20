@@ -137,11 +137,20 @@ void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVecto
 
 FPoseSearchQueryTrajectory UCharacterTrajectoryComponent::GetCharacterRelativeTrajectory() const
 {
+	check(GetOwner());
+
 	FPoseSearchQueryTrajectory CharacterRelativeTrajectory = Trajectory;
-	const FTransform OwnerTransformWS = GetOwner()->GetActorTransform();
-	const FTransform ComponentTransformWS = SkelMeshComponent->GetComponentTransform();
-	const FTransform ReferenceChangeTransform = OwnerTransformWS.GetRelativeTransform(ComponentTransformWS);
-	CharacterRelativeTrajectory.TransformReferenceFrame(ReferenceChangeTransform);
+	if (!SkelMeshComponent)
+	{
+		UE_LOG(LogMotionTrajectory, Error, TEXT("UCharacterTrajectoryComponent requires SkelMeshComponent to be initialized"));
+	}
+	else
+	{
+		const FTransform OwnerTransformWS = GetOwner()->GetActorTransform();
+		const FTransform ComponentTransformWS = SkelMeshComponent->GetComponentTransform();
+		const FTransform ReferenceChangeTransform = OwnerTransformWS.GetRelativeTransform(ComponentTransformWS);
+		CharacterRelativeTrajectory.TransformReferenceFrame(ReferenceChangeTransform);
+	}
 	return CharacterRelativeTrajectory;
 }
 
