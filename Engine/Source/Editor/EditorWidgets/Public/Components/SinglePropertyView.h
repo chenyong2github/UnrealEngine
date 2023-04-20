@@ -19,7 +19,7 @@ struct FPropertyChangedEvent;
  * The single property view allows you to display the value of an object's property.
  */
 UCLASS()
-class UMGEDITOR_API USinglePropertyView : public UPropertyViewBase
+class EDITORWIDGETS_API USinglePropertyView : public UPropertyViewBase
 {
 	GENERATED_BODY()
 

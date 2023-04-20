@@ -21,6 +21,7 @@ public class EditorWidgets : ModuleRules
 				"ToolWidgets",
 				"EditorConfig",
 				"AssetDefinition",
+				"UMG",
 			}
 		);
 		
