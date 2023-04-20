@@ -1192,31 +1192,29 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		int32 CameraIndex = 0;
 		for ( const GLTF::FCamera& GltfCamera : GltfAsset.Cameras )
 		{
-			UInterchangeCameraNode* CameraNode = NewObject< UInterchangeCameraNode >( &NodeContainer );
+			UInterchangeStandardCameraNode* CameraNode = NewObject< UInterchangeStandardCameraNode >(&NodeContainer);
 			FString CameraNodeUid = TEXT("\\Camera\\") + GltfCamera.UniqueId;
-			CameraNode->InitializeNode( CameraNodeUid, GltfCamera.Name, EInterchangeNodeContainerType::TranslatedAsset );
+			CameraNode->InitializeNode(CameraNodeUid, GltfCamera.Name, EInterchangeNodeContainerType::TranslatedAsset);
 
-			float       AspectRatio;
-			float       FocalLength;
-			const float SensorWidth = 36.f;  // mm
-			CameraNode->SetCustomSensorWidth(SensorWidth);
 			if (GltfCamera.bIsPerspective)
 			{
-				AspectRatio = GltfCamera.Perspective.AspectRatio;
-				FocalLength = (SensorWidth / GltfCamera.Perspective.AspectRatio) / (2.0 * tan(GltfCamera.Perspective.Fov / 2.0));
+				CameraNode->SetCustomProjectionMode(EInterchangeCameraProjectionType::Perspective);
+
+				CameraNode->SetCustomFieldOfView(FMath::RadiansToDegrees(GltfCamera.Perspective.Fov));
+				CameraNode->SetCustomAspectRatio(GltfCamera.Perspective.AspectRatio);
 			}
 			else
 			{
-				AspectRatio = GltfCamera.Orthographic.XMagnification / GltfCamera.Orthographic.YMagnification;
-				FocalLength = (SensorWidth / AspectRatio) / (AspectRatio * tan(AspectRatio / 4.0));  // can only approximate Fov
+				CameraNode->SetCustomProjectionMode(EInterchangeCameraProjectionType::Orthographic);
+
+				CameraNode->SetCustomWidth(GltfCamera.Orthographic.XMagnification * GltfUnitConversionMultiplier);
+				CameraNode->SetCustomNearClipPlane(GltfCamera.ZNear * GltfUnitConversionMultiplier);
+				CameraNode->SetCustomFarClipPlane(GltfCamera.ZFar * GltfUnitConversionMultiplier);
+
+				CameraNode->SetCustomAspectRatio(GltfCamera.Orthographic.XMagnification / GltfCamera.Orthographic.YMagnification);
 			}
 
-			CameraNode->SetCustomSensorHeight(SensorWidth / AspectRatio);
-			CameraNode->SetCustomFocalLength(FocalLength);
-			CameraNode->SetCustomEnableDepthOfField(false);
-			// ignoring znear and zfar
-
-			NodeContainer.AddNode( CameraNode );
+			NodeContainer.AddNode(CameraNode);
 			++CameraIndex;
 		}
 	}

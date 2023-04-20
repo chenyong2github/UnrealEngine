@@ -4,7 +4,7 @@
 
 #include "InterchangeActorFactoryNode.h"
 #include "InterchangeCameraNode.h"
-#include "InterchangeCineCameraFactoryNode.h"
+#include "InterchangeCameraFactoryNode.h"
 #include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeSceneImportAsset.h"
 #include "InterchangeSceneImportAssetFactoryNode.h"
@@ -313,9 +313,26 @@ UInterchangeActorFactoryNode* UInterchangeGenericLevelPipeline::CreateActorFacto
 
 	if(TranslatedAssetNode)
 	{
-		if(TranslatedAssetNode->IsA<UInterchangeCameraNode>())
+		if(TranslatedAssetNode->IsA<UInterchangePhysicalCameraNode>())
 		{
-			return NewObject<UInterchangeCineCameraFactoryNode>(BaseNodeContainer, NAME_None);
+			return NewObject<UInterchangePhysicalCameraFactoryNode>(BaseNodeContainer, NAME_None);
+		}
+		if (TranslatedAssetNode->IsA<UInterchangeStandardCameraNode>())
+		{
+			if (bUsePhysicalInsteadOfStandardPerspectiveCamera)
+			{
+				//in case it has perspective projection we want to use PhysicalCamera (CineCamera) instead:
+				if (const UInterchangeStandardCameraNode* CameraNode = Cast<UInterchangeStandardCameraNode>(TranslatedAssetNode))
+				{
+					EInterchangeCameraProjectionType ProjectionType = EInterchangeCameraProjectionType::Perspective;
+					if (CameraNode->GetCustomProjectionMode(ProjectionType) && ProjectionType == EInterchangeCameraProjectionType::Perspective)
+					{
+						return NewObject<UInterchangePhysicalCameraFactoryNode>(BaseNodeContainer, NAME_None);
+					}
+				}
+			}
+
+			return NewObject<UInterchangeStandardCameraFactoryNode>(BaseNodeContainer, NAME_None);
 		}
 		else if(TranslatedAssetNode->IsA<UInterchangeMeshNode>())
 		{
@@ -508,37 +525,108 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 			ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
 		}
 	}
-	else if (const UInterchangeCameraNode* CameraNode = Cast<UInterchangeCameraNode>(TranslatedAssetNode))
+	else if (const UInterchangePhysicalCameraNode* PhysicalCameraNode = Cast<UInterchangePhysicalCameraNode>(TranslatedAssetNode))
 	{
 		ActorFactoryNode->SetCustomActorClassName(ACineCameraActor::StaticClass()->GetPathName());
 		ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
 
-		if (UInterchangeCineCameraFactoryNode* CineCameraFactoryNode = Cast<UInterchangeCineCameraFactoryNode>(ActorFactoryNode))
+		if (UInterchangePhysicalCameraFactoryNode* PhysicalCameraFactoryNode = Cast<UInterchangePhysicalCameraFactoryNode>(ActorFactoryNode))
 		{
 			float FocalLength;
-			if (CameraNode->GetCustomFocalLength(FocalLength))
+			if (PhysicalCameraNode->GetCustomFocalLength(FocalLength))
 			{
-				CineCameraFactoryNode->SetCustomFocalLength(FocalLength);
+				PhysicalCameraFactoryNode->SetCustomFocalLength(FocalLength);
 			}
 
 			float SensorHeight;
-			if (CameraNode->GetCustomSensorHeight(SensorHeight))
+			if (PhysicalCameraNode->GetCustomSensorHeight(SensorHeight))
 			{
-				CineCameraFactoryNode->SetCustomSensorHeight(SensorHeight);
+				PhysicalCameraFactoryNode->SetCustomSensorHeight(SensorHeight);
 			}
 
 			float SensorWidth;
-			if (CameraNode->GetCustomSensorWidth(SensorWidth))
+			if (PhysicalCameraNode->GetCustomSensorWidth(SensorWidth))
 			{
-				CineCameraFactoryNode->SetCustomSensorWidth(SensorWidth);
+				PhysicalCameraFactoryNode->SetCustomSensorWidth(SensorWidth);
 			}
 
 			bool bEnableDepthOfField;
-			if (CameraNode->GetCustomEnableDepthOfField(bEnableDepthOfField))
+			if (PhysicalCameraNode->GetCustomEnableDepthOfField(bEnableDepthOfField))
 			{
-				CineCameraFactoryNode->SetCustomFocusMethod(bEnableDepthOfField ? ECameraFocusMethod::Manual : ECameraFocusMethod::DoNotOverride);
+				PhysicalCameraFactoryNode->SetCustomFocusMethod(bEnableDepthOfField ? ECameraFocusMethod::Manual : ECameraFocusMethod::DoNotOverride);
 			}
 			
+		}
+	}
+	else if (const UInterchangeStandardCameraNode* CameraNode = Cast<UInterchangeStandardCameraNode>(TranslatedAssetNode))
+	{
+		EInterchangeCameraProjectionType ProjectionType = EInterchangeCameraProjectionType::Perspective;
+		if (CameraNode->GetCustomProjectionMode(ProjectionType) && bUsePhysicalInsteadOfStandardPerspectiveCamera && ProjectionType == EInterchangeCameraProjectionType::Perspective)
+		{
+			float AspectRatio = 1.0f;
+			CameraNode->GetCustomAspectRatio(AspectRatio);
+
+			const float SensorWidth = 36.f;  // mm
+			float SensorHeight = SensorWidth / AspectRatio;
+
+			float FieldOfView = 90;
+			CameraNode->GetCustomFieldOfView(FieldOfView); //Degrees
+
+			float FocalLength = (SensorHeight) / (2.0 * tan(FMath::DegreesToRadians(FieldOfView) / 2.0));
+
+			ActorFactoryNode->SetCustomActorClassName(ACineCameraActor::StaticClass()->GetPathName());
+			ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
+
+			if (UInterchangePhysicalCameraFactoryNode* PhysicalCameraFactoryNode = Cast<UInterchangePhysicalCameraFactoryNode>(ActorFactoryNode))
+			{
+				PhysicalCameraFactoryNode->SetCustomFocalLength(FocalLength);
+				PhysicalCameraFactoryNode->SetCustomSensorHeight(SensorHeight);
+				PhysicalCameraFactoryNode->SetCustomSensorWidth(SensorWidth);
+				PhysicalCameraFactoryNode->SetCustomFocusMethod(ECameraFocusMethod::DoNotOverride);
+			}
+		}
+		else
+		{
+			ActorFactoryNode->SetCustomActorClassName(ACameraActor::StaticClass()->GetPathName());
+			ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
+
+			if (UInterchangeStandardCameraFactoryNode* CameraFactoryNode = Cast<UInterchangeStandardCameraFactoryNode>(ActorFactoryNode))
+			{
+				if (CameraNode->GetCustomProjectionMode(ProjectionType))
+				{
+					CameraFactoryNode->SetCustomProjectionMode((ECameraProjectionMode::Type)ProjectionType);
+				}
+
+				float OrthoWidth;
+				if (CameraNode->GetCustomWidth(OrthoWidth))
+				{
+					CameraFactoryNode->SetCustomWidth(OrthoWidth);
+				}
+
+				float OrthoNearClipPlane;
+				if (CameraNode->GetCustomNearClipPlane(OrthoNearClipPlane))
+				{
+					CameraFactoryNode->SetCustomNearClipPlane(OrthoNearClipPlane);
+				}
+
+				float OrthoFarClipPlane;
+				if (CameraNode->GetCustomFarClipPlane(OrthoFarClipPlane))
+				{
+					CameraFactoryNode->SetCustomFarClipPlane(OrthoFarClipPlane);
+				}
+
+				float AspectRatio;
+				if (CameraNode->GetCustomAspectRatio(AspectRatio))
+				{
+					CameraFactoryNode->SetCustomAspectRatio(AspectRatio);
+				}
+
+				float FieldOfView;
+				if (CameraNode->GetCustomFieldOfView(FieldOfView))
+				{
+					CameraFactoryNode->SetCustomFieldOfView(FieldOfView);
+				}
+			}
 		}
 	}
 }

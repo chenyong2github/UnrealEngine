@@ -57,6 +57,9 @@ protected:
 	 */
 	virtual void SetUpFactoryNode(UInterchangeActorFactoryNode* ActorFactoryNode, const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode) const;
 	
+	/** Disable this option to not convert Standard(Perspective) to Physical Cameras*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Skeletal Meshes and Animations")
+	bool bUsePhysicalInsteadOfStandardPerspectiveCamera = true;
 protected:
 	UInterchangeBaseNodeContainer* BaseNodeContainer = nullptr;
 #if WITH_EDITORONLY_DATA

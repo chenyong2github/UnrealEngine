@@ -20,7 +20,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "Scene/InterchangeActorFactory.h"
-#include "Scene/InterchangeCineCameraActorFactory.h"
+#include "Scene/InterchangeCameraActorFactory.h"
 #include "Scene/InterchangeSceneImportAssetFactory.h"
 #include "Scene/InterchangeLightActorFactory.h"
 #include "Scene/InterchangeSceneVariantSetsFactory.h"
@@ -84,6 +84,7 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterFactory(UInterchangeAnimationTrackSetFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeAnimSequenceFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeCineCameraActorFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeCameraActorFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeStaticMeshActorFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeSkeletalMeshActorFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeSceneVariantSetsFactory::StaticClass());

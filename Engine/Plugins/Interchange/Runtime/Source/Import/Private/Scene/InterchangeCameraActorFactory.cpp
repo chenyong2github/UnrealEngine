@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Scene/InterchangeCineCameraActorFactory.h"
+#include "Scene/InterchangeCameraActorFactory.h"
 
-#include "InterchangeCineCameraFactoryNode.h"
+#include "InterchangeCameraFactoryNode.h"
 #include "Scene/InterchangeActorFactory.h"
 #include "Scene/InterchangeActorHelper.h"
 
@@ -12,7 +12,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeCineCameraActorFactory)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeCameraActorFactory)
 
 UClass* UInterchangeCineCameraActorFactory::GetFactoryClass() const
 {
@@ -27,3 +27,14 @@ UObject* UInterchangeCineCameraActorFactory::ProcessActor(AActor& SpawnedActor, 
 }
 
 
+UClass* UInterchangeCameraActorFactory::GetFactoryClass() const
+{
+	return ACameraActor::StaticClass();
+}
+
+UObject* UInterchangeCameraActorFactory::ProcessActor(AActor& SpawnedActor, const UInterchangeActorFactoryNode& /*FactoryNode*/, const UInterchangeBaseNodeContainer& /*NodeContainer*/)
+{
+	ACameraActor* CameraActor = Cast<ACameraActor>(&SpawnedActor);
+
+	return CameraActor ? CameraActor->GetCameraComponent() : nullptr;
+}

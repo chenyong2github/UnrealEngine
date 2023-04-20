@@ -381,7 +381,7 @@ void UInterchangeDatasmithTranslator::HandleDatasmithActor(UInterchangeBaseNodeC
 		TSharedRef<IDatasmithCameraActorElement> CameraActor = StaticCastSharedRef<IDatasmithCameraActorElement>(ActorElement);
 
 		// We need to add camera asset node and then instance it in the scene node.
-		UInterchangeCameraNode* CameraNode = AddCameraNode(BaseNodeContainer, CameraActor);
+		UInterchangePhysicalCameraNode* CameraNode = AddCameraNode(BaseNodeContainer, CameraActor);
 		InterchangeSceneNode->SetCustomAssetInstanceUid(CameraNode->GetUniqueID());
 	}
 	else if (ActorElement->IsA(EDatasmithElementType::Light))
@@ -402,11 +402,11 @@ void UInterchangeDatasmithTranslator::HandleDatasmithActor(UInterchangeBaseNodeC
 	}
 }
 
-UInterchangeCameraNode* UInterchangeDatasmithTranslator::AddCameraNode(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithCameraActorElement>& CameraActor) const
+UInterchangePhysicalCameraNode* UInterchangeDatasmithTranslator::AddCameraNode(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithCameraActorElement>& CameraActor) const
 {
 	using namespace UE::DatasmithInterchange;
 
-	UInterchangeCameraNode* CameraNode = NewObject<UInterchangeCameraNode>(&BaseNodeContainer);
+	UInterchangePhysicalCameraNode* CameraNode = NewObject<UInterchangePhysicalCameraNode>(&BaseNodeContainer);
 	const FString CameraUid = NodeUtils::CameraPrefix + CameraActor->GetName();
 	CameraNode->InitializeNode(CameraUid, CameraActor->GetLabel(), EInterchangeNodeContainerType::TranslatedAsset);
 	BaseNodeContainer.AddNode(CameraNode);

@@ -25,7 +25,7 @@ class IDatasmithCameraActorElement;
 class IDatasmithLightActorElement;
 class IDatasmithScene;
 class IDatasmithTransformAnimationElement;
-class UInterchangeCameraNode;
+class UInterchangePhysicalCameraNode;
 class UInterchangeBaseLightNode;
 class UInterchangeSceneNode;
 
@@ -97,7 +97,7 @@ private:
 
 	void HandleDatasmithActor(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithActorElement>& ActorElement, const UInterchangeSceneNode* ParentNode) const;
 
-	UInterchangeCameraNode* AddCameraNode(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithCameraActorElement>& CameraActor) const;
+	UInterchangePhysicalCameraNode* AddCameraNode(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithCameraActorElement>& CameraActor) const;
 
 	UInterchangeBaseLightNode* AddLightNode(UInterchangeBaseNodeContainer& BaseNodeContainer, const TSharedRef<IDatasmithLightActorElement>& LightActor) const;
 

@@ -19,7 +19,7 @@ namespace UE
 	{
 		namespace Private
 		{
-			void FillCameraNode(UInterchangeCameraNode* CameraNode, FbxCamera& SourceCamera)
+			void FillCameraNode(UInterchangePhysicalCameraNode* CameraNode, FbxCamera& SourceCamera)
 			{
 				if (!CameraNode)
 				{
@@ -41,9 +41,9 @@ namespace UE
 				CameraNode->SetCustomSensorWidth(FUnitConversion::Convert(SourceCamera.GetApertureWidth(), EUnit::Inches, EUnit::Millimeters));
 			}
 
-			UInterchangeCameraNode* FFbxCamera::CreateCameraNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName)
+			UInterchangePhysicalCameraNode* FFbxCamera::CreateCameraNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName)
 			{
-				UInterchangeCameraNode* CameraNode = NewObject<UInterchangeCameraNode>(&NodeContainer, NAME_None);
+				UInterchangePhysicalCameraNode* CameraNode = NewObject<UInterchangePhysicalCameraNode>(&NodeContainer, NAME_None);
 				if (!ensure(CameraNode))
 				{
 					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
@@ -66,14 +66,14 @@ namespace UE
 
 					if (NodeAttribute && NodeAttribute->GetAttributeType() == FbxNodeAttribute::eCamera)
 					{
-						FString NodeName = Parser.GetFbxHelper()->GetNodeAttributeName(NodeAttribute, UInterchangeCameraNode::StaticAssetTypeName());
-						FString NodeUid = Parser.GetFbxHelper()->GetNodeAttributeUniqueID(NodeAttribute, UInterchangeCameraNode::StaticAssetTypeName());
+						FString NodeName = Parser.GetFbxHelper()->GetNodeAttributeName(NodeAttribute, UInterchangePhysicalCameraNode::StaticAssetTypeName());
+						FString NodeUid = Parser.GetFbxHelper()->GetNodeAttributeUniqueID(NodeAttribute, UInterchangePhysicalCameraNode::StaticAssetTypeName());
 
-						const UInterchangeCameraNode* CameraNode = Cast<const UInterchangeCameraNode>(NodeContainer.GetNode(NodeUid));
+						const UInterchangePhysicalCameraNode* CameraNode = Cast<const UInterchangePhysicalCameraNode>(NodeContainer.GetNode(NodeUid));
 
 						if (!CameraNode)
 						{
-							UInterchangeCameraNode* NewCameraNode = CreateCameraNode(NodeContainer, NodeUid, NodeName);
+							UInterchangePhysicalCameraNode* NewCameraNode = CreateCameraNode(NodeContainer, NodeUid, NodeName);
 							FillCameraNode(NewCameraNode, static_cast<FbxCamera&>(*NodeAttribute));
 						}
 					}
