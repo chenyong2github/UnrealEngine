@@ -167,7 +167,7 @@ FBodyInstance* FRigidBodyCollisionInfo::GetBodyInstance() const
 	FBodyInstance* BodyInst = NULL;
 	if(Component.IsValid())
 	{
-		BodyInst = Component->GetBodyInstance(BoneName);
+		BodyInst = Component->GetBodyInstance(BoneName, true, BodyIndex);
 	}
 	return BodyInst;
 }
