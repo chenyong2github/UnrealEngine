@@ -182,6 +182,16 @@ namespace UE::Tasks
 				return IsValid() && Pimpl->IsAwaitable();
 			}
 
+			bool operator==(const FTaskHandle& Other) const
+			{
+				return Pimpl == Other.Pimpl;
+			}
+
+			bool operator!=(const FTaskHandle& Other) const
+			{
+				return Pimpl != Other.Pimpl;
+			}
+
 		protected:
 			TRefCountPtr<FTaskBase> Pimpl;
 		};
@@ -371,6 +381,11 @@ namespace UE::Tasks
 		{
 			FPlatformProcess::Yield();
 		}
+	}
+
+	inline void Wait(Private::FTaskHandle& Task)
+	{
+		Task.Wait();
 	}
 
 	// wait for multiple tasks, with timeout
