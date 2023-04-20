@@ -7,7 +7,7 @@
 /**
  * Slate style set that defines all the styles for audio widgets
  */
-class FAudioWidgetsStyle
+class AUDIOWIDGETS_API FAudioWidgetsStyle
 	: public FSlateStyleSet
 
 {

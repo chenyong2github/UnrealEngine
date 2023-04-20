@@ -97,6 +97,28 @@ FAudioWidgetsStyle::FAudioWidgetsStyle()
 		.SetLabelPadding(3.0f)
 		.SetDefaultSliderRadius(50.0f));
 
+	/**
+	* SampledSequenceViewer Style
+	*/
+	Set("SampledSequenceViewer.Style", FSampledSequenceViewerStyle());
+
+	/**
+	* FixedSampledSequenceRuler Style
+	*/
+	Set("FixedSampledSequenceRuler.Style", FFixedSampleSequenceRulerStyle());
+
+	/**
+	* Playhead Overlay Style
+	*/
+	Set("PlayheadOverlay.Style", FPlayheadOverlayStyle());
+
+
+	/**
+	* ValueGrid Style
+	*/
+	Set("ValueGridOverlay.Style", FSampledSequenceValueGridOverlayStyle());
+
+
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }
 

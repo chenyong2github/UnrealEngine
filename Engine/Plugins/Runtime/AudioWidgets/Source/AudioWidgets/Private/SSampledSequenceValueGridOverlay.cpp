@@ -5,13 +5,22 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 
+namespace SampledSequenceValueGridOverlayPrivate
+{
+	TFunction<FText(const double)> DefaultLabelGenerator = [](const double GridLineValue)
+	{
+		FNumberFormattingOptions DefaultFormatting;
+		return FText::AsNumber(GridLineValue, &DefaultFormatting);
+	};
+}
+
 void SSampledSequenceValueGridOverlay::Construct(const FArguments& InArgs)
 {
 	check(InArgs._Style);
 
 	GridSplitMode = InArgs._DivideMode;
 	MaxDivisionParameter = InArgs._MaxDivisionParameter;
-	OnValueGridLabel = InArgs._ValueGridLabelGenerator;
+	OnValueGridLabel = InArgs._ValueGridLabelGenerator ? InArgs._ValueGridLabelGenerator : SampledSequenceValueGridOverlayPrivate::DefaultLabelGenerator;
 	NumDimensions = InArgs._NumDimensions;
 	DrawingParams = InArgs._SequenceDrawingParams;
 	bHideLabels = InArgs._HideLabels;

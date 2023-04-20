@@ -10,6 +10,7 @@ void SFixedSampledSequenceViewer::Construct(const FArguments& InArgs, TArrayView
 	Style = InArgs._Style;
 	DrawingParams = InArgs._SequenceDrawingParams;
 	bHideBackground = InArgs._HideBackground;
+	bHideGrid = InArgs._HideGrid;
 
 	check(Style);
 	SequenceColor = Style->SequenceColor;
@@ -54,8 +55,11 @@ int32 SFixedSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeomet
 
 	if (PixelWidth > 0)
 	{
-		DrawGridLines(AllottedGeometry, OutDrawElements, LayerId);
-
+		if (!bHideGrid)
+		{
+			DrawGridLines(AllottedGeometry, OutDrawElements, LayerId);
+		}
+		
 		if (SequenceDrawMode == ESequenceDrawMode::BinnedPeaks)
 		{
 			TArray<FVector2D> BinDrawPoints;

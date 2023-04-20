@@ -16,12 +16,6 @@ namespace SampledSequenceValueGridOverlay
 		MidSplit,
 		COUNT
 	};
-
-	TFunction<FText(const double)> DefaultLabelGenerator = [](const double GridLineValue)
-	{
-		FNumberFormattingOptions DefaultFormatting;
-		return FText::AsNumber(GridLineValue, &DefaultFormatting);
-	};
 }
 
 class AUDIOWIDGETS_API SSampledSequenceValueGridOverlay : public SLeafWidget
@@ -33,7 +27,6 @@ public:
 		, _HideLabels(false)
 		, _HideGrid(false)
 		, _MaxDivisionParameter(2)
-		, _ValueGridLabelGenerator(SampledSequenceValueGridOverlay::DefaultLabelGenerator)
 	{
 	}
 

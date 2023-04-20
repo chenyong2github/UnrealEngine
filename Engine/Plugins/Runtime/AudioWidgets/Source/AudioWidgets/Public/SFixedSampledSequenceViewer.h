@@ -20,12 +20,15 @@ public:
 
 	SLATE_BEGIN_ARGS(SFixedSampledSequenceViewer) 
 		: _HideBackground(false)
+		, _HideGrid(false)
 	{
 	}
 	
 	SLATE_ARGUMENT(SampledSequenceDrawingUtils::FSampledSequenceDrawingParams, SequenceDrawingParams)
 
 	SLATE_ARGUMENT(bool, HideBackground)
+
+	SLATE_ARGUMENT(bool, HideGrid)
 
 	SLATE_STYLE_ARGUMENT(FSampledSequenceViewerStyle, Style)
 		
@@ -66,7 +69,8 @@ private:
 	float DesiredWidth = 0.f;
 	float SampleMarkersSize = 2.5f;
 	float SequenceLineThickness = 1.f;
-	bool bHideBackground;
+	bool bHideBackground = false;
+	bool bHideGrid = false;
 
 	uint32 CachedPixelWidth = 0; 
 	float CachedPixelHeight = 0.f;
