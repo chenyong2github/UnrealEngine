@@ -57,7 +57,7 @@ namespace IrisDebugHelperInternal
 			}
 		}));
 
-	static UE::Net::Private::FInternalNetRefIndex GIrisDebugInternalIndex;
+	static UE::Net::Private::FInternalNetRefIndex GIrisDebugInternalIndex = UE::Net::Private::FNetRefHandleManager::InvalidInternalIndex;
 	static FAutoConsoleCommand NetIrisDebugNetInternalIndex(
 		TEXT("Net.Iris.DebugNetInternalIndex"),
 		TEXT("Specify an internal index that we will break on (or none to turn off)."),
