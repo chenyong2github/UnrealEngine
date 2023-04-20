@@ -5,6 +5,7 @@
 #include "ReplicationProtocol.h"
 #include "ReplicationProtocolManager.h"
 #include "Iris/Core/IrisLog.h"
+#include "Iris/Core/IrisProfiler.h"
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Serialization/InternalNetSerializationContext.h"
 #include "Net/Core/Trace/NetTrace.h"
@@ -385,11 +386,14 @@ void FNetRefHandleManager::DestroyNetObject(FNetRefHandle RefHandle)
 
 void FNetRefHandleManager::DestroyObjectsPendingDestroy()
 {
+	IRIS_PROFILER_SCOPE(FNetRefHandleManager_DestroyObjectsPendingDestroy);
+
 	// Destroy Objects pending destroy
 	for (int32 It = PendingDestroyInternalIndices.Num() - 1; It >= 0; --It)
 	{
 		const FInternalNetRefIndex InternalIndex = PendingDestroyInternalIndices[It];
-		if (ReplicatedObjectRefCount[InternalIndex] == 0)
+		// If we have subobjects pending tear off and such then wait before destroying the parent.
+		if (ReplicatedObjectRefCount[InternalIndex] == 0 && GetSubObjects(InternalIndex).Num() <= 0)
 		{
 			InternalDestroyNetObject(InternalIndex);
 			PendingDestroyInternalIndices.RemoveAtSwap(It);
@@ -500,6 +504,7 @@ void FNetRefHandleManager::InternalRemoveSubObject(FInternalNetRefIndex OwnerInt
 		}
 
 		SubObjectData.SubObjectRootIndex = InvalidInternalIndex;
+		SubObjectData.SubObjectParentIndex = InvalidInternalIndex;
 		SubObjectData.bDestroySubObjectWithOwner = false;
 
 		SetIsSubObject(SubObjectInternalIndex, false);
@@ -765,7 +770,8 @@ FNetRefHandle FNetRefHandleManager::MakeNetRefHandle(uint64 Id, uint32 Replicati
 
 FNetRefHandle FNetRefHandleManager::MakeNetRefHandleFromId(uint64 Id)
 {
-	check((Id & FNetRefHandle::IdMask) == Id);
+	// This is called on the receiving end when deserializing replicated objects. We don't want to crash on bit stream errors leading to invalid handle IDs being read.
+	ensureAlways((Id & FNetRefHandle::IdMask) == Id);
 
 	FNetRefHandle Handle;
 

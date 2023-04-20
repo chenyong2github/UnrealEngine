@@ -179,10 +179,17 @@ void FReplicationReader::Deinit()
 }
 
 // Read incomplete handle
-FNetRefHandle FReplicationReader::ReadNetRefHandleId(FNetBitStreamReader& Reader) const
+FNetRefHandle FReplicationReader::ReadNetRefHandleId(FNetSerializationContext& Context, FNetBitStreamReader& Reader) const
 {
 	const uint64 NetId = ReadPackedUint64(&Reader);
-	return FNetRefHandleManager::MakeNetRefHandleFromId(NetId);
+	FNetRefHandle RefHandle = FNetRefHandleManager::MakeNetRefHandleFromId(NetId);
+	if (RefHandle.GetId() != NetId)
+	{
+		Context.SetError(GNetError_InvalidNetHandle);
+		return FNetRefHandle();
+	}
+
+	return RefHandle;
 }
 	
 uint16 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& Context)
@@ -194,19 +201,23 @@ uint16 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& C
 	// Read how many destroyed objects we have
 	const uint16 ObjectsToRead = Reader.ReadBits(16);
 	
-	if (!Reader.IsOverflown())
+	if (!Context.HasErrorOrOverflow())
 	{
 		for (uint32 It = 0; It < ObjectsToRead; ++It)
 		{
 			UE_NET_TRACE_NAMED_OBJECT_SCOPE(DestroyedObjectScope, FNetRefHandle(), Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 
-			FNetRefHandle IncompleteHandle = ReadNetRefHandleId(Reader);
+			FNetRefHandle IncompleteHandle = ReadNetRefHandleId(Context, Reader);
 			const bool bShouldDestroyInstance = Reader.ReadBool();
-			if (!Reader.IsOverflown())
+			if (Context.HasErrorOrOverflow())
+			{
+				break;
+			}
+
 			{
 				// Resolve handle and destroy using bridge
 				const uint32 InternalIndex = NetRefHandleManager->GetInternalIndex(IncompleteHandle);
-				if (InternalIndex)
+				if (InternalIndex != FNetRefHandleManager::InvalidInternalIndex)
 				{
 					UE_NET_TRACE_SET_SCOPE_OBJECTID(DestroyedObjectScope, IncompleteHandle);
 
@@ -231,17 +242,16 @@ uint16 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& C
 					{
 						EndReplication(InternalIndex, false, bShouldDestroyInstance);
 					}
-
-					continue;
 				}
+				else
+				{
 
-				// If we did not find the object or associated bridge, the packet that would have created the object may have been lost.
-				UE_LOG(LogIris, Log, TEXT("FReplicationReader::Read Tried to destroy object with %s (This can occur if the server sends destroy for an object that has not yet been confirmed as created)"), *IncompleteHandle.ToString());
+					// If we did not find the object or associated bridge, the packet that would have created the object may have been lost.
+					UE_LOG(LogIris, Log, TEXT("FReplicationReader::Read Tried to destroy object with %s (This can occur if the server sends destroy for an object that has not yet been confirmed as created)"), *IncompleteHandle.ToString());
+				}
 			}
 		}
 	}
-
-	check(!Reader.IsOverflown());
 
 	return ObjectsToRead;
 }
@@ -370,7 +380,7 @@ uint32 FReplicationReader::ReadObjectBatch(FNetSerializationContext& Context)
 {
 	FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
 
-	// Special handling for desrtuction infos
+	// Special handling for destruction infos
 	if (const bool bIsDestructionInfo = Reader.ReadBool())
 	{
 		FReplicationBridgeSerializationContext BridgeContext(Context, Parameters.ConnectionId, true);
@@ -394,7 +404,7 @@ uint32 FReplicationReader::ReadObjectBatch(FNetSerializationContext& Context)
 	
 	// A batch starts with (RefHandleId | BatchSize | bHasBatchObjectData | bHasExports)
 	// If the batch has exports we must to seek to the end of the batch to read and process exports before reading/processing batch data
-	const FNetRefHandle IncompleteHandle = ReadNetRefHandleId(Reader);
+	const FNetRefHandle IncompleteHandle = ReadNetRefHandleId(Context, Reader);
 
 	uint32 BatchSize = 0U;
 	// Read Batch size
@@ -480,7 +490,7 @@ void FReplicationReader::ReadObjectInBatch(FNetSerializationContext& Context, FN
 	FNetRefHandle IncompleteHandle = BatchHandle;
 	if (bIsSubObject)
 	{
-		IncompleteHandle = ReadNetRefHandleId(Reader);
+		IncompleteHandle = ReadNetRefHandleId(Context, Reader);
 	}
 	
 	// Read replicated destroy header if necessary
@@ -1536,7 +1546,7 @@ void FReplicationReader::Read(FNetSerializationContext& Context)
 	ObjectCountToRead -= DestroyedObjectCount;
 
 	// Nothing more to do or we failed and should disconnect
-	if (Reader.IsOverflown() || (ObjectCountToRead == 0 && ObjectsToDispatchCount == 0))
+	if (Context.HasErrorOrOverflow() || (ObjectCountToRead == 0 && ObjectsToDispatchCount == 0))
 	{
 		return;
 	}

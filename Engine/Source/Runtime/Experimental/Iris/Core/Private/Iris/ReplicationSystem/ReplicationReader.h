@@ -52,9 +52,6 @@ public:
 	// Read incoming replication data
 	void Read(FNetSerializationContext& Context);
 
-	// Read index part of handle
-	FNetRefHandle ReadNetRefHandleId(FNetBitStreamReader& Reader) const;
-
 	void SetRemoteNetTokenStoreState(FNetTokenStoreState* RemoteTokenStoreState);
 	
 	// Mark objects pending destroy as unresolvable.
@@ -125,8 +122,8 @@ private:
 
 	bool IsObjectIndexForOOBAttachment(uint32 InternalIndex) const { return InternalIndex == ObjectIndexForOOBAttachment; }
 
-	// Read index reference to replicated object
-	uint32 ReadInternalIndex(FNetBitStreamReader& Reader) const;
+	// Read index part of handle
+	FNetRefHandle ReadNetRefHandleId(FNetSerializationContext& Context, FNetBitStreamReader& Reader) const;
 
 	// Read a new or updated object
 	uint32 ReadObjectBatch(FNetSerializationContext& Context);

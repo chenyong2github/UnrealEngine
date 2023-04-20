@@ -1276,7 +1276,6 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 			FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
 			check(ObjectData.IsSubObject());
 
-			// If owner is not pending destroy we mark it as dirty as appropriate.
 			FNetBitArrayView ChangeMask(Info.GetChangeMaskStoragePointer(), Info.ChangeMaskBitCount);
 			Info.HasDirtyChangeMask |= ChangeMask.IsAnyBitSet();
 			Info.SubObjectPendingDestroy = 0U;
@@ -1285,6 +1284,7 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 
 			ObjectsWithDirtyChanges.SetBitValue(InternalIndex, Info.HasDirtyChangeMask);
 
+			// If owner is not pending destroy we mark it as dirty as appropriate.
 			FReplicationInfo& OwnerInfo = ReplicatedObjects[ObjectData.SubObjectRootIndex];
 			if (OwnerInfo.GetState() < EReplicatedObjectState::PendingDestroy)
 			{
@@ -1310,7 +1310,7 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 		// We dropped a packet with tear-off data, that is a destroy with state data so we need to resend that state
 		if (RecordInfo.WroteTearOff)
 		{
-			check(Info.TearOff);
+			ensureAlways(Info.TearOff);
 
 			SetState(InternalIndex, EReplicatedObjectState::PendingTearOff);
 
@@ -1325,17 +1325,33 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 				Info.HasDirtyChangeMask = 1U;
 			}
 
-			// Indicate that we have dirty subobjects
-			Info.HasDirtySubObjects = 1U;
-
 			// Mark attachments as dirty
 			Info.HasAttachments |= RecordInfo.HasAttachments;
 
 			// Mark object as having dirty changes
 			ObjectsWithDirtyChanges.SetBit(InternalIndex);
 
+			// Mark parent as dirty
+			uint32 ParentInternalIndex = InternalIndex;
+			if (Info.IsSubObject)
+			{
+				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+				if (ensure(ObjectData.SubObjectRootIndex != FNetRefHandleManager::InvalidInternalIndex))
+				{
+					ParentInternalIndex = ObjectData.SubObjectRootIndex;
+					ObjectsWithDirtyChanges.SetBit(ParentInternalIndex);
+
+					FReplicationInfo& OwnerInfo = ReplicatedObjects[ObjectData.SubObjectRootIndex];
+					if (ensure(OwnerInfo.GetState() < EReplicatedObjectState::PendingDestroy))
+					{
+						// Indicate that we have dirty subobjects
+						OwnerInfo.HasDirtySubObjects = 1U;
+					}
+				}
+			}
+
 			// Bump prio
-			SchedulingPriorities[InternalIndex] += FReplicationWriter::TearOffPriority;
+			SchedulingPriorities[ParentInternalIndex] += FReplicationWriter::TearOffPriority;
 		}
 		else if (RecordInfo.WroteDestroySubObject && Info.SubObjectPendingDestroy)
 		{
@@ -1769,7 +1785,7 @@ void FReplicationWriter::SerializeObjectStateDelta(FNetSerializationContext& Con
 
 FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectAndSubObjects(FNetSerializationContext& Context, uint32 InternalIndex, uint32 WriteObjectFlags, FBatchInfo& OutBatchInfo)
 {
-	IRIS_PROFILER_SCOPE(FReplicationWriter_WriteObjectInBatch);
+	IRIS_PROFILER_SCOPE(FReplicationWriter_WriteObjectAndSubObjects);
 
 	FNetBitStreamWriter& Writer = *Context.GetBitStreamWriter();
 	
@@ -2055,7 +2071,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectAndSubObje
 						UE_LOG(LogIris, Verbose, TEXT("Failed to write huge attachment for object %s ( InternalIndex: %u ), forcing fallback on hugeobject for attachments"), *NetRefHandle.ToString(), InternalIndex);
 						Writer.DoOverflow();
 					}
-					else if (!(BatchEntry.bSentState || bSentTearOff || Info.SubObjectPendingDestroy || Info.HasDirtySubObjects))
+					else if (!(BatchEntry.bSentState || bSentTearOff || Info.SubObjectPendingDestroy || Info.HasDirtySubObjects || bWriteBatchInfo))
 					{
 						// If we didn't send state and didn't send any attachments let's rollback
 						ObjectRollbackScope.Rollback();
@@ -2184,6 +2200,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectAndSubObje
 			const bool bWroteExports = WriteExportResult == FObjectReferenceCache::EWriteExportsResult::WroteExports;
 
 			// Update header
+			if (ensure(bWriteBatchInfo))
 			{
 				FNetBitStreamWriteScope SizeScope(Writer, InitialStateHeaderPos);
 				Writer.WriteBits(WrittenBitsInBatch, NumBitsUsedForBatchSize);
@@ -2213,7 +2230,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 		ExportContext->ClearPendingExports();
 	}
 
-	// Write bit indicating if we are a destruction info or not
+	// Write parent object and subobjects
 	const EWriteObjectStatus WriteObjectStatus = WriteObjectAndSubObjects(Context, InternalIndex, WriteObjectFlags, OutBatchInfo);
 	if (!IsWriteObjectSuccess(WriteObjectStatus))
 	{
