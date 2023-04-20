@@ -76,9 +76,13 @@ void* FNullDynamicRHI::GetStaticBuffer(size_t Size)
 	return MemoryBuffer.GetData();
 }
 
-void* FNullDynamicRHI::GetStaticTextureBuffer(int32 SizeX, int32 SizeY, EPixelFormat Format, uint32& DestStride)
+void* FNullDynamicRHI::GetStaticTextureBuffer(int32 SizeX, int32 SizeY, EPixelFormat Format, uint32& DestStride, uint64* OutLockedByteCount)
 {
 	size_t Size = CalculateImageBytes(SizeX, SizeY, 0, Format);
+	if (OutLockedByteCount)
+	{
+		*OutLockedByteCount = Size;
+	}
 	DestStride = Size / SizeY;
 	return GetStaticBuffer(Size);
 }

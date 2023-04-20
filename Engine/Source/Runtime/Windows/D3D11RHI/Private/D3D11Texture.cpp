@@ -1180,7 +1180,7 @@ ETextureReallocationStatus FD3D11DynamicRHI::CancelAsyncReallocateTexture2D_Rend
 	return RHICancelAsyncReallocateTexture2D(Texture2D, bBlockUntilCompleted);
 }
 
-void* FD3D11Texture::Lock(FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool bForceLockDeferred)
+void* FD3D11Texture::Lock(FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool bForceLockDeferred, uint64* OutLockedByteCount)
 {
 	check(!IsTexture3D()); // Only 2D texture locks are implemented
 
@@ -1198,6 +1198,11 @@ void* FD3D11Texture::Lock(FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 Arra
 	const uint32 NumBlocksX = (MipSizeX + BlockSizeX - 1) / BlockSizeX;
 	const uint32 NumBlocksY = (MipSizeY + BlockSizeY - 1) / BlockSizeY;
 	const uint32 MipBytes = NumBlocksX * NumBlocksY * BlockBytes;
+
+	if (OutLockedByteCount)
+	{
+		*OutLockedByteCount = MipBytes;
+	}
 
 	FD3D11LockedData LockedData;
 	if( LockMode == RLM_WriteOnly )
@@ -1310,12 +1315,12 @@ void FD3D11Texture::Unlock(FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 Arr
 	}
 }
 
-void* FD3D11DynamicRHI::RHILockTexture2D(FRHITexture2D* TextureRHI, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail)
+void* FD3D11DynamicRHI::RHILockTexture2D(FRHITexture2D* TextureRHI, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail, uint64* OutLockedByteCount)
 {
 	check(TextureRHI);
 	FD3D11Texture* Texture = ResourceCast(TextureRHI);
 	ConditionalClearShaderResource(Texture, false);
-	return Texture->Lock(this, MipIndex, 0, LockMode, DestStride);
+	return Texture->Lock(this, MipIndex, 0, LockMode, DestStride, false /* bForceLockDeferred */, OutLockedByteCount);
 }
 
 void* FD3D11DynamicRHI::LockTexture2D_RenderThread(
@@ -1325,23 +1330,24 @@ void* FD3D11DynamicRHI::LockTexture2D_RenderThread(
 	EResourceLockMode LockMode,
 	uint32& DestStride,
 	bool bLockWithinMiptail,
-	bool bNeedsDefaultRHIFlush)
+	bool bNeedsDefaultRHIFlush,
+	uint64* OutLockedByteCount)
 {
 	void *LockedTexture = nullptr;
 
 	if (ShouldNotEnqueueRHICommand())
 	{
-		LockedTexture = RHILockTexture2D(Texture, MipIndex, LockMode, DestStride, bLockWithinMiptail);
+		LockedTexture = RHILockTexture2D(Texture, MipIndex, LockMode, DestStride, bLockWithinMiptail, OutLockedByteCount);
 	}
 	else if (LockMode == RLM_ReadOnly)
 	{
 		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		LockedTexture = RHILockTexture2D(Texture, MipIndex, LockMode, DestStride, bLockWithinMiptail);
+		LockedTexture = RHILockTexture2D(Texture, MipIndex, LockMode, DestStride, bLockWithinMiptail, OutLockedByteCount);
 	}
 	else
 	{
 		FD3D11Texture* TextureD3D11 = ResourceCast(Texture);
-		LockedTexture = TextureD3D11->Lock(this, MipIndex, 0, LockMode, DestStride, true);
+		LockedTexture = TextureD3D11->Lock(this, MipIndex, 0, LockMode, DestStride, true, OutLockedByteCount);
 	}
 	return LockedTexture;
 }

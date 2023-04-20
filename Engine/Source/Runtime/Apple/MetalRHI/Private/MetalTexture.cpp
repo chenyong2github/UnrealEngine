@@ -1044,10 +1044,14 @@ void FMetalSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuf
 #endif
 }
 
-void* FMetalSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer /*= false*/)
+void* FMetalSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer /*= false*/, uint64* OutLockedByteCount /* =nullptr */)
 {
 	// get size and stride
 	uint32 MipBytes = GetMipSize(MipIndex, &DestStride, false);
+	if (OutLockedByteCount)
+	{
+		*OutLockedByteCount = (uint64)MipBytes;
+	}
 	
 	// allocate some temporary memory
 	id <MTLBuffer> Buffer = AllocSurface(MipIndex, ArrayIndex, LockMode, DestStride, SingleLayer);
@@ -1205,7 +1209,7 @@ void FMetalSurface::Unlock(uint32 MipIndex, uint32 ArrayIndex, bool bTryAsync)
 	}
 }
 
-void* FMetalSurface::AsyncLock(class FRHICommandListImmediate& RHICmdList, uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool bNeedsDefaultRHIFlush)
+void* FMetalSurface::AsyncLock(class FRHICommandListImmediate& RHICmdList, uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool bNeedsDefaultRHIFlush, uint64* OutLockedByteCount)
 {
 	bool bDirectLock = (LockMode == RLM_ReadOnly || !GIsRHIInitialized);
 	
@@ -1220,13 +1224,17 @@ void* FMetalSurface::AsyncLock(class FRHICommandListImmediate& RHICmdList, uint3
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockTexture2D_Flush);
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 		}
-		BufferData = Lock(MipIndex, ArrayIndex, LockMode, DestStride);
+		BufferData = Lock(MipIndex, ArrayIndex, LockMode, DestStride, OutLockedByteCount);
 	}
 	else
 	{
 		id <MTLBuffer> Buffer = AllocSurface(MipIndex, ArrayIndex, LockMode, DestStride);
 		check(Buffer);
 		
+		if (OutLockedByteCount)
+		{
+			*OutLockedByteCount = (uint64)GetMipSize(MipIndex, &DestStride, false);
+		}
 		BufferData = Buffer.contents;
 	}
 	
@@ -1558,14 +1566,14 @@ ETextureReallocationStatus FMetalDynamicRHI::RHICancelAsyncReallocateTexture2D(F
 	return TexRealloc_Failed;
 }
 
-void* FMetalDynamicRHI::LockTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail, bool bNeedsDefaultRHIFlush)
+void* FMetalDynamicRHI::LockTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail, bool bNeedsDefaultRHIFlush, uint64* OutLockedByteCount)
 {
 	@autoreleasepool {
 		check(IsInRenderingThread());
 		
 		FMetalSurface* TextureMTL = ResourceCast(Texture);
 		
-		void* BufferData = TextureMTL->AsyncLock(RHICmdList, MipIndex, 0, LockMode, DestStride, bNeedsDefaultRHIFlush);
+		void* BufferData = TextureMTL->AsyncLock(RHICmdList, MipIndex, 0, LockMode, DestStride, bNeedsDefaultRHIFlush, OutLockedByteCount);
 		
 		return BufferData;
 	}
@@ -1583,11 +1591,11 @@ void FMetalDynamicRHI::UnlockTexture2D_RenderThread(class FRHICommandListImmedia
 }
 
 
-void* FMetalDynamicRHI::RHILockTexture2D(FRHITexture2D* TextureRHI,uint32 MipIndex,EResourceLockMode LockMode,uint32& DestStride,bool bLockWithinMiptail)
+void* FMetalDynamicRHI::RHILockTexture2D(FRHITexture2D* TextureRHI,uint32 MipIndex,EResourceLockMode LockMode,uint32& DestStride,bool bLockWithinMiptail, uint64* OutLockedByteCount)
 {
 	@autoreleasepool {
 		FMetalSurface* Texture = ResourceCast(TextureRHI);
-		return Texture->Lock(MipIndex, 0, LockMode, DestStride);
+		return Texture->Lock(MipIndex, 0, LockMode, DestStride, OutLockedByteCount);
 	}
 }
 

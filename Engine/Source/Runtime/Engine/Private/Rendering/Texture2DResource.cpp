@@ -140,8 +140,11 @@ void FTexture2DResource::CreateTexture()
 			if (MipData[ResourceMipIdx])
 			{
 				uint32 DestPitch = -1;
-				void* TheMipData = RHILockTexture2D(TextureRHI, RHIMipIdx, RLM_WriteOnly, DestPitch, false );
-				GetData( ResourceMipIdx, TheMipData, DestPitch );
+				uint64 Size = ~0ULL;
+				void* TheMipData = RHILockTexture2D(TextureRHI, RHIMipIdx, RLM_WriteOnly, DestPitch, false /* bLockWithinMiptail */, true /* bFlushRHIThread */, &Size);
+				check(Size != ~0ULL);
+
+				GetData( ResourceMipIdx, TheMipData, DestPitch, Size );
 				RHIUnlockTexture2D(TextureRHI, RHIMipIdx, false );
 			}
 		}
@@ -176,8 +179,11 @@ void FTexture2DResource::CreatePartiallyResidentTexture()
 		if ( MipData[MipIndex] != NULL )
 		{
 			uint32 DestPitch = -1;
-			void* TheMipData = RHILockTexture2D(TextureRHI, MipIndex, RLM_WriteOnly, DestPitch, false );
-			GetData( MipIndex, TheMipData, DestPitch );
+			uint64 Size = ~0ULL;
+			void* TheMipData = RHILockTexture2D(TextureRHI, MipIndex, RLM_WriteOnly, DestPitch, false /* bLockWithinMiptail */, true /* bFlushRHIThread */, &Size);
+			check(Size != ~0ULL);
+
+			GetData( MipIndex, TheMipData, DestPitch, Size);
 			RHIUnlockTexture2D(TextureRHI, MipIndex, false );
 		}
 	}
@@ -248,8 +254,9 @@ void FTexture2DResource::WarnRequiresTightPackedMip(int32 SizeX,int32 SizeY,EPix
  * @param MipIndex		Index of the mip-level to read.
  * @param Dest			Address of the destination buffer to receive the mip-level's data.
  * @param DestPitch		Number of bytes per row
+ * @param DestSize		Number of bytes locked by RHILockTexture2D.
  */
-void FTexture2DResource::GetData( uint32 MipIndex, void* Dest, uint32 DestPitch )
+void FTexture2DResource::GetData( uint32 MipIndex, void* Dest, uint32 DestPitch, uint64 DestSize )
 {
 	const FTexture2DMipMap& MipMap = *GetPlatformMip(MipIndex);
 	check( MipData[MipIndex] != nullptr );
@@ -259,10 +266,12 @@ void FTexture2DResource::GetData( uint32 MipIndex, void* Dest, uint32 DestPitch 
 
 	int64 BulkDataSize = MipMap.BulkData.GetBulkDataSize();
 
-	UE_LOG(LogTextureUpload,Verbose,TEXT("Size: %dx%d , EffectiveSize=%d BulkDataSize=%d , SrcPitch=%d DestPitch=%d"),
+	UE_LOG(LogTextureUpload,Verbose,TEXT("Size: %dx%d , EffectiveSize=%d BulkDataSize=%d , SrcPitch=%d DestPitch=%d Format=%d, DestSize=%lld"),
 		MipMap.SizeX,MipMap.SizeY,
 		EffectiveSize,(int)BulkDataSize,
-		SrcPitch,DestPitch);
+		SrcPitch,DestPitch, PixelFormat, DestSize);
+
+	check(DestSize >= (uint64)BulkDataSize);
 
 	// for platforms that returned 0 pitch from Lock, we need to just use the bulk data directly, never do 
 	// runtime block size checking, conversion, or the like

@@ -80,5 +80,5 @@ private:
 	 * @param Dest		The address of the destination buffer to receive the mip-level's data.
 	 * @param DestPitch	Number of bytes per row
 	 */
-	void GetData( uint32 MipIndex,void* Dest,uint32 DestPitch );
+	void GetData( uint32 MipIndex,void* Dest,uint32 DestPitch, uint64 DestSize );
 };
