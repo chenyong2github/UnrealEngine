@@ -688,25 +688,57 @@ void UMovieGraphPipeline::ProcessOutstandingFinishedFrames()
 			// UE_LOG(LogTemp, Log, TEXT("Frame: %d Duration: %s"), FrameNumber, *DurationTimeStr);
 		}
 
+		// How we choose which image gets sent to which output container is a little tricky. We use the CDO of each node type on purpose
+		// as the graph can change node instances every frame. If a output type node is in the "Globals" graph, we assume that we should
+		// send all rendered layers to the image type. However we should also allow placing an output of a given type in a render layer,
+		// so you could choose to send the layer to only some output types (ie: only send the "beauty" layer to the .jpeg container).
+		// Because our data is always treated as a block of all image data (and is non-copyable) we instead generate both a list of
+		// output containers for the data in this output frame, and a mask which lets that container know if it should skip a layer.
+		TMap<UMovieGraphFileOutputNode*, TSet<FMovieGraphRenderDataIdentifier>> MaskData;
 
-		// We need to get the list of output nodes for this frame's shot. We pass all of the data at once to each relevant one
-		// and individual output nodes can decide if they should skip writing that layer's data, or combine them into one file
-		// or multiple files, etc. To get the right evaluation context though we need to use common data from one node for now.
-		TSet<UMovieGraphFileOutputNode*> ContainerCDOs;
-
-		TArray<UMovieGraphFileOutputNode*> AllNodeInstances = UMovieGraphConfig::IterateGraphForClassAll<UMovieGraphFileOutputNode>(OutputFrame.TraversalContext);
-		for (UMovieGraphFileOutputNode* Node : AllNodeInstances)
+		for (TPair<FMovieGraphRenderDataIdentifier, TUniquePtr<FImagePixelData>>& RenderData : OutputFrame.ImageOutputData)
 		{
-			ContainerCDOs.Add(Node->GetClass()->GetDefaultObject<UMovieGraphFileOutputNode>());
+			UE::MovieGraph::FMovieGraphSampleState* Payload = RenderData.Value->GetPayload<UE::MovieGraph::FMovieGraphSampleState>();
+			if (!ensure(Payload))
+			{
+				continue;
+			}
+
+			if (!ensure(OutputFrame.EvaluatedConfig))
+			{
+				continue;
+			}
+
+			// Get a list of all output nodes for this particular render layer. We specifically skip CDOs here because we're just trying
+			// to find out which output nodes the user _wanted_ to place items onto, we later collect only the CDOs so that we have
+			// a central point for actually handling the file writing.
+			const bool bIncludeCDOs = false;
+			const FName BranchName = RenderData.Key.RootBranchName;
+			TArray<TObjectPtr<UMovieGraphFileOutputNode>> OutputNodeInstances = OutputFrame.EvaluatedConfig->GetSettingsForBranch<UMovieGraphFileOutputNode>(BranchName, bIncludeCDOs);
+			for (const TObjectPtr<UMovieGraphFileOutputNode>& Instance : OutputNodeInstances)
+			{
+				UMovieGraphFileOutputNode* CDO = Instance->GetClass()->GetDefaultObject<UMovieGraphFileOutputNode>();
+				MaskData.FindOrAdd(CDO).Add(RenderData.Key);
+			}
 		}
 
-		for (UMovieGraphFileOutputNode* CDOInstance : ContainerCDOs)
+		// Now that we've looped through the above, we have the total list of which output formats are being used by the graph for
+		// all of the render layers given. We also have a list of which identifiers should go into each one. So we can loop through
+		// the CDO instances and pass the data to them.
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("File Outputs:"));
+		for (const TPair<UMovieGraphFileOutputNode*, TSet<FMovieGraphRenderDataIdentifier>>& Pair : MaskData)
 		{
-			CDOInstance->OnReceiveImageData(this, &OutputFrame);
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("\tNode: %s"), *Pair.Key->GetClass()->GetName());
+			for (const FMovieGraphRenderDataIdentifier& ID : Pair.Value)
+			{
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("\t\tBranch: %s:"), *ID.RootBranchName.ToString());
+			}
+
+			Pair.Key->OnReceiveImageData(this, &OutputFrame, Pair.Value);
 
 			// Ensure we keep track of which nodes we actually sent data to during this render
 			// so that we can call BeginFinalize/IsFinishedWritingToDisk on them when shutting down.
-			OutputNodesDataSentTo.Add(CDOInstance);
+			OutputNodesDataSentTo.Add(Pair.Key);
 		}
 	}
 }

@@ -208,23 +208,6 @@ private:
 };
 
 /**
-* An evaluated config for the current frame. Each named branch (including Globals) has its own
-* copy of the config, fully resolved (so there is no need to check the Globals branch when
-* looking at a named branch). You can use the functions to fetch a node by type from a given
-* branch and it will return the right object (or the CDO if the node is NOT in the config).
-*/
-UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphEvaluatedConfig : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	/** Mapping between named branches (at the root of the config) and their evaluated values. */
-	UPROPERTY(Transient)
-	TMap<FName, FMovieGraphEvaluatedBranchConfig> BranchConfigMapping;
-};
-
-/**
 * This stores short-term information needed during traversal of the graph
 * such as disabled nodes, already visited nodes, etc. This information is
 * discarded after traversal.
@@ -262,6 +245,73 @@ public:
 	TArray<TObjectPtr<const UMovieGraphSubgraphNode>> SubgraphStack;
 };
 
+/**
+* An evaluated config for the current frame. Each named branch (including Globals) has its own
+* copy of the config, fully resolved (so there is no need to check the Globals branch when
+* looking at a named branch). You can use the functions to fetch a node by type from a given
+* branch and it will return the right object (or the CDO if the node is NOT in the config).
+*/
+UCLASS()
+class MOVIERENDERPIPELINECORE_API UMovieGraphEvaluatedConfig : public UObject
+{
+	GENERATED_BODY()
+public:
+
+	const TArray<FName> GetBranchNames() const
+	{
+		TArray<FName> OutKeys;
+		BranchConfigMapping.GenerateKeyArray(OutKeys);
+ 		return OutKeys;
+	}
+
+	template<typename NodeType>
+	TObjectPtr<NodeType> GetSettingForBranch(const FName InBranchName, bool bIncludeCDOs = true, bool bExactMatch = false)
+	{
+		TArray<TObjectPtr<NodeType>> AllSettings = GetSettingsForBranch<NodeType>(InBranchName, bIncludeCDOs, bExactMatch);
+		if (AllSettings.Num() > 0)
+		{
+			return AllSettings[0];
+		}
+
+		return nullptr;
+	}
+
+	template<typename NodeType>
+	TArray<TObjectPtr<NodeType>> GetSettingsForBranch(const FName InBranchName, bool bIncludeCDOs = true, bool bExactMatch = false)
+	{
+		TArray<TObjectPtr<NodeType>> ResultNodes;
+		FMovieGraphEvaluatedBranchConfig* BranchConfig = BranchConfigMapping.Find(InBranchName);
+		ensureMsgf(BranchConfig, TEXT("Failed to find branch mapping for Branch: %s"), *InBranchName.ToString());
+
+		if (BranchConfig)
+		{
+			// Check to see if the branch has an instance of this.
+			for (const TObjectPtr<UMovieGraphNode>& Node : BranchConfig->GetNodes())
+			{
+				bool bMatches = bExactMatch ? Node->GetClass() == NodeType::StaticClass() : Node->IsA<NodeType>();
+				if (bMatches)
+				{
+					ResultNodes.Add(Cast<NodeType>(Node.Get()));
+				}
+			}
+		}
+
+		// If they didn't return above, then either they specified an invalid branch (for which the ensure tripped)
+		// or the config simply didn't override that setting class, at which point we might try to return a default
+		if (bIncludeCDOs)
+		{
+			ResultNodes.Add(GetMutableDefault<NodeType>());
+		}
+
+		return ResultNodes;
+	}
+	
+
+public:
+	/** Mapping between named branches (at the root of the config) and their evaluated values. */
+	UPROPERTY(Transient)
+	TMap<FName, FMovieGraphEvaluatedBranchConfig> BranchConfigMapping;
+};
 
 /**
 * This is the runtime representation of the UMoviePipelineEdGraph which contains the actual strongly
@@ -327,9 +377,6 @@ public:
 	/** Remove the specified member (input, output, variable) from the graph. */
 	bool DeleteMember(UMovieGraphMember* MemberToDelete);
 
-	/** Returns only the names of the root branches in the Output Node, with no depth information. */
-	TArray<FMovieGraphBranch> GetOutputBranches() const;
-
 #if WITH_EDITOR
 	/** Gets the editor-only nodes in this graph. Editor-only nodes do not have an equivalent runtime node. */
 	const TArray<TObjectPtr<UObject>>& GetEditorOnlyNodes() const { return EditorOnlyNodes; }
@@ -338,42 +385,11 @@ public:
 	void SetEditorOnlyNodes(const TArray<TObjectPtr<const UObject>>& InNodes);
 #endif
 
+	/** Given a user-defined evaluation context, evaluate the graph and build a "flattened" list of settings for each branch discovered. */
 	UFUNCTION(BlueprintCallable, Category="Experimental")
 	UMovieGraphEvaluatedConfig* CreateFlattenedGraph(const FMovieGraphTraversalContext& InContext);
 
-	template<typename NodeType>
-	static NodeType* IterateGraphForClass(const FMovieGraphTraversalContext& InContext)
-	{
-		TArray<NodeType*> AllSettings = IterateGraphForClassAll<NodeType>(InContext);
-		if (AllSettings.Num() > 0)
-		{
-			return AllSettings[0];
-		}
-		return nullptr;
-	}
-	
-	template<typename NodeType>
-	static TArray<NodeType*> IterateGraphForClassAll(const FMovieGraphTraversalContext& InContext)
-	{
-		TArray<NodeType*> TypedNodes;
-		if (!ensureMsgf(InContext.RootGraph, TEXT("You must specify a RootGraph to traverse with")))
-		{
-			return TypedNodes;
-		}
-
-		const TArray<UMovieGraphNode*> FoundNodes = InContext.RootGraph->TraverseGraph(NodeType::StaticClass(), InContext);
-		for (UMovieGraphNode* Node : FoundNodes)
-		{
-			TypedNodes.Add(CastChecked<NodeType>(Node));
-		}
-
-		return TypedNodes;
-	}
-
-	TArray<UMovieGraphNode*> TraverseGraph(TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext) const;
-
 protected:
-	void TraverseGraphRecursive(UMovieGraphNode* InNode, TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext, TArray<UMovieGraphNode*>& OutNodes) const;
 	/** Copies properties in FromNode that are marked for override into ToNode, but only if ToNode doesn't already override that value. */
 	void CopyOverriddenProperties(UMovieGraphNode* FromNode, UMovieGraphNode* ToNode);
 	/** Given a property you want to override (passes IsPropertyOverrideable) look for a matching bOverride_ named bool property. */

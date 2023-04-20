@@ -14,7 +14,7 @@
 * multiple output formats at once (such as exr and jpeg).
 */
 UCLASS(Abstract)
-class UMovieGraphFileOutputNode : public UMovieGraphNode
+class UMovieGraphFileOutputNode : public UMovieGraphSettingNode
 {
 	GENERATED_BODY()
 public:
@@ -22,13 +22,11 @@ public:
 	
 	// UMovieGraphFileOutputNode Interface
 	/** 
-	* This is called by the Game Thread containing the final output data for a given output frame. If you need to hold 
-	* onto this data for longer than the duration of the single function call (such as async/task graph operations) then
-	* you need to increment the reference count on the data in the UMovieGraphPipeline, and decrement when you are done.
-	* Failing to increment will lead to the data being deleted out from underneath you, and failing to decrement will leak 
-	* memory until the end of a render.
+	* This is called by the Game Thread containing the final output data for a given output frame. InRawFrameData contains
+	* a list of all of the data generated for this output frame, and InMask specifies which render layers within InRawFrameData
+	* should actually be written to disk by this output node.
 	*/
-	void OnReceiveImageData(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData) { OnReceiveImageDataImpl(InPipeline, InRawFrameData); }
+	void OnReceiveImageData(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData, const TSet<FMovieGraphRenderDataIdentifier>& InMask) { OnReceiveImageDataImpl(InPipeline, InRawFrameData, InMask); }
 	void OnAllFramesSubmitted() { OnAllFramesSubmittedImpl(); }
 	bool IsFinishedWritingToDisk() const { return IsFinishedWritingToDiskImpl(); }
 	// ~UMovieGraphFileOutputNode Interface
@@ -55,7 +53,7 @@ public:
 #endif
 
 protected:
-	virtual void OnReceiveImageDataImpl(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData) {}
+	virtual void OnReceiveImageDataImpl(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData, const TSet<FMovieGraphRenderDataIdentifier>& InMask) {}
 	virtual void OnAllFramesSubmittedImpl() {}
 	virtual bool IsFinishedWritingToDiskImpl() const { return true; }
 };

@@ -39,12 +39,12 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphNode : public UObject
 {
 	GENERATED_BODY()
 
-	static FName GlobalsPinName;
 
 	friend class UMovieGraphConfig;
 	friend class UMovieGraphEdge;
 	
 public:
+	static FName GlobalsPinName;
 	UMovieGraphNode();
 
 	const TArray<TObjectPtr<UMovieGraphPin>>& GetInputPins() const { return InputPins; }
@@ -193,7 +193,7 @@ protected:
 /**
 * Nodes representing user settings should derive from this. This is the only node type copied into flattened eval.
 */
-UCLASS(Abstract)
+UCLASS(Abstract, BlueprintType)
 class MOVIERENDERPIPELINECORE_API UMovieGraphSettingNode : public UMovieGraphNode
 {
 	GENERATED_BODY()

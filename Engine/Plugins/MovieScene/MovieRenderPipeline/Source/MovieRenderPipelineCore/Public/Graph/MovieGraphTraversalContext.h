@@ -34,7 +34,7 @@ public:
 	{}
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MovieGraph")
-	FMovieGraphBranch RootBranch;
+	FName RootBranch;
 
 	/** Which shot (out of ShotCount) is this time step for? */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")

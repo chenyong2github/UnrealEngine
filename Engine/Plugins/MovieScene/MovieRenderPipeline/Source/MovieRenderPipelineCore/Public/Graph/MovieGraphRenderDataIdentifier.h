@@ -17,9 +17,9 @@ struct FMovieGraphRenderDataIdentifier
 	FMovieGraphRenderDataIdentifier()
 	{}
 
-	FMovieGraphRenderDataIdentifier(const FString& InRenderLayerName, const FString& InRendererName,
+	FMovieGraphRenderDataIdentifier(const FName& InRootBranchName, const FString& InRendererName,
 		const FString& InSubRenderResourceName, const FString& InCameraName)
-		: RenderLayerName(InRenderLayerName)
+		: RootBranchName(InRootBranchName)
 		, RendererName(InRendererName)
 		, SubResourceName(InSubRenderResourceName)
 		, CameraName(InCameraName)
@@ -28,7 +28,7 @@ struct FMovieGraphRenderDataIdentifier
 
 	bool operator == (const FMovieGraphRenderDataIdentifier& InRHS) const
 	{
-		return RenderLayerName == InRHS.RenderLayerName && 
+		return RootBranchName == InRHS.RootBranchName && 
 			RendererName == InRHS.RendererName &&
 			SubResourceName == InRHS.SubResourceName &&
 			CameraName == InRHS.CameraName;
@@ -41,7 +41,7 @@ struct FMovieGraphRenderDataIdentifier
 
 	friend uint32 GetTypeHash(FMovieGraphRenderDataIdentifier InIdentifier)
 	{
-		return HashCombineFast(GetTypeHash(InIdentifier.RenderLayerName),
+		return HashCombineFast(GetTypeHash(InIdentifier.RootBranchName),
 			HashCombineFast(GetTypeHash(InIdentifier.RendererName),
 				HashCombineFast(GetTypeHash(InIdentifier.SubResourceName),
 					GetTypeHash(InIdentifier.CameraName))));
@@ -49,13 +49,19 @@ struct FMovieGraphRenderDataIdentifier
 
 	friend FString LexToString(const FMovieGraphRenderDataIdentifier InIdentifier)
 	{
-		return FString::Printf(TEXT("RenderLayer: %s Renderer:%s SubResource: %s Camera: %s"), *InIdentifier.RenderLayerName, *InIdentifier.RendererName, *InIdentifier.SubResourceName, *InIdentifier.CameraName);
+		return FString::Printf(TEXT("RootBranch: %s Renderer:%s SubResource: %s Camera: %s"), *InIdentifier.RootBranchName.ToString(), *InIdentifier.RendererName, *InIdentifier.SubResourceName, *InIdentifier.CameraName);
 	}
 
 public:
-	/** The user provided name for the whole Render Layer ("character", "background", etc.) */
+	/** 
+	* The root branch name that this render layer exists on. Actual display name comes from a UMovieGraphRenderLayerNode (if found in the branch)
+	* otherwise it falls back to just displaying RootBranchName. All of our internal lookups for branches are done based on the path we followed 
+	* out from the root so that we can handle overriding a render layer display name via regular node overriding.
+	* 
+	* Could have a value like "Globals" or a user-provided one "character", "background", etc.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
-	FString RenderLayerName;
+	FName RootBranchName;
 
 	/** Which renderer was used to produce this image ("panoramic" "deferred" "path tracer", etc.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")

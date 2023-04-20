@@ -17,7 +17,7 @@ struct FMovieGraphTimeStepData;
 * number of instances (decoupled from the number of times the node is used in the graph).
 */
 UCLASS(Abstract)
-class UMovieGraphRenderPassNode : public UMovieGraphNode
+class UMovieGraphRenderPassNode : public UMovieGraphSettingNode
 {
 	GENERATED_BODY()
 public:
@@ -42,20 +42,6 @@ public:
 	*/
 	void GatherOutputPasses(TArray<FMovieGraphRenderDataIdentifier>& OutExpectedPasses) const { GatherOutputPassesImpl(OutExpectedPasses); }
 	// ~UMovieGraphRenderPassNode Interface
-
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override
-	{
-		TArray<FMovieGraphPinProperties> Properties;
-		Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-		return Properties;
-	}
-
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override
-	{
-		TArray<FMovieGraphPinProperties> Properties;
-		Properties.Add(FMovieGraphPinProperties::MakeBranchProperties());
-		return Properties;
-	}
 
 #if WITH_EDITOR
 	virtual FText GetMenuCategory() const override

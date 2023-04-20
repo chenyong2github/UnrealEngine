@@ -4,6 +4,7 @@
 #include "Graph/MovieGraphTraversalContext.h"
 #include "Graph/MovieGraphRenderDataIdentifier.h"
 #include "UObject/Object.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Templates/SubclassOf.h"
 #include "ImagePixelData.h"
 #include "Containers/Queue.h"
@@ -12,6 +13,7 @@
 
 // Forward Declares
 class UMovieGraphPipeline;
+class UMovieGraphEvaluatedConfig;
 class UMovieGraphTimeStepBase;
 class UMovieGraphRendererBase;
 class UMovieGraphTimeRangeBuilderBase;
@@ -162,7 +164,7 @@ public:
 // ToDo: Both of these can probably go into the Default Renderer implementation.
 struct FMovieGraphRenderPassLayerData
 {
-	FString LayerName;
+	FName BranchName;
 	FGuid CameraIdentifier;
 };
 // ToDo: Both of these can probably go into the Default Renderer implementation.
@@ -251,6 +253,11 @@ namespace UE::MovieGraph
 	{
 		FMovieGraphOutputMergerFrame() = default;
 		
+		/**
+		* The configuraton file that was being used by this frame during submission. We store it here so that it doesn't have to go through the pipeline
+		* (which is difficult becuase it's a Garbage Collected object), and the Output Merger is the "join" step before we go back onto the Game Thread.
+		*/
+		TStrongObjectPtr<UMovieGraphEvaluatedConfig> EvaluatedConfig;
 
 		/** 
 		* Traversal context for the Movie Pipeline that isn't layer specific. Each image layer will have

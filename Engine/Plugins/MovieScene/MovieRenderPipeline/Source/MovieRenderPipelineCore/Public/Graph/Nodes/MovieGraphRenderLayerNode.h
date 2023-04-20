@@ -6,7 +6,7 @@
 #include "MovieGraphRenderLayerNode.generated.h"
 
 UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphRenderLayerNode : public UMovieGraphNode
+class MOVIERENDERPIPELINECORE_API UMovieGraphRenderLayerNode : public UMovieGraphSettingNode
 {
 	GENERATED_BODY()
 public:
@@ -14,8 +14,6 @@ public:
 
 	FString GetRenderLayerName() const { return LayerName; }
 
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 	virtual TArray<FPropertyBagPropertyDesc> GetDynamicPropertyDescriptions() const override;
 
 #if WITH_EDITOR
@@ -29,6 +27,10 @@ public:
 	//~ End UObject interface
 #endif
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (InlineEditConditionToggle))
+	uint8 bOverride_LayerName : 1;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (EditCondition = "bOverride_LayerName"))
 	FString LayerName;
 };

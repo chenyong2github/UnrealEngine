@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/Nodes/MovieGraphDeferredRenderPassNode.h"
+#include "Graph/Nodes/MovieGraphOutputSettingNode.h"
 #include "Graph/MovieGraphDataTypes.h"
 #include "Graph/MovieGraphDefaultRenderer.h"
 #include "Graph/MovieGraphPipeline.h"
@@ -81,7 +82,7 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Setup(TWe
 	Renderer = InRenderer;
 	RenderPassNode = InRenderPassNode;
 
-	RenderDataIdentifier.RenderLayerName = LayerData.LayerName;
+	RenderDataIdentifier.RootBranchName = LayerData.BranchName;
 	RenderDataIdentifier.RendererName = RenderPassNode->GetRendererName();
 	RenderDataIdentifier.SubResourceName = TEXT("beauty");
 	
@@ -130,9 +131,16 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::AddRefere
 
 void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render(const FMovieGraphTraversalContext& InFrameTraversalContext, const FMovieGraphTimeStepData& InTimeData)
 {
+	const bool bIncludeCDOs = true;
+	UMovieGraphOutputSettingNode* OutputSetting = InTimeData.EvaluatedConfig->GetSettingForBranch<UMovieGraphOutputSettingNode>(LayerData.BranchName, bIncludeCDOs);
+	if (!ensure(OutputSetting))
+	{
+		return;
+	}
+
 	// This is the size we actually render at.
 	UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams RenderTargetInitParams;
-	RenderTargetInitParams.Size = FIntPoint(1920, 1080);
+	RenderTargetInitParams.Size = OutputSetting->OutputResolution;
 	
 	// OCIO: Since this is a manually created Render target we don't need Gamma to be applied.
 	// We use this render target to render to via a display extension that utilizes Display Gamma
@@ -232,23 +240,34 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::PostRende
 
 	auto OnSurfaceReadbackFinished = [this, InSampleState, AccumulationArgs, AccumulatorInstance](TUniquePtr<FImagePixelData>&& InPixelData)
 	{
-			UE::Tasks::TTask<void> Task = UE::Tasks::Launch(UE_SOURCE_LOCATION, [PixelData = MoveTemp(InPixelData), InSampleState, AccumulationArgs, AccumulatorInstance]() mutable
-			{
-				// Enqueue a encode for this frame onto our worker thread.
-				UE::MovieGraph::AccumulateSample_TaskThread(MoveTemp(PixelData), InSampleState, AccumulationArgs);
+		UE::Tasks::TTask<void> Task = UE::Tasks::Launch(UE_SOURCE_LOCATION, [PixelData = MoveTemp(InPixelData), InSampleState, AccumulationArgs, AccumulatorInstance]() mutable
+		{
+			// Enqueue a encode for this frame onto our worker thread.
+			UE::MovieGraph::AccumulateSample_TaskThread(MoveTemp(PixelData), InSampleState, AccumulationArgs);
 
-				// We have to defer clearing the accumulator until after sample accumulation has finished
-				if (AccumulationArgs.bIsLastSample)
-				{
-					// Final sample has now been executed, free the accumulator for reuse.
-					AccumulatorInstance->bIsActive = false;
-				}
-			}, AccumulatorInstance->TaskPrereq);
+			// We have to defer clearing the accumulator until after sample accumulation has finished
+			if (AccumulationArgs.bIsLastSample)
+			{
+				// Final sample has now been executed, free the accumulator for reuse.
+				AccumulatorInstance->bIsActive = false;
+			}
+		}, AccumulatorInstance->TaskPrereq);
 
 		// Make the next accumulation task that uses this accumulator use the task we just created as a pre-req.
 		AccumulatorInstance->TaskPrereq = Task;
 
-		this->Renderer->AddOutstandingRenderTask_AnyThread(Task);
+		// Because we're run on a separate thread, we need to check validity differently. The standard
+		// TWeakObjectPtr will report non-valid during GC (even if the object it's pointing to isn't being
+		// GC'd).
+		const bool bEvenIfPendingKill = false;
+		const bool bThreadsafeTest = true;
+		const bool bValid = this->Renderer.IsValid(bEvenIfPendingKill, bThreadsafeTest);
+		if (ensureMsgf(bValid, TEXT("Renderer was garbage collected while outstanding tasks existed, outstanding tasks were not flushed properly during shutdown!")))
+		{
+			// The regular Get() will fail during GC so we use the above check to see if it's valid
+			// before ignoring it and directly getting the object.
+			this->Renderer.GetEvenIfUnreachable()->AddOutstandingRenderTask_AnyThread(Task);
+		}
 	};
 
 	FRenderTarget* RenderTarget = InCanvas.GetRenderTarget();

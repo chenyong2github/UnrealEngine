@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "MovieGraphTimeStepData.generated.h"
 
+class UMovieGraphEvaluatedConfig;
+
 /** 
 * This data structure needs to be filled out each frame by the UMovieGraphTimeStepBase,
 * which will eventually be passed to the renderer. It controls per-sample behavior such
@@ -63,4 +65,14 @@ public:
 	*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")
 	bool bRequiresAccumulator;
+
+	/**
+	* The evaluated config holds the configuration used for this given frame. This pointer
+	* can potentially change each frame (if the graph for that frame is different) but
+	* users can rely on the EvaluatedConfig being correct for a given frame, thus all
+	* resolves (such as filenames) should use the config for that frame, not the latest
+	* one available.
+	*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")
+	TObjectPtr<UMovieGraphEvaluatedConfig> EvaluatedConfig;
 };

@@ -2,6 +2,8 @@
 
 #include "Graph/MovieGraphLinearTimeStep.h"
 #include "Graph/MovieGraphPipeline.h"
+#include "Graph/MovieGraphBlueprintLibrary.h"
+#include "Graph/Nodes/MovieGraphOutputSettingNode.h"
 #include "MoviePipelineQueue.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "LevelSequence.h"
@@ -66,17 +68,30 @@ void UMovieGraphLinearTimeStep::TickProducingFrames()
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MovieGraph Initializing Camera Cut [%d/%d] in [%s] %s."),
 			CurrentShotIndex + 1, ActiveShotList.Num(), *CurrentCameraCut->OuterName, *CurrentCameraCut->InnerName);
 
+		// Evaluate the graph so we can fetch values for this shot.
+		UMovieGraphConfig* Config = GetOwningGraph()->GetRootGraphForShot(CurrentCameraCut);
+		FMovieGraphTraversalContext Context = GetOwningGraph()->GetCurrentTraversalContext();
+		CurrentFrameData.EvaluatedConfig = TStrongObjectPtr<UMovieGraphEvaluatedConfig>(Config->CreateFlattenedGraph(Context));
+		CurrentFrameData.TemporalSampleIndex = 0;
+
+		// Ensure we've set it in the CurrentTimeStepData so things can fetch from it below.
+		CurrentTimeStepData.EvaluatedConfig = TObjectPtr<UMovieGraphEvaluatedConfig>(CurrentFrameData.EvaluatedConfig.Get());
+
+
 		// Sets up the render state, etc.
 		GetOwningGraph()->SetupShot(CurrentCameraCut);
 
 		// Seeks the external data source to match
 		GetOwningGraph()->GetDataSourceInstance()->InitializeShot(CurrentCameraCut);
 
-		CurrentFrameData.TemporalSampleIndex = 0;
+		const bool bIncludeCDO = false;
+		UMovieGraphOutputSettingNode* OutputNode = CurrentFrameData.EvaluatedConfig->GetSettingForBranch<UMovieGraphOutputSettingNode>(UMovieGraphNode::GlobalsPinName, bIncludeCDO);
 
-		FFrameRate TickResolution = GetOwningGraph()->GetDataSourceInstance()->GetTickResolution();
-		FFrameRate FrameRate = GetOwningGraph()->GetDataSourceInstance()->GetDisplayRate(); // ToDo, needs to come from config (config can override)
-		FFrameTime FrameTimePerOutputFrame = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), FrameRate, TickResolution);
+		const FFrameRate TickResolution = GetOwningGraph()->GetDataSourceInstance()->GetTickResolution();
+		const FFrameRate SourceFrameRate = GetOwningGraph()->GetDataSourceInstance()->GetDisplayRate(); // ToDo, needs to come from config (config can override)
+		const FFrameRate FinalFrameRate = UMovieGraphBlueprintLibrary::GetEffectiveFrameRate(OutputNode, SourceFrameRate);
+
+		FFrameTime FrameTimePerOutputFrame = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), FinalFrameRate, TickResolution);
 
 		// Dummy range so that the first rendering frame knows to start at the right time.
 		FFrameTime UpperBound = CurrentCameraCut->ShotInfo.CurrentTimeInRoot;
@@ -97,6 +112,10 @@ void UMovieGraphLinearTimeStep::TickProducingFrames()
 	{
 		if (IsFirstTemporalSample())
 		{
+			FMovieGraphTraversalContext Context = GetOwningGraph()->GetCurrentTraversalContext();
+			UMovieGraphConfig* Config = GetOwningGraph()->GetRootGraphForShot(CurrentCameraCut);
+			CurrentFrameData.EvaluatedConfig = TStrongObjectPtr<UMovieGraphEvaluatedConfig>(Config->CreateFlattenedGraph(Context));
+
 			// The temporal sample count can change every frame due to graph evaluations, so when we're on our first temporal
 			// sub-sample of the new frame, we need to re-fetch the value.
 			UpdateTemporalSampleCount();
@@ -211,6 +230,8 @@ void UMovieGraphLinearTimeStep::TickProducingFrames()
 		CurrentTimeStepData.bIsLastTemporalSampleForFrame = IsLastTemporalSample();
 		CurrentTimeStepData.bRequiresAccumulator = CurrentFrameData.TemporalSampleCount > 1;
 		CurrentTimeStepData.OutputFrameNumber = CurrentFrameData.OutputFrameNumber;
+		
+		CurrentTimeStepData.EvaluatedConfig = TObjectPtr<UMovieGraphEvaluatedConfig>(CurrentFrameData.EvaluatedConfig.Get());
 
 		UE_LOG(LogTemp, Warning, TEXT("F# %d bFirst: %d bLast: %d bReqAc: %d"),
 			CurrentTimeStepData.OutputFrameNumber, CurrentTimeStepData.bIsFirstTemporalSampleForFrame,
@@ -262,7 +283,6 @@ void UMovieGraphLinearTimeStep::TickProducingFrames()
 	}
 
 }
-
 
 bool UMovieGraphLinearTimeStep::IsFirstTemporalSample() const
 {

@@ -2,9 +2,11 @@
 #pragma once
 
 #include "Graph/MovieGraphDataTypes.h"
+#include "Graph/MovieGraphConfig.h"
 #include "Misc/FrameRate.h"
 #include "Misc/FrameTime.h"
 #include "Engine/EngineCustomTimeStep.h"
+#include "UObject/StrongObjectPtr.h"
 #include "MovieGraphLinearTimeStep.generated.h"
 
 // Forward Declares
@@ -43,6 +45,7 @@ protected:
 
 protected:
 	/** This is the output data needed by the rest of MRQ to produce a frame. */
+	UPROPERTY(Transient)
 	FMovieGraphTimeStepData CurrentTimeStepData;
 
 	struct FOutputFrameMetrics
@@ -121,6 +124,9 @@ protected:
 
 		/** A pre-calculated (when the output frame starts) range of time, breaking RangeShutterOpen into smaller chunks, one per temporal sub-sample. */
 		TArray<TRange<FFrameTime>> TemporalRanges;
+
+		/** Updated at the start of each Temporal Sample. */
+		TStrongObjectPtr<UMovieGraphEvaluatedConfig> EvaluatedConfig;
 	};
 
 	/**

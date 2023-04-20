@@ -19,36 +19,40 @@ void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExe
 	struct FMovieGraphPass
 	{
 		TSubclassOf<UMovieGraphRenderPassNode> ClassType;
-		TArray<FString> LayerNames;
+		TArray<FName> LayerBranchNames;
 	};
 
 	TArray<FMovieGraphPass> OutputPasses;
 
 	// Start by getting our root set of branches we should follow
-	TArray<FMovieGraphBranch> GraphBranches = RootGraph->GetOutputBranches();
-	for (const FMovieGraphBranch& Branch : GraphBranches)
-	{
-		// We follow each branch looking for Render Layer nodes to figure out what render layer this should be.
-		FMovieGraphTraversalContext TraversalContext = GetOwningGraph()->GetCurrentTraversalContext();
-		TraversalContext.RootBranch = Branch;
+	const FMovieGraphTimeStepData& TimeStepData = GetOwningGraph()->GetTimeStepInstance()->GetCalculatedTimeData();
+	UMovieGraphEvaluatedConfig* EvaluatedConfig = TimeStepData.EvaluatedConfig;
+	TArray<FName> GraphBranches = EvaluatedConfig->GetBranchNames();
 
-		FString RenderLayerName = TEXT("Unnamed_Layer");
-		UMovieGraphRenderLayerNode* FirstRenderLayerNode = RootGraph->IterateGraphForClass<UMovieGraphRenderLayerNode>(TraversalContext);
-		if (FirstRenderLayerNode)
+	for (const FName& Branch : GraphBranches)
+	{
+		// We follow each branch looking for Render Layer nodes to figure out what render layer this should be. We assume a render layer is named
+		// after the branch it is on, unless they specifically add a UMovieGraphRenderLayerNode to rename it.
+		FString RenderLayerName = Branch.ToString();
+		const bool bIncludeCDOs = false;
+		UMovieGraphRenderLayerNode* RenderLayerNode = EvaluatedConfig->GetSettingForBranch<UMovieGraphRenderLayerNode>(Branch, bIncludeCDOs);
+			
+		// A RenderLayerNode is required for now to indicate you wish to actually render something.
+		if (!RenderLayerNode)
 		{
-			RenderLayerName = FirstRenderLayerNode->GetRenderLayerName();;
+			continue;
 		}
 
 		// Now we need to figure out which renderers are on this branch.
-		TArray<UMovieGraphRenderPassNode*> Renderers = RootGraph->IterateGraphForClassAll<UMovieGraphRenderPassNode>(TraversalContext);
-		if (FirstRenderLayerNode && Renderers.Num() == 0)
+		const bool bExactMatch = false;
+		TArray<UMovieGraphRenderPassNode*> Renderers = EvaluatedConfig->GetSettingsForBranch<UMovieGraphRenderPassNode>(Branch, bIncludeCDOs, bExactMatch);
+		if (RenderLayerNode && Renderers.Num() == 0)
 		{
 			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Found RenderLayer: \"%s\" but no Renderers defined."), *RenderLayerName);
 		}
 
 		for (UMovieGraphRenderPassNode* RenderPassNode : Renderers)
 		{
-			FString RendererName = RenderPassNode->GetRendererName();
 
 			FMovieGraphPass* ExistingPass = OutputPasses.FindByPredicate([RenderPassNode](const FMovieGraphPass& Pass)
 				{ return Pass.ClassType == RenderPassNode->GetClass(); });
@@ -58,7 +62,7 @@ void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExe
 				ExistingPass = &OutputPasses.AddDefaulted_GetRef();
 				ExistingPass->ClassType = RenderPassNode->GetClass();
 			}
-			ExistingPass->LayerNames.AddUnique(RenderLayerName);
+			ExistingPass->LayerBranchNames.AddUnique(Branch);
 		}
 	}
 
@@ -68,17 +72,17 @@ void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExe
 	{
 		// ToDo: This should probably come from the Renderers themselves, as they can internally produce multiple
 		// renders (such as ObjectID passes).
-		TotalLayerCount += Pass.LayerNames.Num();
+		TotalLayerCount += Pass.LayerBranchNames.Num();
 		
 		FMovieGraphRenderPassSetupData SetupData;
 		SetupData.Renderer = this;
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("\tRenderer Class: %s"), *Pass.ClassType->GetName());
-		for (const FString& LayerName : Pass.LayerNames)
+		for (const FName& LayerBranchName : Pass.LayerBranchNames)
 		{
 			FMovieGraphRenderPassLayerData& LayerData = SetupData.Layers.AddDefaulted_GetRef();
-			LayerData.LayerName = LayerName;
+			LayerData.BranchName = LayerBranchName;
 
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("\t\tLayer Name: %s"), *LayerName);
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("\t\tBranch Name: %s"), *LayerBranchName.ToString());
 		}
 
 		UMovieGraphRenderPassNode* RenderPassCDO = Pass.ClassType->GetDefaultObject<UMovieGraphRenderPassNode>();
@@ -188,6 +192,7 @@ void UMovieGraphDefaultRenderer::Render(const FMovieGraphTimeStepData& InTimeSte
 		// Get the Traversal Context (not specific to any render pass) at the first sample. This is so
 		// we can easily fetch things that are shared between all render layers later.
 		NewOutputFrame.TraversalContext = GetOwningGraph()->GetCurrentTraversalContext();
+		NewOutputFrame.EvaluatedConfig = TStrongObjectPtr<UMovieGraphEvaluatedConfig>(InTimeStepData.EvaluatedConfig);
 
 		for (const TObjectPtr<UMovieGraphRenderPassNode>& RenderPass : RenderPassesInUse)
 		{

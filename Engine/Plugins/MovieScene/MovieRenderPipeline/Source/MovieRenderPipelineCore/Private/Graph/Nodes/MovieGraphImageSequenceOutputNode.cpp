@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/Nodes/MovieGraphImageSequenceOutputNode.h"
+#include "Graph/Nodes/MovieGraphOutputSettingNode.h"
+#include "Graph/Nodes/MovieGraphRenderLayerNode.h"
 #include "Graph/MovieGraphDataTypes.h"
 #include "Graph/MovieGraphPipeline.h"
+#include "Graph/MovieGraphConfig.h"
 #include "Modules/ModuleManager.h"
 #include "ImageWriteQueue.h"
 #include "Misc/Paths.h"
@@ -24,9 +27,10 @@ bool UMovieGraphImageSequenceOutputNode::IsFinishedWritingToDiskImpl() const
 	return Super::IsFinishedWritingToDiskImpl() && (!FinalizeFence.IsValid() || FinalizeFence.WaitFor(0));
 }
 
-void UMovieGraphImageSequenceOutputNode::OnReceiveImageDataImpl(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData)
+void UMovieGraphImageSequenceOutputNode::OnReceiveImageDataImpl(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData, const TSet<FMovieGraphRenderDataIdentifier>& InMask)
 {
 	check(InRawFrameData);
+
 	// ToDo:
 	// The ImageWriteQueue is set up in a fire-and-forget manner. This means that the data needs to be placed in the WriteQueue
 	// as a TUniquePtr (so it can free the data when its done). Unfortunately we can have multiple output formats at once,
@@ -42,11 +46,55 @@ void UMovieGraphImageSequenceOutputNode::OnReceiveImageDataImpl(UMovieGraphPipel
 	// The base ImageSequenceOutputNode doesn't support any multilayer formats, so we write out each render pass separately.
 	for (TPair<FMovieGraphRenderDataIdentifier, TUniquePtr<FImagePixelData>>& RenderData : InRawFrameData->ImageOutputData)
 	{
+		// A layer within this output data may have chosen to not be written to disk by this CDO node
+		if (!InMask.Contains(RenderData.Key))
+		{
+			continue;
+		}
+
 		UE::MovieGraph::FMovieGraphSampleState* Payload = RenderData.Value->GetPayload<UE::MovieGraph::FMovieGraphSampleState>();
 
-		// ToDo: Real file paths.
+		const bool bIncludeCDOs = true;
+		UMovieGraphOutputSettingNode* OutputSettingNode = InRawFrameData->EvaluatedConfig->GetSettingForBranch<UMovieGraphOutputSettingNode>(RenderData.Key.RootBranchName, bIncludeCDOs);
+		if (!ensure(OutputSettingNode))
+		{
+			continue;
+		}
+
+		FString RenderLayerName = RenderData.Key.RootBranchName.ToString();
+		UMovieGraphRenderLayerNode* RenderLayerNode = InRawFrameData->EvaluatedConfig->GetSettingForBranch<UMovieGraphRenderLayerNode>(RenderData.Key.RootBranchName, bIncludeCDOs);
+		if (RenderLayerNode)
+		{
+			RenderLayerName = RenderLayerNode->GetRenderLayerName();
+		}
+		// ToDo: Certain images may require transparency, at which point
+		// we write out a .png instead of a .jpeg.
+		EImageFormat PreferredOutputFormat = OutputFormat;
+
+		const TCHAR* Extension = TEXT("");
+		switch (PreferredOutputFormat)
+		{
+		case EImageFormat::PNG: Extension = TEXT("png"); break;
+		case EImageFormat::JPEG: Extension = TEXT("jpeg"); break;
+		case EImageFormat::BMP: Extension = TEXT("bmp"); break;
+		case EImageFormat::EXR: Extension = TEXT("exr"); break;
+		}
+
+		// Generate one string that puts the directory combined with the filename format.
+		FString FileNameFormatString = OutputSettingNode->OutputDirectory.Path / OutputSettingNode->FileNameFormat;
+
+		// ToDo: Validate the string, ie: ensure it has {render_pass} in there somewhere there are multiple render passes
+		// in the output data, include {camera_name} if there are multiple cameras for that render pass, etc.
+		FileNameFormatString += TEXT(".{ext}");
+
+		// Map the .ext to be specific to our output data.
+		TMap<FString, FString> AdditionalFormatArgs;
+		AdditionalFormatArgs.Add(TEXT("ext"), Extension);
+
+
+
 		const FString ResolvedProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-		FString FileName = FString::Printf(TEXT("%s/Saved/MovieRenders/%d.jpg"), *ResolvedProjectDir, Payload->TraversalContext.Time.OutputFrameNumber);
+		FString FileName = FString::Printf(TEXT("%s/Saved/MovieRenders/%s_%d.jpg"), *ResolvedProjectDir, *RenderLayerName, Payload->TraversalContext.Time.OutputFrameNumber);
 
 		TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
 		TileImageTask->Format = OutputFormat;
