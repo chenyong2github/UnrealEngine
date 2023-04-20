@@ -305,15 +305,15 @@ TArray<FContentBrowserItemPath> UContentBrowserAliasDataSource::GetAliasesForPat
 	return OutAliases;
 }
 
-void UContentBrowserAliasDataSource::AddAliases(const FAssetData& Asset, const TArray<FName>& Aliases, bool bInIsFromMetaData)
+void UContentBrowserAliasDataSource::AddAliases(const FAssetData& Asset, const TArray<FName>& Aliases, const bool bInIsFromMetaData, const bool bSkipPrimaryAssetValidation)
 {
 	for (const FName Alias : Aliases)
 	{
-		AddAlias(Asset, Alias, bInIsFromMetaData);
+		AddAlias(Asset, Alias, bInIsFromMetaData, bSkipPrimaryAssetValidation);
 	}
 }
 
-void UContentBrowserAliasDataSource::AddAlias(const FAssetData& Asset, const FName Alias, bool bInIsFromMetaData)
+void UContentBrowserAliasDataSource::AddAlias(const FAssetData& Asset, const FName Alias, const bool bInIsFromMetaData, const bool bSkipPrimaryAssetValidation)
 {
 	auto LogErrorMessage = [&Alias, &Asset](const TCHAR* Reason)
 	{
@@ -327,7 +327,7 @@ void UContentBrowserAliasDataSource::AddAlias(const FAssetData& Asset, const FNa
 		return;
 	}
 
-	if (!ContentBrowserAssetData::IsPrimaryAsset(Asset))
+	if (!bSkipPrimaryAssetValidation && !ContentBrowserAssetData::IsPrimaryAsset(Asset))
 	{
 		LogErrorMessage(TEXT("It is not a primary asset"));
 		return;
