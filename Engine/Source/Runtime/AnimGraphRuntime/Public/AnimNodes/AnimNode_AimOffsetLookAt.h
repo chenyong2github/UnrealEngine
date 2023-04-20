@@ -28,7 +28,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AimOffsetLookAt : public FAnimNode_BlendSp
 
 	/*
 	* Max LOD that this node is allowed to run
-	* For example if you have LODThreadhold to be 2, it will run until LOD 2 (based on 0 index)
+	* For example if you have LODThreshold to be 2, it will run until LOD 2 (based on 0 index)
 	* when the component LOD becomes 3, it will stop update/evaluate
 	* currently transition would be issue and that has to be re-visited
 	*/
