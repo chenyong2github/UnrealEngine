@@ -46,7 +46,7 @@ class TThreadSingleton : public FTlsAutoCleanup
 	 */
 	CORE_API static uint32& GetTlsSlot()
 	{
-		static uint32 TlsSlot = 0xFFFFFFFF;
+		static uint32 TlsSlot = FPlatformTLS::InvalidTlsSlot;
 		return TlsSlot;
 	}
 #else
@@ -58,7 +58,7 @@ class TThreadSingleton : public FTlsAutoCleanup
 #endif
 	static uint32& GetTlsSlot()
 	{
-		static uint32 TlsSlot = 0xFFFFFFFF;
+		static uint32 TlsSlot = FPlatformTLS::InvalidTlsSlot;
 		return TlsSlot;
 	}
 #endif
@@ -73,7 +73,7 @@ protected:
 	virtual ~TThreadSingleton()
 	{
 		// Clean the dangling pointer from the TLS.
-		check(GetTlsSlot() != 0xFFFFFFFF);
+		check(GetTlsSlot() != FPlatformTLS::InvalidTlsSlot);
 		if(((FTlsAutoCleanup*)FPlatformTLS::GetTlsValue(GetTlsSlot())) == static_cast<FTlsAutoCleanup*>(this))
 		{
 			FPlatformTLS::SetTlsValue(GetTlsSlot(), nullptr);

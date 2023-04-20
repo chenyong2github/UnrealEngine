@@ -13,7 +13,7 @@ LLM_DEFINE_TAG( Usd );
 class UNREALUSDWRAPPER_API FTlsSlot final
 {
 public:
-	static constexpr uint32 InvalidTlsSlotIndex = 0xFFFFFFFF;
+	static constexpr uint32 InvalidTlsSlotIndex = FPlatformTLS::InvalidTlsSlot;
 
 	FTlsSlot();
 	~FTlsSlot();

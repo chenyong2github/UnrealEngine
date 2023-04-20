@@ -1345,12 +1345,12 @@ FTlsAutoCleanup* FThreadSingletonInitializer::Get( TFunctionRef<FTlsAutoCleanup*
 	UE_AUTORTFM_OPEN(
 	{
 		TlsSlot = (uint32)FPlatformAtomics::AtomicRead_Relaxed((int32*)&InOutTlsSlot);
-		if (TlsSlot == 0xFFFFFFFF)
+		if (TlsSlot == FPlatformTLS::InvalidTlsSlot)
 		{
 			const uint32 ThisTlsSlot = FPlatformTLS::AllocTlsSlot();
 			check(FPlatformTLS::IsValidTlsSlot(ThisTlsSlot));
-			const uint32 PrevTlsSlot = FPlatformAtomics::InterlockedCompareExchange( (int32*)&InOutTlsSlot, (int32)ThisTlsSlot, 0xFFFFFFFF );
-			if (PrevTlsSlot != 0xFFFFFFFF)
+			const uint32 PrevTlsSlot = FPlatformAtomics::InterlockedCompareExchange( (int32*)&InOutTlsSlot, (int32)ThisTlsSlot, FPlatformTLS::InvalidTlsSlot );
+			if (PrevTlsSlot != FPlatformTLS::InvalidTlsSlot)
 			{
 				FPlatformTLS::FreeTlsSlot( ThisTlsSlot );
 				TlsSlot = PrevTlsSlot;
@@ -1374,7 +1374,7 @@ FTlsAutoCleanup* FThreadSingletonInitializer::Get( TFunctionRef<FTlsAutoCleanup*
 
 FTlsAutoCleanup* FThreadSingletonInitializer::TryGet(uint32& TlsSlot)
 {
-	if (TlsSlot == 0xFFFFFFFF)
+	if (TlsSlot == FPlatformTLS::InvalidTlsSlot)
 	{
 		return nullptr;
 	}
@@ -1385,12 +1385,12 @@ FTlsAutoCleanup* FThreadSingletonInitializer::TryGet(uint32& TlsSlot)
 
 FTlsAutoCleanup* FThreadSingletonInitializer::Inject(FTlsAutoCleanup* Instance, uint32& TlsSlot)
 {
-	if (TlsSlot == 0xFFFFFFFF)
+	if (TlsSlot == FPlatformTLS::InvalidTlsSlot)
 	{
 		const uint32 ThisTlsSlot = FPlatformTLS::AllocTlsSlot();
 		check(FPlatformTLS::IsValidTlsSlot(ThisTlsSlot));
-		const uint32 PrevTlsSlot = FPlatformAtomics::InterlockedCompareExchange( (int32*)&TlsSlot, (int32)ThisTlsSlot, 0xFFFFFFFF );
-		if (PrevTlsSlot != 0xFFFFFFFF)
+		const uint32 PrevTlsSlot = FPlatformAtomics::InterlockedCompareExchange( (int32*)&TlsSlot, (int32)ThisTlsSlot, FPlatformTLS::InvalidTlsSlot);
+		if (PrevTlsSlot != FPlatformTLS::InvalidTlsSlot)
 		{
 			FPlatformTLS::FreeTlsSlot( ThisTlsSlot );
 		}
