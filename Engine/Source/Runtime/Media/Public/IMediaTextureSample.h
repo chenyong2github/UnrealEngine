@@ -378,10 +378,20 @@ public:
 	virtual FMatrix44f GetSampleToRGBMatrix() const
 	{
 		FMatrix Pre = FMatrix::Identity;
-		Pre.M[0][3] = -MediaShaders::YUVOffset8bits.X;
-		Pre.M[1][3] = -MediaShaders::YUVOffset8bits.Y;
-		Pre.M[2][3] = -MediaShaders::YUVOffset8bits.Z;
-		return FMatrix44f(MediaShaders::YuvToRgbRec709Scaled * Pre);
+		FVector Off;
+		switch (GetFormat())
+		{
+			case EMediaTextureSampleFormat::R4FL:		Off = MediaShaders::YUVOffsetFloat; break;
+			case EMediaTextureSampleFormat::Y416:
+			case EMediaTextureSampleFormat::P010:
+			case EMediaTextureSampleFormat::YUVv216:	Off = MediaShaders::YUVOffset16bits; break;
+			case EMediaTextureSampleFormat::YUVv210:	Off = MediaShaders::YUVOffset10bits; break;
+			default:									Off = MediaShaders::YUVOffset8bits; break;
+		}
+		Pre.M[0][3] = -Off.X;
+		Pre.M[1][3] = -Off.Y;
+		Pre.M[2][3] = -Off.Z;
+		return FMatrix44f(MediaShaders::YuvToRgbRec709Scaled * Pre);	// assumes sRGB & video range
 	}
 
 	/**

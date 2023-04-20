@@ -53,6 +53,39 @@ void BMPConvertPS(
 }
 
 
+float3 ApplyColorProcessingRGB(float3 Color, float4x4 CSMtx, uint EOTF)
+{
+	// Go linear
+	if (EOTF != 0)
+	{
+		Color = (EOTF == 1) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
+	}
+
+	// Adjust colorspace
+	float4 Col4 = float4(Color, 1);
+	Color.x = dot(CSMtx[0], Col4);
+	Color.y = dot(CSMtx[1], Col4);
+	Color.z = dot(CSMtx[2], Col4);
+
+	return Color;
+}
+
+
+float3 ApplyColorProcessing(float3 YUV, float4x4 YUVMtx, float4x4 CSMtx, uint EOTF)
+{
+	float3 Color;
+	float4 YUV4 = float4(YUV, 1);
+	Color.x = dot(YUVMtx[0], YUV4);
+	Color.y = dot(YUVMtx[1], YUV4);
+	Color.z = dot(YUVMtx[2], YUV4);
+
+	// Make sure we safely stay above zero
+	Color = max(Color, 0.0f);
+
+	return ApplyColorProcessingRGB(Color, CSMtx, EOTF);
+}
+
+
 // shader to convert a NV12 texture to RGBA (real NV12 texture - DX11)
 void NV12ConvertPS(
 	float4 InPosition : SV_POSITION,
@@ -64,9 +97,10 @@ void NV12ConvertPS(
 	float3 YUV;
 	YUV.x = NV12ConvertUB.SRV_Y.Sample(NV12ConvertUB.SamplerB, ScaledUV).x;
 	YUV.yz = NV12ConvertUB.SRV_UV.Sample(NV12ConvertUB.SamplerP, ScaledUV).xy;
+	YUV.yz = NV12ConvertUB.SwapChroma != 0u ? YUV.zy : YUV.yz;
 
-	OutColor.xyz = YuvToRgb(YUV, NV12ConvertUB.ColorTransform, NV12ConvertUB.SrgbToLinear);
-	OutColor.w = 1.0f;
+	// Output with solid alpha
+	OutColor = float4(ApplyColorProcessing(YUV, NV12ConvertUB.ColorTransform, NV12ConvertUB.CSTransform, (NV12ConvertUB.SrgbToLinear != 0u) ? 1 : 0), 1.0f); 
 }
 
 
@@ -91,9 +125,9 @@ void NV12ConvertAsBytesPS(
 
 	YUV.y = NV12ConvertAsBytesUB.Texture.Sample(NV12ConvertAsBytesUB.SamplerP, float2(UPos, ScaledUV.y)).x;
 	YUV.z = NV12ConvertAsBytesUB.Texture.Sample(NV12ConvertAsBytesUB.SamplerP, float2(VPos, ScaledUV.y)).x;
+	YUV.yz = NV12ConvertAsBytesUB.SwapChroma != 0u ? YUV.zy : YUV.yz;
 
-	OutColor.xyz = YuvToRgb(YUV, NV12ConvertAsBytesUB.ColorTransform, NV12ConvertAsBytesUB.SrgbToLinear);
-	OutColor.w = 1.0f;
+	OutColor = float4(ApplyColorProcessing(YUV, NV12ConvertAsBytesUB.ColorTransform, NV12ConvertAsBytesUB.CSTransform, (NV12ConvertAsBytesUB.SrgbToLinear != 0u) ? 1 : 0), 1.0f); 
 }
 
 
@@ -130,17 +164,9 @@ void RGBConvertPS(
 {
 	float2 ScaledUV = InUV * RGBConvertUB.UVScale;
 	float4 Color = RGBConvertUB.Texture.Sample(RGBConvertUB.Sampler, ScaledUV);
-	// Inverse EOTF
-	if (RGBConvertUB.EOTF != 0)
-	{
-		Color.xyz = (RGBConvertUB.EOTF == 1) ? sRGBToLinear(Color.xyz) : ST2084ToLinear(Color.xyz);
-	}
-	// Adjust colorspace
-	float4 Col4 = float4(Color.xyz, 1);
-	OutColor.x = dot(RGBConvertUB.CSTransform[0], Col4);
-	OutColor.y = dot(RGBConvertUB.CSTransform[1], Col4);
-	OutColor.z = dot(RGBConvertUB.CSTransform[2], Col4);
-	OutColor.a = dot(RGBConvertUB.CSTransform[3], Color);
+
+	OutColor = float4(ApplyColorProcessingRGB(Color.xyz, RGBConvertUB.CSTransform, RGBConvertUB.EOTF),
+					  dot(RGBConvertUB.CSTransform[3], Color));
 }
 
 static const float4 kYCoCgOffsets = float4(-0.50196078431373, -0.50196078431373, 0, 0);
@@ -161,18 +187,9 @@ void YCoCgConvertPS(
 	float Co = CoCgSY.x / Scale;
 	float Cg = CoCgSY.y / Scale;
 	float Y = CoCgSY.w;
-	float4 Col4 = float4(Y + Co - Cg, Y + Cg, Y - Co - Cg, 1.0);
+	float3 Col = float3(Y + Co - Cg, Y + Cg, Y - Co - Cg);
 
-	// Inverse EOTF
-	if (YCoCgConvertUB.EOTF != 0)
-	{
-		Col4.xyz = (YCoCgConvertUB.EOTF == 1) ? sRGBToLinear(Col4.xyz) : ST2084ToLinear(Col4.xyz);
-	}
-	// Adjust colorspace
-	OutColor.x = dot(YCoCgConvertUB.CSTransform[0], Col4);
-	OutColor.y = dot(YCoCgConvertUB.CSTransform[1], Col4);
-	OutColor.z = dot(YCoCgConvertUB.CSTransform[2], Col4);
-	OutColor.w = 1.0;
+	OutColor = float4(ApplyColorProcessingRGB(Col, YCoCgConvertUB.CSTransform, YCoCgConvertUB.EOTF), 1.0f);
 }
 
 // shader to convert a luma (Y) and chroma (CbCr) texture to RGBA
@@ -252,30 +269,7 @@ void YUVv216ConvertPS(
 	CbY0CrY1 = (YUVv216ConvertUB.SwapChroma != 0u) ? CbY0CrY1.zyxw : CbY0CrY1;						// Cb/Cr swap
 	float3 YUV = (uint(InUV.x * YUVv216ConvertUB.OutputDimX) & 1u) ? CbY0CrY1.wxz : CbY0CrY1.yxz;	// Decode to YCbCr for odd/even pixels
 
-	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
-	float3 Color;
-	float4 YUV4 = float4(YUV, 1);
-	Color.x = dot(YUVv216ConvertUB.ColorTransform[0], YUV4);
-	Color.y = dot(YUVv216ConvertUB.ColorTransform[1], YUV4);
-	Color.z = dot(YUVv216ConvertUB.ColorTransform[2], YUV4);
-
-	// Make sure we safely stay above zero
-	Color = max(Color, 0.0f);
-
-	// Go linear
-	if (YUVv216ConvertUB.EOTF != 0u)
-	{
-		Color = (YUVv216ConvertUB.EOTF == 1u) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
-	}
-
-	// Adjust colorspace
-	float4 Col4 = float4(Color, 1);
-	Color.x = dot(YUVv216ConvertUB.CSTransform[0], Col4);
-	Color.y = dot(YUVv216ConvertUB.CSTransform[1], Col4);
-	Color.z = dot(YUVv216ConvertUB.CSTransform[2], Col4);
-
-	// Output with solid alpha
-	OutColor = float4(Color, 1.0f); 
+	OutColor = float4(ApplyColorProcessing(YUV, YUVv216ConvertUB.ColorTransform, YUVv216ConvertUB.CSTransform, YUVv216ConvertUB.EOTF), 1.0f); 
 }
 
 
@@ -324,30 +318,7 @@ void YUVv210ConvertPS(
 		YUV = float3(In3.z, In2.z, In3.y);
 	}
 
-	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
-	float3 Color;
-	float4 YUV4 = float4(YUV, 1);
-	Color.x = dot(YUVv210ConvertUB.ColorTransform[0], YUV4);
-	Color.y = dot(YUVv210ConvertUB.ColorTransform[1], YUV4);
-	Color.z = dot(YUVv210ConvertUB.ColorTransform[2], YUV4);
-
-	// Make sure we safely stay above zero
-	Color = max(Color, 0.0f);
-
-	// Go linear
-	if (YUVv210ConvertUB.EOTF != 0u)
-	{
-		Color = (YUVv210ConvertUB.EOTF == 1u) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
-	}
-
-	// Adjust colorspace
-	float4 Col4 = float4(Color, 1);
-	Color.x = dot(YUVv210ConvertUB.CSTransform[0], Col4);
-	Color.y = dot(YUVv210ConvertUB.CSTransform[1], Col4);
-	Color.z = dot(YUVv210ConvertUB.CSTransform[2], Col4);
-
-	// Output with solid alpha
-	OutColor = float4(Color, 1.0f); 
+	OutColor = float4(ApplyColorProcessing(YUV, YUVv210ConvertUB.ColorTransform, YUVv210ConvertUB.CSTransform, YUVv210ConvertUB.EOTF), 1.0f); 
 }
 
 
@@ -360,32 +331,7 @@ void YUVY416ConvertPS(
 	float4 AVYU = YUVY416ConvertUB.SRV_Y.Sample(YUVY416ConvertUB.BilinearClampedSamplerUV, InUV);
 	AVYU = (YUVY416ConvertUB.bIsARGBFmt != 0u) ? AVYU.zyxw : AVYU;	// PF_ARGB8 vs. PF_ABGR16 ordering
 
-	float3 YUV = AVYU.yzw;
-
-	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
-	float3 Color;
-	float4 YUV4 = float4(YUV, 1);
-	Color.x = dot(YUVY416ConvertUB.ColorTransform[0], YUV4);
-	Color.y = dot(YUVY416ConvertUB.ColorTransform[1], YUV4);
-	Color.z = dot(YUVY416ConvertUB.ColorTransform[2], YUV4);
-
-	// Make sure we safely stay above zero
-	Color = max(Color, 0.0f);
-
-	// Inverse EOTF
-	if (YUVY416ConvertUB.EOTF != 0)
-	{
-		Color = (YUVY416ConvertUB.EOTF == 1) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
-	}
-
-	// Adjust colorspace
-	float4 Col4 = float4(Color, 1);
-	Color.x = dot(YUVY416ConvertUB.CSTransform[0], Col4);
-	Color.y = dot(YUVY416ConvertUB.CSTransform[1], Col4);
-	Color.z = dot(YUVY416ConvertUB.CSTransform[2], Col4);
-
-	// Output with alpha from sample
-	OutColor = float4(Color, AVYU.x); 
+	OutColor = float4(ApplyColorProcessing(AVYU.yzw, YUVY416ConvertUB.ColorTransform, YUVY416ConvertUB.CSTransform, YUVY416ConvertUB.EOTF), AVYU.x); 
 }
 
 
@@ -401,20 +347,7 @@ void ARGB16BigConvertPS(
 
 	float3 Color = In.yzw;
 
-	// Inverse EOTF
-	if (ARGB16BigConvertUB.EOTF != 0)
-	{
-		Color = (ARGB16BigConvertUB.EOTF == 1) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
-	}
-
-	// Adjust colorspace
-	float4 Col4 = float4(Color, 1);
-	Color.x = dot(ARGB16BigConvertUB.CSTransform[0], Col4);
-	Color.y = dot(ARGB16BigConvertUB.CSTransform[1], Col4);
-	Color.z = dot(ARGB16BigConvertUB.CSTransform[2], Col4);
-
-	// Output with alpha from sample
-	OutColor = float4(Color, In.x); 
+	OutColor = float4(ApplyColorProcessingRGB(Color, ARGB16BigConvertUB.CSTransform, ARGB16BigConvertUB.EOTF), In.x);
 }
 
 
@@ -485,27 +418,7 @@ void P010ConvertPS(
 	YUV.x = P010ConvertUB.SRV_Y.Sample(P010ConvertUB.SamplerB, ScaledUV).x;
 	YUV.yz = P010ConvertUB.SRV_UV.Sample(P010ConvertUB.SamplerP, ScaledUV).xy;
 
-	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
-	float3 Color;
-	float4 YUV4 = float4(YUV, 1);
-	Color.x = dot(P010ConvertUB.ColorTransform[0], YUV4);
-	Color.y = dot(P010ConvertUB.ColorTransform[1], YUV4);
-	Color.z = dot(P010ConvertUB.ColorTransform[2], YUV4);
-
-	// Make sure we safely stay above zero
-	Color = max(Color, 0.0f);
-
-	// Go linear
-	Color = P010ConvertUB.IsST2084 ? ST2084ToLinear(Color) : Rec709ToLinear(Color);
-
-	// Adjust colorspace
-	float4 Col4 = float4(Color, 1);
-	Color.x = dot(P010ConvertUB.CSTransform[0], Col4);
-	Color.y = dot(P010ConvertUB.CSTransform[1], Col4);
-	Color.z = dot(P010ConvertUB.CSTransform[2], Col4);
-
-	// Output with solid alpha
-	OutColor = float4(Color, 1.0f); 
+	OutColor = float4(ApplyColorProcessing(YUV, P010ConvertUB.ColorTransform, P010ConvertUB.CSTransform, P010ConvertUB.EOTF), 1.0f); 
 }
 
 // shader to convert a P010 texture to RGBA (P010 data, packed into a G16 texture; manually addressed)
@@ -530,27 +443,7 @@ void P010ConvertAsUINT16sPS(
 	YUV.y = P010ConvertAsUINT16sUB.Texture.Sample(P010ConvertAsUINT16sUB.SamplerP, float2(UPos, ScaledUV.y)).x;
 	YUV.z = P010ConvertAsUINT16sUB.Texture.Sample(P010ConvertAsUINT16sUB.SamplerP, float2(VPos, ScaledUV.y)).x;
 
-	// YUV -> RGB (using a plain 4x3 matrix - not the common 3x3 & offset setup)
-	float3 Color;
-	float4 YUV4 = float4(YUV, 1);
-	Color.x = dot(P010ConvertAsUINT16sUB.ColorTransform[0], YUV4);
-	Color.y = dot(P010ConvertAsUINT16sUB.ColorTransform[1], YUV4);
-	Color.z = dot(P010ConvertAsUINT16sUB.ColorTransform[2], YUV4);
-
-	// Make sure we safely stay above zero
-	Color = max(Color, 0.0f);
-
-	// Go linear
-	Color = P010ConvertAsUINT16sUB.IsST2084 ? ST2084ToLinear(Color) : Rec709ToLinear(Color);
-
-	// Adjust colorspace
-	float4 Col4 = float4(Color, 1);
-	Color.x = dot(P010ConvertAsUINT16sUB.CSTransform[0], Col4);
-	Color.y = dot(P010ConvertAsUINT16sUB.CSTransform[1], Col4);
-	Color.z = dot(P010ConvertAsUINT16sUB.CSTransform[2], Col4);
-
-	// Output with solid alpha
-	OutColor = float4(Color, 1.0f); 
+	OutColor = float4(ApplyColorProcessing(YUV, P010ConvertAsUINT16sUB.ColorTransform, P010ConvertAsUINT16sUB.CSTransform, P010ConvertAsUINT16sUB.EOTF), 1.0f); 
 }
 
 
@@ -578,27 +471,7 @@ void P010_2101010ConvertPS(
 	YUV.y = dot(P010_2101010ConvertUB.SRV_U.Sample(P010_2101010ConvertUB.SamplerP, ScaledUV_UV).xyz, SelUV);
 	YUV.z = dot(P010_2101010ConvertUB.SRV_V.Sample(P010_2101010ConvertUB.SamplerP, ScaledUV_UV).xyz, SelUV);
 
-	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
-	float3 Color;
-	float4 YUV4 = float4(YUV, 1);
-	Color.x = dot(P010_2101010ConvertUB.ColorTransform[0], YUV4);
-	Color.y = dot(P010_2101010ConvertUB.ColorTransform[1], YUV4);
-	Color.z = dot(P010_2101010ConvertUB.ColorTransform[2], YUV4);
-
-	// Make sure we safely stay above zero
-	Color = max(Color, 0.0f);
-
-	// Go linear
-	Color = P010_2101010ConvertUB.IsST2084 ? ST2084ToLinear(Color) : Rec709ToLinear(Color);
-
-	// Adjust colorspace
-	float4 Col4 = float4(Color, 1);
-	Color.x = dot(P010_2101010ConvertUB.CSTransform[0], Col4);
-	Color.y = dot(P010_2101010ConvertUB.CSTransform[1], Col4);
-	Color.z = dot(P010_2101010ConvertUB.CSTransform[2], Col4);
-
-	// Output with solid alpha
-	OutColor = float4(Color, 1.0f); 
+	OutColor = float4(ApplyColorProcessing(YUV, P010_2101010ConvertUB.ColorTransform, P010_2101010ConvertUB.CSTransform, P010_2101010ConvertUB.EOTF), 1.0f); 
 #else
 	OutColor = float4(1,0,1,1);
 #endif // COMPILER_GLSL_ES3_1

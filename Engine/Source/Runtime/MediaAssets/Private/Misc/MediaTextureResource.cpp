@@ -937,6 +937,18 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 }
 
 
+void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample, FMatrix44f& ColorSpaceMtx)
+{
+	const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+	ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+	float NF = Sample->GetHDRNitsNormalizationFactor();
+	if (NF != 1.0f)
+	{
+		ColorSpaceMtx = ColorSpaceMtx.ApplyScale(NF);
+	}
+}
+
+
  void FMediaTextureResource::ConvertTextureToOutput(FRHITexture* InputTexture, const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample)
  {
 	// perform the conversion
@@ -976,124 +988,115 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GMediaVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 
-			FMatrix YUVToRGBMatrix = Sample->GetYUVToRGBMatrix();
-			FVector YUVOffset;
-			YUVOffset = Sample->GetFullRange() ? MediaShaders::YUVOffsetNoScale8bits : MediaShaders::YUVOffset8bits;
-
-			bool bIsSampleOutputSrgb = Sample->IsOutputSrgb();
-
 			// Temporary SRV variables to hold references for the draw
 			FShaderResourceViewRHIRef TempSRV0, TempSRV1;
 
 			// Use the sample format to choose the conversion path
-			switch (Sample->GetFormat())
+			EMediaTextureSampleFormat SampleFormat = Sample->GetFormat();
+			switch (SampleFormat)
 			{
-				case EMediaTextureSampleFormat::CharBMP:
-				{
-					// Simple 1:1 copy plus flip & color adjustment (but using normal texture sampler: sRGB conversions may occur depending on setup; any manual sRGB/linear conversion is disabled)
-					TShaderMapRef<FBMPConvertPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, false);
-				}
-				break;
-
+				// Planar 8-bit YCbCr 420
 				case EMediaTextureSampleFormat::CharNV12:
+				case EMediaTextureSampleFormat::CharNV21:	// swapped CbCr (vs. NV12)
 				{
+					auto YUVMtx = Sample->GetSampleToRGBMatrix();
+					FMatrix44f ColorSpaceMtx;
+					GetColorSpaceConversionMatrixForSample(Sample, ColorSpaceMtx);
+					
 					if (InputTexture->GetFormat() == PF_NV12)
 					{
 						TShaderMapRef<FNV12ConvertPS> ConvertShader(ShaderMap);
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
 						FIntPoint TexDim = InputTexture->GetSizeXY();
-						TempSRV0 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G8); // note: the types of the views select the correct planes (offset) "magically"
+						TempSRV0 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G8);		// note: the types of the views select the correct planes (offset) "magically"
 						TempSRV1 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_R8G8);
-						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, TempSRV0, TempSRV1, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
+						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, TempSRV0, TempSRV1, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, ColorSpaceMtx, SampleFormat == EMediaTextureSampleFormat::CharNV21);
 					}
 					else
 					{
 						TShaderMapRef<FNV12ConvertAsBytesPS> ConvertShader(ShaderMap);
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-						SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
+						SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, ColorSpaceMtx, SampleFormat == EMediaTextureSampleFormat::CharNV21);
 					}
 				}
 				break;
 
-				case EMediaTextureSampleFormat::CharNV21:
+				// Planar 10-bit YCbCr 420 (in 16-bit components)
+				case EMediaTextureSampleFormat::P010:
 				{
-					// source texture might be NV12 or G8...
-					TShaderMapRef<FNV21ConvertPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
+					auto YUVMtx = Sample->GetSampleToRGBMatrix();
+					FMatrix44f ColorSpaceMtx;
+					GetColorSpaceConversionMatrixForSample(Sample, ColorSpaceMtx);
+
+					FIntPoint TexDim = InputTexture->GetSizeXY();
+					if (InputTexture->GetFormat() == PF_P010)
+					{
+						TShaderMapRef<FP010ConvertPS> ConvertShader(ShaderMap);
+						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+
+						FShaderResourceViewRHIRef Y_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16);		// note: the types of the views select the correct planes (offset) "magically"
+						FShaderResourceViewRHIRef UV_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16R16);
+						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, Y_SRV, UV_SRV, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
+					}
+					else
+					{
+						TShaderMapRef<FP010ConvertAsUINT16sPS> ConvertShader(ShaderMap);
+						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+
+						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, InputTexture, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
+					}
 				}
 				break;
 
-				case EMediaTextureSampleFormat::CharYVYU:
-				{
-					TShaderMapRef<FYVYUConvertPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
-				}
-				break;
-
+				// Various YCbCr 422 formats
 				case EMediaTextureSampleFormat::CharYUY2:		// Y0CbY1Cr
+				case EMediaTextureSampleFormat::CharYVYU:		// Y0CrY1Cb
 				case EMediaTextureSampleFormat::Char2VUY:		// CbY0CrY1
 				case EMediaTextureSampleFormat::YUVv216:		// CbY0CrY1
 				case EMediaTextureSampleFormat::CharUYVY:		// CbY0CrY1
 				{
-					// Get the complete matrix to convert sample data to RGB
 					auto YUVMtx = Sample->GetSampleToRGBMatrix();
-
-					// Setup conversion from Rec2020 to current working color space
-					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
-					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
-					// Normalize output (e.g. 80 or 100 nits == 1.0)
-					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+					FMatrix44f ColorSpaceMtx;
+					GetColorSpaceConversionMatrixForSample(Sample, ColorSpaceMtx);
 
 					TShaderMapRef<FYUVv216ConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
 					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx,
-												Sample->GetFormat() != EMediaTextureSampleFormat::CharYUY2,	// Y or Cb first
-												InputTexture->GetFormat() == PF_B8G8R8A8,					// ARGB vs. ABGR (memory order)
-												false														// No Cb / Cr swap
+												SampleFormat!= EMediaTextureSampleFormat::CharYUY2 && SampleFormat != EMediaTextureSampleFormat::CharYVYU,	// Y or Cb first
+												InputTexture->GetFormat() == PF_B8G8R8A8,																	// ARGB vs. ABGR (memory order)
+												SampleFormat == EMediaTextureSampleFormat::CharYVYU															// Cb / Cr swap
 												);
 				}
 				break;
 
+				// 10-bit YCbCr 422 format (stored in A2R10G10B10)
 				case EMediaTextureSampleFormat::YUVv210:
 				{
-					// Get the complete matrix to convert sample data to RGB
 					auto YUVMtx = Sample->GetSampleToRGBMatrix();
-
-					// Setup conversion from Rec2020 to current working color space
-					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
-					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
-					// Normalize output (e.g. 80 or 100 nits == 1.0)
-					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+					FMatrix44f ColorSpaceMtx;
+					GetColorSpaceConversionMatrixForSample(Sample, ColorSpaceMtx);
 
 					TShaderMapRef<FYUVv210ConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx, Sample->GetFormat() != EMediaTextureSampleFormat::CharYUY2);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx,
+												true);
 				}
 				break;
 
+				// Various YCbCR 444 formats
 				case EMediaTextureSampleFormat::CharAYUV:
 				case EMediaTextureSampleFormat::Y416:
 				case EMediaTextureSampleFormat::R4FL:
 				{
-					// Get the complete matrix to convert sample data to RGB
 					auto YUVMtx = Sample->GetSampleToRGBMatrix();
-
-					// Setup conversion from Rec2020 to current working color space
-					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
-					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
-					// Normalize output (e.g. 80 or 100 nits == 1.0)
-					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+					FMatrix44f ColorSpaceMtx;
+					GetColorSpaceConversionMatrixForSample(Sample, ColorSpaceMtx);
 
 					TShaderMapRef<FYUVY416ConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
@@ -1104,6 +1107,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				}
 				break;
 
+				// Various RGB(A) formats
 				case EMediaTextureSampleFormat::CharBGR10A2:
 				case EMediaTextureSampleFormat::CharRGBA:
 				case EMediaTextureSampleFormat::CharBGRA:
@@ -1130,9 +1134,8 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 						bConvertFromST2084 = (Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
 					}
 
-					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
-					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
-					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+					FMatrix44f ColorSpaceMtx;
+					GetColorSpaceConversionMatrixForSample(Sample, ColorSpaceMtx);
 
 					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
@@ -1143,9 +1146,8 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 
 				case EMediaTextureSampleFormat::ARGB16_BIG:
 				{
-					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
-					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
-					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+					FMatrix44f ColorSpaceMtx;
+					GetColorSpaceConversionMatrixForSample(Sample, ColorSpaceMtx);
 
 					TShaderMapRef<FARGB16BigConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
@@ -1156,36 +1158,13 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				}
 				break;
 
-				case EMediaTextureSampleFormat::P010:
+				case EMediaTextureSampleFormat::CharBMP:
 				{
-					// Get the complete matrix to convert sample data to RGB
-					auto YUVMtx = Sample->GetSampleToRGBMatrix();
-
-					// Setup conversion from Rec2020 to current working color space
-					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
-					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
-					// Normalize output (e.g. 80 or 100 nits == 1.0)
-					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
-
-					FIntPoint TexDim = InputTexture->GetSizeXY();
-					if (InputTexture->GetFormat() == PF_P010)
-					{
-						TShaderMapRef<FP010ConvertPS> ConvertShader(ShaderMap);
-						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-
-						FShaderResourceViewRHIRef Y_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16);
-						FShaderResourceViewRHIRef UV_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16R16);
-						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, Y_SRV, UV_SRV, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
-					}
-					else
-					{
-						TShaderMapRef<FP010ConvertAsUINT16sPS> ConvertShader(ShaderMap);
-						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-
-						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, InputTexture, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
-					}
+					// Simple 1:1 copy plus flip & color adjustment (but using normal texture sampler: sRGB conversions may occur depending on setup; any manual sRGB/linear conversion is disabled)
+					TShaderMapRef<FBMPConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, false);
 				}
 				break;
 
@@ -1207,8 +1186,8 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 						bConvertFromSRGB = (Sample->GetEncodingType() == UE::Color::EEncoding::sRGB);
 					}
 
-					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
-					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+					FMatrix44f ColorSpaceMtx;
+					GetColorSpaceConversionMatrixForSample(Sample, ColorSpaceMtx);
 
 					// Convert the DXn compressed data into RGBA so we can more easily process it using the existing logic (e.g mip generation)
 					// (this also will deal with any sRGB/Rec703 conversions - as well as any color space conversions)
@@ -1222,7 +1201,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				case EMediaTextureSampleFormat::BC4:
 				{
 					// We are using the RGB conversion shader to just pipe BC4 data (read into R) and remap it to be usable with L8 or A8 etc. (RRRR) using the otherwise idle CS conversion matrix
-					// (note: no EOTF - this is alpha only!)
+					// (note: no EOTF or CS - this is alpha only!)
 					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
@@ -1245,8 +1224,8 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 						bConvertFromSRGB = (Sample->GetEncodingType() == UE::Color::EEncoding::sRGB);
 					}
 
-					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
-					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+					FMatrix44f ColorSpaceMtx;
+					GetColorSpaceConversionMatrixForSample(Sample, ColorSpaceMtx);
 
 					// Convert the DXn compressed YCoCg data into RGBA so we can more easily process it using the existing logic (e.g mip generation)
 					// (this also will deal with any sRGB/Rec703 conversions - as well as any color space conversions)

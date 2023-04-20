@@ -28,6 +28,10 @@ void IElectraTextureSampleBase::Initialize(FVideoDecoderOutput* InVideoDecoderOu
 		{
 			NumBits = 8;
 		}
+		else if (PixFmt == PF_A2B10G10R10)
+		{
+			NumBits = 10;
+		}
 		else if (PixFmt == PF_P010)
 		{
 			NumBits = 16;
@@ -40,8 +44,14 @@ void IElectraTextureSampleBase::Initialize(FVideoDecoderOutput* InVideoDecoderOu
 
 	// Prepare YUV -> RGB matrix containing all necessary offsets and scales to produce RGB straight from sample data
 	const FMatrix* Mtx = bFullRange ? &MediaShaders::YuvToRgbRec709Unscaled : &MediaShaders::YuvToRgbRec709Scaled;
-	FVector Off = (NumBits == 8) ? (bFullRange ? MediaShaders::YUVOffsetNoScale8bits : MediaShaders::YUVOffset8bits)
-								 : (bFullRange ? MediaShaders::YUVOffsetNoScale16bits : MediaShaders::YUVOffset16bits);
+	FVector Off;
+	switch (NumBits)
+	{
+		case 8:		Off = bFullRange ? MediaShaders::YUVOffsetNoScale8bits  : MediaShaders::YUVOffset8bits; break;
+		case 10:	Off = bFullRange ? MediaShaders::YUVOffsetNoScale10bits : MediaShaders::YUVOffset10bits; break;
+		case 32:	Off = bFullRange ? MediaShaders::YUVOffsetNoScaleFloat  : MediaShaders::YUVOffsetFloat; break;
+		default:	Off = bFullRange ? MediaShaders::YUVOffsetNoScale16bits : MediaShaders::YUVOffset16bits; break;
+	}
 	// Correctional scale for input data
 	// (data should be placed in the upper 10-bits of the 16-bit texture channels, but some platforms do not do this)
 	float DataScale = GetSampleDataScale(false);
