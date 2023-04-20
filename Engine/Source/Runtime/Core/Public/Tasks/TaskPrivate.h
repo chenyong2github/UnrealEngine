@@ -266,6 +266,7 @@ namespace UE::Tasks
 
 					if (Prerequisite == nullptr)
 					{
+						++NumCompletedPrerequisites;
 						continue;
 					}
 
