@@ -2048,11 +2048,13 @@ bool UsdToUnreal::ConvertMaterial(
 	// Record which primvars we used on each UV index. This is important as we'll match this with the analogous member
 	// on static/skeletal meshe import data, and create a new material instance with different UV index parameter
 	// values if we need to
+#if WITH_EDITOR
 	if (UUsdMaterialAssetImportData* ImportData = Cast<UUsdMaterialAssetImportData>(Material.AssetImportData.Get()))
 	{
 		ImportData->PrimvarToUVIndex = PrimvarToUVIndex;
 		ImportData->ParameterToPrimvar = ParameterToPrimvar;
 	}
+#endif // WITH_EDITOR
 
 	return MaterialParameters.Num() > 0;
 }
@@ -2064,6 +2066,7 @@ bool UsdToUnreal::ConvertMaterial(
 	const TCHAR* RenderContext
 )
 {
+	bool bHasMaterialInfo = false;
 #if WITH_EDITOR
 	pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
 	if (RenderContext)
@@ -2182,8 +2185,6 @@ bool UsdToUnreal::ConvertMaterial(
 	{
 		PrimvarToUVIndex.Add(Primvar, UVIndex++);
 	}
-
-	bool bHasMaterialInfo = true;
 
 	// auto so we can use the MaterialInput generic parameter for FColorMaterialInput, FScalarMaterialInput and FVectorMaterialInput
 	auto ConnectMaterialInput =

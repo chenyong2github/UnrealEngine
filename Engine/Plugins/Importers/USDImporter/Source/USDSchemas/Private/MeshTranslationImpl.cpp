@@ -769,6 +769,8 @@ void MeshTranslationImpl::SetMaterialOverrides(
 		}
 	}
 
+	TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials;
+
 #if WITH_EDITOR
 	UUsdMeshAssetImportData* ImportData = nullptr;
 	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(&MeshComponent))
@@ -804,9 +806,7 @@ void MeshTranslationImpl::SetMaterialOverrides(
 		*MeshComponent.GetPathName(),
 		*UsdToUnreal::ConvertPath(Prim.GetPrimPath())
 	);
-#endif // WITH_EDITOR
 
-	TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials;
 	if(ImportData && LODIndexToAssignments.Num() > 0)
 	{
 		// Stash our PrimvarToUVIndex in here, as that's where ResolveMaterialAssignmentInfo will look for it
@@ -820,6 +820,7 @@ void MeshTranslationImpl::SetMaterialOverrides(
 			Flags
 		);
 	}
+#endif // WITH_EDITOR
 
 	// Compare resolved materials with existing assignments, and create overrides if we need to
 	uint32 StaticMeshSlotIndex = 0;
