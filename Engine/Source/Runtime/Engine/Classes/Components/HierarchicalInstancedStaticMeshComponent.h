@@ -273,6 +273,7 @@ public:
 	bool IsAsyncBuilding() const { return bIsAsyncBuilding; }
 	bool IsTreeFullyBuilt() const { return !bIsOutOfDate; }
 	void GetTree(TArray<FClusterNode>& OutClusterTree);
+	FVector GetAverageScale() const;
 
 	/** Heuristic for the number of leaves in the tree **/
 	int32 DesiredInstancesPerLeaf();

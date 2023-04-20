@@ -3521,6 +3521,19 @@ void UHierarchicalInstancedStaticMeshComponent::GetTree(TArray<FClusterNode>& Ou
 	OutClusterTree = *ClusterTreePtr;
 }
 
+FVector UHierarchicalInstancedStaticMeshComponent::GetAverageScale() const
+{
+	const TArray<FClusterNode>& ClusterTree = *ClusterTreePtr;
+	if (ClusterTree.Num())
+	{
+		return FVector(ClusterTree[0].MinInstanceScale + (ClusterTree[0].MaxInstanceScale - ClusterTree[0].MinInstanceScale) / 2.0f);
+	}
+	else
+	{
+		return FVector::Zero();
+	}
+}
+
 
 void UHierarchicalInstancedStaticMeshComponent::GetNavigationPerInstanceTransforms(const FBox& AreaBox, TArray<FTransform>& InstanceData) const
 {
