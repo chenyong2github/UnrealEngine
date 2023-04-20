@@ -84,11 +84,6 @@ struct CURVEEDITOR_API FCurveModelID
 		return GetTypeHash(In.ID);
 	}
 
-	FCurveModelID(const FCurveModelID& InOther)
-		: ID(InOther.ID)
-	{
-	}
-
 private:
 	FCurveModelID() {}
 
