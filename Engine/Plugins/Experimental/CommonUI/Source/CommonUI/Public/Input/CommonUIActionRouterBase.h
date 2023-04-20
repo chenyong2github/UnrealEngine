@@ -81,8 +81,8 @@ public:
 	ECommonInputMode GetActiveInputMode(ECommonInputMode DefaultInputMode = ECommonInputMode::All) const;
 	EMouseCaptureMode GetActiveMouseCaptureMode(EMouseCaptureMode DefaultMouseCapture = EMouseCaptureMode::NoCapture) const;
 
-	DECLARE_EVENT_OneParam(UCommonUIActionRouterBase, FOnCameraConfigChanged, FUICameraConfig);
-	FOnCameraConfigChanged& OnCameraConfigChanged() const { return OnCameraConfigChangedEvent; }
+	DECLARE_EVENT_OneParam(UCommonUIActionRouterBase, FOnActivationMetadataChanged, FActivationMetadata);
+	FOnActivationMetadataChanged& OnActivationMetadataChanged() const { return OnActivationMetadataChangedEvent; }
 
 	void RegisterScrollRecipient(const UWidget& ScrollableWidget);
 	void UnregisterScrollRecipient(const UWidget& ScrollableWidget);
@@ -156,7 +156,7 @@ private:
 	FActivatableTreeNodePtr FindOwningNode(const UWidget& Widget) const;
 	FActivatableTreeNodePtr FindNodeRecursive(const FActivatableTreeNodePtr& CurrentNode, const UCommonActivatableWidget& Widget) const;
 	FActivatableTreeNodePtr FindNodeRecursive(const FActivatableTreeNodePtr& CurrentNode, const TSharedPtr<SWidget>& Widget) const;
-	void SetActiveUICameraConfig(const FUICameraConfig& NewConfig);
+	void SetActiveActivationMetadata(const FActivationMetadata& NewConfig);
 	
 	void HandleActivatableWidgetRebuilding(UCommonActivatableWidget& RebuildingWidget);
 	void ProcessRebuiltWidgets();
@@ -206,7 +206,7 @@ private:
 
 	mutable FSimpleMulticastDelegate OnBoundActionsUpdatedEvent;
 	mutable FOnActiveInputModeChanged OnActiveInputModeChangedEvent;
-	mutable FOnCameraConfigChanged OnCameraConfigChangedEvent;
+	mutable FOnActivationMetadataChanged OnActivationMetadataChangedEvent;
 
 	friend class FActionRouterBindingCollection;
 	friend class FActivatableTreeNode;

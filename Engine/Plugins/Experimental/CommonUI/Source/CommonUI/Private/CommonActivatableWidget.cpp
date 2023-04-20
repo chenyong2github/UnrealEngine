@@ -67,9 +67,9 @@ UWidget* UCommonActivatableWidget::GetDesiredFocusTarget() const
 	return NativeGetDesiredFocusTarget();
 }
 
-TOptional<FUICameraConfig> UCommonActivatableWidget::GetDesiredCameraConfig() const
+TOptional<FActivationMetadata> UCommonActivatableWidget::GetActivationMetadata() const
 {
-	return TOptional<FUICameraConfig>();
+	return TOptional<FActivationMetadata>();
 }
 
 UWidget* UCommonActivatableWidget::NativeGetDesiredFocusTarget() const

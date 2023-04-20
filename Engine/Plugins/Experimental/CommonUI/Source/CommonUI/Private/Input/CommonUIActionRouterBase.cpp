@@ -1445,9 +1445,9 @@ void UCommonUIActionRouterBase::ApplyUIInputConfig(const FUIInputConfig& NewConf
 	}
 }
 
-void UCommonUIActionRouterBase::SetActiveUICameraConfig(const FUICameraConfig& NewConfig)
+void UCommonUIActionRouterBase::SetActiveActivationMetadata(const FActivationMetadata& NewConfig)
 {
-	OnCameraConfigChanged().Broadcast(NewConfig);
+	OnActivationMetadataChanged().Broadcast(NewConfig);
 }
 
 void UCommonUIActionRouterBase::HandleActivatableWidgetRebuilding(UCommonActivatableWidget& RebuildingWidget)

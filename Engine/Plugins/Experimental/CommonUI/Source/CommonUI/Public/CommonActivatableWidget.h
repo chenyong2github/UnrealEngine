@@ -71,10 +71,13 @@ public:
 	FSimpleMulticastDelegate& OnActivated() const { return OnActivatedEvent; }
 	FSimpleMulticastDelegate& OnDeactivated() const { return OnDeactivatedEvent; }
 
-//COMMONUI_SCOPE:
 public:
-	
-	virtual TOptional<FUICameraConfig> GetDesiredCameraConfig() const;
+
+	/**
+	 * Gets custom game-specific activation metadata for this widget. By default does nothing & used for nothing.
+	 */
+	virtual TOptional<FActivationMetadata> GetActivationMetadata() const;
+
 	/**
 	 * Gets the desired input configuration to establish when this widget activates and can receive input (i.e. all parents are also active).
 	 * This configuration will override the existing one established by any previous activatable widget and restore it (if valid) upon deactivation.

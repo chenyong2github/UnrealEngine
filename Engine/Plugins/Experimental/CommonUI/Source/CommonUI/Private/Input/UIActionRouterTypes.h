@@ -121,7 +121,7 @@ public:
 	int32 GetLastPaintLayer() const;
 	TOptional<FUIInputConfig> FindDesiredInputConfig() const;
 	TOptional<FUIInputConfig> FindDesiredActionDomainInputConfig() const;
-	FUICameraConfig FindDesiredCameraConfig() const;
+	FActivationMetadata FindActivationMetadata() const;
 	
 	void SetCanReceiveInput(bool bInCanReceiveInput);
 	

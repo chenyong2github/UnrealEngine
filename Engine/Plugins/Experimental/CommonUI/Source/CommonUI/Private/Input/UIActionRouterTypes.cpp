@@ -968,12 +968,12 @@ TOptional<FUIInputConfig> FActivatableTreeNode::FindDesiredActionDomainInputConf
 	return  bHasActionDomainConfig ? FUIInputConfig(ActionDomain->InputMode, ActionDomain->MouseCaptureMode) : TOptional<FUIInputConfig>();
 }
 
-FUICameraConfig FActivatableTreeNode::FindDesiredCameraConfig() const
+FActivationMetadata FActivatableTreeNode::FindActivationMetadata() const
 {
-	TOptional<FUICameraConfig> DesiredConfig = ensure(RepresentedWidget.IsValid()) ? RepresentedWidget->GetDesiredCameraConfig() : TOptional<FUICameraConfig>();
+	TOptional<FActivationMetadata> DesiredConfig = ensure(RepresentedWidget.IsValid()) ? RepresentedWidget->GetActivationMetadata() : TOptional<FActivationMetadata>();
 	if (!DesiredConfig.IsSet() && Parent.IsValid())
 	{
-		DesiredConfig = Parent.Pin()->FindDesiredCameraConfig();
+		DesiredConfig = Parent.Pin()->FindActivationMetadata();
 	}
 
 	if (DesiredConfig.IsSet())
@@ -981,7 +981,7 @@ FUICameraConfig FActivatableTreeNode::FindDesiredCameraConfig() const
 		return DesiredConfig.GetValue();
 	}
 
-	return FUICameraConfig();
+	return FActivationMetadata();
 }
 
 void FActivatableTreeNode::AddScrollRecipient(const UWidget& ScrollRecipient)
@@ -1388,7 +1388,7 @@ void FActivatableTreeRoot::ApplyLeafmostNodeConfig()
 #endif
 	if (FActivatableTreeNodePtr PinnedLeafmostNode = LeafmostActiveNode.Pin())
 	{
-		GetActionRouter().SetActiveUICameraConfig(PinnedLeafmostNode->FindDesiredCameraConfig());
+		GetActionRouter().SetActiveActivationMetadata(PinnedLeafmostNode->FindActivationMetadata());
 
 		if (ensure(PinnedLeafmostNode->IsReceivingInput()))
 		{

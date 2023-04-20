@@ -53,17 +53,29 @@ private:
 	int32 RegistrationId = INDEX_NONE;
 };
 
-struct FUICameraConfig
-{
-	COMMONUI_API FUICameraConfig(){}
-	FUICameraConfig(uint8 InCamera) : DesiredCamera(InCamera) {}
 
-	TOptional<uint8> GetDesiredCamera() const { return DesiredCamera; }
+/**
+ * Metadata that can be set on activatable widgets via GetActivationMetadata & listened to via OnActivationMetadataChanged.
+ * Useful for game-specific behaviors to be triggered by activation of certain widgets generically. For example changing
+ * camera config of your game when certain widgets activate.
+ * 
+ * By default only has an enum for this metadata.
+ */
+struct FActivationMetadata
+{
+	COMMONUI_API FActivationMetadata() { }
+	FActivationMetadata(uint8 InMetadataEnum) : MetadataEnum(InMetadataEnum) {}
+
+	TOptional<uint8> GetMetadataEnum() const { return MetadataEnum; }
 
 private:
-	TOptional<uint8> DesiredCamera;
+	TOptional<uint8> MetadataEnum;
 };
 
+/**
+ * Input Config that can be applied on widget activation. Allows for input setup  (Mouse capture, 
+ * UI-only input, move / look ignore, etc), to be controlled by widget activation.
+ */
 struct FUIInputConfig
 {
 	ECommonInputMode GetInputMode() const { return InputMode; }
