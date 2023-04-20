@@ -542,12 +542,10 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		GRHISupportsRHIThread = true;
-		GSupportsParallelOcclusionQueries = GRHISupportsRHIThread;
 	}
 	else
 	{
 		GRHISupportsRHIThread = FParse::Param(FCommandLine::Get(),TEXT("rhithread")) || (CVarUseIOSRHIThread.GetValueOnAnyThread() > 0);
-		GSupportsParallelOcclusionQueries = false;
 	}
 
 	if (FPlatformMisc::IsDebuggerPresent() && UE_BUILD_DEBUG)

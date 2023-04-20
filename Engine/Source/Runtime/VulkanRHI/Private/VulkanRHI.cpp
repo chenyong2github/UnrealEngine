@@ -910,7 +910,6 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsRHIThread = GRHIThreadCvar->GetInt() != 0;
 		GRHISupportsParallelRHIExecute = GRHIThreadCvar->GetInt() > 1;
 #endif
-		GSupportsParallelOcclusionQueries = true;
 
 		// Some platforms might only have CPU for an RHI thread, but not for parallel tasks
 		GSupportsParallelRenderingTasksWithSeparateRHIThread = GRHISupportsRHIThread ? FVulkanPlatform::SupportParallelRenderingTasks() : false;
