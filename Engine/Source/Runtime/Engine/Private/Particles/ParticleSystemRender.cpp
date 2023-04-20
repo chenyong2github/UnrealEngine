@@ -891,29 +891,6 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 				}
 				{
 					SCOPE_CYCLE_COUNTER(STAT_FDynamicSpriteEmitterData_PerParticleWorkOrTasks);
-					if (Collector.ShouldUseTasks())
-					{
-						Collector.AddTask(
-							[this, SourceData, View, Proxy, Allocation, DynamicParameterAllocation, bSort, ParticleCount, NumVerticesPerParticleInBuffer, InstanceFactor]()
-							{
-								SCOPE_CYCLE_COUNTER(STAT_FDynamicSpriteEmitterData_GetDynamicMeshElementsEmitter_Task);
-								SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_RT_CNC);
-
-								FMemMark Mark(FMemStack::Get());
-								FParticleOrder* ParticleOrder = NULL;
-								if (bSort)
-								{
-									ParticleOrder = (FParticleOrder*)FMemStack::Get().Alloc(sizeof(FParticleOrder)* ParticleCount, alignof(FParticleOrder));
-									SortSpriteParticles(SourceData->SortMode, SourceData->bUseLocalSpace, SourceData->ActiveParticleCount, 
-										SourceData->DataContainer.ParticleData, SourceData->ParticleStride, SourceData->DataContainer.ParticleIndices,
-										View, Proxy->GetLocalToWorld(), ParticleOrder);
-								}
-								// Fill vertex buffers.
-								GetVertexAndIndexData(Allocation.Buffer, DynamicParameterAllocation.Buffer, NULL, ParticleOrder, View->ViewMatrices.GetViewOrigin(), Proxy->GetLocalToWorld(), InstanceFactor);
-							}
-						);
-					}
-					else
 					{
 						FParticleOrder* ParticleOrder = NULL;
 
@@ -1448,20 +1425,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 
 			if (Allocation.IsValid() && (!bUsesDynamicParameter || DynamicParameterAllocation.IsValid()))
 			{
-				// Fill instance buffer.
-				if (Collector.ShouldUseTasks())
-				{
-					Collector.AddTask(
-						[this, View, Proxy, Allocation, DynamicParameterAllocation, PrevTransformBuffer, InstanceFactor]()
-						{
-							GetInstanceData(Allocation.Buffer, DynamicParameterAllocation.Buffer, PrevTransformBuffer, Proxy, View, InstanceFactor);
-						}
-					);
-				}
-				else
-				{
-					GetInstanceData(Allocation.Buffer, DynamicParameterAllocation.Buffer, PrevTransformBuffer, Proxy, View, InstanceFactor);
-				}
+				GetInstanceData(Allocation.Buffer, DynamicParameterAllocation.Buffer, PrevTransformBuffer, Proxy, View, InstanceFactor);
 			}
 
 			if (bGeneratePrevTransformBuffer)

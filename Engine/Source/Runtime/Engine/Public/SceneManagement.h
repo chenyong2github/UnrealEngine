@@ -1931,23 +1931,21 @@ public:
 	{
 		return *OneFrameResources.Create<T>(Forward<ARGS>(Args)...);
 	}
-
+	
+	UE_DEPRECATED(5.3, "ShouldUseTasks has been deprecated.")
 	FORCEINLINE bool ShouldUseTasks() const
 	{
-		return bUseAsyncTasks;
+		return false;
 	}
+	
+	UE_DEPRECATED(5.3, "AddTask has been deprecated.")
+	FORCEINLINE void AddTask(TFunction<void()>&& Task) {}
 
-	FORCEINLINE void AddTask(TFunction<void()>&& Task)
-	{
-		ParallelTasks.Emplace(MoveTemp(Task));
-	}
+	UE_DEPRECATED(5.3, "AddTask has been deprecated.")
+	FORCEINLINE void AddTask(const TFunction<void()>& Task) {}
 
-	FORCEINLINE void AddTask(const TFunction<void()>& Task)
-	{
-		ParallelTasks.Emplace(Task);
-	}
-
-	void ProcessTasks();
+	UE_DEPRECATED(5.3, "ProcessTasks has been deprecated.")
+	void ProcessTasks() {}
 
 	FORCEINLINE ERHIFeatureLevel::Type GetFeatureLevel() const
 	{
@@ -2020,12 +2018,6 @@ protected:
 	FGlobalDynamicReadBuffer* DynamicReadBuffer;
 
 	ERHIFeatureLevel::Type FeatureLevel;
-
-	/** This is related to some cvars and FApp stuff and if true means calling code should use async tasks. */
-	const bool bUseAsyncTasks;
-
-	/** Tasks to wait for at the end of gathering dynamic mesh elements. */
-	TArray<TFunction<void()>, SceneRenderingAllocator> ParallelTasks;
 
 	/** Tracks dynamic primitive data for upload to GPU Scene for every view, when enabled. */
 	TArray<FGPUScenePrimitiveCollector*, TInlineAllocator<2, SceneRenderingAllocator>> DynamicPrimitiveCollectorPerView;

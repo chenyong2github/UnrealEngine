@@ -313,19 +313,13 @@ FMeshBatchAndRelevance::FMeshBatchAndRelevance(const FMeshBatch& InMesh, const F
 	bRenderInMainPass = PrimitiveSceneProxy->ShouldRenderInMainPass();
 }
 
-static TAutoConsoleVariable<int32> CVarUseParallelGetDynamicMeshElementsTasks(
-	TEXT("r.UseParallelGetDynamicMeshElementsTasks"),
-	0,
-	TEXT("If > 0, and if FApp::ShouldUseThreadingForPerformance(), then parts of GetDynamicMeshElements will be done in parallel."));
-
 FMeshElementCollector::FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel, FSceneRenderingBulkObjectAllocator& InBulkAllocator) :
 	OneFrameResources(InBulkAllocator),
 	PrimitiveSceneProxy(NULL),
 	DynamicIndexBuffer(nullptr),
 	DynamicVertexBuffer(nullptr),
 	DynamicReadBuffer(nullptr),
-	FeatureLevel(InFeatureLevel),
-	bUseAsyncTasks(FApp::ShouldUseThreadingForPerformance() && CVarUseParallelGetDynamicMeshElementsTasks.GetValueOnAnyThread() > 0)
+	FeatureLevel(InFeatureLevel)
 {	
 }
 
@@ -336,7 +330,6 @@ FMeshElementCollector::~FMeshElementCollector()
 
 void FMeshElementCollector::DeleteTemporaryProxies()
 {
-	check(!ParallelTasks.Num()); // We should have blocked on this already
 	for (int32 ProxyIndex = 0; ProxyIndex < TemporaryProxies.Num(); ProxyIndex++)
 	{
 		delete TemporaryProxies[ProxyIndex];
@@ -418,25 +411,6 @@ void FMeshElementCollector::AddViewMeshArrays(
 		DebugSimpleElementCollectors.Add(InDebugSimpleElementCollector);
 	}
 #endif
-}
-
-void FMeshElementCollector::ProcessTasks()
-{
-	check(IsInRenderingThread());
-	check(!ParallelTasks.Num() || bUseAsyncTasks);
-
-	if (ParallelTasks.Num())
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMeshElementCollector_ProcessTasks);
-		TArray<TFunction<void()>, SceneRenderingAllocator>& LocalParallelTasks(ParallelTasks);
-		ParallelFor(ParallelTasks.Num(), 
-			[&LocalParallelTasks](int32 Index)
-			{
-				LocalParallelTasks[Index]();
-				LocalParallelTasks[Index] = {};
-			});
-		ParallelTasks.Empty();
-	}
 }
 
 void FMeshElementCollector::AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch)

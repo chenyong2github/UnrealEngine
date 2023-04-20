@@ -3656,7 +3656,6 @@ void FSceneRenderer::GatherDynamicMeshElements(
 			}
 		}
 	}
-	MeshCollector.ProcessTasks();
 }
 
 /**

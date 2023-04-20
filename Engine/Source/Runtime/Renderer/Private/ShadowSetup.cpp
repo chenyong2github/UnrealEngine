@@ -1275,7 +1275,7 @@ struct FDynamicShadowsTaskData
 		, bStaticSceneOnly(AreAnyViewsStaticSceneOnly(Views))
 		, bRunningEarly(bInRunningEarly)
 		, bMultithreaded((FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::IsForkedMultithreadInstance()) && CVarParallelGatherShadowPrimitives.GetValueOnRenderThread() > 0)
-		, bMultithreadedCreateAndFilterShadows(bRunningEarly&& bMultithreaded&& GRHISupportsAsyncGetRenderQueryResult&& GParallelInitDynamicShadows > 0)
+		, bMultithreadedCreateAndFilterShadows(bRunningEarly && bMultithreaded && GRHISupportsAsyncGetRenderQueryResult && GParallelInitDynamicShadows > 0)
 	{
 		if (bMultithreadedCreateAndFilterShadows)
 		{
@@ -2507,8 +2507,6 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		ShadowDepthView->SetDynamicMeshElementsShadowCullFrustum(&CasterOuterFrustum);
 		GatherDynamicMeshElementsArray(Renderer, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, 
 			SubjectTranslucentPrimitives, ReusedViewsArray, DynamicSubjectTranslucentMeshElements, NumDynamicSubjectTranslucentMeshElements);
-
-		Renderer.MeshCollector.ProcessTasks();
 	}
 
 	SetupMeshDrawCommandsForProjectionStenciling(Renderer, InstanceCullingManager);
