@@ -203,9 +203,14 @@ void FRigUnit_SphericalPoseReader::DistanceToEllipse(
 	const float SizeY,
 	FEllipseQuery& OutEllipseQuery)
 {
+	// degenerate ellipse
 	if (SizeX <= KINDA_SMALL_NUMBER || SizeY <= KINDA_SMALL_NUMBER)
 	{
-		return; // degenerate ellipse
+		OutEllipseQuery.ClosestX = 0.0f;
+		OutEllipseQuery.ClosestY = 0.0f;
+		OutEllipseQuery.DistSq = FMath::Pow(InX, 2.f) + FMath::Pow(InY, 2.f);
+		OutEllipseQuery.IsInside = OutEllipseQuery.DistSq <= KINDA_SMALL_NUMBER;
+		return;
 	}
 	
     const float PX = FMath::Abs(InX);

@@ -8,10 +8,10 @@
 
 struct FEllipseQuery
 {
-	float ClosestX;
-	float ClosestY;
-	float DistSq;
-	bool IsInside;
+	float ClosestX = 0.0f;
+	float ClosestY = 0.0f;
+	float DistSq = 0.0f;
+	bool IsInside = false;
 };
 
 USTRUCT()
