@@ -77,8 +77,8 @@ struct FStringView
 
 	const char* GetData() const			{ return Super::data(); }
 	uint32 Len() const					{ return uint32(Super::size()); }
+	
 	int Compare(const char* Rhs) const	{ return Super::compare(Rhs); }
-	bool StartsWith(const char* Rhs) const { return Super::starts_with(Rhs); }
 	void RemovePrefix(uint32 n)			{ Super::remove_prefix(n); }
 };
 
