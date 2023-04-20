@@ -182,19 +182,6 @@ struct FVertexElement
 		Stride(InStride),
 		bUseInstanceIndex(bInUseInstanceIndex)
 	{}
-	/**
-	* Suppress the compiler generated assignment operator so that padding won't be copied.
-	* This is necessary to get expected results for code that zeros, assigns and then CRC's the whole struct.
-	*/
-	void operator=(const FVertexElement& Other)
-	{
-		StreamIndex = Other.StreamIndex;
-		Offset = Other.Offset;
-		Type = Other.Type;
-		AttributeIndex = Other.AttributeIndex;
-		Stride = Other.Stride;
-		bUseInstanceIndex = Other.bUseInstanceIndex;
-	}
 
 	bool operator==(const FVertexElement& Other) const
 	{

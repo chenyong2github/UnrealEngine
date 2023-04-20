@@ -23,6 +23,7 @@
 #include "RHITextureReference.h"
 #include "RHIStats.h"
 #include "RHICommandList.h"
+#include <type_traits>
 
 #if RHI_ENABLE_RESOURCE_INFO
 #include "HAL/FileManager.h"
@@ -148,6 +149,12 @@ const FClearValueBinding FClearValueBinding::DefaultNormal8Bit(FLinearColor(128.
 #endif
 
 TRefCountPtr<FRHITexture> FRHITextureReference::DefaultTexture;
+
+// This is necessary to get expected results for code that zeros, assigns and then CRC's the whole struct.
+//
+// See: https://en.cppreference.com/w/cpp/types/has_unique_object_representations
+// "This trait was introduced to make it possible to determine whether a type can be correctly hashed by hashing its object representation as a byte array."
+static_assert(std::has_unique_object_representations_v<FVertexElement>, "FVertexElement should not have compiler-injected padding");
 
 FString FVertexElement::ToString() const
 {
