@@ -1231,6 +1231,13 @@ FHashedName::FHashedName(const FHashedName& InName) : Hash(InName.Hash)
 #endif
 }
 
+FHashedName& FHashedName::operator=(const FHashedName& InName)
+{
+	FHashedName Temp = InName;
+	Swap(Temp, *this);
+	return *this;
+}
+
 void FPointerTableBase::SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const
 {
 	int32 NumDependencies = 0;

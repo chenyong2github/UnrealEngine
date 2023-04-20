@@ -854,6 +854,7 @@ public:
 	inline FHashedName() : Hash(0u) {}
 	CORE_API explicit FHashedName(uint64 InHash);
 	CORE_API FHashedName(const FHashedName& InName);
+	CORE_API FHashedName& operator=(const FHashedName& InName);
 	CORE_API FHashedName(const TCHAR* InString);
 	CORE_API FHashedName(const FString& InString);
 	CORE_API FHashedName(const FName& InName);
