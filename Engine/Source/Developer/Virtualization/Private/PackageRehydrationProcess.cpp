@@ -197,10 +197,21 @@ void RehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOption
 
 	double Time = FPlatformTime::Seconds();
 
+	TSet<FString> ConsideredPackages;
+	ConsideredPackages.Reserve(PackagePaths.Num());
+
 	// Attempt to rehydrate the packages
 	for(int32 Index = 0; Index < PackagePaths.Num(); ++Index)
 	{
 		const FString& FilePath = PackagePaths[Index];
+
+		bool bIsDuplicate = false;
+		ConsideredPackages.Add(FilePath, &bIsDuplicate);
+		if (bIsDuplicate)
+		{
+			UE_LOG(LogVirtualization, Verbose, TEXT("Skipping duplicate package entry '%s'"), *FilePath);
+			continue; // Skip duplicate packages
+		}
 
 		FPackageTrailer Trailer;
 		FPackageTrailerBuilder Builder;
@@ -228,6 +239,11 @@ void RehydratePackages(TConstArrayView<FString> PackagePaths, ERehydrationOption
 			Time = FPlatformTime::Seconds();
 		}
 	}
+
+	const int32 NumSkippedPackages = PackagePaths.Num() - ConsideredPackages.Num();
+	ConsideredPackages.Empty();
+
+	UE_CLOG(NumSkippedPackages > 0, LogVirtualization, Warning, TEXT("Discarded %d duplicate package paths"), NumSkippedPackages);
 
 	// We need to reset the loader of any loaded package that should have its package file replaced
 	for (const TPair<FString, FString>& Pair : PackagesToReplace)

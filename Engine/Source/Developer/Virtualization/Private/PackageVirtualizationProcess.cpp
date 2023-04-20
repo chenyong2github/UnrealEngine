@@ -207,9 +207,20 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOp
 	int64 TotalPackageTrailersFound = 0;
 	int64 TotalPayloadsToVirtualize = 0;
 
+	TSet<FString> ConsideredPackages;
+	ConsideredPackages.Reserve(PackagePaths.Num());
+
 	for (const FString& AbsoluteFilePath : PackagePaths)
 	{
 		FPackagePath PackagePath = FPackagePath::FromLocalPath(AbsoluteFilePath);
+
+		bool bIsDuplicate = false;
+		ConsideredPackages.Add(PackagePath.GetPackageName(), &bIsDuplicate);
+		if (bIsDuplicate)
+		{
+			UE_LOG(LogVirtualization, Verbose, TEXT("Skipping duplicate package entry '%s'"), *AbsoluteFilePath);
+			continue; // Skip duplicate packages
+		}
 
 		// TODO: How to handle text packages?
 		if (FPackageName::IsPackageExtension(PackagePath.GetHeaderExtension()) || FPackageName::IsTextPackageExtension(PackagePath.GetHeaderExtension()))
@@ -252,7 +263,11 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOp
 		}
 	}
 
+	const int32 NumSkippedPackages = PackagePaths.Num() - ConsideredPackages.Num();
+	ConsideredPackages.Empty();
+
 	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " package(s), %" INT64_FMT " of which had payload trailers"), TotalPackagesFound, TotalPackageTrailersFound);
+	UE_CLOG(NumSkippedPackages > 0, LogVirtualization, Warning, TEXT("Discarded %d duplicate package paths"), NumSkippedPackages);
 	UE_CLOG(TotalOutOfDatePackages > 0, LogVirtualization, Warning, TEXT("Found %" INT64_FMT " package(s) that are out of date and need resaving"), TotalOutOfDatePackages);
 
 	// TODO: Currently not all of the filtering is done as package save time, so some of the local payloads may not get virtualized.
