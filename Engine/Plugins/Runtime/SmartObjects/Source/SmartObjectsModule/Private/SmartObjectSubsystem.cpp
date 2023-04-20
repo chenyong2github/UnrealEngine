@@ -1407,6 +1407,7 @@ bool USmartObjectSubsystem::EvaluateConditionsForFiltering(
 	TPair<const FSmartObjectRuntime*, bool>& LastEvaluatedRuntime
 	) const
 {
+	checkfSlow(IsSmartObjectSlotValid(SlotHandle), TEXT("This internal method expects to be called with a valid SlotHandle (set and not stale); should call IsSmartObjectSlotValid before."));
 	const FSmartObjectRuntimeSlot& RuntimeSlot = RuntimeSlots.FindChecked(SlotHandle);
 	const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(RuntimeSlot.GetOwnerRuntimeObject());
 	if (SmartObjectRuntime == nullptr)
@@ -1452,10 +1453,16 @@ TArray<FSmartObjectSlotHandle> USmartObjectSubsystem::FilterSlotsBySelectionCond
 
 	FWorldConditionContextData ContextData;	
 	TPair<const FSmartObjectRuntime*, bool> LastEvaluatedSmartObjectRuntime = {nullptr, false};
-	
+
+	bool bSlotIsValid = false;
 	for (const FSmartObjectSlotHandle SlotHandle : SlotsToFilter)
 	{
-		if (EvaluateConditionsForFiltering(SlotHandle, ContextData, UserData, LastEvaluatedSmartObjectRuntime))
+		bSlotIsValid = IsSmartObjectSlotValid(SlotHandle);
+		UE_CVLOG_UELOG(bSlotIsValid == false, this, LogSmartObject, Log,
+			TEXT("%hs failed using handle '%s'. Slot is no longer part of the simulation. Consider calling IsSmartObjectSlotValid to avoid this message."),
+			__FUNCTION__, *LexToString(SlotHandle));
+
+		if (bSlotIsValid && EvaluateConditionsForFiltering(SlotHandle, ContextData, UserData, LastEvaluatedSmartObjectRuntime))
 		{
 			Result.Add(SlotHandle);
 		}
@@ -1475,10 +1482,16 @@ TArray<FSmartObjectRequestResult> USmartObjectSubsystem::FilterResultsBySelectio
 
 	FWorldConditionContextData ContextData;	
 	TPair<const FSmartObjectRuntime*, bool> LastEvaluatedSmartObjectRuntime = {nullptr, false};
-	
+
+	bool bSlotIsValid = false;
 	for (const FSmartObjectRequestResult RequestResult : ResultsToFilter)
 	{
-		if (EvaluateConditionsForFiltering(RequestResult.SlotHandle, ContextData, UserData, LastEvaluatedSmartObjectRuntime))
+		bSlotIsValid = IsSmartObjectSlotValid(RequestResult.SlotHandle);
+		UE_CVLOG_UELOG(bSlotIsValid == false, this, LogSmartObject, Log,
+			TEXT("%hs failed using handle '%s'. Slot is no longer part of the simulation. Consider calling IsSmartObjectSlotValid to avoid this message."),
+			__FUNCTION__, *LexToString(RequestResult.SlotHandle));
+
+		if (bSlotIsValid && EvaluateConditionsForFiltering(RequestResult.SlotHandle, ContextData, UserData, LastEvaluatedSmartObjectRuntime))
 		{
 			Result.Add(RequestResult);
 		}
@@ -1492,7 +1505,13 @@ bool USmartObjectSubsystem::EvaluateSelectionConditions(const FSmartObjectSlotHa
 {
 	FWorldConditionContextData ContextData;
 	TPair<const FSmartObjectRuntime*, bool> LastEvaluatedSmartObjectRuntime = {nullptr, false};
-	return EvaluateConditionsForFiltering(SlotHandle, ContextData, UserData, LastEvaluatedSmartObjectRuntime);
+
+	const bool bSlotIsValid = IsSmartObjectSlotValid(SlotHandle);
+	UE_CVLOG_UELOG(bSlotIsValid == false, this, LogSmartObject, Log,
+		TEXT("%hs failed using handle '%s'. Slot is no longer part of the simulation. Consider calling IsSmartObjectSlotValid to avoid this message."),
+		__FUNCTION__, *LexToString(SlotHandle));
+
+	return bSlotIsValid && EvaluateConditionsForFiltering(SlotHandle, ContextData, UserData, LastEvaluatedSmartObjectRuntime);
 }
 
 bool USmartObjectSubsystem::FindEntranceLocationForSlot(const FSmartObjectSlotHandle SlotHandle, const FSmartObjectSlotEntranceLocationRequest& Request, FSmartObjectSlotEntranceLocationResult& Result) const
