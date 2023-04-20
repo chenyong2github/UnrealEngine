@@ -575,17 +575,30 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 			Compile();
 		}
 	}
-
-	FFunctionGraphTask::CreateAndDispatchWhenReady([this]()
+	
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InControlRigBlueprint]()
 	{
-		// Always show the myblueprint tab
-		FTabId MyBlueprintTabId(FBlueprintEditorTabs::MyBlueprintID);
-		if(!GetTabManager()->FindExistingLiveTab(MyBlueprintTabId).IsValid())
+		// no need to do anything if the the CR is not opened anymore
+		// (i.e. destructor has been called before that task actually got a chance to start) 
+		if (!UControlRigBlueprint::sCurrentlyOpenedRigBlueprints.Contains(InControlRigBlueprint))
 		{
-			GetTabManager()->TryInvokeTab(MyBlueprintTabId);
+			return;		
 		}
 		
-	}, TStatId(), NULL, ENamedThreads::GameThread);
+		TSharedPtr<FTabManager> TabManager = GetTabManager();
+		if (!TabManager.IsValid())
+		{
+			return;
+		}
+		
+		// Always show the myblueprint tab
+		static const FTabId MyBlueprintTabId(FBlueprintEditorTabs::MyBlueprintID);
+		if (!TabManager->FindExistingLiveTab(MyBlueprintTabId).IsValid())
+		{
+			TabManager->TryInvokeTab(MyBlueprintTabId);
+		}
+		
+	}, TStatId(), nullptr, ENamedThreads::GameThread);
 	
 	CreateRigHierarchyToGraphDragAndDropMenu();
 
