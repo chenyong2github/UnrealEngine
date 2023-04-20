@@ -60,6 +60,8 @@ public:
 	/** Attempt to parse an asset import structure from the specified json string. */
 	void FromJson(FString InJsonString);
 
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+
 protected:
 	/** Overridden serialize function to write out the underlying data as json */
 	virtual void Serialize(FArchive& Ar) override;

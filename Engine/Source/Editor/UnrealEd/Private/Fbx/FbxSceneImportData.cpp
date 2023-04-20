@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/FbxSceneImportData.h"
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonSerializer.h"
+
+#include "EditorFramework/AssetImportData.h"
 #include "Factories/FbxSceneImportOptions.h"
 #include "FbxImporter.h"
-
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 UFbxSceneImportData::UFbxSceneImportData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -561,6 +562,15 @@ void UFbxSceneImportData::FromJson(FString InJsonString)
 			}
 		}
 	}
+}
+
+void UFbxSceneImportData::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	FAssetImportInfo AssetImportInfo;
+	FAssetImportInfo::FSourceFile SourceFile(SourceFbxFile);
+	AssetImportInfo.Insert(SourceFile);
+	OutTags.Add(FAssetRegistryTag(SourceFileTagName(), AssetImportInfo.ToJson(), FAssetRegistryTag::TT_Hidden));
+	Super::GetAssetRegistryTags(OutTags);
 }
 
 void UFbxSceneImportData::Serialize(FArchive& Ar)
