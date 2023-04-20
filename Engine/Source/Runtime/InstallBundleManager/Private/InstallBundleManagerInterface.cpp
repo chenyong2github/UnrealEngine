@@ -54,9 +54,9 @@ const TSharedPtr<IInstallBundleSource> IInstallBundleManager::GetBundleSource(EI
 }
 
 
-TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> IInstallBundleManager::RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags, ELogVerbosity::Type LogVerbosityOverride /*= ELogVerbosity::NoLogging*/)
+TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> IInstallBundleManager::RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags, ELogVerbosity::Type LogVerbosityOverride /*= ELogVerbosity::NoLogging*/,  InstallBundleUtil::FContentRequestSharedContextPtr RequestSharedContext /*= nullptr*/)
 {
-	return RequestUpdateContent(MakeArrayView(&BundleName, 1), Flags, LogVerbosityOverride);
+	return RequestUpdateContent(MakeArrayView(&BundleName, 1), Flags, LogVerbosityOverride, RequestSharedContext);
 }
 
 FDelegateHandle IInstallBundleManager::GetContentState(FName BundleName, EInstallBundleGetContentStateFlags Flags, bool bAddDependencies, FInstallBundleGetContentStateDelegate Callback, FName RequestTag /*= NAME_None*/)

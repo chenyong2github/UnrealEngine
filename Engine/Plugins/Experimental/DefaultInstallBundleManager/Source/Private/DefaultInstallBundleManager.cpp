@@ -2987,7 +2987,9 @@ EInstallBundleManagerInitState FDefaultInstallBundleManager::GetInitState() cons
 }
 
 TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> FDefaultInstallBundleManager::RequestUpdateContent(
-	TArrayView<const FName> InBundleNames, EInstallBundleRequestFlags Flags, ELogVerbosity::Type LogVerbosityOverride /*= ELogVerbosity::NoLogging*/)
+	TArrayView<const FName> InBundleNames, EInstallBundleRequestFlags Flags,
+	ELogVerbosity::Type LogVerbosityOverride /*= ELogVerbosity::NoLogging*/,
+	InstallBundleUtil::FContentRequestSharedContextPtr RequestSharedContext /*= nullptr*/)
 {
 	CSV_SCOPED_TIMING_STAT(InstallBundleManager, InstallBundleManager_RequestUpdateContent);
 
@@ -3004,9 +3006,6 @@ TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> FDefaultInstallBu
 	{
 		return MakeError(EInstallBundleResult::InitializationPending);
 	}
-
-	// Shared between all bundles for the same request
-	InstallBundleUtil::FContentRequestSharedContextPtr RequestSharedContext;
 
 	TSet<FName> BundlesToLoad = GatherBundlesForRequest(InBundleNames, RetInfo.InfoFlags);
 	for (const FName& BundleName : BundlesToLoad)
