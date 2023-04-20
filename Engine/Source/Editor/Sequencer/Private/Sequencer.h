@@ -745,7 +745,7 @@ public:
 	virtual void NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChangeType ) override;
 	virtual void RefreshTree() override;
 	virtual void UpdatePlaybackRange() override;
-	virtual void SetPlaybackSpeed(float InPlaybackSpeed) override { PlaybackSpeed = InPlaybackSpeed; }
+	virtual void SetPlaybackSpeed(float InPlaybackSpeed) override;
 	virtual float GetPlaybackSpeed() const override { return PlaybackSpeed; }
 	virtual TArray<FGuid> AddActors(const TArray<TWeakObjectPtr<AActor> >& InActors, bool bSelectActors = true) override;
 	virtual TArray<FGuid> ConvertToSpawnable(FGuid Guid) override;
@@ -1128,6 +1128,9 @@ private:
 
 	void UpdateCachedCameraActors();
 
+	int32 FindClosestPlaybackSpeed(float InPlaybackSpeed, bool bExactOnly = false) const;
+	void RestorePlaybackSpeedAfterPlay();
+
 public:
 
 	/** Helper function which returns how many frames (in tick resolution) one display rate frame represents. */
@@ -1222,7 +1225,11 @@ private:
 	/** The last time range that was viewed */
 	TRange<double> LastViewRange;
 
+	/** The index of the playback speed in the supported playback speeds */
 	int32 CurrentSpeedIndex;
+
+	/** The index of the playback speed before we started playing */
+	int32 SpeedIndexBeforePlay;
 	
 	/** The view range before zooming */
 	TRange<double> ViewRangeBeforeZoom;
@@ -1270,6 +1277,9 @@ private:
 
 	/** The playback speed */
 	float PlaybackSpeed;
+
+	/** The playback speed before we started playing */
+	float PlaybackSpeedBeforePlay;
 
 	/** The shuttle multiplier */
 	float ShuttleMultiplier;

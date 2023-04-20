@@ -4767,6 +4767,9 @@ FReply FSequencer::OnPlay(bool bTogglePlay)
 			SetGlobalTime(NewGlobalTime);
 		}
 
+		SpeedIndexBeforePlay = CurrentSpeedIndex;
+		PlaybackSpeedBeforePlay = PlaybackSpeed;
+
 		SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
 
 		// Make sure Slate ticks during playback
@@ -4986,7 +4989,6 @@ ESequencerLoopMode FSequencer::GetLoopMode() const
 	return Settings->GetLoopMode();
 }
 
-
 void FSequencer::SetLocalTimeLooped(FFrameTime NewLocalTime)
 {
 	TOptional<EMovieScenePlayerStatus::Type> NewPlaybackStatus;
@@ -5078,9 +5080,27 @@ void FSequencer::SetLocalTimeLooped(FFrameTime NewLocalTime)
 
 		if (NewPlaybackStatus.GetValue() == EMovieScenePlayerStatus::Stopped)
 		{
+			RestorePlaybackSpeedAfterPlay();
+
 			OnStopDelegate.Broadcast();
 		}
 	}
+}
+
+void FSequencer::SetPlaybackSpeed(float InPlaybackSpeed)
+{
+	PlaybackSpeed = InPlaybackSpeed;
+
+	const bool bExactOnly = true;
+	CurrentSpeedIndex = FindClosestPlaybackSpeed(InPlaybackSpeed, bExactOnly);
+}
+
+void FSequencer::RestorePlaybackSpeedAfterPlay()
+{
+	// Reset the speed to what it was before we started playing, in case the user increased/decreased the speed while it
+	// was playing.
+	CurrentSpeedIndex = SpeedIndexBeforePlay;
+	PlaybackSpeed = PlaybackSpeedBeforePlay;
 }
 
 EPlaybackMode::Type FSequencer::GetPlaybackMode() const
@@ -9217,18 +9237,16 @@ void FSequencer::ShuttleBackward()
 	}
 }
 
-void FSequencer::SnapToClosestPlaybackSpeed()
+int32 FSequencer::FindClosestPlaybackSpeed(float InPlaybackSpeed, bool bExactOnly) const
 {
 	TArray<float> PlaybackSpeeds = GetPlaybackSpeeds.Execute();
 
-	float CurrentSpeed = GetPlaybackSpeed();
-
+	int32 NewSpeedIndex = INDEX_NONE;
 	float Delta = TNumericLimits<float>::Max();
 
-	int32 NewSpeedIndex = INDEX_NONE;
 	for (int32 Idx = 0; Idx < PlaybackSpeeds.Num(); Idx++)
 	{
-		float NewDelta = FMath::Abs(CurrentSpeed - PlaybackSpeeds[Idx]);
+		float NewDelta = FMath::Abs(InPlaybackSpeed - PlaybackSpeeds[Idx]);
 		if (NewDelta < Delta)
 		{
 			Delta = NewDelta;
@@ -9236,8 +9254,24 @@ void FSequencer::SnapToClosestPlaybackSpeed()
 		}
 	}
 
+	if (bExactOnly && Delta > UE_KINDA_SMALL_NUMBER)
+	{
+		return INDEX_NONE;
+	}
+
+	return NewSpeedIndex;
+}
+
+void FSequencer::SnapToClosestPlaybackSpeed()
+{
+	float CurrentSpeed = GetPlaybackSpeed();
+	int32 NewSpeedIndex = FindClosestPlaybackSpeed(CurrentSpeed);
+
 	if (NewSpeedIndex != INDEX_NONE)
 	{
+		TArray<float> PlaybackSpeeds = GetPlaybackSpeeds.Execute();
+
+		CurrentSpeedIndex = NewSpeedIndex;
 		PlaybackSpeed = PlaybackSpeeds[NewSpeedIndex];
 	}	
 }
@@ -9266,13 +9300,8 @@ void FSequencer::Pause()
 		EvaluateInternal(Range);
 	}
 
-	// reset the speed to 1. We have to update the speed index as well.
-	TArray<float> PlaybackSpeeds = GetPlaybackSpeeds.Execute();
+	RestorePlaybackSpeedAfterPlay();
 
-	CurrentSpeedIndex = PlaybackSpeeds.Find(1.f);
-	check(CurrentSpeedIndex != INDEX_NONE);
-	PlaybackSpeed = PlaybackSpeeds[CurrentSpeedIndex];
-	
 	OnStopDelegate.Broadcast();
 }
 
