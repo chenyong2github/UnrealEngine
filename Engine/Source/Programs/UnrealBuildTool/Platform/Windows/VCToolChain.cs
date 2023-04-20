@@ -937,11 +937,9 @@ namespace UnrealBuildTool
 					break;
 				case CppStandardVersion.Cpp20:
 					Arguments.Add("/std:c++20");
-					Arguments.Add("/Zc:preprocessor");
 					break;
 				case CppStandardVersion.Latest:
 					Arguments.Add("/std:c++latest");
-					Arguments.Add("/Zc:preprocessor");
 					break;
 				default:
 					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
@@ -949,6 +947,11 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.CppStandard >= CppStandardVersion.Cpp20)
 			{
+				if (Target.WindowsPlatform.Compiler.IsMSVC())
+				{
+					Arguments.Add("/Zc:preprocessor");
+				}
+
 				// warning C5054: operator ___: deprecated between enumerations of different types
 				// re: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p1120r0.html
 
@@ -993,137 +996,17 @@ namespace UnrealBuildTool
 				//
 
 				// Treat all warnings as errors by default
-				Arguments.Add("-Werror");
+				Arguments.Add("-Werror");                                   // https://clang.llvm.org/docs/UsersManual.html#cmdoption-werror
 
-				// Allow Microsoft-specific syntax to slide, even though it may be non-standard.  Needed for Windows headers.
-				Arguments.Add("-Wno-microsoft");
+				ClangWarnings.GetEnabledWarnings(Arguments); 
 
-				// @todo clang: Hack due to how we have our 'DummyPCH' wrappers setup when using unity builds.  This warning should not be disabled!!
-				Arguments.Add("-Wno-msvc-include");
+				ClangWarnings.GetDisabledWarnings(CompileEnvironment,
+					Target.StaticAnalyzer,
+					EnvVars.CompilerVersion,
+					Arguments);
 
-				if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
-				{
-					Arguments.Add("-Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow"));
-				}
-
-				if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
-				{
-					Arguments.Add(" -Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef"));
-				}
-
-				// Note: This should be kept in sync with PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS in ClangPlatformCompilerPreSetup.h
-				string[] UnsafeTypeCastWarningList = {
-					"float-conversion",
-					"implicit-float-conversion",
-					"implicit-int-conversion",
-					"c++11-narrowing"
-					//"shorten-64-to-32",	<-- too many hits right now, probably want it *soon*
-					//"sign-conversion",	<-- too many hits right now, probably want it eventually
-				};
-
-				if (CompileEnvironment.UnsafeTypeCastWarningLevel == WarningLevel.Error)
-				{
-					foreach (string Warning in UnsafeTypeCastWarningList)
-					{
-						Arguments.Add("-W" + Warning);
-					}
-				}
-				else if (CompileEnvironment.UnsafeTypeCastWarningLevel == WarningLevel.Warning)
-				{
-					foreach (string Warning in UnsafeTypeCastWarningList)
-					{
-						Arguments.Add("-W" + Warning + " -Wno-error=" + Warning);
-					}
-				}
-				else
-				{
-					foreach (string Warning in UnsafeTypeCastWarningList)
-					{
-						Arguments.Add("-Wno-" + Warning);
-					}
-				}
-
-				// Warn if __DATE__ or __TIME__ are used as they prevent reproducible builds
-				if (CompileEnvironment.bDeterministic)
-				{
-					if (CompileEnvironment.DeterministicWarningLevel == WarningLevel.Error)
-					{
-						Arguments.Add("-Wdate-time");
-					}
-					else if (CompileEnvironment.DeterministicWarningLevel == WarningLevel.Warning)
-					{
-						Arguments.Add("-Wdate-time -Wno-error=date-time");
-					}
-				}
-
-				// This is disabled because clang explicitly warns about changing pack alignment in a header and not
-				// restoring it afterwards, which is something we do with the Pre/PostWindowsApi.h headers.
-				Arguments.Add("-Wno-pragma-pack");
-
-				// @todo clang: Kind of a shame to turn these off.  We'd like to catch unused variables, but it is tricky with how our assertion macros work.
-				Arguments.Add("-Wno-inconsistent-missing-override");
-				Arguments.Add("-Wno-unused-variable");
-				if (EnvVars.CompilerVersion >= new VersionNumber(13))
-				{
-					Arguments.Add("-Wno-unused-but-set-variable");
-					Arguments.Add("-Wno-unused-but-set-parameter");
-				}
-				if (EnvVars.CompilerVersion >= new VersionNumber(14))
-				{
-					Arguments.Add("-Wno-bitwise-instead-of-logical");
-				}
-				Arguments.Add("-Wno-unused-local-typedefs");
-				Arguments.Add("-Wno-unused-function");
-				Arguments.Add("-Wno-unused-private-field");
-				Arguments.Add("-Wno-unused-value");
-
-				Arguments.Add("-Wno-inline-new-delete");	// @todo clang: We declare operator new as inline.  Clang doesn't seem to like that.
-				Arguments.Add("-Wno-implicit-exception-spec-mismatch");
-
-				// Sometimes we compare 'this' pointers against nullptr, which Clang warns about by default
-				Arguments.Add("-Wno-undefined-bool-conversion");
-
-				// @todo clang: Disabled warnings were copied from MacToolChain for the most part
-				Arguments.Add("-Wno-deprecated-declarations");
-				Arguments.Add("-Wno-deprecated-writable-strings");
-				Arguments.Add("-Wno-deprecated-register");
-				Arguments.Add("-Wno-switch-enum");
-				Arguments.Add("-Wno-logical-op-parentheses");	// needed for external headers we shan't change
-				Arguments.Add("-Wno-null-arithmetic");			// needed for external headers we shan't change
-				Arguments.Add("-Wno-deprecated-declarations");	// needed for wxWidgets
-				Arguments.Add("-Wno-return-type-c-linkage");	// needed for PhysX
-				Arguments.Add("-Wno-ignored-attributes");		// needed for nvtesslib
-				Arguments.Add("-Wno-uninitialized");
-				Arguments.Add("-Wno-tautological-compare");
-				Arguments.Add("-Wno-switch");
-				Arguments.Add("-Wno-invalid-offsetof"); // needed to suppress warnings about using offsetof on non-POD types.
-				Arguments.Add("-Wno-return-type");				// needed for external headers we shan't change 
-
-				// @todo clang: Sorry for adding more of these, but I couldn't read my output log. Most should probably be looked at
-				Arguments.Add("-Wno-unused-parameter");			// Unused function parameter. A lot are named 'bUnused'...
-				Arguments.Add("-Wno-ignored-qualifiers");		// const ignored when returning by value e.g. 'const int foo() { return 4; }'
-				Arguments.Add("-Wno-expansion-to-defined");		// Usage of 'defined(X)' in a macro definition. Gives different results under MSVC
-				Arguments.Add("-Wno-gnu-string-literal-operator-template");	// String literal operator"" in template, used by delegates
-				Arguments.Add("-Wno-sign-compare");				// Signed/unsigned comparison - millions of these
-				Arguments.Add("-Wno-undefined-var-template");	// Variable template instantiation required but no definition available
-				Arguments.Add("-Wno-missing-field-initializers"); // Stupid warning, generated when you initialize with MyStruct A = {0};
-				Arguments.Add("-Wno-unused-lambda-capture");
-				Arguments.Add("-Wno-nonportable-include-path");
-				Arguments.Add("-Wno-invalid-token-paste");
-				Arguments.Add("-Wno-null-pointer-arithmetic");
-				Arguments.Add("-Wno-constant-logical-operand"); // Triggered by || of two template-derived values inside a static_assert
-				if (EnvVars.CompilerVersion >= new VersionNumber(13))
-				{
-					Arguments.Add("-Wno-ordered-compare-function-pointers");
-				}
-
-				// C++20 warnings that should be addressed
-				if (CompileEnvironment.CppStandard >= CppStandardVersion.Cpp20)
-				{
-					Arguments.Add("-Wno-ambiguous-reversed-operator");
-					Arguments.Add("-Wno-deprecated-anon-enum-enum-conversion");
-					Arguments.Add("-Wno-deprecated-volatile");
-				}
+				// Additional disabled warnings for msvc. Everything below should be checked if it is necessary
+				ClangWarnings.GetVCDisabledWarnings(Arguments);
 			}
 		}
 
