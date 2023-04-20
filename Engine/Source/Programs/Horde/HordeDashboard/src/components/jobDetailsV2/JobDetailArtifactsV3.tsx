@@ -382,6 +382,10 @@ const DownloadButton: React.FC<{ handler: ArtifactsHandler }> = observer(({ hand
       buttonText = `Download (${sizeText})`;
    }
 
+   if (downloading) {
+      buttonText = "Downloading";
+   }
+
    return <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 8 }}>
       {downloading && <Stack><Spinner size={SpinnerSize.large} /></Stack>}
       <PrimaryButton styles={{ root: { fontFamily: 'Horde Open Sans SemiBold !important' } }} disabled={!selection.size || downloading} onClick={async () => {
