@@ -194,7 +194,7 @@ namespace Jupiter.FunctionalTests.CompressedBlobs
         public async Task RecompressionTest()
         {
             ContentId uncompressedPayloadIdentifier = new ContentId("A2AC0ECED768698F7413F131D064D36B7EC6F7DA");
-            byte[] texturePayloadSmaller = await File.ReadAllBytesAsync("ContentId/Payloads/smallerFile");
+            byte[] texturePayloadSmaller = await File.ReadAllBytesAsync("ContentId/Payloads/smallerfile");
             BlobIdentifier compressedPayloadIdentifierSmaller = BlobIdentifier.FromBlob(texturePayloadSmaller);
            
             {
@@ -209,7 +209,7 @@ namespace Jupiter.FunctionalTests.CompressedBlobs
                 Assert.AreEqual(uncompressedPayloadIdentifier, ContentId.FromBlobIdentifier(response.Identifier));
             }
 
-            byte[] texturePayloadLarger = await File.ReadAllBytesAsync("ContentId/Payloads/largerFile");
+            byte[] texturePayloadLarger = await File.ReadAllBytesAsync("ContentId/Payloads/largerfile");
             BlobIdentifier compressedPayloadIdentifierLarger = BlobIdentifier.FromBlob(texturePayloadLarger);
 
             {
