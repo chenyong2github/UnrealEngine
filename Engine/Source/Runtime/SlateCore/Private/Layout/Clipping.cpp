@@ -208,17 +208,6 @@ FSlateClippingState::FSlateClippingState(EClippingFlags InFlags /*= EClippingFla
 {
 }
 
-FSlateClippingState::FSlateClippingState(const FSlateClippingState& Other)
-	: StencilQuads(Other.StencilQuads)
-	, ScissorRect(Other.ScissorRect)
-	, Flags(Other.Flags)
-#if WITH_SLATE_DEBUGGING
-	, Debugging_StateIndex(Other.Debugging_StateIndex)
-	, Debugging_StateIndexFromFrame(Other.Debugging_StateIndexFromFrame)
-#endif
-{
-}
-
 bool FSlateClippingState::IsPointInside(const UE::Slate::FDeprecateVector2DParameter& Point) const
 {
 	if (ScissorRect.IsSet())

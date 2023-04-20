@@ -208,8 +208,6 @@ class SLATECORE_API FSlateClippingState
 public:
 	FSlateClippingState(EClippingFlags InFlags = EClippingFlags::None);
 	
-	FSlateClippingState(const FSlateClippingState& Other);
-
 	/** Is a point inside the clipping state? */
 	bool IsPointInside(const UE::Slate::FDeprecateVector2DParameter& Point) const;
 
