@@ -254,7 +254,7 @@ namespace BuildPatchServices
 					{
 						FileIt.RemoveCurrent();
 					}
-					else
+					else if (FileManifest != nullptr)
 					{
 						BuildStats.VFCRequestedFileWrite += (FileManifest->FileSize / 1024.0f / 1024.0f);
 					}
