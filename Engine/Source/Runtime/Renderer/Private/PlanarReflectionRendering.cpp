@@ -297,6 +297,7 @@ static void UpdatePlanarReflectionContents_RenderThread(
 
 		if (!bIsInAnyFrustum)
 		{
+			delete SceneRenderer;
 			return;
 		}
 
@@ -336,6 +337,7 @@ static void UpdatePlanarReflectionContents_RenderThread(
 
 		if (!bIsVisibleInAnyView)
 		{
+			delete SceneRenderer;
 			return;
 		}
 	}
