@@ -55,7 +55,6 @@ float3 GetTessFactors( FNaniteView NaniteView, float3 PointView[3] )
 		length( PointView[0] - PointView[1] ) / min( PointView[0].z, PointView[1].z ),
 		length( PointView[1] - PointView[2] ) / min( PointView[1].z, PointView[2].z ),
 		length( PointView[2] - PointView[0] ) / min( PointView[2].z, PointView[0].z ) );
-	TessFactors *= 0.5;
 #else
 	float3 Projection;
 	for( uint i = 0; i < 3; i++ )
@@ -75,7 +74,6 @@ float3 GetTessFactors( FNaniteView NaniteView, float3 PointView[3] )
 		// TODO 1 sqrt
 		TessFactors[i] = EdgeLength / EdgeScale;
 	}
-	TessFactors *= 0.5;
 #endif
 
 	bool bOrtho = NaniteView.ViewToClip[3][3] >= 1;
@@ -85,9 +83,9 @@ float3 GetTessFactors( FNaniteView NaniteView, float3 PointView[3] )
 			length( PointView[0] - PointView[1] ),
 			length( PointView[1] - PointView[2] ),
 			length( PointView[2] - PointView[0] ) );
-		TessFactors *= 2;
 	}
 
+	TessFactors *= 0.5;
 	TessFactors *= NaniteView.LODScale / View.GeneralPurposeTweak;
 	//TessFactors *= NaniteView.ViewToClip[1][1] * NaniteView.ViewSizeAndInvSize.y / View.GeneralPurposeTweak;	// TODO real tessellation density control
 	
