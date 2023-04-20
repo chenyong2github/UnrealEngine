@@ -83,7 +83,6 @@ public:
 			const FString& Value = TagValuePair.Value;
 			if (Tag == SupportedMarkupKeys::Color)
 			{
-				//@todo DanH: A system for named colors would be nice for sure
 				TextStyle.SetColorAndOpacity(FLinearColor::FromSRGBColor(FColor::FromHex(Value)));
 			}
 			else if (Tag == SupportedMarkupKeys::FontFace)
@@ -111,10 +110,6 @@ public:
 				if (Value.IsEmpty())
 				{
 					TextStyle.Font.FontMaterial = nullptr;
-				}
-				else
-				{
-					//@todo DanH: Set up something to allow font materials to be assigned to lookup keys
 				}
 			}
 		}
@@ -215,7 +210,6 @@ public:
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				//@todo DanH: If needed, we can have the padding between the icon and the text be auto-adjusted based on the font size
 				.Padding(0.f, 0.f, 8.f, 0.f)
 				[
 					CreateIconWidget(Entry, TextStyle, InArgs._IconScale, InArgs._bTintIcon)
@@ -333,14 +327,12 @@ protected:
 		const FInlineIconEntry* InlineIconEntry = InlineIconsByTag.Find(InlineIconEntryName);
 		if (ensure(InlineIconEntry))
 		{
-			//@todo DanH: Leave this in? Definitely of general use in any situation where you have prices in both fake icon-identified currency and real font-supported currency
-
 			// Real money symbols are within fonts and will never have an icon, so we force text only mode now 
 			// to make sure we don't have an errant icon potentially appear (or a pink error box in non-shipping)
 			// Ideally, this could be more data-driven, but that would be overkill for what is currently a singleton use case
 			ERichTextInlineIconDisplayMode EntryDisplayMode = InlineIconEntryName == TEXT("cash") ? ERichTextInlineIconDisplayMode::TextOnly : Owner->InlineIconDisplayMode;
 
-			//@todo DanH: Set something up for when to tint the icon the same color as the text
+			// Note: Icon may not be tinted same color as text, for now must be addressed in game
 			return SNew(SCommonInlineIcon, *InlineIconEntry, ModifiedTextStyle)
 				.DisplayMode(EntryDisplayMode)
 				.IconScale(IconScale)
@@ -379,103 +371,6 @@ void UCommonRichTextBlock::ReleaseSlateResources(bool bReleaseChildren)
 
 	MyTextScroller.Reset();
 }
-
-//@todo DanH: Address the todos nested below to enable input, and custom widgets (this is stuff originally from Orion)
-/*
-class FCommonDecorator_Input : public FCommonRichTextDecorator
-{
-public:
-	static TSharedRef<FCommonDecorator_Input> CreateInstance(UCommonRichTextBlock& InOwner)
-	{
-		return MakeShareable(new FCommonDecorator_Input(InOwner));
-	}
-
-	virtual bool Supports(const FTextRunParseResults& RunParseResult, const FString& Text) const override
-	{
-		return RunParseResult.Name == UOrionGameUIData::Get().GetRichTextStyleData().InputMarkupTag;
-	}
-
-protected:
-	virtual TSharedPtr<SWidget> CreateDecoratorWidget(const FTextRunInfo& RunInfo, const FTextBlockStyle& TextStyle) const override
-	{
-		FName AxisName;
-		FName ActionName;
-		FKey SpecificKey;
-
-		if (const FString* ActionMeta = RunInfo.MetaData.Find(SupportedMarkupKeys::Action))
-		{
-			ActionName = **ActionMeta;
-		}
-		else if (const FString* AxisMeta = RunInfo.MetaData.Find(SupportedMarkupKeys::Axis))
-		{
-			AxisName = **AxisMeta;
-		}
-		else if (const FString* KeyMeta = RunInfo.MetaData.Find(SupportedMarkupKeys::Key))
-		{
-			SpecificKey = FKey(**KeyMeta);
-		}
-		
-		const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		int32 MaxCharacterHeight = FontMeasure->GetMaxCharacterHeight(TextStyle.Font);
-		
-		//@todo DanH: The common input stuff is pretty difficult to inspect or track down natively - need to sort out how to get that (ideally for free)
-		//@todo DanH: Compare the SOrionInputVisualizer to the CommonActionWidget and fill any gaps (like having an SWidget version)
-		return SNew(SOrionInputVisualizer, Owner.IsValid() ? Cast<AOrionPlayerController_Base>(Owner->GetOwningPlayer()) : nullptr)
-			.InputAction(ActionName)
-			.InputAxis(AxisName)
-			.SpecificKey(SpecificKey)
-			.bUseKeyBorder(!RunInfo.MetaData.Contains(SupportedMarkupKeys::Borderless))
-			.DesiredHeight(MaxCharacterHeight);
-	}
-
-private:
-	FCommonDecorator_Input(UCommonRichTextBlock& InOwner)
-		: FCommonRichTextDecorator(InOwner)
-	{}
-};
-
-//@todo DanH: Give this a second glance to make sure I like it, then make the CommonRichTextInlineWidget class and somewhere to register them 
-//		Also, consider whether it should be a class or an interface
-class FCommonDecorator_CustomWidget : public FCommonRichTextDecorator
-{
-public:
-	static TSharedRef<FCommonDecorator_CustomWidget> CreateInstance(UCommonRichTextBlock& InOwner)
-	{
-		return MakeShareable(new FCommonDecorator_CustomWidget(InOwner));
-	}
-
-	virtual bool Supports(const FTextRunParseResults& RunParseResult, const FString& Text) const override
-	{	
-		return UOrionGameUIData::Get().GetRichTextStyleData().InlineWidgetsByTag.Contains(RunParseResult.Name.ToLower());
-	}
-
-protected:
-	virtual TSharedPtr<SWidget> CreateDecoratorWidget(const FTextRunInfo& RunInfo, const FTextBlockStyle& TextStyle) const override
-	{
-		if (const TSubclassOf<UCommonRichTextBlockInlineWidget>* WidgetClass = UOrionGameUIData::Get().GetRichTextStyleData().InlineWidgetsByTag.Find(RunInfo.Name.ToLower()))
-		{
-			UCommonRichTextBlockInlineWidget* NewWidget = UIUtils::ConstructSubWidget(*Owner, *WidgetClass);
-
-			TSharedRef<SWidget> SlateWidget = NewWidget->TakeWidget();
-			NewWidget->InitializeInlineWidget(TextStyle, RunInfo);
-
-			return SlateWidget;
-		}
-		return TSharedPtr<SWidget>();
-	}
-
-private:
-	FCommonDecorator_CustomWidget(UCommonRichTextBlock& InOwner)
-		: FCommonRichTextDecorator(InOwner)
-	{}
-};
-
-template <typename CommonDecoratorT, typename = typename TEnableIf<TIsDerivedFrom<CommonDecoratorT, FCommonRichTextDecorator>::IsDerived, CommonDecoratorT>::Type>
-TSharedRef<ITextDecorator> CreateDecorator(UCommonRichTextBlock& InOwner)
-{
-	return CommonDecoratorT::CreateInstance(InOwner);
-}
-*/
 
 void UCommonRichTextBlock::Serialize(FArchive& Ar)
 {

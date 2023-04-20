@@ -19,10 +19,6 @@
 
 #define LOCTEXT_NAMESPACE "CommonAnalogCursor"
 
-
-//@todo DanH: CVar for forcing analog movement to be enabled
-
-//@todo DanH: Move to UCommonUIInputSettings
 const float AnalogScrollUpdatePeriod = 0.1f;
 const float ScrollDeadZone = 0.2f;
 
@@ -60,8 +56,7 @@ extern bool IsViewportWindowInFocusPath(const UCommonUIActionRouterBase& Router)
 
 void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
 {
-	//@todo DanH: Cursor visibility was getting thrown off somehow on PS4 and P2 wound up permanently showing the cursor
-	//		Will circle back on this, but for now refreshing a single bool each frame is relatively harmless.
+	// Refreshing visibility per tick to address multiplayer p2 cursor visibility getting stuck
 	RefreshCursorVisibility();
 
 	// Don't bother trying to do anything while the game viewport has capture
@@ -90,7 +85,6 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 			TSharedPtr<SWidget> CursorTarget = SlateUser->GetFocusedWidget();
 			if (TSharedPtr<ITableViewMetadata> TableViewMetadata = CursorTarget ? CursorTarget->GetMetaData<ITableViewMetadata>() : nullptr)
 			{
-				//@todo DanH: When a list is focused but the selected row isn't visible, should we try to hide the cursor or anything?
 				// A list view is currently focused, so we actually want to make sure we are centering the cursor over the currently selected row instead
 				TArray<TSharedPtr<ITableRow>> SelectedRows = TableViewMetadata->GatherSelectedRows();
 				if (SelectedRows.Num() > 0 && ensure(SelectedRows[0].IsValid()))
@@ -125,8 +119,6 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 					FGeometry TargetGeometry; 
 					if (CursorTarget == GetViewportClient()->GetGameViewportWidget())
 					{
-						//@todo DanH: We reeeeally need the GameViewport stuff to be friendlier toward splitscreen scenarios and allow easier direct access to a player's actual "viewport" widget
-
 						// When the target is the game viewport as a whole, we don't want to center blindly - we want to center in the geometry of our owner's widget host layer
 						TSharedPtr<IGameLayerManager> GameLayerManager = GetViewportClient()->GetGameLayerManager();
 						if (ensure(GameLayerManager))
@@ -250,8 +242,7 @@ bool FCommonAnalogCursor::HandleKeyDownEvent(FSlateApplication& SlateApp, const 
 		}
 		else
 		{
-			//@todo DanH: This is a major bummer to have to flip this flag on the input subsystem here, but there is no awareness on a mouse event of whether it's real or not
-			//		Though tbh, any place that cares should be able to just check the live input mode and infer from that whether this is a mouse click or virtual gamepad click
+			// There is no awareness on a mouse event of whether it's real or not, so mark that here.
 			UCommonInputSubsystem& InputSubsytem = ActionRouter.GetInputSubsystem();
 			InputSubsytem.SetIsGamepadSimulatedClick(bIsVirtualAccept);
 			bool bReturnValue = FAnalogCursor::HandleKeyDownEvent(SlateApp, InKeyEvent);
@@ -268,7 +259,6 @@ bool FCommonAnalogCursor::HandleKeyUpEvent(FSlateApplication& SlateApp, const FK
 	if (IsRelevantInput(InKeyEvent))
 	{
 #if !UE_BUILD_SHIPPING
-		//@todo DanH: I'm not sure this'll actually work, may have been a dumb idea to try tracking this way
 		const FKey& PressedKey = InKeyEvent.GetKey();
 		if (PressedKey == EKeys::Gamepad_LeftShoulder) { ShoulderButtonStatus ^= EShoulderButtonFlags::LeftShoulder; }
 		if (PressedKey == EKeys::Gamepad_RightShoulder) { ShoulderButtonStatus ^= EShoulderButtonFlags::RightShoulder; }
@@ -341,7 +331,6 @@ bool FCommonAnalogCursor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp
 		}
 #endif 
 
-		//@todo DanH: May want to make the list of "mouse buttons to treat like keys" a settings thing
 		// Mouse buttons other than the two primaries are fair game for binding as if they were normal keys
 		const FKey EffectingButton = PointerEvent.GetEffectingButton();
 		if (EffectingButton.IsMouseButton()
@@ -352,17 +341,9 @@ bool FCommonAnalogCursor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp
 			UGameViewportClient* ViewportClient = GetViewportClient();
 			if (TSharedPtr<SWidget> ViewportWidget = ViewportClient ? ViewportClient->GetGameViewportWidget() : nullptr)
 			{
-				//@todo DanH: Mouse buttons generally transfer focus to the application they're over, so shouldn't we be able to rely instead
-				//		on a combination check that a) the SlateApp is active and b) the game viewport is in the focus path?
-				//		Mousing over to a web browser and clicking the back button, for example, will shift OS focus to the browser
-				//			Within the Slate app, clicking back will transfer focus just like LMB would
 				const FWidgetPath WidgetsUnderCursor = SlateApp.LocateWindowUnderMouse(PointerEvent.GetScreenSpacePosition(), SlateApp.GetInteractiveTopLevelWindows());
 				if (WidgetsUnderCursor.ContainsWidget(ViewportWidget.Get()))
 				{
-					//@todo DanH: Do we need to go through the whole process here of generating a false key down event?
-					//		All we really want to do here is allow UI input bindings to mouse buttons right?
-					//		95% sure we can/should simply be having the ActionRouter process input here instead of generating the event
-					//			After all, a widget expecting to receive an OnKeyDown with a mouse button key is just plaing doing it wrong...
 					FKeyEvent MouseKeyEvent(EffectingButton, PointerEvent.GetModifierKeys(), PointerEvent.GetUserIndex(), false, 0, 0);
 					if (SlateApp.ProcessKeyDownEvent(MouseKeyEvent))
 					{
@@ -389,10 +370,6 @@ bool FCommonAnalogCursor::HandleMouseButtonUpEvent(FSlateApplication& SlateApp, 
 			bool bHandled = SlateApp.ProcessKeyUpEvent(MouseKeyEvent);
 			if (bHadKeyDown)
 			{
-				//@todo DanH: What is this scenario? As it is we'll ignore the button down when its outside the app window, but still handle it when released. NONSENSE.
-				//		Also if someone had it down when they activated the app, then released, there's also no reason to process that
-				//		Now, if we were to have a mouse button hold action (ewwwww) and you have it down and leave the app, then release, I guess we'd still process it so long as it was down
-
 				// Only block the mouse up if the mouse down was also blocked
 				return bHandled;
 			}

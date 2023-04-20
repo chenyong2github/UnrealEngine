@@ -213,7 +213,6 @@ void UCommonActionWidget::SetInputAction(FDataTableRowHandle InputActionRow)
 
 void UCommonActionWidget::SetInputActionBinding(FUIActionBindingHandle BindingHandle)
 {
-	//@todo DanH/(josh.gross): Just handling the legacy stuff for now
 	UpdateBindingHandleInternal(BindingHandle);
 	if (TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(BindingHandle))
 	{

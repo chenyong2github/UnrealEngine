@@ -84,10 +84,6 @@ void UCommonBoundActionBar::OnWidgetRebuilt()
 void UCommonBoundActionBar::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
-
-	//@todo DanH: Preview some entries - this should be really easy to get out of the box without copying DynamicEntryBox
-	//	-> should make a GeneratePreviewEntries util on the base that takes a class and the number to show
-	//GeneratePreviewEntries(NumPreviewEntries, ActionButtonClass);
 }
 
 void UCommonBoundActionBar::ReleaseSlateResources(bool bReleaseChildren)
@@ -188,7 +184,7 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 								}
 								else
 								{
-									return false; //@todo(josh.gross) - allow non-legacy bindings
+									return false; 
 								}
 
 								bool bAlreadyAccepted = false;

@@ -287,7 +287,7 @@ void UCommonTextBlock::PostLoad()
 void UCommonTextBlock::Serialize(FArchive& Ar)
 {
 #if WITH_EDITORONLY_DATA
-	// @fixme If a text style is set, clear style related properties on PreSave when cooking to avoid 
+	// @FIXME: If a text style is set, clear style related properties on PreSave when cooking to avoid 
 	// non-deterministic cooking issues. The root cause of this is still unclear, but we're sometimes 
 	// getting either the wrong style CDO (a parent BP instead of the child BP) or the child BP CDO properties
 	// are being initialized with the parent's values.

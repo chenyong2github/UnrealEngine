@@ -21,7 +21,8 @@ struct COMMONUI_API FRichTextIconData : public FTableRowBase
 	FVector2D ImageSize = FVector2D(64.f, 64.f);
 };
 
-/* Derive from this class for rich text data per game
+/** 
+ * Derive from this class for rich text data per game
  * it is referenced in Common UI Settings, found in project settings UI
  */
 UCLASS(Abstract, Blueprintable, meta = (Category = "Common UI"))
@@ -32,7 +33,6 @@ class COMMONUI_API UCommonUIRichTextData : public UObject
 public:
 	static UCommonUIRichTextData* Get();
 
-	//@todo StephanJ: think of methods for game to add more icons to the set
 	const FRichTextIconData* FindIcon(const FName& InKey);
 	const TMap<FName, uint8*>& GetIconMap() const { return InlineIconSet->GetRowMap(); }
 

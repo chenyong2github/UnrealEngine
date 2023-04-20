@@ -61,17 +61,7 @@ UCommonInputSubsystem* UCommonInputSubsystem::Get(const ULocalPlayer* LocalPlaye
 
 UCommonInputSubsystem::UCommonInputSubsystem()
 {
-	//@TODO: Project setting (should be done as another config var any platform can set tho)?
-//	// Uncomment this if we want mobile platforms to default to gamepad when gamepads are enabled.
-// #if PLATFORM_IOS
-//     bool bAllowControllers = false;
-//     GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAllowControllers"), bAllowControllers, GEngineIni);
-//     CurrentInputType = LastInputType = bAllowControllers ? ECommonInputType::Gamepad : CurrentInputType;
-// #elif PLATFORM_ANDROID
-//     bool bAllowControllers = false;
-//     GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bAllowControllers"), bAllowControllers, GEngineIni);
-//     CurrentInputType = LastInputType = bAllowControllers ? ECommonInputType::Gamepad : CurrentInputType;
-// #endif
+
 }
 
 void UCommonInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -391,12 +381,9 @@ bool UCommonInputSubsystem::Tick(float DeltaTime)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UCommonInputSubsystem_Tick);
 
-	//@todo DanH: This is wrong now that two of these might exist (and has always been wrong for multi-client PIE scenarios)
-	//		Preprocessors need to be kept associated with their registration priority so we can safely know these won't get all thrown out of whack as others come and go
-
-	//Keep the CommonInputPreprocessor on top. Input swap and input filtering (e.g. "Ignore Gamepad Input")
-	//both start to break down if narrow game preprocessors temporarily get in front of it.
-	//This is a workaround to avoid a bigger intervention in the SlateApplication API for managing preprocessors.
+	// Keep the CommonInputPreprocessor on top. Input swap and input filtering (e.g. "Ignore Gamepad Input")
+	// both start to break down if narrow game preprocessors temporarily get in front of it.
+	// This is a workaround to avoid a bigger intervention in the SlateApplication API for managing preprocessors.
 	if (CommonInputPreprocessor.IsValid() && FSlateApplication::IsInitialized())
 	{
 		FSlateApplication& SlateApplication = FSlateApplication::Get();

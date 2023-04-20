@@ -440,9 +440,6 @@ bool FUIActionBindingHandle::IsValid() const
 	return RegistrationId >= 0 && FUIActionBinding::FindBinding(*this) != nullptr;
 }
 
-//@todo DanH: With widgets caching binding handles that are auto registered/unregistered on construct/destruct, it's less clear what this should be doing
-//		The big question is whether this should fully destroy the binding object, or just unregister it from the node (if it's actually live)
-//		Perhaps we remove the function from here entirely, and you have to pass the handle to the router for unbinding?
 void FUIActionBindingHandle::Unregister()
 {
 	if (TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(*this))

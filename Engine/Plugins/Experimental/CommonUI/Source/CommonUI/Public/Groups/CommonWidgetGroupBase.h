@@ -5,8 +5,9 @@
 #include "Components/Widget.h"
 #include "CommonWidgetGroupBase.generated.h"
 
-//@todo DanH: This is only used for buttons, so ditch the base. Also the vast majority of use cases are native, so it also shouldn't be a UObject
-
+/**
+ * Base class for CommonUI widget groups, currently only used for button groups
+ */
 UCLASS(Abstract, BlueprintType)
 class COMMONUI_API UCommonWidgetGroupBase : public UObject
 {

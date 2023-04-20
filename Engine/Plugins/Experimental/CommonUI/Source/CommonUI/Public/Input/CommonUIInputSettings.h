@@ -32,17 +32,6 @@ public:
 	/** Time (in seconds) for hold progress to go from 1.0 (completed) to 0.0. */
 	UPROPERTY(EditAnywhere, Config, Category = "UI Action Key Mapping")
 	float HoldRollbackTime = 0.f;
-
-	//@todo DanH: Is this actually wanted/needed at all? Do we really want different bindings for the same thing on Platform A vs Platform B, for instance?
-	///** 
-	// * (Optional) The platforms to which this mapping is exclusive. Leave empty to allow on all platforms.
-	// * Note that most platforms support multiple input methods (Gamepad/KBM/Touch), so be sparing with specific platform restrictions
-	// */
-	//UPROPERTY(EditAnywhere, Config, Category = "UI Action Key Mapping", meta = (Categories = "UI.Platform."))
-	//FGameplayTagContainer Platforms;
-
-	//@todo DanH: Do we care about keyboard modifier keys? Leaning no until a need arises
-	//		If it does, we can just swap out the FKey for an FInputChord and do some PostSerialize fixup
 };
 
 USTRUCT()
@@ -113,8 +102,6 @@ class UCommonUIInputSettings : public UObject
 	GENERATED_BODY()
 
 public:
-	//@todo DanH: Consider collapsing the other settings objects in here too
-
 	COMMONUI_API static const UCommonUIInputSettings& Get();
 	
 	virtual void PostInitProperties() override;
@@ -123,19 +110,12 @@ public:
 	const FUIInputAction* FindAction(FUIActionTag ActionTag) const;
 	const TArray<FUIInputAction>& GetUIInputActions() const { return InputActions; }
 	const FCommonAnalogCursorSettings& GetAnalogCursorSettings() const { return AnalogCursorSettings; }
-
-#if WITH_EDITOR
-	//virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 //
 private:
 	/** True to have the mouse pointer automatically moved to the center of whatever widget is currently focused while using a gamepad. */
 	UPROPERTY(EditAnywhere, Config, Category = General)
 	bool bLinkCursorToGamepadFocus = true;
 
-	//@todo DanH: I really don't like this, but it's the only means available atm for us to push input components with some level of control
-	//		Short of a larger revamp in PlayerInput, the only other option is to require a manual linkup within the project-level PlayerController's BuildInputStack
-	//		that gets in touch with the action router directly and lets it push components. Opting instead for the decoupled approach, crude as it may be.
 	/** 
 	 * The input priority of the input components that process UI input actions.
 	 * The lower the value, the higher the priority of the component.
@@ -159,12 +139,6 @@ private:
 
 	UPROPERTY(EditAnywhere, Config, Category = AnalogCursor)
 	FCommonAnalogCursorSettings AnalogCursorSettings;
-
-//#if WITH_EDITORONLY_DATA
-//	/** Purely a visual reference to reflect the actual priority values for the input components for each mode, based UIActionProcessingPriority. */
-//	UPROPERTY(VisibleAnywhere, Category = InputSettings)
-//	int32 InputModePriorities[(uint8)ECommonInputMode::MAX];
-//#endif
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

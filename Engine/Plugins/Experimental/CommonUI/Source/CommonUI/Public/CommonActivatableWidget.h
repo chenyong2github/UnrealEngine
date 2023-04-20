@@ -27,8 +27,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWidgetActivationChanged);
  * 
  * Note that removing an activatable widget from the UI (i.e. triggering Destruct()) will always deactivate it, even if the UWidget is not destroyed.
  * Re-constructing the underlying SWidget will only result in re-activation if auto-activate is enabled.
- *
- * TODO: ADD MORE INFO ON INPUTS
  */
 UCLASS(meta = (DisableNativeTick))
 class COMMONUI_API UCommonActivatableWidget : public UCommonUserWidget
@@ -164,7 +162,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Activation)
 	bool bAutoActivate = false;
 
-	//@todo DanH: This property name suuucks, need to circle back and pick something better
 	/**
 	 * True if this widget is a candidate to receive/route focus or specify a desired UIInputConfig when active.
 	 * Primary reason for disabling is for utility sub-widgets within a larger screen that possess actions, but are never

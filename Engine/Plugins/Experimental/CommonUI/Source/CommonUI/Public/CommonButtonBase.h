@@ -524,7 +524,7 @@ protected:
 	virtual void HandleTriggeringActionCommited(bool& bPassthrough);
 	virtual void HandleTriggeringActionCommited();
 
-	//@TODO: DarenC - API decision, consider removing
+	// @TODO: DarenC - API decision, consider removing
 	virtual void ExecuteTriggeredInput();
 
 	/** Helper function to update the associated input action widget, if any, based upon the state of the button */

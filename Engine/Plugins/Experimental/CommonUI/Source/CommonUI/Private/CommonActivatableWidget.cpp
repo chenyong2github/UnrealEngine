@@ -282,7 +282,6 @@ void UCommonActivatableWidget::NativeOnDeactivated()
 
 bool UCommonActivatableWidget::NativeOnHandleBackAction()
 {
-	//@todo DanH: This isn't actually fleshed out enough - we need to figure out whether we want to let back be a normal action or a special one routed through all activatables that lets them conditionally handle it
 	if (bIsBackHandler)
 	{
 		if (!BP_OnHandleBackAction())

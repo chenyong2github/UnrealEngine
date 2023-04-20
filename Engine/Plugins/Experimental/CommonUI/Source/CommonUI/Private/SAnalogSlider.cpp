@@ -129,7 +129,7 @@ FReply SAnalogSlider::OnAnalogValueChanged(const FGeometry& MyGeometry, const FA
 
 FNavigationReply SAnalogSlider::OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent)
 {
-	//TODO Handle up and down.
+	// @TODO: Handle up and down.
 	if (Orientation == EOrientation::Orient_Horizontal)
 	{
 		if (InNavigationEvent.GetNavigationType() == EUINavigation::Left)

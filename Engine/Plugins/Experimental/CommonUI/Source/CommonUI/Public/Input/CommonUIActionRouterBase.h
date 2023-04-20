@@ -51,8 +51,10 @@ enum class ERouteUIInputResult : uint8
 };
 
 /**
- * The nucleus of the CommonUI input routing system
- * @todo DanH: Explain what that means more fully
+ * The nucleus of the CommonUI input routing system. 
+ * 
+ * Gathers input from external sources such as game viewport client and forwards them to widgets 
+ * via activatable tree node representation.
  */
 UCLASS()
 class COMMONUI_API UCommonUIActionRouterBase : public ULocalPlayerSubsystem
@@ -93,7 +95,6 @@ public:
 
 	UCommonInputSubsystem& GetInputSubsystem() const;
 
-	//@todo DanH: VERY TEMP! The event we want from the game viewport lives at the level atm
 	ERouteUIInputResult ProcessInput(FKey Key, EInputEvent InputEvent) const;
 	bool CanProcessNormalGameInput() const;
 
@@ -107,9 +108,7 @@ public:
 
 	void SetActiveUIInputConfig(const FUIInputConfig& NewConfig);
 
-//COMMONUI_SCOPE:
 public:
-	//@todo DanH: Not loving this bit of coupling, it really should to be possible for any widget to accomplish this (and the CommonUserWidget just does it automatically)
 	void NotifyUserWidgetConstructed(const UCommonUserWidget& Widget);
 	void NotifyUserWidgetDestructed(const UCommonUserWidget& Widget);
 	

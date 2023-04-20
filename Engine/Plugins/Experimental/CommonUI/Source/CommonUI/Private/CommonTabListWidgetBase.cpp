@@ -162,7 +162,6 @@ void UCommonTabListWidgetBase::RemoveAllTabs()
 
 int32 UCommonTabListWidgetBase::GetTabCount() const
 {
-	// TODO Should we ensure all the tabs in the list are valid?
 	return RegisteredTabsByID.Num();
 }
 

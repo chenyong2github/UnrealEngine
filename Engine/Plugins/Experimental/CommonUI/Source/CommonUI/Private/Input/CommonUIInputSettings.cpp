@@ -13,16 +13,10 @@ const UCommonUIInputSettings& UCommonUIInputSettings::Get()
 void UCommonUIInputSettings::PostInitProperties()
 {
 	Super::PostInitProperties();
-	
-	if (ensure(HasAnyFlags(RF_ClassDefaultObject)))
-	{
-		//@todo DanH: Resolve the actions and the config overrides
-	}
 }
 
 const FUIInputAction* UCommonUIInputSettings::FindAction(FUIActionTag ActionTag) const
 {
-	//@todo DanH: We'll likely want a TMap for these
 	return InputActions.FindByPredicate([ActionTag](const FUIInputAction& Action) { return Action.ActionTag == ActionTag; });
 }
 

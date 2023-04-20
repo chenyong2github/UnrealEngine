@@ -83,10 +83,7 @@ protected:
 	
 	bool IsUsingGamepad() const;
 
-
 	bool ShouldHideCursor() const;
-
-
 
 	// Knowingly unorthodox member reference to a UObject - ok because we are a subobject of the owning router and will never outlive it
 	const UCommonUIActionRouterBase& ActionRouter;
@@ -97,8 +94,7 @@ protected:
 	bool bShouldHandleRightAnalog = true;
 	
 private:
-	//EAnalogStick GetScrollStick() const;
-	
+
 	/** The current set of pointer buttons being used as keys. */
 	TSet<FKey> PointerButtonDownKeys;
 
@@ -106,10 +102,6 @@ private:
 	FSlateRenderTransform LastCursorTargetTransform;
 
 	float TimeUntilScrollUpdate = 0.f;
-
-	//@todo DanH: This actually needs to go up a layer into FAnalogCursor so it behaves as desired if we allow things to fall through
-	//		We'll also need a CommonNavigationConfig that respects the stick assignment as well so it also maps to nav mode
-	//EAnalogStick CursorMovementStick = EAnalogStick::Left;
 	
 #if !UE_BUILD_SHIPPING
 	enum EShoulderButtonFlags

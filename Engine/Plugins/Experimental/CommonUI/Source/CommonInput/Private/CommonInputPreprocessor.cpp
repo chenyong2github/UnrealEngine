@@ -242,8 +242,7 @@ ECommonInputType FCommonInputPreprocessor::GetInputType(const FKey& Key)
 		{
 			return ECommonInputType::Touch;
 		}
-
-		//@todo DanH: Why would the gamepad simulating a click imply we also want to ignore key input? Should the property instead be IsGamepadSimulatedInput? Or is this wrong?
+		
 		return ECommonInputType::Gamepad;
 	}
 

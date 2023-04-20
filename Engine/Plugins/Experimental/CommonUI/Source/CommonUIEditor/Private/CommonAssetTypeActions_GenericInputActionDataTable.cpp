@@ -25,7 +25,6 @@ UClass* FCommonAssetTypeActions_GenericInputActionDataTable::GetSupportedClass()
 
 void FCommonAssetTypeActions_GenericInputActionDataTable::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {
-	//@TODO: DarenC - This is from FAssetTypeActions_DataTable - but we can't derive to private include.
 	TArray<UDataTable*> DataTablesToOpen;
 	TArray<UDataTable*> InvalidDataTables;
 

@@ -32,7 +32,6 @@ static const FAutoConsoleVariableRef CVarAlwaysShowCursor(
 	bAlwaysShowCursor,
 	TEXT(""));
 
-//@todo DanH: TEMP LOCATION
 FGlobalUITags FGlobalUITags::GUITags;
 
 UCommonActivatableWidget* FindOwningActivatable(const UWidget& Widget)
@@ -84,7 +83,6 @@ UCommonActivatableWidget* UCommonUIActionRouterBase::FindOwningActivatable(TShar
 
 	while (Widget && !OwningActivatable)
 	{
-		//@todo DanH: Create FActivatableWidgetMetaData and slap it onto the RebuildWidget result in CommonActivatableWidget
 		Widget = Widget->GetParentWidget();
 		if (Widget && Widget->GetType().IsEqual(TEXT("SObjectWidget")))
 		{
@@ -316,7 +314,7 @@ ERouteUIInputResult UCommonUIActionRouterBase::ProcessInput(FKey Key, EInputEven
 	// In PIE, check if the user is attempting to press the StopPlaySession command chord.
 	if (GIsPlayInEditorWorld && InputEvent == IE_Pressed)
 	{
-		//TODO This could be more generic to be a list of command in commands to allow to be ignored by the UI action router.
+		// @TODO: This could be more generic to be a list of command in commands to allow to be ignored by the UI action router.
 		TSharedPtr<FUICommandInfo> StopCommand = FInputBindingManager::Get().FindCommandInContext("PlayWorld", "StopPlaySession");
 		if (ensure(StopCommand))
 		{
@@ -576,10 +574,8 @@ void UCommonUIActionRouterBase::HandleRootWidgetSlateReleased(TWeakPtr<FActivata
 		// Cannot actually have this ensure here, because we may be in a function called on the ToBeRemoved node itself, keeping one remaining strong reference
 		// ensureAlways(!ToBeRemoved.IsValid());
 
-		//@todo DanH: This may not ever actually happen, since we'll likely want the loading screen to be an activatable - we should be listening for map changes instead
 		if (RootNodes.Num() == 0)
 		{
-			//@todo DanH: This won't actually change the current config, which we may want to do with a loading screen
 			ActiveInputConfig.Reset();
 			RefreshActionDomainLeafNodeConfig();
 		}
@@ -894,7 +890,6 @@ void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
 
 	if (WidgetsByDirectParent.Num() > 0)
 	{
-		//@todo DanH: Build a string to print all the remaining entries
 		ensureAlwaysMsgf(false, TEXT("Somehow we rebuilt a widget that is owned by an activatable, but no node exists for that activatable. This *should* be completely impossible."));
 	}
 	
@@ -1335,7 +1330,7 @@ void UCommonUIActionRouterBase::ApplyUIInputConfig(const FUIInputConfig& NewConf
 
 		ULocalPlayer& LocalPlayer = *GetLocalPlayerChecked();
 
-		//@todo DanH: This won't quite work for splitscreen - we need per-player viewport client settings for mouse capture
+		// Note: may not work for splitscreen. We need per-player viewport client settings for mouse capture
 		if (UGameViewportClient* GameViewportClient = LocalPlayer.ViewportClient)
 		{
 			if (TSharedPtr<SViewport> ViewportWidget = GameViewportClient->GetGameViewportWidget())
@@ -1399,9 +1394,6 @@ void UCommonUIActionRouterBase::ApplyUIInputConfig(const FUIInputConfig& NewConf
 									break;
 								// Gamepad - Let the settings tell us if we should center it.
 								case ECommonInputType::Gamepad:
-									//TODO - Consider doing something here so that the gamepad isn't moved when the gamepad's
-									// hovering is really based on what has focus right now when not in analog mode, but we
-									// don't have a good way to know that here, other than to maybe expose a setting.
 									break;
 							}
 
@@ -1569,7 +1561,6 @@ public:
 	}
 };
 
-//@todo DanH: Debug output for this stuff - Cheatscript? ShowDebug? Full monitor window a-la WidgetReflector?
 static const FAutoConsoleCommandWithWorldAndArgs DumpActivatableTreeCommand(
 	TEXT("CommonUI.DumpActivatableTree"),
 	TEXT("Outputs the current state of the activatable tree. 4 args: bIncludeActions, bIncludeChildren, bIncludeInactive, LocalPlayerId (optional, defaults to -1 or all)"),

@@ -16,7 +16,6 @@ UDEPRECATED_UCommonVisibilityWidgetBase::UDEPRECATED_UCommonVisibilityWidgetBase
 	, VisibleType(ESlateVisibility::SelfHitTestInvisible)
 	, HiddenType(ESlateVisibility::Collapsed)
 {
-	//@TODO: The duplication of FNames is a bit of a memory waste.
 	for (const FName& RegisteredPlatform : FCommonInputPlatformBaseData::GetRegisteredPlatforms())
 	{
 		VisibilityControls.Add(RegisteredPlatform, false);

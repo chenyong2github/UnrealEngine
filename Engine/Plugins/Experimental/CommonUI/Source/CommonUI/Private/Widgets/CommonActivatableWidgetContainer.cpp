@@ -11,7 +11,6 @@
 
 UCommonActivatableWidget* ActivatableWidgetFromSlate(const TSharedPtr<SWidget>& SlateWidget)
 {
-	//@todo DanH: FActivatableWidgetMetaData
 	if (SlateWidget && SlateWidget != SNullWidget::NullWidget && ensure(SlateWidget->GetType().IsEqual(TEXT("SObjectWidget"))))
 	{
 		UCommonActivatableWidget* ActivatableWidget = Cast<UCommonActivatableWidget>(StaticCastSharedPtr<SObjectWidget>(SlateWidget)->GetWidgetObject());
@@ -107,11 +106,6 @@ TSharedRef<SWidget> UCommonActivatableWidgetContainerBase::RebuildWidget()
 
 	// We always want a 0th slot to be able to animate the first real entry in and out
 	MySwitcher->AddSlot() [SNullWidget::NullWidget];
-	
-	if (WidgetList.Num() > 0)
-	{
-		//@todo DanH: We gotta fill up the switcher and activate the right thing. Alternatively we could just flush all the children upon destruction... I think I like that more.
-	}
 
 	return MyOverlay.ToSharedRef();
 }
@@ -180,7 +174,7 @@ UCommonActivatableWidget* UCommonActivatableWidgetContainerBase::AddWidgetIntern
 
 void UCommonActivatableWidgetContainerBase::RegisterInstanceInternal(UCommonActivatableWidget& NewWidget)
 {
-	//@todo DanH: We should do something here to force-disable the bAutoActivate property on the provided widget, since it quite simply makes no sense
+	// @TODO: Log if bAutoActivate is true on the provided widget, since it quite simply makes no sense.
 	if (ensure(!WidgetList.Contains(&NewWidget)))
 	{
 		WidgetList.Add(&NewWidget);
@@ -328,10 +322,6 @@ void UCommonActivatableWidgetStack::OnWidgetAddedToList(UCommonActivatableWidget
 {
 	if (MySwitcher)
 	{
-		//@todo DanH: Rig up something to skip to an index immediately but still play the intro portion of the transition on the new index
-		//		Might be as simple as changing the properties to separate intro and outro durations?
-		//		Eh, but even in this case we only want to skip when we're going from an empty 0th entry. Every other transition should still do the full fade.
-
 		// Toss the widget onto the end of the switcher's children and transition to it immediately
 		MySwitcher->AddSlot() [AddedWidget.TakeWidget()];
 

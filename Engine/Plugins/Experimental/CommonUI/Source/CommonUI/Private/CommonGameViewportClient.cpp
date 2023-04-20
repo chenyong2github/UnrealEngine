@@ -182,7 +182,6 @@ void UCommonGameViewportClient::HandleRerouteTouch(int32 ControllerId, uint32 To
 			UCommonUIActionRouterBase* ActionRouter = LocalPlayer->GetSubsystem<UCommonUIActionRouterBase>();
 			if (ensure(ActionRouter))
 			{
-				//@todo DanH: Does anyone actually use this? Do we need to support holds or something with this?
 				EInputEvent SimilarInputEvent = IE_MAX;
 				switch (TouchType)
 				{

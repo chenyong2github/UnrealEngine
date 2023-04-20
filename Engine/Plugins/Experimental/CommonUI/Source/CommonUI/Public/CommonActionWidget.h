@@ -101,7 +101,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget, meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
 	TObjectPtr<class UInputAction> EnhancedInputAction;
 
-	//@todo DanH: Create clearer split between support for the new & legacy system in here
 	FUIActionBindingHandle DisplayedBindingHandle;
 
 #if WITH_EDITORONLY_DATA

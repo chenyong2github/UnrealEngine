@@ -21,7 +21,6 @@ void UCommonBoundActionButton::SetRepresentedAction(FUIActionBindingHandle InBin
 	BindingHandle = InBindingHandle;
 	UpdateInputActionWidget();
 
-	//@todo DanH: Need to figure out a better way to do this so we don't have to go mining into the (supposedly private/hidden) FUIActionBinding itself
 	if (TSharedPtr<FUIActionBinding> NewBinding = FUIActionBinding::FindBinding(InBindingHandle))
 	{
 		NewBinding->OnHoldActionProgressed.AddUObject(this, &UCommonBoundActionButton::NativeOnActionProgress);

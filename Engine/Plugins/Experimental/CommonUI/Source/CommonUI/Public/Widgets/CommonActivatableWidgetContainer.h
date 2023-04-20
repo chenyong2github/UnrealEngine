@@ -94,7 +94,6 @@ protected:
 
 	virtual void OnWidgetAddedToList(UCommonActivatableWidget& AddedWidget) { unimplemented(); }
 
-	//@todo DanH: There's enough here that reuse is good, but the name of the function undermines how specifically it's meant to be used
 	void SetSwitcherIndex(int32 TargetIndex, bool bInstantTransition = false);
 
 	/** The type of transition to play between widgets */
@@ -161,7 +160,6 @@ private:
 	void ReleaseWidget(const TSharedRef<SWidget>& WidgetToRelease);
 	TArray<TSharedPtr<SWidget>> ReleasedWidgets;
 
-	//@todo DanH: This is pretty clunky - revisit for something smoother
 	bool bRemoveDisplayedWidgetPostTransition = false;
 
 	mutable FOnDisplayedWidgetChanged OnDisplayedWidgetChangedEvent;
@@ -184,7 +182,7 @@ class COMMONUI_API UCommonActivatableWidgetStack : public UCommonActivatableWidg
 	GENERATED_BODY()
 
 public:
-	//@todo DanH: Allow the root content class to be restricted by metadata
+
 	UCommonActivatableWidget* GetRootContent() const;
 
 protected:

@@ -351,7 +351,8 @@ void UCommonLoadGuard::PostLoad()
 	}
 
 #if WITH_EDITOR
-	//TODO: I want this removed, it's needed for backwards compatibility
+
+	// Needed for backwards compatibility of old style updating
 	if (!TextStyle && !bStyleNoLongerNeedsConversion && !IsRunningDedicatedServer())
 	{
 		UCommonUIEditorSettings& Settings = ICommonUIModule::GetEditorSettings();
