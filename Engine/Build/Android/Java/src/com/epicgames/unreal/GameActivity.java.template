@@ -5254,10 +5254,21 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		long msDiff = targetDate.getTime() - currentDate.getTime();
 
+		// If you set the targetDateTime to 0, just send the notification as soon as possible
 		if(msDiff < 0)
 		{
-			LocalNotificationRemoveID(context, notificationID);
-			return false;
+			if (targetDate.getYear() == -1899)
+			{
+				// AlarmManager delivery is inexact: So instead of using the alarmManager to send instant notifications, just sending them right away
+				LocalNotificationReceiver directSend = new LocalNotificationReceiver();
+				directSend.onReceive(context, notificationIntent);
+				return false;
+			}
+			else
+			{
+				LocalNotificationRemoveID(context, notificationID);
+				return false;
+			}
 		}
 
 		long futureTimeInMillis = SystemClock.elapsedRealtime() + msDiff;//Calculate the time to run the callback

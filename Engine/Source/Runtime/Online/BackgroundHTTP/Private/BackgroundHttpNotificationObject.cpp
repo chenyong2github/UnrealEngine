@@ -82,11 +82,8 @@ FBackgroundHttpNotificationObject::~FBackgroundHttpNotificationObject()
 	{
 		if (!bNotifyOnlyOnFullSuccess || (NumFailedDownloads == 0))
 		{
-			//Used to be 15s, probably for reasons to do with Ios. 
-			//make a notification 1 second from now
-			FDateTime TargetTime = FDateTime::Now();
-			TargetTime += FTimespan::FromSeconds(1);
-
+			//Setting the datetime to 0 forcing the local notifcation to be sent as soon as possible
+			FDateTime TargetTime = FDateTime();
 			if (nullptr != PlatformNotificationService)
 			{
 				PlatformNotificationService->ScheduleLocalNotificationAtTimeOverrideId(TargetTime, true, NotificationTitle, NotificationBody, NotificationAction, NotificationActivationString, IdOverride);
