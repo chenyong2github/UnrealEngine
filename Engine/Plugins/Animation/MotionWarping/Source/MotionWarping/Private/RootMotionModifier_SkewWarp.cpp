@@ -214,7 +214,7 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 
 URootMotionModifier_SkewWarp* URootMotionModifier_SkewWarp::AddRootMotionModifierSkewWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime,
 	FName InWarpTargetName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
-	bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier)
+	bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, EMotionWarpRotationMethod InRotationMethod, float InWarpRotationTimeMultiplier, float InWarpMaxRotationRate)
 {
 	if (ensureAlways(InMotionWarpingComp))
 	{
@@ -230,7 +230,9 @@ URootMotionModifier_SkewWarp* URootMotionModifier_SkewWarp::AddRootMotionModifie
 		NewModifier->bIgnoreZAxis = bInIgnoreZAxis;
 		NewModifier->bWarpRotation = bInWarpRotation;
 		NewModifier->RotationType = InRotationType;
+		NewModifier->RotationMethod = InRotationMethod;
 		NewModifier->WarpRotationTimeMultiplier = InWarpRotationTimeMultiplier;
+		NewModifier->WarpMaxRotationRate = InWarpMaxRotationRate;
 
 		InMotionWarpingComp->AddModifier(NewModifier);
 

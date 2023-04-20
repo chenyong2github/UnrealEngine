@@ -305,8 +305,28 @@ FQuat URootMotionModifier_Warp::WarpRotation(const FTransform& RootMotionDelta, 
 	const FQuat TargetRotation = CurrentRotation.Inverse() * (GetTargetRotation() * CharacterOwner->GetBaseRotationOffset());
 	const float TimeRemaining = (EndTime - PreviousPosition) * WarpRotationTimeMultiplier;
 	const float Alpha = FMath::Clamp(DeltaSeconds / TimeRemaining, 0.f, 1.f);
-	const FQuat TargetRotThisFrame = FQuat::Slerp(TotalRootMotionRotation, TargetRotation, Alpha);
+	FQuat TargetRotThisFrame = FQuat::Slerp(TotalRootMotionRotation, TargetRotation, Alpha);
+
+	if (RotationMethod != EMotionWarpRotationMethod::Slerp)
+	{
+		const float AngleDeltaThisFrame = TotalRootMotionRotation.AngularDistance(TargetRotThisFrame);
+		const float MaxAngleDelta = FMath::Abs(FMath::DegreesToRadians(DeltaSeconds * WarpMaxRotationRate));
+		const float TotalAngleDelta = TotalRootMotionRotation.AngularDistance(TargetRotation);
+		if (RotationMethod == EMotionWarpRotationMethod::ConstantRate && (TotalAngleDelta <= MaxAngleDelta))
+		{
+			TargetRotThisFrame = TargetRotation;
+		}
+		else if ((AngleDeltaThisFrame > MaxAngleDelta) || RotationMethod == EMotionWarpRotationMethod::ConstantRate)
+		{
+			const FVector CrossProduct = FVector::CrossProduct(TotalRootMotionRotation.Vector(), TargetRotation.Vector());
+			const float SignDirection = FMath::Sign(CrossProduct.Z);
+			const FQuat ClampedRotationThisFrame = FQuat(FVector(0, 0, 1), MaxAngleDelta * SignDirection);
+			TargetRotThisFrame = ClampedRotationThisFrame;
+		}
+	}
+
 	const FQuat DeltaOut = TargetRotThisFrame * TotalRootMotionRotation.Inverse();
+	
 	return (DeltaOut * RootMotionDelta.GetRotation());
 }
 

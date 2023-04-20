@@ -214,6 +214,17 @@ enum class EMotionWarpRotationType : uint8
 	Facing,
 };
 
+UENUM(BlueprintType)
+enum class EMotionWarpRotationMethod : uint8
+{
+	/** Rotate with spherical linear interpolation */
+	Slerp, 
+	/** Rotate with spherical linear interpolation, not exceeding a max rotation rate*/
+	SlerpWithClampedRate,
+	/** Rotate with a constant rotation rate*/
+	ConstantRate,
+};
+
 /** Method used to extract the warp point from the animation */
 UENUM(BlueprintType)
 enum class EWarpPointAnimProvider : uint8
@@ -272,14 +283,22 @@ public:
 
 	/** Whether rotation should be warp to match the rotation of the sync point or to face the sync point */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpRotation"))
-	EMotionWarpRotationType RotationType;
+	EMotionWarpRotationType RotationType = EMotionWarpRotationType::Default;
+	
+	/** The method of rotation to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpRotation"))
+	EMotionWarpRotationMethod RotationMethod = EMotionWarpRotationMethod::Slerp;
 
 	/**
 	 * Allow to modify how fast the rotation is warped.
 	 * e.g if the window duration is 2sec and this is 0.5, the target rotation will be reached in 1sec instead of 2sec
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpRotation"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "RotationMethod!=EMotionWarpRotationMethod::ConstantRate && bWarpRotation"))
 	float WarpRotationTimeMultiplier = 1.f;
+
+	/** Maximum rotation rate in degrees/sec. Will be the value used in constant rotation rate*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "RotationMethod!=EMotionWarpRotationMethod::Slerp && bWarpRotation"))
+	float WarpMaxRotationRate = 0.f;
 
 	URootMotionModifier_Warp(const FObjectInitializer& ObjectInitializer);
 
