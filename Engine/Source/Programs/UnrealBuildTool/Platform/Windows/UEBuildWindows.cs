@@ -127,6 +127,15 @@ namespace UnrealBuildTool
 		VisualStudio2022,
 	}
 
+	/// <summary>
+	/// Enum describing the release channel of a compiler
+	/// </summary>
+	internal enum WindowsCompilerChannel
+	{
+		Latest,
+		Preview,
+	}
+
 
 	/// <summary>
 	/// Extension methods for WindowsCompilier enum
@@ -984,20 +993,20 @@ namespace UnrealBuildTool
 		public bool bCommunity { get; }
 
 		/// <summary>
-		/// Whether it's a pre-release version of the IDE.
+		/// The release channel of this installation
 		/// </summary>
-		public bool bPreview { get; }
+		public WindowsCompilerChannel ReleaseChannel { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public VisualStudioInstallation(WindowsCompiler Compiler, VersionNumber Version, DirectoryReference BaseDir, bool bCommunity, bool bPreview)
+		public VisualStudioInstallation(WindowsCompiler Compiler, VersionNumber Version, DirectoryReference BaseDir, bool bCommunity, WindowsCompilerChannel ReleaseChannel)
 		{
 			this.Compiler = Compiler;
 			this.Version = Version;
 			this.BaseDir = BaseDir;
 			this.bCommunity = bCommunity;
-			this.bPreview = bPreview;
+			this.ReleaseChannel = ReleaseChannel;
 		}
 	}
 
