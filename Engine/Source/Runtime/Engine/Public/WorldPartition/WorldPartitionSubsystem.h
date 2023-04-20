@@ -18,6 +18,27 @@ class FWorldPartitionActorDesc;
 enum class EWorldPartitionRuntimeCellState : uint8;
 
 /**
+ * Helper to compute streaming source velocity based on position history.
+ */
+struct FStreamingSourceVelocity
+{
+	FStreamingSourceVelocity(const FName& InSourceName);
+	void Invalidate() { bIsValid = false; }
+	bool IsValid() { return bIsValid; }
+	float GetAverageVelocity(const FVector& NewPosition, const float CurrentTime);
+
+private:
+	enum { VELOCITY_HISTORY_SAMPLE_COUNT = 16 };
+	bool bIsValid;
+	FName SourceName;
+	int32 LastIndex;
+	float LastUpdateTime;
+	FVector LastPosition;
+	float VelocityHistorySum;
+	TArray<float, TInlineAllocator<VELOCITY_HISTORY_SAMPLE_COUNT>> VelocityHistory;
+};
+
+/**
  * UWorldPartitionSubsystem
  */
 
@@ -132,6 +153,11 @@ protected:
 
 private:
 
+	// Streaming Sources
+	void UpdateStreamingSources();
+	void GetStreamingSources(const UWorldPartition* InWorldPartition, TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const;
+	uint32 GetStreamingSourcesHash() const { return StreamingSourcesHash; }
+
 	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
 	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
 
@@ -139,12 +165,18 @@ private:
 	const UWorldPartition* GetWorldPartition() const;
 	void Draw(class UCanvas* Canvas, class APlayerController* PC);
 	friend class UWorldPartition;
+	friend class UWorldPartitionStreamingPolicy;
 
 	TArray<TObjectPtr<UWorldPartition>> RegisteredWorldPartitions;
 
 	TSet<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
 
 	FWorldPartitionStreamingSourceProviderFilter IsStreamingSourceProviderFiltered;
+
+	// Streaming Sources
+	TArray<FWorldPartitionStreamingSource> StreamingSources;
+	TMap<FName, FStreamingSourceVelocity> StreamingSourcesVelocity;
+	uint32 StreamingSourcesHash;
 
 	FDelegateHandle	DrawHandle;
 

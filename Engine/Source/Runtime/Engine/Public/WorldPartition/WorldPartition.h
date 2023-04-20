@@ -519,5 +519,5 @@ private:
 	class AWorldPartitionReplay* Replay;
 
 	friend class AWorldPartitionReplay;
-	friend class UWorldPartitionStreamingPolicy;
+	friend class UWorldPartitionSubsystem;
 };

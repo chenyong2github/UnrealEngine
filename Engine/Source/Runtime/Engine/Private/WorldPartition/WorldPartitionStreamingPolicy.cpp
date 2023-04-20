@@ -19,23 +19,11 @@
 #include "Engine/Level.h"
 #include "Engine/NetConnection.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "GameFramework/PlayerController.h"
+#include "Misc/HashBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionStreamingPolicy)
 
-#if WITH_EDITOR
-#include "LevelEditorViewport.h"
-#else
-#include "Misc/ScopeExit.h"
-#endif
-
 #define LOCTEXT_NAMESPACE "WorldPartitionStreamingPolicy"
-
-static int32 GUpdateStreamingSources = 1;
-static FAutoConsoleVariableRef CVarUpdateStreamingSources(
-	TEXT("wp.Runtime.UpdateStreamingSources"),
-	GUpdateStreamingSources,
-	TEXT("Set to 0 to stop updating (freeze) world partition streaming sources."));
 
 static int32 GMaxLoadingStreamingCells = 4;
 static FAutoConsoleVariableRef CMaxLoadingStreamingCells(
@@ -64,20 +52,6 @@ FAutoConsoleVariableRef UWorldPartitionStreamingPolicy::CVarUpdateOptimEnabled(
 	TEXT("if nothing relevant changed since last update."),
 	ECVF_Default);
 
-int32 UWorldPartitionStreamingPolicy::LocationQuantization = 400;
-FAutoConsoleVariableRef UWorldPartitionStreamingPolicy::CVarLocationQuantization(
-	TEXT("wp.Runtime.UpdateStreaming.LocationQuantization"),
-	UWorldPartitionStreamingPolicy::LocationQuantization,
-	TEXT("Distance (in Unreal units) used to quantize the streaming sources location to determine if a world partition streaming update is necessary."),
-	ECVF_Default);
-
-int32 UWorldPartitionStreamingPolicy::RotationQuantization = 10;
-FAutoConsoleVariableRef UWorldPartitionStreamingPolicy::CVarRotationQuantization(
-	TEXT("wp.Runtime.UpdateStreaming.RotationQuantization"),
-	UWorldPartitionStreamingPolicy::RotationQuantization,
-	TEXT("Angle (in degrees) used to quantize the streaming sources rotation to determine if a world partition streaming update is necessary."),
-	ECVF_Default);
-
 int32 UWorldPartitionStreamingPolicy::ForceUpdateFrameCount = 30;
 FAutoConsoleVariableRef UWorldPartitionStreamingPolicy::CVarForceUpdateFrameCount(
 	TEXT("wp.Runtime.UpdateStreaming.ForceUpdateFrameCount"),
@@ -103,6 +77,7 @@ UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInit
 	, ContentBundleServerEpoch(INT_MIN)
 	, ServerStreamingEnabledEpoch(INT_MIN)
 	, UpdateStreamingHash(0)
+	, UpdateStreamingSourcesHash(0)
 	, UpdateStreamingStateCalls(0)
 	, StreamingPerformance(EWorldPartitionStreamingPerformance::Good)
 #if !UE_BUILD_SHIPPING
@@ -117,93 +92,25 @@ UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInit
 	}
 }
 
-void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
+void UWorldPartitionStreamingPolicy::UpdateStreamingSources(bool bCanOptimizeUpdate)
 {
-	if (!GUpdateStreamingSources)
-	{
-		return;
-	}
-
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingSources);
-
-	StreamingSources.Reset();
-
 	if (!WorldPartition->CanStream())
 	{
+		StreamingSources.Reset();
 		return;
 	}
 
-	const FTransform WorldToLocal = WorldPartition->GetInstanceTransform().Inverse();
-	UWorld* World = GetWorld();
-
-	const bool bIsServer = WorldPartition->IsServer();
-	const bool bIsServerStreamingEnabled = WorldPartition->IsServerStreamingEnabled();
-
-	if (!AWorldPartitionReplay::IsPlaybackEnabled(World) || !WorldPartition->Replay->GetReplayStreamingSources(StreamingSources))
+	const UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
+	const uint32 NewUpdateStreamingSourcesHash = WorldPartitionSubsystem->GetStreamingSourcesHash();
+	if (bCanOptimizeUpdate && (UpdateStreamingSourcesHash == NewUpdateStreamingSourcesHash))
 	{
-		bool bAllowPlayerControllerStreamingSources = true;
-
-#if WITH_EDITOR
-		if (UWorldPartition::IsSimulating())
-		{
-			// We are in the SIE
-			const FVector ViewLocation = WorldToLocal.TransformPosition(GCurrentLevelEditingViewportClient->GetViewLocation());
-			const FRotator ViewRotation = WorldToLocal.TransformRotation(GCurrentLevelEditingViewportClient->GetViewRotation().Quaternion()).Rotator();
-			static const FName NAME_SIE(TEXT("SIE"));
-			StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/false, EStreamingSourcePriority::Default, false));
-			bAllowPlayerControllerStreamingSources = false;
-		}
-#endif
-		if (!bIsServer || bIsServerStreamingEnabled || AWorldPartitionReplay::IsRecordingEnabled(World))
-		{
-			UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
-			check(WorldPartitionSubsystem);
-
-			TArray<FWorldPartitionStreamingSource> ProviderStreamingSources;
-			for (IWorldPartitionStreamingSourceProvider* StreamingSourceProvider : WorldPartitionSubsystem->GetStreamingSourceProviders())
-			{
-				if (bAllowPlayerControllerStreamingSources || !Cast<APlayerController>(StreamingSourceProvider->GetStreamingSourceOwner()))
-				{
-					ProviderStreamingSources.Reset();
-					if (StreamingSourceProvider->GetStreamingSources(ProviderStreamingSources))
-					{
-						for (FWorldPartitionStreamingSource& ProviderStreamingSource : ProviderStreamingSources)
-						{
-							// Transform to Local
-							ProviderStreamingSource.Location = WorldToLocal.TransformPosition(ProviderStreamingSource.Location);
-							ProviderStreamingSource.Rotation = WorldToLocal.TransformRotation(ProviderStreamingSource.Rotation.Quaternion()).Rotator();
-							StreamingSources.Add(MoveTemp(ProviderStreamingSource));
-						}
-					}
-				}
-			}
-		}
+		return;
 	}
 
-	for (auto& Pair : StreamingSourcesVelocity)
-	{
-		Pair.Value.Invalidate();
-	}
-
-	// Update streaming sources velocity
-	const float CurrentTime = GetWorld()->GetTimeSeconds();
-	for (FWorldPartitionStreamingSource& StreamingSource : StreamingSources)
-	{
-		if (!StreamingSource.Name.IsNone())
-		{
-			FStreamingSourceVelocity& SourceVelocity = StreamingSourcesVelocity.FindOrAdd(StreamingSource.Name, FStreamingSourceVelocity(StreamingSource.Name));
-			StreamingSource.Velocity = SourceVelocity.GetAverageVelocity(StreamingSource.Location, CurrentTime);
-		}
-	}
-
-	// Cleanup StreamingSourcesVelocity
-	for (auto It(StreamingSourcesVelocity.CreateIterator()); It; ++It)
-	{
-		if (!It.Value().IsValid())
-		{
-			It.RemoveCurrent();
-		}
-	}
+	StreamingSources.Reset();
+	WorldPartitionSubsystem->GetStreamingSources(WorldPartition, StreamingSources);
+	UpdateStreamingSourcesHash = NewUpdateStreamingSourcesHash;
 }
 
 #define WORLDPARTITION_LOG_UPDATESTREAMINGSTATE(Verbosity)\
@@ -243,77 +150,30 @@ int32 UWorldPartitionStreamingPolicy::ComputeServerStreamingEnabledEpoch() const
 bool UWorldPartitionStreamingPolicy::IsUpdateStreamingOptimEnabled()
 {
 	return UWorldPartitionStreamingPolicy::IsUpdateOptimEnabled &&
-		(UWorldPartitionStreamingPolicy::LocationQuantization > 0) &&
-		(UWorldPartitionStreamingPolicy::RotationQuantization > 0);
+		(FWorldPartitionStreamingSource::GetLocationQuantization() > 0) &&
+		(FWorldPartitionStreamingSource::GetRotationQuantization() > 0);
 };
 
-uint32 UWorldPartitionStreamingPolicy::ComputeUpdateStreamingHash() const
+uint32 UWorldPartitionStreamingPolicy::ComputeUpdateStreamingHash(bool bCanOptimizeUpdate) const
 {
-	const UWorldPartitionRuntimeHash* RuntimeHash = WorldPartition->RuntimeHash;
-	const bool bForceFrameUpdate = (UWorldPartitionStreamingPolicy::ForceUpdateFrameCount > 0) ? ((UpdateStreamingStateCalls % UWorldPartitionStreamingPolicy::ForceUpdateFrameCount) == 0) : false;
-
-	const bool bCanOptimize = 
-		RuntimeHash &&
-		IsUpdateStreamingOptimEnabled() &&							// Check CVars to see if optimization is enabled
-		!WorldPartition->IsServer() &&								// Don't optimize on the server
-		bLastUpdateCompletedLoadingAndActivation &&					// Don't optimize if last frame didn't process all cells to load/activate
-		!IsInBlockTillLevelStreamingCompleted() &&					// Don't optimize when inside UWorld::BlockTillLevelStreamingCompleted
-		ActivatedCells.GetPendingAddToWorldCells().IsEmpty() &&		// Don't optimize when remaining cells to add to world
-		!bForceFrameUpdate;											// We garantee to update every N frame to force some internal updates like UpdateStreamingPerformance
-
-	if (bCanOptimize)
+	if (bCanOptimizeUpdate)
 	{
+		const bool bIsStreaming3D = WorldPartition->RuntimeHash && WorldPartition->RuntimeHash->IsStreaming3D();
+
 		// Build hash that will be used to detect relevant changes
-		uint32 NewHash = GetTypeHash(ComputeServerStreamingEnabledEpoch());
-		NewHash = HashCombine(NewHash, GetTypeHash(FContentBundle::GetContentBundleEpoch()));
-		NewHash = HashCombine(NewHash, GetTypeHash(AWorldDataLayers::GetDataLayersStateEpoch()));
-		NewHash = HashCombine(NewHash, GetTypeHash(RuntimeHash->IsStreaming3D()));
+		FHashBuilder HashBuilder;
+		HashBuilder << ComputeServerStreamingEnabledEpoch();
+		HashBuilder << FContentBundle::GetContentBundleEpoch();
+		HashBuilder << AWorldDataLayers::GetDataLayersStateEpoch();
+		HashBuilder << bIsStreaming3D;
 		for (const FWorldPartitionStreamingSource& Source : StreamingSources)
 		{
-			NewHash = HashCombine(NewHash, ComputeStreamingSourceHash(Source));
+			HashBuilder << Source.GetHash(bIsStreaming3D);
 		}
-		return NewHash;
+		return HashBuilder.GetHash();
 	}
 
 	return 0;
-};
-
-uint32 UWorldPartitionStreamingPolicy::ComputeStreamingSourceHash(const FWorldPartitionStreamingSource& Source) const
-{
-	uint32 Hash = (GetTypeHash(Source.Name));
-	Hash = HashCombine(Hash, GetTypeHash(FMath::FloorToInt(Source.Location.X / UWorldPartitionStreamingPolicy::LocationQuantization)));
-	Hash = HashCombine(Hash, GetTypeHash(FMath::FloorToInt(Source.Location.Y / UWorldPartitionStreamingPolicy::LocationQuantization)));
-	Hash = HashCombine(Hash, GetTypeHash(FMath::FloorToInt(Source.Rotation.Yaw / UWorldPartitionStreamingPolicy::RotationQuantization)));
-	// Only consider Z position and pitch/roll rotations when hash is streaming in 3D
-	if (WorldPartition->RuntimeHash && WorldPartition->RuntimeHash->IsStreaming3D())
-	{
-		Hash = HashCombine(Hash, GetTypeHash(FMath::FloorToInt(Source.Location.Z / UWorldPartitionStreamingPolicy::LocationQuantization)));
-		Hash = HashCombine(Hash, GetTypeHash(FMath::FloorToInt(Source.Rotation.Pitch / UWorldPartitionStreamingPolicy::RotationQuantization)));
-		Hash = HashCombine(Hash, GetTypeHash(FMath::FloorToInt(Source.Rotation.Roll / UWorldPartitionStreamingPolicy::RotationQuantization)));
-	}
-	Hash = HashCombine(Hash, GetTypeHash(Source.TargetState));
-	Hash = HashCombine(Hash, GetTypeHash(Source.bBlockOnSlowLoading));
-	Hash = HashCombine(Hash, GetTypeHash(Source.bReplay));
-	Hash = HashCombine(Hash, GetTypeHash(Source.bRemote));
-	Hash = HashCombine(Hash, GetTypeHash(Source.Priority));
-	Hash = HashCombine(Hash, GetTypeHash(Source.TargetBehavior));
-	for (FName TargetGrid : Source.TargetGrids)
-	{
-		Hash = HashCombine(Hash, GetTypeHash(TargetGrid));
-	}
-	for (const FSoftObjectPath& TargetHLODLayer : Source.TargetHLODLayers)
-	{
-		Hash = HashCombine(Hash, GetTypeHash(TargetHLODLayer));
-	}
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Hash = HashCombine(Hash, GetTypeHash(Source.TargetGrid));
-	Hash = HashCombine(Hash, GetTypeHash(Source.TargetHLODLayer));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	for (const FStreamingSourceShape& Shape : Source.Shapes)
-	{
-		Hash = HashCombine(Hash, GetTypeHash(Shape));
-	}
-	return Hash;
 };
 
 bool UWorldPartitionStreamingPolicy::GetIntersectingCells(const TArray<FWorldPartitionStreamingQuerySource>& InSources, TArray<const IWorldPartitionCell*>& OutCells) const
@@ -408,12 +268,22 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		bCriticalPerformanceRequestedBlockTillOnWorld = false;
 		CriticalPerformanceBlockTillLevelStreamingCompletedEpoch = World->GetBlockTillLevelStreamingCompletedEpoch();
 	}
+
+	const bool bForceFrameUpdate = (UWorldPartitionStreamingPolicy::ForceUpdateFrameCount > 0) ? ((UpdateStreamingStateCalls % UWorldPartitionStreamingPolicy::ForceUpdateFrameCount) == 0) : false;
+	const bool bCanOptimizeUpdate =
+		WorldPartition->RuntimeHash &&
+		!bForceFrameUpdate &&										// We garantee to update every N frame to force some internal updates like UpdateStreamingPerformance
+		IsUpdateStreamingOptimEnabled() &&							// Check CVars to see if optimization is enabled
+		!WorldPartition->IsServer() &&								// Don't optimize on the server
+		bLastUpdateCompletedLoadingAndActivation &&					// Don't optimize if last frame didn't process all cells to load/activate
+		!IsInBlockTillLevelStreamingCompleted() &&					// Don't optimize when inside UWorld::BlockTillLevelStreamingCompleted
+		ActivatedCells.GetPendingAddToWorldCells().IsEmpty(); 		// Don't optimize when remaining cells to add to world
 	
 	// Update streaming sources
-	UpdateStreamingSources();
+	UpdateStreamingSources(bCanOptimizeUpdate);
 
 	// Detect if nothing relevant changed and early out
-	const uint32 NewUpdateStreamingHash = ComputeUpdateStreamingHash();
+	const uint32 NewUpdateStreamingHash = ComputeUpdateStreamingHash(bCanOptimizeUpdate);
 	const bool bShouldSkipUpdate = NewUpdateStreamingHash && (UpdateStreamingHash == NewUpdateStreamingHash);
 	if (bShouldSkipUpdate)
 	{
@@ -1135,60 +1005,6 @@ void UWorldPartitionStreamingPolicy::FActivatedCells::OnRemovedFromWorld(const U
 			PendingAddToWorldCells.Add(InCell);
 		}
 	}
-}
-
-/*
- * FStreamingSourceVelocity Implementation
- */
-
-FStreamingSourceVelocity::FStreamingSourceVelocity(const FName& InSourceName)
-: bIsValid(false)
-, SourceName(InSourceName)
-, LastIndex(INDEX_NONE)
-, LastUpdateTime(-1.0)
-, VelocitiesHistorySum(0.f)
-{
-	VelocitiesHistory.SetNumZeroed(VELOCITY_HISTORY_SAMPLE_COUNT);
-}
-
-float FStreamingSourceVelocity::GetAverageVelocity(const FVector& NewPosition, const float CurrentTime)
-{
-	bIsValid = true;
-
-	const double TeleportDistance = 100;
-	const float MaxDeltaSeconds = 5.f;
-	const bool bIsFirstCall = (LastIndex == INDEX_NONE);
-	const float DeltaSeconds = bIsFirstCall ? 0.f : (CurrentTime - LastUpdateTime);
-	const double Distance = bIsFirstCall ? 0.f : ((NewPosition - LastPosition) * 0.01).Size();
-	if (bIsFirstCall)
-	{
-		UE_LOG(LogWorldPartition, Verbose, TEXT("New Streaming Source: %s -> Position: %s"), *SourceName.ToString(), *NewPosition.ToString());
-		LastIndex = 0;
-	}
-
-	ON_SCOPE_EXIT
-	{
-		LastUpdateTime = CurrentTime;
-		LastPosition = NewPosition;
-	};
-
-	// Handle invalid cases
-	if (bIsFirstCall || (DeltaSeconds <= 0.f) || (DeltaSeconds > MaxDeltaSeconds) || (Distance > TeleportDistance))
-	{
-		UE_CLOG(Distance > TeleportDistance, LogWorldPartition, Verbose, TEXT("Detected Streaming Source Teleport: %s -> Last Position: %s -> New Position: %s"), *SourceName.ToString(), *LastPosition.ToString(), *NewPosition.ToString());
-		return 0.f;
-	}
-
-	// Compute velocity (m/s)
-	check(Distance < MAX_flt);
-	const float Velocity = (float)Distance / DeltaSeconds;
-	// Update velocities history buffer and sum
-	LastIndex = (LastIndex + 1) % VELOCITY_HISTORY_SAMPLE_COUNT;
-	VelocitiesHistorySum = FMath::Max<float>(0.f, (VelocitiesHistorySum + Velocity - VelocitiesHistory[LastIndex]));
-	VelocitiesHistory[LastIndex] = Velocity;
-
-	// return average
-	return (VelocitiesHistorySum / (float)VELOCITY_HISTORY_SAMPLE_COUNT);
 }
 
 #undef LOCTEXT_NAMESPACE

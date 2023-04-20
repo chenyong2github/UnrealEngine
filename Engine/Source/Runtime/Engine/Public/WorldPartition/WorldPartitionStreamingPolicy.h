@@ -18,27 +18,6 @@
 
 class UWorldPartition;
 
-/**
- * Helper to compute streaming source velocity based on position history.
- */
-struct FStreamingSourceVelocity
-{
-	FStreamingSourceVelocity(const FName& InSourceName);
-	void Invalidate() { bIsValid = false; }
-	bool IsValid() { return bIsValid; }
-	float GetAverageVelocity(const FVector& NewPosition, const float CurrentTime);
-
-private:
-	enum { VELOCITY_HISTORY_SAMPLE_COUNT = 16 };
-	bool bIsValid;
-	FName SourceName;
-	int32 LastIndex;
-	float LastUpdateTime;
-	FVector LastPosition;
-	float VelocitiesHistorySum;
-	TArray<float, TInlineAllocator<VELOCITY_HISTORY_SAMPLE_COUNT>> VelocitiesHistory;
-};
-
 UCLASS(Abstract, Within = WorldPartition)
 class UWorldPartitionStreamingPolicy : public UObject
 {
@@ -85,7 +64,7 @@ protected:
 	virtual void SetCellsStateToUnloaded(const TArray<const UWorldPartitionRuntimeCell*>& ToUnloadCells);
 	virtual int32 GetCellLoadingCount() const { return 0; }
 	virtual int32 GetMaxCellsToLoad() const;
-	virtual void UpdateStreamingSources();
+	virtual void UpdateStreamingSources(bool bCanOptimizeUpdate);
 	void UpdateStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& InCells);
 	bool ShouldSkipCellForPerformance(const UWorldPartitionRuntimeCell* Cell) const;
 	bool IsInBlockTillLevelStreamingCompleted(bool bIsCausedByBadStreamingPerformance = false) const;
@@ -115,15 +94,13 @@ protected:
 
 	// Streaming Sources
 	TArray<FWorldPartitionStreamingSource> StreamingSources;
-	TMap<FName, FStreamingSourceVelocity> StreamingSourcesVelocity;
 
 	TSet<const UWorldPartitionRuntimeCell*> FrameActivateCells;
 	TSet<const UWorldPartitionRuntimeCell*> FrameLoadCells;
 	
 private:
 	// Update optimization
-	uint32 ComputeUpdateStreamingHash() const;
-	uint32 ComputeStreamingSourceHash(const FWorldPartitionStreamingSource& Source) const;
+	uint32 ComputeUpdateStreamingHash(bool bCanOptimizeUpdate) const;
 	int32 ComputeServerStreamingEnabledEpoch() const;
 
 	const TSet<FName>& GetServerDisallowedStreamingOutDataLayers();
@@ -132,12 +109,8 @@ private:
 
 	// CVars to control update optimization
 	static bool IsUpdateOptimEnabled;
-	static int32 LocationQuantization;
-	static int32 RotationQuantization;
 	static int32 ForceUpdateFrameCount;
 	static FAutoConsoleVariableRef CVarUpdateOptimEnabled;
-	static FAutoConsoleVariableRef CVarLocationQuantization;
-	static FAutoConsoleVariableRef CVarRotationQuantization;
 	static FAutoConsoleVariableRef CVarForceUpdateFrameCount;
 
 	bool bLastUpdateCompletedLoadingAndActivation;
@@ -147,6 +120,7 @@ private:
 	int32 ContentBundleServerEpoch;
 	int32 ServerStreamingEnabledEpoch;
 	uint32 UpdateStreamingHash;
+	uint32 UpdateStreamingSourcesHash;
 	uint32 UpdateStreamingStateCalls;
 
 	TOptional<TSet<FName>> CachedServerDisallowStreamingOutDataLayers;

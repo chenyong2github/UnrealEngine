@@ -3,6 +3,7 @@
 
 #include "Math/Color.h"
 #include "Math/RandomStream.h"
+#include "HAL/IConsoleManager.h"
 #include "WorldPartitionStreamingSource.generated.h"
 
 /** See https://en.wikipedia.org/wiki/Spherical_sector. */
@@ -382,6 +383,8 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		, TargetBehavior(EStreamingSourceTargetBehavior::Include)
 		, bReplay(false)
 		, bRemote(false)
+		, Hash2D(0)
+		, Hash3D(0)
 	{}
 
 	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation, EStreamingSourceTargetState InTargetState, bool bInBlockOnSlowLoading, EStreamingSourcePriority InPriority, bool bRemote, float InVelocity = 0.f)
@@ -396,6 +399,8 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		, TargetBehavior(EStreamingSourceTargetBehavior::Include)
 		, bReplay(false)
 		, bRemote(bRemote)
+		, Hash2D(0)
+		, Hash3D(0)
 	{}
 
 	// Define Copy Constructor to avoid deprecation warnings
@@ -420,6 +425,8 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		Shapes = Other.Shapes;
 		bReplay = Other.bReplay;
 		bRemote = Other.bRemote;
+		Hash2D = Other.Hash2D;
+		Hash3D = Other.Hash3D;
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TargetGrid = Other.TargetGrid;
@@ -438,6 +445,9 @@ struct ENGINE_API FWorldPartitionStreamingSource
 
 		return FColor(DebugColor.R, DebugColor.G, DebugColor.B, 255);
 	}
+
+	void UpdateHash();
+	uint32 GetHash(bool bInclude3DInformation = true) const { return bInclude3DInformation ? Hash3D : Hash2D; }
 
 	/** Source unique name. */
 	FName Name;
@@ -532,6 +542,20 @@ struct ENGINE_API FWorldPartitionStreamingSource
 			(int32)(Velocity*2.23694f)
 		);
 	}
+
+	static int32 GetLocationQuantization() { return LocationQuantization; }
+	static int32 GetRotationQuantization() { return RotationQuantization; }
+
+private:
+
+	static int32 LocationQuantization;
+	static int32 RotationQuantization;
+	static FAutoConsoleVariableRef CVarLocationQuantization;
+	static FAutoConsoleVariableRef CVarRotationQuantization;
+
+	/** Hash of streaming source (used to detect changes) */
+	uint32 Hash2D;
+	uint32 Hash3D;
 };
 
 /**

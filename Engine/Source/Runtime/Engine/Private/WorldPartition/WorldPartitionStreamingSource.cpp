@@ -1,8 +1,61 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "Misc/HashBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionStreamingSource)
+
+int32 FWorldPartitionStreamingSource::LocationQuantization = 400;
+FAutoConsoleVariableRef FWorldPartitionStreamingSource::CVarLocationQuantization(
+	TEXT("wp.Runtime.UpdateStreaming.LocationQuantization"),
+	FWorldPartitionStreamingSource::LocationQuantization,
+	TEXT("Distance (in Unreal units) used to quantize the streaming sources location to determine if a world partition streaming update is necessary."),
+	ECVF_Default);
+
+int32 FWorldPartitionStreamingSource::RotationQuantization = 10;
+FAutoConsoleVariableRef FWorldPartitionStreamingSource::CVarRotationQuantization(
+	TEXT("wp.Runtime.UpdateStreaming.RotationQuantization"),
+	FWorldPartitionStreamingSource::RotationQuantization,
+	TEXT("Angle (in degrees) used to quantize the streaming sources rotation to determine if a world partition streaming update is necessary."),
+	ECVF_Default);
+
+void FWorldPartitionStreamingSource::UpdateHash()
+{
+	FHashBuilder HashBuilder;
+	HashBuilder << Name;
+	HashBuilder << FMath::FloorToInt(Location.X / FWorldPartitionStreamingSource::LocationQuantization);
+	HashBuilder << FMath::FloorToInt(Location.Y / FWorldPartitionStreamingSource::LocationQuantization);
+	HashBuilder << FMath::FloorToInt(Rotation.Yaw / FWorldPartitionStreamingSource::RotationQuantization);
+	HashBuilder << TargetState;
+	HashBuilder << bBlockOnSlowLoading;
+	HashBuilder << bReplay;
+	HashBuilder << bRemote;
+	HashBuilder << Priority;
+	HashBuilder << TargetBehavior;
+	for (FName Grid : TargetGrids)
+	{
+		HashBuilder << Grid;
+	}
+	for (const FSoftObjectPath& HLODLayer : TargetHLODLayers)
+	{
+		HashBuilder << HLODLayer;
+	}
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	HashBuilder << TargetGrid;
+	HashBuilder << TargetHLODLayer;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	for (const FStreamingSourceShape& Shape : Shapes)
+	{
+		HashBuilder << Shape;
+	}
+	Hash2D = HashBuilder.GetHash();
+	
+	// Hash3D
+	HashBuilder << FMath::FloorToInt(Location.Z / FWorldPartitionStreamingSource::LocationQuantization);
+	HashBuilder << FMath::FloorToInt(Rotation.Pitch / FWorldPartitionStreamingSource::RotationQuantization);
+	HashBuilder << FMath::FloorToInt(Rotation.Roll / FWorldPartitionStreamingSource::RotationQuantization);
+	Hash3D = HashBuilder.GetHash();
+};
 
 FORCEINLINE static bool IsClockWise(const FVector2D& V1, const FVector2D& V2)
 {

@@ -6,6 +6,10 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
+#include "WorldPartition/WorldPartitionLog.h"
+#include "WorldPartition/WorldPartitionRuntimeHash.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "WorldPartition/WorldPartitionReplay.h"
 #include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
@@ -14,9 +18,12 @@
 #include "Engine/CoreSettings.h"
 #include "Engine/LevelBounds.h"
 #include "Debug/DebugDrawService.h"
-#include "WorldPartition/WorldPartitionLog.h"
-#include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "GameFramework/PlayerController.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#include "LevelEditorViewport.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionSubsystem)
 
@@ -111,6 +118,7 @@ static FAutoConsoleCommandWithOutputDevice GDumpStreamingSourcesCmd(
 );
 
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
+: StreamingSourcesHash(0)
 {}
 
 UWorldPartition* UWorldPartitionSubsystem::GetWorldPartition()
@@ -552,12 +560,12 @@ bool UWorldPartitionSubsystem::IsStreamingCompleted(const IWorldPartitionStreami
 {
 	// Convert specified/optional streaming source provider to a world partition 
 	// streaming source and pass it along to each registered world partition
-	TArray<FWorldPartitionStreamingSource> StreamingSources;
+	TArray<FWorldPartitionStreamingSource> LocalStreamingSources;
 	TArray<FWorldPartitionStreamingSource>* StreamingSourcesPtr = nullptr;
 	if (InStreamingSourceProvider)
 	{
-		StreamingSourcesPtr = &StreamingSources;
-		if (!InStreamingSourceProvider->GetStreamingSources(StreamingSources))
+		StreamingSourcesPtr = &LocalStreamingSources;
+		if (!InStreamingSourceProvider->GetStreamingSources(LocalStreamingSources))
 		{
 			return true;
 		}
@@ -588,22 +596,145 @@ bool UWorldPartitionSubsystem::IsStreamingCompleted(EWorldPartitionRuntimeCellSt
 
 void UWorldPartitionSubsystem::DumpStreamingSources(FOutputDevice& OutputDevice) const
 {
-	if (const UWorldPartition* WorldPartition = GetWorldPartition())
+	if (StreamingSources.Num() > 0)
 	{
-		const TArray<FWorldPartitionStreamingSource>* StreamingSources = &WorldPartition->GetStreamingSources();
-		if (StreamingSources && (StreamingSources->Num() > 0))
+		OutputDevice.Logf(TEXT("Streaming Sources:"));
+		for (const FWorldPartitionStreamingSource& StreamingSource : StreamingSources)
 		{
-			OutputDevice.Logf(TEXT("Streaming Sources:"));
-			for (const FWorldPartitionStreamingSource& StreamingSource : *StreamingSources)
+			OutputDevice.Logf(TEXT("  - %s: %s"), *StreamingSource.Name.ToString(), *StreamingSource.ToString());
+		}
+	}
+}
+
+static int32 GUpdateStreamingSources = 1;
+static FAutoConsoleVariableRef CVarUpdateStreamingSources(
+	TEXT("wp.Runtime.UpdateStreamingSources"),
+	GUpdateStreamingSources,
+	TEXT("Set to 0 to stop updating (freeze) world partition streaming sources."));
+
+#if WITH_EDITOR
+static const FName NAME_SIEStreamingSource(TEXT("SIE"));
+#endif
+
+void UWorldPartitionSubsystem::UpdateStreamingSources()
+{
+	if (!GUpdateStreamingSources)
+	{
+		return;
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::UpdateStreamingSources);
+
+	StreamingSources.Reset();
+
+	UWorld* World = GetWorld();
+	bool bIsUsingReplayStreamingSources = false;
+	if (AWorldPartitionReplay::IsPlaybackEnabled(World))
+	{
+		if (const UWorldPartition* WorldPartition = World->GetWorldPartition())
+		{
+			bIsUsingReplayStreamingSources = WorldPartition->Replay->GetReplayStreamingSources(StreamingSources);
+		}
+	}
+
+	if (!bIsUsingReplayStreamingSources)
+	{
+		bool bAllowPlayerControllerStreamingSources = true;
+#if WITH_EDITOR
+		if (UWorldPartition::IsSimulating())
+		{
+			// We are in the SIE
+			const FVector ViewLocation = GCurrentLevelEditingViewportClient->GetViewLocation();
+			const FRotator ViewRotation = GCurrentLevelEditingViewportClient->GetViewRotation();
+			StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIEStreamingSource, ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/false, EStreamingSourcePriority::Default, false));
+			bAllowPlayerControllerStreamingSources = false;
+		}
+#endif
+		TArray<FWorldPartitionStreamingSource> ProviderStreamingSources;
+		for (IWorldPartitionStreamingSourceProvider* StreamingSourceProvider : GetStreamingSourceProviders())
+		{
+			if (bAllowPlayerControllerStreamingSources || !Cast<APlayerController>(StreamingSourceProvider->GetStreamingSourceOwner()))
 			{
-				OutputDevice.Logf(TEXT("  - %s: %s"), *StreamingSource.Name.ToString(), *StreamingSource.ToString());
+				ProviderStreamingSources.Reset();
+				if (StreamingSourceProvider->GetStreamingSources(ProviderStreamingSources))
+				{
+					for (FWorldPartitionStreamingSource& ProviderStreamingSource : ProviderStreamingSources)
+					{
+						StreamingSources.Add(MoveTemp(ProviderStreamingSource));
+					}
+				}
 			}
+		}
+	}
+
+	for (auto& Pair : StreamingSourcesVelocity)
+	{
+		Pair.Value.Invalidate();
+	}
+
+	StreamingSourcesHash = 0;
+	const float CurrentTime = World->GetTimeSeconds();
+	for (FWorldPartitionStreamingSource& StreamingSource : StreamingSources)
+	{
+		// Update streaming sources velocity
+		if (!StreamingSource.Name.IsNone())
+		{
+			FStreamingSourceVelocity& SourceVelocity = StreamingSourcesVelocity.FindOrAdd(StreamingSource.Name, FStreamingSourceVelocity(StreamingSource.Name));
+			StreamingSource.Velocity = SourceVelocity.GetAverageVelocity(StreamingSource.Location, CurrentTime);
+		}
+
+		// Update streaming source hash
+		StreamingSource.UpdateHash();
+		// Build hash for all streaming sources
+		StreamingSourcesHash = HashCombine(StreamingSourcesHash, StreamingSource.GetHash());
+	}
+
+	// Cleanup StreamingSourcesVelocity
+	for (auto It(StreamingSourcesVelocity.CreateIterator()); It; ++It)
+	{
+		if (!It.Value().IsValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
+void UWorldPartitionSubsystem::GetStreamingSources(const UWorldPartition* InWorldPartition, TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const
+{
+	const bool bIsServer = InWorldPartition->IsServer();
+	const bool bIsServerStreamingEnabled = InWorldPartition->IsServerStreamingEnabled();
+	const bool bIncludeStreamingSources = (!bIsServer || bIsServerStreamingEnabled || AWorldPartitionReplay::IsRecordingEnabled(GetWorld()));
+
+	if (bIncludeStreamingSources)
+	{
+		OutStreamingSources.Append(StreamingSources);
+	}
+#if WITH_EDITOR
+	else if (UWorldPartition::IsSimulating())
+	{
+		if (const FWorldPartitionStreamingSource* SIEStreamingSource = (StreamingSources.Num() > 0) && (StreamingSources[0].Name == NAME_SIEStreamingSource) ? &StreamingSources[0] : nullptr)
+		{
+			OutStreamingSources.Add(*SIEStreamingSource);
+		}
+	}
+#endif
+
+	// Transform to Local
+	if (OutStreamingSources.Num())
+	{
+		const FTransform WorldToLocal = InWorldPartition->GetInstanceTransform().Inverse();
+		for (FWorldPartitionStreamingSource& StreamingSource : OutStreamingSources)
+		{
+			StreamingSource.Location = WorldToLocal.TransformPosition(StreamingSource.Location);
+			StreamingSource.Rotation = WorldToLocal.TransformRotation(StreamingSource.Rotation.Quaternion()).Rotator();
 		}
 	}
 }
 
 void UWorldPartitionSubsystem::UpdateStreamingState()
 {
+	UpdateStreamingSources();
+
 	//make temp copy of array as UpdateStreamingState may FlushAsyncLoading, which may add a new world partition to RegisteredWorldPartitions while iterating
 	const TArray<UWorldPartition*> RegisteredWorldPartitionsCopy = RegisteredWorldPartitions;
 	for (UWorldPartition* RegisteredWorldParition : RegisteredWorldPartitionsCopy)
@@ -699,15 +830,15 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::DrawStreamingSources);
 
-		const TArray<FWorldPartitionStreamingSource>& StreamingSources = WorldPartition->GetStreamingSources();
-		if (StreamingSources.Num() > 0)
+		const TArray<FWorldPartitionStreamingSource>& LocalStreamingSources = WorldPartition->GetStreamingSources();
+		if (LocalStreamingSources.Num() > 0)
 		{
 			FString Title(TEXT("Streaming Sources"));
 			FWorldPartitionDebugHelper::DrawText(Canvas, Title, GEngine->GetSmallFont(), FColor::Yellow, CurrentOffset);
 
 			FVector2D Pos = CurrentOffset;
 			float MaxTextWidth = 0;
-			for (const FWorldPartitionStreamingSource& StreamingSource : StreamingSources)
+			for (const FWorldPartitionStreamingSource& StreamingSource : LocalStreamingSources)
 			{
 				FString StreamingSourceDisplay = StreamingSource.Name.ToString();
 				if (StreamingSource.bReplay)
@@ -717,7 +848,7 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 				FWorldPartitionDebugHelper::DrawText(Canvas, StreamingSourceDisplay, GEngine->GetSmallFont(), StreamingSource.GetDebugColor(), Pos, &MaxTextWidth);
 			}
 			Pos = CurrentOffset + FVector2D(MaxTextWidth + 10, 0.f);
-			for (const FWorldPartitionStreamingSource& StreamingSource : StreamingSources)
+			for (const FWorldPartitionStreamingSource& StreamingSource : LocalStreamingSources)
 			{
 				FWorldPartitionDebugHelper::DrawText(Canvas, *StreamingSource.ToString(), GEngine->GetSmallFont(), FColor::White, Pos);
 			}
@@ -749,4 +880,58 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 	{
 		WorldPartition->DrawRuntimeCellsDetails(Canvas, CurrentOffset);
 	}
+}
+
+/*
+ * FStreamingSourceVelocity Implementation
+ */
+
+FStreamingSourceVelocity::FStreamingSourceVelocity(const FName& InSourceName)
+	: bIsValid(false)
+	, SourceName(InSourceName)
+	, LastIndex(INDEX_NONE)
+	, LastUpdateTime(-1.0)
+	, VelocityHistorySum(0.f)
+{
+	VelocityHistory.SetNumZeroed(VELOCITY_HISTORY_SAMPLE_COUNT);
+}
+
+float FStreamingSourceVelocity::GetAverageVelocity(const FVector& NewPosition, const float CurrentTime)
+{
+	bIsValid = true;
+
+	const double TeleportDistance = 100;
+	const float MaxDeltaSeconds = 5.f;
+	const bool bIsFirstCall = (LastIndex == INDEX_NONE);
+	const float DeltaSeconds = bIsFirstCall ? 0.f : (CurrentTime - LastUpdateTime);
+	const double Distance = bIsFirstCall ? 0.f : ((NewPosition - LastPosition) * 0.01).Size();
+	if (bIsFirstCall)
+	{
+		UE_LOG(LogWorldPartition, Verbose, TEXT("New Streaming Source: %s -> Position: %s"), *SourceName.ToString(), *NewPosition.ToString());
+		LastIndex = 0;
+	}
+
+	ON_SCOPE_EXIT
+	{
+		LastUpdateTime = CurrentTime;
+		LastPosition = NewPosition;
+	};
+
+	// Handle invalid cases
+	if (bIsFirstCall || (DeltaSeconds <= 0.f) || (DeltaSeconds > MaxDeltaSeconds) || (Distance > TeleportDistance))
+	{
+		UE_CLOG(Distance > TeleportDistance, LogWorldPartition, Verbose, TEXT("Detected Streaming Source Teleport: %s -> Last Position: %s -> New Position: %s"), *SourceName.ToString(), *LastPosition.ToString(), *NewPosition.ToString());
+		return 0.f;
+	}
+
+	// Compute velocity (m/s)
+	check(Distance < MAX_flt);
+	const float Velocity = (float)Distance / DeltaSeconds;
+	// Update velocity history buffer and sum
+	LastIndex = (LastIndex + 1) % VELOCITY_HISTORY_SAMPLE_COUNT;
+	VelocityHistorySum = FMath::Max<float>(0.f, (VelocityHistorySum + Velocity - VelocityHistory[LastIndex]));
+	VelocityHistory[LastIndex] = Velocity;
+
+	// return average
+	return (VelocityHistorySum / (float)VELOCITY_HISTORY_SAMPLE_COUNT);
 }
