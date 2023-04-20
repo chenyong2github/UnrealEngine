@@ -4331,16 +4331,40 @@ void USkeletalMeshComponent::FinalizeBoneTransform()
 
 bool USkeletalMeshComponent::ShouldUpdatePostProcessInstance() const
 {
+	if (USkeletalMesh* SkelMesh = GetSkeletalMeshAsset())
+	{
+		if (!SkelMesh->ShouldEvaluatePostProcessAnimBP(GetPredictedLODLevel()))
+		{
+			return false;
+		}
+	}
+
 	return PostProcessAnimInstance && !bDisablePostProcessBlueprint;
 }
 
 bool USkeletalMeshComponent::ShouldPostUpdatePostProcessInstance() const
 {
+	if (USkeletalMesh* SkelMesh = GetSkeletalMeshAsset())
+	{
+		if (!SkelMesh->ShouldEvaluatePostProcessAnimBP(GetPredictedLODLevel()))
+		{
+			return false;
+		}
+	}
+
 	return PostProcessAnimInstance && PostProcessAnimInstance->NeedsUpdate() && !bDisablePostProcessBlueprint;
 }
 
 bool USkeletalMeshComponent::ShouldEvaluatePostProcessInstance() const
 {
+	if (USkeletalMesh* SkelMesh = GetSkeletalMeshAsset())
+	{
+		if (!SkelMesh->ShouldEvaluatePostProcessAnimBP(GetPredictedLODLevel()))
+		{
+			return false;
+		}
+	}
+
 	return PostProcessAnimInstance && !bDisablePostProcessBlueprint;
 }
 

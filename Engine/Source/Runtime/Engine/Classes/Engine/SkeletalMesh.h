@@ -2108,6 +2108,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SkeletalMesh)
 	TSubclassOf<UAnimInstance> PostProcessAnimBlueprint;
 
+private:
+	/*
+	 * Max LOD level that post-process AnimBPs are evaluated.
+	 * For example if you have the threshold set to 2, it will evaluate until including LOD 2 (based on 0 index). In case the LOD level gets set to 3, it will stop evaluating the post-process AnimBP.
+	 * Setting it to -1 will always evaluate it and disable LODing.
+	 */
+	UPROPERTY(EditAnywhere, Category = SkeletalMesh, meta = (DisplayName = "Post-Process AnimBP LOD Threshold"))
+	int32 PostProcessAnimBPLODThreshold = INDEX_NONE;
+
+public:
+	int32 GetPostProcessAnimBPLODThreshold() const;
+	void SetPostProcessAnimBPLODThreshold(int32 InPostProcessAnimBPLODThreshold);
+	bool ShouldEvaluatePostProcessAnimBP(int32 LODLevel) const;
+
 	static FName GetPostProcessAnimBlueprintMemberName()
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS

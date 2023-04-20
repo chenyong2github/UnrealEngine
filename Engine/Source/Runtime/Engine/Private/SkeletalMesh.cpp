@@ -5673,6 +5673,21 @@ FString USkeletalMesh::GetAsyncPropertyName(uint64 Property) const
 	return StaticEnum<ESkeletalMeshAsyncProperties>()->GetNameByValue(Property).ToString();
 }
 
+int32 USkeletalMesh::GetPostProcessAnimBPLODThreshold() const
+{
+	return PostProcessAnimBPLODThreshold;
+}
+
+void USkeletalMesh::SetPostProcessAnimBPLODThreshold(int32 InPostProcessAnimBPLODThreshold)
+{
+	PostProcessAnimBPLODThreshold = InPostProcessAnimBPLODThreshold;
+}
+
+bool USkeletalMesh::ShouldEvaluatePostProcessAnimBP(int32 LODLevel) const
+{
+	return ((PostProcessAnimBPLODThreshold == INDEX_NONE) || (LODLevel <= PostProcessAnimBPLODThreshold));
+}
+
 /*-----------------------------------------------------------------------------
 USkeletalMeshSocket
 -----------------------------------------------------------------------------*/
