@@ -95,6 +95,8 @@ registerIcons({
       "Cross": IconContents.CROSS,
       "ChevronUp": IconContents.CHEVRON_UP,
       "ChevronDown": IconContents.CHEVRON_DOWN,
+      "ChevronLeft": IconContents.CHEVRON_LEFT,
+      "ChevronRight": IconContents.CHEVRON_RIGHT,
       "Refresh": IconContents.REFRESH,
       "Warning": IconContents.WARNING_SIGN,
       "LayoutCircle": IconContents.LAYOUT_CIRCLE,
@@ -126,7 +128,10 @@ registerIcons({
       "Document": IconContents.DOCUMENT,
       "Folder": IconContents.FOLDER_CLOSE,
       "CloudDownload": IconContents.CLOUD_DOWNLOAD,
-      "Eye" : IconContents.EYE_OPEN
+      "Eye": IconContents.EYE_OPEN,
+      "ArrowLeft": IconContents.ARROW_LEFT,
+      "ArrowRight": IconContents.ARROW_RIGHT,
+      "ArrowUp" : IconContents.ARROW_UP
    }
 });
 
