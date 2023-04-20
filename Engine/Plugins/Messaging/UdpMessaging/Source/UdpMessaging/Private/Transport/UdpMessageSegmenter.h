@@ -239,9 +239,6 @@ public:
 	bool IsMessageSerializationDone() const;
 
 private:
-	/** Defines the time interval for sending. */
-	static const FTimespan SendInterval;
-
 	/** temp hack to support new transport API. */
 	FArchive* MessageReader;
 
