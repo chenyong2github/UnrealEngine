@@ -85,7 +85,7 @@ export class AutoBranchUpdater implements Bot {
 		}
 
 		const opts = !config.devMode ? [P4_FORCE] : undefined 
-		await this.p4.sync(config.workspace, `${bsRoot}@${change.change}`, opts)
+		await this.p4.sync(config.workspace, `${bsRoot}@${change.change}`, {opts})
 	}
 	
 	async start() {
@@ -173,7 +173,7 @@ export class AutoBranchUpdater implements Bot {
 		// NOTE: not awaiting next tick. Waiters on this function carry on as soon as we return
 		// this doesn't wait until all the branch bots have stopped, but that's ok - we're creating a new set of branch bots
 		process.nextTick(async () => {
-			await this.p4.sync(this.workspace, this.filePath)
+			await this.p4.sync(this.workspace, this.filePath, {okToFail:AutoBranchUpdater.config.devMode})
 
 			this.abuLogger.info(`Branch spec change detected: reloading ${botname} from CL#${this.lastCl}`)
 
@@ -231,7 +231,7 @@ export class AutoBranchUpdater implements Bot {
 
 		const {depotpath, realFilepath, mirrorFilepath} = workspace
 
-		await this.p4.sync(workspace, depotpath, [P4_FORCE])
+		await this.p4.sync(workspace, depotpath, {opts:[P4_FORCE]})
 		const cl = await this.p4.new_cl(workspace, "Updating mirror file\n#jira none\n#robomerge ignore\n")
 		await this.p4.edit(workspace, cl, depotpath)
 		await new Promise((done, _) => fs.copyFile(realFilepath, mirrorFilepath, done))

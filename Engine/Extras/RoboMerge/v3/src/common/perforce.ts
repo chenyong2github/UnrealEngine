@@ -296,6 +296,12 @@ export interface EditChangeOpts {
 	edgeServerAddress?: string
 }
 
+export interface SyncParams {
+	opts?: string[]
+	edgeServerAddress?: string
+	okToFail?: boolean // default is false
+}
+
 export interface ConflictedResolveNFile {
 	clientFile: string // Workspace path on local disk
 	targetDepotFile?: string // Target Depot path in P4 Depot
@@ -657,12 +663,12 @@ export class PerforceContext {
 	}
 
 	// sync the depot path specified
-	async sync(roboWorkspace: RoboWorkspace, depotPath: string, opts?: string[], edgeServerAddress?: string) {
+	async sync(roboWorkspace: RoboWorkspace, depotPath: string, params?: SyncParams) {
 		const workspace = coercePerforceWorkspace(roboWorkspace);
-		let args = edgeServerAddress ? ['-p', edgeServerAddress] : []
+		let args = params && params.edgeServerAddress ? ['-p', params.edgeServerAddress] : []
 		args.push('sync')
-		if (opts) {
-			args = [...args, ...opts]
+		if (params && params.opts) {
+			args = [...args, ...params.opts]
 		}
 		args.push(depotPath)
 		try {
@@ -672,10 +678,13 @@ export class PerforceContext {
 			if (!isExecP4Error(reason)) {
 				throw reason
 			}
-			const [err, output] = reason
-			// this is an acceptable non-error case for us
-			if (!output || typeof output !== "string" || !output.trim().endsWith("up-to-date."))
-				throw err
+			if (!params || !params.okToFail) {
+				const [err, output] = reason
+				// this is an acceptable non-error case for us
+				if (!output || typeof output !== "string" || !output.trim().endsWith("up-to-date.")) {
+					throw err
+				}
+			}
 		}
 	}
 
@@ -685,7 +694,7 @@ export class PerforceContext {
 		if (!change) {
 			throw new Error('Unable to find changelist');
 		}
-		await this.sync(workspace, `${depotPath}@${change.change}`, opts);
+		await this.sync(workspace, `${depotPath}@${change.change}`, {opts});
 		return change.change;
 	}
 

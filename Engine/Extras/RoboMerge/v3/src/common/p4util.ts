@@ -103,7 +103,7 @@ export async function convertIntegrateToEdit(p4: PerforceContext, roboWorkspace:
 	if (notSyncedOpenFiles.length !== 0) {
 // don't warn - this will almost always be the case for RoboMerge
 //		_warnNotSyncedOpenFiles(notSyncedOpenFiles);
-		await Promise.all(notSyncedOpenFiles.map(file => p4.sync(workspace, `${file.clientFile}#${file.rev}`, ['-k'])))
+		await Promise.all(notSyncedOpenFiles.map(file => p4.sync(workspace, `${file.clientFile}#${file.rev}`, {opts: ['-k']})))
 	}
 
 	// Perform basic actions
@@ -220,7 +220,7 @@ export async function cleanWorkspaces(p4: PerforceContext, workspaces: [string, 
 	}
 
 	p4utilsLogger.info('Resetting all workspaces to revision 0')
-	await Promise.all(workspaces.map(([name, root]) => p4.sync(name, root + '#0', undefined, edgeServerAddress)))
+	await Promise.all(workspaces.map(([name, root]) => p4.sync(name, root + '#0', {edgeServerAddress})))
 }
 
 export async function getWorkspacesForUser(p4: PerforceContext, user: string, edgeServerAddress?: string) {
