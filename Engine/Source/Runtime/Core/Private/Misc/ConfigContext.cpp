@@ -653,6 +653,15 @@ bool FConfigContext::GenerateDestIniFile()
 
 	if (!FPlatformProperties::RequiresCookedData() || bAllowGeneratedIniWhenCooked)
 	{
+		if (bForceReload)
+		{
+			// if we are reloading from disk (probably to update GConfig's understanding after updating a Default ini file), we need to 
+			// flush any pending updates, replace the in memory version with the hierarchy, and then read the flushed file back on  
+			// this will make sure the in-memory version has what is on disk, so when Flush happens later, it does not write out an outdated value
+			// note: we only want to copy the TMap base class slice of the FConfigFile, none of the specific members of the FConfigFile class itself
+			ConfigFile->TMap<FString, FConfigSection>::operator=(*ConfigFile->SourceConfigFile);
+		}
+
 		LoadAnIniFile(*DestIniFilename, *ConfigFile);
 	}
 
