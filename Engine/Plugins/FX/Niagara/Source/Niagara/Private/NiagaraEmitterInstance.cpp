@@ -450,35 +450,9 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		{
 			Scripts.Add(SimStage->Script);
 		}
-		FNiagaraUtilities::CollectScriptDataInterfaceParameters(*CachedEmitter.Emitter, MakeArrayView(Scripts), ScriptDefinedDataInterfaceParameters);
-
-		//Bind some stores and unbind immediately just to prime some data from those stores.
-		FNiagaraParameterStore& SystemScriptDefinedDataInterfaceParameters = ParentSystemInstance->GetSystemSimulation()->GetScriptDefinedDataInterfaceParameters();
-		
-		SystemScriptDefinedDataInterfaceParameters.Bind(&SpawnExecContext.Parameters);
-		ScriptDefinedDataInterfaceParameters.Bind(&SpawnExecContext.Parameters);
-		SpawnExecContext.Parameters.UnbindFromSourceStores();
-
-		SystemScriptDefinedDataInterfaceParameters.Bind(&UpdateExecContext.Parameters);
-		ScriptDefinedDataInterfaceParameters.Bind(&UpdateExecContext.Parameters);
-		UpdateExecContext.Parameters.UnbindFromSourceStores();
-
-		if (GPUExecContext)
-		{
-			SystemScriptDefinedDataInterfaceParameters.Bind(&GPUExecContext->CombinedParamStore);
-			ScriptDefinedDataInterfaceParameters.Bind(&GPUExecContext->CombinedParamStore);
-			GPUExecContext->CombinedParamStore.UnbindFromSourceStores();
-		}
 
 		if (EventInstanceData.IsValid())
 		{
-			for (FNiagaraScriptExecutionContext& EventContext : EventInstanceData->EventExecContexts)
-			{
-				SystemScriptDefinedDataInterfaceParameters.Bind(&EventContext.Parameters);
-				ScriptDefinedDataInterfaceParameters.Bind(&EventContext.Parameters);
-				EventContext.Parameters.UnbindFromSourceStores();
-			}
-
 			const int32 NumEventHandlers = EmitterData->GetEventHandlers().Num();
 			EventInstanceData->EventHandlingInfo.Reset();
 			EventInstanceData->EventHandlingInfo.SetNum(NumEventHandlers);
@@ -503,9 +477,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		{
 			if (ParentSystemInstance)
 				ParentSystemInstance->GetInstanceParameters().Bind(&RendererBindings);
-
-			SystemScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
-			ScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
 
 			if (GPUExecContext && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 			{

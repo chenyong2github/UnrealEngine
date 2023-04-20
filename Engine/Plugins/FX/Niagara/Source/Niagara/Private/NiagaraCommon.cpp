@@ -1048,34 +1048,16 @@ FNiagaraVariable FNiagaraUtilities::ConvertVariableToRapidIterationConstantName(
 	return Var;
 }
 
-void FNiagaraUtilities::CollectScriptDataInterfaceParameters(const UObject& Owner, const TArrayView<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters)
-{
-	for (UNiagaraScript* Script : Scripts)
-	{
-		for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : Script->GetCachedDefaultDataInterfaces())
-		{
-			if (DataInterfaceInfo.RegisteredParameterMapWrite != NAME_None)
-			{
-				FNiagaraVariable DataInterfaceParameter(DataInterfaceInfo.Type, DataInterfaceInfo.RegisteredParameterMapWrite);
-				if (OutDataInterfaceParameters.AddParameter(DataInterfaceParameter, false, false))
-				{
-					OutDataInterfaceParameters.SetDataInterface(DataInterfaceInfo.DataInterface, DataInterfaceParameter);
-				}
-				else
-				{
-					UE_LOG(LogNiagara, Error, TEXT("Duplicate data interface parameter writes found, simulation will be incorrect.  Owner: %s Parameter: %s"),
-						*Owner.GetPathName(), *DataInterfaceInfo.RegisteredParameterMapWrite.ToString());
-				}
-			}
-		}
-	}
-}
-
 bool FNiagaraScriptDataInterfaceInfo::IsUserDataInterface() const
 {
 	TStringBuilder<128> NameBuilder;
 	Name.ToString(NameBuilder);
 	return FCString::Strnicmp(NameBuilder.ToString(), TEXT("user."), 5) == 0;
+}
+
+bool FNiagaraScriptResolvedDataInterfaceInfo::NeedsPerInstanceBinding() const
+{
+	return ResolvedVariable.GetName().ToString().StartsWith(TEXT("User."));
 }
 
 bool FNiagaraScriptDataInterfaceCompileInfo::CanExecuteOnTarget(ENiagaraSimTarget SimTarget) const

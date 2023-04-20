@@ -1081,7 +1081,7 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 			bool bRWGpuArray = false;
 			FNiagaraDataInterfaceUtilities::ForEachGpuFunction(
 				DataInterface, SystemInstance,
-				[&](const FNiagaraDataInterfaceGeneratedFunction& Function) -> bool
+				[&](const UNiagaraScript* Script, const FNiagaraDataInterfaceGeneratedFunction& Function) -> bool
 				{
 					bRWGpuArray = FNiagaraDataInterfaceArrayImplHelper::IsRWFunction(Function.DefinitionName);
 					return !bRWGpuArray;

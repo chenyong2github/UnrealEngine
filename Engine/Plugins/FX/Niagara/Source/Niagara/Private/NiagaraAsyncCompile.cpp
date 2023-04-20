@@ -732,39 +732,6 @@ void FNiagaraSystemCompileRequest::Reset()
 	}
 }
 
-void FNiagaraSystemCompileRequest::UpdateSpawnDataInterfaces()
-{
-	// HACK: This is a temporary hack to fix an issue where data interfaces used by modules and dynamic inputs in the
-	// particle update script aren't being shared by the interpolated spawn script when accessed directly.  This works
-	// properly if the data interface is assigned to a named particle parameter and then linked to an input.
-	// TODO: Bind these data interfaces the same way parameter data interfaces are bound.
-	for (auto& AsyncTask : DDCTasks)
-	{
-		FEmitterCompiledScriptPair& EmitterCompiledScriptPair = AsyncTask->ScriptPair;
-		FVersionedNiagaraEmitter Emitter = EmitterCompiledScriptPair.VersionedEmitter;
-		UNiagaraScript* CompiledScript = EmitterCompiledScriptPair.CompiledScript;
-
-		if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::ParticleUpdateScript))
-		{
-			UNiagaraScript* SpawnScript = Emitter.GetEmitterData()->SpawnScriptProps.Script;
-			for (const FNiagaraScriptDataInterfaceInfo& UpdateDataInterfaceInfo : CompiledScript->GetCachedDefaultDataInterfaces())
-			{
-				// If the data interface isn't being written to a parameter map then it won't be bound properly so we
-				// assign the update scripts copy of the data interface to the spawn scripts copy by pointer so that they will share
-				// the data interface at runtime and will both be updated in the editor.
-				for (FNiagaraScriptDataInterfaceInfo& SpawnDataInterfaceInfo : SpawnScript->GetCachedDefaultDataInterfaces())
-				{
-					if (SpawnDataInterfaceInfo.RegisteredParameterMapWrite == NAME_None && UpdateDataInterfaceInfo.RegisteredParameterMapWrite == NAME_None && UpdateDataInterfaceInfo.Name == SpawnDataInterfaceInfo.Name)
-					{
-						SpawnDataInterfaceInfo.DataInterface = UpdateDataInterfaceInfo.DataInterface;
-						break;
-					}
-				}
-			}
-		}
-	}
-}
-
 void FNiagaraSystemCompileRequest::Launch(UNiagaraSystem* OwningSystem, TConstArrayView<UNiagaraScript*> ScriptsNeedingCompile, TConstArrayView<FAsyncTaskPtr> Tasks)
 {
 	bEvaluateParametersPending = !OwningSystem->ShouldUseRapidIterationParameters();

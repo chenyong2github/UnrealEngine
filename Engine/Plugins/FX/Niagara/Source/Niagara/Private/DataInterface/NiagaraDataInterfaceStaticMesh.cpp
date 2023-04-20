@@ -25,6 +25,7 @@
 #include "Editor.h"
 #include "StaticMeshResources.h"
 #include "Subsystems/ImportSubsystem.h"
+#include "INiagaraEditorOnlyDataUtlities.h"
 #endif
 
 #include "Engine/StaticMeshActor.h"
@@ -36,7 +37,6 @@
 
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "FXRenderingUtils.h"
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceStaticMesh)
 
 #if WITH_EDITOR
@@ -3189,6 +3189,11 @@ void UNiagaraDataInterfaceStaticMesh::DrawDebugHud(FNDIDrawDebugHudContext& Debu
 #if WITH_EDITOR
 void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
 {
+	if (Asset == nullptr)
+	{
+		return;
+	}
+
 	AActor* SourceActor = SoftSourceActor.Get();
 	UStaticMesh* CurrentMesh = DefaultMesh;
 
@@ -3198,6 +3203,12 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 		CurrentMesh = PreviewMesh.LoadSynchronous();
 		bHasNoMeshAssignedWarning = CurrentMesh == nullptr;
 	}
+
+	INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+	const INiagaraEditorOnlyDataUtilities& EditorOnlyDataUtilities = NiagaraModule.GetEditorOnlyDataUtilities();
+	UNiagaraDataInterface* RuntimeInstanceOfThis = EditorOnlyDataUtilities.IsEditorDataInterfaceInstance(this)
+		? EditorOnlyDataUtilities.GetResolvedRuntimeInstanceForEditorDataInterfaceInstance(*Asset, *this)
+		: this;
 
 	if (CurrentMesh != nullptr)
 	{
@@ -3209,8 +3220,8 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 
 			bool bCpuAccessWarning = false;
 
-			FNiagaraDataInterfaceUtilities::ForEachVMFunctionEquals(
-				this,
+			FNiagaraDataInterfaceUtilities::ForEachVMFunction(
+				RuntimeInstanceOfThis,
 				Asset,
 				[&](const UNiagaraScript* Script, const FVMExternalFunctionBindingInfo& VMFunction) -> bool
 				{
@@ -3219,8 +3230,8 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 				}
 			);
 
-			FNiagaraDataInterfaceUtilities::ForEachGpuFunctionEquals(
-				this,
+			FNiagaraDataInterfaceUtilities::ForEachGpuFunction(
+				RuntimeInstanceOfThis,
 				Asset,
 				[&](const UNiagaraScript* Script,const FNiagaraDataInterfaceGeneratedFunction& GpuFunction) -> bool
 				{
@@ -3258,8 +3269,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 
 	if (GetDefault<UNiagaraSettings>()->NDIStaticMesh_AllowDistanceFields == false)
 	{
-		FNiagaraDataInterfaceUtilities::ForEachGpuFunctionEquals(
-			this, Asset, Component,
+		auto GenerateWarnings = 
 			[&](const UNiagaraScript* Script, const FNiagaraDataInterfaceGeneratedFunction& FunctionBinding)
 			{
 				if (FunctionBinding.DefinitionName == NDIStaticMeshLocal::QueryDistanceFieldName )
@@ -3273,8 +3283,16 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 					return false;
 				}
 				return true;
-			}
-		);
+			};
+
+		if (Component != nullptr)
+		{
+			FNiagaraDataInterfaceUtilities::ForEachGpuFunction(RuntimeInstanceOfThis, Component, GenerateWarnings);
+		}
+		else if (Asset != nullptr)
+		{
+			FNiagaraDataInterfaceUtilities::ForEachGpuFunction(RuntimeInstanceOfThis, Asset, GenerateWarnings);
+		}
 	}
 }
 #endif //WITH_EDITOR

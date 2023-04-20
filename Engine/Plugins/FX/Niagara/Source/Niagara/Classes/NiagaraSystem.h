@@ -189,7 +189,6 @@ struct FNiagaraSystemCompileRequest
 	bool QueryCompileComplete(UNiagaraSystem* OwningSystem, bool bWait, const double& MaxDuration);
 	bool Resolve(UNiagaraSystem* OwningSystem, FNiagaraParameterStore& ExposedParameters);
 	void Reset();
-	void UpdateSpawnDataInterfaces();
 	void Launch(UNiagaraSystem* OwningSystem, TConstArrayView<UNiagaraScript*> ScriptsNeedingCompile, TConstArrayView<FAsyncTaskPtr> Tasks);
 
 	bool bIsValid = true;
@@ -504,6 +503,7 @@ public:
 	UPROPERTY(transient)
 	FNiagaraSystemUpdateContext UpdateContext;
 
+	const static FGuid ResolveDIsMessageId;
 	const static FGuid ComputeEmitterExecutionOrderMessageId;
 #endif
 
@@ -576,6 +576,9 @@ protected:
 	/** When enabled debug switches are disabled when compiling the system. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (DisplayName="Disable Debug Switches"))
 	uint32 bDisableDebugSwitchesOnCook : 1;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "System")
+	bool bUseLegacyEmitterDataInterfaceDepencendyResolution = false;
 
 	/* When set the system needs to compile before it can be activated. */
 	uint32 bNeedsRequestCompile : 1;
@@ -666,6 +669,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category="Rendering", meta=(editcondition="bOverrideTranslucencySortDistanceOffset"))
 	float TranslucencySortDistanceOffset = 0.0f;
 
+	//UPROPERTY()
+	//TArray<TArray<uint8>> CachedDataInterfaceEmitterDependencies;
+
 	/** Computes emitter priorities based on the dependency information. */
 	bool ComputeEmitterPriority(int32 EmitterIdx, TArray<int32, TInlineAllocator<32>>& EmitterPriorities, const TBitArray<TInlineAllocator<32>>& EmitterDependencyGraph);
 
@@ -726,8 +732,6 @@ public:
 	FORCEINLINE bool AllDIsPostSimulateCanOverlapFrames() const { return bAllDIsPostSimulateCanOverlapFrames; }
 	FORCEINLINE bool HasAnyGPUEmitters()const{ return bHasAnyGPUEmitters; }
 	FORCEINLINE bool NeedsGPUContextInitForDataInterfaces() const { return bNeedsGPUContextInitForDataInterfaces; }
-
-	const TArray<FName>& GetUserDINamesReadInSystemScripts() const;
 
 	FBox GetFixedBounds() const;
 	FORCEINLINE void SetFixedBounds(const FBox& Box) { FixedBounds = Box;  }
@@ -824,6 +828,8 @@ private:
 
 	/** Helper for filling in attribute datasets per emitter. */
 	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
+
+	void ResolveDIBindings();
 #endif
 
 	void ResolveScalabilitySettings();
@@ -964,14 +970,7 @@ protected:
 #endif
 
 	UPROPERTY()
-	bool bHasSystemScriptDIsWithPerInstanceData;
-
-	UPROPERTY()
 	bool bNeedsGPUContextInitForDataInterfaces;
-
-
-	UPROPERTY()
-	TArray<FName> UserDINamesReadInSystemScripts;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UNiagaraDataChannelDefinitions>> ReferencedDataChannelDefinitions;

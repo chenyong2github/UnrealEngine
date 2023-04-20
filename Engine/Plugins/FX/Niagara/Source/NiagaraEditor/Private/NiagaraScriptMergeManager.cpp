@@ -2964,7 +2964,11 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 		const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 		FNiagaraTypeDefinition InputType = NiagaraSchema->PinToTypeDefinition(OverrideToAdd->GetOverridePin());
 
-		UEdGraphPin& InputOverridePin = FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(TargetFunctionCall, AliasedFunctionInputHandle, InputType, OverrideToAdd->GetOverrideNode()->NodeGuid);
+		FNiagaraVariable InputVariable(InputType, FunctionInputHandle.GetParameterHandleString());
+		TOptional<FNiagaraVariableMetaData> InputMetaData = TargetFunctionCall.GetNiagaraGraph()->GetMetaData(InputVariable);
+		FGuid InputVariableGuid = InputMetaData.IsSet() ? InputMetaData->GetVariableGuid() : FGuid();
+
+		UEdGraphPin& InputOverridePin = FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(TargetFunctionCall, AliasedFunctionInputHandle, InputType, InputVariableGuid, OverrideToAdd->GetOverrideNode()->NodeGuid);
 		if (InputOverridePin.LinkedTo.Num() != 0)
 		{
 			Results.bSucceeded = false;

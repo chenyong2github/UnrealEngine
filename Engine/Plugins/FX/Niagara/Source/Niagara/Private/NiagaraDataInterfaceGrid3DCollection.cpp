@@ -4274,11 +4274,11 @@ void UNiagaraDataInterfaceGrid3DCollection::FindAttributes(TArray<FNiagaraVariab
 
 					for (UNiagaraScript* Script : Scripts)
 					{
-						for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : Script->GetCachedDefaultDataInterfaces())
+						for (const FNiagaraScriptResolvedDataInterfaceInfo& DataInterfaceInfo : Script->GetResolvedDataInterfaces())
 						{
-							if (DataInterfaceInfo.DataInterface == DataInterface)
+							if (DataInterfaceInfo.ResolvedDataInterface == DataInterface && DataInterfaceInfo.bIsInternal == false)
 							{
-								return DataInterfaceInfo.RegisteredParameterMapRead.IsNone() ? DataInterfaceInfo.RegisteredParameterMapWrite : DataInterfaceInfo.RegisteredParameterMapRead;
+								return DataInterfaceInfo.ResolvedVariable.GetName();
 							}
 						}
 					}

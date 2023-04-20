@@ -5493,16 +5493,7 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 					}
 
 					FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[Input];
-					if (Info.RegisteredParameterMapWrite == NAME_None)
-					{
-						Info.RegisteredParameterMapWrite = UsageName;
-					}
-					else
-					{
-						Error(FText::Format(LOCTEXT("ExternalDataInterfaceAssignedToMultipleParameters", "The data interface named {0} was added to a parameter map multiple times which isn't supported.  First usage: {1} Invalid usage:{2}"),
-							FText::FromName(Info.Name), FText::FromName(Info.RegisteredParameterMapWrite), FText::FromName(UsageName)), SetNode, Inputs[i].Pin);
-						continue;
-					}
+					Info.RegisteredParameterMapWrites.Add(UsageName);
 				}
 			}
 			else

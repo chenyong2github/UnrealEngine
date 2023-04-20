@@ -434,7 +434,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 		TArray<FNiagaraVariable> SwitchNodeInputs = Graph->FindStaticSwitchInputs();
 		for (FNiagaraVariable& Input : SwitchNodeInputs)
 		{
-			AddStaticSwitchInputPin(Input);
+			if (ensureMsgf(Input.IsValid(), TEXT("Static switch input %s on function call node %s is invalid"), *Input.GetName().ToString(), *GetPathName()))
+			{
+				AddStaticSwitchInputPin(Input);
+			}
 		}
 
 		for (FNiagaraVariable& Output : Outputs)

@@ -4462,6 +4462,54 @@ void FNiagaraStackGraphUtilities::FixDynamicInputNodeOutputPinsFromExternalChang
 	}
 }
 
+void FNiagaraStackGraphUtilities::GetEmitterHandleAndCompiledScriptsForStackNode(const UNiagaraSystem& OwningSystem, UNiagaraNode& StackNode, const FNiagaraEmitterHandle*& OutEmitterHandle, TArray<const UNiagaraScript*>& OutCompiledScripts)
+{
+	UNiagaraNodeOutput* OutputNode = GetEmitterOutputNodeForStackNode(StackNode);
+	if (OutputNode != nullptr)
+	{
+		if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemSpawnScript)
+		{
+			OutCompiledScripts.Add(OwningSystem.GetSystemSpawnScript());
+			OutEmitterHandle = nullptr;
+		}
+		else if (OutputNode->GetUsage() == ENiagaraScriptUsage::SystemUpdateScript)
+		{
+			OutCompiledScripts.Add(OwningSystem.GetSystemUpdateScript());
+			OutEmitterHandle = nullptr;
+		}
+		else
+		{
+			OutEmitterHandle = OwningSystem.GetEmitterHandles().FindByPredicate([&StackNode](const FNiagaraEmitterHandle& EmitterHandle)
+				{
+					return CastChecked<UNiagaraScriptSource>(EmitterHandle.GetEmitterData()->GraphSource)->NodeGraph == StackNode.GetNiagaraGraph();
+				});
+
+			if (OutEmitterHandle != nullptr)
+			{
+				switch (OutputNode->GetUsage())
+				{
+				case ENiagaraScriptUsage::EmitterSpawnScript:
+					OutCompiledScripts.Add(OwningSystem.GetSystemSpawnScript());
+					break;
+				case ENiagaraScriptUsage::EmitterUpdateScript:
+					OutCompiledScripts.Add(OwningSystem.GetSystemUpdateScript());
+					break;
+				case ENiagaraScriptUsage::ParticleSpawnScript:
+				case ENiagaraScriptUsage::ParticleUpdateScript:
+				case ENiagaraScriptUsage::ParticleEventScript:
+				case ENiagaraScriptUsage::ParticleSimulationStageScript:
+					OutCompiledScripts.Add(OutEmitterHandle->GetEmitterData()->GetScript(OutputNode->GetUsage(), OutputNode->GetUsageId()));
+					if (OutEmitterHandle->GetEmitterData()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+					{
+						OutCompiledScripts.Add(OutEmitterHandle->GetEmitterData()->GetScript(ENiagaraScriptUsage::ParticleGPUComputeScript, FGuid()));
+					}
+					break;
+				}
+			}
+		}
+	}
+}
+
 int32 FNiagaraStackGraphUtilities::DependencyUtilities::FindBestIndexForModuleInStack(UNiagaraNodeFunctionCall& ModuleNode, UNiagaraGraph& EmitterScriptGraph)
 {
 	// Check if the new module node has any dependencies to begin with. If not, early exit.

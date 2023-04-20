@@ -439,6 +439,8 @@ private:
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
 	void InitDataInterfaces();
 
+	void ResolveUserDataInterfaceBindings();
+
 	/** The LWC tile of this system instance, used to offset all local simulation relative to the origin */
 	FVector3f LWCTile = FVector3f::ZeroVector;
 

@@ -18,6 +18,7 @@
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraModule.h"
 #include "NiagaraRendererProperties.h"
+#include "NiagaraResolveDIHelpers.h"
 #include "NiagaraScratchPadContainer.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraSettings.h"
@@ -29,6 +30,7 @@
 #include "NiagaraTypes.h"
 #include "NiagaraWorldManager.h"
 #include "Algo/RemoveIf.h"
+#include "Algo/StableSort.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeExit.h"
@@ -170,7 +172,6 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , WarmupTime(0.0f)
 , WarmupTickCount(0)
 , WarmupTickDelta(1.0f / 15.0f)
-, bHasSystemScriptDIsWithPerInstanceData(false)
 , bNeedsGPUContextInitForDataInterfaces(false)
 , bNeedsAsyncOptimize(true)
 , CurrentScalabilitySettings(*new FNiagaraSystemScalabilitySettings())
@@ -1568,11 +1569,11 @@ void UNiagaraSystem::FindDataInterfaceDependencies(FVersionedNiagaraEmitterData*
 				{
 					if (Script)
 					{
-						for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : Script->GetCachedDefaultDataInterfaces())
+						for (const FNiagaraScriptResolvedDataInterfaceInfo& DataInterfaceInfo : Script->GetResolvedDataInterfaces())
 						{
-							if ((Variable.GetType() == DataInterfaceInfo.Type) && (Variable.GetName() == DataInterfaceInfo.RegisteredParameterMapWrite))
+							if (DataInterfaceInfo.ResolvedVariable == Variable)
 							{
-								return DataInterfaceInfo.DataInterface;
+								return DataInterfaceInfo.ResolvedDataInterface;
 							}
 						}
 					}
@@ -1750,7 +1751,7 @@ void UNiagaraSystem::ComputeEmittersExecutionOrder()
 		}
 
 		// Sort the emitter indices in the execution order array so that dependencies are satisfied.
-		Algo::Sort(EmitterExecutionOrder, [&EmitterPriorities](FNiagaraEmitterExecutionIndex IdxA, FNiagaraEmitterExecutionIndex IdxB) { return EmitterPriorities[IdxA.EmitterIndex] < EmitterPriorities[IdxB.EmitterIndex]; });
+		Algo::StableSort(EmitterExecutionOrder, [&EmitterPriorities](FNiagaraEmitterExecutionIndex IdxA, FNiagaraEmitterExecutionIndex IdxB) { return EmitterPriorities[IdxA.EmitterIndex] < EmitterPriorities[IdxB.EmitterIndex]; });
 
 		// Emitters with the same priority value can execute in parallel. Look for the emitters where the priority increases and mark them as needing to start a new
 		// overlap group. This informs the execution code about where to insert synchronization points to satisfy data dependencies.
@@ -1890,17 +1891,17 @@ void UNiagaraSystem::CacheFromCompiledData()
 
 				const bool bUsedByCPU = EmitterData->SimTarget == ENiagaraSimTarget::CPUSim;
 				const bool bUsedByGPU = EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim;
-				for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetCachedDefaultDataInterfaces())
+				for (const FNiagaraScriptResolvedDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetResolvedDataInterfaces())
 				{
-					if (UNiagaraDataInterface* DataInterface = DataInterfaceInfo.DataInterface)
+					if (UNiagaraDataInterface* DataInterface = DataInterfaceInfo.ResolvedDataInterface)
 					{
-						DataInterface->CacheStaticBuffers(*StaticBuffers.Get(), DataInterfaceInfo, bUsedByCPU, bUsedByGPU);
+						DataInterface->CacheStaticBuffers(*StaticBuffers.Get(), DataInterfaceInfo.ResolvedVariable, bUsedByCPU, bUsedByGPU);
 
 						if ( bUsedByGPU )
 						{
-							if (!DataInterfaceInfo.RegisteredParameterMapRead.IsNone())
+							if (DataInterfaceInfo.bIsInternal == false)
 							{
-								DataInterfaceGpuUsage.Add(DataInterfaceInfo.RegisteredParameterMapRead);
+								DataInterfaceGpuUsage.Add(DataInterfaceInfo.ResolvedVariable.GetName());
 							}
 						}
 					}
@@ -1932,12 +1933,12 @@ void UNiagaraSystem::CacheFromCompiledData()
 			continue;
 		}
 
-		for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetCachedDefaultDataInterfaces())
+ 		for (const FNiagaraScriptResolvedDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetResolvedDataInterfaces())
 		{
-			if (UNiagaraDataInterface* DataInterface = DataInterfaceInfo.DataInterface)
+			if (UNiagaraDataInterface* DataInterface = DataInterfaceInfo.ResolvedDataInterface)
 			{
-				const bool bUsedByGPU = DataInterfaceGpuUsage.Contains(DataInterfaceInfo.RegisteredParameterMapWrite);
-				DataInterface->CacheStaticBuffers(*StaticBuffers.Get(), DataInterfaceInfo, true, bUsedByGPU);
+				const bool bUsedByGPU = DataInterfaceGpuUsage.Contains(DataInterfaceInfo.ResolvedVariable.GetName());
+				DataInterface->CacheStaticBuffers(*StaticBuffers.Get(), DataInterfaceInfo.ResolvedVariable, true, bUsedByGPU);
 			}
 		}
 	}
@@ -1946,46 +1947,53 @@ void UNiagaraSystem::CacheFromCompiledData()
 	StaticBuffers->Finalize();
 }
 
-bool UNiagaraSystem::HasSystemScriptDIsWithPerInstanceData() const
-{
-	return bHasSystemScriptDIsWithPerInstanceData;
-}
-
-const TArray<FName>& UNiagaraSystem::GetUserDINamesReadInSystemScripts() const
-{
-	return UserDINamesReadInSystemScripts;
-}
-
 FBox UNiagaraSystem::GetFixedBounds() const
 {
 	return FixedBounds;
 }
 
-void CheckDICompileInfo(const TArray<FNiagaraScriptDataInterfaceCompileInfo>& ScriptDICompileInfos, bool& bOutbHasSystemDIsWithPerInstanceData, TArray<FName>& OutUserDINamesReadInSystemScripts)
-{
-	for (const FNiagaraScriptDataInterfaceCompileInfo& ScriptDICompileInfo : ScriptDICompileInfos)
-	{
-		UNiagaraDataInterface* DefaultDataInterface = ScriptDICompileInfo.GetDefaultDataInterface();
-		if (DefaultDataInterface != nullptr && DefaultDataInterface->PerInstanceDataSize() > 0)
-		{
-			bOutbHasSystemDIsWithPerInstanceData = true;
-		}
+#if WITH_EDITORONLY_DATA
 
-		if (ScriptDICompileInfo.RegisteredParameterMapRead.ToString().StartsWith(TEXT("User.")))
+const FGuid UNiagaraSystem::ResolveDIsMessageId(0xB6ACDD97, 0xA2C04B02, 0xAB9FA4E4, 0xDBC73E51);
+
+void UNiagaraSystem::ResolveDIBindings()
+{
+	TMap<FGuid, TMap<FNiagaraVariableBase, UNiagaraDataInterface*>> EmitterIdToVariableAssignmentsMap;
+	TMap<FGuid, TMap<FNiagaraVariableBase, FNiagaraVariableBase>> EmitterIdToVariableBindingsMap;
+	TArray<FText> ErrorMessages;
+	FNiagaraResolveDIHelpers::CollectDIBindingsAndAssignments(this, EmitterIdToVariableAssignmentsMap, EmitterIdToVariableBindingsMap, ErrorMessages);
+	FNiagaraResolveDIHelpers::ResolveDIs(this, EmitterIdToVariableAssignmentsMap, EmitterIdToVariableBindingsMap, ErrorMessages);
+
+	if (ErrorMessages.Num() > 0)
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+		bool bAllowDismissal = true;
+		UNiagaraMessageDataBase* ResolveDIsMessage = NiagaraModule.GetEditorOnlyDataUtilities().CreateWarningMessage(
+			this,
+			LOCTEXT("ResolveDIsError", "Resolving data interfaces generated errors"),
+			FText::Join(FText::FromString("\n"), ErrorMessages),
+			"Resolve Data Interfaces",
+			bAllowDismissal);
+		MessageStore.AddMessage(ResolveDIsMessageId, ResolveDIsMessage);
+		if (MessageStore.IsMessageDismissed(ResolveDIsMessageId) == false)
 		{
-			OutUserDINamesReadInSystemScripts.AddUnique(ScriptDICompileInfo.RegisteredParameterMapRead);
+			for (const FText& ErrorMessage : ErrorMessages)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("%s"), *ErrorMessage.ToString());
+			}
 		}
+	}
+	else
+	{
+		MessageStore.RemoveMessage(ResolveDIsMessageId);
 	}
 }
 
+#endif // WITH_EDITORONLY_DATA
+
 void UNiagaraSystem::UpdatePostCompileDIInfo()
 {
-	bHasSystemScriptDIsWithPerInstanceData = false;
-	UserDINamesReadInSystemScripts.Empty();
 	bNeedsGPUContextInitForDataInterfaces = false;
-
-	CheckDICompileInfo(SystemSpawnScript->GetVMExecutableData().DataInterfaceInfo, bHasSystemScriptDIsWithPerInstanceData, UserDINamesReadInSystemScripts);
-	CheckDICompileInfo(SystemUpdateScript->GetVMExecutableData().DataInterfaceInfo, bHasSystemScriptDIsWithPerInstanceData, UserDINamesReadInSystemScripts);
 
 	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
 	{
@@ -2770,10 +2778,9 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		InitEmitterCompiledData();
 		InitSystemCompiledData();
 
-		CompileRequest.UpdateSpawnDataInterfaces();
-
 		CompileRequest.RootObjects.Empty();
 
+		ResolveDIBindings();
 		UpdatePostCompileDIInfo();
 		ComputeEmittersExecutionOrder();
 		ComputeRenderersDrawOrder();
@@ -3298,7 +3305,6 @@ void UNiagaraSystem::ResetToEmptySystem()
 	SystemUpdateScript = nullptr;
 	EmitterCompiledData.Empty();
 	SystemCompiledData = FNiagaraSystemCompiledData();
-	UserDINamesReadInSystemScripts.Empty();
 	EmitterExecutionOrder.Empty();
 	RendererPostTickOrder.Empty();
 	RendererCompletionOrder.Empty();

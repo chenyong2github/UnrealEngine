@@ -311,28 +311,11 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 	}
 
 	check(Script->GetVMExecutableData().DataInterfaceInfo.Num() == Script->GetCachedDefaultDataInterfaces().Num());
-	for (FNiagaraScriptDataInterfaceInfo& Info : Script->GetCachedDefaultDataInterfaces())
+	for (const FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDataInterface : Script->GetResolvedDataInterfaces())
 	{
-		FName ParameterName;
-		if (Info.RegisteredParameterMapRead != NAME_None)
-		{
-			ParameterName = Info.RegisteredParameterMapRead;
-		}
-		else
-		{
-			// If the data interface wasn't used in a parameter map, mangle the name so that it doesn't accidentally bind to
-			// a valid parameter.
-			FNameBuilder NameBuilder;
-			NameBuilder.Append(FNiagaraConstants::InternalNamespaceString);
-			NameBuilder.AppendChar(TEXT('.'));
-			Info.Name.AppendString(NameBuilder);
-			ParameterName = FName(NameBuilder);
-		}
-
-		FNiagaraVariable Var(Info.Type, ParameterName);
 		int32 VarOffset = INDEX_NONE;
-		bAdded |= AddParameter(Var, false, false, &VarOffset);
-		SetDataInterface(Info.DataInterface, VarOffset);
+		bAdded |= AddParameter(ResolvedDataInterface.SourceVariable, false, false, &VarOffset);
+		SetDataInterface(ResolvedDataInterface.ResolvedDataInterface, VarOffset);
 	}
 
 	if (bAdded && bTriggerRebind)

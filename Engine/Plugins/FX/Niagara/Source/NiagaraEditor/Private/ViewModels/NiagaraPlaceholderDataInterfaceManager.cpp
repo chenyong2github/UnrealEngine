@@ -127,7 +127,7 @@ void FNiagaraPlaceholderDataInterfaceManager::PlaceholderDataInterfaceChanged(TW
 			FGuid ParameterVariableGuid = ParameterMetaData.IsSet() ? ParameterMetaData->GetVariableGuid() : FGuid();
 			UEdGraphPin& OverridePin = FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(
 				*PlaceholderDataInterfaceInfo->OwningFunctionCall.Get(), AliasedInputParameterHandle,
-				FNiagaraTypeDefinition(PlaceholderDataInterface->GetClass()), ParameterVariableGuid);
+				FNiagaraTypeDefinition(PlaceholderDataInterface->GetClass()), ParameterVariableGuid, FGuid());
 
 			if (OverridePin.LinkedTo.Num() == 1)
 			{

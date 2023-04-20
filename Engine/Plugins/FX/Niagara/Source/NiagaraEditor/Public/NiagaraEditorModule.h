@@ -393,6 +393,7 @@ private:
 	IConsoleCommand* UpgradeAllNiagaraAssetsCommand;
 	IConsoleCommand* DumpCompileIdDataForAssetCommand;
 	IConsoleCommand* LoadAllSystemsInFolderCommand;
+	IConsoleCommand* DumpEmitterDependenciesCommand;
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
 

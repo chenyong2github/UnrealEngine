@@ -295,9 +295,9 @@ namespace FNiagaraComponentSettings
 				{
 					if (const UNiagaraScript* GPUComputeScript = EmitterData->GetGPUComputeScript())
 					{
-						for (const FNiagaraScriptDataInterfaceInfo& DefaultDIInfo : GPUComputeScript->GetCachedDefaultDataInterfaces())
+						for (const FNiagaraScriptResolvedDataInterfaceInfo& DefaultDIInfo : GPUComputeScript->GetResolvedDataInterfaces())
 						{
-							if (GpuDataInterfaceDenyList.Contains(DefaultDIInfo.Type.GetFName()))
+							if (GpuDataInterfaceDenyList.Contains(DefaultDIInfo.ResolvedVariable.GetType().GetFName()))
 							{
 								return false;
 							}

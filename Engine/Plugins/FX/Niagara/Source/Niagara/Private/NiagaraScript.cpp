@@ -2139,6 +2139,12 @@ void UNiagaraScript::PostLoad()
 		GenerateDefaultFunctionBindings();
 	}
 
+	for (FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDataInterface : ResolvedDataInterfaces)
+	{
+		ResolvedDataInterface.ResolvedDataInterface->ConditionalPostLoad();
+	}
+
+#if WITH_EDITORONLY_DATA
 	// Because we might be using these cached data interfaces, we need to make sure that they are properly postloaded.
 	for (FNiagaraScriptDataInterfaceInfo& Info : CachedDefaultDataInterfaces)
 	{
@@ -2148,7 +2154,6 @@ void UNiagaraScript::PostLoad()
 		}
 	}
 
-#if WITH_EDITORONLY_DATA
 	FVersionedNiagaraScriptData* ScriptData = GetLatestScriptData();
 	ensure(ScriptData);
 	if (NiagaraVer < FNiagaraCustomVersion::AddSimulationStageUsageEnum)
@@ -2817,9 +2822,14 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		int32 Idx = CachedDefaultDataInterfaces.AddDefaulted();
 		CachedDefaultDataInterfaces[Idx].UserPtrIdx = Info.UserPtrIdx;
 		CachedDefaultDataInterfaces[Idx].Name = ResolveEmitterAlias(Info.Name, EmitterUniqueName);
+		CachedDefaultDataInterfaces[Idx].CompileName = Info.Name;
 		CachedDefaultDataInterfaces[Idx].Type = Info.Type;
+		CachedDefaultDataInterfaces[Idx].EmitterName = EmitterUniqueName;
 		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapRead = ResolveEmitterAlias(Info.RegisteredParameterMapRead, EmitterUniqueName);
-		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapWrite = ResolveEmitterAlias(Info.RegisteredParameterMapWrite, EmitterUniqueName);
+		for (const FName& RegisteredParameterMapWrite : Info.RegisteredParameterMapWrites)
+		{
+			CachedDefaultDataInterfaces[Idx].RegisteredParameterMapWrites.Add(ResolveEmitterAlias(RegisteredParameterMapWrite, EmitterUniqueName));
+		}
 
 		// We compiled it just a bit ago, so we should be able to resolve it from the table that we passed in.
 		UNiagaraDataInterface* FindDIById = ResolveDataInterface(ObjectNameMap, CachedDefaultDataInterfaces[Idx].Name);
@@ -3624,7 +3634,10 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 
 		// also update the MapRead/MapWrite member variables, they seem to typically match the Name parameter, but may be None
 		UpdateName(DataInterfaceInfo.RegisteredParameterMapRead);
-		UpdateName(DataInterfaceInfo.RegisteredParameterMapWrite);
+		for (FName& RegisteredParameterMapWrite : DataInterfaceInfo.RegisteredParameterMapWrites)
+		{
+			UpdateName(RegisteredParameterMapWrite);
+		}
 	}
 }
 

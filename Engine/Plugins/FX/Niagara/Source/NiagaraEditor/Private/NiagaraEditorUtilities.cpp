@@ -4515,6 +4515,48 @@ void FNiagaraEditorUtilities::GetScriptMessageStores(UNiagaraScript* InScript, T
 	}
 }
 
+bool FNiagaraEditorUtilities::IsEditorDataInterfaceInstance(const UNiagaraDataInterface* DataInterface)
+{
+	return DataInterface->GetOuter()->IsA<UNiagaraNodeInput>();
+}
+
+UNiagaraDataInterface* FNiagaraEditorUtilities::GetResolvedRuntimeInstanceForEditorDataInterfaceInstance(const UNiagaraSystem& OwningSystem, UNiagaraDataInterface& EditorDataInterfaceInstance)
+{
+	UNiagaraNodeInput* OuterInputNode = EditorDataInterfaceInstance.GetTypedOuter<UNiagaraNodeInput>();
+	if (OuterInputNode != nullptr)
+	{
+		// If the data interface's owning node has been removed from it's graph then it's not valid so early out here.
+		bool bIsValidInputNode = OuterInputNode->GetGraph()->Nodes.Contains(OuterInputNode);
+		if (bIsValidInputNode == false)
+		{
+			return nullptr;
+		}
+
+		// If the data interface was owned by an input node, then we need to try to update the compiled version.
+		const FNiagaraEmitterHandle* EmitterHandle;
+		TArray<const UNiagaraScript*> CompiledScripts;
+		
+		FNiagaraStackGraphUtilities::GetEmitterHandleAndCompiledScriptsForStackNode(OwningSystem, *OuterInputNode, EmitterHandle, CompiledScripts);
+		if (ensureMsgf(CompiledScripts.Num() > 0, TEXT("Could not find compiled scripts for data interface input node.")))
+		{
+			for (const UNiagaraScript* CompiledScript : CompiledScripts)
+			{
+				FString EmitterName = EmitterHandle != nullptr ? EmitterHandle->GetUniqueInstanceName() : FString();
+				bool bIsParameterMapDataInterface = false;
+				FName DataInterfaceName = FHlslNiagaraTranslator::GetDataInterfaceName(OuterInputNode->Input.GetName(), EmitterName, bIsParameterMapDataInterface);
+				for (const FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDI : CompiledScript->GetResolvedDataInterfaces())
+				{
+					if (ResolvedDI.Name == DataInterfaceName)
+					{
+						return ResolvedDI.ResolvedDataInterface;
+					}
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
 void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(const TArray<FNiagaraVariable>& InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased)
 {
 	FNiagaraAliasContext RenameContext(ENiagaraScriptUsage::ParticleSpawnScript);

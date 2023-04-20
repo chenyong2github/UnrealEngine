@@ -257,6 +257,16 @@ class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
 		NewMessage->SetAllowDismissal(bInAllowDismissal);
 		return NewMessage;
 	}
+
+	bool IsEditorDataInterfaceInstance(const UNiagaraDataInterface* DataInterface) const override
+	{
+		return FNiagaraEditorUtilities::IsEditorDataInterfaceInstance(DataInterface);
+	}
+
+	UNiagaraDataInterface* GetResolvedRuntimeInstanceForEditorDataInterfaceInstance(const UNiagaraSystem& OwningSystem, UNiagaraDataInterface& EditorDataInterfaceInstance) const override
+	{
+		return FNiagaraEditorUtilities::GetResolvedRuntimeInstanceForEditorDataInterfaceInstance(OwningSystem, EditorDataInterfaceInstance);
+	}
 };
 
 class FNiagaraScriptGraphPanelPinFactory : public FGraphPanelPinFactory
@@ -728,6 +738,68 @@ void LoadAllSystemsInFolder(const TArray<FString>& Arguments)
 				SlowTask.EnterProgressFrame(1, SlowTaskUpdateText);
 				SystemAsset.GetAsset();
 			}
+		}
+	}
+}
+
+void DumpEmitterDependenciesInFolder(const TArray<FString>& Arguments)
+{
+	if (Arguments.Num() == 1)
+	{
+		TArray<FAssetData> SystemAssetsInFolder;
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		FARFilter Filter;
+		Filter.ClassPaths.Add(UNiagaraSystem::StaticClass()->GetClassPathName());
+		Filter.PackagePaths.Add(*Arguments[0]);
+		Filter.bRecursivePaths = true;
+		AssetRegistryModule.Get().GetAssets(Filter, SystemAssetsInFolder);
+		SystemAssetsInFolder.RemoveAll([](const FAssetData& AssetData) { return AssetData.GetObjectPathString().StartsWith("/Game/Developers"); });
+		if (SystemAssetsInFolder.Num() > 0)
+		{
+			const FText SlowTaskText = FText::Format(NSLOCTEXT("NiagaraEditor", "LoadAllSystemsInFolderFormat", "Loading {0} systems in folder {1}"), FText::AsNumber(SystemAssetsInFolder.Num()), FText::FromString(Arguments[0]));
+			FScopedSlowTask SlowTask(SystemAssetsInFolder.Num(), SlowTaskText);
+			SlowTask.MakeDialog(true);
+			int32 ItemNumber = 0;
+
+			bool bWasCancelled = false;
+			TArray<TPair<FString, TArray<int32>>> SystemPathEmitterIndicesPairs;
+			for (FAssetData& SystemAsset : SystemAssetsInFolder)
+			{
+				if (SlowTask.ShouldCancel())
+				{
+					bWasCancelled = true;
+					break;
+				}
+				ItemNumber++;
+				FText SlowTaskUpdateText = FText::Format(NSLOCTEXT("NiagaraEditor", "DumpEmitterDependenciesInFolder", "Dumping system {0} of {1}\n{2}"),
+					FText::AsNumber(ItemNumber), FText::AsNumber(SystemAssetsInFolder.Num()), FText::FromString(SystemAsset.GetFullName()));
+				SlowTask.EnterProgressFrame(1, SlowTaskUpdateText);
+				UNiagaraSystem* System = Cast<UNiagaraSystem>(SystemAsset.GetAsset());
+				if (System != nullptr)
+				{
+					System->WaitForCompilationComplete(true, false);
+					TPair<FString, TArray<int32>>& SystemPathEmitterIndicesPair = SystemPathEmitterIndicesPairs.AddDefaulted_GetRef();
+					SystemPathEmitterIndicesPair.Key = System->GetPathName();
+					for (const FNiagaraEmitterExecutionIndex& EmitterExecutionIndex : System->GetEmitterExecutionOrder())
+					{
+						SystemPathEmitterIndicesPair.Value.Add(EmitterExecutionIndex.EmitterIndex);
+					}
+				}
+			}
+
+			SystemPathEmitterIndicesPairs.Sort(
+				[](const TPair<FString, TArray<int32>>& A, const TPair<FString, TArray<int32>>& B)
+				{
+					return A.Key.Compare(B.Key) < 0;
+				});
+
+			TStringBuilder<1024> StringBuilder;
+			auto IntToString = [](const int32& Int) { return FString::Printf(TEXT("%i"), Int); };
+			for (const TPair<FString, TArray<int32>>& SystemEmitterIndiciesPair : SystemPathEmitterIndicesPairs)
+			{
+				StringBuilder.Appendf(TEXT("%s, %s\n"), *SystemEmitterIndiciesPair.Key, *FString::JoinBy(SystemEmitterIndiciesPair.Value, TEXT(","), IntToString));
+			}
+			FNiagaraEditorUtilities::WriteTextFileToDisk(FPaths::ProjectLogDir(), FString(TEXT("EmitterDependencies")) + TEXT(".csv"), StringBuilder.ToString(), true);
 		}
 	}
 }
@@ -1287,6 +1359,11 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("fx.LoadAllNiagaraSystemsInFolder"),
 		TEXT("Loads all niagara systems in the supplied directory and sub-directories."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&LoadAllSystemsInFolder));
+
+	DumpEmitterDependenciesCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.DumpEmitterDepencenciesInFolder"),
+		TEXT("Dumps emitter dependencies for all systems in the supplied folder and sub-folders."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&DumpEmitterDependenciesInFolder));
 
 	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
 	MessageManager->RegisterMessageTopic(FNiagaraMessageTopics::CompilerTopicName);

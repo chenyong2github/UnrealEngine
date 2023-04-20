@@ -199,9 +199,6 @@ private:
 
 	TUniquePtr<FEventInstanceData> EventInstanceData;
 
-	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
-	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
-
 	/* Are the cached emitter bounds dynamic */
 	bool bCachedBoundsDynamic = false;
 

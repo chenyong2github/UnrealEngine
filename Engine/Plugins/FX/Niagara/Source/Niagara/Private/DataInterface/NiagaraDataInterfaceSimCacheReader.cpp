@@ -279,7 +279,7 @@ bool UNiagaraDataInterfaceSimCacheReader::PerInstanceTick(void* PerInstanceData,
 		TArray<int32> ComponentOffsets;
 		FNiagaraDataInterfaceUtilities::ForEachGpuFunction(
 			this, SystemInstance,
-			[&](const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo)
+			[&](const UNiagaraScript* Scirpt, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo)
 			{
 				if (FunctionInfo.Specifiers.Num() != 1)
 				{

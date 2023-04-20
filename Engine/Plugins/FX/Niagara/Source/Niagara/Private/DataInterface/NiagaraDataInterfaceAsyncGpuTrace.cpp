@@ -144,7 +144,7 @@ bool UNiagaraDataInterfaceAsyncGpuTrace::InitPerInstanceData(void* PerInstanceDa
 		return true;
 	}
 	
-	FNiagaraDataInterfaceUtilities::ForEachGpuFunction(this, InSystemInstance, [&](const FNiagaraDataInterfaceGeneratedFunction Function)
+	FNiagaraDataInterfaceUtilities::ForEachGpuFunction(this, InSystemInstance, [&](const UNiagaraScript* Script, const FNiagaraDataInterfaceGeneratedFunction& Function)
 	{
 		if (Function.DefinitionName == NDIAsyncGpuTraceLocal::IssueAsyncRayTraceName
 			|| Function.DefinitionName == NDIAsyncGpuTraceLocal::CreateAsyncRayTraceName

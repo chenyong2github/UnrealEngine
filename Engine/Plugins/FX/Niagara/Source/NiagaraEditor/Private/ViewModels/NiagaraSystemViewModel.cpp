@@ -2312,43 +2312,12 @@ void GetCompiledScriptsAndEmitterNameFromInputNode(UNiagaraNode& StackNode, UNia
 	}
 }
 
-void UpdateCompiledDataInterfacesForScript(UNiagaraScript& TargetScript, FName TargetDataInterfaceName, UNiagaraDataInterface& SourceDataInterface)
-{
-	for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : TargetScript.GetCachedDefaultDataInterfaces())
-	{
-		if (DataInterfaceInfo.Name == TargetDataInterfaceName)
-		{
-			SourceDataInterface.CopyTo(DataInterfaceInfo.DataInterface);
-			break;
-		}
-	}
-}
-
 void FNiagaraSystemViewModel::UpdateCompiledDataInterfaces(UNiagaraDataInterface* ChangedDataInterface)
 {
-	UNiagaraNodeInput* OuterInputNode = ChangedDataInterface->GetTypedOuter<UNiagaraNodeInput>();
-	if (OuterInputNode != nullptr)
+	UNiagaraDataInterface* ResolvedCompileDataInterface = FNiagaraEditorUtilities::GetResolvedRuntimeInstanceForEditorDataInterfaceInstance(GetSystem(), *ChangedDataInterface);
+	if (ResolvedCompileDataInterface != nullptr)
 	{
-		// If the data interface's owning node has been removed from it's graph then it's not valid so early out here.
-		bool bIsValidInputNode = OuterInputNode->GetGraph()->Nodes.Contains(OuterInputNode);
-		if (bIsValidInputNode == false)
-		{
-			return;
-		}
-
-		// If the data interface was owned by an input node, then we need to try to update the compiled version.
-		TArray<UNiagaraScript*> CompiledScripts;
-		FString EmitterName;
-		GetCompiledScriptsAndEmitterNameFromInputNode(*OuterInputNode, GetSystem(), CompiledScripts, EmitterName);
-		if (ensureMsgf(CompiledScripts.Num() > 0, TEXT("Could not find compiled scripts for data interface input node.")))
-		{
-			for(UNiagaraScript* CompiledScript : CompiledScripts)
-			{
-				bool bIsParameterMapDataInterface = false;
-				FName DataInterfaceName = FHlslNiagaraTranslator::GetDataInterfaceName(OuterInputNode->Input.GetName(), EmitterName, bIsParameterMapDataInterface);
-				UpdateCompiledDataInterfacesForScript(*CompiledScript, DataInterfaceName, *ChangedDataInterface);
-			}
-		}
+		ChangedDataInterface->CopyTo(ResolvedCompileDataInterface);
 	}
 	else
 	{

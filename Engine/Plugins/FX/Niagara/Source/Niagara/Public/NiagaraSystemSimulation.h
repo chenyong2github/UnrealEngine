@@ -296,8 +296,6 @@ public:
 
 	UNiagaraParameterCollectionInstance* GetParameterCollectionInstance(UNiagaraParameterCollection* Collection);
 
-	FNiagaraParameterStore& GetScriptDefinedDataInterfaceParameters();
-
 	/** Transfers a system instance from the current simulation into this one. */
 	void TransferInstance(FNiagaraSystemInstance* SystemInst);
 
@@ -425,9 +423,6 @@ protected:
 	TArray<FNiagaraSystemInstance*> PendingTickGroupPromotions;
 
 	void InitParameterDataSetBindings(FNiagaraSystemInstance* SystemInst);
-
-	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
-	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
 
 	TOptional<float> MaxDeltaTime;
 

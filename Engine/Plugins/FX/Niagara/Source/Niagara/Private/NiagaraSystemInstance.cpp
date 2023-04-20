@@ -1406,6 +1406,8 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Spawn].Reset();
 	PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Update].Reset();
 
+	ResolveUserDataInterfaceBindings();
+
 	//Now the interfaces in the simulations are all correct, we can build the per instance data table.
 	int32 InstanceDataSize = 0;
 	DataInterfaceInstanceDataOffsets.Empty();
@@ -1591,6 +1593,53 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			if (Sim.GetCachedEmitterData()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Sim.GetGPUContext())
 			{
 				Sim.GetGPUContext()->OptionalContexInit(this);
+			}
+		}
+	}
+}
+
+void FNiagaraSystemInstance::ResolveUserDataInterfaceBindings()
+{
+	const TArray<UNiagaraDataInterface*>& InstanceParameterDataInterfaces = InstanceParameters.GetDataInterfaces();
+	auto ResolveUserDIs = [&InstanceParameterDataInterfaces](FNiagaraParameterStore& TargetParameterStore, const UNiagaraScript* TargetScript)
+	{
+		TArrayView<const FNiagaraResolvedUserDataInterfaceBinding> ResolvedUserDataInterfaceBindings = TargetScript->GetResolvedUserDataInterfaceBindings();
+		const TArray<UNiagaraDataInterface*>& TargetDataInterfaces = TargetParameterStore.GetDataInterfaces();
+		for (const FNiagaraResolvedUserDataInterfaceBinding& ResolvedUserDIBinding : ResolvedUserDataInterfaceBindings)
+		{
+			if (ResolvedUserDIBinding.UserParameterStoreDataInterfaceIndex != INDEX_NONE &&
+				ResolvedUserDIBinding.UserParameterStoreDataInterfaceIndex < InstanceParameterDataInterfaces.Num() &&
+				ResolvedUserDIBinding.ScriptParameterStoreDataInterfaceIndex != INDEX_NONE &&
+				ResolvedUserDIBinding.ScriptParameterStoreDataInterfaceIndex < TargetDataInterfaces.Num())
+			{
+				TargetParameterStore.SetDataInterface(
+					InstanceParameterDataInterfaces[ResolvedUserDIBinding.UserParameterStoreDataInterfaceIndex],
+					ResolvedUserDIBinding.ScriptParameterStoreDataInterfaceIndex);
+			}
+		}
+	};
+	
+	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterSimulation : Emitters)
+	{
+		FNiagaraEmitterInstance& EmitterSim = EmitterSimulation.Get();
+
+		if (EmitterSim.GetSpawnExecutionContext().Script != nullptr)
+		{
+			ResolveUserDIs(EmitterSim.GetSpawnExecutionContext().Parameters, EmitterSim.GetSpawnExecutionContext().Script);
+		}
+		if (EmitterSim.GetUpdateExecutionContext().Script != nullptr)
+		{
+			ResolveUserDIs(EmitterSim.GetUpdateExecutionContext().Parameters, EmitterSim.GetUpdateExecutionContext().Script);
+		}
+		if (EmitterSim.GetGPUContext() != nullptr && EmitterSim.GetGPUContext()->GPUScript != nullptr)
+		{
+			ResolveUserDIs(EmitterSim.GetGPUContext()->CombinedParamStore, EmitterSim.GetGPUContext()->GPUScript);
+		}
+		for (FNiagaraScriptExecutionContext& EventContext : EmitterSim.GetEventExecutionContexts())
+		{
+			if (EventContext.Script != nullptr)
+			{
+				ResolveUserDIs(EventContext.Parameters, EventContext.Script);
 			}
 		}
 	}

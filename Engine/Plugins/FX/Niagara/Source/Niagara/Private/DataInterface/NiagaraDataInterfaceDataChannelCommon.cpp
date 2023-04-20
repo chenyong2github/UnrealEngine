@@ -202,7 +202,7 @@ void FNDIDataChannelCompiledData::GatherAccessInfo(UNiagaraSystem* System, UNiag
 		bUsedByCPU = true;
 		return true;
 	};
-	FNiagaraDataInterfaceUtilities::ForEachVMFunctionEquals(Owner, System, HandleVMFunc);
+	FNiagaraDataInterfaceUtilities::ForEachVMFunction(Owner, System, HandleVMFunc);
 
 
 	//For every GPU script we iterate over the functions it calls and add each of them to the mapping.
@@ -228,7 +228,7 @@ void FNDIDataChannelCompiledData::GatherAccessInfo(UNiagaraSystem* System, UNiag
 		bUsedByGPU = true;
 		return true;
 	};
-	FNiagaraDataInterfaceUtilities::ForEachGpuFunctionEquals(Owner, System, HandleGpuFunc);
+	FNiagaraDataInterfaceUtilities::ForEachGpuFunction(Owner, System, HandleGpuFunc);
 
 	//Now we've generated the complete set of parameters accessed by each GPU script, we sort them to ensure identical access between the hlsl and the table we generate.
 	for (auto& Pair : GPUScriptParameterInfos)

@@ -5,6 +5,7 @@
 #include "Internationalization/Internationalization.h"
 
 #include "NiagaraCompileHashVisitor.h"
+#include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraRenderer.h"
@@ -430,12 +431,12 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 	return bEqual;
 }
 
-void UNiagaraDataInterfaceCurveBase::CacheStaticBuffers(struct FNiagaraSystemStaticBuffers& StaticBuffers, const struct FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo, bool bUsedByCPU, bool bUsedByGPU)
+void UNiagaraDataInterfaceCurveBase::CacheStaticBuffers(struct FNiagaraSystemStaticBuffers& StaticBuffers, const FNiagaraVariable& ResolvedVariable, bool bUsedByCPU, bool bUsedByGPU)
 {
 	const uint32 PrevLUTOffset = LUTOffset;
 
 	LUTOffset = INDEX_NONE;
-	if (bUsedByGPU && DataInterfaceInfo.IsUserDataInterface() == false)
+	if (bUsedByGPU && ResolvedVariable.IsInNameSpace(FNiagaraConstants::UserNamespaceString) == false)
 	{
 		LUTOffset = StaticBuffers.AddGpuData(ShaderLUT);
 	}

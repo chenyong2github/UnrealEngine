@@ -23,7 +23,7 @@ class UNiagaraEmitterFactoryNew : public UFactory
 	//~ Begin UFactory Interface	
 
 public:
-	static void InitializeEmitter(UNiagaraEmitter* NewEmitter, bool bAddDefaultModulesAndRenderers);
+	NIAGARAEDITOR_API static void InitializeEmitter(UNiagaraEmitter* NewEmitter, bool bAddDefaultModulesAndRenderers);
 };
 
 

@@ -25,43 +25,31 @@ FNiagaraEmitterInstance* FNiagaraDataInterfaceEmitterBinding::Resolve(FNiagaraSy
 		// If we came from an emitter script we need to look over the default data interfaces to find ourself
 		else
 		{
-			auto FindDataInterfaceName =
-				[DataInterface](UNiagaraSystem* NiagaraSystem) -> FName
-				{
-					for (UNiagaraScript* NiagaraScript : { NiagaraSystem->GetSystemUpdateScript(), NiagaraSystem->GetSystemSpawnScript() })
-					{
-						if (NiagaraScript != nullptr)
-						{
-							for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetCachedDefaultDataInterfaces())
-							{
-								if (DataInterfaceInfo.DataInterface == DataInterface)
-								{
-									return DataInterfaceInfo.RegisteredParameterMapWrite.IsNone() ? DataInterfaceInfo.Name : DataInterfaceInfo.RegisteredParameterMapWrite;
-								}
-							}
-						}
-					}
-					return NAME_None;
-				};
-
-			const FName DataInterfaceName = FindDataInterfaceName(SystemInstance->GetSystem());
-			if (!DataInterfaceName.IsNone())
+			FString SourceEmitterName;
+			UNiagaraSystem* NiagaraSystem = SystemInstance->GetSystem();
+			for (UNiagaraScript* NiagaraScript : { NiagaraSystem->GetSystemUpdateScript(), NiagaraSystem->GetSystemSpawnScript() })
 			{
-				FNameBuilder SelfEmitterString;
-				DataInterfaceName.ToString(SelfEmitterString);
-				FStringView SelfEmitterView = SelfEmitterString.ToView();
-				int32 DotIndex;
-				if (SelfEmitterView.FindChar('.', DotIndex))
+				if (NiagaraScript != nullptr)
 				{
-					SelfEmitterView = SelfEmitterView.Mid(0, DotIndex);
-					for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
+					const FNiagaraScriptResolvedDataInterfaceInfo* MatchingResolvedDataInterface = NiagaraScript->GetResolvedDataInterfaces().FindByPredicate(
+						[&DataInterface](const FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDataInterface) { return ResolvedDataInterface.ResolvedDataInterface == DataInterface; });
+					if (MatchingResolvedDataInterface != nullptr)
 					{
-						if (const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter().Emitter)
+						SourceEmitterName = MatchingResolvedDataInterface->EmitterName;
+						break;
+					}
+				}
+			}
+
+			if (SourceEmitterName.IsEmpty() == false)
+			{
+				for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
+				{
+					if (const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter().Emitter)
+					{
+						if (CachedEmitter->GetUniqueEmitterName() == SourceEmitterName)
 						{
-							if (SelfEmitterView.Equals(CachedEmitter->GetUniqueEmitterName()))
-							{
-								return EmitterInstance.Get();
-							}
+							return EmitterInstance.Get();
 						}
 					}
 				}

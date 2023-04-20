@@ -717,14 +717,6 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 				BindParameterColleciton(Collection, UpdateExecContext->Parameters);
 			}
 
-			TArray<UNiagaraScript*, TInlineAllocator<2>> Scripts;
-			Scripts.Add(SpawnScript);
-			Scripts.Add(UpdateScript);
-			FNiagaraUtilities::CollectScriptDataInterfaceParameters(*System, Scripts, ScriptDefinedDataInterfaceParameters);
-
-			ScriptDefinedDataInterfaceParameters.Bind(&SpawnExecContext->Parameters);
-			ScriptDefinedDataInterfaceParameters.Bind(&UpdateExecContext->Parameters);
-
 			SpawnScript->RapidIterationParameters.Bind(&SpawnExecContext->Parameters);
 			UpdateScript->RapidIterationParameters.Bind(&UpdateExecContext->Parameters);
 		}
@@ -799,11 +791,6 @@ UNiagaraParameterCollectionInstance* FNiagaraSystemSimulation::GetParameterColle
 	}
 
 	return Ret;
-}
-
-FNiagaraParameterStore& FNiagaraSystemSimulation::GetScriptDefinedDataInterfaceParameters()
-{
-	return ScriptDefinedDataInterfaceParameters;
 }
 
 void FNiagaraSystemSimulation::TransferInstance(FNiagaraSystemInstance* Instance)

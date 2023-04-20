@@ -810,10 +810,11 @@ bool FNiagaraSystemScriptExecutionContext::GeneratePerInstanceDIFunctionTable(FN
 		for (int32 i = 0; i < ScriptExecutableData.DataInterfaceInfo.Num(); i++)
 		{
 			const FNiagaraScriptDataInterfaceCompileInfo& ScriptDIInfo = ScriptExecutableData.DataInterfaceInfo[i];
+			const FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDIInfo = Script->GetResolvedDataInterfaces()[i];
 			//UNiagaraDataInterface* ScriptInterface = ScriptDataInterfaces[i];
 			UNiagaraDataInterface* ExternalInterface = GetDataInterfaces()[i];
 
-			if (ScriptDIInfo.Name == BindingInfo.OwnerName && ScriptDIInfo.NeedsPerInstanceBinding())
+			if (ScriptDIInfo.Name == BindingInfo.OwnerName && (ScriptDIInfo.NeedsPerInstanceBinding() || ResolvedDIInfo.NeedsPerInstanceBinding()))
 			{
 				UNiagaraDataInterface* DIToBind = nullptr;
 				FNiagaraPerInstanceDIFuncInfo& NewFuncInfo = OutFunctions.AddDefaulted_GetRef();
@@ -823,6 +824,15 @@ bool FNiagaraSystemScriptExecutionContext::GeneratePerInstanceDIFunctionTable(FN
 				{
 					//If this is a User DI we bind to the user DI and find instance data with it.
 					if (UNiagaraDataInterface* UserInterface = Inst->GetInstanceParameters().GetDataInterface(*DIIndex))
+					{
+						DIToBind = UserInterface;
+						InstData = Inst->FindDataInterfaceInstanceData(UserInterface);
+					}
+				}
+				else if (const int32* ResolvedDIIndex = Inst->GetInstanceParameters().FindParameterOffset(ResolvedDIInfo.ResolvedVariable))
+				{
+					//If this is a User DI we bind to the user DI and find instance data with it.
+					if (UNiagaraDataInterface* UserInterface = Inst->GetInstanceParameters().GetDataInterface(*ResolvedDIIndex))
 					{
 						DIToBind = UserInterface;
 						InstData = Inst->FindDataInterfaceInstanceData(UserInterface);

@@ -665,6 +665,9 @@ public:
 	UPROPERTY()
 	FName Name;
 
+	UPROPERTY()
+	FName CompileName;
+
 	/** Index of the user pointer for this data interface. */
 	UPROPERTY()
 	int32 UserPtrIdx;
@@ -676,9 +679,72 @@ public:
 	FName RegisteredParameterMapRead;
 
 	UPROPERTY()
-	FName RegisteredParameterMapWrite;
+	TArray<FName> RegisteredParameterMapWrites;
+
+	UPROPERTY()
+	FString EmitterName;
 
 	bool IsUserDataInterface() const;
+};
+
+USTRUCT()
+struct NIAGARA_API FNiagaraResolvedUserDataInterfaceBinding
+{
+	GENERATED_BODY()
+
+	int32 UserParameterStoreDataInterfaceIndex;
+	int32 ScriptParameterStoreDataInterfaceIndex;
+
+	FNiagaraResolvedUserDataInterfaceBinding()
+		: UserParameterStoreDataInterfaceIndex(INDEX_NONE)
+		, ScriptParameterStoreDataInterfaceIndex(INDEX_NONE)
+	{
+	}
+
+	FNiagaraResolvedUserDataInterfaceBinding(int32 InUserParameterStoreDataInterfaceIndex, int32 InScriptParameterStoreDataInterfaceIndex)
+		: UserParameterStoreDataInterfaceIndex(InUserParameterStoreDataInterfaceIndex)
+		, ScriptParameterStoreDataInterfaceIndex(InScriptParameterStoreDataInterfaceIndex)
+	{
+	}
+};
+
+USTRUCT()
+struct NIAGARA_API FNiagaraScriptResolvedDataInterfaceInfo
+{
+	GENERATED_USTRUCT_BODY();
+
+	FNiagaraScriptResolvedDataInterfaceInfo()
+		: bIsInternal(false)
+		, ResolvedDataInterface(nullptr)
+		, UserPtrIdx(-1)
+	{
+	}
+
+	UPROPERTY()
+	FName Name;
+
+	UPROPERTY()
+	FName CompileName;
+
+	UPROPERTY()
+	FString EmitterName;
+
+	UPROPERTY()
+	FNiagaraVariableBase ResolvedVariable;
+
+	UPROPERTY()
+	FNiagaraVariableBase SourceVariable;
+
+	UPROPERTY()
+	bool bIsInternal;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraDataInterface> ResolvedDataInterface;
+
+	UPROPERTY()
+	int32 UserPtrIdx;
+
+	bool NeedsPerInstanceBinding() const;
 };
 
 USTRUCT()
@@ -714,7 +780,7 @@ public:
 	FName RegisteredParameterMapRead;
 
 	UPROPERTY()
-	FName RegisteredParameterMapWrite;
+	TArray<FName> RegisteredParameterMapWrites;
 
 	UPROPERTY()
 	bool bIsPlaceholder;
@@ -1297,8 +1363,6 @@ namespace FNiagaraUtilities
 
 	NIAGARA_API FString CreateRapidIterationConstantName(FName InVariableName, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage);
 	FNiagaraVariable NIAGARA_API ConvertVariableToRapidIterationConstantName(FNiagaraVariable InVar, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage);
-
-	void CollectScriptDataInterfaceParameters(const UObject& Owner, const TArrayView<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters);
 
 	inline bool SupportsNiagaraRendering(ERHIFeatureLevel::Type FeatureLevel)
 	{

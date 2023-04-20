@@ -409,6 +409,10 @@ namespace FNiagaraEditorUtilities
 	bool IsEnumIndexVisible(const UEnum* Enum, int32 Index);
 
 	void GetScriptMessageStores(UNiagaraScript* InScript, TArray<FNiagaraMessageSourceAndStore>& OutNiagaraMessageStores);
+
+	NIAGARAEDITOR_API bool IsEditorDataInterfaceInstance(const UNiagaraDataInterface* DataInterface);
+
+	NIAGARAEDITOR_API UNiagaraDataInterface* GetResolvedRuntimeInstanceForEditorDataInterfaceInstance(const UNiagaraSystem& OwningSystem, UNiagaraDataInterface& EditorDataInterfaceInstance);
 }
 
 namespace FNiagaraParameterUtilities
