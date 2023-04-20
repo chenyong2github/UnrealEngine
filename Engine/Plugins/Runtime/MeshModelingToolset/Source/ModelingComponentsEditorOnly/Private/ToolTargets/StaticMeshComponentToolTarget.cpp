@@ -289,9 +289,10 @@ IInterface_CollisionDataProvider* UStaticMeshComponentToolTarget::GetComplexColl
 bool UStaticMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const
 {
 	const UStaticMeshComponent* Component = GetValid(Cast<UStaticMeshComponent>(SourceObject));
-	return Component && !Component->IsUnreachable() && Component->IsValidLowLevel() && Component->GetStaticMesh()
-		&& !Component->GetStaticMesh()->GetOutermost()->bIsCookedForEditor
-		&& (Component->GetStaticMesh()->GetNumSourceModels() > 0)
+	const UStaticMesh* StaticMesh = (Component && !Component->IsUnreachable() && Component->IsValidLowLevel()) ? Component->GetStaticMesh() : nullptr;
+	return StaticMesh
+		&& !StaticMesh->GetOutermost()->bIsCookedForEditor
+		&& UStaticMeshToolTarget::HasNonGeneratedLOD(StaticMesh, EditingLOD)
 		&& Requirements.AreSatisfiedBy(UStaticMeshComponentToolTarget::StaticClass());
 }
 

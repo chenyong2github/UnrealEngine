@@ -136,6 +136,39 @@ bool UStaticMeshToolTarget::IsValid(const UStaticMesh* StaticMeshIn, EMeshLODIde
 	return true;
 }
 
+bool UStaticMeshToolTarget::HasNonGeneratedLOD(const UStaticMesh* StaticMeshIn, EMeshLODIdentifier MeshLOD)
+{
+	if (!StaticMeshIn)
+	{
+		return false;
+	}
+	
+	if (MeshLOD == EMeshLODIdentifier::Default)
+	{
+		MeshLOD = EMeshLODIdentifier::LOD0;
+	}
+	if (MeshLOD == EMeshLODIdentifier::HiResSource)
+	{
+		return StaticMeshIn->IsHiResMeshDescriptionValid();
+	}
+	const int32 NumExistingLOD = FMath::Min(8, StaticMeshIn->GetNumSourceModels());
+	if (MeshLOD == EMeshLODIdentifier::MaxQuality)
+	{
+		const bool bHasHiRes = StaticMeshIn->IsHiResMeshDescriptionValid();
+		const bool bHasLOD0 = (NumExistingLOD > 0) ? StaticMeshIn->GetSourceModel(0).IsSourceModelInitialized() : false;
+		return (bHasHiRes || bHasLOD0);
+	}
+	else
+	{
+		const int32 LODint = static_cast<int32>(MeshLOD);
+		if (LODint >= NumExistingLOD)
+		{ 
+			return false; 
+		}
+
+		return StaticMeshIn->GetSourceModel(LODint).IsSourceModelInitialized();
+	}
+}
 
 int32 UStaticMeshToolTarget::GetNumMaterials() const
 {
@@ -378,7 +411,7 @@ bool UStaticMeshToolTargetFactory::CanBuildTarget(UObject* SourceObject, const F
 	const UStaticMesh* StaticMesh = GetValid(Cast<UStaticMesh>(SourceObject));
 	return StaticMesh && !StaticMesh->IsUnreachable() && StaticMesh->IsValidLowLevel()
 		&& !StaticMesh->GetOutermost()->bIsCookedForEditor
-		&& (StaticMesh->GetNumSourceModels() > 0)
+		&& UStaticMeshToolTarget::HasNonGeneratedLOD(StaticMesh, EditingLOD)
 		&& Requirements.AreSatisfiedBy(UStaticMeshToolTarget::StaticClass());
 }
 
