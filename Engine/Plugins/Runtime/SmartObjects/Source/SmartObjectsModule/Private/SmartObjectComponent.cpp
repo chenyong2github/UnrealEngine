@@ -134,19 +134,28 @@ void USmartObjectComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	checkf(GetWorld() && GetWorld()->IsGameWorld(), TEXT("Expected to be called for game worlds only since component is registered by OnRegister for the other scenarios."));	
-	RegisterToSubsystem();
+	// Register only for game worlds only since component is registered by OnRegister for the other scenarios.
+	// Can't enforce a check here in case BeginPlay is manually dispatched on worlds of other type (e.g. Editor, Preview).
+	const UWorld* World = GetWorld();
+	if (World != nullptr && World->IsGameWorld())
+	{
+		RegisterToSubsystem();
+	}
 }
 
 void USmartObjectComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// When the object gets streamed out we unregister the component according to its registration type to preserve runtime data for persistent objects.
-	// In all other scenarios (e.g. Destroyed, EndPIE, Quit, etc.) we always remove the runtime data
-	const ESmartObjectUnregistrationType UnregistrationType =
-		(EndPlayReason == EEndPlayReason::RemovedFromWorld) ? ESmartObjectUnregistrationType::RegularProcess : ESmartObjectUnregistrationType::ForceRemove;
+	// Unregister only for game worlds (see details in BeginPlay)
+	const UWorld* World = GetWorld();
+	if (World != nullptr && World->IsGameWorld())
+	{
+		// When the object gets streamed out we unregister the component according to its registration type to preserve runtime data for persistent objects.
+		// In all other scenarios (e.g. Destroyed, EndPIE, Quit, etc.) we always remove the runtime data
+		const ESmartObjectUnregistrationType UnregistrationType =
+			(EndPlayReason == EEndPlayReason::RemovedFromWorld) ? ESmartObjectUnregistrationType::RegularProcess : ESmartObjectUnregistrationType::ForceRemove;
 
-	checkf(GetWorld() && GetWorld()->IsGameWorld(), TEXT("Expected to be called for game worlds only since component is unregistered by OnUnregister for the other scenarios."));
-	UnregisterFromSubsystem(UnregistrationType);
+		UnregisterFromSubsystem(UnregistrationType);
+	}
 
 	Super::EndPlay(EndPlayReason);
 }
