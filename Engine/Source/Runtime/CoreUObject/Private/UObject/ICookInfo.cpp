@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Engine/ICookInfo.h"
+#include "UObject/ICookInfo.h"
 
 #if WITH_EDITOR
 

@@ -13,7 +13,6 @@
 #include "Engine/BlueprintCore.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/GameInstance.h"
-#include "Engine/ICookInfo.h"
 #include "Engine/StreamableManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformFileManager.h"
@@ -31,6 +30,7 @@
 #include "Stats/StatsMisc.h"
 #include "String/Find.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/ICookInfo.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
 

@@ -8,7 +8,6 @@
 #include "Containers/Set.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "Engine/ICookInfo.h"
 #include "HAL/Event.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
@@ -21,6 +20,7 @@
 #include "HAL/CriticalSection.h"
 #include "TargetDomain/TargetDomainUtils.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/ICookInfo.h"
 #include "UObject/NameTypes.h"
 
 #include <atomic>
