@@ -4,6 +4,7 @@
 
 #include "Templates/SharedPointer.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
+#include "NiagaraMessageStore.h"
 #include "UObject/ObjectKey.h"
 #include "NiagaraStackViewModel.generated.h"
 
@@ -67,6 +68,8 @@ public:
 		bool IsValid() const;
 
 		UNiagaraStackEditorData* GetStackEditorData() const;
+
+		void GetMessageStores(TArray<FNiagaraMessageSourceAndStore>& OutMessageStores);
 
 		FText GetDisplayName() const;
 

@@ -73,17 +73,20 @@ UNiagaraStackEntry::EStackIssueFixStyle UNiagaraStackEntry::FStackIssueFix::GetS
 	return Style;
 }
 
-UNiagaraStackEntry::FStackIssue::FStackIssue() : Severity(EStackIssueSeverity::None)
+UNiagaraStackEntry::FStackIssue::FStackIssue() 
+	: Severity(EStackIssueSeverity::None)
+	, DismissHandler(nullptr)
 {
 }
 
-UNiagaraStackEntry::FStackIssue::FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed, const TArray<FStackIssueFix>& InFixes)
+UNiagaraStackEntry::FStackIssue::FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed, const TArray<FStackIssueFix>& InFixes, const FSimpleDelegate& InDismissHandler)
 	: Severity(InSeverity)
 	, ShortDescription(InShortDescription)
 	, LongDescription(InLongDescription)
 	, UniqueIdentifier(FMD5::HashAnsiString(*FString::Printf(TEXT("%s-%s-%s"), *InStackEditorDataKey, *InShortDescription.ToString(), *InLongDescription.ToString())))
 	, bCanBeDismissed(bInCanBeDismissed)
 	, Fixes(InFixes)
+	, DismissHandler(InDismissHandler)
 {
 	checkf(ShortDescription.IsEmptyOrWhitespace() == false, TEXT("Short description can not be empty."));
 	//checkf(LongDescription.IsEmptyOrWhitespace() == false, TEXT("Long description can not be empty."));
@@ -127,6 +130,11 @@ const FText& UNiagaraStackEntry::FStackIssue::GetLongDescription() const
 bool UNiagaraStackEntry::FStackIssue::GetCanBeDismissed() const
 {
 	return bCanBeDismissed;
+}
+
+const FSimpleDelegate& UNiagaraStackEntry::FStackIssue::GetDismissHandler() const
+{
+	return DismissHandler;
 }
 
 const FString& UNiagaraStackEntry::FStackIssue::GetUniqueIdentifier() const

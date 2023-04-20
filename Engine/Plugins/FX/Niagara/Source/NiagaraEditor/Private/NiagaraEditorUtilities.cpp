@@ -4501,6 +4501,20 @@ bool FNiagaraEditorUtilities::IsEnumIndexVisible(const UEnum* Enum, int32 Index)
 	return FNiagaraEnumIndexVisibilityCache::GetVisibility(Enum, Index);
 }
 
+void FNiagaraEditorUtilities::GetScriptMessageStores(UNiagaraScript* InScript, TArray<FNiagaraMessageSourceAndStore>& OutNiagaraMessageStores)
+{
+	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(InScript->GetLatestSource());
+	if (Source != nullptr && Source->NodeGraph != nullptr)
+	{
+		TArray<UNiagaraNodeFunctionCall*> FunctionCallNodes;
+		Source->NodeGraph->GetNodesOfClass<UNiagaraNodeFunctionCall>(FunctionCallNodes);
+		for (UNiagaraNodeFunctionCall* FunctionCallNode : FunctionCallNodes)
+		{
+			OutNiagaraMessageStores.Add(FNiagaraMessageSourceAndStore(*FunctionCallNode, FunctionCallNode->GetMessageStore()));
+		}
+	}
+}
+
 void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(const TArray<FNiagaraVariable>& InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased)
 {
 	FNiagaraAliasContext RenameContext(ENiagaraScriptUsage::ParticleSpawnScript);

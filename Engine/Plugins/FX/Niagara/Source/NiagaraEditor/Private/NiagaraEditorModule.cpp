@@ -69,6 +69,7 @@
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraMessages.h"
 #include "NiagaraComponentBroker.h"
 #include "NiagaraBakerSettings.h"
 #include "ContentBrowserModule.h"
@@ -237,6 +238,24 @@ class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
 	{
 		const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
 		return NiagaraEditorSettings->CreateClassUsageAssetRegistryTag(SourceObject);
+	}
+
+	virtual UNiagaraMessageDataBase* CreateErrorMessage(UObject* InOuter, FText InMessageShort, FText InMessageLong, FName InTopicName, bool bInAllowDismissal = false) const override
+	{
+		return CreateMessage(InOuter, ENiagaraMessageSeverity::Error, InMessageShort, InMessageLong, InTopicName, bInAllowDismissal);
+	}
+
+	virtual UNiagaraMessageDataBase* CreateWarningMessage(UObject* InOuter, FText InMessageShort, FText InMessageLong, FName InTopicName, bool bInAllowDismissal = false) const override
+	{
+		return CreateMessage(InOuter, ENiagaraMessageSeverity::Warning, InMessageShort, InMessageLong, InTopicName, bInAllowDismissal);
+	}
+
+	UNiagaraMessageDataBase* CreateMessage(UObject* InOuter, ENiagaraMessageSeverity Severity, FText InMessageShort, FText InMessageLong, FName InTopicName, bool bInAllowDismissal) const
+	{
+		UNiagaraMessageDataText* NewMessage = NewObject<UNiagaraMessageDataText>(InOuter);
+		NewMessage->Init(InMessageLong, InMessageShort, Severity, InTopicName);
+		NewMessage->SetAllowDismissal(bInAllowDismissal);
+		return NewMessage;
 	}
 };
 

@@ -165,6 +165,15 @@ void UNiagaraNodeFunctionCall::PostLoad()
 	{
 		ComputeNodeName();
 	}
+
+	if (MessageKeyToMessageMap_DEPRECATED.IsEmpty() == false)
+	{
+		for (auto KeyMessagePair : MessageKeyToMessageMap_DEPRECATED)
+		{
+			MessageStore.AddMessage(KeyMessagePair.Key, KeyMessagePair.Value);
+		}
+		MessageKeyToMessageMap_DEPRECATED.Empty();
+	}
 }
 
 void UNiagaraNodeFunctionCall::UpgradeDIFunctionCalls()

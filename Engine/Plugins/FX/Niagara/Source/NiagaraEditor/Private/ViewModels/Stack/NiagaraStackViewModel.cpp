@@ -56,6 +56,18 @@ UNiagaraStackEditorData* UNiagaraStackViewModel::FTopLevelViewModel::GetStackEdi
 	}
 }
 
+void UNiagaraStackViewModel::FTopLevelViewModel::GetMessageStores(TArray<FNiagaraMessageSourceAndStore>& OutMessageStores)
+{
+	if (SystemViewModel.IsValid())
+	{
+		SystemViewModel->GetSystemMessageStores(OutMessageStores);
+	}
+	else if (EmitterHandleViewModel.IsValid())
+	{
+		EmitterHandleViewModel->GetEmitterViewModel()->GetEmitterMessageStores(OutMessageStores);
+	}
+}
+
 FText UNiagaraStackViewModel::FTopLevelViewModel::GetDisplayName() const
 {
 	if (SystemViewModel.IsValid())
@@ -363,11 +375,13 @@ void UNiagaraStackViewModel::UndismissAllIssues()
 	FScopedTransaction ScopedTransaction(LOCTEXT("UnDismissIssues", "Undismiss issues"));
 
 	TArray<UNiagaraStackEditorData*> StackEditorDatas;
+	TArray<FNiagaraMessageSourceAndStore> MessageStores;
 	for (TSharedRef<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
 	{
 		if (TopLevelViewModel->IsValid())
 		{
 			StackEditorDatas.AddUnique(TopLevelViewModel->GetStackEditorData());
+			TopLevelViewModel->GetMessageStores(MessageStores);
 		}
 	}
 
@@ -376,7 +390,14 @@ void UNiagaraStackViewModel::UndismissAllIssues()
 		StackEditorData->Modify();
 		StackEditorData->UndismissAllIssues();
 	}
-	
+
+	for (const FNiagaraMessageSourceAndStore& MessageStore : MessageStores)
+	{
+		MessageStore.GetSource()->Modify();
+		MessageStore.GetStore()->ClearDismissedMessages();
+	}
+
+	RootEntry->GetSystemViewModel()->RefreshAssetMessagesDeferred();
 	RootEntry->RefreshChildren();
 }
 
@@ -384,9 +405,24 @@ bool UNiagaraStackViewModel::HasDismissedStackIssues()
 {
 	for (TSharedRef<FTopLevelViewModel> TopLevelViewModel : TopLevelViewModels)
 	{
-		if (TopLevelViewModel->IsValid() && TopLevelViewModel->GetStackEditorData()->GetDismissedStackIssueIds().Num() > 0)
+		if (TopLevelViewModel->IsValid())
 		{
-			return true;
+			if (TopLevelViewModel->GetStackEditorData()->GetDismissedStackIssueIds().Num() > 0)
+			{
+				return true;
+			}
+			else
+			{
+				TArray<FNiagaraMessageSourceAndStore> MessageStores;
+				TopLevelViewModel->GetMessageStores(MessageStores);
+				for (const FNiagaraMessageSourceAndStore& MessageStore : MessageStores)
+				{
+					if (MessageStore.GetStore()->HasDismissedMessages())
+					{
+						return true;
+					}
+				}
+			}
 		}
 	}
 	return false;

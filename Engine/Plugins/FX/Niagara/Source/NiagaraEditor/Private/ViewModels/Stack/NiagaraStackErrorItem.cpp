@@ -214,8 +214,15 @@ void UNiagaraStackErrorItemDismiss::Initialize(FRequiredEntryData InRequiredEntr
 
 void UNiagaraStackErrorItemDismiss::DismissIssue()
 {
-	GetStackEditorData().Modify();
-	GetStackEditorData().DismissStackIssue(StackIssue.GetUniqueIdentifier());
+	if (StackIssue.GetDismissHandler().IsBound())
+	{
+		StackIssue.GetDismissHandler().Execute();
+	}
+	else
+	{
+		GetStackEditorData().Modify();
+		GetStackEditorData().DismissStackIssue(StackIssue.GetUniqueIdentifier());
+	}
 }
 
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackErrorItemDismiss::GetStackRowStyle() const

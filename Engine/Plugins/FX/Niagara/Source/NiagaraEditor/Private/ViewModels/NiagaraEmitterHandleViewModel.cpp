@@ -84,7 +84,7 @@ FGuid FNiagaraEmitterHandleViewModel::AddMessage(UNiagaraMessageData* NewMessage
 	{
 		const FGuid NewGuid = InNewGuid.IsValid() ? InNewGuid : FGuid::NewGuid();
 		
-		EmitterHandle->GetInstance().Emitter->AddMessage(NewGuid, NewMessage);
+		EmitterHandle->GetInstance().Emitter->GetMessageStore().AddMessage(NewGuid, NewMessage);
 		return NewGuid;
 	}
 	return FGuid();
@@ -94,7 +94,7 @@ void FNiagaraEmitterHandleViewModel::RemoveMessage(const FGuid& MessageKey) cons
 {
 	if (ensureMsgf(EmitterHandle != nullptr, TEXT("EmitterHandleViewModel had a null EmitterHandle!")))
 	{
-		EmitterHandle->GetInstance().Emitter->RemoveMessage(MessageKey);
+		EmitterHandle->GetInstance().Emitter->GetMessageStore().RemoveMessage(MessageKey);
 	}
 }
 

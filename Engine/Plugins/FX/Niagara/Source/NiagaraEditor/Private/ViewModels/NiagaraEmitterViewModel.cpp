@@ -336,6 +336,20 @@ UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetEditorData()
 	return *Cast<UNiagaraEmitterEditorData>(EmitterWeakPtr.GetEmitterData()->GetEditorData());
 }
 
+void FNiagaraEmitterViewModel::GetEmitterMessageStores(TArray<FNiagaraMessageSourceAndStore>& OutMessageStores)
+{
+	if (EmitterWeakPtr.IsValid())
+	{
+		OutMessageStores.Add(FNiagaraMessageSourceAndStore(*EmitterWeakPtr.Emitter, EmitterWeakPtr.Emitter->GetMessageStore()));
+		TArray<UNiagaraScript*> Scripts;
+		EmitterWeakPtr.GetEmitterData()->GetScripts(Scripts, false);
+		for (UNiagaraScript* Script : Scripts)
+		{
+			FNiagaraEditorUtilities::GetScriptMessageStores(Script, OutMessageStores);
+		}
+	}
+}
+
 void FNiagaraEmitterViewModel::AddEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, bool bResetGraphForOutput /*= false*/)
 {
 	EventScriptProperties.Script = NewObject<UNiagaraScript>(GetEmitter().Emitter, MakeUniqueObjectName(GetEmitter().Emitter, UNiagaraScript::StaticClass(), "EventScript"), EObjectFlags::RF_Transactional);

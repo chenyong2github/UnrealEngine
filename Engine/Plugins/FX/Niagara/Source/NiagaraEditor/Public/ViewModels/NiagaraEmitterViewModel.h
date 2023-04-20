@@ -25,6 +25,7 @@ struct FNiagaraEventScriptProperties;
 class UNiagaraScriptVariable;
 class UNiagaraParameterDefinitions;
 class UNiagaraSummaryViewViewModel;
+struct FNiagaraMessageSourceAndStore;
 
 
 /** The view model for the UNiagaraEmitter objects */
@@ -121,6 +122,8 @@ public:
 
 	/** Gets editor specific data which is stored per emitter.  If this data hasn't been created then it will be created. */
 	NIAGARAEDITOR_API UNiagaraEmitterEditorData& GetEditorData();
+
+	void GetEmitterMessageStores(TArray<FNiagaraMessageSourceAndStore>& OutMessageStores);
 
 	/** Add an event script to the owned emitter. Sets the Usage, UsageID and Source of the EventScriptProperties. */
 	NIAGARAEDITOR_API void AddEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, bool bResetGraphForOutput = false);

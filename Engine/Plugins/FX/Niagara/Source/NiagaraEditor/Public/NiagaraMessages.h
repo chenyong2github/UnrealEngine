@@ -75,8 +75,7 @@ public:
 	/** Can optionally be overriden to give the message a title/short description. */
 	virtual FText GenerateMessageTitle() const;
 
-	/** Can optionally be overriden to allow for dismissal of a message (where applicable (the stack for example) */
-	virtual bool AllowDismissal() const;
+	virtual const FSimpleDelegate& GetDismissHandler() const { return DismissHandler; }
 	
 	virtual TSharedRef<FTokenizedMessage> GenerateTokenizedMessage() const = 0;
 
@@ -94,6 +93,7 @@ public:
 protected:
 	const TArray<FObjectKey> AssociatedObjectKeys;
 	mutable uint32 MessageTopicBitflag;
+	FSimpleDelegate DismissHandler;
 };
 
 class FNiagaraMessageCompileEvent : public INiagaraMessage
@@ -111,8 +111,6 @@ public:
 
 	virtual FText GenerateMessageTitle() const override;
 
-	virtual bool AllowDismissal() const override;
-	
 	virtual TSharedRef<FTokenizedMessage> GenerateTokenizedMessage() const override;
 
 	virtual void GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const override;
@@ -133,22 +131,22 @@ private:
 class FNiagaraMessageText : public INiagaraMessage
 {
 public:
-	FNiagaraMessageText(const FText& InMessageText, const FText& InShortDescription, const EMessageSeverity::Type& InMessageSeverity, const FName& InTopicName, bool bInAllowDismissal = false, const TArray<FObjectKey>& InAssociatedObjectKeys = TArray<FObjectKey>())
+	FNiagaraMessageText(const FText& InMessageText, const FText& InShortDescription, const EMessageSeverity::Type& InMessageSeverity, const FName& InTopicName, const FSimpleDelegate& InDismissHandler = FSimpleDelegate(), const TArray<FObjectKey>& InAssociatedObjectKeys = TArray<FObjectKey>())
 		: INiagaraMessage(InAssociatedObjectKeys)
 		, MessageText(InMessageText)
 		, ShortDescription(InShortDescription)
 		, MessageSeverity(InMessageSeverity)
 		, TopicName(InTopicName)
-		, bAllowDismissal(bInAllowDismissal)
+		, DismissHandler(InDismissHandler)
 	{
 	};
 
-	FNiagaraMessageText(const FText& InMessageText, const EMessageSeverity::Type& InMessageSeverity, const FName& InTopicName, bool bInAllowDismissal = false, const TArray<FObjectKey>& InAssociatedObjectKeys = TArray<FObjectKey>())
+	FNiagaraMessageText(const FText& InMessageText, const EMessageSeverity::Type& InMessageSeverity, const FName& InTopicName, const FSimpleDelegate& InDismissHandler = FSimpleDelegate(), const TArray<FObjectKey>& InAssociatedObjectKeys = TArray<FObjectKey>())
 		: INiagaraMessage(InAssociatedObjectKeys)
 		, MessageText(InMessageText)
 		, MessageSeverity(InMessageSeverity)
 		, TopicName(InTopicName)
-		, bAllowDismissal(bInAllowDismissal)
+		, DismissHandler(InDismissHandler)
 	{
 	};
 
@@ -156,7 +154,7 @@ public:
 
 	virtual FText GenerateMessageTitle() const override;
 
-	virtual bool AllowDismissal() const override;
+	virtual const FSimpleDelegate& GetDismissHandler() const { return DismissHandler; }
 	
 	virtual TSharedRef<FTokenizedMessage> GenerateTokenizedMessage() const override;
 
@@ -169,7 +167,7 @@ private:
 	const FText ShortDescription;
 	const EMessageSeverity::Type MessageSeverity;
 	const FName TopicName;
-	const bool bAllowDismissal;
+	const FSimpleDelegate DismissHandler;
 };
 
 class FNiagaraMessageTextWithLinks : public FNiagaraMessageText
@@ -180,10 +178,10 @@ public:
 	, const FText& InShortDescription  
 	, const EMessageSeverity::Type& InMessageSeverity
 	, const FName& InTopicName
-	, const bool bInAllowDismissal
+	, const FSimpleDelegate& InDismissHandler
 	, const TArray<FLinkNameAndDelegate>& InLinks
 	, const TArray<FObjectKey>& InAssociatedObjectKeys = TArray<FObjectKey>())
-		: FNiagaraMessageText(InMessageText, InShortDescription, InMessageSeverity, InTopicName, bInAllowDismissal, InAssociatedObjectKeys)
+		: FNiagaraMessageText(InMessageText, InShortDescription, InMessageSeverity, InTopicName, InDismissHandler, InAssociatedObjectKeys)
 		, Links(InLinks)
 	{
 	};
@@ -273,10 +271,13 @@ public:
 	const TArray<FObjectKey>& GetAssociatedObjectKeys() const { return AssociatedObjectKeys; };
 	void SetLinks(const TArray<FLinkNameAndDelegate>& InLinks) { Links = InLinks; };
 	const TArray<FLinkNameAndDelegate>& GetLinks() const { return Links; };
+	void SetDismissHandler(const FSimpleDelegate& InDismissHandler) { DismissHandler = InDismissHandler; }
+	const FSimpleDelegate& GetDismissHandler() const { return DismissHandler; }
 
 private:
 	TArray<FObjectKey> AssociatedObjectKeys;
 	TArray<FLinkNameAndDelegate> Links;
+	FSimpleDelegate DismissHandler;
 };
 
 UCLASS(abstract)
@@ -300,6 +301,7 @@ public:
 
 	virtual TSharedRef<const INiagaraMessage> GenerateNiagaraMessage(const FGenerateNiagaraMessageInfo& InGenerateInfo = FGenerateNiagaraMessageInfo()) const override;
 
+	virtual bool GetAllowDismissal() const override { return bAllowDismissal; }
 	void SetAllowDismissal(bool bInAllowDismissal) { bAllowDismissal = bInAllowDismissal; }
 	
 private:

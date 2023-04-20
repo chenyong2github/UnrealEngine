@@ -8,6 +8,7 @@
 #include "UObject/Object.h"
 #include "NiagaraScript.h"
 #include "NiagaraMessageDataBase.h"
+#include "NiagaraMessageStore.h"
 #include "INiagaraMergeManager.h"
 #include "NiagaraEffectType.h"
 #include "NiagaraDataSetAccessor.h"
@@ -911,10 +912,7 @@ public:
 	NIAGARA_API void ChangeParentVersion(const FGuid& NewParentVersion, const FGuid& EmitterVersion);
 
 	NIAGARA_API void NotifyScratchPadScriptsChanged();
-	NIAGARA_API const TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& GetMessages() const { return MessageKeyToMessageMap; };
-	NIAGARA_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
-	NIAGARA_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
-	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	NIAGARA_API FNiagaraMessageStore& GetMessageStore() { return MessageStore; }
 #endif
 
 protected:
@@ -1003,9 +1001,11 @@ private:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	/** Messages associated with the Emitter asset. */
 	UPROPERTY()
-	TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>> MessageKeyToMessageMap;
+	TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>> MessageKeyToMessageMap_DEPRECATED;
+
+	UPROPERTY()
+	FNiagaraMessageStore MessageStore;
 #endif
 
 	void ResolveScalabilitySettings();

@@ -425,10 +425,13 @@ TArray<INiagaraMergeManager::FMergeEmitterResults> UNiagaraEmitter::MergeChanges
 				*GetPathName(), VersionedParent.Emitter != nullptr ? *VersionedParent.Emitter->GetPathName() : TEXT("(null)"), *MergeResults.GetErrorMessagesString());
 		}
 
-		RemoveMessage(EmitterMergeMessageId);
 		if (MergeResults.MergeNiagaraMessage != nullptr)
 		{
-			AddMessage(EmitterMergeMessageId, CastChecked<UNiagaraMessageDataBase>(StaticDuplicateObject(MergeResults.MergeNiagaraMessage, this)));
+			MessageStore.AddMessage(EmitterMergeMessageId, CastChecked<UNiagaraMessageDataBase>(StaticDuplicateObject(MergeResults.MergeNiagaraMessage, this)));
+		}
+		else
+		{
+			MessageStore.RemoveMessage(EmitterMergeMessageId);
 		}
 	}
 	return Results;
@@ -668,6 +671,12 @@ void UNiagaraEmitter::PostLoad()
 	if(bExposeToLibrary_DEPRECATED)
 	{
 		LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
+	}
+
+	if (MessageKeyToMessageMap_DEPRECATED.IsEmpty() == false)
+	{
+		MessageStore.SetMessages(MessageKeyToMessageMap_DEPRECATED);
+		MessageKeyToMessageMap_DEPRECATED.Empty();
 	}
 
 	if (this->GetOuter()->IsA<UNiagaraSystem>() || this->GetOuter()->IsA<UNiagaraEmitter>())
@@ -2888,13 +2897,12 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 	SetEditorData(MergedData->GetEditorData(), EmitterData->Version.VersionGuid);
 
 	// Update messages
-	for (const TPair<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& Message : MergedEmitter->GetMessages())
+	for (const TPair<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& Message : MergedEmitter->GetMessageStore().GetMessages())
 	{
-		TObjectPtr<UNiagaraMessageDataBase>& MessageData = MessageKeyToMessageMap.FindOrAdd(Message.Key);
 		if (Message.Value != nullptr)
 		{
 			ReouterMergedObject(this, Message.Value);
-			MessageData = Message.Value;
+			MessageStore.AddMessage(Message.Key, Message.Value);
 		}
 	}
 

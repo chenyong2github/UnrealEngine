@@ -62,7 +62,6 @@ public:
 		Severity = FNiagaraCompileEventSeverity::Display;
 		Message = FString();
 		ShortDescription = FString();
-		bDismissable = true;
 		NodeGuid = FGuid();
 		PinGuid = FGuid();
 		StackGuids.Empty();
@@ -73,7 +72,6 @@ public:
 		FNiagaraCompileEventSeverity InSeverity,
 		const FString& InMessage,
 		FString InShortDescription = FString(),
-		bool bInDismissable = true,
 		FGuid InNodeGuid = FGuid(),
 		FGuid InPinGuid = FGuid(),
 		const TArray<FGuid>& InCallstackGuids = TArray<FGuid>(),
@@ -82,7 +80,6 @@ public:
 		: Severity(InSeverity)
 		, Message(InMessage)
 		, ShortDescription(InShortDescription)
-		, bDismissable(bInDismissable)
 		, NodeGuid(InNodeGuid)
 		, PinGuid(InPinGuid)
 		, StackGuids(InCallstackGuids)
@@ -98,9 +95,6 @@ public:
 	/** A short, optional description of the event. */
 	UPROPERTY()
 	FString ShortDescription;
-	/** Whether or not this event is dismissable or not */
-	UPROPERTY()
-	bool bDismissable;
 	/** The node guid that generated the compile event*/
 	UPROPERTY()
 	FGuid NodeGuid;

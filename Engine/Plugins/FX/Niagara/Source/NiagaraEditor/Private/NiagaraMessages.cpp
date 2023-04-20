@@ -21,11 +21,6 @@ FText INiagaraMessage::GenerateMessageTitle() const
 	return FText::GetEmpty();
 }
 
-bool INiagaraMessage::AllowDismissal() const
-{
-	return false;
-}
-
 FNiagaraMessageCompileEvent::FNiagaraMessageCompileEvent(
 	const FNiagaraCompileEvent& InCompileEvent
 	, TArray<FNiagaraScriptNameAndAssetPath>& InContextScriptNamesAndAssetPaths
@@ -175,11 +170,6 @@ FText FNiagaraMessageCompileEvent::GenerateMessageTitle() const
 	{
 		return FNiagaraMessageUtilities::GetShortDescriptionFromSeverity(StackIssueSeverity);
 	}
-}
-
-bool FNiagaraMessageCompileEvent::AllowDismissal() const
-{
-	return CompileEvent.bDismissable;
 }
 
 void FNiagaraMessageCompileEvent::GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const
@@ -420,11 +410,6 @@ FText FNiagaraMessageText::GenerateMessageTitle() const
 	return ShortDescription;
 }
 
-bool FNiagaraMessageText::AllowDismissal() const
-{
-	return bAllowDismissal;
-}
-
 const uint32 INiagaraMessage::GetMessageTopicBitflag() const
 {
 	if (MessageTopicBitflag == 0)
@@ -454,9 +439,9 @@ TSharedRef<const INiagaraMessage> UNiagaraMessageDataText::GenerateNiagaraMessag
 	const TArray<FLinkNameAndDelegate>& Links = InGenerateInfo.GetLinks();
 	if (Links.Num() > 0)
 	{
-		return MakeShared<const FNiagaraMessageTextWithLinks>(MessageText, ShortDescription, EMessageSeverity::Type(MessageSeverity), TopicName, bAllowDismissal, Links, InGenerateInfo.GetAssociatedObjectKeys());
+		return MakeShared<const FNiagaraMessageTextWithLinks>(MessageText, ShortDescription, EMessageSeverity::Type(MessageSeverity), TopicName, InGenerateInfo.GetDismissHandler(), Links, InGenerateInfo.GetAssociatedObjectKeys());
 	}
-	return MakeShared<const FNiagaraMessageText>(MessageText, ShortDescription, EMessageSeverity::Type(MessageSeverity), TopicName, bAllowDismissal, InGenerateInfo.GetAssociatedObjectKeys());
+	return MakeShared<const FNiagaraMessageText>(MessageText, ShortDescription, EMessageSeverity::Type(MessageSeverity), TopicName, InGenerateInfo.GetDismissHandler(), InGenerateInfo.GetAssociatedObjectKeys());
 }
 
 TSharedRef<FTokenizedMessage> FNiagaraMessageTextWithLinks::GenerateTokenizedMessage() const

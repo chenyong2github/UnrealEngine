@@ -786,7 +786,7 @@ FGuid FNiagaraSystemViewModel::AddMessage(UNiagaraMessageData* NewMessage) const
 	UNiagaraSystem& ViewedSystem = GetSystem();
 	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
-		ViewedSystem.AddMessage(NewGuid, static_cast<UNiagaraMessageDataBase*>(NewMessage));
+		ViewedSystem.GetMessageStore().AddMessage(NewGuid, static_cast<UNiagaraMessageDataBase*>(NewMessage));
 	}
 	else if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset)
 	{
@@ -810,7 +810,7 @@ void FNiagaraSystemViewModel::RemoveMessage(const FGuid& MessageKey) const
 	UNiagaraSystem& ViewedSystem = GetSystem();
 	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
-		ViewedSystem.RemoveMessage(MessageKey);
+		ViewedSystem.GetMessageStore().RemoveMessage(MessageKey);
 	}
 	else if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset)
 	{
@@ -830,21 +830,26 @@ void FNiagaraSystemViewModel::RemoveMessage(const FGuid& MessageKey) const
 FGuid FNiagaraSystemViewModel::AddStackMessage(UNiagaraMessageData* NewMessage, UNiagaraNodeFunctionCall* TargetFunctionCallNode) const
 {
 	FGuid NewGuid = FGuid::NewGuid();
-	TargetFunctionCallNode->AddMessage(NewGuid, NewMessage);
+	TargetFunctionCallNode->GetMessageStore().AddMessage(NewGuid, NewMessage);
 	bPendingAssetMessagesChanged = true;
 	return NewGuid;
 }
 
 NIAGARAEDITOR_API void FNiagaraSystemViewModel::RemoveStackMessage(const FGuid& MessageKey, UNiagaraNodeFunctionCall* TargetFunctionCallNode) const
 {
-	TargetFunctionCallNode->RemoveMessage(MessageKey);
+	TargetFunctionCallNode->GetMessageStore().RemoveMessage(MessageKey);
 	bPendingAssetMessagesChanged = true;
 }
 
-void FNiagaraSystemViewModel::ExecuteMessageDelegateAndRefreshMessages(FSimpleDelegate MessageDelegate)
+void FNiagaraSystemViewModel::DismissMessageAndRefresh(FNiagaraMessageSourceAndStore MessageSourceAndStore, FGuid MessageKey)
 {
-	MessageDelegate.ExecuteIfBound();
-	bPendingAssetMessagesChanged = true;
+	UObject* MessageSource = MessageSourceAndStore.GetSource();
+	if (MessageSource != nullptr)
+	{
+		MessageSource->Modify();
+		MessageSourceAndStore.GetStore()->DismissMessage(MessageKey);
+		bPendingAssetMessagesChanged = true;
+	}
 }
 
 void FNiagaraSystemViewModel::DeleteEmitters(TSet<FGuid> EmitterHandleIdsToDelete)
@@ -1535,6 +1540,18 @@ TArray<FNiagaraGraphParameterReference> FNiagaraSystemViewModel::GetGraphParamet
 	return GraphParameterReferences;
 }
 
+void FNiagaraSystemViewModel::GetSystemMessageStores(TArray<FNiagaraMessageSourceAndStore>& OutMessageStores)
+{
+	OutMessageStores.Add(FNiagaraMessageSourceAndStore(*System, System->GetMessageStore()));
+	FNiagaraEditorUtilities::GetScriptMessageStores(System->GetSystemSpawnScript(), OutMessageStores);
+	FNiagaraEditorUtilities::GetScriptMessageStores(System->GetSystemUpdateScript(), OutMessageStores);
+}
+
+void FNiagaraSystemViewModel::RefreshAssetMessagesDeferred()
+{
+	bPendingAssetMessagesChanged = true;
+}
+
 void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
 {
 	if (SystemMessageLogGuidKey.IsSet() == false)
@@ -1729,6 +1746,7 @@ void FNiagaraSystemViewModel::TickCompileStatus()
 			{
 				SendLastCompileMessageJobs();
 				RefreshStackViewModels();
+				bPendingAssetMessagesChanged = true;
 			}
 		}
 	}
@@ -3036,36 +3054,35 @@ void FNiagaraSystemViewModel::RefreshStackViewModels()
 void FNiagaraSystemViewModel::RefreshAssetMessages()
 {
 	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
-	for (const FObjectKey& FunctionCallNodeObjectKey : LastFunctionCallNodeObjectKeys)
+	for (const FObjectKey& MessageSourceObjectKey : MessageSourceObjectKeys)
 	{
-		MessageManager->ClearAssetMessagesForObject(SystemMessageLogGuidKey.GetValue(), FunctionCallNodeObjectKey);
+		MessageManager->ClearAssetMessagesForObject(SystemMessageLogGuidKey.GetValue(), MessageSourceObjectKey);
 	}
-	LastFunctionCallNodeObjectKeys.Reset();
+	MessageSourceObjectKeys.Reset();
 
-	auto PublishMessages = [this, &MessageManager](auto& MessageSource, const auto RemoveMessageFuncSig)->TArray<FObjectKey> /* MessageSourceObjectKeys */ {
-		TArray<FObjectKey> NewObjectKeys;
-		for (auto It = MessageSource.GetMessages().CreateConstIterator(); It; ++It)
+	auto PublishMessages = [this, &MessageManager](const FNiagaraMessageSourceAndStore& MessageSourceAndStore) {
+		for (auto It = MessageSourceAndStore.GetStore()->GetMessages().CreateConstIterator(); It; ++It)
 		{
+			const FGuid& MessageKey = It.Key();
+			if (MessageSourceAndStore.GetStore()->IsMessageDismissed(MessageKey))
+			{
+				continue;
+			}
+
 			const UNiagaraMessageData* MessageData = static_cast<UNiagaraMessageData*>(It.Value());
 			FGenerateNiagaraMessageInfo GenerateNiagaraMessageInfo = FGenerateNiagaraMessageInfo();
 
-			TArray<FObjectKey> AssociatedObjectKeys = { FObjectKey(&MessageSource) };
-			NewObjectKeys.Append(AssociatedObjectKeys);
+			TArray<FObjectKey> AssociatedObjectKeys = { FObjectKey(MessageSourceAndStore.GetSource()) };
 			GenerateNiagaraMessageInfo.SetAssociatedObjectKeys(AssociatedObjectKeys);
 
-			TArray<FLinkNameAndDelegate> Links;
-			const FText LinkText = LOCTEXT("AcknowledgeAndClearIssue", "Acknowledge and clear this issue.");
-			const FGuid MessageKey = It.Key();
-			FSimpleDelegate MessageDelegate = FSimpleDelegate::CreateUObject(&MessageSource, RemoveMessageFuncSig, MessageKey);
-			FSimpleDelegate WrapperDelegate = FSimpleDelegate::CreateSP(this, &FNiagaraSystemViewModel::ExecuteMessageDelegateAndRefreshMessages, MessageDelegate);
-			const FLinkNameAndDelegate Link = FLinkNameAndDelegate(LinkText, WrapperDelegate);
-			Links.Add(Link);
-			GenerateNiagaraMessageInfo.SetLinks(Links);
+			if (MessageData->GetAllowDismissal())
+			{
+				GenerateNiagaraMessageInfo.SetDismissHandler(FSimpleDelegate::CreateSP(this, &FNiagaraSystemViewModel::DismissMessageAndRefresh, MessageSourceAndStore, It.Key()));
+			}
 
 			TSharedRef<const INiagaraMessage> Message = MessageData->GenerateNiagaraMessage(GenerateNiagaraMessageInfo);
 			MessageManager->AddMessage(Message, SystemMessageLogGuidKey.GetValue());
 		}
-		return NewObjectKeys;
 	};
 
 	auto PublishScriptMessages = [&](const TArray<UNiagaraScript*>& Scripts)->TArray<FObjectKey> /* FunctionCallNodeObjectKeys */ {
@@ -3082,7 +3099,8 @@ void FNiagaraSystemViewModel::RefreshAssetMessages()
 			FNiagaraStackGraphUtilities::GetOrderedModuleNodes(*OutputNode, FunctionCallNodes);
 			for(UNiagaraNodeFunctionCall* FunctionCallNode : FunctionCallNodes)
 			{
-				NewObjectKeys.Append(PublishMessages(*FunctionCallNode, &UNiagaraNodeFunctionCall::RemoveMessageDelegateable));
+				PublishMessages(FNiagaraMessageSourceAndStore(*FunctionCallNode, FunctionCallNode->GetMessageStore()));
+				NewObjectKeys.Add(FObjectKey(FunctionCallNode));
 			}
 		}
 		return NewObjectKeys;
@@ -3091,7 +3109,8 @@ void FNiagaraSystemViewModel::RefreshAssetMessages()
 	UNiagaraSystem& ViewedSystem = GetSystem();
 	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
-		LastFunctionCallNodeObjectKeys.Append(PublishMessages(ViewedSystem, &UNiagaraSystem::RemoveMessageDelegateable));
+		PublishMessages(FNiagaraMessageSourceAndStore(ViewedSystem, ViewedSystem.GetMessageStore()));
+		MessageSourceObjectKeys.Add(FObjectKey(&ViewedSystem));
 
 		TArray<UNiagaraScript*> Scripts;
 		Scripts.Add(ViewedSystem.GetSystemSpawnScript());
@@ -3099,10 +3118,12 @@ void FNiagaraSystemViewModel::RefreshAssetMessages()
 		for (const FNiagaraEmitterHandle& EmitterHandle : ViewedSystem.GetEmitterHandles())
 		{
 			FVersionedNiagaraEmitter VersionedEmitter = EmitterHandle.GetInstance();
-			LastFunctionCallNodeObjectKeys.Append(PublishMessages(*VersionedEmitter.Emitter, &UNiagaraEmitter::RemoveMessageDelegateable));
+			UNiagaraEmitter* Emitter = VersionedEmitter.Emitter.Get();
+			PublishMessages(FNiagaraMessageSourceAndStore(*Emitter, Emitter->GetMessageStore()));
+			MessageSourceObjectKeys.Add(FObjectKey(Emitter));
 			VersionedEmitter.GetEmitterData()->GetScripts(Scripts, false);
 		}
-		LastFunctionCallNodeObjectKeys.Append(PublishScriptMessages(Scripts));
+		MessageSourceObjectKeys.Append(PublishScriptMessages(Scripts));
 
 	}
 	else if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset)
@@ -3111,11 +3132,13 @@ void FNiagaraSystemViewModel::RefreshAssetMessages()
 		if (ensureMsgf(EmitterHandles.Num() == 1, TEXT("There was not exactly 1 Emitter Handle for the SystemViewModel in Emitter edit mode!")))
 		{
 			FVersionedNiagaraEmitter VersionedEmitter = EmitterHandles[0].GetInstance();
-			LastFunctionCallNodeObjectKeys.Append(PublishMessages(*VersionedEmitter.Emitter, &UNiagaraEmitter::RemoveMessageDelegateable));
+			UNiagaraEmitter* Emitter = VersionedEmitter.Emitter.Get();
+			PublishMessages(FNiagaraMessageSourceAndStore(*Emitter, Emitter->GetMessageStore()));
+			MessageSourceObjectKeys.Add(FObjectKey(Emitter));
 
 			TArray<UNiagaraScript*> Scripts;
 			VersionedEmitter.GetEmitterData()->GetScripts(Scripts, false);
-			LastFunctionCallNodeObjectKeys.Append(PublishScriptMessages(Scripts));
+			MessageSourceObjectKeys.Append(PublishScriptMessages(Scripts));
 		}
 	}
 	else

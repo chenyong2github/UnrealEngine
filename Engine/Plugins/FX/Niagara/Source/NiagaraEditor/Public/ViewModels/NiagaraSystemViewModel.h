@@ -410,8 +410,7 @@ public:
 	/** Remove a serialized message from the target function call node inside a script this viewmodel is managing. */
 	NIAGARAEDITOR_API void RemoveStackMessage(const FGuid& MessageKey, UNiagaraNodeFunctionCall* TargetFunctionCallNode) const;
 
-	/** Wrapper to set bPendingMessagesChanged after calling a delegate off of a message link. */
-	void ExecuteMessageDelegateAndRefreshMessages(FSimpleDelegate MessageDelegate);
+	void DismissMessageAndRefresh(FNiagaraMessageSourceAndStore MessageSourceAndStore, FGuid MessageKey);
 
 	/** Helper to get the current System or Emitter's EditorParameters. */
 	UNiagaraEditorParametersAdapter* GetEditorOnlyParametersAdapter() const;
@@ -452,6 +451,10 @@ public:
 
 	/** Utility method to gather graph parameter references */
 	TArray<FNiagaraGraphParameterReference> GetGraphParameterReferences(const FNiagaraVariable& Parameter, ENiagaraGetGraphParameterReferencesMode Mode);
+
+	void GetSystemMessageStores(TArray<FNiagaraMessageSourceAndStore>& OutMessageStores);
+
+	void RefreshAssetMessagesDeferred();
 
 private:
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
@@ -749,8 +752,8 @@ private:
 
 	FDelegateHandle SystemChangedDelegateHandle;
 
-	/** ObjectKeys for function call nodes that supply messages. Used to invalidate the messages of these nodes on refresh.*/
-	TArray<FObjectKey> LastFunctionCallNodeObjectKeys;
+	/** ObjectKeys for object viewed by this view model that supply messages. Used to invalidate the messages of these objects on refresh.*/
+	TArray<FObjectKey> MessageSourceObjectKeys;
 
 	/** Flag for when messages have been added/removed through the viewmodel to signal that the message manager needs to be refreshed. */
 	mutable bool bPendingAssetMessagesChanged;

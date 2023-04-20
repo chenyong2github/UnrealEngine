@@ -62,6 +62,94 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraStack"
 
+class SNiagaraStackHeaderButtons : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SNiagaraStackHeaderButtons) {}
+		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility);
+		SLATE_EVENT(FSimpleDelegate, OnCycleThroughIssues);
+		SLATE_ARGUMENT(TSharedPtr<SNiagaraStack>, ParentStack)
+	SLATE_END_ARGS();
+
+	void Construct(const FArguments& InArgs, UNiagaraStackEntry* InRootEntry, UNiagaraStackViewModel* InStackViewModel)
+	{
+		StackViewModel = InStackViewModel;
+		OnCycleThroughIssues = InArgs._OnCycleThroughIssues;
+		ParentStackPtr = InArgs._ParentStack;
+		TopLevelViewModel = StackViewModel->GetTopLevelViewModelForEntry(*InRootEntry);
+		ChildSlot
+		[
+			SNew(SHorizontalBox)
+			// Issue Icon
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 2, 0)
+			[
+				SNew(SNiagaraStackIssueIcon, StackViewModel, InRootEntry)
+				.Visibility(InArgs._IssueIconVisibility)
+				.OnClicked(this, &SNiagaraStackHeaderButtons::OnIssueIconClicked)
+			]
+			// Options button
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 2, 0)
+			[
+				SAssignNew(SettingsAnchor, SMenuAnchor)
+				.Placement(MenuPlacement_MenuLeft)
+				.OnGetMenuContent(this, &SNiagaraStackHeaderButtons::OnGetContent)
+				[
+					SNew(SButton)
+					.ContentPadding(0)
+					.ForegroundColor(FSlateColor::UseForeground())
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+					.OnClicked(this, &SNiagaraStackHeaderButtons::OpenSubmenu)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Fill)
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(FAppStyle::Get().GetBrush("DetailsView.ViewOptions"))
+					]
+				]
+			]
+		];
+	}
+
+private:
+	FReply OnIssueIconClicked() const
+	{
+		StackViewModel->OnCycleThroughIssues(TopLevelViewModel);
+		OnCycleThroughIssues.ExecuteIfBound();
+		return FReply::Handled();
+	}
+
+	FReply OpenSubmenu()
+	{
+		SettingsAnchor->SetIsOpen(!SettingsAnchor->IsOpen());
+		return FReply::Handled();
+	}
+
+	TSharedRef<SWidget> OnGetContent() const
+	{
+		if (ParentStackPtr.IsValid())
+		{
+			return ParentStackPtr.Pin()->GenerateStackMenu(TopLevelViewModel).ToSharedRef();
+		}
+		return SNullWidget::NullWidget;
+	}
+
+private:
+	TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel;
+	FSimpleDelegate OnCycleThroughIssues;
+	UNiagaraStackViewModel* StackViewModel;
+	TWeakPtr<SNiagaraStack> ParentStackPtr;
+	TSharedPtr<SMenuAnchor> SettingsAnchor;
+};
+
 class SNiagaraStackEmitterHeader : public SCompoundWidget
 {
 public:
@@ -74,10 +162,6 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, UNiagaraStackEntry* InRootEntry, UNiagaraStackViewModel* InStackViewModel)
 	{
 		EmitterHandleViewModel = InEmitterHandleViewModel;
-		OnCycleThroughIssues = InArgs._OnCycleThroughIssues;
-		StackViewModel = InStackViewModel;
-		TopLevelViewModel = StackViewModel->GetTopLevelViewModelForEntry(*InRootEntry);
-		ParentStackPtr = InArgs._ParentStack;
 		ChildSlot
 		[
 			SNew(SBorder)
@@ -136,40 +220,13 @@ public:
 							.Visibility(this, &SNiagaraStackEmitterHeader::GetSourceEmitterNameVisibility) 
 						]
 					]
-					// Issue Icon
+
 					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Center)
-					.Padding(0, 0, 2, 0)
 					[
-						SNew(SNiagaraStackIssueIcon, StackViewModel, InRootEntry)
-						.Visibility(InArgs._IssueIconVisibility)
-						.OnClicked(this, &SNiagaraStackEmitterHeader::OnIssueIconClicked)
-					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Center)
-					.Padding(0, 0, 2, 0)
-					[
-						SAssignNew(SettingsAnchor, SMenuAnchor)
-						.Placement(MenuPlacement_MenuLeft)
-						.OnGetMenuContent(this, &SNiagaraStackEmitterHeader::OnGetContent)
-						[
-							SNew(SButton)
-							.ContentPadding(0)
-							.ForegroundColor(FSlateColor::UseForeground())
-							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-							.OnClicked(this, &SNiagaraStackEmitterHeader::OpenSubmenu)
-							.VAlign(VAlign_Center)
-							.HAlign(HAlign_Fill)
-							[
-								SNew(SImage)
-								.ColorAndOpacity(FSlateColor::UseForeground())
-								.Image(FAppStyle::Get().GetBrush("DetailsView.ViewOptions"))
-							]
-						]
+						SNew(SNiagaraStackHeaderButtons, InRootEntry, InStackViewModel)
+						.IssueIconVisibility(InArgs._IssueIconVisibility)
+						.OnCycleThroughIssues(InArgs._OnCycleThroughIssues)
+						.ParentStack(InArgs._ParentStack)
 					]
 				]
 
@@ -228,37 +285,9 @@ private:
 		return EmitterHandleViewModel->GetEmitterViewModel()->HasParentEmitter() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
-	FReply OnIssueIconClicked() const
-	{
-		StackViewModel->OnCycleThroughIssues(TopLevelViewModel);
-		OnCycleThroughIssues.ExecuteIfBound();
-		return FReply::Handled();
-	}
-
-	FReply OpenSubmenu()
-	{
-		SettingsAnchor->SetIsOpen(!SettingsAnchor->IsOpen());
-		return FReply::Handled();
-	}
-
-	TSharedRef<SWidget> OnGetContent() const
-	{
-		if (ParentStackPtr.IsValid())
-		{
-			return ParentStackPtr.Pin()->GenerateStackMenu(TopLevelViewModel).ToSharedRef();
-		}
-		return SNullWidget::NullWidget;
-	}
-
 private:
 	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
-	TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModel;
-
 	TSharedPtr<SInlineEditableTextBlock> EmitterNameTextBlock;
-	FSimpleDelegate OnCycleThroughIssues;
-	UNiagaraStackViewModel* StackViewModel;
-	TWeakPtr<SNiagaraStack> ParentStackPtr;
-	TSharedPtr<SMenuAnchor> SettingsAnchor;
 };
 
 const float SpacerHeight = 6;
@@ -664,15 +693,15 @@ TSharedRef<ITableRow> SNiagaraStack::OnGenerateRowForTopLevelObject(TSharedRef<U
 					.TextStyle(FAppStyle::Get(), "DetailsView.ConstantTextBlockStyle")
 					.Text(Item->SystemViewModel.ToSharedRef(), &FNiagaraSystemViewModel::GetDisplayName)
 				]
-				// Issue Icon
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
-				.Padding(4, 0, 2, 0)
+				.Padding(4, 0, 0, 0)
 				[
-					SNew(SNiagaraStackIssueIcon, StackViewModel, Item->RootEntry.Get())
-					.Visibility(this, &SNiagaraStack::GetIssueIconVisibility)
-					.OnClicked(this, &SNiagaraStack::OnCycleThroughSystemIssues, Item->SystemViewModel)
+					SNew(SNiagaraStackHeaderButtons, Item->RootEntry.Get(), StackViewModel)
+					.IssueIconVisibility(this, &SNiagaraStack::GetIssueIconVisibility)
+					.OnCycleThroughIssues(this, &SNiagaraStack::OnCycleThroughIssues)
+					.ParentStack(SharedThis(this))
 				]
 			];
 	}

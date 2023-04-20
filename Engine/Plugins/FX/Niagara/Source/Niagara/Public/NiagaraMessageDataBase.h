@@ -12,4 +12,6 @@ class NIAGARA_API UNiagaraMessageDataBase : public UObject
 
 public:
 	UNiagaraMessageDataBase() = default;
+
+	virtual bool GetAllowDismissal() const { return false; }
 };

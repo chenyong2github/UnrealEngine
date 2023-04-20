@@ -971,6 +971,13 @@ void UNiagaraSystem::PostLoad()
 	{
 		LibraryVisibility = ENiagaraScriptLibraryVisibility::Unexposed;
 	}
+
+	if (MessageKeyToMessageMap_DEPRECATED.IsEmpty() == false)
+	{
+		MessageStore.SetMessages(MessageKeyToMessageMap_DEPRECATED);
+		MessageKeyToMessageMap_DEPRECATED.Empty();
+	}
+
 #endif // WITH_EDITORONLY_DATA
 
 	//Apply platform set redirectors
@@ -1598,6 +1605,10 @@ void UNiagaraSystem::FindDataInterfaceDependencies(FVersionedNiagaraEmitterData*
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+const FGuid UNiagaraSystem::ComputeEmitterExecutionOrderMessageId(0x736C2644, 0x3B4F4D0E, 0xADEDE523, 0x2DACC2CF);
+#endif
+
 void UNiagaraSystem::ComputeEmittersExecutionOrder()
 {
 	const int32 NumEmitters = EmitterHandles.Num();
@@ -1716,8 +1727,23 @@ void UNiagaraSystem::ComputeEmittersExecutionOrder()
 			{
 				if (!ComputeEmitterPriority(EmitterIdx, EmitterPriorities, EmitterDependencyGraph))
 				{
+#if WITH_EDITORONLY_DATA
 					FName EmitterName = EmitterHandles[EmitterIdx].GetName();
-					UE_LOG(LogNiagara, Error, TEXT("Found circular dependency involving emitter '%s' in system '%s'. The execution order will be undefined."), *EmitterName.ToString(), *GetName());
+					FString ErrorMessage = FString::Printf(TEXT("Found circular dependency involving emitter '%s' in system '%s'. The execution order will be undefined."), *EmitterName.ToString(), *GetName());
+					INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
+					bool bAllowDismissal = true;
+					UNiagaraMessageDataBase* ComputeEmitterExecutionOrderMessage = NiagaraModule.GetEditorOnlyDataUtilities().CreateWarningMessage(
+						this,
+						LOCTEXT("ComputeEmitterOrderError", "Error computing emitter execution order"),
+						FText::FromString(ErrorMessage),
+						"Resolve Data Interfaces",
+						bAllowDismissal);
+					MessageStore.AddMessage(ComputeEmitterExecutionOrderMessageId, ComputeEmitterExecutionOrderMessage);
+					if (MessageStore.IsMessageDismissed(ComputeEmitterExecutionOrderMessageId) == false)
+					{
+						UE_LOG(LogNiagara, Warning, TEXT("%s"), *ErrorMessage);
+					}
+#endif
 					break;
 				}
 			}
@@ -2662,7 +2688,7 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 			if (!bDependencyMet)
 			{
 				FNiagaraCompileEvent LinkerErrorEvent(
-					FNiagaraCVarUtilities::GetCompileEventSeverityForFailIfNotSet(), Dependency.LinkerErrorMessage, FString(), false, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids, FNiagaraCompileEventSource::ScriptDependency);
+					FNiagaraCVarUtilities::GetCompileEventSeverityForFailIfNotSet(), Dependency.LinkerErrorMessage, FString(), Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids, FNiagaraCompileEventSource::ScriptDependency);
 				ValidationInfo.CompileResults->LastCompileEvents.Add(LinkerErrorEvent);
 				ValidationInfo.bCompileResultStatusDirty = true;
 			}

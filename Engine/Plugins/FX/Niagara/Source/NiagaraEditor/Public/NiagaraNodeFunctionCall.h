@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraMessages.h"
+#include "NiagaraMessageStore.h"
 #include "NiagaraNodeWithDynamicPins.h"
 #include "NiagaraNodeInput.h"
 #include "UpgradeNiagaraScriptResults.h"
@@ -172,10 +173,7 @@ public:
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 
 	// Messages API
-	NIAGARAEDITOR_API const auto& GetMessages() const { return MessageKeyToMessageMap; };
-	NIAGARAEDITOR_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageData* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
-	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
-	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	FNiagaraMessageStore& GetMessageStore() { return MessageStore; }
 
 	// Custom Notes API
 	NIAGARAEDITOR_API const TArray<FNiagaraStackMessage>& GetCustomNotes() const { return StackMessages; };
@@ -239,7 +237,10 @@ protected:
 	/* Marking those properties explicitly as editoronly_data will make localization not pick these up. */
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(meta = (SkipForCompileHash="true"))
-	TMap<FGuid, TObjectPtr<UNiagaraMessageData>> MessageKeyToMessageMap;
+	TMap<FGuid, TObjectPtr<UNiagaraMessageData>> MessageKeyToMessageMap_DEPRECATED;
+
+	UPROPERTY(meta = (SkipForCompileHash="true"))
+	FNiagaraMessageStore MessageStore;
 	
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	TArray<FNiagaraStackMessage> StackMessages;

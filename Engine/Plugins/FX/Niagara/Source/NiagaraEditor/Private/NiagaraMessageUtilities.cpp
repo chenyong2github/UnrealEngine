@@ -85,7 +85,6 @@ FText FNiagaraMessageUtilities::MakePostCompileSummaryText(const FText& Compiled
 
 UNiagaraStackEntry::FStackIssue FNiagaraMessageUtilities::MessageToStackIssue(TSharedRef<const INiagaraMessage> InMessage, FString InStackEditorDataKey)
 {
-	bool bDismissable = InMessage->AllowDismissal();
 	FText ShortDescription = InMessage->GenerateMessageTitle();
 	
 	TSharedRef<FTokenizedMessage> TokenizedMessage = InMessage->GenerateTokenizedMessage();
@@ -131,8 +130,9 @@ UNiagaraStackEntry::FStackIssue FNiagaraMessageUtilities::MessageToStackIssue(TS
 		ShortDescription,
 		InMessage->GenerateMessageText(),
 		InStackEditorDataKey,
-		bDismissable,
-		FixLinks);
+		InMessage->GetDismissHandler().IsBound(),
+		FixLinks,
+		InMessage->GetDismissHandler());
 }
 
 UNiagaraStackEntry::FStackIssue FNiagaraMessageUtilities::StackMessageToStackIssue(const FNiagaraStackMessage& InMessage, FString InStackEditorDataKey, const TArray<FLinkNameAndDelegate>& Links)

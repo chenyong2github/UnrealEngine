@@ -47,6 +47,7 @@ class INiagaraParameterDefinitionsSubscriberViewModel;
 struct FNiagaraScriptVersionUpgradeContext;
 struct FNiagaraScriptConversionContext;
 class UUpgradeNiagaraEmitterContext;
+struct FNiagaraMessageStore;
 
 enum class ENiagaraFunctionDebugState : uint8;
 
@@ -406,7 +407,9 @@ namespace FNiagaraEditorUtilities
 	void GetAllowedPayloadTypes(TArray<FNiagaraTypeDefinition>& OutAllowedTypes);
 
 	bool IsEnumIndexVisible(const UEnum* Enum, int32 Index);
-};
+
+	void GetScriptMessageStores(UNiagaraScript* InScript, TArray<FNiagaraMessageSourceAndStore>& OutNiagaraMessageStores);
+}
 
 namespace FNiagaraParameterUtilities
 {

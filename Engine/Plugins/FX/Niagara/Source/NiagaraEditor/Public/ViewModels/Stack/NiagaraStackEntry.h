@@ -210,7 +210,7 @@ public:
 	{
 		FStackIssue();
 
-		FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed, const TArray<FStackIssueFix>& InFixes);
+		FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed, const TArray<FStackIssueFix>& InFixes, const FSimpleDelegate& InDismissHandler = FSimpleDelegate());
 
 		FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed, FStackIssueFix InFix);
 
@@ -228,6 +228,8 @@ public:
 
 		bool GetCanBeDismissed() const;
 
+		const FSimpleDelegate& GetDismissHandler() const;
+
 		const TArray<FStackIssueFix>& GetFixes() const;
 
 		bool GetIsExpandedByDefault() const;
@@ -244,6 +246,7 @@ public:
 		bool bCanBeDismissed = false;
 		bool bIsExpandedByDefault = true;
 		TArray<FStackIssueFix> Fixes;
+		FSimpleDelegate DismissHandler;
 	};
 
 public:
