@@ -29,6 +29,7 @@ enum class EInstallBundleSourceType : int
 	Platform,
 #endif // WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 	GameCustom,
+	Streaming,
 	Count,
 };
 ENUM_RANGE_BY_COUNT(EInstallBundleSourceType, EInstallBundleSourceType::Count);

@@ -17,6 +17,7 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 		TEXT("Platform"),
 #endif // WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 		TEXT("GameCustom"),
+		TEXT("Streaming"),
 	};
 
 	return InstallBundleUtil::TLexToString(Type, Strings);
