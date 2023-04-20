@@ -110,7 +110,15 @@ FPCGElementPtr UPCGCreateAttributeSettings::CreateElement() const
 
 FName UPCGCreateAttributeSettings::AdditionalTaskNameInternal(FName NodeName) const
 {
-	if (ShouldAddAttributesPin())
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return NodeName;
+	}
+
+	const UPCGNode* Node = Cast<UPCGNode>(GetOuter());
+	const bool AttributesPinIsConnected = Node ? Node->IsInputPinConnected(PCGCreateAttributeConstants::AttributesLabel) : false;
+
+	if (ShouldAddAttributesPin() && AttributesPinIsConnected)
 	{
 		if ((OutputAttributeName == NAME_None) && (SourceParamAttributeName == NAME_None))
 		{
