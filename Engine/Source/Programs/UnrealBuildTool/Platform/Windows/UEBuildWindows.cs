@@ -134,6 +134,7 @@ namespace UnrealBuildTool
 	{
 		Latest,
 		Preview,
+		Experimental,
 	}
 
 
