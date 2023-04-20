@@ -26,6 +26,8 @@
 #include "StaticMeshResources.h"
 #include "Subsystems/ImportSubsystem.h"
 #include "INiagaraEditorOnlyDataUtlities.h"
+#include "Modules/ModuleManager.h"
+#include "NiagaraModule.h"
 #endif
 
 #include "Engine/StaticMeshActor.h"
