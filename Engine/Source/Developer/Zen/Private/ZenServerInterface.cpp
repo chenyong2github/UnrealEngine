@@ -1231,7 +1231,7 @@ IsLocalServiceRunning(const TCHAR* DataPath, uint16* OutEffectivePort)
 	LockFileData LockFileState;
 	if (IsZenProcessUsingDataDir(*LockFilePath, &LockFileState))
 	{
-		if (LockFileState.IsValid && LockFileState.IsReady)
+		if (OutEffectivePort != nullptr && LockFileState.IsValid && LockFileState.IsReady)
 		{
 			*OutEffectivePort = LockFileState.EffectivePort;
 		}
