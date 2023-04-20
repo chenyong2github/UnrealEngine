@@ -5883,6 +5883,8 @@ void FStarshipEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			{TEXT("DialogueWave")},
 			{TEXT("DirectionalLight")},
 			{TEXT("DocumentationActor")},
+			{TEXT("EditorUtilityBlueprint")},	
+			{TEXT("EditorUtilityWidgetBlueprint")},
 			{TEXT("EnvQuery")},
 			{TEXT("Emitter")},
 			{TEXT("EmptyActor")},
