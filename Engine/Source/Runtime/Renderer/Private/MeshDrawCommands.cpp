@@ -631,17 +631,7 @@ void GenerateDynamicMeshDrawCommands(
 		{
 			const FStaticMeshBatch* StaticMeshBatch = DynamicMeshCommandBuildRequests[MeshIndex];
 			const uint64 DefaultBatchElementMask = ~0ul;
-
-			if (StaticMeshBatch->bViewDependentArguments)
-			{
-				FMeshBatch ViewDepenedentMeshBatch(*StaticMeshBatch);
-				StaticMeshBatch->PrimitiveSceneInfo->Proxy->ApplyViewDependentMeshArguments(View, ViewDepenedentMeshBatch);
-				PassMeshProcessor->AddMeshBatch(ViewDepenedentMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
-			}
-			else
-			{
-				PassMeshProcessor->AddMeshBatch(*StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
-			}
+			PassMeshProcessor->AddMeshBatch(*StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
 		}
 
 		const int32 NumCommandsGenerated = VisibleCommands.Num() - NumCommandsBefore;
@@ -720,34 +710,23 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 	{
 		const int32 NumCommandsBefore = VisibleCommands.Num();
 		const int32 NumStaticMeshBatches = DynamicMeshCommandBuildRequests.Num();
-		FMeshBatch ViewDependentMeshBatch{};
 
 		for (int32 MeshIndex = 0; MeshIndex < NumStaticMeshBatches; MeshIndex++)
 		{
 			const FStaticMeshBatch* StaticMeshBatch = DynamicMeshCommandBuildRequests[MeshIndex];
-			const int32 StaticMeshBatchId = StaticMeshBatch->Id;
-			const FPrimitiveSceneProxy* Proxy = StaticMeshBatch->PrimitiveSceneInfo->Proxy;
 
-			const FMeshBatch* MeshBatch = StaticMeshBatch;
-			if (MeshBatch->bViewDependentArguments)
-			{
-				ViewDependentMeshBatch = *MeshBatch;
-				Proxy->ApplyViewDependentMeshArguments(View, ViewDependentMeshBatch);
-				MeshBatch = &ViewDependentMeshBatch;
-			}
-
-			const int32 PrimitiveIndex = Proxy->GetPrimitiveSceneInfo()->GetIndex();
+			const int32 PrimitiveIndex = StaticMeshBatch->PrimitiveSceneInfo->Proxy->GetPrimitiveSceneInfo()->GetIndex();
 			if (!bSkipCSMShaderCulling
 				&& MobileCSMVisibilityInfo.bMobileDynamicCSMInUse
 				&& (MobileCSMVisibilityInfo.bAlwaysUseCSM || MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap[PrimitiveIndex]))
 			{
 				const uint64 DefaultBatchElementMask = ~0ul;
-				MobilePassCSMPassMeshProcessor->AddMeshBatch(*MeshBatch, DefaultBatchElementMask, Proxy, StaticMeshBatchId);
+				MobilePassCSMPassMeshProcessor->AddMeshBatch(*StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
 			}
 			else
 			{
 				const uint64 DefaultBatchElementMask = ~0ul;
-				PassMeshProcessor->AddMeshBatch(*MeshBatch, DefaultBatchElementMask, Proxy, StaticMeshBatchId);
+				PassMeshProcessor->AddMeshBatch(*StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
 			}
 		}
 

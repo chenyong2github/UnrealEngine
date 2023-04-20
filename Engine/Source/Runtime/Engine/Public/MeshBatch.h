@@ -397,12 +397,6 @@ struct FMeshBatch
 	uint32 CastRayTracedShadow : 1;	// Whether it casts ray traced shadow.
 #endif
 
-	/** 
-	 * Whether mesh has a view dependent draw arguments. 
-	 * Gives an opportunity to override mesh arguments for a View just before creating MDC for a mesh (makes MDC "non-cached")
-	 */
-	uint32 bViewDependentArguments : 1;
-
 #if UE_ENABLE_DEBUG_DRAWING
 	/** Conceptual HLOD index used for the HLOD Coloration visualization. */
 	int8 VisualizeHLODIndex;
@@ -481,7 +475,6 @@ struct FMeshBatch
 #if RHI_RAYTRACING
 	,	CastRayTracedShadow(true)
 #endif
-	,	bViewDependentArguments(false)
 #if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR)
 	,	VisualizeHLODIndex(INDEX_NONE)
 #endif
