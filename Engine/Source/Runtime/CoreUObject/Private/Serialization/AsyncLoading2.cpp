@@ -4611,6 +4611,12 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FAsyncLoadingThreadState2& Thr
 			ImportedPackageUPackageName = InstancingContext.RemapPackage(ImportedPackageNameToLoad);
 			if (ImportedPackageUPackageName != ImportedPackageNameToLoad)
 			{
+				if (ImportedPackageUPackageName.IsNone())
+				{
+					ImportedPackageIdToLoad = FPackageId::FromName(NAME_None);
+					ImportedPackageNameToLoad = NAME_None;
+				}
+
 				ImportedPackageId = FPackageId::FromName(ImportedPackageUPackageName);
 				// Rewrite the import table
 				ImportedPackageIds[LocalImportedPackageIndex] = ImportedPackageId;
@@ -4737,7 +4743,7 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FAsyncLoadingThreadState2& Thr
 		{
 			if (!ImportedPackageRef.GetPackage()) // If we found a package it's not actually missing but we can't load it anyway
 			{
-				UE_ASYNC_PACKAGE_LOG(Display, Desc, TEXT("ImportPackages: SkipPackage"),
+				UE_ASYNC_PACKAGE_CLOG(!ImportedPackageUPackageName.IsNone(), Display, Desc, TEXT("ImportPackages: SkipPackage"),
 					TEXT("Skipping non mounted imported package %s (0x%llX)"), *ImportedPackageNameToLoad.ToString(), ImportedPackageId.Value());
 				ImportedPackageRef.SetIsMissingPackage();
 			}

@@ -6535,8 +6535,9 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports()
 		FName ImportToLoad = !Import->HasPackageName() ? Import->ObjectName : Import->GetPackageName();
 		FName ImportPackageFName = InstancingContext.RemapPackage(ImportToLoad);
 
-		// Don't try to import a package that is in an import table that we know is an invalid entry
-		if (FLinkerLoad::IsKnownMissingPackage(ImportPackageFName))
+		// Don't try to import a package that is in an import table that we know is an invalid entry or if it was filtered out
+		// by the instancing context.
+		if ((ImportPackageFName.IsNone() && !ImportToLoad.IsNone()) || FLinkerLoad::IsKnownMissingPackage(ImportPackageFName))
 		{
 			continue;
 		}

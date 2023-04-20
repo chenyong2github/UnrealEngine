@@ -3479,6 +3479,18 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		return false;
 	}
 
+	if (Import.HasPackageName() || Import.OuterIndex.IsNull())
+	{
+		FName PackageToLoad = !Import.HasPackageName() ? Import.ObjectName : Import.GetPackageName();
+		FName PackageToLoadInto = InstancingContext.RemapPackage(PackageToLoad);
+
+		if (!PackageToLoad.IsNone() && PackageToLoadInto.IsNone())
+		{
+			// Import package was filtered out by instancing context
+			return false;
+		}
+	}
+
 	// Build the import object name on the stack and only once to avoid string temporaries
 	TStringBuilder<256> ImportObjectName;
 	Import.ObjectName.AppendString(ImportObjectName);
