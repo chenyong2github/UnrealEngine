@@ -70,12 +70,6 @@ namespace Chaos
 	class CHAOS_API FMidPhaseModifierParticleIterator
 	{
 	public:
-		FMidPhaseModifierParticleIterator(const FMidPhaseModifierParticleIterator& Other)
-			: Particle(Other.Particle)
-			, Accessor(Other.Accessor)
-			, MidPhaseIndex(Other.MidPhaseIndex)
-		{ }
-
 		FMidPhaseModifierParticleIterator(
 			FMidPhaseModifierAccessor* InAccessor,
 			TGeometryParticleHandle<FReal, 3>* InParticle,
