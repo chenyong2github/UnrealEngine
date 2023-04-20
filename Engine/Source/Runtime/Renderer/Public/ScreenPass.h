@@ -126,8 +126,6 @@ public:
 		: FScreenPassTextureViewport(FScreenPassTexture(InTexture, InRect))
 	{}
 
-	FScreenPassTextureViewport(const FScreenPassTextureViewport&) = default;
-
 	bool operator==(const FScreenPassTextureViewport& Other) const;
 	bool operator!=(const FScreenPassTextureViewport& Other) const;
 
