@@ -45,7 +45,7 @@ namespace PCGAttributeAccessorKeys
 /**
 * Base class to identify keys to use with an accessor.
 */
-class IPCGAttributeAccessorKeys
+class PCG_API IPCGAttributeAccessorKeys
 {
 public:
 	explicit IPCGAttributeAccessorKeys(bool bInReadOnly)
@@ -134,7 +134,7 @@ protected:
 /**
 * Key around a metadata entry key
 */
-class FPCGAttributeAccessorKeysEntries : public IPCGAttributeAccessorKeys
+class PCG_API FPCGAttributeAccessorKeysEntries : public IPCGAttributeAccessorKeys
 {
 public:
 	explicit FPCGAttributeAccessorKeysEntries(const FPCGMetadataAttributeBase* Attribute);
@@ -154,7 +154,7 @@ protected:
 /**
 * Key around points
 */
-class FPCGAttributeAccessorKeysPoints : public IPCGAttributeAccessorKeys
+class PCG_API FPCGAttributeAccessorKeysPoints : public IPCGAttributeAccessorKeys
 {
 public:
 	FPCGAttributeAccessorKeysPoints(const TArrayView<FPCGPoint>& InPoints);
@@ -296,7 +296,7 @@ protected:
 * We can't use FPCGAttributeAccessorKeysGeneric since it has a constructor taking a reference on a object,
 * and you can't have void&.
 */
-class FPCGAttributeAccessorKeysGenericPtrs : public IPCGAttributeAccessorKeys
+class PCG_API FPCGAttributeAccessorKeysGenericPtrs : public IPCGAttributeAccessorKeys
 {
 public:
 	FPCGAttributeAccessorKeysGenericPtrs(const TArrayView<void*>& InPtrs)

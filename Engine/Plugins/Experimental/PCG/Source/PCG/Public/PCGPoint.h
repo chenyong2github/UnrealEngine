@@ -21,7 +21,8 @@ enum class EPCGPointProperties : uint8
 	Scale,
 	Transform,
 	Steepness,
-	LocalCenter
+	LocalCenter,
+	Seed
 };
 
 USTRUCT(BlueprintType)

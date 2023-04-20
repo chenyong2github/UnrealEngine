@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "Widgets/Views/ITableRow.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+
+#include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 
 class STableViewBase;
@@ -11,7 +14,10 @@ template <typename OptionType> class SComboBox;
 
 class FPCGEditor;
 class FPCGMetadataAttributeBase;
+class SPCGEditorGraphAttributeListView;
 class UPCGComponent;
+class UPCGPointData;
+class UPCGData;
 class UPCGEditorGraphNodeBase;
 class UPCGMetadata;
 class UPCGParamData;
@@ -22,45 +28,50 @@ class SComboButton;
 class SHeaderRow;
 struct FSlateBrush;
 
-struct FPCGMetadataInfo
-{
-	FName MetadataId = NAME_None;
-	int8 Index = 0;
-};
-
 struct FPCGListViewItem
 {
 	int32 Index = INDEX_NONE;
 	const FPCGPoint* PCGPoint = nullptr;
-	const UPCGMetadata* PCGMetadata = nullptr;
-	const UPCGParamData* PCGParamData = nullptr;
-	int64 MetaDataItemKey = -1;
-	const TMap<FName, FPCGMetadataInfo>* MetadataInfos = nullptr;
+};
+
+struct FPCGColumnData
+{
+	TUniquePtr<const IPCGAttributeAccessor> DataAccessor;
+	TUniquePtr<const IPCGAttributeAccessorKeys> DataKeys;
 };
 
 typedef TSharedPtr<FPCGListViewItem> PCGListviewItemPtr;
+
+template <typename T, typename = void>
+struct FTextAsNumberIsValid : std::false_type {};
+
+/** Utility to see if a value type is supported by FText::AsNumber */
+template <typename T>
+struct FTextAsNumberIsValid<T, std::void_t<decltype(FText::AsNumber(std::declval<T>()))>> : std::true_type {};
 
 class SPCGListViewItemRow : public SMultiColumnTableRow<PCGListviewItemPtr>
 {
 public:
 	SLATE_BEGIN_ARGS(SPCGListViewItemRow) {}
+	SLATE_ARGUMENT(TSharedPtr<SPCGEditorGraphAttributeListView>, AttributeListView)
+	SLATE_ARGUMENT(PCGListviewItemPtr, ListViewItem)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const PCGListviewItemPtr& Item);
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView);
 
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnId) override;
+	
 private:
-	FText ConvertPointDataToText(const FPCGPoint* PCGPoint, const FName& ColumnId) const;
-	FText ConvertMetadataAttributeToText(const FPCGMetadataAttributeBase* AttributeBase, const FPCGMetadataInfo* MetadataInfo, int64 ItemKey = 0) const;
-
-protected:
+	TWeakPtr<SPCGEditorGraphAttributeListView> AttributeListView;
 	PCGListviewItemPtr InternalItem;
 };
 
 class SPCGEditorGraphAttributeListView : public SCompoundWidget
 {
+	friend SPCGListViewItemRow;
+	
 public:
-	SLATE_BEGIN_ARGS(SPCGEditorGraphAttributeListView) { }
+	SLATE_BEGIN_ARGS(SPCGEditorGraphAttributeListView) {}
 	SLATE_END_ARGS()
 
 	virtual ~SPCGEditorGraphAttributeListView() override;
@@ -84,27 +95,20 @@ private:
 	void OnSelectionChanged(TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
 	FText OnGenerateSelectedDataText() const;
 	int32 GetSelectedDataIndex() const;
-	void GenerateColumnsFromMetadata(const UPCGMetadata* PCGMetadata);
+	void GenerateColumnsFromMetadata(const UPCGData* InPCGData, const UPCGMetadata* PCGMetadata);
 
 	void ToggleAllAttributes();
 	void ToggleAttribute(FName InAttributeName);
 	ECheckBoxState GetAnyAttributeEnabledState() const;
 	bool IsAttributeEnabled(FName InAttributeName) const;
 
-	TSharedRef<ITableRow> OnGenerateRow(PCGListviewItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const;
+	TSharedRef<ITableRow> OnGenerateRow(PCGListviewItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnItemDoubleClicked(PCGListviewItemPtr Item) const;
 
-	void AddColumn(const FName& InColumnId, const FText& ColumnLabel, EHorizontalAlignment HeaderHAlign = HAlign_Center, EHorizontalAlignment CellHAlign = HAlign_Right);
-	void RemoveColumn(const FName& InColumnId);
-
+	void AddColumn(const UPCGPointData* InPCGPointData, const FName& InColumnId, const FText& ColumnLabel, EHorizontalAlignment HeaderHAlign = HAlign_Center, EHorizontalAlignment CellHAlign = HAlign_Right);
 	void AddIndexColumn();
-	void RemoveIndexColumn();
-
-	void AddPointDataColumns();
-	void RemovePointDataColumns();
-
-	void AddMetadataColumn(const FName& InColumnId, const FName& InMetadataId, EPCGMetadataTypes InMetadataType, const int8 InValueIndex = INDEX_NONE, const TCHAR* PostFix = nullptr);
-	void RemoveMetadataColumns();
+	void AddPointDataColumns(const UPCGPointData* InPCGPointData);
+	void AddMetadataColumn(const UPCGData* InPCGData, const FName& InColumnId, EPCGMetadataTypes InMetadataType, const TCHAR* PostFix = nullptr);
 
 	/** Pointer back to the PCG editor that owns us */
 	TWeakPtr<FPCGEditor> PCGEditorPtr;
@@ -126,6 +130,7 @@ private:
 	TSharedPtr<STextBlock> InfoTextBlock;
 	TSharedPtr<SComboButton> FilterButton;
 
-	TMap<FName, FPCGMetadataInfo> MetadataInfos;
-	TArray<FName> HiddenAttributes;	
+	TArray<FName> HiddenAttributes;
+
+	TMap<FName, FPCGColumnData> PCGColumnData;
 };

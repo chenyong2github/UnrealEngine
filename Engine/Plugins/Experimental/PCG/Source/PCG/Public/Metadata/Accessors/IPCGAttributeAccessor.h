@@ -37,7 +37,7 @@ ENUM_CLASS_FLAGS(EPCGAttributeAccessorFlags);
 * For Get/Set, you need a key, that will represent how you can access the value wanted. cf PCGAttributeAccessorKeys.
 * NOTE: This is not threadsafe and not intended to be used unprotected.
 */
-class IPCGAttributeAccessor
+class PCG_API IPCGAttributeAccessor
 {
 public:
 	virtual ~IPCGAttributeAccessor() = default;
@@ -153,8 +153,8 @@ protected:
 
 // Specialization of IPCGAttributeAccessor::Get and IPCGAttributeAccessor::Set, for all supported types.
 #define IACCESSOR_DECL(T) \
-template <> bool IPCGAttributeAccessor::GetRange<T>(TArrayView<T> OutValues, int32 Index, const IPCGAttributeAccessorKeys& Keys, EPCGAttributeAccessorFlags Flags) const; \
-template <> bool IPCGAttributeAccessor::SetRange<T>(TArrayView<const T> InValues, int32 Index, IPCGAttributeAccessorKeys& Keys, EPCGAttributeAccessorFlags Flags);
+template <> bool PCG_API IPCGAttributeAccessor::GetRange<T>(TArrayView<T> OutValues, int32 Index, const IPCGAttributeAccessorKeys& Keys, EPCGAttributeAccessorFlags Flags) const; \
+template <> bool PCG_API IPCGAttributeAccessor::SetRange<T>(TArrayView<const T> InValues, int32 Index, IPCGAttributeAccessorKeys& Keys, EPCGAttributeAccessorFlags Flags);
 PCG_FOREACH_SUPPORTEDTYPES(IACCESSOR_DECL);
 #undef IACCESSOR_DECL
 
