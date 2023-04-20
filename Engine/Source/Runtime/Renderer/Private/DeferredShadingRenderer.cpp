@@ -4335,7 +4335,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 				PostProcessingInputs.TranslucencyViewResourcesMap = FTranslucencyViewResourcesMap(TranslucencyResourceMap, ViewIndex);
-				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
+				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults, GNaniteProgrammableRasterPrimary != 0);
 			}
 		}
 		else
@@ -4383,6 +4383,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						View, ViewIndex,
 						bAnyLumenActive,
 						bLumenGIEnabled,
+						GNaniteProgrammableRasterPrimary != 0,
 						ViewPipelineState.ReflectionsMethod,
 						PostProcessingInputs,
 						NaniteResults,

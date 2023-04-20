@@ -627,14 +627,11 @@ public:
 		PrimitiveSceneDataTextureSRV.SafeRelease();
 		LightmapSceneDataBufferRHI.SafeRelease();
 		LightmapSceneDataBufferSRV.SafeRelease();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-//#if WITH_EDITOR
 		EditorVisualizeLevelInstanceDataBufferRHI.SafeRelease();
 		EditorVisualizeLevelInstanceDataBufferSRV.SafeRelease();
-
 		EditorSelectedDataBufferRHI.SafeRelease();
 		EditorSelectedDataBufferSRV.SafeRelease();
-//#endif
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	ENGINE_API void UploadToGPU();
@@ -674,13 +671,16 @@ public:
 	UE_DEPRECATED(5.3, "Use FRendererModule::CreateSinglePrimitiveSceneUniformBuffer instead")
 	FShaderResourceViewRHIRef LightmapSceneDataBufferSRV;
 
-//#if WITH_EDITOR
+	UE_DEPRECATED(5.3, "Use FRendererModule::CreateSinglePrimitiveSceneUniformBuffer instead")
 	FBufferRHIRef EditorVisualizeLevelInstanceDataBufferRHI;
+	UE_DEPRECATED(5.3, "Use FRendererModule::CreateSinglePrimitiveSceneUniformBuffer instead")
 	FShaderResourceViewRHIRef EditorVisualizeLevelInstanceDataBufferSRV;
 
+	UE_DEPRECATED(5.3, "Use FRendererModule::CreateSinglePrimitiveSceneUniformBuffer instead")
 	FBufferRHIRef EditorSelectedDataBufferRHI;
+	UE_DEPRECATED(5.3, "Use FRendererModule::CreateSinglePrimitiveSceneUniformBuffer instead")
 	FShaderResourceViewRHIRef EditorSelectedDataBufferSRV;
-//#endif
+
 };
 
 /**

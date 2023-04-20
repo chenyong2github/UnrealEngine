@@ -65,6 +65,38 @@ FAutoConsoleVariableRef CVarNanitePickingDomain(
 	TEXT("")
 );
 
+
+static FRDGBufferSRVRef GetEditorSelectedHitProxyIdsSRV(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+{
+	FRDGBufferRef HitProxyIdsBuffer = nullptr;
+
+#if WITH_EDITOR
+	uint32 IdCount = View.EditorSelectedNaniteHitProxyIds.Num();
+	uint32 BufferCount = FMath::Max(FMath::RoundUpToPowerOfTwo(IdCount), 1u);
+
+	TConstArrayView<uint32> HitProxyIds = View.EditorSelectedNaniteHitProxyIds;
+	TArray<uint32, SceneRenderingAllocator> HitProxyIdsCopy;
+	if (BufferCount > IdCount)
+	{
+		const uint32 FillValue = IdCount == 0 ? 0 : HitProxyIds.Last();
+		HitProxyIdsCopy.Reserve(BufferCount);
+		HitProxyIdsCopy.Append(View.EditorSelectedNaniteHitProxyIds);
+		for (uint32 i = IdCount; i < BufferCount; ++i)
+		{
+			HitProxyIdsCopy.Add(FillValue);
+		}
+		HitProxyIds = HitProxyIdsCopy;
+	}
+
+	HitProxyIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateUploadDesc(sizeof(uint32), BufferCount), TEXT("EditorSelectedNaniteHitProxyIds"));
+	GraphBuilder.QueueBufferUpload(HitProxyIdsBuffer, HitProxyIds);
+#else
+	HitProxyIdsBuffer = GSystemTextures.GetDefaultBuffer<uint32>(GraphBuilder);
+#endif
+
+	return GraphBuilder.CreateSRV(HitProxyIdsBuffer, PF_R32_UINT);
+}
+
 static FIntVector4 GetVisualizeConfig(int32 ModeID, bool bCompositeScene, bool bEdgeDetect)
 {
 	if (ModeID != INDEX_NONE)
@@ -246,6 +278,7 @@ public:
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialEditorTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, EditorSelectedHitProxyIds)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -839,6 +872,8 @@ void RenderDebugViewMode(
 	PassParameters->MaterialSlotTable = MaterialCommands.GetMaterialSlotSRV();
 	PassParameters->MaterialDepthTable = MaterialCommands.GetMaterialDepthSRV();
 	PassParameters->MaterialEditorTable = MaterialCommands.GetMaterialEditorSRV();
+	PassParameters->EditorSelectedHitProxyIds = GetEditorSelectedHitProxyIdsSRV(GraphBuilder, View);
+
 #if WITH_EDITOR
 	PassParameters->MaterialHitProxyTable = MaterialCommands.GetHitProxyTableSRV();
 #else
@@ -846,10 +881,12 @@ void RenderDebugViewMode(
 	// For now, bind a valid SRV
 	PassParameters->MaterialHitProxyTable = MaterialCommands.GetMaterialSlotSRV();
 #endif
+
+
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputColorTexture, ERenderTargetLoadAction::ELoad, 0);
 
 #if WITH_EDITOR
-	const uint32 HitProxyIdCount = View.EditorSelectedHitProxyIds.Num();
+	const uint32 HitProxyIdCount = View.EditorSelectedNaniteHitProxyIds.Num();
 #else
 	const uint32 HitProxyIdCount = 0;
 #endif

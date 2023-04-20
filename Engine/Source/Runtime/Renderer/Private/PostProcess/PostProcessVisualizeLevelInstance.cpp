@@ -37,14 +37,20 @@ IMPLEMENT_GLOBAL_SHADER(FVisualizeLevelInstancePS, "/Engine/Private/PostProcessV
 } //! namespace
 
 
-BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeLevelInstancePassPassParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeLevelInstancePassParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FNaniteVisualizeLevelInstanceParameters, NaniteVisualizeLevelInstanceParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeLevelInstanceInputs& Inputs, const Nanite::FRasterResults *NaniteRasterResults)
+FScreenPassTexture AddVisualizeLevelInstancePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FVisualizeLevelInstanceInputs& Inputs,
+	const Nanite::FRasterResults* NaniteRasterResults,
+	bool bNaniteProgrammableRaster
+)
 {
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.SceneDepth.IsValid());
@@ -62,6 +68,11 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 
 	// Generate custom depth / stencil for outline shapes.
 	{
+		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
+		RDG_EVENT_SCOPE(GraphBuilder, "LevelInstanceDepth %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height());
+
+		FScene* Scene = View.Family->Scene->GetRenderScene();
+
 		{
 			FRDGTextureDesc DepthStencilDesc = Inputs.SceneColor.Texture->Desc;
 			DepthStencilDesc.Reset();
@@ -74,47 +85,37 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 			DepthStencilTexture = GraphBuilder.CreateTexture(DepthStencilDesc, TEXT("LevelInstanceDepth"));
 		}
 
-		FScene* Scene = View.Family->Scene->GetRenderScene();
-
-		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
-
-		auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeLevelInstancePassPassParameters>();
-		if (bNaniteEnabled)
 		{
-			Nanite::GetEditorVisualizeLevelInstancePassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, &PassParameters->NaniteVisualizeLevelInstanceParameters);
+			auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeLevelInstancePassParameters>();
+
+			PassParameters->View = EditorView->ViewUniformBuffer;
+			PassParameters->SceneTextures = Inputs.SceneTextures;
+			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+				DepthStencilTexture,
+				ERenderTargetLoadAction::EClear,
+				ERenderTargetLoadAction::EClear,
+				FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+			const_cast<FViewInfo&>(View).ParallelMeshDrawCommandPasses[EMeshPass::EditorLevelInstance].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("EditorLevelInstance"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[&View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters, bNaniteEnabled](FRHICommandListImmediate& RHICmdList)
+				{
+					RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
+
+					// Run LevelInstance pass on static elements
+					View.ParallelMeshDrawCommandPasses[EMeshPass::EditorLevelInstance].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
+				}
+			);
 		}
 
-		const_cast<FViewInfo&>(View).ParallelMeshDrawCommandPasses[EMeshPass::EditorLevelInstance].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
-
-		PassParameters->NaniteVisualizeLevelInstanceParameters.View = EditorView->ViewUniformBuffer;
-		PassParameters->SceneTextures = Inputs.SceneTextures;
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-			DepthStencilTexture,
-			ERenderTargetLoadAction::EClear,
-			ERenderTargetLoadAction::EClear,
-			FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("LevelInstanceDepth %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height()),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[&View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters, bNaniteEnabled](FRHICommandListImmediate& RHICmdList)
+		if (bNaniteEnabled)
 		{
-			RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
-
-			{
-				SCOPED_DRAW_EVENT(RHICmdList, EditorLevelInstance);
-
-				// Run LevelInstance pass on static elements
-				View.ParallelMeshDrawCommandPasses[EMeshPass::EditorLevelInstance].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
-			}
-
-			// Render Nanite mesh outlines after regular meshes
-			if (bNaniteEnabled)
-			{
-				Nanite::DrawEditorVisualizeLevelInstance(RHICmdList, View, SceneColorViewport.Rect, PassParameters->NaniteVisualizeLevelInstanceParameters);
-			}
-		});
+			Nanite::DrawEditorVisualizeLevelInstance(GraphBuilder, DepthStencilTexture, *Scene, View, *EditorView, NaniteRasterResults, bNaniteProgrammableRaster);
+		}
 	}
 
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;

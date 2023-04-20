@@ -15,6 +15,10 @@ ByteAddressBuffer MaterialDepthTable;
 ByteAddressBuffer MaterialEditorTable;
 ByteAddressBuffer MaterialHitProxyTable;
 
+#if USE_EDITOR_SHADERS
+Buffer<uint> EditorSelectedHitProxyIds;
+#endif
+
 // .xy = min, .zw = max
 uint4 ViewRect;
 
@@ -28,7 +32,7 @@ float3 SelectionColor;
 #define DEBUG_VIEW_LIGHTMAP_DENSITY 3
 uint DebugViewMode;
 
-#define SOBEL_WIREFRAME_FILTER 0
+#define SOBEL_WIREFRAME_FILTER_ONLY 0
 
 float3 ApplyWireframeFilter(uint2 PixelPosXY, uint DepthInt, float3 WireColor)
 {
@@ -135,7 +139,7 @@ bool IsInstanceSelected(FInstanceSceneData InstanceData, FVisibleCluster Visible
 	else
 	{
 		const uint SearchId = GetHitProxySearchId(InstanceData, VisibleCluster, TriIndex);
-		bIsSelected = BinarySearch(View.EditorSelectedHitProxyIds, EDITOR_SELECTED_BUFFER_COUNT, SearchId);
+		bIsSelected = BinarySearch(EditorSelectedHitProxyIds, EDITOR_SELECTED_BUFFER_COUNT, SearchId);
 	}
 #endif
 
@@ -179,46 +183,57 @@ void ExportDebugViewPS(
 				const float3 WireColor = CondMask(bIsSelected, SelectionColor, PrimitiveData.WireframeColor);
 				//const float3 WireColor = PrimitiveData.LevelColor;
 
-			#if SOBEL_WIREFRAME_FILTER
-				OutColor = float4(ApplyWireframeFilter(PixelPos, DepthInt, WireColor), 1.0f);
+			#if SOBEL_WIREFRAME_FILTER_ONLY
+				const bool bUseSobelFilter = true;
 			#else
-				const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex);
-
-				const float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
-				const float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);
-				const float3 PointLocal2 = DecodePosition(TriIndices.z, Cluster);
-
-				const float3 PointWorld0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
-				const float3 PointWorld1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
-				const float3 PointWorld2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
-
-				const float4 PointSubpixelClip0 = mul(float4(PointWorld0, 1), NaniteView.TranslatedWorldToSubpixelClip);
-				const float4 PointSubpixelClip1 = mul(float4(PointWorld1, 1), NaniteView.TranslatedWorldToSubpixelClip);
-				const float4 PointSubpixelClip2 = mul(float4(PointWorld2, 1), NaniteView.TranslatedWorldToSubpixelClip);
-
-				const float2 Subpixel = (PixelPos + 0.5) * NANITE_SUBPIXEL_SAMPLES;
-
-				// Calculate perspective correct barycentric coordinates with screen derivatives
-				const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(Subpixel, PointSubpixelClip0, PointSubpixelClip1, PointSubpixelClip2);
-				
-				float3 Deltas = abs(Barycentrics.UVW_dx) + abs(Barycentrics.UVW_dy);
-
-				float SmoothingVal = 1.0f; // 0-10
-				float ThicknessVal = 0.05f; // 0-10
-
-				float3 Smoothing = Deltas * SmoothingVal;
-				float3 Thickness = Deltas * ThicknessVal;
-
-				const float3 SmoothBarycentrics = smoothstep(Thickness, Thickness + Smoothing, Barycentrics.UVW);
-
-				const float MinBarycentrics = min3(SmoothBarycentrics.x, SmoothBarycentrics.y, SmoothBarycentrics.z);
-				if (MinBarycentrics == 1.0f)
-				{
-					discard;
-				}
-
-				OutColor = float4(WireColor, 1.0f - MinBarycentrics);
+				// If the visible cluster has WPO, we can't accurately calculate the screen positions of the triangles
+				// and therefore cannot compute the barycentrics. So in this case, fall back to the Sobel filter
+				const bool bUseSobelFilter = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
 			#endif
+
+				if (bUseSobelFilter)
+				{
+					OutColor = float4(ApplyWireframeFilter(PixelPos, DepthInt, WireColor), 1.0f);
+				}
+				else
+				{
+					const uint3 TriIndices = DecodeTriangleIndices(Cluster, TriIndex);
+
+					const float3 PointLocal0 = DecodePosition(TriIndices.x, Cluster);
+					const float3 PointLocal1 = DecodePosition(TriIndices.y, Cluster);
+					const float3 PointLocal2 = DecodePosition(TriIndices.z, Cluster);
+
+					const float3 PointWorld0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
+					const float3 PointWorld1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
+					const float3 PointWorld2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
+
+					const float4 PointSubpixelClip0 = mul(float4(PointWorld0, 1), NaniteView.TranslatedWorldToSubpixelClip);
+					const float4 PointSubpixelClip1 = mul(float4(PointWorld1, 1), NaniteView.TranslatedWorldToSubpixelClip);
+					const float4 PointSubpixelClip2 = mul(float4(PointWorld2, 1), NaniteView.TranslatedWorldToSubpixelClip);
+
+					const float2 Subpixel = (PixelPos + 0.5) * NANITE_SUBPIXEL_SAMPLES;
+
+					// Calculate perspective correct barycentric coordinates with screen derivatives
+					const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(Subpixel, PointSubpixelClip0, PointSubpixelClip1, PointSubpixelClip2);
+					
+					float3 Deltas = abs(Barycentrics.UVW_dx) + abs(Barycentrics.UVW_dy);
+
+					float SmoothingVal = 1.0f; // 0-10
+					float ThicknessVal = 0.05f; // 0-10
+
+					float3 Smoothing = Deltas * SmoothingVal;
+					float3 Thickness = Deltas * ThicknessVal;
+
+					const float3 SmoothBarycentrics = smoothstep(Thickness, Thickness + Smoothing, Barycentrics.UVW);
+
+					const float MinBarycentrics = min3(SmoothBarycentrics.x, SmoothBarycentrics.y, SmoothBarycentrics.z);
+					if (MinBarycentrics == 1.0f)
+					{
+						discard;
+					}
+
+					OutColor = float4(WireColor, 1.0f - MinBarycentrics);
+				}
 			}
 		#if USE_EDITOR_SHADERS
 			else if (DebugViewMode == DEBUG_VIEW_SHADER_COMPLEXITY)

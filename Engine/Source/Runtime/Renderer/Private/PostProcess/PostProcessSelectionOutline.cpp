@@ -63,14 +63,22 @@ IMPLEMENT_GLOBAL_SHADER(FSelectionOutlinePS, "/Engine/Private/PostProcessSelecti
 } //! namespace
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSelectionOutlinePassParameters, )
-	//SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FNaniteSelectionOutlineParameters, NaniteSelectionOutlineParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
+BEGIN_SHADER_PARAMETER_STRUCT(FSelectionOutlineClearBorderParameters, )
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+FScreenPassTexture AddSelectionOutlinePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FSelectionOutlineInputs& Inputs,
+	const Nanite::FRasterResults* NaniteRasterResults,
+	bool bNaniteProgrammableRaster)
 {
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.SceneDepth.IsValid());
@@ -89,6 +97,11 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 
 	// Generate custom depth / stencil for outline shapes.
 	{
+		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
+		RDG_EVENT_SCOPE(GraphBuilder, "OutlineDepth %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height());
+
+		FScene* Scene = View.Family->Scene->GetRenderScene();
+
 		{
 			FRDGTextureDesc DepthStencilDesc = Inputs.SceneColor.Texture->Desc;
 			DepthStencilDesc.Reset();
@@ -101,78 +114,82 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			DepthStencilTexture = GraphBuilder.CreateTexture(DepthStencilDesc, TEXT("Editor.SelectionOutline"));
 		}
 
-		auto* PassParameters = GraphBuilder.AllocParameters<FSelectionOutlinePassParameters>();
-
-		FScene* Scene = View.Family->Scene->GetRenderScene();
-
-		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
-
-		if (bNaniteEnabled)
 		{
-			Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, &PassParameters->NaniteSelectionOutlineParameters);
+			auto* PassParameters = GraphBuilder.AllocParameters<FSelectionOutlinePassParameters>();
+
+			PassParameters->View = EditorView->ViewUniformBuffer;
+			PassParameters->SceneTextures = Inputs.SceneTextures;
+			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+				DepthStencilTexture,
+				ERenderTargetLoadAction::EClear,
+				ERenderTargetLoadAction::EClear,
+				FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+			const_cast<FViewInfo&>(View).ParallelMeshDrawCommandPasses[EMeshPass::EditorSelection].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("EditorSelectionDepth"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[&View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters, bNaniteEnabled](FRHICommandListImmediate& RHICmdList)
+				{
+					RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
+
+					// Run selection pass on static elements
+					View.ParallelMeshDrawCommandPasses[EMeshPass::EditorSelection].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
+				}
+			);
 		}
 
-		PassParameters->NaniteSelectionOutlineParameters.View = EditorView->ViewUniformBuffer;
-		PassParameters->SceneTextures = Inputs.SceneTextures;
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-			DepthStencilTexture,
-			ERenderTargetLoadAction::EClear,
-			ERenderTargetLoadAction::EClear,
-			FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-		const_cast<FViewInfo&>(View).ParallelMeshDrawCommandPasses[EMeshPass::EditorSelection].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("OutlineDepth %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height()),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[&View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters, bNaniteEnabled](FRHICommandListImmediate& RHICmdList)
+		// Render Nanite mesh outlines after regular mesh outline, but before borders
+		if (bNaniteEnabled)
 		{
-			RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
-
-			{
-				SCOPED_DRAW_EVENT(RHICmdList, EditorSelection);
-
-				// Run selection pass on static elements
-				View.ParallelMeshDrawCommandPasses[EMeshPass::EditorSelection].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
-			}
-
-			// Render Nanite mesh outlines after regular mesh outline, but before borders
-			if (bNaniteEnabled)
-			{
-				Nanite::DrawEditorSelection(RHICmdList, View, SceneColorViewport.Rect, PassParameters->NaniteSelectionOutlineParameters);
-			}
-
-			// to get an outline around the objects if it's partly outside of the screen
-			{
-				SCOPED_DRAW_EVENT(RHICmdList, DrawOutlineBorder);
-
-				FIntRect InnerRect = SceneColorViewport.Rect;
-
-				// 1 as we have an outline that is that thick
-				InnerRect.InflateRect(-1);
-
-				// top
-				RHICmdList.SetScissorRect(true, SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, SceneColorViewport.Rect.Max.X, InnerRect.Min.Y);
-				DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, SceneColorViewport.Extent, FIntRect());
-				// bottom
-				RHICmdList.SetScissorRect(true, SceneColorViewport.Rect.Min.X, InnerRect.Max.Y, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y);
-				DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, SceneColorViewport.Extent, FIntRect());
-				// left
-				RHICmdList.SetScissorRect(true, SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, InnerRect.Min.X, SceneColorViewport.Rect.Max.Y);
-				DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, SceneColorViewport.Extent, FIntRect());
-				// right
-				RHICmdList.SetScissorRect(true, InnerRect.Max.X, SceneColorViewport.Rect.Min.Y, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y);
-				DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, SceneColorViewport.Extent, FIntRect());
-
-				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-			}
-		});
+			Nanite::DrawEditorSelection(GraphBuilder, DepthStencilTexture, *Scene, View, *EditorView, NaniteRasterResults, bNaniteProgrammableRaster);
+		}
 
 		// Render HairStrands outlines
 		if (HairStrands::HasViewHairStrandsData(View))
 		{
 			HairStrands::DrawEditorSelection(GraphBuilder, View, SceneColorViewport.Rect, DepthStencilTexture);
+		}
+
+		// Clear the borders to get an outline around the objects if it's partly outside of the screen
+		{
+			auto* PassParameters = GraphBuilder.AllocParameters<FSelectionOutlineClearBorderParameters>();
+
+			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+				DepthStencilTexture,
+				ERenderTargetLoadAction::ELoad,
+				ERenderTargetLoadAction::ELoad,
+				FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("DrawOutlineBorder"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[SceneColorViewport](FRHICommandListImmediate& RHICmdList)
+				{
+					FIntRect InnerRect = SceneColorViewport.Rect;
+
+					// 1 as we have an outline that is that thick
+					InnerRect.InflateRect(-1);
+
+					// top
+					RHICmdList.SetScissorRect(true, SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, SceneColorViewport.Rect.Max.X, InnerRect.Min.Y);
+					DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, SceneColorViewport.Extent, FIntRect());
+					// bottom
+					RHICmdList.SetScissorRect(true, SceneColorViewport.Rect.Min.X, InnerRect.Max.Y, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y);
+					DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, SceneColorViewport.Extent, FIntRect());
+					// left
+					RHICmdList.SetScissorRect(true, SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, InnerRect.Min.X, SceneColorViewport.Rect.Max.Y);
+					DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, SceneColorViewport.Extent, FIntRect());
+					// right
+					RHICmdList.SetScissorRect(true, InnerRect.Max.X, SceneColorViewport.Rect.Min.Y, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y);
+					DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, SceneColorViewport.Extent, FIntRect());
+
+					RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+				}
+			);
 		}
 	}
 

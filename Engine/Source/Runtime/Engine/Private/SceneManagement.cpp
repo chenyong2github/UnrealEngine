@@ -1041,10 +1041,6 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	SSProfilesPreIntegratedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	VTFeedbackBuffer = GEmptyStructuredBufferWithUAV->UnorderedAccessViewRHI;
-//#if WITH_EDITOR
-	EditorVisualizeLevelInstanceIds = GIdentityPrimitiveBuffer.EditorVisualizeLevelInstanceDataBufferSRV;
-	EditorSelectedHitProxyIds = GIdentityPrimitiveBuffer.EditorSelectedDataBufferSRV;
-//#endif
 }
 
 FInstancedViewUniformShaderParameters::FInstancedViewUniformShaderParameters()

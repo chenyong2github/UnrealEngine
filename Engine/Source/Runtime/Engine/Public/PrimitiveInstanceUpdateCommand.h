@@ -61,6 +61,13 @@ struct FInstanceUpdateCmdBuffer
 		return uint32(HitProxyColor.R) | uint32(HitProxyColor.G) << 8u | uint32(HitProxyColor.B) << 16u | (bSelected ? 1u << 24u : 0u);
 	}
 
+	static inline void UnpackEditorData(const uint32 Packed, FColor& OutHitProxyColor, bool& bOutSelected)
+	{
+		OutHitProxyColor.R = uint8((Packed >>  0u) & 0xFFu);
+		OutHitProxyColor.G = uint8((Packed >>  8u) & 0xFFu);
+		OutHitProxyColor.B = uint8((Packed >> 16u) & 0xFFu);
+		bOutSelected = (Packed >> 24u) != 0;
+	}
 
 	TArray<FInstanceUpdateCommand> Cmds;
 	int32 NumCustomDataFloats;

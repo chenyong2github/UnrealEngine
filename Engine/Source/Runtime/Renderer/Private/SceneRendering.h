@@ -87,6 +87,11 @@ struct FVisibilityTaskData;
 struct FVolumetricFogIntegrationParameterData;
 class FLumenHardwareRayTracingUniformBufferParameters;
 
+namespace Nanite
+{
+	struct FInstanceDraw;
+}
+
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
 DECLARE_GPU_STAT_NAMED_EXTERN(Postprocessing, TEXT("Postprocessing"))
 
@@ -1673,11 +1678,9 @@ public:
 	FIntRect ViewRectWithSecondaryViews;
 
 #if WITH_EDITOR
-	TArray<uint32> EditorVisualizeLevelInstanceIds;
-	FDynamicReadBuffer EditorVisualizeLevelInstanceBuffer;
-
-	TArray<uint32> EditorSelectedHitProxyIds;
-	FDynamicReadBuffer EditorSelectedBuffer;
+	TArray<Nanite::FInstanceDraw, SceneRenderingAllocator> EditorVisualizeLevelInstancesNanite;
+	TArray<Nanite::FInstanceDraw, SceneRenderingAllocator> EditorSelectedInstancesNanite;
+	TArray<uint32, SceneRenderingAllocator> EditorSelectedNaniteHitProxyIds;
 #endif
 
 	/** 
@@ -2013,7 +2016,7 @@ struct FOcclusionSubmittedFenceState
 class FViewFamilyInfo : public FSceneViewFamily
 {
 public:
-	FViewFamilyInfo(const FSceneViewFamily& InViewFamily);
+	explicit FViewFamilyInfo(const FSceneViewFamily& InViewFamily);
 	virtual ~FViewFamilyInfo();
 
 	FSceneTexturesConfig SceneTexturesConfig;

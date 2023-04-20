@@ -1970,17 +1970,6 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.VTFeedbackBuffer = GVirtualTextureFeedbackBuffer.GetUAV();
 
 	ViewUniformShaderParameters.GPUSceneViewId = GPUSceneViewId;
-
-#if WITH_EDITOR
-	if (EditorVisualizeLevelInstanceBuffer.SRV)
-	{
-		ViewUniformShaderParameters.EditorVisualizeLevelInstanceIds = EditorVisualizeLevelInstanceBuffer.SRV;
-	}
-	if( EditorSelectedBuffer.SRV )
-	{
-		ViewUniformShaderParameters.EditorSelectedHitProxyIds = EditorSelectedBuffer.SRV;
-	}
-#endif
 }
 
 void FViewInfo::InitRHIResources(uint32 OverrideNumMSAASamples)

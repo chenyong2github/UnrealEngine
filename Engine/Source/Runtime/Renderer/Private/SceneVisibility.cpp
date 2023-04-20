@@ -2332,8 +2332,9 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 	bool bHasCustomDepthPrimitives;
 	FRelevancePrimSet<FPrimitiveSceneInfo*> DirtyIndirectLightingCacheBufferPrimitives;
 #if WITH_EDITOR
-	FRelevancePrimSet<FPrimitiveSceneInfo*> EditorVisualizeLevelInstancePrimitives;
-	FRelevancePrimSet<FPrimitiveSceneInfo*> EditorSelectedPrimitives;
+	TArray<Nanite::FInstanceDraw> EditorVisualizeLevelInstancesNanite;
+	TArray<Nanite::FInstanceDraw> EditorSelectedInstancesNanite;
+	TArray<uint32> EditorSelectedNaniteHitProxyIds;
 #endif
 
 	TArray<FMeshDecalBatch> MeshDecalBatches;
@@ -2481,14 +2482,61 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 			}
 
 		#if WITH_EDITOR
+			auto CollectSelectedNaniteInstanceDraws = [](
+				const FPrimitiveSceneInfo& PrimitiveSceneInfo,
+				TArray<Nanite::FInstanceDraw>& OutInstanceDraws,
+				TArray<uint32>* OutHitProxyIDs,
+				bool bSelectedInstancesOnly
+			)
+			{
+				if (!PrimitiveSceneInfo.Proxy->IsNaniteMesh())
+				{
+					return;
+				}
+
+				const int32 MaxInstances = PrimitiveSceneInfo.GetNumInstanceSceneDataEntries();
+				OutInstanceDraws.Reserve(OutInstanceDraws.Num() + MaxInstances);
+				
+				for (int32 Idx = 0; Idx < MaxInstances; ++Idx)
+				{
+					if (bSelectedInstancesOnly && PrimitiveSceneInfo.Proxy->HasPerInstanceEditorData())
+					{
+						// If we have per-instance editor data, exclude instance draws of unselected instances
+						TConstArrayView<uint32> InstanceEditorData = PrimitiveSceneInfo.Proxy->GetInstanceEditorData();
+						if (InstanceEditorData.IsValidIndex(Idx))
+						{
+							FColor HitProxyColor;
+							bool bSelected;
+							FInstanceUpdateCmdBuffer::UnpackEditorData(InstanceEditorData[Idx], HitProxyColor, bSelected);
+							if (!bSelected)
+							{
+								continue;
+							}
+						}
+					}
+
+					OutInstanceDraws.Add(
+						Nanite::FInstanceDraw {
+							uint32(PrimitiveSceneInfo.GetInstanceSceneDataOffset() + Idx),
+							0u
+						}
+					);
+
+					if (OutHitProxyIDs != nullptr)
+					{
+						OutHitProxyIDs->Append(PrimitiveSceneInfo.NaniteHitProxyIds);
+					}
+				}
+			};
+
 			if (bEditorVisualizeLevelInstanceRelevance)
 			{
-				EditorVisualizeLevelInstancePrimitives.AddPrim(PrimitiveSceneInfo);
+				CollectSelectedNaniteInstanceDraws(*PrimitiveSceneInfo, EditorVisualizeLevelInstancesNanite, nullptr, false);
 			}
 
 			if (bEditorSelectionRelevance)
 			{
-				EditorSelectedPrimitives.AddPrim(PrimitiveSceneInfo);
+				CollectSelectedNaniteInstanceDraws(*PrimitiveSceneInfo, EditorSelectedInstancesNanite, &EditorSelectedNaniteHitProxyIds, true);
 			}
 		#endif
 
@@ -3008,38 +3056,11 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 			WriteView.PrimitiveVisibilityMap[NotDrawRelevant.Prims[Index]] = false;
 		}
 
-#if WITH_EDITOR
-		auto AddRelevantHitProxiesToArray = [](FRelevancePrimSet<FPrimitiveSceneInfo*>& PrimSet, TArray<uint32>& OutHitProxyArray)
-		{
-			int32 TotalHitProxiesToAdd = 0;
-			for (int32 Idx = 0; Idx < PrimSet.NumPrims; ++Idx)
-			{
-				if (PrimSet.Prims[Idx]->NaniteHitProxyIds.Num())
-				{
-					TotalHitProxiesToAdd += PrimSet.Prims[Idx]->NaniteHitProxyIds.Num();
-				}
-			}
-
-			OutHitProxyArray.Reserve(OutHitProxyArray.Num() + TotalHitProxiesToAdd);
-
-			for (int32 Idx = 0; Idx < PrimSet.NumPrims; ++Idx)
-			{
-				if (PrimSet.Prims[Idx]->NaniteHitProxyIds.Num())
-				{
-					for (uint32 IdValue : PrimSet.Prims[Idx]->NaniteHitProxyIds)
-					{
-						OutHitProxyArray.Add(IdValue);
-					}
-				}
-			}
-		};
-
-		// Add hit proxies from editing LevelInstance Nanite primitives
-		AddRelevantHitProxiesToArray(EditorVisualizeLevelInstancePrimitives, WriteView.EditorVisualizeLevelInstanceIds);
-
-		// Add hit proxies from selected Nanite primitives.
-		AddRelevantHitProxiesToArray(EditorSelectedPrimitives, WriteView.EditorSelectedHitProxyIds);
-#endif
+	#if WITH_EDITOR
+		WriteView.EditorVisualizeLevelInstancesNanite.Append(EditorVisualizeLevelInstancesNanite);
+		WriteView.EditorSelectedInstancesNanite.Append(EditorSelectedInstancesNanite);
+		WriteView.EditorSelectedNaniteHitProxyIds.Append(EditorSelectedNaniteHitProxyIds);
+	#endif
 
 		WriteView.ShadingModelMaskInView |= CombinedShadingModelMask;
 		WriteView.bUsesGlobalDistanceField |= bUsesGlobalDistanceField;
@@ -4504,45 +4525,6 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 }
 #endif
 
-#if WITH_EDITOR
-
-static void UpdateHitProxyIdBuffer(
-	TArray<uint32>& HitProxyIds,
-	FDynamicReadBuffer& DynamicReadBuffer)
-{
-	Algo::Sort(HitProxyIds);
-	int32 EndIndex = Algo::Unique(HitProxyIds);
-	HitProxyIds.RemoveAt(EndIndex, HitProxyIds.Num() - EndIndex);
-
-	uint32 IdCount = HitProxyIds.Num();
-	uint32 BufferCount = FMath::Max(FMath::RoundUpToPowerOfTwo(IdCount), 1u);
-
-	if (DynamicReadBuffer.NumBytes != BufferCount)
-	{
-		DynamicReadBuffer.Initialize(TEXT("DynamicReadBuffer"), sizeof(uint32), BufferCount, PF_R32_UINT, BUF_Dynamic);
-	}
-
-	DynamicReadBuffer.Lock();
-	{
-		uint32* Data = reinterpret_cast<uint32*>(DynamicReadBuffer.MappedBuffer);
-
-		for (uint32 i = 0; i < IdCount; ++i)
-		{
-			Data[i] = HitProxyIds[i];
-		}
-
-		uint32 FillValue = IdCount == 0 ? 0 : HitProxyIds.Last();
-
-		for (uint32 i = IdCount; i < BufferCount; ++i)
-		{
-			Data[i] = FillValue;
-		}
-	}
-	DynamicReadBuffer.Unlock();
-}
-
-#endif
-
 FVisibilityTaskData* FSceneRenderer::BeginInitVisibility(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer_BeginInitVisibility);
@@ -4814,8 +4796,12 @@ void FSceneRenderer::ComputeViewVisibility(
 		FViewInfo& View = Views[ViewIndex];
 
 	#if WITH_EDITOR
-		UpdateHitProxyIdBuffer(View.EditorSelectedHitProxyIds, View.EditorSelectedBuffer);
-		UpdateHitProxyIdBuffer(View.EditorVisualizeLevelInstanceIds, View.EditorVisualizeLevelInstanceBuffer);
+		{
+			// Sort, uniquify and truncate the selected Nanite hit proxy IDs
+			Algo::Sort(View.EditorSelectedNaniteHitProxyIds);
+			int32 EndIndex = Algo::Unique(View.EditorSelectedNaniteHitProxyIds);
+			View.EditorSelectedNaniteHitProxyIds.RemoveAt(EndIndex, View.EditorSelectedNaniteHitProxyIds.Num() - EndIndex);
+		}
 	#endif
 
 		if (!View.ShouldRenderView())

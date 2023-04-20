@@ -27,6 +27,11 @@ struct FSelectionOutlineInputs
 	FSceneTextureShaderParameters SceneTextures;
 };
 
-FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs, const Nanite::FRasterResults *NaniteRasterResults);
+FScreenPassTexture AddSelectionOutlinePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FSelectionOutlineInputs& Inputs,
+	const Nanite::FRasterResults* NaniteRasterResults,
+	bool bNaniteProgrammableRaster);
 
 #endif

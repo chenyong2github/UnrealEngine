@@ -93,8 +93,6 @@ void FSinglePrimitiveStructured::UploadToGPU()
 	FPlatformMemory::Memset(LockedData, 0x00, sizeof(FVector4f));
 	RHIUnlockBuffer(InstancePayloadDataBufferRHI);
 
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 //#if WITH_EDITOR
 	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
 	{
@@ -123,6 +121,8 @@ void FSinglePrimitiveStructured::UploadToGPU()
 		EditorSelectedDataBufferSRV = RHICreateShaderResourceView(EditorSelectedDataBufferRHI, sizeof(uint32), PF_R32_UINT);
 	}
 //#endif
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 TGlobalResource<FSinglePrimitiveStructured> GIdentityPrimitiveBuffer;

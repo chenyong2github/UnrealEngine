@@ -361,71 +361,12 @@ void EmitHitProxyIdPS(
 	}
 }
 
-#if EDITOR_SELECTED_BUFFER_COUNT > 0 || EDITOR_LEVELINSTANCE_BUFFER_COUNT > 0
 float2 OutputToInputScale;
 float2 OutputToInputBias;
-#endif
 
-#if EDITOR_LEVELINSTANCE_BUFFER_COUNT > 0
-
-// This pass marks all surviving pixels as rendering with full color if the associated actors are part of the currently
-// editing level instance, and any discard pixels become greyscale. This pass has nothing to do with hit proxy / actor selection,
-// but uses similar mechanisms to populate the stencil buffer for the edit mode.
-void EmitEditorLevelInstanceDepthPS(
-	float4 SvPosition  : SV_Position,
-	out float OutDepth : SV_Depth
-)
-{
-	uint DepthInt = 0;
-	bool bValidExport = false;
-
-#if USE_EDITOR_SHADERS
-	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale + OutputToInputBias);
-	FShadingMask UnpackedMask = UnpackShadingMask(ShadingMask[PixelPos]);
-	
-	if (!UnpackedMask.bIsNanitePixel)
-	{
-		discard;
-	}
-	
-	UlongType VisPixel = VisBuffer64[PixelPos];
-
-	uint VisibleClusterIndex = 0;
-	uint TriIndex = 0;
-	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
-
-	if (VisibleClusterIndex != 0xFFFFFFFFu)
-	{
-		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
-
-		uint SearchId = 0;
-
-		BRANCH
-		if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u)
-		{
-			SearchId = InstanceData.EditorData.HitProxyPacked;
-		}
-		else
-		{
-			FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-			SearchId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
-		}
-
-		bValidExport = BinarySearch(View.EditorVisualizeLevelInstanceIds, EDITOR_LEVELINSTANCE_BUFFER_COUNT, SearchId);
-	}
-#endif // USE_EDITOR_SHADERS
-	
-	OutDepth = asfloat(DepthInt);
-	if (!bValidExport)
-	{
-		discard;
-	}
-}
-#endif
-
-#if EDITOR_SELECTED_BUFFER_COUNT > 0
-
+// This shader is used to output depth (and stencil) for both editor selection outlines and visualize level instances.
+// NOTE: In the case of outlines, all unselected instances have been culled from the VisBuffer to prevent issues with
+// selected instances being occluded, so we don't need to further check their selection state in this shader.
 void EmitEditorSelectionDepthPS(
 	float4 SvPosition  : SV_Position,
 	out float OutDepth : SV_Depth
@@ -442,27 +383,7 @@ void EmitEditorSelectionDepthPS(
 	uint TriIndex = 0;
 	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
-	if (VisibleClusterIndex != 0xFFFFFFFF)
-	{
-		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
-
-		BRANCH
-		if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u)
-		{
-			// We do not want to search for InstanceData.EditorData.HitProxyPacked in the selected hit proxy buffer, because
-			// this buffer will contain all instance IDs regardless of bIsSelected. Additional filtering would be needed in 
-			// AddRelevantHitProxiesToArray() in order to reduce this set to only contain selected entries, and performing a 
-			// search would be entirely unnecessary and much slower.
-			bValidExport = InstanceData.EditorData.bIsSelected;
-		}
-		else
-		{
-			FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-			const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
-			bValidExport = BinarySearch(View.EditorSelectedHitProxyIds, EDITOR_SELECTED_BUFFER_COUNT, MaterialHitProxyId);
-		}
-	}
+	bValidExport = VisibleClusterIndex != 0xFFFFFFFF;
 #endif // USE_EDITOR_SHADERS
 
 	OutDepth = asfloat(DepthInt);
@@ -471,8 +392,6 @@ void EmitEditorSelectionDepthPS(
 		discard;
 	}
 }
-
-#endif
 
 float MaterialDepth;
 #if NANITE_MATERIAL_MULTIVIEW
