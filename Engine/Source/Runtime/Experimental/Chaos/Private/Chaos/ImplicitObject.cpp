@@ -22,15 +22,15 @@
 namespace Chaos
 {
 	FImplicitObject::FImplicitObject(int32 Flags, EImplicitObjectType InType)
-		: Type(InType)
-		, CollisionType(InType)
-		, Margin(0.0f)
+		: Margin(0.0f)
 		, bIsConvex(!!(Flags& EImplicitObject::IsConvex))
 		, bDoCollide(!(Flags& EImplicitObject::DisableCollisions))
 		, bHasBoundingBox(!!(Flags& EImplicitObject::HasBoundingBox))
 #if TRACK_CHAOS_GEOMETRY
 		, bIsTracked(false)
 #endif
+		, Type(InType)
+		, CollisionType(InType)
 	{
 	}
 

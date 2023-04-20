@@ -6,7 +6,6 @@
 #if INTEL_ISPC
 #include "PerParticlePBDCollisionConstraint.ispc.generated.h"
 
-#if !UE_BUILD_SHIPPING
 // These includes are used for the static_asserts below
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
@@ -14,10 +13,9 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCapsule.h"
 #include "Chaos/TaperedCylinder.h"
-#endif 
 #endif
 
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
+#if INTEL_ISPC
 static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
 static_assert(sizeof(ispc::FVector4f) == sizeof(Chaos::Softs::FSolverRotation3), "sizeof(ispc::FVector4f) != sizeof(Chaos::Softs::FSolverRotation3)");
 static_assert(ispc::ImplicitObjectType::Sphere == Chaos::ImplicitObjectType::Sphere);
@@ -107,8 +105,10 @@ static_assert(sizeof(ispc::VerticesS) == sizeof(Chaos::FConvexStructureData::FCo
 static_assert(sizeof(ispc::VerticesM) == sizeof(Chaos::FConvexStructureData::FConvexStructureDataMedium::FVertexData));
 static_assert(sizeof(ispc::VerticesL) == sizeof(Chaos::FConvexStructureData::FConvexStructureDataLarge::FVertexData));
 
+#if !UE_BUILD_SHIPPING
 bool bChaos_PerParticleCollision_ISPC_Enabled = CHAOS_PER_PARTICLE_COLLISION_ISPC_ENABLED_DEFAULT;
 static FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCEnabled(TEXT("p.Chaos.PerParticleCollision.ISPC"), bChaos_PerParticleCollision_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in per particle collisions"));
+#endif
 #endif
 
 static int32 Chaos_PerParticleCollision_ISPC_ParallelBatchSize = 128;

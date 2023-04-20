@@ -83,6 +83,21 @@ using FImplicitHierarchyVisitor = TFunctionRef<void(const FImplicitObject* Impli
  * so we do not need a margin on triangles. We would need a margin on every type
  * that can be tested against a triangle though.
  */
+// Some collision ispc code requires that no tail padding in FImplicitObject is reused by derived class members. 
+// This is a compiler-dependent behavior, so if you are not seeing any other compile time errors about sizeof(FImplicitObject) + offsetof(...) with this disabled,
+// you should be OK.
+#define DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING INTEL_ISPC
+
+#if DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
+// This enables errors if any padding is added by the compiler. You can fix the errors by rearranging fields and/or adding explicit padding.
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic error "-Wpadded"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(error : 4820)
+#endif
+#endif // #if DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
 class CHAOS_API FImplicitObject
 {
 public:
@@ -437,8 +452,7 @@ protected:
 	// in a derived class if at all (and it may want to change the size of the core shape as well)
 	void SetMargin(FReal InMargin) { Margin = InMargin; }
 
-	EImplicitObjectType Type;
-	EImplicitObjectType CollisionType;
+	// Note: if you change the size of FImplicitObject or add fields, you will likely need to update the calculation of PadBytes below.
 	FReal Margin;
 	bool bIsConvex;
 	bool bDoCollide;
@@ -446,11 +460,38 @@ protected:
 
 #if TRACK_CHAOS_GEOMETRY
 	bool bIsTracked;
+#else
+#if DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
+	// The purpose of this padding is just to make it easier to calculate PadBytes below.
+	bool bPad;
+#endif // DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
 #endif
+
+	EImplicitObjectType Type;
+	EImplicitObjectType CollisionType;
+
+#if DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
+	// the following assumptions are made when calculating PadBytes and inserting any explicit padding between fields:
+	static_assert(alignof(bool) <= sizeof(FReal)); // Otherwise, padding would be added between Margin the first bool field
+	static_assert(alignof(EImplicitObjectType) <= 4 * sizeof(bool));  // Otherwise, padding would be added between last bool field and first EImplicitObjectType field
+
+	static constexpr int AlignOfFImplicitObject = (int)FMath::Max(alignof(FReal), FMath::Max(alignof(bool), alignof(EImplicitObjectType)));
+	static constexpr int PadBytes =
+		AlignOfFImplicitObject - (sizeof(FReal) + 4 * sizeof(bool) + 2 * sizeof(EImplicitObjectType)) % AlignOfFImplicitObject;
+	static_assert(PadBytes > 0);
+	char Pad[PadBytes];
+#endif // DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
 
 private:
 	virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const;
 };
+#if DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+#endif // DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
 
 FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, FImplicitObject& Value)
 {

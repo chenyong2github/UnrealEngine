@@ -1028,7 +1028,7 @@ namespace Chaos
 			return FVec3(0);
 		}
 
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
+#if INTEL_ISPC
 		// See PerParticlePBDCollisionConstraint.cpp
 		// ISPC code has matching structs for interpreting FImplicitObjects.
 		// This is used to verify that the structs stay the same.
@@ -1042,7 +1042,7 @@ namespace Chaos
 			static constexpr int32 SizeOfStructureData() { return sizeof(FConvex::StructureData); }
 		};
 		friend FISPCDataVerifier;
-#endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+#endif // #if INTEL_ISPC
 
 	private:
 		void ComputeUnitMassInertiaTensorAndRotationOfMass(const FReal InVolume);

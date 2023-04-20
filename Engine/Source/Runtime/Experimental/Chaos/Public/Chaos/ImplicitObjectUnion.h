@@ -208,7 +208,7 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		return Union;
 	}
 
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
+#if INTEL_ISPC
 	// See PerParticlePBDCollisionConstraint.cpp
 	// ISPC code has matching structs for interpreting FImplicitObjects.
 	// This is used to verify that the structs stay the same.
@@ -218,7 +218,7 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		static constexpr int32 SizeOfMObjects() { return sizeof(FImplicitObjectUnion::MObjects); }
 	};
 	friend FISPCDataVerifier;
-#endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+#endif // #if INTEL_ISPC
 
 protected:
 	virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
