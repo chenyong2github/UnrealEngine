@@ -1162,16 +1162,29 @@ public:
 			// for BC4/5 use 16-bit integer U16 pixels :
 			//	BC4/5 should always have linear gamma
 
-			// @todo Oodle: always converting to 4_U16 for BC4/5 is wasteful of memory and often unnecessary
-			//  we only need 1 or 2 channel 16-bit for BC4/5, not all 4; use our own converter
-			//	or just let our encoder take F32 input? (and do no conversion here at all) (beware that may change output)
-
 			// input image format now can be BGRA8 (used to always be RGBA32F)
 			// but to maintain matching output with previous RGBA32F format, still do convert to RGBA16
 			// ideally should pass BGRA8 directly to Oodle, but that changes output bits
-			//	-> we could let 8-bit go through without coverting for NewFilters (and bump DDC key)
-			ImageFormat = ERawImageFormat::RGBA16;
-			OodlePF = OodleTex_PixelFormat_4_U16;
+
+			/*
+			// -> need DDC key bump for this
+			if ( InImage.Format == ERawImageFormat::BGRA8 && InBuildSettings.bUseNewMipFilter )
+			{
+				ImageFormat = ERawImageFormat::BGRA8;
+				OodlePF = OodleTex_PixelFormat_4_U8_BGRA;
+			}
+			*/
+
+			if ( InImage.Format == ERawImageFormat::RGBA16 )
+			{
+				ImageFormat = ERawImageFormat::RGBA16;
+				OodlePF = OodleTex_PixelFormat_4_U16;
+			}
+			else
+			{
+				ImageFormat = ERawImageFormat::BGRA8; // <- not really, 2_U16 in disguise!
+				OodlePF = OodleTex_PixelFormat_2_U16;
+			}
 		}
 		else
 		{
@@ -1182,10 +1195,12 @@ public:
 			OodlePF = bHasAlpha ? OodleTex_PixelFormat_4_U8_BGRA : OodleTex_PixelFormat_4_U8_BGRx;
 		}
 
+		bool bIsSpecial2U16 = (OodlePF == OodleTex_PixelFormat_2_U16);
+
 		bool bNeedsImageCopy = ImageFormat != InImage.Format ||
 			Gamma != InImage.GammaSpace ||
 			(CompressedPixelFormat == PF_DXT5 && TextureFormatName == GTextureFormatNameDXT5n) ||
-			bDebugColor;
+			bDebugColor || bIsSpecial2U16;
 		FImage ImageCopy;
 		if (bNeedsImageCopy)
 		{
@@ -1195,14 +1210,27 @@ public:
                         //we are freeing the previous Image alloc to replace it with a changed format
 			//LLM_SCOPE_BYTAG(OodleTexture);
 
-			InImage.CopyTo(ImageCopy, ImageFormat, Gamma);
+			if ( bIsSpecial2U16 )
+			{
+				ImageCopy.Init(InImage.SizeX,InImage.SizeY,InImage.NumSlices,ImageFormat,EGammaSpace::Linear);
+				FImageCore::CopyImageTo2U16(InImage,ImageCopy);
+
+				// everything past this point only uses OodlePF
+				//  so the fact that ImageCopy.Format is wrong is okay
+			}
+			else
+			{
+				InImage.CopyTo(ImageCopy, ImageFormat, Gamma);
+			}
 
 			// after we copy the image, we can free the source
 			//	can reduce peak mem use to do so immediately
 			//	(source is usually/often F32 RGBA (when not VT) so quite fat)
 
+			// InImage.RawData.Empty();
 			// -> no longer possible because Hashing Source is on a thread
 			//  needs a refcount on the source Image to make that work again
+			// @todo Oodle : peak memory use is a lot higher if we don't free the float temp image here
 
 		}
 		const FImage& Image = bNeedsImageCopy ? ImageCopy : InImage;

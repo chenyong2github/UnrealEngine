@@ -665,6 +665,15 @@ IMAGECORE_API void CopyImage(const FImageView & SrcImage,const FImageView & Dest
 IMAGECORE_API void CopyImageRGBABGRA(const FImageView & SrcImage,const FImageView & DestImage);
 
 /**
+ * Copy Image to 2xU16 ; Dest Image should be allocated as BGRA8 but is actually 2xU16
+ * Sizes must match. Dest must already be allocated.
+ *
+ * @param SrcImage - The source image to copy from.
+ * @param DestImage - The destination image to copy to. (the FImageView is const but what it points at is not)
+ */
+IMAGECORE_API void CopyImageTo2U16(const FImageView & SrcImage,const FImageView & DestImage);
+
+/**
 * Swap RB channels on Image.  Image must be BGRA8 or RGBA16.
 * 
 * @param  Image is modified (the FImageView is const but what it points at is not)

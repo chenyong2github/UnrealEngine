@@ -13,6 +13,26 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, ImageCore);
 
 /* Local helper functions
  *****************************************************************************/
+ 
+static uint8 Requantize16to8(const uint16 In)
+{
+	// same as QuantizeRound(In/65535.f);
+    uint32 Ret = ( (uint32)In * 255 + 32768 + 127 )>>16;
+	checkSlow( Ret <= 255 );
+	return (uint8)Ret;
+}
+
+static const TCHAR * GammaSpaceGetName(EGammaSpace GammaSpace)
+{
+	switch(GammaSpace)
+	{
+	case EGammaSpace::Linear: return TEXT("Linear");
+	case EGammaSpace::Pow22: return TEXT("Pow22");
+	case EGammaSpace::sRGB: return TEXT("sRGB");
+	default: return TEXT("Invalid");
+	}
+}
+
 
 /**
  * Initializes storage for an image.
@@ -189,6 +209,68 @@ static void ParallelLoop(const TCHAR* DebugName, int32 NumJobs, int64 TexelsPerJ
 	}, EParallelForFlags::Unbalanced);
 }
 
+// 2xU16 is not a proper supported Image format
+//	DestImage should be BGRA8 so it's the correct 4 bytes per pel
+//	we write 2xU16 to it
+IMAGECORE_API void FImageCore::CopyImageTo2U16(const FImageView & SrcImage,const FImageView & DestImage)
+{
+	check( SrcImage.GetNumPixels() == DestImage.GetNumPixels() );
+	check( DestImage.Format == ERawImageFormat::BGRA8 );
+	check(SrcImage.IsImageInfoValid());
+	check(DestImage.IsImageInfoValid());
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CopyImageTo2U16);
+			
+	UE_LOG(LogImageCore,Verbose,TEXT("CopyImageTo2U16: %s %s -> %s %s %dx%d"),
+		ERawImageFormat::GetName(SrcImage.Format),
+		GammaSpaceGetName(SrcImage.GammaSpace),
+		ERawImageFormat::GetName(DestImage.Format),
+		GammaSpaceGetName(DestImage.GammaSpace),
+		SrcImage.SizeX,SrcImage.SizeY);
+
+	const int64 NumTexels = SrcImage.GetNumPixels();
+	int64 TexelsPerJob;
+	int32 NumJobs = ImageParallelForComputeNumJobsForPixels(TexelsPerJob,NumTexels);
+
+	if (SrcImage.Format == ERawImageFormat::RGBA32F)
+	{
+		// Convert from 32-bit linear floating point.
+		const FLinearColor* SrcColors = (const FLinearColor*) SrcImage.RawData;
+		uint16* DestColors = (uint16 *) DestImage.RawData;
+
+		ParallelLoop(TEXT("Texture.CopyImageTo2U16.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
+		{
+			FLinearColor Src = SrcColors[TexelIndex];
+			uint16* Dst = DestColors + TexelIndex * 2;
+			Dst[0] = FColor::QuantizeUNormFloatTo16(Src.R);
+			Dst[1] = FColor::QuantizeUNormFloatTo16(Src.G);
+		});
+	}
+	else if (SrcImage.Format == ERawImageFormat::BGRA8 && SrcImage.GammaSpace == EGammaSpace::Linear )
+	{
+		const FColor* SrcColors = (const FColor*) SrcImage.RawData;
+		uint16* DestColors = (uint16*) DestImage.RawData;
+		
+		ParallelLoop(TEXT("Texture.CopyImageTo2U16.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
+		{
+			FColor Src = SrcColors[TexelIndex];
+			uint16* Dst = DestColors + TexelIndex * 2;
+			Dst[0] = (Src.R << 8) | Src.R;
+			Dst[1] = (Src.G << 8) | Src.G;
+		});
+	}
+	else
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CopyImageTo2U16.TempLinear);
+
+		// Arbitrary conversion, use 32-bit linear float as an intermediate format.
+		// this is unnecessarily expensive to do something like G8 to R16F, but rare
+		// if this shows up as a hot spot, identify the formats using this path and add direct conversions between them
+		FImage TempImage(SrcImage.SizeX, SrcImage.SizeY, SrcImage.NumSlices, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+		FImageCore::CopyImage(SrcImage, TempImage);
+		FImageCore::CopyImageTo2U16(TempImage, DestImage);
+	}
+}
 
 // Copy Image, swapping RB, SrcImage must be BGRA8 or RGBA16
 // Src == Dest is okay
@@ -242,25 +324,6 @@ IMAGECORE_API void FImageCore::TransposeImageRGBABGRA(const FImageView & Image)
 {
 	// CopyImageRGBABGRA is okay in place
 	CopyImageRGBABGRA(Image,Image);
-}
-
-static uint8 Requantize16to8(const uint16 In)
-{
-	// same as QuantizeRound(In/65535.f);
-    uint32 Ret = ( (uint32)In * 255 + 32768 + 127 )>>16;
-	checkSlow( Ret <= 255 );
-	return (uint8)Ret;
-}
-
-static const TCHAR * GammaSpaceGetName(EGammaSpace GammaSpace)
-{
-	switch(GammaSpace)
-	{
-	case EGammaSpace::Linear: return TEXT("Linear");
-	case EGammaSpace::Pow22: return TEXT("Pow22");
-	case EGammaSpace::sRGB: return TEXT("sRGB");
-	default: return TEXT("Invalid");
-	}
 }
 
 /**
