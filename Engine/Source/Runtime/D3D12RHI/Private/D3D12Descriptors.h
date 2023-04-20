@@ -4,7 +4,17 @@
 
 #include "RHIDescriptorAllocator.h"
 #include "MultiGPU.h"
+#include "D3D12RHI.h"
 #include "D3D12RHICommon.h"
+#include "Templates/RefCounting.h"
+#include "Containers/Queue.h"
+#include "Containers/List.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/D3D12ThirdParty.h"
+#else
+#include "D3D12ThirdParty.h"
+#endif
 
 inline D3D12_DESCRIPTOR_HEAP_TYPE Translate(ERHIDescriptorHeapType InHeapType)
 {
@@ -194,9 +204,15 @@ public:
 	operator bool () const { return ptr != 0; }
 	FD3D12OfflineDescriptor() { ptr = 0; }
 
+	// Descriptor version can be used to invalidate any caches that are based on D3D12_CPU_DESCRIPTOR_HANDLE,
+	// for example to detect when a view has been updated following a resource rename.
+	void IncrementVersion() { ++Version; }
+	uint32 GetVersion() const { return Version; }
+
 private:
 	friend class FD3D12OfflineDescriptorManager;
 	uint32 HeapIndex = 0;
+	uint32 Version = 0;
 };
 
 /** Manages and allows allocations of CPU descriptors only. Creates small heaps on demand to satisfy allocations. */

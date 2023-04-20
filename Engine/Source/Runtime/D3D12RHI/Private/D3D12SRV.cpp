@@ -103,6 +103,8 @@ void FD3D12ShaderResourceView::UpdateDescriptor()
 		&D3DViewDesc,
 		OfflineCpuHandle
 	);
+
+	OfflineCpuHandle.IncrementVersion();
 }
 
 void FD3D12ShaderResourceView_RHI::CreateView()

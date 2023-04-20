@@ -7,6 +7,7 @@
 #pragma once
 
 #include "D3D12Descriptors.h"
+#include "RHIResources.h"
 
 class FD3D12SamplerState : public FRHISamplerState, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12SamplerState>
 {

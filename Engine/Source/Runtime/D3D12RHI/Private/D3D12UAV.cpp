@@ -85,6 +85,8 @@ void FD3D12UnorderedAccessView::UpdateDescriptor()
 		&D3DViewDesc,
 		OfflineCpuHandle
 	);
+
+	OfflineCpuHandle.IncrementVersion();
 }
 
 void FD3D12UnorderedAccessView_RHI::CreateView()

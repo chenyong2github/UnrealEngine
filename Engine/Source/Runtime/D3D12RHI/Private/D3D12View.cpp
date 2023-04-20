@@ -290,6 +290,8 @@ void FD3D12View::CreateView(FResourceInfo const& InResource, FNullDescPtr NullDe
 			Device->GetDefaultViews().*NullDescriptor,
 			Translate(HeapType)
 		);
+
+		OfflineCpuHandle.IncrementVersion();
 	}
 
 	UpdateBindlessSlot(Reason);
@@ -340,6 +342,8 @@ void FD3D12ConstantBufferView::ResourceRenamed(FD3D12BaseShaderResource* InRenam
 void FD3D12ConstantBufferView::UpdateDescriptor()
 {
 	GetParentDevice()->GetDevice()->CreateConstantBufferView(&D3DViewDesc, OfflineCpuHandle);
+
+	OfflineCpuHandle.IncrementVersion();
 }
 
 
@@ -361,6 +365,8 @@ void FD3D12RenderTargetView::UpdateDescriptor()
 		&D3DViewDesc,
 		OfflineCpuHandle
 	);
+
+	OfflineCpuHandle.IncrementVersion();
 }
 
 
@@ -382,4 +388,6 @@ void FD3D12DepthStencilView::UpdateDescriptor()
 		&D3DViewDesc,
 		OfflineCpuHandle
 	);
+
+	OfflineCpuHandle.IncrementVersion();
 }
