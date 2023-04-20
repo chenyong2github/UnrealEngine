@@ -14,7 +14,7 @@ struct FNiagaraSystemSimCacheCaptureReply;
 struct FNiagaraSimCacheDataBuffersLayout;
 class UNiagaraComponent;
 
-class NIAGARAEDITOR_API FNiagaraSimCacheViewModel : public TSharedFromThis<FNiagaraSimCacheViewModel>
+class NIAGARAEDITOR_API FNiagaraSimCacheViewModel : public TSharedFromThis<FNiagaraSimCacheViewModel>, public FGCObject
 {
 public:
 	struct FComponentInfo
@@ -107,11 +107,18 @@ public:
 
 	UNiagaraComponent* GetPreviewComponent() { return PreviewComponent; }
 
+	//~ FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FNiagaraSimCacheViewModel");
+	}
+
 private:
 	void BuildComponentInfos(const FName Name, const UScriptStruct* Struct, TArray<FComponentInfo>& ComponentInfos);
 	
 	// The sim cache being viewed
-	TWeakObjectPtr<UNiagaraSimCache>	WeakSimCache;
+	UNiagaraSimCache* SimCache = nullptr;
 
 	// Component for preview scene
 	UNiagaraComponent* PreviewComponent = nullptr;

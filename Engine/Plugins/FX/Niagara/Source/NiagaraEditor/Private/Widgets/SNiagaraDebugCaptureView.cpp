@@ -194,7 +194,7 @@ void SNiagaraDebugCaptureView::Construct(const FArguments& InArgs, const TShared
 
 	CapturedCache = NewObject<UNiagaraSimCache>(GetTransientPackage(), FNiagaraEditorUtilities::GetUniqueObjectName<UNiagaraSimCache>(GetTransientPackage(), "TempCache"));
 	SimCacheViewModel.Get()->Initialize(CapturedCache);
-	CapturedCache->SetFlags(RF_Standalone);
+	CapturedCache->SetFlags(RF_Transient);
 
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bShowOptions = false;
@@ -279,7 +279,6 @@ SNiagaraDebugCaptureView::~SNiagaraDebugCaptureView()
 {
 	if(CapturedCache.IsValid())
 	{
-		CapturedCache->ClearFlags(RF_Standalone);
 		CapturedCache->MarkAsGarbage();
 		CapturedCache.Reset();
 	}
@@ -302,8 +301,6 @@ void SNiagaraDebugCaptureView::OnCaptureSelected()
 
 void SNiagaraDebugCaptureView::OnSingleFrameSelected()
 {
-	// The captured cache can be have its standalone flag cleared if a world in the transient package is cleaned up.
-	// @TODO fix the accidental GC issue by making the view model a GC Object, so we can capture single frames after closing another Niagara editor.
 	if(!bIsCaptureActive && TargetComponent && CapturedCache.IsValid())
 	{
 		TSharedPtr<ISequencer> Sequencer = SystemViewModel.Get()->GetSequencer();

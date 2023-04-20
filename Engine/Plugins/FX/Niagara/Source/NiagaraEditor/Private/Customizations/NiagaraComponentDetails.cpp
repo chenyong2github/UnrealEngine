@@ -1278,7 +1278,7 @@ FNiagaraComponentDetails::~FNiagaraComponentDetails()
 
 	for(UNiagaraSimCache*& SimCache : CapturedCaches)
 	{
-		SimCache->ClearFlags(RF_Standalone);
+		SimCache->MarkAsGarbage();
 	}
 
 	FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
@@ -1556,7 +1556,7 @@ FReply FNiagaraComponentDetails::OnCaptureSelectedSystem()
 		
 		int32 CaptureIndex = ComponentCaptures.AddDefaulted();
 		UNiagaraSimCache* SimCache = NewObject<UNiagaraSimCache>(GetTransientPackage());
-		SimCache->SetFlags(RF_Standalone);
+		SimCache->SetFlags(RF_Transient);
 		CapturedCaches.Add(SimCache);
 		FNiagaraSimCacheCapture& SimCacheCapture = ComponentCaptures[CaptureIndex];
 
