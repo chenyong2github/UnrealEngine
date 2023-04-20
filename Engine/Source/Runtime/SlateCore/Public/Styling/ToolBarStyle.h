@@ -130,11 +130,11 @@ struct SLATECORE_API FToolBarStyle : public FSlateWidgetStyle
 	FToolBarStyle& SetShowLabels(bool bInShowLabels) { bShowLabels = bInShowLabels; return *this; }
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
-	float ButtonContentMaxWidth;
+	float ButtonContentMaxWidth = 64.0f;
 	FToolBarStyle& SetButtonContentMaxWidth(float InButtonContentMaxWidth) { ButtonContentMaxWidth = InButtonContentMaxWidth; return *this; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
-	float ButtonContentFillWidth;
+	float ButtonContentFillWidth = 1.0f;
 	FToolBarStyle& SetButtonContentFillWidth(float InButtonContentFillWidth) { ButtonContentFillWidth = InButtonContentFillWidth; return *this; }
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)

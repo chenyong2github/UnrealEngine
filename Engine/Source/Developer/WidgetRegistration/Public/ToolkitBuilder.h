@@ -359,10 +359,10 @@ private:
 	FToolkitWidgetStyle Style;
 
 	/** If SelectedCategoryTitleVisibility == EVisibility::Visible, the selected
-	 * category title is visible, else it is not displayed  */	
-	EVisibility SelectedCategoryTitleVisibility;
+	 * category title is visible, else it is not displayed. By default the selected category title is Collapsed  */	
+	EVisibility SelectedCategoryTitleVisibility = EVisibility::Collapsed;
 
 	/** If CategoryButtonLabelVisibility == EVisibility::Visible, the category button
-	 * labels are visible, else they are not displayed  */	
+	 * labels are visible, else they are not displayed. By default the selected category button labels are Visible    */	
 	EVisibility CategoryButtonLabelVisibility;
 };

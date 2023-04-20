@@ -264,8 +264,8 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	}
 	else
 	{
-		const FMargin IconPadding = LabelVisibility.Get() == EVisibility::Collapsed ? ToolBarStyle.IconPaddingWithCollapsedLabel :
-						ToolBarStyle.IconPaddingWithVisibleLabel;
+		const FMargin IconPadding = !LabelVisibility.IsSet() ? ToolBarStyle.IconPadding :
+		(LabelVisibility.Get() == EVisibility::Collapsed ? ToolBarStyle.IconPadding : ToolBarStyle.IconPaddingWithVisibleLabel);
 		const TSharedRef ContentVBox = 
 			SNew(SVerticalBox)
 					// Icon image
@@ -282,7 +282,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 					.HAlign(HAlign_Center)	// Center the label text horizontally
 					[
 						SNew(STextBlock)
-					.Visibility(LabelVisibility)
+						.Visibility(LabelVisibility)
 						.Text(ActualLabel)
 						.TextStyle(&ToolBarStyle.LabelStyle)	// Smaller font for tool tip labels
 					];
