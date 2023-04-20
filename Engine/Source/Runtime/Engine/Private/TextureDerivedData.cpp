@@ -1388,6 +1388,10 @@ void FTexturePlatformData::Cache(
 			OutResultMetadataPerLayerFetchFirst, 
 			OutResultMetadataPerLayerFetchOrBuild,
 			Flags);
+
+		// LocalTask->TextureData Init may have failed and have bValid = false
+		//	but we still go ahead and create the async task, perhaps wrongly so
+
 		AsyncTask = LocalTask;
 		LocalTask->StartBackgroundTask(TextureThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, LocalTask->GetTask().GetRequiredMemoryEstimate(), TEXT("TextureDerivedData"));
 	}
