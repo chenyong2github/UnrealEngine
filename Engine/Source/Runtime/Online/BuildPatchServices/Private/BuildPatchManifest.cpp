@@ -874,6 +874,13 @@ TArray<FString> FBuildPatchAppManifest::GetBuildFileList() const
 	return Filenames;
 }
 
+TArray<FStringView> FBuildPatchAppManifest::GetBuildFileListView() const
+{
+	TArray<FStringView> Filenames;
+	GetFileList(Filenames);
+	return Filenames;
+}
+
 TArray<FString> FBuildPatchAppManifest::GetBuildFileList(const TSet<FString>& Tags) const
 {
 	TArray<FString> Filenames;
@@ -937,6 +944,11 @@ uint32 FBuildPatchAppManifest::GetNumFiles() const
 }
 
 void FBuildPatchAppManifest::GetFileList(TArray<FString>& Filenames) const
+{
+	Algo::Transform(FileManifestList.FileList, Filenames, &FFileManifest::Filename);
+}
+
+void FBuildPatchAppManifest::GetFileList(TArray<FStringView>& Filenames) const
 {
 	Algo::Transform(FileManifestList.FileList, Filenames, &FFileManifest::Filename);
 }

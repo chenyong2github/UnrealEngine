@@ -112,6 +112,7 @@ public:
 	virtual int64 GetBuildSize() const override;
 	virtual int64 GetBuildSize(const TSet<FString>& Tags) const override;
 	virtual TArray<FString> GetBuildFileList() const override;
+	virtual TArray<FStringView> GetBuildFileListView() const override;
 	virtual TArray<FString> GetBuildFileList(const TSet<FString>& Tags) const override;
 	virtual int64 GetFileSize(const FString& Filename) const override;
 	virtual int64 GetFileSize(const TArray<FString>& Filenames) const override;
@@ -219,6 +220,7 @@ public:
 	 * @param Filenames		OUT		Receives the list of files.
 	 */
 	virtual void GetFileList(TArray<FString>& Filenames) const;
+	virtual void GetFileList(TArray<FStringView>& Filenames) const;
 	virtual void GetFileList(TSet  <FString>& Filenames) const;
 
 	/**
@@ -369,7 +371,7 @@ private:
 
 	/** Some lookups to optimize data access */
 	TMap<FGuid, const FString*> FileNameLookup;
-	TMap<FString, const BuildPatchServices::FFileManifest*> FileManifestLookup;
+	TMap<FStringView, const BuildPatchServices::FFileManifest*> FileManifestLookup;
 	TMap<FString, TArray<const BuildPatchServices::FFileManifest*>> TaggedFilesLookup;
 	TMap<FGuid, const BuildPatchServices::FChunkInfo*> ChunkInfoLookup;
 

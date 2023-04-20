@@ -163,6 +163,13 @@ public:
 	virtual TArray<FString> GetBuildFileList() const = 0;
 
 	/**
+	 * Get the list of files in this build. Filenames are all relative to an install directory.
+	 * Filenames returned are a view over memory owned by the BuildManifest
+	 * @return an array containing build files
+	 */
+	virtual TArray<FStringView> GetBuildFileListView() const = 0;
+
+	/**
 	 * Get the list of files in this build which match a tag from a given set. Filenames are all relative to an install directory
 	 * @param		Tags	The set of tags to query
 	 * @return an array containing build files

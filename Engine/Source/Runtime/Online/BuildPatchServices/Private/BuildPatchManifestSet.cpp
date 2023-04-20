@@ -51,9 +51,9 @@ namespace BuildPatchServices
 				}
 				if (!InstallerAction.IsInstall())
 				{
-					for (const TPair<FString, const BuildPatchServices::FFileManifest*>& FileManifestPair : InstallerAction.GetCurrentManifest().FileManifestLookup)
+					for (const TPair<FStringView, const BuildPatchServices::FFileManifest*>& FileManifestPair : InstallerAction.GetCurrentManifest().FileManifestLookup)
 					{
-						CurrentFileLookup.Add(FileManifestPair.Key, FFileReference{ FileManifestPair.Value, InstallerAction.TryGetCurrentManifest() });
+						CurrentFileLookup.Add(FString(FileManifestPair.Key), FFileReference{ FileManifestPair.Value, InstallerAction.TryGetCurrentManifest() });
 					}
 				}
 			}
