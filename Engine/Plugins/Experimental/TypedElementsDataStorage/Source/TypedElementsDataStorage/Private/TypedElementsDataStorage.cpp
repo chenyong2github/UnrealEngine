@@ -14,9 +14,9 @@
 
 #define LOCTEXT_NAMESPACE "FTypedElementsDataStorageModule"
 
-// MASS uses DCO in a few places, making it a difficult to consistently register Type Element's Columns and Tags
+// MASS uses CDO in a few places, making it a difficult to consistently register Type Element's Columns and Tags
 // as they may have not been set up to impersonate MASS' Fragments and Tags yet. To get around this, do the 
-// registration during static initialization, which is before DCOs.
+// registration during static initialization, which is before CDOs.
 /**
  * Typed Elements provides base classes for columns and tags. These directly map to fragments and tags in MASS.
  * To avoid deep and tight coupling between both systems, columns and tags don't directly inhered from MASS, but
@@ -62,7 +62,7 @@ void FTypedElementsDataStorageModule::StartupModule()
 				DatabaseCompatibility->Initialize(Database.Get());
 
 				DatabaseUi = NewObject<UTypedElementDatabaseUi>();
-				DatabaseUi->Initialize(Database.Get());
+				DatabaseUi->Initialize(Database.Get(), DatabaseCompatibility.Get());
 
 				// Register the various database instances.
 				UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
@@ -75,16 +75,35 @@ void FTypedElementsDataStorageModule::StartupModule()
 				// Allow any factories to register their content.
 				TArray<UClass*> FactoryClasses;
 				GetDerivedClasses(UTypedElementDataStorageFactory::StaticClass(), FactoryClasses);
+				
+				TArray<UTypedElementDataStorageFactory*> Factories;
+				Factories.Reserve(FactoryClasses.Num());
 				for (UClass* Factory : FactoryClasses)
 				{
 					if (Factory->HasAnyClassFlags(CLASS_Abstract))
 					{
 						continue;
 					}
+					Factories.Add(GetMutableDefault<UTypedElementDataStorageFactory>(Factory));
+				}
+				Factories.StableSort(
+					[](const UTypedElementDataStorageFactory& Lhs, const UTypedElementDataStorageFactory& Rhs)
+					{
+						return Lhs.GetOrder() < Rhs.GetOrder();
+					});
 
-					UTypedElementDataStorageFactory* FactoryCDO = GetMutableDefault<UTypedElementDataStorageFactory>(Factory);
-					FactoryCDO->RegisterQueries(*Database);
-					FactoryCDO->RegisterWidgetConstructor(*Database, *DatabaseUi);
+				// First pass to call all registration without dependencies.
+				for (UTypedElementDataStorageFactory* Factory : Factories)
+				{
+					Factory->RegisterTables(*Database);
+					Factory->RegisterTickGroups(*Database);
+					Factory->RegisterWidgetPurposes(*DatabaseUi);
+				}
+				// Second pass to call all registration that would benefit or need the registration in the previous pass.
+				for (UTypedElementDataStorageFactory* Factory : Factories)
+				{
+					Factory->RegisterQueries(*Database);
+					Factory->RegisterWidgetConstructors(*Database, *DatabaseUi);
 				}
 
 				bInitialized = true;

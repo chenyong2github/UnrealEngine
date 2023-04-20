@@ -29,7 +29,4 @@ public:
 	
 	void AddReferencedObjects(FReferenceCollector& Collector) override;
 	FString GetReferencerName() const override;
-
-private:
-	static void SetupMainWindowIntegrations(TSharedPtr<SWindow> ParentWindow, bool bIsRunningStartupDialog);
 };

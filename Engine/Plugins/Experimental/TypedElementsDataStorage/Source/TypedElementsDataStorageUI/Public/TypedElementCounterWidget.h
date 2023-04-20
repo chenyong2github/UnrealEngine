@@ -10,17 +10,26 @@
 
 #include "TypedElementCounterWidget.generated.h"
 
+class SWindow;
+
 UCLASS()
 class TYPEDELEMENTSDATASTORAGEUI_API UTypedElementCounterWidgetFactory : public UTypedElementDataStorageFactory
 {
 	GENERATED_BODY()
 
 public:
+	static FName WigetPurpose;
+
+	UTypedElementCounterWidgetFactory();
 	~UTypedElementCounterWidgetFactory() override = default;
 
 	void RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const override;
-	void RegisterWidgetConstructor(ITypedElementDataStorageInterface& DataStorage,
+	void RegisterWidgetPurposes(ITypedElementDataStorageUiInterface& DataStorageUi) const override;
+	void RegisterWidgetConstructors(ITypedElementDataStorageInterface& DataStorage,
 		ITypedElementDataStorageUiInterface& DataStorageUi) const override;
+
+private:
+	static void SetupMainWindowIntegrations(TSharedPtr<SWindow> ParentWindow, bool bIsRunningStartupDialog);
 };
 
 /**
@@ -35,6 +44,7 @@ struct TYPEDELEMENTSDATASTORAGEUI_API FTypedElementCounterWidgetConstructor : pu
 	GENERATED_BODY()
 
 public:
+	FTypedElementCounterWidgetConstructor();
 	~FTypedElementCounterWidgetConstructor() override = default;
 
 	FText ToolTipText{ NSLOCTEXT("TypedElementUI_CounterWidget", "Tooltip", "Shows the total number found in the editor.") };
@@ -46,7 +56,7 @@ protected:
 	void AddColumns(ITypedElementDataStorageInterface* DataStorage, TypedElementRowHandle Row, const TSharedPtr<SWidget>& Widget) override;
 };
 
-USTRUCT()
+USTRUCT(meta = (DisplayName = "Counter widget"))
 struct TYPEDELEMENTSDATASTORAGEUI_API FTypedElementCounterWidgetColumn : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()

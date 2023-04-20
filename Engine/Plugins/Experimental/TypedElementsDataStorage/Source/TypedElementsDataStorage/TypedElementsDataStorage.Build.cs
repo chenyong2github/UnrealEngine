@@ -19,15 +19,16 @@ public class TypedElementsDataStorage : ModuleRules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"EditorSubsystem",
 					"MassActors",
 					"MassEntity",
 					"MassEntityEditor",
 					"MassGameplayEditor",
 					"MassSimulation",
 					"TypedElementFramework",
-					"EditorSubsystem",
-					"UnrealEd",
-					"StructUtils"
+					"SlateCore",
+					"StructUtils",
+					"UnrealEd"
 				});
 
 			PrivateDependencyModuleNames.AddRange(new string[] {});

@@ -4,6 +4,16 @@
 #include "Elements/Framework/TypedElementColumnUtils.h"
 #include "Elements/Columns/TypedElementSlateWidgetColumns.h"
 
+FTypedElementWidgetConstructor::FTypedElementWidgetConstructor(UScriptStruct* InTypeInfo)
+	: TypeInfo(InTypeInfo)
+{
+}
+
+const UScriptStruct* FTypedElementWidgetConstructor::GetTypeInfo() const
+{
+	return TypeInfo;
+}
+
 TSharedPtr<SWidget> FTypedElementWidgetConstructor::Construct(
 	TypedElementRowHandle Row,
 	ITypedElementDataStorageInterface* DataStorage,
