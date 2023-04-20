@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-//#if WITH_EDITORONLY_DATA
-
 #include "NiagaraResolveDIHelpers.h"
 
 #include "Internationalization/Internationalization.h"
@@ -13,6 +11,8 @@
 #include "NiagaraSystem.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraResolveDIHelpers"
+
+#if WITH_EDITORONLY_DATA
 
 namespace FNiagaraResolveDIHelpers
 {
@@ -356,4 +356,4 @@ namespace FNiagaraResolveDIHelpers
 
 #undef LOCTEXT_NAMESPACE
 
-//#endif // WITH_EDITORONLY_DATA
+#endif // WITH_EDITORONLY_DATA

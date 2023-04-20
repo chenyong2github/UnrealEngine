@@ -2,12 +2,14 @@
 
 #pragma once
 
-#if WITH_EDITORONLY_DATA
+#include "Misc/CoreMiscDefines.h"
 
 #include "NiagaraTypes.h"
 
 class UNiagaraDataInterface;
 class UNiagaraSystem;
+
+#if WITH_EDITORONLY_DATA
 
 namespace FNiagaraResolveDIHelpers
 {
