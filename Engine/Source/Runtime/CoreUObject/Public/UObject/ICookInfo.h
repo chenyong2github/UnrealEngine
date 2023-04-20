@@ -49,6 +49,9 @@ namespace UE::Cook
 	CallbackMacro(HardDependency, false) \
 	CallbackMacro(SoftDependency, false) \
 	CallbackMacro(Unsolicited, false) \
+	CallbackMacro(EditorOnlyLoad, false) \
+	CallbackMacro(SaveTimeHardDependency, false) \
+	CallbackMacro(SaveTimeSoftDependency, false) \
 	CallbackMacro(GeneratedPackage, false) \
 
 
@@ -95,5 +98,31 @@ public:
 };
 
 }
+
+/**
+ * A scope around loads when cooking that indicates whether the loaded package is needed in game or not.
+ * The default is Unexpected. Declare an FCookLoadScope to set the value.
+ * Packages loads that are declared via AssetRegistry dependencies (imports or softobjectpaths in
+ * the editor package) change the default to UsedInGame or EditorOnly dependending on whether they were saved
+ * in an EditorOnly property or scope.
+ */
+enum class ECookLoadType : uint8
+{
+	Unexpected,
+	EditorOnly,
+	UsedInGame,
+};
+
+/** Set the ECookLoadType value in the current scope.*/
+struct FCookLoadScope
+{
+	COREUOBJECT_API explicit FCookLoadScope(ECookLoadType ScopeType);
+	COREUOBJECT_API ~FCookLoadScope();
+
+	COREUOBJECT_API static ECookLoadType GetCurrentValue();
+
+private:
+	ECookLoadType PreviousScope;
+};
 
 #endif

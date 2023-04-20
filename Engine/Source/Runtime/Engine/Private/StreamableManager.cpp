@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/StreamableManager.h"
+#include "UObject/ICookInfo.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
+#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/PackageName.h"
 #include "UObject/UObjectThreadContext.h"
 #include "HAL/IConsoleManager.h"
@@ -318,6 +320,22 @@ TStreamableHandleContextDataTypeID FStreamableHandleContextDataBase::AllocateCla
 	return Result;
 }
 
+
+FStreamableHandle::FStreamableHandle()
+	: bLoadCompleted(false)
+	, bReleased(false)
+	, bCanceled(false)
+	, bStalled(false)
+	, bReleaseWhenLoaded(false)
+	, bIsCombinedHandle(false)
+	, Priority(0)
+	, StreamablesLoading(0)
+	, OwningManager(nullptr)
+#if WITH_EDITOR
+	, CookLoadType(ECookLoadType::Unexpected)
+#endif
+{
+}
 
 bool FStreamableHandle::BindCompleteDelegate(FStreamableDelegate NewDelegate)
 {
@@ -1297,6 +1315,12 @@ FStreamable* FStreamableManager::StreamInternal(const FSoftObjectPath& InTargetN
 			{
 				Existing->bLoadFailed = false;
 				Existing->bAsyncLoadRequestOutstanding = true;
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+				UE_TRACK_REFERENCING_PACKAGE_SCOPED(Handle->GetReferencerPackage(), Handle->GetRefencerPackageOp());
+#endif
+#if WITH_EDITOR
+				FCookLoadScope CookLoadScope(Handle->GetCookLoadType());
+#endif
 				LoadPackageAsync(PackagePath,
 					NAME_None /* PackageNameToCreate */,
 					FLoadPackageAsyncDelegate::CreateSP(Handle, &FStreamableHandle::AsyncLoadCallbackWrapper, TargetName),
@@ -1322,6 +1346,17 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(TArray<FSoftO
 	NewRequest->DebugName = MoveTemp(DebugName);
 #endif
 	NewRequest->Priority = Priority;
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+	PackageAccessTracking_Private::FTrackedData* AccumulatedScopeData = PackageAccessTracking_Private::FPackageAccessRefScope::GetCurrentThreadAccumulatedData();
+	if (AccumulatedScopeData)
+	{
+		NewRequest->ReferencerPackage = AccumulatedScopeData->PackageName;
+		NewRequest->ReferencerPackageOp = AccumulatedScopeData->OpName;
+	}
+#endif
+#if WITH_EDITOR
+	NewRequest->CookLoadType = FCookLoadScope::GetCurrentValue();
+#endif
 
 	int32 NumValidRequests = NewRequest->RequestedAssets.Num();
 	

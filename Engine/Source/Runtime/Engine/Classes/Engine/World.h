@@ -4198,6 +4198,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWorldPIEEnded, UGameInstance*);
 	static FOnWorldPIEEnded OnPIEEnded;
 
+	// Callback to add references when Serialize is called during SavePackage
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FWorldCollectSaveReferencesEvent, UWorld*, FArchive&);
+	static FWorldCollectSaveReferencesEvent OnCollectSaveReferences;
 #endif // WITH_EDITOR
 
 	// Post duplication event.

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
 #include "Math/NumericLimits.h"
+#include "Misc/PackageAccessTracking.h"
 #include "Templates/Casts.h"
 #include "Templates/Function.h"
 #include "UObject/Class.h"
@@ -16,6 +17,9 @@
 DECLARE_DELEGATE(FStreamableDelegate);
 DECLARE_DELEGATE_OneParam(FStreamableUpdateDelegate, TSharedRef<struct FStreamableHandle>);
 
+#if WITH_EDITOR
+enum class ECookLoadType : uint8;
+#endif
 
 /** Storage class of the per-class id used in FStreamableHandleContextDataBase */
 typedef uint8 TStreamableHandleContextDataTypeID;
@@ -134,6 +138,23 @@ struct ENGINE_API FStreamableHandle : public TSharedFromThis<FStreamableHandle>
 	{
 		return DebugName;
 	}
+
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+	FName GetReferencerPackage() const
+	{
+		return ReferencerPackage;
+	}
+	FName GetRefencerPackageOp() const
+	{
+		return ReferencerPackageOp;
+	}
+#endif
+#if WITH_EDITOR
+	ECookLoadType GetCookLoadType() const
+	{
+		return CookLoadType;
+	}
+#endif
 
 	/** Returns the streaming priority. */
 	TAsyncLoadPriority GetPriority() const
@@ -415,24 +436,22 @@ private:
 	/** Backpointer to handles that depend on this */
 	TArray<TWeakPtr<FStreamableHandle> > ParentHandles;
 
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+	FName ReferencerPackage;
+	FName ReferencerPackageOp;
+#endif
+
 	/** This is set at the time of creation, and will be cleared when request completes or is canceled */
 	struct FStreamableManager* OwningManager;
 
 	/** Array of contextual data added by game/engine code */
 	TArray<TSharedPtr<FStreamableHandleContextDataBase>> AdditionalContextData;
 
-	FStreamableHandle()
-		: bLoadCompleted(false)
-		, bReleased(false)
-		, bCanceled(false)
-		, bStalled(false)
-		, bReleaseWhenLoaded(false)
-		, bIsCombinedHandle(false)
-		, Priority(0)
-		, StreamablesLoading(0)
-		, OwningManager(nullptr)
-	{
-	}
+#if WITH_EDITOR
+	ECookLoadType CookLoadType;
+#endif
+
+	FStreamableHandle();
 };
 
 enum class EStreamableManagerCombinedHandleOptions : uint8 

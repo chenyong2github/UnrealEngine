@@ -513,6 +513,11 @@ struct FSoftObjectPathSerializationScope
 		FSoftObjectPathThreadContext::Get().OptionStack.Emplace(SerializingPackageName, SerializingPropertyName, CollectType, SerializeType);
 	}
 
+	explicit FSoftObjectPathSerializationScope(ESoftObjectPathCollectType CollectType)
+	{
+		FSoftObjectPathThreadContext::Get().OptionStack.Emplace(NAME_None, NAME_None, CollectType, ESoftObjectPathSerializeType::AlwaysSerialize);
+	}
+
 	~FSoftObjectPathSerializationScope()
 	{
 		FSoftObjectPathThreadContext::Get().OptionStack.Pop();

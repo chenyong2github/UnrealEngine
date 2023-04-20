@@ -19,6 +19,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/TrackedActivity.h"
@@ -6126,7 +6127,15 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 		{
 			SCOPED_LOADTIMER(CreateLinker_CreatePackage);
 			FGCScopeGuard GCGuard;
-			Package = CreatePackage(*Desc.Name.ToString());
+			{
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+				UE_TRACK_REFERENCING_PACKAGE_SCOPED(Desc.ReferencerPackageName, Desc.ReferencerPackageOp);
+#endif
+#if WITH_EDITOR
+				FCookLoadScope CookLoadScope(Desc.CookLoadType);
+#endif
+				Package = CreatePackage(*Desc.Name.ToString());
+			}
 			if (!Package)
 			{
 				UE_LOG(LogStreaming, Error, TEXT("Failed to create package %s requested by async loading code. NameToLoad: %s"), *Desc.Name.ToString(), *Desc.PackagePath.GetDebugName());
@@ -6382,6 +6391,13 @@ void FAsyncPackage::AddImportDependency(const FName& PendingImport, const FName&
 	{
 		FPackagePath ImportPackagePath = FPackagePath::FromPackageNameChecked(!PackageToLoad.IsNone() ? PackageToLoad : PendingImport);
 		FAsyncPackageDesc Info(INDEX_NONE, PendingImport, ImportPackagePath);
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+		Info.ReferencerPackageName = GetPackageName();
+		Info.ReferencerPackageOp = PackageAccessTrackingOps::NAME_Load;
+#endif
+#if WITH_EDITOR
+		Info.CookLoadType = ECookLoadType::Unexpected;
+#endif
 		Info.SetInstancingContext(MoveTemp(InstancingContext));
 		PackageToStream = new FAsyncPackage(AsyncLoadingThread, Info, EDLBootNotificationManager);
 
@@ -7449,6 +7465,18 @@ int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName 
 	{
 		PackageDesc.SetInstancingContext(*InInstancingContext);
 	}
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+	PackageAccessTracking_Private::FTrackedData* AccumulatedScopeData = PackageAccessTracking_Private::FPackageAccessRefScope::GetCurrentThreadAccumulatedData();
+	if (AccumulatedScopeData)
+	{
+		PackageDesc.ReferencerPackageName = AccumulatedScopeData->PackageName;
+		PackageDesc.ReferencerPackageOp = AccumulatedScopeData->OpName;
+	}
+#endif
+#if WITH_EDITOR
+	PackageDesc.CookLoadType = FCookLoadScope::GetCurrentValue();
+#endif
+
 	QueuePackage(PackageDesc);
 	return RequestID;
 }

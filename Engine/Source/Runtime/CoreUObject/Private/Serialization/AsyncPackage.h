@@ -9,7 +9,9 @@
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
 #include "Misc/PackagePath.h"
+#include "Misc/PackageAccessTracking.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/ICookInfo.h"
 #include "UObject/LinkerInstancingContext.h"
 
 struct FAsyncPackageDesc
@@ -32,7 +34,16 @@ struct FAsyncPackageDesc
 #if WITH_EDITORONLY_DATA
 	/** Instancing context, maps original package to their instanced counterpart, used to remap imports. */
 	FLinkerInstancingContext InstancingContext;
+#endif
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+	FName ReferencerPackageName;
+	FName ReferencerPackageOp;
+#endif
+#if WITH_EDITOR
+	ECookLoadType CookLoadType;
+#endif
 
+#if WITH_EDITORONLY_DATA
 	const FLinkerInstancingContext* GetInstancingContext() const { return &InstancingContext; }
 	void SetInstancingContext(FLinkerInstancingContext InInstancingContext) { InstancingContext = MoveTemp(InInstancingContext); }
 #else
@@ -48,6 +59,9 @@ struct FAsyncPackageDesc
 		, PackageFlags(InPackageFlags)
 		, Priority(InPriority)
 		, PIEInstanceID(InPIEInstanceID)
+#if WITH_EDITOR
+		, CookLoadType(ECookLoadType::Unexpected)
+#endif
 	{
 		check(!PackagePath.IsEmpty());
 	}
@@ -62,6 +76,13 @@ struct FAsyncPackageDesc
 		, PIEInstanceID(OldPackage.PIEInstanceID)
 #if WITH_EDITORONLY_DATA
 		, InstancingContext(OldPackage.InstancingContext)
+#endif
+#if UE_WITH_PACKAGE_ACCESS_TRACKING
+		, ReferencerPackageName(OldPackage.ReferencerPackageName)
+		, ReferencerPackageOp(OldPackage.ReferencerPackageOp)
+#endif
+#if WITH_EDITOR
+		, CookLoadType(OldPackage.CookLoadType)
 #endif
 	{
 	}

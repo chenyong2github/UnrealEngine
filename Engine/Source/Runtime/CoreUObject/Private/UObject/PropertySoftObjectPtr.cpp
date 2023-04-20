@@ -206,6 +206,7 @@ EConvertFromTypeResult FSoftObjectProperty::ConvertFromType(const FPropertyTag& 
 		FSoftObjectPtr* PropertyValue = GetPropertyValuePtr_InContainer(Data, Tag.ArrayIndex);
 		check(PropertyValue);
 
+		FSerializedPropertyScope SerializedProperty(Archive, this);
 		return PropertyValue->GetUniqueID().SerializeFromMismatchedTag(Tag, Slot) ? EConvertFromTypeResult::Converted : EConvertFromTypeResult::UseSerializeItem;
 	}
 	else if (Tag.Type == NAME_StructProperty && (Tag.StructName == NAME_SoftObjectPath || Tag.StructName == NAME_SoftClassPath || Tag.StructName == NAME_StringAssetReference || Tag.StructName == NAME_StringClassReference))
@@ -213,6 +214,7 @@ EConvertFromTypeResult FSoftObjectProperty::ConvertFromType(const FPropertyTag& 
 		// This property used to be a FSoftObjectPath but is now a TSoftObjectPtr<Foo>
 		FSoftObjectPath PreviousValue;
 		// explicitly call Serialize to ensure that the various delegates needed for cooking are fired
+		FSerializedPropertyScope SerializedProperty(Archive, this);
 		PreviousValue.Serialize(Slot);
 
 		// now copy the value into the object's address space

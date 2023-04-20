@@ -543,6 +543,7 @@ FWorldDelegates::FWorldInitializationEvent FWorldDelegates::OnPostWorldInitializ
 FWorldDelegates::FWorldPreRenameEvent FWorldDelegates::OnPreWorldRename;
 FWorldDelegates::FWorldPostRenameEvent FWorldDelegates::OnPostWorldRename;
 FWorldDelegates::FWorldCurrentLevelChangedEvent FWorldDelegates::OnCurrentLevelChanged;
+FWorldDelegates::FWorldCollectSaveReferencesEvent FWorldDelegates::OnCollectSaveReferences;
 #endif // WITH_EDITOR
 FWorldDelegates::FWorldPostDuplicateEvent FWorldDelegates::OnPostDuplicate;
 FWorldDelegates::FWorldCleanupEvent FWorldDelegates::OnWorldCleanup;
@@ -702,6 +703,11 @@ void UWorld::Serialize( FArchive& Ar )
 		PersistedStreamingLevels.Reserve(StreamingLevels.Num());
 		Algo::CopyIf(StreamingLevels, PersistedStreamingLevels, [&](ULevelStreaming* LevelStreaming) { return LevelStreaming && !LevelStreaming->HasAnyFlags(RF_Transient); });
 		Ar << PersistedStreamingLevels;
+
+		if (Ar.IsObjectReferenceCollector())
+		{
+			FWorldDelegates::OnCollectSaveReferences.Broadcast(this, Ar);
+		}
 	}
 	else
 #endif

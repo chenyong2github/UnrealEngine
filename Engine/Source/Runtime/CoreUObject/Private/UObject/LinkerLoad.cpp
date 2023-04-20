@@ -22,6 +22,7 @@
 #include "UObject/UObjectHash.h"
 #include "Misc/PackageName.h"
 #include "Blueprint/BlueprintSupport.h"
+#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/PathViews.h"
 #include "Misc/PreloadableFile.h"
 #include "Misc/SecureHash.h"
@@ -54,6 +55,7 @@
 #include "Serialization/EditorBulkData.h"
 #include "HAL/FileManager.h"
 #include "UObject/CoreRedirects.h"
+#include "UObject/ICookInfo.h"
 #include "UObject/PackageRelocation.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/StringBuilder.h"
@@ -2790,6 +2792,8 @@ void FLinkerLoad::Verify()
 				SlowTask.Emplace(Summary.ImportCount, LoadingImportsText);
 			}
 #endif
+			UE_TRACK_REFERENCING_PACKAGE_SCOPED(LinkerRoot->GetFName(), PackageAccessTrackingOps::NAME_Load);
+
 			// Validate all imports and map them to their remote linkers.
 			for (int32 ImportIndex = 0; ImportIndex < Summary.ImportCount; ImportIndex++)
 			{
@@ -3366,6 +3370,10 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 				LocalInstancingContext = &GetInstancingContext();
 			}
 			FPackagePath PackagePathToLoad = FPackagePath::FromPackageNameChecked(PackageToLoad);
+#if WITH_EDITOR
+			FCookLoadScope ResetCookLoadScopeToUnexpected(ECookLoadType::Unexpected);
+#endif
+
 			Package = LoadPackageInternal(Package, PackagePathToLoad, InternalLoadFlags | LOAD_IsVerifying, this, nullptr /* InReaderOverride */,
 				LocalInstancingContext, nullptr /* DiffPackagePath */);
 		}

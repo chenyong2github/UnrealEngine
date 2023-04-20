@@ -47,4 +47,22 @@ FString FInstigator::ToString() const
 
 }
 
+static thread_local ECookLoadType GCookLoadType = ECookLoadType::Unexpected;
+
+FCookLoadScope::FCookLoadScope(ECookLoadType ScopeType)
+	: PreviousScope(GCookLoadType)
+{
+	GCookLoadType = ScopeType;
+}
+
+FCookLoadScope::~FCookLoadScope()
+{
+	GCookLoadType = PreviousScope;
+}
+
+ECookLoadType FCookLoadScope::GetCurrentValue()
+{
+	return GCookLoadType;
+}
+
 #endif

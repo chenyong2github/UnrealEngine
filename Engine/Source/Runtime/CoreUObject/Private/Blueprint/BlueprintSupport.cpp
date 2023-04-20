@@ -13,6 +13,7 @@
 #include "Templates/Casts.h"
 #include "UObject/UnrealType.h"
 #include "Serialization/DuplicatedDataWriter.h"
+#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/PackageName.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/GCObject.h"
@@ -1758,6 +1759,7 @@ void FLinkerLoad::PRIVATE_ForceLoadAllDependencies(UPackage* Package)
 
 void FLinkerLoad::ResolveAllImports()
 {
+	UE_TRACK_REFERENCING_PACKAGE_SCOPED(LinkerRoot->GetFName(), PackageAccessTrackingOps::NAME_Load);
 	for (int32 ImportIndex = 0; ImportIndex < ImportMap.Num() && IsBlueprintFinalizationPending(); ++ImportIndex)
 	{
 		// first, make sure every import object is available... just because 
