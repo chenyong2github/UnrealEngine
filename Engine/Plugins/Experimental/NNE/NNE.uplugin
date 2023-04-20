@@ -62,12 +62,6 @@
 			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
-			"Name": "NNERuntimeORT",
-			"Type": "EditorAndProgram",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
-		},
-		{
 			"Name": "NNEOnnxruntime",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
