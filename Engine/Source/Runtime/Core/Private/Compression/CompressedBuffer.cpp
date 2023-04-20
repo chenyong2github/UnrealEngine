@@ -439,6 +439,8 @@ bool FBlockDecoder::TryDecompressTo(
 	const uint64 RawOffset,
 	FMutableMemoryView RawView) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlockDecoder::TryDecompressTo);
+
 	if (Header.TotalRawSize < RawOffset + RawView.GetSize())
 	{
 		return false;
@@ -455,6 +457,8 @@ bool FBlockDecoder::TryDecompressTo(
 	uint64 CompressedOffset = sizeof(FHeader) + sizeof(uint32) * uint32(Header.BlockCount) +
 		Algo::TransformAccumulate(MakeArrayView(CompressedBlockSizes, FirstBlockIndex),
 			[](uint32 Size) -> uint64 { return NETWORK_ORDER32(Size); }, uint64(0));
+
+	// @todo : Parallel decoder needed!  This stream is chunked into blocks but this implementation is serial.  This is a bottleneck for large data loading.
 
 	for (uint32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; BlockIndex++)
 	{
