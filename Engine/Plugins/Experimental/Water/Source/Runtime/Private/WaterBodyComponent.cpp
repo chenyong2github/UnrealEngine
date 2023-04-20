@@ -28,6 +28,8 @@
 #include "Engine/StaticMesh.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Operations/MeshPlaneCut.h"
+#include "UObject/ICookInfo.h"
+#include "UObject/ObjectSaveContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyComponent)
 
@@ -1471,6 +1473,15 @@ void UWaterBodyComponent::Serialize(FArchive& Ar)
 
 	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+#if WITH_EDITOR
+	if (Ar.IsObjectReferenceCollector() && Ar.IsSaving())
+	{
+		FSoftObjectPathSerializationScope EditorOnlyScope(ESoftObjectPathCollectType::EditorOnlyCollect);
+		FSoftObjectPath WaterSpriteTexture(GetWaterSpriteTextureName());
+		Ar << WaterSpriteTexture;
+	}
+#endif
 }
 
 void UWaterBodyComponent::PostLoad()
@@ -2162,7 +2173,11 @@ void UWaterBodyComponent::UpdateNonTessellatedMeshSections()
 
 void UWaterBodyComponent::CreateWaterSpriteComponent()
 {
-	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, GetWaterSpriteTextureName());
+	UTexture2D* Texture = nullptr;
+	{
+		FCookLoadScope EditorOnlyScope(ECookLoadType::EditorOnly);
+		Texture = LoadObject<UTexture2D>(nullptr, GetWaterSpriteTextureName());
+	}
 
 	IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>(TEXT("Water"));
 	if (IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())

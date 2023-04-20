@@ -14,6 +14,8 @@
 #include "Sound/SoundNodeAttenuation.h"
 #include "Stats/StatsTrace.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/ICookInfo.h"
+#include "UObject/SoftObjectPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioComponent)
 
@@ -65,6 +67,10 @@ uint64 UAudioComponent::AudioComponentIDCounter = 0;
 TMap<uint64, UAudioComponent*> UAudioComponent::AudioIDToComponentMap;
 FCriticalSection UAudioComponent::AudioIDToComponentMapLock;
 
+#if WITH_EDITORONLY_DATA
+static const TCHAR* GAudioSpriteAssetNameAutoActivate = TEXT("/Engine/EditorResources/AudioIcons/S_AudioComponent_AutoActivate.S_AudioComponent_AutoActivate");
+static const TCHAR* GAudioSpriteAssetName = TEXT("/Engine/EditorResources/AudioIcons/S_AudioComponent.S_AudioComponent");
+#endif
 
 UInitialActiveSoundParams::UInitialActiveSoundParams(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -190,6 +196,15 @@ void UAudioComponent::Serialize(FArchive& Ar)
 		}
 
 		ModulationRouting.VersionModulators();
+	}
+	if (Ar.IsSaving() && Ar.IsObjectReferenceCollector() && !Ar.IsCooking())
+	{
+		FSoftObjectPathSerializationScope EditorOnlyScope(ESoftObjectPathCollectType::EditorOnlyCollect);
+		FSoftObjectPath SpriteAssets[]{ FSoftObjectPath(GAudioSpriteAssetNameAutoActivate), FSoftObjectPath(GAudioSpriteAssetName) };
+		for (FSoftObjectPath& SpriteAsset : SpriteAssets)
+		{
+			Ar << SpriteAsset;
+		}
 	}
 #endif // WITH_EDITORONLY_DATA
 }
@@ -1195,13 +1210,14 @@ void UAudioComponent::UpdateSpriteTexture()
 		SpriteComponent->SpriteInfo.Category = TEXT("Sounds");
 		SpriteComponent->SpriteInfo.DisplayName = NSLOCTEXT("SpriteCategory", "Sounds", "Sounds");
 
+		FCookLoadScope EditorOnlyScope(ECookLoadType::EditorOnly);
 		if (bAutoActivate)
 		{
-			SpriteComponent->SetSprite(LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/AudioIcons/S_AudioComponent_AutoActivate.S_AudioComponent_AutoActivate")));
+			SpriteComponent->SetSprite(LoadObject<UTexture2D>(nullptr, GAudioSpriteAssetNameAutoActivate));
 		}
 		else
 		{
-			SpriteComponent->SetSprite(LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/AudioIcons/S_AudioComponent.S_AudioComponent")));
+			SpriteComponent->SetSprite(LoadObject<UTexture2D>(nullptr, GAudioSpriteAssetName));
 		}
 	}
 }

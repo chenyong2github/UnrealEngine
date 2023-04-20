@@ -25,6 +25,9 @@ class ENGINE_API ULevelInstanceComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 public:
+#if WITH_EDITORONLY_DATA
+	virtual void Serialize(FArchive& Ar) override;
+#endif
 #if WITH_EDITOR
 	// Those are the methods that need overriding to be able to properly update the AttachComponent
 	virtual void OnRegister() override;

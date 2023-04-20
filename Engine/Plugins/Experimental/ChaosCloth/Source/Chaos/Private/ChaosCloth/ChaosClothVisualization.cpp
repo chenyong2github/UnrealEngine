@@ -34,6 +34,7 @@
 #include "Engine/Canvas.h"  // For draw text
 #include "CanvasItem.h"     //
 #include "Engine/Engine.h"  //
+#include "UObject/ICookInfo.h"
 #endif  // #if WITH_EDITOR
 
 static int DrawSkinnedLattice = 0;
@@ -45,6 +46,7 @@ namespace Chaos
 		: Solver(InSolver)
 	{
 #if WITH_EDITOR
+		FCookLoadScope CookLoadScope(ECookLoadType::EditorOnly);
 		ClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
 		ClothMaterialVertex = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/WidgetVertexColorMaterial"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
 		CollisionMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/PhAT_UnselectedMaterial"), nullptr, LOAD_None, nullptr);

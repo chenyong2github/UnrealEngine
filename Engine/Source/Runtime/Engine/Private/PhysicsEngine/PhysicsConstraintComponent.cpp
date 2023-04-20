@@ -11,6 +11,8 @@
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Components/BillboardComponent.h"
+#include "UObject/ICookInfo.h"
+#include "UObject/SoftObjectPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsConstraintComponent)
 
@@ -600,25 +602,55 @@ FConstraintInstanceAccessor UPhysicsConstraintComponent::GetConstraint()
 }
 
 #if WITH_EDITOR
+static const TCHAR* GPhysicsConstraintHingeSpriteAssetName = TEXT("/Engine/EditorResources/S_KHinge.S_KHinge");
+static const TCHAR* GPhysicsConstraintPrismaticSpriteAssetName = TEXT("/Engine/EditorResources/S_KPrismatic.S_KPrismatic");
+static const TCHAR* GPhysicsConstraintJointSpriteAssetName = TEXT("/Engine/EditorResources/S_KBSJoint.S_KBSJoint");
+#endif
+
+#if WITH_EDITOR
 void UPhysicsConstraintComponent::UpdateSpriteTexture()
 {
 	if (SpriteComponent)
 	{
+		FCookLoadScope CookLoadScope(ECookLoadType::EditorOnly);
 		if (ConstraintUtils::IsHinge(ConstraintInstance))
 		{
-			SpriteComponent->SetSprite(LoadObject<UTexture2D>(NULL, TEXT("/Engine/EditorResources/S_KHinge.S_KHinge")));
+			SpriteComponent->SetSprite(LoadObject<UTexture2D>(NULL, GPhysicsConstraintHingeSpriteAssetName));
 		}
 		else if (ConstraintUtils::IsPrismatic(ConstraintInstance))
 		{
-			SpriteComponent->SetSprite(LoadObject<UTexture2D>(NULL, TEXT("/Engine/EditorResources/S_KPrismatic.S_KPrismatic")));
+			SpriteComponent->SetSprite(LoadObject<UTexture2D>(NULL, GPhysicsConstraintPrismaticSpriteAssetName));
 		}
 		else
 		{
-			SpriteComponent->SetSprite(LoadObject<UTexture2D>(NULL, TEXT("/Engine/EditorResources/S_KBSJoint.S_KBSJoint")));
+			SpriteComponent->SetSprite(LoadObject<UTexture2D>(NULL, GPhysicsConstraintJointSpriteAssetName));
 		}
 	}
 }
 #endif // WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+void UPhysicsConstraintComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+#if WITH_EDITOR
+	if (Ar.IsSaving() && Ar.IsObjectReferenceCollector() && !Ar.IsCooking())
+	{
+		FSoftObjectPathSerializationScope EditorOnlyScope(ESoftObjectPathCollectType::EditorOnlyCollect);
+		FSoftObjectPath SpriteAssets[]
+		{
+			FSoftObjectPath(GPhysicsConstraintHingeSpriteAssetName),
+			FSoftObjectPath(GPhysicsConstraintPrismaticSpriteAssetName),
+			FSoftObjectPath(GPhysicsConstraintJointSpriteAssetName)
+		};
+		for (FSoftObjectPath& SpriteAsset : SpriteAssets)
+		{
+			Ar << SpriteAsset;
+		}
+	}
+#endif
+}
+
+#endif
 
 void UPhysicsConstraintComponent::SetLinearPositionDrive( bool bEnableDriveX, bool bEnableDriveY, bool bEnableDriveZ )
 {

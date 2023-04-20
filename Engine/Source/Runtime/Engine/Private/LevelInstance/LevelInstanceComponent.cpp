@@ -8,8 +8,14 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "UObject/ICookInfo.h"
+#include "UObject/SoftObjectPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceComponent)
+
+#if WITH_EDITORONLY_DATA
+static const TCHAR* GLevelSpriteAssetName = TEXT("/Engine/EditorResources/LevelInstance");
+#endif
 
 ULevelInstanceComponent::ULevelInstanceComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -18,6 +24,19 @@ ULevelInstanceComponent::ULevelInstanceComponent(const FObjectInitializer& Objec
 	bWantsOnUpdateTransform = true;
 #endif
 }
+
+#if WITH_EDITORONLY_DATA
+void ULevelInstanceComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	if (Ar.IsSaving() && Ar.IsObjectReferenceCollector() && !Ar.IsCooking())
+	{
+		FSoftObjectPathSerializationScope EditorOnlyScope(ESoftObjectPathCollectType::EditorOnlyCollect);
+		FSoftObjectPath SpriteAsset(GLevelSpriteAssetName);
+		Ar << SpriteAsset;
+	}
+}
+#endif
 
 #if WITH_EDITOR
 void ULevelInstanceComponent::OnRegister()
@@ -36,7 +55,8 @@ void ULevelInstanceComponent::OnRegister()
 	{
 		// Re-enable before calling CreateSpriteComponent
 		bVisualizeComponent = true;
-		CreateSpriteComponent(LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/LevelInstance")), false);
+		FCookLoadScope CookLoadScope(ECookLoadType::EditorOnly);
+		CreateSpriteComponent(LoadObject<UTexture2D>(nullptr, GLevelSpriteAssetName), false);
 		if (SpriteComponent)
 		{
 			SpriteComponent->bShowLockedLocation = false;

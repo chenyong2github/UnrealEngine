@@ -27,12 +27,18 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/BillboardComponent.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "UObject/ICookInfo.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LightComponent)
 
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
+#endif
+
+#if WITH_EDITOR
+static const TCHAR* GLightSpriteAssetName = TEXT("/Engine/EditorResources/LightIcons/S_LightError.S_LightError");
 #endif
 
 void FStaticShadowDepthMap::InitRHI()
@@ -167,6 +173,15 @@ void ULightComponentBase::Serialize(FArchive& Ar)
 	{
 		CastRaytracedShadow = bCastRaytracedShadow_DEPRECATED == 0? ECastRayTracedShadow::Disabled : ECastRayTracedShadow::UseProjectSetting;
 	}
+
+#if WITH_EDITOR
+	if (Ar.IsSaving() && Ar.IsObjectReferenceCollector() && !Ar.IsCooking())
+	{
+		FSoftObjectPathSerializationScope EditorOnlyScope(ESoftObjectPathCollectType::EditorOnlyCollect);
+		FSoftObjectPath SpritePath(GLightSpriteAssetName);
+		Ar << SpritePath;
+	}
+#endif
 }
 
 /**
@@ -764,7 +779,8 @@ void ULightComponent::UpdateLightSpriteTexture()
 			(GetWorld() && !GetWorld()->IsPreviewWorld()))
 		{
 			UTexture2D* SpriteTexture = NULL;
-			SpriteTexture = LoadObject<UTexture2D>(NULL, TEXT("/Engine/EditorResources/LightIcons/S_LightError.S_LightError"));
+			FCookLoadScope EditorOnlyScope(ECookLoadType::EditorOnly);
+			SpriteTexture = LoadObject<UTexture2D>(NULL, GLightSpriteAssetName);
 			SpriteComponent->SetSprite(SpriteTexture);
 			SpriteComponent->SetRelativeScale3D(FVector(0.5f));
 		}

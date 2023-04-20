@@ -7,11 +7,18 @@
 #include "Engine/Canvas.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "Engine/Texture2D.h"
+#include "UObject/ICookInfo.h"
+#include "UObject/SoftObjectPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ForceFeedbackComponent)
 
 TArray<FForceFeedbackManager*> FForceFeedbackManager::PerWorldForceFeedbackManagers;
 FDelegateHandle FForceFeedbackManager::OnWorldCleanupHandle;
+
+#if WITH_EDITORONLY_DATA
+static const TCHAR* GForceFeedbackSpriteAssetNameAutoActivate = TEXT("/Engine/EditorResources/S_ForceFeedbackComponent_AutoActivate.S_ForceFeedbackComponent_AutoActivate");
+static const TCHAR* GForceFeedbackSpriteAssetName = TEXT("/Engine/EditorResources/S_ForceFeedbackComponent.S_ForceFeedbackComponent");
+#endif
 
 FForceFeedbackManager* FForceFeedbackManager::Get(UWorld* World, bool bCreateIfMissing)
 {
@@ -170,6 +177,21 @@ void UForceFeedbackComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+void UForceFeedbackComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	if (Ar.IsSaving() && Ar.IsObjectReferenceCollector() && !Ar.IsCooking())
+	{
+		FSoftObjectPathSerializationScope EditorOnlyScope(ESoftObjectPathCollectType::EditorOnlyCollect);
+		FSoftObjectPath SpriteAssets[]{ FSoftObjectPath(GForceFeedbackSpriteAssetNameAutoActivate), FSoftObjectPath(GForceFeedbackSpriteAssetName) };
+		for (FSoftObjectPath& AssetPath : SpriteAssets)
+		{
+			Ar << AssetPath;
+		}
+	}
+}
+
+
 void UForceFeedbackComponent::UpdateSpriteTexture()
 {
 	if (SpriteComponent)
@@ -177,13 +199,14 @@ void UForceFeedbackComponent::UpdateSpriteTexture()
 		SpriteComponent->SpriteInfo.Category = TEXT("Misc");
 		SpriteComponent->SpriteInfo.DisplayName = NSLOCTEXT("SpriteCategory", "Misc", "Misc");
 
+		FCookLoadScope EditorOnlyScope(ECookLoadType::EditorOnly);
 		if (bAutoActivate)
 		{
-			SpriteComponent->SetSprite(LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/S_ForceFeedbackComponent_AutoActivate.S_ForceFeedbackComponent_AutoActivate")));
+			SpriteComponent->SetSprite(LoadObject<UTexture2D>(nullptr, GForceFeedbackSpriteAssetNameAutoActivate));
 		}
 		else
 		{
-			SpriteComponent->SetSprite(LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/S_ForceFeedbackComponent.S_ForceFeedbackComponent")));
+			SpriteComponent->SetSprite(LoadObject<UTexture2D>(nullptr, GForceFeedbackSpriteAssetName));
 		}
 	}
 }
