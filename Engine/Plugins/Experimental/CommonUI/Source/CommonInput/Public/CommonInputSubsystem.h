@@ -106,10 +106,15 @@ public:
 	static FPlatformInputSupportOverrideDelegate& GetOnPlatformInputSupportOverride() { return OnPlatformInputSupportOverride; }
 
 protected:
+	virtual TSharedPtr<FCommonInputPreprocessor> MakeInputProcessor();
+
 	ECommonInputType LockInput(ECommonInputType InputToLock) const;
 
 	UFUNCTION()
 	void BroadcastInputMethodChanged();
+
+protected:
+	TSharedPtr<FCommonInputPreprocessor> CommonInputPreprocessor;
 
 private:
 	bool Tick(float DeltaTime);
@@ -154,8 +159,6 @@ private:
 	TMap<FName, ECommonInputType> CurrentInputLocks;
 
 	TOptional<ECommonInputType> CurrentInputLock;
-
-	TSharedPtr<FCommonInputPreprocessor> CommonInputPreprocessor;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCommonInputActionDomainTable> ActionDomainTable;
