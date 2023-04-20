@@ -75,7 +75,9 @@ void FControlFlow::HandleControlFlowNodeCompleted(TSharedRef<const FControlFlowN
 
 	SubFlowStack_ForDebugging.Add(SharedThis(this));
 
-	if (ensureMsgf(CurrentNode.IsValid() && &NodeCompleted.Get() == CurrentNode.Get(), TEXT("This will likely become a static_assert/compile-error")))
+	if (ensureMsgf(CurrentNode.IsValid(), TEXT("This will likely become a static_assert/compile-error")) &&
+		ensureMsgf(&NodeCompleted.Get() == CurrentNode.Get(), TEXT("This will likely become a static_assert/compile-error"))
+	   )
 	{
 		if (!NodeCompleted->bWasBoundOnExecution)
 		{
