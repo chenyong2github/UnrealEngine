@@ -259,4 +259,8 @@ protected:
 protected:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
 #endif // WITH_EDITOR
+
+#if !UE_BUILD_SHIPPING
+	TArray<int32> InstanceToActorConversionsInProgress;
+#endif //!UE_BUILD_SHIPPING
 };
