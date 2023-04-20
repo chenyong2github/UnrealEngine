@@ -52,6 +52,9 @@ public:
 
 	FBox PreviewBoundingBox() const;
 
+	TWeakPtr<FChaosClothPreviewScene> GetClothPreviewScene();
+	TWeakPtr<const FChaosClothPreviewScene> GetClothPreviewScene() const;
+
 private:
 
 	// FGCObject override

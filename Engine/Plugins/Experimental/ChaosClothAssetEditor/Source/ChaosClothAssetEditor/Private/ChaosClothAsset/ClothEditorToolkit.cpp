@@ -440,7 +440,7 @@ void FChaosClothAssetEditorToolkit::PostInitAssetEditor()
 	ViewportClient->ReceivedFocus(ViewportClient->Viewport);
 
 	// Set up 3D viewport
-	ClothPreviewViewportClient->SetClothComponent(ClothPreviewScene->ClothComponent);
+	ClothPreviewViewportClient->SetClothComponent(ClothPreviewScene->GetClothComponent());
 	ClothPreviewViewportClient->SetClothEdMode(ClothMode);
 	ClothPreviewViewportClient->SetClothEditorToolkit(StaticCastSharedRef<FChaosClothAssetEditorToolkit>(this->AsShared()));
 
@@ -712,7 +712,7 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 void FChaosClothAssetEditorToolkit::PopulateOutliner()
 {
 	TSharedPtr<FManagedArrayCollection> ClothCollection;
-	if (const TObjectPtr<UChaosClothComponent> ClothComponent = ClothPreviewScene->ClothComponent)
+	if (const TObjectPtr<UChaosClothComponent> ClothComponent = ClothPreviewScene->GetClothComponent())
 	{
 		if (UChaosClothAsset* const ClothAsset = ClothComponent->GetClothAsset())
 		{
@@ -980,7 +980,7 @@ void FChaosClothAssetEditorToolkit::OnClothAssetChanged()
 
 	if (UChaosClothAsset* const ClothAsset = Cast<UChaosClothAsset>(ObjectsToEdit[0]))
 	{
-		ClothPreviewScene->CreateClothActor(ClothAsset);
+		ClothPreviewScene->SetClothAsset(ClothAsset);
 
 		ensure(ClothAsset->HasAnyFlags(RF_Transactional));		// Ensure all objects are transactable for undo/redo in the details panel
 		SetEditingObject(ClothAsset);

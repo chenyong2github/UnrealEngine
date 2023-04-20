@@ -10,10 +10,9 @@ class UChaosClothAsset;
 class USkeletalMesh;
 class UChaosClothComponent;
 class FChaosClothPreviewScene;
-class UPhysicsAsset;
-class UAnimSequence;
-class ASkeletalMeshActor;
 class FAssetEditorModeManager;
+class UAnimationAsset;
+class UAnimSingleNodeInstance;
 
 ///
 /// The UChaosClothPreviewSceneDescription is a description of the Preview scene contents, intended to be editable in an FAdvancedPreviewSettingsWidget
@@ -33,9 +32,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "SkeletalMesh")
 	FTransform SkeletalMeshTransform;
 
-	// TODO: Add anything else to the scene, e.g.:
-	//UPROPERTY(EditAnywhere, Category = "Animation")
-	//TObjectPtr<UAnimSequence> AnimationSequence;
+	UPROPERTY(EditAnywhere, Category = "SkeletalMesh")
+	TObjectPtr<UAnimationAsset> AnimationAsset;
 
 private:
 
@@ -61,33 +59,47 @@ public:
 	const UChaosClothPreviewSceneDescription* GetPreviewSceneDescription() const { return PreviewSceneDescription; }
 	UChaosClothPreviewSceneDescription* GetPreviewSceneDescription() { return PreviewSceneDescription; }
 
-	void CreateClothActor(UChaosClothAsset* Asset);
+	void SetClothAsset(UChaosClothAsset* Asset);
 
 	// Update Scene in response to the SceneDescription changing
 	void SceneDescriptionPropertyChanged(struct FPropertyChangedEvent& PropertyChangedEvent);
 
-	// Preview simulation mesh
-	TObjectPtr<AActor> ClothActor;
-	TObjectPtr<UChaosClothComponent> ClothComponent;
+	UAnimSingleNodeInstance* GetPreviewAnimInstance();
+	const UAnimSingleNodeInstance* const GetPreviewAnimInstance() const;
 
-	// Skeletal Mesh
-	TObjectPtr<ASkeletalMeshActor> SkeletalMeshActor;
+	UChaosClothComponent* GetClothComponent();
+	const UChaosClothComponent* GetClothComponent() const;
+	
+	const USkeletalMeshComponent* GetSkeletalMeshComponent() const;
 
 	void SetModeManager(TSharedPtr<FAssetEditorModeManager> InClothPreviewEditorModeManager);
-
 	const TSharedPtr<const FAssetEditorModeManager> GetClothPreviewEditorModeManager() const;
 
 private:
 
+	// (Re)attach the cloth component to the skeletal mesh component, if it exists. 
+	// Create the PreviewAnimationInstance if the AnimationAsset and SkeletalMesh both exist.
+	void ReattachSkeletalMeshAndAnimation();
+
 	void SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
 
-	void CreateSkeletalMeshActor();
+	void CreateSkeletalMeshComponent();
+	void DeleteSkeletalMeshComponent();
 
 	bool IsComponentSelected(const UPrimitiveComponent* InComponent);
 
 	TObjectPtr<UChaosClothPreviewSceneDescription> PreviewSceneDescription;
 
 	TSharedPtr<FAssetEditorModeManager> ClothPreviewEditorModeManager;
+
+	TObjectPtr<UAnimSingleNodeInstance> PreviewAnimInstance;
+
+	TObjectPtr<AActor> SceneActor;
+
+	TObjectPtr<UChaosClothComponent> ClothComponent;
+
+	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
+
 };
 
 

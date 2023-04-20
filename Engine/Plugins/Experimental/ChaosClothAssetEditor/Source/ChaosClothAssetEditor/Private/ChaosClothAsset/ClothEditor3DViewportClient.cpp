@@ -227,6 +227,16 @@ FBox FChaosClothAssetEditor3DViewportClient::PreviewBoundingBox() const
 	return FBox(ForceInitToZero);
 }
 
+TWeakPtr<FChaosClothPreviewScene> FChaosClothAssetEditor3DViewportClient::GetClothPreviewScene()
+{
+	return ClothPreviewScene;
+}
+
+TWeakPtr<const FChaosClothPreviewScene> FChaosClothAssetEditor3DViewportClient::GetClothPreviewScene() const
+{
+	return ClothPreviewScene;
+}
+
 void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
 	FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);

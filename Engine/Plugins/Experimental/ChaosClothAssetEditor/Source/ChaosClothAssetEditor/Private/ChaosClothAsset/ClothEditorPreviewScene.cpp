@@ -6,6 +6,8 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "AssetEditorModeManager.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Animation/AnimSingleNodeInstance.h"
+#include "ComponentReregisterContext.h"
 
 #define LOCTEXT_NAMESPACE "UChaosClothEditorPreviewScene"
 
@@ -32,21 +34,18 @@ FChaosClothPreviewScene::FChaosClothPreviewScene(FPreviewScene::ConstructionValu
 
 	if (PreviewSceneDescription->SkeletalMeshAsset)
 	{
-		CreateSkeletalMeshActor();
+		CreateSkeletalMeshComponent();
+		ReattachSkeletalMeshAndAnimation();
 	}
 }
 
 FChaosClothPreviewScene::~FChaosClothPreviewScene()
 {
-	if (SkeletalMeshActor)
+	if (SkeletalMeshComponent)
 	{
-		if (SkeletalMeshActor->GetSkeletalMeshComponent())
-		{
-			SkeletalMeshActor->GetSkeletalMeshComponent()->TransformUpdated.RemoveAll(this);
-			SkeletalMeshActor->GetSkeletalMeshComponent()->SelectionOverrideDelegate.Unbind();
-		}
-
-		SkeletalMeshActor->UnregisterAllComponents();
+		SkeletalMeshComponent->TransformUpdated.RemoveAll(this);
+		SkeletalMeshComponent->SelectionOverrideDelegate.Unbind();
+		SkeletalMeshComponent->UnregisterComponent();
 	}
 
 	if (ClothComponent)
@@ -62,8 +61,54 @@ void FChaosClothPreviewScene::AddReferencedObjects(FReferenceCollector& Collecto
 
 	Collector.AddReferencedObject(PreviewSceneDescription);
 	Collector.AddReferencedObject(ClothComponent);
-	Collector.AddReferencedObject(SkeletalMeshActor);
-	Collector.AddReferencedObject(ClothActor);
+	Collector.AddReferencedObject(SkeletalMeshComponent);
+	Collector.AddReferencedObject(SceneActor);
+	Collector.AddReferencedObject(PreviewAnimInstance);
+}
+
+
+void FChaosClothPreviewScene::ReattachSkeletalMeshAndAnimation()
+{
+	if (SkeletalMeshComponent)
+	{
+		if (PreviewSceneDescription->AnimationAsset)
+		{
+			PreviewAnimInstance = NewObject<UAnimSingleNodeInstance>(SkeletalMeshComponent);
+			PreviewAnimInstance->SetAnimationAsset(PreviewSceneDescription->AnimationAsset);
+
+			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+			SkeletalMeshComponent->InitAnim(true);
+			SkeletalMeshComponent->AnimationData.PopulateFrom(PreviewAnimInstance);
+			SkeletalMeshComponent->AnimScriptInstance = PreviewAnimInstance;
+			SkeletalMeshComponent->AnimScriptInstance->InitializeAnimation();
+			SkeletalMeshComponent->ValidateAnimation();
+			SkeletalMeshComponent->Stop();
+		}
+		else
+		{
+			SkeletalMeshComponent->Stop();
+			SkeletalMeshComponent->AnimationData = FSingleAnimationPlayData();
+			SkeletalMeshComponent->AnimScriptInstance = nullptr;
+		}
+	}
+
+	if (ClothComponent && SkeletalMeshComponent)
+	{
+		const bool bWasSimming = !ClothComponent->IsSimulationSuspended();
+		ClothComponent->SuspendSimulation();
+
+		ClothComponent->AttachToComponent(SkeletalMeshComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+
+		// hard reset and resume simulation if it was running prior
+		{
+			const FComponentReregisterContext Context(ClothComponent);
+		}
+		if (bWasSimming)
+		{
+			ClothComponent->ResumeSimulation();
+		}
+	}
+
 }
 
 void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -72,17 +117,46 @@ void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(struct FPropertyCh
 	{
 		if (PreviewSceneDescription->SkeletalMeshAsset)
 		{
-			CreateSkeletalMeshActor();
+			CreateSkeletalMeshComponent();
+		}
+		else
+		{
+			DeleteSkeletalMeshComponent();
 		}
 	}
 
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UChaosClothPreviewSceneDescription, SkeletalMeshTransform))
 	{
-		if (SkeletalMeshActor)
+		if (SkeletalMeshComponent)
 		{
-			SkeletalMeshActor->GetSkeletalMeshComponent()->SetComponentToWorld(PreviewSceneDescription->SkeletalMeshTransform);
+			SkeletalMeshComponent->SetComponentToWorld(PreviewSceneDescription->SkeletalMeshTransform);
 		}
 	}
+
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UChaosClothPreviewSceneDescription, AnimationAsset))
+	{
+		if (!SkeletalMeshComponent || !PreviewSceneDescription->AnimationAsset)
+		{
+			PreviewAnimInstance = nullptr;
+		}
+	}
+
+	ReattachSkeletalMeshAndAnimation();
+}
+
+UChaosClothComponent* FChaosClothPreviewScene::GetClothComponent()
+{
+	return ClothComponent;
+}
+
+const UChaosClothComponent* FChaosClothPreviewScene::GetClothComponent() const
+{
+	return ClothComponent;
+}
+
+const USkeletalMeshComponent* FChaosClothPreviewScene::GetSkeletalMeshComponent() const
+{
+	return SkeletalMeshComponent;
 }
 
 void FChaosClothPreviewScene::SetModeManager(TSharedPtr<FAssetEditorModeManager> InClothPreviewEditorModeManager)
@@ -97,36 +171,62 @@ const TSharedPtr<const FAssetEditorModeManager> FChaosClothPreviewScene::GetClot
 
 void FChaosClothPreviewScene::SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
-	ensure(UpdatedComponent == SkeletalMeshActor->GetSkeletalMeshComponent());
+	ensure(UpdatedComponent == SkeletalMeshComponent);
 	PreviewSceneDescription->SkeletalMeshTransform = UpdatedComponent->GetComponentToWorld();
 }
 
 
-void FChaosClothPreviewScene::CreateSkeletalMeshActor()
+void FChaosClothPreviewScene::DeleteSkeletalMeshComponent()
 {
-	if (SkeletalMeshActor)
+	if (SkeletalMeshComponent)
 	{
-		if (SkeletalMeshActor->GetSkeletalMeshComponent())
+		if (SceneActor)
 		{
-			SkeletalMeshActor->GetSkeletalMeshComponent()->TransformUpdated.RemoveAll(this);
-			SkeletalMeshActor->GetSkeletalMeshComponent()->SelectionOverrideDelegate.Unbind();
+			SceneActor->RemoveOwnedComponent(SkeletalMeshComponent);
 		}
 
-		SkeletalMeshActor->UnregisterAllComponents();
+		SkeletalMeshComponent->TransformUpdated.RemoveAll(this);
+		SkeletalMeshComponent->SelectionOverrideDelegate.Unbind();
+		SkeletalMeshComponent->UnregisterComponent();
 	}
 
+	SkeletalMeshComponent = nullptr;
+
+	// Detach the ClothComponent and make it the RootComponent of the SceneActor
+	if (SceneActor && ClothComponent)
+	{
+		const bool bWasSimming = !ClothComponent->IsSimulationSuspended();
+		ClothComponent->SuspendSimulation();
+
+		ClothComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+		SceneActor->SetRootComponent(ClothComponent);
+		SceneActor->RegisterAllComponents();
+
+		// hard reset and resume simulation if it was running prior
+		{
+			const FComponentReregisterContext Context(ClothComponent);
+		}
+		if (bWasSimming)
+		{
+			ClothComponent->ResumeSimulation();
+		}
+	}
+}
+
+void FChaosClothPreviewScene::CreateSkeletalMeshComponent()
+{
 	ensure(PreviewSceneDescription->SkeletalMeshAsset);
 
-	SkeletalMeshActor = GetWorld()->SpawnActor<ASkeletalMeshActor>(ASkeletalMeshActor::StaticClass(), FTransform::Identity);
-	if (SkeletalMeshActor)
-	{
-		SkeletalMeshActor->GetSkeletalMeshComponent()->SetSkeletalMeshAsset(PreviewSceneDescription->SkeletalMeshAsset);
-	}
+	// Remove any existing skeletal mesh component
+	DeleteSkeletalMeshComponent();
 
-	SkeletalMeshActor->RegisterAllComponents();
+	SkeletalMeshComponent = NewObject<USkeletalMeshComponent>(SceneActor);
+	SkeletalMeshComponent->SetSkeletalMeshAsset(PreviewSceneDescription->SkeletalMeshAsset);
+	SkeletalMeshComponent->TransformUpdated.AddRaw(this, &FChaosClothPreviewScene::SkeletalMeshTransformChanged);
+	SkeletalMeshComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FChaosClothPreviewScene::IsComponentSelected);
 
-	SkeletalMeshActor->GetSkeletalMeshComponent()->TransformUpdated.AddRaw(this, &FChaosClothPreviewScene::SkeletalMeshTransformChanged);
-	SkeletalMeshActor->GetSkeletalMeshComponent()->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FChaosClothPreviewScene::IsComponentSelected);
+	SceneActor->SetRootComponent(SkeletalMeshComponent);
+	SceneActor->RegisterAllComponents();
 }
 
 bool FChaosClothPreviewScene::IsComponentSelected(const UPrimitiveComponent* InComponent)
@@ -143,31 +243,42 @@ bool FChaosClothPreviewScene::IsComponentSelected(const UPrimitiveComponent* InC
 	return false;
 }
 
-void FChaosClothPreviewScene::CreateClothActor(UChaosClothAsset* Asset)
+void FChaosClothPreviewScene::SetClothAsset(UChaosClothAsset* Asset)
 {
 	if (ClothComponent)
 	{
 		ClothComponent->SelectionOverrideDelegate.Unbind();
 	}
 
-	if (ClothActor)
+	if (SceneActor)
 	{
-		ClothActor->UnregisterAllComponents();
+		SceneActor->UnregisterAllComponents();
 	}
 
-	ClothActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass());
+	SceneActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass());
 
-	check(ClothActor);
+	check(SceneActor);
 
-	ClothComponent = NewObject<UChaosClothComponent>(ClothActor);
+	ClothComponent = NewObject<UChaosClothComponent>(SceneActor);
 	ClothComponent->SetClothAsset(Asset);
 
 	ClothComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FChaosClothPreviewScene::IsComponentSelected);
 
-	ClothActor->SetRootComponent(ClothComponent);
-	ClothActor->RegisterAllComponents();
+	SceneActor->SetRootComponent(ClothComponent);
+	SceneActor->RegisterAllComponents();
+
+	ReattachSkeletalMeshAndAnimation();
 }
 
+UAnimSingleNodeInstance* FChaosClothPreviewScene::GetPreviewAnimInstance()
+{
+	return PreviewAnimInstance;
+}
+
+const UAnimSingleNodeInstance* const FChaosClothPreviewScene::GetPreviewAnimInstance() const
+{
+	return PreviewAnimInstance;
+}
 
 #undef LOCTEXT_NAMESPACE
 

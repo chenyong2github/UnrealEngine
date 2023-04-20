@@ -67,6 +67,9 @@ public class ChaosClothAssetEditor : ModuleRules
 				"TypedElementFramework",
 				"TypedElementRuntime",
 				"AssetDefinition",
+				"EditorWidgets",
+				"KismetWidgets",      // SScrubControlPanel
+				"AnimGraph"           // UAnimSingleNodeInstance
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
