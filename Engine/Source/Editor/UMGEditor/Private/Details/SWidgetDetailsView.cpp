@@ -32,7 +32,7 @@
 #include "ScopedTransaction.h"
 #include "Styling/SlateIconFinder.h"
 #include "UMGEditorModule.h"
-#include "UMGEditorProjectSettings.h"
+#include "WidgetEditingProjectSettings.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -51,7 +51,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 	PropertyView = EditModule.CreateDetailView(DetailsViewArgs);
 
 	// Create a handler for keyframing via the details panel
-	if (GetDefault<UUMGEditorProjectSettings>()->bEnableWidgetAnimationEditor)
+	if (FWidgetBlueprintEditorUtils::GetRelevantSettings(BlueprintEditor)->bEnableWidgetAnimationEditor)
 	{
 		TSharedRef<IDetailKeyframeHandler> KeyframeHandler = MakeShareable(new FUMGDetailKeyframeHandler(InBlueprintEditor));
 		PropertyView->SetKeyframeHandler(KeyframeHandler);
@@ -162,7 +162,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					[
-						GetDefault<UUMGEditorProjectSettings>()->bEnableMakeVariable ? IsVariableCheckbox : SNullWidget::NullWidget
+						FWidgetBlueprintEditorUtils::GetRelevantSettings(BlueprintEditor)->bEnableMakeVariable ? IsVariableCheckbox : SNullWidget::NullWidget
 					]
 
 					+ SHorizontalBox::Slot()

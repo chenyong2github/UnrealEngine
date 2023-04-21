@@ -2,7 +2,6 @@
 
 #include "Animation/UMGDetailKeyframeHandler.h"
 #include "Animation/WidgetAnimation.h"
-#include "UMGEditorProjectSettings.h"
 
 #include "PropertyHandle.h"
 #include "MovieScene.h"

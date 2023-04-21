@@ -27,6 +27,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
+#include "EditorUtilityWidgetProjectSettings.h"
 
 class SWidget;
 class UClass;
@@ -160,6 +161,16 @@ FText UEditorUtilityWidgetBlueprint::GetTabDisplayName() const
 		return EditorUtilityWidget->GetTabDisplayName();
 	}
 	return FText::FromString(FName::NameToDisplayString(GetName(), false));
+}
+
+UWidgetEditingProjectSettings* UEditorUtilityWidgetBlueprint::GetRelevantSettings()
+{
+	return GetMutableDefault<UEditorUtilityWidgetProjectSettings>();
+}
+
+const UWidgetEditingProjectSettings* UEditorUtilityWidgetBlueprint::GetRelevantSettings() const
+{
+	return GetDefault<UEditorUtilityWidgetProjectSettings>();
 }
 
 void UEditorUtilityWidgetBlueprint::ChangeTabWorld(UWorld* World, EMapChangeType MapChangeType)

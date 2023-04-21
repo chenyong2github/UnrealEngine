@@ -24,7 +24,6 @@
 #include "IContentBrowserDataModule.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Settings/WidgetDesignerSettings.h"
-#include "UMGEditorProjectSettings.h"
 #include "WidgetPaletteFavorites.h"
 #include "Library/SLibraryViewModel.h"
 

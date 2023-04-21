@@ -71,13 +71,14 @@
 #include "Input/HittestGrid.h"
 
 #include "Fonts/FontMeasure.h"
-#include "UMGEditorProjectSettings.h"
+#include "WidgetEditingProjectSettings.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/DPICustomScalingRule.h"
 #include "UMGEditorModule.h"
 #include "ToolMenus.h"
 #include "Styling/ToolBarStyle.h"
+#include "UMGEditorProjectSettings.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -137,6 +138,11 @@ public:
 		if (bResizing)
 		{
 			TSharedPtr<SDesignerView> DesignerView = Designer.Pin();
+			if (!DesignerView)
+			{
+				return FReply::Unhandled();
+            }
+
 			DesignerView->BeginResizingArea();
 
 			const float ZoomAmount = DesignerView->GetZoomAmount();
@@ -145,7 +151,7 @@ public:
 			AreaSize /= ZoomAmount;
 			AreaSize /= MyGeometry.Scale;
 
-			if (const UUMGEditorProjectSettings* Settings = GetDefault<UUMGEditorProjectSettings>())
+			if (const UWidgetEditingProjectSettings* Settings = DesignerView->GetRelevantSettings())
 			{
 				for (const FDebugResolution& Resolution : Settings->DebugResolutions)
 				{
@@ -1020,6 +1026,16 @@ void SDesignerView::EndResizingArea()
 {
 	bDrawGridLines = true;
 	bShowResolutionOutlines = false;
+}
+
+const UWidgetEditingProjectSettings* SDesignerView::GetRelevantSettings() const
+{
+	if (UWidgetBlueprint* WidgetBlueprint = GetBlueprint())
+	{
+		return WidgetBlueprint->GetRelevantSettings();
+	}
+	// Default to the UMG Editor project settings
+	return GetDefault<UUMGEditorProjectSettings>();
 }
 
 void SDesignerView::SetPreviewAreaSize(int32 Width, int32 Height)
@@ -2396,7 +2412,7 @@ void SDesignerView::OnPaintBackground(const FGeometry& AllottedGeometry, const F
 
 	if (bShowResolutionOutlines)
 	{
-		if (const UUMGEditorProjectSettings* Settings = GetDefault<UUMGEditorProjectSettings>())
+		if (const UWidgetEditingProjectSettings* Settings = FWidgetBlueprintEditorUtils::GetRelevantSettings(BlueprintEditor))
 		{
 			for (const FDebugResolution& Resolution : Settings->DebugResolutions)
 			{

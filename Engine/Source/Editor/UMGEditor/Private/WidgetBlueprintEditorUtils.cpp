@@ -63,6 +63,7 @@
 #include "Slate/WidgetRenderer.h"
 #include "Widgets/SVirtualWindow.h"
 #include "GraphEditorActions.h"
+#include "WidgetEditingProjectSettings.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -818,7 +819,7 @@ void FWidgetBlueprintEditorUtils::BuildWrapWithMenu(FMenuBuilder& Menu, TSharedR
 	for ( TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt )
 	{
 		UClass* WidgetClass = *ClassIt;
-		if ( FWidgetBlueprintEditorUtils::IsUsableWidgetClass(WidgetClass) )
+		if ( FWidgetBlueprintEditorUtils::IsUsableWidgetClass(WidgetClass, BlueprintEditor) )
 		{
 			if ( WidgetClass->IsChildOf(UPanelWidget::StaticClass()) && !WidgetClass->HasAnyClassFlags(CLASS_HideDropDown) )
 			{
@@ -1007,7 +1008,7 @@ void FWidgetBlueprintEditorUtils::BuildReplaceWithMenu(FMenuBuilder& Menu, TShar
 		for ( TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt )
 		{
 			UClass* WidgetClass = *ClassIt;
-			if ( FWidgetBlueprintEditorUtils::IsUsableWidgetClass(WidgetClass) )
+			if ( FWidgetBlueprintEditorUtils::IsUsableWidgetClass(WidgetClass, BlueprintEditor) )
 			{
 				if ( WidgetClass->IsChildOf(UPanelWidget::StaticClass()) && !WidgetClass->HasAnyClassFlags(CLASS_HideDropDown) )
 				{
@@ -2171,13 +2172,12 @@ private:
 	bool bIsNormalBlueprintType;
 };
 
-bool IsUsableWidgetClass(const FString& WidgetPathName, const FAssetData& WidgetAssetData, FName Category, const UClass* WidgetClass)
+bool IsUsableWidgetClass(const FString& WidgetPathName, const FAssetData& WidgetAssetData, FName Category, const UClass* WidgetClass, TSharedRef<FWidgetBlueprintEditor> InCurrentActiveBlueprintEditor)
 {
-	const UUMGEditorProjectSettings* UMGEditorProjectSettings = GetDefault<UUMGEditorProjectSettings>();
-	const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
+	const UWidgetEditingProjectSettings* UMGEditorProjectSettings = FWidgetBlueprintEditorUtils::GetRelevantSettings(InCurrentActiveBlueprintEditor);
 
 	// Excludes engine content if user sets it to false
-	if (!ContentBrowserSettings->GetDisplayEngineFolder() || !UMGEditorProjectSettings->bShowWidgetsFromEngineContent)
+	if (!UMGEditorProjectSettings->bShowWidgetsFromEngineContent)
 	{
 		if (WidgetPathName.StartsWith(TEXT("/Engine")))
 		{
@@ -2186,11 +2186,31 @@ bool IsUsableWidgetClass(const FString& WidgetPathName, const FAssetData& Widget
 	}
 
 	// Excludes developer content if user sets it to false
-	if (!ContentBrowserSettings->GetDisplayDevelopersFolder() || !UMGEditorProjectSettings->bShowWidgetsFromDeveloperContent)
+	if (!UMGEditorProjectSettings->bShowWidgetsFromDeveloperContent)
 	{
 		if (WidgetPathName.StartsWith(TEXT("/Game/Developers")))
 		{
 			return false;
+		}
+	}
+
+	UWidgetBlueprint* WidgetBP = InCurrentActiveBlueprintEditor->GetWidgetBlueprintObj();
+	const bool bAllowEditorWidget = WidgetBP ? WidgetBP->AllowEditorWidget() : false;
+	if (!bAllowEditorWidget)
+	{
+		if (WidgetClass && IsEditorOnlyObject(WidgetClass))
+		{
+			return false;
+		}
+		else if (WidgetAssetData.IsValid())
+		{
+			// should not load since the default for GetClass is EResolveClass::No
+			const UClass* AssetClass = WidgetAssetData.GetClass();
+			if (AssetClass && IsEditorOnlyObject(AssetClass))
+			{
+				return false;
+			}
+			
 		}
 	}
 
@@ -2234,6 +2254,16 @@ bool IsUsableWidgetClass(const FString& WidgetPathName, const FAssetData& Widget
 
 bool FWidgetBlueprintEditorUtils::IsUsableWidgetClass(const UClass* WidgetClass)
 {
+	return false;
+}
+
+TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> FWidgetBlueprintEditorUtils::IsUsableWidgetClass(const FAssetData& WidgetAsset)
+{
+	return MakeError();
+}
+
+bool FWidgetBlueprintEditorUtils::IsUsableWidgetClass(const UClass* WidgetClass, TSharedRef<FWidgetBlueprintEditor> BlueprintEditor)
+{
 	if (WidgetClass->IsChildOf(UWidget::StaticClass()))
 	{
 		// We aren't interested in classes that are experimental or cannot be instantiated
@@ -2255,17 +2285,17 @@ bool FWidgetBlueprintEditorUtils::IsUsableWidgetClass(const UClass* WidgetClass)
 			return false;
 		}
 
-		return UE::UMG::Private::IsUsableWidgetClass(WidgetClass->GetPathName(), FAssetData(), *WidgetClass->GetDefaultObject<UWidget>()->GetPaletteCategory().ToString(), WidgetClass);
+		return UE::UMG::Private::IsUsableWidgetClass(WidgetClass->GetPathName(), FAssetData(), *WidgetClass->GetDefaultObject<UWidget>()->GetPaletteCategory().ToString(), WidgetClass, BlueprintEditor);
 	}
 
 	return false;
 }
 
-TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> FWidgetBlueprintEditorUtils::IsUsableWidgetClass(const FAssetData& WidgetAsset)
+TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> FWidgetBlueprintEditorUtils::IsUsableWidgetClass(const FAssetData& WidgetAsset, TSharedRef<FWidgetBlueprintEditor> InCurrentActiveBlueprintEditor)
 {
 	if (const UClass* WidgetAssetClass = WidgetAsset.GetClass(EResolveClass::No))
 	{
-		if (IsUsableWidgetClass(WidgetAssetClass))
+		if (IsUsableWidgetClass(WidgetAssetClass, InCurrentActiveBlueprintEditor))
 		{
 			FWidgetBlueprintEditorUtils::FUsableWidgetClassResult Result;
 			Result.NativeParentClass = WidgetAssetClass;
@@ -2309,7 +2339,7 @@ TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> FWidg
 	}
 
 	const FName CategoryName = *GetPaletteCategory(WidgetAsset, TSubclassOf<UWidget>(NativeParentClass)).ToString();
-	if (UE::UMG::Private::IsUsableWidgetClass(WidgetAsset.GetObjectPathString(), WidgetAsset, CategoryName, nullptr))
+	if (UE::UMG::Private::IsUsableWidgetClass(WidgetAsset.GetObjectPathString(), WidgetAsset, CategoryName, nullptr, InCurrentActiveBlueprintEditor))
 	{
 		FWidgetBlueprintEditorUtils::FUsableWidgetClassResult Result;
 		Result.NativeParentClass = NativeParentClass;
@@ -2538,6 +2568,32 @@ EDesignPreviewSizeMode FWidgetBlueprintEditorUtils::ConvertThumbnailSizeModeToDe
 TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTarget(UUserWidget* WidgetInstance, UTextureRenderTarget2D* RenderTarget2D)
 {
 	return DrawSWidgetInRenderTargetInternal(WidgetInstance, nullptr, RenderTarget2D, FVector2D(256.f,256.f), false, TOptional<FVector2D>(), EThumbnailPreviewSizeMode::MatchDesignerMode);
+}
+
+UWidgetEditingProjectSettings* FWidgetBlueprintEditorUtils::GetRelevantMutableSettings(TWeakPtr<FWidgetBlueprintEditor> CurrentEditor)
+{
+	if (TSharedPtr<FWidgetBlueprintEditor> PinnedEditor = CurrentEditor.Pin())
+	{
+		if (UWidgetBlueprint* WidgetBP = PinnedEditor->GetWidgetBlueprintObj())
+		{
+			return WidgetBP->GetRelevantSettings();
+		}
+	}
+	// Fall back to the UMG Editor settings as default
+	return GetMutableDefault<UUMGEditorProjectSettings>();
+}
+
+const UWidgetEditingProjectSettings* FWidgetBlueprintEditorUtils::GetRelevantSettings(TWeakPtr<FWidgetBlueprintEditor> CurrentEditor)
+{
+	if (TSharedPtr<FWidgetBlueprintEditor> PinnedEditor = CurrentEditor.Pin())
+	{
+		if (UWidgetBlueprint* WidgetBP = PinnedEditor->GetWidgetBlueprintObj())
+		{
+			return WidgetBP->GetRelevantSettings();
+		}
+	}
+	// Fall back to the UMG Editor settings as default
+	return GetDefault<UUMGEditorProjectSettings>();
 }
 
 TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(UUserWidget* WidgetInstance, FRenderTarget* RenderTarget2D, FVector2D ThumbnailSize, TOptional<FVector2D> ThumbnailCustomSize, EThumbnailPreviewSizeMode ThumbnailSizeMode)

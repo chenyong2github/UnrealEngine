@@ -74,6 +74,9 @@ public:
 	/** Returns the default desired tab display name that was specified for this widget */
 	FText GetTabDisplayName() const;
 
+	virtual UWidgetEditingProjectSettings* GetRelevantSettings() override;
+	virtual const UWidgetEditingProjectSettings* GetRelevantSettings() const override;
+
 private:
 	bool IsWidgetEnabled() const;
 

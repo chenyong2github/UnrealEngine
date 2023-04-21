@@ -5,7 +5,6 @@
 #include "Customizations/UMGDetailCustomizations.h"
 #include "Engine/Blueprint.h"
 #include "UMGEditorModule.h"
-#include "UMGEditorProjectSettings.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintEditor.h"
 

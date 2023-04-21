@@ -30,7 +30,6 @@
 
 
 
-#include "UMGEditorProjectSettings.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

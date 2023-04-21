@@ -43,7 +43,8 @@ public class Blutility : ModuleRules
 				"RHI",
 				"RenderCore",
 				"ImageWrapper",
-				"ImageWriteQueue"
+				"ImageWriteQueue",
+				"DeveloperSettings",
 			}
 			);
 	}

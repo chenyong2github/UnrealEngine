@@ -32,7 +32,6 @@
 
 #include "ClassIconFinder.h"
 
-#include "UMGEditorProjectSettings.h"
 #include "ISettingsModule.h"
 #include "SequencerSettings.h"
 

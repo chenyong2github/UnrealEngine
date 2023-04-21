@@ -38,6 +38,7 @@ class UWidgetBlueprint;
 class FHittestGrid;
 struct FOnPaintHandlerParams;
 struct FWidgetHitResult;
+class UWidgetEditingProjectSettings;
 
 /**
  * The designer for widgets.  Allows for laying out widgets in a drag and drop environment.
@@ -124,6 +125,8 @@ public:
 
 	void BeginResizingArea();
 	void EndResizingArea();
+	
+	const UWidgetEditingProjectSettings* GetRelevantSettings() const;
 
 protected:
 	virtual void OnPaintBackground(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const override;

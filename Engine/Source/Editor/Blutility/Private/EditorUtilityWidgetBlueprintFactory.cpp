@@ -30,11 +30,11 @@
 #include "Templates/Casts.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/SharedPointer.h"
-#include "UMGEditorProjectSettings.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/UnrealNames.h"
+#include "EditorUtilityWidgetProjectSettings.h"
 
 class FFeedbackContext;
 
@@ -76,7 +76,7 @@ UEditorUtilityWidgetBlueprintFactory::UEditorUtilityWidgetBlueprintFactory(const
 
 bool UEditorUtilityWidgetBlueprintFactory::ConfigureProperties()
 {
-	if (GetDefault<UUMGEditorProjectSettings>()->bUseWidgetTemplateSelector)
+	if (GetDefault<UEditorUtilityWidgetProjectSettings>()->bUseWidgetTemplateSelector)
 	{
 		// Load the classviewer module to display a class picker
 		FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
@@ -86,10 +86,23 @@ bool UEditorUtilityWidgetBlueprintFactory::ConfigureProperties()
 		Options.Mode = EClassViewerMode::ClassPicker;
 		Options.bShowNoneOption = true;
 
-		Options.ExtraPickerCommonClasses.Add(UHorizontalBox::StaticClass());
-		Options.ExtraPickerCommonClasses.Add(UVerticalBox::StaticClass());
-		Options.ExtraPickerCommonClasses.Add(UGridPanel::StaticClass());
-		Options.ExtraPickerCommonClasses.Add(UCanvasPanel::StaticClass());
+		TArray<TSoftClassPtr<UPanelWidget>> CommonRootWidgetClasses = GetDefault<UEditorUtilityWidgetProjectSettings>()->CommonRootWidgetClasses;
+		for (int32 Index = 0; Index < CommonRootWidgetClasses.Num(); ++Index)
+		{
+			UClass* PanelWidgetClass = CommonRootWidgetClasses[Index].LoadSynchronous();
+			if (PanelWidgetClass && PanelWidgetClass->IsChildOf(UPanelWidget::StaticClass()))
+			{
+				if (!Options.ExtraPickerCommonClasses.Contains(PanelWidgetClass))
+				{
+					Options.ExtraPickerCommonClasses.Add(PanelWidgetClass);
+				}
+			}
+		}
+
+		if (Options.ExtraPickerCommonClasses.Num() == 0)
+		{
+			Options.ExtraPickerCommonClasses.Add(UCanvasPanel::StaticClass());
+		}
 
 		TSharedPtr<FEditorUtilityWidgetBlueprintFactoryFilter> Filter = MakeShareable(new FEditorUtilityWidgetBlueprintFactoryFilter);
 		Options.ClassFilters.Add(Filter.ToSharedRef());
@@ -97,8 +110,8 @@ bool UEditorUtilityWidgetBlueprintFactory::ConfigureProperties()
 		Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists;
 		Filter->AllowedChildrenOfClasses.Add(UPanelWidget::StaticClass());
 
-		const FText TitleText = LOCTEXT("CreateWidgetBlueprint", "Pick Root Widget for New Editor Utility Widget");
-		return SClassPickerDialog::PickClass(TitleText, Options, RootWidgetClass, UPanelWidget::StaticClass());
+		const FText TitleText = LOCTEXT("CreateRootWidgetBlueprint", "Pick Root Widget for New Editor Utility Widget");
+		return SClassPickerDialog::PickClass(TitleText, Options, static_cast<UClass*&>(RootWidgetClass), UPanelWidget::StaticClass());
 
 	}
 	return true;
@@ -121,7 +134,7 @@ UObject* UEditorUtilityWidgetBlueprintFactory::FactoryCreateNew(UClass* Class, U
 	else
 	{
 		// If the root widget selection dialog is not enabled, use a canvas panel as the root by default
-		if (!GetDefault<UUMGEditorProjectSettings>()->bUseWidgetTemplateSelector)
+		if (!GetDefault<UEditorUtilityWidgetProjectSettings>()->bUseWidgetTemplateSelector)
 		{
 			RootWidgetClass = UCanvasPanel::StaticClass();
 		}

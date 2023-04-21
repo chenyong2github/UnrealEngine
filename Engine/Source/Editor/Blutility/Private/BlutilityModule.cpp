@@ -62,6 +62,9 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "EditorUtilityWidgetSettingsCustomization.h"
+#include "EditorUtilityWidgetProjectSettings.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -106,6 +109,9 @@ public:
 
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 		AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FBlutilityModule::HandleAssetRemoved);
+
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomClassLayout(UEditorUtilityWidgetProjectSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FEditorUtilityWidgetSettingsCustomization::MakeInstance));
 	}
 
 	void ReinitializeUIs()
@@ -226,7 +232,7 @@ public:
 	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override
 	{
 		static const TArray<FAssetCategoryPath, TFixedAllocator<1>> Categories = {
-			FAssetCategoryPath(LOCTEXT("EditorUtilities", "EditorUtilities"))
+			FAssetCategoryPath(LOCTEXT("EditorUtilities", "Editor Utilities"))
 		};
 		return Categories;
 	}

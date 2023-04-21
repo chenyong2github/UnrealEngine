@@ -25,6 +25,7 @@ class FKismetCompilerContext;
 class UWidgetBlueprint;
 enum class EWidgetTickFrequency : uint8;
 enum class EWidgetCompileTimeTickPrediction : uint8;
+class UWidgetEditingProjectSettings;
 
 
 /** Widget Delegates */
@@ -328,6 +329,9 @@ public:
 
 	/** Gets any named slots exposed by the parent generated class that can be slotted into by the subclass. */
 	TArray<FName> GetInheritedAvailableNamedSlots() const;
+
+	virtual UWidgetEditingProjectSettings* GetRelevantSettings();
+	virtual const UWidgetEditingProjectSettings* GetRelevantSettings() const;
 
 protected:
 	virtual void LoadModulesRequiredForCompilation() override;

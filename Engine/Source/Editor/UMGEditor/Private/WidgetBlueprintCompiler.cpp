@@ -20,7 +20,7 @@
 #include "WidgetBlueprintEditorUtils.h"
 #include "WidgetGraphSchema.h"
 #include "IUMGModule.h"
-#include "UMGEditorProjectSettings.h"
+#include "WidgetEditingProjectSettings.h"
 #include "WidgetCompilerRule.h"
 #include "WidgetBlueprintExtension.h"
 #include "Editor/WidgetCompilerLog.h"
@@ -856,7 +856,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 				}
 			}
 
-			const EPropertyBindingPermissionLevel PropertyBindingRule = GetDefault<UUMGEditorProjectSettings>()->CompilerOption_PropertyBindingRule(WidgetBP);
+			const EPropertyBindingPermissionLevel PropertyBindingRule = WidgetBP->GetRelevantSettings()->CompilerOption_PropertyBindingRule(WidgetBP);
 			if (PropertyBindingRule != EPropertyBindingPermissionLevel::Allow)
 			{
 				if (WidgetBP->Bindings.Num() > 0)
@@ -884,7 +884,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 				}
 			}
 
-			if (!GetDefault<UUMGEditorProjectSettings>()->CompilerOption_AllowBlueprintTick(WidgetBP))
+			if (!WidgetBP->GetRelevantSettings()->CompilerOption_AllowBlueprintTick(WidgetBP))
 			{
 				const UFunction* ReceiveTickEvent = FKismetCompilerUtilities::FindOverriddenImplementableEvent(GET_FUNCTION_NAME_CHECKED(UUserWidget, Tick), NewWidgetBlueprintClass);
 				if (ReceiveTickEvent)
@@ -893,7 +893,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 				}
 			}
 
-			if (!GetDefault<UUMGEditorProjectSettings>()->CompilerOption_AllowBlueprintPaint(WidgetBP))
+			if (!WidgetBP->GetRelevantSettings()->CompilerOption_AllowBlueprintPaint(WidgetBP))
 			{
 				if (const UFunction* ReceivePaintEvent = FKismetCompilerUtilities::FindOverriddenImplementableEvent(GET_FUNCTION_NAME_CHECKED(UUserWidget, OnPaint), NewWidgetBlueprintClass))
 				{
@@ -903,7 +903,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 
 			// It's possible we may encounter some rules that haven't had a chance to load yet during early loading phases
 			// They're automatically removed from the returned set.
-			TArray<UWidgetCompilerRule*> CustomRules = GetDefault<UUMGEditorProjectSettings>()->CompilerOption_Rules(WidgetBP);
+			TArray<UWidgetCompilerRule*> CustomRules = WidgetBP->GetRelevantSettings()->CompilerOption_Rules(WidgetBP);
 			for (UWidgetCompilerRule* CustomRule : CustomRules)
 			{
 				CustomRule->ExecuteRule(WidgetBP, MessageLog);

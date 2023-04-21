@@ -36,6 +36,7 @@
 #include "K2Node_Composite.h"
 #include "K2Node_FunctionResult.h"
 #include "Blueprint/WidgetNavigation.h"
+#include "WidgetEditingProjectSettings.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -1401,7 +1402,7 @@ void UWidgetBlueprint::UpdateTickabilityStats(bool& OutHasLatentActions, bool& O
 
 bool UWidgetBlueprint::ArePropertyBindingsAllowed() const
 {
-	return GetDefault<UUMGEditorProjectSettings>()->CompilerOption_PropertyBindingRule(this) == EPropertyBindingPermissionLevel::Allow;
+	return GetRelevantSettings()->CompilerOption_PropertyBindingRule(this) == EPropertyBindingPermissionLevel::Allow;
 }
 
 TArray<FName> UWidgetBlueprint::GetInheritedAvailableNamedSlots() const
@@ -1412,6 +1413,16 @@ TArray<FName> UWidgetBlueprint::GetInheritedAvailableNamedSlots() const
 	}
 	
 	return TArray<FName>();
+}
+
+UWidgetEditingProjectSettings* UWidgetBlueprint::GetRelevantSettings()
+{
+	return GetMutableDefault<UUMGEditorProjectSettings>();
+}
+
+const UWidgetEditingProjectSettings* UWidgetBlueprint::GetRelevantSettings() const
+{
+	return GetDefault<UUMGEditorProjectSettings>();
 }
 
 #if WITH_EDITOR

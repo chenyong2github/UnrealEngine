@@ -27,7 +27,7 @@
 
 #include "Settings/ContentBrowserSettings.h"
 #include "Settings/WidgetDesignerSettings.h"
-#include "UMGEditorProjectSettings.h"
+#include "WidgetEditingProjectSettings.h"
 #include "WidgetPaletteFavorites.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -215,6 +215,12 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 {
 	const UClass* ActiveWidgetBlueprintClass = GetBlueprint()->GeneratedClass;
 	FName ActiveWidgetBlueprintClassName = ActiveWidgetBlueprintClass->GetFName();
+	TSharedPtr<FWidgetBlueprintEditor> PinnedBPEditor = BlueprintEditor.Pin();
+
+	if (!PinnedBPEditor)
+	{
+		return;
+	}
 
 	// Locate all UWidget classes from code and loaded widget BPs
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
@@ -226,7 +232,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 			continue;
 		}
 
-		if (!FWidgetBlueprintEditorUtils::IsUsableWidgetClass(WidgetClass))
+		if (!FWidgetBlueprintEditorUtils::IsUsableWidgetClass(WidgetClass, PinnedBPEditor.ToSharedRef()))
 		{
 			continue;
 		}
@@ -269,7 +275,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 			continue;
 		}
 
-		TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> Usable = FWidgetBlueprintEditorUtils::IsUsableWidgetClass(BPAssetData);
+		TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> Usable = FWidgetBlueprintEditorUtils::IsUsableWidgetClass(BPAssetData, PinnedBPEditor.ToSharedRef());
 		if (Usable.HasError())
 		{
 			continue;
@@ -293,7 +299,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 
 	TArray<FAssetData> AllGeneratedBPsAssetData; // if it's a widget already compiled
 
-	if (AssetRegistryModule && GetDefault<UUMGEditorProjectSettings>()->bUseEditorConfigPaletteFiltering)
+	if (AssetRegistryModule && FWidgetBlueprintEditorUtils::GetRelevantSettings(BlueprintEditor)->bUseEditorConfigPaletteFiltering)
 	{
 		AssetRegistryModule->Get().GetAssetsByClass(UBlueprintGeneratedClass::StaticClass()->GetClassPathName(), AllGeneratedBPsAssetData, true);
 	}
@@ -312,7 +318,7 @@ void FWidgetCatalogViewModel::BuildClassWidgetList()
 			continue;
 		}
 
-		TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> Usable = FWidgetBlueprintEditorUtils::IsUsableWidgetClass(BPAssetData);
+		TValueOrError<FWidgetBlueprintEditorUtils::FUsableWidgetClassResult, void> Usable = FWidgetBlueprintEditorUtils::IsUsableWidgetClass(BPAssetData, PinnedBPEditor.ToSharedRef());
 		if (Usable.HasError())
 		{
 			continue;
@@ -332,7 +338,8 @@ void FWidgetCatalogViewModel::AddWidgetTemplate(TSharedPtr<FWidgetTemplate> Temp
 	FString Category = *Template->GetCategory().ToString();
 
 	// Hide user specific categories
-	const TArray<FString>& CategoriesToHide = GetDefault<UUMGEditorProjectSettings>()->CategoriesToHide;
+	const TArray<FString>& CategoriesToHide = FWidgetBlueprintEditorUtils::GetRelevantSettings(BlueprintEditor)->CategoriesToHide;
+	
 	for (const FString& CategoryName : CategoriesToHide)
 	{
 		if (Category == CategoryName)
