@@ -58,7 +58,7 @@ public:
 	ESkinWeightsBindType BindingType = ESkinWeightsBindType::DirectDistance;
 
 	/** Stiffness of binding. Lower values allow more distant bones to contribute more */
-	UPROPERTY(EditAnywhere, Category = Binding)
+	UPROPERTY(EditAnywhere, Category = Binding, meta=(ClampMin="0.0", ClampMax="1.0", UIMin="0.0", UIMax="1.0"))
 	float Stiffness = 0.2f;
 
 	/** Maximum bones that will influence each vertex */
@@ -101,8 +101,6 @@ public:
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
-
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;

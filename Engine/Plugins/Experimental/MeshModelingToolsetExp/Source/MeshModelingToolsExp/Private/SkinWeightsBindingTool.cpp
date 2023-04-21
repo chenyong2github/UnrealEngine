@@ -118,8 +118,31 @@ void USkinWeightsBindingTool::Setup()
 								 ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
 
+	// setup watchers
+	auto HandlePropertyChange = [this](const bool bUpdateOperator)
+	{
+		if (bUpdateOperator)
+		{
+			Preview->InvalidateResult();
+		}
+		UpdateVisualization();
+	};
+
 	Properties->WatchProperty(Properties->CurrentBone.BoneName,
-							  [this](FName) { UpdateVisualization();});
+							  [HandlePropertyChange](FName) { HandlePropertyChange(false); });
+	Properties->WatchProperty(Properties->BindingType,
+							  [HandlePropertyChange](ESkinWeightsBindType) { HandlePropertyChange(true); });
+	Properties->WatchProperty(Properties->Stiffness,
+							  [HandlePropertyChange](float) { HandlePropertyChange(true); });
+	Properties->WatchProperty(Properties->MaxInfluences,
+							  [HandlePropertyChange](int32) { HandlePropertyChange(true); });
+	Properties->WatchProperty(Properties->VoxelResolution,
+							  [this](int32)
+							  {
+							  	Occupancy = MakeShared<UE::Geometry::FOccupancyGrid3>(*OriginalMesh, Properties->VoxelResolution);
+								Preview->InvalidateResult();
+								UpdateVisualization();
+							  });
 
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
@@ -249,26 +272,6 @@ bool USkinWeightsBindingTool::CanAccept() const
 {
 	return Super::CanAccept() && Preview->HaveValidResult();
 }
-
-
-void USkinWeightsBindingTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
-{
-	if ( Property )
-	{
-		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(FBoneReference, BoneName) /* ||
-			Property->GetFName() == GET_MEMBER_NAME_CHECKED(USkinWeightsBindingToolProperties, bDebugDraw) */ )
-		{
-			// Handled by the property watcher.
-		}
-		else if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USkinWeightsBindingToolProperties, VoxelResolution))
-		{
-			Occupancy = MakeShared<UE::Geometry::FOccupancyGrid3>(*OriginalMesh, Properties->VoxelResolution);
-			
-			Preview->InvalidateResult();
-		}
-	}
-}
-
 
 TUniquePtr<UE::Geometry::FDynamicMeshOperator> USkinWeightsBindingTool::MakeNewOperator()
 {
