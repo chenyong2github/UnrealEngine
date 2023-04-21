@@ -354,6 +354,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 ,	bUsesSpeedTree(false)
 ,	bNeedsWorldPositionExcludingShaderOffsets(false)
 ,	bNeedsParticleSize(false)
+,	bNeedsParticleSpriteRotation(false)
 ,	bNeedsSceneTexturePostProcessInputs(false)
 ,	bUsesSkyAtmosphere(false)
 ,	bUsesVertexColor(false)
@@ -1994,6 +1995,11 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	if (bNeedsParticleSize)
 	{
 		OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_SIZE"), TEXT("1"));
+	}
+
+	if (bNeedsParticleSpriteRotation)
+	{
+		OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_SPRITE_ROTATION"), TEXT("1"));
 	}
 
 	if (MaterialCompilationOutput.bNeedsSceneTextures)
@@ -5704,6 +5710,16 @@ int32 FHLSLMaterialTranslator::ParticleSize()
 	}
 	bNeedsParticleSize = true;
 	return AddInlinedCodeChunkZeroDeriv(MCT_Float2,TEXT("Parameters.Particle.Size"));
+}
+
+int32 FHLSLMaterialTranslator::ParticleSpriteRotation()
+{
+	if (ShaderFrequency != SF_Vertex && ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
+	{
+		return NonVertexOrPixelShaderExpressionError();
+	}
+	bNeedsParticleSpriteRotation = true;
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float2, TEXT("float2(Parameters.Particle.SpriteRotation, Parameters.Particle.SpriteRotation * 57.2957795131f)"));
 }
 
 int32 FHLSLMaterialTranslator::WorldPosition(EWorldPositionIncludedOffsets WorldPositionIncludedOffsets)

@@ -310,6 +310,11 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant2(0.0f,0.0f);
 	}
 
+	virtual int32 ParticleSpriteRotation() override
+	{
+		return Compiler->Constant2(0.0f, 0.0f);
+	}
+
 	virtual int32 ObjectRadius() override
 	{
 		return Compiler->Constant(500);

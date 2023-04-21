@@ -166,6 +166,7 @@
 #include "Materials/MaterialExpressionParticleRadius.h"
 #include "Materials/MaterialExpressionParticleRelativeTime.h"
 #include "Materials/MaterialExpressionParticleSize.h"
+#include "Materials/MaterialExpressionParticleSpriteRotation.h"
 #include "Materials/MaterialExpressionParticleSpeed.h"
 #include "Materials/MaterialExpressionPerInstanceFadeAmount.h"
 #include "Materials/MaterialExpressionPerInstanceRandom.h"
@@ -20668,6 +20669,50 @@ int32 UMaterialExpressionParticleSize::Compile(class FMaterialCompiler* Compiler
 void UMaterialExpressionParticleSize::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("Particle Size"));
+}
+#endif // WITH_EDITOR
+
+/*------------------------------------------------------------------------------
+	Particle sprite rotation material expression.
+------------------------------------------------------------------------------*/
+UMaterialExpressionParticleSpriteRotation::UMaterialExpressionParticleSpriteRotation(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Particles;
+		FText NAME_Constants;
+		FConstructorStatics()
+			: NAME_Particles(LOCTEXT("Particles", "Particles"))
+			, NAME_Constants(LOCTEXT("Constants", "Constants"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Particles);
+	MenuCategories.Add(ConstructorStatics.NAME_Constants);
+
+	Outputs.Reset();
+	Outputs.Emplace(TEXT("Rad"), 1, 1, 0, 0, 0);
+	Outputs.Emplace(TEXT("Deg"), 1, 0, 1, 0, 0);
+
+	bShaderInputData = true;
+	bShowOutputNameOnPin = true;
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionParticleSpriteRotation::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	return Compiler->ParticleSpriteRotation();
+}
+
+void UMaterialExpressionParticleSpriteRotation::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Particle Sprite Rotation"));
 }
 #endif // WITH_EDITOR
 

@@ -109,6 +109,11 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant2(0.0f,0.0f);
 	}
 
+	virtual int32 ParticleSpriteRotation() override
+	{
+		return Compiler->Constant2(0.0f, 0.0f);
+	}
+
 	virtual int32 WorldPosition(EWorldPositionIncludedOffsets WorldPositionIncludedOffsets) override
 	{
 		//UE_LOG(LogLightmassRender, Log, TEXT("Lightmass material compiler has encountered WorldPosition... Forcing constant (0.0f,0.0f,0.0f)."));

@@ -15,6 +15,7 @@
 #define USE_PARTICLE_TIME (NEEDS_PARTICLE_TIME)
 #define USE_PARTICLE_SIZE (NEEDS_PARTICLE_SIZE)
 #define USE_PARTICLE_RANDOM (NEEDS_PARTICLE_RANDOM)
+#define USE_PARTICLE_SPRITE_ROTATION (NEEDS_PARTICLE_SPRITE_ROTATION)
 
 // Must keep these in sync with ENiagaraSpriteAlignment in NiagaraSpriteRendererProperties.h
 /** Only Particles.SpriteRotation and FacingMode impact the alignment of the particle.*/
@@ -146,6 +147,10 @@ struct FVertexFactoryInterpolantsVSToPS
 	nointerpolation float2 ParticleSize : PARTICLE_SIZE;
 #endif
 
+#if USE_PARTICLE_SPRITE_ROTATION
+	nointerpolation float ParticleSpriteRotation : PARTICLE_SPRITE_ROTATION;
+#endif
+
 #if USE_PARTICLE_RANDOM
 	nointerpolation float ParticleRandom : PARTICLE_RANDOM;
 #endif
@@ -187,7 +192,7 @@ struct FVertexFactoryIntermediates
 	/** The particle worldspace position */
 	FLWCVector3 Position;
 	
-	float4 SizeRotSubImage;
+	float2 Size;
 	
 	float3 CustomFacingVector;
 	float3 CustomAlignmentVector;
@@ -218,10 +223,16 @@ struct FVertexFactoryIntermediates
 	/** Size of the particle */
 	float2 ParticleSize;
 
+
+#if USE_PARTICLE_SPRITE_ROTATION
+	float ParticleSpriteRotation;
+#endif
+
 #if USE_PARTICLE_RANDOM
 	/** Particle Random value */
 	float ParticleRandom;
 #endif
+
 	/** Cached primitive and instance data */
 	FSceneDataIntermediates SceneData;
 };
@@ -344,6 +355,12 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.Particle.Size = Interpolants.ParticleSize;
 #endif
 
+#if USE_PARTICLE_SPRITE_ROTATION
+	Result.Particle.SpriteRotation = Interpolants.ParticleSpriteRotation;
+#else
+	Result.Particle.SpriteRotation = 0.0f;
+#endif
+
 #if USE_PARTICLE_RANDOM
 	Result.Particle.Random = Interpolants.ParticleRandom;
 #else
@@ -398,6 +415,12 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 #if USE_PARTICLE_TIME
 	Result.Particle.RelativeTime = Intermediates.RelativeTime;
+#endif
+
+#if USE_PARTICLE_SPRITE_ROTATION
+	Result.Particle.SpriteRotation = Intermediates.ParticleSpriteRotation;
+#else
+	Result.Particle.SpriteRotation = 0.0f;
 #endif
 
 #if USE_PARTICLE_RANDOM
@@ -531,8 +554,7 @@ void GetTangents(FVertexFactoryInput Input, FLWCVector3 ParticlePosition, float 
 	// Determine the angle of rotation.
 	float SinRotation;
 	float CosRotation;
-	const float SpriteRotation = Rotation * NiagaraSpriteVF.RotationScale + NiagaraSpriteVF.RotationBias;
-	sincos(SpriteRotation, SinRotation, CosRotation);
+	sincos(Rotation, SinRotation, CosRotation);
 
 	float3 SR = Right * SinRotation;
 	float3 SU = Up * SinRotation;
@@ -691,13 +713,15 @@ float2 GetNiagaraPreviousParticleSize(uint InstanceID)
 float GetNiagaraParticleRotation(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	return (SafeGetFloat(NiagaraSpriteVF.RotationDataOffset, InstanceID, NiagaraSpriteVF.DefaultRotation) / 180.0f) * PI;
+	const float Rotation = (SafeGetFloat(NiagaraSpriteVF.RotationDataOffset, InstanceID, NiagaraSpriteVF.DefaultRotation) / 180.0f) * PI;
+	return Rotation * NiagaraSpriteVF.RotationScale + NiagaraSpriteVF.RotationBias;
 }
 
 float GetNiagaraPreviousParticleRotation(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	return (SafeGetFloat(NiagaraSpriteVF.PrevRotationDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevRotation) / 180.0f) * PI;
+	const float PrevRotation = (SafeGetFloat(NiagaraSpriteVF.PrevRotationDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevRotation) / 180.0f) * PI;
+	return PrevRotation * NiagaraSpriteVF.RotationScale + NiagaraSpriteVF.RotationBias;
 }
 
 float4 GetNiagaraParticleColor(uint InstanceID)
@@ -818,7 +842,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	
 	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
 	Intermediates.Position = ParticlePosition;
-	Intermediates.SizeRotSubImage = float4(ParticleSize.x, ParticleSize.y, ParticleRotation, SubImageIndex);
+	Intermediates.Size = ParticleSize;
 	Intermediates.Color	= GetNiagaraParticleColor(ParticleID);
 	Intermediates.CustomFacingVector = CustomFacing;
 	Intermediates.CustomAlignmentVector = SafeNormalize(GetNiagaraParticleAlignmentVector(ParticleID));
@@ -837,6 +861,10 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.DynamicParameter3 = GetNiagaraParticleDynamicParameters3(ParticleID);
 #endif
 
+#if USE_PARTICLE_SPRITE_ROTATION
+	Intermediates.ParticleSpriteRotation = ParticleRotation;
+#endif
+
 	// Tangents.
 	{
 		const float3 ParticleDirection = SafeNormalizeWithFallback(ParticleVelocity, float3(0,0,1));
@@ -853,7 +881,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	ComputeBillboardUVs(Input, ParticleSize, SubImageIndex, UVForPosition, UVForTexturing, UVForTexturingUnflipped);
 
 	UVForTexturing.xy = float2(0.5f, 0.5f) + (UVForTexturing.xy - float2(0.5f, 0.5f) ) *  UVScale.xy; 
-	const float2 Size = abs(Intermediates.SizeRotSubImage.xy);
+	const float2 Size = abs(Intermediates.Size.xy);
 
 	// When enabled try to main a pixel sized sprite and optionally fade particles based on coverage
 	// In reality this is more like 2x2 coverage to ensure we always hit 1 pixel, the alternative would be to snap
@@ -987,7 +1015,7 @@ float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVerte
 	// This avoids opaque objects intersecting the particle from causing clipping artifacts due to depth testing
 	// The downside is that the particle will clip the near plane sooner
 
-	float Radius = .5f * min(Intermediates.SizeRotSubImage.x, Intermediates.SizeRotSubImage.y);
+	float Radius = .5f * min(Intermediates.Size.x, Intermediates.Size.y);
 	return ReprojectPosition(TranslatedWorldPosition, Radius);
 #else
 	return TranslatedWorldPosition;
@@ -1077,10 +1105,13 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.ParticleSize = Intermediates.ParticleSize;
 #endif
 
+#if USE_PARTICLE_SPRITE_ROTATION
+	Interpolants.ParticleSpriteRotation = Intermediates.ParticleSpriteRotation;
+#endif
+
 #if USE_PARTICLE_RANDOM
 	Interpolants.ParticleRandom = Intermediates.ParticleRandom;
 #endif
-
 
 #if INSTANCED_STEREO
 	Interpolants.EyeIndex = 0;
@@ -1171,6 +1202,10 @@ FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayT
 
 #if USE_PARTICLE_SIZE
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.ParticleSize);
+#endif
+
+#if USE_PARTICLE_SPRITE_ROTATION
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.ParticleSpriteRotation);
 #endif
 
 #if USE_PARTICLE_RANDOM

@@ -15,6 +15,7 @@
 #define USE_PARTICLE_TIME (NEEDS_PARTICLE_TIME)
 #define USE_SPHERICAL_NORMALS (GENERATE_SPHERICAL_PARTICLE_NORMALS && USE_PARTICLE_POSITION)
 #define USE_PARTICLE_SIZE (NEEDS_PARTICLE_SIZE)
+#define USE_PARTICLE_SPRITE_ROTATION (NEEDS_PARTICLE_SPRITE_ROTATION)
 
 /** Buffer containing particle indices. */
 Buffer<float2> ParticleIndices;
@@ -95,6 +96,10 @@ struct FVertexFactoryInterpolantsVSToPS
 	float2 ParticleSize			: PARTICLE_SIZE;
 #endif
 
+#if USE_PARTICLE_SPRITE_ROTATION
+	float ParticleSpriteRotation : PARTICLE_SPRITE_ROTATION;
+#endif
+
 #if INSTANCED_STEREO
 	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
 #endif
@@ -139,6 +144,9 @@ struct FVertexFactoryIntermediates
 	float ParticleRadius;
 	/** Size of the particle. */
 	float2 ParticleSize;
+#if USE_PARTICLE_SPRITE_ROTATION
+	float ParticleSpriteRotation;
+#endif
 	/** Cached primitive and instance data */
 	FSceneDataIntermediates SceneData;
 };
@@ -374,6 +382,11 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates( FVertexFactoryInput I
 
 	Intermediates.ParticleRadius = .5f * min(Size.x, Size.y);
 	Intermediates.ParticleSize = Size;
+
+#if USE_PARTICLE_SPRITE_ROTATION
+	Intermediates.ParticleSpriteRotation = Rotation;
+#endif
+
 	return Intermediates;
 }
 
@@ -476,6 +489,9 @@ FMaterialPixelParameters GetMaterialPixelParameters( FVertexFactoryInterpolantsV
 	Result.Particle.Size = Interpolants.ParticleSize;
 #endif
 
+#if USE_PARTICLE_SPRITE_ROTATION
+	Result.Particle.SpriteRotation = Interpolants.ParticleSpriteRotation;
+#endif
 	return Result;
 }
 
@@ -551,6 +567,11 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 #if USE_PARTICLE_SIZE
 	Result.Particle.Size = Intermediates.ParticleSize;
 #endif
+
+#if USE_PARTICLE_SPRITE_ROTATION
+	Result.Particle.SpriteRotation = Intermediates.ParticleSpriteRotation;
+#endif
+
 	return Result;
 }
 
@@ -673,6 +694,10 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS( FVertexFact
 
 #if USE_PARTICLE_SIZE
 	Interpolants.ParticleSize = Intermediates.ParticleSize;
+#endif
+
+#if USE_PARTICLE_SPRITE_ROTATION
+	Interpolants.ParticleSpriteRotation = Intermediates.ParticleSpriteRotation;
 #endif
 
 #if INSTANCED_STEREO

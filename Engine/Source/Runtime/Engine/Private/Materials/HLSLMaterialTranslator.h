@@ -364,6 +364,8 @@ protected:
 	uint32 bNeedsWorldPositionExcludingShaderOffsets : 1;
 	/** true if the material needs particle size. */
 	uint32 bNeedsParticleSize : 1;
+	/** true if the material needs particle sprite rotation. */
+	uint32 bNeedsParticleSpriteRotation : 1;
 	/** true if any scene texture expressions are reading from post process inputs */
 	uint32 bNeedsSceneTexturePostProcessInputs : 1;
 	/** true if any atmospheric fog expressions are used */
@@ -896,6 +898,7 @@ protected:
 	virtual int32 ParticleDirection() override;
 	virtual int32 ParticleSpeed() override;
 	virtual int32 ParticleSize() override;
+	virtual int32 ParticleSpriteRotation() override;
 
 	virtual int32 WorldPosition(EWorldPositionIncludedOffsets WorldPositionIncludedOffsets) override;
 

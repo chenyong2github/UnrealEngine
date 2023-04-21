@@ -353,6 +353,7 @@ public:
 	virtual int32 ParticleDirection() = 0;
 	virtual int32 ParticleSpeed() = 0;
 	virtual int32 ParticleSize() = 0;
+	virtual int32 ParticleSpriteRotation() = 0;
 
 	virtual int32 DynamicBranch(int32 Condition, int32 A, int32 B) = 0;
 	virtual int32 If(int32 A,int32 B,int32 AGreaterThanB,int32 AEqualsB,int32 ALessThanB,int32 Threshold) = 0;

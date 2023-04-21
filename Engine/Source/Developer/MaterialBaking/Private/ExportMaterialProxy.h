@@ -96,6 +96,11 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant2(0.0f, 0.0f);
 	}
 
+	virtual int32 ParticleSpriteRotation() override
+	{
+		return Compiler->Constant2(0.0f, 0.0f);
+	}
+
 	virtual int32 CameraVector() override
 	{
 		// By returning vertex normal instead of a constant vector (like up), we ensure materials (with fresnel for example) are more correctly baked using custom mesh data.

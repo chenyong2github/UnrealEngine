@@ -233,6 +233,9 @@ struct FMaterialParticleParameters
 
 	/** The size of the particle. */
 	float2 Size;
+
+	/** The sprite rotation */
+	float SpriteRotation;
 };
 
 float4 GetDynamicParameter(FMaterialParticleParameters Parameters, float4 Default, int ParameterIndex=0)

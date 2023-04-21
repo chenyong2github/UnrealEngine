@@ -169,6 +169,11 @@ public:
 		return Compiler->ParticleSize();
 	}
 
+	virtual int32 ParticleSpriteRotation() override
+	{
+		return Compiler->ParticleSpriteRotation();
+	}
+
 	virtual int32 VertexInterpolator(uint32 InterpolatorIndex) override
 	{
 		return Compiler->VertexInterpolator(InterpolatorIndex);
