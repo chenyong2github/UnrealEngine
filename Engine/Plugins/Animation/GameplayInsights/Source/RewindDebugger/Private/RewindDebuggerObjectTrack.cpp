@@ -281,7 +281,10 @@ bool FRewindDebuggerObjectTrack::UpdateInternal()
 
 	for (auto& Child : Children)
 	{
-		bChanged = bChanged || Child->Update();
+		if (Child->Update())
+		{
+			bChanged = true;
+		}
 	}
 
 	return bChanged;

@@ -161,10 +161,13 @@ int32 SRewindDebuggerTimelines::OnPaint( const FPaintArgs& Args, const FGeometry
 static void RestoreTimelineExpansion(TSharedPtr<RewindDebugger::FRewindDebuggerTrack> Track, TSharedPtr<STreeView<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>>>& TreeView)
 {
 	TreeView->SetItemExpansion(Track, Track->GetIsExpanded());
-	Track->IterateSubTracks([&TreeView](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SubTrack)
-		{
-			RestoreTimelineExpansion(SubTrack, TreeView);
-		});
+	if (Track->IsVisible())
+	{
+		Track->IterateSubTracks([&TreeView](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SubTrack)
+			{
+				RestoreTimelineExpansion(SubTrack, TreeView);
+			});
+	}
 }
 
 void SRewindDebuggerTimelines::RestoreExpansion()
