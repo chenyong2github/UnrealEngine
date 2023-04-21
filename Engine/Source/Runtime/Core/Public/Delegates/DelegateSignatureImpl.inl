@@ -322,11 +322,6 @@ public:
 	TDelegate(TDelegate&& Other) = default;
 	TDelegate& operator=(TDelegate&& Other) = default;
 
-	inline ~TDelegate()
-	{
-		Unbind();
-	}
-
 public:
 
 	/**
