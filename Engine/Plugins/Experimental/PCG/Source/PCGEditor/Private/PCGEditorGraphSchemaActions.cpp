@@ -54,6 +54,7 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewNativeElement::PerformAction(UEdGra
 	if (DefaultNodeSettings)
 	{
 		DefaultNodeSettings->ApplyPreconfiguredSettings(PreconfiguredInfo);
+		NewPCGNode->UpdateAfterSettingsChangeDuringCreation();
 	}
 
 	PostCreation(NewPCGNode);

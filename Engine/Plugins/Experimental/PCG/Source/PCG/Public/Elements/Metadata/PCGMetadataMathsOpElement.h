@@ -19,6 +19,7 @@ enum class EPCGMedadataMathsOperation : uint16
 	Abs,
 	Floor,
 	Ceil,
+	OneMinus UMETA(Tooltip = "1 - X operation"),
 
 	// Binary op
 	BinaryOp = 1 << 11 UMETA(Hidden),

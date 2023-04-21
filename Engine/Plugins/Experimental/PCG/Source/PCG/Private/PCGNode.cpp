@@ -713,6 +713,7 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 			}
 		}
 
+		bool bWasModified = false;
 		const bool bUpdateUnmatchedPin = UnmatchedPins.Num() == 1 && UnmatchedProperties.Num() == 1;
 		if (bUpdateUnmatchedPin)
 		{
@@ -741,6 +742,7 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 
 			if(!UnmatchedPins.IsEmpty() || !UnmatchedProperties.IsEmpty() || !DuplicatedNamePins.IsEmpty())
 			{
+				bWasModified = true;
 				Modify();
 				bChangedPins = true;
 			}
@@ -780,6 +782,26 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 					NewPin->Properties = UnmatchedProperty;
 					Pins.Insert(NewPin, InsertIndex);
 				}
+			}
+		}
+
+		// Final pass, to check the order. We re-order if the order is not the same in PinProperties and Pins, without breaking the edges.
+		// Also, at this point, we should have the same number of items in the pins and in the pin properties
+		check(Pins.Num() == PinProperties.Num());
+		for (int32 i = 0; i < PinProperties.Num(); ++i)
+		{
+			const FPCGPinProperties& CurrentPinProperties = PinProperties[i];
+			int32 AssociatedPinPindex = Pins.IndexOfByPredicate([&CurrentPinProperties](const UPCGPin* Pin) -> bool { return Pin->Properties.Label == CurrentPinProperties.Label; });
+			if (i != AssociatedPinPindex)
+			{
+				if (!bWasModified)
+				{
+					bWasModified = true;
+					Modify();
+				}
+
+				bChangedPins = true;
+				Pins.Swap(i, AssociatedPinPindex);
 			}
 		}
 

@@ -101,6 +101,8 @@ namespace PCGMetadataMathsSettings
 			return PCGMetadataMaths::Floor(Value);
 		case EPCGMedadataMathsOperation::Ceil:
 			return PCGMetadataMaths::Ceil(Value);
+		case EPCGMedadataMathsOperation::OneMinus:
+			return T{ 1 } - Value;
 		default:
 			return T{};
 		}
