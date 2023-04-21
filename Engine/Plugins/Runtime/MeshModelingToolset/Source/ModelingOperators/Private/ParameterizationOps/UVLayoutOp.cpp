@@ -8,6 +8,7 @@
 #include "Properties/UVLayoutProperties.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Parameterization/MeshUDIMClassifier.h"
+#include "UDIMUtilities.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UVLayoutOp)
 
@@ -86,6 +87,12 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 		{
 			TUniquePtr<TArray<int32>> TileTids;
 			TileTids = MakeUnique<TArray<int32>>(TileClassifier.TidsForTile(TileIndex));
+			const int32 TileID = UE::TextureUtilitiesCommon::GetUDIMIndex(TileIndex.X, TileIndex.Y);
+			float TileResolution = TextureResolution;
+			if (TextureResolutionPerUDIM.IsSet())
+			{
+				TileResolution = TextureResolutionPerUDIM.GetValue().FindOrAdd(TileID, this->TextureResolution);
+			}
 
 			// Do this first, so we don't need to keep the TileTids around after moving it into the packer.
 			TSet<int32> ElementsToMove;
@@ -100,6 +107,7 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 
 			// TODO: There is a second connected components call inside the packer that might be unnessessary. Could be a future optimization.
 			FDynamicMeshUVPacker Packer(UseUVLayer, MoveTemp(TileTids) );
+			Packer.TextureResolution = TileResolution;					
 			ExecutePacker(Packer);
 			if (Progress && Progress->Cancelled())
 			{
@@ -132,6 +140,7 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 		}
 		
 		FDynamicMeshUVPacker Packer(UseUVLayer, MoveTemp(TidsToLayout) );
+		Packer.TextureResolution = this->TextureResolution;
 		ExecutePacker(Packer);
 		if (Progress && Progress->Cancelled())
 		{
@@ -152,8 +161,7 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 }
 
 void FUVLayoutOp::ExecutePacker(FDynamicMeshUVPacker& Packer)
-{
-	Packer.TextureResolution = this->TextureResolution;
+{	
 	Packer.GutterSize = this->GutterSize;
 	Packer.bAllowFlips = this->bAllowFlips;
 
@@ -168,6 +176,15 @@ void FUVLayoutOp::ExecutePacker(FDynamicMeshUVPacker& Packer)
 	else if (UVLayoutMode == EUVLayoutOpLayoutModes::StackInUnitRect)
 	{
 		if (Packer.StackPack() == false)
+		{
+			// failed... what to do?
+			return;
+		}
+	}
+	else if (UVLayoutMode == EUVLayoutOpLayoutModes::Normalize)
+	{
+		Packer.bScaleIslandsByWorldSpaceTexelRatio = true;
+		if (Packer.StandardPack() == false)
 		{
 			// failed... what to do?
 			return;
@@ -192,6 +209,9 @@ TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
 	case EUVLayoutType::Repack:
 		Op->UVLayoutMode = EUVLayoutOpLayoutModes::RepackToUnitRect;
 		break;
+	case EUVLayoutType::Normalize:
+		Op->UVLayoutMode = EUVLayoutOpLayoutModes::Normalize;
+		break;
 	}
 
 	Op->UVLayerIndex = GetSelectedUVChannel();
@@ -201,6 +221,8 @@ TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
 	Op->UVTranslation = FVector2f(Settings->Translation);
 	Op->SetTransform(TargetTransform);
 	Op->bMaintainOriginatingUDIM = Settings->bEnableUDIMLayout;
+	Op->Selection = Selection;
+	Op->TextureResolutionPerUDIM = TextureResolutionPerUDIM;
 
 	return Op;
 }

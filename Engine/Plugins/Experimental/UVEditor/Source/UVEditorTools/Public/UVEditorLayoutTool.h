@@ -14,6 +14,7 @@
 class UUVEditorToolMeshInput;
 class UUVLayoutProperties;
 class UUVLayoutOperatorFactory;
+class UUVTool2DViewportAPI;
 
 UCLASS()
 class UVEDITORTOOLS_API UUVEditorLayoutToolBuilder : public UInteractiveToolBuilder
@@ -70,6 +71,10 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UUVToolSelectionAPI> UVToolSelectionAPI = nullptr;
+
+	//~ For UDIM information access
+	UPROPERTY()
+	TObjectPtr< UUVTool2DViewportAPI> UVTool2DViewportAPI = nullptr; 
 
 	//
 	// Analytics

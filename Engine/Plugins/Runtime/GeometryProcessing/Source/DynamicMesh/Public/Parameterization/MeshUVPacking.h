@@ -37,6 +37,9 @@ public:
 	/** If true, islands can be flipped in addition to rotate/translate/scale */
 	bool bAllowFlips = false;
 
+	/** Attempt to rescale islands to match texel-to-world-space ratio across islands, based on ratio of World- and UV-space edge lengths */
+	bool bScaleIslandsByWorldSpaceTexelRatio = false;
+
 	explicit FDynamicMeshUVPacker(FDynamicMeshUVOverlay* UVOverlay);
 	explicit FDynamicMeshUVPacker(FDynamicMeshUVOverlay* UVOverlay, TUniquePtr<TArray<int32>>&& TidsToRepackIn);
 
@@ -54,6 +57,7 @@ public:
 	 * So the islands are "stacked" and all fit in the unit box.
 	 */
 	bool StackPack();
+
 
 protected:
 

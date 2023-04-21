@@ -21,7 +21,8 @@ enum class EUVLayoutOpLayoutModes
 {
 	TransformOnly = 0,
 	RepackToUnitRect = 1,
-	StackInUnitRect = 2
+	StackInUnitRect = 2,
+	Normalize = 3
 };
 
 class MODELINGOPERATORS_API FUVLayoutOp : public FDynamicMeshOperator
@@ -42,6 +43,7 @@ public:
 	float GutterSize = 1.0;
 	bool bMaintainOriginatingUDIM = false;
 	TOptional<TSet<int32>> Selection;
+	TOptional<TMap<int32, int32>> TextureResolutionPerUDIM;
 	FVector2f UVTranslation = FVector2f::Zero();
 
 	void SetTransform(const FTransformSRT3d& Transform);
@@ -80,4 +82,5 @@ public:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TUniqueFunction<int32()> GetSelectedUVChannel = []() { return 0; };
 	FTransform TargetTransform;
+	TOptional<TMap<int32, int32>> TextureResolutionPerUDIM;
 };

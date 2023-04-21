@@ -68,6 +68,7 @@ bool FDynamicMeshUVPacker::StandardPack()
 	Packer.bAllowFlips = bAllowFlips;
 	Packer.GutterSize = GutterSize;
 	Packer.TextureResolution = TextureResolution;
+	Packer.bScaleIslandsByWorldSpaceTexelRatio = bScaleIslandsByWorldSpaceTexelRatio;
 
 	FUVOverlayView MeshView(UVOverlay);
 	FMeshConnectedComponents UVComponents = CollectUVIslandsToPack(MeshView);
@@ -86,6 +87,7 @@ bool FDynamicMeshUVPacker::StackPack()
 	Packer.bAllowFlips = bAllowFlips;
 	Packer.GutterSize = GutterSize;
 	Packer.TextureResolution = TextureResolution;
+	Packer.bScaleIslandsByWorldSpaceTexelRatio = bScaleIslandsByWorldSpaceTexelRatio;
 
 	FUVOverlayView MeshView(UVOverlay);
 	FMeshConnectedComponents UVComponents = CollectUVIslandsToPack(MeshView);

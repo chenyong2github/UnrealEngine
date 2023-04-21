@@ -18,7 +18,9 @@ enum class EUVLayoutType
 	/** Uniformly scale and translate each UV island individually to pack it into the unit square, i.e. fit between 0 and 1 with overlap */
 	Stack,
 	/** Uniformly scale and translate UV islands collectively to pack them into the unit square, i.e. fit between 0 and 1 with no overlap */
-	Repack
+	Repack,
+	/** Scale and translate UV islands to normalize the UV islands' area to match an average texel density. */
+	Normalize
 };
 
 

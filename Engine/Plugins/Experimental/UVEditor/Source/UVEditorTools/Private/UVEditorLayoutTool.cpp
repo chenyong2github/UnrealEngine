@@ -54,6 +54,8 @@ void UUVEditorLayoutTool::Setup()
 	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
 	UVToolSelectionAPI = ContextStore->FindContext<UUVToolSelectionAPI>();
 
+	UVTool2DViewportAPI = ContextStore->FindContext<UUVTool2DViewportAPI>();
+
 	UUVToolSelectionAPI::FHighlightOptions HighlightOptions;
 	HighlightOptions.bBaseHighlightOnPreviews = true;
 	HighlightOptions.bAutoUpdateUnwrap = true;
@@ -71,6 +73,16 @@ void UUVEditorLayoutTool::Setup()
 		{
 			Factory->Selection.Emplace(Selection->GetConvertedSelection(*Selection->Target->UnwrapCanonical,
 				                                                        UE::Geometry::FUVToolSelection::EType::Triangle).SelectedIDs);
+		}
+
+		if (UVTool2DViewportAPI)
+		{
+			TMap<int32, int32> TextureResolutionPerUDIM;
+			for (const FUDIMBlock& UDIM : UVTool2DViewportAPI->GetUDIMBlocks())
+			{
+				TextureResolutionPerUDIM.Add(UDIM.UDIM, UDIM.TextureResolution);
+			}
+			Factory->TextureResolutionPerUDIM = TextureResolutionPerUDIM;
 		}
 
 		Target.AppliedPreview->ChangeOpFactory(Factory);
