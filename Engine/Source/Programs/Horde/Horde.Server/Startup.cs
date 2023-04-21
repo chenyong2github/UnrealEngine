@@ -97,6 +97,9 @@ using Horde.Server.Notifications.Sinks;
 using StatusCode = Grpc.Core.StatusCode;
 using Horde.Server.Artifacts;
 using Horde.Server.Compute;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server
 {
@@ -328,19 +331,22 @@ namespace Horde.Server
 		// This method gets called *multiple times* by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection services)
 		{
-			// IOptionsMonitor pattern for live updating of configuration settings
-			services.Configure<ServerSettings>(serverSettings =>
+			void BindServerSettings(ServerSettings settings)
 			{
 				IConfigurationSection hordeSection = Configuration.GetSection("Horde");
-				hordeSection.Bind(serverSettings);
-				BindTelemetrySettings(serverSettings, hordeSection.GetSection("Telemetry"));
-			});
-
-			// Settings used for configuring services
-			IConfigurationSection configSection = Configuration.GetSection("Horde");
-			ServerSettings settings = new ServerSettings();
-			configSection.Bind(settings);
+				hordeSection.Bind(settings);
+				BindTelemetrySettings(settings, hordeSection.GetSection("Telemetry"));
+			}
+			
+			// IOptionsMonitor pattern for live updating of configuration settings
+			services.Configure<ServerSettings>(BindServerSettings);
+			
+			// Bind the settings again for local variable access in this method
+			ServerSettings settings = new();
+			BindServerSettings(settings);
 			settings.Validate();
+
+			ConfigureOpenTelemetry(services, settings.OpenTelemetry);
 
 			if (settings.GlobalThreadPoolMinSize != null)
 			{
@@ -1012,6 +1018,49 @@ namespace Horde.Server
 				BsonSerializer.RegisterSerializationProvider(new StringIdBsonSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new ObjectIdBsonSerializationProvider());
 			}
+		}
+
+		private static void ConfigureOpenTelemetry(IServiceCollection services, OpenTelemetrySettings settings)
+		{
+			// Always configure OpenTelemetry.Trace.Tracer class as it's used in the codebase even when OpenTelemetry is not configured
+			services.AddSingleton(TracerProvider.Default.GetTracer(settings.ServiceName));
+			
+			if (!settings.Enabled)
+			{
+				return;
+			}
+			
+			List<KeyValuePair<string,object>> attributes = settings.Attributes.Select(x => new KeyValuePair<string, object>(x.Key, x.Value)).ToList();
+			services.AddOpenTelemetry()
+				.WithTracing(builder =>
+				{
+					builder
+						.AddSource(settings.ServiceName)
+						.AddHttpClientInstrumentation()
+						.AddAspNetCoreInstrumentation()
+						.AddGrpcClientInstrumentation()
+						//.AddRedisInstrumentation()
+						.SetResourceBuilder(ResourceBuilder.CreateDefault()
+							.AddService(settings.ServiceName, serviceNamespace: settings.ServiceNamespace, serviceVersion: settings.ServiceVersion)
+							.AddAttributes(attributes)
+							.AddTelemetrySdk()
+							.AddEnvironmentVariableDetector());
+
+					if (settings.EnableConsoleExporter)
+					{
+						builder.AddConsoleExporter();
+					}
+					
+					foreach ((string name, OpenTelemetryProtocolExporterSettings exporterSettings) in settings.ProtocolExporters)
+					{
+						builder.AddOtlpExporter(name, exporter =>
+						{
+							exporter.Endpoint = exporterSettings.Endpoint;
+							exporter.Protocol = Enum.TryParse(exporterSettings.Protocol, true, out OtlpExportProtocol protocol) ? protocol : OtlpExportProtocol.Grpc;
+						});
+					}
+				});
+
 		}
 
 		private static void OnAddHealthChecks(IServiceCollection services)

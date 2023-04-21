@@ -319,6 +319,63 @@ namespace Horde.Server
 	}
 
 	/// <summary>
+	/// OpenTelemetry configuration for collection and sending of traces and metrics.
+	/// </summary>
+	public class OpenTelemetrySettings
+	{
+		/// <summary>
+		/// Whether OpenTelemetry exporting is enabled
+		/// </summary>
+		public bool Enabled { get; set; } = false;
+		
+		/// <summary>
+		/// Service name
+		/// </summary>
+		public string ServiceName { get; set; } = "HordeServer";
+		
+		/// <summary>
+		/// Service namespace
+		/// </summary>
+		public string ServiceNamespace { get; set; } = "Horde";
+		
+		/// <summary>
+		/// Service version
+		/// </summary>
+		public string? ServiceVersion { get; set; }
+		
+		/// <summary>
+		/// Extra attributes to set
+		/// </summary>
+		public Dictionary<string, string> Attributes { get; set; } = new();
+
+		/// <summary>
+		/// Whether to enable the console exporter (for debugging purposes)
+		/// </summary>
+		public bool EnableConsoleExporter { get; set; } = false;
+		
+		/// <summary>
+		/// Protocol exporters (key is a unique and arbitrary name) 
+		/// </summary>
+		public Dictionary<string, OpenTelemetryProtocolExporterSettings> ProtocolExporters { get; set; } = new();
+	}
+
+	/// <summary>
+	/// Configuration for an OpenTelemetry exporter
+	/// </summary>
+	public class OpenTelemetryProtocolExporterSettings
+	{
+		/// <summary>
+		/// Endpoint URL. Usually differs depending on protocol used.
+		/// </summary>
+		public Uri? Endpoint { get; set; }
+
+		/// <summary>
+		/// Protocol for the exporter ('grpc' or 'httpprotobuf')
+		/// </summary>
+		public string Protocol { get; set; } = "grpc";
+	}
+
+	/// <summary>
 	/// Global settings for the application
 	/// </summary>
 	public class ServerSettings : IAclScope
@@ -753,6 +810,11 @@ namespace Horde.Server
 		/// Tools bundled along with the server. Data for each tool can be produced using the 'bundle create' command, and should be stored in the /tools/{id} directory.
 		/// </summary>
 		public List<BundledToolConfig> BundledTools { get; set; } = new List<BundledToolConfig>();
+		
+		/// <summary>
+		/// Options for OpenTelemetry
+		/// </summary>
+		public OpenTelemetrySettings OpenTelemetry { get; set; } = new OpenTelemetrySettings();
 
 		/// <summary>
 		/// Default pre-baked ACL for authentication of well-known roles

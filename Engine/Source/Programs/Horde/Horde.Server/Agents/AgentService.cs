@@ -23,6 +23,7 @@ using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
+using OpenTelemetry.Trace;
 using OpenTracing;
 using OpenTracing.Util;
 using StackExchange.Redis;
@@ -76,6 +77,7 @@ namespace Horde.Server.Agents
 		readonly ITaskSource[] _taskSources;
 		readonly IHostApplicationLifetime _applicationLifetime;
 		readonly IClock _clock;
+		readonly Tracer _tracer;
 		readonly ILogger _logger;
 		readonly ITicker _ticker;
 		
@@ -97,7 +99,7 @@ namespace Horde.Server.Agents
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentService(IAgentCollection agents, ILeaseCollection leases, ISessionCollection sessions, AclService aclService, IDowntimeService downtimeService, IPoolCollection poolCollection, IDogStatsd dogStatsd, IEnumerable<ITaskSource> taskSources, RedisService redisService, IHostApplicationLifetime applicationLifetime, IClock clock, ILogger<AgentService> logger)
+		public AgentService(IAgentCollection agents, ILeaseCollection leases, ISessionCollection sessions, AclService aclService, IDowntimeService downtimeService, IPoolCollection poolCollection, IDogStatsd dogStatsd, IEnumerable<ITaskSource> taskSources, RedisService redisService, IHostApplicationLifetime applicationLifetime, IClock clock, Tracer tracer, ILogger<AgentService> logger)
 		{
 			Agents = agents;
 			_leases = leases;
@@ -112,6 +114,7 @@ namespace Horde.Server.Agents
 			_redisService = redisService;
 			_clock = clock;
 			_ticker = clock.AddTicker<AgentService>(TimeSpan.FromSeconds(30.0), TickAsync, logger);
+			_tracer = tracer;
 			_logger = logger;
 		}
 
@@ -823,6 +826,14 @@ namespace Horde.Server.Agents
 			scope.Span.SetTag("FinishTime", finishTime?.ToString());
 			scope.Span.SetTag("Index", index);
 			scope.Span.SetTag("Count", count);
+			
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AgentService)}.{nameof(FindLeasesAsync)}-ot");
+			span.SetAttribute("AgentId", agentId?.ToString());
+			span.SetAttribute("SessionId", sessionId?.ToString());
+			span.SetAttribute("StartTime", startTime?.ToString());
+			span.SetAttribute("FinishTime", finishTime?.ToString());
+			span.SetAttribute("Index", index);
+			span.SetAttribute("Count", count);
 			return _leases.FindLeasesAsync(agentId, sessionId, startTime, finishTime, index, count);
 		}
 

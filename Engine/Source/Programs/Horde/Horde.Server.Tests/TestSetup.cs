@@ -64,6 +64,7 @@ using Moq;
 using Horde.Server.Telemetry;
 using Horde.Server.Artifacts;
 using Horde.Server.Dashboard;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Tests
 {
@@ -187,6 +188,7 @@ namespace Horde.Server.Tests
 			services.AddSingleton(typeof(IAuditLogFactory<>), typeof(AuditLogFactory<>));
 			services.AddSingleton<IAuditLog<AgentId>>(sp => sp.GetRequiredService<IAuditLogFactory<AgentId>>().Create("Agents.Log", "AgentId"));
 			services.AddSingleton<ITelemetrySink, NullTelemetrySink>();
+			services.AddSingleton<OpenTelemetry.Trace.Tracer>(sp => TracerProvider.Default.GetTracer("TestTracer"));
 
 			services.AddSingleton<ConfigService>();
 			services.AddSingleton<IOptionsFactory<GlobalConfig>>(sp => sp.GetRequiredService<ConfigService>());
@@ -366,14 +368,14 @@ namespace Horde.Server.Tests
 
 			string msg = "Unable to patch Datadog agent writer! Tests will still work, but shutdown will block for +20 seconds.";
 			
-			FieldInfo? agentWriterField = Tracer.Instance.GetType().GetField("_agentWriter", BindingFlags.NonPublic | BindingFlags.Instance);
+			FieldInfo? agentWriterField = Datadog.Trace.Tracer.Instance.GetType().GetField("_agentWriter", BindingFlags.NonPublic | BindingFlags.Instance);
 			if (agentWriterField == null)
 			{
 				Console.Error.WriteLine(msg);
 				return;
 			}
 			
-			object? agentWriterInstance = agentWriterField.GetValue(Tracer.Instance);
+			object? agentWriterInstance = agentWriterField.GetValue(Datadog.Trace.Tracer.Instance);
 			if (agentWriterInstance == null)
 			{
 				Console.Error.WriteLine(msg);
