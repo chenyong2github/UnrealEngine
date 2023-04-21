@@ -12,6 +12,7 @@
 #include "Modules/ModuleManager.h"
 #include "Preferences/MaterialEditorOptions.h"
 #include "MaterialEditorModule.h"
+#include "MaterialShared.h"
 
 #include "Materials/MaterialExpressionComment.h"
 #include "Materials/MaterialExpressionParameter.h"
@@ -85,10 +86,9 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 {
 	if(!bInitialized)
 	{
-		static const auto CVarMaterialEnableControlFlow = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableControlFlow"));
 		static const auto CVarMaterialEnableNewHLSLGenerator = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableNewHLSLGenerator"));
 		
-		const bool bEnableControlFlow = CVarMaterialEnableControlFlow->GetValueOnAnyThread() != 0;
+		const bool bEnableControlFlow = AllowMaterialControlFlow();
 		const bool bEnableNewHLSLGenerator = CVarMaterialEnableNewHLSLGenerator->GetValueOnAnyThread() != 0;
 
 		UMaterialEditorOptions* TempEditorOptions = NewObject<UMaterialEditorOptions>();

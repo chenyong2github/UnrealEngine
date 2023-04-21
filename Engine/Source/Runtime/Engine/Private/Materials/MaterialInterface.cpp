@@ -66,12 +66,6 @@ static TAutoConsoleVariable<int32> CVarMaterialEnableNewHLSLGenerator(
 	TEXT("2 - Force all materials to use new generator\n"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarMaterialEnableControlFlow(
-	TEXT("r.MaterialEnableControlFlow"),
-	0,
-	TEXT("Allows experemental control flow to be used in the material editor.\n"),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly);
-
 //////////////////////////////////////////////////////////////////////////
 
 bool IsHairStrandsGeometrySupported(const EShaderPlatform Platform)

@@ -3041,3 +3041,10 @@ inline bool ShouldIncludeMaterialInDefaultOpaquePass(const FMaterial& Material)
 	return !Material.IsSky()
 		&& !Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 }
+
+// r.MaterialEnableControlFlow is removed and the feature is forced disabled as how control flow should be
+// implemented in the material editor is still under discussion.
+inline bool AllowMaterialControlFlow()
+{
+	return false;
+}
