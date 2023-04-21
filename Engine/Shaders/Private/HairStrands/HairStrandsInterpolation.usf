@@ -513,9 +513,16 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 uint				CurveCount;
 
 Buffer<uint>		RenCurveBuffer;
-uint4				RenCurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT];
 Buffer<int>			RenVertexToClusterIdBuffer;
 RWByteAddressBuffer	OutRenAttributeBuffer;
+
+uint 				CurveAttributeIndexToChunkDivAsShift;
+uint 				CurveAttributeChunkElementCount;
+uint 				CurveAttributeChunkStrideInBytes;
+uint 				PointAttributeIndexToChunkDivAsShift;
+uint 				PointAttributeChunkElementCount;
+uint 				PointAttributeChunkStrideInBytes;
+uint4				CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT];
 
 groupshared uint SeedValues[1024];
 
@@ -570,8 +577,14 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint GroupThread1D : S
 		Out |= (SeedValues[GroupThread1D+2] & 0xFF) << 16;
 		Out |= (SeedValues[GroupThread1D+3] & 0xFF) << 24;
 
-		const uint OffsetInBytes = HAIR_CURVE_ATTRIBUTE_OFFSET_SEED(RenCurveAttributeOffsets);
-		OutRenAttributeBuffer.Store(OffsetInBytes + CurveIndex, Out);
+		uint WriteIndex 				= CurveIndex;
+		uint WriteAttributOffsetInBytes = HAIR_CURVE_ATTRIBUTE_OFFSET_SEED(CurveAttributeOffsets);
+
+		const uint ChunkIndex   	= CurveIndex >> CurveAttributeIndexToChunkDivAsShift;
+		WriteIndex                 -= ChunkIndex * CurveAttributeIndexToChunkDivAsShift;
+		WriteAttributOffsetInBytes += ChunkIndex * CurveAttributeChunkStrideInBytes;
+
+		OutRenAttributeBuffer.Store(WriteAttributOffsetInBytes + WriteIndex, Out);
 	}
 }
 #endif // SHADER_PATCHATTRIBUTE

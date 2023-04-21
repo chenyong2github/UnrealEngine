@@ -23,6 +23,18 @@ class FSceneInterface;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Shader parameters
 
+// Instance attribute parameters
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceAttributeParameters, RENDERER_API)
+	SHADER_PARAMETER(uint32, CurveAttributeIndexToChunkDivAsShift)
+	SHADER_PARAMETER(uint32, CurveAttributeChunkElementCount)
+	SHADER_PARAMETER(uint32, CurveAttributeChunkStrideInBytes)
+	SHADER_PARAMETER(uint32, PointAttributeIndexToChunkDivAsShift)
+	SHADER_PARAMETER(uint32, PointAttributeChunkElementCount)
+	SHADER_PARAMETER(uint32, PointAttributeChunkStrideInBytes)
+	SHADER_PARAMETER_ARRAY(FUintVector4, CurveAttributeOffsets, [HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT])
+	SHADER_PARAMETER_ARRAY(FUintVector4, PointAttributeOffsets, [HAIR_POINT_ATTRIBUTE_OFFSET_COUNT])
+END_SHADER_PARAMETER_STRUCT()
+
 // Instance common parameters
 BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceCommonParameters, RENDERER_API)
 	SHADER_PARAMETER(float,  Density)
@@ -46,8 +58,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceCommonParameters, RENDERER_API
 	SHADER_PARAMETER(FVector3f, PrevPositionOffset)
 	SHADER_PARAMETER(FMatrix44f, LocalToWorldPrimitiveTransform)
 	SHADER_PARAMETER(FMatrix44f, LocalToTranslatedWorldPrimitiveTransform)
-	SHADER_PARAMETER_ARRAY(FUintVector4, CurveAttributeOffsets, [HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT])
-	SHADER_PARAMETER_ARRAY(FUintVector4, PointAttributeOffsets, [HAIR_POINT_ATTRIBUTE_OFFSET_COUNT])
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceAttributeParameters, Attributes)
 END_SHADER_PARAMETER_STRUCT()
 
 // Instance resources (RDG)

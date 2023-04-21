@@ -250,6 +250,14 @@ void FHairStrandsBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
 	}
 	Ar << Header.ImportedAttributes;
 	Ar << Header.ImportedAttributeFlags;
+
+	Ar << Header.Strides.PositionStride;
+	Ar << Header.Strides.CurveStride;
+	Ar << Header.Strides.PointToCurveStride;
+	Ar << Header.Strides.CurveAttributeChunkStride;
+	Ar << Header.Strides.PointAttributeChunkStride;
+	Ar << Header.Strides.CurveAttributeChunkElementCount;
+	Ar << Header.Strides.PointAttributeChunkElementCount;
 }
 
 void FHairStrandsBulkData::GetResourceVersion(FArchive& Ar) const
@@ -294,11 +302,11 @@ void FHairStrandsBulkData::Reset()
 	Header.Flags = 0;
 	for (uint8 AttributeIt = 0; AttributeIt < HAIR_CURVE_ATTRIBUTE_COUNT; ++AttributeIt)
 	{
-		Header.CurveAttributeOffsets[AttributeIt] = 0xFFFFFFFF;
+		Header.CurveAttributeOffsets[AttributeIt] = HAIR_ATTRIBUTE_INVALID_OFFSET;
 	}
 	for (uint8 AttributeIt = 0; AttributeIt < HAIR_POINT_ATTRIBUTE_COUNT; ++AttributeIt)
 	{
-		Header.PointAttributeOffsets[AttributeIt] = 0xFFFFFFFF;
+		Header.PointAttributeOffsets[AttributeIt] = HAIR_ATTRIBUTE_INVALID_OFFSET;
 	}
 	// Deallocate memory if needed
 	Data.Positions.RemoveBulkData();

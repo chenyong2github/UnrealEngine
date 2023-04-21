@@ -954,6 +954,8 @@ static void ExportTextures(FRDGBuilder& GraphBuilder, const FHairStrandsRDGTextu
 	Out.TileCount = In.TileCount;
 }
 
+void GetHairStrandsAttributeParameter(const FHairStrandsBulkData& In, FHairStrandsInstanceAttributeParameters& Out);
+
 static bool TraceTextures(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -1060,8 +1062,7 @@ static bool TraceTextures(
 			Instance.Common.LengthScale = 1.0f;
 			Instance.Common.Length = GroupData.Strands.RestResource->BulkData.Header.MaxLength;
 			Instance.Common.PositionOffset = FVector3f(GroupData.Strands.RestResource->GetPositionOffset());
-			PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(Instance.Common.CurveAttributeOffsets, GroupData.Strands.RestResource->BulkData.Header.CurveAttributeOffsets);
-			PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(Instance.Common.PointAttributeOffsets, GroupData.Strands.RestResource->BulkData.Header.PointAttributeOffsets);
+			GetHairStrandsAttributeParameter(GroupData.Strands.RestResource->BulkData, Instance.Common.Attributes);
 
 			Instance.Resources.PositionBuffer = GroupData.Strands.RestResource->PositionBuffer.SRV;
 			Instance.Resources.CurveAttributeBuffer = GroupData.Strands.RestResource->CurveAttributeBuffer.SRV;

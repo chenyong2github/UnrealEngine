@@ -33,6 +33,12 @@
 	float4x4			Prefix##_LocalToTranslatedWorldPrimitiveTransform; \
 	uint4				Prefix##_CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT]; \
 	uint4				Prefix##_PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_OFFSET_COUNT]; \
+	uint 				Prefix##_CurveAttributeIndexToChunkDivAsShift; \
+	uint				Prefix##_CurveAttributeChunkElementCount; \
+	uint				Prefix##_CurveAttributeChunkStrideInBytes; \
+	uint				Prefix##_PointAttributeIndexToChunkDivAsShift; \
+	uint				Prefix##_PointAttributeChunkElementCount; \
+	uint				Prefix##_PointAttributeChunkStrideInBytes; \
 	Buffer<uint4>		Prefix##_PositionBuffer; \
 	Buffer<float4>		Prefix##_PositionOffsetBuffer; \
 	Buffer<uint>		Prefix##_CurveBuffer; \

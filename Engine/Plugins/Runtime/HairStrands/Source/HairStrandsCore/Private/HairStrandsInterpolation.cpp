@@ -92,6 +92,21 @@ enum class EDeformationType : uint8
 	OffsetGuide		// Offset the guides
 };
 
+void GetHairStrandsAttributeParameter(const FHairStrandsBulkData& In, FHairStrandsInstanceAttributeParameters& Out)
+{
+	check(FMath::IsPowerOfTwo(In.Header.Strides.CurveAttributeChunkElementCount));
+	Out.CurveAttributeIndexToChunkDivAsShift	= FMath::FloorToInt(FMath::Log2(float(In.Header.Strides.CurveAttributeChunkElementCount)));
+	Out.CurveAttributeChunkElementCount			= In.Header.Strides.CurveAttributeChunkElementCount;
+	Out.CurveAttributeChunkStrideInBytes		= In.Header.Strides.CurveAttributeChunkStride;
+
+	check(FMath::IsPowerOfTwo(In.Header.Strides.PointAttributeChunkElementCount));
+	Out.PointAttributeIndexToChunkDivAsShift	= FMath::FloorToInt(FMath::Log2(float(In.Header.Strides.PointAttributeChunkElementCount)));
+	Out.PointAttributeChunkElementCount     	= In.Header.Strides.PointAttributeChunkElementCount;
+	Out.PointAttributeChunkStrideInBytes    	= In.Header.Strides.PointAttributeChunkStride;
+
+	PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(Out.CurveAttributeOffsets, In.Header.CurveAttributeOffsets);
+	PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(Out.PointAttributeOffsets, In.Header.PointAttributeOffsets);
+}
 
 struct FGroomCacheResources
 {
@@ -724,7 +739,7 @@ class FHairPatchAttributeCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, CurveCount)
-		SHADER_PARAMETER_ARRAY(FUintVector4, RenCurveAttributeOffsets, [HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT])
+		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceAttributeParameters, RenAttributes)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenCurveBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, InterpolationBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenVertexToClusterIdBuffer)
@@ -756,7 +771,7 @@ static void AddPatchAttributePass(
 	const EHairPatchAttribute Mode,
 	const bool bSimulation,
 	const bool bUseSingleGuide,
-	const uint32* RenCurveAttributeOffests,
+	const FHairStrandsBulkData& RenBulkData,
 	const FRDGBufferRef& RenAttributeBuffer,
 	const FRDGBufferSRVRef& RenCurveBuffer,
 	const FRDGBufferSRVRef& RenVertexToClusterIdBuffer,
@@ -776,7 +791,7 @@ static void AddPatchAttributePass(
 	Parameters->CurveCount = CurveCount;
 	Parameters->RenCurveBuffer = RenCurveBuffer;
 	Parameters->RenVertexToClusterIdBuffer = RenVertexToClusterIdBuffer;
-	PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(Parameters->RenCurveAttributeOffsets, RenCurveAttributeOffests)
+	GetHairStrandsAttributeParameter(RenBulkData, Parameters->RenAttributes);
 
 	if (bSimulation)
 	{
@@ -1571,11 +1586,11 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 		const FUintVector4 InvalidOffset = FUintVector4(HAIR_ATTRIBUTE_INVALID_OFFSET,HAIR_ATTRIBUTE_INVALID_OFFSET,HAIR_ATTRIBUTE_INVALID_OFFSET,HAIR_ATTRIBUTE_INVALID_OFFSET);
 		for (uint32 OffsetIt = 0; OffsetIt < HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT; ++OffsetIt)
 		{
-			OutVFInput.Strands.Common.CurveAttributeOffsets[OffsetIt] = InvalidOffset;
+			OutVFInput.Strands.Common.Attributes.CurveAttributeOffsets[OffsetIt] = InvalidOffset;
 		}
 		for (uint32 OffsetIt = 0; OffsetIt < HAIR_POINT_ATTRIBUTE_OFFSET_COUNT; ++OffsetIt)
 		{
-			OutVFInput.Strands.Common.PointAttributeOffsets[OffsetIt] = InvalidOffset;
+			OutVFInput.Strands.Common.Attributes.PointAttributeOffsets[OffsetIt] = InvalidOffset;
 		}
 		return OutVFInput;
 	}
@@ -1684,13 +1699,11 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 
 	if (bUseGuideAttributeOffsets)
 	{
-		PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.CurveAttributeOffsets, Instance->Guides.Data->Header.CurveAttributeOffsets);
-		PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.PointAttributeOffsets, Instance->Guides.Data->Header.PointAttributeOffsets);
+		GetHairStrandsAttributeParameter(*Instance->Guides.Data, OutVFInput.Strands.Common.Attributes);
 	}
 	else
 	{
-		PACK_CURVE_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.CurveAttributeOffsets, Instance->Strands.Data->Header.CurveAttributeOffsets);
-		PACK_POINT_HAIR_ATTRIBUTE_OFFSETS(OutVFInput.Strands.Common.PointAttributeOffsets, Instance->Strands.Data->Header.PointAttributeOffsets);
+		GetHairStrandsAttributeParameter(*Instance->Strands.Data, OutVFInput.Strands.Common.Attributes);
 	}
 
 #if RHI_RAYTRACING
@@ -2088,6 +2101,7 @@ void ComputeHairStrandsInterpolation(
 				}
 				FRDGImportedBuffer OutRenCurveAttributeBuffer = Register(GraphBuilder, Instance->Strands.DebugCurveAttributeBuffer, ERDGImportedBufferFlags::CreateUAV);
 
+				check(Instance->Strands.Data);
 				AddPatchAttributePass(
 					GraphBuilder,
 					ShaderMap,
@@ -2095,7 +2109,7 @@ void ComputeHairStrandsInterpolation(
 					PatchMode,
 					bValidGuide,
 					bUseSingleGuide,
-					Instance->Strands.Data->Header.CurveAttributeOffsets,
+					*Instance->Strands.Data,
 					Register(GraphBuilder, Instance->Strands.RestResource->CurveAttributeBuffer, ERDGImportedBufferFlags::CreateSRV).Buffer,
 					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveBuffer),
 					RegisterAsSRV(GraphBuilder, Instance->Strands.ClusterCullingResource->VertexToClusterIdBuffer),

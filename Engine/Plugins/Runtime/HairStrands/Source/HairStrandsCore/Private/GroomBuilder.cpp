@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r9");
+	return TEXT("v8r19");
 }
 
 namespace FHairStrandsDecimation
@@ -187,21 +187,33 @@ namespace HairStrandsBuilder
 		const uint32 Attributes = HairStrands.GetAttributes();
 		const uint32 AttributeFlags = HairStrands.GetAttributeFlags();
 		const bool bHasMultipleClumpIDs = HasHairAttributeFlags(AttributeFlags, EHairAttributeFlags::HasMultipleClumpIDs);
-		TArray<uint32> AttributeRootUV;
-		TArray<uint32> AttributeSeed;
-		TArray<uint32> AttributeLength;
-		TArray<uint32> AttributeClumpIDs;
-		TArray<uint32> AttributeColor;
-		TArray<uint32> AttributeRoughness;
-		TArray<uint32> AttributeAO;
 
-		AttributeSeed.SetNum(FMath::DivideAndRoundUp(NumCurves, 4u));		// 1 bytes encoding - Per-Curve
-		AttributeLength.SetNum(FMath::DivideAndRoundUp(NumCurves, 2u));		// 2 bytes encoding - Per-Curve
-		if (HasHairAttribute(Attributes, EHairAttribute::RootUV)) 	{ AttributeRootUV.SetNum(NumCurves); }																		// 4 bytes encoding - Per-Curve
-		if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))	{ AttributeClumpIDs.SetNum(bHasMultipleClumpIDs ? NumCurves * 2u : FMath::DivideAndRoundUp(NumCurves, 2u));}// 8 or 2 bytes encoding - Per-Curve
-		if (HasHairAttribute(Attributes, EHairAttribute::Color))	{ AttributeColor.SetNum(NumPoints); }																		// 4 bytes encoding - Per-Vertex
-		if (HasHairAttribute(Attributes, EHairAttribute::Roughness)){ AttributeRoughness.SetNum(FMath::DivideAndRoundUp(NumPoints, 2u)); }										// 1 bytes encoding - Per-Vertex
-		if (HasHairAttribute(Attributes, EHairAttribute::AO))		{ AttributeAO.SetNum(FMath::DivideAndRoundUp(NumPoints, 4u)); }												// 1 bytes encoding - Per-Vertex
+		// Byte arrays
+		TArray<uint8> AttributeRootUV;
+		TArray<uint8> AttributeSeed;
+		TArray<uint8> AttributeLength;
+		TArray<uint8> AttributeClumpIDs;
+		TArray<uint8> AttributeColor;
+		TArray<uint8> AttributeRoughness;
+		TArray<uint8> AttributeAO;
+
+		// Stride data in bytes
+		const uint32 Stride_Seed 		= 1;
+		const uint32 Stride_Length 		= 2;
+		const uint32 Stride_RootUV 		= 4;
+		const uint32 Stride_ClumpID 	= bHasMultipleClumpIDs ? 8 : 2;
+		const uint32 Stride_Color		= 4;
+		const uint32 Stride_Roughness	= 1;
+		const uint32 Stride_AO			= 1;
+
+		// Ensure all data array are 4bytes aligned so that data are properly padded
+																	{ AttributeSeed		.SetNum(FMath::DivideAndRoundUp(NumCurves * Stride_Seed, 		4u) * 4u); }
+																	{ AttributeLength	.SetNum(FMath::DivideAndRoundUp(NumCurves * Stride_Length, 		4u) * 4u); }
+		if (HasHairAttribute(Attributes, EHairAttribute::RootUV)) 	{ AttributeRootUV	.SetNum(FMath::DivideAndRoundUp(NumCurves * Stride_RootUV, 		4u) * 4u); }
+		if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))	{ AttributeClumpIDs	.SetNum(FMath::DivideAndRoundUp(NumCurves * Stride_ClumpID,		4u) * 4u); }
+		if (HasHairAttribute(Attributes, EHairAttribute::Color))	{ AttributeColor	.SetNum(FMath::DivideAndRoundUp(NumPoints * Stride_Color, 		4u) * 4u); }
+		if (HasHairAttribute(Attributes, EHairAttribute::Roughness)){ AttributeRoughness.SetNum(FMath::DivideAndRoundUp(NumPoints * Stride_Roughness, 	4u) * 4u); }
+		if (HasHairAttribute(Attributes, EHairAttribute::AO))		{ AttributeAO		.SetNum(FMath::DivideAndRoundUp(NumPoints * Stride_AO, 			4u) * 4u); }
 
 		const FVector HairBoxCenter = HairStrands.BoundingBox.GetCenter();
 
@@ -262,7 +274,8 @@ namespace HairStrandsBuilder
 				// Per-Vertex Color
 				if (HasHairAttribute(Attributes, EHairAttribute::Color))
 				{
-					uint32& Packed = AttributeColor[PointIndex + IndexOffset];
+					uint32* Data = (uint32*)AttributeColor.GetData();
+					uint32& Packed = Data[PointIndex + IndexOffset];
 					Packed |= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].R) * 0x7FF), 0u, 0x7FFu);
 					Packed |= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].G) * 0x7FF), 0u, 0x7FFu)<<11;
 					Packed |= FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0x3FF), 0u, 0x3FFu)<<22;
@@ -271,15 +284,15 @@ namespace HairStrandsBuilder
 				// Per-Vertex Roughness
 				if (HasHairAttribute(Attributes, EHairAttribute::Roughness))
 				{
-					uint8* Packed = (uint8*)AttributeRoughness.GetData();
-					Packed[PointIndex + IndexOffset] = FMath::Clamp(uint32(Points.PointsRoughness[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
+					uint8* Data = (uint8*)AttributeRoughness.GetData();
+					Data[PointIndex + IndexOffset] = FMath::Clamp(uint32(Points.PointsRoughness[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
 				}
 
 				// Per-Vertex AO
 				if (HasHairAttribute(Attributes, EHairAttribute::AO))
 				{
-					uint8* Packed = (uint8*)AttributeAO.GetData();
-					Packed[PointIndex + IndexOffset] = FMath::Clamp(uint32(Points.PointsAO[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
+					uint8* Data = (uint8*)AttributeAO.GetData();
+					Data[PointIndex + IndexOffset] = FMath::Clamp(uint32(Points.PointsAO[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
 				}
 			}
 
@@ -309,7 +322,8 @@ namespace HairStrandsBuilder
 				const FVector2D TextureIndexUV = RootUV - TextureRootUV;
 
 				// UDIM
-				uint32& Packed = AttributeRootUV[CurveIndex];
+				uint32* Data = (uint32*)AttributeRootUV.GetData();
+				uint32& Packed = Data[CurveIndex];
 				Packed = 0;
 				Packed |= (uint32(FMath::Clamp(TextureRootUV.X * 2047.f, 0.f, 2047.f)) & 0x7FFu);
 				Packed |= (uint32(FMath::Clamp(TextureRootUV.Y * 2047.f, 0.f, 2047.f)) & 0x7FFu) << 11u;
@@ -363,47 +377,80 @@ namespace HairStrandsBuilder
 
 		const uint32 UintToByte = 4;
 
+		const uint32 CurveAttributeChunkElementCount = 1024; // Make it asset dependent?
+		const uint32 PointAttributeChunkElementCount = 8192; // Make it asset dependent?
+
 		// Concatenate all curve-attributes
+		uint32 CurveAttributeChunkStride = 0;
 		{
 			TArray<FHairStrandsAttributeFormat::Type> OutPackedAttributes;
-			OutPackedAttributes.Reserve(
+			OutPackedAttributes.Reserve(FMath::DivideAndRoundUp(
 				AttributeRootUV.Num() + 
 				AttributeSeed.Num() +
 				AttributeLength.Num() +
-				AttributeClumpIDs.Num());
+				AttributeClumpIDs.Num(), 4));
 
 			for (uint32 AttributeIt=0; AttributeIt< HAIR_CURVE_ATTRIBUTE_COUNT; ++AttributeIt)
 			{
 				OutBulkData.Header.CurveAttributeOffsets[AttributeIt] = HAIR_ATTRIBUTE_INVALID_OFFSET;
 			}
 
-			if (HasHairAttribute(Attributes, EHairAttribute::RootUV))
+			auto AppendAttribute = [&](uint32 InAttributeIndex, uint32 InStrideInBytes, const TArray<uint8>& InData, uint32 InChunkIndex, uint32 InChunkCount)
 			{
-				OutBulkData.Header.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_ROOTUV] = OutPackedAttributes.Num() * UintToByte;
-				OutPackedAttributes.Append(AttributeRootUV);
-			}
+				const uint32 ElementIndex 	= InChunkIndex * CurveAttributeChunkElementCount;
+				const uint32 ElementCount 	= FMath::Min(OutBulkData.Header.CurveCount - ElementIndex, CurveAttributeChunkElementCount);
 
-			{
-				OutBulkData.Header.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_SEED]   = OutPackedAttributes.Num() * UintToByte;
-				OutPackedAttributes.Append(AttributeSeed);
-			}
+				const uint32 OffsetInBytes	= ElementIndex * InStrideInBytes;
+				const uint32 SizeInBytes	= ElementCount * InStrideInBytes;
+				const uint32*DataInUints	= (uint32*)(InData.GetData() + OffsetInBytes);
+				const uint32 SizeInUints	= FMath::DivideAndRoundUp(SizeInBytes, 4u);
 
-			{
-				OutBulkData.Header.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_LENGTH] = OutPackedAttributes.Num() * UintToByte;
-				OutPackedAttributes.Append(AttributeLength);
-			}
+				OutPackedAttributes.Append(MakeArrayView(DataInUints, SizeInUints));
 
-			if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))
-			{
-				if (HasHairAttributeFlags(OutBulkData.Header.ImportedAttributeFlags, EHairAttributeFlags::HasMultipleClumpIDs))
+				// If the attribute has several chunk, pad the last chunk with 0u, so that 
+				// the attribute offset remain correct for this last chunk
+				if (InChunkCount > 1 && InChunkIndex == InChunkCount-1)
 				{
-					OutBulkData.Header.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_CLUMPID3] = OutPackedAttributes.Num() * UintToByte;
-					OutPackedAttributes.Append(AttributeClumpIDs);
+					const uint32 PaddingElementCount = CurveAttributeChunkElementCount - ElementCount;
+					const uint32 PaddingSizeInBytes	 = PaddingElementCount * InStrideInBytes;
+					const uint32 PaddingSizeInUints	 = FMath::DivideAndRoundUp(PaddingSizeInBytes, 4u);
+					for (uint32 PadIt = 0; PadIt < PaddingSizeInUints; ++PadIt)
+					{
+						OutPackedAttributes.Add(0u);
+					}
 				}
-				else
+
+				if (InChunkIndex == 0)
 				{
-					OutBulkData.Header.CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_CLUMPID] = OutPackedAttributes.Num() * UintToByte;
-					OutPackedAttributes.Append(AttributeClumpIDs);
+					OutBulkData.Header.CurveAttributeOffsets[InAttributeIndex] = CurveAttributeChunkStride;
+					CurveAttributeChunkStride = OutPackedAttributes.Num() * 4u;
+				}
+			};
+
+			// Concatenate all curve-attribute into chunks
+			// [            Chunk0            ] [            Chunk1            ] [ ... ]
+			// [   RootUV     ][     Seed     ] [   RootUV     ][     Seed     ] [ ... ]
+			// [C0][C1][C2][C3][C0][C1][C2][C3] [C4][C5][C6][C7][C4][C5][C6][C7] [ ... ]
+			const uint32 ChunkCount = FMath::DivideAndRoundUp(NumCurves, CurveAttributeChunkElementCount);
+			const uint32 ChunkElementCount = FMath::Min(CurveAttributeChunkElementCount, OutBulkData.Header.CurveCount);
+			for (uint32 ChunkIt=0; ChunkIt<ChunkCount; ++ChunkIt)
+			{
+				if (HasHairAttribute(Attributes, EHairAttribute::RootUV))
+				{
+					AppendAttribute(HAIR_CURVE_ATTRIBUTE_ROOTUV, Stride_RootUV, AttributeRootUV, ChunkIt, ChunkCount);
+				}
+	
+				{
+					AppendAttribute(HAIR_CURVE_ATTRIBUTE_SEED, Stride_Seed, AttributeSeed, ChunkIt, ChunkCount);
+				}
+	
+				{
+					AppendAttribute(HAIR_CURVE_ATTRIBUTE_LENGTH, Stride_Length, AttributeLength, ChunkIt, ChunkCount);
+				}
+	
+				if (HasHairAttribute(Attributes, EHairAttribute::ClumpID))
+				{
+					AppendAttribute(bHasMultipleClumpIDs ? HAIR_CURVE_ATTRIBUTE_CLUMPID3 : HAIR_CURVE_ATTRIBUTE_CLUMPID, Stride_ClumpID, AttributeClumpIDs, ChunkIt, ChunkCount);
 				}
 			}
 
@@ -411,34 +458,74 @@ namespace HairStrandsBuilder
 		}
 
 		// Concatenate all point-attributes
+		uint32 PointAttributeChunkStride = 0;
 		{
 			TArray<FHairStrandsAttributeFormat::Type> OutPackedAttributes;
-			OutPackedAttributes.Reserve(
+			OutPackedAttributes.Reserve(FMath::DivideAndRoundUp(
 				AttributeColor.Num() +
 				AttributeRoughness.Num() +
-				AttributeAO.Num());
+				AttributeAO.Num(), 4));
 
 			for (uint32 AttributeIt=0; AttributeIt< HAIR_POINT_ATTRIBUTE_COUNT; ++AttributeIt)
 			{
 				OutBulkData.Header.PointAttributeOffsets[AttributeIt] = HAIR_ATTRIBUTE_INVALID_OFFSET;
 			}
 			
-			if (HasHairAttribute(Attributes, EHairAttribute::Color))
+			auto AppendAttribute = [&](uint32 InAttributeIndex, uint32 InStrideInBytes, const TArray<uint8>& InData, uint32 InChunkIndex, uint32 InChunkCount)
 			{
-				OutBulkData.Header.PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_COLOR] = OutPackedAttributes.Num() * UintToByte;
-				OutPackedAttributes.Append(AttributeColor);
-			}
+				const uint32 ElementIndex 	= InChunkIndex * PointAttributeChunkElementCount;
+				const uint32 ElementCount 	= FMath::Min(OutBulkData.Header.PointCount - ElementIndex, PointAttributeChunkElementCount);
 
-			if (HasHairAttribute(Attributes, EHairAttribute::Roughness))
-			{
-				OutBulkData.Header.PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_ROUGHNESS] = OutPackedAttributes.Num() * UintToByte;
-				OutPackedAttributes.Append(AttributeRoughness);
-			}
+				const uint32 OffsetInBytes	= ElementIndex * InStrideInBytes;
+				const uint32 SizeInBytes	= ElementCount * InStrideInBytes;
+				const uint32*DataInUints	= (uint32*)(InData.GetData() + OffsetInBytes);
+				const uint32 SizeInUints	= FMath::DivideAndRoundUp(SizeInBytes, 4u);
 
-			if (HasHairAttribute(Attributes, EHairAttribute::AO))
+				OutPackedAttributes.Append(MakeArrayView(DataInUints, SizeInUints));
+
+				// If the attribute has several chunk, pad the last chunk with 0u, so that 
+				// the attribute offset remain correct for this last chunk
+				if (InChunkCount > 1 && InChunkIndex == InChunkCount-1)
+				{
+					const uint32 PaddingElementCount = PointAttributeChunkElementCount - ElementCount;
+					const uint32 PaddingSizeInBytes	 = PaddingElementCount * InStrideInBytes;
+					const uint32 PaddingSizeInUints	 = FMath::DivideAndRoundUp(PaddingSizeInBytes, 4u);
+					for (uint32 PadIt = 0; PadIt < PaddingSizeInUints; ++PadIt)
+					{
+						OutPackedAttributes.Add(0u);
+					}
+				}
+
+				if (InChunkIndex == 0)
+				{
+					OutBulkData.Header.PointAttributeOffsets[InAttributeIndex] = PointAttributeChunkStride;
+					PointAttributeChunkStride = OutPackedAttributes.Num() * 4u;
+				}
+			};
+
+			// Concatenate all point-attributes into chunks
+			// [            Chunk0            ] [            Chunk1            ] [ ... ]
+			// [    Color     ][      AO      ] [    Color     ][      AO      ] [ ... ]
+			// [P0][P1][P2][P3][P0][P1][P2][P3] [P4][P5][P6][P7][P4][P5][P6][P7] [ ... ]
+			const uint32 ChunkCount = FMath::DivideAndRoundUp(NumPoints, PointAttributeChunkElementCount);
+			const uint32 ChunkElementCount = FMath::Min(PointAttributeChunkElementCount, OutBulkData.Header.PointCount);
+			for (uint32 ChunkIt=0; ChunkIt<ChunkCount; ++ChunkIt)
 			{
-				OutBulkData.Header.PointAttributeOffsets[HAIR_POINT_ATTRIBUTE_AO] = OutPackedAttributes.Num() * UintToByte;
-				OutPackedAttributes.Append(AttributeAO);
+
+				if (HasHairAttribute(Attributes, EHairAttribute::Color))
+				{
+					AppendAttribute(HAIR_POINT_ATTRIBUTE_COLOR, Stride_Color, AttributeColor, ChunkIt, ChunkCount);
+				}
+	
+				if (HasHairAttribute(Attributes, EHairAttribute::Roughness))
+				{
+					AppendAttribute(HAIR_POINT_ATTRIBUTE_ROUGHNESS, Stride_Roughness, AttributeRoughness, ChunkIt, ChunkCount);
+				}
+	
+				if (HasHairAttribute(Attributes, EHairAttribute::AO))
+				{
+					AppendAttribute(HAIR_POINT_ATTRIBUTE_AO, Stride_AO, AttributeAO, ChunkIt, ChunkCount);
+				}
 			}
 
 			const bool bHasPointAttribute = OutPackedAttributes.Num() > 0;
@@ -460,6 +547,17 @@ namespace HairStrandsBuilder
 		{
 			CopyToBulkData<FHairStrandsPointToCurveFormat32>(OutBulkData.Data.PointToCurve, OutPointToCurve32);
 		}
+
+		// Stride datas
+		OutBulkData.Header.Strides.PositionStride = FHairStrandsPositionFormat::SizeInByte;
+		OutBulkData.Header.Strides.CurveStride = FHairStrandsCurveFormat::SizeInByte;
+		OutBulkData.Header.Strides.PointToCurveStride = (bUse16bitsCurveIndex ? FHairStrandsPointToCurveFormat16::SizeInByte : FHairStrandsPointToCurveFormat32::SizeInByte);
+
+		OutBulkData.Header.Strides.CurveAttributeChunkStride = CurveAttributeChunkStride;
+		OutBulkData.Header.Strides.PointAttributeChunkStride = PointAttributeChunkStride;
+
+		OutBulkData.Header.Strides.CurveAttributeChunkElementCount = CurveAttributeChunkElementCount;
+		OutBulkData.Header.Strides.PointAttributeChunkElementCount = PointAttributeChunkElementCount;
 	}
 
 	void BuildRenderData(const FHairStrandsDatas& HairStrands, FHairStrandsBulkData& OutBulkData)

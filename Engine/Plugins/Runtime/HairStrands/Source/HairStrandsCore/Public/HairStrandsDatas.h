@@ -499,6 +499,20 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 		/** Imported attribute info */
 		uint32 ImportedAttributes = 0;
 		uint32 ImportedAttributeFlags = 0;
+
+		// Data strides
+		struct FStrides
+		{
+			uint32 PositionStride = 0;
+			uint32 CurveStride = 0;
+			uint32 PointToCurveStride = 0;
+			uint32 CurveAttributeChunkStride = 0;
+			uint32 PointAttributeChunkStride = 0;
+
+			// Number of element per chunk block
+			uint32 CurveAttributeChunkElementCount = 0;
+			uint32 PointAttributeChunkElementCount = 0;
+		} Strides;
 	} Header;
 
 	struct FData
