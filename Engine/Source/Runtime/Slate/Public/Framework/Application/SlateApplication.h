@@ -583,7 +583,17 @@ public:
 	/**
 	 * True if transforming mouse input coordinates to account for fullscreen distortions
 	 */
-	bool GetTransformFullscreenMouseInput() const; 
+	bool GetTransformFullscreenMouseInput() const;
+
+#if WITH_SLATE_DEBUGGING
+	/**
+	 * Tries to dumps the current navigation config along with callstack used to set it.
+	 * Does nothing if Slate.Debug.TraceNavigationConfig is false (By default is false)
+	 *
+	 * @param InNavigationConfig Navigation config to dump info to log for
+	 */
+	void TryDumpNavigationConfig(TSharedPtr<FNavigationConfig> InNavigationConfig) const;
+#endif // WITH_SLATE_DEBUGGING
 
 	/**
 	 * Sets specified user focus to the SWidget passed in.

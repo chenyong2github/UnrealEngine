@@ -26,11 +26,48 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUIActionRouterBase)
 
+//////////////////////////////////////////////////////////////////////////
+
 bool bAlwaysShowCursor = false;
 static const FAutoConsoleVariableRef CVarAlwaysShowCursor(
 	TEXT("CommonUI.AlwaysShowCursor"),
 	bAlwaysShowCursor,
 	TEXT(""));
+
+//////////////////////////////////////////////////////////////////////////
+
+static bool bTraceInputConfig = false;
+static FAutoConsoleVariableRef CVarTraceInputConfig(
+	TEXT("CommonUI.Debug.TraceConfigChanges"),
+	bTraceInputConfig,
+	TEXT("Trace Input Config transitions (Non-shipping). Suggest use with Slate.Debug.TraceNavigationConfig (Non-shipping)."));
+
+static bool bTraceConfigOnScreen = false;
+static FAutoConsoleVariableRef CVarTraceConfigOnScreen(
+	TEXT("CommonUI.Debug.TraceConfigOnScreen"),
+	bTraceConfigOnScreen,
+	TEXT("Trace for input configs should be displayed on screen. Requires CommonUI.Debug.TraceConfigChanges."));
+
+static int32 TraceInputConfigNum = 5;
+static FAutoConsoleVariableRef CVarTraceInputConfigNum(
+	TEXT("CommonUI.Debug.TraceInputConfigNum"),
+	TraceInputConfigNum,
+	TEXT("Number of Input config to keep in trace history."),
+	ECVF_ReadOnly);
+
+static bool bWarnAllWidgetsDeactivated = false;
+static FAutoConsoleVariableRef CVarWarnAllWidgetsDeactivated(
+	TEXT("CommonUI.Debug.WarnAllWidgetsDeactivated"),
+	bWarnAllWidgetsDeactivated,
+	TEXT("Warn when all widgets are deactivated. A valid event, but may have leftover input configs."));
+
+static bool bCheckGameViewportClientValid = true;
+static FAutoConsoleVariableRef CVarCheckGameViewportClientValid(
+	TEXT("CommonUI.Debug.CheckGameViewportClientValid"),
+	bCheckGameViewportClientValid,
+	TEXT("Log error when CommonUI is used without the current game viewport deriving from CommonGameViewportClient."));
+
+//////////////////////////////////////////////////////////////////////////
 
 FGlobalUITags FGlobalUITags::GUITags;
 
@@ -102,6 +139,7 @@ UCommonActivatableWidget* UCommonUIActionRouterBase::FindOwningActivatable(TShar
 
 UCommonUIActionRouterBase::UCommonUIActionRouterBase()
 	: PersistentActions(MakeShared<FPersistentActionCollection>(*this))
+	, InputConfigSources(TraceInputConfigNum, "None")
 {
 	// Non-CDO behavior
 	if (!HasAnyFlags(RF_ClassDefaultObject))
@@ -197,6 +235,13 @@ void UCommonUIActionRouterBase::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		AnalogCursor = MakeAnalogCursor();
 		PostAnalogCursorCreate();
+
+		if (bCheckGameViewportClientValid && !GEngine->GameViewportClientClass->IsChildOf<UCommonGameViewportClient>())
+		{
+			UE_LOG(LogUIActionRouter, Error, 
+				TEXT("Using CommonUI without a CommonGameViewportClient derived game viewport client. CommonUI Input routing will not function correctly.\n")
+				TEXT("To disable this warning set CommonUI.Debug.CheckGameViewportClientValid=0 under [SystemSettings] in your project's DefaultEngine.ini."));
+		}
 	}
 	else
 	{
@@ -678,6 +723,12 @@ void UCommonUIActionRouterBase::HandleRootNodeDeactivated(TWeakPtr<FActivatableT
 	// In the case that all root nodes are not activated we need to re-establish input for the highest paint layer node in action domain nodes.
 	if (!bActivatedRootNodeExists && bIsActivatableTreeEnabled)
 	{
+		if (bWarnAllWidgetsDeactivated)
+		{
+			UE_LOG(LogUIActionRouter, Warning, TEXT("All widgets deactivated. Existing input config set: %s"), 
+				ActiveInputConfig.IsSet() ? TEXT("Yes - the current input config is lingering from a deactivated widget.") : TEXT("No."));
+		}
+
 		RefreshActionDomainLeafNodeConfig();
 	}
 }
@@ -1279,8 +1330,34 @@ FActivatableTreeNodePtr UCommonUIActionRouterBase::FindNodeRecursive(const FActi
 	return FoundNode;
 }
 
-void UCommonUIActionRouterBase::SetActiveUIInputConfig(const FUIInputConfig& NewConfig)
+void UCommonUIActionRouterBase::SetActiveUIInputConfig(const FUIInputConfig& NewConfig, const UObject* InConfigSource)
 {
+#if WITH_SLATE_DEBUGGING
+	if (bTraceInputConfig && InConfigSource && (!ActiveInputConfig.IsSet() || NewConfig != ActiveInputConfig.GetValue()))
+	{
+		InputConfigSources[InputConfigSourceIndex] = InConfigSource->GetName();
+
+		TStringBuilder<1024> Builder;
+		Builder.Appendf(TEXT("Input Config Change:\n%s"), *NewConfig.ToString());
+		Builder.Appendf(TEXT("--- Input Config Source History (Newest Last) ---"));
+		for (uint32 Index = 0; Index < InputConfigSources.Capacity(); Index++)
+		{
+			uint32 CircularIndex = InputConfigSources.GetNextIndex(Index + InputConfigSourceIndex);
+			Builder.Appendf(TEXT("Config Source: %s"), *InputConfigSources[CircularIndex]);
+		}
+		FString InputConfigTrace = Builder.ToString();
+
+		UE_LOG(LogUIActionRouter, Log, TEXT("%s"), *InputConfigTrace);
+		if (bTraceConfigOnScreen)
+		{
+			uint64 OnScreenTraceKey = 202013;
+			GEngine->AddOnScreenDebugMessage(OnScreenTraceKey, 15.f, FColor::Cyan, InputConfigTrace);
+		}
+
+		InputConfigSourceIndex = InputConfigSources.GetNextIndex(InputConfigSourceIndex);
+	}
+#endif // WITH_SLATE_DEBUGGING
+
 	ApplyUIInputConfig(NewConfig, !ActiveInputConfig.IsSet());
 }
 
@@ -1310,7 +1387,7 @@ void UCommonUIActionRouterBase::RefreshActionDomainLeafNodeConfig()
 				}
 			}
 
-			SetActiveUIInputConfig(FUIInputConfig(ActionDomainTable->InputMode, ActionDomainTable->MouseCaptureMode));
+			SetActiveUIInputConfig(FUIInputConfig(ActionDomainTable->InputMode, ActionDomainTable->MouseCaptureMode), ActionDomainTable);
 		}
 	}
 }

@@ -122,6 +122,14 @@ protected:
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Category = ActivatableWidget, meta = (DisplayName = "Get Desired Focus Target"))
 	UWidget* BP_GetDesiredFocusTarget() const;
+	
+	/** 
+	 * Implement to provide the input config to use when this widget is activated. Keep in mind when all widgets
+	 * are deactivated, CommonUI will not attempt to automatically restore the input config to before any widget was active.
+	 * Note: This is a fallback used only if the native class parentage does not provide an input config.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category = ActivatableWidget, meta = (DisplayName = "Get Desired Input Config"))
+	FUIInputConfig BP_GetDesiredInputConfig() const;
 
 	/**
 	 * Ask for focus to be re-set to our current DesiredFocusTarget,

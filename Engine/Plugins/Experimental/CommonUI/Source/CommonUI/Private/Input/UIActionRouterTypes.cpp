@@ -543,6 +543,19 @@ FUIInputConfig::FUIInputConfig()
 	, MouseCaptureMode(EMouseCaptureMode::NoCapture)
 {}
 
+FString FUIInputConfig::ToString() const
+{
+	TStringBuilder<1024> Builder;
+
+	Builder.Appendf(TEXT("bIgnoreMoveInput: %u\n"), bIgnoreMoveInput);
+	Builder.Appendf(TEXT("bIgnoreLookInput: %u\n"), bIgnoreLookInput);
+	Builder.Appendf(TEXT("InputMode: %s\n"), *UEnum::GetValueAsString(InputMode));
+	Builder.Appendf(TEXT("MouseCaptureMode: %s\n"), *UEnum::GetValueAsString(MouseCaptureMode));
+	Builder.Appendf(TEXT("bHideCursorDuringViewportCapture: %u\n"), bHideCursorDuringViewportCapture);
+
+	return Builder.ToString();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FActionRouterBindingCollection
 //////////////////////////////////////////////////////////////////////////
@@ -1394,7 +1407,7 @@ void FActivatableTreeRoot::ApplyLeafmostNodeConfig()
 			TOptional<FUIInputConfig> DesiredConfig = PinnedLeafmostNode->FindDesiredInputConfig();
 			if(DesiredConfig.IsSet())
 			{
-				GetActionRouter().SetActiveUIInputConfig(DesiredConfig.GetValue());
+				GetActionRouter().SetActiveUIInputConfig(DesiredConfig.GetValue(), PinnedLeafmostNode->GetWidget());
 			}
 			else if(ICommonInputModule::GetSettings().GetEnableDefaultInputConfig())
 			{

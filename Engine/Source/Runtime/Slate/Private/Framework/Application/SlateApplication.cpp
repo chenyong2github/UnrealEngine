@@ -26,6 +26,7 @@
 #include "Input/Events.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformStackWalk.h"
 #include "Null/NullPlatformApplicationMisc.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
@@ -85,6 +86,13 @@ namespace UE::Slate::Private
 	void VerifyParentChildrenRelationship(const TSharedRef<SWindow>& WindowToDraw);
 	void VerifyWidgetLayerId(const TSharedRef<SWindow>& WindowToDraw);
 }
+
+bool GSlateTraceNavigationConfig = false;
+static FAutoConsoleVariableRef CVarSlateTraceNavigationConfig(
+	TEXT("Slate.Debug.TraceNavigationConfig"),
+	GSlateTraceNavigationConfig,
+	TEXT("True enables tracing of navigation config & callstack to log.")
+);
 #endif //WITH_SLATE_DEBUGGING
 
 bool GSlateInputMotionFiresUserInteractionEvents = true;
@@ -2531,6 +2539,24 @@ bool FSlateApplication::GetTransformFullscreenMouseInput() const
 {
 	return TransformFullscreenMouseInput;
 }
+
+#if WITH_SLATE_DEBUGGING
+void FSlateApplication::TryDumpNavigationConfig(TSharedPtr<FNavigationConfig> InNavigationConfig) const
+{
+	if (GSlateTraceNavigationConfig && InNavigationConfig)
+	{
+		UE_LOG(LogSlate, Log, TEXT("Navigation Config Change:\n%s"), *InNavigationConfig->ToString());
+
+		const uint32 DumpCallstackSize = 65535;
+		ANSICHAR DumpCallstack[DumpCallstackSize] = { 0 };
+		FString ScriptStack = FFrame::GetScriptCallstack(true /* bReturnEmpty */);
+		FPlatformStackWalk::StackWalkAndDump(DumpCallstack, DumpCallstackSize, 0);
+		UE_LOG(LogSlate, Log, TEXT("--- Navigation Config Changing Callstack ---"));
+		UE_LOG(LogSlate, Log, TEXT("Script Stack:\n%s"), *ScriptStack);
+		UE_LOG(LogSlate, Log, TEXT("Callstack:\n%s"), ANSI_TO_TCHAR(DumpCallstack));
+	}
+}
+#endif // WITH_SLATE_DEBUGGING
 
 bool FSlateApplication::SetUserFocus(uint32 UserIndex, const TSharedPtr<SWidget>& WidgetToFocus, EFocusCause ReasonFocusIsChanging /* = EFocusCause::SetDirectly*/)
 {
@@ -6769,6 +6795,10 @@ void FSlateApplication::SetNavigationConfig(TSharedRef<FNavigationConfig> InNavi
 	NavigationConfig->OnUnregister();
 	NavigationConfig = InNavigationConfig;
 	NavigationConfig->OnRegister();
+
+#if WITH_SLATE_DEBUGGING
+	TryDumpNavigationConfig(NavigationConfig);
+#endif // WITH_SLATE_DEBUGGING
 }
 
 bool FSlateApplication::OnConvertibleLaptopModeChanged()

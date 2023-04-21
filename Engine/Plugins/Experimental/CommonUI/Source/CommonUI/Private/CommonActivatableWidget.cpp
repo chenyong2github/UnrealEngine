@@ -15,6 +15,16 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonActivatableWidget)
 
+//////////////////////////////////////////////////////////////////////////
+
+static bool bWarnDesiredFocusNotImplemented = false;
+static FAutoConsoleVariableRef CVarWarnDesiredFocusNotImplemented(
+	TEXT("CommonUI.Debug.WarnDesiredFocusNotImplemented"),
+	bWarnDesiredFocusNotImplemented,
+	TEXT("Warn when a widget is activated without GetDesiredFocus implemented."));
+
+//////////////////////////////////////////////////////////////////////////
+
 UCommonActivatableWidget::FActivatableWidgetRebuildEvent UCommonActivatableWidget::OnRebuilding;
 
 void UCommonActivatableWidget::NativeConstruct()
@@ -74,11 +84,22 @@ TOptional<FActivationMetadata> UCommonActivatableWidget::GetActivationMetadata()
 
 UWidget* UCommonActivatableWidget::NativeGetDesiredFocusTarget() const
 {
+	if (bWarnDesiredFocusNotImplemented && !GetClass()->IsFunctionImplementedInScript(GET_FUNCTION_NAME_CHECKED(UCommonActivatableWidget, BP_GetDesiredFocusTarget)))
+	{
+		UE_LOG(LogCommonUI, Warning, TEXT("[%s] -> Desired Focus not implemented!"), *GetName());
+	}
+
 	return BP_GetDesiredFocusTarget();
 }
 
 TOptional<FUIInputConfig> UCommonActivatableWidget::GetDesiredInputConfig() const
 {
+	// Check if there is a BP implementation for input configs
+	if (GetClass()->IsFunctionImplementedInScript(GET_FUNCTION_NAME_CHECKED(UCommonActivatableWidget, BP_GetDesiredInputConfig)))
+	{
+		return BP_GetDesiredInputConfig();
+	}
+
 	// No particular config is desired by default
 	return TOptional<FUIInputConfig>();
 }

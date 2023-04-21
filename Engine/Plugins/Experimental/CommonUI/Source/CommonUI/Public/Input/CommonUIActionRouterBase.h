@@ -5,6 +5,7 @@
 #include "CommonInputModeTypes.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "Containers/Ticker.h"
+#include "Containers/CircularBuffer.h"
 
 #include "Engine/EngineBaseTypes.h"
 #include "Input/UIActionBindingHandle.h"
@@ -106,7 +107,13 @@ public:
 
 	bool IsWidgetInActiveRoot(const UCommonActivatableWidget* Widget) const;
 
-	void SetActiveUIInputConfig(const FUIInputConfig& NewConfig);
+	/** 
+	 * Sets Input Config 
+	 * 
+	 * @param NewConfig config to set
+	 * @param InConfigSource optional source of config. If exists, will be used to log input config source
+	 */
+	void SetActiveUIInputConfig(const FUIInputConfig& NewConfig, const UObject* InConfigSource = nullptr);
 
 public:
 	void NotifyUserWidgetConstructed(const UCommonUserWidget& Widget);
@@ -200,6 +207,9 @@ private:
 
 	// Note: Treat this as a TSharedRef - only reason it isn't is because TSharedRef doesn't play nice with forward declarations :(
 	TSharedPtr<class FPersistentActionCollection> PersistentActions;
+
+	TCircularBuffer<FString> InputConfigSources = TCircularBuffer<FString>(5, "None");
+	int32 InputConfigSourceIndex = 0;
 
 	bool bForceResetActiveRoot = false;
 

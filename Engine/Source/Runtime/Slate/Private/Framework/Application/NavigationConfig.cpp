@@ -174,3 +174,24 @@ EUINavigationAction FNavigationConfig::GetNavigationActionForKey(const FKey& InK
 
 	return EUINavigationAction::Invalid;
 }
+
+FString FNavigationConfig::ToString() const
+{
+	TStringBuilder<1024> Builder;
+
+	Builder.Appendf(TEXT("bTabNavigation: %u\n"), bTabNavigation);
+	Builder.Appendf(TEXT("bKeyNavigation: %u\n"), bKeyNavigation);
+	Builder.Appendf(TEXT("bAnalogNavigation: %u\n"), bAnalogNavigation);
+	Builder.Appendf(TEXT("AnalogNavigationHorizontalThreshold: %f\n"), AnalogNavigationHorizontalThreshold);
+	Builder.Appendf(TEXT("AnalogNavigationVerticalThreshold: %f\n"), AnalogNavigationVerticalThreshold);
+	Builder.Appendf(TEXT("AnalogHorizontalKey: %s\n"), *AnalogHorizontalKey.ToString());
+	Builder.Appendf(TEXT("AnalogVerticalKey: %s\n"), *AnalogVerticalKey.ToString());
+
+	Builder.Appendf(TEXT("KeyEventRules: \n"));
+	for (TPair<FKey, EUINavigation> KeyEventRule : KeyEventRules)
+	{
+		Builder.Appendf(TEXT("Pair: %s -> %s\n"), *KeyEventRule.Key.ToString(), *UEnum::GetValueAsString(KeyEventRule.Value));
+	}
+
+	return Builder.ToString();
+}

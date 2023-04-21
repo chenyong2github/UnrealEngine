@@ -4,6 +4,7 @@
 
 #include "Containers/UnrealString.h"
 #include "Misc/Optional.h"
+#include "UIActionBindingHandle.generated.h"
 
 enum class EMouseCaptureMode : uint8;
 struct FScriptContainerElement;
@@ -76,13 +77,16 @@ private:
  * Input Config that can be applied on widget activation. Allows for input setup  (Mouse capture, 
  * UI-only input, move / look ignore, etc), to be controlled by widget activation.
  */
-struct FUIInputConfig
+USTRUCT(BlueprintType)
+struct COMMONUI_API FUIInputConfig
 {
+	GENERATED_BODY()
+
 	ECommonInputMode GetInputMode() const { return InputMode; }
 	EMouseCaptureMode GetMouseCaptureMode() const { return MouseCaptureMode; }
 	bool HideCursorDuringViewportCapture() const { return bHideCursorDuringViewportCapture; }
 
-	COMMONUI_API FUIInputConfig();
+	FUIInputConfig();
 	FUIInputConfig(ECommonInputMode InInputMode, EMouseCaptureMode InMouseCaptureMode, bool bInHideCursorDuringViewportCapture = true)
 		: InputMode(InInputMode)
 		, MouseCaptureMode(InMouseCaptureMode)
@@ -101,12 +105,25 @@ struct FUIInputConfig
 		return !operator==(Other);
 	}
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = InputConfig)
 	bool bIgnoreMoveInput = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = InputConfig)
 	bool bIgnoreLookInput = false;
 
-private:
+	/** Simplification of config as string */
+	FString ToString() const;
+
+protected:
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = InputConfig)
 	ECommonInputMode InputMode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = InputConfig)
 	EMouseCaptureMode MouseCaptureMode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = InputConfig)
 	bool bHideCursorDuringViewportCapture = true;
 };
 

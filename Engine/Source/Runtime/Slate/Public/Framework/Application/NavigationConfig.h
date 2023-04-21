@@ -86,6 +86,9 @@ public:
 	UE_DEPRECATED(4.24, "GetNavigationActionForKey doesn't handle multiple users properly, use GetNavigationActionFromKey instead")
 	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const;
 
+	/** Simplification of config as string */
+	virtual FString ToString() const;
+
 public:
 	/** Should the Tab key perform next and previous style navigation. */
 	bool bTabNavigation;

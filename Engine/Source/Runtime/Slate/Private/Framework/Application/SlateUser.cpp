@@ -582,6 +582,10 @@ void FSlateUser::SetUserNavigationConfig(TSharedPtr<FNavigationConfig> InNavigat
 	{
 		InNavigationConfig->OnRegister();
 	}
+
+#if WITH_SLATE_DEBUGGING
+	FSlateApplication::Get().TryDumpNavigationConfig(UserNavigationConfig);
+#endif // WITH_SLATE_DEBUGGING
 }
 
 bool FSlateUser::IsTouchPointerActive(int32 TouchPointerIndex) const
