@@ -4,7 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "Styling/SlateTypes.h"
+
 #include "CineCameraRigRail.h"
+
+class IPropertyHandle;
 
 namespace ETextCommit { enum Type : int; }
 
@@ -37,4 +41,17 @@ private:
 
 	bool bAbsolutePositionSliderStartedTransaction = false;
 
+	ECheckBoxState IsAttachOptionChecked(TArray<TSharedRef<IPropertyHandle>> PropertyHandles) const;
+	void OnAttachOptionChanged(ECheckBoxState NewState, TArray<TSharedRef<IPropertyHandle>> PropertyHandles);
+	
+	TSharedPtr<IPropertyHandle> DriveModeHandle;
+	ECineCameraRigRailDriveMode GetDriveMode() const;
+
+	void OnUseAbsolutePositionChanged(ECheckBoxState NewState, TSharedRef<IPropertyHandle> PropertyHandle);
+
+	void CustomizeRailControlCategory(IDetailLayoutBuilder& DetailBuilder);
+	void CustomizeSplineVisualizationCategory(IDetailLayoutBuilder& DetailBuilder);
+	void CustomizeAttachmentCategory(IDetailLayoutBuilder& DetailBuilder);
+	void CustomizeDriveModeCategory(IDetailLayoutBuilder& DetailBuilder);
+	void HideExtraCategories(IDetailLayoutBuilder& DetailBuilder);
 };

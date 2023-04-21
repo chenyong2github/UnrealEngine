@@ -113,6 +113,21 @@ public:
 	/** Update the spline tangents and SplineReparamTable. And trigers OnSplineEdited delegates */
 	virtual void UpdateSpline() override;
 
+#if WITH_EDITORONLY_DATA
+	/* Toggle if visualizer displays normalized position or absolute position */
+	UPROPERTY(EditAnywhere, Category = "CineSplineEditor", meta = (InlineEditConditionToggle = true))
+	bool bShouldVisualizeNormalizedPosition;
+
+	/* Whether spline length value should be displayed in visualizer */
+	UPROPERTY(EditAnywhere, Category = "CineSplineEditor", meta = (InlineEditConditionToggle = true))
+	bool bShouldVisualizeSplineLength;
+
+	/* Whether point rotation arrows should be displayed in visualizer */
+	UPROPERTY(EditAnywhere, Category = "CineSplineEditor", meta = (InlineEditConditionToggle = true))
+	bool bShouldVisualizePointRotation;
+
+#endif
+
 protected:
 	void SynchronizeProperties();
 

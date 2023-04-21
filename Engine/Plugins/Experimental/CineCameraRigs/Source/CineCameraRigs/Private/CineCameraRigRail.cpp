@@ -3,13 +3,14 @@
 #include "CineCameraRigRail.h"
 #include "CineCameraRigRailHelpers.h"
 #include "CineCameraRigsSettings.h"
-#include "CineSplineComponent.h"
 
 #include "CineCameraComponent.h"
+#include "CineSplineComponent.h"
 #include "Components/SplineMeshComponent.h"
+
+#include "Engine/World.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Engine/World.h"
 #include "UObject/Package.h"
 
 ACineCameraRigRail::ACineCameraRigRail(const FObjectInitializer& ObjectInitializer)
@@ -21,6 +22,7 @@ ACineCameraRigRail::ACineCameraRigRail(const FObjectInitializer& ObjectInitializ
 	if (CineSplineComponent != nullptr)
 	{
 		CineSplineComponent->OnSplineEdited.AddUObject(this, &ACineCameraRigRail::OnSplineEdited);
+		CineSplineComponent->Duration = 10.0f;
 	}
 
 	UMaterialInterface* DefaultMaterial = GetDefault<UCineCameraRigRailSettings>()->DefaultSplineMeshMaterial.LoadSynchronous();
@@ -233,6 +235,34 @@ void ACineCameraRigRail::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 			UpdateSplineMeshMID();
 			SetMIDParameters();
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, AbsolutePositionOnRail) ||
+			 PropertyName == GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, CurrentPositionOnRail))
+	{
+		SpeedAccumulatedTime = 0.0f;
+		if (Speed != 0.0f)
+		{
+			float TotalTime = CineSplineComponent->GetSplineLength() / Speed;
+			SpeedAccumulatedTime = UKismetMathLibrary::SafeDivide(AbsolutePositionOnRail - StartPositionValue(), LastPositionValue() - StartPositionValue()) * TotalTime;
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, Speed))
+	{
+		if (Speed != 0.0)
+		{
+			float TotalTime = CineSplineComponent->GetSplineLength() / Speed;
+			SpeedAccumulatedTime = TotalTime * SpeedProgress;
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, bDisplaySpeedHeatmap) ||
+		     PropertyName == GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, SpeedSampleCountPerSegment) || 
+			 PropertyName == GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, DriveMode) || 
+			 PropertyName == GET_MEMBER_NAME_CHECKED(ACineCameraRigRail, bUseAbsolutePosition))
+	{
+		UpdateSpeedHeatmap();
+		UpdateSplineMeshMID();
+		SetMIDParameters();
+	}
+
 }
 #endif
 
@@ -285,6 +315,7 @@ FVector ACineCameraRigRail::GetVelocityAtPosition(const float InPosition, const 
 
 void ACineCameraRigRail::OnSplineEdited()
 {
+	UpdateSpeedHeatmap();
 	UpdateSplineMeshMID();
 	SetMIDParameters();
 }
@@ -302,4 +333,162 @@ void ACineCameraRigRail::SetMIDParameters()
 			MID->SetTextureParameterValue(TEXT("SplineTexture"), SplineMeshTexture);
 		}
 	}
+}
+
+void ACineCameraRigRail::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	if (DriveMode == ECineCameraRigRailDriveMode::Duration)
+	{
+		DriveByParam(DeltaTime);
+	}
+	else if (DriveMode == ECineCameraRigRailDriveMode::Speed)
+	{
+		DriveBySpeed(DeltaTime);
+	}
+}
+
+void ACineCameraRigRail::DriveByParam(float DeltaTime)
+{
+	const float PositionDuration = LastPositionValue() - StartPositionValue();
+	float Param = PositionDuration * UKismetMathLibrary::SafeDivide(DeltaTime, CineSplineComponent->Duration);
+	Param += bUseAbsolutePosition ? AbsolutePositionOnRail : CurrentPositionOnRail;
+	if (bLoop)
+	{
+		Param = PositionDuration > 0.0f ? FMath::Fmod(Param - StartPositionValue(), PositionDuration) : 0.0;
+		Param += StartPositionValue();
+	}
+	else
+	{
+		Param = FMath::Clamp(Param, StartPositionValue(), LastPositionValue());
+	}
+	bUseAbsolutePosition ? AbsolutePositionOnRail = Param : CurrentPositionOnRail = Param;
+}
+
+void ACineCameraRigRail::DriveBySpeed(float DeltaTime)
+{
+	if (Speed == 0.0f)
+	{
+		return;
+	}
+
+	float TotalTime = CineSplineComponent->GetSplineLength() / Speed;
+
+	SpeedAccumulatedTime += DeltaTime;
+	SpeedAccumulatedTime = bLoop ? FMath::Fmod(SpeedAccumulatedTime, TotalTime) : FMath::Clamp(SpeedAccumulatedTime, 0.0f, TotalTime);
+
+	SpeedProgress = SpeedAccumulatedTime / TotalTime;
+
+	if (bUseAbsolutePosition)
+	{
+		float Distance = CineSplineComponent->GetSplineLength() * SpeedProgress;
+		float InputKey = CineSplineComponent->GetInputKeyValueAtDistanceAlongSpline(Distance);
+		AbsolutePositionOnRail = CineSplineComponent->GetPositionAtInputKey(InputKey);
+	}
+	else
+	{
+		CurrentPositionOnRail = SpeedProgress;
+	}
+}
+
+float ACineCameraRigRail::StartPositionValue() const
+{
+	return bUseAbsolutePosition ? CineSplineComponent->GetFloatPropertyAtSplinePoint(0, FName(TEXT("AbsolutePosition"))) : 0.0f;
+}
+
+float ACineCameraRigRail::LastPositionValue() const
+{
+	int32 const NumPoints = CineSplineComponent->GetNumberOfSplinePoints();
+	return bUseAbsolutePosition ? CineSplineComponent->GetFloatPropertyAtSplinePoint(NumPoints - 1, FName(TEXT("AbsolutePosition"))) : 1.0f;
+}
+
+void ACineCameraRigRail::SetDriveModeSpeed(float Value)
+{
+	float TotalTime = UKismetMathLibrary::SafeDivide(CineSplineComponent->GetSplineLength(), Value);
+	SpeedAccumulatedTime = TotalTime * SpeedProgress;
+	Speed = Value;
+}
+
+void ACineCameraRigRail::SetDriveMode(ECineCameraRigRailDriveMode InMode)
+{
+	DriveMode = InMode;
+	UpdateSpeedHeatmap();
+	UpdateSplineMeshMID();
+	SetMIDParameters();
+}
+
+void ACineCameraRigRail::UpdateSpeedHeatmap()
+{
+	// If bDisplaySpeedHeatmap is false, assigns default grey texture
+	// If DriveMode is Speed, assigns green texture indicating it's constant speed
+	// Otherwise, samples the velocity along the spline and generates a heatmap texture
+
+	if (!bDisplaySpeedHeatmap)
+	{
+		UTexture2D* DefaultTexture = GetDefault<UCineCameraRigRailSettings>()->DefaultSplineMeshTexture.LoadSynchronous();
+		if (DefaultTexture)
+		{
+			SplineMeshTexture = DefaultTexture;
+		}
+		return;
+	}
+	else if (DriveMode == ECineCameraRigRailDriveMode::Speed)
+	{
+		UTexture2D* SpeedModeTexture = GetDefault<UCineCameraRigRailSettings>()->SpeedModeSplineMeshTexture.LoadSynchronous();
+		if (SpeedModeTexture)
+		{
+			SplineMeshTexture = SpeedModeTexture;
+		}
+		return;
+	}
+
+	TArray<float> SpeedValues;
+	const int32 NumPoints = CineSplineComponent->GetNumberOfSplinePoints();
+	const int32 NumSegments = CineSplineComponent->GetNumberOfSplineSegments();
+
+	SpeedValues.SetNum(NumSegments * SpeedSampleCountPerSegment + 1);
+	const float SplineLen = CineSplineComponent->GetSplineLength();
+
+	for (int32 SegmentIndex = 0; SegmentIndex < NumSegments; ++SegmentIndex)
+	{
+		for (int32 PerSegmentIndex = 0; PerSegmentIndex < SpeedSampleCountPerSegment; ++PerSegmentIndex)
+		{
+			int32 Index = SegmentIndex * SpeedSampleCountPerSegment + PerSegmentIndex;
+			const float InputKey = (float)SegmentIndex + (float)PerSegmentIndex / (float)SpeedSampleCountPerSegment;
+			if (bUseAbsolutePosition)
+			{
+				const float Position = CineSplineComponent->GetPositionAtInputKey(InputKey);
+				SpeedValues[Index] = GetVelocityAtPosition(Position).Length();
+			}
+			else
+			{
+				const float Distance = CineSplineComponent->GetDistanceAlongSplineAtSplineInputKey(InputKey);
+				SpeedValues[Index] = GetVelocityAtPosition(UKismetMathLibrary::SafeDivide(Distance, SplineLen)).Length();
+			}
+		}
+	}
+	// Last Point
+	const int32 Index = NumSegments * SpeedSampleCountPerSegment;
+	const float InputKey = (float)NumPoints;
+	if (bUseAbsolutePosition)
+	{
+		const float Position = CineSplineComponent->GetPositionAtInputKey(InputKey);
+		SpeedValues[Index] = GetVelocityAtPosition(Position).Length();
+	}
+	else
+	{
+		const float Distance = CineSplineComponent->GetDistanceAlongSplineAtSplineInputKey(InputKey);
+		SpeedValues[Index] = GetVelocityAtPosition(UKismetMathLibrary::SafeDivide(Distance, SplineLen)).Length();
+	}
+
+	float AverageValue = 0.0f;
+	for (float SpeedValue : SpeedValues)
+	{
+		AverageValue += SpeedValue;
+	}
+	AverageValue /= (float)SpeedValues.Num();
+
+	float LowValue = AverageValue * 0.5f;
+	float HighValue = AverageValue * 2.0f;
+	UCineCameraRigRailHelpers::CreateOrUpdateSplineHeatmapTexture(static_cast<UTexture2D*&>(SplineMeshTexture), SpeedValues, LowValue, AverageValue, HighValue);
 }
