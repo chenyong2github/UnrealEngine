@@ -213,7 +213,7 @@ bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& O
 				VideoCodecInfos.Sort([](const FStreamCodecInformation& a, const FStreamCodecInformation& b) { return a.GetProfileLevel() > b.GetProfileLevel(); });
 				VideoCodecInfos = VideoCodecInfos.FilterByPredicate([BestLevel=VideoCodecInfos[0].GetProfileLevel()](const FStreamCodecInformation& e) { return e.GetProfileLevel() >= BestLevel; });
 				// Sort by resolution
-				VideoCodecInfos.Sort([](const FStreamCodecInformation& a, const FStreamCodecInformation& b) { return a.GetResolution().Width*a.GetResolution().Height > a.GetResolution().Width*a.GetResolution().Height; });
+				VideoCodecInfos.Sort([](const FStreamCodecInformation& a, const FStreamCodecInformation& b) { return a.GetResolution().Width*a.GetResolution().Height > b.GetResolution().Width*b.GetResolution().Height; });
 
 				OutStreamInfo = VideoCodecInfos[0];
 				return true;

@@ -7742,7 +7742,7 @@ private:
 									{
 										bIsSupported = false;
 									}
-									else if (Error != UEMEDIA_ERROR_OK)
+									else if (Error != UEMEDIA_ERROR_OK) //-V547
 									{
 										return Error;
 									}

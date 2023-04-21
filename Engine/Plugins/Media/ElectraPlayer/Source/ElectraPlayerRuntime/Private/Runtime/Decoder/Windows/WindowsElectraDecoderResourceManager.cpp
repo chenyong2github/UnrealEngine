@@ -433,7 +433,7 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput(I
 				case EElectraDecoderPlatformPixelEncoding::CbY0CrY1:		DecPixEnc = EVideoDecoderPixelEncoding::CbY0CrY1; break;
 				case EElectraDecoderPlatformPixelEncoding::Y0CbY1Cr:		DecPixEnc = EVideoDecoderPixelEncoding::Y0CbY1Cr; break;
 				case EElectraDecoderPlatformPixelEncoding::ARGB_BigEndian:	DecPixEnc = EVideoDecoderPixelEncoding::ARGB_BigEndian; break;
-				default: DecPixEnc = DecPixEnc = EVideoDecoderPixelEncoding::Native; break;
+				default: DecPixEnc = EVideoDecoderPixelEncoding::Native; break;
 			}
 			
 			int32 Pitch = ImageBuffers->GetBufferPitchByIndex(0);

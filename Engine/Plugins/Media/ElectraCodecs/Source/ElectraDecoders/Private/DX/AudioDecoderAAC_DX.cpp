@@ -874,7 +874,7 @@ bool FElectraAudioDecoderAAC_DX::ConvertDecoderOutput()
 		PostError(0, TEXT("Converted wave format struct is not at least a WAVEFORMATEXTENSIBLE"), ERRCODE_INTERNAL_FAILED_TO_CONVERT_OUTPUT_SAMPLE);
 		return false;
 	}
-	FMemory::Memcpy(&OutputWaveFormat, OutputWaveFormatPtr, sizeof(OutputWaveFormat));
+	FMemory::Memcpy(&OutputWaveFormat, OutputWaveFormatPtr, sizeof(OutputWaveFormat));	//-V512
 	if (OutputWaveFormatPtr->wFormatTag != WAVE_FORMAT_EXTENSIBLE)
 	{
 		PostError(0, TEXT("Converted wave format struct is not a WAVEFORMATEXTENSIBLE!"), ERRCODE_INTERNAL_FAILED_TO_CONVERT_OUTPUT_SAMPLE);

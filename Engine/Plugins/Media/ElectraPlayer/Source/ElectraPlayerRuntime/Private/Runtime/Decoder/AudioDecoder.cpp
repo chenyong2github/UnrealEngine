@@ -804,7 +804,7 @@ IElectraDecoder::EOutputStatus FAudioDecoderImpl::HandleOutput()
 
 					OutputBufferSampleProperties.Clear();
 					OutputBufferSampleProperties.Set(TEXT("num_channels"), FVariantValue((int64)ChannelMapper.GetNumTargetChannels()));
-					OutputBufferSampleProperties.Set(TEXT("byte_size"), FVariantValue((int64)(ChannelMapper.GetNumTargetChannels() * NumDecodedSamplesPerChannel * NumBytesPerSample)));
+					OutputBufferSampleProperties.Set(TEXT("byte_size"), FVariantValue((int64)((int64)NumDecodedSamplesPerChannel * ChannelMapper.GetNumTargetChannels() * NumBytesPerSample)));
 					OutputBufferSampleProperties.Set(TEXT("sample_rate"), FVariantValue((int64) SamplingRate));
 					OutputBufferSampleProperties.Set(TEXT("duration"), FVariantValue(Duration));
 					OutputBufferSampleProperties.Set(TEXT("pts"), FVariantValue(MatchingInput->AdjustedPTS));
