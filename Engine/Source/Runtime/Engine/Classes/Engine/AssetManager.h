@@ -491,6 +491,8 @@ public:
 	class FTimerManager* GetTimerManager() const;
 
 	// Overrides
+	virtual void BeginDestroy() override;
+
 	virtual void PostInitProperties() override;
 
 	/** Get the encryption key guid attached to this primary asset. Can be invalid if the asset is not encrypted */
@@ -649,7 +651,13 @@ protected:
 	const FPrimaryAssetData* GetNameData(const FPrimaryAssetId& PrimaryAssetId, bool bCheckRedirector = true) const;
 
 	/** Rebuilds the ObjectReferenceList, needed after global object state has changed */
+	UE_DEPRECATED(5.3, "Function was split up into different callsites. Use OnObjectReferenceListInvalidated() if you need a hook in the same place.")
 	virtual void RebuildObjectReferenceList();
+
+	virtual void OnObjectReferenceListInvalidated();
+
+	void CallPreGarbageCollect();
+	virtual void PreGarbageCollect();
 
 	/** Called when an internal load handle finishes, handles setting to pending state */
 	virtual void OnAssetStateChangeCompleted(FPrimaryAssetId PrimaryAssetId, TSharedPtr<FStreamableHandle> BoundHandle, FStreamableDelegate WrappedDelegate);
@@ -802,6 +810,8 @@ protected:
 
 	/** Suppresses bOnlyCookProductionAssets based on the AllowsDevelopmentObjects() property of the TargetPlatforms being cooked. */
 	bool bTargetPlatformsAllowDevelopmentObjects;
+
+	bool bObjectReferenceListDirty = true;
 
 	/** >0 if we are currently in bulk scanning mode */
 	UPROPERTY()
