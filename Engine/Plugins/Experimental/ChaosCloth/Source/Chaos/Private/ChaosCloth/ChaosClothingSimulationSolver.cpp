@@ -782,8 +782,18 @@ int32 FClothingSimulationSolver::GetNumSubsteps() const
 
 void FClothingSimulationSolver::SetWindVelocity(uint32 GroupId, const TVec3<FRealSingle>& InWindVelocity)
 {
-	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
-	VelocityField.SetVelocity(Softs::FSolverVec3(InWindVelocity));
+	Softs::FVelocityAndPressureField& VelocityAndPressureField = Evolution->GetVelocityAndPressureField(GroupId);
+	VelocityAndPressureField.SetVelocity(Softs::FSolverVec3(InWindVelocity));
+}
+
+void FClothingSimulationSolver::SetWindAndPressureGeometry(
+	uint32 GroupId,
+	const FTriangleMesh& TriangleMesh,
+	const Softs::FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
+{
+	Softs::FVelocityAndPressureField& VelocityAndPressureField = Evolution->GetVelocityAndPressureField(GroupId);
+	VelocityAndPressureField.SetGeometry(&TriangleMesh, PropertyCollection, WeightMaps, ClothingSimulationSolverConstant::WorldScale);
 }
 
 void FClothingSimulationSolver::SetWindAndPressureGeometry(
@@ -793,26 +803,33 @@ void FClothingSimulationSolver::SetWindAndPressureGeometry(
 	const TConstArrayView<FRealSingle>& LiftMultipliers,
 	const TConstArrayView<FRealSingle>& PressureMultipliers)
 {
-	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
-	VelocityField.SetGeometry(&TriangleMesh, DragMultipliers, LiftMultipliers, PressureMultipliers);
+	Softs::FVelocityAndPressureField& VelocityAndPressureField = Evolution->GetVelocityAndPressureField(GroupId);
+	VelocityAndPressureField.SetGeometry(&TriangleMesh, DragMultipliers, LiftMultipliers, PressureMultipliers);
 }
 
-void FClothingSimulationSolver::SetWindAndPressureMultipliers(
+void FClothingSimulationSolver::SetWindAndPressureProperties(
 	uint32 GroupId,
-	const TConstArrayView<FRealSingle>& DragMultipliers,
-	const TConstArrayView<FRealSingle>& LiftMultipliers,
-	const TConstArrayView<FRealSingle>& PressureMultipliers)
+	const Softs::FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+	bool bEnableAerodynamics)
 {
-	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
-	VelocityField.SetMultipliers(DragMultipliers, LiftMultipliers, PressureMultipliers);
+	Softs::FVelocityAndPressureField& VelocityAndPressureField = Evolution->GetVelocityAndPressureField(GroupId);
+	VelocityAndPressureField.SetProperties(PropertyCollection, WeightMaps, ClothingSimulationSolverConstant::WorldScale, bEnableAerodynamics);
 }
 
-void FClothingSimulationSolver::SetWindAndPressureProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity, const TVec2<FRealSingle>& Pressure)
+void FClothingSimulationSolver::SetWindAndPressureProperties(
+	uint32 GroupId,
+	const TVec2<FRealSingle>& Drag,
+	const TVec2<FRealSingle>& Lift,
+	FRealSingle FluidDensity,
+	const TVec2<FRealSingle>& Pressure)
 {
-	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
-
-	// UI Pressure is in kg/m s^2. Need to convert to kg/cm s^2 for solver.
-	VelocityField.SetProperties(Drag, Lift, AirDensity, Pressure / ClothingSimulationSolverConstant::WorldScale);
+	Softs::FVelocityAndPressureField& VelocityAndPressureField = Evolution->GetVelocityAndPressureField(GroupId);
+	VelocityAndPressureField.SetProperties(
+		Drag,
+		Lift,
+		FluidDensity / FMath::Cube(ClothingSimulationSolverConstant::WorldScale),  // Fluid density is given in kg/m^3. Need to convert to kg/cm^3 for solver.
+		Pressure / ClothingSimulationSolverConstant::WorldScale);  // UI Pressure is in kg/m s^2. Need to convert to kg/cm s^2 for solver.
 }
 
 const Softs::FVelocityAndPressureField& FClothingSimulationSolver::GetWindVelocityAndPressureField(uint32 GroupId) const
@@ -1189,9 +1206,6 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 			FClothingSimulationCloth* const Cloth = Cloths[ClothIndex];
 			Cloth->PostUpdate(this);
 		}, /*bForceSingleThreaded =*/ !bClothSolverParallelClothPostUpdate);
-
-		// Clear the solver config dirty flags
-		Config->GetProperties().ClearDirtyFlags();
 	}
 
 	// Save old space location for next update

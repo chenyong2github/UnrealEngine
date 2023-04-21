@@ -29,7 +29,7 @@ namespace ClothingSimulationClothDefault
 	constexpr float Drag = 0.035f;
 	constexpr float Lift = 0.035f;
 	constexpr float Pressure = 0.f;
-	constexpr float AirDensity = 1.225e-6f;
+	constexpr float AirDensity = 1.225f;
 	constexpr float GravityScale = 1.f;
 	constexpr float GravityZOverride = -980.665f;
 	constexpr float VelocityScale = 0.75f;
@@ -353,19 +353,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	int32 InLODIndexOverride,
 	const TVec2<FRealSingle>& InEdgeDampingRatio,
 	const TVec2<FRealSingle>& InBendingDampingRatio)
-	: Mesh(nullptr)
-	, Colliders()
-	, GroupId(InGroupId)
+	: GroupId(InGroupId)
 	, PropertyCollection(MakeShared<FManagedArrayCollection>())
 	, bUseLODIndexOverride(bInUseLODIndexOverride)
 	, LODIndexOverride(InLODIndexOverride)
-	, bNeedsReset(false)
-	, bNeedsTeleport(false)
-	, NumActiveKinematicParticles(0)
-	, NumActiveDynamicParticles(0)
 {
 	// Turn parameters into a config
-	PropertyCollection = MakeShared<FManagedArrayCollection>();
 	Softs::FCollectionPropertyMutableFacade Properties(PropertyCollection);
 	Properties.DefineSchema();
 
@@ -474,7 +467,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Properties.SetWeightedValue(LiftIndex, InLift[0], InLift[1]);
 		Properties.SetStringValue(LiftIndex, TEXT("Lift"));
 
-		Properties.AddValue(TEXT("AirDensity"), ClothingSimulationClothDefault::AirDensity, bEnable, bAnimatable);
+		Properties.AddValue(TEXT("FluidDensity"), ClothingSimulationClothDefault::AirDensity, bEnable, bAnimatable);
 	}
 
 	// Pressure
@@ -896,6 +889,13 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_AB
 	Mesh->Update(Solver, PrevLODIndex, LODIndex, PrevOffset, Offset);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	// Update all LODs dirty properties, since it is easier done than re-updating all properties when switching LODs
+	for (TUniquePtr<FLODData>& LODDatum : LODData)
+	{
+		LODDatum->Update(Solver, this);
+	}
+
+	// Retrieve config
 	check(Config);
 	const Softs::FCollectionPropertyFacade& ConfigProperties = Config->GetProperties();
 
@@ -927,18 +927,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				Solver->GetParticleXs(Offset),
 				Solver->GetParticleVs(Offset));
 
-				// Update the wind velocity field for the new LOD mesh
-				FString DragString = TEXT("Drag");            // The default name is the property name
-				FString LiftString = TEXT("Lift");            //
-				FString PressureString = TEXT("Pressure");    //
-				DragString = ConfigProperties.GetStringValue(DragString, DragString);
-				LiftString = ConfigProperties.GetStringValue(LiftString, LiftString);
-				PressureString = ConfigProperties.GetStringValue(PressureString, PressureString);
-				const TConstArrayView<FRealSingle> DragMultipliers = LODData[LODIndex]->WeightMaps.FindRef(DragString);
-				const TConstArrayView<FRealSingle> LiftMultipliers = LODData[LODIndex]->WeightMaps.FindRef(LiftString);
-				const TConstArrayView<FRealSingle> PressureMultipliers = LODData[LODIndex]->WeightMaps.FindRef(PressureString);
-
-				Solver->SetWindAndPressureGeometry(GroupId, GetTriangleMesh(Solver), DragMultipliers, LiftMultipliers, PressureMultipliers);
+			// Update the wind velocity field for the new LOD mesh
+			Solver->SetWindAndPressureGeometry(GroupId, GetTriangleMesh(Solver), ConfigProperties, LODData[LODIndex]->WeightMaps);
 		}
 		else
 		{
@@ -947,11 +937,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
+	// Update Cloth group parameters
 	if (LODIndex != INDEX_NONE)
 	{
-		// Update Cloth group parameters  TODO: Cloth groups should exist as their own node object so that they can be used by several cloth objects
-		LODData[LODIndex]->Update(Solver, this);
-
 		// TODO: Move all groupID updates out of the cloth update to allow to use of the same GroupId with different cloths
 
 		// Set the reference input velocity and deal with teleport & reset; external forces depends on these values, so they must be initialized before then
@@ -1002,46 +990,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const bool bUsePointBasedWindModel = ConfigProperties.GetValue<bool>(TEXT("UsePointBasedWindModel"));
 		Solver->AddExternalForces(GroupId, bUsePointBasedWindModel);
 
-		int32 PressurePropertyKeyIndex;
-		const FVec2f Pressure(ConfigProperties.GetWeightedFloatValue(TEXT("Pressure"), ClothingSimulationClothDefault::Pressure, &PressurePropertyKeyIndex));
-		if (bUsePointBasedWindModel && ClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
-		{
-			Solver->SetWindAndPressureProperties(GroupId, TVec2<FRealSingle>(0.), TVec2<FRealSingle>(0.), (FRealSingle)0., Pressure);  // Disable the wind velocity field
-			
-			if (ConfigProperties.IsStringDirty(PressurePropertyKeyIndex))
-			{
-				const FString& PressureString = ConfigProperties.GetStringValue(PressurePropertyKeyIndex);
-				Solver->SetWindAndPressureMultipliers(
-					GroupId,
-					TConstArrayView<FRealSingle>(),
-					TConstArrayView<FRealSingle>(),
-					LODData[LODIndex]->WeightMaps.FindRef(PressureString));
-			}
-		}
-		else
-		{
-			int32 DragPropertyKeyIndex;
-			int32 LiftPropertyKeyIndex;
-			const FVec2f Drag(ConfigProperties.GetWeightedFloatValue(TEXT("Drag"), ClothingSimulationClothDefault::Drag, &DragPropertyKeyIndex));
-			const FVec2f Lift(ConfigProperties.GetWeightedFloatValue(TEXT("Lift"), ClothingSimulationClothDefault::Lift, &LiftPropertyKeyIndex));
-			const FRealSingle AirDensity = ConfigProperties.GetValue<float>(TEXT("AirDensity"), ClothingSimulationClothDefault::AirDensity);
-
-			Solver->SetWindAndPressureProperties(GroupId, Drag, Lift, AirDensity, Pressure);
-
-			if (ConfigProperties.IsStringDirty(DragPropertyKeyIndex) ||
-				ConfigProperties.IsStringDirty(LiftPropertyKeyIndex) ||
-				ConfigProperties.IsStringDirty(PressurePropertyKeyIndex))
-			{
-				const FString& DragString = ConfigProperties.GetStringValue(DragPropertyKeyIndex);
-				const FString& LiftString = ConfigProperties.GetStringValue(LiftPropertyKeyIndex);
-				const FString& PressureString = ConfigProperties.GetStringValue(PressurePropertyKeyIndex);
-				Solver->SetWindAndPressureMultipliers(
-					GroupId,
-					LODData[LODIndex]->WeightMaps.FindRef(DragString),
-					LODData[LODIndex]->WeightMaps.FindRef(LiftString),
-					LODData[LODIndex]->WeightMaps.FindRef(PressureString));
-			}
-		}
+		const bool bPointBasedWindDisablesAccurateWind = ClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread();
+		const bool bEnableAerodynamics = !(bUsePointBasedWindModel && bPointBasedWindDisablesAccurateWind);
+		Solver->SetWindAndPressureProperties(GroupId, ConfigProperties, LODData[LODIndex]->WeightMaps, bEnableAerodynamics);
 
 		const FVec3f WindVelocity = ConfigProperties.GetValue<FVector3f>(TEXT("WindVelocity"));
 		Solver->SetWindVelocity(GroupId, WindVelocity + Solver->GetWindVelocity());
@@ -1077,9 +1028,6 @@ void FClothingSimulationCloth::PostUpdate(FClothingSimulationSolver* Solver)
 		// Update normals
 		LODData[LODIndex]->UpdateNormals(Solver);
 	}
-
-	// Clear the cloth config dirty flags
-	Config->GetProperties().ClearDirtyFlags();
 }
 
 void FClothingSimulationCloth::UpdateFromCache(const FClothingSimulationCacheData& CacheData)
@@ -1173,9 +1121,10 @@ void FClothingSimulationCloth::SetDampingProperties(FRealSingle InDampingCoeffic
 
 void FClothingSimulationCloth::SetAerodynamicsProperties(const TVec2<FRealSingle>& InDrag, const TVec2<FRealSingle>& InLift, FRealSingle InAirDensity, const FVec3& InWindVelocity)
 {
+	constexpr float WordScale = 100.f;  // Unreal's world unit is the cm
 	Config->GetProperties().SetWeightedFloatValue(TEXT("Drag"), FVector2f(InDrag));
 	Config->GetProperties().SetWeightedFloatValue(TEXT("Lift"), FVector2f(InLift));
-	Config->GetProperties().SetValue(TEXT("AirDensity"), (float)InAirDensity);
+	Config->GetProperties().SetValue(TEXT("FluidDensity"), (float)InAirDensity * WordScale);  // AirDensity is here in kg/cm^3 for legacy reason but muust be in kg/m^3 in the config UI
 	Config->GetProperties().SetValue(TEXT("WindVelocity"), FVector3f(InWindVelocity));
 }
 

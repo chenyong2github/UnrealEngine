@@ -343,7 +343,12 @@ void UChaosClothComponent::StartNewParallelSimulation(float DeltaTime)
 	if (ClothSimulationProxy.IsValid())
 	{
 		CSV_SCOPED_TIMING_STAT(Animation, Cloth);
-		ClothSimulationProxy->Tick_GameThread(DeltaTime);
+		const bool bIsSimulating = ClothSimulationProxy->Tick_GameThread(DeltaTime);
+
+		if (bIsSimulating)
+		{
+			CollectionPropertyFacade->ClearDirtyFlags();
+		}
 	}
 }
 

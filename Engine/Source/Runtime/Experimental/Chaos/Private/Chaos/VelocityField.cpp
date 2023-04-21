@@ -19,22 +19,21 @@ namespace Chaos::Softs {
 void FVelocityAndPressureField::SetProperties(
 	const FCollectionPropertyConstFacade& PropertyCollection,
 	const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps,
-	FSolverReal WorldScale)
+	FSolverReal WorldScale,
+	bool bEnableAerodynamics)
 {
-	if (IsFluidDensityMutable(PropertyCollection))
-	{
-		constexpr FSolverReal OneQuarter = (FSolverReal)0.25;
-		QuarterRho = (FSolverReal)GetFluidDensity(PropertyCollection) * OneQuarter;
-	}
-
-	bool bCheckForWeightMapUpdate = false;
+	bool bSetMultipliers = false;
 
 	if (IsDragMutable(PropertyCollection))
 	{
 		const FSolverVec2 Drag(GetWeightedFloatDrag(PropertyCollection));
 		DragBase = FMath::Clamp(Drag[0], MinCoefficient, MaxCoefficient);
 		DragRange = FMath::Clamp(Drag[1], MinCoefficient, MaxCoefficient) - DragBase;
-		bCheckForWeightMapUpdate = true;
+
+		if (IsDragStringDirty(PropertyCollection))
+		{
+			bSetMultipliers = true;
+		}
 	}
 
 	if (IsLiftMutable(PropertyCollection))
@@ -42,7 +41,16 @@ void FVelocityAndPressureField::SetProperties(
 		const FSolverVec2 Lift(GetWeightedFloatLift(PropertyCollection));
 		LiftBase = FMath::Clamp(Lift[0], MinCoefficient, MaxCoefficient);
 		LiftRange = FMath::Clamp(Lift[1], MinCoefficient, MaxCoefficient) - LiftBase;
-		bCheckForWeightMapUpdate = true;
+
+		if (IsLiftStringDirty(PropertyCollection))
+		{
+			bSetMultipliers = true;
+		}
+	}
+
+	if (IsFluidDensityMutable(PropertyCollection))
+	{
+		Rho = (FSolverReal)FMath::Max(GetFluidDensity(PropertyCollection), 0.f) / FMath::Cube(WorldScale);
 	}
 
 	if (IsPressureMutable(PropertyCollection))
@@ -50,33 +58,77 @@ void FVelocityAndPressureField::SetProperties(
 		const FSolverVec2 Pressure(GetWeightedFloatPressure(PropertyCollection));
 		PressureBase = Pressure[0] / WorldScale;
 		PressureRange = Pressure[1] / WorldScale - PressureBase;
-		bCheckForWeightMapUpdate = true;
+
+		if (IsPressureStringDirty(PropertyCollection))
+		{
+			bSetMultipliers = true;
+		}
 	}
 
-	if (bCheckForWeightMapUpdate && (
-		IsDragStringDirty(PropertyCollection) ||
-		IsLiftStringDirty(PropertyCollection) ||
-		IsPressureStringDirty(PropertyCollection)))
+	if (bSetMultipliers)
 	{
-		const TConstArrayView<FRealSingle> DragMultipliers = Weightmaps.FindRef(GetDragString(PropertyCollection));
-		const TConstArrayView<FRealSingle> LiftMultipliers = Weightmaps.FindRef(GetLiftString(PropertyCollection));
-		const TConstArrayView<FRealSingle> PressureMultipliers = Weightmaps.FindRef(GetPressureString(PropertyCollection));
-
-		SetMultipliers(DragMultipliers, LiftMultipliers, PressureMultipliers);
+		SetMultipliers(PropertyCollection, Weightmaps);
 	}
+
+	// Update QuarterRho
+	constexpr FSolverReal OneQuarter = (FSolverReal)0.25;
+	QuarterRho = bEnableAerodynamics ? Rho * OneQuarter : (FSolverReal)0.;
 }
 
-void FVelocityAndPressureField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers, const TConstArrayView<FRealSingle>& PressureMultipliers)
+void FVelocityAndPressureField::SetProperties(
+	const FSolverVec2& Drag,
+	const FSolverVec2& Lift,
+	const FSolverReal FluidDensity,
+	const FSolverVec2& Pressure,
+	FSolverReal WorldScale)
+{
+	DragBase = FMath::Clamp(Drag[0], MinCoefficient, MaxCoefficient);
+	DragRange = FMath::Clamp(Drag[1], MinCoefficient, MaxCoefficient) - DragBase;
+	LiftBase = FMath::Clamp(Lift[0], MinCoefficient, MaxCoefficient);
+	LiftRange = FMath::Clamp(Lift[1], MinCoefficient, MaxCoefficient) - LiftBase;
+	Rho = FMath::Max(FluidDensity / FMath::Cube(WorldScale), (FSolverReal)0.);
+	PressureBase = Pressure[0] / WorldScale;
+	PressureRange = Pressure[1] / WorldScale - PressureBase;
+
+	constexpr FSolverReal OneQuarter = (FSolverReal)0.25;
+	QuarterRho = Rho * OneQuarter;
+}
+
+void FVelocityAndPressureField::SetGeometry(
+	const FTriangleMesh* TriangleMesh,
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps,
+	FSolverReal WorldScale)
+{
+	SetGeometry(TriangleMesh);
+	SetProperties(
+		FSolverVec2(GetWeightedFloatDrag(PropertyCollection, 0.f)),  // If these properties don't exist, set their values to 0, not to DefaultCoefficients!
+		FSolverVec2(GetWeightedFloatLift(PropertyCollection, 0.f)),
+		(FSolverReal)GetFluidDensity(PropertyCollection, 0.f),
+		FSolverVec2(GetWeightedFloatPressure(PropertyCollection, 0.f)),  // These getters also initialize the property indices, so keep before SetMultipliers
+		WorldScale);
+	SetMultipliers(PropertyCollection, Weightmaps);
+}
+
+void FVelocityAndPressureField::SetGeometry(
+	const FTriangleMesh* TriangleMesh,
+	const TConstArrayView<FRealSingle>& DragMultipliers,
+	const TConstArrayView<FRealSingle>& LiftMultipliers,
+	const TConstArrayView<FRealSingle>& PressureMultipliers)
+{
+	SetGeometry(TriangleMesh);
+	SetMultipliers(DragMultipliers, LiftMultipliers, PressureMultipliers);
+}
+
+void FVelocityAndPressureField::SetGeometry(const FTriangleMesh* TriangleMesh)
 {
 	if (TriangleMesh)
 	{
 		PointToTriangleMap = TriangleMesh->GetPointToTriangleMap();
 		Elements = TriangleMesh->GetElements();
-				
 		const TVec2<int32> Range = TriangleMesh->GetVertexRange();
 		Offset = Range[0];
 		NumParticles = 1 + Range[1] - Offset;
-
 		Forces.SetNumUninitialized(Elements.Num());
 	}
 	else
@@ -86,8 +138,21 @@ void FVelocityAndPressureField::SetGeometry(const FTriangleMesh* TriangleMesh, c
 		Offset = 0;
 		NumParticles = 0;
 		Forces.Reset();
-		SetProperties(FSolverVec2(0.), FSolverVec2(0.), (FSolverReal)0., FSolverVec2(0.));
 	}
+}
+
+void FVelocityAndPressureField::SetMultipliers(
+	const FCollectionPropertyConstFacade& PropertyCollection,
+	const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps)
+{
+	const TConstArrayView<FRealSingle> DragMultipliers = (DragIndex != INDEX_NONE) ?
+		Weightmaps.FindRef(GetDragString(PropertyCollection)) : TConstArrayView<FRealSingle>();
+
+	const TConstArrayView<FRealSingle> LiftMultipliers = (LiftIndex != INDEX_NONE) ?
+		Weightmaps.FindRef(GetLiftString(PropertyCollection)) : TConstArrayView<FRealSingle>();
+
+	const TConstArrayView<FRealSingle> PressureMultipliers = (PressureIndex != INDEX_NONE) ?
+		Weightmaps.FindRef(GetPressureString(PropertyCollection)) : TConstArrayView<FRealSingle>();
 
 	SetMultipliers(DragMultipliers, LiftMultipliers, PressureMultipliers);
 }

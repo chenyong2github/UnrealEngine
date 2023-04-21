@@ -22,6 +22,11 @@ namespace Chaos
 	class FClothingSimulationMesh;
 	class FClothingSimulationConfig;
 
+	namespace Softs
+	{
+		class FCollectionPropertyConstFacade;
+	}
+
 	// Solver simulation node
 	class CHAOSCLOTH_API FClothingSimulationSolver final : public FPhysicsSolverEvents
 	{
@@ -138,34 +143,35 @@ namespace Chaos
 		void SetWindVelocity(uint32 GroupId, const TVec3<FRealSingle>& InWindVelocity);
 
 		// Set the geometry affected by the wind and pressure
-		void SetWindAndPressureGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers, const TConstArrayView<FRealSingle>& PressureMultipliers);
-		UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.")
-		void SetWindGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers)
-		{
-			SetWindAndPressureGeometry(GroupId, TriangleMesh, DragMultipliers, LiftMultipliers, TConstArrayView<FRealSingle>());
-		}
-
-		// Set new weight maps for the wind and pressure multipliers
-		void SetWindAndPressureMultipliers(
+		void SetWindAndPressureGeometry(
 			uint32 GroupId,
+			const FTriangleMesh& TriangleMesh,
+			const Softs::FCollectionPropertyConstFacade& PropertyCollection,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
+
+		void SetWindAndPressureGeometry(
+			uint32 GroupId,
+			const FTriangleMesh& TriangleMesh,
 			const TConstArrayView<FRealSingle>& DragMultipliers,
 			const TConstArrayView<FRealSingle>& LiftMultipliers,
 			const TConstArrayView<FRealSingle>& PressureMultipliers);
 
 		// Set the wind and pressure properties.
-		void SetWindAndPressureProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity = 1.225e-6f, const TVec2<FRealSingle>& Pressure = TVec2<FRealSingle>::ZeroVector);
-		UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.")
-		void SetWindProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity = 1.225e-6f)
-		{
-			SetWindAndPressureProperties(GroupId, Drag, Lift, AirDensity);
-		}
+		void SetWindAndPressureProperties(
+			uint32 GroupId,
+			const Softs::FCollectionPropertyConstFacade& PropertyCollection,
+			const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+			bool bEnableAerodynamics);
+
+		void SetWindAndPressureProperties(
+			uint32 GroupId,
+			const TVec2<FRealSingle>& Drag,
+			const TVec2<FRealSingle>& Lift,
+			FRealSingle FluidDensity = 1.225f,
+			const TVec2<FRealSingle>& Pressure = TVec2<FRealSingle>::ZeroVector);
 
 		// Return the wind velocity and pressure field associated with a given group id.
 		const Softs::FVelocityAndPressureField& GetWindVelocityAndPressureField(uint32 GroupId) const;
-		UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.")
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		const Softs::FVelocityField& GetWindVelocityField(uint32 GroupId) { return GetWindVelocityAndPressureField(GroupId); }
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Add external forces to the particles
 		void AddExternalForces(uint32 GroupId, bool bUseLegacyWind);

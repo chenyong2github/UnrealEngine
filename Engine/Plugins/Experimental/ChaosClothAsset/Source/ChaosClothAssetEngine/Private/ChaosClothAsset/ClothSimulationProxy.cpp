@@ -162,7 +162,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		CompleteParallelSimulation_GameThread();
 	}
 
-	void FClothSimulationProxy::Tick_GameThread(float DeltaTime, FClothingSimulationCacheData* CacheData)
+	bool FClothSimulationProxy::Tick_GameThread(float DeltaTime, FClothingSimulationCacheData* CacheData)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ClothSimulationProxy_TickGame);
 
@@ -182,12 +182,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// Start the the cloth simulation thread
 			ParallelTask = TGraphTask<FClothSimulationProxyParallelTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(*this);
+
+			return true;  // Simulating
 		}
-		else
-		{
-			// It still needs to write back to the GT cache as the context has changed
-			WriteSimulationData();
-		}
+
+		// It still needs to write back to the GT cache as the context has changed
+		WriteSimulationData();
+
+		return false;  // Not simulating
 	}
 
 	void FClothSimulationProxy::Tick()

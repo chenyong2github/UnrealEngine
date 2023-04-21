@@ -111,7 +111,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		void SetCollisionProperties(FRealSingle InCollisionThickness, FRealSingle InFrictionCoefficient, bool bInUseCCD, FRealSingle InSelfCollisionThickness);
 		void SetBackstopProperties(bool bInEnableBackstop);
 		void SetDampingProperties(FRealSingle InDampingCoefficient, FRealSingle InLocalDampingCoefficient = 0.f);
-		void SetAerodynamicsProperties(const TVec2<FRealSingle>& InDrag, const TVec2<FRealSingle>& InLift, FRealSingle InAirDensity, const FVec3& InWindVelocity);
+		void SetAerodynamicsProperties(const TVec2<FRealSingle>& InDrag, const TVec2<FRealSingle>& InLift, FRealSingle InAirDensity, const FVec3& InWindVelocity);  // AirDensity is here in kg/cm^3 for legacy reason (kg/m^3 in UI)
 		void SetPressureProperties(const TVec2<FRealSingle>& InPressure);
 		void SetGravityProperties(FRealSingle InGravityScale, bool bInUseGravityOverride, const FVec3& InGravityOverride);
 		void SetAnimDriveProperties(const TVec2<FRealSingle>& InAnimDriveStiffness, const TVec2<FRealSingle>& InAnimDriveDamping);
@@ -195,20 +195,20 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Cloth parameters
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
-		FClothingSimulationMesh* Mesh;
+		FClothingSimulationMesh* Mesh = nullptr;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		FClothingSimulationConfig* Config;
+		FClothingSimulationConfig* Config = nullptr;
 		TArray<FClothingSimulationCollider*> Colliders;
-		uint32 GroupId;
+		uint32 GroupId = 0;
 
 		TSharedPtr<FManagedArrayCollection> PropertyCollection;  // Used for backward compatibility only, otherwise the properties are owned by the Config
 
-		FRealSingle MaxDistancesMultiplier;  // Legacy multiplier
+		FRealSingle MaxDistancesMultiplier = 1.f;  // Legacy multiplier
 
-		bool bUseLODIndexOverride;
-		int32 LODIndexOverride;
-		bool bNeedsReset;
-		bool bNeedsTeleport;
+		bool bUseLODIndexOverride = false;
+		int32 LODIndexOverride = 0;
+		bool bNeedsReset = false;
+		bool bNeedsTeleport = false;
 
 		// Reference space transform
 		FRigidTransform3 ReferenceSpaceTransform;  // TODO: Add override in the style of LODIndexOverride
@@ -218,7 +218,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TMap<FClothingSimulationSolver*, int32> LODIndices;
 
 		// Stats
-		int32 NumActiveKinematicParticles;
-		int32 NumActiveDynamicParticles;
+		int32 NumActiveKinematicParticles = 0;
+		int32 NumActiveDynamicParticles = 0;
 	};
 } // namespace Chaos
