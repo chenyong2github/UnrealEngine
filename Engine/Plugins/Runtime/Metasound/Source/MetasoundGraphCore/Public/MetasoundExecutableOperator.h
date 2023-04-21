@@ -226,6 +226,14 @@ namespace Metasound
 				}
 			}
 
+			TUniquePtr<IOperator> ReleaseOperator()
+			{
+				ExecuteFunction = nullptr;
+				PostExecuteFunction = nullptr;
+				ResetFunction = nullptr;
+				return MoveTemp(Operator);
+			}
+
 			void Execute()
 			{
 				if (ExecuteFunction)

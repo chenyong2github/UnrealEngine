@@ -657,7 +657,7 @@ namespace Metasound
 		 * does match.  
 		 */
 		template<typename DataType>
-		DataType* GetWritableValue()
+		DataType* GetWritableValue() const
 		{
 			if (DataRefPtr.IsValid())
 			{

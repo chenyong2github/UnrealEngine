@@ -13,6 +13,7 @@
 #include "Analysis/MetasoundFrontendGraphAnalyzer.h"
 #include "Async/AsyncWork.h"
 #include "Containers/MpscQueue.h"
+#include "Containers/SpscQueue.h"
 #include "Sound/SoundGenerator.h"
 #include "Delegates/Delegate.h"
 
@@ -87,38 +88,6 @@ namespace Metasound
 		void Release();
 	};
 
-	class FMetasoundGenerator;
-
-	class FAsyncMetaSoundBuilder : public FNonAbandonableTask
-	{
-	public:
-		FAsyncMetaSoundBuilder(FMetasoundGenerator* InGenerator, FMetasoundGeneratorInitParams&& InInitParams, bool bInTriggerGenerator);
-
-		~FAsyncMetaSoundBuilder() = default;
-
-		void DoWork();
-
-		FORCEINLINE TStatId GetStatId() const
-		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncMetaSoundBuilder, STATGROUP_ThreadPoolAsyncTasks);
-		}
-
-	private:
-		struct FGraphOperatorAndInputs
-		{
-			TUniquePtr<IOperator> Operator;
-			FInputVertexInterfaceData Inputs;
-		};
-		MetasoundGeneratorPrivate::FMetasoundGeneratorData BuildGeneratorData(const FMetasoundGeneratorInitParams& InInitParams, FGraphOperatorAndInputs&& InOperatorAndInputs, TUniquePtr<Frontend::FGraphAnalyzer> InAnalyzer) const;
-		FGraphOperatorAndInputs BuildGraphOperator(TArray<FAudioParameter>&& InParameters, FBuildResults& OutBuildResults) const;
-		TUniquePtr<Frontend::FGraphAnalyzer> BuildGraphAnalyzer(TMap<FGuid, FDataReferenceCollection>&& InInternalDataReferences) const;
-		void LogBuildErrors(const FBuildResults& InBuildResults) const;
-		TArray<FAudioBufferReadRef> FindOutputAudioBuffers(const FVertexInterfaceData& InVertexData) const;
-
-		FMetasoundGenerator* Generator;
-		FMetasoundGeneratorInitParams InitParams;
-		bool bTriggerGenerator;
-	};
 
 	DECLARE_TS_MULTICAST_DELEGATE(FOnSetGraph);
 
@@ -249,6 +218,9 @@ namespace Metasound
 		FOnSetGraph OnSetGraph;
 
 	private:
+		bool TryUseCachedOperator(FMetasoundGeneratorInitParams& InParams, bool bTriggerGenerator);
+		void ReleaseOperatorToCache();
+
 		friend class FAsyncMetaSoundBuilder;
 
 		/** Update the current graph operator with a new graph operator. The number of channels
@@ -263,7 +235,12 @@ namespace Metasound
 
 		bool UpdateGraphIfPending();
 
-		// Internal set graph after checking compatibility.
+		/** Release the graph operator and remove any references to data owned by
+		 * the graph operator.
+		 */
+		void ClearGraph();
+
+		/** Internal set graph after checking compatibility. */
 		void SetGraph(TUniquePtr<MetasoundGeneratorPrivate::FMetasoundGeneratorData>&& InData, bool bTriggerGraph);
 
 		// Fill OutAudio with data in InBuffer, up to maximum number of samples.
@@ -281,6 +258,8 @@ namespace Metasound
 		bool bIsGraphBuilding;
 		bool bIsFinishTriggered;
 		bool bIsFinished;
+		bool bUseOperatorCache = false;
+		FGuid OperatorID;
 
 		int32 FinishSample = INDEX_NONE;
 		int32 NumChannels;
@@ -299,8 +278,7 @@ namespace Metasound
 
 		Audio::FAlignedFloatBuffer OverflowBuffer;
 
-		typedef FAsyncTask<FAsyncMetaSoundBuilder> FBuilderTask;
-		TUniquePtr<FBuilderTask> BuilderTask;
+		TUniquePtr<FAsyncTaskBase> BuilderTask;
 
 		FCriticalSection PendingGraphMutex;
 		TUniquePtr<MetasoundGeneratorPrivate::FMetasoundGeneratorData> PendingGraphData;

@@ -475,7 +475,7 @@ namespace Metasound
 					{
 						if constexpr (!TIsArrayType<TDataType>::Value)
 						{
-							this->LiteralAssignmentFunction = [](const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, FAnyDataReference& OutDataRef)
+							this->LiteralAssignmentFunction = [](const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, const FAnyDataReference& OutDataRef)
 							{
 								*OutDataRef.GetWritableValue<TDataType>() = TDataTypeLiteralFactory<TDataType>::CreateExplicitArgs(InOperatorSettings, InLiteral);
 							};

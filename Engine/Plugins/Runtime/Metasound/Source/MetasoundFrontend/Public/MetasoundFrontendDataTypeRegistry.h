@@ -21,7 +21,7 @@ namespace Metasound
 		using IParameterAssignmentFunction = TUniqueFunction<void(const void*,void*)>;
 
 		// Function signature for assigning a FLiteral to a FAnyDataReference 
-		using FLiteralAssignmentFunction = void(*)(const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, FAnyDataReference& OutDataRef);
+		using FLiteralAssignmentFunction = void(*)(const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, const FAnyDataReference& OutDataRef);
 
 
 		/** FDataTypeRegsitryInfo contains runtime inspectable behavior of a registered
