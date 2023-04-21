@@ -329,6 +329,11 @@ private:
 
 	void OpenSourceFileInIDE(FTimerNodePtr InNode) const;
 
+	void SaveSettings();
+	void SaveVisibleColumnsSettings();
+	void LoadSettings();
+	void LoadVisibleColumnsSettings();
+
 private:
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;

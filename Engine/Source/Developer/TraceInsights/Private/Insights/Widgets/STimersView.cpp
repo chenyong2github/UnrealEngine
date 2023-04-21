@@ -150,6 +150,9 @@ STimersView::STimersView()
 
 STimersView::~STimersView()
 {
+	SaveSettings();
+	SaveVisibleColumnsSettings();
+
 	// Remove ourselves from the Insights manager.
 	if (FInsightsManager::Get().IsValid())
 	{
@@ -414,6 +417,7 @@ void STimersView::Construct(const FArguments& InArgs)
 	];
 
 	InitializeAndShowHeaderColumns();
+	LoadSettings();
 
 	// Create the search filters: text based, type based etc.
 	TextFilter = MakeShared<FTimerNodeTextFilter>(FTimerNodeTextFilter::FItemToStringArray::CreateSP(this, &STimersView::HandleItemToStringArray));
@@ -1669,7 +1673,7 @@ void STimersView::CreateGroupByOptionsSources()
 
 void STimersView::GroupBy_OnSelectionChanged(TSharedPtr<ETimerGroupingMode> NewGroupingMode, ESelectInfo::Type SelectInfo)
 {
-	if (SelectInfo != ESelectInfo::Direct)
+	if (SelectInfo != ESelectInfo::Direct && *NewGroupingMode != GroupingMode)
 	{
 		GroupingMode = *NewGroupingMode;
 
@@ -1715,7 +1719,13 @@ void STimersView::CreateModeOptionsSources()
 	ModeOptionsSource.Add(MakeShared<ETraceFrameType>(ETraceFrameType::TraceFrameType_Game));
 	ModeOptionsSource.Add(MakeShared<ETraceFrameType>(ETraceFrameType::TraceFrameType_Rendering));
 
-	ModeComboBox->SetSelectedItem(ModeOptionsSource[0]);
+	for (TSharedPtr<ETraceFrameType> Option : ModeOptionsSource)
+	{
+		if (*Option == ModeFrameType)
+		{
+			ModeComboBox->SetSelectedItem(Option);
+		}
+	}
 
 	ModeComboBox->RefreshOptions();
 }
@@ -1729,7 +1739,9 @@ void STimersView::Mode_OnSelectionChanged(TSharedPtr<ETraceFrameType> NewFrameTy
 		return;
 	}
 
+	SaveVisibleColumnsSettings();
 	ModeFrameType = *NewFrameType;
+	LoadVisibleColumnsSettings();
 
 	TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
 	if (Window.IsValid())
@@ -3159,6 +3171,113 @@ void STimersView::OpenSourceFileInIDE(FTimerNodePtr InNode) const
 FReply STimersView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	return CommandList->ProcessCommandBindings(InKeyEvent) == true ? FReply::Handled() : FReply::Unhandled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::SaveVisibleColumnsSettings()
+{
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+
+	TArray<FString> Columns;
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
+	{
+		if (ColumnRef->IsVisible() && ColumnRef->CanBeHidden())
+		{
+			Columns.Add(ColumnRef->GetId().ToString());
+		}
+	}
+
+	switch (ModeFrameType)
+	{
+		case ETraceFrameType::TraceFrameType_Count:
+		{
+			Settings.SetTimersViewInstanceVisibleColumns(Columns);
+			break;
+		}
+		case ETraceFrameType::TraceFrameType_Game:
+		{
+			Settings.SetTimersViewGameFrameVisibleColumns(Columns);
+			break;
+		}
+		case ETraceFrameType::TraceFrameType_Rendering:
+		{
+			Settings.SetTimersViewRenderingFrameVisibleColumns(Columns);
+			break;
+		}
+	}
+
+	Settings.SaveToConfig();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::SaveSettings()
+{
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+
+	Settings.SetTimersViewMode(static_cast<int32>(ModeFrameType));
+	Settings.SetTimersViewGroupingMode(static_cast<int32>(GroupingMode));
+	Settings.SetTimersViewShowCpuEvents(static_cast<int32>(bTimerTypeIsVisible[static_cast<int32>(ETimerNodeType::CpuScope)]));
+	Settings.SetTimersViewShowGpuEvents(static_cast<int32>(bTimerTypeIsVisible[static_cast<int32>(ETimerNodeType::GpuScope)]));
+	Settings.SetTimersViewShowZeroCountTimers(!bFilterOutZeroCountTimers);
+
+	Settings.SaveToConfig();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::LoadVisibleColumnsSettings()
+{
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+	TArray<FString> Columns;
+
+	switch (ModeFrameType)
+	{
+		case ETraceFrameType::TraceFrameType_Count:
+		{
+			Columns = Settings.GetTimersViewInstanceVisibleColumns();
+			break;
+		}
+		case ETraceFrameType::TraceFrameType_Game:
+		{
+			Columns = Settings.GetTimersViewGameFrameVisibleColumns();
+			break;
+		}
+		case ETraceFrameType::TraceFrameType_Rendering:
+		{
+			Columns = Settings.GetTimersViewRenderingFrameVisibleColumns();
+			break;
+		}
+	}
+
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
+	{
+		if (ColumnRef->CanBeHidden())
+		{
+			HideColumn(ColumnRef->GetId());
+		}
+	}
+
+	for (const FString& Column : Columns)
+	{
+		ShowColumn(FName(Column));
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::LoadSettings()
+{
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+
+	ModeFrameType = static_cast<ETraceFrameType>(Settings.GetTimersViewMode());
+	GroupingMode = static_cast<ETimerGroupingMode>(Settings.GetTimersViewGroupingMode());
+	bTimerTypeIsVisible[static_cast<int32>(ETimerNodeType::CpuScope)] = Settings.GetTimersViewShowCpuEvents();
+	bTimerTypeIsVisible[static_cast<int32>(ETimerNodeType::GpuScope)] = Settings.GetTimersViewShowGpuEvents();
+	bFilterOutZeroCountTimers = !Settings.GetTimersViewShowZeroCountTimers();
+
+	LoadVisibleColumnsSettings();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
