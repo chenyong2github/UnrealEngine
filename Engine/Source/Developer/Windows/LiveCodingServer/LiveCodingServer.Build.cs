@@ -7,6 +7,8 @@ public class LiveCodingServer : ModuleRules
 {
 	public LiveCodingServer(ReadOnlyTargetRules Target) : base(Target)
 	{
+		CppStandard = CppStandardVersion.Cpp17;
+
         PrivateDependencyModuleNames.Add("Core");
         PrivateDependencyModuleNames.Add("Json");
         PrivateDependencyModuleNames.Add("LiveCoding");
