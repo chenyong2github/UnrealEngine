@@ -1132,7 +1132,7 @@ public:
 	bool IsStreaming(const FPlatformAudioCookOverrides& Overrides) const;
 
 	/** Returns whether the sound is seekable. */
-	bool IsSeekable() const;
+	virtual bool IsSeekable() const;
 
 	/**
 	 * Checks whether we should use the load on demand cache.
