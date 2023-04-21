@@ -101,20 +101,6 @@ struct FIllegalReference
 	FString FormatStringArg;
 };
 
-enum class ESaveableStatus
-{
-	Success,
-	PendingKill,
-	Transient,
-	AbstractClass,
-	DeprecatedClass,
-	NewerVersionExistsClass,
-	OuterUnsaveable,
-	ClassUnsaveable,
-	ExcludedByPlatform,
-	__Count,
-};
-
 /** Hold the harvested exports and imports for a realm */
 struct FHarvestedRealm
 {
@@ -163,10 +149,6 @@ struct FHarvestedRealm
 		return IsImport(InObject) || IsExport(InObject);
 	}
 
-	/**
-	 * Used during harvesting to early exit from objects we have found referenced earlier but excluded because of
-	 * editoronly or unsaveable or otherwise.
-	 */
 	bool IsExcluded(UObject* InObject) const
 	{
 		return Excluded.Contains(InObject);
@@ -420,14 +402,14 @@ public:
 		, SaveArgs(InSaveArgs)
 		, PackageWriter(InSaveArgs.SavePackageContext ? InSaveArgs.SavePackageContext->PackageWriter : nullptr)
 		, SerializeContext(InSerializeContext)
-		, GameRealmExcludedObjectMarks(GetExcludedObjectMarksForGameRealm(SaveArgs.GetTargetPlatform()))
+		, ExcludedObjectMarks(SavePackageUtilities::GetExcludedObjectMarksForTargetPlatform(SaveArgs.GetTargetPlatform()))
 	{
 		// Assumptions & checks
 		check(InPackage);
 		check(InFilename);
-		// if we are cooking we should be doing it in the editor and with a PackageWriter
+		// if we are cooking we should be doing it in the editor and with a CookedPackageWriter
 		check(!IsCooking() || WITH_EDITOR);
-		checkf(!IsCooking() || PackageWriter, TEXT("Cook saves require an IPackageWriter"));
+		checkf(!IsCooking() || (PackageWriter && PackageWriter->AsCookedPackageWriter()), TEXT("Cook saves require an ICookedPackageWriter"));
 
 		// Store initial state
 		InitialPackageFlags = Package->GetPackageFlags();
@@ -519,19 +501,8 @@ public:
 
 	EObjectMark GetExcludedObjectMarks(ESaveRealm HarvestingRealm) const
 	{
-		switch (HarvestingRealm)
-		{
-		case ESaveRealm::Optional:
-			// When considering excluded objects for a platform, do not consider editor only object and not for platform objects in the optional context as excluded
-			return (EObjectMark)(GameRealmExcludedObjectMarks & ~(EObjectMark::OBJECTMARK_EditorOnly | EObjectMark::OBJECTMARK_NotForTargetPlatform));
-		case ESaveRealm::Game:
-			return GameRealmExcludedObjectMarks;
-		case ESaveRealm::Editor:
-			return EObjectMark::OBJECTMARK_NOMARKS;
-		default:
-			checkNoEntry();
-			return EObjectMark::OBJECTMARK_NOMARKS;
-		}
+		// When considering excluded objects for a platform, do not consider editor only object and not for platform objects in the optional context as excluded
+		return (HarvestingRealm == ESaveRealm::Optional) ? (EObjectMark)(ExcludedObjectMarks & ~(EObjectMark::OBJECTMARK_EditorOnly|EObjectMark::OBJECTMARK_NotForTargetPlatform)) : ExcludedObjectMarks;
 	}
 
 	EObjectFlags GetTopLevelFlags() const
@@ -745,6 +716,17 @@ public:
 	void MarkUnsaveable(UObject* InObject);
 
 	bool IsUnsaveable(UObject* InObject, bool bEmitWarning = true) const;
+	enum class ESaveableStatus
+	{
+		Success,
+		PendingKill,
+		Transient,
+		AbstractClass,
+		DeprecatedClass,
+		NewerVersionExistsClass,
+		OuterUnsaveable,
+		__Count,
+	};
 	ESaveableStatus GetSaveableStatus(UObject* InObject, UObject** OutCulprit = nullptr, ESaveableStatus* OutCulpritStatus = nullptr) const;
 	ESaveableStatus GetSaveableStatusNoOuter(UObject* InObject) const;
 
@@ -786,6 +768,11 @@ public:
 	bool IsIncluded(UObject* InObject) const
 	{
 		return GetHarvestedRealm().IsIncluded(InObject);
+	}
+
+	bool IsExcluded(UObject* InObject) const
+	{
+		return GetHarvestedRealm().IsExcluded(InObject);
 	}
 
 	TSet<FTaggedExport>& GetExports()
@@ -985,7 +972,19 @@ public:
 		GetHarvestedRealm().SetTextFormatTempFilename(MoveTemp(InTemp));
 	}
 
-	FSavePackageResultStruct GetFinalResult();
+	FSavePackageResultStruct GetFinalResult()
+	{
+		if (Result != ESavePackageResult::Success)
+		{
+			return Result;
+		}
+
+		ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub : ESavePackageResult::Success;
+		FSavePackageResultStruct FinalResultStruct(FinalResult, TotalPackageSizeUncompressed,
+			SerializedPackageFlags, IsCompareLinker() ? MoveTemp(GetHarvestedRealm().Linker) : nullptr);
+		FinalResultStruct.SavedAssets = MoveTemp(SavedAssets);
+		return FinalResultStruct;
+	}
 
 	FObjectSaveContextData& GetObjectSaveContext()
 	{
@@ -1069,7 +1068,6 @@ private:
 
 	// Create the harvesting contexts and automatic optional context gathering options
 	void SetupHarvestingRealms();
-	static EObjectMark GetExcludedObjectMarksForGameRealm(const ITargetPlatform* TargetPlatform);
 		
 	friend class FPackageHarvester;
 
@@ -1103,8 +1101,8 @@ private:
 	// Pointer to the EDLCookChecker associated with this context
 	FEDLCookCheckerThreadState* EDLCookChecker = nullptr;
 
-	// An object matching any GameRealmExcludedObjectMarks should be excluded from imports or exports in the game realm
-	const EObjectMark GameRealmExcludedObjectMarks;
+	// Matching any mark in ExcludedObjectMarks indicates that an object should be excluded from being either an import or an export for this save
+	const EObjectMark ExcludedObjectMarks;
 
 	// Harvested custom versions
 	FCustomVersionContainer CustomVersions;
@@ -1128,4 +1126,4 @@ private:
 	TMap<UObject*, TSet<FProperty*>> TransientPropertyOverrides;
 };
 
-const TCHAR* LexToString(ESaveableStatus Status);
+const TCHAR* LexToString(FSaveContext::ESaveableStatus Status);

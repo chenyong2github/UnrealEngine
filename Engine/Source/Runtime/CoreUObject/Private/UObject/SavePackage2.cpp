@@ -157,15 +157,7 @@ ESavePackageResult ValidatePackage(FSaveContext& SaveContext)
 					ErrorText = FText::Format(NSLOCTEXT("SavePackage2", "AssetSaveMissingTopLevelFlags", "The Asset {Name} being saved does not have any of the provided object flags (0x{Flags}); saving the package would cause data loss."),	
 						Arguments);
 				}
-				if (SaveContext.IsGenerateSaveError() && SaveContext.GetError())
-				{
-					SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *ErrorText.ToString());
-				}
-				else
-				{
-					UE_LOG(LogSavePackage, Warning, TEXT("%s"), *ErrorText.ToString());
-				}
-
+				SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *ErrorText.ToString());
 				return ESavePackageResult::Error;
 			}
 		}
@@ -385,7 +377,7 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 		FHarvestedRealm& OptionalContext = SaveContext.GetHarvestedRealm(ESaveRealm::Optional);
 		for (auto It = OptionalContext.GetExports().CreateIterator(); It; ++It)
 		{
-			if (!FPackageHarvester::ShouldObjectBeHarvestedInOptionalRealm(It->Obj, SaveContext))
+			if (!It->Obj->GetClass()->HasAnyClassFlags(CLASS_Optional))
 			{
 				// Make sure the export is found in the game context as well
 				if (FTaggedExport* GameExport = SaveContext.GetHarvestedRealm(ESaveRealm::Game).GetExports().Find(It->Obj))
@@ -413,33 +405,30 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 		}
 	}
 
+	// Trim PrestreamPackage list 
+	TSet<UPackage*>& PrestreamPackages = SaveContext.GetPrestreamPackages();
+	TSet<UPackage*> KeptPrestreamPackages;
+	for (UPackage* Pkg : PrestreamPackages)
 	{
-		FPackageHarvester::FHarvestScope RootReferenceScope = Harvester.EnterRootReferencesScope();
-		// Trim PrestreamPackage list 
-		TSet<UPackage*>& PrestreamPackages = SaveContext.GetPrestreamPackages();
-		TSet<UPackage*> KeptPrestreamPackages;
-		for (UPackage* Pkg : PrestreamPackages)
+		// If the prestream package hasn't been otherwise already marked as an import, keep it as such and mark it as an import
+		if (!SaveContext.IsImport(Pkg))
 		{
-			// If the prestream package hasn't been otherwise already marked as an import, keep it as such and mark it as an import
-			if (!SaveContext.IsImport(Pkg))
-			{
-				KeptPrestreamPackages.Add(Pkg);
-				Harvester << Pkg;
-			}
+			KeptPrestreamPackages.Add(Pkg);
+			SaveContext.AddImport(Pkg);
 		}
-		Exchange(PrestreamPackages, KeptPrestreamPackages);
+	}
+	Exchange(PrestreamPackages, KeptPrestreamPackages);
 
-		// Harvest the PrestreamPackage class name if needed
-		if (PrestreamPackages.Num() > 0)
-		{
-			Harvester.HarvestPackageHeaderName(SavePackageUtilities::NAME_PrestreamPackage);
-		}
+	// Harvest the PrestreamPackage class name if needed
+	if (PrestreamPackages.Num() > 0)
+	{
+		Harvester.HarvestPackageHeaderName(SavePackageUtilities::NAME_PrestreamPackage);		
+	}
 
-		// if we have a WorldTileInfo, we need to harvest its dependencies as well, i.e. Custom Version
-		if (FWorldTileInfo* WorldTileInfo = SaveContext.GetPackage()->GetWorldTileInfo())
-		{
-			Harvester << *WorldTileInfo;
-		}
+	// if we have a WorldTileInfo, we need to harvest its dependencies as well, i.e. Custom Version
+	if (FWorldTileInfo* WorldTileInfo = SaveContext.GetPackage()->GetWorldTileInfo())
+	{
+		Harvester << *WorldTileInfo;
 	}
 
 	// The Editor version is used as part of the check to see if a package is too old to use the gather cache, so we always have to add it if we have gathered loc for this asset
@@ -1423,13 +1412,13 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 			{
 				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' is in the linker table, but is pending kill or garbage. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
 			}
-			bool bIncludedInHarvest = SaveContext.IsIncluded(ToTest);
-			if (bMandatory && !bIncludedInHarvest)
+			bool bNotFiltered = !SaveContext.IsExcluded(ToTest);
+			if (bMandatory && !bNotFiltered)
 			{
 				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' was filtered, but is mandatory. This indicates a problem with editor only stripping. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
-				bIncludedInHarvest = true;
+				bNotFiltered = true;
 			}
-			if (bIncludedInHarvest)
+			if (bNotFiltered)
 			{
 				if (!Index.IsNull())
 				{
@@ -1538,8 +1527,8 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 						// Only include subobject archetypes
 						if (SubObj->HasAnyFlags(RF_DefaultSubObject | RF_ArchetypeObject))
 						{
-							// Don't include the archetype of SubObjects that were not included in the harvesting phase; we didn't add their archetypes
-							if (!SaveContext.IsIncluded(SubObj))
+							// Don't include the archetype of SubObjects that we excluded in the harvesting phase; we didn't add their archetypes
+							if (SaveContext.IsExcluded(SubObj))
 							{
 								continue;
 							}
