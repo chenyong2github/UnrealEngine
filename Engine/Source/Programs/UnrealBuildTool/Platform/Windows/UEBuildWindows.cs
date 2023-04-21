@@ -1590,8 +1590,7 @@ namespace UnrealBuildTool
 				CompileEnvironment.Definitions.Add(String.Format("OVERRIDE_PLATFORM_HEADER_NAME={0}", OverridePlatformHeaderName));
 			}
 
-			// Ray tracing only supported on 64-bit Windows.
-			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.WindowsPlatform.bEnableRayTracing)
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.bEnableRayTracing)
 			{
 				CompileEnvironment.Definitions.Add("RHI_RAYTRACING=1");
 			}
