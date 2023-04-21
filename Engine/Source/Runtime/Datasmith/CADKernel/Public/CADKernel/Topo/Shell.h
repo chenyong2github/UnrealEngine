@@ -29,11 +29,6 @@ public:
 	{
 	}
 
-	FOrientedFace(const FOrientedFace& OrientiredEntity)
-		: TOrientedEntity(OrientiredEntity)
-	{
-	}
-
 	FOrientedFace()
 		: TOrientedEntity()
 	{
