@@ -113,9 +113,6 @@ public:
 	 */
 	FRigVMPropertyPath(const FProperty* InProperty, const FString& InSegmentPath);
 
-	// Copy constructor
-	FRigVMPropertyPath(const FRigVMPropertyPath& InOther);
-
 	// Returns the property path as a string (the sanitized SegmentPath)
 	const FString& ToString() const { return Path; }
 

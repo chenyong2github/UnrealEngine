@@ -125,12 +125,6 @@ FRigVMPropertyPath::FRigVMPropertyPath(const FProperty* InProperty, const FStrin
 	}
 }
 
-FRigVMPropertyPath::FRigVMPropertyPath(const FRigVMPropertyPath& InOther)
-: Path(InOther.Path)
-, Segments(InOther.Segments)
-{
-}
-
 const FProperty* FRigVMPropertyPath::GetTailProperty() const
 {
 	if(Segments.IsEmpty())
