@@ -115,14 +115,22 @@ namespace Chaos
 		if (!bHasChild || !(Parent->M() > UE_SMALL_NUMBER))
 		{
 			Parent->M() = 1.0;
-			Parent->X() = FVec3(0);
+			if (ForceMassOrientation)
+			{
+				Parent->X() = ForceMassOrientation->GetLocation();
+				Parent->R() = ForceMassOrientation->GetRotation();
+			}
+			else
+			{
+				Parent->X() = FVec3(0);
+				Parent->R() = FRotation3(FMatrix::Identity);
+			}
 			Parent->V() = FVec3(0);
 			Parent->PreV() = Parent->V();
 			Parent->InvM() = 1;
 			Parent->P() = Parent->X();
 			Parent->W() = FVec3(0);
 			Parent->PreW() = Parent->W();
-			Parent->R() = FRotation3(FMatrix::Identity);
 			Parent->Q() = Parent->R();
 			Parent->I() = TVec3<FRealSingle>(1);
 			Parent->InvI() = TVec3<FRealSingle>(1);
