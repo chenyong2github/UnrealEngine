@@ -46,8 +46,7 @@ public:
 		if (SelectedActors.Num() > 0)
 		{
 			FMessageLog EditorErrors("EditorErrors");
-			EditorErrors.NewPage(LOCTEXT("ScriptedActions", "Scripted Actions"));
-			
+
 			auto ProcessActorAction = [&UtilityAndSelectionIndices, &SelectedActors, &SupportedActors, &EditorErrors](const TSharedRef<FAssetActionUtilityPrototype>& ActionUtilityPrototype)
 			{
 				if (ActionUtilityPrototype->IsLatestVersion())
@@ -74,6 +73,7 @@ public:
 				}
 				else
                 {
+					EditorErrors.NewPage(LOCTEXT("ScriptedActions", "Scripted Actions"));
 					TSharedRef<FTokenizedMessage> ErrorMessage = EditorErrors.Error();
                     ErrorMessage->AddToken(FAssetNameToken::Create(ActionUtilityPrototype->GetUtilityBlueprintAsset().GetObjectPathString(),FText::FromString(ActionUtilityPrototype->GetUtilityBlueprintAsset().GetObjectPathString())));
                     ErrorMessage->AddToken(FTextToken::Create(LOCTEXT("NeedsToBeUpdated", "needs to be re-saved and possibly upgraded.")));
