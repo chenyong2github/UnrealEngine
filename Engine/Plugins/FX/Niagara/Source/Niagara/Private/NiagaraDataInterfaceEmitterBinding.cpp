@@ -35,7 +35,7 @@ FNiagaraEmitterInstance* FNiagaraDataInterfaceEmitterBinding::Resolve(FNiagaraSy
 						[&DataInterface](const FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDataInterface) { return ResolvedDataInterface.ResolvedDataInterface == DataInterface; });
 					if (MatchingResolvedDataInterface != nullptr)
 					{
-						SourceEmitterName = MatchingResolvedDataInterface->EmitterName;
+						SourceEmitterName = MatchingResolvedDataInterface->ResolvedSourceEmitterName;
 						break;
 					}
 				}

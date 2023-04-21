@@ -1958,12 +1958,8 @@ const FGuid UNiagaraSystem::ResolveDIsMessageId(0xB6ACDD97, 0xA2C04B02, 0xAB9FA4
 
 void UNiagaraSystem::ResolveDIBindings()
 {
-	TMap<FGuid, TMap<FNiagaraVariableBase, UNiagaraDataInterface*>> EmitterIdToVariableAssignmentsMap;
-	TMap<FGuid, TMap<FNiagaraVariableBase, FNiagaraVariableBase>> EmitterIdToVariableBindingsMap;
 	TArray<FText> ErrorMessages;
-	FNiagaraResolveDIHelpers::CollectDIBindingsAndAssignments(this, EmitterIdToVariableAssignmentsMap, EmitterIdToVariableBindingsMap, ErrorMessages);
-	FNiagaraResolveDIHelpers::ResolveDIs(this, EmitterIdToVariableAssignmentsMap, EmitterIdToVariableBindingsMap, ErrorMessages);
-
+	FNiagaraResolveDIHelpers::ResolveDIs(this, ErrorMessages);
 	if (ErrorMessages.Num() > 0)
 	{
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");

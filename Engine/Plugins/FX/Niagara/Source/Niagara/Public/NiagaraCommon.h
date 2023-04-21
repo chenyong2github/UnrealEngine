@@ -682,7 +682,7 @@ public:
 	TArray<FName> RegisteredParameterMapWrites;
 
 	UPROPERTY()
-	FString EmitterName;
+	FString SourceEmitterName;
 
 	bool IsUserDataInterface() const;
 };
@@ -727,7 +727,7 @@ struct NIAGARA_API FNiagaraScriptResolvedDataInterfaceInfo
 	FName CompileName;
 
 	UPROPERTY()
-	FString EmitterName;
+	FString ResolvedSourceEmitterName;
 
 	UPROPERTY()
 	FNiagaraVariableBase ResolvedVariable;
@@ -784,6 +784,9 @@ public:
 
 	UPROPERTY()
 	bool bIsPlaceholder;
+
+	UPROPERTY()
+	FString SourceEmitterName;
 
 	/** Would this data interface work on the target execution type? Only call this on the game thread.*/
 	bool CanExecuteOnTarget(ENiagaraSimTarget SimTarget) const;

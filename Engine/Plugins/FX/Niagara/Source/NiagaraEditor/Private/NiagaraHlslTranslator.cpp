@@ -6953,6 +6953,17 @@ int32 FHlslNiagaraTranslator::RegisterDataInterface(FNiagaraVariable& Var, UNiag
 		CompilationOutput.ScriptData.DataInterfaceInfo[Idx].Type = Var.GetType();
 		CompilationOutput.ScriptData.DataInterfaceInfo[Idx].bIsPlaceholder = bPlaceholder;
 
+		FString SourceEmitterName = FString();
+		if (CompileData->GetUniqueEmitterName().IsEmpty() == false)
+		{
+			SourceEmitterName = CompileData->GetUniqueEmitterName();
+		}
+		else if (EmitterAlias != nullptr)
+		{
+			SourceEmitterName = *EmitterAlias;
+		}
+		CompilationOutput.ScriptData.DataInterfaceInfo[Idx].SourceEmitterName = SourceEmitterName;
+
 		//Interface requires per instance data so add a user pointer table entry.
 		if (DataInterface != nullptr && DataInterface->PerInstanceDataSize() > 0)
 		{
