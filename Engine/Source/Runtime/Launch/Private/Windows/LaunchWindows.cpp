@@ -34,7 +34,7 @@ extern "C" { _declspec(dllexport) uint32 AmdPowerXpressRequestHighPerformance = 
 // versions of Windows will transparently load default OS-provided D3D12 library.
 #define USE_D3D12_REDIST (PLATFORM_DESKTOP && PLATFORM_CPU_X86_FAMILY && PLATFORM_64BITS && 1)
 #if USE_D3D12_REDIST
-extern "C" { _declspec(dllexport) extern const UINT D3D12SDKVersion = 608; }
+extern "C" { _declspec(dllexport) extern const UINT D3D12SDKVersion = 610; }
 extern "C" { _declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\"; }
 #endif // USE_D3D12_REDIST
 

@@ -72,7 +72,7 @@ public class DX12 : ModuleRules
 
 			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 
-			PublicDefinitions.Add("D3D12_MAX_DEVICE_INTERFACE=11");
+			PublicDefinitions.Add("D3D12_MAX_DEVICE_INTERFACE=12");
 			PublicDefinitions.Add("D3D12_MAX_COMMANDLIST_INTERFACE=9");
 			PublicDefinitions.Add("D3D12_SUPPORTS_INFO_QUEUE=1");
 			PublicDefinitions.Add("D3D12_SUPPORTS_DXGI_DEBUG=1");
