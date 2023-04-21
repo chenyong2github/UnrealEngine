@@ -204,30 +204,40 @@ public:
 	virtual void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false, bool bCopyExternalVariables = false, bool bCopyDynamicRegisters = false);
 
 	// sets the max array size allowed by this VM
-	void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
-	{
-		Context.SetRuntimeSettings(InRuntimeSettings);
-	}
+	UE_DEPRECATED(5.3, "Please, use Context.SetRuntimeSettings")
+	void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings) {}
+
+	UE_DEPRECATED(5.3, "Please, use Initialize with Context param")
+	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory) { return false; }
 
 	// Initializes all execute ops and their memory.
-	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory);
+	virtual bool Initialize(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory);
+
+	UE_DEPRECATED(5.3, "Please, use Execute with Context param")
+	virtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None) { return ERigVMExecuteResult::Failed; }
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
-	virtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None);
+	virtual ERigVMExecuteResult Execute(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None);
+
+	UE_DEPRECATED(5.3, "Please, use Execute with Context param")
+	virtual bool Execute(const FName& InEntryName = NAME_None) { return false; }
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution
 	// and provide optional additional operands.
 	UFUNCTION(BlueprintCallable, Category = RigVM)
-	virtual bool Execute(const FName& InEntryName = NAME_None);
+	virtual bool Execute(FRigVMExtendedExecuteContext& Context, const FName& InEntryName = NAME_None);
+
+	UE_DEPRECATED(5.3, "Please, use ExecuteLazyBranch with Context param")
+	ERigVMExecuteResult ExecuteLazyBranch(const FRigVMBranchInfo& InBranchToRun) { return ERigVMExecuteResult::Failed; }
 
 	// Executes a single branch on the VM. We assume that the memory is already set correctly at this point.
-	ERigVMExecuteResult ExecuteLazyBranch(const FRigVMBranchInfo& InBranchToRun);
+	ERigVMExecuteResult ExecuteLazyBranch(FRigVMExtendedExecuteContext& Context, const FRigVMBranchInfo& InBranchToRun);
 
 private:
-	ERigVMExecuteResult ExecuteInstructions(int32 InFirstInstruction, int32 InLastInstruction);
+	ERigVMExecuteResult ExecuteInstructions(FRigVMExtendedExecuteContext& Context, int32 InFirstInstruction, int32 InLastInstruction);
 
 public:
 
@@ -297,8 +307,11 @@ public:
 	// Returns a list of all valid entry names for this VM's bytecode
 	virtual const TArray<FName>& GetEntryNames() const;
 
+	UE_DEPRECATED(5.3, "Please, use CanExecuteEntry with Context param")
+	bool CanExecuteEntry(const FName& InEntryName, bool bLogErrorForMissingEntry = true) const { return false; }
+
 	// returns false if an entry can not be executed
-	bool CanExecuteEntry(const FName& InEntryName, bool bLogErrorForMissingEntry = true) const;
+	bool CanExecuteEntry(FRigVMExtendedExecuteContext& Context, const FName& InEntryName, bool bLogErrorForMissingEntry = true) const;
 
 #if WITH_EDITOR
 	
@@ -348,7 +361,10 @@ public:
 
 	const void SetFirstEntryEventInEventQueue(const FName& InFirstEventName) { FirstEntryEventInQueue = InFirstEventName; }
 
-	bool ResumeExecution(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None);
+	UE_DEPRECATED(5.3, "Please, use ResumeExecution with Context param")
+	bool ResumeExecution(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None) { return false; }
+
+	bool ResumeExecution(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None);
 	bool ResumeExecution();
 #endif
 
@@ -604,7 +620,7 @@ public:
 		SetParameterValue<FTransform>(InParameterName, InValue, InArrayIndex);
 	}
 
-	// Returns the external variables of the VM
+	// Clears the external variables of the VM
 	void ClearExternalVariables() { ExternalVariables.Reset(); }
 
 	// Returns the external variables of the VM
@@ -675,23 +691,42 @@ public:
 #endif
 
 	uint32 GetNumExecutions() const { return NumExecutions; }
-	const FRigVMExtendedExecuteContext& GetContext() const { return Context; }
-	FRigVMExtendedExecuteContext& GetContext() { return Context; }
+
+	UE_DEPRECATED(5.3, "Please, use an external Context and pass it to the VMHost")
+	const FRigVMExtendedExecuteContext* GetContext() const 
+	{
+		return nullptr;
+	}
+
+	UE_DEPRECATED(5.3, "Please, use an external Context and pass it to the VMHost")
+	FRigVMExtendedExecuteContext* GetContext()
+	{
+		return nullptr;
+	}
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
+	UE_DEPRECATED(5.3, "Please, use an external Context and pass it to the VMHost")
 	const ExecuteContextType& GetPublicData() const
 	{
-		return Context.GetPublicData<ExecuteContextType>();
+		static ExecuteContextType Dummy;
+		return Dummy;
 	}
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
+	UE_DEPRECATED(5.3, "Please, use an external Context and pass it to the VMHost")
 	ExecuteContextType& GetPublicData()
 	{
-		return Context.GetPublicData<ExecuteContextType>();
+		static ExecuteContextType Dummy;
+		return Dummy;
 	}
 	
-	const UScriptStruct* GetContextPublicDataStruct() const;
-	void SetContextPublicDataStruct(UScriptStruct* InScriptStruct);
+	UE_DEPRECATED(5.3, "Please, use an external Context and pass it to the VMHost")
+	const UScriptStruct* GetContextPublicDataStruct() const
+	{
+		return nullptr;
+	}
+	UE_DEPRECATED(5.3, "Please, use an external Context and pass it to the VMHost")
+	void SetContextPublicDataStruct(UScriptStruct* InScriptStruct) {}
 
 private:
 
@@ -701,17 +736,15 @@ public:
 	void InvalidateCachedMemory();
 	
 private:
-	void CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMemory);
+	void CacheMemoryHandlesIfRequired(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> InMemory);
 	void RebuildByteCodeOnLoad();
 
 	UPROPERTY(transient)
 	FRigVMInstructionArray Instructions;
 
 protected:
-	UPROPERTY(transient)
-	FRigVMExtendedExecuteContext Context;
 
-	virtual void SetInstructionIndex(uint16 InInstructionIndex) { Context.GetPublicData<>().InstructionIndex = InInstructionIndex; }
+	virtual void SetInstructionIndex(FRigVMExtendedExecuteContext& Context, uint16 InInstructionIndex) { Context.GetPublicData<>().InstructionIndex = InInstructionIndex; }
 
 	UPROPERTY(transient)
 	uint32 NumExecutions;
@@ -724,7 +757,7 @@ private:
 	int32 HaltedAtBreakpointHit;
 	ERigVMBreakpointAction CurrentBreakpointAction;
 
-	bool ShouldHaltAtInstruction(const FName& InEventName, const uint16 InstructionIndex);
+	bool ShouldHaltAtInstruction(FRigVMExtendedExecuteContext& Context, const FName& InEventName, const uint16 InstructionIndex);
 #endif
 
 	UPROPERTY()
@@ -789,9 +822,9 @@ private:
 	// debug watch register memory needs to be cleared for each execution
 	void ClearDebugMemory();
 	
-	void CacheSingleMemoryHandle(int32 InHandleIndex, const FRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InArg, bool bForExecute = false);
+	void CacheSingleMemoryHandle(FRigVMExtendedExecuteContext& Context, int32 InHandleIndex, const FRigVMBranchInfoKey& InBranchInfoKey, const FRigVMOperand& InArg, bool bForExecute = false);
 
-	void CopyOperandForDebuggingIfNeeded(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle)
+	void CopyOperandForDebuggingIfNeeded(FRigVMExtendedExecuteContext& Context, const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle)
 	{
 #if WITH_EDITOR
 		const FRigVMOperand KeyOperand(InArg.GetMemoryType(), InArg.GetRegisterIndex()); // no register offset
@@ -800,7 +833,7 @@ private:
 			const TArray<FRigVMOperand>& DebugOperands = *DebugOperandsPtr;
 			for(const FRigVMOperand& DebugOperand : DebugOperands)
 			{
-				CopyOperandForDebuggingImpl(InArg, InHandle, DebugOperand);
+				CopyOperandForDebuggingImpl(Context, InArg, InHandle, DebugOperand);
 			}
 		}
 #endif
@@ -808,7 +841,7 @@ private:
 
 	bool ValidateAllOperandsDuringLoad();
 
-	void CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand);
+	void CopyOperandForDebuggingImpl(FRigVMExtendedExecuteContext& Context, const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand);
 
 	FRigVMCopyOp GetCopyOpForOperands(const FRigVMOperand& InSource, const FRigVMOperand& InTarget);
 	void RefreshExternalPropertyPaths();
@@ -867,9 +900,9 @@ private:
 
 protected:
 
-	void SetupInstructionTracking(int32 InInstructionCount);
-	void StartProfiling();
-	void StopProfiling();
+	void SetupInstructionTracking(FRigVMExtendedExecuteContext& Context, int32 InInstructionCount);
+	void StartProfiling(FRigVMExtendedExecuteContext& Context);
+	void StopProfiling(FRigVMExtendedExecuteContext& Context);
 
 	friend class URigVMCompiler;
 	friend struct FRigVMCompilerWorkData;

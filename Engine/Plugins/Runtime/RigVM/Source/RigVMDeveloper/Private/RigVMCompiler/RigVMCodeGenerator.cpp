@@ -55,28 +55,29 @@ static constexpr TCHAR RigVM_CopyOpAssignFormat[] = TEXT("\t{0} = {1}{2};");
 static constexpr TCHAR RigVM_IncrementOpFormat[] = TEXT("\t{0}++;");
 static constexpr TCHAR RigVM_DecrementOpFormat[] = TEXT("\t{0}--;");
 static constexpr TCHAR RigVM_EqualsOpFormat[] = TEXT("\t{0} = {1} == {2};");
-static constexpr TCHAR RigVM_InvokeEntryFormat[] = TEXT("\tif (InEntryName == EntryName_{0}) return ExecuteEntry_{0}(PublicContext);");
-static constexpr TCHAR RigVM_InvokeEntryByNameFormat[] = TEXT("\tERigVMExecuteResult EntryResult = InvokeEntryByName(InEntryName{0});\r\n\tSetInstructionIndex(0);\r\n\tStopProfiling();\r\n\treturn EntryResult;");
-static constexpr TCHAR RigVM_InvokeEntryByNameFormat2[] = TEXT("\tif(!InvokeEntryByName({0}{1})) return ERigVMExecuteResult::Failed;");
-static constexpr TCHAR RigVM_CanExecuteEntryFormat[] = TEXT("\tif(!CanExecuteEntry(InEntryName, false)) { return ERigVMExecuteResult::Failed; }");
+static constexpr TCHAR RigVM_InvokeEntryFormat[] = TEXT("\tif (InEntryName == EntryName_{0}) return ExecuteEntry_{0}(Context, PublicContext);");
+static constexpr TCHAR RigVM_InvokeEntryByNameFormat[] = TEXT("\tERigVMExecuteResult EntryResult = InvokeEntryByName(Context, InEntryName{0});\r\n\tSetInstructionIndex(Context, 0);\r\n\tStopProfiling(Context);\r\n\treturn EntryResult;");
+static constexpr TCHAR RigVM_InvokeEntryByNameFormat2[] = TEXT("\tif(!InvokeEntryByName(Context, {0}{1})) return ERigVMExecuteResult::Failed;");
+static constexpr TCHAR RigVM_CanExecuteEntryFormat[] = TEXT("\tif(!CanExecuteEntry(Context, InEntryName, false)) { return ERigVMExecuteResult::Failed; }");
 static constexpr TCHAR RigVM_EntryExecuteGuardFormat[] = TEXT("\tFEntryExecuteGuard EntryExecuteGuard(EntriesBeingExecuted, FindEntry(InEntryName));");
 static constexpr TCHAR RigVM_PublicContextGuardFormat[] = TEXT("\tTGuardValue<{0}> PublicContextGuard(Context.GetPublicData<{0}>(), PublicContext);");
 static constexpr TCHAR RigVM_EntryNameFormat[] = TEXT("EntryName_{0}");
-static constexpr TCHAR RigVM_SetExecuteContextStructFormat[] = TEXT("\tSetContextPublicDataStruct({0}::StaticStruct());");
-static constexpr TCHAR RigVM_UpdateContextFormat[] = TEXT("\t{0}& PublicContext = UpdateContext<{0}>({1}, InEntryName);");
+static constexpr TCHAR RigVM_SetExecuteContextStructFormat[] = TEXT("\tContext.SetContextPublicDataStruct({0}::StaticStruct());");
+static constexpr TCHAR RigVM_UpdateContextFormat[] = TEXT("\t{0}& PublicContext = UpdateContext<{0}>(Context, {1}, InEntryName);");
 static constexpr TCHAR RigVM_TrueFormat[] = TEXT("true");  
 static constexpr TCHAR RigVM_FalseFormat[] = TEXT("false");
 static constexpr TCHAR RigVM_SingleUnderscoreFormat[] = TEXT("_");
 static constexpr TCHAR RigVM_DoubleUnderscoreFormat[] = TEXT("__");
 static constexpr TCHAR RigVM_BoolPropertyPrefix[] = TEXT("b");
 static constexpr TCHAR RigVM_EnumTypeSuffixFormat[] = TEXT("::Type");
-static constexpr TCHAR RigVM_IsValidArraySizeFormat[] = TEXT("IsValidArraySize({0})");
-static constexpr TCHAR RigVM_IsValidArrayIndexFormat[] = TEXT("IsValidArrayIndex<{0}>(TemporaryArrayIndex, {1})");
+static constexpr TCHAR RigVM_IsValidArraySizeFormat[] = TEXT("IsValidArraySize(Context, {0})");
+static constexpr TCHAR RigVM_IsValidArrayIndexFormat[] = TEXT("IsValidArrayIndex<{0}>(Context, TemporaryArrayIndex, {1})");
 static constexpr TCHAR RigVM_TemporaryArrayIndexFormat[] = TEXT("\tTemporaryArrayIndex = {0};");
-static constexpr TCHAR RigVM_StartProfilingFormat[] = TEXT("\tStartProfiling();");
-static constexpr TCHAR RigVM_ExecuteReachedExitFormat[] = TEXT("\tBroadcastExecutionReachedExit();");
+static constexpr TCHAR RigVM_StartProfilingFormat[] = TEXT("\tStartProfiling(Context);");
+static constexpr TCHAR RigVM_ExecuteReachedExitFormat[] = TEXT("\tBroadcastExecutionReachedExit(Context);");
 static constexpr TCHAR RigVM_InstructionLabelFormat[] = TEXT("\tInstruction{0}Label:");
-static constexpr TCHAR RigVM_SetInstructionIndexFormat[] = TEXT("\tSetInstructionIndex({0});");
+static constexpr TCHAR RigVM_SetInstructionIndexFormat[] = TEXT("\tSetInstructionIndex(Context, {0});");
+static constexpr TCHAR RigVM_ContextRefParamFormat[] = TEXT("FRigVMExtendedExecuteContext& Context");
 static constexpr TCHAR RigVM_ContextFormat[] = TEXT("Context");
 static constexpr TCHAR RigVM_ContextPublicFormat[] = TEXT("PublicContext");
 static constexpr TCHAR RigVM_ContextPublicParameterFormat[] = TEXT("{0}& PublicContext");
@@ -84,8 +85,8 @@ static constexpr TCHAR RigVM_NotEqualsOpFormat[] = TEXT("\t{0} = {1} != {2};");
 static constexpr TCHAR RigVM_JumpOpFormat[] = TEXT("\tgoto Instruction{0}Label;");
 static constexpr TCHAR RigVM_JumpIfOpFormat[] = TEXT("\tif ({0} == {1}) { goto Instruction{2}Label; }");
 static constexpr TCHAR RigVM_JumpToBranchFormat[] = TEXT("\tif ({0} == BlockName_{1}) { goto Instruction{2}Label; }");
-static constexpr TCHAR RigVM_BeginBlockOpFormat[] = TEXT("\tBeginSlice({0}, {1});");
-static constexpr TCHAR RigVM_EndBlockOpFormat[] = TEXT("\tEndSlice();");
+static constexpr TCHAR RigVM_BeginBlockOpFormat[] = TEXT("\tBeginSlice(Context, {0}, {1});");
+static constexpr TCHAR RigVM_EndBlockOpFormat[] = TEXT("\tEndSlice(Context);");
 static constexpr TCHAR RigVM_ReturnFailedFormat[] = TEXT("\treturn ERigVMExecuteResult::Failed;");
 static constexpr TCHAR RigVM_ReturnSucceededFormat[] = TEXT("\treturn ERigVMExecuteResult::Succeeded;");
 static constexpr TCHAR RigVM_CopyrightFormat[] = TEXT("// Copyright Epic Games, Inc. All Rights Reserved.");
@@ -97,15 +98,15 @@ static constexpr TCHAR RigVM_ProtectedFormat[] = TEXT("protected:");
 static constexpr TCHAR RigVM_GetVMHashFormat[] = TEXT("\tvirtual uint32 GetVMHash() const override { return {0}; }");
 static constexpr TCHAR RigVM_GetEntryNamesFormat[] = TEXT("\tvirtual const TArray<FName>& GetEntryNames() const override\r\n\t{\r\n\t\tstatic const TArray<FName> StaticEntryNames = { {0} };\r\n\t\treturn StaticEntryNames;\r\n\t}");
 static constexpr TCHAR RigVM_DeclareUpdateExternalVariablesFormat[] = TEXT("\tvirtual void UpdateExternalVariables() override;");
-static constexpr TCHAR RigVM_DeclareInvokeEntryByNameFormat[] = TEXT("\tERigVMExecuteResult InvokeEntryByName(const FName& InEntryName{0});");
-static constexpr TCHAR RigVM_DeclareInitializeFormat[] = TEXT("\tvirtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory) override;");
-static constexpr TCHAR RigVM_DefineInitializeFormat[] = TEXT("bool U{0}::Initialize(TArrayView<URigVMMemoryStorage*> Memory)\r\n{");
-static constexpr TCHAR RigVM_DeclareExecuteFormat[] = TEXT("\tvirtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName) override;");
+static constexpr TCHAR RigVM_DeclareInvokeEntryByNameFormat[] = TEXT("\tERigVMExecuteResult InvokeEntryByName(FRigVMExtendedExecuteContext& Context, const FName& InEntryName{0});");
+static constexpr TCHAR RigVM_DeclareInitializeFormat[] = TEXT("\tvirtual bool Initialize(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory) override;");
+static constexpr TCHAR RigVM_DefineInitializeFormat[] = TEXT("bool U{0}::Initialize(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory)\r\n{");
+static constexpr TCHAR RigVM_DeclareExecuteFormat[] = TEXT("\tvirtual ERigVMExecuteResult Execute(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName) override;");
 static constexpr TCHAR RigVM_DefineUpdateExternalVariablesFormat[] = TEXT("void U{0}::UpdateExternalVariables()\r\n{");
-static constexpr TCHAR RigVM_DefineInvokeEntryByNameFormat[] = TEXT("ERigVMExecuteResult U{0}::InvokeEntryByName(const FName& InEntryName{1})\r\n{");
-static constexpr TCHAR RigVM_DefineExecuteFormat[] = TEXT("ERigVMExecuteResult U{0}::Execute(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName)\r\n{");
-static constexpr TCHAR RigVM_DeclareExecuteEntryFormat[] = TEXT("\tERigVMExecuteResult ExecuteEntry_{0}({1});");
-static constexpr TCHAR RigVM_DefineExecuteEntryFormat[] = TEXT("ERigVMExecuteResult U{0}::ExecuteEntry_{1}({2})\r\n{");
+static constexpr TCHAR RigVM_DefineInvokeEntryByNameFormat[] = TEXT("ERigVMExecuteResult U{0}::InvokeEntryByName(FRigVMExtendedExecuteContext& Context, const FName& InEntryName{1})\r\n{");
+static constexpr TCHAR RigVM_DefineExecuteFormat[] = TEXT("ERigVMExecuteResult U{0}::Execute(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName)\r\n{");
+static constexpr TCHAR RigVM_DeclareExecuteEntryFormat[] = TEXT("\tERigVMExecuteResult ExecuteEntry_{0}(FRigVMExtendedExecuteContext& Context, {1});");
+static constexpr TCHAR RigVM_DefineExecuteEntryFormat[] = TEXT("ERigVMExecuteResult U{0}::ExecuteEntry_{1}(FRigVMExtendedExecuteContext& Context, {2})\r\n{");
 static constexpr TCHAR RigVM_DeclareExecuteGroupFormat[] = TEXT("\tERigVMExecuteResult ExecuteGroup_{0}_{1}({2});");
 static constexpr TCHAR RigVM_DefineExecuteGroupFormat[] = TEXT("ERigVMExecuteResult U{0}::ExecuteGroup_{1}_{2}({3})\r\n{");
 static constexpr TCHAR RigVM_InvokeExecuteGroupFormat[] = TEXT("\tif(ExecuteGroup_{0}_{1}({2}) != ERigVMExecuteResult::Succeeded) return ERigVMExecuteResult::Failed;");
@@ -113,16 +114,16 @@ static constexpr TCHAR RigVM_RigVMCoreIncludeFormat[] = TEXT("RigVMCore/RigVMCor
 static constexpr TCHAR RigVM_RigVMModuleIncludeFormat[] = TEXT("RigVMModule.h");
 static constexpr TCHAR RigVM_RigVMCoreLibraryFormat[] = TEXT("RigVM");
 static constexpr TCHAR RigVM_JoinFilePathFormat[] = TEXT("{0}/{1}");
-static constexpr TCHAR RigVM_GetOperandSliceFormat[] = TEXT("GetOperandSlice<{0}>({1},&{1}_Const){2}");
+static constexpr TCHAR RigVM_GetOperandSliceFormat[] = TEXT("GetOperandSlice<{0}>(Context, {1},&{1}_Const){2}");
 static constexpr TCHAR RigVM_ExternalVariableFormat[] = TEXT("(*External_{0})");
 static constexpr TCHAR RigVM_JoinSegmentPathFormat[] = TEXT("{0}.{1}");
 static constexpr TCHAR RigVM_GetArrayElementSafeFormat[] = TEXT("GetArrayElementSafe<{0}>({1}, {2})");
-static constexpr TCHAR RigVM_InvokeEntryOpFormat[] = TEXT("\tif(InvokeEntryByName(EntryName_{0}) != ERigVMExecuteResult::Succeeded) return ERigVMExecuteResult::Failed;");
+static constexpr TCHAR RigVM_InvokeEntryOpFormat[] = TEXT("\tif(InvokeEntryByName(Context, EntryName_{0}) != ERigVMExecuteResult::Succeeded) return ERigVMExecuteResult::Failed;");
 static constexpr TCHAR RigVM_LazyEvalValueName[] =  TEXT("LazyValue_{0}_{1}");
 static constexpr TCHAR RigVM_LazyEvalLambdaDefine[] =  TEXT("\tconst TRigVMLazyValue<{2}> LazyValue_{0}_{1} = GetLazyValue<{2}>({0}, {3}, {4}_Ptr,\r\n\t\t[&]() -> ERigVMExecuteResult\r\n\t\t{");
 static constexpr TCHAR RigVM_LazyEvalLambdaReturn[] =  TEXT("\t\t\treturn ERigVMExecuteResult::Succeeded;\r\n\t\t}\r\n\t);");
 static constexpr TCHAR RigVM_LazyMemoryHandleInitFormat[] = TEXT("\tAllocateLazyMemoryHandles({0});");
-static constexpr TCHAR RigVM_SetupInstructionTrackingFormat[] = TEXT("\tSetupInstructionTracking({0});");
+static constexpr TCHAR RigVM_SetupInstructionTrackingFormat[] = TEXT("\tSetupInstructionTracking(Context, {0});");
 
 FString FRigVMCodeGenerator::DumpIncludes(bool bLog)
 {
@@ -420,6 +421,7 @@ FString FRigVMCodeGenerator::DumpDispatches(bool bLog)
 			const FRigVMDispatchFactory* Factory = Info.Function->Factory;
 
 			TArray<FString> InputArguments, OutputArguments, MemoryHandles;
+			InputArguments.Add(RigVM_ContextRefParamFormat);
 			OutputArguments.Add(RigVM_ContextFormat);
 
 			for(const FRigVMFunctionArgument& Argument : Info.Function->Arguments)
@@ -717,6 +719,10 @@ FString FRigVMCodeGenerator::DumpInstructions(const FString& InPrefix, const TAr
 				if(Function->Struct)
 				{
 					Arguments.Add(RigVM_ContextPublicFormat);
+				}
+				else if (Function->Factory)
+				{
+					Arguments.Add(RigVM_ContextFormat);
 				}
 				for(int32 OperandIndex = 0; OperandIndex < Operands.Num(); OperandIndex++)
 				{
@@ -1159,7 +1165,7 @@ void FRigVMCodeGenerator::Reset()
 }
 
 void FRigVMCodeGenerator::ParseVM(const FString& InClassName, const FString& InModuleName,
-	URigVMGraph* InModelToNativize, URigVM* InVMToNativize,
+	URigVMGraph* InModelToNativize, URigVM* InVMToNativize, const UScriptStruct* PublicContextStruct, 
 	TMap<FString,FRigVMOperand> InPinToOperandMap, int32 InMaxInstructionsPerFunction)
 {
 	check(InVMToNativize);
@@ -1172,7 +1178,7 @@ void FRigVMCodeGenerator::ParseVM(const FString& InClassName, const FString& InM
 	MaxInstructionsPerFunction = InMaxInstructionsPerFunction;
 	ClassName = InClassName;
 	ModuleName = InModuleName;
-	ExecuteContextType = VM->GetContextPublicDataStruct()->GetStructCPPName();
+	ExecuteContextType = PublicContextStruct->GetStructCPPName();
 
 	// create an inverted map to lookup pins from operands
 	OperandToPinMap.Reset();

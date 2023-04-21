@@ -60,9 +60,9 @@ public:
 	virtual bool ContainsEntry(const FName& InEntryName) const override { return GetEntryNames().Contains(InEntryName); }
 	virtual int32 FindEntry(const FName& InEntryName) const override { return GetEntryNames().Find(InEntryName); }
 	virtual const TArray<FName>& GetEntryNames() const override { static const TArray<FName> EmptyEntries; return EmptyEntries; }
-	virtual void SetInstructionIndex(uint16 InInstructionIndex) override
+	virtual void SetInstructionIndex(FRigVMExtendedExecuteContext& Context, uint16 InInstructionIndex) override
 	{
-		Super::SetInstructionIndex(InInstructionIndex);
+		Super::SetInstructionIndex(Context, InInstructionIndex);
 #if WITH_EDITOR
 		InstructionVisitedDuringLastRun[InInstructionIndex]++;
 		InstructionVisitOrder.Add(InInstructionIndex);
@@ -76,7 +76,7 @@ public:
 protected:
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
-	ExecuteContextType& UpdateContext(int32 InNumberInstructions, const FName& InEntryName)
+	ExecuteContextType& UpdateContext(FRigVMExtendedExecuteContext& Context, int32 InNumberInstructions, const FName& InEntryName)
 	{
 		UpdateExternalVariables();
 	
@@ -107,23 +107,23 @@ protected:
 		}
 	};
 
-	void BeginSlice(int32 InCount, int32 InRelativeIndex = 0)
+	void BeginSlice(FRigVMExtendedExecuteContext& Context, int32 InCount, int32 InRelativeIndex = 0)
 	{
 		Context.BeginSlice(InCount, InRelativeIndex);
 	}
 
-	void EndSlice()
+	void EndSlice(FRigVMExtendedExecuteContext& Context)
 	{
 		Context.EndSlice();
 	}
 
-	bool IsValidArraySize(int32 InArraySize) const
+	bool IsValidArraySize(const FRigVMExtendedExecuteContext& Context, int32 InArraySize) const
 	{
 		return Context.IsValidArraySize(InArraySize);
 	}
 
 	template<typename T>
-	bool IsValidArrayIndex(int32& InOutIndex, const TArray<T>& InArray) const
+	bool IsValidArrayIndex(const FRigVMExtendedExecuteContext& Context, int32& InOutIndex, const TArray<T>& InArray) const
 	{
 		return Context.IsValidArrayIndex(InOutIndex, InArray.Num());
 	}
@@ -161,7 +161,7 @@ protected:
 		}
 	}
 
-	void BroadcastExecutionReachedExit()
+	void BroadcastExecutionReachedExit(const FRigVMExtendedExecuteContext& Context)
 	{
 		if(EntriesBeingExecuted.Num() == 1)
 		{
@@ -188,7 +188,7 @@ protected:
 	}
 
 	template<typename T>
-	T& GetOperandSlice(TArray<T>& InOutArray, const T* InDefaultValue = nullptr)
+	T& GetOperandSlice(FRigVMExtendedExecuteContext& Context, TArray<T>& InOutArray, const T* InDefaultValue = nullptr)
 	{
 		const int32 SliceIndex = Context.GetSlice().GetIndex();
 		if(InOutArray.Num() <= SliceIndex)

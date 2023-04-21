@@ -330,7 +330,7 @@ public:
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
-	virtual USceneComponent* GetOwningSceneComponent() override;;
+	virtual USceneComponent* GetOwningSceneComponent() override;
 
 protected:
 

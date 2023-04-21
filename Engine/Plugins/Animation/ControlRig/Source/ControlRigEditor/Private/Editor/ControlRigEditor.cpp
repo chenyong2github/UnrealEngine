@@ -105,6 +105,7 @@
 #include "RigVMFunctions/RigVMFunction_ControlFlow.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "AnimationEditorViewportClient.h"
+#include "RigVMCore/RigVMExecuteContext.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -3432,7 +3433,7 @@ void FControlRigEditor::HandleControlRigExecutedEvent(URigVMHost* InControlRig, 
 		{
 			if(DebuggedControlRig)
 			{
-				ControlRigBP->RigGraphDisplaySettings.TotalMicroSeconds = DebuggedControlRig->GetVM()->GetContext().LastExecutionMicroSeconds;
+				ControlRigBP->RigGraphDisplaySettings.TotalMicroSeconds = DebuggedControlRig->GetExtendedExecuteContext().LastExecutionMicroSeconds;
 			}
 
 			if(ControlRigBP->RigGraphDisplaySettings.bAutoDetermineRange)

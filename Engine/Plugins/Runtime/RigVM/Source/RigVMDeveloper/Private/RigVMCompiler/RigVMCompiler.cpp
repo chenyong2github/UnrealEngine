@@ -326,7 +326,6 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	OutVM->SetContextPublicDataStruct(Settings.GetExecuteContextStruct());
 	OutVM->Reset();
 
 	TMap<FString, FRigVMOperand> LocalOperands;

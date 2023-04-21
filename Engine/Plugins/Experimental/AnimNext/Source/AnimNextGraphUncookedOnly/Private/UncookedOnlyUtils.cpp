@@ -67,7 +67,6 @@ void FUtils::Compile(UAnimNextGraph* InGraph)
 void FUtils::RecreateVM(UAnimNextGraph* InGraph)
 {
 	InGraph->RigVM = NewObject<URigVM>(InGraph, TEXT("VM"), RF_NoFlags);
-	InGraph->RigVM->SetContextPublicDataStruct(FAnimNextExecuteContext::StaticStruct());
 	
 	// Cooked platforms will load these pointers from disk
 	if (!FPlatformProperties::RequiresCookedData())

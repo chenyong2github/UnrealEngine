@@ -452,6 +452,11 @@ protected:
 	UEnum* InstanceOpCodeEnum;
 #endif
 
+private:
+	// Pointer back to owner execute context. Required for lazy branches Execute
+	FRigVMExtendedExecuteContext* ExtendedExecuteContext = nullptr; 
+
+	friend struct TRigVMLazyValueBase;
 	friend struct FRigVMExtendedExecuteContext;
 	friend class URigVM;
 	friend class URigVMNativized;
@@ -471,7 +476,7 @@ struct TStructOpsTypeTraits<FRigVMExecuteContext> : public TStructOpsTypeTraitsB
  * The execute context is used for mutable nodes to
  * indicate execution order.
  */
-USTRUCT()
+USTRUCT(Blueprintable)
 struct RIGVM_API FRigVMExtendedExecuteContext
 {
 	GENERATED_BODY()
@@ -513,7 +518,10 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 
 	void Reset()
 	{
-		((FRigVMExecuteContext*)PublicDataScope.GetStructMemory())->Reset();
+		FRigVMExecuteContext* ExecuteContext = (FRigVMExecuteContext*)(PublicDataScope.GetStructMemory());
+		ExecuteContext->Reset();
+		ExecuteContext->ExtendedExecuteContext = this;
+	
 		VM = nullptr;
 		Slices.Reset();
 		Slices.Add(FRigVMSlice());
@@ -533,6 +541,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		FRigVMExecuteContext* ThisPublicContext = (FRigVMExecuteContext*)PublicDataScope.GetStructMemory();
 		const FRigVMExecuteContext* OtherPublicContext = (const FRigVMExecuteContext*)Other.PublicDataScope.GetStructMemory();
 		ThisPublicContext->Copy(OtherPublicContext);
+		ThisPublicContext->ExtendedExecuteContext = this;
 
 		if(OtherPublicContext->GetNameCache() == &Other.NameCache)
 		{
@@ -545,11 +554,26 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		return *this;
 	}
 
-	virtual void Initialize(UScriptStruct* InScriptStruct)
+	virtual void Initialize(const UScriptStruct* InScriptStruct)
 	{
 		check(InScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()));
 		PublicDataScope = FStructOnScope(InScriptStruct);
+		((FRigVMExecuteContext*)PublicDataScope.GetStructMemory())->ExtendedExecuteContext = this;
 		SetDefaultNameCache();
+	}
+
+	const UScriptStruct* GetContextPublicDataStruct() const
+	{
+		return Cast<UScriptStruct>(PublicDataScope.GetStruct());
+	}
+
+	void SetContextPublicDataStruct(const UScriptStruct* InScriptStruct)
+	{
+		if(GetContextPublicDataStruct() == InScriptStruct)
+		{
+			return;
+		}
+		Initialize(InScriptStruct);
 	}
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>

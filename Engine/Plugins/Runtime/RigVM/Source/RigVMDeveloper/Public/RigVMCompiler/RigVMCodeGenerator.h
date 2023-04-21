@@ -15,10 +15,10 @@ struct RIGVMDEVELOPER_API FRigVMCodeGenerator
 public:
 
 	FRigVMCodeGenerator(const FString& InClassName, const FString& InModuleName,
-		URigVMGraph* InModelToNativize, URigVM* InVMToNativize, TMap<FString,FRigVMOperand> InPinToOperandMap,
+		URigVMGraph* InModelToNativize, URigVM* InVMToNativize, const UScriptStruct* PublicContextStruct, TMap<FString,FRigVMOperand> InPinToOperandMap,
 		int32 InMaxInstructionsPerFunction = 100)
 	{
-		ParseVM(InClassName, InModuleName, InModelToNativize, InVMToNativize, InPinToOperandMap, InMaxInstructionsPerFunction);
+		ParseVM(InClassName, InModuleName, InModelToNativize, InVMToNativize, PublicContextStruct, InPinToOperandMap, InMaxInstructionsPerFunction);
 	}
 
 	FString DumpIncludes(bool bLog = false);
@@ -89,7 +89,7 @@ private:
 
 	void Reset();
 	void ParseVM(const FString& InClassName, const FString& InModuleName,
-		URigVMGraph* InModelToNativize, URigVM* InVMToNativize,
+		URigVMGraph* InModelToNativize, URigVM* InVMToNativize, const UScriptStruct* PublicContextStruct, 
 		TMap<FString,FRigVMOperand> InPinToOperandMap, int32 InMaxInstructionsPerFunction);
 	void ParseInclude(UStruct* InDependency, const FName& InMethodName = NAME_None);
 	void ParseRequiredUProperties();

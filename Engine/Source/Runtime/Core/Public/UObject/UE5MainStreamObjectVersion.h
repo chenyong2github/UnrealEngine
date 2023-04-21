@@ -355,6 +355,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Skeletal vertex attributes
 		SkeletalVertexAttributes,
 		
+		// Store the RigVM execute context struct the VM uses in the archive
+		RigVMExternalExecuteContextStruct,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

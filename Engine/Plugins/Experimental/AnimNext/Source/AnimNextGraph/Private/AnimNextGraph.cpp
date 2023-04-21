@@ -2,6 +2,7 @@
 
 #include "AnimNextGraph.h"
 #include "RigVMCore/RigVMMemoryStorage.h"
+#include "RigVMCore/RigVMExecuteContext.h"
 #include "RigUnit_AnimNextBeginExecution.h"
 #include "UnitContext.h"
 #include "UObject/ObjectSaveContext.h"
@@ -26,11 +27,12 @@ bool UAnimNextGraph::GetDataImpl(const UE::AnimNext::FContext& Context) const
 	
 	if(RigVM)
 	{
-		FAnimNextExecuteContext& AnimNextInterfaceContext = RigVM->GetContext().GetPublicDataSafe<FAnimNextExecuteContext>();
+		FRigVMExtendedExecuteContext RigVMExtendedExecuteContext; // we might have to set some sensible values to the extended execute context
+		FAnimNextExecuteContext& AnimNextInterfaceContext = RigVMExtendedExecuteContext.GetPublicDataSafe<FAnimNextExecuteContext>();
 
 		AnimNextInterfaceContext.SetContextData(this, Context, bResult);
 
-		bResult &= (RigVM->Execute(TArray<URigVMMemoryStorage*>(), FRigUnit_AnimNextBeginExecution::EventName) != ERigVMExecuteResult::Failed);
+		bResult &= (RigVM->Execute(RigVMExtendedExecuteContext, TArray<URigVMMemoryStorage*>(), FRigUnit_AnimNextBeginExecution::EventName) != ERigVMExecuteResult::Failed);
 	}
 	
 	return bResult;

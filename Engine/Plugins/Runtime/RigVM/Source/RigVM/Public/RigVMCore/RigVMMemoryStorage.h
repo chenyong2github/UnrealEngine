@@ -37,6 +37,8 @@
 class FArchive;
 class URigVM;
 struct FRigVMMemoryHandle;
+struct FRigVMExecuteContext;
+struct FRigVMExtendedExecuteContext;
 
 enum class ERigVMExecuteResult : uint8
 {
@@ -144,8 +146,8 @@ public:
 		, FunctionPtr(nullptr)
 	{}
 
-	ERigVMExecuteResult Execute();
-	ERigVMExecuteResult ExecuteIfRequired(int32 InSliceIndex);
+	ERigVMExecuteResult Execute(FRigVMExtendedExecuteContext& Context);
+	ERigVMExecuteResult ExecuteIfRequired(FRigVMExtendedExecuteContext& Context, int32 InSliceIndex);
 
 private:
 
@@ -172,7 +174,7 @@ public:
 	{
 	}
 
-	const uint8* GetData() const;
+	const uint8* GetData(const FRigVMExecuteContext& Context) const;
 	const FRigVMMemoryHandle& GetMemoryHandle()const { return *MemoryHandle; }
 
 protected:
@@ -198,11 +200,11 @@ public:
 		, ConstValue(InConstValue)
 	{}
 
-	const ComputedType& Get() const
+	const ComputedType& Get(const FRigVMExecuteContext& ExecuteContext) const
 	{
 		if(MemoryHandle)
 		{
-			return *(const ComputedType*)GetData();
+			return *(const ComputedType*)GetData(ExecuteContext);
 		}
 		return ConstValue;
 	}
@@ -304,7 +306,7 @@ public:
 	 * Computes the data if necessary and returns true if the value is valid
 	 * @return True if the value of the handle is valid after the compute
 	 */
-	bool ComputeLazyValueIfNecessary(int32 InSliceIndex = INDEX_NONE);
+	bool ComputeLazyValueIfNecessary(FRigVMExtendedExecuteContext& Context, int32 InSliceIndex = INDEX_NONE);
 
 	// Returns the head property of this handle
 	const FProperty* GetProperty() const

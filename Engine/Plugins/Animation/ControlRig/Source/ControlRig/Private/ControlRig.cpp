@@ -286,8 +286,7 @@ bool UControlRig::InitializeVM(const FName& InEventName)
 	{
 		HierarchyController->LogFunction = [this](EMessageSeverity::Type InSeverity, const FString& Message)
 		{
-			const FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
-			const FRigVMExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicData<>(); 
+			const FRigVMExecuteContext& PublicContext = GetExtendedExecuteContext().GetPublicData<>();
 			if(RigVMLog)
 			{
 				RigVMLog->Report(InSeverity,PublicContext.GetFunctionName(),PublicContext.GetInstructionIndex(), Message);
@@ -413,8 +412,7 @@ bool UControlRig::Execute(const FName& InEventName)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Execute);
 	
-	FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
-	FControlRigExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicDataSafe<FControlRigExecuteContext>();
+	FControlRigExecuteContext& PublicContext = GetExtendedExecuteContext().GetPublicDataSafe<FControlRigExecuteContext>();
 
 #if WITH_EDITOR
 	PublicContext.SetLog(RigVMLog); // may be nullptr
@@ -1173,9 +1171,11 @@ bool UControlRig::Execute_Internal(const FName& InEventName)
 		}
 		
 #endif
-		FRigHierarchyExecuteContextBracket HierarchyContextGuard(Hierarchy, &VM->GetContext());
+		FRigVMExtendedExecuteContext& Context = GetExtendedExecuteContext();
 
-		const bool bSuccess = VM->Execute(LocalMemory, InEventName) != ERigVMExecuteResult::Failed;
+		FRigHierarchyExecuteContextBracket HierarchyContextGuard(Hierarchy, &Context);
+
+		const bool bSuccess = VM->Execute(Context, LocalMemory, InEventName) != ERigVMExecuteResult::Failed;
 
 #if UE_RIGVM_PROFILE_EXECUTE_UNITS_NUM
 		const uint64 EndCycles = FPlatformTime::Cycles64();
@@ -2719,8 +2719,7 @@ USceneComponent* UControlRig::GetOwningSceneComponent()
 {
 	if(OuterSceneComponent == nullptr)
 	{
-		FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
-		const FControlRigExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicDataSafe<FControlRigExecuteContext>();
+		const FControlRigExecuteContext& PublicContext = GetExtendedExecuteContext().GetPublicDataSafe<FControlRigExecuteContext>();
 		const FRigUnitContext& Context = PublicContext.UnitContext;
 
 		USceneComponent* SceneComponentFromRegistry = Context.DataSourceRegistry->RequestSource<USceneComponent>(UControlRig::OwnerComponent);
@@ -2746,7 +2745,8 @@ void UControlRig::PostInitInstance(URigVMHost* InCDO)
 
 	// set up the VM
 	VM = NewObject<URigVM>(this, TEXT("VM"), SubObjectFlags);
-	VM->SetContextPublicDataStruct(FControlRigExecuteContext::StaticStruct());
+	GetExtendedExecuteContext().SetContextPublicDataStruct(FControlRigExecuteContext::StaticStruct());
+
 
 	// Cooked platforms will load these pointers from disk.
 	// In certain scenarios RequiresCookedData wil be false but the PKG_FilterEditorOnly will still be set (UEFN)

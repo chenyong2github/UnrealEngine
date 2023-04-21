@@ -6,6 +6,7 @@
 #include "UObject/Interface.h"
 #include "AssetRegistry/AssetData.h"
 #include "RigVMCore/RigVM.h"
+#include "RigVMCore/RigVMExecuteContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMMemoryStorage)
 
@@ -78,19 +79,19 @@ void FRigVMBranchInfo::Serialize(FArchive& Ar)
 	Ar << LastInstruction;
 }
 
-ERigVMExecuteResult FRigVMLazyBranch::Execute()
+ERigVMExecuteResult FRigVMLazyBranch::Execute(FRigVMExtendedExecuteContext& Context)
 {
 	check(VM);
 	if(BranchInfo.IsValid())
 	{
-		return VM->ExecuteLazyBranch(BranchInfo);
+		return VM->ExecuteLazyBranch(Context, BranchInfo);
 	}
 
 	check(FunctionPtr);
 	return FunctionPtr();
 }
 
-ERigVMExecuteResult FRigVMLazyBranch::ExecuteIfRequired(int32 InSliceIndex)
+ERigVMExecuteResult FRigVMLazyBranch::ExecuteIfRequired(FRigVMExtendedExecuteContext& Context, int32 InSliceIndex)
 {
 	check(VM);
 
@@ -106,7 +107,7 @@ ERigVMExecuteResult FRigVMLazyBranch::ExecuteIfRequired(int32 InSliceIndex)
 
 	if(VM->GetNumExecutions() != LastVMNumExecutions[InSliceIndex])
 	{
-		const ERigVMExecuteResult Result = Execute();
+		const ERigVMExecuteResult Result = Execute(Context);
 		LastVMNumExecutions[InSliceIndex] = VM->GetNumExecutions();
 		return Result;
 	}
@@ -114,13 +115,14 @@ ERigVMExecuteResult FRigVMLazyBranch::ExecuteIfRequired(int32 InSliceIndex)
 	return ERigVMExecuteResult::Succeeded;
 }
 
-const uint8* TRigVMLazyValueBase::GetData() const
+const uint8* TRigVMLazyValueBase::GetData(const FRigVMExecuteContext& Context) const
 {
 	if(MemoryHandle)
 	{
 		if(MemoryHandle->IsLazy())
 		{
-			MemoryHandle->ComputeLazyValueIfNecessary(SliceIndex);
+			check(Context.ExtendedExecuteContext != nullptr);
+			MemoryHandle->ComputeLazyValueIfNecessary(*Context.ExtendedExecuteContext, SliceIndex);
 		}
 		return MemoryHandle->GetData(bFollowPropertyPath, SliceIndex);
 	}
@@ -129,10 +131,10 @@ const uint8* TRigVMLazyValueBase::GetData() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FRigVMMemoryHandle::ComputeLazyValueIfNecessary(int32 InSliceIndex)
+bool FRigVMMemoryHandle::ComputeLazyValueIfNecessary(FRigVMExtendedExecuteContext& Context, int32 InSliceIndex)
 {
 	check(IsLazy());
-	return LazyBranch->ExecuteIfRequired(InSliceIndex) != ERigVMExecuteResult::Failed;
+	return LazyBranch->ExecuteIfRequired(Context, InSliceIndex) != ERigVMExecuteResult::Failed;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

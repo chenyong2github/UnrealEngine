@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "RigVMCore/RigVM.h"
+#include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMCore/RigVMGraphFunctionHost.h"
 #include "Engine/AssetUserData.h"
 #include "Interfaces/Interface_AssetUserData.h"
@@ -218,6 +219,18 @@ public:
 
 protected:
 
+	/** Allows retrieving the extended execute context from derived classes */
+	virtual FRigVMExtendedExecuteContext& GetExtendedExecuteContext()
+	{
+		return ExtendedExecuteContext;
+	};
+
+	/** Allows retrieving the extended execute context from derived classes */
+	virtual const FRigVMExtendedExecuteContext& GetExtendedExecuteContext() const
+	{
+		return ExtendedExecuteContext;
+	};
+
 	virtual void PostInitInstance(URigVMHost* InCDO);
 
 	/** Current delta time */
@@ -239,6 +252,10 @@ protected:
 	FRigVMLog* RigVMLog;
 	bool bEnableLogging;
 #endif
+
+private:
+	UPROPERTY(transient)
+	FRigVMExtendedExecuteContext ExtendedExecuteContext;
 
 protected:
 	

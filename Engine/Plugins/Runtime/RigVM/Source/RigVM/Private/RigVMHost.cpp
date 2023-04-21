@@ -218,7 +218,7 @@ bool URigVMHost::InitializeVM(const FName& InEventName)
 	}
 
 	TArray<URigVMMemoryStorage*> LocalMemory = VM->GetLocalMemoryArray();
-	const bool bResult = VM->Initialize(LocalMemory);
+	const bool bResult = VM->Initialize(GetExtendedExecuteContext(), LocalMemory);
 	if(bResult)
 	{
 		bRequiresInitExecution = false;
@@ -229,7 +229,7 @@ bool URigVMHost::InitializeVM(const FName& InEventName)
 		
 	if(VM)
 	{
-		VM->GetContext().GetPublicDataSafe<>().GetNameCache()->Reset();
+		GetExtendedExecuteContext().GetPublicDataSafe<>().GetNameCache()->Reset();
 	}
 
 	if (InitializedEvent.IsBound())
@@ -414,8 +414,7 @@ bool URigVMHost::Execute(const FName& InEventName)
 
 	ensure(!HasAnyFlags(RF_ClassDefaultObject));
 	
-	FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
-	FRigVMExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicData<>();
+	FRigVMExecuteContext& PublicContext = GetExtendedExecuteContext().GetPublicData<>();
 	PublicContext.SetDeltaTime(DeltaTime);
 	PublicContext.SetAbsoluteTime(AbsoluteTime);
 	PublicContext.SetFramesPerSecond(GetCurrentFramesPerSecond());
@@ -609,7 +608,7 @@ bool URigVMHost::Execute_Internal(const FName& InEventName)
 	}
 #endif
 
-	const bool bSuccess = VM->Execute(LocalMemory, InEventName) != ERigVMExecuteResult::Failed;
+	const bool bSuccess = VM->Execute(GetExtendedExecuteContext(), LocalMemory, InEventName) != ERigVMExecuteResult::Failed;
 
 #if UE_RIGVM_PROFILE_EXECUTE_UNITS_NUM
 	const uint64 EndCycles = FPlatformTime::Cycles64();
@@ -684,26 +683,26 @@ void URigVMHost::SetEventQueue(const TArray<FName>& InEventNames)
 
 void URigVMHost::UpdateVMSettings()
 {
-	if(VM)
+	if (VM)
 	{
 #if WITH_EDITOR
 		// setup array handling and error reporting on the VM
 		VMRuntimeSettings.SetLogFunction([this](EMessageSeverity::Type InSeverity, const FRigVMExecuteContext* InContext, const FString& Message)
-		{
-			check(InContext);
+			{
+				check(InContext);
 
-			if(RigVMLog)
-			{
-				RigVMLog->Report(InSeverity, InContext->GetFunctionName(), InContext->GetInstructionIndex(), Message);
-			}
-			else
-			{
-				LogOnce(InSeverity, InContext->GetInstructionIndex(), Message);
-			}
-		});
+				if (RigVMLog)
+				{
+					RigVMLog->Report(InSeverity, InContext->GetFunctionName(), InContext->GetInstructionIndex(), Message);
+				}
+				else
+				{
+					LogOnce(InSeverity, InContext->GetInstructionIndex(), Message);
+				}
+			});
 #endif
-		
-		VM->SetRuntimeSettings(VMRuntimeSettings);
+
+		GetExtendedExecuteContext().SetRuntimeSettings(VMRuntimeSettings);
 	}
 }
 
@@ -844,9 +843,11 @@ void URigVMHost::PostInitInstance(URigVMHost* InCDO)
 			RF_Public | RF_DefaultSubObject :
 			RF_Transient | RF_Transactional;
 
+	FRigVMExtendedExecuteContext& Context = GetExtendedExecuteContext();
+
 	// set up the VM
 	VM = NewObject<URigVM>(this, TEXT("VM"), SubObjectFlags);
-	VM->SetContextPublicDataStruct(GetPublicContextStruct());
+	Context.SetContextPublicDataStruct(GetPublicContextStruct());
 
 	// Cooked platforms will load these pointers from disk.
 	// In certain scenarios RequiresCookedData wil be false but the PKG_FilterEditorOnly will still be set (UEFN)
@@ -860,7 +861,7 @@ void URigVMHost::PostInitInstance(URigVMHost* InCDO)
 	VM->ExecutionReachedExit().AddUObject(this, &URigVMHost::HandleExecutionReachedExit);
 
 #if WITH_EDITOR
-	GetVM()->GetContext().GetPublicData<>().SetLog(RigVMLog); // may be nullptr
+	Context.GetPublicData<>().SetLog(RigVMLog); // may be nullptr
 #endif
 	UpdateVMSettings();
 

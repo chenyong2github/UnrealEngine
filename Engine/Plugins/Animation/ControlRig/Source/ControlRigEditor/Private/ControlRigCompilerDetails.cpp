@@ -269,7 +269,7 @@ FReply FRigVMCompileSettingsDetails::OnCopyGeneratedCodeClicked()
 					}
 					
 					FRigVMCodeGenerator CodeGenerator(ClassName,
-						TEXT("TestModule"), BlueprintBeingCustomized->GetDefaultModel(), CDO->GetVM(), BlueprintBeingCustomized->PinToOperandMap);
+						TEXT("TestModule"), BlueprintBeingCustomized->GetDefaultModel(), CDO->GetVM(), CDO->GetPublicContextStruct(), BlueprintBeingCustomized->PinToOperandMap);
 					const FString Content = CodeGenerator.DumpHeader() + TEXT("\r\n\r\n") + CodeGenerator.DumpSource();
 					FPlatformApplicationMisc::ClipboardCopy(*Content);
 				}
