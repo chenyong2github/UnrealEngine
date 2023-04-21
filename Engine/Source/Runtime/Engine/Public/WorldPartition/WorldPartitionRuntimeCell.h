@@ -42,7 +42,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 #endif
 	{}
 
-	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, FName InContainerPackage, FName InWorldPackage, const FGuid& InContentBundleGuid, const FGuid& InActorInstanceGuid)
+	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, FName InContainerPackage, FName InWorldPackage, const FGuid& InContentBundleGuid, const FGuid& InActorInstanceGuid, bool bInIsEditorOnly)
 #if WITH_EDITORONLY_DATA
 		: Package(InPackage)
 		, Path(InPath)
@@ -53,6 +53,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 		, ContentBundleGuid(InContentBundleGuid)
 		, ActorInstanceGuid(InActorInstanceGuid)
 		, LoadedPath(InPath)
+		, bIsEditorOnly(bInIsEditorOnly)
 #endif
 	{}
 
@@ -115,6 +116,9 @@ struct FWorldPartitionRuntimeCellObjectMapping
 	*/
 	UPROPERTY()
 	FName LoadedPath;
+
+	UPROPERTY()
+	bool bIsEditorOnly;
 #endif
 };
 

@@ -154,6 +154,11 @@ const TArray<FGuid>& FWorldPartitionActorDescView::GetReferences() const
 	return RuntimeReferences.IsSet() ? RuntimeReferences.GetValue() : ActorDesc->GetReferences();
 }
 
+const TArray<FGuid>& FWorldPartitionActorDescView::GetEditorReferences() const
+{
+	return EditorReferences;
+}
+
 FString FWorldPartitionActorDescView::ToString() const
 {
 	return ActorDesc->ToString();
@@ -240,14 +245,19 @@ void FWorldPartitionActorDescView::SetInvalidDataLayers()
 	}
 }
 
-void FWorldPartitionActorDescView::SetRuntimeDataLayerInstanceNames(TArray<FName>& InRuntimeDataLayerInstanceNames)
+void FWorldPartitionActorDescView::SetRuntimeDataLayerInstanceNames(const TArray<FName>& InRuntimeDataLayerInstanceNames)
 {
 	RuntimeDataLayerInstanceNames = InRuntimeDataLayerInstanceNames;
 }
 
-void FWorldPartitionActorDescView::SetRuntimeReferences(TArray<FGuid>& InRuntimeReferences)
+void FWorldPartitionActorDescView::SetRuntimeReferences(const TArray<FGuid>& InRuntimeReferences)
 {
 	RuntimeReferences = InRuntimeReferences;
+}
+
+void FWorldPartitionActorDescView::SetEditorReferences(const TArray<FGuid>& InEditorReferences)
+{
+	EditorReferences = InEditorReferences;
 }
 
 AActor* FWorldPartitionActorDescView::GetActor() const

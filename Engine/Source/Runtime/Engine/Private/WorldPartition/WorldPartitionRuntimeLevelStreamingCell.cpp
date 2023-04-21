@@ -205,14 +205,37 @@ void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartit
 {
 	check(!ActorDescView.GetActorIsEditorOnly());
 
+	if (!IsRunningCookCommandlet())
+	{
+		for (const FGuid& EditorReferenceGuid : ActorDescView.GetEditorReferences())
+		{
+			const FWorldPartitionActorDesc& ReferenceActorDesc = InContainer->GetActorDescChecked(EditorReferenceGuid);
+			check(ReferenceActorDesc.GetActorIsEditorOnly());
+
+			Packages.Emplace(
+				ReferenceActorDesc.GetActorPackage(), 
+				*ReferenceActorDesc.GetActorSoftPath().ToString(), 
+				InContainerID, 
+				InContainerTransform, 
+				InContainer->GetContainerPackage(), 
+				GetWorld()->GetPackage()->GetFName(), 
+				ReferenceActorDesc.GetContentBundleGuid(),
+				InContainerID.GetActorGuid(ReferenceActorDesc.GetGuid()),
+				true
+			);
+		}
+	}
+
 	Packages.Emplace(
 		ActorDescView.GetActorPackage(), 
 		*ActorDescView.GetActorSoftPath().ToString(), 
-		InContainerID, InContainerTransform, 
+		InContainerID, 
+		InContainerTransform, 
 		InContainer->GetContainerPackage(), 
 		GetWorld()->GetPackage()->GetFName(), 
 		ActorDescView.GetContentBundleGuid(),
-		InContainerID.GetActorGuid(ActorDescView.GetGuid())
+		InContainerID.GetActorGuid(ActorDescView.GetGuid()),
+		false
 	);
 }
 

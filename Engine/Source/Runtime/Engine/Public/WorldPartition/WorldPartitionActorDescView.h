@@ -53,6 +53,7 @@ public:
 	FBox GetRuntimeBounds() const;
 
 	const TArray<FGuid>& GetReferences() const;
+	const TArray<FGuid>& GetEditorReferences() const;
 	FString ToString() const;
 	const FGuid& GetParentActor() const;
 	FName GetActorName() const;
@@ -78,8 +79,9 @@ public:
 	void SetForcedNonSpatiallyLoaded();
 	void SetForcedNoRuntimeGrid();
 	void SetInvalidDataLayers();
-	void SetRuntimeDataLayerInstanceNames(TArray<FName>& InRuntimeDataLayerInstanceNames);
-	void SetRuntimeReferences(TArray<FGuid>& InRuntimeReferences);
+	void SetRuntimeDataLayerInstanceNames(const TArray<FName>& InRuntimeDataLayerInstanceNames);
+	void SetRuntimeReferences(const TArray<FGuid>& InRuntimeReferences);
+	void SetEditorReferences(const TArray<FGuid>& InEditorReferences);
 	void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames);
 
 	AActor* GetActor() const;
@@ -107,5 +109,6 @@ protected:
 	TOptional<TArray<FName>> ResolvedDataLayerInstanceNames;
 	TOptional<TArray<FName>> RuntimeDataLayerInstanceNames;
 	TOptional<TArray<FGuid>> RuntimeReferences;
+	TArray<FGuid> EditorReferences;
 };
 #endif

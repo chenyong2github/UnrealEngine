@@ -60,7 +60,8 @@ static UWorldPartitionLevelStreamingDynamic* CreateLevelStreamingFromHLODActor(A
 			SubActor.ContainerPackage, 
 			World->GetPackage()->GetFName(), 
 			InHLODActor->GetContentBundleGuid(),
-			SubActor.ActorGuid
+			SubActor.ActorGuid,
+			false
 		);
 	});
 

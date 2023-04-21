@@ -365,12 +365,16 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOuterWorld, ULevel* InDest
 		const FName ContainerPackageInstanceName = Context->RemapPackage(PackageObjectMapping.ContainerPackage);
 		if (PackageObjectMapping.ContainerPackage != ContainerPackageInstanceName)
 		{
-			const FString ActorPackageName = FPackageName::ObjectPathToPackageName(PackageObjectMapping.Package.ToString());
-			const FString ActorPackageInstanceName = ULevel::GetExternalActorPackageInstanceName(ContainerPackageInstanceName.ToString(), ActorPackageName);
+			const FName ActorPackageName = *FPackageName::ObjectPathToPackageName(PackageObjectMapping.Package.ToString());
+			const FName ActorPackageInstanceName = PackageObjectMapping.bIsEditorOnly ? NAME_None : FName(*ULevel::GetExternalActorPackageInstanceName(ContainerPackageInstanceName.ToString(), ActorPackageName.ToString()));
 
-			Context->AddPackageMapping(FName(*ActorPackageName), FName(*ActorPackageInstanceName));
+			Context->AddPackageMapping(ActorPackageName, ActorPackageInstanceName);
 		}
-		ActorPackages.Add(&PackageObjectMapping);
+
+		if (!PackageObjectMapping.bIsEditorOnly)
+		{
+			ActorPackages.Add(&PackageObjectMapping);
+		}
 	}
 
 	LoadProgress->NumPendingLoadRequests = ActorPackages.Num();

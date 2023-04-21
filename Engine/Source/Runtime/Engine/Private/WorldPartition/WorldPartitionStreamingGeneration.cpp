@@ -6,6 +6,7 @@
 #include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 
 #include "Editor.h"
+#include "Algo/Transform.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "ActorReferencesUtils.h"
 #include "Misc/PackageName.h"
@@ -244,7 +245,7 @@ class FWorldPartitionStreamingGenerator
 
 		const UActorDescContainer* Container;
 		FActorDescViewMap ActorDescViewMap;
-		FActorDescViewMap FilteredActorDescViewMap;
+		TSet<FGuid> EditorOnlyActorDescMap;
 		TArray<FWorldPartitionActorDescView> ContainerInstanceViews;
 		TArray<TArray<FGuid>> Clusters;
 	};
@@ -306,7 +307,7 @@ class FWorldPartitionStreamingGenerator
 		}
 	}
 
-	void CreateActorDescViewMap(const UActorDescContainer* InContainer, FActorDescViewMap& OutActorDescViewMap, FActorDescViewMap& OutFilteredActorDescViewMap, const FActorContainerID& InContainerID, TArray<FWorldPartitionActorDescView>& OutContainerInstances)
+	void CreateActorDescViewMap(const UActorDescContainer* InContainer, FActorDescViewMap& OutActorDescViewMap, TSet<FGuid>& OutEditorOnlyActorDescMap, const FActorContainerID& InContainerID, TArray<FWorldPartitionActorDescView>& OutContainerInstances)
 	{
 		// Should we handle unsaved or newly created actors?
 		const bool bHandleUnsavedActors = ModifiedActorsDescList && InContainerID.IsMainContainer();
@@ -398,8 +399,7 @@ class FWorldPartitionStreamingGenerator
 			}
 			else
 			{
-				FWorldPartitionActorDescView ActorDescView(*ActorDescIt);
-				OutFilteredActorDescViewMap.Emplace(ActorDescIt->GetGuid(), ActorDescView);
+				OutEditorOnlyActorDescMap.Add(ActorDescIt->GetGuid());
 			}
 		}
 
@@ -434,7 +434,7 @@ class FWorldPartitionStreamingGenerator
 				ContainerDescriptor.Container = ContainerInstanceDescriptor.Container;
 
 				// Gather actor descriptor views for this container
-				CreateActorDescViewMap(ContainerInstanceDescriptor.Container, ContainerDescriptor.ActorDescViewMap, ContainerDescriptor.FilteredActorDescViewMap, ContainerInstanceDescriptor.ID, ContainerDescriptor.ContainerInstanceViews);
+				CreateActorDescViewMap(ContainerInstanceDescriptor.Container, ContainerDescriptor.ActorDescViewMap, ContainerDescriptor.EditorOnlyActorDescMap, ContainerInstanceDescriptor.ID, ContainerDescriptor.ContainerInstanceViews);
 
 				// Resolve actor descriptor views before validation
 				ResolveContainerDescriptor(ContainerDescriptor);
@@ -780,9 +780,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 
 				TArray<FGuid> RuntimeReferences;
+				TArray<FGuid> EditorReferences;
+
 				if (PassType == EPassType::Fixup)
 				{
 					RuntimeReferences.Reserve(ActorDescView.GetReferences().Num());
+					EditorReferences.Reserve(ActorDescView.GetReferences().Num());
 				}
 
 				for (FActorReferenceInfo& Info : References)
@@ -845,7 +848,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 					else
 					{
-						if (!ContainerDescriptor.FilteredActorDescViewMap.FindByGuid(Info.ReferenceGuid))
+						if (!ContainerDescriptor.EditorOnlyActorDescMap.Contains(Info.ReferenceGuid))
 						{
 							if (PassType == EPassType::ErrorReporting)
 							{
@@ -853,7 +856,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 								FWorldPartitionActorDescView* ReferendceActorDescViewPtr = nullptr;
 
 								if (const UActorDescContainer** ExistingReferenceContainerPtr = ActorGuidsToContainerMap.Find((Info.ReferenceGuid)))
-								{
+								{ 
 									if (const FWorldPartitionActorDesc* ReferenceActorDesc = (*ExistingReferenceContainerPtr)->GetActorDesc(Info.ReferenceGuid))
 									{
 										ReferendceActorDescView = FWorldPartitionActorDescView(ReferenceActorDesc);
@@ -863,6 +866,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 								ErrorHandler->OnInvalidReference(*RefererActorDescView, Info.ReferenceGuid, ReferendceActorDescViewPtr);
 							}
+						}
+						else if (PassType == EPassType::Fixup)
+						{
+							EditorReferences.Add(Info.ReferenceGuid);
 						}
 
 						NbErrorsDetected++;
@@ -874,7 +881,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					if (RuntimeReferences.Num() != ActorDescView.GetReferences().Num())
 					{
 						ActorDescView.SetRuntimeReferences(RuntimeReferences);
-					}
+						ActorDescView.SetEditorReferences(EditorReferences);
+					}					
 				}
 			});		
 		}
@@ -1123,17 +1131,24 @@ bool UWorldPartition::GenerateContainerStreaming(const FGenerateStreamingParams&
 	UE_SCOPED_TIMER(*FString::Printf(TEXT("GenerateStreaming for '%s'"), *ContainerShortName), LogWorldPartition, Display);
 
 	// Dump state log
-	TStringBuilder<256> StateLogSuffix;
-	StateLogSuffix += bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : (GIsAutomationTesting ? TEXT("UnitTest") : TEXT("Manual"))));
-	StateLogSuffix += TEXT("_");
-	StateLogSuffix += ContainerShortName;
-	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(*StateLogSuffix, !InParams.OutputLogPath);
-	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
+	TUniquePtr<FArchive> LogFileAr;
 
-	if (LogFileAr)
+	if (IsMainWorldPartition())
 	{
+		TStringBuilder<256> StateLogSuffix;
+		StateLogSuffix += bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : (GIsAutomationTesting ? TEXT("UnitTest") : TEXT("Manual"))));
+		StateLogSuffix += TEXT("_");
+		StateLogSuffix += ContainerShortName;
+		LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(*StateLogSuffix, !InParams.OutputLogPath);
+		
 		InContext.OutputLogFilename = LogFileAr->GetArchiveName();
 	}
+	else
+	{
+		LogFileAr = MakeUnique<FArchive>();
+	}
+
+	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
 
 	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
 	StreamingGeneratorParams.WorldPartitionContext = this;
@@ -1156,11 +1171,7 @@ bool UWorldPartition::GenerateContainerStreaming(const FGenerateStreamingParams&
 	check(RuntimeHash);
 	if (RuntimeHash->GenerateStreaming(StreamingPolicy, StreamingGenerator.GetStreamingGenerationContext(), InContext.PackagesToGenerate))
 	{
-		//if (IsRunningCookCommandlet())
-		{
-			RuntimeHash->DumpStateLog(HierarchicalLogAr);
-		}
-
+		RuntimeHash->DumpStateLog(HierarchicalLogAr);
 		StreamingPolicy->PrepareActorToCellRemapping();
 		return true;
 	}
