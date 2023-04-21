@@ -3,6 +3,7 @@
 #include "StorageServerPlatformFile.h"
 #include "StorageServerIoDispatcherBackend.h"
 #include "HAL/IPlatformFileModule.h"
+#include "HAL/FileManagerGeneric.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeRWLock.h"
@@ -15,6 +16,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "CookOnTheFly.h"
+#include "Serialization/CompactBinarySerialization.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogStorageServerPlatformFile, Log, All);
 
@@ -247,6 +249,29 @@ FStorageServerPlatformFile::~FStorageServerPlatformFile()
 {
 }
 
+TUniquePtr<FArchive> FStorageServerPlatformFile::TryFindProjectStoreMarkerFile(IPlatformFile* Inner) const
+{
+	if (Inner == nullptr)
+	{
+		return nullptr;
+	}
+	FString RootDir = FPaths::ConvertRelativePathToFull(FPaths::RootDir());
+	FString CookedDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::ProjectDir(), TEXT("Saved"), TEXT("Cooked"), FPlatformProperties::PlatformName()));
+	TArray<FString> PotentialProjectStorePaths;
+	PotentialProjectStorePaths.Add(RootDir);
+	PotentialProjectStorePaths.Add(CookedDir);
+
+	for (const FString& ProjectStorePath : PotentialProjectStorePaths)
+	{
+		FString ProjectMarkerPath = ProjectStorePath / TEXT(".projectstore");
+		if (IFileHandle* ProjectStoreMarkerHandle = Inner->OpenRead(*ProjectMarkerPath); ProjectStoreMarkerHandle != nullptr)
+		{
+			return TUniquePtr<FArchive>(new FArchiveFileReaderGeneric(ProjectStoreMarkerHandle, *ProjectMarkerPath, ProjectStoreMarkerHandle->Size()));
+		}
+	}
+	return nullptr;
+}
+
 bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const
 {
 #if WITH_COTF
@@ -259,6 +284,22 @@ bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR*
 		return true;
 	}
 #endif
+	TUniquePtr<FArchive> ProjectStoreMarkerReader = TryFindProjectStoreMarkerFile(Inner);
+	if (ProjectStoreMarkerReader != nullptr)
+	{
+		FCbObject ProjectStoreObject = LoadCompactBinary(*ProjectStoreMarkerReader).AsObject();
+
+		if (FCbFieldView ZenServerField = ProjectStoreObject["zenserver"])
+		{
+			if (FUtf8StringView HostName = ZenServerField["hostname"].AsString(); !HostName.IsEmpty())
+			{
+				HostAddrs.Add(FString(HostName));
+			}
+			HostPort = ZenServerField["hostport"].AsUInt16(HostPort);
+			UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Found .projectstore"));
+		}
+	}
+
 	FString Host;
 	if (FParse::Value(FCommandLine::Get(), TEXT("-ZenStoreHost="), Host))
 	{
@@ -267,6 +308,7 @@ bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR*
 			HostAddrs.Add(Host);
 		}
 	}
+	FParse::Value(CmdLine, TEXT("-ZenStorePort="), HostPort);
 	return HostAddrs.Num() > 0;
 }
 
@@ -276,6 +318,19 @@ bool FStorageServerPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* C
 	if (HostAddrs.Num() > 0)
 	{
 		// Don't initialize the connection yet because we want to incorporate project file path information into the initialization.
+
+		TUniquePtr<FArchive> ProjectStoreMarkerReader = TryFindProjectStoreMarkerFile(Inner);
+		if (ProjectStoreMarkerReader != nullptr)
+		{
+			FCbObject ProjectStoreObject = LoadCompactBinary(*ProjectStoreMarkerReader).AsObject();
+
+			if (FCbFieldView ZenServerField = ProjectStoreObject["zenserver"])
+			{
+				ServerProject = FString(ZenServerField["projectid"].AsString());
+				ServerPlatform = FString(ZenServerField["oplogid"].AsString());
+			}
+		}
+	
 		FParse::Value(CmdLine, TEXT("-ZenStoreProject="), ServerProject);
 		FParse::Value(CmdLine, TEXT("-ZenStorePlatform="), ServerPlatform);
 		return true;

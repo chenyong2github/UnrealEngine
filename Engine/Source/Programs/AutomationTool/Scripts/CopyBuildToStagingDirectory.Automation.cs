@@ -867,27 +867,17 @@ namespace AutomationScripts
 			}
 		}
 
-		public static void CreateStagingManifest(ProjectParams Params, DeploymentContext SC)
+		public static bool SetUpStagingSourceDirectories(ProjectParams Params, DeploymentContext SC)
 		{
-			if (!Params.Stage)
+			if (SC.CookPlatform == null)
 			{
-				return;
+				return false;
 			}
-			var ThisPlatform = SC.StageTargetPlatform;
 
-			Logger.LogInformation("Creating Staging Manifest...");
-
-			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
-
-			if (Params.HasIterateSharedCookedBuild)
+			if (SC.PlatformCookDir != null && SC.MetadataDir != null)
 			{
-				// can't do shared cooked builds with DLC that's madness!!
-				//check( Params.HasDLCName == false );
-
-				// stage all the previously staged files
-				SC.StageFiles(StagedFileType.NonUFS, DirectoryReference.Combine(SC.ProjectRoot, "Saved", "SharedIterativeBuild", SC.CookPlatform, "Staged"), StageFilesSearch.AllDirectories, StagedDirectoryReference.Root); // remap to the root directory
+				return true;
 			}
-			bool bCreatePluginManifest = false;
 			if (Params.HasDLCName)
 			{
 				// Making a plugin
@@ -909,7 +899,6 @@ namespace AutomationScripts
 				{
 					DLCCookedSubDir = DLCRoot.MakeRelativeTo(SC.LocalRoot);
 				}
-
 				// Put all of the cooked dir into the staged dir
 				if (String.IsNullOrEmpty(Params.CookOutputDir))
 				{
@@ -923,10 +912,88 @@ namespace AutomationScripts
 						SC.PlatformCookDir = DirectoryReference.Combine(SC.PlatformCookDir, SC.CookPlatform);
 					}
 				}
+				SC.MetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, DLCCookedSubDir, "Metadata");
+			}
+			else
+			{
+				if (!Params.CookOnTheFly && !Params.SkipCookOnTheFly) // only stage the UFS files if we are not using cook on the fly
+				{
+					// Get the final output directory for cooked data
+					DirectoryReference CookOutputDir;
+					if (!String.IsNullOrEmpty(Params.CookOutputDir))
+					{
+						CookOutputDir = new DirectoryReference(Params.CookOutputDir);
+						if (!CookOutputDir.GetDirectoryName().Equals(SC.CookPlatform, StringComparison.InvariantCultureIgnoreCase))
+						{
+							CookOutputDir = DirectoryReference.Combine(CookOutputDir, SC.CookPlatform);
+						}
+					}
+					else if (Params.CookInEditor)
+					{
+						CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "EditorCooked", SC.CookPlatform);
+					}
+					else
+					{
+						CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "Cooked", SC.CookPlatform);
+					}
 
+					SC.PlatformCookDir = CookOutputDir;
+					SC.MetadataDir = DirectoryReference.Combine(CookOutputDir, SC.ShortProjectName, "Metadata");
+				}
+				else
+				{
+					// UE-58423
+					DirectoryReference CookOutputDir;
+					if (!String.IsNullOrEmpty(Params.CookOutputDir))
+					{
+						CookOutputDir = DirectoryReference.Combine(new DirectoryReference(Params.CookOutputDir), SC.CookPlatform);
+					}
+					else if (Params.CookInEditor)
+					{
+						CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "EditorCooked", SC.CookPlatform);
+					}
+					else
+					{
+						CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "Cooked", SC.CookPlatform);
+					}
+					SC.PlatformCookDir = CookOutputDir;
+					SC.MetadataDir = DirectoryReference.Combine(CookOutputDir, SC.ShortProjectName, "Metadata");
+				}
+			}
+			return true;
+		}
+
+		public static void CreateStagingManifest(ProjectParams Params, DeploymentContext SC)
+		{
+			if (!Params.Stage)
+			{
+				return;
+			}
+			var ThisPlatform = SC.StageTargetPlatform;
+
+			Logger.LogInformation("Creating Staging Manifest...");
+
+			if (!SetUpStagingSourceDirectories(Params, SC))
+			{
+				return;
+			}
+
+			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
+
+			if (Params.HasIterateSharedCookedBuild)
+			{
+				// can't do shared cooked builds with DLC that's madness!!
+				//check( Params.HasDLCName == false );
+
+				// stage all the previously staged files
+				SC.StageFiles(StagedFileType.NonUFS, DirectoryReference.Combine(SC.ProjectRoot, "Saved", "SharedIterativeBuild", SC.CookPlatform, "Staged"), StageFilesSearch.AllDirectories, StagedDirectoryReference.Root); // remap to the root directory
+			}
+			bool bCreatePluginManifest = false;
+			if (Params.HasDLCName)
+			{
+				// Making a plugin
 				DirectoryReference PlatformEngineDir = DirectoryReference.Combine(SC.PlatformCookDir, "Engine");
 				DirectoryReference ProjectMetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, SC.ShortProjectName, "Metadata");
-				SC.MetadataDir = DirectoryReference.Combine(SC.PlatformCookDir, DLCCookedSubDir, "Metadata");
 
 				// The .uplugin file is staged differently for different DLC
 				// The .uplugin file doesn't actually exist for mobile DLC
@@ -951,7 +1018,7 @@ namespace AutomationScripts
 				}
 
 				// Put the binaries into the staged dir
-				DirectoryReference BinariesDir = DirectoryReference.Combine(DLCRoot, "Binaries");
+				DirectoryReference BinariesDir = DirectoryReference.Combine(Params.DLCFile.Directory, "Binaries");
 				if (DirectoryReference.Exists(BinariesDir))
 				{
 					SC.StageFiles(StagedFileType.NonUFS, BinariesDir, "libUE4-*.so", StageFilesSearch.AllDirectories);
@@ -961,7 +1028,7 @@ namespace AutomationScripts
 				}
 
 				// Put the config files into the staged dir
-				DirectoryReference ConfigDir = DirectoryReference.Combine(DLCRoot, "Config");
+				DirectoryReference ConfigDir = DirectoryReference.Combine(Params.DLCFile.Directory, "Config");
 				if (DirectoryReference.Exists(ConfigDir))
 				{
 					SC.StageFiles(StagedFileType.UFS, ConfigDir, "*.ini", StageFilesSearch.AllDirectories);
@@ -969,7 +1036,7 @@ namespace AutomationScripts
 
 				if (Params.DLCActLikePatch)
 				{
-					DirectoryReference DLCContent = DirectoryReference.Combine(DLCRoot, "Content");
+					DirectoryReference DLCContent = DirectoryReference.Combine(Params.DLCFile.Directory, "Content");
 					string RelativeDLCContentPath = DLCContent.MakeRelativeTo(SC.LocalRoot);
 					string RelativeRootContentPath = DirectoryReference.Combine(SC.ProjectRoot, "Content").MakeRelativeTo(SC.LocalRoot);
 
@@ -1022,7 +1089,7 @@ namespace AutomationScripts
 					}
 				}
 
-				FileReference PluginSettingsFile = FileReference.Combine(DLCRoot, "Config", "PluginSettings.ini");
+				FileReference PluginSettingsFile = FileReference.Combine(Params.DLCFile.Directory, "Config", "PluginSettings.ini");
 				if (FileReference.Exists(PluginSettingsFile))
 				{
 					ConfigFile File = new ConfigFile(PluginSettingsFile);
@@ -1033,7 +1100,7 @@ namespace AutomationScripts
 						{
 							if (Line.Key == "AdditionalNonUSFDirectories")
 							{
-								SC.StageFiles(StagedFileType.NonUFS, DirectoryReference.Combine(DLCRoot, Line.Value), "*.*", StageFilesSearch.AllDirectories);
+								SC.StageFiles(StagedFileType.NonUFS, DirectoryReference.Combine(Params.DLCFile.Directory, Line.Value), "*.*", StageFilesSearch.AllDirectories);
 							}
 						}
 					}
@@ -1047,7 +1114,7 @@ namespace AutomationScripts
 							{
 								if (Line.Key == "AdditionalNonUSFDirectories")
 								{
-									SC.StageFiles(StagedFileType.NonUFS, DirectoryReference.Combine(DLCRoot, Line.Value), "*.*", StageFilesSearch.AllDirectories);
+									SC.StageFiles(StagedFileType.NonUFS, DirectoryReference.Combine(Params.DLCFile.Directory, Line.Value), "*.*", StageFilesSearch.AllDirectories);
 								}
 							}
 						}
@@ -1058,7 +1125,6 @@ namespace AutomationScripts
 			}
 			else
 			{
-
 				if (!Params.IterateSharedBuildUsePrecompiledExe)
 				{
 					ThisPlatform.GetFilesToDeployOrStage(Params, SC);
@@ -1096,28 +1162,6 @@ namespace AutomationScripts
 
 				if (!Params.CookOnTheFly && !Params.SkipCookOnTheFly) // only stage the UFS files if we are not using cook on the fly
 				{
-					// Get the final output directory for cooked data
-					DirectoryReference CookOutputDir;
-					if (!String.IsNullOrEmpty(Params.CookOutputDir))
-					{
-						CookOutputDir = new DirectoryReference(Params.CookOutputDir);
-						if (!CookOutputDir.GetDirectoryName().Equals(SC.CookPlatform, StringComparison.InvariantCultureIgnoreCase))
-						{
-							CookOutputDir = DirectoryReference.Combine(CookOutputDir, SC.CookPlatform);
-						}
-					}
-					else if (Params.CookInEditor)
-					{
-						CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "EditorCooked", SC.CookPlatform);
-					}
-					else
-					{
-						CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "Cooked", SC.CookPlatform);
-					}
-
-					SC.PlatformCookDir = CookOutputDir;
-					SC.MetadataDir = DirectoryReference.Combine(CookOutputDir, SC.ShortProjectName, "Metadata");
-
 					// Initialize internationalization preset.
 					string InternationalizationPreset = GetInternationalizationPreset(Params, PlatformGameConfig);
 
@@ -1337,9 +1381,9 @@ namespace AutomationScripts
 					}
 
 					// Stage all the cooked data. Currently not filtering this by restricted folders, since we shouldn't mask invalid references by filtering them out.
-					if (DirectoryReference.Exists(CookOutputDir))
+					if (DirectoryReference.Exists(SC.PlatformCookDir))
 					{
-						List<FileReference> CookedFiles = DirectoryReference.EnumerateFiles(CookOutputDir, "*", SearchOption.AllDirectories).ToList();
+						List<FileReference> CookedFiles = DirectoryReference.EnumerateFiles(SC.PlatformCookDir, "*", SearchOption.AllDirectories).ToList();
 
 						// When cooking to Zen get the list of cooked package files from the manifest
 						LoadPackageStoreManifest(Params, SC);
@@ -1369,7 +1413,7 @@ namespace AutomationScripts
 							// metallib files cannot *currently* be staged as UFS as the Metal API needs to mmap them from files on disk in order to function efficiently
 							if (!CookedFile.HasExtension(".json") && !CookedFile.HasExtension(".metallib") && !CookedFile.HasExtension(".utoc") && !CookedFile.HasExtension(".ucas"))
 							{
-								SC.StageFile(StagedFileType.UFS, CookedFile, new StagedFileReference(CookedFile.MakeRelativeTo(CookOutputDir)));
+								SC.StageFile(StagedFileType.UFS, CookedFile, new StagedFileReference(CookedFile.MakeRelativeTo(SC.PlatformCookDir)));
 							}
 						}
 					}
@@ -1390,7 +1434,7 @@ namespace AutomationScripts
 						{
 							if (PlatformExports.IsPlatformAvailable(CrashReportPlatform))
 							{
-								Architecture = UnrealArchitectureConfig.ForPlatform(CrashReportPlatform).ActiveArchitectures(Params.RawProjectPath, TargetName:null);
+								Architecture = UnrealArchitectureConfig.ForPlatform(CrashReportPlatform).ActiveArchitectures(Params.RawProjectPath, TargetName: null);
 							}
 						}
 
@@ -1511,22 +1555,6 @@ namespace AutomationScripts
 							}
 						}
 					}
-
-					// UE-58423
-					DirectoryReference CookOutputDir;
-					if (!String.IsNullOrEmpty(Params.CookOutputDir))
-					{
-						CookOutputDir = DirectoryReference.Combine(new DirectoryReference(Params.CookOutputDir), SC.CookPlatform);
-					}
-					else if (Params.CookInEditor)
-					{
-						CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "EditorCooked", SC.CookPlatform);
-					}
-					else
-					{
-						CookOutputDir = DirectoryReference.Combine(SC.ProjectRoot, "Saved", "Cooked", SC.CookPlatform);
-					}
-					SC.MetadataDir = DirectoryReference.Combine(CookOutputDir, SC.ShortProjectName, "Metadata");
 				}
 
 				StageCookerSupportFilesFromReceipt(SC);
@@ -1623,7 +1651,7 @@ namespace AutomationScripts
 			{
 				SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);
 			}
-				
+
 			if (SC.StageTargetPlatform.RemapFileType(StagedFileType.DebugNonUFS))
 			{
 				SC.FilesToStage.NonUFSDebugFiles = SC.FilesToStage.NonUFSDebugFiles.ToDictionary(x => SC.StageTargetPlatform.Remap(x.Key), x => x.Value);

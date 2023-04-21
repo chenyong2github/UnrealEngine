@@ -15,6 +15,7 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using EpicGames.Serialization;
 
 namespace AutomationScripts
 {
@@ -567,6 +568,13 @@ namespace AutomationScripts
 			// Get client app name and command line.
 			string TempCmdLine = SC.ProjectArgForCommandLines + " ";
 			var PlatformName = TargetPlatform.ToString();
+
+			String FileHostCommandline = GetFileHostCommandline(Params, SC);
+			if (!string.IsNullOrEmpty(FileHostCommandline))
+			{
+				TempCmdLine += FileHostCommandline + " ";
+			}
+
 			if (Params.Cook || Params.CookOnTheFly)
 			{
 				List<FileReference> Exes = SC.StageTargetPlatform.GetExecutableNames(SC);
@@ -581,11 +589,6 @@ namespace AutomationScripts
 					TempCmdLine += Params.MapToRun + " ";
 				}
 
-				String FileHostCommandline = GetFileHostCommandline(Params, SC);
-				if (!string.IsNullOrEmpty(FileHostCommandline))
-				{
-					TempCmdLine += FileHostCommandline + " ";
-				}
 				if (Params.CookOnTheFly || Params.FileServer)
 				{
 					if (Params.CookOnTheFlyStreaming)
@@ -787,16 +790,71 @@ namespace AutomationScripts
 			return HostAddresses.ToList();
 		}
 
+		private static FileReference FindZenProjectStoreMarker(ProjectParams Params, DeploymentContext SC)
+		{
+			DirectoryReference ProjectStoreDir = null;
+			if (Params.Stage)
+			{
+				if (!SetUpStagingSourceDirectories(Params, SC))
+				{
+					return null;
+				}
+				ProjectStoreDir = SC.PlatformCookDir;
+			}
+			else if (Params.Deploy)
+			{
+				ProjectStoreDir = SC.StageDirectory;
+			}
+			if (ProjectStoreDir == null)
+			{
+				return null;
+			}
+			// Check for stage with zenstore without PAK?
+			FileReference PackageStoreManifestFile = FileReference.Combine(ProjectStoreDir, ".projectstore");
+			System.IO.FileInfo PackageStoreManifestFileInfo = PackageStoreManifestFile.ToFileInfo();
+			if (PackageStoreManifestFileInfo.Exists)
+			{
+				return PackageStoreManifestFile;
+			}
+			return null;
+		}
+
 		private static string GetFileHostCommandline(ProjectParams Params, DeploymentContext SC)
 		{
 			string FileHostParams = "";
-			if (!Params.CookOnTheFly && !Params.FileServer)
+			FileReference ZenStoreMarkerFile = FindZenProjectStoreMarker(Params, SC);
+			if (!Params.CookOnTheFly && !Params.FileServer && ZenStoreMarkerFile == null)
 			{
 				return FileHostParams;
 			}
 
-			List<string> HostAddresses = GetFileHostAddresses(SC);
-			SC.StageTargetPlatform.ModifyFileHostAddresses(HostAddresses);
+			string ProjectId = ProjectUtils.GetProjectPathId(SC.RawProjectPath);
+			ushort ZenHostPort = 1337;
+			List<string> HostAddresses = null;
+			if (ZenStoreMarkerFile != null)
+			{
+				byte[] ProjectStoreData = File.ReadAllBytes(ZenStoreMarkerFile.FullName);
+				CbObject ProjectStoreObject = new CbField(ProjectStoreData).AsObject();
+				CbObject ZenServerObject = ProjectStoreObject["zenserver"].AsObject();
+				if (ZenServerObject != CbObject.Empty)
+				{
+					ZenHostPort = ZenServerObject["hostport"].AsUInt16(ZenHostPort);
+					if (!ZenServerObject["islocalhost"].AsBool())
+					{
+						string HostName = ZenServerObject["hostname"].AsString();
+						if (!string.IsNullOrEmpty(HostName))
+						{
+							HostAddresses = new List<string> { HostName };
+						}
+					}
+					ProjectId = ZenServerObject["projectid"].AsString(ProjectId);
+				}
+			}
+			if (HostAddresses == null)
+			{
+				HostAddresses = GetFileHostAddresses(SC);
+				SC.StageTargetPlatform.ModifyFileHostAddresses(HostAddresses);
+			}
 
 			if (!IsNullOrEmpty(Params.Port))
 			{
@@ -821,9 +879,10 @@ namespace AutomationScripts
 			{
 				FileHostParams += "-filehostip=";
 			}
-			else if (Params.ZenStore)
+			else if (Params.ZenStore || ZenStoreMarkerFile != null)
 			{
-				FileHostParams += "-zenstoreproject=" + ProjectUtils.GetProjectPathId(SC.RawProjectPath) + " ";
+				FileHostParams += "-zenstoreproject=" + ProjectId + " ";
+				FileHostParams += "-zenstoreport=" + ZenHostPort + " ";
 				FileHostParams += "-zenstorehost=";
 			}
 			else

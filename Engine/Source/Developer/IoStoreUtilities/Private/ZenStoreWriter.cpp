@@ -381,10 +381,30 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 			IFileManager::Get().DeleteDirectory(*OutputPath, bRequireExists, bTree);
 		}
 
-		FString OplogLifetimeMarkerPath = OutputPath / (ProjectId + TEXT(".") + OplogId + TEXT(".projectstore"));
+		FString OplogLifetimeMarkerPath = OutputPath / TEXT(".projectstore");
 		TUniquePtr<FArchive> OplogMarker(IFileManager::Get().CreateFileWriter(*OplogLifetimeMarkerPath));
 
 		bool bOplogEstablished = HttpClient->TryCreateOplog(ProjectId, OplogId, OplogLifetimeMarkerPath, Info.bFullBuild);
+
+		if (bOplogEstablished && OplogMarker)
+		{
+			FCbWriter ManifestWriter;
+			ManifestWriter.BeginObject();
+			ManifestWriter.BeginObject("zenserver");
+			bool IsRunningLocally = false;
+#if UE_WITH_ZEN
+			IsRunningLocally = HttpClient->GetZenServiceInstance().IsServiceRunningLocally();
+#endif
+			ManifestWriter << "islocalhost" << IsRunningLocally;
+			ManifestWriter << "hostname" << HttpClient->GetHostName();
+			ManifestWriter << "hostport" << HttpClient->GetPort();
+			ManifestWriter << "projectid" << ProjectId;
+			ManifestWriter << "oplogid" << OplogId;
+			ManifestWriter.EndObject();
+			ManifestWriter.EndObject();
+			SaveCompactBinary(*OplogMarker, ManifestWriter.Save());
+		}
+
 		OplogMarker.Reset();
 
 		if (!bOplogEstablished && CleanBuild)
