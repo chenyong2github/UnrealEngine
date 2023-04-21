@@ -12,6 +12,7 @@
 class UMaterial;
 class UMaterialExpression;
 class UMaterialExpressionCustomOutput;
+class UMaterialParameterCollection;
 struct FMaterialLayersFunctions;
 
 struct FMaterialConnectionKey

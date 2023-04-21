@@ -5,6 +5,8 @@
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "RenderUtils.h"
 #include "Shader/Preshader.h"
+#include "SceneTypes.h"
+#include "MaterialShared.h"
 
 namespace UE::HLSLTree
 {

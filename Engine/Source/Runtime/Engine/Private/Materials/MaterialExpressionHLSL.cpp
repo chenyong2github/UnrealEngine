@@ -150,6 +150,7 @@
 #include "Materials/MaterialExpressionForLoop.h"
 #include "Materials/MaterialExpressionWhileLoop.h"
 #include "Materials/MaterialFunctionInterface.h"
+#include "Materials/Material.h"
 #include "MaterialHLSLTree.h"
 #include "MaterialShared.h"
 #include "MaterialDomain.h"
