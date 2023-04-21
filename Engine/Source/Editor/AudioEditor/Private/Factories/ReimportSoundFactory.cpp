@@ -17,6 +17,7 @@ UReimportSoundFactory::UReimportSoundFactory(const FObjectInitializer& ObjectIni
 
 #if WITH_SNDFILE_IO
 	Formats.Add(TEXT("aif;Audio Interchange File"));
+	Formats.Add(TEXT("aiff;Audio Interchange File Format"));
 	Formats.Add(TEXT("ogg;OGG Vorbis bitstream format"));
 	Formats.Add(TEXT("flac;Free Lossless Audio Codec"));
 #endif // WITH_SNDFILE_IO
