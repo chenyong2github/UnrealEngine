@@ -41,6 +41,7 @@ public:
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual bool IsPrimaryEditor() const override { return true; }
 	virtual bool IsSimpleAssetEditor() const override { return true; }
+	virtual FName GetEditingAssetTypeName() const override;
 
 	/** FAssetEditorToolkit interface */
 	virtual void PostRegenerateMenusAndToolbars() override;

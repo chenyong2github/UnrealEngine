@@ -135,10 +135,7 @@ public:
 	/** Override list of paths to expand by default */
 	FDefaultPathsToExpandDelegate& GetDefaultPathsToExpandDelegate() { return DefaultPathsToExpandDelegate; }
 
-	FMainMRUFavoritesList* GetRecentlyOpenedAssets() const
-	{
-		return RecentlyOpenedAssets.Get();
-	};
+	FMainMRUFavoritesList* GetRecentlyOpenedAssets() const;
 
 	static const FName NumberOfRecentAssetsName;
 
@@ -188,8 +185,6 @@ private:
 
 	/** All delegates that extend available path view plugin filters */
 	TArray<FAddPathViewPluginFilters> PathViewPluginFilters;
-
-	TUniquePtr<FMainMRUFavoritesList> RecentlyOpenedAssets;
 
 	FOnFilterChanged OnFilterChanged;
 	FOnSearchBoxChanged OnSearchBoxChanged;

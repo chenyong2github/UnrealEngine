@@ -116,6 +116,10 @@ public:
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use RestoreOpenAssetTabsOnRestart instead"))
 	uint32 bRestoreOpenAssetTabsOnRestart_DEPRECATED:1;
 #endif
+
+	/** The number of recent assets the editor will keep track of */
+	UPROPERTY(EditAnywhere, config, Category = Startup, meta = (DisplayName = "Number of Recent Assets to keep track of", ClampMin = "1", ClampMax = "30"))
+	int32 NumRecentAssets = 20;
 	
 private:
 

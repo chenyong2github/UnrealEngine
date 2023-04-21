@@ -10,6 +10,7 @@
 #include "Tools/Modes.h"
 #include "Misc/NamePermissionList.h"
 #include "AssetTypeActivationOpenedMethod.h"
+#include "MRUFavoritesList.h"
 #include "AssetEditorSubsystem.generated.h"
 
 class UAssetEditor;
@@ -19,6 +20,8 @@ class UClass;
 struct FAssetEditorRequestOpenAsset;
 class FEditorModeTools;
 class IMessageContext;
+class UToolMenu;
+struct FToolMenuSection;
 
 /**
  * This class keeps track of a currently open asset editor; allowing it to be
@@ -36,6 +39,7 @@ public:
 	virtual void InvokeTab(const struct FTabId& TabId) = 0;
 	UE_DEPRECATED(5.0, "Toolbar tab no longer exists and tab ID will return None; do not add it to layouts")
 	virtual FName GetToolbarTabId() const { return NAME_None; }
+	virtual FName GetEditingAssetTypeName() const { return NAME_None; }
 	virtual TSharedPtr<class FTabManager> GetAssociatedTabManager() = 0;
 	virtual double GetLastActivationTime() = 0;
 	virtual void RemoveEditingAsset(UObject* Asset) = 0;
@@ -166,7 +170,6 @@ public:
 	/** Request notification to restore the assets that were previously open when the editor was last closed */
 	void RequestRestorePreviouslyOpenAssets();
 
-	
 	void RegisterUAssetEditor(UAssetEditor* NewAssetEditor);
 	void UnregisterUAssetEditor(UAssetEditor* RemovedAssetEditor);
 	
@@ -213,6 +216,14 @@ public:
 	/** Get the permission list that controls which editor modes are exposed */
 	FNamePermissionList& GetAllowedEditorModes();
 
+	/** Fill in the given section with the recent assets for the given asset editor instance */
+	void CreateRecentAssetsMenuForEditor(const IAssetEditorInstance* InAssetEditorInstance, FToolMenuSection& InSection);
+
+	FMainMRUFavoritesList* GetRecentlyOpenedAssets() const
+	{
+		return RecentAssetsList.Get();
+	}
+
 private:
 
 	/** Handles FAssetEditorRequestOpenAsset messages. */
@@ -230,6 +241,19 @@ private:
 	/** Handler for when the "Don't Restore" button is clicked on the RestorePreviouslyOpenAssets notification */
 	void OnCancelRestorePreviouslyOpenAssets();
 
+	/** Register extensions to the Level Editor "File" Menu */
+	void RegisterLevelEditorMenuExtensions();
+
+	/**
+	 * Fill in the given menu with entries from the recent assets list, clicking on which will open up the asset
+	 * @param InMenu The menu to fill in
+	 * @param InAssetEditorName If provided, only assets in the list that were opened in this asset editor will be added to the menu
+	 */
+	void CreateRecentAssetsMenu(UToolMenu* InMenu, const FName InAssetEditorName = FName());
+
+	void OnAssetRemoved(const FAssetData& AssetData);
+
+	void OnAssetRenamed(const FAssetData& AssetData, const FString& AssetOldName);
 public:
 
 	/**
@@ -273,6 +297,13 @@ private:
 	void OnSMInstanceElementsEnabled();
 
 	bool IsEditorModeAllowed(const FName ModeId) const;
+
+	void InitializeRecentAssets();
+	void SaveRecentAssets(const bool bOnShutdown = false);
+	void CullRecentAssetEditorsMap();
+
+	bool ShouldShowRecentAsset(const FString& AssetName, int32 RecentAssetIndex,  const FName& InAssetEditorName) const;
+	bool ShouldShowRecentAssetsMenu(const FName& InAssetEditorName) const;
 
 private:
 
@@ -393,4 +424,10 @@ private:
 	 * Note that this does not disable or unregister disallowed modes, it simply removes them from the query results.
 	 */
 	FNamePermissionList AllowedEditorModes;
+
+	/** MRU list of recently opened assets */
+	TUniquePtr<FMainMRUFavoritesList> RecentAssetsList;
+	
+	/** Map keeping track of the asset editor each recent asset was opened in */
+	TMap<FString, FString> RecentAssetToAssetEditorMap;
 };

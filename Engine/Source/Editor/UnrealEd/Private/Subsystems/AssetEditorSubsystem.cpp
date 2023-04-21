@@ -14,7 +14,6 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Toolkits/SimpleAssetEditor.h"
 #include "Engine/MapBuildDataRegistry.h"
-#include "ContentBrowserModule.h"
 #include "MRUFavoritesList.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "UObject/UObjectIterator.h"
@@ -33,6 +32,9 @@
 #include "EditorModeManager.h"
 #include "Tools/LegacyEdMode.h"
 #include "ProfilingDebugging/StallDetector.h"
+#include "ToolMenus.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 
@@ -59,7 +61,17 @@ void UAssetEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UAssetEditorSubsystem::UnregisterEditorModes);
 	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UAssetEditorSubsystem::RegisterEditorModes);
 
+	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
+	{
+		AssetRegistryModule->Get().OnAssetRemoved().AddUObject(this, &UAssetEditorSubsystem::OnAssetRemoved);
+		AssetRegistryModule->Get().OnAssetRenamed().AddUObject(this, &UAssetEditorSubsystem::OnAssetRenamed);
+	}
+
 	SMInstanceElementDataUtil::OnSMInstanceElementsEnabledChanged().AddUObject(this, &UAssetEditorSubsystem::OnSMInstanceElementsEnabled);
+
+	RegisterLevelEditorMenuExtensions();
+
+	InitializeRecentAssets();
 }
 
 void UAssetEditorSubsystem::Deinitialize()
@@ -69,6 +81,12 @@ void UAssetEditorSubsystem::Deinitialize()
 	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	SMInstanceElementDataUtil::OnSMInstanceElementsEnabledChanged().RemoveAll(this);
+
+	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
+	{
+		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
+		AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
+	}
 
 	// Don't attempt to report usage stats if analytics isn't available
 	if (FEngineAnalytics::IsAvailable())
@@ -86,6 +104,154 @@ void UAssetEditorSubsystem::Deinitialize()
 			FEngineAnalytics::GetProvider().RecordEvent(EventName, EditorUsageAttribs);
 		}
 	}
+
+	SaveRecentAssets();
+	RecentAssetsList.Reset();
+}
+
+void UAssetEditorSubsystem::InitializeRecentAssets()
+{
+	// The current max allowed is 30 assets, we keep track of 40 to be safe since we are ignoring levels when showing the list
+	RecentAssetsList = MakeUnique<FMainMRUFavoritesList>(TEXT("AssetEditorSubsystemRecents"), 40);
+	RecentAssetsList->ReadFromINI();
+	
+	TArray<FString> RecentAssetEditors;
+
+	GConfig->GetArray(TEXT("AssetEditorSubsystem"), TEXT("RecentAssetEditors"), RecentAssetEditors, GEditorPerProjectIni);
+
+	bool bFoundRecentAssetEditorsCleanly = true;
+
+	// If the number of recent assets and recent asset editors don't match, something went wrong during saving and we have potentially corrupt data
+	if(RecentAssetsList->GetNumItems() != RecentAssetEditors.Num())
+	{
+		bFoundRecentAssetEditorsCleanly = false;
+		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Something went wrong while loading recent assets! Num Recent Assets  = %d, Num Recent Asset Editors = %d"), RecentAssetsList->GetNumItems(), RecentAssetEditors.Num());
+	}
+
+	// If we have corrupt data, simply ignore the asset editor list instead of potentially showing an asset in the wrong asset editor's recents
+	if(bFoundRecentAssetEditorsCleanly)
+	{
+		// Go in reverse since the first item should be the most recent
+		for(int i = 0; i < RecentAssetsList->GetNumItems(); ++i)
+		{
+			if(!RecentAssetEditors[i].IsEmpty())
+			{
+				RecentAssetToAssetEditorMap.Add(RecentAssetsList->GetMRUItem(i), RecentAssetEditors[i]);
+			}
+		}
+	}
+}
+
+void UAssetEditorSubsystem::SaveRecentAssets(const bool bOnShutdown)
+{
+	TArray<FString> RecentAssetEditorsToSave;
+
+	// If we are closing the editor, remove all assets that weren't actually saved to disk (transient)
+	if(bOnShutdown)
+	{
+		for(int i = 0; i < RecentAssetsList->GetNumItems(); ++i)
+		{
+			const FString& RecentAsset = RecentAssetsList->GetMRUItem(i);
+			if(!FPackageName::DoesPackageExist(RecentAsset))
+			{
+				RecentAssetsList->RemoveMRUItem(RecentAsset);
+				--i;
+			}
+		}
+	}
+	
+	for(int i = 0; i < RecentAssetsList->GetNumItems(); ++i)
+	{
+		FString CurRecentAsset = RecentAssetsList->GetMRUItem(i);
+
+		// If we have a valid asset editor for the current asset, save it
+		if(FString* CurrentAssetEditorName = RecentAssetToAssetEditorMap.Find(CurRecentAsset))
+		{
+			RecentAssetEditorsToSave.Add(*CurrentAssetEditorName);
+		}
+		// Otherwise add an empty entry (e.g levels) so the two arrays are always the same size
+		else
+		{
+			RecentAssetEditorsToSave.Add(FString());
+		}
+		
+	}
+
+	RecentAssetsList->WriteToINI();
+	GConfig->SetArray(TEXT("AssetEditorSubsystem"), TEXT("RecentAssetEditors"), RecentAssetEditorsToSave, GEditorPerProjectIni);
+}
+
+void UAssetEditorSubsystem::CullRecentAssetEditorsMap()
+{
+	/* Since the Recent Asset -> Asset Editor Map is not an MRU list, it can keep infinitely growing as the user opens assets
+	 * To keep it a reasonable size while also not culling it too often, we cull it when it gets twice as big as the MRU list
+	 */
+	if(RecentAssetToAssetEditorMap.Num() > 2 * RecentAssetsList->GetMaxItems())
+	{
+		for (TMap<FString, FString>::TIterator It(RecentAssetToAssetEditorMap); It; ++It)
+		{
+			// Remove any entries that are not in the mru list
+			if(RecentAssetsList->FindMRUItemIdx(It->Key) == INDEX_NONE)
+			{
+				It.RemoveCurrent();
+			}
+		}
+
+	}
+}
+
+void UAssetEditorSubsystem::OnAssetRemoved(const FAssetData& AssetData)
+{
+	FString PathName = FPaths::GetBaseFilename(AssetData.GetObjectPathString(), false);
+
+	// We need this early exit because FindMRUItemIdx has a check() for non valid long package names
+	if (!FPackageName::IsValidLongPackageName(PathName))
+	{
+		return;
+	}
+
+	// If the asset that was deleted was not found in the recent assets list, we have nothing to do
+	if(RecentAssetsList->FindMRUItemIdx(PathName) == INDEX_NONE)
+	{
+		return;
+	}
+
+	// Remove the asset from our list and map
+	RecentAssetsList->RemoveMRUItem(PathName);
+	RecentAssetToAssetEditorMap.Remove(PathName);
+
+	SaveRecentAssets();
+}
+
+void UAssetEditorSubsystem::OnAssetRenamed(const FAssetData& AssetData, const FString& AssetOldName)
+{
+	FString OldPathName = FPaths::GetBaseFilename(AssetOldName, false);
+	FString NewPathName = FPaths::GetBaseFilename(AssetData.GetObjectPathString(), false);
+
+	// We need this early exit because FindMRUItemIdx has a check() for non valid long package names
+	if (!FPackageName::IsValidLongPackageName(OldPathName) || !FPackageName::IsValidLongPackageName(NewPathName))
+	{
+		return;
+	}
+
+	// If the asset did not previously exist in the recents list, we have nothing to do
+	if(RecentAssetsList->FindMRUItemIdx(OldPathName) == INDEX_NONE)
+	{
+		return;
+	}
+
+	// Otherwise remove the old name of the asset, and re-add it with the new name
+	// NOTE: This has an unintentional side effect of bringing it to the top of the MRU list that can't be avoided
+	RecentAssetsList->RemoveMRUItem(OldPathName);
+	RecentAssetsList->AddMRUItem(NewPathName);
+
+	if(FString* AssetEditorName = RecentAssetToAssetEditorMap.Find(OldPathName))
+	{
+		RecentAssetToAssetEditorMap.Add(NewPathName, *AssetEditorName);
+		RecentAssetToAssetEditorMap.Remove(OldPathName);
+	}
+
+	SaveRecentAssets();
 }
 
 void UAssetEditorSubsystem::OnEditorClose()
@@ -216,8 +382,11 @@ void UAssetEditorSubsystem::NotifyAssetOpened(UObject* Asset, IAssetEditorInstan
 		OpenedEditorTimes.Add(InInstance, EditorTime);
 	}
 
+	FString AssetPath = Asset->GetOuter()->GetPathName();
+	
 	OpenedAssets.Add(Asset, InInstance);
 	OpenedEditors.Add(InInstance, Asset);
+	RecentAssetToAssetEditorMap.Add(AssetPath, InInstance->GetEditorName().ToString());
 
 	AssetOpenedInEditorEvent.Broadcast(Asset, InInstance);
 
@@ -432,11 +601,10 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 		if (Asset->IsAsset() && !Asset->IsA(UMapBuildDataRegistry::StaticClass()))
 		{
 			FString AssetPath = Asset->GetOuter()->GetPathName();
-			FContentBrowserModule& CBModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-			FMainMRUFavoritesList* RecentlyOpenedAssets = CBModule.GetRecentlyOpenedAssets();
-			if (RecentlyOpenedAssets && FPackageName::IsValidLongPackageName(AssetPath))
+			if (FPackageName::IsValidLongPackageName(AssetPath))
 			{
-				RecentlyOpenedAssets->AddMRUItem(AssetPath);
+				RecentAssetsList->AddMRUItem(AssetPath);
+				CullRecentAssetEditorsMap();
 			}
 		}
 	}
@@ -602,9 +770,14 @@ void UAssetEditorSubsystem::OpenEditorForAsset(const FSoftObjectPath& AssetPath)
 
 void UAssetEditorSubsystem::OpenEditorForAsset(const FString& AssetPathName, const EAssetTypeActivationOpenedMethod OpenedMethod)
 {
-	// An asset needs loading
+	UPackage* Package = FindPackage(NULL, *AssetPathName);
 
-	UPackage* Package = LoadPackage(NULL, *AssetPathName, LOAD_NoRedirects);
+	if(!Package)
+	{
+		// An asset needs loading
+		Package =  LoadPackage(NULL, *AssetPathName, LOAD_NoRedirects);
+	}
+	
 	if (Package)
 	{
 		Package->FullyLoad();
@@ -937,8 +1110,174 @@ void UAssetEditorSubsystem::OnCancelRestorePreviouslyOpenAssets()
 	}
 }
 
+bool UAssetEditorSubsystem::ShouldShowRecentAsset(const FString& AssetName, int32 RecentAssetIndex, const FName& InAssetEditorName) const
+{
+	const FString* AssetEditorForCurrRecent = RecentAssetToAssetEditorMap.Find(AssetName);
+
+	// If this asset wasn't opened in any valid asset editor (e.g Levels)
+	if(!AssetEditorForCurrRecent)
+	{
+		return false;
+	}
+
+	// If we have a valid asset editor we are adding assets for
+	if(!InAssetEditorName.IsNone())
+	{
+		// If this asset was not opened in InAssetEditorName, ignore it
+		if(*AssetEditorForCurrRecent != InAssetEditorName.ToString())
+		{
+			return false;
+		}
+	}
+		
+	// If this asset does not pass the set filter, ignore it
+	if (!RecentAssetsList->MRUItemPassesCurrentFilter(RecentAssetIndex))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UAssetEditorSubsystem::ShouldShowRecentAssetsMenu(const FName& InAssetEditorName) const
+{
+	// If we have no recent assets at all
+	if(RecentAssetsList->GetNumItems() == 0)
+	{
+		return false;
+	}
+
+	const int32 MaxRecentAssets = GetDefault<UEditorLoadingSavingSettings>()->NumRecentAssets;
+
+	for ( int32 CurRecentIndex = 0; CurRecentIndex < RecentAssetsList->GetNumItems() && CurRecentIndex < MaxRecentAssets; ++CurRecentIndex )
+	{
+		const FString& CurRecent = RecentAssetsList->GetMRUItem(CurRecentIndex);
+
+		// If any of the assets in the recents wil be shown, we show the menu
+		if(ShouldShowRecentAsset(CurRecent, CurRecentIndex, InAssetEditorName))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UAssetEditorSubsystem::CreateRecentAssetsMenu(UToolMenu* InMenu, const FName InAssetEditorName)
+{
+	const int32 MaxRecentAssets = GetDefault<UEditorLoadingSavingSettings>()->NumRecentAssets;
+
+	FToolMenuSection& Section = InMenu->FindOrAddSection("Recents");
+	
+	// Keep adding assets until we reach the end of the MRU list, or we reach the max allowed assets
+	for ( int32 CurRecentIndex = 0; CurRecentIndex < RecentAssetsList->GetNumItems() && CurRecentIndex < MaxRecentAssets; ++CurRecentIndex )
+	{
+		const FString& CurRecent = RecentAssetsList->GetMRUItem(CurRecentIndex);
+
+		if(!ShouldShowRecentAsset(CurRecent, CurRecentIndex, InAssetEditorName))
+		{
+			continue;
+		}
+
+		const FText ToolTip = FText::Format( LOCTEXT( "RecentAssetsToolTip", "Open {0}" ), FText::FromString( CurRecent ) );
+		const FText Label = FText::FromString( FPaths::GetBaseFilename(CurRecent) );
+
+		Section.AddMenuEntry(
+		NAME_None,
+		Label,
+		ToolTip,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this, CurRecent]()
+				{
+					OpenEditorForAsset(CurRecent);
+				})
+			)
+		);
+	}
+}
+
+void UAssetEditorSubsystem::RegisterLevelEditorMenuExtensions()
+{
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.File");
+	
+	FToolMenuSection& Section = Menu->FindOrAddSection("FileAsset");
+
+	Section.AddDynamicEntry("FileRecentAssets", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
+	{
+		// Since we want to show all asset types for the Level Editor, we use an empty asset editor name
+		const FName AssetEditorName = FName();
+
+		if (!ShouldShowRecentAssetsMenu(AssetEditorName))
+		{
+			return;
+		}
+		
+		InSection.AddSubMenu(
+			"RecentAssetsSubmenu",
+			LOCTEXT("RecentAssetsSubmenu_Label", "Recent Assets"),
+			LOCTEXT("RecentAssetsSubMenu_ToolTip", "Access your recently opened assets"),
+			FNewToolMenuDelegate::CreateUObject(this, &UAssetEditorSubsystem::CreateRecentAssetsMenu, AssetEditorName),
+			false,
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.RecentAssets"));
+	}));
+}
+
+void UAssetEditorSubsystem::CreateRecentAssetsMenuForEditor(const IAssetEditorInstance* InAssetEditorInstance, FToolMenuSection& InSection)
+{
+	if(!InAssetEditorInstance)
+	{
+		return;
+	}
+
+	InSection.AddDynamicEntry("FileRecentAssetEditorAssets", FNewToolMenuSectionDelegate::CreateLambda([this, InAssetEditorInstance](FToolMenuSection& InSection)
+	{
+		const FName EditingAssetTypeName = InAssetEditorInstance->GetEditingAssetTypeName();
+
+		// For generic asset editors (or any other special cases) that don't have one singular type of asset they are editing, show all recent assets
+		const FName AssetEditorName = EditingAssetTypeName.IsNone() ? FName() : InAssetEditorInstance->GetEditorName();
+
+		if(!ShouldShowRecentAssetsMenu(AssetEditorName))
+		{
+			return;
+		}
+
+		// Show all Recent Assets
+		if(AssetEditorName.IsNone())
+		{
+			InSection.AddSubMenu(
+			"RecentAssetsSubmenu",
+			LOCTEXT("RecentAssetsSubmenu_Label", "Recent Assets"),
+			LOCTEXT("RecentAssetsSubMenu_ToolTip", "Access your recently opened assets"),
+			FNewToolMenuDelegate::CreateUObject(this, &UAssetEditorSubsystem::CreateRecentAssetsMenu, AssetEditorName),
+			false,
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.RecentAssets")
+			);
+		}
+		// Only show recent assets opened in this Asset Editor
+		else
+		{
+			// Example submenu name: "Recent Material Assets" for the Material Editor
+			const FName RecentAssetsMenuName("Recent " + EditingAssetTypeName.ToString() + " Assets");
+			
+			InSection.AddSubMenu(
+				"RecentAssetEditorAssetsSubmenu",
+				FText::Format(LOCTEXT("RecentAssetEditorAssetsSubmenu_Label", "{0}"), FText::FromName(RecentAssetsMenuName)),
+				LOCTEXT("RecentAssetEditorAssetsSubMenu_ToolTip", "Access your recently opened assets"),
+				FNewToolMenuDelegate::CreateUObject(this, &UAssetEditorSubsystem::CreateRecentAssetsMenu, AssetEditorName),
+				false,
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.RecentAssets")
+			);
+		}
+		
+	}));
+;
+}
+
 void UAssetEditorSubsystem::SaveOpenAssetEditors(const bool bOnShutdown)
 {
+	SaveRecentAssets(bOnShutdown);
+
 	// Saving is disabled if bAutoRestoreAndDisableSaving is set
 	if (!bSavingOnShutdown && !bAutoRestoreAndDisableSaving.IsSet())
 	{

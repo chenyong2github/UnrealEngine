@@ -97,10 +97,26 @@ void SStandaloneAssetEditorToolkitHost::CreateDefaultStandaloneMenuBar(UToolMenu
 		{
 			const FName MenuName = *(InMenuBar->GetMenuName().ToString() + TEXT(".") + TEXT("File"));
 			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu(MenuName);
+
+			FToolMenuSection& FileAssetSection = Menu->FindOrAddSection("FileAsset");
+
+			FileAssetSection.Label = LOCTEXT("FileAssetSectionHeading", "Open");
+			
+			FileAssetSection.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			{
+				if (UAssetEditorToolkitMenuContext* Context = InSection.FindContext<UAssetEditorToolkitMenuContext>())
+				{
+					Context->Toolkit.Pin()->FillDefaultFileMenuOpenCommands(InSection);
+				}
+			}));
+			
 			FToolMenuSection& Section = Menu->FindOrAddSection("FileLoadAndSave");
 			Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 			{
-				InSection.FindContext<UAssetEditorToolkitMenuContext>()->Toolkit.Pin()->FillDefaultFileMenuCommands(InSection);
+				if (UAssetEditorToolkitMenuContext* Context = InSection.FindContext<UAssetEditorToolkitMenuContext>())
+				{
+					Context->Toolkit.Pin()->FillDefaultFileMenuCommands(InSection);
+				}
 			}));
 		}
 
@@ -109,7 +125,10 @@ void SStandaloneAssetEditorToolkitHost::CreateDefaultStandaloneMenuBar(UToolMenu
 			FToolMenuSection& Section = InMenu->AddSection("AssetEditorActions", LOCTEXT("ActionsHeading", "Actions"));
 			Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 			{
-				InSection.FindContext<UAssetEditorToolkitMenuContext>()->Toolkit.Pin()->FillDefaultAssetMenuCommands(InSection);
+				if (UAssetEditorToolkitMenuContext* Context = InSection.FindContext<UAssetEditorToolkitMenuContext>())
+				{
+					Context->Toolkit.Pin()->FillDefaultAssetMenuCommands(InSection);
+				}
 			}));
 		}
 

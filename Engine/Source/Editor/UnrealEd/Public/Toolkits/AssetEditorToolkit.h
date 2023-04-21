@@ -143,9 +143,17 @@ public:
 	virtual bool CloseWindow() override;
 	virtual bool IsPrimaryEditor() const override { return true; };
 	virtual void InvokeTab(const FTabId& TabId) override;
+	virtual FName GetEditingAssetTypeName() const override;
 	virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override;
 	virtual double GetLastActivationTime() override;
 	virtual void RemoveEditingAsset(UObject* Asset) override;
+
+	/**
+	 * Fills in the supplied menu with commands for working with this asset file
+	 *
+	 * @param	MenuBuilder		The menu to add commands to
+	 */
+	void FillDefaultFileMenuOpenCommands(FToolMenuSection& InSection);
 
 	/**
 	 * Fills in the supplied menu with commands for working with this asset file

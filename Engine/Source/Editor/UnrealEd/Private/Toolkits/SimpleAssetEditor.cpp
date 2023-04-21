@@ -336,4 +336,10 @@ void FSimpleAssetEditor::PostRegenerateMenusAndToolbars()
 	}
 }
 
+FName FSimpleAssetEditor::GetEditingAssetTypeName() const
+{
+	// We want the global recent assets menu for simple asset editors so we report our editing asset type as none
+	return NAME_None;
+}
+
 #undef LOCTEXT_NAMESPACE

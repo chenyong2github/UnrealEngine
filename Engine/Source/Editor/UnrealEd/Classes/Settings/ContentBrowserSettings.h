@@ -58,8 +58,8 @@ public:
 	bool bDisplayFriendlyNameForPluginFolders = true;
 
 	/** The number of objects to keep in the Content Browser Recently Opened filter */
-	UPROPERTY(EditAnywhere, config, Category = ContentBrowser, meta = (DisplayName = "Number of Assets to Keep in the Recently Opened Filter", ClampMin = "1", ClampMax = "30"))
-	int32 NumObjectsInRecentList;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use NumRecentAssets in UEditorLoadingSavingSettings instead"))
+	int32 NumObjectsInRecentList_DEPRECATED;
 
 	/** Enables the rendering of Material Instance thumbnail previews */
 	UPROPERTY(EditAnywhere, config, Category = ContentBrowser)

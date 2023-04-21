@@ -47,6 +47,10 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 			// Open Level
 			OpenSection.AddMenuEntry( FLevelEditorCommands::Get().OpenLevel ).InsertPosition = InsertPos;
 
+			FToolMenuSection& AssetSection = Menu->FindOrAddSection("FileAsset");
+			
+			AssetSection.AddSeparator("FileAssetSeparator").InsertPosition = FToolMenuInsert(NAME_None, EToolMenuInsertType::First);
+
 			// Open Asset
 			//@TODO: Doesn't work when summoned from here: Section.AddMenuEntry( FGlobalEditorCommonCommands::Get().SummonOpenAssetDialog );
 

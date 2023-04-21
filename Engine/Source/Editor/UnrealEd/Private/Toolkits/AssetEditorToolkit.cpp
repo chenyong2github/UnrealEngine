@@ -381,6 +381,21 @@ FText FAssetEditorToolkit::GetTabSuffix() const
 	return bDirtyState ? LOCTEXT("TabSuffixAsterix", "*") : FText::GetEmpty();
 }
 
+FName FAssetEditorToolkit::GetEditingAssetTypeName() const
+{
+	if(EditingObjects.IsEmpty())
+	{
+		return NAME_None;
+	}
+
+	if(UClass* EditingClass = EditingObjects[0]->GetClass())
+	{
+		return EditingClass->GetFName();
+	}
+
+	return NAME_None;
+}
+
 FText FAssetEditorToolkit::GetToolkitToolTipText() const
 {
 	const UObject* EditingObject = GetEditingObject();
@@ -938,6 +953,11 @@ void FAssetEditorToolkit::Reimport_Execute( UObject* EditingObject )
 bool FAssetEditorToolkit::ShouldPromptForNewFilesOnReload(const UObject& EditingObject) const
 {
 	return true;
+}
+
+void FAssetEditorToolkit::FillDefaultFileMenuOpenCommands(FToolMenuSection& InSection)
+{
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CreateRecentAssetsMenuForEditor(this, InSection);
 }
 
 void FAssetEditorToolkit::FillDefaultFileMenuCommands(FToolMenuSection& InSection)

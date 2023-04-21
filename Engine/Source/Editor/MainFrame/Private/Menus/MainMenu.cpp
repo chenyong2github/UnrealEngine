@@ -40,14 +40,17 @@ void FMainMenu::RegisterFileMenu()
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	UToolMenu* FileMenu = ToolMenus->RegisterMenu("MainFrame.MainMenu.File");
 
-	FToolMenuSection& FileLoadAndSaveSection = FileMenu->AddSection("FileOpen", LOCTEXT("FileOpenHeading", "Open"), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
+	FileMenu->AddSection("FileOpen", LOCTEXT("FileOpenHeading", "Open"), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
+
+	FToolMenuSection& FileAssetSection = FileMenu->FindOrAddSection("FileAsset");;
 	{
+		FileAssetSection.InsertPosition = FToolMenuInsert("FileOpen", EToolMenuInsertType::After);
 		// Open Asset...
-		FileLoadAndSaveSection.AddMenuEntry(FGlobalEditorCommonCommands::Get().SummonOpenAssetDialog);
+		FileAssetSection.AddMenuEntry(FGlobalEditorCommonCommands::Get().SummonOpenAssetDialog);
 	}
 
 
-	FToolMenuSection& FileSaveSection = FileMenu->AddSection("FileSave", LOCTEXT("FileSaveHeading", "Save"), FToolMenuInsert("FileOpen", EToolMenuInsertType::After));
+	FToolMenuSection& FileSaveSection = FileMenu->AddSection("FileSave", LOCTEXT("FileSaveHeading", "Save"), FToolMenuInsert("FileAsset", EToolMenuInsertType::After));
 	{
 
 		// Save All
