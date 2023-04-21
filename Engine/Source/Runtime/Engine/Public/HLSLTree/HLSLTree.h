@@ -689,6 +689,9 @@ private:
 	TMap<FXxHash64, FExpression*> ExpressionMap;
 	TArray<FExpressionLocalPHI*> PHIExpressions;
 
+	TMap<const FExpression*, FExpressionDerivatives> ExpressionDerivativesMap;
+	TMap<FXxHash64, const FExpression*> PreviousFrameExpressionMap;
+
 	friend class FExpressionLocalPHI;
 };
 

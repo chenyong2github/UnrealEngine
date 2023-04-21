@@ -265,6 +265,8 @@ private:
 	TMap<FExpressionDataKey, void*> ExpressionDataMap;
 	const UE::HLSLTree::FExpression* PreviewExpressionResult = nullptr;
 	bool bGeneratedResult;
+
+	TMap<FXxHash64, const UE::HLSLTree::FExpression*> GeneratedExpressionMap;
 };
 
 #endif // WITH_EDITOR

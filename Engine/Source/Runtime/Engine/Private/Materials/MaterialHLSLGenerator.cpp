@@ -424,8 +424,41 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::H
 	UObject* InputOwner = GetTree().GetCurrentOwner();
 	FOwnerScope OwnerScope(GetTree(), MaterialExpression, NeedToPushOwnerExpression());
 
-	const FExpression* Expression = nullptr;
-	if (MaterialExpression->GenerateHLSLExpression(*this, Scope, OutputIndex, Expression))
+	const FExpression* Expression;
+	{
+		FHasher Hasher;
+		const FScope* ScopeAddress = &Scope;
+		Hasher.AppendData(&ScopeAddress, sizeof(ScopeAddress));
+		Hasher.AppendData(&MaterialExpression, sizeof(MaterialExpression));
+		Hasher.AppendData(&OutputIndex, sizeof(OutputIndex));
+
+		// Make sure the callstack is the same because results can vary when the containing function
+		// is called at different places due to the difference in inputs
+		for (int32 Index = FunctionCallStack.Num() - 1; Index >= 0; --Index)
+		{
+			const FFunctionCallEntry* FunctionCall = FunctionCallStack[Index];
+			Hasher.AppendData(&FunctionCall->MaterialFunction, sizeof(FunctionCall->MaterialFunction));
+			Hasher.AppendData(&FunctionCall->ParameterAssociation, sizeof(FunctionCall->ParameterAssociation));
+			Hasher.AppendData(&FunctionCall->ParameterIndex, sizeof(FunctionCall->ParameterIndex));
+
+			for (int32 InputIndex = 0; InputIndex < FunctionCall->ConnectedInputs.Num(); ++InputIndex)
+			{
+				const FExpression* InputExpression = FunctionCall->ConnectedInputs[InputIndex];
+				Hasher.AppendData(&InputExpression, sizeof(InputExpression));
+			}
+		}
+
+		const FXxHash64 KeyHash = Hasher.Finalize();
+		const FExpression** Found = GeneratedExpressionMap.Find(KeyHash);
+		Expression = Found ? *Found : nullptr;
+
+		if (!Expression && MaterialExpression->GenerateHLSLExpression(*this, Scope, OutputIndex, Expression))
+		{
+			GeneratedExpressionMap.Add(KeyHash, Expression);
+		}
+	}
+
+	if (Expression)
 	{
 		Expression = GetTree().NewSwizzle(Swizzle, Expression);
 		if (MaterialExpression == PreviewExpression &&
