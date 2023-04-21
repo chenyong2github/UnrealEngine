@@ -12,6 +12,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SSimpleComboButton)
 		: _HasDownArrow(false)
+		, _UsesSmallText(false)
 	{}
 		/** The text to display in the button. */
 		SLATE_ATTRIBUTE(FText, Text)
@@ -25,6 +26,7 @@ public:
 		SLATE_EVENT(FOnComboBoxOpened, OnComboBoxOpened)
 		SLATE_EVENT(FOnIsOpenChanged, OnMenuOpenChanged)
 		SLATE_ARGUMENT(bool, HasDownArrow)
+		SLATE_ARGUMENT(bool, UsesSmallText)
 
 	SLATE_END_ARGS()
 

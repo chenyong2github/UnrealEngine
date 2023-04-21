@@ -4,12 +4,13 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Styling/SlateTypes.h"
 
 void SSimpleComboButton::Construct(const FArguments& InArgs)
 {
 
 	TAttribute<FText> Text = InArgs._Text;
-
+	FTextBlockStyle TextStyle = InArgs._UsesSmallText ? FAppStyle::GetWidgetStyle<FTextBlockStyle>("SmallText") : FAppStyle::GetWidgetStyle<FTextBlockStyle>("SmallButtonText");
 
 	TSharedRef<SHorizontalBox> ButtonContent = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
@@ -24,12 +25,13 @@ void SSimpleComboButton::Construct(const FArguments& InArgs)
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(3, 0, 0, 0))
 		.VAlign(VAlign_Center)
-		.AutoWidth()
+		.FillWidth(1.0f)
 		[
 			SNew(STextBlock)
-			.TextStyle(FAppStyle::Get(), "SmallButtonText")
+			.TextStyle(&TextStyle)
 			.Text(InArgs._Text)
 			.Visibility_Lambda([Text]() { return Text.Get(FText::GetEmpty()).IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+			.Clipping(EWidgetClipping::OnDemand)
 		];
 
 	SComboButton::Construct(SComboButton::FArguments()
