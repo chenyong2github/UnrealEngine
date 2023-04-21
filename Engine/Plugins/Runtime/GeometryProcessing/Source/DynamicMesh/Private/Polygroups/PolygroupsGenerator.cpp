@@ -918,7 +918,7 @@ void FPolygroupsGenerator::CopyPolygroupsToMesh()
 		int NumTriangles = Polygroup.Num();
 		for (int k = 0; k < NumTriangles; ++k)
 		{
-			Mesh->SetTriangleGroup(Polygroup[k], (PolyIdx + 1));
+			Mesh->SetTriangleGroup(Polygroup[k], InitialGroupID + (PolyIdx + 1));
 		}
 	}
 }
@@ -935,7 +935,7 @@ void FPolygroupsGenerator::CopyPolygroupsToPolygroupSet(FPolygroupSet& Polygroup
 		int NumTriangles = Polygroup.Num();
 		for (int k = 0; k < NumTriangles; ++k)
 		{
-			Polygroups.SetGroup(Polygroup[k], (PolyIdx + 1), TargetMesh);
+			Polygroups.SetGroup(Polygroup[k], InitialGroupID + (PolyIdx + 1), TargetMesh);
 		}
 	}
 }

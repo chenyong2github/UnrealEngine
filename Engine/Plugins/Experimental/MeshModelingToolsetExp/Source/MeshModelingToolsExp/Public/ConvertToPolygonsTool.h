@@ -3,28 +3,35 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BaseTools/SingleSelectionMeshEditingTool.h"
+#include "BaseTools/SingleTargetWithSelectionTool.h"
 #include "PreviewMesh.h"
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
 #include "PropertySets/PolygroupLayersProperties.h"
+#include "DynamicMesh/MeshSharingUtil.h"
 #include "ConvertToPolygonsTool.generated.h"
 
 // predeclaration
 class UConvertToPolygonsTool;
 class FConvertToPolygonsOp;
 class UPreviewGeometry;
-PREDECLARE_GEOMETRY(class FDynamicMesh3);
+namespace UE::Geometry
+{
+	class FDynamicMesh3;
+	struct FDynamicSubmesh3;
+}
 
 /**
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UConvertToPolygonsToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLSEXP_API UConvertToPolygonsToolBuilder : public USingleTargetWithSelectionToolBuilder
 {
 	GENERATED_BODY()
 public:
-	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState & SceneState) const override;
+	virtual USingleTargetWithSelectionTool* CreateNewTool(const FToolBuilderState & SceneState) const override;
+
+	virtual bool RequiresInputSelection() const override { return false; }
 };
 
 
@@ -170,7 +177,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UConvertToPolygonsTool : public USingleSelectionMeshEditingTool
+class MESHMODELINGTOOLSEXP_API UConvertToPolygonsTool : public USingleTargetWithSelectionTool
 {
 	GENERATED_BODY()
 
@@ -210,15 +217,29 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UPreviewGeometry> PreviewGeometry = nullptr;
 
+	// If a selection was provided (bUsingSelection = true), UnmodifiedAreaPreviewMesh is used to render the unmodified (non-selected) part of the input mesh,
+	// as the PreviewCompute input mesh will be limited to the input selected area
+	UPROPERTY()
+	TObjectPtr<UPreviewMesh> UnmodifiedAreaPreviewMesh = nullptr;
+
 protected:
+	// copy of the input mesh (possibly does not need to be SharedPtr anymore now that FSharedConstDynamicMesh3 is used below, but then needs PimplPtr...)
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
 
-	// for visualization
+	// If there is an active selection, bUsingSelection will be true and the ROI and Submesh will be initialized
+	bool bUsingSelection = false;
+	TSharedPtr<TSet<int32>> SelectionTriangleROI;
+	TSharedPtr<UE::Geometry::FDynamicSubmesh3, ESPMode::ThreadSafe> OriginalSubmesh;
+
+	// The mesh passed to the Compute operator to base result on, will either be OriginalDynamicMesh or the submesh from OriginalSubmesh if using a selection
+	TSharedPtr<UE::Geometry::FSharedConstDynamicMesh3> ComputeOperatorSharedMesh;
+
+	// current set of detected polygroup edges, relative to ComputeOperatorSharedMesh
 	TArray<int> PolygonEdges;
 	
 	void UpdateVisualization();
 
-
+	// current input group set used in CopyFromLayer mode, relative to ComputeOperatorSharedMesh
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveFromGroupSet;
 	void OnSelectedFromGroupLayerChanged();
 	void UpdateFromGroupLayer();

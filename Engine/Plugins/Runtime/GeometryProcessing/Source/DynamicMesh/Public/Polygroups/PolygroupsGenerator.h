@@ -41,6 +41,9 @@ public:
 	// if true, after groups are computed they will be copied to the output mesh
 	bool bCopyToMesh = true;
 
+	// start at this GroupID when assigning new groups
+	int32 InitialGroupID = 0;
+
 	//
 	// Outputs
 	//
