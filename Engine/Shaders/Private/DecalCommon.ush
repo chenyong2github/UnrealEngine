@@ -45,21 +45,20 @@ float DecalCommonOutput(
 	Color *= View.PreExposure;
 #endif
 
+	// Outputing color to MRT0 (can be emissive or any other data set above)
 	Out.MRT[0] = float4(Color, DBuffer.Coverage);
 
 #if DECAL_RENDERTARGETMODE == DECAL_RENDERTARGETMODE_DBUFFER
-
-	//StrataPackDBuffer(DBuffer, Out.MRT[0], Out.MRT[1], Out.MRT[2], Out.MRT[3]);
-	float4 PreMulEmissive_Coverage = 0;
-	StrataPackDBuffer(DBuffer, PreMulEmissive_Coverage, Out.MRT[0], Out.MRT[1], Out.MRT[2]);
+	// If we output to DBuffer, write to all the 3 RTs.
+	StrataPackDBuffer(DBuffer, Out.MRT[0], Out.MRT[1], Out.MRT[2]);
 
 	// This is to set the coverage over the background to an arbitrary value in case premultiplied alpha is used.
 	Out.MRT[0].a = CoverageOverBackground;
 	Out.MRT[1].a = CoverageOverBackground;
 	Out.MRT[2].a = CoverageOverBackground;
 	Out.MRT[3].a = CoverageOverBackground;
-
 #endif
+
 	// Allow shader compiler to cull outputs that we won't use.
 	// Blend state also prevents writing unused outputs, but we want to be sure that we also avoid shader cost.
 #if !DECAL_OUT_MRT0

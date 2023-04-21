@@ -3423,13 +3423,11 @@ struct FStrataDBuffer
 
 void StrataPackDBuffer(
 	in FStrataDBuffer In,
-	out float4 Out0,
 	out float4 Out1,
 	out float4 Out2,
 	out float4 Out3)
 {
 	// DBuffer packing needs to be blendable
-	Out0 = float4(In.Emissive,  In.Coverage);
 	Out1 = float4(In.BaseColor, In.Coverage);
 	Out2 = float4(In.WorldNormal * 0.5f + 128.0f / 255.0f, In.Coverage);
 	Out3 = float4(In.Metallic, In.Specular, In.Roughness, In.Coverage);
