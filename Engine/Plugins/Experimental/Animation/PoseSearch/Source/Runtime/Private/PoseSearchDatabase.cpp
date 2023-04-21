@@ -7,6 +7,7 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"
 #include "InstancedStruct.h"
+#include "PoseSearch/PoseSearchAnimNotifies.h"
 #include "PoseSearch/PoseSearchContext.h"
 #include "PoseSearch/PoseSearchDefines.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
@@ -15,7 +16,6 @@
 #include "PoseSearch/PoseSearchSchema.h"
 #include "PoseSearchEigenHelper.h"
 #include "UObject/ObjectSaveContext.h"
-
 
 DECLARE_STATS_GROUP(TEXT("PoseSearch"), STATGROUP_PoseSearch, STATCAT_Advanced);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Search Brute Force"), STAT_PoseSearchBruteForce, STATGROUP_PoseSearch, );
@@ -724,6 +724,59 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(UE::PoseSearch::FSearc
 	return Result;
 }
 
+FPoseSearchCost UPoseSearchDatabase::SearchContinuingPose(UE::PoseSearch::FSearchContext& SearchContext) const
+{
+	using namespace UE::PoseSearch;
+
+	check(SearchContext.GetCurrentResult().Database.Get() == this);
+
+	FPoseSearchCost ContinuingPoseCost;
+
+#if WITH_EDITOR
+	if (!FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(this, ERequestAsyncBuildFlag::ContinueRequest))
+	{
+		return ContinuingPoseCost;
+	}
+#endif
+
+	// extracting notifies from the database animation asset at time SampleTime to search for UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias eventually overriding the schema ContinuingPoseCostBias
+	const FPoseSearchIndex& SearchIndex = GetSearchIndex();
+	const int32 PoseIdx = SearchContext.GetCurrentResult().PoseIdx;
+	const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex.GetAssetForPose(PoseIdx);
+	const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = GetAnimationAssetStruct(SearchIndexAsset).GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
+	check(DatabaseAnimationAssetBase);
+	const FAnimationAssetSampler SequenceBaseSampler(DatabaseAnimationAssetBase->GetAnimationAsset(), SearchIndexAsset.BlendParameters);
+	const float SampleTime = GetAssetTime(PoseIdx);
+
+	// @todo: change ExtractPoseSearchNotifyStates api to avoid NotifyStates allocation
+	TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
+	SequenceBaseSampler.ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
+
+	float ContinuingPoseCostBias = Schema->ContinuingPoseCostBias;
+	for (const UAnimNotifyState_PoseSearchBase* PoseSearchNotify : NotifyStates)
+	{
+		if (const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias* ContinuingPoseCostBiasNotify = Cast<const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias>(PoseSearchNotify))
+		{
+			ContinuingPoseCostBias = ContinuingPoseCostBiasNotify->CostAddend;
+			break;
+		}
+	}
+
+	// since any PoseCost calculated here is at least SearchIndex.MinCostAddend + ContinuingPoseCostBias,
+	// there's no point in performing the search if CurrentBestTotalCost is already better than that
+	if (!GetSkipSearchIfPossible() || SearchContext.GetCurrentBestTotalCost() > SearchIndex.MinCostAddend + ContinuingPoseCostBias)
+	{
+		const int32 NumDimensions = Schema->SchemaCardinality;
+		TArrayView<float> ReconstructedPoseValuesBuffer((float*)FMemory_Alloca(NumDimensions * sizeof(float)), NumDimensions);
+		const TConstArrayView<float> PoseValues = SearchIndex.Values.IsEmpty() ? SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValuesBuffer) : SearchIndex.GetPoseValues(PoseIdx);
+
+		ContinuingPoseCost = SearchIndex.ComparePoses(SearchContext.GetCurrentResult().PoseIdx, SearchContext.GetQueryMirrorRequest(),
+			ContinuingPoseCostBias, Schema->MirrorMismatchCostBias, PoseValues, SearchContext.GetOrBuildQuery(Schema).GetValues());
+	}
+
+	return ContinuingPoseCost;
+}
+
 UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearch::FSearchContext& SearchContext) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_PCA_KNN);
@@ -785,8 +838,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	// there's no point in performing the search if CurrentBestTotalCost is already better than that
 	if (!GetSkipSearchIfPossible() || SearchContext.GetCurrentBestTotalCost() > SearchIndex.MinCostAddend)
 	{
-		SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
-		TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
+		TConstArrayView<float> QueryValues = SearchContext.GetOrBuildQuery(Schema).GetValues();
 
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this
@@ -840,8 +892,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	{
 #if UE_POSE_SEARCH_TRACE_ENABLED
 		// calling just for reporting non selectable poses
-		SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
-		TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
+		TConstArrayView<float> QueryValues = SearchContext.GetOrBuildQuery(Schema).GetValues();
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this, QueryValues);
 #endif
@@ -872,8 +923,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	// there's no point in performing the search if CurrentBestTotalCost is already better than that
 	if (!GetSkipSearchIfPossible() || SearchContext.GetCurrentBestTotalCost() > SearchIndex.MinCostAddend)
 	{
-		SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
-		TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
+		TConstArrayView<float> QueryValues = SearchContext.GetOrBuildQuery(Schema).GetValues();
 
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this
@@ -915,8 +965,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	{
 #if UE_POSE_SEARCH_TRACE_ENABLED
 		// calling just for reporting non selectable poses
-		SearchContext.GetOrBuildQuery(Schema, Result.ComposedQuery);
-		TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
+		TConstArrayView<float> QueryValues = SearchContext.GetOrBuildQuery(Schema).GetValues();
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this, QueryValues);
 #endif

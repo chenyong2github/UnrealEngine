@@ -451,8 +451,6 @@ void FSearchContext::ResetCurrentBestCost()
 
 void FSearchContext::UpdateCurrentBestCost(const FPoseSearchCost& PoseSearchCost)
 {
-	check(PoseSearchCost.IsValid());
-
 	if (PoseSearchCost.GetTotalCost() < CurrentBestTotalCost)
 	{
 		CurrentBestTotalCost = PoseSearchCost.GetTotalCost();
@@ -473,20 +471,18 @@ const FPoseSearchFeatureVectorBuilder* FSearchContext::GetCachedQuery(const UPos
 	return nullptr;
 }
 
-void FSearchContext::GetOrBuildQuery(const UPoseSearchSchema* Schema, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder)
+const FPoseSearchFeatureVectorBuilder& FSearchContext::GetOrBuildQuery(const UPoseSearchSchema* Schema)
 {
 	check(Schema && Schema->IsValid());
 	const FPoseSearchFeatureVectorBuilder* CachedFeatureVectorBuilder = GetCachedQuery(Schema);
 	if (CachedFeatureVectorBuilder)
 	{
-		FeatureVectorBuilder = *CachedFeatureVectorBuilder;
+		return *CachedFeatureVectorBuilder;
 	}
-	else
-	{
-		FPoseSearchFeatureVectorBuilder& NewCachedQuery = CachedQueries[CachedQueries.AddDefaulted()];
-		Schema->BuildQuery(*this, NewCachedQuery);
-		FeatureVectorBuilder = NewCachedQuery;
-	}
+	
+	FPoseSearchFeatureVectorBuilder& NewCachedQuery = CachedQueries[CachedQueries.AddDefaulted()];
+	Schema->BuildQuery(*this, NewCachedQuery);
+	return NewCachedQuery;
 }
 
 bool FSearchContext::IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const

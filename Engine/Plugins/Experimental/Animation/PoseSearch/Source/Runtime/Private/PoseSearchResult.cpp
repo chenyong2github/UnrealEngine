@@ -83,7 +83,6 @@ void FSearchResult::Reset()
 {
 	PoseIdx = INDEX_NONE;
 	Database = nullptr;
-	ComposedQuery.Reset();
 	AssetTime = 0.0f;
 }
 

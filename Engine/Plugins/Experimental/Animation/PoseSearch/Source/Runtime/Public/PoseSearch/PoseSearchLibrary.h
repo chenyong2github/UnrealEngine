@@ -141,6 +141,9 @@ public:
 	* @param Settings						Input motion matching algorithm configuration settings
 	* @param InOutMotionMatchingState		Input/Output encapsulated motion matching algorithm and state
 	* @param bForceInterrupt				Input force interrupt request (if true the continuing pose will be invalidated)
+	* @param bShouldSearch					Input if false search will happen only if there's no valid continuing pose
+	* @param bDebugDrawQuery				Input draw the composed query if valid
+	* @param bDebugDrawCurResult			Input draw the current result if valid
 	*/
 	static void UpdateMotionMatchingState(
 		const FAnimationUpdateContext& Context,
@@ -148,7 +151,10 @@ public:
 		const FPoseSearchQueryTrajectory& Trajectory,
 		const FMotionMatchingSettings& Settings,
 		FMotionMatchingState& InOutMotionMatchingState,
-		bool bForceInterrupt);
+		bool bForceInterrupt = false,
+		bool bShouldSearch = true,
+		bool bDebugDrawQuery = false,
+		bool bDebugDrawCurResult = false);
 
 	/**
 	* Implementation of the core motion matching algorithm

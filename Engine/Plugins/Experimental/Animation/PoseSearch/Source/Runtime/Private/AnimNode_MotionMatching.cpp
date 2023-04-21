@@ -81,8 +81,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 			const UPoseSearchDatabase* CurrentResultDatabase = MotionMatchingState.CurrentSearchResult.Database.Get();
 			const FPoseSearchIndex& SearchIndex = CurrentResultDatabase->GetSearchIndex();
 			if (!SearchIndex.IsValidPoseIndex(MotionMatchingState.CurrentSearchResult.PrevPoseIdx) ||
-				!SearchIndex.IsValidPoseIndex(MotionMatchingState.CurrentSearchResult.NextPoseIdx) ||
-				CurrentResultDatabase->Schema != MotionMatchingState.CurrentSearchResult.ComposedQuery.GetSchema())
+				!SearchIndex.IsValidPoseIndex(MotionMatchingState.CurrentSearchResult.NextPoseIdx))
 			{
 				// MotionMatchingState is out of sync with CurrentResultDatabase: we need to reset the MM state. This could happen if PIE is paused, and we edit the database,
 				// so FAnimNode_MotionMatching::UpdateAssetPlayer is never called and FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex never returns false here
@@ -117,7 +116,12 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		Trajectory,
 		Settings,
 		MotionMatchingState,
-		bForceInterrupt | bForceInterruptNextUpdate
+		bForceInterrupt | bForceInterruptNextUpdate,
+		bShouldSearch
+		#if ENABLE_ANIM_DEBUG
+		, CVarAnimNodeMotionMatchingDrawQuery.GetValueOnAnyThread() > 0
+		, CVarAnimNodeMotionMatchingDrawCurResult.GetValueOnAnyThread() > 0
+		#endif // WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
 	);
 
 	// If a new pose is requested, blend into the new asset via BlendStackNode
@@ -138,70 +142,6 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	BlendStackNode.UpdatePlayRate(MotionMatchingState.WantedPlayRate);
 
 	Source.Update(Context);
-
-
-#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
-	const bool bDebugDrawQuery = CVarAnimNodeMotionMatchingDrawQuery.GetValueOnAnyThread() > 0;
-	const bool bDebugDrawCurResult = CVarAnimNodeMotionMatchingDrawCurResult.GetValueOnAnyThread() > 0;
-	if (bDebugDrawQuery || bDebugDrawCurResult)
-	{
-		const UE::PoseSearch::FSearchResult& CurResult = MotionMatchingState.CurrentSearchResult;
-
-#if WITH_EDITOR
-		// in case we're still indexing MotionMatchingState.CurrentSearchResult.Database we Reset the MotionMatchingState
-		if (!FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurResult.Database.Get(), ERequestAsyncBuildFlag::ContinueRequest))
-		{
-		}
-		else
-#endif // WITH_EDITOR
-		{
-			if (bDebugDrawCurResult)
-			{
-				UE::PoseSearch::FDebugDrawParams DrawParams(Context.AnimInstanceProxy, CurResult.Database.Get());
-				DrawParams.DrawFeatureVector(CurResult.PoseIdx);
-			}
-
-			if (bDebugDrawQuery)
-			{
-				UE::PoseSearch::FDebugDrawParams DrawParams(Context.AnimInstanceProxy, CurResult.Database.Get(), EDebugDrawFlags::DrawQuery);
-				DrawParams.DrawFeatureVector(CurResult.ComposedQuery.GetValues());
-			}
-
-			// @todo: add ContinuingPoseCost / BruteForcePoseCost / PoseCost graphs to rewind debugger 
-			//if (DrawParams.Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
-			//{
-			//	FDebugFloatHistory& C = MotionMatchingState.SearchCostHistoryContinuing;
-			//	FDebugFloatHistory& B = MotionMatchingState.SearchCostHistoryBruteForce;
-			//	FDebugFloatHistory& K = MotionMatchingState.SearchCostHistoryKDTree;
-
-			//	C.AddSample(CurResult.ContinuingPoseCost.IsValid() ? CurResult.ContinuingPoseCost.GetTotalCost() : C.MaxValue);
-			//	B.AddSample(CurResult.BruteForcePoseCost.IsValid() ? CurResult.BruteForcePoseCost.GetTotalCost() : B.MaxValue);
-			//	K.AddSample(CurResult.PoseCost.IsValid() ? CurResult.PoseCost.GetTotalCost() : K.MaxValue);
-
-			//	// making SearchCostHistoryKDTree and SearchCostHistoryBruteForce min max consistent
-			//	const float MinValue = FMath::Min(C.MinValue, FMath::Min(B.MinValue, K.MinValue));
-			//	const float MaxValue = FMath::Max(C.MaxValue, FMath::Max(B.MaxValue, K.MaxValue));
-
-			//	C.MinValue = MinValue;
-			//	C.MaxValue = MaxValue;
-
-			//	B.MinValue = MinValue;
-			//	B.MaxValue = MaxValue;
-
-			//	K.MinValue = MinValue;
-			//	K.MaxValue = MaxValue;
-
-			//	const FVector2D DrawSize(150.f, 100.f);
-			//	const FTransform OffsetTransform(FRotator(0.f, 0.f, 0.f), FVector(-50.f, -75.f, 100.f));
-			//	const FTransform DrawTransform = OffsetTransform * DrawParams.GetRootTransform();
-
-			//	DrawDebugFloatHistory(*DrawParams.World, K, OffsetTransform * DrawParams.GetRootTransform(), DrawSize, FColor(255, 192, 203, 160)); // pink
-			//	DrawDebugFloatHistory(*DrawParams.World, B, OffsetTransform * DrawParams.GetRootTransform(), DrawSize, FColor(0, 0, 255, 160)); // blue
-			//	DrawDebugFloatHistory(*DrawParams.World, C, OffsetTransform * DrawParams.GetRootTransform(), DrawSize, FColor(160, 160, 160, 160)); // gray
-			//}
-		}
-	} 
-#endif
 
 	bForceInterruptNextUpdate = false;
 }

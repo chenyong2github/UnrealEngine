@@ -4,6 +4,7 @@
 
 #include "Engine/DataAsset.h"
 #include "PoseSearch/PoseSearchAssetSampler.h"
+#include "PoseSearch/PoseSearchCost.h"
 #include "PoseSearch/PoseSearchIndex.h"
 #include "PoseSearch/PoseSearchResult.h"
 #include "PoseSearchDatabase.generated.h"
@@ -330,6 +331,7 @@ public:
 	// End UObject
 	
 	UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const;
+	FPoseSearchCost SearchContinuingPose(UE::PoseSearch::FSearchContext& SearchContext) const;
 
 #if WITH_EDITOR
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;

@@ -13,7 +13,6 @@
 #include "InstancedStruct.h"
 #include "PoseSearch/AnimNode_MotionMatching.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
-#include "PoseSearch/PoseSearchAnimNotifies.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
 #include "PoseSearch/PoseSearchSchema.h"
@@ -170,10 +169,7 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 			DbEntryIdx = DatabaseEntries.Add({ DatabaseId });
 
 			// if throttling is on, the continuing pose can be valid, but no actual search occurred, so the query will not be cached, and we need to build it
-			FPoseSearchFeatureVectorBuilder FeatureVectorBuilder;
-			FeatureVectorBuilder.Init(Database->Schema);
-			SearchContext.GetOrBuildQuery(Database->Schema, FeatureVectorBuilder);
-			DatabaseEntries[DbEntryIdx].QueryVector = FeatureVectorBuilder.GetValues();
+			DatabaseEntries[DbEntryIdx].QueryVector = SearchContext.GetOrBuildQuery(Database->Schema).GetValues();
 		}
 
 		return DbEntryIdx;
@@ -256,7 +252,10 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 	const FPoseSearchQueryTrajectory& Trajectory,
 	const FMotionMatchingSettings& Settings,
 	FMotionMatchingState& InOutMotionMatchingState,
-	bool bForceInterrupt)
+	bool bForceInterrupt,
+	bool bShouldSearch,
+	bool bDebugDrawQuery,
+	bool bDebugDrawCurResult)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_Update);
 
@@ -295,56 +294,17 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		InOutMotionMatchingState.CurrentSearchResult, Settings.PoseJumpThresholdTime, bForceInterrupt, InOutMotionMatchingState.CanAdvance(DeltaTime));
 
 	// If we can't advance or enough time has elapsed since the last pose jump then search
-	const bool bSearch = !SearchContext.CanAdvance() || (InOutMotionMatchingState.ElapsedPoseSearchTime >= Settings.SearchThrottleTime);
+	const bool bSearch = !SearchContext.CanAdvance() || (bShouldSearch && (InOutMotionMatchingState.ElapsedPoseSearchTime >= Settings.SearchThrottleTime));
 	if (bSearch)
 	{
 		InOutMotionMatchingState.ElapsedPoseSearchTime = 0.f;
 
 		// Evaluate continuing pose
 		FPoseSearchCost ContinuingPoseCost;
-		FPoseSearchFeatureVectorBuilder ContinuingPoseComposedQuery;
-		if (!SearchContext.IsForceInterrupt() && SearchContext.CanAdvance() && SearchContext.GetCurrentResult().Database.IsValid()
-#if WITH_EDITOR
-			&& FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(SearchContext.GetCurrentResult().Database.Get(), ERequestAsyncBuildFlag::ContinueRequest)
-#endif
-		)
+		if (!SearchContext.IsForceInterrupt() && SearchContext.CanAdvance() && SearchContext.GetCurrentResult().Database.IsValid())
 		{
-			const UPoseSearchDatabase* ContinuingPoseDatabase = SearchContext.GetCurrentResult().Database.Get();
-			if (ensure(ContinuingPoseDatabase->Schema))
-			{	
-				SearchContext.GetOrBuildQuery(ContinuingPoseDatabase->Schema, ContinuingPoseComposedQuery);
-
-				const FPoseSearchIndex& SearchIndex = ContinuingPoseDatabase->GetSearchIndex();
-				const int32 PoseIdx = SearchContext.GetCurrentResult().PoseIdx;
-				const int32 NumDimensions = ContinuingPoseDatabase->Schema->SchemaCardinality;
-				TArrayView<float> ReconstructedPoseValuesBuffer((float*)FMemory_Alloca(NumDimensions * sizeof(float)), NumDimensions);
-				const TConstArrayView<float> PoseValues = SearchIndex.Values.IsEmpty() ? SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValuesBuffer) : SearchIndex.GetPoseValues(PoseIdx);
-
-				// extracting notifies from the database animation asset at time SampleTime to search for UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias eventually overriding the schema ContinuingPoseCostBias
-				const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex.GetAssetForPose(PoseIdx);
-				const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = ContinuingPoseDatabase->GetAnimationAssetStruct(SearchIndexAsset).GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
-				check(DatabaseAnimationAssetBase);
-				const FAnimationAssetSampler SequenceBaseSampler(DatabaseAnimationAssetBase->GetAnimationAsset(), SearchIndexAsset.BlendParameters);
-				const float SampleTime = ContinuingPoseDatabase->GetAssetTime(PoseIdx);
-
-				// @todo: change ExtractPoseSearchNotifyStates api to avoid NotifyStates allocation
-				TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
-				SequenceBaseSampler.ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
-
-				float ContinuingPoseCostBias = ContinuingPoseDatabase->Schema->ContinuingPoseCostBias;
-				for (const UAnimNotifyState_PoseSearchBase* PoseSearchNotify : NotifyStates)
-				{
-					if (const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias* ContinuingPoseCostBiasNotify = Cast<const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias>(PoseSearchNotify))
-					{
-						ContinuingPoseCostBias = ContinuingPoseCostBiasNotify->CostAddend;
-						break;
-					}
-				}
-
-				ContinuingPoseCost = ContinuingPoseDatabase->GetSearchIndex().ComparePoses(SearchContext.GetCurrentResult().PoseIdx, SearchContext.GetQueryMirrorRequest(),
-					ContinuingPoseCostBias, ContinuingPoseDatabase->Schema->MirrorMismatchCostBias, PoseValues, ContinuingPoseComposedQuery.GetValues());
-				SearchContext.UpdateCurrentBestCost(ContinuingPoseCost);
-			}
+			ContinuingPoseCost = SearchContext.GetCurrentResult().Database->SearchContinuingPose(SearchContext);
+			SearchContext.UpdateCurrentBestCost(ContinuingPoseCost);
 		}
 
 		FSearchResult SearchResult;
@@ -375,7 +335,6 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 #endif
 			InOutMotionMatchingState.CurrentSearchResult.PoseCost = ContinuingPoseCost;
 			InOutMotionMatchingState.CurrentSearchResult.ContinuingPoseCost = ContinuingPoseCost;
-			InOutMotionMatchingState.CurrentSearchResult.ComposedQuery = ContinuingPoseComposedQuery;
 		}
 
 		InOutMotionMatchingState.UpdateWantedPlayRate(SearchContext, Settings);
@@ -394,6 +353,35 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		// @todo: Update this to account for multiple databases.
 		TraceMotionMatchingState(Databases[0], SearchContext, InOutMotionMatchingState.CurrentSearchResult, LastResult, InOutMotionMatchingState.ElapsedPoseSearchTime,
 			InOutMotionMatchingState.RootMotionTransformDelta, Context.AnimInstanceProxy->GetAnimInstanceObject(), Context.GetCurrentNodeId(), DeltaTime, bSearch);
+	}
+#endif
+
+#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
+	const FSearchResult& CurResult = InOutMotionMatchingState.CurrentSearchResult;
+	if ((bDebugDrawQuery || bDebugDrawCurResult) && CurResult.Database.IsValid())
+	{
+		const UPoseSearchDatabase* CurResultDatabase = CurResult.Database.Get();
+
+#if WITH_EDITOR
+		// in case we're still indexing MotionMatchingState.CurrentSearchResult.Database we Reset the MotionMatchingState
+		if (!FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurResultDatabase, ERequestAsyncBuildFlag::ContinueRequest))
+		{
+		}
+		else
+#endif // WITH_EDITOR
+		{
+			if (bDebugDrawCurResult)
+			{
+				UE::PoseSearch::FDebugDrawParams DrawParams(Context.AnimInstanceProxy, CurResultDatabase);
+				DrawParams.DrawFeatureVector(CurResult.PoseIdx);
+			}
+
+			if (bDebugDrawQuery)
+			{
+				UE::PoseSearch::FDebugDrawParams DrawParams(Context.AnimInstanceProxy, CurResultDatabase, EDebugDrawFlags::DrawQuery);
+				DrawParams.DrawFeatureVector(SearchContext.GetOrBuildQuery(CurResultDatabase->Schema).GetValues());
+			}
+		}
 	}
 #endif
 }
@@ -556,7 +544,7 @@ void UPoseSearchLibrary::MotionMatch(
 				if (CVarAnimMotionMatchDrawQueryEnable.GetValueOnAnyThread())
 				{
 					UE::PoseSearch::FDebugDrawParams DrawParams(&UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance), SearchResult.Database.Get(), EDebugDrawFlags::DrawQuery);
-					DrawParams.DrawFeatureVector(SearchResult.ComposedQuery.GetValues());
+					DrawParams.DrawFeatureVector(SearchContext.GetOrBuildQuery(SearchResult.Database->Schema).GetValues());
 				}
 			}
 #endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG

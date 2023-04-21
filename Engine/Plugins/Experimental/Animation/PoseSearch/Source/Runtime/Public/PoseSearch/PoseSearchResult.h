@@ -49,7 +49,6 @@ struct FSearchResult
 	float LerpValue = 0.f;
 
 	TWeakObjectPtr<const UPoseSearchDatabase> Database;
-	FPoseSearchFeatureVectorBuilder ComposedQuery;
 
 	// cost of the current pose with the query from database in the result, if possible
 	FPoseSearchCost ContinuingPoseCost; 

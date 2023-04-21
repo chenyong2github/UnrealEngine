@@ -152,7 +152,7 @@ struct POSESEARCH_API FSearchContext
 	void UpdateCurrentBestCost(const FPoseSearchCost& PoseSearchCost);
 	float GetCurrentBestTotalCost() const { return CurrentBestTotalCost; }
 
-	void GetOrBuildQuery(const UPoseSearchSchema* Schema, FPoseSearchFeatureVectorBuilder& FeatureVectorBuilder);
+	const FPoseSearchFeatureVectorBuilder& GetOrBuildQuery(const UPoseSearchSchema* Schema);
 	const FPoseSearchFeatureVectorBuilder* GetCachedQuery(const UPoseSearchSchema* Schema) const;
 
 	bool IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const;
