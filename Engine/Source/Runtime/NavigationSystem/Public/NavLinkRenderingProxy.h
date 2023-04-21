@@ -23,17 +23,6 @@ public:
 
 	struct FNavLinkDrawing
 	{
-		FNavLinkDrawing() {}
-		FNavLinkDrawing(const FTransform& InLocalToWorld, const FNavigationLink& Link)
-			: Left(InLocalToWorld.TransformPosition(Link.Left))
-			, Right(InLocalToWorld.TransformPosition(Link.Right))
-			, Direction(Link.Direction)
-			, Color(UNavArea::GetColor(Link.GetAreaClass()))
-			, SnapRadius(Link.SnapRadius)
-			, SnapHeight(Link.bUseSnapHeight ? Link.SnapHeight : -1.0f)
-			, SupportedAgentsBits(Link.SupportedAgents.PackedBits)
-		{}
-
 		FVector Left;
 		FVector Right;
 		ENavLinkDirection::Type Direction;
@@ -44,19 +33,6 @@ public:
 	};
 	struct FNavLinkSegmentDrawing
 	{
-		FNavLinkSegmentDrawing() {}
-		FNavLinkSegmentDrawing(const FTransform& InLocalToWorld, const FNavigationSegmentLink& Link)
-			: LeftStart(InLocalToWorld.TransformPosition(Link.LeftStart))
-			, LeftEnd(InLocalToWorld.TransformPosition(Link.LeftEnd))
-			, RightStart(InLocalToWorld.TransformPosition(Link.RightStart))
-			, RightEnd(InLocalToWorld.TransformPosition(Link.RightEnd))
-			, Direction(Link.Direction)
-			, Color(UNavArea::GetColor(Link.GetAreaClass()))
-			, SnapRadius(Link.SnapRadius)
-			, SnapHeight(Link.bUseSnapHeight ? Link.SnapHeight : -1.0f)
-			, SupportedAgentsBits(Link.SupportedAgents.PackedBits)
-		{}
-
 		FVector LeftStart, LeftEnd;
 		FVector RightStart, RightEnd;
 		ENavLinkDirection::Type Direction;

@@ -149,19 +149,37 @@ SIZE_T FNavLinkRenderingProxy::GetTypeHash() const
 
 void FNavLinkRenderingProxy::StorePointLinks(const FTransform& InLocalToWorld, const TArray<FNavigationLink>& LinksArray)
 {
-	OffMeshPointLinks.Reserve(OffMeshPointLinks.Num() + LinksArray.Num());
-	for (const FNavigationLink& Link : LinksArray)
-	{
-		OffMeshPointLinks.Emplace(InLocalToWorld, Link);
+	const FNavigationLink* Link = LinksArray.GetData();
+	for (int32 LinkIndex = 0; LinkIndex < LinksArray.Num(); ++LinkIndex, ++Link)
+	{	
+		FNavLinkDrawing LinkDrawing;
+		LinkDrawing.Left = InLocalToWorld.TransformPosition(Link->Left);
+		LinkDrawing.Right = InLocalToWorld.TransformPosition(Link->Right);
+		LinkDrawing.Direction = Link->Direction;
+		LinkDrawing.Color = UNavArea::GetColor(Link->GetAreaClass());
+		LinkDrawing.SnapRadius = Link->SnapRadius;
+		LinkDrawing.SnapHeight = Link->bUseSnapHeight ? Link->SnapHeight : -1.0f;
+		LinkDrawing.SupportedAgentsBits = Link->SupportedAgents.PackedBits;
+		OffMeshPointLinks.Add(LinkDrawing);
 	}
 }
 
 void FNavLinkRenderingProxy::StoreSegmentLinks(const FTransform& InLocalToWorld, const TArray<FNavigationSegmentLink>& LinksArray)
 {
-	OffMeshSegmentLinks.Reserve(OffMeshSegmentLinks.Num() + LinksArray.Num());
-	for (const FNavigationSegmentLink& Link : LinksArray)
-	{
-		OffMeshSegmentLinks.Emplace(InLocalToWorld, Link);
+	const FNavigationSegmentLink* Link = LinksArray.GetData();
+	for (int32 LinkIndex = 0; LinkIndex < LinksArray.Num(); ++LinkIndex, ++Link)
+	{	
+		FNavLinkSegmentDrawing LinkDrawing;
+		LinkDrawing.LeftStart = InLocalToWorld.TransformPosition(Link->LeftStart);
+		LinkDrawing.LeftEnd = InLocalToWorld.TransformPosition(Link->LeftEnd);
+		LinkDrawing.RightStart = InLocalToWorld.TransformPosition(Link->RightStart);
+		LinkDrawing.RightEnd = InLocalToWorld.TransformPosition(Link->RightEnd);
+		LinkDrawing.Direction = Link->Direction;
+		LinkDrawing.Color = UNavArea::GetColor(Link->GetAreaClass());
+		LinkDrawing.SnapRadius = Link->SnapRadius;
+		LinkDrawing.SnapHeight = Link->bUseSnapHeight ? Link->SnapHeight : -1.0f;
+		LinkDrawing.SupportedAgentsBits = Link->SupportedAgents.PackedBits;
+		OffMeshSegmentLinks.Add(LinkDrawing);
 	}
 }
 
