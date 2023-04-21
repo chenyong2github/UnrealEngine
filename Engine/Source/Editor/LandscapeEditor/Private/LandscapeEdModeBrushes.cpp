@@ -181,7 +181,7 @@ public:
 		ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
 		ALandscapeProxy* Proxy = LandscapeInfo->GetLandscapeProxy();
 
-		const float ScaleXY = FMath::Abs(LandscapeInfo->DrawScale.X);
+		const float ScaleXY = static_cast<float>(FMath::Abs(LandscapeInfo->DrawScale.X));
 		const float TotalRadius = EdMode->UISettings->GetCurrentToolBrushRadius() / ScaleXY;
 		const float Radius = (1.0f - EdMode->UISettings->GetCurrentToolBrushFalloff()) * TotalRadius;
 		const float Falloff = EdMode->UISettings->GetCurrentToolBrushFalloff() * TotalRadius;
@@ -273,7 +273,7 @@ public:
 		}
 
 		ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
-		const float ScaleXY = FMath::Abs(LandscapeInfo->DrawScale.X);
+		const float ScaleXY = static_cast<float>(FMath::Abs(LandscapeInfo->DrawScale.X));
 		const float TotalRadius = EdMode->UISettings->GetCurrentToolBrushRadius() / ScaleXY;
 		const float Radius = (1.0f - EdMode->UISettings->GetCurrentToolBrushFalloff()) * TotalRadius;
 		const float Falloff = EdMode->UISettings->GetCurrentToolBrushFalloff() * TotalRadius;
@@ -297,10 +297,10 @@ public:
 		for (const FLandscapeToolInteractorPosition& InteractorPosition : InteractorPositions)
 		{
 			FIntRect SpotBounds;
-			SpotBounds.Min.X = FMath::FloorToInt(InteractorPosition.Position.X - TotalRadius);
-			SpotBounds.Min.Y = FMath::FloorToInt(InteractorPosition.Position.Y - TotalRadius);
-			SpotBounds.Max.X = FMath::CeilToInt( InteractorPosition.Position.X + TotalRadius);
-			SpotBounds.Max.Y = FMath::CeilToInt( InteractorPosition.Position.Y + TotalRadius);
+			SpotBounds.Min.X = FMath::FloorToInt32(InteractorPosition.Position.X - TotalRadius);
+			SpotBounds.Min.Y = FMath::FloorToInt32(InteractorPosition.Position.Y - TotalRadius);
+			SpotBounds.Max.X = FMath::CeilToInt32( InteractorPosition.Position.X + TotalRadius);
+			SpotBounds.Max.Y = FMath::CeilToInt32( InteractorPosition.Position.Y + TotalRadius);
 
 			if (Bounds.IsEmpty())
 			{
@@ -327,10 +327,10 @@ public:
 		for (const FLandscapeToolInteractorPosition& InteractorPosition : InteractorPositions)
 		{
 			FIntRect SpotBounds;
-			SpotBounds.Min.X = FMath::Max(FMath::FloorToInt(InteractorPosition.Position.X - TotalRadius), Bounds.Min.X);
-			SpotBounds.Min.Y = FMath::Max(FMath::FloorToInt(InteractorPosition.Position.Y - TotalRadius), Bounds.Min.Y);
-			SpotBounds.Max.X = FMath::Min(FMath::CeilToInt( InteractorPosition.Position.X + TotalRadius), Bounds.Max.X);
-			SpotBounds.Max.Y = FMath::Min(FMath::CeilToInt( InteractorPosition.Position.Y + TotalRadius), Bounds.Max.Y);
+			SpotBounds.Min.X = FMath::Max(FMath::FloorToInt32(InteractorPosition.Position.X - TotalRadius), Bounds.Min.X);
+			SpotBounds.Min.Y = FMath::Max(FMath::FloorToInt32(InteractorPosition.Position.Y - TotalRadius), Bounds.Min.Y);
+			SpotBounds.Max.X = FMath::Min(FMath::CeilToInt32( InteractorPosition.Position.X + TotalRadius), Bounds.Max.X);
+			SpotBounds.Max.Y = FMath::Min(FMath::CeilToInt32( InteractorPosition.Position.Y + TotalRadius), Bounds.Max.Y);
 
 			for (int32 Y = SpotBounds.Min.Y; Y < SpotBounds.Max.Y; Y++)
 			{
@@ -342,7 +342,7 @@ public:
 					if (PrevAmount < 1.0f)
 					{
 						// Distance from mouse
-						float MouseDist = FMath::Sqrt(FMath::Square(InteractorPosition.Position.X - (float)X) + FMath::Square(InteractorPosition.Position.Y - (float)Y));
+						float MouseDist = static_cast<float>(FMath::Sqrt(FMath::Square(InteractorPosition.Position.X - X) + FMath::Square(InteractorPosition.Position.Y - Y)));
 
 						float PaintAmount = CalculateFalloff(MouseDist, Radius, Falloff);
 
@@ -443,8 +443,8 @@ public:
 			{
 				const int32 BrushSize = FMath::Max(EdMode->UISettings->BrushComponentSize, 0);
 
-				const float BrushOriginX = LastMousePosition.X / LandscapeInfo->ComponentSizeQuads - (BrushSize - 1) / 2.0f;
-				const float BrushOriginY = LastMousePosition.Y / LandscapeInfo->ComponentSizeQuads - (BrushSize - 1) / 2.0f;
+				const float BrushOriginX = static_cast<float>(LastMousePosition.X / LandscapeInfo->ComponentSizeQuads - (BrushSize - 1) / 2.0f);
+				const float BrushOriginY = static_cast<float>(LastMousePosition.Y / LandscapeInfo->ComponentSizeQuads - (BrushSize - 1) / 2.0f);
 				const int32 ComponentIndexX = FMath::FloorToInt(BrushOriginX);
 				const int32 ComponentIndexY = FMath::FloorToInt(BrushOriginY);
 				BrushExtentsInclusive.Min = FIntPoint(ComponentIndexX * LandscapeInfo->ComponentSizeQuads, ComponentIndexY * LandscapeInfo->ComponentSizeQuads);
@@ -518,8 +518,8 @@ public:
 		{
 			const int32 BrushSize = FMath::Max(EdMode->UISettings->BrushComponentSize, 0);
 
-			const float BrushOriginX = LastMousePosition.X / LandscapeInfo->ComponentSizeQuads - (BrushSize - 1) / 2.0f;
-			const float BrushOriginY = LastMousePosition.Y / LandscapeInfo->ComponentSizeQuads - (BrushSize - 1) / 2.0f;
+			const float BrushOriginX = static_cast<float>(LastMousePosition.X / LandscapeInfo->ComponentSizeQuads - (BrushSize - 1) / 2.0f);
+			const float BrushOriginY = static_cast<float>(LastMousePosition.Y / LandscapeInfo->ComponentSizeQuads - (BrushSize - 1) / 2.0f);
 			const int32 ComponentIndexX = FMath::FloorToInt(BrushOriginX);
 			const int32 ComponentIndexY = FMath::FloorToInt(BrushOriginY);
 
@@ -662,7 +662,7 @@ public:
 				ULandscapeInfo* LandscapeInfo = Gizmo->TargetLandscapeInfo;
 				if (LandscapeInfo && LandscapeInfo->GetLandscapeProxy())
 				{
-					float ScaleXY = FMath::Abs(LandscapeInfo->DrawScale.X);
+					float ScaleXY = static_cast<float>(FMath::Abs(LandscapeInfo->DrawScale.X));
 					FMatrix LToW = LandscapeInfo->GetLandscapeProxy()->LandscapeActorToWorld().ToMatrixWithScale();
 					FMatrix WToL = LToW.InverseFast();
 
@@ -688,12 +688,12 @@ public:
 					FLinearColor AlphaScaleBias(
 						SquaredScaleXY / FMath::Max<float>(1.f, Gizmo->GetWidth() * DataTexture->GetSizeX()),
 						SquaredScaleXY / FMath::Max<float>(1.f, Gizmo->GetHeight() * DataTexture->GetSizeY()),
-						Gizmo->TextureScale.X,
-						Gizmo->TextureScale.Y
+						static_cast<float>(Gizmo->TextureScale.X),
+						static_cast<float>(Gizmo->TextureScale.Y)
 						);
 					BrushMaterial->SetVectorParameterValue(FName(TEXT("AlphaScaleBias")), AlphaScaleBias);
 
-					float Angle = (-EdMode->CurrentGizmoActor->GetActorRotation().Euler().Z) * PI / 180.0f;
+					float Angle = static_cast<float>(-EdMode->CurrentGizmoActor->GetActorRotation().Euler().Z * PI / 180.0f);
 					FVector4 LandscapeLocation(EdMode->CurrentGizmoActor->GetActorLocation().X, EdMode->CurrentGizmoActor->GetActorLocation().Y, EdMode->CurrentGizmoActor->GetActorLocation().Z, Angle);
 
 					BrushMaterial->SetDoubleVectorParameterValue(FName(TEXT("LandscapeLocation")), LandscapeLocation);
@@ -765,7 +765,7 @@ public:
 		}
 
 		Gizmo->TargetLandscapeInfo = LandscapeInfo;
-		float ScaleXY = FMath::Abs(LandscapeInfo->DrawScale.X);
+		float ScaleXY = static_cast<float>(FMath::Abs(LandscapeInfo->DrawScale.X));
 
 		// Get extent for all components
 		FIntRect Bounds;
@@ -812,10 +812,10 @@ public:
 						FVector TransformedLocal(FMath::Abs(GizmoLocal.X - LW), FMath::Abs(GizmoLocal.Y - LH) * (W / H), 0);
 						float FalloffRadius = LW * EdMode->UISettings->GetCurrentToolBrushFalloff();
 						float SquareRadius = LW - FalloffRadius;
-						float Cos = FMath::Abs(TransformedLocal.X) / TransformedLocal.Size2D();
-						float Sin = FMath::Abs(TransformedLocal.Y) / TransformedLocal.Size2D();
-						float RatioX = FalloffRadius > 0.0f ? 1.0f - FMath::Clamp<float>((FMath::Abs(TransformedLocal.X) - Cos*SquareRadius) / FalloffRadius, 0.0f, 1.0f) : 1.0f;
-						float RatioY = FalloffRadius > 0.0f ? 1.0f - FMath::Clamp<float>((FMath::Abs(TransformedLocal.Y) - Sin*SquareRadius) / FalloffRadius, 0.0f, 1.0f) : 1.0f;
+						float Cos = static_cast<float>(FMath::Abs(TransformedLocal.X) / TransformedLocal.Size2D());
+						float Sin = static_cast<float>(FMath::Abs(TransformedLocal.Y) / TransformedLocal.Size2D());
+						float RatioX = FalloffRadius > 0.0f ? 1.0f - FMath::Clamp<float>(static_cast<float>((FMath::Abs(TransformedLocal.X) - Cos*SquareRadius) / FalloffRadius), 0.0f, 1.0f) : 1.0f;
+						float RatioY = FalloffRadius > 0.0f ? 1.0f - FMath::Clamp<float>(static_cast<float>((FMath::Abs(TransformedLocal.Y) - Sin*SquareRadius) / FalloffRadius), 0.0f, 1.0f) : 1.0f;
 						float Ratio = TransformedLocal.Size2D() > SquareRadius ? RatioX * RatioY : 1.0f; //TransformedLocal.X / LW * TransformedLocal.Y / LW;
 						PaintAmount = Ratio*Ratio*(3 - 2 * Ratio); //FMath::Lerp(SquareFalloff, RectFalloff*RectFalloff, Ratio);
 					}
@@ -1127,7 +1127,7 @@ public:
 		}
 
 		ULandscapeInfo* LandscapeInfo = EdMode->CurrentToolTarget.LandscapeInfo.Get();
-		const float ScaleXY = FMath::Abs(LandscapeInfo->DrawScale.X);
+		const float ScaleXY = static_cast<float>(FMath::Abs(LandscapeInfo->DrawScale.X));
 		const float TotalRadius = EdMode->UISettings->GetCurrentToolBrushRadius() / ScaleXY;
 		const float Radius = (1.0f - EdMode->UISettings->GetCurrentToolBrushFalloff()) * TotalRadius;
 		const float Falloff = EdMode->UISettings->GetCurrentToolBrushFalloff() * TotalRadius;
@@ -1191,8 +1191,8 @@ public:
 				FVector2D SamplePos = FVector2D(X, Y) * Scale + Bias;
 				SamplePos = SamplePos.GetRotated(Angle);
 
-				float ModSampleX = FMath::Fmod(SamplePos.X, (float)SizeX);
-				float ModSampleY = FMath::Fmod(SamplePos.Y, (float)SizeY);
+				float ModSampleX = FMath::Fmod(static_cast<float>(SamplePos.X), static_cast<float>(SizeX));
+				float ModSampleY = FMath::Fmod(static_cast<float>(SamplePos.Y), static_cast<float>(SizeY));
 
 				if (ModSampleX < 0.0f)
 				{
@@ -1238,7 +1238,7 @@ public:
 		ALandscapeProxy* Proxy = EdMode->CurrentToolTarget.LandscapeInfo.IsValid() ? EdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy() : nullptr;
 		if (Proxy)
 		{
-			const float ScaleXY = FMath::Abs(EdMode->CurrentToolTarget.LandscapeInfo->DrawScale.X);
+			const float ScaleXY = static_cast<float>(FMath::Abs(EdMode->CurrentToolTarget.LandscapeInfo->DrawScale.X));
 
 			const bool bHasValidAlphaTextureData = EdMode->UISettings->HasValidAlphaTextureData();
 			int32 SizeX = EdMode->UISettings->AlphaTextureSizeX;
@@ -1264,17 +1264,17 @@ public:
 					LocalOrigin += FVector2D(0.5f, 0.5f).GetRotated(-Angle);
 				}
 				AlphaScaleBias = FLinearColor(
-					Scale.X,
-					Scale.Y,
-					LocalOrigin.X,
-					LocalOrigin.Y);
+					static_cast<float>(Scale.X),
+					static_cast<float>(Scale.Y),
+					static_cast<float>(LocalOrigin.X),
+					static_cast<float>(LocalOrigin.Y));
 			}
 			else 
 			{
 				const FVector2D Scale(EdMode->UISettings->AlphaBrushScale * SizeX, EdMode->UISettings->AlphaBrushScale * SizeY);
 				AlphaScaleBias = FLinearColor(
-					FMath::IsNearlyZero(Scale.X) ? 1.0f : 1.0f / (Scale.X),
-					FMath::IsNearlyZero(Scale.Y) ? 1.0f : 1.0f / (Scale.Y),
+					static_cast<float>(FMath::IsNearlyZero(Scale.X) ? 1.0 : 1.0 / (Scale.X)),
+					static_cast<float>(FMath::IsNearlyZero(Scale.Y) ? 1.0 : 1.0 / (Scale.Y)),
 					EdMode->UISettings->AlphaBrushPanU,
 					EdMode->UISettings->AlphaBrushPanV);
 				Angle = EdMode->UISettings->AlphaBrushRotation;
@@ -1285,10 +1285,10 @@ public:
 			FVector4 LandscapeLocationParam(LandscapeLocation.X, LandscapeLocation.Y, LandscapeLocation.Z, Angle);
 
 			FLinearColor AlphaTextureMask(
-				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Red ? 1 : 0, 
-				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Green ? 1 : 0, 
-				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Blue ? 1 : 0, 
-				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Alpha ? 1 : 0);
+				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Red ? 1.0f : 0.0f, 
+				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Green ? 1.0f : 0.0f, 
+				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Blue ? 1.0f : 0.0f, 
+				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Alpha ? 1.0f : 0.0f);
 
 			for (const auto& BrushMaterialInstancePair : BrushMaterialInstanceMap)
 			{
@@ -1341,7 +1341,7 @@ public:
 		int32 SizeY = EdMode->UISettings->AlphaTextureSizeY;
 		bool bIsValidTextureSize = (SizeX > 0) && (SizeY > 0);
 
-		float ScaleXY = FMath::Abs(LandscapeInfo->DrawScale.X);
+		float ScaleXY = static_cast<float>(FMath::Abs(LandscapeInfo->DrawScale.X));
 		float Radius = FMath::IsNearlyZero(ScaleXY) ? 0.0f : EdMode->UISettings->GetCurrentToolBrushRadius() / ScaleXY;
 
 		float MaxSize = 2.0f * FMath::Sqrt(FMath::Square(Radius) / 2.0f);
@@ -1523,10 +1523,10 @@ public:
 				EdMode->UISettings->bAlphaBrushAutoRotate ? LastMouseAngle : FMath::DegreesToRadians(EdMode->UISettings->AlphaBrushRotation)
 				);
 
-			FLinearColor AlphaTextureMask(EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Red ? 1 : 0,
-				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Green ? 1 : 0,
-				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Blue ? 1 : 0,
-				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Alpha ? 1 : 0);
+			FLinearColor AlphaTextureMask(EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Red ? 1.0f : 0.0f,
+				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Green ? 1.0f : 0.0f,
+				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Blue ? 1.0f : 0.0f,
+				EdMode->UISettings->AlphaTextureChannel == ELandscapeTextureColorChannel::Alpha ? 1.0f : 0.0f);
 
 
 			for (const auto& BrushMaterialInstancePair : BrushMaterialInstanceMap)

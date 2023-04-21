@@ -337,7 +337,7 @@ ELandscapeImportResult FLandscapeImportHelper::GetWeightmapImportDescriptor(cons
 
 ELandscapeImportResult FLandscapeImportHelper::GetHeightmapImportData(const FLandscapeImportDescriptor& ImportDescriptor, int32 DescriptorIndex, TArray<uint16>& OutData, FText& OutMessage)
 {
-	return GetImportDataInternal<uint16>(ImportDescriptor, DescriptorIndex, NAME_None, LandscapeDataAccess::MidValue, OutData, OutMessage);
+	return GetImportDataInternal<uint16>(ImportDescriptor, DescriptorIndex, NAME_None, static_cast<uint16>(LandscapeDataAccess::MidValue), OutData, OutMessage);
 }
 
 ELandscapeImportResult FLandscapeImportHelper::GetWeightmapImportData(const FLandscapeImportDescriptor& ImportDescriptor, int32 DescriptorIndex, FName LayerName, TArray<uint8>& OutData, FText& OutMessage)

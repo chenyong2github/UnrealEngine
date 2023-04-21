@@ -78,8 +78,8 @@ public:
 			[
 				SNew(SBox)
 				.ToolTipText(this, &STextureMaskThumbnail::OnGetToolTip)
-				.WidthOverride(64)
-				.HeightOverride(64)
+				.WidthOverride(64.0f)
+				.HeightOverride(64.0f)
 				[
 					SNew(SBorder)
 					.Padding(2)
@@ -133,7 +133,7 @@ public:
 				|| NewTextureChannel != CachedTextureChannel)
 			{
 				CachedTexture = NewTexture;
-				CachedTextureChannel = NewTextureChannel;
+				CachedTextureChannel = static_cast<uint8>(NewTextureChannel);
 				Viewport->Invalidate();
 			}
 		}

@@ -508,7 +508,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::GenerateRow(
 	if (Target->TargetType != ELandscapeToolTargetType::Weightmap)
 	{
 		RowWidget = SNew(SLandscapeEditorSelectableBorder)
-			.Padding(0)
+			.Padding(0.0f)
 			.VAlign(VAlign_Center)
 			.OnContextMenuOpening_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerContextMenuOpening, Target)
 			.OnSelected_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetSelectionChanged, Target)
@@ -547,7 +547,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::GenerateRow(
 		static const FSlateColorBrush SolidWhiteBrush = FSlateColorBrush(FColorList::White);
 
 		RowWidget = SNew(SLandscapeEditorSelectableBorder)
-			.Padding(0)
+			.Padding(0.0f)
 			.VAlign(VAlign_Center)
 			.OnContextMenuOpening_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerContextMenuOpening, Target)
 			.OnSelected_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetSelectionChanged, Target)
@@ -575,8 +575,8 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_TargetLayers::GenerateRow(
 				[
 					SNew(SBox)
 					.Visibility_Static(&FLandscapeEditorCustomNodeBuilder_TargetLayers::GetDebugModeLayerUsageVisibility, Target)
-					.WidthOverride(48)
-					.HeightOverride(48)
+					.WidthOverride(48.0f)
+					.HeightOverride(48.0f)
 					[
 						SNew(SImage)
 						.Image(FCoreStyle::Get().GetBrush("WhiteBrush"))

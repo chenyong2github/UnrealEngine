@@ -74,8 +74,8 @@ bool GetRawResolution(const TCHAR* InFilename, FLandscapeFileResolution& OutReso
 	const int32 BytesPerPixel = bIs16Bit ? 2 : 1;
 	int64 FileSize = IFileManager::Get().FileSize(InFilename);
 	
-	const int32 NumPixels = FileSize / BytesPerPixel;
-	int32 Dimension = FMath::TruncToInt(FMath::Sqrt(static_cast<double>(NumPixels)));
+	const int64 NumPixels = FileSize / BytesPerPixel;
+	const uint32 Dimension = FMath::TruncToInt32(FMath::Sqrt(static_cast<double>(NumPixels)));
 	if (Dimension * Dimension == NumPixels)
 	{
 		OutResolution.Width = Dimension;

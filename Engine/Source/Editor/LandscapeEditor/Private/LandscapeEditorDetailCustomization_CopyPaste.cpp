@@ -413,7 +413,7 @@ void FLandscapeEditorDetailCustomization_CopyPaste::GenerateGuessDimensionList()
 				TArray<uint32> CurrentValues;
 				for (int32 i = 0; i <= It.Value(); ++i)
 				{
-					CurrentValues.Add(FMath::Pow(static_cast<float>(It.Key()), i));
+					CurrentValues.Add(static_cast<uint32>(FMath::Pow(static_cast<float>(It.Key()), i)));
 				}				
 
 				for (int32 i = 0; i < PreviousIterValues.Num(); ++i)
@@ -438,7 +438,7 @@ void FLandscapeEditorDetailCustomization_CopyPaste::GenerateGuessDimensionList()
 
 			for (int32 i = 0; i < FinalValuesLeft.Num(); ++i)
 			{
-				FinalValuesRight.Add(InitialGizmoDimension / FinalValuesLeft[i]);
+				FinalValuesRight.Add(static_cast<uint32>(InitialGizmoDimension / FinalValuesLeft[i]));
 			}
 
 			GuessedDimensionComboList.Empty(FinalValuesLeft.Num());

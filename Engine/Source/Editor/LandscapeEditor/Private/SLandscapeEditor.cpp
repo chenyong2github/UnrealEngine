@@ -31,8 +31,8 @@ void SLandscapeAssetThumbnail::Construct(const FArguments& InArgs, UObject* Asse
 	ChildSlot
 	[
 		SNew(SBox)
-		.WidthOverride(ThumbnailSize.X)
-		.HeightOverride(ThumbnailSize.Y)
+		.WidthOverride(static_cast<float>(ThumbnailSize.X))
+		.HeightOverride(static_cast<float>(ThumbnailSize.Y))
 		[
 			AssetThumbnail->MakeThumbnailWidget()
 		]

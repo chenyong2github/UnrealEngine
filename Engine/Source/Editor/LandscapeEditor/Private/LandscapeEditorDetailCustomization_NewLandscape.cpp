@@ -231,7 +231,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 		[
 			SNew(SComboButton)
 			.OnGetMenuContent(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetImportLandscapeResolutionMenu)
-			.ContentPadding(2)
+			.ContentPadding(2.0f)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
@@ -368,7 +368,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 	[
 		SNew(SComboButton)
 		.OnGetMenuContent_Static(&GetSectionSizeMenu, PropertyHandle_QuadsPerSection)
-		.ContentPadding(2)
+		.ContentPadding(2.0f)
 		.ButtonContent()
 		[
 			SNew(STextBlock)
@@ -388,7 +388,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 	[
 		SNew(SComboButton)
 		.OnGetMenuContent_Static(&GetSectionsPerComponentMenu, PropertyHandle_SectionsPerComponent)
-		.ContentPadding(2)
+		.ContentPadding(2.0f)
 		.ButtonContent()
 		[
 			SNew(STextBlock)
@@ -1181,7 +1181,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		int32 NumRegions = FMath::DivideAndRoundUp(TotalLandscapeComponentSize.X, static_cast<int32>(UISettings->WorldPartitionRegionSize)) * FMath::DivideAndRoundUp(TotalLandscapeComponentSize.Y, static_cast<int32>(UISettings->WorldPartitionRegionSize));
 
 
-		FScopedSlowTask Progress(NumRegions, LOCTEXT("CreateLandscapeRegions", "Creating Landscape Editor Regions..."));
+		FScopedSlowTask Progress(static_cast<float>(NumRegions), LOCTEXT("CreateLandscapeRegions", "Creating Landscape Editor Regions..."));
 		Progress.MakeDialog();
 
 		TArray<ALocationVolume*> RegionVolumes;
@@ -1234,7 +1234,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		LandscapeRegionUtils::ForEachComponentByRegion(UISettings->WorldPartitionRegionSize, NewComponents, AddComponentsToRegion);
 
 		// update the zcomponent of the volumes 
-		const float ZScale =  LandscapeBounds.Max.Z - LandscapeBounds.Min.Z;
+		//const float ZScale =  LandscapeBounds.Max.Z - LandscapeBounds.Min.Z;
 		for (ALocationVolume* RegionVolume : RegionVolumes)
 		{
 			const FVector Scale = RegionVolume->GetActorScale();
@@ -1273,15 +1273,15 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnFillWorldButtonClicke
 
 		LandscapeEdMode->UISettings->NewLandscape_Location = FVector::ZeroVector;
 		const int32 QuadsPerComponent = LandscapeEdMode->UISettings->NewLandscape_SectionsPerComponent * LandscapeEdMode->UISettings->NewLandscape_QuadsPerSection;
-		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X = FMath::CeilToInt(WORLD_MAX / QuadsPerComponent / LandscapeEdMode->UISettings->NewLandscape_Scale.X);
-		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y = FMath::CeilToInt(WORLD_MAX / QuadsPerComponent / LandscapeEdMode->UISettings->NewLandscape_Scale.Y);
+		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.X = FMath::CeilToInt32(WORLD_MAX / QuadsPerComponent / LandscapeEdMode->UISettings->NewLandscape_Scale.X);
+		LandscapeEdMode->UISettings->NewLandscape_ComponentCount.Y = FMath::CeilToInt32(WORLD_MAX / QuadsPerComponent / LandscapeEdMode->UISettings->NewLandscape_Scale.Y);
 
 		const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
 		if (Settings->IsLandscapeResolutionRestricted())
 		{
 			auto ClampComponentCount = [Settings, &QuadsPerComponent](int32& ComponentCount)
 			{
-				const float MaxResolution = Settings->GetSideResolutionLimit();
+				const float MaxResolution = static_cast<float>(Settings->GetSideResolutionLimit());
 				ComponentCount = FMath::Clamp(ComponentCount, 1, FMath::Min(32, FMath::FloorToInt((MaxResolution - 1) / QuadsPerComponent)));
 			};
 

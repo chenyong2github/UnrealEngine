@@ -245,7 +245,7 @@ void FLandscapeEditorDetailCustomization_ImportExport::CustomizeDetails(IDetailL
 			[
 				SNew(SComboButton)
 				.OnGetMenuContent_Static(&FLandscapeEditorDetailCustomization_ImportExport::GetImportLandscapeResolutionMenu)
-				.ContentPadding(2)
+				.ContentPadding(2.0f)
 				.ButtonContent()
 				[
 					SNew(STextBlock)
@@ -561,7 +561,7 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 			ELandscapeImportTransformType TransformType = LandscapeEdMode->UISettings->ImportType;
 									
 			FVector LocalGizmoPosition = LandscapeInfo->GetLandscapeProxy()->LandscapeActorToWorld().InverseTransformPosition(LandscapeEdMode->CurrentGizmoActor->GetActorLocation());
-			FIntPoint LocalGizmoPoint = FIntPoint(FMath::FloorToInt(LocalGizmoPosition.X), FMath::FloorToInt(LocalGizmoPosition.Y));
+			FIntPoint LocalGizmoPoint = FIntPoint(FMath::FloorToInt32(LocalGizmoPosition.X), FMath::FloorToInt32(LocalGizmoPosition.Y));
 			
 			// Update Gizmo Position if we exit and comeback into tool
 			LandscapeEdMode->UISettings->ImportLandscape_GizmoLocalPosition = LocalGizmoPoint;
@@ -595,7 +595,7 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 
 				int32 NumRegions = LandscapeRegions.Num();
 					
-				FScopedSlowTask Progress(NumRegions, LOCTEXT("ImportingLandscapeRegions", "Importing Landscape Regions"));
+				FScopedSlowTask Progress(static_cast<float>(NumRegions), LOCTEXT("ImportingLandscapeRegions", "Importing Landscape Regions"));
 				Progress.MakeDialog(/*bShowCancelButton = */ true);
 
 				auto RegionImporter = [&Progress, LandscapeInfo, CurrentLayerGuid, LandscapeEdMode, ImportRegion, TransformType, ImportOffset, PaintRestriction](const FBox& RegionBounds, const TArray<ALandscapeProxy*>& Proxies)
@@ -633,7 +633,7 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 			}
 			else
 			{
-				FScopedSlowTask Progress(1 + LandscapeEdMode->UISettings->ImportLandscape_Layers.Num(), LOCTEXT("ImportingLandscape", "Importing Landscape"));
+				FScopedSlowTask Progress(static_cast<float>(1 + LandscapeEdMode->UISettings->ImportLandscape_Layers.Num()), LOCTEXT("ImportingLandscape", "Importing Landscape"));
 				Progress.MakeDialog(/*bShowCancelButton = */ true);
 
 				if (LandscapeEdMode->UISettings->bHeightmapSelected)

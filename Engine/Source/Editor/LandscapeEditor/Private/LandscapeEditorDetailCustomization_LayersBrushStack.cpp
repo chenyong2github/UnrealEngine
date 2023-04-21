@@ -125,7 +125,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::Generate
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	TSharedPtr<SWidget> RowWidget = SNew(SLandscapeEditorSelectableBorder)
-		.Padding(0)
+		.Padding(0.0f)
 		.VAlign(VAlign_Center)
 		.OnContextMenuOpening(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushContextMenuOpening, InBrushIndex)
 		.OnSelected(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushSelectionChanged, InBrushIndex)
@@ -137,7 +137,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::Generate
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ContentPadding(0)
+				.ContentPadding(0.0f)
 				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleVisibility, InBrushIndex)
 				.ToolTipText(LOCTEXT("LandscapeBrushVisibility", "Toggle Brush Visibility"))
@@ -171,7 +171,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::Generate
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.ContentPadding(0)
+				.ContentPadding(0.0f)
 				.ButtonStyle(FAppStyle::Get(), "NoBorder")
 				.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsHeightmap, InBrushIndex)
 				.ToolTipText(LOCTEXT("LandscapeBrushAffectsHeightmap", "Toggle Affects Heightmap"))
@@ -188,7 +188,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::Generate
             .VAlign(VAlign_Center)
             [
 				SNew(SButton)
-                .ContentPadding(0)
+                .ContentPadding(0.0f)
                 .ButtonStyle(FAppStyle::Get(), "NoBorder")
                 .OnClicked(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsWeightmap, InBrushIndex)
                 .ToolTipText(LOCTEXT("LandscapeBrushAffectsWeightmap", "Toggle Affects Weightmap"))
@@ -205,7 +205,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::Generate
 				.VAlign(VAlign_Center)
 				[
 					SNew(SButton)
-					.ContentPadding(0)
+					.ContentPadding(0.0f)
 					.ButtonStyle(FAppStyle::Get(), "NoBorder")
 					.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsVisibilityLayer, InBrushIndex)
 					.ToolTipText(LOCTEXT("LandscapeBrushAffectsVisibilityLayer", "Toggle Affects Visibility Layer"))

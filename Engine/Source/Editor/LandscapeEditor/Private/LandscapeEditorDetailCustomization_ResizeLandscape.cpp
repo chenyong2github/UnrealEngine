@@ -97,7 +97,7 @@ void FLandscapeEditorDetailCustomization_ResizeLandscape::CustomizeDetails(IDeta
 		[
 			SNew(SComboButton)
 			.OnGetMenuContent_Static(&GetSectionSizeMenu, PropertyHandle_QuadsPerSection)
-			.ContentPadding(2)
+			.ContentPadding(2.0f)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
@@ -135,7 +135,7 @@ void FLandscapeEditorDetailCustomization_ResizeLandscape::CustomizeDetails(IDeta
 		[
 			SNew(SComboButton)
 			.OnGetMenuContent_Static(&GetSectionsPerComponentMenu, PropertyHandle_SectionsPerComponent)
-			.ContentPadding(2)
+			.ContentPadding(2.0f)
 			.ButtonContent()
 			[
 				SNew(STextBlock)

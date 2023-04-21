@@ -87,8 +87,8 @@ public:
 			if (!bInitializedComponentInvert)
 			{
 				// Get the component under the mouse location. Copied from FLandscapeBrushComponent::ApplyBrush()
-				const float MouseX = InteractorPositions[0].Position.X;
-				const float MouseY = InteractorPositions[0].Position.Y;
+				const float MouseX = static_cast<float>(InteractorPositions[0].Position.X);
+				const float MouseY = static_cast<float>(InteractorPositions[0].Position.Y);
 				const int32 MouseComponentIndexX = (MouseX >= 0.0f) ? FMath::FloorToInt(MouseX / LandscapeInfo->ComponentSizeQuads) : FMath::CeilToInt(MouseX / LandscapeInfo->ComponentSizeQuads);
 				const int32 MouseComponentIndexY = (MouseY >= 0.0f) ? FMath::FloorToInt(MouseY / LandscapeInfo->ComponentSizeQuads) : FMath::CeilToInt(MouseY / LandscapeInfo->ComponentSizeQuads);
 				ULandscapeComponent* MouseComponent = LandscapeInfo->XYtoComponentMap.FindRef(FIntPoint(MouseComponentIndexX, MouseComponentIndexY));
@@ -239,7 +239,7 @@ public:
 							LandscapeInfo->SelectedRegion.Remove(Key);
 						}
 
-						DataScanline[X] = FMath::Clamp<int32>(FMath::RoundToInt(Value * 255), 0, 255);
+						DataScanline[X] = static_cast<uint8>(FMath::Clamp<int32>(FMath::RoundToInt(Value * 255), 0, 255));
 					}
 				}
 			}
@@ -1039,8 +1039,8 @@ public:
 		{
 			const int32 BrushSize = FMath::Max(EdMode->UISettings->BrushComponentSize, 0);
 			const int32 ComponentSizeQuads = ToolTarget.LandscapeInfo->ComponentSizeQuads;
-			const float BrushOriginX = LastMousePosition.GetValue().X / ComponentSizeQuads - (BrushSize - 1) / 2.0f;
-			const float BrushOriginY = LastMousePosition.GetValue().Y / ComponentSizeQuads - (BrushSize - 1) / 2.0f;
+			const float BrushOriginX = static_cast<float>(LastMousePosition.GetValue().X / ComponentSizeQuads - (BrushSize - 1) / 2.0);
+			const float BrushOriginY = static_cast<float>(LastMousePosition.GetValue().Y / ComponentSizeQuads - (BrushSize - 1) / 2.0);
 			const int32 ComponentIndexX = FMath::FloorToInt(BrushOriginX);
 			const int32 ComponentIndexY = FMath::FloorToInt(BrushOriginY);
 
@@ -1224,7 +1224,7 @@ public:
 				Cache.GetCachedData(X1, Y1, X2, Y2, Data);
 			}
 
-			const float ScaleXY = LandscapeInfo->DrawScale.X;
+			const float ScaleXY = static_cast<float>(LandscapeInfo->DrawScale.X);
 			float Width = Gizmo->GetWidth();
 			float Height = Gizmo->GetHeight();
 
@@ -1256,8 +1256,8 @@ public:
 				for (int32 X = 0; X < SizeX; ++X)
 				{
 					FVector LandscapeLocal = GizmoLocalToLandscape.TransformPosition(FVector(-W + X, -H + Y, 0));
-					int32 LX = FMath::FloorToInt(LandscapeLocal.X);
-					int32 LY = FMath::FloorToInt(LandscapeLocal.Y);
+					const int32 LX = FMath::FloorToInt32(LandscapeLocal.X);
+					const int32 LY = FMath::FloorToInt32(LandscapeLocal.Y);
 
 					{
 						for (int32 i = -1; (!bApplyToAll && i < 0) || i < LayerNum; ++i)
@@ -1307,8 +1307,8 @@ public:
 							}
 
 							FGizmoPreData LerpedData;
-							float FracX = LandscapeLocal.X - LX;
-							float FracY = LandscapeLocal.Y - LY;
+							const float FracX = static_cast<float>(LandscapeLocal.X - LX);
+							const float FracY = static_cast<float>(LandscapeLocal.Y - LY);
 							LerpedData.Ratio = bFullCopy ? 1.0f :
 								FMath::Lerp(
 								FMath::Lerp(GizmoPreData[0].Ratio, GizmoPreData[1].Ratio, FracX),
@@ -1567,7 +1567,7 @@ public:
 			}
 
 			Gizmo->TargetLandscapeInfo = LandscapeInfo;
-			float ScaleXY = LandscapeInfo->DrawScale.X;
+			float ScaleXY = static_cast<float>(LandscapeInfo->DrawScale.X);
 
 			//LandscapeInfo->Modify();
 
@@ -1654,11 +1654,11 @@ public:
 						GizmoLocal.X *= ScaleX * SignX;
 						GizmoLocal.Y *= ScaleY * SignY;
 
-						int32 LX = FMath::FloorToInt(GizmoLocal.X);
-						int32 LY = FMath::FloorToInt(GizmoLocal.Y);
+						const int32 LX = FMath::FloorToInt32(GizmoLocal.X);
+						const int32 LY = FMath::FloorToInt32(GizmoLocal.Y);
 
-						float FracX = GizmoLocal.X - LX;
-						float FracY = GizmoLocal.Y - LY;
+						const float FracX = static_cast<float>(GizmoLocal.X - LX);
+						const float FracY = static_cast<float>(GizmoLocal.Y - LY);
 
 						FGizmoSelectData* Data00 = Gizmo->SelectedData.Find(FIntPoint(LX, LY));
 						FGizmoSelectData* Data10 = Gizmo->SelectedData.Find(FIntPoint(LX + 1, LY));
@@ -1679,7 +1679,7 @@ public:
 									OriginalValue = Data[index];
 								}
 
-								float Value = LandscapeDataAccess::GetLocalHeight(OriginalValue);
+								float Value = LandscapeDataAccess::GetLocalHeight(static_cast<uint16>(OriginalValue));
 
 								float DestValue = FLandscapeHeightCache::ClampValue(
 									LandscapeDataAccess::GetTexHeight(
@@ -1706,11 +1706,11 @@ public:
 
 								if (bApplyToAll)
 								{
-									HeightData[index] = FMath::Lerp(OriginalValue, DestValue, PaintAmount);
+									HeightData[index] = static_cast<uint16>(FMath::Lerp(OriginalValue, DestValue, PaintAmount));
 								}
 								else
 								{
-									Data[index] = FMath::Lerp(OriginalValue, DestValue, PaintAmount);
+									Data[index] = static_cast<uint16>(FMath::Lerp(OriginalValue, DestValue, PaintAmount));
 								}
 							}
 							else
@@ -1728,22 +1728,22 @@ public:
 									OriginalValue = Data[index];
 								}
 
-								float DestValue = FLandscapeAlphaCache::ClampValue(
+								float DestValue = FLandscapeAlphaCache::ClampValue(static_cast<int32>(
 									FMath::Lerp(
 									FMath::Lerp(Data00 ? FMath::Lerp(OriginalValue, Data00->WeightDataMap.FindRef(LayerInfo), Data00->Ratio) : OriginalValue,
 									Data10 ? FMath::Lerp(OriginalValue, Data10->WeightDataMap.FindRef(LayerInfo), Data10->Ratio) : OriginalValue, FracX),
 									FMath::Lerp(Data01 ? FMath::Lerp(OriginalValue, Data01->WeightDataMap.FindRef(LayerInfo), Data01->Ratio) : OriginalValue,
 									Data11 ? FMath::Lerp(OriginalValue, Data11->WeightDataMap.FindRef(LayerInfo), Data11->Ratio) : OriginalValue, FracX),
 									FracY
-									));
+									)));
 
 								if (bApplyToAll)
 								{
-									WeightDatas[index*LayerNum + i] = FMath::Lerp(OriginalValue, DestValue, PaintAmount);
+									WeightDatas[index*LayerNum + i] = static_cast<uint8>(FMath::Lerp(OriginalValue, DestValue, PaintAmount));
 								}
 								else
 								{
-									Data[index] = FMath::Lerp(OriginalValue, DestValue, PaintAmount);
+									Data[index] = static_cast<typename ToolTarget::CacheClass::DataType>(FMath::Lerp(OriginalValue, DestValue, PaintAmount));
 								}
 							}
 						}
@@ -2132,13 +2132,13 @@ public:
 			auto DragEdge = [&UISettings, &HitLocation, &Transform](const ELandscapeEdge::Type Edge)
 			{
 				int32& ComponentCount = Edge == ELandscapeEdge::X_Negative || Edge == ELandscapeEdge::X_Positive ? UISettings->NewLandscape_ComponentCount.X : UISettings->NewLandscape_ComponentCount.Y;
-				const float Hit = Edge == ELandscapeEdge::X_Negative || Edge == ELandscapeEdge::X_Positive ? HitLocation.X : HitLocation.Y;
+				const float Hit = static_cast<float>(Edge == ELandscapeEdge::X_Negative || Edge == ELandscapeEdge::X_Positive ? HitLocation.X : HitLocation.Y);
 				const float PosOrNeg = Edge == ELandscapeEdge::X_Negative || Edge == ELandscapeEdge::Y_Negative ? -1.0f : 1.0f;
 				const FVector XOrY = Edge == ELandscapeEdge::X_Negative || Edge == ELandscapeEdge::X_Positive ? FVector(1, 0, 0) : FVector(0, 1, 0);
 				
 				const int32 InitialComponentCount = ComponentCount;
 				const int32 Delta = FMath::RoundToInt(Hit - PosOrNeg * static_cast<float>(InitialComponentCount) / 2.0f);
-				ComponentCount = InitialComponentCount + PosOrNeg * Delta;
+				ComponentCount = static_cast<int32>(InitialComponentCount + PosOrNeg * Delta);
 				UISettings->NewLandscape_ClampSize();
 				const float ActualDelta = static_cast<float>(ComponentCount - InitialComponentCount) / 2.0f;
 				UISettings->NewLandscape_Location += PosOrNeg * XOrY * Transform.TransformVector(FVector(ActualDelta, ActualDelta, 0));
@@ -2194,7 +2194,7 @@ public:
 			const int32 ComponentCountX = EdMode->UISettings->NewLandscape_ComponentCount.X;
 			const int32 ComponentCountY = EdMode->UISettings->NewLandscape_ComponentCount.Y;
 			const int32 QuadsPerComponent = EdMode->UISettings->NewLandscape_SectionsPerComponent * EdMode->UISettings->NewLandscape_QuadsPerSection;
-			const float ComponentSize = QuadsPerComponent;
+			const float ComponentSize = static_cast<float>(QuadsPerComponent);
 			const int32 GridSize = EdMode->UISettings->WorldPartitionGridSize;
 			const FVector Offset = EdMode->UISettings->NewLandscape_Location + FTransform(EdMode->UISettings->NewLandscape_Rotation, FVector::ZeroVector, EdMode->UISettings->NewLandscape_Scale).TransformVector(FVector(-ComponentCountX * ComponentSize / 2, -ComponentCountY * ComponentSize / 2, 0));
 			const FTransform Transform = FTransform(EdMode->UISettings->NewLandscape_Rotation, Offset, EdMode->UISettings->NewLandscape_Scale);
@@ -2420,7 +2420,7 @@ public:
 					for (int32 X = 1; X < ComponentCountX * QuadsPerComponent; ++X)
 					{
 						const FLinearColor CurrentColor = GetColor(X);
-						const uint8 DepthPriority = CurrentColor == InnerColor ? SDPG_World : SDPG_Foreground;
+						const uint8 DepthPriority = static_cast<uint8>(CurrentColor == InnerColor ? SDPG_World : SDPG_Foreground);
 						DrawLine({FVector(X, 0, 0), FVector(X, ComponentCountY * ComponentSize, 0)}, CurrentColor, DepthPriority);
 					}
 
@@ -2428,7 +2428,7 @@ public:
 					for (int32 Y = 1; Y < ComponentCountY * QuadsPerComponent; ++Y)
 					{
 						const FLinearColor CurrentColor = GetColor(Y);
-						const uint8 DepthPriority = CurrentColor == InnerColor ? SDPG_World : SDPG_Foreground;
+						const uint8 DepthPriority = static_cast<uint8>(CurrentColor == InnerColor ? SDPG_World : SDPG_Foreground);
 						DrawLine({FVector(0, Y, 0), FVector(ComponentCountX * ComponentSize, Y, 0)}, CurrentColor, DepthPriority);
 					}
 				}
@@ -2675,7 +2675,7 @@ public:
 		const ELevelViewportType ViewportType = ((FEditorViewportClient*)Viewport->GetClient())->ViewportType;
 
 		const int32 ComponentSizeInt = EdMode->UISettings->NewLandscape_SectionsPerComponent * EdMode->UISettings->NewLandscape_QuadsPerSection;
-		const float ComponentSize = ComponentSizeInt;
+		const float ComponentSize = static_cast<float>(ComponentSizeInt);
 		const FTransform GizmoTransform = FTransform(FRotator(0,0,0), GetWidgetLocation(), LandscapeInfo->DrawScale);
 		const int32 Height = EdMode->UISettings->ImportType == ELandscapeImportTransformType::None ? EdMode->UISettings->ImportLandscape_Height : (LandscapeExtent.Height()+1);
 		const int32 Width = EdMode->UISettings->ImportType == ELandscapeImportTransformType::None ? EdMode->UISettings->ImportLandscape_Width: (LandscapeExtent.Width()+1);

@@ -124,7 +124,7 @@ FLandscapeImportData<uint16> FLandscapeHeightmapFileFormat_Png::Import(const TCH
 				else
 				{
 					Result.Data.Empty(ExpectedResolution.Width * ExpectedResolution.Height);
-					Algo::Transform(RawData, Result.Data, [](uint8 Value) { return Value * 0x101; }); // Expand to 16-bit
+					Algo::Transform(RawData, Result.Data, [](uint8 Value) { return static_cast<uint16>(Value * 0x101); }); // Expand to 16-bit
 				}
 			}
 			else

@@ -552,8 +552,8 @@ void FEdModeLandscape::Enter()
 				{
 					for (int32 X = 0; X < CurrentGizmoActor->SampleSizeX; ++X)
 					{
-						float TexX = X * SizeX / CurrentGizmoActor->SampleSizeX;
-						float TexY = Y * SizeY / CurrentGizmoActor->SampleSizeY;
+						float TexX = static_cast<float>(X * SizeX / CurrentGizmoActor->SampleSizeX);
+						float TexY = static_cast<float>(Y * SizeY / CurrentGizmoActor->SampleSizeY);
 						int32 LX = FMath::FloorToInt(TexX);
 						int32 LY = FMath::FloorToInt(TexY);
 
@@ -565,11 +565,11 @@ void FEdModeLandscape::Enter()
 						FGizmoSelectData* Data01 = CurrentGizmoActor->SelectedData.Find(FIntPoint(LX, LY + 1));
 						FGizmoSelectData* Data11 = CurrentGizmoActor->SelectedData.Find(FIntPoint(LX + 1, LY + 1));
 
-						TexData[X + Y*ALandscapeGizmoActiveActor::DataTexSize] = FMath::Lerp(
+						TexData[X + Y*ALandscapeGizmoActiveActor::DataTexSize] = static_cast<uint8>(FMath::Lerp(
 							FMath::Lerp(Data00 ? Data00->Ratio : 0, Data10 ? Data10->Ratio : 0, FracX),
 							FMath::Lerp(Data01 ? Data01->Ratio : 0, Data11 ? Data11->Ratio : 0, FracX),
 							FracY
-							) * 255;
+							) * 255);
 					}
 				}
 			}
@@ -1097,8 +1097,8 @@ bool FEdModeLandscape::LandscapeMouseTrace(FEditorViewportClient* ViewportClient
 {
 	FVector HitLocation;
 	bool bResult = LandscapeMouseTrace(ViewportClient, MouseX, MouseY, HitLocation);
-	OutHitX = HitLocation.X;
-	OutHitY = HitLocation.Y;
+	OutHitX = static_cast<float>(HitLocation.X);
+	OutHitY = static_cast<float>(HitLocation.Y);
 	return bResult;
 }
 
@@ -1270,7 +1270,8 @@ bool FEdModeLandscape::LandscapeTrace(const FVector& InRayOrigin, const FVector&
 			double InitialAngle = (ConcentricIndex % 2) * AngleIncrement / 2.0;
 			for (int32 AngularSampleIndex = 0; AngularSampleIndex < NumAngularSamples; ++AngularSampleIndex)
 			{
-				if (TOptional<FProcessLandscapeTraceHitsResult> HitResult = LineTraceAroundCenter(AngularSampleIndex * AngleIncrement + InitialAngle, Radius); HitResult.IsSet())
+				if (TOptional<FProcessLandscapeTraceHitsResult> HitResult = LineTraceAroundCenter(
+					static_cast<float>(AngularSampleIndex * AngleIncrement + InitialAngle), static_cast<float>(Radius)); HitResult.IsSet())
 				{ 
 					// Compute the mean height in order to extrapolate the landscape hit to a "fake" landscape plane that extends beyond the borders : 
 					if (TOptional<float> Height = HitResult->LandscapeProxy->GetHeightAtLocation(HitResult->HitLocation, EHeightfieldSource::Editor); Height.IsSet())
@@ -1740,7 +1741,7 @@ void FEdModeLandscape::ChangeBrushSize(bool bIncrease)
 			NewValue = FMath::Min(NewValue, Radius - 1.0f);
 		}
 
-		NewValue = (int32)FMath::Clamp(NewValue, SliderMin, SliderMax);
+		NewValue = FMath::Clamp(NewValue, SliderMin, SliderMax);
 		UISettings->SetCurrentToolBrushRadius(NewValue);
 	}
 }
@@ -3668,7 +3669,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 				}
 			}
 
-			Progress.EnterProgressFrame(CurrentTaskProgress++);
+			Progress.EnterProgressFrame(static_cast<float>(CurrentTaskProgress++));
 
 			const FVector Location = OldLandscape->GetActorLocation() + LandscapeOffset;
 			FActorSpawnParameters SpawnParams;
@@ -3750,7 +3751,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 				// TODO: Foliage on spline meshes
 			}
 
-			Progress.EnterProgressFrame(CurrentTaskProgress++);
+			Progress.EnterProgressFrame(static_cast<float>(CurrentTaskProgress++));
 
 			if (bResample)
 			{
@@ -3771,7 +3772,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 					}
 				}
 
-				Progress.EnterProgressFrame(CurrentTaskProgress++);
+				Progress.EnterProgressFrame(static_cast<float>(CurrentTaskProgress++));
 
 				// delete any components that were deleted in the original
 				TSet<ULandscapeComponent*> ComponentsToDelete;
@@ -3829,14 +3830,14 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 					}
 				}
 
-				Progress.EnterProgressFrame(CurrentTaskProgress++);
+				Progress.EnterProgressFrame(static_cast<float>(CurrentTaskProgress++));
 
 				// delete any components that are in areas that were entirely deleted in the original
 				TSet<ULandscapeComponent*> ComponentsToDelete;
 				for (const TPair<FIntPoint, ULandscapeComponent*>& Entry : NewLandscapeInfo->XYtoComponentMap)
 				{
-					float OldX = Entry.Key.X * NewComponentSizeQuads + LandscapeOffsetQuads.X;
-					float OldY = Entry.Key.Y * NewComponentSizeQuads + LandscapeOffsetQuads.Y;
+					const int32 OldX = Entry.Key.X * NewComponentSizeQuads + LandscapeOffsetQuads.X;
+					const int32 OldY = Entry.Key.Y * NewComponentSizeQuads + LandscapeOffsetQuads.Y;
 					TSet<ULandscapeComponent*> OverlapComponents;
 					LandscapeInfo->GetComponentsInRegion(OldX, OldY, OldX + NewComponentSizeQuads, OldY + NewComponentSizeQuads, OverlapComponents, false);
 					if (OverlapComponents.Num() == 0)

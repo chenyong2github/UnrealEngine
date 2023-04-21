@@ -19,7 +19,7 @@ template<>
 class LandscapeImageTraits<uint16>
 {
 public:
-	static uint16 DefaultValue() { return LandscapeDataAccess::MidValue; }
+	static uint16 DefaultValue() { return static_cast<uint16>(LandscapeDataAccess::MidValue); }
 };
 
 class FLandscapeTiledImage

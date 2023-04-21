@@ -55,11 +55,11 @@ protected:
 
 	void ProcessPixel(int32 X, int32 Y, const InterpolantType& Interpolant, bool BackFacing)
 	{
-		const float CosInterpX = (Interpolant.X >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.X * PI));
+		const float CosInterpX = static_cast<float>(Interpolant.X >= 1 ? 1 : 0.5 - 0.5 * FMath::Cos(Interpolant.X * PI));
 		const float Alpha = CosInterpX;
 		uint16& Dest = Data[(Y - MinY)*(1 + MaxX - MinX) + X - MinX];
 		float Value = FMath::Lerp((float)Dest, (float)Interpolant.Y, Alpha);
-		uint16 DValue = (uint32)FMath::Clamp<float>(Value, 0, LandscapeDataAccess::MaxValue);
+		uint16 DValue = static_cast<uint16>(FMath::Clamp<float>(Value, 0, LandscapeDataAccess::MaxValue));
 		if ((bRaiseTerrain && DValue > Dest) ||
 			(bLowerTerrain && DValue < Dest))
 		{
@@ -245,8 +245,8 @@ public:
 		{
 			if (SelectedPoint != INDEX_NONE)
 			{
-				const int32 MinX = FMath::FloorToInt(Points[SelectedPoint].X);
-				const int32 MinY = FMath::FloorToInt(Points[SelectedPoint].Y);
+				const int32 MinX = FMath::FloorToInt32(Points[SelectedPoint].X);
+				const int32 MinY = FMath::FloorToInt32(Points[SelectedPoint].Y);
 				const int32 MaxX = MinX + 1;
 				const int32 MaxY = MinY + 1;
 
@@ -342,11 +342,11 @@ public:
 			float SpriteScale = EdMode->UISettings->RampWidth / 4;
 			if (NumPoints > 1)
 			{
-				SpriteScale = FMath::Min(SpriteScale, (WorldPoints[1] - WorldPoints[0]).Size() / 2);
+				SpriteScale = FMath::Min(SpriteScale, static_cast<float>((WorldPoints[1] - WorldPoints[0]).Size() / 2));
 			}
 			SpriteScale = FMath::Clamp<float>(SpriteScale, 10, 500);
 
-			for (int32 i = 0; i < NumPoints; i++)
+			for (int8 i = 0; i < NumPoints; i++)
 			{
 				const FLinearColor SpriteColor = (i == SelectedPoint) ? SelectedSpriteColor : FLinearColor::White;
 
@@ -357,8 +357,8 @@ public:
 					SpriteTexture->GetResource(),
 					SpriteColor,
 					SDPG_Foreground,
-					0, SpriteTexture->GetResource()->GetSizeX(),
-					0, SpriteTexture->GetResource()->GetSizeY(),
+					0, static_cast<float>(SpriteTexture->GetResource()->GetSizeX()),
+					0, static_cast<float>(SpriteTexture->GetResource()->GetSizeY()),
 					SE_BLEND_Masked);
 			}
 			PDI->SetHitProxy(NULL);
@@ -513,14 +513,15 @@ public:
 		OuterVerts[1][0] = FVector2D(Points[1]) - OuterSide;
 		OuterVerts[1][1] = FVector2D(Points[1]) + OuterSide;
 
-		float Heights[2];
-		Heights[0] = Points[0].Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
-		Heights[1] = Points[1].Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue;
+		const double Heights[2] = {
+			Points[0].Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue,
+			Points[1].Z * LANDSCAPE_INV_ZSCALE + LandscapeDataAccess::MidValue
+		};
 
-		int32 MinX = FMath::CeilToInt(FMath::Min(FMath::Min(OuterVerts[0][0].X, OuterVerts[0][1].X), FMath::Min(OuterVerts[1][0].X, OuterVerts[1][1].X))) - 1; // +/- 1 to make sure we have enough data for calculating correct normals
-		int32 MinY = FMath::CeilToInt(FMath::Min(FMath::Min(OuterVerts[0][0].Y, OuterVerts[0][1].Y), FMath::Min(OuterVerts[1][0].Y, OuterVerts[1][1].Y))) - 1;
-		int32 MaxX = FMath::FloorToInt(FMath::Max(FMath::Max(OuterVerts[0][0].X, OuterVerts[0][1].X), FMath::Max(OuterVerts[1][0].X, OuterVerts[1][1].X))) + 1;
-		int32 MaxY = FMath::FloorToInt(FMath::Max(FMath::Max(OuterVerts[0][0].Y, OuterVerts[0][1].Y), FMath::Max(OuterVerts[1][0].Y, OuterVerts[1][1].Y))) + 1;
+		int32 MinX = FMath::CeilToInt32(FMath::Min(FMath::Min(OuterVerts[0][0].X, OuterVerts[0][1].X), FMath::Min(OuterVerts[1][0].X, OuterVerts[1][1].X))) - 1; // +/- 1 to make sure we have enough data for calculating correct normals
+		int32 MinY = FMath::CeilToInt32(FMath::Min(FMath::Min(OuterVerts[0][0].Y, OuterVerts[0][1].Y), FMath::Min(OuterVerts[1][0].Y, OuterVerts[1][1].Y))) - 1;
+		int32 MaxX = FMath::FloorToInt32(FMath::Max(FMath::Max(OuterVerts[0][0].X, OuterVerts[0][1].X), FMath::Max(OuterVerts[1][0].X, OuterVerts[1][1].X))) + 1;
+		int32 MaxY = FMath::FloorToInt32(FMath::Max(FMath::Max(OuterVerts[0][0].Y, OuterVerts[0][1].Y), FMath::Max(OuterVerts[1][0].Y, OuterVerts[1][1].Y))) + 1;
 
 		// I'd dearly love to use FIntRect in this code, but Landscape works with "Inclusive Max" and FIntRect is "Exclusive Max"
 		int32 LandscapeMinX, LandscapeMinY, LandscapeMaxX, LandscapeMaxY;

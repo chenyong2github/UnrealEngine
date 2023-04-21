@@ -32,12 +32,12 @@ namespace
 		float Height[4];
 		for (int32 Idx = 0; Idx < 4; ++Idx)
 		{
-			int32 XX = FMath::Clamp(FMath::FloorToInt(X + XYOffset.X + XOffsets[Idx]), MinX, MaxX);
-			int32 YY = FMath::Clamp(FMath::FloorToInt(Y + XYOffset.Y + YOffsets[Idx]), MinY, MaxY);
-			Height[Idx] = XYOffsetVectorData[XX - MinX + (YY - MinY) * (MaxX - MinX + 1)].Z;
+			int32 XX = FMath::Clamp(FMath::FloorToInt32(X + XYOffset.X + XOffsets[Idx]), MinX, MaxX);
+			int32 YY = FMath::Clamp(FMath::FloorToInt32(Y + XYOffset.Y + YOffsets[Idx]), MinY, MaxY);
+			Height[Idx] = static_cast<float>(XYOffsetVectorData[XX - MinX + (YY - MinY) * (MaxX - MinX + 1)].Z);
 		}
-		float FracX = FMath::Fractional(X + XYOffset.X);
-		float FracY = FMath::Fractional(Y + XYOffset.Y);
+		float FracX = static_cast<float>(FMath::Fractional(X + XYOffset.X));
+		float FracY = static_cast<float>(FMath::Fractional(Y + XYOffset.Y));
 		return FMath::Lerp(FMath::Lerp(Height[0], Height[1], FracX),
 			FMath::Lerp(Height[2], Height[3], FracX),
 			FracY);
@@ -207,7 +207,7 @@ public:
 											));
 									}
 
-									TotalArea += (((P[3] - P[0]) ^ (P[1] - P[0])).Size() + ((P[3] - P[0]) ^ (P[2] - P[0])).Size()) * 0.5f;
+									TotalArea += static_cast<float>((((P[3] - P[0]) ^ (P[1] - P[0])).Size() + ((P[3] - P[0]) ^ (P[2] - P[0])).Size()) * 0.5f);
 									QuadNum++;
 									QuadX[ComponentIndexX*ComponentSizeQuads + X - X1]++;
 									QuadY[ComponentIndexY*ComponentSizeQuads + Y - Y1]++;
@@ -226,7 +226,7 @@ public:
 				}
 			}
 
-			const float HeightErrorThreshold = DrawScale3D.X * 0.5f;
+			const float HeightErrorThreshold = static_cast<float>(DrawScale3D.X * 0.5f);
 			// Made XYOffset and new Z value allocation...
 			float AreaErrorThreshold = FMath::Square(AreaResolution);
 			float RemainArea = TotalArea;
@@ -245,7 +245,7 @@ public:
 				float AreaBaseError = AverageArea * 0.5f;
 				float TotalLineArea = 0.0f;
 				float TargetLineArea = AverageArea * QuadY[Y - Y1];
-				float YOffset = Y + 1, PreYOffset = Y + 1; // Need to be bigger than previous Y
+				float YOffset = static_cast<float>(Y + 1), PreYOffset = static_cast<float>(Y + 1); // Need to be bigger than previous Y
 				float StepSize = FPlatformMath::Sqrt(2.f) * 0.25f;
 				float LineAreaDiff = FLT_MAX; //Abs(TotalLineArea - TargetLineArea);
 				int32 IterNum = 0;
@@ -256,7 +256,7 @@ public:
 					YOffset = YOffset + 1.0f;
 					if (YOffset >= Y2)
 					{
-						YOffset = Y2;
+						YOffset = static_cast<float>(Y2);
 						break;
 					}
 				}
@@ -294,12 +294,12 @@ public:
 								if (Idx == 2)
 								{
 									FVector P0(GetWorldPos(LocalToWorld, FVector2D(XX - Comp->GetSectionBase().X, YY0 - Comp->GetSectionBase().Y), XYOffsetVectorData[XX - X1 + (YY0 - Y1) * (X2 - X1 + 1)]));
-									TotalHeightError += FMath::Abs(((P[2] - P0) ^ (P2 - P[2])).Size() - ((P1 - P0) ^ (P2 - P1)).Size());
+									TotalHeightError += static_cast<float>(FMath::Abs(((P[2] - P0) ^ (P2 - P[2])).Size() - ((P1 - P0) ^ (P2 - P1)).Size()));
 								}
 							}
 
 							//TotalHeightError += Abs( XYOffsetVectorData( X - X1 + (YY2 - Y1) * (X2-X1+1) ).Z - XYOffsetVectorData( X - X1 + (YY1 - Y1) * (X2-X1+1) ).Z * appFractional(YOffset) );  
-							TotalLineArea += (((P[3] - P[0]) ^ (P[1] - P[0])).Size() + ((P[3] - P[0]) ^ (P[2] - P[0])).Size()) * 0.5f;
+							TotalLineArea += static_cast<float>((((P[3] - P[0]) ^ (P[1] - P[0])).Size() + ((P[3] - P[0]) ^ (P[2] - P[0])).Size()) * 0.5f);
 						}
 					}
 
@@ -335,12 +335,12 @@ public:
 						// clamp
 						if (YOffset < Y1)
 						{
-							YOffset = Y1;
+							YOffset = static_cast<float>(Y1);
 							break;
 						}
 						if (YOffset >= Y2)
 						{
-							YOffset = Y2;
+							YOffset = static_cast<float>(Y2);
 							break;
 						}
 					}
@@ -392,7 +392,7 @@ public:
 				float AreaBaseError = AverageArea * 0.5f;
 				float TotalLineArea = 0.0f;
 				float TargetLineArea = AverageArea * QuadX[X - X1];
-				float XOffset = X + 1, PreXOffset = X + 1; // Need to be bigger than previous Y
+				float XOffset = static_cast<float>(X + 1), PreXOffset = static_cast<float>(X + 1); // Need to be bigger than previous Y
 				float StepSize = FMath::Sqrt(2.f) * 0.25f;
 				float LineAreaDiff = FLT_MAX; // Abs(TotalLineArea - TargetLineArea);
 				int32 IterNum = 0;
@@ -403,7 +403,7 @@ public:
 					XOffset = XOffset + 1.0f;
 					if (XOffset >= X2)
 					{
-						XOffset = X2;
+						XOffset = static_cast<float>(X2);
 						break;
 					}
 				}
@@ -440,12 +440,12 @@ public:
 								if (Idx == 1)
 								{
 									FVector P0(GetWorldPos(LocalToWorld, FVector2D(XX0 - Comp->GetSectionBase().X, YY - Comp->GetSectionBase().Y), NewYOffsets[XX0 - X1 + (YY - Y1) * (X2 - X1 + 1)]));
-									TotalHeightError += FMath::Abs(((P[1] - P0) ^ (P2 - P[1])).Size() - ((P1 - P0) ^ (P2 - P1)).Size());
+									TotalHeightError += static_cast<float>(FMath::Abs(((P[1] - P0) ^ (P2 - P[1])).Size() - ((P1 - P0) ^ (P2 - P1)).Size()));
 								}
 							}
 
 							//TotalHeightError += Abs( NewYOffsets( XX1 - X1 + (Y - Y1) * (X2-X1+1) ).Z - NewYOffsets( XX2 - X1 + (Y - Y1) * (X2-X1+1) ).Z * appFractional(XOffset) );  
-							TotalLineArea += (((P[3] - P[0]) ^ (P[1] - P[0])).Size() + ((P[3] - P[0]) ^ (P[2] - P[0])).Size()) * 0.5f;
+							TotalLineArea += static_cast<float>((((P[3] - P[0]) ^ (P[1] - P[0])).Size() + ((P[3] - P[0]) ^ (P[2] - P[0])).Size()) * 0.5f);
 						}
 					}
 
@@ -481,12 +481,12 @@ public:
 						// clamp
 						if (XOffset <= X1)
 						{
-							XOffset = X1;
+							XOffset = static_cast<float>(X1);
 							break;
 						}
 						else if (XOffset >= X2)
 						{
-							XOffset = X2;
+							XOffset = static_cast<float>(X2);
 							break;
 						}
 					}
@@ -522,8 +522,8 @@ public:
 
 
 		// Same as Gizmo fall off...
-		float W = X2 - X1 + 1;
-		float H = Y2 - Y1 + 1;
+		float W = static_cast<float>(X2 - X1 + 1);
+		float H = static_cast<float>(Y2 - Y1 + 1);
 		float FalloffRadius = W * 0.5f * UISettings->GetCurrentToolBrushFalloff();
 		float SquareRadius = W * 0.5f - FalloffRadius;
 		for (int32 Y = 0; Y <= Y2 - Y1; ++Y)
@@ -532,10 +532,10 @@ public:
 			{
 				int32 Index = X + Y * (X2 - X1 + 1);
 				FVector2D TransformedLocal(FMath::Abs(X - W * 0.5f), FMath::Abs(Y - H * 0.5f) * (W / H));
-				float Cos = FMath::Abs(TransformedLocal.X) / TransformedLocal.Size();
-				float Sin = FMath::Abs(TransformedLocal.Y) / TransformedLocal.Size();
-				float RatioX = FalloffRadius > 0.0f ? 1.0f - FMath::Clamp((FMath::Abs(TransformedLocal.X) - Cos*SquareRadius) / FalloffRadius, 0.0f, 1.0f) : 1.0f;
-				float RatioY = FalloffRadius > 0.0f ? 1.0f - FMath::Clamp((FMath::Abs(TransformedLocal.Y) - Sin*SquareRadius) / FalloffRadius, 0.0f, 1.0f) : 1.0f;
+				float Cos = static_cast<float>(FMath::Abs(TransformedLocal.X) / TransformedLocal.Size());
+				float Sin = static_cast<float>(FMath::Abs(TransformedLocal.Y) / TransformedLocal.Size());
+				float RatioX = FalloffRadius > 0.0f ? 1.0f - FMath::Clamp(static_cast<float>((FMath::Abs(TransformedLocal.X) - Cos*SquareRadius) / FalloffRadius), 0.0f, 1.0f) : 1.0f;
+				float RatioY = FalloffRadius > 0.0f ? 1.0f - FMath::Clamp(static_cast<float>((FMath::Abs(TransformedLocal.Y) - Sin*SquareRadius) / FalloffRadius), 0.0f, 1.0f) : 1.0f;
 				float Ratio = TransformedLocal.SizeSquared() > FMath::Square(SquareRadius) ? RatioX * RatioY : 1.0f; //TransformedLocal.X / LW * TransformedLocal.Y / LW;
 				float PaintAmount = Ratio*Ratio*(3 - 2 * Ratio);
 

@@ -829,7 +829,7 @@ void ULandscapeEditorObject::InitializeDefaultHeightData(TArray<uint16>& OutData
 	// Initialize blank heightmap data
 	for (int32 X = 0; X < SizeX; ++X)
 	{
-		StrideData[X] = LandscapeDataAccess::MidValue;
+		StrideData[X] = static_cast<uint16>(LandscapeDataAccess::MidValue);
 	}
 	for (int32 Y = 0; Y < SizeY; ++Y)
 	{

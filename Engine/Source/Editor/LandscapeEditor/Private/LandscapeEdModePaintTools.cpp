@@ -252,7 +252,7 @@ public:
 
 		// Adjust strength based on brush size and drawscale, so strength 1 = one hemisphere
 		const float AdjustedStrength = ToolTarget::StrengthMultiplier(this->LandscapeInfo, UISettings->GetCurrentToolBrushRadius());
-		FWeightmapToolTarget::CacheClass::DataType DestValue = FWeightmapToolTarget::CacheClass::ClampValue(255.0f * UISettings->WeightTargetValue);
+		FWeightmapToolTarget::CacheClass::DataType DestValue = FWeightmapToolTarget::CacheClass::ClampValue(static_cast<int32>(255.0f * UISettings->WeightTargetValue));
 
 		float PaintStrength = UISettings->GetCurrentToolStrength() * Pressure * AdjustedStrength;
 
@@ -404,11 +404,11 @@ public:
 					int32 Delta = DataScanline[X] - FlattenHeight;
 					if (Delta > 0)
 					{
-						DataScanline[X] = FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenHeight, Strength));
+						DataScanline[X] = static_cast<ToolTarget::CacheClass::DataType>(FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenHeight, Strength)));
 					}
 					else
 					{
-						DataScanline[X] = FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenHeight, Strength));
+						DataScanline[X] = static_cast<ToolTarget::CacheClass::DataType>(FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenHeight, Strength)));
 					}
 				}
 			}
@@ -484,7 +484,7 @@ public:
 		const float AdjustedStrength = ToolTarget::StrengthMultiplier(this->LandscapeInfo, UISettings->GetCurrentToolBrushRadius());
 
 		float SculptStrength = UISettings->GetCurrentToolStrength() * Pressure * AdjustedStrength;
-		const float DeltaTime = FMath::Min<float>(FApp::GetDeltaTime(), 0.1f); // Under 10 fps slow down paint speed
+		const float DeltaTime = FMath::Min<float>(static_cast<float>(FApp::GetDeltaTime()), 0.1f); // Under 10 fps slow down paint speed
 		SculptStrength *= DeltaTime * 3.0f; // * 3.0f to partially compensate for impact of DeltaTime on slowing the tools down compared to the old framerate-dependent version
 
 		if (SculptStrength <= 0.0f)
@@ -615,7 +615,7 @@ public:
 						WorldLoc.Z = (BrushPlane.W - BrushPlane.X*WorldLoc.X - BrushPlane.Y*WorldLoc.Y) / BrushPlane.Z;
 
 						// Painted amount lerps based on brush falloff.
-						float PaintValue = FMath::Lerp<float>((float)SourceValue, FromWorld.TransformPosition(WorldLoc).Z, BrushValue);
+						float PaintValue = FMath::Lerp<float>(SourceValue, static_cast<float>(FromWorld.TransformPosition(WorldLoc).Z), BrushValue);
 
 						if (bInvert)
 						{
@@ -852,8 +852,8 @@ public:
 		if (InEdMode->UISettings->bUseFlattenTarget && bTargetIsHeightmap)
 		{
 			FTransform LocalToWorld = InTarget.LandscapeInfo->GetLandscapeProxy()->ActorToWorld();
-			float Height = (InEdMode->UISettings->FlattenTarget - LocalToWorld.GetTranslation().Z) / LocalToWorld.GetScale3D().Z;
-			FlattenValue = LandscapeDataAccess::GetTexHeight(Height);
+			float Height = static_cast<float>((InEdMode->UISettings->FlattenTarget - LocalToWorld.GetTranslation().Z) / LocalToWorld.GetScale3D().Z);
+			FlattenValue = static_cast<typename ToolTarget::CacheClass::DataType>(LandscapeDataAccess::GetTexHeight(Height));
 			bInitializedFlattenValue = true;
 		}
 	}
@@ -876,8 +876,8 @@ public:
 		if (!bInitializedFlattenValue || (UISettings->bPickValuePerApply && bTargetIsHeightmap))
 		{
 			bInitializedFlattenValue = false;
-			float FlattenX = InteractorPositions[0].Position.X;
-			float FlattenY = InteractorPositions[0].Position.Y;
+			float FlattenX = static_cast<float>(InteractorPositions[0].Position.X);
+			float FlattenY = static_cast<float>(InteractorPositions[0].Position.Y);
 			int32 FlattenHeightX = FMath::FloorToInt(FlattenX);
 			int32 FlattenHeightY = FMath::FloorToInt(FlattenY);
 
@@ -910,7 +910,7 @@ public:
 				this->Cache.CacheData(FlattenHeightX, FlattenHeightY, FlattenHeightX + 1, FlattenHeightY + 1);
 				InterpolatedValue = this->Cache.GetValue(FlattenX, FlattenY);
 			}
-			FlattenValue = InterpolatedValue;
+			FlattenValue = static_cast<typename ToolTarget::CacheClass::DataType>(InterpolatedValue);
 
 			if (bUseSlopeFlatten && bTargetIsHeightmap)
 			{
@@ -929,7 +929,7 @@ public:
 				{
 					FlattenNormal = this->Cache.GetNormal(FlattenHeightX, FlattenHeightY);
 				}
-				FlattenPlaneDist = -(FlattenNormal | FVector(FlattenX, FlattenY, InterpolatedValue));
+				FlattenPlaneDist = static_cast<float>(-(FlattenNormal | FVector(FlattenX, FlattenY, InterpolatedValue)));
 			}
 
 			bInitializedFlattenValue = true;
@@ -986,8 +986,8 @@ public:
 							if (bTargetIsHeightmap)
 							{
 								const FTransform& LocalToWorld = this->Target.LandscapeInfo->GetLandscapeProxy()->ActorToWorld();
-								float ScaleZ = LocalToWorld.GetScale3D().Z;
-								float TranslateZ = LocalToWorld.GetTranslation().Z;
+								float ScaleZ = static_cast<float>(LocalToWorld.GetScale3D().Z);
+								float TranslateZ = static_cast<float>(LocalToWorld.GetTranslation().Z);
 								float TerraceInterval = FMath::Clamp(UISettings->TerraceInterval, 1.0f, 32768.f);
 								float Smoothness = UISettings->TerraceSmooth;
 								float WorldHeight = LandscapeDataAccess::GetLocalHeight(DataScanline[X]);
@@ -1010,15 +1010,15 @@ public:
 
 								float FinalHeight = FMath::Lerp(CurrentHeight, WorldHeight, Strength);
 								FinalHeight = (FinalHeight - TranslateZ) / ScaleZ;
-								DataScanline[X] = LandscapeDataAccess::GetTexHeight(FinalHeight);
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(LandscapeDataAccess::GetTexHeight(FinalHeight));
 							}
 							break;
 						case ELandscapeToolFlattenMode::Interval:
 							if (bTargetIsHeightmap)
 							{
 								const FTransform& LocalToWorld = this->Target.LandscapeInfo->GetLandscapeProxy()->ActorToWorld();
-								float ScaleZ = LocalToWorld.GetScale3D().Z;
-								float TranslateZ = LocalToWorld.GetTranslation().Z;
+								float ScaleZ = static_cast<float>(LocalToWorld.GetScale3D().Z);
+								float TranslateZ = static_cast<float>(LocalToWorld.GetTranslation().Z);
 								float TerraceInterval = UISettings->TerraceInterval;
 								float TargetHeight = LandscapeDataAccess::GetLocalHeight(FlattenValue);
 								float CurrentHeight = LandscapeDataAccess::GetLocalHeight(DataScanline[X]);
@@ -1032,64 +1032,64 @@ public:
 							
 								//back to local space of landscape object
 								TargetHeight = (TargetHeight - TranslateZ) / ScaleZ;
-								DataScanline[X] = LandscapeDataAccess::GetTexHeight(TargetHeight);
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(LandscapeDataAccess::GetTexHeight(TargetHeight));
 
 							}
 							break;
 						case ELandscapeToolFlattenMode::Raise:
 							if (Delta < 0)
 							{
-								DataScanline[X] = FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenValue, Strength));
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenValue, Strength)));
 							}
 							break;
 						case ELandscapeToolFlattenMode::Lower:
 							if (Delta > 0)
 							{
-								DataScanline[X] = FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenValue, Strength));
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenValue, Strength)));
 							}
 							break;
 						default:
 						case ELandscapeToolFlattenMode::Both:
 							if (Delta > 0)
 							{
-								DataScanline[X] = FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenValue, Strength));
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenValue, Strength)));
 							}
 							else
 							{
-								DataScanline[X] = FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenValue, Strength));
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)FlattenValue, Strength)));
 							}
 							break;
 						}
 					}
 					else
 					{
-						typename ToolTarget::CacheClass::DataType DestValue = -(FlattenNormal.X * X + FlattenNormal.Y * Y + FlattenPlaneDist) / FlattenNormal.Z;
+						typename ToolTarget::CacheClass::DataType DestValue = static_cast<typename ToolTarget::CacheClass::DataType>(-(FlattenNormal.X * X + FlattenNormal.Y * Y + FlattenPlaneDist) / FlattenNormal.Z);
 						//float PlaneDist = FlattenNormal | FVector(X, Y, HeightData(HeightDataIndex)) + FlattenPlaneDist;
-						float PlaneDist = DataScanline[X] - DestValue;
-						DestValue = DataScanline[X] - PlaneDist * Strength;
+						float PlaneDist = static_cast<float>(DataScanline[X] - DestValue);
+						DestValue = static_cast<typename ToolTarget::CacheClass::DataType>(DataScanline[X] - PlaneDist * Strength);
 						switch (UISettings->FlattenMode)
 						{
 						case ELandscapeToolFlattenMode::Raise:
 							if (PlaneDist < 0)
 							{
-								DataScanline[X] = FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)DestValue, Strength));
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)DestValue, Strength)));
 							}
 							break;
 						case ELandscapeToolFlattenMode::Lower:
 							if (PlaneDist > 0)
 							{
-								DataScanline[X] = FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)DestValue, Strength));
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)DestValue, Strength)));
 							}
 							break;
 						default:
 						case ELandscapeToolFlattenMode::Both:
 							if (PlaneDist > 0)
 							{
-								DataScanline[X] = FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)DestValue, Strength));
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(FMath::FloorToInt(FMath::Lerp((float)DataScanline[X], (float)DestValue, Strength)));
 							}
 							else
 							{
-								DataScanline[X] = FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)DestValue, Strength));
+								DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(FMath::CeilToInt(FMath::Lerp((float)DataScanline[X], (float)DestValue, Strength)));
 							}
 							break;
 						}
@@ -1193,11 +1193,11 @@ public:
 				HeightmapFlattenPreviewComponent->SetRelativeLocation(Origin, false);
 
 				// Clamp the value to the height map
-				uint16 TexHeight = LandscapeDataAccess::GetTexHeight(MousePosition.Z);
+				uint16 TexHeight = LandscapeDataAccess::GetTexHeight(static_cast<float>(MousePosition.Z));
 				float Height = LandscapeDataAccess::GetLocalHeight(TexHeight);
 
 				// Convert the height back to world space
-				this->EdMode->UISettings->FlattenEyeDropperModeDesiredTarget = (Height * LocalToWorld.GetScale3D().Z) + LocalToWorld.GetTranslation().Z;
+				this->EdMode->UISettings->FlattenEyeDropperModeDesiredTarget = static_cast<float>(Height * LocalToWorld.GetScale3D().Z + LocalToWorld.GetTranslation().Z);
 			}
 		}
 
@@ -1342,7 +1342,7 @@ public:
 						float TotalStrength = BrushValue * UISettings->GetCurrentToolStrength() * Pressure * ToolTarget::StrengthMultiplier(this->LandscapeInfo, UISettings->GetCurrentToolBrushRadius());
 						FNoiseParameter NoiseParam(0, UISettings->NoiseScale, TotalStrength * BrushSizeAdjust);
 						float PaintAmount = NoiseModeConversion(UISettings->NoiseMode, NoiseParam.NoiseAmount, NoiseParam.Sample(X, Y));
-						DataScanline[X] = ToolTarget::CacheClass::ClampValue(OriginalValue + PaintAmount);
+						DataScanline[X] = static_cast<typename ToolTarget::CacheClass::DataType>(ToolTarget::CacheClass::ClampValue(static_cast<int32>(OriginalValue + PaintAmount)));
 					}
 				}
 			}
