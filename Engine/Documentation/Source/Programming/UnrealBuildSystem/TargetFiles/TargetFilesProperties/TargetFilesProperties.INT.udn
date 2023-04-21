@@ -236,6 +236,8 @@ $ UnsafeTypeCastWarningLevel (WarningLevel): Indicates what warning/error level 
 
 $ bUndefinedIdentifierErrors (Boolean): Forces the use of undefined identifiers in conditional expressions to be treated as errors.
 
+$ PCHPerformanceIssueWarningLevel (WarningLevel): Indicates what warning/error level to treat potential PCH performance issues.
+
 $ ModuleIncludePathWarningLevel (WarningLevel): How to treat general module include path validation messages
 
 $ ModuleIncludePrivateWarningLevel (WarningLevel): How to treat private module include path validation messages, where a module is adding an include path that exposes private headers
