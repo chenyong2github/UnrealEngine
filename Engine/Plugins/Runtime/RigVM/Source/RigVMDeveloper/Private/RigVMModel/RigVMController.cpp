@@ -2024,7 +2024,7 @@ bool URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 					{
 						Reference->Modify();
 
-						const FName& MappedVariable = Reference->VariableMap.FindChecked(InOldVarName);
+						const FName MappedVariable = Reference->VariableMap.FindChecked(InOldVarName);
 						Reference->VariableMap.Remove(InOldVarName);
 						Reference->VariableMap.FindOrAdd(InNewVarName) = MappedVariable; 
 
