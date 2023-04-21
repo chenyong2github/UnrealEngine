@@ -1986,9 +1986,10 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// process the files that came from UE/cross-platform land
 			SourceFiles.SortBy(x => x.Reference.FullName);
 
+			Dictionary<DirectoryReference, int> BuildFileMap = new();
 			foreach (XcodeSourceFile SourceFile in SourceFiles.OfType<XcodeSourceFile>())
 			{
-				SharedFileCollection.ProcessFile(SourceFile, bIsForBuild:IsGeneratedProject, false);
+				SharedFileCollection.ProcessFile(SourceFile, bIsForBuild:IsGeneratedProject, bIsFolder:false, SourceToBuildFileMap:BuildFileMap);
 			}
 
 			// cache the main group
