@@ -239,6 +239,11 @@ struct ScopedMergeResolveTransaction
 
 EAssetCommandResult UAssetDefinition_DataAsset::Merge(const FAssetAutomaticMergeArgs& MergeArgs) const
 {
+	if (!ensure(MergeArgs.LocalAsset))
+	{
+		return EAssetCommandResult::Unhandled;
+	}
+	
 	FAssetManualMergeArgs ManualMergeArgs;
 	ManualMergeArgs.LocalAsset = MergeArgs.LocalAsset;
 	ManualMergeArgs.ResolutionCallback = MergeArgs.ResolutionCallback;
