@@ -3066,14 +3066,19 @@ public:
 	}
 
 	/**
-	 * Tries to fix an export path containing short class name. Will not modify the input InOutExportPathToFix if a fixup
-	 * was not necessary or unsuccessful
+	 * Tries to fix an export path containing short class name. Will not modify the input InOutExportPathToFix if a
+	 * fixup was not necessary. Optionally modifies it if a fixup is necessary but unsuccessful.
 	 * @param InOutExportPathToFix Export path (Class'/Path/To.Object')
 	 * @param AmbiguousMessageVerbosity Verbosity with which to log a message if class name is ambiguous
 	 * @param AmbiguousClassMessage Additional message to log when class name is ambiguous (e.g. current operation)
-	 * @return True if the short path was successfully fixed. False if the provided export path did not contain short class name or the short path could not be fixed.
+	 * @param bClearOnError If the fixup is necessary but unsuccessful, if bClearOnError, clear the value and return
+	 *        true, otherwise leave the value unchanged and return false.
+	 * @return True if the short path was successfully fixed. False if the provided export path did not contain short
+	 *         class name or the short path could not be fixed.
 	 */
-	static bool TryFixShortClassNameExportPath(FString& InOutExportPathToFix, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* AmbiguousClassMessage = nullptr);
+	static bool TryFixShortClassNameExportPath(FString& InOutExportPathToFix,
+		ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging,
+		const TCHAR* AmbiguousClassMessage = nullptr, bool bClearOnError = false);
 
 	/**
 	 * Returns the ObjectName portion of a ClassPath name: "/Path/To.Object" is converted to "Object". 

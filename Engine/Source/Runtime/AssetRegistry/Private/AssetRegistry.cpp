@@ -4765,8 +4765,15 @@ void FAssetRegistryImpl::PostLoadAssetRegistryTags(FAssetData* AssetData)
 					FAssetDataTagMap TagsAndValues = AssetData->TagsAndValues.CopyMap();
 					for (const UObject::FAssetRegistryTag& Tag : TagsToModify)
 					{
-						FString& Value = TagsAndValues.FindOrAdd(Tag.Name);
-						Value = Tag.Value;
+						if (!Tag.Value.IsEmpty())
+						{
+							FString& Value = TagsAndValues.FindOrAdd(Tag.Name);
+							Value = Tag.Value;
+						}
+						else
+						{
+							TagsAndValues.Remove(Tag.Name);
+						}
 					}
 					AssetData->TagsAndValues = FAssetDataTagMapSharedView(MoveTemp(TagsAndValues));
 				}

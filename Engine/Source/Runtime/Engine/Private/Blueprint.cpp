@@ -1105,7 +1105,8 @@ void UBlueprint::PostLoadBlueprintAssetRegistryTags(const FAssetData& InAssetDat
 		FString TagValue = InAssetData.GetTagValueRef<FString>(TagName);
 		if (!TagValue.IsEmpty() && TagValue != TEXT("None"))
 		{
-			if (UClass::TryFixShortClassNameExportPath(TagValue, ELogVerbosity::Warning, TEXT("UBlueprint::PostLoadAssetRegistryTags")))
+			if (UClass::TryFixShortClassNameExportPath(TagValue, ELogVerbosity::Warning,
+				TEXT("UBlueprint::PostLoadAssetRegistryTags"), true /* bClearOnError */))
 			{
 				OutTagsAndValuesToUpdate.Add(FAssetRegistryTag(TagName, TagValue, TagType));
 			}

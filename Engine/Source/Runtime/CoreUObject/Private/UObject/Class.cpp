@@ -6066,7 +6066,9 @@ FTopLevelAssetPath UClass::TryConvertShortTypeNameToPathName(UClass* TypeClass, 
 	}
 }
 
-bool UClass::TryFixShortClassNameExportPath(FString& InOutExportPathToFix, ELogVerbosity::Type AmbiguousMessageVerbosity /*= ELogVerbosity::NoLogging*/, const TCHAR* AmbiguousClassMessage /*= nullptr*/)
+bool UClass::TryFixShortClassNameExportPath(FString& InOutExportPathToFix,
+	ELogVerbosity::Type AmbiguousMessageVerbosity /*= ELogVerbosity::NoLogging*/,
+	const TCHAR* AmbiguousClassMessage /*= nullptr*/, bool bClearOnError /* = false */)
 {
 	FString ClassName;
 	FString ObjectPath;
@@ -6075,9 +6077,9 @@ bool UClass::TryFixShortClassNameExportPath(FString& InOutExportPathToFix, ELogV
 		if (FPackageName::IsShortPackageName(ClassName))
 		{
 			FTopLevelAssetPath ClassPathName = UClass::TryConvertShortTypeNameToPathName<UClass>(ClassName, AmbiguousMessageVerbosity, AmbiguousClassMessage);
-			if (!ClassPathName.IsNull())
+			if (!ClassPathName.IsNull() || bClearOnError)
 			{
-				InOutExportPathToFix = FObjectPropertyBase::GetExportPath(ClassPathName, ObjectPath);
+				InOutExportPathToFix = !ClassPathName.IsNull() ? FObjectPropertyBase::GetExportPath(ClassPathName, ObjectPath) : FString();
 				return true;
 			}
 		}
