@@ -44,6 +44,9 @@ public:
 	/** Creates submenu for manipulating the gizmo numerical UI */
 	virtual void MakeGizmoNumericalUISubMenu(FMenuBuilder& MenuBuilder);
 
+	/** Creates a widget where the distortion visualization settings can be changed. */
+	virtual TSharedRef<SWidget> CreateDistortionVisualsSettingsWidget();
+
 	/** Enables or diables the Play in Editor mode warning for the editor */
 	virtual void EnableShowPIEWarning(bool bEnable);
 

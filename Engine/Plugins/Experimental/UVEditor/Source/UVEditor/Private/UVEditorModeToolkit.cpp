@@ -299,6 +299,12 @@ TSharedRef<SWidget> FUVEditorModeToolkit::CreateBackgroundSettingsWidget()
 	return CreateDisplaySettingsWidget(Mode->GetBackgroundSettingsObject());
 }
 
+TSharedRef<SWidget> FUVEditorModeToolkit::CreateDistortionVisualsSettingsWidget()
+{
+	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+	return CreateDisplaySettingsWidget(Mode->GetDistortionVisualsSettingsObject());
+}
+
 TSharedRef<SWidget> FUVEditorModeToolkit::CreateGridSettingsWidget()
 {
 	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());

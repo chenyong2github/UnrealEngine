@@ -24,10 +24,8 @@ namespace UVEditorToolMeshInputLocals
 
 	void NotifyUnwrapPreviewDeferredEditCompleted(UUVEditorToolMeshInput* InputObject,
 		const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, 
-		const TArray<int32>* FastRenderUpdateTids)
+		const TArray<int32>* FastRenderUpdateTids, EMeshRenderAttributeFlags ChangedAttribs)
 	{
-		EMeshRenderAttributeFlags ChangedAttribs = EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs;
-
 		// Currently there's no way to do a partial or region update if the connectivity changed in any way.
 		if (ChangedConnectivityTids == nullptr || !ChangedConnectivityTids->IsEmpty())
 		{
@@ -44,10 +42,8 @@ namespace UVEditorToolMeshInputLocals
 	}
 
 	void NotifyAppliedPreviewDeferredEditCompleted(UUVEditorToolMeshInput* InputObject,
-		const TArray<int32>* ChangedVids, const TArray<int32>* FastRenderUpdateTids)
+		const TArray<int32>* ChangedVids, const TArray<int32>* FastRenderUpdateTids, EMeshRenderAttributeFlags ChangedAttribs)
 	{
-		EMeshRenderAttributeFlags ChangedAttribs = EMeshRenderAttributeFlags::VertexUVs;
-
 		if (FastRenderUpdateTids) 
 		{
 			InputObject->AppliedPreview->PreviewMesh->NotifyRegionDeferredEditCompleted(*FastRenderUpdateTids, ChangedAttribs);
@@ -159,7 +155,7 @@ void UUVEditorToolMeshInput::UpdateUnwrapPreviewOverlayFromPositions(const TArra
 
 	// We only updated UV's, but this update usually comes after a change to unwrap vert positions, and we
 	// can assume that the user hasn't issued a notification yet. So we do a normal unwrap preview update.
-	NotifyUnwrapPreviewDeferredEditCompleted(this, ChangedVids, ChangedConnectivityTids, FastRenderUpdateTids);
+	NotifyUnwrapPreviewDeferredEditCompleted(this, ChangedVids, ChangedConnectivityTids, FastRenderUpdateTids, GetUnwrapUpdateAttributeFlags());
 
 	if (WireframeDisplay)
 	{
@@ -192,7 +188,7 @@ void UUVEditorToolMeshInput::UpdateAppliedPreviewFromUnwrapPreview(const TArray<
 			UVUnwrapMeshUtil::UpdateOverlayFromOverlay(*SourceOverlay, *DestOverlay, false, ChangedVids, ChangedConnectivityTids);
 	}, false);
 
-	NotifyAppliedPreviewDeferredEditCompleted(this, ChangedVids, FastRenderUpdateTids);
+	NotifyAppliedPreviewDeferredEditCompleted(this, ChangedVids, FastRenderUpdateTids, GetAppliedUpdateAttributeFlags());
 }
 
 void UUVEditorToolMeshInput::UpdateUnwrapPreviewFromAppliedPreview(const TArray<int32>* ChangedElementIDs, 
@@ -211,7 +207,7 @@ void UUVEditorToolMeshInput::UpdateUnwrapPreviewFromAppliedPreview(const TArray<
 		UVUnwrapMeshUtil::UpdateOverlayFromOverlay(*SourceOverlay, *DestOverlay, false, ChangedElementIDs, ChangedConnectivityTids);
 	}, false);
 
-	NotifyUnwrapPreviewDeferredEditCompleted(this, ChangedElementIDs, ChangedConnectivityTids, FastRenderUpdateTids);
+	NotifyUnwrapPreviewDeferredEditCompleted(this, ChangedElementIDs, ChangedConnectivityTids, FastRenderUpdateTids, GetUnwrapUpdateAttributeFlags());
 
 	if (WireframeDisplay)
 	{
@@ -245,7 +241,7 @@ void UUVEditorToolMeshInput::UpdatePreviewsFromCanonical(const TArray<int32>* Ch
 	{
 		UVUnwrapMeshUtil::UpdateUVUnwrapMesh(*UnwrapCanonical, Mesh, ChangedVids, ChangedConnectivityTids);
 	}, false);
-	NotifyUnwrapPreviewDeferredEditCompleted(this, ChangedVids, ChangedConnectivityTids, FastRenderUpdateTids);
+	NotifyUnwrapPreviewDeferredEditCompleted(this, ChangedVids, ChangedConnectivityTids, FastRenderUpdateTids, GetUnwrapUpdateAttributeFlags());
 
 	if (WireframeDisplay)
 	{
@@ -259,7 +255,7 @@ void UUVEditorToolMeshInput::UpdatePreviewsFromCanonical(const TArray<int32>* Ch
 		FDynamicMeshUVOverlay* DestOverlay = Mesh.Attributes()->GetUVLayer(UVLayerIndex);
 		UVUnwrapMeshUtil::UpdateOverlayFromOverlay(*SourceOverlay, *DestOverlay, true, ChangedVids, ChangedConnectivityTids);
 	}, false);
-	NotifyAppliedPreviewDeferredEditCompleted(this, ChangedVids, FastRenderUpdateTids);
+	NotifyAppliedPreviewDeferredEditCompleted(this, ChangedVids, FastRenderUpdateTids, GetAppliedUpdateAttributeFlags());
 }
 
 void UUVEditorToolMeshInput::UpdateAllFromUnwrapPreview(const TArray<int32>* ChangedVids, 
@@ -354,4 +350,21 @@ void UUVEditorToolMeshInput::AppliedVidToUnwrapVids(int32 AppliedVid, TArray<int
 {
 	const FDynamicMeshUVOverlay* CanonicalOverlay = AppliedCanonical->Attributes()->GetUVLayer(UVLayerIndex);
 	CanonicalOverlay->GetVertexElements(AppliedVid, UnwrapVidsOut);
+}
+
+EMeshRenderAttributeFlags UUVEditorToolMeshInput::GetUnwrapUpdateAttributeFlags() const
+{
+	if (bEnableTriangleVertexColors)
+	{
+		return EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs | EMeshRenderAttributeFlags::VertexColors;
+	}
+	else
+	{
+		return EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexUVs;
+	}
+}
+
+EMeshRenderAttributeFlags UUVEditorToolMeshInput::GetAppliedUpdateAttributeFlags() const
+{
+	return EMeshRenderAttributeFlags::VertexUVs;
 }

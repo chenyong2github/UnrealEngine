@@ -42,6 +42,14 @@ public:
 	static FLinearColor GetWireframeColorByTargetIndex(int32 TargetIndex);
 	static FLinearColor GetBoundaryColorByTargetIndex(int32 TargetIndex);
 
+	// Provides a color blindness friendly ramp for visualizing metrics and other data
+	// Domain is [0 , 1]
+	static FColor MakeCividisColorFromScalar(float Scalar);
+
+	// Provides a color blindness friendly ramp for visualizing diverging metrics and other data
+	// Domain is [-0.5, 0.5] 
+	static FColor MakeTurboColorFromScalar(float Scalar);
+
 	// Selection Highlighting Properties
 	static const float SelectionTriangleOpacity;
 	static const FColor SelectionTriangleFillColor;

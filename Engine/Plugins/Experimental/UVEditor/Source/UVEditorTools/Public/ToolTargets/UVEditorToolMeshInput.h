@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "DynamicMesh/DynamicMeshAttributeSet.h" // FDynamicMeshUVOverlay
+#include "Components/BaseDynamicMeshComponent.h" // EMeshRenderAttributeFlags
 #include "ToolTargets/ToolTarget.h"
 #include "VectorTypes.h"
 
@@ -79,6 +80,12 @@ public:
 	 */
 	UPROPERTY()
 	TObjectPtr<UMeshElementsVisualizer> WireframeDisplay = nullptr;
+
+	/**
+	* When enabled, this causes the unwrap preview to recieve updates to the vertex color buffers when mesh updates occur.
+	*/
+	UPROPERTY()
+	bool bEnableTriangleVertexColors = false;
 
 	// Information about an OnCanonicalModified broadcast. This is a struct so that we can
 	// add more information if we someday need to.
@@ -261,4 +268,16 @@ public:
 
 	// UToolTarget
 	virtual bool IsValid() const override;
+
+protected:	
+
+	/** 
+	* Returns the currently configured mesh attribute buffer flags enabled on this target for updating the unwrap previews
+	*/
+	virtual EMeshRenderAttributeFlags GetUnwrapUpdateAttributeFlags() const;
+
+	/**
+	* Returns the currently configured mesh attribute buffer flags enabled on this target for updating the applied previews
+	*/
+	virtual EMeshRenderAttributeFlags GetAppliedUpdateAttributeFlags() const;
 };

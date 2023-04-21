@@ -163,6 +163,9 @@ struct UVEDITORTOOLS_API FUDIMBlock
 	UPROPERTY()
 	int32 UDIM = 1001;
 
+	UPROPERTY()
+	int32 TextureResolution = 512;
+
 	int32 BlockU() const;
 	int32 BlockV() const;
 	void SetFromBlocks(int32 BlockU, int32 BlockV);

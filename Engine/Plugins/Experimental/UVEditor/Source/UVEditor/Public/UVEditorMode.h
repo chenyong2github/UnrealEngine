@@ -25,6 +25,7 @@ class UPreviewMesh;
 class UTexture2D;
 class UUVEditorToolMeshInput;
 class UUVEditorBackgroundPreview;
+class UUVEditorDistortionVisualization;
 class UUVToolAction;
 class UUVToolContextObject;
 class UUVToolSelectionAPI;
@@ -64,13 +65,17 @@ struct FUDIMSpecifier
 	UPROPERTY(VisibleAnywhere, Transient, Category = UDIM, meta = (DisplayName = "Block V Offset"))
 	int32 VCoord = 0;
 
+	UPROPERTY(EditAnywhere, Transient, Category = UDIM, meta = (DisplayName = "Block Texture Resolution"))
+	int32 TextureResolution = 512;
+
 	friend bool operator==(const FUDIMSpecifier& A, const FUDIMSpecifier& B )
 	{
-		return A.UDIM == B.UDIM;
+		return A.UDIM == B.UDIM && A.TextureResolution == B.TextureResolution;
 	}
 
 	friend uint32 GetTypeHash(const FUDIMSpecifier& UDIMSpecifier)
 	{
+		// We're only hashing on the UDIM index, as we don't want to ever have more than one entry with the same UDIM position
 		uint32 HashCode = GetTypeHash(UDIMSpecifier.UDIM);
 		return HashCode;
 	}
@@ -221,6 +226,9 @@ public:
 	/** @return A settings object suitable for display in a details panel to control the active tool's visualization settings. */
 	UObject* GetToolDisplaySettingsObject();
 
+	/** @return A settings object suitable for display in a details panel to control the UV distortion visualization settings. */
+	UObject* GetDistortionVisualsSettingsObject();
+
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) ;
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
 
@@ -241,9 +249,11 @@ public:
 	// We don't actually override MouseEnter, etc, because things get forwarded to the input
 	// router via FEditorModeTools, and we don't have any additional input handling to do at the mode level.
 
-	// Holds the background visualiztion
 	UPROPERTY()
 	TObjectPtr<UUVEditorBackgroundPreview> BackgroundVisualization;
+
+	UPROPERTY()
+	TObjectPtr<UUVEditorDistortionVisualization> DistortionVisualization;
 
 	// Hold a settings object to configure the grid
 	UPROPERTY()
@@ -274,8 +284,10 @@ protected:
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	
+	UE_DEPRECATED(5.3, "UpdateTriangleMaterialBasedOnBackground is deprecated, replaced by the more generic UpdateTriangleMaterialBasedOnDisplaySettings.")
 	void UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible);
 	void UpdatePreviewMaterialBasedOnBackground();
+	void UpdateTriangleMaterialBasedOnDisplaySettings();
 
 	void UpdateActiveUDIMs();
 	int32 UDIMsChangedWatcherId;

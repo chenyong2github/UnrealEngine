@@ -44,6 +44,7 @@
 #include "UVEditorSubsystem.h"
 #include "ContextObjects/UVToolContextObjects.h"
 #include "UVEditorBackgroundPreview.h"
+#include "UVEditorDistortionVisualization.h"
 #include "UVEditorToolAnalyticsUtils.h"
 #include "UVEditorUXSettings.h"
 #include "UDIMUtilities.h"
@@ -271,7 +272,7 @@ void UUVEditorUDIMProperties::UpdateActiveUDIMsFromTexture()
 			UDIMSourceTexture->Source.GetBlock(Block, SourceBlock);
 
 			ActiveUDIMs.Add(FUDIMSpecifier({ UE::TextureUtilitiesCommon::GetUDIMIndex(SourceBlock.BlockX, SourceBlock.BlockY),
-				                             SourceBlock.BlockX, SourceBlock.BlockY }));
+				                             SourceBlock.BlockX, SourceBlock.BlockY, FMath::Min(SourceBlock.SizeX, SourceBlock.SizeY) }));
 		}
 	}
 	CheckAndUpdateWatched();
@@ -393,7 +394,7 @@ void UUVEditorMode::Enter()
 
 	BackgroundVisualization->Settings->WatchProperty(BackgroundVisualization->Settings->bVisible, 
 		[this](bool IsVisible) {
-			UpdateTriangleMaterialBasedOnBackground(IsVisible);
+			UpdateTriangleMaterialBasedOnDisplaySettings();			
 		});
 
 	BackgroundVisualization->OnBackgroundMaterialChange.AddWeakLambda(this,
@@ -402,6 +403,18 @@ void UUVEditorMode::Enter()
 		});
 
 	PropertyObjectsToTick.Add(BackgroundVisualization->Settings);
+
+	DistortionVisualization = NewObject<UUVEditorDistortionVisualization>(this);
+	DistortionVisualization->Targets = ToolInputObjects;
+	DistortionVisualization->Initialize();
+
+
+	DistortionVisualization->Settings->WatchProperty(DistortionVisualization->Settings->bVisible,
+		[this](bool IsVisible) {
+			UpdateTriangleMaterialBasedOnDisplaySettings();			
+		});
+
+	PropertyObjectsToTick.Add(DistortionVisualization->Settings);
 
 	UVEditorGridProperties = NewObject <UUVEditorGridProperties>(this);
 
@@ -642,6 +655,15 @@ UObject* UUVEditorMode::GetBackgroundSettingsObject()
 	return nullptr;
 }
 
+UObject* UUVEditorMode::GetDistortionVisualsSettingsObject()
+{
+	if (DistortionVisualization)
+	{
+		return DistortionVisualization->Settings;
+	}
+	return nullptr;
+}
+
 UObject* UUVEditorMode::GetGridSettingsObject()
 {
 	if (UVEditorGridProperties)
@@ -851,6 +873,8 @@ void UUVEditorMode::Exit()
 		BackgroundVisualization->Disconnect();
 		BackgroundVisualization = nullptr;
 	}
+
+	DistortionVisualization = nullptr;
 
 	PropertyObjectsToTick.Empty();
 	LivePreviewWorld = nullptr;
@@ -1199,9 +1223,9 @@ void UUVEditorMode::UpdateActiveUDIMs()
 			Blocks.Reserve(ActiveUDIMs.Num());
 			for (FUDIMSpecifier& UDIMSpecifier : ActiveUDIMs)
 			{
-				Blocks.Add({ UDIMSpecifier.UDIM });
+				Blocks.Add({ UDIMSpecifier.UDIM, UDIMSpecifier.TextureResolution });
 				UDIMSpecifier.UCoord = Blocks.Last().BlockU();
-				UDIMSpecifier.VCoord = Blocks.Last().BlockV();
+				UDIMSpecifier.VCoord = Blocks.Last().BlockV();				
 			}
 		}
 		UVTool2DViewportAPI->SetUDIMBlocks(Blocks, true);
@@ -1218,6 +1242,17 @@ void UUVEditorMode::UpdateActiveUDIMs()
 			BackgroundVisualization->Settings->UDIMBlocks.Add(UDIMSpecifier.UDIM);
 		}
 		BackgroundVisualization->Settings->CheckAndUpdateWatched();
+	}
+
+	if (DistortionVisualization)
+	{
+		DistortionVisualization->Settings->PerUDIMTextureResolution.Empty();
+		DistortionVisualization->Settings->PerUDIMTextureResolution.Reserve(ActiveUDIMs.Num());
+		for (FUDIMSpecifier& UDIMSpecifier : ActiveUDIMs)
+		{
+			DistortionVisualization->Settings->PerUDIMTextureResolution.Add(UDIMSpecifier.UDIM, UDIMSpecifier.TextureResolution);
+		}
+		DistortionVisualization->Settings->CheckAndUpdateWatched();
 	}
 }
 
@@ -1254,9 +1289,15 @@ void UUVEditorMode::PopulateUDIMsByAsset(int32 AssetId, TArray<FUDIMSpecifier>& 
 
 void UUVEditorMode::UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible)
 {
+	UpdateTriangleMaterialBasedOnDisplaySettings();
+}
+
+void UUVEditorMode::UpdateTriangleMaterialBasedOnDisplaySettings()
+{
 	float TriangleOpacity;
+
 	// We adjust the mesh opacity depending on whether we're layered over the background or not.
-	if (IsBackgroundVisible)
+	if (BackgroundVisualization && BackgroundVisualization->Settings && BackgroundVisualization->Settings->bVisible)
 	{
 		TriangleOpacity = FUVEditorUXSettings::UnwrapTriangleOpacityWithBackground;
 	}
@@ -1265,15 +1306,24 @@ void UUVEditorMode::UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVis
 		TriangleOpacity = FUVEditorUXSettings::UnwrapTriangleOpacity;
 	}
 
+	bool bUseVertexColors = DistortionVisualization && DistortionVisualization->Settings && DistortionVisualization->Settings->bVisible;
+
 	// Modify the material of the unwrapped mesh to account for the presence/absence of the background, 
 	// changing the opacity as set just above.
-	for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID) {
-		ToolInputObjects[AssetID]->UnwrapPreview->PreviewMesh->SetMaterial(
-			0, ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(
-				GetToolManager(),
-				FUVEditorUXSettings::GetTriangleColorByTargetIndex(AssetID),
-				FUVEditorUXSettings::UnwrapTriangleDepthOffset,
-				TriangleOpacity));
+	UMaterialInterface* Material = LoadObject<UMaterial>(nullptr, TEXT("/UVEditor/Materials/UVEditor_UnwrapMaterial"));
+	if (Material != nullptr)
+	{
+		for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID) {
+			UMaterialInstanceDynamic* MatInstance = UMaterialInstanceDynamic::Create(Material, GetToolManager());
+			MatInstance->SetVectorParameterValue(TEXT("Color"), FUVEditorUXSettings::GetTriangleColorByTargetIndex(AssetID));
+			MatInstance->SetScalarParameterValue(TEXT("PercentDepthOffset"), FUVEditorUXSettings::UnwrapTriangleDepthOffset);
+			MatInstance->SetScalarParameterValue(TEXT("Opacity"), TriangleOpacity);
+			MatInstance->SetScalarParameterValue(TEXT("UseVertexColors"), bUseVertexColors);
+
+			ToolInputObjects[AssetID]->bEnableTriangleVertexColors = bUseVertexColors;
+			ToolInputObjects[AssetID]->UnwrapPreview->PreviewMesh->SetMaterial(
+				0, MatInstance);
+		}
 	}
 }
 
@@ -1388,6 +1438,11 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 	if (BackgroundVisualization)
 	{
 		BackgroundVisualization->OnTick(DeltaTime);
+	}
+
+	if (DistortionVisualization)
+	{
+		DistortionVisualization->OnTick(DeltaTime);
 	}
 
 	for (int i = 0; i < ToolInputObjects.Num(); ++i)
