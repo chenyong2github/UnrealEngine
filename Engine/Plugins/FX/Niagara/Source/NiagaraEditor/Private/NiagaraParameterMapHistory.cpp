@@ -9,6 +9,7 @@
 #include "NiagaraGraph.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraNode.h"
+#include "NiagaraGraph.h"
 #include "NiagaraCompiler.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraNodeOutput.h"

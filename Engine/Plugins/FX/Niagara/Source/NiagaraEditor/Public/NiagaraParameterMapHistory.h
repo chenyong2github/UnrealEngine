@@ -12,6 +12,7 @@
 class UNiagaraNodeOutput;
 class UEdGraphPin;
 class UEdGraphNode;
+class UNiagaraGraph;
 class UNiagaraParameterCollection;
 class FHlslNiagaraTranslator;
 class UNiagaraGraph;

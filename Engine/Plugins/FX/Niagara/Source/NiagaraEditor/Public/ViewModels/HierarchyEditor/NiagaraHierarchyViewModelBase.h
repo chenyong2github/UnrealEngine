@@ -231,6 +231,7 @@ public:
 	const TArray<UNiagaraHierarchySection*>& GetSectionData() const { return Sections; }
 	TArray<TObjectPtr<UNiagaraHierarchySection>>& GetSectionDataMutable() { return Sections; }
 
+
 	TSet<FName> GetSections() const;
 	int32 GetSectionIndex(UNiagaraHierarchySection* Section) const;
 

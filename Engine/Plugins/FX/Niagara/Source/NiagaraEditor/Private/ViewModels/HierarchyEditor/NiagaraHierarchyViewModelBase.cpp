@@ -1344,7 +1344,7 @@ void FNiagaraHierarchyItemViewModel::OnDroppedOnInternal(TSharedPtr<FNiagaraHier
 	else if(ItemDropZone == EItemDropZone::BelowItem)
 	{
 		int32 IndexOfThis = Parent.Pin()->FindIndexOfDataChild(AsShared());
-
+		
 		if(DroppedItem->IsForHierarchy() == false)
 		{
 			Parent.Pin()->DuplicateToThis(DroppedItem, FMath::Min(IndexOfThis+1, Parent.Pin()->GetChildren().Num()));

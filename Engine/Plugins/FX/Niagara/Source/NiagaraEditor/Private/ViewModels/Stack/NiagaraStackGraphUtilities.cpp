@@ -39,6 +39,7 @@
 #include "NiagaraParameterMapHistory.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraScriptVariable.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorData.h"

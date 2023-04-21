@@ -26,6 +26,7 @@ class UNiagaraScriptVariable;
 class UNiagaraParameterDefinitions;
 class UNiagaraSummaryViewViewModel;
 struct FNiagaraMessageSourceAndStore;
+class UNiagaraSummaryViewViewModel;
 
 
 /** The view model for the UNiagaraEmitter objects */
