@@ -586,7 +586,7 @@ static bool PackageNameMatches(const FString& PackageName, const TArray<FString>
 	}
 
 	return false;
-};
+}
 
 FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryCollections(
 	TEXT("MemQuery.Collection"),
