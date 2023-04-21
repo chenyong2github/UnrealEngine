@@ -206,17 +206,17 @@ public:
 
 
 /**
- * Merge selected clusters under a new parent
+ * Merge selected bones under a new parent cluster
  */
 USTRUCT(meta = (DataflowGeometryCollection))
 struct FClusterMergeDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FClusterMergeDataflowNode, "Merge", "GeometryCollection|Cluster", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FClusterMergeDataflowNode, "ClusterMerge", "GeometryCollection|Cluster", "")
 
 public:
 
-	/** Collection on which to merge clusters */
+	/** Collection on which to merge bones into a cluster */
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
 	FManagedArrayCollection Collection;
 
