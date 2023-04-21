@@ -9,6 +9,17 @@
 #include "ImageCore.h"
 
 /**
+
+NOTE: you should not write code that talks directly to individual ImageWrappers
+
+Instead use ImageWrapperModule CompressImage/DecompressImage
+
+Prefer the new interface that go through FImage not TArray of bytes
+
+
+**/
+
+/**
  * Enumerates the types of image formats this class can handle.
  */
 enum class EImageFormat : int8

@@ -1603,7 +1603,7 @@ void FImageCore::SetAlphaOpaque(const FImageView & InImage)
 }
 
 
-void FImageCore::ComputeChannelLinearMinMax(const FImage & InImage, FLinearColor & OutMin, FLinearColor & OutMax)
+void FImageCore::ComputeChannelLinearMinMax(const FImageView & InImage, FLinearColor & OutMin, FLinearColor & OutMax)
 {
 	// @todo Oodle : for speed, we should ideally scan the image for min/max in its native pixel format
 	//	then only convert the min/max colors to float linear after the scan

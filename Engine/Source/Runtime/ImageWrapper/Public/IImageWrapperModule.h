@@ -12,6 +12,13 @@
 /**
  * Interface for image wrapper modules.
  * 
+ * If you have "Engine" module, then just use FImageUtils::CompressImage/DecompressImage
+ *
+ * The easiest way to load/save an image is FImageUtils::LoadImage/SaveImageByExtension
+ *
+ * NOTE: Please prefer to work with images through ImageCore FImage/FImageView 
+ * (not TextureSource/TextureSourceFormat or raw arrays of bytes)
+ * 
  * 
  * note on SRGB/Gamma handling :
  * it is assumed that non-U8 data is always Linear

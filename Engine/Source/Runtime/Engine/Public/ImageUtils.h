@@ -11,6 +11,19 @@ ImageUtils.h: Image/Textures utility functions
 #include "ImageCore.h"
 #include "Engine/Texture.h"
 
+/*
+
+NOTE: Please prefer to work with images through ImageCore FImage/FImageView
+(not TextureSource/TextureSourceFormat or raw arrays of bytes)
+
+Use FImageUtils::CompressImage/DecompressImage
+
+The easiest way to load/save an image is FImageUtils::LoadImage/SaveImageByExtension
+
+Typically let the user's filename choose the image format, don't hard-code them in code.
+
+*/
+
 class UTexture2D;
 class UTexture2DArray;
 class UTextureCube;

@@ -20,7 +20,11 @@
 * note to authors: as much as possible, write functions that act on FImageView
 *  for example reading and modifying pixels? use FImageView
 * use FImage when you may need to change the format or allocate a new image.
-* 
+*
+* prefer using FImage/FImageView instead of TextureSourceFormat or raw arrays or bytes
+*
+* Try not to write code that switches on pixel format, as formats may be added and it creates a fragile maintenance problem.
+*
 */
 
 
@@ -726,7 +730,7 @@ IMAGECORE_API void ResizeTo(const FImageView & SourceImage,FImage& DestImage, in
  * @param OutMin - filled with the minimum of the color channels
  * @param OutMax - filled with the maximum of the color channels
  */
-IMAGECORE_API void ComputeChannelLinearMinMax(const FImage & InImage, FLinearColor & OutMin, FLinearColor & OutMax);
+IMAGECORE_API void ComputeChannelLinearMinMax(const FImageView & InImage, FLinearColor & OutMin, FLinearColor & OutMax);
 
 /**
  * Apply a color space transformation from the source chromaticities to the engine's working color space.
