@@ -8,8 +8,11 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Net.Mime;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.S3;
@@ -27,14 +30,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Serilog;
 using Serilog.Core;
 using ContentHash = Jupiter.Implementation.ContentHash;
 using IBlobStore = Jupiter.Implementation.IBlobStore;
 using EpicGames.AspNet;
 using EpicGames.Horde.Storage.Backends;
+using Jupiter.Tests.Functional;
 
 namespace Jupiter.FunctionalTests.Storage
 {
@@ -426,7 +428,8 @@ namespace Jupiter.FunctionalTests.Storage
             HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/s/{TestNamespaceName}/{contentHash}", UriKind.Relative), requestContent);
 
             result.EnsureSuccessStatusCode();
-            InsertResponse content = await result.Content.ReadAsAsync<InsertResponse>();
+            InsertResponse? content = await result.Content.ReadFromJsonAsync<InsertResponse>();
+            Assert.IsNotNull(content);
             Assert.AreEqual(contentHash, content.Identifier);
         }
 
@@ -441,7 +444,8 @@ namespace Jupiter.FunctionalTests.Storage
             HttpResponseMessage result = await _httpClient!.PostAsync(new Uri($"api/v1/s/{TestNamespaceName}", UriKind.Relative), requestContent);
 
             result.EnsureSuccessStatusCode();
-            InsertResponse content = await result.Content.ReadAsAsync<InsertResponse>();
+            InsertResponse? content = await result.Content.ReadFromJsonAsync<InsertResponse>();
+            Assert.IsNotNull(content);
             Assert.AreEqual(contentHash, content.Identifier);
         }
 
@@ -457,7 +461,8 @@ namespace Jupiter.FunctionalTests.Storage
             HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestBundleNamespaceName}/{id}", UriKind.Relative), requestContent);
 
             result.EnsureSuccessStatusCode();
-            InsertResponse content = await result.Content.ReadAsAsync<InsertResponse>();
+            InsertResponse? content = await result.Content.ReadFromJsonAsync<InsertResponse>();
+            Assert.IsNotNull(content);
             Assert.AreEqual(id, content.Identifier);
         }
 
@@ -532,7 +537,7 @@ namespace Jupiter.FunctionalTests.Storage
                 HttpResponseMessage resultNew = await _httpClient!.SendAsync(message);
                 Assert.AreEqual(HttpStatusCode.NotFound, resultNew.StatusCode);
                 string content = await resultNew.Content.ReadAsStringAsync();
-                ValidationProblemDetails result = JsonConvert.DeserializeObject<ValidationProblemDetails>(content)!;
+                ValidationProblemDetails result = JsonSerializer.Deserialize<ValidationProblemDetails>(content)!;
                 Assert.AreEqual($"Blob {newContent} not found", result.Title);
             }
         }
@@ -564,12 +569,14 @@ namespace Jupiter.FunctionalTests.Storage
             HttpResponseMessage response = await _httpClient.PostAsJsonAsync("api/v1/s", ops);
             response.EnsureSuccessStatusCode();
             string content = await response.Content.ReadAsStringAsync();
-            object result = JsonConvert.DeserializeObject(content)!;
-            JArray? array = result as JArray;
+            JsonNode? nodes = JsonNode.Parse(content)!;
+            Assert.IsNotNull(nodes);
+
+            JsonArray array = nodes.AsArray();
             Assert.IsNotNull(array);
             Assert.AreEqual(2, array!.Count);
-            Assert.IsNull(array[0].Value<string>());
-            BlobIdentifier id = new BlobIdentifier(array[1].Value<string>()!);
+            Assert.IsNull(array[0]);
+            BlobIdentifier id = new BlobIdentifier(array[1]!.AsValue().ToString()!);
             Assert.AreEqual(newContent, id);
         }
 
@@ -599,15 +606,14 @@ namespace Jupiter.FunctionalTests.Storage
             HttpResponseMessage response = await _httpClient.PostAsJsonAsync("api/v1/s", ops);
             response.EnsureSuccessStatusCode();
             string content = await response.Content.ReadAsStringAsync();
-            object result = JsonConvert.DeserializeObject(content)!;
-            Assert.IsTrue(result != null);
-            JArray? array = result as JArray;
+            JsonNode? nodes = JsonNode.Parse(content)!;
+            JsonArray array = nodes.AsArray();
             Assert.IsNotNull(array);
             Assert.AreEqual(2, array!.Count);
-            string base64Content = array[0].Value<string>()!;
+            string base64Content = array[0]!.AsValue().ToString()!;
             string convertedContent = Encoding.ASCII.GetString(Convert.FromBase64String(base64Content));
             Assert.AreEqual(SmallFileContents, convertedContent);
-            BlobIdentifier identifier = new BlobIdentifier(array[1].Value<string>()!);
+            BlobIdentifier identifier = new BlobIdentifier(array[1]!.AsValue().ToString()!);
             Assert.AreEqual(DeleteFileHash, identifier);
         }
 
@@ -641,7 +647,7 @@ namespace Jupiter.FunctionalTests.Storage
             Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
 
             string content = await response.Content.ReadAsStringAsync();
-            SerializableError? result = JsonConvert.DeserializeObject<SerializableError>(content);
+            SerializableError? result = JsonSerializer.Deserialize<SerializableError>(content);
             Assert.IsNotNull(result);
 
             Assert.AreEqual(2, result.Keys.Count);
@@ -667,7 +673,7 @@ namespace Jupiter.FunctionalTests.Storage
             Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
             string content = await response.Content.ReadAsStringAsync();
-            string[]? result = JsonConvert.DeserializeObject<string[]>(content);
+            string[]? result = JsonSerializer.Deserialize<string[]>(content);
             Assert.IsNotNull(result);
 
             Assert.AreEqual(1, result.Length);
@@ -684,7 +690,7 @@ namespace Jupiter.FunctionalTests.Storage
             Assert.AreEqual("application/json", response.Content.Headers.ContentType!.MediaType);
 
             string s = await response.Content.ReadAsStringAsync();
-            HeadMultipleResponse? result = JsonConvert.DeserializeObject<HeadMultipleResponse>(s);
+            HeadMultipleResponse? result = JsonSerializer.Deserialize<HeadMultipleResponse>(s, JsonTestUtils.DefaultJsonSerializerSettings);
 
             Assert.IsNotNull(result);
             Assert.AreEqual(1, result.Needs.Length);
@@ -710,7 +716,7 @@ namespace Jupiter.FunctionalTests.Storage
             Assert.AreEqual("application/json", response.Content.Headers.ContentType!.MediaType);
 
             string s = await response.Content.ReadAsStringAsync();
-            HeadMultipleResponse? result = JsonConvert.DeserializeObject<HeadMultipleResponse>(s);
+            HeadMultipleResponse? result = JsonSerializer.Deserialize<HeadMultipleResponse>(s, JsonTestUtils.DefaultJsonSerializerSettings);
 
             Assert.IsNotNull(result);
             Assert.AreEqual(1, result.Needs.Length);
@@ -722,7 +728,7 @@ namespace Jupiter.FunctionalTests.Storage
         {
             BlobIdentifier newContent = BlobIdentifier.FromBlob(Encoding.ASCII.GetBytes("this content has never been submitted"));
             using HttpRequestMessage request = new(HttpMethod.Post, new Uri($"api/v1/s/{TestNamespaceName}/exist", UriKind.Relative));
-            string jsonBody = JsonConvert.SerializeObject(new BlobIdentifier[] { SmallFileHash, newContent });
+            string jsonBody = JsonSerializer.Serialize(new BlobIdentifier[] { SmallFileHash, newContent });
             request.Content = new StringContent(jsonBody, Encoding.UTF8, MediaTypeNames.Application.Json);
 
             HttpResponseMessage response = await _httpClient!.SendAsync(request);
@@ -730,7 +736,7 @@ namespace Jupiter.FunctionalTests.Storage
             Assert.AreEqual("application/json", response.Content.Headers.ContentType!.MediaType);
 
             string s = await response.Content.ReadAsStringAsync();
-            HeadMultipleResponse? result = JsonConvert.DeserializeObject<HeadMultipleResponse>(s);
+            HeadMultipleResponse? result = JsonSerializer.Deserialize<HeadMultipleResponse>(s, JsonTestUtils.DefaultJsonSerializerSettings);
 
             Assert.IsNotNull(result);
             Assert.AreEqual(1, result.Needs.Length);
@@ -768,7 +774,8 @@ namespace Jupiter.FunctionalTests.Storage
             BlobIdentifier contentHash = BlobIdentifier.FromBlob(payload);
             HttpResponseMessage putResponse = await _httpClient!.PutAsync(new Uri($"api/v1/s/{TestNamespaceName}/{contentHash}", UriKind.Relative), requestContent);
             putResponse.EnsureSuccessStatusCode();
-            InsertResponse response = await putResponse.Content.ReadAsAsync<InsertResponse>();
+            InsertResponse? response = await putResponse.Content.ReadFromJsonAsync<InsertResponse>();
+            Assert.IsNotNull(response);
             Assert.AreEqual(contentHash, response.Identifier);
 
             HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/s/{TestNamespaceName}/{contentHash}", UriKind.Relative));
@@ -828,7 +835,8 @@ namespace Jupiter.FunctionalTests.Storage
                     HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestNamespaceName}/{blobIdentifier}", UriKind.Relative), content);
                     result.EnsureSuccessStatusCode();
 
-                    InsertResponse response = await result.Content.ReadAsAsync<InsertResponse>();
+                    InsertResponse? response = await result.Content.ReadFromJsonAsync<InsertResponse>();
+                    Assert.IsNotNull(response);
                     Assert.AreEqual(blobIdentifier, response.Identifier);
                 }
                 

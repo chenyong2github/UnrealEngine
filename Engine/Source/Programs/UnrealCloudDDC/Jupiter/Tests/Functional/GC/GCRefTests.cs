@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
 using Jupiter.Controllers;
@@ -176,7 +177,8 @@ namespace Jupiter.FunctionalTests.GC
             using StringContent content = new StringContent(string.Empty);
             HttpResponseMessage cleanupResponse = await _httpClient!.PostAsync(new Uri($"api/v1/admin/refCleanup", UriKind.Relative), content);
             cleanupResponse.EnsureSuccessStatusCode();
-            RemovedRefRecordsResponse removedRefRecords = await cleanupResponse.Content.ReadAsAsync<RemovedRefRecordsResponse>();
+            RemovedRefRecordsResponse? removedRefRecords = await cleanupResponse.Content.ReadFromJsonAsync<RemovedRefRecordsResponse>();
+            Assert.IsNotNull(removedRefRecords);
             Assert.AreEqual(4, removedRefRecords.CountOfRemovedRecords);
 
             IObjectService objectService = _server!.Services.GetService<IObjectService>()!;

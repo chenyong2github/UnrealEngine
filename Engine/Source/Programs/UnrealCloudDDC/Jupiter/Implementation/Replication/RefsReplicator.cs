@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
@@ -18,7 +19,6 @@ using Jupiter.Implementation.TransactionLog;
 using Jupiter.Common;
 using Jupiter.Common.Implementation;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using OpenTelemetry.Trace;
 using Microsoft.Extensions.Logging;
 
@@ -238,7 +238,7 @@ namespace Jupiter.Implementation
                             continue;
                         }
 
-                        (string eventBucket, Guid eventId, int countOfEventsReplicated) = await ReplicateFromSnapshot(ns, replicationToken, useSnapshotException.SnapshotBlob, INamespacePolicyResolver.JupiterInternalNamespace);
+                        (string eventBucket, Guid eventId, int countOfEventsReplicated) = await ReplicateFromSnapshot(ns, replicationToken, useSnapshotException.SnapshotBlob, useSnapshotException.BlobNamespace);
                         countOfReplicationsDone += countOfEventsReplicated;
 
                         // resume from these new events instead
@@ -274,7 +274,7 @@ namespace Jupiter.Implementation
                 snapshotResponse.EnsureSuccessStatusCode();
 
                 string s = await snapshotResponse.Content.ReadAsStringAsync(cancellationToken);
-                ReplicationLogSnapshots? snapshots = JsonConvert.DeserializeObject<ReplicationLogSnapshots>(s);
+                ReplicationLogSnapshots? snapshots = JsonSerializer.Deserialize<ReplicationLogSnapshots>(s);
                 if (snapshots == null)
                 {
                     throw new NotImplementedException();
@@ -479,12 +479,13 @@ namespace Jupiter.Implementation
             //if (await _blobService.Exists(ns, blob))
             //    return currentOffset;
 
-            using HttpRequestMessage referencesRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/objects/{ns}/{objectToReplicate}/references", UriKind.Relative));
             HttpResponseMessage? referencesResponse = null;
             Exception? lastException = null;
             const int RetryAttempts = 3;
             for (int i = 0; i < RetryAttempts; i++)
             {
+                using HttpRequestMessage referencesRequest = await BuildHttpRequest(HttpMethod.Get, new Uri($"api/v1/objects/{ns}/{objectToReplicate}/references", UriKind.Relative));
+
                 try
                 {
                     referencesResponse = await _httpClient.SendAsync(referencesRequest, cancellationToken);
@@ -523,7 +524,7 @@ namespace Jupiter.Implementation
             }
             referencesResponse.EnsureSuccessStatusCode();
 
-            ResolvedReferencesResult? refs = JsonConvert.DeserializeObject<ResolvedReferencesResult>(body);
+            ResolvedReferencesResult? refs = JsonSerializer.Deserialize<ResolvedReferencesResult>(body);
             if (refs == null)
             {
                 throw new Exception($"Unable to resolve references for object {objectToReplicate} in namespace {ns}");
@@ -608,7 +609,7 @@ namespace Jupiter.Implementation
                 string body = await response.Content.ReadAsStringAsync(cancellationToken);
                 if (response.StatusCode == HttpStatusCode.BadRequest)
                 {
-                    ProblemDetails? problemDetails = JsonConvert.DeserializeObject<ProblemDetails>(body);
+                    ProblemDetails? problemDetails = JsonSerializer.Deserialize<ProblemDetails>(body);
                     if (problemDetails == null)
                     {
                         throw new Exception($"Unknown bad request body when reading incremental replication log. Body: {body}");
@@ -616,7 +617,7 @@ namespace Jupiter.Implementation
 
                     if (problemDetails.Type == ProblemTypes.UseSnapshot)
                     {
-                        ProblemDetailsWithSnapshots? problemDetailsWithSnapshots = JsonConvert.DeserializeObject<ProblemDetailsWithSnapshots>(body);
+                        ProblemDetailsWithSnapshots? problemDetailsWithSnapshots = JsonSerializer.Deserialize<ProblemDetailsWithSnapshots>(body);
 
                         if (problemDetailsWithSnapshots == null)
                         {
@@ -624,12 +625,13 @@ namespace Jupiter.Implementation
                         }
 
                         BlobIdentifier snapshotBlob = problemDetailsWithSnapshots.SnapshotId;
-                        throw new UseSnapshotException(snapshotBlob);
+                        NamespaceId? blobNamespace = problemDetailsWithSnapshots.BlobNamespace;
+                        throw new UseSnapshotException(snapshotBlob, blobNamespace!.Value);
                     }
                 }
 
                 response.EnsureSuccessStatusCode();
-                ReplicationLogEvents? e = JsonConvert.DeserializeObject<ReplicationLogEvents>(body);
+                ReplicationLogEvents? e = JsonSerializer.Deserialize<ReplicationLogEvents>(body);
                 if (e == null)
                 {
                     throw new Exception($"Unknown error when deserializing replication log events {ns} {lastBucket} {lastEvent}");
@@ -698,10 +700,12 @@ namespace Jupiter.Implementation
     public class UseSnapshotException : Exception
     {
         public BlobIdentifier SnapshotBlob { get; }
+        public NamespaceId BlobNamespace { get; }
 
-        public UseSnapshotException(BlobIdentifier snapshotBlob)
+        public UseSnapshotException(BlobIdentifier snapshotBlob, NamespaceId blobNamespace)
         {
             SnapshotBlob = snapshotBlob;
+            BlobNamespace = blobNamespace;
         }
     }
 
@@ -727,5 +731,6 @@ namespace Jupiter.Implementation
     public class ProblemDetailsWithSnapshots : ProblemDetails
     {
         public BlobIdentifier SnapshotId { get; set; } = null!;
+        public NamespaceId? BlobNamespace { get; set; } = null;
     }
 }

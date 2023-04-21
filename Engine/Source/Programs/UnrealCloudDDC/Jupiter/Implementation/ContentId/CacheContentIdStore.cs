@@ -3,6 +3,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Controllers;
@@ -28,8 +29,12 @@ namespace Jupiter.Implementation
             }
 
             response.EnsureSuccessStatusCode();
-            ResolvedContentIdResponse resolvedContentId = await response.Content.ReadAsAsync<ResolvedContentIdResponse>();
+            ResolvedContentIdResponse? resolvedContentId = await response.Content.ReadFromJsonAsync<ResolvedContentIdResponse>();
 
+            if (resolvedContentId == null)
+            {
+                throw new Exception("Unable to deserialize resolved content id response");
+            }
             return resolvedContentId.Blobs;
         }
 

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Net.Mime;
 using System.Text;
 using System.Threading.Tasks;
@@ -85,7 +86,8 @@ namespace Jupiter.FunctionalTests.Storage
             requestContent.Headers.ContentLength = FileContents.Length;
             HttpResponseMessage putResponse = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestNamespaceName}/{FileContentsHash}", UriKind.Relative), requestContent);
             putResponse.EnsureSuccessStatusCode();
-            InsertResponse response = await putResponse.Content.ReadAsAsync<InsertResponse>();
+            InsertResponse? response = await putResponse.Content.ReadFromJsonAsync<InsertResponse>();
+            Assert.IsNotNull(response);
             Assert.AreEqual(FileContentsHash, response.Identifier);
 
             using HttpRequestMessage getObjectRequest = new HttpRequestMessage(HttpMethod.Get, new Uri($"api/v1/blobs/{TestNamespaceName}/{FileContentsHash}", UriKind.Relative));

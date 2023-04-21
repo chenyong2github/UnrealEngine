@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 
 namespace Jupiter.Implementation
@@ -75,7 +76,13 @@ namespace Jupiter.Implementation
             {
                 throw new AuthenticationFailedException(s);
             }
-            return (await response.Content.ReadAsAsync<ClientCredentialsResponse>(), s);
+
+            ClientCredentialsResponse? responseBody = await response.Content.ReadFromJsonAsync<ClientCredentialsResponse>();
+            if (responseBody == null)
+            {
+                throw new Exception("Unable to deserialize client credential response");
+            }
+            return (responseBody, s);
         }
     }
 

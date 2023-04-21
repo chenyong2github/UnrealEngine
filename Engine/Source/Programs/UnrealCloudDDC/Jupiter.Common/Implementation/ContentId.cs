@@ -3,13 +3,11 @@
 using System;
 using System.ComponentModel;
 using System.Globalization;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
-using Newtonsoft.Json;
-using JsonWriter = Newtonsoft.Json.JsonWriter;
 
 namespace Jupiter.Implementation
 {
-    [JsonConverter(typeof(ContentIdConverter))]
     [TypeConverter(typeof(ContentIdTypeConverter))]
     public class ContentId : ContentHash, IEquatable<ContentId>
     {
@@ -104,30 +102,5 @@ namespace Jupiter.Implementation
 
             return base.ConvertFrom(context, culture, value);  
         }  
-    }
-
-    public class ContentIdConverter : JsonConverter<ContentId?>
-    {
-        public override void WriteJson(JsonWriter writer, ContentId? value, JsonSerializer serializer)
-        {
-            writer.WriteValue(value!.ToString());
-        }
-
-        public override ContentId? ReadJson(JsonReader reader, Type objectType, ContentId? existingValue, bool hasExistingValue, JsonSerializer serializer)
-        {
-            if (reader.TokenType == JsonToken.Null)
-            {
-                return null;
-            }
-
-            string? s = (string?)reader.Value;
-
-            if (s == null)
-            {
-                return null;
-            }
-
-            return new ContentId(s!);
-        }
     }
 }

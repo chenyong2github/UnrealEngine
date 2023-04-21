@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
 using Amazon.S3;
@@ -140,7 +141,8 @@ namespace Jupiter.FunctionalTests.Storage
             requestContent.Headers.ContentLength = S3FileContent.Length;
             HttpResponseMessage putResponse = await _httpClient!.PutAsync(new Uri($"api/v1/s/{TestNamespaceName}/{S3FileContentHash}", UriKind.Relative), requestContent);
             putResponse.EnsureSuccessStatusCode();
-            InsertResponse response = await putResponse.Content.ReadAsAsync<InsertResponse>();
+            InsertResponse? response = await putResponse.Content.ReadFromJsonAsync<InsertResponse>();
+            Assert.IsNotNull(response);
             Assert.AreEqual(S3FileContentHash, response.Identifier);
 
             HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/s/{TestNamespaceName}/{S3FileContentHash}?storageLayers=AmazonS3Store", UriKind.Relative));
@@ -161,7 +163,8 @@ namespace Jupiter.FunctionalTests.Storage
             requestContent.Headers.ContentLength = S3FileContent.Length;
             HttpResponseMessage putResponse = await _httpClient!.PutAsync(new Uri($"api/v1/s/{TestNamespaceName}/{S3FileContentHash}", UriKind.Relative), requestContent);
             putResponse.EnsureSuccessStatusCode();
-            InsertResponse response = await putResponse.Content.ReadAsAsync<InsertResponse>();
+            InsertResponse? response = await putResponse.Content.ReadFromJsonAsync<InsertResponse>();
+            Assert.IsNotNull(response);
             Assert.AreEqual(S3FileContentHash, response.Identifier);
 
             HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/s/{TestNamespaceName}/{S3FileContentHash}?storageLayers=ThisImplemenationDoesNotExist", UriKind.Relative));
@@ -177,7 +180,8 @@ namespace Jupiter.FunctionalTests.Storage
             requestContent.Headers.ContentLength = payload.Length;
             HttpResponseMessage putResponse = await _httpClient!.PutAsync(new Uri($"api/v1/s/{TestNamespaceName}/{OtherPeerContentHash}", UriKind.Relative), requestContent);
             putResponse.EnsureSuccessStatusCode();
-            InsertResponse response = await putResponse.Content.ReadAsAsync<InsertResponse>();
+            InsertResponse? response = await putResponse.Content.ReadFromJsonAsync<InsertResponse>();
+            Assert.IsNotNull(response);
             Assert.AreEqual(OtherPeerContentHash, response.Identifier);
 
             HttpResponseMessage getResponse = await _httpClient.GetAsync(new Uri($"api/v1/s/{TestNamespaceName}/{OtherPeerContentHash}", UriKind.Relative));

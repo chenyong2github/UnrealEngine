@@ -1,21 +1,26 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.ComponentModel;
+using System.Globalization;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Blake3;
 using EpicGames.Core;
 using EpicGames.Serialization;
-using Newtonsoft.Json;
-using JsonWriter = Newtonsoft.Json.JsonWriter;
 
 namespace Jupiter.Implementation
 {
-    [JsonConverter(typeof(ContentHashConverter))]
+    [TypeConverter(typeof(ContentHashTypeConverter))]
+    [JsonConverter(typeof(ContentHashJsonConverter))]
     [CbConverter(typeof(ContentHashCbConverter))]
     public class ContentHash : IEquatable<ContentHash>, IEquatable<byte[]>
     {
-	    protected ByteArrayComparer Comparer { get; } = new ByteArrayComparer();
+        protected ByteArrayComparer Comparer { get; } = new ByteArrayComparer();
         protected byte[] Identifier { get; init; }
         public const int HashLength = 20;
+
         public byte[] HashData => Identifier;
         public ContentHash(byte[] identifier)
         {
@@ -105,21 +110,6 @@ namespace Jupiter.Implementation
         }
     }
     
-    public class ContentHashConverter : JsonConverter<ContentHash>
-    {
-        public override void WriteJson(JsonWriter writer, ContentHash? value, JsonSerializer serializer)
-        {
-            writer.WriteValue(value!.ToString());
-        }
-
-        public override ContentHash ReadJson(JsonReader reader, Type objectType, ContentHash? existingValue, bool hasExistingValue, JsonSerializer serializer)
-        {
-            string? s = (string?)reader.Value;
-
-            return new ContentHash(s!);
-        }
-    }
-
     public class ContentHashCbConverter : CbConverterBase<ContentHash>
     {
         public override ContentHash Read(CbField field) => new ContentHash(field.AsHash().ToByteArray());
@@ -129,5 +119,65 @@ namespace Jupiter.Implementation
 
         /// <inheritdoc/>
         public override void WriteNamed(CbWriter writer, Utf8String name, ContentHash value) => writer.WriteHash(name, new IoHash(value.HashData));
+    }
+
+    public class ContentHashJsonConverter : JsonConverter<ContentHash>
+    {
+        public override ContentHash Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            string? str = reader.GetString();
+            if (str == null)
+            {
+                throw new InvalidDataException("Unable to parse content hash");
+            }
+
+            return new ContentHash(str);
+        }
+
+        public override void Write(Utf8JsonWriter writer, ContentHash value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
+        }
+    }
+
+    public class ContentHashTypeConverter : TypeConverter
+    {
+        public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
+        {  
+            if (sourceType == typeof(string))  
+            {  
+                return true;
+            }  
+            return base.CanConvertFrom(context, sourceType);
+        }  
+  
+        public override object? ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)  
+        {
+            if (value is string s)
+            {
+                return new ContentHash(s);
+            }
+
+            return base.ConvertFrom(context, culture, value);  
+        }
+
+        public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
+        {
+            if (destinationType == typeof(string))
+            {
+                return true;
+            }
+            return base.CanConvertTo(context, destinationType);
+        }
+
+        public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
+        {
+            if (destinationType == typeof(string))
+            {
+                ContentHash? identifier = (ContentHash?)value;
+                return identifier?.ToString();
+            }
+            return base.ConvertTo(context, culture, value, destinationType);
+        }
     }
 }

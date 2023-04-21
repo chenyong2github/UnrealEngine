@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using EpicGames.Horde.Storage;
 using JetBrains.Annotations;
 using Jupiter.Common.Implementation;
-using Newtonsoft.Json;
 using OpenTelemetry.Trace;
 
 namespace Jupiter.Implementation.TransactionLog
@@ -38,10 +38,7 @@ namespace Jupiter.Implementation.TransactionLog
         {
             // legacy json snapshot found
             using GZipStream gzipStream = new GZipStream(stream, CompressionMode.Decompress);
-            using TextReader textReader = new StreamReader(gzipStream);
-            using JsonReader reader = new JsonTextReader(textReader);
-            JsonSerializer serializer = JsonSerializer.Create();
-            ReplicationLogSnapshotState? snapshotState = serializer.Deserialize<ReplicationLogSnapshotState>(reader);
+            ReplicationLogSnapshotState? snapshotState = JsonSerializer.Deserialize<ReplicationLogSnapshotState>(gzipStream);
             if (snapshotState == null)
             {
                 throw new NotImplementedException();

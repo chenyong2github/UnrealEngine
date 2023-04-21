@@ -8,8 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using EpicGames.Horde.Storage;
 using Jupiter.Common;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 
 namespace Jupiter.Controllers
 {
@@ -62,13 +60,12 @@ namespace Jupiter.Controllers
                 allowedActions.AddRange(acl.Resolve(User));
             }
 
-            return Ok(new ActionsResult {Actions = allowedActions});
+            return Ok(new JsonResult(new {Actions = allowedActions}));
         }
     }
 
     public class ActionsResult
     {
-        [JsonProperty (ItemConverterType = typeof(StringEnumConverter))]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Used by serialization")]
         public List<AclAction> Actions { get; set; } = new List<AclAction>();
     }

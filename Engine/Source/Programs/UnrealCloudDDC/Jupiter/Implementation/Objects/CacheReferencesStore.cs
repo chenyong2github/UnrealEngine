@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using EpicGames.AspNet;
@@ -116,8 +117,11 @@ namespace Jupiter.Implementation
 
             response.EnsureSuccessStatusCode();
 
-            RefMetadataResponse metadataResponse = await response.Content.ReadAsAsync<RefMetadataResponse>();
-
+            RefMetadataResponse? metadataResponse = await response.Content.ReadFromJsonAsync<RefMetadataResponse>();
+            if (metadataResponse == null)
+            {
+                throw new Exception("Unable to deserialize metadata response");
+            }
             return new ObjectRecord(metadataResponse.Ns, metadataResponse.Bucket, metadataResponse.Name, metadataResponse.LastAccess, metadataResponse.InlinePayload, metadataResponse.PayloadIdentifier, metadataResponse.IsFinalized);
         }
 
@@ -133,7 +137,11 @@ namespace Jupiter.Implementation
             HttpResponseMessage response = await HttpClient.SendAsync(putObjectRequest);
             if (response.StatusCode == HttpStatusCode.BadRequest)
             {
-                ProblemDetails? problem = await response.Content.ReadAsAsync<ProblemDetails>();
+                ProblemDetails? problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+                if (problem == null)
+                {
+                    throw new Exception("Unable to deserialize problem details when bad request was encountered");
+                }
                 throw new Exception("Upstream returned 400 (BadRequest) with error: " + problem.Title);
             }
             response.EnsureSuccessStatusCode();
@@ -150,12 +158,21 @@ namespace Jupiter.Implementation
 
             if (response.StatusCode == HttpStatusCode.BadRequest)
             {
-                ProblemDetails? problem = await response.Content.ReadAsAsync<ProblemDetails>();
+                ProblemDetails? problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+                if (problem == null)
+                {
+                    throw new Exception("Unable to deserialize problem details when bad request was encountered during finalize");
+                }
                 throw new Exception("Upstream returned 400 (BadRequest) with error: " + problem.Title);
             }
             response.EnsureSuccessStatusCode();
 
-            PutObjectResponse putObjectResponse = await response.Content.ReadAsAsync<PutObjectResponse>();
+            PutObjectResponse? putObjectResponse = await response.Content.ReadFromJsonAsync<PutObjectResponse>();
+            if (putObjectResponse == null)
+            {
+                throw new Exception("Unable to deserialize put object response when finalizing ref");
+            }
+
             if (putObjectResponse.Needs.Length != 0)
             {
                 // TODO: we assume here that all the objects that are missing are content ids, that may not be true, but as needs only contains a list with mixed hashes we can not detect the difference

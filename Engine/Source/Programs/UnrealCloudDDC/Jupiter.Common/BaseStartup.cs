@@ -9,16 +9,18 @@ using System.IO;
 using System.Net.Mime;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Amazon;
 using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using Jupiter.Common;
+using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -27,11 +29,8 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using Okta.AspNet.Abstractions;
 using Okta.AspNetCore;
 using OpenTelemetry.Logs;
@@ -94,14 +93,7 @@ namespace Jupiter
 
             services.AddSingleton(typeof(INamespacePolicyResolver), typeof(NamespacePolicyResolver));
 
-            // this is the same as invoke MvcBuilder.AddJsonOptions but with a service provider passed so we can use DI in the options creation
-            // see https://stackoverflow.com/questions/53288633/net-core-api-custom-json-resolver-based-on-request-values
-            // inject our custom json options and then pass a DI context to customize the serialization
-            services.Configure<MvcNewtonsoftJsonOptions>(OnJsonOptions);
-            services.AddTransient<IConfigureOptions<MvcNewtonsoftJsonOptions>, MvcJsonOptionsWrapper>();
-
             services.AddControllers()
-                .AddNewtonsoftJson()
                 .AddMvcOptions(options =>
                 {
                     options.InputFormatters.Add(new CbInputFormatter());
@@ -123,7 +115,7 @@ namespace Jupiter
 
                         return result;
                     };
-                });
+                }).AddJsonOptions(jsonOptions => ConfigureJsonOptions(jsonOptions.JsonSerializerOptions));
 
             services.AddHttpContextAccessor();
 
@@ -340,6 +332,15 @@ namespace Jupiter
             OnAddHealthChecks(services);
         }
 
+        public static void ConfigureJsonOptions(JsonSerializerOptions options)
+        {
+            options.AllowTrailingCommas = true;
+            options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+            options.PropertyNameCaseInsensitive = true;
+
+            options.Converters.Add(new JsonStringEnumConverter());
+        }
+
         private Meter CreateMeter(IServiceProvider provider)
         {
             return new Meter("UnrealCloudDDC");
@@ -374,10 +375,6 @@ namespace Jupiter
         protected abstract void OnAddHealthChecks(IServiceCollection services, IHealthChecksBuilder healthChecks);
 
         protected abstract void OnAddAuthorization(AuthorizationOptions authorizationOptions, List<string> defaultSchemes);
-
-        protected virtual void OnJsonOptions(MvcNewtonsoftJsonOptions options)
-        {
-        }
 
         protected virtual void OnAddControllers(MvcOptions options)
         {
@@ -484,7 +481,7 @@ namespace Jupiter
         }
     }
 
-    public class MvcJsonOptionsWrapper : IConfigureOptions<MvcNewtonsoftJsonOptions>
+    /*public class MvcJsonOptionsWrapper : IConfigureOptions<MvcNewtonsoftJsonOptions>
     {
         readonly IServiceProvider ServiceProvider;
 
@@ -496,9 +493,9 @@ namespace Jupiter
         {
             options.SerializerSettings.ContractResolver = new FieldFilteringResolver(ServiceProvider);
         }
-    }
+    }*/
 
-    public class FieldFilteringResolver : DefaultContractResolver
+    /*public class FieldFilteringResolver : DefaultContractResolver
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -549,7 +546,7 @@ namespace Jupiter
 
             return property;
         }
-    }
+    }*/
 
     public enum SchemeImplementations
     {

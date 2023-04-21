@@ -3,6 +3,7 @@
 using System;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Jupiter.Controllers;
 using Microsoft.AspNetCore.TestHost;
@@ -69,7 +70,8 @@ namespace Jupiter.FunctionalTests.Status
         {
             HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/status/peers", UriKind.Relative));
             result.EnsureSuccessStatusCode();
-            PeersResponse peersResponse = await result.Content.ReadAsAsync<PeersResponse>();
+            PeersResponse? peersResponse = await result.Content.ReadFromJsonAsync<PeersResponse>();
+            Assert.IsNotNull(peersResponse);
             Assert.AreEqual("test", peersResponse.CurrentSite);
 
             Assert.AreEqual(1, peersResponse.Peers.Count);
@@ -86,7 +88,8 @@ namespace Jupiter.FunctionalTests.Status
         {
             HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/status/peers?includeInternalEndpoints=true", UriKind.Relative));
             result.EnsureSuccessStatusCode();
-            PeersResponse peersResponse = await result.Content.ReadAsAsync<PeersResponse>();
+            PeersResponse? peersResponse = await result.Content.ReadFromJsonAsync<PeersResponse>();
+            Assert.IsNotNull(peersResponse);
             Assert.AreEqual("test", peersResponse.CurrentSite);
 
             Assert.AreEqual(1, peersResponse.Peers.Count);

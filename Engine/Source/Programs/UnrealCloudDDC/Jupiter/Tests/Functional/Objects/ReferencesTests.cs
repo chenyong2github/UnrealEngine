@@ -7,8 +7,11 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Net.Mime;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Cassandra;
 using EpicGames.Core;
@@ -20,8 +23,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Serilog;
 using Logger = Serilog.Core.Logger;
 using EpicGames.Horde.Storage;
@@ -29,6 +30,7 @@ using EpicGames.Serialization;
 using ContentId = Jupiter.Implementation.ContentId;
 using EpicGames.AspNet;
 using Jupiter.Implementation.Objects;
+using Jupiter.Tests.Functional;
 
 namespace Jupiter.FunctionalTests.References
 {
@@ -378,19 +380,9 @@ namespace Jupiter.FunctionalTests.References
 
                 byte[] roundTrippedBuffer = ms.ToArray();
                 string s = Encoding.ASCII.GetString(roundTrippedBuffer);
-                JObject jObject = JObject.Parse(s);
-                Assert.AreEqual(2, jObject.Children().Count());
-                JToken? childToken = jObject.Children().First();
-                Assert.IsNotNull(childToken);
-                Assert.AreEqual(JTokenType.Property, childToken.Type);
-                JProperty property = jObject.Children<JProperty>().First();
-                Assert.IsNotNull(property);
-
-                Assert.AreEqual("RawHash", property!.Name);
-
-                string value = property.Value.Value<string>()!;
-                Assert.IsNotNull(value);
-                Assert.AreEqual(objectHash, new BlobIdentifier(value));
+                JsonNode? jsonNode = JsonNode.Parse(s);
+                Assert.IsNotNull(jsonNode);
+                Assert.AreEqual(objectHash, new BlobIdentifier(jsonNode["RawHash"]!.GetValue<string>()));
             }
 
             {
@@ -406,19 +398,9 @@ namespace Jupiter.FunctionalTests.References
 
                 byte[] roundTrippedBuffer = ms.ToArray();
                 string s = Encoding.ASCII.GetString(roundTrippedBuffer);
-                JObject jObject = JObject.Parse(s);
-                Assert.AreEqual(2, jObject.Children().Count());
-                JToken? childToken = jObject.Children().First();
-                Assert.IsNotNull(childToken);
-                Assert.AreEqual(JTokenType.Property, childToken.Type);
-                JProperty property = jObject.Children<JProperty>().First();
-                Assert.IsNotNull(property);
-
-                Assert.AreEqual("RawHash", property!.Name);
-
-                string? value = property.Value.Value<string>()!;
-                Assert.IsNotNull(value);
-                Assert.AreEqual(objectHash, new BlobIdentifier(value));
+                JsonNode? node = JsonNode.Parse(s);
+                Assert.IsNotNull(node);
+                Assert.AreEqual(objectHash, new BlobIdentifier(node["RawHash"]!.ToString()));
             }
 
             {
@@ -520,20 +502,9 @@ namespace Jupiter.FunctionalTests.References
                 byte[] roundTrippedBuffer = ms.ToArray();
 
                 string s = Encoding.ASCII.GetString(roundTrippedBuffer);
-                JObject jObject = JObject.Parse(s);
-                Assert.AreEqual(1, jObject.Children().Count());
-
-                JToken? childToken = jObject.Children().First();
-                Assert.IsNotNull(childToken);
-                Assert.AreEqual(JTokenType.Property, childToken.Type);
-                JProperty property = jObject.Children<JProperty>().First();
-                Assert.IsNotNull(property);
-
-                Assert.AreEqual("stringField", property!.Name);
-
-                string? value = property.Value.Value<string>();
-                Assert.IsNotNull(value);
-                Assert.AreEqual("thisIsAField", value);
+                JsonNode? node = JsonNode.Parse(s);
+                Assert.IsNotNull(node);
+                Assert.AreEqual("thisIsAField", node["stringField"]!.GetValue<string>());
             }
         }
 
@@ -590,20 +561,9 @@ namespace Jupiter.FunctionalTests.References
                 byte[] roundTrippedBuffer = ms.ToArray();
 
                 string s = Encoding.ASCII.GetString(roundTrippedBuffer);
-                JObject jObject = JObject.Parse(s);
-                Assert.AreEqual(1, jObject.Children().Count());
-
-                JToken? childToken = jObject.Children().First();
-                Assert.IsNotNull(childToken);
-                Assert.AreEqual(JTokenType.Property, childToken.Type);
-                JProperty property = jObject.Children<JProperty>().First();
-                Assert.IsNotNull(property);
-
-                Assert.AreEqual("stringField", property!.Name);
-
-                string? value = property.Value.Value<string>();
-                Assert.IsNotNull(value);
-                Assert.AreEqual("thisIsAField", value);
+                JsonNode? node = JsonNode.Parse(s);
+                Assert.IsNotNull(node);
+                Assert.AreEqual("thisIsAField", node["stringField"]!.GetValue<string>());
             }
         }
 
@@ -763,20 +723,9 @@ namespace Jupiter.FunctionalTests.References
                 byte[] roundTrippedBuffer = ms.ToArray();
 
                 string s = Encoding.ASCII.GetString(roundTrippedBuffer);
-                JObject jObject = JObject.Parse(s);
-                Assert.AreEqual(1, jObject.Children().Count());
-
-                JToken? childToken = jObject.Children().First();
-                Assert.IsNotNull(childToken);
-                Assert.AreEqual(JTokenType.Property, childToken.Type);
-                JProperty property = jObject.Children<JProperty>().First();
-                Assert.IsNotNull(property);
-
-                Assert.AreEqual("childObject", property!.Name);
-
-                string? value = property.Value.Value<string>();
-                Assert.IsNotNull(value);
-                Assert.AreEqual(childObjectHash.ToString().ToLower(), value);
+                JsonNode? node = JsonNode.Parse(s);
+                Assert.IsNotNull(node);
+                Assert.AreEqual(childObjectHash.ToString().ToLower(), node["childObject"]!.GetValue<string>());
             }
 
             {
@@ -846,8 +795,9 @@ namespace Jupiter.FunctionalTests.References
             {
                 HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists" + queryString, UriKind.Relative));
                 result.EnsureSuccessStatusCode();
-                ExistCheckMultipleRefsResponse response = await result.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+                ExistCheckMultipleRefsResponse? response = await result.Content.ReadFromJsonAsync<ExistCheckMultipleRefsResponse>();
 
+                Assert.IsNotNull(response);
                 Assert.AreEqual(1, response.Missing.Count);
                 Assert.AreEqual(bucket, response.Missing[0].Bucket);
                 Assert.AreEqual(missingObject, response.Missing[0].Key);
@@ -1006,17 +956,10 @@ namespace Jupiter.FunctionalTests.References
 
                 byte[] roundTrippedBuffer = ms.ToArray();
                 string s = Encoding.ASCII.GetString(roundTrippedBuffer);
-                JObject jObject = JObject.Parse(s);
-                Assert.AreEqual(2, jObject.Children().Count());
-
-                JToken? blobAttachment = jObject["blobAttachment"];
-                string blobAttachmentString = blobAttachment!.Value<string>()!;
-                Assert.AreEqual(blobHash, new BlobIdentifier(blobAttachmentString));
-
-                JToken? objectAttachment = jObject["objectAttachment"];
-                string objectAttachmentString = objectAttachment!.Value<string>()!;
-                Assert.AreEqual(childDataObjectHash, new BlobIdentifier(objectAttachmentString));
-
+                JsonNode? node = JsonNode.Parse(s);
+                Assert.IsNotNull(node);
+                Assert.AreEqual(blobHash, new BlobIdentifier(node["blobAttachment"]!.GetValue<string>()));
+                Assert.AreEqual(childDataObjectHash, new BlobIdentifier(node["objectAttachment"]!.GetValue<string>()));
             }
         }
         
@@ -1090,11 +1033,12 @@ namespace Jupiter.FunctionalTests.References
                     await result.Content.CopyToAsync(ms);
                     byte[] roundTrippedBuffer = ms.ToArray();
                     string s = Encoding.ASCII.GetString(roundTrippedBuffer);
-                    JObject jObject = JObject.Parse(s);
-                    Assert.AreEqual(1, jObject.Children().Count());
 
-                    JToken? needs = jObject["needs"];
-                    BlobIdentifier[] missingBlobs = needs!.ToArray().Select(token => new BlobIdentifier(token.Value<string>()!)).ToArray();
+                    PutObjectResponse? response = JsonSerializer.Deserialize<PutObjectResponse>(s, JsonTestUtils.DefaultJsonSerializerSettings);
+                    Assert.IsNotNull(response);
+
+                    BlobIdentifier[] missingBlobs = response.Needs.Select(hash => new BlobIdentifier(hash.HashData)).ToArray();
+
                     Assert.AreEqual(2, missingBlobs.Length);
                     Assert.IsTrue(missingBlobs.Contains(blobHash));
                     Assert.IsTrue(missingBlobs.Contains(blobHashChild));
@@ -1165,11 +1109,11 @@ namespace Jupiter.FunctionalTests.References
                     await result.Content.CopyToAsync(ms);
                     byte[] roundTrippedBuffer = ms.ToArray();
                     string s = Encoding.ASCII.GetString(roundTrippedBuffer);
-                    JObject jObject = JObject.Parse(s);
-                    Assert.AreEqual(1, jObject.Children().Count());
+                    PutObjectResponse? response = JsonSerializer.Deserialize<PutObjectResponse>(s, JsonTestUtils.DefaultJsonSerializerSettings);
+                    Assert.IsNotNull(response);
 
-                    JToken? needs = jObject["needs"];
-                    BlobIdentifier[] missingBlobs = needs!.ToArray().Select(token => new BlobIdentifier(token.Value<string>()!)).ToArray();
+                    BlobIdentifier[] missingBlobs = response.Needs.Select(field => new BlobIdentifier(field.HashData)).ToArray();
+
                     Assert.AreEqual(1, missingBlobs.Length);
                     Assert.AreEqual(contentId.AsBlobIdentifier(), missingBlobs[0]);
                 }
@@ -1398,7 +1342,8 @@ namespace Jupiter.FunctionalTests.References
                 HttpResponseMessage existsResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
                 existsResponse.EnsureSuccessStatusCode();
 
-                ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+                ExistCheckMultipleRefsResponse? response = await existsResponse.Content.ReadFromJsonAsync<ExistCheckMultipleRefsResponse>();
+                Assert.IsNotNull(response);
                 Assert.AreEqual(0, response.Missing.Count);
             }
 
@@ -1425,7 +1370,8 @@ namespace Jupiter.FunctionalTests.References
                 HttpResponseMessage existsResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
                 existsResponse.EnsureSuccessStatusCode();
 
-                ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+                ExistCheckMultipleRefsResponse? response = await existsResponse.Content.ReadFromJsonAsync<ExistCheckMultipleRefsResponse>();
+                Assert.IsNotNull(response);
                 Assert.AreEqual(1, response.Missing.Count);
                 Assert.AreEqual(key, response.Missing[0].Key);
                 Assert.AreEqual("bucket", response.Missing[0].Bucket.ToString());
@@ -1500,7 +1446,8 @@ namespace Jupiter.FunctionalTests.References
                 HttpResponseMessage existsResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
                 existsResponse.EnsureSuccessStatusCode();
 
-                ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+                ExistCheckMultipleRefsResponse? response = await existsResponse.Content.ReadFromJsonAsync<ExistCheckMultipleRefsResponse>();
+                Assert.IsNotNull(response);
                 Assert.AreEqual(0, response.Missing.Count);
             }
 
@@ -1527,7 +1474,8 @@ namespace Jupiter.FunctionalTests.References
                 HttpResponseMessage existsResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
                 existsResponse.EnsureSuccessStatusCode();
 
-                ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+                ExistCheckMultipleRefsResponse? response = await existsResponse.Content.ReadFromJsonAsync<ExistCheckMultipleRefsResponse>();
+                Assert.IsNotNull(response);
                 Assert.AreEqual(1, response.Missing.Count);
                 Assert.AreEqual(key, response.Missing[0].Key);
                 Assert.AreEqual("bucket", response.Missing[0].Bucket.ToString());
@@ -1586,7 +1534,8 @@ namespace Jupiter.FunctionalTests.References
                 HttpResponseMessage existsResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
                 existsResponse.EnsureSuccessStatusCode();
 
-                ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+                ExistCheckMultipleRefsResponse? response = await existsResponse.Content.ReadFromJsonAsync<ExistCheckMultipleRefsResponse>();
+                Assert.IsNotNull(response);
                 Assert.AreEqual(0, response.Missing.Count);
             }
 
@@ -1613,7 +1562,7 @@ namespace Jupiter.FunctionalTests.References
                 Assert.AreEqual(HttpStatusCode.NotFound, getResponse.StatusCode);
                 Assert.AreEqual("application/problem+json", getResponse.Content.Headers.ContentType!.MediaType);
                 string s = await getResponse.Content.ReadAsStringAsync();
-                ProblemDetails? problem = JsonConvert.DeserializeObject<ProblemDetails>(s);
+                ProblemDetails? problem = JsonSerializer.Deserialize<ProblemDetails>(s);
                 Assert.IsNotNull(problem);
                 Assert.AreEqual($"Object {blobHash} in {TestNamespace} not found", problem.Title);
             }
@@ -1630,7 +1579,8 @@ namespace Jupiter.FunctionalTests.References
                 HttpResponseMessage existsResponse = await _httpClient.GetAsync(new Uri($"api/v1/refs/{TestNamespace}/exists?names=bucket.{key}", UriKind.Relative));
                 existsResponse.EnsureSuccessStatusCode();
 
-                ExistCheckMultipleRefsResponse response = await existsResponse.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+                ExistCheckMultipleRefsResponse? response = await existsResponse.Content.ReadFromJsonAsync<ExistCheckMultipleRefsResponse>();
+                Assert.IsNotNull(response);
                 Assert.AreEqual(1, response.Missing.Count);
                 Assert.AreEqual(key, response.Missing[0].Key);
                 Assert.AreEqual("bucket", response.Missing[0].Bucket.ToString());
@@ -1799,7 +1749,8 @@ namespace Jupiter.FunctionalTests.References
                 HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
-                GetNamespacesResponse response = await result.Content.ReadAsAsync<GetNamespacesResponse>();
+                GetNamespacesResponse? response = await result.Content.ReadFromJsonAsync<GetNamespacesResponse>();
+                Assert.IsNotNull(response);
                 CollectionAssert.DoesNotContain(response.Namespaces, NamespaceToBeDeleted);
             }
         }
@@ -1827,7 +1778,8 @@ namespace Jupiter.FunctionalTests.References
                 HttpResponseMessage result = await _httpClient!.GetAsync(new Uri($"api/v1/refs", UriKind.Relative));
                 result.EnsureSuccessStatusCode();
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
-                GetNamespacesResponse response = await result.Content.ReadAsAsync<GetNamespacesResponse>();
+                GetNamespacesResponse? response = await result.Content.ReadFromJsonAsync<GetNamespacesResponse>();
+                Assert.IsNotNull(response);
                 Assert.IsTrue(response.Namespaces.Contains(TestNamespace));
             }
         }

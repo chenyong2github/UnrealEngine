@@ -8,6 +8,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.Mime;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Cassandra;
 using Jupiter.Controllers;
@@ -25,6 +27,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using EpicGames.AspNet;
 using Jupiter.Implementation.Objects;
+using Jupiter.Tests.Functional;
 
 namespace Jupiter.FunctionalTests.References
 {
@@ -206,7 +209,8 @@ namespace Jupiter.FunctionalTests.References
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
-                ReplicationLogEvents? events = await result.Content.ReadAsAsync<ReplicationLogEvents>();
+                string s = await result.Content.ReadAsStringAsync();
+                ReplicationLogEvents? events = JsonSerializer.Deserialize<ReplicationLogEvents>(s, JsonTestUtils.DefaultJsonSerializerSettings);
                 Assert.IsNotNull(events);
                 Assert.AreEqual(3, events!.Events.Count);
 
@@ -239,7 +243,6 @@ namespace Jupiter.FunctionalTests.References
             CollectionAssert.AreEqual(new [] {TestNamespace}, await _replicationLog.GetNamespaces().ToArrayAsync());
         }
 
-         
         [TestMethod]
         public async Task ReplicationLogReading()
         {
@@ -263,7 +266,7 @@ namespace Jupiter.FunctionalTests.References
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
-                ReplicationLogEvents? events = await result.Content.ReadAsAsync<ReplicationLogEvents>();
+                ReplicationLogEvents? events = await result.Content.ReadFromJsonAsync<ReplicationLogEvents>(JsonTestUtils.DefaultJsonSerializerSettings);
                 Assert.IsNotNull(events);
                 Assert.AreEqual(3, events!.Events.Count);
 
@@ -324,7 +327,7 @@ namespace Jupiter.FunctionalTests.References
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
-                ReplicationLogEvents? events = await result.Content.ReadAsAsync<ReplicationLogEvents>();
+                ReplicationLogEvents? events = await result.Content.ReadFromJsonAsync<ReplicationLogEvents>(JsonTestUtils.DefaultJsonSerializerSettings);
                 Assert.IsNotNull(events);
                 Assert.AreEqual(3, events!.Events.Count);
 
@@ -384,7 +387,7 @@ namespace Jupiter.FunctionalTests.References
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
-                ReplicationLogEvents? events = await result.Content.ReadAsAsync<ReplicationLogEvents>();
+                ReplicationLogEvents? events = await result.Content.ReadFromJsonAsync<ReplicationLogEvents>(JsonTestUtils.DefaultJsonSerializerSettings);
                 Assert.IsNotNull(events);
                 Assert.AreEqual(EventsToFetch, events!.Events.Count);
 
@@ -512,6 +515,7 @@ namespace Jupiter.FunctionalTests.References
                 Assert.AreEqual("http://jupiter.epicgames.com/replication/useSnapshot", problem!.Type);
                 Assert.IsTrue(problem.Extensions.ContainsKey("SnapshotId"));
                 Assert.AreEqual(snapshotBlobId, new BlobIdentifier(problem.Extensions["SnapshotId"]!.ToString()!));
+                Assert.AreEqual(SnapshotNamespace, new NamespaceId(problem.Extensions["BlobNamespace"]!.ToString()!));
             }
         }
 
@@ -639,7 +643,7 @@ namespace Jupiter.FunctionalTests.References
                 result.EnsureSuccessStatusCode();
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
-                ReplicationLogSnapshots snapshots = await result.Content.ReadAsAsync<ReplicationLogSnapshots>();
+                ReplicationLogSnapshots? snapshots = await result.Content.ReadFromJsonAsync<ReplicationLogSnapshots>();
                 Assert.IsNotNull(snapshots);
                 Assert.AreEqual(1, snapshots.Snapshots.Count);
 
@@ -703,7 +707,7 @@ namespace Jupiter.FunctionalTests.References
                 
                 Assert.AreEqual(result!.Content.Headers.ContentType!.MediaType, MediaTypeNames.Application.Json);
 
-                ReplicationLogEvents? events = await result.Content.ReadAsAsync<ReplicationLogEvents>();
+                ReplicationLogEvents? events = await result.Content.ReadFromJsonAsync<ReplicationLogEvents>(JsonTestUtils.DefaultJsonSerializerSettings);
                 Assert.IsNotNull(events);
                 Assert.AreEqual(2, events!.Events.Count);
 

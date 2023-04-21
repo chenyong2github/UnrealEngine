@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Mime;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.AspNet;
@@ -27,7 +28,6 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using OpenTelemetry.Trace;
 
 using ContentHash = Jupiter.Implementation.ContentHash;
@@ -1291,9 +1291,9 @@ namespace Jupiter.Controllers
 
     public class ExistCheckMultipleRefsResponse
     {
-        public ExistCheckMultipleRefsResponse(List<(BucketId,IoHashKey)> missingNames)
+        public ExistCheckMultipleRefsResponse(List<(BucketId,IoHashKey)> missing)
         {
-            Missing = missingNames.Select(pair =>
+            Missing = missing.Select(pair =>
             {
                 (BucketId bucketId, IoHashKey ioHashKey) = pair;
                 return new MissingReference()
@@ -1305,9 +1305,9 @@ namespace Jupiter.Controllers
         }
 
         [JsonConstructor]
-        public ExistCheckMultipleRefsResponse(List<MissingReference> missingNames)
+        public ExistCheckMultipleRefsResponse(List<MissingReference> missing)
         {
-            Missing = missingNames;
+            Missing = missing;
         }
 
         [CbField("missing")]

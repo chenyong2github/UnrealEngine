@@ -5,18 +5,18 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Blake3;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
-using Newtonsoft.Json;
-using JsonWriter = Newtonsoft.Json.JsonWriter;
 
 namespace Jupiter.Implementation
 {
-    [JsonConverter(typeof(BlobIdentifierConverter))]
     [TypeConverter(typeof(BlobIdentifierTypeConverter))]
+    [JsonConverter(typeof(BlobIdentifierJsonConverter))]
     [CbConverter(typeof(BlobIdentifierCbConverter))]
     public class BlobIdentifier : ContentHash,  IEquatable<BlobIdentifier>
     {
@@ -180,31 +180,44 @@ namespace Jupiter.Implementation
             }
 
             return base.ConvertFrom(context, culture, value);  
-        }  
-    }
-
-    public class BlobIdentifierConverter : JsonConverter<BlobIdentifier?>
-    {
-        public override void WriteJson(JsonWriter writer, BlobIdentifier? value, JsonSerializer serializer)
-        {
-            writer.WriteValue(value!.ToString());
         }
 
-        public override BlobIdentifier? ReadJson(JsonReader reader, Type objectType, BlobIdentifier? existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
         {
-            if (reader.TokenType == JsonToken.Null)
+            if (destinationType == typeof(string))
             {
-                return null;
+                return true;
+            }
+            return base.CanConvertTo(context, destinationType);
+        }
+
+        public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
+        {
+            if (destinationType == typeof(string))
+            {
+                BlobIdentifier? identifier = (BlobIdentifier?)value;
+                return identifier?.ToString();
+            }
+            return base.ConvertTo(context, culture, value, destinationType);
+        }
+    }
+
+    public class BlobIdentifierJsonConverter : JsonConverter<BlobIdentifier>
+    {
+        public override BlobIdentifier? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            string? str = reader.GetString();
+            if (str == null)
+            {
+                throw new InvalidDataException("Unable to parse blob identifier");
             }
 
-            string? s = (string?)reader.Value;
+            return new BlobIdentifier(str);
+        }
 
-            if (s == null)
-            {
-                return null;
-            }
-
-            return new BlobIdentifier(s!);
+        public override void Write(Utf8JsonWriter writer, BlobIdentifier value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
         }
     }
 

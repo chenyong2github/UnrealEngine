@@ -6,6 +6,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Net.Mime;
 using System.Text;
 using System.Threading.Tasks;
@@ -139,7 +140,8 @@ namespace Jupiter.FunctionalTests.CompressedBlobs
             HttpResponseMessage result = await Client!.PutAsync(new Uri($"api/v1/compressed-blobs/{TestNamespace}/{uncompressedPayloadIdentifier}", UriKind.Relative), content);
             result.EnsureSuccessStatusCode();
 
-            InsertResponse response = await result.Content.ReadAsAsync<InsertResponse>();
+            InsertResponse? response = await result.Content.ReadFromJsonAsync<InsertResponse>();
+            Assert.IsNotNull(response);
             Assert.AreNotEqual(compressedPayloadIdentifier, response.Identifier);
             Assert.AreEqual(uncompressedPayloadIdentifier, response.Identifier);
         }
@@ -157,7 +159,8 @@ namespace Jupiter.FunctionalTests.CompressedBlobs
                 HttpResponseMessage result = await Client!.PutAsync(new Uri($"api/v1/compressed-blobs/{TestNamespace}/{uncompressedPayloadIdentifier}", UriKind.Relative), content);
                 result.EnsureSuccessStatusCode();
 
-                InsertResponse response = await result.Content.ReadAsAsync<InsertResponse>();
+                InsertResponse? response = await result.Content.ReadFromJsonAsync<InsertResponse>();
+                Assert.IsNotNull(response);
                 Assert.IsNotNull(response.Identifier);
                 Assert.AreNotEqual(compressedPayloadIdentifier, response.Identifier);
                 Assert.AreEqual(uncompressedPayloadIdentifier, ContentId.FromBlobIdentifier(response.Identifier));
@@ -266,7 +269,8 @@ namespace Jupiter.FunctionalTests.CompressedBlobs
 
                 result.EnsureSuccessStatusCode();
 
-                InsertResponse response = await result.Content.ReadAsAsync<InsertResponse>();
+                InsertResponse? response = await result.Content.ReadFromJsonAsync<InsertResponse>();
+                Assert.IsNotNull(response);
                 Assert.IsNotNull(response.Identifier);
                 Assert.AreEqual(uncompressedPayloadIdentifier, response.Identifier);
                 Assert.AreNotEqual(compressedPayloadIdentifier, response.Identifier);

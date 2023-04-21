@@ -10,7 +10,6 @@ using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
 
 namespace Jupiter.Controllers
 {
@@ -128,9 +127,9 @@ namespace Jupiter.Controllers
             return new JsonResult(new
             {
                 Settings = settings
-            }, new JsonSerializerSettings
+            }, new System.Text.Json.JsonSerializerOptions
             {
-                Formatting = Formatting.Indented
+                WriteIndented = true
             })
             {
                 StatusCode = (int)HttpStatusCode.OK

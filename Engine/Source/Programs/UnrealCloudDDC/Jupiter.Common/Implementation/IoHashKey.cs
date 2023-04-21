@@ -3,16 +3,17 @@
 using System;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.Serialization;
-using Newtonsoft.Json;
-using JsonWriter = Newtonsoft.Json.JsonWriter;
 
 namespace Jupiter.Implementation
 {
-    [JsonConverter(typeof(IoHashKeyJsonConverter))]
     [TypeConverter(typeof(IoHashKeyTypeConverter))]
+    [JsonConverter(typeof(IoHashKeyJsonConverter))]
     [CbConverter(typeof(IoHashKeyCbConverter))]
 
     public readonly struct IoHashKey: IEquatable<IoHashKey>
@@ -85,21 +86,6 @@ namespace Jupiter.Implementation
         }
     }
 
-    public class IoHashKeyJsonConverter: JsonConverter<IoHashKey>
-    {
-        public override void WriteJson(JsonWriter writer, IoHashKey value, JsonSerializer serializer)
-        {
-            writer.WriteValue(value!.ToString());
-        }
-
-        public override IoHashKey ReadJson(JsonReader reader, Type objectType, IoHashKey existingValue, bool hasExistingValue, Newtonsoft.Json.JsonSerializer serializer)
-        {
-            string? s = (string?)reader.Value;
-
-            return new IoHashKey(s!);
-        }
-    }
-
     public sealed class IoHashKeyTypeConverter : TypeConverter
     {
         /// <inheritdoc/>
@@ -121,6 +107,25 @@ namespace Jupiter.Implementation
             }
 
             return base.ConvertFrom(context, culture, value);  
+        }
+    }
+
+    public class IoHashKeyJsonConverter : JsonConverter<IoHashKey>
+    {
+        public override IoHashKey Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            string? str = reader.GetString();
+            if (str == null)
+            {
+                throw new InvalidDataException("Unable to parse io hash key");
+            }
+
+            return new IoHashKey(str);
+        }
+
+        public override void Write(Utf8JsonWriter writer, IoHashKey value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
         }
     }
 

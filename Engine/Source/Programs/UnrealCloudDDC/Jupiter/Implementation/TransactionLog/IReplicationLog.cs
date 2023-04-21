@@ -2,9 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
-using Newtonsoft.Json;
+using EpicGames.Serialization;
 
 namespace Jupiter.Implementation
 {
@@ -43,6 +44,7 @@ namespace Jupiter.Implementation
 
     public class ReplicationLogEvent
     {
+        [JsonConstructor]
         public ReplicationLogEvent(NamespaceId @namespace, BucketId bucket, IoHashKey key, BlobIdentifier? blob, Guid eventId, string timeBucket, DateTime timestamp, OpType op)
         {
             Namespace = @namespace;
@@ -63,12 +65,19 @@ namespace Jupiter.Implementation
         };
 
         public NamespaceId Namespace { get; }
+
         public BucketId Bucket { get; }
+
         public IoHashKey Key { get; }
+
         public OpType Op { get; }
+
         public DateTime Timestamp { get; }
+
         public string TimeBucket { get; }
+
         public Guid EventId { get; }
+
         public BlobIdentifier? Blob { get; }
     }
 
