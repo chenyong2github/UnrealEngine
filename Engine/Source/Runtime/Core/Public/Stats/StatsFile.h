@@ -1074,9 +1074,11 @@ protected:
 // 	virtual void ProcessSubtractOperation( const FStatMessage& Message, const FStackState& StackState )
 // 	{}
 
+#if UE_STATS_MEMORY_PROFILER_ENABLED
 	/** Processes memory operation. @see EMemoryOperation. */
 	virtual void ProcessMemoryOperation( EMemoryOperation MemOp, uint64 Ptr, uint64 NewPtr, int64 Size, uint32 SequenceTag, const FStackState& StackState )
 	{}
+#endif
 
 	/** Sets a new processing stage for this file. */
 	void SetProcessingStage( EStatsProcessingStage NewStage )

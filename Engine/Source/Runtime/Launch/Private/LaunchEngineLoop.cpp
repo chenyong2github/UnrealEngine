@@ -1984,7 +1984,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif
 
-#if	STATS
+#if STATS && UE_STATS_MEMORY_PROFILER_ENABLED
 	// Create the stats malloc profiler proxy.
 	if (FStatsMallocProfilerProxy::HasMemoryProfilerToken())
 	{
@@ -1995,7 +1995,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		// Assumes no concurrency here.
 		GMalloc = FStatsMallocProfilerProxy::Get();
 	}
-#endif // STATS
+#endif // STATS && UE_STATS_MEMORY_PROFILER_ENABLED
 
 #if WITH_APPLICATION_CORE
 	{

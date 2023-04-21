@@ -2045,6 +2045,7 @@ static void StatCmd(FString InCmd, bool bStatCommand, FOutputDevice* Ar /*= null
 			FCommandStatsFile::Get().Stop();
 			FThreadStats::DisableRawStats();
 
+#if UE_STATS_MEMORY_PROFILER_ENABLED
 			if (FStatsMallocProfilerProxy::HasMemoryProfilerToken())
 			{
 				if (FStatsMallocProfilerProxy::Get()->GetState())
@@ -2054,6 +2055,7 @@ static void StatCmd(FString InCmd, bool bStatCommand, FOutputDevice* Ar /*= null
 					IStatGroupEnableManager::Get().StatGroupEnableManagerCommand(TEXT("default"));
 				}
 			}
+#endif //UE_STATS_MEMORY_PROFILER_ENABLED
 
 			Stats.ResetStatsForRawStats();
 

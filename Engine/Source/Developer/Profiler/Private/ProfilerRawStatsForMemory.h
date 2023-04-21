@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#if STATS
+#if STATS && UE_STATS_MEMORY_PROFILER_ENABLED
 
 #include "Stats/StatsFile.h"
 
@@ -386,4 +386,4 @@ protected:
 	int32 LastSequenceTagForNamedMarker;
 };
 
-#endif // STATS
+#endif // STATS && UE_STATS_MEMORY_PROFILER_ENABLED

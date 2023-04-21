@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stats/StatsMallocProfilerProxy.h"
+
+#if STATS && UE_STATS_MEMORY_PROFILER_ENABLED
+
 #include "UObject/NameTypes.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"
 #include "Stats/Stats.h"
-
-#if STATS
-
 
 /** Fake stat group and memory stats. */
 DECLARE_STATS_GROUP( TEXT( "Memory Profiler" ), STATGROUP_MemoryProfiler, STATCAT_Advanced );
@@ -251,4 +251,4 @@ void FStatsMallocProfilerProxy::UpdateStats()
 	}
 }
 
-#endif //STATS
+#endif //STATS && UE_STATS_MEMORY_PROFILER_ENABLED

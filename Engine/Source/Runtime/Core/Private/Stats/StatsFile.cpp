@@ -900,120 +900,119 @@ void FStatsReadFile::ProcessStats()
 						const EStatOperation::Type Op = Message.NameAndInfo.GetField<EStatOperation>();
 						const FName RawName = Message.NameAndInfo.GetRawName();
 
-						if (Op == EStatOperation::CycleScopeStart || Op == EStatOperation::CycleScopeEnd || Op == EStatOperation::Memory || Op == EStatOperation::SpecialMessageMarker)
+						if (Op == EStatOperation::CycleScopeStart)
 						{
-							if (Op == EStatOperation::CycleScopeStart)
+							StackState->Stack.Add( RawName );
+							StackState->Current = RawName;
+							ProcessCycleScopeStartOperation( Message, *StackState );
+						}
+#if UE_STATS_MEMORY_PROFILER_ENABLED
+						else if (Op == EStatOperation::Memory)
+						{
+							// First memory operation is Alloc or Free
+							const uint64 EncodedPtr = Message.GetValue_Ptr();
+							const EMemoryOperation MemOp = EMemoryOperation( EncodedPtr & (uint64)EMemoryOperation::Mask );
+							const uint64 Ptr = EncodedPtr & ~(uint64)EMemoryOperation::Mask;
+							if (MemOp == EMemoryOperation::Alloc)
 							{
-								StackState->Stack.Add( RawName );
-								StackState->Current = RawName;
-								ProcessCycleScopeStartOperation( Message, *StackState );
+								// @see FStatsMallocProfilerProxy::TrackAlloc
+								// After AllocPtr message there is always alloc size message and the sequence tag.
+								Index++; CurrentStatMessageIndex++;
+								const FStatMessage& AllocSizeMessage = Data[Index];
+								const int64 AllocSize = AllocSizeMessage.GetValue_int64();
+
+								// Read OperationSequenceTag.
+								Index++; CurrentStatMessageIndex++;
+								const FStatMessage& SequenceTagMessage = Data[Index];
+								const uint32 SequenceTag = (uint32)SequenceTagMessage.GetValue_int64();
+
+								//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocPtr ), (uint64)(UPTRINT)Ptr | (uint64)EMemoryOperation::Alloc );
+								//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocSize ), Size );
+								//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_OperationSequenceTag ), (int64)SequenceTag );
+								ProcessMemoryOperation( MemOp, Ptr, 0, AllocSize, SequenceTag, *StackState );
 							}
-							else if (Op == EStatOperation::Memory)
+							else if (MemOp == EMemoryOperation::Realloc)
 							{
-								// First memory operation is Alloc or Free
-								const uint64 EncodedPtr = Message.GetValue_Ptr();
-								const EMemoryOperation MemOp = EMemoryOperation( EncodedPtr & (uint64)EMemoryOperation::Mask );
-								const uint64 Ptr = EncodedPtr & ~(uint64)EMemoryOperation::Mask;
-								if (MemOp == EMemoryOperation::Alloc)
-								{
-									// @see FStatsMallocProfilerProxy::TrackAlloc
-									// After AllocPtr message there is always alloc size message and the sequence tag.
-									Index++; CurrentStatMessageIndex++;
-									const FStatMessage& AllocSizeMessage = Data[Index];
-									const int64 AllocSize = AllocSizeMessage.GetValue_int64();
+								const uint64 OldPtr = Ptr;
 
-									// Read OperationSequenceTag.
-									Index++; CurrentStatMessageIndex++;
-									const FStatMessage& SequenceTagMessage = Data[Index];
-									const uint32 SequenceTag = (uint32)SequenceTagMessage.GetValue_int64();
+								// Read NewPtr
+								Index++; CurrentStatMessageIndex++;
+								const FStatMessage& AllocPtrMessage = Data[Index];
+								const uint64 NewPtr = AllocPtrMessage.GetValue_Ptr() & ~(uint64)EMemoryOperation::Mask;
 
-									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocPtr ), (uint64)(UPTRINT)Ptr | (uint64)EMemoryOperation::Alloc );
-									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocSize ), Size );
-									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_OperationSequenceTag ), (int64)SequenceTag );
-									ProcessMemoryOperation( MemOp, Ptr, 0, AllocSize, SequenceTag, *StackState );
-								}
-								else if (MemOp == EMemoryOperation::Realloc)
-								{
-									const uint64 OldPtr = Ptr;
+								// After AllocPtr message there is always alloc size message and the sequence tag.
+								Index++; CurrentStatMessageIndex++;
+								const FStatMessage& ReallocSizeMessage = Data[Index];
+								const int64 ReallocSize = ReallocSizeMessage.GetValue_int64();
 
-									// Read NewPtr
-									Index++; CurrentStatMessageIndex++;
-									const FStatMessage& AllocPtrMessage = Data[Index];
-									const uint64 NewPtr = AllocPtrMessage.GetValue_Ptr() & ~(uint64)EMemoryOperation::Mask;
+								// Read OperationSequenceTag.
+								Index++; CurrentStatMessageIndex++;
+								const FStatMessage& SequenceTagMessage = Data[Index];
+								const uint32 SequenceTag = (uint32)SequenceTagMessage.GetValue_int64();
 
-									// After AllocPtr message there is always alloc size message and the sequence tag.
-									Index++; CurrentStatMessageIndex++;
-									const FStatMessage& ReallocSizeMessage = Data[Index];
-									const int64 ReallocSize = ReallocSizeMessage.GetValue_int64();
-
-									// Read OperationSequenceTag.
-									Index++; CurrentStatMessageIndex++;
-									const FStatMessage& SequenceTagMessage = Data[Index];
-									const uint32 SequenceTag = (uint32)SequenceTagMessage.GetValue_int64();
-
-									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_FreePtr ), (uint64)(UPTRINT)OldPtr | (uint64)EMemoryOperation::Realloc );
-									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocPtr ), (uint64)(UPTRINT)NewPtr | (uint64)EMemoryOperation::Realloc );
-									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocSize ), NewSize );
-									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_OperationSequenceTag ), (int64)SequenceTag );
-									ProcessMemoryOperation( MemOp, OldPtr, NewPtr, ReallocSize, SequenceTag, *StackState );
-								}
-								else if (MemOp == EMemoryOperation::Free)
-								{
-									// Read OperationSequenceTag.
-									Index++; CurrentStatMessageIndex++;
-									const FStatMessage& SequenceTagMessage = Data[Index];
-									const uint32 SequenceTag = (uint32)SequenceTagMessage.GetValue_int64();
-
-									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_FreePtr ), (uint64)(UPTRINT)Ptr | (uint64)EMemoryOperation::Free );	// 16 bytes total				
-									//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_OperationSequenceTag ), (int64)SequenceTag );
-									ProcessMemoryOperation( MemOp, Ptr, 0, 0, SequenceTag, *StackState );
-								}
-								else
-								{
-									UE_LOG( LogStats, Warning, TEXT( "Pointer from a memory operation is invalid" ) );
-								}
+								//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_FreePtr ), (uint64)(UPTRINT)OldPtr | (uint64)EMemoryOperation::Realloc );
+								//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocPtr ), (uint64)(UPTRINT)NewPtr | (uint64)EMemoryOperation::Realloc );
+								//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_AllocSize ), NewSize );
+								//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_OperationSequenceTag ), (int64)SequenceTag );
+								ProcessMemoryOperation( MemOp, OldPtr, NewPtr, ReallocSize, SequenceTag, *StackState );
 							}
-							// Set, Clear, Add, Subtract
-							else if (Op == EStatOperation::CycleScopeEnd)
+							else if (MemOp == EMemoryOperation::Free)
 							{
-								if (StackState->Stack.Num() > 1)
-								{
-									const FName ScopeStart = StackState->Stack.Pop();
-									const FName ScopeEnd = Message.NameAndInfo.GetRawName();
+								// Read OperationSequenceTag.
+								Index++; CurrentStatMessageIndex++;
+								const FStatMessage& SequenceTagMessage = Data[Index];
+								const uint32 SequenceTag = (uint32)SequenceTagMessage.GetValue_int64();
 
-									check( ScopeStart == ScopeEnd );
-
-									StackState->Current = StackState->Stack.Last();
-
-									// The stack should be ok, but it may be partially broken.
-									// This will happen if memory profiling starts in the middle of executing a background thread.
-									StackState->bIsBrokenCallstack = false;
-
-									ProcessCycleScopeEndOperation( Message, *StackState );
-								}
-								else
-								{
-									const FName ShortName = Message.NameAndInfo.GetShortName();
-
-									UE_LOG( LogStats, Warning, TEXT( "Broken cycle scope end %s/%s, current %s" ),
-											*ThreadFName.ToString(),
-											*ShortName.ToString(),
-											*StackState->Current.ToString() );
-
-									// The stack is completely broken, only has the thread name and the last cycle scope.
-									// Rollback to the thread node.
-									StackState->bIsBrokenCallstack = true;
-									StackState->Stack.Empty();
-									StackState->Stack.Add( ThreadFName );
-									StackState->Current = ThreadFName;
-
-									//?ProcessCycleScopeEndOperation( Message, *StackState );
-								}
+								//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_FreePtr ), (uint64)(UPTRINT)Ptr | (uint64)EMemoryOperation::Free );	// 16 bytes total				
+								//ThreadStats->AddMemoryMessage( GET_STATFNAME( STAT_Memory_OperationSequenceTag ), (int64)SequenceTag );
+								ProcessMemoryOperation( MemOp, Ptr, 0, 0, SequenceTag, *StackState );
 							}
-							else if (Op == EStatOperation::SpecialMessageMarker)
+							else
 							{
-								ProcessSpecialMessageMarkerOperation( Message, *StackState );
+								UE_LOG( LogStats, Warning, TEXT( "Pointer from a memory operation is invalid" ) );
 							}
+						}
+#endif //UE_STATS_MEMORY_PROFILER_ENABLED
+						// Set, Clear, Add, Subtract
+						else if (Op == EStatOperation::CycleScopeEnd)
+						{
+							if (StackState->Stack.Num() > 1)
+							{
+								const FName ScopeStart = StackState->Stack.Pop();
+								const FName ScopeEnd = Message.NameAndInfo.GetRawName();
+
+								check( ScopeStart == ScopeEnd );
+
+								StackState->Current = StackState->Stack.Last();
+
+								// The stack should be ok, but it may be partially broken.
+								// This will happen if memory profiling starts in the middle of executing a background thread.
+								StackState->bIsBrokenCallstack = false;
+
+								ProcessCycleScopeEndOperation( Message, *StackState );
+							}
+							else
+							{
+								const FName ShortName = Message.NameAndInfo.GetShortName();
+
+								UE_LOG( LogStats, Warning, TEXT( "Broken cycle scope end %s/%s, current %s" ),
+										*ThreadFName.ToString(),
+										*ShortName.ToString(),
+										*StackState->Current.ToString() );
+
+								// The stack is completely broken, only has the thread name and the last cycle scope.
+								// Rollback to the thread node.
+								StackState->bIsBrokenCallstack = true;
+								StackState->Stack.Empty();
+								StackState->Stack.Add( ThreadFName );
+								StackState->Current = ThreadFName;
+
+								//?ProcessCycleScopeEndOperation( Message, *StackState );
+							}
+						}
+						else if (Op == EStatOperation::SpecialMessageMarker)
+						{
+							ProcessSpecialMessageMarkerOperation( Message, *StackState );
 						}
 
 						if (CurrentStatMessageIndex > MessageIndexForStageProgressUpdate)

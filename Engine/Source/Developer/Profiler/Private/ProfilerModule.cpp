@@ -87,13 +87,14 @@ void FProfilerModule::Shutdown( TSharedRef<SDockTab> TabBeingClosed )
 #endif // STATS
 }
 
+
 /*-----------------------------------------------------------------------------
 	StatsMemoryDumpCommand
 -----------------------------------------------------------------------------*/
 
 void FProfilerModule::StatsMemoryDumpCommand( const TCHAR* Filename )
 {
-#if STATS
+#if STATS && UE_STATS_MEMORY_PROFILER_ENABLED
 	TUniquePtr<FRawStatsMemoryProfiler> Instance( FStatsReader<FRawStatsMemoryProfiler>::Create( Filename ) );
 	if (Instance)
 	{
@@ -157,7 +158,7 @@ void FProfilerModule::StatsMemoryDumpCommand( const TCHAR* Filename )
 #endif // UE_BUILD_DEBUG
 		}
 	}
-#endif // STATS
+#endif // STATS && UE_STATS_MEMORY_PROFILER_ENABLED
 }
 
 
@@ -167,13 +168,14 @@ void FProfilerModule::StatsMemoryDumpCommand( const TCHAR* Filename )
 
 FRawStatsMemoryProfiler* FProfilerModule::OpenRawStatsForMemoryProfiling( const TCHAR* Filename )
 {
-#if STATS
+#if STATS && UE_STATS_MEMORY_PROFILER_ENABLED
 	FRawStatsMemoryProfiler* Instance = FStatsReader<FRawStatsMemoryProfiler>::Create( Filename );
 	if (Instance)
 	{
 		Instance->ReadAndProcessAsynchronously();
 	}
 	return Instance;
-#endif // STATS
+#else
 	return nullptr;
+#endif // STATS && UE_STATS_MEMORY_PROFILER_ENABLED
 }

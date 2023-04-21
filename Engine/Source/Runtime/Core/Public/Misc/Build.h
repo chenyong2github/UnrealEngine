@@ -481,3 +481,10 @@
 #ifndef WITH_PROCESS_PRIORITY_CONTROL
 	#define WITH_PROCESS_PRIORITY_CONTROL 0
 #endif
+
+// Controls whether or not MemoryProfiler is enabled in STATS system.
+// This functionality is deprecated in UE 5.3.
+// For memory profiling, use instead Trace/MemoryInsights and/or LLM.
+#ifndef UE_STATS_MEMORY_PROFILER_ENABLED
+	#define UE_STATS_MEMORY_PROFILER_ENABLED 0
+#endif

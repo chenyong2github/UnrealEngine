@@ -845,26 +845,32 @@ void FStatsThreadState::ProcessNonFrameStats(FStatMessagesArray& Data, TSet<FNam
 			{
 				UE_LOG(LogStats, Fatal, TEXT( "Stat %s was not cleared every frame, but was used with a scope cycle counter." ), *Item.NameAndInfo.GetRawName().ToString() );
 			}
+#if UE_STATS_MEMORY_PROFILER_ENABLED
+			else if (Op == EStatOperation::Memory)
+			{
+				// Ignore any memory messages, they shouldn't be treated as regular stats messages.
+			}
+#endif //UE_STATS_MEMORY_PROFILER_ENABLED
+			else if (Op == EStatOperation::SpecialMessageMarker)
+			{
+				// Ignore special messages, they shouldn't be treated as regular stats messages.
+			}
 			else
 			{
-				// Ignore any memory or special messages, they shouldn't be treated as regular stats messages.
-				if( Op != EStatOperation::Memory && Op != EStatOperation::SpecialMessageMarker )
+				FStatMessage* Result = NotClearedEveryFrame.Find(Item.NameAndInfo.GetRawName());
+				if (!Result)
 				{
-					FStatMessage* Result = NotClearedEveryFrame.Find(Item.NameAndInfo.GetRawName());
-					if (!Result)
+					UE_LOG(LogStats, Error, TEXT( "Stat %s was cleared every frame, but we don't have metadata for it. Data loss." ), *Item.NameAndInfo.GetRawName().ToString() );
+				}
+				else
+				{
+					if (NonFrameStatsFound)
 					{
-						UE_LOG(LogStats, Error, TEXT( "Stat %s was cleared every frame, but we don't have metadata for it. Data loss." ), *Item.NameAndInfo.GetRawName().ToString() );
+						NonFrameStatsFound->Add(Item.NameAndInfo.GetRawName());
 					}
-					else
-					{
-						if (NonFrameStatsFound)
-						{
-							NonFrameStatsFound->Add(Item.NameAndInfo.GetRawName());
-						}
-						FStatsUtils::AccumulateStat(*Result, Item);
-						Item = *Result; // now just write the accumulated value back into the stream
-						check(Item.NameAndInfo.GetField<EStatOperation>() == EStatOperation::Set);
-					}
+					FStatsUtils::AccumulateStat(*Result, Item);
+					Item = *Result; // now just write the accumulated value back into the stream
+					check(Item.NameAndInfo.GetField<EStatOperation>() == EStatOperation::Set);
 				}
 			}
 		}
@@ -1514,10 +1520,12 @@ void FStatsThreadState::GetRawStackStats(int64 TargetFrame, FRawStatStackNode& R
 
 					}
 				}
-				else if( Op == EStatOperation::Memory )
+#if UE_STATS_MEMORY_PROFILER_ENABLED
+				else if (Op == EStatOperation::Memory)
 				{
 					// Should never happen.
 				}
+#endif //UE_STATS_MEMORY_PROFILER_ENABLED
 				else if (OutNonStackStats)
 				{
 					FStatsUtils::AddNonStackStats( LongName, Item, Op, ThisFrameNonStackStats );
@@ -2030,9 +2038,11 @@ void FStatsUtils::AccumulateStat(FStatMessage& Dest, FStatMessage const& Item, E
 					StatOpMaxVal_Int64( Dest.NameAndInfo, Dest.GetValue_int64(), Item.GetValue_int64() );
 					break;
 
+#if UE_STATS_MEMORY_PROFILER_ENABLED
 				// Nothing here at this moment.
 				case EStatOperation::Memory:
 					break;
+#endif //UE_STATS_MEMORY_PROFILER_ENABLED
 
 				default:
 					check(0);
@@ -2058,9 +2068,11 @@ void FStatsUtils::AccumulateStat(FStatMessage& Dest, FStatMessage const& Item, E
 					Dest.GetValue_double() = FMath::Max<double>(Dest.GetValue_double(), Item.GetValue_double());
 					break;
 
+#if UE_STATS_MEMORY_PROFILER_ENABLED
 				// Nothing here at this moment.
 				case EStatOperation::Memory:
 					break;
+#endif //UE_STATS_MEMORY_PROFILER_ENABLED
 
 				default:
 					check(0);

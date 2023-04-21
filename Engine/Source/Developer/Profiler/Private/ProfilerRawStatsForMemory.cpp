@@ -2,7 +2,7 @@
 
 #include "ProfilerRawStatsForMemory.h"
 
-#if STATS
+#if STATS && UE_STATS_MEMORY_PROFILER_ENABLED
 
 #include "Stats/StatsMisc.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
@@ -888,4 +888,4 @@ void FRawStatsMemoryProfiler::CompareSnapshotsHumanReadable( const FName BeginSn
 	}
 }
 
-#endif // STATS
+#endif // STATS && UE_STATS_MEMORY_PROFILER_ENABLED

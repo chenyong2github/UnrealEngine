@@ -1280,6 +1280,7 @@ void FThreadStats::CheckForCollectingStartupStats()
 		DirectStatsCommand( TEXT( "stat dumpsum -start" ), true );
 	}
 
+#if UE_STATS_MEMORY_PROFILER_ENABLED
 	// Now we can safely enable malloc profiler.
 	if (FStatsMallocProfilerProxy::HasMemoryProfilerToken())
 	{
@@ -1288,6 +1289,7 @@ void FThreadStats::CheckForCollectingStartupStats()
 		FStatsMallocProfilerProxy::Get()->SetState( true );
 		DirectStatsCommand( TEXT( "stat startfileraw" ), true );
 	}
+#endif //UE_STATS_MEMORY_PROFILER_ENABLED
 
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, TEXT("CheckForCollectingStartupStats") );
 }

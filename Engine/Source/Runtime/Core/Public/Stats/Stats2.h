@@ -372,7 +372,7 @@ struct EStatOperation
 		MaxVal,
 
 		/** This is a memory operation. @see EMemoryOperation. */
-		Memory,
+		Memory UE_DEPRECATED(5.3, "Use Trace/MemoryInsights and/or LLM for memory profiling."),
 
 		Num,
 		Mask = 0xf,
@@ -430,7 +430,7 @@ struct EMemoryRegion
 };
 
 /** Memory operation for STAT_Memory_AllocPtr. */
-enum class EMemoryOperation : uint8
+enum class UE_DEPRECATED(5.3, "Use Trace/MemoryInsights and/or LLM for memory profiling.") EMemoryOperation : uint8
 {
 	/** Invalid. */
 	Invalid,	
@@ -1484,9 +1484,12 @@ public:
 
 	/** Pseudo-Memory operation. */
 	template<typename TValue>
+	UE_DEPRECATED(5.3, "Use Trace/MemoryInsights and/or LLM for memory profiling.")
 	FORCEINLINE_STATS void AddMemoryMessage( FName InStatName, TValue Value )
 	{
+#if UE_STATS_MEMORY_PROFILER_ENABLED
 		AddStatMessage(FStatMessage(InStatName, EStatOperation::Memory, Value, false));
+#endif //UE_STATS_MEMORY_PROFILER_ENABLED
 	}
 
 	/** 
