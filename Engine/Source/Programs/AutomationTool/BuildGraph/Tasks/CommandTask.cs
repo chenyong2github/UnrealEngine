@@ -104,6 +104,14 @@ namespace AutomationTool.Tasks
 					CommandLine.Append("-nosubmit ");
 				}
 			}
+			if (Parameters.Arguments == null || !Parameters.Arguments.CaseInsensitiveContains("-uselocalbuildstorage"))
+			{
+				if (GlobalCommandLine.UseLocalBuildStorage)
+				{
+					CommandLine.Append("-uselocalbuildstorage ");
+				}
+			}
+
 			CommandLine.Append("-NoCompile ");
 			CommandLine.Append(Parameters.Name);
 			if (!String.IsNullOrEmpty(Parameters.Arguments))
