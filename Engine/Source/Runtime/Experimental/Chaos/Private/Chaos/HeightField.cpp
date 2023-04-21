@@ -1409,7 +1409,10 @@ namespace Chaos
 		FVec2 ClippedStart;
 		FVec2 ClippedEnd;
 
-		if (InflatedBounds.ClipLine(StartPoint, StartPoint + Dir * Length, ClippedStart, ClippedEnd))
+		const FVec3 InflateStartPoint = StartPoint - Dir * InHalfExtents;
+		const FVec3 InflateEndPoint = StartPoint + Dir * (InHalfExtents + Length);
+
+		if (InflatedBounds.ClipLine(InflateStartPoint, InflateEndPoint, ClippedStart, ClippedEnd))
 		{
 			// Rasterize the line over the grid
 			TVec2<int32> StartCell = FlatGrid.Cell(ClippedStart / Scale2D);
