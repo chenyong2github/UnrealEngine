@@ -76,7 +76,10 @@
 		{
 			"Name": "ConsoleVariables",
 			"Enabled": true			
+		},
+		{
+			"Name": "XRBase",
+			"Enabled": true
 		}
-
 	]
 }
