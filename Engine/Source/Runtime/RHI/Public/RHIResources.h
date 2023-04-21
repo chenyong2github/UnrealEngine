@@ -2620,6 +2620,14 @@ protected:
 	{}
 
 public:
+	//
+	// Specifies the type of view to create. Must match the shader parameter this view will be bound to.
+	// 
+	// The dimension is allowed to differ from the underlying resource's dimensions, e.g. to create a view
+	// compatible with a Texture2D<> shader parameter, but where the underlying resource is a texture 2D array.
+	//
+	// Some combinations are not valid, e.g. 3D textures can only have 3D views.
+	//
 	FInitializer& SetDimension(ETextureDimension InDimension)
 	{
 		switch (InDimension)
@@ -2665,9 +2673,14 @@ public:
 	}
 
 	//
-	// The meaning of array "elements" is given by the view dimension. I.e. a view with "Dimension == CubeArray" indexes the array in whole cubes.
-	// [0] = the first cube (2D slices 0 to 5)
-	// [1] = the second cube (2D slices 6 to 11)
+	// The meaning of array "elements" is given by the dimension of the underlying resource.
+	// I.e. a view of a TextureCubeArray resource indexes the array in whole cubes.
+	// 
+	//     [0] = the first cube (2D slices 0 to 5)
+	//     [1] = the second cube (2D slices 6 to 11)
+	// 
+	// If the view dimension is smaller than the resource dimension, the array range will be further limited.
+	// E.g. creating a Texture2D dimension view of a TextureCubeArray resource
 	//
 	FInitializer& SetArrayRange(uint16 InFirstElement, uint16 InNumElements)
 	{
@@ -2697,6 +2710,14 @@ protected:
 	}
 
 public:
+	//
+	// Specifies the type of view to create. Must match the shader parameter this view will be bound to.
+	// 
+	// The dimension is allowed to differ from the underlying resource's dimensions, e.g. to create a view
+	// compatible with an RWTexture2D<> shader parameter, but where the underlying resource is a texture 2D array.
+	//
+	// Some combinations are not valid, e.g. 3D textures can only have 3D views.
+	//
 	FInitializer& SetDimension(ETextureDimension InDimension)
 	{
 		switch (InDimension)
@@ -2741,9 +2762,14 @@ public:
 	}
 
 	//
-	// The meaning of array "elements" is given by the view dimension. I.e. a view with "Dimension == CubeArray" indexes the array in whole cubes.
-	// [0] = the first cube (2D slices 0 to 5)
-	// [1] = the second cube (2D slices 6 to 11)
+	// The meaning of array "elements" is given by the dimension of the underlying resource.
+	// I.e. a view of a TextureCubeArray resource indexes the array in whole cubes.
+	// 
+	//     [0] = the first cube (2D slices 0 to 5)
+	//     [1] = the second cube (2D slices 6 to 11)
+	// 
+	// If the view dimension is smaller than the resource dimension, the array range will be further limited.
+	// E.g. creating a Texture2D dimension view of a TextureCubeArray resource
 	//
 	FInitializer& SetArrayRange(uint16 InFirstElement, uint16 InNumElements)
 	{

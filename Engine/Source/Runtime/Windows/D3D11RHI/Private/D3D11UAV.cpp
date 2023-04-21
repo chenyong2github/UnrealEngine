@@ -64,36 +64,39 @@ void FD3D11UnorderedAccessView::UpdateView()
 		FD3D11Texture* Texture = FD3D11DynamicRHI::ResourceCast(GetTexture());
 		D3DResource = Texture->GetResource();
 
+		FRHITextureDesc const& TextureDesc = Texture->GetDesc();
 		auto const Info = ViewDesc.Texture.UAV.GetViewInfo(Texture);
 
 		UAVDesc.Format = FindUnorderedAccessDXGIFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat));
 
-		switch (Info.Dimension)
+		// No need to use Info.Dimension, since D3D supports mixing Texture2D view types.
+		// Create a view which matches the underlying resource dimension.
+		switch (TextureDesc.Dimension)
 		{
-		case FRHIViewDesc::EDimension::Texture2D:
+		case ETextureDimension::Texture2D:
 			UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
 			UAVDesc.Texture2D.MipSlice = Info.MipLevel;
 			break;
 
-		case FRHIViewDesc::EDimension::TextureCube:
-		case FRHIViewDesc::EDimension::TextureCubeArray:
+		case ETextureDimension::TextureCube:
+		case ETextureDimension::TextureCubeArray:
 			UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
 			UAVDesc.Texture2DArray.FirstArraySlice = Info.ArrayRange.First * 6;
 			UAVDesc.Texture2DArray.ArraySize       = Info.ArrayRange.Num * 6;
 			UAVDesc.Texture2DArray.MipSlice        = Info.MipLevel;
 			break;
 
-		case FRHIViewDesc::EDimension::Texture2DArray:
+		case ETextureDimension::Texture2DArray:
 			UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
 			UAVDesc.Texture2DArray.FirstArraySlice = Info.ArrayRange.First;
 			UAVDesc.Texture2DArray.ArraySize       = Info.ArrayRange.Num;
 			UAVDesc.Texture2DArray.MipSlice        = Info.MipLevel;
 			break;
 
-		case FRHIViewDesc::EDimension::Texture3D:
+		case ETextureDimension::Texture3D:
 			UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
 			UAVDesc.Texture3D.FirstWSlice = 0;
-			UAVDesc.Texture3D.WSize       = FMath::Max(Texture->GetDesc().Depth >> Info.MipLevel, 1);
+			UAVDesc.Texture3D.WSize       = FMath::Max(TextureDesc.Depth >> Info.MipLevel, 1);
 			UAVDesc.Texture3D.MipSlice    = Info.MipLevel;
 			break;
 

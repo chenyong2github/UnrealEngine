@@ -199,7 +199,7 @@ FRHIViewDesc::FTexture::FViewInfo FRHIViewDesc::FTexture::GetViewInfo(FRHITextur
 
 	FRHITextureDesc const& Desc = TargetTexture->GetDesc();
 
-	checkf(Desc.Dimension != ETextureDimension::Texture3D || Dimension == EDimension::Texture3D, TEXT("Views of 3D textures must use 3D dimension."));
+	checkf(!Desc.IsTexture3D() || Dimension == EDimension::Texture3D, TEXT("Views of 3D textures must use 3D dimension."));
 	checkf(Desc.IsTexture3D() || Dimension != EDimension::Texture3D, TEXT("The underlying texture resource must be a 3D texture to create a 3D dimension view."));
 	checkf(Desc.IsTextureCube() || (Dimension != EDimension::TextureCube && Dimension != EDimension::TextureCubeArray), TEXT("The underlying texture resource must be a cube (or cube array) to create a cube dimension view."));
 

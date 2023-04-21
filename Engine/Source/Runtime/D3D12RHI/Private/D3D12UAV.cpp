@@ -150,16 +150,18 @@ void FD3D12UnorderedAccessView_RHI::CreateView()
 		uint32 const PlaneSlice = GetPlaneSliceFromViewFormat(BaseFormat, ViewFormat);
 		FRHIRange8 const PlaneRange(PlaneSlice, 1);
 
-		switch (Info.Dimension)
+		// No need to use Info.Dimension, since D3D supports mixing Texture2D view types.
+		// Create a view which matches the underlying resource dimension.
+		switch (TextureDesc.Dimension)
 		{
-		case FRHIViewDesc::EDimension::Texture2D:
+		case ETextureDimension::Texture2D:
 			UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 			UAVDesc.Texture2D.MipSlice   = Info.MipLevel;
 			UAVDesc.Texture2D.PlaneSlice = PlaneSlice;
 			break;
 
-		case FRHIViewDesc::EDimension::TextureCube:
-		case FRHIViewDesc::EDimension::TextureCubeArray:
+		case ETextureDimension::TextureCube:
+		case ETextureDimension::TextureCubeArray:
 			UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
 			UAVDesc.Texture2DArray.FirstArraySlice = Info.ArrayRange.First * 6;
 			UAVDesc.Texture2DArray.ArraySize       = Info.ArrayRange.Num * 6;
@@ -167,7 +169,7 @@ void FD3D12UnorderedAccessView_RHI::CreateView()
 			UAVDesc.Texture2DArray.PlaneSlice      = PlaneSlice;
 			break;
 
-		case FRHIViewDesc::EDimension::Texture2DArray:
+		case ETextureDimension::Texture2DArray:
 			UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
 			UAVDesc.Texture2DArray.FirstArraySlice = Info.ArrayRange.First;
 			UAVDesc.Texture2DArray.ArraySize       = Info.ArrayRange.Num;
@@ -175,7 +177,7 @@ void FD3D12UnorderedAccessView_RHI::CreateView()
 			UAVDesc.Texture2DArray.PlaneSlice      = PlaneSlice;
 			break;
 
-		case FRHIViewDesc::EDimension::Texture3D:
+		case ETextureDimension::Texture3D:
 			UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
 			UAVDesc.Texture3D.FirstWSlice = 0;
 			UAVDesc.Texture3D.WSize       = FMath::Max(TextureDesc.Depth >> Info.MipLevel, 1);
