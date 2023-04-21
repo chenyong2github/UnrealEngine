@@ -119,12 +119,7 @@ public:
 	{
 		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
-		if (IDelegateInstance* Ptr = GetDelegateInstanceProtected())
-		{
-			Ptr->~IDelegateInstance();
-			DelegateAllocator.ResizeAllocation(0, 0, sizeof(FAlignedInlineDelegateType));
-			DelegateSize = 0;
-		}
+		UnbindUnchecked();
 	}
 
 	/**
@@ -132,6 +127,8 @@ public:
 	 */
 	SIZE_T GetAllocatedSize() const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		return DelegateAllocator.GetAllocatedSize(DelegateSize, sizeof(FAlignedInlineDelegateType));
 	}
 
@@ -147,6 +144,8 @@ public:
 	 */
 	FName TryGetBoundFunctionName() const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		const IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
 		return DelegateInstance ? DelegateInstance->TryGetBoundFunctionName() : NAME_None;
 	}
@@ -160,6 +159,8 @@ public:
 	 */
 	FORCEINLINE class UObject* GetUObject( ) const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		const IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
 		return DelegateInstance ? DelegateInstance->GetUObject() : nullptr;
 	}
@@ -171,6 +172,8 @@ public:
 	 */
 	FORCEINLINE bool IsBound( ) const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		const IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
 		return DelegateInstance && DelegateInstance->IsSafeToExecute();
 	}
@@ -182,6 +185,8 @@ public:
 	 */
 	FORCEINLINE const void* GetObjectForTimerManager() const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		const IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
 		return DelegateInstance ? DelegateInstance->GetObjectForTimerManager() : nullptr;
 	}
@@ -196,6 +201,8 @@ public:
 	 */
 	uint64 GetBoundProgramCounterForTimerManager() const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		const IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
 		return DelegateInstance ? DelegateInstance->GetBoundProgramCounterForTimerManager() : 0;
 	}
@@ -212,6 +219,8 @@ public:
 			return false;
 		}
 
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		const IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
 		return DelegateInstance && DelegateInstance->HasSameObject(InUserObject);
 	}
@@ -223,6 +232,8 @@ public:
 	 */
 	FORCEINLINE FDelegateHandle GetHandle() const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		const IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
 		return DelegateInstance ? DelegateInstance->GetHandle() : FDelegateHandle{};
 	}
@@ -233,7 +244,7 @@ public:
 	template<typename DelegateInstanceType, typename... DelegateInstanceParams>
 	void CreateDelegateInstance(DelegateInstanceParams&&... Params)
 	{
-		FReadAccessScope ReadScope = GetReadAccessScope();
+		FWriteAccessScope WriteScope = GetWriteAccessScope();
 
 		IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
 		if (DelegateInstance)
@@ -253,23 +264,17 @@ protected:
 	 */
 	FORCEINLINE IDelegateInstance* GetDelegateInstanceProtected()
 	{
-		FReadAccessScope ReadScope = GetReadAccessScope();
-
 		return DelegateSize ? (IDelegateInstance*)DelegateAllocator.GetAllocation() : nullptr;
 	}
 
 	FORCEINLINE const IDelegateInstance* GetDelegateInstanceProtected() const
 	{
-		FReadAccessScope ReadScope = GetReadAccessScope();
-
 		return DelegateSize ? (const IDelegateInstance*)DelegateAllocator.GetAllocation() : nullptr;
 	}
 
 private:
 	void* Allocate(int32 Size)
 	{
-		FWriteAccessScope WriteScope = GetWriteAccessScope();
-
 		int32 NewDelegateSize = FMath::DivideAndRoundUp(Size, (int32)sizeof(FAlignedInlineDelegateType));
 		if (DelegateSize != NewDelegateSize)
 		{
@@ -282,6 +287,8 @@ private:
 
 	void MoveConstruct(TDelegateBase&& Other)
 	{
+		FWriteAccessScope OtherWriteScope = Other.GetWriteAccessScope();
+
 		DelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
 		DelegateSize = Other.DelegateSize;
 		Other.DelegateSize = 0;
@@ -289,15 +296,36 @@ private:
 
 	void MoveAssign(TDelegateBase&& Other)
 	{
-		FWriteAccessScope WriteScope = GetWriteAccessScope();
+		FDelegateAllocatorType::ForElementType<FAlignedInlineDelegateType> OtherDelegateAllocator;
+		int32 OtherDelegateSize;
+		{
+			FWriteAccessScope OtherWriteScope = Other.GetWriteAccessScope();
 
-		Unbind();
-		DelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
-		DelegateSize = Other.DelegateSize;
-		Other.DelegateSize = 0;
+			OtherDelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
+			OtherDelegateSize = Other.DelegateSize;
+			Other.DelegateSize = 0;
+		}
+
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
+
+			UnbindUnchecked();
+			DelegateAllocator.MoveToEmpty(OtherDelegateAllocator);
+			DelegateSize = OtherDelegateSize;
+		}
 	}
 
 private:
+	FORCEINLINE void UnbindUnchecked()
+	{
+		if (IDelegateInstance* Ptr = GetDelegateInstanceProtected())
+		{
+			Ptr->~IDelegateInstance();
+			DelegateAllocator.ResizeAllocation(0, 0, sizeof(FAlignedInlineDelegateType));
+			DelegateSize = 0;
+		}
+	}
+
 	FDelegateAllocatorType::ForElementType<FAlignedInlineDelegateType> DelegateAllocator;
 	int32 DelegateSize = 0;
 };

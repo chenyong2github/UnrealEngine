@@ -68,6 +68,10 @@ public:
 
 private:
 	// Make sure FDelegateBase's protected functions are not accidentally exposed through the TDelegate API
+	using typename Super::FReadAccessScope;
+	using Super::GetReadAccessScope;
+	using typename Super::FWriteAccessScope;
+	using Super::GetWriteAccessScope;
 	using Super::GetDelegateInstanceProtected;
 
 public:
@@ -306,26 +310,12 @@ public:
 
 	inline TDelegate(const TDelegate& Other)
 	{
-		*this = Other;
+		CopyFrom(Other);
 	}
 
-	inline TDelegate& operator=(const TDelegate& Other)
+	TDelegate& operator=(const TDelegate& Other)
 	{
-		if (&Other != this)
-		{
-			// this down-cast is OK! allows for managing invocation list in the base class without requiring virtual functions
-			const DelegateInstanceInterfaceType* OtherInstance = Other.GetDelegateInstanceProtected();
-
-			if (OtherInstance != nullptr)
-			{
-				OtherInstance->CreateCopy(*this);
-			}
-			else
-			{
-				Unbind();
-			}
-		}
-
+		CopyFrom(Other);
 		return *this;
 	}
 
@@ -523,6 +513,8 @@ public:
 	 */
 	FORCEINLINE RetValType Execute(ParamTypes... Params) const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		const DelegateInstanceInterfaceType* LocalDelegateInstance = GetDelegateInstanceProtected();
 
 		// If this assert goes off, Execute() was called before a function was bound to the delegate.
@@ -546,6 +538,8 @@ public:
 	>
 	inline bool ExecuteIfBound(ParamTypes... Params) const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
 		if (const DelegateInstanceInterfaceType* Ptr = GetDelegateInstanceProtected())
 		{
 			return Ptr->ExecuteIfSafe(Params...);
@@ -565,6 +559,32 @@ protected:
 	FORCEINLINE const DelegateInstanceInterfaceType* GetDelegateInstanceProtected() const
 	{
 		return static_cast<const DelegateInstanceInterfaceType*>(Super::GetDelegateInstanceProtected());
+	}
+
+private:
+	void CopyFrom(const TDelegate& Other)
+	{
+		if ((void*)&Other == (void*)this)
+		{
+			return;
+		}
+
+		// to not hold both delegates locked, make a local copy of `Other` and then move it into this instance
+		TDelegate LocalCopy;
+
+		{
+			FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+
+			// this down-cast is OK! allows for managing invocation list in the base class without requiring virtual functions
+			const DelegateInstanceInterfaceType* OtherInstance = Other.GetDelegateInstanceProtected();
+
+			if (OtherInstance != nullptr)
+			{
+				OtherInstance->CreateCopy(LocalCopy);
+			}
+		}
+
+		*this = MoveTemp(LocalCopy);
 	}
 };
 
@@ -613,7 +633,6 @@ private:
 	// Make sure TMulticastDelegateBase's protected functions are not accidentally exposed through the TMulticastDelegate API
 	using Super::AddDelegateInstance;
 	using Super::RemoveDelegateInstance;
-	using Super::GetDelegateInstanceProtectedHelper;
 
 public:
 	TMulticastDelegate() = default;

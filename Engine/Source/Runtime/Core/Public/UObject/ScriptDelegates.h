@@ -65,6 +65,9 @@ class TScriptDelegate : public FDelegateAccessHandlerBaseChecked
 	template <typename>
 	friend class TScriptDelegate;
 
+	template<typename>
+	friend class TMulticastScriptDelegate;
+
 	using Super = FDelegateAccessHandlerBaseChecked;
 	using typename Super::FReadAccessScope;
 	using Super::GetReadAccessScope;
@@ -80,9 +83,11 @@ public:
 	{ }
 
 	TScriptDelegate(const TScriptDelegate& Other)
-		: Object(Other.Object)
-		, FunctionName(Other.FunctionName)
 	{
+		FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+
+		Object = Other.Object;
+		FunctionName = Other.FunctionName;
 	}
 
 	template <
@@ -91,29 +96,55 @@ public:
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
 	TScriptDelegate(const TScriptDelegate<OtherDummy>& Other)
-		: Object(Other.Object)
-		, FunctionName(Other.FunctionName)
 	{
-	}
-
-	void operator=(const TScriptDelegate& Other)
-	{
-		FWriteAccessScope WriteScope = GetWriteAccessScope();
+		typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
 
 		Object = Other.Object;
 		FunctionName = Other.FunctionName;
+	}
+
+	TScriptDelegate& operator=(const TScriptDelegate& Other)
+	{
+		WeakPtrType OtherObject;
+		FName OtherFunctionName;
+
+		{
+			FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			OtherObject = Other.Object;
+			OtherFunctionName = Other.FunctionName;
+		}
+
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
+			Object = OtherObject;
+			FunctionName = OtherFunctionName;
+		}
+
+		return *this;
 	}
 	template <
 		typename OtherDummy
 		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	FORCEINLINE void operator=(const TScriptDelegate<OtherDummy>& Other)
+	TScriptDelegate& operator=(const TScriptDelegate<OtherDummy>& Other)
 	{
-		FWriteAccessScope WriteScope = GetWriteAccessScope();
+		WeakPtrType OtherObject;
+		FName OtherFunctionName;
 
-		Object = Other.Object;
-		FunctionName = Other.FunctionName;
+		{
+			typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			OtherObject = Other.Object;
+			OtherFunctionName = Other.FunctionName;
+		}
+
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
+			Object = OtherObject;
+			FunctionName = OtherFunctionName;
+		}
+
+		return *this;
 	}
 
 private:
@@ -248,9 +279,23 @@ public:
 	/** Comparison operators */
 	FORCEINLINE bool operator==( const TScriptDelegate& Other ) const
 	{
-		FReadAccessScope ReadScope = GetReadAccessScope();
+		WeakPtrType OtherObject;
+		FName OtherFunctionName;
 
-		return Object == Other.Object && FunctionName == Other.FunctionName;
+		{
+			FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			OtherObject = Other.Object;
+			OtherFunctionName = Other.FunctionName;
+		}
+
+		bool bResult;
+
+		{
+			FReadAccessScope ThisReadScope = GetReadAccessScope();
+			bResult = Object == OtherObject && FunctionName == OtherFunctionName;
+		}
+
+		return bResult;
 	}
 	template <
 		typename OtherDummy
@@ -259,16 +304,28 @@ public:
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
 	FORCEINLINE bool operator==(const TScriptDelegate<OtherDummy>& Other) const
 	{
-		FReadAccessScope ReadScope = GetReadAccessScope();
+		WeakPtrType OtherObject;
+		FName OtherFunctionName;
 
-		return Object == Other.Object && FunctionName == Other.FunctionName;
+		{
+			typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			OtherObject = Other.Object;
+			OtherFunctionName = Other.FunctionName;
+		}
+
+		bool bResult;
+
+		{
+			FReadAccessScope ThisReadScope = GetReadAccessScope();
+			bResult = Object == OtherObject && FunctionName == OtherFunctionName;
+		}
+
+		return bResult;
 	}
 
 	FORCEINLINE bool operator!=( const TScriptDelegate& Other ) const
 	{
-		FReadAccessScope ReadScope = GetReadAccessScope();
-
-		return Object != Other.Object || FunctionName != Other.FunctionName;
+		return !operator==(Other);
 	}
 	template <
 		typename OtherDummy
@@ -277,9 +334,7 @@ public:
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
 	FORCEINLINE bool operator!=(const TScriptDelegate<OtherDummy>& Other) const
 	{
-		FReadAccessScope ReadScope = GetReadAccessScope();
-
-		return Object != Other.Object || FunctionName != Other.FunctionName;
+		return !operator==(Other);
 	}
 
 	/** 
@@ -389,6 +444,18 @@ public:
 		return HashCombine(GetTypeHash(Delegate.Object), GetTypeHash(Delegate.GetFunctionName()));
 	}
 
+	template<typename OtherDummy>
+	static TScriptDelegate CopyFrom(const TScriptDelegate<OtherDummy>& Other)
+	{
+		typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+
+		TScriptDelegate Copy;
+		Copy.Object = Other.Object;
+		Copy.FunctionName = Other.FunctionName;
+
+		return Copy;
+	}
+
 protected:
 
 	/** The object bound to this delegate, or nullptr if no object is bound */
@@ -431,6 +498,63 @@ public:
 
 	TMulticastScriptDelegate() = default;
 
+	TMulticastScriptDelegate(const TMulticastScriptDelegate& Other)
+	{
+		InvocationListType LocalCopy;
+
+		{
+			FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			LocalCopy = Other.InvocationList;
+		}
+
+		InvocationList = MoveTemp(LocalCopy);
+	}
+
+	TMulticastScriptDelegate& operator=(const TMulticastScriptDelegate& Other)
+	{
+		InvocationListType LocalCopy;
+		{
+			FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			LocalCopy = Other.InvocationList;
+		}
+
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
+			InvocationList = MoveTemp(LocalCopy);
+		}
+
+		return *this;
+	}
+
+	TMulticastScriptDelegate(TMulticastScriptDelegate&& Other)
+	{
+		InvocationListType LocalStorage;
+
+		{
+			FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			LocalStorage = MoveTemp(Other.InvocationList);
+		}
+
+		InvocationList = MoveTemp(LocalStorage);
+	}
+
+	TMulticastScriptDelegate& operator=(TMulticastScriptDelegate&& Other)
+	{
+		InvocationListType LocalStorage;
+
+		{
+			FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			LocalStorage = MoveTemp(Other.InvocationList);
+		}
+
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
+			InvocationList = MoveTemp(LocalStorage);
+		}
+
+		return *this;
+	}
+
 public:
 
 	/**
@@ -453,18 +577,34 @@ public:
 	 */
 	bool Contains( const UnicastDelegateType& InDelegate ) const
 	{
-		FReadAccessScope ReadScope = GetReadAccessScope();
+		const UObject* Object;
+		FName FunctionName;
 
-		return InvocationList.Contains( InDelegate );
+		{
+			FReadAccessScope OtherReadScope = InDelegate.GetReadAccessScope();
+			Object = InDelegate.Object.Get();
+			FunctionName = InDelegate.FunctionName;
+		}
+
+		return Contains(Object, FunctionName);
 	}
 	template <
 		typename OtherDummy
 		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	FORCEINLINE bool Contains(const TScriptDelegate<OtherDummy>& InDelegate) const
+	bool Contains(const TScriptDelegate<OtherDummy>& InDelegate) const
 	{
-		return Contains((UnicastDelegateType)InDelegate);
+		const UObject* Object;
+		FName FunctionName;
+
+		{
+			typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = InDelegate.GetReadAccessScope();
+			Object = InDelegate.Object.Get();
+			FunctionName = InDelegate.FunctionName;
+		}
+
+		return Contains(Object, FunctionName);
 	}
 
 	/**
@@ -490,22 +630,36 @@ public:
 	 */
 	void Add( const UnicastDelegateType& InDelegate )
 	{
-		FWriteAccessScope WriteScope = GetWriteAccessScope();
+		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
 
-		// First check for any objects that may have expired
-		CompactInvocationList();
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
 
-		// Add the delegate
-		AddInternal( InDelegate );
+			// First check for any objects that may have expired
+			CompactInvocationList();
+
+			// Add the delegate
+			AddInternal(MoveTemp(LocalCopy));
+		}
 	}
 	template <
 		typename OtherDummy
 		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	FORCEINLINE void Add(const TScriptDelegate<OtherDummy>& InDelegate)
+	void Add(const TScriptDelegate<OtherDummy>& InDelegate)
 	{
-		Add((UnicastDelegateType)InDelegate);
+		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
+
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
+
+			// First check for any objects that may have expired
+			CompactInvocationList();
+
+			// Add the delegate
+			AddInternal(MoveTemp(LocalCopy));
+		}
 	}
 
 	/**
@@ -516,22 +670,36 @@ public:
 	 */
 	void AddUnique( const UnicastDelegateType& InDelegate )
 	{
-		FWriteAccessScope WriteScope = GetWriteAccessScope();
+		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
 
-		// Add the delegate, if possible
-		AddUniqueInternal( InDelegate );
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
 
-		// Then check for any objects that may have expired
-		CompactInvocationList();
+			// Add the delegate, if possible
+			AddUniqueInternal(MoveTemp(LocalCopy));
+
+			// Then check for any objects that may have expired
+			CompactInvocationList();
+		}
 	}
 	template <
 		typename OtherDummy
 		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	FORCEINLINE void AddUnique(const TScriptDelegate<OtherDummy>& InDelegate)
+	void AddUnique(const TScriptDelegate<OtherDummy>& InDelegate)
 	{
-		AddUnique((UnicastDelegateType)InDelegate);
+		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
+
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
+
+			// Add the delegate
+			AddUniqueInternal(MoveTemp(LocalCopy));
+
+			// Then check for any objects that may have expired
+			CompactInvocationList();
+		}
 	}
 
 	/**
@@ -542,22 +710,36 @@ public:
 	 */
 	void Remove( const UnicastDelegateType& InDelegate )
 	{
-		FWriteAccessScope WriteScope = GetWriteAccessScope();
+		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
 
-		// Remove the delegate
-		RemoveInternal( InDelegate );
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
 
-		// Check for any delegates that may have expired
-		CompactInvocationList();
+			// Remove the delegate
+			RemoveInternal(LocalCopy);
+
+			// Check for any delegates that may have expired
+			CompactInvocationList();
+		}
 	}
 	template <
 		typename OtherDummy
 		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	FORCEINLINE void Remove(const TScriptDelegate<OtherDummy>& InDelegate)
+	void Remove(const TScriptDelegate<OtherDummy>& InDelegate)
 	{
-		Remove((UnicastDelegateType)InDelegate);
+		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
+
+		{
+			FWriteAccessScope WriteScope = GetWriteAccessScope();
+
+			// Remove the delegate
+			RemoveInternal(LocalCopy);
+
+			// Check for any delegates that may have expired
+			CompactInvocationList();
+		}
 	}
 
 	/**
@@ -765,6 +947,7 @@ public:
 	 */
 	SIZE_T GetAllocatedSize() const
 	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
 		return InvocationList.GetAllocatedSize();
 	}
 
@@ -775,7 +958,7 @@ protected:
 	 *
 	 * @param	InDelegate	Delegate to add
 	*/
-	void AddInternal( const UnicastDelegateType& InDelegate )
+	void AddInternal(UnicastDelegateType&& InDelegate)
 	{
 #if DO_ENSURE
 		// Verify same function isn't already bound
@@ -785,7 +968,7 @@ protected:
 			(void)ensure( InvocationList[ CurFunctionIndex ] != InDelegate );
 		}
 #endif // DO_CHECK
-		InvocationList.Add( InDelegate );
+		InvocationList.Add(MoveTemp(InDelegate));
 	}
 
 	/**
@@ -794,10 +977,10 @@ protected:
 	 *
 	 * @param	InDelegate	Delegate to add
 	 */
-	void AddUniqueInternal( const UnicastDelegateType& InDelegate )
+	void AddUniqueInternal(UnicastDelegateType&& InDelegate)
 	{
 		// Add the item to the invocation list only if it is unique
-		InvocationList.AddUnique( InDelegate );
+		InvocationList.AddUnique(MoveTemp(InDelegate));
 	}
 
 	/**
