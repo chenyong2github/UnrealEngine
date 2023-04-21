@@ -33,8 +33,8 @@ extension StartViewController : StreamingConnectionDelegate {
                 if let e = err {
                     Log.info("StreamingConnection \(connection.name) disconnected with error : \(e.localizedDescription)")
 
-                    let errorAlert = UIAlertController(title: "Error", message: "Couldn't connect : \(e.localizedDescription)", preferredStyle: .alert)
-                    errorAlert.addAction(UIAlertAction(title: "OK", style: .default, handler: { _ in
+                    let errorAlert = UIAlertController(title: Localized.titleError(), message: "\(Localized.messageCouldntConnect()) : \(e.localizedDescription)", preferredStyle: .alert)
+                    errorAlert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default, handler: { _ in
                         self.hideConnectingView() {}
                     }))
                     self.present(errorAlert, animated:true)
@@ -53,8 +53,8 @@ extension StartViewController : StreamingConnectionDelegate {
                 if let e = err {
                     Log.info("StreamingConnection \(connection.name) disconnected with error : \(e.localizedDescription)")
 
-                    let errorAlert = UIAlertController(title: "Error", message: "Couldn't connect : \(e.localizedDescription)", preferredStyle: .alert)
-                    errorAlert.addAction(UIAlertAction(title: "OK", style: .default, handler: { _ in
+                    let errorAlert = UIAlertController(title: Localized.titleError(), message: "\(Localized.messageCouldntConnect()) : \(e.localizedDescription)", preferredStyle: .alert)
+                    errorAlert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default, handler: { _ in
                         self.hideConnectingView() {}
                     }))
                     self.present(errorAlert, animated:true)
@@ -74,14 +74,14 @@ extension StartViewController : StreamingConnectionDelegate {
         self.selectedStreamer = streamers[0];
         DispatchQueue.main.async {
             self.hideConnectingView() {
-                let alert = UIAlertController(title: "Select Streamer", message: "\n\n\n\n\n\n", preferredStyle: .alert)
+                let alert = UIAlertController(title: Localized.titleSelectStream(), message: "\n\n\n\n\n\n", preferredStyle: .alert)
                 
                 let picker = UIPickerView(frame: CGRect(x: 5, y: 20, width: 250, height: 140))
                 picker.dataSource = self;
                 picker.delegate = self;
                 alert.view.addSubview(picker)
 
-                alert.addAction(UIAlertAction(title: "OK", style: .default) {_ in
+                alert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default) {_ in
                     handler(self.selectedStreamer)
                 })
                 

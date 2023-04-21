@@ -34,7 +34,7 @@ class NativeWebSocketProvider : NSObject, WebSocketProvider, URLSessionWebSocket
     }
     
     func close() {
-        let error = NSError(domain: "NativeWebSocketProvider", code: 0, userInfo: [NSLocalizedDescriptionKey : "Manually closed websocket."])
+        let error = NSError(domain: "NativeWebSocketProvider", code: 0, userInfo: [NSLocalizedDescriptionKey : NSLocalizedString("error-closedwebsocket", value: "Manually closed websocket.", comment: "Error message")])
         closeConnection(error)
     }
     

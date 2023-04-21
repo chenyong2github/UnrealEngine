@@ -168,3 +168,28 @@
 
 /* Pixel Streaming */
 "connectiontype-value-pixelstreaming" = "픽셀 스트리밍";
+
+/* This text is followed by an error string, for example "Couldn't connect : host not found.", where "host not
+   found." will be added by the internal exception." */
+"message-couldntconnect" = "연결 불가";
+
+/* Entering value in a textbox */
+"message-entervalue" = "값 입력:";
+
+/* Updating a value in a textbox */
+"message-updatevalue" = "값 업데이트:";
+
+/* Selection of a video stream */
+"title-selectstream" = "스트림 선택";
+
+/* Error message. */
+"error-closedwebsocket" = "웹소켓이 수동으로 닫혔습니다.";
+
+/* Error message : %s is replace with a string and %d with a number */
+"error-unablereconnect" = "%d번 시도한 후에는 %s에 다시 연결할 수 없습니다.";
+
+/* Error message. */
+"error-nostream" = "연결된 스트림이 없습니다.";
+
+/* Error message. */
+"error-connectfailed" = "연결하지 못했습니다.";

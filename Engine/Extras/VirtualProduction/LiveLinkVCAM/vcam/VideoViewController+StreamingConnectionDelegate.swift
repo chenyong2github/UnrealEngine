@@ -51,7 +51,10 @@ extension VideoViewController : StreamingConnectionDelegate {
     func streamingConnection(_ connection: StreamingConnection, requestsTextEditWithContents contents: String, handler: @escaping (Bool, String?) -> Void) {
         
         DispatchQueue.main.async {
-            let alert = UIAlertController(title: nil, message: contents.count == 0 ? "Enter the value:" : "Update the value:", preferredStyle: .alert)
+            let alert = UIAlertController(title: nil, message: contents.count == 0 ?
+                                          NSLocalizedString("message-entervalue", value: "Enter the value", comment: "Entering value in a textbox") :
+                                          NSLocalizedString("message-updatevalue", value: "Update the value", comment: "Updating value in a textbox"),
+                                          preferredStyle: .alert)
             alert.addTextField()
             alert.textFields![0].text = contents
             alert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default) {_ in
@@ -70,14 +73,14 @@ extension VideoViewController : StreamingConnectionDelegate {
         self.selectedStreamer = streamers[0];
         DispatchQueue.main.async {
             self.hideConnectingAlertView() {
-                let alert = UIAlertController(title: "Select Streamer", message: "\n\n\n\n\n\n", preferredStyle: .alert)
+                let alert = UIAlertController(title: Localized.titleSelectStream(), message: "\n\n\n\n\n\n", preferredStyle: .alert)
                 
                 let picker = UIPickerView(frame: CGRect(x: 5, y: 20, width: 250, height: 140))
                 picker.dataSource = self;
                 picker.delegate = self;
                 alert.view.addSubview(picker)
 
-                alert.addAction(UIAlertAction(title: "OK", style: .default) {_ in
+                alert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default) {_ in
                     handler(self.selectedStreamer)
                 })
                 

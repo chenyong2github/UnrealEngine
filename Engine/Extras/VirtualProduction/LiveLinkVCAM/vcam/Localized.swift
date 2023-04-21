@@ -68,4 +68,10 @@ class Localized {
     class func subjectName() -> String {
         NSLocalizedString("livelink-subjectname", value: "Subject Name", comment: "The name of the subject (a person, device, character) of the capture")
     }
+    class func messageCouldntConnect() -> String {
+        NSLocalizedString("message-couldntconnect", value: "Couldn't connect", comment: "This text is followed by a colon and an error string")
+    }
+    class func titleSelectStream() -> String {
+        NSLocalizedString("title-selectstream", value: "Select Stream", comment: "Selection of a video stream")
+    }
 }

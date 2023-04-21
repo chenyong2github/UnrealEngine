@@ -168,3 +168,28 @@
 
 /* Pixel Streaming */
 "connectiontype-value-pixelstreaming" = "ピクセルストリーミング";
+
+/* This text is followed by an error string, for example "Couldn't connect : host not found.", where "host not
+   found." will be added by the internal exception." */
+"message-couldntconnect" = "接続不可";
+
+/* Entering value in a textbox */
+"message-entervalue" = "値を入力:";
+
+/* Updating a value in a textbox */
+"message-updatevalue" = "値を更新:";
+
+/* Selection of a video stream */
+"title-selectstream" = "ストリームを選択";
+
+/* Error message. */
+"error-closedwebsocket" = "手動で閉じたWebSocket";
+
+/* Error message : %s is replace with a string and %d with a number */
+"error-unablereconnect" = "%d 回試行しましたが、%s に再接続できません。";
+
+/* Error message. */
+"error-nostream" = "ストリームに接続されていません。";
+
+/* Error message. */
+"error-connectfailed" = "接続に失敗しました。";

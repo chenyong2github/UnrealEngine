@@ -445,12 +445,16 @@ extension WebRTCStreamingConnection: SignalClientDelegate {
             } else {
                 // We've exhausted our reconnect attempts, return to main menu
                 self.reconnectAttempt = 0
-                self.delegate?.streamingConnection(self, exitWithError: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to reconnect to \(subscribedStreamer) after \(maxReconnectAttempts) attempts"]))
+                self.delegate?.streamingConnection(self, exitWithError:
+                                                    NSError(domain: "",
+                                                            code: 1,
+                                                            userInfo: [NSLocalizedDescriptionKey:
+                                                                        String(format: NSLocalizedString("error-unablereconnect", value:"Unable to reconnect to %s after %d attempts.", comment: "Error message : %s is replace with a string and %d with a number"), subscribedStreamer, maxReconnectAttempts)]))
             }
             
         } else {
             if streamerList.count == 0 {
-                self.delegate?.streamingConnection(self, exitWithError: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey: "No streamers connected"]))
+                self.delegate?.streamingConnection(self, exitWithError: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("error-nostream", value:"No stream connected.", comment: "Error message.")]))
             } else if streamerList.count == 1 {
                 // If we only have a single streamer, no need to show the selection dialogue
                 self.subscribedStreamer = streamerList[0]
@@ -508,7 +512,7 @@ extension WebRTCStreamingConnection: WebRTCClientDelegate {
         case .disconnected:
             self.delegate?.streamingConnection(self, didDisconnectWithError: nil)
         case .failed:
-            self.delegate?.streamingConnection(self, didDisconnectWithError: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey : "Failed to connect." ] ))
+            self.delegate?.streamingConnection(self, didDisconnectWithError: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey : NSLocalizedString("error-connectfailed", value:"Failed to connect.", comment: "Error message.") ] ))
         default:
             break
         }

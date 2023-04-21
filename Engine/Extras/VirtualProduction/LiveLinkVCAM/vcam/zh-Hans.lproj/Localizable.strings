@@ -169,3 +169,27 @@
 /* Pixel Streaming */
 "connectiontype-value-pixelstreaming" = "像素流送";
 
+/* This text is followed by an error string, for example "Couldn't connect : host not found.", where "host not
+   found." will be added by the internal exception." */
+"message-couldntconnect" = "无法连接";
+
+/* Entering value in a textbox */
+"message-entervalue" = "输入值：";
+
+/* Updating a value in a textbox */
+"message-updatevalue" = "更新值：";
+
+/* Selection of a video stream */
+"title-selectstream" = "选择流";
+
+/* Error message. */
+"error-closedwebsocket" = "手动关闭WebSocket。";
+
+/* Error message : %s is replace with a string and %d with a number */
+"error-unablereconnect" = "经过%d次尝试，无法重新链接到%s。";
+
+/* Error message. */
+"error-nostream" = "未连接到流。";
+
+/* Error message. */
+"error-connectfailed" = "连接失败。";

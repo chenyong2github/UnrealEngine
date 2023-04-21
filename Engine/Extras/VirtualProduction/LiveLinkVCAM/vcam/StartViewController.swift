@@ -306,7 +306,7 @@ class StartViewController : BaseViewController {
 
             } catch {
                 
-                showConnectionErrorAlert("Couldn't connect : \(error.localizedDescription)")
+                showConnectionErrorAlert("\(Localized.messageCouldntConnect()) : \(error.localizedDescription)")
             }
         }
     }
@@ -314,7 +314,7 @@ class StartViewController : BaseViewController {
     func showConnectionErrorAlert(_ message : String) {
         hideConnectingAlertView() {
 
-            let errorAlert = UIAlertController(title: Localized.titleError(), message: "Couldn't connect : \(message)", preferredStyle: .alert)
+            let errorAlert = UIAlertController(title: Localized.titleError(), message: "\(Localized.messageCouldntConnect()) : \(message)", preferredStyle: .alert)
             errorAlert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default, handler: { _ in
                 self.hideConnectingView { }
             }))
