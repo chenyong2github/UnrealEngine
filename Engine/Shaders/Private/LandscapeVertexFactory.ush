@@ -151,10 +151,17 @@ float CalcLOD(uint ComponentIndex, float2 xyLocalToSubsection, float2 Subsection
 
 struct FVertexFactoryInput
 {
-	float4 Position : ATTRIBUTE0;
+	// UByte4
+	uint4 Position : ATTRIBUTE0;
+
+#if LANDSCAPE_TILE
+	// UByte4
+	uint4 TileData : ATTRIBUTE1;
+#else
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE1
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
 	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
+#endif	
 };
 
 // RHI_RAYTRACING
@@ -586,6 +593,11 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.LodValues = GetLodValues(Intermediates.ComponentIndex);
 	Intermediates.LodBias = GetLodBias(Intermediates.ComponentIndex);
 	Intermediates.InputPosition = Input.Position;
+
+#if LANDSCAPE_TILE   
+	Intermediates.InputPosition = Intermediates.InputPosition + Input.TileData;
+	Intermediates.InputPosition.xy = min(Intermediates.InputPosition.xy, float2(Intermediates.LodValues.z, Intermediates.LodValues.z));
+#endif
 
 	float2 xy = Intermediates.InputPosition.xy * Intermediates.LodValues.w;
 

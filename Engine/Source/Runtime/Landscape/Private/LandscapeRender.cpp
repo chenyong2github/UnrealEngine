@@ -52,9 +52,13 @@ LandscapeRender.cpp: New terrain rendering
 #include "RenderCore.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "Algo/Transform.h"
+#include "LandscapeCulling.h"
+
+using namespace UE::Landscape;
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, "LandscapeFixedGrid");
+IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryVertexShaderParameters);
 IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryPixelShaderParameters);
 
 #if !UE_BUILD_SHIPPING
@@ -734,6 +738,11 @@ void FLandscapeSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InVie
 	}
 }
 
+void FLandscapeSceneViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
+{
+	Culling::PreRenderViewFamily(InViewFamily);
+}
+
 void FLandscapeSceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 {
 	LandscapeViews.Emplace(InView);
@@ -803,6 +812,8 @@ void FLandscapeSceneViewExtension::PreInitViews_RenderThread(FRDGBuilder& GraphB
 		RenderSystem.UpdateBuffers();
 	}
 
+	TArray<const FSceneView*, TInlineAllocator<2>> SceneViews;
+
 	for (FLandscapeViewData& LandscapeView : LandscapeViews)
 	{
 		if (!LandscapeRenderSystems.IsEmpty())
@@ -820,8 +831,15 @@ void FLandscapeSceneViewExtension::PreInitViews_RenderThread(FRDGBuilder& GraphB
 			LandscapeView.View->LandscapePerComponentDataBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 			LandscapeView.View->LandscapeIndirectionBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 		}
+
+		SceneViews.Add(LandscapeView.View);
 	}
 
+	if (Culling::UseCulling(SceneViews[0]->GetShaderPlatform()))
+	{
+		Culling::InitMainViews(GraphBuilder, SceneViews);
+	}
+		
 	LandscapeViews.Reset();
 }
 
@@ -1155,6 +1173,9 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		}
 	}
 
+	// Landscape GPU culling uses VF that requires primitive UB
+	bVFRequiresPrimitiveUniformBuffer |= (!bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()));
+
 	bSupportsInstanceDataBuffer = true;
 	UpdateDefaultInstanceSceneData();
 
@@ -1198,14 +1219,14 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 		if (!XYOffsetmapTexture)
 		{
 			FLandscapeVertexFactory* LandscapeVertexFactory = new FLandscapeVertexFactory(FeatureLevel);
-			LandscapeVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_Float4);
+			LandscapeVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_UByte4);
 			LandscapeVertexFactory->InitResource();
 			SharedBuffers->VertexFactory = LandscapeVertexFactory;
 		}
 		else
 		{
 			FLandscapeXYOffsetVertexFactory* LandscapeXYOffsetVertexFactory = new FLandscapeXYOffsetVertexFactory(FeatureLevel);
-			LandscapeXYOffsetVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_Float4);
+			LandscapeXYOffsetVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_UByte4);
 			LandscapeXYOffsetVertexFactory->InitResource();
 			SharedBuffers->VertexFactory = LandscapeXYOffsetVertexFactory;
 		}
@@ -1221,7 +1242,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 		{
 			//todo[vt]: We will need a version of this to support XYOffsetmapTexture
 			FLandscapeFixedGridVertexFactory* LandscapeVertexFactory = new FLandscapeFixedGridVertexFactory(FeatureLevel);
-			LandscapeVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_Float4);
+			LandscapeVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_UByte4);
 			LandscapeVertexFactory->InitResource();
 			SharedBuffers->FixedGridVertexFactory = LandscapeVertexFactory;
 		}
@@ -1233,6 +1254,11 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	VertexFactory = SharedBuffers->VertexFactory;
 	FixedGridVertexFactory = SharedBuffers->FixedGridVertexFactory;
 
+	if (!bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()))
+	{
+		Culling::RegisterLandscape(*SharedBuffers, FeatureLevel, LandscapeKey, SubsectionSizeVerts, NumSubsections);
+	}
+	
 	// Assign LandscapeUniformShaderParameters
 	LandscapeUniformShaderParameters.InitResource();
 
@@ -1419,6 +1445,7 @@ void FLandscapeComponentSceneProxy::DestroyRenderThreadResources()
 	FPrimitiveSceneProxy::DestroyRenderThreadResources();
 	FLandscapeRenderSystem::UnregisterSection(this);
 	FLandscapeRenderSystem::DestroyResources(this);
+	Culling::UnregisterLandscape(LandscapeKey);
 }
 
 bool FLandscapeComponentSceneProxy::OnLevelAddedToWorld_RenderThread()
@@ -1445,7 +1472,7 @@ FLandscapeComponentSceneProxy::~FLandscapeComponentSceneProxy()
 {
 	// Free the subsection uniform buffer
 	LandscapeUniformShaderParameters.ReleaseResource();
-
+		
 	// Free the lod uniform buffers
 	for (int32 i = 0; i < LandscapeFixedGridUniformShaderParameters.Num(); ++i)
 	{
@@ -1932,6 +1959,11 @@ bool FLandscapeComponentSceneProxy::GetStaticMeshElement(int32 LODIndex, bool bF
 		BatchElement.FirstIndex = 0;
 		BatchElement.MinVertexIndex = SharedBuffers->IndexRanges[LODIndex].MinIndexFull;
 		BatchElement.MaxVertexIndex = SharedBuffers->IndexRanges[LODIndex].MaxIndexFull;
+				
+		if (!bForToolMesh && !bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()))
+		{
+			Culling::SetupMeshBatch(*SharedBuffers, MeshBatch);
+		}
 
 		// The default is overridden here only by mobile landscape to punch holes in the geometry
 		ApplyMeshElementModifier(BatchElement, LODIndex);
@@ -2423,6 +2455,18 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 #endif // !UE_BUILD_SHIPPING
 }
 
+void FLandscapeComponentSceneProxy::ApplyViewDependentMeshArguments(const FSceneView& View, FMeshBatch& ViewDependentMeshBatch) const
+{
+	Culling::FArguments CullingArgs{};
+	if (Culling::GetViewArguments(View, LandscapeKey, ComponentBase, ViewDependentMeshBatch.LODIndex, CullingArgs))
+	{
+		ViewDependentMeshBatch.Elements[0].NumPrimitives = 0;
+		ViewDependentMeshBatch.Elements[0].NumInstances = 0;
+		ViewDependentMeshBatch.Elements[0].IndirectArgsBuffer = CullingArgs.IndirectArgsBuffer;
+		ViewDependentMeshBatch.Elements[0].IndirectArgsOffset = CullingArgs.IndirectArgsOffset;
+	}
+}
+
 #if RHI_RAYTRACING
 void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
@@ -2814,6 +2858,9 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 	, VertexFactory(nullptr)
 	, FixedGridVertexFactory(nullptr)
 	, VertexBuffer(nullptr)
+	, TileMesh(nullptr)
+	, TileVertexFactory(nullptr)
+	, TileDataBuffer(nullptr)
 	, bUse32BitIndices(false)
 
 #if WITH_EDITOR
@@ -2892,57 +2939,57 @@ FLandscapeSharedBuffers::~FLandscapeSharedBuffers()
 #endif
 
 	delete VertexFactory;
+
+	delete TileMesh;
+	delete TileDataBuffer;
+	delete TileVertexFactory;
 }
 
 //
 // FLandscapeVertexFactoryVertexShaderParameters
 //
-
-/** Shader parameters for use with FLandscapeVertexFactory */
-class FLandscapeVertexFactoryVertexShaderParameters : public FVertexFactoryShaderParameters
+void FLandscapeVertexFactoryVertexShaderParameters::GetElementShaderBindings(
+	const class FSceneInterface* Scene,
+	const FSceneView* InView,
+	const class FMeshMaterialShader* Shader,
+	const EVertexInputStreamType InputStreamType,
+	ERHIFeatureLevel::Type FeatureLevel,
+	const FVertexFactory* VertexFactory,
+	const FMeshBatchElement& BatchElement,
+	class FMeshDrawSingleShaderBindings& ShaderBindings,
+	FVertexInputStreamArray& VertexStreams
+) const
 {
-	DECLARE_TYPE_LAYOUT(FLandscapeVertexFactoryVertexShaderParameters, NonVirtual);
-public:
-	/**
-	* Bind shader constants by name
-	* @param	ParameterMap - mapping of named shader constants to indices
-	*/
-	void Bind(const FShaderParameterMap& ParameterMap)
+	SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimeVS);
+
+	const FLandscapeBatchElementParams* BatchElementParams = (const FLandscapeBatchElementParams*)BatchElement.UserData;
+	check(BatchElementParams);
+
+	const FLandscapeComponentSceneProxy* SceneProxy = BatchElementParams->SceneProxy;
+
+	ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
+	ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeSectionLODUniformParameters>(), BatchElementParams->LandscapeSectionLODUniformParameters);
+
+	if (InView && VertexFactory->GetType() == Culling::GetTileVertexFactoryType())
 	{
+		// TileVF is used only for LOD0
+		int32 LODIndex = 0; 
+		Culling::FArguments CullingArgs{};
+		if (Culling::GetViewArguments(*InView, SceneProxy->LandscapeKey, SceneProxy->ComponentBase, LODIndex, CullingArgs))
+		{
+			check(VertexStreams.IsValidIndex(1));
+			VertexStreams[1].Offset = CullingArgs.TileDataOffset;
+			VertexStreams[1].VertexBuffer = CullingArgs.TileDataVertexBuffer;
+		}
 	}
-
-	void GetElementShaderBindings(
-		const class FSceneInterface* Scene,
-		const FSceneView* InView,
-		const class FMeshMaterialShader* Shader,
-		const EVertexInputStreamType InputStreamType,
-		ERHIFeatureLevel::Type FeatureLevel,
-		const FVertexFactory* VertexFactory,
-		const FMeshBatchElement& BatchElement,
-		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams
-	) const
-	{
-		SCOPE_CYCLE_COUNTER(STAT_LandscapeVFDrawTimeVS);
-
-		const FLandscapeBatchElementParams* BatchElementParams = (const FLandscapeBatchElementParams*)BatchElement.UserData;
-		check(BatchElementParams);
-
-		const FLandscapeComponentSceneProxy* SceneProxy = BatchElementParams->SceneProxy;
-
-		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(), *BatchElementParams->LandscapeUniformShaderParametersResource);
-		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeSectionLODUniformParameters>(), BatchElementParams->LandscapeSectionLODUniformParameters);
 
 #if RHI_RAYTRACING
-		if (IsRayTracingEnabled())
-		{
-			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeVertexFactoryMVFParameters>(), BatchElementParams->LandscapeVertexFactoryMVFUniformBuffer);
-		}
-#endif
+	if (IsRayTracingEnabled())
+	{
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeVertexFactoryMVFParameters>(), BatchElementParams->LandscapeVertexFactoryMVFUniformBuffer);
 	}
-};
-
-IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryVertexShaderParameters);
+#endif
+}
 
 /**
   * Shader parameters for use with FLandscapeFixedGridVertexFactory
@@ -3050,7 +3097,7 @@ void FLandscapeVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 
 void FLandscapeVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
 {
-	Elements.Add(FVertexElement(0, 0, VET_Float4, 0, 0, false));
+	Elements.Add(FVertexElement(0, 0, VET_UByte4, 0, 0, false));
 	Elements.Add(FVertexElement(1, 0, VET_UInt, 1, 0, true));
 }
 
@@ -3347,8 +3394,10 @@ public:
 
 				static const FName LandscapeVertexFactory = FName(TEXT("FLandscapeVertexFactory"));
 				static const FName LandscapeXYOffsetVertexFactory = FName(TEXT("FLandscapeXYOffsetVertexFactory"));
+				static const FName LandscapeTileVertexFactory = FName(TEXT("FLandscapeTileVertexFactory"));
 				static const FName NaniteVertexFactory = FName(TEXT("Nanite::FVertexFactory"));
 				if (VertexFactoryType->GetFName() == LandscapeVertexFactory ||
+					VertexFactoryType->GetFName() == LandscapeTileVertexFactory ||
 					VertexFactoryType->GetFName() == LandscapeXYOffsetVertexFactory ||
 					VertexFactoryType->GetFName() == NaniteVertexFactory)
 				{
@@ -3919,6 +3968,12 @@ double FLandscapeComponentSceneProxy::ComputeSectionResolution() const
 	return ComponentFullExtent / ComponentQuads;
 }
 
+void FLandscapeComponentSceneProxy::GetSectionBoundsAndLocalToWorld(FBoxSphereBounds& OutLocalBounds, FMatrix& OutLocalToWorld) const
+{
+	OutLocalBounds = GetLocalBounds();
+	OutLocalToWorld = GetLocalToWorld();
+}
+
 //
 // FLandscapeSectionInfo
 //
@@ -3964,6 +4019,12 @@ public:
 	virtual int32 GetSectionPriority() const override
 	{
 		return ProxyLOD;
+	}
+	
+	virtual void GetSectionBoundsAndLocalToWorld(FBoxSphereBounds& LocalBounds, FMatrix& LocalToWorld) const
+	{
+		LocalBounds = FBoxSphereBounds(ForceInit);
+		LocalToWorld = FMatrix::Identity;
 	}
 
 private:

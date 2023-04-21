@@ -325,6 +325,14 @@ public:
 	virtual const class FCardRepresentationData* GetMeshCardRepresentation() const { return nullptr; }
 
 	/** 
+	* Gives the primitive an opportunity to override MeshBatch arguments for a specific View
+	* Only called for a MeshBatch with a bViewDependentArguments property set
+	* @param View - the view to override for
+	* @param ViewDependentMeshBatch - view dependent mesh copy (does not affect a cached FMeshBatch)
+	*/
+	virtual void ApplyViewDependentMeshArguments(const FSceneView& View, FMeshBatch& ViewDependentMeshBatch) const {};
+
+	/** 
 	 * Gets the boxes for sub occlusion queries
 	 * @param View - the view the occlusion results are for
 	 * @return pointer to the boxes, must remain valid until the queries are built
