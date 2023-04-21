@@ -2069,12 +2069,20 @@ namespace UnrealBuildTool
 		private bool? bLegacyParentIncludePathsPrivate;
 
 		/// <summary>
-		/// Which C++ stanard to use for compiling this target
+		/// Which C++ standard to use for compiling this target
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-CppStd")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
+
+		/// <summary>
+		/// Which C++ standard is the maximum allowed for compiling modules in this target if they override the Target's CppStandard for any reason.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-MaxCppStd")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public CppStandardVersion MaxCppStandard = CppStandardVersion.Latest;
 
 		/// <summary>
 		/// Which C standard to use for compiling this target
@@ -3810,6 +3818,11 @@ namespace UnrealBuildTool
 		public CppStandardVersion CppStandard
 		{
 			get { return Inner.CppStandard; }
+		}
+
+		public CppStandardVersion MaxCppStandard
+		{
+			get { return Inner.MaxCppStandard; }
 		}
 
 		public CStandardVersion CStandard

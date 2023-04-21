@@ -1753,9 +1753,20 @@ namespace UnrealBuildTool
 			{
 				Result.CppStandard = (CppStandardVersion)Rules.CppStandard;
 			}
+			// Otherwise, for engine modules use the EngineDefault standard.
+			else if (Rules.bTreatAsEngineModule)
+			{
+				Result.CppStandard = CppStandardVersion.EngineDefault;
+			}
+			// CppModules require at least Cpp20.
 			if (Target.bEnableCppModules && Result.CppStandard < CppStandardVersion.Cpp20)
 			{
 				Result.CppStandard = CppStandardVersion.Cpp20;
+			}
+			// Downgrade CppStandard if a max version has been set.
+			if (Result.CppStandard > Target.MaxCppStandard)
+			{
+				Result.CppStandard = Target.MaxCppStandard;
 			}
 
 			// If the module overrides the C language version, override it on the compile environment

@@ -345,10 +345,15 @@ namespace UnrealBuildTool
 			ConfigCache.ReadSettings(IniDirRef, Platform, Target.HoloLensPlatform);
 
 			// cl : Command line error D8016 : '/std:c++20' and '/ZW' command-line options are incompatible
+			if (Target.MaxCppStandard > CppStandardVersion.Cpp17)
+			{
+				Target.MaxCppStandard = CppStandardVersion.Cpp17;
+			}
 			if (Target.CppStandard > CppStandardVersion.Cpp17)
 			{
 				Target.CppStandard = CppStandardVersion.Cpp17;
 			}
+			Target.bEnableCppModules = false; // Cpp modules require C++20
 
 			if (Target.HoloLensPlatform.Compiler == WindowsCompiler.Default)
 			{
