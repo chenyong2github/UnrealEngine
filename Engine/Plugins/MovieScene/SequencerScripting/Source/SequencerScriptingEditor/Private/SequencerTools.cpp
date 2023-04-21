@@ -51,11 +51,13 @@ bool USequencerToolsFunctionLibrary::RenderMovie(UMovieSceneCapture* InCaptureSe
 		return false;
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (IsRenderingMovie())
 	{
 		FFrame::KismetExecutionMessage(TEXT("Capture already in progress."), ELogVerbosity::Error);
 		return false;
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// If they're capturing a level sequence we'll do some additional checking as there are more parameters on the Automated Level Sequence capture.
 	UAutomatedLevelSequenceCapture* LevelSequenceCapture = Cast<UAutomatedLevelSequenceCapture>(InCaptureSettings);
