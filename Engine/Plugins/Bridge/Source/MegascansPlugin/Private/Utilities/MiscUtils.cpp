@@ -323,16 +323,18 @@ void CopyUassetFiles(TArray<FString> FilesToCopy, FString DestinationDirectory)
 	PlatformFile.CreateDirectoryTree(*DestinationDirectory);
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-
-	for (FString FileToCopy : FilesToCopy)
+	
+	TArray<FString> NewFilePaths;
+	NewFilePaths.Reserve(FilesToCopy.Num());
+	
+	for (const FString& FileToCopy : FilesToCopy)
 	{
-		FString DestinationFile = FPaths::Combine(DestinationDirectory, FPaths::GetCleanFilename(FileToCopy));
+		const FString DestinationFile = FPaths::Combine(DestinationDirectory, FPaths::GetCleanFilename(FileToCopy));
 		PlatformFile.CopyFile(*DestinationFile, *FileToCopy);
+		NewFilePaths.Add(DestinationFile);
 	}
 
-	TArray<FString> SyncPaths;
-	SyncPaths.Add(TEXT("/Game/Megascans"));
-	AssetRegistryModule.Get().ScanPathsSynchronous(SyncPaths, true);
+	AssetRegistryModule.Get().ScanFilesSynchronous(NewFilePaths, true);
 }
 
 void AssetUtils::SyncFolder(const FString& TargetFolder)
@@ -391,17 +393,20 @@ void CopyUassetFilesPlants(TArray<FString> FilesToCopy, FString DestinationDirec
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-	FString FoliageDestination = FPaths::Combine(DestinationDirectory, TEXT("Foliage"));
+	const FString FoliageDestination = FPaths::Combine(DestinationDirectory, TEXT("Foliage"));
 
 	if (AssetTier < 4)
 	{
 		PlatformFile.CreateDirectoryTree(*FoliageDestination);
 	}
 
-	for (FString FileToCopy : FilesToCopy)
+	TArray<FString> NewFilePaths;
+	NewFilePaths.Reserve(FilesToCopy.Num());
+	
+	for (const FString& FileToCopy : FilesToCopy)
 	{
 		FString DestinationFile = TEXT("");
-		FString TypeConvention = FPaths::GetBaseFilename(FileToCopy).Left(2);
+		const FString TypeConvention = FPaths::GetBaseFilename(FileToCopy).Left(2);
 		if (TypeConvention == TEXT("FT"))
 		{
 			DestinationFile = FPaths::Combine(FoliageDestination, FPaths::GetCleanFilename(FileToCopy));
@@ -411,11 +416,10 @@ void CopyUassetFilesPlants(TArray<FString> FilesToCopy, FString DestinationDirec
 			DestinationFile = FPaths::Combine(DestinationDirectory, FPaths::GetCleanFilename(FileToCopy));
 		}
 		PlatformFile.CopyFile(*DestinationFile, *FileToCopy);
+		NewFilePaths.Add(DestinationFile);
 	}
 
-	TArray<FString> SyncPaths;
-	SyncPaths.Add(TEXT("/Game/Megascans"));
-	AssetRegistryModule.Get().ScanPathsSynchronous(SyncPaths, true);
+	AssetRegistryModule.Get().ScanFilesSynchronous(NewFilePaths, true);
 }
 
 void UpdateMHVersionInfo(TMap<FString, TArray<FString>> AssetsStatus, TMap<FString, float> SourceAssetsVersionInfo)

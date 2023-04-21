@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 17,
-	"VersionName": "2023.0.1",
+	"Version": 18,
+	"VersionName": "2023.0.2",
 	"FriendlyName": "Bridge",
 	"Description": "Megascans Link for Quixel Bridge.",
 	"Category": "Editor",

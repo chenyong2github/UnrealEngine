@@ -202,7 +202,7 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 
 void FImportProgressiveSurfaces::HandlePreviewTextureLoad(FAssetData TextureData, FString AssetID, FString Type)
 {
-	if (!IsValid(PreviewDetails[AssetID]->PreviewInstance))
+	if (!PreviewDetails.Contains(AssetID) || !IsValid(PreviewDetails[AssetID]->PreviewInstance))
 	{
 		return;
 	}
@@ -300,6 +300,7 @@ void FImportProgressiveSurfaces::HandleHighInstanceLoad(FAssetData HighInstanceD
 	for (AStaticMeshActor* UsedActor : PreviewDetails[AssetID]->ActorsInLevel)
 	{
 		if (!IsValid(UsedActor)) continue;
+		if (!IsValid(UsedActor->GetStaticMeshComponent())) continue;
 		if (!UsedActor) continue;
 		if (UsedActor == nullptr) continue;			
 
