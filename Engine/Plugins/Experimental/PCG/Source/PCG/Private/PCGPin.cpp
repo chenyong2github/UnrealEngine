@@ -206,7 +206,10 @@ bool UPCGPin::BreakAllIncompatibleEdges(TSet<UPCGNode*>* InTouchedNodes/*= nullp
 			Modify();
 			Edges.RemoveAtSwap(EdgeIndex);
 
-			InTouchedNodes->Add(Node);
+			if (InTouchedNodes)
+			{
+				InTouchedNodes->Add(Node);
+			}
 
 			if (OtherPin)
 			{
