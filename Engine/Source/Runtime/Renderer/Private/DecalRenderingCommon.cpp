@@ -50,7 +50,7 @@ namespace DecalRendering
 		}
 
 		// Enforce blend modes output limitations.
-		if (!bIsStrataEnabled && IsAlphaCompositeBlendMode(Desc))
+		if (IsAlphaCompositeBlendMode(Desc))
 		{
 			Desc.bWriteNormal = false;
 		}

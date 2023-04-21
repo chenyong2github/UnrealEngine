@@ -436,10 +436,6 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	Slab.InlinedBSDF.Coverage = LegacySlab.Weight * FinalWeight;	//////////////////// Remove FinalWeight? Do that in CreateLegacySlab?
 #endif
 
-	#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE
-	Slab.PreMultipliedAlphaOverrideCoverage = Opacity;
-	#endif
-
 	return Slab;
 }
 
@@ -471,6 +467,12 @@ FStrataData StrataConvertLegacyMaterialStatic(
 	const float DefaultThickness = STRATA_LAYER_DEFAULT_THICKNESS_CM;
 	const float3 Zeros = float3(0, 0, 0);
 	const float3 Ones = float3(1, 1, 1);
+
+#if STRATA_USE_PREMULTALPHA_OVERRIDE
+	// Opacity is applied using the "Opacity Override" pin on the root node when using alpha composite (pre multiplied alpha).
+	// This is needed because some material might have the pin plugged in and the blending mode overriden on the material instance.
+	Opacity = 1.0f;
+#endif
 
 	if (ShadingModel == SHADINGMODELID_UNLIT)
 	{

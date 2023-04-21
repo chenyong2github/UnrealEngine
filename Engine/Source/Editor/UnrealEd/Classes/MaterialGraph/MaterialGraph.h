@@ -67,7 +67,7 @@ struct FMaterialInputInfo
 		{
 			if (Strata::IsStrataEnabled())
 			{
-				if (Property == MP_FrontMaterial || Property == MP_OpacityMask || Property == MP_WorldPositionOffset)
+				if (Property == MP_FrontMaterial || Property == MP_Opacity || Property == MP_OpacityMask || Property == MP_WorldPositionOffset)
 				{
 					return true;
 				}

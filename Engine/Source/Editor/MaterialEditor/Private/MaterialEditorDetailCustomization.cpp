@@ -60,9 +60,6 @@ UEnum* GetBlendModeEnum()
 
 		// BLEND_TranslucentColoredTransmittance is only supported in Strata mode
 		BlendModeEnum->SetMetaData(TEXT("DisplayName"), TEXT("TranslucentColoredTransmittance"), BLEND_TranslucentColoredTransmittance);
-
-		// BLEND_AlphaComposite is identical to BLEND_Translucent in Strata mode
-		BlendModeEnum->SetMetaData(TEXT("Hidden"), TEXT("True"), BLEND_AlphaComposite);
 	}
 	else
 	{

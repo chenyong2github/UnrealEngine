@@ -408,7 +408,10 @@ protected:
 	/** True if the material is detected as a strata material at compile time.
 	 * This is decoupled from runtime FMaterialResource::IsStrataMaterial but practically fine since this is only temporary until Strata is the main shading system. Only really used at runtime for translucency dual source blending.
 	 */
-	uint32 bMaterialIsStrata : 1; // 
+	uint32 bMaterialIsStrata : 1;
+
+	/** True if the opacity input is plugged in */
+	uint32 bOpacityPropertyIsUsed : 1;
 	
 	uint32 bEnableExecutionFlow : 1;
 

@@ -2431,7 +2431,7 @@ void FMaterial::SetupMaterialEnvironment(
 			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_MASKED"), TEXT("1"));
 			break;
 		}
-		case BLEND_Additive: // STRATA_TODO_BLENDMODE_ADDITIVE
+		case BLEND_Additive:
 		{
 			OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_ADDITIVE"),TEXT("1"));
 			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_TRANSLUCENT_GREYTRANSMITTANCE"), TEXT("1"));

@@ -248,30 +248,51 @@ void MainPS(
 	// from the engine will have their alpha channel inverted to match the PNG convention. However, for consistency inside the rendering chain,
 	// we need to stick to 0.0f as the default value.
 	float Alpha = 0.0f;
+	float3 EmissiveColor = 0.0f;
 #if STRATA_ENABLED
 
 	// Unlit forces a single BSDF
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 	UnlitBSDF.StrataSanitizeBSDF();
 
-	// Grab emissive colour as output
-  #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
-	// Transmittance = 1 - opacity. See UMaterialExpressionStrataPostProcess.
-	const float UnlitBSDFTransmittance = UNLIT_TRANSMITTANCE(UnlitBSDF).x;
-	const float UnlitBSDFOpacity = 1.0f - UnlitBSDFTransmittance;
-	Alpha = UnlitBSDFOpacity;
-  #endif
+	half3 PPColor = BSDF_GETEMISSIVE(UnlitBSDF);
+	half  PPAlpha = saturate(1.0 - UNLIT_TRANSMITTANCE(UnlitBSDF).x);	// The current interface only allows legacy opacity transformed to transmittance as 1-Opacity. See UMaterialExpressionStrataPostProcess.
 
-	const float3 Emissive = BSDF_GETEMISSIVE(UnlitBSDF);
-
+	// Substrate only use premultiplied alpha blending state (except for modulate and holdout) so we need to convert to the here.
+#if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
+	EmissiveColor = PPColor;
+#elif MATERIALBLENDING_ALPHACOMPOSITE
+	EmissiveColor = PPColor;	// Premultipled alpha already baked in by the user
+#elif MATERIALBLENDING_ALPHAHOLDOUT
+	EmissiveColor = 0.0;
+#elif MATERIALBLENDING_TRANSLUCENT
+	EmissiveColor = PPColor * PPAlpha;
+#elif MATERIALBLENDING_ADDITIVE
+	EmissiveColor = PPColor;	// not affected by alpha
+#elif MATERIALBLENDING_MODULATE
+	EmissiveColor = PPColor;	// not affected by alpha
 #else
+	EmissiveColor = PPColor;
+#endif
+
+#if STRATA_USE_PREMULTALPHA_OVERRIDE // AlphaComposite - Premultiplied alpha blending
+	PPAlpha = GetMaterialOpacity(PixelMaterialInputs);
+#endif
+
+#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
+	Alpha = PPAlpha;
+#endif
+
+#else // STRATA_ENABLED
+
 	// Grab emissive colour as output
   #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
 	Alpha = GetMaterialOpacity(PixelMaterialInputs);
   #endif
-	const float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
-#endif
-	OutColor = float4(Emissive, Alpha );
+	EmissiveColor = GetMaterialEmissive(PixelMaterialInputs);
+#endif // STRATA_ENABLED
+
+	OutColor = float4(EmissiveColor, Alpha );
 
 #if !MATERIALBLENDING_MODULATE && POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 	OutColor.xyz *= View.PreExposure;
@@ -402,33 +423,51 @@ void MainPS(
 	// fill out other related material parameters
 	CalcMaterialParametersPost(Parameters, PixelMaterialInputs, SvPosition, true);
 
+	float Alpha = 0.0f;
+	float3 EmissiveColor = 0.0f;
 #if STRATA_ENABLED
 
 	// Unlit forces a single BSDF
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 	UnlitBSDF.StrataSanitizeBSDF();
 
-	// Grab emissive colour as output
-  #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
-  // Transmittance = 1 - opacity. See UMaterialExpressionStrataPostProcess.
-	const half UnlitBSDFTransmittance = UNLIT_TRANSMITTANCE(UnlitBSDF).x;
-	const half UnlitBSDFOpacity = 1.0f - UnlitBSDFTransmittance;
-	half Alpha = UnlitBSDFOpacity;
-  #else
-	half Alpha = 0.0f;
-  #endif
+	half3 PPColor = BSDF_GETEMISSIVE(UnlitBSDF);
+	half  PPAlpha = saturate(1.0 - UNLIT_TRANSMITTANCE(UnlitBSDF).x);	// The current interface only allows legacy opacity transformed to transmittance as 1-Opacity. See UMaterialExpressionStrataPostProcess.
 
-	const half3 EmissiveColor = BSDF_GETEMISSIVE(UnlitBSDF);
+	// Substrate only use premultiplied alpha blending state (except for modulate and holdout) so we need to convert to the here.
+#if MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED
+	EmissiveColor = PPColor;
+#elif MATERIALBLENDING_ALPHACOMPOSITE
+	EmissiveColor = PPColor;	// Premultipled alpha already baked in by the user
+#elif MATERIALBLENDING_ALPHAHOLDOUT
+	EmissiveColor = 0.0;
+#elif MATERIALBLENDING_TRANSLUCENT
+	EmissiveColor = PPColor * PPAlpha;
+#elif MATERIALBLENDING_ADDITIVE
+	EmissiveColor = PPColor;	// not affected by alpha
+#elif MATERIALBLENDING_MODULATE
+	EmissiveColor = PPColor;	// not affected by alpha
+#else
+	EmissiveColor = PPColor;
+#endif
+
+#if STRATA_USE_PREMULTALPHA_OVERRIDE // AlphaComposite - Premultiplied alpha blending
+	PPAlpha = GetMaterialOpacity(PixelMaterialInputs);
+#endif
+
+#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
+	Alpha = PPAlpha;
+#endif
 
 #else // STRATA_ENABLED
 
 	// Grab emissive colour as output
-	half3 EmissiveColor = GetMaterialEmissive(PixelMaterialInputs);
+	EmissiveColor = GetMaterialEmissive(PixelMaterialInputs);
 	
   #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
-	half Alpha = GetMaterialOpacity(PixelMaterialInputs);
+	Alpha = GetMaterialOpacity(PixelMaterialInputs);
   #else
-	half Alpha = 0.0f;
+	Alpha = 0.0f;
   #endif
 
 #endif // STRATA_ENABLED

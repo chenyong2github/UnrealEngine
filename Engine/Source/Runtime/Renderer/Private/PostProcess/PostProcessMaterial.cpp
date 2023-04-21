@@ -144,7 +144,8 @@ static FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
 		case EBlendMode::BLEND_Opaque:
 		case EBlendMode::BLEND_Masked:
 			return TStaticBlendState<>::GetRHI();
-		case EBlendMode::BLEND_Additive: 						// STRATA_TODO_BLENDMODE_ADDITIVE
+		case EBlendMode::BLEND_Additive:
+			return TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI();
 		case EBlendMode::BLEND_AlphaComposite:
 		case EBlendMode::BLEND_TranslucentColoredTransmittance: // A platform may not support dual source blending so we always only use grey scale transmittance
 		case EBlendMode::BLEND_TranslucentGreyTransmittance:

@@ -691,11 +691,10 @@ void Main(
 	#endif
 
 	#if STRATA_TRANSLUCENT_MATERIAL
-			
-	#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE && !STRATA_OPTIMIZED_UNLIT
-		// This data patching is working because DualBlendSurfaceCoverage is always 1 when converting material from legacy to Strata with premultiplied alpha blending.
-		DualBlendSurfaceTransmittancePreCoverage= StrataData.PreMultipliedAlphaOverrideCoverage >= 0.0f ? 0.0f											: DualBlendSurfaceTransmittancePreCoverage;
-		DualBlendSurfaceCoverage				= StrataData.PreMultipliedAlphaOverrideCoverage >= 0.0f ? StrataData.PreMultipliedAlphaOverrideCoverage	: DualBlendSurfaceCoverage;
+
+	#if STRATA_USE_PREMULTALPHA_OVERRIDE // AlphaComposite - Premultiplied alpha blending
+		DualBlendSurfaceTransmittancePreCoverage= 0.0;
+		DualBlendSurfaceCoverage = GetMaterialOpacity(PixelMaterialInputs);
 	#endif
 
 		// Add fog luminance according to surfacecoverage and reduce surface luminance according to fog coverage.

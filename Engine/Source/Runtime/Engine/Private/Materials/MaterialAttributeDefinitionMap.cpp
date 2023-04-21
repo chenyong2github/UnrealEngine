@@ -353,12 +353,15 @@ FText FMaterialAttributeDefinitionMap::GetAttributeOverrideForMaterial(const FGu
 	TArray<TKeyValuePair<EMaterialShadingModel, FString>> CustomPinNames;
 	EMaterialProperty Property = GMaterialPropertyAttributesMap.Find(AttributeID)->Property;
 
+	static const IConsoleVariable* SubstrateCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.substrate"));
+	const bool bStrataEnabled = (SubstrateCVar && SubstrateCVar->GetInt() != 0);
+
 	switch (Property)
 	{
 	case MP_EmissiveColor:
 		return Material->IsUIMaterial() ? LOCTEXT("UIOutputColor", "Final Color") : LOCTEXT("EmissiveColor", "Emissive Color");
 	case MP_Opacity:
-		return LOCTEXT("Opacity", "Opacity");
+		return bStrataEnabled ? LOCTEXT("OpacityOverride", "Opacity Override") : LOCTEXT("Opacity", "Opacity");
 	case MP_OpacityMask:
 		return LOCTEXT("OpacityMask", "Opacity Mask");
 	case MP_DiffuseColor:

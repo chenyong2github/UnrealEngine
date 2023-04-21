@@ -129,9 +129,7 @@ FStrataDBuffer GetDBufferData(float2 BufferUV, uint RTMaskBit)
 #if MATERIAL_IS_STRATA
 void ApplyDBufferData(in FStrataDBuffer StrataDBufferData, inout FStrataPixelHeader StrataPixelHeader, inout FStrataData StrataData)
 {
-	// Early out if DBuffer has no coverage
-	if (StrataDBufferData.Coverage <= 0)
-		return;
+	// We cannot early out due when coverage = 0 due to the possibility of using premultipled alpha.
 
 	// For normal, apply decal data onto all basis, without consideration of top layers
 	#if STRATA_DBUFFER_RESPONSE_NORMAL && STRATA_INLINE_SHADING

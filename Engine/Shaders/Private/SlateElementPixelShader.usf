@@ -169,17 +169,30 @@ half4 GetMaterialColor( VertexToPixelInterpolants InVertex, float2 MeshUV )
 	UnlitBSDF.StrataSanitizeBSDF();
 
 #if ((STRATA_OPAQUE_DEFERRED || (STRATA_OPAQUE_MATERIAL && STRATA_FORWARD_SHADING)))
-	OutColor = half4(BSDF_GETEMISSIVE(UnlitBSDF), 1.0f);
-#else // STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING || STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT
-	const float Coverage = saturate(1.0f - UNLIT_TRANSMITTANCE(UnlitBSDF).x);	// Unlit node transmittance is only generated from opacity
-#if MATERIALBLENDING_ADDITIVE
-	OutColor = half4(BSDF_GETEMISSIVE(UnlitBSDF) * Coverage, 0.0f);
-#else
-	OutColor = half4(BSDF_GETEMISSIVE(UnlitBSDF), Coverage);
-#endif
-#endif
 
-	// STRATA_TODO fix premultiplied alpha properly
+	OutColor = half4(BSDF_GETEMISSIVE(UnlitBSDF), 1.0f);
+
+#else // STRATA_OPAQUE_DEFERRED
+
+	float3 Color = BSDF_GETEMISSIVE(UnlitBSDF);
+	float Coverage = saturate(1.0f - UNLIT_TRANSMITTANCE(UnlitBSDF).x);	// Unlit node transmittance is only generated from opacity
+
+#if MATERIALBLENDING_ALPHACOMPOSITE
+
+#if STRATA_USE_PREMULTALPHA_OVERRIDE // AlphaComposite - Premultiplied alpha blending
+	Coverage = GetMaterialOpacity(PixelMaterialInputs);
+#endif
+	OutColor = half4(Color, Coverage);
+
+#elif MATERIALBLENDING_MODULATE
+	OutColor = half4(Color, 0.0f);
+#elif MATERIALBLENDING_ALPHAHOLDOUT
+	OutColor = half4(0.0f, 0.0f, 0.0f, Coverage);
+#else // MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_TRANSLUCENT
+	OutColor = half4(Color * Coverage, Coverage);
+#endif // MATERIALBLENDING_xxx
+
+#endif// STRATA_OPAQUE_DEFERRED
 
 #else // STRATA_ENABLED
 

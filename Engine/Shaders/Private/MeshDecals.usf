@@ -146,8 +146,14 @@ void FPixelShaderInOut_MainPS(
 		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, false /*bRoughDiffuseEnabled*/, 0, false/*bRoughnessTracking*/);
 		StrataHeader.StrataUpdateTree(NullStrataAddressing, V, Settings);
 
+		// Either propagate the BSDF opacity, or use the one for AlphaComposite (premultiplied alpha)
+		float CoverageOverBackground = StrataHeader.StrataTree.BSDFs[0].Coverage;
+#if STRATA_USE_PREMULTALPHA_OVERRIDE // AlphaComposite - Premultiplied alpha blending
+		CoverageOverBackground = GetMaterialOpacity(PixelMaterialInputs);
+#endif 
+
 		// Since the Convert-To-Decal node forces parameter blending for the entire Strata tree, the BSDF we are interested in will be in 0.
-		Coverage = DecalCommonOutput(Out, StrataHeader, StrataHeader.StrataTree.BSDFs[0], 1.0f /*CoverageWeight*/);
+		Coverage = DecalCommonOutput(Out, StrataHeader, StrataHeader.StrataTree.BSDFs[0], 1.0f /*CoverageWeight*/, CoverageOverBackground);
 	}
 	const float Opacity = Coverage;
 #else // STRATA_ENABLED

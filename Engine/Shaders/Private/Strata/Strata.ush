@@ -97,9 +97,6 @@
 
 #define STRATA_COMPLEXPATH (!STRATA_FASTPATH && !STRATA_SINGLEPATH)
 
-// When converting legacy materials to Strata, we need to override transmittance/coverage to be independent from the material and directly linked to opacity
-#define STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE (STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ALPHACOMPOSITE)
-
 #define STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT (!MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID && STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE==0 || STRATA_MATERIAL_EXPORT_FROM_TRANSLUCENT)
 
 #define STRATA_INLINE_SINGLELAYERWATER (STRATA_ENABLED && MATERIAL_IS_STRATA && STRATA_INLINE_SHADING && MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
@@ -1378,18 +1375,11 @@ struct FStrataData
 #if USE_DEVELOPMENT_SHADERS
 	float3 PreviewColor;	// Used as preview in the material graph within the editor.
 #endif
-
-#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE
-	float PreMultipliedAlphaOverrideCoverage;
-#endif
 };
 
 FStrataData GetInitialisedStrataData()
 {
 	FStrataData StrataData = (FStrataData)0;
-#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE
-	StrataData.PreMultipliedAlphaOverrideCoverage = -1.0f;
-#endif
 	return StrataData;
 }
 

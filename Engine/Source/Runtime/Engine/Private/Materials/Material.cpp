@@ -3116,7 +3116,7 @@ EBlendMode ConvertLegacyBlendMode(EBlendMode InBlendMode, FMaterialShadingModelF
 	{
 		return BLEND_TranslucentColoredTransmittance;
 	}
-	else if (InBlendMode == BLEND_Translucent || InBlendMode == BLEND_AlphaComposite)
+	else if (InBlendMode == BLEND_Translucent)
 	{
 		return BLEND_TranslucentGreyTransmittance;
 	}
@@ -3297,6 +3297,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		// * Always forward masked opacity because this is required when the blend mode is overriden to masked on a material instance.
 		bUseMaterialAttributes = false;
 		EditorOnly->FrontMaterial.Connect(0, ConvertNode);
+		EditorOnly->Opacity.Connect(6, BreakMatAtt);			// For alpha composite blend mode, Opacity on the root node in case BLEND_AlphaComposite is selected.
 		EditorOnly->OpacityMask.Connect(7, BreakMatAtt);
 		EditorOnly->WorldPositionOffset.Connect(10, BreakMatAtt);
 		EditorOnly->AmbientOcclusion.Connect(14, BreakMatAtt);
@@ -3472,7 +3473,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 				MoveConnectionTo(EditorOnly->SubsurfaceColor, ConvertNode, 8);
 				MoveConnectionTo(EditorOnly->ClearCoat, ConvertNode, 9);
 				MoveConnectionTo(EditorOnly->ClearCoatRoughness, ConvertNode, 10);
-				MoveConnectionTo(EditorOnly->Opacity, ConvertNode, 11);
+				CopyConnectionTo(EditorOnly->Opacity, ConvertNode, 11);	// We only copy, to keep Opacity on the root node in case BLEND_AlphaComposite is selected.
 				bRelinkCustomOutputNodes = true;
 			
 				// Shading Model
@@ -3568,26 +3569,9 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 
 			UMaterialExpressionStrataPostProcess* PostProcNode = NewObject<UMaterialExpressionStrataPostProcess>(this);
 			SetPosXAndMoveReferenceToTheRight(PostProcNode);
-			if (GetBlendMode() == BLEND_Translucent)
-			{
-				// If the blending mode was translucent, we must multiply the color by the opacity before the output node
-				UMaterialExpressionMultiply* ColorMultiplyOpacityNode = NewObject<UMaterialExpressionMultiply>(this);
-				ReplaceNodeAndMoveToTheRight(PostProcNode, ColorMultiplyOpacityNode);
-				CopyConnectionTo(EditorOnly->Opacity, ColorMultiplyOpacityNode, 0);
-				MoveConnectionTo(EditorOnly->EmissiveColor, ColorMultiplyOpacityNode, 1);
 
-				PostProcNode->Color.Connect(0, ColorMultiplyOpacityNode);
-				MoveConnectionTo(EditorOnly->Opacity, PostProcNode, 1);
-			}
-			else
-			{
-				// Only Emissive & Opacity are valid input for PostProcess material
-				MoveConnectionTo(EditorOnly->EmissiveColor, PostProcNode, 0);
-				if (GetBlendMode() != BLEND_Additive) // Legacy material additive was ignoring opacity
-				{
-					MoveConnectionTo(EditorOnly->Opacity, PostProcNode, 1);
-				}
-			}
+			MoveConnectionTo(EditorOnly->EmissiveColor, PostProcNode, 0);
+			CopyConnectionTo(EditorOnly->Opacity, PostProcNode, 1);	// We only copy, to keep Opacity on the root node in case BLEND_AlphaComposite is selected.
 
 			EditorOnly->FrontMaterial.Connect(0, PostProcNode);
 			bInvalidateShader = true;
@@ -3612,7 +3596,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(EditorOnly->SubsurfaceColor, ConvertNode, 8);
 			MoveConnectionTo(EditorOnly->ClearCoat, ConvertNode, 9);
 			MoveConnectionTo(EditorOnly->ClearCoatRoughness, ConvertNode, 10);
-			MoveConnectionTo(EditorOnly->Opacity, ConvertNode, 11);
+			CopyConnectionTo(EditorOnly->Opacity, ConvertNode, 11);	// We only copy, to keep Opacity on the root node in case BLEND_AlphaComposite is selected.
 
 			// Add constant for the Unlit shading model
 			UMaterialExpressionShadingModel* ShadingModelNode = NewObject<UMaterialExpressionShadingModel>(this);
@@ -3641,7 +3625,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			UMaterialExpressionStrataUI* UINode = NewObject<UMaterialExpressionStrataUI>(this);
 			SetPosXAndMoveReferenceToTheRight(UINode);
 			MoveConnectionTo(EditorOnly->EmissiveColor, UINode, 0);
-			MoveConnectionTo(EditorOnly->Opacity, UINode, 1);
+			CopyConnectionTo(EditorOnly->Opacity, UINode, 1);	// We only copy, to keep Opacity on the root node in case BLEND_AlphaComposite is selected.
 
 			EditorOnly->FrontMaterial.Connect(0, UINode);
 			bInvalidateShader = true;
@@ -5061,7 +5045,6 @@ void UMaterial::RebuildShadingModelField()
 				// Decal can have multiple shading model
 				MaterialDomain = EMaterialDomain::MD_DeferredDecal;
 				ShadingModel = MSM_DefaultLit;
-				BlendMode = EBlendMode::BLEND_TranslucentGreyTransmittance;
 			}
 
 			// Also update the ShadingModels for remaining pipeline operation
@@ -6667,6 +6650,7 @@ bool UMaterial::IsPropertySupported(EMaterialProperty InProperty) const
 		switch (InProperty)
 		{
 		case MP_Refraction:
+		case MP_Opacity:	// For Substrate, this is only use for premultiply alpha blending where throughput applied to the background can be overriden.
 		case MP_OpacityMask:
 		case MP_AmbientOcclusion:
 		case MP_WorldPositionOffset:
@@ -6708,12 +6692,13 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bIsSupported)
 {
 	const bool bStrataEnabled = Strata::IsStrataEnabled();
+	const bool bStrataOpacityOverrideAllowed = BlendMode == BLEND_AlphaComposite; // Should we always have it enabled to be able to be plugged in an fed when blend mode is toggled later on a material instance?
 
 	if (Domain == MD_PostProcess)
 	{
 		if (bStrataEnabled)
 		{
-			return InProperty == MP_FrontMaterial;
+			return InProperty == MP_FrontMaterial || (InProperty == MP_Opacity && bStrataOpacityOverrideAllowed);
 		}
 		else
 		{
@@ -6737,7 +6722,8 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		if (bStrataEnabled)
 		{
 			return InProperty == MP_FrontMaterial
-				|| InProperty == MP_AmbientOcclusion;
+				|| InProperty == MP_AmbientOcclusion
+				|| (InProperty == MP_Opacity && bStrataOpacityOverrideAllowed);
 		}
 		else if (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7)
 		{
@@ -6792,9 +6778,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	}
 	else if (Domain == MD_Volume)
 	{
-		if (InProperty == MP_FrontMaterial)
+		if (bStrataEnabled)
 		{
-			return bStrataEnabled;
+			return InProperty == MP_FrontMaterial;
 		}
 		return InProperty == MP_EmissiveColor
 			|| InProperty == MP_SubsurfaceColor
@@ -6808,6 +6794,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 			return InProperty == MP_FrontMaterial
 				|| (InProperty == MP_WorldPositionOffset)
 				|| (InProperty == MP_OpacityMask && IsMaskedBlendMode(BlendMode))
+				|| (InProperty == MP_Opacity && bStrataOpacityOverrideAllowed)
 				|| (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7);
 		}
 		else
@@ -6842,7 +6829,8 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 				Active = (bIsTranslucentBlendMode && !IsAlphaHoldoutBlendMode(BlendMode) && !IsModulateBlendMode(BlendMode) && bUsesDistortion) || ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 				break;
 			case MP_Opacity:
-				Active = (bIsTranslucentBlendMode && !IsModulateBlendMode(BlendMode)) || ShadingModels.HasShadingModel(MSM_SingleLayerWater);
+				// Opacity is used as alpha override for alpha composite blending. 
+				Active = bStrataOpacityOverrideAllowed;
 				break;
 			case MP_OpacityMask:
 				Active = IsMaskedBlendMode(BlendMode);

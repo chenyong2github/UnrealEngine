@@ -17,10 +17,12 @@ float DecalCommonOutput(
 	inout FPixelShaderOut Out, 
 	in FStrataPixelHeader InHeader,
 	in FStrataBSDF InBSDF,
-	in float CoverageWeight)
+	in float FadeOutWeight,
+	in float CoverageOverBackground)
 {
 	FStrataDBuffer DBuffer = InHeader.StrataConvertToDBuffer(InBSDF);
-	DBuffer.Coverage *= CoverageWeight;
+
+	DBuffer.Coverage *= FadeOutWeight;
 
 	float3 Color = DBuffer.Emissive;
 
@@ -51,9 +53,11 @@ float DecalCommonOutput(
 	float4 PreMulEmissive_Coverage = 0;
 	StrataPackDBuffer(DBuffer, PreMulEmissive_Coverage, Out.MRT[0], Out.MRT[1], Out.MRT[2]);
 
-	#if DECAL_RENDERTARGET_COUNT == 4
-		Out.MRT[3] = 1.0f; // DBufferMask
-	#endif
+	// This is to set the coverage over the background to an arbitrary value in case premultiplied alpha is used.
+	Out.MRT[0].a = CoverageOverBackground;
+	Out.MRT[1].a = CoverageOverBackground;
+	Out.MRT[2].a = CoverageOverBackground;
+	Out.MRT[3].a = CoverageOverBackground;
 
 #endif
 	// Allow shader compiler to cull outputs that we won't use.
