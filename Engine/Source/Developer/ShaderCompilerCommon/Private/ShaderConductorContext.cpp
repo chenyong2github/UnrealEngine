@@ -375,6 +375,10 @@ namespace CrossCompiler
 		{
 			DxcArgRefs.Add("-fspv-preserve-storage-input");
 		}
+        if(InOptions.bForceStorageImageFormat)
+        {
+            DxcArgRefs.Add("-fvk-force-storage-image-format");
+        }
 
 		using ETargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment;
 		switch (InOptions.TargetEnvironment)

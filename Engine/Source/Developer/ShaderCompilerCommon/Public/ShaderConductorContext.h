@@ -90,6 +90,7 @@ namespace CrossCompiler
 
 		/** Preserve storage inputs used for OpenGL */
 		bool bPreserveStorageInput = false;
+        bool bForceStorageImageFormat = false;
 
 		enum class ETargetEnvironment
 		{

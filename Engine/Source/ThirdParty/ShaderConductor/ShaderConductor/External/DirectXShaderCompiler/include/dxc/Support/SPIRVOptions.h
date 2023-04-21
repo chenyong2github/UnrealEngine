@@ -58,6 +58,9 @@ struct SpirvCodeGenOptions {
   bool disableScalarBlockLayout;
   // UE Change End: Allow to disable scalar block layout
   // qualifier for older versions of Metal.
+  // UE Change Begin: Added new flag for forceStorageImageFormat
+  bool forceStorageImageFormat;
+  // UE Change End: Added new flag for forceStorageImageFormat
   bool invertY; // Additive inverse
   bool invertW; // Multiplicative inverse
   bool noWarnEmulatedFeatures;

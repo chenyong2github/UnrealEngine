@@ -458,7 +458,7 @@ bool CapabilityVisitor::visit(SpirvImageOp *instr) {
   if (instr->isSparse())
     addCapability(spv::Capability::SparseResidency);
 
-  if (isImageOpOnUnknownFormat(instr)) {
+  if (!getCodeGenOptions().forceStorageImageFormat && isImageOpOnUnknownFormat(instr)) {
     addCapability(instr->isImageWrite()
                       ? spv::Capability::StorageImageWriteWithoutFormat
                       : spv::Capability::StorageImageReadWithoutFormat);
