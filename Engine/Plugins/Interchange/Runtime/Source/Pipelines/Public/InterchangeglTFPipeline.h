@@ -8,17 +8,57 @@
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#include "Engine/DeveloperSettings.h"
+
 #include "InterchangeglTFPipeline.generated.h"
+
+class UInterchangeBaseNodeContainer;
+class UInterchangeMaterialInstanceFactoryNode;
+class UInterchangeShaderGraphNode;
+
+UCLASS(config = Engine, meta = (DisplayName = "Interchange GLTF"))
+class INTERCHANGEPIPELINES_API UGLTFPipelineSettings : public UDeveloperSettings
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, config, Category = "GLTFPredefinedMaterialLibrary", meta = (DisplayName = "GLTF Predefined Material Library"))
+	TMap<FString, FSoftObjectPath> MaterialParents;
+
+	TArray<FString> ValidateMaterialInstancesAndParameters() const;
+
+	void BuildMaterialInstance(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialInstanceFactoryNode* materialInstanceNode);
+
+	bool IsMaterialParentsEditible() { return bMaterialParentsEditible; }
+	void SetMaterialParentsEditible(bool bEditible) { bMaterialParentsEditible = bEditible; }
+private:
+	TSet<FString> GenerateExpectedParametersList(const FString& Identifier) const;
+
+	static const TArray<FString> ExpectedMaterialInstanceIdentifiers; //Default MaterialInstance' identifiers
+
+	//Helper for the Settings Customizer to decide if the ParentMaterials should be editible or not
+	//Should be editible from Project Settings, and should NOT be editible from the Import
+	//It is set by the Pipeline's Customizer.
+	//Equals to Pipeline->CanEditPropertiesStates()
+	bool bMaterialParentsEditible = true;
+};
 
 UCLASS(BlueprintType)
 class INTERCHANGEPIPELINES_API UInterchangeglTFPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
 
+	UInterchangeglTFPipeline();
+
 public:
-	// TODO: Put properties to manage the creation or not of material instances instead of material graphs.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF")
+	TObjectPtr<UGLTFPipelineSettings> GLTFPipelineSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF")
+	bool bUseGLTFMaterialInstanceLibrary = false;
 
 protected:
+	virtual void AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset) override;
 	virtual void ExecutePipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas) override;
 
 	virtual bool CanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask) override

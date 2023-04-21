@@ -12,7 +12,6 @@
 #include "Texture/InterchangeTexturePayloadInterface.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "Gltf/InterchangeGLTFMaterialInstance.h"
 
 #include "InterchangeGltfTranslator.generated.h"
 
@@ -61,9 +60,6 @@ public:
 	/* IInterchangeVariantSetPayloadInterface Begin */
 	virtual TFuture<TOptional<UE::Interchange::FVariantSetPayloadData>> GetVariantSetPayloadData(const FString& PayloadKey) const override;
 	/* IInterchangeVariantSetPayloadInterface End */
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF", DisplayName = "Material Settings")
-	FGLTFMaterialInstanceSettings MaterialInstanceSettings;
 
 protected:
 	using FNodeUidMap = TMap<const GLTF::FNode*, FString>;

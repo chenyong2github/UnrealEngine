@@ -7,6 +7,8 @@
 #include "InterchangeManager.h"
 #include "InterchangeMaterialXPipeline.h"
 #include "InterchangeMaterialXPipelineCustomizations.h"
+#include "InterchangeglTFPipeline.h"
+#include "InterchangeGLTFPipelineCustomizations.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangePipelineFactories.h"
 #include "Misc/CoreDelegates.h"
@@ -84,6 +86,12 @@ void FInterchangeEditorPipelinesModule::AcquireResources()
 
 	ClassesToUnregisterOnShutdown.Add(UMaterialXPipelineSettings::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FInterchangeMaterialXPipelineSettingsCustomization::MakeInstance));
+
+	ClassesToUnregisterOnShutdown.Add(UInterchangeglTFPipeline::StaticClass()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FInterchangeGLTFPipelineCustomization::MakeInstance));
+
+	ClassesToUnregisterOnShutdown.Add(UGLTFPipelineSettings::StaticClass()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FInterchangeGLTFPipelineSettingsCustomization::MakeInstance));
 
 	if (!InterchangeEditorPipelineStyle.IsValid())
 	{

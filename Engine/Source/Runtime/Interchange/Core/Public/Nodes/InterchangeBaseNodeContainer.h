@@ -50,6 +50,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
 	FString AddNode(UInterchangeBaseNode* Node);
 
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
+	void ReplaceNode(const FString& NodeUniqueID, UInterchangeFactoryBaseNode* NewNode);
+
 	/** Return true if the node unique ID exist in the container */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
 	bool IsNodeUidValid(const FString& NodeUniqueID) const;

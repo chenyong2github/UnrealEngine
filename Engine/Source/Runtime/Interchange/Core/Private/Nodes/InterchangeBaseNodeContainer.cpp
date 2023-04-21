@@ -50,6 +50,15 @@ FString UInterchangeBaseNodeContainer::AddNode(UInterchangeBaseNode* Node)
 	return NodeUniqueID;
 }
 
+void UInterchangeBaseNodeContainer::ReplaceNode(const FString& NodeUniqueID, UInterchangeFactoryBaseNode* NewNode)
+{
+	if (GetFactoryNode(NodeUniqueID)) //Check existance and confirm it is FactoryNode
+	{
+		Nodes.Remove(NodeUniqueID);
+		AddNode(NewNode);
+	}
+}
+
 bool UInterchangeBaseNodeContainer::IsNodeUidValid(const FString& NodeUniqueID) const
 {
 	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUid())

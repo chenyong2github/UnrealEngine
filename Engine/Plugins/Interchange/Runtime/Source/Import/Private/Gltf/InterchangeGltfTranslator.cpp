@@ -38,6 +38,7 @@
 #include "SkeletalMeshOperations.h"
 
 #include "Gltf/InterchangeGltfPrivate.h"
+#include "Gltf/InterchangeGLTFMaterialInstances.h"
 
 #include "EngineAnalytics.h"
 #include "Engine/RendererSettings.h"
@@ -1134,54 +1135,13 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfMaterial.UniqueId);
 			bool bUseVertexColor = MaterialsUsedOnMeshesWithVertexColor.Contains(ShaderGraphNodeUid);
 
-			if (FApp::IsGame() || GInterchangeGLTFUseMaterialInstancing == 1)
-			{
-				//Only create MaterialInstances
-				if (!MaterialInstanceSettings.ProcessGltfMaterial(NodeContainer, GltfMaterial, GltfAsset.Textures))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF MaterialInstance Creation failed to find appropriate ParentMaterial. Material.UniqueID: %s"), *GltfMaterial.UniqueId);
-				}
-			}
-			else if (GInterchangeGLTFUseMaterialInstancing == 2)
-			{
-				//Create ShaderGraphNodes and convert to MaterialInstances
-				//Use the correct UIDs on MaterialInstances so that they get applied onto meshes
-				UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, TEXT("Gltf_MI_AttributeIdentifier_") + GltfMaterial.UniqueId);
-				ShaderGraphNode->SetDisplayLabel(TEXT("Gltf_MI_AttributeIdentifier_") + GltfMaterial.Name);
+			UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, GltfMaterial.UniqueId);
+			ShaderGraphNode->SetDisplayLabel(GltfMaterial.Name);
 
-				HandleGltfMaterial(NodeContainer, GltfMaterial, *ShaderGraphNode, bUseVertexColor);
+			HandleGltfMaterial(NodeContainer, GltfMaterial, *ShaderGraphNode, bUseVertexColor);
 
-				if (!MaterialInstanceSettings.AddGltfMaterialValuesToShaderGraphNode(GltfMaterial, GltfAsset.Textures, ShaderGraphNode))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF MaterialInstance Creation failed to find appropriate ParentMaterial. Material.UniqueID: %s"), *GltfMaterial.UniqueId);
-				}
-				else
-				{
-					FGLTFMaterialInstanceSettings::CreateMaterialInstanceFromShaderGraphNode(NodeContainer, ShaderGraphNode);
-				}
-			}
-			else if (GInterchangeGLTFUseMaterialInstancing == 3)
-			{
-				//Store Gltf Material Attribute values in ShaderGraphNode but do not create MaterialInstances
-				//Test in preparation for Gltf Pipeline:
-				UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, GltfMaterial.UniqueId);
-				ShaderGraphNode->SetDisplayLabel(GltfMaterial.Name);
-
-				HandleGltfMaterial(NodeContainer, GltfMaterial, *ShaderGraphNode, bUseVertexColor);
-
-				if (!MaterialInstanceSettings.AddGltfMaterialValuesToShaderGraphNode(GltfMaterial, GltfAsset.Textures, ShaderGraphNode))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF MaterialInstance Creation failed to find appropriate ParentMaterial. Material.UniqueID: %s"), *GltfMaterial.UniqueId);
-				}
-			}
-			else
-			{
-				//Only create ShaderGraphNodes:
-				UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, GltfMaterial.UniqueId);
-				ShaderGraphNode->SetDisplayLabel(GltfMaterial.Name);
-
-				HandleGltfMaterial(NodeContainer, GltfMaterial, *ShaderGraphNode, bUseVertexColor);
-			}
+			//Store Gltf Material Attribute values in ShaderGraphNode but do not create MaterialInstances
+			UE::Interchange::GLTFMaterialInstances::AddGltfMaterialValuesToShaderGraphNode(GltfMaterial, GltfAsset.Textures, ShaderGraphNode);
 			
 			++MaterialIndex;
 		}
@@ -2234,15 +2194,6 @@ UInterchangeGltfTranslator::UInterchangeGltfTranslator()
 {
 	if (!HasAllFlags(RF_ClassDefaultObject))
 	{
-		if (FApp::IsGame() || GInterchangeGLTFUseMaterialInstancing)
-		{
-			TArray<FString> MaterialInstanceIssues = MaterialInstanceSettings.ValidateMaterialInstancesAndParameters();
-			for (const FString& MaterialInstanceIssue : MaterialInstanceIssues)
-			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("%s"), *MaterialInstanceIssue);
-			}
-		}
-
 		bRenderSettingsClearCoatEnableSecondNormal = GetDefault<URendererSettings>()->bClearCoatEnableSecondNormal != 0;
 	}
 }
