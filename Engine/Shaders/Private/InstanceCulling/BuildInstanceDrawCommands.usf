@@ -6,7 +6,7 @@
 #endif
 
 #if ENABLE_INSTANCE_COMPACTION
-	// Currently, instance compaction is the only reason to need extended payload data, so tie it to the permutation for now
+	// Currently, instance compaction is the only reason to need extended payload data, so tie it to the permutation for now.
 	#define ENABLE_EXTENDED_INSTANCE_CULLING_PAYLOADS 1
 #endif
 
