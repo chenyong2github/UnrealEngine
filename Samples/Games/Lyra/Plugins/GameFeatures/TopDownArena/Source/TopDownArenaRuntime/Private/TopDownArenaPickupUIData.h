@@ -40,3 +40,4 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Data)
 	TObjectPtr<USoundBase> PickupSFX;
 };
+
