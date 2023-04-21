@@ -284,16 +284,16 @@ namespace Chaos
 		delete &InSolver;
 	}
 
-	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle, EPendingSpatialDataOperation InOperation)
+	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle,bool bDelete)
 	{
 		//mark it as pending for async structure being built
 		FAccelerationStructureHandle AccelerationHandle(Particle);
-		FPendingSpatialData& SpatialData = PendingSpatialOperations_External->FindOrAdd(Particle->UniqueIdx(), EPendingSpatialDataOperation::Invalid);
+		FPendingSpatialData& SpatialData = PendingSpatialOperations_External->FindOrAdd(Particle->UniqueIdx());
 
 		//make sure any new operations (i.e not currently being consumed by sim) are not acting on a deleted object
-		ensure(SpatialData.SyncTimestamp < MarshallingManager.GetExternalTimestamp_External() || SpatialData.Operation != EPendingSpatialDataOperation::Delete);
+		ensure(SpatialData.SyncTimestamp < MarshallingManager.GetExternalTimestamp_External() || !SpatialData.bDelete);
 
-		SpatialData.Operation = InOperation;
+		SpatialData.bDelete = bDelete;
 		SpatialData.SpatialIdx = Particle->SpatialIdx();
 		SpatialData.AccelerationHandle = AccelerationHandle;
 		SpatialData.SyncTimestamp = MarshallingManager.GetExternalTimestamp_External();

@@ -31,7 +31,6 @@ namespace Chaos
 	class FChaosResultsManager;
 	class FRewindData;
 	class IRewindCallback;
-	enum EPendingSpatialDataOperation : uint8;
 
 	extern CHAOS_API int32 GSingleThreadedPhysics;
 	extern CHAOS_API int32 UseAsyncInterpolation;
@@ -496,7 +495,7 @@ namespace Chaos
 			}
 		}
 
-		void UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle, EPendingSpatialDataOperation InOperation);
+		void UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle,bool bDelete);
 
 		bool IsPaused_External() const
 		{

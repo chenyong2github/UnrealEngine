@@ -630,7 +630,7 @@ namespace Chaos
 		Proxy->GetParticle_LowLevel()->SetProxy(Proxy);
 		AddDirtyProxy(Proxy);
 
-		UpdateParticleInAccelerationStructure_External(Proxy->GetParticle_LowLevel(), EPendingSpatialDataOperation::Add);
+		UpdateParticleInAccelerationStructure_External(Proxy->GetParticle_LowLevel(), /*bDelete=*/false);
 	}
 
 	int32 LogCorruptMap = 0;
@@ -645,7 +645,7 @@ namespace Chaos
 
 		ClearGTParticle_External(*Proxy->GetParticle_LowLevel());	//todo: remove this
 
-		UpdateParticleInAccelerationStructure_External(Proxy->GetParticle_LowLevel(), EPendingSpatialDataOperation::Delete);
+		UpdateParticleInAccelerationStructure_External(Proxy->GetParticle_LowLevel(), /*bDelete=*/true);
 
 		// remove the proxy from the invalidation list
 		RemoveDirtyProxy(Proxy);

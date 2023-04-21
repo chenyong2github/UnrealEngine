@@ -8,13 +8,6 @@
 
 namespace Chaos
 { 
-enum EPendingSpatialDataOperation : uint8 
-{	
-	Delete,
-	Add, // Use this if the element does not exist in the acceleration structure
-	Update, // Use this when it is known that the element already exists in the acceleration structure
-	Invalid
-};
 	
 /** Used for updating intermediate spatial structures when they are finished */
 struct FPendingSpatialData
@@ -22,11 +15,11 @@ struct FPendingSpatialData
 	FAccelerationStructureHandle AccelerationHandle;
 	FSpatialAccelerationIdx SpatialIdx;
 	int32 SyncTimestamp;	//indicates the inputs timestamp associated with latest change. Only relevant for external queue
-	EPendingSpatialDataOperation Operation;
+	bool bDelete;
 
 	FPendingSpatialData()
 	: SyncTimestamp(0)
-	, Operation(Add)
+	, bDelete(false)
 	{}
 
 	void Serialize(FChaosArchive& Ar)
@@ -73,7 +66,7 @@ struct FPendingSpatialDataQueue
 		return PendingData.Num();
 	}
 
-	FPendingSpatialData& FindOrAdd(const FUniqueIdx UniqueIdx, EPendingSpatialDataOperation Operation)
+	FPendingSpatialData& FindOrAdd(const FUniqueIdx UniqueIdx)
 	{
 		if(int32* Existing = ParticleToPendingData.Find(UniqueIdx))
 		{
@@ -82,7 +75,6 @@ struct FPendingSpatialDataQueue
 		{
 			const int32 NewIdx = PendingData.AddDefaulted(1);
 			ParticleToPendingData.Add(UniqueIdx,NewIdx);
-			PendingData[NewIdx].Operation = Operation;
 			return PendingData[NewIdx];
 		}
 	}
