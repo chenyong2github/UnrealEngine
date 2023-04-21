@@ -91,30 +91,55 @@ namespace Metasound
 			using namespace AudioBusReaderNode; 
 			const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
-			bool bHasEnvironmentVars = InParams.Environment.Contains<Audio::FDeviceId>(SourceInterface::Environment::DeviceID);
-			bHasEnvironmentVars &= InParams.Environment.Contains<int32>(SourceInterface::Environment::AudioMixerNumOutputFrames);
+			bool bHasEnvironmentVars = InParams.Environment.Contains<Audio::FDeviceId>(SourceInterface::Environment::DeviceID) && InParams.Environment.Contains<int32>(SourceInterface::Environment::AudioMixerNumOutputFrames);
 			
 			if (bHasEnvironmentVars)
 			{
+				Audio::FDeviceId AudioDeviceId = InParams.Environment.GetValue<Audio::FDeviceId>(SourceInterface::Environment::DeviceID);
+				int32 AudioMixerOutputFrames = InParams.Environment.GetValue<int32>(SourceInterface::Environment::AudioMixerNumOutputFrames);
+
 				FAudioBusAssetReadRef AudioBusIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBusAsset>(METASOUND_GET_PARAM_NAME(InParamAudioBusInput));
-				return MakeUnique<TAudioBusReaderOperator<NumChannels>>(InParams, AudioBusIn);
+				
+				return MakeUnique<TAudioBusReaderOperator<NumChannels>>(InParams.OperatorSettings, AudioMixerOutputFrames, AudioDeviceId, AudioBusIn);
 			}
 			else
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Audio bus reader node requires audio device ID '%s' and audio mixer num output frames '%s' environment variables")
-					, *SourceInterface::Environment::DeviceID.ToString(), *SourceInterface::Environment::AudioMixerNumOutputFrames.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Audio bus reader node requires audio device ID '%s' and audio mixer num output frames '%s' environment variables"), *SourceInterface::Environment::DeviceID.ToString(), *SourceInterface::Environment::AudioMixerNumOutputFrames.ToString());
 				return nullptr;
 			}
 		}
 
-		TAudioBusReaderOperator(const FCreateOperatorParams& InParams, const FAudioBusAssetReadRef& InAudioBusAsset) : AudioBusAsset(InAudioBusAsset)
+		TAudioBusReaderOperator(const FOperatorSettings& InSettings, int32 InAudioMixerOutputFrames, Audio::FDeviceId InAudioDeviceId, const FAudioBusAssetReadRef& InAudioBusAsset)
+			: AudioBusAsset(InAudioBusAsset)
+			, AudioMixerOutputFrames(InAudioMixerOutputFrames)
+			, AudioDeviceId(InAudioDeviceId)
+			, SampleRate(InSettings.GetSampleRate())
 		{
 			for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
 			{
-				AudioOutputs.Add(FAudioBufferWriteRef::CreateNew(InParams.OperatorSettings));
+				AudioOutputs.Add(FAudioBufferWriteRef::CreateNew(InSettings));
 			}
+			
+			const FAudioBusProxyPtr& AudioBusProxy = AudioBusAsset->GetAudioBusProxy();
+			if (AudioBusProxy.IsValid())
+			{
+				if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
+				{
+					if (FAudioDevice* AudioDevice = ADM->GetAudioDeviceRaw(AudioDeviceId))
+					{
+						// Start the audio bus in case it's not already started
+						AudioBusChannels = AudioBusProxy->NumChannels;
+						Audio::FAudioBusKey AudioBusKey = Audio::FAudioBusKey(AudioBusProxy->AudioBusId);
+						UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
+						check(AudioBusSubsystem);
+						AudioBusSubsystem->StartAudioBus(AudioBusKey, AudioBusChannels, false);
 
-			Reset(InParams);
+						// Create a bus patch output with enough room for the number of samples we expect and some buffering
+						int32 BlockSizeFrames = InSettings.GetNumFramesPerBlock();
+						AudioBusPatchOutput = AudioBusSubsystem->AddPatchOutputForAudioBus(AudioBusKey, BlockSizeFrames, AudioBusChannels);
+					}
+				}
+			}
 		}
 
 		virtual FDataReferenceCollection GetInputs() const override
@@ -197,55 +222,6 @@ namespace Metasound
 			{
 				UE_CLOG(!bFirstBlock, LogMetaSound, Warning, TEXT("Underrun detected in audio bus reader node."));
 			}
-		}
-
-		void Reset(const IOperator::FResetParams& InParams)
-		{
-			using namespace Frontend;
-			using namespace AudioBusReaderNode;
-
-			bool bHasEnvironmentVars = InParams.Environment.Contains<Audio::FDeviceId>(SourceInterface::Environment::DeviceID);
-			bHasEnvironmentVars &= InParams.Environment.Contains<int32>(SourceInterface::Environment::AudioMixerNumOutputFrames);
-
-			if (bHasEnvironmentVars)
-			{
-				SampleRate = InParams.OperatorSettings.GetSampleRate();
-				AudioDeviceId = InParams.Environment.GetValue<Audio::FDeviceId>(SourceInterface::Environment::DeviceID);
-				AudioMixerOutputFrames = InParams.Environment.GetValue<int32>(SourceInterface::Environment::AudioMixerNumOutputFrames);
-			}
-			else
-			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Audio bus reader node requires audio device ID '%s' and audio mixer num output frames '%s' environment variables")
-					, *SourceInterface::Environment::DeviceID.ToString(), *SourceInterface::Environment::AudioMixerNumOutputFrames.ToString());
-			}
-			
-			for(const FAudioBufferWriteRef& Buffer : AudioOutputs)
-			{
-				Buffer->Zero();
-			}
-
-			const FAudioBusProxyPtr& AudioBusProxy = AudioBusAsset->GetAudioBusProxy();
-			if (AudioBusProxy.IsValid())
-			{
-				if (FAudioDeviceManager* ADM = FAudioDeviceManager::Get())
-				{
-					if (FAudioDevice* AudioDevice = ADM->GetAudioDeviceRaw(AudioDeviceId))
-					{
-						// Start the audio bus in case it's not already started
-						AudioBusChannels = AudioBusProxy->NumChannels;
-						const Audio::FAudioBusKey AudioBusKey(AudioBusProxy->AudioBusId);
-						UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
-						check(AudioBusSubsystem);
-						AudioBusSubsystem->StartAudioBus(AudioBusKey, AudioBusChannels, false);
-
-						// Create a bus patch output with enough room for the number of samples we expect and some buffering
-						const int32 BlockSizeFrames = InParams.OperatorSettings.GetNumFramesPerBlock();
-						AudioBusPatchOutput = AudioBusSubsystem->AddPatchOutputForAudioBus(AudioBusKey, BlockSizeFrames, AudioBusChannels);
-					}
-				}
-			}
-
-			bFirstBlock = true;
 		}
 
 	private:
