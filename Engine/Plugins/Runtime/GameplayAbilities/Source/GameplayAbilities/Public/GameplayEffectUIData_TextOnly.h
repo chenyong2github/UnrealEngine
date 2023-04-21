@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
 #include "GameplayEffectUIData.h"
 #include "GameplayEffectUIData_TextOnly.generated.h"
 
@@ -12,9 +14,8 @@
 UCLASS()
 class GAMEPLAYABILITIES_API UGameplayEffectUIData_TextOnly : public UGameplayEffectUIData
 {
-	GENERATED_BODY()
-	
-public:
+	GENERATED_UCLASS_BODY()
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Data, meta = (MultiLine = "true"))
 	FText Description;
 };

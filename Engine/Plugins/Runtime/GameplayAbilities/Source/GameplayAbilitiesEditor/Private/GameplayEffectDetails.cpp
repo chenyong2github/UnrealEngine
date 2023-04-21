@@ -29,18 +29,10 @@ void FGameplayEffectDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout
 		return;
 	}
 
-	FSimpleDelegate UpdateDurationPolicyDelegate = FSimpleDelegate::CreateSP(this, &FGameplayEffectDetails::OnDurationPolicyChange);
-
 	TSharedPtr<IPropertyHandle> DurationPolicyProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGameplayEffect, DurationPolicy), UGameplayEffect::StaticClass());
+	FSimpleDelegate UpdateDurationPolicyDelegate = FSimpleDelegate::CreateSP(this, &FGameplayEffectDetails::OnDurationPolicyChange);
 	DurationPolicyProperty->SetOnPropertyValueChanged(UpdateDurationPolicyDelegate);
-
-	TSharedPtr<IPropertyHandle> PeriodProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGameplayEffect, Period), UGameplayEffect::StaticClass());
-	TSharedPtr<IPropertyHandle> PeriodValue = PeriodProperty ? PeriodProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FScalableFloat, Value)) : nullptr;
-	if (PeriodValue)
-	{
-		PeriodValue->SetOnPropertyValueChanged(UpdateDurationPolicyDelegate);
-	}
-
+	
 	// Hide properties where necessary
 	UGameplayEffect* Obj = Cast<UGameplayEffect>(Objects[0].Get());
 	if (Obj)
@@ -51,11 +43,11 @@ void FGameplayEffectDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout
 			DetailLayout.HideProperty(DurationMagnitudeProperty);
 		}
 
-		if (Obj->DurationPolicy == EGameplayEffectDurationType::Instant || Obj->Period.Value <= 0.0f)
+		if (Obj->DurationPolicy == EGameplayEffectDurationType::Instant)
 		{
-			TSharedPtr<IPropertyHandle> PeriodInhibitionPolicyProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGameplayEffect, PeriodicInhibitionPolicy), UGameplayEffect::StaticClass());
+			TSharedPtr<IPropertyHandle> PeriodProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGameplayEffect, Period), UGameplayEffect::StaticClass());
 			TSharedPtr<IPropertyHandle> ExecutePeriodicEffectOnApplicationProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGameplayEffect, bExecutePeriodicEffectOnApplication), UGameplayEffect::StaticClass());
-			DetailLayout.HideProperty(PeriodInhibitionPolicyProperty);
+			DetailLayout.HideProperty(PeriodProperty);
 			DetailLayout.HideProperty(ExecutePeriodicEffectOnApplicationProperty);
 		}
 

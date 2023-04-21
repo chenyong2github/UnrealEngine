@@ -806,9 +806,6 @@ public:
 	FGameplayTagQuery& operator=(FGameplayTagQuery const& Other);
 	FGameplayTagQuery& operator=(FGameplayTagQuery&& Other);
 
-	bool operator==(const FGameplayTagQuery& Other) const;
-	bool operator!=(const FGameplayTagQuery& Other) const;
-
 private:
 	// Note: Properties need to be editable to allow FComponentPropertyWriter to serialize them, but are hidden in the editor by the customizations mentioned above.
 

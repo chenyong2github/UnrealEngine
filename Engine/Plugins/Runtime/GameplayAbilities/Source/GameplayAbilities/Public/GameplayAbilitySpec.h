@@ -93,9 +93,6 @@ struct FGameplayAbilitySpecDef
 	/** This handle can be set if the SpecDef is used to create a real FGameplaybilitySpec */
 	UPROPERTY()
 	FGameplayAbilitySpecHandle	AssignedHandle;
-
-	bool operator==(const FGameplayAbilitySpecDef& Other) const;
-	bool operator!=(const FGameplayAbilitySpecDef& Other) const;
 };
 
 /**

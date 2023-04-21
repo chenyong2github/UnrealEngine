@@ -1574,7 +1574,7 @@ void UBlueprintGeneratedClass::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 	{
 		ForEachObjectWithOuter(CDO, [&OutDeps](UObject* SubObj)
 		{
-			if (SubObj->HasAnyFlags(RF_DefaultSubObject | RF_ArchetypeObject))
+			if (SubObj->HasAllFlags(RF_DefaultSubObject))
 			{
 				OutDeps.Add(SubObj->GetClass());
 				OutDeps.Add(SubObj->GetArchetype());

@@ -275,37 +275,6 @@ void UAbilitySystemComponent::CacheIsNetSimulated()
 	UpdateActiveGameplayEffectsReplicationCondition();
 }
 
-void UAbilitySystemComponent::InhibitActiveGameplayEffect(FActiveGameplayEffectHandle ActiveGEHandle, bool bInhibit, bool bInvokeGameplayCueEvents)
-{
-	FActiveGameplayEffect* ActiveGE = ActiveGameplayEffects.GetActiveGameplayEffect(ActiveGEHandle);
-	if (!ActiveGE)
-	{
-		ABILITY_LOG(Error, TEXT("%s received bad Active GameplayEffect Handle: %s"), ANSI_TO_TCHAR(__func__), *ActiveGEHandle.ToString());
-		return;
-	}
-
-	if (ActiveGE->bIsInhibited != bInhibit)
-	{
-		ActiveGE->bIsInhibited = bInhibit;
-
-		// All OnDirty callbacks must be inhibited until we update this entire GameplayEffect.
-		FScopedAggregatorOnDirtyBatch	AggregatorOnDirtyBatcher;
-		if (bInhibit)
-		{
-			// Remove our ActiveGameplayEffects modifiers with our Attribute Aggregators
-			ActiveGameplayEffects.RemoveActiveGameplayEffectGrantedTagsAndModifiers(*ActiveGE, bInvokeGameplayCueEvents);
-		}
-		else
-		{
-			ActiveGameplayEffects.AddActiveGameplayEffectGrantedTagsAndModifiers(*ActiveGE, bInvokeGameplayCueEvents);
-		}
-
-		ActiveGE->EventSet.OnInhibitionChanged.Broadcast(ActiveGEHandle, ActiveGE->bIsInhibited);
-	}
-}
-
-
-
 const FActiveGameplayEffect* UAbilitySystemComponent::GetActiveGameplayEffect(const FActiveGameplayEffectHandle Handle) const
 {
 	return ActiveGameplayEffects.GetActiveGameplayEffect(Handle);
@@ -663,9 +632,9 @@ FOnGameplayEffectTagCountChanged& UAbilitySystemComponent::RegisterGameplayTagEv
 	return GameplayTagCountContainer.RegisterGameplayTagEvent(Tag, EventType);
 }
 
-bool UAbilitySystemComponent::UnregisterGameplayTagEvent(FDelegateHandle DelegateHandle, FGameplayTag Tag, EGameplayTagEventType::Type EventType)
+void UAbilitySystemComponent::UnregisterGameplayTagEvent(FDelegateHandle DelegateHandle, FGameplayTag Tag, EGameplayTagEventType::Type EventType)
 {
-	return GameplayTagCountContainer.RegisterGameplayTagEvent(Tag, EventType).Remove(DelegateHandle);
+	GameplayTagCountContainer.RegisterGameplayTagEvent(Tag, EventType).Remove(DelegateHandle);
 }
 
 FDelegateHandle UAbilitySystemComponent::RegisterAndCallGameplayTagEvent(FGameplayTag Tag, FOnGameplayEffectTagCountChanged::FDelegate Delegate, EGameplayTagEventType::Type EventType)
@@ -780,9 +749,9 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 	}
 
 	// Don't allow prediction of periodic effects
-	if (PredictionKey.IsValidKey() && Spec.GetPeriod() > 0.f)
+	if(PredictionKey.IsValidKey() && Spec.GetPeriod() > 0.f)
 	{
-		if (IsOwnerActorAuthoritative())
+		if(IsOwnerActorAuthoritative())
 		{
 			// Server continue with invalid prediction key
 			PredictionKey = FPredictionKey();
@@ -794,19 +763,11 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 		}
 	}
 
-	// Check if there is a registered "application" query that can block the application
-	for (const FGameplayEffectApplicationQuery& ApplicationQuery : GameplayEffectApplicationQueries)
+	// Are we currently immune to this? (ApplicationImmunity)
+	const FActiveGameplayEffect* ImmunityGE=nullptr;
+	if (ActiveGameplayEffects.HasApplicationImmunityToSpec(Spec, ImmunityGE))
 	{
-		const bool bAllowed = ApplicationQuery.Execute(ActiveGameplayEffects, Spec);
-		if (!bAllowed)
-		{
-			return FActiveGameplayEffectHandle();
-		}
-	}
-
-	// check if the effect being applied actually succeeds
-	if (!Spec.Def->CanApply(ActiveGameplayEffects, Spec))
-	{
+		OnImmunityBlockGameplayEffect(Spec, ImmunityGE);
 		return FActiveGameplayEffectHandle();
 	}
 
@@ -818,6 +779,36 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 		if (!Mod.Attribute.IsValid())
 		{
 			ABILITY_LOG(Warning, TEXT("%s has a null modifier attribute."), *Spec.Def->GetPathName());
+			return FActiveGameplayEffectHandle();
+		}
+	}
+
+	// check if the effect being applied actually succeeds
+	float ChanceToApply = Spec.GetChanceToApplyToTarget();
+	if ((ChanceToApply < 1.f - SMALL_NUMBER) && (FMath::FRand() > ChanceToApply))
+	{
+		return FActiveGameplayEffectHandle();
+	}
+
+	// Get MyTags.
+	//	We may want to cache off a GameplayTagContainer instead of rebuilding it every time.
+	//	But this will also be where we need to merge in context tags? (Headshot, executing ability, etc?)
+	//	Or do we push these tags into (our copy of the spec)?
+
+	{
+		// Note: static is ok here since the scope is so limited, but wider usage of MyTags is not safe since this function can be recursively called
+		static FGameplayTagContainer MyTags;
+		MyTags.Reset();
+
+		GetOwnedGameplayTags(MyTags);
+
+		if (Spec.Def->ApplicationTagRequirements.RequirementsMet(MyTags) == false)
+		{
+			return FActiveGameplayEffectHandle();
+		}
+
+		if (!Spec.Def->RemovalTagRequirements.IsEmpty() && Spec.Def->RemovalTagRequirements.RequirementsMet(MyTags) == true)
+		{
 			return FActiveGameplayEffectHandle();
 		}
 	}
@@ -834,8 +825,9 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 	bool bFoundExistingStackableGE = false;
 
 	FActiveGameplayEffect* AppliedEffect = nullptr;
+
 	FGameplayEffectSpec* OurCopyOfSpec = nullptr;
-	TUniquePtr<FGameplayEffectSpec> StackSpec;
+	TSharedPtr<FGameplayEffectSpec> StackSpec;
 	{
 		if (Spec.Def->DurationPolicy != EGameplayEffectDurationType::Instant || bTreatAsInfiniteDuration)
 		{
@@ -864,9 +856,8 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 
 		if (!OurCopyOfSpec)
 		{
-			StackSpec = MakeUnique<FGameplayEffectSpec>(Spec);
+			StackSpec = TSharedPtr<FGameplayEffectSpec>(new FGameplayEffectSpec(Spec));
 			OurCopyOfSpec = StackSpec.Get();
-
 			UAbilitySystemGlobals::Get().GlobalPreGameplayEffectSpecApply(*OurCopyOfSpec, this);
 			OurCopyOfSpec->CaptureAttributeDataFromTarget(this);
 		}
@@ -879,8 +870,12 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 		}
 	}
 
-	// Update (not push) the global spec being applied [we want to switch it to our copy, from the const input copy)
-	UAbilitySystemGlobals::Get().SetCurrentAppliedGE(OurCopyOfSpec);
+	if (OurCopyOfSpec)
+	{
+		// Update (not push) the global spec being applied [we want to switch it to our copy, from the const input copy)
+		UAbilitySystemGlobals::Get().SetCurrentAppliedGE(OurCopyOfSpec);
+	}
+	
 
 	// We still probably want to apply tags and stuff even if instant?
 	// If bSuppressStackingCues is set for this GameplayEffect, only add the GameplayCue if this is the first instance of the GameplayEffect
@@ -893,7 +888,7 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 
 		// Fixme: what if we wanted to scale Cue magnitude based on damage? E.g, scale an cue effect when the GE is buffed?
 
-		if (OurCopyOfSpec->GetStackCount() > Spec.GetStackCount())
+		if (OurCopyOfSpec->StackCount > Spec.StackCount)
 		{
 			// Because PostReplicatedChange will get called from modifying the stack count
 			// (and not PostReplicatedAdd) we won't know which GE was modified.
@@ -923,10 +918,39 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 	}
 	else if (Spec.Def->DurationPolicy == EGameplayEffectDurationType::Instant)
 	{
-		// This is a non-predicted instant effect (it never gets added to ActiveGameplayEffects)
-		ExecuteGameplayEffect(*OurCopyOfSpec, PredictionKey);
+		if (OurCopyOfSpec->Def->OngoingTagRequirements.IsEmpty())
+		{
+			ExecuteGameplayEffect(*OurCopyOfSpec, PredictionKey);
+		}
+		else
+		{
+			ABILITY_LOG(Warning, TEXT("%s is instant but has tag requirements. Tag requirements can only be used with gameplay effects that have a duration. This gameplay effect will be ignored."), *Spec.Def->GetPathName());
+		}
+	}
+
+	if (Spec.GetPeriod() != UGameplayEffect::NO_PERIOD && Spec.TargetEffectSpecs.Num() > 0)
+	{
+		ABILITY_LOG(Warning, TEXT("%s is periodic but also applies GameplayEffects to its target. GameplayEffects will only be applied once, not every period."), *Spec.Def->GetPathName());
 	}
 	
+	// evaluate if any active effects need to be removed by the application of this effect
+	if (bIsNetAuthority)
+	{
+		ActiveGameplayEffects.AttemptRemoveActiveEffectsOnEffectApplication(*OurCopyOfSpec, MyHandle);
+	}
+	
+	// ------------------------------------------------------
+	// Apply Linked effects
+	// todo: this is ignoring the returned handles, should we put them into a TArray and return all of the handles?
+	// ------------------------------------------------------
+	for (const FGameplayEffectSpecHandle& TargetSpec: Spec.TargetEffectSpecs)
+	{
+		if (TargetSpec.IsValid())
+		{
+			ApplyGameplayEffectSpecToSelf(*TargetSpec.Data.Get(), PredictionKey);
+		}
+	}
+
 	UAbilitySystemComponent* InstigatorASC = Spec.GetContext().GetInstigatorAbilitySystemComponent();
 
 	// Send ourselves a callback	
@@ -1095,7 +1119,7 @@ int32 UAbilitySystemComponent::GetCurrentStackCount(FActiveGameplayEffectHandle 
 {
 	if (const FActiveGameplayEffect* ActiveGE = ActiveGameplayEffects.GetActiveGameplayEffect(Handle))
 	{
-		return ActiveGE->Spec.GetStackCount();
+		return ActiveGE->Spec.StackCount;
 	}
 	return 0;
 }
@@ -1116,21 +1140,24 @@ FString UAbilitySystemComponent::GetActiveGEDebugString(FActiveGameplayEffectHan
 
 	if (const FActiveGameplayEffect* ActiveGE = ActiveGameplayEffects.GetActiveGameplayEffect(Handle))
 	{
-		Str = FString::Printf(TEXT("%s - (Level: %.2f. Stacks: %d)"), *ActiveGE->Spec.Def->GetName(), ActiveGE->Spec.GetLevel(), ActiveGE->Spec.GetStackCount());
+		Str = FString::Printf(TEXT("%s - (Level: %.2f. Stacks: %d)"), *ActiveGE->Spec.Def->GetName(), ActiveGE->Spec.GetLevel(), ActiveGE->Spec.StackCount);
 	}
 
 	return Str;
 }
 
-/** Gets the GE Handle of the GE that granted the passed in Ability */
 FActiveGameplayEffectHandle UAbilitySystemComponent::FindActiveGameplayEffectHandle(FGameplayAbilitySpecHandle Handle) const
 {
-	const FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle);
-	if (Spec)
+	for (const FActiveGameplayEffect& ActiveGE : &ActiveGameplayEffects)
 	{
-		return Spec->GameplayEffectHandle;
+		for (const FGameplayAbilitySpecDef& AbilitySpecDef : ActiveGE.Spec.GrantedAbilitySpecs)
+		{
+			if (AbilitySpecDef.AssignedHandle == Handle)
+			{
+				return ActiveGE.Handle;
+			}
+		}
 	}
-
 	return FActiveGameplayEffectHandle();
 }
 
@@ -2511,16 +2538,16 @@ void UAbilitySystemComponent::Debug_Internal(FAbilitySystemComponentDebugInfo& I
 			}
 
 			FString StackString;
-			if (ActiveGE.Spec.GetStackCount() > 1)
+			if (ActiveGE.Spec.StackCount > 1)
 			{
 
 				if (ActiveGE.Spec.Def->StackingType == EGameplayEffectStackingType::AggregateBySource)
 				{
-					StackString = FString::Printf(TEXT("(Stacks: %d. From: %s) "), ActiveGE.Spec.GetStackCount(), *GetNameSafe(ActiveGE.Spec.GetContext().GetInstigatorAbilitySystemComponent()->GetAvatarActor_Direct()));
+					StackString = FString::Printf(TEXT("(Stacks: %d. From: %s) "), ActiveGE.Spec.StackCount, *GetNameSafe(ActiveGE.Spec.GetContext().GetInstigatorAbilitySystemComponent()->GetAvatarActor_Direct()));
 				}
 				else
 				{
-					StackString = FString::Printf(TEXT("(Stacks: %d) "), ActiveGE.Spec.GetStackCount());
+					StackString = FString::Printf(TEXT("(Stacks: %d) "), ActiveGE.Spec.StackCount);
 				}
 			}
 
