@@ -433,7 +433,7 @@ void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNodeFunctionCall* Func
 	}
 }
 
-void UNiagaraScriptSource::InitializeNewParameters(UNiagaraNodeFunctionCall* FunctionCallNode, TConstArrayView<FNiagaraVariable> ModuleInputVariables, FNiagaraParameterStore& RapidIterationParameters, const FVersionedNiagaraEmitter& VersionedEmitter, ENiagaraScriptUsage ScriptUsage, TSet<FName>& ValidRapidIterationParameterNames) const
+void UNiagaraScriptSource::InitializeNewParameters(UNiagaraNodeFunctionCall* FunctionCallNode, TConstArrayView<FNiagaraVariable> ModuleInputVariables, FNiagaraParameterStore& RapidIterationParameters, const FVersionedNiagaraEmitter& VersionedEmitter, ENiagaraScriptUsage ScriptUsage, TSet<FNiagaraVariableBase>& ValidRapidIterationParameters) const
 {
 	const FString UniqueEmitterName = VersionedEmitter.Emitter ? VersionedEmitter.Emitter->GetUniqueEmitterName() : FString();
 	UNiagaraGraph* Graph = FunctionCallNode->GetCalledGraph();
@@ -466,7 +466,7 @@ void UNiagaraScriptSource::InitializeNewParameters(UNiagaraNodeFunctionCall* Fun
 		{
 			FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(ModuleInputVariable.GetName(), FunctionNodeName);
 			FNiagaraVariable RapidIterationParameter = FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, ScriptUsage, AliasedFunctionInputHandle.GetParameterHandleString(), ModuleInputVariable.GetType());
-			ValidRapidIterationParameterNames.Add(RapidIterationParameter.GetName());
+			ValidRapidIterationParameters.Add(RapidIterationParameter);
 			int32 ParameterIndex = RapidIterationParameters.IndexOf(RapidIterationParameter);
 
 			// Only set a value for the parameter if it's not already set.
@@ -531,7 +531,7 @@ void UNiagaraScriptSource::CleanUpOldAndInitializeNewRapidIterationParameters(co
 	TArray<FNiagaraVariable> OldRapidIterationVariables;
 	RapidIterationParameters.GetParameters(OldRapidIterationVariables);
 
-	TSet<FName> ValidRapidIterationParameterNames;
+	TSet<FNiagaraVariableBase> ValidRapidIterationParameters;
 	for (UNiagaraNodeOutput* OutputNode : OutputNodes)
 	{
 		if (OutputNode != nullptr)
@@ -560,7 +560,7 @@ void UNiagaraScriptSource::CleanUpOldAndInitializeNewRapidIterationParameters(co
 				if (!ModuleInputVariables.IsEmpty())
 				{
 					FixupRenamedParameters(FunctionCallNode, ModuleInputVariables, RapidIterationParameters, OldRapidIterationVariables, Emitter, ScriptUsage);
-					InitializeNewParameters(FunctionCallNode, ModuleInputVariables, RapidIterationParameters, Emitter, OutputNode->GetUsage(), ValidRapidIterationParameterNames);
+					InitializeNewParameters(FunctionCallNode, ModuleInputVariables, RapidIterationParameters, Emitter, OutputNode->GetUsage(), ValidRapidIterationParameters);
 				}
 			}
 		}
@@ -571,7 +571,7 @@ void UNiagaraScriptSource::CleanUpOldAndInitializeNewRapidIterationParameters(co
 	RapidIterationParameters.GetParameters(CurrentRapidIterationVariables);
 	for (const FNiagaraVariable& CurrentRapidIterationVariable : CurrentRapidIterationVariables)
 	{
-		if (ValidRapidIterationParameterNames.Contains(CurrentRapidIterationVariable.GetName()) == false)
+		if (ValidRapidIterationParameters.Contains(CurrentRapidIterationVariable) == false)
 		{
 			RapidIterationParameters.RemoveParameter(CurrentRapidIterationVariable);
 		}

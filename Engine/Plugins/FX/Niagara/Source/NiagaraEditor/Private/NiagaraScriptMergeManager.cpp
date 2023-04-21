@@ -1906,7 +1906,7 @@ bool FNiagaraScriptMergeManager::FindBaseModule(const FVersionedNiagaraEmitter& 
 	return false;
 }
 
-bool FNiagaraScriptMergeManager::IsModuleInputDifferentFromBase(const FVersionedNiagaraEmitter& Emitter, const FVersionedNiagaraEmitter& BaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId, FString InputName)
+bool FNiagaraScriptMergeManager::IsModuleInputDifferentFromBase(const FVersionedNiagaraEmitter& Emitter, const FVersionedNiagaraEmitter& BaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId, FNiagaraVariableBase Variable)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptMergeManager_IsModuleInputDifferentFromBase);
 
@@ -1936,7 +1936,8 @@ bool FNiagaraScriptMergeManager::IsModuleInputDifferentFromBase(const FVersioned
 
 	auto FindInputOverrideByInputName = [=](TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> InputOverride)
 	{
-		return InputOverride->GetOwningFunctionCall()->NodeGuid == ModuleId && InputOverride->GetInputName() == InputName;
+		FNiagaraVariableBase CandidateVariable(InputOverride->GetType(), FName(InputOverride->GetInputName()));
+		return InputOverride->GetOwningFunctionCall()->NodeGuid == ModuleId && CandidateVariable == Variable;
 	};
 
 	return
@@ -2592,10 +2593,13 @@ void FNiagaraScriptMergeManager::DiffScriptStacks(TSharedRef<FNiagaraScriptStack
 
 void FNiagaraScriptMergeManager::DiffFunctionInputs(TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseFunctionAdapter, TSharedRef<FNiagaraStackFunctionMergeAdapter> OtherFunctionAdapter, FNiagaraScriptStackDiffResults& DiffResults) const
 {
-	FListDiffResults<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>> ListDiffResults = DiffLists<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>, FString>(
+	FListDiffResults<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>> ListDiffResults = DiffLists<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>, FNiagaraVariableBase>(
 		BaseFunctionAdapter->GetInputOverrides(),
 		OtherFunctionAdapter->GetInputOverrides(),
-		[](TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> InputOverrideAdapter) { return InputOverrideAdapter->GetInputName(); });
+		[](TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> InputOverrideAdapter)
+		{
+			return FNiagaraVariableBase(InputOverrideAdapter->GetType(), FName(InputOverrideAdapter->GetInputName()));
+		});
 
 	DiffResults.RemovedBaseInputOverrides.Append(ListDiffResults.RemovedBaseValues);
 	DiffResults.AddedOtherInputOverrides.Append(ListDiffResults.AddedOtherValues);
