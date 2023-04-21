@@ -936,7 +936,7 @@ const FSmartObjectRuntimeSlot* USmartObjectSubsystem::GetSlotVerbose(const FSmar
 
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinition(
 	const FSmartObjectClaimHandle& ClaimHandle,
-	const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+	TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 	)
 {
 	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(ClaimHandle.SmartObjectHandle, ANSI_TO_TCHAR(__FUNCTION__));
@@ -945,7 +945,7 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefiniti
 
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinitionByRequestResult(
 	const FSmartObjectRequestResult& RequestResult,
-	const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+	TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 	)
 {
 	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(RequestResult.SmartObjectHandle, ANSI_TO_TCHAR(__FUNCTION__));
@@ -955,7 +955,7 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefiniti
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefinition(
 	const FSmartObjectRuntime& SmartObjectRuntime,
 	const FSmartObjectSlotHandle SlotHandle,
-	const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+	TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 	)
 {
 	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
@@ -966,7 +966,7 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::GetBehaviorDefiniti
 
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(
 	const FSmartObjectClaimHandle& ClaimHandle,
-	const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+	TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 	)
 {
 	const FSmartObjectRuntime* SmartObjectRuntime = GetValidatedRuntime(ClaimHandle.SmartObjectHandle, ANSI_TO_TCHAR(__FUNCTION__));
@@ -976,7 +976,7 @@ const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(
 const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(
 	const FSmartObjectRuntime& SmartObjectRuntime,
 	const FSmartObjectClaimHandle& ClaimHandle,
-	const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+	TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 	)
 {
 	checkf(ClaimHandle.IsValid(), TEXT("This is an internal method that should only be called with an assigned claim handle"));

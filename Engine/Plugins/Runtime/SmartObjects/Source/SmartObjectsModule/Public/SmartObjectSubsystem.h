@@ -465,14 +465,27 @@ public:
 	}
 
 	/**
-	* Spatial lookup for slot candidates respecting request criteria and selection conditions.
+	 * Spatial lookup for slot candidates respecting request criteria and selection conditions.
 	 * @param Request Parameters defining the search area and criteria
 	 * @param OutResults List of smart object slot candidates
 	 * @param UserActor Actor claiming the smart object
 	 * @return All valid smart objects in range.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta=(DisplayName="Find Smart Objects (Pure)", DeprecatedFunction, DeprecationMessage="The pure version is deprecated, place a new Find Smart Objects node and connect the exec pin"))
 	bool FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults, const AActor* UserActor = nullptr) const
+	{
+		return FindSmartObjects(Request, OutResults, FConstStructView::Make(FSmartObjectActorUserData(UserActor)));
+	}
+
+	/**
+	 * Blueprint function for spatial lookup for slot candidates respecting request criteria and selection conditions.
+	 * @param Request Parameters defining the search area and criteria
+	 * @param OutResults List of smart object slot candidates
+	 * @param UserActor Actor claiming the smart object
+	 * @return All valid smart objects in range.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure = False, Category = "SmartObject", meta=(DisplayName="Find Smart Objects"))
+	bool FindSmartObjects_BP(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults, const AActor* UserActor = nullptr) const
 	{
 		return FindSmartObjects(Request, OutResults, FConstStructView::Make(FSmartObjectActorUserData(UserActor)));
 	}
@@ -619,7 +632,7 @@ public:
 	 * @return The base class pointer of the requested behavior definition class associated to the slot
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	const USmartObjectBehaviorDefinition* Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
+	const USmartObjectBehaviorDefinition* Use(const FSmartObjectClaimHandle& ClaimHandle, TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass);
 
 	/**
 	 * Checks whether given slot is free and can be claimed (i.e. slot and its parent are both enabled)
@@ -658,7 +671,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(
 		const FSmartObjectClaimHandle& ClaimHandle,
-		const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+		TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 		);
 
 	/**
@@ -682,7 +695,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	const USmartObjectBehaviorDefinition* GetBehaviorDefinitionByRequestResult(
 		const FSmartObjectRequestResult& RequestResult,
-		const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+		TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 		);
 
 	/**
@@ -1011,13 +1024,13 @@ protected:
 	static const USmartObjectBehaviorDefinition* GetBehaviorDefinition(
 		const FSmartObjectRuntime& SmartObjectRuntime,
 		const FSmartObjectSlotHandle SlotHandle,
-		const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+		TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 		);
 
 	const USmartObjectBehaviorDefinition* Use(
 		const FSmartObjectRuntime& SmartObjectRuntime,
 		const FSmartObjectClaimHandle& ClaimHandle,
-		const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass
+		TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass
 		);
 
 	void AbortAll(const FSmartObjectRuntime& SmartObjectRuntime);
