@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/PCGPointSampler.h"
+#include "Elements/PCGSelectPoints.h"
 
 #include "PCGContext.h"
 #include "Data/PCGSpatialData.h"
@@ -10,25 +10,32 @@
 
 #include "Math/RandomStream.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointSampler)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSelectPoints)
 
-#define LOCTEXT_NAMESPACE "PCGPointSamplerElement"
+#define LOCTEXT_NAMESPACE "PCGSelectPointsElement"
 
-UPCGPointSamplerSettings::UPCGPointSamplerSettings()
+UPCGSelectPointsSettings::UPCGSelectPointsSettings()
 {
 	bUseSeed = true;
 }
 
-FPCGElementPtr UPCGPointSamplerSettings::CreateElement() const
+#if WITH_EDITOR
+FText UPCGSelectPointsSettings::GetNodeTooltipText() const
 {
-	return MakeShared<FPCGPointSamplerElement>();
+	return LOCTEXT("NodeTooltip", "Selects a stable random subset of the input points.");
+}
+#endif
+
+FPCGElementPtr UPCGSelectPointsSettings::CreateElement() const
+{
+	return MakeShared<FPCGSelectPointsElement>();
 }
 
-bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
+bool FPCGSelectPointsElement::ExecuteInternal(FPCGContext* Context) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointSamplerElement::Execute);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSelectPointsElement::Execute);
 	// TODO: make time-sliced implementation
-	const UPCGPointSamplerSettings* Settings = Context->GetInputSettings<UPCGPointSamplerSettings>();
+	const UPCGSelectPointsSettings* Settings = Context->GetInputSettings<UPCGSelectPointsSettings>();
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
@@ -104,7 +111,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointSamplerElement::Execute::SelectPoints);
+			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSelectPointsElement::Execute::SelectPoints);
 
 			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Seed, Ratio, bKeepZeroDensityPoints](int32 Index, FPCGPoint& OutPoint)
 			{

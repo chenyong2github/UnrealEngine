@@ -154,6 +154,9 @@ class PCG_API UPCGSettings : public UPCGSettingsInterface
 	friend class UPCGSettingsInterface;
 
 public:
+	UPCGSettings();
+	UPCGSettings(const FObjectInitializer& ObjectInitializer);
+
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Settings; }
 	// ~End UPCGData interface
@@ -365,6 +368,10 @@ private:
 
 	/** The cached Crc for these settings. */
 	FPCGCrc CachedCrc;
+
+	/** Hash of the derived type name which is of the form 'PCGExecuteBlueprint'. */
+	UPROPERTY(Transient)
+	uint32 TypeNameHash = 0;
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))

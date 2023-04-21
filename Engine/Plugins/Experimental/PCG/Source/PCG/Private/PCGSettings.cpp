@@ -80,6 +80,17 @@ void UPCGSettingsInterface::SetEnabled(bool bInEnabled)
 	}
 }
 
+UPCGSettings::UPCGSettings()
+{
+	TypeNameHash = GetTypeHash(GetClass()->GetFName());
+}
+
+UPCGSettings::UPCGSettings(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	TypeNameHash = GetTypeHash(GetClass()->GetFName());
+}
+
 bool UPCGSettings::operator==(const UPCGSettings& Other) const
 {
 	if (this == &Other)
@@ -386,7 +397,11 @@ UPCGNode* UPCGSettings::CreateNode() const
 
 int UPCGSettings::GetSeed(const UPCGComponent* InSourceComponent) const
 {
-	return !bUseSeed ? 42 : (InSourceComponent ? PCGHelpers::ComputeSeed(Seed, InSourceComponent->Seed) : Seed);
+	// Mix in a type hash so we don't get multiple nodes doing randomness in an identical way (we had a case where
+	// a Point Subset followed by a Density Noise produced uniform densities because the random seeds/streams were correllated).
+	// It is still possible to chain nodes of the same type (Point Subset -> Point Subset) and see correllated behaviour, in which
+	// case the random seed on one of them should be changed in the node settings.
+	return !bUseSeed ? TypeNameHash : (InSourceComponent ? PCGHelpers::ComputeSeed(Seed, InSourceComponent->Seed, TypeNameHash) : Seed);
 }
 
 #if WITH_EDITOR

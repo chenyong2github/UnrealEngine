@@ -5,20 +5,21 @@
 #include "PCGPin.h"
 #include "PCGSettings.h"
 
-#include "PCGPointSampler.generated.h"
+#include "PCGSelectPoints.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class PCG_API UPCGPointSamplerSettings : public UPCGSettings
+class PCG_API UPCGSelectPointsSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 
 public:
-	UPCGPointSamplerSettings();
+	UPCGSelectPointsSettings();
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PointSampler")); }
-	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGPointSamplerSettings", "NodeTitle", "Point Sampler"); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SelectPoints")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGSelectPointsElement", "NodeTitle", "Select Points"); }
+	virtual FText GetNodeTooltipText() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
 #endif
 
@@ -38,7 +39,7 @@ public:
 #endif
 };
 
-class FPCGPointSamplerElement : public FSimplePCGElement
+class FPCGSelectPointsElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
