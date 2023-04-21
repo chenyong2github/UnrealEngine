@@ -64,6 +64,7 @@ void UHLODEngineSubsystem::RegisterRecreateLODActorsDelegates()
 		OnPostWorldInitializationDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UHLODEngineSubsystem::RecreateLODActorsForWorld);
 		OnLevelAddedToWorldDelegateHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UHLODEngineSubsystem::RecreateLODActorsForLevel);
 		OnPreSaveWorlDelegateHandle = FEditorDelegates::PreSaveWorldWithContext.AddUObject(this, &UHLODEngineSubsystem::OnPreSaveWorld);
+		OnWorldCollectSaveReferencesDelegateHandle = FWorldDelegates::OnCollectSaveReferences.AddUObject(this, &UHLODEngineSubsystem::OnWorldCollectSaveReferences);
 	}	
 }
 
@@ -188,6 +189,32 @@ void UHLODEngineSubsystem::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext
 							Subobject->ClearFlags(TransientFlags);
 						}, bIncludeNestedObjects);
 					}
+				}
+			}
+		}
+	}
+}
+
+void UHLODEngineSubsystem::OnWorldCollectSaveReferences(UWorld* World, FArchive& Ar)
+{
+	// Record a dependency on the paths to HLODProxy packages that would be associated with
+	// this level if they exist
+	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
+	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
+
+	for (ULevel* Level : World->GetLevels())
+	{
+		AWorldSettings* WorldSettings = Level->GetWorldSettings(false);
+		if (WorldSettings)
+		{
+			int32 NumLODLevels = WorldSettings->GetHierarchicalLODSetup().Num();
+			for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
+			{
+				const FString HLODLevelPackageName = Utilities->GetHLODPackageName(Level, LODIndex);
+				if (!HLODLevelPackageName.IsEmpty())
+				{
+					FSoftObjectPath Path(HLODLevelPackageName);
+					Ar << Path;
 				}
 			}
 		}

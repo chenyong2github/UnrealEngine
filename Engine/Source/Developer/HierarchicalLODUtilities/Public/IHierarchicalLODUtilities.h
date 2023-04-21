@@ -75,6 +75,8 @@ public:
 	/** Retrieves the HLOD proxy that is created for the given level */
 	virtual UHLODProxy* RetrieveLevelHLODProxy(const ULevel* InLevel, const uint32 HLODLevelIndex) = 0;
 
+	virtual FString GetHLODPackageName(const ULevel* InLevel, const uint32 InHLODLevelIndex) = 0;
+
 	/** Get the name of a HLOD proxy given the name of a level's package */
 	virtual FString GetLevelHLODProxyName(const FString& InLevelPackageName, const uint32 HLODLevelIndex) = 0;
 

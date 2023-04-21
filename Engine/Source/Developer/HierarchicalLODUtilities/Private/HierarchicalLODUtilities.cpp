@@ -52,6 +52,7 @@
 #include "LevelUtils.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
+#include "UObject/ICookInfo.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHierarchicalLODUtilities, Verbose, All);
 
@@ -133,6 +134,12 @@ static FString GetHLODPackageName(const ULevel* InLevel, const uint32 InHLODLeve
 	return GetHLODPackageName(LevelPackageName, InHLODLevelIndex, InOutHLODProxyName);
 }
 
+FString FHierarchicalLODUtilities::GetHLODPackageName(const ULevel* InLevel, const uint32 InHLODLevelIndex)
+{
+	FString HLODProxyName;
+	return ::GetHLODPackageName(InLevel, InHLODLevelIndex, HLODProxyName);
+}
+
 void FHierarchicalLODUtilities::CleanStandaloneAssetsInPackage(UPackage* InPackage)
 {
 	TArray<UObject*> Objects;
@@ -181,7 +188,7 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 	checkf(InLevel != nullptr, TEXT("Invalid Level supplied"));
 
 	FString HLODProxyName;
-	const FString HLODLevelPackageName = GetHLODPackageName(InLevel, HLODLevelIndex, HLODProxyName);
+	const FString HLODLevelPackageName = ::GetHLODPackageName(InLevel, HLODLevelIndex, HLODProxyName);
 
 	// Find existing package
 	bool bCreatedNewPackage = false;
@@ -199,7 +206,8 @@ UHLODProxy* FHierarchicalLODUtilities::RetrieveLevelHLODProxy(const ULevel* InLe
 {
 	checkf(InLevel != nullptr, TEXT("Invalid Level supplied"));
 	FString HLODProxyName;
-	const FString HLODLevelPackageName = GetHLODPackageName(InLevel, HLODLevelIndex, HLODProxyName);
+	FCookLoadScope CookLoadScope(ECookLoadType::UsedInGame);
+	const FString HLODLevelPackageName = ::GetHLODPackageName(InLevel, HLODLevelIndex, HLODProxyName);
 
 	UHLODProxy* HLODProxy = LoadObject<UHLODProxy>(nullptr, *HLODLevelPackageName, nullptr, LOAD_Quiet | LOAD_NoWarn);
 	return HLODProxy;
@@ -240,7 +248,7 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 FString FHierarchicalLODUtilities::GetLevelHLODProxyName(const FString& InLevelPackageName, const uint32 InHLODLevelIndex)
 {
 	FString HLODProxyName;
-	FString HLODPackageName = GetHLODPackageName(InLevelPackageName, InHLODLevelIndex, HLODProxyName);
+	FString HLODPackageName = ::GetHLODPackageName(InLevelPackageName, InHLODLevelIndex, HLODProxyName);
 	return HLODPackageName + TEXT(".") + HLODProxyName;
 }
 
