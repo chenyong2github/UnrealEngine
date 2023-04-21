@@ -85,7 +85,7 @@ void FGameplayDebuggerCategory_Abilities::CollectData(APlayerController* OwnerPC
 			ItemData.Context = EffectSpec.GetContext().ToString();
 			ItemData.Duration = EffectSpec.GetDuration();
 			ItemData.Period = EffectSpec.GetPeriod();
-			ItemData.Stacks = EffectSpec.StackCount;
+			ItemData.Stacks = EffectSpec.GetStackCount();
 			ItemData.Level = EffectSpec.GetLevel();
 
 			DataPack.GameplayEffects.Add(ItemData);

@@ -7,6 +7,7 @@
 #include "AbilitySystemLog.h"
 #include "Engine/World.h"
 #include "GameplayEffect.h"
+#include "GameplayEffectComponents/AdditionalEffectsGameplayEffectComponent.h"
 #include "GameplayEffectUIData.h"
 #include "GameplayAbilitySpec.h"
 
@@ -857,6 +858,7 @@ FGameplayEffectSpecHandle UAbilitySystemBlueprintLibrary::AddAssetTags(FGameplay
 	
 FGameplayEffectSpecHandle UAbilitySystemBlueprintLibrary::AddLinkedGameplayEffectSpec(FGameplayEffectSpecHandle SpecHandle, FGameplayEffectSpecHandle LinkedGameplayEffectSpec)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
 	if (Spec)
 	{
@@ -868,10 +870,12 @@ FGameplayEffectSpecHandle UAbilitySystemBlueprintLibrary::AddLinkedGameplayEffec
 	}
 
 	return SpecHandle;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FGameplayEffectSpecHandle UAbilitySystemBlueprintLibrary::AddLinkedGameplayEffect(FGameplayEffectSpecHandle SpecHandle, TSubclassOf<UGameplayEffect> LinkedGameplayEffect)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FGameplayEffectSpecHandle LinkedSpecHandle;
 	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
 	if (Spec)
@@ -888,6 +892,7 @@ FGameplayEffectSpecHandle UAbilitySystemBlueprintLibrary::AddLinkedGameplayEffec
 	}
 
 	return LinkedSpecHandle;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
@@ -896,11 +901,11 @@ FGameplayEffectSpecHandle UAbilitySystemBlueprintLibrary::SetStackCount(FGamepla
 	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
 	if (Spec)
 	{
-		Spec->StackCount = StackCount;
+		Spec->SetStackCount(StackCount);
 	}
 	else
 	{
-		ABILITY_LOG(Warning, TEXT("UAbilitySystemBlueprintLibrary::AddLinkedGameplayEffectSpec called with invalid SpecHandle"));
+		ABILITY_LOG(Warning, TEXT("%s called with invalid SpecHandle"), ANSI_TO_TCHAR(__func__));
 	}
 	return SpecHandle;
 }
@@ -910,11 +915,11 @@ FGameplayEffectSpecHandle UAbilitySystemBlueprintLibrary::SetStackCountToMax(FGa
 	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
 	if (Spec && Spec->Def)
 	{
-		Spec->StackCount = Spec->Def->StackLimitCount;
+		Spec->SetStackCount(Spec->Def->StackLimitCount);
 	}
 	else
 	{
-		ABILITY_LOG(Warning, TEXT("UAbilitySystemBlueprintLibrary::AddLinkedGameplayEffectSpec called with invalid SpecHandle"));
+		ABILITY_LOG(Warning, TEXT("%s called with invalid SpecHandle"), ANSI_TO_TCHAR(__func__));
 	}
 	return SpecHandle;
 }
@@ -927,7 +932,7 @@ FGameplayEffectContextHandle UAbilitySystemBlueprintLibrary::GetEffectContext(FG
 	}
 	else
 	{
-		ABILITY_LOG(Warning, TEXT("UAbilitySystemBlueprintLibrary::GetEffectContext called with invalid SpecHandle"));
+		ABILITY_LOG(Warning, TEXT("%s called with invalid SpecHandle"), ANSI_TO_TCHAR(__func__));
 	}
 
 	return FGameplayEffectContextHandle();
@@ -935,17 +940,20 @@ FGameplayEffectContextHandle UAbilitySystemBlueprintLibrary::GetEffectContext(FG
 
 TArray<FGameplayEffectSpecHandle> UAbilitySystemBlueprintLibrary::GetAllLinkedGameplayEffectSpecHandles(FGameplayEffectSpecHandle SpecHandle)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	if (FGameplayEffectSpec* Spec = SpecHandle.Data.Get())
 	{
 		return Spec->TargetEffectSpecs;
 	}
 	else
 	{
-		ABILITY_LOG(Warning, TEXT("UAbilitySystemBlueprintLibrary::GetEffectContext called with invalid SpecHandle"));
+		ABILITY_LOG(Warning, TEXT("%s called with invalid SpecHandle"), ANSI_TO_TCHAR(__func__));
 	}
 
 	TArray<FGameplayEffectSpecHandle> Handles;
 	return Handles;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 int32 UAbilitySystemBlueprintLibrary::GetActiveGameplayEffectStackCount(FActiveGameplayEffectHandle ActiveHandle)
@@ -966,7 +974,7 @@ int32 UAbilitySystemBlueprintLibrary::GetActiveGameplayEffectStackLimitCount(FAc
 		const UGameplayEffect* ActiveGE = ASC->GetGameplayEffectDefForHandle(ActiveHandle);
 		if (ActiveGE)
 		{
-			return ActiveGE->StackLimitCount;
+			return ActiveGE->GetStackLimitCount();
 		}
 	}
 	return 0;
@@ -1100,14 +1108,22 @@ bool UAbilitySystemBlueprintLibrary::RemoveLooseGameplayTags(AActor* Actor, cons
 
 const UGameplayEffectUIData* UAbilitySystemBlueprintLibrary::GetGameplayEffectUIData(TSubclassOf<UGameplayEffect> EffectClass, TSubclassOf<UGameplayEffectUIData> DataType)
 {
-	if (UClass* ActualPtr = EffectClass.Get())
+	if (const UGameplayEffect* Effect = EffectClass.GetDefaultObject())
 	{
-		const UGameplayEffectUIData* UIData = GetDefault<UGameplayEffect>(ActualPtr)->UIData;
+		const UGameplayEffectUIData* UIData = Effect->FindComponent<UGameplayEffectUIData>();
+		if (!UIData)
+		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			UIData = Effect->UIData;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+
 		if ((UIData != nullptr) && (DataType != nullptr) && UIData->IsA(DataType))
 		{
 			return UIData;
 		}
 	}
+
 	return nullptr;
 }
 

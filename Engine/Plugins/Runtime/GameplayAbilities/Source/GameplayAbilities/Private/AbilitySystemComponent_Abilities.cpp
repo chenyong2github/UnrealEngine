@@ -741,38 +741,38 @@ void UAbilitySystemComponent::DecrementAbilityListLock()
 	}
 }
 
-FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromHandle(FGameplayAbilitySpecHandle Handle)
+FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromHandle(FGameplayAbilitySpecHandle Handle) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_FindAbilitySpecFromHandle);
 
-	for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+	for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
 	{
 		if (Spec.Handle == Handle)
 		{
-			return &Spec;
+			return const_cast<FGameplayAbilitySpec*>(&Spec);
 		}
 	}
 
 	return nullptr;
 }
 
-FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromGEHandle(FActiveGameplayEffectHandle Handle)
+FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromGEHandle(FActiveGameplayEffectHandle Handle) const
 {
-	for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+	for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
 	{
 		if (Spec.GameplayEffectHandle == Handle)
 		{
-			return &Spec;
+			return const_cast<FGameplayAbilitySpec*>(&Spec);
 		}
 	}
 	return nullptr;
 }
 
-FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromClass(TSubclassOf<UGameplayAbility> InAbilityClass)
+FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromClass(TSubclassOf<UGameplayAbility> InAbilityClass) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_FindAbilitySpecFromHandle);
 
-	for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+	for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
 	{
 		if (Spec.Ability == nullptr)
 		{
@@ -781,7 +781,7 @@ FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromClass(TSubclas
 
 		if (Spec.Ability->GetClass() == InAbilityClass)
 		{
-			return &Spec;
+			return const_cast<FGameplayAbilitySpec*>(&Spec);
 		}
 	}
 
@@ -806,15 +806,15 @@ void UAbilitySystemComponent::MarkAbilitySpecDirty(FGameplayAbilitySpec& Spec, b
 	}
 }
 
-FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromInputID(int32 InputID)
+FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromInputID(int32 InputID) const
 {
 	if (InputID != INDEX_NONE)
 	{
-		for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+		for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
 		{
 			if (Spec.InputID == InputID)
 			{
-				return &Spec;
+				return const_cast<FGameplayAbilitySpec*>(&Spec);
 			}
 		}
 	}

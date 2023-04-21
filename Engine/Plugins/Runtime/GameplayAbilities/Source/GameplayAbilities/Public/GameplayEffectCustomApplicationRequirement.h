@@ -2,13 +2,11 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "GameplayEffect.h"
 #include "GameplayEffectCustomApplicationRequirement.generated.h"
 
+struct FGameplayEffectSpec;
+class UGameplayEffect;
 class UAbilitySystemComponent;
 
 /** Class used to perform custom gameplay effect modifier calculations, either via blueprint or native code */ 

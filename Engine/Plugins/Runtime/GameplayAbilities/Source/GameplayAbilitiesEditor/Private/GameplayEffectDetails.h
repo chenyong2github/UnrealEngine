@@ -20,12 +20,6 @@ private:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
-	
-
-	TArray<TSharedPtr<FString>> PropertyOptions;
-
-	TSharedPtr<IPropertyHandle> MyProperty;
-
 	IDetailLayoutBuilder* MyDetailLayout;
 
 	void OnDurationPolicyChange();
