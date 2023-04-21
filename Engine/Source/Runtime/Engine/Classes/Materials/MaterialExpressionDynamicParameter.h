@@ -53,6 +53,8 @@ class UMaterialExpressionDynamicParameter : public UMaterialExpression
 	virtual int32 GetWidth() const override;
 	virtual int32 GetLabelPadding() override { return 8; }
 	virtual FText GetKeywords() const override { return FText::FromString(TEXT("dynamic")); }
+
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
 #endif
 	//~ End UMaterialExpression Interface
 

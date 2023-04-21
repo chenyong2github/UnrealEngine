@@ -71,6 +71,7 @@ public:
 
 	const FMaterialLayersFunctions* GetLayerOverrides() const { return LayerOverrides; }
 
+	const UMaterial* GetTargetMaterial() const;
 	UE::HLSLTree::FTree& GetTree() const;
 	UE::Shader::FStructTypeRegistry& GetTypeRegistry() const;
 	const UE::Shader::FStructType* GetMaterialAttributesType() const;

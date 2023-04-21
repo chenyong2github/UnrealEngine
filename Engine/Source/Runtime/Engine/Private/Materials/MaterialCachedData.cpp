@@ -952,7 +952,7 @@ void PrepareHLSLTree(UE::HLSLTree::FEmitContext& EmitContext,
 			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == ShaderFrequency)
 			{
 				const EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(AttributeID);
-				if (CachedTree.IsAttributeUsed(EmitContext, *EmitResultScope, ResultType, Property))
+				if (Property != MP_CustomOutput && CachedTree.IsAttributeUsed(EmitContext, *EmitResultScope, ResultType, Property))
 				{
 					CachedData.SetPropertyConnected(Property);
 				}

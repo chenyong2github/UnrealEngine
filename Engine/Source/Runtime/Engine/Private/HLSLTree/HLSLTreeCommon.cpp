@@ -871,12 +871,19 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 	const int32 NumRhsComponents = FMath::Max(NumRequestedComponents - NumLhsComponents, 1);
 
 	FRequestedType RhsRequestedType;
-	RhsRequestedType.Type = Shader::MakeValueType(RequestedType.GetValueComponentType(), NumRhsComponents);
-	for (int32 Index = NumLhsComponents; Index < NumRequestedComponents; ++Index)
+	if (RequestedType.Type.IsAny())
 	{
-		if (RequestedType.IsComponentRequested(Index))
+		RhsRequestedType = Shader::EValueType::Any;
+	}
+	else
+	{
+		RhsRequestedType.Type = Shader::MakeValueType(RequestedType.GetValueComponentType(), NumRhsComponents);
+		for (int32 Index = NumLhsComponents; Index < NumRequestedComponents; ++Index)
 		{
-			RhsRequestedType.SetComponentRequest(Index - NumLhsComponents);
+			if (RequestedType.IsComponentRequested(Index))
+			{
+				RhsRequestedType.SetComponentRequest(Index - NumLhsComponents);
+			}
 		}
 	}
 
@@ -1044,6 +1051,31 @@ bool FExpressionShadingPathSwitch::IsInputActive(const FEmitContext& Context, in
 		ShadingPathToCompile = ERHIShadingPath::Mobile;
 	}
 	return Index == (int32)ShadingPathToCompile;
+}
+
+FExpressionQualitySwitch::FExpressionQualitySwitch(TConstArrayView<const FExpression*> InInputs)
+	: FExpressionSwitchBase(InInputs)
+{
+	static_assert(MaxInputs >= (int32)EMaterialQualityLevel::Num + 1, "FExpressionSwitchBase is too small for FExpressionQualitySwitch");
+	check(InInputs.Num() == (int32)EMaterialQualityLevel::Num + 1);
+}
+
+bool FExpressionQualitySwitch::IsInputActive(const FEmitContext& Context, int32 Index) const
+{
+	return Context.TargetParameters.IsGenericTarget() || Index == (int32)Context.Material->GetQualityLevel();
+}
+
+FExpressionShaderStageSwitch::FExpressionShaderStageSwitch(TConstArrayView<const FExpression*> InInputs)
+	: FExpressionSwitchBase(InInputs)
+{
+	static_assert(MaxInputs >= 2, "FExpressionSwitchBase is too small for FExpressionShaderStageSwitch");
+	check(InInputs.Num() == 2);
+}
+
+bool FExpressionShaderStageSwitch::IsInputActive(const FEmitContext& Context, int32 Index) const
+{
+	check(Context.ShaderFrequency == SF_Pixel || Context.ShaderFrequency == SF_Vertex);
+	return (Context.ShaderFrequency == SF_Pixel && Index == 0) || (Context.ShaderFrequency == SF_Vertex && Index == 1);
 }
 
 bool FExpressionInlineCustomHLSL::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const

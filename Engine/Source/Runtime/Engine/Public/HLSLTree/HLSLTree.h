@@ -502,6 +502,8 @@ private:
 	friend class FTree;
 	friend class FEmitContext;
 	friend class FExpressionForward;
+	friend class FExpressionFunctionCall;
+	friend class FExpressionOperation;
 };
 
 /**
@@ -629,6 +631,7 @@ public:
 	const FExpression* NewSwizzle(const FSwizzleParameters& Params, const FExpression* Input);
 	const FExpression* NewUnaryOp(EOperation Op, const FExpression* Input);
 	const FExpression* NewBinaryOp(EOperation Op, const FExpression* Lhs, const FExpression* Rhs);
+	const FExpression* NewTernaryOp(EOperation Op, const FExpression* Input0, const FExpression* Input1, const FExpression* Input2);
 
 	const FExpression* NewAbs(const FExpression* Input) { return NewUnaryOp(EOperation::Abs, Input); }
 	const FExpression* NewNeg(const FExpression* Input) { return NewUnaryOp(EOperation::Neg, Input); }
@@ -650,6 +653,7 @@ public:
 	const FExpression* NewMul(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Mul, Lhs, Rhs); }
 	const FExpression* NewDiv(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Div, Lhs, Rhs); }
 	const FExpression* NewFmod(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Fmod, Lhs, Rhs); }
+	const FExpression* NewStep(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Step, Lhs, Rhs); }
 	const FExpression* NewPowClamped(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::PowPositiveClamped, Lhs, Rhs); }
 	const FExpression* NewMin(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Min, Lhs, Rhs); }
 	const FExpression* NewMax(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Max, Lhs, Rhs); }
@@ -657,6 +661,8 @@ public:
 	const FExpression* NewGreater(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Greater, Lhs, Rhs); }
 	const FExpression* NewLessEqual(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::LessEqual, Lhs, Rhs); }
 	const FExpression* NewGreaterEqual(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::GreaterEqual, Lhs, Rhs); }
+
+	const FExpression* NewSmoothStep(const FExpression* Input0, const FExpression* Input1, const FExpression* Input2) { return NewTernaryOp(EOperation::SmoothStep, Input0,	Input1, Input2); }
 
 	const FExpression* NewLog(const FExpression* Input);
 	const FExpression* NewPow2(const FExpression* Input) { return NewMul(Input, Input); }

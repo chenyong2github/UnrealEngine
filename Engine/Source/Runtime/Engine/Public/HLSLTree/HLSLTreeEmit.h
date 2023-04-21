@@ -577,6 +577,10 @@ public:
 	bool bMarkLiveValues = false;
 	bool bUseAnalyticDerivatives = false;
 
+	bool bUsesSkyAtmosphere = false;
+
+	uint32 DynamicParticleParameterMask = 0u;
+
 	TArray<const FOwnedNode*, TInlineAllocator<32>> OwnerStack;
 	TArray<FEmitShaderNode*> EmitNodes;
 	TMap<const FScope*, FEmitScope*> EmitScopeMap;

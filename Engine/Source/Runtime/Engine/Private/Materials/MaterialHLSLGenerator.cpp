@@ -30,6 +30,11 @@ FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* Material,
 	FunctionCallStack.Add(&RootFunctionCallEntry);
 }
 
+const UMaterial* FMaterialHLSLGenerator::GetTargetMaterial() const
+{
+	return TargetMaterial;
+}
+
 UE::HLSLTree::FTree& FMaterialHLSLGenerator::GetTree() const
 {
 	return CachedTree.GetTree();
@@ -754,7 +759,7 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateBranch(UE::HLSL
 		FXxHash64Builder Hasher;
 		Hasher.Update(&ConditionExpression, sizeof(FExpression*));
 		Hasher.Update(&TrueExpression, sizeof(FExpression*));
-		Hasher.Update(&FalseExpression, sizeof(FExpression));
+		Hasher.Update(&FalseExpression, sizeof(FExpression*));
 		Hash = Hasher.Finalize();
 	}
 
