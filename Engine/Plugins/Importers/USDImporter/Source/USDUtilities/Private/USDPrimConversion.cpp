@@ -385,6 +385,44 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 	return true;
 }
 
+void UsdToUnreal::PropagateTransform(const pxr::UsdStageRefPtr& Stage, const pxr::UsdPrim& Root, const pxr::UsdPrim& Leaf, double EvalTime, FTransform& OutTransform)
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	bool bResetXformStack = false;
+	FTransform CurrentTransform = FTransform::Identity;
+	if (ConvertXformable(Stage, pxr::UsdTyped{Leaf}, CurrentTransform, EvalTime, &bResetXformStack))
+	{
+		if (!bResetXformStack)
+		{
+			OutTransform *= CurrentTransform;
+			
+			if (Leaf != Root)
+			{
+				if (!Leaf.IsPseudoRoot())
+				{
+					PropagateTransform(Stage, Root, Leaf.GetParent(), EvalTime, OutTransform);
+				}
+				else
+				{
+					// Leaf was not even in Root's subtree
+					OutTransform = FTransform::Identity;
+				}
+			}
+		}
+		else
+		{
+			// The Xform stack was reset so that effectively stops the propagation
+			OutTransform = CurrentTransform;
+		}
+	}
+	else
+	{
+		// Leaf is not completely connected to Root by Xformables
+		OutTransform = FTransform::Identity;
+	}
+}
+
 bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, USceneComponent& SceneComponent, double EvalTime, bool bUsePrimTransform )
 {
 	pxr::UsdGeomXformable Xformable( Schema );

@@ -41,6 +41,7 @@ namespace UE::UsdInfoCache::Private
 		UE::FSdfPath ComponentCollapsedRoot;
 		uint64 ExpectedVertexCountForSubtree;
 		TArray<UsdUtils::FUsdPrimMaterialSlot> SubtreeMaterialSlots;
+		bool bIsPotentialGeoCacheRoot;
 	};
 }
 
@@ -50,6 +51,7 @@ FArchive& operator <<( FArchive& Ar, UE::UsdInfoCache::Private::FUsdPrimInfo& In
 	Ar << Info.ComponentCollapsedRoot;
 	Ar << Info.ExpectedVertexCountForSubtree;
 	Ar << Info.SubtreeMaterialSlots;
+	Ar << Info.bIsPotentialGeoCacheRoot;
 
 	return Ar;
 }
@@ -860,7 +862,62 @@ namespace UE::USDInfoCacheImpl::Private
 			Info.ComponentCollapsedRoot = *ComponentCollapsedRootOverride;
 		}
 	}
-#endif // USE_USD_SDK
+
+	bool RecursiveCheckForGeometryCache(const pxr::UsdPrim& UsdPrim, FUsdSchemaTranslationContext& Context, FUsdInfoCache::FUsdInfoCacheImpl& Impl)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UE::USDInfoCacheImpl::Private::RecursiveCheckForGeometryCache);
+		FScopedUsdAllocs Allocs;
+
+		pxr::SdfPath UsdPrimPath = UsdPrim.GetPrimPath();
+		UE::FSdfPath PrimPath{UsdPrimPath};
+
+		pxr::UsdPrimSiblingRange PrimChildren = UsdPrim.GetFilteredChildren(pxr::UsdTraverseInstanceProxies(pxr::UsdPrimAllPrimsPredicate));
+
+		TArray<pxr::UsdPrim> Prims;
+		for (pxr::UsdPrim Child : PrimChildren)
+		{
+			Prims.Emplace(Child);
+		}
+
+		std::atomic<bool> bIsPotentialGeoCacheRoot = true;
+		const int32 MinBatchSize = 1;
+		ParallelFor(TEXT("RecursiveCheckForGeometryCache"), Prims.Num(), MinBatchSize,
+			[&](int32 Index)
+			{
+				bool bResult = RecursiveCheckForGeometryCache(Prims[Index], Context, Impl);
+				bIsPotentialGeoCacheRoot = bIsPotentialGeoCacheRoot && bResult;
+			}
+		);
+
+		bool bIsAnimatedMesh = UsdUtils::IsAnimatedMesh(UsdPrim);
+		{
+			FWriteScopeLock ScopeLock(Impl.InfoMapLock);
+
+			UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd(UE::FSdfPath(UsdPrimPath));
+			Info.bIsPotentialGeoCacheRoot = bIsPotentialGeoCacheRoot || bIsAnimatedMesh;
+		}
+
+		return bIsPotentialGeoCacheRoot || bIsAnimatedMesh;
+	}
+#endif // USE_SD_SDK
+}
+
+bool FUsdInfoCache::IsPotentialGeometryCacheRoot(const UE::FSdfPath& Path) const
+{
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
+
+		if (const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = ImplPtr->InfoMap.Find(Path))
+		{
+			return FoundInfo->bIsPotentialGeoCacheRoot;
+		}
+
+		// This should never happen: We should have cached the entire tree
+		ensureMsgf(false, TEXT("Prim path '%s' has not been cached!"), *Path.GetString());
+	}
+
+	return false;
 }
 
 TOptional<uint64> FUsdInfoCache::GetSubtreeVertexCount( const UE::FSdfPath& Path )
@@ -1090,6 +1147,12 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 			TempSubtreeSlots,
 			Context.bMergeIdenticalMaterialSlots
 		);
+
+		UE::USDInfoCacheImpl::Private::RecursiveCheckForGeometryCache(			
+			UsdPrim,
+			Context,
+			*ImplPtr
+			);
 
 		UE::USDInfoCacheImpl::Private::RecursiveQueryCollapsesChildren(
 			UsdPrim,

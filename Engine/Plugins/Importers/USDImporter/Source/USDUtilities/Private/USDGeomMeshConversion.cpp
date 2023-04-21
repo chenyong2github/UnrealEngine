@@ -65,6 +65,8 @@ static FAutoConsoleVariableRef CVarMaxInstancesPerPointInstancer(
 	GMaxInstancesPerPointInstancer,
 	TEXT( "We will only parse up to this many instances from any point instancer when reading from USD to UE. Set this to -1 to disable this limit." ) );
 
+const FName MeshAttribute::VertexInstance::Velocity("Velocity");
+
 namespace UE::UsdGeomMeshConversion::Private
 {
 	static const FString DisplayColorID = TEXT( "!DisplayColor" );
@@ -983,6 +985,29 @@ bool UsdToUnreal::ConvertGeomMesh(
 
 		pxr::TfToken NormalsInterpType = UsdMesh.GetNormalsInterpolation();
 
+		// Velocities
+		pxr::UsdAttribute VelocitiesAttribute = UsdMesh.GetVelocitiesAttr();
+		pxr::TfToken VelocitiesInterpType = pxr::UsdGeomTokens->vertex;
+		pxr::VtArray<pxr::GfVec3f> Velocities;
+		if (VelocitiesAttribute)
+		{
+			VelocitiesAttribute.Get(&Velocities, TimeCodeValue);
+
+			if (Velocities.size() > 0)
+			{
+				if (!OutMeshDescription.VertexInstanceAttributes().HasAttribute(MeshAttribute::VertexInstance::Velocity))
+				{
+					OutMeshDescription.VertexInstanceAttributes().RegisterAttribute<FVector3f>(MeshAttribute::VertexInstance::Velocity, 1, FVector3f::ZeroVector, EMeshAttributeFlags::Lerpable);
+				}
+
+				pxr::TfToken InterpType;
+				if (VelocitiesAttribute.GetMetadata(pxr::UsdGeomTokens->interpolation, &InterpType))
+				{
+					VelocitiesInterpType = InterpType;
+				}
+			}
+		}
+
 		// UVs
 		TVertexInstanceAttributesRef< FVector2f > MeshDescriptionUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 
@@ -1090,6 +1115,7 @@ bool UsdToUnreal::ConvertGeomMesh(
 		}
 
 		TVertexInstanceAttributesRef< FVector3f > MeshDescriptionNormals = StaticMeshAttributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector3f> MeshDescriptionVelocities = OutMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Velocity);
 
 		OutMeshDescription.ReserveNewVertexInstances( FaceCounts.size() * 3 );
 		OutMeshDescription.ReserveNewPolygons( FaceCounts.size() );
@@ -1161,6 +1187,19 @@ bool UsdToUnreal::ConvertGeomMesh(
 						FVector TransformedNormal = Options.AdditionalTransform.TransformVector( UsdToUnreal::ConvertVector( StageInfo, Normal ) ).GetSafeNormal();
 
 						MeshDescriptionNormals[ AddedVertexInstanceId ] = ( FVector3f ) TransformedNormal.GetSafeNormal();
+					}
+				}
+
+				if (Velocities.size() > 0)
+				{
+					const int32 VelocityIndex = UsdGeomMeshImpl::GetPrimValueIndex(VelocitiesInterpType, ControlPointIndex, CurrentVertexInstanceIndex, PolygonIndex);
+
+					if (VelocityIndex < Velocities.size())
+					{
+						const pxr::GfVec3f& Velocity = Velocities[VelocityIndex];
+						FVector TransformedVelocity = Options.AdditionalTransform.TransformVector(UsdToUnreal::ConvertVector(StageInfo, Velocity));
+
+						MeshDescriptionVelocities[AddedVertexInstanceId] = (FVector3f) TransformedVelocity;
 					}
 				}
 
@@ -3092,6 +3131,81 @@ bool UsdUtils::GetPointInstancerTransforms( const FUsdStageInfo& StageInfo, cons
 	}
 
 	return true;
+}
+
+bool UsdUtils::IsAnimatedMesh(const pxr::UsdPrim& Prim)
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdGeomMesh Mesh = pxr::UsdGeomMesh(Prim);
+	if (!Mesh)
+	{
+		return false;
+	}
+
+	bool bHasAttributesTimeSamples = false;
+	{
+		constexpr bool bIncludeInherited = false;
+		pxr::TfTokenVector GeomMeshAttributeNames = pxr::UsdGeomMesh::GetSchemaAttributeNames(bIncludeInherited);
+		pxr::TfTokenVector GeomPointBasedAttributeNames = pxr::UsdGeomPointBased::GetSchemaAttributeNames(bIncludeInherited);
+
+		GeomMeshAttributeNames.reserve(GeomMeshAttributeNames.size() + GeomPointBasedAttributeNames.size());
+		GeomMeshAttributeNames.insert(GeomMeshAttributeNames.end(), GeomPointBasedAttributeNames.begin(), GeomPointBasedAttributeNames.end());
+
+		for (const pxr::TfToken& AttributeName : GeomMeshAttributeNames)
+		{
+			const pxr::UsdAttribute& Attribute = Prim.GetAttribute(AttributeName);
+
+			if (Attribute && Attribute.ValueMightBeTimeVarying())
+			{
+				bHasAttributesTimeSamples = true;
+				break;
+			}
+		}
+	}
+
+	return bHasAttributesTimeSamples;
+}
+
+UsdUtils::EMeshTopologyVariance UsdUtils::GetMeshTopologyVariance(const pxr::UsdGeomMesh& UsdMesh)
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdAttribute Points = UsdMesh.GetPointsAttr();
+	if (!Points)
+	{
+		return EMeshTopologyVariance::Constant;
+	}
+
+	pxr::UsdAttribute FaceCountsAttribute = UsdMesh.GetFaceVertexCountsAttr();
+	if (!FaceCountsAttribute)
+	{
+		return EMeshTopologyVariance::Constant;
+	}
+
+	pxr::UsdAttribute FaceVertexIndicesAttribute = UsdMesh.GetFaceVertexIndicesAttr();
+	if (!FaceVertexIndicesAttribute)
+	{
+		return EMeshTopologyVariance::Constant;
+	}
+
+	if (!FaceVertexIndicesAttribute.ValueMightBeTimeVarying() && !FaceCountsAttribute.ValueMightBeTimeVarying())
+	{
+		if (!Points.ValueMightBeTimeVarying())
+		{
+			return EMeshTopologyVariance::Constant;
+		}
+		else
+		{
+			return EMeshTopologyVariance::Homogenous;
+		}
+	}
+	else
+	{
+		return EMeshTopologyVariance::Heterogenous;
+	}
+
+	return EMeshTopologyVariance::Constant;
 }
 
 #undef LOCTEXT_NAMESPACE

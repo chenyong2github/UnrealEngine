@@ -86,6 +86,9 @@ public:
 	TOptional<uint64> GetSubtreeMaterialSlotCount(const UE::FSdfPath& Path);
 	TOptional<TArray<UsdUtils::FUsdPrimMaterialSlot>> GetSubtreeMaterialSlots(const UE::FSdfPath& Path);
 
+	// Returns true if Path could potentially be collapsed as a Geometry Cache asset
+	bool IsPotentialGeometryCacheRoot(const UE::FSdfPath& Path) const;
+
 public:
 	void LinkAssetToPrim(const UE::FSdfPath& Path, UObject* Asset);
 

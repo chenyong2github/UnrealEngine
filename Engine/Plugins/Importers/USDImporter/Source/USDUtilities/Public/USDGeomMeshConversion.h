@@ -40,6 +40,11 @@ namespace UE
 	class FUsdPrim;
 }
 
+namespace MeshAttribute::VertexInstance
+{
+	extern USDUTILITIES_API const FName Velocity;
+}
+
 namespace UsdToUnreal
 {
 	/** Common options to mesh conversion functions */
@@ -382,6 +387,21 @@ namespace UsdUtils
 	 * Returns whether the transforms were successfully retrieved or not.
 	 */
 	USDUTILITIES_API bool GetPointInstancerTransforms( const FUsdStageInfo& StageInfo, const pxr::UsdGeomPointInstancer& PointInstancer, const int32 ProtoIndex, pxr::UsdTimeCode EvalTime, TArray<FTransform>& OutInstanceTransforms );
+
+	/** Returns true if Prim is a GeomMesh with animated attributes */
+	USDUTILITIES_API bool IsAnimatedMesh(const pxr::UsdPrim& Prim);
+
+	/** Mesh topology variance as defined by Alembic's MeshTopologyVariance */
+	enum class USDUTILITIES_API EMeshTopologyVariance : uint8
+	{
+		Constant,		// unchanging topology
+		Homogenous,		// connectivity is unchanging, but the positions may change
+		Heterogenous	// connectivity and positions may change
+	};
+
+	/** Returns the type of topology variance UsdMesh has */
+	USDUTILITIES_API EMeshTopologyVariance GetMeshTopologyVariance(const pxr::UsdGeomMesh& UsdMesh);
+
 }
 
 #endif // #if USE_USD_SDK

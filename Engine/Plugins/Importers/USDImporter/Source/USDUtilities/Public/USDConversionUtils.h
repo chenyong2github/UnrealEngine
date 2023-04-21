@@ -274,6 +274,9 @@ namespace UsdUtils
 	/** Adds a reference on Prim to the layer at AbsoluteFilePath */
 	USDUTILITIES_API void AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, const UE::FSdfPath& TargetPrimPath = {}, double TimeCodeOffset = 0.0, double TimeCodeScale = 1.0 );
 
+	/** Gets the strongest direct reference on Prim with the given FileExtension. Returns true if there was one. */
+	USDUTILITIES_API bool GetReferenceFilePath(const UE::FUsdPrim& Prim, const FString& FileExtension, FString& OutReferenceFilePath);
+
 	/** Adds a payload on Prim pointing at the default prim of the layer at AbsoluteFilePath */
 	USDUTILITIES_API void AddPayload( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, const UE::FSdfPath& TargetPrimPath = {}, double TimeCodeOffset = 0.0, double TimeCodeScale = 1.0 );
 

@@ -13,6 +13,7 @@
 
 #if USE_USD_SDK
 #include "USDGeomCameraTranslator.h"
+#include "USDGeometryCacheTranslator.h"
 #include "USDGeomMeshTranslator.h"
 #include "USDGeomPointInstancerTranslator.h"
 #include "USDGeomXformableTranslator.h"
@@ -52,6 +53,8 @@ public:
 		{
 			UsdSkelRootTranslatorHandle = GetTranslatorRegistry().Register< FUsdSkelRootTranslator >( TEXT("UsdSkelRoot") );
 			UsdGroomTranslatorHandle = GetTranslatorRegistry().Register< FUsdGroomTranslator >( TEXT("UsdGeomXformable") );
+			// The GeometryCacheTranslator also works on UsdGeomXformable through the GroomTranslator
+			UsdGeometryCacheTranslatorHandle = GetTranslatorRegistry().Register< FUsdGeometryCacheTranslator >( TEXT("UsdGeomMesh") );
 
 			if ( IMDLImporterModule* MDLImporterModule = FModuleManager::Get().LoadModulePtr< IMDLImporterModule >( TEXT("MDLImporter") ) )
 			{
@@ -76,6 +79,7 @@ public:
 		{
 			GetTranslatorRegistry().Unregister( UsdSkelRootTranslatorHandle );
 			GetTranslatorRegistry().Unregister( UsdGroomTranslatorHandle );
+			GetTranslatorRegistry().Unregister( UsdGeometryCacheTranslatorHandle );
 
 			GetTranslatorRegistry().Unregister( MdlUsdShadeMaterialTranslatorHandle );
 			GetRenderContextRegistry().Unregister(FMdlUsdShadeMaterialTranslator::MdlRenderContext);
@@ -107,6 +111,7 @@ protected:
 	FUsdRenderContextRegistry UsdRenderContextRegistry;
 
 	FRegisteredSchemaTranslatorHandle UsdGeomCameraTranslatorHandle;
+	FRegisteredSchemaTranslatorHandle UsdGeometryCacheTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdGeomMeshTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdGeomPointInstancerTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdSkelRootTranslatorHandle;

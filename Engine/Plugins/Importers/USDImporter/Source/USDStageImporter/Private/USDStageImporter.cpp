@@ -791,6 +791,7 @@ namespace UsdStageImporterImpl
 		TArray<UObject*> AnimSequences;
 		TArray<UObject*> AnimBlueprints;
 		TArray<UObject*> LevelSequences;
+		TArray<UObject*> GeometryCaches;
 
 		TSet<FString> UniqueAssetNames;
 		TMap<UObject*, FString> AssetToContentFolder;
@@ -807,14 +808,10 @@ namespace UsdStageImporterImpl
 			const static FString StaticMeshesFolder   = TEXT("StaticMeshes");
 			const static FString SkeletalMeshesFolder = TEXT("SkeletalMeshes");
 			const static FString LevelSequencesFolder = TEXT("LevelSequences");
+			const static FString GeometryCachesFolder = TEXT("GeometryCaches");
 
 			const FString* AssetTypeFolderPtr = nullptr;
-			if (Asset->IsA(UGeometryCache::StaticClass()))
-			{
-				UE_LOG(LogUsd, Warning, TEXT("Ignoring asset '%s': Importing GeometryCaches assets from USD is not supported at this time"), *Asset->GetName());
-				continue;
-			}
-			else if (Asset->IsA(UMaterialInterface::StaticClass()))
+			if (Asset->IsA(UMaterialInterface::StaticClass()))
 			{
 				AssetTypeFolderPtr = &MaterialsFolder;
 				Materials.Add(Asset);
@@ -858,6 +855,11 @@ namespace UsdStageImporterImpl
 			{
 				AssetTypeFolderPtr = &LevelSequencesFolder;
 				LevelSequences.Add(Asset);
+			}
+			else if (Asset->IsA(UGeometryCache::StaticClass()))
+			{
+				AssetTypeFolderPtr = &GeometryCachesFolder;
+				GeometryCaches.Add(Asset);
 			}
 			else
 			{
@@ -911,6 +913,7 @@ namespace UsdStageImporterImpl
 		PublishAssetType(Skeletons);
 		PublishAssetType(PhysicsAssets);
 		PublishAssetType(StaticMeshes);
+		PublishAssetType(GeometryCaches);
 		PublishAssetType(Materials);
 		PublishAssetType(Textures);
 	}
@@ -1700,6 +1703,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	ImportContext.LevelSequenceHelper.SetInfoCache(ImportContext.InfoCache);
 	ImportContext.LevelSequenceHelper.Init( ImportContext.Stage );  // Must happen after the context gets an InfoCache!
 
+	{
 	// Shotgun approach to recreate all render states because we may want to reimport/delete/reassign a material/static/skeletalmesh while it is currently being drawn
 	FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext;
 
@@ -1752,9 +1756,11 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	{
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
 		UsdStageImporterImpl::SendAnalytics( ImportContext, nullptr, TEXT("Import"), PublishedAssetsAndDependencies, ElapsedSeconds);
+		UE_LOG(LogUsd, Log, TEXT("Imported '%s' in %.3f seconds."), *ImportContext.FilePath, ElapsedSeconds);
 	}
 
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
+	}
 
 	if ( ImportContext.bNeedsGarbageCollection )
 	{
@@ -1817,6 +1823,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	ImportContext.LevelSequenceHelper.SetInfoCache(ImportContext.InfoCache);
 	ImportContext.LevelSequenceHelper.Init(ImportContext.Stage);  // Must happen after the context gets an InfoCache!
 
+	{
 	// Shotgun approach to recreate all render states because we may want to reimport/delete/reassign a material/static/skeletalmesh while it is currently being drawn
 	FGlobalComponentRecreateRenderStateContext RecreateRenderStateContext;
 
@@ -1899,9 +1906,11 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	{
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
 		UsdStageImporterImpl::SendAnalytics( ImportContext, ReimportedObject, TEXT( "Reimport" ), { ReimportedObject }, ElapsedSeconds );
+		UE_LOG(LogUsd, Log, TEXT("Re-imported '%s' in %.3f seconds."), *ImportContext.FilePath, ElapsedSeconds);
 	}
 
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
+	}
 
 	if ( ImportContext.bNeedsGarbageCollection )
 	{

@@ -73,6 +73,16 @@ namespace UsdToUnreal
 	 */
 	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, FTransform& OutTransform, double EvalTime, bool* bOutResetTransformStack = nullptr );
 
+	/**
+	 * Propagates the transform from Root to Leaf prims inclusively into a UE-space FTransform if they are connected by Xformables
+	 * @param Stage - Stage that contains the prims to process
+	 * @param Root - Prim to start the propagation from
+	 * @param Leaf - Prim where to end the propagation
+	 * @param EvalTime - Time at which to sample the prim's attributes
+	 * @param OutTransform - The composed transform; identity if Leaf is not completely connected to Root by Xformables
+	 */
+	USDUTILITIES_API void PropagateTransform(const pxr::UsdStageRefPtr& Stage, const pxr::UsdPrim& Root, const pxr::UsdPrim& Leaf, double EvalTime, FTransform& OutTransform);
+
 	USDUTILITIES_API bool ConvertGeomCamera( const UE::FUsdPrim& Prim, UCineCameraComponent& CameraComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
 
 	/**

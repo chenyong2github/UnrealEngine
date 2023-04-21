@@ -854,22 +854,22 @@ TMap<FString, int32> UsdUtils::CombinePrimvarsIntoUVSets(
 	return PrimvarToUVIndex;
 }
 
-bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
+bool UsdUtils::IsAnimated(const pxr::UsdPrim& Prim)
 {
-	if ( !Prim || !Prim.IsActive() )
+	if (!Prim || !Prim.IsActive())
 	{
 		return false;
 	}
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdGeomXformable Xformable( Prim );
-	if ( Xformable )
+	pxr::UsdGeomXformable Xformable(Prim);
+	if (Xformable)
 	{
 		std::vector< double > TimeSamples;
-		Xformable.GetTimeSamples( &TimeSamples );
+		Xformable.GetTimeSamples(&TimeSamples);
 
-		if ( TimeSamples.size() > 0 )
+		if (TimeSamples.size() > 0)
 		{
 			return true;
 		}
@@ -907,7 +907,7 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 	}
 
 	const std::vector< pxr::UsdAttribute >& Attributes = Prim.GetAttributes();
-	for ( const pxr::UsdAttribute& Attribute : Attributes )
+	for (const pxr::UsdAttribute& Attribute : Attributes)
 	{
 		std::vector<double> TimeSamples;
 		if ( Attribute.GetTimeSamples( &TimeSamples ) && TimeSamples.size() > 0 )
@@ -916,20 +916,20 @@ bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 		}
 	}
 
-	if ( pxr::UsdSkelRoot SkeletonRoot{ Prim } )
+	if (pxr::UsdSkelRoot SkeletonRoot{Prim})
 	{
 		pxr::UsdSkelCache SkeletonCache;
-		SkeletonCache.Populate( SkeletonRoot, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.Populate(SkeletonRoot, pxr::UsdTraverseInstanceProxies());
 
 		std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-		SkeletonCache.ComputeSkelBindings( SkeletonRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
+		SkeletonCache.ComputeSkelBindings(SkeletonRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies());
 
-		for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
+		for (const pxr::UsdSkelBinding& Binding : SkeletonBindings)
 		{
 			const pxr::UsdSkelSkeleton& Skeleton = Binding.GetSkeleton();
-			pxr::UsdSkelSkeletonQuery SkelQuery = SkeletonCache.GetSkelQuery( Skeleton );
+			pxr::UsdSkelSkeletonQuery SkelQuery = SkeletonCache.GetSkelQuery(Skeleton);
 			pxr::UsdSkelAnimQuery AnimQuery = SkelQuery.GetAnimQuery();
-			if ( !AnimQuery )
+			if (!AnimQuery)
 			{
 				continue;
 			}
@@ -1434,6 +1434,37 @@ void UsdUtils::AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, 
 		pxr::SdfLayerOffset{ TimeCodeOffset, TimeCodeScale }
 	);
 #endif // #if USE_USD_SDK
+}
+
+bool UsdUtils::GetReferenceFilePath(const UE::FUsdPrim& Prim, const FString& FileExtension, FString& OutReferenceFilePath)
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdPrimCompositionQuery PrimCompositionQuery = pxr::UsdPrimCompositionQuery::GetDirectReferences(Prim);
+	for (const pxr::UsdPrimCompositionQueryArc& CompositionArc : PrimCompositionQuery.GetCompositionArcs())
+	{
+		if (CompositionArc.GetArcType() == pxr::PcpArcTypeReference)
+		{
+			pxr::SdfReferenceEditorProxy ReferenceEditor;
+			pxr::SdfReference UsdReference;
+
+			if (CompositionArc.GetIntroducingListEditor(&ReferenceEditor, &UsdReference))
+			{
+				FString AbsoluteFilePath = UsdToUnreal::ConvertString(UsdReference.GetAssetPath());
+
+				FString Extension = FPaths::GetExtension(AbsoluteFilePath);
+				if (Extension == FileExtension && FPaths::FileExists(AbsoluteFilePath))
+				{
+					OutReferenceFilePath = AbsoluteFilePath;
+					return true;
+				}
+			}
+		}
+	}
+#endif // #if USE_USD_SDK
+
+	return false;
 }
 
 void UsdUtils::AddPayload( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, const UE::FSdfPath& TargetPrimPath, double TimeCodeOffset, double TimeCodeScale )
