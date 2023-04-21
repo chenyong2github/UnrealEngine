@@ -4,7 +4,6 @@
 #include "RequiredProgramMainCPPInclude.h"
 
 #include "StatsConvertCommand.h"
-#include "StatsDumpMemoryCommand.h"
 #include "UserInterfaceCommand.h"
 #include "LaunchFromProfileCommand.h"
 
@@ -75,10 +74,6 @@ int32 UnrealFrontendMain( const TCHAR* CommandLine )
 		if (Command.Equals(TEXT("CONVERT"), ESearchCase::IgnoreCase))
 		{
 			FStatsConvertCommand::Run();
-		}
-		else if( Command.Equals( TEXT("MEMORYDUMP"), ESearchCase::IgnoreCase ) )
-		{
-			FStatsMemoryDumpCommand::Run();
 		}
 		// The 'LAUNCHPROFILE' command also needs '-PROFILENAME="MY_PROFILE_NAME"' as a command line parameter.
 		else if (Command.Equals(TEXT("LAUNCHPROFILE"), ESearchCase::IgnoreCase))
