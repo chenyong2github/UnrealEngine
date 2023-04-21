@@ -16,6 +16,10 @@
 	"Plugins":
 	[
 		{
+			"Name": "AudioCapture",
+			"Enabled": true
+		},
+		{
 			"Name": "LevelSequenceEditor",
 			"Enabled": true
 		}

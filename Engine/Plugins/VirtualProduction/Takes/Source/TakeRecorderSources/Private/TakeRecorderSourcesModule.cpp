@@ -14,6 +14,7 @@
 #include "TakeMetaData.h"
 #include "TakeRecorderSourceHelpers.h"
 #include "TakeRecorderActorSource.h"
+#include "TakeRecorderMicrophoneAudioManager.h"
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSourcesCommands.h"
 #include "TakeRecorderSettings.h"
@@ -320,6 +321,7 @@ public:
 		SourcesMenuExtension = TakeRecorderModule.RegisterSourcesMenuExtension(FOnExtendSourcesMenu::CreateStatic(ExtendSourcesMenu));
 
 		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UTakeRecorderMicrophoneAudioSourceSettings>());
+		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UTakeRecorderMicrophoneAudioManager>());
 		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UMovieSceneAnimationTrackRecorderEditorSettings>());
 		TakeRecorderModule.RegisterSettingsObject(GetMutableDefault<UTakeRecorderWorldSourceSettings>());
 

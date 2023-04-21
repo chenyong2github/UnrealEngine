@@ -48,6 +48,7 @@ UTakeRecorderSource* UTakeRecorderSources::AddSource(TSubclassOf<UTakeRecorderSo
 		NewSource = NewObject<UTakeRecorderSource>(this, Class, NAME_None, RF_Transactional);
 		if (ensure(NewSource))
 		{
+			NewSource->Initialize();
 			Sources.Add(NewSource);
 			++SourcesSerialNumber;
 		}

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCaptureWasapi.h"
+#include "WasapiCaptureLog.h"
 
 
 namespace Audio
@@ -39,6 +40,10 @@ namespace Audio
 
 				return true;
 			}
+		}
+		else
+		{
+			UE_LOG(LogAudioCaptureCore, Display, TEXT("FAudioCaptureWasapiStream::GetCaptureDeviceInfo: no default capture device found"));
 		}
 
 		return false;
@@ -86,6 +91,10 @@ namespace Audio
 					}
 				}
 			}
+		}
+		else
+		{
+			UE_LOG(LogAudioCaptureCore, Display, TEXT("FAudioCaptureWasapiStream::OpenAudioCaptureStream: no default capture device found"));
 		}
 
 		return false;
@@ -183,14 +192,11 @@ namespace Audio
 		const FWasapiDeviceEnumeration::FDeviceInfo& InDeviceInfo,
 		FWasapiAudioFormat& OutAudioFormat)
 	{
-		int32 NumChannels = InParams.NumInputChannels;
+		// Ignore InParams.NumInputChannels as WASAPI returns AUDCLNT_E_UNSUPPORTED_FORMAT 
+		// error for anything other than the device channel count (i.e. if the device 
+		// supports 2 channels, specifying 1 channel will error).
+		int32 NumChannels = InDeviceInfo.NumInputChannels;
 		int32 SampleRate = InParams.SampleRate;
-
-		// If the input params didn't specify num channels, match the device
-		if (NumChannels == InvalidDeviceChannelCount)
-		{
-			NumChannels = InDeviceInfo.NumInputChannels;
-		}
 
 		// If the input params didn't specify sample rate, match the device
 		if (SampleRate == InvalidDeviceSampleRate)

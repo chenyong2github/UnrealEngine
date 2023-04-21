@@ -44,6 +44,13 @@ public:
 	FColor TrackTint;
 
 public:
+	/**
+	 * Gives the Source object an opportunity to perform additional initialization outside of the constructor. This can be necessary
+	 * when needing to perform additional initialization that should not occur if/when the object is duplicated (as is the case when 
+	 * all sources are duplicated prior to each record pass).
+	 */
+	virtual void Initialize() {}
+
 	/** 
 	* If the source is Valid and ready to be recorded. Tells the Take Recorder that it's really going to record. Note that PreRecord/StartRecord
 	* may still get called on the source even if not Valid. This is used mainly so we only Start Recording if we have more than one Valid Source.

@@ -1,28 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TakeRecorderMicrophoneAudioSource.h"
-#include "AssetRegistry/AssetData.h"
+#include "TakeRecorderMicrophoneAudioManager.h"
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSettings.h"
 #include "TakesUtils.h"
 #include "TakeMetaData.h"
-#include "Recorder/TakeRecorderParameters.h"
-#include "Styling/SlateIconFinder.h"
-#include "LevelSequence.h"
-#include "Editor.h"
-#include "Modules/ModuleManager.h"
-#include "Sections/MovieSceneAudioSection.h"
-#include "Tracks/MovieSceneAudioTrack.h"
-#include "Sound/SoundWave.h"
-#include "ISequenceAudioRecorder.h"
-#include "ISequenceRecorder.h"
-#include "MovieSceneFolder.h"
 
-#include "Misc/PackageName.h"
+#include "AudioCaptureEditorTypes.h"
+#include "Editor.h"
+#include "LevelSequence.h"
+#include "Modules/ModuleManager.h"
+#include "MovieSceneFolder.h"
+#include "Recorder/TakeRecorderParameters.h"
+#include "Sections/MovieSceneAudioSection.h"
+#include "Sound/SoundWave.h"
+#include "Styling/SlateIconFinder.h"
+#include "Tracks/MovieSceneAudioTrack.h"
+
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "UObject/UObjectBaseUtility.h"
+#include "Misc/PackageName.h"
+#include "ObjectEditorUtils.h"
 #include "ObjectTools.h"
+#include "UObject/UObjectBaseUtility.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderMicrophoneAudioSource)
 
@@ -66,11 +67,81 @@ FString UTakeRecorderMicrophoneAudioSourceSettings::GetSubsceneAssetName(ULevelS
 UTakeRecorderMicrophoneAudioSource::UTakeRecorderMicrophoneAudioSource(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, AudioGain(0.0f)
-	, bSplitAudioChannelsIntoSeparateTracks(false)
 	, bReplaceRecordedAudio(true)
 {
 }
 
+void UTakeRecorderMicrophoneAudioSource::Initialize()
+{
+	UTakeRecorderMicrophoneAudioManager* AudioInputManager = GetAudioInputManager();
+	if (AudioInputManager != nullptr)
+	{
+		TUniquePtr<TArray<bool>> ChannelsInUse = GetChannelsInUse(AudioInputManager->GetDeviceChannelCount());
+		int32 AvailableChannelNumber = INDEX_NONE;
+
+		for (int32 ChannelIndex = 0; ChannelIndex < ChannelsInUse->Num(); ++ChannelIndex)
+		{
+			if (!(*ChannelsInUse)[ChannelIndex])
+			{
+				AvailableChannelNumber = ChannelIndex + 1;
+				break;
+			}
+		}
+
+		if (AvailableChannelNumber != INDEX_NONE)
+		{
+			SetCurrentInputChannel(AvailableChannelNumber);
+		}
+	}
+}
+
+void UTakeRecorderMicrophoneAudioSource::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+UTakeRecorderMicrophoneAudioManager* UTakeRecorderMicrophoneAudioSource::GetAudioInputManager()
+{
+	return GetMutableDefault<UTakeRecorderMicrophoneAudioManager>();
+}
+
+void UTakeRecorderMicrophoneAudioSource::OnNotifySourcesOfDeviceChange(int32 InChannelCount)
+{
+	SetAudioDeviceChannelCount(InChannelCount);
+}
+
+TUniquePtr<TArray<bool>> UTakeRecorderMicrophoneAudioSource::GetChannelsInUse(const int32 InDeviceChannelCount)
+{
+	TUniquePtr<TArray<bool>> ChannelsInUse = MakeUnique<TArray<bool>>();
+	ChannelsInUse->Init(false, InDeviceChannelCount);
+
+	UTakeRecorderSources* SourcesList = GetTypedOuter<UTakeRecorderSources>();
+	for (UTakeRecorderSource* Source : SourcesList->GetSources())
+	{
+		if (UTakeRecorderMicrophoneAudioSource* MicSource = Cast<UTakeRecorderMicrophoneAudioSource>(Source))
+		{
+			int32 MicSourceChannelNumber = MicSource->AudioChannel.AudioInputDeviceChannel;
+			int32 ChannelIndex = MicSourceChannelNumber - 1;
+			if (ChannelIndex >= 0)
+			{
+				(*ChannelsInUse)[ChannelIndex] = true;
+			}
+		}
+	}
+
+	return ChannelsInUse;
+}
+
+void UTakeRecorderMicrophoneAudioSource::SetAudioDeviceChannelCount(int32 InChannelCount)
+{
+	if (ensure(InChannelCount >= 0))
+	{
+		if (AudioChannel.AudioInputDeviceChannel > InChannelCount)
+		{
+			AudioChannel.AudioInputDeviceChannel = 0;
+		}
+	}
+}
 
 static FString MakeNewAssetName(const FString& BaseAssetPath, const FString& BaseAssetName)
 {
@@ -100,31 +171,36 @@ static FString MakeNewAssetName(const FString& BaseAssetPath, const FString& Bas
 
 TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer)
 {
-	UMovieScene* MovieScene = InSequence->GetMovieScene();
-	for (auto Track : MovieScene->GetTracks())
+	if (AudioChannel.AudioInputDeviceChannel > 0)
 	{
-		if (Track->IsA(UMovieSceneAudioTrack::StaticClass()) && Track->GetDisplayName().EqualTo(AudioTrackName))
+		UMovieScene* MovieScene = InSequence->GetMovieScene();
+		for (auto Track : MovieScene->GetTracks())
 		{
-			CachedAudioTrack = Cast<UMovieSceneAudioTrack>(Track);
+			if (Track->IsA(UMovieSceneAudioTrack::StaticClass()) && Track->GetDisplayName().EqualTo(AudioTrackName))
+			{
+				CachedAudioTrack = Cast<UMovieSceneAudioTrack>(Track);
+			}
 		}
+
+		if (!CachedAudioTrack.IsValid())
+		{
+			CachedAudioTrack = MovieScene->AddTrack<UMovieSceneAudioTrack>();
+			CachedAudioTrack->SetDisplayName(AudioTrackName);
+		}
+
+		FString PathToRecordTo = FPackageName::GetLongPackagePath(InSequence->GetOutermost()->GetPathName());
+		FString BaseName = InSequence->GetName();
+
+		AudioDirectory.Path = PathToRecordTo;
+		if (AudioSubDirectory.Len())
+		{
+			AudioDirectory.Path /= AudioSubDirectory;
+		}
+
+		AssetName = MakeNewAssetName(AudioDirectory.Path, BaseName);
 	}
 
-	if (!CachedAudioTrack.IsValid())
-	{
-		CachedAudioTrack = MovieScene->AddTrack<UMovieSceneAudioTrack>();
-		CachedAudioTrack->SetDisplayName(AudioTrackName);
-	}
-
-	FString PathToRecordTo = FPackageName::GetLongPackagePath(InSequence->GetOutermost()->GetPathName());
-	FString BaseName = InSequence->GetName();
-
-	AudioDirectory.Path = PathToRecordTo;
-	if (AudioSubDirectory.Len())
-	{
-		AudioDirectory.Path /= AudioSubDirectory;
-	}
-
-	AssetName = MakeNewAssetName(AudioDirectory.Path, BaseName);
+	RecordedSoundWaves.Empty();
 
 	return TArray<UTakeRecorderSource*>();
 }
@@ -142,25 +218,24 @@ void UTakeRecorderMicrophoneAudioSource::StartRecording(const FTimecode& InSecti
 {
 	Super::StartRecording(InSectionStartTimecode, InSectionFirstFrame, InSequence);
 
-	ISequenceRecorder& Recorder = FModuleManager::Get().LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
+	StartTimecode = InSectionStartTimecode;
 
-	FSequenceAudioRecorderSettings AudioSettings;
-	AudioSettings.Directory = AudioDirectory;
-	AudioSettings.AssetName = AssetName;
-	AudioSettings.GainDb = AudioGain;
-	AudioSettings.bSplitChannels = bSplitAudioChannelsIntoSeparateTracks;
+	UTakeRecorderMicrophoneAudioManager* AudioInputManager = GetAudioInputManager();
+	if (AudioInputManager != nullptr)
+	{
+		int32 LastChannelInUse = INDEX_NONE;
+		TUniquePtr<TArray<bool>> ChannelsInUse = GetChannelsInUse(AudioInputManager->GetDeviceChannelCount());
 
-	RecordedSoundWaves.Empty();
-	
-	AudioRecorder = Recorder.CreateAudioRecorder();
-	if (AudioRecorder)
-	{
-		UE_LOG(LogTakesCore, Verbose, TEXT("Microphone Audio Source AudioRecorder Start: %s"), *AssetName);
-		AudioRecorder->Start(AudioSettings);
-	}
-	else
-	{
-		UE_LOG(LogTakesCore, Error, TEXT("Microphone Audio Source could not start. Please check that the AudioCapture plugin is enabled"));
+		for (int32 ChannelIndex = 0; ChannelIndex < ChannelsInUse->Num(); ++ChannelIndex)
+		{
+			if ((*ChannelsInUse)[ChannelIndex])
+			{
+				LastChannelInUse = FMath::Max(LastChannelInUse, ChannelIndex + 1);
+			}
+		}
+
+
+		AudioInputManager->StartRecording(LastChannelInUse);
 	}
 }
 
@@ -168,21 +243,17 @@ void UTakeRecorderMicrophoneAudioSource::StopRecording(class ULevelSequence* InS
 {
 	Super::StopRecording(InSequence);
 
-	if (AudioRecorder)
+	UTakeRecorderMicrophoneAudioManager* AudioInputManager = GetAudioInputManager();
+	if (AudioInputManager != nullptr)
 	{
-		TArray<USoundWave*> SoundWaves;
-		AudioRecorder->Stop(SoundWaves);
-
-		for (USoundWave* RecordedSoundWave : SoundWaves)
-		{
-			RecordedSoundWaves.Add(RecordedSoundWave);
-		}
+		AudioInputManager->StopRecording();
 	}
-	AudioRecorder.Reset();
 }
 
 TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled)
 {
+	GetRecordedSoundWave(InSequence);
+
 	if (!RecordedSoundWaves.Num())
 	{
 		return TArray<UTakeRecorderSource*>();
@@ -265,6 +336,45 @@ TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PostRecording(U
 	return TArray<UTakeRecorderSource*>();
 }
 
+void UTakeRecorderMicrophoneAudioSource::FinalizeRecording()
+{
+	UTakeRecorderMicrophoneAudioManager* AudioInputManager = GetAudioInputManager();
+	if (AudioInputManager != nullptr)
+	{
+		AudioInputManager->FinalizeRecording();
+	}
+}
+
+void UTakeRecorderMicrophoneAudioSource::GetRecordedSoundWave(ULevelSequence* InSequence)
+{
+	UTakeRecorderMicrophoneAudioManager* AudioInputManager = GetAudioInputManager();
+	if (AudioChannel.AudioInputDeviceChannel > 0 && AudioInputManager != nullptr)
+	{
+		UMovieScene* MovieScene = InSequence->GetMovieScene();
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+		FTakeRecorderAudioSourceSettings AudioSettings;
+		AudioSettings.Directory = AudioDirectory;
+		AudioSettings.AssetName = AssetName;
+		AudioSettings.GainDb = AudioGain;
+		AudioSettings.InputChannelNumber = AudioChannel.AudioInputDeviceChannel;
+		AudioSettings.StartTimecode = StartTimecode;
+		AudioSettings.VideoFrameRate = DisplayRate;
+
+		TObjectPtr<USoundWave> SoundWave = AudioInputManager->GetRecordedSoundWave(AudioSettings);
+		if (SoundWave != nullptr)
+		{
+			FSoundWaveTimecodeInfo TimecodeInfo;
+			FSoundTimecodeOffset TimecodeOffset;
+
+			TimecodeOffset.NumOfSecondsSinceMidnight = StartTimecode.ToTimespan(DisplayRate).GetTotalSeconds();
+			SoundWave->SetTimecodeOffset(TimecodeOffset);
+			
+			RecordedSoundWaves.Add(SoundWave);
+		}
+	}
+}
+
 FText UTakeRecorderMicrophoneAudioSource::GetDisplayTextImpl() const
 {
 	return NSLOCTEXT("UTakeRecorderMicrophoneAudioSource", "Label", "Microphone Audio");
@@ -272,13 +382,21 @@ FText UTakeRecorderMicrophoneAudioSource::GetDisplayTextImpl() const
 
 bool UTakeRecorderMicrophoneAudioSource::CanAddSource(UTakeRecorderSources* InSources) const
 {
+	int32 MicrophoneSourceCount = 0;
 	for (UTakeRecorderSource* Source : InSources->GetSources())
 	{
 		if (Source->IsA<UTakeRecorderMicrophoneAudioSource>())
 		{
-			return false;
+			++MicrophoneSourceCount;
 		}
 	}
-	return true;
+	return MicrophoneSourceCount < FAudioInputDeviceProperty::MaxInputChannelCount;
 }
 
+void UTakeRecorderMicrophoneAudioSource::SetCurrentInputChannel(int32 InChannelNumber)
+{
+	if (ensure(InChannelNumber >= 0 && InChannelNumber <= FAudioInputDeviceProperty::MaxInputChannelCount))
+	{
+		AudioChannel.AudioInputDeviceChannel = InChannelNumber;
+	}
+}

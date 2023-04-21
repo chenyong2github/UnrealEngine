@@ -13,7 +13,8 @@ public class TakeRecorderSources : ModuleRules
 				"CoreUObject",
 				"EditorFramework",
 				"Engine",
-				
+
+				"AudioCaptureEditor",
 				"InputCore",
 				"LevelEditor",
 				"LevelSequence",
@@ -21,7 +22,7 @@ public class TakeRecorderSources : ModuleRules
                 "MovieScene",
 				"MovieSceneTracks",
                 "SceneOutliner",
-				"SequenceRecorder", // For ISequenceAudioRecorder
+				"SequenceRecorder", // For FTimecodeBoneMethod
 				"SerializedRecorderInterface",
                 "Slate",
 				"SlateCore",

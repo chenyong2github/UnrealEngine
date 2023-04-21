@@ -210,10 +210,10 @@ namespace Audio
 				FDeviceInfo DeviceInfo;
 				if (GetDeviceProperties(Device, DeviceInfo))
 				{
-					UE_LOG(LogAudioCaptureCore, Display, TEXT("Device %d: \"%s\" (%s)"), DeviceIndex,
+					UE_LOG(LogAudioCaptureCore, Verbose, TEXT("Device %d: \"%s\" (%s)"), DeviceIndex,
 						DeviceInfo.FriendlyName.GetCharArray().GetData(), DeviceInfo.DeviceId.GetCharArray().GetData());
 
-					UE_LOG(LogAudioCaptureCore, Display, TEXT("\tBPS: %d, SR: %d"), DeviceInfo.BitsPerSample, DeviceInfo.PreferredSampleRate);
+					UE_LOG(LogAudioCaptureCore, Verbose, TEXT("\tBPS: %d, SR: %d"), DeviceInfo.BitsPerSample, DeviceInfo.PreferredSampleRate);
 
 					OutDevices.Emplace(MoveTemp(DeviceInfo));
 				}

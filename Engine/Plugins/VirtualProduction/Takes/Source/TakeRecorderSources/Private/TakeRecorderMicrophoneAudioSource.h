@@ -4,15 +4,21 @@
 
 #include "TakeRecorderSource.h"
 #include "TakeRecorderSources.h"
-#include "UObject/SoftObjectPtr.h"
-#include "Templates/SubclassOf.h"
+#include "TakeRecorderSourceProperty.h"
+
 #include "GameFramework/Actor.h"
-#include "ISequenceAudioRecorder.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/SoftObjectPtr.h"
+
 #include "TakeRecorderMicrophoneAudioSource.generated.h"
+
+class USoundWave;
+class UTakeRecorderMicrophoneAudioManager;
+struct FTakeRecorderAudioSourceSettings;
 
 /** A recording source that records microphone audio */
 UCLASS(Abstract, config=EditorSettings, DisplayName="Microphone Audio Recorder")
-class UTakeRecorderMicrophoneAudioSourceSettings : public UTakeRecorderSource
+class TAKERECORDERSOURCES_API UTakeRecorderMicrophoneAudioSourceSettings : public UTakeRecorderSource
 {
 public:
 	GENERATED_BODY()
@@ -41,45 +47,75 @@ public:
 
 /** A recording source that records microphone audio */
 UCLASS(Category="Audio", config=EditorSettings, meta = (TakeRecorderDisplayName = "Microphone Audio"))
-class UTakeRecorderMicrophoneAudioSource : public UTakeRecorderMicrophoneAudioSourceSettings
+class TAKERECORDERSOURCES_API UTakeRecorderMicrophoneAudioSource : public UTakeRecorderMicrophoneAudioSourceSettings
 {
 public:
 	GENERATED_BODY()
 
 	UTakeRecorderMicrophoneAudioSource(const FObjectInitializer& ObjInit);
 
+	// Begin UObject Interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End UObject Interface
+
 	/** Gain in decibels to apply to recorded audio */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source", meta = (ClampMin = "0.0", UIMin = "0.0"))
 	float AudioGain;
 
 	/** Whether or not to split mic channels into separate audio tracks. If not true, a max of 2 input channels is supported. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source")
-	bool bSplitAudioChannelsIntoSeparateTracks;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "SplitAudioChannelsIntoSeparateTracks is deprecated."))
+	bool bSplitAudioChannelsIntoSeparateTracks_DEPRECATED;
+#endif
 
 	/** Replace existing recorded audio with any newly recorded audio */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source")
 	bool bReplaceRecordedAudio;
 
-private:
+	/** The audio device to use for this microphone source */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source", meta = (ShowOnlyInnerProperties))
+	FAudioInputDeviceChannelProperty AudioChannel;
 
 	// UTakeRecorderSource
+	virtual void Initialize() override;
 	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer) override;
 	virtual void StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence) override;
 	virtual void StopRecording(class ULevelSequence* InSequence) override;
 	virtual TArray<UTakeRecorderSource*> PostRecording(ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled) override;
+	virtual void FinalizeRecording() override;
 	virtual FText GetDisplayTextImpl() const override;
 	virtual void AddContentsToFolder(class UMovieSceneFolder* InFolder) override;
 	virtual bool CanAddSource(UTakeRecorderSources* InSources) const override;
 	// ~UTakeRecorderSource
 
+	/** Sets the channel count supported by the currently selected audio device. */
+	void SetAudioDeviceChannelCount(int32 InChannelCount);
+	/** Delegate which receives notifications when the audio input device changes. */
+	void OnNotifySourcesOfDeviceChange(int32 InChannelCount);
+
 private:
-	TWeakObjectPtr<class UMovieSceneAudioTrack> CachedAudioTrack;
 
-	TArray<TWeakObjectPtr<USoundWave>> RecordedSoundWaves;
-
-	TUniquePtr<ISequenceAudioRecorder> AudioRecorder;
+	/** Helper function for getting a pointer to the AudioInputManger object. */
+	static UTakeRecorderMicrophoneAudioManager* GetAudioInputManager();
 	
-	//Created in PreRecord but used in StartRecording.
+	/** Returns an array of booleans indicating which channel indexes are currently in use */
+	TUniquePtr<TArray<bool>> GetChannelsInUse(const int32 InDeviceChannelCount);
+	/** Fetches the USoundWave for this source after a Take has been recorded */
+	void GetRecordedSoundWave(ULevelSequence* InSequence);
+	/** Called when the user selects a new channel in the combobox for this source */
+	void SetCurrentInputChannel(int32 InChannelNumber);
+
+private:
+
+	// Holds the Sequencer audio track for this source
+	TWeakObjectPtr<class UMovieSceneAudioTrack> CachedAudioTrack;
+	// Holds the USoundWave assets for a given take
+	TArray<TWeakObjectPtr<USoundWave>> RecordedSoundWaves;
+	// Caches the starting timecode for this take so it can be referenced when creating USoundWave assets
+	FTimecode StartTimecode;
+
+	// The user specified directory to store recorded audio assets in
 	FDirectoryPath AudioDirectory;
+	// The name of the UsoundWave asset 
 	FString AssetName;
 };

@@ -2,6 +2,7 @@
 
 #include "Widgets/SLevelSequenceTakeEditor.h"
 #include "Widgets/TakeRecorderWidgetConstants.h"
+#include "Widgets/TakeRecorderAudioSettingsCustomization.h"
 #include "TakePreset.h"
 #include "TakeMetaData.h"
 #include "TakeRecorderSource.h"
@@ -10,6 +11,7 @@
 #include "TakeRecorderStyle.h"
 #include "Widgets/STakeRecorderSources.h"
 #include "TakeRecorderModule.h"
+#include "TakeRecorderSettings.h"
 
 #include "LevelSequence.h"
 
@@ -37,9 +39,12 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Views/SListView.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateIconFinder.h"
 #include "SPositiveActionButton.h"
@@ -60,6 +65,7 @@
 #include "IDetailChildrenBuilder.h"
 #include "IDetailCustomization.h"
 #include "IDetailRootObjectCustomization.h"
+#include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
 
 // Widget Includes
@@ -686,6 +692,133 @@ class FRecorderPropertyMapCustomization : public IPropertyTypeCustomization
 };
 const FString FRecorderPropertyMapCustomization::PropertyPathDelimiter = FString(TEXT("."));
 
+class FAudioInputChannelPropertyCustomization : public IPropertyTypeCustomization
+{
+public:
+
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& ) {}
+
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+	{
+		InputDeviceChannelHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAudioInputDeviceChannelProperty, AudioInputDeviceChannel));
+
+		if (InputDeviceChannelHandle.IsValid())
+		{
+			IDetailPropertyRow& InputDeviceChannelPropertyRow = ChildBuilder.AddProperty(PropertyHandle);
+			InputDeviceChannelPropertyRow.CustomWidget()
+			.NameContent()
+			[
+				InputDeviceChannelHandle->CreatePropertyNameWidget()
+			]
+			.ValueContent()
+			[
+				MakeInputChannelSelectorWidget()
+			];
+		}
+
+		// Register delegate so UI can update when the audio input device changes
+		if (UTakeRecorderAudioInputSettings* AudioInputSettings = TakeRecorderAudioSettingsUtils::GetTakeRecorderAudioInputSettings())
+		{
+			AudioInputSettings->GetOnAudioInputDeviceChanged().Add(FSimpleDelegate::CreateSP(this, &FAudioInputChannelPropertyCustomization::RebuildInputChannelArray));
+		}
+	}
+
+private:
+
+	void BuildInputChannelArray()
+	{
+		if (UTakeRecorderAudioInputSettings* AudioInputSettings = TakeRecorderAudioSettingsUtils::GetTakeRecorderAudioInputSettings())
+		{
+			int32 DeviceChannelCount = AudioInputSettings->GetDeviceChannelCount();
+
+			if (DeviceChannelCount > 0)
+			{
+				for (int32 ChannelIndex = 1; ChannelIndex <= DeviceChannelCount; ++ChannelIndex)
+				{
+					TSharedPtr<int32> ChannelIndexPtr = MakeShared<int32>(ChannelIndex);
+					InputDeviceChannelArray.Add(ChannelIndexPtr);
+				}
+			}
+
+			int32 CurrentValue;
+			InputDeviceChannelHandle->GetValue(CurrentValue);
+			if (CurrentValue > DeviceChannelCount)
+			{
+				InputDeviceChannelHandle->SetValue(0);
+			}
+		}
+	}
+
+	void RebuildInputChannelArray()
+	{
+		InputDeviceChannelArray.Empty();
+		BuildInputChannelArray();
+		ChannelComboBox->RefreshOptions();
+
+		UTakeRecorderAudioInputSettings* AudioInputSettings = TakeRecorderAudioSettingsUtils::GetTakeRecorderAudioInputSettings();
+
+		if (AudioInputSettings && InputDeviceChannelHandle.IsValid())
+		{
+			int32 CurrentValue;
+			InputDeviceChannelHandle->GetValue(CurrentValue);
+			int32 DeviceChannelCount = AudioInputSettings->GetDeviceChannelCount();
+
+			if (CurrentValue < 1 || CurrentValue > DeviceChannelCount)
+			{
+				InputChannelTitleBlock->SetText(FText());
+			}
+		}
+	}
+
+	TSharedRef<SWidget> MakeInputChannelSelectorWidget()
+	{
+		BuildInputChannelArray();
+
+		// Combo box component:
+		SAssignNew(ChannelComboBox, SComboBox<TSharedPtr<int32>>)
+			.OptionsSource(&InputDeviceChannelArray)
+			.OnGenerateWidget_Lambda([](TSharedPtr<int32> InValue)
+			{
+				return SNew(STextBlock)
+					.Text(FText::AsNumber(*InValue))
+					.Font(FAppStyle::Get().GetFontStyle("SmallFont"));
+			})
+			.OnSelectionChanged_Lambda([this](TSharedPtr<int32> InSelection, ESelectInfo::Type InSelectInfo)
+			{
+				if (InSelection.IsValid())
+				{
+					InputDeviceChannelHandle->SetValue(*InSelection);
+					InputChannelTitleBlock->SetText(FText::AsNumber(*InSelection));
+				}
+			})
+			.OnComboBoxOpening_Lambda([this]()
+			{
+			})
+			[
+				SAssignNew(InputChannelTitleBlock, STextBlock)
+				.Text_Lambda([this]()
+				{
+					int32 ChannelNumber;
+					InputDeviceChannelHandle->GetValue(ChannelNumber);
+
+					if (ChannelNumber > 0)
+					{
+						return FText::AsNumber(ChannelNumber);
+					}
+					return FText();
+				})
+				.Font(FAppStyle::Get().GetFontStyle("SmallFont"))
+			];
+
+		return ChannelComboBox.ToSharedRef();
+	}
+
+	TSharedPtr<IPropertyHandle> InputDeviceChannelHandle;
+	TArray<TSharedPtr<int32>> InputDeviceChannelArray;
+	TSharedPtr<STextBlock> InputChannelTitleBlock;
+	TSharedPtr<SComboBox<TSharedPtr<int32>>> ChannelComboBox;
+};
+
 class FRecorderSourceObjectCustomization : public IDetailCustomization
 {
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
@@ -763,6 +896,7 @@ void SLevelSequenceTakeEditor::AddDetails(const TPair<const UClass*, TArray<UObj
 		// We may want to change this in future but it seems like the neatest way to make top level categories have helpful names.
 		Details->RegisterInstancedCustomPropertyLayout(UTakeRecorderSource::StaticClass(), FOnGetDetailCustomizationInstance::CreateLambda(&MakeShared<FRecorderSourceObjectCustomization>));
 
+		Details->RegisterInstancedCustomPropertyTypeLayout(FName(TEXT("AudioInputDeviceChannelProperty")), FOnGetPropertyTypeCustomizationInstance::CreateLambda(&MakeShared<FAudioInputChannelPropertyCustomization >));
 		Details->RegisterInstancedCustomPropertyTypeLayout(FName(TEXT("ActorRecorderPropertyMap")), FOnGetPropertyTypeCustomizationInstance::CreateLambda(&MakeShared<FRecorderPropertyMapCustomization >));
 		Details->RegisterInstancedCustomPropertyTypeLayout(FName(TEXT("ActorRecordedProperty")), FOnGetPropertyTypeCustomizationInstance::CreateLambda(&MakeShared<FRecordedPropertyCustomization >));
 		Details->SetObjects(Pair.Value);

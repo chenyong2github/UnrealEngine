@@ -13,7 +13,6 @@ public class AudioCaptureEditor : ModuleRules
 				"Engine",
 				"EditorFramework",
 				"UnrealEd",
-				"SequenceRecorder",
 				"AudioEditor",
 				"AudioCapture",
 				"AudioCaptureCore",

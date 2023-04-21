@@ -1,59 +1,93 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCaptureEditor.h"
-#include "ISequenceRecorder.h"
-#include "ISequenceAudioRecorder.h"
-#include "Modules/ModuleManager.h"
 #include "AudioRecordingManager.h"
+#include "IAudioCaptureEditorModule.h"
+#include "Modules/ModuleManager.h"
 
-class FSequenceAudioRecorder : public ISequenceAudioRecorder
+
+namespace Audio
 {
-public:
-
-	virtual void Start(const FSequenceAudioRecorderSettings& InSettings) override
+	bool FAudioCaptureEditor::IsReadyToRecord()
 	{
-		Audio::FRecordingSettings RecordingSettings;
-		RecordingSettings.AssetName = InSettings.AssetName;
-		RecordingSettings.Directory = InSettings.Directory;
-		RecordingSettings.GainDb = InSettings.GainDb;
-		RecordingSettings.RecordingDuration = InSettings.RecordingDuration;
-		RecordingSettings.bSplitChannels = InSettings.bSplitChannels;
-
-		TArray<USoundWave*> OutSoundWaves;
-		Audio::FAudioRecordingManager::Get().StartRecording(RecordingSettings, OutSoundWaves);
+		return AudioRecordingManager.IsReadyToRecord();
 	}
 
-	virtual void Stop(TArray<USoundWave*>& OutSoundWaves) override
+	bool FAudioCaptureEditor::IsRecording()
 	{
-		Audio::FAudioRecordingManager::Get().StopRecording(OutSoundWaves);
-	}
-};
-
-
-class FAudioCaptureEditorModule : public IModuleInterface
-{
-	virtual void StartupModule() override
-	{
-		ISequenceRecorder& Recorder = FModuleManager::Get().LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
-		RecorderHandle = Recorder.RegisterAudioRecorder(
-			[](){
-				return TUniquePtr<ISequenceAudioRecorder>(new FSequenceAudioRecorder());
-			}
-		);
+		return AudioRecordingManager.IsRecording();
 	}
 
-	virtual void ShutdownModule() override
+	bool FAudioCaptureEditor::IsStopped()
 	{
-		ISequenceRecorder* Recorder = FModuleManager::Get().GetModulePtr<ISequenceRecorder>("SequenceRecorder");
-		
-		if (Recorder)
+		return AudioRecordingManager.IsStopped();
+	}
+
+	void FAudioCaptureEditor::Start(const FTakeRecorderAudioSettings& InSettings)
+	{
+		FRecordingSettings RecordSettings;
+		RecordSettings.AudioCaptureDeviceId = InSettings.AudioCaptureDeviceId;
+		RecordSettings.AudioInputBufferSize = InSettings.AudioInputBufferSize;
+		RecordSettings.RecordingDuration = InSettings.RecordingDuration;
+		RecordSettings.NumRecordChannels = InSettings.NumRecordChannels;
+
+		AudioRecordingManager.StartRecording(RecordSettings);
+	}
+
+	void FAudioCaptureEditor::Stop()
+	{
+		AudioRecordingManager.StopRecording();
+	}
+
+	TObjectPtr<USoundWave> FAudioCaptureEditor::GetRecordedSoundWave(const FTakeRecorderAudioSourceSettings& InSourceSettings)
+	{
+		FRecordingManagerSourceSettings RecorderSettings;
+		RecorderSettings.AssetName = InSourceSettings.AssetName;
+		RecorderSettings.Directory = InSourceSettings.Directory;
+		RecorderSettings.GainDb = InSourceSettings.GainDb;
+		RecorderSettings.InputChannelNumber = InSourceSettings.InputChannelNumber;
+		RecorderSettings.StartTimecode = InSourceSettings.StartTimecode;
+		RecorderSettings.VideoFrameRate = InSourceSettings.VideoFrameRate;
+
+		return AudioRecordingManager.GetRecordedSoundWave(RecorderSettings);
+	}
+
+	bool FAudioCaptureEditor::GetCaptureDeviceInfo(FTakeRecorderAudioDeviceInfo& OutInfo, int32 InDeviceIndex)
+	{
+		FCaptureDeviceInfo DeviceInfo;
+		bool bFoundDevice = AudioRecordingManager.GetCaptureDeviceInfo(DeviceInfo, InDeviceIndex);
+		if (bFoundDevice)
 		{
-			Recorder->UnregisterAudioRecorder(RecorderHandle);
+			CopyDeviceInfo(DeviceInfo, OutInfo);
 		}
+
+		return bFoundDevice;
 	}
 
-	FDelegateHandle RecorderHandle;
-};
+	bool FAudioCaptureEditor::GetCaptureDevicesAvailable(TArray<FTakeRecorderAudioDeviceInfo>& OutDevices)
+	{
+		TArray<FCaptureDeviceInfo> DeviceArray;
+		bool bFoundDevice = AudioRecordingManager.GetCaptureDevicesAvailable(DeviceArray);
+		if (bFoundDevice)
+		{
+			for (const FCaptureDeviceInfo& DeviceInfo : DeviceArray)
+			{
+				FTakeRecorderAudioDeviceInfo TempInfo;
+				CopyDeviceInfo(DeviceInfo, TempInfo);
 
+				OutDevices.Add(MoveTemp(TempInfo));
+			}
+		}
 
-IMPLEMENT_MODULE( FAudioCaptureEditorModule, AudioCaptureEditor );
+		return bFoundDevice;
+	}
+
+	void FAudioCaptureEditor::CopyDeviceInfo(const FCaptureDeviceInfo& InDeviceInfo, FTakeRecorderAudioDeviceInfo& OutDeviceInfo)
+	{
+		OutDeviceInfo.DeviceId = InDeviceInfo.DeviceId;
+		OutDeviceInfo.DeviceName = InDeviceInfo.DeviceName;
+		OutDeviceInfo.InputChannels = InDeviceInfo.InputChannels;
+		OutDeviceInfo.PreferredSampleRate = InDeviceInfo.PreferredSampleRate;
+	}
+
+}
