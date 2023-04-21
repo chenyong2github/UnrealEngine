@@ -92,6 +92,8 @@ public:
 	UPROPERTY()
 	bool bEnableStaticMeshElementSelection = true;
 
+	bool GetMeshElementSelectionSystemEnabled() const;
+	void NotifySelectionSystemEnabledStateModified();
 
 protected:
 	virtual void BindCommands() override;
@@ -129,6 +131,9 @@ protected:
 	bool GetGeometrySelectionChangesAllowed() const;
 	bool TestForEditorGizmoHit(const FInputDeviceRay&) const;
 
+
+	bool bSelectionSystemEnabled = false;
+
 	void UpdateSelectionManagerOnEditorSelectionChange(bool bEnteringMode = false);
 
 	void OnToolsContextRender(IToolsContextRenderAPI* RenderAPI);
@@ -154,6 +159,9 @@ protected:
 	// analytics tracking
 	static FDateTime LastModeStartTimestamp;
 	static FDateTime LastToolStartTimestamp;
+
+	// tracking of unlocked stuff
+	static FDelegateHandle GlobalModelingWorldTeardownEventHandle;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

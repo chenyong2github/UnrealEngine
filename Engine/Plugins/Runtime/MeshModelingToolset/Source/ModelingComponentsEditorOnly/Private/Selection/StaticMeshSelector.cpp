@@ -24,15 +24,38 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "FStaticMeshSelector"
 
+static TAutoConsoleVariable<bool> CVarEnableModelingSelectionStaticMeshLocking(
+	TEXT("modeling.Selection.EnableStaticMeshLocking"),
+	true,
+	TEXT("Control whether Selection Locking is enabled by default for Static Meshes"));
+
 namespace UEGlobal
 {
+	/**
+	 * Only Unlocked Mesh Assets can be edited. This is currently implemented as a global set based on UObject pointers.
+	 * Obviously not an ideal solution, however this is really only used to implement a UI gate, if we get a stale pointer
+	 * here that happens to still point to a valid UStaticMesh, it just means that asset will be unlocked for mesh selection
+	 * even if the user did not explicitly unlock it. This is not a disaster.
+	 */
 	TSet<UStaticMesh*> UnlockedStaticMeshes;
+}
+
+bool FStaticMeshSelector::IsLockable() const 
+{ 
+	return CVarEnableModelingSelectionStaticMeshLocking.GetValueOnGameThread();
 }
 
 
 bool FStaticMeshSelector::IsLocked() const
 {
-	return StaticMesh != nullptr && (UEGlobal::UnlockedStaticMeshes.Contains(StaticMesh) == false);
+	if (CVarEnableModelingSelectionStaticMeshLocking.GetValueOnGameThread())
+	{
+		return StaticMesh != nullptr && (UEGlobal::UnlockedStaticMeshes.Contains(StaticMesh) == false);
+	}
+	else
+	{
+		return (StaticMesh == nullptr);
+	}
 }
 
 void FStaticMeshSelector::SetLockedState(bool bLocked)
@@ -56,6 +79,20 @@ void FStaticMeshSelector::SetLockedState(bool bLocked)
 			}
 		}
 	}
+}
+
+
+void FStaticMeshSelector::SetAssetUnlockedOnCreation(UStaticMesh* StaticMesh)
+{
+	if (StaticMesh != nullptr)
+	{
+		UEGlobal::UnlockedStaticMeshes.Add(StaticMesh);
+	}
+}
+
+void FStaticMeshSelector::ResetUnlockedStaticMeshAssets()
+{
+	UEGlobal::UnlockedStaticMeshes.Reset();
 }
 
 

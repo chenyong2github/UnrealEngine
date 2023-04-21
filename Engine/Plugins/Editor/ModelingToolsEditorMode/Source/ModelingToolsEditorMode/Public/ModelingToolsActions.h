@@ -8,7 +8,8 @@
 
 enum class EModelingModeActionCommands
 {
-	FocusViewToCursor
+	FocusViewToCursor,
+	ToggleSelectionLockState
 };
 
 
@@ -20,6 +21,7 @@ public:
 	virtual void RegisterCommands() override;
 
 	TSharedPtr<FUICommandInfo> FocusViewCommand;
+	TSharedPtr<FUICommandInfo> ToggleSelectionLockStateCommand;
 
 	static void RegisterCommandBindings(TSharedPtr<FUICommandList> UICommandList, TFunction<void(EModelingModeActionCommands)> OnCommandExecuted);
 	static void UnRegisterCommandBindings(TSharedPtr<FUICommandList> UICommandList);

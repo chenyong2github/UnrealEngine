@@ -33,7 +33,7 @@ public:
 	//virtual bool Restore();
 
 
-	virtual bool IsLockable() const override { return true; }
+	virtual bool IsLockable() const override;
 	virtual bool IsLocked() const override;
 	virtual void SetLockedState(bool bLocked) override;
 
@@ -52,6 +52,11 @@ protected:
 
 	TSharedPtr<FBasicDynamicMeshSelectionTransformer> ActiveTransformer;
 	void CommitMeshTransform();
+
+
+public:
+	static void SetAssetUnlockedOnCreation(UStaticMesh* StaticMesh);
+	static void ResetUnlockedStaticMeshAssets();
 };
 
 

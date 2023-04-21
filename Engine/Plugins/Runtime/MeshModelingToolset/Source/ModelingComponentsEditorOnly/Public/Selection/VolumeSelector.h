@@ -32,7 +32,7 @@ public:
 	//virtual bool Sleep();
 	//virtual bool Restore();
 
-	virtual bool IsLockable() const override { return true; }
+	virtual bool IsLockable() const override;
 	virtual bool IsLocked() const override;
 	virtual void SetLockedState(bool bLocked) override;
 
@@ -43,6 +43,10 @@ public:
 	// FEditorUndoClient implementation
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
+
+public:
+	static void SetComponentUnlockedOnCreation(UBrushComponent* Component);
+	static void ResetUnlockedBrushComponents();
 
 protected:
 	AVolume* ParentVolume = nullptr;

@@ -24,18 +24,42 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "FVolumeSelector"
 
+static TAutoConsoleVariable<bool> CVarEnableModelingSelectionVolumeLocking(
+	TEXT("modeling.Selection.EnableVolumeLocking"),
+	true,
+	TEXT("Control whether Selection Locking is enabled by default for Volumes"));
 
 
 namespace UEGlobal
 {
+	/**
+	 * Only Unlocked Brush Components can be edited. This is currently implemented as a global set based on UObject pointers.
+	 * Obviously not an ideal solution, however this is really only used to implement a UI gate, if we get a stale pointer
+	 * here that happens to still point to a valid UBrushComponent, it just means that Volume will be unlocked for mesh selection
+	 * even if the user did not explicitly unlock it. This is not a disaster.
+	 */
 	TSet<UBrushComponent*> UnlockedBrushComponents;
+}
+
+
+bool FVolumeSelector::IsLockable() const
+{
+	return CVarEnableModelingSelectionVolumeLocking.GetValueOnGameThread();
 }
 
 
 bool FVolumeSelector::IsLocked() const
 {
-	return BrushComponent != nullptr && (UEGlobal::UnlockedBrushComponents.Contains(BrushComponent) == false);
+	if (CVarEnableModelingSelectionVolumeLocking.GetValueOnGameThread())
+	{
+		return BrushComponent != nullptr && (UEGlobal::UnlockedBrushComponents.Contains(BrushComponent) == false);
+	}
+	else
+	{
+		return (BrushComponent == nullptr);
+	}
 }
+
 
 void FVolumeSelector::SetLockedState(bool bLocked)
 {
@@ -56,6 +80,18 @@ void FVolumeSelector::SetLockedState(bool bLocked)
 	}
 }
 
+void FVolumeSelector::SetComponentUnlockedOnCreation(UBrushComponent* BrushComponent)
+{
+	if (BrushComponent != nullptr)
+	{
+		UEGlobal::UnlockedBrushComponents.Add(BrushComponent);
+	}
+}
+
+void FVolumeSelector::ResetUnlockedBrushComponents()
+{
+	UEGlobal::UnlockedBrushComponents.Reset();
+}
 
 
 bool FVolumeSelector::Initialize(

@@ -37,6 +37,7 @@ FModelingModeActionCommands::FModelingModeActionCommands() :
 void FModelingModeActionCommands::RegisterCommands()
 {
 	UI_COMMAND(FocusViewCommand, "Focus View at Cursor", "Focuses the camera at the scene hit location under the cursor", EUserInterfaceActionType::None, FInputChord(EKeys::C));
+	UI_COMMAND(ToggleSelectionLockStateCommand, "Toggle Selection Lock State", "Toggles the Locked/Unlocked state of the active Selection Target", EUserInterfaceActionType::None, FInputChord(EKeys::U));
 }
 
 
@@ -47,12 +48,17 @@ void FModelingModeActionCommands::RegisterCommandBindings(TSharedPtr<FUICommandL
 	UICommandList->MapAction(
 		Commands.FocusViewCommand,
 		FExecuteAction::CreateLambda([OnCommandExecuted]() { OnCommandExecuted(EModelingModeActionCommands::FocusViewToCursor); }));
+
+	UICommandList->MapAction(
+		Commands.ToggleSelectionLockStateCommand,
+		FExecuteAction::CreateLambda([OnCommandExecuted]() { OnCommandExecuted(EModelingModeActionCommands::ToggleSelectionLockState); }));
 }
 
 void FModelingModeActionCommands::UnRegisterCommandBindings(TSharedPtr<FUICommandList> UICommandList)
 {
 	const FModelingModeActionCommands& Commands = FModelingModeActionCommands::Get();
 	UICommandList->UnmapAction(Commands.FocusViewCommand);
+	UICommandList->UnmapAction(Commands.ToggleSelectionLockStateCommand);
 }
 
 

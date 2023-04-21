@@ -440,15 +440,16 @@ void UGeometrySelectionManager::SetCurrentTargetsLockState(bool bLocked)
 
 			if (!bInTransaction)
 			{
-				GetTransactionsAPI()->BeginUndoTransaction((bLocked) ?
-					LOCTEXT("Lock Target", "Lock Target") : LOCTEXT("Unlock Target", "Unlock Target"));
+				GetTransactionsAPI()->BeginUndoTransaction(
+					(bLocked) ? LOCTEXT("Lock Target", "Lock Target") : LOCTEXT("Unlock Target", "Unlock Target"));
 				bInTransaction = true;
 			}
 
 			TUniquePtr<FGeometrySelectionManager_TargetLockStateChange> Change = MakeUnique<FGeometrySelectionManager_TargetLockStateChange>();
 			Change->TargetIdentifier = Target->TargetIdentifier;
 			Change->bToState = bLocked;
-			GetTransactionsAPI()->AppendChange(this, MoveTemp(Change), LOCTEXT("Lock Target", "Lock Target"));
+			GetTransactionsAPI()->AppendChange(this, MoveTemp(Change), 
+				(bLocked) ? LOCTEXT("Lock Target", "Lock Target") : LOCTEXT("Unlock Target", "Unlock Target"));
 		}
 	}
 

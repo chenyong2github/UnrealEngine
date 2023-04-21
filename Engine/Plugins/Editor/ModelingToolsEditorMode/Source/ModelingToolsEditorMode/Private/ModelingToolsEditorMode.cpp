@@ -148,6 +148,8 @@ const FEditorModeID UModelingToolsEditorMode::EM_ModelingToolsEditorModeId = TEX
 FDateTime UModelingToolsEditorMode::LastModeStartTimestamp;
 FDateTime UModelingToolsEditorMode::LastToolStartTimestamp;
 
+FDelegateHandle UModelingToolsEditorMode::GlobalModelingWorldTeardownEventHandle;
+
 namespace
 {
 FString GetToolName(const UInteractiveTool& Tool)
@@ -178,11 +180,11 @@ UModelingToolsEditorMode::~UModelingToolsEditorMode()
 
 bool UModelingToolsEditorMode::ProcessEditDelete()
 {
-	if (SelectionManager && SelectionManager->HasSelection())
+	if (GetSelectionManager() && GetSelectionManager()->HasSelection())
 	{
 		if ( UDeleteGeometrySelectionCommand* DeleteCommand = Cast<UDeleteGeometrySelectionCommand>(ModelingModeCommands[0]) )
 		{
-			SelectionManager->ExecuteSelectionCommand(DeleteCommand);
+			GetSelectionManager()->ExecuteSelectionCommand(DeleteCommand);
 			return true;
 		}
 	}
@@ -358,6 +360,7 @@ void UModelingToolsEditorMode::Enter()
 
 	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
 	const UModelingToolsModeCustomizationSettings* ModelingEditorSettings = GetDefault<UModelingToolsModeCustomizationSettings>();
+	bSelectionSystemEnabled = ModelingModeSettings->bEnablePersistentSelections;
 
 	// Register builders for tool targets that the mode uses.
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UStaticMeshComponentToolTargetFactory>(GetToolManager()));
@@ -377,6 +380,10 @@ void UModelingToolsEditorMode::Enter()
 		GetInteractiveToolsContext()->EndTool(ShutdownType); 
 		return true;
 	});
+
+	// register for OnRender and OnDrawHUD extensions
+	GetInteractiveToolsContext()->OnRender.AddUObject(this, &UModelingToolsEditorMode::OnToolsContextRender);
+	GetInteractiveToolsContext()->OnDrawHUD.AddUObject(this, &UModelingToolsEditorMode::OnToolsContextDrawHUD);
 
 	// register stylus event handler
 	StylusStateTracker = MakeUnique<FStylusStateTracker>();
@@ -400,50 +407,46 @@ void UModelingToolsEditorMode::Enter()
 	UE::Geometry::RegisterSceneSnappingManager(GetInteractiveToolsContext());
 	SceneSnappingManager = UE::Geometry::FindModelingSceneSnappingManager(GetToolManager());
 
-	// register selection manager, if this feature is enabled in the mode settings
-	if (ModelingModeSettings && ModelingModeSettings->GetMeshSelectionsEnabled())
-	{
-		// set up SelectionManager and register known factory types
-		SelectionManager = NewObject<UGeometrySelectionManager>(GetToolManager());
-		SelectionManager->Initialize(GetInteractiveToolsContext(), GetToolManager()->GetContextTransactionsAPI());
-		SelectionManager->RegisterSelectorFactory(MakeUnique<FDynamicMeshComponentSelectorFactory>());
-		SelectionManager->RegisterSelectorFactory(MakeUnique<FBrushComponentSelectorFactory>());
-		SelectionManager->RegisterSelectorFactory(MakeUnique<FStaticMeshComponentSelectorFactory>());
 
-		GetInteractiveToolsContext()->OnRender.AddUObject(this, &UModelingToolsEditorMode::OnToolsContextRender);
-		GetInteractiveToolsContext()->OnDrawHUD.AddUObject(this, &UModelingToolsEditorMode::OnToolsContextDrawHUD);
-		// this is hopefully temporary? kinda gross...
-		GetInteractiveToolsContext()->ContextObjectStore->AddContextObject(SelectionManager);
+	// set up SelectionManager and register known factory types
+	SelectionManager = NewObject<UGeometrySelectionManager>(GetToolManager());
+	SelectionManager->Initialize(GetInteractiveToolsContext(), GetToolManager()->GetContextTransactionsAPI());
+	SelectionManager->RegisterSelectorFactory(MakeUnique<FDynamicMeshComponentSelectorFactory>());
+	SelectionManager->RegisterSelectorFactory(MakeUnique<FBrushComponentSelectorFactory>());
+	SelectionManager->RegisterSelectorFactory(MakeUnique<FStaticMeshComponentSelectorFactory>());
 
-		// rebuild tool palette on any selection changes. This is expensive and ideally will be
-		// optimized in the future.
-		SelectionManager_SelectionModifiedHandle = SelectionManager->OnSelectionModified.AddLambda([this]()
-		{
-			((FModelingToolsEditorModeToolkit*)Toolkit.Get())->ForceToolPaletteRebuild();
-		});
+	// this is hopefully temporary? kinda gross...
+	GetInteractiveToolsContext()->ContextObjectStore->AddContextObject(SelectionManager);
 
-		// set up the selection interaction
-		SelectionInteraction = NewObject<UModelingSelectionInteraction>(GetToolManager());
-		SelectionInteraction->Initialize(SelectionManager,
-			[this]() { return GetGeometrySelectionChangesAllowed(); },
-			[this](const FInputDeviceRay& DeviceRay) { return TestForEditorGizmoHit(DeviceRay); });
-		GetInteractiveToolsContext()->InputRouter->RegisterSource(SelectionInteraction);
+	// rebuild tool palette on any selection changes. This is expensive and ideally will be
+	// optimized in the future.
+	//SelectionManager_SelectionModifiedHandle = SelectionManager->OnSelectionModified.AddLambda([this]()
+	//{
+	//	((FModelingToolsEditorModeToolkit*)Toolkit.Get())->ForceToolPaletteRebuild();
+	//});
 
-		SelectionInteraction->OnTransformBegin.AddLambda([this]() 
-		{ 
-			// Disable the SnappingManager while the SelectionInteraction is editing a mesh via transform gizmo
-			SceneSnappingManager->PauseSceneGeometryUpdates();
+	// set up the selection interaction
+	SelectionInteraction = NewObject<UModelingSelectionInteraction>(GetToolManager());
+	SelectionInteraction->Initialize(SelectionManager,
+		[this]() { return GetGeometrySelectionChangesAllowed(); },
+		[this](const FInputDeviceRay& DeviceRay) { return TestForEditorGizmoHit(DeviceRay); });
+	GetInteractiveToolsContext()->InputRouter->RegisterSource(SelectionInteraction);
 
-			// If the transform is happening via the gizmo numerical UI, then we can run into the same slate
-			// throttling issues as tools. We need to continue receiving render/tick while user scrubs the slate values.
-			FSlateThrottleManager::Get().DisableThrottle(true);
-		});
-		SelectionInteraction->OnTransformEnd.AddLambda([this]() 
-		{ 
-			FSlateThrottleManager::Get().DisableThrottle(false);
-			SceneSnappingManager->UnPauseSceneGeometryUpdates(); 
-		});
-	}
+	SelectionInteraction->OnTransformBegin.AddLambda([this]() 
+	{ 
+		// Disable the SnappingManager while the SelectionInteraction is editing a mesh via transform gizmo
+		SceneSnappingManager->PauseSceneGeometryUpdates();
+
+		// If the transform is happening via the gizmo numerical UI, then we can run into the same slate
+		// throttling issues as tools. We need to continue receiving render/tick while user scrubs the slate values.
+		FSlateThrottleManager::Get().DisableThrottle(true);
+	});
+	SelectionInteraction->OnTransformEnd.AddLambda([this]() 
+	{ 
+		FSlateThrottleManager::Get().DisableThrottle(false);
+		SceneSnappingManager->UnPauseSceneGeometryUpdates(); 
+	});
+
 
 	// register level objects observer that will update the snapping manager as the scene changes
 	LevelObjectsObserver = MakeShared<FLevelObjectsObserver>();
@@ -480,6 +483,17 @@ void UModelingToolsEditorMode::Enter()
 			if (CreatedInfo.NewAsset != nullptr)
 			{
 				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+				// If we are creating a new asset or component, it should be initially unlocked in the Selection system.
+				// Currently have no generic way to do this, the Selection Manager does not necessarily support Static Meshes
+				// or Brush Components. So doing it here...
+				if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(CreatedInfo.NewAsset))
+				{
+					FStaticMeshSelector::SetAssetUnlockedOnCreation(StaticMesh);
+				}
+			}
+			if ( UBrushComponent* BrushComponent = Cast<UBrushComponent>(CreatedInfo.NewComponent) )
+			{
+				FVolumeSelector::SetComponentUnlockedOnCreation(BrushComponent);
 			}
 		});
 		TextureCreatedEventHandle = ModelCreationAPI->OnModelingTextureCreated.AddLambda([](const FCreateTextureObjectResult& CreatedInfo)
@@ -816,7 +830,7 @@ void UModelingToolsEditorMode::Enter()
 				ModelingEditorSettings->LastMeshSelectionElementType = static_cast<int>(ElementMode);
 				ModelingEditorSettings->SaveConfig();
 			}),
-			FCanExecuteAction(),
+			FCanExecuteAction::CreateLambda([this]() { return GetToolManager()->HasAnyActiveTool() == false; }),
 			FIsActionChecked::CreateLambda([this, TopoMode, ElementMode]() { return GetSelectionManager()->GetMeshTopologyMode() == TopoMode && GetSelectionManager()->GetSelectionElementType() == ElementMode; }),
 			EUIActionRepeatMode::RepeatDisabled);
 	};
@@ -959,17 +973,17 @@ void UModelingToolsEditorMode::Enter()
 		[this](const UObject* Object)  { UpdateSelectionManagerOnEditorSelectionChange(); } );
 
 	// restore various settings
-	if (SelectionManager)
+	if (GetSelectionManager())
 	{
 		UE::Geometry::EGeometryElementType LastElementType = static_cast<UE::Geometry::EGeometryElementType>(ModelingEditorSettings->LastMeshSelectionElementType);
 		if (LastElementType == UE::Geometry::EGeometryElementType::Edge || LastElementType == UE::Geometry::EGeometryElementType::Face || LastElementType == UE::Geometry::EGeometryElementType::Vertex)
 		{
-			SelectionManager->SetSelectionElementType(LastElementType);
+			GetSelectionManager()->SetSelectionElementType(LastElementType);
 		}
 		UGeometrySelectionManager::EMeshTopologyMode LastTopologyMode = static_cast<UGeometrySelectionManager::EMeshTopologyMode>(ModelingEditorSettings->LastMeshSelectionTopologyMode);
 		if (LastTopologyMode == UGeometrySelectionManager::EMeshTopologyMode::None || LastTopologyMode == UGeometrySelectionManager::EMeshTopologyMode::Triangle || LastTopologyMode == UGeometrySelectionManager::EMeshTopologyMode::Polygroup)
 		{
-			SelectionManager->SetMeshTopologyMode(LastTopologyMode);
+			GetSelectionManager()->SetMeshTopologyMode(LastTopologyMode);
 		}
 
 		bEnableStaticMeshElementSelection = ModelingEditorSettings->bLastMeshSelectionStaticMeshToggle;
@@ -984,9 +998,25 @@ void UModelingToolsEditorMode::Enter()
 		}
 	}
 
-
 	// initialize SelectionManager w/ active selection
 	UpdateSelectionManagerOnEditorSelectionChange(true);
+
+	// Selection system currently requires the concept of 'locking' for Static Meshes and Volumes. This is maintained
+	// by a global list that we do *not* want to clear between invocations of Modeling Mode (v annoying if frequently switching
+	// modes) but *do* want to clear when the user loads a new level. So, the first time this runs, register a delegate that listens
+	// for level editor map changes. This is a static member and will never be unregistered!
+	if (GlobalModelingWorldTeardownEventHandle.IsValid() == false)
+	{
+		FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		GlobalModelingWorldTeardownEventHandle = LevelEditor.OnMapChanged().AddLambda([](UWorld* World, EMapChangeType ChangeType)
+		{
+			if (ChangeType == EMapChangeType::TearDownWorld)
+			{
+				FVolumeSelector::ResetUnlockedBrushComponents();
+				FStaticMeshSelector::ResetUnlockedStaticMeshAssets();
+			}
+		});
+	}
 }
 
 void UModelingToolsEditorMode::RegisterUVEditor()
@@ -1178,10 +1208,10 @@ void UModelingToolsEditorMode::OnToolsContextRender(IToolsContextRenderAPI* Rend
 		SelectionInteraction->ApplyPendingTransformInteractions();
 	}
 
-	if (SelectionManager)
+	if (GetSelectionManager())
 	{
 		// currently relying on debug rendering to visualize selections
-		SelectionManager->DebugRender(RenderAPI);
+		GetSelectionManager()->DebugRender(RenderAPI);
 	}
 }
 
@@ -1212,6 +1242,12 @@ bool UModelingToolsEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdent
 
 bool UModelingToolsEditorMode::GetGeometrySelectionChangesAllowed() const
 {
+	// disable selection system if it is...disabled
+	if (GetMeshElementSelectionSystemEnabled() == false)
+	{
+		return false;
+	}
+
 	// disable selection system if we are in a Tool
 	if ( GetToolManager() && GetToolManager()->HasAnyActiveTool() )
 	{
@@ -1237,10 +1273,45 @@ bool UModelingToolsEditorMode::TestForEditorGizmoHit(const FInputDeviceRay& Clic
 }
 
 
+bool UModelingToolsEditorMode::GetMeshElementSelectionSystemEnabled() const
+{
+	return bSelectionSystemEnabled;
+}
+
+void UModelingToolsEditorMode::NotifySelectionSystemEnabledStateModified()
+{
+	UModelingToolsEditorModeSettings* Settings = GetMutableDefault<UModelingToolsEditorModeSettings>();
+	bool bNewState = Settings->bEnablePersistentSelections;
+	if (bNewState != bSelectionSystemEnabled)
+	{
+		if (bNewState == true)
+		{
+			UpdateSelectionManagerOnEditorSelectionChange(true);		// do like a mode enter so that we get an undoable active-target state
+		}
+		else
+		{
+			if (SelectionManager && (SelectionManager->HasSelection() || SelectionManager->HasActiveTargets()))
+			{
+				GetToolManager()->GetContextTransactionsAPI()->BeginUndoTransaction(LOCTEXT("InitializeSelection", "Initialize Selection"));
+
+				SelectionManager->SynchronizeActiveTargets(TArray<FGeometryIdentifier>(),
+					[this]() { SelectionManager->ClearSelection(); });
+
+				GetToolManager()->GetContextTransactionsAPI()->EndUndoTransaction();
+			}
+		}
+
+		// update things
+
+		bSelectionSystemEnabled = bNewState;
+		GetInteractiveToolsContext()->PostInvalidation();
+	}
+}
+
 
 void UModelingToolsEditorMode::UpdateSelectionManagerOnEditorSelectionChange(bool bEnteringMode)
 {
-	if (!SelectionManager) return;
+	if (GetMeshElementSelectionSystemEnabled() == false || SelectionManager == nullptr) return;
 
 	// if we are in undo/redo, ignore selection change notifications, the required
 	// changes are handled via FChanges that SelectionManager has emitted
@@ -1314,7 +1385,8 @@ bool UModelingToolsEditorMode::BoxSelect(FBox& InBox, bool InSelect)
 
 bool UModelingToolsEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect)
 {
-	if (SelectionManager 
+	if (GetMeshElementSelectionSystemEnabled()
+		&& SelectionManager
 		&& SelectionManager->HasActiveTargets() 
 		&& SelectionManager->GetMeshTopologyMode() != UGeometrySelectionManager::EMeshTopologyMode::None)
 	{
@@ -1497,6 +1569,20 @@ void UModelingToolsEditorMode::ModelingModeShortcutRequested(EModelingModeAction
 	if (Command == EModelingModeActionCommands::FocusViewToCursor)
 	{
 		FocusCameraAtCursorHotkey();
+	}
+	else if (Command == EModelingModeActionCommands::ToggleSelectionLockState)
+	{
+		if (SelectionManager)
+		{
+			if (SelectionManager->GetAnyCurrentTargetsLocked())
+			{
+				SelectionManager->SetCurrentTargetsLockState(false);
+			}
+			else
+			{
+				SelectionManager->SetCurrentTargetsLockState(true);
+			}
+		}
 	}
 }
 

@@ -91,13 +91,19 @@ public:
 	// get cached UGeometrySelectionManager pointer for the current Mode
 	UGeometrySelectionManager* GetMeshSelectionManager();
 
+	// @return true if we are currently in a tool, used to enable/disable UI things
+	bool IsInActiveTool() const { return bInActiveTool; }
+
 	// This is exposed only for the convenience of being able to create the numerical UI submenu
 	// in a non-member function in ModelingModeToolkit_Toolbars.cpp
 	TSharedPtr<STransformGizmoNumericalUIOverlay> GetGizmoNumericalUIOverlayWidget() { return GizmoNumericalUIOverlayWidget; }
 
+	void NotifySelectionSystemEnabledStateModified();
+
 private:
 	const static TArray<FName> PaletteNames_Standard;
 
+	bool bInActiveTool = false;
 	FText ActiveToolName;
 	FText ActiveToolMessage;
 	FStatusBarMessageHandle ActiveToolMessageHandle;
