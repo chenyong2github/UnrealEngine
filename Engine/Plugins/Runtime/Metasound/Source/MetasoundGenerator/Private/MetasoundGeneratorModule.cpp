@@ -3,13 +3,15 @@
 #include "MetasoundGeneratorModule.h"
 #include "MetasoundGeneratorModuleImpl.h"
 
+#include "Containers/Array.h"
+#include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
 #include "MetasoundOperatorCache.h"
+#include "Misc/CString.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundGenerator);
-
 
 static FAutoConsoleCommand CommandMetaSoundExperimentalOperatorCacheSetMaxNumOperators(
 	TEXT("au.MetaSound.Experimental.OperatorCache.SetMaxNumOperators"),

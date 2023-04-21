@@ -18,7 +18,7 @@
 #include "Analysis/MetasoundFrontendVertexAnalyzer.h"
 #include "DSP/FloatArrayMath.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
-#include "ProfilingDebugging/CountersTrace.h"
+#include "Modules/ModuleManager.h"
 
 #ifndef ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING 
 #define ENABLE_METASOUNDGENERATOR_INVALID_SAMPLE_VALUE_LOGGING !UE_BUILD_SHIPPING
