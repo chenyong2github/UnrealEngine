@@ -36,6 +36,7 @@ class IMediaOptions;
 class IMediaPlayer;
 class IMediaPlayerFactory;
 class IMediaSamples;
+class IMediaMetadataItem;
 
 enum class EMediaEvent;
 enum class EMediaCacheState;
@@ -251,6 +252,14 @@ public:
 	 * @see GetPlayerName, GetUrl
 	 */
 	FText GetMediaName() const;
+
+	/**
+	 * Get meta data contained in the current stream
+	 *
+	 * @return Map with arrays of IMediaMetaDataItem entries describing any metadata found in the current stream
+	 * @note Listen to EMediaEvent::MetadataChanged to catch updates to this data
+	 */
+	TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const;
 
 	/**
 	 * Get the number of tracks of the given type.

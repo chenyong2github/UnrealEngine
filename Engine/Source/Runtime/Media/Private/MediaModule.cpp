@@ -12,7 +12,6 @@
 
 #include "IMediaCaptureSupport.h"
 #include "IMediaPlayerFactory.h"
-#include "IMediaInfo.h"
 #include "IMediaTimeSource.h"
 #include "MediaClock.h"
 #include "MediaTicker.h"

@@ -228,6 +228,10 @@ FVariant UMediaPlayer::GetMediaInfo(FName InfoName) const
 	return PlayerFacade->GetMediaInfo(InfoName);
 }
 
+TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> UMediaPlayer::GetMediaMetadata() const
+{
+	return PlayerFacade->GetMediaMetadata();
+}
 
 TSharedRef<FMediaPlayerFacade, ESPMode::ThreadSafe> UMediaPlayer::GetPlayerFacade() const
 {

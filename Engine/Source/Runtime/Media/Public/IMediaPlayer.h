@@ -21,6 +21,7 @@ class IMediaOptions;
 class IMediaSamples;
 class IMediaTracks;
 class IMediaView;
+class IMediaMetadataItem;
 
 struct FGuid;
 struct FMediaPlayerOptions;
@@ -197,35 +198,6 @@ public:
 	}
 
 	/**
-	 * This structure describes a metadata item.
-	 */
-	class IMetadataItem
-	{
-	public:
-		virtual ~IMetadataItem() = default;
-
-		/*
-		  Language this item is described in.
-		  This should a three letter ISO 639-2 code. If no language is specified this item is intended
-		  to be used when no other item exists in the user's preferred language.
-		*/
-		virtual const FString& GetLanguageCode() const = 0;
-		
-		/*
-		  Optional mime type of the item described by Value.
-		  This should be set when Value is of type EVariantTypes::ByteArray
-		  For example, if this item is a binary JPEG image the mime type should be set as "image/jpeg"
-		  to identify the type of the payload.
-		*/
-		virtual const FString& GetMimeType() const = 0;
-
-		/*
-		  The value of the metadata item.
-		*/
-		virtual const FVariant& GetValue() const = 0;
-	};
-
-	/**
 	 * Gets the current metadata of the media source.
 	 * 
 	 * Metadata is optional and if present is typically a collection of key/value items without a
@@ -237,7 +209,7 @@ public:
 	 * 
 	 * Metadata may change over time. Its presence or change is reported by a MetadataChanged event.
 	 */
-	virtual TSharedPtr<TMap<FString, TArray<TUniquePtr<IMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const
+	virtual TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const
 	{
 		return nullptr;
 	}

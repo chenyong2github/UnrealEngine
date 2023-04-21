@@ -5,6 +5,7 @@
 #include "Misc/Optional.h"
 #include "IMediaEventSink.h"
 #include "IMediaOptions.h"
+#include "IMediaMetadataItem.h"
 #include "MediaSamples.h"
 #include "MediaPlayerOptions.h"
 
@@ -227,7 +228,7 @@ public:
 
 //-----------------------------------------------------------------------------
 
-class FStreamMetadataItem : public IMediaPlayer::IMetadataItem
+class FStreamMetadataItem : public IMediaMetadataItem
 {
 public:
 	FStreamMetadataItem(const TSharedPtr<Electra::IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>& InItem) : Item(InItem.ToSharedRef())
@@ -737,17 +738,17 @@ void FElectraPlayerPlugin::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 /**
 	Returns the current metadata, if any.
 */
-TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaPlayer::IMetadataItem>>>, ESPMode::ThreadSafe> FElectraPlayerPlugin::GetMediaMetadata() const
+TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> FElectraPlayerPlugin::GetMediaMetadata() const
 {
 	if (bMetadataChanged && Player.IsValid())
 	{
 		TSharedPtr<TMap<FString, TArray<TSharedPtr<Electra::IMediaStreamMetadata::IItem, ESPMode::ThreadSafe>>>, ESPMode::ThreadSafe> PlayerMeta = Player->GetMediaMetadata();
 		if (PlayerMeta.IsValid())
 		{
-			TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaPlayer::IMetadataItem>>>, ESPMode::ThreadSafe> NewMeta(new TMap<FString, TArray<TUniquePtr<IMediaPlayer::IMetadataItem>>>);
+			TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> NewMeta(new TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>);
 			for(auto& PlayerMetaItem : *PlayerMeta)
 			{
-				TArray<TUniquePtr<IMediaPlayer::IMetadataItem>>& NewItemList = NewMeta->Emplace(PlayerMetaItem.Key);
+				TArray<TUniquePtr<IMediaMetadataItem>>& NewItemList = NewMeta->Emplace(PlayerMetaItem.Key);
 				for(auto& PlayerMetaListItem : PlayerMetaItem.Value)
 				{
 					if (PlayerMetaListItem.IsValid())

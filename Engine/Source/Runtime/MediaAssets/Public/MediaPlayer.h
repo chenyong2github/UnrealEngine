@@ -23,6 +23,7 @@
 class FMediaPlayerFacade;
 class IMediaPlayer;
 class IMediaModule;
+class IMediaMetadataItem;
 class UMediaPlaylist;
 class UMediaSource;
 
@@ -1030,6 +1031,14 @@ public:
 
 		return false;
 	}
+
+	/**
+	 * Get meta data contained in the current stream
+	 *
+	 * @return Map with arrays of IMediaMetaDataItem entries describing any metadata found in the current stream
+	 * @note Listen to EMediaEvent::MetadataChanged to catch updates to this data
+	 */
+	TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const;
 
 	/**
 	 * Get the media player facade that manages low-level media players

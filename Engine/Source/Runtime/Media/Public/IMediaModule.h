@@ -14,7 +14,6 @@ class IMediaClock;
 class IMediaPlayerFactory;
 class IMediaTicker;
 class IMediaTimeSource;
-class IMediaInfo;
 class IMediaPlayerLifecycleManagerDelegate;
 
 /**

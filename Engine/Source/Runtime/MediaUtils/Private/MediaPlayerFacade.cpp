@@ -356,6 +356,17 @@ FText FMediaPlayerFacade::GetMediaName() const
 }
 
 
+TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> FMediaPlayerFacade::GetMediaMetadata() const
+{
+	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Player);
+	if (!CurrentPlayer.IsValid())
+	{
+		return nullptr;
+	}
+	return CurrentPlayer->GetMediaMetadata();
+}
+
+
 int32 FMediaPlayerFacade::GetNumTracks(EMediaTrackType TrackType) const
 {
 	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Player);
