@@ -19,6 +19,18 @@ struct FTypedElementSyncBackToWorldTag final : public FTypedElementDataStorageTa
 	GENERATED_BODY()
 };
 
+/**
+ * Tag to signal that data a processor copies out of the world must be synced to the datastorage.
+ * Useful for when an Actor was recently spawned or reloaded in the world.
+ * Currently used if any property changes since there is no mechanism to selectively run
+ * queries for specific changed properties.
+ */
+USTRUCT(meta = (DisplayName = "Sync from world"))
+struct FTypedElementSyncFromWorldTag final : public FTypedElementDataStorageTag
+{
+	GENERATED_BODY()
+};
+
 USTRUCT(meta = (DisplayName = "Row reference"))
 struct FTypedElementRowReferenceColumn final : public FTypedElementDataStorageColumn
 {

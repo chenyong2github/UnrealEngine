@@ -28,14 +28,16 @@ public:
 
 	void AddCompatibleObject(AActor* Actor) override;
 	void RemoveCompatibleObject(AActor* Actor) override;
-	TypedElementRowHandle FindRowWithCompatibleObject(AActor* Actor) const;
+	TypedElementRowHandle FindRowWithCompatibleObject(const TObjectKey<const AActor> Actor) const override;
 
 private:
 	void Prepare();
 	void Reset();
 	void CreateStandardArchetypes();
 	
-	void AddPendingActors();
+	void Tick();
+
+	void OnPostEditChangeProperty(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	
 	TArray<TWeakObjectPtr<AActor>> ActorsPendingRegistration;
 	
@@ -43,4 +45,13 @@ private:
 	TypedElementTableHandle StandardActorWithTransformTable{ TypedElementInvalidTableHandle };
 	ITypedElementDataStorageInterface* Storage{ nullptr };
 	TSharedPtr<FMassActorManager> ActorSubsystem;
+
+	/**~
+	 * Reference of actors that need to be fully synced from the world to the database
+	 * May have duplicates
+	 * Caution: Could point to actors that have been GCd
+	 */
+	TArray<TObjectKey<const AActor>> ActorsNeedingFullSync;
+
+	FDelegateHandle PostEditChangePropertyDelegateHandle;
 };

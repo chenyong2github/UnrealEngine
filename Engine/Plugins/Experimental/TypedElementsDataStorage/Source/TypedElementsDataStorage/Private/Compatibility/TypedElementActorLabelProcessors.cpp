@@ -99,6 +99,8 @@ void UTypedElementActorLabelFactory::RegisterActorLabelToColumnQuery(ITypedEleme
 				}
 			}
 		)
+		.Where()
+			.All<FTypedElementSyncFromWorldTag>()
 		.Compile()
 	);
 }

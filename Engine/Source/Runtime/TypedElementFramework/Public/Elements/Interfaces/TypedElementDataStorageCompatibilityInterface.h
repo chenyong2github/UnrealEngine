@@ -4,6 +4,7 @@
 
 #include "Elements/Interfaces/TypedElementDataStorageInterface.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectKey.h"
 #include "UObject/ObjectMacros.h"
 
 #include "TypedElementDataStorageCompatibilityInterface.generated.h"
@@ -27,5 +28,5 @@ class TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageCompatibilityInterface
 public:
 	virtual void AddCompatibleObject(AActor* Actor) = 0;
 	virtual void RemoveCompatibleObject(AActor* Actor) = 0;
-	virtual TypedElementRowHandle FindRowWithCompatibleObject(AActor* Actor) const = 0;
+	virtual TypedElementRowHandle FindRowWithCompatibleObject(const TObjectKey<const AActor> Actor) const = 0;
 };

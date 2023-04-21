@@ -23,4 +23,18 @@ void UTypedElementRemoveSyncToWorldTagFactory::RegisterQueries(ITypedElementData
 			.All<FTypedElementSyncBackToWorldTag>()
 		.Compile()
 	);
+
+	DataStorage.RegisterQuery(
+	Select(
+		TEXT("Remove 'sync from world' tag"),
+		FPhaseAmble(FPhaseAmble::ELocation::Postamble, DSI::EQueryTickPhase::FrameEnd),
+		[](DSI::IQueryContext& Context, const TypedElementRowHandle* Rows)
+		{
+			Context.RemoveColumns<FTypedElementSyncFromWorldTag>(TConstArrayView<TypedElementRowHandle>(Rows, Context.GetRowCount()));
+		}
+	)
+	.Where()
+		.All<FTypedElementSyncFromWorldTag>()
+	.Compile()
+);
 }

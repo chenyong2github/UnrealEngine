@@ -2,7 +2,6 @@
 
 #include "Compatibility/TypedElementActorTransformProcessors.h"
 
-
 #include "Elements/Columns/TypedElementMiscColumns.h"
 #include "Elements/Columns/TypedElementTransformColumns.h"
 #include "Elements/Framework/TypedElementQueryBuilder.h"
@@ -64,6 +63,8 @@ void UTypedElementActorTransformFactory::RegisterActorLocalTransformToColumn(ITy
 				}
 			}
 		)
+		.Where()
+			.All<FTypedElementSyncFromWorldTag>()
 		.Compile()
 	);
 }
