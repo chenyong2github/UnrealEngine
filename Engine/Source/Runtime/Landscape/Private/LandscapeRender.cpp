@@ -2663,10 +2663,10 @@ void FLandscapeVertexBuffer::InitRHI()
 			{
 				for (int32 x = 0; x < SubsectionSizeVerts; x++)
 				{
-					Vertex->VertexX = static_cast<float>(x);
-					Vertex->VertexY = static_cast<float>(y);
-					Vertex->SubX = static_cast<float>(SubX);
-					Vertex->SubY = static_cast<float>(SubY);
+					Vertex->VertexX = static_cast<uint8>(x);
+					Vertex->VertexY = static_cast<uint8>(y);
+					Vertex->SubX = static_cast<uint8>(SubX);
+					Vertex->SubY = static_cast<uint8>(SubY);
 					Vertex++;
 					VertexIndex++;
 				}
