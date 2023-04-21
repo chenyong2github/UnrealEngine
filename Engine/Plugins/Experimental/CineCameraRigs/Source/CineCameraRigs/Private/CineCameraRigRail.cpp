@@ -417,6 +417,14 @@ void ACineCameraRigRail::SetDriveMode(ECineCameraRigRailDriveMode InMode)
 	SetMIDParameters();
 }
 
+void ACineCameraRigRail::SetDisplaySpeedHeatmap(bool bEnable)
+{
+	bDisplaySpeedHeatmap = bEnable;
+	UpdateSpeedHeatmap();
+	UpdateSplineMeshMID();
+	SetMIDParameters();
+}
+
 void ACineCameraRigRail::UpdateSpeedHeatmap()
 {
 	// If bDisplaySpeedHeatmap is false, assigns default grey texture

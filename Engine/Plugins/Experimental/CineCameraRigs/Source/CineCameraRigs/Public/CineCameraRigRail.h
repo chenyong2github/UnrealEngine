@@ -61,7 +61,7 @@ public:
 	TObjectPtr<UTexture2D> SplineMeshTexture;
 
 	/* Enable speed visualization*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SplineVisualization")
+	UPROPERTY(EditAnywhere, BlueprintSetter=SetDisplaySpeedHeatmap, Category = "SplineVisualization")
 	bool bDisplaySpeedHeatmap = true;
 
 	/* Number of speed samples per spline segment*/
@@ -135,6 +135,10 @@ public:
 	/* Set drive mode*/
 	UFUNCTION(BlueprintSetter)
 	void SetDriveMode(ECineCameraRigRailDriveMode InMode);
+
+	/* Enable display speed heatmap*/
+	UFUNCTION(BlueprintSetter)
+	void SetDisplaySpeedHeatmap(bool bEnable);
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
