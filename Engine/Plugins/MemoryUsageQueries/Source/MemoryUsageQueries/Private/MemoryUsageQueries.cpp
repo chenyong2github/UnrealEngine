@@ -28,36 +28,21 @@ IMemoryUsageInfoProvider* CurrentMemoryUsageInfoProvider = &MemoryUsageInfoProvi
 
 } // namespace MemoryUsageQueries
 
-struct FMemoryUsageQueriesExec : public FSelfRegisteringExec
-{
-	FMemoryUsageQueriesExec() {}
-
-protected:
-	virtual bool Exec_Runtime(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar) override;
-};
-
 struct FAssetMemoryBreakdown
 {
-	FAssetMemoryBreakdown() :
-		ExclusiveSize(0),
-		UniqueSize(0),
-		SharedSize(0),
-		TotalSize(0)
+	FAssetMemoryBreakdown()
 	{
-
 	}
 
-	uint64 ExclusiveSize;
-	uint64 UniqueSize;
-	uint64 SharedSize;
-	uint64 TotalSize;
+	uint64 ExclusiveSize = 0;
+	uint64 UniqueSize = 0;
+	uint64 SharedSize = 0;
+	uint64 TotalSize = 0;
 };
 
 struct FAssetMemoryDetails
 {
-	FAssetMemoryDetails() :
-		UniqueRefCount(0),
-		SharedRefCount(0)
+	FAssetMemoryDetails()
 	{
 	}
 
@@ -71,736 +56,773 @@ struct FAssetMemoryDetails
 
 	TMap<FName, FAssetMemoryBreakdown> DependenciesToMemoryMap;
 
-	int32 UniqueRefCount;
-	int32 SharedRefCount;
+	int32 UniqueRefCount = 0;
+	int32 SharedRefCount = 0;
 };
 
-static FMemoryUsageQueriesExec DebugSettinsSubsystemExecInstance;
 static int32 DefaultResultLimit = 15;
 
-bool FMemoryUsageQueriesExec::Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+// Helper struct that scopes an output device, and will automatically clean up any log files when leaving scope
+struct FScopedOutputDevice
 {
-	bool bResult = false;
+	FOutputDevice* CurrentOutputDevice = nullptr;
 
-	if (FParse::Command(&Cmd, TEXT("MemQuery")))
+	FOutputDeviceArchiveWrapper* FileArWrapper = nullptr;
+	FArchive* FileAr = nullptr;
+
+	explicit FScopedOutputDevice(FOutputDevice* InDefaultOutputDevice) :
+		CurrentOutputDevice(InDefaultOutputDevice)
+		
 	{
-		FOutputDevice* OutputDevice = &Ar;
+	}
 
-		FOutputDeviceArchiveWrapper* FileArWrapper = nullptr;
-		FArchive* FileAr = nullptr;
-
-		Ar.Logf(TEXT("MemQuery: %s"), Cmd);
-
-		const bool bTruncate = !FParse::Param(Cmd, TEXT("notrunc"));
-		const bool bCSV = FParse::Param(Cmd, TEXT("csv"));
-
-		// Parse some common options
-		FString Name;
-		FParse::Value(Cmd, TEXT("Name="), Name);
-
-		FString Names;
-		FParse::Value(Cmd, TEXT("Names="), Names);
-
-		int32 Limit = -1;
-		FParse::Value(Cmd, TEXT("Limit="), Limit);
-
-		FString LogFileName;
-		FParse::Value(Cmd, TEXT("Log="), LogFileName);
-
-#if ALLOW_DEBUG_FILES
-		if (!LogFileName.IsEmpty())
-		{
-			// Create folder for MemQuery files.
-			const FString OutputDir = FPaths::ProfilingDir() / TEXT("MemQuery");
-			IFileManager::Get().MakeDirectory(*OutputDir, true);
-
-			FString FileTimeString = FString::Printf(TEXT("_%s"), *FDateTime::Now().ToString(TEXT("%H%M%S")));
-			const FString FileExtension = (bCSV ? TEXT(".csv") : TEXT(".memquery"));
-			const FString LogFilename = OutputDir / (LogFileName + FileTimeString + FileExtension);
-
-			FileAr = IFileManager::Get().CreateDebugFileWriter(*LogFilename);
-			if (FileAr != nullptr)
-			{
-				FileArWrapper = new FOutputDeviceArchiveWrapper(FileAr);				
-			}
-
-			if (FileArWrapper != nullptr)
-			{
-				OutputDevice = FileArWrapper;
-			}
-		}
-#endif
-
-		if (FParse::Command(&Cmd, TEXT("Usage")))
-		{
-			if (!Name.IsEmpty())
-			{
-				uint64 ExclusiveSize = 0U;
-				uint64 InclusiveSize = 0U;
-
-				if (MemoryUsageQueries::GetMemoryUsage(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Name, ExclusiveSize, InclusiveSize, &Ar))
-				{
-					OutputDevice->Logf(TEXT("MemoryUsage: ExclusiveSize: %.2f MiB (%.2f KiB); InclusiveSize: %.2f MiB (%.2f KiB)"),
-							ExclusiveSize / (1024.f * 1024.f),
-							ExclusiveSize / 1024.f,
-							InclusiveSize / (1024.f * 1024.f),
-							InclusiveSize / 1024.f);
-				}
-
-				bResult = true;
-			}
-		}
-		else if (FParse::Command(&Cmd, TEXT("CombinedUsage")))
-		{
-			if (!Names.IsEmpty())
-			{
-				TArray<FString> Packages;
-				Names.ParseIntoArrayWS(Packages);
-				uint64 TotalSize;
-
-				if (MemoryUsageQueries::GetMemoryUsageCombined(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, TotalSize, &Ar))
-				{
-					OutputDevice->Logf(TEXT("MemoryUsageCombined: TotalSize: %.2f MiB (%.2f KiB)"), TotalSize / (1024.f * 1024.f), TotalSize / 1024.f);
-				}
-
-				bResult = true;
-			}
-		}
-		else if (FParse::Command(&Cmd, TEXT("SharedUsage")))
-		{
-			if (!Names.IsEmpty())
-			{
-				TArray<FString> Packages;
-				Names.ParseIntoArrayWS(Packages);
-				uint64 SharedSize;
-
-				if (MemoryUsageQueries::GetMemoryUsageShared(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, SharedSize, &Ar))
-				{
-					OutputDevice->Logf(TEXT("MemoryUsageShared: SharedSize: %.2f MiB (%.2f KiB)"), SharedSize / (1024.f * 1024.f), SharedSize / 1024.f);
-				}
-
-				bResult = true;
-			}
-		}
-		else if (FParse::Command(&Cmd, TEXT("UniqueUsage")))
-		{
-			if (!Names.IsEmpty())
-			{
-				TArray<FString> Packages;
-				Names.ParseIntoArrayWS(Packages);
-				uint64 UniqueSize = 0U;
-
-				if (MemoryUsageQueries::GetMemoryUsageUnique(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, UniqueSize, &Ar))
-				{
-					OutputDevice->Logf(TEXT("MemoryUsageUnique: UniqueSize: %.2f MiB (%.2f KiB)"), UniqueSize / (1024.f * 1024.f), UniqueSize / 1024.f);
-				}
-
-				bResult = true;
-			}
-		}
-		else if (FParse::Command(&Cmd, TEXT("CommonUsage")))
-		{
-			if (!Names.IsEmpty())
-			{
-				TArray<FString> Packages;
-				Names.ParseIntoArrayWS(Packages);
-				uint64 CommonSize = 0U;
-
-				if (MemoryUsageQueries::GetMemoryUsageCommon(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, CommonSize, &Ar))
-				{
-					OutputDevice->Logf(TEXT("MemoryUsageCommon: CommonSize: %.2f MiB (%.2f KiB)"), CommonSize / (1024.f * 1024.f), CommonSize / 1024.f);
-				}
-
-				bResult = true;
-			}
-		}
-		else if (FParse::Command(&Cmd, TEXT("Dependencies")))
-		{
-			if (!Name.IsEmpty())
-			{
-				TMap<FName, uint64> DependenciesWithSize;
-
-				if (MemoryUsageQueries::GetDependenciesWithSize(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Name, DependenciesWithSize, &Ar))
-				{
-					MemoryUsageQueries::Internal::PrintTagsWithSize(*OutputDevice, DependenciesWithSize, TEXT("dependencies"), bTruncate, Limit, bCSV);
-				}
-
-				bResult = true;
-			}
-		}
-		else if (FParse::Command(&Cmd, TEXT("CombinedDependencies")))
-		{
-			if (!Names.IsEmpty())
-			{
-				TArray<FString> Packages;
-				Names.ParseIntoArrayWS(Packages);
-				TMap<FName, uint64> CombinedDependenciesWithSize;
-
-				if (MemoryUsageQueries::GetDependenciesWithSizeCombined(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, CombinedDependenciesWithSize, &Ar))
-				{
-					MemoryUsageQueries::Internal::PrintTagsWithSize(*OutputDevice, CombinedDependenciesWithSize, TEXT("combined dependencies"), bTruncate, Limit, bCSV);
-				}
-
-				bResult = true;
-			}
-		}
-		else if (FParse::Command(&Cmd, TEXT("SharedDependencies")))
-		{
-			if (!Names.IsEmpty())
-			{
-				TArray<FString> Packages;
-				Names.ParseIntoArrayWS(Packages);
-				TMap<FName, uint64> SharedDependenciesWithSize;
-
-				if (MemoryUsageQueries::GetDependenciesWithSizeShared(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, SharedDependenciesWithSize, &Ar))
-				{
-					MemoryUsageQueries::Internal::PrintTagsWithSize(*OutputDevice, SharedDependenciesWithSize, TEXT("shared dependencies"), bTruncate, Limit, bCSV);
-				}
-
-				bResult = true;
-			}
-		}
-		else if (FParse::Command(&Cmd, TEXT("UniqueDependencies")))
-		{
-			if (!Names.IsEmpty())
-			{
-				TArray<FString> Packages;
-				Names.ParseIntoArrayWS(Packages);
-				TMap<FName, uint64> UniqueDependenciesWithSize;
-
-				if (MemoryUsageQueries::GetDependenciesWithSizeUnique(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, UniqueDependenciesWithSize, &Ar))
-				{
-					MemoryUsageQueries::Internal::PrintTagsWithSize(*OutputDevice, UniqueDependenciesWithSize, TEXT("unique dependencies"), bTruncate, Limit, bCSV);
-				}
-
-				bResult = true;
-			}
-		}
-		else if (FParse::Command(&Cmd, TEXT("CommonDependencies")))
-		{
-			if (!Names.IsEmpty())
-			{
-				TArray<FString> Packages;
-				Names.ParseIntoArrayWS(Packages);
-				TMap<FName, uint64> CommonDependenciesWithSize;
-
-				if (MemoryUsageQueries::GetDependenciesWithSizeCommon(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, CommonDependenciesWithSize, &Ar))
-				{
-					MemoryUsageQueries::Internal::PrintTagsWithSize(*OutputDevice, CommonDependenciesWithSize, TEXT("common dependencies"), bTruncate, Limit, bCSV);
-				}
-
-				bResult = true;
-			}
-		}
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
-		else if (FParse::Command(&Cmd, TEXT("ListAssets")))
-		{
-			FString AssetName;
-			FParse::Value(Cmd, TEXT("NAME="), AssetName);
-
-			FName Group = NAME_None;
-			FString GroupName;
-			if (FParse::Value(Cmd, TEXT("GROUP="), GroupName))
-			{
-				Group = FName(*GroupName);
-			}
-
-			FName Class = NAME_None;
-			FString ClassName;
-			if (FParse::Value(Cmd, TEXT("CLASS="), ClassName))
-			{
-				Class = FName(*ClassName);
-			}
-
-			bool bSuccess;
-			TMap<FName, uint64> AssetsWithSize;
-
-			if (Group != NAME_None || Class != NAME_None)
-			{
-				bSuccess = MemoryUsageQueries::GetFilteredPackagesWithSize(AssetsWithSize, Group, AssetName, Class, &Ar);
-			}
-			else
-			{
-				// TODO - Implement using faster path if there are no group / class filters
-				bSuccess = MemoryUsageQueries::GetFilteredPackagesWithSize(AssetsWithSize, Group, AssetName, Class, &Ar);
-			}
-
-			if (bSuccess)
-			{
-				MemoryUsageQueries::Internal::PrintTagsWithSize(*OutputDevice, AssetsWithSize, TEXT("largest assets"), bTruncate, Limit, bCSV);
-			}
-
-			bResult = true;
-		}
-		else if (FParse::Command(&Cmd, TEXT("ListClasses")))
-		{
-			FName Group = NAME_None;
-			FString GroupName;
-			if (FParse::Value(Cmd, TEXT("GROUP="), GroupName))
-			{
-				Group = FName(*GroupName);
-			}
-
-			FString AssetName;
-			FParse::Value(Cmd, TEXT("ASSET="), AssetName);
-			
-			TMap<FName, uint64> ClassesWithSize;
-
-			if (MemoryUsageQueries::GetFilteredClassesWithSize(ClassesWithSize, Group, AssetName, &Ar))
-			{
-				MemoryUsageQueries::Internal::PrintTagsWithSize(*OutputDevice, ClassesWithSize, *FString::Printf(TEXT("largest classes")), bTruncate, Limit, bCSV);
-			}
-
-			bResult = true;
-		}
-		else if (FParse::Command(&Cmd, TEXT("ListGroups")))
-		{
-			FString AssetName = "";
-			FParse::Value(Cmd, TEXT("ASSET="), AssetName);
-
-			FName Class = NAME_None;
-			FString ClassName;
-			if (FParse::Value(Cmd, TEXT("CLASS="), ClassName))
-			{
-				Class = FName(*ClassName);
-			}
-
-			TMap<FName, uint64> GroupsWithSize;
-
-			if (MemoryUsageQueries::GetFilteredGroupsWithSize(GroupsWithSize, AssetName, Class, &Ar))
-			{
-				MemoryUsageQueries::Internal::PrintTagsWithSize(*OutputDevice, GroupsWithSize, *FString::Printf(TEXT("largest groups")), bTruncate, Limit, bCSV);
-			}
-
-			bResult = true;
-		}
-#endif
-		else if (FParse::Command(&Cmd, TEXT("Savings")))
-		{
-			const UMemoryUsageQueriesConfig* Config = GetDefault<UMemoryUsageQueriesConfig>();
-
-			for (auto It = Config->SavingsPresets.CreateConstIterator(); It; ++It)
-			{
-				if (!FParse::Command(&Cmd, *It.Key()))
-				{
-					continue;
-				}
-
-				TMap<FName, uint64> PresetSavings;
-				TSet<FName> Packages;
-
-				UClass* SavingsClass = FindObject<UClass>(nullptr, *It.Value());
-				if (SavingsClass != nullptr)
-				{
-					TArray<UClass*> DerivedClasses;
-					TArray<UClass*> DerivedResults;
-
-					GetDerivedClasses(SavingsClass, DerivedClasses, true);
-
-					for (UClass* DerivedClass : DerivedClasses)
-					{
-						UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(DerivedClass);
-						if (BPClass != nullptr)
-						{
-							DerivedResults.Reset();
-							GetDerivedClasses(BPClass, DerivedResults, false);
-							if (DerivedResults.Num() == 0)
-							{
-								Packages.Add(DerivedClass->GetPackage()->GetFName());
-							}
-						}
-					}
-				}
-
-				for (const auto& Package : Packages)
-				{
-					uint64 Size = 0;
-					MemoryUsageQueries::GetMemoryUsageUnique(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, TArray<FString>({Package.ToString()}), Size, &Ar);
-					PresetSavings.Add(Package, Size);
-				}
-
-				PresetSavings.ValueSort(TGreater<uint64>());
-				MemoryUsageQueries::Internal::PrintTagsWithSize(*OutputDevice, PresetSavings, *FString::Printf(TEXT("possible savings")), bTruncate, bCSV);
-
-				bResult = true;
-			}
-		}
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
-		else if (FParse::Command(&Cmd, TEXT("Collection")))
-		{
-			const bool bShowDependencies = FParse::Param(Cmd, TEXT("ShowDeps"));
-
-			const UMemoryUsageQueriesConfig* Config = GetDefault<UMemoryUsageQueriesConfig>();
-			for (auto It = Config->Collections.CreateConstIterator(); It; ++It)
-			{
-				const FCollectionInfo& CollectionInfo = *It;
-				
-				if (!FParse::Command(&Cmd, *CollectionInfo.Name))
-				{
-					continue;
-				}
-				
-				// Retrieve a list of all assets that have allocations we are currently tracking.
-				TMap<FName, uint64> AssetsWithSize;
-				bool bSuccess = MemoryUsageQueries::GetFilteredPackagesWithSize(AssetsWithSize, NAME_None, "", NAME_None, &Ar);
-
-				if (!bSuccess)
-				{
-					Ar.Logf(TEXT("Failed to gather assets for Collection %s"), *CollectionInfo.Name);
-					break;
-				}
-
-				// Will return true if the Package Name matches any of the conditions in the array of Paths
-				auto PackageNameMatches = [](const FString& PackageName, const TArray<FString>& Conditions)->bool {
-					for (const FString& Condition : Conditions)
-					{
-						if ((FWildcardString::ContainsWildcards(*Condition) && FWildcardString::IsMatch(*Condition, *PackageName)) || (PackageName.Contains(Condition)))
-						{
-							return true;
-						}
-					}
-
-					return false;
-				};
-				
-				// See if any of the asset paths match those of our matching paths and are valid
-				TArray<FString> PackageNames;
-
-				TMap<FName, FAssetMemoryDetails> AssetMemoryMap;
-				for (const TPair<FName, uint64>& AssetSizePair : AssetsWithSize)
-				{
-					const FString& PackageName = AssetSizePair.Key.ToString();
-					
-					if (!FPackageName::IsValidLongPackageName(PackageName))
-					{
-						continue;
-					}
-
-					// If path is Included and NOT Excluded, it's a valid asset to consider
-					if (PackageNameMatches(PackageName, CollectionInfo.Includes) && !PackageNameMatches(PackageName, CollectionInfo.Excludes))
-					{
-						PackageNames.Add(PackageName);
-						FAssetMemoryDetails& AssetMemory = AssetMemoryMap.Add(AssetSizePair.Key);
-						AssetMemory.MemoryBreakdown.ExclusiveSize = AssetSizePair.Value;
-
-						FName LongPackageName;
-						if (!MemoryUsageQueries::Internal::GetLongNameAndDependencies(PackageName, LongPackageName, AssetMemory.Dependencies, &Ar))
-						{
-							Ar.Logf(TEXT("Failed to get dependencies foro Asset %s"), *PackageName);
-						}
-					}
-				}
-
-				// Gather list of dependencies. Internal dependencies are confined only to the set of packages passed in.
-				// External are dependencies that have additional references outside the set of packages passed in.
-				TMap<FName, uint64> InternalDependencies;
-				TMap<FName, uint64> ExternalDependencies;
-				if (!MemoryUsageQueries::GatherDependenciesForPackages(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, PackageNames, InternalDependencies, ExternalDependencies, &Ar))
-				{
-					Ar.Logf(TEXT("Failed to gather memory usage for dependencies in Collection %s"), *CollectionInfo.Name);
-					break;
-				}
-
-				uint64 TotalCollectionSize = 0;
-
-				// Determine which category where each assets dependency should reside
-				for (TPair<FName, FAssetMemoryDetails>& Asset : AssetMemoryMap)
-				{
-					FAssetMemoryDetails& AssetMemory = Asset.Value;
-					FAssetMemoryBreakdown& AssetMemoryDetails = AssetMemory.MemoryBreakdown;
-
-					for (FName& Dep : Asset.Value.Dependencies)
-					{
-						// Don't want to count asset itself, plus some dependencies might refer to other assets in the map
-						if (AssetMemoryMap.Contains(Dep))
-						{
-							continue;
-						}
-
-						FAssetMemoryBreakdown DependencyMemory;
-						uint64* UniqueMemory = InternalDependencies.Find(Dep);
-						uint64* SharedMemory = ExternalDependencies.Find(Dep);
-						bool bRecordDependency = false;
-
-						if (UniqueMemory != nullptr && *UniqueMemory != 0)
-						{
-							DependencyMemory.UniqueSize = *UniqueMemory;
-							AssetMemoryDetails.UniqueSize += DependencyMemory.UniqueSize;
-							AssetMemory.UniqueRefCount++;
-							bRecordDependency = true;
-						}
-
-						if (SharedMemory != nullptr && *SharedMemory != 0)
-						{
-							DependencyMemory.SharedSize = *SharedMemory;
-							AssetMemoryDetails.SharedSize += DependencyMemory.SharedSize;
-							AssetMemory.SharedRefCount++;
-							bRecordDependency = true;
-						}
-
-						if (bRecordDependency)
-						{
-							AssetMemory.DependenciesToMemoryMap.Add(Dep, DependencyMemory);
-						}
-					}
-
-					AssetMemoryDetails.TotalSize = AssetMemoryDetails.ExclusiveSize + AssetMemoryDetails.UniqueSize;
-					TotalCollectionSize += AssetMemoryDetails.TotalSize;
-				}
-
-				// Sort by TotalSize
-				AssetMemoryMap.ValueSort([](const FAssetMemoryDetails& A, const FAssetMemoryDetails& B) {
-						return A.MemoryBreakdown.TotalSize > B.MemoryBreakdown.TotalSize;
-					});
-
-				if (bCSV)
-				{
-					OutputDevice->Logf(TEXT(",Asset,Exclusive KiB,Unique Refs KiB,Unique Ref Count,Shared Refs KiB,Shared Ref Count,Total KiB"));
-				}
-				else
-				{
-					OutputDevice->Logf(
-						TEXT(" %100s %20s %20s %15s %20s %15s %25s"),
-						TEXT("Asset"),
-						TEXT("Exclusive KiB"),
-						TEXT("Unique Refs KiB"),
-						TEXT("Unique Ref Count"),
-						TEXT("Shared Refs KiB"),
-						TEXT("Shared Ref Count"),
-						TEXT("Total KiB")
-					);
-				}
-
-				// Asset listing
-				for (TPair<FName, FAssetMemoryDetails>& Asset : AssetMemoryMap)
-				{
-					FAssetMemoryDetails& AssetMemory = Asset.Value;
-					FAssetMemoryBreakdown& AssetMemoryDetails = AssetMemory.MemoryBreakdown;
-
-					if (bCSV)
-					{
-						OutputDevice->Logf(TEXT(",%s,%.2f,%.2f,%d,%.2f,%d,%.2f"),*Asset.Key.ToString(),
-							AssetMemoryDetails.ExclusiveSize / 1024.f, 
-							AssetMemoryDetails.UniqueSize / 1024.f, 
-							AssetMemory.UniqueRefCount, 
-							AssetMemoryDetails.SharedSize / 1024.f,
-							AssetMemory.SharedRefCount,
-							AssetMemoryDetails.TotalSize / 1024.f);
-					}
-					else
-					{
-						OutputDevice->Logf(
-							TEXT(" %100s %20.2f %20.2f %15d %20.2f %15d %25.2f"),
-							*Asset.Key.ToString(),
-							AssetMemoryDetails.ExclusiveSize / 1024.f, 
-							AssetMemoryDetails.SharedSize / 1024.f,
-							AssetMemory.SharedRefCount,
-							AssetMemoryDetails.UniqueSize / 1024.f, 
-							AssetMemory.UniqueRefCount, 
-							AssetMemoryDetails.TotalSize / 1024.f
-						);
-					}
-				}
-
-				// Asset dependencies listing
-				if (bShowDependencies)
-				{
-					if (bCSV)
-					{
-						OutputDevice->Logf(TEXT(",Asset,Dependency,Unique KiB,Shared KiB"));
-					}
-					else
-					{
-						OutputDevice->Logf(TEXT(" %100s %100s %20s %20s"),
-							TEXT("Asset"),
-							TEXT("Dependency"),
-							TEXT("Unique KiB"),
-							TEXT("Shared KiB")
-						);
-					}
-
-					for (TPair<FName, FAssetMemoryDetails>& Asset : AssetMemoryMap)
-					{
-						for (TPair<FName, FAssetMemoryBreakdown>& Dep : Asset.Value.DependenciesToMemoryMap)
-						{
-							const FString DependencyAssetName = Dep.Key.ToString();
-							const FAssetMemoryBreakdown& DepedencyMemoryDetails = Dep.Value;
-
-							if (bCSV)
-							{
-								OutputDevice->Logf(TEXT(",%s,%s,%.2f,%.2f"), *Asset.Key.ToString(), *DependencyAssetName,
-									DepedencyMemoryDetails.UniqueSize / 1024.f, DepedencyMemoryDetails.SharedSize / 1024.f);
-							}
-							else
-							{
-								OutputDevice->Logf(TEXT(" %100s %100s %20.2f %20.2f"),
-									*Asset.Key.ToString(), 
-									*DependencyAssetName,
-									DepedencyMemoryDetails.UniqueSize / 1024.f, 
-									DepedencyMemoryDetails.SharedSize / 1024.f
-								);
-							}
-						}
-					}
-				}
-
-				if (bCSV)
-				{
-					OutputDevice->Logf(TEXT(",TOTAL KiB,%.2f"), TotalCollectionSize / 1024.f);
-				}
-				else
-				{
-					OutputDevice->Logf(TEXT("TOTAL KiB: %.2f"), TotalCollectionSize / 1024.f);
-				}
-
-				bResult = true;
-			}
-		}
-#endif
-
+	~FScopedOutputDevice()
+	{
 		if (FileArWrapper != nullptr)
 		{
 			FileArWrapper->TearDown();
 		}
-			
+
 		delete FileArWrapper;
 		delete FileAr;
 	}
+
+	FOutputDevice& GetOutputDevice() const
+	{
+		return *CurrentOutputDevice;
+	}
+
+	void OpenLogFile(const FString& LogFileName, bool bCSV)
+	{
+		if (FileArWrapper != nullptr || LogFileName.IsEmpty())
+		{
+			// Log file is already open or LogFileName is empty
+			return;
+		}
+
+#if ALLOW_DEBUG_FILES
+		// Create folder for MemQuery files.
+		const FString OutputDir = FPaths::ProfilingDir() / TEXT("MemQuery");
+		IFileManager::Get().MakeDirectory(*OutputDir, true);
+
+		FString FileTimeString = FString::Printf(TEXT("_%s"), *FDateTime::Now().ToString(TEXT("%H%M%S")));
+		const FString FileExtension = (bCSV ? TEXT(".csv") : TEXT(".memquery"));
+		const FString LogFilename = OutputDir / (LogFileName + FileTimeString + FileExtension);
+
+		FileAr = IFileManager::Get().CreateDebugFileWriter(*LogFilename);
+
+		if (FileAr != nullptr)
+		{
+			FileArWrapper = new FOutputDeviceArchiveWrapper(FileAr);
+				
+			if (FileArWrapper != nullptr)
+			{
+				CurrentOutputDevice = FileArWrapper;
+			}
+			else
+			{
+				delete FileAr;
+				FileAr = nullptr;
+			}
+		}
+#endif
+	}
+
+	// Delete default constructor to force proper usage
+	FScopedOutputDevice() = delete;
+};
+
+/** Structure that will parse a string and fill out some commonly used parameters per command */
+struct FCommonParameters
+{
+	int32 Limit = -1;
+
+	bool bTruncate = true;
+	bool bCSV = false;
 	
-	return bResult;
-}
+	FName Group = NAME_None;
+	FName Class = NAME_None;
+
+	FString Name;
+	FString Names;
+	FString AssetName;
+	FString LogFileName;
+
+	explicit FCommonParameters(const TCHAR* Args)
+	{
+		bTruncate = !FParse::Param(Args, TEXT("notrunc"));
+		bCSV = FParse::Param(Args, TEXT("csv"));
+
+		FParse::Value(Args, TEXT("Name="), Name);
+		FParse::Value(Args, TEXT("Names="), Names);
+		FParse::Value(Args, TEXT("Limit="), Limit);
+		FParse::Value(Args, TEXT("Log="), LogFileName);
+		FParse::Value(Args, TEXT("Asset="), AssetName);
+
+		FString GroupName;
+		if (FParse::Value(Args, TEXT("Group="), GroupName))
+		{
+			Group = FName(*GroupName);
+		}
+
+		FString ClassName;
+		if (FParse::Value(Args, TEXT("Class="), ClassName))
+		{
+			Class = FName(*ClassName);
+		}
+	}
+
+	FCommonParameters() = delete;
+};
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryUsage(
+	TEXT("MemQuery.Usage"),
+	TEXT("Name=<AssetName> Prints memory usage of the specified asset."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Name.IsEmpty())
+	{
+		uint64 ExclusiveSize = 0U;
+		uint64 InclusiveSize = 0U;
+
+		if (MemoryUsageQueries::GetMemoryUsage(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, CommonArgs.Name, ExclusiveSize, InclusiveSize, &Ar))
+		{
+			ScopedOutputDevice.GetOutputDevice().Logf(TEXT("MemoryUsage: ExclusiveSize: %.2f MiB (%.2f KiB); InclusiveSize: %.2f MiB (%.2f KiB)"),
+				ExclusiveSize / (1024.f * 1024.f),
+				ExclusiveSize / 1024.f,
+				InclusiveSize / (1024.f * 1024.f),
+				InclusiveSize / 1024.f);
+		}
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryCombinedUsage(
+	TEXT("MemQuery.CombinedUsage"),
+	TEXT("Names=\"<AssetName1> <AssetName2> ...\" Prints combined memory usage of the specified assets (including all dependencies)."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Names.IsEmpty())
+	{
+		TArray<FString> Packages;
+		CommonArgs.Names.ParseIntoArrayWS(Packages);
+		uint64 TotalSize;
+
+		if (MemoryUsageQueries::GetMemoryUsageCombined(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, TotalSize, &Ar))
+		{
+			ScopedOutputDevice.GetOutputDevice().Logf(TEXT("MemoryUsageCombined: TotalSize: %.2f MiB (%.2f KiB)"), TotalSize / (1024.f * 1024.f), TotalSize / 1024.f);
+		}
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQuerySharedUsage(
+	TEXT("MemQuery.SharedUsage"),
+	TEXT("Names=\"<AssetName1> <AssetName2> ...\" Prints shared memory usage of the specified assets (including only dependencies shared by the specified assets)."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Names.IsEmpty())
+	{
+		TArray<FString> Packages;
+		CommonArgs.Names.ParseIntoArrayWS(Packages);
+		uint64 SharedSize;
+
+		if (MemoryUsageQueries::GetMemoryUsageShared(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, SharedSize, &Ar))
+		{
+			ScopedOutputDevice.GetOutputDevice().Logf(TEXT("MemoryUsageShared: SharedSize: %.2f MiB (%.2f KiB)"), SharedSize / (1024.f * 1024.f), SharedSize / 1024.f);
+		}
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryUniqueUsage(
+	TEXT("MemQuery.UniqueUsage"),
+	TEXT("Names=\"<AssetName1> <AssetName2> ...\" Prints unique memory usage of the specified assets (including only dependencies unique to the specified assets)."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Names.IsEmpty())
+	{
+		TArray<FString> Packages;
+		CommonArgs.Names.ParseIntoArrayWS(Packages);
+		uint64 UniqueSize = 0U;
+
+		if (MemoryUsageQueries::GetMemoryUsageUnique(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, UniqueSize, &Ar))
+		{
+			ScopedOutputDevice.GetOutputDevice().Logf(TEXT("MemoryUsageUnique: UniqueSize: %.2f MiB (%.2f KiB)"), UniqueSize / (1024.f * 1024.f), UniqueSize / 1024.f);
+		}
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryCommonUsage(
+	TEXT("MemQuery.CommonUsage"),
+	TEXT("Names=\"<AssetName1> <AssetName2> ...\" Prints common memory usage of the specified assets (including only dependencies that are not unique to the specified assets)."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Names.IsEmpty())
+	{
+		TArray<FString> Packages;
+		CommonArgs.Names.ParseIntoArrayWS(Packages);
+		uint64 CommonSize = 0U;
+
+		if (MemoryUsageQueries::GetMemoryUsageCommon(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, CommonSize, &Ar))
+		{
+			ScopedOutputDevice.GetOutputDevice().Logf(TEXT("MemoryUsageCommon: CommonSize: %.2f MiB (%.2f KiB)"), CommonSize / (1024.f * 1024.f), CommonSize / 1024.f);
+		}
+
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryDependencies(
+	TEXT("MemQuery.Dependencies"),
+	TEXT("Name=<AssetName> Limit=<n> Lists dependencies of the specified asset, sorted by size."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Name.IsEmpty())
+	{
+		TMap<FName, uint64> DependenciesWithSize;
+
+		if (MemoryUsageQueries::GetDependenciesWithSize(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, CommonArgs.Name, DependenciesWithSize, &Ar))
+		{
+			MemoryUsageQueries::Internal::PrintTagsWithSize(ScopedOutputDevice.GetOutputDevice(), DependenciesWithSize, TEXT("Dependencies"), CommonArgs.bTruncate, CommonArgs.Limit, CommonArgs.bCSV);
+		}
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryCombinedDependencies(
+	TEXT("MemQuery.CombinedDependencies"),
+	TEXT("Names=\"<AssetName1> <AssetName2> ...\" Limit=<n> Lists n largest dependencies of the specified assets, sorted by size."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Names.IsEmpty())
+	{
+		TArray<FString> Packages;
+		CommonArgs.Names.ParseIntoArrayWS(Packages);
+		TMap<FName, uint64> CombinedDependenciesWithSize;
+
+		if (MemoryUsageQueries::GetDependenciesWithSizeCombined(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, CombinedDependenciesWithSize, &Ar))
+		{
+			MemoryUsageQueries::Internal::PrintTagsWithSize(ScopedOutputDevice.GetOutputDevice(), CombinedDependenciesWithSize, TEXT("Combined Dependencies"), CommonArgs.bTruncate, CommonArgs.Limit, CommonArgs.bCSV);
+		}
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQuerySharedDependencies(
+	TEXT("MemQuery.SharedDependencies"),
+	TEXT("Names=\"<AssetName1> <AssetName2> ...\" Limit=<n> Lists n largest dependencies that are shared by the specified assets, sorted by size."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Names.IsEmpty())
+	{
+		TArray<FString> Packages;
+		CommonArgs.Names.ParseIntoArrayWS(Packages);
+		TMap<FName, uint64> SharedDependenciesWithSize;
+
+		if (MemoryUsageQueries::GetDependenciesWithSizeShared(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, SharedDependenciesWithSize, &Ar))
+		{
+			MemoryUsageQueries::Internal::PrintTagsWithSize(ScopedOutputDevice.GetOutputDevice(), SharedDependenciesWithSize, TEXT("Shared Dependencies"), CommonArgs.bTruncate, CommonArgs.Limit, CommonArgs.bCSV);
+		}
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryUniqueDependencies(
+	TEXT("MemQuery.UniqueDependencies"),
+	TEXT("Names=\"<AssetName1> <AssetName2> ...\" Limit=<n> Lists n largest dependencies that are unique to the specified assets, sorted by size."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Names.IsEmpty())
+	{
+		TArray<FString> Packages;
+		CommonArgs.Names.ParseIntoArrayWS(Packages);
+		TMap<FName, uint64> UniqueDependenciesWithSize;
+
+		if (MemoryUsageQueries::GetDependenciesWithSizeUnique(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, UniqueDependenciesWithSize, &Ar))
+		{
+			MemoryUsageQueries::Internal::PrintTagsWithSize(ScopedOutputDevice.GetOutputDevice(), UniqueDependenciesWithSize, TEXT("Unique Dependencies"), CommonArgs.bTruncate, CommonArgs.Limit, CommonArgs.bCSV);
+		}
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryCommonDependencies(
+	TEXT("MemQuery.CommonDependencies"),
+	TEXT("Names=\"<AssetName1> <AssetName2> ...\" Limit=<n> Lists n largest dependencies that are NOT unique to the specified assets, sorted by size."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	if (!CommonArgs.Names.IsEmpty())
+	{
+		TArray<FString> Packages;
+		CommonArgs.Names.ParseIntoArrayWS(Packages);
+		TMap<FName, uint64> CommonDependenciesWithSize;
+
+		if (MemoryUsageQueries::GetDependenciesWithSizeCommon(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, Packages, CommonDependenciesWithSize, &Ar))
+		{
+			MemoryUsageQueries::Internal::PrintTagsWithSize(ScopedOutputDevice.GetOutputDevice(), CommonDependenciesWithSize, TEXT("Common Dependencies"), CommonArgs.bTruncate, CommonArgs.Limit, CommonArgs.bCSV);
+		}
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQuerySavings(
+	TEXT("MemQuery.Savings"),
+	TEXT("Limit=<n> Lists potential savings among %s. How much memory can be saved it we delete certain object."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	const UMemoryUsageQueriesConfig* Config = GetDefault<UMemoryUsageQueriesConfig>();
+
+	// Necessary for FParse::Command
+	const TCHAR* Command = *Cmd;
+
+	for (auto It = Config->SavingsPresets.CreateConstIterator(); It; ++It)
+	{
+		if (!FParse::Command(&Command, *It.Key()))
+		{
+			continue;
+		}
+
+		TMap<FName, uint64> PresetSavings;
+		TSet<FName> Packages;
+
+		UClass* SavingsClass = FindObject<UClass>(nullptr, *It.Value());
+		if (SavingsClass != nullptr)
+		{
+			TArray<UClass*> DerivedClasses;
+			TArray<UClass*> DerivedResults;
+
+			GetDerivedClasses(SavingsClass, DerivedClasses, true);
+
+			for (UClass* DerivedClass : DerivedClasses)
+			{
+				UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(DerivedClass);
+				if (BPClass != nullptr)
+				{
+					DerivedResults.Reset();
+					GetDerivedClasses(BPClass, DerivedResults, false);
+					if (DerivedResults.Num() == 0)
+					{
+						Packages.Add(DerivedClass->GetPackage()->GetFName());
+					}
+				}
+			}
+		}
+
+		for (const auto& Package : Packages)
+		{
+			uint64 Size = 0;
+			MemoryUsageQueries::GetMemoryUsageUnique(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, TArray<FString>({ Package.ToString() }), Size, &Ar);
+			PresetSavings.Add(Package, Size);
+		}
+
+		PresetSavings.ValueSort(TGreater<uint64>());
+		MemoryUsageQueries::Internal::PrintTagsWithSize(ScopedOutputDevice.GetOutputDevice(), PresetSavings, *FString::Printf(TEXT("possible savings")), CommonArgs.bTruncate, CommonArgs.bCSV);
+	}
+}));
+
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryListAssets(
+	TEXT("MemQuery.ListAssets"),
+	TEXT("Name=<AssetNameSubstring> Group=<GroupName> Class=<ClassName> Limit=<n> Lists n largest assets."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	bool bSuccess;
+	TMap<FName, uint64> AssetsWithSize;
+
+	if (CommonArgs.Group != NAME_None || CommonArgs.Class != NAME_None)
+	{
+		bSuccess = MemoryUsageQueries::GetFilteredPackagesWithSize(AssetsWithSize, CommonArgs.Group, CommonArgs.AssetName, CommonArgs.Class, &ScopedOutputDevice.GetOutputDevice());
+	}
+	else
+	{
+		// TODO - Implement using faster path if there are no group / class filters
+		bSuccess = MemoryUsageQueries::GetFilteredPackagesWithSize(AssetsWithSize, CommonArgs.Group, CommonArgs.AssetName, CommonArgs.Class, &ScopedOutputDevice.GetOutputDevice());
+	}
+
+	if (bSuccess)
+	{
+		MemoryUsageQueries::Internal::PrintTagsWithSize(ScopedOutputDevice.GetOutputDevice(), AssetsWithSize, TEXT("largest assets"), CommonArgs.bTruncate, CommonArgs.Limit, CommonArgs.bCSV);
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryListClasses(
+	TEXT("MemQuery.ListClasses"),
+	TEXT("Group=<GroupName> Asset=<AssetName> Limit=<n> Lists n largest classes."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	TMap<FName, uint64> ClassesWithSize;
+	if (MemoryUsageQueries::GetFilteredClassesWithSize(ClassesWithSize, CommonArgs.Group, CommonArgs.AssetName, &Ar))
+	{
+		MemoryUsageQueries::Internal::PrintTagsWithSize(ScopedOutputDevice.GetOutputDevice(), ClassesWithSize, *FString::Printf(TEXT("Largest Classes")), CommonArgs.bTruncate, CommonArgs.Limit, CommonArgs.bCSV);
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryListGroups(
+	TEXT("MemQuery.ListGroups"),
+	TEXT("Asset=<AssetName> Class=<ClassName> Limit=<n> Lists n largest groups."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	TMap<FName, uint64> GroupsWithSize;
+	if (MemoryUsageQueries::GetFilteredGroupsWithSize(GroupsWithSize, CommonArgs.AssetName, CommonArgs.Class, &Ar))
+	{
+		MemoryUsageQueries::Internal::PrintTagsWithSize(ScopedOutputDevice.GetOutputDevice(), GroupsWithSize, *FString::Printf(TEXT("Largest Groups")), CommonArgs.bTruncate, CommonArgs.Limit, CommonArgs.bCSV);
+	}
+}));
+
+FAutoConsoleCommandWithWorldArgsAndOutputDevice GMemQueryCollections(
+	TEXT("MemQuery.Collection"),
+	TEXT("Lists memory used by a collection. Can show dependency breakdown. Pass -showdeps to list dependencies."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(
+		[](const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
+{
+	const FString Cmd = FString::Join(Args, TEXT(" "));
+
+	FScopedOutputDevice ScopedOutputDevice(&Ar);
+	FCommonParameters CommonArgs(*Cmd);
+
+	ScopedOutputDevice.OpenLogFile(CommonArgs.LogFileName, CommonArgs.bCSV);
+
+	const bool bShowDependencies = FParse::Param(*Cmd, TEXT("ShowDeps"));
+
+	// Necessary for FParse::Command
+	const TCHAR* Command = *Cmd;
+
+	FOutputDevice* CurrentOutputDevice = &ScopedOutputDevice.GetOutputDevice();
+
+	const UMemoryUsageQueriesConfig* Config = GetDefault<UMemoryUsageQueriesConfig>();
+	for (auto It = Config->Collections.CreateConstIterator(); It; ++It)
+	{
+		const FCollectionInfo& CollectionInfo = *It;
+
+		if (!FParse::Command(&Command, *CollectionInfo.Name))
+		{
+			continue;
+		}
+
+		// Retrieve a list of all assets that have allocations we are currently tracking.
+		TMap<FName, uint64> AssetsWithSize;
+		bool bSuccess = MemoryUsageQueries::GetFilteredPackagesWithSize(AssetsWithSize, NAME_None, "", NAME_None, &Ar);
+
+		if (!bSuccess)
+		{
+			Ar.Logf(TEXT("Failed to gather assets for Collection %s"), *CollectionInfo.Name);
+			break;
+		}
+
+		// Will return true if the Package Name matches any of the conditions in the array of Paths
+		auto PackageNameMatches = [](const FString& PackageName, const TArray<FString>& Conditions)->bool {
+			for (const FString& Condition : Conditions)
+			{
+				if ((FWildcardString::ContainsWildcards(*Condition) && FWildcardString::IsMatch(*Condition, *PackageName)) || (PackageName.Contains(Condition)))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		};
+
+		// See if any of the asset paths match those of our matching paths and are valid
+		TArray<FString> PackageNames;
+
+		TMap<FName, FAssetMemoryDetails> AssetMemoryMap;
+		for (const TPair<FName, uint64>& AssetSizePair : AssetsWithSize)
+		{
+			const FString& PackageName = AssetSizePair.Key.ToString();
+
+			if (!FPackageName::IsValidLongPackageName(PackageName))
+			{
+				continue;
+			}
+
+			// If path is Included and NOT Excluded, it's a valid asset to consider
+			if (PackageNameMatches(PackageName, CollectionInfo.Includes) && !PackageNameMatches(PackageName, CollectionInfo.Excludes))
+			{
+				PackageNames.Add(PackageName);
+				FAssetMemoryDetails& AssetMemory = AssetMemoryMap.Add(AssetSizePair.Key);
+				AssetMemory.MemoryBreakdown.ExclusiveSize = AssetSizePair.Value;
+
+				FName LongPackageName;
+				if (!MemoryUsageQueries::Internal::GetLongNameAndDependencies(PackageName, LongPackageName, AssetMemory.Dependencies, &Ar))
+				{
+					Ar.Logf(TEXT("Failed to get dependencies foro Asset %s"), *PackageName);
+				}
+			}
+		}
+
+		// Gather list of dependencies. Internal dependencies are confined only to the set of packages passed in.
+		// External are dependencies that have additional references outside the set of packages passed in.
+		TMap<FName, uint64> InternalDependencies;
+		TMap<FName, uint64> ExternalDependencies;
+		if (!MemoryUsageQueries::GatherDependenciesForPackages(MemoryUsageQueries::CurrentMemoryUsageInfoProvider, PackageNames, InternalDependencies, ExternalDependencies, &Ar))
+		{
+			Ar.Logf(TEXT("Failed to gather memory usage for dependencies in Collection %s"), *CollectionInfo.Name);
+			break;
+		}
+
+		uint64 TotalCollectionSize = 0;
+
+		// Determine which category where each assets dependency should reside
+		for (TPair<FName, FAssetMemoryDetails>& Asset : AssetMemoryMap)
+		{
+			FAssetMemoryDetails& AssetMemory = Asset.Value;
+			FAssetMemoryBreakdown& AssetMemoryDetails = AssetMemory.MemoryBreakdown;
+
+			for (FName& Dep : Asset.Value.Dependencies)
+			{
+				// Don't want to count asset itself, plus some dependencies might refer to other assets in the map
+				if (AssetMemoryMap.Contains(Dep))
+				{
+					continue;
+				}
+
+				FAssetMemoryBreakdown DependencyMemory;
+				uint64* UniqueMemory = InternalDependencies.Find(Dep);
+				uint64* SharedMemory = ExternalDependencies.Find(Dep);
+				bool bRecordDependency = false;
+
+				if (UniqueMemory != nullptr && *UniqueMemory != 0)
+				{
+					DependencyMemory.UniqueSize = *UniqueMemory;
+					AssetMemoryDetails.UniqueSize += DependencyMemory.UniqueSize;
+					AssetMemory.UniqueRefCount++;
+					bRecordDependency = true;
+				}
+
+				if (SharedMemory != nullptr && *SharedMemory != 0)
+				{
+					DependencyMemory.SharedSize = *SharedMemory;
+					AssetMemoryDetails.SharedSize += DependencyMemory.SharedSize;
+					AssetMemory.SharedRefCount++;
+					bRecordDependency = true;
+				}
+
+				if (bRecordDependency)
+				{
+					AssetMemory.DependenciesToMemoryMap.Add(Dep, DependencyMemory);
+				}
+			}
+
+			AssetMemoryDetails.TotalSize = AssetMemoryDetails.ExclusiveSize + AssetMemoryDetails.UniqueSize;
+			TotalCollectionSize += AssetMemoryDetails.TotalSize;
+		}
+
+		// Sort by TotalSize
+		AssetMemoryMap.ValueSort([](const FAssetMemoryDetails& A, const FAssetMemoryDetails& B) {
+			return A.MemoryBreakdown.TotalSize > B.MemoryBreakdown.TotalSize;
+			});
+
+		if (CommonArgs.bCSV)
+		{
+			CurrentOutputDevice->Logf(TEXT(",Asset,Exclusive KiB,Unique Refs KiB,Unique Ref Count,Shared Refs KiB,Shared Ref Count,Total KiB"));
+		}
+		else
+		{
+			CurrentOutputDevice->Logf(
+				TEXT(" %100s %20s %20s %15s %20s %15s %25s"),
+				TEXT("Asset"),
+				TEXT("Exclusive KiB"),
+				TEXT("Unique Refs KiB"),
+				TEXT("Unique Ref Count"),
+				TEXT("Shared Refs KiB"),
+				TEXT("Shared Ref Count"),
+				TEXT("Total KiB")
+			);
+		}
+
+		// Asset listing
+		for (TPair<FName, FAssetMemoryDetails>& Asset : AssetMemoryMap)
+		{
+			FAssetMemoryDetails& AssetMemory = Asset.Value;
+			FAssetMemoryBreakdown& AssetMemoryDetails = AssetMemory.MemoryBreakdown;
+
+			if (CommonArgs.bCSV)
+			{
+				CurrentOutputDevice->Logf(TEXT(",%s,%.2f,%.2f,%d,%.2f,%d,%.2f"), *Asset.Key.ToString(),
+					AssetMemoryDetails.ExclusiveSize / 1024.f,
+					AssetMemoryDetails.UniqueSize / 1024.f,
+					AssetMemory.UniqueRefCount,
+					AssetMemoryDetails.SharedSize / 1024.f,
+					AssetMemory.SharedRefCount,
+					AssetMemoryDetails.TotalSize / 1024.f);
+			}
+			else
+			{
+				CurrentOutputDevice->Logf(
+					TEXT(" %100s %20.2f %20.2f %15d %20.2f %15d %25.2f"),
+					*Asset.Key.ToString(),
+					AssetMemoryDetails.ExclusiveSize / 1024.f,
+					AssetMemoryDetails.SharedSize / 1024.f,
+					AssetMemory.SharedRefCount,
+					AssetMemoryDetails.UniqueSize / 1024.f,
+					AssetMemory.UniqueRefCount,
+					AssetMemoryDetails.TotalSize / 1024.f
+				);
+			}
+		}
+
+		// Asset dependencies listing
+		if (bShowDependencies)
+		{
+			if (CommonArgs.bCSV)
+			{
+				CurrentOutputDevice->Logf(TEXT(",Asset,Dependency,Unique KiB,Shared KiB"));
+			}
+			else
+			{
+				CurrentOutputDevice->Logf(TEXT(" %100s %100s %20s %20s"),
+					TEXT("Asset"),
+					TEXT("Dependency"),
+					TEXT("Unique KiB"),
+					TEXT("Shared KiB")
+				);
+			}
+
+			for (TPair<FName, FAssetMemoryDetails>& Asset : AssetMemoryMap)
+			{
+				for (TPair<FName, FAssetMemoryBreakdown>& Dep : Asset.Value.DependenciesToMemoryMap)
+				{
+					const FString DependencyAssetName = Dep.Key.ToString();
+					const FAssetMemoryBreakdown& DepedencyMemoryDetails = Dep.Value;
+
+					if (CommonArgs.bCSV)
+					{
+						CurrentOutputDevice->Logf(TEXT(",%s,%s,%.2f,%.2f"), *Asset.Key.ToString(), *DependencyAssetName,
+							DepedencyMemoryDetails.UniqueSize / 1024.f, DepedencyMemoryDetails.SharedSize / 1024.f);
+					}
+					else
+					{
+						CurrentOutputDevice->Logf(TEXT(" %100s %100s %20.2f %20.2f"),
+							*Asset.Key.ToString(),
+							*DependencyAssetName,
+							DepedencyMemoryDetails.UniqueSize / 1024.f,
+							DepedencyMemoryDetails.SharedSize / 1024.f
+						);
+					}
+				}
+			}
+		}
+
+		if (CommonArgs.bCSV)
+		{
+			CurrentOutputDevice->Logf(TEXT(",TOTAL KiB,%.2f"), TotalCollectionSize / 1024.f);
+		}
+		else
+		{
+			CurrentOutputDevice->Logf(TEXT("TOTAL KiB: %.2f"), TotalCollectionSize / 1024.f);
+		}
+	}
+}));
+
+#endif
 
 namespace MemoryUsageQueries
 {
-
-void RegisterConsoleAutoCompleteEntries(TArray<FAutoCompleteCommand>& AutoCompleteList)
-{
-	const UConsoleSettings* ConsoleSettings = GetDefault<UConsoleSettings>();
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery Usage");
-		AutoCompleteCommand.Desc = TEXT("Name=<AssetName> Prints memory usage of the specified asset.");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery CombinedUsage");
-		AutoCompleteCommand.Desc = TEXT("Names=\"<AssetName1> <AssetName2> ...\" Prints combined memory usage of the specified assets (including all dependencies).");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery SharedUsage");
-		AutoCompleteCommand.Desc = TEXT("Names=\"<AssetName1> <AssetName2> ...\" Prints shared memory usage of the specified assets (including only dependencies shared by the specified assets).");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery UniqueUsage");
-		AutoCompleteCommand.Desc = TEXT("Names=\"<AssetName1> <AssetName2> ...\" Prints unique memory usage of the specified assets (including only dependencies unique to the specified assets).");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery CommonUsage");
-		AutoCompleteCommand.Desc = TEXT("Names=\"<AssetName1> <AssetName2> ...\" Prints common memory usage of the specified assets (including only dependencies that are not unique to the specified assets).");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery Dependencies");
-		AutoCompleteCommand.Desc = TEXT("Name=<AssetName> Limit=<n> Lists dependencies of the specified asset, sorted by size.");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery CombinedDependencies");
-		AutoCompleteCommand.Desc = TEXT("Names=\"<AssetName1> <AssetName2> ...\" Limit=<n> Lists n largest dependencies of the specified assets, sorted by size.");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery SharedDependencies");
-		AutoCompleteCommand.Desc = TEXT("Names=\"<AssetName1> <AssetName2> ...\" Limit=<n> Lists n largest dependencies that are shared by the specified assets, sorted by size.");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-		
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery UniqueDependencies");
-		AutoCompleteCommand.Desc = TEXT("Names=\"<AssetName1> <AssetName2> ...\" Limit=<n> Lists n largest dependencies that are unique to the specified assets, sorted by size.");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery CommonDependencies");
-		AutoCompleteCommand.Desc = TEXT("Names=\"<AssetName1> <AssetName2> ...\" Limit=<n> Lists n largest dependencies that are NOT unique to the specified assets, sorted by size.");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery ListAssets");
-		AutoCompleteCommand.Desc = TEXT("Name=<AssetNameSubstring> Group=<GroupName> Class=<ClassName> Limit=<n> Lists n largest assets.");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery ListClasses");
-		AutoCompleteCommand.Desc = TEXT("Group=<GroupName> Asset=<AssetName> Limit=<n> Lists n largest classes.");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = TEXT("MemQuery ListGroups");
-		AutoCompleteCommand.Desc = TEXT("Asset=<AssetName> Class=<ClassName> Limit=<n> Lists n largest groups.");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	const UMemoryUsageQueriesConfig* MemQueryConfig = GetDefault<UMemoryUsageQueriesConfig>();
-
-	for (auto It = MemQueryConfig->SavingsPresets.CreateConstIterator(); It; ++It)
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = FString::Printf(TEXT("MemQuery Savings %s"), *It.Key());
-		AutoCompleteCommand.Desc = FString::Printf(TEXT("Limit=<n> Lists potential savings among %s. How much memory can be saved it we delete certain object."), *It.Key());
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-
-	for (auto It = MemQueryConfig->Collections.CreateConstIterator(); It; ++It)
-	{
-		FAutoCompleteCommand AutoCompleteCommand;
-		AutoCompleteCommand.Command = FString::Printf(TEXT("MemQuery Collection %s"), *It->Name);
-		AutoCompleteCommand.Desc = TEXT("Lists memory used by a collection. Can show dependency breakdown. [-csv, -showdeps]");
-		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
-		AutoCompleteList.Add(MoveTemp(AutoCompleteCommand));
-	}
-}
 
 IMemoryUsageInfoProvider* GetCurrentMemoryUsageInfoProvider()
 {
