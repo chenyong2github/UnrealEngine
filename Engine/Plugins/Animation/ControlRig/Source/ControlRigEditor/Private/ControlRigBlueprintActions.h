@@ -27,6 +27,7 @@ public:
 
 	// FAssetTypeActions_Blueprint interface
 	virtual UFactory* GetFactoryForBlueprintType(UBlueprint* InBlueprint) const override;
+	virtual bool CanCreateNewDerivedBlueprint() const override { return false; };
 
 	static void ExtendSketalMeshToolMenu();
 
