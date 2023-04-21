@@ -100,7 +100,7 @@ struct FNDIPhysicsAssetData
 };
 
 /** Data Interface for interacting with PhysicsAssets */
-UCLASS(EditInlineNew, Category = "Physics", meta = (DisplayName = "Physics Asset"))
+UCLASS(EditInlineNew, Category = "Physics", CollapseCategories, meta = (DisplayName = "Physics Asset"))
 class NIAGARA_API UNiagaraDataInterfacePhysicsAsset : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

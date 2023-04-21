@@ -16,7 +16,7 @@ class UCurveFloat;
 class FNiagaraSystemInstance;
 
 /** Data Interface allowing sampling of vector curves. */
-UCLASS(EditInlineNew, Category = "Curves", meta = (DisplayName = "Curve for Vector4's"))
+UCLASS(EditInlineNew, Category = "Curves", CollapseCategories, meta = (DisplayName = "Curve for Vector4's"))
 class NIAGARA_API UNiagaraDataInterfaceVector4Curve : public UNiagaraDataInterfaceCurveBase
 {
 	GENERATED_UCLASS_BODY()

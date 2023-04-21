@@ -87,7 +87,7 @@ private:
 };
 
 /** Data Interface allowing sampling of recent audio data. */
-UCLASS(EditInlineNew, Category = "Audio", meta = (DisplayName = "Audio Oscilloscope"))
+UCLASS(EditInlineNew, Category = "Audio", CollapseCategories, meta = (DisplayName = "Audio Oscilloscope"))
 class NIAGARA_API UNiagaraDataInterfaceAudioOscilloscope : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

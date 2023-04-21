@@ -31,7 +31,7 @@ enum class ENDIActorComponentSourceMode : uint8
 /**
 Data interface that gives you access to actor & component information.
 */
-UCLASS(EditInlineNew, Category = "Actor", meta = (DisplayName = "Actor Component Interface"))
+UCLASS(EditInlineNew, Category = "Actor", CollapseCategories, meta = (DisplayName = "Actor Component Interface"))
 class NIAGARA_API UNiagaraDataInterfaceActorComponent : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
@@ -45,11 +45,6 @@ class NIAGARA_API UNiagaraDataInterfaceActorComponent : public UNiagaraDataInter
 	END_SHADER_PARAMETER_STRUCT();
 
 public:
-	/** When this option is disabled, we use the previous frame's data for the skeletal mesh and can often issue the simulation early. This greatly
-	reduces overhead and allows the game thread to run faster, but comes at a tradeoff if the dependencies might leave gaps or other visual artifacts.*/
-	UPROPERTY(EditAnywhere, Category = "Performance")
-	bool bRequireCurrentFrameData = true;
-
 	/** Controls how we find the actor / component we want to bind to. */
 	UPROPERTY(EditAnywhere, Category = "ActorComponent")
 	ENDIActorComponentSourceMode SourceMode = ENDIActorComponentSourceMode::Default;
@@ -65,6 +60,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "ActorComponent")
 	FNiagaraUserParameterBinding ActorOrComponentParameter;
 
+	/** When this option is disabled, we use the previous frame's data for the skeletal mesh and can often issue the simulation early. This greatly
+	reduces overhead and allows the game thread to run faster, but comes at a tradeoff if the dependencies might leave gaps or other visual artifacts.*/
+	UPROPERTY(EditAnywhere, Category = "Performance")
+	bool bRequireCurrentFrameData = true;
+	
 	//UObject Interface
 	virtual void PostInitProperties() override;
 	//UObject Interface End

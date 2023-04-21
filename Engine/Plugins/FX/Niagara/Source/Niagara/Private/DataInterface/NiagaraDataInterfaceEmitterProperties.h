@@ -15,7 +15,7 @@ struct FVMExternalFunctionBindingInfo;
 /**
 Allows access to various emitter properties that are not part of the simulation data.
 */
-UCLASS(EditInlineNew, Category = "DataInterface", meta=(DisplayName="Emitter Properties"))
+UCLASS(EditInlineNew, Category = "DataInterface", CollapseCategories, meta=(DisplayName="Emitter Properties"))
 class UNiagaraDataInterfaceEmitterProperties : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

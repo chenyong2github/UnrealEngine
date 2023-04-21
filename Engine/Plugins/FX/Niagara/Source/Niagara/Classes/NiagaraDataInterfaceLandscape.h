@@ -34,7 +34,7 @@ enum class ENDILandscape_SourceMode : uint8
 };
 
 /** Data Interface allowing sampling of a Landscape */
-UCLASS(EditInlineNew, Category = "Landscape", meta = (DisplayName = "Landscape Sample"))
+UCLASS(EditInlineNew, Category = "Landscape", CollapseCategories, meta = (DisplayName = "Landscape Sample"))
 class NIAGARA_API UNiagaraDataInterfaceLandscape : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

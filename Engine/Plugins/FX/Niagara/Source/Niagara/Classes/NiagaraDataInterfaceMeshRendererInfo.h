@@ -11,7 +11,7 @@ class UNiagaraMeshRendererProperties;
 class FNDIMeshRendererInfo;
 
 /** This Data Interface can be used to query information about the mesh renderers of an emitter */
-UCLASS(EditInlineNew, Category = "Mesh Particles", meta = (DisplayName = "Mesh Renderer Info"))
+UCLASS(EditInlineNew, Category = "Mesh Particles", CollapseCategories, meta = (DisplayName = "Mesh Renderer Info"))
 class NIAGARA_API UNiagaraDataInterfaceMeshRendererInfo : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

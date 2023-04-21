@@ -34,7 +34,7 @@ struct FNDIDataChannelWriteCompiledData : public FNDIDataChannelCompiledData
 	bool Init(UNiagaraSystem* System, UNiagaraDataInterfaceDataChannelWrite* OwnerDI);
 };
 
-UCLASS(Experimental, EditInlineNew, Category = "Data Channels", meta = (DisplayName = "Data Channel Writer"))
+UCLASS(Experimental, EditInlineNew, Category = "Data Channels", CollapseCategories, meta = (DisplayName = "Data Channel Writer"))
 class NIAGARA_API UNiagaraDataInterfaceDataChannelWrite : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

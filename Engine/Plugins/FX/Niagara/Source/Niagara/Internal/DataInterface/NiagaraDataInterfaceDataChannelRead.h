@@ -31,7 +31,7 @@ struct FNDIDataChannelWriteInstanceData;
 class UNiagaraDataChannelHandler;
 class FNiagaraDataBuffer;
 
-UCLASS(Experimental, EditInlineNew, Category = "Data Channels", meta = (DisplayName = "Data Channel Reader"))
+UCLASS(Experimental, EditInlineNew, Category = "Data Channels", CollapseCategories, meta = (DisplayName = "Data Channel Reader"))
 class NIAGARA_API UNiagaraDataInterfaceDataChannelRead : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

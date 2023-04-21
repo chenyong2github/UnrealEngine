@@ -12,7 +12,7 @@ struct FNiagaraDataInterfaceGeneratedFunction;
 class URuntimeVirtualTexture;
 
 /** Data Interface allowing sampling of a texture */
-UCLASS(Experimental, EditInlineNew, Category = "Texture", meta = (DisplayName = "Runtime Virtual Texture Sample"))
+UCLASS(Experimental, EditInlineNew, Category = "Texture", CollapseCategories, meta = (DisplayName = "Runtime Virtual Texture Sample"))
 class NIAGARA_API UNiagaraDataInterfaceVirtualTexture : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

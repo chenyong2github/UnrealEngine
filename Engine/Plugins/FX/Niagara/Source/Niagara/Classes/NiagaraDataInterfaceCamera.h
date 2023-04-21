@@ -23,7 +23,7 @@ struct FCameraDataInterface_InstanceData
 	TArray<FDistanceData> ParticlesSortedByDistance;	
 };
 
-UCLASS(EditInlineNew, Category = "Camera", meta = (DisplayName = "Camera Query"))
+UCLASS(EditInlineNew, Category = "Camera", CollapseCategories, meta = (DisplayName = "Camera Query"))
 class NIAGARA_API UNiagaraDataInterfaceCamera : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

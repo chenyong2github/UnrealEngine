@@ -11,7 +11,7 @@
 class FNiagaraSystemInstance;
 
 /** Data interface for handling latent (delayed 1 frame) traces against the scene for GPU simulations. */
-UCLASS(EditInlineNew, Category = "Collision", meta = (DisplayName = "Async Gpu Trace"))
+UCLASS(EditInlineNew, Category = "Collision", CollapseCategories, meta = (DisplayName = "Async Gpu Trace"))
 class NIAGARA_API UNiagaraDataInterfaceAsyncGpuTrace : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

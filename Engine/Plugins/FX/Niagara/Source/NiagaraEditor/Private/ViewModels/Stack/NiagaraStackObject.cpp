@@ -179,6 +179,7 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 
 	GatherIssueFromProperties((uint8*)Object, Object->GetClass(), true);
 
+
 	if (GetSystemViewModel()->GetIsForDataProcessingOnly() == false && PropertyRowGenerator.IsValid() == false)
 	{
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -205,6 +206,7 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 		PropertyRowGenerator->OnRowsRefreshed().AddUObject(this, &UNiagaraStackObject::PropertyRowsRefreshed);
 	}
 
+
 	if (!Object->HasAllFlags(EObjectFlags::RF_Transactional))
 	{
 		NewIssues.Add(FStackIssue(
@@ -227,6 +229,8 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 				)),
 			}));
 	}
+
+	TArray<FString> DontCollapseCategoriesOverride;
 
 	// TODO: Handle this in a more generic way.  Maybe add error apis to UNiagaraMergable, or use a UObject interface, or create a
 	// TODO: Possibly move to use INiagaraStackObjectIssueGenerator interface.
@@ -264,6 +268,8 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 				GetStackEditorDataKey(),
 				false));
 		}
+
+		DontCollapseCategoriesOverride.Add("Errors");
 	}
 
 	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
@@ -290,6 +296,41 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 			RootTreeNodes = DefaultRootTreeNodes;
 		}
 
+		TArray<TSharedRef<IDetailTreeNode>> CollapsedRootTreeNodes;
+		if(Object->GetClass()->HasAnyClassFlags(CLASS_CollapseCategories))
+		{
+			if(Object->GetClass()->HasMetaData("DontCollapseCategoriesOverride"))
+			{
+				FString MetaDataValue = Object->GetClass()->GetMetaData(TEXT("DontCollapseCategoriesOverride"));
+				TArray<FString> MetaDataDontCollapseOverride;
+				MetaDataValue.ParseIntoArray(MetaDataDontCollapseOverride, TEXT(" "), true);
+				DontCollapseCategoriesOverride.Append(MetaDataDontCollapseOverride);
+			}
+			for (TSharedRef<IDetailTreeNode> RootTreeNode : RootTreeNodes)
+			{
+				if (RootTreeNode->GetNodeType() == EDetailNodeType::Advanced)
+				{
+					continue;
+				}
+				
+				if(RootTreeNode->GetNodeType() == EDetailNodeType::Category && !DontCollapseCategoriesOverride.Contains(RootTreeNode->GetNodeName().ToString()))
+				{
+					TArray<TSharedRef<IDetailTreeNode>> RootChildren;
+					RootTreeNode->GetChildren(RootChildren);
+					CollapsedRootTreeNodes.Append(RootChildren);
+				}
+				else
+				{
+					CollapsedRootTreeNodes.Add(RootTreeNode);
+				}
+			}
+		}
+
+		if(!CollapsedRootTreeNodes.IsEmpty())
+		{
+			RootTreeNodes = CollapsedRootTreeNodes;
+		}
+		
 		for (TSharedRef<IDetailTreeNode> RootTreeNode : RootTreeNodes)
 		{
 			if (RootTreeNode->GetNodeType() == EDetailNodeType::Advanced)

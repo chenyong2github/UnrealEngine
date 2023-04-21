@@ -29,7 +29,7 @@ struct FNiagaraUObjectPropertyReaderRemap
 Data interface to read properties from UObjects.
 Rather than having BP tick functions that push data into Niagara this data interface will instead pull them.
 */
-UCLASS(EditInlineNew, Category = "DataInterface", meta=(DisplayName="Object Reader"))
+UCLASS(EditInlineNew, Category = "DataInterface", CollapseCategories, meta=(DisplayName="Object Reader"))
 class UNiagaraDataInterfaceUObjectPropertyReader : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

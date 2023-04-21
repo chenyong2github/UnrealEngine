@@ -17,7 +17,7 @@ class FNiagaraSystemInstance;
 
 
 /** Data Interface allowing sampling of color curves. */
-UCLASS(EditInlineNew, Category="Curves", meta = (DisplayName = "Curve for Colors"))
+UCLASS(EditInlineNew, Category="Curves", CollapseCategories, meta = (DisplayName = "Curve for Colors"))
 class NIAGARA_API UNiagaraDataInterfaceColorCurve : public UNiagaraDataInterfaceCurveBase
 {
 	GENERATED_UCLASS_BODY()

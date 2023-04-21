@@ -132,7 +132,7 @@ private:
 };
 
 /** Data Interface allowing sampling of recent audio data. */
-UCLASS(EditInlineNew, Category = "Audio", meta = (DisplayName = "Audio Submix"))
+UCLASS(EditInlineNew, Category = "Audio", CollapseCategories, meta = (DisplayName = "Audio Submix"))
 class NIAGARA_API UNiagaraDataInterfaceAudioSubmix : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

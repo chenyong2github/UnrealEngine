@@ -10,7 +10,7 @@
 class UNiagaraSpriteRendererProperties;
 
 /** This Data Interface can be used to query information about the sprite renderers of an emitter */
-UCLASS(EditInlineNew, Category = "Sprite Particles", meta = (DisplayName = "Sprite Renderer Info"))
+UCLASS(EditInlineNew, Category = "Sprite Particles", CollapseCategories, meta = (DisplayName = "Sprite Renderer Info"))
 class NIAGARA_API UNiagaraDataInterfaceSpriteRendererInfo : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

@@ -8,7 +8,7 @@
 #include "NiagaraDataInterfaceTexture.generated.h"
 
 /** Data Interface allowing sampling of a texture */
-UCLASS(EditInlineNew, Category = "Texture", meta = (DisplayName = "Texture Sample"))
+UCLASS(EditInlineNew, Category = "Texture", CollapseCategories, meta = (DisplayName = "Texture Sample"))
 class NIAGARA_API UNiagaraDataInterfaceTexture : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

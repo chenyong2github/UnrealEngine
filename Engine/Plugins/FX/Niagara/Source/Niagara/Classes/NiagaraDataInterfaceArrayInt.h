@@ -5,7 +5,7 @@
 #include "NiagaraDataInterfaceArray.h"
 #include "NiagaraDataInterfaceArrayInt.generated.h"
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Int32 Array"), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Int32 Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayInt32 : public UNiagaraDataInterfaceArray
 {
 public:
@@ -17,7 +17,7 @@ public:
 	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayInt32, int32, IntData)
 };
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "UInt8 Array"), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "UInt8 Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayUInt8 : public UNiagaraDataInterfaceArray
 {
 public:
@@ -34,7 +34,7 @@ public:
 	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayUInt8, uint8, IntData)
 };
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Bool Array"), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Bool Array"), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceArrayBool : public UNiagaraDataInterfaceArray
 {
 public:

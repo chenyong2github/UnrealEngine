@@ -14,7 +14,7 @@ struct FNiagaraDataInterfaceGeneratedFunction;
 Thread safe counter starts at the initial value on start / reset.
 When operating between CPU & GPU ensure you set the appropriate sync mode.
 */
-UCLASS(EditInlineNew, Category = "Counting", meta = (DisplayName = "Simple Counter"))
+UCLASS(EditInlineNew, Category = "Counting", CollapseCategories, meta = (DisplayName = "Simple Counter"))
 class NIAGARA_API UNiagaraDataInterfaceSimpleCounter : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()

@@ -9,7 +9,7 @@
 
 
 /** Data Interface allowing querying of the current platform set. */
-UCLASS(EditInlineNew, Category = "Scalability", meta = (DisplayName = "Platform Set"))
+UCLASS(EditInlineNew, Category = "Scalability", CollapseCategories, meta = (DisplayName = "Platform Set"))
 class NIAGARA_API UNiagaraDataInterfacePlatformSet : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

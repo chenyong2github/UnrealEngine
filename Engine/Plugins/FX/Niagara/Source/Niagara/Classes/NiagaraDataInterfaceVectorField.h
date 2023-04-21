@@ -7,7 +7,7 @@
 
 class FNiagaraSystemInstance;
 
-UCLASS(EditInlineNew, Category = "Vector Field", meta = (DisplayName = "Vector Field"))
+UCLASS(EditInlineNew, Category = "Vector Field", CollapseCategories, meta = (DisplayName = "Vector Field"))
 class NIAGARA_API UNiagaraDataInterfaceVectorField : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

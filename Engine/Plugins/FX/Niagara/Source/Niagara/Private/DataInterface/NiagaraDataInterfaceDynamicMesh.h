@@ -49,7 +49,7 @@ struct FNiagaraDynamicMeshMaterial
 };
 
 /** Data Interface allowing sampling of a texture */
-UCLASS(Experimental, EditInlineNew, Category = "Mesh", meta = (DisplayName = "Dynamic Mesh"))
+UCLASS(Experimental, EditInlineNew, Category = "Mesh", CollapseCategories, meta = (DisplayName = "Dynamic Mesh"))
 class NIAGARA_API UNiagaraDataInterfaceDynamicMesh : public UNiagaraDataInterface, public INiagaraRenderableMeshInterface
 {
 	GENERATED_UCLASS_BODY()

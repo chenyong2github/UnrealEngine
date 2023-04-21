@@ -12,7 +12,7 @@
 
 struct FVolumeCacheInstanceData_GameThread;
 
-UCLASS(EditInlineNew, Category = "Grid",  meta = (DisplayName = "Volume Cache"))
+UCLASS(EditInlineNew, Category = "Grid", CollapseCategories, meta = (DisplayName = "Volume Cache"))
 class NIAGARA_API UNiagaraDataInterfaceVolumeCache : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

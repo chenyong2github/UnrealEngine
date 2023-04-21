@@ -10,7 +10,7 @@
 class UTextureCube;
 
 /** Data Interface allowing sampling of a texture */
-UCLASS(EditInlineNew, Category = "Texture", meta = (DisplayName = "Cube Texture Sample"))
+UCLASS(EditInlineNew, Category = "Texture", CollapseCategories, meta = (DisplayName = "Cube Texture Sample"))
 class NIAGARA_API UNiagaraDataInterfaceCubeTexture : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

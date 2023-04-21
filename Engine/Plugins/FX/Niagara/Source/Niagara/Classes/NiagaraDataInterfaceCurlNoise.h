@@ -8,7 +8,7 @@
 #include "NiagaraDataInterfaceCurlNoise.generated.h"
 
 /** Data Interface allowing sampling of curl noise LUT. */
-UCLASS(EditInlineNew, Category = "Curl Noise LUT", meta = (DisplayName = "Curl Noise"))
+UCLASS(EditInlineNew, Category = "Curl Noise LUT", CollapseCategories, meta = (DisplayName = "Curl Noise"))
 class NIAGARA_API UNiagaraDataInterfaceCurlNoise : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

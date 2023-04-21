@@ -10,7 +10,7 @@
 class USparseVolumeTexture;
 
 /** Data Interface allowing sampling of a sparse volume texture */
-UCLASS(EditInlineNew, Category = "Texture", meta = (DisplayName = "Sparse Volume Texture Sample"))
+UCLASS(EditInlineNew, Category = "Texture", CollapseCategories, meta = (DisplayName = "Sparse Volume Texture Sample"))
 class NIAGARA_API UNiagaraDataInterfaceSparseVolumeTexture : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

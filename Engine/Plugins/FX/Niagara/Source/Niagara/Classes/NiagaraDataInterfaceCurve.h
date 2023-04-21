@@ -11,7 +11,7 @@
 
 
 /** Data Interface allowing sampling of float curves. */
-UCLASS(EditInlineNew, Category = "Curves", meta = (DisplayName = "Curve for Floats"))
+UCLASS(EditInlineNew, Category = "Curves", CollapseCategories, meta = (DisplayName = "Curve for Floats"))
 class NIAGARA_API UNiagaraDataInterfaceCurve : public UNiagaraDataInterfaceCurveBase
 {
 	GENERATED_UCLASS_BODY()

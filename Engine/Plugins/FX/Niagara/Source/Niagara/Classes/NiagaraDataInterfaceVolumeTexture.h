@@ -10,7 +10,7 @@
 class UVolumeTexture;
 
 /** Data Interface allowing sampling of a texture */
-UCLASS(EditInlineNew, Category = "Texture", meta = (DisplayName = "Volume Texture Sample"))
+UCLASS(EditInlineNew, Category = "Texture", CollapseCategories, meta = (DisplayName = "Volume Texture Sample"))
 class NIAGARA_API UNiagaraDataInterfaceVolumeTexture : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

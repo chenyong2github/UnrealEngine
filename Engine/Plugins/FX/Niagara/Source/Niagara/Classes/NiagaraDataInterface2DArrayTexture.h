@@ -10,7 +10,7 @@
 class UTexture2DArray;
 
 /** Data Interface allowing sampling of a texture */
-UCLASS(EditInlineNew, Category = "Texture", meta = (DisplayName = "2D Array Texture Sample"))
+UCLASS(EditInlineNew, Category = "Texture", CollapseCategories, meta = (DisplayName = "2D Array Texture Sample"))
 class NIAGARA_API UNiagaraDataInterface2DArrayTexture : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()

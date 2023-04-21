@@ -12,7 +12,7 @@ struct FNiagaraFunctionSignature;
 struct FNiagaraScriptDataInterfaceCompileInfo;
 struct FVMExternalFunctionBindingInfo;
 
-UCLASS(EditInlineNew, Category = "Debug", meta = (DisplayName = "DebugDraw"))
+UCLASS(EditInlineNew, Category = "Debug", CollapseCategories, meta = (DisplayName = "DebugDraw"))
 class NIAGARA_API UNiagaraDataInterfaceDebugDraw : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
