@@ -140,6 +140,13 @@ void AWorldPartitionHLOD::PostLoad()
 		});
 	}
 
+	// If world is instanced, we need to recompute our bounds since they are in the instanced-world space
+	ForEachComponent<USceneComponent>(false, [](USceneComponent* SceneComponent)
+	{
+		// Clear bComputedBoundsOnceForGame so that the bounds are recomputed once
+		SceneComponent->bComputedBoundsOnceForGame = false;
+	});
+
 #if WITH_EDITOR
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionStreamingCellsNamingShortened)
 	{
