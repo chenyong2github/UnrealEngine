@@ -5,24 +5,6 @@
 using namespace UE::Geometry;
 
 
-UE::MeshDeformation::CotanTriangleData::CotanTriangleData(const CotanTriangleData& Other)
-{
-
-	Cotangent[0] = Other.Cotangent[0];
-	Cotangent[1] = Other.Cotangent[1];
-	Cotangent[2] = Other.Cotangent[2];
-
-	VoronoiArea[0] = Other.VoronoiArea[0];
-	VoronoiArea[1] = Other.VoronoiArea[1];
-	VoronoiArea[2] = Other.VoronoiArea[2];
-
-	OppositeEdge[0] = Other.OppositeEdge[0];
-	OppositeEdge[1] = Other.OppositeEdge[1];
-	OppositeEdge[2] = Other.OppositeEdge[2];
-
-}
-
-
 void UE::MeshDeformation::CotanTriangleData::Initialize(const FDynamicMesh3& DynamicMesh, int32 SrcTriId)
 {
 	TriId = SrcTriId;
@@ -125,21 +107,6 @@ void UE::MeshDeformation::CotanTriangleData::Initialize(const FDynamicMesh3& Dyn
 	}
 }
 
-
-UE::MeshDeformation::MeanValueTriangleData::MeanValueTriangleData(const MeanValueTriangleData& Other)
-	: TriId(Other.TriId)
-	, TriVtxIds(Other.TriVtxIds)
-	, TriEdgeIds(Other.TriEdgeIds)
-	, bDegenerate(Other.bDegenerate)
-{
-	EdgeLength[0] = Other.EdgeLength[0];
-	EdgeLength[1] = Other.EdgeLength[1];
-	EdgeLength[2] = Other.EdgeLength[2];
-
-	TanHalfAngle[0] = Other.TanHalfAngle[0];
-	TanHalfAngle[1] = Other.TanHalfAngle[1];
-	TanHalfAngle[2] = Other.TanHalfAngle[2];
-}
 
 void UE::MeshDeformation::MeanValueTriangleData::Initialize(const FDynamicMesh3& DynamicMesh, int32 SrcTriId)
 {

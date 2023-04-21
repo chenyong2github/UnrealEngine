@@ -53,8 +53,6 @@ namespace UE
 
 			CotanTriangleData() = default;
 
-			CotanTriangleData(const CotanTriangleData& Other);
-
 			CotanTriangleData(const FDynamicMesh3& DynamicMesh, int32 TriId)
 			{
 				Initialize(DynamicMesh, TriId);
@@ -154,8 +152,6 @@ namespace UE
 		{
 
 		public:
-
-			MeanValueTriangleData(const MeanValueTriangleData& Other);
 
 			void Initialize(const FDynamicMesh3& DynamicMesh, int32 SrcTriId);
 
