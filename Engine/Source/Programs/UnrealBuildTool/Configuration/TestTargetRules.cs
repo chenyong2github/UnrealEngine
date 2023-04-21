@@ -282,9 +282,6 @@ namespace UnrealBuildTool
 			bBuildRequiresCookedData = true;
 			bBuildDeveloperTools = false;
 
-			// Disable malloc profiling in tests
-			bUseMallocProfiler = false;
-
 			// Useful for debugging test failures
 			if (Target.Configuration == UnrealTargetConfiguration.Debug)
 			{

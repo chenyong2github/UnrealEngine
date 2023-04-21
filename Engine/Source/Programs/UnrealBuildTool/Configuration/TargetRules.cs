@@ -1853,6 +1853,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If true, then enable memory profiling in the build (defines USE_MALLOC_PROFILER=1 and forces bOmitFramePointers=false).
 		/// </summary>
+		[Obsolete("Deprecated in UE5.3 - No longer used as MallocProfiler is removed in favor of UnrealInsights.")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bUseMallocProfiler = false;
 
@@ -3650,6 +3651,7 @@ namespace UnrealBuildTool
 			get { return Inner.bEnableProcessPriorityControl; }
 		}
 
+		[Obsolete("Deprecated in UE5.3 - No longer used as MallocProfiler is removed in favor of UnrealInsights.")]
 		public bool bUseMallocProfiler
 		{
 			get { return Inner.bUseMallocProfiler; }

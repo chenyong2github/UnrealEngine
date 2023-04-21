@@ -652,13 +652,6 @@ namespace UnrealBuildTool
 				Rules.bOmitPCDebugInfoInDevelopment = false;
 			}
 
-			// Setup the malloc profiler
-			if (Rules.bUseMallocProfiler)
-			{
-				Rules.bOmitFramePointers = false;
-				Rules.GlobalDefinitions.Add("USE_MALLOC_PROFILER=1");
-			}
-
 			// Setup utrace for Shader Compiler Worker
 			if (Rules.bShaderCompilerWorkerTrace)
             {

@@ -172,7 +172,7 @@ namespace UnrealBuildTool
 					BuildProducts.Add(AssetFile, BuildProductType.RequiredResource);
 				}
 			}
-			if (Target.IOSPlatform.bGeneratedSYM && (ProjectSettings.bGenerateCrashReportSymbols || Target.bUseMallocProfiler) && Binary.Type == UEBuildBinaryType.StaticLibrary)
+			if (Target.IOSPlatform.bGeneratedSYM && ProjectSettings.bGenerateCrashReportSymbols && Binary.Type == UEBuildBinaryType.StaticLibrary)
 			{
 				FileReference DebugFile = FileReference.Combine(Binary.OutputFilePath.Directory, Binary.OutputFilePath.GetFileNameWithoutExtension() + ".udebugsymbols");
 				BuildProducts.Add(DebugFile, BuildProductType.SymbolFile);
@@ -1096,7 +1096,7 @@ namespace UnrealBuildTool
 				{
 					OutputFiles.Add(item);
 				}
-				if (ProjectSettings.bGenerateCrashReportSymbols || Target.bUseMallocProfiler)
+				if (ProjectSettings.bGenerateCrashReportSymbols)
 				{
 					OutputFiles.Add(GeneratePseudoPDB(Executable, Graph));
 				}
