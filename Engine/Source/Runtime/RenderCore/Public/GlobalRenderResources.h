@@ -182,17 +182,12 @@ class RENDERCORE_API FGlobalDynamicVertexBuffer
 public:
 	using FAllocation = FGlobalDynamicVertexBufferAllocation;
 
-	/** Default constructor. */
-	FGlobalDynamicVertexBuffer();
-
-	/** Destructor. */
-	~FGlobalDynamicVertexBuffer();
-
 	/**
 	 * Allocates space in the global vertex buffer.
 	 * @param SizeInBytes - The amount of memory to allocate in bytes.
 	 * @returns An FAllocation with information regarding the allocated memory.
 	 */
+	FAllocation Allocate(FRHICommandList& RHICmdList, uint32 SizeInBytes);
 	FAllocation Allocate(uint32 SizeInBytes);
 
 	/**
@@ -200,17 +195,16 @@ public:
 	 *		WARNING: Once this buffer has been committed to the GPU, allocations
 	 *		remain valid only until the next call to Allocate!
 	 */
+	void Commit(FRHICommandList& RHICmdList);
 	void Commit();
+
+	static void GarbageCollect();
 
 	/** Returns true if log statements should be made because we exceeded GMaxVertexBytesAllocatedPerFrame */
 	bool IsRenderAlarmLoggingEnabled() const;
 
 private:
-	/** The pool of vertex buffers from which allocations are made. */
-	struct FDynamicVertexBufferPool* Pool;
-
-	/** A total of all allocations made since the last commit. Used to alert about spikes in memory usage. */
-	size_t TotalAllocatedSinceLastCommit;
+	TArray<class FDynamicVertexBuffer*> VertexBuffers;
 };
 
 struct FGlobalDynamicIndexBufferAllocation

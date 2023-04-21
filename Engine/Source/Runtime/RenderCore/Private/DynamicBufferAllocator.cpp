@@ -208,6 +208,8 @@ bool FGlobalDynamicReadBuffer::IsRenderAlarmLoggingEnabled() const
 
 static void RemoveUnusedBuffers(FDynamicReadBufferPool* BufferPool)
 {
+	extern int32 GGlobalBufferNumFramesUnusedThreshold;
+
 	for (int32 BufferIndex = 0, NumBuffers = BufferPool->Buffers.Num(); BufferIndex < NumBuffers; ++BufferIndex)
 	{
 		FDynamicAllocReadBuffer& Buffer = BufferPool->Buffers[BufferIndex];
@@ -215,10 +217,10 @@ static void RemoveUnusedBuffers(FDynamicReadBufferPool* BufferPool)
 		{
 			Buffer.Unlock();
 		}
-		else if (GGlobalBufferNumFramesUnusedThresold && !Buffer.AllocatedByteCount)
+		else if (GGlobalBufferNumFramesUnusedThreshold && !Buffer.AllocatedByteCount)
 		{
 			++Buffer.NumFramesUnused;
-			if (Buffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold)
+			if (Buffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThreshold)
 			{
 				// Remove the buffer, assumes they are unordered.
 				Buffer.Release();

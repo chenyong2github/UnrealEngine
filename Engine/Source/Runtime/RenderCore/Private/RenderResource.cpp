@@ -236,6 +236,7 @@ void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
 
 void FRenderResource::InitResource()
 {
+	check(IsInRenderingThread());
 	if (ListIndex == INDEX_NONE)
 	{
 		int32 LocalListIndex = INDEX_NONE;
@@ -254,8 +255,38 @@ void FRenderResource::InitResource()
 		if (GIsRHIInitialized)
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitRenderResource);
-			InitDynamicRHI();
-			InitRHI();
+			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+			InitDynamicRHI(RHICmdList);
+			InitRHI(RHICmdList);
+		}
+
+		FPlatformMisc::MemoryBarrier(); // there are some multithreaded reads of ListIndex
+		ListIndex = LocalListIndex;
+	}
+}
+
+void FRenderResource::InitResource(FRHICommandList& RHICmdList)
+{
+	if (ListIndex == INDEX_NONE)
+	{
+		int32 LocalListIndex = INDEX_NONE;
+
+		if (PLATFORM_NEEDS_RHIRESOURCELIST || !GIsRHIInitialized)
+		{
+			LLM_SCOPE(ELLMTag::SceneRender);
+			LocalListIndex = FRenderResourceList::Get().Allocate(this);
+		}
+		else
+		{
+			// Mark this resource as initialized
+			LocalListIndex = 0;
+		}
+
+		if (GIsRHIInitialized)
+		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitRenderResource);
+			InitDynamicRHI(RHICmdList);
+			InitRHI(RHICmdList);
 		}
 
 		FPlatformMisc::MemoryBarrier(); // there are some multithreaded reads of ListIndex
@@ -286,15 +317,19 @@ void FRenderResource::ReleaseResource()
 void FRenderResource::UpdateRHI()
 {
 	check(IsInRenderingThread());
-	if(IsInitialized() && GIsRHIInitialized)
+	UpdateRHI(FRHICommandListExecutor::GetImmediateCommandList());
+}
+
+void FRenderResource::UpdateRHI(FRHICommandList& RHICmdList)
+{
+	if (IsInitialized() && GIsRHIInitialized)
 	{
 		ReleaseRHI();
 		ReleaseDynamicRHI();
-		InitDynamicRHI();
-		InitRHI();
+		InitDynamicRHI(RHICmdList);
+		InitRHI(RHICmdList);
 	}
 }
-
 FRenderResource::FRenderResource()
 	: ListIndex(INDEX_NONE)
 	, FeatureLevel(ERHIFeatureLevel::Num)

@@ -39,9 +39,6 @@
 class FRDGPooledBuffer;
 class FResourceArrayInterface;
 
-/** Number of frames after which unused global resource allocations will be discarded. */
-extern int32 GGlobalBufferNumFramesUnusedThresold;
-
 /** Experimental: whether we free helper structures after submitting to RHI. */
 extern RENDERCORE_API bool GFreeStructuresOnRHIBufferCreation;
 
@@ -99,6 +96,7 @@ public:
 	 * This is only called by the rendering thread.
 	 */
 	virtual void InitDynamicRHI() {}
+	virtual void InitDynamicRHI(FRHICommandList& RHICmdList) { InitDynamicRHI(); }
 
 	/**
 	 * Releases the dynamic RHI resource and/or RHI render target resources used by this resource.
@@ -114,6 +112,7 @@ public:
 	 * This is only called by the rendering thread.
 	 */
 	virtual void InitRHI() {}
+	virtual void InitRHI(FRHICommandList& RHICmdList) { InitRHI(); }
 
 	/**
 	 * Releases the RHI resources used by this resource.
@@ -127,6 +126,7 @@ public:
 	 * This is only called by the rendering thread.
 	 */
 	virtual void InitResource();
+	virtual void InitResource(FRHICommandList& RHICmdList);
 
 	/**
 	 * Prepares the resource for deletion.
@@ -139,6 +139,7 @@ public:
 	 * This is only called by the rendering thread.
 	 */
 	void UpdateRHI();
+	void UpdateRHI(FRHICommandList& RHICmdList);
 
 	/** @return The resource's friendly name.  Typically a UObject name. */
 	virtual FString GetFriendlyName() const { return TEXT("undefined"); }
