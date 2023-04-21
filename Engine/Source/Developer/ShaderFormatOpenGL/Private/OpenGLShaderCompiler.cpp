@@ -3366,8 +3366,8 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 		return;
 	}
 
-	FShaderParameterParser ShaderParameterParser;
-	if (!ShaderParameterParser.ParseAndModify(Input, Output, PreprocessedShader))
+	FShaderParameterParser ShaderParameterParser(Input.Environment.CompilerFlags);
+	if (!ShaderParameterParser.ParseAndModify(Input, Output.Errors, PreprocessedShader))
 	{
 		// The FShaderParameterParser will add any relevant errors.
 		return;

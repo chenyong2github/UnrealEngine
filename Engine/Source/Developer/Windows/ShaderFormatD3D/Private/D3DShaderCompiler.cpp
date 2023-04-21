@@ -1210,8 +1210,8 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		}
 	}
 
-	FShaderParameterParser ShaderParameterParser(TEXT("cbuffer"));
-	if (!ShaderParameterParser.ParseAndModify(Input, Output, PreprocessedShaderSource))
+	FShaderParameterParser ShaderParameterParser(Input.Environment.CompilerFlags, TEXT("cbuffer"));
+	if (!ShaderParameterParser.ParseAndModify(Input, Output.Errors, PreprocessedShaderSource))
 	{
 		// The FShaderParameterParser will add any relevant errors.
 		return;

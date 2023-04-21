@@ -2485,14 +2485,14 @@ static bool CompileWithShaderConductor(
 class FVulkanShaderParameterParser : public FShaderParameterParser
 {
 public:
-	FVulkanShaderParameterParser(bool bHasBindlessSamplers, bool bHasBindlessResources)
-		: bEnabled(bHasBindlessSamplers || bHasBindlessResources)
+	FVulkanShaderParameterParser(FShaderCompilerFlags CompilerFlags)
+		: FShaderParameterParser(CompilerFlags)
 	{}
 
 protected:
 	FString GenerateBindlessParameterDeclaration(const FParsedShaderParameter& ParsedParameter) const override
 	{
-		if (bEnabled)
+		if (bBindlessResources || bBindlessSamplers)
 		{
 			const bool IsSampler = (ParsedParameter.BindlessConversionType == EBindlessConversionType::Sampler);
 			const TCHAR* IndexPrefix = IsSampler ? TEXT("BindlessSampler_") : TEXT("BindlessResource_");
@@ -2533,9 +2533,6 @@ protected:
 			return FShaderParameterParser::GenerateBindlessParameterDeclaration(ParsedParameter);
 		}
 	}
-
-private:
-	const bool bEnabled;
 };
 
 
@@ -2658,10 +2655,8 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		}
 	}
 
-	const bool bHasBindlessSamplers = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
-	const bool bHasBindlessResources = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources);
-	FVulkanShaderParameterParser ShaderParameterParser(bHasBindlessSamplers, bHasBindlessResources);
-	if (!ShaderParameterParser.ParseAndModify(Input, Output, PreprocessedShaderSource))
+	FVulkanShaderParameterParser ShaderParameterParser(Input.Environment.CompilerFlags);
+	if (!ShaderParameterParser.ParseAndModify(Input, Output.Errors, PreprocessedShaderSource))
 	{
 		// The FShaderParameterParser will add any relevant errors.
 		return;

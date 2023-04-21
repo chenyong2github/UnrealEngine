@@ -33,7 +33,8 @@ namespace EShaderPrecisionModifier
 	{
 		Float,
 		Half,
-		Fixed
+		Fixed,
+		Invalid
 	};
 };
 

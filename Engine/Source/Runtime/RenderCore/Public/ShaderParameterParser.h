@@ -5,8 +5,11 @@
 #include "CoreMinimal.h"
 #include "ShaderParameterMetadata.h"
 
+class FShaderCompilerFlags;
 struct FShaderCompilerInput;
 struct FShaderCompilerOutput;
+struct FShaderCompilerEnvironment;
+struct FShaderCompilerError;
 
 enum class EShaderParameterType : uint8;
 
@@ -25,11 +28,11 @@ public:
 	{
 	public:
 		/** Original information about the member. */
-		EUniformBufferBaseType BaseType;
-		EShaderPrecisionModifier::Type PrecisionModifier;
-		uint32 NumRows;
-		uint32 NumColumns;
-		uint32 MemberSize;
+		TEnumAsByte<EUniformBufferBaseType> BaseType{ UBMT_INVALID };
+		TEnumAsByte<EShaderPrecisionModifier::Type> PrecisionModifier{ EShaderPrecisionModifier::Invalid };
+		uint32 NumRows = 0u;
+		uint32 NumColumns = 0u;
+		uint32 MemberSize = 0u;
 
 		/** Information found about the member when parsing the preprocessed code. */
 		FStringView ParsedName; /** View into FShaderParameterParser::OriginalParsedShader */
@@ -62,22 +65,41 @@ public:
 	};
 
 	FShaderParameterParser();
+
+	UE_DEPRECATED(5.3, "Use FShaderParameterParser constructor which accepts FShaderCompilerFlags")
 	FShaderParameterParser(const TCHAR* InConstantBufferType);
-	FShaderParameterParser(const TCHAR* InConstantBufferType, TArrayView<const TCHAR* const> InExtraSRVTypes, TArrayView<const TCHAR* const> InExtraUAVTypes);
+	UE_DEPRECATED(5.3, "Use FShaderParameterParser constructor which accepts FShaderCompilerFlags")
+	FShaderParameterParser(const TCHAR* InConstantBufferType, TConstArrayView<const TCHAR*> InExtraSRVTypes, TConstArrayView<const TCHAR*> InExtraUAVTypes);
+
+	FShaderParameterParser(
+		FShaderCompilerFlags CompilerFlags,
+		const TCHAR* InConstantBufferType = nullptr,
+		TConstArrayView<const TCHAR*> InExtraSRVTypes = {},
+		TConstArrayView<const TCHAR*> InExtraUAVTypes = {});
+
 	virtual ~FShaderParameterParser();
+
+	FShaderParameterParser& operator=(FShaderParameterParser&&) = default;
 
 	static constexpr const TCHAR* kBindlessResourcePrefix = TEXT("BindlessResource_");
 	static constexpr const TCHAR* kBindlessSamplerPrefix = TEXT("BindlessSampler_");
 
-	static EShaderParameterType ParseParameterType(FStringView InType, TArrayView<const TCHAR* const> InExtraSRVTypes, TArrayView<const TCHAR* const> InExtraUAVTypes);
+	static EShaderParameterType ParseParameterType(FStringView InType, TConstArrayView<const TCHAR*> InExtraSRVTypes, TConstArrayView<const TCHAR*> InExtraUAVTypes);
 	static EShaderParameterType ParseAndRemoveBindlessParameterPrefix(FStringView& InName);
 	static EShaderParameterType ParseAndRemoveBindlessParameterPrefix(FString& InName);
 	static bool RemoveBindlessParameterPrefix(FString& InName);
 
 	/** Parses the preprocessed shader code and applies the necessary modifications to it. */
+	UE_DEPRECATED(5.3, "Use ParseAndModify overload accepting array of FShaderCompilerError instead of passing FShaderCompilerOutput")
 	bool ParseAndModify(
 		const FShaderCompilerInput& CompilerInput,
 		FShaderCompilerOutput& CompilerOutput,
+		FString& PreprocessedShaderSource
+	);
+
+	bool ParseAndModify(
+		const FShaderCompilerInput& CompilerInput,
+		TArray<FShaderCompilerError>& OutErrors,
 		FString& PreprocessedShaderSource
 	);
 
@@ -89,18 +111,9 @@ public:
 		const TCHAR* InConstantBufferType
 	)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return ParseAndModify(CompilerInput, CompilerOutput, PreprocessedShaderSource);
-	}
-
-	/** Parses the preprocessed shader code and move the parameters into root constant buffer */
-	UE_DEPRECATED(5.1, "ParseAndModify should be called instead.")
-	bool ParseAndMoveShaderParametersToRootConstantBuffer(
-		const FShaderCompilerInput& CompilerInput,
-		FShaderCompilerOutput& CompilerOutput,
-		FString& PreprocessedShaderSource,
-		const TCHAR* InConstantBufferType)
-	{
-		return ParseAndModify(CompilerInput, CompilerOutput, PreprocessedShaderSource);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/** Gets parsing information from a parameter binding name. */
@@ -147,11 +160,13 @@ public:
 		return ExtractFileAndLine(ParsedParameter.ParsedPragmaLineoffset, ParsedParameter.ParsedLineOffset, OutFile, OutLine);
 	}
 
+	friend FArchive& operator<<(FArchive& Ar, FShaderParameterParser& Parser);
+
 protected:
 	/** Parses the preprocessed shader code */
 	bool ParseParameters(
-		const FShaderCompilerInput& CompilerInput,
-		FShaderCompilerOutput& CompilerOutput
+		const FShaderParametersMetadata* RootParametersStructure,
+		TArray<FShaderCompilerError>& OutErrors
 	);
 
 	void RemoveMovingParametersFromSource(
@@ -165,8 +180,7 @@ protected:
 
 	/** Moves parsed parameters into the root constant buffer. */
 	bool MoveShaderParametersToRootConstantBuffer(
-		const FShaderCompilerInput& CompilerInput,
-		FShaderCompilerOutput& CompilerOutput,
+		const FShaderParametersMetadata* RootParametersStructure,
 		FString& PreprocessedShaderSource
 	);
 
@@ -178,10 +192,10 @@ protected:
 	*/
 	virtual FString GenerateBindlessParameterDeclaration(const FParsedShaderParameter& ParsedParameter) const;
 
-	const TCHAR* const ConstantBufferType = nullptr;
+	const TCHAR* ConstantBufferType = nullptr;
 
-	const TArray<const TCHAR*> ExtraSRVTypes;
-	const TArray<const TCHAR*> ExtraUAVTypes;
+	TConstArrayView<const TCHAR*> ExtraSRVTypes;
+	TConstArrayView<const TCHAR*> ExtraUAVTypes;
 
 	FString OriginalParsedShader;
 

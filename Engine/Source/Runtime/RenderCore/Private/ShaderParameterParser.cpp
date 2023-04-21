@@ -137,21 +137,29 @@ static void AddNoteToDisplayShaderParameterMemberOnCppSide(
 FShaderParameterParser::FShaderParameterParser() = default;
 FShaderParameterParser::~FShaderParameterParser() = default;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FShaderParameterParser::FShaderParameterParser(const TCHAR* InConstantBufferType)
-	: ConstantBufferType(InConstantBufferType)
-{
-}
-
+	: FShaderParameterParser(FShaderCompilerFlags(), InConstantBufferType)
+{}
 FShaderParameterParser::FShaderParameterParser(
 	const TCHAR* InConstantBufferType,
-	TArrayView<const TCHAR* const> InExtraSRVTypes,
-	TArrayView<const TCHAR* const> InExtraUAVTypes
-)
+	TConstArrayView<const TCHAR*> InExtraSRVTypes,
+	TConstArrayView<const TCHAR*> InExtraUAVTypes)
+	: FShaderParameterParser(FShaderCompilerFlags(), InConstantBufferType, InExtraSRVTypes, InExtraUAVTypes)
+{}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+FShaderParameterParser::FShaderParameterParser(
+	FShaderCompilerFlags CompilerFlags,
+	const TCHAR* InConstantBufferType,
+	TConstArrayView<const TCHAR*> InExtraSRVTypes,
+	TConstArrayView<const TCHAR*> InExtraUAVTypes)
 	: ConstantBufferType(InConstantBufferType)
 	, ExtraSRVTypes(InExtraSRVTypes)
 	, ExtraUAVTypes(InExtraUAVTypes)
-{
-}
+	, bBindlessResources(CompilerFlags.Contains(CFLAG_BindlessResources))
+	, bBindlessSamplers(CompilerFlags.Contains(CFLAG_BindlessSamplers))
+{}
 
 static const TCHAR* const s_AllSRVTypes[] =
 {
@@ -194,12 +202,12 @@ static const TCHAR* const s_AllSamplerTypes[] =
 
 EShaderParameterType FShaderParameterParser::ParseParameterType(
 	FStringView InType,
-	TArrayView<const TCHAR* const> InExtraSRVTypes,
-	TArrayView<const TCHAR* const> InExtraUAVTypes)
+	TConstArrayView<const TCHAR*> InExtraSRVTypes,
+	TConstArrayView<const TCHAR*> InExtraUAVTypes)
 {
-	TArrayView<const TCHAR* const> AllSamplerTypes(s_AllSamplerTypes);
-	TArrayView<const TCHAR* const> AllSRVTypes(s_AllSRVTypes);
-	TArrayView<const TCHAR* const> AllUAVTypes(s_AllUAVTypes);
+	TConstArrayView<const TCHAR*> AllSamplerTypes(s_AllSamplerTypes);
+	TConstArrayView<const TCHAR*> AllSRVTypes(s_AllSRVTypes);
+	TConstArrayView<const TCHAR*> AllUAVTypes(s_AllUAVTypes);
 
 	if (AllSamplerTypes.Contains(InType))
 	{
@@ -261,18 +269,18 @@ bool FShaderParameterParser::RemoveBindlessParameterPrefix(FString& InName)
 
 
 bool FShaderParameterParser::ParseParameters(
-	const FShaderCompilerInput& CompilerInput,
-	FShaderCompilerOutput& CompilerOutput)
+	const FShaderParametersMetadata* RootParametersStructure,
+	TArray<FShaderCompilerError>& OutErrors)
 {
 	const FStringView ShaderSource(OriginalParsedShader);
 
-	if (CompilerInput.RootParametersStructure)
+	if (RootParametersStructure)
 	{
 		// Reserves the number of parameters up front.
-		ParsedParameters.Reserve(CompilerInput.RootParametersStructure->GetSize() / sizeof(int32));
+		ParsedParameters.Reserve(RootParametersStructure->GetSize() / sizeof(int32));
 
 		IterateShaderParameterMembers(
-			*CompilerInput.RootParametersStructure,
+			*RootParametersStructure,
 			[&](const FShaderParametersMetadata& ParametersMetadata,
 				const FShaderParametersMetadata::FMember& Member,
 				const TCHAR* ShaderBindingName,
@@ -321,8 +329,8 @@ bool FShaderParameterParser::ParseParameters(
 
 		const int32 ShaderSourceLen = ShaderSource.Len();
 
-		int32 CurrentPragamLineoffset = -1;
-		int32 CurrentLineoffset = 0;
+		int32 CurrentPragmaLineOffset = -1;
+		int32 CurrentLineOffset = 0;
 
 		int32 TypeQualifierStartPos = -1;
 		int32 TypeStartPos = -1;
@@ -354,8 +362,8 @@ bool FShaderParameterParser::ParseParameters(
 		{
 			FShaderCompilerError Error;
 			Error.StrippedErrorMessage = ErrorMessage;
-			ExtractFileAndLine(CurrentPragamLineoffset, CurrentLineoffset, Error.ErrorVirtualFilePath, Error.ErrorLineString);
-			CompilerOutput.Errors.Add(Error);
+			ExtractFileAndLine(CurrentPragmaLineOffset, CurrentLineOffset, Error.ErrorVirtualFilePath, Error.ErrorLineString);
+			OutErrors.Add(Error);
 			bSuccess = false;
 		};
 
@@ -459,8 +467,8 @@ bool FShaderParameterParser::ParseParameters(
 				{
 					ParsedParameter.ParsedName = Name;
 					ParsedParameter.ParsedType = Type;
-					ParsedParameter.ParsedPragmaLineoffset = CurrentPragamLineoffset;
-					ParsedParameter.ParsedLineOffset = CurrentLineoffset;
+					ParsedParameter.ParsedPragmaLineoffset = CurrentPragmaLineOffset;
+					ParsedParameter.ParsedLineOffset = CurrentLineOffset;
 					ParsedParameter.ParsedCharOffsetStart = TypeQualifierStartPos != -1 ? TypeQualifierStartPos : TypeStartPos;
 					ParsedParameter.ParsedCharOffsetEnd = Cursor;
 					ParsedParameter.BindlessConversionType = BindlessConversionType;
@@ -485,7 +493,7 @@ bool FShaderParameterParser::ParseParameters(
 			const TCHAR* UpComing = ShaderSource.GetData() + Cursor;
 			const int32 RemainingSize = ShaderSourceLen - Cursor;
 
-			CurrentLineoffset += Char == '\n';
+			CurrentLineOffset += Char == '\n';
 
 			// Go to the next line if this is a preprocessor macro.
 			if (bGoToNextLine)
@@ -500,8 +508,8 @@ bool FShaderParameterParser::ParseParameters(
 			{
 				if (RemainingSize > 6 && FCString::Strncmp(UpComing, TEXT("#line "), 6) == 0)
 				{
-					CurrentPragamLineoffset = Cursor;
-					CurrentLineoffset = -1; // that will be incremented to 0 when reaching the \n at the end of the #line
+					CurrentPragmaLineOffset = Cursor;
+					CurrentLineOffset = -1; // that will be incremented to 0 when reaching the \n at the end of the #line
 				}
 
 				bGoToNextLine = true;
@@ -978,19 +986,18 @@ static const TCHAR* GetConstantSwizzle(uint16 ByteOffset)
 }
 
 bool FShaderParameterParser::MoveShaderParametersToRootConstantBuffer(
-	const FShaderCompilerInput& CompilerInput,
-	FShaderCompilerOutput& CompilerOutput,
+	const FShaderParametersMetadata* RootParametersStructure,
 	FString& PreprocessedShaderSource)
 {
 	bool bSuccess = true;
 
 	// Generate the root cbuffer content.
-	if (CompilerInput.RootParametersStructure && bNeedToMoveToRootConstantBuffer)
+	if (RootParametersStructure && bNeedToMoveToRootConstantBuffer)
 	{
 		FString RootCBufferContent;
 
 		IterateShaderParameterMembers(
-			*CompilerInput.RootParametersStructure,
+			*RootParametersStructure,
 			[&](const FShaderParametersMetadata& ParametersMetadata,
 				const FShaderParametersMetadata::FMember& Member,
 				const TCHAR* ShaderBindingName,
@@ -1067,13 +1074,25 @@ bool FShaderParameterParser::MoveShaderParametersToRootConstantBuffer(
 	return bSuccess;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool FShaderParameterParser::ParseAndModify(
 	const FShaderCompilerInput& CompilerInput,
 	FShaderCompilerOutput& CompilerOutput,
 	FString& PreprocessedShaderSource)
 {
+	// assume that if this deprecated overload is still being called, that also the deprecated constructor overloads
+	// are also still being used (and so re-set these member variables according to the environment in the input struct)
 	bBindlessResources = CompilerInput.Environment.CompilerFlags.Contains(CFLAG_BindlessResources);
 	bBindlessSamplers = CompilerInput.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
+	return ParseAndModify(CompilerInput, CompilerOutput.Errors, PreprocessedShaderSource);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FShaderParameterParser::ParseAndModify(
+	const FShaderCompilerInput& CompilerInput,
+	TArray<FShaderCompilerError>& OutErrors,
+	FString& PreprocessedShaderSource)
+{
 	const bool bHasRootParameters = (CompilerInput.RootParametersStructure != nullptr);
 
 	// The shader doesn't have any parameter binding through shader structure, therefore don't do anything.
@@ -1085,7 +1104,7 @@ bool FShaderParameterParser::ParseAndModify(
 	bNeedToMoveToRootConstantBuffer = ConstantBufferType != nullptr && (CompilerInput.IsRayTracingShader() || CompilerInput.ShouldUseStableConstantBuffer());
 	OriginalParsedShader = PreprocessedShaderSource;
 
-	if (!ParseParameters(CompilerInput, CompilerOutput))
+	if (!ParseParameters(CompilerInput.RootParametersStructure, OutErrors))
 	{
 		return false;
 	}
@@ -1095,7 +1114,7 @@ bool FShaderParameterParser::ParseAndModify(
 
 	if (bNeedToMoveToRootConstantBuffer)
 	{
-		return MoveShaderParametersToRootConstantBuffer(CompilerInput, CompilerOutput, PreprocessedShaderSource);
+		return MoveShaderParametersToRootConstantBuffer(CompilerInput.RootParametersStructure, PreprocessedShaderSource);
 	}
 	
 	return true;
@@ -1292,6 +1311,73 @@ void FShaderParameterParser::ValidateShaderParameterTypes(
 		});
 }
 
+void SerializeStringView(FArchive& Ar, FStringView& StringView, const TCHAR* BasePtr)
+{
+	if (Ar.IsSaving())
+	{
+		uint32 Len = StringView.Len();
+		uint64 Offset = StringView.GetData() - BasePtr;
+		Ar << Len;
+		Ar << Offset;
+	}
+	else
+	{
+		uint32 Len;
+		uint64 Offset;
+		Ar << Len;
+		Ar << Offset;
+		StringView = FStringView(BasePtr + Offset, Len);
+	}
+}
+void SerializeParam(FArchive& Ar, FShaderParameterParser::FParsedShaderParameter& Param, const TCHAR* StringViewBase)
+{
+	Ar << Param.BaseType;
+	Ar << Param.PrecisionModifier;
+	Ar << Param.NumRows;
+	Ar << Param.NumColumns;
+	Ar << Param.MemberSize;
+	SerializeStringView(Ar, Param.ParsedName, StringViewBase);
+	SerializeStringView(Ar, Param.ParsedType, StringViewBase);
+	SerializeStringView(Ar, Param.ParsedArraySize, StringViewBase);
+	Ar << Param.ConstantBufferOffset;
+	Ar << Param.ParsedPragmaLineoffset;
+	Ar << Param.ParsedLineOffset;
+	Ar << Param.ParsedCharOffsetStart;
+	Ar << Param.ParsedCharOffsetEnd;
+	Ar << Param.BindlessConversionType;
+	Ar << Param.ConstantBufferParameterType;
+	Ar << Param.bGloballyCoherent;
+	Ar << Param.bIsBindable;
+}
+FArchive& operator<<(FArchive& Ar, FShaderParameterParser& Parser)
+{
+	Ar << Parser.bMovedLoosedParametersToRootConstantBuffer;
+	Ar << Parser.OriginalParsedShader;
+	if (Ar.IsSaving())
+	{
+		int32 ParsedParamCount = Parser.ParsedParameters.Num();
+		Ar << ParsedParamCount;
+		for (TPair<FString, FShaderParameterParser::FParsedShaderParameter>& ParsedParam : Parser.ParsedParameters)
+		{
+			Ar << ParsedParam.Key;
+			SerializeParam(Ar, ParsedParam.Value, Parser.OriginalParsedShader.GetCharArray().GetData());
+		}
+	}
+	else
+	{
+		uint32 ParsedParameterCount;
+		Ar << ParsedParameterCount;
+		Parser.ParsedParameters.Reserve(ParsedParameterCount);
+		for (uint32 CurParam = 0; CurParam < ParsedParameterCount; ++CurParam)
+		{
+			FString Name;
+			Ar << Name;
+			FShaderParameterParser::FParsedShaderParameter& ParsedParam = Parser.ParsedParameters.Add(Name);
+			SerializeParam(Ar, ParsedParam, Parser.OriginalParsedShader.GetCharArray().GetData());
+		}
+	}
+	return Ar;
+}
 void FShaderParameterParser::ExtractFileAndLine(int32 PragamLineoffset, int32 LineOffset, FString& OutFile, FString& OutLine) const
 {
 	if (PragamLineoffset == -1)
