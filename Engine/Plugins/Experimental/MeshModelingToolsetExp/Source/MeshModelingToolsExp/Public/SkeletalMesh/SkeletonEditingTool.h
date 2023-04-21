@@ -254,9 +254,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Move")
 	bool bUpdateChildren = false;
 
-	UPROPERTY(EditAnywhere, Category = "Create")
-	FName DefaultName = "joint";
-
 	UPROPERTY(EditAnywhere, Category = "Viewport Axis Settings",  meta = (ClampMin = "0.0", UIMin = "0.0"))
 	float AxisLength = 1.f;
 

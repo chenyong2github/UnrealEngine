@@ -400,7 +400,8 @@ void USkeletonEditingTool::CreateNewBone()
 
 	BeginChange();
 
-	const FName BoneName = Modifier->GetUniqueName(Properties->DefaultName);
+	static const FName DefaultName("joint");
+	const FName BoneName = Modifier->GetUniqueName(DefaultName);
 	const FName ParentName = Selection.IsEmpty() ? NAME_None : Selection.Last(); 
 	const bool bBoneAdded = Modifier->AddBone(BoneName, ParentName, Properties->Transform);
 	if (bBoneAdded)
@@ -858,7 +859,7 @@ FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceR
 		if (ProjectionProperties->GetProjectionPoint(InPressPos, HitPoint))
 		{
 			// CurrentBone is gonna be the parent
-			PendingFunction = [&]
+			PendingFunction = [this, HitPoint]
 			{
 				const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
 				ParentIndex = ReferenceSkeleton.FindRawBoneIndex(GetCurrentBone());
