@@ -69,6 +69,18 @@ public:
 	FBufferView	   View() const { return FBufferView{.Data = Data(), .Size = Size()}; }
 	FMutBufferView MutView() { return FMutBufferView{.Data = Data(), .Size = Size()}; }
 
+	FBufferView View(uint64 ViewOffset, uint64 ViewSize) const
+	{
+		UNSYNC_ASSERT(ViewOffset + ViewSize <= Size());
+		return FBufferView{.Data = Data() + ViewOffset, .Size = ViewSize};
+	}
+
+	FMutBufferView MutView(uint64 ViewOffset, uint64 ViewSize)
+	{
+		UNSYNC_ASSERT(ViewOffset + ViewSize <= Size());
+		return FMutBufferView{.Data = Data() + ViewOffset, .Size = ViewSize};
+	}
+
 	operator FBufferView() const { return View(); }
 
 private:

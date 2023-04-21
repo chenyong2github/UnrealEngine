@@ -20,6 +20,7 @@ extern bool GDryRun;
 
 class FProxy;
 class FProxyPool;
+class FBlockCache;
 struct FRemoteDesc;
 struct FIOReader;
 struct FIOWriter;
@@ -248,13 +249,15 @@ void BuildTarget(FIOWriter&				Result,
 				 FIOReader&				Base,
 				 const FNeedList&		NeedList,
 				 EStrongHashAlgorithmID StrongHasher,
-				 FProxyPool*			ProxyPool = nullptr);
+				 FProxyPool*			ProxyPool = nullptr,
+				 FBlockCache*			BlockCache = nullptr);
 
 FBuffer BuildTargetBuffer(FIOReader&			 SourceProvider,
 						  FIOReader&			 BaseProvider,
 						  const FNeedList&		 NeedList,
 						  EStrongHashAlgorithmID StrongHasher,
-						  FProxyPool*			 ProxyPool = nullptr);
+						  FProxyPool*			 ProxyPool = nullptr,
+						  FBlockCache*			 BlockCache = nullptr);
 
 FBuffer BuildTargetBuffer(const uint8*			 SourceData,
 						  uint64				 SourceSize,
@@ -306,6 +309,7 @@ struct FSyncFileOptions
 	uint32			  BlockSize = uint32(64_KB);
 
 	FProxyPool* ProxyPool = nullptr;
+	FBlockCache* BlockCache = nullptr;
 
 	bool bValidateTargetFiles = true;  // WARNING: turning this off is intended only for testing/profiling
 };
