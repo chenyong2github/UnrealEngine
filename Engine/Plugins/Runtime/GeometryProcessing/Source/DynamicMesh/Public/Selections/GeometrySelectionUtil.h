@@ -204,15 +204,52 @@ DYNAMICMESH_API bool InitializeSelectionFromTriangles(
 
 /**
  * Convert Selection from one type to another, based on geometry/topology types in FromSelectionIn and ToSelectionOut.
- * Not all conversion types are necessarily supported
- * (currently only Triangles -> All Others is working)
- * @return true if conversion is supported and was computed successfully
+ * 
+ * The following table describes the conversions, the FromSelectionIn/ToSelectionOut type are rows/columns respectively:
+ *
+ *   ================================================================
+ *                 To:    Triangle               Polygroup           
+ *   From:                Vertex  Edge    Face   Vertex  Edge    Face
+ *   ----------------------------------------------------------------
+ *   Triangle Vertex      1       .       .      .       .       .   
+ *   Triangle Edge        1       1       .      .       .       .   
+ *   Triangle Face        1       1       1      4       3       2   
+ *   Polygroup Vertex     6       .       .      1       .       .   
+ *   Polygroup Edge       5       .       .      .       1       .   
+ *   Polygroup Face       .       .       .      .       .       1   
+ *   ================================================================
+ *
+ *   .  These conversions are not implemented... yet?
+ *   1  supported. The implementation is obvious/unambiguous
+ *   2  supported. Polygroup faces containing any input triangle are selected
+ *   3  supported. Polygroup edges containing any input triangle edge are selected, but
+ *                 polygroup edges containing only input triangle vertices are not.
+ *   4  supported. Polygroup corners coinciding with any input triangle vertex are selected
+ *   5  supported. All mesh vertices along the polygroup edge are selected
+ *   6  supported. All mesh vertices coinciding with polygroup corners are selected
+ *
+ * @return true if conversion is supported and was computed successfully, return false otherwise
  */
 DYNAMICMESH_API bool ConvertSelection(
 	const UE::Geometry::FDynamicMesh3& Mesh,
 	const FGroupTopology* GroupTopology,
 	const FGeometrySelection& FromSelectionIn,
 	FGeometrySelection& ToSelectionOut);
+
+/**
+ * Convert the given MeshSelection to a list of Triangles and Vertices into the Mesh,
+ * which can be used to represent a selection of overlay elements. This is always possible
+ * since any FGeometrySelection can be represented as an overlay element selection because
+ * any overlay element can be represented as a (Triangle,Vertex) pair.
+ *
+ * @note it is not necessarily the case that all vertices of triangles in TrianglesOut will be in VerticesOut.
+ * @return false if the MeshSelection topology type is not Triangle and true otherwise
+ */
+DYNAMICMESH_API bool ConvertTriangleSelectionToOverlaySelection(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const FGeometrySelection& MeshSelection,
+	TSet<int>& TrianglesOut,
+	TSet<int>& VerticesOut);
 
 
 /**

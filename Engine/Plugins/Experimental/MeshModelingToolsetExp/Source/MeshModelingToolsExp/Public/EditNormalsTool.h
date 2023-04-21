@@ -10,6 +10,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "PropertySets/PolygroupLayersProperties.h"
 #include "Polygroups/PolygroupSet.h"
+#include "Selections/GeometrySelection.h"
 #include "EditNormalsTool.generated.h"
 
 
@@ -28,6 +29,8 @@ class MESHMODELINGTOOLSEXP_API UEditNormalsToolBuilder : public UMultiSelectionM
 
 public:
 	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+
+	virtual void InitializeNewTool(UMultiSelectionMeshEditingTool* NewTool, const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -57,6 +60,8 @@ public:
 	/** Choose the method for computing vertex normals */
 	UPROPERTY(EditAnywhere, Category = NormalsCalculation)
 	ENormalCalculationMethod NormalCalculationMethod;
+
+	// TODO Disable bFixInconsistentNormals when we have a selection
 
 	/** For meshes with inconsistent triangle orientations/normals, flip as needed to make the normals consistent */
 	UPROPERTY(EditAnywhere, Category = NormalsCalculation)
@@ -145,6 +150,9 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
+	// input selection support
+	void SetGeometrySelection(UE::Geometry::FGeometrySelection&& SelectionIn);
+
 protected:
 
 	UPROPERTY()
@@ -173,4 +181,21 @@ protected:
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
 	void OnSelectedGroupLayerChanged();
 	void UpdateActiveGroupLayer();
+
+	//
+	// Selection
+	//
+
+	// The geometry selection that the user started the tool with. If the selection is empty we operate on the whole
+	// mesh, if its not empty we only edit the overlay elements implied by the selection.
+	UE::Geometry::FGeometrySelection InputGeometrySelection;
+
+	// Cache the input polygroup set which was used to start the tool. We do this because users can change the
+	// polygroup referenced by the operator while using the tool.
+	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> InputGeometrySelectionPolygroupSet;
+
+	// If the user starts the tool with an edge selection we convert it to a vertex selection with triangle topology
+	// and store it here, we do this since we expect users to want vertex and edge selections to behave similarly.
+	// TODO Add a debug visualization option that shows this selection to make this detail clear to advanced users
+	UE::Geometry::FGeometrySelection TriangleVertexGeometrySelection;
 };

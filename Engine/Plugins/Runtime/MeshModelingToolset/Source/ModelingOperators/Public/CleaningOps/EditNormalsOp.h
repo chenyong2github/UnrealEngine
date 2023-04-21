@@ -51,6 +51,11 @@ public:
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> MeshPolygroups;
 
+	// These are indices into OriginalMesh. If both are non-empty only edit the corresponding elements
+	// in the normal overlay otherwise operate on the whole normal overlay
+	TSet<int> EditTriangles;
+	TSet<int> EditVertices;
+
 	bool bFixInconsistentNormals;
 	bool bInvertNormals;
 	bool bRecomputeNormals;
@@ -66,6 +71,10 @@ public:
 	// 
 
 	virtual void CalculateResult(FProgressCancel* Progress) override;
+
+private:
+	void CalculateResultWholeMesh(FProgressCancel* Progress);
+	void CalculateResultSelection(FProgressCancel* Progress);
 };
 
 

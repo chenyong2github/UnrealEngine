@@ -12,8 +12,22 @@
 #include "Selections/MeshEdgeSelection.h"
 #include "Selections/MeshVertexSelection.h"
 #include "Algo/Find.h"
+#include "Selections/MeshFaceSelection.h"
 
 
+namespace
+{
+
+// Return an integer in the range [0,5] which can be used to look up a handling function based on the Selection type
+int GetSelectionTypeAsIndex(const UE::Geometry::FGeometrySelection& Selection)
+{
+	const int Index = ((int)Selection.ElementType / 2) + ((int)Selection.TopologyType / 2) * 3;
+	checkSlow(Index >= 0);
+	checkSlow(Index <= 5);
+	return Index;
+}
+
+}
 
 bool UE::Geometry::AreSelectionsIdentical(
 	const FGeometrySelection& SelectionA, const FGeometrySelection& SelectionB)
@@ -864,6 +878,8 @@ bool UE::Geometry::InitializeSelectionFromTriangles(
 	TArrayView<const int> Triangles,
 	FGeometrySelection& SelectionOut)
 {
+	// TODO Refactor this to use GetSelectionTypeAsIndex
+
 	if (SelectionOut.TopologyType == EGeometryTopologyType::Triangle)
 	{
 		if (SelectionOut.ElementType == EGeometryElementType::Vertex)
@@ -978,28 +994,195 @@ bool UE::Geometry::ConvertSelection(
 	const FGeometrySelection& FromSelectionIn,
 	FGeometrySelection& ToSelectionOut)
 {
-	if (FromSelectionIn.IsSameType(ToSelectionOut))
-	{
-		ToSelectionOut.Selection = FromSelectionIn.Selection;
-		return true;
-	}
 
-	if (FromSelectionIn.TopologyType == EGeometryTopologyType::Triangle && FromSelectionIn.ElementType == EGeometryElementType::Face)
+
+	const auto NotImplemented = [](
+		const FDynamicMesh3& Mesh,
+		const FGroupTopology* GroupTopology,
+		const FGeometrySelection& FromSelectionIn,
+		FGeometrySelection& ToSelectionOut)
 	{
+		return false;
+	};
+
+
+
+	const auto FromTypeToSame = [](
+		const FDynamicMesh3& Mesh,
+		const FGroupTopology* GroupTopology,
+		const FGeometrySelection& FromSelectionIn,
+		FGeometrySelection& ToSelectionOut)
+	{
+		checkSlow(FromSelectionIn.IsSameType(ToSelectionOut));
+
+		ToSelectionOut.Selection = FromSelectionIn.Selection;
+
+		return true;
+	};
+
+
+
+	const auto FromTriFace = [](
+		const FDynamicMesh3& Mesh,
+		const FGroupTopology* GroupTopology,
+		const FGeometrySelection& FromSelectionIn,
+		FGeometrySelection& ToSelectionOut)
+	{
+		checkSlow(FromSelectionIn.TopologyType == EGeometryTopologyType::Triangle);
+		checkSlow(FromSelectionIn.ElementType == EGeometryElementType::Face);
+
 		TArray<int32> Triangles;
 		for (uint64 ElemID : FromSelectionIn.Selection)
 		{
 			Triangles.Add( FGeoSelectionID(ElemID).GeometryID );
 		}
+
 		return InitializeSelectionFromTriangles(Mesh, GroupTopology, Triangles, ToSelectionOut);
-	}
+	};
 
-	// todo: support more conversions
 
-	return false;
+
+	const auto FromTriEdgeToTriVtx = [](
+		const FDynamicMesh3& Mesh,
+		const FGroupTopology* GroupTopology,
+		const FGeometrySelection& FromSelectionIn,
+		FGeometrySelection& ToSelectionOut)
+	{
+		checkSlow(FromSelectionIn.TopologyType == EGeometryTopologyType::Triangle);
+		checkSlow(FromSelectionIn.ElementType == EGeometryElementType::Edge);
+		checkSlow(ToSelectionOut.TopologyType == EGeometryTopologyType::Triangle);
+		checkSlow(ToSelectionOut.ElementType == EGeometryElementType::Vertex);
+
+		// TODO Add a function which gets the Vids only, to remove the matrix-vector multiplication we just ignore
+		const FTransform Transform = FTransform::Identity;
+		EnumerateTriangleSelectionVertices(FromSelectionIn, Mesh, Transform,
+			[&ToSelectionOut](uint64 Vid, const FVector3d& Unused)
+			{
+				ToSelectionOut.Selection.Add( FGeoSelectionID::MeshVertex((int32)Vid).Encoded() );
+			});
+
+		return true;
+	};
+
+
+
+	const auto FromPolyEdgeToTriVtx = [](
+		const FDynamicMesh3& Mesh,
+		const FGroupTopology* GroupTopology,
+		const FGeometrySelection& FromSelectionIn,
+		FGeometrySelection& ToSelectionOut)
+	{
+		checkSlow(FromSelectionIn.TopologyType == EGeometryTopologyType::Polygroup);
+		checkSlow(FromSelectionIn.ElementType == EGeometryElementType::Edge);
+		checkSlow(ToSelectionOut.TopologyType == EGeometryTopologyType::Triangle);
+		checkSlow(ToSelectionOut.ElementType == EGeometryElementType::Vertex);
+
+		// TODO Add a function which gets the Vids only, to remove the matrix-vector multiplication we just ignore
+		const FTransform Transform = FTransform::Identity;
+		EnumeratePolygroupSelectionVertices(FromSelectionIn, Mesh, GroupTopology, Transform,
+			[&ToSelectionOut](uint64 Vid, const FVector3d& Unused)
+			{
+				ToSelectionOut.Selection.Add( FGeoSelectionID::MeshVertex((int32)Vid).Encoded() );
+			});
+
+		return true;
+	};
+
+
+
+	const auto FromPolyVtxToTriVtx = [](
+		const FDynamicMesh3& Mesh,
+		const FGroupTopology* GroupTopology,
+		const FGeometrySelection& FromSelectionIn,
+		FGeometrySelection& ToSelectionOut)
+	{
+		checkSlow(FromSelectionIn.TopologyType == EGeometryTopologyType::Polygroup);
+		checkSlow(FromSelectionIn.ElementType == EGeometryElementType::Vertex);
+		checkSlow(ToSelectionOut.TopologyType == EGeometryTopologyType::Triangle);
+		checkSlow(ToSelectionOut.ElementType == EGeometryElementType::Vertex);
+
+		for (FGroupTopology::FCorner Corner : GroupTopology->Corners)
+		{
+			ToSelectionOut.Selection.Add( FGeoSelectionID::MeshVertex((int32)Corner.VertexID).Encoded() );
+		}
+
+		return true;
+	};
+
+
+
+	typedef bool (*ConvertSelectionFunc)(
+			const FDynamicMesh3& Mesh,
+			const FGroupTopology* GroupTopology,
+			const FGeometrySelection& FromSelectionIn,
+			FGeometrySelection& ToSelectionOut);
+
+	constexpr ConvertSelectionFunc ConvertFuncs[6][6] = {
+		{FromTypeToSame,        NotImplemented,  NotImplemented,  NotImplemented,  NotImplemented,  NotImplemented},
+		{FromTriEdgeToTriVtx,   FromTypeToSame,  NotImplemented,  NotImplemented,  NotImplemented,  NotImplemented},
+		{FromTriFace,           FromTriFace,     FromTypeToSame,  FromTriFace,     FromTriFace,     FromTriFace   },
+		{FromPolyVtxToTriVtx,   NotImplemented,  NotImplemented,  FromTypeToSame,  NotImplemented,  NotImplemented},
+		{FromPolyEdgeToTriVtx,  NotImplemented,  NotImplemented,  NotImplemented,  FromTypeToSame,  NotImplemented},
+		{NotImplemented,        NotImplemented,  NotImplemented,  NotImplemented,  NotImplemented,  FromTypeToSame}
+	};
+
+	const int FromIndex = GetSelectionTypeAsIndex(FromSelectionIn);
+	const int ToIndex =   GetSelectionTypeAsIndex(ToSelectionOut);
+
+	return ConvertFuncs[FromIndex][ToIndex](Mesh, GroupTopology, FromSelectionIn, ToSelectionOut);
 }
 
+bool UE::Geometry::ConvertTriangleSelectionToOverlaySelection(
+	const UE::Geometry::FDynamicMesh3& Mesh,
+	const FGeometrySelection& MeshSelection,
+	TSet<int>& TrianglesOut,
+	TSet<int>& VerticesOut)
+{
+	if (!ensure(MeshSelection.TopologyType == EGeometryTopologyType::Triangle))
+	{
+		return false;
+	}
 
+	TrianglesOut.Reset();
+	VerticesOut.Reset();
+
+	if (MeshSelection.IsEmpty())
+	{
+		return true;
+	}
+
+	if (MeshSelection.ElementType == EGeometryElementType::Face)
+	{
+		// In this case we get all the information by only visiting the triangles
+		EnumerateTriangleSelectionTriangles(MeshSelection, Mesh,
+			[&TrianglesOut, &VerticesOut, &Mesh](int32 ValidTid)
+		{
+			TrianglesOut.Add(ValidTid);
+			const FIndex3i Verts = Mesh.GetTriangle(ValidTid);
+			VerticesOut.Add(Verts.A);
+			VerticesOut.Add(Verts.B);
+			VerticesOut.Add(Verts.C);
+		});
+	}
+	else
+	{
+		EnumerateTriangleSelectionTriangles(MeshSelection, Mesh,
+			[&TrianglesOut](int32 ValidTid)
+		{
+			TrianglesOut.Add(ValidTid);
+		});
+
+		// TODO Add a function which gets the Vids only, to remove the matrix-vector multiplication we just ignore
+		const FTransform Transform = FTransform::Identity;
+		EnumerateTriangleSelectionVertices(MeshSelection, Mesh, Transform,
+			[&VerticesOut](uint64 Vid, const FVector3d& Unused)
+		{
+			VerticesOut.Add((int)Vid);
+		});
+	}
+
+	return true;
+}
 
 bool UE::Geometry::MakeSelectAllSelection(
 	const UE::Geometry::FDynamicMesh3& Mesh,
