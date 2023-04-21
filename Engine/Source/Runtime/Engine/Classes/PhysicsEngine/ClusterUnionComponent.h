@@ -58,7 +58,7 @@ struct FClusteredActorData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TSet<TObjectPtr<UPrimitiveComponent>> Components;
+	TSet<TWeakObjectPtr<UPrimitiveComponent>> Components;
 
 	UPROPERTY()
 	bool bWasReplicatingMovement = true;
@@ -101,7 +101,7 @@ struct FClusterUnionParticleCandidateData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TObjectPtr<UPrimitiveComponent> Component;
+	TWeakObjectPtr<UPrimitiveComponent> Component;
 
 	UPROPERTY()
 	int32 BoneId = INDEX_NONE;

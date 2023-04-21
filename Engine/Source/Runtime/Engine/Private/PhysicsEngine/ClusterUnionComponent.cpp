@@ -445,7 +445,10 @@ void UClusterUnionComponent::SyncClusterUnionFromProxy()
 	{
 		if (FClusterUnionParticleCandidateData* Data = UniqueIdxToComponent.Find(ChildData.ParticleIdx.Idx))
 		{
-			MappedData.FindOrAdd(Data->Component).Add(Data->BoneId, ChildData.ChildToParent);
+			if (Data->Component.IsValid())
+			{
+				MappedData.FindOrAdd(Data->Component.Get()).Add(Data->BoneId, ChildData.ChildToParent);
+			}
 		}
 	}
 

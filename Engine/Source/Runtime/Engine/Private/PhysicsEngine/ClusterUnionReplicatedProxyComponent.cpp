@@ -47,9 +47,9 @@ void UClusterUnionReplicatedProxyComponent::EndPlay(const EEndPlayReason::Type E
 		Owner->GetWorldTimerManager().ClearTimer(DeferSetChildToParentHandle);
 	}
 
-	if (!GetOwner()->HasAuthority() && ParentClusterUnion && ChildClusteredComponent)
+	if (!GetOwner()->HasAuthority() && ParentClusterUnion.IsValid() && ChildClusteredComponent.IsValid())
 	{
-		ParentClusterUnion->RemoveComponentFromCluster(ChildClusteredComponent);
+		ParentClusterUnion->RemoveComponentFromCluster(ChildClusteredComponent.Get());
 	}
 }
 
@@ -113,7 +113,7 @@ void UClusterUnionReplicatedProxyComponent::PostRepNotifies()
 {
 	UActorComponent::PostRepNotifies();
 
-	const bool bIsValid = ParentClusterUnion && ChildClusteredComponent && !ParticleBoneIds.IsEmpty();
+	const bool bIsValid = ParentClusterUnion.IsValid() && ChildClusteredComponent.IsValid() && !ParticleBoneIds.IsEmpty();
 	if (!bIsValid)
 	{
 		return;
@@ -146,7 +146,7 @@ void UClusterUnionReplicatedProxyComponent::PostRepNotifies()
 
 void UClusterUnionReplicatedProxyComponent::DeferAddComponentToClusterHandleUntilInitialTransformUpdate()
 {
-	if (!ParentClusterUnion || !ChildClusteredComponent || IsPendingDeletion())
+	if (!ParentClusterUnion.IsValid() || !ChildClusteredComponent.IsValid() || IsPendingDeletion())
 	{
 		return;
 	}
@@ -155,7 +155,7 @@ void UClusterUnionReplicatedProxyComponent::DeferAddComponentToClusterHandleUnti
 
 	if (ParentClusterUnion->HasReceivedTransform())
 	{
-		ParentClusterUnion->AddComponentToCluster(ChildClusteredComponent, ParticleBoneIds);
+		ParentClusterUnion->AddComponentToCluster(ChildClusteredComponent.Get(), ParticleBoneIds);
 	}
 	else if (AActor* Owner = GetOwner())
 	{
@@ -165,16 +165,16 @@ void UClusterUnionReplicatedProxyComponent::DeferAddComponentToClusterHandleUnti
 
 void UClusterUnionReplicatedProxyComponent::DeferSetChildToParentChildUntilClusteredComponentInParentUnion()
 {
-	if (!ParentClusterUnion || !ChildClusteredComponent || IsPendingDeletion())
+	if (!ParentClusterUnion.IsValid() || !ChildClusteredComponent.IsValid() || IsPendingDeletion())
 	{
 		return;
 	}
 
 	DeferSetChildToParentHandle.Invalidate();
 
-	if (ParentClusterUnion->IsComponentAdded(ChildClusteredComponent))
+	if (ParentClusterUnion->IsComponentAdded(ChildClusteredComponent.Get()))
 	{
-		ParentClusterUnion->ForceSetChildToParent(ChildClusteredComponent, ParticleBoneIds, ParticleChildToParents);
+		ParentClusterUnion->ForceSetChildToParent(ChildClusteredComponent.Get(), ParticleBoneIds, ParticleChildToParents);
 	}
 	else if (AActor* Owner = GetOwner())
 	{

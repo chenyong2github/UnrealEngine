@@ -29,7 +29,7 @@ public:
 	UClusterUnionReplicatedProxyComponent(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION()
-	UClusterUnionComponent* GetParentClusterUnionComponent() const { return ParentClusterUnion; }
+	UClusterUnionComponent* GetParentClusterUnionComponent() const { return ParentClusterUnion.Get(); }
 
 	UFUNCTION()
 	void SetParentClusterUnion(UClusterUnionComponent* InComponent);
@@ -65,13 +65,13 @@ protected:
 
 private:
 	UPROPERTY(ReplicatedUsing=OnRep_ParentClusterUnion)
-	TObjectPtr<UClusterUnionComponent> ParentClusterUnion;
+	TWeakObjectPtr<UClusterUnionComponent> ParentClusterUnion;
 
 	UPROPERTY()
 	bool bNetUpdateParentClusterUnion;
 
 	UPROPERTY(ReplicatedUsing=OnRep_ChildClusteredComponent)
-	TObjectPtr<UPrimitiveComponent> ChildClusteredComponent;
+	TWeakObjectPtr<UPrimitiveComponent> ChildClusteredComponent;
 
 	UPROPERTY()
 	bool bNetUpdateChildClusteredComponent;
