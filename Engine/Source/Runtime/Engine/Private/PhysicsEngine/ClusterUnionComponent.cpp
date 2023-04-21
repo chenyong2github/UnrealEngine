@@ -14,6 +14,11 @@
 
 DEFINE_LOG_CATEGORY(LogClusterUnion);
 
+// todo : remove when proven to be the right fix 
+bool bClusterUnionClientTransformFix = true;
+FAutoConsoleVariableRef CVarClusterUnionClientTransformFix(TEXT("clusterunion.clienttransformfix"), bClusterUnionClientTransformFix, TEXT("fix transform not always being properly set for cluster union"));
+
+
 UClusterUnionComponent::UClusterUnionComponent(const FObjectInitializer& ObjectInitializer)
 	: UPrimitiveComponent(ObjectInitializer)
 {
@@ -295,6 +300,16 @@ void UClusterUnionComponent::OnCreatePhysicsState()
 			}
 
 			AddComponentToCluster(Cast<UPrimitiveComponent>(ComponentReference.GetComponent(ComponentReference.OtherActor.Get())), {});
+		}
+	}
+	else
+	{
+		if (bClusterUnionClientTransformFix)
+		{
+			// we should not rely on the OnTransformUpdated callback to set the initial position of the external particle
+			// if it is not set and the callback does not get called then the cluster union component will be moved to the origin of the world
+			const FTransform Transform = GetComponentTransform();
+			PhysicsProxy->SetXR_External(Transform.GetLocation(), Transform.GetRotation());
 		}
 	}
 }

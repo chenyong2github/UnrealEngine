@@ -1143,14 +1143,16 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_UpdateDirtyImpulses);
 				for (const auto& ActiveCluster : TopLevelClusterParentsStrained)
 				{
+					bool bIgnoreDisabledCheck = false;
 					FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnionFromParticle(ActiveCluster);
 					if (ClusterUnion && ClusterUnion->InternalCluster != ActiveCluster)
 					{
 						// Need to pre-emptively remove the particle from the cluster union otherwise we won't be passing the disabled check.
-						ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ActiveCluster }, EClusterUnionOperationTiming::Defer);
+						//ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ActiveCluster }, EClusterUnionOperationTiming::Defer);
+						bIgnoreDisabledCheck = true;
 					}
 
-					if (!ActiveCluster->Disabled())
+					if (!ActiveCluster->Disabled() || bIgnoreDisabledCheck)
 					{
 						if (ActiveCluster->ClusterIds().NumChildren > 0) //active index is a cluster
 						{
