@@ -394,11 +394,14 @@ void FToolkitBuilder::CreatePaletteWidget(FToolPalette& Palette, FToolElement& E
 					.ColorAndOpacity(Style.TitleForegroundColor)
 		]];
 	
+	TSharedPtr<SWidget> PaletteButtonsWidget = Element.GenerateWidget();
+	PaletteButtonsWidget->SetVisibility(TAttribute<EVisibility>::CreateSP(this, &FToolkitBuilder::GetActivePaletteCommandsVisibility));
+
 	ToolPaletteWidget->AddSlot()
 		.HAlign(HAlign_Fill)
 		.AutoHeight()
 		[
-			Element.GenerateWidget()
+			PaletteButtonsWidget.ToSharedRef()
 		];
 }
 
@@ -607,6 +610,11 @@ void FToolkitBuilder::SetCategoryButtonLabelVisibility(EVisibility Visibility)
 void FToolkitBuilder::SetCategoryButtonLabelVisibility(bool bIsCategoryButtonLabelVisible)
 {
 	SetCategoryButtonLabelVisibility(bIsCategoryButtonLabelVisible ? EVisibility::Visible : EVisibility::Collapsed);
+}
+
+void FToolkitBuilder::SetActivePaletteCommandsVisibility(EVisibility Visibility)
+{
+	ActivePaletteButtonVisibility = Visibility;
 }
 
 #undef LOCTEXT_NAMESPACE

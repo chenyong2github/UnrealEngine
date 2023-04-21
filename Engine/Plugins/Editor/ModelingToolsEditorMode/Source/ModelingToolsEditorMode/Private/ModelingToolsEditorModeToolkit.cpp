@@ -2045,6 +2045,7 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 	if (HasToolkitBuilder())
 	{
 		ToolkitBuilder->SetActiveToolDisplayName(ActiveToolName);
+		ToolkitBuilder->SetActivePaletteCommandsVisibility(EVisibility::Collapsed);
 	}
 
 	// try to update icon
@@ -2086,6 +2087,7 @@ void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manag
 	if (HasToolkitBuilder())
 	{
 		ToolkitBuilder->SetActiveToolDisplayName(FText::GetEmpty());		
+		ToolkitBuilder->SetActivePaletteCommandsVisibility(EVisibility::Visible);
 	}
 
 	ModeHeaderArea->SetVisibility(EVisibility::Visible);

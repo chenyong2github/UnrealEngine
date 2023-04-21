@@ -176,6 +176,23 @@ public:
 	 */
 	void SetCategoryButtonLabelVisibility(bool bIsCategoryButtonLabelVisible);
 
+
+	/**
+	 * Configure whether or not the tool buttons in the active palette should be visible.
+	 * This can be dynamically toggled without rebuilding/regenerating the widget.
+	 * 
+	 * @param Visibility If Visibility == EVisibility::Collapsed, the category button labels
+	 * will be shown, else they will not be shown.
+	 */
+	void SetActivePaletteCommandsVisibility(EVisibility Visibility);
+
+
+	/**
+	 * @return the Visibility state of the active palette command buttons
+	 */
+	EVisibility GetActivePaletteCommandsVisibility() const { return ActivePaletteButtonVisibility; }
+
+
 	/**
 	 * RefreshCategoryToolbarWidget refreshes the UI display of the category toolbar 
 	 */
@@ -365,4 +382,8 @@ private:
 	/** If CategoryButtonLabelVisibility == EVisibility::Visible, the category button
 	 * labels are visible, else they are not displayed. By default the selected category button labels are Visible    */	
 	EVisibility CategoryButtonLabelVisibility;
+
+	/** If ActivePaletteButtonVisibility == EVisibility::Visible, the command buttons in the active palette
+	 * are visible, otherwise they are not displayed. By default the state is Visible  */
+	EVisibility ActivePaletteButtonVisibility = EVisibility::Visible;
 };
