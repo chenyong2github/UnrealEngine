@@ -197,35 +197,47 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Chromak
 	GENERATED_BODY()
 
 public:
+	// Note: We need to explicitly disable warnings on these constructors/operators for clang to be happy with deprecated variables
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings() = default;
+	~FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings() = default;
+	FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings(const FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings&) = default;
+	FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings(FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings&&) = default;
+	FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings& operator=(const FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings&) = default;
+	FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings& operator=(FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings&&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+public:
 	/** Set to True to use custom chromakey content. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Use Custom Chromakey"))
-	bool bEnable = false;
+	UE_DEPRECATED(5.3, "Use the ChromakeyType enum in FDisplayClusterConfigurationICVFX_ChromakeySettings instead")
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the Chromakey Type enum in the chromakey settings instead"))
+	bool bEnable_DEPRECATED = false;
 
 	// Replace the texture of the camera viewport from this chromakey RTT
-	UPROPERTY(BlueprintReadWrite,Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite,Category = NDisplay)
 	bool bReplaceCameraViewport = false;
 
 	// Performance: Use custom size (low-res) for chromakey RTT frame. Default size same as camera frame
-	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_CustomSize CustomSize;
 
 	/** Content specified here will be overridden to use the chromakey color specified and include chromakey markers if enabled. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Custom Chromakey Content"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Custom Chromakey Content"))
 	FDisplayClusterConfigurationICVFX_VisibilityList ShowOnlyList;
 
 	// Replace viewport render from source texture
-	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationPostRender_Override Replace;
 
 	/** Apply blur to the Custom Chromakey content. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Post Process Blur"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Post Process Blur"))
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
-	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationPostRender_GenerateMips GenerateMips;
 
 	// Advanced render settings
-	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_OverlayAdvancedRenderSettings AdvancedRenderSettings;
 };
 
@@ -279,6 +291,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum Chromakey"))
 	bool bEnable = false;
 
+	/** The type of chromakey to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	EDisplayClusterConfigurationICVFX_ChromakeyType ChromakeyType = EDisplayClusterConfigurationICVFX_ChromakeyType::InnerFrustum;
+
+	/** The source of the chromakey settings, either the settings on the ICVFX camera or the global settings on the root actor */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "ICVFX Camera Chromakey"))
+	EDisplayClusterConfigurationICVFX_ChromakeySettingsSource ChromakeySettingsSource = EDisplayClusterConfigurationICVFX_ChromakeySettingsSource::Viewport;
+
 	/** Chromakey Color */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FLinearColor ChromakeyColor;
@@ -289,6 +309,28 @@ public:
 
 	/** Display Chromakey Markers to facilitate camera tracking in post production. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	FDisplayClusterConfigurationICVFX_ChromakeyMarkers ChromakeyMarkers;
+};
+
+/** Chromakey settings that are global for all ICVFX cameras in a root actor */
+USTRUCT(Blueprintable)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_GlobalChromakeySettings
+{
+	GENERATED_BODY()
+
+public:
+	FDisplayClusterConfigurationICVFX_GlobalChromakeySettings()
+		// Default chromakey color is (0,128,0)
+		: ChromakeyColor(0, 0.5f, 0)
+	{ }
+
+public:
+	/** Chromakey Color */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	FLinearColor ChromakeyColor;
+
+	/** Display Chromakey Markers to facilitate camera tracking in post production. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_ChromakeyMarkers ChromakeyMarkers;
 };
 
@@ -692,4 +734,8 @@ public:
 	/** OpenColorIO configuration for the Outer viewports. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Outer Viewports OCIO"))
 	FDisplayClusterConfigurationICVFX_ViewportOCIO ViewportOCIO;
+
+	/** Global chromakey settings that all ICVFX camera components can opt to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chromakey")
+	FDisplayClusterConfigurationICVFX_GlobalChromakeySettings GlobalChromakey;
 };

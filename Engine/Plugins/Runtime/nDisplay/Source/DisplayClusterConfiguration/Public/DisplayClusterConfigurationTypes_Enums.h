@@ -49,6 +49,28 @@ enum class EDisplayClusterConfiguration_PostRenderBlur : uint8
 	Dilate    UMETA(DisplayName = "Dilate"),
 };
 
+/** Indicates the type of chromakey that is used within an ICVFX camera's inner frustum */
+UENUM()
+enum class EDisplayClusterConfigurationICVFX_ChromakeyType : uint8
+{
+	/** The entire inner frustum is rendered as chromakey */
+	InnerFrustum       UMETA(DisplayName = "Inner Frustum"),
+
+	/** Only actors specified in the custom chromakey actor list are rendered as chromakey */
+	CustomChromakey    UMETA(DisplayName = "Custom Chromakey"),
+};
+
+/** Indicates the source of the chromakey settings when an ICVFX camera's inner frustum is rendered as chromakey */
+UENUM()
+enum class EDisplayClusterConfigurationICVFX_ChromakeySettingsSource : uint8
+{
+	/** The nDisplay stage actor's chromakey settings are used */
+	Viewport       UMETA(DisplayName = "Use nDisplay Viewport Chromakey"),
+	
+	/** The ICVFX camera's chromakey settings are used */
+	ICVFXCamera    UMETA(DisplayName = "Use ICVFX Camera Chromakey"),
+};
+
 UENUM()
 enum class EDisplayClusterConfigurationICVFX_ChromakeySource : uint8
 {

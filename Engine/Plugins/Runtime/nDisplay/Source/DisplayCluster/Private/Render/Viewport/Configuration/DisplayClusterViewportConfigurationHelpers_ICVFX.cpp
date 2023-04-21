@@ -571,7 +571,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 
 	// use framecolor instead of viewport rendering
 	const FDisplayClusterConfigurationICVFX_ChromakeySettings& ChromakeySettings = CameraSettings.Chromakey;
-	if (ChromakeySettings.bEnable && !ChromakeySettings.ChromakeyRenderTexture.bEnable)
+	if (ChromakeySettings.bEnable && ChromakeySettings.ChromakeyType == EDisplayClusterConfigurationICVFX_ChromakeyType::InnerFrustum)
 	{
 		DstViewport.RenderSettings.bSkipRendering = true;
 	}
@@ -656,7 +656,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportS
 	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
 	const FDisplayClusterConfigurationICVFX_ChromakeySettings& ChromakeySettings = CameraSettings.Chromakey;
 
-	check(ChromakeySettings.bEnable && ChromakeySettings.ChromakeyRenderTexture.bEnable);
+	check(ChromakeySettings.bEnable && ChromakeySettings.ChromakeyType == EDisplayClusterConfigurationICVFX_ChromakeyType::CustomChromakey);
 
 	// Reset runtime flags from prev frame:
 	DstViewport.ResetRuntimeParameters();
@@ -712,13 +712,20 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportS
 	}
 }
 
-void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chromakey(FDisplayClusterShaderParameters_ICVFX::FCameraSettings& InOutCameraSettings, const FDisplayClusterConfigurationICVFX_ChromakeySettings& InChromakeySettings, FDisplayClusterViewport* InChromakeyViewport)
+void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chromakey(FDisplayClusterShaderParameters_ICVFX::FCameraSettings& InOutCameraSettings, const FDisplayClusterConfigurationICVFX_GlobalChromakeySettings& InGlobalChromakeySettings, const FDisplayClusterConfigurationICVFX_ChromakeySettings& InChromakeySettings, FDisplayClusterViewport* InChromakeyViewport)
 {
-	InOutCameraSettings.ChromakeyColor = InChromakeySettings.ChromakeyColor;
+	if (InChromakeySettings.ChromakeySettingsSource == EDisplayClusterConfigurationICVFX_ChromakeySettingsSource::Viewport)
+	{
+		InOutCameraSettings.ChromakeyColor = InGlobalChromakeySettings.ChromakeyColor;
+	}
+	else
+	{
+		InOutCameraSettings.ChromakeyColor = InChromakeySettings.ChromakeyColor;
+	}
 
 	if (InChromakeySettings.bEnable)
 	{
-		if (InChromakeySettings.ChromakeyRenderTexture.bEnable)
+		if (InChromakeySettings.ChromakeyType == EDisplayClusterConfigurationICVFX_ChromakeyType::CustomChromakey)
 		{
 			if (InChromakeySettings.ChromakeyRenderTexture.bReplaceCameraViewport)
 			{
@@ -760,6 +767,26 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chr
 		if (MarkersResource)
 		{
 			InOutCameraSettings.ChromakeMarkerTextureRHI = MarkersResource->TextureRHI;
+		}
+	}
+}
+
+void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_OverlapChromakeyMarkers(FDisplayClusterShaderParameters_ICVFX::FCameraSettings& InOutCameraSettings, const FDisplayClusterConfigurationICVFX_ChromakeyMarkers& InChromakeyMarkers)
+{
+	InOutCameraSettings.OverlapChromakeyMarkerTextureRHI.SafeRelease();
+
+	if (InChromakeyMarkers.bEnable && InChromakeyMarkers.MarkerTileRGBA != nullptr)
+	{
+		InOutCameraSettings.OverlapChromakeyMarkersColor = InChromakeyMarkers.MarkerColor;
+		InOutCameraSettings.OverlapChromakeyMarkersScale = InChromakeyMarkers.MarkerSizeScale;
+		InOutCameraSettings.OverlapChromakeyMarkersDistance = InChromakeyMarkers.MarkerTileDistance;
+		InOutCameraSettings.OverlapChromakeyMarkersOffset = InChromakeyMarkers.MarkerTileOffset;
+
+		// Assign texture RHI ref
+		FTextureResource* MarkersResource = InChromakeyMarkers.MarkerTileRGBA->GetResource();
+		if (MarkersResource)
+		{
+			InOutCameraSettings.OverlapChromakeyMarkerTextureRHI = MarkersResource->TextureRHI;
 		}
 	}
 }

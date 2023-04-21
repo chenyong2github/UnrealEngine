@@ -31,6 +31,9 @@ public:
 	UDisplayClusterICVFXCameraComponent(const FObjectInitializer& ObjectInitializer)
 	{ }
 
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
+
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NDisplay)
 	FDisplayClusterConfigurationICVFX_CameraSettings CameraSettings;
@@ -120,6 +123,12 @@ private:
 
 	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.bEnable", EditConditionPath = "CameraSettings.bEnable"))
 	FDisplayClusterEditorPropertyReference ChromaKeyEnabledRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyType", EditConditionPath = "CameraSettings.bEnable && CameraSettings.Chromakey.bEnable"))
+	FDisplayClusterEditorPropertyReference ChromakeyTypeRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeySettingsSource", EditConditionPath = "CameraSettings.bEnable && CameraSettings.Chromakey.bEnable"))
+	FDisplayClusterEditorPropertyReference ChromakeySettingsSourceRef;
 
 	UPROPERTY(EditAnywhere, Transient, Category = Chromakey, meta = (PropertyPath = "CameraSettings.Chromakey.ChromakeyColor", EditConditionPath = "CameraSettings.bEnable && CameraSettings.Chromakey.bEnable"))
 	FDisplayClusterEditorPropertyReference ChromakeyColorRef;

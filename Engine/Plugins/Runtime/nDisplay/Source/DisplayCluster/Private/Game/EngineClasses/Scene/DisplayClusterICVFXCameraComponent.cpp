@@ -15,7 +15,34 @@
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/Parse.h"
 #include "DisplayClusterEnums.h"
+#include "Version/DisplayClusterICVFXCameraCustomVersion.h"
 
+
+void UDisplayClusterICVFXCameraComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FDisplayClusterICVFXCameraCustomVersion::GUID);
+}
+
+void UDisplayClusterICVFXCameraComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const int32 CustomVersion = GetLinkerCustomVersion(FDisplayClusterICVFXCameraCustomVersion::GUID);
+	if (CustomVersion < FDisplayClusterICVFXCameraCustomVersion::UpdateChromakeyConfig)
+	{
+		const bool bCustomChromakey = CameraSettings.Chromakey.ChromakeyRenderTexture.bEnable_DEPRECATED;
+		CameraSettings.Chromakey.ChromakeyType = bCustomChromakey ? 
+			EDisplayClusterConfigurationICVFX_ChromakeyType::CustomChromakey :
+			EDisplayClusterConfigurationICVFX_ChromakeyType::InnerFrustum;
+
+		// New ICVFX cameras default to the global chromakey settings, but for pre 5.3 cameras, the source must be set to the ICVFX camera
+		CameraSettings.Chromakey.ChromakeySettingsSource = EDisplayClusterConfigurationICVFX_ChromakeySettingsSource::ICVFXCamera;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
 
 void UDisplayClusterICVFXCameraComponent::GetDesiredView(FMinimalViewInfo& DesiredView)
 {

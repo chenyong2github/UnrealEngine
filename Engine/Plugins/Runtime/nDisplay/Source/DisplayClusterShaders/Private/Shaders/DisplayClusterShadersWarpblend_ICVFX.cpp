@@ -808,7 +808,15 @@ public:
 
 		case EDisplayClusterShaderParametersICVFX_ChromakeySource::FrameColor:
 		{
-			RenderPassData.PSParameters.ChromakeyColor = Camera.ChromakeyColor;
+			if (RenderPass == EIcvfxPassRenderPass::InnerFrustumChromakeyOverlapIterator)
+			{
+				RenderPassData.PSParameters.ChromakeyColor = Camera.OverlapChromakeyColor;
+			}
+			else
+			{
+				RenderPassData.PSParameters.ChromakeyColor = Camera.ChromakeyColor;
+			}
+
 			RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderChromakeyFrameColor>(true);
 
 			return true;
@@ -831,19 +839,39 @@ public:
 
 		const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[ActiveCameraIndex];
 
-		if (Camera.IsChromakeyMarkerUsed())
+		if (RenderPass == EIcvfxPassRenderPass::InnerFrustumChromakeyOverlapIterator)
 		{
-			RenderPassData.PSParameters.ChromakeyMarkerColor = Camera.ChromakeyMarkersColor;
+			if (Camera.IsOverlapChromakeyMarkerUsed())
+			{
+				RenderPassData.PSParameters.ChromakeyMarkerColor = Camera.OverlapChromakeyMarkersColor;
 
-			RenderPassData.PSParameters.ChromakeyMarkerTexture = Camera.ChromakeMarkerTextureRHI;
-			RenderPassData.PSParameters.ChromakeyMarkerSampler = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+				RenderPassData.PSParameters.ChromakeyMarkerTexture = Camera.OverlapChromakeyMarkerTextureRHI;
+				RenderPassData.PSParameters.ChromakeyMarkerSampler = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 
-			RenderPassData.PSParameters.ChromakeyMarkerScale    = Camera.ChromakeyMarkersScale;
-			RenderPassData.PSParameters.ChromakeyMarkerDistance = Camera.ChromakeyMarkersDistance;
-			RenderPassData.PSParameters.ChromakeyMarkerOffset   = FVector2f(Camera.ChromakeyMarkersOffset);
+				RenderPassData.PSParameters.ChromakeyMarkerScale = Camera.OverlapChromakeyMarkersScale;
+				RenderPassData.PSParameters.ChromakeyMarkerDistance = Camera.OverlapChromakeyMarkersDistance;
+				RenderPassData.PSParameters.ChromakeyMarkerOffset = FVector2f(Camera.OverlapChromakeyMarkersOffset);
 
-			RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderChromakeyMarker>(true);
-			return true;
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderChromakeyMarker>(true);
+				return true;
+			}
+		}
+		else
+		{
+			if (Camera.IsChromakeyMarkerUsed())
+			{
+				RenderPassData.PSParameters.ChromakeyMarkerColor = Camera.ChromakeyMarkersColor;
+
+				RenderPassData.PSParameters.ChromakeyMarkerTexture = Camera.ChromakeMarkerTextureRHI;
+				RenderPassData.PSParameters.ChromakeyMarkerSampler = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+
+				RenderPassData.PSParameters.ChromakeyMarkerScale    = Camera.ChromakeyMarkersScale;
+				RenderPassData.PSParameters.ChromakeyMarkerDistance = Camera.ChromakeyMarkersDistance;
+				RenderPassData.PSParameters.ChromakeyMarkerOffset   = FVector2f(Camera.ChromakeyMarkersOffset);
+
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderChromakeyMarker>(true);
+				return true;
+			}
 		}
 
 		return false;

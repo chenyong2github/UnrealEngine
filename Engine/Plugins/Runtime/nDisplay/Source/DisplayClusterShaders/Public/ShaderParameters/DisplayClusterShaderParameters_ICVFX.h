@@ -189,6 +189,12 @@ public:
 			return ChromakeMarkerTextureRHI.IsValid();
 		}
 
+		/** Gets whether a valid texture is available to render chromakey markers for any overlapping ICVFX frustums  */
+		inline bool IsOverlapChromakeyMarkerUsed() const
+		{
+			return OverlapChromakeyMarkerTextureRHI.IsValid();	
+		}
+
 		inline void SetViewProjection(const FDisplayClusterShaderParametersICVFX_CameraViewProjection& InLocalSpaceViewProjection)
 		{
 			// Support icvfx stereo - update context from camera for each eye
@@ -219,7 +225,7 @@ public:
 		 * The function is moved here from the DisplayClusterMedia module, because it must also be updated when new settings are added.
 		 * 
 		 * @param InCameraSettings - source camera settings
-		 * @param bExcludeResources - disables resource copying
+		 * @param bIncludeResources - enables resource copying
 		 */
 		inline void SetCameraSettings(const FCameraSettings& InCameraSettings, const bool bIncludeResources)
 		{
@@ -228,6 +234,7 @@ public:
 				Resource = InCameraSettings.Resource;
 				Chromakey = InCameraSettings.Chromakey;
 				ChromakeMarkerTextureRHI = InCameraSettings.ChromakeMarkerTextureRHI;
+				OverlapChromakeyMarkerTextureRHI = InCameraSettings.OverlapChromakeyMarkerTextureRHI;
 			}
 
 			SoftEdge = InCameraSettings.SoftEdge;
@@ -242,11 +249,17 @@ public:
 
 			ChromakeySource = InCameraSettings.ChromakeySource;
 			ChromakeyColor = InCameraSettings.ChromakeyColor;
+			OverlapChromakeyColor = InCameraSettings.OverlapChromakeyColor;
 
 			ChromakeyMarkersColor = InCameraSettings.ChromakeyMarkersColor;
 			ChromakeyMarkersScale = InCameraSettings.ChromakeyMarkersScale;
 			ChromakeyMarkersDistance = InCameraSettings.ChromakeyMarkersDistance;
 			ChromakeyMarkersOffset = InCameraSettings.ChromakeyMarkersOffset;
+
+			OverlapChromakeyMarkersColor = InCameraSettings.OverlapChromakeyMarkersColor;
+			OverlapChromakeyMarkersScale = InCameraSettings.OverlapChromakeyMarkersScale;
+			OverlapChromakeyMarkersDistance = InCameraSettings.OverlapChromakeyMarkersDistance;
+			OverlapChromakeyMarkersOffset = InCameraSettings.OverlapChromakeyMarkersOffset;
 
 			RenderOrder = InCameraSettings.RenderOrder;
 		}
@@ -271,12 +284,30 @@ public:
 		FDisplayClusterShaderParametersICVFX_ViewportResource Chromakey;
 		FLinearColor ChromakeyColor = FLinearColor::Black;
 
+		/** The color to use when rendering chromakey for any regions of overlapping ICVFX frustums */
+		FLinearColor OverlapChromakeyColor = FLinearColor::Black;
+
 		// Chromakey markers settings:
 		FLinearColor ChromakeyMarkersColor = FLinearColor::Black;
 		float ChromakeyMarkersScale;
 		float ChromakeyMarkersDistance;
 		FVector2D ChromakeyMarkersOffset;
 		FTextureRHIRef ChromakeMarkerTextureRHI;
+
+		/** The color of the chroamkey markers for any regions of overlapping ICVFX frustums */
+		FLinearColor OverlapChromakeyMarkersColor = FLinearColor::Black;
+
+		/** The scale of the chroamkey markers for any regions of overlapping ICVFX frustums */
+		float OverlapChromakeyMarkersScale;
+
+		/** The distance between the chroamkey markers for any regions of overlapping ICVFX frustums */
+		float OverlapChromakeyMarkersDistance;
+
+		/** The offset of the chroamkey markers for any regions of overlapping ICVFX frustums */
+		FVector2D OverlapChromakeyMarkersOffset;
+
+		/** The texture to use to render the chromakey markers for any regions of overlaping ICVFX frustums */
+		FTextureRHIRef OverlapChromakeyMarkerTextureRHI;
 
 		int32 RenderOrder = -1;
 	};

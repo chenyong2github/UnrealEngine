@@ -98,7 +98,7 @@ public:
 		return false;
 	}
 
-	void AssignChromakeyToTargetViewport(FDisplayClusterViewport& DstViewport, UDisplayClusterICVFXCameraComponent& InCameraComponent)
+	void AssignOverlapChromakeyToTargetViewport(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& InRootActor)
 	{
 		if (EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakey))
 		{
@@ -106,14 +106,41 @@ public:
 			return;
 		}
 
-		const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
+		const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = InRootActor.GetStageSettings();
 		FDisplayClusterShaderParameters_ICVFX::FCameraSettings& DstCameraData = DstViewport.RenderSettingsICVFX.ICVFX.Cameras.Last();
 
-		FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chromakey(DstCameraData, CameraSettings.Chromakey, ChromakeyViewport);
+		DstCameraData.OverlapChromakeyColor = StageSettings.GlobalChromakey.ChromakeyColor;
 
 		if (!EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers))
 		{
-			FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_ChromakeyMarkers(DstCameraData, CameraSettings.Chromakey.ChromakeyMarkers);
+			FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_OverlapChromakeyMarkers(DstCameraData, StageSettings.GlobalChromakey.ChromakeyMarkers);
+		}
+	}
+
+	void AssignChromakeyToTargetViewport(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
+	{
+		if (EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakey))
+		{
+			// chromakey disabled for this viewport
+			return;
+		}
+
+		const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = InRootActor.GetStageSettings();
+		const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
+		FDisplayClusterShaderParameters_ICVFX::FCameraSettings& DstCameraData = DstViewport.RenderSettingsICVFX.ICVFX.Cameras.Last();
+
+		FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chromakey(DstCameraData, StageSettings.GlobalChromakey, CameraSettings.Chromakey, ChromakeyViewport);
+
+		if (!EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers))
+		{
+			if (CameraSettings.Chromakey.ChromakeySettingsSource == EDisplayClusterConfigurationICVFX_ChromakeySettingsSource::Viewport)
+			{
+				FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_ChromakeyMarkers(DstCameraData, StageSettings.GlobalChromakey.ChromakeyMarkers);
+			}
+			else
+			{
+				FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_ChromakeyMarkers(DstCameraData, CameraSettings.Chromakey.ChromakeyMarkers);
+			}
 		}
 	}
 
@@ -223,8 +250,17 @@ protected:
 		const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = CameraComponent.GetCameraSettingsICVFX();
 		const FDisplayClusterConfigurationICVFX_ChromakeySettings& ChromakeySettings = CameraSettings.Chromakey;
 
+		// Assign the overlap chromakey to all supported targets, always done regardless of custom chromakey settings
+		for (FDisplayClusterViewport* TargetIt : VisibleTargets)
+		{
+			if (TargetIt)
+			{
+				CameraConfiguration.AssignOverlapChromakeyToTargetViewport(*TargetIt, RootActor);
+			}
+		}
+
 		// Try create chromakey render on demand
-		if (ChromakeySettings.bEnable && ChromakeySettings.ChromakeyRenderTexture.bEnable)
+		if (ChromakeySettings.bEnable && ChromakeySettings.ChromakeyType == EDisplayClusterConfigurationICVFX_ChromakeyType::CustomChromakey)
 		{
 			if (ChromakeySettings.ChromakeyRenderTexture.Replace.bAllowReplace && ChromakeySettings.ChromakeyRenderTexture.Replace.SourceTexture == nullptr)
 			{
@@ -250,7 +286,7 @@ protected:
 		{
 			if (TargetIt)
 			{
-				CameraConfiguration.AssignChromakeyToTargetViewport(*TargetIt, CameraComponent);
+				CameraConfiguration.AssignChromakeyToTargetViewport(*TargetIt, RootActor, CameraComponent);
 			}
 		}
 

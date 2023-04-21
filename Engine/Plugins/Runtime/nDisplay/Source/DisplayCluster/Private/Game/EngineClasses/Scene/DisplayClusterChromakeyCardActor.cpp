@@ -81,7 +81,18 @@ void ADisplayClusterChromakeyCardActor::UpdateChromakeySettings()
 		{
 			if (IsReferencedByICVFXCamera(Component))
 			{
-				ChromaColor += Component->GetCameraSettingsICVFX().Chromakey.ChromakeyColor;
+				const FDisplayClusterConfigurationICVFX_ChromakeySettings& CameraChromakey = Component->GetCameraSettingsICVFX().Chromakey;
+
+				if (CameraChromakey.ChromakeySettingsSource == EDisplayClusterConfigurationICVFX_ChromakeySettingsSource::Viewport)
+				{
+					const FDisplayClusterConfigurationICVFX_GlobalChromakeySettings& GlobalChromakey = RootActor->GetStageSettings().GlobalChromakey;
+					ChromaColor += GlobalChromakey.ChromakeyColor;
+				}
+				else
+				{
+					ChromaColor += Component->GetCameraSettingsICVFX().Chromakey.ChromakeyColor;
+				}
+
 				Count++;
 			}
 		}
