@@ -53,7 +53,7 @@ struct CORE_API FWindowsPlatformStackWalk
 	 * The implementation extracts the information from the debug engine and the debug symbols and
 	 * takes care of loading the debug symbols if the debug engine was configured to load symbols
 	 * on demand. This function can be expensive if the debug symbols needs to be loaded.
-	 *
+	 FMovieSceneEventParameters*
 	 * @param FunctionSymbolName The function name to lookup.
 	 * @param FunctionModuleName The module name containing the function to lookup.
 	 * @param OutPathname The source file pathname.
@@ -63,6 +63,8 @@ struct CORE_API FWindowsPlatformStackWalk
 	 */
 	static bool GetFunctionDefinitionLocation(const FString& FunctionSymbolName, const FString& FunctionModuleName, FString& OutPathname, uint32& OutLineNumber, uint32& OutColumnNumber);
 
+protected:
+	static void CaptureStackTraceByProcess(uint64* OutBacktrace, uint32 MaxDepth, void* InContext, void* InThreadHandle, uint32* OutDepth, bool bExternalProcess);
 private:
 	static bool InitStackWalkingInternal(void* Process, bool bForceReinitOnProcessMismatch);
 };
