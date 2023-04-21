@@ -1977,6 +1977,7 @@ void UNiagaraSystem::ResolveDIBindings()
 		MessageStore.AddMessage(ResolveDIsMessageId, ResolveDIsMessage);
 		if (MessageStore.IsMessageDismissed(ResolveDIsMessageId) == false)
 		{
+			UE_LOG(LogNiagara, Warning, TEXT("Issues reported while resolving data interfaces for system %s"), *this->GetPathName());
 			for (const FText& ErrorMessage : ErrorMessages)
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("%s"), *ErrorMessage.ToString());
