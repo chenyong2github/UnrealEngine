@@ -163,6 +163,12 @@ FSoftClassPath UKismetSystemLibrary::GetSoftClassPath(const UClass* Class)
 	return FSoftClassPath(Class);
 }
 
+FTopLevelAssetPath UKismetSystemLibrary::GetClassTopLevelAssetPath(const UClass* Class)
+{
+	// This will succeed for all valid classes as they are never subobjects
+	return FTopLevelAssetPath(Class);
+}
+
 UObject* UKismetSystemLibrary::GetOuterObject(const UObject* Object)
 {
 	return Object ? Object->GetOuter() : nullptr;
@@ -1358,6 +1364,15 @@ UObject* UKismetSystemLibrary::LoadAsset_Blocking(TSoftObjectPtr<UObject> Asset)
 bool UKismetSystemLibrary::IsValidSoftClassReference(const TSoftClassPtr<UObject>& SoftClassReference)
 {
 	return !SoftClassReference.IsNull();
+}
+
+FTopLevelAssetPath UKismetSystemLibrary::GetSoftClassTopLevelAssetPath(TSoftClassPtr<UObject> SoftClassReference)
+{
+	const FSoftObjectPath& ObjectPath = SoftClassReference.ToSoftObjectPath();
+
+	// Class paths should never have a subpath
+	ensure(ObjectPath.GetSubPathString().IsEmpty());
+	return ObjectPath.GetAssetPath();
 }
 
 FString UKismetSystemLibrary::Conv_SoftClassReferenceToString(const TSoftClassPtr<UObject>& SoftClassReference)
