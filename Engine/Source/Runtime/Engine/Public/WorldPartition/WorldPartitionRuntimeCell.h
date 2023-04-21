@@ -39,6 +39,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 		, ContainerTransform(FTransform::Identity)
 		, ContainerPackage(NAME_None)
 		, LoadedPath(NAME_None)
+		, bIsEditorOnly(false)
 #endif
 	{}
 
