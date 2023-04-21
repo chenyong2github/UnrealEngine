@@ -297,7 +297,6 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 			.VAlign(VAlign_Center) :
 			SHorizontalBox::Slot()
 			.FillWidth(ToolBarStyle.ButtonContentFillWidth)
-			.AutoWidth()
 			.VAlign(VAlign_Center))
 			[
 				ContentVBox
