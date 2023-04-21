@@ -864,6 +864,16 @@ FString FGameplayTagRequirements::ToString() const
 	return Str;
 }
 
+bool FGameplayTagRequirements::operator==(const FGameplayTagRequirements& Other) const
+{
+	return RequireTags == Other.RequireTags && IgnoreTags == Other.IgnoreTags;
+}
+
+bool FGameplayTagRequirements::operator!=(const FGameplayTagRequirements& Other) const
+{
+	return !(*this == Other);
+}
+
 void FActiveGameplayEffectsContainer::PrintAllGameplayEffects() const
 {
 	for (const FActiveGameplayEffect& Effect : this)
@@ -897,10 +907,9 @@ const FGameplayTagContainer* FTagContainerAggregator::GetAggregatedTags() const
 	if (CacheIsValid == false)
 	{
 		CacheIsValid = true;
-		CachedAggregator.Reset(CapturedActorTags.Num() + CapturedSpecTags.Num() + ScopedTags.Num());
+		CachedAggregator.Reset(CapturedActorTags.Num() + CapturedSpecTags.Num());
 		CachedAggregator.AppendTags(CapturedActorTags);
 		CachedAggregator.AppendTags(CapturedSpecTags);
-		CachedAggregator.AppendTags(ScopedTags);
 	}
 
 	return &CachedAggregator;

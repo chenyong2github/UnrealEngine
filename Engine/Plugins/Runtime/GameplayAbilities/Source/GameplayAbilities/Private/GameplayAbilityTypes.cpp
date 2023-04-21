@@ -183,6 +183,19 @@ void FGameplayAbilityActivationInfo::SetActivationRejected()
 	ActivationMode = EGameplayAbilityActivationMode::Rejected;
 }
 
+bool FGameplayAbilitySpecDef::operator==(const FGameplayAbilitySpecDef& Other) const
+{
+	return Ability == Other.Ability &&
+		LevelScalableFloat == Other.LevelScalableFloat &&
+		InputID == Other.InputID &&
+		RemovalPolicy == Other.RemovalPolicy;
+}
+
+bool FGameplayAbilitySpecDef::operator!=(const FGameplayAbilitySpecDef& Other) const
+{
+	return !(*this == Other);
+}
+
 bool FGameplayAbilitySpec::IsActive() const
 {
 	// If ability hasn't replicated yet we're not active

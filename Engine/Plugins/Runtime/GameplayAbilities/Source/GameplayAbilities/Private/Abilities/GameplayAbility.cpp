@@ -1018,7 +1018,7 @@ void UGameplayAbility::GetCooldownTimeRemainingAndDuration(FGameplayAbilitySpecH
 const FGameplayTagContainer* UGameplayAbility::GetCooldownTags() const
 {
 	UGameplayEffect* CDGE = GetCooldownGameplayEffect();
-	return CDGE ? &CDGE->InheritableOwnedTagsContainer.CombinedTags : nullptr;
+	return CDGE ? &CDGE->GetGrantedTags() : nullptr;
 }
 
 FGameplayAbilityActorInfo UGameplayAbility::GetActorInfo() const
@@ -1775,7 +1775,7 @@ FActiveGameplayEffectHandle UGameplayAbility::ApplyGameplayEffectToOwner(const F
 		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, GameplayEffect->GetClass(), GameplayEffectLevel);
 		if (SpecHandle.IsValid())
 		{
-			SpecHandle.Data->StackCount = Stacks;
+			SpecHandle.Data->SetStackCount(Stacks);
 			return ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 		}
 	}
@@ -1834,7 +1834,7 @@ TArray<FActiveGameplayEffectHandle> UGameplayAbility::ApplyGameplayEffectToTarge
 		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, GameplayEffectClass, GameplayEffectLevel);
 		if (SpecHandle.Data.IsValid())
 		{
-			SpecHandle.Data->StackCount = Stacks;
+			SpecHandle.Data->SetStackCount(Stacks);
 
 			SCOPE_CYCLE_UOBJECT(Source, SpecHandle.Data->GetContext().GetSourceObject());
 			EffectHandles.Append(ApplyGameplayEffectSpecToTarget(Handle, ActorInfo, ActivationInfo, SpecHandle, Target));

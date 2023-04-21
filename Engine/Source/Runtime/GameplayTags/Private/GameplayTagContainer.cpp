@@ -1376,6 +1376,20 @@ FGameplayTagQuery& FGameplayTagQuery::operator=(FGameplayTagQuery&& Other)
 	return *this;
 }
 
+bool FGameplayTagQuery::operator==(const FGameplayTagQuery& Other) const
+{
+	return TokenStreamVersion == Other.TokenStreamVersion &&
+		TagDictionary == Other.TagDictionary &&
+		QueryTokenStream == Other.QueryTokenStream &&
+		UserDescription == Other.UserDescription &&
+		AutoDescription == Other.AutoDescription;
+}
+
+bool FGameplayTagQuery::operator!=(const FGameplayTagQuery& Other) const
+{
+	return !(*this == Other);
+}
+
 bool FGameplayTagQuery::Matches(FGameplayTagContainer const& Tags) const
 {
 	FQueryEvaluator QE(*this);
