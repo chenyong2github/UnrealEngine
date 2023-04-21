@@ -19,6 +19,8 @@ public class ChaosClothAssetEngine : ModuleRules
 				"Chaos",
 				"ChaosClothAsset",
 				"ChaosCloth",
+				"ChaosCaching",
+				"ClothingSystemRuntimeCommon",
 				"ClothingSystemRuntimeInterface",
 				"DataflowEngine"
 			}
