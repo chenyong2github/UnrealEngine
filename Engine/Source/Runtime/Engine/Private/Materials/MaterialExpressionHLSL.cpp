@@ -2426,7 +2426,9 @@ bool UMaterialExpressionCustom::GenerateHLSLExpression(FMaterialHLSLGenerator& G
 		OutputFieldInitializers.Emplace(OutputNames.Last(), GetCustomOutputType(Generator, Output.OutputType));
 	}
 
-	FString OutputStructName = TEXT("FCustomOutput") + GetName();
+	const int32 OutputStructId = Generator.FindOrAddCustomExpressionOutputStructId(OutputFieldInitializers);
+
+	FString OutputStructName = FString::Printf(TEXT("FCustomExpressionOutput%d"), OutputStructId);
 	FStructTypeInitializer OutputStructInitializer;
 	OutputStructInitializer.Name = OutputStructName;
 	OutputStructInitializer.Fields = OutputFieldInitializers;

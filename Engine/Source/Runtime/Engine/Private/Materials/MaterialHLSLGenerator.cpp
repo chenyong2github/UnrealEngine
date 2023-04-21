@@ -834,4 +834,34 @@ void* FMaterialHLSLGenerator::InternalFindExpressionData(const FName& Type, cons
 	return Result ? *Result : nullptr;
 }
 
+int32 FMaterialHLSLGenerator::FindOrAddCustomExpressionOutputStructId(TArrayView<UE::Shader::FStructFieldInitializer> StructFields)
+{
+	FXxHash64Builder Hasher;
+	for (const UE::Shader::FStructFieldInitializer& StructField : StructFields)
+	{
+		Hasher.Update(StructField.Name.GetData(), StructField.Name.Len() * sizeof(TCHAR));
+		const UE::Shader::FType& FieldType = StructField.Type;
+		if (FieldType.IsStruct())
+		{
+			Hasher.Update(&FieldType.StructType->Hash, sizeof(FieldType.StructType->Hash));
+		}
+		else
+		{
+			Hasher.Update(&FieldType.ValueType, sizeof(FieldType.ValueType));
+		}
+	}
+	const FXxHash64 KeyHash = Hasher.Finalize();
+	int32* Found = CustomExpressionOutputStructIdMap.Find(KeyHash);
+	if (Found)
+	{
+		return *Found;
+	}
+	else
+	{
+		const int32 NewId = CustomExpressionOutputStructIdMap.Num();
+		CustomExpressionOutputStructIdMap.Add(KeyHash, NewId);
+		return NewId;
+	}
+}
+
 #endif // WITH_EDITOR

@@ -186,6 +186,8 @@ public:
 	bool GetParameterOverrideValueForCurrentFunction(EMaterialParameterType ParameterType, FName ParameterName, FMaterialParameterMetadata& OutResult) const;
 	FMaterialParameterInfo GetParameterInfo(const FName& ParameterName) const;
 
+	int32 FindOrAddCustomExpressionOutputStructId(TArrayView<UE::Shader::FStructFieldInitializer> StructFields);
+
 private:
 	static constexpr int32 MaxNumPreviousScopes = UE::HLSLTree::MaxNumPreviousScopes;
 	
@@ -267,6 +269,7 @@ private:
 	bool bGeneratedResult;
 
 	TMap<FXxHash64, const UE::HLSLTree::FExpression*> GeneratedExpressionMap;
+	TMap<FXxHash64, int32> CustomExpressionOutputStructIdMap;
 };
 
 #endif // WITH_EDITOR
