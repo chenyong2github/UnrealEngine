@@ -167,6 +167,9 @@ class UNiagaraGraph : public UEdGraph
 	/** Creates a transient copy of this graph for compilation purposes. */
 	UNiagaraGraph* CreateCompilationCopy(const TArray<ENiagaraScriptUsage>& CompileUsages);
 	void ReleaseCompilationCopy();
+
+	/** Returns if this graph is for compilation purposes only. **/
+	bool IsCompilationCopy() const { return bIsForCompilationOnly; };
 			
 	/** Find the first output node bound to the target usage type.*/
 	class UNiagaraNodeOutput* FindOutputNode(ENiagaraScriptUsage TargetUsageType, FGuid TargetUsageId = FGuid()) const;

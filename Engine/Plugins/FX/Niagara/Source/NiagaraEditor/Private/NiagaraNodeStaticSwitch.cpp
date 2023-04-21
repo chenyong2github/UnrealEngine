@@ -141,7 +141,11 @@ void UNiagaraNodeStaticSwitch::PreChange(const UUserDefinedEnum* Changed, FEnumE
 
 void UNiagaraNodeStaticSwitch::PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
 {
-	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && Changed == SwitchTypeData.Enum && (SwitchTypeData.bAutoRefreshEnabled == true || NiagaraStaticSwitchCVars::bEnabledAutoRefreshOldStaticSwitches))
+	const bool bHasUnderlyingEnumChanged = SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && Changed == SwitchTypeData.Enum;
+	const bool bShouldAutoRefresh = SwitchTypeData.bAutoRefreshEnabled == true || NiagaraStaticSwitchCVars::bEnabledAutoRefreshOldStaticSwitches;
+
+	// Can't call GetNiagaraGraph on the CDO, this should early out before then on the CDO
+	if(bHasUnderlyingEnumChanged && bShouldAutoRefresh && !GetNiagaraGraph()->IsCompilationCopy())
 	{
 		RefreshFromExternalChanges();
 	}
