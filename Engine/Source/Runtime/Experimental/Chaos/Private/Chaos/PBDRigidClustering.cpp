@@ -1050,11 +1050,18 @@ namespace Chaos
 				// first release any parent if any
 				if (FPBDRigidClusteredParticleHandle* ParentCluster = ChildClusteredParticle->Parent())
 				{
-					// we need now to force parents to break
-					ForceReleaseChildParticleAndParents(ParentCluster, bTriggerBreakEvents);
+					if (const IPhysicsProxyBase* ParentProxy = ParentCluster->PhysicsProxy())
+					{
+						// we shoudl not break cluster union parent and stop recursion there
+						if (ParentProxy->GetType() != FClusterUnionPhysicsProxy::ConcreteType())
+						{
+							// we need now to force parents to break
+							ForceReleaseChildParticleAndParents(ParentCluster, bTriggerBreakEvents);
 
-					SetExternalStrain(ChildClusteredParticle, TNumericLimits<FRealSingle>::Max());
-					ReleaseClusterParticles(ParentCluster, bTriggerBreakEvents);
+							SetExternalStrain(ChildClusteredParticle, TNumericLimits<FRealSingle>::Max());
+							ReleaseClusterParticles(ParentCluster, bTriggerBreakEvents);
+						}
+					}
 				}
 			}
 		}
