@@ -26,11 +26,6 @@ public:
 	{
 	}
 
-	FOrientedEdge(const FOrientedEdge& OrientiredEntity)
-		: TOrientedEntity(OrientiredEntity)
-	{
-	}
-
 	FOrientedEdge()
 		: TOrientedEntity()
 	{
