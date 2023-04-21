@@ -195,6 +195,14 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 		SLATE_PRIVATE_ATTRIBUTE_FUNCTION( AttrType, AttrName )
 
 /**
+ * Use when an argument used to be declared SLATE_ATTRIBUTE and it should no longer be used
+ */
+#define SLATE_ATTRIBUTE_DEPRECATED( AttrType, AttrName, DeprecationVersion, DeprecationMessage) \
+		SLATE_PRIVATE_ATTRIBUTE_VARIABLE( AttrType, AttrName ); \
+		UE_DEPRECATED(DeprecationVersion, DeprecationMessage) \
+		SLATE_PRIVATE_ATTRIBUTE_FUNCTION( AttrType, AttrName )
+
+/**
  * Use this macro to declare a slate argument.
  * Arguments differ from attributes in that they can only be values
  */

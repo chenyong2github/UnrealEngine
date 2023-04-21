@@ -173,7 +173,6 @@ TSharedRef<SWidget> SUVEditor2DViewportToolBar::MakeTransformToolBar(const TShar
 		// Setup a GridSnapSetting with the UICommand
 		ToolbarBuilder.AddWidget(
 			SNew(SViewportToolBarComboMenu)
-			.Style(ToolBarStyle)
 			.IsChecked(this, &SUVEditor2DViewportToolBar::IsLocationGridSnapChecked)
 			.OnCheckStateChanged(this, &SUVEditor2DViewportToolBar::HandleToggleLocationGridSnap)
 			.Label(this, &SUVEditor2DViewportToolBar::GetLocationGridLabel)
@@ -214,7 +213,6 @@ TSharedRef<SWidget> SUVEditor2DViewportToolBar::MakeTransformToolBar(const TShar
 		// Setup a GridSnapSetting with the UICommand
 		ToolbarBuilder.AddWidget(
 			SNew(SViewportToolBarComboMenu)
-			.Style(ToolBarStyle)
 			.IsChecked(this, &SUVEditor2DViewportToolBar::IsRotationGridSnapChecked)
 			.OnCheckStateChanged(this, &SUVEditor2DViewportToolBar::HandleToggleRotationGridSnap)
 			.Label(this, &SUVEditor2DViewportToolBar::GetRotationGridLabel)
@@ -255,7 +253,6 @@ TSharedRef<SWidget> SUVEditor2DViewportToolBar::MakeTransformToolBar(const TShar
 		ToolbarBuilder.AddWidget(
 			SNew(SViewportToolBarComboMenu)
 			.Cursor(EMouseCursor::Default)
-			.Style(ToolBarStyle)
 			.IsChecked(this, &SUVEditor2DViewportToolBar::IsScaleGridSnapChecked)
 			.OnCheckStateChanged(this, &SUVEditor2DViewportToolBar::HandleToggleScaleGridSnap)
 			.Label(this, &SUVEditor2DViewportToolBar::GetScaleGridLabel)

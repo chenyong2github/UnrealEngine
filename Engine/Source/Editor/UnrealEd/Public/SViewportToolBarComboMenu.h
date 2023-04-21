@@ -53,7 +53,7 @@ public:
 		SLATE_ATTRIBUTE( FText, Label )
 
 		/** Overall style */
-		SLATE_ATTRIBUTE( FName, Style )
+		SLATE_ATTRIBUTE_DEPRECATED( FName, Style, 5.3, "The Style attribute is deprecated, styles are specified through stylesheets now" )
 
 		/** ToolTip shown on the menu button */
 		SLATE_ATTRIBUTE( FText, MenuButtonToolTip )
@@ -62,7 +62,7 @@ public:
 		SLATE_ATTRIBUTE( FText, ToggleButtonToolTip )
 
 		/** The button location */
-		SLATE_ARGUMENT( EMultiBlockLocation::Type, BlockLocation )
+		SLATE_ARGUMENT_DEPRECATED( EMultiBlockLocation::Type, BlockLocation, 5.3, "The BlockLocation argument is deprecated and not in use anymore" )
 
 		/** The minimum desired width of the menu button contents */
 		SLATE_ARGUMENT( float, MinDesiredButtonWidth )

@@ -48,7 +48,6 @@ TSharedRef< SWidget > SDesignerToolBar::MakeToolBar(const TSharedPtr< FExtender 
 		FUICommandInfo* ToggleLocalizationPreviewCommand = FDesignerCommands::Get().ToggleLocalizationPreview.Get();
 
 		ToolbarBuilder.AddWidget(SNew(SViewportToolBarComboMenu)
-			.BlockLocation(EMultiBlockLocation::Start)
 			.Cursor(EMouseCursor::Default)
 			.IsChecked(this, &SDesignerToolBar::IsLocalizationPreviewChecked)
 			.OnCheckStateChanged(this, &SDesignerToolBar::HandleToggleLocalizationPreview)
@@ -90,8 +89,6 @@ TSharedRef< SWidget > SDesignerToolBar::MakeToolBar(const TSharedPtr< FExtender 
 
 		// Setup a GridSnapSetting with the UICommand
 		ToolbarBuilder.AddWidget(SNew(SViewportToolBarComboMenu)
-			.Style(ToolBarStyle)
-			.BlockLocation(EMultiBlockLocation::Start)
 			.Cursor(EMouseCursor::Default)
 			.IsChecked(this, &SDesignerToolBar::IsLocationGridSnapChecked)
 			.OnCheckStateChanged(this, &SDesignerToolBar::HandleToggleLocationGridSnap)

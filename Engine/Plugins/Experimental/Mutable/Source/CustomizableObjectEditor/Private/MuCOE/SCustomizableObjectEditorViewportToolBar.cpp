@@ -922,7 +922,6 @@ TSharedRef<SWidget> SCustomizableObjectEditorViewportToolBar::GenerateRTSButtons
 		// Setup a GridSnapSetting with the UICommand
 		ToolbarBuilder.AddWidget(SNew(SViewportToolBarComboMenu)
 			.Cursor(EMouseCursor::Default)
-			.Style(ToolBarStyle)
 			.IsChecked(this, &SCustomizableObjectEditorViewportToolBar::IsRotationGridSnapChecked)
 			.OnCheckStateChanged(this, &SCustomizableObjectEditorViewportToolBar::HandleToggleRotationGridSnap)
 			.Label(this, &SCustomizableObjectEditorViewportToolBar::GetRotationGridLabel)

@@ -255,7 +255,6 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 		// Setup a GridSnapSetting with the UICommand
 		ToolbarBuilder.AddWidget(	
 			SNew(SViewportToolBarComboMenu)
-				.Style(ToolBarStyle)
 				.IsChecked(this, &STransformViewportToolBar::IsLocationGridSnapChecked)
 				.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleLocationGridSnap)
 				.Label(this, &STransformViewportToolBar::GetLocationGridLabel)
@@ -296,7 +295,6 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 		// Setup a GridSnapSetting with the UICommand
 		ToolbarBuilder.AddWidget(	
 			SNew(SViewportToolBarComboMenu)
-				.Style(ToolBarStyle)
 				.IsChecked(this, &STransformViewportToolBar::IsRotationGridSnapChecked)
 				.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleRotationGridSnap)
 				.Label(this, &STransformViewportToolBar::GetRotationGridLabel)
@@ -334,7 +332,6 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 
 		TSharedRef<SWidget> SnapLayerPickerWidget =
 			SNew(SViewportToolBarComboMenu)
-			.Style(ToolBarStyle)
 			.Visibility(this, &STransformViewportToolBar::IsLayer2DSnapVisible)
 			.IsChecked(this, &STransformViewportToolBar::IsLayer2DSnapChecked)
 			.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleLayer2DSnap)
@@ -384,7 +381,6 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 		ToolbarBuilder.AddWidget(	
 			SNew(SViewportToolBarComboMenu)
 				.Cursor( EMouseCursor::Default )
-				.Style(ToolBarStyle)
 				.IsChecked(this,&STransformViewportToolBar::IsScaleGridSnapChecked)
 				.OnCheckStateChanged(this, &STransformViewportToolBar::HandleToggleScaleGridSnap)
 				.Label(this ,&STransformViewportToolBar::GetScaleGridLabel)
