@@ -271,6 +271,22 @@ public:
 	virtual bool EmitCustomHLSLParameter(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, const TCHAR* ParameterName, FEmitCustomHLSLParameterResult& OutResult) const override;
 };
 
+class FExpressionCollectionParameter : public FExpression
+{
+public:
+	int32 CollectionIndex;
+	int32 ParameterIndex;
+
+	FExpressionCollectionParameter(int32 InCollectionIndex, int32 InParameterIndex)
+		: CollectionIndex(InCollectionIndex)
+		, ParameterIndex(InParameterIndex)
+	{}
+
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+};
+
 class FExpressionTextureSample : public FExpression
 {
 public:

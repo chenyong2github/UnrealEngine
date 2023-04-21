@@ -187,6 +187,8 @@ public:
 	FMaterialParameterInfo GetParameterInfo(const FName& ParameterName) const;
 
 	int32 FindOrAddCustomExpressionOutputStructId(TArrayView<UE::Shader::FStructFieldInitializer> StructFields);
+	
+	int32 FindOrAddParameterCollection(UMaterialParameterCollection* ParameterCollection);
 
 private:
 	static constexpr int32 MaxNumPreviousScopes = UE::HLSLTree::MaxNumPreviousScopes;

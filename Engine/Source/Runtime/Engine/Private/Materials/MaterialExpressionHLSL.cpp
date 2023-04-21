@@ -18,6 +18,8 @@
 #include "Materials/MaterialExpressionConstantBiasScale.h"
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionParameter.h"
+#include "Materials/MaterialExpressionCollectionParameter.h"
+#include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionStaticSwitchParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
@@ -342,6 +344,42 @@ bool UMaterialExpressionParameter::GenerateHLSLExpression(FMaterialHLSLGenerator
 
 	OutExpression = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta);
 	return true;
+}
+
+bool UMaterialExpressionCollectionParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
+{
+	int32 ParameterIndex = INDEX_NONE;
+	int32 ComponentIndex = INDEX_NONE;
+
+	if (Collection)
+	{
+		Collection->GetParameterIndex(ParameterId, ParameterIndex, ComponentIndex);
+	}
+
+	if (ParameterIndex != INDEX_NONE)
+	{
+		const int32 CollectionIndex = Generator.FindOrAddParameterCollection(Collection);
+		OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::Material::FExpressionCollectionParameter>(CollectionIndex, ParameterIndex);
+		OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionSwizzle>(
+			UE::HLSLTree::MakeSwizzleMask(
+				ComponentIndex == INDEX_NONE ? true : ComponentIndex % 4 == 0,
+				ComponentIndex == INDEX_NONE ? true : ComponentIndex % 4 == 1,
+				ComponentIndex == INDEX_NONE ? true : ComponentIndex % 4 == 2,
+				ComponentIndex == INDEX_NONE ? true : ComponentIndex % 4 == 3),
+			OutExpression);
+		return true;
+	}
+	else
+	{
+		if (!Collection)
+		{
+			return Generator.Error(TEXT("CollectionParameter has invalid Collection!"));
+		}
+		else
+		{
+			return Generator.Errorf(TEXT("CollectionParameter has invalid parameter %s"), *ParameterName.ToString());
+		}
+	}
 }
 
 bool UMaterialExpressionCurveAtlasRowParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const

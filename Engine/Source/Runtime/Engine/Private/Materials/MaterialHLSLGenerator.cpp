@@ -9,11 +9,13 @@
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionExecBegin.h"
+#include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialFunction.h"
 #include "MaterialHLSLTree.h"
 #include "Materials/Material.h"
 #include "MaterialCachedHLSLTree.h"
 #include "Misc/MemStackUtility.h"
+#include "ParameterCollection.h"
 
 FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* Material,
 	const FMaterialLayersFunctions* InLayerOverrides,
@@ -862,6 +864,24 @@ int32 FMaterialHLSLGenerator::FindOrAddCustomExpressionOutputStructId(TArrayView
 		CustomExpressionOutputStructIdMap.Add(KeyHash, NewId);
 		return NewId;
 	}
+}
+
+int32 FMaterialHLSLGenerator::FindOrAddParameterCollection(UMaterialParameterCollection* ParameterCollection)
+{
+	int32 CollectionIndex = CachedTree.ParameterCollections.Find(ParameterCollection);
+
+	if (CollectionIndex == INDEX_NONE)
+	{
+		if (CachedTree.ParameterCollections.Num() >= MaxNumParameterCollectionsPerMaterial)
+		{
+			return Error(TEXT("Material references too many MaterialParameterCollections!  A material may only reference 2 different collections."));
+		}
+
+		CachedTree.ParameterCollections.Add(ParameterCollection);
+		CollectionIndex = CachedTree.ParameterCollections.Num() - 1;
+	}
+
+	return CollectionIndex;
 }
 
 #endif // WITH_EDITOR
