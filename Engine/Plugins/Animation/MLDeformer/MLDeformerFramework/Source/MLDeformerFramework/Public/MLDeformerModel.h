@@ -81,7 +81,11 @@ namespace UE::MLDeformer
 	};
 }	// namespace UE::MLDeformer
 
+// DEPRECATED: Use FMLDeformerReleaseModelInstancesDelegate instead.
 DECLARE_EVENT_OneParam(UMLDeformerModel, FMLDeformerModelOnPostEditProperty, FPropertyChangedEvent&)
+
+/** Delegate used to signal that the UMLDeformerModelInstance's of the specified model should get released. */
+DECLARE_EVENT(UMLDeformerModel, FMLDeformerReleaseModelInstancesDelegate)
 
 /**
  * The ML Deformer runtime model base class.
@@ -313,14 +317,16 @@ public:
 	 * @return A reference to the GPU buffer resource object that holds the vertex map.
 	 * @see GetVertexMap
 	 */
-	const UE::MLDeformer::FVertexMapBuffer& GetVertexMapBuffer() const { return VertexMapBuffer; }
+	const UE::MLDeformer::FVertexMapBuffer& GetVertexMapBuffer() const	{ return VertexMapBuffer; }
 
 	/**
 	 * Get the neural network modified delegate.
 	 * This triggers when the neural network pointers changes.
 	 * @return A reference to the delegate.
 	 */
-	FNeuralNetworkModifyDelegate& GetNeuralNetworkModifyDelegate() { return NeuralNetworkModifyDelegate; }
+	UE_DEPRECATED(5.2, "This delegate will be removed.")
+	FNeuralNetworkModifyDelegate& GetNeuralNetworkModifyDelegate()		{ return NeuralNetworkModifyDelegate_DEPRECATED; }
+
 
 #if WITH_EDITORONLY_DATA
 	// UObject overrides.
@@ -561,7 +567,7 @@ private:
 	FRenderCommandFence RenderResourceDestroyFence;
 
 	/** Delegate that will be called immediately before the NeuralNetwork is changed. */
-	FNeuralNetworkModifyDelegate NeuralNetworkModifyDelegate;
+	FNeuralNetworkModifyDelegate NeuralNetworkModifyDelegate_DEPRECATED;
 
 	/** Cached number of skeletal mesh vertices. */
 	UPROPERTY()

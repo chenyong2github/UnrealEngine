@@ -594,7 +594,6 @@ void UNeuralMorphNetworkInstance::RunLocalMLP(UNeuralMorphMLP& MLP, const FRunSe
 	{
 		const UNeuralMorphMLPLayer& CurLayer = MLP.GetLayer(LayerIndex);
 		const int32 NumInputsPerBlock = CurLayer.NumInputs;
-		checkSlow(NumInputsPerBlock == 6);
 		const int32 NumBlocks = CurLayer.Depth;
 
 		// Copy the inputs to the temp buffer.

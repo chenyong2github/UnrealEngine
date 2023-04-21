@@ -43,6 +43,16 @@ namespace UE::MLDeformer
 {
 	FMLDeformerEditorModel::~FMLDeformerEditorModel()
 	{
+		if (InputObjectModifiedHandle.IsValid())
+		{
+			FCoreUObjectDelegates::OnObjectModified.Remove(InputObjectModifiedHandle);
+		}
+
+		if (InputObjectPropertyChangedHandle.IsValid())
+		{
+			FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(InputObjectPropertyChangedHandle);
+		}
+
 		if (PostEditPropertyDelegateHandle.IsValid())
 		{
 			Model->OnPostEditChangeProperty().Remove(PostEditPropertyDelegateHandle);
@@ -73,7 +83,44 @@ namespace UE::MLDeformer
 		WorkingRange = TRange<double>(0.0, 100.0);
 		PlaybackRange = TRange<double>(0.0, 100.0);
 
+		// Start listening to property changes in the ML Deformer model.
 		PostEditPropertyDelegateHandle = Model->OnPostEditChangeProperty().AddRaw(this, &FMLDeformerEditorModel::OnPostEditChangeProperty);
+
+		// Start listening for object modified and object property changed events.
+		// We use this to trigger reinits of the UI and components, when one of our input assets got modified (by property changes, or reimports, etc).
+		// This listens to changes in ALL objects in the engine.
+		InputObjectModifiedHandle = FCoreUObjectDelegates::OnObjectModified.AddRaw(this, &FMLDeformerEditorModel::OnObjectModified);
+		InputObjectPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddLambda
+		(
+			[this](UObject* Object, const FPropertyChangedEvent& PropertyChangedEvent)
+			{
+				if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+				{
+					OnObjectModified(Object);
+				}
+			}
+		);
+	}
+
+	void FMLDeformerEditorModel::OnObjectModified(UObject* Object)
+	{
+		if (Model->GetSkeletalMesh() == Object || Model->GetInputInfo()->GetSkeletalMesh() == Object)
+		{
+			UE_LOG(LogMLDeformer, Display, TEXT("Detected a modification in skeletal mesh %s, reinitializing inputs."), *Object->GetName());
+			bNeedsAssetReinit = true;
+		}
+
+		if (Model->GetAnimSequence() == Object)
+		{
+			UE_LOG(LogMLDeformer, Display, TEXT("Detected a modification in training anim sequence %s, reinitializing inputs."), *Object->GetName());
+			bNeedsAssetReinit = true;
+		}
+
+		if (Model->GetVizSettings()->GetTestAnimSequence() == Object)
+		{
+			UE_LOG(LogMLDeformer, Display, TEXT("Detected a modification in test anim sequence %s, reinitializing inputs."), *Object->GetName());
+			bNeedsAssetReinit = true;
+		}
 	}
 
 	void FMLDeformerEditorModel::AddReferencedObjects(FReferenceCollector& Collector)
@@ -310,7 +357,15 @@ namespace UE::MLDeformer
 	}
 
 	void FMLDeformerEditorModel::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
-	{
+	{		
+		if (bNeedsAssetReinit)
+		{
+			TriggerInputAssetChanged();
+			Model->InitVertexMap();
+			Model->InitGPUData();
+			bNeedsAssetReinit = false;
+		}
+
 		// Force the training sequence to use Step interpolation.
 		// We do this in the Tick, as this is reset to false in the engine sometimes.
 		UAnimSequence* TrainingAnimSequence = Model->GetAnimSequence();
@@ -324,7 +379,7 @@ namespace UE::MLDeformer
 		{
 			if (Actor && Actor->GetSkeletalMeshComponent())
 			{
-				USkeletalMeshComponent* SkelMeshComp = Actor->GetSkeletalMeshComponent();
+				USkeletalMeshComponent* SkelMeshComp = Actor->GetSkeletalMeshComponent();			
 				if (SkelMeshComp->GetAnimInstance())
 				{
 					SkelMeshComp->GetAnimInstance()->GetRequiredBones().SetUseRAWData(true);
@@ -1482,20 +1537,9 @@ namespace UE::MLDeformer
 
 	void FMLDeformerEditorModel::OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted)
 	{
-		for (FMLDeformerEditorActor* EditorActor : EditorActors)
-		{
-			if (EditorActor && EditorActor->GetMLDeformerComponent())
-			{
-				USkeletalMeshComponent* SkelMeshComponent = EditorActor->GetSkeletalMeshComponent();
-				UMLDeformerAsset* DeformerAsset = Model->GetDeformerAsset();
-				EditorActor->GetMLDeformerComponent()->SetupComponent(DeformerAsset, SkelMeshComponent);
-			}
-		}
-
 		Sampler->SetVertexDeltaSpace(EVertexDeltaSpace::PostSkinning);
 		SampleDeltas();
 		Model->InitGPUData();
-
 		UpdateMemoryUsage();
 	}
 

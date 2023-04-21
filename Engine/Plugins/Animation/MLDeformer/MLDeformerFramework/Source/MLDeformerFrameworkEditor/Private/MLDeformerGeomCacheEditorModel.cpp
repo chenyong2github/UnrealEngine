@@ -272,6 +272,26 @@ namespace UE::MLDeformer
 
 		GetGeomCacheModel()->GetGeomCacheMeshMappings().Reset();
 	}
+
+	void FMLDeformerGeomCacheEditorModel::OnObjectModified(UObject* Object)
+	{
+		// Handle changes for the skeletal mesh and anim sequence.
+		FMLDeformerEditorModel::OnObjectModified(Object);
+
+		// Check if the object is our training geometry cache.
+		if (GetGeomCacheModel()->GetGeometryCache() == Object)
+		{
+			UE_LOG(LogMLDeformer, Display, TEXT("Detected a modification in training geometry cache %s, reinitializing inputs."), *Object->GetName());
+			bNeedsAssetReinit = true;
+		}
+
+		// Check if it is the ground truth test geom cache.
+		if (GetGeomCacheModel()->GetGeomCacheVizSettings()->GetTestGroundTruth() == Object)
+		{
+			UE_LOG(LogMLDeformer, Display, TEXT("Detected a modification in test ground truth geometry cache %s, reinitializing inputs."), *Object->GetName());
+			bNeedsAssetReinit = true;
+		}
+	}
 }	// namespace UE::MLDeformer
 
 #undef LOCTEXT_NAMESPACE

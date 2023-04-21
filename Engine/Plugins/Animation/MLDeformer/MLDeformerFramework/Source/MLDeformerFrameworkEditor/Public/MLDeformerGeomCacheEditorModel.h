@@ -39,6 +39,7 @@ namespace UE::MLDeformer
 		virtual void UpdateIsReadyForTrainingState() override;
 		virtual void OnPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent) override;
 		virtual void OnInputAssetsChanged() override;
+		virtual void OnObjectModified(UObject* Object) override;
 		virtual ETrainingResult Train() override;
 		// ~END FMLDeformerEditorModel overrides.
 		

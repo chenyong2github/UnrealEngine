@@ -151,7 +151,7 @@ namespace UE::NearestNeighborModel
 			{
 				TObjectPtr<UNNEModelData> NNEModel = LoadNeuralNetworkFromOnnx(OnnxFile);
 				NearestNeighborModel->SetUseOptimizedNetwork(false);
-				NearestNeighborModel->SetNNEModelData(NNEModel, false);
+				NearestNeighborModel->SetNNEModelData(NNEModel);
 				return true;
 			}
 		}

@@ -261,7 +261,7 @@ private:
 	void SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InOptimizedNetwork);
 	bool LoadOptimizedNetwork(const FString& OnnxPath);
 
-	void SetNNEModelData(TObjectPtr<UNNEModelData> ModelData, bool bBroadcast);
+	void SetNNEModelData(TObjectPtr<UNNEModelData> ModelData);
 	TObjectPtr<UNNEModelData> GetNNEModelData() const;
 
 	const FString GetNNERuntimeName() const {return TEXT("NNERuntimeORTDml"); }

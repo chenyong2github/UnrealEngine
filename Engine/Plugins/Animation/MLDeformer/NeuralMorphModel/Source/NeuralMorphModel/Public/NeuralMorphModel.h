@@ -57,10 +57,11 @@ public:
 	virtual UMLDeformerInputInfo* CreateInputInfo();
 	// ~END UMLDeformerModel overrides.
 
+	void SetNeuralMorphNetwork(UNeuralMorphNetwork* Net);
+
 	const TArray<FNeuralMorphBoneGroup>& GetBoneGroups() const		{ return BoneGroups; }
 	const TArray<FNeuralMorphCurveGroup>& GetCurveGroups() const	{ return CurveGroups; }
 	UNeuralMorphNetwork* GetNeuralMorphNetwork() const		{ return NeuralMorphNetwork.Get(); }
-	void SetNeuralMorphNetwork(UNeuralMorphNetwork* Net)	{ NeuralMorphNetwork = Net; }
 	ENeuralMorphMode GetModelMode() const					{ return Mode; }
 	int32 GetLocalNumHiddenLayers() const					{ return LocalNumHiddenLayers; }
 	int32 GetLocalNumNeuronsPerLayer() const				{ return LocalNumNeuronsPerLayer; }

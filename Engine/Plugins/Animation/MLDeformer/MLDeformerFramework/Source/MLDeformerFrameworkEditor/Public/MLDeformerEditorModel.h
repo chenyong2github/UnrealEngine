@@ -785,6 +785,15 @@ namespace UE::MLDeformer
 		void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
 
 		/**
+		 * Called whenever an engine object is being modified.
+		 * Use this to set the reinitialize assets flag. For example when a skeletal mesh or anim sequence change (being modified or reimported), we should 
+		 * set the bNeedsAssetReinit member to true, to trigger the actor components and UI etc to be reinitialized.
+		 * The default implementation of this method will check for changes in the skeletal mesh and training and test anim sequence.
+		 * If you want to check more things (your target mesh), you need to check for that.
+		 */
+		virtual void OnObjectModified(UObject* Object);
+
+		/**
 		 * Delete all editor actors.
 		 * This does not actually delete the actors in the world.
 		 * You can call ClearWorld to include that.
@@ -923,6 +932,15 @@ namespace UE::MLDeformer
 
 		/** Display frame numbers? */
 		bool bDisplayFrames = true;
+
+		/** The delegate that handles when an object got modified (any object). */
+		FDelegateHandle InputObjectModifiedHandle;
+
+		/** The delegate that handles when an object property got changed (any object). */
+		FDelegateHandle InputObjectPropertyChangedHandle;
+
+		/** Set to true when on next tick we need to trigger an input assets changed event. */
+		bool bNeedsAssetReinit = false;
 	};
 
 	/**

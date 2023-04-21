@@ -47,6 +47,11 @@ UMLDeformerInputInfo* UNeuralMorphModel::CreateInputInfo()
 	return NewObject<UNeuralMorphInputInfo>(this);
 }
 
+void UNeuralMorphModel::SetNeuralMorphNetwork(UNeuralMorphNetwork* Net)
+{ 
+	NeuralMorphNetwork = Net;
+}
+
 void UNeuralMorphModel::Serialize(FArchive& Archive)
 {
 	if (Archive.IsSaving() && Archive.IsCooking())

@@ -65,12 +65,8 @@ UMLDeformerInputInfo* UNearestNeighborModel::CreateInputInfo()
 	return NearestNeighborModelInputInfo;
 }
 
-void UNearestNeighborModel::SetNNEModelData(TObjectPtr<UNNEModelData> ModelData, bool bBroadcast)
+void UNearestNeighborModel::SetNNEModelData(TObjectPtr<UNNEModelData> ModelData)
 {
-	if (bBroadcast)
-	{
-		GetNeuralNetworkModifyDelegate().Broadcast();
-	}
 	NNEModel = ModelData;
 }
 
@@ -497,10 +493,8 @@ bool UNearestNeighborModel::CheckPCAData(int32 PartId) const
 
 void UNearestNeighborModel::SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InOptimizedNetwork)
 {
-	GetNeuralNetworkModifyDelegate().Broadcast();
 	OptimizedNetwork = InOptimizedNetwork;
 }
-
 
 bool UNearestNeighborModel::DoesUseOptimizedNetwork() const
 {
