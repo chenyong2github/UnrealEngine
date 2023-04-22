@@ -86,6 +86,8 @@ void FPhysicsDataCollection::ClearAggregate()
 
 void FPhysicsDataCollection::CopyGeometryToAggregate()
 {
+	ClearAggregate();
+
 	for (FBoxShape3d& BoxGeom : Geometry.Boxes)
 	{
 		FKBoxElem Element;
