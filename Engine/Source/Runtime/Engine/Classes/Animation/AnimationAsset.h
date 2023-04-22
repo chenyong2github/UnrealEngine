@@ -384,6 +384,8 @@ struct FAnimTickRecord
 
 	bool bLooping = false;
 	bool bIsEvaluator = false;
+	bool bRequestedInertialization = false;
+
 	const UMirrorDataTable* MirrorDataTable = nullptr;
 
 	TSharedPtr<TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>> ContextData;

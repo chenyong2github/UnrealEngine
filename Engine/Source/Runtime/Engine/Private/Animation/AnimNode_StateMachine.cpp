@@ -13,6 +13,7 @@
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/ExposedValueHandler.h"
 #include "Logging/TokenizedMessage.h"
+#include "Animation/AnimInertializationSyncScope.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_StateMachine)
 
@@ -473,6 +474,8 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 
 	StatesUpdated.Reset();
 
+	bool bLastActiveTransitionRequestedInertialization = false;
+	
 	// Tick the individual state/states that are active
 	if (ActiveTransitionArray.Num() > 0)
 	{
@@ -491,6 +494,12 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 				{
 					Context.AnimInstanceProxy->AddAnimNotifyFromGeneratedClass(ActiveTransitionArray[Index].EndNotify);
 					Context.AnimInstanceProxy->AddAnimNotifyFromGeneratedClass(GetStateInfo().FullyBlendedNotify);
+				}
+
+				// we were the last active transition and used inertialization
+				if (ActiveTransitionArray[Index].LogicType == ETransitionLogicType::TLT_Inertialization && (ActiveTransitionArray.Num() - 1 ==  Index))
+				{
+					bLastActiveTransitionRequestedInertialization = true;
 				}
 			}
 			else
@@ -516,7 +525,9 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 	// Update the only active state if there are no transitions still in flight
 	if (ActiveTransitionArray.Num() == 0 && !IsAConduitState(CurrentState) && !StatesUpdated.Contains(CurrentState))
 	{
+		UE::Anim::TOptionalScopedGraphMessage<UE::Anim::FAnimInertializationSyncScope> InertializationSync(bLastActiveTransitionRequestedInertialization, Context);
 		UE::Anim::TOptionalScopedGraphMessage<UE::Anim::FActiveStateMachineScope> Message(bCreateNotifyMetaData, Context, Context, this, CurrentState);
+		
 		StatePoseLinks[CurrentState].Update(Context);
 	}
 
@@ -766,6 +777,8 @@ void FAnimNode_StateMachine::UpdateTransitionStates(const FAnimationUpdateContex
 
 		case ETransitionLogicType::TLT_Inertialization:
 			{
+				UE::Anim::TScopedGraphMessage<UE::Anim::FAnimInertializationSyncScope> InertializationSync(Context);
+
 				// update target state
 				UpdateState(Transition.NextState, Context);
 			}

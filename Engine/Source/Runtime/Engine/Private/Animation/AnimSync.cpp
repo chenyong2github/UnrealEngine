@@ -148,19 +148,26 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 				// if it has leader score
 				SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
 				FScopeCycleCounterUObject Scope(GroupLeader.SourceAsset);
-
-				auto TickRecordMatchesGroupLeader = [&GroupLeader](const FAnimTickRecord& TickRecord) -> bool
+				
+				// Inertialization was requested therefore we resync to previous leader, if needed.
+				if (GroupLeader.bRequestedInertialization)
 				{
-					return TickRecord.SourceAsset == GroupLeader.SourceAsset && TickRecord.TimeAccumulator == GroupLeader.TimeAccumulator;
-				};
+					// Ensure we have a previous group leader to sync to otherwise we play normally. 
+					if (PreviousGroup && !PreviousGroup->ActivePlayers.IsEmpty())
+					{
+						// Only need to resync when using length based syncing since we initialized the tick context with the previous group's sync end position
+						// and that will take care of marker based syncing.
+						if (!TickContext.CanUseMarkerPosition() || !(PreviousGroup->ValidMarkers.Num() > 0))
+						{
+							const FAnimTickRecord & PreviousGroupLeader = PreviousGroup->ActivePlayers[PreviousGroup->GroupLeaderIndex];
+							const bool bShouldResyncToSyncGroup = PreviousGroupLeader.LeaderScore >= GroupLeader.LeaderScore;
 
-				// if the group leader was previously inactive then set it to resynchronize to the sync group's time
-				// (maintains sync during inertialization or zero-length blends where the previous sync leader is no longer active)
-				const bool bGroupLeaderWasActive = (PreviousGroup && PreviousGroup->ActivePlayers.ContainsByPredicate(TickRecordMatchesGroupLeader)) ||
-					(PreviousUngroupedActivePlayers.ContainsByPredicate(TickRecordMatchesGroupLeader));
-				const bool bGroupWasActive = PreviousGroup && !PreviousGroup->ActivePlayers.IsEmpty();
-				TickContext.SetResyncToSyncGroup(!bGroupLeaderWasActive && bGroupWasActive);
-
+							// Sync to previous group leader if we have a lower score than them.
+							TickContext.SetResyncToSyncGroup(bShouldResyncToSyncGroup);
+						}
+					}
+				}
+				
 				TickContext.MarkerTickContext.MarkersPassedThisTick.Reset();
 				TickContext.RootMotionMovementParams.Clear();
 				GroupLeader.SourceAsset->TickAssetPlayer(GroupLeader, InProxy.NotifyQueue, TickContext);
@@ -254,7 +261,6 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 				// if we don't have a good leader, no reason to convert to follower
 				// tick as leader
 				TickContext.ConvertToFollower();
-				TickContext.SetResyncToSyncGroup(false);
 
 				for (int32 TickIndex = GroupLeaderIndex + 1; TickIndex < SyncGroup.ActivePlayers.Num(); ++TickIndex)
 				{
@@ -262,7 +268,10 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 					{
 						SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstance);
 						FScopeCycleCounterUObject Scope(AssetPlayer.SourceAsset);
+						
+						TickContext.SetResyncToSyncGroup(AssetPlayer.bRequestedInertialization);
 						TickContext.RootMotionMovementParams.Clear();
+						
 						AssetPlayer.SourceAsset->TickAssetPlayer(AssetPlayer, InProxy.NotifyQueue, TickContext);
 					}
 					if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)

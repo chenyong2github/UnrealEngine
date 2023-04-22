@@ -3,6 +3,7 @@
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimSyncScope.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/AnimInertializationSyncScope.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_AssetPlayerBase)
 
@@ -32,21 +33,41 @@ void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateCo
 
 	const EAnimGroupRole::Type SyncGroupRole = GetGroupRole();
 	const FName SyncGroupName = GetGroupName();
-
-	const FName GroupNameToUse = ((SyncGroupRole < EAnimGroupRole::TransitionLeader) || bHasBeenFullWeight) ? SyncGroupName : NAME_None;
+	FName GroupNameToUse = SyncGroupName;
 	EAnimSyncMethod MethodToUse = GetGroupMethod();
-	if(GroupNameToUse == NAME_None && MethodToUse == EAnimSyncMethod::SyncGroup)
+	const bool bRequestedInertialization = Context.GetMessage<UE::Anim::FAnimInertializationSyncScope>() != nullptr;
+	
+	// Skip sync based on roles.
 	{
-		MethodToUse = EAnimSyncMethod::DoNotSync;
-	}
+		// Only allow transition leader/follower part of a sync group once after inertialization request. (Inertilization)
+		if (bRequestedInertialization)
+		{
+			if (SyncGroupRole == EAnimGroupRole::TransitionLeader || SyncGroupRole == EAnimGroupRole::TransitionFollower)
+			{
+				GroupNameToUse = NAME_None;
+			}
+		}
+		// Only allow transition leader/follower part of a sync group once it has full weight (Standard blend).
+		else if ((SyncGroupRole == EAnimGroupRole::TransitionLeader || SyncGroupRole == EAnimGroupRole::TransitionFollower) && !bHasBeenFullWeight)
+		{
+			GroupNameToUse = NAME_None;
+		}
 
+		// Do not use sync groups.
+		if (GroupNameToUse == NAME_None && MethodToUse == EAnimSyncMethod::SyncGroup)
+		{
+			MethodToUse = EAnimSyncMethod::DoNotSync;
+		}
+	}
+	
 	const UE::Anim::FAnimSyncParams SyncParams(GroupNameToUse, SyncGroupRole, MethodToUse);
 	FAnimTickRecord TickRecord(Sequence, bLooping, PlayRate, bIsEvaluator, FinalBlendWeight, /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
 	TickRecord.GatherContextData(Context);
 
 	TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();
 	TickRecord.DeltaTimeRecord = &DeltaTimeRecord;
-
+	TickRecord.bRequestedInertialization = bRequestedInertialization;
+	
 	SyncScope.AddTickRecord(TickRecord, SyncParams, UE::Anim::FAnimSyncDebugInfo(Context));
 
 	TRACE_ANIM_TICK_RECORD(Context, TickRecord);

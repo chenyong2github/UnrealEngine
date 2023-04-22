@@ -1,0 +1,16 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Animation/AnimNodeMessages.h"
+
+namespace UE { namespace Anim {
+
+// Scoped graph message used to synchronize tick records using inertialization 
+class ENGINE_API FAnimInertializationSyncScope : public IGraphMessage
+{
+	DECLARE_ANIMGRAPH_MESSAGE(FAnimInertializationSyncScope)
+};
+
+}} // namespace UE::Anim
