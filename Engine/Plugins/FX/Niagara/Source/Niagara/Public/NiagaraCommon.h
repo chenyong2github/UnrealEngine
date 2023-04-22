@@ -516,7 +516,28 @@ struct NIAGARA_API FNiagaraFunctionSignature
 			}
 			return true;
 		}();
-		return EqualsIgnoringSpecifiers(Other) && bFunctionSpecifiersEqual;
+
+		bool bMatchingVariadics = true;
+		if (VariadicInput() || VariadicOutput())
+		{
+			bMatchingVariadics &= Other.Inputs.Num() == Inputs.Num() && RequiredInputs == Other.RequiredInputs;
+			bMatchingVariadics &= Other.Outputs.Num() == Outputs.Num() && RequiredOutputs == Other.RequiredOutputs;
+			if (bMatchingVariadics && RequiredInputs != INDEX_NONE)
+			{
+				for (int32 i = RequiredInputs; i < Inputs.Num(); ++i)
+				{
+					bMatchingVariadics &= Inputs[i] == Other.Inputs[i];
+				}
+			}
+			if (bMatchingVariadics && RequiredOutputs != INDEX_NONE)
+			{
+				for (int32 i = RequiredOutputs; i < Outputs.Num(); ++i)
+				{
+					bMatchingVariadics &= Outputs[i] == Other.Outputs[i];
+				}
+			}
+		}
+		return EqualsIgnoringSpecifiers(Other) && bFunctionSpecifiersEqual && bMatchingVariadics;
 	}
 
 	bool EqualsIgnoringSpecifiers(const FNiagaraFunctionSignature& Other) const

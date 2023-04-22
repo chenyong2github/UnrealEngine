@@ -8603,6 +8603,22 @@ FString FHlslNiagaraTranslator::GetFunctionSignatureSymbol(const FNiagaraFunctio
 	{
 		SigStr += TEXT("_") + Specifier.Key.ToString() + Specifier.Value.ToString().Replace(TEXT("."), TEXT("_"));
 	}
+
+	auto AddVarsToSig = [&SigStr](TConstArrayView<FNiagaraVariableBase> Vars)
+	{
+		for(const FNiagaraVariableBase& Var : Vars)
+		{
+			SigStr += TEXT("_") + Var.GetName().ToString() + Var.GetType().GetName();
+		}
+	};
+
+	TArray<FNiagaraVariableBase> VariadicParams;
+	VariadicParams.Reserve(Sig.NumOptionalInputs() + Sig.NumOptionalOutputs());
+	Sig.GetVariadicInputs(VariadicParams);
+	AddVarsToSig(VariadicParams);
+	Sig.GetVariadicOutputs(VariadicParams);
+	AddVarsToSig(VariadicParams);
+
 	return GetSanitizedSymbolName(SigStr);
 }
 
