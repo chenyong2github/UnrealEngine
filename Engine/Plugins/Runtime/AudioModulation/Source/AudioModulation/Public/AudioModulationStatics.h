@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Generators/SoundModulationADEnvelope.h"
 #include "Generators/SoundModulationEnvelopeFollower.h"
 #include "Generators/SoundModulationLFO.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
@@ -162,6 +163,20 @@ public:
 			UObject* WorldContextObject,
 			FName Name,
 			FSoundModulationLFOParams Params);
+
+	/** Creates a modulation generator based on an Attack/Decay Envelope.
+	 * @param Name - Name of generator.
+	 * @param Settings - The AD Envelope Settings.
+	 * @return Capture this in a Blueprint variable to prevent it from being garbage collected.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation", DisplayName = "Create AD Envelope Generator", meta = (
+		WorldContext = "WorldContextObject",
+		Keywords = "make modulator")
+	)
+		static UPARAM(DisplayName = "Generator") USoundModulationGeneratorADEnvelope* CreateADEnvelopeGenerator(
+			UObject* WorldContextObject,
+			FName Name,
+			const FSoundModulationADEnvelopeParams& Params);
 
 	/** Deactivates a bus. Does nothing if the provided bus is already inactive.
 	 * @param Bus - Scope of modulator
