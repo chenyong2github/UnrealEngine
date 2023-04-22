@@ -46,6 +46,9 @@ void SGraphNodeAnimStateAlias::GetNodeInfoPopups(FNodeInfoContext* Context, TArr
 
 FSlateColor SGraphNodeAnimStateAlias::GetBorderBackgroundColor_Internal(FLinearColor InactiveStateColor, FLinearColor ActiveStateColorDim, FLinearColor ActiveStateColorBright) const
 {
+	// Override inactive state color for aliases.
+	InactiveStateColor = FLinearColor(0.45f, 0.33f, 0.37f);
+
 	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(GraphNode));
 	if (AnimBlueprint)
 	{
