@@ -3,7 +3,6 @@
 #include "PoseSearchEditor.h"
 #include "PoseSearchCustomization.h"
 #include "PoseSearchDebugger.h"
-#include "PoseSearchTypeActions.h"
 #include "PoseSearchDatabaseEdMode.h"
 #include "PoseSearchDatabaseEditorCommands.h"
 
@@ -53,10 +52,6 @@ private:
 	/** List of registered class that we must unregister when the module shuts down */
 	TSet<FName> RegisteredClassNames;
 	TSet<FName> RegisteredPropertyTypes;
-
-	TSharedPtr<IAssetTypeActions> PoseSearchDatabaseActions;
-	TSharedPtr<IAssetTypeActions> PoseSearchSchemaActions;
-	TSharedPtr<IAssetTypeActions> PoseSearchNormalizationSetActions;
 };
 
 void FEditorModule::StartupModule()
@@ -75,19 +70,6 @@ void FEditorModule::StartupModule()
 		
 		// Register Ed Mode used by pose search database
 		FEditorModeRegistry::Get().RegisterMode<FDatabaseEdMode>(FDatabaseEdMode::EdModeId, LOCTEXT("PoseSearchDatabaseEdModeName", "PoseSearchDatabase"));
-
-		// Register UPoseSearchDatabase Type Actions 
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		PoseSearchDatabaseActions = MakeShared<FDatabaseTypeActions>();
-		AssetTools.RegisterAssetTypeActions(PoseSearchDatabaseActions.ToSharedRef());
-
-		// Register UPoseSearchSchema Type Actions 
-		PoseSearchSchemaActions = MakeShared<FSchemaTypeActions>();
-		AssetTools.RegisterAssetTypeActions(PoseSearchSchemaActions.ToSharedRef());
-
-		// Register UPoseSearchSchema Type Actions 
-		PoseSearchNormalizationSetActions = MakeShared<FNormalizationSetTypeActions>();
-		AssetTools.RegisterAssetTypeActions(PoseSearchNormalizationSetActions.ToSharedRef());
 	}
 
 	RegisterPropertyTypeCustomizations();
@@ -104,14 +86,6 @@ void FEditorModule::ShutdownModule()
 		IConsoleManager::Get().UnregisterConsoleObject(ConsoleCmd);
 	}
 	ConsoleCommands.Empty();
-
-	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
-	{
-		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		AssetTools.UnregisterAssetTypeActions(PoseSearchDatabaseActions.ToSharedRef());
-		AssetTools.UnregisterAssetTypeActions(PoseSearchSchemaActions.ToSharedRef());
-		AssetTools.UnregisterAssetTypeActions(PoseSearchNormalizationSetActions.ToSharedRef());
-	}
 
 	// Unregister Ed Mode
 	FEditorModeRegistry::Get().UnregisterMode(FDatabaseEdMode::EdModeId);
