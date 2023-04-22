@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "TakeRecorderAudioSettingsCustomization.h"
 #include "IDetailChildrenBuilder.h"
 #include "TakeRecorderSettings.h"
