@@ -298,6 +298,25 @@ public:
 		return nullptr;
 	}
 
+	FORCEINLINE int32 FindDataInterfaceInstanceDataIndex(UNiagaraDataInterface* Interface)
+	{
+		return DataInterfaceInstanceDataOffsets.IndexOfByPredicate([&](auto& Pair) { return Pair.Key.Get() == Interface; });
+	}
+
+	FORCEINLINE const void GetDataInterfaceInstanceDataInfo(int32 Index, UNiagaraDataInterface*& OutInterface, void*& OutInstanceData)
+	{
+		if(DataInterfaceInstanceDataOffsets.IsValidIndex(Index))
+		{
+			OutInterface = DataInterfaceInstanceDataOffsets[Index].Key.Get();
+			OutInstanceData = &DataInterfaceInstanceData[DataInterfaceInstanceDataOffsets[Index].Value];
+		}
+		else
+		{
+			OutInterface = nullptr;
+			OutInstanceData = nullptr;
+		}
+	}
+	
 	FORCEINLINE const void* FindDataInterfaceInstanceData(const UNiagaraDataInterface* Interface) const { return const_cast<FNiagaraSystemInstance*>(this)->FindDataInterfaceInstanceData(Interface); }
 	template<typename TDataType>
 	FORCEINLINE const TDataType* FindTypedDataInterfaceInstanceData(const UNiagaraDataInterface* Interface) const { return const_cast<FNiagaraSystemInstance*>(this)->FindTypedDataInterfaceInstanceData<TDataType>(Interface); }
@@ -420,6 +439,7 @@ public:
 	void SetRandomSeedOffset(int32 Offset) { RandomSeedOffset = Offset; }
 	int32 GetRandomSeedOffset() const { return RandomSeedOffset; }
 
+	FNDIStageTickHandler* GetSystemDIStageTickHandler(ENiagaraScriptUsage Usage);
 private:
 	void DumpStalledInfo();
 
@@ -512,6 +532,9 @@ private:
 
 	/** Map of data interfaces to their instance data. */
 	TArray<TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>> DataInterfaceInstanceDataOffsets;
+
+	FNDIStageTickHandler SystemSpawnDIStageTickHandler;
+	FNDIStageTickHandler SystemUpdateDIStageTickHandler;
 
 	/** 
 	A set of function bindings for DI calls that must be made per system instance.

@@ -191,6 +191,7 @@ namespace VectorVM
 		/** Either byte offset into constant table or offset into register table deepening on VVM_INPUT_LOCATION_BIT */
 		int32 InputOffset;
 		const T* RESTRICT InputPtr;
+		const T* RESTRICT StartPtr;
 		int32 AdvanceOffset;
 #if VECTORVM_SUPPORTS_EXPERIMENTAL && VECTORVM_SUPPORTS_LEGACY
 		bool bIsRegister;
@@ -200,6 +201,7 @@ namespace VectorVM
 		FExternalFuncInputHandler()
 			: InputOffset(INDEX_NONE)
 			, InputPtr(nullptr)
+			, StartPtr(nullptr)
 			, AdvanceOffset(0)
 #if VECTORVM_SUPPORTS_EXPERIMENTAL && VECTORVM_SUPPORTS_LEGACY
 			, bIsRegister(false)
@@ -245,6 +247,8 @@ namespace VectorVM
 #else
 	#error "Not supported"
 #endif
+
+			StartPtr = InputPtr;
 		}
 
 		FORCEINLINE bool IsConstant()const { return !IsRegister(); }
@@ -258,6 +262,7 @@ namespace VectorVM
 	#error "Not supported"
 #endif
 		FORCEINLINE int32 GetOffset()const { return InputOffset & VVM_EXT_FUNC_INPUT_LOC_MASK; }
+		FORCEINLINE void Reset(){ InputPtr = StartPtr; }
 
 		FORCEINLINE const T Get() { return *InputPtr; }
 		FORCEINLINE const T* GetDest() { return InputPtr; }

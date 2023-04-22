@@ -14,6 +14,7 @@ NiagaraEmitterInstance.h: Niagara emitter simulation class
 #include "NiagaraTypes.h"
 
 struct FNiagaraDataInterfaceProxy;
+class FNiagaraSystemInstance;
 
 /** All scripts that will use the system script execution context. */
 enum class ENiagaraSystemSimulationScript : uint8
@@ -151,6 +152,8 @@ struct FNiagaraScriptExecutionContextBase
 
 	int32 HasInterpolationParameters : 1;
 	int32 bAllowParallel : 1;
+	int32 bHasDIsWithPreStageTick : 1;
+	int32 bHasDIsWithPostStageTick : 1;
 #if STATS
 	TArray<FStatScopeData> StatScopeData;
 	TMap<TStatIdData const*, float> ExecutionTimings;
@@ -162,15 +165,17 @@ struct FNiagaraScriptExecutionContextBase
 	bool bUsingExperimentalVM;
 #endif
 
+	FNDIStageTickHandler DIStageTickHandler;
+
 	FNiagaraScriptExecutionContextBase();
 	virtual ~FNiagaraScriptExecutionContextBase();
 
-	virtual bool Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget);
+	virtual bool Init(class FNiagaraSystemInstance* Instance, UNiagaraScript* InScript, ENiagaraSimTarget InTarget);
 	virtual bool Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget) = 0;
+	virtual bool Execute(class FNiagaraSystemInstance* Instance, float DeltaSeconds, uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable);
 
 	void BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts);
 	void BindData(int32 Index, FNiagaraDataBuffer* Input, int32 StartInstance, bool bUpdateInstanceCounts);
-	bool Execute(uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable);
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return Parameters.GetDataInterfaces(); }
 
@@ -241,8 +246,9 @@ protected:
 public:
 	FNiagaraSystemScriptExecutionContext(ENiagaraSystemSimulationScript InScriptType) : SystemInstances(nullptr) { ScriptType = InScriptType; }
 	
-	virtual bool Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget)override;
-	virtual bool Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget);
+	virtual bool Init(FNiagaraSystemInstance* Instance, UNiagaraScript* InScript, ENiagaraSimTarget InTarget)override;
+	virtual bool Tick(FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget)override;
+	virtual bool Execute(FNiagaraSystemInstance* Instance, float DeltaSeconds, uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable)override;
 
 	void BindSystemInstances(TArray<FNiagaraSystemInstance*>& InSystemInstances) { SystemInstances = &InSystemInstances; }
 

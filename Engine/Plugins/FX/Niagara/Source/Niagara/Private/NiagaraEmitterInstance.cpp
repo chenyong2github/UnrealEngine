@@ -398,15 +398,15 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 				UNiagaraScript* EventScript = EmitterData->GetEventHandlers()[i].Script;
 
 				//This is cpu explicitly? Are we doing event handlers on GPU?
-				EventInstanceData->EventExecContexts[i].Init(EventScript, ENiagaraSimTarget::CPUSim);
+				EventInstanceData->EventExecContexts[i].Init(ParentSystemInstance, EventScript, ENiagaraSimTarget::CPUSim);
 				EventInstanceData->EventExecCountBindings[i].Init(EventInstanceData->EventExecContexts[i].Parameters, SYS_PARAM_ENGINE_EXEC_COUNT);
 			}
 		}
 	}
 
 	{
-		SpawnExecContext.Init(EmitterData->SpawnScriptProps.Script, EmitterData->SimTarget);
-		UpdateExecContext.Init(EmitterData->UpdateScriptProps.Script, EmitterData->SimTarget);
+		SpawnExecContext.Init(ParentSystemInstance, EmitterData->SpawnScriptProps.Script, EmitterData->SimTarget);
+		UpdateExecContext.Init(ParentSystemInstance, EmitterData->UpdateScriptProps.Script, EmitterData->SimTarget);
 
 		// setup the parameer store for the GPU execution context; since spawn and update are combined here, we build one with params from both script props
 		if (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
@@ -1636,7 +1636,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		FScriptExecutionConstantBufferTable UpdateConstantBufferTable;
 		BuildConstantBufferTable(UpdateExecContext, UpdateConstantBufferTable);
 
-		UpdateExecContext.Execute(OrigNumParticles, UpdateConstantBufferTable);
+		UpdateExecContext.Execute(ParentSystemInstance, DeltaSeconds, OrigNumParticles, UpdateConstantBufferTable);
 		int32 DeltaParticles = Data.GetDestinationDataChecked().GetNumInstances() - OrigNumParticles;
 
 		ensure(DeltaParticles <= 0); // We either lose particles or stay the same, we should never add particles in update!
@@ -1729,7 +1729,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 				}
 			}
 
-			SpawnExecContext.Execute(Num, SpawnConstantBufferTable);
+			SpawnExecContext.Execute(ParentSystemInstance, DeltaSeconds, Num, SpawnConstantBufferTable);
 
 			if (GbDumpParticleData || System->bDumpDebugEmitterInfo)
 			{
@@ -1927,7 +1927,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 						EventInstanceData->EventExecContexts[EventScriptIdx].BindData(0, Data, EventSpawnStart, true);
 						EventInstanceData->EventExecContexts[EventScriptIdx].BindData(1, EventInstanceData->EventHandlingInfo[EventScriptIdx].EventData, i, false);
 
-						EventInstanceData->EventExecContexts[EventScriptIdx].Execute(EventNumToSpawn, EventConstantBufferTable);
+						EventInstanceData->EventExecContexts[EventScriptIdx].Execute(ParentSystemInstance, DeltaSeconds, EventNumToSpawn, EventConstantBufferTable);
 
 						const uint32 PostHandlerNumInstances = Data.GetDestinationData()->GetNumInstances();
 						const uint32 EventSpawnsStillAlive = PostHandlerNumInstances - EventSpawnStart;
@@ -1994,7 +1994,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 						EventInstanceData->EventExecContexts[EventScriptIdx].BindData(0, Data, 0, true);
 						EventInstanceData->EventExecContexts[EventScriptIdx].BindData(1, EventData, i, false);
 
-						EventInstanceData->EventExecContexts[EventScriptIdx].Execute(NumInstancesPrev, EventConstantBufferTable);
+						EventInstanceData->EventExecContexts[EventScriptIdx].Execute(ParentSystemInstance, DeltaSeconds, NumInstancesPrev, EventConstantBufferTable);
 
 						Data.EndSimulate();
 

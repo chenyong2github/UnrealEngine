@@ -678,11 +678,11 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 
 		{
 			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_ExecContexts);
-				SpawnExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Spawn);
-				UpdateExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Update);
-				bCanExecute &= SpawnExecContext->Init(SpawnScript, ENiagaraSimTarget::CPUSim);
-				bCanExecute &= UpdateExecContext->Init(UpdateScript, ENiagaraSimTarget::CPUSim);
-			}
+			SpawnExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Spawn);
+			UpdateExecContext = MakeUnique<FNiagaraSystemScriptExecutionContext>(ENiagaraSystemSimulationScript::Update);
+			bCanExecute &= SpawnExecContext->Init(nullptr, SpawnScript, ENiagaraSimTarget::CPUSim);
+			bCanExecute &= UpdateExecContext->Init(nullptr, UpdateScript, ENiagaraSimTarget::CPUSim);
+		}
 
 		{
 			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_BindParams);
@@ -1905,7 +1905,7 @@ void FNiagaraSystemSimulation::SpawnSystemInstances(FNiagaraSystemSimulationTick
 	FScriptExecutionConstantBufferTable SpawnConstantBufferTable;
 	BuildConstantBufferTable(Context.Instances[0]->GetGlobalParameters(), SpawnExecContext, SpawnConstantBufferTable);
 
-	SpawnExecContext->Execute(SpawnNum, SpawnConstantBufferTable);
+	SpawnExecContext->Execute(nullptr, Context.DeltaSeconds, SpawnNum, SpawnConstantBufferTable);
 
 	if (GbDumpSystemData || Context.System->bDumpDebugSystemInfo)
 	{
@@ -1976,7 +1976,7 @@ void FNiagaraSystemSimulation::UpdateSystemInstances(FNiagaraSystemSimulationTic
 			FScriptExecutionConstantBufferTable UpdateConstantBufferTable;
 			BuildConstantBufferTable(Context.Instances[0]->GetGlobalParameters(), UpdateExecContext, UpdateConstantBufferTable);
 
-			UpdateExecContext->Execute(OrigNum, UpdateConstantBufferTable);
+			UpdateExecContext->Execute(nullptr, Context.DeltaSeconds, OrigNum, UpdateConstantBufferTable);
 		}
 
 		if (GbDumpSystemData || Context.System->bDumpDebugSystemInfo)
@@ -2002,7 +2002,7 @@ void FNiagaraSystemSimulation::UpdateSystemInstances(FNiagaraSystemSimulationTic
 			FScriptExecutionConstantBufferTable UpdateConstantBufferTable;
 			BuildConstantBufferTable(UpdateOnSpawnParameters, UpdateExecContext, UpdateConstantBufferTable);
 
-			UpdateExecContext->Execute(SpawnNum, UpdateConstantBufferTable);
+			UpdateExecContext->Execute(nullptr, Context.DeltaSeconds, SpawnNum, UpdateConstantBufferTable);
 
 			if (GbDumpSystemData || Context.System->bDumpDebugSystemInfo)
 			{

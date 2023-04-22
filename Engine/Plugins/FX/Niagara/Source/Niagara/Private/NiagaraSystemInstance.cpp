@@ -1372,6 +1372,19 @@ bool FNiagaraSystemInstance::RequiresRayTracingScene() const
 	return false;
 }
 
+FNDIStageTickHandler* FNiagaraSystemInstance::GetSystemDIStageTickHandler(ENiagaraScriptUsage Usage)
+{
+	if(Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::EmitterSpawnScript)
+	{
+		return &SystemSpawnDIStageTickHandler;
+	}
+	else if(Usage == ENiagaraScriptUsage::SystemUpdateScript || Usage == ENiagaraScriptUsage::EmitterUpdateScript)
+	{
+		return &SystemUpdateDIStageTickHandler;
+	}
+	return nullptr;
+}
+
 void FNiagaraSystemInstance::InitDataInterfaces()
 {
 	bDataInterfacesHaveTickPrereqs = false;
@@ -1596,6 +1609,11 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			}
 		}
 	}
+
+	//Initialize our DI Tick Stage handlers for the system spawn and update scripts.
+	//If needed, the system script execution will use these to perform per instance pre and post tick operations on our DIs.
+	SystemSpawnDIStageTickHandler.Init(SystemSimulation->GetSpawnExecutionContext()->Script, this);
+	SystemUpdateDIStageTickHandler.Init(SystemSimulation->GetUpdateExecutionContext()->Script, this);
 }
 
 void FNiagaraSystemInstance::ResolveUserDataInterfaceBindings()

@@ -493,6 +493,36 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
+/** Context for pre and post stage ticks for DIs on the CPU. A similar tick flow also occurs for stages on the GPU via the proxy and dispatcher. */
+struct FNDICpuPrePostStageContext
+{
+	const FNiagaraSystemInstance* SystemInstance = nullptr;
+	void* PerInstanceData = nullptr;
+	float DeltaSeconds = 0.0f;
+	ENiagaraScriptUsage Usage;
+
+	template<typename T>
+	T* GetPerInstanceData(){ return reinterpret_cast<T*>(PerInstanceData); }
+};
+
+using FNDICpuPreStageContext = FNDICpuPrePostStageContext;
+using FNDICpuPostStageContext = FNDICpuPrePostStageContext;
+
+/** A utility class to store a tick list for DIs in a system instance. Allows easy pre & post stage ticking for DIs at the various script executions. */
+struct FNDIStageTickHandler
+{
+	/** Indices into the DIInstanceData info pair array the require this tick. */
+	TArray<int32> PreStageTickList;
+	TArray<int32> PostStageTickList;
+	ENiagaraScriptUsage Usage;
+
+	void Init(UNiagaraScript* Script, FNiagaraSystemInstance* Instance);
+	void PreStageTick(FNiagaraSystemInstance* Instance, float DeltaSeconds);
+	void PostStageTick(FNiagaraSystemInstance* Instance, float DeltaSeconds);
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 /** Base class for all Niagara data interfaces. */
 UCLASS(abstract, EditInlineNew)
 class NIAGARA_API UNiagaraDataInterface : public UNiagaraDataInterfaceBase
@@ -543,6 +573,12 @@ public:
 	/** Ticks the per instance data for this interface, if it has any. */
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
+
+	/** Called per instance for each DI before each execution state in which it is used. */
+	virtual void PreStageTick(FNDICpuPreStageContext& Context){}
+
+	/** Called per instance for each DI after each execution state in which it is used. */
+	virtual void PostStageTick(FNDICpuPostStageContext& Context){}
 	
 #if WITH_EDITORONLY_DATA
 	/** Allows the generic class defaults version of this class to specify any dependencies/version/etc that might invalidate the compile. It should never depend on the value of specific properties.*/
@@ -609,6 +645,8 @@ public:
 
 	virtual bool HasPreSimulateTick() const { return false; }
 	virtual bool HasPostSimulateTick() const { return false; }
+	virtual bool HasPreStageTick(ENiagaraScriptUsage Usage) const { return false; }
+	virtual bool HasPostStageTick(ENiagaraScriptUsage Usage) const { return false; }
 
 	/** Called after system compilation completes. Useful for caching any constant, compile dependent data. */
 	virtual void PostCompile() { }
@@ -1025,12 +1063,15 @@ template<typename T>
 struct FNDIInputParam
 {
 	static_assert(sizeof(T) == sizeof(float), "Generic template assumes 4 bytes per element");
-	VectorVM::FExternalFuncInputHandler<T> Data;
+	VectorVM::FExternalFuncInputHandler<T> Data;	
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIInputParam(){ }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context){ new(this)FNDIInputParam<T>(Context); }
 	FORCEINLINE T GetAndAdvance() { return Data.GetAndAdvance(); }
 	FORCEINLINE T Get() { return Data.Get(); }
 	FORCEINLINE void Advance() { return Data.Advance(); }
 	FORCEINLINE bool IsConstant() const { return Data.IsConstant(); }
+	FORCEINLINE void Reset() { Data.Reset(); }
 };
 
 template<>
@@ -1038,10 +1079,13 @@ struct FNDIInputParam<FFloat16>
 {
 	VectorVM::FExternalFuncInputHandler<FFloat16> Data;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FFloat16>(Context); }
 	FORCEINLINE FFloat16 GetAndAdvance() { return Data.GetAndAdvance(); }
 	FORCEINLINE FFloat16 Get() { return Data.Get(); }
 	FORCEINLINE void Advance() { return Data.Advance(); }
 	FORCEINLINE bool IsConstant() const { return Data.IsConstant(); }
+	FORCEINLINE void Reset() { Data.Reset(); }
 };
 
 template<>
@@ -1049,10 +1093,13 @@ struct FNDIInputParam<FNiagaraBool>
 {
 	VectorVM::FExternalFuncInputHandler<FNiagaraBool> Data;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FNiagaraBool>(Context); }
 	FORCEINLINE bool GetAndAdvance() { return Data.GetAndAdvance().GetValue(); }
 	FORCEINLINE bool Get() { return Data.Get().GetValue(); }
 	FORCEINLINE void Advance() { return Data.Advance(); }
 	FORCEINLINE bool IsConstant() const { return Data.IsConstant(); }
+	FORCEINLINE void Reset() { Data.Reset(); }
 };
 
 template<>
@@ -1060,10 +1107,13 @@ struct FNDIInputParam<bool>
 {
 	VectorVM::FExternalFuncInputHandler<FNiagaraBool> Data;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<bool>(Context); }
 	FORCEINLINE bool GetAndAdvance() { return Data.GetAndAdvance().GetValue(); }
 	FORCEINLINE bool Get() { return Data.Get().GetValue(); }
 	FORCEINLINE void Advance() { return Data.Advance(); }
 	FORCEINLINE bool IsConstant() const { return Data.IsConstant(); }
+	FORCEINLINE void Reset() { Data.Reset(); }
 };
 
 template<>
@@ -1072,10 +1122,13 @@ struct FNDIInputParam<FVector2f>
 	VectorVM::FExternalFuncInputHandler<float> X;
 	VectorVM::FExternalFuncInputHandler<float> Y;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FVector2f>(Context); }
 	FORCEINLINE FVector2f GetAndAdvance() { return FVector2f(X.GetAndAdvance(), Y.GetAndAdvance()); }
 	FORCEINLINE FVector2f Get() { return FVector2f(X.Get(), Y.Get()); }
 	FORCEINLINE void Advance() { X.Advance(), Y.Advance(); }
 	FORCEINLINE bool IsConstant() const { return X.IsConstant() && Y.IsConstant(); }
+	FORCEINLINE void Reset() { X.Reset(); Y.Reset(); }
 };
 
 template<>
@@ -1085,10 +1138,13 @@ struct FNDIInputParam<FVector3f>
 	VectorVM::FExternalFuncInputHandler<float> Y;
 	VectorVM::FExternalFuncInputHandler<float> Z;
 	FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FVector3f>(Context); }
 	FORCEINLINE FVector3f GetAndAdvance() { return FVector3f(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance()); }
 	FORCEINLINE FVector3f Get() { return FVector3f(X.Get(), Y.Get(), Z.Get()); }
 	FORCEINLINE void Advance() { X.Advance(); Y.Advance(); Z.Advance(); }
 	FORCEINLINE bool IsConstant() const { return X.IsConstant() && Y.IsConstant() && Z.IsConstant(); }
+	FORCEINLINE void Reset() { X.Reset(); Y.Reset(); Z.Reset(); }
 };
 
 template<>
@@ -1098,9 +1154,12 @@ struct FNDIInputParam<FNiagaraPosition>
 	VectorVM::FExternalFuncInputHandler<float> Y;
 	VectorVM::FExternalFuncInputHandler<float> Z;
 	FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FNiagaraPosition>(Context); }
 	FORCEINLINE FNiagaraPosition GetAndAdvance() { return FNiagaraPosition(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance()); }
 	FORCEINLINE FNiagaraPosition Get() { return FNiagaraPosition(X.Get(), Y.Get(), Z.Get()); }
 	FORCEINLINE void Advance() { X.Advance(); Y.Advance(); Z.Advance(); }
+	FORCEINLINE void Reset() { X.Reset(); Y.Reset(); Z.Reset(); }
 };
 template<>
 struct FNDIInputParam<FVector4f>
@@ -1110,10 +1169,13 @@ struct FNDIInputParam<FVector4f>
 	VectorVM::FExternalFuncInputHandler<float> Z;
 	VectorVM::FExternalFuncInputHandler<float> W;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FVector4f>(Context); }
 	FORCEINLINE FVector4f GetAndAdvance() { return FVector4f(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance(), W.GetAndAdvance()); }
 	FORCEINLINE FVector4f Get() { return FVector4f(X.Get(), Y.Get(), Z.Get(), W.Get()); }
 	FORCEINLINE void Advance() { return X.Advance(); Y.Advance(); Z.Advance(); W.Advance(); }
 	FORCEINLINE bool IsConstant() const { return X.IsConstant() && Y.IsConstant() && Z.IsConstant() && W.IsConstant(); }
+	FORCEINLINE void Reset() { X.Reset(); Y.Reset(); Z.Reset(); W.Reset(); }
 };
 
 template<>
@@ -1124,10 +1186,13 @@ struct FNDIInputParam<FQuat4f>
 	VectorVM::FExternalFuncInputHandler<float> Z;
 	VectorVM::FExternalFuncInputHandler<float> W;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FQuat4f>(Context); }
 	FORCEINLINE FQuat4f GetAndAdvance() { return FQuat4f(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance(), W.GetAndAdvance()); }
 	FORCEINLINE FQuat4f Get() { return FQuat4f(X.Get(), Y.Get(), Z.Get(), W.Get()); }
 	FORCEINLINE void Advance() { X.Advance(); Y.Advance(); Z.Advance(); W.Advance(); }
 	FORCEINLINE bool IsConstant() const { return X.IsConstant() && Y.IsConstant() && Z.IsConstant() && W.IsConstant(); }
+	FORCEINLINE void Reset() { X.Reset(); Y.Reset(); Z.Reset(); W.Reset(); }
 };
 
 template<>
@@ -1138,10 +1203,13 @@ struct FNDIInputParam<FLinearColor>
 	VectorVM::FExternalFuncInputHandler<float> B;
 	VectorVM::FExternalFuncInputHandler<float> A;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : R(Context), G(Context), B(Context), A(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FLinearColor>(Context); }
 	FORCEINLINE FLinearColor GetAndAdvance() { return FLinearColor(R.GetAndAdvance(), G.GetAndAdvance(), B.GetAndAdvance(), A.GetAndAdvance()); }
 	FORCEINLINE FLinearColor Get() { return FLinearColor(R.Get(), G.Get(), B.Get(), A.Get()); }
 	FORCEINLINE void Advance() { R.Advance(); G.Advance(); B.Advance(); A.Advance(); }
 	FORCEINLINE bool IsConstant() const { return R.IsConstant() && G.IsConstant() && B.IsConstant() && A.IsConstant(); }
+	FORCEINLINE void Reset() { R.Reset(); G.Reset(); B.Reset(); A.Reset(); }
 };
 
 template<>
@@ -1150,10 +1218,30 @@ struct FNDIInputParam<FNiagaraID>
 	VectorVM::FExternalFuncInputHandler<int32> Index;
 	VectorVM::FExternalFuncInputHandler<int32> AcquireTag;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Index(Context), AcquireTag(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FNiagaraID>(Context); }
 	FORCEINLINE FNiagaraID GetAndAdvance() { return FNiagaraID(Index.GetAndAdvance(), AcquireTag.GetAndAdvance()); }
 	FORCEINLINE FNiagaraID Get() { return FNiagaraID(Index.Get(), AcquireTag.Get()); }
 	FORCEINLINE void Advance() { return Index.Advance(); AcquireTag.Advance(); }
 	FORCEINLINE bool IsConstant() const { return Index.IsConstant() && AcquireTag.IsConstant(); }
+	FORCEINLINE void Reset() { Index.Reset(); AcquireTag.Reset(); }
+};
+
+template<>
+struct FNDIInputParam<FNiagaraSpawnInfo>
+{
+	VectorVM::FExternalFuncInputHandler<int32> Count;
+	VectorVM::FExternalFuncInputHandler<float> InterpStartDt;
+	VectorVM::FExternalFuncInputHandler<float> IntervalDt;
+	VectorVM::FExternalFuncInputHandler<int32> SpawnGroup;
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Count(Context), InterpStartDt(Context), IntervalDt(Context), SpawnGroup(Context) {}
+	FORCEINLINE FNDIInputParam() { }
+	FORCEINLINE void Init(FVectorVMExternalFunctionContext& Context) { new(this)FNDIInputParam<FNiagaraSpawnInfo>(Context); }
+	FORCEINLINE FNiagaraSpawnInfo GetAndAdvance() { return FNiagaraSpawnInfo(Count.GetAndAdvance(), InterpStartDt.GetAndAdvance(),IntervalDt.GetAndAdvance(),SpawnGroup.GetAndAdvance()); }
+	FORCEINLINE FNiagaraSpawnInfo Get() { return FNiagaraSpawnInfo(Count.Get(), InterpStartDt.Get(),IntervalDt.Get(),SpawnGroup.Get()); }
+	FORCEINLINE void Advance() { return Count.Advance(); InterpStartDt.Advance();  IntervalDt.Advance();  SpawnGroup.Advance(); }
+	FORCEINLINE bool IsConstant() const { return Count.IsConstant() && InterpStartDt.IsConstant() && IntervalDt.IsConstant() && SpawnGroup.IsConstant(); }
+	FORCEINLINE void Reset() { Count.Reset(); InterpStartDt.Reset();  IntervalDt.Reset(); SpawnGroup.Reset();}
 };
 
 //Helper to deal with types with potentially several output registers.
