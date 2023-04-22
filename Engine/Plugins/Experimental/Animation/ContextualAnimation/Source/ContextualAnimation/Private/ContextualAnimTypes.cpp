@@ -591,10 +591,9 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 	return TryCreateBindings(SceneAsset, SectionIdx, AnimSetIdx, Params, OutBindings);
 }
 
-bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings)
+int32 FContextualAnimSceneBindings::FindAnimSet(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params)
 {
 	check(SceneAsset.HasValidData());
-	OutBindings.Reset();
 
 	int32 AnimSetIdxSelected = INDEX_NONE;
 
@@ -610,7 +609,7 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 	{
 		const FContextualAnimSceneSection* Section = SceneAsset.GetSection(SectionIdx);
 		TArray<TTuple<int32, float>, TInlineAllocator<5>> ValidSets; // 0: AnimSetIdx, 1: AnimSetRandomWeight
-		
+
 		float TotalWeight = 0;
 		for (int32 AnimSetIdx = 0; AnimSetIdx < NumSets; AnimSetIdx++)
 		{
@@ -634,6 +633,16 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 		}
 	}
 
+	UE_CLOG(AnimSetIdxSelected == INDEX_NONE, LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::FindAnimSet. Can't find AnimSet"));
+	return AnimSetIdxSelected;
+}
+
+bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings)
+{
+	check(SceneAsset.HasValidData());
+	OutBindings.Reset();
+
+	const int32 AnimSetIdxSelected = FindAnimSet(SceneAsset, SectionIdx, Params);
 	if (AnimSetIdxSelected != INDEX_NONE)
 	{
 		OutBindings = FContextualAnimSceneBindings(SceneAsset, SectionIdx, AnimSetIdxSelected);
@@ -650,6 +659,32 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 	}
 
 	return false;
+}
+
+int32 FContextualAnimSceneBindings::FindAnimSetForTransitionTo(int32 NewSectionIdx) const
+{
+	if (!IsValid())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::FindAnimSetForTransition Invalid Bindings"));
+		return INDEX_NONE;
+	}
+
+	const FContextualAnimSceneSection* Section = GetSceneAsset()->GetSection(NewSectionIdx);
+	if (Section == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::FindAnimSetForTransition. Invalid NewSectionIdx %d"), NewSectionIdx);
+		return INDEX_NONE;
+	}
+
+	TMap<FName, FContextualAnimSceneBindingContext> Params;
+	Params.Reserve(Num());
+	for (const FContextualAnimSceneBinding& Binding : Data)
+	{
+		Params.Add(GetRoleFromBinding(Binding), Binding.GetContext());
+	}
+
+	const int32 AnimSetIdxSelected = FContextualAnimSceneBindings::FindAnimSet(*GetSceneAsset(), NewSectionIdx, Params);
+	return AnimSetIdxSelected;
 }
 
 bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Secondary, FContextualAnimSceneBindings& OutBindings)

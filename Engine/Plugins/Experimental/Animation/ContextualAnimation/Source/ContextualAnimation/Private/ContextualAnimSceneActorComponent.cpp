@@ -368,8 +368,31 @@ bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName Sec
 
 bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName SectionName, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets)
 {
-	//@TODO: Run selection criteria to find best AnimSet
-	return TransitionContextualAnimScene(SectionName, 0, ExternalWarpTargets);
+	if (!Bindings.IsValid())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("%-21s UContextualAnimSceneActorComponent::TransitionContextualAnimScene Invalid Bindings"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()));
+		return false;
+	}
+
+	const int32 SectionIdx = Bindings.GetSceneAsset()->GetSectionIndex(SectionName);
+	if (SectionIdx == INDEX_NONE)
+	{
+		UE_LOG(LogContextualAnim, Log, TEXT("%-21s UContextualAnimSceneActorComponent::TransitionContextualAnimScene. Invalid SectionName. Actor: %s SectionName: %s"),
+			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *SectionName.ToString());
+
+		return false;
+	}
+
+	const int32 AnimSetIdx = Bindings.FindAnimSetForTransitionTo(SectionIdx);
+	if (AnimSetIdx == INDEX_NONE)
+	{
+		UE_LOG(LogContextualAnim, Log, TEXT("%-21s UContextualAnimSceneActorComponent::TransitionContextualAnimScene. Can't find AnimSet. Actor: %s SectionName: %s"),
+			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *SectionName.ToString());
+
+		return false;
+	}
+
+	return TransitionContextualAnimScene(SectionName, AnimSetIdx, ExternalWarpTargets);
 }
 
 void UContextualAnimSceneActorComponent::HandleTransitionEveryone(int32 NewSectionIdx, int32 NewAnimSetIdx, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets)
@@ -402,6 +425,26 @@ void UContextualAnimSceneActorComponent::HandleTransitionSelf(int32 NewSectionId
 	PlayAnimation_Internal(AnimTrack.Animation, 0.f, true);
 
 	AddOrUpdateWarpTargets(NewSectionIdx, NewAnimSetIdx, ExternalWarpTargets);
+}
+
+bool UContextualAnimSceneActorComponent::TransitionSingleActor(int32 SectionIdx, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets)
+{
+	if (!Bindings.IsValid())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("%-21s UContextualAnimSceneActorComponent::TransitionSingleActor Invalid Bindings"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()));
+		return false;
+	}
+
+	const int32 AnimSetIdx = Bindings.FindAnimSetForTransitionTo(SectionIdx);
+	if (AnimSetIdx == INDEX_NONE)
+	{
+		UE_LOG(LogContextualAnim, Log, TEXT("%-21s UContextualAnimSceneActorComponent::TransitionSingleActor. Can't find AnimSet. Actor: %s SectionIdx: %d"),
+			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), SectionIdx);
+
+		return false;
+	}
+
+	return TransitionSingleActor(SectionIdx, AnimSetIdx, ExternalWarpTargets);
 }
 
 bool UContextualAnimSceneActorComponent::TransitionSingleActor(int32 SectionIdx, int32 AnimSetIdx, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets)

@@ -449,6 +449,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 	static bool TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings);
 	static bool TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, int32 AnimSetIdx, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Secondary, FContextualAnimSceneBindings& OutBindings);
 	static bool TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, const FContextualAnimSceneBindingContext& Primary, const FContextualAnimSceneBindingContext& Secondary, FContextualAnimSceneBindings& OutBindings);
+	static int32 FindAnimSet(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params);
 
 	bool BindActorToRole(AActor& ActorRef, FName Role);
 
@@ -474,6 +475,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 
 	void GenerateUniqueId();
 
+	int32 FindAnimSetForTransitionTo(int32 NewSectionIdx) const;
 	void TransitionTo(int32 NewSectionIdx, int32 NewAnimSetIdx);
 
 private:
