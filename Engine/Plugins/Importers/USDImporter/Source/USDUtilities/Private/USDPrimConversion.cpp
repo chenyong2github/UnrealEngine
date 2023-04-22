@@ -2,9 +2,8 @@
 
 #include "USDPrimConversion.h"
 
-#include "Engine/SkinnedAssetCommon.h"
 #include "UnrealUSDWrapper.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDAttributeUtils.h"
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
@@ -37,6 +36,7 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
 #include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
@@ -2051,13 +2051,16 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 					continue;
 				}
 
-				UUsdMeshAssetImportData* ImportData = Cast<UUsdMeshAssetImportData>( GeometryCache->AssetImportData.Get() );
-				if ( !ImportData )
+				// const_cast as there's no const access to asset user data on IInterface_AssetUserData, but we won't
+				// modify anything
+				const UUsdMeshAssetUserData* UserData =
+					const_cast<UGeometryCache*>(GeometryCache)->GetAssetUserData<UUsdMeshAssetUserData>();
+				if (!UserData)
 				{
 					return false;
 				}
 
-				if ( const FUsdPrimPathList* SourcePrimPaths = ImportData->MaterialSlotToPrimPaths.Find( MatIndex ) )
+				if (const FUsdPrimPathList* SourcePrimPaths = UserData->MaterialSlotToPrimPaths.Find(MatIndex))
 				{
 					for ( const FString& PrimPath : SourcePrimPaths->PrimPaths )
 					{
@@ -2073,8 +2076,8 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 	{
 		if ( UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh() )
 		{
-			UUsdMeshAssetImportData* ImportData = Cast<UUsdMeshAssetImportData>( Mesh->AssetImportData.Get() );
-			if ( !ImportData )
+			const UUsdMeshAssetUserData* UserData = Mesh->GetAssetUserData<UUsdMeshAssetUserData>();
+			if (!UserData)
 			{
 				return false;
 			}
@@ -2101,7 +2104,7 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 							continue;
 						}
 
-						if ( const FUsdPrimPathList* SourcePrimPaths = ImportData->MaterialSlotToPrimPaths.Find( SectionMatIndex ) )
+						if (const FUsdPrimPathList* SourcePrimPaths = UserData->MaterialSlotToPrimPaths.Find(SectionMatIndex))
 						{
 							for ( const FString& PrimPath : SourcePrimPaths->PrimPaths )
 							{
@@ -2131,8 +2134,9 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 				return false;
 			}
 
-			UUsdMeshAssetImportData* ImportData = Cast<UUsdMeshAssetImportData>( SkeletalMesh->GetAssetImportData() );
-			if ( !ImportData )
+			const UUsdMeshAssetUserData* UserData =
+				const_cast<USkeletalMesh*>(SkeletalMesh)->GetAssetUserData<UUsdMeshAssetUserData>();
+			if (!UserData)
 			{
 				return false;
 			}
@@ -2180,7 +2184,7 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 							continue;
 						}
 
-						if ( const FUsdPrimPathList* SourcePrimPaths = ImportData->MaterialSlotToPrimPaths.Find( SectionMatIndex ) )
+						if (const FUsdPrimPathList* SourcePrimPaths = UserData->MaterialSlotToPrimPaths.Find(SectionMatIndex))
 						{
 							for ( const FString& PrimPath : SourcePrimPaths->PrimPaths )
 							{

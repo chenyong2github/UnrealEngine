@@ -4,7 +4,7 @@
 
 #include "MeshTranslationImpl.h"
 #include "USDAssetCache.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDGeomMeshTranslator.h"
@@ -405,17 +405,14 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents(USceneComponent* PointIn
 	TSet<UStaticMesh*> PrototypeMeshSet = InfoCache.GetAssetsForPrim<UStaticMesh>(PrimPath);
 	std::unordered_map<pxr::SdfPath, UStaticMesh*, pxr::SdfPath::Hash> PrototypeMeshes;
 	PrototypeMeshes.reserve(PrototypeMeshSet.Num());
-	// TODO: Replace AssetImportData with AssetUserData, which is available at runtime
-#if WITH_EDITOR
 	for (UStaticMesh* PrototypeMesh : PrototypeMeshSet)
 	{
-		if (UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>(PrototypeMesh->GetAssetImportData()))
+		if (UUsdAssetUserData* UserData = PrototypeMesh->GetAssetUserData<UUsdAssetUserData>())
 		{
-			pxr::SdfPath PrototypePath = UnrealToUsd::ConvertPath(*ImportData->PrimPath).Get();
+			pxr::SdfPath PrototypePath = UnrealToUsd::ConvertPath(*UserData->PrimPath).Get();
 			PrototypeMeshes.insert({PrototypePath, PrototypeMesh});
 		}
 	}
-#endif // WITH_EDITOR
 
 	TArray<TFuture<TTuple<UHierarchicalInstancedStaticMeshComponent*, TArray<FTransform>>>> Tasks;
 	FScopedSlowTask PrototypePathsSlowTask( ( float ) PrototypePaths.size(), LOCTEXT( "GeomPointUpdateComponents", "Updating HierarchicalInstancedStaticMeshComponents for point instancers" ) );

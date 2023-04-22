@@ -6,7 +6,7 @@
 
 #include "MeshTranslationImpl.h"
 #include "USDAssetCache.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
@@ -101,13 +101,11 @@ namespace UsdSkelRootTranslatorImpl
 			ExistingAssignments.Add( SkeletalMaterial.MaterialInterface );
 		}
 
-#if WITH_EDITOR
-		UUsdMeshAssetImportData* ImportData = Cast< UUsdMeshAssetImportData>( SkeletalMesh->GetAssetImportData() );
-		ensureMsgf(ImportData, TEXT("Skeletal Mesh '%s' generated for prim '%s' should have an UUsdMeshAssetImportData at this point!"),
+		UUsdMeshAssetUserData* UserData = SkeletalMesh->GetAssetUserData<UUsdMeshAssetUserData>();
+		ensureMsgf(UserData, TEXT("Skeletal Mesh '%s' generated for prim '%s' should have an UUsdMeshAssetUserData at this point!"),
 			*SkeletalMesh->GetPathName(),
 			*UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath())
 		);
-#endif // WITH_EDITOR
 
 		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 			UsdPrim,
@@ -186,12 +184,10 @@ namespace UsdSkelRootTranslatorImpl
 					bMaterialsHaveChanged = true;
 				}
 
-#if WITH_EDITOR
-				if ( ImportData )
+				if (UserData)
 				{
-					ImportData->MaterialSlotToPrimPaths.FindOrAdd( SkeletalMeshSlotIndex ).PrimPaths = Slot.PrimPaths.Array();
+					UserData->MaterialSlotToPrimPaths.FindOrAdd(SkeletalMeshSlotIndex).PrimPaths = Slot.PrimPaths.Array();
 				}
-#endif // WITH_EDITOR
 
 				// Already have a material at that LOD remap slot, need to reassign
 				if ( LODMaterialMap.IsValidIndex( LODSlotIndex ) )
@@ -1334,9 +1330,9 @@ namespace UsdSkelRootTranslatorImpl
 				{
 					if (bIsNew)
 					{
-						UUsdMeshAssetImportData* ImportData = NewObject< UUsdMeshAssetImportData >( SkeletalMesh, TEXT( "USDAssetImportData" ) );
-						ImportData->PrimPath = SkelRootPath;
-						SkeletalMesh->SetAssetImportData(ImportData);
+						UUsdMeshAssetUserData* UserData = NewObject<UUsdMeshAssetUserData>(SkeletalMesh, TEXT("USDAssetUserData"));
+						UserData->PrimPath = SkelRootPath;
+						SkeletalMesh->AddAssetUserData(UserData);
 
 						const bool bMaterialsHaveChanged = UsdSkelRootTranslatorImpl::ProcessMaterials(
 							GetPrim(),
@@ -1557,11 +1553,11 @@ namespace UsdSkelRootTranslatorImpl
 
 							if (AnimSequence->GetDataModel()->GetNumBoneTracks() != 0 || AnimSequence->GetDataModel()->GetNumberOfFloatCurves() != 0 )
 							{
-								UUsdAnimSequenceAssetImportData* ImportData = NewObject< UUsdAnimSequenceAssetImportData >( AnimSequence, TEXT( "USDAssetImportData" ) );
-								AnimSequence->AssetImportData = ImportData;
+								UUsdAnimSequenceAssetUserData* UserData = NewObject<UUsdAnimSequenceAssetUserData>(AnimSequence, TEXT("USDAssetUserData"));
+								UserData->PrimPath = SkelAnimationPrimPath;
+								UserData->LayerStartOffsetSeconds = LayerStartOffsetSeconds;
 
-								ImportData->PrimPath = SkelAnimationPrimPath;
-								ImportData->LayerStartOffsetSeconds = LayerStartOffsetSeconds;
+								AnimSequence->AddAssetUserData(UserData);
 
 								Context->AssetCache->CacheAsset( HashString, AnimSequence );
 							}
@@ -1782,9 +1778,9 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 			}
 
 			double LayerStartOffsetSeconds = 0.0f;
-			if ( UUsdAnimSequenceAssetImportData* ImportData = Cast<UUsdAnimSequenceAssetImportData>( AnimSequence->AssetImportData ) )
+			if (UUsdAnimSequenceAssetUserData* UserData = AnimSequence->GetAssetUserData<UUsdAnimSequenceAssetUserData>())
 			{
-				LayerStartOffsetSeconds = ImportData->LayerStartOffsetSeconds;
+				LayerStartOffsetSeconds = UserData->LayerStartOffsetSeconds;
 			}
 
 			// Always change the mode here because the sequencer will change it back to AnimationCustomMode when animating

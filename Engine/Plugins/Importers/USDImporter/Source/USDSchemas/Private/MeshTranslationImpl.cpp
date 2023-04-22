@@ -3,8 +3,8 @@
 #include "MeshTranslationImpl.h"
 
 #include "USDAssetCache2.h"
-#include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
+#include "USDAssetUserData.h"
 #include "USDGeomMeshConversion.h"
 #include "USDInfoCache.h"
 #include "USDLog.h"
@@ -46,15 +46,15 @@ namespace UE::MeshTranslationImplInternal::Private
 			return nullptr;
 		}
 
-		FString PrimPath;
-#if WITH_EDITOR
-		UUsdMaterialAssetImportData* OneSidedImportData = Cast<UUsdMaterialAssetImportData>(OneSidedMat->AssetImportData);
-		if (!ensureMsgf(OneSidedImportData, TEXT("Expected one-sided material '%s' to have an UUsdMaterialAssetImportData at this point!"), *OneSidedMat->GetPathName()))
+		UUsdMaterialAssetUserData* OneSidedUserData = OneSidedMat->GetAssetUserData<UUsdMaterialAssetUserData>();
+		if (!ensureMsgf(
+				OneSidedUserData,
+				TEXT("Expected one-sided material '%s' to have an UUsdMaterialAssetUserData at this point!"),
+				*OneSidedMat->GetPathName()
+			))
 		{
 			return nullptr;
 		}
-		PrimPath = OneSidedImportData->PrimPath;
-#endif // WITH_EDITOR
 
 		UMaterialInterface* TwoSidedMat = nullptr;
 
@@ -83,16 +83,8 @@ namespace UE::MeshTranslationImplInternal::Private
 		// Just create an instance of the TwoSided version of the same reference material and copy parameter values.
 		if (GIsEditor && MIC && ReferenceMaterialTwoSided)
 		{
-			UMaterialInstanceConstant* TwoSidedMIC = NewObject<UMaterialInstanceConstant>(
-				GetTransientPackage(),
-				NewInstanceName,
-				OneSidedMat->GetFlags()
-			);
-			if (TwoSidedMIC)
-			{
-				TwoSidedMIC->AssetImportData =
-					DuplicateObject(OneSidedImportData, TwoSidedMIC, TEXT("USDAssetImportData"));
-			}
+			UMaterialInstanceConstant* TwoSidedMIC =
+				NewObject<UMaterialInstanceConstant>(GetTransientPackage(), NewInstanceName, OneSidedMat->GetFlags());
 
 			TwoSidedMIC->SetParentEditorOnly(ReferenceMaterialTwoSided);
 			TwoSidedMIC->CopyMaterialUniformParametersEditorOnly(OneSidedMat);
@@ -109,11 +101,6 @@ namespace UE::MeshTranslationImplInternal::Private
 				NewInstanceName,
 				OneSidedMat->GetFlags()
 			);
-			if (TwoSidedMIC)
-			{
-				TwoSidedMIC->AssetImportData =
-					DuplicateObject(OneSidedImportData, TwoSidedMIC, TEXT("USDAssetImportData"));
-			}
 
 			TwoSidedMIC->SetParentEditorOnly(OneSidedMat);
 			TwoSidedMIC->BasePropertyOverrides.bOverride_TwoSided = true;
@@ -144,9 +131,13 @@ namespace UE::MeshTranslationImplInternal::Private
 
 			TwoSidedMID->CopyParameterOverrides(MID);
 
-			// TODO: Copy the PrimvarToUVIndex from the asset user data
-
 			TwoSidedMat = TwoSidedMID;
+		}
+
+		if(TwoSidedMat)
+		{
+			UUsdMaterialAssetUserData* UserData = DuplicateObject(OneSidedUserData, TwoSidedMat, TEXT("USDAssetUserData"));
+			TwoSidedMat->AddAssetUserData(UserData);
 		}
 
 		return TwoSidedMat;
@@ -165,18 +156,16 @@ namespace UE::MeshTranslationImplInternal::Private
 		FUsdInfoCache* InfoCache
 	)
 	{
-		// TODO: Implement this for runtime when asset user data support is in
-	#if WITH_EDITOR
-		UUsdMaterialAssetImportData* MaterialAssetImportData = Cast<UUsdMaterialAssetImportData>(Material.AssetImportData);
-		if (!ensureMsgf(MaterialAssetImportData, TEXT("Expected material '%s' to have an UUsdMaterialAssetImportData at this point!"), *Material.GetPathName()))
+		UUsdMaterialAssetUserData* MaterialAssetUserData = Material.GetAssetUserData<UUsdMaterialAssetUserData>();
+		if (!ensureMsgf(MaterialAssetUserData, TEXT("Expected material '%s' to have an UUsdMaterialAssetUserData at this point!"), *Material.GetPathName()))
 		{
 			return nullptr;
 		}
 
 		UE_LOG(LogUsd, Verbose, TEXT("Getting compatible material based on Material '%s' (Parameter to primvar: %s, primvar to UV index: %s) matching mesh primvar to UV index mapping '%s'"),
 			*Material.GetPathName(),
-			*UsdUtils::StringifyMap(MaterialAssetImportData->ParameterToPrimvar),
-			*UsdUtils::StringifyMap(MaterialAssetImportData->PrimvarToUVIndex),
+			*UsdUtils::StringifyMap(MaterialAssetUserData->ParameterToPrimvar),
+			*UsdUtils::StringifyMap(MaterialAssetUserData->PrimvarToUVIndex),
 			*UsdUtils::StringifyMap(MeshPrimvarToUVIndex)
 		);
 
@@ -193,7 +182,7 @@ namespace UE::MeshTranslationImplInternal::Private
 		// Check if mesh and material are compatible. Note that it's perfectly valid for the material to try reading
 		// an UVIndex the mesh doesn't provide at all, or trying to read a primvar that doesn't exist on the mesh.
 		bool bCompatible = true;
-		for (const TPair<FString, int32>& Pair : MaterialAssetImportData->PrimvarToUVIndex)
+		for (const TPair<FString, int32>& Pair : MaterialAssetUserData->PrimvarToUVIndex)
 		{
 			const FString& MaterialPrimvar = Pair.Key;
 			int32 MaterialUVIndex = Pair.Value;
@@ -243,8 +232,8 @@ namespace UE::MeshTranslationImplInternal::Private
 		// First, let's create the target primvar UVIndex assignment that is compatible with this mesh.
 		// We use an array of TPairs here so that we can sort these into a deterministic order for hashing later.
 		TArray<TPair<FString, int32>> CompatiblePrimvarAndUVIndexPairs;
-		CompatiblePrimvarAndUVIndexPairs.Reserve(MaterialAssetImportData->PrimvarToUVIndex.Num());
-		for (const TPair<FString, int32>& Pair : MaterialAssetImportData->PrimvarToUVIndex)
+		CompatiblePrimvarAndUVIndexPairs.Reserve(MaterialAssetUserData->PrimvarToUVIndex.Num());
+		for (const TPair<FString, int32>& Pair : MaterialAssetUserData->PrimvarToUVIndex)
 		{
 			const FString& MaterialPrimvar = Pair.Key;
 
@@ -327,7 +316,7 @@ namespace UE::MeshTranslationImplInternal::Private
 
 			UE_LOG(LogUsd, Verbose, TEXT("Generating compatible version of Material '%s' (Parameter to primvar: %s, primvar to UV index: %s) with hash '%s'"),
 				*Material.GetPathName(),
-				*UsdUtils::StringifyMap(MaterialAssetImportData->ParameterToPrimvar),
+				*UsdUtils::StringifyMap(MaterialAssetUserData->ParameterToPrimvar),
 				*UsdUtils::StringifyMap(CompatiblePrimvarToUVIndex),
 				*MaterialHash
 			);
@@ -340,45 +329,7 @@ namespace UE::MeshTranslationImplInternal::Private
 					Material.GetFlags()
 				);
 
-				UUsdMaterialAssetImportData* CompatibleImportData = DuplicateObject(
-					MaterialAssetImportData,
-					CompatibleMIC,
-					TEXT("USDAssetImportData")
-				);
-				CompatibleImportData->PrimvarToUVIndex = CompatiblePrimvarToUVIndex;
-
-				// Actually set the parameters with the target UV indices
-				for (const TPair<FString, FString>& ParameterPair : CompatibleImportData->ParameterToPrimvar)
-				{
-					const FString& Parameter = ParameterPair.Key;
-					const FString& Primvar = ParameterPair.Value;
-
-					if (int32* UVIndex = CompatibleImportData->PrimvarToUVIndex.Find(Primvar))
-					{
-						// Force-disable using the texture at all if the mesh doesn't provide the primvar that should be
-						// used to sample it with
-						if (*UVIndex == UNUSED_UV_INDEX)
-						{
-							UsdUtils::SetScalarParameterValue(
-								*CompatibleMIC,
-								*FString::Printf(TEXT("Use%sTexture"), *Parameter),
-								0.0f
-							);
-						}
-						else
-						{
-							UsdUtils::SetScalarParameterValue(
-								*CompatibleMIC,
-								*FString::Printf(TEXT("%sUVIndex"), *Parameter),
-								static_cast<float>(*UVIndex)
-							);
-						}
-					}
-				}
-
-				CompatibleMIC->AssetImportData = CompatibleImportData;
 				CompatibleMIC->SetParentEditorOnly(&Material);
-				CompatibleMIC->PostEditChange();
 
 				CompatibleMaterial = CompatibleMIC;
 			}
@@ -390,11 +341,49 @@ namespace UE::MeshTranslationImplInternal::Private
 					NewInstanceName
 				);
 
-				// TODO: Also copy our custom asset user data here when we add support for that
-
-				// TODO: Actually set the parameters with the target UV indices
-
 				CompatibleMaterial = CompatibleMID;
+			}
+
+			UUsdMaterialAssetUserData* CompatibleUserData = DuplicateObject(
+				MaterialAssetUserData,
+				CompatibleMaterial,
+				TEXT("USDAssetUserData")
+			);
+			CompatibleUserData->PrimvarToUVIndex = CompatiblePrimvarToUVIndex;
+			CompatibleMaterial->AddAssetUserData(CompatibleUserData);
+
+			if (UMaterialInstance* CompatibleInstance = Cast<UMaterialInstance>(CompatibleMaterial))
+			{
+				// Actually set the parameters with the target UV indices
+				for (const TPair<FString, FString>& ParameterPair : CompatibleUserData->ParameterToPrimvar)
+				{
+					const FString& Parameter = ParameterPair.Key;
+					const FString& Primvar = ParameterPair.Value;
+
+					if (int32* UVIndex = CompatibleUserData->PrimvarToUVIndex.Find(Primvar))
+					{
+						// Force-disable using the texture at all if the mesh doesn't provide the primvar that should be
+						// used to sample it with
+						if (*UVIndex == UNUSED_UV_INDEX)
+						{
+							UsdUtils::SetScalarParameterValue(
+								*CompatibleInstance,
+								*FString::Printf(TEXT("Use%sTexture"), *Parameter),
+								0.0f
+							);
+						}
+						else
+						{
+							UsdUtils::SetScalarParameterValue(
+								*CompatibleInstance,
+								*FString::Printf(TEXT("%sUVIndex"), *Parameter),
+								static_cast<float>(*UVIndex)
+							);
+						}
+					}
+				}
+
+				CompatibleInstance->PostEditChange();
 			}
 		}
 
@@ -415,9 +404,6 @@ namespace UE::MeshTranslationImplInternal::Private
 		}
 
 		return CompatibleMaterial;
-	#else
-		return &Material;
-	#endif // WITH_EDITOR
 	}
 };
 
@@ -473,15 +459,17 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 						if (GIsEditor)  // Editor, PIE => true; Standlone, packaged => false
 						{
 							MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceConstant(DisplayColorDesc.GetValue());
-#if WITH_EDITOR
-							// Leave PrimPath as empty as it likely will be reused by many prims
-							UUsdMaterialAssetImportData* ImportData = NewObject< UUsdMaterialAssetImportData >(MaterialInstance, TEXT("USDAssetImportData"));
-							MaterialInstance->AssetImportData = ImportData;
-#endif // WITH_EDITOR
 						}
 						else
 						{
 							MaterialInstance = UsdUtils::CreateDisplayColorMaterialInstanceDynamic(DisplayColorDesc.GetValue());
+						}
+
+						if(MaterialInstance)
+						{
+							// Leave PrimPath as empty as it likely will be reused by many prims
+							UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(MaterialInstance, TEXT("USDAssetUserData"));
+							MaterialInstance->AddAssetUserData(UserData);
 						}
 
 						// We can only cache transient assets
@@ -772,26 +760,26 @@ void MeshTranslationImpl::SetMaterialOverrides(
 	TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials;
 
 #if WITH_EDITOR
-	UUsdMeshAssetImportData* ImportData = nullptr;
+	UUsdMeshAssetUserData* UserData = nullptr;
 	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(&MeshComponent))
 	{
 		if (UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh())
 		{
-			ImportData = Cast<UUsdMeshAssetImportData>(Mesh->GetAssetImportData());
+			UserData = Mesh->GetAssetUserData<UUsdMeshAssetUserData>();
 		}
 	}
 	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(&MeshComponent))
 	{
 		if (USkeletalMesh* Mesh = SkeletalMeshComponent->GetSkeletalMeshAsset())
 		{
-			ImportData = Cast<UUsdMeshAssetImportData>(Mesh->GetAssetImportData());
+			UserData = Mesh->GetAssetUserData<UUsdMeshAssetUserData>();
 		}
 	}
 	else if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(&MeshComponent))
 	{
 		if (UGeometryCache* Mesh = GeometryCacheComponent->GetGeometryCache())
 		{
-			ImportData = Cast<UUsdMeshAssetImportData>(Mesh->AssetImportData);
+			UserData = Mesh->GetAssetUserData<UUsdMeshAssetUserData>();
 		}
 	}
 	else
@@ -802,15 +790,15 @@ void MeshTranslationImpl::SetMaterialOverrides(
 		);
 	}
 
-	ensureMsgf(ImportData, TEXT("Mesh assigned to component '%s' generated for prim '%s' should have an UUsdMeshAssetImportData at this point!"),
+	ensureMsgf(UserData, TEXT("Mesh assigned to component '%s' generated for prim '%s' should have an UUsdMeshAssetUserData at this point!"),
 		*MeshComponent.GetPathName(),
 		*UsdToUnreal::ConvertPath(Prim.GetPrimPath())
 	);
 
-	if(ImportData && LODIndexToAssignments.Num() > 0)
+	if(UserData && LODIndexToAssignments.Num() > 0)
 	{
 		// Stash our PrimvarToUVIndex in here, as that's where ResolveMaterialAssignmentInfo will look for it
-		LODIndexToAssignments[0].PrimvarToUVIndex = ImportData->PrimvarToUVIndex;
+		LODIndexToAssignments[0].PrimvarToUVIndex = UserData->PrimvarToUVIndex;
 
 		ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 			ValidPrim,

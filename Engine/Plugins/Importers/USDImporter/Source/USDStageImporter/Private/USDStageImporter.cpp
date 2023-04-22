@@ -4,7 +4,7 @@
 
 #include "USDAssetCache.h"
 #include "USDAssetCache2.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
@@ -431,9 +431,15 @@ namespace UsdStageImporterImpl
 		FString AssetPrefix;
 
 		FString AssetPath = Asset->GetName();
-		if (UUsdAssetImportData* AssetImportData = UsdUtils::GetAssetImportData(Asset))
+
+		FString PrimPath;
+		if (IInterface_AssetUserData* UserDataInterface = Cast<IInterface_AssetUserData>(Asset))
 		{
-			AssetPath = AssetImportData->PrimPath;
+			if (UUsdAssetUserData* UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>())
+			{
+				PrimPath = UserData->PrimPath;
+				AssetPath = PrimPath;
+			}
 		}
 
 		FString AssetName = FPaths::GetBaseFilename( AssetPath );
@@ -442,21 +448,19 @@ namespace UsdStageImporterImpl
 		{
 			AssetPrefix = TEXT("SM_");
 
-			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(Mesh->AssetImportData))
+			// If we have multiple LODs here we must have parsed the LOD variant set pattern. If our prims were named
+			// with the LOD pattern, go from e.g. '/Root/MyMesh/LOD0' to '/Root/MyMesh', or else every single LOD mesh
+			// will be named "SM_LOD0_X". We'll actually check though because if the user set a custom name for their
+			// prim other than LOD0 then we'll keep that
+			if (Mesh->GetNumLODs() > 1)
 			{
-				// If we have multiple LODs here we must have parsed the LOD variant set pattern. If our prims were named with the LOD
-				// pattern, go from e.g. '/Root/MyMesh/LOD0' to '/Root/MyMesh', or else every single LOD mesh will be named "SM_LOD0_X".
-				// We'll actually check though because if the user set a custom name for their prim other than LOD0 then we'll keep that
-				if ( Mesh->GetNumLODs() > 1 )
+				FString PrimName = FPaths::GetBaseFilename(AssetPath);
+				if (PrimName.RemoveFromStart(TEXT("LOD"), ESearchCase::CaseSensitive))
 				{
-					FString PrimName = FPaths::GetBaseFilename( AssetPath );
-					if ( PrimName.RemoveFromStart( TEXT( "LOD" ), ESearchCase::CaseSensitive ) )
+					if (PrimName.IsNumeric())
 					{
-						if ( PrimName.IsNumeric() )
-						{
-							AssetPath = FPaths::GetPath( AssetPath );
-							AssetName = FPaths::GetBaseFilename( AssetPath );
-						}
+						AssetPath = FPaths::GetPath(AssetPath);
+						AssetName = FPaths::GetBaseFilename(AssetPath);
 					}
 				}
 			}
@@ -504,25 +508,22 @@ namespace UsdStageImporterImpl
 				AssetPrefix = TEXT( "M_" );
 			}
 
-			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(Material->AssetImportData))
+			// The only materials with no prim path are our auto-generated displayColor materials
+			if (PrimPath.IsEmpty())
 			{
-				// The only materials with no prim path are our auto-generated displayColor materials
-				if ( AssetImportData->PrimPath.IsEmpty() )
-				{
-					AssetPath = TEXT("DisplayColor");
-					AssetName = FPaths::GetBaseFilename( AssetPath );
-				}
-				else
-				{
-					AssetPath = AssetImportData->PrimPath;
-					AssetName = FPaths::GetBaseFilename( AssetPath );
+				AssetPath = TEXT("DisplayColor");
+				AssetName = FPaths::GetBaseFilename(AssetPath);
+			}
+			else
+			{
+				AssetPath = PrimPath;
+				AssetName = FPaths::GetBaseFilename(AssetPath);
 
-					// If we have a preview surface two-sided material we'll also have a one-sided with the same name,
-					// so add a suffix here so we can clearly tell which is which
-					if ( Material->IsTwoSided() )
-					{
-						AssetName += UnrealIdentifiers::TwoSidedMaterialSuffix;
-					}
+				// If we have a preview surface two-sided material we'll also have a one-sided with the same name,
+				// so add a suffix here so we can clearly tell which is which
+				if (Material->IsTwoSided())
+				{
+					AssetName += UnrealIdentifiers::TwoSidedMaterialSuffix;
 				}
 			}
 		}
@@ -564,33 +565,41 @@ namespace UsdStageImporterImpl
 		return AssetName;
 	}
 
-	void UpdateAssetImportData( UObject* Asset, const FString& MainFilePath, UUsdStageImportOptions* ImportOptions )
+	void UpdateAssetUserData(UObject* Asset, const FString& MainFilePath, UUsdStageImportOptions* ImportOptions)
 	{
-		if ( !Asset )
+		if (!Asset)
 		{
 			return;
 		}
 
-		UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( Asset );
-		if ( !ImportData )
+		UUsdAssetUserData* UserData = nullptr;
+		if (IInterface_AssetUserData* UserDataInterface = Cast<IInterface_AssetUserData>(Asset))
+		{
+			UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>();
+		}
+		if (!UserData)
 		{
 			return;
 		}
 
 		// Don't force update as textures will already come with this preset to their actual texture path
-		if ( ImportData->SourceData.SourceFiles.Num() == 0 )
+		if (!Asset->IsA<UTexture>())
 		{
-			ImportData->UpdateFilenameOnly( MainFilePath );
+			UserData->FilePath = MainFilePath;
 		}
 
-		ImportData->ImportOptions = ImportOptions;
+		UserData->ImportOptions = ImportOptions;
 	}
 
-	void UpdateAssetImportData(const TSet<UObject*>& UsedAssetsAndDependencies, const FString& MainFilePath, UUsdStageImportOptions* ImportOptions)
+	void UpdateAssetUserData(
+		const TSet<UObject*>& UsedAssetsAndDependencies,
+		const FString& MainFilePath,
+		UUsdStageImportOptions* ImportOptions
+	)
 	{
-		for ( UObject* Asset : UsedAssetsAndDependencies )
+		for (UObject* Asset : UsedAssetsAndDependencies)
 		{
-			UpdateAssetImportData( Asset, MainFilePath, ImportOptions );
+			UpdateAssetUserData(Asset, MainFilePath, ImportOptions);
 		}
 	}
 
@@ -870,17 +879,20 @@ namespace UsdStageImporterImpl
 
 			if (ImportContext.ImportOptions->bPrimPathFolderStructure)
 			{
-				if (UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Asset))
+				if (IInterface_AssetUserData* UserDataInterface = Cast<IInterface_AssetUserData>(Asset))
 				{
-					// For skeletal stuff, the primpaths point to the SkelRoot, so it is useful to place the assets in there,
-					// as we'll always have at least the skeletal mesh and the skeleton
-					if (AssetTypeFolderPtr == &SkeletalMeshesFolder)
+					if (UUsdAssetUserData* UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>())
 					{
-						AssetToContentFolder.Add(Asset, ImportData->PrimPath);
-					}
-					else
-					{
-						AssetToContentFolder.Add(Asset, FPaths::GetPath(ImportData->PrimPath));
+						// For skeletal stuff, the primpaths point to the SkelRoot, so it is useful to place the assets in there,
+						// as we'll always have at least the skeletal mesh and the skeleton
+						if (AssetTypeFolderPtr == &SkeletalMeshesFolder)
+						{
+							AssetToContentFolder.Add(Asset, UserData->PrimPath);
+						}
+						else
+						{
+							AssetToContentFolder.Add(Asset, FPaths::GetPath(UserData->PrimPath));
+						}
 					}
 				}
 			}
@@ -1739,7 +1751,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 
 	UsdStageImporterImpl::CollectUsedAssetDependencies( ImportContext, UsedAssetsAndDependencies );
 	UsdStageImporterImpl::PruneUnwantedAssets( ImportContext, UsedAssetsAndDependencies, ObjectsToRemap, SoftObjectsToRemap );
-	UsdStageImporterImpl::UpdateAssetImportData( UsedAssetsAndDependencies, ImportContext.FilePath, ImportContext.ImportOptions );
+	UsdStageImporterImpl::UpdateAssetUserData( UsedAssetsAndDependencies, ImportContext.FilePath, ImportContext.ImportOptions );
 	UsdStageImporterImpl::PublishAssets( ImportContext, UsedAssetsAndDependencies, ObjectsToRemap, SoftObjectsToRemap );
 	UsdStageImporterImpl::ResolveActorConflicts( ImportContext, ExistingSceneActor, ObjectsToRemap, SoftObjectsToRemap );
 	UsdStageImporterImpl::RemapReferences( ImportContext, UsedAssetsAndDependencies, ObjectsToRemap );
@@ -1769,7 +1781,12 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 #endif // #if USE_USD_SDK
 }
 
-bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContext, UObject* OriginalAsset, UUsdAssetImportData* OriginalImportData, UObject*& OutReimportedAsset)
+bool UUsdStageImporter::ReimportSingleAsset(
+	FUsdStageImportContext& ImportContext,
+	UObject* OriginalAsset,
+	const FString& OriginalPrimPath,
+	UObject*& OutReimportedAsset
+)
 {
 	OutReimportedAsset = nullptr;
 	bool bSuccess = false;
@@ -1851,7 +1868,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	{
 		UsdStageImporterImpl::CacheCollapsingState( TranslationContext.Get() );
 
-		UE::FUsdPrim TargetPrim = ImportContext.Stage.GetPrimAtPath( UE::FSdfPath( *OriginalImportData->PrimPath ) );
+		UE::FUsdPrim TargetPrim = ImportContext.Stage.GetPrimAtPath(UE::FSdfPath(*OriginalPrimPath));
 		if ( TargetPrim )
 		{
 			UsdStageImporterImpl::CreateAssetsForPrims({TargetPrim}, TranslationContext.Get(), LOCTEXT("CreateAssets", "Creating assets"));
@@ -1863,12 +1880,16 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	UObject* ReimportedObject = nullptr;
 	for ( UObject* Asset : ImportContext.AssetCache->GetActiveAssets() )
 	{
-		UUsdAssetImportData* NewAssetImportData = UsdUtils::GetAssetImportData( Asset );
+		UUsdAssetUserData* UserData = nullptr;
+		if (IInterface_AssetUserData* UserDataInterface = Cast<IInterface_AssetUserData>(Asset))
+		{
+			UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>();
+		}
 
 		if ( Asset &&
-			 NewAssetImportData &&
+			 UserData &&
 			 Asset->GetClass() == OriginalAsset->GetClass() &&
-			 NewAssetImportData->PrimPath.Equals( OriginalImportData->PrimPath, ESearchCase::CaseSensitive ) )
+			 UserData->PrimPath.Equals(OriginalPrimPath, ESearchCase::CaseSensitive))
 		{
 			ReimportedObject = Asset;
 			break;
@@ -1877,7 +1898,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 
 	if ( ReimportedObject )
 	{
-		UsdStageImporterImpl::UpdateAssetImportData( ReimportedObject, ImportContext.FilePath, ImportContext.ImportOptions);
+		UsdStageImporterImpl::UpdateAssetUserData(ReimportedObject, ImportContext.FilePath, ImportContext.ImportOptions);
 
 		// Assign things from the original assets before we publish the reimported asset, overwriting it
 		UsdStageImporterImpl::CopyOriginalMaterialAssignment(ImportContext, OriginalAsset, ReimportedObject );

@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "USDShadeConversion.h"
-#include "TextureResource.h"
 
 #if USE_USD_SDK
 
 #include "USDAssetCache.h"
 #include "USDAssetCache2.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDAttributeUtils.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
@@ -39,6 +38,7 @@
 #include "Modules/ModuleManager.h"
 #include "RenderUtils.h"
 #include "RHI.h"
+#include "TextureResource.h"
 
 #if WITH_EDITOR
 	#include "Factories/TextureFactory.h"
@@ -595,15 +595,13 @@ namespace UE
 							{
 								// Give the same prim path to the texture, so that it ends up imported right next to the material
 								FString MaterialPrimPath;
-#if WITH_EDITOR
 								if ( Material )
 								{
-									if ( UUsdAssetImportData* ImportData = Cast< UUsdAssetImportData >( Material->AssetImportData ) )
+									if(UUsdAssetUserData* UserData = Material->GetAssetUserData<UUsdAssetUserData>())
 									{
-										MaterialPrimPath = ImportData->PrimPath;
+										MaterialPrimPath = UserData->PrimPath;
 									}
 								}
-#endif // WITH_EDITOR
 
 								Texture = UsdUtils::CreateTexture( FileInput.GetAttr(), MaterialPrimPath, LODGroup, TexturesCache );
 
@@ -1211,10 +1209,10 @@ namespace UE
 
 						if ( Texture )
 						{
-							UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( Texture, TEXT( "USDAssetImportData" ) );
-							ImportData->PrimPath = PrimPath;
-							ImportData->UpdateFilenameOnly( ResolvedTexturePath );
-							Texture->AssetImportData = ImportData;
+							UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(Texture, TEXT("USDAssetUserData"));
+							UserData->PrimPath = PrimPath;
+							UserData->FilePath = ResolvedTexturePath;
+							Texture->AddAssetUserData(UserData);
 						}
 					}
 				}
@@ -2048,13 +2046,11 @@ bool UsdToUnreal::ConvertMaterial(
 	// Record which primvars we used on each UV index. This is important as we'll match this with the analogous member
 	// on static/skeletal meshe import data, and create a new material instance with different UV index parameter
 	// values if we need to
-#if WITH_EDITOR
-	if (UUsdMaterialAssetImportData* ImportData = Cast<UUsdMaterialAssetImportData>(Material.AssetImportData.Get()))
+	if (UUsdMaterialAssetUserData* UserData = Material.GetAssetUserData<UUsdMaterialAssetUserData>())
 	{
-		ImportData->PrimvarToUVIndex = PrimvarToUVIndex;
-		ImportData->ParameterToPrimvar = ParameterToPrimvar;
+		UserData->PrimvarToUVIndex = PrimvarToUVIndex;
+		UserData->ParameterToPrimvar = ParameterToPrimvar;
 	}
-#endif // WITH_EDITOR
 
 	return MaterialParameters.Num() > 0;
 }
@@ -2325,10 +2321,10 @@ bool UsdToUnreal::ConvertMaterial(
 	// Record which primvars we used on each UV index. This is important as we'll match this with the analogous member
 	// on static/skeletal meshe import data, and create a new material instance with different UV index parameter
 	// values if we need to
-	if (UUsdMaterialAssetImportData* ImportData = Cast<UUsdMaterialAssetImportData>(Material.AssetImportData.Get()))
+	if (UUsdMaterialAssetUserData* UserData = Material.GetAssetUserData<UUsdMaterialAssetUserData>())
 	{
-		ImportData->PrimvarToUVIndex = PrimvarToUVIndex;
-		ImportData->ParameterToPrimvar = ParameterToPrimvar;
+		UserData->PrimvarToUVIndex = PrimvarToUVIndex;
+		UserData->ParameterToPrimvar = ParameterToPrimvar;
 	}
 
 #endif // WITH_EDITOR
@@ -2641,9 +2637,9 @@ void UsdUtils::NotifyIfVirtualTexturesNeeded( UTexture* Texture )
 	}
 
 	FString TexturePath = Texture->GetName();
-	if ( UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>( Texture ) )
+	if (UUsdAssetUserData* UserData = Texture->GetAssetUserData<UUsdAssetUserData>())
 	{
-		TexturePath = AssetImportData->PrimPath;
+		TexturePath = UserData->PrimPath;
 	}
 
 	if ( !UseVirtualTexturing( GMaxRHIFeatureLevel ) )

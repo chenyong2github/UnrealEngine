@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "USDGeomMeshTranslator.h"
-#include "Engine/Level.h"
-#include "Engine/World.h"
-#include "UObject/Package.h"
 
 #if USE_USD_SDK
 
 #include "MeshTranslationImpl.h"
 #include "UnrealUSDWrapper.h"
-#include "USDAssetCache.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
@@ -24,24 +20,24 @@
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
-#include "Async/Async.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "RHI.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "StaticMeshResources.h"
+#include "UObject/Package.h"
 #include "UObject/SoftObjectPath.h"
 
 #if WITH_EDITOR
@@ -50,13 +46,11 @@
 #endif // WITH_EDITOR
 
 #include "USDIncludesStart.h"
-#include "pxr/usd/usd/editContext.h"
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usd/typed.h"
 #include "pxr/usd/usdGeom/mesh.h"
-#include "pxr/usd/usdGeom/xformable.h"
-#include "pxr/usd/usdShade/material.h"
+#include "pxr/usd/usdGeom/subset.h"
 #include "USDIncludesEnd.h"
 
 static float GMeshNormalRepairThreshold = 0.05f;
@@ -211,14 +205,11 @@ namespace UsdGeomMeshTranslatorImpl
 			ExistingAssignments.Add(StaticMaterial.MaterialInterface);
 		}
 
-#if WITH_EDITOR
-		// TODO: Swap with asset user data for runtime support
-		UUsdMeshAssetImportData* ImportData = Cast< UUsdMeshAssetImportData>(StaticMesh.AssetImportData.Get());
-		ensureMsgf(ImportData, TEXT("Static Mesh '%s' generated for prim '%s' should have an UUsdMeshAssetImportData at this point!"),
+		UUsdMeshAssetUserData* UserData = StaticMesh.GetAssetUserData<UUsdMeshAssetUserData>();
+		ensureMsgf(UserData, TEXT("Static Mesh '%s' generated for prim '%s' should have an UUsdMeshAssetUserData at this point!"),
 			*StaticMesh.GetPathName(),
 			*UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath())
 		);
-#endif // WITH_EDITOR
 
 		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 			UsdPrim,
@@ -261,10 +252,9 @@ namespace UsdGeomMeshTranslatorImpl
 					bMaterialAssignementsHaveChanged = true;
 				}
 
-#if WITH_EDITOR
-				if (ImportData)
+				if (UserData)
 				{
-					ImportData->MaterialSlotToPrimPaths.FindOrAdd(StaticMeshSlotIndex).PrimPaths = Slot.PrimPaths.Array();
+					UserData->MaterialSlotToPrimPaths.FindOrAdd(StaticMeshSlotIndex).PrimPaths = Slot.PrimPaths.Array();
 				}
 
 				// Setup the section map so that our LOD material index is properly mapped to the static mesh material index
@@ -290,7 +280,6 @@ namespace UsdGeomMeshTranslatorImpl
 
 					bMaterialAssignementsHaveChanged = true;
 				}
-#endif // WITH_EDITOR
 			}
 		}
 
@@ -822,16 +811,14 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 
 #if WITH_EDITOR
 				StaticMesh->NaniteSettings.bEnabled = bShouldEnableNanite;
+#endif // WITH_EDITOR
 
 				if (bIsNew)
 				{
-					UUsdMeshAssetImportData* ImportData = NewObject<UUsdMeshAssetImportData>(StaticMesh, TEXT("UUSDAssetImportData"));
-					ImportData->PrimPath = MeshName;
-					ImportData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;  // We use the same primvar mapping for all LODs
-
-					StaticMesh->AssetImportData = ImportData;
+					UUsdMeshAssetUserData* UserData = NewObject<UUsdMeshAssetUserData>(StaticMesh, TEXT("UUSDAssetUserData"));
+					UserData->PrimPath = MeshName;
+					StaticMesh->AddAssetUserData(UserData);
 				}
-#endif // WITH_EDITOR
 
 				// Only the original creator of the prim at creation time gets to set the material assignments
 				// directly on the mesh, all others prims ensure their materials via material overrides on the

@@ -269,7 +269,10 @@ namespace UsdUtils
 	/** Returns the earliest possible timecode. Use it to always fetch the first frame of an animated attribute */
 	USDUTILITIES_API double GetEarliestTimeCode();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "No longer used as the USDImporter plugin will now use AssetUserData over AssetImportData for better runtime compatibility")
 	USDUTILITIES_API UUsdAssetImportData* GetAssetImportData( UObject* Asset );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Adds a reference on Prim to the layer at AbsoluteFilePath */
 	USDUTILITIES_API void AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath, const UE::FSdfPath& TargetPrimPath = {}, double TimeCodeOffset = 0.0, double TimeCodeScale = 1.0 );

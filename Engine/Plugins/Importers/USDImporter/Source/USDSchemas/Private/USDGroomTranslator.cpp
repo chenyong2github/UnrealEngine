@@ -18,7 +18,7 @@
 #include "UObject/StrongObjectPtr.h"
 
 #include "UnrealUSDWrapper.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDClassesModule.h"
 #include "USDGroomConversion.h"
 #include "USDGroomTranslatorUtils.h"
@@ -189,13 +189,12 @@ protected:
 					if (GroomAsset)
 					{
 						Context->AssetCache->CacheAsset(SHAHash.ToString(), GroomAsset);
-#if WITH_EDITOR
-						UUsdAssetImportData* ImportData = NewObject<UUsdAssetImportData>(GroomAsset, TEXT("UUSDAssetImportData"));
-						ImportData->PrimPath = PrimPathString;
-						ImportData->ImportOptions = ImportOptions.Get();
 
-						GroomAsset->AssetImportData = ImportData;
-#endif // WITH_EDITOR
+						UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(GroomAsset, TEXT("UUSDAssetUserData"));
+						UserData->PrimPath = PrimPathString;
+						UserData->ImportOptions = ImportOptions.Get();
+
+						GroomAsset->AddAssetUserData(UserData);
 					}
 				}
 
@@ -335,13 +334,11 @@ protected:
 				UGroomCache* GroomCache = FGroomCacheImporter::ProcessToGroomCache(*GroomCacheProcessor, AnimInfo, HairImportContext, UniqueName.ToString());
 				if (GroomCache)
 				{
-#if WITH_EDITOR
-					UUsdAssetImportData* ImportData = NewObject<UUsdAssetImportData>(GroomCache, TEXT("UUSDAssetImportData"));
-					ImportData->PrimPath = PrimPath.GetString();
-					ImportData->ImportOptions = ImportOptions.Get();
+					UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(GroomCache, TEXT("UUSDAssetUserData"));
+					UserData->PrimPath = PrimPath.GetString();
+					UserData->ImportOptions = ImportOptions.Get();
 
-					GroomCache->AssetImportData = ImportData;
-#endif // WITH_EDITOR
+					GroomCache->AddAssetUserData(UserData);
 
 					Context->AssetCache->CacheAsset(GroomCacheHash.ToString(), GroomCache);
 					Context->InfoCache->LinkAssetToPrim(PrimPath, GroomCache);

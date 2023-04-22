@@ -1243,6 +1243,7 @@ double UsdUtils::GetEarliestTimeCode()
 #endif
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 {
 	UUsdAssetImportData* ImportData = nullptr;
@@ -1309,6 +1310,7 @@ UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
 #endif
 	return ImportData;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 namespace UE::UsdConversionUtils::Private
 {

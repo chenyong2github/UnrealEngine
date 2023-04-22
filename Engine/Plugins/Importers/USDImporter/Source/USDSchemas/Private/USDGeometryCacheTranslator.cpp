@@ -6,8 +6,7 @@
 // The GeometryCacheStreamer module is editor-only, so is the translator
 
 #include "MeshTranslationImpl.h"
-#include "USDAssetCache.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDGroomTranslatorUtils.h"
@@ -67,9 +66,11 @@ namespace UsdGeometryCacheTranslatorImpl
 	bool ProcessGeometryCacheMaterials(const pxr::UsdPrim& UsdPrim, const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& LODIndexToMaterialInfo,
 									   UGeometryCache& GeometryCache, UUsdAssetCache2& AssetCache, FUsdInfoCache* InfoCache, float Time, EObjectFlags Flags)
 	{
-		UUsdMeshAssetImportData* MeshImportData = Cast<UUsdMeshAssetImportData>(GeometryCache.AssetImportData.Get());
-		ensureMsgf(MeshImportData, TEXT("Geometry Cache '%s' generated for prim '%s' should have an UUsdMeshAssetImportData at this point!"),
-			*GeometryCache.GetPathName(), *UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath()));
+		UUsdMeshAssetUserData* MeshUserData = GeometryCache.GetAssetUserData<UUsdMeshAssetUserData>();
+		ensureMsgf(MeshUserData, TEXT("Geometry Cache '%s' generated for prim '%s' should have an UUsdMeshAssetUserData at this point!"),
+			*GeometryCache.GetPathName(),
+			*UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath())
+		);
 
 		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 			UsdPrim, LODIndexToMaterialInfo, AssetCache, *InfoCache, Flags);
@@ -90,7 +91,7 @@ namespace UsdGeometryCacheTranslatorImpl
 				else
 				{
 					// Warn, but still add a material slot to preserve the materials order
-					UE_LOG(LogUsd, Warning, TEXT("Failed to resolve material '%s' for slot '%d' for geometry cache '%s'"), 
+					UE_LOG(LogUsd, Warning, TEXT("Failed to resolve material '%s' for slot '%d' for geometry cache '%s'"),
 						*Slot.MaterialSource, LODSlotIndex, *UsdToUnreal::ConvertPath(UsdPrim.GetPath()));
 				}
 
@@ -105,7 +106,7 @@ namespace UsdGeometryCacheTranslatorImpl
 					bMaterialAssignementsHaveChanged = true;
 				}
 
-				MeshImportData->MaterialSlotToPrimPaths.FindOrAdd(SlotIndex).PrimPaths = Slot.PrimPaths.Array();
+				MeshUserData->MaterialSlotToPrimPaths.FindOrAdd(SlotIndex).PrimPaths = Slot.PrimPaths.Array();
 			}
 		}
 
@@ -795,9 +796,9 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 
 			if (GeometryCache && bIsNew)
 			{
-				UUsdMeshAssetImportData* ImportData = NewObject<UUsdMeshAssetImportData>(GeometryCache.Get(), TEXT("UUSDMeshAssetImportData"));
-				ImportData->PrimPath = PrimPathString;
-				GeometryCache->AssetImportData = ImportData;
+				UUsdMeshAssetUserData* UserData = NewObject<UUsdMeshAssetUserData>(GeometryCache.Get(), TEXT("UUSDAssetUserData"));
+				UserData->PrimPath = PrimPathString;
+				GeometryCache->AddAssetUserData(UserData);
 
 				// Only the original creator of the prim at creation time gets to set the material assignments
 				// directly on the geometry cache, all others prims ensure their materials via material overrides on the
@@ -1033,8 +1034,8 @@ TSet<UE::FSdfPath> FUsdGeometryCacheTranslator::CollectAuxiliaryPrims() const
 			if (UsdGeometryCacheTranslatorImpl::IsPurposefullyVisible(ChildPrim.Get(), Context->PurposesToLoad))
 			{
 				Result.Add(UE::FSdfPath(ChildPrim.Get().GetPrimPath()));
-			}	
-			
+			}
+
 			// Should probably collect the Xformable as well
 		}
 	}

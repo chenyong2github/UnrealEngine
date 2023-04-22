@@ -3,7 +3,7 @@
 #include "USDLevelSequenceHelper.h"
 
 #include "GeometryCache.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDAttributeUtils.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
@@ -1898,12 +1898,11 @@ void FUsdLevelSequenceHelperImpl::AddSkeletalTracks(const UUsdPrimTwin& PrimTwin
 	if (UMovieSceneSkeletalAnimationTrack* SkeletalTrack = AddTrack<UMovieSceneSkeletalAnimationTrack>(SkelAnimationPrim.GetName(), PrimTwin, *ComponentToBind, *SkelAnimationSequence, bIsMuted))
 	{
 		double LayerStartOffsetSeconds = 0.0f;
-#if WITH_EDITOR
-		if (UUsdAnimSequenceAssetImportData* ImportData = Cast<UUsdAnimSequenceAssetImportData>(Sequence->AssetImportData))
+		if (UUsdAnimSequenceAssetUserData* UserData = Sequence->GetAssetUserData<UUsdAnimSequenceAssetUserData>())
 		{
-			LayerStartOffsetSeconds = ImportData->LayerStartOffsetSeconds;
+			LayerStartOffsetSeconds = UserData->LayerStartOffsetSeconds;
 		}
-#endif // WITH_EDITOR
+
 		FFrameNumber StartOffsetTick = FFrameTime::FromDecimal(LayerStartOffsetSeconds * MovieScene->GetTickResolution().AsDecimal()).RoundToFrame();
 
 		SkeletalTrack->RemoveAllAnimationData();

@@ -3,7 +3,7 @@
 #include "Custom/MaterialXUSDShadeMaterialTranslator.h"
 #if USE_USD_SDK
 #include "USDAssetCache.h"
-#include "USDAssetImportData.h"
+#include "USDAssetUserData.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
@@ -452,9 +452,9 @@ void FMaterialXUsdShadeMaterialTranslator::CreateAssets()
 						UTexture* ExistingTexture = Cast<UTexture>(Context->AssetCache->GetCachedAsset(TextureHash));
 						if (!ExistingTexture)
 						{
-							UUsdAssetImportData* ImportData = NewObject<UUsdAssetImportData>(Texture, TEXT("USDAssetImportData"));
-							ImportData->PrimPath = ReferencerPrimPath;
-							Texture->AssetImportData = ImportData;
+							UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(Texture, TEXT("USDAssetUserData"));
+							UserData->PrimPath = ReferencerPrimPath;
+							Texture->AddAssetUserData(UserData);
 
 							Context->AssetCache->CacheAsset(TextureHash, Texture);
 						}
