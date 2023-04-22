@@ -374,7 +374,9 @@ $ bAllowGeneratedIniWhenCooked (Boolean): Whether to load generated ini files in
 
 $ bAllowNonUFSIniWhenCooked (Boolean): Whether to load non-ufs ini files in cooked build, (GameUserSettings.ini loaded either way)
 
-$ CppStandard (CppStandardVersion): Which C++ stanard to use for compiling this target
+$ CppStandard (CppStandardVersion): Which C++ standard to use for compiling this target
+
+$ MaxCppStandard (CppStandardVersion): Which C++ standard is the maximum allowed for compiling modules in this target if they override the Target's CppStandard for any reason.
 
 $ CStandard (CStandardVersion): Which C standard to use for compiling this target
 

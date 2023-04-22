@@ -184,7 +184,9 @@ $ MSVCCompileActionWeight : The weight(cpu/memory utilization) of a MSVC compile
 
 $ ClangCompileActionWeight : The weight(cpu/memory utilization) of a clang compile action
 
-$ CppStandard : Which C++ stanard to use for compiling this target
+$ CppStandard : Which C++ standard to use for compiling this target
+
+$ MaxCppStandard : Which C++ standard is the maximum allowed for compiling modules in this target if they override the Target's CppStandard for any reason.
 
 $ CStandard : Which C standard to use for compiling this target
 
