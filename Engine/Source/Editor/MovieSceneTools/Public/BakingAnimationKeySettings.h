@@ -5,7 +5,7 @@
 #include "BakingAnimationKeySettings.generated.h"
 
 
-UENUM()
+UENUM(Blueprintable)
 enum class EBakingKeySettings : uint8
 {
 	KeysOnly UMETA(DisplayName = "Keys Only"),
