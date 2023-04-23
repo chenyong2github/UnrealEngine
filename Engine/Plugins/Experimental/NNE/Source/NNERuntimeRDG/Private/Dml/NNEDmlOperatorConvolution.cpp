@@ -18,16 +18,16 @@ class FOperatorDmlConv : public FOperatorDml
 
 	struct FConvArgs
 	{
-		EAutoPad		AutoPad;
-		DmlUtil::FSmallUIntArray StartPadding;
-		DmlUtil::FSmallUIntArray EndPadding;
-		FIntArray		OutPadding;
-		FIntArray		Dilations;
-		FIntArray		Strides;
-		FSmallArray		OutputShape;
-		uint32			NumDimensions;
-		FSmallArray		WindowSize;
-		int32			Group;
+		EAutoPad				AutoPad;
+		Util::FSmallUIntArray	StartPadding;
+		Util::FSmallUIntArray	EndPadding;
+		FIntArray				OutPadding;
+		FIntArray				Dilations;
+		FIntArray				Strides;
+		FSmallArray				OutputShape;
+		uint32					NumDimensions;
+		FSmallArray				WindowSize;
+		int32					Group;
 
 		FConvArgs() = default;
 
@@ -129,7 +129,7 @@ class FOperatorDmlConv : public FOperatorDml
 		//
 		//
 		//
-		DmlUtil::FSmallUIntArray ConvolutionPadding(TConstArrayView<uint32> InputShape)
+		Util::FSmallUIntArray ConvolutionPadding(TConstArrayView<uint32> InputShape)
 		{
 			const uint32 DimOffset = NonspatialDimensionCount;
 
@@ -143,7 +143,7 @@ class FOperatorDmlConv : public FOperatorDml
 			// Deconvolution
 			else
 			{
-				DmlUtil::FSmallUIntArray Padding;
+				Util::FSmallUIntArray Padding;
 				Padding.SetNumUninitialized(NumDimensions);
 				
 				for (uint32 Dim = 0; Dim < NumDimensions; ++Dim)
@@ -230,20 +230,26 @@ public:
 		}
 
 		// Initialize tensor descriptors
-		DmlUtil::FTensorDesc	DmlInputTensor{};
-		DmlUtil::FTensorDesc	DmlFilterTensor{};
-		DmlUtil::FTensorDesc	DmlBiasTensor{};
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
+		FTensorDescDml	DmlInputTensorDesc;
+		FTensorDescDml	DmlFilterTensorDesc;
+		FTensorDescDml	DmlBiasTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!DmlInputTensor.InitFromTensor(InputTensor, 3))
+		if (!DmlInputTensorDesc
+				.SetTensorRank(3, 5)
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		if (!DmlFilterTensor.InitFromTensor(FilterTensor, 3))
+		if (!DmlFilterTensorDesc
+				.SetTensorRank(3, 5)
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
@@ -251,43 +257,31 @@ public:
 		{
 			const NNECore::Internal::FTensor& BiasTensor = InputTensors[2];
 
-			FSmallArray Shape;
-
-			if (BiasTensor.GetShape().Rank() < (int32) Args.NumDimensions)
+			if (!DmlBiasTensorDesc
+					.SetTensorRank(3, 5)
+					.SetFromTensor1D(BiasTensor, InputTensor.GetShape().Rank())
+					.Validate())
 			{
-				Shape.Add(1);
-				Shape.Add(BiasTensor.GetShape().GetData()[0]);
-				Shape.Add(1);
-
-				for (int32 Dim = 3; Dim < InputTensor.GetShape().Rank(); ++Dim)
-				{
-					Shape.Add(1);
-				}
-			}
-			else
-			{
-				Shape = BiasTensor.GetShape().GetData();
-			}
-
-			if (!DmlBiasTensor.InitFromTensor(BiasTensor, 3, MakeEmptyArrayView<uint32>(), Shape))
-			{
-				UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+				UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 				return false;
 			}
 		}
 
-		if (!DmlOutputTensor.InitFromTensor(OutputTensor, 3))
+		if (!DmlOutputTensorDesc
+				.SetTensorRank(3, 5)
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		DML_CONVOLUTION_OPERATOR_DESC	DmlConvOpDesc{};
 
-		DmlConvOpDesc.InputTensor = &DmlInputTensor.Desc;
-		DmlConvOpDesc.FilterTensor = &DmlFilterTensor.Desc;
-		DmlConvOpDesc.BiasTensor = InputTensors.Num() > 2 ? &DmlBiasTensor.Desc : nullptr;
-		DmlConvOpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		DmlConvOpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		DmlConvOpDesc.FilterTensor = DmlFilterTensorDesc.GetDmlDesc();
+		DmlConvOpDesc.BiasTensor = InputTensors.Num() > 2 ? DmlBiasTensorDesc.GetDmlDesc() : nullptr;
+		DmlConvOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		DmlConvOpDesc.Mode = DML_CONVOLUTION_MODE_CROSS_CORRELATION;
 		DmlConvOpDesc.Direction = Direction;
 		DmlConvOpDesc.DimensionCount = Args.NumDimensions;

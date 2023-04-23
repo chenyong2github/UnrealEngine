@@ -26,27 +26,32 @@ public:
 		check(InputTensors.Num() == 1);
 		check(OutputTensors.Num() == 1);
 
-		const NNECore::Internal::FTensor& InputTensorDesc = InputTensors[0];
-		const NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
+		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
+		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
 
-		DmlUtil::FTensorDesc	DmlInputTensorDesc{};
-		DmlUtil::FTensorDesc	DmlOutputTensorDesc{};
+		FTensorDescDml	DmlInputTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!InitDmlTensorDesc(DmlInputTensorDesc, InputTensorDesc))
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize input tensor for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize input tensor for DML inference"));
 			return false;
 		}
-		if (!InitDmlTensorDesc(DmlOutputTensorDesc, OutputTensorDesc))
+		
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize output tensor for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize output tensor for DML inference"));
 			return false;
 		}
 
 		DML_ELEMENT_WISE_IDENTITY_OPERATOR_DESC DmlIdentityOpDesc{};
 
-		DmlIdentityOpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-		DmlIdentityOpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+		DmlIdentityOpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		DmlIdentityOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 
 		return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_ELEMENT_WISE_IDENTITY, &DmlIdentityOpDesc });
 	}

@@ -28,64 +28,73 @@ public:
 	//
 	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
 	{
-        check(InputTensors.Num() == 1);
-        check(OutputTensors.Num() == 1);
+		check(InputTensors.Num() == 1);
+		check(OutputTensors.Num() == 1);
 
-        int32 NumDims = InputTensors[0].GetShape().Rank();
-        check(NumDims > 0);
-        check(NumDims == OutputTensors[0].GetShape().Rank());
+		int32 NumDims = InputTensors[0].GetShape().Rank();
+		check(NumDims > 0);
+		check(NumDims == OutputTensors[0].GetShape().Rank());
 
-        // Default permutation is reverse
-        DmlUtil::FSmallIntArray ReversePerm;
-        for(int Idx = NumDims-1; Idx >= 0; Idx--)
-        {
-            ReversePerm.Add(Idx);
-        }
-        TArray<int32> Perm = 
+		// Default permutation is reverse
+		Util::FSmallIntArray ReversePerm;
+
+		for(int Idx = NumDims-1; Idx >= 0; Idx--)
+		{
+			ReversePerm.Add(Idx);
+		}
+
+		TArray<int32> Perm = 
 			Attributes.GetValueOrDefault<TArray<int32>>(TEXT("perm"), (TArray<int32>) ReversePerm);
 
-        check(Perm.Num() == NumDims);
+		check(Perm.Num() == NumDims);
 
-        // Initialize Input tensor desc
-        DmlUtil::FTensorDesc DmlInputTensorDesc;
-        if (!DmlInputTensorDesc.InitFromTensor(InputTensors[0], NumDims))
-        {
-            UE_LOG(LogNNE, Error, TEXT("Failed to initialize Transpose input for DML inference"));
-            return false;
-        }
-        
-        DmlInputTensorDesc.SetStridesFromTensor(InputTensors[0]);
+		// Initialize Input tensor desc
+		// Apply permutations to both sizes and strides
+		auto PermuteFunc = [&, Perm] (TConstArrayView<uint32> InputView) -> Util::FSmallUIntArray
+		{
+			Util::FSmallUIntArray Permuted;
+			
+			for (int32 PermVal : Perm)
+			{
+				Permuted.Add(InputView[PermVal]);
+			}
+			
+			return Permuted;
+		};
 
-        // Initialize Output tensor desc
-        DmlUtil::FTensorDesc DmlOutputTensorDesc;
-        if (!DmlOutputTensorDesc.InitFromTensor(OutputTensors[0], NumDims))
-        {
-            UE_LOG(LogNNE, Error, TEXT("Failed to initialize Transpose output for DML inference"));
-            return false;
-        }
+		FTensorDescDml DmlInputTensorDesc;
 
-        // Apply permutations to both sizes and strides
-        auto PermuteFunc = [&, Perm] (TConstArrayView<uint32> InputView) -> DmlUtil::FSmallUIntArray
-            {
-                DmlUtil::FSmallUIntArray Permuted;
-                for(int32 PermVal : Perm)
-                {
-                    Permuted.Add(InputView[PermVal]);
-                }
-                return Permuted;
-            };
-        
-        DmlInputTensorDesc.UpdateShapeAndStrides(PermuteFunc(DmlInputTensorDesc.Sizes), PermuteFunc(DmlInputTensorDesc.Strides));
-        
-        check(DmlOutputTensorDesc.Sizes == DmlInputTensorDesc.Sizes);        
+		DmlInputTensorDesc.SetFromTensor(InputTensors[0]);
+		DmlInputTensorDesc.SetShape(PermuteFunc(DmlInputTensorDesc.GetSizes()));
+
+		DmlInputTensorDesc.SetStridesFromShape(InputTensors[0].GetShape());
+		DmlInputTensorDesc.SetStrides(PermuteFunc(DmlInputTensorDesc.GetStrides()));
+
+		if (DmlInputTensorDesc.Validate())
+		{
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize Transpose input for DML inference"));
+			return false;
+		}
+
+		// Initialize Output tensor desc
+		FTensorDescDml DmlOutputTensorDesc;
+
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensors[0])
+				.Validate())
+		{
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize Transpose output for DML inference"));
+			return false;
+		}
+
+		check(Util::IsSameShape(DmlOutputTensorDesc, DmlInputTensorDesc));
 
 		DML_ELEMENT_WISE_IDENTITY_OPERATOR_DESC DmlIdentityOpDesc{};
 
-        DmlIdentityOpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-        DmlIdentityOpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+		DmlIdentityOpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		DmlIdentityOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 
 		return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_ELEMENT_WISE_IDENTITY, &DmlIdentityOpDesc} );
-
 	}
 };
 

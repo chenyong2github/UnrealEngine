@@ -131,24 +131,29 @@ public:
 	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
 	{
 		
-#define SET_DMLTENSORDESC_FROM_TENSOR_COND(OpDesc, Tensor, Name, Cond)\
-		DmlUtil::FTensorDesc	Dml##Name{};\
+#define SET_DMLTENSORDESC_FROM_TENSOR_COND_DATATYPE(OpDesc, Tensor, Name, DataType, Cond)\
+		FTensorDescDml	Dml##Name##Desc;\
 		if(Cond)\
 		{\
-			if (!Dml##Name.InitFromTensor(Tensor, 4))\
+			if (!Dml##Name##Desc\
+					.SetTensorRank(4, 4)\
+					.SetShape(Tensor.GetShape())\
+					.SetDataType(DataType)\
+					.Validate())\
 			{\
 				UE_LOG(LogNNE, Error, TEXT("Failed to initialize GRU's "#Name" for DML inference"));\
 				return false;\
 			}\
-			##OpDesc.##Name = &Dml##Name.Desc;\
+			##OpDesc.##Name = Dml##Name##Desc.GetDmlDesc();\
 		}\
 		else\
 		{\
 			##OpDesc.##Name = nullptr;\
 		}
 
-#define SET_DMLTENSORDESC_FROM_TENSOR(OpDesc, Tensor, Name)	SET_DMLTENSORDESC_FROM_TENSOR_COND(OpDesc, Tensor, Name, true)
+#define SET_DMLTENSORDESC_FROM_TENSOR_COND(OpDesc, Tensor, Name, Cond)	SET_DMLTENSORDESC_FROM_TENSOR_COND_DATATYPE(OpDesc, Tensor, Name, Tensor.GetDataType(), Cond)
 
+#define SET_DMLTENSORDESC_FROM_TENSOR(OpDesc, Tensor, Name)	SET_DMLTENSORDESC_FROM_TENSOR_COND(OpDesc, Tensor, Name, true)
 
 		check(InputTensors.Num() >= 3 && InputTensors.Num() <= 6);
 		check(OutputTensors.Num() >= 0 && OutputTensors.Num() <= 2);
@@ -224,13 +229,11 @@ public:
 		SET_DMLTENSORDESC_FROM_TENSOR(DmlGRUOpDesc, InputTensors[1], WeightTensor)
 		SET_DMLTENSORDESC_FROM_TENSOR(DmlGRUOpDesc, InputTensors[2], RecurrenceTensor)
 		SET_DMLTENSORDESC_FROM_TENSOR_COND(DmlGRUOpDesc, InputTensors[3], BiasTensor, InputTensors.Num() >= 4)
-		SET_DMLTENSORDESC_FROM_TENSOR_COND(DmlGRUOpDesc, InputTensors[4], SequenceLengthsTensor, InputTensors.Num() >= 5)
 		// Cast SequenceLengthsTensor from int32 to uint32 due to differences in representation between ONNX and DML formats.
-		DmlSequenceLengthsTensor.BuffDesc.DataType = DML_TENSOR_DATA_TYPE::DML_TENSOR_DATA_TYPE_UINT32;
+		SET_DMLTENSORDESC_FROM_TENSOR_COND_DATATYPE(DmlGRUOpDesc, InputTensors[4], SequenceLengthsTensor, ENNETensorDataType::UInt32, InputTensors.Num() >= 5)
 		SET_DMLTENSORDESC_FROM_TENSOR_COND(DmlGRUOpDesc, InputTensors[5], HiddenInitTensor, InputTensors.Num() >= 6)
 		SET_DMLTENSORDESC_FROM_TENSOR_COND(DmlGRUOpDesc, OutputTensors[0], OutputSequenceTensor, OutputTensors.Num() >= 1)
 		SET_DMLTENSORDESC_FROM_TENSOR_COND(DmlGRUOpDesc, OutputTensors[1], OutputSingleTensor, OutputTensors.Num() >= 2)
-
 
 		DmlGRUOpDesc.Direction = DirectionFromString(Attributes.GetValueOrDefault<FString>(TEXT("direction"), TEXT("forward")));
 		
@@ -245,13 +248,11 @@ public:
 		check(DmlGRUOpDesc.Direction == DML_RECURRENT_NETWORK_DIRECTION_BIDIRECTIONAL ?
 				(Activations.Num() == 4) : (Activations.Num() == 2));
 
-		
 		if(Attributes.GetAttributeValue(TEXT("clip")) != nullptr)
 		{
 			UE_LOG(LogNNE, Error, TEXT("GRU's clip attribute not supported for DML inference"));
 			return false;
 		}
-		
 		
 		const int HiddenSizeParam = Attributes.GetValueOrDefault<int32>(TEXT("hidden_size"), HiddenSize);
 		check(HiddenSize == HiddenSizeParam);
@@ -291,12 +292,8 @@ public:
 		DmlGRUOpDesc.LinearBeforeReset = 
 			Attributes.GetValueOrDefault<int32>(TEXT("linear_before_reset"), 0) == 0 ? false : true;
 
-		DML_OPERATOR_DESC DmlOpDesc{};
+		return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_GRU, &DmlGRUOpDesc });
 
-		DmlOpDesc.Type = DML_OPERATOR_GRU;
-		DmlOpDesc.Desc = &DmlGRUOpDesc;
-
-		return CreateOperator(Device, DmlOpDesc);
 #undef SET_DMLTENSORDESC_FROM_TENSOR
 #undef SET_DMLTENSORDESC_FROM_TENSOR_COND
 	}

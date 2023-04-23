@@ -59,7 +59,7 @@ public:
 		{
 			if (!InputTensors[1].HasPreparedData())
 			{
-				UE_LOG(LogNNE, Warning, TEXT("pads is only supported as an attribute or a constant tensor, it is here a variable tensor of name %s."), *InputTensors[1].GetName());
+				UE_LOG(LogNNE, Error, TEXT("pads is only supported as an attribute or a constant tensor, it is here a variable tensor of name %s."), *InputTensors[1].GetName());
 				return false;
 			}
 			Pads.Append(InputTensors[1].GetPreparedData<int64>());
@@ -70,34 +70,36 @@ public:
 			Pads = Attributes.GetValue<TArray<int32>>(TEXT("pads"));
 		}
 
-		
-
 		if (InputTensor.GetShape().Rank() * 2 != Pads.Num())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("pads attribute lenght (%d) should be twice the rank of input X (%d)."), Pads.Num(), InputTensor.GetShape().Rank());
+			UE_LOG(LogNNE, Error, TEXT("pads attribute lenght (%d) should be twice the rank of input X (%d)."), Pads.Num(), InputTensor.GetShape().Rank());
 			return false;
 		}
 		
 		// Initialize tensor descriptors
-		DmlUtil::FTensorDesc	DmlInputTensor{};
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
+		FTensorDescDml	DmlInputTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!InitDmlTensorDesc(DmlInputTensor, InputTensor))
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		if (!InitDmlTensorDesc(DmlOutputTensor, OutputTensor))
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		DML_PADDING_OPERATOR_DESC	PadOpDesc{};
 
-		PadOpDesc.InputTensor = &DmlInputTensor.Desc;
-		PadOpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		PadOpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		PadOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		PadOpDesc.PaddingMode = Mode;
 		PadOpDesc.PaddingValue = Value;
 		PadOpDesc.DimensionCount = Pads.Num() / 2;

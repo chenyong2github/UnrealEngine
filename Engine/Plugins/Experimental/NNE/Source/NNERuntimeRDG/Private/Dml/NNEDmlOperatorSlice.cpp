@@ -20,18 +20,18 @@ class FOperatorDmlSlice : public FOperatorDml
 	template<typename DataType>
 	void ComputeOffsetsSizesStrides(
 		TArrayView<const NNECore::Internal::FTensor> InputTensors,
-		DmlUtil::FSmallUIntArray& OutOffsets, 
-		DmlUtil::FSmallUIntArray& OutSizes, 
-		DmlUtil::FSmallIntArray& OutStrides)
+		Util::FSmallUIntArray& OutOffsets, 
+		Util::FSmallUIntArray& OutSizes, 
+		Util::FSmallIntArray& OutStrides)
 	{
 		TConstArrayView<DataType> Starts =  InputTensors[1].GetPreparedData<DataType>();
 		TConstArrayView<DataType> Ends = InputTensors[2].GetPreparedData<DataType>();
 		check(Starts.Num() == Ends.Num());
 
-		DmlUtil::FSmallArray<DataType> Axes;
-		DmlUtil::FSmallArray<DataType> Steps;
+		Util::FSmallArray<DataType> Axes;
+		Util::FSmallArray<DataType> Steps;
 
-		if(InputTensors.Num() >= 4)
+		if (InputTensors.Num() >= 4)
 		{
 			auto NormalizeAxes = [NumDims = (DataType) InputTensors[0].GetShape().Rank()] (DataType& Axis)
 			{
@@ -50,7 +50,7 @@ class FOperatorDmlSlice : public FOperatorDml
 			std::iota(Axes.begin(), Axes.end(), 0);
 		}
 
-		if(InputTensors.Num() >= 5)
+		if (InputTensors.Num() >= 5)
 		{
 			Steps = InputTensors[4].GetPreparedData<DataType>();
 			check(Steps.Num() == Axes.Num());
@@ -60,7 +60,7 @@ class FOperatorDmlSlice : public FOperatorDml
 			Steps.Init((DataType)1, Axes.Num());
 		}
 
-		DmlUtil::FSmallUIntArray OutputShape;
+		Util::FSmallUIntArray OutputShape;
 		Algo::Copy(InputTensors[0].GetShape().GetData(), OutputShape);
 		OutSizes = OutputShape;
 		OutOffsets.SetNumZeroed(OutputShape.Num());
@@ -79,11 +79,11 @@ class FOperatorDmlSlice : public FOperatorDml
 			check(Stride != 0);
 
 			uint32 Dim = InputTensors[0].GetShape().GetData()[DimIndex];
-			if(Start < 0 && Start > TNumericLimits<DataType>::Min())
+			if (Start < 0 && Start > TNumericLimits<DataType>::Min())
 			{
 				Start += (DataType) Dim;
 			}
-			if(End < 0 && Start > TNumericLimits<DataType>::Min())
+			if (End < 0 && Start > TNumericLimits<DataType>::Min())
 			{
 				End += (DataType) Dim;
 			}
@@ -128,7 +128,7 @@ public:
 		for(int Idx = 1; Idx < InputTensors.Num(); Idx++)
 		{
 			check(InputTensors[Idx].GetShape().Rank() == 1);
-			if(Idx == 1)
+			if (Idx == 1)
 			{
 				InputIndexDataType = InputTensors[Idx].GetDataType();
 				check( InputIndexDataType == ENNETensorDataType::Int32 
@@ -143,24 +143,29 @@ public:
 		}
 
 		// Initialize Input tensor desc
-        DmlUtil::FTensorDesc DmlInputTensorDesc;
-        if (!DmlInputTensorDesc.InitFromTensor(InputTensors[0], InputTensors[0].GetShape().Rank()))
+        FTensorDescDml DmlInputTensorDesc;
+        
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensors[0])
+				.Validate())
         {
             UE_LOG(LogNNE, Error, TEXT("Failed to initialize Slice input for DML inference"));
             return false;
         }
 
 		// Initialize Output tensor desc
-        DmlUtil::FTensorDesc DmlOutputTensorDesc;
-        if (!DmlOutputTensorDesc.InitFromTensor(OutputTensors[0], OutputTensors[0].GetShape().Rank()))
+        FTensorDescDml DmlOutputTensorDesc;
+        
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensors[0])
+				.Validate())
         {
             UE_LOG(LogNNE, Error, TEXT("Failed to initialize Slice Output for DML inference"));
             return false;
         }
 
-
-		DmlUtil::FSmallUIntArray Offsets, Sizes;
-		DmlUtil::FSmallIntArray Strides;
+		Util::FSmallUIntArray Offsets, Sizes;
+		Util::FSmallIntArray Strides;
 
 		switch(InputIndexDataType)
 		{
@@ -172,11 +177,10 @@ public:
 			break;
 		}
 
-
 		DML_SLICE1_OPERATOR_DESC DmlSliceOpDesc{};
 		
-		DmlSliceOpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-        DmlSliceOpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+		DmlSliceOpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+        DmlSliceOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
         DmlSliceOpDesc.DimensionCount = (uint32) Offsets.Num();
         DmlSliceOpDesc.InputWindowOffsets = Offsets.GetData();
         DmlSliceOpDesc.InputWindowSizes = Sizes.GetData();

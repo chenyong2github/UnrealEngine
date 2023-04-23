@@ -40,7 +40,7 @@ public:
         bool bAllowZero = (bool)
 			( Attributes.GetValueOrDefault<int32>(TEXT("allowzero"), 0) );
 
-        DmlUtil::FSmallUIntArray ReshapedShape;
+        Util::FSmallUIntArray ReshapedShape;
 
         switch(InputTensors[1].GetDataType())
         {
@@ -69,17 +69,22 @@ public:
         
         check(ReshapedShape == OutputTensors[0].GetShape().GetData());
 
-        DmlUtil::FTensorDesc DmlInputTensorDesc;
-        if (!DmlInputTensorDesc.InitFromTensor(InputTensors[0], ReshapedShape.Num(), 
-			/*Broadcast =*/ MakeArrayView((uint32*) nullptr, 0), 
-			/*CustomShape =*/ ReshapedShape))
+        FTensorDescDml DmlInputTensorDesc;
+
+        if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensors[0])
+				.SetShape(ReshapedShape)
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize Reshape's input tensor for DML inference"));
 			return false;
 		}
 
-        DmlUtil::FTensorDesc DmlOutputTensorDesc;
-        if (!DmlOutputTensorDesc.InitFromTensor(OutputTensors[0], OutputTensors[0].GetShape().Rank()))
+        FTensorDescDml DmlOutputTensorDesc;
+
+        if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensors[0])
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize Reshape's output tensor for DML inference"));
 			return false;
@@ -87,11 +92,10 @@ public:
         
 		DML_ELEMENT_WISE_IDENTITY_OPERATOR_DESC DmlIdentityOpDesc{};
 
-        DmlIdentityOpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-        DmlIdentityOpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+        DmlIdentityOpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+        DmlIdentityOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 
 		return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_ELEMENT_WISE_IDENTITY, &DmlIdentityOpDesc} );
-
 	}
 };
 

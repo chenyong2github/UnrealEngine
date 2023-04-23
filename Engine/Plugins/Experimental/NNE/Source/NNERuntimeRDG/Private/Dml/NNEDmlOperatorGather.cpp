@@ -56,7 +56,7 @@ public:
 
 		// Compute output shape
 		const int32 OutputRank = IndicesShape.Rank() + InputShape.Rank() - 1;
-		DmlUtil::FSmallUIntArray OutputShape;
+		Util::FSmallUIntArray OutputShape;
 		int32 DataRankIdx = 0;
 
 		for (; DataRankIdx < Axis; ++DataRankIdx)
@@ -79,33 +79,40 @@ public:
 		}
 
 		// Initialize tensor descriptors
-		DmlUtil::FTensorDesc	DmlInputTensor{};
-		DmlUtil::FTensorDesc	DmlIndicesTensor{};
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
+		FTensorDescDml	DmlInputTensorDesc;
+		FTensorDescDml	DmlIndicesTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!DmlInputTensor.InitFromTensor(InputTensor, 1))
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		if (!DmlIndicesTensor.InitFromTensor(IndicesTensor, InputShape.Rank()))
+		if (!DmlIndicesTensorDesc
+				.SetFromTensor(IndicesTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		if (!DmlOutputTensor.InitFromTensor(OutputTensor, InputShape.Rank(), MakeEmptyArrayView<uint32>(), OutputShape))
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensor)
+				.SetShape(OutputShape)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		DML_GATHER_OPERATOR_DESC	OpDesc{};
 
-		OpDesc.InputTensor = &DmlInputTensor.Desc;
-		OpDesc.IndicesTensor = &DmlIndicesTensor.Desc;
-		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		OpDesc.IndicesTensor = DmlIndicesTensorDesc.GetDmlDesc();
+		OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		OpDesc.Axis = Axis;
 		OpDesc.IndexDimensions = IndicesTensor.GetShape().Rank();
 

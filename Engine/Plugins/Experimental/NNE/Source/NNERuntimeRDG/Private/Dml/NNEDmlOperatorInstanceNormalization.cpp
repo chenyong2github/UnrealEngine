@@ -38,15 +38,18 @@ public:
 		float	Epsilon = Attributes.GetValueOrDefault<float>(TEXT("epsilon"), DefaultEpsilon);
 
 		// Initialize tensor descriptors
-		DmlUtil::FTensorDesc	DmlInputTensor{};
-		DmlUtil::FTensorDesc	DmlScalingTensor{};
-		DmlUtil::FTensorDesc	DmlBiasTensor{};
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
+		FTensorDescDml	DmlInputTensorDesc;
+		FTensorDescDml	DmlScalingTensorDesc;
+		FTensorDescDml	DmlBiasTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 			
 		// Make sure that input is 4D
-		if (!DmlInputTensor.InitFromTensor(InputTensor, 4))
+		if (!DmlInputTensorDesc
+				.SetTensorRank(4, 4)
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
@@ -54,9 +57,12 @@ public:
 		{
 			const NNECore::Internal::FTensor& ScaleTensor = InputTensors[1];
 
-			if (!DmlScalingTensor.InitFromTensor1D(ScaleTensor, DmlInputTensor.Sizes.Num()))
+			if (!DmlScalingTensorDesc
+					.SetTensorRank(4, 4)
+					.SetFromTensor(ScaleTensor)
+					.Validate())
 			{
-				UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+				UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 				return false;
 			}
 		}
@@ -65,16 +71,22 @@ public:
 		{
 			const NNECore::Internal::FTensor& BiasTensor = InputTensors[2];
 
-			if (!DmlBiasTensor.InitFromTensor1D(BiasTensor, DmlInputTensor.Sizes.Num()))
+			if (!DmlBiasTensorDesc
+					.SetTensorRank(4, 4)
+					.SetFromTensor(BiasTensor)
+					.Validate())
 			{
-				UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+				UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 				return false;
 			}
 		}
 
-		if (!DmlOutputTensor.InitFromTensor(OutputTensor, 4))
+		if (!DmlOutputTensorDesc
+					.SetTensorRank(4, 4)
+					.SetFromTensor(OutputTensor)
+					.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
@@ -87,7 +99,7 @@ public:
 		// at axis 2 up to the last spatial dimension).
 		const int32 InputRank = DmlInputTensor.Sizes.Num();
 
-		DmlUtil::FSmallUIntArray Axes;
+		Util::FSmallUIntArray Axes;
 		Axes.SetNumUninitialized(NcdhwSpatialDimensionCount);
 
 		for (int32 Dim = 0, Value = InputRank - Axes.Num(); Dim < Axes.Num(); ++Dim, ++Value)
@@ -97,10 +109,10 @@ public:
 
 		DML_MEAN_VARIANCE_NORMALIZATION1_OPERATOR_DESC	OpDesc{};
 
-		OpDesc.InputTensor = &DmlInputTensor.Desc;
-		OpDesc.ScaleTensor = InputTensors.Num() > 1 ? &DmlScalingTensor.Desc : nullptr;
-		OpDesc.BiasTensor = InputTensors.Num() > 2 ? &DmlBiasTensor.Desc : nullptr;
-		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		OpDesc.InputTensor = DmlInputTensorDesc.DmlDesc();
+		OpDesc.ScaleTensor = InputTensors.Num() > 1 ? DmlScalingTensorDesc.DmlDesc() : nullptr;
+		OpDesc.BiasTensor = InputTensors.Num() > 2 ? DmlBiasTensorDesc.DmlDesc() : nullptr;
+		OpDesc.OutputTensor = DmlOutputTensorDesc.DmlDesc();
 		OpDesc.AxisCount = Axes.Num();
 		OpDesc.Axes = Axes.GetData();
 		OpDesc.NormalizeVariance = true;
@@ -111,17 +123,17 @@ public:
 
 		DML_MEAN_VARIANCE_NORMALIZATION_OPERATOR_DESC	OpDesc{};
 
-		OpDesc.InputTensor = &DmlInputTensor.Desc;
-		OpDesc.ScaleTensor = InputTensors.Num() > 1 ? &DmlScalingTensor.Desc : nullptr;
-		OpDesc.BiasTensor = InputTensors.Num() > 2 ? &DmlBiasTensor.Desc : nullptr;
-		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		OpDesc.ScaleTensor = InputTensors.Num() > 1 ? DmlScalingTensorDesc.GetDmlDesc() : nullptr;
+		OpDesc.BiasTensor = InputTensors.Num() > 2 ? DmlBiasTensorDesc.GetDmlDesc() : nullptr;
+		OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		OpDesc.CrossChannel = false;
 		OpDesc.NormalizeVariance = true;
 		OpDesc.Epsilon = Epsilon;
 
 		return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_MEAN_VARIANCE_NORMALIZATION, &OpDesc });
-#endif
 
+#endif
 	}
 };
 

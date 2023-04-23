@@ -5,134 +5,129 @@
 #include "NNEDmlOperator.h"
 #include "ID3D12DynamicRHI.h"
 
+#include "Algo/Compare.h"
+
 namespace UE::NNERuntimeRDG::Private::Dml
 {
 
-namespace DmlUtil
+namespace Util
 {
 
-	bool FTensorDesc::InitFromTensor(const NNECore::Internal::FTensor& Tensor, int32 MinTensorRank, TConstArrayView<uint32> BroadcastShape, TConstArrayView<uint32> CustomShape)
+static bool IsSameShape(TConstArrayView<uint32> Left, TConstArrayView<uint32> Right)
+{
+	return Algo::Compare(Left, Right);
+}
+
+bool IsSameShape(const NNECore::Internal::FTensor& Left, const NNECore::Internal::FTensor& Right)
+{
+	return IsSameShape(Left.GetShape().GetData(), Right.GetShape().GetData());
+}
+
+bool IsSameShape(const FTensorDescDml& Left, const FTensorDescDml& Right)
+{
+	return IsSameShape(Left.GetSizes(), Right.GetSizes());
+}
+
+
+DML_TENSOR_DATA_TYPE GetTensorDataType(ENNETensorDataType DataType)
+{
+	switch (DataType)
 	{
-		Reset();
+	case ENNETensorDataType::Double:
+		return DML_TENSOR_DATA_TYPE_FLOAT64;
 
-		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(Tensor.GetDataType());
+	case ENNETensorDataType::Float:
+		return DML_TENSOR_DATA_TYPE_FLOAT32;
 
-		if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
-		{
-			return false;
-		}
+	case ENNETensorDataType::Half:
+		return DML_TENSOR_DATA_TYPE_FLOAT16;
 
-		TConstArrayView<uint32> InShape = CustomShape.IsEmpty() ? Tensor.GetShape().GetData() : CustomShape;
+	case ENNETensorDataType::UInt64:
+		return DML_TENSOR_DATA_TYPE_UINT64;
 
-		ElemSizeInBytes = Tensor.GetElemByteSize();
+	case ENNETensorDataType::UInt32:
+		return DML_TENSOR_DATA_TYPE_UINT32;
 
-		if (BroadcastShape.IsEmpty())
-		{
-			SetShape(InShape, MinTensorRank);
-		}
-		else
-		{
-			SetShapeAndStrides(InShape, BroadcastShape);
-		}
+	case ENNETensorDataType::UInt16:
+		return DML_TENSOR_DATA_TYPE_UINT16;
 
-		//Note: We should support tensor padding using strides defined in FTensorDesc
-		//DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc.Strides);
+	case ENNETensorDataType::UInt8:
+		return DML_TENSOR_DATA_TYPE_UINT8;
 
-		Update(DmlDataType, Tensor.HasPreparedData());
+	case ENNETensorDataType::Int64:
+		return DML_TENSOR_DATA_TYPE_INT64;
 
-		return true;
+	case ENNETensorDataType::Int32:
+		return DML_TENSOR_DATA_TYPE_INT32;
+
+	case ENNETensorDataType::Int16:
+		return DML_TENSOR_DATA_TYPE_INT16;
+
+	case ENNETensorDataType::Int8:
+		return DML_TENSOR_DATA_TYPE_INT8;
+
+	default:
+		return DML_TENSOR_DATA_TYPE_UNKNOWN;
 	}
+}
 
-	bool FTensorDesc::InitFromTensor1D(const NNECore::Internal::FTensor& Tensor, int32 Rank)
+} // namespace Util 
+
+FTensorDescDml::FTensorDescDml()
+	: MinTensorRank(1)
+	, MaxTensorRank(DML_TENSOR_DIMENSION_COUNT_MAX1)
+	, bIsValidated(false)
+{
+	Sizes.Reset();
+	Strides.Reset();
+	BuffDesc = DML_BUFFER_TENSOR_DESC{};
+	Desc = DML_TENSOR_DESC{};
+}
+
+FTensorDescDml& FTensorDescDml::SetTensorRank(int32 MinRank, int32 MaxRank)
+{
+	MinTensorRank = MinRank;
+	MaxTensorRank = MaxRank;
+	return *this;
+}
+
+FTensorDescDml& FTensorDescDml::SetShape(TConstArrayView<uint32> Shape)
+{
+	check(!bIsValidated);
+	
+	if (!bIsValidated)
 	{
-		Reset();
-
-		if (Tensor.GetShape().Rank() != 1)
-		{
-			return false;
-		}
-
-		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(Tensor.GetDataType());
-
-		if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
-		{
-			return false;
-		}
-		
-		ElemSizeInBytes = Tensor.GetElemByteSize();
-
-		SetShape1D(Tensor.GetShape().GetData()[0], Rank);
-		Update(DmlDataType, Tensor.HasPreparedData());
-
-		return true;
-	}
-
-	void FTensorDesc::UpdateShapeAndStrides(TConstArrayView<uint32> InShape, TConstArrayView<uint32> InStrides)
-	{
-		check(!InShape.IsEmpty());
-
-		Sizes = InShape;
-		BuffDesc.Sizes = Sizes.GetData();
-		BuffDesc.DimensionCount = Sizes.Num();
-
-		if (!InStrides.IsEmpty())
-		{
-			check(InStrides.Num() == InShape.Num());
-			Strides = InStrides;
-			BuffDesc.Strides = Strides.GetData();
-		}
-		else
-		{
-			Strides.Reset();
-			BuffDesc.Strides = nullptr;
-		}
-	}
-
-	void FTensorDesc::SetStridesFromTensor(const NNECore::Internal::FTensor& InputDesc)
-	{
-		uint32 CurrStride = 1;
-
-		Strides.SetNum(InputDesc.GetShape().Rank());
-		
-		for (int32 i = InputDesc.GetShape().Rank() - 1; i >= 0; --i)
-		{
-			Strides[i] = CurrStride;
-			CurrStride *= InputDesc.GetShape().GetData()[i];
-		}
-	}
-
-	void FTensorDesc::Reset()
-	{
-		BuffDesc = DML_BUFFER_TENSOR_DESC{};
-		Desc = DML_TENSOR_DESC{};
 		Sizes.Reset();
-		Strides.Reset();
-		ElemSizeInBytes = 0;
-	}
-
-	void FTensorDesc::SetShape(TConstArrayView<uint32> Shape, int32 MinTensorRank)
-	{
-		Sizes = FSmallUIntArray(Shape.GetData(), Shape.Num());
-		const int32 DimOffset = MinTensorRank - Sizes.Num();
-
-		for (int Dim = 0; Dim < DimOffset; ++Dim)
+		
+		if (Shape.Num() > 0)
 		{
-			Sizes.Insert(1, 0);
+			Sizes.Append(Shape.GetData(), Shape.Num());
 		}
-
+		// Handle scalar tensors
+		else if (Shape.Num() == 0)
+		{
+			Sizes.Add(1);
+		}
 	}
 
-	void FTensorDesc::SetShapeAndStrides(TConstArrayView<uint32> Shape, TConstArrayView<uint32> BroadcastShape)
+	return *this;
+}
+
+FTensorDescDml& FTensorDescDml::SetShape(TConstArrayView<uint32> Shape, TConstArrayView<uint32> BroadcastShape)
+{
+	check(!bIsValidated);
+	
+	if (!bIsValidated)
 	{
 		const uint32 TargetDimension = BroadcastShape.Num() != -1 ? BroadcastShape.Num() : Shape.Num();
 		checkf(BroadcastShape.Num() >= Shape.Num(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), Shape.Num(), TargetDimension);
-		
+
 		Sizes.SetNum(TargetDimension);
 		Strides.SetNum(TargetDimension);
 
 		const int32 DimensionOffset = int32(TargetDimension - Shape.Num());
-		
-		for (int32 i = 0; i < (int32) TargetDimension; ++i)
+
+		for (int32 i = 0; i < (int32)TargetDimension; ++i)
 		{
 			Sizes[i] = i < DimensionOffset ? 1 : Shape[i - DimensionOffset];
 		}
@@ -150,9 +145,22 @@ namespace DmlUtil
 		}
 	}
 
-	void FTensorDesc::SetShape1D(uint32 Dimension, int32 Rank)
+	return *this;
+}
+
+FTensorDescDml& FTensorDescDml::SetShape1D(uint32 Dimension, int32 Rank)
+{
+	check(!bIsValidated);
+	
+	if (!bIsValidated)
 	{
 		Sizes.Reset();
+
+		// Handle scalar tensors
+		if (Dimension == 0)
+		{
+			Dimension = 1;
+		}
 
 		Sizes.Add(1);
 		Sizes.Add(Dimension);
@@ -164,185 +172,160 @@ namespace DmlUtil
 		}
 	}
 
-	void FTensorDesc::Update(DML_TENSOR_DATA_TYPE DataType, bool bHasWeightData)
+	return *this;
+}
+
+FTensorDescDml& FTensorDescDml::SetStridesFromShape(TConstArrayView<uint32> Shape)
+{
+	check(!bIsValidated);
+	
+	if (!bIsValidated)
 	{
-		BuffDesc.DataType = DataType;
-		BuffDesc.Flags = bHasWeightData ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
+		uint32 CurrStride = 1;
+		Strides.SetNum(Shape.Num());
+
+		for (int32 i = Shape.Num() - 1; i >= 0; --i)
+		{
+			Strides[i] = CurrStride;
+			CurrStride *= Shape[i];
+		}
+	}
+
+	return *this;
+}
+
+FTensorDescDml& FTensorDescDml::SetStrides(TConstArrayView<uint32> InStrides)
+{
+	check(!bIsValidated);
+
+	if (!bIsValidated)
+	{
+		Strides = InStrides;
+	}
+
+	return *this;
+}
+
+FTensorDescDml& FTensorDescDml::SetDataType(ENNETensorDataType DataType)
+{
+	check(!bIsValidated);
+	
+	if (!bIsValidated)
+	{
+		DML_TENSOR_DATA_TYPE DmlDataType = Util::GetTensorDataType(DataType);
+		check(DmlDataType != DML_TENSOR_DATA_TYPE_UNKNOWN);
+	
+		uint64 ElemByteSize = CalculateBufferSize(UE::NNECore::GetTensorDataTypeSizeInBytes(DataType));
+		check(ElemByteSize > 0)
+
+		BuffDesc.DataType = DmlDataType;
+		BuffDesc.TotalTensorSizeInBytes = CalculateBufferSize(ElemByteSize);
+	}
+
+	return *this;
+}
+
+FTensorDescDml& FTensorDescDml::SetDataOwnedByDml(bool bSetOwnedByDml)
+{
+	check(!bIsValidated);
+	
+	if (!bIsValidated)
+	{
+		BuffDesc.Flags = bSetOwnedByDml ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
+	}
+
+	return *this;
+}
+
+bool FTensorDescDml::Validate()
+{
+	check(!bIsValidated);
+	
+	if (!bIsValidated)
+	{
+		if (BuffDesc.DataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
+		{
+			UE_LOG(LogNNE, Error, TEXT("Invalid DML tensor data type"));
+			return false;
+		}
+
+		if (BuffDesc.TotalTensorSizeInBytes == 0)
+		{
+			UE_LOG(LogNNE, Error, TEXT("Invalid DML tensor size, it's 0"));
+			return false;
+		}
+
+		// Match minimum tensor rank
+		const int32 DimOffset = MinTensorRank - Sizes.Num();
+
+		for (int Dim = 0; Dim < DimOffset; ++Dim)
+		{
+			Sizes.Insert(1, 0);
+		}
+
+		const int32 Rank = Sizes.Num();
+
+		if (Rank < MinTensorRank || Rank > MaxTensorRank)
+		{
+			UE_LOG(LogNNE, Error, TEXT("Invalid DML tensor rank:%d [%d,%d]"), Rank, MinTensorRank, MaxTensorRank);
+			return false;
+		}
+
+		if (!Strides.IsEmpty() && Strides.Num() != Rank)
+		{
+			UE_LOG(LogNNE, Error, TEXT("Invalid DML tensor stride rank:%d [size:%d]"), Rank, Strides.Num());
+			return false;
+		}
+
 		BuffDesc.DimensionCount = Sizes.Num();
 		BuffDesc.Sizes = Sizes.GetData();
 		BuffDesc.Strides = Strides.IsEmpty() ? nullptr : Strides.GetData();
-		BuffDesc.TotalTensorSizeInBytes = CalculateBufferSize();
+	
+		Desc.Type = DML_TENSOR_TYPE_BUFFER;
+		Desc.Desc = &BuffDesc;
 
-		Desc = DML_TENSOR_DESC{ DML_TENSOR_TYPE_BUFFER, &BuffDesc };
+		bIsValidated = true;
 	}
 
-	uint64 FTensorDesc::CalculateBufferSize()
+	return bIsValidated;
+}
+
+uint64 FTensorDescDml::CalculateBufferSize(uint64 ElemSizeInBytes)
+{
+	if (ElemSizeInBytes == 0)
 	{
-		if (ElemSizeInBytes == 0)
-		{
-			return 0;
-		}
-
-		uint64 MinSizeInBytes = 0;
-		
-		if (Strides.IsEmpty())
-		{
-			MinSizeInBytes = Sizes[0];
-
-			for (int32 i = 1; i < Sizes.Num(); ++i)
-			{
-				MinSizeInBytes *= Sizes[i];
-			}
-
-			MinSizeInBytes *= ElemSizeInBytes;
-		}
-		else
-		{
-			uint32 IndexOfLastElement = 0;
-
-			for (int32 i = 0; i < Sizes.Num(); ++i)
-			{
-				IndexOfLastElement += (Sizes[i] - 1) * Strides[i];
-			}
-
-			MinSizeInBytes = (static_cast<uint64>(IndexOfLastElement) + 1) * ElemSizeInBytes;
-		}
-
-		// Round up to the nearest 4 bytes
-		MinSizeInBytes = (MinSizeInBytes + 3) & ~3ull;
-
-		return MinSizeInBytes;
+		return 0;
 	}
 
-
-
-	void SetTensorStrides(FTensorDesc& TensorDesc, const NNECore::Internal::FTensor& InputDesc)
-	{
-		uint32 CurrStride = 1;
-
-		TensorDesc.Strides.SetNum(InputDesc.GetShape().Rank());
+	uint64 MinSizeInBytes = 0;
 		
-		for (int32 i = InputDesc.GetShape().Rank() - 1; i >= 0; --i)
+	if (Strides.IsEmpty())
+	{
+		MinSizeInBytes = Sizes[0];
+
+		for (int32 i = 1; i < Sizes.Num(); ++i)
 		{
-			TensorDesc.Strides[i] = CurrStride;
-			CurrStride *= InputDesc.GetShape().GetData()[i];
+			MinSizeInBytes *= Sizes[i];
 		}
+
+		MinSizeInBytes *= ElemSizeInBytes;
 	}
-
-	void SetTensorSizesAndStridesForBroadcast(FTensorDesc& TensorDesc, const NNECore::Internal::FTensor& InputDesc, const NNECore::Internal::FTensor& TargetDesc)
+	else
 	{
-		static_assert(NNECore::FTensorShape::MaxRank <= 8);
-		
-		const uint32 TargetDimension = TargetDesc.GetShape().Rank() != -1 ? TargetDesc.GetShape().Rank() : InputDesc.GetShape().Rank();
-		checkf(TargetDesc.GetShape().Rank() >= InputDesc.GetShape().Rank(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), InputDesc.GetShape().Rank(), TargetDimension);
-		
-		TensorDesc.Sizes.SetNum(TargetDimension);
-		TensorDesc.Strides.SetNum(TargetDimension);
-
-		const int32 DimensionOffset = int32(TargetDimension - InputDesc.GetShape().Rank());
-		
-		for (int32 i = 0; i < (int32) TargetDimension; ++i)
-		{
-			TensorDesc.Sizes[i] = i < DimensionOffset ? 1 : InputDesc.GetShape().GetData()[i - DimensionOffset];
-		}
-
-		uint32 CurrStride = 1;
-
-		for (int32 i = TargetDimension - 1; i >= 0; --i)
-		{
-			const bool bBroadcast = TensorDesc.Sizes[i] < TargetDesc.GetShape().GetData()[i];
-
-			TensorDesc.Strides[i] = bBroadcast ? 0 : CurrStride;
-			CurrStride *= TensorDesc.Sizes[i];
-
-			TensorDesc.Sizes[i] = TargetDesc.GetShape().GetData()[i];
-		}
-	}
-
-	bool IsSameShape(const NNECore::Internal::FTensor& Left, const NNECore::Internal::FTensor& Right)
-	{
-		if (Left.GetShape().Rank() != Right.GetShape().Rank())
-		{
-			return false;
-		}
-		
-		for (int32 Idx = 0; Idx < Left.GetShape().Rank(); ++Idx)
-		{
-			if (Left.GetShape().GetData()[Idx] != Right.GetShape().GetData()[Idx])
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	DML_TENSOR_DATA_TYPE GetTensorDataType(ENNETensorDataType DataType)
-	{
-		switch (DataType)
-		{
-		case ENNETensorDataType::Double:
-			return DML_TENSOR_DATA_TYPE_FLOAT64;
-
-		case ENNETensorDataType::Float:
-			return DML_TENSOR_DATA_TYPE_FLOAT32;
-
-		case ENNETensorDataType::Half:
-			return DML_TENSOR_DATA_TYPE_FLOAT16;
-
-		case ENNETensorDataType::UInt64:
-			return DML_TENSOR_DATA_TYPE_UINT64;
-
-		case ENNETensorDataType::UInt32:
-			return DML_TENSOR_DATA_TYPE_UINT32;
-
-		case ENNETensorDataType::UInt16:
-			return DML_TENSOR_DATA_TYPE_UINT16;
-
-		case ENNETensorDataType::UInt8:
-			return DML_TENSOR_DATA_TYPE_UINT8;
-
-		case ENNETensorDataType::Int64:
-			return DML_TENSOR_DATA_TYPE_INT64;
-
-		case ENNETensorDataType::Int32:
-			return DML_TENSOR_DATA_TYPE_INT32;
-
-		case ENNETensorDataType::Int16:
-			return DML_TENSOR_DATA_TYPE_INT16;
-
-		case ENNETensorDataType::Int8:
-			return DML_TENSOR_DATA_TYPE_INT8;
-
-		default:
-			return DML_TENSOR_DATA_TYPE_UNKNOWN;
-		}
-	}
-
-	uint64 CalculateBufferSize(const FTensorDesc& DmlTensor, const NNECore::Internal::FTensor& Desc)
-	{
-		uint64 ElemSizeInBytes = Desc.GetElemByteSize();
-		
-		if (ElemSizeInBytes == 0)
-		{
-			return 0;
-		}
-
-		uint64 MinSizeInBytes = 0;		
 		uint32 IndexOfLastElement = 0;
 
-		for (int32 i = 0; i < DmlTensor.Sizes.Num(); ++i)
+		for (int32 i = 0; i < Sizes.Num(); ++i)
 		{
-			IndexOfLastElement += (DmlTensor.Sizes[i] - 1) * DmlTensor.Strides[i];
+			IndexOfLastElement += (Sizes[i] - 1) * Strides[i];
 		}
 
 		MinSizeInBytes = (static_cast<uint64>(IndexOfLastElement) + 1) * ElemSizeInBytes;
-		
-		// Round up to the nearest 4 bytes.
-		MinSizeInBytes = (MinSizeInBytes + 3) & ~3ull;
-
-		return MinSizeInBytes;
 	}
+
+	// Round up to the nearest 4 bytes
+	MinSizeInBytes = (MinSizeInBytes + 3) & ~3ull;
+
+	return MinSizeInBytes;
 }
 
 //
@@ -361,104 +344,6 @@ TConstArrayView<int32> FOperatorDml::GetRemappedInputs() const
 IDMLOperator* FOperatorDml::GetOperator()
 {
 	return DmlOp;
-}
-
-bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& Tensor)
-{
-	DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(Tensor.GetDataType());
-
-	if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
-	{
-		DmlTensorDesc.BuffDesc = DML_BUFFER_TENSOR_DESC{};
-		DmlTensorDesc.Desc = DML_TENSOR_DESC{};
-
-		return false;
-	}
-
-	DmlTensorDesc.Sizes = Tensor.GetShape().GetData();
-	//Note: We should support tensor padding using strides defined in FTensorDesc
-	//DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc.Strides);
-		
-	DML_BUFFER_TENSOR_DESC& BuffDesc = DmlTensorDesc.BuffDesc;
-
-	BuffDesc = DML_BUFFER_TENSOR_DESC{};
-	BuffDesc.DataType = DmlDataType;
-	BuffDesc.Flags = Tensor.HasPreparedData() ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
-	BuffDesc.DimensionCount = Tensor.GetShape().Rank();
-	BuffDesc.Sizes = DmlTensorDesc.Sizes.GetData();
-	BuffDesc.Strides = nullptr;
-	BuffDesc.TotalTensorSizeInBytes = Tensor.GetDataSize(); // DmlUtil::CalculateBufferSize(DmlTensorDesc, Tensor);
-
-	static DmlUtil::FSmallUIntArray ScalarShape({ 1 });
-
-	//Handle scalar tensors
-	if (Tensor.GetShape().Rank() == 0)
-	{
-		BuffDesc.DimensionCount = ScalarShape.Num();
-		DmlTensorDesc.Sizes = ScalarShape;
-		BuffDesc.Sizes = ScalarShape.GetData();
-	}
-
-	DmlTensorDesc.Desc = DML_TENSOR_DESC{ DML_TENSOR_TYPE_BUFFER, &DmlTensorDesc.BuffDesc };
-
-	return true;
-}
-
-bool FOperatorDml::InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& Tensor, const NNECore::Internal::FTensor& Broadcast)
-{
-	DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(Tensor.GetDataType());
-
-	if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
-	{
-		DmlTensorDesc.BuffDesc = DML_BUFFER_TENSOR_DESC{};
-		DmlTensorDesc.Desc = DML_TENSOR_DESC{};
-
-		return false;
-	}
-
-	if (DmlUtil::IsSameShape(Tensor, Broadcast))
-	{
-		DmlTensorDesc.Sizes = Tensor.GetShape().GetData();
-		DmlUtil::SetTensorStrides(DmlTensorDesc, Tensor);
-	}
-	else if (Tensor.GetShape().Rank() > Broadcast.GetShape().Rank())
-	{
-		return false;
-	}
-	else
-	{
-		DmlUtil::SetTensorSizesAndStridesForBroadcast(DmlTensorDesc, Tensor, Broadcast);
-	}
-
-	//UE_LOG(LogNNE, Warning, TEXT("DmlTensorDesc:%d,%d,%d -> %d,%d,%d"),
-	//	Tensor.Sizes[0],
-	//	Tensor.Dimension > 1 ? Tensor.Sizes[1] : 0,
-	//	Tensor.Dimension > 2 ? Tensor.Sizes[2] : 0,
-	//	DmlTensor.Sizes[0],
-	//	DmlTensor.Dimension > 1 ? DmlTensor.Sizes[1] : 0,
-	//	DmlTensor.Dimension > 2 ? DmlTensor.Sizes[2] : 0
-	//);
-
-	//UE_LOG(LogNNE, Warning, TEXT("DmlTensorStrides:%d,%d,%d"),
-	//	DmlTensorDesc.Strides[0], DmlTensorDesc.Strides[1], DmlTensorDesc.Strides[2]
-	//);
-
-	check(DmlTensorDesc.Strides.Num() == DmlTensorDesc.Sizes.Num());
-		
-	DML_BUFFER_TENSOR_DESC& BuffDesc = DmlTensorDesc.BuffDesc;
-		
-	BuffDesc = DML_BUFFER_TENSOR_DESC{};
-
-	BuffDesc.DataType = DmlDataType;
-	BuffDesc.Flags = Tensor.HasPreparedData() ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
-	BuffDesc.DimensionCount = DmlTensorDesc.Sizes.Num();
-	BuffDesc.Sizes = DmlTensorDesc.Sizes.GetData();
-	BuffDesc.Strides = DmlTensorDesc.Strides.GetData();
-	BuffDesc.TotalTensorSizeInBytes = DmlUtil::CalculateBufferSize(DmlTensorDesc, Tensor);
-		
-	DmlTensorDesc.Desc = DML_TENSOR_DESC{ DML_TENSOR_TYPE_BUFFER, &DmlTensorDesc.BuffDesc };
-
-	return true;
 }
 
 // Create DirectML operator	

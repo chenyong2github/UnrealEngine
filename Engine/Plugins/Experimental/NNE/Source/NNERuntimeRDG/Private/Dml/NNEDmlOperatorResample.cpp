@@ -29,7 +29,7 @@ void RemoveValuesByIndex(TConstArrayView<uint32> Indices, TArray<TData, TAllocat
 }
 
 // Upsample and Resize operator are implemented as a DML Resample operator
-template < bool IsResize>
+template <bool IsResize>
 class FOperatorDmlResample : public FOperatorDml
 {
 	static DML_INTERPOLATION_MODE ModeFromString(FStringView StringVal)
@@ -89,15 +89,15 @@ public:
 		// Read attributes
 		DML_INTERPOLATION_MODE Mode = ModeFromString(Attributes.GetValue<FString>(TEXT("mode")));
 
-		DmlUtil::FSmallArray<float> InputPixelOffsets, OutputPixelOffsets;
+		Util::FSmallArray<float> InputPixelOffsets, OutputPixelOffsets;
+		
 		InputPixelOffsets.Init(0.5f, InputTensor.GetShape().Rank());
 		OutputPixelOffsets.Init(-0.5f, InputTensor.GetShape().Rank());
 
-		DmlUtil::FSmallArray<float> Scales ( ScaleTensor.GetPreparedData<float>() );
+		Util::FSmallArray<float> Scales ( ScaleTensor.GetPreparedData<float>() );
 
 		if constexpr (IsResize)
 		{
-
 			if (Mode == DML_INTERPOLATION_MODE_NEAREST_NEIGHBOR)
 			{
 				FString NeareastMode = Attributes.GetValueOrDefault<FString>(TEXT("nearest_mode"), TEXT("round_prefer_floor"));
@@ -108,28 +108,28 @@ public:
 			}
 
 			FString CoordinateTransformationMode = Attributes.GetValueOrDefault<FString>(TEXT("coordinate_transformation_mode"), TEXT("half_pixel"));
-			for(int Idx = 0; Idx < InputTensor.GetShape().Rank(); ++Idx)
+			for (int Idx = 0; Idx < InputTensor.GetShape().Rank(); ++Idx)
 			{
 				float LengthResized = (float) OutputTensor.GetShape().GetData()[Idx];
 				float LengthOriginal = (float) InputTensor.GetShape().GetData()[Idx];
 				
-				if(CoordinateTransformationMode == TEXT("align_corners"))
+				if (CoordinateTransformationMode == TEXT("align_corners"))
 				{
 					Scales[Idx] = (LengthResized - 1.0f) / (LengthOriginal - 1.0f);
 					InputPixelOffsets[Idx] = 0.f;
 					OutputPixelOffsets[Idx] = 0.f;
 				}
-				else if(CoordinateTransformationMode == TEXT("asymmetric"))
+				else if (CoordinateTransformationMode == TEXT("asymmetric"))
 				{
 					InputPixelOffsets[Idx] = 0.f;
 					OutputPixelOffsets[Idx] = 0.f;
 				}
-				else if(CoordinateTransformationMode == TEXT("tf_half_pixel_for_nn"))
+				else if (CoordinateTransformationMode == TEXT("tf_half_pixel_for_nn"))
 				{
 					InputPixelOffsets[Idx] = 0.0f;
 					OutputPixelOffsets[Idx] = -0.5f;
 				}
-				else if(CoordinateTransformationMode == TEXT("tf_crop_and_resize"))
+				else if (CoordinateTransformationMode == TEXT("tf_crop_and_resize"))
 				{
 					// NOTE: no tests for this, ORT erroneously puts all 0.0fs in the output tensor in this case.
 					
@@ -149,9 +149,10 @@ public:
 						UE_LOG(LogNNE, Warning, TEXT("roi tensor should contain 2*N entries, where N is rank of X."));
 						return false;
 					}
+					
 					float Start = RoiTensor.GetPreparedData<float>()[Idx];
 					float End = RoiTensor.GetPreparedData<float>()[Idx + InputTensor.GetShape().Rank()];
-					if(LengthResized > 1)
+					if (LengthResized > 1)
 					{
 						Scales[Idx] = (LengthResized - 1.0f) / FMath::Max( (End - Start) * (LengthOriginal - 1.0f), 1.0f );
 						InputPixelOffsets[Idx] = Start * (1.0f - LengthOriginal);
@@ -166,7 +167,7 @@ public:
 				}
 				else
 				{
-					if(CoordinateTransformationMode != TEXT("half_pixel"))
+					if (CoordinateTransformationMode != TEXT("half_pixel"))
 					{
 						UE_LOG(LogNNE, Warning, TEXT("Unsupported coordinate transformation mode:%s, using half_pixel instead"), *CoordinateTransformationMode);
 					}
@@ -176,31 +177,25 @@ public:
 		}
 
 		// Initialize tensor descriptors
-		DmlUtil::FTensorDesc	DmlInputTensor{};
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
+		FTensorDescDml	DmlInputTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!DmlInputTensor.InitFromTensor(InputTensor, 1))
-		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
-			return false;
-		}
-
-		if (!DmlOutputTensor.InitFromTensor(OutputTensor, 1))
-		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
-			return false;
-		}
+		DmlInputTensorDesc
+			.SetTensorRank(1, 4)
+			.SetFromTensor(InputTensor);
+		
+		DmlOutputTensorDesc
+			.SetTensorRank(1, 4)
+			.SetFromTensor(OutputTensor);
 
 		// Notify DML graph that we have constant CPU tensor inputs
 		for (int i = 1; i < InputTensors.Num(); ++i)
 		{
 			ConstantCPUInputs.Add(i);
 		}
-
-		
 		
 		// Find any useless dimensions of size 1 that occur in both input and output
-		DmlUtil::FSmallUIntArray	SqueezeInds;
+		Util::FSmallUIntArray		SqueezeInds;
 		TConstArrayView<uint32>		InputShape = InputTensor.GetShape().GetData();
 		TConstArrayView<uint32>		OutputShape = OutputTensor.GetShape().GetData();
 
@@ -214,9 +209,9 @@ public:
 
 		if (!SqueezeInds.IsEmpty())
 		{
-			DmlUtil::FSmallUIntArray	SqueezedInputShape(InputShape.GetData(), InputShape.Num());
-			DmlUtil::FSmallUIntArray	SqueezedOutputShape(OutputShape.GetData(), OutputShape.Num());
-			DmlUtil::FSmallArray<float> ScaleValues(Scales.GetData(), Scales.Num());
+			Util::FSmallUIntArray		SqueezedInputShape(InputShape.GetData(), InputShape.Num());
+			Util::FSmallUIntArray		SqueezedOutputShape(OutputShape.GetData(), OutputShape.Num());
+			Util::FSmallArray<float>	ScaleValues(Scales.GetData(), Scales.Num());
 
 			RemoveValuesByIndex(SqueezeInds, SqueezedInputShape, true);
 			RemoveValuesByIndex(SqueezeInds, SqueezedOutputShape, true);
@@ -224,15 +219,27 @@ public:
 			RemoveValuesByIndex(SqueezeInds, InputPixelOffsets, true);
 			RemoveValuesByIndex(SqueezeInds, OutputPixelOffsets, true);
 
-			DmlInputTensor.UpdateShapeAndStrides(SqueezedInputShape);
-			DmlOutputTensor.UpdateShapeAndStrides(SqueezedOutputShape);
+			DmlInputTensorDesc.SetShape(SqueezedInputShape);
+			DmlOutputTensorDesc.SetShape(SqueezedOutputShape);
 			Scales = ScaleValues;
+		}
+
+		if (!DmlInputTensorDesc.Validate())
+		{
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
+			return false;
+		}
+
+		if (!DmlOutputTensorDesc.Validate())
+		{
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
+			return false;
 		}
 
 		DML_RESAMPLE1_OPERATOR_DESC	OpDesc{};
 
-		OpDesc.InputTensor = &DmlInputTensor.Desc;
-		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		OpDesc.InterpolationMode = Mode;
 		OpDesc.DimensionCount = Scales.Num();
 		OpDesc.Scales = Scales.GetData();

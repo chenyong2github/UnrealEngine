@@ -32,7 +32,7 @@ public:
 		
 		if (To != OutputTensor.GetDataType())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Cast should output a tensor of type %d but was of type %d."), To, OutputTensor.GetDataType());
+			UE_LOG(LogNNE, Error, TEXT("Cast should output a tensor of type %d but was of type %d."), To, OutputTensor.GetDataType());
 			return false;
 		}
 
@@ -41,7 +41,7 @@ public:
 
 		if (InputShape.Num() != OutputShape.Num())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Cast input and output shapes need to have a same rank"));
+			UE_LOG(LogNNE, Error, TEXT("Cast input and output shapes need to have a same rank"));
 			return false;
 		}
 
@@ -49,31 +49,36 @@ public:
 		{
 			if (InputShape[Idx] != OutputShape[Idx])
 			{
-				UE_LOG(LogNNE, Warning, TEXT("Input shape and output shape need to have a same dimension at dim %d (%d != %d"), Idx, InputShape[Idx], OutputShape[Idx]);
+				UE_LOG(LogNNE, Error, TEXT("Input shape and output shape need to have a same dimension at dim %d (%d != %d"), Idx, InputShape[Idx], OutputShape[Idx]);
 				return false;
 			}
 		}
 
 		// Initialize tensor descriptors
-		DmlUtil::FTensorDesc	DmlInputTensor{};
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
-
-		if (!DmlInputTensor.InitFromTensor(InputTensor, InputTensor.GetShape().Rank()))
+		FTensorDescDml DmlInputTensorDesc;
+		
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		if (!DmlOutputTensor.InitFromTensor(OutputTensor, InputTensor.GetShape().Rank()))
+		FTensorDescDml DmlOutputTensorDesc;
+
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		DML_CAST_OPERATOR_DESC	OpDesc{};
 
-		OpDesc.InputTensor = &DmlInputTensor.Desc;
-		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 
 		return CreateOperator(Device, DML_OPERATOR_DESC { DML_OPERATOR_CAST, &OpDesc });
 	}

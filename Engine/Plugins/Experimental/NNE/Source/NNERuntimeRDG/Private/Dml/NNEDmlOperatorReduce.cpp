@@ -72,18 +72,20 @@ public:
 		HandleNegativeAxes(Axes, InputTensors[0].GetShape().Rank());
 		HandleEmptyAxes(Axes, InputTensors[0].GetShape().Rank());
 
-		DmlUtil::FTensorDesc DmlInputTensorDesc;
+		FTensorDescDml DmlInputTensorDesc;
 		
-		if (!DmlInputTensorDesc.InitFromTensor(InputTensors[0], InputTensors[0].GetShape().Rank()))
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensors[0])
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize Reduce input tensor for DML inference"));
 			return false;
 		}
 
-		DmlUtil::FSmallUIntArray	DmlAxes;
-		DmlUtil::FSmallUIntArray	ReducedDims;
+		Util::FSmallUIntArray	DmlAxes;
+		Util::FSmallUIntArray	ReducedDims;
 
-		ReducedDims.SetNum(DmlInputTensorDesc.Sizes.Num());
+		ReducedDims.SetNum(DmlInputTensorDesc.GetRank());
 
 		for (int32& Dim : Axes)
 		{
@@ -92,7 +94,7 @@ public:
 			DmlAxes.Add(Dim);
 		}
 
-		DmlUtil::FSmallUIntArray	OutputShape;
+		Util::FSmallUIntArray	OutputShape;
 
 		if (!KeepDims)
 		{
@@ -116,11 +118,12 @@ public:
 			OutputShape.Append(OutputTensors[0].GetShape().GetData());
 		}
 
-		DmlUtil::FTensorDesc DmlOutputTensorDesc;
+		FTensorDescDml DmlOutputTensorDesc;
 
-		if (!DmlOutputTensorDesc.InitFromTensor(OutputTensors[0], OutputShape.Num(), 
-			/*Broadcast shape*/ MakeEmptyArrayView<uint32>(),
-			/*Custom shape*/ OutputShape))
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensors[0])
+				.SetShape(OutputShape)
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize Reduce output tensor for DML inference"));
 			return false;
@@ -130,8 +133,8 @@ public:
         {
             DML_ARGMAX_OPERATOR_DESC OpDesc;
             OpDesc.AxisDirection = (DML_AXIS_DIRECTION) Attributes.GetValueOrDefault<int32>(TEXT("select_last_index"), 0);
-            OpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-			OpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+            OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+			OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
             OpDesc.Axes = DmlAxes.GetData();
             OpDesc.AxisCount = (uint32) DmlAxes.Num();
 
@@ -141,8 +144,8 @@ public:
         {
             DML_ARGMIN_OPERATOR_DESC OpDesc;
             OpDesc.AxisDirection = (DML_AXIS_DIRECTION) Attributes.GetValueOrDefault<int32>(TEXT("select_last_index"), 0);
-            OpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-			OpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+            OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+			OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
             OpDesc.Axes = DmlAxes.GetData();
             OpDesc.AxisCount = (uint32) DmlAxes.Num();
 
@@ -152,15 +155,14 @@ public:
 		{
 			DML_REDUCE_OPERATOR_DESC OpDesc{};
 
-			OpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-			OpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+			OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+			OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 			OpDesc.Function = ReduceFunc;
 			OpDesc.Axes = DmlAxes.GetData();
 			OpDesc.AxisCount = (uint32) DmlAxes.Num();
 
 			return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_REDUCE, &OpDesc} );
 		}
-		
 	}
 };
 

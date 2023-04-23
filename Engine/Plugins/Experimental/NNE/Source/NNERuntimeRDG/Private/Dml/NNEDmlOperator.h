@@ -54,118 +54,216 @@ public:
 	TComPtr<IDMLCommandRecorder>	CmdRec{ nullptr };
 };
 
-namespace DmlUtil
+class FTensorDescDml;
+
+namespace Util
 {
-	template<typename T>
-	using FSmallArray = TArray<T, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
-	using FSmallIntArray = TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
-	using FSmallUIntArray = TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
+	
+template<typename T>
+using FSmallArray = TArray<T, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
+using FSmallIntArray = TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
+using FSmallUIntArray = TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
 
-	template<typename InputType, typename OutputType>
-	inline bool IsOverflowing(InputType Input)
+template<typename InputType, typename OutputType>
+inline bool IsOverflowing(InputType Input)
+{
+	OutputType Output = static_cast<OutputType>(Input);
+	if(Input != static_cast<InputType>(Output))
 	{
-		OutputType Output = static_cast<OutputType>(Input);
-		if(Input != static_cast<InputType>(Output))
-		{
-			return true;
-		}
-		return false;
-	}
-
-	template<typename InputType, typename OutputType>
-	inline bool ConvertArrayViewNoOverflow(TConstArrayView<InputType> InputView, TArrayView<OutputType>& OutputView)
-	{
-		OutputView = MakeArrayView((OutputType*) InputView.GetData(), InputView.Num());
-		for(int32 Idx = 0; Idx < InputView.Num(); ++Idx)
-		{
-			if(InputView[Idx] != static_cast<InputType>(OutputView[Idx]))
-			{
-				return false;
-			}
-		}
 		return true;
 	}
-
-	template<typename OutputType, typename AllocatorType>
-	inline bool GetArrayAttributeNoOverflow(
-		const FNNEAttributeValue* Attr, 
-		TArray<OutputType, AllocatorType>& OutputArray, 
-		TConstArrayView<OutputType> DefaultValues = MakeEmptyConstArrayView<OutputType>()
-		)
-	{
-		if (Attr)
-		{
-
-			TArrayView<OutputType> ConvertedView;
-			TArray<int32> IntArray;
-			TArray<float> FloatArray;
-
-			switch(Attr->GetType())
-			{
-			case ENNEAttributeDataType::Int32Array:
-				{
-					IntArray = Attr->GetValue<TArray<int32>>();
-					if(!ConvertArrayViewNoOverflow(TConstArrayView<int32>(IntArray), ConvertedView))
-					{
-						return false;
-					}
-				}
-				break;
-			case ENNEAttributeDataType::FloatArray:
-				{
-					FloatArray = Attr->GetValue<TArray<float>>();
-					if(!ConvertArrayViewNoOverflow(TConstArrayView<float>(FloatArray), ConvertedView))
-					{
-						return false;
-					}
-				}
-				break;
-			default:
-				return false;
-			}
-			
-			OutputArray = TArray<OutputType, AllocatorType>{ ConvertedView };
-		}
-		else
-		{
-			OutputArray = TArray<OutputType, AllocatorType>{ DefaultValues };
-		}
-		return true;
-	}
-
-	struct FTensorDesc
-	{
-		DML_BUFFER_TENSOR_DESC	BuffDesc;
-		DML_TENSOR_DESC			Desc;
-		// Don't edit Sizes and Strides directly, use methods
-		FSmallUIntArray			Sizes;
-		FSmallUIntArray			Strides;
-		uint64					ElemSizeInBytes;
-
-		bool InitFromTensor(const NNECore::Internal::FTensor& InputDesc, int32 MinTensorRank, TConstArrayView<uint32> Broadcast = MakeArrayView((uint32*) nullptr, 0), TConstArrayView<uint32> CustomShape = MakeArrayView((uint32*) nullptr, 0));
-		bool InitFromTensor1D(const NNECore::Internal::FTensor& InputDesc, int32 Rank);
-
-		void SetStridesFromTensor(const NNECore::Internal::FTensor& InputDesc);
-
-		void UpdateShapeAndStrides(TConstArrayView<uint32> InShape, TConstArrayView<uint32> InStrides = MakeArrayView((uint32*) nullptr, 0));
-
-	private:
-		void Reset();
-
-		void SetShape(TConstArrayView<uint32> Shape, int32 MinTensorRank);
-		void SetShapeAndStrides(TConstArrayView<uint32> Shape, TConstArrayView<uint32> BroadcastShape);
-		void SetShape1D(uint32 Dimension, int32 Rank);
-		
-		void Update(DML_TENSOR_DATA_TYPE DataType, bool bHasWeightData = false);
-		uint64 CalculateBufferSize();
-	};
-
-	extern void SetTensorStrides(FTensorDesc& TensorDesc, const NNECore::Internal::FTensor& InputDesc);
-	extern void SetTensorSizesAndStridesForBroadcast(FTensorDesc& TensorDesc, const NNECore::Internal::FTensor& InputDesc, const NNECore::Internal::FTensor& TargetDesc);
-	extern bool IsSameShape(const NNECore::Internal::FTensor& Left, const NNECore::Internal::FTensor& Right);
-	DML_TENSOR_DATA_TYPE GetTensorDataType(ENNETensorDataType DataType);
-	uint64 CalculateBufferSize(const FTensorDesc& DmlTensor, const NNECore::Internal::FTensor& Desc);
+	return false;
 }
+
+template<typename InputType, typename OutputType>
+inline bool ConvertArrayViewNoOverflow(TConstArrayView<InputType> InputView, TArrayView<OutputType>& OutputView)
+{
+	OutputView = MakeArrayView((OutputType*) InputView.GetData(), InputView.Num());
+	for(int32 Idx = 0; Idx < InputView.Num(); ++Idx)
+	{
+		if(InputView[Idx] != static_cast<InputType>(OutputView[Idx]))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+template<typename OutputType, typename AllocatorType>
+inline bool GetArrayAttributeNoOverflow(
+	const FNNEAttributeValue* Attr, 
+	TArray<OutputType, AllocatorType>& OutputArray, 
+	TConstArrayView<OutputType> DefaultValues = MakeEmptyConstArrayView<OutputType>()
+	)
+{
+	if (Attr)
+	{
+
+		TArrayView<OutputType> ConvertedView;
+		TArray<int32> IntArray;
+		TArray<float> FloatArray;
+
+		switch(Attr->GetType())
+		{
+		case ENNEAttributeDataType::Int32Array:
+			{
+				IntArray = Attr->GetValue<TArray<int32>>();
+				if(!ConvertArrayViewNoOverflow(TConstArrayView<int32>(IntArray), ConvertedView))
+				{
+					return false;
+				}
+			}
+			break;
+		case ENNEAttributeDataType::FloatArray:
+			{
+				FloatArray = Attr->GetValue<TArray<float>>();
+				if(!ConvertArrayViewNoOverflow(TConstArrayView<float>(FloatArray), ConvertedView))
+				{
+					return false;
+				}
+			}
+			break;
+		default:
+			return false;
+		}
+			
+		OutputArray = TArray<OutputType, AllocatorType>{ ConvertedView };
+	}
+	else
+	{
+		OutputArray = TArray<OutputType, AllocatorType>{ DefaultValues };
+	}
+	return true;
+}
+
+extern bool IsSameShape(const NNECore::Internal::FTensor& Left, const NNECore::Internal::FTensor& Right);
+extern bool IsSameShape(const FTensorDescDml& Left, const FTensorDescDml& Right);
+extern DML_TENSOR_DATA_TYPE GetTensorDataType(ENNETensorDataType DataType);
+
+} // Util
+
+class FTensorDescDml
+{
+public:
+
+	FTensorDescDml();
+
+	// Set DML operator tensor minimum and maximum rank.
+	// By default minimum and maximum range is between 1 and DML_TENSOR_DIMENSION_COUNT_MAX1 (8).
+	FTensorDescDml& SetTensorRank(int32 MinRank, int32 MaxRank);
+
+	// Set tensor shape
+	FTensorDescDml& SetShape(TConstArrayView<uint32> Shape);
+
+	// Utility method that calls SetShape() from above
+	FTensorDescDml& SetShape(const UE::NNECore::FTensorShape& Shape)
+	{
+		return SetShape(Shape.GetData());
+	}
+
+	// Set shape and match the broadcast shape
+	FTensorDescDml& SetShape(TConstArrayView<uint32> Shape, TConstArrayView<uint32> BroadcastShape);
+
+	// Utility method that calles SetShape() from above
+	FTensorDescDml& SetShape(const UE::NNECore::FTensorShape& Shape, const UE::NNECore::FTensorShape& BroadcastShape)
+	{
+		return SetShape(Shape.GetData(), BroadcastShape.GetData());
+	}
+
+	// Use for tensors that have shape [1, C, 1] or [1, C, 1, 1] etc.
+	FTensorDescDml& SetShape1D(uint32 Dimension, int32 Rank);
+	
+	// Set strides computed from shape (used for broadcasting)
+	FTensorDescDml& SetStridesFromShape(TConstArrayView<uint32> Shape);
+
+	// Set strides computed from shape (used for broadcasting)
+	FTensorDescDml& SetStridesFromShape(const UE::NNECore::FTensorShape& Shape)
+	{
+		return SetStridesFromShape(Shape.GetData());
+	}
+
+	// Set computed strides
+	FTensorDescDml& SetStrides(TConstArrayView<uint32> Strides);
+
+	// Set tensor data type
+	FTensorDescDml& SetDataType(ENNETensorDataType DataType);
+
+	// Set tensor flags
+	FTensorDescDml& SetDataOwnedByDml(bool bSetOwnedByDml);
+
+	// Utility method to use FTensor to set all the members
+	FTensorDescDml& SetFromTensor(const UE::NNECore::Internal::FTensor& Tensor)
+	{
+		return SetShape(Tensor.GetShape())
+			.SetDataType(Tensor.GetDataType())
+			.SetDataOwnedByDml(Tensor.HasPreparedData());
+	}
+
+	// Utility method to use FTensor to set all the members
+	FTensorDescDml& SetFromTensorBroadcast(const UE::NNECore::Internal::FTensor& Tensor, const UE::NNECore::FTensorShape& BroadcastShape)
+	{
+		return SetShape(Tensor.GetShape(), BroadcastShape)
+			.SetDataType(Tensor.GetDataType())
+			.SetDataOwnedByDml(Tensor.HasPreparedData());
+	}
+
+	// Utility method to use FTensor to set all the members
+	FTensorDescDml& SetFromTensor1D(const UE::NNECore::Internal::FTensor& Tensor, int32 Rank)
+	{
+		return SetShape1D(Tensor.GetShape().Rank(), Rank)
+			.SetDataType(Tensor.GetDataType())
+			.SetDataOwnedByDml(Tensor.HasPreparedData());
+	}
+
+	// Return computed sizes
+	TConstArrayView<uint32> GetSizes() const
+	{
+		return Sizes;
+	}
+
+	// Return computed strides
+	TConstArrayView<uint32> GetStrides() const
+	{
+		return Strides;
+	}
+
+	// Return computed size rank
+	int32 GetRank() const
+	{
+		return Sizes.Num();
+	}
+
+	// Validate the tensor descriptor, once it's validated any calls to SetXXX() will be ignored
+	bool Validate();
+
+	// Return filled DML tensor descriptor
+	// NOTE: Call this method only after Validate() is called
+	const DML_TENSOR_DESC* GetDmlDesc() const
+	{
+		check(bIsValidated);
+		return &Desc;
+	}
+
+	// Return DML tensor data type
+	// NOTE: Call this method only after Validate() is called
+	DML_TENSOR_DATA_TYPE GetDmlDataType() const
+	{
+		check(bIsValidated);
+		return BuffDesc.DataType;
+	}
+
+private:
+
+	uint64 CalculateBufferSize(uint64 ElemSizeInBytes);
+
+	Util::FSmallUIntArray	Sizes;
+	Util::FSmallUIntArray	Strides;
+	DML_BUFFER_TENSOR_DESC	BuffDesc;
+	DML_TENSOR_DESC			Desc;
+	int32					MinTensorRank;
+	int32					MaxTensorRank;
+	bool					bIsValidated;
+};
 
 //
 // DirectML operator base class
@@ -185,15 +283,12 @@ public:
 	IDMLOperator* GetOperator();
 
 protected:
-
-	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& Tensor);
-	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const NNECore::Internal::FTensor& Tensor, const NNECore::Internal::FTensor& Broadcast);
 	
 	bool CreateOperator(IDMLDevice* Device, const DML_OPERATOR_DESC& DmlOpDesc);
 
 	TComPtr<IDMLOperator>		DmlOp;
-	DmlUtil::FSmallIntArray		ConstantCPUInputs;
-	DmlUtil::FSmallIntArray		RemappedInputs;
+	Util::FSmallIntArray		ConstantCPUInputs;
+	Util::FSmallIntArray		RemappedInputs;
 };
 
 /**

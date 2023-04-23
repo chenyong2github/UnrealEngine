@@ -31,38 +31,54 @@ public:
 			ConstantCPUInputs.Add(2);
 		}
 
-		const NNECore::Internal::FTensor& InputTensorDesc = InputTensors[0];
-		const NNECore::Internal::FTensor& IndicesTensorDesc = InputTensors[1];
-		const NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
+		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
+		const NNECore::Internal::FTensor& IndicesTensor = InputTensors[1];
+		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
 
-		DmlUtil::FTensorDesc	DmlInputTensorDesc;
-		DmlUtil::FTensorDesc	DmlIndicesTensorDesc;
-		DmlUtil::FTensorDesc	DmlOutputTensorDesc;
+		FTensorDescDml	DmlInputTensorDesc;
+		FTensorDescDml	DmlIndicesTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!DmlInputTensorDesc.InitFromTensor(InputTensorDesc, 4))
+		if (!DmlInputTensorDesc
+				.SetTensorRank(4, 4)
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize input tensor for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize input tensor for DML inference"));
 			return false;
 		}
-		if (!DmlIndicesTensorDesc.InitFromTensor(IndicesTensorDesc, 4))
+
+		// DML required IndicesTensor to be in uint64 format, where ONNX allows int32 and int64
+		if (IndicesTensor.GetDataType() != ENNETensorDataType::Int64)
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize indices tensor for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("DML MaxUnpool requires UInt64, please use Int32 in your ONNX model"));
 			return false;
 		}
-		check(DmlIndicesTensorDesc.BuffDesc.DataType == DML_TENSOR_DATA_TYPE::DML_TENSOR_DATA_TYPE_INT64);
-		// Cast IndicesTensor from int64 to uint64 due to differences in representation between ONNX and DML formats.
-		DmlIndicesTensorDesc.BuffDesc.DataType = DML_TENSOR_DATA_TYPE::DML_TENSOR_DATA_TYPE_UINT64;
-		if (!DmlOutputTensorDesc.InitFromTensor(OutputTensorDesc, 4))
+
+		if (!DmlIndicesTensorDesc
+				.SetTensorRank(4, 4)
+				.SetFromTensor(IndicesTensor)
+				.SetDataType(ENNETensorDataType::UInt64)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize output tensor for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize indices tensor for DML inference"));
+			return false;
+		}
+		
+		if (!DmlOutputTensorDesc
+				.SetTensorRank(4, 4)
+				.SetFromTensor(OutputTensor)
+				.Validate())
+		{
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize output tensor for DML inference"));
 			return false;
 		}
 
 		DML_MAX_UNPOOLING_OPERATOR_DESC DmlMaxUnpoolOpDesc{};
 
-		DmlMaxUnpoolOpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-		DmlMaxUnpoolOpDesc.IndicesTensor = &DmlIndicesTensorDesc.Desc;
-		DmlMaxUnpoolOpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+		DmlMaxUnpoolOpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		DmlMaxUnpoolOpDesc.IndicesTensor = DmlIndicesTensorDesc.GetDmlDesc();
+		DmlMaxUnpoolOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 
 		return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_MAX_UNPOOLING, &DmlMaxUnpoolOpDesc });
 	}

@@ -40,7 +40,7 @@ public:
 		HandleNegativeAxes(Axes, OutShapeRank);
 		Axes.Sort();
 
-		DmlUtil::FSmallUIntArray	OutputShape;
+		Util::FSmallUIntArray	OutputShape;
 
 		OutputShape.Reserve(OutShapeRank);
 		OutputShape.Append(InputShape);
@@ -56,11 +56,12 @@ public:
 			OutputShape.Insert(1, Axes[Idx]);
 		}
 
-		DmlUtil::FTensorDesc DmlTensorDesc;
+		FTensorDescDml DmlTensorDesc;
 		
-		if (!DmlTensorDesc.InitFromTensor(OutputTensors[0], OutputShape.Num(),
-			/*Broadcast =*/ MakeEmptyArrayView<uint32>(),
-			/*CustomShape =*/ OutputShape))
+		if (!DmlTensorDesc
+				.SetFromTensor(OutputTensors[0])
+				.SetShape(OutputShape)
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize Unsqueeze's output tensor for DML inference"));
 			return false;
@@ -68,8 +69,8 @@ public:
 
 		DML_ELEMENT_WISE_IDENTITY_OPERATOR_DESC DmlIdentityOpDesc{};
 
-		DmlIdentityOpDesc.InputTensor = &DmlTensorDesc.Desc;
-		DmlIdentityOpDesc.OutputTensor = &DmlTensorDesc.Desc;
+		DmlIdentityOpDesc.InputTensor = DmlTensorDesc.GetDmlDesc();
+		DmlIdentityOpDesc.OutputTensor = DmlTensorDesc.GetDmlDesc();
 
 		return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_ELEMENT_WISE_IDENTITY, &DmlIdentityOpDesc });
 	}

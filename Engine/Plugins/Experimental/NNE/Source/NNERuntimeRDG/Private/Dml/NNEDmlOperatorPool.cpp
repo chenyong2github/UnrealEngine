@@ -43,12 +43,12 @@ public:
 			return false;
 		}
 
-		DmlUtil::FSmallUIntArray StartPadding, EndPadding, KernelShape, Strides, Dilations;
+		Util::FSmallUIntArray StartPadding, EndPadding, KernelShape, Strides, Dilations;
 
 		Strides.Init(1u, NumSpatialDimensions);
 		if constexpr(!UseGlobalPooling)
 		{
-			if (!DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("strides")), Strides, TConstArrayView<uint32>(Strides)))
+			if (!Util::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("strides")), Strides, TConstArrayView<uint32>(Strides)))
 			{
 				UE_LOG(LogNNE, Error, TEXT("Strides attribute cast led to overflow"));
 				return false;
@@ -59,7 +59,7 @@ public:
 		Dilations.Init(1u, NumSpatialDimensions);
 		if constexpr(!UseGlobalPooling)
 		{
-			if (!DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("dilations")), Dilations, TConstArrayView<uint32>(Dilations)))
+			if (!Util::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("dilations")), Dilations, TConstArrayView<uint32>(Dilations)))
 			{
 				UE_LOG(LogNNE, Error, TEXT("Dilations attribute cast led to overflow"));
 				return false;
@@ -69,11 +69,11 @@ public:
 		
 		if constexpr(UseGlobalPooling)
 		{
-			KernelShape = DmlUtil::FSmallUIntArray{ InputShape.RightChop(NonspatialDimensionCount) };
+			KernelShape = Util::FSmallUIntArray{ InputShape.RightChop(NonspatialDimensionCount) };
 		}
 		else
 		{
-			if (!DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("kernel_shape")), KernelShape))
+			if (!Util::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("kernel_shape")), KernelShape))
 			{
 				UE_LOG(LogNNE, Error, TEXT("kernel_shape attribute cast led to overflow"));
 				return false;
@@ -120,22 +120,29 @@ public:
 			Attributes.GetValueOrDefault<int32>(
 				TEXT("storage_order"),
 				0);
-		if(StorageOrder != 0)
+		if (StorageOrder != 0)
 		{
 			UE_LOG(LogNNE, Error, TEXT("storage_order != 0 is not supported for DML inference"));
 			return false;
 		}
 
+		FTensorDescDml DmlInputTensorDesc;
 
-		DmlUtil::FTensorDesc DmlInputTensorDesc;
-		if (!DmlInputTensorDesc.InitFromTensor(InputTensors[0], 4))
+		if (!DmlInputTensorDesc
+				.SetTensorRank(4, 5)
+				.SetFromTensor(InputTensors[0])
+				.Validate())
 		{
 			UE_LOG(LogNNE, Error, TEXT("Failed to initialize pooling operator's input tensor for DML inference"));
 			return false;
 		}
 
-		DmlUtil::FTensorDesc DmlOutputTensorDesc;
-		if (!DmlOutputTensorDesc.InitFromTensor(OutputTensors[0], 4))
+		FTensorDescDml DmlOutputTensorDesc;
+
+		if (!DmlOutputTensorDesc
+				.SetTensorRank(4, 5)
+				.SetFromTensor(OutputTensors[0])
+				.Validate())
 		{
 			UE_LOG(LogNNE, Error, TEXT("Failed to initialize pooling operator's output tensor for DML inference"));
 			return false;
@@ -143,8 +150,8 @@ public:
 
 		auto FillPoolingDesc = [&](auto& PoolingDesc)
 		{
-			PoolingDesc.InputTensor = &DmlInputTensorDesc.Desc;
-			PoolingDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+			PoolingDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+			PoolingDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 			PoolingDesc.DimensionCount = NumSpatialDimensions;
 			PoolingDesc.WindowSize = KernelShape.GetData();
 			PoolingDesc.Strides = Strides.GetData();
@@ -168,18 +175,24 @@ public:
 
 			if (bHasOutputIndices)
 			{
-				DmlUtil::FTensorDesc DmlIndicesTensorDesc;
-				if (!DmlIndicesTensorDesc.InitFromTensor(OutputTensors[1], 4))
+				FTensorDescDml DmlIndicesTensorDesc;
+				
+				if (!DmlIndicesTensorDesc
+						.SetTensorRank(4, 5)
+						.SetFromTensor(OutputTensors[1])
+						.SetDataType(ENNETensorDataType::UInt64)
+						.Validate())
 				{
 					UE_LOG(LogNNE, Warning, TEXT("Failed to initialize MaxPool's indices output tensor for DML inference"));
 					return false;
 				}
-				DmlIndicesTensorDesc.BuffDesc.DataType = DML_TENSOR_DATA_TYPE::DML_TENSOR_DATA_TYPE_UINT64;
-				DmlMaxPoolOpDesc.OutputIndicesTensor = &DmlIndicesTensorDesc.Desc;
+				
+				DmlMaxPoolOpDesc.OutputIndicesTensor = DmlIndicesTensorDesc.GetDmlDesc();
 			}
 
 			DmlMaxPoolOpDesc.Dilations = Dilations.GetData();
 			FillPoolingDesc(DmlMaxPoolOpDesc);
+
 			return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_MAX_POOLING2, &DmlMaxPoolOpDesc });
 		}
 

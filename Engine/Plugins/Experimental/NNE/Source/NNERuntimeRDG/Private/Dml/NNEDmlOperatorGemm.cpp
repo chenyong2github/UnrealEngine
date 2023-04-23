@@ -34,64 +34,70 @@ public:
 		TransA = Attributes.GetValueOrDefault(TEXT("transA"), TransA);
 		TransB = Attributes.GetValueOrDefault(TEXT("transB"), TransB);
 		
-		const NNECore::Internal::FTensor& InputATensorDesc = InputTensors[0];
-		const NNECore::Internal::FTensor& InputBTensorDesc = InputTensors[1];
-		const NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
+		const NNECore::Internal::FTensor& InputATensor = InputTensors[0];
+		const NNECore::Internal::FTensor& InputBTensor = InputTensors[1];
+		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
 
 		// Initialize tensor descriptors
-		DmlUtil::FTensorDesc	DmlInputATensorDesc{};
-		DmlUtil::FTensorDesc	DmlInputBTensorDesc{};
-		DmlUtil::FTensorDesc	DmlInputCTensorDesc{};
-		DmlUtil::FTensorDesc	DmlOutputTensorDesc{};
+		FTensorDescDml	DmlInputATensorDesc;
+		FTensorDescDml	DmlInputBTensorDesc;
+		FTensorDescDml	DmlInputCTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!InitDmlTensorDesc(DmlInputATensorDesc, InputATensorDesc))
+		if (!DmlInputATensorDesc
+				.SetTensorRank(2, 4)
+				.SetFromTensor(InputATensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		if (!InitDmlTensorDesc(DmlInputBTensorDesc, InputBTensorDesc))
+		if (!DmlInputBTensorDesc
+				.SetTensorRank(2, 4)
+				.SetFromTensor(InputBTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		if (InputTensors.Num() > 2)
 		{
-			const NNECore::Internal::FTensor& InputCTensorDesc = InputTensors[2];
+			const NNECore::Internal::FTensor& InputCTensor = InputTensors[2];
 
-			if (!InitDmlTensorDesc(DmlInputCTensorDesc, InputCTensorDesc, OutputTensorDesc))
+			if (!DmlInputCTensorDesc
+					.SetTensorRank(2, 4)
+					.SetFromTensorBroadcast(InputCTensor, OutputTensor.GetShape())
+					.Validate())
 			{
-				UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+				UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 				return false;
 			}
 		}
 
-		if (!InitDmlTensorDesc(DmlOutputTensorDesc, OutputTensorDesc))
+		if (!DmlOutputTensorDesc
+				.SetTensorRank(2, 4)
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		DML_GEMM_OPERATOR_DESC	DmlGemmOpDesc{};
 
-		DmlGemmOpDesc.ATensor = &DmlInputATensorDesc.Desc;
-		DmlGemmOpDesc.BTensor = &DmlInputBTensorDesc.Desc;
-		DmlGemmOpDesc.CTensor = InputTensors.Num() > 2 ? &DmlInputCTensorDesc.Desc : nullptr;
-		DmlGemmOpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+		DmlGemmOpDesc.ATensor = DmlInputATensorDesc.GetDmlDesc();
+		DmlGemmOpDesc.BTensor = DmlInputBTensorDesc.GetDmlDesc();
+		DmlGemmOpDesc.CTensor = InputTensors.Num() > 2 ? DmlInputCTensorDesc.GetDmlDesc() : nullptr;
+		DmlGemmOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		DmlGemmOpDesc.Alpha = Alpha;
 		DmlGemmOpDesc.Beta = Beta;
 		DmlGemmOpDesc.TransA = TransA ? DML_MATRIX_TRANSFORM_TRANSPOSE : DML_MATRIX_TRANSFORM_NONE;
 		DmlGemmOpDesc.TransB = TransB ? DML_MATRIX_TRANSFORM_TRANSPOSE : DML_MATRIX_TRANSFORM_NONE;
 
-		DML_OPERATOR_DESC DmlOpDesc{};
-
-		DmlOpDesc.Type = DML_OPERATOR_GEMM;
-		DmlOpDesc.Desc = &DmlGemmOpDesc;
-
-		return CreateOperator(Device, DmlOpDesc);
+		return CreateOperator(Device, DML_OPERATOR_DESC { DML_OPERATOR_GEMM, &DmlGemmOpDesc });
 	}
-
 };
 
 NNE_DML_REGISTER_OP(Gemm)

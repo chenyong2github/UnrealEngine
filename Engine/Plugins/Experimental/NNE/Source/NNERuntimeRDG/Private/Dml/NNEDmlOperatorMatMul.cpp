@@ -33,32 +33,33 @@ public:
 		const NNECore::Internal::FTensor& OutTensor = OutputTensors[0];
 
 		auto TrimMatrixStackLeadingOnes = [](TConstArrayView<uint32>&& Input) -> TConstArrayView<uint32>
+		{
+			int Start = 0;
+			for (; Start < Input.Num() - 2; ++Start)
 			{
-				int Start = 0;
-				for(; Start < Input.Num() - 2; ++Start)
+				if (Input[Start] != 1)
 				{
-					if(Input[Start] != 1)
-					{
-						break;
-					}
+					break;
 				}
-				return Input.RightChop(Start);
-			};
+			}
+			return Input.RightChop(Start);
+		};
 
-		DmlUtil::FSmallUIntArray ActualShapeA (TrimMatrixStackLeadingOnes(ATensor.GetShape().GetData()));
-		DmlUtil::FSmallUIntArray ActualShapeB (TrimMatrixStackLeadingOnes(BTensor.GetShape().GetData()));
-		DmlUtil::FSmallUIntArray ActualShapeOut (TrimMatrixStackLeadingOnes(OutTensor.GetShape().GetData()));
+		Util::FSmallUIntArray ActualShapeA (TrimMatrixStackLeadingOnes(ATensor.GetShape().GetData()));
+		Util::FSmallUIntArray ActualShapeB (TrimMatrixStackLeadingOnes(BTensor.GetShape().GetData()));
+		Util::FSmallUIntArray ActualShapeOut (TrimMatrixStackLeadingOnes(OutTensor.GetShape().GetData()));
 
 		check(ActualShapeA.Num() > 0);
 		check(ActualShapeB.Num() > 0);
 		check(ActualShapeOut.Num() > 0);
 
-		if(ActualShapeA.Num() == 1)
+		if (ActualShapeA.Num() == 1)
 		{
 			check(ActualShapeOut.Num() == 1);
 			ActualShapeA = {1, ActualShapeA[0]};
 		}
-		if(ActualShapeB.Num() == 1)
+
+		if (ActualShapeB.Num() == 1)
 		{
 			check(ActualShapeOut.Num() == 1);
 			ActualShapeB = {ActualShapeB[0], 1};
@@ -76,37 +77,37 @@ public:
 		bool bBRequiresBroadcasting = false;
 		{
 			int32 MaxRank = FMath::Max(ActualShapeA.Num(), ActualShapeB.Num());
-			for(int Dim = MaxRank - 3; Dim >= 0; Dim--)
+			for (int Dim = MaxRank - 3; Dim >= 0; Dim--)
 			{
 				int AIdx = Dim - MaxRank + ActualShapeA.Num();
 				int BIdx = Dim - MaxRank + ActualShapeB.Num();
 
-				if(bARequiresBroadcasting)
+				if (bARequiresBroadcasting)
 				{
-					if(AIdx >= 0)
+					if (AIdx >= 0)
 					{
 						check(ActualShapeA[AIdx] == 1);
 					}
 				}
 
-				if(bBRequiresBroadcasting)
+				if (bBRequiresBroadcasting)
 				{
-					if(BIdx >= 0)
+					if (BIdx >= 0)
 					{
 						check(ActualShapeB[BIdx] == 1);
 					}
 				}
 
-				if(AIdx >= 0 && BIdx >= 0)
+				if (AIdx >= 0 && BIdx >= 0)
 				{
-					if(ActualShapeA[AIdx] > ActualShapeB[BIdx])
+					if (ActualShapeA[AIdx] > ActualShapeB[BIdx])
 					{
 						check(!bARequiresBroadcasting);
 						check(ActualShapeA[AIdx] % ActualShapeB[BIdx] == 0);
 						bBRequiresBroadcasting = true;
 					}
 
-					if(ActualShapeB[BIdx] > ActualShapeA[AIdx])
+					if (ActualShapeB[BIdx] > ActualShapeA[AIdx])
 					{
 						check(!bBRequiresBroadcasting);
 						check(ActualShapeB[BIdx] % ActualShapeA[AIdx] == 0);
@@ -114,30 +115,27 @@ public:
 					}
 				}
 
-				if(AIdx < 0 && BIdx >= 0 && ActualShapeB[BIdx] != 1)
+				if (AIdx < 0 && BIdx >= 0 && ActualShapeB[BIdx] != 1)
 				{
 					bARequiresBroadcasting = true;
 				}
 
-				if(BIdx < 0 && AIdx >= 0 && ActualShapeA[AIdx] != 1)
+				if (BIdx < 0 && AIdx >= 0 && ActualShapeA[AIdx] != 1)
 				{
 					bBRequiresBroadcasting = true;
 				}
-				
 			}
 		}
 
-		
-		DmlUtil::FSmallUIntArray BroadcastShape(
+		Util::FSmallUIntArray BroadcastShape(
 			bARequiresBroadcasting ? 
 			TConstArrayView<uint32>(ActualShapeB).LeftChop(2) : 
 			TConstArrayView<uint32>(ActualShapeA).LeftChop(2)
 			);
 
-		
 		check(BroadcastShape == TConstArrayView<uint32>(ActualShapeOut).LeftChop(2));
 
-		auto To4DTensor = [](TConstArrayView<uint32> BroadcastShape, TConstArrayView<uint32> MatrixShape) -> DmlUtil::FSmallUIntArray
+		auto To4DTensor = [](TConstArrayView<uint32> BroadcastShape, TConstArrayView<uint32> MatrixShape) -> Util::FSmallUIntArray
 		{
 			check(MatrixShape.Num() == 2);
 
@@ -146,21 +144,21 @@ public:
 			{
 				NumMatrices *= Elem;
 			}
-			return DmlUtil::FSmallUIntArray({1, NumMatrices, MatrixShape[0], MatrixShape[1]});
+			return Util::FSmallUIntArray({1, NumMatrices, MatrixShape[0], MatrixShape[1]});
 		};
 
-		DmlUtil::FSmallUIntArray DmlShapeA = To4DTensor(TConstArrayView<uint32>(ActualShapeA).LeftChop(2), TConstArrayView<uint32>(ActualShapeA).Right(2));
-		DmlUtil::FSmallUIntArray BroadcastShapeA = To4DTensor(BroadcastShape, TConstArrayView<uint32>(ActualShapeA).Right(2));
-		DmlUtil::FSmallUIntArray DmlShapeB = To4DTensor(TConstArrayView<uint32>(ActualShapeB).LeftChop(2), TConstArrayView<uint32>(ActualShapeB).Right(2));
-		DmlUtil::FSmallUIntArray BroadcastShapeB = To4DTensor(BroadcastShape, TConstArrayView<uint32>(ActualShapeB).Right(2));
-		DmlUtil::FSmallUIntArray DmlShapeOut = To4DTensor(BroadcastShape, TConstArrayView<uint32>(ActualShapeOut).Right(2));
+		Util::FSmallUIntArray DmlShapeA = To4DTensor(TConstArrayView<uint32>(ActualShapeA).LeftChop(2), TConstArrayView<uint32>(ActualShapeA).Right(2));
+		Util::FSmallUIntArray BroadcastShapeA = To4DTensor(BroadcastShape, TConstArrayView<uint32>(ActualShapeA).Right(2));
+		Util::FSmallUIntArray DmlShapeB = To4DTensor(TConstArrayView<uint32>(ActualShapeB).LeftChop(2), TConstArrayView<uint32>(ActualShapeB).Right(2));
+		Util::FSmallUIntArray BroadcastShapeB = To4DTensor(BroadcastShape, TConstArrayView<uint32>(ActualShapeB).Right(2));
+		Util::FSmallUIntArray DmlShapeOut = To4DTensor(BroadcastShape, TConstArrayView<uint32>(ActualShapeOut).Right(2));
 
 		check(DmlShapeA[3] == DmlShapeB[2]); // K
 		check(DmlShapeOut[2] == DmlShapeA[2]); // M
 		check(DmlShapeOut[3] == DmlShapeB[3]); // N
 
 		// Another broadcast issue!
-		// The current implementation of DmlUtil::FTensorDesc::InitFromTensor() is not correct with respect to broadcast as it sets
+		// The current implementation of Util::FTensorDesc::InitFromTensor() is not correct with respect to broadcast as it sets
 		// wrong sizes and strides when a dimension to be broadcasted is not of size 1.
 		// Example:
 		// [1, 2, 5, 4] ->(broadcast) [1, 12, 5, 4]
@@ -173,7 +171,7 @@ public:
 		// In our specific case here we can use both the batch and index dimensions to represent non-1 broadcasting, but
 		// we are still limited to cases where the broadcast dimension size is a multiple of the broadcasted one.
 		{
-			auto FixBroadcast = [](DmlUtil::FSmallUIntArray& DmlShape, DmlUtil::FSmallUIntArray& BroadcastArray, uint32 BroadcastFactor)
+			auto FixBroadcast = [](Util::FSmallUIntArray& DmlShape, Util::FSmallUIntArray& BroadcastArray, uint32 BroadcastFactor)
 			{
 				if(DmlShape == BroadcastArray)
 				{
@@ -197,40 +195,45 @@ public:
 		//ATensor.SetShape(DmlShapeA);
 		//BTensor.SetShape(DmlShapeB);
 
-		DmlUtil::FTensorDesc	DmlInputATensorDesc{};
-		DmlUtil::FTensorDesc	DmlInputBTensorDesc{};
-		DmlUtil::FTensorDesc	DmlOutputTensorDesc{};
+		FTensorDescDml	DmlInputATensorDesc;
+		FTensorDescDml	DmlInputBTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!DmlInputATensorDesc.InitFromTensor(ATensor, DmlShapeA.Num(), 
-			/*Broadcast =*/ BroadcastShapeA, 
-			/*CustomShape =*/ DmlShapeA))
+		if (!DmlInputATensorDesc
+				.SetTensorRank(2, 4)
+				.SetFromTensor(ATensor)
+				.SetShape(DmlShapeA, BroadcastShapeA)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize MatMul's tensor A for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize MatMul's tensor A for DML inference"));
 			return false;
 		}
 
-		if (!DmlInputBTensorDesc.InitFromTensor(BTensor, DmlShapeB.Num(), 
-			/*Broadcast =*/ BroadcastShapeB,
-			/*CustomShape =*/ DmlShapeB))
+		if (!DmlInputBTensorDesc
+				.SetTensorRank(2, 4)
+				.SetFromTensor(BTensor)
+				.SetShape(DmlShapeB, BroadcastShapeB)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize MatMul's tensor B for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize MatMul's tensor B for DML inference"));
 			return false;
 		}
 
-		if (!DmlOutputTensorDesc.InitFromTensor(OutTensor, DmlShapeOut.Num(), 
-			/*Broadcast =*/ MakeArrayView((uint32*) nullptr, 0), 
-			/*CustomShape =*/ DmlShapeOut))
+		if (!DmlOutputTensorDesc
+				.SetTensorRank(2, 4)
+				.SetShape(DmlShapeOut)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize MatMul's output tensor for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize MatMul's output tensor for DML inference"));
 			return false;
 		}
 
 		DML_GEMM_OPERATOR_DESC	DmlGemmOpDesc{};
 
-		DmlGemmOpDesc.ATensor = &DmlInputATensorDesc.Desc;
-		DmlGemmOpDesc.BTensor = &DmlInputBTensorDesc.Desc;
+		DmlGemmOpDesc.ATensor = DmlInputATensorDesc.GetDmlDesc();
+		DmlGemmOpDesc.BTensor = DmlInputBTensorDesc.GetDmlDesc();
 		DmlGemmOpDesc.CTensor = nullptr;
-		DmlGemmOpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+		DmlGemmOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		DmlGemmOpDesc.Alpha = 1.0f;
 		DmlGemmOpDesc.Beta = 0.0f;
 		DmlGemmOpDesc.TransA = DML_MATRIX_TRANSFORM_NONE;
@@ -239,7 +242,6 @@ public:
 
 		return CreateOperator(Device, DML_OPERATOR_DESC{ DML_OPERATOR_GEMM, &DmlGemmOpDesc} );
 	}
-
 };
 
 NNE_DML_REGISTER_OP(MatMul)

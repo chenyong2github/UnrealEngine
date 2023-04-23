@@ -39,7 +39,7 @@ static EAutoPad AutoPadFromString(FStringView StringVal)
     }
 }
 
-static DmlUtil::FSmallUIntArray KernelPadding(
+static Util::FSmallUIntArray KernelPadding(
     TConstArrayView<uint32> InputShape, TConstArrayView<uint32> WindowSize, 
     TConstArrayView<uint32> Dilations, TConstArrayView<uint32> Strides
     )
@@ -47,7 +47,7 @@ static DmlUtil::FSmallUIntArray KernelPadding(
     const uint32 NumSpatialDimensions = InputShape.Num() - NonspatialDimensionCount;
     check(NumSpatialDimensions >= 1);
 
-    DmlUtil::FSmallUIntArray Padding;
+    Util::FSmallUIntArray Padding;
     Padding.SetNumUninitialized(NumSpatialDimensions);
 
     for (uint32 Dim = 0; Dim < NumSpatialDimensions; ++Dim)
@@ -66,8 +66,8 @@ static DmlUtil::FSmallUIntArray KernelPadding(
 static void ComputeStartEndPaddings(
     TConstArrayView<uint32> InputShape,
     const NNECore::FAttributeMap& Attributes, 
-    DmlUtil::FSmallUIntArray &OutStartPadding, 
-    DmlUtil::FSmallUIntArray &OutEndPadding,
+    Util::FSmallUIntArray &OutStartPadding, 
+	Util::FSmallUIntArray &OutEndPadding,
     TConstArrayView<uint32> Padding)
 {
     const uint32 NumSpatialDimensions = InputShape.Num() - NonspatialDimensionCount;
@@ -77,10 +77,10 @@ static void ComputeStartEndPaddings(
 
     if (AutoPad == EAutoPad::NOTSET)
     {
-        DmlUtil::FSmallUIntArray Pads;
+        Util::FSmallUIntArray Pads;
 
         Pads.Init(0u, 2 * NumSpatialDimensions);
-        check(DmlUtil::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("pads")), Pads, TConstArrayView<uint32>(Pads)))
+        check(Util::GetArrayAttributeNoOverflow(Attributes.GetAttributeValue(TEXT("pads")), Pads, TConstArrayView<uint32>(Pads)))
 
 
         for (uint32 Dim = 0; Dim < NumSpatialDimensions; ++Dim)
@@ -143,7 +143,7 @@ inline int32 GetDmlAxis(int32 OnnxAxis, int32 OnnxDim, int32 DmlDim)
 	return DmlAxis;
 }
 
-inline void SetDmlAxesFromOnnx(DmlUtil::FSmallUIntArray& DmlAxes, int32 Rank, TConstArrayView<int32> OnnxAxes)
+inline void SetDmlAxesFromOnnx(Util::FSmallUIntArray& DmlAxes, int32 Rank, TConstArrayView<int32> OnnxAxes)
 {
 	DmlAxes.Reset();
 	DmlAxes.Reserve(Rank);

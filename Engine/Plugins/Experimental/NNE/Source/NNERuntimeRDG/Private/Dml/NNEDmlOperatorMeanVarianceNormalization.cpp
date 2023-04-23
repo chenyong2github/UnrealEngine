@@ -65,31 +65,35 @@ public:
 			}
 		}
 
-		DmlUtil::FTensorDesc	DmlInputTensor{};
-
-		if (!DmlInputTensor.InitFromTensor(InputTensor, InputTensor.GetShape().Rank()))
+		FTensorDescDml	DmlInputTensorDesc;
+		
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 		
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!DmlOutputTensor.InitFromTensor(OutputTensor, DmlInputTensor.Sizes.Num()))
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		DmlUtil::FSmallUIntArray DmlAxes;
-		SetDmlAxesFromOnnx(DmlAxes, DmlInputTensor.Sizes.Num(), OnnxAxes);
+		Util::FSmallUIntArray DmlAxes;
+		SetDmlAxesFromOnnx(DmlAxes, DmlInputTensorDesc.GetRank(), OnnxAxes);
 
 		DML_MEAN_VARIANCE_NORMALIZATION1_OPERATOR_DESC	OpDesc{};
 
-		OpDesc.InputTensor = &DmlInputTensor.Desc;
+		OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
 		OpDesc.ScaleTensor = nullptr;
 		OpDesc.BiasTensor = nullptr;
-		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		OpDesc.AxisCount = DmlAxes.Num();
 		OpDesc.Axes = DmlAxes.GetData();
 		OpDesc.NormalizeVariance = NormalizeVariance;

@@ -42,17 +42,23 @@ public:
 		const float Beta = Attributes.GetValueOrDefault<float>(TEXT("beta"), 0.0f);
 		const float Bias = Attributes.GetValueOrDefault<float>(TEXT("bias"), 0.0f);
 
-		DmlUtil::FTensorDesc	DmlInputTensor{};
+		FTensorDescDml	DmlInputTensorDesc;
 
-		if (!DmlInputTensor.InitFromTensor(InputTensor, InputTensor.GetShape().Rank()))
+		if (!DmlInputTensorDesc
+				.SetTensorRank(4, 4)
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 		
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!DmlOutputTensor.InitFromTensor(OutputTensor, DmlInputTensor.Sizes.Num()))
+		if (!DmlOutputTensorDesc
+				.SetTensorRank(4, 4)
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
@@ -60,8 +66,8 @@ public:
 
 		DML_LOCAL_RESPONSE_NORMALIZATION_OPERATOR_DESC	OpDesc{};
 
-		OpDesc.InputTensor = &DmlInputTensor.Desc;
-		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		OpDesc.CrossChannel = true; // ONNX only supports cross-channel
 		OpDesc.LocalSize = Size;
 		OpDesc.Alpha = Alpha;

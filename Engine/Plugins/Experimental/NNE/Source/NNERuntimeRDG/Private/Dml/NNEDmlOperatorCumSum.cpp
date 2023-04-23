@@ -38,7 +38,7 @@ public:
         case ENNETensorDataType::Int32:
 			{
 				TConstArrayView<int32> TensorContent = InputTensors[1].GetPreparedData<int32>();
-				if(TensorContent.Num() != 1)
+				if (TensorContent.Num() != 1)
 				{
 					UE_LOG(LogNNE, Error, TEXT("axis tensor should be 0-D"));
 					return false;
@@ -46,15 +46,17 @@ public:
 				Axis = (UINT) HandleNegativeAxis(TensorContent[0], InputTensors[0].GetShape().Rank());
 			}
             break;
+
         case ENNETensorDataType::Int64:
 			{
 				TConstArrayView<int64> TensorContent = InputTensors[1].GetPreparedData<int64>();
-				if(TensorContent.Num() != 1)
+				if (TensorContent.Num() != 1)
 				{
 					UE_LOG(LogNNE, Error, TEXT("axis tensor should be 0-D"));
 					return false;
 				}
-				if(DmlUtil::IsOverflowing<int64, int32>(TensorContent[0]))
+				
+				if (Util::IsOverflowing<int64, int32>(TensorContent[0]))
 				{
 					UE_LOG(LogNNE, Error, TEXT("axis number is overflowing"));
 					return false;
@@ -62,23 +64,29 @@ public:
 				Axis = (UINT) HandleNegativeAxis(TensorContent[0], InputTensors[0].GetShape().Rank());
 			}
             break;
+
         default:
             UE_LOG(LogNNE, Error, TEXT("axis tensor has invalid data type"));
 			return false;
         };
 
-		const NNECore::Internal::FTensor& InputTensorDesc = InputTensors[0];
-		const NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
+		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
+		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
 
-		DmlUtil::FTensorDesc	DmlInputTensorDesc{};
-		DmlUtil::FTensorDesc	DmlOutputTensorDesc{};
+		FTensorDescDml	DmlInputTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!InitDmlTensorDesc(DmlInputTensorDesc, InputTensorDesc))
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize input tensor for DML inference"));
 			return false;
 		}
-		if (!InitDmlTensorDesc(DmlOutputTensorDesc, OutputTensorDesc))
+		
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize output tensor for DML inference"));
 			return false;
@@ -86,8 +94,8 @@ public:
 
 		DML_CUMULATIVE_SUMMATION_OPERATOR_DESC DmlCumSumOpDesc{};
 
-		DmlCumSumOpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-		DmlCumSumOpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+		DmlCumSumOpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		DmlCumSumOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		DmlCumSumOpDesc.Axis = Axis;
 		DmlCumSumOpDesc.AxisDirection = (DML_AXIS_DIRECTION) Attributes.GetValueOrDefault<int32>(TEXT("reverse"), 0);
 		DmlCumSumOpDesc.HasExclusiveSum = (bool) Attributes.GetValueOrDefault<int32>(TEXT("exclusive"), 0);

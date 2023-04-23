@@ -46,7 +46,7 @@ public:
 
 		if (InputTensor.GetShape().Rank() > 8)
 		{
-			UE_LOG(LogNNE, Warning, TEXT("InputTensor rank should be between 1 and 8, got:%d"), InputTensor.GetShape().Rank());
+			UE_LOG(LogNNE, Error, TEXT("InputTensor rank should be between 1 and 8, got:%d"), InputTensor.GetShape().Rank());
 			return false;
 		}
 
@@ -56,59 +56,65 @@ public:
 
 		if (bTrainingMode || OutputTensors.Num() > 1)
 		{
-			UE_LOG(LogNNE, Warning, TEXT("DML:BatchNormalization doesn't support training mode"));
+			UE_LOG(LogNNE, Error, TEXT("DML:BatchNormalization doesn't support training mode"));
 			return false;
 		}
 
-		DmlUtil::FTensorDesc	DmlInputTensors[Count];
+		FTensorDescDml DmlInputTensorDescs[Count];
 			
-		if (!DmlInputTensors[X].InitFromTensor(InputTensor, InputTensor.GetShape().Rank()))
+		if (!DmlInputTensorDescs[X]
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		for (int32 Idx = Scale; Idx < Count; ++Idx)
 		{
 			const NNECore::Internal::FTensor& CurrTensor = InputTensors[Idx];
-			DmlUtil::FTensorDesc& DmlTensor = DmlInputTensors[Idx];
-
-			DmlTensor = DmlUtil::FTensorDesc{};
+			FTensorDescDml& DmlCurrTensorDesc = DmlInputTensorDescs[Idx];
 
 			if (CurrTensor.GetShape().Rank() == 1)
 			{
-				if (!DmlTensor.InitFromTensor1D(CurrTensor, DmlInputTensors[X].Sizes.Num()))
+				if (!DmlCurrTensorDesc
+						.SetFromTensor1D(CurrTensor, InputTensor.GetShape().Rank())
+						.Validate())
 				{
-					UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+					UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 					return false;
 				}
 			}
 			else
 			{
-				if (!DmlTensor.InitFromTensor(CurrTensor, DmlInputTensors[X].Sizes.Num()))
+				if (!DmlCurrTensorDesc
+						.SetFromTensor(CurrTensor)
+						.Validate())
 				{
-					UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+					UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 					return false;
 				}
 			}
 		}
 		
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
+		FTensorDescDml	DmlOutputTensor;
 
-		if (!DmlOutputTensor.InitFromTensor(OutputTensor, DmlInputTensors[X].Sizes.Num()))
+		if (!DmlOutputTensor
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		DML_BATCH_NORMALIZATION_OPERATOR_DESC	OpDesc{};
 
-		OpDesc.InputTensor = &DmlInputTensors[X].Desc;
-		OpDesc.MeanTensor = &DmlInputTensors[Mean].Desc;
-		OpDesc.VarianceTensor = &DmlInputTensors[Variance].Desc;
-		OpDesc.ScaleTensor = &DmlInputTensors[Scale].Desc;
-		OpDesc.BiasTensor = &DmlInputTensors[Bias].Desc;
-		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		OpDesc.InputTensor = DmlInputTensorDescs[X].GetDmlDesc();
+		OpDesc.MeanTensor = DmlInputTensorDescs[Mean].GetDmlDesc();
+		OpDesc.VarianceTensor = DmlInputTensorDescs[Variance].GetDmlDesc();
+		OpDesc.ScaleTensor = DmlInputTensorDescs[Scale].GetDmlDesc();
+		OpDesc.BiasTensor = DmlInputTensorDescs[Bias].GetDmlDesc();
+		OpDesc.OutputTensor = DmlOutputTensor.GetDmlDesc();
 		OpDesc.Spatial = static_cast<BOOL>(1);
 		OpDesc.Epsilon = Epsilon;
 		OpDesc.FusedActivation = nullptr;

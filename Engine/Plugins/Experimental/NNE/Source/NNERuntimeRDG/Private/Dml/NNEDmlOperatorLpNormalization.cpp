@@ -34,7 +34,7 @@ public:
 
 		if (InputTensor.GetShape().Rank() > 8)
 		{
-			UE_LOG(LogNNE, Warning, TEXT("InputTensor rank should be between 1 and 8, got:%d"), InputTensor.GetShape().Rank());
+			UE_LOG(LogNNE, Error, TEXT("InputTensor rank should be between 1 and 8, got:%d"), InputTensor.GetShape().Rank());
 			return false;
 		}
 
@@ -43,29 +43,33 @@ public:
 		check(P >= 1 && P <= 2);
 
 		int32 OnnxAxis = Attributes.GetValueOrDefault<int32>(TEXT("axis"), 0);
-
-		DmlUtil::FTensorDesc	DmlInputTensor{};
-
-		if (!DmlInputTensor.InitFromTensor(InputTensor, InputTensor.GetShape().Rank()))
+		
+		FTensorDescDml	DmlInputTensorDesc;
+		
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 		
-		DmlUtil::FTensorDesc	DmlOutputTensor{};
-
-		if (!DmlOutputTensor.InitFromTensor(OutputTensor, DmlInputTensor.Sizes.Num()))
+		FTensorDescDml	DmlOutputTensorDesc;
+		
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		uint32 DmlAxis = GetDmlAxis(OnnxAxis, InputTensor.GetShape().Rank(), DmlInputTensor.Sizes.Num());
+		uint32 DmlAxis = GetDmlAxis(OnnxAxis, InputTensor.GetShape().Rank(), DmlInputTensorDesc.GetRank());
 
 		DML_LP_NORMALIZATION_OPERATOR_DESC	OpDesc{};
 
-		OpDesc.InputTensor = &DmlInputTensor.Desc;
-		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
+		OpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		OpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		OpDesc.Axis = DmlAxis;
 		OpDesc.Epsilon = DefaultEpsilon;
 		OpDesc.P = P;

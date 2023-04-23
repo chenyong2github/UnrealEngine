@@ -40,15 +40,15 @@ public:
 	//
 	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
 	{
-		const NNECore::Internal::FTensor& InputTensorDesc = InputTensors[0];
-		const NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
+		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
+		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
 
 		if constexpr (std::is_same_v<DmlActivationOpDescType, DML_ACTIVATION_SOFTMAX1_OPERATOR_DESC> ||
 					  std::is_same_v<DmlActivationOpDescType, DML_ACTIVATION_LOG_SOFTMAX1_OPERATOR_DESC>)
 		{
 			Axis = Attributes.GetValueOrDefault(TEXT("axis"), -1);
 		}
-		Axis = HandleNegativeAxis(Axis, InputTensorDesc.GetShape().Rank());
+		Axis = HandleNegativeAxis(Axis, InputTensor.GetShape().Rank());
 
 		Alpha = Attributes.GetValueOrDefault(TEXT("alpha"), Alpha);
 		Beta = Attributes.GetValueOrDefault(TEXT("beta"), Beta);
@@ -56,17 +56,19 @@ public:
 
 
 		// Initialize tensor descriptor (it's same for both input and output)
-		DmlUtil::FTensorDesc	DmlTensorDesc{};
+		FTensorDescDml	DmlTensorDesc;
 
-		if (!InitDmlTensorDesc(DmlTensorDesc, InputTensorDesc))
+		if (!DmlTensorDesc
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		DmlActivationOpDescType	DmlActivationOpDesc{};
 
-		InitDmlOpDesc(DmlActivationOpDesc, DmlTensorDesc);
+		InitDmlOpDesc(DmlActivationOpDesc, *DmlTensorDesc.GetDmlDesc());
 
 		DML_OPERATOR_DESC DmlOpDesc{};
 
@@ -79,62 +81,62 @@ public:
 private:
 
 	template<typename OpDesc>
-	void InitDmlOpDesc(OpDesc& Desc, DmlUtil::FTensorDesc& TensorDesc)
+	void InitDmlOpDesc(OpDesc& Desc, const DML_TENSOR_DESC& TensorDesc)
 	{
-		Desc.InputTensor = &TensorDesc.Desc;
-		Desc.OutputTensor = &TensorDesc.Desc;
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
 	}
 
-	void InitDmlOpDesc(DML_ACTIVATION_LOG_SOFTMAX1_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& TensorDesc)
+	void InitDmlOpDesc(DML_ACTIVATION_LOG_SOFTMAX1_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& TensorDesc)
 	{
-		Desc.InputTensor = &TensorDesc.Desc;
-		Desc.OutputTensor = &TensorDesc.Desc;
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
 		Desc.AxisCount = 1;
 		Desc.Axes = (UINT*) &Axis;
 	}
 
-	void InitDmlOpDesc(DML_ACTIVATION_SOFTMAX1_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& TensorDesc)
+	void InitDmlOpDesc(DML_ACTIVATION_SOFTMAX1_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& TensorDesc)
 	{
-		Desc.InputTensor = &TensorDesc.Desc;
-		Desc.OutputTensor = &TensorDesc.Desc;
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
 		Desc.AxisCount = 1;
 		Desc.Axes = (UINT*) &Axis;
 	}
 
-	void InitDmlOpDesc(DML_ACTIVATION_SOFTPLUS_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& TensorDesc)
+	void InitDmlOpDesc(DML_ACTIVATION_SOFTPLUS_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& TensorDesc)
 	{
-		Desc.InputTensor = &TensorDesc.Desc;
-		Desc.OutputTensor = &TensorDesc.Desc;
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
 		Desc.Steepness = 1.0f;
 	}
 
-	void InitDmlOpDesc(DML_ACTIVATION_SCALED_ELU_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& TensorDesc)
+	void InitDmlOpDesc(DML_ACTIVATION_SCALED_ELU_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& TensorDesc)
 	{
-		Desc.InputTensor = &TensorDesc.Desc;
-		Desc.OutputTensor = &TensorDesc.Desc;
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
 		Desc.Alpha = Alpha;
 		Desc.Gamma = Gamma;
 	}
 
-	void InitDmlOpDesc(DML_ACTIVATION_ELU_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& TensorDesc)
+	void InitDmlOpDesc(DML_ACTIVATION_ELU_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& TensorDesc)
 	{
-		Desc.InputTensor = &TensorDesc.Desc;
-		Desc.OutputTensor = &TensorDesc.Desc;
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
 		Desc.Alpha = Alpha;
 	}
 
-	void InitDmlOpDesc(DML_ACTIVATION_HARD_SIGMOID_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& TensorDesc)
+	void InitDmlOpDesc(DML_ACTIVATION_HARD_SIGMOID_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& TensorDesc)
 	{
-		Desc.InputTensor = &TensorDesc.Desc;
-		Desc.OutputTensor = &TensorDesc.Desc;
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
 		Desc.Alpha = Alpha;
 		Desc.Beta = Beta;
 	}
 
-	void InitDmlOpDesc(DML_ACTIVATION_LEAKY_RELU_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& TensorDesc)
+	void InitDmlOpDesc(DML_ACTIVATION_LEAKY_RELU_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& TensorDesc)
 	{
-		Desc.InputTensor = &TensorDesc.Desc;
-		Desc.OutputTensor = &TensorDesc.Desc;
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
 		Desc.Alpha = Alpha;
 	}
 };
@@ -168,36 +170,42 @@ public:
 	//
 	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
 	{
-		const NNECore::Internal::FTensor& InputATensorDesc = InputTensors[0];
-		const NNECore::Internal::FTensor& InputBTensorDesc = InputTensors[1];
-		const NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
+		const NNECore::Internal::FTensor& InputATensor = InputTensors[0];
+		const NNECore::Internal::FTensor& InputBTensor = InputTensors[1];
+		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
 
 		// Initialize tensor descriptors
-		DmlUtil::FTensorDesc	DmlInputATensorDesc{};
-		DmlUtil::FTensorDesc	DmlInputBTensorDesc{};
-		DmlUtil::FTensorDesc	DmlOutputTensorDesc{};
+		FTensorDescDml	DmlInputATensorDesc;
+		FTensorDescDml	DmlInputBTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!InitDmlTensorDesc(DmlInputATensorDesc, InputATensorDesc, OutputTensorDesc))
+		if (!DmlInputATensorDesc
+				.SetFromTensorBroadcast(InputATensor, OutputTensor.GetShape())
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		if (!InitDmlTensorDesc(DmlInputBTensorDesc, InputBTensorDesc, OutputTensorDesc))
+		if (!DmlInputBTensorDesc
+				.SetFromTensorBroadcast(InputBTensor, OutputTensor.GetShape())
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
-		if (!InitDmlTensorDesc(DmlOutputTensorDesc, OutputTensorDesc))
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize tensor(s) for DML inference"));
+			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
 			return false;
 		}
 
 		DmlActivationOpDescType	DmlActivationOpDesc{};
 
-		InitDmlOpDesc(DmlActivationOpDesc, DmlInputATensorDesc, DmlInputBTensorDesc, DmlOutputTensorDesc);
+		InitDmlOpDesc(DmlActivationOpDesc, *DmlInputATensorDesc.GetDmlDesc(), *DmlInputBTensorDesc.GetDmlDesc(), *DmlOutputTensorDesc.GetDmlDesc());
 
 		DML_OPERATOR_DESC DmlOpDesc{};
 
@@ -210,18 +218,18 @@ public:
 private:
 
 	template<typename OpDesc>
-	void InitDmlOpDesc(OpDesc& Desc, DmlUtil::FTensorDesc& LHSTensor, DmlUtil::FTensorDesc& RHSTensor, DmlUtil::FTensorDesc& OutputTensor)
+	void InitDmlOpDesc(OpDesc& Desc, DML_TENSOR_DESC& LHSTensorDesc, const DML_TENSOR_DESC& RHSTensorDesc, const DML_TENSOR_DESC& OutputTensorDesc)
 	{
-		Desc.ATensor = &LHSTensor.Desc;
-		Desc.BTensor = &RHSTensor.Desc;
-		Desc.OutputTensor = &OutputTensor.Desc;
+		Desc.ATensor = &LHSTensorDesc;
+		Desc.BTensor = &RHSTensorDesc;
+		Desc.OutputTensor = &OutputTensorDesc;
 	}
 
-	void InitDmlOpDesc(DML_ACTIVATION_PARAMETERIZED_RELU_OPERATOR_DESC& Desc, DmlUtil::FTensorDesc& LHSTensor, DmlUtil::FTensorDesc& RHSTensor, DmlUtil::FTensorDesc& OutputTensor)
+	void InitDmlOpDesc(DML_ACTIVATION_PARAMETERIZED_RELU_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& LHSTensorDesc, const DML_TENSOR_DESC& RHSTensorDesc, const DML_TENSOR_DESC& OutputTensorDesc)
 	{
-		Desc.InputTensor = &LHSTensor.Desc;
-		Desc.SlopeTensor = &RHSTensor.Desc;
-		Desc.OutputTensor = &OutputTensor.Desc;
+		Desc.InputTensor = &LHSTensorDesc;
+		Desc.SlopeTensor = &RHSTensorDesc;
+		Desc.OutputTensor = &OutputTensorDesc;
 	}
 };
 

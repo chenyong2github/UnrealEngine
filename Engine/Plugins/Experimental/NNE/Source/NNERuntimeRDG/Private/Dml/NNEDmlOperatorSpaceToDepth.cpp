@@ -41,18 +41,23 @@ public:
 		}
 
 
-		const NNECore::Internal::FTensor& InputTensorDesc = InputTensors[0];
-		const NNECore::Internal::FTensor& OutputTensorDesc = OutputTensors[0];
+		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
+		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
 
-		DmlUtil::FTensorDesc	DmlInputTensorDesc{};
-		DmlUtil::FTensorDesc	DmlOutputTensorDesc{};
+		FTensorDescDml	DmlInputTensorDesc;
+		FTensorDescDml	DmlOutputTensorDesc;
 
-		if (!DmlInputTensorDesc.InitFromTensor(InputTensorDesc, 4))
+		if (!DmlInputTensorDesc
+				.SetFromTensor(InputTensor)
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize input tensor for DML inference"));
 			return false;
 		}
-		if (!DmlOutputTensorDesc.InitFromTensor(OutputTensorDesc, 4))
+
+		if (!DmlOutputTensorDesc
+				.SetFromTensor(OutputTensor)
+				.Validate())
 		{
 			UE_LOG(LogNNE, Warning, TEXT("Failed to initialize output tensor for DML inference"));
 			return false;
@@ -60,8 +65,8 @@ public:
 
 		DML_SPACE_TO_DEPTH1_OPERATOR_DESC DmlSpaceToDepthOpDesc{};
 
-		DmlSpaceToDepthOpDesc.InputTensor = &DmlInputTensorDesc.Desc;
-		DmlSpaceToDepthOpDesc.OutputTensor = &DmlOutputTensorDesc.Desc;
+		DmlSpaceToDepthOpDesc.InputTensor = DmlInputTensorDesc.GetDmlDesc();
+		DmlSpaceToDepthOpDesc.OutputTensor = DmlOutputTensorDesc.GetDmlDesc();
 		DmlSpaceToDepthOpDesc.BlockSize = BlockSize;
 		DmlSpaceToDepthOpDesc.Order = DML_DEPTH_SPACE_ORDER_DEPTH_COLUMN_ROW;
 
