@@ -18,7 +18,7 @@
 #include "Misc/PathViews.h"
 #include "Misc/StringBuilder.h"
 #include "NameTableArchive.h"
-#include "PackageReader.h"
+#include "AssetRegistry/PackageReader.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Serialization/MemoryWriter.h"

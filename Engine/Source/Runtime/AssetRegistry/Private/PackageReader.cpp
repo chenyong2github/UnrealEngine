@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PackageReader.h"
+#include "AssetRegistry/PackageReader.h"
 
 #include "AssetRegistry.h"
 #include "AssetRegistryPrivate.h"

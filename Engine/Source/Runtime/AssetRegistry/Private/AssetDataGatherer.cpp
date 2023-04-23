@@ -30,7 +30,6 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/TrackedActivity.h"
-#include "PackageReader.h"
 #include "Serialization/Archive.h"
 #include "Tasks/Task.h"
 #include "Templates/UniquePtr.h"

@@ -18,7 +18,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/Optional.h"
 #include "PackageDependencyData.h"
-#include "PackageReader.h"
+#include "AssetRegistry/PackageReader.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 

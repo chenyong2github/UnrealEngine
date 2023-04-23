@@ -29,7 +29,7 @@
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/TrackedActivity.h"
-#include "PackageReader.h"
+#include "AssetRegistry/PackageReader.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryWriter.h"
