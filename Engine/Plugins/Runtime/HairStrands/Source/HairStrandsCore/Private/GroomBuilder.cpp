@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r22");
+	return TEXT("v8r23");
 }
 
 namespace FHairStrandsDecimation
@@ -1451,6 +1451,7 @@ namespace HairInterpolationBuilder
 
 		OutBulkData.Header.Flags = FHairStrandsInterpolationBulkData::DataFlags_HasData;
 		OutBulkData.Header.PointCount = PointCount;
+		OutBulkData.Header.Strides.SimRootPointIndexStride = FHairStrandsRootIndexFormat::SizeInByte;
 
 		if (HairInterpolation.bUseUniqueGuide)
 		{
@@ -1465,6 +1466,7 @@ namespace HairInterpolationBuilder
 			static_assert(sizeof(FHairStrandsInterpolationFormat::Type) == 4u);
 
 			OutBulkData.Header.Flags |= FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData;
+			OutBulkData.Header.Strides.InterpolationStride = sizeof(FHairInterpolation1GuideVertex);
 
 			TArray<FHairStrandsInterpolationFormat::Type> OutPointsInterpolation;
 			OutPointsInterpolation.SetNum(PointCount);
@@ -1507,6 +1509,8 @@ namespace HairInterpolationBuilder
 			static_assert(sizeof(FHairInterpolation3GuidesVertex) == HAIR_INTERPOLATION_3GUIDE_STRIDE);
 			static_assert(sizeof(FHairStrandsInterpolationFormat::Type) == 4u);
 
+			OutBulkData.Header.Strides.InterpolationStride = sizeof(FHairInterpolation3GuidesVertex);
+
 			TArray<FHairStrandsInterpolationFormat::Type> OutPointsInterpolation;
 			OutPointsInterpolation.SetNum(PointCount * 4);
 			FHairInterpolation3GuidesVertex* Out = (FHairInterpolation3GuidesVertex*)OutPointsInterpolation.GetData();
@@ -1535,6 +1539,7 @@ namespace HairInterpolationBuilder
 			HairStrandsBuilder::CopyToBulkData<FHairStrandsInterpolationFormat>(OutBulkData.Data.Interpolation, OutPointsInterpolation);
 		}
 
+		// Map point to root point
 		{
 			OutBulkData.Header.SimPointCount = SimDatas.GetNumPoints();
 			const uint32 SimCurveCount = SimDatas.GetNumCurves();

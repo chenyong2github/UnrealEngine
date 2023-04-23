@@ -136,14 +136,16 @@ bool FHairStreamingRequest::IsCompleted()
 // Request fullfil 2 use cases:
 // * Load DDC data and upload them to GPU
 // * Load DDC data and store them into bulkdata for serialization
-void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, FHairStrandsBulkCommon& In, bool bWait, bool bFillBulkdata, const FName& InOwnerName)
+void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, FHairStrandsBulkCommon& In, bool bWait, bool bFillBulkdata, const FName& InOwnerName)
 {
 	if (In.GetResourceCount() == 0 || InRequestedCurveCount == 0)
 	{
 		CurveCount = 0;
+		PointCount = 0;
 		return;
 	}
 	CurveCount = InRequestedCurveCount;
+	PointCount = InRequestedPointCount;
 
 	#if !WITH_EDITORONLY_DATA
 	{ 
@@ -730,7 +732,7 @@ void FHairCommonResource::InitRHI()
 {
 	if (bIsInitialized || AllocationType == EHairStrandsAllocationType::Deferred || GUsingNullRHI) { return; }
 
-	check(InternalIsDataLoaded(HAIR_MAX_NUM_CURVE_PER_GROUP));
+	check(InternalIsDataLoaded(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP));
 
 	if (bUseRenderGraph)
 	{
@@ -757,15 +759,15 @@ void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadi
 	EHairResourceStatus Status;
 	Status.Status = EHairResourceStatus::EStatus::None;
 	Status.AvailableCurveCount = HAIR_MAX_NUM_CURVE_PER_GROUP;
-	Allocate(GraphBuilder, LoadingType, Status, HAIR_MAX_NUM_CURVE_PER_GROUP);
+	Allocate(GraphBuilder, LoadingType, Status, HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP);
 }
 
 void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status)
 {
-	Allocate(GraphBuilder, LoadingType, Status, HAIR_MAX_NUM_CURVE_PER_GROUP);
+	Allocate(GraphBuilder, LoadingType, Status, HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP);
 }
 
-void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status, uint32 InRequestedCurveCount)
+void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status, uint32 InRequestedCurveCount, uint32 InRequestedPointCount)
 {
 	check(AllocationType == EHairStrandsAllocationType::Deferred);
 
@@ -778,6 +780,8 @@ void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadi
 			FRenderResource::InitResource(); // Call RenderResource InitResource() so that the resources is marked as initialized
 			InternalAllocate(GraphBuilder);
 			bIsInitialized = true;
+
+			MaxAvailableCurveCount = InRequestedCurveCount;
 		}
 		Status |= EHairResourceStatus::EStatus::Valid;
 
@@ -790,7 +794,7 @@ void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadi
 			Status |= EHairResourceStatus::EStatus::Valid; 
 		}
 		// 2. If more curves are requested, issue a streaming request
-		else if (InternalIsDataLoaded(InRequestedCurveCount))
+		else if (InternalIsDataLoaded(InRequestedCurveCount, InRequestedPointCount))
 		{ 
 			// 2.1 Curve data are availble, and update GPU resources
 			if (!bIsInitialized)
@@ -835,7 +839,7 @@ void FHairCommonResource::StreamInData()
 	if (!bIsInitialized)
 	{
 		// TODO
-		InternalIsDataLoaded(HAIR_MAX_NUM_CURVE_PER_GROUP);
+		InternalIsDataLoaded(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP);
 	}
 }
 
@@ -1095,11 +1099,11 @@ FHairStrandsRestResource::FHairStrandsRestResource(FHairStrandsBulkData& InBulkD
 	check(!!(BulkData.Header.Flags & FHairStrandsBulkData::DataFlags_HasData));
 }
 
-bool FHairStrandsRestResource::InternalIsDataLoaded(uint32 InRequestedCurveCount)
+bool FHairStrandsRestResource::InternalIsDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount)
 {
 	if (StreamingRequest.IsNone())
 	{
-		StreamingRequest.Request(InRequestedCurveCount, BulkData, false, false, OwnerName);
+		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, BulkData, false, false, OwnerName);
 	}
 	return StreamingRequest.IsCompleted();
 }
@@ -1268,11 +1272,11 @@ FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(FHairStra
 	MaxAvailableCurveCount = 0;
 }
 
-bool FHairStrandsClusterCullingResource::InternalIsDataLoaded(uint32 InRequestedCurveCount)
+bool FHairStrandsClusterCullingResource::InternalIsDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount)
 {
 	if (StreamingRequest.IsNone())
 	{
-		StreamingRequest.Request(InRequestedCurveCount, BulkData, true, true, OwnerName); // HAIR_STREAMING : it still use the old resource creation using bulk data mapping
+		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, BulkData, true, true, OwnerName); // HAIR_STREAMING : it still use the old resource creation using bulk data mapping
 	}
 	return StreamingRequest.IsCompleted();
 }
@@ -1324,11 +1328,6 @@ void FHairStrandsRestRootResource::PopulateFromRootData()
 		LOD.SampleCount = MeshProjectionLOD.SampleCount;
 	}
 	LODRequests.SetNum(BulkData.MeshProjectionLODs.Num());
-}
-
-bool FHairStrandsRestRootResource::InternalIsDataLoaded(uint32 InRequestedCurveCount)
-{	
-	return true;
 }
 
 bool FHairStrandsRestRootResource::InternalIsLODDataLoaded(int32 LODIndex)
@@ -1697,11 +1696,11 @@ FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(FHairStrand
 	check(!!(BulkData.Header.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasData));
 }
 
-bool FHairStrandsInterpolationResource::InternalIsDataLoaded(uint32 InRequestedCurveCount)
+bool FHairStrandsInterpolationResource::InternalIsDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount)
 {
 	if (StreamingRequest.IsNone())
 	{
-		StreamingRequest.Request(InRequestedCurveCount, BulkData, false, false, OwnerName);
+		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, BulkData, false, false, OwnerName);
 	}
 	return StreamingRequest.IsCompleted();
 }

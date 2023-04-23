@@ -935,10 +935,12 @@ static void RunHairLODSelection(
 				GeometryType = EHairGeometryType::NoneGeometry;
 			}
 
-			uint32 RequestedCurveCount  = Instance->HairGroupPublicData->RestCurveCount;
+			uint32 RequestedCurveCount = Instance->HairGroupPublicData->RestCurveCount;
+			uint32 RequestedPointCount = Instance->HairGroupPublicData->RestPointCount;
 			if (GeometryType == EHairGeometryType::Strands && IsHairStrandsContinousLODEnabled() && Instance->bSupportStreaming)
 			{
 				RequestedCurveCount = ComputeActiveCurveCount(Instance->HairGroupPublicData->ContinuousLODScreenSize, Instance->HairGroupPublicData->RestCurveCount);
+				RequestedPointCount = (Instance->Strands.RestResource) ? Instance->Strands.RestResource->BulkData.Header.CurveToPointCount[RequestedCurveCount -1] : 0;
 			}
 
 			const bool bSimulationEnable			= Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
@@ -1007,9 +1009,9 @@ static void RunHairLODSelection(
 				Instance->HairGroupPublicData->Allocate(GraphBuilder);
 
 				if (Instance->Strands.RestRootResource)			{ Instance->Strands.RestRootResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); Instance->Strands.RestRootResource->AllocateLOD(GraphBuilder, MeshLODIndex, LoadingType, ResourceStatus); }
-				if (Instance->Strands.RestResource)				{ Instance->Strands.RestResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount); }
-				if (Instance->Strands.ClusterCullingResource)	{ Instance->Strands.ClusterCullingResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount); }
-				if (Instance->Strands.InterpolationResource)	{ Instance->Strands.InterpolationResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount); }
+				if (Instance->Strands.RestResource)				{ Instance->Strands.RestResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount, RequestedPointCount); }
+				if (Instance->Strands.ClusterCullingResource)	{ Instance->Strands.ClusterCullingResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount, RequestedPointCount); }
+				if (Instance->Strands.InterpolationResource)	{ Instance->Strands.InterpolationResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount, RequestedPointCount); }
 
 				if (Instance->Strands.DeformedRootResource)		{ Instance->Strands.DeformedRootResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); Instance->Strands.DeformedRootResource->AllocateLOD(GraphBuilder, MeshLODIndex, LoadingType, ResourceStatus); }
 				if (Instance->Strands.DeformedResource)			{ Instance->Strands.DeformedResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); }
@@ -1063,6 +1065,10 @@ static void RunHairLODSelection(
 			// Adapt the number curve/point based on Bound/CPU screen-size
 			if (GeometryType == EHairGeometryType::Strands && IsHairStrandsContinousLODEnabled())
 			{
+				if (!bIsLODDataReady)
+				{
+					return false;
+				}
 				check(bIsLODDataReady);
 				check(Instance->Strands.RestResource);
 

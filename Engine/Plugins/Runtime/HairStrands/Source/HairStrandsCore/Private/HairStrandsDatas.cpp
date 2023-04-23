@@ -217,8 +217,8 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 		FCacheGetChunkRequest& Out = OutReadDDC->AddDefaulted_GetRef();
 		Out.Id			= FValueId::Null; 	// HairStrands::HairStrandsValueId : This is only needed for cache record, not cache value.
 		Out.Key			= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix);
-		Out.RawOffset	= 0;				//InSize != 0 ? InOffset : 0;
-		Out.RawSize		= MAX_uint64;		//InSize != 0 ? InSize : MAX_uint64;
+		Out.RawOffset	= InSize != 0 ? InOffset : 0;
+		Out.RawSize		= InSize != 0 ? InSize : MAX_uint64;
 		Out.RawHash		= FIoHash();
 		Out.UserData	= (uint64)&Chunk;
 		if (Owner) { Out.Name = Owner->GetPathName(); }
@@ -325,14 +325,17 @@ void FHairStrandsBulkData::GetResources(FHairStrandsBulkCommon::FQuery& Out)
 		PointCount = CurveCount > 0 ? Header.CurveToPointCount[CurveCount -1] : 0;
 	}
 
+	const uint32 PointAttributeSize = FMath::DivideAndRoundUp(PointCount, Header.Strides.PointAttributeChunkElementCount) * Header.Strides.PointAttributeChunkStride;
+	const uint32 CurveAttributeSize = FMath::DivideAndRoundUp(CurveCount, Header.Strides.CurveAttributeChunkElementCount) * Header.Strides.CurveAttributeChunkStride;
+
 	// For now Load all data, HAIR_STREAMING
 	if (!!(Header.Flags & DataFlags_HasData))
 	{
 		Out.Add(Data.Positions, 			TEXT("_Positions"), 		Data.Positions.LoadedSize, 		PointCount * Header.Strides.PositionStride);
-		Out.Add(Data.CurveAttributes, 		TEXT("_CurveAttributes"), 	0, 								0);
+		Out.Add(Data.CurveAttributes, 		TEXT("_CurveAttributes"), 	Data.Positions.LoadedSize, 		CurveAttributeSize);
 		if (Header.Flags & DataFlags_HasPointAttribute)
 		{
-			Out.Add(Data.PointAttributes, 	TEXT("_PointAttributes"), 	0, 								0);
+			Out.Add(Data.PointAttributes, 	TEXT("_PointAttributes"), 	Data.Positions.LoadedSize, 		PointAttributeSize);
 		}
 		Out.Add(Data.PointToCurve, 			TEXT("_PointToCurve"), 		Data.PointToCurve.LoadedSize,	PointCount * Header.Strides.PointToCurveStride);
 		Out.Add(Data.Curves, 				TEXT("_Curves"), 			Data.Curves.LoadedSize, 		CurveCount * Header.Strides.CurveStride);
@@ -394,6 +397,9 @@ void FHairStrandsInterpolationBulkData::SerializeHeader(FArchive& Ar, UObject* O
 	Ar << Header.Flags;
 	Ar << Header.PointCount;
 	Ar << Header.SimPointCount;
+
+	Ar << Header.Strides.InterpolationStride;
+	Ar << Header.Strides.SimRootPointIndexStride;
 }
 
 uint32 FHairStrandsInterpolationBulkData::GetResourceCount() const
@@ -407,8 +413,15 @@ void FHairStrandsInterpolationBulkData::GetResources(FHairStrandsBulkCommon::FQu
 
 	if (Header.Flags & DataFlags_HasData)
 	{
-		Out.Add(Data.Interpolation, TEXT("_Interpolation"), 0, 0); // HAIR_STREAMING
-		Out.Add(Data.SimRootPointIndex, TEXT("_SimRootPointIndex"), 0, 0);
+		// Translate requested curve count into chunk/offset/size to be read
+		uint32 PointCount = 0;
+		if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC)
+		{
+			PointCount = FMath::Min(Header.PointCount, Out.GetPointCount());
+		}
+
+		Out.Add(Data.Interpolation, 	TEXT("_Interpolation"), 	Data.Interpolation.LoadedSize, 		PointCount * Header.Strides.InterpolationStride);
+		Out.Add(Data.SimRootPointIndex, TEXT("_SimRootPointIndex"), Data.SimRootPointIndex.LoadedSize, 	Header.SimPointCount * Header.Strides.SimRootPointIndexStride); // Load all data at once (guide data)
 	}
 }
 

@@ -261,10 +261,9 @@ struct FHairStreamingRequest
 		void Release();
 	};
 
-	void Request(uint32 InRequestedCurveCount, FHairStrandsBulkCommon& In, bool bWait=false, bool bFillBulkData=false, const FName& InOwnerName = NAME_None);
+	void Request(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, FHairStrandsBulkCommon& In, bool bWait=false, bool bFillBulkData=false, const FName& InOwnerName = NAME_None);
 	bool IsNone() const;
 	bool IsCompleted();
-	bool HasPendingRequest() const { return CurveCount > 0; }
 
 #if !WITH_EDITORONLY_DATA
 	// IO
@@ -276,6 +275,7 @@ struct FHairStreamingRequest
 #endif
 	TArray<FChunk> Chunks;
 	uint32 CurveCount = 0;
+	uint32 PointCount = 0;
 };
 
 struct FHairBulkContainer
@@ -310,6 +310,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 	{
 		void Add(FHairBulkContainer& In, const TCHAR* InSuffix, uint32 InOffset=0, uint32 InSize=0);
 		uint32 GetCurveCount() const { check(StreamingRequest); return StreamingRequest->CurveCount; }
+		uint32 GetPointCount() const { check(StreamingRequest); return StreamingRequest->PointCount; }
 
 		enum EQueryType { None, ReadDDC, WriteDDC, ReadIO, ReadWriteIO /* i.e. regular Serialize() */};
 		EQueryType Type = None;
@@ -384,6 +385,12 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkC
 		uint32 Flags = 0;
 		uint32 PointCount = 0;
 		uint32 SimPointCount = 0;
+
+		struct FStrides
+		{
+			uint32 InterpolationStride = 0;
+			uint32 SimRootPointIndexStride = 0;
+		} Strides;
 	} Header;
 
 	struct FData
