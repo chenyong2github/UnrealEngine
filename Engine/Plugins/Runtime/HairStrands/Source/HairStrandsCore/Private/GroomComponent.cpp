@@ -2698,6 +2698,10 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				if (MeshDeformer)
 				{
 					bNeedDynamicResources = true;
+
+					// When an instance has a groom deformer, we disable streaming in order to load all its data, as they 
+					// can be accessed/modified by a groom deformer
+					HairGroupInstance->bSupportStreaming = false;
 				}
 			}
 

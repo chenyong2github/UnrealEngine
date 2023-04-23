@@ -4,6 +4,7 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "HairAttributes.h"
+#include "IO/IoDispatcher.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCache.h"
@@ -131,34 +132,38 @@ void FHairStrandsBulkCommon::Write_DDC(UObject* Owner, TArray<UE::DerivedData::F
 #endif
 }
 
-void FHairStrandsBulkCommon::Read_DDC(TArray<UE::DerivedData::FCacheGetChunkRequest>& Out)
+void FHairStrandsBulkCommon::Read_DDC(FHairStreamingRequest* In, TArray<UE::DerivedData::FCacheGetChunkRequest>& Out)
 {
 #if WITH_EDITORONLY_DATA
 	FHairStrandsBulkCommon::FQuery Q;
 	Q.Type = FHairStrandsBulkCommon::FQuery::ReadDDC;
 	Q.OutReadDDC = &Out;
 	Q.DerivedDataKey = &DerivedDataKey;
+	Q.StreamingRequest = In;
+	Q.StreamingRequest->Chunks.Reserve(GetResourceCount()); // This ensures that Chunks array is never reallocated, which would invalidate pointers to FChunk
 	GetResources(Q);
 #endif
 }
 
-void FHairStrandsBulkCommon::Read_IO(FBulkDataBatchRequest& Out)
+void FHairStrandsBulkCommon::Read_IO(FHairStreamingRequest* In, FBulkDataBatchRequest& Out)
 {
 	FBulkDataBatchRequest::FBatchBuilder Batch = Out.NewBatch(GetResourceCount());
 
 	FHairStrandsBulkCommon::FQuery Q;
 	Q.Type = FHairStrandsBulkCommon::FQuery::ReadIO;
 	Q.OutReadIO = &Batch;
+	Q.StreamingRequest = In;
+	Q.StreamingRequest->Chunks.Reserve(GetResourceCount()); // This ensures that Chunks array is never reallocated, which would invalidate pointers to FChunk
 	GetResources(Q);
 	Q.OutReadIO->Issue(Out);
 }
-void FHairStrandsBulkCommon::Write_IO(FArchive& Ar, UObject* Owner)
+void FHairStrandsBulkCommon::Write_IO(UObject* Owner, FArchive& Out)
 {
-	GetResourceVersion(Ar);
+	GetResourceVersion(Out);
 
 	FHairStrandsBulkCommon::FQuery Q;
 	Q.Type = FHairStrandsBulkCommon::FQuery::ReadWriteIO;
-	Q.OutWriteIO = &Ar;
+	Q.OutWriteIO = &Out;
 	Q.Owner = Owner;
 	GetResources(Q);
 }
@@ -171,10 +176,10 @@ void FHairStrandsBulkCommon::Serialize(FArchive& Ar, UObject* Owner)
 
 void FHairStrandsBulkCommon::SerializeData(FArchive& Ar, UObject* Owner)
 {
-	Write_IO(Ar, Owner);
+	Write_IO(Owner, Ar);
 }
 
-void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* InSuffix) 
+void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* InSuffix, uint32 InOffset, uint32 InSize) 
 {
 	check(Type != None);
 #if WITH_EDITORONLY_DATA
@@ -196,22 +201,52 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 	}
 	else if (Type == ReadDDC)
 	{
+		// 1. Add chunk request to the streaming request. The chunk will hold the request result.
+		check(StreamingRequest);
+		FHairStreamingRequest::FChunk& Chunk = StreamingRequest->Chunks.AddDefaulted_GetRef();
+		Chunk.Status 	= FHairStreamingRequest::FChunk::EStatus::Pending;
+		Chunk.Container = &In;
+		Chunk.Size 		= InSize;
+		Chunk.Offset 	= InOffset;
+		Chunk.TotalSize = InOffset + InSize;
+		In.ChunkRequest = &Chunk;
+
+		// 2. Fill in actual DDC request
 		check(OutReadDDC);
 		using namespace UE::DerivedData;
 		FCacheGetChunkRequest& Out = OutReadDDC->AddDefaulted_GetRef();
-		Out.Id			= FValueId::Null; // HairStrands::HairStrandsValueId : This is only needed for cache record, not cache value.
+		Out.Id			= FValueId::Null; 	// HairStrands::HairStrandsValueId : This is only needed for cache record, not cache value.
 		Out.Key			= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix);
-		Out.RawOffset	= 0; 			//In.Upload.Offset;
-		Out.RawSize		= MAX_uint64; 	//In.Upload.Size;
+		Out.RawOffset	= 0;				//InSize != 0 ? InOffset : 0;
+		Out.RawSize		= MAX_uint64;		//InSize != 0 ? InSize : MAX_uint64;
 		Out.RawHash		= FIoHash();
-		Out.UserData	= (uint64)&In;
+		Out.UserData	= (uint64)&Chunk;
+		if (Owner) { Out.Name = Owner->GetPathName(); }
 	}
 	else 
 #endif
 	if (Type == ReadIO)
 	{
+		// 0. If no size value is provided, use the entire resource
+		if (InSize == 0)
+		{
+			InOffset = 0;
+			InSize = In.Data.GetBulkDataSize();
+		}
+
+		// 1. Add chunk request to the streaming request. The chunk will hold the request result.
+		check(StreamingRequest);
+		FHairStreamingRequest::FChunk& Chunk = StreamingRequest->Chunks.AddDefaulted_GetRef();
+		Chunk.Status 	= FHairStreamingRequest::FChunk::EStatus::Pending;
+		Chunk.Container = &In;
+		Chunk.Size 		= InSize;
+		Chunk.Offset 	= InOffset;
+		Chunk.TotalSize = InOffset + InSize;
+		In.ChunkRequest = &Chunk;
+
+		// 2. Fill in actual DDC request
 		check(OutReadIO);
-		OutReadIO->Read(In.Data);
+		OutReadIO->Read(In.Data, InOffset, InSize, EAsyncIOPriorityAndFlags::AIOP_Normal, Chunk.Data_IO);
 	}
 	else
 	{
@@ -251,6 +286,8 @@ void FHairStrandsBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
 	Ar << Header.ImportedAttributes;
 	Ar << Header.ImportedAttributeFlags;
 
+	Ar << Header.CurveToPointCount;
+
 	Ar << Header.Strides.PositionStride;
 	Ar << Header.Strides.CurveStride;
 	Ar << Header.Strides.PointToCurveStride;
@@ -279,16 +316,26 @@ void FHairStrandsBulkData::GetResources(FHairStrandsBulkCommon::FQuery& Out)
 	static_assert(sizeof(FHairStrandsPointToCurveFormat32::BulkType) == sizeof(FHairStrandsPointToCurveFormat32::Type));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type)); 
 
+	// Translate requested curve count into chunk/offset/size to be read
+	uint32 PointCount = 0;
+	uint32 CurveCount = 0;
+	if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC)
+	{
+		CurveCount = FMath::Min(Header.CurveCount, Out.GetCurveCount());
+		PointCount = CurveCount > 0 ? Header.CurveToPointCount[CurveCount -1] : 0;
+	}
+
+	// For now Load all data, HAIR_STREAMING
 	if (!!(Header.Flags & DataFlags_HasData))
 	{
-		Out.Add(Data.Positions, TEXT("_Positions"));
-		Out.Add(Data.CurveAttributes, TEXT("_CurveAttributes"));
+		Out.Add(Data.Positions, 			TEXT("_Positions"), 		Data.Positions.LoadedSize, 		PointCount * Header.Strides.PositionStride);
+		Out.Add(Data.CurveAttributes, 		TEXT("_CurveAttributes"), 	0, 								0);
 		if (Header.Flags & DataFlags_HasPointAttribute)
 		{
-			Out.Add(Data.PointAttributes, TEXT("_PointAttributes"));
+			Out.Add(Data.PointAttributes, 	TEXT("_PointAttributes"), 	0, 								0);
 		}
-		Out.Add(Data.PointToCurve, TEXT("_PointToCurve"));
-		Out.Add(Data.Curves, TEXT("_Curves"));
+		Out.Add(Data.PointToCurve, 			TEXT("_PointToCurve"), 		Data.PointToCurve.LoadedSize,	PointCount * Header.Strides.PointToCurveStride);
+		Out.Add(Data.Curves, 				TEXT("_Curves"), 			Data.Curves.LoadedSize, 		CurveCount * Header.Strides.CurveStride);
 	}
 }
 
@@ -360,8 +407,8 @@ void FHairStrandsInterpolationBulkData::GetResources(FHairStrandsBulkCommon::FQu
 
 	if (Header.Flags & DataFlags_HasData)
 	{
-		Out.Add(Data.Interpolation, TEXT("_Interpolation"));
-		Out.Add(Data.SimRootPointIndex, TEXT("_SimRootPointIndex"));
+		Out.Add(Data.Interpolation, TEXT("_Interpolation"), 0, 0); // HAIR_STREAMING
+		Out.Add(Data.SimRootPointIndex, TEXT("_SimRootPointIndex"), 0, 0);
 	}
 }
 
@@ -424,22 +471,22 @@ void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQ
 {
 	if (Header.ClusterLODCount)
 	{
-		Out.Add(Data.ClusterLODInfos, TEXT("_ClusterLODInfos"));
+		Out.Add(Data.ClusterLODInfos, TEXT("_ClusterLODInfos"), 0, 0); // Load all data
 	}
 
 	if (Header.VertexCount)
 	{
-		Out.Add(Data.VertexToClusterIds, TEXT("_VertexToClusterIds"));
+		Out.Add(Data.VertexToClusterIds, TEXT("_VertexToClusterIds"), 0, 0); // Load all data
 	}
 
 	if (Header.VertexLODCount)
 	{
-		Out.Add(Data.ClusterVertexIds, TEXT("_ClusterVertexIds"));
+		Out.Add(Data.ClusterVertexIds, TEXT("_ClusterVertexIds"), 0, 0); // Load all data
 	}
 
 	if (Header.ClusterCount)
 	{
-		Out.Add(Data.PackedClusterInfos, TEXT("_PackedClusterInfos"));
+		Out.Add(Data.PackedClusterInfos, TEXT("_PackedClusterInfos"), 0, 0); // Load all data
 	}
 
 	if (ValidateHairBulkData() && (Out.Type == FHairStrandsBulkCommon::FQuery::WriteDDC || Out.Type == FHairStrandsBulkCommon::FQuery::ReadWriteIO))
@@ -450,6 +497,8 @@ void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQ
 
 void FHairStrandsClusterCullingBulkData::Validate(bool bIsSaving)
 {
+	return;
+
 	if (Header.ClusterCount == 0)
 	{
 		return;

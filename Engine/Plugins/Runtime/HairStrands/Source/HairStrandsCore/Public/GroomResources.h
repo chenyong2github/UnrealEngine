@@ -61,49 +61,27 @@ enum class EHairResourceLoadingType : uint8
 	Sync
 };
 
-enum class EHairResourceStatus : uint8
+struct EHairResourceStatus
 {
-	None = 0,
-	Loading = 1,
-	Valid = 2
+	enum class EStatus : uint8
+	{
+		None = 0,
+		Loading = 1,
+		Valid = 2
+	};
+	void AddAvailableCurve(uint32 In) { AvailableCurveCount = FMath::Min(AvailableCurveCount, In); }
+	bool HasStatus(EStatus In) const { return !!(static_cast<uint8>(Status) & static_cast<uint8>(In)); }
+	EStatus Status = EStatus::None;
+	uint32 AvailableCurveCount = 0;
 };
 
-FORCEINLINE EHairResourceStatus  operator& (EHairResourceStatus A, EHairResourceStatus B) { return static_cast<EHairResourceStatus>(static_cast<uint8>(A) & static_cast<uint8>(B)); }
-FORCEINLINE EHairResourceStatus  operator| (EHairResourceStatus A, EHairResourceStatus B) { return static_cast<EHairResourceStatus>(static_cast<uint8>(A) | static_cast<uint8>(B)); }
-FORCEINLINE EHairResourceStatus& operator|=(EHairResourceStatus&A, EHairResourceStatus B) { return A=A|B; }
-FORCEINLINE bool operator! (EHairResourceStatus A) { return static_cast<uint8>(A) != 0; }
+FORCEINLINE EHairResourceStatus  operator& (EHairResourceStatus In,  EHairResourceStatus::EStatus InStatus) { EHairResourceStatus Out = In; Out.Status = static_cast<EHairResourceStatus::EStatus>(static_cast<uint8>(Out.Status) & static_cast<uint8>(InStatus)); return Out; }
+FORCEINLINE EHairResourceStatus  operator| (EHairResourceStatus In,  EHairResourceStatus::EStatus InStatus) { EHairResourceStatus Out = In; Out.Status = static_cast<EHairResourceStatus::EStatus>(static_cast<uint8>(Out.Status) | static_cast<uint8>(InStatus)); return Out; }
+FORCEINLINE EHairResourceStatus& operator|=(EHairResourceStatus&Out, EHairResourceStatus::EStatus InStatus) { return Out=Out|InStatus; }
+
+FORCEINLINE bool operator! (EHairResourceStatus A) { return static_cast<uint8>(A.Status) != 0 && A.AvailableCurveCount > 0; }
 
 EHairResourceLoadingType GetHairResourceLoadingType(EHairGeometryType InGeometryType, int32 InLODIndex);
-
-struct FHairChunkRequest
-{
-	enum EStatus { None, Pending, Completed, Failed };
-	FSharedBuffer Data;
-	uint32 Offset = 0;
-	uint32 Size = 0;
-	EStatus Status = EStatus::None;
-	FHairBulkContainer* Container = nullptr;
-
-	const uint8* GetData() const { check(Status == Completed); return (const uint8*)Data.GetData(); }
-	void Release() { Data.Reset(); }
-};
-
-struct FHairResourceRequest
-{
-	void Request(FHairStrandsBulkCommon& In, bool bWait=false, bool bFillBulkData=false, const FName& InOwnerName = NAME_None);
-	bool IsNone() const ;
-	bool IsCompleted() const;
-
-#if !WITH_EDITORONLY_DATA
-	// IO
-	FBulkDataBatchRequest IORequest;
-#else
-	// DDC
-	FString PathName;
-	TArray<FHairChunkRequest> Chunks;
-	TUniquePtr<UE::DerivedData::FRequestOwner> DDCRequestOwner;
-#endif
-};
 
 /* Hair resouces which whom allocation can be deferred */
 struct FHairCommonResource : public FRenderResource
@@ -118,6 +96,7 @@ struct FHairCommonResource : public FRenderResource
 	/* Init/Release buffers (FHairCommonResource) */
 	void Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType);
 	void Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status);
+	void Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status, uint32 InRequestedCurveCount);
 	void AllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status);
 
 	void StreamInData();
@@ -127,7 +106,7 @@ struct FHairCommonResource : public FRenderResource
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) {}
 	virtual void InternalAllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex) {}
 	virtual void InternalRelease() {}
-	virtual bool InternalIsDataLoaded() { return true; }
+	virtual bool InternalIsDataLoaded(uint32 InRequestedCurveCount) { return true; }
 	virtual bool InternalIsLODDataLoaded(int32 LODIndex) { return true; }
 
 	bool bUseRenderGraph = true;
@@ -137,6 +116,10 @@ struct FHairCommonResource : public FRenderResource
 	/* Store (precis) debug name */
 	FHairResourceName ResourceName;
 	FName OwnerName;
+
+	/* Handle streaming request */
+	FHairStreamingRequest StreamingRequest;
+	uint32 MaxAvailableCurveCount = HAIR_MAX_NUM_CURVE_PER_GROUP;
 };
 
 /* Render buffers for root deformation for dynamic meshes */
@@ -149,7 +132,7 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 	virtual void InternalAllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex) override;
 	virtual void InternalRelease() override;
-	virtual bool InternalIsDataLoaded() override;
+	virtual bool InternalIsDataLoaded(uint32 InRequestedCurveCount) override;
 	virtual bool InternalIsLODDataLoaded(int32 LODIndex) override;
 
 	/* Get the resource name */
@@ -317,7 +300,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 	virtual void InternalRelease() override;
-	virtual bool InternalIsDataLoaded() override;
+	virtual bool InternalIsDataLoaded(uint32 InRequestedCurveCount) override;
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsResource"); }
@@ -363,9 +346,6 @@ struct FHairStrandsRestResource : public FHairCommonResource
 
 	/* Reference to the hair strands render data */
 	FHairStrandsBulkData& BulkData;
-
-	/* Handle to bulk data request */
-	FHairResourceRequest BulkDataRequest;
 
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
@@ -463,7 +443,7 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 	virtual void InternalRelease() override;
-	virtual bool InternalIsDataLoaded() override;
+	virtual bool InternalIsDataLoaded(uint32 InRequestedCurveCount) override;
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsClusterResource"); }
@@ -490,9 +470,6 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	FRDGExternalBuffer ClusterVertexIdBuffer;
 
 	FHairStrandsClusterCullingBulkData& BulkData;
-
-	/* Handle to bulk data request */
-	FHairResourceRequest BulkDataRequest;
 };
 
 struct FHairStrandsInterpolationResource : public FHairCommonResource
@@ -503,7 +480,7 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 	virtual void InternalRelease() override;
-	virtual bool InternalIsDataLoaded() override;
+	virtual bool InternalIsDataLoaded(uint32 InRequestedCurveCount) override;
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsInterplationResource"); }
@@ -524,9 +501,6 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 
 	/* Reference to the hair strands interpolation render data */
 	FHairStrandsInterpolationBulkData& BulkData;
-
-	/* Handle to bulk data request */
-	FHairResourceRequest BulkDataRequest;
 };
 
 #if RHI_RAYTRACING

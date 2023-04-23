@@ -935,6 +935,12 @@ static void RunHairLODSelection(
 				GeometryType = EHairGeometryType::NoneGeometry;
 			}
 
+			uint32 RequestedCurveCount  = Instance->HairGroupPublicData->RestCurveCount;
+			if (GeometryType == EHairGeometryType::Strands && IsHairStrandsContinousLODEnabled() && Instance->bSupportStreaming)
+			{
+				RequestedCurveCount = ComputeActiveCurveCount(Instance->HairGroupPublicData->ContinuousLODScreenSize, Instance->HairGroupPublicData->RestCurveCount);
+			}
+
 			const bool bSimulationEnable			= Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
 			const bool bDeformationEnable			= Instance->HairGroupPublicData->bIsDeformationEnable;
 			const bool bGlobalInterpolationEnable	= Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
@@ -942,7 +948,9 @@ static void RunHairLODSelection(
 			const bool bLODNeedsGuides				= bSimulationEnable || bDeformationEnable || bGlobalInterpolationEnable || bSimulationCacheEnable;
 
 			const EHairResourceLoadingType LoadingType = GetHairResourceLoadingType(GeometryType, IntLODIndex);
-			EHairResourceStatus ResourceStatus = EHairResourceStatus::None;
+			EHairResourceStatus ResourceStatus;
+			ResourceStatus.Status 				= EHairResourceStatus::EStatus::None;
+			ResourceStatus.AvailableCurveCount 	= Instance->HairGroupPublicData->RestCurveCount;
 
 			// Lazy allocation of resources
 			// Note: Allocation will only be done if the resources is not initialized yet. Guides deformed position are also initialized from the Rest position at creation time.
@@ -999,9 +1007,9 @@ static void RunHairLODSelection(
 				Instance->HairGroupPublicData->Allocate(GraphBuilder);
 
 				if (Instance->Strands.RestRootResource)			{ Instance->Strands.RestRootResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); Instance->Strands.RestRootResource->AllocateLOD(GraphBuilder, MeshLODIndex, LoadingType, ResourceStatus); }
-				if (Instance->Strands.RestResource)				{ Instance->Strands.RestResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus); }
-				if (Instance->Strands.ClusterCullingResource)	{ Instance->Strands.ClusterCullingResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus); }
-				if (Instance->Strands.InterpolationResource)	{ Instance->Strands.InterpolationResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus); }
+				if (Instance->Strands.RestResource)				{ Instance->Strands.RestResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount); }
+				if (Instance->Strands.ClusterCullingResource)	{ Instance->Strands.ClusterCullingResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount); }
+				if (Instance->Strands.InterpolationResource)	{ Instance->Strands.InterpolationResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount); }
 
 				if (Instance->Strands.DeformedRootResource)		{ Instance->Strands.DeformedRootResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); Instance->Strands.DeformedRootResource->AllocateLOD(GraphBuilder, MeshLODIndex, LoadingType, ResourceStatus); }
 				if (Instance->Strands.DeformedResource)			{ Instance->Strands.DeformedResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); }
@@ -1017,7 +1025,7 @@ static void RunHairLODSelection(
 			}
 
 			// Only switch LOD if the data are ready to be used
-			const bool bIsLODDataReady = !!(ResourceStatus & EHairResourceStatus::Loading);
+			const bool bIsLODDataReady = !ResourceStatus.HasStatus(EHairResourceStatus::EStatus::Loading) || (IsHairStrandsContinousLODEnabled() && ResourceStatus.AvailableCurveCount > 0);
 			if (bIsLODDataReady)
 			{
 				EHairBindingType BindingType = Instance->HairGroupPublicData->GetBindingType(IntLODIndex);
@@ -1058,12 +1066,10 @@ static void RunHairLODSelection(
 				check(bIsLODDataReady);
 				check(Instance->Strands.RestResource);
 
-				const uint32 ActiveCurveCount = ComputeActiveCurveCount(Instance->HairGroupPublicData->ContinuousLODScreenSize, Instance->HairGroupPublicData->RestCurveCount);
-				const FPackedHairCurve Curve = Instance->Strands.RestResource->CurveData[ActiveCurveCount - 1];
-				const uint32 ActiveVertexCount = ActiveCurveCount < Instance->HairGroupPublicData->RestCurveCount ? (Curve.PointOffset + Curve.PointCount) : Instance->HairGroupPublicData->RestPointCount;
-
-				Instance->HairGroupPublicData->ContinuousLODCurveCount = ActiveCurveCount;
-				Instance->HairGroupPublicData->ContinuousLODPointCount = ActiveVertexCount;
+				const uint32 EffectiveCurveCount = FMath::Min(ResourceStatus.AvailableCurveCount, RequestedCurveCount);
+				Instance->HairGroupPublicData->ContinuousLODCurveCount = EffectiveCurveCount;
+				Instance->HairGroupPublicData->ContinuousLODPointCount = EffectiveCurveCount > 0 ? Instance->Strands.Data->Header.CurveToPointCount[EffectiveCurveCount - 1] : 0;
+				check(Instance->HairGroupPublicData->ContinuousLODPointCount <= Instance->HairGroupPublicData->RestPointCount);
 			}
 			return true;
 		};

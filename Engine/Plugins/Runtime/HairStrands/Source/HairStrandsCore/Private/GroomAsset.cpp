@@ -1770,12 +1770,12 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
-	// When cooking data, force loading of bulk data prior to saving them
+	// When cooking data, force loading of *all* bulk data prior to saving them
 	if (Ar.IsCooking() && Ar.IsSaving())
 	{
-		{ FHairResourceRequest R; R.Request(StrandData.BulkData, true /*bWait*/, true /*bFillBulkdata*/, Owner->GetFName()); }
-		{ FHairResourceRequest R; R.Request(StrandData.InterpolationBulkData, true /*bWait*/, true /*bFillBulkdata*/, Owner->GetFName()); }
-		{ FHairResourceRequest R; R.Request(StrandData.ClusterCullingBulkData, true /*bWait*/, true /*bFillBulkdata*/, Owner->GetFName()); }
+		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, StrandData.BulkData,               true /*bWait*/, true /*bFillBulkdata*/, Owner->GetFName()); }
+		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, StrandData.InterpolationBulkData,  true /*bWait*/, true /*bFillBulkdata*/, Owner->GetFName()); }
+		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, StrandData.ClusterCullingBulkData, true /*bWait*/, true /*bFillBulkdata*/, Owner->GetFName()); }
 	}
 
 	if (!Ar.IsCooking() || !StrandData.bIsCookedOut)

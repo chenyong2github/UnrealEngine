@@ -259,6 +259,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	bool					bForceCards = false;
 	bool					bUpdatePositionOffset = false;
 	bool					bCastShadow = true;
+	bool 					bSupportStreaming = true;
 	
 	// Deformed component to extract the bone buffer 
 	UMeshComponent*	 DeformedComponent = nullptr;

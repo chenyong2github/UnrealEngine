@@ -9,6 +9,12 @@
 #include "RenderGraphResources.h"
 #include "Serialization/BulkData.h"
 #include "HairStrandsDefinitions.h"
+#include "IO/IoDispatcher.h"
+#include "Memory/SharedBuffer.h"
+
+#if WITH_EDITORONLY_DATA
+#include "DerivedDataRequestOwner.h"
+#endif
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHairStrands, Log, All);
 
@@ -232,11 +238,55 @@ struct FHairStrandsRootUtils
 	static float	 PackUVsToFloat(const FVector2f& UV);
 };
 
+struct FHairStrandsBulkCommon;
+struct FHairBulkContainer;
+
+// Streaming request are used for reading hair strands data from DDC or IO
+// The request are translated later to FHairStrandsBulkCommon::FQuery for appropriate reading.
+// FHairStrandsBulkCommon::FQuery abstract DDC/IO/Read/Write for bulk data
+//
+// A query is processed as follow:
+//  FHairStreamingRequest -> FChunk -> FQuery
+struct FHairStreamingRequest
+{
+	struct FChunk
+	{
+		enum EStatus { None, Pending, Completed, Failed };
+		FSharedBuffer Data_DDC;
+		FIoBuffer Data_IO;
+		uint32 Offset = 0;				// Offset to the requested data
+		uint32 Size = 0;				// Size of the requested data
+		uint32 TotalSize = 0; 			// Size of the total data (existing + requested)
+		EStatus Status = EStatus::None;	// Status of the current request
+		FHairBulkContainer* Container = nullptr;
+
+		const uint8* GetData() const;
+		void Release();
+	};
+
+	void Request(uint32 InRequestedCurveCount, FHairStrandsBulkCommon& In, bool bWait=false, bool bFillBulkData=false, const FName& InOwnerName = NAME_None);
+	bool IsNone() const;
+	bool IsCompleted();
+	bool HasPendingRequest() const { return CurveCount > 0; }
+
+#if !WITH_EDITORONLY_DATA
+	// IO
+	FBulkDataBatchRequest IORequest;
+#else
+	// DDC
+	FString PathName;
+	TUniquePtr<UE::DerivedData::FRequestOwner> DDCRequestOwner;
+#endif
+	TArray<FChunk> Chunks;
+	uint32 CurveCount = 0;
+};
+
 struct FHairBulkContainer
 {
 	// Streaming
-	TBitArray<> AvailableChunks;
+	uint32 LoadedSize = 0;
 	FByteBulkData Data;
+	FHairStreamingRequest::FChunk* ChunkRequest = nullptr;
 
 	// Forward BulkData functions
 	bool IsBulkDataLoaded() const 		{ return Data.IsBulkDataLoaded(); }
@@ -255,16 +305,18 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 	void SerializeData(FArchive& Ar, UObject* Owner);
 
 	void Write_DDC(UObject* Owner, TArray<UE::DerivedData::FCachePutValueRequest>& Out);
-	void Read_DDC(TArray<UE::DerivedData::FCacheGetChunkRequest>& Out);
-	void Write_IO(FArchive& Ar, UObject* Owner);
-	void Read_IO(FBulkDataBatchRequest& Out);
+	void Read_DDC(FHairStreamingRequest* In, TArray<UE::DerivedData::FCacheGetChunkRequest>& Out);
+	void Write_IO(UObject* Owner, FArchive& Out);
+	void Read_IO(FHairStreamingRequest* In, FBulkDataBatchRequest& Out);
 
 	struct FQuery
 	{
-		void Add(FHairBulkContainer& In, const TCHAR* InSuffix);
+		void Add(FHairBulkContainer& In, const TCHAR* InSuffix, uint32 InOffset=0, uint32 InSize=0);
+		uint32 GetCurveCount() const { check(StreamingRequest); return StreamingRequest->CurveCount; }
 
-		enum EQueryType { None, ReadDDC, WriteDDC, ReadIO, ReadWriteIO /* aka regular Serialize() */};
+		enum EQueryType { None, ReadDDC, WriteDDC, ReadIO, ReadWriteIO /* i.e. regular Serialize() */};
 		EQueryType Type = None;
+		FHairStreamingRequest* StreamingRequest = nullptr;
 		FBulkDataBatchRequest::FBatchBuilder* 			OutReadIO = nullptr;
 		FArchive*										OutWriteIO = nullptr;
 	#if WITH_EDITORONLY_DATA
@@ -500,6 +552,9 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 		uint32 ImportedAttributes = 0;
 		uint32 ImportedAttributeFlags = 0;
 
+		// Map 'curve' count to 'point' count (used for CLOD)
+		TArray<uint32> CurveToPointCount;
+
 		// Data strides
 		struct FStrides
 		{
@@ -599,6 +654,7 @@ struct FHairStrandsRootBulkData
 
 		/* Map each root onto the unique triangle Id (per-root) */
 		FByteBulkData RootToUniqueTriangleIndexBuffer;
+
 		/* Root's barycentric (per-root) */
 		FByteBulkData RootBarycentricBuffer;
 

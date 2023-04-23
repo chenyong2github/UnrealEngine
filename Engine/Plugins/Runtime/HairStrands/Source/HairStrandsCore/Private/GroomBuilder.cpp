@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r19");
+	return TEXT("v8r22");
 }
 
 namespace FHairStrandsDecimation
@@ -546,6 +546,13 @@ namespace HairStrandsBuilder
 		else
 		{
 			CopyToBulkData<FHairStrandsPointToCurveFormat32>(OutBulkData.Data.PointToCurve, OutPointToCurve32);
+		}
+
+		// Build curve to point count mapping for runtime CLOD
+		OutBulkData.Header.CurveToPointCount.Reserve(OutPackedCurves.Num());
+		for (const FHairStrandsCurveFormat::Type& Curve : OutPackedCurves)
+		{
+			OutBulkData.Header.CurveToPointCount.Add(Curve.PointOffset + Curve.PointCount);
 		}
 
 		// Stride datas
