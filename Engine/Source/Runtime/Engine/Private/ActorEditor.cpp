@@ -87,11 +87,22 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 	{
 		if (!IsTemplate())
 		{
-			UWorld* World = GetTypedOuter<UWorld>();
-			UWorldPartition* WorldPartition = World ? World->GetWorldPartition() : nullptr;
-			if (!WorldPartition || (!WorldPartition->IsStreamingEnabled() && bIsRuntimeGridProperty))
+			UWorld* OwningWorld = GetWorld();
+			UWorld* OuterWorld = GetTypedOuter<UWorld>();
+			UWorldPartition* OwningWorldPartition = OwningWorld ? OwningWorld->GetWorldPartition() : nullptr;
+			UWorldPartition* OuterWorldPartition = OuterWorld ? OuterWorld->GetWorldPartition() : nullptr;			
+
+			if (!OwningWorldPartition || !OuterWorldPartition)
 			{
 				return false;
+			}
+
+			if (!OwningWorldPartition->IsStreamingEnabled())
+			{
+				if (bIsSpatiallyLoadedProperty || bIsRuntimeGridProperty)
+				{
+					return false;
+				}
 			}
 		}
 	}
