@@ -23,11 +23,6 @@ namespace EpicGames.Horde.Compute
 		None = 0x00,
 
 		/// <summary>
-		/// Indicates that the remote is ready to receive messages on the current channel
-		/// </summary>
-		Ready = 0x01,
-
-		/// <summary>
 		/// Sent in place of a regular response if an error occurs on the remote
 		/// </summary>
 		Exception = 0x02,
@@ -180,15 +175,6 @@ namespace EpicGames.Horde.Compute
 		public static async ValueTask CloseAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
 		{
 			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.None, cancellationToken);
-			message.Send();
-		}
-
-		/// <summary>
-		/// Sends a message to the remote indicating that we're ready to receive messages on the given channel
-		/// </summary>
-		public static async ValueTask SendReadyAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
-		{
-			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.Ready, cancellationToken);
 			message.Send();
 		}
 

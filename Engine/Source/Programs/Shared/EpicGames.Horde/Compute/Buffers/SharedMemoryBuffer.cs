@@ -14,9 +14,117 @@ namespace EpicGames.Horde.Compute.Buffers
 	/// <summary>
 	/// Implementation of <see cref="IComputeBuffer"/> suitable for cross-process communication
 	/// </summary>
-	public sealed class SharedMemoryBuffer : ComputeBufferBase
+	public sealed class SharedMemoryBuffer : IComputeBuffer
 	{
-		const int HeaderLength = sizeof(int) + sizeof(int); // num chunks, chunk length
+		SharedMemoryBufferCore _core;
+
+		/// <summary>
+		/// Name of this shared memory buffer
+		/// </summary>
+		public string Name => _core.Name;
+
+		private SharedMemoryBuffer(SharedMemoryBufferCore core)
+		{
+			_core = core;
+		}
+
+		/// <inheritdoc/>
+		public IComputeBufferReader Reader => _core.Reader;
+
+		/// <inheritdoc/>
+		public IComputeBufferWriter Writer => _core.Writer;
+
+		/// <inheritdoc cref="IComputeBuffer.AddRef"/>
+		public SharedMemoryBuffer AddRef()
+		{
+			_core.AddRef();
+			return new SharedMemoryBuffer(_core);
+		}
+
+		/// <inheritdoc/>
+		IComputeBuffer IComputeBuffer.AddRef() => AddRef();
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			if (_core != null)
+			{
+				_core.Release();
+				_core = null!;
+			}
+		}
+
+		/// <summary>
+		/// Create a new shared memory buffer
+		/// </summary>
+		/// <param name="name">Name of the buffer</param>
+		/// <param name="capacity">Capacity of the buffer</param>
+		public static SharedMemoryBuffer CreateNew(string? name, long capacity)
+		{
+			int numChunks = (int)Math.Max(4, capacity / Int32.MaxValue);
+			return CreateNew(name, numChunks, (int)(capacity / numChunks));
+		}
+
+		/// <summary>
+		/// Create a new shared memory buffer
+		/// </summary>
+		/// <param name="name">Name of the buffer</param>
+		/// <param name="numChunks">Number of chunks in the buffer</param>
+		/// <param name="chunkLength">Length of each chunk</param>
+		public static unsafe SharedMemoryBuffer CreateNew(string? name, int numChunks, int chunkLength)
+		{
+			long capacity = SharedMemoryBufferCore.HeaderLength + (numChunks * sizeof(ulong)) + (numChunks * chunkLength);
+
+			name ??= $"Local\\COMPUTE_{Guid.NewGuid()}";
+
+			MemoryMappedFile memoryMappedFile = MemoryMappedFile.CreateNew($"{name}_M", capacity, MemoryMappedFileAccess.ReadWrite, MemoryMappedFileOptions.None, HandleInheritability.Inheritable);
+			MemoryMappedViewAccessor memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
+			MemoryMappedView memoryMappedView = new MemoryMappedView(memoryMappedViewAccessor);
+
+			Span<byte> header = memoryMappedView.GetMemory(0, 8).Span;
+			BinaryPrimitives.WriteInt32LittleEndian(header, numChunks);
+			BinaryPrimitives.WriteInt32LittleEndian(header.Slice(4), chunkLength);
+
+			Native.EventHandle writerEvent = Native.EventHandle.CreateNew($"{name}_W", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
+			Native.EventHandle readerEvent = Native.EventHandle.CreateNew($"{name}_R", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
+
+			SharedMemoryBufferCore core = new SharedMemoryBufferCore(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, numChunks, chunkLength, readerEvent, writerEvent);
+			return new SharedMemoryBuffer(core);
+		}
+
+		/// <summary>
+		/// Open an existing buffer by name
+		/// </summary>
+		/// <param name="name">Name of the buffer to open</param>
+		public static SharedMemoryBuffer OpenExisting(string name)
+		{
+			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				throw new NotSupportedException();
+			}
+
+			MemoryMappedFile memoryMappedFile = MemoryMappedFile.OpenExisting($"{name}_M");
+			MemoryMappedViewAccessor memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
+			MemoryMappedView memoryMappedView = new MemoryMappedView(memoryMappedViewAccessor);
+
+			ReadOnlySpan<byte> header = memoryMappedView.GetMemory(0, SharedMemoryBufferCore.HeaderLength).Span;
+			int numChunks = BinaryPrimitives.ReadInt32LittleEndian(header);
+			int chunkLength = BinaryPrimitives.ReadInt32LittleEndian(header.Slice(4));
+
+			Native.EventHandle readerEvent = Native.EventHandle.OpenExisting($"{name}_R");
+			Native.EventHandle writerEvent = Native.EventHandle.OpenExisting($"{name}_W");
+
+			SharedMemoryBufferCore core = new SharedMemoryBufferCore(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, numChunks, chunkLength, readerEvent, writerEvent);
+			return new SharedMemoryBuffer(core);
+		}
+	}
+
+	/// <summary>
+	/// Core implementation of <see cref="SharedMemoryBuffer"/>
+	/// </summary>
+	sealed class SharedMemoryBufferCore : ComputeBufferBase
+	{
+		public const int HeaderLength = sizeof(int) + sizeof(int); // num chunks, chunk length
 
 		sealed unsafe class Chunk : ChunkBase
 		{
@@ -44,8 +152,8 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		private unsafe SharedMemoryBuffer(string name, MemoryMappedFile memoryMappedFile, MemoryMappedViewAccessor memoryMappedViewAccessor, MemoryMappedView memoryMappedView, Chunk[] chunks, Native.EventHandle readerEvent, Native.EventHandle writerEvent)
-			: base(chunks, 1)
+		public unsafe SharedMemoryBufferCore(string name, MemoryMappedFile memoryMappedFile, MemoryMappedViewAccessor memoryMappedViewAccessor, MemoryMappedView memoryMappedView, int numChunks, int chunkLength, Native.EventHandle readerEvent, Native.EventHandle writerEvent)
+			: base(CreateChunks(numChunks, chunkLength, memoryMappedView), 1)
 		{
 			Name = name;
 
@@ -55,44 +163,6 @@ namespace EpicGames.Horde.Compute.Buffers
 
 			_readerEvent = readerEvent;
 			_writerEvent = writerEvent;
-		}
-
-		/// <summary>
-		/// Create a new shared memory buffer
-		/// </summary>
-		/// <param name="name">Name of the buffer</param>
-		/// <param name="capacity">Capacity of the buffer</param>
-		public static SharedMemoryBuffer CreateNew(string? name, long capacity)
-		{
-			int numChunks = (int)Math.Max(4, capacity / Int32.MaxValue);
-			return CreateNew(name, numChunks, (int)(capacity / numChunks));
-		}
-
-		/// <summary>
-		/// Create a new shared memory buffer
-		/// </summary>
-		/// <param name="name">Name of the buffer</param>
-		/// <param name="numChunks">Number of chunks in the buffer</param>
-		/// <param name="chunkLength">Length of each chunk</param>
-		public static unsafe SharedMemoryBuffer CreateNew(string? name, int numChunks, int chunkLength)
-		{
-			long capacity = HeaderLength + (numChunks * sizeof(ulong)) + (numChunks * chunkLength);
-
-			name ??= $"Local\\COMPUTE_{Guid.NewGuid()}";
-
-			MemoryMappedFile memoryMappedFile = MemoryMappedFile.CreateNew($"{name}_M", capacity, MemoryMappedFileAccess.ReadWrite, MemoryMappedFileOptions.None, HandleInheritability.Inheritable);
-			MemoryMappedViewAccessor memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
-			MemoryMappedView memoryMappedView = new MemoryMappedView(memoryMappedViewAccessor);
-
-			Span<byte> header = memoryMappedView.GetMemory(0, 8).Span;
-			BinaryPrimitives.WriteInt32LittleEndian(header, numChunks);
-			BinaryPrimitives.WriteInt32LittleEndian(header.Slice(4), chunkLength);
-
-			Native.EventHandle writerEvent = Native.EventHandle.CreateNew($"{name}_W", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
-			Native.EventHandle readerEvent = Native.EventHandle.CreateNew($"{name}_R", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
-
-			Chunk[] chunks = CreateChunks(numChunks, chunkLength, memoryMappedView);
-			return new SharedMemoryBuffer(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, chunks, readerEvent, writerEvent);
 		}
 
 		static unsafe Chunk[] CreateChunks(int numChunks, int chunkLength, MemoryMappedView memoryMappedView)
@@ -107,32 +177,6 @@ namespace EpicGames.Horde.Compute.Buffers
 				chunks[chunkIdx] = chunk;
 			}
 			return chunks;
-		}
-
-		/// <summary>
-		/// Open an existing buffer by name
-		/// </summary>
-		/// <param name="name">Name of the buffer to open</param>
-		public static SharedMemoryBuffer OpenExisting(string name)
-		{
-			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-			{
-				throw new NotSupportedException();
-			}
-
-			MemoryMappedFile memoryMappedFile = MemoryMappedFile.OpenExisting($"{name}_M");
-			MemoryMappedViewAccessor memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
-			MemoryMappedView memoryMappedView = new MemoryMappedView(memoryMappedViewAccessor);
-
-			ReadOnlySpan<byte> header = memoryMappedView.GetMemory(0, HeaderLength).Span;
-			int numChunks = BinaryPrimitives.ReadInt32LittleEndian(header);
-			int chunkLength = BinaryPrimitives.ReadInt32LittleEndian(header.Slice(4));
-
-			Native.EventHandle readerEvent = Native.EventHandle.OpenExisting($"{name}_R");
-			Native.EventHandle writerEvent = Native.EventHandle.OpenExisting($"{name}_W");
-
-			Chunk[] chunks = CreateChunks(numChunks, chunkLength, memoryMappedView);
-			return new SharedMemoryBuffer(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, chunks, readerEvent, writerEvent);
 		}
 
 		/// <inheritdoc/>

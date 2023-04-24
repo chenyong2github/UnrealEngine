@@ -3,7 +3,10 @@
 #include <windows.h>
 #include <assert.h>
 #include <iostream>
+#include <rpcdcep.h>
 #include "SharedMemoryBuffer.h"
+
+unsigned int FSharedMemoryBuffer::Counter = 0;
 
 enum class FSharedMemoryBuffer::EWriteState : int
 {
@@ -112,10 +115,69 @@ FSharedMemoryBuffer::~FSharedMemoryBuffer()
 	Close();
 }
 
-bool FSharedMemoryBuffer::OpenExisting(const char* Name)
+bool FSharedMemoryBuffer::CreateNew(const char* Name, int NumChunks, int ChunkLength)
 {
+	Close();
+
+	char BaseNameBuffer[MAX_PATH];
+	if (Name == nullptr)
+	{
+		DWORD Pid = GetCurrentProcessId();
+		ULONGLONG TickCount = GetTickCount64();
+		sprintf_s(BaseNameBuffer, "Local\\COMPUTE_%u_%llu_%u", Pid, TickCount, InterlockedIncrement(&Counter));
+		Name = BaseNameBuffer;
+	}
+
+	unsigned long long Capacity = sizeof(FHeader) + (NumChunks * sizeof(unsigned int)) + (NumChunks * ChunkLength);
+
 	char NameBuffer[MAX_PATH];
 	sprintf_s(NameBuffer, "%s_M", Name);
+
+	LARGE_INTEGER LargeInteger;
+	LargeInteger.QuadPart = Capacity;
+
+	MemoryMappedFile = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, LargeInteger.HighPart, LargeInteger.LowPart, NameBuffer);
+	if (MemoryMappedFile == nullptr)
+	{
+		Close();
+		return false;
+	}
+
+	Header = (FHeader*)MapViewOfFile(MemoryMappedFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	if (Header == nullptr)
+	{
+		Close();
+		return false;
+	}
+
+	Header->NumChunks = NumChunks;
+	Header->ChunkLength = ChunkLength;
+
+	sprintf_s(NameBuffer, "%s_R", Name);
+	ReaderEvent = CreateEventA(NULL, TRUE, FALSE, NameBuffer);
+	if (ReaderEvent == nullptr)
+	{
+		Close();
+		return false;
+	}
+
+	sprintf_s(NameBuffer, "%s_W", Name);
+	WriterEvent = CreateEventA(NULL, TRUE, FALSE, NameBuffer);
+	if (WriterEvent == nullptr)
+	{
+		Close();
+		return false;
+	}
+
+	return OpenInternal(Name);
+}
+
+bool FSharedMemoryBuffer::OpenExisting(const char* InName)
+{
+	Close();
+
+	char NameBuffer[MAX_PATH];
+	sprintf_s(NameBuffer, "%s_M", InName);
 
 	MemoryMappedFile = OpenFileMappingA(FILE_MAP_ALL_ACCESS, TRUE, NameBuffer);
 	if (MemoryMappedFile == nullptr)
@@ -131,7 +193,7 @@ bool FSharedMemoryBuffer::OpenExisting(const char* Name)
 		return false;
 	}
 
-	sprintf_s(NameBuffer, "%s_R", Name);
+	sprintf_s(NameBuffer, "%s_R", InName);
 	ReaderEvent = OpenEventA(SYNCHRONIZE | EVENT_MODIFY_STATE, TRUE, NameBuffer);
 	if (ReaderEvent == nullptr)
 	{
@@ -139,7 +201,7 @@ bool FSharedMemoryBuffer::OpenExisting(const char* Name)
 		return false;
 	}
 
-	sprintf_s(NameBuffer, "%s_W", Name);
+	sprintf_s(NameBuffer, "%s_W", InName);
 	WriterEvent = OpenEventA(SYNCHRONIZE | EVENT_MODIFY_STATE, TRUE, NameBuffer);
 	if (WriterEvent == nullptr)
 	{
@@ -147,6 +209,11 @@ bool FSharedMemoryBuffer::OpenExisting(const char* Name)
 		return false;
 	}
 
+	return OpenInternal(InName);
+}
+
+bool FSharedMemoryBuffer::OpenInternal(const char* InName)
+{
 	ReadChunkIdx = 0;
 	ReadChunkDataPtr = GetChunkDataPtr(ReadChunkIdx);
 	ReadChunkStatePtr = GetChunkStatePtr(ReadChunkIdx);
@@ -155,6 +222,7 @@ bool FSharedMemoryBuffer::OpenExisting(const char* Name)
 	WriteChunkDataPtr = GetChunkDataPtr(WriteChunkIdx);
 	WriteChunkStatePtr = GetChunkStatePtr(WriteChunkIdx);
 
+	strcpy_s(Name, InName);
 	return true;
 }
 
@@ -192,6 +260,8 @@ void FSharedMemoryBuffer::Close()
 	WriteChunkIdx = -1;
 	WriteChunkStatePtr = nullptr;
 	WriteChunkDataPtr = nullptr;
+
+	Name[0] = 0;
 }
 
 bool FSharedMemoryBuffer::IsComplete() const
@@ -273,21 +343,21 @@ void FSharedMemoryBuffer::WaitToRead(size_t CurrentLength)
 
 void FSharedMemoryBuffer::MarkComplete()
 {
-	FChunkState::MarkComplete(ReadChunkStatePtr);
+	FChunkState::MarkComplete(WriteChunkStatePtr);
 	SetEvent(ReaderEvent);
 }
 
 void FSharedMemoryBuffer::AdvanceWritePosition(size_t Size)
 {
-	FChunkState::Append(ReadChunkStatePtr, Size);
+	FChunkState::Append(WriteChunkStatePtr, Size);
 	SetEvent(ReaderEvent);
 }
 
 unsigned char* FSharedMemoryBuffer::GetWriteMemory(size_t& OutSize)
 {
-	FChunkState State = FChunkState::Read(ReadChunkStatePtr);
-	OutSize = State.GetLength() - ReadOffset;
-	return ReadChunkDataPtr + ReadOffset;
+	FChunkState State = FChunkState::Read(WriteChunkStatePtr);
+	OutSize = Header->ChunkLength - State.GetLength();
+	return WriteChunkDataPtr + State.GetLength();
 }
 
 void FSharedMemoryBuffer::WaitToWrite(size_t CurrentLength)

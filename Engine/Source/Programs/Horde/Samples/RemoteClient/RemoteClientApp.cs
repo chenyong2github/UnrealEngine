@@ -78,7 +78,7 @@ namespace RemoteClient
 
 		const int PrimaryChannelId = 0;
 		const int BackgroundChannelId = 1;
-		const int ChildProcessChannelId = 2;
+		const int ChildProcessChannelId = ComputeChannel.DefaultWorkerChannelId;
 
 		static async Task RunRemoteAsync(IComputeLease lease, DirectoryReference uploadDir, string executable, List<string> arguments, ILogger logger)
 		{
@@ -105,11 +105,9 @@ namespace RemoteClient
 				// Run the task remotely in the background and echo the output to the console
 				await using (IComputeProcess process = await channel.ExecuteAsync(ChildProcessChannelId, executable, arguments, null, null))
 				{
-					string? line = await process.ReadLineAsync();
-					logger.LogInformation("[REMOTE] {Line}", line);
-
 					await using BackgroundTask tickTask = BackgroundTask.StartNew(ctx => WriteNumbersAsync(lease.Socket, logger, ctx));
 
+					string? line;
 					while ((line = await process.ReadLineAsync()) != null)
 					{
 						logger.LogInformation("[REMOTE] {Line}", line);
@@ -122,6 +120,9 @@ namespace RemoteClient
 		static async Task WriteNumbersAsync(IComputeSocket socket, ILogger logger, CancellationToken cancellationToken)
 		{
 			// Write data to the child process channel. The remote server will echo them back to us as it receives them, then exit when the channel is complete/closed.
+			await socket.WaitForAttachAsync(ChildProcessChannelId, cancellationToken);
+
+			logger.LogInformation("Connected");
 
 			byte[] buffer = new byte[4];
 			for (int idx = 0; idx < 3; idx++)

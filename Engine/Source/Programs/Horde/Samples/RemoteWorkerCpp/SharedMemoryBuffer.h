@@ -12,11 +12,17 @@ public:
 	FSharedMemoryBuffer();
 	~FSharedMemoryBuffer();
 
+	// Creates a new buffer
+	bool CreateNew(const char* Name, int NumChunks, int ChunkLength);
+
 	// Opens an existing shared memory buffer (typically from handles created in another process)
 	bool OpenExisting(const char* Name);
 
 	// Close the current buffer and release all allocated resources
 	void Close();
+
+	// Gets the name of this buffer
+	const char* GetName() const { return Name; }
 
 
 	/*** Reader Interface ***/
@@ -49,10 +55,15 @@ public:
 	void WaitToWrite(size_t currentLength);
 
 private:
+	bool OpenInternal(const char* InName);
 	unsigned char* GetChunkDataPtr(int chunkIdx) const;
 	volatile long long* GetChunkStatePtr(int chunkIdx) const;
 
+	static unsigned int Counter;
+
 	const int ReaderIdx = 0;
+
+	char Name[260];
 
 	void* MemoryMappedFile;
 	FHeader* Header;

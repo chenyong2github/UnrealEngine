@@ -5,8 +5,6 @@
 #include <assert.h>
 #include "ComputeChannel.h"
 
-const char* const FComputeChannel::EnvVarName = "UE_HORDE_COMPUTE_IPC";
-
 FComputeChannel::FComputeChannel()
 {
 }
@@ -16,40 +14,38 @@ FComputeChannel::~FComputeChannel()
 	Close();
 }
 
-bool FComputeChannel::Open()
+bool FComputeChannel::Open(FComputeSocket& Socket, int ChannelId)
 {
-	Close();
+	return Open(Socket, ChannelId, ChannelId, 1024 * 1024);
+}
 
-	char EnvVar[MAX_PATH];
-	int Length = GetEnvironmentVariableA(EnvVarName, EnvVar, sizeof(EnvVar) / sizeof(EnvVar[0]));
+bool FComputeChannel::Open(FComputeSocket& Socket, int ChannelId, int NumChunks, int ChunkSize)
+{
+	return Open(Socket, ChannelId, NumChunks, ChunkSize, NumChunks, ChunkSize);
+}
 
-	if (Length <= 0 || Length >= sizeof(EnvVar))
+bool FComputeChannel::Open(FComputeSocket& Socket, int ChannelId, int NumSendChunks, int SendChunkSize, int NumRecvChunks, int RecvChunkSize)
+{
+	if (!SendBuffer.CreateNew(nullptr, NumSendChunks, SendChunkSize))
+	{
+		Close();
+		return false;
+	}
+	if (!RecvBuffer.CreateNew(nullptr, NumRecvChunks, RecvChunkSize))
 	{
 		Close();
 		return false;
 	}
 
-	char Buffer[MAX_PATH];
-
-	sprintf_s(Buffer, "%s_SEND", EnvVar);
-	if (!SendBuffer.OpenExisting(Buffer))
-	{
-		Close();
-		return false;
-	}
-
-	sprintf_s(Buffer, "%s_RECV", EnvVar);
-	if (!RecvBuffer.OpenExisting(Buffer))
-	{
-		Close();
-		return false;
-	}
+	Socket.AttachSendBuffer(ChannelId, SendBuffer);
+	Socket.AttachRecvBuffer(ChannelId, RecvBuffer);
 
 	return true;
 }
 
 void FComputeChannel::Close()
 {
+	SendBuffer.MarkComplete();
 	SendBuffer.Close();
 	RecvBuffer.Close();
 }

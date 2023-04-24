@@ -3,16 +3,19 @@
 #pragma once
 
 #include "SharedMemoryBuffer.h"
+#include "ComputeSocket.h"
 
 class FComputeChannel
 {
-	static const char* const EnvVarName;
-
 public:
+	static const int DefaultWorkerChannelId = 100;
+
 	FComputeChannel();
 	~FComputeChannel();
 
-	bool Open();
+	bool Open(FComputeSocket& Socket, int ChannelId);
+	bool Open(FComputeSocket& Socket, int ChannelId, int NumChunks, int ChunkSize);
+	bool Open(FComputeSocket& Socket, int ChannelId, int NumSendChunks, int SendChunkSize, int NumRecvChunks, int RecvChunkSize);
 	void Close();
 
 	void Send(const void* Data, size_t Length);

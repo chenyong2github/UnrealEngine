@@ -6,6 +6,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,12 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	class DefaultComputeSocket : IComputeSocket, IAsyncDisposable
 	{
+		enum ControlMessageType
+		{
+			Attach = -1,
+			Detach = -2,
+		}
+
 		readonly object _lockObject = new object();
 
 		bool _complete;
@@ -33,6 +40,12 @@ namespace EpicGames.Horde.Compute
 		readonly Dictionary<int, Task> _sendTasks = new Dictionary<int, Task>();
 		readonly Dictionary<IComputeBuffer, int> _sendBuffers = new Dictionary<IComputeBuffer, int>();
 
+		readonly HashSet<int> _remoteRecvBuffers = new HashSet<int>();
+		readonly AsyncEvent _remoteBuffersChanged = new AsyncEvent();
+
+		readonly BackgroundTask _attachTask;
+		readonly Channel<int> _attachChannel = Channel.CreateUnbounded<int>();
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -43,6 +56,7 @@ namespace EpicGames.Horde.Compute
 			_transport = transport;
 			_logger = logger;
 			_recvTask = BackgroundTask.StartNew(ctx => RunReaderAsync(transport, ctx));
+			_attachTask = BackgroundTask.StartNew(ctx => SendAttachNotificationsAsync(ctx));
 		}
 
 		/// <summary>
@@ -73,6 +87,11 @@ namespace EpicGames.Horde.Compute
 			// a shutdown event to be sent back to our read task allowing it to shut down gracefully.
 			await _transport.MarkCompleteAsync(cancellationToken);
 
+			// Stop sending 
+			_attachChannel.Writer.Complete();
+			await _attachTask.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+			await _attachTask.StopAsync();
+
 			// Wait for the reader to stop
 			await _recvTask.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
 			await _recvTask.StopAsync();
@@ -84,6 +103,7 @@ namespace EpicGames.Horde.Compute
 			_cancellationSource.Cancel();
 			await Task.WhenAll(_sendTasks.Values);
 			await _recvTask.DisposeAsync();
+			await _attachTask.DisposeAsync();
 			_sendSemaphore.Dispose();
 			_cancellationSource.Dispose();
 			GC.SuppressFinalize(this);
@@ -116,15 +136,24 @@ namespace EpicGames.Horde.Compute
 					int size = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(4));
 
 					// Dispatch it to the correct place
-					if (size < 0)
+					if (size >= 0)
 					{
-						_logger.LogTrace("Detaching buffer {Id}", id);
+						IComputeBufferWriter writer = GetReceiveBuffer(cachedWriters, id);
+						await ReadPacketAsync(transport, id, size, writer, cancellationToken);
+					}
+					else if (size == (int)ControlMessageType.Attach)
+					{
+						_logger.LogTrace("Attaching recv buffer {Id}", id);
+						AttachRemoteRecvBuffer(id);
+					}
+					else if (size == (int)ControlMessageType.Detach)
+					{
+						_logger.LogTrace("Detaching recv buffer {Id}", id);
 						DetachRecvBuffer(cachedWriters, id);
 					}
 					else
 					{
-						IComputeBufferWriter writer = GetReceiveBuffer(cachedWriters, id);
-						await ReadPacketAsync(transport, id, size, writer, cancellationToken);
+						_logger.LogWarning("Unrecognized control message: {Message}", size);
 					}
 				}
 			}
@@ -186,6 +215,23 @@ namespace EpicGames.Horde.Compute
 			throw new ComputeInternalException($"No buffer is attached to channel {id}");
 		}
 
+		/// <inheritdoc/>
+		public async ValueTask WaitForAttachAsync(int channelId, CancellationToken cancellationToken = default)
+		{
+			for (; ; )
+			{
+				Task task = _remoteBuffersChanged.Task;
+				lock (_lockObject)
+				{
+					if (_remoteRecvBuffers.Contains(channelId))
+					{
+						return;
+					}
+				}
+				await task.WaitAsync(cancellationToken);
+			}
+		}
+
 		class SendSegment : ReadOnlySequenceSegment<byte>
 		{
 			public void Set(ReadOnlyMemory<byte> memory, ReadOnlySequenceSegment<byte>? next, long runningIndex)
@@ -210,7 +256,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public ValueTask MarkCompleteAsync(int id, CancellationToken cancellationToken) => SendInternalAsync(id, -1, ReadOnlyMemory<byte>.Empty, cancellationToken);
+		public ValueTask MarkCompleteAsync(int id, CancellationToken cancellationToken) => SendInternalAsync(id, (int)ControlMessageType.Detach, ReadOnlyMemory<byte>.Empty, cancellationToken);
 
 		async ValueTask SendInternalAsync(int id, int size, ReadOnlyMemory<byte> memory, CancellationToken cancellationToken)
 		{
@@ -232,7 +278,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public void AttachRecvBuffer(int channelId, IComputeBuffer recvBuffer)
+		public async void AttachRecvBuffer(int channelId, IComputeBuffer recvBuffer)
 		{
 			IComputeBuffer shared = recvBuffer.AddRef();
 
@@ -251,6 +297,32 @@ namespace EpicGames.Horde.Compute
 				shared.Writer.MarkComplete();
 				shared.Dispose();
 			}
+
+			if (!complete)
+			{
+				await _attachChannel.Writer.WriteAsync(channelId);
+			}
+		}
+
+		async Task SendAttachNotificationsAsync(CancellationToken cancellationToken)
+		{
+			while (await _attachChannel.Reader.WaitToReadAsync(cancellationToken))
+			{
+				int channelId;
+				if (_attachChannel.Reader.TryRead(out channelId))
+				{
+					await SendInternalAsync(channelId, (int)ControlMessageType.Attach, ReadOnlyMemory<byte>.Empty, cancellationToken);
+				}
+			}
+		}
+
+		void AttachRemoteRecvBuffer(int id)
+		{
+			lock (_lockObject)
+			{
+				_remoteRecvBuffers.Add(id);
+			}
+			_remoteBuffersChanged.Pulse();
 		}
 
 		void DetachRecvBuffer(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)

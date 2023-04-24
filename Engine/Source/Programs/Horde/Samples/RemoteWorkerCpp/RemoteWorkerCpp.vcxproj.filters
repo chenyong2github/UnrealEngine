@@ -4,9 +4,11 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="SharedMemoryBuffer.cpp" />
     <ClCompile Include="ComputeChannel.cpp" />
+    <ClCompile Include="ComputeSocket.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SharedMemoryBuffer.h" />
     <ClInclude Include="ComputeChannel.h" />
+    <ClInclude Include="ComputeSocket.h" />
   </ItemGroup>
 </Project>

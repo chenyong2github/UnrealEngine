@@ -5,7 +5,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Compute.Buffers;
-using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Compute
 {
@@ -34,6 +33,11 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public static class ComputeChannel
 	{
+		/// <summary>
+		/// Default channel id to use for worker messages
+		/// </summary>
+		public const int DefaultWorkerChannelId = 100;
+
 		class BufferedReaderChannel : IComputeChannel
 		{
 			readonly IComputeSocket _socket;
@@ -59,22 +63,15 @@ namespace EpicGames.Horde.Compute
 			public ValueTask SendAsync(ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default) => _socket.SendAsync(_channelId, memory, cancellationToken);
 		}
 
-		class BufferedReaderWriterChannel : IComputeChannel
+		internal sealed class BufferedReaderWriterChannel : IComputeChannel
 		{
-			readonly IComputeSocket _socket;
-			readonly int _channelId;
 			readonly IComputeBuffer _recvBuffer;
 			readonly IComputeBuffer _sendBuffer;
 
-			public BufferedReaderWriterChannel(IComputeSocket socket, int channelId, IComputeBuffer recvBuffer, IComputeBuffer sendBuffer)
+			public BufferedReaderWriterChannel(IComputeBuffer recvBuffer, IComputeBuffer sendBuffer)
 			{
-				_socket = socket;
-				_channelId = channelId;
 				_recvBuffer = recvBuffer;
 				_sendBuffer = sendBuffer;
-
-				_socket.AttachRecvBuffer(_channelId, recvBuffer);
-				_socket.AttachSendBuffer(_channelId, sendBuffer);
 			}
 
 			public void Dispose()
@@ -88,18 +85,30 @@ namespace EpicGames.Horde.Compute
 			public ValueTask SendAsync(ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default) => _sendBuffer.Writer.WriteAsync(memory, cancellationToken);
 		}
 
-		class WorkerChannel : IComputeChannel
+		class SimpleWorkerChannel : IComputeChannel
 		{
-			readonly IComputeBuffer _recvBuffer;
-			readonly IComputeBuffer _sendBuffer;
+			readonly WorkerComputeSocket _socket;
+			readonly SharedMemoryBuffer _recvBuffer;
+			readonly SharedMemoryBuffer _sendBuffer;
 
-			public WorkerChannel(IComputeBuffer recvBuffer, IComputeBuffer sendBuffer)
+			public SimpleWorkerChannel(int channelId)
 			{
-				_recvBuffer = recvBuffer;
-				_sendBuffer = sendBuffer;
+				_socket = new WorkerComputeSocket();
+
+				_recvBuffer = SharedMemoryBuffer.CreateNew(null, 1024 * 1024);
+				_socket.AttachRecvBuffer(channelId, _recvBuffer);
+
+				_sendBuffer = SharedMemoryBuffer.CreateNew(null, 1024 * 1024);
+				_socket.AttachSendBuffer(channelId, _sendBuffer);
 			}
 
-			public void Dispose() { }
+			public void Dispose()
+			{
+				_sendBuffer.Writer.MarkComplete();
+				_sendBuffer.Dispose();
+				_recvBuffer.Dispose();
+				_socket.Dispose();
+			}
 
 			public ValueTask<int> ReceiveAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => _recvBuffer.Reader.ReadAsync(buffer, cancellationToken);
 
@@ -107,28 +116,9 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <summary>
-		/// Name of the environment variable for passing the name of the compute channel
-		/// </summary>
-		public const string IpcEnvVar = "UE_HORDE_COMPUTE_IPC";
-
-		internal static string GetSendBufferName(string baseName) => $"{baseName}_SEND";
-		internal static string GetRecvBufferName(string baseName) => $"{baseName}_RECV";
-
-		/// <summary>
 		/// Creates a socket for a worker
 		/// </summary>
-		public static IComputeChannel ConnectAsWorker()
-		{
-			string? baseName = Environment.GetEnvironmentVariable(IpcEnvVar);
-			if (baseName == null)
-			{
-				throw new InvalidOperationException($"Environment variable {IpcEnvVar} is not defined; cannot connect as worker.");
-			}
-
-			IComputeBuffer recvBuffer = SharedMemoryBuffer.OpenExisting(GetRecvBufferName(baseName)).ToSharedInstance();
-			IComputeBuffer sendBuffer = SharedMemoryBuffer.OpenExisting(GetSendBufferName(baseName)).ToSharedInstance();
-			return new WorkerChannel(recvBuffer, sendBuffer);
-		}
+		public static IComputeChannel ConnectAsWorker(int channelId = DefaultWorkerChannelId) => new SimpleWorkerChannel(channelId);
 
 		/// <summary>
 		/// Creates a channel using a socket and receive buffer
@@ -145,7 +135,12 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel id to send and receive data</param>
 		/// <param name="recvBuffer">Buffer for receiving data</param>
 		/// <param name="sendBuffer">Buffer for sending data</param>
-		public static IComputeChannel CreateChannel(this IComputeSocket socket, int channelId, IComputeBuffer recvBuffer, IComputeBuffer sendBuffer) => new BufferedReaderWriterChannel(socket, channelId, recvBuffer, sendBuffer);
+		public static IComputeChannel CreateChannel(this IComputeSocket socket, int channelId, IComputeBuffer recvBuffer, IComputeBuffer sendBuffer)
+		{
+			socket.AttachRecvBuffer(channelId, recvBuffer);
+			socket.AttachSendBuffer(channelId, sendBuffer);
+			return new BufferedReaderWriterChannel(recvBuffer, sendBuffer);
+		}
 	}
 
 	/// <summary>

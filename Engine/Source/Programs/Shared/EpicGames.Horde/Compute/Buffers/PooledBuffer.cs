@@ -9,9 +9,64 @@ using EpicGames.Core;
 namespace EpicGames.Horde.Compute.Buffers
 {
 	/// <summary>
+	/// Implementation of <see cref="IComputeBuffer"/> suitable for cross-process communication
+	/// </summary>
+	public sealed class PooledBuffer : IComputeBuffer
+	{
+		PooledBufferCore _core;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="capacity">Total capacity of the buffer</param>
+		public PooledBuffer(int capacity)
+			: this(2, capacity / 2)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="numChunks">Number of chunks in the buffer</param>
+		/// <param name="chunkLength">Length of each chunk</param>
+		public PooledBuffer(int numChunks, int chunkLength)
+			: this(new PooledBufferCore(numChunks, chunkLength))
+		{
+		}
+
+		private PooledBuffer(PooledBufferCore core) => _core = core;
+
+		/// <inheritdoc/>
+		public IComputeBufferReader Reader => _core.Reader;
+
+		/// <inheritdoc/>
+		public IComputeBufferWriter Writer => _core.Writer;
+
+		/// <inheritdoc cref="IComputeBuffer.AddRef"/>
+		public PooledBuffer AddRef()
+		{
+			_core.AddRef();
+			return new PooledBuffer(_core);
+		}
+
+		/// <inheritdoc/>
+		IComputeBuffer IComputeBuffer.AddRef() => AddRef();
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			if (_core != null)
+			{
+				_core.Release();
+				_core = null!;
+			}
+		}
+	}
+
+	/// <summary>
 	/// In-process buffer used to store compute messages
 	/// </summary>
-	public sealed class PooledBuffer : ComputeBufferBase
+	sealed class PooledBufferCore : ComputeBufferBase
 	{
 		class Chunk : ChunkBase, IDisposable
 		{
@@ -37,18 +92,9 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="capacity">Total capacity of the buffer</param>
-		public PooledBuffer(int capacity)
-			: this(2, capacity / 2)
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
 		/// <param name="numChunks">Number of chunks in the buffer</param>
 		/// <param name="chunkLength">Length of each chunk</param>
-		public PooledBuffer(int numChunks, int chunkLength)
+		public PooledBufferCore(int numChunks, int chunkLength)
 			: this(CreateChunks(numChunks, chunkLength), 1)
 		{
 		}
@@ -56,7 +102,7 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		private PooledBuffer(Chunk[] chunks, int readerIdx)
+		private PooledBufferCore(Chunk[] chunks, int readerIdx)
 			: base(chunks, readerIdx)
 		{
 			_chunks = chunks;

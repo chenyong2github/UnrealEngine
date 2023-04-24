@@ -54,7 +54,8 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="currentLength">Current length of the buffer</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask WaitToReadAsync(int currentLength, CancellationToken cancellationToken = default);
+		/// <returns>True if new data is available, false if the buffer is complete</returns>
+		ValueTask<bool> WaitToReadAsync(int currentLength, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>

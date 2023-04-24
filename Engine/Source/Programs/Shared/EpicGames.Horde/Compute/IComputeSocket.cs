@@ -43,6 +43,13 @@ namespace EpicGames.Horde.Compute
 		void AttachSendBuffer(int channelId, IComputeBuffer buffer);
 
 		/// <summary>
+		/// Waits until the remote has attached a receive buffer to the given channel
+		/// </summary>
+		/// <param name="channelId">Channel id</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		ValueTask WaitForAttachAsync(int channelId, CancellationToken cancellationToken = default);
+
+		/// <summary>
 		/// Attempt to gracefully close the current connection and shutdown both ends of the transport
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
@@ -96,8 +103,8 @@ namespace EpicGames.Horde.Compute
 		/// <param name="logger">Logger for the channel</param>
 		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, int sendBufferSize, int recvBufferSize, ILogger logger)
 		{
-			IComputeBuffer sendBuffer = new PooledBuffer(sendBufferSize).ToSharedInstance();
-			IComputeBuffer recvBuffer = new PooledBuffer(recvBufferSize).ToSharedInstance();
+			IComputeBuffer sendBuffer = new PooledBuffer(sendBufferSize);
+			IComputeBuffer recvBuffer = new PooledBuffer(recvBufferSize);
 			return new ComputeMessageChannel(socket, channelId, sendBuffer, recvBuffer, logger);
 		}
 	}

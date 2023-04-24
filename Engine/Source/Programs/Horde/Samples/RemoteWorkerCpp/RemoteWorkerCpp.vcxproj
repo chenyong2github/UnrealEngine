@@ -186,11 +186,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ComputeChannel.cpp" />
+    <ClCompile Include="ComputeSocket.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="SharedMemoryBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ComputeChannel.h" />
+    <ClInclude Include="ComputeSocket.h" />
     <ClInclude Include="SharedMemoryBuffer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

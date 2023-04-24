@@ -6,14 +6,21 @@
 
 int main()
 {
-	FComputeChannel Channel;
-	if (!Channel.Open())
+	FComputeSocket Socket;
+	if (!Socket.Open())
 	{
 		std::cout << "Environment variable not set correctly" << std::endl;
 		return 1;
 	}
 
-	std::cout << "Connected to client" << std::endl; // // Client will wait for output before sending data on channel 1
+	FComputeChannel Channel;
+	if (!Channel.Open(Socket, FComputeChannel::DefaultWorkerChannelId))
+	{
+		std::cout << "Unable to create channel to host" << std::endl;
+		return 1;
+	}
+
+	std::cout << "Connected to client" << std::endl;
 
 	size_t Length = 0;
 	char Buffer[4];
@@ -35,6 +42,7 @@ int main()
 		}
 	}
 
+	Channel.Close();
 	return 0;
 }
 

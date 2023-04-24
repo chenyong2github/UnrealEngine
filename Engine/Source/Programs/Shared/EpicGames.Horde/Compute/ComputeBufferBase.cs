@@ -160,7 +160,7 @@ namespace EpicGames.Horde.Compute
 			}
 
 			/// <inheritdoc/>
-			public async ValueTask WaitToReadAsync(int currentLength, CancellationToken cancellationToken = default)
+			public async ValueTask<bool> WaitToReadAsync(int currentLength, CancellationToken cancellationToken = default)
 			{
 				for (; ; )
 				{
@@ -176,12 +176,17 @@ namespace EpicGames.Horde.Compute
 							await _buffer.WaitForReadEvent(_readerIdx, cancellationToken);
 						}
 					}
-					else if (_offset + currentLength < state.Length || state.WriteState == WriteState.Complete)
+					else if (_offset + currentLength < state.Length)
 					{
-						// Still have data to read from this chunk
-						break;
+						// Still have more data to read from the current buffer
+						return true;
 					}
-					else if (_offset + currentLength >= state.Length && state.WriteState == WriteState.Writing)
+					else if (state.WriteState == WriteState.Complete)
+					{
+						// Buffer is complete
+						return false;
+					}
+					else if (state.WriteState == WriteState.Writing)
 					{
 						// Wait until there is more data in the chunk
 						_buffer.ResetReadEvent(_readerIdx);
@@ -205,8 +210,7 @@ namespace EpicGames.Horde.Compute
 					}
 					else
 					{
-						// Still need to read data from the current buffer
-						break;
+						throw new NotImplementedException($"Invalid write state for buffer: {state.WriteState}");
 					}
 				}
 			}
@@ -298,46 +302,6 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		/// <summary>
-		/// Implementation of <see cref="IComputeBuffer"/> which handles reference counting 
-		/// </summary>
-		sealed class RefCountedImpl : IComputeBuffer
-		{
-			ComputeBufferBase _inner;
-
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="buffer"></param>
-			public RefCountedImpl(ComputeBufferBase buffer) => _inner = buffer;
-
-			/// <inheritdoc/>
-			public IComputeBufferReader Reader => _inner.Reader;
-
-			/// <inheritdoc/>
-			public IComputeBufferWriter Writer => _inner.Writer;
-
-			/// <inheritdoc/>
-			public IComputeBuffer AddRef()
-			{
-				Interlocked.Increment(ref _inner._refCount);
-				return new RefCountedImpl(_inner);
-			}
-
-			/// <inheritdoc/>
-			public void Dispose()
-			{
-				if (_inner != null)
-				{
-					if (Interlocked.Decrement(ref _inner._refCount) == 0)
-					{
-						_inner.Dispose();
-					}
-					_inner = null!;
-				}
-			}
-		}
-
 		readonly ChunkBase[] _chunks;
 		readonly ReaderImpl _reader;
 		readonly WriterImpl _writer;
@@ -368,6 +332,21 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
+		public void AddRef()
+		{
+			Interlocked.Increment(ref _refCount);
+		}
+
+		/// <inheritdoc/>
+		public void Release()
+		{
+			if (Interlocked.Decrement(ref _refCount) == 0)
+			{
+				Dispose();
+			}
+		}
+
+		/// <inheritdoc/>
 		public void Dispose()
 		{
 			Dispose(true);
@@ -388,11 +367,6 @@ namespace EpicGames.Horde.Compute
 				SetReadEvent(readerIdx);
 			}
 		}
-
-		/// <summary>
-		/// Creates a sharable <see cref="IComputeBuffer"/> implementation from this object.
-		/// </summary>
-		public IComputeBuffer ToSharedInstance() => new RefCountedImpl(this);
 
 		/// <summary>
 		/// Signals a read event
