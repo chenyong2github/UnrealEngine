@@ -31,6 +31,8 @@ private:
 	float Alpha;
 	float Beta;
 	float Gamma;
+	float Bias;
+	float Treshold;
 	int Axis;
 
 public:
@@ -54,6 +56,11 @@ public:
 		Beta = Attributes.GetValueOrDefault(TEXT("beta"), Beta);
 		Gamma = Attributes.GetValueOrDefault(TEXT("gamma"), Gamma);
 
+		if constexpr (DmlActivationOpType == DML_OPERATOR_ACTIVATION_SHRINK)
+		{
+			Bias = Attributes.GetValueOrDefault(TEXT("bias"), 0.0f);
+			Treshold = Attributes.GetValueOrDefault(TEXT("lambd"), 0.5f);
+		}
 
 		// Initialize tensor descriptor (it's same for both input and output)
 		FTensorDescDml	DmlTensorDesc;
@@ -138,6 +145,21 @@ private:
 		Desc.InputTensor = &TensorDesc;
 		Desc.OutputTensor = &TensorDesc;
 		Desc.Alpha = Alpha;
+	}
+
+	void InitDmlOpDesc(DML_ACTIVATION_CELU_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& TensorDesc)
+	{
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
+		Desc.Alpha = Alpha;
+	}
+
+	void InitDmlOpDesc(DML_ACTIVATION_SHRINK_OPERATOR_DESC& Desc, const DML_TENSOR_DESC& TensorDesc)
+	{
+		Desc.InputTensor = &TensorDesc;
+		Desc.OutputTensor = &TensorDesc;
+		Desc.Bias = Bias;
+		Desc.Threshold = Treshold;
 	}
 };
 
@@ -263,12 +285,14 @@ REGISTER_OP_ACTIVATION_UNARY(OpName, DmlOpName)
 // 	REGISTER_OP_ACTIVATION_UNARY_PARAMS(	OpName, 			DmlOpName, 				InAlpha, 							InBeta, 	InGamma )
 
 	REGISTER_OP_ACTIVATION_UNARY(			Dropout,			IDENTITY )
-	REGISTER_OP_ACTIVATION_UNARY_PARAMS(	Elu, 				ELU, 					1.0f, 								0.0f, 		1.05070102214813232421875f )
+	REGISTER_OP_ACTIVATION_UNARY_PARAMS(	Celu, 				CELU, 					1.0f, 								0.0f, 		0.0f )
+	REGISTER_OP_ACTIVATION_UNARY_PARAMS(	Elu, 				ELU, 					1.0f, 								0.0f, 		0.0f )
 	REGISTER_OP_ACTIVATION_UNARY_PARAMS(	HardSigmoid, 		HARD_SIGMOID, 			0.2f, 								0.5f, 		0.0f )
 	REGISTER_OP_ACTIVATION_UNARY_PARAMS(	LeakyRelu, 			LEAKY_RELU, 			0.01f, 								0.0f, 		0.0f )
 	REGISTER_OP_ACTIVATION_UNARY(			LogSoftmax, 		LOG_SOFTMAX1 )
 	REGISTER_OP_ACTIVATION_UNARY(			Relu, 				RELU )
 	REGISTER_OP_ACTIVATION_UNARY_PARAMS(	Selu, 				SCALED_ELU, 			1.67326319217681884765625f, 		0.0f, 		1.05070102214813232421875f )
+	REGISTER_OP_ACTIVATION_UNARY(			Shrink, 			SHRINK	)
 	REGISTER_OP_ACTIVATION_UNARY(			Sigmoid, 			SIGMOID	)
 	REGISTER_OP_ACTIVATION_UNARY(			Softmax, 			SOFTMAX1 )
 	REGISTER_OP_ACTIVATION_UNARY(			Softplus, 			SOFTPLUS )

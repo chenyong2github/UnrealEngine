@@ -273,6 +273,10 @@
 				{	"target": "Atanh" },
 				{	"target": "BitShift", "skip": true, "comment": "TODO need attributes" },
 				{	"target": "Ceil" },
+				{	"target": "Celu", 
+					"runtimes": [{ "name": "NNERuntimeRDGHlsl",   "skip": true }],
+					"additional_datasets": [ "Elementwise.Elu.AttributeTest" ]
+				},
 				{	"target": "Clip", "additional_datasets": [ "Elementwise.Clip.AttributeTest" ] },
 				{	"target": "Cos" },
 				{	"target": "Cosh" },
@@ -314,6 +318,10 @@
 						{ "name": "NNERuntimeRDGDml",    "absolute_tolerance":  1e-4},
 						{ "name": "NNERuntimeRDGHlsl",   "absolute_tolerance":  1e-4}
 					]},
+				{	"target": "Shrink", 
+					"runtimes": [{ "name": "NNERuntimeRDGHlsl",   "skip": true }],
+					"additional_datasets": [ "Elementwise.Shrink.AttributeTest" ]
+				},
 				{	"target": "Sigmoid"},
 				{	"target": "Sign" },
 				{	"target": "Sin", "runtimes": [
@@ -731,6 +739,14 @@
 			"datasets": [
 				{
 					"inputs": [ { "shape": [ 4 ] } ]
+				}
+			]
+		},
+		{
+			"name": "Elementwise.Shrink.AttributeTest",
+			"datasets": [
+				{
+					"inputs": [ {"shape": [ 4 ] } ]
 				}
 			]
 		},
@@ -1508,6 +1524,16 @@
 				{ "attributes": [ { "name": "alpha", "value": 1.0 } ] },
 				{ "attributes": [ { "name": "alpha", "value": 0.7 }, { "name": "gamma", "value": 0.1 } ] },
 				{ "attributes": [ { "name": "alpha", "value": 0.7 }, { "name": "gamma", "value": 0.5 } ] },
+				{ "attributes": [ ] }
+			]
+		},
+		{
+			"name": "Elementwise.Shrink.AttributeTest",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "bias", "value": 0.5 } ] },
+				{ "attributes": [ { "name": "bias", "value": 1.0 } ] },
+				{ "attributes": [ { "name": "bias", "value": 0.5 }, { "name": "lambd", "value": 0.1 } ] },
+				{ "attributes": [ { "name": "bias", "value": 1.0 }, { "name": "lambd", "value": 0.2 } ] },
 				{ "attributes": [ ] }
 			]
 		},
