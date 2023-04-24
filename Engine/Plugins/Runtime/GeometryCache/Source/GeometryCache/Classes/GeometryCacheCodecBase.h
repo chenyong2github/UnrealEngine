@@ -53,8 +53,8 @@ struct FGeometryCacheCodecDecodeArguments
 		OutMeshData(SetOutMeshData)
 	{
 		// We do common validation checking here so it doesn't have to be done in every codec individually
-		checkf(FrameIdentifier >= Chunks[0].FirstFrame, TEXT("Requested frame not in the range of the provided chunks, or chunks are not properly ordered"));
-		checkf(FrameIdentifier <= Chunks.Last().LastFrame, TEXT("Requested frame not in the range of the provided chunks, or chunks are not properly ordered"));
+		checkf(static_cast<float>(FrameIdentifier) >= Chunks[0].FirstFrame, TEXT("Requested frame not in the range of the provided chunks, or chunks are not properly ordered"));
+		checkf(static_cast<float>(FrameIdentifier) <= Chunks.Last().LastFrame, TEXT("Requested frame not in the range of the provided chunks, or chunks are not properly ordered"));
 	}
 
 	FGeometryCacheTrackStreamableRenderResource &Track;

@@ -1202,9 +1202,9 @@ void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector3f>&
 		const int32 ComponentIndexOffset = (VertexIndex + AverageVertexOffset) * 3;
 		const FVector AverageDifference = ((FVector)AverageVertexData[VertexIndex + AverageVertexOffset] + SamplePositionOffset) - (FVector)FrameVertexData[VertexIndex];
 
-		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 0] = AverageDifference.X;
-		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 1] = AverageDifference.Y;
-		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 2] = AverageDifference.Z;
+		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 0] = static_cast<float>(AverageDifference.X);
+		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 1] = static_cast<float>(AverageDifference.Y);
+		OutGeneratedMatrix[VertexOffset + ComponentIndexOffset + 2] = static_cast<float>(AverageDifference.Z);
 	}
 
 	const uint32 NumIndices = FrameNormalData.Num();
@@ -1215,9 +1215,9 @@ void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector3f>&
 		const int32 ComponentIndexOffset = (Index + AverageIndexOffset) * 3;
 		const FVector AverageNormal = (FVector)AverageNormalData[Index + AverageIndexOffset] - (FVector)FrameNormalData[Index];
 
-		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 0] = AverageNormal.X;
-		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 1] = AverageNormal.Y;
-		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 2] = AverageNormal.Z;
+		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 0] = static_cast<float>(AverageNormal.X);
+		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 1] = static_cast<float>(AverageNormal.Y);
+		OutGeneratedNormalsMatrix[IndexOffset + ComponentIndexOffset + 2] = static_cast<float>(AverageNormal.Z);
 	}
 }
 
@@ -1274,7 +1274,7 @@ void AbcImporterUtilities::GenerateCompressedMeshData(FCompressedAbcData& Compre
 		for (uint32 CurveSampleIndex = 0; CurveSampleIndex < NumSamples; ++CurveSampleIndex)
 		{
 			CurveValues.Add(BasesWeights[BaseIndex + (OriginalNumberOfSingularValues * CurveSampleIndex)]);
-			TimeValues.Add(StartTime + (SampleTimeStep * CurveSampleIndex));
+			TimeValues.Add(StartTime + (SampleTimeStep * static_cast<float>(CurveSampleIndex)));
 		}
 	}
 }
@@ -1282,8 +1282,8 @@ void AbcImporterUtilities::GenerateCompressedMeshData(FCompressedAbcData& Compre
 void AbcImporterUtilities::CalculateNewStartAndEndFrameIndices(const float FrameStepRatio, int32& InOutStartFrameIndex, int32& InOutEndFrameIndex )
 {
 	// Using the calculated ratio we recompute the start/end frame indices
-	InOutStartFrameIndex = FMath::Max(FMath::FloorToInt(InOutStartFrameIndex * FrameStepRatio), 0);
-	InOutEndFrameIndex = FMath::CeilToInt(InOutEndFrameIndex * FrameStepRatio);
+	InOutStartFrameIndex = FMath::Max(FMath::FloorToInt(static_cast<float>(InOutStartFrameIndex) * FrameStepRatio), 0);
+	InOutEndFrameIndex = FMath::CeilToInt(static_cast<float>(InOutEndFrameIndex) * FrameStepRatio);
 }
 
 bool AbcImporterUtilities::AreVerticesEqual(const FSoftSkinVertex& V1, const FSoftSkinVertex& V2)

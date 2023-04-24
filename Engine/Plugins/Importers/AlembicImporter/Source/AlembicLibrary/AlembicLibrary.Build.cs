@@ -39,5 +39,6 @@ public class AlembicLibrary : ModuleRules
             }
         );
 
-    }
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
+	}
 }

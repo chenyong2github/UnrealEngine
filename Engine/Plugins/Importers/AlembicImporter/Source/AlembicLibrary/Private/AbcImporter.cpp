@@ -417,7 +417,7 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 				Track->BeginCoding(Codec, ImportSettings->GeometryCacheSettings.bApplyConstantTopologyOptimizations && !bContainsHeterogeneousMeshes, bCalculateMotionVectors, ImportSettings->GeometryCacheSettings.bOptimizeIndexBuffers);
 				Tracks.Add(Track);
 				
-				FScopedSlowTask SlowTask((ImportSettings->SamplingSettings.FrameEnd + 1) - ImportSettings->SamplingSettings.FrameStart, FText::FromString(FString(TEXT("Importing Frames"))));
+				FScopedSlowTask SlowTask(static_cast<float>((ImportSettings->SamplingSettings.FrameEnd + 1) - ImportSettings->SamplingSettings.FrameStart), FText::FromString(FString(TEXT("Importing Frames"))));
 				SlowTask.MakeDialog(true);
 
 				const TArray<FString>& UniqueFaceSetNames = AbcFile->GetUniqueFaceSetNames();
@@ -693,8 +693,8 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		const FFrameNumber FrameNumber = FrameRate.AsFrameNumber(AbcFile->GetImportLength());
 		Controller.SetNumberOfFrames(FrameNumber);
 
-		Sequence->ImportFileFramerate = FrameRate.AsDecimal();
-		Sequence->ImportResampleFramerate = FrameRate.AsInterval();
+		Sequence->ImportFileFramerate = static_cast<float>(FrameRate.AsDecimal());
+		Sequence->ImportResampleFramerate = static_cast<int32>(FrameRate.AsInterval());
 
 		{
 #if WITH_EDITOR
@@ -999,7 +999,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 			// Average out vertex data
 			FBox AverageBoundingBox(ForceInit);
-			const float Multiplier = 1.0f / FMath::Max(NumSamples, 1);
+			const float Multiplier = 1.0f / static_cast<float>(FMath::Max(NumSamples, 1.f));
 			for (FVector3f& Vertex : AverageVertexData)
 			{
 				Vertex *= Multiplier;
@@ -1256,7 +1256,7 @@ const bool FAbcImporter::CompressAnimationDataUsingPCA(const FAbcCompressionSett
 
 			// Average out vertex data
 			FBox AverageBoundingBox(ForceInit);
-			const float Multiplier = 1.0f / FMath::Max(NumSamples, 1);
+			const float Multiplier = 1.0f / static_cast<float>(FMath::Max(NumSamples, 1));
 			for (TArray<FVector3f>& VertexData : AverageVertexData)
 			{
 				for (FVector3f& Vertex : VertexData)
