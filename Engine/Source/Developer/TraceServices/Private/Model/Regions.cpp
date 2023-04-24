@@ -156,11 +156,11 @@ void FRegionProvider::OnAnalysisSessionEnded()
 
 int32 FRegionProvider::CalculateRegionDepth(const FTimeRegion& Region) const
 {
-	TArray<const FTimeRegion*> Overlaps;
-
 	constexpr int32 DepthLimit = 100;
+
 	int32 NewDepth = 0;
-	// find first free lane/depth
+
+	// Find first free lane/depth
 	while (NewDepth < DepthLimit)
 	{
 		if (!Lanes.IsValidIndex(NewDepth))

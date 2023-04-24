@@ -807,7 +807,7 @@ FInt32Interval GetElementRangeOverlappingGivenRange(const TPagedArray<ItemType, 
 	{
 		// if we went past the end with StartPageIndex we still have to search the last page
 		const PageType& Page = PageData[StartPageIndex];
-		TArrayView<ItemType> PageValues(Page.Items, Page.Count);
+		TArrayView<ItemType, int32> PageValues(Page.Items, static_cast<int32>(Page.Count));
 		const int32 Index = Algo::UpperBoundBy(PageValues, StartTime, ItemEndProjection);
 		check(Index >= 0);
 		// Index may point past the end of the page, but the first item in the next page could be valid
@@ -835,7 +835,7 @@ FInt32Interval GetElementRangeOverlappingGivenRange(const TPagedArray<ItemType, 
 	
 	{
 		const PageType& Page = PageData[EndPageIndex];
-		TArrayView<ItemType> PageValues(Page.Items, Page.Count);
+		TArrayView<ItemType, int32> PageValues(Page.Items, static_cast<int32>(Page.Count));
 		int32 Index = Algo::UpperBoundBy(PageValues, EndTime, ItemStartProjection);
 		check(Index >= 0);
 		// Index may point past the end of the page, that means include last element in result

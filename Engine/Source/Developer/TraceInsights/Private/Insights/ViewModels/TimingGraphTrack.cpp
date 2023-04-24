@@ -474,13 +474,13 @@ void FTimingGraphTrack::UpdateFrameStatsTimerSeries(FTimingGraphSeries& Series, 
 			const TraceServices::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
 
 			Series.FrameStatsCachedEvents.Empty();
-			uint32 FrameCount = FramesProvider.GetFrameCount(ETraceFrameType::TraceFrameType_Game);
+			uint64 FrameCount = FramesProvider.GetFrameCount(ETraceFrameType::TraceFrameType_Game);
 			if (FrameCount == 0)
 			{
 				return;
 			}
 
-			FramesProvider.EnumerateFrames(Series.FrameType, (uint64) 0, (uint64) FrameCount, [&Series](const TraceServices::FFrame& Frame)
+			FramesProvider.EnumerateFrames(Series.FrameType, 0ull, FrameCount, [&Series](const TraceServices::FFrame& Frame)
 				{
 					Insights::FFrameStatsCachedEvent Event;
 					Event.FrameStartTime = Frame.StartTime;

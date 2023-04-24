@@ -530,7 +530,7 @@ FStoreClient* FStoreClient::Connect(const TCHAR* Host, uint32 Port)
 bool FStoreClient::Reconnect(const TCHAR* Host, uint32 Port)
 {
 	auto* Self = (FStoreCborClient*)this;
-	return Self->Connect(Host, Port);
+	return Self->Connect(Host, static_cast<uint16>(Port));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

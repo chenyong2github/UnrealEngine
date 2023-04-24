@@ -477,11 +477,11 @@ namespace TraceServices
 
 		if (TaskIndex >= Tasks.Num())
 		{
-			int32 PrevNum = Tasks.Num();
+			int64 PrevNum = Tasks.Num();
 			Tasks.AddDefaulted(TaskIndex - Tasks.Num() + 1);
-			for (int32 i = PrevNum; i != Tasks.Num(); ++i)
+			for (int64 Index = PrevNum; Index != Tasks.Num(); ++Index)
 			{
-				Tasks[i].Id = i + FirstTaskId;
+				Tasks[Index].Id = Index + FirstTaskId;
 			}
 		}
 

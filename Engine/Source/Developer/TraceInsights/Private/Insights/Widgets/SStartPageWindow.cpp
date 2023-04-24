@@ -95,15 +95,14 @@ public:
 			.AutoWidth()
 			[
 				SNew(SBox)
-				.WidthOverride(16.0)
-				.HeightOverride(16.0)
-				.Padding(FMargin(2.0))
+				.WidthOverride(16.0f)
+				.HeightOverride(16.0f)
+				.Padding(FMargin(2.0f))
 				[
 					SNew(SImage)
 					.Image(FInsightsStyle::Get().GetBrush("Icons.UTrace"))
 					.ColorAndOpacity(this, &STraceListRow::GetColorForPath)
 				]
-
 			]
 
 			+ SHorizontalBox::Slot()
@@ -1357,18 +1356,18 @@ void STraceDirectoryItem::Construct(const FArguments& InArgs, TSharedPtr<STraceS
 	ChildSlot
 	[
 		SNew(SBorder)
-		.Padding(2.0f , 1.0f)
+		.Padding(2.0f, 1.0f)
 		[
 			SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
-			.Padding(4.0, 2.0)
+			.Padding(4.0f, 2.0f)
 			.AutoWidth()
 			.VAlign(EVerticalAlignment::VAlign_Center)
 			[
 				SNew(SBox)
-				.HeightOverride(16.0)
-				.WidthOverride(16.0)
+				.HeightOverride(16.0f)
+				.WidthOverride(16.0f)
 				[
 					SNew(SImage)
 					.Image(FInsightsStyle::Get().GetBrush("Icons.UTraceStack"))
@@ -1377,8 +1376,8 @@ void STraceDirectoryItem::Construct(const FArguments& InArgs, TSharedPtr<STraceS
 			]
 
 			+ SHorizontalBox::Slot()
-			.FillWidth(1.0)
-			.Padding(4.0, 2.0)
+			.FillWidth(1.0f)
+			.Padding(4.0f, 2.0f)
 			.VAlign(EVerticalAlignment::VAlign_Center)
 			[
 				SNew(STextBlock)
@@ -1386,7 +1385,7 @@ void STraceDirectoryItem::Construct(const FArguments& InArgs, TSharedPtr<STraceS
 			]
 
 			+ SHorizontalBox::Slot()
-			.Padding(4.0, 2.0)
+			.Padding(4.0f, 2.0f)
 			.AutoWidth()
 			[
 				ConstructOperations()
@@ -1662,7 +1661,6 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 			]
 
 #if STORE_SUPPORTS_SETTINGS
-
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
@@ -1724,7 +1722,7 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.MaxHeight(400)
-		.Padding(.0f, 8.0f)
+		.Padding(0.0f, 8.0f)
 		.HAlign(HAlign_Left)
 		[
 			SAssignNew(StoreSettingsArea, SScrollBox)
@@ -1796,7 +1794,7 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 						]
 
 						+ SHorizontalBox::Slot()
-						.Padding(4.0, 0.0, 0.0, 0.0)
+						.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 						.AutoWidth()
 						[
 							SNew(STextBlock)

@@ -184,7 +184,7 @@ inline bool FResponse::GetStringArray(const char* Key, TArray<FString>& OutArray
 	{
 		if (Context.IsString())
 		{
-			uint32 Length = Context.AsLength();
+			uint32 Length = uint32(Context.AsLength());
 			uint32 Offset = uint32(MemoryReader.Tell());
 			auto* String = (const char*)(Buffer.GetData() + Offset - Length);
 			if (FCStringAnsi::Strncmp(Key, String, Length) == 0)

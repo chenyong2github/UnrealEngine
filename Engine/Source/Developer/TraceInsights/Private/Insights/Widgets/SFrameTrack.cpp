@@ -335,7 +335,7 @@ void SFrameTrack::UpdateState()
 
 			Insights::FFrameStatsHelper::ComputeFrameStatsForTimer(Frames, TimerSeries->TimerId);
 
-			int32 CurrentIndex = StartIndex;
+			uint64 CurrentIndex = StartIndex;
 			for (Insights::FFrameStatsCachedEvent& Event : Frames)
 			{
 				TraceServices::FFrame NewFrame;

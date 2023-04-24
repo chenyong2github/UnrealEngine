@@ -285,7 +285,7 @@ void FNetTraceAnalyzer::HandlePacketContentEvent(const FOnEventContext& Context,
 
 						// Fill in the object data we currently have
 						ObjectInstance.LifeTime.Begin = GetLastTimestamp();
-						ObjectInstance.NameIndex = PendingNameIndex;
+						ObjectInstance.NameIndex = static_cast<uint16>(PendingNameIndex);
 						ObjectInstance.NetObjectId = DecodedNameOrObjectId;
 						ObjectInstance.TypeId = 0;
 
@@ -808,7 +808,7 @@ void FNetTraceAnalyzer::HandleObjectCreatedEvent(const FOnEventContext& Context,
 				ExistingInstance->TypeId = TypeId;
 
 				// Update name in both the persistent instance and the active one
-				ExistingInstance->NameIndex = NameIndex;
+				ExistingInstance->NameIndex = static_cast<uint16>(NameIndex);
 				ActiveObjectInstance->NameIndex = NameIndex;
 
 				return;

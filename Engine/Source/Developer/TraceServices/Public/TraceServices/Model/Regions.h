@@ -16,7 +16,7 @@ struct TRACESERVICES_API FTimeRegion
 	double BeginTime = std::numeric_limits<double>::infinity();
 	double EndTime = std::numeric_limits<double>::infinity();
 	const TCHAR* Text = nullptr;
-	int8_t Depth = -1;
+	int32 Depth = -1;
 };
 
 class TRACESERVICES_API FRegionLane
@@ -26,7 +26,7 @@ class TRACESERVICES_API FRegionLane
 public:
 	FRegionLane(ILinearAllocator& InAllocator) : Regions(InAllocator, 512) {}
 
-	int32 Num() const { return Regions.Num(); }
+	int32 Num() const { return static_cast<int32>(Regions.Num()); }
 
 	/**
 	 * Call Callback for every region overlapping the interval defined by IntervalStart and IntervalEnd

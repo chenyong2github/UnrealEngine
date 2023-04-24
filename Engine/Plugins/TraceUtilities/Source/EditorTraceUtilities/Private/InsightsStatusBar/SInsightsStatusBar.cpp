@@ -1031,7 +1031,7 @@ void SInsightsStatusBarWidget::OpenTrace(int32 Index)
 				
 				if (TraceId)
 				{
-					FUnrealInsightsLauncher::Get()->OpenRemoteTrace(TEXT("localhost"), LiveSessionTracker->GetStorePort(), *TraceId);
+					FUnrealInsightsLauncher::Get()->OpenRemoteTrace(TEXT("localhost"), uint16(LiveSessionTracker->GetStorePort()), *TraceId);
 					return;
 				}
 			}
