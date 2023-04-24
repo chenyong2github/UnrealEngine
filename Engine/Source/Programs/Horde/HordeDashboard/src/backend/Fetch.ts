@@ -129,7 +129,7 @@ export class Fetch {
                     reason: reason,
                     mode: "PUT",
                     url: url
-                });
+                }, true);
 
                 reject(reason);
             });
@@ -154,7 +154,7 @@ export class Fetch {
                     reason: reason,
                     mode: "DELETE",
                     url: url
-                });
+                }, true);
 
                 reject(reason);
             });
