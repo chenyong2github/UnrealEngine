@@ -2949,8 +2949,8 @@ protected:
 			{
 				if (BuildTarget.IsEmpty())
 				{
-					// editor & server can have a default build target specified in engine ini so no need to enforce this (UAT will give informative error if the ini isn't set up)
-					bool bSupportsDefaultBuildTarget = (Target.Type == EBuildTargetType::Editor || Target.Type == EBuildTargetType::Server); 
+					// most target types can have a default build target specified in engine ini so no need to enforce this (UAT will give informative error if the ini isn't set up)
+					bool bSupportsDefaultBuildTarget = (Target.Type != EBuildTargetType::Program); 
 
 					if (!bSupportsDefaultBuildTarget && BuildTargetNames.Contains(Target.Name))
 					{

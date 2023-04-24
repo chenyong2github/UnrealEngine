@@ -2501,7 +2501,7 @@ namespace AutomationTool
 
 				SelectDefaultTarget(AvailableEditorTargets, TargetType.Editor, ref EditorTarget);
 
-				if (AvailableServerTargets.Count > 0 && (DedicatedServer || Cook || CookOnTheFly)) // only if server is needed
+				if (AvailableServerTargets.Count > 0 && DedicatedServer) // only if server is needed
 				{
 					SelectDefaultTarget(AvailableServerTargets, TargetType.Server, ref ServerTarget);
 				}
