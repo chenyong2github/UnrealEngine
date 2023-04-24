@@ -44,7 +44,6 @@ struct FMassNetworkID : public FSequentialIDBase
 	GENERATED_BODY()
 
 	FMassNetworkID() = default;
-	FMassNetworkID(const FMassNetworkID& Other) = default;
 	explicit FMassNetworkID(uint32 InID) : FSequentialIDBase(InID) {}
 };
 
