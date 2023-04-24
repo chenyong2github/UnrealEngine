@@ -29,11 +29,6 @@
 // Note: Using root descriptors significantly increases the size of root signatures (each root descriptor is 2 DWORDs).
 #define MAX_ROOT_CBVS	MAX_CBS
 
-// So outside callers can override this
-#ifndef USE_STATIC_ROOT_SIGNATURE
-	#define USE_STATIC_ROOT_SIGNATURE 0
-#endif
-
 // How many residency packets can be in flight before the rendering thread
 // blocks for them to drain. Should be ~ NumBufferedFrames * AvgNumSubmissionsPerFrame i.e.
 // enough to ensure that the GPU is rarely blocked by residency work

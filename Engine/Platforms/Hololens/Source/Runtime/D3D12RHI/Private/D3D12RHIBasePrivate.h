@@ -33,6 +33,8 @@ typedef ID3D12GraphicsCommandList ID3D12CopyCommandList;
 // but make code path shared when it becomes available
 #define FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED D3D12_HEAP_FLAG_NONE
 
+#define USE_STATIC_ROOT_SIGNATURE			0
+
 #include "D3D12Util.h"
 
 // Windows desktop version is used.

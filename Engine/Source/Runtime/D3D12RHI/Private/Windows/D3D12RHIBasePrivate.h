@@ -29,6 +29,8 @@ typedef ID3D12GraphicsCommandList ID3D12CopyCommandList;
 #define D3D12RHI_NEEDS_VENDOR_EXTENSIONS     1
 #define D3D12RHI_NEEDS_SHADER_FEATURE_CHECKS 1
 
+#define USE_STATIC_ROOT_SIGNATURE			0
+
 #include "D3D12Util.h"
 #include "WindowsD3D12DiskCache.h"
 #include "WindowsD3D12PipelineState.h"
