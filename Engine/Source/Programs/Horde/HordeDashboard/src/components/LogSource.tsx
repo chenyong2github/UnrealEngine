@@ -3,7 +3,7 @@
 import { action, makeObservable, observable } from "mobx";
 import moment, { Moment } from 'moment-timezone';
 import backend from '../backend';
-import { AgentData, BatchData, EventSeverity, GetLogEventResponse, IssueData, LeaseData, LogData, NodeData, StepData, StreamData } from "../backend/Api";
+import { AgentData, BatchData, EventSeverity, GetArtifactResponseV2, GetLogEventResponse, IssueData, LeaseData, LogData, NodeData, StepData, StreamData } from "../backend/Api";
 import { getBatchSummaryMarkdown, getStepSummaryMarkdown, JobDetails } from "../backend/JobDetails";
 import { getLeaseElapsed, getStepPercent } from '../base/utilities/timeUtils';
 import { BreadcrumbItem } from './Breadcrumbs';
@@ -391,7 +391,7 @@ export class JobLogSource extends LogSource {
 
    }
 
-   private detailsUpdated() {
+   private async detailsUpdated() {
 
       const details = this.jobDetails;
 
@@ -405,6 +405,18 @@ export class JobLogSource extends LogSource {
       const active = details.getLogActive(this.logData!.id);
 
       if (this.active !== active) {
+         
+         const step = details.getSteps().find(s => s.logId === this.logId);
+         if (step) {
+            const key = `job:${details.id!}/step:${step.id}`;
+            try {
+               const v = await backend.getJobArtifactsV2(undefined, [key]);
+               this.artifactsV2 = v.artifacts;
+            } catch (err) {
+               console.error(err);
+            }                   
+         }
+
          this.setActive(active);
       }
    }
@@ -531,6 +543,8 @@ export class JobLogSource extends LogSource {
    batch?: BatchData;
    step?: StepData;
    node?: NodeData;
+
+   artifactsV2?: GetArtifactResponseV2[];
 
    jobDetails: JobDetails = new JobDetails(undefined, undefined, undefined, true);
 }

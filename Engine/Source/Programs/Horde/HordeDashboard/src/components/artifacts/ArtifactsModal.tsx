@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { DetailsList, DetailsListLayoutMode, DetailsRow, Dropdown, Link as FluentLink, FontIcon, IColumn, IDetailsListProps, IDropdownOption, Icon, IconButton, Modal, PrimaryButton, ScrollablePane, Selection, SelectionMode, SelectionZone, Spinner, SpinnerSize, Stack, Text, mergeStyleSets } from "@fluentui/react";
+import { DetailsList, DetailsListLayoutMode, FontIcon, IColumn, IconButton, Modal, PrimaryButton, ScrollablePane, Selection, SelectionMode, SelectionZone, Spinner, SpinnerSize, Stack, Text, mergeStyleSets } from "@fluentui/react";
 import { action, makeObservable, observable } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
 import backend from "../../backend";
 import { ArtifactContextType, GetArtifactDirectoryEntryResponse, GetArtifactDirectoryResponse, GetArtifactFileEntryResponse, GetArtifactResponseV2 } from "../../backend/Api";
-import { hordeClasses, modeColors } from "../../styles/Styles";
-import { JobDetailsV2 } from "./JobDetailsViewCommon";
 import dashboard from "../../backend/Dashboard";
+import { hordeClasses } from "../../styles/Styles";
 
 
 enum BrowserType {
@@ -28,11 +27,12 @@ type BrowserItem = {
 
 class ArtifactsHandler {
 
-   constructor(details: JobDetailsV2, stepId: string, contextType: ArtifactContextType) {
+   constructor(jobId: string, stepId: string, contextType: ArtifactContextType, artifacts?:GetArtifactResponseV2[]) {
       makeObservable(this);
-      this.details = details;
+      this.jobId = jobId;
       this.stepId = stepId;
       this.context = contextType;
+      this.artifacts = artifacts;
 
       this.set();
    }
@@ -45,14 +45,30 @@ class ArtifactsHandler {
       this.updated++;
    }
 
-   async set() {
+   private async set() {
 
-      const details = this.details;
-      const jobData = details.jobData!;
+      let artifacts: GetArtifactResponseV2[] | undefined = this.artifacts;
 
-      const artifacts = details.stepArtifacts.get(this.stepId);
+      if (!artifacts) {         
+
+         const key = `job:${this.jobId}/step:${this.stepId}`;
+         try {
+            const v = await backend.getJobArtifactsV2(undefined, [key]);
+            artifacts = v.artifacts;               
+         } catch (err) {
+            console.error(err);
+         } 
+   
+         if (!artifacts) {
+            console.error(`Missing artifacts for job: ${this.jobId} step: ${this.stepId}`);
+            return;
+         }
+   
+         this.artifacts = artifacts;   
+      }      
+
       if (!artifacts) {
-         console.error(`Missing artifacts for job: ${jobData.id} step: ${this.stepId}`);
+         console.error(`Missing artifacts for job: ${this.jobId} step: ${this.stepId}`);
          return;
       }
 
@@ -76,11 +92,19 @@ class ArtifactsHandler {
       }
 
       if (!this.context) {
+         console.error("Artifact browser has no context");
          this.updateReady();
          return;
       }
 
       a = artifacts.find(a => a.type === this.context)!;
+
+      if (!a) {
+         console.error("Unable to find artifact for context", this.context, artifacts);
+         this.updateReady();
+         return;
+      }
+
       this.artifact = a;
 
       this.loading = true;
@@ -184,9 +208,7 @@ class ArtifactsHandler {
       this.stepId = "";
       this.loading = false;
    }
-
-
-   details: JobDetailsV2;
+   
 
    selectionCallback?: () => void;
 
@@ -203,6 +225,7 @@ class ArtifactsHandler {
 
    readonly context: ArtifactContextType;
 
+   jobId: string;
    stepId: string;
 
    history: string[] = [];
@@ -241,8 +264,6 @@ const BrowseHistory: React.FC<{ handler: ArtifactsHandler }> = observer(({ handl
    if (handler.updated) { };
 
    let backDisabled = !handler.history.length;
-   let upDisabled = !handler.path;
-
 
    return <Stack style={{ paddingRight: 12 }}>
       <Stack horizontal tokens={{ childrenGap: 8 }}>
@@ -430,7 +451,7 @@ const DownloadButton: React.FC<{ handler: ArtifactsHandler }> = observer(({ hand
             contextName = "trace";
          }
 
-         const filename = "horde-" + contextName + "-artifacts-" + handler.details!.jobId! + '-' + handler.stepId + ".zip";
+         const filename = "horde-" + contextName + "-artifacts-" + handler.jobId + '-' + handler.stepId + ".zip";
 
          try {
             setDownloading(true);
@@ -456,7 +477,7 @@ const JobDetailArtifactsInner: React.FC<{ handler: ArtifactsHandler }> = observe
    const browse = handler.browse;
 
    if (!browse) {
-      return null;
+      return <Stack><Spinner size={ SpinnerSize.large}/></Stack>;
    }
 
    const items: BrowserItem[] = [];
@@ -531,7 +552,7 @@ const JobDetailArtifactsInner: React.FC<{ handler: ArtifactsHandler }> = observe
          const path = (item.text as string).split("/");
 
          const pathElements = path.map((t, index) => {
-            const last = index == (path.length - 1);
+            const last = index === (path.length - 1);
             let color = last ? (dashboard.darktheme ? "#FFFFFF" : "#605E5C") : undefined;
             const font = last ? undefined : "Horde Open Sans Light";
             const sep = last ? undefined : "/"
@@ -615,9 +636,9 @@ const JobDetailArtifactsInner: React.FC<{ handler: ArtifactsHandler }> = observe
 
 
 
-export const JobArtifactsModal: React.FC<{ jobDetails: JobDetailsV2; stepId: string, contextType: ArtifactContextType, onClose: () => void }> = ({ jobDetails, stepId, contextType, onClose }) => {
+export const JobArtifactsModal: React.FC<{ jobId: string; stepId: string, artifacts?:GetArtifactResponseV2[], contextType: ArtifactContextType, onClose: () => void }> = ({ jobId, stepId, artifacts, contextType, onClose }) => {
 
-   const [handler] = useState(new ArtifactsHandler(jobDetails, stepId, contextType));
+   const [handler] = useState(new ArtifactsHandler(jobId, stepId, contextType, artifacts));
 
    useEffect(() => {
       return () => {

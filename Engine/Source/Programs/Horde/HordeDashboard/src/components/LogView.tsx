@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { DefaultButton, DetailsList, DetailsListLayoutMode, DetailsRow, DirectionalHint, Dropdown, FocusZone, FocusZoneDirection, IColumn, Icon, IconButton, IContextualMenuProps, IDetailsListProps, ITextField, List, Modal, ProgressIndicator, ScrollToMode, Selection, SelectionMode, SelectionZone, Separator, Spinner, SpinnerSize, Stack, Text, TextField } from '@fluentui/react';
+import { DefaultButton, DetailsList, DetailsListLayoutMode, DetailsRow, DirectionalHint, Dropdown, FocusZone, FocusZoneDirection, IColumn, Icon, IconButton, IContextualMenuItem, IContextualMenuProps, IDetailsListProps, ITextField, List, Modal, ProgressIndicator, ScrollToMode, Selection, SelectionMode, SelectionZone, Separator, Spinner, SpinnerSize, Stack, Text, TextField } from '@fluentui/react';
 import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
 import moment from 'moment-timezone';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import backend from '../backend';
-import { ArtifactData, EventSeverity, GetChangeSummaryResponse, GetJobStepRefResponse, GetLogEventResponse, LogLevel } from '../backend/Api';
+import { ArtifactContextType, ArtifactData, EventSeverity, GetChangeSummaryResponse, GetJobStepRefResponse, GetLogEventResponse, LogLevel } from '../backend/Api';
 import { CommitCache } from '../backend/CommitCache';
 import dashboard from '../backend/Dashboard';
 import { JobDetails } from '../backend/JobDetails';
@@ -27,6 +27,7 @@ import { lineRenderStyleNormal, lineRenderStyleSmall, logMetricNormal, logMetric
 import { PrintException } from './PrintException';
 import { StepRefStatusIcon } from './StatusIcon';
 import { TopNav } from './TopNav';
+import { JobArtifactsModal } from './artifacts/ArtifactsModal';
 
 class LogHandler {
 
@@ -191,8 +192,28 @@ const StepHistoryModal: React.FC<{ jobDetails: JobDetails, stepId: string | unde
    const navigate = useNavigate();
    const location = useLocation();
    const [commitState, setCommitState] = useState<{ target?: ChangeContextMenuTarget, commit?: GetChangeSummaryResponse, rangeCL?: number }>({});
+   const [stepHistory, setStepHistory] = useState<GetJobStepRefResponse[] | undefined>(undefined);
 
-   const stepHistory = jobDetails.history;
+   const jobData = jobDetails.jobdata;
+
+   if (!jobData || !jobData.streamId || !jobData.templateId) {
+      return null;
+   }
+
+   if (stepHistory === undefined) {
+      backend.getJobStepHistory(jobData.streamId, jobDetails.getStepName(stepId, false), 1024, jobData!.templateId!).then(r => {
+         setStepHistory(r);
+      })
+
+      return <Modal isOpen={true} styles={{ main: { padding: 8, width: 1084, height: '624px', backgroundColor: '#FFFFFF' } }} className={hordeClasses.modal} onDismiss={() => { onClose() }}>
+         <Stack style={{paddingTop: 24}} horizontalAlign='center' tokens={{childrenGap: 18}}>
+            <Stack>
+               <Text variant='mediumPlus'>Loading Step History</Text>
+            </Stack>
+            <Spinner size={SpinnerSize.large} />
+         </Stack>
+      </Modal>
+   }
 
    // subscribe
    if (commitCache.updated) { }
@@ -275,7 +296,7 @@ const StepHistoryModal: React.FC<{ jobDetails: JobDetails, stepId: string | unde
          const url = `${location.pathname}?agentId=${agentId}`;
 
          return <Stack verticalAlign="center" horizontalAlign="center" tokens={{ childrenGap: 0, padding: 0 }} style={{ width: "100%", height: "100%" }}>
-            <a href={url} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); navigate(url, {replace: true}); }}><Stack horizontal horizontalAlign={"end"} verticalFill={true} tokens={{ childrenGap: 0, padding: 0 }}><Text>{agentId}</Text></Stack></a>
+            <a href={url} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); navigate(url, { replace: true }); }}><Stack horizontal horizontalAlign={"end"} verticalFill={true} tokens={{ childrenGap: 0, padding: 0 }}><Text>{agentId}</Text></Stack></a>
          </Stack>
       }
 
@@ -342,7 +363,7 @@ const StepHistoryModal: React.FC<{ jobDetails: JobDetails, stepId: string | unde
    };
 
    return (<Modal isOpen={true} styles={{ main: { padding: 8, width: 1084, height: '624px', backgroundColor: '#FFFFFF' } }} className={hordeClasses.modal} onDismiss={() => { onClose() }}>
-      {commitState.target && <ChangeContextMenu target={commitState.target} job={jobDetails.jobdata} commit={commitState.commit} rangeCL={ commitState.rangeCL } onDismiss={() => setCommitState({})} />}
+      {commitState.target && <ChangeContextMenu target={commitState.target} job={jobDetails.jobdata} commit={commitState.commit} rangeCL={commitState.rangeCL} onDismiss={() => setCommitState({})} />}
       <Stack styles={{ root: { paddingTop: 8, paddingLeft: 24, paddingRight: 12, paddingBottom: 8 } }}>
          <Stack tokens={{ childrenGap: 12 }}>
             <Stack horizontal styles={{ root: { padding: 8 } }}>
@@ -421,7 +442,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
    const [searchState, setSearchState] = useState<{ search?: string, results?: number[], curRequest?: any }>({});
    const [issueHistory, setIssueHistory] = useState(false);
    const [logHistory, setLogHistory] = useState(false);
-   const [logArtifacts, setLogArtifacts] = useState(false);
+   const [logArtifacts, setLogArtifacts] = useState("");
 
    let [historyAgentId, setHistoryAgentId] = useState<string | undefined>(undefined);
 
@@ -649,9 +670,9 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
                }
             }
          }
-      
+
          return (
-            <Stack key={`key_log_line_${item.lineNumber}`} style={{ width: "max-content", height: handler.lineHeight }} onClick={() => {navigate(location.pathname + `?lineindex=${item.lineNumber - 1}`, {replace: true})} }>
+            <Stack key={`key_log_line_${item.lineNumber}`} style={{ width: "max-content", height: handler.lineHeight }} onClick={() => { navigate(location.pathname + `?lineindex=${item.lineNumber - 1}`, { replace: true }) }}>
                <div style={{ position: "relative" }}>
                   <Stack className={styles.logLine} tokens={{ childrenGap: 8 }} horizontal disableShrink={true}>
                      <Stack styles={{ root: { color: "#c0c0c0", width: 80, textAlign: "right", userSelect: "none", fontSize: handler.fontSize } }}>{prefix + item.lineNumber}</Stack>
@@ -745,7 +766,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
 
                const lines = logResponse.lines;
 
-            
+
                if (lines.length) {
 
                   logListKey++;
@@ -755,7 +776,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
                      curRequest: undefined,
                      results: lines
                   });
-   
+
 
                   handler.stopTrailing();
                   let lineIdx = lines[curSearchIdx] - 10;
@@ -769,14 +790,14 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
                      inTimeout = false;
                      listRef?.scrollToIndex(lineIdx, () => { return handler.lineHeight; }, ScrollToMode.top);
                   }, 250)
-                  
+
                } else {
                   setSearchState({
                      search: newValue,
                      curRequest: undefined,
                      results: lines
                   });
-   
+
                }
 
             };
@@ -821,16 +842,63 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
       menuProps.items.push({
          key: 'jobstep_history',
          text: 'Step History',
-         disabled: !(logSource as JobLogSource)?.step || !fixme.history?.length,
          onClick: () => setLogHistory(true)
       })
 
-      menuProps.items.push({
-         key: 'jobstep_artifacts',
-         disabled: artifacts.length === 0,
-         text: `Step Artifacts`,
-         onClick: () => setLogArtifacts(true)
-      })
+      if (!fixme.jobdata?.useArtifactsV2) {
+         menuProps.items.push({
+            key: 'jobstep_artifacts',
+            disabled: artifacts.length === 0,
+            text: `Step Artifacts`,
+            onClick: () => setLogArtifacts("legacy")
+         })
+      } else {
+
+         const stepArtifacts = (logSource as JobLogSource).artifactsV2;
+
+         const atypes = new Map<ArtifactContextType, number>();
+
+         stepArtifacts?.forEach(a => {
+            let c = atypes.get(a.type) ?? 0;
+            c++;
+            atypes.set(a.type, c);
+         });
+
+         const opsList: IContextualMenuItem[] = [];
+
+         opsList.push({
+            key: 'stepops_artifacts_step',
+            text: "Step Artifacts",
+            iconProps: { iconName: "Folder" },
+            disabled: !atypes.get("step-saved"),
+            onClick: () => { setLogArtifacts("step-saved") }
+         });
+
+         opsList.push({
+            key: 'stepops_artifacts_output',
+            text: "Output Artifacts",
+            iconProps: { iconName: "MenuOpen" },
+            disabled: !atypes.get("step-output"),
+            onClick: () => { setLogArtifacts("step-output") }
+         });
+
+         opsList.push({
+            key: 'stepops_artifacts_trace',
+            text: "Trace Artifacts",
+            iconProps: { iconName: "SearchTemplate" },
+            disabled: !atypes.get("step-trace"),
+            onClick: () => { setLogArtifacts("step-trace") }
+         });
+
+         menuProps.items.push({
+            key: 'jobstep_artifacts',
+            text: `Artifacts`,
+            subMenuProps: {
+               items: opsList
+            }
+         })
+      }
+
    }
 
    function updateError() {
@@ -938,14 +1006,15 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
    return <Stack>
       {!!fixme && <IssueModalV2 issueId={query.get("issue")} popHistoryOnClose={issueHistory} />}
       {!!fixme && logHistory && <StepHistoryModal jobDetails={fixme!} stepId={fixme!.stepByLogId(logId)?.id} onClose={() => setLogHistory(false)} />}
-      {!!fixme && logArtifacts && <StepArtifactsModal jobDetails={fixme!} stepId={fixme!.stepByLogId(logId)?.id} onClose={() => setLogArtifacts(false)} />}
-      {!!historyAgentId && <HistoryModal agentId={historyAgentId} onDismiss={() => { navigate(baseUrl, {replace: true}); setHistoryAgentId(undefined) }} />}
+      {!!fixme && logArtifacts === "legacy" && <StepArtifactsModal jobDetails={fixme!} stepId={fixme!.stepByLogId(logId)?.id} onClose={() => setLogArtifacts("")} />}
+      {!!fixme && logArtifacts && logArtifacts !== "legacy" && <JobArtifactsModal jobId={fixme!.jobdata!.id} stepId={fixme!.stepByLogId(logId)?.id!} artifacts={(logSource as JobLogSource).artifactsV2} contextType={logArtifacts as ArtifactContextType} onClose={() => setLogArtifacts("")} />}
+      {!!historyAgentId && <HistoryModal agentId={historyAgentId} onDismiss={() => { navigate(baseUrl, { replace: true }); setHistoryAgentId(undefined) }} />}
       <Breadcrumbs items={logSource?.crumbs ?? []} title={logSource?.crumbTitle} />
       <Stack tokens={{ childrenGap: 0 }} style={{ backgroundColor: "#FFFFFF", paddingTop: 12 }}>
          <Stack horizontal >
             <div key={`windowsize_logview1_${windowSize.width}_${windowSize.height}`} style={{ width: vw / 2 - (1440 / 2), flexShrink: 0 }} />
             <Stack tokens={{ childrenGap: 0, maxWidth: 1440 }} disableShrink={true} styles={{ root: { width: "100%", backgroundColor: "#FFFFFF", paddingLeft: 4, paddingRight: 24, paddingTop: 12 } }}>
-               <Stack horizontal style={{paddingBottom: 4}}>
+               <Stack horizontal style={{ paddingBottom: 4 }}>
                   <Stack className={hordeClasses.button} horizontal horizontalAlign={"start"} verticalAlign="center" tokens={{ childrenGap: 8 }}>
                      <Stack horizontal tokens={{ childrenGap: 2 }}>
                         <DefaultButton disabled={!errors.length} className={errors.length ? handler.style.errorButton : handler.style.errorButtonDisabled}

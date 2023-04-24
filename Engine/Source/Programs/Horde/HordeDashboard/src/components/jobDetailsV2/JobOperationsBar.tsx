@@ -13,9 +13,9 @@ import { NewBuild } from '../NewBuild';
 import { NotificationDropdown } from '../NotificationDropdown';
 import { PauseStepModal } from '../StepPauseModal';
 import { AbortJobModal } from './AbortJobModal';
-import { JobArtifactsModal } from './JobDetailArtifactsV3';
 import { JobDetailsV2 } from './JobDetailsViewCommon';
 import { StepRetryModal, StepRetryType } from './StepRetryModal';
+import { JobArtifactsModal } from '../artifacts/ArtifactsModal';
 
 enum ParameterState {
    Hidden,
@@ -225,6 +225,7 @@ const StepArtifactsOperations: React.FC<{ jobDetails: JobDetailsV2, stepId: stri
       key: 'stepops_artifacts_trace',
       text: "Trace Artifacts",
       iconProps: { iconName: "SearchTemplate" },
+      disabled: !atypes.get("step-trace"),
       onClick: () => { setArtifactsShown("step-trace")}      
    });
 
@@ -241,7 +242,7 @@ const StepArtifactsOperations: React.FC<{ jobDetails: JobDetailsV2, stepId: stri
    ];
 
    return <Stack>
-      {!!artifactsShown && <JobArtifactsModal stepId={step.id} jobDetails={jobDetails} contextType={artifactsShown} onClose={() => { setArtifactsShown(undefined); }} />}
+      {!!artifactsShown && <JobArtifactsModal stepId={step.id} jobId={jobDetails.jobId!} contextType={artifactsShown} artifacts={stepArtifacts} onClose={() => { setArtifactsShown(undefined); }} />}
       <Stack horizontal styles={{ root: { paddingLeft: 0 } }}>
          <Stack grow />
          <Stack horizontal>
