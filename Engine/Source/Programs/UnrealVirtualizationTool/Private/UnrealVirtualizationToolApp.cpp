@@ -333,25 +333,27 @@ bool FUnrealVirtualizationToolApp::TryInitEnginePlugins()
 
 	UE_LOG(LogVirtualizationTool, Log, TEXT("Loading Engine Plugins"));
 
-	IPluginManager& PluginMgr = IPluginManager::Get();
+	auto LoadPlugin = [](const FString& PlugInName) -> bool
+		{
+			IPluginManager& PluginMgr = IPluginManager::Get();
 
-	const FString PerforcePluginPath = FPaths::EnginePluginsDir() / TEXT("Developer/PerforceSourceControl/PerforceSourceControl.uplugin");
-	FText ErrorMsg;
-	if (!PluginMgr.AddToPluginsList(PerforcePluginPath, &ErrorMsg))
+			PluginMgr.MountNewlyCreatedPlugin(PlugInName);
+
+			TSharedPtr<IPlugin> Plugin = PluginMgr.FindPlugin(PlugInName);
+			if (Plugin == nullptr || !Plugin->IsEnabled())
+			{
+				UE_LOG(LogVirtualizationTool, Error, TEXT("The plugin '%s' is disabled."), *PlugInName);
+				return false;
+			}
+
+			return true;
+		};
+
+	if (!LoadPlugin(TEXT("PerforceSourceControl")))
 	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to find 'PerforceSourceControl' plugin due to: %s"), *ErrorMsg.ToString());
 		return false;
 	}
-
-	PluginMgr.MountNewlyCreatedPlugin(TEXT("PerforceSourceControl"));
-
-	TSharedPtr<IPlugin> Plugin = PluginMgr.FindPlugin(TEXT("PerforceSourceControl"));
-	if (Plugin == nullptr || !Plugin->IsEnabled())
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("The 'PerforceSourceControl' plugin is disabled."));
-		return false;
-	}
-
+	
 	return true;
 }
 
