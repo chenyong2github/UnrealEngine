@@ -29,6 +29,7 @@ TAutoConsoleVariable<int32> CVarPathTracing(
 #include "FogRendering.h"
 #include "GenerateMips.h"
 #include "HairStrands/HairStrandsData.h"
+#include "HeterogeneousVolumes/HeterogeneousVolumes.h"
 #include "Modules/ModuleManager.h"
 #include "SkyAtmosphereRendering.h"
 #include <limits>
@@ -319,6 +320,24 @@ TAutoConsoleVariable<int32> CVarPathTracingLightFunctionColor(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingHeterogeneousVolumes(
+	TEXT("r.PathTracing.HeterogeneousVolumes"),
+	0,
+	TEXT("Enables heterogeneous volumes (default = 0)\n")
+	TEXT("0: off (default)\n")
+	TEXT("1: on (combined frustum + ortho grids)\n")
+	TEXT("2: frustum-only grid\n")
+	TEXT("3: ortho-only grid\n"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingHeterogeneousVolumesRebuildEveryFrame(
+	TEXT("r.PathTracing.HeterogeneousVolumes.RebuildEveryFrame"),
+	1,
+	TEXT("Rebuilds volumetric acceleration structures every frame (default = 1)\n"),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> CVarPathTracingCameraMediumTracking(
 	TEXT("r.PathTracing.CameraMediumTracking"),
 	1,
@@ -383,6 +402,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(uint32, EnableDBuffer)
 	SHADER_PARAMETER(uint32, EnableAtmosphere)
 	SHADER_PARAMETER(uint32, EnableFog)
+	SHADER_PARAMETER(uint32, EnableHeterogeneousVolumes)
 	SHADER_PARAMETER(uint32, EnabledDirectLightingContributions)   // PATHTRACER_CONTRIBUTION_*
 	SHADER_PARAMETER(uint32, EnabledIndirectLightingContributions) // PATHTRACER_CONTRIBUTION_*
 	SHADER_PARAMETER(uint32, ApplyDiffuseSpecularOverrides)
@@ -433,6 +453,7 @@ struct FPathTracingConfig
 			PathTracingData.FilterWidth != Other.PathTracingData.FilterWidth ||
 			PathTracingData.EnableAtmosphere != Other.PathTracingData.EnableAtmosphere ||
 			PathTracingData.EnableFog != Other.PathTracingData.EnableFog ||
+			PathTracingData.EnableHeterogeneousVolumes != Other.PathTracingData.EnableHeterogeneousVolumes ||
 			PathTracingData.ApplyDiffuseSpecularOverrides != Other.PathTracingData.ApplyDiffuseSpecularOverrides ||
 			PathTracingData.EnabledDirectLightingContributions != Other.PathTracingData.EnabledDirectLightingContributions ||
 			PathTracingData.EnabledIndirectLightingContributions != Other.PathTracingData.EnabledIndirectLightingContributions ||
@@ -511,6 +532,10 @@ struct FPathTracingState {
 	TRefCountPtr<IPooledRenderTarget> LastNormalRT;
 	TRefCountPtr<IPooledRenderTarget> LastAlbedoRT;
 	TRefCountPtr<FRDGPooledBuffer> LastVarianceBuffer;
+
+	// Volume acceleration structures
+	FAdaptiveOrthoGridParameterCache AdaptiveOrthoGridParameterCache;
+	FAdaptiveFrustumGridParameterCache AdaptiveFrustumGridParameterCache;
 
 	// Texture holding onto the precomputed atmosphere data
 	TRefCountPtr<IPooledRenderTarget> AtmosphereOpticalDepthLUT;
@@ -595,6 +620,7 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 		&& (Scene->ExponentialFogs[0].FogData[0].Density > 0 ||
 			Scene->ExponentialFogs[0].FogData[1].Density > 0);
 
+	PathTracingData.EnableHeterogeneousVolumes = CVarPathTracingHeterogeneousVolumes.GetValueOnRenderThread();
 	PathTracingData.EnableDBuffer = CVarPathTracingUseDBuffer.GetValueOnRenderThread();
 
 	PathTracingData.DecalRoughnessCutoff = PathTracing::UsesDecals(*View.Family) && View.bHasRayTracingDecals ? CVarPathTracingDecalRoughnessCutoff.GetValueOnRenderThread() : -1.0f;
@@ -874,6 +900,10 @@ class FPathTracingRG : public FGlobalShader
 
 		// exponential height fog
 		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingFogParameters, FogParameters)
+
+		// Heterogeneous volumes adaptive voxel grid
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOrthoVoxelGridUniformBufferParameters, OrthoGridUniformBuffer)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FFrustumVoxelGridUniformBufferParameters, FrustumGridUniformBuffer)
 
 		// scene decals
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRayTracingDecals, DecalParameters)
@@ -2156,6 +2186,8 @@ void FSceneViewState::PathTracingInvalidate(bool InvalidateAnimationStates)
 		State->NormalRT.SafeRelease();
 		State->VarianceBuffer.SafeRelease();
 		State->SampleIndex = 0;
+
+		State->AdaptiveFrustumGridParameterCache.TopLevelGridBuffer.SafeRelease();
 	}
 }
 
@@ -2412,6 +2444,31 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		View.ViewState->PathTracingInvalidate();
 	}
 
+
+	TRDGUniformBufferRef<FOrthoVoxelGridUniformBufferParameters> OrthoGridUniformBuffer;
+	TRDGUniformBufferRef<FFrustumVoxelGridUniformBufferParameters> FrustumGridUniformBuffer;
+	bool bForceRebuild = CVarPathTracingHeterogeneousVolumesRebuildEveryFrame.GetValueOnRenderThread() != 0;
+	bool bCreateVolumeGrids = bForceRebuild ||
+		!PathTracingState->AdaptiveFrustumGridParameterCache.TopLevelGridBuffer ||
+		!PathTracingState->AdaptiveOrthoGridParameterCache.TopLevelGridBuffer;
+	if (bCreateVolumeGrids)
+	{
+		BuildOrthoVoxelGrid(GraphBuilder, Scene, Views, OrthoGridUniformBuffer);
+		BuildFrustumVoxelGrid(GraphBuilder, Scene, Views[0], FrustumGridUniformBuffer);
+	}
+	else
+	{
+		RegisterExternalOrthoVoxelGridUniformBuffer(GraphBuilder,
+			PathTracingState->AdaptiveOrthoGridParameterCache,
+			OrthoGridUniformBuffer
+		);
+
+		RegisterExternalFrustumVoxelGridUniformBuffer(GraphBuilder,
+			PathTracingState->AdaptiveFrustumGridParameterCache,
+			FrustumGridUniformBuffer
+		);
+	}
+
 	// Prepare radiance buffer (will be shared with display pass)
 	FRDGTexture* RadianceTexture = nullptr;
 	FRDGTexture* AlbedoTexture = nullptr;
@@ -2598,6 +2655,10 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 								PassParameters->FogParameters = {};
 							}
 
+							// Heterogeneous volume bindings
+							PassParameters->OrthoGridUniformBuffer = OrthoGridUniformBuffer;
+							PassParameters->FrustumGridUniformBuffer = FrustumGridUniformBuffer;
+
 							PassParameters->TilePixelOffset.X = TileX;
 							PassParameters->TilePixelOffset.Y = TileY + CurrentGPU;
 							PassParameters->TileTextureOffset.X = TileX;
@@ -2779,6 +2840,12 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		GraphBuilder.QueueTextureExtraction(RadianceTexture, &PathTracingState->RadianceRT);
 		GraphBuilder.QueueTextureExtraction(AlbedoTexture, &PathTracingState->AlbedoRT);
 		GraphBuilder.QueueTextureExtraction(NormalTexture, &PathTracingState->NormalRT);
+	}
+
+	if (bCreateVolumeGrids)
+	{
+		ExtractOrthoVoxelGridUniformBuffer(GraphBuilder, OrthoGridUniformBuffer, PathTracingState->AdaptiveOrthoGridParameterCache);
+		ExtractFrustumVoxelGridUniformBuffer(GraphBuilder, FrustumGridUniformBuffer, PathTracingState->AdaptiveFrustumGridParameterCache);
 	}
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);

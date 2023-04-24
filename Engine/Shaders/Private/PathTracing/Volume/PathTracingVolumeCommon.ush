@@ -33,9 +33,10 @@ FVolumeIntersection CreateEmptyVolumeIntersection()
 	return (FVolumeIntersection)0;
 }
 
-#define VOLUMEID_ATMOSPHERE		0
-#define VOLUMEID_FOG			1
-#define PATH_TRACER_MAX_VOLUMES 2
+#define VOLUMEID_ATMOSPHERE				0
+#define VOLUMEID_FOG					1
+#define VOLUMEID_HETEROGENEOUS_VOLUMES	2
+#define PATH_TRACER_MAX_VOLUMES			3
 
 // representes an interval along the ray over which the specified volumes are known to exist
 struct FVolumeIntersectionInterval

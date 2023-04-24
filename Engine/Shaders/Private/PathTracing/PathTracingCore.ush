@@ -11,6 +11,7 @@
 // In ordinary scenes, the most likely occurance of this problem is when combining hair and volumetric atmosphere as rays from several Km can travel back towards the hair and cause long delays or even TDRs
 #define PATH_TRACING_SKIP_HAIR_DISTANCE      1e6
 
+#include "../HeterogeneousVolumes/HeterogeneousVolumesVoxelGridTypes.ush"
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"
 #include "../RectLight.ush"
@@ -378,7 +379,7 @@ void EvaluateDecals(FPathState PathState, uint InstanceInclusionMask, FPackedPat
 #endif
 }
 
-FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint NumVisibleLights, inout FVolumeSegment VolumeSegment)
+FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint NumVisibleLights, inout FVolumeSegment VolumeSegment)
 {
 	const uint RayFlags = bIsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	uint InstanceInclusionMask = bIsCameraRay ? PATHTRACER_MASK_CAMERA : PATHTRACER_MASK_INDIRECT;
@@ -622,7 +623,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			}
 #if PATH_TRACING_USE_TRANSMITTANCE_FUNC
 			// analytically handle the transmittance to the next surface (which will be higher quality than the transmittance implicitly computed above and prevent noise with emissive surfaces in volumes)
-			PathState.PathThroughput = VolumeGetTransmittance(PathState.PathThroughput, PathState.Ray.Origin, PathState.Ray.Direction, Interval, PathState.RandSequence);
+			PathState.PathThroughput = VolumeGetTransmittance(PathState.PathThroughput, PathState.Ray.Origin, PathState.Ray.Direction, Interval, PathState.PathRoughness, PathState.RandSequence);
 #endif
 			// Update our current volume intersection list to reflect the fact that we have made it to the end of this interval
 			// This will either clip the finished portions of active segments, or remove the segments we have fully marched through
@@ -742,7 +743,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 
 #define PATH_TRACING_DEBUG_TRANSPARENCY_RAY 0
 
-float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint MissShaderIndex, bool bCastShadows, inout RandomSequence RandSequence)
+float3 TraceTransparentVisibilityRay(FRayDesc Ray, int Bounce, float PathRoughness, uint MissShaderIndex, bool bCastShadows, inout RandomSequence RandSequence)
 {
 	if (!bCastShadows && MissShaderIndex == 0)
 	{
@@ -824,7 +825,7 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint Mis
 		}
 		if (VolumeIsectList.HitVolume())
 		{
-			Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, RandSequence);
+			Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, PathRoughness, RandSequence);
 		}
 		// add in the medium extinction
 		Throughput *= exp(-max(PackedPayload.GetTau(), 0.0));
@@ -1403,7 +1404,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 #if PATH_TRACING_DEBUG_TRANSPARENCY_RAY
 	// visualize the shadow ray handling directly
-	PathState.Radiance = TraceTransparentVisibilityRay(PathState.Ray, 0.0, 0, true, PathState.RandSequence);
+	PathState.Radiance = TraceTransparentVisibilityRay(PathState.Ray, Bounce, 0.0, 0, true, PathState.RandSequence);
 	return false;
 #endif
 
@@ -1419,6 +1420,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	FVolumeSegment VolumeSegment = CreateEmptyVolumeSegment();
 	FPathTracingPayload Payload = TraceTransparentRay(
 		PathState,
+		Bounce,
 		bIsCameraRay,
 		bIsLastBounce,
 		bIncludeEmissive,
@@ -1473,7 +1475,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			{
 				// Account for the transmittance up to the current point within the current slice of volume
 				VolumeSegment.Interval.VolumeTMax = EquiAngularT;
-				VolumeSegment.Throughput = VolumeGetTransmittance(VolumeSegment.Throughput, Ro, Rd, VolumeSegment.Interval, PathState.RandSequence);
+				VolumeSegment.Throughput = VolumeGetTransmittance(VolumeSegment.Throughput, Ro, Rd, VolumeSegment.Interval, PathState.PathRoughness, PathState.RandSequence);
 
 				float3 Contrib = VolumeSegment.Throughput * SigmaS;
 
@@ -1497,7 +1499,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 						LightRay.TMin = 0;
 						LightRay.Direction = LightSample.Direction;
 						LightRay.TMax = LightSample.Distance;
-						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, 1.0, MissShaderIndex, bCastShadows, PathState.RandSequence);
+						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, Bounce, 1.0, MissShaderIndex, bCastShadows, PathState.RandSequence);
 						// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
 						if (any(LightSample.RadianceOverPdf > 0))
 						{
@@ -1534,7 +1536,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 								LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf);
 							}
 							MaterialRay.TMax = LightResult.HitT;
-							LightContrib *= TraceTransparentVisibilityRay(MaterialRay, MaterialSample.Roughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
+							LightContrib *= TraceTransparentVisibilityRay(MaterialRay, Bounce, MaterialSample.Roughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 							AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);
 						}
 					}
@@ -1653,7 +1655,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 				const bool bCastShadows = CastsShadow(LightId);
 				const uint MissShaderIndex = GetLightMissShaderIndex(LightId);
-				LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, AvgRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
+				LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, Bounce, AvgRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 
 				if (bIsVolumeSample)
 				{
@@ -1824,7 +1826,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				LightRay.TMax = LightResult.HitT;
 				const bool bCastShadows = CastsShadow(LightId);
 				const uint MissShaderIndex = GetLightMissShaderIndex(LightId);
-				LightContrib *= TraceTransparentVisibilityRay(LightRay, ShadowRayRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
+				LightContrib *= TraceTransparentVisibilityRay(LightRay, Bounce, ShadowRayRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 				// the light made some contribution, and there was nothing along the shadow ray
 				AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);
 			}
