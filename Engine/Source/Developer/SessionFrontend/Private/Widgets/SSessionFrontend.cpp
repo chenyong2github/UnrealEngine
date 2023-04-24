@@ -22,7 +22,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
-#if STATS
+#if STATS && UE_DEPRECATED_PROFILER_ENABLED
 #include "IProfilerModule.h"
 #endif
 
@@ -73,10 +73,12 @@ void SSessionFrontend::Construct( const FArguments& InArgs, const TSharedRef<SDo
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "SessionFrontEnd.Tabs.ScreenComparison"))
 		.SetGroup(AppMenuGroup);
 
+#if STATS && UE_DEPRECATED_PROFILER_ENABLED
 	TabManager->RegisterTabSpawner(ProfilerTabId, FOnSpawnTab::CreateRaw(this, &SSessionFrontend::HandleTabManagerSpawnTab, ProfilerTabId))
 		.SetDisplayName(LOCTEXT("ProfilerTabTitle", "Profiler"))
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Profiler.Tab"))
 		.SetGroup(AppMenuGroup);
+#endif
 	
 	// create tab layout
 	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("SessionFrontendLayout_v1.2")
@@ -99,7 +101,9 @@ void SSessionFrontend::Construct( const FArguments& InArgs, const TSharedRef<SDo
 						->AddTab(SessionConsoleTabId, ETabState::OpenedTab)
 						->AddTab(AutomationTabId, ETabState::OpenedTab)
 						->AddTab(SessionScreenTabId, ETabState::OpenedTab)
+#if STATS && UE_DEPRECATED_PROFILER_ENABLED
 						->AddTab(ProfilerTabId, ETabState::OpenedTab)
+#endif
 						->SetSizeCoefficient(0.75f)
 						->SetForegroundTab(SessionConsoleTabId)
 				)							
@@ -196,7 +200,7 @@ TSharedRef<SDockTab> SSessionFrontend::HandleTabManagerSpawnTab( const FSpawnTab
 
 		AutomationWindowModule.OnShutdown().BindSP(const_cast<SSessionFrontend*>(this), &SSessionFrontend::HandleAutomationModuleShutdown);
 	}
-#if STATS
+#if STATS && UE_DEPRECATED_PROFILER_ENABLED
 	else if (TabIdentifier == ProfilerTabId)
 	{
 		IProfilerModule& ProfilerModule = FModuleManager::LoadModuleChecked<IProfilerModule>(TEXT("Profiler"));

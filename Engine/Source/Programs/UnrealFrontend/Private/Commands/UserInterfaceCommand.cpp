@@ -58,7 +58,9 @@ void FUserInterfaceCommand::Run(  )
 
 	// load optional modules
 	FModuleManager::Get().LoadModule("DeviceManager");
+#if STATS && UE_DEPRECATED_PROFILER_ENABLED
 	FModuleManager::Get().LoadModule("ProfilerClient");
+#endif
 	FModuleManager::Get().LoadModule("ProjectLauncher");
 	FModuleManager::Get().LoadModule("SessionFrontend");
 	FModuleManager::Get().LoadModule("SettingsEditor");

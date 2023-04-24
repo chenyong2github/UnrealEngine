@@ -488,3 +488,9 @@
 #ifndef UE_STATS_MEMORY_PROFILER_ENABLED
 	#define UE_STATS_MEMORY_PROFILER_ENABLED 0
 #endif
+
+// Controls whether old Profiler (UnrealFrontend/SessionFrontend/Profiler) is enabled or not.
+// Old Profiler is deprecated since UE 5.0. Use Trace/UnrealInsights instead.
+#ifndef UE_DEPRECATED_PROFILER_ENABLED
+	#define UE_DEPRECATED_PROFILER_ENABLED 0
+#endif

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Linq;
 using UnrealBuildTool;
 
 public class SessionFrontend : ModuleRules
@@ -10,17 +12,16 @@ public class SessionFrontend : ModuleRules
 			new string[] {
 				"Core",
 				"Slate",
-                
 			}
 		);
 
-        PrivateDependencyModuleNames.AddRange(
+		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"DesktopPlatform",
 				"ApplicationCore",
-                "InputCore",
+				"InputCore",
 				"Json",
-                "SessionServices",
+				"SessionServices",
 				"SlateCore",
 
 				// @todo gmp: remove these dependencies by making the session front-end extensible
@@ -28,13 +29,16 @@ public class SessionFrontend : ModuleRules
 				"ScreenShotComparison",
 				"ScreenShotComparisonTools",
 				"TargetPlatform",
-                "WorkspaceMenuStructure",
+				"WorkspaceMenuStructure",
 			}
 		);
 
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+		if (Target.GlobalDefinitions.Contains("UE_DEPRECATED_PROFILER_ENABLED=1"))
 		{
-			PrivateDependencyModuleNames.Add("Profiler");
+			if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+			{
+				PrivateDependencyModuleNames.Add("Profiler");
+			}
 		}
 
 		PrivateIncludePathModuleNames.AddRange(
