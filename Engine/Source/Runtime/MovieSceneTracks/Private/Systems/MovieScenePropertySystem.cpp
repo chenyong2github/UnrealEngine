@@ -67,11 +67,13 @@ void UMovieScenePropertySystem::SavePreAnimatedState(const FPreAnimationParamete
 
 	PreAnimatedStorageID = PreAnimatedStorage->GetStorageType();
 
-	FComponentMask ComponentMask({ Definition.PropertyType });
+	FComponentMask IncludeMask({ Definition.PropertyType });
 	if (!InParameters.CacheExtension->AreEntriesInvalidated())
 	{
-		ComponentMask.Set(BuiltInComponents->Tags.NeedsLink);
+		IncludeMask.Set(BuiltInComponents->Tags.NeedsLink);
 	}
+
+	FComponentMask ExcludeMask({ BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->Tags.Finished, BuiltInComponents->Tags.Ignored });
 
 	if (IPreAnimatedObjectEntityStorage* ObjectStorage = PreAnimatedStorage->AsObjectStorage())
 	{
@@ -79,7 +81,8 @@ void UMovieScenePropertySystem::SavePreAnimatedState(const FPreAnimationParamete
 		.ReadEntityIDs()
 		.Read(BuiltInComponents->RootInstanceHandle)
 		.Read(BuiltInComponents->BoundObject)
-		.FilterAll(ComponentMask)
+		.FilterAll(IncludeMask)
+		.FilterNone(ExcludeMask)
 		.Iterate_PerAllocation(&Linker->EntityManager,
 			[ObjectStorage](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> RootInstanceHandles, TRead<UObject*> BoundObjects)
 			{
@@ -89,7 +92,8 @@ void UMovieScenePropertySystem::SavePreAnimatedState(const FPreAnimationParamete
 
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->BoundObject)
-		.FilterAll(ComponentMask)
+		.FilterAll(IncludeMask)
+		.FilterNone(ExcludeMask)
 		.Iterate_PerAllocation(&Linker->EntityManager,
 			[ObjectStorage](FEntityAllocationIteratorItem Item, TRead<UObject*> Objects)
 			{
@@ -105,7 +109,8 @@ void UMovieScenePropertySystem::SavePreAnimatedState(const FPreAnimationParamete
 		.Read(BuiltInComponents->RootInstanceHandle)
 		.Read(BuiltInComponents->BoundObject)
 		.Read(BuiltInComponents->PropertyBinding)
-		.FilterAll(ComponentMask)
+		.FilterAll(IncludeMask)
+		.FilterNone(ExcludeMask)
 		.Iterate_PerAllocation(&Linker->EntityManager,
 			[PropertyStorage](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> RootInstanceHandles, TRead<UObject*> BoundObjects, TRead<FMovieScenePropertyBinding> PropertyBindings)
 			{
@@ -117,7 +122,8 @@ void UMovieScenePropertySystem::SavePreAnimatedState(const FPreAnimationParamete
 		.Read(BuiltInComponents->BoundObject)
 		.Read(BuiltInComponents->PropertyBinding)
 		.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-		.FilterAll(ComponentMask)
+		.FilterAll(IncludeMask)
+		.FilterNone(ExcludeMask)
 		.Iterate_PerAllocation(&Linker->EntityManager,
 			[PropertyStorage](FEntityAllocationIteratorItem Item, TRead<UObject*> Objects, TRead<FMovieScenePropertyBinding> PropertyBindings, FThreeWayAccessor ResolvedProperties)
 			{

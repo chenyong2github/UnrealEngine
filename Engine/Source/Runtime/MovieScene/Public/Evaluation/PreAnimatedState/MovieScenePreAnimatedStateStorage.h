@@ -574,10 +574,13 @@ public:
 
 		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
+		FComponentMask ExcludeMask({ BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->Tags.Finished, BuiltInComponents->Tags.Ignored });
+
 		FEntityTaskBuilder()
 		.ReadEntityIDs()
 		.Read(BuiltInComponents->RootInstanceHandle)
 		.ReadAllOf(InComponentTypes...)
+		.FilterNone(ExcludeMask)
 		.CombineFilter(InParams.AdditionalFilter)
 		.Iterate_PerAllocation(&Linker->EntityManager, VisitAllocation);
 	}

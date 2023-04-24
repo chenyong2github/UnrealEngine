@@ -220,12 +220,15 @@ void UMovieSceneComponentMobilitySystem::SavePreAnimatedState(const FPreAnimatio
 		RestrictiveMask.Set(BuiltInComponents->Tags.NeedsLink);
 	}
 
+	FComponentMask ExcludeMask({ BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->Tags.Finished, BuiltInComponents->Tags.Ignored });
+
 	FEntityTaskBuilder()
 	.ReadEntityIDs()
 	.Read(BuiltInComponents->RootInstanceHandle)
 	.Read(BuiltInComponents->BoundObject)
 	.FilterAll(RestrictiveMask)
 	.FilterAny({ TrackComponents->ComponentTransform.PropertyTag, TrackComponents->AttachParent })
+	.FilterNone(ExcludeMask)
 	.Iterate_PerAllocation(&Linker->EntityManager, IterNewObjects);
 }
 
