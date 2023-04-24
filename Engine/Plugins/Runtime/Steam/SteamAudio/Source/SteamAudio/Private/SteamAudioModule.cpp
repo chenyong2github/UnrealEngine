@@ -31,6 +31,8 @@ namespace SteamAudio
 
 		UE_LOG(LogSteamAudio, Log, TEXT("FSteamAudioModule Startup"));
 
+		UE_LOG(LogSteamAudio, Warning, TEXT("The Steam Audio plugin is deprecated and will be removed in a future engine release. See the Plugins Browser for more information."))
+
 		// Make folder paths globally available
 		BasePath = FPaths::ProjectContentDir() + "SteamAudio/";
 		RuntimePath = BasePath + "Runtime/";
