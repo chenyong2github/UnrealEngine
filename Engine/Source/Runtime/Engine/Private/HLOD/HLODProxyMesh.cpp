@@ -11,13 +11,6 @@ FHLODProxyMesh::FHLODProxyMesh()
 }
 
 #if WITH_EDITOR
-FHLODProxyMesh::FHLODProxyMesh(const FHLODProxyMesh& Other)
-	: LODActor(Other.LODActor)
-	, StaticMesh(Other.StaticMesh)
-	, Key(Other.Key)
-{
-}
-
 FHLODProxyMesh::FHLODProxyMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey)
 	: LODActor(InLODActor)
 	, StaticMesh(InStaticMesh)

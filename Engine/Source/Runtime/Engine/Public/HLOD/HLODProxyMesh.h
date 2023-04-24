@@ -17,7 +17,6 @@ struct FHLODProxyMesh
 	FHLODProxyMesh();
 
 #if WITH_EDITOR
-	FHLODProxyMesh(const FHLODProxyMesh& Other);
 	FHLODProxyMesh(UStaticMesh* InStaticMesh, const FName& InKey);
 
 	FHLODProxyMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey);
