@@ -14,6 +14,7 @@
 #include "USDStageActor.generated.h"
 
 class FUsdInfoCache;
+class ISequencer;
 class UInterchangeGenericMaterialPipeline;
 class ULevelSequence;
 class UUsdAssetCache;
@@ -297,6 +298,8 @@ protected:
 
 	void UpdateSpawnedObjectsTransientFlag(bool bTransient);
 
+	void OnActorAddedToSequencer(AActor* NewActor, const FGuid Guid, TWeakPtr<ISequencer> WeakSequencer);
+
 #if WITH_EDITOR
 	void OnBeginPIE(bool bIsSimulating);
 	void OnPostPIEStarted(bool bIsSimulating);
@@ -380,6 +383,7 @@ protected:
 	bool bIsUndoRedoing;
 
 	FDelegateHandle OnRedoHandle;
+	FDelegateHandle OnSequencerCreatedHandle;
 
 	FThreadSafeCounter IsBlockedFromUsdNotices;
 

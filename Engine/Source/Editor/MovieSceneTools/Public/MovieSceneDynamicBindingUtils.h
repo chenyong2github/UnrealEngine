@@ -62,7 +62,7 @@ struct MOVIESCENETOOLS_API FMovieSceneDynamicBindingUtils
  * Dummy class, used for easily getting a valid UFunction that helps prepare blueprint function graphs.
  */
 UCLASS()
-class UMovieSceneDynamicBindingEndpointUtil : public UObject
+class MOVIESCENETOOLS_API UMovieSceneDynamicBindingEndpointUtil : public UObject
 {
 	GENERATED_BODY()
 
