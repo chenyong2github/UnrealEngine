@@ -60,11 +60,6 @@ namespace Audio
 
 		FQuantizedQueueCommand() {}
 
-		FQuantizedQueueCommand(const FQuantizedQueueCommand& Other)
-			: OwningClockPtr(Other.OwningClockPtr)
-			, AudioComponentData(Other.AudioComponentData)
-		{}
-
 	private:
 		TSharedPtr<FQuartzClock> OwningClockPtr{ nullptr };
 
