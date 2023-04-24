@@ -53,7 +53,7 @@ void FNiagaraOpInfo::BuildName(FString InName, FString InCategory)
 	Name = FName(*(InCategory + TEXT("::") + InName));
 }
 
-int32 CountType(const TArray<FNiagaraTypeDefinition>& Types, const FNiagaraTypeDefinition& SearchType)
+int32 CountType(TConstArrayView<FNiagaraTypeDefinition> Types, const FNiagaraTypeDefinition& SearchType)
 {
 	int32 Count = 0;
 	for (const FNiagaraTypeDefinition& Type : Types)
@@ -178,7 +178,7 @@ void FNiagaraOpInfo::Init()
 				return true;
 			});
 		Op->NumericOuputTypeSelectionMode = ENiagaraNumericOutputTypeSelectionMode::Custom;
-		Op->CustomNumericResolveFunction.BindLambda([=](const TArray<FNiagaraTypeDefinition>& NonNumericInputs)
+		Op->CustomNumericResolveFunction.BindLambda([=](TConstArrayView<FNiagaraTypeDefinition> NonNumericInputs)
 			{
 				int32 PositionTypes = CountType(NonNumericInputs, FNiagaraTypeDefinition::GetPositionDef());
 				if (PositionTypes > 0)
@@ -229,7 +229,7 @@ void FNiagaraOpInfo::Init()
 				return true;
 			});
 		Op->NumericOuputTypeSelectionMode = ENiagaraNumericOutputTypeSelectionMode::Custom;
-		Op->CustomNumericResolveFunction.BindLambda([=](const TArray<FNiagaraTypeDefinition>& NonNumericInputs)
+		Op->CustomNumericResolveFunction.BindLambda([=](TConstArrayView<FNiagaraTypeDefinition> NonNumericInputs)
 			{
 				int32 PositionTypes = CountType(NonNumericInputs, FNiagaraTypeDefinition::GetPositionDef());
 				if (PositionTypes == 1)
@@ -333,7 +333,7 @@ void FNiagaraOpInfo::Init()
 				return true;
 			});
 		Op->NumericOuputTypeSelectionMode = ENiagaraNumericOutputTypeSelectionMode::Custom;
-		Op->CustomNumericResolveFunction.BindLambda([=](const TArray<FNiagaraTypeDefinition>& NonNumericInputs)
+		Op->CustomNumericResolveFunction.BindLambda([=](TConstArrayView<FNiagaraTypeDefinition> NonNumericInputs)
 			{
 				int32 PositionTypes = CountType(NonNumericInputs, FNiagaraTypeDefinition::GetPositionDef());
 				if (PositionTypes == 1)
@@ -370,7 +370,7 @@ void FNiagaraOpInfo::Init()
 				return true;
 			});
 		Op->NumericOuputTypeSelectionMode = ENiagaraNumericOutputTypeSelectionMode::Custom;
-		Op->CustomNumericResolveFunction.BindLambda([=](const TArray<FNiagaraTypeDefinition>& NonNumericInputs)
+		Op->CustomNumericResolveFunction.BindLambda([=](TConstArrayView<FNiagaraTypeDefinition> NonNumericInputs)
 			{
 				 int32 PositionTypes = CountType(NonNumericInputs, FNiagaraTypeDefinition::GetPositionDef());
 				if (PositionTypes == 2)
@@ -924,7 +924,7 @@ void FNiagaraOpInfo::Init()
 				return true;
 			});
 		Op->NumericOuputTypeSelectionMode = ENiagaraNumericOutputTypeSelectionMode::Custom;
-		Op->CustomNumericResolveFunction.BindLambda([=](const TArray<FNiagaraTypeDefinition>& NonNumericInputs)
+		Op->CustomNumericResolveFunction.BindLambda([=](TConstArrayView<FNiagaraTypeDefinition> NonNumericInputs)
 			{
 				 int32 PositionTypes = CountType(NonNumericInputs, FNiagaraTypeDefinition::GetPositionDef());
 				if (PositionTypes == 3)
@@ -958,7 +958,7 @@ void FNiagaraOpInfo::Init()
 				return true;
 			});
 		Op->NumericOuputTypeSelectionMode = ENiagaraNumericOutputTypeSelectionMode::Custom;
-		Op->CustomNumericResolveFunction.BindLambda([=](const TArray<FNiagaraTypeDefinition>& NonNumericInputs)
+		Op->CustomNumericResolveFunction.BindLambda([=](TConstArrayView<FNiagaraTypeDefinition> NonNumericInputs)
 			{
 				 int32 PositionTypes = CountType(NonNumericInputs, FNiagaraTypeDefinition::GetPositionDef());
 				if (PositionTypes == 2)
@@ -992,7 +992,7 @@ void FNiagaraOpInfo::Init()
 				return true;
 			});
 		Op->NumericOuputTypeSelectionMode = ENiagaraNumericOutputTypeSelectionMode::Custom;
-		Op->CustomNumericResolveFunction.BindLambda([=](const TArray<FNiagaraTypeDefinition>& NonNumericInputs)
+		Op->CustomNumericResolveFunction.BindLambda([=](TConstArrayView<FNiagaraTypeDefinition> NonNumericInputs)
 			{
 				 int32 PositionTypes = CountType(NonNumericInputs, FNiagaraTypeDefinition::GetPositionDef());
 				if (PositionTypes == 2)

@@ -1310,7 +1310,7 @@ bool FNiagaraTypeDefinition::IsLossyConversion(const FNiagaraTypeDefinition& Fro
 		|| (FromType == Vec3Def && ToType == PositionDef);
 }
 
-FNiagaraTypeDefinition FNiagaraTypeDefinition::GetNumericOutputType(const TArray<FNiagaraTypeDefinition> TypeDefinintions, ENiagaraNumericOutputTypeSelectionMode SelectionMode)
+FNiagaraTypeDefinition FNiagaraTypeDefinition::GetNumericOutputType(TConstArrayView<FNiagaraTypeDefinition> TypeDefinintions, ENiagaraNumericOutputTypeSelectionMode SelectionMode)
 {
 	checkf(SelectionMode != ENiagaraNumericOutputTypeSelectionMode::None, TEXT("Can not get numeric output type with selection mode none."));
 	checkf(SelectionMode != ENiagaraNumericOutputTypeSelectionMode::Custom, TEXT("Can not get numeric output type with selection mode custom."));
@@ -1341,7 +1341,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::GetNumericOutputType(const TArray
 		return NumericDef;
 	}
 
-	TArray<FNiagaraTypeDefinition> SortedTypeDefinitions = TypeDefinintions;
+	TArray<FNiagaraTypeDefinition> SortedTypeDefinitions(TypeDefinintions);
 	SortedTypeDefinitions.Sort([&](const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB)
 		{
 			int32 AIndex = OrderedNumericTypes.IndexOfByKey(TypeA);

@@ -1917,11 +1917,11 @@ static UNiagaraParameterCollection* EnsureCollectionLoaded(FAssetData& Collectio
 
 UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterCollection(const FNiagaraVariable& Var)const
 {
-	FString VarName = Var.GetName().ToString();
-	if (VarName.StartsWith(TEXT("NPC.")))
+	FNameBuilder VarName(Var.GetName());
+	if (VarName.ToView().StartsWith(TEXT("NPC.")))
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-		if (UNiagaraParameterCollection* Collection = NiagaraEditorModule.FindCollectionForVariable(VarName))
+		if (UNiagaraParameterCollection* Collection = NiagaraEditorModule.FindCollectionForVariable(FString(VarName.ToView())))
 		{
 			return Collection;
 		}

@@ -74,7 +74,7 @@ public:
 
 	DECLARE_DELEGATE_RetVal_OneParam(int32, FStaticVariableResolve, const TArray<int32>& );
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FInputTypeValidation, const TArray<FNiagaraTypeDefinition>&, FText& );;
-	DECLARE_DELEGATE_RetVal_OneParam(FNiagaraTypeDefinition, FCustomNumericResolve, const TArray<FNiagaraTypeDefinition>& )
+	DECLARE_DELEGATE_RetVal_OneParam(FNiagaraTypeDefinition, FCustomNumericResolve, TConstArrayView<FNiagaraTypeDefinition> )
 
 	FStaticVariableResolve StaticVariableResolveFunction;
 	FInputTypeValidation InputTypeValidationFunction;
