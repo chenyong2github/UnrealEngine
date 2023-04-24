@@ -125,4 +125,23 @@ FString FExternalPackageHelper::GetExternalObjectPackageInstanceName(const FStri
 	return FLinkerInstancingContext::GetInstancedPackageName(OuterPackageName, ObjectPackageName);
 }
 
+void FExternalPackageHelper::GetExternalSaveableObjects(UObject* InOuter, TArray<UObject*>& OutObjects)
+{
+	// Get external packages
+	TSet<UPackage*> ExternalObjectPackages;
+	ExternalObjectPackages.Append(InOuter->GetPackage()->GetExternalPackages());
+
+	// Find assets for external packages
+	for (UPackage* ExternalPackage : ExternalObjectPackages)
+	{
+		if(FPackageName::IsValidLongPackageName(ExternalPackage->GetName()) && ExternalPackage->IsDirty())
+		{
+			if(UObject* Asset = ExternalPackage->FindAssetInPackage())
+			{
+				OutObjects.Add(Asset);
+			}
+		}
+	}
+}
+
 #endif

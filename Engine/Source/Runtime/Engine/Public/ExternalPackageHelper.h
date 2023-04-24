@@ -72,6 +72,13 @@ public:
 	template<typename T>
 	static void LoadObjectsFromExternalPackages(UObject* InOuter, TFunctionRef<void(T*)> Operation);
 
+	/**
+	 * Get the saveable external objects that should be saved alongside this outer's package
+	 * @param InOuter		The external object's outer
+	 * @param OutObjects	The objects that should be saved
+	 */
+	static void GetExternalSaveableObjects(UObject* InOuter, TArray<UObject*>& OutObjects);
+	
 private:
 	/** Get the external object package instance name. */
 	static FString GetExternalObjectPackageInstanceName(const FString& OuterPackageName, const FString& ObjectPackageName);
