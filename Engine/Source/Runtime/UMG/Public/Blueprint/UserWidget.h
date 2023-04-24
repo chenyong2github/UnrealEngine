@@ -1427,6 +1427,8 @@ protected:
 	UUMGSequencePlayer* GetSequencePlayer(const UWidgetAnimation* InAnimation) const;
 	UUMGSequencePlayer* GetOrAddSequencePlayer(UWidgetAnimation* InAnimation);
 
+	void ConditionalTearDownAnimations();
+
 	void TearDownAnimations();
 
 	void DisableAnimations();

@@ -474,6 +474,29 @@ UUMGSequencePlayer* UUserWidget::GetOrAddSequencePlayer(UWidgetAnimation* InAnim
 	return nullptr;
 }
 
+void UUserWidget::ConditionalTearDownAnimations()
+{
+	for (auto It = ActiveSequencePlayers.CreateIterator(); It; ++It)
+	{
+		UUMGSequencePlayer* Player = *It;
+		if (!Player)
+		{
+			It.RemoveCurrent();
+		}
+		else if (!Player->IsStopping())
+		{
+			Player->TearDown();
+			It.RemoveCurrent();
+		}
+	}
+
+	for (UUMGSequencePlayer* Player : StoppedSequencePlayers)
+	{
+		Player->TearDown();
+	}
+	StoppedSequencePlayers.Empty();
+}
+
 void UUserWidget::TearDownAnimations()
 {
 	for (UUMGSequencePlayer* Player : ActiveSequencePlayers)

@@ -153,14 +153,18 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 			{
 				if (!bIsCurrentlyEvaluating)
 				{
-					// Wait until the runner has finished evaluating before we tear stuff down
-					UserWidget->TearDownAnimations();
+					// Tear down any animations that are not currently being stopped
+					UserWidget->ConditionalTearDownAnimations();
 					UserWidget->UpdateCanTick();
 
-					// Resetting the animation tick manager is ok here because TearDownAnimations will always clear out all animations
-					UserWidget->AnimationTickManager = nullptr;
+					// If there are no more animations playing, we can remove this widget altogether
+					if (!UserWidget->IsAnyAnimationPlaying())
+					{
+						// Resetting the animation tick manager is ok here because TearDownAnimations will always clear out all animations
+						UserWidget->AnimationTickManager = nullptr;
 
-					WidgetIter.RemoveCurrent();
+						WidgetIter.RemoveCurrent();
+					}
 				}
 			}
 			else if (!WidgetData.bIsTicking)
