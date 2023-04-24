@@ -178,17 +178,16 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 				// Nothing to do...
 				continue;
 			}
+			
+			const FPCGMetadataAttributeBase* OriginalAttribute = SourceMetadata->GetConstAttribute(LocalSourceAttribute);
+			check(OriginalAttribute);
 
-			if (SampledData->Metadata->HasAttribute(LocalSourceAttribute))
+			// We only copy entries/values if we copy from the input spatial metadata
+			// If it is from the source attribute set, we don't copy (and all points will have the same default value, value from the attribute set)
+			const bool bCopyEntriesAndValues = (SourceAttributeSet == nullptr);
+			if (!SampledData->Metadata->CopyAttribute(OriginalAttribute, DestinationAttribute, /*bKeepParent=*/ false, /*bCopyEntries=*/ bCopyEntriesAndValues, /*bCopyValues=*/ bCopyEntriesAndValues))
 			{
-				if (!SampledData->Metadata->CopyExistingAttribute(LocalSourceAttribute, DestinationAttribute))
-				{
-					PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("FailedCopyToNewAttribute", "Failed to copy to new attribute '{0}'"), FText::FromName(DestinationAttribute)));
-				}
-			}
-			else
-			{
-				SampledData->Metadata->CopyAttribute(SourceMetadata, LocalSourceAttribute, DestinationAttribute);
+				PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("FailedCopyToNewAttribute", "Failed to copy to new attribute '{0}'"), FText::FromName(DestinationAttribute)));
 			}
 
 			continue;
@@ -228,6 +227,12 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 		if (!OutputAccessor.IsValid() || !OutputKeys.IsValid())
 		{
 			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("FailedToCreateOutputAccessor", "Failed to create output accessor or iterator"));
+			continue;
+		}
+
+		if (OutputAccessor->IsReadOnly())
+		{
+			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("OutputAccessorIsReadOnly", "Attribute/Property '{0}' is read only."), OutputTarget.GetDisplayText()));
 			continue;
 		}
 
