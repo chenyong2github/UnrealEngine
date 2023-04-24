@@ -39,22 +39,6 @@ TAutoConsoleVariable<int32> CVarEnableAudioThreadWait(
 	TEXT("0: Not Enabled, 1: Enabled"),
 	ECVF_Default);
 
-static int32 GCvarIsUsingAudioMixer = 0;
-FAutoConsoleVariableRef CVarIsUsingAudioMixer(
-	TEXT("au.IsUsingAudioMixer"),
-	GCvarIsUsingAudioMixer,
-	TEXT("Whether or not we're currently using the audio mixer. Change to dynamically toggle on/off. This will only take effect if an audio device is currently not in use, unless au.AllowUnsafeAudioMixerToggling is set to 1. Note: sounds will stop. Looping sounds won't automatically resume. \n")
-	TEXT("0: Not Using Audio Mixer, 1: Using Audio Mixer"),
-	ECVF_Default);
-
-static int32 GCvarAllowUnsafeAudioMixerToggling = 0;
-FAutoConsoleVariableRef CVarAllowUnsafeAudioMixerToggling(
-	TEXT("au.AllowUnsafeAudioMixerToggling"),
-	GCvarAllowUnsafeAudioMixerToggling,
-	TEXT("If set to 1, will allow au.IsUsingAudioMixer to swap out the audio engine, even if there are systems in the world currently using the audio engine. \n")
-	TEXT("0: disable usage of au.IsUsingAudioMixer when the audio device is actively in use, 1: enable usage of au.IsUsingAudioMixer."),
-	ECVF_Default);
-
 static int32 CVarIsVisualizeEnabled = 0;
 FAutoConsoleVariableRef CVarAudioVisualizeEnabled(
 	TEXT("au.3dVisualize.Enabled"),
@@ -191,10 +175,7 @@ FAudioDeviceManager::FAudioDeviceManager()
 	, NextResourceID(1)
 	, SoloDeviceHandle(INDEX_NONE)
 	, ActiveAudioDeviceID(INDEX_NONE)
-	, bUsingAudioMixer(false)
 	, bPlayAllDeviceAudio(false)
-	, bOnlyToggleAudioMixerOnce(false)
-	, bToggledAudioMixer(false)
 {
 
 #if ENABLE_AUDIO_DEBUG
@@ -263,189 +244,9 @@ Audio::FMixerDevice* FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(co
 {
 	if (FAudioDevice* AudioDevice = GetAudioDeviceFromWorldContext(WorldContextObject))
 	{
-		if (!AudioDevice->IsAudioMixerEnabled())
-		{
-			return nullptr;
-		}
-		else
-		{
-			return static_cast<Audio::FMixerDevice*>(AudioDevice);
-		}
+		return static_cast<Audio::FMixerDevice*>(AudioDevice);
 	}
 	return nullptr;
-}
-
-
-bool FAudioDeviceManager::ToggleAudioMixer()
-{
-	// Only need to toggle if we have 2 device module names loaded at init
-	if (AudioDeviceModule && AudioDeviceModuleName.Len() > 0 && AudioMixerModuleName.Len() > 0)
-	{
-		FScopeLock ScopeLock(&DeviceMapCriticalSection);
-		{
-			// Check to see if there are still any active handles using this audio device, and either warn or exit early.
-			for (auto& DeviceContainer : Devices)
-			{
-				if (DeviceContainer.Value.NumberOfHandlesToThisDevice > 0)
-				{
-
-					UE_LOG(LogAudio, Warning, TEXT("Attempted to toggle the audio mixer while that audio device was in use."));
-
-	#if INSTRUMENT_AUDIODEVICE_HANDLES
-					FString ActiveDeviceHandles;
-					for (auto& StackWalkString : DeviceContainer.Value.HandleCreationStackWalks)
-					{
-						ActiveDeviceHandles += StackWalkString.Value;
-						ActiveDeviceHandles += TEXT("\n\n");
-					}
-
-					UE_LOG(LogAudio, Warning, TEXT("List Of Active Handles to this device: \n%s"), *ActiveDeviceHandles);
-	#else
-					UE_LOG(LogAudio, Warning, TEXT("For more information compile with INSTRUMENT_AUDIODEVICE_HANDLES."));
-	#endif
-
-					if (!GCvarAllowUnsafeAudioMixerToggling)
-					{
-						return false;
-					}
-				}
-			}
-		}
-
-		// Suspend the audio thread
-		FAudioThreadSuspendContext AudioThreadSuspendScope;
-
-		// If using audio mixer, we need to toggle back to non-audio mixer
-		FString ModuleToUnload;
-
-		// If currently using the audio mixer, we need to toggle to the old audio engine module
-		if (bUsingAudioMixer)
-		{
-			// Unload the previous module
-			ModuleToUnload = AudioMixerModuleName;
-
-			AudioDeviceModule = FModuleManager::LoadModulePtr<IAudioDeviceModule>(*AudioDeviceModuleName);
-
-			bUsingAudioMixer = false;
-		}
-		// If we're currently using old audio engine module, we toggle to the audio mixer module
-		else
-		{
-			// Unload the previous module
-			ModuleToUnload = AudioDeviceModuleName;
-
-			// Load the audio mixer engine module
-			AudioDeviceModule = FModuleManager::LoadModulePtr<IAudioDeviceModule>(*AudioMixerModuleName);
-
-			bUsingAudioMixer = true;
-		}
-
-		// If we succeeded in loading a new module, create a new main audio device.
-		if (AudioDeviceModule)
-		{
-			// Shutdown and create new audio devices
-			const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-			const int32 QualityLevel = GEngine->GetGameUserSettings()->GetAudioQualityLevel(); // -V595
-			const int32 QualityLevelMaxChannels = AudioSettings->GetQualityLevelSettings(QualityLevel).MaxChannels; //-V595
-
-			// We could have multiple audio devices, so loop through them and patch them up best we can to
-			// get parity. E.g. we need to pass the handle from the odl to the new, set whether or not its active
-			// and try and get the mix-states to be the same.
-			for (auto& DeviceContainer : Devices)
-			{
-				FAudioDevice*& AudioDevice = DeviceContainer.Value.Device;
-
-				check(AudioDevice);
-
-				// Get the audio device handle and whether it is active
-				uint32 DeviceID = AudioDevice->DeviceID;
-				check(DeviceContainer.Key == DeviceID);
-				bool bIsActive = (DeviceID == ActiveAudioDeviceID);
-
-				// To transfer mix states, we need to re-base the absolute clocks on the mix states
-				// so the target audio device timing won't result in the mixes suddenly stopping.
-				TMap<USoundMix*, FSoundMixState> MixModifiers = AudioDevice->GetSoundMixModifiers();
-				TArray<USoundMix*> PrevPassiveSoundMixModifiers = AudioDevice->GetPrevPassiveSoundMixModifiers();
-				USoundMix* BaseSoundMix = AudioDevice->GetDefaultBaseSoundMixModifier();
-				double AudioClock = AudioDevice->GetAudioClock();
-
-				for (TPair<USoundMix*, FSoundMixState>& SoundMixPair : MixModifiers)
-				{
-					// Rebase so that a new clock starting from 0.0 won't cause mixes to stop.
-					SoundMixPair.Value.StartTime -= AudioClock;
-					SoundMixPair.Value.FadeInStartTime -= AudioClock;
-					SoundMixPair.Value.FadeInEndTime -= AudioClock;
-
-					if (SoundMixPair.Value.EndTime > 0.0f)
-					{
-						SoundMixPair.Value.EndTime -= AudioClock;
-					}
-
-					if (SoundMixPair.Value.FadeOutStartTime > 0.0f)
-					{
-						SoundMixPair.Value.FadeOutStartTime -= AudioClock;
-					}
-				}
-
-				// Tear it down and delete the old audio device. This does a bunch of cleanup.
-				AudioDevice->Teardown();
-				delete AudioDevice;
-
-				// Make a new audio device using the new audio device module
-				AudioDevice = AudioDeviceModule->CreateAudioDevice();
-
-				// Some AudioDeviceModules override CreteAudioMixerPlatformInterface, which means we can create a Audio::FMixerDevice.
-				if (AudioDevice == nullptr)
-				{
-					checkf(AudioDeviceModule->IsAudioMixerModule(), TEXT("Please override AudioDeviceModule->CreateAudioDevice()"))
-						AudioDevice = new Audio::FMixerDevice(AudioDeviceModule->CreateAudioMixerPlatformInterface());
-				}
-
-				check(AudioDevice);
-
-				// Re-init the new audio device using appropriate settings so it behaves the same
-				if (AudioDevice->Init(DeviceID, AudioSettings->GetHighestMaxChannels()))
-				{
-					AudioDevice->SetMaxChannels(QualityLevelMaxChannels);
-				}
-
-				// Transfer the sound mix modifiers to the new audio engine
-				AudioDevice->SetSoundMixModifiers(MixModifiers, PrevPassiveSoundMixModifiers, BaseSoundMix);
-				// Setup the mute state of the audio device to be the same that it was
-				if (bIsActive)
-				{
-					AudioDevice->SetDeviceMuted(false);
-				}
-				else
-				{
-					AudioDevice->SetDeviceMuted(true);
-				}
-
-				// Fade in the new audio device (used only in audio mixer to prevent pops on startup/shutdown)
-				AudioDevice->FadeIn();
-			}
-
-			// We now must free any resources that have been cached with the old audio engine
-			// This will result in re-caching of sound waves, but we're forced to do this because FSoundBuffer pointers
-			// are cached and each AudioDevice backend has a derived implementation of this so once we
-			// switch to a new audio engine the FSoundBuffer pointers are totally invalid.
-			for (TObjectIterator<USoundWave> SoundWaveIt; SoundWaveIt; ++SoundWaveIt)
-			{
-				USoundWave* SoundWave = *SoundWaveIt;
-				FreeResource(SoundWave);
-			}
-
-			// Unload the previous audio device module
-			FModuleManager::Get().UnloadModule(*ModuleToUnload);
-		}
-	}
-
-	return false;
-}
-
-bool FAudioDeviceManager::IsUsingAudioMixer() const
-{
-	return bUsingAudioMixer;
 }
 
 IAudioDeviceModule* FAudioDeviceManager::GetAudioDeviceModule()
@@ -584,24 +385,14 @@ bool FAudioDeviceManager::InitializeManager()
 		AudioSettings->LoadDefaultObjects();
 		AudioSettings->RegisterParameterInterfaces();
 
-		const bool bIsAudioMixerEnabled = AudioDeviceModule->IsAudioMixerModule();
-		if (bIsAudioMixerEnabled)
-		{
-			FModuleManager::Get().LoadModuleChecked(TEXT("AudioMixer"));
-		}
-		AudioSettings->SetAudioMixerEnabled(bIsAudioMixerEnabled);
-
 		// Register all formats
 		AudioFormatSettings = MakePimpl<Audio::FAudioFormatSettings>(GConfig, GEngineIni, FPlatformProperties::IniPlatformName());
 		RegisterAudioInfoFactories();
 
 #if WITH_EDITOR
-		if (bIsAudioMixerEnabled)
-		{
-			IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
-			AudioEditorModule->RegisterAudioMixerAssetActions();
-			AudioEditorModule->RegisterEffectPresetAssetActions();
-		}
+		IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
+		AudioEditorModule->RegisterAudioMixerAssetActions();
+		AudioEditorModule->RegisterEffectPresetAssetActions();
 #endif
 
 		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAudioDeviceManager::AppWillEnterBackground);
@@ -645,85 +436,22 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 {
 	check(!AudioDeviceModule);
 
-	// Check if we're going to try to force loading the audio mixer from the command line
-	bool bForceAudioMixer = FParse::Param(FCommandLine::Get(), TEXT("AudioMixer"));
-
-	bool bForceNoAudioMixer = FParse::Param(FCommandLine::Get(), TEXT("NoAudioMixer"));
-
 	bool bForceNonRealtimeRenderer = FParse::Param(FCommandLine::Get(), TEXT("DeterministicAudio"));
 
 	// If not using command line switch to use audio mixer, check the game platform engine ini file (e.g. WindowsEngine.ini) which enables it for player
-	bUsingAudioMixer = bForceAudioMixer;
-	if (!bForceAudioMixer && !bForceNoAudioMixer)
-	{
-		GConfig->GetBool(TEXT("Audio"), TEXT("UseAudioMixer"), bUsingAudioMixer, GEngineIni);
-		// Get the audio mixer and non-audio mixer device module names
-		GConfig->GetString(TEXT("Audio"), TEXT("AudioDeviceModuleName"), AudioDeviceModuleName, GEngineIni);
-		GConfig->GetString(TEXT("Audio"), TEXT("AudioMixerModuleName"), AudioMixerModuleName, GEngineIni);
-
-		// If AudioLink is Enabled, use the AudioLink Platform.
-		static const FString AudioLinkMixerModule = TEXT("AudioMixerPlatformAudioLink");
-		if (IModularFeatures::Get().IsModularFeatureAvailable(TEXT("AudioLink Factory")))
-		{
-			AudioMixerModuleName = AudioLinkMixerModule;
-		}
-	}
-	else if (bForceNoAudioMixer)
-	{
-		GConfig->GetString(TEXT("Audio"), TEXT("AudioDeviceModuleName"), AudioDeviceModuleName, GEngineIni);
-
-		// Allow no audio mixer override from command line
-		bUsingAudioMixer = false;
-	}
-	else if(bForceAudioMixer)
-	{ 
-		GConfig->GetString(TEXT("Audio"), TEXT("AudioMixerModuleName"), AudioMixerModuleName, GEngineIni);
-	}
-
-	// Check for config bool that restricts audio mixer toggle to only once. This will allow us to patch audio mixer on or off after initial login.
-	GConfig->GetBool(TEXT("Audio"), TEXT("OnlyToggleAudioMixerOnce"), bOnlyToggleAudioMixerOnce, GEngineIni);
+	GConfig->GetString(TEXT("Audio"), TEXT("AudioMixerModuleName"), AudioMixerModuleName, GEngineIni);
 
 	if (bForceNonRealtimeRenderer)
 	{
 		AudioDeviceModule = FModuleManager::LoadModulePtr<IAudioDeviceModule>(TEXT("NonRealtimeAudioRenderer"));
-
-		static IConsoleVariable* IsUsingAudioMixerCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("au.IsUsingAudioMixer"));
-		check(IsUsingAudioMixerCvar);
-		IsUsingAudioMixerCvar->Set(2, ECVF_SetByConstructor);
-
-		bUsingAudioMixer = true;
-
 		return AudioDeviceModule != nullptr;
 	}
 
-	if (bUsingAudioMixer && AudioMixerModuleName.Len() > 0)
+	if (AudioMixerModuleName.Len() > 0)
 	{
 		AudioDeviceModule = FModuleManager::LoadModulePtr<IAudioDeviceModule>(*AudioMixerModuleName);
-		if (AudioDeviceModule)
-		{
-			static IConsoleVariable* IsUsingAudioMixerCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("au.IsUsingAudioMixer"));
-			check(IsUsingAudioMixerCvar);
-			IsUsingAudioMixerCvar->Set(1, ECVF_SetByConstructor);
-		}
-		else
-		{
-			bUsingAudioMixer = false;
-		}
 	}
 
-	if (!AudioDeviceModule && AudioDeviceModuleName.Len() > 0)
-	{
-		AudioDeviceModule = FModuleManager::LoadModulePtr<IAudioDeviceModule>(*AudioDeviceModuleName);
-
-		static IConsoleVariable* IsUsingAudioMixerCvar = IConsoleManager::Get().FindConsoleVariable(TEXT("au.IsUsingAudioMixer"));
-		check(IsUsingAudioMixerCvar);
-		IsUsingAudioMixerCvar->Set(0, ECVF_SetByConstructor);
-	}
-
-	if (bForceNoAudioMixer)
-	{
-		Audio::Analytics::RecordEvent_Usage(TEXT("ForceNoAudioMixer"));
-	}
 	return AudioDeviceModule != nullptr;
 }
 
@@ -980,38 +708,6 @@ void FAudioDeviceManager::UpdateActiveAudioDevices(bool bGameTicking)
 	if (GCVarEnableAudioThreadWait)
 	{
 		SyncFence.Wait();
-	}
-
-	if (!bOnlyToggleAudioMixerOnce || (bOnlyToggleAudioMixerOnce && !bToggledAudioMixer))
-	{
-		if (bUsingAudioMixer && !GCvarIsUsingAudioMixer)
-		{
-			const bool bSuccessfullyToggledAudioMixer = ToggleAudioMixer();
-
-			if (bSuccessfullyToggledAudioMixer)
-			{
-				bToggledAudioMixer = true;
-				bUsingAudioMixer = false;
-			}
-			else
-			{
-				GCvarIsUsingAudioMixer = true;
-			}
-		}
-		else if (!bUsingAudioMixer && GCvarIsUsingAudioMixer)
-		{
-			const bool bSuccessfullyToggledAudioMixer = ToggleAudioMixer();
-
-			if (bSuccessfullyToggledAudioMixer)
-			{
-				bToggledAudioMixer = true;
-				bUsingAudioMixer = true;
-			}
-			else
-			{
-				GCvarIsUsingAudioMixer = false;
-			}
-		}
 	}
 
 	IterateOverAllDevices(

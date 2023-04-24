@@ -458,8 +458,6 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 	LayoutBuilder.AddPropertyToCategory(bIsSpatializedHandle)
 		.Visibility(IsAttenuationOverriddenVisibleAttribute());
 
-	bool bIsAudioMixerEnabled = GetDefault<UAudioSettings>()->IsAudioMixerEnabled();
-
 	// Check to see if a spatialization plugin is enabled
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, SpatializationAlgorithm)))
 		.Visibility(IsAttenuationOverriddenVisibleAttribute())
@@ -513,16 +511,13 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
-	if (bIsAudioMixerEnabled)
-	{
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, HPFFrequencyAtMin)))
-			.Visibility(IsAttenuationOverriddenVisibleAttribute())
-			.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, HPFFrequencyAtMin)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
+		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, HPFFrequencyAtMax)))
-			.Visibility(IsAttenuationOverriddenVisibleAttribute())
-			.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
-	}
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, HPFFrequencyAtMax)))
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
+		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, bEnableLogFrequencyScaling)))
 		.Visibility(IsAttenuationOverriddenVisibleAttribute())
@@ -536,45 +531,42 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsCustomAirAbsorptionCurveSelected))
 		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
-	if (bIsAudioMixerEnabled)
-	{
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, CustomHighpassAirAbsorptionCurve)))
-			.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsCustomAirAbsorptionCurveSelected))
-			.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, CustomHighpassAirAbsorptionCurve)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsCustomAirAbsorptionCurveSelected))
+		.EditCondition(GetIsAirAbsorptionEnabledAttribute(), nullptr);
 
-		// Add the reverb send enabled handle
-		LayoutBuilder.AddPropertyToCategory(bIsReverbSendEnabledHandle)
-			.Visibility(IsAttenuationOverriddenVisibleAttribute())
-			.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
+	// Add the reverb send enabled handle
+	LayoutBuilder.AddPropertyToCategory(bIsReverbSendEnabledHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
+		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 
-		LayoutBuilder.AddPropertyToCategory(ReverbSendMethodHandle)
-			.Visibility(IsAttenuationOverriddenVisibleAttribute())
-			.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
+	LayoutBuilder.AddPropertyToCategory(ReverbSendMethodHandle)
+		.Visibility(IsAttenuationOverriddenVisibleAttribute())
+		.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
 
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbWetLevelMin)))
-			.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearMethodSelected))
-			.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbWetLevelMin)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearMethodSelected))
+		.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
 
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbWetLevelMax)))
-			.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearMethodSelected))
-			.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbWetLevelMax)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearMethodSelected))
+		.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
 
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, CustomReverbSendCurve)))
-			.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsCustomReverbSendCurveSelected))
-			.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, CustomReverbSendCurve)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsCustomReverbSendCurveSelected))
+		.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
 
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbDistanceMin)))
-			.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearOrCustomReverbMethodSelected))
-			.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbDistanceMin)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearOrCustomReverbMethodSelected))
+		.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
 
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbDistanceMax)))
-			.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearOrCustomReverbMethodSelected))
-			.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ReverbDistanceMax)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsLinearOrCustomReverbMethodSelected))
+		.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
 
-		LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ManualReverbSendLevel)))
-			.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsManualReverbSendSelected))
-			.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
-	}
+	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, ManualReverbSendLevel)))
+		.Visibility(TAttribute<EVisibility>(this, &FSoundAttenuationSettingsCustomization::IsManualReverbSendSelected))
+		.EditCondition(GetIsReverbSendEnabledAttribute(), nullptr);
 
 	LayoutBuilder.AddPropertyToCategory(PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, FocusAzimuth)))
 		.Visibility(IsAttenuationOverriddenVisibleAttribute())
@@ -698,17 +690,14 @@ void FSoundAttenuationSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 		.Visibility(IsAttenuationOverriddenVisibleAttribute())
 		.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 
-	if (bIsAudioMixerEnabled)
+	TSharedPtr<IPropertyHandle> PluginProperty = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PluginSettings));
+	uint32 NumPluginChildren = 0;
+	PluginProperty->GetNumChildren(NumPluginChildren);
+	for (uint32 i = 0; i < NumPluginChildren; ++i)
 	{
-		TSharedPtr<IPropertyHandle> PluginProperty = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundAttenuationSettings, PluginSettings));
-		uint32 NumPluginChildren = 0;
-		PluginProperty->GetNumChildren(NumPluginChildren);
-		for (uint32 i = 0; i < NumPluginChildren; ++i)
-		{
-			LayoutBuilder.AddPropertyToCategory(PluginProperty->GetChildHandle(i))
-				.Visibility(IsAttenuationOverriddenVisibleAttribute())
-				.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
-		}
+		LayoutBuilder.AddPropertyToCategory(PluginProperty->GetChildHandle(i))
+			.Visibility(IsAttenuationOverriddenVisibleAttribute())
+			.EditCondition(IsAttenuationOverriddenAttribute(), nullptr);
 	}
 
 	// Set category display names

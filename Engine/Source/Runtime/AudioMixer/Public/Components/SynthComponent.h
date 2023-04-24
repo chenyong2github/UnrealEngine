@@ -62,7 +62,6 @@ protected:
 	TWeakObjectPtr<USynthComponent> OwningSynthComponent = nullptr;
 
 	TArray<float> FloatBuffer;
-	bool bAudioMixer;
 
 public:
 	USynthComponent* GetOwningSynthComponent()

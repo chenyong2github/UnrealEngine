@@ -184,52 +184,44 @@ public:
 
 	virtual void RegisterAudioMixerAssetActions() override
 	{
-		// Only register asset actions for when audio mixer data is enabled
-		if (GetDefault<UAudioSettings>()->IsAudioMixerEnabled())
-		{
-			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundSubmix>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldSubmix>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_EndpointSubmix>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEndpointSubmix>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEncodingSettings>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEffectSettings>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEffect>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_AudioEndpointSettings>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEndpointSettings>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundEffectSubmixPreset>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundEffectSourcePreset>());
-			AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundEffectSourcePresetChain>());
-		}
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundSubmix>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldSubmix>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_EndpointSubmix>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEndpointSubmix>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEncodingSettings>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEffectSettings>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEffect>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_AudioEndpointSettings>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundfieldEndpointSettings>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundEffectSubmixPreset>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundEffectSourcePreset>());
+		AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundEffectSourcePresetChain>());
 	}
 
 	virtual void RegisterEffectPresetAssetActions() override
 	{
-		// Only register asset actions for the case where audio mixer data is enabled
-		if (GetDefault<UAudioSettings>()->IsAudioMixerEnabled())
+		// Register the audio editor asset type actions
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+		// Look for any sound effect presets to register
+		for (TObjectIterator<UClass> It; It; ++It)
 		{
-			// Register the audio editor asset type actions
-			IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-			// Look for any sound effect presets to register
-			for (TObjectIterator<UClass> It; It; ++It)
+			UClass* ChildClass = *It;
+			if (ChildClass->HasAnyClassFlags(CLASS_Abstract))
 			{
-				UClass* ChildClass = *It;
-				if (ChildClass->HasAnyClassFlags(CLASS_Abstract))
-				{
-					continue;
-				}
+				continue;
+			}
 
-				// Look for submix or source preset classes
-				UClass* ParentClass = ChildClass->GetSuperClass();
-				if (ParentClass && (ParentClass->IsChildOf(USoundEffectSourcePreset::StaticClass()) || ParentClass->IsChildOf(USoundEffectSubmixPreset::StaticClass())))
+			// Look for submix or source preset classes
+			UClass* ParentClass = ChildClass->GetSuperClass();
+			if (ParentClass && (ParentClass->IsChildOf(USoundEffectSourcePreset::StaticClass()) || ParentClass->IsChildOf(USoundEffectSubmixPreset::StaticClass())))
+			{
+				USoundEffectPreset* EffectPreset = ChildClass->GetDefaultObject<USoundEffectPreset>();
+				if (!RegisteredActions.Contains(EffectPreset) && EffectPreset->HasAssetActions())
 				{
-					USoundEffectPreset* EffectPreset = ChildClass->GetDefaultObject<USoundEffectPreset>();
-					if (!RegisteredActions.Contains(EffectPreset) && EffectPreset->HasAssetActions())
-					{
-						RegisteredActions.Add(EffectPreset);
-						AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundEffectPreset>(EffectPreset));
-					}
+					RegisteredActions.Add(EffectPreset);
+					AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_SoundEffectPreset>(EffectPreset));
 				}
 			}
 		}

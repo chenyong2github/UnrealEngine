@@ -1389,12 +1389,6 @@ public:
 
 	ENGINE_API static bool IsSourceDataOverridePluginLoaded();
 
-	/** Returns if this is the multi-platform audio mixer. */
-	bool IsAudioMixerEnabled() const
-	{
-		return bAudioMixerModuleLoaded;
-	}
-
 	/** Returns if stopping voices is enabled. */
 	bool IsStoppingVoicesEnabled() const
 	{

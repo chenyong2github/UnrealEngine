@@ -127,7 +127,7 @@ TSharedPtr<FMediaIOAudioOutput> FMediaIOAudioCapture::CreateAudioOutput(int32 In
 
 void FMediaIOAudioCapture::RegisterBufferListener(FAudioDevice* AudioDevice)
 {
-	if (AudioDevice && AudioDevice->IsAudioMixerEnabled())
+	if (AudioDevice)
 	{
 		const Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
 		NumChannels = MixerDevice->GetDeviceOutputChannels();

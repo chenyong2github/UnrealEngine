@@ -20,7 +20,7 @@ void FProxyMutator_SubmixOverride::Apply(FAudioGameplayVolumeListener& Listener)
 	check(IsInAudioThread());
 
 	FAudioDeviceHandle AudioDeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(Listener.GetOwningDeviceId());
-	if (AudioDeviceHandle.IsValid() && AudioDeviceHandle->IsAudioMixerEnabled())
+	if (AudioDeviceHandle.IsValid())
 	{
 		FSoundEffectSubmixInitData InitData;
 		InitData.DeviceID = AudioDeviceHandle.GetDeviceID();
@@ -57,7 +57,7 @@ void FProxyMutator_SubmixOverride::Remove(FAudioGameplayVolumeListener& Listener
 	check(IsInAudioThread());
 
 	FAudioDeviceHandle AudioDeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(Listener.GetOwningDeviceId());
-	if (AudioDeviceHandle.IsValid() && AudioDeviceHandle->IsAudioMixerEnabled())
+	if (AudioDeviceHandle.IsValid())
 	{
 		// Clear out any previous submix effect chain overrides
 		for (const FAudioVolumeSubmixOverrideSettings& OverrideSettings : SubmixOverrideSettings)

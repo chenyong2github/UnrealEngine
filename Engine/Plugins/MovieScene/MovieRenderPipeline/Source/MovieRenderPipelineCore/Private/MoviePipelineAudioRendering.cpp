@@ -32,14 +32,7 @@ static Audio::FMixerDevice* GetAudioMixerDeviceFromWorldContext(const UObject* W
 {
 	if (FAudioDevice* AudioDevice = GetAudioDeviceFromWorldContext(WorldContextObject))
 	{
-		if (!AudioDevice->IsAudioMixerEnabled())
-		{
-			return nullptr;
-		}
-		else
-		{
-			return static_cast<Audio::FMixerDevice*>(AudioDevice);
-		}
+		return static_cast<Audio::FMixerDevice*>(AudioDevice);
 	}
 	return nullptr;
 }

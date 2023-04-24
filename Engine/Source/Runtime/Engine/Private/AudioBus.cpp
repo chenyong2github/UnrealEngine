@@ -41,12 +41,9 @@ void UAudioBus::BeginDestroy()
 		TArray<FAudioDevice*> AudioDevices = AudioDeviceManager->GetAudioDevices();
 		for (FAudioDevice* AudioDevice : AudioDevices)
 		{
-			if (AudioDevice->IsAudioMixerEnabled())
-			{
-				UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
-				check(AudioBusSubsystem);
-				AudioBusSubsystem->StopAudioBus(Audio::FAudioBusKey(AudioBusId));
-			}
+			UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
+			check(AudioBusSubsystem);
+			AudioBusSubsystem->StopAudioBus(Audio::FAudioBusKey(AudioBusId));
 		}
 	}
 }

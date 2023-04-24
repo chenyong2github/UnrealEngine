@@ -542,7 +542,7 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 I
 	InitSoundEffectPresets();
 
 	// Audio mixer needs to create effects manager before initializing the plugins.
-	if (IsAudioMixerEnabled() && IsStoppingVoicesEnabled())
+	if (IsStoppingVoicesEnabled())
 	{
 		// create a platform specific effects manager
 		Effects = CreateEffectsManager();
@@ -580,17 +580,6 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 I
 			SpatializationInterfaces.Add(SpatPluginInfo);
 		}
 
-		if (!IsAudioMixerEnabled())
-		{
-
-			//Set up initialization parameters for system level effect plugins:
-			PluginInitializationParams.SampleRate = SampleRate;
-			PluginInitializationParams.NumSources = GetMaxSources();
-			PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
-			PluginInitializationParams.AudioDevicePtr = this;
-			SetCurrentSpatializationPlugin(AudioPluginUtilities::GetDesiredSpatializationPluginName());
-		}
-
 		bSpatializationInterfaceEnabled = true;
 
 		UE_LOG(LogAudio, Display, TEXT("Audio Spatialization Plugin: %s is external send: %d"), *(SpatializationPluginFactory->GetDisplayName()), SpatializationPluginFactory->IsExternalSend());
@@ -605,7 +594,6 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 I
 	{
 		SourceDataOverridePluginInterface = SourceDataOverridePluginFactory->CreateNewSourceDataOverridePlugin(this);
 		bSourceDataOverrideInterfaceEnabled = true;
-		check(IsAudioMixerEnabled());
 		UE_LOG(LogAudio, Display, TEXT("Audio Source Data Override Plugin: %s"), *(SourceDataOverridePluginFactory->GetDisplayName()));
 	}
 
@@ -662,13 +650,6 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 I
 		Teardown();
 
 		return false;
-	}
-
-	// create a platform specific effects manager
-	// if this is the audio mixer, we initialized the effects manager before the hardware
-	if (!IsAudioMixerEnabled())
-	{
-		Effects = CreateEffectsManager();
 	}
 
 	InitSoundSources();
@@ -979,14 +960,11 @@ void FAudioDevice::Teardown()
 	// Note: we don't free audio buffers at this stage since they are managed in the audio device manager
 
 	// Must be after FreeBufferResource as that potentially stops sources
-	if (IsAudioMixerEnabled())
+	for (int32 Index = 0; Index < Sources.Num(); Index++)
 	{
-		for (int32 Index = 0; Index < Sources.Num(); Index++)
-		{
-			// Make the sound stop instantly
-			Sources[Index]->StopNow();
-			delete Sources[Index];
-		}
+		// Make the sound stop instantly
+		Sources[Index]->StopNow();
+		delete Sources[Index];
 	}
 
 	Sources.Reset();
@@ -4246,83 +4224,80 @@ void FAudioDevice::UpdateActiveSoundPlaybackTime(bool bIsGameTicking)
 
 void FAudioDevice::StopOldestStoppingSource()
 {
-	if (IsAudioMixerEnabled())
+	check(!FreeSources.Num());
+
+	FSoundSource* LowestPriStoppingSource = nullptr;
+	FSoundSource* LowestPriSource = nullptr;
+	FSoundSource* LowestPriNonLoopingSource = nullptr;
+
+	for (FSoundSource* Source : Sources)
 	{
-		check(!FreeSources.Num());
-
-		FSoundSource* LowestPriStoppingSource = nullptr;
-		FSoundSource* LowestPriSource = nullptr;
-		FSoundSource* LowestPriNonLoopingSource = nullptr;
-
-		for (FSoundSource* Source : Sources)
+		// Find oldest stopping voice first
+		if (Source->IsStopping())
 		{
-			// Find oldest stopping voice first
-			if (Source->IsStopping())
+			if (!LowestPriStoppingSource)
 			{
-				if (!LowestPriStoppingSource)
+				LowestPriStoppingSource = Source;
+			}
+			else
+			{
+				if (Source->WaveInstance->GetVolumeWeightedPriority() < LowestPriStoppingSource->WaveInstance->GetVolumeWeightedPriority())
 				{
 					LowestPriStoppingSource = Source;
 				}
+			}
+		}
+		else if (Source->WaveInstance)
+		{
+			// Find lowest volume/priority non-looping source as fallback
+			if (Source->WaveInstance->LoopingMode != ELoopingMode::LOOP_Forever && !Source->WaveInstance->bIsUISound)
+			{
+				if (!LowestPriNonLoopingSource)
+				{
+					LowestPriNonLoopingSource = Source;
+				}
 				else
 				{
-					if (Source->WaveInstance->GetVolumeWeightedPriority() < LowestPriStoppingSource->WaveInstance->GetVolumeWeightedPriority())
-					{
-						LowestPriStoppingSource = Source;
-					}
-				}
-			}
-			else if (Source->WaveInstance)
-			{
-				// Find lowest volume/priority non-looping source as fallback
-				if (Source->WaveInstance->LoopingMode != ELoopingMode::LOOP_Forever && !Source->WaveInstance->bIsUISound)
-				{
-					if (!LowestPriNonLoopingSource)
+					if (Source->WaveInstance->GetVolumeWeightedPriority() < LowestPriNonLoopingSource->WaveInstance->GetVolumeWeightedPriority())
 					{
 						LowestPriNonLoopingSource = Source;
 					}
-					else
-					{
-						if (Source->WaveInstance->GetVolumeWeightedPriority() < LowestPriNonLoopingSource->WaveInstance->GetVolumeWeightedPriority())
-						{
-							LowestPriNonLoopingSource = Source;
-						}
-					}
 				}
+			}
 
 
-				// Find lowest volume/priority source as final fallback
-				if (!LowestPriSource)
+			// Find lowest volume/priority source as final fallback
+			if (!LowestPriSource)
+			{
+				LowestPriSource = Source;
+			}
+			else
+			{
+				if (Source->WaveInstance->GetVolumeWeightedPriority() < LowestPriSource->WaveInstance->GetVolumeWeightedPriority())
 				{
 					LowestPriSource = Source;
 				}
-				else
-				{
-					if (Source->WaveInstance->GetVolumeWeightedPriority() < LowestPriSource->WaveInstance->GetVolumeWeightedPriority())
-					{
-						LowestPriSource = Source;
-					}
-				}
 			}
 		}
-
-		// Stop oldest stopping source
-		if (LowestPriStoppingSource)
-		{
-			LowestPriStoppingSource->StopNow();
-		}
-		// If no oldest stopping source, stop oldest one-shot
-		else if (LowestPriNonLoopingSource)
-		{
-			LowestPriNonLoopingSource->StopNow();
-		}
-		// Otherwise stop oldest source.
-		else
-		{
-			check(LowestPriSource);
-			LowestPriSource->StopNow();
-		}
-		check(FreeSources.Num() > 0);
 	}
+
+	// Stop oldest stopping source
+	if (LowestPriStoppingSource)
+	{
+		LowestPriStoppingSource->StopNow();
+	}
+	// If no oldest stopping source, stop oldest one-shot
+	else if (LowestPriNonLoopingSource)
+	{
+		LowestPriNonLoopingSource->StopNow();
+	}
+	// Otherwise stop oldest source.
+	else
+	{
+		check(LowestPriSource);
+		LowestPriSource->StopNow();
+	}
+	check(FreeSources.Num() > 0);
 }
 
 void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 FirstActiveIndex)
@@ -4448,7 +4423,7 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 				IStreamingManager::Get().GetAudioStreamingManager().CanCreateSoundSource(WaveInstance)))
 			{
 				// Check for full sources and stop the oldest stopping source
-				if (IsAudioMixerEnabled() && !FreeSources.Num())
+				if (!FreeSources.Num())
 				{
 					StopOldestStoppingSource();
 				}
@@ -4877,7 +4852,7 @@ void FAudioDevice::UpdateAudioVolumeEffects()
 		Effects->Update();
 
 		// If we any submix override settings apply those overrides to the indicated submixes
-		if (IsAudioMixerEnabled() && bUpdateSubmixEffects)
+		if (bUpdateSubmixEffects)
 		{
 			// Clear out any previous submix effect chain overrides if the audio volume changed
 			if (PreviousPlayerAudioVolumeSettings.SubmixOverrideSettings.Num() > 0)
@@ -5113,17 +5088,6 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 	{
 		ReportSoundFailedToStart(InNewActiveSound.AudioComponentID, InVirtualLoopToRetrigger);
 		return;
-	}
-
-	// Don't allow buses to try to play if we're not using the audio mixer.
-	if (!IsAudioMixerEnabled())
-	{
-		USoundSourceBus* Bus = Cast<USoundSourceBus>(InNewActiveSound.Sound);
-		if (Bus)
-		{
-			ReportSoundFailedToStart(InNewActiveSound.AudioComponentID, InVirtualLoopToRetrigger);
-			return;
-		}
 	}
 
 	if (Sound->GetDuration() <= FMath::Max(0.0f, SoundDistanceOptimizationLengthCVar))
@@ -6581,13 +6545,10 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 	}
 
 	// Make sure we update any hardware changes that need to happen after flushing
-	if (IsAudioMixerEnabled())
-	{
-		UpdateHardware();
+	UpdateHardware();
 
-		// Make sure any in-flight audio rendering commands get executed.
-		FlushAudioRenderingCommands();
-	}
+	// Make sure any in-flight audio rendering commands get executed.
+	FlushAudioRenderingCommands();
 
 	FlushExtended(WorldToFlush, bClearActivatedReverb);
 }
@@ -6674,17 +6635,8 @@ void FAudioDevice::Precache(USoundWave* SoundWave, bool bSynchronous, bool bTrac
 	}
 	else if (SoundWave->bIsSourceBus)
 	{
-		// Audio data which will be generated by instanced objects, not from the sound wave asset
-		if (IsAudioMixerEnabled())
-		{
-			// Buses will initialize as procedural, but not actually become a procedural sound wave
-			SoundWave->DecompressionType = DTYPE_Procedural;
-		}
-		else
-		{
-			// Buses are only supported with audio mixer
-			SoundWave->DecompressionType = DTYPE_Invalid;
-		}
+		// Buses will initialize as procedural, but not actually become a procedural sound wave
+		SoundWave->DecompressionType = DTYPE_Procedural;
 	}
 	else if (HasCompressedAudioInfoClass(SoundWave))
 	{

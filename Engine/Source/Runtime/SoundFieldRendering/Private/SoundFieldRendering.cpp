@@ -641,14 +641,10 @@ TArray<Audio::FChannelPositionInfo>* FSoundFieldDecoder::GetDefaultChannelPositi
 	if (GEngine)
 	{
 		FAudioDevice* AudioDevice = GEngine->GetMainAudioDeviceRaw();
-		if (AudioDevice->IsAudioMixerEnabled())
+		Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
+		if (MixerDevice)
 		{
-			// downcast.
-			Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
-			if (MixerDevice)
-			{
-				return MixerDevice->GetDefaultPositionMap(InNumChannels);
-			}
+			return MixerDevice->GetDefaultPositionMap(InNumChannels);
 		}
 	}
 

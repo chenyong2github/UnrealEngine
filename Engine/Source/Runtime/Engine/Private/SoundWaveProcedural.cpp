@@ -20,21 +20,6 @@ USoundWaveProcedural::USoundWaveProcedural(const FObjectInitializer& ObjectIniti
 	// We need to do this for procedural sound waves that we do not process asynchronously,
 	// to ensure that we do not underrun.
 	
-	if (GEngine)
-	{
-		FAudioDevice* MainAudioDevice = GEngine->GetMainAudioDeviceRaw();
-		if (MainAudioDevice && !MainAudioDevice->IsAudioMixerEnabled())
-		{
-#if PLATFORM_MAC
-			// We special case the mac callback on the old audio engine, Since Buffer Length is smaller than the device callback size.
-			NumSamplesToGeneratePerCallback = 2048;
-#else
-			NumSamplesToGeneratePerCallback = MainAudioDevice->GetBufferLength();
-#endif
-			NumBufferUnderrunSamples = NumSamplesToGeneratePerCallback / 2;
-		}
-	}
-
 	SampleByteSize = 2;
 
 	checkf(NumSamplesToGeneratePerCallback >= NumBufferUnderrunSamples, TEXT("Should generate more samples than this per callback."));

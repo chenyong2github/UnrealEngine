@@ -120,17 +120,7 @@ UAudioComponent* CreateVoiceAudioComponent(uint32 SampleRate, int32 NumChannels)
 			SoundStreaming->SoundGroup = SOUNDGROUP_Voice;
 			SoundStreaming->bLooping = false;
 
-			// Turn off async generation in old audio engine on mac.
-			#if PLATFORM_MAC
-			if (!AudioDevice->IsAudioMixerEnabled())
-			{
-				SoundStreaming->bCanProcessAsync = false;
-			}
-			else
-			#endif // #if PLATFORM_MAC
-			{
-				SoundStreaming->bCanProcessAsync = true;
-			}
+			SoundStreaming->bCanProcessAsync = true;
 
 			AudioComponent = AudioDevice->CreateComponent(SoundStreaming);
 			if (AudioComponent)

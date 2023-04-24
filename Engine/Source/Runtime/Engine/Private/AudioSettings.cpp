@@ -24,7 +24,6 @@ UAudioSettings::UAudioSettings(const FObjectInitializer& ObjectInitializer)
 
 	bAllowPlayWhenSilent = true;
 	bParameterInterfacesRegistered = false;
-	bIsAudioMixerEnabled = false;
 
 	GlobalMinPitchScale = 0.4F;
 	GlobalMaxPitchScale = 2.0F;
@@ -305,16 +304,6 @@ USoundClass* UAudioSettings::GetDefaultSoundClass() const
 USoundConcurrency* UAudioSettings::GetDefaultSoundConcurrency() const
 {
 	return DefaultSoundConcurrency;
-}
-
-void UAudioSettings::SetAudioMixerEnabled(const bool bInAudioMixerEnabled)
-{
-	bIsAudioMixerEnabled = bInAudioMixerEnabled;
-}
-
-const bool UAudioSettings::IsAudioMixerEnabled() const
-{
-	return bIsAudioMixerEnabled;
 }
 
 int32 UAudioSettings::GetHighestMaxChannels() const

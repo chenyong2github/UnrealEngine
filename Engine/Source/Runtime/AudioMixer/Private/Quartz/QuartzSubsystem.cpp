@@ -39,7 +39,7 @@ static Audio::FMixerDevice* GetAudioMixerDevice(const UWorld* InWorld)
 	}
 
 	FAudioDevice* AudioDevicePtr = InWorld->GetAudioDeviceRaw();
-	if(AudioDevicePtr && AudioDevicePtr->IsAudioMixerEnabled())
+	if(AudioDevicePtr)
 	{
 		return static_cast<Audio::FMixerDevice*>(AudioDevicePtr);
 	}
@@ -54,7 +54,7 @@ static TUniquePtr<FScopeLock> GetPersistentStateScopeLock(const UWorld* InWorld)
 		return MakeUnique<FScopeLock>(&MixerDevicePtr->QuartzPersistentStateCritSec);
 	}
 
-	return {}; // Empty lock for AudioMixer-less runtimes (server)
+	return {};
 }
 
 

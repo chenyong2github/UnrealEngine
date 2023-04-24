@@ -996,7 +996,7 @@ void FActiveSound::MarkPendingDestroy(bool bDestroyNow)
 		if (Source)
 		{
 			bool bStopped = false;
-			if (AudioDevice->IsAudioMixerEnabled() && AudioDevice->IsStoppingVoicesEnabled())
+			if (AudioDevice->IsStoppingVoicesEnabled())
 			{
 				if (bDestroyNow || !AudioDevice->GetNumFreeSources())
 				{

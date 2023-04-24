@@ -105,9 +105,6 @@ public:
 	static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextObject);
 	static Audio::FMixerDevice* GetAudioMixerDeviceFromWorldContext(const UObject* WorldContextObject);
 
-	/** Returns true if we're currently using the audio mixer. */
-	bool IsUsingAudioMixer() const;
-
 	/**
 	 * returns the currently used audio device module for this platform.
 	 * returns nullptr if Initialize() has not been called yet.
@@ -309,9 +306,6 @@ private:
 	/** Creates a handle given the index and a generation value. */
 	uint32 GetNewDeviceID();
 
-	/** Toggles between audio mixer and non-audio mixer audio engine. */
-	bool ToggleAudioMixer();
-
 	/** Load audio device module. */
 	bool LoadDefaultAudioDeviceModule();
 
@@ -328,11 +322,8 @@ private:
 	
 	void RegisterAudioInfoFactories();
 
-	/** Audio device module which creates (old backend) audio devices. */
+	/** Audio device module which creates audio devices. */
 	IAudioDeviceModule* AudioDeviceModule;
-
-	/** Audio device module name. This is the "old" audio engine module name to use. E.g. XAudio2 */
-	FString AudioDeviceModuleName;
 
 	/** The audio mixer module name. This is the audio mixer module name to use. E.g. AudioMixerXAudio2 */
 	FString AudioMixerModuleName;
@@ -413,17 +404,8 @@ private:
 	/** Dynamic volume map */
 	TMap<TTuple<ESoundType, FName>, float> DynamicSoundVolumes;
 
-	/** Whether we're currently using the audio mixer or not. Used to toggle between old/new audio engines. */
-	bool bUsingAudioMixer;
-
 	/** Whether or not to play all audio in all active audio devices. */
 	bool bPlayAllDeviceAudio;
-
-	/** Whether or not we check to toggle audio mixer once. */
-	bool bOnlyToggleAudioMixerOnce;
-
-	/** Whether or not we've toggled the audio mixer. */
-	bool bToggledAudioMixer;
 
 	/** Audio Fence to ensure that we don't allow the audio thread to drift never endingly behind. */
 	FAudioCommandFence SyncFence;

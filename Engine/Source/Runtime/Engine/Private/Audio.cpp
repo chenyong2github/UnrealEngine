@@ -374,7 +374,7 @@ void FSoundSource::SetFilterFrequency()
 		{
 			// compensate for filter coefficient calculation error for occlusion
 			float OcclusionFilterScale = 1.0f;
-			if (AudioDevice->IsAudioMixerEnabled() && OcclusionFilterScaleEnabledCVar == 1 && !FMath::IsNearlyEqual(WaveInstance->OcclusionFilterFrequency, MAX_FILTER_FREQUENCY))
+			if (OcclusionFilterScaleEnabledCVar == 1 && !FMath::IsNearlyEqual(WaveInstance->OcclusionFilterFrequency, MAX_FILTER_FREQUENCY))
 			{
 				OcclusionFilterScale = 0.25f;
 			}

@@ -33,7 +33,7 @@ static int GetNumSpeakers()
 		return 2;
 	}
 	FAudioDevice *dev = FAudioDevice::GetMainAudioDevice().GetAudioDevice();
-	if (dev && dev->IsAudioMixerEnabled()) {
+	if (dev) {
 		Audio::FMixerDevice *mix = static_cast<Audio::FMixerDevice*>(dev);
 		if (mix) {
 			return mix->GetNumDeviceChannels();

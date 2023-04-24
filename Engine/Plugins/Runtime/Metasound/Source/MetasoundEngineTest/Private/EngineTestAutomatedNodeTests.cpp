@@ -32,10 +32,7 @@ namespace Metasound::MetasoundEngineTestPrivate {
 		{
 			if (FAudioDevice* AudioDevice = DeviceManager->GetMainAudioDeviceRaw())
 			{
-				if (AudioDevice->IsAudioMixerEnabled())
-				{
-					return static_cast<Audio::FMixerDevice*>(AudioDevice);
-				}
+				return static_cast<Audio::FMixerDevice*>(AudioDevice);
 			}
 		}
 		return nullptr;

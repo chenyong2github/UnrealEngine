@@ -19,12 +19,6 @@ void FOculusAudioPlugin::ShutdownModule()
 
 void FOculusAudioPlugin::RegisterAudioDevice(FAudioDevice* AudioDeviceHandle)
 {
-	// Inject the Context into the spatailizer (and reverb) if they're enabled
-	if (!AudioDeviceHandle->IsAudioMixerEnabled())
-	{
-		return; // Not supported in old audio engine
-	}
-
 	if (!RegisteredAudioDevices.Contains(AudioDeviceHandle))
 	{
 		TAudioPluginListenerPtr ContextManager = TAudioPluginListenerPtr(new FOculusAudioContextManager());

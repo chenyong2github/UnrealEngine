@@ -285,12 +285,6 @@ public:
 	// Get the total number of quality level settings
 	int32 GetQualityLevelSettingsNum() const;
 
-	// Sets whether audio mixer is enabled. Set once an audio mixer platform module is loaded.
-	void SetAudioMixerEnabled(const bool bInAudioMixerEnabled);
-
-	// Returns if the audio mixer is currently enabled
-	const bool IsAudioMixerEnabled() const;
-
 	/** Returns the highest value for MaxChannels among all quality levels */
 	int32 GetHighestMaxChannels() const;
 
@@ -310,7 +304,4 @@ private:
 	void AddDefaultSettings();
 
 	bool bParameterInterfacesRegistered;
-
-	// Whether or not the audio mixer is loaded/enabled. Used to toggle visibility of editor features.
-	bool bIsAudioMixerEnabled;
 };
