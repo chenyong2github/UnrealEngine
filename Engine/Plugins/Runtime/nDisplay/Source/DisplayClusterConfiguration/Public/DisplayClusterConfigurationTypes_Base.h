@@ -83,8 +83,6 @@ public:
 		: X(_X), Y(_Y), W(_W), H(_H)
 	{ }
 
-	FDisplayClusterConfigurationRectangle(const FDisplayClusterConfigurationRectangle&) = default;
-
 	FIntRect ToRect() const;
 
 public:
