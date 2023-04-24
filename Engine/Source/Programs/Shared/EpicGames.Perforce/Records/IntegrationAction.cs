@@ -102,5 +102,17 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceEnum("add into")]
 		AddInto,
+
+		/// <summary>
+		/// The resulting revision has "undid" the edited changes (content and history) from the previously submitted revision(s)
+		/// </summary>
+		[PerforceEnum("undid")]
+		Undid,
+
+		/// <summary>
+		/// The previous revision(s) have been "undone by" the resulting revision, known as the "undone" revision.
+		/// </summary>
+		[PerforceEnum("undone by")]
+		UndoneBy
 	}
 }
