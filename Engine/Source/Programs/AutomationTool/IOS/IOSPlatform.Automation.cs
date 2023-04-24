@@ -793,7 +793,7 @@ public class IOSPlatform : ApplePlatform
 
 		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Params.RawProjectPath.Directory!, UnrealTargetPlatform.IOS);
 		bool bUseModernXcode;
-		Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
+		Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode);
 
 		string MobileProvision;
 		string SigningCertificate;
@@ -801,9 +801,9 @@ public class IOSPlatform : ApplePlatform
 		bool bAutomaticSigning;
 		if (bUseModernXcode)
 		{
-			Ini.TryGetValue("XcodeConfiguration", "bUseModernCodeSigning", out bAutomaticSigning);
-			Ini.TryGetValue("XcodeConfiguration", "ModernSigningTeam", out TeamUUID);
-			//			Ini.TryGetValue("XcodeConfiguration", "ModernSigningPrefix", out SigningPrefix);
+			Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernCodeSigning", out bAutomaticSigning);
+			Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "ModernSigningTeam", out TeamUUID);
+			//			Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "ModernSigningPrefix", out SigningPrefix);
 			if (!bAutomaticSigning)
 			{
 				throw new AutomationException("Currently only Modern (automatic) codesigning is supported with Modern xcode");
@@ -1117,7 +1117,7 @@ public class IOSPlatform : ApplePlatform
 		if (OperatingSystem.IsMacOS())
 		{
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, RawProjectPath.Directory, UnrealTargetPlatform.IOS);
-			Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
+			Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode);
 		}
 
 		if (bUseModernXcode)

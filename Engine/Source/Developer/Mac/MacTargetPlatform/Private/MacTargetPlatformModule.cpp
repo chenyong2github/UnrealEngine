@@ -7,6 +7,7 @@
 #include "Interfaces/ITargetPlatformModule.h"
 #include "Modules/ModuleManager.h"
 #include "MacTargetSettings.h"
+#include "XcodeProjectSettings.h"
 #include "UObject/Package.h"
 #include "UObject/WeakObjectPtr.h"
 
@@ -68,6 +69,9 @@ public:
 		}
 		
 		TargetSettings->AddToRoot();
+        
+        ProjectSettings = NewObject<UXcodeProjectSettings>(GetTransientPackage(), "XcodeProjectSettings", RF_Standalone);
+        ProjectSettings->AddToRoot();
 
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 
@@ -78,6 +82,11 @@ public:
 				LOCTEXT("TargetSettingsDescription", "Settings and resources for Mac platform"),
 				TargetSettings
 			);
+            SettingsModule->RegisterSettings("Project", "Platforms", "Mac",
+                LOCTEXT("TargetSettingsName", "Xcode projects"),
+                LOCTEXT("TargetSettingsDescription", "Settings for Xcode projects"),
+                ProjectSettings
+            );
 		}
 #endif
 	}
@@ -96,10 +105,12 @@ public:
 		{
 			// If we're in exit purge, this object has already been destroyed
 			TargetSettings->RemoveFromRoot();
+            ProjectSettings->RemoveFromRoot();
 		}
 		else
 		{
 			TargetSettings = NULL;
+            ProjectSettings = NULL;
 		}
 #endif
 	}
@@ -111,6 +122,8 @@ private:
 
 	// Holds the target settings.
 	UMacTargetSettings* TargetSettings;
+    
+    UXcodeProjectSettings* ProjectSettings;
 };
 
 

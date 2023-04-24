@@ -5,6 +5,7 @@
 #include "ISettingsModule.h"
 #include "Modules/ModuleManager.h"
 #include "MacTargetSettings.h"
+#include "XcodeProjectSettings.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/Class.h"
 
@@ -31,6 +32,11 @@ class FMacPlatformEditorModule
 				LOCTEXT("TargetSettingsDescription", "Settings for Mac target platform"),
 				GetMutableDefault<UMacTargetSettings>()
 			);
+            SettingsModule->RegisterSettings("Project", "Platforms", "Mac",
+                LOCTEXT("TargetSettingsName", "Xcode projects"),
+                LOCTEXT("TargetSettingsDescription", "Settings for Xcode projects"),
+                GetMutableDefault<UXcodeProjectSettings>()
+            );
 		}
 	}
 

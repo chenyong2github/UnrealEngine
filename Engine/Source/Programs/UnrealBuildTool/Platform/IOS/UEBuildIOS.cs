@@ -150,7 +150,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Are we using modern xcode in this project?
 		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "XcodeConfiguration", "bUseModernXcode")]
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode")]
 		public bool bUseModernXcode = false;
 	}
 

@@ -70,7 +70,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether or not to use Modernized xcode mode
 		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "XcodeConfiguration", "bUseModernXcode")]
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode")]
 		public bool bUseModernXcode = false;
 	}
 

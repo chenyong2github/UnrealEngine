@@ -73,7 +73,7 @@ public abstract class ApplePlatform : Platform
 	{
 		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Params.RawProjectPath.Directory!, SC.StageTargetPlatform.PlatformType);
 		bool bUseModernXcode;
-		Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
+		Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode);
 
 		if (bUseModernXcode)
 		{

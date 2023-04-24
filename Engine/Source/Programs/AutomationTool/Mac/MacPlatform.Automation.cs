@@ -132,7 +132,7 @@ public class MacPlatform : ApplePlatform
 	{
 		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Params.RawProjectPath.Directory!, UnrealTargetPlatform.IOS);
 		bool bUseModernXcode;
-		Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
+		Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode);
 
 		// Stage all the build products
 		foreach (StageTarget Target in SC.StageTargets)
