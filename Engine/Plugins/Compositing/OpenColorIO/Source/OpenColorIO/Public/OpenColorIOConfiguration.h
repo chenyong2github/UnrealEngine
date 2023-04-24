@@ -26,7 +26,7 @@ namespace ERHIFeatureLevel { enum Type : int; }
 /**
  * Asset to manage allowed OpenColorIO color spaces. This will create required transform objects.
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, meta = (DisplayName = "OpenColorIO Configuration"))
 class OPENCOLORIO_API UOpenColorIOConfiguration : public UObject
 {
 	GENERATED_BODY()

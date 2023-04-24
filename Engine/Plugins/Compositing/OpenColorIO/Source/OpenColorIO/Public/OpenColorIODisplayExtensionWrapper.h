@@ -11,7 +11,7 @@
  * This Blueprintable object can hold an OCIO Scene View Extension. 
  * You can change its OCIO config, and specify the context in which you want it to be active on.
  */
-UCLASS(Blueprintable)
+UCLASS(Blueprintable, meta = (DisplayName = "OpenColorIO Display Extension Wrapper"))
 class OPENCOLORIO_API UOpenColorIODisplayExtensionWrapper : public UObject
 {
 	GENERATED_BODY()
