@@ -69,6 +69,11 @@ namespace AutomationTool
 				{
 					IgnorePath = Path.Combine(Unreal.EngineDirectory.ToString(), "Extras", "Perforce", "p4ignore");
 				}
+				else
+				{
+					// If a file was found in the root, use the filename so will apply to any same-named file in the tree
+					IgnorePath = Path.GetFileName(IgnorePath);
+				}
 				P4Config.AppendLine($"P4IGNORE={IgnorePath}");
 			}
 
