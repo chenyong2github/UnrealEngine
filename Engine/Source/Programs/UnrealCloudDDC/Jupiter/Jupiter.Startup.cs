@@ -361,7 +361,7 @@ namespace Jupiter
             }
 
             ISession replicatedSession;
-            const int MaxRetryAttempts = 50;
+            const int MaxRetryAttempts = 100;
             int countOfAttempts = 0;
             while(true)
             {
