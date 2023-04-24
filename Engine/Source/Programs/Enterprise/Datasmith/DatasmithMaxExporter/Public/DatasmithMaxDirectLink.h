@@ -326,6 +326,17 @@ public:
 	bool bConsolidateMaterialIds; 
 
 	GeomUtils::FRenderMeshForConversion CollisionMesh;
+
+	Interval GetValidityInterval()
+	{
+		return RenderMesh.GetValidityInterval() & CollisionMesh.GetValidityInterval();
+	}
+
+	// Whether this will make a mesh
+	bool IsValid()
+	{
+		return RenderMesh.IsValid();
+	}
 };
 
 
@@ -452,8 +463,25 @@ struct MeshConversionParams
 	bool bConsolidateMaterialIds;
 };
 
+/** Holds all the data to export mesh to DatasmithMeshElement */
+class FDatasmithMeshConverter
+{
+public:
+	FMD5Hash ComputeHash();
+
+	FDatasmithMesh RenderMesh;
+	TSet<uint16> SupportedChannels;
+	TMap<int32, int32> UVChannelsMap;
+	int32 SelectedLightmapUVChannel = -1;
+
+	FDatasmithMesh CollisionMesh;
+	bool bHasCollision = false;
+
+	FMeshConverted Converted;
+};
+
 /** Creates Mesh element and converts max mesh into it */
-bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMeshConverterSource& MeshSource, FMeshConverted& MeshConverted);
+bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, FMeshConverterSource& MeshSource, FDatasmithMeshConverter& MeshConverter);
 
 bool OpenDirectLinkUI();
 const TCHAR* GetDirectlinkCacheDirectory();
@@ -649,7 +677,8 @@ public:
 
 	/** If material is used on a mesh/actor to create a datamsith element */
 	bool IsMaterialUsed(Mtl* Material);
-	/** Set datasmith materials for static mesh for assigned max material */
+	/** Set datasmith materials to Datasmith static mesh according to assigned max material */
+	void SetMaterialsForMeshElement(FMeshConverted& MeshConverted, Mtl* Material);
 	void SetMaterialsForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* Material, const TSet<uint16>& SupportedChannels);
 	void SetMaterialForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* MaterialAssignedToNode, Mtl* ActualMaterial, uint16 SlotId);
 	void UnSetMaterialsForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement);

@@ -47,6 +47,10 @@ bool ConvertRailClone(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker)
 	}
 
 	RCStaticInterface->IRCRegisterEngine();
+	Interval ObjectValidity = RailCloneNode->GetObjectRef()->ObjectValidity(CurrentTime);
+
+	NodeTracker.Validity.NarrowValidityToInterval(ObjectValidity);
+
 	IRCInterface* RCInterface = GetRCInterface(RailCloneNode->GetObjectRef());
 	if (!RCInterface)
 	{
@@ -208,13 +212,12 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker)
 				FRenderMeshForConversion()
 			};
 
-			if (MeshSource.RenderMesh.IsValid())
+			if (MeshSource.IsValid())
 			{
 				for(const TPair<Mtl*, TArray<Matrix3>>& MaterialAndTransforms: Instances.InstancesTransformsForMaterial)
 				{
 					Scene.SetupDatasmithHISMForNode(NodeTracker, MeshSource, MaterialAndTransforms.Key, MeshIndex, MaterialAndTransforms.Value);
 				}
-
 
 				MeshIndex ++;
 			}

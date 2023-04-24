@@ -9,6 +9,12 @@
 #include "DatasmithMesh.h"
 #include "DatasmithMeshExporter.h"
 
+void FDatasmithFacadeMesh::CalculateHash(TCHAR OutBuffer[33], size_t BufferSize) const
+{
+	FString HashString = LexToString(GetDatasmithMesh().CalculateHash());
+	FCString::Strncpy(OutBuffer, *HashString, BufferSize);
+}
+
 void FDatasmithFacadeMesh::SetVertex(int32 Index, float X, float Y, float Z)
 {
 	FVector3f Position(FDatasmithFacadeElement::ConvertPosition(X, Y, Z));

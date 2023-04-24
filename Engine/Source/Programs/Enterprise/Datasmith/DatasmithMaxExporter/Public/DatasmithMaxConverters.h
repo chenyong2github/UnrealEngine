@@ -34,6 +34,12 @@ class FMeshConverted
 {
 public:
 	TSharedPtr<IDatasmithMeshElement> DatasmithMeshElement;
+
+	[[nodiscard]] TSharedPtr<IDatasmithMeshElement> GetDatasmithMeshElement() const
+	{
+		return DatasmithMeshElement;
+	}
+
 	TSet<uint16> SupportedChannels;
 	TMap<int32, int32> UVChannelsMap;
 

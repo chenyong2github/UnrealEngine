@@ -64,6 +64,13 @@ MAX_INCLUDES_START
 	#include "maxscript/maxscript.h"
 MAX_INCLUDES_END
 
+// Make FMD5Hash usable in TMap as a key
+inline uint32 GetTypeHash(const FMD5Hash& Hash)
+{
+	uint32* HashAsInt32 = (uint32*)Hash.GetBytes();
+	return HashAsInt32[0] ^ HashAsInt32[1] ^ HashAsInt32[2] ^ HashAsInt32[3];
+}
+
 namespace DatasmithMaxDirectLink
 {
 
@@ -152,13 +159,13 @@ private:
 };
 
 // Every node which is resolved to the same object is considered an instance
-// This class holds all this nodes which resolve to the same object
+// This class holds all the nodes which resolve to the same object
 struct FInstances: FNoncopyable
 {
 	AnimHandle Handle; // Handle of anim that is instanced
 
 	Object* EvaluatedObj = nullptr;
-	Mtl* Material = nullptr; // Material assigned to Datasmith StaticMesh, used to check if a particular instance needs to verride it
+	Mtl* Material = nullptr; // Material assigned to Datasmith StaticMesh, used to check if a particular instance needs to override it
 
 	TSet<class FNodeTracker*> NodeTrackers;
 
@@ -170,18 +177,18 @@ struct FInstances: FNoncopyable
 
 	bool HasMesh()
 	{
-		return Converted.DatasmithMeshElement.IsValid();
+		return Converted.GetDatasmithMeshElement().IsValid();
 	}
 
 	const TCHAR* GetStaticMeshPathName()
 	{
-		return Converted.DatasmithMeshElement->GetName();
+		return Converted.GetDatasmithMeshElement()->GetName();
 	}
 
-	void AssignMaterialToStaticMesh(FMaterialsCollectionTracker& MaterialsCollectionTracker,  Mtl* InMaterial)
+	// Record wich material is assigned to static mesh
+	void AssignMaterialToStaticMesh(Mtl* InMaterial)
 	{
 		Material = InMaterial;
-		MaterialsCollectionTracker.SetMaterialsForMeshElement(Converted.DatasmithMeshElement, Material, Converted.SupportedChannels);
 	}
 };
 
@@ -2145,9 +2152,13 @@ public:
 	// Called when mesh element is not needed anymore and should be removed from the scene
 	virtual void ReleaseMeshElement(FMeshConverted& Converted) override
 	{
-		MaterialsCollectionTracker.UnSetMaterialsForMeshElement(Converted.DatasmithMeshElement);
-		GetDatasmithScene().RemoveMesh(Converted.DatasmithMeshElement);
-		Converted.ReleaseMeshConverted();
+		if (Meshes.Release(Converted))
+		{
+			MaterialsCollectionTracker.UnSetMaterialsForMeshElement(Converted.DatasmithMeshElement);
+			GetDatasmithScene().RemoveMesh(Converted.DatasmithMeshElement);
+
+			Meshes.Remove(Converted);
+		}
 	}
 
 	void ReleaseNodeTrackerFromLayer(FNodeTracker& NodeTracker)
@@ -2444,7 +2455,7 @@ public:
 			// Invalidated instances without actual instances left(all removed)
 
 			// NOTE: release mesh element and release usage of Instances pointer
-			//   BEFORE deallocating Instances instance from the map below
+			//   BEFORE RemoveInstances call(which deallocates Instances object)
 			ReleaseMeshElement(Instances.Converted);
 
 			InstancesManager.RemoveInstances(Instances);
@@ -2527,7 +2538,7 @@ public:
 
 			// todo: use single EnumProc instance to enumerate all nodes during update to:
 			//    - have single call to BeginEnumeration and EndEnumeration
-			//    - track all Begin'd nodes to End them together after all is updated(to prevent duplicated Begin's of referenced objects that might be shared by different noвes)
+			//    - track all Begin'd nodes to End them together after all is updated(to prevent duplicated Begin's of referenced objects that might be shared by different nodes)
 			NodesPreparer.PrepareNode(NodeTracker.Node);
 			SCENE_UPDATE_STAT_INC(UpdateInstances, GeometryUpdated);
 			UpdateInstancesGeometry(Instances, NodeTracker);
@@ -2537,7 +2548,8 @@ public:
 			static_cast<FMeshNodeConverter&>(NodeTracker.GetConverter()).bMaterialsAssignedToStaticMesh = true;
 			if (Mtl* Material = UpdateGeometryNodeMaterial(*this, Instances, NodeTracker))
 			{
-				Instances.AssignMaterialToStaticMesh(MaterialsCollectionTracker, Material);
+				MaterialsCollectionTracker.SetMaterialsForMeshElement(Instances.Converted, Material);
+				Instances.AssignMaterialToStaticMesh(Material);
 			}
 		}
 
@@ -2900,9 +2912,9 @@ public:
 			GeomUtils::GetMeshForCollision(CurrentSyncPoint.Time, *this, Node, Instances.bShouldBakePivot),
 		};
 
-		Instances.ValidityInterval = MeshSource.RenderMesh.GetValidityInterval() & MeshSource.CollisionMesh.GetValidityInterval();
+		Instances.ValidityInterval = MeshSource.GetValidityInterval();
 
-		if (MeshSource.RenderMesh.GetMesh())
+		if (MeshSource.IsValid())
 		{
 			bool bHasInstanceWithMultimat = false;
 			for (FNodeTracker* InstanceNodeTracker : Instances.NodeTrackers)
@@ -2918,17 +2930,19 @@ public:
 
 			MeshSource.bConsolidateMaterialIds = !bHasInstanceWithMultimat;
 
-			FMeshes::AddMesh(*this, MeshSource, Instances.Converted, [&](bool bHasConverted, FMeshConverted& MeshConverted)
+			// Not sharing meshes for regular nodes when they don't resolve to the same Max object -
+			// resusing identical(but different) mesh is done only for RailClone instances - RC tends to make
+			// different in different RC objects instancing same Max meshes
+			Meshes.AddMesh(*this, MeshSource, Instances.Converted, false, [&](bool bHasConverted, bool bWasReused)
 			{
 				if (bHasConverted)
 				{
-					MeshConverted.DatasmithMeshElement->SetLabel(*NodeTrackersNames.GetNodeName(NodeTracker));
+					Instances.Converted.GetDatasmithMeshElement()->SetLabel(*NodeTrackersNames.GetNodeName(NodeTracker));
 				}
 				else
 				{
-					MeshConverted.DatasmithMeshElement.Reset();
+					Instances.Converted.DatasmithMeshElement.Reset();
 				}
-				Instances.Converted = MeshConverted;
 			});
 		}
 		else
@@ -2966,15 +2980,135 @@ public:
 	class FMeshes
 	{
 	public:
-		FORCENOINLINE
-		static void AddMesh(FSceneTracker& Scene, FMeshConverterSource& MeshSource, FMeshConverted& MeshConverted, TFunction<void(bool, FMeshConverted&)> CompletionCallback)
-		{
-			// Reset old mesh
-			// todo: potential mesh reuse - when DatasmithMeshElement allows to reset materials(as well as other params)
-			Scene.ReleaseMeshElement(MeshConverted);
 
-			bool bConverted = ConvertMaxMeshToDatasmith(Scene.CurrentSyncPoint.Time, Scene, MeshSource, MeshConverted);
-			CompletionCallback(bConverted, MeshConverted);
+		TMap<FMD5Hash, TSharedPtr<FDatasmithMeshConverter>> CachedMeshes;
+		TMap<TSharedPtr<IDatasmithMeshElement>, FMD5Hash> CachedMeshHashes;
+		TMap<TSharedPtr<IDatasmithMeshElement>, int32> MeshUsers;
+
+		// CompletionCallback is called when mehs is processed, passing flag identifing if actual Datasmith mesh was created(sometimes it's not created - e.g. mesh is empty)
+		// or is a cached mesh was reused
+		FORCENOINLINE
+		void AddMesh(FSceneTracker& Scene, FMeshConverterSource& MeshSource, FMeshConverted& MeshConverted, bool bShouldCache, TFunction<void(bool bConverted, bool bFoundCached)> CompletionCallback)
+		{
+
+			TSharedPtr<FDatasmithMeshConverter> MeshConverter = MakeShared<FDatasmithMeshConverter>();
+			bool bConverted = ConvertMaxMeshToDatasmith(Scene.CurrentSyncPoint.Time, MeshSource, *MeshConverter);
+			bool bFoundCached = false;
+			if (bConverted)
+			{
+				FMD5Hash MeshHash;
+				if (bShouldCache)
+				{
+					MeshHash = MeshConverter->ComputeHash();
+
+					if (TSharedPtr<FDatasmithMeshConverter>* CachedMeshConverter = CachedMeshes.Find(MeshHash))
+					{
+						// If there's mesh that is the same cached reuse it
+						// For RailClone/ForestPack meshes we have no other way to find out if RC objects are using the same mesh than to compare those meshes
+						// For regular Max nodes it's mush easier to find instances but RC gives away different Mesh objects for identical instances
+						bFoundCached = true;
+						MeshConverter = *CachedMeshConverter;
+					}
+					else
+					{
+						CachedMeshes.Add(MeshHash, MeshConverter);
+					}
+				}
+
+				if (bFoundCached)
+				{
+					if (MeshConverter->Converted.GetDatasmithMeshElement() != MeshConverted.GetDatasmithMeshElement())
+					{
+						// Release old converted mesh and hold onto new if new mesh is different(same was already cached)
+						Scene.ReleaseMeshElement(MeshConverted);
+						Acquire(MeshConverter->Converted);
+					}
+				}
+				else
+				{
+					// Release old converted mesh before building new
+					Scene.ReleaseMeshElement(MeshConverted);
+	
+					MeshConverter->Converted.DatasmithMeshElement = FDatasmithSceneFactory::CreateMesh(*MeshSource.MeshName);
+					MeshConverter->Converted.SupportedChannels = MeshConverter->SupportedChannels;
+					MeshConverter->Converted.UVChannelsMap = MeshConverter->UVChannelsMap;
+					if (bShouldCache)
+					{
+						CachedMeshHashes.Add(MeshConverter->Converted.DatasmithMeshElement, MeshHash);
+					}
+
+					int32 SelectedLightmapUVChannel = MeshConverter->SelectedLightmapUVChannel;
+					if (SelectedLightmapUVChannel >= 0)
+					{
+						constexpr int32 MaxToUnrealUVOffset = -1;
+						constexpr int32 DefaultValue = -1;
+						const int32* ExportedSelectedChannel = MeshConverter->UVChannelsMap.Find(SelectedLightmapUVChannel + MaxToUnrealUVOffset);
+
+						if (ExportedSelectedChannel)
+						{
+							MeshConverter->Converted.DatasmithMeshElement->SetLightmapCoordinateIndex(*ExportedSelectedChannel);
+						}
+						else if (SelectedLightmapUVChannel != DefaultValue)
+						{
+							LogWarning(*FString::Printf(TEXT("%s won't use the channel %i for its lightmap because it's not supported by the mesh. A new channel will be generated.")
+							                            , static_cast<const TCHAR*>(MeshSource.Node->GetName())
+							                            , SelectedLightmapUVChannel));
+						}
+					}
+
+					// Actually export mesh to disk
+					Scene.AddMeshElement(MeshConverter->Converted.DatasmithMeshElement, MeshConverter->RenderMesh, MeshConverter->bHasCollision ? &MeshConverter->CollisionMesh : nullptr);
+					Acquire(MeshConverter->Converted);
+				}
+				MeshConverted = MeshConverter->Converted;
+			}
+			else
+			{
+				Scene.ReleaseMeshElement(MeshConverted);
+				MeshConverted = FMeshConverted();
+			}
+
+			CompletionCallback(bConverted, bFoundCached);
+		}
+
+		void Reset()
+		{
+			CachedMeshes.Empty();
+			CachedMeshHashes.Empty();
+			MeshUsers.Empty();
+		}
+
+		void Acquire(const FMeshConverted& Converted)
+		{
+			MeshUsers.FindOrAdd(Converted.DatasmithMeshElement, 0) += 1;
+		}
+
+		// Returns true if mesh has no users afterwards
+		bool Release(const FMeshConverted& Converted)
+		{
+			if (int32* Found = MeshUsers.Find(Converted.DatasmithMeshElement))
+			{
+				int32& UserCount = *Found;
+				UserCount -= 1;
+
+				if (UserCount == 0)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		void Remove(FMeshConverted& Converted)
+		{
+			MeshUsers.Remove(Converted.DatasmithMeshElement);
+			FMD5Hash MeshHash;
+			if (CachedMeshHashes.RemoveAndCopyValue(Converted.DatasmithMeshElement, MeshHash))
+			{
+				CachedMeshes.Remove(MeshHash);
+			}
+
+			Converted.ReleaseMeshConverted();
 		}
 	};
 
@@ -2983,20 +3117,22 @@ public:
 		MeshSource.MeshName = FString::FromInt(NodeTracker.Node->GetHandle()) + TEXT("_") + FString::FromInt(MeshIndex);
 		// note: when export Mesh goes to other place due to parallelizing it's result would be unknown here so MeshIndex handling will change(i.e. increment for any mesh)
 
-		FMeshConverted MeshConvertedDummy; // todo: possible reuse of previous converted mesh
-		FMeshes::AddMesh(*this, MeshSource, MeshConvertedDummy, [&](bool bHasConverted, FMeshConverted& MeshConverted)
+		FMeshConverted MeshConverted; // todo: possible reuse of previous converted mesh
+		Meshes.AddMesh(*this, MeshSource, MeshConverted, true, [&](bool bHasConverted, bool bReused)
 		{
 			if (bHasConverted)
 			{
 				FHismNodeConverter& NodeConverter = static_cast<FHismNodeConverter&>(NodeTracker.GetConverter());
-
 				NodeConverter.Meshes.Add(MeshConverted);
 
 				RegisterNodeForMaterial(NodeTracker, Material);
-				MaterialsCollectionTracker.SetMaterialsForMeshElement(MeshConverted.DatasmithMeshElement, Material, MeshConverted.SupportedChannels);
-
 				FString MeshLabel = FString(MeshSource.Node->GetName()) + (TEXT("_") + FString::FromInt(MeshIndex));
-				MeshConverted.DatasmithMeshElement->SetLabel(*MeshLabel);
+
+				if (!bReused)
+				{
+					MaterialsCollectionTracker.SetMaterialsForMeshElement(MeshConverted, Material);
+					MeshConverted.GetDatasmithMeshElement()->SetLabel(*MeshLabel);
+				}
 
 				FDatasmithConverter Converter;
 
@@ -3004,12 +3140,13 @@ public:
 				TSharedPtr< IDatasmithActorElement > InversedHISMActor;
 				// todo: ExportHierarchicalInstanceStaticMeshActor CustomMeshNode only used for Material - can be simplified, Material anyway is dealt with outside too
 				TSharedRef<IDatasmithActorElement> HismActorElement = ExportHierarchicalInstanceStaticMeshActor(NodeTracker.Node, MeshSource.Node, *MeshLabel, MeshConverted.SupportedChannels,
-					Material, &Transforms, *MeshSource.MeshName, Converter.UnitToCentimeter, EStaticMeshExportMode::Default, InversedHISMActor);
+					Material, &Transforms, MeshConverted.GetDatasmithMeshElement()->GetName(), Converter.UnitToCentimeter, EStaticMeshExportMode::Default, InversedHISMActor);
 				NodeTracker.GetConverted().DatasmithActorElement->AddChild(HismActorElement, EDatasmithActorAttachmentRule::KeepWorldTransform);
 				if (InversedHISMActor)
 				{
 					NodeTracker.GetConverted().DatasmithActorElement->AddChild(InversedHISMActor, EDatasmithActorAttachmentRule::KeepWorldTransform);
 				}
+
 				MeshIndex++;
 			}
 		});
@@ -3382,6 +3519,8 @@ public:
 		LayersForAnimHandle.Reset();
 		NodesPerLayer.Reset();
 
+		Meshes.Reset();
+
 		MaterialsCollectionTracker.Reset();
 		MaterialsAssignedToNodes.Reset();
 
@@ -3410,6 +3549,8 @@ public:
 
 	TMap<AnimHandle, TUniquePtr<FLayerTracker>> LayersForAnimHandle;
 	TMap<FLayerTracker*, TSet<FNodeTracker*>> NodesPerLayer;
+
+	FMeshes Meshes;
 
 	FMaterialsCollectionTracker MaterialsCollectionTracker;
 	TMap<FMaterialTracker*, TSet<FNodeTracker*>> MaterialsAssignedToNodes;

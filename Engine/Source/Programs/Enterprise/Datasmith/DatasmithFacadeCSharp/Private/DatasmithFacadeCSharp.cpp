@@ -2597,6 +2597,18 @@ SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeMesh_GetName(void * jarg
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMesh_InternalCalculateHash(void * jarg1, void * jarg2, unsigned long jarg3) {
+  FDatasmithFacadeMesh *arg1 = (FDatasmithFacadeMesh *) 0 ;
+  TCHAR *arg2 ;
+  size_t arg3 ;
+  
+  arg1 = (FDatasmithFacadeMesh *)jarg1; 
+  arg2 = (TCHAR *)jarg2; 
+  arg3 = (size_t)jarg3; 
+  ((FDatasmithFacadeMesh const *)arg1)->CalculateHash(arg2,arg3);
+}
+
+
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMesh_SetFacesCount(void * jarg1, int jarg2) {
   FDatasmithFacadeMesh *arg1 = (FDatasmithFacadeMesh *) 0 ;
   int32 arg2 ;

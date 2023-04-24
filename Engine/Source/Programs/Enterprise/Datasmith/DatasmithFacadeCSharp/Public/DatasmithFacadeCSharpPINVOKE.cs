@@ -803,6 +803,9 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMesh_GetName")]
   public static extern global::System.IntPtr FDatasmithFacadeMesh_GetName(global::System.Runtime.InteropServices.HandleRef jarg1);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMesh_InternalCalculateHash")]
+  public static extern void FDatasmithFacadeMesh_InternalCalculateHash(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)] System.Text.StringBuilder jarg2, ulong jarg3);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMesh_SetFacesCount")]
   public static extern void FDatasmithFacadeMesh_SetFacesCount(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
 

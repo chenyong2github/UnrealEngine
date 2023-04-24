@@ -3,8 +3,10 @@
 
 #include "Math/Box.h"
 #include "Math/Color.h"
-#include "Math/UnrealMathSSE.h"
 #include "Math/Vector2D.h"
+
+#include "Misc/SecureHash.h"
+
 
 class DATASMITHCORE_API FDatasmithMesh
 {
@@ -17,6 +19,9 @@ public:
 
 	FDatasmithMesh& operator=( const FDatasmithMesh& Other );
 	FDatasmithMesh& operator=( FDatasmithMesh&& Other );
+
+	// Calculate mesh data hash(doesn't include name)
+	FMD5Hash CalculateHash() const;
 
 	void SetName(const TCHAR* InName);
 	const TCHAR* GetName() const;

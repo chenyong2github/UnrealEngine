@@ -45,6 +45,13 @@ public class FDatasmithFacadeMesh : global::System.IDisposable {
     }
   }
 
+  public string CalculateHash()
+  {
+    System.Text.StringBuilder sb = new System.Text.StringBuilder(32);
+    InternalCalculateHash(sb, (ulong)sb.Capacity + 1);
+    return sb.ToString();
+  }
+
   public FDatasmithFacadeMesh() : this(DatasmithFacadeCSharpPINVOKE.new_FDatasmithFacadeMesh(), true) {
   }
 
@@ -55,6 +62,10 @@ public class FDatasmithFacadeMesh : global::System.IDisposable {
   public string GetName() {
     string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMesh_GetName(swigCPtr));
     return ret;
+  }
+
+  private void InternalCalculateHash(System.Text.StringBuilder OutBuffer, ulong BufferSize) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMesh_InternalCalculateHash(swigCPtr, OutBuffer, BufferSize);
   }
 
   public void SetFacesCount(int NumFaces) {

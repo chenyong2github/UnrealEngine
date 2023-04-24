@@ -7,6 +7,30 @@
 #include "Containers/Set.h"
 #include "Math/Color.h"
 
+namespace DatasmithMeshImpl
+{
+
+template<typename T>
+static void UpdateMD5SimpleType(FMD5& MD5, const T& Value)
+{
+	static_assert(TIsPODType<T>::Value, "Simple type required");
+	MD5.Update(reinterpret_cast<const uint8*>(&Value), sizeof(Value));
+}
+
+template<typename T>
+static void UpdateMD5Array(FMD5& MD5, TArray<T> Value)
+{
+	static_assert(TIsPODType<T>::Value, "This function requires POD array");
+	UpdateMD5SimpleType(MD5, Value.Num());
+	if (!Value.IsEmpty())
+	{
+		MD5.Update(reinterpret_cast<const uint8*>(Value.GetData()), Value.GetTypeSize()*Value.Num());
+	}
+}
+
+}
+
+
 class FDatasmithMesh::FDatasmithMeshImpl
 {
 public:
@@ -15,6 +39,8 @@ public:
 	void SetIdInUse( int32 Id );
 	bool GetIdInUse( int32 Id ) const;
 	int32 GetMaterialsCount() const { return IdsInUse.Num(); }
+
+	FMD5Hash CalculateHash() const;
 
 	FString Name;
 
@@ -57,6 +83,52 @@ bool FDatasmithMesh::FDatasmithMeshImpl::GetIdInUse( int32 Id ) const
 	return IdsInUse.Contains(Id);
 }
 
+FMD5Hash FDatasmithMesh::FDatasmithMeshImpl::CalculateHash() const
+{
+	FMD5 MD5;
+
+	using namespace DatasmithMeshImpl;
+
+	UpdateMD5Array(MD5, Vertices);
+	UpdateMD5Array(MD5, Indices);
+
+	UpdateMD5Array(MD5, Normals);
+	UpdateMD5Array(MD5, MaterialIndices);
+
+	int32 UVChannelCount = UVs.Num();
+	UpdateMD5SimpleType(MD5, UVChannelCount);
+	for (const TArray<FVector2D>& UVChannel: UVs)
+	{
+		UpdateMD5Array(MD5, UVChannel);
+	}
+
+	check(UVChannelCount == UVIndices.Num()); // UV indices are per-channel
+	for (const TArray<int32>& UVChannelIndices: UVIndices)
+	{
+		UpdateMD5Array(MD5, UVChannelIndices);
+	}
+
+	UpdateMD5Array(MD5, FaceSmoothingMasks);
+	UpdateMD5Array(MD5, IndicesColor);
+	UpdateMD5SimpleType(MD5, LightmapUVChannel);
+
+	TArray<int32> IdsInUseArray = IdsInUse.Array();
+	IdsInUseArray.Sort();
+	UpdateMD5Array(MD5, IdsInUseArray);
+
+	int32 LODCount = LODs.Num();
+	UpdateMD5SimpleType(MD5, LODCount);
+	for (const FDatasmithMesh& LODMesh : LODs)
+	{
+		FMD5Hash LODHash = LODMesh.CalculateHash();
+		MD5.Update(LODHash.GetBytes(), LODHash.GetSize());
+	}
+
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+	return Hash;
+}
+
 FDatasmithMesh::FDatasmithMesh()
 	: Impl( new FDatasmithMeshImpl() )
 {
@@ -94,6 +166,12 @@ FDatasmithMesh& FDatasmithMesh::operator=( FDatasmithMesh&& Other )
 
 	return *this;
 }
+
+FMD5Hash FDatasmithMesh::CalculateHash() const
+{
+	return Impl->CalculateHash();
+}
+
 
 void FDatasmithMesh::SetName(const TCHAR* InName)
 {

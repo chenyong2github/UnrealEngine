@@ -31,6 +31,9 @@ public:
 		return GetDatasmithMesh().GetName();
 	}
 
+	/** Return a MD5 hash of the content of the Datasmith Mesh */
+	void CalculateHash(TCHAR OutBuffer[33], size_t BufferSize) const;
+
 	//--------------------------
 	// Faces
 	//--------------------------

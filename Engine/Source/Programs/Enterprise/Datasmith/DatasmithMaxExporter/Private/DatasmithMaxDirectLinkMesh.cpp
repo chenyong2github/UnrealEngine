@@ -563,19 +563,75 @@ int SetObjectParamValue(TimeValue CurrentTime, Object *Obj, const FString& Param
 namespace DatasmithMaxDirectLink
 {
 
+template<typename T>
+static void UpdateMD5SimpleType(FMD5& MD5, const T& Value)
+{
+	static_assert(TIsPODType<T>::Value, "Simple type required");
+	MD5.Update(reinterpret_cast<const uint8*>(&Value), sizeof(Value));
+}
+
+template<typename T>
+static void UpdateMD5Array(FMD5& MD5, TArray<T> Value)
+{
+	static_assert(TIsPODType<T>::Value, "This function requires POD array");
+	UpdateMD5SimpleType(MD5, Value.Num());
+	if (!Value.IsEmpty())
+	{
+		MD5.Update(reinterpret_cast<const uint8*>(Value.GetData()), Value.GetTypeSize()*Value.Num());
+	}
+}
+
+static void UpdateMD5(FMD5& MD5, const FDatasmithMesh& DatasmithMesh)
+{
+	FMD5Hash MeshHash = DatasmithMesh.CalculateHash();
+	MD5.Update(MeshHash.GetBytes(), MeshHash.GetSize());
+}
+
+FMD5Hash FDatasmithMeshConverter::ComputeHash()
+{
+	FMD5 MD5;
+
+	UpdateMD5(MD5, RenderMesh);
+
+	TArray<uint16> SupportedChannelsArray = SupportedChannels.Array();
+	SupportedChannelsArray.Sort();
+	UpdateMD5Array(MD5, SupportedChannelsArray);
+
+	UpdateMD5SimpleType(MD5, UVChannelsMap.Num());
+
+	if (!UVChannelsMap.IsEmpty())
+	{
+		TArray<TPair<int32, int32>> UVChannelsMapArray = UVChannelsMap.Array();
+		UVChannelsMapArray.Sort();
+		for (TPair<int32, int32> KVP : UVChannelsMapArray)
+		{
+			UpdateMD5SimpleType(MD5, KVP.Key);
+			UpdateMD5SimpleType(MD5, KVP.Value);
+		}
+	}
+
+	UpdateMD5SimpleType(MD5, SelectedLightmapUVChannel);
+
+	UpdateMD5SimpleType(MD5, bHasCollision);
+	if (bHasCollision)
+	{
+		UpdateMD5(MD5, CollisionMesh);
+	}
+	FMD5Hash Hash;
+	Hash.Set(MD5);
+	return Hash;
+}
+
+
 // todo: paralelize calls to ExportToUObject 
-bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMeshConverterSource& MeshSource, FMeshConverted& MeshConverted)
+bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, FMeshConverterSource& MeshSource, FDatasmithMeshConverter& DatasmithMeshConverter)
 {
 	TOptional<FDatasmithMaxStaticMeshAttributes> DatasmithAttributes = FDatasmithMaxStaticMeshAttributes::ExtractStaticMeshAttributes(MeshSource.Node);
 
-	MeshConverted.DatasmithMeshElement = FDatasmithSceneFactory::CreateMesh(*MeshSource.MeshName);
-
 	if (DatasmithAttributes && DatasmithAttributes->GetExportMode() == EStaticMeshExportMode::BoundingBox)
 	{
-		FDatasmithMesh DatasmithMesh;
-		if (GeomUtils::FillDatasmithMeshFromBoundingBox(CurrentTime, DatasmithMesh, MeshSource.RenderMesh))
+		if (GeomUtils::FillDatasmithMeshFromBoundingBox(CurrentTime, DatasmithMeshConverter.RenderMesh, MeshSource.RenderMesh))
 		{
-			Scene.AddMeshElement(MeshConverted.DatasmithMeshElement, DatasmithMesh, nullptr);
 			return true;
 		}
 		else
@@ -585,15 +641,13 @@ bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMes
 		}
 	}
 
-	FDatasmithMesh DatasmithMesh;
-
 	MeshConversionParams RenderMeshParams = {
 		MeshSource.RenderMesh.GetNode(),
 		MeshSource.RenderMesh,
 		MeshSource.bConsolidateMaterialIds
 	};
 
-	if (!GeomUtils::CreateDatasmithMeshFromMaxMesh(DatasmithMesh, RenderMeshParams, MeshConverted.SupportedChannels, MeshConverted.UVChannelsMap))
+	if (!GeomUtils::CreateDatasmithMeshFromMaxMesh(DatasmithMeshConverter.RenderMesh, RenderMeshParams, DatasmithMeshConverter.SupportedChannels, DatasmithMeshConverter.UVChannelsMap))
 	{
 		LogWarning(FString(TEXT("Invalid object: ")) + MeshSource.Node->GetName());
 		return false;
@@ -602,25 +656,9 @@ bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMes
 	// Mapping between the 3ds max channel and the exported mesh channel
 	if (DatasmithAttributes)
 	{
-		constexpr int32 MaxToUnrealUVOffset = -1;
-		constexpr int32 DefaultValue = -1;
-		const int32 SelectedLightmapUVChannel = DatasmithAttributes->GetLightmapUVChannel();
-		const int32* ExportedSelectedChannel = MeshConverted.UVChannelsMap.Find(SelectedLightmapUVChannel + MaxToUnrealUVOffset);
-
-		if (ExportedSelectedChannel)
-		{
-			MeshConverted.DatasmithMeshElement->SetLightmapCoordinateIndex(*ExportedSelectedChannel);
-		}
-		else if (SelectedLightmapUVChannel != DefaultValue)
-		{
-			LogWarning(*FString::Printf(TEXT("%s won't use the channel %i for its lightmap because it's not supported by the mesh. A new channel will be generated.")
-				, static_cast<const TCHAR*>(MeshSource.Node->GetName())
-				, SelectedLightmapUVChannel));
-		}
+		DatasmithMeshConverter.SelectedLightmapUVChannel = DatasmithAttributes->GetLightmapUVChannel();
 	}
 
-	FDatasmithMesh* DatasmithCollisionMeshPtr = nullptr;
-	FDatasmithMesh DatasmithCollisionMesh;
 	if (MeshSource.CollisionMesh.IsValid())
 	{
 		TSet<uint16> SupportedChannelsDummy; // ignore map channels for collision mesh
@@ -632,13 +670,12 @@ bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMes
 			true // Consolidate material ids into single mesh for collision
 		};
 
-		if (GeomUtils::CreateDatasmithMeshFromMaxMesh(DatasmithCollisionMesh, CollisionParams, SupportedChannelsDummy, UVChannelsMapDummy))
+		if (GeomUtils::CreateDatasmithMeshFromMaxMesh(DatasmithMeshConverter.CollisionMesh, CollisionParams, SupportedChannelsDummy, UVChannelsMapDummy))
 		{
-			DatasmithCollisionMeshPtr = &DatasmithCollisionMesh;
+			DatasmithMeshConverter.bHasCollision = true;
 		}
 	}
 
-	Scene.AddMeshElement(MeshConverted.DatasmithMeshElement, DatasmithMesh, DatasmithCollisionMeshPtr);
 	return true;
 }
 

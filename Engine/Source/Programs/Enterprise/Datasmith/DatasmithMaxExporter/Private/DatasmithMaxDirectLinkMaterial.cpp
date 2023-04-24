@@ -174,6 +174,11 @@ void FMaterialsCollectionTracker::UnSetMaterialsForMeshActor(const TSharedPtr<ID
 	MeshActorToUsedMaterialSlot.Remove(MeshActor.Get());
 }
 
+void FMaterialsCollectionTracker::SetMaterialsForMeshElement(FMeshConverted& MeshConverted, Mtl* Material)
+{
+	SetMaterialsForMeshElement(MeshConverted.GetDatasmithMeshElement(), Material, MeshConverted.SupportedChannels);
+}
+
 void FMaterialsCollectionTracker::SetMaterialsForMeshElement(const TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* Material, const TSet<uint16>& SupportedChannels)
 {
 	if (FDatasmithMaxMatHelper::GetMaterialClass(Material) == EDSMaterialType::XRefMat)
