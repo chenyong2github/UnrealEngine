@@ -55,6 +55,9 @@ RHI_API bool IsRHIDeviceIntel();
 // to trigger GPU specific optimizations and fallbacks
 RHI_API bool IsRHIDeviceNVIDIA();
 
+// to trigger GPU specific optimizations and fallbacks
+RHI_API bool IsRHIDeviceApple();
+
 // helper to return the shader language version for Metal shader.
 RHI_API uint32 RHIGetMetalShaderLanguageVersion(const FStaticShaderPlatform Platform);
 

@@ -198,12 +198,12 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 		for(uint32 i = 0; i < GPUs.Num(); i++)
 		{
 			FMacPlatformMisc::FGPUDescriptor const& GPU = GPUs[i];
-			if((GPU.GPUVendorId == 0x10DE))
+			if((GPU.GPUVendorId == EGpuVendorId::Nvidia))
 			{
 				OverrideRendererId = i;
 				bForceExplicitRendererId = (GPU.GPUMetalBundle && ![GPU.GPUMetalBundle isEqualToString:@"GeForceMTLDriverWeb"]);
 			}
-			else if(!GPU.GPUHeadless && GPU.GPUVendorId != 0x8086)
+			else if(!GPU.GPUHeadless && GPU.GPUVendorId != EGpuVendorId::Intel)
 			{
 				OverrideRendererId = i;
 			}
@@ -229,16 +229,16 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 				DeviceIndex = ExplicitRendererId;
 				SelectedDevice = Device;
 			}
-			else if(([Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x10DE)
-			   || ([Device.GetName().GetPtr() rangeOfString:@"AMD" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x1002)
-			   || ([Device.GetName().GetPtr() rangeOfString:@"Intel" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x8086))
+			else if(([Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == EGpuVendorId::Nvidia)
+			   || ([Device.GetName().GetPtr() rangeOfString:@"AMD" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == EGpuVendorId::Amd)
+			   || ([Device.GetName().GetPtr() rangeOfString:@"Intel" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == EGpuVendorId::Intel))
 			{
 				bool bMatchesName = (NameComponents.Num() > 0);
 				for (FString& Component : NameComponents)
 				{
 					bMatchesName &= FString(Device.GetName().GetPtr()).Contains(Component);
 				}
-				if((Device.IsHeadless() == GPU.GPUHeadless || GPU.GPUVendorId != 0x1002) && bMatchesName)
+				if((Device.IsHeadless() == GPU.GPUHeadless || GPU.GPUVendorId != EGpuVendorId::Amd) && bMatchesName)
                 {
 					DeviceIndex = ExplicitRendererId;
 					SelectedDevice = Device;
@@ -265,9 +265,9 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 				bFoundDefault = true;
 				break;
 			}
-			else if(([SelectedDevice.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x10DE)
-					|| ([SelectedDevice.GetName().GetPtr() rangeOfString:@"AMD" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x1002)
-					|| ([SelectedDevice.GetName().GetPtr() rangeOfString:@"Intel" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == 0x8086))
+			else if(([SelectedDevice.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == EGpuVendorId::Nvidia)
+					|| ([SelectedDevice.GetName().GetPtr() rangeOfString:@"AMD" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == EGpuVendorId::Amd)
+					|| ([SelectedDevice.GetName().GetPtr() rangeOfString:@"Intel" options:NSCaseInsensitiveSearch].location != NSNotFound && GPU.GPUVendorId == EGpuVendorId::Intel))
 			{
 				NameComponents.Empty();
 				bool bMatchesName = FString(GPU.GPUName).TrimStart().ParseIntoArray(NameComponents, TEXT(" ")) > 0;
@@ -275,7 +275,7 @@ static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 				{
 					bMatchesName &= FString(SelectedDevice.GetName().GetPtr()).Contains(Component);
 				}
-				if((SelectedDevice.IsHeadless() == GPU.GPUHeadless || GPU.GPUVendorId != 0x1002) && bMatchesName)
+				if((SelectedDevice.IsHeadless() == GPU.GPUHeadless || GPU.GPUVendorId != EGpuVendorId::Amd) && bMatchesName)
                 {
 					DeviceIndex = i;
 					bFoundDefault = true;

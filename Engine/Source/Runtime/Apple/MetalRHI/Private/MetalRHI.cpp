@@ -333,7 +333,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if(GRHIAdapterName.Contains("Nvidia"))
 	{
 		bSupportsPointLights = true;
-		GRHIVendorId = 0x10DE;
+		GRHIVendorId = (uint32)EGpuVendorId::Nvidia;
 		bSupportsTiledReflections = true;
 		bSupportsDistanceFields = true;
 		GRHISupportsWaveOperations = false;
@@ -341,7 +341,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	else if(GRHIAdapterName.Contains("ATi") || GRHIAdapterName.Contains("AMD"))
 	{
 		bSupportsPointLights = true;
-		GRHIVendorId = 0x1002;
+		GRHIVendorId = (uint32)EGpuVendorId::Amd;
 		if(GPUDesc.GPUVendorId == GRHIVendorId)
 		{
 			GRHIAdapterName = FString(GPUDesc.GPUName);
@@ -364,7 +364,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	{
 		bSupportsTiledReflections = false;
 		bSupportsPointLights = true;
-		GRHIVendorId = 0x8086;
+		GRHIVendorId = (uint32)EGpuVendorId::Intel;
 		bSupportsDistanceFields = true;
 		bIsIntelHaswell = (GRHIAdapterName == TEXT("Intel HD Graphics 5000") || GRHIAdapterName == TEXT("Intel Iris Graphics") || GRHIAdapterName == TEXT("Intel Iris Pro Graphics"));
 		GRHISupportsWaveOperations = false;
@@ -372,7 +372,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	else if(GRHIAdapterName.Contains("Apple"))
 	{
 		bSupportsPointLights = true;
-		GRHIVendorId = 0x106B;
+		GRHIVendorId = (uint32)EGpuVendorId::Apple;
 		bSupportsTiledReflections = true;
 		bSupportsDistanceFields = true;
 		GSupportsTimestampRenderQueries = true;

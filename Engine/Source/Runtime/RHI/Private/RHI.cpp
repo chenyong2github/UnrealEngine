@@ -1400,7 +1400,6 @@ ERHIFeatureLevel::Type GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
 bool IsRHIDeviceAMD()
 {
 	check(GRHIVendorId != 0);
-	// AMD's drivers tested on July 11 2013 have hitching problems with async resource streaming, setting single threaded for now until fixed.
 	return GRHIVendorId == 0x1002;
 }
 
@@ -1413,8 +1412,13 @@ bool IsRHIDeviceIntel()
 bool IsRHIDeviceNVIDIA()
 {
 	check(GRHIVendorId != 0);
-	// NVIDIA GPUs are discrete and use DedicatedVideoMemory only.
 	return GRHIVendorId == 0x10DE;
+}
+
+bool IsRHIDeviceApple()
+{
+    check(GRHIVendorId != 0);
+    return GRHIVendorId == (uint32) EGpuVendorId::Apple;
 }
 
 uint32 RHIGetMetalShaderLanguageVersion(const FStaticShaderPlatform Platform)

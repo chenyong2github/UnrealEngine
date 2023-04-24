@@ -141,7 +141,7 @@ public:
 	static inline bool SupportsSeparateMSAAAndResolveTarget() { return (PLATFORM_MAC != 0 || GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5); }
 
 	/** @returns True on UMA system; false otherwise.  */
-	static inline bool IsUMASystem() { return (GRHIVendorId == 0x106B); }
+	static inline bool IsUMASystem() { return IsRHIDeviceApple(); }
 
 #pragma mark - Public Debug Support -
 
