@@ -1075,6 +1075,18 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	}
 #endif
 
+	// Output depth for solid, masked 
+	// or when `output depth and velocity' is set and Opacity >= Opacity mask clip value to match the behavior of the rasterizer path. 
+#if (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED)
+	Payload.SetOutputDepth();
+#elif (TRANSLUCENT_WRITING_VELOCITY && \
+	(MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE || MATERIALBLENDING_ALPHACOMPOSITE || MATERIALBLENDING_ALPHAHOLDOUT))
+	if (GetMaterialOpacity(PixelMaterialInputs) >= GetMaterialOpacityMaskClipValue())
+	{
+		Payload.SetOutputDepth();
+	}
+#endif
+
 	PackedPayload = PackPathTracingPayload(Payload);
 }
 

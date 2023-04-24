@@ -492,7 +492,7 @@ public:
 
 	/**
 	 * If BlendMode is BLEND_Masked, the surface is not rendered where OpacityMask < OpacityMaskClipValue.
-	 * If BlendMode is BLEND_Translucent, BLEND_Additive, or BLEND_Modulate, and "Output Velocity" is enabled,
+	 * If BlendMode is BLEND_Translucent, BLEND_Additive, or BLEND_Modulate, and "Output Depth and Velocity" is enabled,
 	 * the object velocity is not rendered where Opacity < OpacityMaskClipValue.
 	 */
 	UPROPERTY(EditAnywhere, Category = Material, AdvancedDisplay)
@@ -946,7 +946,7 @@ public:
 	uint8 bComputeFogPerPixel : 1;
 
 	/** When true, translucent materials will output motion vectors and write to depth buffer in velocity pass. */
-	UPROPERTY(EditAnywhere, Category = Translucency, meta = (DisplayName = "Output Velocity"))
+	UPROPERTY(EditAnywhere, Category = Translucency, meta = (DisplayName = "Output Depth and Velocity"))
 	uint8 bOutputTranslucentVelocity : 1;
 
 	/** If true the compilation environment will be changed to remove the global COMPILE_SHADERS_FOR_DEVELOPMENT flag. */

@@ -20,7 +20,7 @@
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_NORMAL        (1 << 4) // Indicates that ray has hit a primitive that receives decals normal. Set by closest hit shader.
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_DECAL_RESPONSE_ROUGHNESS     (1 << 5) // Indicates that ray has hit a primitive that receives decals metallic/specular/roughness. Set by closest hit shader.
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_USE_DBUFFER_LOOKUP           (1 << 6) // Indicates that ray has hit a primitive that uses DBufferTextureLookup. Set by closest hit shader.
-#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_UNUSED7                      (1 << 7) // Free for future use
+#define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_OUTOUT_DEPTH				  (1 << 7) // Indicates that ray has hit a primitive that needs to output depth. Set by closest hit shader and used in primary ray only.
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_UNUSED8                      (1 << 8) // Free for future use
 
 #define PATH_TRACING_PAYLOAD_INPUT_FLAG_RAY_TYPE_MASK                 (7 << 0) // Reserve 3 bits for ray-mask
@@ -161,6 +161,9 @@ struct FPackedPathTracingPayload : FMinimalPayload
 		return (GetFlags() & Mask) != 0;
 	}
 	bool UsesDBufferLookup() { return (GetFlags() & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_USE_DBUFFER_LOOKUP) != 0; }
+
+	void SetOutputDepth() { SetFlag(PATH_TRACING_PAYLOAD_OUTPUT_FLAG_OUTOUT_DEPTH); }
+	bool ShouldOutputDepth() { return (GetFlags() & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_OUTOUT_DEPTH) != 0; }
 
 	// These method are meant to be used only when IsVisibilityRay() is true
 	float3 GetRayThroughput()
@@ -362,6 +365,9 @@ struct FPathTracingPayload : FMinimalPayload
 
 	void SetMaterialTwoSided() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED_MATERIAL; }
 	bool IsMaterialTwoSided() { return (Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED_MATERIAL) != 0; }
+
+	void SetOutputDepth() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_OUTOUT_DEPTH; }
+	bool ShouldOutputDepth() { return Flags & PATH_TRACING_PAYLOAD_OUTPUT_FLAG_OUTOUT_DEPTH; }
 
 #if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
 	float3 GetBaseColor() { return BaseColor; }
