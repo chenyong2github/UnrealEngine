@@ -1044,7 +1044,7 @@ void FDeferredShadingSceneRenderer::RayTracingDisplayPicking(const FRayTracingPi
 	{
 		if (Instance.GeometryRHI)
 		{
-			const uint64 GeometryAddress = uint64(Instance.GeometryRHI.GetReference());
+			const uint64 GeometryAddress = uint64(Instance.GeometryRHI);
 			if (PickingFeedback.GeometryAddress == GeometryAddress)
 			{
 				Geometry = Instance.GeometryRHI;
