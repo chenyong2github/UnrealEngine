@@ -150,7 +150,7 @@ namespace AutomationTool.Tasks
 					PackageInfo Info = new PackageInfo();
 					Info.Name = Match.Groups[1].Value;
 					Info.Version = Match.Groups[2].Value;
-					Packages.Add($"{Info.Name}@{Info.Version}", Info);
+					Packages.TryAdd($"{Info.Name}@{Info.Version}", Info);
 				}
 			}
 
