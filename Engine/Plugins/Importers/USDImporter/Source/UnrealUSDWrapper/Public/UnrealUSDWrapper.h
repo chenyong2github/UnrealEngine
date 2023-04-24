@@ -344,6 +344,10 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Surface;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken St;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Varname;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Scale;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Rotation;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken Translation;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken In;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Result;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken File;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken WrapS;
@@ -360,6 +364,7 @@ namespace UnrealIdentifiers
 
 	// Tokens copied from usdImaging, because at the moment it's all we need from it
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdPreviewSurface;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdTransform2d;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdPrimvarReader_float2;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdPrimvarReader_float3;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdUVTexture;

@@ -119,6 +119,10 @@ namespace UnrealIdentifiers
 	const TfToken Surface = TfToken("surface");
 	const TfToken St = TfToken("st");
 	const TfToken Varname = TfToken("varname");
+	const TfToken Scale = TfToken("scale");
+	const TfToken Rotation = TfToken("rotation");
+	const TfToken Translation = TfToken("translation");
+	const TfToken In = TfToken("in");
 	const TfToken Result = TfToken("result");
 	const TfToken File = TfToken("file");
 	const TfToken WrapT = TfToken( "wrapT" );
@@ -134,6 +138,7 @@ namespace UnrealIdentifiers
 	const TfToken SourceColorSpaceToken = TfToken{ "sourceColorSpace" };
 
 	const TfToken UsdPreviewSurface = TfToken( "UsdPreviewSurface" );
+	const TfToken UsdTransform2d = TfToken( "UsdTransform2d" );
 	const TfToken UsdPrimvarReader_float2 = TfToken( "UsdPrimvarReader_float2" );
 	const TfToken UsdPrimvarReader_float3 = TfToken( "UsdPrimvarReader_float3" );
 	const TfToken UsdUVTexture = TfToken( "UsdUVTexture" );
