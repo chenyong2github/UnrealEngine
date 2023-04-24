@@ -10,7 +10,7 @@ public:
 
 	FGLTFContainerBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions = nullptr, const TSet<AActor*>& SelectedActors = {});
 
-	void WriteInternalArchive(FArchive& Archive);
+	bool WriteInternalArchive(FArchive& Archive);
 
 	bool WriteAllFiles(const FString& DirPath, uint32 WriteFlags = 0);
 	bool WriteAllFiles(const FString& DirPath, TArray<FString>& OutFilePaths, uint32 WriteFlags = 0);
@@ -19,19 +19,18 @@ public:
 
 protected:
 
-	void WriteGlbArchive(FArchive& Archive);
+	bool WriteGlbArchive(FArchive& Archive);
 
 private:
 
-	static void WriteGlb(FArchive& Archive, const TArray64<uint8>& JsonData, const TArray64<uint8>* BinaryData);
+	bool WriteGlb(FArchive& Archive, const TArray64<uint8>& JsonData, const TArray64<uint8>* BinaryData);
 
 	static void WriteHeader(FArchive& Archive, uint32 FileSize);
-	static void WriteChunk(FArchive& Archive, uint32 ChunkType, const TArray64<uint8>& ChunkData, uint8 ChunkTrailingByte);
+	static void WriteChunk(FArchive& Archive, uint32 ChunkType, const TArray64<uint8>& ChunkData, uint8 PaddingValue);
 
 	static void WriteInt(FArchive& Archive, uint32 Value);
 	static void WriteData(FArchive& Archive, const TArray64<uint8>& Data);
 	static void WriteFill(FArchive& Archive, uint32 Size, uint8 Value);
 
-	static uint32 GetPaddedChunkSize(uint64 Size);
-	static uint32 GetTrailingChunkSize(uint64 Size);
+	static uint32 GetChunkPaddingLength(uint64 Size);
 };

@@ -16,9 +16,10 @@ FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FileName, const UGLTFExportOpt
 	}
 }
 
-void FGLTFJsonBuilder::WriteJsonArchive(FArchive& Archive)
+bool FGLTFJsonBuilder::WriteJsonArchive(FArchive& Archive)
 {
 	JsonRoot.WriteJson(Archive, !bIsGLB, ExportOptions->bSkipNearDefaultValues ? KINDA_SMALL_NUMBER : 0);
+	return true;
 }
 
 void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequired)

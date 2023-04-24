@@ -35,7 +35,7 @@ public:
 
 protected:
 
-	void WriteJsonArchive(FArchive& Archive);
+	bool WriteJsonArchive(FArchive& Archive);
 
 private:
 
