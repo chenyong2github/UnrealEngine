@@ -52,6 +52,7 @@
 #include "Parameterization/MeshUDIMClassifier.h"
 #include "UVEditorLogging.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Materials/Material.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UVEditorMode)
 
