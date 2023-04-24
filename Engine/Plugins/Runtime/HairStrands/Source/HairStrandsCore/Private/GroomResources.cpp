@@ -119,6 +119,8 @@ bool FHairStreamingRequest::IsCompleted()
 		for (FHairStreamingRequest::FChunk& Chunk : Chunks)
 		{
 			Chunk.Status = FHairStreamingRequest::FChunk::Completed;
+			check(Chunk.Container);
+			Chunk.Container->LoadedSize = Chunk.TotalSize;
 		}
 	}
 	return Chunks.Num() == 0 || IORequest.IsCompleted(); 
@@ -157,6 +159,10 @@ void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InReque
 	}
 	#else
 	{
+		// When enabled, data can be loaded from an offset. Otherwisee, start from the beginning of the resource
+		// This is used when cooking data to force the loading of the entire resource (i.e., bSupportOffsetLoad=false)
+		bSupportOffsetLoad = !bFillBulkdata; 
+
 		using namespace UE::DerivedData;
 		TArray<FCacheGetChunkRequest> Requests;
 		In.Read_DDC(this, Requests);
@@ -178,8 +184,7 @@ void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InReque
 				Chunk.Status 	= FHairStreamingRequest::FChunk::Completed;
 		
 				// Upload the total amount of loaded data
-				// HAIR_TODO: Disable for now, reupload all the data until issue with RDG/DX12 source/target buffer is solved
-				// Chunk.Container->LoadedSize = Chunk.TotalSize;
+				Chunk.Container->LoadedSize = Chunk.TotalSize;
 
 				// Optional fill in of bytebulkdata container
 				if (bFillBulkdata)
@@ -388,10 +393,13 @@ static FRDGBufferRef InternalCreateBufferRDG_FromHairBulkData(FRDGBuilder& Graph
 	check(InData.ChunkRequest);
 	FHairStreamingRequest::FChunk& InChunk = *InData.ChunkRequest;
 
-	const bool bCopyData = In != nullptr;
-	// For now always upload the entire data set as partial upload + GPU copy result in D3D12 error due to buffer aliasing HAIR_TODO
-	const bool bNeedCreateBuffer = In == nullptr || BufferDesc.GetSize() == UploadDesc.GetSize() || bCopyData;
-	if (bNeedCreateBuffer)
+	const bool bCreate 		= In == nullptr || BufferDesc.GetSize() == UploadDesc.GetSize();
+	const bool bCopy 		= In != nullptr && InChunk.Size > 0;
+	const bool bReallocate 	= In != nullptr && In->Desc.GetSize() < InChunk.TotalSize;
+
+	check(InChunk.Size > 0);
+	// Either create a new buffer or append new data to existing buffer
+	if (bCreate)
 	{	
 		check(BufferDesc.GetSize() >= UploadDesc.GetSize());
 
@@ -400,25 +408,33 @@ static FRDGBufferRef InternalCreateBufferRDG_FromHairBulkData(FRDGBuilder& Graph
 		InChunk.Release();
 		return Out;
 	}
-#if 0 // HAIR_TODO
-	else if (bCopyData && InChunk.Size > 0)
+	else if (bCopy)
 	{
-		// 1. Create new buffer
-		FRDGBufferRef Out = GraphBuilder.CreateBuffer(BufferDesc, DebugName, ERDGBufferFlags::MultiFrame);
+		// 1. If the current buffer is too small for storing the new data, reallocate it
+		FRDGBufferRef Out = In;
+		if (bReallocate)
+		{
+			// 1.1 Create new buffer
+			FRDGBufferDesc NewBufferDesc = BufferDesc;
+			NewBufferDesc.Usage |= EBufferUsageFlags::UnorderedAccess;
+			Out = GraphBuilder.CreateBuffer(NewBufferDesc, DebugName, ERDGBufferFlags::MultiFrame);
+	
+			// 1.2 Copy existing data from the old buffer to the new buffer
+			AddCopyBufferPass(GraphBuilder, Out, 0, In, 0, In->Desc.GetSize());
+		}
 
-		// 2. Copy existing data from the old buffer to the new buffer
-		AddCopyBufferPass(GraphBuilder, Out, 0, In, 0, In->Desc.GetSize());
-
-		// 3. Upload missing data
+		// 2. Upload missing data
 		FRDGBufferRef UploadBuffer = GraphBuilder.CreateBuffer(UploadDesc, DebugName, ERDGBufferFlags::MultiFrame);
 		GraphBuilder.QueueBufferUpload(UploadBuffer, InChunk.GetData(), InChunk.Size, ERDGInitialDataFlags::None);
 		InChunk.Release();
 
-		// 4. Append new data to the new buffer
+		// 4. Append new data to the new/existing buffer
 		AddCopyBufferPass(GraphBuilder, Out, InChunk.Offset, UploadBuffer, 0, InChunk.Size);
+
+		// Return the new buffer if it needs to be extracted
 		return Out;
+		//return bReallocate ? Out : nullptr;
 	}
-#endif
 	else
 	{
 		return nullptr;
@@ -438,7 +454,8 @@ void InternalCreateVertexBufferRDG_FromHairBulkData(FRDGBuilder& GraphBuilder, F
 	const FRDGBufferRef In = Out.Buffer ? Register(GraphBuilder, Out, ERDGImportedBufferFlags::None).Buffer : nullptr;
 	const FRDGBufferDesc BufferDesc = ApplyUsage(FRDGBufferDesc::CreateBufferDesc(FormatType::SizeInByte, FMath::DivideAndRoundUp(InChunk.ChunkRequest->TotalSize, FormatType::SizeInByte)), UsageType);
 	const FRDGBufferDesc UploadDesc = ApplyUsage(FRDGBufferDesc::CreateBufferDesc(FormatType::SizeInByte, FMath::DivideAndRoundUp(InChunk.ChunkRequest->Size, FormatType::SizeInByte)), UsageType);
-	if (BufferDesc.GetSize() == 0 || UploadDesc.GetSize()==0) { Out.Buffer = nullptr; return; }
+	if (BufferDesc.GetSize() == 0) 	{ Out.Buffer = nullptr; return; }
+	if (UploadDesc.GetSize()==0) 	{ return; }
 	if (FRDGBufferRef Buffer = InternalCreateBufferRDG_FromHairBulkData(GraphBuilder, InChunk, In, BufferDesc, UploadDesc, DebugName, OwnerName))
 	{
 		ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, FormatType::Format);
@@ -458,7 +475,8 @@ void InternalCreateStructuredBufferRDG_FromHairBulkData(FRDGBuilder& GraphBuilde
 	const FRDGBufferRef In = Out.Buffer ? Register(GraphBuilder, Out, ERDGImportedBufferFlags::None).Buffer : nullptr;
 	const FRDGBufferDesc BufferDesc = ApplyUsage(FRDGBufferDesc::CreateStructuredDesc(FormatType::SizeInByte, FMath::DivideAndRoundUp(InChunk.ChunkRequest->TotalSize, FormatType::SizeInByte)), UsageType);
 	const FRDGBufferDesc UploadDesc = ApplyUsage(FRDGBufferDesc::CreateStructuredDesc(FormatType::SizeInByte, FMath::DivideAndRoundUp(InChunk.ChunkRequest->Size, FormatType::SizeInByte)), UsageType);
-	if (BufferDesc.GetSize() == 0 || UploadDesc.GetSize()==0) { Out.Buffer = nullptr; return; }
+	if (BufferDesc.GetSize() == 0) 	{ Out.Buffer = nullptr; return; }
+	if (UploadDesc.GetSize()==0) 	{ return; }
 	if (FRDGBufferRef Buffer = InternalCreateBufferRDG_FromHairBulkData(GraphBuilder, InChunk, In, BufferDesc, UploadDesc, DebugName, OwnerName))
 	{
 		ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out);
@@ -475,9 +493,10 @@ void InternalCreateByteAddressBufferRDG_FromHairBulkData(FRDGBuilder& GraphBuild
 	}
 
 	const FRDGBufferRef In = Out.Buffer ? Register(GraphBuilder, Out, ERDGImportedBufferFlags::None).Buffer : nullptr;
-	const FRDGBufferDesc BufferDesc = ApplyUsage(FRDGBufferDesc::CreateByteAddressDesc(InChunk.ChunkRequest->TotalSize), UsageType); // HAIR_STREAMING
-	const FRDGBufferDesc UploadDesc = ApplyUsage(FRDGBufferDesc::CreateByteAddressDesc(InChunk.ChunkRequest->Size), UsageType); // HAIR_STREAMING
-	if (BufferDesc.GetSize() == 0 || UploadDesc.GetSize()==0) { Out.Buffer = nullptr; return; }
+	const FRDGBufferDesc BufferDesc = ApplyUsage(FRDGBufferDesc::CreateByteAddressDesc(InChunk.ChunkRequest->TotalSize), UsageType);
+	const FRDGBufferDesc UploadDesc = ApplyUsage(FRDGBufferDesc::CreateByteAddressDesc(InChunk.ChunkRequest->Size), UsageType);
+	if (BufferDesc.GetSize() == 0) 	{ Out.Buffer = nullptr; return; }
+	if (UploadDesc.GetSize()==0) 	{ return; }
 	if (FRDGBufferRef Buffer = InternalCreateBufferRDG_FromHairBulkData(GraphBuilder, InChunk, In, BufferDesc, UploadDesc, DebugName, OwnerName))
 	{
 		ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out);
@@ -1276,7 +1295,7 @@ bool FHairStrandsClusterCullingResource::InternalIsDataLoaded(uint32 InRequested
 {
 	if (StreamingRequest.IsNone())
 	{
-		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, BulkData, true, true, OwnerName); // HAIR_STREAMING : it still use the old resource creation using bulk data mapping
+		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, BulkData, true, true, OwnerName);
 	}
 	return StreamingRequest.IsCompleted();
 }

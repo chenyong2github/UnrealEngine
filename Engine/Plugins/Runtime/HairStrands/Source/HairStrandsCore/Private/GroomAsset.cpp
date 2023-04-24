@@ -1771,6 +1771,8 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
 	// When cooking data, force loading of *all* bulk data prior to saving them
+	// Note: bFillBulkdata is true for filling in the bulkdata container prior to serialization. This also forces the resources loading 
+	// from the 'start' (i.e., without offset)
 	if (Ar.IsCooking() && Ar.IsSaving())
 	{
 		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, StrandData.BulkData,               true /*bWait*/, true /*bFillBulkdata*/, Owner->GetFName()); }

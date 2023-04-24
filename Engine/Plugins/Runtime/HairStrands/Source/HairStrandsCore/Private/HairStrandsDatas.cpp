@@ -201,13 +201,15 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 	}
 	else if (Type == ReadDDC)
 	{
-		// 1. Add chunk request to the streaming request. The chunk will hold the request result.
 		check(StreamingRequest);
+		const bool bOffset = StreamingRequest->bSupportOffsetLoad;
+
+		// 1. Add chunk request to the streaming request. The chunk will hold the request result.
 		FHairStreamingRequest::FChunk& Chunk = StreamingRequest->Chunks.AddDefaulted_GetRef();
 		Chunk.Status 	= FHairStreamingRequest::FChunk::EStatus::Pending;
 		Chunk.Container = &In;
 		Chunk.Size 		= InSize;
-		Chunk.Offset 	= InOffset;
+		Chunk.Offset 	= bOffset ? InOffset : 0;
 		Chunk.TotalSize = InOffset + InSize;
 		In.ChunkRequest = &Chunk;
 
@@ -217,7 +219,7 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 		FCacheGetChunkRequest& Out = OutReadDDC->AddDefaulted_GetRef();
 		Out.Id			= FValueId::Null; 	// HairStrands::HairStrandsValueId : This is only needed for cache record, not cache value.
 		Out.Key			= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix);
-		Out.RawOffset	= InSize != 0 ? InOffset : 0;
+		Out.RawOffset	= bOffset && InSize != 0 ? InOffset : 0;
 		Out.RawSize		= InSize != 0 ? InSize : MAX_uint64;
 		Out.RawHash		= FIoHash();
 		Out.UserData	= (uint64)&Chunk;
@@ -328,14 +330,13 @@ void FHairStrandsBulkData::GetResources(FHairStrandsBulkCommon::FQuery& Out)
 	const uint32 PointAttributeSize = FMath::DivideAndRoundUp(PointCount, Header.Strides.PointAttributeChunkElementCount) * Header.Strides.PointAttributeChunkStride;
 	const uint32 CurveAttributeSize = FMath::DivideAndRoundUp(CurveCount, Header.Strides.CurveAttributeChunkElementCount) * Header.Strides.CurveAttributeChunkStride;
 
-	// For now Load all data, HAIR_STREAMING
 	if (!!(Header.Flags & DataFlags_HasData))
 	{
 		Out.Add(Data.Positions, 			TEXT("_Positions"), 		Data.Positions.LoadedSize, 		PointCount * Header.Strides.PositionStride);
-		Out.Add(Data.CurveAttributes, 		TEXT("_CurveAttributes"), 	Data.Positions.LoadedSize, 		CurveAttributeSize);
+		Out.Add(Data.CurveAttributes, 		TEXT("_CurveAttributes"), 	Data.CurveAttributes.LoadedSize,CurveAttributeSize);
 		if (Header.Flags & DataFlags_HasPointAttribute)
 		{
-			Out.Add(Data.PointAttributes, 	TEXT("_PointAttributes"), 	Data.Positions.LoadedSize, 		PointAttributeSize);
+			Out.Add(Data.PointAttributes, 	TEXT("_PointAttributes"), 	Data.PointAttributes.LoadedSize,PointAttributeSize);
 		}
 		Out.Add(Data.PointToCurve, 			TEXT("_PointToCurve"), 		Data.PointToCurve.LoadedSize,	PointCount * Header.Strides.PointToCurveStride);
 		Out.Add(Data.Curves, 				TEXT("_Curves"), 			Data.Curves.LoadedSize, 		CurveCount * Header.Strides.CurveStride);

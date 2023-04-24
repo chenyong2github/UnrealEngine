@@ -244,8 +244,19 @@ struct FHairBulkContainer;
 //
 // A query is processed as follow:
 //  FHairStreamingRequest -> FChunk -> FQuery
+//   ____________________________________________________________
+//  |                    FHairCommonResource                     |
+//  |_______________________            _________________________|
+//  | FHairStreamingRequest |          |  FHairStrandsBulkCommon |
+//	|                       |          |                         |
+//	|       FChunk  --------|--FQuery--|--> FHairBulkContainer   |
+//	|       FChunk  --------|--FQuery--|--> FHairBulkContainer   |
+//	|       FChunk  --------|--FQuery--|--> FHairBulkContainer   |
+//  |_______________________|          |_________________________|
+
 struct FHairStreamingRequest
 {
+	// Hold request at the container level (transient to the request)
 	struct FChunk
 	{
 		enum EStatus { None, Pending, Completed, Failed };
@@ -276,6 +287,10 @@ struct FHairStreamingRequest
 	TArray<FChunk> Chunks;
 	uint32 CurveCount = 0;
 	uint32 PointCount = 0;
+
+	// When enabled, data can be loaded from an offset. Otherwisee, start from the beginning of the resource
+	// This is used when cooking data to force the loading of the entire resource (i.e., bSupportOffsetLoad=false)
+	bool bSupportOffsetLoad = true; 
 };
 
 struct FHairBulkContainer
