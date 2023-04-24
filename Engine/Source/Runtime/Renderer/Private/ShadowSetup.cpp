@@ -2131,7 +2131,7 @@ void FProjectedShadowInfo::FinalizeAddSubjectPrimitive(
 		if (CacheMode == SDCM_StaticPrimitivesOnly)
 		{
 			// Record all static meshes in the cached shadow map.
-			CachedShadowMapData.StaticShadowSubjectMap[PrimitiveSceneInfo->GetIndex()] = true;
+			CachedShadowMapData.StaticShadowSubjectPersistentPrimitiveIdMap[PrimitiveSceneInfo->GetPersistentIndex().Index] = true;
 		}
 		else if (!PrimitiveSceneInfo->Proxy->IsMeshShapeOftenMoving())
 		{
@@ -3608,7 +3608,7 @@ void ComputeViewDependentWholeSceneShadowCacheModes(
 
 							CachedShadowMapData->Initializer = ProjectedShadowInitializer;
 							CachedShadowMapData->InvalidateCachedShadow();
-							checkSlow(CachedShadowMapData->StaticShadowSubjectMap.Num() == Scene->Primitives.Num());
+							checkSlow(CachedShadowMapData->StaticShadowSubjectPersistentPrimitiveIdMap.Num() == Scene->GetMaxPersistentPrimitiveIndex());
 						}
 					}
 				}
@@ -3619,7 +3619,7 @@ void ComputeViewDependentWholeSceneShadowCacheModes(
 					{
 						CachedShadowMapData->ShadowBufferResolution = ShadowMapSize;
 						CachedShadowMapData->Initializer = ProjectedShadowInitializer;
-						checkSlow(CachedShadowMapData->StaticShadowSubjectMap.Num() == Scene->Primitives.Num());
+						checkSlow(CachedShadowMapData->StaticShadowSubjectPersistentPrimitiveIdMap.Num() == Scene->GetMaxPersistentPrimitiveIndex());
 					},
 					[&]()
 					{
@@ -3650,7 +3650,7 @@ void ComputeViewDependentWholeSceneShadowCacheModes(
 				CachedShadowMapDatas->Add(FCachedShadowMapData(ProjectedShadowInitializer, RealTime));
 				CachedShadowMapData = &CachedShadowMapDatas->Last();
 				CachedShadowMapData->ShadowBufferResolution = ShadowMapSize;
-				CachedShadowMapData->StaticShadowSubjectMap.Init(false, Scene->Primitives.Num());
+				CachedShadowMapData->StaticShadowSubjectPersistentPrimitiveIdMap.Init(false, Scene->GetMaxPersistentPrimitiveIndex());
 			},
 			[&]()
 			{
@@ -4575,7 +4575,7 @@ struct FGatherShadowPrimitivesPacket
 					const FCachedShadowMapData& CachedShadowMapData = TaskData.Scene->GetCachedShadowMapDataRef(LightSceneInfo.Id, ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex);
 
 					// if the mesh is dynamic or a new added mesh, it should cast csm.
-					bShadowRelevance = PrimitiveProxy->IsMeshShapeOftenMoving() || !CachedShadowMapData.StaticShadowSubjectMap[PrimitiveSceneInfo->GetIndex()];
+					bShadowRelevance = PrimitiveProxy->IsMeshShapeOftenMoving() || !CachedShadowMapData.StaticShadowSubjectPersistentPrimitiveIdMap[PrimitiveSceneInfo->GetPersistentIndex().Index];
 				}
 				else if (ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
 				{
@@ -4586,7 +4586,7 @@ struct FGatherShadowPrimitivesPacket
 					const FCachedShadowMapData& CachedShadowMapData = TaskData.Scene->GetCachedShadowMapDataRef(LightSceneInfo.Id, ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex);
 
 					// if the mesh is dynamic or a new added mesh, it should cast csm.
-					bShadowRelevance = PrimitiveProxy->IsMeshShapeOftenMoving() || !CachedShadowMapData.StaticShadowSubjectMap[PrimitiveSceneInfo->GetIndex()];
+					bShadowRelevance = PrimitiveProxy->IsMeshShapeOftenMoving() || !CachedShadowMapData.StaticShadowSubjectPersistentPrimitiveIdMap[PrimitiveSceneInfo->GetPersistentIndex().Index];
 
 					// if the static mesh is rendered in the cached shadow map, check if it intersects with the non-overlapped area
 					if (!bShadowRelevance)

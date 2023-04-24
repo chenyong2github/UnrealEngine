@@ -5403,6 +5403,43 @@ void UpdateReflectionSceneData(FScene* Scene)
 	}
 }
 
+/**
+ * Container for scene change set, that can live on beyond the update function. Note that the values are not safe to interpret at all points 
+ * (e.g., a persistent ID of a removed item is not valid after the remove phase), but the arrays are valid as long as the RDG lives.
+ */
+struct FSceneUpdateChangeSetStorage
+{
+	TArray<FPersistentPrimitiveIndex, SceneRenderingAllocator> RemovedPrimitiveIds;
+	TArray<FPrimitiveSceneInfo*,SceneRenderingAllocator> RemovedPrimitiveSceneInfos;
+
+	TArray<FPersistentPrimitiveIndex, SceneRenderingAllocator> UpdatedPrimitiveIds;
+	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> UpdatedPrimitiveSceneInfos;
+
+	TArray<FPersistentPrimitiveIndex, SceneRenderingAllocator> AddedPrimitiveIds;
+	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> AddedPrimitiveSceneInfos;
+
+	FScenePreUpdateChangeSet GetPreUpdateSet() const 
+	{
+		return FScenePreUpdateChangeSet {
+			TConstArrayView<FPersistentPrimitiveIndex>(RemovedPrimitiveIds),
+			TConstArrayView<FPrimitiveSceneInfo*>(RemovedPrimitiveSceneInfos),
+			TConstArrayView<FPersistentPrimitiveIndex>(UpdatedPrimitiveIds),
+			TConstArrayView<FPrimitiveSceneInfo*>(UpdatedPrimitiveSceneInfos)
+		};
+	}
+
+	FScenePostUpdateChangeSet GetPostUpdateSet() const 
+	{
+		return FScenePostUpdateChangeSet {
+			TConstArrayView<FPersistentPrimitiveIndex>(AddedPrimitiveIds),
+			TConstArrayView<FPrimitiveSceneInfo*>(AddedPrimitiveSceneInfos),
+			TConstArrayView<FPersistentPrimitiveIndex>(UpdatedPrimitiveIds),
+			TConstArrayView<FPrimitiveSceneInfo*>(UpdatedPrimitiveSceneInfos)
+		};
+	}
+};
+
+
 void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Scene::UpdateAllPrimitiveSceneInfos);
@@ -5422,14 +5459,65 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 	UpdateRayTracingGroupBounds_AddPrimitives(AddedPrimitiveSceneInfos);
 #endif
 
+	// Allocated with render graph lifetime, safe to reference from RDG tasks.
+	FSceneUpdateChangeSetStorage &SceneUpdateChangeSetStorage = *GraphBuilder.AllocObject<FSceneUpdateChangeSetStorage>();
+	SceneUpdateChangeSetStorage.RemovedPrimitiveIds.Reserve(RemovedPrimitiveSceneInfos.Num());
+	SceneUpdateChangeSetStorage.RemovedPrimitiveSceneInfos.Reserve(RemovedPrimitiveSceneInfos.Num());
+
 	TArray<FPrimitiveSceneInfo*> RemovedLocalPrimitiveSceneInfos;
 	RemovedLocalPrimitiveSceneInfos.Reserve(RemovedPrimitiveSceneInfos.Num());
-	for (FPrimitiveSceneInfo* SceneInfo : RemovedPrimitiveSceneInfos)
+	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedPrimitiveSceneInfos)
 	{
-		RemovedLocalPrimitiveSceneInfos.Add(SceneInfo);
+		RemovedLocalPrimitiveSceneInfos.Add(PrimitiveSceneInfo);
+
+		SceneUpdateChangeSetStorage.RemovedPrimitiveIds.Add(PrimitiveSceneInfo->GetPersistentIndex());
+		SceneUpdateChangeSetStorage.RemovedPrimitiveSceneInfos.Add(PrimitiveSceneInfo);
 	}
+
+	{
+		SceneUpdateChangeSetStorage.UpdatedPrimitiveIds.Reserve(UpdatedInstances.Num() + UpdatedTransforms.Num());
+		SceneUpdateChangeSetStorage.UpdatedPrimitiveSceneInfos.Reserve(UpdatedInstances.Num() + UpdatedTransforms.Num());
+		// All updated instances must also before moving or re-allocating (TODO: filter out only those actually updated)
+		for (const auto& Instance : UpdatedInstances)
+		{
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = Instance.Key->GetPrimitiveSceneInfo();
+
+			if (RemovedPrimitiveSceneInfos.Find(PrimitiveSceneInfo) != nullptr)
+			{
+				continue;
+			}
+
+			FPersistentPrimitiveIndex Id = Instance.Key->GetPrimitiveSceneInfo()->GetPersistentIndex();
+			// Note: may not be valid if it is also being added this in this update, in which case it will get processed in the post-update anyway.
+			if (Id.IsValid())
+			{
+				SceneUpdateChangeSetStorage.UpdatedPrimitiveIds.Add(Id);
+				SceneUpdateChangeSetStorage.UpdatedPrimitiveSceneInfos.Add(PrimitiveSceneInfo);
+			}
+		}
+		// As must all primitive updates, 
+		for (const auto& Transform : UpdatedTransforms)
+		{
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = Transform.Key->GetPrimitiveSceneInfo();
+
+			if (RemovedPrimitiveSceneInfos.Find(PrimitiveSceneInfo) != nullptr)
+			{
+				continue;
+			}
+
+			FPersistentPrimitiveIndex Id = Transform.Key->GetPrimitiveSceneInfo()->GetPersistentIndex();
+			// Note: may not be valid if it is also being added this in this update, in which case it will get processed in the post-update anyway.
+			if (Id.IsValid())
+			{
+				SceneUpdateChangeSetStorage.UpdatedPrimitiveIds.Add(Id);
+				SceneUpdateChangeSetStorage.UpdatedPrimitiveSceneInfos.Add(PrimitiveSceneInfo);
+			}
+		}
+	}
+	
 	// NOTE: We clear this early because IsPrimitiveBeingRemoved gets called from the CreateLightPrimitiveInteraction (to make sure that old primitives are not accessed) 
 	// we cannot safely kick off the AsyncCreateLightPrimitiveInteractionsTask before the RemovedPrimitiveSceneInfos has been cleared.
+	// TODO: this is probably not true anymore!
 	RemovedPrimitiveSceneInfos.Empty();
 
 	RemovedLocalPrimitiveSceneInfos.Sort(FPrimitiveArraySortKey());
@@ -5580,18 +5668,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 							TBitArraySwapElements(PrimitivesNeedingUniformBufferUpdate, DestIndex, SourceIndex);
 
-							for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
-							{
-								TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
-
-								for (auto& ShadowMapData : ShadowMapDatas)
-								{
-									if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
-									{
-										TBitArraySwapElements(ShadowMapData.StaticShadowSubjectMap, DestIndex, SourceIndex);
-									}
-								}
-							}
 							GPUScene.RecordPrimitiveIdSwap(DestIndex, SourceIndex);
 
 						#if RHI_RAYTRACING
@@ -5707,40 +5783,11 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 
 				DeletedSceneInfos.Add(PrimitiveSceneInfo);
 
-				for (const FLightSceneInfo* LightSceneInfo : DirectionalLights)
-				{
-					TArray<FCachedShadowMapData>* CachedShadowMapDatas = GetCachedShadowMapDatas(LightSceneInfo->Id);
-
-					if (CachedShadowMapDatas)
-					{
-						for (auto& CachedShadowMapData : *CachedShadowMapDatas)
-						{
-							if (CachedShadowMapData.StaticShadowSubjectMap[PrimitiveIndex] == true)
-							{
-								CachedShadowMapData.InvalidateCachedShadow();
-							}
-						}
-					}
-				}
-
 				const int32 PersistentIndex = PrimitiveSceneInfo->PersistentIndex.Index;
 				PersistentPrimitiveIdAllocator.Free(PersistentIndex);
 				PersistentPrimitiveIdToIndexMap[PersistentIndex] = INDEX_NONE;
 			}
 
-			for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
-			{
-				TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
-
-				for (auto& ShadowMapData : ShadowMapDatas)
-				{
-					if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
-					{
-						ShadowMapData.StaticShadowSubjectMap.RemoveAt(SourceIndex, RemoveCount);
-						check(Primitives.Num() == ShadowMapData.StaticShadowSubjectMap.Num());
-					}
-				}
-			}
 			RemovedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, RemovedLocalPrimitiveSceneInfos.Num() - StartIndex, false);
 		}
 	
@@ -5825,19 +5872,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		#endif
 			PrimitivesNeedingStaticMeshUpdate.Reserve(PrimitivesNeedingStaticMeshUpdate.Num() + AddedLocalPrimitiveSceneInfos.Num());
 			PrimitivesNeedingUniformBufferUpdate.Reserve(PrimitivesNeedingUniformBufferUpdate.Num() + AddedLocalPrimitiveSceneInfos.Num());
-
-			for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
-			{
-				TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
-
-				for (auto& ShadowMapData : ShadowMapDatas)
-				{
-					if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
-					{
-						ShadowMapData.StaticShadowSubjectMap.Reserve(ShadowMapData.StaticShadowSubjectMap.Num() + AddedLocalPrimitiveSceneInfos.Num());
-					}
-				}
-			}
 		}
 
 		while (AddedLocalPrimitiveSceneInfos.Num())
@@ -5878,19 +5912,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 #endif
 					PrimitivesNeedingStaticMeshUpdate.Add(false);
 					PrimitivesNeedingUniformBufferUpdate.Add(true);
-
-					for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
-					{
-						TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
-
-						for (auto& ShadowMapData : ShadowMapDatas)
-						{
-							if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
-							{
-								ShadowMapData.StaticShadowSubjectMap.Add(false);
-							}
-						}
-					}
 
 					const int32 SourceIndex = PrimitiveSceneProxies.Num() - 1;
 					PrimitiveSceneInfo->PackedIndex = SourceIndex;
@@ -5997,19 +6018,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 						#endif
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 							TBitArraySwapElements(PrimitivesNeedingUniformBufferUpdate, DestIndex, SourceIndex);
-
-							for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
-							{
-								TArray<FCachedShadowMapData>& ShadowMapDatas = CachedShadowMapIt.Value();
-
-								for (auto& ShadowMapData : ShadowMapDatas)
-								{
-									if (ShadowMapData.StaticShadowSubjectMap.Num() > 0)
-									{
-										TBitArraySwapElements(ShadowMapData.StaticShadowSubjectMap, DestIndex, SourceIndex);
-									}
-								}
-							}
 
 							GPUScene.RecordPrimitiveIdSwap(DestIndex, SourceIndex);
 
@@ -6301,6 +6309,16 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 			}
 		}
 	}
+	
+	SceneUpdateChangeSetStorage.AddedPrimitiveIds.Reserve(AddedPrimitiveSceneInfos.Num());
+	SceneUpdateChangeSetStorage.AddedPrimitiveSceneInfos.Reserve(AddedPrimitiveSceneInfos.Num());
+	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : AddedPrimitiveSceneInfos)
+	{
+		SceneUpdateChangeSetStorage.AddedPrimitiveIds.Add(PrimitiveSceneInfo->GetPersistentIndex());
+		SceneUpdateChangeSetStorage.AddedPrimitiveSceneInfos.Add(PrimitiveSceneInfo);
+	}
+
+	UpdateCachedShadowState(SceneUpdateChangeSetStorage.GetPreUpdateSet(), SceneUpdateChangeSetStorage.GetPostUpdateSet());
 
 	if (SceneInfosWithStaticDrawListUpdate.Num() > 0)
 	{
@@ -6941,3 +6959,28 @@ void FScene::DebugRender(TArrayView<FViewInfo> Views)
 	ShadowScene->DebugRender(Views);
 }
 #endif
+
+void FScene::UpdateCachedShadowState(const FScenePreUpdateChangeSet &ScenePreUpdateChangeSet, const FScenePostUpdateChangeSet &ScenePostUpdateChangeSet)
+{
+	for (const FLightSceneInfo* LightSceneInfo : DirectionalLights)
+	{
+		TArray<FCachedShadowMapData>* CachedShadowMapDatas = GetCachedShadowMapDatas(LightSceneInfo->Id);
+
+		if (CachedShadowMapDatas)
+		{
+			for (auto& CachedShadowMapData : *CachedShadowMapDatas)
+			{
+				for (FPersistentPrimitiveIndex PersistentPrimitiveIndex : ScenePreUpdateChangeSet.RemovedPrimitiveIds)
+				{
+					if (CachedShadowMapData.StaticShadowSubjectPersistentPrimitiveIdMap[PersistentPrimitiveIndex.Index] == true)
+					{
+						CachedShadowMapData.InvalidateCachedShadow();
+						break;
+					}
+				}
+				CachedShadowMapData.StaticShadowSubjectPersistentPrimitiveIdMap.SetNum(GetMaxPersistentPrimitiveIndex(), false);
+			}
+		}
+	}
+}
+

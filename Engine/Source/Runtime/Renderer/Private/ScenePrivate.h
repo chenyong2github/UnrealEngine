@@ -107,6 +107,34 @@ struct FLightSceneChangeSet
 	TConstArrayView<int32> ColorUpdatedLightIds;
 };
 
+/**
+ * Change set that is valid before removes are processed and the scene data modified.
+ * The referenced arrays have RDG life-time and can be safely used in RDG tasks.
+ * However, the referenced data (primitive/proxy) and meaning of the persistent ID is not generally valid past the call in which this is passed. 
+ * Thus, care need to be excercised.
+ */
+class FScenePreUpdateChangeSet
+{
+public:
+	TConstArrayView<FPersistentPrimitiveIndex> RemovedPrimitiveIds;
+	TConstArrayView<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
+	TConstArrayView<FPersistentPrimitiveIndex> UpdatedPrimitiveIds;
+	TConstArrayView<FPrimitiveSceneInfo*> UpdatedPrimitiveSceneInfos;
+};
+
+/**
+ * Change set that is valid before after adds are processed and the scene data is modified.
+ * The referenced arrays have RDG life-time and can be safely used in RDG tasks.
+ */
+class FScenePostUpdateChangeSet
+{
+public:
+	TConstArrayView<FPersistentPrimitiveIndex> AddedPrimitiveIds;
+	TConstArrayView<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
+	TConstArrayView<FPersistentPrimitiveIndex> UpdatedPrimitiveIds;
+	TConstArrayView<FPrimitiveSceneInfo*> UpdatedPrimitiveSceneInfos;
+};
+
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
 {
@@ -2544,9 +2572,9 @@ public:
 	bool bCachedShadowMapHasNaniteGeometry;
 
 	/**
-	* The static meshes cast shadow on this cached csm
-	*/
-	TBitArray<> StaticShadowSubjectMap;
+	 * The static meshes cast shadow on this cached csm
+	 */
+	TBitArray<> StaticShadowSubjectPersistentPrimitiveIdMap;
 
 	FIntPoint ShadowBufferResolution;
 	FVector PreShadowTranslation;
@@ -2562,7 +2590,7 @@ public:
 	{
 		ShadowMap.Release();
 
-		StaticShadowSubjectMap.SetRange(0, StaticShadowSubjectMap.Num(), false);
+		StaticShadowSubjectPersistentPrimitiveIdMap.SetRange(0, StaticShadowSubjectPersistentPrimitiveIdMap.Num(), false);
 	}
 
 	FCachedShadowMapData(const FWholeSceneProjectedShadowInitializer& InInitializer, float InLastUsedTime) :
@@ -3629,6 +3657,12 @@ private:
 	FLightSceneChangeSet UpdateAllLightSceneInfos(FRDGBuilder& GraphBuilder);
 
 private:
+
+	/**
+	 * Update tracked scene state for cached CSM shadows
+	 */
+	void UpdateCachedShadowState(const FScenePreUpdateChangeSet &ScenePreUpdateChangeSet, const FScenePostUpdateChangeSet &ScenePostUpdateChangeSet);
+
 #if RHI_RAYTRACING
 	void UpdateRayTracingGroupBounds_AddPrimitives(const Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
 	void UpdateRayTracingGroupBounds_RemovePrimitives(const Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
