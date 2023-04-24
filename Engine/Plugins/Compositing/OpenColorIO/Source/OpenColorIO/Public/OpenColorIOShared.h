@@ -24,11 +24,9 @@
 #include "Templates/RefCounting.h"
 #include "OpenColorIOShaderCompilationManager.h"
 
-class FOpenColorIOTransformResource;
-class FOpenColorIOShaderMap;
-class FOpenColorIOPixelShader;
-class FOpenColorIOShaderMapId;
-
+#if WITH_EDITOR
+#include "OpenColorIOWrapperDefines.h"
+#else
 /** Enum used to indicate whether the working color space should be used as a source or destination. */
 enum class EOpenColorIOWorkingColorSpaceTransform : uint8
 {
@@ -36,6 +34,13 @@ enum class EOpenColorIOWorkingColorSpaceTransform : uint8
 	Source = 1,
 	Destination = 2
 };
+#endif
+
+class FOpenColorIOTransformResource;
+class FOpenColorIOShaderMap;
+class FOpenColorIOPixelShader;
+class FOpenColorIOShaderMapId;
+
 
 /** Stores outputs from the color transform compile that need to be saved. */
 class FOpenColorIOCompilationOutput

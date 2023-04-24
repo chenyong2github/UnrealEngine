@@ -9,7 +9,7 @@
 #include "OpenColorIOColorSpace.h"
 #include "Widgets/SWidget.h"
 
-class FOpenColorIOEditorConfigurationInspector;
+class FOpenColorIOConfigWrapper;
 
 /**
  * Implements a details view customization for the FOpenColorIOConfiguration
@@ -25,7 +25,7 @@ public:
 
 protected:
 
-	static TUniquePtr<FOpenColorIOEditorConfigurationInspector> GetConfigurationInspector(const TSharedPtr<IPropertyHandle>& InConfigurationObjectProperty);
+	static FOpenColorIOConfigWrapper* GetConfigWrapper(const TSharedPtr<IPropertyHandle>& InConfigurationObjectProperty);
 
 protected:
 
@@ -34,9 +34,6 @@ protected:
 
 	/** Pointer to the configuration object property handle. */
 	TSharedPtr<IPropertyHandle> ConfigurationObjectProperty;
-
-	/** Raw pointer to the native OCIO config. */
-	TUniquePtr<FOpenColorIOEditorConfigurationInspector> ConfigInspector;
 };
 
 

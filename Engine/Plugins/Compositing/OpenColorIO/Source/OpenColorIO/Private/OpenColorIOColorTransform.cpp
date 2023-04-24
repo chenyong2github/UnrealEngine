@@ -8,7 +8,6 @@
 #include "Modules/ModuleManager.h"
 #include "OpenColorIOConfiguration.h"
 #include "OpenColorIOModule.h"
-#include "OpenColorIONativeConfiguration.h"
 #include "OpenColorIOSettings.h"
 #include "UObject/UObjectIterator.h"
 #include "DataDrivenShaderPlatformInfo.h"
@@ -20,114 +19,42 @@
 #include "DerivedDataCacheInterface.h"
 #include "Editor.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "OpenColorIOWrapper.h"
 #include "OpenColorIODerivedDataVersion.h"
 #include "OpenColorIOShader.h"
 
-#if WITH_OCIO
-#include "OpenColorIO/OpenColorIO.h"
-#include <vector>
-#endif
-
-#endif //WITH_EDITOR
-
-namespace {
-#if WITH_OCIO
-	/*
-	 * Get the processor optimization flag.
-	 */
-	OCIO_NAMESPACE::OptimizationFlags GetProcessorOptimization()
-	{
-		using namespace OCIO_NAMESPACE;
-
-		return static_cast<OptimizationFlags>(OptimizationFlags::OPTIMIZATION_DEFAULT | OptimizationFlags::OPTIMIZATION_NO_DYNAMIC_PROPERTIES);
-	}
-
-	/*
-	 * Get the OpenColorIO processor using the transform's config.
-	 * NOTE: By default, the library automatically caches and reuses processors.
-	 */
-	OCIO_NAMESPACE::ConstProcessorRcPtr GetTransformProcessor(const UOpenColorIOColorTransform* InTransform)
+namespace
+{
+	// Note: Since OpenColorIO caches processors automatically, we can recreate them without significant additional costs.
+	FOpenColorIOProcessorWrapper GetTransformProcessor(const UOpenColorIOColorTransform* InTransform, EOpenColorIOWorkingColorSpaceTransform InWCSTrasnformType)
 	{
 		check(InTransform);
 		check(InTransform->ConfigurationOwner);
 
-		OCIO_NAMESPACE::ConstConfigRcPtr Config = InTransform->ConfigurationOwner->GetNativeConfig_Internal()->Get();
-		if (Config)
+		EOpenColorIOViewTransformDirection DisplayViewDirection;
+		if (InTransform->GetDisplayViewDirection(DisplayViewDirection))
 		{
-			OCIO_NAMESPACE::ContextRcPtr Context = Config->getCurrentContext()->createEditableCopy();
-
-			for (const TPair<FString, FString>& KeyValue : InTransform->GetContextKeyValues())
-			{
-				Context->setStringVar(TCHAR_TO_ANSI(*KeyValue.Key), TCHAR_TO_ANSI(*KeyValue.Value));
-			}
-
-			EOpenColorIOViewTransformDirection DisplayViewDirection;
-			if (InTransform->GetDisplayViewDirection(DisplayViewDirection))
-			{
-				OCIO_NAMESPACE::TransformDirection OcioDirection = static_cast<OCIO_NAMESPACE::TransformDirection>(DisplayViewDirection);
-
-				return Config->getProcessor(
-					Context,
-					StringCast<ANSICHAR>(*InTransform->SourceColorSpace).Get(),
-					StringCast<ANSICHAR>(*InTransform->Display).Get(),
-					StringCast<ANSICHAR>(*InTransform->View).Get(),
-					OcioDirection);
-			}
-			else
-			{
-				return Config->getProcessor(
-					Context,
-					StringCast<ANSICHAR>(*InTransform->SourceColorSpace).Get(),
-					StringCast<ANSICHAR>(*InTransform->DestinationColorSpace).Get()
-				);
-			}
+			return FOpenColorIOProcessorWrapper(
+				InTransform->ConfigurationOwner->GetConfigWrapper(),
+				InTransform->SourceColorSpace,
+				InTransform->Display,
+				InTransform->View,
+				DisplayViewDirection == EOpenColorIOViewTransformDirection::Inverse,
+				InWCSTrasnformType,
+				InTransform->GetContextKeyValues());
 		}
-
-		return nullptr;
+		else
+		{
+			return FOpenColorIOProcessorWrapper(
+				InTransform->ConfigurationOwner->GetConfigWrapper(),
+				InTransform->SourceColorSpace,
+				InTransform->DestinationColorSpace,
+				InWCSTrasnformType,
+				InTransform->GetContextKeyValues());
+		}
 	}
-
-	TUniquePtr<OCIO_NAMESPACE::PackedImageDesc> GetImageDesc(const FImageView& InImage)
-	{
-		OCIO_NAMESPACE::ChannelOrdering Ordering;
-		OCIO_NAMESPACE::BitDepth BitDepth;
-
-		switch (InImage.Format)
-		{
-		case ERawImageFormat::BGRA8:
-			Ordering = OCIO_NAMESPACE::CHANNEL_ORDERING_BGRA;
-			BitDepth = OCIO_NAMESPACE::BIT_DEPTH_UINT8;
-			break;
-		case ERawImageFormat::RGBA16:
-			Ordering = OCIO_NAMESPACE::CHANNEL_ORDERING_RGBA;
-			BitDepth = OCIO_NAMESPACE::BIT_DEPTH_UINT16;
-			break;
-		case ERawImageFormat::RGBA16F:
-			Ordering = OCIO_NAMESPACE::CHANNEL_ORDERING_RGBA;
-			BitDepth = OCIO_NAMESPACE::BIT_DEPTH_F16;
-			break;
-		case ERawImageFormat::RGBA32F:
-			Ordering = OCIO_NAMESPACE::CHANNEL_ORDERING_RGBA;
-			BitDepth = OCIO_NAMESPACE::BIT_DEPTH_F32;
-			break;
-		default:
-
-			UE_LOG(LogOpenColorIO, Log, TEXT("Unsupported texture format."));
-			return nullptr;
-		}
-
-		return MakeUnique<OCIO_NAMESPACE::PackedImageDesc>(
-			InImage.RawData,
-			static_cast<long>(InImage.GetWidth()),
-			static_cast<long>(InImage.GetHeight()),
-			Ordering,
-			BitDepth,
-			OCIO_NAMESPACE::AutoStride,
-			OCIO_NAMESPACE::AutoStride,
-			OCIO_NAMESPACE::AutoStride
-		);
-	};
-#endif
 }
+#endif //WITH_EDITOR
 
 
 void UOpenColorIOColorTransform::SerializeOpenColorIOShaderMaps(const TMap<const ITargetPlatform*, TArray<FOpenColorIOTransformResource*>>* PlatformColorTransformResourcesToSavePtr, FArchive& Ar, TArray<FOpenColorIOTransformResource>&  OutLoadedResources)
@@ -203,11 +130,9 @@ void UOpenColorIOColorTransform::GetOpenColorIOLUTKeyGuid(const FString& InProce
 #if WITH_EDITOR
 	FString DDCKey = FDerivedDataCacheInterface::BuildCacheKey(TEXT("OCIOLUT"), OPENCOLORIO_DERIVEDDATA_VER, *InProcessorIdentifier);
 
-#if WITH_OCIO
 	//Keep library version in the DDC key to invalidate it once we move to a new library
 	DDCKey += TEXT("OCIOVersion");
-	DDCKey += TEXT(OCIO_VERSION);
-#endif //WITH_OCIO
+	DDCKey += OpenColorIOWrapper::GetVersion();
 
 	if (!InName.IsNone())
 	{
@@ -232,14 +157,16 @@ bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, 
 	ConfigurationOwner = InOwner;
 	ContextKeyValues = InContextKeyValues;
 	
-	if (InSourceColorSpace == UOpenColorIOConfiguration::WorkingColorSpaceName)
+#if WITH_EDITOR
+	if (InSourceColorSpace == OpenColorIOWrapper::WorkingColorSpaceName)
 	{
 		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
 	}
-	else if(InDestinationColorSpace == UOpenColorIOConfiguration::WorkingColorSpaceName)
+	else if(InDestinationColorSpace == OpenColorIOWrapper::WorkingColorSpaceName)
 	{
 		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
 	}
+#endif
 	
 	return GenerateColorTransformData(InSourceColorSpace, InDestinationColorSpace);
 }
@@ -250,7 +177,8 @@ bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, 
 	ConfigurationOwner = InOwner;
 	ContextKeyValues = InContextKeyValues;
 
-	if (InSourceColorSpace == UOpenColorIOConfiguration::WorkingColorSpaceName)
+#if WITH_EDITOR
+	if (InSourceColorSpace == OpenColorIOWrapper::WorkingColorSpaceName)
 	{
 		if (InDirection == EOpenColorIOViewTransformDirection::Forward)
 		{
@@ -261,6 +189,7 @@ bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, 
 			WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
 		}
 	}
+#endif
 
 	return GenerateColorTransformData(InSourceColorSpace, InDisplay, InView, InDirection);
 }
@@ -331,112 +260,62 @@ void UOpenColorIOColorTransform::SerializeLuts(FArchive& Ar)
 
 void UOpenColorIOColorTransform::CacheResourceTextures()
 {
+#if WITH_EDITOR
 	if (Textures.IsEmpty())
 	{
-#if WITH_OCIO
-#if !PLATFORM_EXCEPTIONS_DISABLED
-		try
-#endif
+		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, WorkingColorSpaceTransformType);
+		if (TransformProcessor.IsValid())
 		{
-			OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = GetTransformProcessor(this);
-			if (TransformProcessor)
+			const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(TransformProcessor);
+			const FString ProcessorID = GPUProcessor.GetCacheID();
+
+			//In editor, it will use what's on DDC if there's something corresponding to the actual data or use that raw data
+			//that OCIO library has on board. The textures will be serialized only when cooking.
+
+			// Process 3D luts
+			for (uint32 Index = 0; Index < GPUProcessor.GetNum3DTextures(); ++Index)
 			{
-				OCIO_NAMESPACE::GpuShaderDescRcPtr ShaderDescription = OCIO_NAMESPACE::GpuShaderDesc::CreateShaderDesc();
-				ShaderDescription->setLanguage(OCIO_NAMESPACE::GPU_LANGUAGE_HLSL_DX11);
-				ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOShader::OpenColorIOShaderFunctionName).Get());
-				ShaderDescription->setResourcePrefix("Ocio");
+				TextureFilter Filter;
+				FName TextureName;
+				uint32 EdgeLength = 0;
+				const float* TextureValues = 0x0;
 
-				OCIO_NAMESPACE::ConstGPUProcessorRcPtr GPUProcessor = nullptr;
-				const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
-				check(Settings);
+				bool bSuccess = GPUProcessor.Get3DTexture(Index, TextureName, EdgeLength, Filter, TextureValues);
+				check(bSuccess);
 
-				if (Settings->bUseLegacyProcessor)
-				{
-					unsigned int EdgeLength = static_cast<unsigned int>(OpenColorIOShader::Lut3dEdgeLength);
-					GPUProcessor = TransformProcessor->getOptimizedLegacyGPUProcessor(GetProcessorOptimization(), EdgeLength);
-				}
-				else
-				{
-					GPUProcessor = TransformProcessor->getOptimizedGPUProcessor(GetProcessorOptimization());
-				}
+				TObjectPtr<UTexture> Result = CreateTexture3DLUT(ProcessorID, TextureName, EdgeLength, Filter, TextureValues);
 
-				GPUProcessor->extractGpuShaderInfo(ShaderDescription);
-				
-				ensureMsgf(ShaderDescription->getNumDynamicProperties() == 0, TEXT("Dynamic properties are not currently supported."));
-
-				const FString ProcessorID = StringCast<TCHAR>(GPUProcessor->getCacheID()).Get();
-
-				//In editor, it will use what's on DDC if there's something corresponding to the actual data or use that raw data
-				//that OCIO library has on board. The textures will be serialized only when cooking.
-
-				// Process 3D luts
-				for (uint32 Index = 0; Index < ShaderDescription->getNum3DTextures(); ++Index)
-				{
-					const char* TextureName = nullptr;
-					const char* SamplerName = nullptr;
-					unsigned int EdgeLength;
-					OCIO_NAMESPACE::Interpolation Interpolation = OCIO_NAMESPACE::INTERP_TETRAHEDRAL;
-
-					ShaderDescription->get3DTexture(Index, TextureName, SamplerName, EdgeLength, Interpolation);
-					checkf(TextureName && *TextureName && SamplerName && *SamplerName && EdgeLength > 0, TEXT("Invalid OCIO 3D texture or sampler."));
-
-					const float* TextureValues = 0x0;
-					ShaderDescription->get3DTextureValues(Index, TextureValues);
-					checkf(TextureValues, TEXT("Failed to read OCIO 3D LUT data."));
-
-					TextureFilter Filter = TF_Bilinear;
-					if (Interpolation == OCIO_NAMESPACE::Interpolation::INTERP_NEAREST || Interpolation == OCIO_NAMESPACE::Interpolation::INTERP_TETRAHEDRAL)
-					{
-						Filter = TF_Nearest;
-					}
-					const FName TextureFName = FName(TextureName);
-					TObjectPtr<UTexture> Result = CreateTexture3DLUT(ProcessorID, TextureFName, EdgeLength, Filter, TextureValues);
-
-					const int32 SlotIndex = TextureFName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
-					Textures.Add(SlotIndex, MoveTemp(Result));
-				}
-
-				// Process 1D luts
-				for (uint32 Index = 0; Index < ShaderDescription->getNumTextures(); ++Index)
-				{
-					const char* TextureName = nullptr;
-					const char* SamplerName = nullptr;
-					unsigned TextureWidth = 0;
-					unsigned TextureHeight = 0;
-					OCIO_NAMESPACE::GpuShaderDesc::TextureType Channel = OCIO_NAMESPACE::GpuShaderDesc::TEXTURE_RGB_CHANNEL;
-					OCIO_NAMESPACE::Interpolation Interpolation = OCIO_NAMESPACE::Interpolation::INTERP_LINEAR;
-
-					ShaderDescription->getTexture(Index, TextureName, SamplerName, TextureWidth, TextureHeight, Channel, Interpolation);
-					checkf(TextureName && *TextureName && SamplerName && *SamplerName && TextureWidth > 0, TEXT("Invalid OCIO 1D texture or sampler."));
-
-					const float* TextureValues = 0x0;
-					ShaderDescription->getTextureValues(Index, TextureValues);
-					checkf(TextureValues, TEXT("Failed to read OCIO 1D LUT data."));
-
-					TextureFilter Filter = Interpolation == OCIO_NAMESPACE::Interpolation::INTERP_NEAREST ? TF_Nearest : TF_Bilinear;
-					bool bRedChannelOnly = Channel == OCIO_NAMESPACE::GpuShaderCreator::TEXTURE_RED_CHANNEL;
-					const FName TextureFName = FName(TextureName);
-					TObjectPtr<UTexture> Result = CreateTexture1DLUT(ProcessorID, TextureFName, TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
-
-					const int32 SlotIndex = TextureFName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
-					Textures.Add(SlotIndex, MoveTemp(Result));
-				}
-
-				ensureAlwaysMsgf(Textures.Num() <= (int32)OpenColorIOShader::MaximumTextureSlots, TEXT("Color transform %s exceeds our current limit of %u texture slots. Use the legacy processor instead."), *GetTransformFriendlyName(), OpenColorIOShader::MaximumTextureSlots);
+				const int32 SlotIndex = TextureName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
+				Textures.Add(SlotIndex, MoveTemp(Result));
 			}
-			else
+
+			// Process 1D luts
+			for (uint32 Index = 0; Index < GPUProcessor.GetNumTextures(); ++Index)
 			{
-				UE_LOG(LogOpenColorIO, Error, TEXT("Failed to cache texture resource(s) for color transform %s. Configuration file [%s] was invalid."), *GetTransformFriendlyName(), *ConfigurationOwner->ConfigurationFile.FilePath);
+				FName TextureName;
+				uint32 TextureWidth = 0;
+				uint32 TextureHeight = 0;
+				TextureFilter Filter;
+				bool bRedChannelOnly = false;
+				const float* TextureValues = 0x0;
+
+				bool bSuccess = GPUProcessor.GetTexture(Index, TextureName, TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
+				checkf(bSuccess, TEXT("Failed to read OCIO 1D LUT data."));
+
+				TObjectPtr<UTexture> Result = CreateTexture1DLUT(ProcessorID, TextureName, TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
+
+				const int32 SlotIndex = TextureName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
+				Textures.Add(SlotIndex, MoveTemp(Result));
 			}
+
+			ensureAlwaysMsgf(Textures.Num() <= (int32)OpenColorIOShader::MaximumTextureSlots, TEXT("Color transform %s exceeds our current limit of %u texture slots. Use the legacy processor instead."), *GetTransformFriendlyName(), OpenColorIOShader::MaximumTextureSlots);
 		}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-		catch (OCIO_NAMESPACE::Exception& exception)
+		else
 		{
-			UE_LOG(LogOpenColorIO, Error, TEXT("Failed to cache texture resource(s) for color transform %s. Error message: %s"), *GetTransformFriendlyName(), StringCast<TCHAR>(exception.what()).Get());
+			UE_LOG(LogOpenColorIO, Error, TEXT("Failed to cache texture resource(s) for color transform %s. Configuration file [%s] was invalid."), *GetTransformFriendlyName(), *ConfigurationOwner->ConfigurationFile.FilePath);
 		}
-#endif
-#endif
 	}
+#endif // WITH_EDITOR
 }
 
 void UOpenColorIOColorTransform::CacheResourceShadersForRendering(bool bRegenerateId)
@@ -595,131 +474,26 @@ bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, 
 #if WITH_EDITOR
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutImage) const
 {
-#if WITH_OCIO
-	using namespace OCIO_NAMESPACE;
-
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
+	const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, WorkingColorSpaceTransformType);
+	if (TransformProcessor.IsValid())
 	{
-		ConstProcessorRcPtr Processor = GetTransformProcessor(this);
-		if (Processor && ConfigurationOwner)
-		{
-			TUniquePtr<PackedImageDesc> ImageDesc = GetImageDesc(InOutImage);
-			if (ImageDesc)
-			{
-				ConstConfigRcPtr InterchangeConfig = IOpenColorIOModule::Get().GetNativeInterchangeConfig_Internal()->Get();
-				ConstConfigRcPtr Config = ConfigurationOwner->GetNativeConfig_Internal()->Get();
-				BitDepth BitDepth = ImageDesc->getBitDepth();
+		const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
 
-				// Conditionally apply a conversion from the working color space to interchange space
-				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Source)
-				{
-					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
-						InterchangeConfig,
-						StringCast<ANSICHAR>(UOpenColorIOConfiguration::WorkingColorSpaceName).Get(),
-						Config,
-						Config->getCanonicalName(OpenColorIOInterchangeName));
-
-					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
-					InterchangeCPUProcessor->apply(*ImageDesc);
-				}
-
-				// Apply the main color transformation
-				ConstCPUProcessorRcPtr CPUProcessor = Processor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
-				CPUProcessor->apply(*ImageDesc);
-
-				// Conditionally apply a conversion from the interchange space to the working color space
-				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Destination)
-				{
-					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
-						Config,
-						Config->getCanonicalName(OpenColorIOInterchangeName),
-						InterchangeConfig,
-						StringCast<ANSICHAR>(UOpenColorIOConfiguration::WorkingColorSpaceName).Get());
-
-					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
-					InterchangeCPUProcessor->apply(*ImageDesc);
-				}
-				
-				return true;
-			}
-		}
+		return CPUProcessor.TransformImage(InOutImage);
 	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& exception)
-	{
-		UE_LOG(LogOpenColorIO, Log, TEXT("Failed to transform image. Error message: %s"), StringCast<TCHAR>(exception.what()).Get());
-	}
-#endif
-#endif // WITH_OCIO
 
 	return false;
 }
 
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& SrcImage, const FImageView& DestImage) const
 {
-#if WITH_OCIO
-	using namespace OCIO_NAMESPACE;
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
+	const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, WorkingColorSpaceTransformType);
+	if (TransformProcessor.IsValid())
 	{
-		ConstProcessorRcPtr Processor = GetTransformProcessor(this);
-		if (Processor && ConfigurationOwner)
-		{
-			TUniquePtr<PackedImageDesc> SrcImageDesc = GetImageDesc(SrcImage);
-			TUniquePtr<PackedImageDesc> DestImageDesc = GetImageDesc(DestImage);
-			if (SrcImageDesc && DestImageDesc)
-			{
-				ConstConfigRcPtr	InterchangeConfig = IOpenColorIOModule::Get().GetNativeInterchangeConfig_Internal()->Get();
-				ConstConfigRcPtr	Config = ConfigurationOwner->GetNativeConfig_Internal()->Get();
+		const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
 
-				BitDepth SrcBitDepth = SrcImageDesc->getBitDepth();
-				BitDepth DestBitDepth = DestImageDesc->getBitDepth();
-
-				// Conditionally apply a conversion from the working color space to interchange space
-				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Source)
-				{
-					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
-						InterchangeConfig,
-						StringCast<ANSICHAR>(UOpenColorIOConfiguration::WorkingColorSpaceName).Get(),
-						Config,
-						Config->getCanonicalName(OpenColorIOInterchangeName));
-
-					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(SrcBitDepth, SrcBitDepth, OPTIMIZATION_DEFAULT);
-					InterchangeCPUProcessor->apply(*SrcImageDesc);
-				}
-
-
-				// Apply the main color transformation
-				ConstCPUProcessorRcPtr CPUProcessor = Processor->getOptimizedCPUProcessor(SrcBitDepth, DestBitDepth, OPTIMIZATION_DEFAULT);
-				CPUProcessor->apply(*SrcImageDesc, *DestImageDesc);
-
-				// Conditionally apply a conversion from the interchange space to the working color space
-				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Destination)
-				{
-					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
-						Config,
-						Config->getCanonicalName(OpenColorIOInterchangeName),
-						InterchangeConfig,
-						StringCast<ANSICHAR>(UOpenColorIOConfiguration::WorkingColorSpaceName).Get());
-
-					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(DestBitDepth, DestBitDepth, OPTIMIZATION_DEFAULT);
-					InterchangeCPUProcessor->apply(*DestImageDesc);
-				}
-
-				return true;
-			}
-		}
+		return CPUProcessor.TransformImage(SrcImage, DestImage);
 	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& exception)
-	{
-		UE_LOG(LogOpenColorIO, Log, TEXT("Failed to transform image. Error message: %s"), StringCast<TCHAR>(exception.what()).Get());
-	}
-#endif
-#endif // WITH_OCIO
 
 	return false;
 }
@@ -747,7 +521,7 @@ void UOpenColorIOColorTransform::AllColorTransformsCacheResourceShadersForRender
 
 bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDestinationColorSpace)
 {
-#if WITH_OCIO
+#if WITH_EDITOR
 	if (InSourceColorSpace.IsEmpty() || InDestinationColorSpace.IsEmpty())
 	{
 		return false;
@@ -767,7 +541,7 @@ bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSou
 
 bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection)
 {
-#if WITH_OCIO
+#if WITH_EDITOR
 	if (InSourceColorSpace.IsEmpty() || InDisplay.IsEmpty() || InView.IsEmpty())
 	{
 		return false;
@@ -812,77 +586,28 @@ FString UOpenColorIOColorTransform::GetTransformFriendlyName()
 bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FString& OutShaderCode, FString& OutRawConfigHash)
 {
 #if WITH_EDITOR
-#if WITH_OCIO
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
+	const FOpenColorIOProcessorWrapper Processor = GetTransformProcessor(this, WorkingColorSpaceTransformType);
+	const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(Processor);
+
+	if (GPUProcessor.IsValid())
 	{
-		OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = GetTransformProcessor(this);
-		if (TransformProcessor)
-		{
-			OCIO_NAMESPACE::GpuShaderDescRcPtr ShaderDescription = OCIO_NAMESPACE::GpuShaderDesc::CreateShaderDesc();
-			ShaderDescription->setLanguage(OCIO_NAMESPACE::GPU_LANGUAGE_HLSL_DX11);
-			ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOShader::OpenColorIOShaderFunctionName).Get());
-			ShaderDescription->setResourcePrefix("Ocio");
+		OutRawConfigHash = ConfigurationOwner->GetConfigWrapper()->GetCacheID();
 
-			OCIO_NAMESPACE::ConstGPUProcessorRcPtr GPUProcessor = nullptr;
-			const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
-			check(Settings);
-
-			if (Settings->bUseLegacyProcessor)
-			{
-				unsigned int EdgeLength = static_cast<unsigned int>(OpenColorIOShader::Lut3dEdgeLength);
-				GPUProcessor = TransformProcessor->getOptimizedLegacyGPUProcessor(GetProcessorOptimization(), EdgeLength);
-			}
-			else
-			{
-				GPUProcessor = TransformProcessor->getOptimizedGPUProcessor(GetProcessorOptimization());
-			}
-			GPUProcessor->extractGpuShaderInfo(ShaderDescription);
-
-			ensureMsgf(ShaderDescription->getNumDynamicProperties() == 0, TEXT("We do not currently support dynamic properties."));
-
-			FString GLSLShaderCode = StringCast<TCHAR>(ShaderDescription->getShaderText()).Get();
-
-			OutShaderCodeHash = StringCast<TCHAR>(ShaderDescription->getCacheID()).Get();
-			OutShaderCode = StringCast<TCHAR>(ShaderDescription->getShaderText()).Get();
-			OCIO_NAMESPACE::ConstConfigRcPtr CurrentConfig = ConfigurationOwner->GetNativeConfig_Internal()->Get();
-			OutRawConfigHash = StringCast<TCHAR>(CurrentConfig->getCacheID()).Get();
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogOpenColorIO, Error, TEXT("Failed to fetch shader info for color transform %s. Configuration file [%s] was invalid."), *GetTransformFriendlyName(), *ConfigurationOwner->ConfigurationFile.FilePath);
-		}
+		return GPUProcessor.GetShader(OutShaderCode, OutShaderCodeHash);
 	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& exception)
-	{
-		UE_LOG(LogOpenColorIO, Error, TEXT("Failed to fetch shader info for color transform %s. Error message: %s"), *GetTransformFriendlyName(), StringCast<TCHAR>(exception.what()).Get());
-	}
-#endif
-
+	
+	UE_LOG(LogOpenColorIO, Error, TEXT("Failed to fetch shader info for color transform %s. Configuration file [%s] was invalid."), *GetTransformFriendlyName(), *ConfigurationOwner->ConfigurationFile.FilePath);
 	return false;
-#else
-	//Avoid triggering errors when building maps on build machine.
-#if PLATFORM_WINDOWS
-	if (!GIsBuildMachine)
-	{
-		UE_LOG(LogOpenColorIO, Error, TEXT("Can't update shader, OCIO library isn't present."));
-	}
-#endif //PLATFORM_WINDOWS
-	return false;
-#endif //WITH_OCIO
 #else
 	return true; //When not in editor, shaders have been cooked so we're not relying on the library data anymore.
-#endif
+#endif //WITH_EDITOR
 }
 
 TObjectPtr<UTexture> UOpenColorIOColorTransform::CreateTexture3DLUT(const FString& InProcessorIdentifier, const FName& InName, uint32 InLutLength, TextureFilter InFilter, const float* InSourceData)
 {
 	TObjectPtr<UVolumeTexture> OutTexture = nullptr;
 
-#if WITH_OCIO
+#if WITH_EDITOR
 	check(InSourceData);
 	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
 
@@ -945,7 +670,7 @@ TObjectPtr<UTexture> UOpenColorIOColorTransform::CreateTexture1DLUT(const FStrin
 {
 	TObjectPtr<UTexture2D> OutTexture = nullptr;
 
-#if WITH_OCIO
+#if WITH_EDITOR
 	check(InSourceData);
 	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
 

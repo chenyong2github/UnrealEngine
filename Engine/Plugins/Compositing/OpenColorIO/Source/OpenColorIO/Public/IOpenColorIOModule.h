@@ -45,8 +45,6 @@ public:
 	 */
 	virtual FOpenColorIODisplayManager& GetDisplayManager() = 0;
 
-	/**
-	 * Internal only: Returns a minimal dynamically-created native config for conversions between interchange and working color spaces.
-	 */
-	virtual FOpenColorIONativeInterchangeConfiguration* GetNativeInterchangeConfig_Internal() = 0;
+	UE_DEPRECATED(5.3, "This function is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
+	FOpenColorIONativeInterchangeConfiguration* GetNativeInterchangeConfig_Internal() { return nullptr; };
 };

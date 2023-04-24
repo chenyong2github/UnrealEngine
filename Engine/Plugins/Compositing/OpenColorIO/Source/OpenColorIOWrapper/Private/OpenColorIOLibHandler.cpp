@@ -3,10 +3,9 @@
 #include "OpenColorIOLibHandler.h"
 
 #include "HAL/PlatformProcess.h"
-#include "Interfaces/IPluginManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Paths.h"
-#include "OpenColorIOModule.h"
+#include "OpenColorIOWrapperModule.h"
 
 
  //~ Static initialization
@@ -21,7 +20,6 @@ bool FOpenColorIOLibHandler::Initialize()
 #if WITH_OCIO && defined(OCIO_DLL_NAME)
 	check(LibHandle == nullptr);
 
-	const FString PluginDir = IPluginManager::Get().FindPlugin(TEXT("OpenColorIO"))->GetBaseDir();
 	const FString OCIOBinPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/OpenColorIO"), FPlatformProcess::GetBinariesSubdirectory());
 	const FString DLLPath = FPaths::Combine(OCIOBinPath, TEXT(PREPROCESSOR_TO_STRING(OCIO_DLL_NAME)));
 
@@ -29,7 +27,7 @@ bool FOpenColorIOLibHandler::Initialize()
 
 	if (!FPaths::FileExists(DLLPath))
 	{
-		UE_LOG(LogOpenColorIO, Error, TEXT("Failed to find the OpenColorIO dll. Plug-in will not be functional."));
+		UE_LOG(LogOpenColorIOWrapper, Error, TEXT("Failed to find the OpenColorIO dll. Plug-in will not be functional."));
 		return false;
 	}
 	
@@ -38,7 +36,7 @@ bool FOpenColorIOLibHandler::Initialize()
 
 	if (LibHandle == nullptr)
 	{
-		UE_LOG(LogOpenColorIO, Error, TEXT("Failed to load required library %s. Plug-in will not be functional."), *DLLPath);
+		UE_LOG(LogOpenColorIOWrapper, Error, TEXT("Failed to load required library %s. Plug-in will not be functional."), *DLLPath);
 		return false;
 	}
 

@@ -11,7 +11,6 @@
 #include "Modules/ModuleManager.h"
 #include "OpenColorIOColorTransform.h"
 #include "OpenColorIOModule.h"
-#include "OpenColorIONativeConfiguration.h"
 #include "OpenColorIOSettings.h"
 #include "TextureResource.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -24,13 +23,12 @@
 
 
 #if WITH_EDITOR
+#include "OpenColorIOWrapper.h"
 #include "DerivedDataCacheInterface.h"
 #include "DirectoryWatcherModule.h"
 #include "IDirectoryWatcher.h"
 #include "Interfaces/ITargetPlatform.h"
-#endif //WITH_EDITOR
 
-#if WITH_OCIO
 namespace OCIODirectoryWatcher
 {
 	/** OCIO supported extensions we should be checking for when something changes in the OCIO config folder. */
@@ -50,7 +48,6 @@ namespace OCIODirectoryWatcher
 
 UOpenColorIOConfiguration::UOpenColorIOConfiguration(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, NativeConfig(MakePimpl<FOpenColorIONativeConfiguration>())
 {
 	
 }
@@ -123,20 +120,14 @@ bool UOpenColorIOConfiguration::HasDesiredDisplayView(const FOpenColorIODisplayV
 
 bool UOpenColorIOConfiguration::Validate() const
 {
-#if WITH_EDITOR 
-
-#if WITH_OCIO
-	if (!ConfigurationFile.FilePath.IsEmpty())
+#if WITH_EDITOR
+	if (!ConfigurationFile.FilePath.IsEmpty() && Config.IsValid())
 	{
 		//When loading the configuration file, if any errors are detected, it will throw an exception. Thus, our pointer won't be valid.
-		return NativeConfig->Get() != nullptr;
+		return Config->IsValid();
 	}
 
 	return false;
-#else
-	return false;
-#endif // WITH_OCIO
-
 #else
 	return true;
 #endif // WITH_EDITOR
@@ -166,7 +157,7 @@ bool UOpenColorIOConfiguration::EditorTransformImage(const FOpenColorIOColorConv
 
 void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 {
-#if WITH_OCIO
+#if WITH_EDITOR
 	TArray<FOpenColorIOColorSpace> ColorSpacesToBeReloaded = DesiredColorSpaces;
 	TArray<FOpenColorIODisplayView> DisplayViewsToBeReloaded = DesiredDisplayViews;
 	DesiredColorSpaces.Reset();
@@ -174,18 +165,16 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 	CleanupTransforms();
 	LoadConfiguration();
 
-	OCIO_NAMESPACE::ConstConfigRcPtr LoadedConfig = NativeConfig->Get();
-	if (!LoadedConfig)
+	if (Config == nullptr)
 	{
 		return;
 	}
+
 	// This will make sure that all colorspaces are up to date in case an index, family or name is changed.
 	for (const FOpenColorIOColorSpace& ExistingColorSpace : ColorSpacesToBeReloaded)
 	{
-		const auto ColorSpaceName = StringCast<ANSICHAR>(*ExistingColorSpace.ColorSpaceName);
-		int ColorSpaceIndex = LoadedConfig->getIndexForColorSpace(ColorSpaceName.Get());
-		OCIO_NAMESPACE::ConstColorSpaceRcPtr LibColorSpace = LoadedConfig->getColorSpace(ColorSpaceName.Get());
-		if (!LibColorSpace)
+		int ColorSpaceIndex = Config->GetColorSpaceIndex(*ExistingColorSpace.ColorSpaceName);
+		if (ColorSpaceIndex < 0)
 		{
 			// Name not found, therefore we don't need to re-add this colorspace.
 			continue;
@@ -194,16 +183,14 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 		FOpenColorIOColorSpace ColorSpace;
 		ColorSpace.ColorSpaceIndex = ColorSpaceIndex;
 		ColorSpace.ColorSpaceName = ExistingColorSpace.ColorSpaceName;
-		ColorSpace.FamilyName = StringCast<TCHAR>(LibColorSpace->getFamily()).Get();
+		ColorSpace.FamilyName = Config->GetColorSpaceFamilyName(*ExistingColorSpace.ColorSpaceName);
 		DesiredColorSpaces.Add(ColorSpace);
 	}
 
 	for (const FOpenColorIODisplayView& ExistingDisplayView : DisplayViewsToBeReloaded)
 	{
-		const auto DisplayName = StringCast<ANSICHAR>(*ExistingDisplayView.Display);
-		const auto ViewName = StringCast<ANSICHAR>(*ExistingDisplayView.View);
-		const auto TransformName = LoadedConfig->getDisplayViewTransformName(DisplayName.Get(), ViewName.Get());
-		if (TransformName == nullptr)
+		const FString TransformName = Config->GetDisplayViewTransformName(*ExistingDisplayView.Display, *ExistingDisplayView.View);
+		if (TransformName.IsEmpty())
 		{
 			// Name not found, therefore we don't need to re-add this display-view.
 			continue;
@@ -242,7 +229,7 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 
 void UOpenColorIOConfiguration::ConfigPathChangedEvent(const TArray<FFileChangeData>& InFileChanges, const FString InFileMountPath)
 {
-#if WITH_OCIO
+#if WITH_EDITOR
 	// We want to stop reacting to these events while the message is still up.
 	if (WatchedDirectoryInfo.RawConfigChangedToast.IsValid())
 	{
@@ -289,14 +276,18 @@ void UOpenColorIOConfiguration::ConfigPathChangedEvent(const TArray<FFileChangeD
 #endif
 }
 
-FOpenColorIONativeConfiguration* UOpenColorIOConfiguration::GetNativeConfig_Internal() const
+FOpenColorIOConfigWrapper* UOpenColorIOConfiguration::GetConfigWrapper() const
 {
-	return NativeConfig.Get();
+#if WITH_EDITOR
+	return Config.Get();
+#else
+	return nullptr;
+#endif
 }
 
 void UOpenColorIOConfiguration::StartDirectoryWatch(const FString& FilePath)
 {
-#if WITH_OCIO
+#if WITH_EDITOR
 	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(OCIODirectoryWatcher::NAME_DirectoryWatcher);
 	if (IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get())
 	{
@@ -319,7 +310,7 @@ void UOpenColorIOConfiguration::StartDirectoryWatch(const FString& FilePath)
 
 void UOpenColorIOConfiguration::StopDirectoryWatch()
 {
-#if WITH_OCIO
+#if WITH_EDITOR
 	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(OCIODirectoryWatcher::NAME_DirectoryWatcher);
 	if (IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get())
 	{
@@ -595,59 +586,47 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 void UOpenColorIOConfiguration::LoadConfiguration()
 {
-#if WITH_OCIO
-	NativeConfig->Set(nullptr);
+#if WITH_EDITOR
+	Config.Reset();
 
-	if (!ConfigurationFile.FilePath.IsEmpty())
+	if (ConfigurationFile.FilePath.IsEmpty())
 	{
-#if !PLATFORM_EXCEPTIONS_DISABLED
-		try
-#endif
-		{
-			FString ConfigurationFilePath = ConfigurationFile.FilePath;
-			if (ConfigurationFilePath.StartsWith(TEXT("ocio://")))
-			{
-				NativeConfig->Set(OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*ConfigurationFilePath).Get()));
-				UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded built-in OCIO configuration file %s"), *ConfigurationFilePath);
-			}
-			else
-			{
-				FString FullPath;
-				if (ConfigurationFilePath.Contains(TEXT("{Engine}")))
-				{
-					ConfigurationFilePath = FPaths::ConvertRelativePathToFull(ConfigurationFilePath.Replace(TEXT("{Engine}"), *FPaths::EngineDir()));
-				}
+		return;
+	}
 
-				if (!FPaths::IsRelative(ConfigurationFilePath))
-				{
-					FullPath = ConfigurationFilePath;
-				}
-				else
-				{
-					const FString AbsoluteGameDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-					FullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(AbsoluteGameDir, ConfigurationFilePath));
-				}
+	bool bIsBuiltIn = false;
+	FString FilePath = ConfigurationFile.FilePath;
 
-				OCIO_NAMESPACE::ConstConfigRcPtr NewConfig = OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*FullPath).Get());
-				if (NewConfig)
-				{
-					UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded OCIO configuration file %s"), *FullPath);
-					NativeConfig->Set(NewConfig);
-					
-					StartDirectoryWatch(FullPath);
-				}
-				else
-				{
-					UE_LOG(LogOpenColorIO, Error, TEXT("Could not load OCIO configuration file %s. Verify that the path is good or that the file is valid."), *ConfigurationFile.FilePath);
-				}
-			}
-		}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-		catch (OCIO_NAMESPACE::Exception& exception)
+	if (ConfigurationFile.FilePath.StartsWith(TEXT("ocio://")))
+	{
+		bIsBuiltIn = true;
+	}
+	else if(ConfigurationFile.FilePath.Contains(TEXT("{Engine}")))
+	{
+		FilePath = FPaths::ConvertRelativePathToFull(ConfigurationFile.FilePath.Replace(TEXT("{Engine}"), *FPaths::EngineDir()));
+	}
+	else if (FPaths::IsRelative(ConfigurationFile.FilePath))
+	{
+		const FString AbsoluteGameDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+		FilePath = FPaths::ConvertRelativePathToFull(FPaths::Combine(AbsoluteGameDir, ConfigurationFile.FilePath));
+	}
+
+	FOpenColorIOConfigWrapper::FInitializationOptions Options;
+	Options.bAddWorkingColorSpace = true;
+	Config = MakePimpl<FOpenColorIOConfigWrapper>(FilePath, Options);
+
+	if (Config->IsValid())
+	{
+		if (!bIsBuiltIn)
 		{
-			UE_LOG(LogOpenColorIO, Error, TEXT("Could not create OCIO configuration file for %s. Error message: %s."), *ConfigurationFile.FilePath, StringCast<TCHAR>(exception.what()).Get());
+			StartDirectoryWatch(FilePath);
 		}
-#endif
+
+		UE_LOG(LogOpenColorIO, Verbose, TEXT("Loaded OCIO configuration file %s"), *FilePath);
+	}
+	else
+	{
+		UE_LOG(LogOpenColorIO, Error, TEXT("Could not load OCIO configuration file %s. Verify that the path is good or that the file is valid."), *FilePath);
 	}
 #endif
 }
@@ -669,103 +648,45 @@ void UOpenColorIOConfiguration::OnToastCallback(bool bInReloadColorspaces)
 
 #if WITH_EDITOR
 FOpenColorIOEditorConfigurationInspector::FOpenColorIOEditorConfigurationInspector(const UOpenColorIOConfiguration& InConfiguration)
-	: NativeConfig(*InConfiguration.GetNativeConfig_Internal()) // Private implementation pointer is always present and can be safely dereferenced
+	: Configuration(InConfiguration)
 {
 }
 
 int32 FOpenColorIOEditorConfigurationInspector::GetNumColorSpaces() const
 {
-#if WITH_OCIO
-	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
-	{
-		return Config->getNumColorSpaces(OCIO_NAMESPACE::SEARCH_REFERENCE_SPACE_ALL, OCIO_NAMESPACE::COLORSPACE_ACTIVE);
-	}
-#endif
-
-	return 0;
+	return Configuration.GetConfigWrapper()->GetNumColorSpaces();
 }
 
 FString FOpenColorIOEditorConfigurationInspector::GetColorSpaceName(int32 Index) const
 {
-#if WITH_OCIO
-	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
-	{
-		const char* ColorSpaceName = Config->getColorSpaceNameByIndex(OCIO_NAMESPACE::SEARCH_REFERENCE_SPACE_ALL, OCIO_NAMESPACE::COLORSPACE_ACTIVE, Index);
-
-		return StringCast<TCHAR>(ColorSpaceName).Get();
-	}
-#endif
-
-	return {};
+	return Configuration.GetConfigWrapper()->GetColorSpaceName(Index);
 }
 
 FString FOpenColorIOEditorConfigurationInspector::GetColorSpaceFamilyName(const TCHAR* InColorSpaceName) const
 {
-#if WITH_OCIO
-	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
-	{
-		OCIO_NAMESPACE::ConstColorSpaceRcPtr ColorSpace = Config->getColorSpace(StringCast<ANSICHAR>(InColorSpaceName).Get());
-		if (ColorSpace != nullptr)
-		{
-			return StringCast<TCHAR>(ColorSpace->getFamily()).Get();
-		}
-	}
-#endif
-
-	return {};
+	return Configuration.GetConfigWrapper()->GetColorSpaceFamilyName(InColorSpaceName);
 }
 
 int32 FOpenColorIOEditorConfigurationInspector::GetNumDisplays() const
 {
-#if WITH_OCIO
-	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
-	{
-		return Config->getNumDisplays();
-	}
-#endif
-
-	return 0;
+	return Configuration.GetConfigWrapper()->GetNumDisplays();
 }
 
 FString FOpenColorIOEditorConfigurationInspector::GetDisplayName(int32 Index) const
 {
-#if WITH_OCIO
-	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
-	{
-		const char* DisplayName = Config->getDisplay(Index);
-
-		return StringCast<TCHAR>(DisplayName).Get();
-	}
-#endif
-	
-	return {};
+	return Configuration.GetConfigWrapper()->GetDisplayName(Index);
 }
 
 int32 FOpenColorIOEditorConfigurationInspector::GetNumViews(const TCHAR* InDisplayName) const
 {
-#if WITH_OCIO
-	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
-	{
-		return Config->getNumViews(StringCast<ANSICHAR>(InDisplayName).Get());
-	}
-#endif
-
-	return 0;
+	return Configuration.GetConfigWrapper()->GetNumViews(InDisplayName);
 }
 
 FString FOpenColorIOEditorConfigurationInspector::GetViewName(const TCHAR* InDisplayName, int32 Index) const
 {
-#if WITH_OCIO
-	if (OCIO_NAMESPACE::ConstConfigRcPtr Config = NativeConfig.Get())
-	{
-		const char* ViewName = Config->getView(StringCast<ANSICHAR>(InDisplayName).Get(), Index);
-
-		return StringCast<TCHAR>(ViewName).Get();
-	}
-#endif
-	
-	return {};
+	return Configuration.GetConfigWrapper()->GetViewName(InDisplayName, Index);
 }
 #endif //WITH_EDITOR
+
 
 #undef LOCTEXT_NAMESPACE

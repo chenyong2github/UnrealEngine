@@ -14,7 +14,7 @@
 #include "OpenColorIOConfiguration.generated.h"
 
 
-class FOpenColorIONativeConfiguration;
+class FOpenColorIOConfigWrapper;
 class FOpenColorIOTransformResource;
 class FTextureResource;
 class UOpenColorIOColorTransform;
@@ -36,8 +36,6 @@ public:
 	UOpenColorIOConfiguration(const FObjectInitializer& ObjectInitializer);
 
 public:
-
-	static constexpr TCHAR WorkingColorSpaceName[] = TEXT("Working Color Space");
 
 	bool IsTransformReady(const FOpenColorIOColorConversionSettings& InSettings);
 	bool GetRenderResources(ERHIFeatureLevel::Type InFeatureLevel, const FOpenColorIOColorConversionSettings& InSettings, FOpenColorIOTransformResource*& OutShaderResource, TSortedMap<int32, FTextureResource*>& OutTextureResources);
@@ -65,8 +63,9 @@ public:
 	*/
 	void ConfigPathChangedEvent(const TArray<FFileChangeData>& InFileChanges, const FString InFileMountPath);
 
-	/** Internal only: Replacement for previous `GetLoadedConfiguration()` and `GetLoadedConfigurationFile()` functions, returning the private implementation of the native OCIO config. */
-	FOpenColorIONativeConfiguration* GetNativeConfig_Internal() const;
+	/** Internal only: Replacement for previous `GetNativeConfig_Internal()`, `GetLoadedConfiguration()` and `GetLoadedConfigurationFile()` functions, returning the private implementation of the native OCIO config. */
+	FOpenColorIOConfigWrapper* GetConfigWrapper() const;
+
 protected:
 
 	const TObjectPtr<UOpenColorIOColorTransform>* FindTransform(const FOpenColorIOColorConversionSettings& InSettings) const;
@@ -136,39 +135,43 @@ private:
 	/** Information about the currently watched directory. Helps us manage the directory change events. */
 	FOCIOConfigWatchedDirInfo WatchedDirectoryInfo;
 
-	/** Private implementation of the native OpenColorIO config object. */
-	TPimplPtr<FOpenColorIONativeConfiguration> NativeConfig;
+#if WITH_EDITORONLY_DATA
+	/** Private implementation of the OpenColorIO config object. */
+	TPimplPtr<FOpenColorIOConfigWrapper> Config = nullptr;
+#endif
 };
 
 
 #if WITH_EDITOR
-/**
- * Editor-only class to access native configuration names of color spaces, displays and views for menus.
- */
 class FOpenColorIOEditorConfigurationInspector {
 public:
 
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FOpenColorIOEditorConfigurationInspector(const UOpenColorIOConfiguration& InConfiguration);
 
-	/** Get the number of color spaces in the configuration. */
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API int32 GetNumColorSpaces() const;
-	/** Get a color space name at an index. */
+	
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FString GetColorSpaceName(int32 Index) const;
-	/** Get the family name for a color space. */
+	
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FString GetColorSpaceFamilyName(const TCHAR* InColorSpaceName) const;
 
-	/** Get the number of displays in the configuration. */
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API int32 GetNumDisplays() const;
-	/** Get a display name at an index. */
+	
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FString GetDisplayName(int32 Index) const;
 
-	/** Get the number of views for a display. */
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API int32 GetNumViews(const TCHAR* InDisplayName) const;
-	/** Get a view name for its display and index. */
+	
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FString GetViewName(const TCHAR* InDisplayName, int32 Index) const;
 
 private:
-	/** Reference to the native OCIO config. */
-	const FOpenColorIONativeConfiguration& NativeConfig;
+
+	const UOpenColorIOConfiguration& Configuration;
 };
 #endif //WITH_EDITOR

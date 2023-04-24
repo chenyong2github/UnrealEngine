@@ -64,8 +64,11 @@ END_SHADER_PARAMETER_STRUCT()
 
 namespace OpenColorIOShader
 {
-	static constexpr TCHAR OpenColorIOShaderFunctionName[] = TEXT("OCIOConvert");
-	static constexpr uint32 Lut3dEdgeLength = 65;
+/** Fields moved to OpenColorIOWrapper.h
+ *
+ *	static constexpr TCHAR OpenColorIOShaderFunctionName[] = TEXT("OCIOConvert");
+ *	static constexpr uint32 Lut3dEdgeLength = 65;
+*/
 
 	// Combined maximum of either Ocio_lut1d or Ocio_lut3d, since the generated shaders will never use the same slots for both types.
 	static constexpr uint32 MaximumTextureSlots = 8;

@@ -7,7 +7,7 @@
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
 #include "OpenColorIOConfiguration.h"
-#include "OpenColorIO/OpenColorIO.h"
+#include "OpenColorIOWrapper.h"
 #include "Widgets/Input/SComboButton.h"
 
 #define LOCTEXT_NAMESPACE "OpenColorIOColorSpaceCustomization"
@@ -15,8 +15,6 @@
 void FOpenColorIOColorSpaceCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	//Reset internals
-	ConfigInspector.Reset(nullptr);
-
 	CachedProperty = InPropertyHandle;
 
 	if (CachedProperty->GetNumPerObjectValues() == 1 && CachedProperty->IsValidHandle())
@@ -65,8 +63,6 @@ void FOpenColorIOColorSpaceCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 void FOpenColorIODisplayViewCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	//Reset internals
-	ConfigInspector.Reset(nullptr);
-
 	CachedProperty = InPropertyHandle;
 
 	if (CachedProperty->GetNumPerObjectValues() == 1 && CachedProperty->IsValidHandle())
@@ -117,7 +113,7 @@ IPropertyTypeCustomizationOpenColorIO::IPropertyTypeCustomizationOpenColorIO(TSh
 {
 }
 
-TUniquePtr<FOpenColorIOEditorConfigurationInspector> IPropertyTypeCustomizationOpenColorIO::GetConfigurationInspector(const TSharedPtr<IPropertyHandle>& InConfigurationAssetProperty)
+FOpenColorIOConfigWrapper* IPropertyTypeCustomizationOpenColorIO::GetConfigWrapper(const TSharedPtr<IPropertyHandle>& InConfigurationAssetProperty)
 {
 	if (InConfigurationAssetProperty.IsValid())
 	{
@@ -128,7 +124,7 @@ TUniquePtr<FOpenColorIOEditorConfigurationInspector> IPropertyTypeCustomizationO
 		UOpenColorIOConfiguration* Configuration = reinterpret_cast<UOpenColorIOConfiguration*>(RawData[0]);
 		check(Configuration);
 		
-		return MakeUnique<FOpenColorIOEditorConfigurationInspector>(*Configuration);
+		return Configuration->GetConfigWrapper();
 	}
 
 	return nullptr;
@@ -169,19 +165,25 @@ void FOpenColorIOColorSpaceCustomization::PopulateSubMenu(FMenuBuilder& InMenuBu
 	// To keep track of submenus that were already added
 	TArray<FString> ExistingSubMenus;
 
-	for (int32 i = 0; i < ConfigInspector->GetNumColorSpaces(); ++i)
+	const FOpenColorIOConfigWrapper* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
+
+	if (ConfigWrapper)
 	{
-		FOpenColorIOColorSpace ColorSpace;
-		ColorSpace.ColorSpaceIndex = i;
-		ColorSpace.ColorSpaceName = ConfigInspector->GetColorSpaceName(i);
-		ColorSpace.FamilyName = ConfigInspector->GetColorSpaceFamilyName(*ColorSpace.ColorSpaceName);
-		
-		//Filter out color spaces that don't belong to this hierarchy
-		if (InPreviousFamilyHierarchy.IsEmpty() || ColorSpace.FamilyName.Contains(InPreviousFamilyHierarchy))
+		for (int32 i = 0; i < ConfigWrapper->GetNumColorSpaces(); ++i)
 		{
-			ProcessColorSpaceForMenuGeneration(InMenuBuilder, InMenuDepth, InPreviousFamilyHierarchy, ColorSpace, ExistingSubMenus);
+			FOpenColorIOColorSpace ColorSpace;
+			ColorSpace.ColorSpaceIndex = i;
+			ColorSpace.ColorSpaceName = ConfigWrapper->GetColorSpaceName(i);
+			ColorSpace.FamilyName = ConfigWrapper->GetColorSpaceFamilyName(*ColorSpace.ColorSpaceName);
+
+			//Filter out color spaces that don't belong to this hierarchy
+			if (InPreviousFamilyHierarchy.IsEmpty() || ColorSpace.FamilyName.Contains(InPreviousFamilyHierarchy))
+			{
+				ProcessColorSpaceForMenuGeneration(InMenuBuilder, InMenuDepth, InPreviousFamilyHierarchy, ColorSpace, ExistingSubMenus);
+			}
 		}
 	}
+
 }
 
 void FOpenColorIOColorSpaceCustomization::AddMenuEntry(FMenuBuilder& InMenuBuilder, const FOpenColorIOColorSpace& InColorSpace)
@@ -221,7 +223,7 @@ void FOpenColorIOColorSpaceCustomization::AddMenuEntry(FMenuBuilder& InMenuBuild
 
 TSharedRef<SWidget> FOpenColorIOColorSpaceCustomization::HandleSourceComboButtonMenuContent()
 {
-	ConfigInspector = GetConfigurationInspector(ConfigurationObjectProperty);
+	const FOpenColorIOConfigWrapper* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
 
 	// Generate menu
 	FMenuBuilder MenuBuilder(true, nullptr);
@@ -229,16 +231,16 @@ TSharedRef<SWidget> FOpenColorIOColorSpaceCustomization::HandleSourceComboButton
 
 	MenuBuilder.BeginSection("AllColorSpaces", LOCTEXT("AllColorSpacesSection", "ColorSpaces"));
 	{
-		if (ConfigInspector)
+		if (ConfigWrapper)
 		{
-			const int32 ColorSpaceCount = ConfigInspector->GetNumColorSpaces();
+			const int32 ColorSpaceCount = ConfigWrapper->GetNumColorSpaces();
 
 			for (int32 i = 0; i < ColorSpaceCount; ++i)
 			{
 				FOpenColorIOColorSpace ColorSpace;
 				ColorSpace.ColorSpaceIndex = i;
-				ColorSpace.ColorSpaceName = ConfigInspector->GetColorSpaceName(i);
-				ColorSpace.FamilyName = ConfigInspector->GetColorSpaceFamilyName(*ColorSpace.ColorSpaceName);
+				ColorSpace.ColorSpaceName = ConfigWrapper->GetColorSpaceName(i);
+				ColorSpace.FamilyName = ConfigWrapper->GetColorSpaceFamilyName(*ColorSpace.ColorSpaceName);
 
 				//Top level menus have no preceding hierarchy.
 				const int32 CurrentMenuDepth = 0;
@@ -263,11 +265,16 @@ TSharedRef<SWidget> FOpenColorIOColorSpaceCustomization::HandleSourceComboButton
 
 void FOpenColorIODisplayViewCustomization::PopulateViewSubMenu(FMenuBuilder& InMenuBuilder, FOpenColorIODisplayView InDisplayView)
 {
-	for (int32 i = 0; i < ConfigInspector->GetNumViews(*InDisplayView.Display); ++i)
+	const FOpenColorIOConfigWrapper* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
+
+	if (ConfigWrapper)
 	{
-		InDisplayView.View = ConfigInspector->GetViewName(*InDisplayView.Display, i);
-		
-		AddMenuEntry(InMenuBuilder, InDisplayView);
+		for (int32 i = 0; i < ConfigWrapper->GetNumViews(*InDisplayView.Display); ++i)
+		{
+			InDisplayView.View = ConfigWrapper->GetViewName(*InDisplayView.Display, i);
+
+			AddMenuEntry(InMenuBuilder, InDisplayView);
+		}
 	}
 }
 
@@ -308,7 +315,7 @@ void FOpenColorIODisplayViewCustomization::AddMenuEntry(FMenuBuilder& InMenuBuil
 
 TSharedRef<SWidget> FOpenColorIODisplayViewCustomization::HandleSourceComboButtonMenuContent()
 {
-	ConfigInspector = GetConfigurationInspector(ConfigurationObjectProperty);
+	const FOpenColorIOConfigWrapper* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
 
 	// Generate menu
 	FMenuBuilder MenuBuilder(true, nullptr);
@@ -316,13 +323,13 @@ TSharedRef<SWidget> FOpenColorIODisplayViewCustomization::HandleSourceComboButto
 
 	MenuBuilder.BeginSection("AllDisplayViews", LOCTEXT("AllDisplayViewsSection", "Display - View"));
 	{
-		if (ConfigInspector)
+		if (ConfigWrapper)
 		{
-			const int32 DisplayCount = ConfigInspector->GetNumDisplays();
+			const int32 DisplayCount = ConfigWrapper->GetNumDisplays();
 
 			for (int32 i = 0; i < DisplayCount; ++i)
 			{
-				const FOpenColorIODisplayView DisplayViewValue = { ConfigInspector->GetDisplayName(i), TEXT("<Invalid>")};
+				const FOpenColorIODisplayView DisplayViewValue = { ConfigWrapper->GetDisplayName(i), TEXT("<Invalid>")};
 
 				MenuBuilder.AddSubMenu(
 					FText::FromString(DisplayViewValue.Display),

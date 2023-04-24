@@ -51,15 +51,12 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.AddRange(
 					new string[]
 					{
-						"OpenColorIOLib",
 						"TargetPlatform",
 						"EditorFramework",
-						"UnrealEd"
+						"UnrealEd",
 					});
-			}
-			else
-			{
-				PrivateDefinitions.Add("WITH_OCIO=0");
+
+				PublicDependencyModuleNames.Add("OpenColorIOWrapper");
 			}
 		}
 	}
