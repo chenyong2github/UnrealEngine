@@ -826,7 +826,7 @@ void URigVMHost::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstruc
 const FString URigVMHost::GetDebugExecutionString()
 {
 	TGuardValue<bool> DebugExecutionGuard(bDebugExecutionEnabled, true);
-	FRigVMExecuteContext& PublicContext = GetVM()->GetPublicData<FRigVMExecuteContext>();
+	FRigVMExecuteContext& PublicContext = GetExtendedExecuteContext().GetPublicData<FRigVMExecuteContext>();
 	PublicContext.DebugMemoryString.Reset();
 	
 	Evaluate_AnyThread();
