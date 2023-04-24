@@ -327,8 +327,8 @@ void FHairStrandsBulkData::GetResources(FHairStrandsBulkCommon::FQuery& Out)
 		PointCount = CurveCount > 0 ? Header.CurveToPointCount[CurveCount -1] : 0;
 	}
 
-	const uint32 PointAttributeSize = FMath::DivideAndRoundUp(PointCount, Header.Strides.PointAttributeChunkElementCount) * Header.Strides.PointAttributeChunkStride;
-	const uint32 CurveAttributeSize = FMath::DivideAndRoundUp(CurveCount, Header.Strides.CurveAttributeChunkElementCount) * Header.Strides.CurveAttributeChunkStride;
+	const uint32 PointAttributeSize = PointCount > 0 ? FMath::DivideAndRoundUp(PointCount, Header.Strides.PointAttributeChunkElementCount) * Header.Strides.PointAttributeChunkStride : 0;
+	const uint32 CurveAttributeSize = CurveCount > 0 ? FMath::DivideAndRoundUp(CurveCount, Header.Strides.CurveAttributeChunkElementCount) * Header.Strides.CurveAttributeChunkStride : 0;
 
 	if (!!(Header.Flags & DataFlags_HasData))
 	{
