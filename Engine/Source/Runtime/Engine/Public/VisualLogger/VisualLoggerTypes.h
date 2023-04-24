@@ -182,7 +182,6 @@ struct ENGINE_API FVisualLogEntry
 	TArray<FVisualLogDataBlock>	DataBlocks;
 
 	FVisualLogEntry() { Reset(); }
-	FVisualLogEntry(const FVisualLogEntry& Entry);
 	FVisualLogEntry(const AActor* InActor, TArray<TWeakObjectPtr<UObject> >* Children);
 	FVisualLogEntry(double InTimeStamp, FVector InLocation, const UObject* Object, TArray<TWeakObjectPtr<UObject> >* Children);
 
