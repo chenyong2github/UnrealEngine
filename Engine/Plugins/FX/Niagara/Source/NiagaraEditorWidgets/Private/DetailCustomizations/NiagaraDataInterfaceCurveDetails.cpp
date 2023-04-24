@@ -36,13 +36,13 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
-#include "NiagaraEditorStyle.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
+#include "Curves/CurveBase.h"
 #include "Curves/CurveVector.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/CurveLinearColor.h"
@@ -784,125 +784,6 @@ class SNiagaraCurveThumbnail : public SLeafWidget
 	float Height;
 };
 
-class SNiagaraCurveTemplateBar : public SCompoundWidget
-{
-	SLATE_BEGIN_ARGS(SNiagaraCurveTemplateBar) { }
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor)
-	{
-		CurveEditor = InCurveEditor;
-
-		const UNiagaraEditorSettings* Settings = GetDefault<UNiagaraEditorSettings>();
-
-		FToolBarBuilder ToolBarBuilder(CurveEditor->GetCommands(), FMultiBoxCustomization::None, nullptr, true);
-		ToolBarBuilder.SetLabelVisibility(EVisibility::Collapsed);
-
-		ToolBarBuilder.AddWidget(
-			SNew(SBox)
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(0, 0, 5, 0))
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("CurveTemplateLabel", "Templates"))
-			]);
-
-		for (const FNiagaraCurveTemplate& CurveTemplate : Settings->GetCurveTemplates())
-		{
-			UCurveFloat* FloatCurveAsset = Cast<UCurveFloat>(CurveTemplate.CurveAsset.TryLoad());
-			if(FloatCurveAsset != nullptr)
-			{
-				FText CurveDisplayName = CurveTemplate.DisplayNameOverride.IsEmpty()
-					? FText::FromString(FName::NameToDisplayString(FloatCurveAsset->GetName(), false))
-					: FText::FromString(CurveTemplate.DisplayNameOverride);
-
-				ToolBarBuilder.AddWidget(
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-					.OnClicked(this, &SNiagaraCurveTemplateBar::CurveTemplateClicked, TWeakObjectPtr<UCurveFloat>(FloatCurveAsset))
-					.ToolTipText(FText::Format(LOCTEXT("ApplyCurveTemplateFormat", "{0}\nClick to apply this template to the selected curves."), CurveDisplayName))
-					.ContentPadding(FMargin(3))
-					.Content()
-					[
-						SNew(SNiagaraCurveThumbnail, &FloatCurveAsset->FloatCurve)
-					]);
-			}
-		}
-
-		ChildSlot
-		[
-			ToolBarBuilder.MakeWidget()
-		];
-	}
-
-private:
-	FReply CurveTemplateClicked(TWeakObjectPtr<UCurveFloat> FloatCurveAssetWeak)
-	{
-		UCurveFloat* FloatCurveAsset = FloatCurveAssetWeak.Get();
-		if (FloatCurveAsset != nullptr)
-		{
-			TArray<FCurveModelID> CurveModelIdsToSet;
-			if(CurveEditor->GetRootTreeItems().Num() == 1)
-			{
-				const FCurveEditorTreeItem& TreeItem = CurveEditor->GetTreeItem(CurveEditor->GetRootTreeItems()[0]);
-				for(const FCurveModelID& CurveModelId : TreeItem.GetCurves())
-				{
-					CurveModelIdsToSet.Add(CurveModelId);
-				}
-			}
-			else
-			{
-				for (const TPair<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& TreeItemSelectionState : CurveEditor->GetTreeSelection())
-				{
-					if (TreeItemSelectionState.Value != ECurveEditorTreeSelectionState::None)
-					{
-						const FCurveEditorTreeItem& TreeItem = CurveEditor->GetTreeItem(TreeItemSelectionState.Key);
-						for (const FCurveModelID& CurveModelId : TreeItem.GetCurves())
-						{
-							CurveModelIdsToSet.Add(CurveModelId);
-						}
-					}
-				}
-			}
-
-			if (CurveModelIdsToSet.Num() > 0)
-			{
-				FScopedTransaction ApplyTemplateTransaction(LOCTEXT("ApplyCurveTemplateTransaction", "Apply curve template"));
-				for (const FCurveModelID& CurveModelId : CurveModelIdsToSet)
-				{
-					FCurveModel* CurveModel = CurveEditor->GetCurves()[CurveModelId].Get();
-					if (CurveModel != nullptr)
-					{
-						TArray<FKeyHandle> KeyHandles;
-						CurveModel->GetKeys(*CurveEditor.Get(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
-						CurveModel->RemoveKeys(KeyHandles);
-
-						const FRichCurve& FloatCurve = FloatCurveAsset->FloatCurve;
-						for (auto KeyIterator = FloatCurve.GetKeyHandleIterator(); KeyIterator; ++KeyIterator)
-						{
-							const FRichCurveKey& Key = FloatCurve.GetKey(*KeyIterator);
-							FKeyPosition KeyPosition;
-							KeyPosition.InputValue = Key.Time;
-							KeyPosition.OutputValue = Key.Value;
-							FKeyAttributes KeyAttributes;
-							KeyAttributes.SetInterpMode(Key.InterpMode);
-							KeyAttributes.SetTangentMode(Key.TangentMode);
-							KeyAttributes.SetArriveTangent(Key.ArriveTangent);
-							KeyAttributes.SetLeaveTangent(Key.LeaveTangent);
-							CurveModel->AddKey(KeyPosition, KeyAttributes);
-						}
-					}
-				}
-				CurveEditor->ZoomToFit();
-			}
-		}
-		return FReply::Handled();
-	}
-
-private:
-	TSharedPtr<FCurveEditor> CurveEditor;
-};
-
 class SNiagaraDataInterfaceCurveEditor : public SCompoundWidget
 {
 private:
@@ -994,12 +875,6 @@ public:
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(KeySelectorLeftPadding, 3, 0, 3)
-			[
-				SNew(SNiagaraCurveTemplateBar, CurveEditor.ToSharedRef())
-			]
-			+ SVerticalBox::Slot()
 			.Padding(0, 0, 0, 5)
 			[
 				CurveEditorPanel.ToSharedRef()
@@ -1036,6 +911,11 @@ public:
 	TSharedPtr<FUICommandList> GetCommands()
 	{
 		return CurveEditor->GetCommands();
+	}
+
+	TSharedPtr<FCurveEditor> GetEditor()
+	{
+		return CurveEditor;
 	}
 
 private:
@@ -1366,6 +1246,9 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 	{
 		CurveProperty->MarkHiddenByCustomization();
 	}
+	TSharedRef<IPropertyHandle> AssetProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceCurveBase, CurveAsset), UNiagaraDataInterfaceCurveBase::StaticClass());
+	IDetailPropertyRow* DefaultRow = DetailBuilder.EditDefaultProperty(AssetProperty);
+	DefaultRow->Visibility(TAttribute<EVisibility>::CreateLambda([this]() -> EVisibility { return GetUsedCurveAsset(CurveDataInterfaceWeak.Get()) ? EVisibility::Visible : EVisibility::Collapsed; }));
 
 	TSharedPtr<SNiagaraDataInterfaceCurveEditor> CurveEditor;
 	TSharedRef<SWidget> CurveDataInterfaceCurveEditor = 
@@ -1398,7 +1281,7 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 	}
 
 	FToolBarBuilder ToolBarBuilder(CurveEditor->GetCommands(), FMultiBoxCustomization::None, nullptr, true);
-	ToolBarBuilder.SetStyle(&FAppStyle::Get(), "SlimToolbar");
+	ToolBarBuilder.SetStyle(&FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveDetails.SlimToolBar");
 
 	ToolBarBuilder.AddComboButton(
 		FUIAction(), 
@@ -1439,9 +1322,50 @@ void FNiagaraDataInterfaceCurveDetailsBase::CustomizeDetails(IDetailLayoutBuilde
 			]);
 	}
 
+	// add templates to toolbar
+	ToolBarBuilder.AddSeparator();
+	const UNiagaraEditorSettings* Settings = GetDefault<UNiagaraEditorSettings>();
+	ToolBarBuilder.AddWidget(
+		SNew(SBox)
+		.VAlign(VAlign_Center)
+		.Visibility_Lambda([this]() { return GetIsColorCurve() && IsGradientVisible() ? EVisibility::Collapsed : EVisibility::Visible; })
+		.Padding(FMargin(3, 0, 5, 0))
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("CurveTemplateLabel", "Templates"))
+		]);
+	for (const FNiagaraCurveTemplate& CurveTemplate : Settings->GetCurveTemplates())
+	{
+		UCurveFloat* FloatCurveAsset = Cast<UCurveFloat>(CurveTemplate.CurveAsset.TryLoad());
+		if(FloatCurveAsset != nullptr)
+		{
+			FText CurveDisplayName = CurveTemplate.DisplayNameOverride.IsEmpty()
+				? FText::FromString(FName::NameToDisplayString(FloatCurveAsset->GetName(), false))
+				: FText::FromString(CurveTemplate.DisplayNameOverride);
+
+			TWeakObjectPtr<UCurveFloat> WeakCurveAsset(FloatCurveAsset);
+			TSharedPtr<FCurveEditor> EditorPtr = CurveEditor->GetEditor();
+			ToolBarBuilder.AddWidget(
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.OnClicked(this, &FNiagaraDataInterfaceCurveDetailsBase::CurveTemplateSelected, WeakCurveAsset, EditorPtr)
+				.ToolTipText(FText::Format(LOCTEXT("ApplyCurveTemplateFormat", "{0}\nClick to apply this template to the selected curves."), CurveDisplayName))
+				.ContentPadding(FMargin(3, 10, 3, 0))
+				.Visibility_Lambda([this]() { return GetIsColorCurve() && IsGradientVisible() ? EVisibility::Collapsed : EVisibility::Visible; })
+				.Content()
+				[
+					SNew(SNiagaraCurveThumbnail, &FloatCurveAsset->FloatCurve)
+				]);
+		}
+	}
+
 	IDetailCategoryBuilder& CurveCategory = DetailBuilder.EditCategory("Curve");
-	CurveCategory.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "CurveOptions", "Options")).WholeRowContent() [ ToolBarBuilder.MakeWidget() ];
-	CurveCategory.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "CurveFilterText", "Curve")).WholeRowContent() [ CurveDataInterfaceEditor.ToSharedRef() ];
+	CurveCategory.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "CurveOptions", "Options"))
+		.Visibility(TAttribute<EVisibility>::CreateLambda([this]() -> EVisibility { return GetUsedCurveAsset(CurveDataInterfaceWeak.Get()) ? EVisibility::Collapsed : EVisibility::Visible; }))
+		.WholeRowContent() [ ToolBarBuilder.MakeWidget() ];
+	CurveCategory.AddCustomRow(NSLOCTEXT("NiagaraDataInterfaceCurveDetails", "CurveFilterText", "Curve"))
+		.Visibility(TAttribute<EVisibility>::CreateLambda([this]() -> EVisibility { return GetUsedCurveAsset(CurveDataInterfaceWeak.Get()) ? EVisibility::Collapsed : EVisibility::Visible; }))
+		.WholeRowContent() [ CurveDataInterfaceEditor.ToSharedRef() ];
 }
 
 void FNiagaraDataInterfaceCurveDetailsBase::SetGradientVisibility(bool bInShowGradient)
@@ -1482,6 +1406,11 @@ void FNiagaraDataInterfaceCurveDetailsBase::OnShowInCurveEditor() const
 	}
 }
 
+UCurveBase* FNiagaraDataInterfaceCurveDetailsBase::GetUsedCurveAsset(UNiagaraDataInterfaceCurveBase* CurveDI) const
+{
+	return CurveDI ? CurveDI->CurveAsset.LoadSynchronous() : nullptr;
+}
+
 void FNiagaraDataInterfaceCurveDetailsBase::ImportSelectedAsset(UObject* SelectedAsset)
 {
 	if (CurveDataInterfaceWeak.IsValid() == false)
@@ -1497,6 +1426,12 @@ void FNiagaraDataInterfaceCurveDetailsBase::ImportSelectedAsset(UObject* Selecte
 	{
 		FScopedTransaction ImportTransaction(LOCTEXT("ImportCurveTransaction", "Import curve"));
 		CurveDataInterfaceWeak->Modify();
+
+		if (!bCopyAssetData)
+		{
+			CurveDataInterfaceWeak->CurveAsset = SelectedAsset;
+		}
+		
 		for (int i = 0; i < CurveProperties.Num(); i++)
 		{
 			if (CurveProperties[i]->IsValidHandle())
@@ -1525,19 +1460,116 @@ TSharedRef<SWidget> FNiagaraDataInterfaceCurveDetailsBase::GetCurveToCopyMenu()
 
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
-	return SNew(SBox)
-		.WidthOverride(300.0f)
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.Padding(5)
+		.AutoHeight()
 		[
-			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+			SNew(SCheckBox)
+			.Style(FAppStyle::Get(), "RadioButton")
+			.IsChecked_Lambda([this]() { return bCopyAssetData ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+			.ToolTipText(LOCTEXT("CopyDataCheckBoxTooltip", "Copies the curve data from the selected asset into the stack - \nfurther updates to the asset will not affect the imported curves"))
+			.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState) { bCopyAssetData = NewState == ECheckBoxState::Checked ? true : false; })
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("CopyDataCheckBoxText", "Copy curve data"))
+			]
+		]
+		+ SVerticalBox::Slot()
+		.Padding(5)
+		.AutoHeight()
+		[
+			SNew(SCheckBox)
+			.Style(FAppStyle::Get(), "RadioButton")
+			.IsChecked_Lambda([this]() { return bCopyAssetData ? ECheckBoxState::Unchecked : ECheckBoxState::Checked; })
+			.ToolTipText(LOCTEXT("RefAssetheckBoxTooltip", "References the selected data instead of just copying the data - \nwhen the curve asset is changed and the effect is recompiled or cooked it will reflect the changes from the asset."))
+			.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState) { bCopyAssetData = NewState == ECheckBoxState::Unchecked ? true : false; })
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("RefAssetCheckBoxText", "Create asset reference"))
+			]
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.MaxHeight(600)
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		[
+			SNew(SBox)
+			.WidthOverride(400.0f)
+			[
+				ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+			]
 		];
-	
-	return SNullWidget::NullWidget;
 }
 
 void FNiagaraDataInterfaceCurveDetailsBase::CurveToCopySelected(const FAssetData& AssetData)
 {
 	ImportSelectedAsset(AssetData.GetAsset());
 	FSlateApplication::Get().DismissAllMenus();
+}
+
+FReply FNiagaraDataInterfaceCurveDetailsBase::CurveTemplateSelected(TWeakObjectPtr<UCurveFloat> WeakCurveAsset, TSharedPtr<FCurveEditor> CurveEditor)
+{
+	UCurveFloat* FloatCurveAsset = WeakCurveAsset.Get();
+	if (FloatCurveAsset != nullptr)
+	{
+		TArray<FCurveModelID> CurveModelIdsToSet;
+		if(CurveEditor->GetRootTreeItems().Num() == 1)
+		{
+			const FCurveEditorTreeItem& TreeItem = CurveEditor->GetTreeItem(CurveEditor->GetRootTreeItems()[0]);
+			for(const FCurveModelID& CurveModelId : TreeItem.GetCurves())
+			{
+				CurveModelIdsToSet.Add(CurveModelId);
+			}
+		}
+		else
+		{
+			for (const TPair<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& TreeItemSelectionState : CurveEditor->GetTreeSelection())
+			{
+				if (TreeItemSelectionState.Value != ECurveEditorTreeSelectionState::None)
+				{
+					const FCurveEditorTreeItem& TreeItem = CurveEditor->GetTreeItem(TreeItemSelectionState.Key);
+					for (const FCurveModelID& CurveModelId : TreeItem.GetCurves())
+					{
+						CurveModelIdsToSet.Add(CurveModelId);
+					}
+				}
+			}
+		}
+
+		if (CurveModelIdsToSet.Num() > 0)
+		{
+			FScopedTransaction ApplyTemplateTransaction(LOCTEXT("ApplyCurveTemplateTransaction", "Apply curve template"));
+			for (const FCurveModelID& CurveModelId : CurveModelIdsToSet)
+			{
+				FCurveModel* CurveModel = CurveEditor->GetCurves()[CurveModelId].Get();
+				if (CurveModel != nullptr)
+				{
+					TArray<FKeyHandle> KeyHandles;
+					CurveModel->GetKeys(*CurveEditor.Get(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
+					CurveModel->RemoveKeys(KeyHandles);
+
+					const FRichCurve& FloatCurve = FloatCurveAsset->FloatCurve;
+					for (auto KeyIterator = FloatCurve.GetKeyHandleIterator(); KeyIterator; ++KeyIterator)
+					{
+						const FRichCurveKey& Key = FloatCurve.GetKey(*KeyIterator);
+						FKeyPosition KeyPosition;
+						KeyPosition.InputValue = Key.Time;
+						KeyPosition.OutputValue = Key.Value;
+						FKeyAttributes KeyAttributes;
+						KeyAttributes.SetInterpMode(Key.InterpMode);
+						KeyAttributes.SetTangentMode(Key.TangentMode);
+						KeyAttributes.SetArriveTangent(Key.ArriveTangent);
+						KeyAttributes.SetLeaveTangent(Key.LeaveTangent);
+						CurveModel->AddKey(KeyPosition, KeyAttributes);
+					}
+				}
+			}
+			CurveEditor->ZoomToFit();
+		}
+	}
+	return FReply::Handled();
 }
 
 // Curve

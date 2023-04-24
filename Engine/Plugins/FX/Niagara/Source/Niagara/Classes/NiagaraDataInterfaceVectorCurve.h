@@ -72,6 +72,7 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
+	virtual void SyncCurvesToAsset() override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
 

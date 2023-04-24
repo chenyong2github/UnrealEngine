@@ -244,6 +244,7 @@ bool UNiagaraDataInterfaceCurveBase::CopyToInternal(UNiagaraDataInterface* Desti
 	DestinationTyped->ShaderLUT = ShaderLUT;
 	DestinationTyped->LUTNumSamplesMinusOne = LUTNumSamplesMinusOne;
 #if WITH_EDITORONLY_DATA
+	DestinationTyped->CurveAsset = CurveAsset;
 	DestinationTyped->bOptimizeLUT = bOptimizeLUT;
 	DestinationTyped->bOverrideOptimizeThreshold = bOverrideOptimizeThreshold;
 	DestinationTyped->OptimizeThreshold = OptimizeThreshold;
@@ -289,6 +290,7 @@ void UNiagaraDataInterfaceCurveBase::SetDefaultLUT()
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceCurveBase::UpdateLUT(bool bFromSerialize)
 {
+	SyncCurvesToAsset();
 	UpdateTimeRanges();
 	if (bUseLUT)
 	{
@@ -414,6 +416,7 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 	const UNiagaraDataInterfaceCurveBase* OtherTyped = CastChecked<UNiagaraDataInterfaceCurveBase>(Other);
 	bool bEqual = OtherTyped->bUseLUT == bUseLUT;
 #if WITH_EDITORONLY_DATA
+	bEqual &= OtherTyped->CurveAsset == CurveAsset;
 	bEqual &= OtherTyped->bOptimizeLUT == bOptimizeLUT;
 	bEqual &= OtherTyped->bOverrideOptimizeThreshold == bOverrideOptimizeThreshold;
 	if (bOverrideOptimizeThreshold)
@@ -462,6 +465,13 @@ void UNiagaraDataInterfaceCurveBase::SetShaderParameters(const FNiagaraDataInter
 	Parameters->CurveLUTNumMinusOne = DIProxy.CurveLUTNumMinusOne;
 	Parameters->LUTOffset = DIProxy.LUTOffset;
 	Parameters->CurveLUT = DIProxy.CurveLUT.SRV.IsValid() ? DIProxy.CurveLUT.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
+}
+
+void UNiagaraDataInterfaceCurveBase::PostCompile()
+{
+#if WITH_EDITORONLY_DATA
+	SyncCurvesToAsset();
+#endif
 }
 
 #if WITH_EDITORONLY_DATA

@@ -11,6 +11,7 @@
 #include "Settings/EditorStyleSettings.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
+#include "Styling/ToolBarStyle.h"
 
 const FVector2D Icon6x6(6.0f, 6.0f);
 const FVector2D Icon8x8(8.0f, 8.0f);
@@ -299,10 +300,17 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 	Set("NiagaraEditor.CurveOverview.DefaultText", CurveOverviewDefaultText);
 
 	Set("NiagaraEditor.CurveDetails.TextButtonForeground", FLinearColor::White);
-
 	Set("NiagaraEditor.CurveDetails.Import.Small", new CORE_IMAGE_BRUSH("Icons/GeneralTools/Import_40x", Icon20x20));
-
 	Set("NiagaraEditor.CurveDetails.ShowInOverview.Small", new CORE_IMAGE_BRUSH("Common/GoToSource", Icon12x12, FLinearColor(.9f, .9f, .9f, 1.0f)));
+	
+	FToolBarStyle SlimToolbarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+	SlimToolbarStyle
+		.SetBackgroundPadding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+		.SetIconSize(Icon16x16);
+	SlimToolbarStyle.ToggleButton
+		.SetPadding(FMargin(8.0f, 2.0f));
+	SlimToolbarStyle.SetBlockPadding(FMargin(2, 0));
+	Set("NiagaraEditor.CurveDetails.SlimToolBar", SlimToolbarStyle);
 
 	FSlateBoxBrush StackRowSelectionBrush = BOX_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), FStyleColors::Select);
 	FSlateBoxBrush StackRowSubduedSelectionBrush = BOX_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), FStyleColors::SelectInactive);

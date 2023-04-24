@@ -2,10 +2,10 @@
 #pragma once
 
 #include "NiagaraCommon.h"
-#include "NiagaraShared.h"
 #include "VectorVM.h"
 #include "StaticMeshResources.h"
 #include "Curves/RichCurve.h"
+#include "Curves/CurveBase.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceCurveBase.generated.h"
 
@@ -49,6 +49,11 @@ protected:
 	}
 
 public:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "Curve")
+	TSoftObjectPtr<UCurveBase> CurveAsset;
+#endif
+	
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
 	uint32 bUseLUT : 1;
 
@@ -129,12 +134,14 @@ public:
 #endif
 	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
 	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	virtual void PostCompile() override;
 
 	void SetDefaultLUT();
 #if WITH_EDITORONLY_DATA
 	void UpdateLUT(bool bFromSerialize = false);
 	void OptimizeLUT();
 	void UpdateExposedTexture();
+	virtual void SyncCurvesToAsset() {};
 #endif
 
 	//UNiagaraDataInterface interface
@@ -151,7 +158,7 @@ public:
 #endif
 
 	virtual void UpdateTimeRanges() PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::UpdateTimeRanges(), )
-	virtual TArray<float> BuildLUT(int32 NumEntries) const PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::UpdateTimeRanges(), return TArray<float>(); )
+	virtual TArray<float> BuildLUT(int32 NumEntries) const PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::BuildLUT(), return TArray<float>(); )
 
 	FORCEINLINE float GetMinTime()const { return LUTMinTime; }
 	FORCEINLINE float GetMaxTime()const { return LUTMaxTime; }
