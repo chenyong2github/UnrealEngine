@@ -2035,7 +2035,16 @@ namespace EpicGames.Perforce.Managed
 		{
 			try
 			{
-				FileReference.Move(fileToMove._trackedFile.GetLocation(), fileToMove._workspaceFile.GetLocation());
+				FileReference targetFile = fileToMove._workspaceFile.GetLocation();
+				FileReference.Move(fileToMove._trackedFile.GetLocation(), targetFile);
+				try
+				{ 
+					FileReference.SetLastWriteTimeUtc(targetFile, DateTime.UtcNow); 
+				} 
+				catch 
+				{
+					_logger.LogWarning("Unable to update timestamp on {TargetFile}", targetFile);
+				}
 			}
 			catch (Exception ex)
 			{
