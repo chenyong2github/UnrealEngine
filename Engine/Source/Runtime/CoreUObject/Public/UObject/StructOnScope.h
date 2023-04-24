@@ -125,10 +125,8 @@ public:
 
 /**
  * Typed FStructOnScope that exposes type-safe access to the wrapped struct
- * @note The second template argument is there to restrict to type that are actually USTRUCT.
- *		It will be replaced to a static_assert with a better compiler error with a "is ustruct" type trait
  */
-template<typename T, typename = decltype(TBaseStructure<T>::Get())>
+template<typename T>
 class TStructOnScope final : public FStructOnScope
 {
 public:

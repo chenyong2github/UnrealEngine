@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Concepts/GetTypeHashable.h"
+#include "Concepts/StaticStructProvider.h"
 #include "Containers/Array.h"
 #include "Containers/EnumAsByte.h"
 #include "Containers/Map.h"
@@ -3977,12 +3978,23 @@ struct FTestUninitializedScriptStructMembersTest
 	odd types.
 -----------------------------------------------------------------------------*/
 
-template< class T > struct TBaseStructure
+template <typename T, bool bHasStaticStruct = TModels_V<CStaticStructProvider, T>>
+struct TBaseStructureBase
 {
 	static UScriptStruct* Get()
 	{
 		return T::StaticStruct();
 	}
+};
+
+template <typename T>
+struct TBaseStructureBase<T, false>
+{
+};
+
+template <typename T>
+struct TBaseStructure : TBaseStructureBase<T>
+{
 };
 
 template<> struct TBaseStructure<FIntPoint> 
