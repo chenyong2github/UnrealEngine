@@ -195,6 +195,15 @@
 				"Win64",
 				"Linux"
 			]
+		},
+		{
+			"Name": "SharedMemoryMedia",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			]
 		}
 	],
 	"Plugins": [

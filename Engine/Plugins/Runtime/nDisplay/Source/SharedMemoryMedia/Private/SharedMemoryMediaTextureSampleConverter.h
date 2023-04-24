@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IMediaTextureSampleConverter.h"
+#include "SharedMemoryMediaPlayer.h"
 
 class FSharedMemoryMediaPlayer;
 

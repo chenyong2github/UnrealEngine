@@ -58,7 +58,4 @@ private:
 
 	// Latency queue
 	FDisplayClusterFrameQueue FrameQueue;
-
-	// Media player factories
-	TArray<TUniquePtr<IMediaPlayerFactory>> PlayerFactories;
 };

@@ -25,7 +25,7 @@ enum class ESharedMemoryMediaSourceMode : uint8
  * Media source for SharedMemory streams.
  */
 UCLASS(BlueprintType, hideCategories=(Platforms,Object))
-class DISPLAYCLUSTERMEDIA_API USharedMemoryMediaSource : public UMediaSource
+class SHAREDMEMORYMEDIA_API USharedMemoryMediaSource : public UMediaSource
 {
 	GENERATED_BODY()
 

@@ -9,7 +9,6 @@
 #include "Tasks/Task.h"
 #include "TextureResource.h"
 
-#include "DisplayClusterMediaLog.h"
 #include "SharedMemoryMediaOutput.h"
 #include "SharedMemoryMediaPlatform.h"
 #include "SharedMemoryMediaSourceOptions.h"
@@ -81,7 +80,7 @@ bool FSharedMemoryMediaPlayer::Open(const FString& Url, const IMediaOptions* Opt
 
 		if (!PlatformData.IsValid())
 		{
-			UE_LOG(LogDisplayClusterMedia, Error, TEXT("Unfortunately, SharedMemoryMedia doesn't support the current RHI type '%s'"),
+			UE_LOG(LogSharedMemoryMedia, Error, TEXT("Unfortunately, SharedMemoryMedia doesn't support the current RHI type '%s'"),
 				*FSharedMemoryMediaPlatformFactory::GetRhiTypeString(RhiInterfaceType));
 
 			return false;
@@ -98,7 +97,7 @@ bool FSharedMemoryMediaPlayer::Open(const FString& Url, const IMediaOptions* Opt
 
 		if (!UniqueName.Len())
 		{
-			UE_LOG(LogDisplayClusterMedia, Error, TEXT("SharedMemoryMediaSource must have a UniqueName that is not empty, and should match the MediaOutput's UniqueName"));
+			UE_LOG(LogSharedMemoryMedia, Error, TEXT("SharedMemoryMediaSource must have a UniqueName that is not empty, and should match the MediaOutput's UniqueName"));
 			return false;
 		}
 	}
@@ -125,7 +124,7 @@ bool FSharedMemoryMediaPlayer::Open(const FString& Url, const IMediaOptions* Opt
 
 	if (!RegisterUniqueName(UniqueName))
 	{
-		UE_LOG(LogDisplayClusterMedia, Error, TEXT("Only one SharedMemoryMediaPlayer the UniqueName '%s' can play at a time"), *UniqueName);
+		UE_LOG(LogSharedMemoryMedia, Error, TEXT("Only one SharedMemoryMediaPlayer the UniqueName '%s' can play at a time"), *UniqueName);
 		UniqueName.Reset(); // Reset the unique name to avoid unregistering when not open
 		return false;
 	}
@@ -245,14 +244,14 @@ void FSharedMemoryMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode
 
 			if (SharedMemory[MemIdx])
 			{
-				UE_LOG(LogDisplayClusterMedia, Verbose, TEXT("Opened SharedMemory named '%s'"), *SharedMemoryRegionName);
+				UE_LOG(LogSharedMemoryMedia, Verbose, TEXT("Opened SharedMemory named '%s'"), *SharedMemoryRegionName);
 
 				FSharedMemoryMediaFrameMetadata* Data = static_cast<FSharedMemoryMediaFrameMetadata*>(SharedMemory[MemIdx]->GetAddress());
 				check(Data);
 			}
 			else
 			{
-				UE_LOG(LogDisplayClusterMedia, Warning, TEXT("Could not open SharedMemory named '%s'"), *SharedMemoryRegionName);
+				UE_LOG(LogSharedMemoryMedia, Warning, TEXT("Could not open SharedMemory named '%s'"), *SharedMemoryRegionName);
 			}
 		}
 
@@ -344,7 +343,7 @@ void FSharedMemoryMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode
 		// Guid of zero is not valid
 		if (SharedGpuTextureGuid == UE::SharedMemoryMedia::ZeroGuid)
 		{
-			UE_LOG(LogDisplayClusterMedia, Warning, TEXT("Invalid zero guid"));
+			UE_LOG(LogSharedMemoryMedia, Warning, TEXT("Invalid zero guid"));
 			continue;
 		}
 
@@ -547,7 +546,7 @@ bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameGenlockMode(uint64 FrameN
 	// If our frame number seems far from what is in the buffers, reset our state
 	if (MinDistanceFromLastPicked > 2)
 	{
-		UE_LOG(LogDisplayClusterMedia, Warning, TEXT("SharedMemoryMedia: In genlock mode, the sender's frame count seems to have reset to earlier than %u"),
+		UE_LOG(LogSharedMemoryMedia, Warning, TEXT("SharedMemoryMedia: In genlock mode, the sender's frame count seems to have reset to earlier than %u"),
 			State.LastSourceFrameNumberPicked);
 
 		State.Reset();
@@ -622,7 +621,7 @@ bool FSharedMemoryMediaPlayer::DetermineNextSourceFrameFreerunMode(uint64 FrameN
 	{
 		// We have picked in the past a frame number higher than the highest in the buffers.
 		// This is unexpected, something may have happened to our source.
-		UE_LOG(LogDisplayClusterMedia, Warning, TEXT("SharedMemoryMedia: In freerun mode, the sender's frame count seems to have reset from %u to %u."),
+		UE_LOG(LogSharedMemoryMedia, Warning, TEXT("SharedMemoryMedia: In freerun mode, the sender's frame count seems to have reset from %u to %u."),
 			State.LastSourceFrameNumberPicked, HighestFrameNumber);
 
 		OutExpectedFrameNumber = LowestFrameNumber;
@@ -694,7 +693,7 @@ void FSharedMemoryMediaPlayer::JustInTimeSampleRender()
 	// We only allow this function to run once per frame.
 	if (LastFrameNumberThatUpdatedJustInTime == GFrameCounterRenderThread)
 	{
-		UE_LOG(LogDisplayClusterMedia, Verbose, 
+		UE_LOG(LogSharedMemoryMedia, Verbose, 
 			TEXT("FSharedMemoryMediaPlayer '%s' JustInTimeSampleRender called more than once in GFrameCounterRenderThread %llu"),
 			*UniqueName, GFrameCounterRenderThread
 		);
@@ -704,7 +703,7 @@ void FSharedMemoryMediaPlayer::JustInTimeSampleRender()
 
 	LastFrameNumberThatUpdatedJustInTime = GFrameCounterRenderThread;
 
-	UE_LOG(LogDisplayClusterMedia, VeryVerbose, TEXT("FSharedMemoryMediaPlayer '%s' JustInTimeSampleRender called for GFrameCounterRenderThread %llu"), 
+	UE_LOG(LogSharedMemoryMedia, VeryVerbose, TEXT("FSharedMemoryMediaPlayer '%s' JustInTimeSampleRender called for GFrameCounterRenderThread %llu"), 
 		*UniqueName, GFrameCounterRenderThread
 	);
 
@@ -759,7 +758,7 @@ void FSharedMemoryMediaPlayer::JustInTimeSampleRender()
 					{
 						if (SenderMetadata.FrameNumber > ExpectedFrameNumber)
 						{
-							UE_LOG(LogDisplayClusterMedia, Warning, TEXT("Using too recent frame. Expected %u and used %u"), 
+							UE_LOG(LogSharedMemoryMedia, Warning, TEXT("Using too recent frame. Expected %u and used %u"), 
 								ExpectedFrameNumber, SenderMetadata.FrameNumber);
 						}
 
@@ -771,7 +770,7 @@ void FSharedMemoryMediaPlayer::JustInTimeSampleRender()
 
 				if ((FPlatformTime::Seconds() - StartTimeSeconds) > TimeoutSeconds)
 				{
-					UE_LOG(LogDisplayClusterMedia, Warning, TEXT("FSharedMemoryMediaPlayer timed out waiting for ExpectedFrameNumber %u for frame %llu, only saw up to frame %u"),
+					UE_LOG(LogSharedMemoryMedia, Warning, TEXT("FSharedMemoryMediaPlayer timed out waiting for ExpectedFrameNumber %u for frame %llu, only saw up to frame %u"),
 						ExpectedFrameNumber, FrameNumber, SenderMetadata.FrameNumber);
 
 					// Note: It would be desirable to stop the copy texture from happening, but at this point it has already been enqueued.
@@ -789,7 +788,7 @@ void FSharedMemoryMediaPlayer::JustInTimeSampleRender()
 	// But first wait for the fence to be cleared, in case it hasn't (which is not usual).
 	if (bFrameAckFenceBusy[SharedMemoryIdx])
 	{
-		UE_LOG(LogDisplayClusterMedia, Warning, TEXT("bFrameAckFenceBusy[%d] was busy for ExpectedFrameNumber %d"),
+		UE_LOG(LogSharedMemoryMedia, Warning, TEXT("bFrameAckFenceBusy[%d] was busy for ExpectedFrameNumber %d"),
 			SharedMemoryIdx, ExpectedFrameNumber);
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(SharedMemMediaWaitForFrameAckFenceBusyToClear);
@@ -812,7 +811,7 @@ void FSharedMemoryMediaPlayer::JustInTimeSampleRender()
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterMedia, Error, TEXT("SharedCrossGpuTextures[%d] was unexpectedly invalid"), SharedMemoryIdx);
+		UE_LOG(LogSharedMemoryMedia, Error, TEXT("SharedCrossGpuTextures[%d] was unexpectedly invalid"), SharedMemoryIdx);
 	}
 
 	// Write gpu fence to indicate we're done with the shared cross gpu texture

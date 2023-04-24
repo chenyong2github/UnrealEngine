@@ -7,7 +7,7 @@
 #include "Internationalization/TextLocalizationResource.h"
 #include "RenderGraphUtils.h"
 
-#include "DisplayClusterMediaLog.h"
+#include "SharedMemoryMediaModule.h"
 #include "SharedMemoryMediaPlatform.h"
 #include "SharedMemoryMediaTypes.h"
 
@@ -22,7 +22,7 @@ bool USharedMemoryMediaCapture::InitializeCapture()
 
 	if (!SharedMemoryMediaOutput)
 	{
-		UE_LOG(LogDisplayClusterMedia, Error, TEXT("Invalid MediaOutput, cannot InitializeCapture"));
+		UE_LOG(LogSharedMemoryMedia, Error, TEXT("Invalid MediaOutput, cannot InitializeCapture"));
 		return false;
 	}
 
@@ -35,7 +35,7 @@ bool USharedMemoryMediaCapture::InitializeCapture()
 
 		if (!PlatformData.IsValid())
 		{
-			UE_LOG(LogDisplayClusterMedia, Error, TEXT("Unfortunately, SharedMemoryMedia doesn't support the current RHI type '%s'"),
+			UE_LOG(LogSharedMemoryMedia, Error, TEXT("Unfortunately, SharedMemoryMedia doesn't support the current RHI type '%s'"),
 				*FSharedMemoryMediaPlatformFactory::GetRhiTypeString(RhiInterfaceType));
 
 			return false;
@@ -80,7 +80,7 @@ bool USharedMemoryMediaCapture::InitializeCapture()
 				FSharedMemoryMediaFrameMetadata* Data = static_cast<FSharedMemoryMediaFrameMetadata*>(SharedMemoryRegion->GetAddress());
 				Data->Receiver.FrameNumberAcked = ~0;
 
-				UE_LOG(LogDisplayClusterMedia, Verbose, TEXT("Created SharedMemoryRegion[%d] = %s"), BufferIdx, *SharedMemoryRegionName);
+				UE_LOG(LogSharedMemoryMedia, Verbose, TEXT("Created SharedMemoryRegion[%d] = %s"), BufferIdx, *SharedMemoryRegionName);
 			}
 		}
 
@@ -210,14 +210,14 @@ void USharedMemoryMediaCapture::OnCustomCapture_RenderingThread(
 
 			if (!SharedCrossGpuTextures[Idx].IsValid())
 			{
-				UE_LOG(LogDisplayClusterMedia, Error, TEXT("Unable to create cross GPU texture of the requested type."));
+				UE_LOG(LogSharedMemoryMedia, Error, TEXT("Unable to create cross GPU texture of the requested type."));
 
 				SetState(EMediaCaptureState::Error);
 				return;
 			}
 
 			SharedCrossGpuTextureGuids[Idx] = Guid;
-			UE_LOG(LogDisplayClusterMedia, Verbose, TEXT("Created SharedGpuTextureGuid[%d] = %s"), Idx, *SharedCrossGpuTextureGuids[Idx].ToString());
+			UE_LOG(LogSharedMemoryMedia, Verbose, TEXT("Created SharedGpuTextureGuid[%d] = %s"), Idx, *SharedCrossGpuTextureGuids[Idx].ToString());
 		}
 	}
 
@@ -252,7 +252,7 @@ void USharedMemoryMediaCapture::AddCopyToSharedGpuTexturePass(FRDGBuilder& Graph
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SharedMemMediaOutputFenceBusy);
 
-				UE_LOG(LogDisplayClusterMedia, Warning, TEXT("bTextureReadyFenceBusy[%d] for frame %d was busy, so we wait"), SharedTextureIdx, GFrameCounterRenderThread);
+				UE_LOG(LogSharedMemoryMedia, Warning, TEXT("bTextureReadyFenceBusy[%d] for frame %d was busy, so we wait"), SharedTextureIdx, GFrameCounterRenderThread);
 
 				while (bTextureReadyFenceBusy[SharedTextureIdx])
 				{
@@ -322,7 +322,7 @@ void USharedMemoryMediaCapture::AddCopyToSharedGpuTexturePass(FRDGBuilder& Graph
 						if ((FPlatformTime::Seconds() - StartTimeSeconds) > TimeoutSeconds)
 						{
 							// @todo use proper log category
-							UE_LOG(LogDisplayClusterMedia, Warning, TEXT("FSharedMemoryMediaCapture timed out waiting for its receiver to ack frame %d"), FrameNumber);
+							UE_LOG(LogSharedMemoryMedia, Warning, TEXT("FSharedMemoryMediaCapture timed out waiting for its receiver to ack frame %d"), FrameNumber);
 
 							break;
 						}

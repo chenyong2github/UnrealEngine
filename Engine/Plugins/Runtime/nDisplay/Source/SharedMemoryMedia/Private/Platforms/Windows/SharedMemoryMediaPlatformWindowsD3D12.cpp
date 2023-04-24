@@ -4,7 +4,7 @@
 
 #include "ID3D12DynamicRHI.h"
 
-#include "DisplayClusterMediaLog.h"
+#include "SharedMemoryMediaModule.h"
 #include "Misc/EnumClassFlags.h"
 
 // This should run when the module starts and register the creation function for this rhi platform.
@@ -133,7 +133,7 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::CreateSharedCrossGpuTextu
 
 	if (FAILED(HResult))
 	{
-		UE_LOG(LogDisplayClusterMedia, Error, TEXT(
+		UE_LOG(LogSharedMemoryMedia, Error, TEXT(
 			"D3D12Device->CreateCommittedResource failed when creating a cross GPU texture:\n"
 			"0x%lX - %s. Texture was %dx%d, EPixelFormat %d and DXGI type %d"),
 			HResult, *GetD3D12ComErrorDescription(HResult), Width, Height, Format, DxgiFormat);
@@ -191,7 +191,7 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 
 	if (FAILED(HResult))
 	{
-		UE_LOG(LogDisplayClusterMedia, Error, TEXT("D3D12Device->OpenSharedHandleByName(%s) failed: 0x%lX - %s"),
+		UE_LOG(LogSharedMemoryMedia, Error, TEXT("D3D12Device->OpenSharedHandleByName(%s) failed: 0x%lX - %s"),
 			*SharedGpuTextureName, HResult, *GetD3D12ComErrorDescription(HResult));
 
 		return nullptr;
@@ -199,7 +199,7 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 
 	HResult = D3D12Device->OpenSharedHandle(NamedSharedGpuTextureHandle, IID_PPV_ARGS(&SharedCrossGpuTexture));
 
-	UE_CLOG(FAILED(HResult), LogDisplayClusterMedia, Error, TEXT("D3D12Device->OpenSharedHandle(0x%p) failed: 0x%lX - %s"),
+	UE_CLOG(FAILED(HResult), LogSharedMemoryMedia, Error, TEXT("D3D12Device->OpenSharedHandle(0x%p) failed: 0x%lX - %s"),
 		NamedSharedGpuTextureHandle, HResult, *GetD3D12ComErrorDescription(HResult));
 
 	::CloseHandle(NamedSharedGpuTextureHandle);
@@ -249,7 +249,7 @@ FTextureRHIRef FSharedMemoryMediaPlatformWindowsD3D12::OpenSharedCrossGpuTexture
 
 		if (OutTextureDescription.Format == EPixelFormat::PF_Unknown)
 		{
-			UE_LOG(LogDisplayClusterMedia, Error, TEXT("Could not find a known pixel format for SharedCrossGpuTexture DXGI_FORMAT %d."),
+			UE_LOG(LogSharedMemoryMedia, Error, TEXT("Could not find a known pixel format for SharedCrossGpuTexture DXGI_FORMAT %d."),
 				SharedGpuTextureDesc.Format);
 
 			SharedCrossGpuTexture->Release();

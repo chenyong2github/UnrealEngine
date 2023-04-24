@@ -4,19 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Internationalization/TextKey.h"
+#include "PixelFormat.h"
 
 namespace UE::SharedMemoryMedia
 {
 	// When the implementation requires spin waiting on a fence or polling shared system memory,
 	// it will sleep by the amount below in a loop until the condition is met or a given timout occurs.
 	constexpr float SpinWaitTimeSeconds = 50 * 1e-6;
-
-	/** 
-	 * This defines the number of textures used for communication. Having more that one allows for overlapping
-	 * sends and minimize waits on frame acks for texture re-use. Use 3 for best performance, or 2 for
-	 * a potential compromise with resource usage.
-	 */
-	constexpr int32 SenderNumBuffers = 3;
 
 	// Guid that identifies the SharedMemoryMediaPlayer.
 	static const FGuid PlayerGuid = FGuid(0xAF8C5107, 0x13CF992C, 0x9FD4EBFE, 0x2E3E049F);

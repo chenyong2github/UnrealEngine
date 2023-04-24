@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IMediaSamples.h"
+#include "SharedMemoryMediaSample.h"
 
 /** This is the mostly empty media samples that only carries a single sample per frame,
  *  that the player provides.

@@ -6,6 +6,7 @@
 #include "GenericPlatform/GenericPlatformMemory.h"
 #include "MediaIOCorePlayerBase.h"
 #include "MediaTexture.h"
+#include "SharedMemoryMediaCapture.h"
 #include "SharedMemoryMediaSource.h"
 #include "SharedMemoryMediaTypes.h"
 #include "UObject/StrongObjectPtr.h"

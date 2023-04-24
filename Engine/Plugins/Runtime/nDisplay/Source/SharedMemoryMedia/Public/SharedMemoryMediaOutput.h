@@ -14,7 +14,7 @@
  * Output information for a SharedMemory media capture.
  */
 UCLASS(BlueprintType)
-class DISPLAYCLUSTERMEDIA_API USharedMemoryMediaOutput : public UMediaOutput
+class SHAREDMEMORYMEDIA_API USharedMemoryMediaOutput : public UMediaOutput
 {
 	GENERATED_BODY()
 

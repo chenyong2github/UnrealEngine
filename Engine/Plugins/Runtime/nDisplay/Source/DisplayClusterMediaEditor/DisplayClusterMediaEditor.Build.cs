@@ -13,6 +13,7 @@ public class DisplayClusterMediaEditor : ModuleRules
 				"CoreUObject",
 				"DisplayClusterMedia",
 				"Engine",
+				"SharedMemoryMedia",
 				"UnrealEd",
 			});
 	}

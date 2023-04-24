@@ -4,10 +4,9 @@
 
 #include "CoreMinimal.h"
 
-#include "DisplayClusterMediaLog.h"
 #include "IMediaTextureSample.h"
+#include "SharedMemoryMediaModule.h"
 #include "SharedMemoryMediaTextureSampleConverter.h"
-
 
 class FSharedMemoryMediaPlayer;
 
@@ -58,7 +57,7 @@ public:
 		// This will get called if there wasn't a gpu texture available. 
 		// If we return null, FMediaTextureResource::ConvertSample will crash, so we log the error but return something valid.
 
-		UE_LOG(LogDisplayClusterMedia, Warning, 
+		UE_LOG(LogSharedMemoryMedia, Warning, 
 			TEXT("FSharedMemoryMediaSample::GetBuffer was called, so it must not have had a valid texture, which is unexpected"));
 
 		const int32 NumBytes = GetStride() * GetDim().Y;

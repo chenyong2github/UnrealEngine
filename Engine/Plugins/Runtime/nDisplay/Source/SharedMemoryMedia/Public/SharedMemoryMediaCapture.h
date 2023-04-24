@@ -6,11 +6,20 @@
 
 #include "GenericPlatform/GenericPlatformMemory.h"
 #include "SharedMemoryMediaOutput.h"
-#include "SharedMemoryMediaTypes.h"
 
 #include "SharedMemoryMediaCapture.generated.h"
 
 class FSharedMemoryMediaPlatform;
+
+namespace UE::SharedMemoryMedia
+{
+	/**
+	 * This defines the number of textures used for communication. Having more that one allows for overlapping
+	 * sends and minimize waits on frame acks for texture re-use. Use 3 for best performance, or 2 for
+	 * a potential compromise with resource usage.
+	 */
+	constexpr int32 SenderNumBuffers = 3;
+}
 
 /**
  * Output Media for SharedMemory.
@@ -23,7 +32,7 @@ class FSharedMemoryMediaPlatform;
  * It is mostly intended for use in nDisplay render nodes, which are designed to be frame-locked.
  */
 UCLASS(BlueprintType)
-class DISPLAYCLUSTERMEDIA_API USharedMemoryMediaCapture : public UMediaCapture
+class SHAREDMEMORYMEDIA_API USharedMemoryMediaCapture : public UMediaCapture
 {
 	GENERATED_BODY()
 

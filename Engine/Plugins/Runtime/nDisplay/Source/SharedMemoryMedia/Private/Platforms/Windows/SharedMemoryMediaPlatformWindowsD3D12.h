@@ -9,6 +9,7 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #include "SharedMemoryMediaPlatform.h"
+#include "SharedMemoryMediaCapture.h"
 
 /** 
  * D3D12 RHI specific implementation of FSharedMemoryMediaPlatform. 

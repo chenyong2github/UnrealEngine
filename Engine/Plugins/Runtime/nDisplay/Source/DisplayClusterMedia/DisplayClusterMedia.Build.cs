@@ -17,6 +17,7 @@ public class DisplayClusterMedia : ModuleRules
 				"Media",
 				"MediaAssets",
 				"MediaIOCore",
+				"SharedMemoryMedia",
 			});
 
 		PrivateDependencyModuleNames.AddRange(

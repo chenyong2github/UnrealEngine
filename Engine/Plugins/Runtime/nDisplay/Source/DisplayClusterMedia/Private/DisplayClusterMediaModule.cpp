@@ -20,7 +20,6 @@
 #include "Capture/DisplayClusterMediaCaptureViewport.h"
 #include "Input/DisplayClusterMediaInputNode.h"
 #include "Input/DisplayClusterMediaInputViewport.h"
-#include "Input/SharedMemoryMediaPlayerFactory.h"
 
 #include "IMediaModule.h"
 #include "Misc/CoreDelegates.h"
@@ -43,33 +42,11 @@ void FDisplayClusterMediaModule::StartupModule()
 
 	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterCustomPresentSet().AddRaw(this, &FDisplayClusterMediaModule::OnCustomPresentSet);
 	FCoreDelegates::OnEnginePreExit.AddRaw(this, &FDisplayClusterMediaModule::OnEnginePreExit);
-
-	// Create Player Factories
-	PlayerFactories.Add(MakeUnique<FSharedMemoryMediaPlayerFactory>());
-
-
-	// register share memory player factory
-	if (IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media"))
-	{
-		for (TUniquePtr<IMediaPlayerFactory>& Factory : PlayerFactories)
-		{
-			MediaModule->RegisterPlayerFactory(*Factory);
-		}
-	}
 }
 
 void FDisplayClusterMediaModule::ShutdownModule()
 {
 	UE_LOG(LogDisplayClusterMedia, Log, TEXT("Shutting down module 'DisplayClusterMedia'..."));
-
-	// unregister share memory player factory
-	if (IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media"))
-	{
-		for (TUniquePtr<IMediaPlayerFactory>& Factory : PlayerFactories)
-		{
-			MediaModule->UnregisterPlayerFactory(*Factory);
-		}
-	}
 
 	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterCustomPresentSet().RemoveAll(this);
 	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
