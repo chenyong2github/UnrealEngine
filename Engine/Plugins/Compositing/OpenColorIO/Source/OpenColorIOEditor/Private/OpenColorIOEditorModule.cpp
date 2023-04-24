@@ -52,6 +52,11 @@ void FOpenColorIOEditorModule::ShutdownModule()
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 }
 
+void FOpenColorIOEditorModule::SetActiveViewportConfiguration(const FOpenColorIODisplayConfiguration& InConfiguration)
+{
+	OnDisplayConfigurationChanged(InConfiguration);
+}
+
 void FOpenColorIOEditorModule::RegisterCustomizations()
 {
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");

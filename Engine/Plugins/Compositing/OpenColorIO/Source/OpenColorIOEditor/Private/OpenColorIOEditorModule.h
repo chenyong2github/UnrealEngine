@@ -29,6 +29,9 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface interface
 
+	/** Set a color transform display configuration on the active editor viewport. */
+	void SetActiveViewportConfiguration(const FOpenColorIODisplayConfiguration& InConfiguration);
+
 protected:
 	void RegisterCustomizations();
 	void UnregisterCustomizations();
