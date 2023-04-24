@@ -21,6 +21,8 @@ public class AnimationSharing : ModuleRules
         if (Target.Type == TargetType.Editor)
         {
             PrivateDependencyModuleNames.Add("TargetPlatform");
-        }     
-    }
+        }
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
+	}
 }
