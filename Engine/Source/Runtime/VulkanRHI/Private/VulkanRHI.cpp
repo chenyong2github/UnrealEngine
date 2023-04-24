@@ -2007,4 +2007,112 @@ IRHITransientResourceAllocator* FVulkanDynamicRHI::RHICreateTransientResourceAll
 	return nullptr;
 }
 
+uint64 FVulkanDynamicRHI::RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer)
+{
+	// When compute precache PSO hash we assume a valid state precache PSO hash is already provided
+	checkf(Initializer.StatePrecachePSOHash != 0, TEXT("Initializer should have a valid state precache PSO hash set when computing the full initializer PSO hash"));
+
+	// All members which are not part of the state objects
+	struct FNonStateHashKey
+	{
+		uint64							StatePrecachePSOHash;
+
+		EPrimitiveType					PrimitiveType;
+		uint32							RenderTargetsEnabled;
+		FGraphicsPipelineStateInitializer::TRenderTargetFormats	RenderTargetFormats;
+		FGraphicsPipelineStateInitializer::TRenderTargetFlags RenderTargetFlags;
+		EPixelFormat					DepthStencilTargetFormat;
+		ETextureCreateFlags				DepthStencilTargetFlag;
+		FExclusiveDepthStencil			DepthStencilAccess;
+		uint16							NumSamples;
+		ESubpassHint					SubpassHint;
+		uint8							SubpassIndex;
+		EConservativeRasterization		ConservativeRasterization;
+		uint8							MultiViewCount;
+		EVRSShadingRate					ShadingRate;
+		bool							bDepthBounds;
+		bool							bHasFragmentDensityAttachment;
+	} HashKey;
+
+	FMemory::Memzero(&HashKey, sizeof(FNonStateHashKey));
+
+	HashKey.StatePrecachePSOHash = Initializer.StatePrecachePSOHash;
+
+	HashKey.PrimitiveType = Initializer.PrimitiveType;
+	HashKey.RenderTargetsEnabled = Initializer.RenderTargetsEnabled;
+	HashKey.RenderTargetFormats = Initializer.RenderTargetFormats;
+	HashKey.RenderTargetFlags = Initializer.RenderTargetFlags;
+	HashKey.DepthStencilTargetFormat = Initializer.DepthStencilTargetFormat;
+	HashKey.DepthStencilTargetFlag = Initializer.DepthStencilTargetFlag;
+ 	HashKey.DepthStencilAccess = Initializer.DepthStencilAccess;
+	HashKey.NumSamples = Initializer.NumSamples;
+	HashKey.SubpassHint = Initializer.SubpassHint;
+	HashKey.SubpassIndex = Initializer.SubpassIndex;
+	HashKey.ConservativeRasterization = Initializer.ConservativeRasterization;
+	HashKey.MultiViewCount = Initializer.MultiViewCount;
+	HashKey.ShadingRate = Initializer.ShadingRate;
+	HashKey.bDepthBounds = Initializer.bDepthBounds;
+	HashKey.bHasFragmentDensityAttachment = Initializer.bHasFragmentDensityAttachment;
+	
+	// TODO: check if any RT flags actually affect PSO in VK
+	for (ETextureCreateFlags& Flags : HashKey.RenderTargetFlags)
+	{
+		Flags = Flags & FGraphicsPipelineStateInitializer::RelevantRenderTargetFlagMask;
+	}
+	HashKey.DepthStencilTargetFlag = (HashKey.DepthStencilTargetFlag & FGraphicsPipelineStateInitializer::RelevantDepthStencilFlagMask);
+		 
+	return CityHash64((const char*)&HashKey, sizeof(FNonStateHashKey));
+}
+
+bool FVulkanDynamicRHI::RHIMatchPrecachePSOInitializers(const FGraphicsPipelineStateInitializer& LHS, const FGraphicsPipelineStateInitializer& RHS)
+{
+	// first check non pointer objects
+	if (LHS.ImmutableSamplerState != RHS.ImmutableSamplerState ||
+		LHS.PrimitiveType != RHS.PrimitiveType ||
+		LHS.bDepthBounds != RHS.bDepthBounds ||
+		LHS.MultiViewCount != RHS.MultiViewCount ||
+		LHS.ShadingRate != RHS.ShadingRate ||
+		LHS.bHasFragmentDensityAttachment != RHS.bHasFragmentDensityAttachment ||
+		LHS.RenderTargetsEnabled != RHS.RenderTargetsEnabled ||
+		LHS.RenderTargetFormats != RHS.RenderTargetFormats ||
+		!FGraphicsPipelineStateInitializer::RelevantRenderTargetFlagsEqual(LHS.RenderTargetFlags, RHS.RenderTargetFlags) ||
+		LHS.DepthStencilTargetFormat != RHS.DepthStencilTargetFormat ||
+		!FGraphicsPipelineStateInitializer::RelevantDepthStencilFlagsEqual(LHS.DepthStencilTargetFlag, RHS.DepthStencilTargetFlag) ||
+		LHS.NumSamples != RHS.NumSamples ||
+		LHS.SubpassHint != RHS.SubpassHint ||
+		LHS.SubpassIndex != RHS.SubpassIndex ||
+		LHS.StatePrecachePSOHash != RHS.StatePrecachePSOHash ||
+		LHS.ConservativeRasterization != RHS.ConservativeRasterization)
+	{
+		return false;
+	}
+
+	// check the RHI shaders (pointer check for shaders should be fine)
+	if (LHS.BoundShaderState.VertexShaderRHI != RHS.BoundShaderState.VertexShaderRHI ||
+		LHS.BoundShaderState.PixelShaderRHI != RHS.BoundShaderState.PixelShaderRHI ||
+		LHS.BoundShaderState.GetMeshShader() != RHS.BoundShaderState.GetMeshShader() ||
+		LHS.BoundShaderState.GetAmplificationShader() != RHS.BoundShaderState.GetAmplificationShader() ||
+		LHS.BoundShaderState.GetGeometryShader() != RHS.BoundShaderState.GetGeometryShader())
+	{
+		return false;
+	}
+
+	// Full compare the of the vertex declaration
+	if (!MatchRHIState<FRHIVertexDeclaration, FVertexDeclarationElementList>(LHS.BoundShaderState.VertexDeclarationRHI, RHS.BoundShaderState.VertexDeclarationRHI))
+	{
+		return false;
+	}
+
+	// Check actual state content (each initializer can have it's own state and not going through a factory)
+	if (!MatchRHIState<FRHIBlendState, FBlendStateInitializerRHI>(LHS.BlendState, RHS.BlendState)
+		|| !MatchRHIState<FRHIRasterizerState, FRasterizerStateInitializerRHI>(LHS.RasterizerState, RHS.RasterizerState)
+		|| !MatchRHIState<FRHIDepthStencilState, FDepthStencilStateInitializerRHI>(LHS.DepthStencilState, RHS.DepthStencilState)
+		)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 #undef LOCTEXT_NAMESPACE

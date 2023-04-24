@@ -1484,6 +1484,8 @@ VkResult FVulkanPipelineStateCacheManager::CreateVKPipeline(FVulkanRHIGraphicsPi
 	{
 		if (bWantPSOSize)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_VulkanPSOCreationTimeLRU);
+
 			// We create a single pipeline cache for this create so we can observe the size for LRU cache's accounting.
 			// measuring deltas from the global PipelineCache is not thread safe.
 			VkPipelineCacheCreateInfo PipelineCacheInfo;
@@ -1931,9 +1933,10 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::RHICreateGrap
 	// We stall precompile PSOs which increases the likelihood for non-precompile PSO to jump the queue.
 	// Not using GraphicsPSOLockedCS as the create could take a long time on some platforms, holding GraphicsPSOLockedCS the whole time could cause hitching.
 	const ESingleThreadedPSOCreateMode ThreadingMode = (ESingleThreadedPSOCreateMode)GVulkanPSOForceSingleThreaded;
+	const bool bIsPrecache = Initializer.bFromPSOFileCache || Initializer.bPSOPrecache;
 	bool bShouldLock = ThreadingMode == ESingleThreadedPSOCreateMode::All
-		|| (ThreadingMode == ESingleThreadedPSOCreateMode::Precompile && Initializer.bFromPSOFileCache)
-		|| (ThreadingMode == ESingleThreadedPSOCreateMode::NonPrecompiled && !Initializer.bFromPSOFileCache);
+		|| (ThreadingMode == ESingleThreadedPSOCreateMode::Precompile && bIsPrecache)
+		|| (ThreadingMode == ESingleThreadedPSOCreateMode::NonPrecompiled && !bIsPrecache);
 
 	FPSOOptionalLock PSOSingleThreadedLock(bShouldLock ? &CreateGraphicsPSOMutex : nullptr);
 
@@ -1957,7 +1960,7 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::RHICreateGrap
 			if(PSO)
 			{
 				check(*PSO);
-				if(!Initializer.bFromPSOFileCache)
+				if(!bIsPrecache)
 				{
 					LRUTouch(*PSO);
 				}
@@ -2001,7 +2004,7 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::RHICreateGrap
 			const FVulkanShaderHeader& VSHeader = VS->GetCodeHeader();
 			NewPSO->VertexInputState.Generate(ResourceCast(Initializer.BoundShaderState.VertexDeclarationRHI), VSHeader.InOutMask);
 
-			if((!Initializer.bFromPSOFileCache || !LRUEvictImmediately()) 
+			if((!bIsPrecache || !LRUEvictImmediately()) 
 	#if !UE_BUILD_SHIPPING
 				&& 0 == CVarPipelineDebugForceEvictImmediately.GetValueOnAnyThread()
 	#endif
@@ -2022,7 +2025,7 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::RHICreateGrap
 			
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_Vulkan_RHICreateGraphicsPipelineState_CREATE_PART0);
 
-				if(!CreateGfxPipelineFromEntry(NewPSO, VulkanShaders, Initializer.bFromPSOFileCache))
+				if(!CreateGfxPipelineFromEntry(NewPSO, VulkanShaders, bIsPrecache))
 				{
 					DeleteNewPSO(NewPSO);
 					return nullptr;

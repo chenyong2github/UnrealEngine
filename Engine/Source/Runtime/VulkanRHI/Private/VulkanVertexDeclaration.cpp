@@ -30,8 +30,9 @@ bool operator==(const FVulkanVertexDeclarationKey& A, const FVulkanVertexDeclara
 			&& !memcmp(A.VertexElements.GetData(), B.VertexElements.GetData(), A.VertexElements.Num() * sizeof(FVertexElement)));
 }
 
-FVulkanVertexDeclaration::FVulkanVertexDeclaration(const FVertexDeclarationElementList& InElements) :
-	Elements(InElements)
+FVulkanVertexDeclaration::FVulkanVertexDeclaration(const FVertexDeclarationElementList& InElements, uint32 InHash) 
+	: Elements(InElements)
+	, Hash(InHash)
 {
 }
 
@@ -51,7 +52,7 @@ FVertexDeclarationRHIRef FVulkanDynamicRHI::RHICreateVertexDeclaration(const FVe
 	FVertexDeclarationRHIRef* VertexDeclarationRefPtr = GVertexDeclarationCache.Find(Key);
 	if (VertexDeclarationRefPtr == nullptr)
 	{
-		VertexDeclarationRefPtr = &GVertexDeclarationCache.Add(Key, new FVulkanVertexDeclaration(Elements));
+		VertexDeclarationRefPtr = &GVertexDeclarationCache.Add(Key, new FVulkanVertexDeclaration(Elements, Key.Hash));
 	}
 
 	check(VertexDeclarationRefPtr);
