@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Containers/StringFwd.h"
-#include "Containers/StringView.h"
-#include "Containers/UnrealString.h"
+#include "IO/IoStatus.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformString.h"
 #include "HAL/UnrealMemory.h"
-#include "IO/IoDispatcher.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
 #include "Math/UnrealMathUtility.h"
-#include "Trace/Detail/Channel.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogIoStatus, Log, All);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -71,7 +69,7 @@ FString FIoStatus::ToString() const
 
 void StatusOrCrash(const FIoStatus& Status)
 {
-	UE_LOG(LogIoDispatcher, Fatal, TEXT("I/O Error '%s'"), *Status.ToString());
+	UE_LOG(LogIoStatus, Fatal, TEXT("I/O Error '%s'"), *Status.ToString());
 }
 
 //////////////////////////////////////////////////////////////////////////
