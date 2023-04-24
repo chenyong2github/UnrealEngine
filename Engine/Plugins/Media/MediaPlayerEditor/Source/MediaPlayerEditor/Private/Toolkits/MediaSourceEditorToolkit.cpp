@@ -86,6 +86,7 @@ void FMediaSourceEditorToolkit::Initialize(UMediaSource* InMediaSource, const ET
 	{
 		MediaTexture->AutoClear = true;
 		MediaTexture->SetMediaPlayer(MediaPlayer);
+		MediaTexture->SetColorSpaceOverride(UE::Color::EColorSpace::sRGB);
 		MediaTexture->UpdateResource();
 	}
 

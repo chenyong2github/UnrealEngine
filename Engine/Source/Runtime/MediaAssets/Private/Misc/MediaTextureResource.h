@@ -17,6 +17,7 @@
 #include "Async/Async.h"
 #include "RenderingThread.h"
 #include "RendererInterface.h"
+#include "ColorSpace.h"
 
 class FMediaPlayerFacade;
 class IMediaPlayer;
@@ -48,7 +49,7 @@ public:
 	 * @param bEnableGenMips If true mips generation will be enabled (possibly optimizing for NumMips == 1 case)
 	 * @param InNumMips The initial number of mips to be generated for the output texture
 	 */
-	MEDIAASSETS_API FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool bEnableGenMips, uint8 InNumMips);
+	MEDIAASSETS_API FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool bEnableGenMips, uint8 InNumMips, UE::Color::EColorSpace OverrideColorSpaceType);
 
 	/** Virtual destructor. */
 	virtual ~FMediaTextureResource() 
@@ -253,5 +254,8 @@ private:
 
 	/** Cached FRenderParams, used when JustInTimeRender() gets called. */
 	TUniquePtr<FRenderParams> JustInTimeRenderParams;
+
+	/** Colorspace to override standard proejct "working color space' */
+	TUniquePtr<UE::Color::FColorSpace> OverrideColorSpace;
 
 };

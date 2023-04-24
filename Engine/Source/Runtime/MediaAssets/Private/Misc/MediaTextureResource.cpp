@@ -26,7 +26,6 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Async/Async.h"
 #include "RenderGraphUtils.h"
-#include "ColorSpace.h"
 #include "HDRHelper.h"
 
 #include "MediaTexture.h"
@@ -321,7 +320,7 @@ namespace MediaTextureResourceHelpers
 /* FMediaTextureResource structors
  *****************************************************************************/
 
-FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool InEnableGenMips, uint8 InNumMips)
+FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& InOwnerDim, SIZE_T& InOwnerSize, FLinearColor InClearColor, FGuid InTextureGuid, bool InEnableGenMips, uint8 InNumMips, UE::Color::EColorSpace OverrideColorSpaceType)
 	: Cleared(false)
 	, CurrentClearColor(InClearColor)
 	, InitialTextureGuid(InTextureGuid)
@@ -339,6 +338,11 @@ FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& 
 #else
 	bUsesImageExternal = !Owner.NewStyleOutput && GSupportsImageExternal;
 #endif
+	if (OverrideColorSpaceType != UE::Color::EColorSpace::None)
+	{
+		OverrideColorSpace.Reset(new UE::Color::FColorSpace(OverrideColorSpaceType));
+		check(OverrideColorSpace.IsValid());
+	}
 }
 
 
@@ -939,7 +943,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 
 void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample, FMatrix44f& ColorSpaceMtx)
 {
-	const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+	const UE::Color::FColorSpace& Working = OverrideColorSpace.IsValid() ? *OverrideColorSpace : UE::Color::FColorSpace::GetWorking();
 	ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
 	float NF = Sample->GetHDRNitsNormalizationFactor();
 	if (NF != 1.0f)

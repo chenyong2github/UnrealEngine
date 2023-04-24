@@ -220,6 +220,14 @@ public:
 	 */
 	void SetMipMapBias(float InMipMapBias);
 
+	/**
+	 * Set an override for color space conversions
+	 */
+	void SetColorSpaceOverride(UE::Color::EColorSpace InColorspaceOverride)
+	{
+		ColorspaceOverride = InColorspaceOverride;
+	}
+
 	/** Renders this media texture. Only has an effect if its RenderMode is ERenderMode::JustInTime */
 	virtual void JustInTimeRender();
 
@@ -342,4 +350,7 @@ private:
 
 	/** Current render mode of this media texture. Can be changed using SetRenderMode() */
 	ERenderMode RenderMode = ERenderMode::Default;
+
+	/** Colorspace override */
+	UE::Color::EColorSpace ColorspaceOverride;
 };

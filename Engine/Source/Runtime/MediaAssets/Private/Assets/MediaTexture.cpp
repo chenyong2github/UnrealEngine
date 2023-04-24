@@ -88,6 +88,7 @@ UMediaTexture::UMediaTexture(const FObjectInitializer& ObjectInitializer)
 	, CachedNextSampleTime(FTimespan::MinValue())
 	, TextureNumMips(1)
 	, MipMapBias(0.0f)
+	, ColorspaceOverride(UE::Color::EColorSpace::None)
 {
 	NeverStream = true;
 	SRGB = true;
@@ -174,7 +175,7 @@ FTextureResource* UMediaTexture::CreateResource()
 		Filter = (TextureNumMips > 1) ? TF_Trilinear : TF_Bilinear;
 	}
 
-	return new FMediaTextureResource(*this, Dimensions, Size, ClearColor, CurrentGuid.IsValid() ? CurrentGuid : DefaultGuid, EnableGenMips, NumMips);
+	return new FMediaTextureResource(*this, Dimensions, Size, ClearColor, CurrentGuid.IsValid() ? CurrentGuid : DefaultGuid, EnableGenMips, NumMips, ColorspaceOverride);
 }
 
 

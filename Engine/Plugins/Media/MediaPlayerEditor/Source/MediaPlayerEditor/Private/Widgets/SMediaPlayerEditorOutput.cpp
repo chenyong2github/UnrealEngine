@@ -96,6 +96,7 @@ void SMediaPlayerEditorOutput::Construct(const FArguments& InArgs, UMediaPlayer&
 		{
 			MediaTexture->AutoClear = true;
 			MediaTexture->SetMediaPlayer(&InMediaPlayer);
+			MediaTexture->SetColorSpaceOverride(UE::Color::EColorSpace::sRGB);
 			MediaTexture->UpdateResource();
 			MediaTexture->AddToRoot();
 		}
