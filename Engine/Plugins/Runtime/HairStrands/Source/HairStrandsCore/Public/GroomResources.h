@@ -140,6 +140,10 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	/* Populate GPU LOD data from RootData (this function doesn't initialize resources) */
 	void PopulateFromRootData();
 
+	// Accessors
+	uint32 GetLODCount() const { return BulkData.GetLODCount(); }
+	uint32 GetRootCount()const { return BulkData.GetRootCount(); }
+
 	/* Return the memory size for GPU resources */
 	uint32 GetResourcesSize() const 
 	{

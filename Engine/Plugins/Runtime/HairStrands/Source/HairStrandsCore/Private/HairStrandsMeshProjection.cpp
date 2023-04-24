@@ -276,7 +276,7 @@ void AddHairStrandUpdateMeshTrianglesPass(
 	FHairStrandsRestRootResource* RestResources,
 	FHairStrandsDeformedRootResource* DeformedResources)
 {
-	const uint32 RootCount = RestResources->BulkData.RootCount;
+	const uint32 RootCount = RestResources->GetRootCount();
 	if (RootCount == 0 || LODIndex < 0)
 	{
 		return;
@@ -1075,7 +1075,7 @@ static void AddFollicleMaskPass(
 	FHairStrandsRestRootResource* RestResources,
 	FRDGTextureRef OutTexture)
 {
-	const uint32 RootCount = RestResources->BulkData.RootCount;
+	const uint32 RootCount = RestResources->GetRootCount();
 	if (LODIndex >= uint32(RestResources->LODs.Num()) || RootCount == 0)
 		return;
 
@@ -1091,7 +1091,7 @@ static void AddFollicleMaskPass(
 	Parameters->RootUVsBuffer = nullptr;
 	Parameters->OutputResolution = OutputResolution;
 	Parameters->MaxRootCount = RootCount;
-	Parameters->MaxUniqueTriangleIndex = RestResources->BulkData.MeshProjectionLODs[LODIndex].UniqueTriangleCount;
+	Parameters->MaxUniqueTriangleIndex = RestResources->BulkData.Header.LODs[LODIndex].UniqueTriangleCount;
 	Parameters->Channel = FMath::Min(Channel, 3u);
 	Parameters->KernelSizeInPixels = FMath::Clamp(KernelSizeInPixels, 2u, 200u);
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutTexture, bNeedClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, 0);

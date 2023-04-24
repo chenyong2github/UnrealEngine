@@ -417,26 +417,26 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 
 		for (const FHairGroupResource& Resource : InBinding->HairGroupResources)
 		{
-			if (Resource.SimRootResources && InSkeletalMesh->GetLODNum() != Resource.SimRootResources->BulkData.MeshProjectionLODs.Num())
+			if (Resource.SimRootResources && InSkeletalMesh->GetLODNum() != Resource.SimRootResources->GetLODCount())
 			{
 				if (bIssueWarning)
 				{
 					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not have the same have LOD count (LOD sim:%d) than the skeletal mesh (%s, LOD:%d). The binding asset will not be used."),
 						*InBinding->GetName(),
-						Resource.SimRootResources->BulkData.MeshProjectionLODs.Num(),
+						Resource.SimRootResources->GetLODCount(),
 						*InSkeletalMesh->GetName(),
 						InSkeletalMesh->GetLODNum());
 				}
 				return false;
 			}
 
-			if (Resource.RenRootResources && InSkeletalMesh->GetLODNum() != Resource.RenRootResources->BulkData.MeshProjectionLODs.Num() && IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
+			if (Resource.RenRootResources && InSkeletalMesh->GetLODNum() != Resource.RenRootResources->GetLODCount() && IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
 			{
 				if (bIssueWarning)
 				{
 					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not have the same have LOD count (LOD render:%d) than the skeletal mesh (%s, LOD:%d). The binding asset will not be used."),
 						*InBinding->GetName(),
-						Resource.RenRootResources->BulkData.MeshProjectionLODs.Num(),
+						Resource.RenRootResources->GetLODCount(),
 						*InSkeletalMesh->GetName(),
 						InSkeletalMesh->GetLODNum());
 				}
@@ -784,10 +784,10 @@ void UGroomBindingAsset::CacheDerivedDatas()
 			FGoomBindingGroupInfo& Info = GroupInfos[GroupIt];
 			const FHairGroupBulkData& BulkData = HairGroupBulkDatas[GroupIt];
 			{
-				Info.SimRootCount = BulkData.SimRootBulkData.RootCount;
-				Info.SimLODCount  = BulkData.SimRootBulkData.MeshProjectionLODs.Num();
-				Info.RenRootCount = BulkData.RenRootBulkData.RootCount;
-				Info.RenLODCount  = BulkData.RenRootBulkData.MeshProjectionLODs.Num();
+				Info.SimRootCount = BulkData.SimRootBulkData.GetRootCount();
+				Info.SimLODCount  = BulkData.SimRootBulkData.GetLODCount();
+				Info.RenRootCount = BulkData.RenRootBulkData.GetRootCount();
+				Info.RenLODCount  = BulkData.RenRootBulkData.GetLODCount();
 			}
 		}
 

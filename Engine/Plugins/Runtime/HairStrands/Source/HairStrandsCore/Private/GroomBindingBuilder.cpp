@@ -57,7 +57,7 @@ static FAutoConsoleVariableRef CVarHairStrandsBindingBuilderWarningEnable(TEXT("
 FString FGroomBindingBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2h");
+	return TEXT("3a");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1877,6 +1877,12 @@ void CopyToBulkData(FByteBulkData& Out, const TArray<typename TFormatType::Type>
 }
 
 template<typename TFormatType>
+void CopyToBulkData(FHairBulkContainer& Out, const TArray<typename TFormatType::Type>& Data)
+{
+	CopyToBulkData<TFormatType>(Out.Data, Data);
+}
+
+template<typename TFormatType>
 void CopyFromBulkData(TArray<typename TFormatType::Type>& Out, const FByteBulkData& In)
 {
 	const uint32 InDataSize = In.GetBulkDataSize();
@@ -1889,16 +1895,34 @@ void CopyFromBulkData(TArray<typename TFormatType::Type>& Out, const FByteBulkDa
 	In.Unlock();
 }
 
+template<typename TFormatType>
+void CopyFromBulkData(TArray<typename TFormatType::Type>& Out, const FHairBulkContainer& In)
+{
+	CopyFromBulkData<TFormatType>(Out, In.Data);
+}
+
+
 // Convert "root data" -> "root bulk data"
 static void BuildRootBulkData(
 	FHairStrandsRootBulkData& Out,
 	const FHairStrandsRootData& In)
 {
-	Out.RootCount = In.RootCount;
-	Out.PointCount = In.PointCount;
-
 	const uint32 MeshLODCount = In.MeshProjectionLODs.Num();
-	Out.MeshProjectionLODs.SetNum(MeshLODCount);
+
+	// Header
+	Out.Header.RootCount  = In.RootCount;
+	Out.Header.PointCount = In.PointCount;
+
+	Out.Header.Strides.RootToUniqueTriangleIndexBufferStride 	= FHairStrandsRootToUniqueTriangleIndexFormat::SizeInByte;
+	Out.Header.Strides.RootBarycentricBufferStride 				= FHairStrandsRootBarycentricFormat::SizeInByte;
+	Out.Header.Strides.UniqueTriangleIndexBufferStride 			= FHairStrandsUniqueTriangleIndexFormat::SizeInByte;
+	Out.Header.Strides.RestUniqueTrianglePositionBufferStride 	= FHairStrandsMeshTrianglePositionFormat::SizeInByte;
+
+	Out.Header.Strides.MeshInterpolationWeightsBufferStride 	= FHairStrandsWeightFormat::SizeInByte;
+	Out.Header.Strides.MeshSampleIndicesBufferStride 			= FHairStrandsIndexFormat::SizeInByte;
+	Out.Header.Strides.RestSamplePositionsBufferStride 			= FHairStrandsMeshTrianglePositionFormat::SizeInByte;
+
+	Out.Header.LODs.SetNum(MeshLODCount);
 	for (uint32 MeshLODIt = 0; MeshLODIt < MeshLODCount; ++MeshLODIt)
 	{
 		const bool bHasValidSamples =
@@ -1906,28 +1930,37 @@ static void BuildRootBulkData(
 			In.MeshProjectionLODs[MeshLODIt].MeshSampleIndicesBuffer.Num() > 0 &&
 			In.MeshProjectionLODs[MeshLODIt].RestSamplePositionsBuffer.Num() > 0;
 
-		Out.MeshProjectionLODs[MeshLODIt].LODIndex = In.MeshProjectionLODs[MeshLODIt].LODIndex;
-		Out.MeshProjectionLODs[MeshLODIt].SampleCount = bHasValidSamples ? In.MeshProjectionLODs[MeshLODIt].SampleCount : 0u;
-		Out.MeshProjectionLODs[MeshLODIt].UniqueTriangleCount = In.MeshProjectionLODs[MeshLODIt].UniqueTriangleIndexBuffer.Num();
+		Out.Header.LODs[MeshLODIt].LODIndex 			= In.MeshProjectionLODs[MeshLODIt].LODIndex;
+		Out.Header.LODs[MeshLODIt].SampleCount 			= bHasValidSamples ? In.MeshProjectionLODs[MeshLODIt].SampleCount : 0u;
+		Out.Header.LODs[MeshLODIt].UniqueTriangleCount 	= In.MeshProjectionLODs[MeshLODIt].UniqueTriangleIndexBuffer.Num();
+		Out.Header.LODs[MeshLODIt].UniqueSectionIndices = In.MeshProjectionLODs[MeshLODIt].UniqueSectionIds;
+	}
 
-		CopyToBulkData<FHairStrandsUniqueTriangleIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].UniqueTriangleIndexBuffer, In.MeshProjectionLODs[MeshLODIt].UniqueTriangleIndexBuffer);
-		CopyToBulkData<FHairStrandsRootBarycentricFormat>(Out.MeshProjectionLODs[MeshLODIt].RootBarycentricBuffer, In.MeshProjectionLODs[MeshLODIt].RootBarycentricBuffer);
-		CopyToBulkData<FHairStrandsRootToUniqueTriangleIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].RootToUniqueTriangleIndexBuffer, In.MeshProjectionLODs[MeshLODIt].RootToUniqueTriangleIndexBuffer);
-		CopyToBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestUniqueTrianglePositionBuffer, In.MeshProjectionLODs[MeshLODIt].RestUniqueTrianglePositionBuffer);
+	// Data
+	Out.Data.LODs.SetNum(MeshLODCount);
+	for (uint32 MeshLODIt = 0; MeshLODIt < MeshLODCount; ++MeshLODIt)
+	{
+		const bool bHasValidSamples =
+			In.MeshProjectionLODs[MeshLODIt].MeshInterpolationWeightsBuffer.Num() > 0 &&
+			In.MeshProjectionLODs[MeshLODIt].MeshSampleIndicesBuffer.Num() > 0 &&
+			In.MeshProjectionLODs[MeshLODIt].RestSamplePositionsBuffer.Num() > 0;
 
-		Out.MeshProjectionLODs[MeshLODIt].UniqueSectionIndices = In.MeshProjectionLODs[MeshLODIt].UniqueSectionIds;
+		CopyToBulkData<FHairStrandsUniqueTriangleIndexFormat>(Out.Data.LODs[MeshLODIt].UniqueTriangleIndexBuffer, In.MeshProjectionLODs[MeshLODIt].UniqueTriangleIndexBuffer);
+		CopyToBulkData<FHairStrandsRootBarycentricFormat>(Out.Data.LODs[MeshLODIt].RootBarycentricBuffer, In.MeshProjectionLODs[MeshLODIt].RootBarycentricBuffer);
+		CopyToBulkData<FHairStrandsRootToUniqueTriangleIndexFormat>(Out.Data.LODs[MeshLODIt].RootToUniqueTriangleIndexBuffer, In.MeshProjectionLODs[MeshLODIt].RootToUniqueTriangleIndexBuffer);
+		CopyToBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.Data.LODs[MeshLODIt].RestUniqueTrianglePositionBuffer, In.MeshProjectionLODs[MeshLODIt].RestUniqueTrianglePositionBuffer);
 
 		if (bHasValidSamples)
 		{
-			CopyToBulkData<FHairStrandsWeightFormat>(Out.MeshProjectionLODs[MeshLODIt].MeshInterpolationWeightsBuffer, In.MeshProjectionLODs[MeshLODIt].MeshInterpolationWeightsBuffer);
-			CopyToBulkData<FHairStrandsIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].MeshSampleIndicesBuffer, In.MeshProjectionLODs[MeshLODIt].MeshSampleIndicesBuffer);
-			CopyToBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestSamplePositionsBuffer, In.MeshProjectionLODs[MeshLODIt].RestSamplePositionsBuffer);
+			CopyToBulkData<FHairStrandsWeightFormat>(Out.Data.LODs[MeshLODIt].MeshInterpolationWeightsBuffer, In.MeshProjectionLODs[MeshLODIt].MeshInterpolationWeightsBuffer);
+			CopyToBulkData<FHairStrandsIndexFormat>(Out.Data.LODs[MeshLODIt].MeshSampleIndicesBuffer, In.MeshProjectionLODs[MeshLODIt].MeshSampleIndicesBuffer);
+			CopyToBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.Data.LODs[MeshLODIt].RestSamplePositionsBuffer, In.MeshProjectionLODs[MeshLODIt].RestSamplePositionsBuffer);
 		}
 		else
 		{
-			Out.MeshProjectionLODs[MeshLODIt].MeshInterpolationWeightsBuffer.RemoveBulkData();
-			Out.MeshProjectionLODs[MeshLODIt].MeshSampleIndicesBuffer.RemoveBulkData();
-			Out.MeshProjectionLODs[MeshLODIt].RestSamplePositionsBuffer.RemoveBulkData();
+			Out.Data.LODs[MeshLODIt].MeshInterpolationWeightsBuffer.RemoveBulkData();
+			Out.Data.LODs[MeshLODIt].MeshSampleIndicesBuffer.RemoveBulkData();
+			Out.Data.LODs[MeshLODIt].RestSamplePositionsBuffer.RemoveBulkData();
 		}
 	}
 }
@@ -1937,30 +1970,31 @@ static void BuildRootData(
 	FHairStrandsRootData& Out,
 	const FHairStrandsRootBulkData& In)
 {
-	Out.RootCount = In.RootCount;
-	Out.PointCount = In.PointCount;
+	// TODO: do we need to force load the data into the bulk data prior to running the convertion (bulk -> data)?
 
-	const uint32 MeshLODCount = In.MeshProjectionLODs.Num();
+	Out.RootCount = In.Header.RootCount;
+	Out.PointCount = In.Header.PointCount;
+
+	const uint32 MeshLODCount = In.Header.LODs.Num();
 	Out.MeshProjectionLODs.SetNum(MeshLODCount);
 	for (uint32 MeshLODIt = 0; MeshLODIt < MeshLODCount; ++MeshLODIt)
 	{
-		const bool bHasValidSamples = In.MeshProjectionLODs[MeshLODIt].SampleCount > 0;
+		const bool bHasValidSamples = In.Header.LODs[MeshLODIt].SampleCount > 0;
 
-		Out.MeshProjectionLODs[MeshLODIt].LODIndex = In.MeshProjectionLODs[MeshLODIt].LODIndex;
-		Out.MeshProjectionLODs[MeshLODIt].SampleCount = bHasValidSamples ? In.MeshProjectionLODs[MeshLODIt].SampleCount : 0u;
+		Out.MeshProjectionLODs[MeshLODIt].LODIndex = In.Header.LODs[MeshLODIt].LODIndex;
+		Out.MeshProjectionLODs[MeshLODIt].SampleCount = bHasValidSamples ? In.Header.LODs[MeshLODIt].SampleCount : 0u;
+		Out.MeshProjectionLODs[MeshLODIt].UniqueSectionIds = In.Header.LODs[MeshLODIt].UniqueSectionIndices;
 
-		CopyFromBulkData<FHairStrandsUniqueTriangleIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].UniqueTriangleIndexBuffer, In.MeshProjectionLODs[MeshLODIt].UniqueTriangleIndexBuffer);
-		CopyFromBulkData<FHairStrandsRootToUniqueTriangleIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].RootToUniqueTriangleIndexBuffer, In.MeshProjectionLODs[MeshLODIt].RootToUniqueTriangleIndexBuffer);
-		CopyFromBulkData<FHairStrandsRootBarycentricFormat>(Out.MeshProjectionLODs[MeshLODIt].RootBarycentricBuffer, In.MeshProjectionLODs[MeshLODIt].RootBarycentricBuffer);
-		CopyFromBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestUniqueTrianglePositionBuffer, In.MeshProjectionLODs[MeshLODIt].RestUniqueTrianglePositionBuffer);
-
-		Out.MeshProjectionLODs[MeshLODIt].UniqueSectionIds = In.MeshProjectionLODs[MeshLODIt].UniqueSectionIndices;
+		CopyFromBulkData<FHairStrandsUniqueTriangleIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].UniqueTriangleIndexBuffer, In.Data.LODs[MeshLODIt].UniqueTriangleIndexBuffer);
+		CopyFromBulkData<FHairStrandsRootToUniqueTriangleIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].RootToUniqueTriangleIndexBuffer, In.Data.LODs[MeshLODIt].RootToUniqueTriangleIndexBuffer);
+		CopyFromBulkData<FHairStrandsRootBarycentricFormat>(Out.MeshProjectionLODs[MeshLODIt].RootBarycentricBuffer, In.Data.LODs[MeshLODIt].RootBarycentricBuffer);
+		CopyFromBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestUniqueTrianglePositionBuffer, In.Data.LODs[MeshLODIt].RestUniqueTrianglePositionBuffer);
 
 		if (bHasValidSamples)
 		{
-			CopyFromBulkData<FHairStrandsWeightFormat>(Out.MeshProjectionLODs[MeshLODIt].MeshInterpolationWeightsBuffer, In.MeshProjectionLODs[MeshLODIt].MeshInterpolationWeightsBuffer);
-			CopyFromBulkData<FHairStrandsIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].MeshSampleIndicesBuffer, In.MeshProjectionLODs[MeshLODIt].MeshSampleIndicesBuffer);
-			CopyFromBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestSamplePositionsBuffer, In.MeshProjectionLODs[MeshLODIt].RestSamplePositionsBuffer);
+			CopyFromBulkData<FHairStrandsWeightFormat>(Out.MeshProjectionLODs[MeshLODIt].MeshInterpolationWeightsBuffer, In.Data.LODs[MeshLODIt].MeshInterpolationWeightsBuffer);
+			CopyFromBulkData<FHairStrandsIndexFormat>(Out.MeshProjectionLODs[MeshLODIt].MeshSampleIndicesBuffer, In.Data.LODs[MeshLODIt].MeshSampleIndicesBuffer);
+			CopyFromBulkData<FHairStrandsMeshTrianglePositionFormat>(Out.MeshProjectionLODs[MeshLODIt].RestSamplePositionsBuffer, In.Data.LODs[MeshLODIt].RestSamplePositionsBuffer);
 		}
 		else
 		{

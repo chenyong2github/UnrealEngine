@@ -642,17 +642,20 @@ struct HAIRSTRANDSCORE_API FHairStrandsDebugDatas
 /* Bulk data for root resources (GPU resources are stored into FHairStrandsRootResources) */
 struct FHairStrandsRootBulkData
 {
-	FHairStrandsRootBulkData();
+	void SerializeHeader(FArchive& Ar, UObject* Owner);
+	void SerializeData(FArchive& Ar, UObject* Owner);
 	void Serialize(FArchive& Ar, UObject* Owner);
+
 	void Reset();
-	bool HasProjectionData() const;
-	bool IsValid() const { return RootCount > 0; }
+	bool IsValid() const { return Header.RootCount > 0; }
 	const TArray<uint32>& GetValidSectionIndices(int32 LODIndex) const;
+	uint32 GetLODCount() const { return Header.LODs.Num(); }
+	uint32 GetRootCount()const { return Header.RootCount; }
 
 	uint32 GetDataSize() const
 	{
 		uint32 Total = 0;
-		for (const FMeshProjectionLOD& LOD : MeshProjectionLODs)
+		for (const FData::FLOD& LOD : Data.LODs)
 		{
 			Total += LOD.UniqueTriangleIndexBuffer.IsBulkDataLoaded() ?			LOD.UniqueTriangleIndexBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.RootToUniqueTriangleIndexBuffer.IsBulkDataLoaded() ?	LOD.RootToUniqueTriangleIndexBuffer.GetBulkDataSize() : 0u;
@@ -661,52 +664,55 @@ struct FHairStrandsRootBulkData
 			Total += LOD.MeshInterpolationWeightsBuffer.IsBulkDataLoaded() ?	LOD.MeshInterpolationWeightsBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.MeshSampleIndicesBuffer.IsBulkDataLoaded() ?			LOD.MeshSampleIndicesBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.RestSamplePositionsBuffer.IsBulkDataLoaded() ?			LOD.RestSamplePositionsBuffer.GetBulkDataSize() : 0u;
-			Total += LOD.UniqueSectionIndices.GetAllocatedSize();
 		}
 		return Total;
 	}
 
-	struct FMeshProjectionLOD
+	struct FHeader
+	{		
+		struct FLOD
+		{
+			int32  LODIndex = -1;
+			uint32 UniqueTriangleCount = 0;			
+			uint32 SampleCount = 0; 				// Number of samples used for the mesh interpolation
+			TArray<uint32> UniqueSectionIndices; 	// Store the mesh section indices which are relevant for this root LOD data
+		};
+
+		struct FStrides
+		{
+			uint32 RootToUniqueTriangleIndexBufferStride = 0;
+			uint32 RootBarycentricBufferStride = 0;
+			uint32 UniqueTriangleIndexBufferStride = 0;
+			uint32 RestUniqueTrianglePositionBufferStride = 0;
+
+			uint32 MeshInterpolationWeightsBufferStride = 0;
+			uint32 MeshSampleIndicesBufferStride = 0;
+			uint32 RestSamplePositionsBufferStride = 0;
+		};
+
+		uint32 RootCount = 0;						// Number of roots
+		uint32 PointCount = 0;						// Number of control points
+		FStrides Strides;
+		TArray<FLOD> LODs;
+	} Header;
+
+	struct FData
 	{
-		int32 LODIndex = -1;
-		uint32 UniqueTriangleCount = 0;
+		struct FLOD
+		{
+			// Binding
+			FByteBulkData RootToUniqueTriangleIndexBuffer; 	// Map each root onto the unique triangle Id (per-root)
+			FByteBulkData RootBarycentricBuffer; 			// Root's barycentric (per-root)
+			FByteBulkData UniqueTriangleIndexBuffer; 		// Unique triangles list from skeleton mesh section IDs and triangle IDs (per-unique-triangle)
+			FByteBulkData RestUniqueTrianglePositionBuffer;	// Rest triangle positions (per-unique-triangle)
 
-		/* Map each root onto the unique triangle Id (per-root) */
-		FByteBulkData RootToUniqueTriangleIndexBuffer;
-
-		/* Root's barycentric (per-root) */
-		FByteBulkData RootBarycentricBuffer;
-
-		/* Unique triangles list from skeleton mesh section IDs and triangle IDs (per-unique-triangle) */
-		FByteBulkData UniqueTriangleIndexBuffer;
-
-		/* Rest triangle positions (per-unique-triangle) */
-		FByteBulkData RestUniqueTrianglePositionBuffer;
-
-		/* Number of samples used for the mesh interpolation */
-		uint32 SampleCount = 0;
-
-		/* Store the hair interpolation weights | Size = SamplesCount * SamplesCount (per-sample)*/
-		FByteBulkData MeshInterpolationWeightsBuffer;
-
-		/* Store the samples vertex indices (per-sample) */
-		FByteBulkData MeshSampleIndicesBuffer;
-
-		/* Store the samples rest positions (per-sample) */
-		FByteBulkData RestSamplePositionsBuffer;
-
-		/* Store the mesh section indices which are relevant for this root LOD data */
-		TArray<uint32> UniqueSectionIndices;
-	};
-
-	/* Number of roots */
-	uint32 RootCount = 0;
-
-	/* Number of control points */
-	uint32 PointCount = 0;
-
-	/* Store the hair projection information for each mesh LOD */
-	TArray<FMeshProjectionLOD> MeshProjectionLODs;
+			// RBF
+			FByteBulkData MeshInterpolationWeightsBuffer; 	// Store the hair interpolation weights | Size = SamplesCount * SamplesCount (per-sample
+			FByteBulkData MeshSampleIndicesBuffer; 			// Store the samples vertex indices (per-sample)
+			FByteBulkData RestSamplePositionsBuffer; 		// Store the samples rest positions (per-sample)
+		};
+		TArray<FLOD> LODs;
+	} Data;
 };
 
 /* Source data for building root bulk data */

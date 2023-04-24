@@ -391,7 +391,7 @@ static void AddDeformSimHairStrandsPass(
 			Parameters->SimPointToCurveBuffer = SimPointToCurveBuffer;
 		}
 
-		const uint32 RootCount = SimRestRootResources ? SimRestRootResources->BulkData.RootCount : 0;
+		const uint32 RootCount = SimRestRootResources ? SimRestRootResources->GetRootCount() : 0;
 
 		if(BoneBufferSRV)
 		{
@@ -622,7 +622,7 @@ static void AddHairStrandsInterpolationPass(
 
 	const bool bSupportDynamicMesh = 
 		RenRestRootResources &&
-		RenRestRootResources->BulkData.RootCount > 0 && 
+		RenRestRootResources->GetRootCount() > 0 && 
 		MeshLODIndex >= 0 && 
 		MeshLODIndex < RenRestRootResources->LODs.Num() &&
 		MeshLODIndex < RenDeformedRootResources->LODs.Num() &&
@@ -1067,7 +1067,7 @@ static void AddHairCardsDeformationPass(
 	const bool bSupportDynamicMesh =
 		Instance->BindingType == EHairBindingType::Skinning &&
 		RestRootResources &&
-		RestRootResources->BulkData.RootCount > 0 &&
+		RestRootResources->GetRootCount() > 0 &&
 		MeshLODIndex >= 0 &&
 		MeshLODIndex < RestRootResources->LODs.Num() &&
 		MeshLODIndex < DeformedRootResources->LODs.Num() &&

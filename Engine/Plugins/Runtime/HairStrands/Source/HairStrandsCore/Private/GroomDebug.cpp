@@ -296,7 +296,7 @@ static void AddDebugProjectionHairPass(
 	}
 	
 	const EPrimitiveType PrimitiveType = GeometryType == EDebugProjectionHairType::HairFrame ? PT_LineList : GeometryType == EDebugProjectionHairType::HairTriangle ? PT_TriangleList : PT_LineList;
-	const uint32 RootCount = EDebugProjectionHairType::HairSamples == GeometryType ? 3 * RestRootResources->LODs[MeshLODIndex].SampleCount : RestRootResources->BulkData.RootCount;
+	const uint32 RootCount = EDebugProjectionHairType::HairSamples == GeometryType ? 3 * RestRootResources->LODs[MeshLODIndex].SampleCount : RestRootResources->GetRootCount();
 	const uint32 PrimitiveCount = RootCount;
 
 	if (PrimitiveCount == 0)
@@ -939,10 +939,10 @@ static void AddHairDebugPrintInstancePass(
 				const int32 MeshLODIndex = Instance->HairGroupPublicData->MeshLODIndex;
 				if (MeshLODIndex>=0 && Instance->Strands.RestRootResource)
 				{
-					Data1.X = Instance->Strands.RestRootResource->BulkData.MeshProjectionLODs[MeshLODIndex].UniqueSectionIndices.Num();
-					Data1.Y = Instance->Strands.RestRootResource->BulkData.MeshProjectionLODs[MeshLODIndex].UniqueTriangleCount;
-					Data1.Z = Instance->Strands.RestRootResource->BulkData.RootCount;
-					Data1.W = Instance->Strands.RestRootResource->BulkData.PointCount;
+					Data1.X = Instance->Strands.RestRootResource->BulkData.Header.LODs[MeshLODIndex].UniqueSectionIndices.Num();
+					Data1.Y = Instance->Strands.RestRootResource->BulkData.Header.LODs[MeshLODIndex].UniqueTriangleCount;
+					Data1.Z = Instance->Strands.RestRootResource->BulkData.Header.RootCount;
+					Data1.W = Instance->Strands.RestRootResource->BulkData.Header.PointCount;
 				}
 
 				{
