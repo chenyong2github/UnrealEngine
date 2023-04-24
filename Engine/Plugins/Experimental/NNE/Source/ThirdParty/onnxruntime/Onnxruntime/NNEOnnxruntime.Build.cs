@@ -89,7 +89,7 @@ public class NNEOnnxruntime : ModuleRules
 			PrivateDependencyModuleNames.AddRange
 				(
 				new string[] {
-					"Nsync"
+					"NNENsync"
 				}
 			);
 		}
