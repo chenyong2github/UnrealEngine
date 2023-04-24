@@ -28,7 +28,7 @@ TArray<FPCGPinProperties> UPCGMergeSettings::InputPinProperties() const
 TArray<FPCGPinProperties> UPCGMergeSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Point, /*bAllowMultipleConnections=*/false);
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Point, /*bAllowMultipleConnections=*/false, /*bAllowMultipleData=*/false);
 
 	return PinProperties;
 }
