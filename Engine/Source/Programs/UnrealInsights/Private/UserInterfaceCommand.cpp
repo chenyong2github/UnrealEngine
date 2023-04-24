@@ -261,7 +261,18 @@ void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, cons
 	IUnrealInsightsModule& TraceInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 
 	uint32 TraceId = 0;
-	bool bUseTraceId = FParse::Value(FCommandLine::Get(), TEXT("-OpenTraceId="), TraceId);
+	FString TraceIdString;
+	bool bUseTraceId = FParse::Value(FCommandLine::Get(), TEXT("-OpenTraceId="), TraceIdString);
+	if (TraceIdString.StartsWith(TEXT("0x")))
+	{
+		TCHAR* End;
+		TraceId = FCString::Strtoi(*TraceIdString + 2, &End, 16);
+	}
+	else
+	{
+		TCHAR* End;
+		TraceId = FCString::Strtoi(*TraceIdString, &End, 10);
+	}
 
 	const uint32 MaxPath = FPlatformMisc::GetMaxPathLength();
 	TCHAR* StoreHost = new TCHAR[MaxPath + 1];

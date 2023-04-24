@@ -2662,12 +2662,20 @@ void STraceStoreWindow::OpenTraceSession(uint32 InTraceId)
 		return;
 	}
 
+	uint32 StoreAddress = 0;
 	uint32 StorePort = 0;
 	{
 		FScopeLock StoreClientLock(&FInsightsManager::Get()->GetStoreClientCriticalSection());
+		StoreAddress = StoreClient->GetStoreAddress();
 		StorePort = StoreClient->GetStorePort();
 	}
-	FString CmdLine = FString::Printf(TEXT("-OpenTraceId=%d -StorePort=%d"), InTraceId, StorePort);
+	FString CmdLine = FString::Printf(TEXT("-OpenTraceId=0x%X -Store=%u.%u.%u.%u:%u"),
+		InTraceId,
+		(StoreAddress >> 24) & 0xFF,
+		(StoreAddress >> 16) & 0xFF,
+		(StoreAddress >>  8) & 0xFF,
+		(StoreAddress      ) & 0xFF,
+		StorePort);
 
 	FString ExtraCmdParams;
 	GetExtraCommandLineParams(ExtraCmdParams);
