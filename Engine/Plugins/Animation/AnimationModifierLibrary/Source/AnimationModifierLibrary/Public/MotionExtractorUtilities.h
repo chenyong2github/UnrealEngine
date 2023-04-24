@@ -76,7 +76,7 @@ public:
 	static FTransform ExtractBoneTransform(UAnimSequence* Animation, const FBoneContainer& BoneContainer, FCompactPoseBoneIndex CompactPoseBoneIndex, float Time, bool bComponentSpace);
 
 	/** Helper function to calculate the magnitude of a vector only considering a specific axis or axes */
-	static float CalculateMagnitude(const FVector& Vector, EMotionExtractor_Axis Axis);
+	static double CalculateMagnitude(const FVector& Vector, EMotionExtractor_Axis Axis);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 		}
 	}
 }

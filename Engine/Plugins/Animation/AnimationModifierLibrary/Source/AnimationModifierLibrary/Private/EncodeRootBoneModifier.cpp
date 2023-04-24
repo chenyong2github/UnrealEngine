@@ -101,7 +101,7 @@ void UEncodeRootBoneModifier::OnApply_Implementation(UAnimSequence* Animation)
 				}
 			}
 
-			const float Yaw = FMath::Atan2(-WeightedBoneHeading.X, WeightedBoneHeading.Y) * (180.f / UE_PI);
+			const double Yaw = FMath::Atan2(-WeightedBoneHeading.X, WeightedBoneHeading.Y) * (180.f / UE_PI);
 			const FRotator Rotator(0.f, Yaw, 0.f);
 			RootTransformNew.SetRotation(Rotator.Quaternion());
 		}

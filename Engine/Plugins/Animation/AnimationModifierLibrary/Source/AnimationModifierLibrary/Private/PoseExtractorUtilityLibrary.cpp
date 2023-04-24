@@ -68,8 +68,8 @@ bool FPoseExtractorUtilityLibrary::AddBone(const FName& BoneName, int32 BoneInde
 {
 	if (BoneIndex >= 0 && BoneIndex < MAX_uint16)
 	{
-		NameToBoneIndex.FindOrAdd(BoneName) = BoneIndex;
-		BoneIndicesWithParents.AddUnique(BoneIndex);
+		NameToBoneIndex.FindOrAdd(BoneName) = static_cast<FBoneIndexType>(BoneIndex);
+		BoneIndicesWithParents.AddUnique(static_cast<FBoneIndexType>(BoneIndex));
 		return true;
 	}
 	
@@ -97,9 +97,9 @@ bool FPoseExtractorUtilityLibrary::CacheGlobalBoneTransforms()
 
 	FAnimationRuntime::EnsureParentsPresent(BoneIndicesWithParents, RefSkeleton);
 
-	for (int i = 0; i < BoneIndicesWithParents.Num(); ++i)
+	for (int32 i = 0; i < BoneIndicesWithParents.Num(); ++i)
 	{
-		ReducedIndexMap.Add(BoneIndicesWithParents[i]) = i;
+		ReducedIndexMap.Add(BoneIndicesWithParents[i]) = IntCastChecked<FBoneIndexType>(i);
 	}
 	
 	const int32 NumAnimKeys = Model->GetNumberOfKeys();
@@ -117,7 +117,7 @@ bool FPoseExtractorUtilityLibrary::CacheGlobalBoneTransforms()
 			const int32 ParentBoneIndex = RefSkeleton.GetParentIndex(BoneIndex);
 			if (ParentBoneIndex != INDEX_NONE)
 			{
-				const uint16* MappedParentBoneIndex = ReducedIndexMap.Find(ParentBoneIndex);
+				const uint16* MappedParentBoneIndex = ReducedIndexMap.Find(IntCastChecked<FBoneIndexType>(ParentBoneIndex));
 				check(MappedParentBoneIndex);
 				check(*MappedParentBoneIndex <= i);
 				GlobalBoneTransforms[AnimKey][i] = LocalBoneTransform * GlobalBoneTransforms[AnimKey][*MappedParentBoneIndex];

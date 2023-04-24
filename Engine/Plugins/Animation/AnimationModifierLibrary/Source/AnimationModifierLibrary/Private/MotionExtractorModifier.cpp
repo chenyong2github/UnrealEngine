@@ -62,7 +62,7 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 	TGuardValue<bool> ForceRootLockGuard(Animation->bForceRootLock, false);
 
 	TArray<FBoneIndexType> RequiredBones;
-	RequiredBones.Add(BoneIndex);
+	RequiredBones.Add(IntCastChecked<FBoneIndexType>(BoneIndex));
 	Skeleton->GetReferenceSkeleton().EnsureParentsExistAndSort(RequiredBones);
 
 	FBoneContainer BoneContainer(RequiredBones, UE::Anim::ECurveFilterMode::DisallowAll, *Skeleton);
@@ -71,7 +71,7 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 	FTransform FirstFrameBoneTransform = UMotionExtractorUtilityLibrary::ExtractBoneTransform(Animation, BoneContainer, CompactPoseBoneIndex, 0.f, bComponentSpace);
 
 	const float AnimLength = Animation->GetPlayLength();
-	const float SampleInterval = 1.f / SampleRate;
+	const float SampleInterval = 1.f / static_cast<float>(SampleRate);
 
 	FTransform LastBoneTransform = FTransform::Identity;
 	float Time = 0.f;
@@ -82,7 +82,7 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 	{
 		while (Time < AnimLength)
 		{
-			Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, AnimLength);
+			Time = FMath::Clamp(static_cast<float>(SampleIndex) * SampleInterval, 0.f, AnimLength);
 			SampleIndex++;
 
 			FTransform BoneTransform = UMotionExtractorUtilityLibrary::ExtractBoneTransform(Animation, BoneContainer, CompactPoseBoneIndex, Time, bComponentSpace);
@@ -111,7 +111,7 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 	
 	while (Time < AnimLength)
 	{
-		Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, AnimLength);
+		Time = FMath::Clamp(static_cast<float>(SampleIndex) * SampleInterval, 0.f, AnimLength);
 		SampleIndex++;
 
 		FTransform BoneTransform = UMotionExtractorUtilityLibrary::ExtractBoneTransform(Animation, BoneContainer, CompactPoseBoneIndex, Time, bComponentSpace);

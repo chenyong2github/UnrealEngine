@@ -21,14 +21,14 @@ namespace UE::Anim::MotionExtractorUtility
 
 		const float AnimLength = Animation->GetPlayLength();
 		float SampleInterval = 1.f / SampleRate;
-		int32 NumSteps = AnimLength / SampleInterval;
+		int32 NumSteps = static_cast<int32>(AnimLength / SampleInterval);
 
 		TArray<FVector2D> OutRanges;
 		OutRanges.Reserve(4);
 		bool bMeetsCriterion = false;
 		for (int32 Step = 0; Step < NumSteps; ++Step)
 		{
-			const float Time = Step * SampleInterval;
+			const float Time = static_cast<float>(Step) * SampleInterval;
 			const bool bAllowLooping = false;
 			const FTransform RootMotion = Animation->ExtractRootMotion(Time, SampleInterval, bAllowLooping);
 			const bool bMetCriterion = bMeetsCriterion;
@@ -98,7 +98,7 @@ float UMotionExtractorUtilityLibrary::GetDesiredValue(
 		return 0.0f;
 	}
 
-	float Value = 0.f;
+	double Value = 0.f;
 	switch (MotionType)
 	{
 	case EMotionExtractor_MotionType::Translation:
@@ -141,7 +141,7 @@ float UMotionExtractorUtilityLibrary::GetDesiredValue(
 	{
 		if (!FMath::IsNearlyZero(DeltaTime))
 		{
-			const float Delta = UMotionExtractorUtilityLibrary::CalculateMagnitude((BoneTransform.GetTranslation() - LastBoneTransform.GetTranslation()), Axis);
+			const double Delta = UMotionExtractorUtilityLibrary::CalculateMagnitude((BoneTransform.GetTranslation() - LastBoneTransform.GetTranslation()), Axis);
 			Value = Delta / DeltaTime;
 		}
 
@@ -186,7 +186,7 @@ float UMotionExtractorUtilityLibrary::GetDesiredValue(
 	default: check(false); break;
 	}
 
-	return Value;
+	return static_cast<float>(Value);
 }
 
 TArray<FVector2D> UMotionExtractorUtilityLibrary::GetStoppedRangesFromRootMotion(const UAnimSequence* AnimSequence, float StopSpeedThreshold, float SampleRate)
@@ -194,7 +194,7 @@ TArray<FVector2D> UMotionExtractorUtilityLibrary::GetStoppedRangesFromRootMotion
 	auto Criterion = [StopSpeedThreshold](const FTransform& InRootMotionDelta, float DeltaTime)
 	{
 		const FVector RootMotionTranslation = InRootMotionDelta.GetTranslation();
-		const float RootMotionSpeed = RootMotionTranslation.Size() / DeltaTime;
+		const double RootMotionSpeed = RootMotionTranslation.Size() / DeltaTime;
 		return RootMotionSpeed < StopSpeedThreshold;
 	};
 
@@ -206,7 +206,7 @@ TArray<FVector2D> UMotionExtractorUtilityLibrary::GetMovingRangesFromRootMotion(
 	auto Criterion = [StopSpeedThreshold](const FTransform& InRootMotionDelta, float DeltaTime)
 	{
 		const FVector RootMotionTranslation = InRootMotionDelta.GetTranslation();
-		const float RootMotionSpeed = RootMotionTranslation.Size() / DeltaTime;
+		const double RootMotionSpeed = RootMotionTranslation.Size() / DeltaTime;
 		return RootMotionSpeed > StopSpeedThreshold;
 	};
 
@@ -241,7 +241,7 @@ FTransform UMotionExtractorUtilityLibrary::ExtractBoneTransform(UAnimSequence* A
 	}
 }
 
-float UMotionExtractorUtilityLibrary::CalculateMagnitude(const FVector& Vector, EMotionExtractor_Axis Axis)
+double UMotionExtractorUtilityLibrary::CalculateMagnitude(const FVector& Vector, EMotionExtractor_Axis Axis)
 {
 	switch (Axis)
 	{
