@@ -1725,7 +1725,17 @@ void FD3D12DynamicRHI::Init()
 		GRHIVariableRateShadingImageTileMaxHeight = 1;
 	}
 
-	GRHISupportsUAVFormatAliasing = (GetAdapter().GetResourceHeapTier() > D3D12_RESOURCE_HEAP_TIER_1 && IsRHIDeviceNVIDIA());
+#if D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV
+	D3D12_FEATURE_DATA_D3D12_OPTIONS12 Options12{};
+	if (SUCCEEDED(GetAdapter().GetD3DDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &Options12, sizeof(Options12))))
+	{
+		GRHIGlobals.SupportsUAVFormatAliasing = (Options12.RelaxedFormatCastingSupported != 0)
+			// We require ID3D12Device12 for GetResourceAllocationInfo3
+			&& GetAdapter().GetD3DDevice12() != nullptr;
+	}
+#else
+	GRHIGlobals.SupportsUAVFormatAliasing = (GetAdapter().GetResourceHeapTier() > D3D12_RESOURCE_HEAP_TIER_1 && IsRHIDeviceNVIDIA());
+#endif
 
 	InitializeSubmissionPipe();
 

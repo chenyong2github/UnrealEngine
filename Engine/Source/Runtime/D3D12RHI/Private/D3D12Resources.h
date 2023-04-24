@@ -119,7 +119,7 @@ struct FD3D12ResourceDesc : public D3D12_RESOURCE_DESC
 	EPixelFormat PixelFormat{ PF_Unknown };
 
 	// PixelFormat for the Resource that aliases our current resource.
-	EPixelFormat UAVAliasPixelFormat{ PF_Unknown };
+	EPixelFormat UAVPixelFormat{ PF_Unknown };
 
 #if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 	bool bRequires64BitAtomicSupport{ false };
@@ -127,8 +127,16 @@ struct FD3D12ResourceDesc : public D3D12_RESOURCE_DESC
 
 	bool bReservedResource { false };
 
-	// Used primarily to help treat this resource description as writable.
-	inline bool NeedsUAVAliasWorkarounds() const { return UAVAliasPixelFormat != PF_Unknown; }
+	// If we support the new format list casting, use the newer APIs; otherwise, fall back to our UAV Aliasing approach.
+#if D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV
+	inline bool NeedsUAVAliasWorkarounds() const { return false; }
+	inline bool SupportsUncompressedUAV() const { return UAVPixelFormat != PF_Unknown; }
+
+	TArray<DXGI_FORMAT, TInlineAllocator<4>> GetCastableFormats() const;
+#else
+	inline bool NeedsUAVAliasWorkarounds() const { return UAVPixelFormat != PF_Unknown; }
+	inline bool SupportsUncompressedUAV() const { return false; }
+#endif
 };
 
 class FD3D12Resource : public FThreadSafeRefCountedObject, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject

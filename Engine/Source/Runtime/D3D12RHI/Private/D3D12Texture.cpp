@@ -640,13 +640,12 @@ FD3D12ResourceDesc FD3D12DynamicRHI::GetResourceDesc(const FRHITextureDesc& Text
 		ResourceDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	}
 
-	bool bBCTextureNeedsUAVAlias = EnumHasAnyFlags(TextureDesc.Flags, TexCreate_UAV) && IsBlockCompressedFormat(TextureDesc.Format);
-	if (bBCTextureNeedsUAVAlias)
+	if (EnumHasAnyFlags(TextureDesc.Flags, ETextureCreateFlags::UAV) && IsBlockCompressedFormat(TextureDesc.Format))
 	{
-		ResourceDesc.UAVAliasPixelFormat = GetBlockCompressedFormatUAVAliasFormat(TextureDesc.Format);
+		ResourceDesc.UAVPixelFormat = GetBlockCompressedFormatUAVAliasFormat(TextureDesc.Format);
 	}
 
-	if (EnumHasAnyFlags(TextureDesc.Flags, TexCreate_UAV) && !bBCTextureNeedsUAVAlias)
+	if (EnumHasAnyFlags(TextureDesc.Flags, TexCreate_UAV) && !ResourceDesc.NeedsUAVAliasWorkarounds())
 	{
 		ResourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	}
@@ -655,6 +654,8 @@ FD3D12ResourceDesc FD3D12DynamicRHI::GetResourceDesc(const FRHITextureDesc& Text
 
 #if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 	ResourceDesc.bRequires64BitAtomicSupport = EnumHasAnyFlags(TextureDesc.Flags, ETextureCreateFlags::Atomic64Compatible);
+
+	checkf(!(ResourceDesc.bRequires64BitAtomicSupport&& ResourceDesc.SupportsUncompressedUAV()), TEXT("Intel resource creation extensions don't support the new resource casting parameters."));
 #endif
 
 	// Check if the 4K aligment is possible
@@ -972,10 +973,8 @@ FD3D12Texture* FD3D12DynamicRHI::CreateD3D12Texture(const FRHITextureCreateDesc&
 
 		check(Location.IsValid());
 
-		bool bBCTextureNeedsUAVAlias = EnumHasAnyFlags(CreateDesc.Flags, TexCreate_UAV) && IsBlockCompressedFormat(CreateDesc.Format);
-		if (bBCTextureNeedsUAVAlias)
+		if (ResourceDesc.NeedsUAVAliasWorkarounds())
 		{
-			check(ResourceDesc.UAVAliasPixelFormat != PF_Unknown);
 			Adapter->CreateUAVAliasResource(ClearValuePtr, CreateDesc.DebugName, Location);
 		}
 

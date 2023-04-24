@@ -43,6 +43,24 @@ void ID3D12ResourceAllocator::AllocateTexture(uint32 GPUIndex, D3D12_HEAP_TYPE I
 	AllocateResource(GPUIndex, InHeapType, Desc, Info.SizeInBytes, Info.Alignment, InResourceStateMode, InCreateState, InClearValue, InName, ResourceLocation);
 }
 
+#if D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV
+TArray<DXGI_FORMAT, TInlineAllocator<4>> FD3D12ResourceDesc::GetCastableFormats() const
+{
+	TArray<DXGI_FORMAT, TInlineAllocator<4>> Result;
+
+	// We have to add the 'implied' castable formats for SRVs. Since we don't have any sRGB flags here, just add both formats.
+	Result.Emplace(FindShaderResourceDXGIFormat(Format, true));
+	Result.Emplace(FindShaderResourceDXGIFormat(Format, false));
+
+	if (UAVPixelFormat != PF_Unknown)
+	{
+		// Add the uncompressed UAV format we want
+		Result.Emplace((DXGI_FORMAT)GPixelFormats[UAVPixelFormat].PlatformFormat);
+	}
+
+	return Result;
+}
+#endif // D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV
 
 /////////////////////////////////////////////////////////////////////
 //	FD3D12 Resource
@@ -276,8 +294,8 @@ void FD3D12Resource::StartTrackingForResidency()
 
 	check(IsGPUOnly(HeapType));	// This is checked at a higher level before calling this function.
 	check(D3DX12Residency::IsInitialized(ResidencyHandle) == false);
-	const D3D12_RESOURCE_DESC ResourceDesc = Resource->GetDesc();
-	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &ResourceDesc);
+
+	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetResourceAllocationInfoUncached(Desc);
 
 	D3DX12Residency::Initialize(ResidencyHandle, Resource.GetReference(), Info.SizeInBytes, this);
 	D3DX12Residency::BeginTrackingObject(GetParentDevice()->GetResidencyManager(), ResidencyHandle);
@@ -439,6 +457,38 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const FD3D12ResourceDesc& InDesc,
 	}
 	else
 #endif
+#if D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV
+	if (InDesc.SupportsUncompressedUAV())
+	{
+		// Convert the desc to the version required by CreateCommittedResource3
+		const CD3DX12_RESOURCE_DESC1 LocalDesc1(LocalDesc);
+
+		// Common layout is the required starting state for any "legacy" transitions
+		const D3D12_BARRIER_LAYOUT InitialLayout = D3D12_BARRIER_LAYOUT_COMMON;
+		
+		ID3D12ProtectedResourceSession* ProtectedSession = nullptr;
+
+		const TArray<DXGI_FORMAT, TInlineAllocator<4>> CastableFormats = InDesc.GetCastableFormats();
+
+		hr = RootDevice12->CreateCommittedResource3(
+			&HeapProps,
+			HeapFlags,
+			&LocalDesc1,
+			InitialLayout,
+			ClearValue,
+			ProtectedSession,
+			CastableFormats.Num(),
+			CastableFormats.GetData(),
+			IID_PPV_ARGS(pResource.GetInitReference()));
+
+		if (SUCCEEDED(hr))
+		{
+			// Change the initial state to match the initial layout on construction
+			InInitialState = D3D12_RESOURCE_STATE_COMMON;
+		}
+	}
+	else
+#endif
 	{
 		hr = RootDevice->CreateCommittedResource(&HeapProps, HeapFlags, &LocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
 	}
@@ -498,7 +548,37 @@ HRESULT FD3D12Adapter::CreateReservedResource(const FD3D12ResourceDesc& InDesc, 
 	}
 #endif // D3D12_RHI_RAYTRACING
 
-	HRESULT hr = RootDevice->CreateReservedResource(&LocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	HRESULT hr = S_OK;
+	
+#if D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV
+	if (InDesc.SupportsUncompressedUAV())
+	{
+		// Common layout is the require starting state for any "legacy" transitions
+		const D3D12_BARRIER_LAYOUT InitialLayout = D3D12_BARRIER_LAYOUT_COMMON;
+
+		ID3D12ProtectedResourceSession* ProtectedSession = nullptr;
+		const TArray<DXGI_FORMAT, TInlineAllocator<4>> CastableFormats = InDesc.GetCastableFormats();
+
+		hr = RootDevice12->CreateReservedResource2(
+			&LocalDesc,
+			InitialLayout,
+			ClearValue,
+			ProtectedSession,
+			CastableFormats.Num(),
+			CastableFormats.GetData(),
+			IID_PPV_ARGS(pResource.GetInitReference()));
+
+		if (SUCCEEDED(hr))
+		{
+			// Change the initial state to match the initial layout on construction
+			InInitialState = D3D12_RESOURCE_STATE_COMMON;
+		}
+	}
+	else
+#endif
+	{
+		hr = RootDevice->CreateReservedResource(&LocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	}
 
 	if (SUCCEEDED(hr))
 	{
@@ -546,6 +626,35 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const FD3D12ResourceDesc& InDesc, FD
 		IntelLocalDesc.EmulatedTyped64bitAtomics = true;
 
 		hr = INTC_D3D12_CreatePlacedResource(FD3D12DynamicRHI::GetD3DRHI()->GetIntelExtensionContext(), Heap, HeapOffset, &IntelLocalDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
+	}
+	else
+#endif
+#if D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV
+	if (InDesc.SupportsUncompressedUAV())
+	{
+		// Convert the desc to the version required by CreatePlacedResource2
+		const CD3DX12_RESOURCE_DESC1 LocalDesc(InDesc);
+
+		// Common layout is the required starting state for any "legacy" transitions
+		const D3D12_BARRIER_LAYOUT InitialLayout = D3D12_BARRIER_LAYOUT_COMMON;
+		
+		const TArray<DXGI_FORMAT, TInlineAllocator<4>> CastableFormats = InDesc.GetCastableFormats();
+
+		hr = RootDevice10->CreatePlacedResource2(
+			Heap,
+			HeapOffset,
+			&LocalDesc,
+			InitialLayout,
+			ClearValue,
+			CastableFormats.Num(),
+			CastableFormats.GetData(),
+			IID_PPV_ARGS(pResource.GetInitReference()));
+
+		if (SUCCEEDED(hr))
+		{
+			// Change the initial state to match the initial layout on construction
+			InInitialState = D3D12_RESOURCE_STATE_COMMON;
+		}
 	}
 	else
 #endif
@@ -674,7 +783,7 @@ void FD3D12Adapter::CreateUAVAliasResource(D3D12_CLEAR_VALUE* ClearValuePtr, con
 	const FD3D12Heap* const ResourceHeap = SourceResource->GetHeap();
 
 	const EPixelFormat SourceFormat = SourceDesc.PixelFormat;
-	const EPixelFormat AliasTextureFormat = SourceDesc.UAVAliasPixelFormat;
+	const EPixelFormat AliasTextureFormat = SourceDesc.UAVPixelFormat;
 
 	if (ensure(ResourceHeap != nullptr) && ensure(SourceFormat != PF_Unknown) && SourceFormat != AliasTextureFormat)
 	{
@@ -697,7 +806,7 @@ void FD3D12Adapter::CreateUAVAliasResource(D3D12_CLEAR_VALUE* ClearValuePtr, con
 
 		EnumAddFlags(AliasTextureDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-		AliasTextureDesc.UAVAliasPixelFormat = PF_Unknown;
+		AliasTextureDesc.UAVPixelFormat = PF_Unknown;
 
 		TRefCountPtr<ID3D12Resource> pAliasResource;
 		HRESULT AliasHR = GetD3DDevice()->CreatePlacedResource(
@@ -954,7 +1063,7 @@ void FD3D12ResourceLocation::UpdateStandAloneStats(bool bIncrement)
 {
 	if (UnderlyingResource->GetHeapType() == D3D12_HEAP_TYPE_DEFAULT)
 	{
-		D3D12_RESOURCE_DESC Desc = UnderlyingResource->GetDesc();
+		FD3D12ResourceDesc Desc = UnderlyingResource->GetDesc();
 		bool bIsBuffer = (Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER);
 		bool bIsRenderTarget = (Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET || Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 		bool bIsUAV = (Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) > 0;
@@ -966,7 +1075,7 @@ void FD3D12ResourceLocation::UpdateStandAloneStats(bool bIncrement)
 		}
 
 		// Get the desired size and allocated size for stand alone resources - allocated are very slow anyway
-		D3D12_RESOURCE_ALLOCATION_INFO Info = UnderlyingResource->GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
+		D3D12_RESOURCE_ALLOCATION_INFO Info = UnderlyingResource->GetParentDevice()->GetResourceAllocationInfoUncached(Desc);
 
 		int64 SizeInBytes = bIncrement ? Info.SizeInBytes : -(int64)Info.SizeInBytes;
 		int32 Count = bIncrement ? 1 : -1;

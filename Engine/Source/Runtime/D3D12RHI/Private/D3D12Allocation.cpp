@@ -1764,7 +1764,8 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 	// The top mip level must be less than 64 KB to use 4 KB alignment
 	bool b4KAligment = FD3D12Texture::CanBe4KAligned(Desc, (EPixelFormat)UEFormat);
 	Desc.Alignment = b4KAligment ?	D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : (Desc.SampleDesc.Count > 1 ? D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
-	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
+
+	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetResourceAllocationInfoUncached(Desc);
 
 	const bool bIsRenderTarget = EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 	const bool bIsReadOnly = !bIsRenderTarget && !EnumHasAnyFlags(Desc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) && !Desc.NeedsUAVAliasWorkarounds();
@@ -1875,7 +1876,7 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 		Desc.Alignment = TextureCanBe4KAligned(Desc, UEFormat) ?
 			D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT :
 			D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-		const D3D12_RESOURCE_ALLOCATION_INFO Info = Device->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
+		const D3D12_RESOURCE_ALLOCATION_INFO Info = Device->GetResourceAllocationInfoUncached(Desc);
 
 		TRefCountPtr<FD3D12SegHeap> BackingHeap;
 		const uint32 Offset = ReadOnlyTexturePool.Allocate(Info.SizeInBytes, Info.Alignment, BackingHeap);
@@ -1946,7 +1947,7 @@ HRESULT FD3D12TextureAllocator::AllocateTexture(FD3D12ResourceDesc Desc, const D
 
 	TextureLocation.Clear();
 
-	D3D12_RESOURCE_ALLOCATION_INFO Info = Device->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
+	D3D12_RESOURCE_ALLOCATION_INFO Info = Device->GetResourceAllocationInfoUncached(Desc);
 
 	if (Info.SizeInBytes < D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
 	{
@@ -2001,7 +2002,7 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(FD3D12ResourceDesc Desc, con
 	FD3D12Resource* Resource = nullptr;
 
 	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
-	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
+	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetResourceAllocationInfoUncached(Desc);
 
 	// UAV Aliasing needs a Heap to create the aliased resource in.
 	if (Desc.NeedsUAVAliasWorkarounds())

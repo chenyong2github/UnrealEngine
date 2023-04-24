@@ -934,6 +934,12 @@ void FD3D12Adapter::InitializeDevices()
 				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device11 is supported."));
 			}
 #endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 12
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice12.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device12 is supported."));
+			}
+#endif
 
 			const bool bRenderDocPresent = D3D12RHI_IsRenderDocPresent(RootDevice);
 

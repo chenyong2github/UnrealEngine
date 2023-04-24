@@ -547,9 +547,55 @@ void FD3D12Device::BlockUntilIdle()
 	}
 }
 
+D3D12_RESOURCE_ALLOCATION_INFO FD3D12Device::GetResourceAllocationInfoUncached(const FD3D12ResourceDesc& InDesc)
+{
+	D3D12_RESOURCE_ALLOCATION_INFO Result;
+
+#if INTEL_EXTENSIONS
+	if (InDesc.bRequires64BitAtomicSupport && IsRHIDeviceIntel() && GDX12INTCAtomicUInt64Emulation)
+	{
+		FD3D12ResourceDesc LocalDesc = InDesc;
+
+		INTC_D3D12_RESOURCE_DESC_0001 IntelLocalDesc{};
+		IntelLocalDesc.pD3D12Desc = &LocalDesc;
+		IntelLocalDesc.EmulatedTyped64bitAtomics = true;
+
+		Result = INTC_D3D12_GetResourceAllocationInfo(FD3D12DynamicRHI::GetD3DRHI()->GetIntelExtensionContext(), 0, 1, &IntelLocalDesc);
+	}
+	else
+#endif
+#if D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV
+	if (InDesc.SupportsUncompressedUAV())
+	{
+		// Convert the desc to the version required by GetResourceAllocationInfo3
+		const CD3DX12_RESOURCE_DESC1 LocalDesc(InDesc);
+
+		const TArray<DXGI_FORMAT, TInlineAllocator<4>> CastableFormats = InDesc.GetCastableFormats();
+
+		const UINT32 NumCastableFormats = CastableFormats.Num();
+		D3D12_RESOURCE_ALLOCATION_INFO1* NoExtraAllocationInfo = nullptr;
+
+		const DXGI_FORMAT* const Formats[] = { CastableFormats.GetData() };
+
+		Result = GetParentAdapter()->GetD3DDevice12()->GetResourceAllocationInfo3(0, 1, &LocalDesc, &NumCastableFormats, Formats, NoExtraAllocationInfo);
+	}
+	else
+#endif
+	{
+		Result = GetDevice()->GetResourceAllocationInfo(0, 1, &InDesc);
+		if (Result.SizeInBytes == UINT64_MAX)
+		{
+			// The description provided caused an error per the docs. This will almost certainly crash outside this fn.
+			UE_LOG(LogD3D12RHI, Error, TEXT("D3D12 GetResourceAllocationInfo failed - likely a resource was requested that has invalid allocation info (e.g. is an invalid texture size)"));
+			UE_LOG(LogD3D12RHI, Error, TEXT("     W %llu H %d depth %d mips %d pf %d"), InDesc.Width, InDesc.Height, InDesc.DepthOrArraySize, InDesc.MipLevels, InDesc.PixelFormat);
+		}
+	}
+	return Result;
+}
+
 D3D12_RESOURCE_ALLOCATION_INFO FD3D12Device::GetResourceAllocationInfo(const FD3D12ResourceDesc& InDesc)
 {
-	uint64 Hash = CityHash64((const char*)&InDesc, sizeof(FD3D12ResourceDesc));
+	const uint64 Hash = CityHash64((const char*)&InDesc, sizeof(FD3D12ResourceDesc));
 
 	// By default there'll be more threads trying to read this than to write it.
 	ResourceAllocationInfoMapMutex.ReadLock();
@@ -562,29 +608,7 @@ D3D12_RESOURCE_ALLOCATION_INFO FD3D12Device::GetResourceAllocationInfo(const FD3
 	}
 	else
 	{
-		D3D12_RESOURCE_ALLOCATION_INFO Result;
-#if INTEL_EXTENSIONS
-		if (InDesc.bRequires64BitAtomicSupport && IsRHIDeviceIntel() && GDX12INTCAtomicUInt64Emulation)
-		{
-			FD3D12ResourceDesc LocalDesc = InDesc;
-
-			INTC_D3D12_RESOURCE_DESC_0001 IntelLocalDesc{};
-			IntelLocalDesc.pD3D12Desc = &LocalDesc;
-			IntelLocalDesc.EmulatedTyped64bitAtomics = true;
-
-			Result = INTC_D3D12_GetResourceAllocationInfo(FD3D12DynamicRHI::GetD3DRHI()->GetIntelExtensionContext(), 0, 1, &IntelLocalDesc);
-		}
-		else
-#endif
-		{
-			Result = GetDevice()->GetResourceAllocationInfo(0, 1, &InDesc);
-		    if (Result.SizeInBytes == UINT64_MAX)
-		    {
-			    // The description provided caused an error per the docs. This will almost certainly crash outside this fn.
-			    UE_LOG(LogD3D12RHI, Error, TEXT("D3D12 GetResourceAllocationInfo failed - likely a resource was requested that has invalid allocation info (e.g. is an invalid texture size)"));
-			    UE_LOG(LogD3D12RHI, Error, TEXT("     W %llu H %d depth %d mips %d pf %d"), InDesc.Width, InDesc.Height, InDesc.DepthOrArraySize, InDesc.MipLevels, InDesc.PixelFormat);
-			}
-		}
+		const D3D12_RESOURCE_ALLOCATION_INFO Result = GetResourceAllocationInfoUncached(InDesc);
 
 		ResourceAllocationInfoMapMutex.WriteLock();
 		// Try search again with write lock because could have been added already

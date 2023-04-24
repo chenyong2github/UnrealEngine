@@ -186,6 +186,9 @@ public:
 #if D3D12_MAX_DEVICE_INTERFACE >= 11
 	FORCEINLINE ID3D12Device11* GetD3DDevice11() { return RootDevice11; }
 #endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 12
+	FORCEINLINE ID3D12Device12* GetD3DDevice12() { return RootDevice12; }
+#endif
 
 	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
 #if DXGI_MAX_FACTORY_INTERFACE >= 3
@@ -493,6 +496,9 @@ protected:
 #endif
 #if D3D12_MAX_DEVICE_INTERFACE >= 11
 	TRefCountPtr<ID3D12Device11> RootDevice11;
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 12
+	TRefCountPtr<ID3D12Device12> RootDevice12;
 #endif
 
 	TRefCountPtr<IDXGIFactory2> DxgiFactory2;
