@@ -181,6 +181,9 @@ public:
 		bIsNaniteMesh  = true;
 		bHasProgrammableRaster = false;
 		bReverseCulling = false;
+	#if WITH_EDITOR
+		bHasSelectedInstances = false;
+	#endif
 	}
 
 	ENGINE_API virtual ~FSceneProxyBase() = default;
@@ -243,6 +246,11 @@ public:
 	{
 		return HitProxyMode;
 	}
+
+	inline bool HasSelectedInstances() const
+	{
+		return bHasSelectedInstances;
+	}
 #endif
 
 	void UpdateMaterialDynamicDataUsage()
@@ -286,6 +294,9 @@ protected:
 	EFilterFlags FilterFlags = EFilterFlags::None;
 	uint8 bHasProgrammableRaster : 1;
 	uint8 bReverseCulling : 1;
+#if WITH_EDITOR
+	uint8 bHasSelectedInstances : 1;
+#endif
 
 private:
 
@@ -434,13 +445,6 @@ protected:
 	TSharedPtr<FPerInstanceRenderData, ESPMode::ThreadSafe> PerInstanceRenderData;
 
 	uint32 EndCullDistance = 0;
-
-#if WITH_EDITOR
-	/* If we we have any selected instances */
-	bool bHasSelectedInstances;
-#else
-	static const bool bHasSelectedInstances = false;
-#endif
 
 #if RHI_RAYTRACING
 	bool bHasRayTracingInstances = false;

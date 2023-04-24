@@ -555,9 +555,6 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 , MeshInfo(Component)
 , RenderData(Component->GetStaticMesh()->GetRenderData())
 , StaticMesh(Component->GetStaticMesh())
-#if WITH_EDITOR
-, bHasSelectedInstances(false)
-#endif
 #if NANITE_ENABLE_DEBUG_RENDERING
 , Owner(Component->GetOwner())
 , LightMapResolution(Component->GetStaticLightMapResolution())

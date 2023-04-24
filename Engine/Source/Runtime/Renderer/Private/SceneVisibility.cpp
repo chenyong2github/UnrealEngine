@@ -57,6 +57,7 @@
 #include "StaticMeshBatch.h"
 #include "UnrealEngine.h"
 #include "VT/VirtualTextureSystem.h"
+#include "NaniteSceneProxy.h"
 
 #if !UE_BUILD_SHIPPING
 #include "ViewDebug.h"
@@ -2494,23 +2495,33 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 					return;
 				}
 
+				auto* NaniteProxy = static_cast<const Nanite::FSceneProxyBase*>(PrimitiveSceneInfo.Proxy);
 				const int32 MaxInstances = PrimitiveSceneInfo.GetNumInstanceSceneDataEntries();
 				OutInstanceDraws.Reserve(OutInstanceDraws.Num() + MaxInstances);
 				
 				for (int32 Idx = 0; Idx < MaxInstances; ++Idx)
 				{
-					if (bSelectedInstancesOnly && PrimitiveSceneInfo.Proxy->HasPerInstanceEditorData())
+					if (bSelectedInstancesOnly)
 					{
-						// If we have per-instance editor data, exclude instance draws of unselected instances
-						TConstArrayView<uint32> InstanceEditorData = PrimitiveSceneInfo.Proxy->GetInstanceEditorData();
-						if (InstanceEditorData.IsValidIndex(Idx))
+						if (!NaniteProxy->IsSelected())
 						{
-							FColor HitProxyColor;
-							bool bSelected;
-							FInstanceUpdateCmdBuffer::UnpackEditorData(InstanceEditorData[Idx], HitProxyColor, bSelected);
-							if (!bSelected)
+							// Nothing in this proxy is selected
+							continue;
+						}
+						else if (NaniteProxy->HasSelectedInstances() && NaniteProxy->HasPerInstanceEditorData())
+						{
+							// If we have per-instance editor data and individually selected instances, exclude instance
+							// draws of unselected instances
+							TConstArrayView<uint32> InstanceEditorData = NaniteProxy->GetInstanceEditorData();
+							if (InstanceEditorData.IsValidIndex(Idx))
 							{
-								continue;
+								FColor HitProxyColor;
+								bool bSelected;
+								FInstanceUpdateCmdBuffer::UnpackEditorData(InstanceEditorData[Idx], HitProxyColor, bSelected);
+								if (!bSelected)
+								{
+									continue;
+								}
 							}
 						}
 					}
