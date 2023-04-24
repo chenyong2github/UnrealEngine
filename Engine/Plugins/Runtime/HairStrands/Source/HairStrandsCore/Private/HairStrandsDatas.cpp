@@ -311,7 +311,7 @@ bool FHairStreamingRequest::IsCompleted()
 // Request fullfil 2 use cases:
 // * Load DDC data and upload them to GPU
 // * Load DDC data and store them into bulkdata for serialization
-void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, FHairStrandsBulkCommon& In, bool bWait, bool bFillBulkdata, const FName& InOwnerName)
+void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex, FHairStrandsBulkCommon& In, bool bWait, bool bFillBulkdata, const FName& InOwnerName)
 {
 	if (In.GetResourceCount() == 0 || InRequestedCurveCount == 0)
 	{
@@ -345,42 +345,42 @@ void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InReque
 	
 		//FRequestBarrier Barrier(*DDCRequestOwner);	// This is a critical section on the owner. It does not constrain ordering
 		GetCache().GetChunks(Requests, *DDCRequestOwner,
-		                     [this, &In, bFillBulkdata, InOwnerName](FCacheGetChunkResponse && Response)
-		                     {
-		                     if (Response.Status == UE::DerivedData::EStatus::Ok)
-		                     {
-		                     FHairStreamingRequest::FChunk& Chunk = *(FHairStreamingRequest::FChunk*)Response.UserData;
-							 Chunk.Data_DDC 	= MoveTemp(Response.RawData);
-							 Chunk.Offset 	= Response.RawOffset;
-							 Chunk.Size 		= Response.RawSize;
-							 Chunk.TotalSize = Response.RawOffset + Response.RawSize;
-							 Chunk.Status 	= FHairStreamingRequest::FChunk::Completed;
+		[this, &In, bFillBulkdata, InOwnerName](FCacheGetChunkResponse && Response)
+		{
+			if (Response.Status == UE::DerivedData::EStatus::Ok)
+			{
+				FHairStreamingRequest::FChunk& Chunk = *(FHairStreamingRequest::FChunk*)Response.UserData;
+				Chunk.Data_DDC 	= MoveTemp(Response.RawData);
+				Chunk.Offset 	= Response.RawOffset;
+				Chunk.Size 		= Response.RawSize;
+				Chunk.TotalSize = Response.RawOffset + Response.RawSize;
+				Chunk.Status 	= FHairStreamingRequest::FChunk::Completed;
 		
-							 // Upload the total amount of loaded data
-							 Chunk.Container->LoadedSize = Chunk.TotalSize;
-
-							 // Optional fill in of bytebulkdata container
-							 if (bFillBulkdata)
-							 {
-								 check(Chunk.Container);
-								 FByteBulkData& BulkData = Chunk.Container->Data;
-	
-								 // The buffer is then stored into bulk data
-								 BulkData.Lock(LOCK_READ_WRITE);
-								 void* DstData = BulkData.Realloc(Chunk.Size);
-								 FMemory::Memcpy(DstData, Chunk.GetData(), Chunk.Size);
-								 BulkData.Unlock();
-
-								 //Chunk.Release();
-							 }
-							 }
-							 else
-							 {
-								 FHairStreamingRequest::FChunk& Chunk = *(FHairStreamingRequest::FChunk*)Response.UserData;
-								 Chunk.Status = FHairStreamingRequest::FChunk::Failed;
-								 UE_LOG(LogHairStrands, Error, TEXT("[Groom] DDC request failed for '%s' (Key:%s) "), *InOwnerName.ToString(), *In.DerivedDataKey);
-							 }
-							 });
+				// Upload the total amount of loaded data
+				Chunk.Container->LoadedSize = Chunk.TotalSize;
+		
+				// Optional fill in of bytebulkdata container
+				if (bFillBulkdata)
+				{
+					check(Chunk.Container);
+					FByteBulkData& BulkData = Chunk.Container->Data;
+		
+					// The buffer is then stored into bulk data
+					BulkData.Lock(LOCK_READ_WRITE);
+					void* DstData = BulkData.Realloc(Chunk.Size);
+					FMemory::Memcpy(DstData, Chunk.GetData(), Chunk.Size);
+					BulkData.Unlock();
+		
+					//Chunk.Release();
+				}
+			}
+			else
+			{
+				FHairStreamingRequest::FChunk& Chunk = *(FHairStreamingRequest::FChunk*)Response.UserData;
+				Chunk.Status = FHairStreamingRequest::FChunk::Failed;
+				UE_LOG(LogHairStrands, Error, TEXT("[Groom] DDC request failed for '%s' (Key:%s) "), *InOwnerName.ToString(), *In.DerivedDataKey);
+			}
+		});
 
 		// Optional wait on DDC response
 		if (bWait || bFillBulkdata)
@@ -762,9 +762,7 @@ const TArray<uint32>& FHairStrandsRootBulkData::GetValidSectionIndices(int32 LOD
 
 void FHairStrandsRootBulkData::SerializeData(FArchive& Ar, UObject* Owner)
 {
-	check(Header.LODs.Num() > 0);
 	check(Header.LODs.Num() == Data.LODs.Num());
-
 	for (uint32 LODIt = 0, LODCount=Header.LODs.Num(); LODIt < LODCount; ++LODIt)
 	{
 		const FHeader::FLOD& HeaderLOD = Header.LODs[LODIt];
