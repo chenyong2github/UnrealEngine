@@ -172,6 +172,11 @@ void FSoundWaveData::InitializeDataFromSoundWave(USoundWave& InWave)
 #endif //WITH_EDITOR
 }
 
+void FSoundWaveData::OverrideRuntimeFormat(const FName& InRuntimeFormat)
+{
+	RuntimeFormat = InRuntimeFormat;
+}
+
 FName FSoundWaveData::FindRuntimeFormat(const USoundWave& InWave) const
 {		
 #if WITH_EDITOR	

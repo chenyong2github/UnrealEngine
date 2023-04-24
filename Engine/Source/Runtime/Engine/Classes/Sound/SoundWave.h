@@ -1283,6 +1283,8 @@ public:
 	// non-const arg for internal call to FAudioDevice::GetRuntimeFormat
 	void InitializeDataFromSoundWave(USoundWave& InWave);
 
+	void OverrideRuntimeFormat(const FName& InRuntimeFormat);
+
 	const FName& GetFName() const { return NameCached; }
 	const FName& GetPackageName() const { return PackageNameCached; }
 	const FName& GetRuntimeFormat() const { return RuntimeFormat; }
