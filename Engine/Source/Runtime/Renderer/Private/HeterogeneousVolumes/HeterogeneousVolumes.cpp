@@ -391,33 +391,59 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HeterogeneousVolumesStat);
 	SCOPED_NAMED_EVENT(HeterogeneousVolumes, FColor::Emerald);
 
+	// Build global transmittance structure
+	TRDGUniformBufferRef<FOrthoVoxelGridUniformBufferParameters> OrthoGridUniformBuffer;
+	TRDGUniformBufferRef<FFrustumVoxelGridUniformBufferParameters> FrustumGridUniformBuffer;
+
+	if (HeterogeneousVolumes::GetDebugMode() != 0)
+	{
+		BuildOrthoVoxelGrid(GraphBuilder, Scene, Views, OrthoGridUniformBuffer);
+		BuildFrustumVoxelGrid(GraphBuilder, Scene, Views[0], FrustumGridUniformBuffer);
+	}
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
 
+		// Per-view??
+		FRDGTextureDesc Desc = SceneTextures.Color.Target->Desc;
+		Desc.Format = PF_FloatRGBA;
+		Desc.Flags &= ~(TexCreate_FastVRAM);
+		FRDGTextureRef HeterogeneousVolumeRadiance = GraphBuilder.CreateTexture(Desc, TEXT("HeterogeneousVolumes"));
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(HeterogeneousVolumeRadiance), FLinearColor::Transparent);
+
 		if (ShouldRenderHeterogeneousVolumesForView(View))
 		{
-			FRDGTextureDesc Desc = SceneTextures.Color.Target->Desc;
-			Desc.Format = PF_FloatRGBA;
-			Desc.Flags &= ~(TexCreate_FastVRAM);
-			FRDGTextureRef HeterogeneousVolumeRadiance = GraphBuilder.CreateTexture(Desc, TEXT("HeterogeneousVolumes"));
-			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(HeterogeneousVolumeRadiance), FLinearColor::Transparent);
-
-			for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.HeterogeneousVolumesMeshBatches.Num(); ++MeshBatchIndex)
+			if (HeterogeneousVolumes::GetDebugMode() == 1)
 			{
-				const FMeshBatch* Mesh = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Mesh;
-				const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Proxy;
-				if (!ShouldRenderMeshBatchWithHeterogeneousVolumes(Mesh, PrimitiveSceneProxy, View.GetFeatureLevel()))
+				RenderTransmittanceWithVoxelGrid(
+					GraphBuilder,
+					SceneTextures,
+					Scene,
+					ViewFamily,
+					Views[ViewIndex],
+					OrthoGridUniformBuffer,
+					FrustumGridUniformBuffer,
+					HeterogeneousVolumeRadiance
+				);
+			}
+			else
+			{
+				for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.HeterogeneousVolumesMeshBatches.Num(); ++MeshBatchIndex)
 				{
-					continue;
-				}
+					const FMeshBatch* Mesh = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Mesh;
+					const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Proxy;
+					if (!ShouldRenderMeshBatchWithHeterogeneousVolumes(Mesh, PrimitiveSceneProxy, View.GetFeatureLevel()))
+					{
+						continue;
+					}
 
-				const FMaterialRenderProxy* MaterialRenderProxy = Mesh->MaterialRenderProxy;
-				const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
-				const int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
-				const FBoxSphereBounds LocalBoxSphereBounds = PrimitiveSceneProxy->GetLocalBounds();
+					const FMaterialRenderProxy* MaterialRenderProxy = Mesh->MaterialRenderProxy;
+					const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+					const int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
+					const FBoxSphereBounds LocalBoxSphereBounds = PrimitiveSceneProxy->GetLocalBounds();
 
-				RDG_EVENT_SCOPE(GraphBuilder, "%s", *PrimitiveSceneProxy->GetResourceName().ToString());
+					RDG_EVENT_SCOPE(GraphBuilder, "%s", *PrimitiveSceneProxy->GetResourceName().ToString());
 
 				// Allocate transmittance volume
 				// TODO: Allow option for scalar transmittance to conserve bandwidth
@@ -433,53 +459,54 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 				FRDGTextureRef LightingCacheTexture = GraphBuilder.CreateTexture(LightingCacheDesc, TEXT("HeterogeneousVolumes.LightingCacheTexture"));
 				AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(LightingCacheTexture), FLinearColor::Black);
 
-				// Material baking executes a pre-shading pipeline
-				if (CVarHeterogeneousVolumesPreshading.GetValueOnRenderThread())
-				{
-					RenderWithPreshading(
-						GraphBuilder,
-						SceneTextures,
-						Scene,
-						ViewFamily,
-						View,
-						// Shadow Data
-						VisibleLightInfos,
-						VirtualShadowMapArray,
-						// Object data
-						PrimitiveSceneProxy,
-						MaterialRenderProxy,
-						PrimitiveId,
-						LocalBoxSphereBounds,
-						// Transmittance accleration
-						LightingCacheTexture,
-						// Output
-						HeterogeneousVolumeRadiance
-					);
+					// Material baking executes a pre-shading pipeline
+					if (CVarHeterogeneousVolumesPreshading.GetValueOnRenderThread())
+					{
+						RenderWithPreshading(
+							GraphBuilder,
+							SceneTextures,
+							Scene,
+							ViewFamily,
+							View,
+							// Shadow Data
+							VisibleLightInfos,
+							VirtualShadowMapArray,
+							// Object data
+							PrimitiveSceneProxy,
+							MaterialRenderProxy,
+							PrimitiveId,
+							LocalBoxSphereBounds,
+							// Transmittance accleration
+							LightingCacheTexture,
+							// Output
+							HeterogeneousVolumeRadiance
+						);
+					}
+					// Otherwise execute a live-shading pipeline
+					else
+					{
+						RenderWithLiveShading(
+							GraphBuilder,
+							SceneTextures,
+							Scene,
+							View,
+							// Shadow Data
+							VisibleLightInfos,
+							VirtualShadowMapArray,
+							// Object Data
+							PrimitiveSceneProxy,
+							MaterialRenderProxy,
+							PrimitiveId,
+							LocalBoxSphereBounds,
+							// Transmittance accleration
+							LightingCacheTexture,
+							// Output
+							HeterogeneousVolumeRadiance
+						);
+					}
 				}
-				// Otherwise execute a live-shading pipeline
-				else
-				{
-					RenderWithLiveShading(
-						GraphBuilder,
-						SceneTextures,
-						Scene,
-						View,
-						// Shadow Data
-						VisibleLightInfos,
-						VirtualShadowMapArray,
-						// Object Data
-						PrimitiveSceneProxy,
-						MaterialRenderProxy,
-						PrimitiveId,
-						LocalBoxSphereBounds,
-						// Transmittance accleration
-						LightingCacheTexture,
-						// Output
-						HeterogeneousVolumeRadiance
-					);
-				}
-			}
 
+			}
 			View.HeterogeneousVolumeRadiance = HeterogeneousVolumeRadiance;
 		}
 	}

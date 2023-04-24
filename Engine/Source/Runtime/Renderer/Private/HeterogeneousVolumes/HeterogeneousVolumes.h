@@ -6,6 +6,7 @@
 #include "RendererInterface.h"
 #include "ShaderParameterMacros.h"
 
+class IHeterogeneousVolumeInterface;
 class FLightSceneInfo;
 class FPrimitiveSceneProxy;
 class FRayTracingScene;
@@ -51,12 +52,16 @@ namespace HeterogeneousVolumes
 	float GetMaxShadowTraceDistance();
 	float GetStepSize();
 	float GetMaxStepCount();
+	float GetMinimumVoxelSizeInFrustum();
+	float GetMinimumVoxelSizeOutsideFrustum();
 
 	int32 GetMipLevel();
 	int32 GetDebugMode();
 	int32 GetLightingCacheMode();
 	uint32 GetSparseVoxelMipBias();
-
+	int32 GetBottomLevelGridResolution();
+	int32 GetIndirectionGridResolution();
+	
 	bool ShouldJitter();
 	bool ShouldRefineSparseVoxels();
 	bool UseHardwareRayTracing();
@@ -65,6 +70,9 @@ namespace HeterogeneousVolumes
 	bool UseSparseVoxelPerTileCulling();
 	bool UseLightingCacheForInscattering();
 	bool UseLightingCacheForTransmittance();
+
+	bool EnableIndirectionGrid();
+	bool EnableLinearInterpolation();
 
 	// Convenience Utils
 	const IHeterogeneousVolumeInterface* GetInterface(const FPrimitiveSceneProxy* PrimitiveSceneProxy);
@@ -114,7 +122,163 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightingCacheParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, LightingCacheTexture)
 END_SHADER_PARAMETER_STRUCT()
 
+// Adaptive Voxel Grid structures
+
+struct FTopLevelGridBitmaskData
+{
+	uint32 PackedData[2];
+};
+
+struct FTopLevelGridData
+{
+	uint32 PackedData[1];
+};
+
+struct FScalarGridData
+{
+	uint32 PackedData[2];
+};
+
+struct FVectorGridData
+{
+	uint32 PackedData[2];
+};
+
+
+BEGIN_UNIFORM_BUFFER_STRUCT(FOrthoVoxelGridUniformBufferParameters, )
+	SHADER_PARAMETER(FVector3f, TopLevelGridWorldBoundsMin)
+	SHADER_PARAMETER(FVector3f, TopLevelGridWorldBoundsMax)
+	SHADER_PARAMETER(FIntVector, TopLevelGridResolution)
+
+	SHADER_PARAMETER(int32, bUseOrthoGrid)
+	SHADER_PARAMETER(int32, bUseMajorantGrid)
+	SHADER_PARAMETER(int32, bEnableIndirectionGrid)
+
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTopLevelGridBitmaskData>, TopLevelGridBitmaskBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTopLevelGridData>, TopLevelGridBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTopLevelGridData>, IndirectionGridBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FScalarGridData>, ExtinctionGridBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVectorGridData>, EmissionGridBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVectorGridData>, ScatteringGridBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FScalarGridData>, MajorantGridBuffer)
+END_UNIFORM_BUFFER_STRUCT()
+
+BEGIN_UNIFORM_BUFFER_STRUCT(FFrustumVoxelGridUniformBufferParameters, )
+	SHADER_PARAMETER(FMatrix44f, WorldToClip)
+	SHADER_PARAMETER(FMatrix44f, ClipToWorld)
+
+	SHADER_PARAMETER(FMatrix44f, WorldToView)
+	SHADER_PARAMETER(FMatrix44f, ViewToWorld)
+
+	SHADER_PARAMETER(FMatrix44f, ViewToClip)
+	SHADER_PARAMETER(FMatrix44f, ClipToView)
+
+	SHADER_PARAMETER(FVector3f, TopLevelGridWorldBoundsMin)
+	SHADER_PARAMETER(FVector3f, TopLevelGridWorldBoundsMax)
+	SHADER_PARAMETER(FIntVector, TopLevelFroxelGridResolution)
+	SHADER_PARAMETER(FIntVector, VoxelDimensions)
+
+	SHADER_PARAMETER(int32, bUseFrustumGrid)
+
+	SHADER_PARAMETER(float, NearPlaneDepth)
+	SHADER_PARAMETER(float, FarPlaneDepth)
+
+	SHADER_PARAMETER_ARRAY(FVector4f, ViewFrustumPlanes, [6])
+
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTopLevelGridData>, TopLevelFroxelGridBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FScalarGridData>, ExtinctionFroxelGridBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVectorGridData>, EmissionFroxelGridBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVectorGridData>, ScatteringFroxelGridBuffer)
+END_UNIFORM_BUFFER_STRUCT()
+
 // Render specializations
+
+void BuildOrthoVoxelGrid(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	/*const*/ TArray<FViewInfo>& Views,
+	TRDGUniformBufferRef<FOrthoVoxelGridUniformBufferParameters>& OrthoVoxelGridUniformBuffer
+);
+
+void BuildFrustumVoxelGrid(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo& View,
+	TRDGUniformBufferRef<FFrustumVoxelGridUniformBufferParameters>& FrustumVoxelGridUniformBuffer
+);
+
+struct FAdaptiveFrustumGridParameterCache
+{
+	FMatrix44f WorldToClip;
+	FMatrix44f ClipToWorld;
+
+	FMatrix44f WorldToView;
+	FMatrix44f ViewToWorld;
+
+	FMatrix44f ViewToClip;
+	FMatrix44f ClipToView;
+
+	FVector3f TopLevelGridWorldBoundsMin;
+	FVector3f TopLevelGridWorldBoundsMax;
+	FIntVector TopLevelGridResolution;
+	FIntVector VoxelDimensions;
+
+	int32 bUseFrustumGrid;
+
+	float NearPlaneDepth;
+	float FarPlaneDepth;
+
+	FVector4f ViewFrustumPlanes[6];
+
+	TRefCountPtr<FRDGPooledBuffer> TopLevelGridBuffer;
+	TRefCountPtr<FRDGPooledBuffer> ExtinctionGridBuffer;
+	TRefCountPtr<FRDGPooledBuffer> EmissionGridBuffer;
+	TRefCountPtr<FRDGPooledBuffer> ScatteringGridBuffer;
+};
+
+struct FAdaptiveOrthoGridParameterCache
+{
+	FVector3f TopLevelGridWorldBoundsMin;
+	FVector3f TopLevelGridWorldBoundsMax;
+	FIntVector TopLevelGridResolution;
+	int32 bUseOrthoGrid;
+	int32 bUseMajorantGrid;
+	int32 bEnableIndirectionGrid;
+
+	TRefCountPtr<FRDGPooledBuffer> TopLevelGridBitmaskBuffer;
+	TRefCountPtr<FRDGPooledBuffer> TopLevelGridBuffer;
+	TRefCountPtr<FRDGPooledBuffer> IndirectionGridBuffer;
+
+	TRefCountPtr<FRDGPooledBuffer> ExtinctionGridBuffer;
+	TRefCountPtr<FRDGPooledBuffer> EmissionGridBuffer;
+	TRefCountPtr<FRDGPooledBuffer> ScatteringGridBuffer;
+
+	TRefCountPtr<FRDGPooledBuffer> MajorantGridBuffer;
+};
+
+void ExtractFrustumVoxelGridUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TRDGUniformBufferRef<FFrustumVoxelGridUniformBufferParameters>& FrustumGridUniformBuffer,
+	FAdaptiveFrustumGridParameterCache& AdaptiveFrustumGridParameterCache
+);
+
+void RegisterExternalFrustumVoxelGridUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	const FAdaptiveFrustumGridParameterCache& AdaptiveFrustumGridParameterCache,
+	TRDGUniformBufferRef<FFrustumVoxelGridUniformBufferParameters>& FrustumGridUniformBuffer
+);
+
+void ExtractOrthoVoxelGridUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TRDGUniformBufferRef<FOrthoVoxelGridUniformBufferParameters>& OrthoGridUniformBuffer,
+	FAdaptiveOrthoGridParameterCache& AdaptiveOrthoGridParameterCache
+);
+
+void RegisterExternalOrthoVoxelGridUniformBuffer(
+	FRDGBuilder& GraphBuilder,
+	const FAdaptiveOrthoGridParameterCache& AdaptiveOrthoGridParameterCache,
+	TRDGUniformBufferRef<FOrthoVoxelGridUniformBufferParameters>& OrthoGridUniformBuffer
+);
 
 void RenderWithLiveShading(
 	FRDGBuilder& GraphBuilder,
@@ -152,6 +316,19 @@ void RenderWithPreshading(
 	const FBoxSphereBounds LocalBoxSphereBounds,
 	// Transmittance acceleration
 	FRDGTextureRef LightingCacheTexture,
+	// Output
+	FRDGTextureRef& HeterogeneousVolumeRadiance
+);
+
+void RenderTransmittanceWithVoxelGrid(
+	FRDGBuilder& GraphBuilder,
+	// Scene data
+	const FSceneTextures& SceneTextures,
+	FScene* Scene,
+	const FSceneViewFamily& ViewFamily,
+	FViewInfo& View,
+	const TRDGUniformBufferRef<FOrthoVoxelGridUniformBufferParameters>& OrthoGridUniformBuffer,
+	const TRDGUniformBufferRef<FFrustumVoxelGridUniformBufferParameters>& FrustumGridUniformBuffer,
 	// Output
 	FRDGTextureRef& HeterogeneousVolumeRadiance
 );
