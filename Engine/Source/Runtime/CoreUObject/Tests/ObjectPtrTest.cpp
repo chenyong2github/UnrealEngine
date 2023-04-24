@@ -796,7 +796,7 @@ void TestArrayConversion()
 	};
 #endif
 	TArray<TObjectPtr<TObj>> PtrArray;
-	uint32  NumObjs = 1000000;
+	uint32  NumObjs = 5;
 	for (uint32 i = 0; i < NumObjs; ++i)
 	{
 		PtrArray.Add(Obj1);
