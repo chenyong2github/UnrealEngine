@@ -27,7 +27,7 @@ void URigVMNativized::Reset(bool IsIgnoringArchetypeRef)
 	ByteCodeStorage.Reset();
 }
 
-bool URigVMNativized::Initialize(TArrayView<URigVMMemoryStorage*> Memory)
+bool URigVMNativized::Initialize(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory)
 {
 	// nothing to do here 
 	return true;
