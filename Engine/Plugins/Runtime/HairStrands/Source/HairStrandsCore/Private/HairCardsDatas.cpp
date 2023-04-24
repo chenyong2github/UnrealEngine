@@ -44,3 +44,23 @@ void FHairMeshesBulkData::Serialize(FArchive& Ar)
 	Ar << BoundingBox;
 }
 
+
+/////////////////////////////////////////////////////////////////////////////////////////
+void FHairCardsInterpolationDatas::SetNum(const uint32 NumPoints)
+{
+	PointsSimCurvesIndex.SetNum(NumPoints);
+	PointsSimCurvesVertexIndex.SetNum(NumPoints);
+	PointsSimCurvesVertexLerp.SetNum(NumPoints);
+}
+
+void FHairCardsInterpolationDatas::Reset()
+{
+	PointsSimCurvesIndex.Empty();
+	PointsSimCurvesVertexIndex.Empty();
+	PointsSimCurvesVertexLerp.Empty();
+}
+
+void FHairCardsInterpolationBulkData::Serialize(FArchive& Ar)
+{
+	Ar << Interpolation;
+}

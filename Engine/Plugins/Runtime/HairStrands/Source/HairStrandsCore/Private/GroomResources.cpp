@@ -50,6 +50,8 @@ static int32 GHairStrandsDebugVoxel_MaxSegmentPerVoxel = 2048;
 static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_WorldSize(TEXT("r.HairStrands.DebugData.VoxelSize"), GHairStrandsDebugVoxel_WorldSize, TEXT("Voxel size use for creating debug data."));
 static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_MaxSegmentPerVoxel(TEXT("r.HairStrands.DebugData.MaxSegmentPerVoxel"), GHairStrandsDebugVoxel_MaxSegmentPerVoxel, TEXT("Max number of segments per Voxel size when creating debug data."));
 
+bool IsHairStrandsContinousLODEnabled();
+
 bool ValidateHairBulkData()
 {
 	return GHairStrandsBulkData_Validation > 0;
@@ -97,144 +99,6 @@ const TCHAR* ToHairResourceDebugName(const TCHAR* In, FHairResourceName& InDebug
 	return *TempDebugName;
 #else
 	return In;
-#endif
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-// IO/DDC request
-
-bool FHairStreamingRequest::IsNone() const
-{ 
-#if !WITH_EDITORONLY_DATA
-	return IORequest.IsNone();
-#else
-	return Chunks.Num() == 0;
-#endif
-}
-bool FHairStreamingRequest::IsCompleted()
-{ 
-#if !WITH_EDITORONLY_DATA
-	if (IORequest.IsCompleted())
-	{
-		for (FHairStreamingRequest::FChunk& Chunk : Chunks)
-		{
-			Chunk.Status = FHairStreamingRequest::FChunk::Completed;
-			check(Chunk.Container);
-			Chunk.Container->LoadedSize = Chunk.TotalSize;
-		}
-	}
-	return Chunks.Num() == 0 || IORequest.IsCompleted(); 
-#else
-	for (const FHairStreamingRequest::FChunk& Chunk : Chunks)
-	{
-		if (Chunk.Status != FHairStreamingRequest::FChunk::Completed)
-		{
-			return false;
-		}
-	}
-	return true; 
-#endif
-}
-// Request fullfil 2 use cases:
-// * Load DDC data and upload them to GPU
-// * Load DDC data and store them into bulkdata for serialization
-void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, FHairStrandsBulkCommon& In, bool bWait, bool bFillBulkdata, const FName& InOwnerName)
-{
-	if (In.GetResourceCount() == 0 || InRequestedCurveCount == 0)
-	{
-		CurveCount = 0;
-		PointCount = 0;
-		return;
-	}
-	CurveCount = InRequestedCurveCount;
-	PointCount = InRequestedPointCount;
-
-	#if !WITH_EDITORONLY_DATA
-	{ 
-		In.Read_IO(this, IORequest);
-		if (bWait)
-		{
-			IORequest.Wait();
-		}
-	}
-	#else
-	{
-		// When enabled, data can be loaded from an offset. Otherwisee, start from the beginning of the resource
-		// This is used when cooking data to force the loading of the entire resource (i.e., bSupportOffsetLoad=false)
-		bSupportOffsetLoad = !bFillBulkdata; 
-
-		using namespace UE::DerivedData;
-		TArray<FCacheGetChunkRequest> Requests;
-		In.Read_DDC(this, Requests);
-	
-		check(DDCRequestOwner == nullptr);
-		DDCRequestOwner = MakeUnique<FRequestOwner>(bWait ? UE::DerivedData::EPriority::Blocking : UE::DerivedData::EPriority::Normal); // <= Move this onto the resource (Buffer, in order to ensure no race condition)
-	
-		//FRequestBarrier Barrier(*DDCRequestOwner);	// This is a critical section on the owner. It does not constrain ordering
-		GetCache().GetChunks(Requests, *DDCRequestOwner,
-		[this, &In, bFillBulkdata, InOwnerName](FCacheGetChunkResponse && Response)
-		{
-			if (Response.Status == UE::DerivedData::EStatus::Ok)
-			{
-				FHairStreamingRequest::FChunk& Chunk = *(FHairStreamingRequest::FChunk*)Response.UserData;
-				Chunk.Data_DDC 	= MoveTemp(Response.RawData);
-				Chunk.Offset 	= Response.RawOffset;
-				Chunk.Size 		= Response.RawSize;
-				Chunk.TotalSize = Response.RawOffset + Response.RawSize;
-				Chunk.Status 	= FHairStreamingRequest::FChunk::Completed;
-		
-				// Upload the total amount of loaded data
-				Chunk.Container->LoadedSize = Chunk.TotalSize;
-
-				// Optional fill in of bytebulkdata container
-				if (bFillBulkdata)
-				{
-					check(Chunk.Container);
-					FByteBulkData& BulkData = Chunk.Container->Data;
-	
-					// The buffer is then stored into bulk data
-					BulkData.Lock(LOCK_READ_WRITE);
-					void* DstData = BulkData.Realloc(Chunk.Size);
-					FMemory::Memcpy(DstData, Chunk.GetData(), Chunk.Size);
-					BulkData.Unlock();
-
-					//Chunk.Release();
-				}
-			}
-			else
-			{
-				FHairStreamingRequest::FChunk& Chunk = *(FHairStreamingRequest::FChunk*)Response.UserData;
-				Chunk.Status = FHairStreamingRequest::FChunk::Failed;
-				UE_LOG(LogHairStrands, Error, TEXT("[Groom] DDC request failed for '%s' (Key:%s) "), *InOwnerName.ToString(), *In.DerivedDataKey);
-			}
-		});
-
-		// Optional wait on DDC response
-		if (bWait || bFillBulkdata)
-		{
-			DDCRequestOwner->Wait();
-			check(IsCompleted());
-		}
-	}
-	#endif
-}
-
-const uint8* FHairStreamingRequest::FChunk::GetData() const 
-{ 
-	check(Status == Completed); 
-#if !WITH_EDITORONLY_DATA
-	check(Container);
-	return (const uint8*)Data_IO.GetData();
-#else
-	return (const uint8*)Data_DDC.GetData(); 
-#endif
-}
-void FHairStreamingRequest::FChunk::Release() 
-{ 
-#if !WITH_EDITORONLY_DATA
-	TIoStatusOr<uint8*> Out = Data_IO.Release();
-#else
-	Data_DDC.Reset(); 
 #endif
 }
 
@@ -1127,7 +991,6 @@ bool FHairStrandsRestResource::InternalIsDataLoaded(uint32 InRequestedCurveCount
 	return StreamingRequest.IsCompleted();
 }
 
-bool IsHairStrandsContinousLODEnabled();
 void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
 	// If we enter this function, the request need to be completed
@@ -1558,173 +1421,6 @@ void FHairStrandsDeformedRootResource::InternalRelease()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-// Root bulk data
-
-void FHairStrandsRootBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
-{
-	Ar << Header.RootCount;
-	Ar << Header.PointCount;
-
-	// Strides
-	{
-		Ar << Header.Strides.RootToUniqueTriangleIndexBufferStride;
-		Ar << Header.Strides.RootBarycentricBufferStride;
-		Ar << Header.Strides.UniqueTriangleIndexBufferStride;
-		Ar << Header.Strides.RestUniqueTrianglePositionBufferStride;
-
-		Ar << Header.Strides.MeshInterpolationWeightsBufferStride;
-		Ar << Header.Strides.MeshSampleIndicesBufferStride;
-		Ar << Header.Strides.RestSamplePositionsBufferStride;
-	}
-
-	// LODS
-	uint32 LODCount = Header.LODs.Num();
-	Ar << LODCount;
-	if (Ar.IsLoading())
-	{
-		Header.LODs.SetNum(LODCount);
-		Data.LODs.SetNum(LODCount);
-	}
-	for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
-	{
-		if (Ar.IsLoading())
-		{
-			Header.LODs[LODIt].LODIndex = LODIt;
-		}
-
-		Ar << Header.LODs[LODIt].UniqueTriangleCount;
-		Ar << Header.LODs[LODIt].SampleCount;
-		Ar << Header.LODs[LODIt].UniqueSectionIndices;
-	}
-}
-
-const TArray<uint32>& FHairStrandsRootBulkData::GetValidSectionIndices(int32 LODIndex) const
-{
-	check(LODIndex >= 0 && LODIndex < Header.LODs.Num());
-	return Header.LODs[LODIndex].UniqueSectionIndices;
-}
-
-void FHairStrandsRootBulkData::SerializeData(FArchive& Ar, UObject* Owner)
-{
-	check(Header.LODs.Num() > 0);
-	check(Header.LODs.Num() == Data.LODs.Num());
-
-	for (uint32 LODIt = 0, LODCount=Header.LODs.Num(); LODIt < LODCount; ++LODIt)
-	{
-		const FHeader::FLOD& HeaderLOD = Header.LODs[LODIt];
-		FData::FLOD& DataLOD = Data.LODs[LODIt];
-
-		const int32 ChunkIndex = 0;
-		bool bAttemptFileMapping = false;
-	
-		if (Ar.IsSaving())
-		{
-			const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
-	
-			DataLOD.RootBarycentricBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.RootToUniqueTriangleIndexBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.UniqueTriangleIndexBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.RestUniqueTrianglePositionBuffer.SetBulkDataFlags(BulkFlags);
-	
-			DataLOD.MeshInterpolationWeightsBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.MeshSampleIndicesBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.RestSamplePositionsBuffer.SetBulkDataFlags(BulkFlags);
-		}
-
-		DataLOD.RootBarycentricBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		DataLOD.RootToUniqueTriangleIndexBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		DataLOD.UniqueTriangleIndexBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		DataLOD.RestUniqueTrianglePositionBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	
-		if (HeaderLOD.SampleCount)
-		{
-			DataLOD.MeshInterpolationWeightsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-			DataLOD.MeshSampleIndicesBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-			DataLOD.RestSamplePositionsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		}
-	}
-}
-
-void FHairStrandsRootBulkData::Serialize(FArchive& Ar, UObject* Owner)
-{
-	// Root data don't have UObject references
-	if (!Ar.IsLoading() && !Ar.IsSaving() && Ar.IsObjectReferenceCollector())
-	{
-		return;
-	}
-
-	SerializeHeader(Ar, Owner);
-	SerializeData(Ar, Owner);
-}
-
-void FHairStrandsRootBulkData::Reset()
-{
-	// Header
-	Header.RootCount = 0;
-	Header.PointCount = 0;
-	Header.LODs.Empty();
-
-	// Data
-	for (FData::FLOD& LOD : Data.LODs)
-	{
-		// Binding
-		LOD.RootBarycentricBuffer.RemoveBulkData();
-		LOD.RootToUniqueTriangleIndexBuffer.RemoveBulkData();
-		LOD.UniqueTriangleIndexBuffer.RemoveBulkData();
-		LOD.RestUniqueTrianglePositionBuffer.RemoveBulkData();
-
-		// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-		LOD.RootBarycentricBuffer 			 = FByteBulkData();
-		LOD.RootToUniqueTriangleIndexBuffer  = FByteBulkData();
-		LOD.UniqueTriangleIndexBuffer		 = FByteBulkData();
-		LOD.RestUniqueTrianglePositionBuffer = FByteBulkData();
-
-		// RBF
-		LOD.MeshInterpolationWeightsBuffer.RemoveBulkData();
-		LOD.MeshSampleIndicesBuffer.RemoveBulkData();
-		LOD.RestSamplePositionsBuffer.RemoveBulkData();
-
-		LOD.MeshInterpolationWeightsBuffer 	 = FByteBulkData();
-		LOD.MeshSampleIndicesBuffer 		 = FByteBulkData();
-		LOD.RestSamplePositionsBuffer 		 = FByteBulkData();
-	}
-	Data.LODs.Empty();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-// Root data
-FHairStrandsRootData::FHairStrandsRootData()
-{
-
-}
-
-bool FHairStrandsRootData::HasProjectionData() const
-{
-	bool bIsValid = MeshProjectionLODs.Num() > 0;
-	for (const FMeshProjectionLOD& LOD : MeshProjectionLODs)
-	{
-		const bool bHasValidCPUData = LOD.RootBarycentricBuffer.Num() > 0;
-		if (bHasValidCPUData)
-		{
-			bIsValid = bIsValid && LOD.RootBarycentricBuffer.Num() > 0;
-			bIsValid = bIsValid && LOD.RootToUniqueTriangleIndexBuffer.Num() > 0;
-			bIsValid = bIsValid && LOD.UniqueTriangleIndexBuffer.Num() > 0;
-			bIsValid = bIsValid && LOD.RestUniqueTrianglePositionBuffer.Num() > 0;
-
-			if (!bIsValid) break;
-		}
-	}
-
-	return bIsValid;
-}
-
-void FHairStrandsRootData::Reset()
-{
-	RootCount = 0;
-	MeshProjectionLODs.Empty();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(FHairStrandsInterpolationBulkData& InBulkData, const FHairResourceName& InResourceName, const FName& InOwnerName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, InResourceName, InOwnerName),
@@ -1762,24 +1458,6 @@ void FHairStrandsInterpolationResource::InternalRelease()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-void FHairCardsInterpolationDatas::SetNum(const uint32 NumPoints)
-{
-	PointsSimCurvesIndex.SetNum(NumPoints);
-	PointsSimCurvesVertexIndex.SetNum(NumPoints);
-	PointsSimCurvesVertexLerp.SetNum(NumPoints);
-}
-
-void FHairCardsInterpolationDatas::Reset()
-{
-	PointsSimCurvesIndex.Empty();
-	PointsSimCurvesVertexIndex.Empty();
-	PointsSimCurvesVertexLerp.Empty();
-}
-
-void FHairCardsInterpolationBulkData::Serialize(FArchive& Ar)
-{
-	Ar << Interpolation;
-}
 
 FHairCardsInterpolationResource::FHairCardsInterpolationResource(FHairCardsInterpolationBulkData& InBulkData, const FHairResourceName& InResourceName, const FName& InOwnerName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, InResourceName, InOwnerName),

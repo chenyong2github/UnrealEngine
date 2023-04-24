@@ -14,6 +14,19 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHairStrands, Log, All);
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Forward declarations
+
+struct FHairStrandsBulkCommon;
+struct FHairBulkContainer;
+struct FHairStrandsDatas;
+
+float GetHairStrandsMaxLength(const FHairStrandsDatas& In);
+float GetHairStrandsMaxRadius(const FHairStrandsDatas& In);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Formats
+
 enum class EHairAttribute : uint8;
 namespace UE::DerivedData
 {
@@ -235,8 +248,91 @@ struct FHairStrandsRootUtils
 	static float	 PackUVsToFloat(const FVector2f& UV);
 };
 
-struct FHairStrandsBulkCommon;
-struct FHairBulkContainer;
+/*  Structure describing the LOD settings (Screen size, vertex info, ...) for each clusters.
+	The packed version of this structure corresponds to the GPU data layout (HairStrandsClusterCommon.ush)
+	This uses by the GPU LOD selection. */
+struct FHairClusterInfo
+{
+	static const uint32 MaxLOD = 8;
+
+	struct Packed
+	{
+		uint32 LODInfoOffset : 24;
+		uint32 LODCount : 8;
+
+		uint32 LOD_ScreenSize_0 : 10;
+		uint32 LOD_ScreenSize_1 : 10;
+		uint32 LOD_ScreenSize_2 : 10;
+		uint32 Pad0 : 2;
+
+		uint32 LOD_ScreenSize_3 : 10;
+		uint32 LOD_ScreenSize_4 : 10;
+		uint32 LOD_ScreenSize_5 : 10;
+		uint32 Pad1 : 2;
+
+		uint32 LOD_ScreenSize_6 : 10;
+		uint32 LOD_ScreenSize_7 : 10;
+		uint32 LOD_bIsVisible : 8;
+		uint32 Pad2 : 4;
+	};
+	typedef FUintVector4 BulkType;
+
+	FHairClusterInfo()
+	{
+		for (uint32 LODIt = 0; LODIt < MaxLOD; ++LODIt)
+		{
+			ScreenSize[LODIt] = 0;
+			bIsVisible[LODIt] = true;
+		}
+	}
+
+	uint32 LODCount = 0;
+	uint32 LODInfoOffset = 0;
+	TStaticArray<float,MaxLOD> ScreenSize;
+	TStaticArray<bool, MaxLOD> bIsVisible;
+};
+
+/*  Structure describing the LOD settings common to all clusters. The layout of this structure is
+	identical the GPU data layout (HairStrandsClusterCommon.ush). This uses by the GPU LOD selection. */
+struct FHairClusterLODInfo
+{
+	uint32 VertexOffset = 0;
+	uint32 VertexCount0 = 0;
+	uint32 VertexCount1 = 0;
+	FFloat16 RadiusScale0 = 0;
+	FFloat16 RadiusScale1 = 0;
+};
+
+struct FHairLODInfo
+{
+	uint32 CurveCount = 0;
+	uint32 PointCount = 0;
+};
+
+struct FHairClusterInfoFormat
+{
+	typedef FHairClusterInfo::Packed Type;
+	typedef FHairClusterInfo::Packed BulkType;
+	static const uint32 SizeInByte = sizeof(Type);
+};
+
+struct FHairClusterLODInfoFormat
+{
+	typedef FHairClusterLODInfo Type;
+	typedef FHairClusterLODInfo BulkType;
+	static const uint32 SizeInByte = sizeof(Type);
+};
+
+struct FHairClusterIndexFormat
+{
+	typedef uint32 Type;
+	typedef uint32 BulkType;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EPixelFormat Format = PF_R32_UINT;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Streaming 
 
 // Streaming request are used for reading hair strands data from DDC or IO
 // The request are translated later to FHairStrandsBulkCommon::FQuery for appropriate reading.
@@ -292,6 +388,9 @@ struct FHairStreamingRequest
 	// This is used when cooking data to force the loading of the entire resource (i.e., bSupportOffsetLoad=false)
 	bool bSupportOffsetLoad = true; 
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Common hair data container and hair data
 
 struct FHairBulkContainer
 {
@@ -350,70 +449,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 #endif
 };
 
-/** Hair strands points interpolation attributes */
-struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
-{
-	/** Set the number of interpolated points */
-	void SetNum(const uint32 NumPoints);
-
-	/** Reset the interpolated points to 0 */
-	void Reset();
-
-	/** Get the number of interpolated points */
-	uint32 Num() const { return PointsSimCurvesVertexIndex.Num(); }
-
-	bool IsValid() const { return PointsSimCurvesIndex.Num() > 0; }
-
-	/** Simulation curve indices, ordered by closest influence */
-	TArray<FIntVector> PointsSimCurvesIndex;
-
-	/** Closest vertex indices on simulation curve, ordered by closest influence */
-	TArray<FIntVector> PointsSimCurvesVertexIndex;
-
-	/** Lerp value between the closest vertex indices and the next one, ordered by closest influence */
-	TArray<FVector3f> PointsSimCurvesVertexLerp;
-
-	/** Weight of vertex indices on simulation curve, ordered by closest influence */
-	TArray<FVector3f>	PointsSimCurvesVertexWeights;
-
-	/** True, if interpolation data are built using a single guide */
-	bool bUseUniqueGuide = false;
-};
-
-struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkCommon
-{
-	enum EDataFlags
-	{
-		DataFlags_HasData = 1,
-		DataFlags_HasSingleGuideData = 2,
-	};
-
-	void Reset();
-	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
-
-	virtual uint32 GetResourceCount() const override;
-	virtual void GetResources(FQuery& Out) override;
-	uint32 GetPointCount() const { return Header.PointCount; };
-
-	struct FHeader
-	{
-		uint32 Flags = 0;
-		uint32 PointCount = 0;
-		uint32 SimPointCount = 0;
-
-		struct FStrides
-		{
-			uint32 InterpolationStride = 0;
-			uint32 SimRootPointIndexStride = 0;
-		} Strides;
-	} Header;
-
-	struct FData
-	{
-		FHairBulkContainer Interpolation;		// FHairStrandsInterpolationFormat  - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a 1 or 3 guide(s))
-		FHairBulkContainer SimRootPointIndex;	// FHairStrandsRootIndexFormat      - Per-rendering-vertex index of the sim-root vertex
-	} Data;
-};
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Strands Data/Bulk
 
 /** Hair strands points attribute */
 struct HAIRSTRANDSCORE_API FHairStrandsPoints
@@ -529,9 +566,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 	FBox BoundingBox = FBox(EForceInit::ForceInit);
 };
 
-float GetHairStrandsMaxLength(const FHairStrandsDatas& In);
-float GetHairStrandsMaxRadius(const FHairStrandsDatas& In);
-
 struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 {
 	enum EDataFlags
@@ -599,44 +633,188 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 	} Data;
 };
 
-/** Hair strands debug data */
-struct HAIRSTRANDSCORE_API FHairStrandsDebugDatas
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Interpolation Data/Bulk
+
+/** Hair strands points interpolation attributes */
+struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 {
-	bool IsValid() const { return VoxelData.Num() > 0;  }
+	/** Set the number of interpolated points */
+	void SetNum(const uint32 NumPoints);
 
-	static const uint32 InvalidIndex = ~0u;
-	struct FOffsetAndCount
+	/** Reset the interpolated points to 0 */
+	void Reset();
+
+	/** Get the number of interpolated points */
+	uint32 Num() const { return PointsSimCurvesVertexIndex.Num(); }
+
+	bool IsValid() const { return PointsSimCurvesIndex.Num() > 0; }
+
+	/** Simulation curve indices, ordered by closest influence */
+	TArray<FIntVector> PointsSimCurvesIndex;
+
+	/** Closest vertex indices on simulation curve, ordered by closest influence */
+	TArray<FIntVector> PointsSimCurvesVertexIndex;
+
+	/** Lerp value between the closest vertex indices and the next one, ordered by closest influence */
+	TArray<FVector3f> PointsSimCurvesVertexLerp;
+
+	/** Weight of vertex indices on simulation curve, ordered by closest influence */
+	TArray<FVector3f>	PointsSimCurvesVertexWeights;
+
+	/** True, if interpolation data are built using a single guide */
+	bool bUseUniqueGuide = false;
+};
+
+struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkCommon
+{
+	enum EDataFlags
 	{
-		uint32 Offset = 0u;
-		uint32 Count = 0u;
+		DataFlags_HasData = 1,
+		DataFlags_HasSingleGuideData = 2,
 	};
 
-	struct FVoxel
+	void Reset();
+	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
+
+	virtual uint32 GetResourceCount() const override;
+	virtual void GetResources(FQuery& Out) override;
+	uint32 GetPointCount() const { return Header.PointCount; };
+
+	struct FHeader
 	{
-		uint32 Index0 = InvalidIndex;
-		uint32 Index1 = InvalidIndex;
+		uint32 Flags = 0;
+		uint32 PointCount = 0;
+		uint32 SimPointCount = 0;
+
+		struct FStrides
+		{
+			uint32 InterpolationStride = 0;
+			uint32 SimRootPointIndexStride = 0;
+		} Strides;
+	} Header;
+
+	struct FData
+	{
+		FHairBulkContainer Interpolation;		// FHairStrandsInterpolationFormat  - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a 1 or 3 guide(s))
+		FHairBulkContainer SimRootPointIndex;	// FHairStrandsRootIndexFormat      - Per-rendering-vertex index of the sim-root vertex
+	} Data;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Cluster Data/Bulk
+
+struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
+{
+	void Reset();
+	bool IsValid() const { return ClusterCount > 0 && VertexCount > 0; }
+
+	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
+	TArray<bool>				LODVisibility;
+
+	/* Screen size at which LOD should switches on CPU */
+	TArray<float>				CPULODScreenSize;
+
+	/* LOD info for the various clusters for LOD management on GPU */
+	TArray<FHairClusterInfo>	ClusterInfos;
+	TArray<FHairClusterLODInfo> ClusterLODInfos;
+	TArray<uint32>				VertexToClusterIds;
+	TArray<uint32>				ClusterVertexIds;
+	TArray<FHairLODInfo>		LODInfos;
+
+	/* Number of cluster  */
+	uint32 ClusterCount = 0;
+
+	/* Number of vertex  */
+	uint32 VertexCount = 0;
+};
+
+struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulkCommon
+{
+	void Reset();
+
+	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
+	virtual uint32 GetResourceCount() const override;
+	virtual void GetResources(FQuery& Out) override;
+
+	bool IsValid() const { return Header.ClusterCount > 0 && Header.VertexCount > 0; }
+	void Validate(bool bIsSaving);
+
+	struct FHeader
+	{
+		/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
+		TArray<bool> LODVisibility;
+	
+		/* Screen size at which LOD should switches on CPU */
+		TArray<float> CPULODScreenSize;
+	
+		/* Curve count and Point count per LOD */
+		TArray<FHairLODInfo> LODInfos;
+	
+		uint32 ClusterCount = 0;
+		uint32 ClusterLODCount = 0;
+		uint32 VertexCount = 0;
+		uint32 VertexLODCount = 0;
+	} Header;
+
+	struct FData
+	{
+		/* LOD info for the various clusters for LOD management on GPU */
+		FHairBulkContainer	PackedClusterInfos;		// Size - ClusterCount
+		FHairBulkContainer	ClusterLODInfos;		// Size - ClusterLODCount
+		FHairBulkContainer	VertexToClusterIds;		// Size - VertexCount
+		FHairBulkContainer	ClusterVertexIds;		// Size - VertexLODCount
+	} Data;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Root Data/Bulk
+
+/* Source data for building root bulk data */
+struct FHairStrandsRootData
+{
+	void Reset();
+	bool HasProjectionData() const;
+	bool IsValid() const { return RootCount > 0; }
+
+	struct FMeshProjectionLOD
+	{
+		int32 LODIndex = -1;
+
+		/* Triangle on which a root is attached */
+		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
+			In this case we need to separate index computation. The barycentric coords remain the same however. */
+		TArray<FHairStrandsRootToUniqueTriangleIndexFormat::Type> RootToUniqueTriangleIndexBuffer;
+		TArray<FHairStrandsRootBarycentricFormat::Type> RootBarycentricBuffer;
+
+		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
+		TArray<FHairStrandsUniqueTriangleIndexFormat::Type> UniqueTriangleIndexBuffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePositionBuffer;
+
+		/* Number of samples used for the mesh interpolation */
+		uint32 SampleCount = 0;
+
+		/* Store the hair interpolation weights | Size = SamplesCount * SamplesCount */
+		TArray<FHairStrandsWeightFormat::Type> MeshInterpolationWeightsBuffer;
+
+		/* Store the samples vertex indices */
+		TArray<FHairStrandsIndexFormat::Type> MeshSampleIndicesBuffer;
+
+		/* Store the samples rest positions */
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestSamplePositionsBuffer;
+
+		/* Store the mesh section indices which are relevant for this root LOD data */
+		TArray<uint32> UniqueSectionIds;
 	};
 
-	struct FDesc
-	{
-		FVector3f VoxelMinBound = FVector3f::ZeroVector;
-		FVector3f VoxelMaxBound = FVector3f::ZeroVector;
-		FIntVector VoxelResolution = FIntVector::ZeroValue;
-		float VoxelSize = 0;
-		uint32 MaxSegmentPerVoxel = 0;
-	};
+	/* Number of roots */
+	uint32 RootCount = 0;
 
-	FDesc VoxelDescription;
-	TArray<FOffsetAndCount> VoxelOffsetAndCount;
-	TArray<FVoxel> VoxelData;
+	/* Number of control points */
+	uint32 PointCount = 0;
 
-	struct FResources
-	{
-		FDesc VoxelDescription;
-
-		TRefCountPtr<FRDGPooledBuffer> VoxelOffsetAndCount;
-		TRefCountPtr<FRDGPooledBuffer> VoxelData;
-	};
+	/* Store the hair projection information for each mesh LOD */
+	TArray<FMeshProjectionLOD> MeshProjectionLODs;
 };
 
 /* Bulk data for root resources (GPU resources are stored into FHairStrandsRootResources) */
@@ -715,197 +893,45 @@ struct FHairStrandsRootBulkData
 	} Data;
 };
 
-/* Source data for building root bulk data */
-struct FHairStrandsRootData
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair debug data
+
+/** Hair strands debug data */
+struct HAIRSTRANDSCORE_API FHairStrandsDebugDatas
 {
-	FHairStrandsRootData();
-	void Reset();
-	bool HasProjectionData() const;
-	bool IsValid() const { return RootCount > 0; }
+	bool IsValid() const { return VoxelData.Num() > 0;  }
 
-	struct FMeshProjectionLOD
+	static const uint32 InvalidIndex = ~0u;
+	struct FOffsetAndCount
 	{
-		int32 LODIndex = -1;
-
-		/* Triangle on which a root is attached */
-		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
-		   In this case we need to separate index computation. The barycentric coords remain the same however. */
-		TArray<FHairStrandsRootToUniqueTriangleIndexFormat::Type> RootToUniqueTriangleIndexBuffer;
-		TArray<FHairStrandsRootBarycentricFormat::Type> RootBarycentricBuffer;
-
-		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		TArray<FHairStrandsUniqueTriangleIndexFormat::Type> UniqueTriangleIndexBuffer;
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePositionBuffer;
-
-		/* Number of samples used for the mesh interpolation */
-		uint32 SampleCount = 0;
-
-		/* Store the hair interpolation weights | Size = SamplesCount * SamplesCount */
-		TArray<FHairStrandsWeightFormat::Type> MeshInterpolationWeightsBuffer;
-
-		/* Store the samples vertex indices */
-		TArray<FHairStrandsIndexFormat::Type> MeshSampleIndicesBuffer;
-
-		/* Store the samples rest positions */
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestSamplePositionsBuffer;
-
-		/* Store the mesh section indices which are relevant for this root LOD data */
-		TArray<uint32> UniqueSectionIds;
+		uint32 Offset = 0u;
+		uint32 Count = 0u;
 	};
 
-	/* Number of roots */
-	uint32 RootCount = 0;
-
-	/* Number of control points */
-	uint32 PointCount = 0;
-
-	/* Store the hair projection information for each mesh LOD */
-	TArray<FMeshProjectionLOD> MeshProjectionLODs;
-};
-
-/* Structure describing the LOD settings (Screen size, vertex info, ...) for each clusters.
-	The packed version of this structure corresponds to the GPU data layout (HairStrandsClusterCommon.ush)
-	This uses by the GPU LOD selection. */
-struct FHairClusterInfo
-{
-	static const uint32 MaxLOD = 8;
-
-	struct Packed
+	struct FVoxel
 	{
-		uint32 LODInfoOffset : 24;
-		uint32 LODCount : 8;
-
-		uint32 LOD_ScreenSize_0 : 10;
-		uint32 LOD_ScreenSize_1 : 10;
-		uint32 LOD_ScreenSize_2 : 10;
-		uint32 Pad0 : 2;
-
-		uint32 LOD_ScreenSize_3 : 10;
-		uint32 LOD_ScreenSize_4 : 10;
-		uint32 LOD_ScreenSize_5 : 10;
-		uint32 Pad1 : 2;
-
-		uint32 LOD_ScreenSize_6 : 10;
-		uint32 LOD_ScreenSize_7 : 10;
-		uint32 LOD_bIsVisible : 8;
-		uint32 Pad2 : 4;
+		uint32 Index0 = InvalidIndex;
+		uint32 Index1 = InvalidIndex;
 	};
-	typedef FUintVector4 BulkType;
 
-	FHairClusterInfo()
+	struct FDesc
 	{
-		for (uint32 LODIt = 0; LODIt < MaxLOD; ++LODIt)
-		{
-			ScreenSize[LODIt] = 0;
-			bIsVisible[LODIt] = true;
-		}
-	}
+		FVector3f VoxelMinBound = FVector3f::ZeroVector;
+		FVector3f VoxelMaxBound = FVector3f::ZeroVector;
+		FIntVector VoxelResolution = FIntVector::ZeroValue;
+		float VoxelSize = 0;
+		uint32 MaxSegmentPerVoxel = 0;
+	};
 
-	uint32 LODCount = 0;
-	uint32 LODInfoOffset = 0;
-	TStaticArray<float,MaxLOD> ScreenSize;
-	TStaticArray<bool, MaxLOD> bIsVisible;
-};
+	FDesc VoxelDescription;
+	TArray<FOffsetAndCount> VoxelOffsetAndCount;
+	TArray<FVoxel> VoxelData;
 
-/* Structure describing the LOD settings common to all clusters. The layout of this structure is
-	identical the GPU data layout (HairStrandsClusterCommon.ush). This uses by the GPU LOD selection. */
-struct FHairClusterLODInfo
-{
-	uint32 VertexOffset = 0;
-	uint32 VertexCount0 = 0;
-	uint32 VertexCount1 = 0;
-	FFloat16 RadiusScale0 = 0;
-	FFloat16 RadiusScale1 = 0;
-};
-
-struct FHairClusterInfoFormat
-{
-	typedef FHairClusterInfo::Packed Type;
-	typedef FHairClusterInfo::Packed BulkType;
-	static const uint32 SizeInByte = sizeof(Type);
-};
-
-struct FHairClusterLODInfoFormat
-{
-	typedef FHairClusterLODInfo Type;
-	typedef FHairClusterLODInfo BulkType;
-	static const uint32 SizeInByte = sizeof(Type);
-};
-
-struct FHairClusterIndexFormat
-{
-	typedef uint32 Type;
-	typedef uint32 BulkType;
-	static const uint32 SizeInByte = sizeof(Type);
-	static const EPixelFormat Format = PF_R32_UINT;
-};
-
-struct FHairLODInfo
-{
-	uint32 CurveCount = 0;
-	uint32 PointCount = 0;
-};
-
-struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
-{
-	void Reset();
-	bool IsValid() const { return ClusterCount > 0 && VertexCount > 0; }
-
-	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
-	TArray<bool>				LODVisibility;
-
-	/* Screen size at which LOD should switches on CPU */
-	TArray<float>				CPULODScreenSize;
-
-	/* LOD info for the various clusters for LOD management on GPU */
-	TArray<FHairClusterInfo>	ClusterInfos;
-	TArray<FHairClusterLODInfo> ClusterLODInfos;
-	TArray<uint32>				VertexToClusterIds;
-	TArray<uint32>				ClusterVertexIds;
-	TArray<FHairLODInfo>		LODInfos;
-
-	/* Number of cluster  */
-	uint32 ClusterCount = 0;
-
-	/* Number of vertex  */
-	uint32 VertexCount = 0;
-};
-
-struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulkCommon
-{
-	void Reset();
-
-	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
-	virtual uint32 GetResourceCount() const override;
-	virtual void GetResources(FQuery& Out) override;
-
-	bool IsValid() const { return Header.ClusterCount > 0 && Header.VertexCount > 0; }
-	void Validate(bool bIsSaving);
-
-	struct FHeader
+	struct FResources
 	{
-		/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
-		TArray<bool> LODVisibility;
-	
-		/* Screen size at which LOD should switches on CPU */
-		TArray<float> CPULODScreenSize;
-	
-		/* Curve count and Point count per LOD */
-		TArray<FHairLODInfo> LODInfos;
-	
-		uint32 ClusterCount = 0;
-		uint32 ClusterLODCount = 0;
-		uint32 VertexCount = 0;
-		uint32 VertexLODCount = 0;
-	} Header;
+		FDesc VoxelDescription;
 
-	struct FData
-	{
-		/* LOD info for the various clusters for LOD management on GPU */
-		FHairBulkContainer	PackedClusterInfos;		// Size - ClusterCount
-		FHairBulkContainer	ClusterLODInfos;		// Size - ClusterLODCount
-		FHairBulkContainer	VertexToClusterIds;		// Size - VertexCount
-		FHairBulkContainer	ClusterVertexIds;		// Size - VertexLODCount
-	} Data;
+		TRefCountPtr<FRDGPooledBuffer> VoxelOffsetAndCount;
+		TRefCountPtr<FRDGPooledBuffer> VoxelData;
+	};
 };
-

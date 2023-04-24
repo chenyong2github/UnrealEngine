@@ -38,6 +38,9 @@
 // Max number of discrete LOD that a hair group can have
 #define MAX_HAIR_LOD 8
 
+// Max split for raytracing geometry
+#define STRANDS_PROCEDURAL_INTERSECTOR_MAX_SPLITS 4
+
 // Use triangle strip for HW raster path
 #define USE_HAIR_TRIANGLE_STRIP 0
 

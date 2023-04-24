@@ -9,7 +9,7 @@
 #include "HairStrandsVertexFactory.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-// Utils/Format data
+// Formats
 
 struct FHairCardsPositionFormat
 {
@@ -173,7 +173,7 @@ struct FHairOrientedBound
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-// Hair Cards
+// Hair Cards Data/Bulk
 
 // Data structure holding cards geometry information
 struct FHairCardsGeometry
@@ -288,7 +288,7 @@ struct FHairCardsBulkData
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-// Hair Cards (Procedural generation)
+// Hair Cards Data (Procedural generation)
 
 // Internal data structure for computing surface flow. 
 // This structured is exposed only for debug purpose
@@ -406,7 +406,39 @@ struct HAIRSTRANDSCORE_API FHairCardsSourceData
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-// Hair meshes
+// Hair Card interpolation Data/Bulk
+
+/** Hair cards points interpolation attributes */
+struct HAIRSTRANDSCORE_API FHairCardsInterpolationDatas
+{
+	/** Set the number of interpolated points */
+	void SetNum(const uint32 NumPoints);
+
+	/** Reset the interpolated points to 0 */
+	void Reset();
+
+	/** Get the number of interpolated points */
+	uint32 Num() const { return PointsSimCurvesVertexIndex.Num(); }
+
+	/** Simulation curve indices */
+	TArray<int32> PointsSimCurvesIndex;
+
+	/** Closest vertex indices on simulation curve */
+	TArray<int32> PointsSimCurvesVertexIndex;
+
+	/** Lerp value between the closest vertex indices and the next one */
+	TArray<float> PointsSimCurvesVertexLerp;
+};
+
+struct HAIRSTRANDSCORE_API FHairCardsInterpolationBulkData
+{
+	TArray<FHairCardsInterpolationFormat::Type> Interpolation;
+
+	void Serialize(FArchive& Ar);
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair Meshes Data/Bulk
 
 struct FHairMeshes
 {
@@ -434,8 +466,6 @@ struct FHairMeshes
 	uint32 GetNumTriangles() const { return Indices.Num() / 3; }
 	uint32 GetNumVertices() const { return Positions.Num(); }
 };
-
-struct FHairMeshesBulkData;
 
 struct FHairMeshesDatas
 {
