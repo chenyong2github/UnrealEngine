@@ -225,6 +225,20 @@ public:
 		return DelegateInstance && DelegateInstance->HasSameObject(InUserObject);
 	}
 
+	/** 
+	 * Checks to see if this delegate can ever become valid again - if not, it can
+	 * be removed from broadcast lists or otherwise repurposed.
+	 *
+	 * @return True if the delegate is compatable, false otherwise.
+	 */
+	FORCEINLINE bool IsCompactable() const
+	{
+		FReadAccessScope ReadScope = GetReadAccessScope();
+
+		const IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
+		return !DelegateInstance || DelegateInstance->IsCompactable();
+	}
+
 	/**
 	 * Gets a handle to the delegate.
 	 *

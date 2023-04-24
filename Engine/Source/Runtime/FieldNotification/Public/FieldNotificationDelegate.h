@@ -134,11 +134,6 @@ private:
 		return AlgoImpl::UpperBoundInternal(GetData(Delegates), Num, InKey, FIdentityFunctor(), TLess<>());
 	}
 
-	const IDelegateInstance* GetDelegateInstance(FDelegate& InDelegate) const
-	{
-		return static_cast<FInstanceProtectedDelegate&>(static_cast<TDelegateBase<FDefaultDelegateUserPolicy>&>(InDelegate)).GetDelegateInstanceProtected();
-	}
-
 	void ExecuteLockOperations();
 	void RemoveElement(FInvocationElement& Element, int32 Index, FRemoveResult& Result);
 	void CompleteRemove(FRemoveResult& Result) const;
