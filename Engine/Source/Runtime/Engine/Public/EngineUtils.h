@@ -752,14 +752,6 @@ struct FContentComparisonAssetInfo
 			(ResourceSize == Other.ResourceSize)
 			);
 	}
-
-	/** operator = */
-	FContentComparisonAssetInfo& operator=(const FContentComparisonAssetInfo& Other)
-	{
-		AssetName = Other.AssetName;
-		ResourceSize = Other.ResourceSize;
-		return *this;
-	}
 };
 
 /** Helper class for performing the content comparison console command */
