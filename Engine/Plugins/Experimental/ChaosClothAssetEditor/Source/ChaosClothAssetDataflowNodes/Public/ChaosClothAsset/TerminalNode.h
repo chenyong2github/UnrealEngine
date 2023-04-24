@@ -48,6 +48,7 @@ public:
 	virtual bool CanAddPin() const override { return NumLods < MaxLods; }
 	virtual bool CanRemovePin() const override { return NumLods > 1; }
 	virtual Dataflow::FPin RemovePin() override;
+	virtual void Serialize(FArchive& Ar);
 
 private:
 	TArray<const FManagedArrayCollection*> GetCollectionLods() const;

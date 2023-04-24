@@ -193,4 +193,21 @@ TArray<const FManagedArrayCollection*> FChaosClothAssetTerminalNode::GetCollecti
 	return CollectionLods;
 }
 
+void FChaosClothAssetTerminalNode::Serialize(FArchive& Ar)
+{
+	// because we add pins we need to make sure we restore them when loading
+	// to make sure they can get properly reconnected
+
+	if (Ar.IsLoading())
+	{
+		const int32 NumLodToAdd = (NumLods - 1);
+		NumLods = 1; // need to reset back to default because add pin will increment it again 
+		for (int32 LodIndex = 0; LodIndex < NumLodToAdd; ++LodIndex)
+		{
+			AddPin();
+		}
+		ensure(NumLodToAdd == (NumLods - 1));
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

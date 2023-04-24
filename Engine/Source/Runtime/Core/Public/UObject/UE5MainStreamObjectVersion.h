@@ -357,6 +357,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		
 		// Store the RigVM execute context struct the VM uses in the archive
 		RigVMExternalExecuteContextStruct,
+
+		// serialization inputs and outputs as two different sections
+		DataflowSeparateInputOutputSerialization,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
