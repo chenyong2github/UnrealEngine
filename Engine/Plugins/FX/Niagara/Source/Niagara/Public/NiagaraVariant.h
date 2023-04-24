@@ -24,7 +24,9 @@ struct NIAGARA_API FNiagaraVariant
 	GENERATED_BODY()
 
 	FNiagaraVariant();
-	FNiagaraVariant(const FNiagaraVariant& Other);
+	// TODO: Add move support
+	FNiagaraVariant(const FNiagaraVariant&) = default;
+	FNiagaraVariant& operator=(const FNiagaraVariant&) = default;
 	explicit FNiagaraVariant(UNiagaraDataInterface* InDataInterface);
 	explicit FNiagaraVariant(UObject* InObject);
 	explicit FNiagaraVariant(const TArray<uint8>& InBytes);

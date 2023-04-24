@@ -13,14 +13,6 @@ FNiagaraVariant::FNiagaraVariant()
 	DataInterface = nullptr;
 }
 
-FNiagaraVariant::FNiagaraVariant(const FNiagaraVariant& Other)
-{
-	CurrentMode = Other.CurrentMode;
-	Object = Other.Object;
-	DataInterface = Other.DataInterface;
-	Bytes = Other.Bytes;
-}
-
 FNiagaraVariant::FNiagaraVariant(UObject* InObject)
 {
 	CurrentMode = ENiagaraVariantMode::Object;
