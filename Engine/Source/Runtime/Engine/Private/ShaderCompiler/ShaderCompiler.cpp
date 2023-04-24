@@ -6571,16 +6571,11 @@ void GlobalBeginCompileShader(
 		const bool bStrata = Strata::IsStrataEnabled();
 		Input.Environment.SetDefine(TEXT("STRATA_ENABLED"), bStrata ? 1 : 0);
 
-		// Force rough diffuse to be disable on platform which explicitly disable it from their settings
-		if (bStrata && IsConsolePlatform(Target.GetPlatform()))
-		{
-			const bool bStrataRoughDiffuse = Strata::IsRoughDiffuseEnabled();
-			Input.Environment.SetDefine(TEXT("STRATA_DIFFUSE_CHAN"), bStrataRoughDiffuse ? 1 : 0);
-		}
-
-		// Force rough diffuse to be disable on platform which explicitly disable it from their settings
 		if (bStrata)
 		{
+			const bool bStrataRoughDiffuse = Strata::IsRoughDiffuseEnabled() && !Strata::IsBackCompatibilityEnabled();
+			Input.Environment.SetDefine(TEXT("STRATA_DIFFUSE_CHAN"), bStrataRoughDiffuse ? 1 : 0);
+
 			const uint32 StrataShadingQuality = Strata::GetShadingQuality(Target.GetPlatform());
 			Input.Environment.SetDefine(TEXT("STRATA_SHADING_QUALITY"), StrataShadingQuality);
 
