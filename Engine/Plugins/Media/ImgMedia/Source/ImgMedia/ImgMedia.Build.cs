@@ -49,12 +49,6 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("OpenExrWrapper");
 				PrivateDependencyModuleNames.Add("ExrReaderGpu");
 			}
-
-			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-				PrivateDependencyModuleNames.Add("D3D12RHI");
-			}
 			
 			// Is this the editor?
 			if (Target.bBuildEditor == true)

@@ -26,8 +26,6 @@
 #include "TextureResource.h"
 #include "ScreenPass.h"
 
-#include "ID3D12DynamicRHI.h"
-
 
 DECLARE_GPU_STAT_NAMED(ExrImgMediaReaderGpu, TEXT("ExrImgGpu"));
 DECLARE_GPU_STAT_NAMED(ExrImgMediaReaderGpu_MipRender, TEXT("ExrImgGpu.MipRender"));
@@ -668,14 +666,18 @@ FStructuredBufferPoolItemSharedPtr FExrImgMediaReaderGpu::AllocateGpuBufferFromP
 
 	if (!AllocatedBuffer)
 	{
-		// This boolean value is used to wait until render thread finishes buffer initialization.
-		volatile bool bInitDone = false;
+		FEvent* InitDoneEvent = nullptr;
+		if (bWait)
+		{
+			InitDoneEvent = FPlatformProcess::GetSynchEventFromPool();
+		}
+
 		{
 			AllocatedBuffer = MakeShareable(new FStructuredBufferPoolItem(), MoveTemp(BufferDeleter));
 			AllocatedBuffer->Reader = AsShared();
 
 			// Allocate and unlock the structured buffer on render thread.
-			ENQUEUE_RENDER_COMMAND(CreatePooledBuffer)([AllocatedBuffer, AllocSize, &bInitDone, this, bWait](FRHICommandListImmediate& RHICmdList)
+			ENQUEUE_RENDER_COMMAND(CreatePooledBuffer)([AllocatedBuffer, AllocSize, InitDoneEvent, this](FRHICommandListImmediate& RHICmdList)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("ExrReaderGpu.AllocBuffer_RenderThread")));
 				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("ExrReaderGpu.AllocBuffer_RenderThread %d"), AllocSize));
@@ -696,19 +698,19 @@ FStructuredBufferPoolItemSharedPtr FExrImgMediaReaderGpu::AllocateGpuBufferFromP
 					AllocatedBuffer->ShaderResourceView = RHICreateShaderResourceView(AllocatedBuffer->UploadBufferRef);
 				}
 
-				if (bWait)
+				if (InitDoneEvent != nullptr)
 				{
-					bInitDone = true;
+					InitDoneEvent->Trigger();
 				}
 			});
 		}
 
 		/** Wait until buffer is initialized. */
-		while (!bInitDone && bWait)
+		if (InitDoneEvent != nullptr)
 		{
-			FPlatformProcess::Sleep(0.01f);
+			InitDoneEvent->Wait();
+			FPlatformProcess::ReturnSynchEventToPool(InitDoneEvent);
 		}
-
 	}
 
 	// This buffer will be automatically processed and returned to StagingMemoryPool once nothing keeps reference to it.
