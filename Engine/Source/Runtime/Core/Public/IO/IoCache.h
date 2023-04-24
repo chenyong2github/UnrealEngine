@@ -76,6 +76,7 @@ public:
 		return IsValid() ? Pimpl->Status() : FIoStatus(EIoErrorCode::InvalidCode);
 	}
 
+	void Wait();
 	void Cancel();
 
 private:

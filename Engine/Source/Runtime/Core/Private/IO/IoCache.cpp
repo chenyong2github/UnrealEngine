@@ -55,3 +55,13 @@ void FIoCacheRequest::Cancel()
 		Pimpl->Cancel();
 	}
 }
+
+void FIoCacheRequest::Wait()
+{
+	check(IsValid());
+
+	if (!Status().IsCompleted())
+	{
+		Pimpl->Wait();
+	}
+}
