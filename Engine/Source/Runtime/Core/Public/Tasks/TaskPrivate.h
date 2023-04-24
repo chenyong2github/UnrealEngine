@@ -323,10 +323,12 @@ namespace UE::Tasks
 				return Subsequents.IsClosed();
 			}
 
-			// Tries to pull out the task from the system and execute it. If the task is locked by either prerequisites or nested tasks, tries to retract and execute them recursively. 
-			// @return true if task is completed, not necessarily by retraction. If the task is being executed (or its dependency) in parallel, it doesn't wait for task completion and 
-			// returns false immediately.
-			CORE_API bool TryRetractAndExecute(uint32 RecursionDepth = 0);
+			// Tries to pull out the task from the system and execute it. If the task is locked by either prerequisites or nested tasks, tries to 
+			// retract and execute them recursively. 
+			// WARNING: the function can return `true` even if the task is not completed yet. The `true` means only that the task is already
+			// executed and has no other pending dependencies, but can be in the process of completion (concurrently). The caller still needs 
+			// to wait for completion explicitly.
+			CORE_API bool TryRetractAndExecute(FTimeout Timeout, uint32 RecursionDepth = 0);
 
 			// releases internal reference and maintains low-level task state. must be called iff the task was never launched, otherwise 
 			// the scheduler will do this in due course
@@ -359,33 +361,16 @@ namespace UE::Tasks
 			// `Wait(FTimespan::Zero())` still tries to retract and execute the task, use `IsCompleted()` to check for completeness. 
 			// The version w/o timeout is slightly more efficient.
 			// @return true if the task is completed
-			CORE_API void Wait();
-			CORE_API bool Wait(FTimespan Timeout);
-
-			// waits until the task is completed while executing other tasks
-			void BusyWait()
-			{
-				TaskTrace::FWaitingScope WaitingScope(GetTraceId());
-				TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::BusyWait);
-				
-				if (!TryRetractAndExecute())
-				{
-					LowLevelTasks::BusyWaitUntil([this] { return IsCompleted(); });
-				}
-			}
+			CORE_API bool Wait(FTimeout Timeout);
 
 			// waits until the task is completed or waiting timed out, while executing other tasks
-			bool BusyWait(FTimespan InTimeout)
+			bool BusyWait(FTimeout Timeout)
 			{
 				TaskTrace::FWaitingScope WaitingScope(GetTraceId());
 				TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::BusyWait);
 
-				FTimeout Timeout{ InTimeout };
-				
-				if (TryRetractAndExecute())
-				{
-					return true;
-				}
+				// ignore the result as we still have to make sure the task is completed upon returning from this function call
+				TryRetractAndExecute(Timeout);
 
 				LowLevelTasks::BusyWaitUntil([this, Timeout] { return IsCompleted() || Timeout; });
 				return IsCompleted();
@@ -398,10 +383,8 @@ namespace UE::Tasks
 				TaskTrace::FWaitingScope WaitingScope(GetTraceId());
 				TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::BusyWait);
 
-				if (TryRetractAndExecute())
-				{
-					return true;
-				}
+				// ignore the result as we still have to make sure the task is completed upon returning from this function call
+				TryRetractAndExecute(FTimeout::Never());
 
 				LowLevelTasks::BusyWaitUntil(
 					[this, Condition = Forward<ConditionType>(Condition)]{ return IsCompleted() || Condition(); }
@@ -826,36 +809,19 @@ namespace UE::Tasks
 			TaskEventBaseAllocator.Free(Ptr);
 		}
 
-		// task retraction of multiple tasks. 
-		// @return true if all tasks are completed
+		// task retraction of multiple tasks, with timeout. The timeout is rounded up to any successful task execution, which means that it can 
+		// time out only in-between individual task retractions.
+		// WARNING: the function can return `true` even if some tasks are still not completed. The `true` means only that the tasks are executed
+		// and have no other pending dependencies, but can be still in the process of completion (concurrently). The caller still needs to wait 
+		// for completion.
 		template<typename TaskCollectionType>
-		bool TryRetractAndExecute(const TaskCollectionType& Tasks)
+		bool TryRetractAndExecute(const TaskCollectionType& Tasks, FTimeout Timeout)
 		{
 			bool bResult = true;
 
 			for (auto& Task : Tasks)
 			{
-				if (Task.IsValid() && !Task.Pimpl->TryRetractAndExecute())
-				{
-					bResult = false; // do not stop here to let this thread to help in executing tasks as much as possible, as it's waiting for their completion anyway
-				}
-			}
-
-			return bResult;
-		}
-
-		// task retraction of multiple tasks, with timeout. The timeout is rounded up to any successful task execution, which means that it can time out only in-between individual task
-		// retractions.
-		// @return true if all tasks are completed
-		template<typename TaskCollectionType>
-		bool TryRetractAndExecute(const TaskCollectionType& Tasks, FTimespan InTimeout)
-		{
-			FTimeout Timeout{ InTimeout };
-			bool bResult = true;
-
-			for (auto& Task : Tasks)
-			{
-				if (Task.IsValid() && !Task.Pimpl->TryRetractAndExecute())
+				if (Task.IsValid() && !Task.Pimpl->TryRetractAndExecute(Timeout))
 				{
 					bResult = false;  // do not stop here to let this thread to help in executing tasks as much as possible, as it's waiting for their completion anyway
 				}

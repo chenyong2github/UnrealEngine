@@ -43,7 +43,7 @@ namespace UE::Tasks
 		return false;
 	}
 
-	bool FPipe::WaitUntilEmpty(FTimespan Timeout/* = FTimespan::FromMilliseconds(MAX_uint32)*/)
+	bool FPipe::WaitUntilEmpty(FTimespan Timeout/* = FTimespan::MaxValue()*/)
 	{
 		struct FPlaceholderTask final : Private::FTaskBase
 		{
@@ -73,7 +73,7 @@ namespace UE::Tasks
 		{
 			LastTask_Local->Release(); // release pipe's ref to the last task
 			// when the placeholder replaced "the last task" in the pipe, it became its subsequent, so the last task will "complete" it
-			bRes = PlaceholderTask->Wait(Timeout);
+			bRes = PlaceholderTask->Wait(FTimeout{ Timeout });
 		}
 		else
 		{

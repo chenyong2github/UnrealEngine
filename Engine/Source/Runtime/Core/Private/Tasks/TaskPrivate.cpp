@@ -68,13 +68,19 @@ namespace UE::Tasks
 			}
 		};
 
-		bool FTaskBase::TryRetractAndExecute(uint32 RecursionDepth/* = 0*/)
+		bool FTaskBase::TryRetractAndExecute(FTimeout Timeout, uint32 RecursionDepth/* = 0*/)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(TaskRetraction);
 
-			if (IsCompleted())
+			if (!IsAwaitable())
 			{
-				return true;
+				UE_LOG(LogTemp, Fatal, TEXT("Deadlock detected! A task can't be waited here, e.g. because it's being executed by the currect thread"));
+				return false;
+			}
+
+			if (IsCompleted() || Timeout)
+			{
+				return IsCompleted();
 			}
 
 #if TASKGRAPH_NEW_FRONTEND
@@ -108,7 +114,7 @@ namespace UE::Tasks
 				while (FTaskBase* Prerequisite = Prerequisites.Pop())
 				{
 					// ignore if retraction failed, as this thread still can try to help with other prerequisites instead of being blocked in waiting
-					Prerequisite->TryRetractAndExecute(RecursionDepth);
+					Prerequisite->TryRetractAndExecute(Timeout, RecursionDepth);
 					Prerequisite->Release();
 				}
 			}
@@ -131,6 +137,11 @@ namespace UE::Tasks
 					return true;
 				}
 
+				if (Timeout)
+				{
+					return IsCompleted();
+				}
+
 				if (!TryExecuteTask())
 				{
 					return false; // still locked by prerequisites, or another thread managed to set execution flag first, or we're inside this task execution
@@ -143,11 +154,6 @@ namespace UE::Tasks
 
 			// the task was launched so the scheduler will handle the internal reference held by low-level task
 
-			if (IsCompleted()) // still can be hold back by nested tasks, this is an optional early out for better perf
-			{
-				return true;
-			}
-
 			// retract nested tasks, if any
 			{
 				// keep trying retracting all nested tasks even if some of them fail, so the current worker can contribute instead of being blocked
@@ -156,7 +162,7 @@ namespace UE::Tasks
 				// this can be potentially improved by using a different container for prerequisites
 				while (FTaskBase* Prerequisite = Prerequisites.Pop())
 				{
-					if (!Prerequisite->TryRetractAndExecute(RecursionDepth))
+					if (!Prerequisite->TryRetractAndExecute(Timeout, RecursionDepth))
 					{
 						bSucceeded = false;
 					}
@@ -169,83 +175,40 @@ namespace UE::Tasks
 				}
 			}
 
-			// it happens that all nested tasks are completed and are in the process of completing the parent (this task) concurrently, 
-			// but the flag is not set yet. wait for it to maintain postconditions
-			while (!IsCompleted())
-			{
-				FPlatformProcess::Yield();
-			}
-
+			// at this point the task is executed and has no pending nested tasks, but still can be "not completed" (nested tasks can be 
+			// in the process of completing it (setting the flag) concurrently), so the caller still has to wait for completion
 			return true;
 		}
 
-		void FTaskBase::Wait()
+		bool FTaskBase::Wait(FTimeout Timeout)
 		{
-			if (IsCompleted())
+			if (IsCompleted() || Timeout)
 			{
-				return;
+				return IsCompleted();
 			}
 
 			TaskTrace::FWaitingScope WaitingScope(GetTraceId());
 			TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
-
-			if (!IsAwaitable())
-			{
-				UE_LOG(LogTemp, Fatal, TEXT("Deadlock detected! A task can't be waited here, e.g. because it's being executed by the currect thread"));
-				return;
-			}
-
-			if (TryRetractAndExecute())
-			{
-				return;
-			}
 
 			// if we are on a named thread, handle waiting in TaskGraph-specific style
 			if (TryWaitOnNamedThread(*this))
 			{
-				return;
-			}
-
-			FEventRef CompletionEvent;
-			auto WaitingTaskBody = [&CompletionEvent] { CompletionEvent->Trigger(); };
-			using FWaitingTask = TExecutableTask<decltype(WaitingTaskBody)>;
-
-			// the task is stored on the stack as we can guarantee that it's out of the system by the end of the call
-			FWaitingTask WaitingTask{ TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter*/, EExtendedTaskPriority::Inline };
-			WaitingTask.AddPrerequisites(*this);
-
-			if (WaitingTask.TryLaunch(sizeof(WaitingTask)))
-			{	// was executed inline
-				check(WaitingTask.IsCompleted());
-			}
-			else
-			{
-				CompletionEvent->Wait();
-			}
-
-			// the waiting task will be destroyed leaving this scope, wait for the internal reference to it to be released
-			while (WaitingTask.GetRefCount(std::memory_order_acquire) != 1)
-			{
-				FPlatformProcess::Yield();
-			}
-		}
-
-		bool FTaskBase::Wait(FTimespan InTimeout)
-		{
-			TaskTrace::FWaitingScope WaitingScope(GetTraceId());
-			TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
-
-			FTimeout Timeout{ InTimeout };
-
-			if (TryRetractAndExecute())
-			{
 				return true;
 			}
 
-			if (GetCurrentTask() == this)
+			// ignore the result as we still have to make sure the task is completed upon returning from this function call
+			TryRetractAndExecute(Timeout);
+
+			// spin for a while with hope the task is getting completed right now, to avoid getting blocked by a pricy syscall
+			const uint32 MaxSpinCount = 40;
+			for (uint32 SpinCount = 0; SpinCount != MaxSpinCount && !IsCompleted() && !Timeout; ++SpinCount)
 			{
-				UE_LOG(LogTemp, Fatal, TEXT("A task waiting for itself detected"));
-				return true;
+				FPlatformProcess::YieldThread();
+			}
+
+			if (IsCompleted() || Timeout)
+			{
+				return IsCompleted();
 			}
 
 			// the event must be alive for the task and this function lifetime, we don't know which one will be finished first as waiting can 
@@ -263,7 +226,10 @@ namespace UE::Tasks
 				return true;
 			}
 
-			return CompletionEvent->Wait((uint32)FMath::Clamp<int64>(Timeout.GetRemainingTime().GetTicks() / ETimespan::TicksPerMillisecond, 0, MAX_uint32));
+			uint32 WaitForMsecs = Timeout == FTimeout::Never() ? 
+				MAX_uint32 :
+				(uint32)FMath::Clamp<int64>(Timeout.GetRemainingTime().GetTicks() / ETimespan::TicksPerMillisecond, 0, MAX_uint32);
+			return CompletionEvent->Wait(WaitForMsecs);
 		}
 
 		FTaskBase* FTaskBase::TryPushIntoPipe()
@@ -320,7 +286,7 @@ namespace UE::Tasks
 				ReturnTask.TryLaunch(sizeof(ReturnTask)); // the result doesn't matter
 
 				TaskGraph.ProcessThreadUntilRequestReturn(CurrentThread);
-				return true;
+				return IsCompleted();
 			}
 #endif
 

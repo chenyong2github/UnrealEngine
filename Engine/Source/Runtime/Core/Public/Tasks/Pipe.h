@@ -47,7 +47,7 @@ namespace UE::Tasks
 
 		// waits until the pipe is empty (its last task is executed)
 		// should be used only after no more tasks are launched in the pipe, e.g. preparing for the pipe destruction
-		CORE_API bool WaitUntilEmpty(FTimespan Timeout = FTimespan::FromMilliseconds(MAX_uint32));
+		CORE_API bool WaitUntilEmpty(FTimespan Timeout = FTimespan::MaxValue());
 
 		// launches a task in the pipe
 		// @param InDebugName helps to identify the task in debugger and profiler

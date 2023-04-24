@@ -15,10 +15,7 @@ namespace UE::Tasks
 	class TTask;
 
 	template<typename TaskCollectionType>
-	void Wait(const TaskCollectionType& Tasks);
-
-	template<typename TaskCollectionType>
-	bool Wait(const TaskCollectionType& Tasks, FTimespan InTimeout);
+	bool Wait(const TaskCollectionType& Tasks, FTimespan InTimeout = FTimespan::MaxValue());
 
 	template<typename TaskCollectionType>
 	bool BusyWait(const TaskCollectionType& Tasks, FTimespan InTimeout = FTimespan::MaxValue());
@@ -43,16 +40,10 @@ namespace UE::Tasks
 			friend void PrerequisitesUnpacker(ArrayType& Array, TaskType& FirstTask);
 
 			template<typename TaskCollectionType>
-			friend bool TryRetractAndExecute(const TaskCollectionType& Tasks);
-
-			template<typename TaskCollectionType>
-			friend bool TryRetractAndExecute(const TaskCollectionType& Tasks, FTimespan Timeout);
+			friend bool TryRetractAndExecute(const TaskCollectionType& Tasks, FTimeout Timeout);
 
 			template<typename TaskCollectionType>
 			friend TArray<TaskTrace::FId> GetTraceIds(const TaskCollectionType& Tasks);
-
-			template<typename TaskCollectionType>
-			friend void UE::Tasks::Wait(const TaskCollectionType& Tasks);
 
 			template<typename TaskCollectionType>
 			friend bool UE::Tasks::Wait(const TaskCollectionType& Tasks, FTimespan InTimeout);
@@ -84,40 +75,20 @@ namespace UE::Tasks
 				return !IsValid() || Pimpl->IsCompleted();
 			}
 
-			// waits for task's completion. Tries to retract the task and execute it in-place, if failed - blocks until the task 
-			// is completed by another thread. If timeout is zero, tries to retract the task and returns immedially after that.
-			// @return true if the task is completed
-			void Wait()
-			{
-				if (IsValid())
-				{
-					Pimpl->Wait();
-				}
-			}
-
 			// waits for task's completion with timeout. Tries to retract the task and execute it in-place, if failed - blocks until the task 
 			// is completed by another thread. If timeout is zero, tries to retract the task and returns immedially after that.
 			// @return true if the task is completed
-			bool Wait(FTimespan Timeout)
+			bool Wait(FTimespan Timeout = FTimespan::MaxValue())
 			{
-				return !IsValid() || Pimpl->Wait(Timeout);
-			}
-
-			// waits for task's completion while executing other tasks. Shouldn't be used inside a latency-sensitive task
-			void BusyWait()
-			{
-				if (IsValid())
-				{
-					Pimpl->BusyWait();
-				}
+				return !IsValid() || Pimpl->Wait(FTimeout{ Timeout });
 			}
 
 			// waits for task's completion for at least the specified amount of time, while executing other tasks.
 			// the call can return much later than the given timeout
 			// @return true if the task is completed
-			bool BusyWait(FTimespan Timeout)
+			bool BusyWait(FTimespan Timeout = FTimespan::MaxValue())
 			{
-				return !IsValid() || Pimpl->BusyWait(Timeout);
+				return !IsValid() || Pimpl->BusyWait(FTimeout{ Timeout });
 			}
 
 			// waits for task's completion or the given condition becomes true, while executing other tasks.
@@ -337,52 +308,6 @@ namespace UE::Tasks
 		}
 	}
 
-	// wait for multiple tasks
-	// @param TaskCollectionType - an iterable collection of `TTask<T>`, e.g. `TArray<FTask>`
-	template<typename TaskCollectionType>
-	void Wait(const TaskCollectionType& Tasks)
-	{
-		TaskTrace::FWaitingScope WaitingScope(Private::GetTraceIds(Tasks));
-		TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
-
-		if (Private::TryRetractAndExecute(Tasks))
-		{
-			return;
-		}
-
-		Private::FTaskBase* CurrentTask = Private::GetCurrentTask();
-		for (const auto& Task : Tasks)
-		{
-			if (Task.Pimpl == CurrentTask)
-			{
-				UE_LOG(LogTemp, Fatal, TEXT("A task waiting for itself detected"));
-				return;
-			}
-		}
-
-		FEventRef CompletionEvent;
-		auto WaitingTaskBody = [&CompletionEvent] { CompletionEvent->Trigger(); };
-		using FWaitingTask = Private::TExecutableTask<decltype(WaitingTaskBody)>;
-
-		FWaitingTask WaitingTask{ TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter */,  EExtendedTaskPriority::Inline };
-		WaitingTask.AddPrerequisites(Tasks);
-
-		if (WaitingTask.TryLaunch(sizeof(WaitingTask)))
-		{	// was executed inline
-			check(WaitingTask.IsCompleted());
-		}
-		else
-		{ 
-			CompletionEvent->Wait();
-		}
-
-		// `WaitingTask` is allocated on the stack. we need to wait until its RefCount reaches zero before leaving the function to avoid "use after destruction"
-		while (WaitingTask.GetRefCount(std::memory_order_acquire) != 1)
-		{
-			FPlatformProcess::Yield();
-		}
-	}
-
 	inline void Wait(Private::FTaskHandle& Task)
 	{
 		Task.Wait();
@@ -391,17 +316,15 @@ namespace UE::Tasks
 	// wait for multiple tasks, with timeout
 	// @param TaskCollectionType - an iterable collection of `TTask<T>`, e.g. `TArray<FTask>`
 	template<typename TaskCollectionType>
-	bool Wait(const TaskCollectionType& Tasks, FTimespan InTimeout)
+	bool Wait(const TaskCollectionType& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/)
 	{
 		TaskTrace::FWaitingScope WaitingScope(Private::GetTraceIds(Tasks));
 		TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
 
 		FTimeout Timeout{ InTimeout };
 
-		if (Private::TryRetractAndExecute(Tasks, InTimeout))
-		{
-			return true;
-		}
+		// ignore the result as we still have to make sure the task is completed upon returning from this function call
+		Private::TryRetractAndExecute(Tasks, Timeout);
 
 		// the event must be alive for the task and this function lifetime, we don't know which one will be finished first as waiting can time out
 		// before the waiting task is completed
@@ -418,26 +341,27 @@ namespace UE::Tasks
 			return true;
 		}
 
-		return CompletionEvent->Wait((uint32)FMath::Clamp<int64>(Timeout.GetRemainingTime().GetTicks() / ETimespan::TicksPerMillisecond, 0, MAX_uint32));
+		uint32 WaitForMsecs = Timeout == FTimeout::Never() ?
+			MAX_uint32 :
+			(uint32)FMath::Clamp<int64>(Timeout.GetRemainingTime().GetTicks() / ETimespan::TicksPerMillisecond, 0, MAX_uint32);
+		return CompletionEvent->Wait(WaitForMsecs);
 	}
 
 	// wait for multiple tasks while executing other tasks
 	template<typename TaskCollectionType>
-	bool BusyWait(const TaskCollectionType& Tasks, FTimespan TimeoutValue/* = FTimespan::MaxValue()*/)
+	bool BusyWait(const TaskCollectionType& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/)
 	{
 		TaskTrace::FWaitingScope WaitingScope(Private::GetTraceIds(Tasks));
 		TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::BusyWait);
 
-		FTimeout Timeout{ TimeoutValue };
+		FTimeout Timeout{ InTimeout };
 
-		if (Private::TryRetractAndExecute(Tasks, TimeoutValue))
-		{
-			return true;
-		}
+		// ignore the result as we still have to make sure the task is completed upon returning from this function call
+		Private::TryRetractAndExecute(Tasks, Timeout);
 
 		for (auto& Task : Tasks)
 		{
-			if (Timeout || !Task.BusyWait(Timeout.GetRemainingTime()))
+			if (Timeout || !Task.BusyWait(Timeout))
 			{
 				return false;
 			}
