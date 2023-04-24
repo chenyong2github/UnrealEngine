@@ -1189,7 +1189,7 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 					// Add or retrieve curve
 					const FName& CurveName = TransformCurve.GetName();
 					// note we're not checking Curve.GetCurveTypeFlags() yet
-					FTransform Value = TransformCurve.Evaluate(EvaluationContext.SampleFrameRate.AsSeconds(EvaluationContext.SampleTime), 1.f);
+					FTransform Value = TransformCurve.Evaluate(static_cast<float>(EvaluationContext.SampleFrameRate.AsSeconds(EvaluationContext.SampleTime)), 1.f);
 
 					const FCompactPoseBoneIndex BoneIndex(RigPose.GetBoneContainer().GetPoseBoneIndexForBoneName(CurveName));
 					if(BoneIndex != INDEX_NONE)
@@ -1312,7 +1312,7 @@ void UAnimationSequencerDataModel::EvaluateTrack(UMovieSceneControlRigParameterT
 					{
 						FEulerTransform EulerTransform(FEulerTransform::Identity);
 					
-						const double Alpha = BoneSampleTime.GetSubFrame();
+						const float Alpha = BoneSampleTime.GetSubFrame();
 						auto EvaluateToTransform = [&TypedParameter](const FFrameNumber& Frame, FTransform& InOutTransform, TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::FTimeEvaluationCache* Cache)
 						{
 							auto EvaluateValue = [Frame, Cache](const auto& Channel, auto& Target)

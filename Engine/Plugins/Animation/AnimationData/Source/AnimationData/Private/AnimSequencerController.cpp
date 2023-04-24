@@ -129,9 +129,9 @@ void UAnimSequencerController::ResizeNumberOfFrames(FFrameNumber NewLength, FFra
 					FSequenceLengthChangedPayload Payload;
 
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					Payload.T0 = CurrentFrameRate.AsSeconds(T0);
-					Payload.T1 = CurrentFrameRate.AsSeconds(T1);
-					Payload.PreviousLength = CurrentFrameRate.AsSeconds(CurrentNumberOfFrames);
+					Payload.T0 = static_cast<float>(CurrentFrameRate.AsSeconds(T0));
+					Payload.T1 = static_cast<float>(CurrentFrameRate.AsSeconds(T1));
+					Payload.PreviousLength = static_cast<float>(CurrentFrameRate.AsSeconds(CurrentNumberOfFrames));
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 					Payload.PreviousNumberOfFrames = CurrentNumberOfFrames;
@@ -184,8 +184,8 @@ void UAnimSequencerController::ResizeInFrames(FFrameNumber NewLength, FFrameNumb
 					ResizeNumberOfFrames(NewLength, T0, T1, bShouldTransact);
 
 					const FFrameRate CurrentFrameRate = Model->GetMovieScene()->GetDisplayRate();
-					ResizeCurves(CurrentFrameRate.AsSeconds(NewLength), bInserted, CurrentFrameRate.AsSeconds(T0), CurrentFrameRate.AsSeconds(T1), bShouldTransact);
-					ResizeAttributes(CurrentFrameRate.AsSeconds(NewLength), bInserted, CurrentFrameRate.AsSeconds(T0), CurrentFrameRate.AsSeconds(T1), bShouldTransact);
+					ResizeCurves(static_cast<float>(CurrentFrameRate.AsSeconds(NewLength)), bInserted, static_cast<float>(CurrentFrameRate.AsSeconds(T0)), static_cast<float>(CurrentFrameRate.AsSeconds(T1)), bShouldTransact);
+					ResizeAttributes(static_cast<float>(CurrentFrameRate.AsSeconds(NewLength)), bInserted, static_cast<float>(CurrentFrameRate.AsSeconds(T0)), static_cast<float>(CurrentFrameRate.AsSeconds(T1)), bShouldTransact);
 				}
 				else
 				{
@@ -228,8 +228,8 @@ void UAnimSequencerController::SetMovieSceneRange(FFrameNumber InFrameNumber) co
 	FMovieSceneEditorData& EditorData = MovieScene->GetEditorData();
 	EditorData.ViewStart = EditorData.WorkStart = 0.f;
 	EditorData.ViewEnd = EditorData.WorkEnd = Model->GetFrameRate().AsSeconds(InFrameNumber);
-	MovieScene->SetWorkingRange(EditorData.ViewStart, EditorData.ViewEnd);
-	MovieScene->SetViewRange(EditorData.ViewStart, EditorData.ViewEnd);
+	MovieScene->SetWorkingRange(static_cast<float>(EditorData.ViewStart), static_cast<float>(EditorData.ViewEnd));
+	MovieScene->SetViewRange(static_cast<float>(EditorData.ViewStart), static_cast<float>(EditorData.ViewEnd));
 
 	if (UMovieSceneControlRigParameterSection* Section = Model->GetFKControlRigSection())
 	{
@@ -278,7 +278,7 @@ void UAnimSequencerController::SetFrameRate(FFrameRate FrameRate, bool bShouldTr
 	ValidateModel();
 
 	// Disallow invalid frame-rates, or 0.0 intervals
-	const float FrameRateInterval = FrameRate.AsInterval();
+	const float FrameRateInterval = static_cast<float>(FrameRate.AsInterval());
 	if (FrameRate.IsValid() && !FMath::IsNearlyZero(FrameRateInterval) && FrameRateInterval > 0.f)
 	{
 		const TObjectPtr<UMovieScene>& MovieScene = Model->MovieScene;
@@ -852,7 +852,7 @@ bool UAnimSequencerController::SetTransformCurveKeys(const FAnimationCurveIdenti
 				{
 					for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
 					{
-						Key.ChannelKeys[ChannelIndex][KeyIndex] = FRichCurveKey(Time, Vector[ChannelIndex]);
+						Key.ChannelKeys[ChannelIndex][KeyIndex] = FRichCurveKey(Time, static_cast<float>(Vector[ChannelIndex]));
 					}
 				};
 
@@ -915,7 +915,7 @@ bool UAnimSequencerController::SetTransformCurveKey(const FAnimationCurveIdentif
 		{
 			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
 			{
-				Key.ChannelKeys[ChannelIndex] = FRichCurveKey(Time, Vector[ChannelIndex]);
+				Key.ChannelKeys[ChannelIndex] = FRichCurveKey(Time, static_cast<float>(Vector[ChannelIndex]));
 			}
 		};
 
@@ -1675,7 +1675,7 @@ bool UAnimSequencerController::UpdateBoneTrackKeys(FName BoneName, const FInt32R
 						for (int32 RangeIndex = RangeMin; RangeIndex < RangeMax; ++RangeIndex, ++KeyIndex)
 						{
 							TransformKeys.Add(FTransform(FQuat(RotationalKeys[KeyIndex]), FVector(PositionalKeys[KeyIndex]), FVector(ScalingKeys[KeyIndex])));
-							TimeValues.Add(FrameRate.AsSeconds(RangeIndex));
+							TimeValues.Add(static_cast<float>(FrameRate.AsSeconds(RangeIndex)));
 						}
 					
 						if(!UpdateBoneCurveKeys(BoneName, TransformKeys, TimeValues))
@@ -2834,13 +2834,13 @@ bool UAnimSequencerController::UpdateBoneCurveKeys(const FName& BoneName, const 
 						for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
 						{
 							// Translation
-							AddKeyToChannel(&ParameterCurvePair->Translation[ChannelIndex], FrameNumber, Location[ChannelIndex], EMovieSceneKeyInterpolation::Linear);
+							AddKeyToChannel(&ParameterCurvePair->Translation[ChannelIndex], FrameNumber, static_cast<float>(Location[ChannelIndex]), EMovieSceneKeyInterpolation::Linear);
 						
 							// Rotation
-							AddKeyToChannel(&ParameterCurvePair->Rotation[ChannelIndex], FrameNumber, EulerAngles[ChannelIndex], EMovieSceneKeyInterpolation::Linear);
+							AddKeyToChannel(&ParameterCurvePair->Rotation[ChannelIndex], FrameNumber, static_cast<float>(EulerAngles[ChannelIndex]), EMovieSceneKeyInterpolation::Linear);
 							
 							// Scaling							
-							AddKeyToChannel(&ParameterCurvePair->Scale[ChannelIndex], FrameNumber, Scale[ChannelIndex], EMovieSceneKeyInterpolation::Linear);						
+							AddKeyToChannel(&ParameterCurvePair->Scale[ChannelIndex], FrameNumber, static_cast<float>(Scale[ChannelIndex]), EMovieSceneKeyInterpolation::Linear);						
 						}
 					}
 					

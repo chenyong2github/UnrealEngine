@@ -26,7 +26,7 @@ void AnimSequencerHelpers::ConvertFloatChannelToRichCurve(const FMovieSceneFloat
 		const FFrameTime ConvertedKeyFrameTime = FFrameRate::TransformTime(KeyFrameNumber, Channel.GetTickResolution(), TargetFrameRate);
 		const double KeyTime = TargetFrameRate.AsSeconds(ConvertedKeyFrameTime);
 
-		OutCurve.Keys[KeyIndex].Time = KeyTime;
+		OutCurve.Keys[KeyIndex].Time = static_cast<float>(KeyTime);
 
 		const FFrameNumber* PrevKey = KeyIndex > 0 ? &Times[KeyIndex - 1] : nullptr;
 		const FFrameNumber* NextKey = KeyIndex < (NumKeys - 1) ? &Times[KeyIndex + 1] : nullptr;
@@ -49,7 +49,7 @@ void AnimSequencerHelpers::ConvertFloatChannelToRichCurve(const FMovieSceneFloat
 			return 1;
 		}();
 		
-		const float SecondsDelta = [&]() -> float
+		const double SecondsDelta = [&]() -> double
 		{
 			if (PrevKey && NextKey)
 			{
@@ -64,7 +64,7 @@ void AnimSequencerHelpers::ConvertFloatChannelToRichCurve(const FMovieSceneFloat
 				return Channel.GetTickResolution().AsSeconds(*NextKey) - KeyTime;
 			}
 
-			return 1.f;
+			return 1.0;
 		}();		
 
 		// Ratio between rich-curve and moviescene key(s) timing, if there are any surrounding keys (otherwise default to a ratio of 1:1)
@@ -156,8 +156,8 @@ void AnimSequencerHelpers::ConvertRichCurveKeysToFloatChannel(const TArray<FRich
 				const double NextTimeDiff = FMath::Max<double>(KINDA_SMALL_NUMBER, Times[KeyIndex + 1].Value - Times[KeyIndex].Value);
 
 				// Generate linear tangent (delta value / delta time)
-				const float NewTangent = (NextKey.Value - Key.Value) / NextTimeDiff;
-				Key.Tangent.LeaveTangent = NewTangent;
+				const double NewTangent = (NextKey.Value - Key.Value) / NextTimeDiff;
+				Key.Tangent.LeaveTangent = static_cast<float>(NewTangent);
 			}
 		}
 		// Also need to generate linear tangents for cubic keys which are to the right of linear keys
@@ -175,7 +175,7 @@ void AnimSequencerHelpers::ConvertRichCurveKeysToFloatChannel(const TArray<FRich
 					
 					const double PrevTimeDiff = FMath::Max<double>(KINDA_SMALL_NUMBER, Times[KeyIndex].Value - Times[KeyIndex - 1].Value);
 					// Generate linear tangent (delta value / delta time)
-					Key.Tangent.ArriveTangent = (Key.Value - PreviousKey.Value) / PrevTimeDiff;
+					Key.Tangent.ArriveTangent = static_cast<float>((Key.Value - PreviousKey.Value) / PrevTimeDiff);
 				}
 			}
 		}
@@ -203,13 +203,13 @@ void AnimSequencerHelpers::ConvertRichCurveKeyToFloatValue(const FRichCurveKey& 
 
 	if (OutMovieSceneKey.Tangent.TangentWeightMode == RCTWM_WeightedNone)
 	{
-		OutMovieSceneKey.Tangent.ArriveTangent = RichCurveKey.ArriveTangent * TangentRatio;
-		OutMovieSceneKey.Tangent.LeaveTangent = RichCurveKey.LeaveTangent * TangentRatio;
+		OutMovieSceneKey.Tangent.ArriveTangent = static_cast<float>(RichCurveKey.ArriveTangent * TangentRatio);
+		OutMovieSceneKey.Tangent.LeaveTangent = static_cast<float>(RichCurveKey.LeaveTangent * TangentRatio);
 	}
 	else
 	{		
-		OutMovieSceneKey.Tangent.ArriveTangent = RichCurveKey.ArriveTangent * SecondsPerFrame;
-		OutMovieSceneKey.Tangent.LeaveTangent = RichCurveKey.LeaveTangent * SecondsPerFrame;
+		OutMovieSceneKey.Tangent.ArriveTangent = static_cast<float>(RichCurveKey.ArriveTangent * SecondsPerFrame);
+		OutMovieSceneKey.Tangent.LeaveTangent = static_cast<float>(RichCurveKey.LeaveTangent * SecondsPerFrame);
 	}		
 			
 	OutMovieSceneKey.TangentMode = RichCurveKey.TangentMode;
@@ -222,8 +222,8 @@ void AnimSequencerHelpers::ConvertFloatValueToRichCurveKey(const FMovieSceneFloa
 	OutRichCurveKey.InterpMode = MovieSceneKey.InterpMode;	
 	
 	OutRichCurveKey.TangentMode = MovieSceneKey.TangentMode;
-	OutRichCurveKey.ArriveTangent = MovieSceneKey.Tangent.ArriveTangent * TangentRatio;
-	OutRichCurveKey.LeaveTangent = MovieSceneKey.Tangent.LeaveTangent * TangentRatio;
+	OutRichCurveKey.ArriveTangent = static_cast<float>(MovieSceneKey.Tangent.ArriveTangent * TangentRatio);
+	OutRichCurveKey.LeaveTangent = static_cast<float>(MovieSceneKey.Tangent.LeaveTangent * TangentRatio);
 		
 	OutRichCurveKey.TangentWeightMode = MovieSceneKey.Tangent.TangentWeightMode;
 	OutRichCurveKey.ArriveTangentWeight = MovieSceneKey.Tangent.ArriveTangentWeight;
