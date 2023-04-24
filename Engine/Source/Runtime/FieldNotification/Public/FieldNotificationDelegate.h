@@ -29,12 +29,6 @@ public:
 	using FDynamicDelegate = FFieldValueChangedDynamicDelegate;
 
 private:
-	struct FInstanceProtectedDelegate : public TDelegateBase<FDefaultDelegateUserPolicy>
-	{
-		using Super = TDelegateBase<FDefaultDelegateUserPolicy>;
-		using Super::GetDelegateInstanceProtected;
-	};
-
 	struct FInvocationKey
 	{
 		TWeakObjectPtr<const UObject> Object;
