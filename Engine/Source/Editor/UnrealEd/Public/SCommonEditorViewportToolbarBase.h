@@ -79,6 +79,9 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedPtr<class ICommonEditorViewportToolbarInfoProvider> InInfoProvider);
 
+	/** Build the screen percentage menu. */
+	static void ConstructScreenPercentageMenu(FMenuBuilder& MenuBuilder, class FEditorViewportClient* ViewportClient);
+
 private:
 	/**
 	 * Returns the label for the "Camera" tool bar menu, which changes depending on the viewport type
@@ -144,17 +147,6 @@ private:
 
 	/** Called by the FOV slider in the perspective viewport to get the FOV value */
 	float OnGetFOVValue() const;
-
-	/**
-	* @return The widget containing the screen percentage.
-	*/
-	TSharedRef<SWidget> GenerateScreenPercentageMenu() const;
-
-	/** Called by the ScreenPercentage slider */
-	int32 OnGetScreenPercentageValue() const;
-
-	/** Called by the ScreenPercentage slider */
-	bool OnScreenPercentageIsEnabled() const;
 
 	/**
 	 * @return The widget containing the far view plane slider.

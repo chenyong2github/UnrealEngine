@@ -6,6 +6,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Widgets/SToolTip.h"
 #include "Styling/AppStyle.h"
 
 #include "STransformViewportToolbar.h"
@@ -16,11 +17,15 @@
 #include "SEditorViewportToolBarButton.h"
 #include "SEditorViewportViewMenu.h"
 #include "Editor/EditorPerformanceSettings.h"
+#include "Settings/EditorProjectSettings.h"
 #include "Scalability.h"
 #include "SceneView.h"
 #include "SScalabilitySettings.h"
 #include "AssetEditorViewportLayout.h"
 #include "SAssetEditorViewport.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
+
 
 #define LOCTEXT_NAMESPACE "SCommonEditorViewportToolbarBase"
 
@@ -187,6 +192,227 @@ void SCommonEditorViewportToolbarBase::Construct(const FArguments& InArgs, TShar
 	SViewportToolBar::Construct(SViewportToolBar::FArguments());
 }
 
+static FFormatNamedArguments GetScreenPercentageFormatArguments(const FEditorViewportClient& ViewportClient)
+{
+	static auto CVarEditorViewportDefaultScreenPercentageRealTimeMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Editor.Viewport.ScreenPercentageMode.RealTime"));
+	static auto CVarEditorViewportDefaultScreenPercentagePathTracerMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Editor.Viewport.ScreenPercentageMode.PathTracer"));
+	static auto CVarEditorViewportDefaultScreenPercentageMode = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Editor.Viewport.ScreenPercentageMode.NonRealTime"));
+
+	const UEditorPerformanceProjectSettings* EditorProjectSettings = GetDefault<UEditorPerformanceProjectSettings>();
+	const UEditorPerformanceSettings* EditorUserSettings = GetDefault<UEditorPerformanceSettings>();
+	const FEngineShowFlags& EngineShowFlags = ViewportClient.EngineShowFlags;
+
+	const bool bViewModeSupportsScreenPercentage = ViewportClient.SupportsPreviewResolutionFraction();
+	const bool bIsRealTime = ViewportClient.IsRealtime();
+	const bool bIsPathTraced = EngineShowFlags.PathTracing;
+	const bool bIsPreviewScreenPercentage = ViewportClient.IsPreviewingScreenPercentage();
+
+	int32 DefaultScreenPercentage = FMath::RoundToInt(FMath::Clamp(
+		ViewportClient.GetDefaultPrimaryResolutionFractionTarget(),
+		ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction) * 100.0f);
+	int32 PreviewScreenPercentage = ViewportClient.GetPreviewScreenPercentage();
+	int32 FinalScreenPercentage = bIsPreviewScreenPercentage ? PreviewScreenPercentage : DefaultScreenPercentage;
+
+	FFormatNamedArguments FormatArguments;
+
+	EScreenPercentageMode ProjectSetting = EScreenPercentageMode::Manual;
+	EEditorUserScreenPercentageModeOverride UserPreference = EEditorUserScreenPercentageModeOverride::ProjectDefault;
+	IConsoleVariable* CVarDefaultScreenPercentage = nullptr;
+	if (bIsPathTraced)
+	{
+		FormatArguments.Add(TEXT("ViewportMode"), LOCTEXT("ScreenPercentage_ViewportMode_PathTraced", "Path Traced"));
+		ProjectSetting = EditorProjectSettings->PathTracerScreenPercentageMode;
+		UserPreference = EditorUserSettings->PathTracerScreenPercentageMode;
+		CVarDefaultScreenPercentage = CVarEditorViewportDefaultScreenPercentagePathTracerMode;
+	}
+	else if (bIsRealTime)
+	{
+		FormatArguments.Add(TEXT("ViewportMode"), LOCTEXT("ScreenPercentage_ViewportMode_Realtime", "Realtime"));
+		ProjectSetting = EditorProjectSettings->RealtimeScreenPercentageMode;
+		UserPreference = EditorUserSettings->RealtimeScreenPercentageMode;
+		CVarDefaultScreenPercentage = CVarEditorViewportDefaultScreenPercentageRealTimeMode;
+	}
+	else
+	{
+		FormatArguments.Add(TEXT("ViewportMode"), LOCTEXT("ScreenPercentage_ViewportMode_NonRealtime", "Non-Realtime"));
+		ProjectSetting = EditorProjectSettings->NonRealtimeScreenPercentageMode;
+		UserPreference = EditorUserSettings->NonRealtimeScreenPercentageMode;
+		CVarDefaultScreenPercentage = CVarEditorViewportDefaultScreenPercentageMode;
+	}
+
+	EScreenPercentageMode FinalScreenPercentageMode = EScreenPercentageMode::Manual;
+	if (!bViewModeSupportsScreenPercentage)
+	{
+		FormatArguments.Add(TEXT("SettingSource"), LOCTEXT("ScreenPercentage_SettingSource_UnsupportedByViewMode", "Unsupported by View mode"));
+		FinalScreenPercentageMode = EScreenPercentageMode::Manual;
+		FinalScreenPercentage = 100;
+	}
+	else if (bIsPreviewScreenPercentage)
+	{
+		FormatArguments.Add(TEXT("SettingSource"), LOCTEXT("ScreenPercentage_SettingSource_ViewportOverride", "Viewport Override"));
+		FinalScreenPercentageMode = EScreenPercentageMode::Manual;
+	}
+	else if ((CVarDefaultScreenPercentage->GetFlags() & ECVF_SetByMask) > ECVF_SetByProjectSetting)
+	{
+		FormatArguments.Add(TEXT("SettingSource"), LOCTEXT("ScreenPercentage_SettingSource_Cvar", "Console Variable"));
+		FinalScreenPercentageMode = EScreenPercentageMode(CVarDefaultScreenPercentage->GetInt());
+	}
+	else if (UserPreference == EEditorUserScreenPercentageModeOverride::ProjectDefault)
+	{
+		FormatArguments.Add(TEXT("SettingSource"), LOCTEXT("ScreenPercentage_SettingSource_ProjectSettigns", "Project Settings"));
+		FinalScreenPercentageMode = ProjectSetting;
+	}
+	else
+	{
+		FormatArguments.Add(TEXT("SettingSource"), LOCTEXT("ScreenPercentage_SettingSource_EditorPreferences", "Editor Preferences"));
+		if (UserPreference == EEditorUserScreenPercentageModeOverride::BasedOnDPIScale)
+		{
+			FinalScreenPercentageMode = EScreenPercentageMode::BasedOnDPIScale;
+		}
+		else if (UserPreference == EEditorUserScreenPercentageModeOverride::BasedOnDisplayResolution)
+		{
+			FinalScreenPercentageMode = EScreenPercentageMode::BasedOnDisplayResolution;
+		}
+		else
+		{
+			FinalScreenPercentageMode = EScreenPercentageMode::Manual;
+		}
+	}
+
+	if (FinalScreenPercentageMode == EScreenPercentageMode::BasedOnDPIScale)
+	{
+		FormatArguments.Add(TEXT("Setting"), LOCTEXT("ScreenPercentage_Setting_BasedOnDPIScale", "Based on OS's DPI scale"));
+	}
+	else if (FinalScreenPercentageMode == EScreenPercentageMode::BasedOnDisplayResolution)
+	{
+		FormatArguments.Add(TEXT("Setting"), LOCTEXT("ScreenPercentage_Setting_BasedOnDisplayResolution", "Based on display resolution"));
+	}
+	else
+	{
+		FormatArguments.Add(TEXT("Setting"), LOCTEXT("ScreenPercentage_Setting_Manual", "Manual"));
+	}
+
+	FormatArguments.Add(TEXT("CurrentScreenPercentage"), FText::FromString(FString::Printf(TEXT("%d"), FinalScreenPercentage)));
+
+	return FormatArguments;
+}
+
+void SCommonEditorViewportToolbarBase::ConstructScreenPercentageMenu(FMenuBuilder& MenuBuilder, FEditorViewportClient* InViewportClient)
+{
+	FEditorViewportClient& ViewportClient = *InViewportClient;
+
+	FMargin CommonPadding(26.0f, 3.0f);
+
+	const int32 PreviewScreenPercentageMin = ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction * 100.0f;
+	const int32 PreviewScreenPercentageMax = ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction * 100.0f;
+
+	const FEditorViewportCommands& BaseViewportCommands = FEditorViewportCommands::Get();
+
+	MenuBuilder.BeginSection("Summary", LOCTEXT("Summary", "Summary"));
+	{
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(CommonPadding)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text_Lambda([&ViewportClient]() {
+					FFormatNamedArguments FormatArguments = GetScreenPercentageFormatArguments(ViewportClient);
+					return FText::Format(LOCTEXT("ScreenPercentageCurrent_Display", "Current Screen Percentage: {CurrentScreenPercentage}"), FormatArguments);
+				})
+				.ToolTip(SNew(SToolTip).Text(LOCTEXT("ScreenPercentageCurrent_ToolTip", "Current Screen Percentage the viewport is rendered with.")))
+			],
+			FText::GetEmpty()
+		);
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(CommonPadding)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text_Lambda([&ViewportClient]() {
+					FFormatNamedArguments FormatArguments = GetScreenPercentageFormatArguments(ViewportClient);
+					return FText::Format(LOCTEXT("ScreenPercentageActiveViewport", "Active Viewport: {ViewportMode}"), FormatArguments);
+				})
+			],
+			FText::GetEmpty()
+		);
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(CommonPadding)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text_Lambda([&ViewportClient]() {
+					FFormatNamedArguments FormatArguments = GetScreenPercentageFormatArguments(ViewportClient);
+					return FText::Format(LOCTEXT("ScreenPercentageSetFrom", "Set From: {SettingSource}"), FormatArguments);
+				})
+			],
+			FText::GetEmpty()
+		);
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(CommonPadding)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text_Lambda([&ViewportClient]() {
+					FFormatNamedArguments FormatArguments = GetScreenPercentageFormatArguments(ViewportClient);
+					return FText::Format(LOCTEXT("ScreenPercentageSetting", "Setting: {Setting}"), FormatArguments);
+				})
+			],
+			FText::GetEmpty()
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("ScreenPercentage", LOCTEXT("ScreenPercentage_ViewportOverride", "Viewport Override"));
+	{
+		MenuBuilder.AddMenuEntry(BaseViewportCommands.ToggleOverrideViewportScreenPercentage);
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.HAlign(HAlign_Right)
+			.IsEnabled_Lambda([&ViewportClient]() {
+				return ViewportClient.IsPreviewingScreenPercentage() && ViewportClient.SupportsPreviewResolutionFraction();
+			})
+			[
+				SNew(SBox)
+				.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+				.WidthOverride(100.0f)
+				[
+					SNew(SBorder)
+					//.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+					.Padding(FMargin(1.0f))
+					[
+						SNew(SSpinBox<int32>)
+						.Style(&FAppStyle::Get(), "Menu.SpinBox")
+						.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
+						.MinSliderValue(PreviewScreenPercentageMin)
+						.MaxSliderValue(PreviewScreenPercentageMax)
+						.Value_Lambda([&ViewportClient]() {
+							return ViewportClient.GetPreviewScreenPercentage();
+						})
+						.OnValueChanged_Lambda([&ViewportClient](int32 NewValue) {
+							ViewportClient.SetPreviewScreenPercentage(NewValue);
+							ViewportClient.Invalidate();
+						})
+					]
+				]
+			],
+			LOCTEXT("ScreenPercentage", "Screen Percentage")
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("ScreenPercentageSettings", LOCTEXT("ScreenPercentage_ViewportSettings", "Viewport Settings"));
+	{
+		MenuBuilder.AddMenuEntry(BaseViewportCommands.OpenEditorPerformanceProjectSettings);
+		MenuBuilder.AddMenuEntry(BaseViewportCommands.OpenEditorPerformanceEditorPreferences);
+	}
+	MenuBuilder.EndSection();
+}
+
 void SCommonEditorViewportToolbarBase::UpdateAssetViewerProfileList()
 {
 	if (PreviewProfileController)
@@ -311,7 +537,10 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateOptionsMenu() cons
 				OptionsMenuBuilder.AddWidget( GenerateFarViewPlaneMenu(), LOCTEXT("FarViewPlane", "Far View Plane") );
 			}
 
-			OptionsMenuBuilder.AddWidget(GenerateScreenPercentageMenu(), LOCTEXT("ScreenPercentage", "Screen Percentage"));
+			OptionsMenuBuilder.AddSubMenu(
+				LOCTEXT("ScreenPercentageSubMenu", "Screen Percentage"),
+				LOCTEXT("ScreenPercentageSubMenu_ToolTip", "Customize the viewport's screen percentage"),
+				FNewMenuDelegate::CreateStatic(&SCommonEditorViewportToolbarBase::ConstructScreenPercentageMenu, &GetViewportClient()));
 		}
 		OptionsMenuBuilder.EndSection();
 
@@ -495,54 +724,6 @@ void SCommonEditorViewportToolbarBase::OnFOVValueChanged(float NewValue) const
 	ViewportClient.ViewFOV = NewValue;
 	ViewportClient.Invalidate();
 }
-
-TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateScreenPercentageMenu() const
-{
-	const int32 PreviewScreenPercentageMin = static_cast<int32>(ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction * 100.0f);
-	const int32 PreviewScreenPercentageMax = static_cast<int32>(ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction * 100.0f);
-
-	return
-		SNew(SBox)
-		.HAlign(HAlign_Right)
-		.IsEnabled(this, &SCommonEditorViewportToolbarBase::OnScreenPercentageIsEnabled)
-		[
-			SNew(SBox)
-			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-			.WidthOverride(100.0f)
-			[
-				SNew ( SBorder )
-				.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
-				.Padding(FMargin(1.0f))
-				[
-					SNew(SSpinBox<int32>)
-					.Style(&FAppStyle::Get(), "Menu.SpinBox")
-					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
-					.MinSliderValue(PreviewScreenPercentageMin)
-					.MaxSliderValue(PreviewScreenPercentageMax)
-					.Value(this, &SCommonEditorViewportToolbarBase::OnGetScreenPercentageValue)
-					.OnValueChanged(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::OnScreenPercentageValueChanged)
-				]
-			]
-		];
-}
-
-int32 SCommonEditorViewportToolbarBase::OnGetScreenPercentageValue() const
-{
-	return GetViewportClient().GetPreviewScreenPercentage();
-}
-
-bool SCommonEditorViewportToolbarBase::OnScreenPercentageIsEnabled() const
-{
-	return GetViewportClient().SupportsPreviewResolutionFraction();
-}
-
-void SCommonEditorViewportToolbarBase::OnScreenPercentageValueChanged(int32 NewValue)
-{
-	FEditorViewportClient& ViewportClient = GetViewportClient();
-	ViewportClient.SetPreviewScreenPercentage(NewValue);
-	ViewportClient.Invalidate();
-}
-
 
 TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateFarViewPlaneMenu() const
 {

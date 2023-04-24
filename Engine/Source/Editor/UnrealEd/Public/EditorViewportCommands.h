@@ -221,6 +221,13 @@ public:
 	TSharedPtr< FUICommandInfo > ToggleInGameExposure;
 	/** Toggle the in-viewport context menu */
 	TSharedPtr< FUICommandInfo > ToggleInViewportContextMenu;
+
+	/** Toggle to override the viewport screen percentage */
+	TSharedPtr< FUICommandInfo > ToggleOverrideViewportScreenPercentage;
+	/** Opens the advanced viewport settings */
+	TSharedPtr< FUICommandInfo > OpenEditorPerformanceProjectSettings;
+	TSharedPtr< FUICommandInfo > OpenEditorPerformanceEditorPreferences;
+
 	/**
 	 * Grid commands
 	 */

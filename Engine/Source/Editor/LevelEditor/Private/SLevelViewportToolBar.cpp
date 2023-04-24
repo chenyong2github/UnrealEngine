@@ -51,6 +51,7 @@
 #include "SLevelViewport.h"
 #include "SortHelper.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "SCommonEditorViewportToolbarBase.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportToolBar"
 
@@ -733,7 +734,12 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 				Section.AddEntry(FToolMenuEntry::InitWidget("FarViewPlane", GenerateFarViewPlaneMenu(), LOCTEXT("FarViewPlane", "Far View Plane")));
 			}
 
-			Section.AddEntry(FToolMenuEntry::InitWidget("ScreenPercentage", GenerateScreenPercentageMenu(), LOCTEXT("ScreenPercentage", "Screen Percentage")));
+			FEditorViewportClient& ViewportClient = Viewport.Pin()->GetLevelViewportClient();
+			Section.AddSubMenu(
+				"ScreenPercentageSubMenu",
+				LOCTEXT("ScreenPercentageSubMenu", "Screen Percentage"),
+				LOCTEXT("ScreenPercentageSubMenu_ToolTip", "Customize the viewport's screen percentage"),
+				FNewMenuDelegate::CreateStatic(&SCommonEditorViewportToolbarBase::ConstructScreenPercentageMenu, &ViewportClient));
 		}
 
 		{
@@ -1350,53 +1356,6 @@ void SLevelViewportToolBar::OnFOVValueChanged( float NewValue )
 	}
 
 	ViewportClient.ViewFOV = NewValue;
-	ViewportClient.Invalidate();
-}
-
-TSharedRef<SWidget> SLevelViewportToolBar::GenerateScreenPercentageMenu() const
-{
-	const int32 PreviewScreenPercentageMin = ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction * 100.0f;
-	const int32 PreviewScreenPercentageMax = ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction * 100.0f;
-
-	return
-		SNew(SBox)
-		.HAlign(HAlign_Right)
-		.IsEnabled(this, &SLevelViewportToolBar::OnScreenPercentageIsEnabled)
-		[
-			SNew(SBox)
-			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-			.WidthOverride(100.0f)
-			[
-				SNew ( SBorder )
-				.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
-				.Padding(FMargin(1.0f))
-				[
-					SNew(SSpinBox<int32>)
-					.Style(&FAppStyle::Get(), "Menu.SpinBox")
-					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
-					.MinSliderValue(PreviewScreenPercentageMin)
-					.MaxSliderValue(PreviewScreenPercentageMax)
-					.Value(this, &SLevelViewportToolBar::OnGetScreenPercentageValue)
-					.OnValueChanged(const_cast<SLevelViewportToolBar*>(this), &SLevelViewportToolBar::OnScreenPercentageValueChanged)
-				]
-			]
-		];
-}
-
-int32 SLevelViewportToolBar::OnGetScreenPercentageValue() const
-{
-	return Viewport.Pin()->GetLevelViewportClient().GetPreviewScreenPercentage();
-}
-
-bool SLevelViewportToolBar::OnScreenPercentageIsEnabled() const
-{
-	return Viewport.Pin()->GetLevelViewportClient().SupportsPreviewResolutionFraction();
-}
-
-void SLevelViewportToolBar::OnScreenPercentageValueChanged(int32 NewValue)
-{
-	FLevelEditorViewportClient& ViewportClient = Viewport.Pin()->GetLevelViewportClient();
-	ViewportClient.SetPreviewScreenPercentage(NewValue);
 	ViewportClient.Invalidate();
 }
 

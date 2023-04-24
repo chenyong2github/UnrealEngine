@@ -1423,6 +1423,12 @@ public:
 	/** @return default resolution fraction for UI based on display resolution and user settings. */
 	float GetDefaultPrimaryResolutionFractionTarget() const;
 
+	/** @return whether preview screen percentage for UI. */
+	bool IsPreviewingScreenPercentage() const;
+
+	/** Sets whether preview screen percentage for UI. */
+	void SetPreviewingScreenPercentage(bool bIsPreviewing);
+
 	/** @return preview screen percentage for UI. */
 	int32 GetPreviewScreenPercentage() const;
 
@@ -1984,6 +1990,7 @@ private:
 
 private:
 	/** Controles resolution fraction for previewing in editor viewport at different screen percentage. */
+	bool bIsPreviewingResolutionFraction = false;
 	TOptional<float> PreviewResolutionFraction;
 
 	// DPI mode for scene rendering.

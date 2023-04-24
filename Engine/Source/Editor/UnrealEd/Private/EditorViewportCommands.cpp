@@ -173,6 +173,10 @@ void FEditorViewportCommands::RegisterCommands()
 	UI_COMMAND( ToggleAutoExposure, "Auto", "If enabled, enables automatic exposure", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( ToggleInGameExposure, "Game Settings", "If enabled, uses game settings", EUserInterfaceActionType::ToggleButton, FInputChord() );
 
+	UI_COMMAND(ToggleOverrideViewportScreenPercentage, "Custom Override", "Overrides the screen percentage of this viewport with custom value", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(OpenEditorPerformanceProjectSettings, "Project Settings...", "Opens the project settings for viewport performance", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(OpenEditorPerformanceEditorPreferences, "Editor Preferences...", "Opens the editor preferences for viewport performance", EUserInterfaceActionType::Button, FInputChord());
+
 	UI_COMMAND(ToggleInViewportContextMenu, "In-Viewport Context Menu", "Shows a contextual menu of key properties and actions for the selected items in the viewport.", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Tab));
 }
 

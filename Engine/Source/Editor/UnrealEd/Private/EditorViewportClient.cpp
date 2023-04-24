@@ -2811,6 +2811,16 @@ float FEditorViewportClient::GetDefaultPrimaryResolutionFractionTarget() const
 	return StaticHeuristic.ResolveResolutionFraction();
 }
 
+bool FEditorViewportClient::IsPreviewingScreenPercentage() const
+{
+	return bIsPreviewingResolutionFraction;
+}
+
+void FEditorViewportClient::SetPreviewingScreenPercentage(bool bIsPreviewing)
+{
+	bIsPreviewingResolutionFraction = bIsPreviewing;
+}
+
 int32 FEditorViewportClient::GetPreviewScreenPercentage() const
 {
 	float ResolutionFraction = 1.0f;
@@ -2832,23 +2842,7 @@ int32 FEditorViewportClient::GetPreviewScreenPercentage() const
 
 void FEditorViewportClient::SetPreviewScreenPercentage(int32 PreviewScreenPercentage)
 {
-	float AutoResolutionFraction = GetDefaultPrimaryResolutionFractionTarget();
-	int32 AutoScreenPercentage = FMath::RoundToInt(FMath::Clamp(
-		AutoResolutionFraction,
-		ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction,
-		ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction) * 100.0f);
-
-	float NewResolutionFraction = PreviewScreenPercentage / 100.0f;
-	if (NewResolutionFraction >= ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction &&
-		NewResolutionFraction <= ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction &&
-		PreviewScreenPercentage != AutoScreenPercentage)
-	{
-		PreviewResolutionFraction = NewResolutionFraction;
-	}
-	else
-	{
-		PreviewResolutionFraction.Reset();
-	}
+	PreviewResolutionFraction = PreviewScreenPercentage / 100.0f;
 }
 
 bool FEditorViewportClient::SupportsLowDPIPreview() const
@@ -4137,7 +4131,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 			if ((!bStereoRendering || bInVREditViewMode) && 
 				SupportsPreviewResolutionFraction() && ViewFamily.SupportsScreenPercentage())
 			{
-				if (PreviewResolutionFraction.IsSet())
+				if (PreviewResolutionFraction.IsSet() && bIsPreviewingResolutionFraction)
 				{
 					GlobalResolutionFraction = PreviewResolutionFraction.GetValue();
 				}

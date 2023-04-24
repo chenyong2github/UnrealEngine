@@ -105,6 +105,11 @@ public:
 	virtual void UpdateInViewportMenuLocation(const FVector2D InLocation);
 	virtual bool CanToggleInViewportContextMenu() { return false; }
 
+	bool IsPreviewingScreenPercentage() const;
+	void TogglePreviewingScreenPercentage();
+	void OnOpenViewportPerformanceProjectSettings();
+	void OnOpenViewportPerformanceEditorPreferences();
+
 ///////////////////////////////////////////////////////////////////////////////
 // begin feature level control functions block
 ///////////////////////////////////////////////////////////////////////////////
@@ -247,6 +252,7 @@ protected:
 	 * Called to test whether surface snapping is enabled or not
 	 */
 	static bool OnIsSurfaceSnapEnabled();
+
 
 protected:
 	TSharedPtr<SOverlay> ViewportOverlay;

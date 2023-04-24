@@ -24,6 +24,8 @@
 #include "GPUSkinCacheVisualizationMenuCommands.h"
 #include "GPUSkinCache.h"
 #include "Widgets/Colors/SComplexGradient.h"
+#include "Modules/ModuleManager.h"
+#include "ISettingsModule.h"
 
 #define LOCTEXT_NAMESPACE "EditorViewport"
 
@@ -373,6 +375,20 @@ void SEditorViewport::BindCommands()
 		FExecuteAction::CreateSP(this, &SEditorViewport::ToggleInViewportContextMenu),
 		FCanExecuteAction::CreateSP(this, &SEditorViewport::CanToggleInViewportContextMenu)
 	);
+
+	CommandListRef.MapAction(
+		Commands.ToggleOverrideViewportScreenPercentage,
+		FExecuteAction::CreateSP(this, &SEditorViewport::TogglePreviewingScreenPercentage),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SEditorViewport::IsPreviewingScreenPercentage));
+
+	CommandListRef.MapAction(
+		Commands.OpenEditorPerformanceProjectSettings,
+		FExecuteAction::CreateSP(this, &SEditorViewport::OnOpenViewportPerformanceProjectSettings));
+
+	CommandListRef.MapAction(
+		Commands.OpenEditorPerformanceEditorPreferences,
+		FExecuteAction::CreateSP(this, &SEditorViewport::OnOpenViewportPerformanceEditorPreferences));
 
 	// Simple macro for binding many view mode UI commands
 
@@ -772,6 +788,26 @@ void SEditorViewport::OnToggleSurfaceSnap()
 bool SEditorViewport::OnIsSurfaceSnapEnabled()
 {
 	return GetDefault<ULevelEditorViewportSettings>()->SnapToSurface.bEnabled;
+}
+
+bool SEditorViewport::IsPreviewingScreenPercentage() const
+{
+	return Client->IsPreviewingScreenPercentage();
+}
+
+void SEditorViewport::TogglePreviewingScreenPercentage()
+{
+	Client->SetPreviewingScreenPercentage(!IsPreviewingScreenPercentage());
+}
+
+void SEditorViewport::OnOpenViewportPerformanceProjectSettings()
+{
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Editor", "EditorPerformanceProjectSettings");
+}
+
+void SEditorViewport::OnOpenViewportPerformanceEditorPreferences()
+{
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "General", "EditorPerformanceSettings");
 }
 
 EActiveTimerReturnType SEditorViewport::EnsureTick( double InCurrentTime, float InDeltaTime )
