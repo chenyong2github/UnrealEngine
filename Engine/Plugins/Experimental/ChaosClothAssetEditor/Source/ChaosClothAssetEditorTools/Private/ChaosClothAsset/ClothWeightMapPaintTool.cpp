@@ -174,7 +174,8 @@ void UClothEditorWeightMapPaintTool::Setup()
 		[this](float NewSize) { UMeshSculptToolBase::BrushProperties->BrushSize.AdaptiveSize = NewSize; });
 	FilterProperties->RestoreProperties(this);
 	FilterProperties->BrushSize = UMeshSculptToolBase::BrushProperties->BrushSize.AdaptiveSize;
-	FilterProperties->StrengthValue = 1.0;
+	FilterProperties->Strength = 1.0;
+	FilterProperties->AttributeValue = 1.0;
 	AddToolPropertySource(FilterProperties);
 
 	InitializeIndicator();
@@ -184,12 +185,18 @@ void UClothEditorWeightMapPaintTool::Setup()
 	UMeshSculptToolBase::BrushProperties->bShowPerBrushProps = false;
 	UMeshSculptToolBase::BrushProperties->bShowFalloff = true;
 	UMeshSculptToolBase::BrushProperties->bShowLazyness = false;
+	UMeshSculptToolBase::BrushProperties->FlowRate = 0.0f;
 	CalculateBrushRadius();
 
 	PaintBrushOpProperties = NewObject<UWeightMapPaintBrushOpProps>(this);
 	RegisterBrushType((int32)EClothEditorWeightMapPaintBrushType::Paint, LOCTEXT("Paint", "Paint"),
 		MakeUnique<FLambdaMeshSculptBrushOpFactory>([this]() { return MakeUnique<FWeightMapPaintBrushOp>(); }),
 		PaintBrushOpProperties);
+
+	SmoothBrushOpProperties = NewObject<UWeightMapSmoothBrushOpProps>(this);
+	RegisterBrushType((int32)EClothEditorWeightMapPaintBrushType::Smooth, LOCTEXT("SmoothBrushType", "Smooth"),
+		MakeUnique<FLambdaMeshSculptBrushOpFactory>([this]() { return MakeUnique<FWeightMapSmoothBrushOp>(); }),
+		SmoothBrushOpProperties);
 
 	// secondary brushes
 	EraseBrushOpProperties = NewObject<UWeightMapEraseBrushOpProps>(this);
@@ -425,11 +432,16 @@ void UClothEditorWeightMapPaintTool::OnBeginStroke(const FRay& WorldRay)
 
 	if (PaintBrushOpProperties)
 	{
-		PaintBrushOpProperties->AttributeValue = FilterProperties->StrengthValue;
+		PaintBrushOpProperties->AttributeValue = FilterProperties->AttributeValue;
+		PaintBrushOpProperties->Strength = FilterProperties->Strength;
 	}
 	if (EraseBrushOpProperties)
 	{
-		EraseBrushOpProperties->AttributeValue = FilterProperties->StrengthValue;
+		EraseBrushOpProperties->AttributeValue = 0.0;
+	}
+	if (SmoothBrushOpProperties)
+	{
+		SmoothBrushOpProperties->Strength = FilterProperties->Strength;
 	}
 
 	// initialize first "Last Stamp", so that we can assume all stamps in stroke have a valid previous stamp
@@ -608,7 +620,8 @@ bool UClothEditorWeightMapPaintTool::UpdateStampPosition(const FRay& WorldRay)
 	CurrentStamp.PrevWorldFrame = LastStamp.WorldFrame;
 
 	FVector3d MoveDelta = CurrentStamp.LocalFrame.Origin - CurrentStamp.PrevLocalFrame.Origin;
-	if (UseBrushOp->IgnoreZeroMovements() && MoveDelta.SquaredLength() < FMathd::ZeroTolerance)
+
+	if (UseBrushOp->IgnoreZeroMovements() && MoveDelta.SquaredLength() < 0.1 * CurrentBrushRadius)
 	{
 		return false;
 	}
@@ -887,7 +900,7 @@ void UClothEditorWeightMapPaintTool::OnPolyLassoFinished(const FCameraPolyLasso&
 	FMeshVertexSelection VertexSelection(Mesh);
 	VertexSelection.SelectByVertexID([&](int32 vid) { return TempROIBuffer[vid] == 1; });
 
-	double SetWeightValue = GetInEraseStroke() ? 0.0 : FilterProperties->StrengthValue;
+	double SetWeightValue = GetInEraseStroke() ? 0.0 : FilterProperties->AttributeValue;
 	SetVerticesToWeightMap(VertexSelection.AsSet(), SetWeightValue, GetInEraseStroke());
 }
 
@@ -1104,6 +1117,11 @@ void UClothEditorWeightMapPaintTool::DrawHUD(FCanvas* Canvas, IToolsContextRende
 	}
 }
 
+void UClothEditorWeightMapPaintTool::UpdateStampPendingState()
+{
+	if (InStroke() == false) return;
+	bIsStampPending = true;
+}
 
 void UClothEditorWeightMapPaintTool::OnTick(float DeltaTime)
 {
@@ -1149,7 +1167,7 @@ void UClothEditorWeightMapPaintTool::OnTick(float DeltaTime)
 				double HitWeightValue = GetCurrentWeightValueUnderBrush();
 				if (bPendingPickWeight)
 				{
-					FilterProperties->StrengthValue = HitWeightValue;
+					FilterProperties->AttributeValue = HitWeightValue;
 					NotifyOfPropertyChangeByTool(FilterProperties);
 				}
 			}
@@ -1239,7 +1257,7 @@ void UClothEditorWeightMapPaintTool::FloodFillCurrentWeightAction()
 
 	BeginChange();
 
-	float SetWeightValue = FilterProperties->StrengthValue;
+	const float SetWeightValue = FilterProperties->AttributeValue;
 	const FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 	TempROIBuffer.SetNum(0, false);
 	for (int32 vid : Mesh->VertexIndicesItr())
@@ -1578,7 +1596,7 @@ void UClothEditorWeightMapPaintTool::UpdateSubToolType(EClothEditorWeightMapPain
 
 void UClothEditorWeightMapPaintTool::UpdateBrushType(EClothEditorWeightMapPaintBrushType BrushType)
 {
-	static const FText BaseMessage = LOCTEXT("OnStartTool", "Hold Shift to Erase. [/] and S/D change Size (+Shift to small-step). Shift+Q for New Group, Shift+G to pick Group, Shift+F to Freeze Group.");
+	static const FText BaseMessage = LOCTEXT("OnStartTool", "Hold Shift to Erase. [/] and S/D change Size (+Shift to small-step)");
 	FTextBuilder Builder;
 	Builder.AppendLine(BaseMessage);
 

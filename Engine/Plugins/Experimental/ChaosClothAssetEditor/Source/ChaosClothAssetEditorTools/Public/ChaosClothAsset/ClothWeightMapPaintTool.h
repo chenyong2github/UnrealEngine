@@ -26,6 +26,7 @@
 class UMeshElementsVisualizer;
 class UWeightMapEraseBrushOpProps;
 class UWeightMapPaintBrushOpProps;
+class UWeightMapSmoothBrushOpProps;
 class UClothEditorContextObject;
 
 DECLARE_STATS_GROUP(TEXT("WeightMapPaintTool"), STATGROUP_WeightMapPaintTool, STATCAT_Advanced);
@@ -84,6 +85,9 @@ enum class EClothEditorWeightMapPaintBrushType : uint8
 	/** Paint weights */
 	Paint UMETA(DisplayName = "Paint"),
 
+	/** Smooth existing weights */
+	Smooth UMETA(DisplayName = "Smooth"),
+
 	/** Erase weights */
 	Erase UMETA(Hidden, DisplayName = "Erase"),
 
@@ -132,9 +136,12 @@ public:
 		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType != EClothEditorWeightMapPaintInteractionType::PolyLasso"))
 	float BrushSize = 0.25f;
 
-	/** The weight value that will be assigned to vertices */
 	UPROPERTY(EditAnywhere, Category = ActionType, meta = (UIMin = 0, ClampMin = 0, UIMax = 1, ClampMax = 1))
-	double StrengthValue = 1;
+	double AttributeValue = 1;
+
+	UPROPERTY(EditAnywhere, Category = ActionType, meta = (UIMin = 0, ClampMin = 0, UIMax = 1, ClampMax = 1))
+	double Strength = 1;
+
 
 	/** The Region affected by the current operation will be bounded by edge angles larger than this threshold */
 	UPROPERTY(EditAnywhere, Category = Filters, meta = (UIMin = "0.0", UIMax = "180.0", EditCondition = "SubToolType != EClothEditorWeightMapPaintInteractionType::PolyLasso && BrushAreaMode == EClothEditorWeightMapPaintBrushAreaType::Connected"))
@@ -240,6 +247,8 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 
+	virtual void UpdateStampPendingState() override;
+
 	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -267,6 +276,9 @@ public:
 private:
 	UPROPERTY()
 	TObjectPtr<UWeightMapPaintBrushOpProps> PaintBrushOpProperties;
+
+	UPROPERTY()
+	TObjectPtr<UWeightMapSmoothBrushOpProps> SmoothBrushOpProperties;
 
 	UPROPERTY()
 	TObjectPtr<UWeightMapEraseBrushOpProps> EraseBrushOpProperties;

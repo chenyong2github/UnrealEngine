@@ -3,9 +3,6 @@
 #pragma once
 
 #include "Sculpting/MeshBrushOpBase.h"
-#include "DynamicMesh/DynamicMesh3.h"
-#include "MeshWeights.h"
-#include "Async/ParallelFor.h"
 #include "ClothWeightMapPaintBrushOps.generated.h"
 
 
@@ -36,8 +33,9 @@ public:
 
 
 
-
-
+//
+// Erase Brush
+// 
 
 UCLASS()
 class CHAOSCLOTHASSETEDITORTOOLS_API UWeightMapEraseBrushOpProps : public UMeshSculptBrushOpProps
@@ -81,45 +79,82 @@ public:
 };
 
 
-
+//
+// Paint Brush
+// 
 
 UCLASS()
 class CHAOSCLOTHASSETEDITORTOOLS_API UWeightMapPaintBrushOpProps : public UMeshSculptBrushOpProps
 {
 	GENERATED_BODY()
+
 public:
+
 	/** The Attribute that will be assigned to triangles within the brush region */
-	UPROPERTY(EditAnywhere, Category = PaintBrush, meta = (DisplayName = "Attribute", UIMin = 0))
+	UPROPERTY(EditAnywhere, Category = PaintBrush, meta = (DisplayName = "Value", UIMin = 0))
 	double AttributeValue = 1;
 
-	virtual double GetAttribute() { return AttributeValue; }
-};
+	/** Strength of the Brush */
+	UPROPERTY(EditAnywhere, Category = PaintBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "10.", ClampMin = "0.0", ClampMax = "10."))
+	float Strength = 0.5;
 
+	virtual double GetAttribute() { return AttributeValue; }
+
+	virtual float GetStrength() override { return Strength; }
+	virtual void SetStrength(float NewStrength) override { Strength = NewStrength;  }
+};
 
 
 class FWeightMapPaintBrushOp : public FMeshVertexWeightMapEditBrushOp
 {
 public:
 
+	virtual bool IgnoreZeroMovements() const override
+	{
+		return true;
+	}
+
 	virtual void ApplyStampByVertices(
 		const FDynamicMesh3* Mesh,
 		const FSculptBrushStamp& Stamp,
 		const TArray<int32>& Vertices,
-		TArray<double>& NewAttributesOut) override
+		TArray<double>& NewAttributesOut) override;
+
+};
+
+//
+// Smooth Brush
+// 
+
+UCLASS()
+class CHAOSCLOTHASSETEDITORTOOLS_API UWeightMapSmoothBrushOpProps : public UMeshSculptBrushOpProps
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = PaintBrush, meta = (DisplayName = "Strength", UIMin = "0.0", UIMax = "10.", ClampMin = "0.0", ClampMax = "10."))
+	float Strength = 0.5;
+
+	virtual float GetStrength() override { return Strength; }
+	virtual void SetStrength(float NewStrength) override { Strength = NewStrength; }
+
+};
+
+
+class FWeightMapSmoothBrushOp : public FMeshVertexWeightMapEditBrushOp
+{
+public:
+
+	virtual bool IgnoreZeroMovements() const override
 	{
-		const FVector3d& StampPos = Stamp.LocalFrame.Origin;
-
-		UWeightMapPaintBrushOpProps* Props = GetPropertySetAs<UWeightMapPaintBrushOpProps>();
-		double SetToAttribute = (double)Props->GetAttribute();
-
-		// TODO: Add something here to get the old value so we can add (clamped) the AttributeValue from it.
-
-		// TODO: Handle the stamp's properties for fall off, etc..
-
-		int32 NumVertices = Vertices.Num();
-		for ( int32 k = 0; k < NumVertices; ++k)
-		{
-			NewAttributesOut[k] = FMath::Clamp(SetToAttribute, 0.0, 1.0);
-		}
+		return true;
 	}
+
+	virtual void ApplyStampByVertices(
+		const FDynamicMesh3* Mesh,
+		const FSculptBrushStamp& Stamp,
+		const TArray<int32>& Vertices,
+		TArray<double>& NewAttributesOut) override;
+
 };
