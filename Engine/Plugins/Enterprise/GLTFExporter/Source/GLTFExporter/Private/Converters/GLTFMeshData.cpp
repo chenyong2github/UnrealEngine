@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMeshData.h"
+#include "Converters/GLTFMeshUtilities.h"
 #include "Converters/GLTFNameUtilities.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -61,7 +62,7 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 
 #if WITH_EDITOR
 	LightMapTexCoord = StaticMesh->GetLightMapCoordinateIndex();
- 	const int32 NumTexCoords = StaticMesh->GetLODForExport(LODIndex).VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+ 	const int32 NumTexCoords = FGLTFMeshUtilities::GetRenderData(StaticMesh, LODIndex).VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 	BakeUsingTexCoord = FMath::Min(LightMapTexCoord, NumTexCoords - 1);
 	// TODO: add warning if texture coordinate for baking has overlap
 #endif
@@ -124,7 +125,7 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 
 #if WITH_EDITOR
 	// TODO: don't assume last UV channel is non-overlapping
-	const int32 NumTexCoords = SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	const int32 NumTexCoords = FGLTFMeshUtilities::GetRenderData(SkeletalMesh, LODIndex).StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 	BakeUsingTexCoord = NumTexCoords - 1;
 	// TODO: add warning if texture coordinate for baking has overlap
 #endif

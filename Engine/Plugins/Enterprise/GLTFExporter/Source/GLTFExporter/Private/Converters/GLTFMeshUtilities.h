@@ -35,11 +35,14 @@ struct FGLTFMeshUtilities
 	static void ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const TArray<MaterialType>& Defaults);
 	static void ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const UMaterialInterface* Default);
 
+	static const FStaticMeshLODResources& GetRenderData(const UStaticMesh* StaticMesh, int32 LODIndex);
+	static const FSkeletalMeshLODRenderData& GetRenderData(const USkeletalMesh* SkeletalMesh, int32 LODIndex);
+
 	static FGLTFIndexArray GetSectionIndices(const UStaticMesh* StaticMesh, int32 LODIndex, int32 MaterialIndex);
 	static FGLTFIndexArray GetSectionIndices(const USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 MaterialIndex);
 
-	static FGLTFIndexArray GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex);
-	static FGLTFIndexArray GetSectionIndices(const FSkeletalMeshLODRenderData& MeshLOD, int32 MaterialIndex);
+	static FGLTFIndexArray GetSectionIndices(const FStaticMeshLODResources& RenderData, int32 MaterialIndex);
+	static FGLTFIndexArray GetSectionIndices(const FSkeletalMeshLODRenderData& RenderData, int32 MaterialIndex);
 
 	static int32 GetLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 DefaultLOD);
 	static int32 GetLOD(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 DefaultLOD);

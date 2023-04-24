@@ -6,8 +6,8 @@
 #include "Converters/GLTFMeshSection.h"
 #include "Converters/GLTFIndexArray.h"
 
-template <typename MeshLODType>
-class TGLTFMeshSectionConverter : public TGLTFConverter<const FGLTFMeshSection*, const MeshLODType*, FGLTFIndexArray>
+template <typename MeshType>
+class TGLTFMeshSectionConverter : public TGLTFConverter<const FGLTFMeshSection*, const MeshType*, int32, FGLTFIndexArray>
 {
 public:
 
@@ -20,9 +20,9 @@ public:
 
 protected:
 
-	virtual const FGLTFMeshSection* Convert(const MeshLODType* MeshLOD, FGLTFIndexArray SectionIndices) override
+	virtual const FGLTFMeshSection* Convert(const MeshType* Mesh, int32 LODIndex, FGLTFIndexArray SectionIndices) override
 	{
-		return Outputs.Add_GetRef(MakeUnique<FGLTFMeshSection>(MeshLOD, SectionIndices)).Get();
+		return Outputs.Add_GetRef(MakeUnique<FGLTFMeshSection>(Mesh, LODIndex, SectionIndices)).Get();
 	}
 
 private:
@@ -30,5 +30,5 @@ private:
 	TArray<TUniquePtr<FGLTFMeshSection>> Outputs;
 };
 
-typedef TGLTFMeshSectionConverter<FStaticMeshLODResources> FGLTFStaticMeshSectionConverter;
-typedef TGLTFMeshSectionConverter<FSkeletalMeshLODRenderData> FGLTFSkeletalMeshSectionConverter;
+typedef TGLTFMeshSectionConverter<UStaticMesh> FGLTFStaticMeshSectionConverter;
+typedef TGLTFMeshSectionConverter<USkeletalMesh> FGLTFSkeletalMeshSectionConverter;

@@ -119,10 +119,10 @@ void FGLTFDelayedStaticMeshTask::Process()
 	FGLTFMeshUtilities::FullyLoad(StaticMesh);
 	JsonMesh->Name = StaticMeshComponent != nullptr ? FGLTFNameUtilities::GetName(StaticMeshComponent) : StaticMesh->GetName();
 
-	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
-	const FPositionVertexBuffer& PositionBuffer = MeshLOD.VertexBuffers.PositionVertexBuffer;
-	const FStaticMeshVertexBuffer& VertexBuffer = MeshLOD.VertexBuffers.StaticMeshVertexBuffer;
-	const FColorVertexBuffer* ColorBuffer = &MeshLOD.VertexBuffers.ColorVertexBuffer; // TODO: add support for overriding color buffer by component
+	const FStaticMeshLODResources& RenderData = FGLTFMeshUtilities::GetRenderData(StaticMesh, LODIndex);
+	const FPositionVertexBuffer& PositionBuffer = RenderData.VertexBuffers.PositionVertexBuffer;
+	const FStaticMeshVertexBuffer& VertexBuffer = RenderData.VertexBuffers.StaticMeshVertexBuffer;
+	const FColorVertexBuffer* ColorBuffer = &RenderData.VertexBuffers.ColorVertexBuffer; // TODO: add support for overriding color buffer by component
 
 	if (Builder.ExportOptions->bExportVertexColors && HasVertexColors(ColorBuffer))
 	{
@@ -167,8 +167,8 @@ void FGLTFDelayedStaticMeshTask::Process()
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
-		const FGLTFIndexArray SectionIndices = FGLTFMeshUtilities::GetSectionIndices(MeshLOD, MaterialIndex);
-		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, SectionIndices);
+		const FGLTFIndexArray SectionIndices = FGLTFMeshUtilities::GetSectionIndices(RenderData, MaterialIndex);
+		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(StaticMesh, LODIndex, SectionIndices);
 
 		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh->Primitives[MaterialIndex];
 		JsonPrimitive.Indices = Builder.AddUniqueIndexAccessor(ConvertedSection);
@@ -176,16 +176,11 @@ void FGLTFDelayedStaticMeshTask::Process()
 		JsonPrimitive.Attributes.Position = Builder.AddUniquePositionAccessor(ConvertedSection, &PositionBuffer);
 		if (JsonPrimitive.Attributes.Position == nullptr)
 		{
-			FString SectionString = TEXT("section");
-			SectionString += SectionIndices.Num() > 1 ? TEXT("s ") : TEXT(" ");
-			SectionString += FString::JoinBy(SectionIndices, TEXT(", "), FString::FromInt);
-
 			Builder.LogError(
-				FString::Printf(TEXT("Failed to export vertex positions related to material slot %d (%s) in static mesh %s (sections %s)"),
+				FString::Printf(TEXT("Failed to export vertex positions related to material slot %d (%s) in static mesh %s"),
 				MaterialIndex,
 				*MaterialSlots[MaterialIndex].MaterialSlotName.ToString(),
-				*StaticMesh->GetName(),
-				*SectionString
+				*ConvertedSection->ToString()
 				));
 		}
 
@@ -222,13 +217,11 @@ void FGLTFDelayedSkeletalMeshTask::Process()
 	FGLTFMeshUtilities::FullyLoad(SkeletalMesh);
 	JsonMesh->Name = SkeletalMeshComponent != nullptr ? FGLTFNameUtilities::GetName(SkeletalMeshComponent) : SkeletalMesh->GetName();
 
-	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
-	const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
-
-	const FPositionVertexBuffer& PositionBuffer = MeshLOD.StaticVertexBuffers.PositionVertexBuffer;
-	const FStaticMeshVertexBuffer& VertexBuffer = MeshLOD.StaticVertexBuffers.StaticMeshVertexBuffer;
-	const FColorVertexBuffer* ColorBuffer = &MeshLOD.StaticVertexBuffers.ColorVertexBuffer; // TODO: add support for overriding color buffer by component
-	const FSkinWeightVertexBuffer* SkinWeightBuffer = MeshLOD.GetSkinWeightVertexBuffer(); // TODO: add support for overriding skin weight buffer by component
+	const FSkeletalMeshLODRenderData& RenderData = FGLTFMeshUtilities::GetRenderData(SkeletalMesh, LODIndex);
+	const FPositionVertexBuffer& PositionBuffer = RenderData.StaticVertexBuffers.PositionVertexBuffer;
+	const FStaticMeshVertexBuffer& VertexBuffer = RenderData.StaticVertexBuffers.StaticMeshVertexBuffer;
+	const FColorVertexBuffer* ColorBuffer = &RenderData.StaticVertexBuffers.ColorVertexBuffer; // TODO: add support for overriding color buffer by component
+	const FSkinWeightVertexBuffer* SkinWeightBuffer = RenderData.GetSkinWeightVertexBuffer(); // TODO: add support for overriding skin weight buffer by component
 	// TODO: add support for skin weight profiles?
 	// TODO: add support for morph targets
 
@@ -276,8 +269,8 @@ void FGLTFDelayedSkeletalMeshTask::Process()
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
-		const FGLTFIndexArray SectionIndices = FGLTFMeshUtilities::GetSectionIndices(MeshLOD, MaterialIndex);
-		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, SectionIndices);
+		const FGLTFIndexArray SectionIndices = FGLTFMeshUtilities::GetSectionIndices(RenderData, MaterialIndex);
+		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(SkeletalMesh, LODIndex, SectionIndices);
 
 		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh->Primitives[MaterialIndex];
 		JsonPrimitive.Indices = Builder.AddUniqueIndexAccessor(ConvertedSection);
@@ -285,16 +278,11 @@ void FGLTFDelayedSkeletalMeshTask::Process()
 		JsonPrimitive.Attributes.Position = Builder.AddUniquePositionAccessor(ConvertedSection, &PositionBuffer);
 		if (JsonPrimitive.Attributes.Position == nullptr)
 		{
-			FString SectionString = TEXT("section");
-			SectionString += SectionIndices.Num() > 1 ? TEXT("s ") : TEXT(" ");
-			SectionString += FString::JoinBy(SectionIndices, TEXT(", "), FString::FromInt);
-
 			Builder.LogError(
-				FString::Printf(TEXT("Failed to export vertex positions related to material slot %d (%s) in skeletal mesh %s (sections %s)"),
+				FString::Printf(TEXT("Failed to export vertex positions related to material slot %d (%s) in skeletal mesh %s"),
 				MaterialIndex,
 				*MaterialSlots[MaterialIndex].MaterialSlotName.ToString(),
-				*SkeletalMesh->GetName(),
-				*SectionString
+				*ConvertedSection->ToString()
 				));
 		}
 

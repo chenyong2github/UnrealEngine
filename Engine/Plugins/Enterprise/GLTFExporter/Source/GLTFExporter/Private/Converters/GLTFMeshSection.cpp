@@ -2,44 +2,55 @@
 
 #include "Converters/GLTFMeshSection.h"
 #include "Converters/GLTFBufferAdapter.h"
+#include "Converters/GLTFMeshUtilities.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
 #include "Rendering/MultiSizeIndexContainer.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Algo/MaxElement.h"
 
-FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const FGLTFIndexArray& SectionIndices)
-	: MaxBoneIndex(0)
+FGLTFMeshSection::FGLTFMeshSection(const UStaticMesh* StaticMesh, int32 LODIndex, const FGLTFIndexArray& SectionIndices)
+	: SectionIndices(SectionIndices)
+	, MaxBoneIndex(0)
 {
-	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetIndices(&MeshLOD->IndexBuffer);
+	StaticMesh->GetName(Name);
+
+	const FStaticMeshLODResources& RenderData = FGLTFMeshUtilities::GetRenderData(StaticMesh, LODIndex);
+	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetIndices(&RenderData.IndexBuffer);
 	const uint8* SourceData = SourceBuffer->GetData();
 
-	if (MeshLOD->IndexBuffer.Is32Bit())
+	if (RenderData.IndexBuffer.Is32Bit())
 	{
-		Init(MeshLOD->Sections, SectionIndices, reinterpret_cast<const uint32*>(SourceData));
+		Init(RenderData.Sections, reinterpret_cast<const uint32*>(SourceData));
 	}
 	else
 	{
-		Init(MeshLOD->Sections, SectionIndices, reinterpret_cast<const uint16*>(SourceData));
+		Init(RenderData.Sections, reinterpret_cast<const uint16*>(SourceData));
 	}
 }
 
-FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const FGLTFIndexArray& SectionIndices)
-	: MaxBoneIndex(0)
+FGLTFMeshSection::FGLTFMeshSection(const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FGLTFIndexArray& SectionIndices)
+	: SectionIndices(SectionIndices)
+	, MaxBoneIndex(0)
 {
-	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetIndices(MeshLOD->MultiSizeIndexContainer.GetIndexBuffer());
+	SkeletalMesh->GetName(Name);
+
+	const FSkeletalMeshLODRenderData& RenderData = FGLTFMeshUtilities::GetRenderData(SkeletalMesh, LODIndex);
+	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetIndices(RenderData.MultiSizeIndexContainer.GetIndexBuffer());
 	const uint8* SourceData = SourceBuffer->GetData();
 
-	if (MeshLOD->MultiSizeIndexContainer.GetDataTypeSize() != sizeof(uint16))
+	if (RenderData.MultiSizeIndexContainer.GetDataTypeSize() != sizeof(uint16))
 	{
-		Init(MeshLOD->RenderSections, SectionIndices, reinterpret_cast<const uint32*>(SourceData));
+		Init(RenderData.RenderSections, reinterpret_cast<const uint32*>(SourceData));
 	}
 	else
 	{
-		Init(MeshLOD->RenderSections, SectionIndices, reinterpret_cast<const uint16*>(SourceData));
+		Init(RenderData.RenderSections, reinterpret_cast<const uint16*>(SourceData));
 	}
 }
 
 template <typename IndexType, typename SectionArrayType>
-void FGLTFMeshSection::Init(const SectionArrayType& Sections, const FGLTFIndexArray& SectionIndices, const IndexType* SourceData)
+void FGLTFMeshSection::Init(const SectionArrayType& Sections, const IndexType* SourceData)
 {
 	if (SourceData == nullptr)
 	{
@@ -102,6 +113,16 @@ void FGLTFMeshSection::Init(const SectionArrayType& Sections, const FGLTFIndexAr
 			}
 		}
 	}
+}
+
+FString FGLTFMeshSection::ToString() const
+{
+	return FString::Printf(
+		TEXT("%s (section%s %s)"),
+		*Name,
+		SectionIndices.Num() > 1 ? TEXT("s") : TEXT(""),
+		*FString::JoinBy(SectionIndices, TEXT(", "), FString::FromInt)
+		);
 }
 
 uint32 FGLTFMeshSection::GetIndexOffset(const FStaticMeshSection& Section)

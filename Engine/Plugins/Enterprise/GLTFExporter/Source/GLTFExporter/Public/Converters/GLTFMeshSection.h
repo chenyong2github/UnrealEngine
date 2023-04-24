@@ -6,15 +6,18 @@
 #include "BoneIndices.h"
 #include "Converters/GLTFIndexArray.h"
 
-class FSkeletalMeshLODRenderData;
+class UStaticMesh;
+class USkeletalMesh;
 struct FSkelMeshRenderSection;
-struct FStaticMeshLODResources;
 struct FStaticMeshSection;
 
 struct GLTFEXPORTER_API FGLTFMeshSection
 {
-	FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const FGLTFIndexArray& SectionIndices);
-	FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const FGLTFIndexArray& SectionIndices);
+	FGLTFMeshSection(const UStaticMesh* Mesh, int32 LODIndex, const FGLTFIndexArray& SectionIndices);
+	FGLTFMeshSection(const USkeletalMesh* Mesh, int32 LODIndex, const FGLTFIndexArray& SectionIndices);
+
+	FString Name;
+	FGLTFIndexArray SectionIndices;
 
 	TArray<uint32> IndexMap;
 	TArray<uint32> IndexBuffer;
@@ -23,10 +26,12 @@ struct GLTFEXPORTER_API FGLTFMeshSection
 	TArray<uint32> BoneMapLookup;
 	FBoneIndexType MaxBoneIndex;
 
+	FString ToString() const;
+
 private:
 
 	template <typename IndexType, typename SectionArrayType>
-	void Init(const SectionArrayType& Sections, const FGLTFIndexArray& SectionIndices, const IndexType* SourceData);
+	void Init(const SectionArrayType& Sections, const IndexType* SourceData);
 
 	static uint32 GetIndexOffset(const FStaticMeshSection& Section);
 	static uint32 GetIndexOffset(const FSkelMeshRenderSection& Section);

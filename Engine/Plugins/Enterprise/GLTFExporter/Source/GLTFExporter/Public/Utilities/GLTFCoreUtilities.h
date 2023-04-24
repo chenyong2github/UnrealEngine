@@ -71,13 +71,13 @@ struct GLTFEXPORTER_API FGLTFCoreUtilities
 	template <typename ComponentType>
 	static EGLTFJsonComponentType GetComponentType()
 	{
-		     if constexpr (std::is_same_v<ComponentType, int8  >) return EGLTFJsonComponentType::Int8;
-		else if constexpr (std::is_same_v<ComponentType, uint8 >) return EGLTFJsonComponentType::UInt8;
-		else if constexpr (std::is_same_v<ComponentType, int16 >) return EGLTFJsonComponentType::Int16;
-		else if constexpr (std::is_same_v<ComponentType, uint16>) return EGLTFJsonComponentType::UInt16;
-		else if constexpr (std::is_same_v<ComponentType, int32 >) return EGLTFJsonComponentType::Int32;
-		else if constexpr (std::is_same_v<ComponentType, uint32>) return EGLTFJsonComponentType::UInt32;
-		else if constexpr (std::is_same_v<ComponentType, float >) return EGLTFJsonComponentType::Float;
-		else return EGLTFJsonComponentType::None;
+		if constexpr (std::is_same_v<ComponentType, int8  >) return EGLTFJsonComponentType::Int8;
+		if constexpr (std::is_same_v<ComponentType, uint8 >) return EGLTFJsonComponentType::UInt8;
+		if constexpr (std::is_same_v<ComponentType, int16 >) return EGLTFJsonComponentType::Int16;
+		if constexpr (std::is_same_v<ComponentType, uint16>) return EGLTFJsonComponentType::UInt16;
+		if constexpr (std::is_same_v<ComponentType, int32 >) return EGLTFJsonComponentType::Int32;
+		if constexpr (std::is_same_v<ComponentType, uint32>) return EGLTFJsonComponentType::UInt32;
+		if constexpr (std::is_same_v<ComponentType, float >) return EGLTFJsonComponentType::Float;
+		return EGLTFJsonComponentType::None;
 	}
 };

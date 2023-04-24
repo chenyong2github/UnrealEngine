@@ -123,6 +123,16 @@ void FGLTFMeshUtilities::ResolveMaterials(TArray<const UMaterialInterface*>& Mat
 	}
 }
 
+const FStaticMeshLODResources& FGLTFMeshUtilities::GetRenderData(const UStaticMesh* StaticMesh, int32 LODIndex)
+{
+	return StaticMesh->GetLODForExport(LODIndex);
+}
+
+const FSkeletalMeshLODRenderData& FGLTFMeshUtilities::GetRenderData(const USkeletalMesh* SkeletalMesh, int32 LODIndex)
+{
+	return SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex];
+}
+
 FGLTFIndexArray FGLTFMeshUtilities::GetSectionIndices(const UStaticMesh* StaticMesh, int32 LODIndex, int32 MaterialIndex)
 {
 	if (StaticMesh == nullptr)
@@ -130,8 +140,7 @@ FGLTFIndexArray FGLTFMeshUtilities::GetSectionIndices(const UStaticMesh* StaticM
 		return {};
 	}
 
-	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
-	return GetSectionIndices(MeshLOD, MaterialIndex);
+	return GetSectionIndices(GetRenderData(StaticMesh, LODIndex), MaterialIndex);
 }
 
 FGLTFIndexArray FGLTFMeshUtilities::GetSectionIndices(const USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 MaterialIndex)
@@ -141,14 +150,12 @@ FGLTFIndexArray FGLTFMeshUtilities::GetSectionIndices(const USkeletalMesh* Skele
 		return {};
 	}
 
-	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
-	const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
-	return GetSectionIndices(MeshLOD, MaterialIndex);
+	return GetSectionIndices(GetRenderData(SkeletalMesh, LODIndex), MaterialIndex);
 }
 
-FGLTFIndexArray FGLTFMeshUtilities::GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex)
+FGLTFIndexArray FGLTFMeshUtilities::GetSectionIndices(const FStaticMeshLODResources& RenderData, int32 MaterialIndex)
 {
-	const FStaticMeshSectionArray& Sections = MeshLOD.Sections;
+	const FStaticMeshSectionArray& Sections = RenderData.Sections;
 
 	FGLTFIndexArray SectionIndices;
 	SectionIndices.Reserve(Sections.Num());
@@ -164,9 +171,9 @@ FGLTFIndexArray FGLTFMeshUtilities::GetSectionIndices(const FStaticMeshLODResour
 	return SectionIndices;
 }
 
-FGLTFIndexArray FGLTFMeshUtilities::GetSectionIndices(const FSkeletalMeshLODRenderData& MeshLOD, int32 MaterialIndex)
+FGLTFIndexArray FGLTFMeshUtilities::GetSectionIndices(const FSkeletalMeshLODRenderData& RenderData, int32 MaterialIndex)
 {
-	const TArray<FSkelMeshRenderSection>& Sections = MeshLOD.RenderSections;
+	const TArray<FSkelMeshRenderSection>& Sections = RenderData.RenderSections;
 
 	FGLTFIndexArray SectionIndices;
 	SectionIndices.Reserve(Sections.Num());
