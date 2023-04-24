@@ -71,6 +71,8 @@ public:
 	bool IsConnected() const;
 	bool IsOutputPin() const;
 	int32 EdgeCount() const;
+	bool AllowsMultipleConnections() const;
+
 public:
 	// The node that this pin belongs to.
 	UPROPERTY(BlueprintReadOnly, Category = "Properties")

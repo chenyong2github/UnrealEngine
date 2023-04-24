@@ -120,3 +120,8 @@ int32 UMovieGraphPin::EdgeCount() const
 	return EdgeCount;
 }
 
+bool UMovieGraphPin::AllowsMultipleConnections() const
+{
+	// Always allow multiple connection on output pin
+	return IsOutputPin() || Properties.bAllowMultipleConnections;
+}

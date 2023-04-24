@@ -184,13 +184,19 @@ bool UMovieGraphConfig::AddLabeledEdge(UMovieGraphNode* FromNode, const FName& F
 		return false;
 	}
 
-	// Add the edge
-	FromPin->AddEdgeTo(ToPin);
 	bool bConnectionBrokeOtherEdges = false;
-//	if (!ToPin->AllowMultipleConnections())
-//	{
-//		bConnectionBrokeOtherEdges = ToPin->BreakAllIncompatibleEdges();
-//	}
+
+	// Input pins can only have one edge connected to them at once, so if the pin we're connecting to already
+	// has a connection, then we break the existing connection.
+	if (!ToPin->AllowsMultipleConnections() && ToPin->EdgeCount() > 0)
+	{
+		ToPin->BreakAllEdges();
+		bConnectionBrokeOtherEdges = true;
+	}
+
+	// Add the edge. We do this after the above
+	// since that will break all edges first if there's already one.
+	FromPin->AddEdgeTo(ToPin);
 //
 //#if WITH_EDITOR
 //	NotifyGraphChanged(EMoviePipelineGraphChangeType::Structural);
