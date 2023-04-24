@@ -770,7 +770,16 @@ public:
 	*/
 	virtual void GetEmitterDependencies(UNiagaraSystem* Asset, TArray<FVersionedNiagaraEmitter>& Dependencies) const {}
 
-	virtual bool ReadsEmitterParticleData(const FString& EmitterName) const { return false; }
+	UE_DEPRECATED(5.4, "Implement GetEmitterReferencesByName() instead as this will be removed in a future version.")
+	virtual bool ReadsEmitterParticleData(const FString& EmitterName) const
+	{
+		TArray<FString> EmitterReferences;
+		GetEmitterReferencesByName(EmitterReferences);
+
+		return EmitterReferences.Contains(EmitterName);
+	}
+
+	virtual void GetEmitterReferencesByName(TArray<FString>& EmitterReferences) const {};
 
 	/**
 	Set the shader parameters will only be called if the data interface provided shader parameters.

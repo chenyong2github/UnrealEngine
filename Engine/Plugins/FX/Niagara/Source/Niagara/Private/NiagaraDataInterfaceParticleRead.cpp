@@ -2550,9 +2550,12 @@ void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(UNiagaraSystem* A
 	}
 }
 
-bool UNiagaraDataInterfaceParticleRead::ReadsEmitterParticleData(const FString& InEmitterName) const 
+void UNiagaraDataInterfaceParticleRead::GetEmitterReferencesByName(TArray<FString>& EmitterReferences) const
 {
-	return EmitterName == InEmitterName;
+	if (!EmitterName.IsEmpty())
+	{
+		EmitterReferences.AddUnique(EmitterName);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

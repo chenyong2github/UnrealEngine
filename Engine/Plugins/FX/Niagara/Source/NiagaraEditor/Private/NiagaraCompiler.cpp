@@ -775,14 +775,17 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 									FCompileDataInterfaceData* DataInterfaceData = nullptr;
 									if (DataInterface != nullptr)
 									{
+										TArray<FString> EmitterReferences;
+										DataInterface->GetEmitterReferencesByName(EmitterReferences);
+
 										for (const FString& EmitterName : EmitterNames)
 										{
-											if (DataInterface->ReadsEmitterParticleData(EmitterName))
+											if (EmitterReferences.Contains(EmitterName))
 											{
 												if (DataInterfaceData == nullptr)
 												{
 													DataInterfaceData = &SharedCompileDataInterfaceData->AddDefaulted_GetRef();
-													DataInterfaceData->EmitterName = ConstantResolver.GetEmitter() != nullptr ? ConstantResolver.GetEmitter()->GetUniqueEmitterName() : FString();
+													DataInterfaceData->EmitterName = EmitterUniqueName;
 													DataInterfaceData->Usage = FoundOutputNode->GetUsage();
 													DataInterfaceData->UsageId = FoundOutputNode->GetUsageId();
 													DataInterfaceData->Variable = Variable;
@@ -1580,7 +1583,9 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 			Builder.EndUsage();
 
 			for (const FNiagaraVariable& Var : Builder.StaticVariables)
+			{
 				StaticVariables.AddUnique(Var);
+			}
 		}
 	}
 
