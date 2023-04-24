@@ -11,6 +11,7 @@
 #include "Misc/Guid.h"
 #include "Misc/PackageName.h"
 #include "Misc/PackagePath.h"
+#include "Misc/ScopeExit.h"
 #include "UObject/Class.h"
 #include "UObject/Linker.h"
 #include "UObject/PackageRelocation.h"
@@ -212,6 +213,68 @@ bool FPackageReader::StartSerializeSection(int64 Offset)
 			CorruptPackageWarningArguments).ToString()); \
 	} while (false)
 
+
+const FPackageFileSummary& FPackageReader::GetPackageFileSummary() const
+{
+	return PackageFileSummary;
+}
+
+bool FPackageReader::GetImports(TArray<FObjectImport>& OutImportMap)
+{
+	if (!SerializeNameMap() || !SerializeImportMap())
+	{
+		return false;
+	}
+	OutImportMap = ImportMap;
+	return true;
+}
+
+bool FPackageReader::GetExports(TArray<FObjectExport>& OutExportMap)
+{
+	if (!SerializeNameMap() || !SerializeExportMap())
+	{
+		return false;
+	}
+	OutExportMap = ExportMap;
+	return true;
+}
+
+bool FPackageReader::GetSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList)
+{
+	if (!SerializeNameMap() || !SerializeSoftPackageReferenceList())
+	{
+		return false;
+	}
+	OutSoftPackageReferenceList = SoftPackageReferenceList;
+	return true;
+}
+
+bool FPackageReader::ReadEditorOnlyFlags(TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame)
+{
+	if (!SerializeNameMap() || !SerializeImportMap() || !SerializeSoftPackageReferenceList())
+	{
+		return false;
+	}
+	if (!SerializeEditorOnlyFlags(OutImportUsedInGame, OutSoftPackageUsedInGame))
+	{
+		return false;
+	}
+	return true;
+}
+
+bool FPackageReader::ReadImportedClasses(TArray<FName>& OutClassNames)
+{
+	if (!SerializeNameMap() || !SerializeImportMap())
+	{
+		return false;
+	}
+	if (!SerializeImportedClasses(ImportMap, OutClassNames))
+	{
+		return false;
+	}
+	return true;
+}
+
 bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList, bool& bOutIsCookedWithoutAssetData)
 {
 	bOutIsCookedWithoutAssetData = false;
@@ -220,15 +283,7 @@ bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList, b
 		return ReadAssetRegistryDataFromCookedPackage(AssetDataList, bOutIsCookedWithoutAssetData);
 	}
 
-	if (!SerializeNameMap())
-	{
-		return false;
-	}
-	if (!SerializeImportMap())
-	{
-		return false;
-	}
-	if (!SerializeExportMap())
+	if (!SerializeNameMap() || !SerializeImportMap() || !SerializeExportMap())
 	{
 		return false;
 	}
@@ -278,14 +333,83 @@ bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList, b
 	return true;
 }
 
+bool FPackageReader::ReadLinkerObjects(TMap<FSoftObjectPath, FObjectData>& OutExports,
+	TMap<FSoftObjectPath, FObjectData>& OutImports, TMap<FName, bool>& OutSoftPackageReferences)
+{
+	if (!SerializeNameMap() || !SerializeImportMap() || !SerializeExportMap() || !SerializeSoftPackageReferenceList())
+	{
+		return false;
+	}
+	TBitArray<> ImportUsedInGame;
+	TBitArray<> SoftPackageUsedInGame;
+	if (!SerializeEditorOnlyFlags(ImportUsedInGame, SoftPackageUsedInGame))
+	{
+		return false;
+	}
+
+	TArray<FSoftObjectPath> ExportsPaths;
+	TArray<FSoftObjectPath> ImportsPaths;
+	int32 NumExports = ExportMap.Num();
+	int32 NumImports = ImportMap.Num();
+	int32 NumSoftPackageReferences = SoftPackageReferenceList.Num();
+	ConvertLinkerTableToPaths(FName(*GetLongPackageName()), ExportMap, ImportMap, ExportsPaths, ImportsPaths);
+	auto GetClassPath = [&ExportsPaths, &ImportsPaths](FPackageIndex ClassIndex)
+	{
+		if (ClassIndex.IsNull())
+		{
+			return FSoftObjectPath(TEXT("/Script/CoreUObject.Class"));
+		}
+		else if (ClassIndex.IsExport())
+		{
+			int32 ExportIndex = ClassIndex.ToExport();
+			return ExportIndex < ExportsPaths.Num() ? ExportsPaths[ExportIndex] :
+				FSoftObjectPath(TEXT("/Script/Unknown.Unknown"));
+		}
+		else
+		{
+			int32 ImportIndex = ClassIndex.ToImport();
+			return ImportIndex < ImportsPaths.Num() ? ImportsPaths[ImportIndex] :
+				FSoftObjectPath(TEXT("/Script/Unknown.Unknown"));
+		}
+	};
+	OutExports.Reserve(NumExports);
+	for (int32 Index = 0; Index < NumExports; ++Index)
+	{
+		FObjectData Data;
+		Data.ClassPath = GetClassPath(ExportMap[Index].ClassIndex);
+		Data.bUsedInGame = true;
+		OutExports.Add(ExportsPaths[Index], MoveTemp(Data));
+	}
+	OutImports.Reserve(NumImports);
+	for (int32 Index = 0; Index < NumImports; ++Index)
+	{
+		FObjectData Data;
+		const FObjectImport& Import = ImportMap[Index];
+		Data.ClassPath = FSoftObjectPath(Import.ClassPackage, Import.ClassName, FString());
+		Data.bUsedInGame = ImportUsedInGame[Index];
+		OutImports.Add(ImportsPaths[Index], MoveTemp(Data));
+	}
+	OutSoftPackageReferences.Reserve(NumSoftPackageReferences);
+	for (int32 Index = 0; Index < NumSoftPackageReferences; ++Index)
+	{
+		OutSoftPackageReferences.Add(SoftPackageReferenceList[Index], SoftPackageUsedInGame[Index]);
+	}
+
+	auto SoftObjectPathLexicalLess = [](const FSoftObjectPath& A, const FSoftObjectPath& B) { return A.LexicalLess(B); };
+	OutExports.KeySort(SoftObjectPathLexicalLess);
+	OutImports.KeySort(SoftObjectPathLexicalLess);
+	OutSoftPackageReferences.KeySort(FNameLexicalLess());
+	return true;
+}
+
 bool FPackageReader::SerializeAssetRegistryDependencyData(TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame,
-	const TArray<FObjectImport>& InImportMap, const TArray<FName>& SoftPackageReferenceList)
+	const TArray<FObjectImport>& InImportMap, const TArray<FName>& InSoftPackageReferenceList)
 {
 	if (AssetRegistryDependencyDataOffset == INDEX_NONE)
 	{
 		// For old package versions that did not write out the dependency flags, set default values of the flags
 		OutImportUsedInGame.Init(true, InImportMap.Num());
-		OutSoftPackageUsedInGame.Init(true, SoftPackageReferenceList.Num());
+		OutSoftPackageUsedInGame.Init(true, InSoftPackageReferenceList.Num());
 		return true;
 	}
 
@@ -296,7 +420,7 @@ bool FPackageReader::SerializeAssetRegistryDependencyData(TBitArray<>& OutImport
 
 	if (!UE::AssetRegistry::ReadPackageDataDependencies(*this, OutImportUsedInGame, OutSoftPackageUsedInGame) ||
 		OutImportUsedInGame.Num() != InImportMap.Num() ||
-		OutSoftPackageUsedInGame.Num() != SoftPackageReferenceList.Num())
+		OutSoftPackageUsedInGame.Num() != InSoftPackageReferenceList.Num())
 	{
 		UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeAssetRegistryDependencyData", PackageFilename);
 		return false;
@@ -416,15 +540,7 @@ bool FPackageReader::ReadAssetRegistryDataFromCookedPackage(TArray<FAssetData*>&
 	{
 		const FString PackagePath = FPackageName::GetLongPackagePath(PackageName);
 
-		if (!SerializeNameMap())
-		{
-			return false;
-		}
-		if (!SerializeImportMap())
-		{
-			return false;
-		}
-		if (!SerializeExportMap())
+		if (!SerializeNameMap() || !SerializeImportMap() || !SerializeExportMap())
 		{
 			return false;
 		}
@@ -478,12 +594,7 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 		return true;
 	}
 
-	if (!SerializeNameMap())
-	{
-		return false;
-	}
-
-	if (!SerializeImportMap())
+	if (!SerializeNameMap() || !SerializeImportMap())
 	{
 		return false;
 	}
@@ -515,8 +626,7 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	if (EnumHasAnyFlags(Options, EReadOptions::Dependencies))
 	{
 		OutDependencyData.bHasDependencyData = true;
-		TArray<FName> SoftPackageReferenceList;
-		if (!SerializeSoftPackageReferenceList(SoftPackageReferenceList))
+		if (!SerializeSoftPackageReferenceList())
 		{
 			return false;
 		}
@@ -773,8 +883,13 @@ bool FPackageReader::SerializeExportMap()
 	return true;
 }
 
-bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList)
+bool FPackageReader::SerializeSoftPackageReferenceList()
 {
+	if (SoftPackageReferenceList.Num() > 0)
+	{
+		return true;
+	}
+
 	if (UEVer() >= VER_UE4_ADD_STRING_ASSET_REFERENCES_MAP && PackageFileSummary.SoftPackageReferencesOffset > 0 && PackageFileSummary.SoftPackageReferencesCount > 0)
 	{
 		if (!StartSerializeSection(PackageFileSummary.SoftPackageReferencesOffset))
@@ -789,6 +904,8 @@ bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPac
 			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeSoftPackageReferenceListInvalidReferencesCount", PackageFilename);
 			return false;
 		}
+
+		SoftPackageReferenceList.Reserve(PackageFileSummary.SoftPackageReferencesCount);
 		if (UEVer() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
 		{
 			for (int32 ReferenceIdx = 0; ReferenceIdx < PackageFileSummary.SoftPackageReferencesCount; ++ReferenceIdx)
@@ -798,6 +915,7 @@ bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPac
 				if (IsError())
 				{
 					UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeSoftPackageReferenceListInvalidReferencePreSoftObjectPath", PackageFilename);
+					SoftPackageReferenceList.Reset();
 					return false;
 				}
 
@@ -810,7 +928,7 @@ bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPac
 					}
 				}
 
-				OutSoftPackageReferenceList.Add(FName(*PackageName));
+				SoftPackageReferenceList.Add(FName(*PackageName));
 			}
 		}
 		else
@@ -822,12 +940,54 @@ bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPac
 				if (IsError())
 				{
 					UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeSoftPackageReferenceListInvalidReference", PackageFilename);
+					SoftPackageReferenceList.Reset();
 					return false;
 				}
 
-				OutSoftPackageReferenceList.Add(PackageName);
+				SoftPackageReferenceList.Add(PackageName);
 			}
 		}
+	}
+
+	return true;
+}
+
+bool FPackageReader::SerializeEditorOnlyFlags(TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame)
+{
+	if (AssetRegistryDependencyDataOffset == INDEX_NONE &&
+		!(PackageFileSummary.GetPackageFlags() & PKG_FilterEditorOnly) &&
+		StartSerializeSection(PackageFileSummary.AssetRegistryDataOffset))
+	{
+		UE::AssetRegistry::FDeserializePackageData DeserializePackageData;
+		UE::AssetRegistry::EReadPackageDataMainErrorCode Error;
+		if (!DeserializePackageData.DoSerialize(*this, PackageFileSummary, Error))
+		{
+			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("EReadPackageDataMainErrorCode::InvalidTagCount", PackageFilename);
+			return false;
+		}
+		AssetRegistryDependencyDataOffset = DeserializePackageData.DependencyDataOffset;
+	}
+
+	if (AssetRegistryDependencyDataOffset == INDEX_NONE)
+	{
+		// For cooked packages or old package versions that did not write out the dependency flags,
+		// set default values of the flags
+		OutImportUsedInGame.Init(true, ImportMap.Num());
+		OutSoftPackageUsedInGame.Init(true, SoftPackageReferenceList.Num());
+		return true;
+	}
+
+	if (!StartSerializeSection(AssetRegistryDependencyDataOffset))
+	{
+		return false;
+	}
+
+	if (!UE::AssetRegistry::ReadPackageDataDependencies(*this, OutImportUsedInGame, OutSoftPackageUsedInGame) ||
+		OutImportUsedInGame.Num() != ImportMap.Num() ||
+		OutSoftPackageUsedInGame.Num() != SoftPackageReferenceList.Num())
+	{
+		UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeAssetRegistryDependencyData", PackageFilename);
+		return false;
 	}
 
 	return true;
@@ -927,6 +1087,111 @@ FArchive& FPackageReader::operator<<( FName& Name )
 
 	return *this;
 }
+
+void FPackageReader::ConvertLinkerTableToPaths(FName InPackageName, TArray<FObjectExport>& InExportMap, TArray<FObjectImport>& InImportMap,
+	TArray<FSoftObjectPath>& OutExports, TArray<FSoftObjectPath>& OutImports)
+{
+	TMap<FPackageIndex, FSoftObjectPath> ObjectForIndex;
+	TFunction<FSoftObjectPath& (FPackageIndex Index)> GetSoftObjectPath;
+	FSoftObjectPath EmptySoftObjectPath;
+	int32 Counter = 0;
+	int32 NumExports = InExportMap.Num();
+	int32 NumImports = InImportMap.Num();
+	int32 NumObjects = NumExports + NumImports;
+
+	ObjectForIndex.Reserve(NumObjects);
+	GetSoftObjectPath = [&InImportMap, &InExportMap, &ObjectForIndex, &GetSoftObjectPath, &EmptySoftObjectPath,
+		&Counter, NumObjects, InPackageName]
+	(FPackageIndex Index) -> FSoftObjectPath&
+	{
+		if (++Counter > (NumObjects + 1) * 2)
+		{
+			// Recursive overflow should be impossible because every call fills in a new element of the table
+			check(false);
+		}
+		ON_SCOPE_EXIT
+		{
+			--Counter;
+		};
+		if (Index.IsNull())
+		{
+			return EmptySoftObjectPath;
+		}
+		FSoftObjectPath* Existing = ObjectForIndex.Find(Index);
+		if (Existing)
+		{
+			return *Existing;
+		}
+
+		FPackageIndex ParentIndex;
+		FName ObjectName;
+		if (Index.IsExport())
+		{
+			int32 ExportIndex = Index.ToExport();
+			if (ExportIndex < InExportMap.Num())
+			{
+				FObjectExport& Export = InExportMap[ExportIndex];
+				ParentIndex = Export.OuterIndex;
+				ObjectName = Export.ObjectName;
+			}
+		}
+		else
+		{
+			int32 ImportIndex = Index.ToImport();
+			if (ImportIndex < InImportMap.Num())
+			{
+				FObjectImport& Import = InImportMap[ImportIndex];
+				ParentIndex = Import.OuterIndex;
+				ObjectName = Import.ObjectName;
+			}
+		}
+		FSoftObjectPath Result;
+		if (!ObjectName.IsNone())
+		{
+			FSoftObjectPath& ParentPath = GetSoftObjectPath(ParentIndex);
+			if (ParentPath.IsNull())
+			{
+				if (Index.IsExport())
+				{
+					Result = FSoftObjectPath(InPackageName, ObjectName, FString());
+				}
+				else
+				{
+					Result = FSoftObjectPath(ObjectName, NAME_None, FString());
+				}
+			}
+			else if (ParentPath.GetAssetFName().IsNone())
+			{
+				Result = FSoftObjectPath(ParentPath.GetLongPackageFName(), ObjectName, FString());
+			}
+			else if (ParentPath.GetSubPathString().IsEmpty())
+			{
+				Result = FSoftObjectPath(ParentPath.GetLongPackageFName(), ParentPath.GetAssetFName(),
+					ObjectName.ToString());
+			}
+			else
+			{
+				Result = FSoftObjectPath(ParentPath.GetLongPackageFName(), ParentPath.GetAssetFName(),
+					ParentPath.GetSubPathString() + TEXT(".") + ObjectName.ToString());
+			}
+		}
+
+		// Note we have to look up the Element again in ObjectForIndex. We can not cache a FindOrAdd Result for Index
+		// because we have potentially modified ObjectForIndex by calling GetSoftObjectPath(ParentIndex).
+		return ObjectForIndex.Add(Index, Result);
+	};
+	OutExports.Reset(NumExports);
+	for (int32 ExportIndex = 0; ExportIndex < NumExports; ++ExportIndex)
+	{
+		OutExports.Add(GetSoftObjectPath(FPackageIndex::FromExport(ExportIndex)));
+	}
+	OutImports.Reset(NumImports);
+	for (int32 ImportIndex = 0; ImportIndex < NumImports; ++ImportIndex)
+	{
+		OutImports.Add(GetSoftObjectPath(FPackageIndex::FromImport(ImportIndex)));
+	}
+}
+
 
 namespace UE::AssetRegistry
 {
