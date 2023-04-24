@@ -22,6 +22,7 @@ public class AnimationSharingEd : ModuleRules
                 "PropertyEditor",
             }
 		);
-    }
 
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
+	}
 }

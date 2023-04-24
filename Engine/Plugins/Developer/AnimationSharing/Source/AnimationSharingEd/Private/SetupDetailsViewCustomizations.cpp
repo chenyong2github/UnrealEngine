@@ -293,7 +293,7 @@ void FAnimationStateEntryCustomization::SelectedEnumChanged(TSharedPtr<FString> 
 	{
 		if (Selection && SelectInfo != ESelectInfo::Type::Direct)
 		{
-			uint8 NewEnumValue = EnumClass->GetValueByIndex(ComboBoxItems.IndexOfByKey(Selection));
+			const uint8 NewEnumValue = IntCastChecked<uint8>(EnumClass->GetValueByIndex(ComboBoxItems.IndexOfByKey(Selection)));
 			PropertyHandle->SetValue(NewEnumValue);
 		}
 
