@@ -176,8 +176,6 @@ struct FLandscapeLayer
 		, BlendMode(LSBM_AdditiveBlend)
 	{}
 
-	FLandscapeLayer(const FLandscapeLayer& OtherLayer) = default;
-
 	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	FGuid Guid;
 
