@@ -41,7 +41,6 @@ protected:
 
 	FNURBSCurve(int32 InDegree, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension = 3);
 	FNURBSCurve(FNurbsCurveData& NurbsCurveData);
-	FNURBSCurve(const FNURBSCurve& Nurbs);
 
 	FNURBSCurve() = default;
 

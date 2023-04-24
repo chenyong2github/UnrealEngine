@@ -35,17 +35,6 @@ FNURBSCurve::FNURBSCurve(FNurbsCurveData& NurbsCurveData)
 	Finalize();
 }
 
-FNURBSCurve::FNURBSCurve(const FNURBSCurve& Nurbs)
-	: FCurve(Nurbs.Dimension)
-	, Degree(Nurbs.Degree)
-	, NodalVector(Nurbs.NodalVector)
-	, Weights(Nurbs.Weights)
-	, Poles(Nurbs.Poles)
-	, bIsRational(Nurbs.bIsRational)
-{
-	Finalize();
-}
-
 TSharedPtr<FEntityGeom> FNURBSCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TArray<FPoint> TransformedPoles;
