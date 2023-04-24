@@ -264,10 +264,9 @@ public:
  		return OutKeys;
 	}
 
-	template<typename NodeType>
-	TObjectPtr<NodeType> GetSettingForBranch(const FName InBranchName, bool bIncludeCDOs = true, bool bExactMatch = false)
+	UMovieGraphSettingNode* GetSettingForBranch(UClass* InClass, const FName InBranchName, bool bIncludeCDOs = true, bool bExactMatch = false)
 	{
-		TArray<TObjectPtr<NodeType>> AllSettings = GetSettingsForBranch<NodeType>(InBranchName, bIncludeCDOs, bExactMatch);
+		TArray<UMovieGraphSettingNode*> AllSettings = GetSettingsForBranch(InClass, InBranchName, bIncludeCDOs, bExactMatch);
 		if (AllSettings.Num() > 0)
 		{
 			return AllSettings[0];
@@ -276,22 +275,21 @@ public:
 		return nullptr;
 	}
 
-	template<typename NodeType>
-	TArray<TObjectPtr<NodeType>> GetSettingsForBranch(const FName InBranchName, bool bIncludeCDOs = true, bool bExactMatch = false)
+	TArray<UMovieGraphSettingNode*> GetSettingsForBranch(UClass* InClass, const FName InBranchName, bool bIncludeCDOs = true, bool bExactMatch = false)
 	{
-		TArray<TObjectPtr<NodeType>> ResultNodes;
 		FMovieGraphEvaluatedBranchConfig* BranchConfig = BranchConfigMapping.Find(InBranchName);
 		ensureMsgf(BranchConfig, TEXT("Failed to find branch mapping for Branch: %s"), *InBranchName.ToString());
 
+		TArray<UMovieGraphSettingNode*> ResultNodes;
 		if (BranchConfig)
 		{
 			// Check to see if the branch has an instance of this.
 			for (const TObjectPtr<UMovieGraphNode>& Node : BranchConfig->GetNodes())
 			{
-				bool bMatches = bExactMatch ? Node->GetClass() == NodeType::StaticClass() : Node->IsA<NodeType>();
+				bool bMatches = bExactMatch ? Node->GetClass() == InClass : Node->IsA(InClass);
 				if (bMatches)
 				{
-					ResultNodes.Add(Cast<NodeType>(Node.Get()));
+					ResultNodes.Add(Cast<UMovieGraphSettingNode>(Node.Get()));
 				}
 			}
 		}
@@ -300,13 +298,33 @@ public:
 		// or the config simply didn't override that setting class, at which point we might try to return a default
 		if (bIncludeCDOs)
 		{
-			ResultNodes.Add(GetMutableDefault<NodeType>());
+			ResultNodes.Add(Cast<UMovieGraphSettingNode>(InClass->GetDefaultObject()));
+		}
+
+		return ResultNodes;
+	}
+
+	template<typename NodeType>
+	NodeType* GetSettingForBranch(const FName InBranchName, bool bIncludeCDOs = true, bool bExactMatch = false)
+	{
+		return Cast<NodeType>(GetSettingForBranch(NodeType::StaticClass(), InBranchName, bIncludeCDOs, bExactMatch));
+	}
+
+	template<typename NodeType>
+	TArray<NodeType*> GetSettingsForBranch(const FName InBranchName, bool bIncludeCDOs = true, bool bExactMatch = false)
+	{
+		TArray<UMovieGraphSettingNode*> UntypedResults = GetSettingsForBranch(NodeType::StaticClass(), InBranchName, bIncludeCDOs, bExactMatch);
+
+		TArray<TObjectPtr<NodeType>> ResultNodes;
+		ResultNodes.Reserve(UntypedResults.Num());
+		for (UMovieGraphSettingNode* UntypedNode : UntypedResults)
+		{
+			ResultNodes.Add(Cast<NodeType>(UntypedNode));
 		}
 
 		return ResultNodes;
 	}
 	
-
 public:
 	/** Mapping between named branches (at the root of the config) and their evaluated values. */
 	UPROPERTY(Transient)

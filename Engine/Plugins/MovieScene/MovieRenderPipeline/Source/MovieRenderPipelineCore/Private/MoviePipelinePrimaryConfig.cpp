@@ -38,7 +38,7 @@ void UMoviePipelinePrimaryConfig::InitializeTransientSettings()
 	}
 
 	// Reflect over all possible settings that could be added to this class.
-	TArray<UClass*> AllSettingClasses = UE::MovieRenderPipeline::FindMoviePipelineSettingClasses();
+	TArray<UClass*> AllSettingClasses = UE::MovieRenderPipeline::FindMoviePipelineSettingClasses(UMoviePipelineSetting::StaticClass());
 
 	// Now remove any from the list that we already have a user setting for
 	for (const UMoviePipelineSetting* ExistingSetting : GetUserSettings())
@@ -140,7 +140,7 @@ void UMoviePipelinePrimaryConfig::GetFormatArguments(FMoviePipelineFormatArgs& I
 
 		// We use the FrameNumberOffset as the number for all of these so they can see it changing in the UI.
 		FString FramePlaceholderNumber = FString::Printf(TEXT("%0*d"), OutputSettings->ZeroPadFrameNumbers, OutputSetting->FrameNumberOffset);
-		MoviePipeline::GetOutputStateFormatArgs(InOutFormatArgs, FramePlaceholderNumber, FramePlaceholderNumber, FramePlaceholderNumber, FramePlaceholderNumber, TEXT("CameraName"), TEXT("ShotName"));
+		MoviePipeline::GetOutputStateFormatArgs(InOutFormatArgs.FilenameArguments, InOutFormatArgs.FileMetadata, FramePlaceholderNumber, FramePlaceholderNumber, FramePlaceholderNumber, FramePlaceholderNumber, TEXT("CameraName"), TEXT("ShotName"));
 	}
 
 	// Let each setting provide its own set of key/value pairs.

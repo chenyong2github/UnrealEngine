@@ -3,7 +3,6 @@
 #pragma once
 #include "Graph/MovieGraphNode.h"
 #include "Misc/FrameRate.h"
-#include "Styling/AppStyle.h"
 #include "MovieGraphOutputSettingNode.generated.h"
 
 
@@ -14,32 +13,16 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphOutputSettingNode : public UMovieGr
 public:
 	UMovieGraphOutputSettingNode();
 
+	// UMovieGraphSettingNode Interface
+	virtual void GetFormatResolveArgs(FMovieGraphResolveArgs& OutMergedFormatArgs) const override;
+
 #if WITH_EDITOR
-	virtual FText GetNodeTitle(const bool bGetDescriptive) const override
-	{
-		static const FText OutputSettingsNodeName = NSLOCTEXT("MoviePipelineGraph", "NodeName_OutputSettings", "Output Settings");
-		return OutputSettingsNodeName;
-	}
-
-	virtual FText GetMenuCategory() const override
-	{
-		return NSLOCTEXT("MoviePipelineGraph", "Settings_Category", "Settings");
-	}
-
-	virtual FLinearColor GetNodeTitleColor() const override
-	{
-		static const FLinearColor OutputSettingsColor = FLinearColor(0.854f, 0.509f, 0.039f);
-		return OutputSettingsColor;
-	}
-
-	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override
-	{
-		static const FSlateIcon SettingsIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings");
-
-		OutColor = FLinearColor::White;
-		return SettingsIcon;
-	}
+	virtual FText GetNodeTitle(const bool bGetDescriptive) const override;
+	virtual FText GetMenuCategory() const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 #endif
+	// ~UMovieGraphSettingNode Interface
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (InlineEditConditionToggle))
@@ -56,6 +39,12 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (InlineEditConditionToggle))
 	uint8 bOverride_bOverwriteExistingOutput : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (InlineEditConditionToggle))
+	uint8 bOverride_ZeroPadFrameNumbers : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (InlineEditConditionToggle))
+	uint8 bOverride_FrameNumberOffset : 1;
 
 	/** What directory should all of our output files be relative to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output", meta=(EditCondition="bOverride_OutputDirectory"))
@@ -76,4 +65,16 @@ public:
 	/** If true, output containers should attempt to override any existing files with the same name. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output", meta = (EditCondition = "bOverride_bOverwriteExistingOutput"))
 	bool bOverwriteExistingOutput;
+
+	/** How many digits should all output frame numbers be padded to? MySequence_1.png -> MySequence_0001.png. Useful for software that struggles to recognize frame ranges when non-padded. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Output", meta = (EditCondition = "bOverride_ZeroPadFrameNumbers", UIMin = "1", UIMax = "5", ClampMin = "1"))
+	int32 ZeroPadFrameNumbers;
+
+	/**
+	* How many frames should we offset the output frame number by? This is useful when using handle frames on Sequences that start at frame 0,
+	* as the output would start in negative numbers. This can be used to offset by a fixed amount to ensure there's no negative numbers.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,  Category = "File Output", meta = (EditCondition = "bOverride_FrameNumberOffset"))
+	int32 FrameNumberOffset;
+
 };

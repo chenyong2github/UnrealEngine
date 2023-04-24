@@ -915,31 +915,6 @@ UMoviePipelineSetting* UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingFo
 	return InSettingType->GetDefaultObject<UMoviePipelineSetting>();
 }
 
-static bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting)
-{
-	// Check if there is space on the output disk.
-	bool bIsFreeSpace = true;
-
-	uint64 TotalNumberOfBytes, NumberOfFreeBytes;
-	if (FPlatformMisc::GetDiskTotalAndFreeSpace(InFilename, TotalNumberOfBytes, NumberOfFreeBytes))
-	{
-		bIsFreeSpace = NumberOfFreeBytes > 64 * 1024 * 1024; // 64mb minimum
-	}
-	// ToDO: Infinite loop possible.
-	return bIsFreeSpace && (bOverwriteExisting || IFileManager::Get().FileSize(InFilename) == -1);
-}
-
-static FString GetPaddingFormatString(int32 InZeroPadCount, const int32 InFrameNumber)
-{
-	// Printf takes the - sign into account when you specify the number of digits to pad to
-	// so we bump it by one to make the negative sign come first (ie: -0001 instead of -001)
-	if (InFrameNumber < 0)
-	{
-		InZeroPadCount++;
-	}
-
-	return FString::Printf(TEXT("%0*d"), InZeroPadCount, InFrameNumber);
-}
 
 void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFilenameResolveParams& InParams, FString& OutFinalPath, FMoviePipelineFormatArgs& OutMergedFormatArgs)
 {
@@ -969,10 +944,10 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 		// when your sequence starts at zero and you use handle frames (which would cause negative output frame 
 		// numbers), so we allow the user to add a fixed amount to all output to ensure they are positive.
 		int32 FrameNumberOffset = OutputSetting->FrameNumberOffset + InParams.AdditionalFrameNumberOffset;
-		FString FrameNumber = GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumber + FrameNumberOffset); // Sequence Frame #
-		FString FrameNumberShot = GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumberShot + FrameNumberOffset); // Shot Frame #
-		FString FrameNumberRel = GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumberRel + FrameNumberOffset); // Relative to 0
-		FString FrameNumberShotRel = GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumberShotRel + FrameNumberOffset); // Relative to 0 within the shot.
+		FString FrameNumber = UE::MoviePipeline::GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumber + FrameNumberOffset); // Sequence Frame #
+		FString FrameNumberShot = UE::MoviePipeline::GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumberShot + FrameNumberOffset); // Shot Frame #
+		FString FrameNumberRel = UE::MoviePipeline::GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumberRel + FrameNumberOffset); // Relative to 0
+		FString FrameNumberShotRel = UE::MoviePipeline::GetPaddingFormatString(OutputSetting->ZeroPadFrameNumbers, InParams.FrameNumberShotRel + FrameNumberOffset); // Relative to 0 within the shot.
 
 		// Ensure they used relative frame numbers in the output so they get the right number of output frames.
 		if (InParams.bForceRelativeFrameNumbers)
@@ -994,7 +969,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 			ShotName = InParams.ShotNameOverride;
 		}
 
-		MoviePipeline::GetOutputStateFormatArgs(OutMergedFormatArgs, FrameNumber, FrameNumberShot, FrameNumberRel, FrameNumberShotRel, CameraName, ShotName);
+		MoviePipeline::GetOutputStateFormatArgs(OutMergedFormatArgs.FilenameArguments, OutMergedFormatArgs.FileMetadata, FrameNumber, FrameNumberShot, FrameNumberRel, FrameNumberShotRel, CameraName, ShotName);
 	}
 
 
@@ -1056,7 +1031,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 
 	FString ThisTry = BaseFilename + Extension;
 
-	if (CanWriteToFile(*ThisTry, OutputSetting->bOverrideExistingOutput))
+	if (UE::MoviePipeline::CanWriteToFile(*ThisTry, OutputSetting->bOverrideExistingOutput))
 	{
 		OutFinalPath = ThisTry;
 		return;
@@ -1071,7 +1046,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 		ThisTry = FString::Format(*FileNameFormatString, NamedArgs) + Extension;
 
 		// If the file doesn't exist, we can use that, else, increment the index and try again
-		if (CanWriteToFile(*ThisTry, OutputSetting->bOverrideExistingOutput))
+		if (UE::MoviePipeline::CanWriteToFile(*ThisTry, OutputSetting->bOverrideExistingOutput))
 		{
 			OutFinalPath = ThisTry;
 			return;

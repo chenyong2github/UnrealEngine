@@ -6,6 +6,8 @@
 #include "Graph/MovieGraphDataTypes.h"
 #include "Graph/MovieGraphPipeline.h"
 #include "Graph/MovieGraphConfig.h"
+#include "Graph/MovieGraphFilenameResolveParams.h"
+#include "Graph/MovieGraphBlueprintLibrary.h"
 #include "Modules/ModuleManager.h"
 #include "ImageWriteQueue.h"
 #include "Misc/Paths.h"
@@ -84,17 +86,43 @@ void UMovieGraphImageSequenceOutputNode::OnReceiveImageDataImpl(UMovieGraphPipel
 		FString FileNameFormatString = OutputSettingNode->OutputDirectory.Path / OutputSettingNode->FileNameFormat;
 
 		// ToDo: Validate the string, ie: ensure it has {render_pass} in there somewhere there are multiple render passes
-		// in the output data, include {camera_name} if there are multiple cameras for that render pass, etc.
+		// in the output data, include {camera_name} if there are multiple cameras for that render pass, etc. Validation
+		// should insert {file_dup} tokens so it can put them at a logical place (ie: before frame numbers?)
 		FileNameFormatString += TEXT(".{ext}");
 
 		// Map the .ext to be specific to our output data.
 		TMap<FString, FString> AdditionalFormatArgs;
 		AdditionalFormatArgs.Add(TEXT("ext"), Extension);
 
+		FMovieGraphFilenameResolveParams Params = FMovieGraphFilenameResolveParams();
+		Params.RenderDataIdentifier = RenderData.Key;
+		//Params.RootFrameNumber = Payload->TraversalContext.Time.RootFrameNumber;
+		//Params.ShotFrameNumber = Payload->TraversalContext.Time.ShotFrameNumber;
+		Params.RootFrameNumberRel = Payload->TraversalContext.Time.OutputFrameNumber;
+		//Params.ShotFrameNumberRel = Payload->TraversalCOntext.Time.ShotFrameNumberRel
+		//Params.FileMetadata = ToDo: Track File Metadata
+		Params.Version = 1; // ToDo: Track versions
+		Params.ZeroPadFrameNumberCount = OutputSettingNode->ZeroPadFrameNumbers;
+		Params.FrameNumberOffset = OutputSettingNode->FrameNumberOffset;
 
+		// If time dilation is in effect, RootFrameNumber and ShotFrameNumber will contain duplicates and the files will overwrite each other, 
+		// so we force them into relative mode and then warn users we did that (as their numbers will jump from say 1001 -> 0000).
+		bool bForceRelativeFrameNumbers = true; // TODO: Use relative frame numbers until we track Root vs. Shot frame numbers. (Previously false);
+		//if (FileNameFormatString.Contains(TEXT("{frame")) Payload->TraversalContext.Time.IsTimeDilated() && !FileNameFormatString.Contains(TEXT("_rel}")))
+		//{
+		//	UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Time Dilation was used but output format does not use relative time, forcing relative numbers. Change {frame_number} to {frame_number_rel} (or shot version) to remove this message."));
+		//	bForceRelativeFrameNumbers = true;
+		//}
+		Params.bForceRelativeFrameNumbers = bForceRelativeFrameNumbers;
+		Params.bEnsureAbsolutePath = true;
+		Params.FileNameFormatOverrides = AdditionalFormatArgs;
+		Params.InitializationTime = InPipeline->GetInitializationTime();
+		Params.Job = InPipeline->GetCurrentJob();
+		Params.EvaluatedConfig = InRawFrameData->EvaluatedConfig.Get();
 
-		const FString ResolvedProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-		FString FileName = FString::Printf(TEXT("%s/Saved/MovieRenders/%s_%d.jpg"), *ResolvedProjectDir, *RenderLayerName, Payload->TraversalContext.Time.OutputFrameNumber);
+		// Take our string path from the Output Setting and resolve it.
+		FMovieGraphResolveArgs FinalResolvedKVPs;
+		const FString FileName = UMovieGraphBlueprintLibrary::ResolveFilenameFormatArguments(FileNameFormatString, Params, FinalResolvedKVPs);
 
 		TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
 		TileImageTask->Format = OutputFormat;

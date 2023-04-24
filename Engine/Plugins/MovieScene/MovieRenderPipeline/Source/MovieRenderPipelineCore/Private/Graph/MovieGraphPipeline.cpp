@@ -714,8 +714,8 @@ void UMovieGraphPipeline::ProcessOutstandingFinishedFrames()
 			// a central point for actually handling the file writing.
 			const bool bIncludeCDOs = false;
 			const FName BranchName = RenderData.Key.RootBranchName;
-			TArray<TObjectPtr<UMovieGraphFileOutputNode>> OutputNodeInstances = OutputFrame.EvaluatedConfig->GetSettingsForBranch<UMovieGraphFileOutputNode>(BranchName, bIncludeCDOs);
-			for (const TObjectPtr<UMovieGraphFileOutputNode>& Instance : OutputNodeInstances)
+			TArray<UMovieGraphFileOutputNode*> OutputNodeInstances = OutputFrame.EvaluatedConfig->GetSettingsForBranch<UMovieGraphFileOutputNode>(BranchName, bIncludeCDOs);
+			for (const UMovieGraphFileOutputNode* Instance : OutputNodeInstances)
 			{
 				UMovieGraphFileOutputNode* CDO = Instance->GetClass()->GetDefaultObject<UMovieGraphFileOutputNode>();
 				MaskData.FindOrAdd(CDO).Add(RenderData.Key);

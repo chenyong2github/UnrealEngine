@@ -7,6 +7,7 @@
 #include "InstancedStruct.h"
 #include "PropertyBag.h"
 #include "Graph/MovieGraphValueContainer.h"
+#include "Graph/MovieGraphFilenameResolveParams.h"
 
 #if WITH_EDITOR
 #include "Textures/SlateIcon.h"
@@ -202,4 +203,15 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 	// ~UMovieGraphNode Interface
+	
+	/*
+	* This is called either on the CDO, or on a "flattened" instance of the node every frame when
+	* generating filename/file metadata, allowing the node to add custom key-value pairs (FString, FString)
+	* to be used as {format_tokens} in filenames, or to be included in File metadata. Nodes can read
+	* their own settings (such as temporal sub-sample count) and add it to the available list of tokens.
+	*
+	* Because this is called either on the CDO or on a flattened instance, there is no need to worry about
+	* resolving the settings of the graph, the node only needs to read its own values.
+	*/
+	virtual void GetFormatResolveArgs(FMovieGraphResolveArgs& OutMergedFormatArgs) const {}
 };

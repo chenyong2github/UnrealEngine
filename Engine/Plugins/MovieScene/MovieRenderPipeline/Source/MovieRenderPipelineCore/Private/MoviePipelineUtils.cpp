@@ -28,6 +28,7 @@
 #include "MoviePipelineQueue.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformMemory.h"
+#include "HAL/FileManager.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "RHI.h"
@@ -37,14 +38,14 @@ namespace UE
 {
 	namespace MovieRenderPipeline
 	{
-		TArray<UClass*> FindMoviePipelineSettingClasses()
+		TArray<UClass*> FindMoviePipelineSettingClasses(UClass* InBaseClass)
 		{
 			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 			TArray<FAssetData> ClassList;
 
 			FARFilter Filter;
-			Filter.ClassPaths.Add(UMoviePipelineSetting::StaticClass()->GetClassPathName());
+			Filter.ClassPaths.Add(InBaseClass->GetClassPathName());
 			Filter.ClassPaths.Add(UBlueprint::StaticClass()->GetClassPathName());
 
 			// Include any Blueprint based objects as well, this includes things like Blutilities, UMG, and GameplayAbility objects
@@ -69,7 +70,7 @@ namespace UE
 				{
 					ParentClass = UClass::TryFindTypeSlow<UClass>(FPackageName::ExportTextPathToObjectPath(ParentClassName));
 
-					if (ParentClass == nullptr || !ParentClass->IsChildOf(UMoviePipelineSetting::StaticClass()))
+					if (ParentClass == nullptr || !ParentClass->IsChildOf(InBaseClass))
 					{
 						continue;
 					}
@@ -83,7 +84,7 @@ namespace UE
 			// Now iterate through the loaded classes.
 			for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)
 			{
-				if (ClassIterator->IsChildOf(UMoviePipelineSetting::StaticClass()) && !ClassIterator->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+				if (ClassIterator->IsChildOf(InBaseClass) && !ClassIterator->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
 				{
 					// While a blueprint is being compiled, there can be some transient instances of the class. We don't want these to show up in the list
 					// so just manually skip over them as they will go away next time GC is run anyways.
@@ -149,21 +150,21 @@ namespace MoviePipeline
 		}
 	}
 
-	void GetOutputStateFormatArgs(FMoviePipelineFormatArgs& InOutFinalFormatArgs, const FString FrameNumber, const FString FrameNumberShot, const FString FrameNumberRel, const FString FrameNumberShotRel, const FString CameraName, const FString ShotName)
+	void GetOutputStateFormatArgs(TMap<FString, FString>& InOutFilenameArguments, TMap<FString, FString>& InOutFileMetadata, const FString FrameNumber, const FString FrameNumberShot, const FString FrameNumberRel, const FString FrameNumberShotRel, const FString CameraName, const FString ShotName)
 	{
-		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number"), FrameNumber);
-		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number_shot"), FrameNumberShot);
-		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number_rel"), FrameNumberRel);
-		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("frame_number_shot_rel"), FrameNumberShotRel);
-		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("camera_name"), CameraName);
-		InOutFinalFormatArgs.FilenameArguments.Add(TEXT("shot_name"), ShotName);
+		InOutFilenameArguments.Add(TEXT("frame_number"), FrameNumber);
+		InOutFilenameArguments.Add(TEXT("frame_number_shot"), FrameNumberShot);
+		InOutFilenameArguments.Add(TEXT("frame_number_rel"), FrameNumberRel);
+		InOutFilenameArguments.Add(TEXT("frame_number_shot_rel"), FrameNumberShotRel);
+		InOutFilenameArguments.Add(TEXT("camera_name"), CameraName);
+		InOutFilenameArguments.Add(TEXT("shot_name"), ShotName);
 
-		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceFrameNumber"), FrameNumber);
-		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/shotFrameNumber"), FrameNumberShot);
-		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceFrameNumberRelative"), FrameNumberRel);
-		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/shotFrameNumberRelative"), FrameNumberShotRel);
-		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/cameraName"), CameraName);
-		InOutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/shotName"), ShotName);
+		InOutFileMetadata.Add(TEXT("unreal/sequenceFrameNumber"), FrameNumber);
+		InOutFileMetadata.Add(TEXT("unreal/shotFrameNumber"), FrameNumberShot);
+		InOutFileMetadata.Add(TEXT("unreal/sequenceFrameNumberRelative"), FrameNumberRel);
+		InOutFileMetadata.Add(TEXT("unreal/shotFrameNumberRelative"), FrameNumberShotRel);
+		InOutFileMetadata.Add(TEXT("unreal/cameraName"), CameraName);
+		InOutFileMetadata.Add(TEXT("unreal/shotName"), ShotName);
 	}
 
 }
@@ -826,6 +827,7 @@ namespace UE
 				InFilenameArguments.Add(TEXT("job_name"), InJob->JobName);
 				InFileMetadata.Add(TEXT("unreal/jobName"), InJob->JobName);
 				InFileMetadata.Add(TEXT("unreal/jobAuthor"), GetJobAuthor(InJob));
+				InFileMetadata.Add(TEXT("unreal/jobComment"), InJob->Comment);
 			}
 		}
 
@@ -928,6 +930,34 @@ namespace UE
 			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevRot/pitch"), *CamName), FString::SanitizeFloat(InPrevRot.Pitch));
 			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevRot/yaw"), *CamName), FString::SanitizeFloat(InPrevRot.Yaw));
 			InOutMetadata.Add(FString::Printf(TEXT("unreal/%s/prevRot/roll"), *CamName), FString::SanitizeFloat(InPrevRot.Roll));
+		}
+
+
+		bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting)
+		{
+			// Check if there is space on the output disk.
+			bool bIsFreeSpace = true;
+
+			uint64 TotalNumberOfBytes, NumberOfFreeBytes;
+			if (FPlatformMisc::GetDiskTotalAndFreeSpace(InFilename, TotalNumberOfBytes, NumberOfFreeBytes))
+			{
+				bIsFreeSpace = NumberOfFreeBytes > 64 * 1024 * 1024; // 64mb minimum
+			}
+			// ToDO: Infinite loop possible.
+			return bIsFreeSpace && (bOverwriteExisting || IFileManager::Get().FileSize(InFilename) == -1);
+		}
+
+		FString GetPaddingFormatString(int32 InZeroPadCount, const int32 InFrameNumber)
+		{
+			// Printf takes the - sign into account when you specify the number of digits to pad. This
+			// means padding "3" to 4 digits becomes "0003", while "-3" becomes "-003". We combat this by
+			// incrementing the pad count for negative numbers by 1 so that you end up with "0003" and "-0003".
+			if (InFrameNumber < 0)
+			{
+				InZeroPadCount++;
+			}
+
+			return FString::Printf(TEXT("%0*d"), InZeroPadCount, InFrameNumber);
 		}
 
 	}

@@ -621,7 +621,7 @@ TSharedRef<SWidget> SMoviePipelineConfigEditor::OnGenerateSettingsMenu()
 	FMenuBuilder MenuBuilder(true, nullptr, Extender);
 
 	// Put the different categories into different sections
-	TArray<UClass*> SourceClasses = UE::MovieRenderPipeline::FindMoviePipelineSettingClasses();
+	TArray<UClass*> SourceClasses = UE::MovieRenderPipeline::FindMoviePipelineSettingClasses(UMoviePipelineSetting::StaticClass());
 
 	TMap<FString, TArray<UClass*>> CategorizedClasses;
 

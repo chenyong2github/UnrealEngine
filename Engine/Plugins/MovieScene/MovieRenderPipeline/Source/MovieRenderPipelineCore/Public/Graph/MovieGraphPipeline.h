@@ -33,6 +33,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Graph")
 	UMoviePipelineExecutorJob* GetCurrentJob() const { return CurrentJob; }
 
+	/**
+	* Returns the time this movie pipeline was initialized at.
+	*/
+	UFUNCTION(BlueprintPure, Category = "Movie Graph")
+	FDateTime GetInitializationTime() const { return GraphInitializationTime; }
+
+	/**
+	* Override the time this movie pipeline was initialized at. This can be used for render farms
+	* to ensure that jobs on all machines use the same date/time instead of each calculating it locally.
+	*
+	* Needs to be called after ::Initialize(...)
+	*
+	* @param InDateTime - The DateTime object to return for GetInitializationTime.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetInitializationTime(const FDateTime& InDateTime) { GraphInitializationTime = InDateTime; }
 
 public:
 	UMovieGraphConfig* GetRootGraphForShot(UMoviePipelineExecutorShot* InShot) const;
