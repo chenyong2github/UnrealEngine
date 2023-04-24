@@ -10,7 +10,6 @@ struct AIMODULE_API FSequentialIDBase
 	GENERATED_BODY()
 
 	FSequentialIDBase() = default;
-	FSequentialIDBase(const FSequentialIDBase& Other) = default;
 
 	explicit FSequentialIDBase(uint32 InID) : Value(InID) {}
 
