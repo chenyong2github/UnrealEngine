@@ -866,14 +866,6 @@ public:
 	
 	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct* StructDef) : FNiagaraTypeDefinition(StructDef, EAllowUnfriendlyStruct::Deny) {}
 
-	FORCEINLINE FNiagaraTypeDefinition(const FNiagaraTypeDefinition &Other)
-		: ClassStructOrEnum(Other.ClassStructOrEnum), UnderlyingType(Other.UnderlyingType), Flags(Other.Flags), Size(INDEX_NONE), Alignment(INDEX_NONE)
-#if WITH_EDITORONLY_DATA
-		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
-#endif
-	{
-	}
-
 	FORCEINLINE FNiagaraTypeDefinition(FProperty* Property, EAllowUnfriendlyStruct AllowUnfriendlyStruct)
 	{
 		if (Property->IsA(FFloatProperty::StaticClass())) { *this = FNiagaraTypeDefinition::GetFloatDef(); }
@@ -1836,15 +1828,6 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 
 	FNiagaraVariable()
 	{
-	}
-
-	FNiagaraVariable(const FNiagaraVariable &Other)
-		: FNiagaraVariableBase(Other)
-	{
-		if (Other.GetType().IsValid() && Other.IsDataAllocated())
-		{
-			SetData(Other.GetData());
-		}
 	}
 
 	FNiagaraVariable(const FNiagaraVariableBase& Other)
