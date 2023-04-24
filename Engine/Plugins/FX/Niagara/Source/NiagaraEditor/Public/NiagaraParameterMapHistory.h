@@ -65,6 +65,11 @@ struct FModuleScopedPin
 
 	const UEdGraphPin* Pin = nullptr;
 	FName ModuleName = NAME_None;
+
+	friend uint32 GetTypeHash(const FModuleScopedPin& ScopedPin)
+	{
+		return GetTypeHash(TTuple<const UEdGraphPin*, FName>(ScopedPin.Pin, ScopedPin.ModuleName));
+	}
 };
 
 struct FGraphTraversalHandle

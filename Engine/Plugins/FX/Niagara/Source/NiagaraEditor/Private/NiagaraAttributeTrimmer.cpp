@@ -15,11 +15,6 @@
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraScriptVariable.h"
 
-uint32 GetTypeHash(const FModuleScopedPin& ScopedPin)
-{
-	return GetTypeHash(TTuple<const UEdGraphPin*, FName>(ScopedPin.Pin, ScopedPin.ModuleName));
-}
-
 namespace NiagaraAttributeTrimming
 {
 	using FDependencySet = TSet<FModuleScopedPin>;
@@ -317,9 +312,10 @@ namespace NiagaraAttributeTrimming
 									continue;
 								}
 
-								// we want to exclude execution pins
+								// we want to exclude execution & parameter map pins because they terminate the subexpression
+								const bool IsParamMapPin = UEdGraphSchema_Niagara::PinToTypeDefinition(NodePin) == FNiagaraTypeDefinition::GetParameterMapDef();
 								const bool IsExecPin = NodePin->PinName == UNiagaraNodeParameterMapBase::SourcePinName;
-								if (IsExecPin)
+								if (IsParamMapPin || IsExecPin)
 								{
 									continue;
 								}
