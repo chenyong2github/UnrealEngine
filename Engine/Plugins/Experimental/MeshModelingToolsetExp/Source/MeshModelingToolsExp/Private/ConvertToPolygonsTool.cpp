@@ -22,6 +22,7 @@
 #include "Util/ColorConstants.h"
 #include "Selections/GeometrySelectionUtil.h"
 #include "Selection/StoredMeshSelectionUtil.h"
+#include "ToolTargetManager.h"
 
 #include "Polygroups/PolygroupsGenerator.h"
 
@@ -38,6 +39,13 @@ using namespace UE::Geometry;
 USingleTargetWithSelectionTool* UConvertToPolygonsToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	return NewObject<UConvertToPolygonsTool>(SceneState.ToolManager);
+}
+
+bool UConvertToPolygonsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return USingleTargetWithSelectionToolBuilder::CanBuildTool(SceneState) &&
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return !ToolBuilderUtil::IsVolume(Component); }) >= 1;
 }
 
 class FConvertToPolygonsOp : public  FDynamicMeshOperator

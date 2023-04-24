@@ -36,6 +36,8 @@
 #include "CanvasItem.h"
 #include "Engine/Engine.h"  // for GEngine->GetSmallFont()
 #include "SceneView.h"
+#include "ToolTargetManager.h"
+#include "ToolBuilderUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshGroupPaintTool)
 
@@ -63,7 +65,12 @@ UMeshSurfacePointTool* UMeshGroupPaintToolBuilder::CreateNewTool(const FToolBuil
 	SculptTool->SetWorld(SceneState.World);
 	return SculptTool;
 }
-
+bool UMeshGroupPaintToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return UMeshSurfacePointMeshEditingToolBuilder::CanBuildTool(SceneState) &&
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return !ToolBuilderUtil::IsVolume(Component); }) >= 1;
+}
 
 /*
  * Properties

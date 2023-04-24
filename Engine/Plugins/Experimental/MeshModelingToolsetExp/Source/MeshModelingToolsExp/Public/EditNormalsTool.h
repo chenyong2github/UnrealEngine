@@ -29,8 +29,8 @@ class MESHMODELINGTOOLSEXP_API UEditNormalsToolBuilder : public UMultiSelectionM
 
 public:
 	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
-
 	virtual void InitializeNewTool(UMultiSelectionMeshEditingTool* NewTool, const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 

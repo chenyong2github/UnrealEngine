@@ -16,6 +16,7 @@
 #include "ModelingToolTargetUtil.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
+#include "ToolTargetManager.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
@@ -31,7 +32,13 @@ USingleSelectionMeshEditingTool* URevolveBoundaryToolBuilder::CreateNewTool(cons
 {
 	return NewObject<URevolveBoundaryTool>(SceneState.ToolManager);
 }
-
+bool URevolveBoundaryToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	// We're disallowing volumes here because volumes won't have open boundaries intrinsically.
+	return USingleSelectionMeshEditingToolBuilder::CanBuildTool(SceneState) &&
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return !ToolBuilderUtil::IsVolume(Component); }) >= 1;
+}
 
 // Operator factory
 

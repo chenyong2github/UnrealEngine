@@ -12,6 +12,7 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 #include "DynamicMesh/NonManifoldMappingSupport.h"
+#include "ToolTargetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshAttributePaintTool)
 
@@ -163,6 +164,13 @@ UMeshSurfacePointTool* UMeshAttributePaintToolBuilder::CreateNewTool(const FTool
 	}
 
 	return SelectionTool;
+}
+
+bool UMeshAttributePaintToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return UMeshSurfacePointMeshEditingToolBuilder::CanBuildTool(SceneState) &&
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return !ToolBuilderUtil::IsVolume(Component); }) >= 1;
 }
 
 

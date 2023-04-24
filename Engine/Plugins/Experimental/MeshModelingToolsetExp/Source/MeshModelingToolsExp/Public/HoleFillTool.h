@@ -33,6 +33,7 @@ class MESHMODELINGTOOLSEXP_API UHoleFillToolBuilder : public USingleSelectionMes
 
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 /*

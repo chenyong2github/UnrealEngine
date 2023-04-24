@@ -16,6 +16,7 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API UEditMeshMaterialsToolBuilder : public 
 
 public:
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 

@@ -26,6 +26,7 @@ class MESHMODELINGTOOLSEXP_API URevolveBoundaryToolBuilder : public USingleSelec
 
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 UCLASS()

@@ -16,6 +16,7 @@
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
+#include "ToolTargetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HoleFillTool)
 
@@ -30,6 +31,14 @@ using namespace UE::Geometry;
 USingleSelectionMeshEditingTool* UHoleFillToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	return NewObject<UHoleFillTool>(SceneState.ToolManager);
+}
+
+bool UHoleFillToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	// We're disallowing volumes because they shouldn't have holes to fill intrinsically.
+	return USingleSelectionMeshEditingToolBuilder::CanBuildTool(SceneState) &&
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return !ToolBuilderUtil::IsVolume(Component); }) >= 1;
 }
 
 /*

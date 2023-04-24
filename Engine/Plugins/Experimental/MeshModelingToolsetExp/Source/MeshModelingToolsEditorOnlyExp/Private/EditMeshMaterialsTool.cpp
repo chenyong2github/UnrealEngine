@@ -15,6 +15,7 @@
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
 #include "Materials/MaterialInterface.h"
+#include "ToolTargetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EditMeshMaterialsTool)
 
@@ -80,7 +81,12 @@ UMeshSurfacePointTool* UEditMeshMaterialsToolBuilder::CreateNewTool(const FToolB
 	return SelectionTool;
 }
 
-
+bool UEditMeshMaterialsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return UMeshSelectionToolBuilder::CanBuildTool(SceneState) &&
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return !ToolBuilderUtil::IsVolume(Component); }) >= 1;
+}
 
 
 void UEditMeshMaterialsTool::Setup()

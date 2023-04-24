@@ -30,8 +30,8 @@ class MESHMODELINGTOOLSEXP_API UConvertToPolygonsToolBuilder : public USingleTar
 	GENERATED_BODY()
 public:
 	virtual USingleTargetWithSelectionTool* CreateNewTool(const FToolBuilderState & SceneState) const override;
-
 	virtual bool RequiresInputSelection() const override { return false; }
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 
