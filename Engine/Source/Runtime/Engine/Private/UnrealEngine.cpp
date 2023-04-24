@@ -208,7 +208,6 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "GeneralProjectSettings.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "ProfilingDebugging/TracingProfiler.h"
 #include "Engine/CoreSettings.h"
 #include "IEyeTrackerModule.h"
 #include "Interfaces/IPluginManager.h"
@@ -12339,21 +12338,6 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			MessageY += FontSizeY;
 		}
 #endif // FRAMEPRO_ENABLED
-
-#if TRACING_PROFILER
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (FTracingProfiler::Get()->IsCapturing())
-		{
-			SmallTextItem.SetColor(FLinearColor(0.0f, 1.0f, 0.0f, 1.0f));
-			SmallTextItem.Text = FText::Format(LOCTEXT("TracingProfilerFrameFmt", "TracingProfiler frame: {0}"), FTracingProfiler::Get()->GetCaptureFrameNumber());
-
-			MessageY += 250.0f;
-			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
-			MessageY += FontSizeY;
-
-		}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
 
 #if !(UE_BUILD_TEST)
 		if (GEngine->bEnableOnScreenDebugMessagesDisplay && GEngine->bEnableOnScreenDebugMessages)

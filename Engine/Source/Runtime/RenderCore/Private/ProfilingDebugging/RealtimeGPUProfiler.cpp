@@ -2,7 +2,6 @@
 
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "ProfilingDebugging/TracingProfiler.h"
 #include "RHI.h"
 #include "RenderCore.h"
 #include "RenderingThread.h"
@@ -607,24 +606,6 @@ public:
 				}
 #endif
 			}
-
-#if TRACING_PROFILER
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			const bool bTracingStatsEnabled = !!CVarGPUTracingStatsEnabled.GetValueOnRenderThread();
-			if (bTracingStatsEnabled)
-			{
-				for (uint32 GPUIndex : Event.GetGPUMask())
-				{
-					FTracingProfiler::Get()->AddGPUEvent(
-						Event.GetName(),
-						Event.GetStartResultMicroseconds(GPUIndex),
-						Event.GetEndResultMicroseconds(GPUIndex),
-						GPUIndex,
-						Event.GetFrameNumber());
-				}
-			}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif //TRACING_PROFILER
 		}
 
 #if STATS

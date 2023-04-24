@@ -259,7 +259,6 @@ class FFeedbackContext;
 	#endif
 	#include "FramePro/FrameProProfiler.h"
 	#include "ProfilingDebugging/CsvProfiler.h"
-	#include "ProfilingDebugging/TracingProfiler.h"
 #endif
 
 #if defined(WITH_LAUNCHERCHECK) && WITH_LAUNCHERCHECK
@@ -2798,11 +2797,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		GLog->EnableBacklog(false);
 	}
 
-#if WITH_ENGINE && TRACING_PROFILER
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FTracingProfiler::Get()->Init();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
 #if WITH_ENGINE && FRAMEPRO_ENABLED
 	FFrameProProfiler::Initialize();
 #endif // FRAMEPRO_ENABLED
