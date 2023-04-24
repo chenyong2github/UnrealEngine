@@ -293,6 +293,12 @@ public:
 	void SetBoneDrawSize(float BoneDrawSize);
 	float GetBoneDrawSize() const;
 
+	void SetCustomAnimationSpeed(float AnimationSpeed);
+	float GetCustomAnimationSpeed() const;
+
+	void SetCustomTurnTableSpeed(float InCustomTurnTableSpeed);
+	float GetCustomTurnTableSpeed() const;
+
 	/** Function to set LOD model selection*/
 	void OnSetLODModel(int32 LODSelectionType);
 	void OnSetLODTrackDebuggedInstance();
@@ -515,6 +521,8 @@ private:
 	EAnimationPlaybackSpeeds::Type SelectedTurnTableSpeed;
 	/** Selected turn table mode */
 	EPersonaTurnTableMode::Type SelectedTurnTableMode;
+	/** Custom Animation speed in the viewport. Transient setting. */
+	float CustomTurnTableSpeed = 1.0f;
 
 	void OnSetTurnTableSpeed(int32 SpeedIndex);
 	void OnSetTurnTableMode(int32 ModeIndex);

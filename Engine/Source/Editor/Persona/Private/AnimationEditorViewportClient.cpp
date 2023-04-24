@@ -57,7 +57,7 @@ namespace {
 namespace EAnimationPlaybackSpeeds
 {
 	// Speed scales for animation playback, must match EAnimationPlaybackSpeeds::Type
-	float Values[EAnimationPlaybackSpeeds::NumPlaybackSpeeds] = { 0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f };
+	float Values[EAnimationPlaybackSpeeds::NumPlaybackSpeeds] = { 0.1f, 0.25f, 0.5f, 0.75f, 1.0f, 2.0f, 5.0f, 10.0f, 0.f };
 }
 
 #define LOCTEXT_NAMESPACE "FAnimationViewportClient"
@@ -2339,13 +2339,27 @@ void FAnimationViewportClient::SetPlaybackSpeedMode(EAnimationPlaybackSpeeds::Ty
 
 	if (GetWorld())
 	{
-		GetWorld()->GetWorldSettings()->TimeDilation = EAnimationPlaybackSpeeds::Values[AnimationPlaybackSpeedMode];
+		const float AnimationSpeed = (InMode == EAnimationPlaybackSpeeds::Custom)
+			? GetCustomAnimationSpeed()
+			: EAnimationPlaybackSpeeds::Values[AnimationPlaybackSpeedMode];
+		GetWorld()->GetWorldSettings()->TimeDilation = AnimationSpeed;
 	}
 }
 
 EAnimationPlaybackSpeeds::Type FAnimationViewportClient::GetPlaybackSpeedMode() const
 {
 	return AnimationPlaybackSpeedMode;
+}
+
+void FAnimationViewportClient::SetCustomAnimationSpeed(const float InCustomAnimationSpeed)
+{
+	CustomAnimationSpeed = InCustomAnimationSpeed;
+	SetPlaybackSpeedMode(EAnimationPlaybackSpeeds::Custom);
+}
+
+float FAnimationViewportClient::GetCustomAnimationSpeed() const
+{
+	return CustomAnimationSpeed;
 }
 
 TSharedPtr<class FAnimationEditorPreviewScene> FAnimationViewportClient::GetAnimPreviewScenePtr() const

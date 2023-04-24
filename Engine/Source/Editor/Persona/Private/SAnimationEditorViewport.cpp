@@ -1131,7 +1131,11 @@ void SAnimationEditorViewportTabBody::OnSetTurnTableSpeed(int32 SpeedIndex)
 	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
 	if (PreviewComponent)
 	{
-		PreviewComponent->TurnTableSpeedScaling = EAnimationPlaybackSpeeds::Values[SelectedTurnTableSpeed];
+		const float TurnTableSpeed = (SelectedTurnTableSpeed == EAnimationPlaybackSpeeds::Custom)
+			? GetCustomTurnTableSpeed()
+			: EAnimationPlaybackSpeeds::Values[SelectedTurnTableSpeed];
+
+		PreviewComponent->TurnTableSpeedScaling = TurnTableSpeed;
 	}
 }
 
@@ -1401,6 +1405,29 @@ float SAnimationEditorViewportTabBody::GetBoneDrawSize() const
 {
 	TSharedRef<FAnimationViewportClient> AnimViewportClient = StaticCastSharedRef<FAnimationViewportClient>(LevelViewportClient.ToSharedRef());
 	return AnimViewportClient->GetBoneDrawSize();
+}
+
+void SAnimationEditorViewportTabBody::SetCustomAnimationSpeed(float InCusteomAnimationSpeed)
+{
+	TSharedRef<FAnimationViewportClient> AnimViewportClient = StaticCastSharedRef<FAnimationViewportClient>(LevelViewportClient.ToSharedRef());
+	AnimViewportClient->SetCustomAnimationSpeed(InCusteomAnimationSpeed);
+}
+
+float SAnimationEditorViewportTabBody::GetCustomAnimationSpeed() const
+{
+	TSharedRef<FAnimationViewportClient> AnimViewportClient = StaticCastSharedRef<FAnimationViewportClient>(LevelViewportClient.ToSharedRef());
+	return AnimViewportClient->GetCustomAnimationSpeed();
+}
+
+void SAnimationEditorViewportTabBody::SetCustomTurnTableSpeed(float InCustomTurnTableSpeed)
+{
+	CustomTurnTableSpeed = InCustomTurnTableSpeed;
+	OnSetTurnTableSpeed(EAnimationPlaybackSpeeds::Custom);
+}
+
+float SAnimationEditorViewportTabBody::GetCustomTurnTableSpeed() const
+{
+	return CustomTurnTableSpeed;
 }
 
 void SAnimationEditorViewportTabBody::OnSetBoneDrawMode(int32 BoneDrawMode)

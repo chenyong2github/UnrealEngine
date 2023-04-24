@@ -60,10 +60,12 @@ namespace EAnimationPlaybackSpeeds
 		OneTenth = 0,
 		Quarter,
 		Half,
+		ThreeQuarters,
 		Normal,
 		Double,
 		FiveTimes,
 		TenTimes,
+		Custom,
 		NumPlaybackSpeeds
 	};
 
@@ -206,7 +208,11 @@ public:
 	/** Access Bone Draw size config option*/
 	void SetBoneDrawSize(const float InBoneDrawSize);
 	float GetBoneDrawSize() const;
-	
+
+	/** Access CustomAnimationSpeed config option*/
+	void SetCustomAnimationSpeed(const float InCustomAnimationSpeed);
+	float GetCustomAnimationSpeed() const;
+
 	/** Function to set Bone Draw  mode for the EBoneDrawType */
 	void SetBoneDrawMode(EBoneDrawMode::Type AxesMode);
 
@@ -477,6 +483,9 @@ private:
 	void HandlePreviewScenePostTick();
 
 private:
+	/** Custom Animation speed in the viewport. Transient setting. */
+	float CustomAnimationSpeed = 1.0f;
+
 	/** Size to draw bones in the viewport. Transient setting. */
 	float BoneDrawSize=1.0f;
 	

@@ -203,6 +203,52 @@ protected:
 	TWeakPtr<SAnimationEditorViewportTabBody> AnimViewportPtr;
 };
 
+//Class definition which represents widget to modify Bone Draw Size in viewport
+class SCusttomAnimationSpeedSetting : public SCompoundWidget
+{
+public:
+	/** Notification for numeric value change */
+	DECLARE_DELEGATE_OneParam(FOnCustomSpeedChanged, float);
+
+	SLATE_BEGIN_ARGS(SCusttomAnimationSpeedSetting) {}
+		SLATE_ARGUMENT(TWeakPtr<SAnimationEditorViewportTabBody>, AnimEditorViewport)
+		SLATE_ATTRIBUTE(float, CustomSpeed)
+		SLATE_EVENT(FOnCustomSpeedChanged, OnCustomSpeedChanged)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs )
+	{
+		AnimViewportPtr = InArgs._AnimEditorViewport;
+		CustomSpeed = InArgs._CustomSpeed;
+		OnCustomSpeedChanged = InArgs._OnCustomSpeedChanged;
+
+		this->ChildSlot
+		[
+			SNew(SBox)
+			.HAlign(HAlign_Right)
+			[
+				SNew(SBox)
+				.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+				.WidthOverride(100.0f)
+				[
+					SNew(SSpinBox<float>)
+					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.ToolTipText(LOCTEXT("AnimationCustomSpeed", "Set Custom Speed."))
+					.MinValue(0.f)
+					.MaxSliderValue(10.f)
+					.SupportDynamicSliderMaxValue(true)
+					.Value(CustomSpeed)
+					.OnValueChanged(OnCustomSpeedChanged)
+				]
+			]
+		];
+	}
+
+protected:
+	TWeakPtr<SAnimationEditorViewportTabBody> AnimViewportPtr;
+	TAttribute<float> CustomSpeed = 1.0f;
+	FOnCustomSpeedChanged OnCustomSpeedChanged;
+};
 ///////////////////////////////////////////////////////////
 // SAnimViewportToolBar
 
@@ -1129,6 +1175,17 @@ TSharedRef<SWidget> SAnimViewportToolBar::GeneratePlaybackMenu() const
 				{
 					InMenuBuilder.AddMenuEntry( Actions.PlaybackSpeedCommands[PlaybackSpeedIndex] );
 				}
+				TSharedPtr<SWidget> AnimSpeedWidget = SNew(SCusttomAnimationSpeedSetting)
+														.AnimEditorViewport(Viewport)
+														.CustomSpeed_Lambda([Viewport = Viewport]()
+															{
+																return Viewport.Pin()->GetCustomAnimationSpeed();
+															})
+														.OnCustomSpeedChanged_Lambda([Viewport = Viewport](float CustomSpeed)
+															{
+																return Viewport.Pin()->SetCustomAnimationSpeed(CustomSpeed);
+															});
+				InMenuBuilder.AddWidget(AnimSpeedWidget.ToSharedRef(), LOCTEXT("PlaybackMenu_Speed_Custom", "Custom Speed:"));
 			}
 			InMenuBuilder.EndSection();
 		}
@@ -1160,6 +1217,17 @@ void SAnimViewportToolBar::GenerateTurnTableMenu(FMenuBuilder& MenuBuilder) cons
 		{
 			MenuBuilder.AddMenuEntry(Actions.TurnTableSpeeds[i]);
 		}
+		TSharedPtr<SWidget> AnimSpeedWidget = SNew(SCusttomAnimationSpeedSetting)
+												.AnimEditorViewport(Viewport)
+												.CustomSpeed_Lambda([Viewport = Viewport]()
+													{
+														return Viewport.Pin()->GetCustomTurnTableSpeed();
+													})
+												.OnCustomSpeedChanged_Lambda([Viewport = Viewport](float CustomSpeed)
+													{
+														Viewport.Pin()->SetCustomTurnTableSpeed(CustomSpeed);
+													});
+		MenuBuilder.AddWidget(AnimSpeedWidget.ToSharedRef(), LOCTEXT("PlaybackMenu_Speed_Custom", "Custom Speed:"));
 	}
 	MenuBuilder.EndSection();
 	MenuBuilder.PopCommandList();
@@ -1205,7 +1273,7 @@ FText SAnimViewportToolBar::GetPlaybackMenuLabel() const
 		{
 			if (Viewport.Pin()->IsPlaybackSpeedSelected(i))
 			{
-				int32 NumFractionalDigits = (i == EAnimationPlaybackSpeeds::Quarter) ? 2 : 1;
+				const int32 NumFractionalDigits = (i == EAnimationPlaybackSpeeds::Quarter || i == EAnimationPlaybackSpeeds::ThreeQuarters) ? 2 : 1;
 
 				const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
 					.SetMinimumFractionalDigits(NumFractionalDigits)

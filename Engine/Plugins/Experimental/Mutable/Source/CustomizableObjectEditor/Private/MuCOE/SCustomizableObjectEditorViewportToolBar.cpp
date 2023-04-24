@@ -1174,7 +1174,7 @@ FText SCustomizableObjectEditorViewportToolBar::GetPlaybackMenuLabel() const
 	//		if (Viewport.Pin()->IsPlaybackSpeedSelected(i))
 	//		{
 	//			Label = FText::FromString(FString::Printf(
-	//				(i == EAnimationPlaybackSpeeds::Quarter) ? TEXT("x%.2f") : TEXT("x%.1f"),
+	//				(i == EAnimationPlaybackSpeeds::Quarter || i == EAnimationPlaybackSpeeds::ThreeQuarters) ? TEXT("x%.2f") : TEXT("x%.1f"),
 	//				EAnimationPlaybackSpeeds::Values[i]
 	//			));
 	//			break;
