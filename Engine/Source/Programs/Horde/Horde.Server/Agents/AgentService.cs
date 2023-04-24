@@ -819,15 +819,7 @@ namespace Horde.Server.Agents
 		/// <returns>List of leases matching the given criteria</returns>
 		public Task<List<ILease>> FindLeasesAsync(AgentId? agentId, SessionId? sessionId, DateTime? startTime, DateTime? finishTime, int index, int count)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan($"{nameof(AgentService)}.{nameof(FindLeasesAsync)}").StartActive();
-			scope.Span.SetTag("AgentId", agentId?.ToString());
-			scope.Span.SetTag("SessionId", sessionId?.ToString());
-			scope.Span.SetTag("StartTime", startTime?.ToString());
-			scope.Span.SetTag("FinishTime", finishTime?.ToString());
-			scope.Span.SetTag("Index", index);
-			scope.Span.SetTag("Count", count);
-			
-			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AgentService)}.{nameof(FindLeasesAsync)}-ot");
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AgentService)}.{nameof(FindLeasesAsync)}");
 			span.SetAttribute("AgentId", agentId?.ToString());
 			span.SetAttribute("SessionId", sessionId?.ToString());
 			span.SetAttribute("StartTime", startTime?.ToString());
