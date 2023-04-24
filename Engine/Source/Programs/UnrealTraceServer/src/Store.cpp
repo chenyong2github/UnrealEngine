@@ -205,7 +205,7 @@ FStore::FTrace::FTrace(const FPath& InPath)
 : Path(InPath)
 {
 	const FString Name = GetName();
-	Id = QuickStoreHash(*Name);
+	Id = QuickStoreHash(InPath.c_str());
 
 	std::error_code Ec;
 	// Calculate that trace's timestamp. Bias in seconds then convert to 0.1us.
