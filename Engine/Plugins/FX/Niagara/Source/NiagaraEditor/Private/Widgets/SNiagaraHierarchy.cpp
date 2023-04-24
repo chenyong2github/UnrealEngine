@@ -582,7 +582,17 @@ void SNiagaraHierarchy::Construct(const FArguments& InArgs, TObjectPtr<UNiagaraH
 			SNew(SButton)
 			.OnClicked_Lambda([this]()
 			{
-				HierarchyViewModel.Get()->AddCategory();
+				TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> SelectedItems;
+				HierarchyTreeView->GetSelectedItems(SelectedItems);
+
+				if(SelectedItems.Num() == 1 && SelectedItems[0]->GetData()->IsA<UNiagaraHierarchyCategory>())
+				{
+					HierarchyViewModel.Get()->AddCategory(SelectedItems[0]);
+				}
+				else
+				{
+					HierarchyViewModel.Get()->AddCategory(HierarchyViewModel->GetHierarchyRootViewModel());
+				}
 				return FReply::Handled();
 			})
 			.ButtonStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.HierarchyEditor.ButtonStyle")
@@ -1268,7 +1278,7 @@ void SNiagaraHierarchy::OnItemAdded(TSharedPtr<FNiagaraHierarchyItemViewModelBas
 	if(AddedItem->GetData()->IsA<UNiagaraHierarchyItem>() || AddedItem->GetData()->IsA<UNiagaraHierarchyCategory>())
 	{
 		HierarchyTreeView->RequestTreeRefresh();
-		HierarchyTreeView->SetSelection(AddedItem);
+		NavigateToHierarchyItem(AddedItem);
 	}
 	else if(AddedItem->GetData()->IsA<UNiagaraHierarchySection>())
 	{

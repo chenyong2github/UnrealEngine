@@ -283,7 +283,7 @@ public:
 	 */
 	void FixupSectionLinkage();
 private:
-	UPROPERTY(EditAnywhere, Category = "Category")
+	UPROPERTY()
 	FName Category;
 
 	/** The tooltip used when the user is hovering this category */
@@ -312,7 +312,7 @@ public:
 
 	virtual FString ToString() const override { return Section.ToString(); }
 private:
-	UPROPERTY(EditAnywhere, Category = "Section")
+	UPROPERTY()
 	FName Section;
 
 	/** The tooltip used when the user is hovering this section */
@@ -393,7 +393,7 @@ public:
 	void Initialize();
 	void Finalize();
 	
-	void AddCategory() const;
+	void AddCategory(TSharedPtr<FNiagaraHierarchyItemViewModelBase> CategoryParent) const;
 	void AddSection() const;
 
 	NIAGARAEDITOR_API void DeleteItemWithIdentity(FNiagaraHierarchyIdentity Identity);
@@ -687,8 +687,8 @@ protected:
 
 	/** Should return true if the given drag drop operation is allowed to succeed. */
 	virtual FCanPerformActionResults CanDropOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase>, EItemDropZone ItemDropZone);
-
-	/** Override this to handle drop-on logic. */
+	
+	/** Override this to handle drop-on logic. This is called when an item has been dropped on the item that has implemented this function. */
 	virtual void OnDroppedOnInternal(TSharedPtr<FNiagaraHierarchyItemViewModelBase>, EItemDropZone ItemDropZone) { }
 
 	/** Can be overridden to support custom sections.

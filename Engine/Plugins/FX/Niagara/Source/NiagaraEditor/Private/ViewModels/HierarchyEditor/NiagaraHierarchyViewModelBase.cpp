@@ -274,24 +274,60 @@ FNiagaraHierarchyItemViewModelBase::FCanPerformActionResults FNiagaraHierarchyCa
 	
 	TArray<TSharedPtr<FNiagaraHierarchyCategoryViewModel>> TargetChildrenCategories;
 	GetChildrenViewModelsForType<UNiagaraHierarchyCategory, FNiagaraHierarchyCategoryViewModel>(TargetChildrenCategories);
-
+	
+	TArray<TSharedPtr<FNiagaraHierarchyCategoryViewModel>> SiblingCategories;
+	Parent.Pin()->GetChildrenViewModelsForType<UNiagaraHierarchyCategory, FNiagaraHierarchyCategoryViewModel>(SiblingCategories);
+	
 	// we only allow drops if some general conditions are fulfilled
 	if(DraggedItem->GetData() != GetData() &&
 		(!DraggedItem->HasParent(AsShared(), false) || ItemDropZone != EItemDropZone::OntoItem)  &&
 		!HasParent(DraggedItem, true))
 	{
-		// categories can be dropped on categories, but only if the resulting sibling categories have different names
+		// categories can be dropped on categories, but only if the resulting sibling categories or children categories have different names
 		if(DraggedItem->GetData()->IsA<UNiagaraHierarchyCategory>())
 		{
-			Results.bCanPerform =
-			(
-				(ItemDropZone == EItemDropZone::OntoItem && !TargetChildrenCategories.ContainsByPredicate([DraggedItem](TSharedPtr<FNiagaraHierarchyCategoryViewModel> HierarchyCategoryViewModel)
+			if(ItemDropZone != EItemDropZone::OntoItem)
+			{
+				bool bContainsSiblingWithSameName = SiblingCategories.ContainsByPredicate([DraggedItem](TSharedPtr<FNiagaraHierarchyCategoryViewModel> HierarchyCategoryViewModel)
 					{
 						return DraggedItem->ToString() == HierarchyCategoryViewModel->ToString();
-					}))
-					||
-				(ItemDropZone != EItemDropZone::OntoItem && DraggedItem->ToString() != ToString())
-			);
+					});
+
+				if(bContainsSiblingWithSameName)
+				{
+					Results.bCanPerform = false;
+					Results.CanPerformMessage = LOCTEXT("CantDropCategoryOnCategorySameSiblingNames", "A category of the same name already exists here, potentially in a different section. Please rename your category first.");
+					return Results;
+				}
+
+				// if we are making a category a sibling of another at the root level, the section will be set to the currently active section. Let that be known.
+				if(Parent.Pin()->GetData()->IsA<UNiagaraHierarchyRoot>())
+				{
+					UNiagaraHierarchyCategory* DraggedCategory = Cast<UNiagaraHierarchyCategory>(DraggedItem->GetDataMutable());
+					if(DraggedCategory->GetSection() != HierarchyViewModel->GetActiveHierarchySectionData())
+					{
+						FText BaseMessage = LOCTEXT("CategorySectionWillUpdateDueToDrop", "The section of the category will change to {0} after the drop");
+						Results.CanPerformMessage = FText::FormatOrdered(BaseMessage, HierarchyViewModel->GetActiveHierarchySectionData() == nullptr ? FText::FromString("All") : HierarchyViewModel->GetActiveHierarchySectionData()->GetSectionNameAsText());
+					}
+				}
+			}
+			else
+			{
+				bool bContainsChildrenCategoriesWithSameName = TargetChildrenCategories.ContainsByPredicate([DraggedItem](TSharedPtr<FNiagaraHierarchyCategoryViewModel> HierarchyCategoryViewModel)
+					{
+						return DraggedItem->ToString() == HierarchyCategoryViewModel->ToString();
+					});
+
+				if(bContainsChildrenCategoriesWithSameName)
+				{
+					Results.bCanPerform = false;
+					Results.CanPerformMessage = LOCTEXT("CantDropCategoryOnCategorySameSiblingNames", "A sub-category of the same name already exists! Please rename your category first.");
+					return Results;
+				}
+			}
+
+			Results.bCanPerform = true;
+			return Results;
 		}
 		else if(DraggedItem->GetData()->IsA<UNiagaraHierarchyItem>())
 		{
@@ -1444,12 +1480,14 @@ void FNiagaraHierarchyCategoryViewModel::OnDroppedOnInternal(TSharedPtr<FNiagara
 	}
 }
 
-void UNiagaraHierarchyViewModelBase::AddCategory() const
+void UNiagaraHierarchyViewModelBase::AddCategory(TSharedPtr<FNiagaraHierarchyItemViewModelBase> CategoryParent) const
 {
-	TSharedPtr<FNiagaraHierarchyItemViewModelBase> ViewModel = HierarchyRootViewModel->AddNewItem(UNiagaraHierarchyCategory::StaticClass());
+	TSharedPtr<FNiagaraHierarchyItemViewModelBase> ViewModel = CategoryParent->AddNewItem(UNiagaraHierarchyCategory::StaticClass());
 
-	if(UNiagaraHierarchyCategory* Category = ViewModel->GetDataMutable<UNiagaraHierarchyCategory>())
+	if(ensure(ViewModel.IsValid()))
 	{
+		UNiagaraHierarchyCategory* Category = CastChecked<UNiagaraHierarchyCategory>(ViewModel->GetDataMutable());
+		
 		TArray<UNiagaraHierarchyCategory*> SiblingCategories;
 		Category->GetTypedOuter<UNiagaraHierarchyItemBase>()->GetChildrenOfType<UNiagaraHierarchyCategory>(SiblingCategories);
 		
