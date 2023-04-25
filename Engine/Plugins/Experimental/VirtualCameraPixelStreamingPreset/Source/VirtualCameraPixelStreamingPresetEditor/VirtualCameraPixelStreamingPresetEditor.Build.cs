@@ -6,6 +6,7 @@ public class VirtualCameraPixelStreamingPresetEditor : ModuleRules
 {
 	public VirtualCameraPixelStreamingPresetEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
+		ShortName = "VCamPSPresetEditor";
 		DefaultBuildSettings = BuildSettingsVersion.V2;
 
 		PrivateDependencyModuleNames.AddRange(
