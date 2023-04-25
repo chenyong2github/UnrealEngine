@@ -75,9 +75,9 @@ void FSkeletalMeshModelingToolsModule::RegisterMenusAndToolbars()
 			if (Context && Context->SkeletalMeshEditor.IsValid())
 			{
 				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
-				    FSkeletalMeshModelingToolsCommands::Get().ToggleModelingToolsMode,
-					LOCTEXT("SkeletalMeshEditorModelingMode", "Modeling Tools"),
-				    LOCTEXT("SkeletalMeshEditorModelingModeTooltip", "Opens the Modeling Tools palette that provides selected mesh modification tools."),
+				    FSkeletalMeshModelingToolsCommands::Get().ToggleEditingToolsMode,
+					LOCTEXT("SkeletalMeshEditorModelingMode", "Editing Tools"),
+				    LOCTEXT("SkeletalMeshEditorModelingModeTooltip", "Opens the Editing Tools palette that provides selected skeletal mesh modification tools, including skeleton, skin weights and attributes editing."),
 				    FSlateIcon("ModelingToolsStyle", "LevelEditor.ModelingToolsMode")));
 			}
 		}));
@@ -114,29 +114,29 @@ TSharedRef<FExtender> FSkeletalMeshModelingToolsModule::ExtendSkelMeshEditorTool
 
 	TWeakPtr<ISkeletalMeshEditor> Ptr(InSkeletalMeshEditor);
 
-	InCommandList->MapAction(FSkeletalMeshModelingToolsCommands::Get().ToggleModelingToolsMode,
-	    FExecuteAction::CreateRaw(this, &FSkeletalMeshModelingToolsModule::OnToggleModelingToolsMode, Ptr),
+	InCommandList->MapAction(FSkeletalMeshModelingToolsCommands::Get().ToggleEditingToolsMode,
+	    FExecuteAction::CreateRaw(this, &FSkeletalMeshModelingToolsModule::OnToggleEditingToolsMode, Ptr),
 	    FCanExecuteAction(),
-	    FIsActionChecked::CreateRaw(this, &FSkeletalMeshModelingToolsModule::IsModelingToolModeActive, Ptr));
+	    FIsActionChecked::CreateRaw(this, &FSkeletalMeshModelingToolsModule::IsEditingToolModeActive, Ptr));
 
 	return ToolbarExtender.ToSharedRef();
 }
 
 
-bool FSkeletalMeshModelingToolsModule::IsModelingToolModeActive(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const
+bool FSkeletalMeshModelingToolsModule::IsEditingToolModeActive(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor) const
 {
 	TSharedPtr<ISkeletalMeshEditor> SkeletalMeshEditor = InSkeletalMeshEditor.Pin();
 	return SkeletalMeshEditor.IsValid() && SkeletalMeshEditor->GetEditorModeManager().IsModeActive(USkeletalMeshModelingToolsEditorMode::Id);
 }
 
 
-void FSkeletalMeshModelingToolsModule::OnToggleModelingToolsMode(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor)
+void FSkeletalMeshModelingToolsModule::OnToggleEditingToolsMode(TWeakPtr<ISkeletalMeshEditor> InSkeletalMeshEditor)
 {
 	TSharedPtr<ISkeletalMeshEditor> SkeletalMeshEditor = InSkeletalMeshEditor.Pin();
 	if (SkeletalMeshEditor.IsValid())
 	{
 		FEditorModeTools& EditorModeManager = SkeletalMeshEditor->GetEditorModeManager();
-		if (!IsModelingToolModeActive(InSkeletalMeshEditor))
+		if (!IsEditingToolModeActive(InSkeletalMeshEditor))
 		{
 			EditorModeManager.ActivateMode(USkeletalMeshModelingToolsEditorMode::Id, true);
 

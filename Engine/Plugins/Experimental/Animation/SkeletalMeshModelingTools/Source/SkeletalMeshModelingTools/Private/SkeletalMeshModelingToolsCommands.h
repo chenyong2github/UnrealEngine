@@ -23,8 +23,8 @@ public:
 	virtual void RegisterCommands() override;
 	static const FSkeletalMeshModelingToolsCommands& Get();
 
-	// Modeling tools commands
-	TSharedPtr<FUICommandInfo> ToggleModelingToolsMode;
+	// Editing tools commands
+	TSharedPtr<FUICommandInfo> ToggleEditingToolsMode;
 };
 
 class FSkeletalMeshModelingToolsActionCommands : public TInteractiveToolCommands<FSkeletalMeshModelingToolsActionCommands>
