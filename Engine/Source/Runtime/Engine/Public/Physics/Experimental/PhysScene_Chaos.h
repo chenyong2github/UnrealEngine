@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Tickable.h"
+#include "EventsData.h"
 #include "Physics/PhysScene.h"
 #include "GameFramework/Actor.h"
 #include "PhysicsPublic.h"
@@ -246,7 +247,7 @@ public:
 
 private:
 	UPROPERTY()
-	TArray<UPrimitiveComponent*> CollisionEventRegistrations;
+	TSet<UPrimitiveComponent*> CollisionEventRegistrations;
 
 	// contains the set of properties that uniquely identifies a reported collision
 	// Note that order matters, { Body0, Body1 } is not the same as { Body1, Body0 }
@@ -274,6 +275,7 @@ private:
 	TArray<FCollisionNotifyInfo> PendingCollisionNotifies;
 
 	// Chaos Event Handlers
+	void HandleEachCollisionEvent(const TArray<int32>& CollisionIndices, IPhysicsProxyBase* PhysicsProxy0, Chaos::FCollisionDataArray const& CollisionData, Chaos::FReal MinDeltaVelocityThreshold);
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
 
 	void DispatchPendingCollisionNotifies();
