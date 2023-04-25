@@ -613,11 +613,6 @@ namespace mu
 			}
 		}
 
-		inline MeshBufferIteratorConst( const MeshBufferIteratorConst& other )
-			: UntypedMeshBufferIteratorConst( other )
-		{
-		}
-
 		inline const vec<CTYPE,COMPONENTS>& operator*() const
 		{
 			return *reinterpret_cast< const vec<CTYPE,COMPONENTS>* >( m_pBuf );
