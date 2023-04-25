@@ -275,12 +275,6 @@ struct FWorldPartitionStreamingQuerySource
 		TargetGrids = Other.TargetGrids;
 		TargetHLODLayers = Other.TargetHLODLayers;
 		Shapes = Other.Shapes;
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TargetGrid = Other.TargetGrid;
-		TargetHLODLayer = Other.TargetHLODLayer;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 		return *this;
 	}
 
@@ -338,17 +332,6 @@ struct FWorldPartitionStreamingQuerySource
 		{
 			FStreamingSourceShapeHelper::ForEachShape(InGridLoadingRange, bUseGridLoadingRange ? InGridLoadingRange : Radius, bInProjectIn2D, Location, Rotation, Shapes, InOperation);
 		}
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if(!TargetGrid.IsNone() || !TargetHLODLayer.IsNull())
-		{
-
-			if (FStreamingSourceShapeHelper::IsSourceAffectingGrid({ TargetGrid }, { TargetHLODLayers }, TargetBehavior, InGridName, InGridHLODLayer))
-			{
-				FStreamingSourceShapeHelper::ForEachShape(InGridLoadingRange, bUseGridLoadingRange ? InGridLoadingRange : Radius, bInProjectIn2D, Location, Rotation, Shapes, InOperation);
-			}
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 };
 
@@ -385,6 +368,8 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		, bRemote(false)
 		, Hash2D(0)
 		, Hash3D(0)
+		, OldLocation(FVector::ZeroVector)
+		, OldRotation(FRotator::ZeroRotator)
 	{}
 
 	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation, EStreamingSourceTargetState InTargetState, bool bInBlockOnSlowLoading, EStreamingSourcePriority InPriority, bool bRemote, float InVelocity = 0.f)
@@ -401,6 +386,8 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		, bRemote(bRemote)
 		, Hash2D(0)
 		, Hash3D(0)
+		, OldLocation(InLocation)
+		, OldRotation(InRotation)
 	{}
 
 	// Define Copy Constructor to avoid deprecation warnings
@@ -427,12 +414,6 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		bRemote = Other.bRemote;
 		Hash2D = Other.Hash2D;
 		Hash3D = Other.Hash3D;
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TargetGrid = Other.TargetGrid;
-		TargetHLODLayer = Other.TargetHLODLayer;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 		return *this;
 	}
 	
@@ -454,7 +435,7 @@ struct ENGINE_API FWorldPartitionStreamingSource
 
 	/** Source location. */
 	FVector Location;
-	
+
 	/** Source orientation (can impact streaming cell prioritization). */
 	FRotator Rotation;
 
@@ -476,15 +457,9 @@ struct ENGINE_API FWorldPartitionStreamingSource
 	/** Defines how TargetGrids/TargetHLODLayers will be applied to this streaming source. */
 	EStreamingSourceTargetBehavior TargetBehavior;
 
-	UE_DEPRECATED(5.1, "Use TargetGrids instead.")
-	FName TargetGrid;
-
 	/** When set, this will change how this streaming source is applied to the provided runtime streaming grids based on the TargetBehavior. */
 	TSet<FName> TargetGrids;
 	
-	UE_DEPRECATED(5.1, "Use TargetHLODLayers")
-	FSoftObjectPath TargetHLODLayer;
-
 	/** When set, this will change how this streaming source is applied to the provided HLODLayers based on the TargetBehavior. */
 	TSet<FSoftObjectPath> TargetHLODLayers;
 
@@ -515,16 +490,6 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		{
 			FStreamingSourceShapeHelper::ForEachShape(InGridLoadingRange, InGridLoadingRange, bInProjectIn2D, Location, Rotation, Shapes, InOperation);
 		}
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (!TargetGrid.IsNone() || !TargetHLODLayer.IsNull())
-		{
-			if (FStreamingSourceShapeHelper::IsSourceAffectingGrid({ TargetGrid }, { TargetHLODLayers }, TargetBehavior, InGridName, InGridHLODLayer))
-			{
-				FStreamingSourceShapeHelper::ForEachShape(InGridLoadingRange, InGridLoadingRange, bInProjectIn2D, Location, Rotation, Shapes, InOperation);
-			}
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FString ToString() const
@@ -547,7 +512,6 @@ struct ENGINE_API FWorldPartitionStreamingSource
 	static int32 GetRotationQuantization() { return RotationQuantization; }
 
 private:
-
 	static int32 LocationQuantization;
 	static int32 RotationQuantization;
 	static FAutoConsoleVariableRef CVarLocationQuantization;
@@ -556,6 +520,10 @@ private:
 	/** Hash of streaming source (used to detect changes) */
 	uint32 Hash2D;
 	uint32 Hash3D;
+
+	/** Source values used for hash computations. */
+	FVector OldLocation;
+	FRotator OldRotation;
 };
 
 /**

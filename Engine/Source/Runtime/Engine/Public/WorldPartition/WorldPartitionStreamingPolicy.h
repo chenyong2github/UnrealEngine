@@ -58,6 +58,8 @@ public:
 
 	EWorldPartitionStreamingPerformance GetStreamingPerformance() const { return StreamingPerformance; }
 
+	static bool IsUpdateStreamingOptimEnabled();
+
 protected:
 	virtual int32 SetCellsStateToLoaded(const TArray<const UWorldPartitionRuntimeCell*>& ToLoadCells);
 	virtual int32 SetCellsStateToActivated(const TArray<const UWorldPartitionRuntimeCell*>& ToActivateCells);
@@ -97,15 +99,13 @@ protected:
 
 	TSet<const UWorldPartitionRuntimeCell*> FrameActivateCells;
 	TSet<const UWorldPartitionRuntimeCell*> FrameLoadCells;
-	
+
 private:
 	// Update optimization
 	uint32 ComputeUpdateStreamingHash(bool bCanOptimizeUpdate) const;
 	int32 ComputeServerStreamingEnabledEpoch() const;
 
 	const TSet<FName>& GetServerDisallowedStreamingOutDataLayers();
-
-	static bool IsUpdateStreamingOptimEnabled();
 
 	// CVars to control update optimization
 	static bool IsUpdateOptimEnabled;

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "Misc/HashBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionStreamingSource)
@@ -21,39 +22,46 @@ FAutoConsoleVariableRef FWorldPartitionStreamingSource::CVarRotationQuantization
 
 void FWorldPartitionStreamingSource::UpdateHash()
 {
-	FHashBuilder HashBuilder;
-	HashBuilder << Name;
-	HashBuilder << FMath::FloorToInt(Location.X / FWorldPartitionStreamingSource::LocationQuantization);
-	HashBuilder << FMath::FloorToInt(Location.Y / FWorldPartitionStreamingSource::LocationQuantization);
-	HashBuilder << FMath::FloorToInt(Rotation.Yaw / FWorldPartitionStreamingSource::RotationQuantization);
-	HashBuilder << TargetState;
-	HashBuilder << bBlockOnSlowLoading;
-	HashBuilder << bReplay;
-	HashBuilder << bRemote;
-	HashBuilder << Priority;
-	HashBuilder << TargetBehavior;
-	for (FName Grid : TargetGrids)
+	// Update old values when they are changing enough, to avoid the case where we are on the edge of a quantization unit.
+	if (!UWorldPartitionStreamingPolicy::IsUpdateStreamingOptimEnabled() || 
+		(FVector::Dist(Location, OldLocation) > FWorldPartitionStreamingSource::LocationQuantization))
 	{
-		HashBuilder << Grid;
+		OldLocation = Location;
 	}
-	for (const FSoftObjectPath& HLODLayer : TargetHLODLayers)
-	{
-		HashBuilder << HLODLayer;
-	}
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	HashBuilder << TargetGrid;
-	HashBuilder << TargetHLODLayer;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	for (const FStreamingSourceShape& Shape : Shapes)
-	{
-		HashBuilder << Shape;
-	}
-	Hash2D = HashBuilder.GetHash();
 	
-	// Hash3D
-	HashBuilder << FMath::FloorToInt(Location.Z / FWorldPartitionStreamingSource::LocationQuantization);
-	HashBuilder << FMath::FloorToInt(Rotation.Pitch / FWorldPartitionStreamingSource::RotationQuantization);
-	HashBuilder << FMath::FloorToInt(Rotation.Roll / FWorldPartitionStreamingSource::RotationQuantization);
+	if (!UWorldPartitionStreamingPolicy::IsUpdateStreamingOptimEnabled() ||
+		(FMath::Abs(Rotation.Pitch - OldRotation.Pitch) > FWorldPartitionStreamingSource::RotationQuantization) ||
+		(FMath::Abs(Rotation.Yaw - OldRotation.Yaw) > FWorldPartitionStreamingSource::RotationQuantization) ||
+		(FMath::Abs(Rotation.Roll - OldRotation.Roll) > FWorldPartitionStreamingSource::RotationQuantization))
+	{
+		OldRotation = Rotation;
+	}
+
+	FHashBuilder HashBuilder;
+	HashBuilder	<< Name << TargetState << bBlockOnSlowLoading << bReplay << bRemote << Priority << TargetBehavior << TargetGrids << TargetHLODLayers << Shapes;
+
+	if (LocationQuantization)
+	{
+		HashBuilder << FMath::FloorToInt(OldLocation.X / LocationQuantization) << FMath::FloorToInt(OldLocation.Y / LocationQuantization);
+	}
+
+	if (RotationQuantization > 0)
+	{
+		HashBuilder << FMath::FloorToInt(OldRotation.Yaw / RotationQuantization);
+	}
+
+	Hash2D = HashBuilder.GetHash();
+
+	if (LocationQuantization)
+	{
+		HashBuilder << FMath::FloorToInt(OldLocation.Z / LocationQuantization);
+	}
+
+	if (RotationQuantization)
+	{
+		HashBuilder << FMath::FloorToInt(OldRotation.Pitch / RotationQuantization) << FMath::FloorToInt(OldRotation.Roll / RotationQuantization);
+	}
+
 	Hash3D = HashBuilder.GetHash();
 };
 

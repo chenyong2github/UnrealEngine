@@ -52,7 +52,7 @@ FAutoConsoleVariableRef UWorldPartitionStreamingPolicy::CVarUpdateOptimEnabled(
 	TEXT("if nothing relevant changed since last update."),
 	ECVF_Default);
 
-int32 UWorldPartitionStreamingPolicy::ForceUpdateFrameCount = 30;
+int32 UWorldPartitionStreamingPolicy::ForceUpdateFrameCount = 0;
 FAutoConsoleVariableRef UWorldPartitionStreamingPolicy::CVarForceUpdateFrameCount(
 	TEXT("wp.Runtime.UpdateStreaming.ForceUpdateFrameCount"),
 	UWorldPartitionStreamingPolicy::ForceUpdateFrameCount,
@@ -150,8 +150,8 @@ int32 UWorldPartitionStreamingPolicy::ComputeServerStreamingEnabledEpoch() const
 bool UWorldPartitionStreamingPolicy::IsUpdateStreamingOptimEnabled()
 {
 	return UWorldPartitionStreamingPolicy::IsUpdateOptimEnabled &&
-		(FWorldPartitionStreamingSource::GetLocationQuantization() > 0) &&
-		(FWorldPartitionStreamingSource::GetRotationQuantization() > 0);
+		((FWorldPartitionStreamingSource::GetLocationQuantization() > 0) ||
+		 (FWorldPartitionStreamingSource::GetRotationQuantization() > 0));
 };
 
 uint32 UWorldPartitionStreamingPolicy::ComputeUpdateStreamingHash(bool bCanOptimizeUpdate) const
@@ -274,7 +274,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		WorldPartition->RuntimeHash &&
 		!bForceFrameUpdate &&										// We garantee to update every N frame to force some internal updates like UpdateStreamingPerformance
 		IsUpdateStreamingOptimEnabled() &&							// Check CVars to see if optimization is enabled
-		!WorldPartition->IsServer() &&								// Don't optimize on the server
 		bLastUpdateCompletedLoadingAndActivation &&					// Don't optimize if last frame didn't process all cells to load/activate
 		!IsInBlockTillLevelStreamingCompleted() &&					// Don't optimize when inside UWorld::BlockTillLevelStreamingCompleted
 		ActivatedCells.GetPendingAddToWorldCells().IsEmpty(); 		// Don't optimize when remaining cells to add to world
