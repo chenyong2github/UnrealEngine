@@ -11,6 +11,8 @@
 #include "Misc/Guid.h"
 #include "WorldPartitionSubsystem.generated.h"
 
+class ULevel;
+class ULevelStreaming;
 class UWorldPartition;
 class UActorDescContainer;
 class FWorldPartitionActorDesc;
