@@ -159,4 +159,11 @@ private:
 };
 #endif // TS_PLATFORM_WINDOWS
 
+////////////////////////////////////////////////////////////////////////////////
+
+struct FGuid
+{
+	uint32 Bits[4];
+};
+
 /* vim: set noexpandtab : */
