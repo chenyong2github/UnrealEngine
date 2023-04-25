@@ -28,13 +28,13 @@ class FMacPlatformEditorModule
 		if (SettingsModule != nullptr)
 		{
 			SettingsModule->RegisterSettings("Project", "Platforms", "Mac",
-				LOCTEXT("TargetSettingsName", "Mac"),
-				LOCTEXT("TargetSettingsDescription", "Settings for Mac target platform"),
+				LOCTEXT("MacTargetSettingsName", "Mac"),
+				LOCTEXT("MacTargetSettingsDescription", "Settings for Mac target platform"),
 				GetMutableDefault<UMacTargetSettings>()
 			);
-            SettingsModule->RegisterSettings("Project", "Platforms", "Mac",
-                LOCTEXT("TargetSettingsName", "Xcode projects"),
-                LOCTEXT("TargetSettingsDescription", "Settings for Xcode projects"),
+            SettingsModule->RegisterSettings("Project", "Platforms", "Xcode",
+                LOCTEXT("XcodeProjectSettingsName", "Xcode projects"),
+                LOCTEXT("XcodeProjectSettingsDescription", "Settings for Xcode projects"),
                 GetMutableDefault<UXcodeProjectSettings>()
             );
 		}
