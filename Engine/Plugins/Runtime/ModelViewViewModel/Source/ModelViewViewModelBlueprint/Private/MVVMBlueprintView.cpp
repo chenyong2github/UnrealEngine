@@ -91,14 +91,6 @@ bool UMVVMBlueprintView::RenameViewModel(FName OldViewModelName, FName NewViewMo
 	return ViewModelContext != nullptr;
 }
 
-void UMVVMBlueprintView::SetViewModels(const TArray<FMVVMBlueprintViewModelContext>& ViewModelContexts)
-{
-	AvailableViewModels = ViewModelContexts;
-
-	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint());
-	OnViewModelsUpdated.Broadcast();
-}
-
 const FMVVMBlueprintViewBinding* UMVVMBlueprintView::FindBinding(const UWidget* Widget, const FProperty* Property) const
 {
 	return const_cast<UMVVMBlueprintView*>(this)->FindBinding(Widget, Property);

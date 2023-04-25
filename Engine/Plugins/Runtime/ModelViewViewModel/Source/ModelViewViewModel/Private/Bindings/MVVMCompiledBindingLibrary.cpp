@@ -113,22 +113,15 @@ void FMVVMCompiledBindingLibrary::Load()
 			}
 		}
 	}
-
-#if !WITH_EDITOR
-	CompiledFieldNames.Reset(); // Once loaded, we do not need to keep that information.
-	CompiledFields.Reset();
-#endif
 }
 
 
-#if WITH_EDITOR
 void FMVVMCompiledBindingLibrary::Unload()
 {
 	LoadedProperties.Empty();
 	LoadedFunctions.Empty();
 	LoadedFieldIds.Empty();
 }
-#endif
 
 
 TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMCompiledBindingLibrary::Execute(UObject* InExecutionSource, const FMVVMVCompiledBinding& InBinding, EConversionFunctionType InFunctionType) const

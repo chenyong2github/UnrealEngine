@@ -322,6 +322,10 @@ class MODELVIEWVIEWMODEL_API UMVVMViewClass : public UWidgetBlueprintGeneratedCl
 public:
 	//~ Begin UWidgetBlueprintGeneratedClassExtension
 	virtual void Initialize(UUserWidget* UserWidget) override;
+	virtual void Destruct(UUserWidget* UserWidget) override;
+#if WITH_EDITOR
+	virtual void BeginDestroy() override;
+#endif
 	//~ End UWidgetBlueprintGeneratedClassExtension
 
 public:
@@ -366,6 +370,10 @@ private:
 		return MakeArrayView(CompiledBindings);
 	}
 
+#if WITH_EDITOR
+	void HandleBlueprintCompiled();
+#endif
+
 private:
 	/** Data to retrieve/create the sources (could be viewmodel, widget, ...). */
 	UPROPERTY()
@@ -380,11 +388,15 @@ private:
 	FMVVMCompiledBindingLibrary BindingLibrary;
 
 	/** */
+	int32 ViewCounter = 0;
+
+	/** */
 	UPROPERTY()
 	bool bInitializeAtConstruction = true;
 
-	/** */
-	bool bLoaded = false;
+#if WITH_EDITORONLY_DATA
+	FDelegateHandle BluerpintCompiledHandle;
+#endif
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

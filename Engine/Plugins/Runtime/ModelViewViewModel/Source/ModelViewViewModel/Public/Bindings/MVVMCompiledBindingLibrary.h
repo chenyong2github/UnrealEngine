@@ -293,11 +293,8 @@ public:
 
 	/** Fetch the FProperty and UFunction. */
 	void Load();
-
-#if WITH_EDITOR
 	/** Release the acquired FProperty and UFunction. */
 	void Unload();
-#endif
 
 	/**
 	 * Execute a binding, in one direction.

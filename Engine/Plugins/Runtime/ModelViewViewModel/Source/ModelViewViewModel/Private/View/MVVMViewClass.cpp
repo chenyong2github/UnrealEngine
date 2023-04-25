@@ -14,6 +14,13 @@
 #include "MVVMMessageLog.h"
 #include "MVVMSubsystem.h"
 
+#include <limits>
+
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewClass)
 
 
@@ -481,28 +488,77 @@ FString FMVVMViewClass_CompiledBinding::ToString(const FMVVMCompiledBindingLibra
 
 void UMVVMViewClass::Initialize(UUserWidget* UserWidget)
 {
+	++ViewCounter;
+	ensure(ViewCounter <= std::numeric_limits<int32>::max());
+
 	ensure(UserWidget->GetExtension<UMVVMView>() == nullptr);
 	UMVVMView* View = UserWidget->AddExtension<UMVVMView>();
 	if (ensure(View))
 	{
-		if (!bLoaded)
+		if (ViewCounter == 1)
 		{
 			BindingLibrary.Load();
-			bLoaded = true;
 		}
 
 		View->ConstructView(this);
 	}
+
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		BluerpintCompiledHandle = GEditor->OnBlueprintCompiled().AddUObject(this, &UMVVMViewClass::HandleBlueprintCompiled);
+	}
+#endif
 }
+
+
+void UMVVMViewClass::Destruct(UUserWidget* UserWidget)
+{
+	--ViewCounter;
+	ensure(ViewCounter >= 0);
+	if (ViewCounter == 0)
+	{
+		BindingLibrary.Unload();
+	}
+
+#if WITH_EDITOR
+	if (GEditor && BluerpintCompiledHandle.IsValid())
+	{
+		GEditor->OnBlueprintCompiled().Remove(BluerpintCompiledHandle);
+		BluerpintCompiledHandle.Reset();
+	}
+#endif
+}
+
+#if WITH_EDITOR
+void UMVVMViewClass::BeginDestroy()
+{
+	if (GEditor && BluerpintCompiledHandle.IsValid())
+	{
+		GEditor->OnBlueprintCompiled().Remove(BluerpintCompiledHandle);
+		BluerpintCompiledHandle.Reset();
+	}
+	Super::BeginDestroy();
+}
+
+void UMVVMViewClass::HandleBlueprintCompiled()
+{
+	// do not keep property alive of potential dead BP class.
+	if (ViewCounter > 0)
+	{
+		BindingLibrary.Unload();
+		BindingLibrary.Load();
+	}
+}
+#endif
 
 #if UE_WITH_MVVM_DEBUGGING
 void UMVVMViewClass::Log(FMVVMViewClass_SourceCreator::FToStringArgs SourceArgs, FMVVMViewClass_CompiledBinding::FToStringArgs BindingArgs) const
 {
-	bool bPreviousLoad = bLoaded;
-	if (!bLoaded)
+	bool bPreviousLoad = ViewCounter >= 0;
+	if (!bPreviousLoad)
 	{
 		const_cast<UMVVMViewClass*>(this)->BindingLibrary.Load();
-		const_cast<UMVVMViewClass*>(this)->bLoaded = true;
 	}
 
 	TStringBuilder<2048> Builder;
@@ -530,7 +586,6 @@ void UMVVMViewClass::Log(FMVVMViewClass_SourceCreator::FToStringArgs SourceArgs,
 	{
 #if WITH_EDITOR
 		const_cast<UMVVMViewClass*>(this)->BindingLibrary.Unload();
-		const_cast<UMVVMViewClass*>(this)->bLoaded = false;
 #endif
 	}
 }

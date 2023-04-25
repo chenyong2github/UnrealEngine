@@ -45,7 +45,6 @@ public:
 	bool RemoveViewModel(FGuid ViewModelId);
 	int32 RemoveViewModels(const TArrayView<FGuid> ViewModelIds);
 	bool RenameViewModel(FName OldViewModelName, FName NewViewModelName);
-	void SetViewModels(const TArray<FMVVMBlueprintViewModelContext>& ViewModelContexts);
 
 	const TArrayView<const FMVVMBlueprintViewModelContext> GetViewModels() const
 	{
