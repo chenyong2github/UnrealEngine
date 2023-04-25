@@ -32,7 +32,7 @@ namespace UE::VCamOutputRemoteSession::Private
 
 UVCamOutputRemoteSession::UVCamOutputRemoteSession()
 {
-	DisplayType = EVPWidgetDisplayType::PostProcess;
+	DisplayType = EVPWidgetDisplayType::PostProcessSceneViewExtension;
 	InitViewTargetPolicyInSubclass();
 }
 
@@ -228,14 +228,18 @@ void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChan
 		if (GetUMGClass() && GetUMGWidget()) 
 		{
 			TSharedPtr<SVirtualWindow> InputWindow;
-
+			
 			// If we are rendering from a ComposureOutputProvider, we need to get the InputWindow from that UMG, not the one in the RemoteSessionOutputProvider
 			if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(GetOtherOutputProviderByIndex(FromComposureOutputProviderIndex)))
 			{
 				if (UVPFullScreenUserWidget* ComposureUMGWidget = ComposureProvider->GetUMGWidget())
 				{
-					InputWindow = ComposureUMGWidget->PostProcessDisplayType.GetSlateWindow();
-					UE_LOG(LogVCamOutputProvider, Log, TEXT("InputChannel callback - Routing input to active viewport with Composure UMG"));
+					const EVPWidgetDisplayType WidgetDisplayType = ComposureUMGWidget->GetDisplayType(GetWorld());
+					if (ensure(UVPFullScreenUserWidget::DoesDisplayTypeUsePostProcessSettings(WidgetDisplayType)))
+					{
+						InputWindow = ComposureUMGWidget->GetPostProcessDisplayTypeSettingsFor(WidgetDisplayType)->GetSlateWindow();
+						UE_LOG(LogVCamOutputProvider, Log, TEXT("InputChannel callback - Routing input to active viewport with Composure UMG"));
+					}
 				}
 				else
 				{
@@ -244,7 +248,8 @@ void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChan
 			}
 			else
 			{
-				InputWindow = GetUMGWidget()->PostProcessDisplayType.GetSlateWindow();
+				checkf(UVPFullScreenUserWidget::DoesDisplayTypeUsePostProcessSettings(DisplayType), TEXT("DisplayType not set up correctly in constructor!"));
+				InputWindow = GetUMGWidget()->GetPostProcessDisplayTypeSettingsFor(DisplayType)->GetSlateWindow();
 				UE_LOG(LogVCamOutputProvider, Log, TEXT("InputChannel callback - Routing input to active viewport with UMG"));
 			}
 

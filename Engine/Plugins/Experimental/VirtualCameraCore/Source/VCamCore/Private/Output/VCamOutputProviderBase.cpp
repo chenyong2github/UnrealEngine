@@ -192,14 +192,17 @@ void UVCamOutputProviderBase::CreateUMG()
 
 	UMGWidget = NewObject<UVPFullScreenUserWidget>(this, UVPFullScreenUserWidget::StaticClass());
 	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
-	UMGWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
+	if (UMGWidget->DoesDisplayTypeUsePostProcessSettings(DisplayType))
+	{
+		UMGWidget->GetPostProcessDisplayTypeSettingsFor(DisplayType)->bReceiveHardwareInput = true;
+	}
 
 #if WITH_EDITOR
 	UMGWidget->SetEditorTargetViewport(GetSceneViewport(TargetViewport));
 #endif
 
-	UMGWidget->WidgetClass = UMGClass;
-	UE_LOG(LogVCamOutputProvider, Log, TEXT("CreateUMG widget named %s from class %s"), *UMGWidget->GetName(), *UMGWidget->WidgetClass->GetName());
+	UMGWidget->SetWidgetClass(UMGClass);
+	UE_LOG(LogVCamOutputProvider, Log, TEXT("CreateUMG widget named %s from class %s"), *UMGWidget->GetName(), *UMGWidget->GetWidgetClass()->GetName());
 }
 
 void UVCamOutputProviderBase::ReapplyOverrideResolution()
@@ -247,8 +250,8 @@ void UVCamOutputProviderBase::DisplayUMG()
 			UMGWidget->SetCustomPostProcessSettingsSource(this);
 
 			FLevelEditorViewportClient* Client = GetTargetLevelViewportClient();
-			UE_CLOG(DisplayType == EVPWidgetDisplayType::PostProcess && !Client, LogVCamOutputProvider, Error, TEXT("Failed to find viewport client. The widget will not be rendered."));
-			if (DisplayType == EVPWidgetDisplayType::PostProcess && Client)
+			UE_CLOG(DisplayType == EVPWidgetDisplayType::PostProcessWithBlendMaterial && !Client, LogVCamOutputProvider, Error, TEXT("Failed to find viewport client. The widget will not be rendered."));
+			if (DisplayType == EVPWidgetDisplayType::PostProcessWithBlendMaterial && Client)
 			{
 				ensure(!ModifyViewportPostProcessSettingsDelegateHandle.IsValid());
 				ModifyViewportPostProcessSettingsDelegateHandle = Client->ViewModifiers.AddUObject(this, &UVCamOutputProviderBase::ModifyViewportPostProcessSettings);
@@ -296,7 +299,7 @@ void UVCamOutputProviderBase::DestroyUMG()
 			}
 
 			FLevelEditorViewportClient* Client = GetTargetLevelViewportClient();
-			if (DisplayType == EVPWidgetDisplayType::PostProcess && Client && ModifyViewportPostProcessSettingsDelegateHandle.IsValid())
+			if (DisplayType == EVPWidgetDisplayType::PostProcessWithBlendMaterial && Client && ModifyViewportPostProcessSettingsDelegateHandle.IsValid())
 			{
 				Client->ViewModifiers.Remove(ModifyViewportPostProcessSettingsDelegateHandle);
 				Client->bShouldApplyViewModifiers = Client->ViewModifiers.IsBound();
@@ -339,7 +342,7 @@ void UVCamOutputProviderBase::RestoreOutput()
 bool UVCamOutputProviderBase::NeedsForceLockToViewport() const
 {
 	// The widget is displayed via a post process material, which is applied to the camera's post process settings, hence anything will only be visible when locked.
-	return DisplayType == EVPWidgetDisplayType::PostProcess;
+	return DisplayType == EVPWidgetDisplayType::PostProcessWithBlendMaterial;
 }
 
 void UVCamOutputProviderBase::NotifyAboutComponentChange()
@@ -408,10 +411,8 @@ UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(
 			{
 				return Provider;
 			}
-			else
-			{
-				UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetOtherOutputProviderByIndex - specified index is out of range"));
-			}
+			
+			UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetOtherOutputProviderByIndex - specified index is out of range"));
 		}
 	}
 
@@ -529,7 +530,7 @@ void UVCamOutputProviderBase::InitViewTargetPolicyInSubclass()
 	checkf(DisplayType != EVPWidgetDisplayType::Inactive, TEXT("Subclasses should set DisplayType in constructor before calling InitViewTargetPolicyInSubclass"));
 	
 	// Make UX easier for users by making the output provider set the first player controller's view target to our camera in game worlds automatically.
-	const bool bRequiresCameraToWork = DisplayType == EVPWidgetDisplayType::PostProcess || DisplayType == EVPWidgetDisplayType::Composure;
+	const bool bRequiresCameraToWork = DisplayType == EVPWidgetDisplayType::PostProcessWithBlendMaterial || DisplayType == EVPWidgetDisplayType::Composure;
 	if (bRequiresCameraToWork)
 	{
 		GameplayViewTargetPolicy = CreateDefaultSubobject<UFocusFirstPlayerViewTargetPolicy>(TEXT("FocusFirstPlayerViewTargetPolicy0"));

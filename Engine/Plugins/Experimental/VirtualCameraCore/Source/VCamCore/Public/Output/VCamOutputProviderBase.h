@@ -114,7 +114,7 @@ public:
 
 protected:
 	
-	/** Defines how the overlay widget should be added to the viewport. This should as early as possible: in  the constructor. */
+	/** Defines how the overlay widget should be added to the viewport. This should set as early as possible: in the constructor. */
 	UPROPERTY(Transient)
 	EVPWidgetDisplayType DisplayType = EVPWidgetDisplayType::Inactive;
 	

@@ -6,7 +6,7 @@
 
 UVCamOutputMediaOutput::UVCamOutputMediaOutput()
 {
-	DisplayType = EVPWidgetDisplayType::PostProcess;
+	DisplayType = EVPWidgetDisplayType::PostProcessWithBlendMaterial;
 	InitViewTargetPolicyInSubclass();
 }
 

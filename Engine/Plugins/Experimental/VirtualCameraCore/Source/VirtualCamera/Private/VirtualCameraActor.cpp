@@ -184,8 +184,8 @@ AVirtualCameraActor::AVirtualCameraActor(const FObjectInitializer& ObjectInitial
 	MovementComponent = CreateDefaultSubobject<UVirtualCameraMovement>("Movement Component");
 	MediaOutput = CreateDefaultSubobject<URemoteSessionMediaOutput>("Media Output");
 	CameraScreenWidget = CreateDefaultSubobject<UVPFullScreenUserWidget>("Camera UMG");
-	CameraScreenWidget->SetDisplayTypes(EVPWidgetDisplayType::PostProcess, EVPWidgetDisplayType::Viewport, EVPWidgetDisplayType::PostProcess);
-	CameraScreenWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
+	CameraScreenWidget->SetDisplayTypes(EVPWidgetDisplayType::PostProcessWithBlendMaterial, EVPWidgetDisplayType::Viewport, EVPWidgetDisplayType::PostProcessWithBlendMaterial);
+	CameraScreenWidget->GetPostProcessDisplayTypeWithBlendMaterialSettings().bReceiveHardwareInput = true;
 
 	if (GEngine)
 	{
@@ -411,7 +411,7 @@ bool AVirtualCameraActor::StartStreaming()
 
 	if (CameraUMGClass)
 	{
-		CameraScreenWidget->WidgetClass = CameraUMGClass;
+		CameraScreenWidget->SetWidgetClass(CameraUMGClass);
 		CameraScreenWidget->Display(ActorWorld);
 	}
 
