@@ -27,7 +27,7 @@
 #include "Misc/ScopeExit.h"
 #include "UObject/LinkerLoad.h"
 
-static bool GDisableLevelInstanceEditorPartialLoading = true;
+static bool GDisableLevelInstanceEditorPartialLoading = false;
 FAutoConsoleVariableRef CVarDisableLevelInstanceEditorPartialLoading(
 	TEXT("wp.Editor.DisableLevelInstanceEditorPartialLoading"),
 	GDisableLevelInstanceEditorPartialLoading,
@@ -365,21 +365,13 @@ void ULevelStreamingLevelInstance::OnLevelLoadedChanged(ULevel* InLevel)
 			LevelInstanceSubsystem->RegisterLoadedLevelStreamingLevelInstance(this);
 
 #if WITH_EDITOR
-			if (!GDisableLevelInstanceEditorPartialLoading && GetWorld()->IsPartitionedWorld())
+			if (UWorldPartition* OwningWorldPartition = GetWorld()->GetWorldPartition(); OwningWorldPartition && OwningWorldPartition->IsStreamingEnabled() && !GDisableLevelInstanceEditorPartialLoading)
 			{
-				if (UWorldPartition* WorldPartition = NewLoadedLevel->GetWorldPartition())
+				if (UWorldPartition* OuterWorldPartition = NewLoadedLevel->GetWorldPartition())
 				{
-					check(!WorldPartition->IsInitialized());
-					if (ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetLevelInstance(LevelInstanceID))
-					{
-						if (AActor* Actor = CastChecked<AActor>(LevelInstance))
-						{
-							if (!Actor->GetPackage()->IsDirty())
-							{
-								WorldPartition->bForceEnableStreamingInEditor = LevelInstance->SupportsPartialEditorLoading();
-							}
-						}
-					}
+					check(!OuterWorldPartition->IsInitialized());
+					ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetLevelInstance(LevelInstanceID);
+					OuterWorldPartition->bForceEnableStreamingInEditor = LevelInstance ? LevelInstance->SupportsPartialEditorLoading() : false;
 				}
 			}
 #endif

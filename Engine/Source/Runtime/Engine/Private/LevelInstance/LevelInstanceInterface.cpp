@@ -30,12 +30,14 @@ bool ILevelInstanceInterface::SupportsPartialEditorLoading() const
 
 			LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(Actor, [LevelInstanceSubsystem, &bResult](const ILevelInstanceInterface* LevelInstance)
 			{
+				// If the level instance (or any parent level instance) is in edit mode, don't partially load.
 				if (LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstance))
 				{
 					bResult = false;
 					return false;
 				}
 
+				// If the level instance actor (or any parent actor) is not spatially loaded, don't partially load.
 				const AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
 				if (!LevelInstanceActor->GetIsSpatiallyLoaded())
 				{
@@ -43,6 +45,14 @@ bool ILevelInstanceInterface::SupportsPartialEditorLoading() const
 					return false;
 				}
 
+				// If the level instance actor (or any parent actor) is dirty (has pending save changes), don't partially load.
+				if (LevelInstanceActor->GetPackage()->IsDirty())
+				{
+					bResult = false;
+					return false;
+				}
+
+				// We can partially load
 				return true;
 			});
 
