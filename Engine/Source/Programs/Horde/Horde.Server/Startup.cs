@@ -1035,7 +1035,7 @@ namespace Horde.Server
 				.WithTracing(builder =>
 				{
 					builder
-						.AddSource(settings.ServiceName)
+						.AddSource("Horde")
 						.AddHttpClientInstrumentation()
 						.AddAspNetCoreInstrumentation()
 						.AddGrpcClientInstrumentation()
