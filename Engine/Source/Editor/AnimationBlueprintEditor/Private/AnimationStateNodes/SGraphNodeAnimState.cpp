@@ -423,9 +423,7 @@ void SGraphNodeAnimConduit::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<
 FSlateColor SGraphNodeAnimConduit::GetBorderBackgroundColor_Internal(FLinearColor InactiveStateColor, FLinearColor ActiveStateColorDim, FLinearColor ActiveStateColorBright) const
 {
 	// Override inactive state color for conduits.
-	InactiveStateColor = FLinearColor(0.38f, 0.45f, 0.21f);
-
-	return SGraphNodeAnimState::GetBorderBackgroundColor_Internal(InactiveStateColor, ActiveStateColorDim, ActiveStateColorBright);
+	return SGraphNodeAnimState::GetBorderBackgroundColor_Internal(FLinearColor(0.38f, 0.45f, 0.21f), ActiveStateColorDim, ActiveStateColorBright);
 }
 
 FText SGraphNodeAnimConduit::GetPreviewCornerText() const
