@@ -243,6 +243,11 @@ public:
 	static TSharedPtr<FExtensibilityManager> GetSharedMenuExtensibilityManager();
 	static TSharedPtr<FExtensibilityManager> GetSharedToolBarExtensibilityManager();
 
+	/** Override this to manually specify the tab that cannot be closed for your asset editor, it is the first tab
+	 *  registered otherwise
+	 */
+	virtual FName GetMainTabName() const { return NAME_None; }
+
 	/**
 	 * Allows the caller to set a menu overlay, displayed to the far right of the editor's menu bar
 	 *

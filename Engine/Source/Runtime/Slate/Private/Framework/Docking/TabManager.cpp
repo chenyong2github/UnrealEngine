@@ -707,7 +707,7 @@ void FTabManager::FPrivateApi::OnTabManagerClosing()
 
 bool FTabManager::FPrivateApi::CanTabLeaveTabWell(const TSharedRef<const SDockTab>& TabToTest) const
 {
-	return TabManager.bCanDoDragOperation && TabToTest != TabManager.MainNonCloseableTab.Pin();
+	return TabManager.bCanDoDragOperation && !(TabToTest->GetLayoutIdentifier() == TabManager.MainNonCloseableTabID);
 }
 
 const TArray< TWeakPtr<SDockingArea> >& FTabManager::FPrivateApi::GetLiveDockAreas() const
@@ -784,7 +784,7 @@ void FTabManager::UpdateMainMenu(TSharedPtr<SDockTab> ForTab, const bool bForce)
 	{
 		ParentWindowOfOwningTab = OwnerTabPinned->GetParentWindow();
 	}
-	else if (auto MainNonCloseableTabPinned = MainNonCloseableTab.Pin())
+	else if (auto MainNonCloseableTabPinned = FindExistingLiveTab(MainNonCloseableTabID))
 	{
 		ParentWindowOfOwningTab = MainNonCloseableTabPinned->GetParentWindow();
 	}
@@ -833,14 +833,39 @@ void FTabManager::UpdateMainMenu(TSharedPtr<SDockTab> ForTab, const bool bForce)
 #endif
 }
 
+void FTabManager::SetMainTab(const FTabId& InMainTabID)
+{
+	MainNonCloseableTabID = InMainTabID;
+}
+
 void FTabManager::SetMainTab(const TSharedRef<const SDockTab>& InTab)
 {
-	MainNonCloseableTab = InTab;
+	if(!InTab->GetLayoutIdentifier().TabType.IsNone())
+	{
+		SetMainTab(InTab->GetLayoutIdentifier());
+	}
+	else
+	{
+		PendingMainNonClosableTab = InTab;
+	}
+	
+}
+
+void FTabManager::SetEnforceMainTab(bool bInEnforceMainTab)
+{
+	bEnforceMainTab = bInEnforceMainTab;
+
+	// Set the main tab to whichever first tab we can find if we don't have one
+	if(bEnforceMainTab && !MainNonCloseableTabID.TabType.IsNone())
+	{
+		FTabSpawner::TIterator SpawnerIterator(TabSpawner);
+		MainNonCloseableTabID = SpawnerIterator.Key();
+	}
 }
 
 bool FTabManager::IsTabCloseable(const TSharedRef<const SDockTab>& InTab) const
 {
-	return !(MainNonCloseableTab.Pin() == InTab);
+	return !(MainNonCloseableTabID == InTab->GetLayoutIdentifier());
 }
 
 const TSharedRef<FWorkspaceItem> FTabManager::GetLocalWorkspaceMenuRoot() const
@@ -994,6 +1019,13 @@ FTabSpawnerEntry& FTabManager::RegisterTabSpawner(const FName TabId, const FOnSp
 
 	TSharedRef<FTabSpawnerEntry> NewSpawnerEntry = MakeShareable(new FTabSpawnerEntry(TabId, OnSpawnTab, CanSpawnTab));
 	TabSpawner.Add(TabId, NewSpawnerEntry);
+
+	// If this tab manager always wants a non closeable tab, and we don't already have one set this tab to be the main tab
+	if(bEnforceMainTab && MainNonCloseableTabID.TabType.IsNone() && !PendingMainNonClosableTab)
+	{
+		MainNonCloseableTabID = TabId;
+	}
+	
 	return NewSpawnerEntry.Get();
 }
 
@@ -1988,6 +2020,13 @@ TSharedPtr<SDockTab> FTabManager::SpawnTab(const FTabId& TabId, const TSharedPtr
 		if (bSpawningAllowedBySpawner && (!Spawner->SpawnedTabPtr.IsValid() || Spawner->OnFindTabToReuse.IsBound()))
 		{
 			NewTabWidget = Spawner->OnSpawnTab.Execute(FSpawnTabArgs(ParentWindow, TabId));
+
+			if(PendingMainNonClosableTab && NewTabWidget == PendingMainNonClosableTab)
+			{
+				PendingMainNonClosableTab = nullptr;
+				MainNonCloseableTabID = TabId;
+			}
+			
 			NewTabWidget->SetLayoutIdentifier(TabId);
 			NewTabWidget->ProvideDefaultLabel(Spawner->GetDisplayName().IsEmpty() ? FText::FromName(Spawner->TabType) : Spawner->GetDisplayName());
 			NewTabWidget->ProvideDefaultIcon(Spawner->GetIcon().GetIcon());
@@ -2889,7 +2928,7 @@ void FProxyTabmanager::OpenUnmanagedTab(FName PlaceholderId, const FSearchPrefer
 				NewlyOpenedTab->GetParent()->GetParentDockTabStack()->OpenTab(UnmanagedTab);
 				NewlyOpenedTab->RequestCloseTab();
 
-				MainNonCloseableTab = UnmanagedTab;
+				MainNonCloseableTabID = UnmanagedTab->GetLayoutIdentifier();
 
 				OnTabOpened.Broadcast(UnmanagedTab);
 			}

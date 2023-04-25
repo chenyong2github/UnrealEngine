@@ -935,8 +935,19 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		 */
 		void UpdateMainMenu(TSharedPtr<SDockTab> ForTab, const bool bForce);
 
-		/** Provide a tab that will be the main tab and cannot be closed. */
+		/** Provide a tab that will be the main tab and cannot be closed.
+		 *  Prefer using the version that takes in a TabID so you can set the MainTab before it is actually created
+		 */
 		void SetMainTab(const TSharedRef<const SDockTab>& InTab);
+
+		/** Provide a tab that will be the main tab and cannot be closed. */
+		void SetMainTab(const FTabId& InMainTabID);
+
+		/** If true, this tab manager will always have one main tab that cannot be closed
+		 *  Automatically set to the first tab registered if there are no tabs registered already (set on creation)
+		 *  or the first tab found otherwise
+		 */
+		void SetEnforceMainTab(bool bInEnforceMainTab);
 
 		/* Prevent or allow all tabs to be drag */
 		void SetCanDoDragOperation(bool CanDoDragOperation) { bCanDoDragOperation = CanDoDragOperation; }
@@ -1146,9 +1157,14 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		/** Returns the default window size for the TabId, or the fallback window size if it wasn't registered */
 		static FVector2D GetDefaultTabWindowSize(const FTabId& TabId);
 
+		/** The ID of the main tab, which cannot be closed*/
+		FTabId MainNonCloseableTabID;
 
-		/** The main tab, this tab cannot be closed. */
-		TWeakPtr<const SDockTab> MainNonCloseableTab;
+		/** To keep track of any pending tabs that want to be the main tab, but don't have their ID set yet */
+		TSharedPtr<const SDockTab> PendingMainNonClosableTab;
+
+		/** If true, this tab manager will always have one non-closable tab */
+		bool bEnforceMainTab = false;
 
 		/** The last window we docked a nomad or major tab into */
 		TWeakPtr<SWindow> LastMajorDockWindow;
