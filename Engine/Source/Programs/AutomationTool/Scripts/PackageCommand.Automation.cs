@@ -30,7 +30,7 @@ namespace AutomationScripts
 				bool bShouldPackage = false; 
 				foreach (var SC in DeployContextList)
 				{
-					if (Params.Package || (SC.StageTargetPlatform.RequiresPackageToDeploy && Params.Deploy))
+					if (Params.Package || (SC.StageTargetPlatform.RequiresPackageToDeploy(Params) && Params.Deploy))
 					{
 						bShouldPackage = true;
 						break;
@@ -44,7 +44,7 @@ namespace AutomationScripts
 
 					foreach (var SC in DeployContextList)
 					{
-						if (Params.Package || (SC.StageTargetPlatform.RequiresPackageToDeploy && Params.Deploy))
+						if (Params.Package || (SC.StageTargetPlatform.RequiresPackageToDeploy(Params) && Params.Deploy))
 						{
 							SC.StageTargetPlatform.Package(Params, SC, WorkingCL);
 						}

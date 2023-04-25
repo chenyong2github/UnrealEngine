@@ -1298,8 +1298,9 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				{
 					CopyScript.AddRange(new string[]
 					{
-						$"echo \\\"Syncing ${{STAGED_DIR}}/{EngineOrProject}/Binaries/Mac/${{CONTENTS_FOLDER_PATH}}/ to ${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}/\\\"",
-						$"rsync -av --include='*/' --include='*.dylib' --exclude='*' \\\"${{STAGED_DIR}}/{EngineOrProject}/Binaries/Mac/${{CONTENTS_FOLDER_PATH}}/MacOS/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}/MacOS\\\"",
+						// copy from whatever .app is in Binaries/Mac - this is so we can make a Shipping app from a Development staged directory
+						$"echo \\\"Syncing `echo ${{STAGED_DIR}}/{EngineOrProject}/Binaries/Mac/*.app`/${{BUNDLE_CONTENTS_FOLDER_PATH}}/ to ${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}/\\\"",
+						$"rsync -av --include='*/' --include='*.dylib' --exclude='*' \\\"`echo ${{STAGED_DIR}}/{EngineOrProject}/Binaries/Mac/*.app`/${{BUNDLE_CONTENTS_FOLDER_PATH}}MacOS/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}/MacOS\\\"",
 					});
 				}
 			}
@@ -1607,8 +1608,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			Xcconfig.AppendLine("");
 			Xcconfig.AppendLine("// Constant settings (same for all platforms and targets)");
-			// #jira UE-143619: Pre Monterey macOS requires this option for a packaged app to run on iOS15 due to new code signature format. Could be removed once Monterey is miniuS.
-			Xcconfig.AppendLine("OTHER_CODE_SIGN_FLAGS = --generate-entitlement-der");
 			Xcconfig.AppendLine("INFOPLIST_OUTPUT_FORMAT = xml");
 			Xcconfig.AppendLine("COMBINE_HIDPI_IMAGES = YES");
 			Xcconfig.AppendLine("USE_HEADERMAP = NO");

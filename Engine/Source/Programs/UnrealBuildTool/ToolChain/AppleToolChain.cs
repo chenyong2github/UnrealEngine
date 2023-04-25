@@ -180,11 +180,7 @@ namespace UnrealBuildTool
 
 		protected static bool UseModernXcode(FileReference? ProjectFile)
 		{
-			// Modern Xcode mode does this now
-			bool _bUseModernXcode = false;
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
-			Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out _bUseModernXcode);
-			return _bUseModernXcode;
+			return MacExports.UseModernXcode(ProjectFile);
 		}
 
 		protected bool bUseModernXcode => UseModernXcode(ProjectFile);

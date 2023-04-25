@@ -1268,7 +1268,7 @@ namespace HoloLens.Automation
                 return;
             }
 
-            bool bRequiresPackage = Params.Package || SC.StageTargetPlatform.RequiresPackageToDeploy;
+            bool bRequiresPackage = Params.Package || SC.StageTargetPlatform.RequiresPackageToDeploy(Params);
 			string Name;
 			string Publisher;
 			GetPackageInfo(Params, out Name, out Publisher);
@@ -1383,7 +1383,7 @@ namespace HoloLens.Automation
 			string Publisher;
 			GetPackageInfo(Params, out Name, out Publisher);
 
-			if (Params.Package || SC.StageTargetPlatform.RequiresPackageToDeploy)
+			if (Params.Package || SC.StageTargetPlatform.RequiresPackageToDeploy(Params))
 			{
 				DefaultDevicePortalConnection conn = new DefaultDevicePortalConnection(DeviceAddress, Params.DeviceUsername, Params.DevicePassword);
 				DevicePortal portal = new DevicePortal(conn);

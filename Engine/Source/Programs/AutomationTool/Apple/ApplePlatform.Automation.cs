@@ -71,11 +71,7 @@ public abstract class ApplePlatform : Platform
 
 	public override void PostStagingFileCopy(ProjectParams Params, DeploymentContext SC)
 	{
-		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Params.RawProjectPath.Directory!, SC.StageTargetPlatform.PlatformType);
-		bool bUseModernXcode;
-		Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode);
-
-		if (bUseModernXcode)
+		if (MacExports.UseModernXcode(Params.RawProjectPath))
 		{
 			// modern does all the distribution via .xcarchive
 			bool bForDistribution = false;

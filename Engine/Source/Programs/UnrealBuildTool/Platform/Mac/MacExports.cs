@@ -75,6 +75,23 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Is the current project using modern xcode?
+		/// </summary>
+		/// <param name="ProjectFile"></param>
+		/// <returns></returns>
+		public static bool UseModernXcode(FileReference? ProjectFile)
+		{
+			// Modern Xcode mode does this now
+			bool bUseModernXcode = false;
+			if (OperatingSystem.IsMacOS())
+			{
+				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
+				Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode);
+			}
+			return bUseModernXcode;
+		}
+
+		/// <summary>
 		/// Strips symbols from a file
 		/// </summary>
 		/// <param name="SourceFile">The input file</param>

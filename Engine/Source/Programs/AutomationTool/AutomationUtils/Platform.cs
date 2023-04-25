@@ -735,9 +735,9 @@ namespace AutomationTool
 		/// <summary>
 		///  Returns whether the platform requires a package to deploy to a device
 		/// </summary>
-		public virtual bool RequiresPackageToDeploy
+		public virtual bool RequiresPackageToDeploy(ProjectParams Params)
 		{
-			get { return false; }
+			return false;
 		}
 
 		/// <summary>
