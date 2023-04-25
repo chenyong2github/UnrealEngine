@@ -188,31 +188,6 @@ private:
 	UPROPERTY(Category="Character Movement: Walking", VisibleAnywhere)
 	float WalkableFloorZ;
 
-	/**
-	 * A normalized vector representing the direction of gravity for gravity relative movement modes: walking, falling,
-	 * and custom movement modes. Gravity direction remaps player input as being within the plane defined by the gravity
-	 * direction. Movement simulation values like velocity and acceleration are maintained in their existing world coordinate
-	 * space but are transformed internally as gravity relative (for instance moving forward up a vertical wall that gravity is
-	 * defined to be perpendicular to and jump "up" from that wall). By default the character's capsule will not be oriented
-	 * to align with the gravity direction.
-	 */
-	UPROPERTY(Category="Character Movement: Gravity", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = true))
-	FVector GravityDirection;
-
-	/**
-	 * A cached quaternion representing the rotation from world space to gravity relative space defined by GravityDirection.
-	 */
-	UPROPERTY(Category="Character Movement: Gravity", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = true))
-	FQuat WorldToGravityTransform;
-
-	/**
-	 * A cached quaternion representing the inverse rotation from world space to gravity relative space defined by GravityDirection.
-	 */
-	UPROPERTY(Category="Character Movement: Gravity", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = true))
-	FQuat GravityToWorldTransform;
-
-	/** Whether the character has custom local gravity set. Cached in SetGravityDirection(). */
-	bool bHasCustomGravity;
 public:
 	
 	/**
@@ -235,9 +210,6 @@ public:
 	 */
 	UPROPERTY(Category="Character Movement: MovementMode", BlueprintReadOnly)
 	uint8 CustomMovementMode;
-
-	/** The default direction that gravity points for movement simulation.  */
-	static const FVector DefaultGravityDirection;
 
 	/** Smoothing mode for simulated proxies in network game. */
 	UPROPERTY(Category="Character Movement (Networking)", EditAnywhere, BlueprintReadOnly)
@@ -936,10 +908,6 @@ public:
 	UPROPERTY(Transient)
 	uint8 bNetworkMovementModeChanged:1;
 
-	/** True when the networked gravity direction has been replicated. */
-	UPROPERTY(Transient)
-	uint8 bNetworkGravityDirectionChanged:1;
-
 	/** 
 	 * If true, we should ignore server location difference checks for client error on this movement component.
 	 * This can be useful when character is moving at extreme speeds for a duration and you need it to look
@@ -1604,37 +1572,6 @@ public:
 	 * @see AirControl, BoostAirControl(), LimitAirControl(), GetFallingLateralAcceleration()
 	 */
 	virtual FVector GetAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration);
-
-	// Gravity Direction
-
-	/**
-	 * Set a custom, local gravity direction to use during movement simulation.
-	 * The gravity direction must be synchronized by external systems between the autonomous
-	 * and authority processes. The gravity direction will be corrected as part of movement
-	 * corrections should the movement state diverge.
-	 * SetGravityDirection is responsible for initializing cached values used to tranform to
-	 * from gravity relative space.
-	 * @param GravityDir		A non-zero vector representing the new gravity direction. The vector will be normalized.
-	 */
-	virtual void SetGravityDirection(const FVector& GravityDir);
-
-	/** Whether the gravity direction is different from UCharacterMovementComponent::DefaultGravityDirection. */
-	bool HasCustomGravity() const { return bHasCustomGravity; }
-
-	/** Returns the current gravity direction. */
-	FVector GetGravityDirection() const { return GravityDirection; }
-
-	/** Returns a quaternion transforming from world to gravity space. */
-	FQuat GetWorldToGravityTransform() const { return WorldToGravityTransform; }
-
-	/** Returns a quaternion transforming from gravity to world space. */
-	FQuat GetGravityToWorldTransform() const { return GravityToWorldTransform; }
-
-	/** Rotate a vector from world to gravity space. */
-	FVector RotateGravityToWorld(const FVector& World) const { return WorldToGravityTransform.RotateVector(World); }
-
-	/** Rotate a vector gravity to world space. */
-	FVector RotateWorldToGravity(const FVector& Gravity) const { return GravityToWorldTransform.RotateVector(Gravity); }
 
 protected:
 
@@ -2554,7 +2491,7 @@ public:
 protected:
 
 	/** Event notification when client receives correction data from the server, before applying the data. Base implementation logs relevant data and draws debug info if "p.NetShowCorrections" is not equal to 0. */
-	virtual void OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode, FVector ServerGravityDirection);
+	virtual void OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
 
 	/**
 	 * Set custom struct used for client to server move RPC serialization.

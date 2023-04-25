@@ -460,15 +460,10 @@ protected:
 	UPROPERTY(Replicated)
 	uint8 ReplicatedMovementMode;
 
-	/** CharacterMovement Custom gravity direction replicated for simulated proxies. */
-	UPROPERTY(Replicated)
-	FVector_NetQuantizeNormal ReplicatedGravityDirection;
-
 	/** Flag that we are receiving replication of the based movement. */
 	UPROPERTY()
 	bool bInBaseReplication;
 
-	FVector_NetQuantizeNormal PreNetReceivedGravityDirection;
 public:
 	UFUNCTION()
 	void OnRep_ReplayLastTransformUpdateTimeStamp();
@@ -498,15 +493,6 @@ public:
 	/** Get the saved rotation offset of mesh. This is how much extra rotation is applied from the capsule rotation. */
 	UFUNCTION(BlueprintCallable, Category=Character, meta=(DisplayName="Get Base Rotation Offset", ScriptName="GetBaseRotationOffset"))
 	FRotator GetBaseRotationOffsetRotator() const { return GetBaseRotationOffset().Rotator(); }
-
-	/** Returns vector direction of gravity */
-	virtual FVector GetGravityDirection() const override;
-
-	/** Returns a quaternion transforming from world space into gravity relative space */
-	virtual FQuat GetGravityTransform() const override;
-
-	/** Returns replicated gravity direction for simulated proxies */
-	virtual FVector GetReplicatedGravityDirection() const;
 
 	/** Default crouched eye height */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)

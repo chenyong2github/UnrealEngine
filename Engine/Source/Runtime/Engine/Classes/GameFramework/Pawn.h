@@ -327,10 +327,7 @@ public:
 #endif
 
 	/** Returns vector direction of gravity */
-	virtual FVector GetGravityDirection() const;
-
-	/** Returns a quaternion transforming from world space into gravity relative space */
-	virtual FQuat GetGravityTransform() const;
+	FVector GetGravityDirection();
 
 	/** Make sure pawn properties are back to default. */
 	virtual void SetPlayerDefaults();

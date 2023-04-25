@@ -258,7 +258,6 @@ public:
 		, NewLoc(ForceInitToZero)
 		, NewVel(ForceInitToZero)
 		, NewRot(ForceInitToZero)
-		, GravityDirection(FVector::DownVector)
 		, NewBase(NULL)
 		, NewBaseBoneName(NAME_None)
 		, bAckGoodMove(false)
@@ -273,7 +272,6 @@ public:
 	FVector NewLoc; // Note: if bBaseRelativePosition is set, this is a relative location to the Movement base.
 	FVector NewVel; // Note: if bBaseRelativeVelocity is set, this is a relative velocity to the Movement base.
 	FRotator NewRot;
-	FVector GravityDirection;
 	UPrimitiveComponent* NewBase;
 	FName NewBaseBoneName;
 	bool bAckGoodMove;
