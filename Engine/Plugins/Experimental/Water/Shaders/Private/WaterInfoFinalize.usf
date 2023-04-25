@@ -5,7 +5,8 @@
 
 Texture2D<float4> WaterInfoTexture;
 
-float2 WaterHeightExtents;
+float WaterZMin;
+float WaterZMax;
 float GroundZMin;
 float CaptureZ;
 
@@ -43,9 +44,6 @@ float2 VelocityBlur(float Radius, uint2 TextureCoordinates)
 
 			const FWaterInfo WaterInfo = MakeWaterInfo(WaterInfoTexture.Load(int3(CurrentTextureCoordinates, 0)));
 			
-			const float WaterZMin = WaterHeightExtents.x;
-			const float WaterZMax = WaterHeightExtents.y;
-
 			const float WaterZ = WaterInfo.NormalizedWaterZ * (WaterZMax - WaterZMin) + WaterZMin;
 			const float GroundZ = WaterInfo.NormalizedGroundZ * (WaterZMax - GroundZMin) + GroundZMin;
 
@@ -75,5 +73,5 @@ void Main(
 	const FWaterInfo WaterInfo = MakeWaterInfo(WaterInfoTexture.Load(int3(TextureCoordinates, 0)));
 	const float2 BlurredVelocity = VelocityBlur(BlurRadius, TextureCoordinates);
 
-	OutColor = float4(BlurredVelocity.rg, WaterInfo.NormalizedWaterZ, WaterInfo.NormalizedGroundZ);
+	OutColor = float4(BlurredVelocity.xy, WaterInfo.NormalizedWaterZ, WaterInfo.NormalizedGroundZ);
 }

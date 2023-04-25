@@ -41,6 +41,10 @@ public:
 
 	TSubclassOf<UWaterBodyCustomComponent> GetWaterBodyCustomComponentClass() const;
 
+	//#todo_water: how can we put these settins on the editor settings but still access them from the WaterModule?
+	bool ShouldWarnOnMismatchOceanExtent() const { return bWarnOnMismatchOceanExtent; }
+	void SetShouldWarnOnMismatchOceanExtent(bool bEnable) { Modify(); bWarnOnMismatchOceanExtent = bEnable; }
+
 	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -83,6 +87,11 @@ private:
 
 	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "/Script/Water.WaterBodyCustomComponent"))
 	TSubclassOf<UWaterBodyCustomComponent> WaterBodyCustomComponentClass;
+
+	// #todo_water: move this
+	/** If enabled, MapCheck will notify users that their ocean does not completely fill the water zone. This can be desirable in some cases but the default should be to fill completely. */
+	UPROPERTY(EditAnywhere, config, Category = Water)
+	bool bWarnOnMismatchOceanExtent = true;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

@@ -133,7 +133,6 @@ private:
 #if WITH_EDITOR
 	//~ Begin USceneComponent Interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditComponentMove(bool bFinished) override;
 	//~ Begin USceneComponent Interface
 #endif
 };

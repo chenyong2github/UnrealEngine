@@ -15,6 +15,8 @@
 #include "WaterBodyLakeComponent.h"
 #include "WaterBodyOceanComponent.h"
 #include "WaterBodyRiverComponent.h"
+#include "WaterBodyInfoMeshComponent.h"
+#include "WaterBodyStaticMeshComponent.h"
 #include "WaterVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyActor)
@@ -52,6 +54,12 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 
 	// Temporarily set the root component to the spline because the WaterBodyComponent has not yet been created
 	RootComponent = SplineComp;
+
+	WaterInfoMeshComponent = CreateDefaultSubobject<UWaterBodyInfoMeshComponent>(TEXT("WaterInfoMeshComponent"));
+	WaterInfoMeshComponent->SetupAttachment(RootComponent);
+
+	DilatedWaterInfoMeshComponent = CreateDefaultSubobject<UWaterBodyInfoMeshComponent>(TEXT("DilatedWaterInfoMeshComponent"));
+	DilatedWaterInfoMeshComponent->SetupAttachment(RootComponent);
 
 #if WITH_EDITORONLY_DATA
 	bAffectsLandscape_DEPRECATED = true;
@@ -192,6 +200,16 @@ void AWaterBody::SetWaterWavesInternal(UWaterWavesBase* InWaterWaves)
 		Params.bShapeOrPositionChanged = true;
 		WaterBodyComponent->OnWaterBodyChanged(Params);
 	}
+}
+
+void AWaterBody::SetWaterBodyStaticMeshComponents(TArrayView<TObjectPtr<UWaterBodyStaticMeshComponent>> NewComponentList, TConstArrayView<TObjectPtr<UWaterBodyStaticMeshComponent>> ComponentsToUnregister)
+{
+	for (const TObjectPtr<UWaterBodyStaticMeshComponent>& StaticMeshComponent : ComponentsToUnregister)
+	{
+		StaticMeshComponent.Get()->UnregisterComponent();
+		StaticMeshComponent.Get()->DestroyComponent();
+	}
+	WaterBodyStaticMeshComponents = NewComponentList;
 }
 
 static FName GetWaterBodyComponentName(EWaterBodyType Type)
@@ -572,6 +590,16 @@ void AWaterBody::PostRegisterAllComponents()
 		// At this point, the water mesh actor should be ready and we can setup the MID accordingly : 
 		// Needs to be done at the end so that all data needed by the MIDs (e.g. WaterBodyIndex) is up to date :
 		WaterBodyComponent->UpdateMaterialInstances();
+
+#if WITH_EDITOR
+		// We need to generate the water body render data for the first time here after the waterbody component is registered to the actor.
+		if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshComponents)
+		{
+			WaterBodyComponent->UpdateWaterBodyRenderData();
+		}
+#endif // WITH_EDITOR
+
+		WaterBodyComponent->OnPostRegisterAllComponents();
 	}
 }
 

@@ -23,6 +23,7 @@ public class Water : ModuleRules
 				"RHI",
 				"NavigationSystem",
 				"AIModule",
+				"GeometryCore",
 			}
 		);
 
@@ -35,9 +36,9 @@ public class Water : ModuleRules
 				"NiagaraShader",
 				"Projects",
 				"Landscape",
-				"GeometryCore",
 				"GeometryAlgorithms",
 				"DynamicMesh",
+				"MeshConversion",
 				"ChaosCore",
 				"Chaos",
 				"PhysicsCore",
@@ -61,7 +62,6 @@ public class Water : ModuleRules
 					"SourceControl",
 					"UnrealEd",
 					"StaticMeshDescription",
-					"MeshConversion",
 					"MeshMergeUtilities"
 				}
 			);

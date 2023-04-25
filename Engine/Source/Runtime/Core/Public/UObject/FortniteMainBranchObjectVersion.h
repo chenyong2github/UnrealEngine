@@ -298,6 +298,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Change how connection graphs are stored on Geometry Collections to an edge-array representation
 		ChaosGeometryCollectionConnectionEdgeGroup,
 
+		// Moved the water info mesh data and static water body meshes into new static mesh components for water bodies.
+		WaterBodyStaticMeshComponents,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

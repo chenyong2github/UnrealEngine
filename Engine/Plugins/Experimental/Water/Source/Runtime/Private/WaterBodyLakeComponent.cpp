@@ -11,12 +11,10 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Polygon2.h"
 #include "ConstrainedDelaunay2.h"
-#include "Operations/InsetMeshRegion.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "Curve/PolygonOffsetUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyLakeComponent)
-
-#if WITH_EDITOR
-#endif
 
 // ----------------------------------------------------------------------------------
 
@@ -41,7 +39,7 @@ TArray<UPrimitiveComponent*> UWaterBodyLakeComponent::GetCollisionComponents(boo
 
 TArray<UPrimitiveComponent*> UWaterBodyLakeComponent::GetStandardRenderableComponents() const 
 {
-	TArray<UPrimitiveComponent*> Result;
+	TArray<UPrimitiveComponent*> Result = Super::GetStandardRenderableComponents();
 	if (LakeMeshComp != nullptr)
 	{
 		Result.Add(LakeMeshComp);
@@ -86,37 +84,78 @@ bool UWaterBodyLakeComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3&
 	}
 
 
+	check(OutMesh.Attributes());
+	FDynamicMeshColorOverlay* ColorOverlay = OutMesh.Attributes()->PrimaryColors();
+	FDynamicMeshNormalOverlay* NormalOverlay = OutMesh.Attributes()->PrimaryNormals();
+
 	for (const FVector2d& Vertex : Triangulation.Vertices)
 	{
 		FVertexInfo MeshVertex(FVector3d(Vertex.X, Vertex.Y, 0.f));
-		MeshVertex.Color = FVector3f(0.0);
-		MeshVertex.bHaveC = true;
 
 		OutMesh.AppendVertex(MeshVertex);
+		ColorOverlay->AppendElement(FVector4f(0.f));
+		NormalOverlay->AppendElement(FVector3f(0., 0., 1.));
 	}
 
 	for (const FIndex3i& Triangle : Triangulation.Triangles)
 	{
-		OutMesh.AppendTriangle(Triangle);
+		const int TriangleID = OutMesh.AppendTriangle(Triangle);
+		ColorOverlay->SetTriangle(TriangleID, Triangle);
+		NormalOverlay->SetTriangle(TriangleID, Triangle);
 	}
 
 	if (ShapeDilation > 0.f && OutDilatedMesh)
 	{
-		// Inset the mesh by -ShapeDilation to effectively expand the mesh
-		OutDilatedMesh->Copy(OutMesh);
-		FInsetMeshRegion Inset(OutDilatedMesh);
-		Inset.InsetDistance = -1 * ShapeDilation / 2.f;
+		TArray<FGeneralPolygon2d> OffsetPolys;
+		UE::Geometry::PolygonsOffset(
+			ShapeDilation / 2.f,
+			{ LakePoly },
+			OffsetPolys,
+			false,
+			2.0);
 
-		Inset.Triangles.Reserve(OutDilatedMesh->TriangleCount());
-		for (int32 Idx : OutDilatedMesh->TriangleIndicesItr())
+
+		FConstrainedDelaunay2d DilationTriangulation;
+		DilationTriangulation.FillRule = FConstrainedDelaunay2d::EFillRule::Positive;
+
+		for (const FGeneralPolygon2d& Poly : OffsetPolys)
 		{
-			Inset.Triangles.Add(Idx);
+			if (Poly.SignedArea() <= 0.)
+			{
+				UE_LOG(LogWater, Warning, TEXT("Failed to apply offset for shape dilation (%s"), *GetOwner()->GetActorNameOrLabel());
+				continue;
+			}
+
+			DilationTriangulation.Add(Poly);
 		}
-		
-		if (!Inset.Apply())
+
+		if (!DilationTriangulation.Triangulate())
 		{
-			UE_LOG(LogWater, Warning, TEXT("Failed to apply mesh inset for shape dilation (%s"), *GetOwner()->GetActorNameOrLabel());
+			UE_LOG(LogWater, Warning, TEXT("Failed to triangulate dilated lake mesh (%s"), *GetOwner()->GetActorNameOrLabel());
 			return false;
+		}
+
+		if (DilationTriangulation.Triangles.Num() == 0)
+		{
+			return false;
+		}
+
+		FDynamicMeshColorOverlay* DilatedColorOverlay = OutDilatedMesh->Attributes()->PrimaryColors();
+		FDynamicMeshNormalOverlay* DilatedNormalOverlay = OutDilatedMesh->Attributes()->PrimaryNormals();
+		for (const FVector2d& Vertex : DilationTriangulation.Vertices)
+		{
+			FVertexInfo MeshVertex(FVector3d(Vertex.X, Vertex.Y, 0.));
+
+			OutDilatedMesh->AppendVertex(MeshVertex);
+			DilatedColorOverlay->AppendElement(FVector4f(0.f));
+			DilatedNormalOverlay->AppendElement(FVector3f(0., 0., 1.));
+		}
+
+		for (const FIndex3i& Triangle : DilationTriangulation.Triangles)
+		{
+			const int TriangleID = OutDilatedMesh->AppendTriangle(Triangle);
+			DilatedColorOverlay->SetTriangle(TriangleID, Triangle);
+			DilatedNormalOverlay->SetTriangle(TriangleID, Triangle);
 		}
 	}
 

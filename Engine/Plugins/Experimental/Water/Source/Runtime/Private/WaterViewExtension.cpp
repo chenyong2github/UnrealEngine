@@ -41,9 +41,6 @@ void FWaterViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& 
 	const TWeakObjectPtr<UWorld> WorldPtr = GetWorld();
 	check(WorldPtr.IsValid())
 
-	// #todo_water: hacky way to prevent updating from within the water info passes. Alternative solution might be to set a flag from within the info render
-	// similarly to the SetWithinWaterInfoPass functions for water body components 
-	//This won't be necessary when waterinfo passes don't utilize scene renderers.
 	static bool bUpdatingWaterInfo = false;
 	if (!bUpdatingWaterInfo)
 	{
@@ -52,33 +49,33 @@ void FWaterViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& 
 		for (const TPair<AWaterZone*, UE::WaterInfo::FRenderingContext>& Pair : WaterInfoContextsToRender)
 		{
 			AWaterZone* WaterZone = Pair.Key;
+			check(WaterZone);
 
-			if (WaterZone->IsNonTessellatedLODMeshEnabled())
+			if (WaterZone->IsLocalOnlyTessellationEnabled())
 			{
-				const UWaterMeshComponent* WaterMesh= WaterZone->GetWaterMeshComponent();
+				UWaterMeshComponent* WaterMesh= WaterZone->GetWaterMeshComponent();
 				check(WaterMesh);
 
-				const float SectionSize = WaterZone->GetNonTessellatedLODSectionSize();
+				const double TileSize = WaterMesh->GetTileSize();
 
-				FVector TessellatedWaterMeshCenter = ViewLocation.GridSnap(SectionSize);
+				const FVector WaterMeshCenter = ViewLocation.GridSnap(TileSize);
 
-				WaterZone->SetTessellatedWaterMeshCenter(TessellatedWaterMeshCenter);
+				const FVector WaterMeshHalfExtent = WaterZone->GetDynamicWaterMeshExtent() / 2.0;
+				const FBox2D WaterMeshBounds(FVector2D(WaterMeshCenter - WaterMeshHalfExtent), FVector2D(WaterMeshCenter + WaterMeshHalfExtent));
 
-				const FVector TessellatedWaterMeshHalfExtent = WaterZone->GetTessellatedWaterMeshExtent() / 2.0;
-				const FBox2D TessellatedWaterMeshBounds(FVector2D(TessellatedWaterMeshCenter - TessellatedWaterMeshHalfExtent), FVector2D(TessellatedWaterMeshCenter + TessellatedWaterMeshHalfExtent));
+				WaterZone->SetLocalTessellationCenter(WaterMeshCenter);
+				WaterMesh->PushTessellatedWaterMeshBoundsToPoxy(WaterMeshBounds.ExpandBy(2 * TileSize));
 
-				WaterZone->GetWaterMeshComponent()->PushTessellatedWaterMeshBoundsToPoxy(TessellatedWaterMeshBounds);
-
-				WaterZone->ForEachWaterBodyComponent([TessellatedWaterMeshBounds](UWaterBodyComponent* WaterBodyComponent)
-				{
-					WaterBodyComponent->PushTessellatedWaterMeshBoundsToProxy(TessellatedWaterMeshBounds);
-
-					return true;
-				});
-
-				const FBox2D CurrentCellBounds(FVector2D(ViewLocation) - FVector2D(SectionSize / 2.0), FVector2D(ViewLocation) + FVector2D(SectionSize / 2.0));
+				const FBox2D CurrentCellBounds(FVector2D(ViewLocation) - FVector2D(TileSize / 2.0), FVector2D(ViewLocation) + FVector2D(TileSize / 2.0));
 				UpdateBounds.Add(WaterZone, CurrentCellBounds);
 			}
+
+			// Update the material instances now that the tessellated mesh bounds have changed.
+			WaterZone->ForEachWaterBodyComponent([](UWaterBodyComponent* WaterBodyComponent)
+			{
+				WaterBodyComponent->UpdateMaterialInstances();
+				return true;
+			});
 
 			const UE::WaterInfo::FRenderingContext& Context(Pair.Value);
 			UE::WaterInfo::UpdateWaterInfoRendering(WorldPtr.Get()->Scene, Context);
@@ -86,9 +83,10 @@ void FWaterViewExtension::SetupView(FSceneViewFamily& InViewFamily, FSceneView& 
 
 		WaterInfoContextsToRender.Empty();
 
+		// Check if the view location is no longer within the current update bounds of a water zone and if so, queue an update for it.
 		for (AWaterZone* WaterZone : TActorRange<AWaterZone>(WorldPtr.Get()))
 		{
-			if (WaterZone->IsNonTessellatedLODMeshEnabled())
+			if (WaterZone->IsLocalOnlyTessellationEnabled())
 			{
 				const FBox2D* ZoneUpdateBounds = UpdateBounds.Find(WaterZone);
 				if (ZoneUpdateBounds == nullptr || !ZoneUpdateBounds->IsInside(FVector2D(ViewLocation)))

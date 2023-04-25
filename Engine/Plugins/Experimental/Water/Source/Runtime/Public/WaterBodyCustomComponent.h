@@ -30,7 +30,7 @@ protected:
 	
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 #if WITH_EDITOR
-	virtual TArray<TSharedRef<FTokenizedMessage>> CheckWaterBodyStatus() const override;
+	virtual TArray<TSharedRef<FTokenizedMessage>> CheckWaterBodyStatus() override;
 
 	virtual const TCHAR* GetWaterSpriteTextureName() const override;
 

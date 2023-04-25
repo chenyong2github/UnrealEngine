@@ -26,6 +26,7 @@
 #include "WaterBodyBrushCacheContainerThumbnailRenderer.h"
 #include "WaterWavesEditorToolkit.h"
 #include "WaterRuntimeSettings.h"
+#include "WaterBodyOceanComponent.h"
 
 #define LOCTEXT_NAMESPACE "WaterEditor"
 
@@ -321,6 +322,13 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 				UE_LOG(LogWaterEditor, Warning, TEXT("Could not find Water Zone class %s to spawn"), *WaterEditorSettings->GetWaterZoneClassPath().GetAssetPathString());
 			}
 		}
+
+		// If the actor is an ocean, we can help the user by initializing the ocean extent to fully fill the zone to which it belongs:
+		check(WaterBodyActor->GetWaterBodyComponent());
+		if (UWaterBodyOceanComponent* OceanComponent = Cast<UWaterBodyOceanComponent>(WaterBodyActor->GetWaterBodyComponent()))
+		{
+			OceanComponent->FillWaterZoneWithOcean();
+		}
 	}
 }
 
@@ -363,6 +371,7 @@ void FWaterEditorModule::AddWaterCollisionProfile()
 		FCollisionProfilePrivateAccessor::AddProfileTemplate(WaterBodyCollisionProfile);
 	}
 }
+
 
 IMPLEMENT_MODULE(FWaterEditorModule, WaterEditor);
 

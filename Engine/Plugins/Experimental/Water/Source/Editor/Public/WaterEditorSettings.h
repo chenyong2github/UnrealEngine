@@ -74,6 +74,9 @@ public:
 	UMaterialInterface* GetWaterMaterial() const;
 	FSoftObjectPath GetWaterMaterialPath() const { return WaterMaterial.ToSoftObjectPath(); }
 
+	UMaterialInterface* GetWaterStaticMeshMaterial() const;
+	FSoftObjectPath GetWaterStaticMeshMaterialPath() const { return WaterStaticMeshMaterial.ToSoftObjectPath(); }
+
 	UMaterialInterface* GetWaterHLODMaterial() const;
 	FSoftObjectPath GetWaterHLODMaterialPath() const { return WaterHLODMaterial.ToSoftObjectPath(); }
 
@@ -83,6 +86,9 @@ public:
 protected:
 	UPROPERTY(EditAnywhere, config, Category = Rendering)
 	TSoftObjectPtr<UMaterialInterface> WaterMaterial;
+
+	UPROPERTY(EditAnywhere, config, Category = Rendering)
+	TSoftObjectPtr<UMaterialInterface> WaterStaticMeshMaterial;
 
 	UPROPERTY(EditAnywhere, config, Category = Rendering)
 	TSoftObjectPtr<UMaterialInterface> WaterHLODMaterial;
@@ -233,7 +239,7 @@ public:
 
 	bool GetUpdateLandscapeDuringInteractiveChanges() const { return bUpdateLandscapeDuringInteractiveChanges; }
 	bool GetUpdateWaterMeshDuringInteractiveChanges() const { return bUpdateWaterMeshDuringInteractiveChanges; }
-
+	
 public:
 	/** The texture group to use for generated textures such as the combined veloctiy and height texture */
 	UPROPERTY(EditAnywhere, config, Category = Rendering)

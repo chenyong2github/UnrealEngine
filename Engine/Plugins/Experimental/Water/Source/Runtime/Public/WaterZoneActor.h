@@ -20,7 +20,6 @@ enum class EWaterZoneRebuildFlags
 	None = 0,
 	UpdateWaterInfoTexture = (1 << 1),
 	UpdateWaterMesh = (1 << 2),
-	UpdateWaterBodyLODSections = (1 << 3),
 	All = (~0),
 };
 ENUM_CLASS_FLAGS(EWaterZoneRebuildFlags);
@@ -53,6 +52,12 @@ public:
 
 	uint32 GetVelocityBlurRadius() const { return VelocityBlurRadius; }
 
+	FVector GetDynamicWaterMeshCenter() const;
+	FVector GetDynamicWaterMeshExtent() const;
+
+	bool IsLocalOnlyTessellationEnabled() const { return bEnableLocalOnlyTessellation; }
+	void SetLocalTessellationCenter(const FVector& NewCenter) { LocalTessellationCenter = NewCenter;}
+
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
@@ -60,7 +65,6 @@ public:
 #if WITH_EDITORONLY_DATA
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
-	virtual void PostRegisterAllComponents() override;
 
 	FVector2f GetWaterHeightExtents() const { return WaterHeightExtents; }
 	float GetGroundZMin() const { return GroundZMin; }
@@ -70,25 +74,27 @@ public:
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	TObjectPtr<UTextureRenderTarget2D> WaterInfoTexture;
 
-	FVector GetTessellatedWaterMeshCenter() const;
-	void SetTessellatedWaterMeshCenter(FVector NewCenter) { TessellatedWaterMeshCenter = NewCenter;}
-
-	FVector GetTessellatedWaterMeshExtent() const;
-
-	uint32 GetNonTessellatedLODScale() const { return NonTessellatedLODSectionScale; }
-	float GetNonTessellatedLODSectionSize() const;
-
-	bool IsNonTessellatedLODMeshEnabled() const { return bEnableNonTessellatedLODMesh; }
-
 #if WITH_EDITOR
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	virtual FBox GetStreamingBounds() const override;
 #endif //WITH_EDITOR
 
+	UE_DEPRECATED(5.3, "Function renamed to GetDynamicWaterMeshCenter")
+	FVector GetTessellatedWaterMeshCenter() const { return GetDynamicWaterMeshCenter(); }
+
+	UE_DEPRECATED(5.3, "Function renamed to SetLocalTessellationCenter")
+	void SetTessellatedWaterMeshCenter(FVector NewCenter) { SetLocalTessellationCenter(NewCenter); }
+
+	UE_DEPRECATED(5.3, "Function renamed to GetDynamicWaterMeshExtent")
+	FVector GetTessellatedWaterMeshExtent() const { return GetDynamicWaterMeshExtent(); }
+
+	UE_DEPRECATED(5.3, "Function renamed to IsLocalTessellationEnabled.")
+	bool IsNonTessellatedLODMeshEnabled() const { return IsLocalOnlyTessellationEnabled(); }
+
 private:
 
 	/**
-	 * Enqueue's a command on the Water Scene View Extension to re-render the water info on the next frame.
+	 * Enqueues a command on the Water Scene View Extension to re-render the water info on the next frame.
 	 * Returns false if the water info cannot be rendered this frame due to one of the dependencies not being ready yet (ie. a material under On-Demand-Shader-Compilation)
 	 */
 	bool UpdateWaterInfoTexture();
@@ -158,28 +164,22 @@ private:
 	UPROPERTY(Category = Water, EditAnywhere, AdvancedDisplay)
 	int32 VelocityBlurRadius = 1;
 
-	/** Area around the camera covered by the tessellated water mesh when LOD is enabled. */
-	UPROPERTY(Category = NonTessellatedLOD, EditAnywhere, meta = (EditCondition = "bEnableNonTessellatedLODMesh"))
-	FVector TessellatedWaterMeshExtent;
-
-	UPROPERTY(Category = NonTessellatedLOD, EditAnywhere, meta = (ClampMin = "1", DisplayName = "Non Tessellated LOD Section Scale", EditCondition = "bEnableNonTessellatedLODMesh"))
-	uint32 NonTessellatedLODSectionScale = 4;
-
 	/** Higher number is higher priority. If Water Zones overlap and a water body does not have a manual water zone override, this priority will be used when automatically assigning the zone. */
 	UPROPERTY(Category = Water, EditAnywhere, AdvancedDisplay)
 	int32 OverlapPriority = 0;
 
-	UPROPERTY(Category = NonTessellatedLOD, EditAnywhere, meta = (DisplayName = "Enable Non-Tessellated LOD Mesh"))
-	bool bEnableNonTessellatedLODMesh = false;
+	UPROPERTY(Category = LocalTessellation, EditAnywhere)
+	bool bEnableLocalOnlyTessellation = false;
+
+	UPROPERTY(Category = LocalTessellation, EditAnywhere, meta = (EditCondition = "bEnableLocalOnlyTessellation"))
+	FVector LocalTessellationExtent;
 
 	bool bNeedsWaterInfoRebuild = true;
-
-	bool bNeedsNonTessellatedMeshRebuild = true;
 
 	FVector2f WaterHeightExtents;
 	float GroundZMin;
 
-	FVector TessellatedWaterMeshCenter;
+	FVector LocalTessellationCenter;
 
 #if WITH_EDITORONLY_DATA
 	/** A manipulatable box for visualizing/editing the water zone bounds */
@@ -192,8 +192,17 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UBillboardComponent> ActorIcon;
 
+	// Deprecated UPROPERTIES
+
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> WaterVelocityTexture_DEPRECATED;
+
+	UPROPERTY()
+	FVector TessellatedWaterMeshExtent_DEPRECATED;
+
+	UPROPERTY()
+	bool bEnableNonTesselatedLODMesh_DEPRECATED;
+
 #endif // WITH_EDITORONLY_DATA
 };
 DEFINE_ACTORDESC_TYPE(AWaterZone, FWaterZoneActorDesc);

@@ -8,6 +8,7 @@
 #include "WaterBodyActor.generated.h"
 
 class UWaterSplineComponent;
+class UWaterBodyInfoMeshComponent;
 class AWaterBodyIsland;
 class AWaterBodyExclusionVolume;
 class ALandscapeProxy;
@@ -112,6 +113,15 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Instanced, Category = Wave, DisplayName = "Waves Source", meta = (Tooltip = ""))
 	TObjectPtr<UWaterWavesBase> WaterWaves = nullptr;
 
+	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
+	TObjectPtr<UWaterBodyInfoMeshComponent> WaterInfoMeshComponent;
+
+	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
+	TObjectPtr<UWaterBodyInfoMeshComponent> DilatedWaterInfoMeshComponent;
+
+	UPROPERTY(NonTransactional, TextExportTransient, NonPIEDuplicateTransient)
+	TArray<TObjectPtr<UWaterBodyStaticMeshComponent>> WaterBodyStaticMeshComponents;
+
 #if WITH_EDITOR
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
@@ -121,9 +131,15 @@ protected:
 
 	void SetWaterWavesInternal(UWaterWavesBase* InWaterWaves);
 
+	const TArray<TObjectPtr<UWaterBodyStaticMeshComponent>>& GetWaterBodyStaticMeshComponents() const { return WaterBodyStaticMeshComponents; }
+
+	/** Sets up a new list of water body static mesh components. */
+	void SetWaterBodyStaticMeshComponents(TArrayView<TObjectPtr<UWaterBodyStaticMeshComponent>> NewComponentList, TConstArrayView<TObjectPtr<UWaterBodyStaticMeshComponent>> ComponentsToUnregister = {});
+
 // ----------------------------------------------------------------------------------
 // Deprecated
 
+#pragma region Deprecated
 public:
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	UFUNCTION(BlueprintCallable, Category = Rendering, meta = (DeprecatedFunction))
@@ -250,6 +266,8 @@ protected:
 	UPROPERTY()
 	float ShapeDilation_DEPRECATED = 4096.0f;
 #endif // WITH_EDITORONLY_DATA
+
+#pragma endregion // deprecated
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

@@ -44,6 +44,8 @@ struct FWaterUtils
 	static WATER_API bool IsWaterMeshEnabled(bool bIsRenderThread);
 	static WATER_API bool IsWaterMeshRenderingEnabled(bool bIsRenderThread);
 	static WATER_API float GetWaterMaxFlowVelocity(bool bIsRenderThread);
+
+	static FVector4f PackFlowData(float VelocityMagnitude, float DirectionAngle);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

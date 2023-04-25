@@ -124,3 +124,17 @@ float FWaterUtils::GetWaterMaxFlowVelocity(bool bIsRenderThread)
 {
 	return (bIsRenderThread ? CVarWaterMaxFlowVelocity.GetValueOnRenderThread() : CVarWaterMaxFlowVelocity.GetValueOnGameThread());
 }
+
+FVector4f FWaterUtils::PackFlowData(float VelocityMagnitude, float DirectionAngle)
+{
+	check((DirectionAngle >= 0.f) && (DirectionAngle <= TWO_PI));
+
+	const float MaxVelocity = GetWaterMaxFlowVelocity(false);
+
+	FVector4f Result;
+	Result.X = FMath::Clamp(VelocityMagnitude / MaxVelocity, 0.f, 1.f);
+	Result.Y = FMath::Clamp(DirectionAngle / TWO_PI, 0.f, 1.f);
+
+	return Result;
+}
+

@@ -8,7 +8,6 @@
 #include "Modules/ModuleManager.h"
 #include "RenderCaptureInterface.h"
 #include "RHIStaticStates.h"
-#include "WaterBodySceneProxy.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "SceneCaptureRendering.h"
 #include "PostProcess/DrawRectangle.h"
@@ -20,6 +19,7 @@
 #include "LandscapeModule.h"
 #include "TextureResource.h"
 #include "WaterBodyComponent.h"
+#include "WaterBodyInfoMeshComponent.h"
 #include "Containers/StridedView.h"
 
 #include "RenderGraphBuilder.h"
@@ -183,7 +183,8 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, WaterInfoTexture)
-		SHADER_PARAMETER(FVector2f, WaterHeightExtents)
+		SHADER_PARAMETER(float, WaterZMin)
+		SHADER_PARAMETER(float, WaterZMax)
 		SHADER_PARAMETER(float, GroundZMin)
 		SHADER_PARAMETER(float, CaptureZ)
 		SHADER_PARAMETER(int, BlurRadius)
@@ -246,10 +247,11 @@ static void FinalizeWaterInfo(
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ENoAction);
 		PassParameters->SceneTextures = GetSceneTextureShaderParameters(View);
 		PassParameters->WaterInfoTexture = WaterInfoTexture;
-		PassParameters->BlurRadius = Params.VelocityBlurRadius;
-		PassParameters->CaptureZ = Params.CaptureZ;
-		PassParameters->WaterHeightExtents = Params.WaterHeightExtents;
+		PassParameters->WaterZMin = Params.WaterHeightExtents.X;
+		PassParameters->WaterZMax = Params.WaterHeightExtents.Y;
 		PassParameters->GroundZMin = Params.GroundZMin;
+		PassParameters->CaptureZ = Params.CaptureZ;
+		PassParameters->BlurRadius = Params.VelocityBlurRadius;
 
 		TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 		TShaderMapRef<FWaterInfoFinalizePS> PixelShader(ShaderMap, PixelPermutationVector);
@@ -299,21 +301,37 @@ static FMatrix BuildOrthoMatrix(float InOrthoWidth, float InOrthoHeight)
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-static void SetWaterBodiesWithinWaterInfoPass(FSceneInterface* Scene, const FSceneView& View, EWaterInfoPass InPass)
+struct FEnableWaterInfoMeshesScoped
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(WaterInfo::SetWaterBodiesWithinWaterInfoPass);
-	if (View.ShowOnlyPrimitives.IsSet())
+public:
+	FEnableWaterInfoMeshesScoped(FSceneInterface* Scene, const FSceneView& View)
 	{
-		for (FPrimitiveSceneProxy* PrimProxy : Scene->GetPrimitiveSceneProxies())
+		TRACE_CPUPROFILER_EVENT_SCOPE(WaterInfo::EnableWaterInfoMeshes);
+		if (View.ShowOnlyPrimitives.IsSet())
 		{
-			if (PrimProxy && View.ShowOnlyPrimitives->Contains(PrimProxy->GetPrimitiveComponentId()))
+			for (FPrimitiveSceneProxy* PrimProxy : Scene->GetPrimitiveSceneProxies())
 			{
-				FWaterBodySceneProxy* WaterProxy = (FWaterBodySceneProxy*)PrimProxy;
-				WaterProxy->SetWithinWaterInfoPass(InPass);
+				if (PrimProxy && View.ShowOnlyPrimitives->Contains(PrimProxy->GetPrimitiveComponentId()))
+				{
+					FWaterBodyInfoMeshSceneProxy* WaterProxy = (FWaterBodyInfoMeshSceneProxy*)PrimProxy;
+					WaterProxy->SetEnabled(true);
+					Proxies.Add(WaterProxy);
+				}
 			}
 		}
 	}
-}
+
+	~FEnableWaterInfoMeshesScoped()
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WaterInfo::DisableWaterInfoMeshes);
+		for (FWaterBodyInfoMeshSceneProxy* Proxy : Proxies)
+		{
+			Proxy->SetEnabled(false);
+		}
+	}
+private:
+	TArray<FWaterBodyInfoMeshSceneProxy*> Proxies;
+};
 
 /**
  * Sets up the landscape LOD override for water info rendering and restores it when the instance goes out of scope.
@@ -425,11 +443,13 @@ static void UpdateWaterInfoRendering_RenderThread(
 	TRefCountPtr<IPooledRenderTarget> ExtractedDepthTexture;
 	TRefCountPtr<IPooledRenderTarget> ExtractedColorTexture;
 
-	FSceneInterface* Scene = Params.Scene;
 
 	// Depth-only pass for actors which are considered the ground for water rendering
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WaterInfo::DepthPass);
+
 		FSceneRenderer* DepthRenderer = Params.DepthRenderer;
+		FSceneInterface* Scene = DepthRenderer->ViewFamily.Scene;
 
 		DepthRenderer->RenderThreadBegin(RHICmdList);
 
@@ -483,7 +503,12 @@ static void UpdateWaterInfoRendering_RenderThread(
 
 	// Render the water bodies' data including flow, zoffset, depth
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WaterInfo::ColorPass);
+
 		FSceneRenderer* ColorRenderer = Params.ColorRenderer;
+		FSceneInterface* Scene = ColorRenderer->ViewFamily.Scene;
+
+		FEnableWaterInfoMeshesScoped ScopedWaterInfoMeshEnable(ColorRenderer->Scene, ColorRenderer->Views[0]);
 
 		ColorRenderer->RenderThreadBegin(RHICmdList);
 
@@ -496,8 +521,6 @@ static void UpdateWaterInfoRendering_RenderThread(
 		// We need to execute the pre-render view extensions before we do any view dependent work.
 		FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, ColorRenderer);
 
-		SetWaterBodiesWithinWaterInfoPass(Scene, View, EWaterInfoPass::Color);
-		
 		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("WaterColorTarget"));
 
 		FRDGTextureDesc ColorTextureDesc(TargetTexture->Desc);
@@ -535,7 +558,12 @@ static void UpdateWaterInfoRendering_RenderThread(
 
 	// Depth-only pass for water body dilated sections which get composited back into the water info texture at a lower priority than regular water body data
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(WaterInfo::DilationPass);
+
 		FSceneRenderer* DilationRenderer = Params.DilationRenderer;
+		FSceneInterface* Scene = DilationRenderer->ViewFamily.Scene;
+
+		FEnableWaterInfoMeshesScoped ScopedWaterInfoMeshEnable(DilationRenderer->Scene, DilationRenderer->Views[0]);
 
 		DilationRenderer->RenderThreadBegin(RHICmdList);
 
@@ -548,8 +576,6 @@ static void UpdateWaterInfoRendering_RenderThread(
 
 		// We need to execute the pre-render view extensions before we do any view dependent work.
 		FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, DilationRenderer);
-
-		SetWaterBodiesWithinWaterInfoPass(Scene, View, EWaterInfoPass::Dilation);
 
 		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("WaterDilationTarget"));
 
@@ -594,7 +620,6 @@ static void UpdateWaterInfoRendering_RenderThread(
 		AddCopyTexturePass(GraphBuilder, FinalizedTexture, ShaderResourceTexture);
 		GraphBuilder.Execute();
 
-		SetWaterBodiesWithinWaterInfoPass(Scene, View, EWaterInfoPass::None);
 		DilationRenderer->RenderThreadEnd(RHICmdList);
 	}
 
@@ -639,6 +664,9 @@ static FSceneRenderer* CreateWaterInfoSceneRenderer(const FCreateWaterInfoSceneR
 	ShowFlags.Fog = 0;
 	ShowFlags.VolumetricFog = 0;
 	ShowFlags.DynamicShadows = 0;
+
+	ShowFlags.SetDisableOcclusionQueries(true);
+	ShowFlags.SetVirtualShadowMapCaching(false);
 	
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		Params.RenderTarget,
@@ -660,7 +688,8 @@ static FSceneRenderer* CreateWaterInfoSceneRenderer(const FCreateWaterInfoSceneR
 	ViewInitOptions.ProjectionMatrix = Params.ProjectionMatrix;
 	ViewInitOptions.LODDistanceFactor = 0.001f;
 	ViewInitOptions.OverlayColor = FLinearColor::Black;
-	ViewInitOptions.bIsSceneCapture = true;
+	// Must be set to false to prevent the renders from using different VSM page pool sizes leading to unnecessary reallocations.
+	ViewInitOptions.bIsSceneCapture = false;
 
 	if (ViewFamily.Scene->GetWorld() != nullptr && ViewFamily.Scene->GetWorld()->GetWorldSettings() != nullptr)
 	{
@@ -682,14 +711,28 @@ static FSceneRenderer* CreateWaterInfoSceneRenderer(const FCreateWaterInfoSceneR
 
 	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.f));
 
-	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Params.Scene));
+	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(ViewFamily.Scene));
 	for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
 	{
 		Extension->SetupViewFamily(ViewFamily);
 		Extension->SetupView(ViewFamily, *View);
 	}
 
-	return FSceneRenderer::CreateSceneRenderer(&ViewFamily, nullptr);
+	FSceneRenderer* SceneRenderer = FSceneRenderer::CreateSceneRenderer(&ViewFamily, nullptr);
+	FSceneViewStateReference* ViewStateReference = new FSceneViewStateReference();
+	ViewStateReference->Allocate(ViewFamily.Scene->GetFeatureLevel());
+	FSceneViewStateInterface* ViewStateInterface = ViewStateReference->GetReference();
+
+	if (UseVirtualShadowMaps(SceneRenderer->ShaderPlatform, ViewFamily.Scene->GetFeatureLevel()))
+	{
+		// This is needed to prevent the default cache being invalidated on every frame.
+		if (ViewStateInterface)
+		{
+			ViewStateInterface->AddVirtualShadowMapCache(ViewFamily.Scene);
+		}
+	}
+
+	return SceneRenderer;
 }
 
 void UpdateWaterInfoRendering(
@@ -705,10 +748,12 @@ void UpdateWaterInfoRendering(
 	{
 		return;
 	}
-	const FVector ZoneExtent = Context.ZoneToRender->GetTessellatedWaterMeshExtent();
+	const FVector ZoneExtent = Context.ZoneToRender->GetDynamicWaterMeshExtent();
 
-	FVector ViewLocation = Context.ZoneToRender->GetTessellatedWaterMeshCenter();
+	FVector ViewLocation = Context.ZoneToRender->GetDynamicWaterMeshCenter();
 	ViewLocation.Z = Context.CaptureZ;
+
+	const FBox2D CaptureBounds(FVector2D(ViewLocation - ZoneExtent), FVector2D(ViewLocation + ZoneExtent));
 
 	// Zone rendering always happens facing towards negative z.
 	const FVector LookAt = ViewLocation - FVector(0.f, 0.f, 1.f);
@@ -749,20 +794,34 @@ void UpdateWaterInfoRendering(
 	CreateSceneRendererParams.ShowOnlyPrimitives = MoveTemp(ComponentsToRenderInDepthPass);
 	FSceneRenderer* DepthRenderer = CreateWaterInfoSceneRenderer(CreateSceneRendererParams);
 	
-	TSet<FPrimitiveComponentId> ComponentsToRenderInColorAndDilationPass;
+	TSet<FPrimitiveComponentId> ComponentsToRenderInColorPass;
+	TSet<FPrimitiveComponentId> ComponentsToRenderInDilationPass;
 	if (Context.WaterBodies.Num() > 0)
 	{
-		ComponentsToRenderInColorAndDilationPass.Reserve(Context.WaterBodies.Num());
+		ComponentsToRenderInColorPass.Reserve(Context.WaterBodies.Num());
+		ComponentsToRenderInDilationPass.Reserve(Context.WaterBodies.Num());
 		for (const UWaterBodyComponent* WaterBodyToRender : Context.WaterBodies)
 		{
-			ComponentsToRenderInColorAndDilationPass.Add(WaterBodyToRender->ComponentId);
+			if (!IsValid(WaterBodyToRender))
+			{
+				continue;
+			}
+
+			// Perform our own simple culling based on the known Capture bounds:
+			const FBox WaterBodyBounds = WaterBodyToRender->Bounds.GetBox();
+			if (CaptureBounds.Intersect(FBox2D(FVector2D(WaterBodyBounds.Min), FVector2D(WaterBodyBounds.Max))))
+			{
+				ComponentsToRenderInColorPass.Add(WaterBodyToRender->GetWaterInfoMeshComponent()->ComponentId);
+				ComponentsToRenderInDilationPass.Add(WaterBodyToRender->GetDilatedWaterInfoMeshComponent()->ComponentId);
+			}
 		}
 	}
 	CreateSceneRendererParams.CaptureSource = SCS_SceneColorSceneDepth;
-	CreateSceneRendererParams.ShowOnlyPrimitives = MoveTemp(ComponentsToRenderInColorAndDilationPass);
+	CreateSceneRendererParams.ShowOnlyPrimitives = MoveTemp(ComponentsToRenderInColorPass);
 	FSceneRenderer* ColorRenderer = CreateWaterInfoSceneRenderer(CreateSceneRendererParams);
 
 	CreateSceneRendererParams.CaptureSource = SCS_DeviceDepth;
+	CreateSceneRendererParams.ShowOnlyPrimitives = MoveTemp(ComponentsToRenderInDilationPass);
 	FSceneRenderer* DilationRenderer = CreateWaterInfoSceneRenderer(CreateSceneRendererParams);
 
 	FTextureRenderTargetResource* TextureRenderTargetResource = Context.TextureRenderTarget->GameThread_GetRenderTargetResource();
