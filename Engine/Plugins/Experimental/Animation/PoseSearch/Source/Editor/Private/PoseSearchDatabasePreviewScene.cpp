@@ -61,6 +61,7 @@ namespace UE::PoseSearch
 		if (ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::All | EFeaturesDrawMode::Detailed) && !ViewModel->GetPreviewActors().IsEmpty() &&
 			FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 		{
+			bool bDrawQueryVector = ViewModel->ShouldDrawQueryVector();
 			for (FDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
 			{
 				if (Database->GetSearchIndex().IsValidPoseIndex(PreviewActor.CurrentPoseIndex))
@@ -69,6 +70,12 @@ namespace UE::PoseSearch
 					{
 						UE::PoseSearch::FDebugDrawParams DrawParams(GetWorld(), Mesh, &PreviewActor.QuantizedTimeRootMotion, Database);
 						DrawParams.DrawFeatureVector(PreviewActor.CurrentPoseIndex);
+
+						if (bDrawQueryVector)
+						{
+							DrawParams.DrawFeatureVector(ViewModel->GetQueryVector());
+							bDrawQueryVector = false;
+						}
 					}
 				}
 			}

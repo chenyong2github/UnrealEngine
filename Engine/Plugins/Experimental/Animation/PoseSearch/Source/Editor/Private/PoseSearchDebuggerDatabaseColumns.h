@@ -117,36 +117,36 @@ struct FDatabaseName : IColumn
 
 	virtual FSortPredicate GetSortPredicate() const override
 	{
-		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->DatabaseName < Row1->DatabaseName; };
+		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->SharedData->DatabaseName < Row1->SharedData->DatabaseName; };
 	}
 
 	virtual TSharedRef<SWidget> GenerateWidget(const FRowDataRef& RowData) const override
 	{
 		return SNew(SHyperlink)
-			.Text_Lambda([RowData]() -> FText { return FText::FromString(RowData->DatabaseName); })
+			.Text_Lambda([RowData]() -> FText { return FText::FromString(RowData->SharedData->DatabaseName); })
 			.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
 			.ToolTipText_Lambda([RowData]() -> FText
 				{
 					return FText::Format(
 						LOCTEXT("DatabaseHyperlinkTooltipFormat", "Open database '{0}'"),
-						FText::FromString(RowData->DatabasePath));
+						FText::FromString(RowData->SharedData->DatabasePath));
 				})
 			.OnNavigate_Lambda([RowData]()
 				{
 					UObject* Asset = nullptr;
 
 					// Load asset
-					if (UPackage* Package = LoadPackage(NULL, *RowData->DatabasePath, LOAD_NoRedirects))
+					if (UPackage* Package = LoadPackage(NULL, *RowData->SharedData->DatabasePath, LOAD_NoRedirects))
 					{
 						Package->FullyLoad();
 
-						const FString AssetName = FPaths::GetBaseFilename(RowData->DatabasePath);
+						const FString AssetName = FPaths::GetBaseFilename(RowData->SharedData->DatabasePath);
 						Asset = FindObject<UObject>(Package, *AssetName);
 					}
 					else
 					{
 						// Fallback for unsaved assets
-						Asset = FindObject<UObject>(nullptr, *RowData->DatabasePath);
+						Asset = FindObject<UObject>(nullptr, *RowData->SharedData->DatabasePath);
 					}
 
 					// Open editor
@@ -164,6 +164,7 @@ struct FDatabaseName : IColumn
 									
 									// Open asset paused and at specific time as seen on the pose search debugger.
 									DatabaseEditor->SetSelectedPoseIdx(RowData->PoseIdx);
+									DatabaseEditor->SetQueryVector(RowData->SharedData->QueryVector);
 								}
 							}
 						}

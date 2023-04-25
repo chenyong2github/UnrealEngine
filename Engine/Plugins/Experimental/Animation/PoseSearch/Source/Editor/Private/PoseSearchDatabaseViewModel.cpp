@@ -273,6 +273,7 @@ namespace UE::PoseSearch
 		MaxPreviewPlayLength = 0.f;
 		MinPreviewPlayLength = 0.f;
 		bIsEditorSelection = true;
+		bDrawQueryVector = false;
 
 		for (auto PreviewActor : PreviewActors)
 		{
@@ -430,8 +431,6 @@ namespace UE::PoseSearch
 
 	void FDatabaseViewModel::SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes)
 	{
-		bIsEditorSelection = true;
-
 		RemovePreviewActors();
 
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))

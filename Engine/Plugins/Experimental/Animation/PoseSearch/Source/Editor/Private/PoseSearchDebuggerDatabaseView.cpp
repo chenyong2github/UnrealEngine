@@ -64,7 +64,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 					for (const UPoseSearchFeatureChannel* Channel : LabelToChannel.Channels)
 					{
 						// checking if the row is associated to the Channel
-						if (UnfilteredDatabaseRow.SourceDatabase->Schema == Channel->GetSchema())
+						if (UnfilteredDatabaseRow.SharedData->SourceDatabase->Schema == Channel->GetSchema())
 						{
 							CostBreakdown += ArraySum(UnfilteredDatabaseRow.CostVector, Channel->GetChannelDataOffset(), Channel->GetChannelCardinality());
 						}
@@ -175,18 +175,22 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 		{
 			const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
+
+			TSharedRef<FDebuggerDatabaseSharedData> SharedData = MakeShared<FDebuggerDatabaseSharedData>();
+			SharedData->SourceDatabase = Database;
+			SharedData->DatabaseName = Database->GetName();
+			SharedData->DatabasePath = Database->GetPathName();
+			SharedData->QueryVector = DbEntry.QueryVector;
+
 			for (const FTraceMotionMatchingStatePoseEntry& PoseEntry : DbEntry.PoseEntries)
 			{
 				if (const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex.GetAssetForPoseSafe(PoseEntry.DbPoseIdx))
 				{
-					TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
+					TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>(SharedData));
 
 					const float Time = Database->GetAssetTime(PoseEntry.DbPoseIdx);
 
 					Row->PoseIdx = PoseEntry.DbPoseIdx;
-					Row->SourceDatabase = Database;
-					Row->DatabaseName = Database->GetName();
-					Row->DatabasePath = Database->GetPathName();
 					Row->PoseCandidateFlags = PoseEntry.PoseCandidateFlags;
 					Row->DbAssetIdx = SearchIndexAsset->SourceAssetIdx;
 					Row->AssetTime = Time;
@@ -482,7 +486,7 @@ void SDebuggerDatabaseView::OnDatabaseRowSelectionChanged(TSharedPtr<FDebuggerDa
 {
 	if (Row.IsValid())
 	{
-		OnPoseSelectionChanged.ExecuteIfBound(Row->SourceDatabase.Get(), Row->PoseIdx, Row->AssetTime);
+		OnPoseSelectionChanged.ExecuteIfBound(Row->SharedData->SourceDatabase.Get(), Row->PoseIdx, Row->AssetTime);
 	}
 }
 

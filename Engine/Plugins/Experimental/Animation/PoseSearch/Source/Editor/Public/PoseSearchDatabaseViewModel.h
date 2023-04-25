@@ -109,6 +109,11 @@ namespace UE::PoseSearch
 		void SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes);
 		void ProcessSelectedActor(AActor* Actor);
 		
+		void SetQueryVector(TConstArrayView<float> InQueryVector) { QueryVector = InQueryVector; }
+		TConstArrayView<float> GetQueryVector() const { return QueryVector; }
+		void SetDrawQueryVector(bool bValue) { bDrawQueryVector = bValue; }
+		bool ShouldDrawQueryVector() const { return bDrawQueryVector && !bIsEditorSelection; }
+
 		const FPoseSearchIndexAsset* GetSelectedActorIndexAsset() const;
 
 		TRange<double> GetPreviewPlayRange() const;
@@ -117,6 +122,7 @@ namespace UE::PoseSearch
 		float GetPlayTime() const;
 		bool IsEditorSelection() const { return bIsEditorSelection; }
 		bool GetAnimationTime(int32 SourceAssetIdx, float& CurrentPlayTime, FVector& BlendParameters) const;
+
 
 	private:
 		float PlayTime = 0.f;
@@ -134,7 +140,10 @@ namespace UE::PoseSearch
 		/** From zero to the play length of the longest preview */
 		float MaxPreviewPlayLength = 0.f;
 		float MinPreviewPlayLength = 0.f;
+
 		bool bIsEditorSelection = true;
+		bool bDrawQueryVector = false;
+		TArray<float> QueryVector;
 
 		/** What features to show in the viewport */
 		EFeaturesDrawMode PoseFeaturesDrawMode = EFeaturesDrawMode::All;

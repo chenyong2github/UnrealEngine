@@ -2,15 +2,18 @@
 
 #include "PoseSearchDebuggerView.h"
 #include "Modules/ModuleManager.h"
+#include "Editor.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
 #include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearchDatabaseEditor.h"
 #include "PoseSearchDebugger.h"
 #include "PoseSearchDebuggerDatabaseRowData.h"
 #include "PoseSearchDebuggerDatabaseView.h"
 #include "PoseSearchDebuggerReflection.h"
 #include "PoseSearchDebuggerViewModel.h"
 #include "PropertyEditorModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "Trace/PoseSearchTraceProvider.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -127,9 +130,9 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 		if (!SelectedRows.IsEmpty())
 		{
 			const TSharedRef<FDebuggerDatabaseRowData>& Selected = SelectedRows[0];
-			if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Selected->SourceDatabase.Get(), ERequestAsyncBuildFlag::ContinueRequest))
+			if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Selected->SharedData->SourceDatabase.Get(), ERequestAsyncBuildFlag::ContinueRequest))
 			{
-				const FPoseSearchIndex& SelectedSearchIndex = Selected->SourceDatabase->GetSearchIndex();
+				const FPoseSearchIndex& SelectedSearchIndex = Selected->SharedData->SourceDatabase->GetSearchIndex();
 				Reflection->SelectedPoseVector = SelectedSearchIndex.GetPoseValuesSafe(Selected->PoseIdx);
 			}
 			Reflection->CostVector = Selected->CostVector;
@@ -267,6 +270,27 @@ void SDebuggerView::Tick(const FGeometry& AllottedGeometry, const double InCurre
 
 	// Draw visualization every tick
 	DrawVisualization();
+	
+	// synchronizing the model DrawQuery state with all the open PoseSearchDatabaseEditor(s)
+	const bool bDrawQuery = Model->GetDrawQuery();
+	if (UAssetEditorSubsystem* AssetEditorSS = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+	{
+		TArray<UObject*> EditedAssets = AssetEditorSS->GetAllEditedAssets();
+		for (UObject* EditedAsset : EditedAssets)
+		{
+			if (Cast<UPoseSearchDatabase>(EditedAsset))
+			{
+				if (IAssetEditorInstance* Editor = AssetEditorSS->FindEditorForAsset(EditedAsset, false))
+				{
+					if (Editor->GetEditorName() == FName("PoseSearchDatabaseEditor"))
+					{
+						FDatabaseEditor* DatabaseEditor = static_cast<FDatabaseEditor*>(Editor);
+						DatabaseEditor->SetDrawQueryVector(bDrawQuery);
+					}
+				}
+			}
+		}
+	}
 }
 
 bool SDebuggerView::UpdateNodeSelection()
@@ -371,7 +395,7 @@ void SDebuggerView::DrawFeatures(
 	// Draw any selected database vectors
 	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : SelectedRows)
 	{
-		const UPoseSearchDatabase* RowDatabase = Row->SourceDatabase.Get();
+		const UPoseSearchDatabase* RowDatabase = Row->SharedData->SourceDatabase.Get();
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(RowDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
 			FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, RowDatabase);
@@ -388,7 +412,7 @@ void SDebuggerView::DrawFeatures(
 
 		if (!ActiveRows.IsEmpty())
 		{
-			const UPoseSearchDatabase* Database = ActiveRows[0]->SourceDatabase.Get();
+			const UPoseSearchDatabase* Database = ActiveRows[0]->SharedData->SourceDatabase.Get();
 			if (Database && FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
 				// Use the motion-matching state's pose idx, as the active row may be update-throttled at this point
@@ -408,7 +432,7 @@ void SDebuggerView::DrawFeatures(
 
 		if (!ContinuingRows.IsEmpty())
 		{
-			const UPoseSearchDatabase* Database = ContinuingRows[0]->SourceDatabase.Get();
+			const UPoseSearchDatabase* Database = ContinuingRows[0]->SharedData->SourceDatabase.Get();
 			if (Database && FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
 				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, Database);

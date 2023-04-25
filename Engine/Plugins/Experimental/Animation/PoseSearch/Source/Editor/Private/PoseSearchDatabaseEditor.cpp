@@ -65,6 +65,22 @@ namespace UE::PoseSearch
 		}
 	}
 
+	void FDatabaseEditor::SetQueryVector(TConstArrayView<float> InQueryVector)
+	{
+		if (ViewModel.IsValid())
+		{
+			ViewModel->SetQueryVector(InQueryVector);
+		}
+	}
+
+	void FDatabaseEditor::SetDrawQueryVector(bool bValue)
+	{
+		if (ViewModel.IsValid())
+		{
+			ViewModel->SetDrawQueryVector(bValue);
+		}
+	}
+
 	void FDatabaseEditor::BuildSearchIndex()
 	{
 		ViewModel->BuildSearchIndex();

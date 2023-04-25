@@ -41,6 +41,8 @@ namespace UE::PoseSearch
 		TSharedPtr<FDatabaseViewModel> GetViewModelSharedPtr() const { return ViewModel; }
 		
 		void SetSelectedPoseIdx(int32 PoseIdx);
+		void SetQueryVector(TConstArrayView<float> InQueryVector);
+		void SetDrawQueryVector(bool bValue);
 		
 		void BuildSearchIndex();
 

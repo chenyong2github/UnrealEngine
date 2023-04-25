@@ -9,16 +9,22 @@
 namespace UE::PoseSearch
 {
 
+class FDebuggerDatabaseSharedData : public TSharedFromThis<FDebuggerDatabaseSharedData>
+{
+public:
+	TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
+	FString DatabaseName = "";
+	FString DatabasePath = "";
+	TArray<float> QueryVector;
+};
+
 class FDebuggerDatabaseRowData : public TSharedFromThis<FDebuggerDatabaseRowData>
 {
 public:
-	FDebuggerDatabaseRowData() = default;
-	
+	explicit FDebuggerDatabaseRowData(TSharedRef<FDebuggerDatabaseSharedData> InSharedData) : SharedData(InSharedData) {}
+
 	int32 PoseIdx = 0;
-	TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase = nullptr;
 	EPoseCandidateFlags PoseCandidateFlags = EPoseCandidateFlags::None;
-	FString DatabaseName = "";
-	FString DatabasePath = "";
 	FString AssetName = "";
 	FString AssetPath = "";
 	int32 DbAssetIdx = 0;
@@ -33,6 +39,8 @@ public:
 	TArray<float> CostBreakdowns;
 	TArray<FLinearColor> CostBreakdownsColors;
 	TArray<float> CostVector;
+
+	TSharedRef<FDebuggerDatabaseSharedData> SharedData;
 };
 
 } // namespace UE::PoseSearch
