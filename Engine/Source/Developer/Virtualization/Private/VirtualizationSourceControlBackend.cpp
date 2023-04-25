@@ -450,7 +450,10 @@ bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests, EPullFla
 		{
 			// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
 			FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPaths[Index]);
-			Requests[Index].SetPayload(FCompressedBuffer::FromCompressed(Buffer));
+			if (!Buffer.IsNull())
+			{
+				Requests[Index].SetPayload(FCompressedBuffer::FromCompressed(Buffer));
+			}
 		}
 
 		if (bOperationSuccess)
