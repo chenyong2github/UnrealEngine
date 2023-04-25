@@ -813,6 +813,9 @@ void FNiagaraEditorStyle::InitSimCacheEditor()
 		.SetCheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Select, 2.0f))
 		.SetCheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Select, 2.0f))
 		);
+
+	Set("NiagaraEditor.SimCache.CaptureSingleIcon", new IMAGE_BRUSH_SVG("Icons/AttributeSpreadsheet/NiagaraAttrSpreadsheetCaptureSingle", Icon20x20));
+	Set("NiagaraEditor.SimCache.CaptureMultiIcon", new IMAGE_BRUSH_SVG("Icons/AttributeSpreadsheet/NiagaraAttrSpreadsheetCaptureMulti", Icon20x20));
 }
 
 FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle")

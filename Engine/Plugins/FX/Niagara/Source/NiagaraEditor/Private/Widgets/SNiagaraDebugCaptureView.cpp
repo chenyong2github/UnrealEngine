@@ -3,6 +3,7 @@
 #include "SNiagaraDebugCaptureView.h"
 
 #include "NiagaraComponent.h"
+#include "NiagaraEditorStyle.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraSettings.h"
 #include "PropertyEditorModule.h"
@@ -176,9 +177,9 @@ FSlateIcon SNiagaraDebugCaptureView::GetCaptureIcon()
 	switch(FrameMode)
 	{
 	case ENiagaraDebugCaptureFrameMode::SingleFrame:
-		return FSlateIcon();
+		return FSlateIcon (FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.SimCache.CaptureSingleIcon");
 	case ENiagaraDebugCaptureFrameMode::MultiFrame:
-		return FSlateIcon();
+		return FSlateIcon (FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.SimCache.CaptureMultiIcon");
 	default:
 		return FSlateIcon();
 	}
