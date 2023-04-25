@@ -341,16 +341,29 @@ bool MovieSceneToolHelpers::ParseShotName(const FString& InShotName, FString& Sh
 				ShotPrefix = ShotName.Left(LastSlashPos);
 			}
 			
-			ShotNumber = INDEX_NONE; // Nullify the shot number since we only have a shot prefix
-			TakeNumber = FCString::Atoi(*ShotName.RightChop(LastSlashPos+1));
-			TakeNumberDigits = ShotName.Len() - (LastSlashPos+1);
-			return true;
+			FString TakeStr = ShotName.RightChop(LastSlashPos + 1);
+			if (TakeStr.IsNumeric())
+			{
+				ShotNumber = INDEX_NONE; // Nullify the shot number since we only have a shot prefix
+				TakeNumber = FCString::Atoi(*TakeStr);
+				TakeNumberDigits = ShotName.Len() - (LastSlashPos+1);
+				return true;
+			}
 		}
 	}
 
 	if (ParsedTakeNumber.IsSet())
 	{
 		TakeNumber = ParsedTakeNumber.GetValue();
+	}
+
+	if (FirstShotNumberIndex == INDEX_NONE)
+	{
+		ShotPrefix = InShotName;
+		ShotNumber = INDEX_NONE; // Nullify the shot number since we only have a shot prefix
+		TakeNumber = 0;
+		TakeNumberDigits = ProjectSettings->TakeNumDigits;
+		return true;
 	}
 
 	return FirstShotNumberIndex != INDEX_NONE;
@@ -451,46 +464,42 @@ FString MovieSceneToolHelpers::GenerateNewShotPath(UMovieScene* SequenceMovieSce
 	return NewShotPath;
 }
 
-
 FString MovieSceneToolHelpers::GenerateNewShotName(const TArray<UMovieSceneSection*>& AllSections, FFrameNumber Time)
 {
 	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
 
-	UMovieSceneCinematicShotSection* BeforeShot = nullptr;
-	UMovieSceneCinematicShotSection* NextShot = nullptr;
+	UMovieSceneSubSection* CurrentSection = Cast<UMovieSceneSubSection>(MovieSceneHelpers::FindSectionAtTime(AllSections, Time));
+	UMovieSceneSubSection* NextSection = Cast<UMovieSceneSubSection>(MovieSceneHelpers::FindNextSection(AllSections, Time));
 
-	FFrameNumber MinEndDiff = TNumericLimits<int32>::Max();
-	FFrameNumber MinStartDiff = TNumericLimits<int32>::Max();
-
-	for (auto Section : AllSections)
+	if (!CurrentSection)
 	{
-		if (Section->HasEndFrame() && Section->GetExclusiveEndFrame() >= Time)
-		{
-			FFrameNumber EndDiff = Section->GetExclusiveEndFrame() - Time;
-			if (MinEndDiff > EndDiff)
-			{
-				MinEndDiff = EndDiff;
-				BeforeShot = Cast<UMovieSceneCinematicShotSection>(Section);
-			}
-		}
-		if (Section->HasStartFrame() && Section->GetInclusiveStartFrame() <= Time)
-		{
-			FFrameNumber StartDiff = Time - Section->GetInclusiveStartFrame();
-			if (MinStartDiff > StartDiff)
-			{
-				MinStartDiff = StartDiff;
-				NextShot = Cast<UMovieSceneCinematicShotSection>(Section);
-			}
-		}
+		CurrentSection = Cast<UMovieSceneSubSection>(MovieSceneHelpers::FindPreviousSection(AllSections, Time));
 	}
-	
-	// There aren't any shots, let's create the first shot name
-	if (BeforeShot == nullptr || NextShot == nullptr)
+
+	if (!NextSection)
+	{
+		NextSection = CurrentSection;
+	}
+
+	FString NextSectionName = NextSection && NextSection->GetSequence() ? NextSection->GetSequence()->GetName() : FString();
+	if (const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(NextSection))
+	{
+		NextSectionName = ShotSection->GetShotDisplayName();
+	}
+
+	FString CurrentSectionName = CurrentSection && CurrentSection->GetSequence() ? CurrentSection->GetSequence()->GetName() : FString();
+	if (const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(CurrentSection))
+	{
+		CurrentSectionName = ShotSection->GetShotDisplayName();
+	}
+
+	// There aren't any sections, let's create the first shot name
+	if (NextSection == nullptr || CurrentSection == nullptr)
 	{
 		// Default case
 	}
 	// This is the last shot
-	else if (BeforeShot == NextShot)
+	else if (CurrentSection == NextSection)
 	{
 		FString NextShotPrefix = ProjectSettings->ShotPrefix;
 		uint32 NextShotNumber = ProjectSettings->FirstShotNumber;
@@ -498,20 +507,20 @@ FString MovieSceneToolHelpers::GenerateNewShotName(const TArray<UMovieSceneSecti
 		uint32 ShotNumberDigits = ProjectSettings->ShotNumDigits;
 		uint32 TakeNumberDigits = ProjectSettings->TakeNumDigits;
 
-		if (ParseShotName(NextShot->GetShotDisplayName(), NextShotPrefix, NextShotNumber, NextTakeNumber, ShotNumberDigits, TakeNumberDigits))
+		if (ParseShotName(NextSectionName, NextShotPrefix, NextShotNumber, NextTakeNumber, ShotNumberDigits, TakeNumberDigits))
 		{
-			uint32 NewShotNumber = NextShotNumber + ProjectSettings->ShotIncrement;
+			uint32 NewShotNumber = NextShotNumber != INDEX_NONE ? NextShotNumber + ProjectSettings->ShotIncrement : INDEX_NONE;
 			return ComposeShotName(NextShotPrefix, NewShotNumber, ProjectSettings->FirstTakeNumber, ShotNumberDigits, TakeNumberDigits);
 		}
 	}
 	// This is in between two shots
 	else 
 	{
-		FString BeforeShotPrefix = ProjectSettings->ShotPrefix;
-		uint32 BeforeShotNumber = ProjectSettings->FirstShotNumber;
-		uint32 BeforeTakeNumber = ProjectSettings->FirstTakeNumber;
-		uint32 BeforeShotNumberDigits = ProjectSettings->ShotNumDigits;
-		uint32 BeforeTakeNumberDigits = ProjectSettings->TakeNumDigits;
+		FString CurrentShotPrefix = ProjectSettings->ShotPrefix;
+		uint32 CurrentShotNumber = ProjectSettings->FirstShotNumber;
+		uint32 CurrentTakeNumber = ProjectSettings->FirstTakeNumber;
+		uint32 CurrentShotNumberDigits = ProjectSettings->ShotNumDigits;
+		uint32 CurrentTakeNumberDigits = ProjectSettings->TakeNumDigits;
 
 		FString NextShotPrefix = ProjectSettings->ShotPrefix;
 		uint32 NextShotNumber = ProjectSettings->FirstShotNumber;
@@ -519,13 +528,13 @@ FString MovieSceneToolHelpers::GenerateNewShotName(const TArray<UMovieSceneSecti
 		uint32 NextShotNumberDigits = ProjectSettings->ShotNumDigits;
 		uint32 NextTakeNumberDigits = ProjectSettings->TakeNumDigits;
 
-		if (ParseShotName(BeforeShot->GetShotDisplayName(), BeforeShotPrefix, BeforeShotNumber, BeforeTakeNumber, BeforeShotNumberDigits, BeforeTakeNumberDigits) &&
-			ParseShotName(NextShot->GetShotDisplayName(), NextShotPrefix, NextShotNumber, NextTakeNumber, NextShotNumberDigits, NextTakeNumberDigits))
+		if (ParseShotName(CurrentSectionName, CurrentShotPrefix, CurrentShotNumber, CurrentTakeNumber, CurrentShotNumberDigits, CurrentTakeNumberDigits) &&
+			ParseShotName(NextSectionName, NextShotPrefix, NextShotNumber, NextTakeNumber, NextShotNumberDigits, NextTakeNumberDigits))
 		{
-			if (BeforeShotNumber < NextShotNumber)
+			if (CurrentShotNumber < NextShotNumber)
 			{
-				uint32 NewShotNumber = BeforeShotNumber + ( (NextShotNumber - BeforeShotNumber) / 2); // what if we can't find one? or conflicts with another?
-				return ComposeShotName(BeforeShotPrefix, NewShotNumber, ProjectSettings->FirstTakeNumber, BeforeShotNumberDigits, BeforeTakeNumberDigits); // use before or next shot?
+				uint32 NewShotNumber = NextShotNumber != INDEX_NONE && CurrentShotNumber != INDEX_NONE ? CurrentShotNumber + ( (NextShotNumber - CurrentShotNumber) / 2) : INDEX_NONE; // what if we can't find one? or conflicts with another?
+				return ComposeShotName(CurrentShotPrefix, NewShotNumber, ProjectSettings->FirstTakeNumber, CurrentShotNumberDigits, CurrentTakeNumberDigits); // use before or next shot?
 			}
 		}
 	}
@@ -634,36 +643,33 @@ void MovieSceneToolHelpers::GatherTakes(const UMovieSceneSection* Section, TArra
 	uint32 TakeNumberDigits = 0;
 
 	FString SubSectionName = SubSection->GetSequence()->GetName();
-	if (SubSection->IsA<UMovieSceneCinematicShotSection>())
+	if (const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(SubSection))
 	{
-		const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(SubSection);
 		SubSectionName = ShotSection->GetShotDisplayName();
 	}
 
-	if (ParseShotName(SubSectionName, ShotPrefix, ShotNumber, OutCurrentTakeNumber, ShotNumberDigits, TakeNumberDigits))
+	ParseShotName(SubSectionName, ShotPrefix, ShotNumber, OutCurrentTakeNumber, ShotNumberDigits, TakeNumberDigits);
+
+	// Gather up all level sequence assets
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TArray<FAssetData> ObjectList;
+	AssetRegistryModule.Get().GetAssetsByClass(ULevelSequence::StaticClass()->GetClassPathName(), ObjectList);
+
+	for (auto AssetObject : ObjectList)
 	{
-		// Gather up all level sequence assets
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		TArray<FAssetData> ObjectList;
-		AssetRegistryModule.Get().GetAssetsByClass(ULevelSequence::StaticClass()->GetClassPathName(), ObjectList);
+		FString AssetPackagePath = AssetObject.PackagePath.ToString();
 
-		for (auto AssetObject : ObjectList)
+		if (AssetPackagePath == ShotPackagePath)
 		{
-			FString AssetPackagePath = AssetObject.PackagePath.ToString();
+			FString AssetShotPrefix;
+			uint32 AssetShotNumber = INDEX_NONE;
+			uint32 AssetTakeNumber = INDEX_NONE;
 
-			if (AssetPackagePath == ShotPackagePath)
+			ParseShotName(AssetObject.AssetName.ToString(), AssetShotPrefix, AssetShotNumber, AssetTakeNumber, ShotNumberDigits, TakeNumberDigits);
+			
+			if (AssetShotPrefix == ShotPrefix && AssetShotNumber == ShotNumber)
 			{
-				FString AssetShotPrefix;
-				uint32 AssetShotNumber = INDEX_NONE;
-				uint32 AssetTakeNumber = INDEX_NONE;
-
-				if (ParseShotName(AssetObject.AssetName.ToString(), AssetShotPrefix, AssetShotNumber, AssetTakeNumber, ShotNumberDigits, TakeNumberDigits))
-				{
-					if (AssetShotPrefix == ShotPrefix && AssetShotNumber == ShotNumber)
-					{
-						AssetData.Add(AssetObject);
-					}
-				}
+				AssetData.Add(AssetObject);
 			}
 		}
 	}
@@ -692,42 +698,39 @@ bool MovieSceneToolHelpers::GetTakeNumber(const UMovieSceneSection* Section, FAs
 	uint32 TakeNumberDigits = 0;
 
 	FString SubSectionName = SubSection->GetSequence()->GetName();
-	if (SubSection->IsA<UMovieSceneCinematicShotSection>())
+	if (const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(SubSection))
 	{
-		const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(SubSection);
 		SubSectionName = ShotSection->GetShotDisplayName();
 	}
 
-	if (ParseShotName(SubSectionName, ShotPrefix, ShotNumber, TakeNumberDummy, ShotNumberDigits, TakeNumberDigits))
+	ParseShotName(SubSectionName, ShotPrefix, ShotNumber, TakeNumberDummy, ShotNumberDigits, TakeNumberDigits);
+	
+	// Gather up all level sequence assets
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TArray<FAssetData> ObjectList;
+	AssetRegistryModule.Get().GetAssetsByClass(ULevelSequence::StaticClass()->GetClassPathName(), ObjectList);
+
+	for (auto AssetObject : ObjectList)
 	{
-		// Gather up all level sequence assets
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		TArray<FAssetData> ObjectList;
-		AssetRegistryModule.Get().GetAssetsByClass(ULevelSequence::StaticClass()->GetClassPathName(), ObjectList);
-
-		for (auto AssetObject : ObjectList)
+		if (AssetObject == AssetData)
 		{
-			if (AssetObject == AssetData)
+			FString AssetPackagePath = AssetObject.PackagePath.ToString();
+			int32 AssetLastSlashPos = INDEX_NONE;
+			AssetPackagePath.FindLastChar(TCHAR('/'), AssetLastSlashPos);
+			AssetPackagePath.LeftInline(AssetLastSlashPos, false);
+
+			if (AssetPackagePath == ShotPackagePath)
 			{
-				FString AssetPackagePath = AssetObject.PackagePath.ToString();
-				int32 AssetLastSlashPos = INDEX_NONE;
-				AssetPackagePath.FindLastChar(TCHAR('/'), AssetLastSlashPos);
-				AssetPackagePath.LeftInline(AssetLastSlashPos, false);
+				FString AssetShotPrefix;
+				uint32 AssetShotNumber = INDEX_NONE;
+				uint32 AssetTakeNumber = INDEX_NONE;
 
-				if (AssetPackagePath == ShotPackagePath)
+				ParseShotName(AssetObject.AssetName.ToString(), AssetShotPrefix, AssetShotNumber, AssetTakeNumber, ShotNumberDigits, TakeNumberDigits);
+
+				if (AssetShotPrefix == ShotPrefix && AssetShotNumber == ShotNumber)
 				{
-					FString AssetShotPrefix;
-					uint32 AssetShotNumber = INDEX_NONE;
-					uint32 AssetTakeNumber = INDEX_NONE;
-
-					if (ParseShotName(AssetObject.AssetName.ToString(), AssetShotPrefix, AssetShotNumber, AssetTakeNumber, ShotNumberDigits, TakeNumberDigits))
-					{
-						if (AssetShotPrefix == ShotPrefix && AssetShotNumber == ShotNumber)
-						{
-							OutTakeNumber = AssetTakeNumber;
-							return true;
-						}
-					}
+					OutTakeNumber = AssetTakeNumber;
+					return true;
 				}
 			}
 		}

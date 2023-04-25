@@ -9,11 +9,10 @@
 #include "ISequencer.h"
 #include "ISequencerSection.h"
 #include "MovieSceneTrack.h"
+#include "SubTrackEditor.h"
 #include "ISequencerTrackEditor.h"
-#include "MovieSceneTrackEditor.h"
 
 class AActor;
-struct FAssetData;
 class FMenuBuilder;
 class FTrackEditorThumbnailPool;
 class UMovieSceneCinematicShotSection;
@@ -23,7 +22,7 @@ class UMovieSceneSubSection;
 /**
  * Tools for cinematic shots.
  */
-class MOVIESCENETOOLS_API FCinematicShotTrackEditor : public FMovieSceneTrackEditor
+class MOVIESCENETOOLS_API FCinematicShotTrackEditor : public FSubTrackEditor
 {
 public:
 
@@ -52,34 +51,22 @@ public:
 	// ISequencerTrackEditor interface
 	virtual void OnInitialize() override;
 	virtual void OnRelease() override;
-	virtual void BuildAddTrackMenu(FMenuBuilder& MenuBuilder) override;
 	virtual TSharedPtr<SWidget> BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params) override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
-	virtual bool HandleAssetAdded(UObject* Asset, const FGuid& TargetObjectGuid) override;
 	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override;
-	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> Type ) const override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track ) override;
-	virtual const FSlateBrush* GetIconBrush() const override;
-	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams) override;
-	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams) override;
 
-	/*
-	 * Insert shot. 
-	 */
+	UE_DEPRECATED(5.3, "InsertShot has been deprecated in favor of FSubTrackEditor::InsertSection(UMovieSceneTrack*)")
 	void InsertShot();
-
-	/*
-	 * Insert filler.
-	 */
-	void InsertFiller();
-
-	/*
-	 * Duplicate shot. 
-	 *
-	 * @param Section The section to duplicate
-	 */
+	UE_DEPRECATED(5.3, "DuplicateShot has been deprecated in favor of FSubTrackEditor::DuplicateSection(UMovieSceneSubSection*)")
 	void DuplicateShot(UMovieSceneCinematicShotSection* Section);
+	UE_DEPRECATED(5.3, "RenameShot has been removed because it was unused")
+	void RenameShot(UMovieSceneCinematicShotSection* Section) {}
+	UE_DEPRECATED(5.3, "NewTake has been deprecated in favor of FSubTrackEditor::CreateNewTake(UMovieSceneSubSection*)")
+	void NewTake(UMovieSceneCinematicShotSection* Section);
+	UE_DEPRECATED(5.3, "InsertFiller has been removed because it is obsolete")
+	void InsertFiller() {}
 
 	/*
 	 * Render shots. 
@@ -88,53 +75,26 @@ public:
 	 */
 	void RenderShots(const TArray<UMovieSceneCinematicShotSection*>& Sections);
 
-	/*
-	 * Rename shot. 
-	 *
-	 * @param Section The section to rename.
-	 */
-	void RenameShot(UMovieSceneCinematicShotSection* Section);
+public:
 
-	/*
-	 * New take. 
-	 *
-	 * @param Section The section to create a new take of.
-	 */
-	void NewTake(UMovieSceneCinematicShotSection* Section);
+	// FSubTrackEditor interface
+	virtual FText GetSubTrackName() const override;
+	virtual FText GetSubTrackToolTip() const override;
+	virtual FName GetSubTrackBrushName() const override;
+	virtual FString GetSubSectionDisplayName(const UMovieSceneSubSection* Section) const override;
+	virtual TSubclassOf<UMovieSceneSubTrack> GetSubTrackClass() const;
 
-	/*
-	* Switch take for the selected sections
-	*
-	* @param TakeObject The take object to switch to.
-	*/
-	void SwitchTake(UObject* TakeObject);
-
-private:
-
-	/** Callback for determining whether the "Add Shot" menu entry can execute. */
-	bool HandleAddCinematicShotTrackMenuEntryCanExecute() const;
-
-	/** Callback for executing the "Add Shot Track" menu entry. */
-	void HandleAddCinematicShotTrackMenuEntryExecute();
-	
 protected:
 
-	/** Callback for generating the menu of the "Add Shot" combo button. */
+	UE_DEPRECATED(5.3, "HandleAddCinematicShotComboButtonGetMenuContent has been deprecated. Please implement FSubTrackEditor::HandleAddSubSequenceComboButtonGetMenuContent(UMovieSceneTrack*) instead")
 	virtual TSharedRef<SWidget> HandleAddCinematicShotComboButtonGetMenuContent();
-	
-	/** Find or create a cinematic shot track in the currently focused movie scene. */
+	UE_DEPRECATED(5.3, "FindOrCreateCinematicShotTrack has been deprecated in favor of FSubTrackEditor::FindOrCreateSubTrack(UMovieScene* MovieScene, UMovieSceneTrack*)")
 	virtual UMovieSceneCinematicShotTrack* FindOrCreateCinematicShotTrack();
 
+	virtual bool HandleAddSubTrackMenuEntryCanExecute() const override;
+	virtual bool CanHandleAssetAdded(UMovieSceneSequence* Sequence) const override;
+
 private:
-
-	/** Callback for executing a menu entry in the "Add Shot" combo button. */
-	virtual void HandleAddCinematicShotComboButtonMenuEntryExecute(const FAssetData& AssetData);
-
-	/** Callback for executing a menu entry in the "Add Shot" combo button when enter pressed. */
-	virtual void HandleAddCinematicShotComboButtonMenuEntryEnterPressed(const TArray<FAssetData>& AssetData);
-
-	/** Delegate for AnimatablePropertyChanged in AddKey */
-	virtual FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, UMovieSceneSequence* InMovieSceneSequence, int32 RowIndex);
 
 	/** Delegate for shots button lock state */
 	ECheckBoxState AreShotsLocked() const;
@@ -145,26 +105,8 @@ private:
 	/** Delegate for shots button lock tooltip */
 	FText GetLockShotsToolTip() const;
 
-protected:
-	
-	/**
-	 * Check whether the given sequence can be added as a sub-sequence.
-	 *
-	 * The purpose of this method is to disallow circular references
-	 * between sub-sequences in the focused movie scene.
-	 *
-	 * @param Sequence The sequence to check.
-	 * @return true if the sequence can be added as a sub-sequence, false otherwise.
-	 */
-	bool CanAddSubSequence(const UMovieSceneSequence& Sequence) const;
-	
-private:
-	
 	/** Called when our sequencer wants to switch cameras */
 	void OnUpdateCameraCut(UObject* CameraObject, bool bJumpCut);
-
-	/** Callback for AnimatablePropertyChanged in HandleAssetAdded. */
-	FKeyPropertyResult HandleSequenceAdded(FFrameNumber KeyTime, UMovieSceneSequence* Sequence, int32 RowIndex);
 
 	/** Callback for ImportEDL. */
 	void ImportEDL();

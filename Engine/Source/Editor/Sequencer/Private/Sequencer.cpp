@@ -2768,95 +2768,18 @@ void FSequencer::SetPlaybackRange(TRange<FFrameNumber> Range)
 	}
 }
 
-UMovieSceneSection* FSequencer::FindNextOrPreviousShot(UMovieSceneSequence* Sequence, FFrameNumber SearchFromTime, const bool bNextShot) const
-{
-	UMovieScene* OwnerMovieScene = Sequence->GetMovieScene();
-
-	UMovieSceneTrack* CinematicShotTrack = OwnerMovieScene->FindTrack(UMovieSceneCinematicShotTrack::StaticClass());
-	if (!CinematicShotTrack)
-	{
-		return nullptr;
-	}
-
-	FFrameNumber MinTime = TNumericLimits<FFrameNumber>::Max();
-
-	TMap<FFrameNumber, int32> StartTimeMap;
-	for (int32 SectionIndex = 0; SectionIndex < CinematicShotTrack->GetAllSections().Num(); ++SectionIndex)
-	{
-		UMovieSceneSection* ShotSection = CinematicShotTrack->GetAllSections()[SectionIndex];
-
-		if (ShotSection && ShotSection->HasStartFrame())
-		{
-			StartTimeMap.Add(ShotSection->GetInclusiveStartFrame(), SectionIndex);
-		}
-	}
-
-	StartTimeMap.KeySort(TLess<FFrameNumber>());
-
-	int32 MinShotIndex = -1;
-	for (auto StartTimeIt = StartTimeMap.CreateIterator(); StartTimeIt; ++StartTimeIt)
-	{
-		FFrameNumber StartTime = StartTimeIt->Key;
-		if (bNextShot)
-		{
-			if (StartTime > SearchFromTime)
-			{
-				FFrameNumber DiffTime = FMath::Abs(StartTime - SearchFromTime);
-				if (DiffTime < MinTime)
-				{
-					MinTime = DiffTime;
-					MinShotIndex = StartTimeIt->Value;
-				}
-			}
-		}
-		else
-		{
-			if (SearchFromTime >= StartTime)
-			{
-				FFrameNumber DiffTime = FMath::Abs(StartTime - SearchFromTime);
-				if (DiffTime < MinTime)
-				{
-					MinTime = DiffTime;
-					MinShotIndex = StartTimeIt->Value;
-				}
-			}
-		}
-	}
-
-	int32 TargetShotIndex = -1;
-
-	if (bNextShot)
-	{
-		TargetShotIndex = MinShotIndex;
-	}
-	else
-	{
-		int32 PreviousShotIndex = -1;
-		for (auto StartTimeIt = StartTimeMap.CreateIterator(); StartTimeIt; ++StartTimeIt)
-		{
-			if (StartTimeIt->Value == MinShotIndex)
-			{
-				if (PreviousShotIndex != -1)
-				{
-					TargetShotIndex = PreviousShotIndex;
-				}
-				break;
-			}
-			PreviousShotIndex = StartTimeIt->Value;
-		}
-	}
-
-	if (TargetShotIndex == -1)
-	{
-		return nullptr;
-	}	
-
-	return CinematicShotTrack->GetAllSections()[TargetShotIndex];
-}
-
 void FSequencer::SetSelectionRangeToShot(const bool bNextShot)
 {
-	UMovieSceneSection* TargetShotSection = FindNextOrPreviousShot(GetFocusedMovieSceneSequence(), GetLocalTime().Time.FloorToFrame(), bNextShot);
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+
+	UMovieSceneTrack* CinematicShotTrack = MovieScene->FindTrack(UMovieSceneCinematicShotTrack::StaticClass());
+	if (!CinematicShotTrack)
+	{
+		return;
+	}
+
+	UMovieSceneSection* TargetShotSection = MovieSceneHelpers::FindNextSection(CinematicShotTrack->GetAllSections(), GetLocalTime().Time.FloorToFrame());
 
 	TRange<FFrameNumber> NewSelectionRange = TargetShotSection ? TargetShotSection->GetRange() : TRange<FFrameNumber>::All();
 	if (NewSelectionRange.GetLowerBound().IsClosed() && NewSelectionRange.GetUpperBound().IsClosed())
@@ -9355,7 +9278,16 @@ void FSequencer::StepToNextShot()
 {
 	if (ActiveTemplateIDs.Num() < 2)
 	{
-		UMovieSceneSection* TargetShotSection = FindNextOrPreviousShot(GetFocusedMovieSceneSequence(), GetLocalTime().Time.FloorToFrame(), true);
+		UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+		UMovieScene* MovieScene = Sequence->GetMovieScene();
+
+		UMovieSceneTrack* CinematicShotTrack = MovieScene->FindTrack(UMovieSceneCinematicShotTrack::StaticClass());
+		if (!CinematicShotTrack)
+		{
+			return;
+		}
+
+		UMovieSceneSection* TargetShotSection = MovieSceneHelpers::FindNextSection(CinematicShotTrack->GetAllSections(), GetLocalTime().Time.FloorToFrame());
 
 		if (TargetShotSection)
 		{
@@ -9376,9 +9308,16 @@ void FSequencer::StepToNextShot()
 		return;
 	}
 
-	FFrameTime CurrentTime = SubSequenceRange.GetLowerBoundValue() * SubData->OuterToInnerTransform.InverseFromWarp(RootToLocalLoopCounter);
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
-	UMovieSceneSubSection* NextShot = Cast<UMovieSceneSubSection>(FindNextOrPreviousShot(Sequence, CurrentTime.FloorToFrame(), true));
+	UMovieSceneTrack* CinematicShotTrack = MovieScene->FindTrack(UMovieSceneCinematicShotTrack::StaticClass());
+	if (!CinematicShotTrack)
+	{
+		return;
+	}
+
+	FFrameTime CurrentTime = SubSequenceRange.GetLowerBoundValue() * SubData->OuterToInnerTransform.InverseFromWarp(RootToLocalLoopCounter);
+	UMovieSceneSubSection* NextShot = Cast<UMovieSceneSubSection>(MovieSceneHelpers::FindNextSection(CinematicShotTrack->GetAllSections(), CurrentTime.FloorToFrame()));
 	if (!NextShot)
 	{
 		return;
@@ -9397,7 +9336,16 @@ void FSequencer::StepToPreviousShot()
 {
 	if (ActiveTemplateIDs.Num() < 2)
 	{
-		UMovieSceneSection* TargetShotSection = FindNextOrPreviousShot(GetFocusedMovieSceneSequence(), GetLocalTime().Time.FloorToFrame(), false);
+		UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+		UMovieScene* MovieScene = Sequence->GetMovieScene();
+
+		UMovieSceneTrack* CinematicShotTrack = MovieScene->FindTrack(UMovieSceneCinematicShotTrack::StaticClass());
+		if (!CinematicShotTrack)
+		{
+			return;
+		}
+
+		UMovieSceneSection* TargetShotSection = MovieSceneHelpers::FindPreviousSection(CinematicShotTrack->GetAllSections(), GetLocalTime().Time.FloorToFrame());
 
 		if (TargetShotSection)
 		{
@@ -9418,8 +9366,16 @@ void FSequencer::StepToPreviousShot()
 		return;
 	}
 
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+
+	UMovieSceneTrack* CinematicShotTrack = MovieScene->FindTrack(UMovieSceneCinematicShotTrack::StaticClass());
+	if (!CinematicShotTrack)
+	{
+		return;
+	}
+
 	FFrameTime CurrentTime = SubSequenceRange.GetLowerBoundValue() * SubData->OuterToInnerTransform.InverseFromWarp(RootToLocalLoopCounter);
-	UMovieSceneSubSection* PreviousShot = Cast<UMovieSceneSubSection>(FindNextOrPreviousShot(Sequence, CurrentTime.FloorToFrame(), false));
+	UMovieSceneSubSection* PreviousShot = Cast<UMovieSceneSubSection>(MovieSceneHelpers::FindPreviousSection(CinematicShotTrack->GetAllSections(), CurrentTime.FloorToFrame()));
 	if (!PreviousShot)
 	{
 		return;

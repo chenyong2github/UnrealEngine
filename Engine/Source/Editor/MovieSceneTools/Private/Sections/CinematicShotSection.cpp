@@ -312,34 +312,34 @@ void FCinematicShotSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, c
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("TakesMenu", "Takes"),
 			LOCTEXT("TakesMenuTooltip", "Shot takes"),
-			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& InMenuBuilder){ AddTakesMenu(InMenuBuilder); }));
+			FNewMenuDelegate::CreateLambda([this, &SectionObject](FMenuBuilder& InMenuBuilder) { CinematicShotTrackEditor.Pin()->AddTakesMenu(&SectionObject, InMenuBuilder); }));
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("NewTake", "New Take"),
 			FText::Format(LOCTEXT("NewTakeTooltip", "Create a new take for {0}"), FText::FromString(SectionObject.GetShotDisplayName())),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(CinematicShotTrackEditor.Pin().ToSharedRef(), &FCinematicShotTrackEditor::NewTake, &SectionObject))
+			FUIAction(FExecuteAction::CreateSP(CinematicShotTrackEditor.Pin().ToSharedRef(), &FCinematicShotTrackEditor::CreateNewTake, Cast<UMovieSceneSubSection>(&SectionObject)))
 		);
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("InsertNewShot", "Insert Shot"),
 			LOCTEXT("InsertNewShotTooltip", "Insert a new shot at the current time"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(CinematicShotTrackEditor.Pin().ToSharedRef(), &FCinematicShotTrackEditor::InsertShot))
+			FUIAction(FExecuteAction::CreateSP(CinematicShotTrackEditor.Pin().ToSharedRef(), &FCinematicShotTrackEditor::InsertSection, Cast<UMovieSceneTrack>(SectionObject.GetOuter())))
 		);
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("DuplicateShot", "Duplicate Shot"),
 			FText::Format(LOCTEXT("DuplicateShotTooltip", "Duplicate {0} to create a new shot"), FText::FromString(SectionObject.GetShotDisplayName())),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(CinematicShotTrackEditor.Pin().ToSharedRef(), &FCinematicShotTrackEditor::DuplicateShot, &SectionObject))
+			FUIAction(FExecuteAction::CreateSP(CinematicShotTrackEditor.Pin().ToSharedRef(), &FCinematicShotTrackEditor::DuplicateSection, Cast<UMovieSceneSubSection>(&SectionObject)))
 		);
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("RenderShot", "Render Shot"),
 			FText::Format(LOCTEXT("RenderShotTooltip", "Render shot movie"), FText::FromString(SectionObject.GetShotDisplayName())),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([this, &SectionObject]() 
+			FUIAction(FExecuteAction::CreateLambda([this, &SectionObject]()
 				{
 					TArray<UMovieSceneCinematicShotSection*> ShotSections;
 					TArray<UMovieSceneSection*> Sections;
@@ -369,43 +369,6 @@ void FCinematicShotSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, c
 		);
 	}
 	MenuBuilder.EndSection();
-}
-
-void FCinematicShotSection::AddTakesMenu(FMenuBuilder& MenuBuilder)
-{
-	TArray<FAssetData> AssetData;
-	uint32 CurrentTakeNumber = INDEX_NONE;
-	const UMovieSceneCinematicShotSection& SectionObject = GetSectionObjectAs<UMovieSceneCinematicShotSection>();
-	MovieSceneToolHelpers::GatherTakes(&SectionObject, AssetData, CurrentTakeNumber);
-
-	AssetData.Sort([&SectionObject](const FAssetData &A, const FAssetData &B) {
-		uint32 TakeNumberA = INDEX_NONE;
-		uint32 TakeNumberB = INDEX_NONE;
-		if (MovieSceneToolHelpers::GetTakeNumber(&SectionObject, A, TakeNumberA) && MovieSceneToolHelpers::GetTakeNumber(&SectionObject, B, TakeNumberB))
-		{
-			return TakeNumberA < TakeNumberB;
-		}
-		return true;
-	});
-
-	for (auto ThisAssetData : AssetData)
-	{
-		uint32 TakeNumber = INDEX_NONE;
-		if (MovieSceneToolHelpers::GetTakeNumber(&SectionObject, ThisAssetData, TakeNumber))
-		{
-			UObject* TakeObject = ThisAssetData.GetAsset();
-			
-			if (TakeObject)
-			{
-				MenuBuilder.AddMenuEntry(
-					FText::Format(LOCTEXT("TakeNumber", "Take {0}"), FText::AsNumber(TakeNumber)),
-					FText::Format(LOCTEXT("TakeNumberTooltip", "Switch to {0}"), FText::FromString(TakeObject->GetPathName())),
-					TakeNumber == CurrentTakeNumber ? FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Star") : FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Empty"),
-					FUIAction(FExecuteAction::CreateSP(CinematicShotTrackEditor.Pin().ToSharedRef(), &FCinematicShotTrackEditor::SwitchTake, TakeObject))
-				);
-			}
-		}
-	}
 }
 
 /* FCinematicShotSection callbacks

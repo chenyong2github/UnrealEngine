@@ -93,6 +93,86 @@ UMovieSceneSection* MovieSceneHelpers::FindNearestSectionAtTime( TArrayView<UMov
 	return nullptr;
 }
 
+UMovieSceneSection* MovieSceneHelpers::FindNextSection(TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time)
+{
+	FFrameNumber MinTime = TNumericLimits<FFrameNumber>::Max();
+
+	TMap<FFrameNumber, int32> StartTimeMap;
+	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+	{
+		UMovieSceneSection* ShotSection = Sections[SectionIndex];
+
+		if (ShotSection && ShotSection->HasStartFrame() && !ShotSection->GetRange().Contains(Time))
+		{
+			StartTimeMap.Add(ShotSection->GetInclusiveStartFrame(), SectionIndex);
+		}
+	}
+
+	StartTimeMap.KeySort(TLess<FFrameNumber>());
+
+	int32 NextSectionIndex = -1;
+	for (auto StartTimeIt = StartTimeMap.CreateIterator(); StartTimeIt; ++StartTimeIt)
+	{
+		FFrameNumber StartTime = StartTimeIt->Key;
+		if (StartTime > Time)
+		{
+			FFrameNumber DiffTime = FMath::Abs(StartTime - Time);
+			if (DiffTime < MinTime)
+			{
+				MinTime = DiffTime;
+				NextSectionIndex = StartTimeIt->Value;
+			}
+		}
+	}
+
+	if (NextSectionIndex == -1)
+	{
+		return nullptr;
+	}
+
+	return Sections[NextSectionIndex];
+}
+
+UMovieSceneSection* MovieSceneHelpers::FindPreviousSection(TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time)
+{
+	FFrameNumber MinTime = TNumericLimits<FFrameNumber>::Max();
+
+	TMap<FFrameNumber, int32> StartTimeMap;
+	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+	{
+		UMovieSceneSection* ShotSection = Sections[SectionIndex];
+
+		if (ShotSection && ShotSection->HasStartFrame() && !ShotSection->GetRange().Contains(Time))
+		{
+			StartTimeMap.Add(ShotSection->GetInclusiveStartFrame(), SectionIndex);
+		}
+	}
+
+	StartTimeMap.KeySort(TLess<FFrameNumber>());
+
+	int32 PreviousSectionIndex = -1;
+	for (auto StartTimeIt = StartTimeMap.CreateIterator(); StartTimeIt; ++StartTimeIt)
+	{
+		FFrameNumber StartTime = StartTimeIt->Key;
+		if (Time >= StartTime)
+		{
+			FFrameNumber DiffTime = FMath::Abs(StartTime - Time);
+			if (DiffTime < MinTime)
+			{
+				MinTime = DiffTime;
+				PreviousSectionIndex = StartTimeIt->Value;
+			}
+		}
+	}
+
+	if (PreviousSectionIndex == -1)
+	{
+		return nullptr;
+	}
+
+	return Sections[PreviousSectionIndex];
+}
+
 bool MovieSceneHelpers::SortOverlappingSections(const UMovieSceneSection* A, const UMovieSceneSection* B)
 {
 	return A->GetRowIndex() == B->GetRowIndex()

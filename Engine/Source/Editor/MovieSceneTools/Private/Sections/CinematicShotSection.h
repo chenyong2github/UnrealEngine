@@ -49,11 +49,6 @@ public:
 
 private:
 
-	/** Add shot takes menu */
-	void AddTakesMenu(FMenuBuilder& MenuBuilder);
-
-private:
-
 	/** The cinematic shot track editor that contains this section */
 	TWeakPtr<FCinematicShotTrackEditor> CinematicShotTrackEditor;
 

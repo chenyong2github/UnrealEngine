@@ -18,7 +18,7 @@ class FMenuBuilder;
 class UMovieSceneSubTrack;
 
 /**
- * Tools for animatable property types such as floats ands vectors
+ * Tools for subsequences
  */
 class MOVIESCENETOOLS_API FSubTrackEditor
 	: public FMovieSceneTrackEditor
@@ -57,11 +57,23 @@ public:
 	virtual bool OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequencerDragDropParams& DragDropParams) override;
 	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent, const FSequencerDragDropParams& DragDropParams) override;
 	
-	/** Switch the selected sub section's take */
-	void SwitchTake(UObject* TakeObject);
-
 public:
 	
+	/** Insert sequence into this track */
+	virtual void InsertSection(UMovieSceneTrack* Track);
+
+	/** Duplicate the section into this track */
+	virtual void DuplicateSection(UMovieSceneSubSection* Section);
+
+	/** Create a new take of the given section */
+	virtual void CreateNewTake(UMovieSceneSubSection* Section);
+
+	/** Switch the selected section's take */
+	virtual void SwitchTake(UObject* TakeObject);
+
+	/** Generate a menu for takes for this section */
+	virtual void AddTakesMenu(UMovieSceneSubSection* Section, FMenuBuilder& MenuBuilder);
+
 	/**
 	 * Check whether the given sequence can be added as a sub-sequence.
 	 *
@@ -73,37 +85,53 @@ public:
 	 */
 	bool CanAddSubSequence(const UMovieSceneSequence& Sequence) const;
 
-protected:
-	/**
-	 * Create a new UMovieSceneSubTrack.
-	 * 
-	 * @param MovieScene the MovieScene object to create a track.
-	 * @return the created MovieSceneSubTrack
-	 */
-	virtual UMovieSceneSubTrack* CreateNewTrack(UMovieScene* MovieScene) const;
+public:
 
-	/**
-	 * Return the list of supported sequence class paths.
-	 * 
-	 * @param OutClassPaths the list of supported sequence class paths.
-	 */
+	/** Get the name of the sub track */
+	virtual FText GetSubTrackName() const;
+
+	/** Get the tooltip for this sub track editor */
+	virtual FText GetSubTrackToolTip() const;
+
+	/** Get the brush used for the sub track editor */
+	virtual FName GetSubTrackBrushName() const;
+
+	/** Get the display name for the sub section */
+	virtual FString GetSubSectionDisplayName(const UMovieSceneSubSection* Section) const;
+
+	/** Get the UMovieSceneSubTrack class */
+	virtual TSubclassOf<UMovieSceneSubTrack> GetSubTrackClass() const;
+
+protected:
+
+	/** Get the list of supported sequence class paths */
 	virtual void GetSupportedSequenceClassPaths(TArray<FTopLevelAssetPath>& OutClassPaths) const;
 
-private:
+	/** Callback for executing the "Add Subsequence" menu entry. */
+	virtual void HandleAddSubTrackMenuEntryExecute();
 
-	/** Callback for executing the "Add Event Track" menu entry. */
-	void HandleAddSubTrackMenuEntryExecute();
+	/** Callback for determining whether the "Add Subsequence" menu entry can execute. */
+	virtual bool HandleAddSubTrackMenuEntryCanExecute() const { return true; }
+
+	/** Whether to handle this asset being dropped onto the sequence as opposed to a specific track. */
+	virtual bool CanHandleAssetAdded(UMovieSceneSequence* Sequence) const;
+
+	UE_DEPRECATED(5.3, "CreateNewTrack has been deprecated, please implement GetSubTrackClass")
+	virtual UMovieSceneSubTrack* CreateNewTrack(UMovieScene* MovieScene) const;
+
+	/** Find or create a sub track. If the given track is a subtrack, it will be returned. */
+	UMovieSceneSubTrack* FindOrCreateSubTrack(UMovieScene* MovieScene, UMovieSceneTrack* Track) const;
 
 	/** Callback for generating the menu of the "Add Sequence" combo button. */
 	TSharedRef<SWidget> HandleAddSubSequenceComboButtonGetMenuContent(UMovieSceneTrack* InTrack);
+
+private:
 
 	/** Callback for executing a menu entry in the "Add Sequence" combo button. */
 	void HandleAddSubSequenceComboButtonMenuEntryExecute(const FAssetData& AssetData, UMovieSceneTrack* InTrack);
 
 	/** Callback for executing a menu entry in the "Add Sequence" combo button when enter pressed. */
 	void HandleAddSubSequenceComboButtonMenuEntryEnterPressed(const TArray<FAssetData>& AssetData, UMovieSceneTrack* InTrack);
-
-	void InsertSequence(UMovieSceneTrack* Track);
 
 	/** Delegate for AnimatablePropertyChanged in AddKey */
 	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, UMovieSceneSequence* InMovieSceneSequence, UMovieSceneTrack* InTrack, int32 RowIndex);

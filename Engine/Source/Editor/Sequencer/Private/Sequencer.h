@@ -962,8 +962,6 @@ protected:
 
 	void GetAllKeys(TUniquePtr<FSequencerKeyCollection>& KeyCollection, float DuplicateThresoldSeconds) const;
 
-	UMovieSceneSection* FindNextOrPreviousShot(UMovieSceneSequence* Sequence, FFrameNumber SearchFromTime, const bool bNext) const;
-
 protected:
 	
 	/** Called when a user executes the delete command to delete sections or keys */

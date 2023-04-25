@@ -63,6 +63,12 @@ public:
 	 */
 	static UMovieSceneSection* FindNearestSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time );
 
+	/** Find the next section that doesn't overlap - the section that has the next closest start time to the requested start time */
+	static UMovieSceneSection* FindNextSection(TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time);
+
+	/** Find the previous section that doesn't overlap - the section that has the previous closest start time to the requested start time */
+	static UMovieSceneSection* FindPreviousSection(TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time);
+
 	/*
 	 * Fix up consecutive sections so that there are no gaps
 	 * 
