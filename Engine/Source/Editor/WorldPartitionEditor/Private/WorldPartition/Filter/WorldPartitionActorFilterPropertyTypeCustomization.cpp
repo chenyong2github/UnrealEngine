@@ -55,7 +55,7 @@ void FWorldPartitionActorFilterPropertyTypeCustomization::CustomizeHeader(TShare
 	FSceneOutlinerInitializationOptions InitOptions;
 	{
 		InitOptions.bShowHeaderRow = false;
-		InitOptions.bFocusSearchBoxWhenOpened = true;
+		InitOptions.bFocusSearchBoxWhenOpened = false;
 		InitOptions.bShowCreateNewFolder = false;
 		InitOptions.ModeFactory = ModeFactory;
 	}
