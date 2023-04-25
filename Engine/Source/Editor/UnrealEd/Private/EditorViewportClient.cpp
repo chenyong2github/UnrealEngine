@@ -2842,7 +2842,10 @@ int32 FEditorViewportClient::GetPreviewScreenPercentage() const
 
 void FEditorViewportClient::SetPreviewScreenPercentage(int32 PreviewScreenPercentage)
 {
-	PreviewResolutionFraction = PreviewScreenPercentage / 100.0f;
+	PreviewResolutionFraction = FMath::Clamp(
+		PreviewScreenPercentage / 100.0f,
+		ISceneViewFamilyScreenPercentage::kMinTSRResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMaxTSRResolutionFraction);
 }
 
 bool FEditorViewportClient::SupportsLowDPIPreview() const
