@@ -712,7 +712,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkC
 struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 {
 	void Reset();
-	bool IsValid() const { return ClusterCount > 0 && VertexCount > 0; }
+	bool IsValid() const { return ClusterCount > 0 && PointCount > 0; }
 
 	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
 	TArray<bool>				LODVisibility;
@@ -723,15 +723,13 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 	/* LOD info for the various clusters for LOD management on GPU */
 	TArray<FHairClusterInfo>	ClusterInfos;
 	TArray<FHairClusterLODInfo> ClusterLODInfos;
-	TArray<uint32>				VertexToClusterIds;
+	TArray<uint32>				CurveToClusterIds;
 	TArray<uint32>				ClusterVertexIds;
 	TArray<FHairLODInfo>		LODInfos;
 
-	/* Number of cluster  */
-	uint32 ClusterCount = 0;
-
-	/* Number of vertex  */
-	uint32 VertexCount = 0;
+	uint32 ClusterCount = 0;		// Number of clusters
+	uint32 PointCount = 0;			// Number of points
+	uint32 CurveCount = 0;			// Number of curves
 };
 
 struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulkCommon
@@ -742,7 +740,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 	virtual uint32 GetResourceCount() const override;
 	virtual void GetResources(FQuery& Out) override;
 
-	bool IsValid() const { return Header.ClusterCount > 0 && Header.VertexCount > 0; }
+	bool IsValid() const { return Header.ClusterCount > 0 && Header.PointCount > 0; }
 	void Validate(bool bIsSaving);
 
 	struct FHeader
@@ -758,7 +756,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 	
 		uint32 ClusterCount = 0;
 		uint32 ClusterLODCount = 0;
-		uint32 VertexCount = 0;
+		uint32 PointCount = 0;
+		uint32 CurveCount = 0;
 		uint32 VertexLODCount = 0;
 	} Header;
 
@@ -767,7 +766,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 		/* LOD info for the various clusters for LOD management on GPU */
 		FHairBulkContainer	PackedClusterInfos;		// Size - ClusterCount
 		FHairBulkContainer	ClusterLODInfos;		// Size - ClusterLODCount
-		FHairBulkContainer	VertexToClusterIds;		// Size - VertexCount
+		FHairBulkContainer	CurveToClusterIds;		// Size - CurveCount
 		FHairBulkContainer	ClusterVertexIds;		// Size - VertexLODCount
 	} Data;
 };

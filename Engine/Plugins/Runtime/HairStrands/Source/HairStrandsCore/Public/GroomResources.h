@@ -326,7 +326,7 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 		uint32 Total = 0;
 		Total += GetBufferTotalNumBytes(ClusterInfoBuffer);
 		Total += GetBufferTotalNumBytes(ClusterLODInfoBuffer);
-		Total += GetBufferTotalNumBytes(VertexToClusterIdBuffer);
+		Total += GetBufferTotalNumBytes(CurveToClusterIdBuffer);
 		Total += GetBufferTotalNumBytes(ClusterVertexIdBuffer);
 		return Total;
 	}
@@ -335,8 +335,8 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	FRDGExternalBuffer ClusterInfoBuffer;
 	FRDGExternalBuffer ClusterLODInfoBuffer;
 
-	/* VertexId => ClusterId to know which AABB to contribute to*/
-	FRDGExternalBuffer VertexToClusterIdBuffer;
+	/* CurveId => ClusterId to know which AABB to contribute to*/
+	FRDGExternalBuffer CurveToClusterIdBuffer;
 
 	/* Concatenated data for each cluster: list of VertexId pointed to by ClusterInfoBuffer */
 	FRDGExternalBuffer ClusterVertexIdBuffer;

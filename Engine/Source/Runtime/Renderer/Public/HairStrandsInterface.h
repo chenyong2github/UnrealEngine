@@ -439,7 +439,7 @@ struct FHairStrandClusterData
 		FRDGExternalBuffer* ClusterAABBBuffer = nullptr;
 		FRDGExternalBuffer* ClusterInfoBuffer = nullptr;
 		FRDGExternalBuffer* ClusterLODInfoBuffer = nullptr;
-		FRDGExternalBuffer* VertexToClusterIdBuffer = nullptr;
+		FRDGExternalBuffer* CurveToClusterIdBuffer = nullptr;
 		FRDGExternalBuffer* ClusterVertexIdBuffer = nullptr;
 
 		TRefCountPtr<FRDGPooledBuffer> ClusterIdBuffer;

@@ -513,7 +513,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 uint				CurveCount;
 
 Buffer<uint>		RenCurveBuffer;
-Buffer<int>			RenVertexToClusterIdBuffer;
+Buffer<uint>		RenCurveToClusterIdBuffer;
 RWByteAddressBuffer	OutRenAttributeBuffer;
 
 uint 				CurveAttributeIndexToChunkDivAsShift;
@@ -552,8 +552,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint GroupThread1D : S
 		uint Out = 0;
 		#if PERMUTATION_SIMULATION == 0
 		{
-			const uint VertexIndex0		= UnpackHairCurve(RenCurveBuffer[CurveIndex]).PointIndex;
-			const uint ClusterId		= RenVertexToClusterIdBuffer[VertexIndex0];
+			const uint ClusterId		= RenCurveToClusterIdBuffer[CurveIndex];
 			SeedValues[GroupThread1D]	= ToSeedHash(ClusterId);
 		}
 		#else // if (PERMUTATION_SIMULATION > 0)

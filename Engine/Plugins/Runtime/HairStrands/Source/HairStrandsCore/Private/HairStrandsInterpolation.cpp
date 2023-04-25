@@ -742,7 +742,7 @@ class FHairPatchAttributeCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceAttributeParameters, RenAttributes)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenCurveBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, InterpolationBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenVertexToClusterIdBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenCurveToClusterIdBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, OutRenAttributeBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -774,7 +774,7 @@ static void AddPatchAttributePass(
 	const FHairStrandsBulkData& RenBulkData,
 	const FRDGBufferRef& RenAttributeBuffer,
 	const FRDGBufferSRVRef& RenCurveBuffer,
-	const FRDGBufferSRVRef& RenVertexToClusterIdBuffer,
+	const FRDGBufferSRVRef& RenCurveToClusterIdBuffer,
 	const FRDGBufferSRVRef& InterpolationBuffer,
 	FRDGImportedBuffer& OutRenAttributeBuffer)
 {
@@ -790,7 +790,7 @@ static void AddPatchAttributePass(
 	FHairPatchAttributeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairPatchAttributeCS::FParameters>();
 	Parameters->CurveCount = CurveCount;
 	Parameters->RenCurveBuffer = RenCurveBuffer;
-	Parameters->RenVertexToClusterIdBuffer = RenVertexToClusterIdBuffer;
+	Parameters->RenCurveToClusterIdBuffer = RenCurveToClusterIdBuffer;
 	GetHairStrandsAttributeParameter(RenBulkData, Parameters->RenAttributes);
 
 	if (bSimulation)
@@ -1545,7 +1545,7 @@ void RegisterClusterData(FHairGroupInstance* Instance, FHairStrandClusterData* I
 
 	HairGroupCluster.ClusterInfoBuffer = &Instance->Strands.ClusterCullingResource->ClusterInfoBuffer;
 	HairGroupCluster.ClusterLODInfoBuffer = &Instance->Strands.ClusterCullingResource->ClusterLODInfoBuffer;
-	HairGroupCluster.VertexToClusterIdBuffer = &Instance->Strands.ClusterCullingResource->VertexToClusterIdBuffer;
+	HairGroupCluster.CurveToClusterIdBuffer = &Instance->Strands.ClusterCullingResource->CurveToClusterIdBuffer;
 	HairGroupCluster.ClusterVertexIdBuffer = &Instance->Strands.ClusterCullingResource->ClusterVertexIdBuffer;
 
 	HairGroupCluster.HairGroupPublicPtr = Instance->HairGroupPublicData;
@@ -2112,7 +2112,7 @@ void ComputeHairStrandsInterpolation(
 					*Instance->Strands.Data,
 					Register(GraphBuilder, Instance->Strands.RestResource->CurveAttributeBuffer, ERDGImportedBufferFlags::CreateSRV).Buffer,
 					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveBuffer),
-					RegisterAsSRV(GraphBuilder, Instance->Strands.ClusterCullingResource->VertexToClusterIdBuffer),
+					RegisterAsSRV(GraphBuilder, Instance->Strands.ClusterCullingResource->CurveToClusterIdBuffer),
 					bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Strands.InterpolationResource->InterpolationBuffer) : nullptr,
 					OutRenCurveAttributeBuffer);
 			}

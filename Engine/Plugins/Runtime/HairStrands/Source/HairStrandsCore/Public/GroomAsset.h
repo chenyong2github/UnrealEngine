@@ -188,7 +188,7 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 			Total += ClusterCullingBulkData.Header.CPULODScreenSize.GetAllocatedSize();
 			Total += ClusterCullingBulkData.Data.ClusterInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.Data.ClusterInfos.GetBulkDataSize() : 0;
 			Total += ClusterCullingBulkData.Data.ClusterLODInfos.IsBulkDataLoaded()		? ClusterCullingBulkData.Data.ClusterLODInfos.GetBulkDataSize() : 0;
-			Total += ClusterCullingBulkData.Data.VertexToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.VertexToClusterIds.GetBulkDataSize() : 0;
+			Total += ClusterCullingBulkData.Data.CurveToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.CurveToClusterIds.GetBulkDataSize() : 0;
 			Total += ClusterCullingBulkData.Data.ClusterVertexIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.ClusterVertexIds.GetBulkDataSize() : 0;
 			return Total;
 		}

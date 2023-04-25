@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r24");
+	return TEXT("v8r25");
 }
 
 namespace FHairStrandsDecimation
@@ -2694,6 +2694,7 @@ struct FClusterGrid
 		}
 		uint32 Offset = 0;
 		uint32 Count = 0;
+		uint32 CurveIndex = 0;
 		float Area = 0;
 		float AvgRadius = 0;
 		float MaxRadius = 0;
@@ -2891,8 +2892,9 @@ static void BuildClusterData(
 	check(LODCount > 0);
 
 	const uint32 RenCurveCount = InRenStrandsData.GetNumCurves();
-	Out.VertexCount = InRenStrandsData.GetNumPoints();
-	check(Out.VertexCount);
+	Out.PointCount = InRenStrandsData.GetNumPoints();
+	Out.CurveCount = InRenStrandsData.GetNumCurves();
+	check(Out.PointCount > 0 && Out.CurveCount > 0);
 
 	// 1. Allocate cluster per voxel containing contains >=1 render curve root
 	const FVector GroupMinBound = InRenStrandsData.BoundingBox.Min;
@@ -2925,6 +2927,7 @@ static void BuildClusterData(
 	for (uint32 RenCurveIndex = 0; RenCurveIndex < RenCurveCount; ++RenCurveIndex)
 	{
 		FClusterGrid::FCurve RCurve;
+		RCurve.CurveIndex = RenCurveIndex;
 		RCurve.Count = InRenStrandsData.StrandsCurves.CurvesCount[RenCurveIndex];
 		RCurve.Offset = InRenStrandsData.StrandsCurves.CurvesOffset[RenCurveIndex];
 		RCurve.Area = 0.0f;
@@ -2971,7 +2974,7 @@ static void BuildClusterData(
 	}
 	Out.ClusterCount = ValidClusterIndices.Num();
 	Out.ClusterInfos.Init(FHairClusterInfo(), Out.ClusterCount);
-	Out.VertexToClusterIds.SetNum(Out.VertexCount);
+	Out.CurveToClusterIds.SetNum(Out.CurveCount);
 	Out.LODInfos.SetNum(LODCount);
 
 	// Conservative allocation for inserting vertex indices for the various curves LOD
@@ -2986,7 +2989,7 @@ static void BuildClusterData(
 	// Local variable for being capture by the lambda
 	TArray<FHairClusterInfo>& LocalClusterInfos = Out.ClusterInfos;
 	TArray<FHairClusterLODInfo>& LocalClusterLODInfos = Out.ClusterLODInfos;
-	TArray<uint32>& LocalVertexToClusterIds = Out.VertexToClusterIds;
+	TArray<uint32>& LocalCurveToClusterIds = Out.CurveToClusterIds;
 #define USE_PARALLE_FOR 0
 #if USE_PARALLE_FOR
 	ParallelFor(Out.ClusterCount,
@@ -2999,7 +3002,7 @@ static void BuildClusterData(
 			&ClusterGrid,
 			&LocalClusterInfos,
 			&LocalClusterLODInfos,
-			&LocalVertexToClusterIds,
+			&LocalCurveToClusterIds,
 			&VertexLODMasks,
 			&RawClusterVertexIds,
 			&RawClusterVertexCount
@@ -3034,10 +3037,12 @@ static void BuildClusterData(
 		Cluster.Area = 0;
 		for (FClusterGrid::FCurve& ClusterCurve : Cluster.ClusterCurves)
 		{
+			check(ClusterCurve.CurveIndex < uint32(LocalCurveToClusterIds.Num()));
+			LocalCurveToClusterIds[ClusterCurve.CurveIndex] = ClusterIt;
+
 			for (uint32 RenPointIndex = 0; RenPointIndex < ClusterCurve.Count; ++RenPointIndex)
 			{
 				const uint32 PointGlobalIndex = RenPointIndex + ClusterCurve.Offset;
-				LocalVertexToClusterIds[PointGlobalIndex] = ClusterIt;
 
 				const FVector& P = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
 				{
@@ -3273,7 +3278,8 @@ static void BuildClusterBulkData(
 	Out.Reset();
 
 	Out.Header.ClusterCount		= In.ClusterCount;
-	Out.Header.VertexCount		= In.VertexCount;
+	Out.Header.PointCount		= In.PointCount;
+	Out.Header.CurveCount		= In.CurveCount;
 	Out.Header.VertexLODCount	= In.ClusterVertexIds.Num();
 	Out.Header.ClusterLODCount 	= In.ClusterLODInfos.Num();
 
@@ -3284,17 +3290,17 @@ static void BuildClusterBulkData(
 	// Sanity check
 	check(Out.Header.ClusterCount		== uint32(In.ClusterInfos.Num()));
 	check(Out.Header.ClusterLODCount	== uint32(In.ClusterLODInfos.Num()));
-	check(Out.Header.VertexCount		== uint32(In.VertexToClusterIds.Num()));
+	check(Out.Header.CurveCount			== uint32(In.CurveToClusterIds.Num()));
 	check(Out.Header.VertexLODCount		== uint32(In.ClusterVertexIds.Num()));
 	
 	HairStrandsBuilder::CopyToBulkData<FHairClusterLODInfoFormat>(Out.Data.ClusterLODInfos, In.ClusterLODInfos);
-	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.Data.VertexToClusterIds, In.VertexToClusterIds);
+	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.Data.CurveToClusterIds, In.CurveToClusterIds);
 	HairStrandsBuilder::CopyToBulkData<FHairClusterIndexFormat>(Out.Data.ClusterVertexIds, In.ClusterVertexIds);
 
 	// Pack LODInfo into GPU format
 	{
 		check(uint32(In.ClusterInfos.Num()) == Out.Header.ClusterCount);
-		check(uint32(In.VertexToClusterIds.Num()) == Out.Header.VertexCount);
+		check(uint32(In.CurveToClusterIds.Num()) == Out.Header.CurveCount);
 	
 		TArray<FHairClusterInfo::Packed> PackedClusterInfos;
 		PackedClusterInfos.Reserve(In.ClusterInfos.Num());
