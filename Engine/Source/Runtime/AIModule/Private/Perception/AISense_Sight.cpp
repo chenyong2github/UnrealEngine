@@ -735,7 +735,7 @@ void UAISense_Sight::UnregisterSource(AActor& SourceActor)
 	FAISightTarget AsTarget;
 
 	if (ObservedTargets.RemoveAndCopyValue(AsTargetId, AsTarget) 
-		&& (SightQueriesInRange.Num() + SightQueriesOutOfRange.Num()) > 0)
+		&& (SightQueriesInRange.Num() + SightQueriesOutOfRange.Num() + SightQueriesPending.Num()) > 0)
 	{
 		AActor* TargetActor = AsTarget.Target.Get();
 
