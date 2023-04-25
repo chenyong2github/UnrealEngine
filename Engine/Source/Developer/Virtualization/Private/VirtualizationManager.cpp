@@ -732,8 +732,9 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		{
 			for (FPushRequest& PushRequest : ValidatedRequests)
 			{
+				FText Errors;
 				FPullRequest PullRequest(PushRequest.GetIdentifier());
-				PullDataFromBackend(*Backend, MakeArrayView(&PullRequest, 1));
+				PullDataFromBackend(*Backend, MakeArrayView(&PullRequest, 1), Errors);
 
 				checkf(PushRequest.GetIdentifier() == PullRequest.GetPayload().GetRawHash(),
 						TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"),
@@ -1713,6 +1714,11 @@ void FVirtualizationManager::AddBackend(TUniquePtr<IVirtualizationBackend> Backe
 	COOK_STAT(Profiling::CreateStats(*BackendRef));
 }
 
+bool FVirtualizationManager::IsPersistentBackend(IVirtualizationBackend& Backend)
+{
+	return PersistentStorageBackends.Contains(&Backend);
+}
+
 void FVirtualizationManager::EnsureBackendConnections()
 {
 	if (bPendingBackendConnections)
@@ -1763,8 +1769,9 @@ void FVirtualizationManager::CachePayloads(TArrayView<FPushRequest> Requests, co
 		{
 			for (const FPushRequest& Request : Requests)
 			{
+				FText Errors;
 				FPullRequest ValidationRequest(Request.GetIdentifier());
-				PullDataFromBackend(*BackendToCache, MakeArrayView(&ValidationRequest, 1));
+				PullDataFromBackend(*BackendToCache, MakeArrayView(&ValidationRequest, 1), Errors);
 
 				checkf(Request.GetPayload().GetRawHash() == ValidationRequest.GetPayload().GetRawHash(),
 					TEXT("[%s] Failed to pull payload '%s' after it was cached to backend"),
@@ -1853,6 +1860,8 @@ void FVirtualizationManager::PullDataFromAllBackends(TArrayView<FPullRequest> Re
 	
 	while(true)
 	{
+		TStringBuilder<512> BackendErrors;
+
 		for (IVirtualizationBackend* Backend : PullEnabledBackends)
 		{
 			check(Backend != nullptr);
@@ -1869,7 +1878,19 @@ void FVirtualizationManager::PullDataFromAllBackends(TArrayView<FPullRequest> Re
 				continue;
 			}
 
-			PullDataFromBackend(*Backend, RequestsCollection.GetRequests());
+			FText Errors;
+			PullDataFromBackend(*Backend, RequestsCollection.GetRequests(), Errors);
+
+			// We only want to report errors from persistent backends, cached backends are allowed to fail.
+			if (!Errors.IsEmpty() && IsPersistentBackend(*Backend))
+			{
+				if (BackendErrors.Len() != 0)
+				{
+					BackendErrors << LINE_TERMINATOR;
+				}
+
+				BackendErrors << Backend->GetDebugName() << TEXT(": ") << Errors.ToString();
+			}
 
 			const bool bShouldCache = EnumHasAllFlags(CachingPolicy, ECachingPolicy::CacheOnPull);
 
@@ -1893,20 +1914,20 @@ void FVirtualizationManager::PullDataFromAllBackends(TArrayView<FPullRequest> Re
 		{
 			return; // All payloads pulled
 		}
-		else if (OnPayloadPullError() != ErrorHandlingResult::Retry)
+		else if (OnPayloadPullError(BackendErrors) != ErrorHandlingResult::Retry)
 		{
 			return; // Some payloads failed to pull
 		}
 	}
 }
 
-void FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend, TArrayView<FPullRequest> Requests)
+void FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend, TArrayView<FPullRequest> Requests, FText& OutErrors)
 {
 	COOK_STAT(FCookStats::CallStats & Stats = Profiling::GetPullStats(Backend));
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Stats));
 	COOK_STAT(Timer.TrackCyclesOnly());
 	
-	Backend.PullData(Requests, IVirtualizationBackend::EPullFlags::None);
+	Backend.PullData(Requests, IVirtualizationBackend::EPullFlags::None, OutErrors);
 	
 #if ENABLE_COOK_STATS
 	const bool bIsInGameThread = IsInGameThread();
@@ -1924,7 +1945,7 @@ void FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend
 #endif //ENABLE_COOK_STATS
 }
 
-FVirtualizationManager::ErrorHandlingResult FVirtualizationManager::OnPayloadPullError()
+FVirtualizationManager::ErrorHandlingResult FVirtualizationManager::OnPayloadPullError(FStringView BackendErrors)
 {
 	if (bUseLegacyErrorHandling)
 	{
@@ -1941,6 +1962,12 @@ FVirtualizationManager::ErrorHandlingResult FVirtualizationManager::OnPayloadPul
 		FTextBuilder MsgBuilder;
 		MsgBuilder.AppendLine(LOCTEXT("VAPullMsgHeader", "Failed to pull payload(s) from virtualization storage and allowing the editor to continue could corrupt data!"));
 		
+		if (!BackendErrors.IsEmpty())
+		{
+			MsgBuilder.AppendLine(FString(TEXT("")));
+			MsgBuilder.AppendLine(FString(BackendErrors));
+		}
+
 		if (!PullErrorAdditionalMsg.IsEmpty())
 		{
 			MsgBuilder.AppendLine(FString(TEXT("")));

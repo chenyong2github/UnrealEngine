@@ -215,6 +215,8 @@ private:
 
 	void AddBackend(TUniquePtr<IVirtualizationBackend> Backend, FBackendArray& PushArray);
 
+	bool IsPersistentBackend(IVirtualizationBackend& Backend);
+
 	void EnsureBackendConnections();
 
 	void CachePayloads(TArrayView<FPushRequest> Requests, const IVirtualizationBackend* BackendSource, IVirtualizationBackend::EPushFlags Flags);
@@ -223,7 +225,7 @@ private:
 	bool TryPushDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests);
 
 	void PullDataFromAllBackends(TArrayView<FPullRequest> Requests);
-	void PullDataFromBackend(IVirtualizationBackend& Backend, TArrayView<FPullRequest> Requests);
+	void PullDataFromBackend(IVirtualizationBackend& Backend, TArrayView<FPullRequest> Requests, FText& OutErrors);
 
 	enum class ErrorHandlingResult
 	{
@@ -233,7 +235,7 @@ private:
 		AcceptFailedPayloads
 	};
 
-	ErrorHandlingResult OnPayloadPullError();
+	ErrorHandlingResult OnPayloadPullError(FStringView BackendErrors);
 	
 	bool ShouldVirtualizeAsset(const UObject* Owner) const;
 

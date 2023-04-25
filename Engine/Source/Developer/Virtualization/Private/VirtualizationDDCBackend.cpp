@@ -133,7 +133,7 @@ bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests, EPushFlags Flags)
 	return bWasSuccess;
 }
 
-bool FDDCBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags)
+bool FDDCBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags, FText& OutErrors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PullData);
 

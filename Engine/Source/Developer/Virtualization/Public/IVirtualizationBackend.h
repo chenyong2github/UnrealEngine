@@ -133,6 +133,9 @@ public:
 	 * backend to do this.
 	 * 
 	 * @param	Requests	An array of payload pull requests. @see FPullRequest
+	 * @param	Flags		Flags that allow the pull to be specialized @see EPullFlags
+	 * @param	OutErrors	If the pull fails, the backend can add optional additional error messages
+	 *						to be displayed directly to the user.
 	 * 
 	 * @return				True if no errors were encountered while pulling, otherwise false.
 	 *						Note that returning true does not mean that all of the payloads were
@@ -142,7 +145,7 @@ public:
 	// Assume that the array only has unique requests
 	// Will set request error value if there is a problem with loading it
 	// Returns false on critical error, otherwise true
-	virtual bool PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags) = 0;
+	virtual bool PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags, FText& OutErrors) = 0;
 	
 	/**
 	 * Checks if a payload exists in the backends storage.
@@ -284,7 +287,7 @@ private:
  * IModularFeatures with the feature name "VirtualizationBackendFactory" to
  * give 'FVirtualizationManager' access to it. 
  * The macro 'UE_REGISTER_VIRTUALIZATION_BACKEND_FACTORY' can be used to create 
- * a factory easily if you do not want to specialize the behaviour.
+ * a factory easily if you do not want to specialize the behavior.
 */
 class IVirtualizationBackendFactory : public IModularFeature
 {

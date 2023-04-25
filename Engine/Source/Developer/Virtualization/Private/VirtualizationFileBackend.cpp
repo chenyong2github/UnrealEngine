@@ -179,7 +179,7 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests, EPushFlags 
 	return ErrorCount == 0;
 }
 
-bool FFileSystemBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags)
+bool FFileSystemBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags, FText& OutErrors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PullData);
 

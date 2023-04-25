@@ -128,7 +128,7 @@ private:
 	virtual EConnectionStatus OnConnect() override;
 	
 	virtual bool PushData(TArrayView<FPushRequest> Requests, EPushFlags Flags) override;
-	virtual bool PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags) override;
+	virtual bool PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags, FText& OutErrors) override;
 
 	virtual bool DoesPayloadExist(const FIoHash& Id) override;
 	

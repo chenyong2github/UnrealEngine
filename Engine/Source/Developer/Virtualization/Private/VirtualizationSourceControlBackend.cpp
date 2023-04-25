@@ -403,7 +403,7 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 	return IVirtualizationBackend::EConnectionStatus::Connected;
 }
 
-bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags)
+bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags, FText& OutErrors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PullData);
 
@@ -424,6 +424,8 @@ bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests, EPullFla
 	FSemaphoreScopeLock _(ConcurrentConnectionLimit.Get());
 
 	int32 Retries = 0;
+
+	bool bConnectionFailed = false;
 
 	while (Retries < RetryCount)
 	{
@@ -463,7 +465,18 @@ bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests, EPullFla
 			return false;
 		}
 
+		bConnectionFailed = DownloadCommand->GetResultInfo().DidConnectionFail();
+
 		Retries++;
+	}
+
+	if (bConnectionFailed)
+	{
+		TMap<ISourceControlProvider::EStatus, FString> SCPStatus = SCCProvider->GetStatus();
+		
+		OutErrors = FText::Format(LOCTEXT("VA_SCP", "Failed to connect to perforce server '{0}' with username '{1}'"),
+			FText::FromString(SCPStatus[ISourceControlProvider::EStatus::Port]), 
+			FText::FromString(SCPStatus[ISourceControlProvider::EStatus::User]));
 	}
 
 	return false;
