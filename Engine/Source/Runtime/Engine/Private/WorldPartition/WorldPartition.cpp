@@ -1737,7 +1737,7 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 		}
 		ActorDescs.Sort([](const FWorldPartitionActorDesc& A, const FWorldPartitionActorDesc& B)
 		{
-			return A.GetRuntimeBounds().GetExtent().GetMax() < B.GetRuntimeBounds().GetExtent().GetMax();
+			return A.GetGuid() < B.GetGuid();
 		});
 		for (const FWorldPartitionActorDesc* ActorDescIterator : ActorDescs)
 		{
