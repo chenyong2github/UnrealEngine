@@ -167,35 +167,51 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				string[] Tokens = Loc.Split(':');
 				Mode = (Tokens[0] == "premade") ? MetadataMode.UsePremade : MetadataMode.UpdateTemplate;
 
+				FileReference? TestFile = null;
+
 				// no extension means it's a .ini entry
 				if (Path.GetExtension(Tokens[1]) == "")
 				{
 					string? PremadeLocation;
 					if (Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", Tokens[1], out PremadeLocation) && PremadeLocation != "")
 					{
-						FileReference TestFile;
-						if (PremadeLocation.StartsWith("/Engine/"))
+						if (PremadeLocation.StartsWith("(FilePath=", StringComparison.OrdinalIgnoreCase))
 						{
-							TestFile = FileReference.Combine(Unreal.EngineDirectory, PremadeLocation.Substring(8));
-						}
-						else if (PremadeLocation.StartsWith("/Game/"))
-						{
-							TestFile = FileReference.Combine(ProductDirectory, PremadeLocation.Substring(6));
+							PremadeLocation = ConfigHierarchy.GetStructEntry(PremadeLocation, "FilePath", false)!;
+							if (PremadeLocation.StartsWith("/Engine/"))
+							{
+								TestFile = FileReference.Combine(Unreal.EngineDirectory, PremadeLocation.Substring(8));
+							}
+							else if (PremadeLocation.StartsWith("/Game/"))
+							{
+								TestFile = FileReference.Combine(ProductDirectory, PremadeLocation.Substring(6));
+							}
+							else
+							{
+								TestFile = new FileReference(PremadeLocation);
+							}
 						}
 						else
 						{
-							TestFile = new FileReference(Tokens[1]);
+							TestFile = new FileReference(PremadeLocation);
 						}
-
-						// make sure the file (if it's a generated file, then it may not exist yet, so allow it through)
-						if (TestFile.ContainsName("UBTGenerated", 0) || FileReference.Exists(TestFile))
-						{
-							File = TestFile;
-							break;
-						}
-
-						throw new BuildException($"Metadata file {Tokens[1]} (resolved to {TestFile}) was specified in project settings, but does not exist. Ignoring...");
 					}
+				}
+				else
+				{
+					TestFile = new FileReference(Tokens[1]);
+				}
+
+				// make sure the file (if it's a generated file, then it may not exist yet, so allow it through)
+				if (TestFile != null)
+				{
+					if (TestFile.ContainsName("UBTGenerated", 0) || FileReference.Exists(TestFile))
+					{
+						File = TestFile;
+						break;
+					}
+
+					throw new BuildException($"Metadata file {Tokens[1]} (resolved to {TestFile}) was specified in project settings, but does not exist. Ignoring...");
 				}
 			}
 
