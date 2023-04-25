@@ -179,6 +179,9 @@ private:
 	FThreadSafeBool Signal;
 
 public:
+	FCancelCompressionSignal() = default;
+	FCancelCompressionSignal(const FCancelCompressionSignal&) = default;
+
 	FCancelCompressionSignal& operator=(const FCancelCompressionSignal& Other)
 	{
 		Signal = (bool)Other.Signal;
