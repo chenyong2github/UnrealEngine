@@ -139,5 +139,10 @@ class ENGINE_API UDataTableFunctionLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataTable", DisplayName = "Fill Data Table from JSON File")
 	static bool FillDataTableFromJSONFile(UDataTable* DataTable, const FString& JSONFilePath, UScriptStruct* ImportRowStruct = nullptr);
+
+	/** Add a row to a Data Table with the provided name and data. */
+    UFUNCTION(BlueprintCallable, CustomThunk, Category = "Editor Scripting | DataTable", meta=(AutoCreateRefTerm="RowName", CustomStructureParam="RowData"))
+	static void AddDataTableRow(UDataTable* const DataTable, const FName& RowName, const FTableRowBase& RowData);
+    DECLARE_FUNCTION(execAddDataTableRow);
 #endif //WITH_EDITOR
 };
