@@ -2050,6 +2050,9 @@ void UMaterial::UpdateCachedExpressionData()
 	FMaterialCachedHLSLTree* LocalCachedTree = nullptr;
 	if (IsUsingNewHLSLGenerator())
 	{
+		// Relinks function call inputs. Otherwise, we can get invalid inputs and they will cause errors when generating the syntax tree
+		UpdateTransientExpressionData();
+
 		LocalCachedTree = new FMaterialCachedHLSLTree();
 		LocalCachedTree->GenerateTree(this, nullptr, nullptr);
 		LocalCachedExpressionData->UpdateForCachedHLSLTree(*LocalCachedTree, nullptr);
