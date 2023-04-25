@@ -12,6 +12,7 @@ class UInteractiveToolsContext;
 class UInteractiveToolManager;
 class UTransformGizmo;
 class USkeletonTransformProxy;
+struct FGizmoCustomization;
 
 namespace UE
 {
@@ -87,5 +88,8 @@ public:
 	virtual USkeletalMeshGizmoWrapperBase* GetNewWrapper(UInteractiveToolManager* InToolManager, UObject* Outer = nullptr, IGizmoStateTarget* InStateTarget = nullptr) override;
 
 private:
+	
+	static const FGizmoCustomization& GetGizmoCustomization();
+	
 	bool bGizmosRegistered = false;
 };

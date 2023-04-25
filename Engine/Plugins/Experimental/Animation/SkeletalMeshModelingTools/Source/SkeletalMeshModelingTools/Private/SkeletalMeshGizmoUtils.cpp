@@ -9,7 +9,9 @@
 
 #include "EditorGizmos/TransformGizmo.h"
 #include "Editor/Experimental/EditorInteractiveToolsFramework/Public/EditorInteractiveGizmoManager.h"
-// #include "EditorGizmos/EditorTransformGizmoBuilder.h"
+#include "EditorGizmos/EditorTransformGizmoBuilder.h"
+
+#include "Materials/Material.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshGizmoUtils)
 
@@ -94,7 +96,9 @@ void USkeletalMeshGizmoContextObject::RegisterGizmosWithManager(UInteractiveTool
 	UEditorInteractiveGizmoManager* GizmoManager = Cast<UEditorInteractiveGizmoManager>(InToolManager->GetPairedGizmoManager());
 	if (ensure(GizmoManager))
 	{
-		GizmoManager->RegisterGizmoType(TransformBuilderIdentifier(), GizmoManager->GetTransformGizmoBuilder());
+		UEditorTransformGizmoBuilder* GizmoBuilder = NewObject<UEditorTransformGizmoBuilder>(this);
+		GizmoBuilder->CustomizationFunction = [] { return GetGizmoCustomization(); };
+		GizmoManager->RegisterGizmoType(TransformBuilderIdentifier(), GizmoBuilder);
 	}
 	
 	bGizmosRegistered = true;
@@ -143,6 +147,20 @@ USkeletalMeshGizmoWrapperBase* USkeletalMeshGizmoContextObject::GetNewWrapper(UI
 	GizmoWrapper->TransformProxy = SkeletonTransformProxy;
 	
 	return GizmoWrapper;
+}
+
+const FGizmoCustomization& USkeletalMeshGizmoContextObject::GetGizmoCustomization()
+{
+	static const FString MaterialName = TEXT("/SkeletalMeshModelingTools/SkeletalMeshGizmoMaterial.SkeletalMeshGizmoMaterial");
+	UMaterial* Material = LoadObject<UMaterial>(nullptr, *MaterialName, nullptr, LOAD_None, nullptr);
+
+	check(Material);
+	
+	static FGizmoCustomization Customization;
+		Customization.Material = Material;
+		Customization.SizeCoefficient = 1.5f;
+
+	return Customization;
 }
 
 bool USkeletalMeshGizmoWrapper::IsGizmoHit(const FInputDeviceRay& PressPos) const

@@ -205,6 +205,11 @@ public:
 	 */
 	virtual void SetVisibility(bool bVisible);
 
+	/**
+	 * Set customization function for this Gizmo
+	 */
+	void SetCustomizationFunction(const TFunction<const FGizmoCustomization()>& InFunction);
+	
 public:
 
 	/** The active target object for the Gizmo */
@@ -670,6 +675,9 @@ protected:
 
 	/** Array of function pointers, indexed by gizmo part id, to handle update interacting state */
 	TArray<TFunction<void(UTransformGizmo* TransformGizmo, bool bInInteracting, uint32 InHitPart)> > OnUpdateInteractingFunctions;
+
+	/** Customization function (to override default material or increment gizmo size for example) */
+	TFunction<const FGizmoCustomization()> CustomizationFunction;
 
 	/** Percentage-based scale multiplier */
 	UPROPERTY()

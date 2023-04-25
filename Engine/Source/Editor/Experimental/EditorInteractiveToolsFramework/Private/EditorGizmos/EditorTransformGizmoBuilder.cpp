@@ -10,7 +10,6 @@
 #include "EditorGizmos/EditorTransformGizmoSource.h"
 #include "EditorGizmos/EditorTransformProxy.h"
 #include "EditorGizmos/TransformGizmo.h"
-#include "EditorGizmos/TransformGizmoInterfaces.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveGizmoManager.h"
 #include "Templates/Casts.h"
@@ -25,6 +24,7 @@ UInteractiveGizmo* UEditorTransformGizmoBuilder::BuildGizmo(const FToolBuilderSt
 	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
 
 	UEditorTransformGizmo* TransformGizmo = NewObject<UEditorTransformGizmo>(SceneState.GizmoManager);
+	TransformGizmo->SetCustomizationFunction(CustomizationFunction);
 	TransformGizmo->Setup();
 	TransformGizmo->TransformGizmoSource = UEditorTransformGizmoSource::Construct(TransformGizmo);
 	TransformGizmo->GizmoViewContext = GizmoViewContext;

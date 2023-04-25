@@ -7,6 +7,8 @@
 #include "UnrealWidgetFwd.h"
 #include "TransformGizmoInterfaces.generated.h"
 
+class UMaterial;
+
 //
 // Interface for the Transform gizmo.
 //
@@ -71,4 +73,12 @@ public:
 	virtual EGizmoTransformScaleType GetScaleType() const PURE_VIRTUAL(ITransformGizmoSource::GetScaleType, return EGizmoTransformScaleType::Default;);
 };
 
+/**
+ * FGizmoCustomization is a struct that can be used to make some display overrides (currently material and size) 
+ */
 
+struct FGizmoCustomization
+{
+	TObjectPtr<UMaterial> Material = nullptr;
+	float SizeCoefficient = 1.f;
+};

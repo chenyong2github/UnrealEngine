@@ -71,7 +71,17 @@ void UTransformGizmo::SetupBehaviors()
 
 void UTransformGizmo::SetupMaterials()
 {
-	UMaterial* AxisMaterialBase = GEngine->ArrowMaterial;
+	auto GetBaseMaterial = [this]()
+	{
+		if (CustomizationFunction)
+		{
+			const FGizmoCustomization& GizmoCustomization = CustomizationFunction();
+			return GizmoCustomization.Material ? GizmoCustomization.Material : GEngine->ArrowMaterial; 
+		}
+		return GEngine->ArrowMaterial;
+	};
+	
+	UMaterial* AxisMaterialBase = GetBaseMaterial(); 
 
 	AxisMaterialX = UMaterialInstanceDynamic::Create(AxisMaterialBase, NULL);
 	AxisMaterialX->SetVectorParameterValue("GizmoColor", AxisColorX);
@@ -656,18 +666,25 @@ void UTransformGizmo::SetVisibility(bool bVisibleIn)
 	bVisible = bVisibleIn;
 }
 
+void UTransformGizmo::SetCustomizationFunction(const TFunction<const FGizmoCustomization()>& InFunction)
+{
+	CustomizationFunction = InFunction;
+}
+
 UGizmoElementArrow* UTransformGizmo::MakeTranslateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial)
 {
+	const float SizeCoeff = CustomizationFunction ? CustomizationFunction().SizeCoefficient : 1.f;
+	
 	UGizmoElementArrow* ArrowElement = NewObject<UGizmoElementArrow>();
 	ArrowElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	ArrowElement->SetHeadType(EGizmoElementArrowHeadType::Cone);
 	ArrowElement->SetBase(InAxisDir * AxisLengthOffset);
 	ArrowElement->SetDirection(InAxisDir);
 	ArrowElement->SetSideDirection(InSideDir);
-	ArrowElement->SetBodyLength(TranslateAxisLength);
+	ArrowElement->SetBodyLength(TranslateAxisLength * SizeCoeff);
 	ArrowElement->SetBodyRadius(AxisRadius);
-	ArrowElement->SetHeadLength(TranslateAxisConeHeight);
-	ArrowElement->SetHeadRadius(TranslateAxisConeRadius);
+	ArrowElement->SetHeadLength(TranslateAxisConeHeight * SizeCoeff);
+	ArrowElement->SetHeadRadius(TranslateAxisConeRadius * SizeCoeff);
 	ArrowElement->SetNumSides(32);
 	ArrowElement->SetMaterial(InMaterial);
 	ArrowElement->SetViewDependentType(EGizmoElementViewDependentType::Axis);
@@ -677,15 +694,17 @@ UGizmoElementArrow* UTransformGizmo::MakeTranslateAxis(ETransformGizmoPartIdenti
 
 UGizmoElementArrow* UTransformGizmo::MakeScaleAxis(ETransformGizmoPartIdentifier InPartId, const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial)
 {
+	const float SizeCoeff = CustomizationFunction ? CustomizationFunction().SizeCoefficient : 1.f;
+
 	UGizmoElementArrow* ArrowElement = NewObject<UGizmoElementArrow>();
 	ArrowElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	ArrowElement->SetHeadType(EGizmoElementArrowHeadType::Cube);
 	ArrowElement->SetBase(InAxisDir * AxisLengthOffset);
 	ArrowElement->SetDirection(InAxisDir);
 	ArrowElement->SetSideDirection(InSideDir);
-	ArrowElement->SetBodyLength(ScaleAxisLength);
+	ArrowElement->SetBodyLength(ScaleAxisLength * SizeCoeff);
 	ArrowElement->SetBodyRadius(AxisRadius);
-	ArrowElement->SetHeadLength(ScaleAxisCubeDim);
+	ArrowElement->SetHeadLength(ScaleAxisCubeDim * SizeCoeff);
 	ArrowElement->SetNumSides(32);
 	ArrowElement->SetMaterial(InMaterial);
 	ArrowElement->SetViewDependentType(EGizmoElementViewDependentType::Axis);
@@ -695,12 +714,14 @@ UGizmoElementArrow* UTransformGizmo::MakeScaleAxis(ETransformGizmoPartIdentifier
 
 UGizmoElementBox* UTransformGizmo::MakeUniformScaleHandle()
 {
+	const float SizeCoeff = CustomizationFunction ? CustomizationFunction().SizeCoefficient : 1.f;
+	
 	UGizmoElementBox* BoxElement = NewObject<UGizmoElementBox>();
 	BoxElement->SetPartIdentifier(static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleUniform));
 	BoxElement->SetCenter(FVector::ZeroVector);
 	BoxElement->SetUpDirection(FVector::UpVector);
 	BoxElement->SetSideDirection(FVector::RightVector);
-	BoxElement->SetDimensions(FVector(ScaleAxisCubeDim, ScaleAxisCubeDim, ScaleAxisCubeDim));
+	BoxElement->SetDimensions(FVector(ScaleAxisCubeDim, ScaleAxisCubeDim, ScaleAxisCubeDim) * SizeCoeff);
 	BoxElement->SetMaterial(GreyMaterial);
 	return BoxElement;
 }
@@ -708,7 +729,9 @@ UGizmoElementBox* UTransformGizmo::MakeUniformScaleHandle()
 UGizmoElementRectangle* UTransformGizmo::MakePlanarHandle(ETransformGizmoPartIdentifier InPartId, const FVector& InUpDirection, const FVector& InSideDirection, const FVector& InPlaneNormal,
 	UMaterialInterface* InMaterial, const FLinearColor& InVertexColor)
 {
-	FVector PlanarHandleCenter = (InUpDirection + InSideDirection) * PlanarHandleOffset;
+	const float SizeCoeff = CustomizationFunction ? CustomizationFunction().SizeCoefficient : 1.f;
+	
+	FVector PlanarHandleCenter = (InUpDirection + InSideDirection) * PlanarHandleOffset * SizeCoeff;
 
 	FLinearColor LineColor = InVertexColor;
 	FLinearColor VertexColor = LineColor;
@@ -719,8 +742,8 @@ UGizmoElementRectangle* UTransformGizmo::MakePlanarHandle(ETransformGizmoPartIde
 	RectangleElement->SetUpDirection(InUpDirection);
 	RectangleElement->SetSideDirection(InSideDirection);
 	RectangleElement->SetCenter(PlanarHandleCenter);
-	RectangleElement->SetHeight(PlanarHandleSize);
-	RectangleElement->SetWidth(PlanarHandleSize);
+	RectangleElement->SetHeight(PlanarHandleSize * SizeCoeff);
+	RectangleElement->SetWidth(PlanarHandleSize * SizeCoeff);
 	RectangleElement->SetMaterial(InMaterial);
 	RectangleElement->SetVertexColor(VertexColor);
 	RectangleElement->SetLineColor(LineColor);
@@ -734,13 +757,15 @@ UGizmoElementRectangle* UTransformGizmo::MakePlanarHandle(ETransformGizmoPartIde
 
 UGizmoElementRectangle* UTransformGizmo::MakeTranslateScreenSpaceHandle()
 {
+	const float SizeCoeff = CustomizationFunction ? CustomizationFunction().SizeCoefficient : 1.f;
+	
 	UGizmoElementRectangle* RectangleElement = NewObject<UGizmoElementRectangle>();
 	RectangleElement->SetPartIdentifier(static_cast<uint32>(ETransformGizmoPartIdentifier::TranslateScreenSpace));
 	RectangleElement->SetUpDirection(FVector::UpVector);
 	RectangleElement->SetSideDirection(FVector::RightVector);
 	RectangleElement->SetCenter(FVector::ZeroVector);
-	RectangleElement->SetHeight(TranslateScreenSpaceHandleSize);
-	RectangleElement->SetWidth(TranslateScreenSpaceHandleSize);
+	RectangleElement->SetHeight(TranslateScreenSpaceHandleSize * SizeCoeff);
+	RectangleElement->SetWidth(TranslateScreenSpaceHandleSize * SizeCoeff);
 	RectangleElement->SetViewAlignType(EGizmoElementViewAlignType::PointScreen);
 	RectangleElement->SetViewAlignAxis(FVector::UpVector);
 	RectangleElement->SetViewAlignNormal(-FVector::ForwardVector);
@@ -757,12 +782,14 @@ UGizmoElementRectangle* UTransformGizmo::MakeTranslateScreenSpaceHandle()
 UGizmoElementTorus* UTransformGizmo::MakeRotateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& TorusAxis0, const FVector& TorusAxis1,
 	UMaterialInterface* InMaterial, UMaterialInterface* InCurrentMaterial)
 {
+	const float SizeCoeff = CustomizationFunction ? CustomizationFunction().SizeCoefficient : 1.f;
+	
 	UGizmoElementTorus* RotateAxisElement = NewObject<UGizmoElementTorus>();
 	RotateAxisElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	RotateAxisElement->SetCenter(FVector::ZeroVector);
-	RotateAxisElement->SetRadius(UTransformGizmo::RotateAxisOuterRadius);
+	RotateAxisElement->SetRadius(UTransformGizmo::RotateAxisOuterRadius * SizeCoeff);
 	RotateAxisElement->SetNumSegments(UTransformGizmo::RotateAxisNumSegments);
-	RotateAxisElement->SetInnerRadius(UTransformGizmo::RotateAxisInnerRadius);
+	RotateAxisElement->SetInnerRadius(UTransformGizmo::RotateAxisInnerRadius * SizeCoeff);
 	RotateAxisElement->SetNumInnerSlices(UTransformGizmo::RotateAxisInnerSlices);
 	RotateAxisElement->SetAxis0(TorusAxis0);
 	RotateAxisElement->SetAxis1(TorusAxis1);
@@ -780,10 +807,12 @@ UGizmoElementTorus* UTransformGizmo::MakeRotateAxis(ETransformGizmoPartIdentifie
 
 UGizmoElementCircle* UTransformGizmo::MakeRotateCircleHandle(ETransformGizmoPartIdentifier InPartId, float InRadius, const FLinearColor& InColor, float bFill)
 {
+	const float SizeCoeff = CustomizationFunction ? CustomizationFunction().SizeCoefficient : 1.f;
+	
 	UGizmoElementCircle* CircleElement = NewObject<UGizmoElementCircle>();
 	CircleElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	CircleElement->SetCenter(FVector::ZeroVector);
-	CircleElement->SetRadius(InRadius);
+	CircleElement->SetRadius(InRadius * SizeCoeff);
 	CircleElement->SetAxis0(FVector::UpVector);
 	CircleElement->SetAxis1(-FVector::RightVector);
 	CircleElement->SetLineColor(InColor);
