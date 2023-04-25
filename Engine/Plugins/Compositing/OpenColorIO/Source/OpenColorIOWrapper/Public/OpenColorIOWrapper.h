@@ -94,7 +94,7 @@ private:
 	/** Convenience to create a config between the working color space and the default interchange one. */
 	static TUniquePtr<FOpenColorIOConfigWrapper> CreateWorkingColorSpaceToInterchangeConfig();
 
-	TPimplPtr<struct FOpenColorIOConfigPimpl> Pimpl;
+	TPimplPtr<struct FOpenColorIOConfigPimpl, EPimplPtrMode::DeepCopy> Pimpl;
 
 	friend class FOpenColorIOWrapperModule;
 	friend class FOpenColorIOProcessorWrapper;
@@ -115,7 +115,7 @@ public:
 	* @param ContextKeyValues (Optional) ContextKeyValues Additional context modifiers.
 	*/
 	FOpenColorIOProcessorWrapper(
-		const FOpenColorIOConfigWrapper& InConfig,
+		const FOpenColorIOConfigWrapper* InConfig,
 		FStringView SourceColorSpace,
 		FStringView DestinationColorSpace,
 		EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::None,
@@ -133,7 +133,7 @@ public:
 	* @param ContextKeyValues (Optional) ContextKeyValues Additional context modifiers.
 	*/
 	FOpenColorIOProcessorWrapper(
-		const FOpenColorIOConfigWrapper& InConfig,
+		const FOpenColorIOConfigWrapper* InConfig,
 		FStringView SourceColorSpace,
 		FStringView Display,
 		FStringView View,
@@ -146,9 +146,9 @@ public:
 
 private:
 
-	TPimplPtr<struct FOpenColorIOProcessorPimpl> Pimpl;
+	TPimplPtr<struct FOpenColorIOProcessorPimpl, EPimplPtrMode::DeepCopy> Pimpl;
 
-	const FOpenColorIOConfigWrapper& OwnerConfig;
+	const FOpenColorIOConfigWrapper* OwnerConfig;
 
 	EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType;
 
@@ -163,9 +163,9 @@ public:
 	/**
 	* Constructor.
 	*
-	* @param InOwner Owner processor.
+	* @param InProcessor Parent processor.
 	*/
-	FOpenColorIOCPUProcessorWrapper(const FOpenColorIOProcessorWrapper& InOwner);
+	FOpenColorIOCPUProcessorWrapper(FOpenColorIOProcessorWrapper InProcessor);
 
 	/** Valid when the processor has been successfully created and isn't null. */
 	bool IsValid() const;
@@ -178,7 +178,7 @@ public:
 
 private:
 
-	const FOpenColorIOProcessorWrapper& OwnerProcessor;
+	const FOpenColorIOProcessorWrapper ParentProcessor;
 };
 
 class OPENCOLORIOWRAPPER_API FOpenColorIOGPUProcessorWrapper final
@@ -195,11 +195,11 @@ public:
 	/**
 	* Constructor.
 	*
-	* @param InOwner Owner processor.
+	* @param InProcessor Parent processor.
 	* @param InOptions Initialization options.
 	*/
 	FOpenColorIOGPUProcessorWrapper(
-		const FOpenColorIOProcessorWrapper& InOwner,
+		FOpenColorIOProcessorWrapper InProcessor,
 		FInitializationOptions InOptions = FInitializationOptions()
 	);
 
@@ -252,7 +252,7 @@ public:
 
 private:
 
-	const FOpenColorIOProcessorWrapper& OwnerProcessor;
+	const FOpenColorIOProcessorWrapper ParentProcessor;
 
-	TPimplPtr<struct FOpenColorIOGPUProcessorPimpl> GPUPimpl;
+	TPimplPtr<struct FOpenColorIOGPUProcessorPimpl, EPimplPtrMode::DeepCopy> GPUPimpl;
 };
