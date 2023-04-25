@@ -10,6 +10,7 @@
 #include "NavModifierComponent.generated.h"
 
 struct FNavigationRelevantData;
+class UBodySetup;
 
 UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent), hidecategories = (Activation), config = Engine, defaultconfig)
 class NAVIGATIONSYSTEM_API UNavModifierComponent : public UNavRelevantComponent
@@ -51,6 +52,8 @@ protected:
 	virtual void OnUnregister() override;
 	//~ End UActorComponent Interface
 
+	void PopulateComponentBounds(FTransform InParentTransform, const UBodySetup& InBodySetup) const;
+	
 	struct FRotatedBox
 	{
 		FBox Box;
