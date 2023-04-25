@@ -175,12 +175,6 @@ public:
 	{
 		return SourceObject != Other.SourceObject || Subresource != Other.Subresource;
 	}
-	FD3D12LockedKey& operator=(const FD3D12LockedKey& Other)
-	{
-		SourceObject = Other.SourceObject;
-		Subresource = Other.Subresource;
-		return *this;
-	}
 	uint32 GetHash() const
 	{
 		return PointerHash(SourceObject);
