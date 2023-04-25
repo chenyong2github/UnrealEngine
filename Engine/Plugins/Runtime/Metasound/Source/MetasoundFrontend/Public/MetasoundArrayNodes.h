@@ -286,11 +286,18 @@ namespace Metasound
 		: Trigger(InParams.Trigger)
 		, Array(InParams.Array)
 		, Index(InParams.Index)
-		, Value(TDataWriteReferenceFactory<ElementType>::CreateAny(InSettings))
+		, Value(TDataWriteReferenceFactory<ElementType>::CreateExplicitArgs(InSettings))
 #if WITH_METASOUND_DEBUG_ENVIRONMENT
 		, GraphName(InParams.GraphName)
 #endif // WITH_METASOUND_DEBUG_ENVIRONMENT
 		{
+			const int32 IndexValue = *Index;
+			const ArrayType& ArrayRef = *Array;
+
+			if ((IndexValue >= 0) && (IndexValue < ArrayRef.Num()))
+			{
+				*Value = ArrayRef[IndexValue];
+			}
 		}
 
 		virtual ~TArrayGetOperator() = default;
@@ -351,7 +358,7 @@ namespace Metasound
 			}
 			else
 			{
-				*Value = TDataTypeFactory<ElementType>::CreateAny(InParams.OperatorSettings);
+				*Value = TDataTypeFactory<ElementType>::CreateExplicitArgs(InParams.OperatorSettings);
 			}
 		}
 
