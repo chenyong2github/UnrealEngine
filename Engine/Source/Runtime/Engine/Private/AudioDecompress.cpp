@@ -304,6 +304,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 					{
 						RawPCMOffset += ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
 						OutNumBytesStreamed = BufferSize - RawPCMOffset;
+						break;
 					}
 				}
 				else
