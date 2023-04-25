@@ -3024,13 +3024,20 @@ namespace Nanite
 
 using FMetaBufferArray = TArray<FUintVector4, SceneRenderingAllocator>;
 
+static bool TessellationEnabled()
+{
+	static const auto TessellationVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.Tessellation"));
+	const bool bTessellation = (TessellationVar && TessellationVar->GetValueOnRenderThread() != 0);
+	return bTessellation != 0 && NaniteTessellationSupported();
+}
+
 inline uint32 PackMaterialBitFlags(const FMaterial& Material)
 {
 	FNaniteMaterialFlags Flags = {0};
 	Flags.bPixelDiscard = Material.IsMasked();
 	Flags.bPixelDepthOffset = Material.MaterialUsesPixelDepthOffset_RenderThread();
 	Flags.bWorldPositionOffset = Material.MaterialUsesWorldPositionOffset_RenderThread();
-	Flags.bDynamicTessellation = Material.MaterialUsesDisplacement_RenderThread();
+	Flags.bDisplacement = TessellationEnabled() && Material.MaterialUsesDisplacement_RenderThread();
 	return PackNaniteMaterialBitFlags(Flags);
 }
 

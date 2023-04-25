@@ -7,8 +7,6 @@
 #define NANITE_SUBPIXEL_MASK								(NANITE_SUBPIXEL_SAMPLES - 1)
 #define NANITE_SUBPIXEL_DILATE								0	// To correct for mismatch with HW rasterizer
 
-#define NANITE_TESSELLATION									0
-
 #define NANITE_LATE_VSM_PAGE_TRANSLATION					1
 #define NANITE_VSM_PAGE_TABLE_CACHE_DIM						8
 
@@ -161,9 +159,9 @@
 #define NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET			0x1
 #define NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET				0x2
 #define NANITE_MATERIAL_FLAG_PIXEL_DISCARD					0x4
-#define NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION			0x8
+#define NANITE_MATERIAL_FLAG_DISPLACEMENT					0x8
 
-#define NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS			(NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET | NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION)
+#define NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS			(NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET | NANITE_MATERIAL_FLAG_DISPLACEMENT)
 #define NANITE_MATERIAL_PIXEL_PROGRAMMABLE_FLAGS			(NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET | NANITE_MATERIAL_FLAG_PIXEL_DISCARD)
 
 // Only available with the DEBUG_FLAGS permutation active.
@@ -243,7 +241,7 @@ struct FNaniteMaterialFlags
 	bool bWorldPositionOffset;
 	bool bPixelDepthOffset;
 	bool bPixelDiscard;
-	bool bDynamicTessellation;
+	bool bDisplacement;
 
 	bool bVertexProgrammable;
 	bool bPixelProgrammable;
@@ -255,7 +253,7 @@ INLINE_ATTR FNaniteMaterialFlags UnpackNaniteMaterialFlags(UINT_TYPE Packed)
 	MaterialFlags.bWorldPositionOffset = (Packed & NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET) != 0u;
 	MaterialFlags.bPixelDepthOffset = (Packed & NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET) != 0u;
 	MaterialFlags.bPixelDiscard = (Packed & NANITE_MATERIAL_FLAG_PIXEL_DISCARD) != 0u;
-	MaterialFlags.bDynamicTessellation = (Packed & NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION) != 0u;
+	MaterialFlags.bDisplacement = (Packed & NANITE_MATERIAL_FLAG_DISPLACEMENT) != 0u;
 	MaterialFlags.bVertexProgrammable = (Packed & NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS) != 0u;
 	MaterialFlags.bPixelProgrammable = (Packed & NANITE_MATERIAL_PIXEL_PROGRAMMABLE_FLAGS) != 0u;
 	return MaterialFlags;
@@ -263,7 +261,7 @@ INLINE_ATTR FNaniteMaterialFlags UnpackNaniteMaterialFlags(UINT_TYPE Packed)
 
 INLINE_ATTR bool IsNaniteMaterialVertexProgrammable(FNaniteMaterialFlags MaterialFlags)
 {
-	return MaterialFlags.bWorldPositionOffset || MaterialFlags.bDynamicTessellation;
+	return MaterialFlags.bWorldPositionOffset || MaterialFlags.bDisplacement;
 }
 
 INLINE_ATTR bool IsNaniteMaterialPixelProgrammable(FNaniteMaterialFlags MaterialFlags)
@@ -295,9 +293,9 @@ INLINE_ATTR UINT_TYPE PackNaniteMaterialBitFlags(FNaniteMaterialFlags Flags)
 		MaterialBitFlags |= NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET;
 	}
 
-	if (Flags.bDynamicTessellation)
+	if (Flags.bDisplacement)
 	{
-		MaterialBitFlags |= NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION;
+		MaterialBitFlags |= NANITE_MATERIAL_FLAG_DISPLACEMENT;
 	}
 
 	return MaterialBitFlags;

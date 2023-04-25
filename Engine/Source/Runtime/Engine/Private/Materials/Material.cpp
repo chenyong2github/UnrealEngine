@@ -6637,12 +6637,10 @@ bool UMaterial::IsPropertySupported(EMaterialProperty InProperty) const
 {
 	bool bSupported = true;
 
-#if !NANITE_TESSELLATION
-	if (InProperty == MP_Displacement)
+	if (InProperty == MP_Displacement && !NaniteTessellationSupported())
 	{
 		return false;
 	}
-#endif
 
 	if (Strata::IsStrataEnabled())
 	{

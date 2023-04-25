@@ -195,9 +195,9 @@ void ExportRasterBin(uint RasterBin, uint ClusterIndex, uint RangeStart, uint Ra
 {
 	const FNaniteMaterialFlags BinMaterialFlags = GetRasterBinMaterialFlags(RasterBin);
 	bool bUseBatch = bSoftware ? BinMaterialFlags.bPixelProgrammable : (bUsePrimOrMeshShader && BinMaterialFlags.bVertexProgrammable);
-	if (BinMaterialFlags.bDynamicTessellation)
+	if (BinMaterialFlags.bDisplacement)
 	{
-		// Dynamic tessellation forces 100% software, and also the vert reuse batching
+		// Displacement forces 100% software, and also the vert reuse batching
 		bSoftware = true;
 		bUseBatch = true;
 	}

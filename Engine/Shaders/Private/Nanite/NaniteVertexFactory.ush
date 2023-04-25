@@ -648,7 +648,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 			const float2 Subpixel = SvPosition.xy * NANITE_SUBPIXEL_SAMPLES;
 			Barycentrics = CalculateTriangleBarycentrics(Subpixel, Tri.Verts[0].PointSubpixelClip, Tri.Verts[1].PointSubpixelClip, Tri.Verts[2].PointSubpixelClip);
 
-#if NANITE_TESSELLATION
+		#if NANITE_TESSELLATION
 			float4x4 TranslatedWorldToLocal = LWCMultiplyTranslation( LWCNegate( NaniteView.PreViewTranslation ), InstanceData.WorldToLocal );
 			float4 PixelTranslatedWorld = mul( SvPosition, NaniteView.SVPositionToTranslatedWorld );
 			float4 PixelLocal = mul( PixelTranslatedWorld, TranslatedWorldToLocal );
@@ -663,7 +663,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 				RawAttributeData[1].TangentZ,
 				RawAttributeData[2].TangentZ,
 				Barycentrics );
-#endif
+		#endif
 		}
 
 		Result = FetchNaniteMaterialPixelParameters(InstanceData, InstanceDynamicData, NaniteView, Tri, Cluster, Barycentrics, Interpolants, SvPosition);

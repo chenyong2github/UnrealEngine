@@ -338,6 +338,8 @@ public:
 		
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 
+		OutEnvironment.SetDefine(TEXT("NANITE_TESSELLATION"), NaniteTessellationSupported() ? 1 : 0);
+
 		// Force shader model 6.0+
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
@@ -464,14 +466,14 @@ public:
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 0);
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 0);
 
+		OutEnvironment.SetDefine(TEXT("NANITE_TESSELLATION"), (Parameters.MaterialParameters.bHasDisplacementConnected && NaniteTessellationSupported()) ? 1 : 0);
+
 		// Force definitions of GetObjectWorldPosition(), etc..
 		OutEnvironment.SetDefine(TEXT("HAS_PRIMITIVE_UNIFORM_BUFFER"), 1);
 	}
 };
 
 class FMaterialRenderProxy;
-
-#define NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE !NANITE_TESSELLATION
 
 class FHWRasterizePS;
 class FHWRasterizeVS;
@@ -564,22 +566,22 @@ struct FNaniteRasterBin
 	}
 };
 
-#if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
 struct FNaniteRasterMaterialCacheKey
 {
 	union
 	{
 		struct
 		{
-			uint16 FeatureLevel          : 8;
-			uint16 bForceDisableWPO      : 1;
-			uint16 bUseMeshShader        : 1;
-			uint16 bUsePrimitiveShader   : 1;
-			uint16 bVisualizeActive      : 1;
-			uint16 bHasVirtualShadowMap  : 1;
-			uint16 bIsDepthOnly          : 1;
-			uint16 bIsTwoSided           : 1;
-			uint16 bPatches              : 1;
+			uint16 FeatureLevel				: 7;
+			uint16 bForceDisableWPO			: 1;
+			uint16 bUseMeshShader			: 1;
+			uint16 bUsePrimitiveShader		: 1;
+			uint16 bUseDisplacement			: 1;
+			uint16 bVisualizeActive			: 1;
+			uint16 bHasVirtualShadowMap		: 1;
+			uint16 bIsDepthOnly				: 1;
+			uint16 bIsTwoSided				: 1;
+			uint16 bPatches					: 1;
 		};
 
 		uint16 Packed = 0;
@@ -600,6 +602,8 @@ struct FNaniteRasterMaterialCacheKey
 		return Packed != Other.Packed;
 	}
 };
+
+static_assert(sizeof(FNaniteRasterMaterialCacheKey) == sizeof(uint16));
 
 inline uint32 GetTypeHash(const FNaniteRasterMaterialCacheKey& Key)
 {
@@ -624,13 +628,9 @@ struct FNaniteRasterMaterialCache
 	bool bFinalized = false;
 };
 
-#endif
-
 struct FNaniteRasterEntry
 {
-#if NANITE_ENABLE_RASTER_PIPELINE_MATERIAL_CACHE
 	mutable TMap<FNaniteRasterMaterialCacheKey, FNaniteRasterMaterialCache> CacheMap;
-#endif
 
 	FNaniteRasterPipeline RasterPipeline{};
 	uint32 ReferenceCount = 0;

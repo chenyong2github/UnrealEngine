@@ -70,6 +70,12 @@ static TAutoConsoleVariable<int32> CVarNaniteAllowComputeMaterials(
 	TEXT("Whether to enable support for (highly experimental) Nanite compute materials"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarNaniteAllowTessellation(
+	TEXT("r.Nanite.AllowTessellation"),
+	0, // Off by default
+	TEXT("Whether to enable support for (highly experimental) Nanite runtime tessellation"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 int32 GNaniteAllowMaskedMaterials = 1;
 FAutoConsoleVariableRef CVarNaniteAllowMaskedMaterials(
 	TEXT("r.Nanite.AllowMaskedMaterials"),
@@ -535,11 +541,15 @@ void FSceneProxyBase::CalculateMinMaxDisplacement()
 	MaxWPOExtent = 0.0f;
 	MinMaxMaterialDisplacement = FVector2f::Zero();
 
+	static const auto TessellationEnabledVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.Tessellation"));
+	const bool bTessellationEnabled = (TessellationEnabledVar && TessellationEnabledVar->GetValueOnRenderThread() != 0);
+	const bool bUseTessellation = bTessellationEnabled && NaniteTessellationSupported();
+
 	for (const auto& MaterialSection : GetMaterialSections())
 	{
 		MaxWPOExtent = FMath::Max(MaxWPOExtent, MaterialSection.MaxWPOExtent);
 
-		if (MaterialSection.MaterialRelevance.bUsesDisplacement)
+		if (bUseTessellation && MaterialSection.MaterialRelevance.bUsesDisplacement)
 		{
 			const float MinDisplacement = (0.0f - MaterialSection.DisplacementScaling.Center) * MaterialSection.DisplacementScaling.Magnitude;
 			const float MaxDisplacement = (1.0f - MaterialSection.DisplacementScaling.Center) * MaterialSection.DisplacementScaling.Magnitude;

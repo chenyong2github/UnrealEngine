@@ -1293,6 +1293,13 @@ bool NaniteComputeMaterialsSupported()
 	return bAllowComputeMaterials;
 }
 
+bool NaniteTessellationSupported()
+{
+	static const auto AllowTessellation = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.AllowTessellation"));
+	static const bool bAllowTessellation = (AllowTessellation && AllowTessellation->GetValueOnAnyThread() != 0);
+	return bAllowTessellation;
+}
+
 bool DoesRuntimeSupportNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport, bool bCheckForProjectSetting)
 {
 	// Does the platform support Nanite?

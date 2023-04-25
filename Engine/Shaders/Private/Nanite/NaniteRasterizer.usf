@@ -8,9 +8,9 @@
 #include "NaniteCullingCommon.ush"
 #include "../WaveOpUtil.ush"
 
-#define TESS (NANITE_TESSELLATION && USES_DISPLACEMENT)
+#define DISPLACEMENT_ENABLED (NANITE_TESSELLATION && USES_DISPLACEMENT)
 
-#if TESS
+#if DISPLACEMENT_ENABLED
 #include "NaniteTessellation.ush"
 #include "NaniteDice.ush"
 #endif
@@ -526,7 +526,7 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 			PointSubpixelClip = CalculateSubpixelCoordinates(Raster, PointClip);
 		}
 
-	#if TESS
+	#if DISPLACEMENT_ENABLED
 		float3 TriPointView[3];
 		TriPointView[0] = WaveReadLaneAt( PointView, VertLaneIndexes[0] );
 		TriPointView[1] = WaveReadLaneAt( PointView, VertLaneIndexes[1] );
@@ -718,7 +718,7 @@ uint MaskedBitCount2( uint2 Bits, uint Index )
 
 void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex ) 
 {
-#if TESS
+#if DISPLACEMENT_ENABLED
 	const uint NumVisiblePatches = RasterBinMeta[ ActiveRasterBin ].BinSWCount;
 	
 	bool bPatchPending = VisibleIndex < NumVisiblePatches;
