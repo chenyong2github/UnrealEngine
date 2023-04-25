@@ -628,7 +628,7 @@ bool UTakeRecorder::SetupDestinationAsset(const FTakeRecorderParameters& InParam
 {
 	check(LevelSequenceBase && Sources && MetaData);
 
-	WeakSequencer = TakesUtils::OpenSequencer(SequenceAsset, OutError);
+	WeakSequencer = TakesUtils::OpenSequencer(LevelSequenceBase, OutError);
 	if (!WeakSequencer.IsValid())
 	{
 		return false;

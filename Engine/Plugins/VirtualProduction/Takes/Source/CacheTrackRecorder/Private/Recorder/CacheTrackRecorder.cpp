@@ -327,7 +327,7 @@ void UCacheTrackRecorder::RecordCacheTracks(const TArray<IMovieSceneCachedTrack*
 		}
 
 		FText ErrorText = LOCTEXT("UnknownError", "An unknown error occurred when trying to start recording");
-		if (!NewRecorder->Initialize(CacheTracks, TakeMetaData->GetSlate(), Parameters, &ErrorText))
+		if (!NewRecorder->Initialize(LevelSequence, CacheTracks, TakeMetaData->GetSlate(), Parameters, &ErrorText))
 		{
 			if (ensure(!ErrorText.IsEmpty()))
 			{
@@ -371,7 +371,7 @@ bool UCacheTrackRecorder::SetActiveRecorder(UCacheTrackRecorder* NewActiveRecord
 
 // Non-static api for UCacheTrackRecorder
 
-bool UCacheTrackRecorder::Initialize(const TArray<IMovieSceneCachedTrack*>& InCacheTracks, const FString& Slate, const FCacheRecorderParameters& InParameters, FText* OutError)
+bool UCacheTrackRecorder::Initialize(ULevelSequence* LevelSequence, const TArray<IMovieSceneCachedTrack*>& InCacheTracks, const FString& Slate, const FCacheRecorderParameters& InParameters, FText* OutError)
 {
 	FGCObjectScopeGuard GCGuard(this);
 
@@ -405,7 +405,7 @@ bool UCacheTrackRecorder::Initialize(const TArray<IMovieSceneCachedTrack*>& InCa
 	}
 
 	FCacheRecorderParameters FinalParameters = InParameters;
-	WeakSequencer = TakesUtils::OpenSequencer(SequenceAsset, OutError);
+	WeakSequencer = TakesUtils::OpenSequencer(LevelSequence, OutError);
 	if (!WeakSequencer.IsValid())
 	{
 		return false;
