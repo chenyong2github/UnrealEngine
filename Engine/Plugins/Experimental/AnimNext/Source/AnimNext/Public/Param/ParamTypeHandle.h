@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Concepts/BaseStructureProvider.h"
 #include "Param/ParamType.h"
 
 class FAnimationAnimNextParametersTest_Types;
@@ -142,12 +143,17 @@ private:
 			OutValueType = FAnimNextParamType::EValueType::Enum;
 			OutValueTypeObject = StaticEnum<ParamType>();
 		}
-		else if constexpr (TModels<Private::CHasStaticStruct, ParamType>::Value)
+		else if constexpr (TModels<CStaticStructProvider, ParamType>::Value)
 		{
 			OutValueType = FAnimNextParamType::EValueType::Struct;
 			OutValueTypeObject = ParamType::StaticStruct();
 		}
-		else if constexpr (TModels<Private::CHasStaticClass, ParamType>::Value)
+		else if constexpr (TModels<CBaseStructureProvider, ParamType>::Value)
+		{
+			OutValueType = FAnimNextParamType::EValueType::Struct;
+			OutValueTypeObject = TBaseStructure<ParamType>::Get();
+		}
+		else if constexpr (TModels<CStaticClassProvider, ParamType>::Value)
 		{
 			if constexpr (std::is_same_v<ParamType, UClass>)
 			{

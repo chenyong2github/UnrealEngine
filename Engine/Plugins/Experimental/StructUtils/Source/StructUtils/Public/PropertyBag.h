@@ -8,7 +8,7 @@
 #include "PropertyBag.generated.h"
 
 /** Property bag property type, loosely based on BluePrint pin types. */
-UENUM()
+UENUM(BlueprintType)
 enum class EPropertyBagPropertyType : uint8
 {
 	None UMETA(Hidden),
@@ -32,10 +32,10 @@ enum class EPropertyBagPropertyType : uint8
 };
 
 /** Property bag property container type. */
-UENUM()
+UENUM(BlueprintType)
 enum class EPropertyBagContainerType : uint8
 {
-	None UMETA(Hidden),
+	None,
 	Array,
 
 	Count UMETA(Hidden)

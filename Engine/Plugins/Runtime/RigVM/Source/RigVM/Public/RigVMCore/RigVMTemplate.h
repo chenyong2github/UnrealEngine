@@ -75,6 +75,12 @@ struct RIGVM_API FRigVMTemplateArgumentType
 		checkf(!CPPType.IsNone(), TEXT("FRigVMTemplateArgumentType(): Input CPPType '%s' could not be resolved."), *InCPPTypeString);
 	}
 
+	FRigVMTemplateArgumentType(UClass* InClass)
+	: CPPType(*RigVMTypeUtils::CPPTypeFromObject(InClass))
+	, CPPTypeObject(InClass)
+	{
+	}
+
 	FRigVMTemplateArgumentType(UScriptStruct* InScriptStruct)
 	: CPPType(*RigVMTypeUtils::GetUniqueStructTypeName(InScriptStruct))
 	, CPPTypeObject(InScriptStruct)

@@ -11,14 +11,16 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
-					"StructUtils"
+					"StructUtils",
+					"RigVM",
+					"ControlRig",
+					"Engine"
 				}
 			);
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"AssetRegistry",
-					"Engine"
+					"AssetRegistry"
 				}
 			);
 		}

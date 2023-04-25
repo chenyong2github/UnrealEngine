@@ -9,10 +9,10 @@
 #include "DecoratorInterfaces/ITimeline.h"
 #include "DecoratorInterfaces/IUpdate.h"
 
+class UAnimSequence;
+
 namespace UE::AnimNext
 {
-	class UAnimSequence;
-
 	/**
 	 * FSequencePlayerDecorator
 	 * 

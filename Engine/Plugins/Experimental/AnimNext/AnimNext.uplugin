@@ -24,6 +24,14 @@
 		{
 			"Name": "StructUtils",
 			"Enabled": true
+		},
+		{
+			"Name": "ContentBrowserFileDataSource",
+			"Enabled": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
 		}
 	],
 	"Modules" :
@@ -34,23 +42,19 @@
 			"LoadingPhase" : "PreDefault"
 		},
 		{
-			"Name" : "AnimNextGraph",
-			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
-		},
-		{
-			"Name" : "AnimNextGraphEditor",
+			"Name" : "AnimNextEditor",
 			"Type" : "Editor",
 			"LoadingPhase" : "Default"
 		},
 		{
-			"Name": "AnimNextGraphUncookedOnly",
-			"Type": "UncookedOnly",
-			"LoadingPhase": "Default"
+			"Name" : "AnimNextUncookedOnly",
+			"Type" : "UncookedOnly",
+			"LoadingPhase" : "Default"
 		},
 		{
-			"Name": "AnimNextTestSuite",
-			"Type": "UncookedOnly"
+			"Name" : "AnimNextTestSuite",
+			"Type" : "UncookedOnly",
+			"LoadingPhase" : "Default"
 		}
 	]
 }

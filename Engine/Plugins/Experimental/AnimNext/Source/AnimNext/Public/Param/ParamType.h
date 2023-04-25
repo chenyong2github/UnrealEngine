@@ -8,6 +8,7 @@
 #include "UObject/ObjectPtr.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/ReflectedTypeAccessors.h"
+#include "Concepts/BaseStructureProvider.h"
 #include "ParamType.generated.h"
 
 namespace UE::AnimNext
@@ -16,24 +17,13 @@ namespace UE::AnimNext
 	struct FParamHelpers;
 }
 
+namespace UE::AnimNext::UncookedOnly
+{
+	struct FUtils;
+}
+
 namespace UE::AnimNext::Private
 {
-	struct CHasStaticClass
-	{
-		template<typename ValueType>
-		auto Requires(UClass* Result) -> decltype(
-			Result = ValueType::StaticClass()
-		);
-	};
-
-	struct CHasStaticStruct
-	{
-		template<typename ValueType>
-		auto Requires(UScriptStruct* Result) -> decltype(
-			Result = ValueType::StaticStruct()
-		);
-	};
-
 	template <typename T>
 	struct TIsSoftObjectPtr
 	{
@@ -73,6 +63,7 @@ public:
 
 	friend struct UE::AnimNext::FParamTypeHandle;
 	friend struct UE::AnimNext::FParamHelpers;
+	friend struct UE::AnimNext::UncookedOnly::FUtils;
 
 	FAnimNextParamType() = default;
 
@@ -138,12 +129,17 @@ private:
 			ParameterType.ValueType = EValueType::Enum;
 			ParameterType.ValueTypeObject = StaticEnum<ParamType>();
 		}
-		else if constexpr (TModels<UE::AnimNext::Private::CHasStaticStruct, ParamType>::Value)
+		else if constexpr (TModels<CStaticStructProvider, ParamType>::Value)
 		{
 			ParameterType.ValueType = EValueType::Struct;
 			ParameterType.ValueTypeObject = ParamType::StaticStruct();
 		}
-		else if constexpr (TModels<UE::AnimNext::Private::CHasStaticClass, ParamType>::Value)
+		else if constexpr (TModels<CBaseStructureProvider, ParamType>::Value)
+		{
+			ParameterType.ValueType = EValueType::Struct;
+			ParameterType.ValueTypeObject = TBaseStructure<ParamType>::Get();
+		}
+		else if constexpr (TModels<CStaticClassProvider, ParamType>::Value)
 		{
 			if constexpr (std::is_same_v<ParamType, UClass>)
 			{
@@ -184,6 +180,10 @@ private:
 			ParameterType.ValueType = EValueType::SoftClass;
 			ParameterType.ValueTypeObject = ParamType::ElementType::StaticClass();
 		}
+		else
+		{
+			static_assert(sizeof(ParamType) == 0, "Type is not expressible as a FAnimNextParamType for available types.");
+		}
 	}
 
 	/** Helper function for IsValid */
@@ -213,6 +213,24 @@ public:
 
 	/** Get a parameter type handle that represents this type */
 	UE::AnimNext::FParamTypeHandle GetHandle() const;
+
+	/** Get the pointer to the object that defines the Enum, Struct, or Class. */
+	UObject* GetValueTypeObject() const
+	{
+		return ValueTypeObject;
+	}
+
+	/** Get the type of the value described by this parameter. */
+	EValueType GetValueType() const
+	{
+		return ValueType;
+	}
+
+	/** Get the type of the container described by this parameter. */
+	EContainerType GetContainerType() const
+	{
+		return ContainerType;
+	}
 
 	/** 
 	 * Helper function returning the size of the type.
