@@ -1213,9 +1213,9 @@ void FTabManager::PopulateTabSpawnerMenu(FMenuBuilder& PopulateMe, TSharedRef<FW
 	PopulateTabSpawnerMenu(PopulateMe, MenuStructure, true);
 }
 
-void FTabManager::PopulateTabSpawnerMenu( FMenuBuilder& PopulateMe, TSharedRef<FWorkspaceItem> MenuStructure, bool bIncludeOrphanedMenus )
+TArray< TWeakPtr<FTabSpawnerEntry> > FTabManager::CollectSpawners()
 {
-	TSharedRef< TArray< TWeakPtr<FTabSpawnerEntry> > > AllSpawners = MakeShareable( new TArray< TWeakPtr<FTabSpawnerEntry> >() );
+	TArray< TWeakPtr<FTabSpawnerEntry> > AllSpawners;
 
 	// Editor-specific tabs
 	for ( FTabSpawner::TIterator SpawnerIterator(TabSpawner); SpawnerIterator; ++SpawnerIterator )
@@ -1225,7 +1225,7 @@ void FTabManager::PopulateTabSpawnerMenu( FMenuBuilder& PopulateMe, TSharedRef<F
 		{
 			if (IsAllowedTab(SpawnerEntry->TabType))
 			{
-				AllSpawners->AddUnique(SpawnerEntry);
+				AllSpawners.AddUnique(SpawnerEntry);
 			}
 		}
 	}
@@ -1238,17 +1238,29 @@ void FTabManager::PopulateTabSpawnerMenu( FMenuBuilder& PopulateMe, TSharedRef<F
 		{
 			if (IsAllowedTab(SpawnerEntry->TabType))
 			{
-				AllSpawners->AddUnique(SpawnerEntry);
+				AllSpawners.AddUnique(SpawnerEntry);
 			}
 		}
 	}
 
+	return AllSpawners;
+}
+
+void FTabManager::PopulateTabSpawnerMenu( FMenuBuilder& PopulateMe, TSharedRef<FWorkspaceItem> MenuStructure, bool bIncludeOrphanedMenus )
+{
+	TSharedRef< TArray< TWeakPtr<FTabSpawnerEntry> > > AllSpawners = MakeShared< TArray< TWeakPtr<FTabSpawnerEntry> > >(CollectSpawners());
+	
 	if ( bIncludeOrphanedMenus )
 	{
 		// Put all orphaned spawners at the top of the menu so programmers go and find them a nice home.
-		for ( int32 ChildIndex=0; ChildIndex < AllSpawners->Num(); ++ChildIndex )
+		for (const TWeakPtr<FTabSpawnerEntry>& WeakSpawner : *AllSpawners)
 		{
-			const TSharedPtr<FTabSpawnerEntry> Spawner = ( *AllSpawners )[ChildIndex].Pin();
+			const TSharedPtr<FTabSpawnerEntry> Spawner = WeakSpawner.Pin();
+			if (!Spawner)
+			{
+				continue;
+			}
+
 			const bool bHasNoPlaceInMenuStructure = !Spawner->GetParent().IsValid();
 			if ( bHasNoPlaceInMenuStructure )
 			{

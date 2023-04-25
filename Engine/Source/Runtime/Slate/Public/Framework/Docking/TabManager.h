@@ -292,6 +292,11 @@ struct FTabSpawnerEntry : public FWorkspaceItem
 		return TabType;
 	};
 
+	const bool IsHidden() const
+	{
+		return MenuType.Get() == ETabSpawnerMenuType::Hidden;
+	}
+
 private:
 	FName TabType;
 	FOnSpawnTab OnSpawnTab;
@@ -989,6 +994,15 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		FUIAction GetUIActionForTabSpawnerMenuEntry(TSharedPtr<FTabSpawnerEntry> InTabMenuEntry);
 
+		/** Return an array of all tab spawners that should have menu items in the main menu. */
+		TArray< TWeakPtr<FTabSpawnerEntry> > CollectSpawners();
+
+		/** Find a tab spawner by name. */
+		TSharedPtr<FTabSpawnerEntry> FindTabSpawnerFor(FName TabId);
+
+		/** Find a tab spawner by name. */
+		const TSharedPtr<const FTabSpawnerEntry> FindTabSpawnerFor(FName TabId) const;
+
 	protected:
 		void InvokeTabForMenu( FName TabId );
 
@@ -1105,8 +1119,6 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 	protected:
 		FTabSpawner TabSpawner;
 		TSharedRef<FTabSpawner> NomadTabSpawner;
-		TSharedPtr<FTabSpawnerEntry> FindTabSpawnerFor(FName TabId);
-		const TSharedPtr<const FTabSpawnerEntry> FindTabSpawnerFor(FName TabId) const;
 
 		bool HasTabSpawnerFor(FName TabId) const;
 
