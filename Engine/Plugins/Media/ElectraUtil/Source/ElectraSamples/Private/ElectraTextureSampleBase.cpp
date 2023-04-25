@@ -219,6 +219,45 @@ FVector2f IElectraTextureSampleBase::GetWhitePoint() const
 	return FVector2f(UE::Color::GetWhitePoint(UE::Color::EWhitePoint::CIE1931_D65));
 }
 
+FVector2f IElectraTextureSampleBase::GetDisplayPrimaryRed() const
+{
+	if (auto PinnedHDRInfo = HDRInfo.Pin())
+	{
+		if (auto ColorVolume = PinnedHDRInfo->GetMasteringDisplayColourVolume())
+		{
+			return FVector2f(ColorVolume->display_primaries_x[0], ColorVolume->display_primaries_y[0]);
+		}
+	}
+	// If no HDR info is present, we assume sRGB
+	return FVector2f(0.64, 0.33);
+}
+
+FVector2f IElectraTextureSampleBase::GetDisplayPrimaryGreen() const
+{
+	if (auto PinnedHDRInfo = HDRInfo.Pin())
+	{
+		if (auto ColorVolume = PinnedHDRInfo->GetMasteringDisplayColourVolume())
+		{
+			return FVector2f(ColorVolume->display_primaries_x[1], ColorVolume->display_primaries_y[1]);
+		}
+	}
+	// If no HDR info is present, we assume sRGB
+	return FVector2f(0.30, 0.60);
+}
+
+FVector2f IElectraTextureSampleBase::GetDisplayPrimaryBlue() const
+{
+	if (auto PinnedHDRInfo = HDRInfo.Pin())
+	{
+		if (auto ColorVolume = PinnedHDRInfo->GetMasteringDisplayColourVolume())
+		{
+			return FVector2f(ColorVolume->display_primaries_x[2], ColorVolume->display_primaries_y[2]);
+		}
+	}
+	// If no HDR info is present, we assume sRGB
+	return FVector2f(0.15, 0.06);
+}
+
 UE::Color::EEncoding IElectraTextureSampleBase::GetEncodingType() const
 {
 	if (auto PinnedHDRInfo = HDRInfo.Pin())

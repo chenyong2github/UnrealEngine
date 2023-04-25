@@ -414,6 +414,21 @@ public:
 		return FVector2f(UE::Color::GetWhitePoint(UE::Color::EWhitePoint::CIE1931_D65));
 	}
 
+	virtual FVector2f GetDisplayPrimaryRed() const
+	{
+		return FVector2f(0.64, 0.33);
+	}
+
+	virtual FVector2f GetDisplayPrimaryGreen() const
+	{
+		return FVector2f(0.30, 0.60);
+	}
+
+	virtual FVector2f GetDisplayPrimaryBlue() const
+	{
+		return FVector2f(0.15, 0.06);
+	}
+
 	/**
 	 * Get EOTF / "Gamma" / encoding type of data
 	 */

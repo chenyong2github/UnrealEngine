@@ -50,6 +50,9 @@ public:
 	virtual FMatrix44f GetSampleToRGBMatrix() const override;
 	virtual FMatrix44f GetGamutToXYZMatrix() const override;
 	virtual FVector2f GetWhitePoint() const override;
+	virtual FVector2f GetDisplayPrimaryRed() const override;
+	virtual FVector2f GetDisplayPrimaryGreen() const override;
+	virtual FVector2f GetDisplayPrimaryBlue() const override;
 	virtual UE::Color::EEncoding GetEncodingType() const override;
 
 protected:
