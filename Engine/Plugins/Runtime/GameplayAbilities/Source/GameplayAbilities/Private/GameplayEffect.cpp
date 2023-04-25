@@ -511,6 +511,7 @@ void UGameplayEffect::ConvertRemoveOtherComponent()
 
 		if (bTagsChanged)
 		{
+			// Note: This is keeping the old functionality which incorrectly conflates Asset Tags with Owned Tags.
 			RemoveOtherComponent.RemoveGameplayEffectQueries[0] = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(RemoveGameplayEffectsWithTags.CombinedTags);
 		}
 

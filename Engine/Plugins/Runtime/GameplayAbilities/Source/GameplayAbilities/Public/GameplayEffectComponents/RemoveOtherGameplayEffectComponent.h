@@ -32,10 +32,10 @@ public:
 #endif // WITH_EDITOR
 
 private:
-	void OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer) const;
+	void OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, const FActiveGameplayEffectHandle& ActiveGEHandle) const;
 
 public:
 	/** On Application of the owning Gameplay Effect, any Active GameplayEffects that *match* these queries will be removed. */
-	UPROPERTY(BlueprintReadOnly, Category = None, meta = (DeprecatedProperty))
+	UPROPERTY(EditDefaultsOnly, Category = None)
 	TArray<FGameplayEffectQuery> RemoveGameplayEffectQueries;
 };

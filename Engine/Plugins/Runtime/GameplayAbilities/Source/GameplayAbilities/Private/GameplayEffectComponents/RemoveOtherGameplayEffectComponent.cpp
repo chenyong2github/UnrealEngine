@@ -17,7 +17,7 @@ bool URemoveOtherGameplayEffectComponent::OnActiveGameplayEffectAdded(FActiveGam
 {
 	if (ActiveGEContainer.OwnerIsNetAuthority)
 	{
-		OnGameplayEffectApplied(ActiveGEContainer);
+		OnGameplayEffectApplied(ActiveGEContainer, ActiveGE.Handle);
 	}
 	return true;
 }
@@ -27,18 +27,32 @@ void URemoveOtherGameplayEffectComponent::OnGameplayEffectExecuted(FActiveGamepl
 	const bool bInstantEffect = (GetOwner()->DurationPolicy == EGameplayEffectDurationType::Instant);
 	if (bInstantEffect && ActiveGEContainer.OwnerIsNetAuthority)
 	{
-		OnGameplayEffectApplied(ActiveGEContainer);
+		FActiveGameplayEffectHandle InvalidHandle;
+		OnGameplayEffectApplied(ActiveGEContainer, InvalidHandle);
 	}
 }
 
-void URemoveOtherGameplayEffectComponent::OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer) const
+void URemoveOtherGameplayEffectComponent::OnGameplayEffectApplied(FActiveGameplayEffectsContainer& ActiveGEContainer, const FActiveGameplayEffectHandle& ActiveGEHandle) const
 {
 	constexpr int32 RemoveAllStacks = -1;
 	for (const FGameplayEffectQuery& RemoveQuery : RemoveGameplayEffectQueries)
 	{
 		if (!RemoveQuery.IsEmpty())
 		{
-			ActiveGEContainer.RemoveActiveEffects(RemoveQuery, RemoveAllStacks);
+			// If we have an ActiveGEHandle, make sure we never remove ourselves.
+			// If we don't, there's no need to make a copy.
+			if (!ActiveGEHandle.IsValid())
+			{
+				// Faster path: No copy needed
+				ActiveGEContainer.RemoveActiveEffects(RemoveQuery, RemoveAllStacks);
+			}
+			else
+			{
+				FGameplayEffectQuery MutableRemoveQuery = RemoveQuery;
+				MutableRemoveQuery.IgnoreHandles.Add(ActiveGEHandle);
+
+				ActiveGEContainer.RemoveActiveEffects(MutableRemoveQuery, RemoveAllStacks);
+			}
 		}
 	}
 }
