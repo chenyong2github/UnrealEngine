@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenRadianceCacheDebug.usf
-=============================================================================*/
-
 #include "../Common.ush"
 #include "../ShaderPrint.ush"
 #include "LumenRadianceCacheUpdate.ush"

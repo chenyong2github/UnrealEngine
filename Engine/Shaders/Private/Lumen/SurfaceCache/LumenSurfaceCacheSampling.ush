@@ -357,7 +357,7 @@ void SampleLumenCard(
 									else if (VisualizeMode == VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES)
 									{
 										LastUpdateFrameIndex = LumenCardPage.LastIndirectLightingUpdateFrameIndex;
-										VisScale = 32.0f;
+										VisScale *= 2.0f;
 									}
 									else if (VisualizeMode == VISUALIZE_MODE_LAST_USED_PAGE)
 									{

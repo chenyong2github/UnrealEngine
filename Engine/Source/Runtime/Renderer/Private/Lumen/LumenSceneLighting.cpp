@@ -76,7 +76,7 @@ namespace LumenCardUpdateContext
 {
 	// Must match LumenSceneLighting.usf
 	constexpr uint32 CARD_UPDATE_CONTEXT_MAX = 2;
-	constexpr uint32 PRIORITY_HISTOGRAM_SIZE = 128;
+	constexpr uint32 PRIORITY_HISTOGRAM_SIZE = 16;
 	constexpr uint32 MAX_UPDATE_BUCKET_STRIDE = 2;
 	constexpr uint32 CARD_PAGE_TILE_ALLOCATOR_STRIDE = 2;
 };

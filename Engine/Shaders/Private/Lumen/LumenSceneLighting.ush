@@ -1,17 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneLighting.ush
-=============================================================================*/
-
 #pragma once
 
 #define CARD_UPDATE_CONTEXT_DIRECT_LIGHTING 0
 #define CARD_UPDATE_CONTEXT_INDIRECT_LIGHTING 1
 #define CARD_UPDATE_CONTEXT_MAX 2
 
-#define PRIORITY_HISTOGRAM_SIZE 128
-#define MAX_UPDATE_FREQUENCY 7.0f
+#define PRIORITY_HISTOGRAM_SIZE 16
 
 // [BucketIndex; NumBucketTiles]
 #define MAX_UPDATE_BUCKET_STRIDE 2

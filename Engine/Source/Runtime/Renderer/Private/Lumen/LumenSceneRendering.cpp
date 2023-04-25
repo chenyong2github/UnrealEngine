@@ -295,6 +295,13 @@ static TAutoConsoleVariable<int32> CVarLumenSceneSurfaceCacheCaptureNaniteMultiV
 		}),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarLumenScenePropagateGlobalLightingChange(
+	TEXT("r.LumenScene.PropagateGlobalLightingChange"),
+	1,
+	TEXT("Whether to detect big scene lighting changes and speedup Lumen update for those frames."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 static int32 GNaniteProgrammableRasterLumen = 0; // TODO: Not working properly in all cases yet
 static FAutoConsoleVariableRef CNaniteProgrammableRasterLumen(
 	TEXT("r.Nanite.ProgrammableRaster.Lumen"),
@@ -2690,6 +2697,11 @@ bool UpdateGlobalLightingState(const FScene* Scene, const FViewInfo& View, FLume
 	{
 		GlobalLightingState.SkyLightColor = FLinearColor::Black;
 		GlobalLightingState.bSkyLightValid = false;
+	}
+
+	if (CVarLumenScenePropagateGlobalLightingChange.GetValueOnRenderThread() == 0)
+	{
+		bPropagateGlobalLightingChange = false;
 	}
 
 	return bPropagateGlobalLightingChange;

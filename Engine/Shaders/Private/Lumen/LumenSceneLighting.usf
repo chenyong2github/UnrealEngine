@@ -99,13 +99,15 @@ uint GetNumCardPageTiles(FLumenCardPageData CardPage)
 
 uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, uint CardPageIndex, uint CardUpdateContext)
 {
+	const float MaxUpdateFrequency = 7.0f;
+
 	uint LastLightingUpdateFrameIndex = GetLastLightingUpdateFrameIndex(CardPage, CardUpdateContext);
 	const float UpdateFactor = GetUpdateFactor(CardUpdateContext);
 
 	// [1;N]
 	uint FramesSinceLastUpdated = SurfaceCacheUpdateFrameIndex - LastLightingUpdateFrameIndex;
 
-	// [0;MAX_UPDATE_FREQUENCY]
+	// [0;MaxUpdateFrequency]
 	float Frequency = 0.0f;
 	{
 		float DistanceFromViewer = 100000000.0f;
@@ -118,7 +120,7 @@ uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, ui
 			GetCardPageLocalBBox(CardPage, Card, CardPageLocalCenter, CardPageLocalExtent);
 			DistanceFromViewer = min(DistanceFromViewer, sqrt(ComputeSquaredDistanceFromBoxToPoint(CardPageLocalCenter, CardPageLocalExtent, CardSpaceViewPosition)));
 		}
-		Frequency = MAX_UPDATE_FREQUENCY - clamp(DistanceFromViewer * FirstClipmapWorldExtentRcp, 0.0f, MAX_UPDATE_FREQUENCY);
+		Frequency = MaxUpdateFrequency - clamp(DistanceFromViewer * FirstClipmapWorldExtentRcp, 0.0f, MaxUpdateFrequency);
 	}
 
 	// Drive frequency based on the feedback
@@ -126,13 +128,14 @@ uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, ui
 	{
 		const uint LastUsedFrameIndex = CardPageLastUsedBuffer[CardPageIndex];
 		const uint LastUsedHighResFrameIndex = CardPageHighResLastUsedBuffer[CardPageIndex];
+		const uint LastUsedCombinedFrameIndex = max(LastUsedFrameIndex, LastUsedHighResFrameIndex);
 
-		FramesSinceLastUpdated = max(max(LastUsedFrameIndex, LastUsedHighResFrameIndex), LastLightingUpdateFrameIndex) - LastLightingUpdateFrameIndex + 1;
+		FramesSinceLastUpdated = LastUsedCombinedFrameIndex > LastLightingUpdateFrameIndex ? LastUsedCombinedFrameIndex - LastLightingUpdateFrameIndex : 1;
 
 		Frequency *= 0.5f;
 		if (SurfaceCacheUpdateFrameIndex >= LastUsedHighResFrameIndex + 1)
 		{
-			Frequency += 0.5f * MAX_UPDATE_FREQUENCY * saturate((SurfaceCacheUpdateFrameIndex - (LastUsedHighResFrameIndex + 1)) / 2.0f);
+			Frequency += 0.5f * MaxUpdateFrequency * saturate((SurfaceCacheUpdateFrameIndex - (LastUsedHighResFrameIndex + 1)) / 2.0f);
 		}
 	}
 	#endif
@@ -141,18 +144,15 @@ uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, ui
 	if (LastLightingUpdateFrameIndex == 0)
 	{
 		// Special case where page wasn't ever updated, just place into first 8 most important buckets based on the frequency
-		BucketIndex = clamp(MAX_UPDATE_FREQUENCY - Frequency, 0.0f, MAX_UPDATE_FREQUENCY);
+		BucketIndex = clamp(MaxUpdateFrequency - Frequency, 0.0f, MaxUpdateFrequency);
 	}
 	else
 	{
 		// [0;N]
 		float UpdateImportance = FramesSinceLastUpdated * (Frequency + 1.0f);
 
-		// Normalize histogram
-		UpdateImportance = (PRIORITY_HISTOGRAM_SIZE * UpdateImportance) / (UpdateFactor * (MAX_UPDATE_FREQUENCY + 1.0f));
-
 		// Offset from [1;N] and invert in order to place most important pages in bucket 0
-		BucketIndex = PRIORITY_HISTOGRAM_SIZE - 1 - clamp(UpdateImportance - 1, 0, PRIORITY_HISTOGRAM_SIZE - 1);
+		BucketIndex = PRIORITY_HISTOGRAM_SIZE - 1 - clamp(log2(UpdateImportance / (MaxUpdateFrequency + 1.0f)), 0, PRIORITY_HISTOGRAM_SIZE - 1);
 	}
 
 	return BucketIndex;

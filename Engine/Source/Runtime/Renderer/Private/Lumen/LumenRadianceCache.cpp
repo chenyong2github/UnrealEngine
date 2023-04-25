@@ -27,12 +27,11 @@ FAutoConsoleVariableRef CVarRadianceForceFullUpdate(
 	ECVF_RenderThreadSafe
 );
 
-int32 GRadianceNumFramesToKeepCachedProbes = 2;
-FAutoConsoleVariableRef CVarRadianceCacheNumFramesToKeepCachedProbes(
+static TAutoConsoleVariable<int32> CVarRadianceCacheNumFramesToKeepCachedProbes(
 	TEXT("r.Lumen.RadianceCache.NumFramesToKeepCachedProbes"),
-	GRadianceNumFramesToKeepCachedProbes,
-	TEXT(""),
-	ECVF_RenderThreadSafe
+	8,
+	TEXT("Number of frames to keep unused probes in cache. Higher values enable more reuse between frames, but too high values will cause filtering from stale probes."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GRadianceCacheOverrideCacheOcclusionLighting = 0;
@@ -102,7 +101,7 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheDownsampleDistanceFromCamera(
 namespace LumenRadianceCache
 {
 	// Must match LumenRadianceCacheCommon.ush
-	constexpr uint32 PRIORITY_HISTOGRAM_SIZE = 128;
+	constexpr uint32 PRIORITY_HISTOGRAM_SIZE = 16;
 	constexpr uint32 PROBES_TO_UPDATE_TRACE_COST_STRIDE = 2;
 
 	FRadianceCacheInputs GetDefaultRadianceCacheInputs()
@@ -121,7 +120,7 @@ namespace LumenRadianceCache
 		FRadianceCacheInterpolationParameters& OutParameters)
 	{
 		OutParameters.RadianceCacheInputs = RadianceCacheInputs;
-		OutParameters.RadianceCacheInputs.NumProbesToTraceBudget = GRadianceCacheForceFullUpdate ? 1000000 : OutParameters.RadianceCacheInputs.NumProbesToTraceBudget;
+		OutParameters.RadianceCacheInputs.NumProbesToTraceBudget = GRadianceCacheForceFullUpdate ? UINT32_MAX : OutParameters.RadianceCacheInputs.NumProbesToTraceBudget;
 		OutParameters.RadianceProbeIndirectionTexture = nullptr;
 		OutParameters.RadianceCacheFinalRadianceAtlas = nullptr;
 		OutParameters.RadianceCacheFinalIrradianceAtlas = nullptr;
@@ -322,6 +321,7 @@ class FUpdateCacheForUsedProbesCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, RWProbeFreeListAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeFreeList)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeLastUsedFrame)
@@ -330,6 +330,7 @@ class FUpdateCacheForUsedProbesCS : public FGlobalShader
 		SHADER_PARAMETER_ARRAY(FVector4f, PackedLastFrameRadianceProbeCoordToWorldPosition, [LumenRadianceCache::MaxClipmaps])
 		SHADER_PARAMETER(uint32, FrameNumber)
 		SHADER_PARAMETER(uint32, NumFramesToKeepCachedProbes)
+		SHADER_PARAMETER(uint32, MaxNumProbes)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1373,61 +1374,6 @@ void UpdateRadianceCaches(
 			}
 		}
 
-		for (int32 RadianceCacheIndex = 0; RadianceCacheIndex < InputArray.Num(); RadianceCacheIndex++)
-		{
-			const FUpdateInputs& Inputs = InputArray[RadianceCacheIndex];
-			const FRadianceCacheInputs& RadianceCacheInputs = Inputs.RadianceCacheInputs;
-			const FViewInfo& View = Inputs.View;
-			const FRadianceCacheSetup& Setup = SetupOutputArray[RadianceCacheIndex];
-
-			FUpdateOutputs& Outputs = OutputArray[RadianceCacheIndex];
-			FRadianceCacheState& RadianceCacheState = Outputs.RadianceCacheState;
-			FRadianceCacheInterpolationParameters& RadianceCacheParameters = Outputs.RadianceCacheParameters;
-		
-			// Propagate probes from last frame to the new frame's indirection
-			if (Setup.bPersistentCache)
-			{
-				FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadianceCacheParameters.RadianceProbeIndirectionTexture));
-				FRDGTextureRef LastFrameRadianceProbeIndirectionTexture = GraphBuilder.RegisterExternalTexture(RadianceCacheState.RadianceProbeIndirectionTexture);
-
-				{
-					FRDGBufferUAVRef ProbeFreeListAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeFreeListAllocator[RadianceCacheIndex], PF_R32_SINT));
-					FRDGBufferUAVRef ProbeFreeListUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeFreeList[RadianceCacheIndex], PF_R32_UINT));
-					FRDGBufferUAVRef ProbeLastUsedFrameUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeLastUsedFrame[RadianceCacheIndex], PF_R32_UINT));
-
-					FUpdateCacheForUsedProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FUpdateCacheForUsedProbesCS::FParameters>();
-					PassParameters->View = View.ViewUniformBuffer;
-					PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
-					PassParameters->RWProbeFreeListAllocator = ProbeFreeListAllocatorUAV;
-					PassParameters->RWProbeFreeList = ProbeFreeListUAV;
-					PassParameters->RWProbeLastUsedFrame = ProbeLastUsedFrameUAV;
-					PassParameters->LastFrameRadianceProbeIndirectionTexture = LastFrameRadianceProbeIndirectionTexture;
-					PassParameters->RadianceCacheParameters = RadianceCacheParameters;
-					PassParameters->FrameNumber = View.ViewState->GetFrameIndex();
-					PassParameters->NumFramesToKeepCachedProbes = GRadianceNumFramesToKeepCachedProbes;
-
-					for (int32 ClipmapIndex = 0; ClipmapIndex < Setup.LastFrameClipmaps.Num(); ++ClipmapIndex)
-					{
-						const FRadianceCacheClipmap& Clipmap = Setup.LastFrameClipmaps[ClipmapIndex];
-
-						SetRadianceProbeCoordToWorldPosition(PassParameters->PackedLastFrameRadianceProbeCoordToWorldPosition[ClipmapIndex], (FVector3f)Clipmap.ProbeCoordToWorldCenterBias, Clipmap.ProbeCoordToWorldCenterScale);
-					}
-
-					auto ComputeShader = View.ShaderMap->GetShader<FUpdateCacheForUsedProbesCS>(0);
-
-					const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(RadianceCacheParameters.RadianceProbeIndirectionTexture->Desc.GetSize(), FUpdateCacheForUsedProbesCS::GetGroupSize());
-
-					FComputeShaderUtils::AddPass(
-						GraphBuilder,
-						RDG_EVENT_NAME("UpdateCacheForUsedProbes"),
-						ComputePassFlags,
-						ComputeShader,
-						PassParameters,
-						GroupSize);
-				}
-			}
-		}
-
 		TInlineArray<FRDGBufferRef> ProbeAllocator(InputArray.Num());
 
 		for (int32 RadianceCacheIndex = 0; RadianceCacheIndex < InputArray.Num(); RadianceCacheIndex++)
@@ -1455,6 +1401,65 @@ void UpdateRadianceCaches(
 			if (!Setup.bPersistentCache || !IsValidRef(RadianceCacheState.ProbeAllocator))
 			{
 				FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, ProbeAllocatorUAV, 0);
+			}
+		}
+
+		for (int32 RadianceCacheIndex = 0; RadianceCacheIndex < InputArray.Num(); RadianceCacheIndex++)
+		{
+			const FUpdateInputs& Inputs = InputArray[RadianceCacheIndex];
+			const FRadianceCacheInputs& RadianceCacheInputs = Inputs.RadianceCacheInputs;
+			const FViewInfo& View = Inputs.View;
+			const FRadianceCacheSetup& Setup = SetupOutputArray[RadianceCacheIndex];
+
+			FUpdateOutputs& Outputs = OutputArray[RadianceCacheIndex];
+			FRadianceCacheState& RadianceCacheState = Outputs.RadianceCacheState;
+			FRadianceCacheInterpolationParameters& RadianceCacheParameters = Outputs.RadianceCacheParameters;
+
+			const int32 MaxNumProbes = RadianceCacheInputs.ProbeAtlasResolutionInProbes.X * RadianceCacheInputs.ProbeAtlasResolutionInProbes.Y;
+		
+			// Propagate probes from last frame to the new frame's indirection
+			if (Setup.bPersistentCache)
+			{
+				FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadianceCacheParameters.RadianceProbeIndirectionTexture));
+				FRDGTextureRef LastFrameRadianceProbeIndirectionTexture = GraphBuilder.RegisterExternalTexture(RadianceCacheState.RadianceProbeIndirectionTexture);
+
+				{
+					FRDGBufferUAVRef ProbeFreeListAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeFreeListAllocator[RadianceCacheIndex], PF_R32_SINT));
+					FRDGBufferUAVRef ProbeFreeListUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeFreeList[RadianceCacheIndex], PF_R32_UINT));
+					FRDGBufferUAVRef ProbeLastUsedFrameUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeLastUsedFrame[RadianceCacheIndex], PF_R32_UINT));
+
+					FUpdateCacheForUsedProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FUpdateCacheForUsedProbesCS::FParameters>();
+					PassParameters->View = View.ViewUniformBuffer;
+					PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
+					PassParameters->ProbeAllocator = GraphBuilder.CreateSRV(ProbeAllocator[RadianceCacheIndex], PF_R32_UINT);
+					PassParameters->RWProbeFreeListAllocator = ProbeFreeListAllocatorUAV;
+					PassParameters->RWProbeFreeList = ProbeFreeListUAV;
+					PassParameters->RWProbeLastUsedFrame = ProbeLastUsedFrameUAV;
+					PassParameters->LastFrameRadianceProbeIndirectionTexture = LastFrameRadianceProbeIndirectionTexture;
+					PassParameters->RadianceCacheParameters = RadianceCacheParameters;
+					PassParameters->FrameNumber = View.ViewState->GetFrameIndex();
+					PassParameters->NumFramesToKeepCachedProbes = FMath::Max(CVarRadianceCacheNumFramesToKeepCachedProbes.GetValueOnRenderThread(), 0);
+					PassParameters->MaxNumProbes = MaxNumProbes;
+
+					for (int32 ClipmapIndex = 0; ClipmapIndex < Setup.LastFrameClipmaps.Num(); ++ClipmapIndex)
+					{
+						const FRadianceCacheClipmap& Clipmap = Setup.LastFrameClipmaps[ClipmapIndex];
+
+						SetRadianceProbeCoordToWorldPosition(PassParameters->PackedLastFrameRadianceProbeCoordToWorldPosition[ClipmapIndex], (FVector3f)Clipmap.ProbeCoordToWorldCenterBias, Clipmap.ProbeCoordToWorldCenterScale);
+					}
+
+					auto ComputeShader = View.ShaderMap->GetShader<FUpdateCacheForUsedProbesCS>(0);
+
+					const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(RadianceCacheParameters.RadianceProbeIndirectionTexture->Desc.GetSize(), FUpdateCacheForUsedProbesCS::GetGroupSize());
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("UpdateCacheForUsedProbes"),
+						ComputePassFlags,
+						ComputeShader,
+						PassParameters,
+						GroupSize);
+				}
 			}
 		}
 
