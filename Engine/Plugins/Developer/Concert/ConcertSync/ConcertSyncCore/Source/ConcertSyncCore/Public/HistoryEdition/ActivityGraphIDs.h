@@ -20,10 +20,6 @@ namespace UE::ConcertSyncCore
 			: ID(Forward<T>(ID))
 		{}
 
-		FActivityNodeID(const FActivityNodeID& Other)
-			: ID(Other.ID)
-		{}
-
 		/** Conversion back to to size_t is not a common programmer mistake */
 		explicit operator size_t() const { return ID; }
 
