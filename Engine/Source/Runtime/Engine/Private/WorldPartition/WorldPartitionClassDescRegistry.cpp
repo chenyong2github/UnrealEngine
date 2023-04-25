@@ -7,6 +7,7 @@
 #include "Algo/ForEach.h"
 #include "Algo/RemoveIf.h"
 #include "Algo/Transform.h"
+#include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "UObject/CoreRedirects.h"
 #include "UObject/ObjectSaveContext.h"
