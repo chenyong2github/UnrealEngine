@@ -33,7 +33,7 @@ class FMacPlatformEditorModule
 				GetMutableDefault<UMacTargetSettings>()
 			);
             SettingsModule->RegisterSettings("Project", "Platforms", "Xcode",
-                LOCTEXT("XcodeProjectSettingsName", "Xcode projects"),
+                LOCTEXT("XcodeProjectSettingsName", "Xcode Projects"),
                 LOCTEXT("XcodeProjectSettingsDescription", "Settings for Xcode projects"),
                 GetMutableDefault<UXcodeProjectSettings>()
             );
@@ -47,6 +47,7 @@ class FMacPlatformEditorModule
 		if (SettingsModule != nullptr)
 		{
 			SettingsModule->UnregisterSettings("Project", "Platforms", "Mac");
+            SettingsModule->UnregisterSettings("Project", "Platforms", "Xcode");
 		}
 	}
 };

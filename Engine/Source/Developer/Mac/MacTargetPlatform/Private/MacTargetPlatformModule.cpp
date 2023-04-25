@@ -83,7 +83,7 @@ public:
 				TargetSettings
 			);
             SettingsModule->RegisterSettings("Project", "Platforms", "Xcode",
-                LOCTEXT("XcodeProjectSettingsName", "Xcode projects"),
+                LOCTEXT("XcodeProjectSettingsName", "Xcode Projects"),
                 LOCTEXT("XcodeProjectSettingsDescription", "Settings for Xcode projects"),
                 ProjectSettings
             );
@@ -99,6 +99,7 @@ public:
 		if (SettingsModule != nullptr)
 		{
 			SettingsModule->UnregisterSettings("Project", "Platforms", "Mac");
+            SettingsModule->UnregisterSettings("Project", "Platforms", "Xcode");
 		}
 
 		if (!GExitPurge)

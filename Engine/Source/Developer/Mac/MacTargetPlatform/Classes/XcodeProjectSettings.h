@@ -30,60 +30,60 @@ public:
     /**
      * Enable native Xcode code signing
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "Use Modern Code Signing"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode", DisplayName = "Use Modern Code Signing"))
     bool bUseModernCodeSigning;
     
     /**
      * Team ID used for native Xcode code signing
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "Modern Code Sign Team"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode && bUseModernCodeSigning", DisplayName = "Modern Code Sign Team"))
     FString ModernSigningTeam;
     
     /**
      * Bundle ID prefix used for native Xcode code signing
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "ModernSigningPrefix"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode && bUseModernCodeSigning", DisplayName = "Bundle ID Prefix"))
     FString ModernSigningPrefix;
     
     /**
      * Bundle ID used for nativr Xcode code signing
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "ModernBundleIdentifier"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode && bUseModernCodeSigning", DisplayName = "Bundle ID"))
     FString ModernBundleIdentifier;
     
     /**
      * The App Category that will be used for Mac App Store submission
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "AppCategory"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode", DisplayName = "App Category"))
     FString AppCategory;
     
     /**
      * The template info.plist used for Mac game targets
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "TemplateMacPlist"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode", DisplayName = "Template Mac Target Info.plist"))
     FFilePath TemplateMacPlist;
     
     /**
      * The template info.plist used for Mac editor targets
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "TemplateMacEditorPlist"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode", DisplayName = "Template Mac Editor Info.plist"))
     FFilePath TemplateMacEditorPlist;
     
     /**
      * The template info.plist used for iOS game targets
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "TemplateIOSPlist"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode", DisplayName = "Template iOS Target Info.plist"))
     FFilePath TemplateIOSPlist;
     
     /**
      * The premade entitlement file used for development Mac builds
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "PremadeMacEntitlements"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode", DisplayName = "Development Mac Entitlement"))
     FFilePath PremadeMacEntitlements;
     
     /**
      * The premade entitlement file used for shipping Mac builds
      */
-    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (DisplayName = "ShippingSpecificMacEntitlements"))
+    UPROPERTY(EditAnywhere, config, Category=Xcode, meta = (EditCondition="bUseModernXcode", DisplayName = "Shipping Mac Entitlement"))
     FFilePath ShippingSpecificMacEntitlements;
 };
