@@ -164,7 +164,7 @@ private:
 	void OnDeleteShelvedFiles();
 
 	/** Files operations */
-	void OnMoveFiles();
+	TValueOrError<void, void> TryMoveFiles();
 	void OnShowHistory();
 	void OnDiffAgainstDepot();
 	bool CanDiffAgainstDepot();
