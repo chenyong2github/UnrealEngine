@@ -70,6 +70,11 @@
       Replace() fail then RecursiveDir is still an agreeable value -->
       <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(Compile.RecursiveDir), [\\/].+$, ``))/%(Compile.FileName).cs</Link>
     </Compile>
+    <Compile Include="../../../../Restricted/*/Source/Programs/AutomationTool/Gauntlet/**/*.cs">
+      <!-- Restricted may or may not be in a Platforms dir, so just use the subdir directly, even tho it makes for a
+       messier directory structure for these few files -->
+      <Link>$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^.+?[\\/]AutomationTool[\\/]Gauntlet[\\/]', ''))</Link>
+    </Compile>
   </ItemGroup>
 
   <Import Project="../../../../Platforms/*/Source/Programs/AutomationTool/Gauntlet/*.Gauntlet.targets" Condition="'$(OS)' == 'Windows_NT'" />
