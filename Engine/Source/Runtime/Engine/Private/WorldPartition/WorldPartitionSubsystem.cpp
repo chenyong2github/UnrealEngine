@@ -10,17 +10,22 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionReplay.h"
+#include "WorldPartition/WorldPartitionDraw2DContext.h"
 #include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
+#include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "Engine/Canvas.h"
 #include "Engine/CoreSettings.h"
 #include "Engine/LevelStreaming.h"
+#include "Engine/LevelStreamingGCHelper.h"
 #include "Streaming/LevelStreamingDelegates.h"
 #include "Engine/LevelBounds.h"
 #include "Debug/DebugDrawService.h"
 #include "GameFramework/PlayerController.h"
+#include "Async/ParallelFor.h"
+#include "Algo/ForEach.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -32,10 +37,11 @@
 extern int32 GBlockOnSlowStreaming;
 static const FName NAME_WorldPartitionRuntimeHash("WorldPartitionRuntimeHash");
 
-static int32 GDrawWorldPartitionIndex = 0;
+static int32 GDrawWorldPartitionIndex = -1;
 static FAutoConsoleCommand CVarDrawWorldPartitionIndex(
 	TEXT("wp.Runtime.DrawWorldPartitionIndex"),
-	TEXT("Sets the index of the wanted world partition to display debug draw."),
+	TEXT("Sets the index of the wanted partitioned world to display debug draw.\n")
+	TEXT("Sets < 0 to display debug draw all registered partitioned worlds.\n"),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{
 		if (Args.Num() == 1)
@@ -550,7 +556,7 @@ void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 	{
 		RegisteredWorldPartition->Tick(DeltaSeconds);
 
-		if (GDrawRuntimeHash3D && RegisteredWorldPartition->CanDebugDraw())
+		if (GDrawRuntimeHash3D && CanDebugDraw())
 		{
 			RegisteredWorldPartition->DrawRuntimeHash3D();
 		}
@@ -766,29 +772,56 @@ void UWorldPartitionSubsystem::UpdateStreamingState()
 	}
 }
 
+bool UWorldPartitionSubsystem::CanDebugDraw() const
+{
+#if WITH_EDITOR
+	const ENetMode NetMode = GetWorld()->GetNetMode();
+	const bool bIsDedicatedServer = (NetMode == NM_DedicatedServer);
+	const bool bIsClient = (NetMode == NM_Client);
+	if ((bIsDedicatedServer && !UWorldPartition::DebugDedicatedServerStreaming) ||
+		(bIsClient && UWorldPartition::DebugDedicatedServerStreaming))
+	{
+		return false;
+	}
+
+	if (!bIsDedicatedServer && UWorldPartition::IsSimulating(false) && (!GEditor || (GetWorld() != GEditor->PlayWorld)))
+	{
+		return false;
+	}
+#endif
+	return GetWorld()->IsGameWorld();
+}
+
 void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::Draw);
-	if (!Canvas || !Canvas->SceneView || !RegisteredWorldPartitions.IsValidIndex(GDrawWorldPartitionIndex))
+	if (!Canvas || !Canvas->SceneView)
 	{
 		return;
 	}
 
-	UWorldPartition* WorldPartition = RegisteredWorldPartitions[GDrawWorldPartitionIndex];
-	if (!WorldPartition->CanDebugDraw())
+	if (!CanDebugDraw())
+	{
+		return;
+	}
+
+	if ((GDrawWorldPartitionIndex >= 0) && !RegisteredWorldPartitions.IsValidIndex(GDrawWorldPartitionIndex))
 	{
 		return;
 	}
 
 	// Filter out views that don't match our world
-	if (!WorldPartition->GetWorld()->IsNetMode(NM_DedicatedServer) && !UWorldPartition::IsSimulating(false) &&
+	if (!GetWorld()->IsNetMode(NM_DedicatedServer) && !UWorldPartition::IsSimulating(false) &&
 		(Canvas->SceneView->ViewActor == nullptr || Canvas->SceneView->ViewActor->GetWorld() != GetWorld()))
 	{
 		return;
 	}
 
-	const FVector2D CanvasTopLeftPadding(10.f, 10.f);
+	// When GDrawWorldPartitionIndex < 0, draw all world partitions
+	const int32 WPDrawCount = (GDrawWorldPartitionIndex < 0) ? RegisteredWorldPartitions.Num() : 1;
+	UWorldPartition* SingleWorldPartition = (WPDrawCount == 1) ? RegisteredWorldPartitions[FMath::Max(GDrawWorldPartitionIndex, 0)] : nullptr;
 
+	const FVector2D CanvasTopLeftPadding(10.f, 10.f);
 	FVector2D CurrentOffset(CanvasTopLeftPadding);
 
 	if (GDrawRuntimeHash2D)
@@ -797,18 +830,81 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		const FVector2D CanvasBottomRightPadding(10.f, 10.f);
 		const FVector2D CanvasMinimumSize(100.f, 100.f);
 		const FVector2D CanvasMaxScreenSize = FVector2D::Max(MaxScreenRatio*FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CurrentOffset, CanvasMinimumSize);
+		const FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X, CanvasMaxScreenSize.Y);
 
-		FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X, CanvasMaxScreenSize.Y);
-		FVector2D UsedCanvasSize = FVector2D::ZeroVector;
-		if (WorldPartition->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, CurrentOffset, UsedCanvasSize))
+		FBox2D WorldRegion(ForceInit);
+		WorldPartitionsDraw2DContext.SetNum(RegisteredWorldPartitions.Num(), false);
+		Algo::ForEach(WorldPartitionsDraw2DContext, [&](FWorldPartitionDraw2DContext& Context) { if (const FBox2D& Bounds = Context.GetDesiredWorldBounds(); Bounds.bIsValid) { WorldRegion += Bounds; } });
+		if (!WorldRegion.bIsValid)
 		{
+			// Fallback on a default region centered around centroid of all streaming sources
+			const float DefaultWorldRegionExtent = 25600.f;
+			FVector2D Extent = FVector2D(DefaultWorldRegionExtent);
+			FVector2D Pos = FVector2D::ZeroVector;
+			for (const FWorldPartitionStreamingSource& Source : StreamingSources)
+			{
+				Pos += FVector2D(Source.Location.X, Source.Location.Y);
+			}
+			Pos /= StreamingSources.Num();
+			WorldRegion = FBox2D(Pos - Extent, Pos + Extent);
+		}
+
+		const FBox2D CanvasBox = FBox2D(CurrentOffset, CurrentOffset + PartitionCanvasSize);
+		Algo::ForEach(WorldPartitionsDraw2DContext, [&](FWorldPartitionDraw2DContext& Context) { Context.Initialize(CanvasBox, WorldRegion); });
+
+		std::atomic<int32> LineCount;
+		std::atomic<int32> BoxCount;
+		bool bSucceeded = false;
+		
+		ParallelFor(WPDrawCount, [&](int32 ProcessIndex)
+		{
+			UWorldPartition* CurrentWorldPartition = SingleWorldPartition ? SingleWorldPartition : RegisteredWorldPartitions[ProcessIndex].Get();
+			FWorldPartitionDraw2DContext& Context = WorldPartitionsDraw2DContext[ProcessIndex];
+			Context.SetIsDetailedMode(WPDrawCount == 1);
+			Context.SetDrawGridBounds(ProcessIndex == (WPDrawCount-1));
+			Context.SetDrawGridAxis(ProcessIndex == (WPDrawCount-1));
+			if (CurrentWorldPartition->DrawRuntimeHash2D(Context))
+			{
+				LineCount += Context.GetLineCount();
+				BoxCount += Context.GetBoxCount();
+			}
+		});
+
+		if (WPDrawCount > 1)
+		{
+			FWorldPartitionCanvasMultiLineText Text;
+			Text.Emplace(FString::Printf(TEXT("Showing %d world partitions"), WPDrawCount), FLinearColor::White);
+			FWorldPartitionCanvasMultiLineTextItem Item(CanvasBox.Min, Text);
+			WorldPartitionsDraw2DContext[WPDrawCount - 1].PushDrawText(Item);
+		}
+
+		int32 TotalLineCount = LineCount.load();
+		int32 TotalBoxCount = BoxCount.load();
+		if (TotalLineCount + TotalBoxCount > 0)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::DrawAllCanvasItems);
+			FWorldPartitionDraw2DCanvas WorldPartitionCanvas(Canvas);
+			WorldPartitionCanvas.PrepareDraw(TotalLineCount, TotalBoxCount);
+
+			FBox2D MaxUsedBounds(ForceInit);
+			for (FWorldPartitionDraw2DContext& Context : WorldPartitionsDraw2DContext)
+			{
+				WorldPartitionCanvas.Draw(Context.GetCanvasItems());
+				
+				if (Context.GetUsedCanvasBounds().bIsValid)
+				{
+					MaxUsedBounds += Context.GetUsedCanvasBounds();
+				}
+			}
+			
 			CurrentOffset.X = CanvasBottomRightPadding.X;
-			CurrentOffset.Y += UsedCanvasSize.Y;
+			CurrentOffset.Y += MaxUsedBounds.bIsValid ? MaxUsedBounds.Max.Y : CanvasBox.GetSize().Y;
 		}
 	}
 	
 	if (GDrawStreamingPerfs || GDrawRuntimeHash2D)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::DrawStreamingStatus);
 		{
 			FString StatusText;
 			if (IsIncrementalPurgePending()) { StatusText += TEXT("(Purging) "); }
@@ -817,9 +913,9 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 			if (StatusText.IsEmpty()) { StatusText = TEXT("(Idle) "); }
 
 			FString DebugWorldText = FString::Printf(TEXT("(%s)"), *GetDebugStringForWorld(GetWorld()));
-			if (WorldPartition->IsServer())
+			if (SingleWorldPartition && SingleWorldPartition->IsServer())
 			{
-				DebugWorldText += FString::Printf(TEXT(" (Server Streaming %s)"), WorldPartition->IsServerStreamingEnabled() ? TEXT("Enabled") : TEXT("Disabled"));
+				DebugWorldText += FString::Printf(TEXT(" (Server Streaming %s)"), SingleWorldPartition->IsServerStreamingEnabled() ? TEXT("Enabled") : TEXT("Disabled"));
 			}
 			
 			const FString Text = FString::Printf(TEXT("Streaming Status for %s: %s"), *DebugWorldText, *StatusText);
@@ -827,8 +923,25 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		}
 
 		{
+			auto GetStreamingPerformance = [&]()
+			{
+				EWorldPartitionStreamingPerformance StreamingPerformance = SingleWorldPartition ? SingleWorldPartition->GetStreamingPerformance() : EWorldPartitionStreamingPerformance::Good;
+				if (!SingleWorldPartition)
+				{
+					for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
+					{
+						StreamingPerformance = FMath::Max(StreamingPerformance, RegisteredWorldPartition->GetStreamingPerformance());
+						if (StreamingPerformance == EWorldPartitionStreamingPerformance::Critical)
+						{
+							break;
+						}
+					}
+				}
+				return StreamingPerformance;
+			};
+
 			FString StatusText;
-			EWorldPartitionStreamingPerformance StreamingPerformance = WorldPartition->GetStreamingPerformance();
+			EWorldPartitionStreamingPerformance StreamingPerformance = GetStreamingPerformance();
 			switch (StreamingPerformance)
 			{
 			case EWorldPartitionStreamingPerformance::Good:
@@ -853,7 +966,7 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::DrawStreamingSources);
 
-		const TArray<FWorldPartitionStreamingSource>& LocalStreamingSources = WorldPartition->GetStreamingSources();
+		const TArray<FWorldPartitionStreamingSource>& LocalStreamingSources = SingleWorldPartition ? SingleWorldPartition->GetStreamingSources() : StreamingSources;
 		if (LocalStreamingSources.Num() > 0)
 		{
 			FString Title(TEXT("Streaming Sources"));
@@ -882,27 +995,80 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 	if (GDrawLegends || GDrawRuntimeHash2D)
 	{
 		// Streaming Status Legend
-		WorldPartition->DrawStreamingStatusLegend(Canvas, CurrentOffset);
+		DrawStreamingStatusLegend(Canvas, CurrentOffset, SingleWorldPartition);
 	}
 
-	if (GDrawDataLayers || GDrawDataLayersLoadTime || GDrawRuntimeHash2D)
+	if (SingleWorldPartition)
 	{
-		if (UDataLayerManager* DataLayerManager = WorldPartition->GetDataLayerManager())
+		if (GDrawDataLayers || GDrawDataLayersLoadTime || GDrawRuntimeHash2D)
 		{
-			DataLayerManager->DrawDataLayersStatus(Canvas, CurrentOffset);
+			if (UDataLayerManager* DataLayerManager = SingleWorldPartition->GetDataLayerManager())
+			{
+				DataLayerManager->DrawDataLayersStatus(Canvas, CurrentOffset);
+			}
+		}
+
+		UContentBundleManager* ContentBundleManager = GetWorld()->ContentBundleManager;
+		if (ContentBundleManager && FWorldPartitionDebugHelper::CanDrawContentBundles() && GDrawRuntimeHash2D)
+		{
+			ContentBundleManager->DrawContentBundlesStatus(GetWorld(), Canvas, CurrentOffset);
+		}
+
+		if (GDrawRuntimeCellsDetails)
+		{
+			SingleWorldPartition->DrawRuntimeCellsDetails(Canvas, CurrentOffset);
+		}
+	}
+}
+
+void UWorldPartitionSubsystem::DrawStreamingStatusLegend(class UCanvas* Canvas, FVector2D& Offset, const UWorldPartition* InWorldPartition)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::DrawStreamingStatusLegend);
+
+	check(Canvas);
+
+	TArray<int32> StreamingStatus;
+	StreamingStatus.SetNumZeroed((int32)LEVEL_StreamingStatusCount);
+	
+	const UWorld* StreamingWorld = InWorldPartition ? InWorldPartition->GetTypedOuter<UWorld>() : nullptr;
+	// Cumulate counter stats
+	for (ULevelStreaming* LevelStreaming : GetWorld()->GetStreamingLevels())
+	{
+		if (!StreamingWorld || (StreamingWorld == LevelStreaming->GetStreamingWorld()))
+		{
+			if (UWorldPartitionLevelStreamingDynamic* WorldPartitionLevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(LevelStreaming))
+			{
+				if (const UWorldPartitionRuntimeCell* Cell = WorldPartitionLevelStreaming->GetWorldPartitionRuntimeCell())
+				{
+					StreamingStatus[(int32)Cell->GetStreamingStatus()]++;
+				}
+			}
 		}
 	}
 
-	UContentBundleManager* ContentBundleManager = GetWorld()->ContentBundleManager;
-	if (ContentBundleManager && (FWorldPartitionDebugHelper::CanDrawContentBundles() && GDrawRuntimeHash2D))
+	// @todo_ow: This is not exactly the good value, as we could have pending unload level from Level Instances, etc.
+	//           We could modify GetNumLevelsPendingPurge to return the number of pending purge levels from the grid, 
+	//           but that will do for now.
+	StreamingStatus[LEVEL_UnloadedButStillAround] = FLevelStreamingGCHelper::GetNumLevelsPendingPurge();
+
+	// Draw legend
+	FVector2D Pos = Offset;
+	float MaxTextWidth = 0.f;
+	FWorldPartitionDebugHelper::DrawText(Canvas, TEXT("Streaming Status Legend"), GEngine->GetSmallFont(), FColor::Yellow, Pos, &MaxTextWidth);
+
+	for (int32 i = 0; i < (int32)LEVEL_StreamingStatusCount; ++i)
 	{
-		ContentBundleManager->DrawContentBundlesStatus(GetWorld(), Canvas, CurrentOffset);
+		EStreamingStatus Status = (EStreamingStatus)i;
+		const FColor& StatusColor = ULevelStreaming::GetLevelStreamingStatusColor(Status);
+		FString DebugString = *FString::Printf(TEXT("%d) %s"), i, ULevelStreaming::GetLevelStreamingStatusDisplayName(Status));
+		if (Status != LEVEL_Unloaded)
+		{
+			DebugString += *FString::Printf(TEXT(" (%d)"), StreamingStatus[(int32)Status]);
+		}
+		FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *DebugString, GEngine->GetSmallFont(), StatusColor, FColor::White, Pos, &MaxTextWidth);
 	}
 
-	if (GDrawRuntimeCellsDetails)
-	{
-		WorldPartition->DrawRuntimeCellsDetails(Canvas, CurrentOffset);
-	}
+	Offset.X += MaxTextWidth + 10;
 }
 
 /*

@@ -16,6 +16,7 @@ class ULevelStreaming;
 class UWorldPartition;
 class UActorDescContainer;
 class FWorldPartitionActorDesc;
+class FWorldPartitionDraw2DContext;
 
 enum class EWorldPartitionRuntimeCellState : uint8;
 enum class ELevelStreamingState : uint8;
@@ -168,7 +169,9 @@ private:
 
 	UWorldPartition* GetWorldPartition();
 	const UWorldPartition* GetWorldPartition() const;
+	bool CanDebugDraw() const;
 	void Draw(class UCanvas* Canvas, class APlayerController* PC);
+	void DrawStreamingStatusLegend(class UCanvas* Canvas, FVector2D& Offset, const UWorldPartition* InWorldPartition);
 	friend class UWorldPartition;
 	friend class UWorldPartitionStreamingPolicy;
 
@@ -183,6 +186,7 @@ private:
 	TMap<FName, FStreamingSourceVelocity> StreamingSourcesVelocity;
 	uint32 StreamingSourcesHash;
 
+	TArray<FWorldPartitionDraw2DContext> WorldPartitionsDraw2DContext;
 	FDelegateHandle	DrawHandle;
 
 	// GC backup values

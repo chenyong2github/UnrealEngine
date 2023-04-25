@@ -42,6 +42,7 @@ class UHLODLayer;
 class UCanvas;
 class ULevel;
 class FAutoConsoleVariableRef;
+class FWorldPartitionDraw2DContext;
 
 struct IWorldPartitionStreamingSourceProvider;
 
@@ -338,11 +339,9 @@ public:
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
 
 	// Debugging
-	bool CanDebugDraw() const;
-	bool DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset, FVector2D& OutUsedCanvasSize);
+	bool DrawRuntimeHash2D(FWorldPartitionDraw2DContext& DrawContext);
 	void DrawRuntimeHash3D();
 	void DrawRuntimeCellsDetails(UCanvas* Canvas, FVector2D& Offset);
-	void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset);
 
 	void OnCellShown(const UWorldPartitionRuntimeCell* InCell);
 	void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);

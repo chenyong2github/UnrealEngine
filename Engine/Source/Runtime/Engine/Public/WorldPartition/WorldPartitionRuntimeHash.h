@@ -19,6 +19,7 @@
 #include "WorldPartitionRuntimeHash.generated.h"
 
 struct FHierarchicalLogArchive;
+class FWorldPartitionDraw2DContext;
 
 UENUM()
 enum class EWorldPartitionStreamingPerformance : uint8
@@ -141,7 +142,7 @@ public:
 	virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
 	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
 
-	virtual bool Draw2D(class UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasSize, const FVector2D& Offset, FVector2D& OutUsedCanvasSize) const { return false; }
+	virtual bool Draw2D(FWorldPartitionDraw2DContext& DrawContext) const { return false; }
 	virtual void Draw3D(const TArray<FWorldPartitionStreamingSource>& Sources) const {}
 	virtual bool ContainsRuntimeHash(const FString& Name) const { return false; }
 	virtual bool IsStreaming3D() const { return true; }

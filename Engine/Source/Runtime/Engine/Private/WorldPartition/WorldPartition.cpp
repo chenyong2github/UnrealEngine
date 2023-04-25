@@ -1551,46 +1551,19 @@ void UWorldPartition::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 	}
 }
 
-bool UWorldPartition::CanDebugDraw() const
+bool UWorldPartition::DrawRuntimeHash2D(FWorldPartitionDraw2DContext& DrawContext)
 {
-#if WITH_EDITOR
-	const ENetMode NetMode = GetWorld()->GetNetMode();
-	const bool bIsDedicatedServer = (NetMode == NM_DedicatedServer);
-	const bool bIsClient = (NetMode == NM_Client);
-	if ((bIsDedicatedServer && !UWorldPartition::DebugDedicatedServerStreaming) ||
-		(bIsClient && UWorldPartition::DebugDedicatedServerStreaming))
-	{
-		return false;
-	}
-
-	if (!bIsDedicatedServer && UWorldPartition::IsSimulating(false) && (!GEditor || (GetWorld() != GEditor->PlayWorld)))
-	{
-		return false;
-	}
-#endif
-	return GetWorld()->IsGameWorld();
-}
-
-bool UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, const FVector2D& Offset, FVector2D& OutUsedCanvasSize)
-{
-	check(CanDebugDraw());
-	return StreamingPolicy->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, Offset, OutUsedCanvasSize);
+	return StreamingPolicy->DrawRuntimeHash2D(DrawContext);
 }
 
 void UWorldPartition::DrawRuntimeHash3D()
 {
-	check(CanDebugDraw());
 	StreamingPolicy->DrawRuntimeHash3D();
 }
 
 void UWorldPartition::DrawRuntimeCellsDetails(class UCanvas* Canvas, FVector2D& Offset)
 {
 	StreamingPolicy->DrawRuntimeCellsDetails(Canvas, Offset);
-}
-
-void UWorldPartition::DrawStreamingStatusLegend(class UCanvas* Canvas, FVector2D& Offset)
-{
-	StreamingPolicy->DrawStreamingStatusLegend(Canvas, Offset);
 }
 
 EWorldPartitionStreamingPerformance UWorldPartition::GetStreamingPerformance() const
