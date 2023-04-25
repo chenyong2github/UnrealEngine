@@ -268,6 +268,14 @@ FBoneChain* FRetargetDefinition::GetEditableBoneChainByName(FName ChainName)
 	return nullptr;
 }
 
+void UIKRigDefinition::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+#if WITH_EDITORONLY_DATA
+	Controller = nullptr;
+#endif
+}
+
 void UIKRigDefinition::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);

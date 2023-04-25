@@ -38,6 +38,14 @@ UIKRetargeter::UIKRetargeter(const FObjectInitializer& ObjectInitializer)
 	CleanAndInitialize();
 }
 
+void UIKRetargeter::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+#if WITH_EDITORONLY_DATA
+	Controller = nullptr;
+#endif
+}
+
 void UIKRetargeter::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);

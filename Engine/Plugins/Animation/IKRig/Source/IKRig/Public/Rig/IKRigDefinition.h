@@ -186,7 +186,7 @@ class IKRIG_API UIKRigDefinition : public UObject, public IInterface_PreviewMesh
 	GENERATED_BODY()
 
 public:
-
+	
 	/** The skeletal mesh to run the IK solve on (loaded into viewport).
 	* NOTE: you can assign ANY Skeletal Mesh to apply the IK Rig to. Compatibility is determined when a new mesh is assigned
 	* by comparing it's hierarchy with the goals, solvers and bone settings required by the rig. See output log for details. */
@@ -212,6 +212,7 @@ public:
 	const FBoneChain* GetRetargetChainByName(FName ChainName) const;
 
 	/** UObject */
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void Serialize(FArchive& Ar) override;
 	/** END UObject */
 	
@@ -243,7 +244,7 @@ public:
 	float GoalThickness = 0.7f;
 
 	/** The controller responsible for managing this asset's data (all editor mutation goes through this) */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, DuplicateTransient, NonTransactional )
 	TObjectPtr<UObject> Controller;
 #endif
 

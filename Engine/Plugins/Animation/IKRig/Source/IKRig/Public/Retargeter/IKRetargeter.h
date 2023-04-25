@@ -332,7 +332,8 @@ public:
 		const FTargetChainSpeedPlantSettings& SpeedPlantSettings,
 		const FName TargetChainName);
 
-	// UObject 
+	// UObject
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	// END UObject
@@ -428,7 +429,7 @@ public:
 	float BoneDrawSize = 1.0f;
 
 	/** The controller responsible for managing this asset's data (all editor mutation goes through this) */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, DuplicateTransient, NonTransactional )
 	TObjectPtr<UObject> Controller;
 	
 private:
