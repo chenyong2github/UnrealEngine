@@ -39,13 +39,6 @@ struct BoneTrackPair
 	int32 AtomIndex;
 	int32 TrackIndex;
 
-	BoneTrackPair& operator=(const BoneTrackPair& Other)
-	{
-		this->AtomIndex = Other.AtomIndex;
-		this->TrackIndex = Other.TrackIndex;
-		return *this;
-	}
-
 	BoneTrackPair(){}
 	BoneTrackPair(int32 Atom, int32 Track):AtomIndex(Atom),TrackIndex(Track){}
 };
