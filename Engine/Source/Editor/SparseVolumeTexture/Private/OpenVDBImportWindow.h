@@ -76,7 +76,6 @@ private:
 	TSharedPtr<SOpenVDBComponentPicker> ComponentPickers[4];
 	const TArray<TSharedPtr<ESparseVolumeAttributesFormat>>* OpenVDBSupportedTargetFormats;
 	TSharedPtr<SComboBox<TSharedPtr<ESparseVolumeAttributesFormat>>> FormatComboBox;
-	TSharedPtr<SCheckBox> RemapUnormCheckBox;
 };
 
 class SOpenVDBImportWindow : public SCompoundWidget

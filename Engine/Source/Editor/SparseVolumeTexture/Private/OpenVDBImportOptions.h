@@ -22,7 +22,6 @@ struct FOpenVDBSparseVolumeAttributesDesc
 {
 	TStaticArray<FOpenVDBSparseVolumeComponentMapping, 4> Mappings;
 	ESparseVolumeAttributesFormat Format;
-	bool bRemapInputForUnorm; // Maps the input from its minimum and maximum value into the [0-1] range. Clamps to [0-1] otherwise.
 };
 
 struct FOpenVDBImportOptions

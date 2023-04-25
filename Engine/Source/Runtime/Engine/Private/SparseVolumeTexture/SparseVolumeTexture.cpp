@@ -53,6 +53,31 @@ static int32 SVTComputeNumMipLevels(const FIntVector3& InResolution)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
+FSparseVolumeTextureHeader::FSparseVolumeTextureHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB)
+{
+	VirtualVolumeAABBMin = AABBMin;
+	VirtualVolumeAABBMax = AABBMax;
+	VirtualVolumeResolution = VirtualVolumeAABBMax - VirtualVolumeAABBMin;
+
+	PageTableVolumeAABBMin = VirtualVolumeAABBMin / SPARSE_VOLUME_TILE_RES;
+	PageTableVolumeAABBMax = (VirtualVolumeAABBMax + FIntVector3(SPARSE_VOLUME_TILE_RES - 1)) / SPARSE_VOLUME_TILE_RES;
+	PageTableVolumeResolution = PageTableVolumeAABBMax - PageTableVolumeAABBMin;
+
+	// We need to ensure a power of two resolution for the page table in order to fit all mips of the page table into the physical mips of the texture resource.
+	PageTableVolumeResolution.X = FMath::RoundUpToPowerOfTwo(PageTableVolumeResolution.X);
+	PageTableVolumeResolution.Y = FMath::RoundUpToPowerOfTwo(PageTableVolumeResolution.Y);
+	PageTableVolumeResolution.Z = FMath::RoundUpToPowerOfTwo(PageTableVolumeResolution.Z);
+	PageTableVolumeAABBMax = PageTableVolumeAABBMin + PageTableVolumeResolution;
+
+	AttributesFormats[0] = FormatA;
+	AttributesFormats[1] = FormatB;
+
+	NullTileValues[0] = FallbackValueA;
+	NullTileValues[1] = FallbackValueB;
+	NullTileValuesQuantized[0] = FallbackValueA;
+	NullTileValuesQuantized[1] = FallbackValueB;
+}
+
 void FSparseVolumeTextureHeader::Serialize(FArchive& Ar)
 {
 	Ar << Version;
@@ -434,7 +459,7 @@ bool UStreamableSparseVolumeTexture::EndInitialize(int32 InNumMipLevels)
 	{
 		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("SVT has zero frames! Adding a dummy frame. SVT: %s"), *GetName());
 		FSparseVolumeTextureData DummyFrame;
-		DummyFrame.ConstructDefault();
+		DummyFrame.CreateDefault();
 		AppendFrame(DummyFrame);
 	}
 

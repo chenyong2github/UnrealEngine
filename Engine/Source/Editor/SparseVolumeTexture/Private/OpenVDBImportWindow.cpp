@@ -345,7 +345,7 @@ void SOpenVDBComponentPicker::Construct(const FArguments& InArgs)
 	OpenVDBGridComponentInfo = InArgs._OpenVDBGridComponentInfo;
 	
 	check(ComponentIndex < 4);
-	const TCHAR* ComponentLabels[] = { TEXT("X"), TEXT("Y"), TEXT("Z"), TEXT("W") };
+	const TCHAR* ComponentLabels[] = { TEXT("R"), TEXT("G"), TEXT("B"), TEXT("A") };
 
 	this->ChildSlot
 		[
@@ -438,7 +438,7 @@ void SOpenVDBAttributesConfigurator::Construct(const FArguments& InArgs)
 				]
 
 				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
+				.FillWidth(0.5f)
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				[
@@ -464,37 +464,6 @@ void SOpenVDBAttributesConfigurator::Construct(const FArguments& InArgs)
 							})
 						]
 					]
-				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				.Padding(2.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("UnormRemapCheckBoxLabel", "Unorm Remap"))
-					.IsEnabled_Lambda([this]()
-					{
-						return AttributesDesc->Format == ESparseVolumeAttributesFormat::Unorm8;
-					})
-				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				.Padding(2.0f)
-				[
-					SAssignNew(RemapUnormCheckBox, SCheckBox)
-					.OnCheckStateChanged_Lambda([this](ECheckBoxState CheckBoxState)
-					{
-						AttributesDesc->bRemapInputForUnorm = CheckBoxState == ECheckBoxState::Checked;
-					})
-					.IsEnabled_Lambda([this]()
-					{
-						return AttributesDesc->Format == ESparseVolumeAttributesFormat::Unorm8;
-					})
-					.ToolTipText(LOCTEXT("UnormRemapCheckBoxTooltip", "Remaps input values for unorm formats into the [0-1] range instead of clamping values outside this range."))
-					.IsChecked(false)
 				]
 			]
 
@@ -550,7 +519,6 @@ void SOpenVDBAttributesConfigurator::RefreshUIFromData()
 	{
 		ComponentPickers[i]->RefreshUIFromData();
 	}
-	RemapUnormCheckBox->SetIsChecked(AttributesDesc->bRemapInputForUnorm);
 }
 
 void SOpenVDBGridInfoTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView)

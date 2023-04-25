@@ -657,76 +657,6 @@ UObject* UNiagaraDataInterfaceRenderTargetVolume::SimCacheBeginWrite(UObject* In
 	return nullptr;
 }
 
-
-
-class FSparseVolumeTextureDataConstructionVolumeRenderTargetAdapter : public ISparseVolumeTextureDataConstructionAdapter
-{
-public:
-
-	FSparseVolumeTextureDataConstructionVolumeRenderTargetAdapter(TArray<FFloat16Color>& SourceTextureData, EPixelFormat SourceFormat, FIntVector3 SourceGridResolution)
-		: TextureData(SourceTextureData), Format(SourceFormat), GridResolution(SourceGridResolution)
-	{}
-
-	virtual void GetAttributesInfo(FAttributesInfo& OutInfoA, FAttributesInfo& OutInfoB) const
-	{
-		OutInfoA.Format = Format;
-		OutInfoA.FallbackValue = FVector4f(0, 0, 0, 0);
-		OutInfoA.NormalizeScale = FVector4f(0, 0, 0, 0);
-		OutInfoA.NormalizeBias = FVector4f(0, 0, 0, 0);
-		OutInfoA.bNormalized = false;
-
-		OutInfoB.Format = PF_Unknown;
-		OutInfoB.FallbackValue = FVector4f(0, 0, 0, 0);
-		OutInfoB.NormalizeScale = FVector4f(0, 0, 0, 0);
-		OutInfoB.NormalizeBias = FVector4f(0, 0, 0, 0);
-		OutInfoB.bNormalized = false;
-	}
-
-	virtual FIntVector3 GetAABBMin() const
-	{
-		return FIntVector3(0, 0, 0);
-	}
-
-	virtual FIntVector3 GetAABBMax() const 
-	{
-		return GridResolution;
-	}
-
-	virtual FIntVector3 GetResolution() const
-	{
-		return GridResolution;
-	}
-
-	virtual void IteratePhysicalSource(TFunctionRef<void(const FIntVector3& Coord, int32 AttributesIdx, int32 ComponentIdx, float VoxelValue)> OnVisit) const
-	{
-		for (int32 Z = 0; Z < GridResolution.Z - 1; ++Z)
-		{
-			for (int32 Y = 0; Y < GridResolution.Y - 1; ++Y)
-			{
-				for (int32 X = 0; X < GridResolution.X - 1; ++X)
-				{
-					FIntVector3 CurrCoord(X, Y, Z);
-
-					FFloat16Color CurrCellValue;
-					CurrCellValue = TextureData[Y * GridResolution.X + Z * GridResolution.X * GridResolution.Y + X];
-
-					OnVisit(CurrCoord, 0, 0, CurrCellValue.R);
-					OnVisit(CurrCoord, 0, 1, CurrCellValue.G);
-					OnVisit(CurrCoord, 0, 2, CurrCellValue.B);
-					OnVisit(CurrCoord, 0, 3, CurrCellValue.A);
-				}
-			}
-		}
-	}
-
-	virtual ~FSparseVolumeTextureDataConstructionVolumeRenderTargetAdapter() = default;
-
-private:		
-	const TArray<FFloat16Color>& TextureData;
-	EPixelFormat Format;
-	FIntVector3 GridResolution;
-};
-
 bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheWriteFrame(UObject* StorageObject, int FrameIndex, FNiagaraSystemInstance* SystemInstance, const void* OptionalPerInstanceData, FNiagaraSimCacheFeedbackContext& FeedbackContext) const
 {
 	check(OptionalPerInstanceData);
@@ -778,11 +708,17 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheWriteFrame(UObject* Storag
 			{
 #if WITH_EDITOR
 				UAnimatedSparseVolumeTexture* CurrCache = CastChecked<UAnimatedSparseVolumeTexture>(StorageObject);
-								
-				FSparseVolumeTextureData SparseTextureData{};
-				FSparseVolumeTextureDataConstructionVolumeRenderTargetAdapter Adapter(TextureData, PF_FloatRGBA, InstanceData_GT->Size);
 				
-				SparseTextureData.Construct(Adapter);
+				FSparseVolumeTextureDataCreateInfo SVTCreateInfo;
+				SVTCreateInfo.VirtualVolumeAABBMin = FIntVector3::ZeroValue;
+				SVTCreateInfo.VirtualVolumeAABBMax = InstanceData_GT->Size;
+				SVTCreateInfo.FallbackValues[0] = FVector4f(0, 0, 0, 0);
+				SVTCreateInfo.FallbackValues[1] = FVector4f(0, 0, 0, 0);
+				SVTCreateInfo.AttributesFormats[0] = PF_FloatRGBA;
+				SVTCreateInfo.AttributesFormats[1] = PF_Unknown;
+
+				FSparseVolumeTextureData SparseTextureData{};
+				SparseTextureData.CreateFromDense(SVTCreateInfo, MakeArrayView<uint8>((uint8*)TextureData.GetData(), TextureData.Num() * sizeof(TextureData[0])), TArrayView<uint8>());
 				
 				CurrCache->AppendFrame(SparseTextureData);
 #endif

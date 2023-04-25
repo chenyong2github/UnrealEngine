@@ -42,7 +42,6 @@ static void ComputeDefaultOpenVDBGridAssignment(const TArray<TSharedPtr<FOpenVDB
 			Mapping.SourceComponentIndex = INDEX_NONE;
 		}
 		AttributesDesc.Format = ESparseVolumeAttributesFormat::Float32;
-		AttributesDesc.bRemapInputForUnorm = false;
 	}
 
 	// Assign the components of the input grids to the components of the output SVT.

@@ -5,24 +5,20 @@
 #include "CoreMinimal.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
 
-class ENGINE_API ISparseVolumeTextureDataConstructionAdapter
+struct ENGINE_API FSparseVolumeTextureDataCreateInfo
+{
+	FIntVector3 VirtualVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
+	FIntVector3 VirtualVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
+	TStaticArray<EPixelFormat, 2> AttributesFormats = TStaticArray<EPixelFormat, 2>(InPlace, PF_Unknown); // Currently supported: PF_R8, PF_R8G8, PF_R8G8B8A8, PF_R16F, PF_G16R16F, PF_FloatRGBA, PF_R32_FLOAT, PF_G32R32F, PF_A32B32G32R32F
+	TStaticArray<FVector4f, 2> FallbackValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f());
+};
+
+class ENGINE_API ISparseVolumeTextureDataProvider
 {
 public:
-	struct ENGINE_API FAttributesInfo
-	{
-		EPixelFormat Format;
-		FVector4f FallbackValue;
-		FVector4f NormalizeScale;
-		FVector4f NormalizeBias;
-		bool bNormalized;
-	};
-
-	virtual void GetAttributesInfo(FAttributesInfo& OutInfoA, FAttributesInfo& OutInfoB) const = 0;
-	virtual FIntVector3 GetAABBMin() const = 0;
-	virtual FIntVector3 GetAABBMax() const = 0;
-	virtual FIntVector3 GetResolution() const = 0;
+	virtual FSparseVolumeTextureDataCreateInfo GetCreateInfo() const = 0;
 	virtual void IteratePhysicalSource(TFunctionRef<void(const FIntVector3& Coord, int32 AttributesIdx, int32 ComponentIdx, float VoxelValue)> OnVisit) const = 0;
-	virtual ~ISparseVolumeTextureDataConstructionAdapter() = default;
+	virtual ~ISparseVolumeTextureDataProvider() = default;
 };
 
 struct ENGINE_API FSparseVolumeTextureDataAddressingInfo
@@ -54,8 +50,9 @@ struct ENGINE_API FSparseVolumeTextureData
 
 	void Serialize(FArchive& Ar);
 	
-	bool Construct(const ISparseVolumeTextureDataConstructionAdapter& Adapter);
-	void ConstructDefault();
+	bool Create(const ISparseVolumeTextureDataProvider& DataProvider);
+	bool CreateFromDense(const FSparseVolumeTextureDataCreateInfo& CreateInfo, const TArrayView<uint8>& VoxelDataA, const TArrayView<uint8>& VoxelDataB);
+	void CreateDefault();
 	FVector4f Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FSparseVolumeTextureDataAddressingInfo& AddressingInfo) const;
 	bool BuildDerivedData(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FSparseVolumeTextureData& OutDerivedData);
 

@@ -39,6 +39,8 @@ struct ENGINE_API FSparseVolumeTextureHeader
 	TStaticArray<FVector4f, 2> NullTileValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f());
 	TStaticArray<FVector4f, 2> NullTileValuesQuantized = TStaticArray<FVector4f, 2>(InPlace, FVector4f()); // Values after converting/quantizing original fallback values to the given attribute formats
 
+	FSparseVolumeTextureHeader() = default;
+	FSparseVolumeTextureHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
 	void Serialize(FArchive& Ar);
 };
 

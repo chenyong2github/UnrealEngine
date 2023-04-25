@@ -281,7 +281,7 @@ static EPixelFormat GetMultiComponentFormat(ESparseVolumeAttributesFormat Format
 
 #if OPENVDB_AVAILABLE
 
-class FSparseVolumeTextureDataConstructionOpenVDBAdapter : public ISparseVolumeTextureDataConstructionAdapter
+class FSparseVolumeTextureDataProviderOpenVDB : public ISparseVolumeTextureDataProvider
 {
 public:
 
@@ -361,10 +361,8 @@ public:
 			}
 		}
 
-		AttributesInfo[0].Format = MultiCompFormat[0];
-		AttributesInfo[1].Format = MultiCompFormat[1];
-		AttributesInfo[0].bNormalized = Attributes[0].bRemapInputForUnorm;
-		AttributesInfo[1].bNormalized = Attributes[1].bRemapInputForUnorm;
+		SVTCreateInfo.AttributesFormats[0] = MultiCompFormat[0];
+		SVTCreateInfo.AttributesFormats[1] = MultiCompFormat[1];
 
 		FIntVector3 SmallestAABBMin = FIntVector3(INT32_MAX);
 		FIntVector3 LargestAABBMax = FIntVector3(INT32_MIN);
@@ -376,7 +374,6 @@ public:
 		{
 			for (int32 CompIdx = 0; CompIdx < 4; ++CompIdx)
 			{
-				AttributesInfo[AttributesIdx].NormalizeScale[CompIdx] = 1.0f;
 				const uint32 SourceGridIndex = Attributes[AttributesIdx].Mappings[CompIdx].SourceGridIndex;
 				const uint32 SourceComponentIndex = Attributes[AttributesIdx].Mappings[CompIdx].SourceComponentIndex;
 				if (SourceGridIndex == INDEX_NONE)
@@ -410,16 +407,7 @@ public:
 				LargestAABBMax.Y = FMath::Max(LargestAABBMax.Y, GridInfo.VolumeActiveAABBMax.Y);
 				LargestAABBMax.Z = FMath::Max(LargestAABBMax.Z, GridInfo.VolumeActiveAABBMax.Z);
 
-				AttributesInfo[AttributesIdx].FallbackValue[CompIdx] = UniqueGridAdapters[SourceGridIndex]->GetBackgroundValue(SourceComponentIndex);
-				if (bNormalizedFormat[AttributesIdx] && Attributes[AttributesIdx].bRemapInputForUnorm)
-				{
-					float MinVal = 0.0f;
-					float MaxVal = 0.0f;
-					UniqueGridAdapters[SourceGridIndex]->GetMinMaxValue(SourceComponentIndex, &MinVal, &MaxVal);
-					const float Diff = MaxVal - MinVal;
-					AttributesInfo[AttributesIdx].NormalizeScale[CompIdx] = MaxVal > SMALL_NUMBER ? (1.0f / Diff) : 1.0f;
-					AttributesInfo[AttributesIdx].NormalizeBias[CompIdx] = -MinVal * AttributesInfo[AttributesIdx].NormalizeScale[CompIdx];
-				}
+				SVTCreateInfo.FallbackValues[AttributesIdx][CompIdx] = UniqueGridAdapters[SourceGridIndex]->GetBackgroundValue(SourceComponentIndex);
 
 				FSingleGridToComponentMapping Mapping{};
 				Mapping.AttributesIdx = (int32)AttributesIdx;
@@ -429,32 +417,15 @@ public:
 			}
 		}
 
-		AABBMin = SmallestAABBMin - VolumeBoundsMin;
-		AABBMax = LargestAABBMax - VolumeBoundsMin;
-		Resolution = LargestAABBMax - SmallestAABBMin;
+		SVTCreateInfo.VirtualVolumeAABBMin= SmallestAABBMin - VolumeBoundsMin;
+		SVTCreateInfo.VirtualVolumeAABBMax = LargestAABBMax - VolumeBoundsMin;
 
 		return true;
 	}
 
-	void GetAttributesInfo(FAttributesInfo& OutInfoA, FAttributesInfo& OutInfoB) const override
+	virtual FSparseVolumeTextureDataCreateInfo GetCreateInfo() const override
 	{
-		OutInfoA = AttributesInfo[0];
-		OutInfoB = AttributesInfo[1];
-	}
-
-	FIntVector3 GetAABBMin() const override
-	{
-		return AABBMin;
-	}
-
-	FIntVector3 GetAABBMax() const override
-	{
-		return AABBMax;
-	}
-
-	FIntVector3 GetResolution() const override
-	{
-		return Resolution;
+		return SVTCreateInfo;
 	}
 
 	void IteratePhysicalSource(TFunctionRef<void(const FIntVector3& Coord, int32 AttributesIdx, int32 ComponentIdx, float VoxelValue)> OnVisit) const override
@@ -491,11 +462,8 @@ private:
 	TArray<TArray<FSingleGridToComponentMapping, TInlineAllocator<4>>> GridToComponentMappings;
 	TStaticArray<FOpenVDBSparseVolumeAttributesDesc, NumAttributesDescs> Attributes;
 	TStaticArray<uint32, NumAttributesDescs> NumComponents;
-	TStaticArray<FAttributesInfo, NumAttributesDescs> AttributesInfo;
-	FIntVector3 AABBMin;
-	FIntVector3 AABBMax;
+	FSparseVolumeTextureDataCreateInfo SVTCreateInfo;
 	FIntVector3 VolumeBoundsMin;
-	FIntVector3 Resolution;
 };
 
 #endif // OPENVDB_AVAILABLE
@@ -503,12 +471,12 @@ private:
 bool ConvertOpenVDBToSparseVolumeTexture(TArray64<uint8>& SourceFile, const FOpenVDBImportOptions& ImportOptions, const FIntVector3& VolumeBoundsMin, FSparseVolumeTextureData& OutResult)
 {
 #if OPENVDB_AVAILABLE
-	FSparseVolumeTextureDataConstructionOpenVDBAdapter Adapter;
-	if (!Adapter.Initialize(SourceFile, ImportOptions, VolumeBoundsMin))
+	FSparseVolumeTextureDataProviderOpenVDB DataProvider;
+	if (!DataProvider.Initialize(SourceFile, ImportOptions, VolumeBoundsMin))
 	{
 		return false;
 	}
-	if (!OutResult.Construct(Adapter))
+	if (!OutResult.Create(DataProvider))
 	{
 		return false;
 	}
