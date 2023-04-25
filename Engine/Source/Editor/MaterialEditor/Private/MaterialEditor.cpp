@@ -477,7 +477,7 @@ void FMaterialEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>&
 
 	OnUnregisterTabSpawners().Broadcast(InTabManager);
 }
-UE_DISABLE_OPTIMIZATION
+
 void FMaterialEditor::InitEditorForMaterial(UMaterial* InMaterial)
 {
 	check(InMaterial);
