@@ -1097,6 +1097,11 @@ void FCameraCalibrationStepsController::SetCamera(ACameraActor* InCamera)
 {
 	Camera = InCamera;
 
+	if (!InCamera)
+	{
+		return;
+	}
+
 	TInlineComponentArray<UCineCameraComponent*> CameraComponents;
 	InCamera->GetComponents(CameraComponents);
 
