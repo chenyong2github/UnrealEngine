@@ -1619,7 +1619,6 @@ struct FNiagaraTypeDefinitionHandle
 
 	FNiagaraTypeDefinitionHandle() : RegisteredTypeIndex(INDEX_NONE) {}
 	explicit FNiagaraTypeDefinitionHandle(const FNiagaraTypeDefinition& Type) : RegisteredTypeIndex(Register(Type)) {}
-	explicit FNiagaraTypeDefinitionHandle(const FNiagaraTypeDefinitionHandle& Handle) : RegisteredTypeIndex(Handle.RegisteredTypeIndex) {}
 
 	const FNiagaraTypeDefinition& operator*() const { return Resolve(); }
 	const FNiagaraTypeDefinition* operator->() const { return &Resolve(); }
@@ -1664,14 +1663,6 @@ struct FNiagaraVariableBase
 		, TypeDefHandle(FNiagaraTypeDefinition::GetVec4Def())
 #if WITH_EDITORONLY_DATA
 		, TypeDef_DEPRECATED(FNiagaraTypeDefinition::GetVec4Def())
-#endif
-		{}
-
-	FORCEINLINE FNiagaraVariableBase(const FNiagaraVariableBase &Other)
-		: Name(Other.Name)
-		, TypeDefHandle(Other.TypeDefHandle)
-#if WITH_EDITORONLY_DATA
-		, TypeDef_DEPRECATED(Other.TypeDef_DEPRECATED)
 #endif
 		{}
 
