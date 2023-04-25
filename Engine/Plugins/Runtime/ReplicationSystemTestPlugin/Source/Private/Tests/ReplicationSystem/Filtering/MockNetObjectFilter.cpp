@@ -9,7 +9,7 @@ UMockNetObjectFilter::UMockNetObjectFilter()
 {
 }
 
-void UMockNetObjectFilter::Init(FNetObjectFilterInitParams& Params)
+void UMockNetObjectFilter::OnInit(FNetObjectFilterInitParams& Params)
 {
 	++CallStatus.CallCounts.Init;
 
@@ -138,11 +138,11 @@ void UMockNetObjectFilter::PostFilter(FNetObjectPostFilteringParams& Params)
 // UMockNetObjectFilterUsingFragmentData
 //**************************************************************************************************
 
-void UMockNetObjectFilterUsingFragmentData::Init(FNetObjectFilterInitParams& Params)
+void UMockNetObjectFilterUsingFragmentData::OnInit(FNetObjectFilterInitParams& Params)
 {
-	Super::Init(Params);
+	Super::OnInit(Params);
 
-	//TODO: Set to PostFilter pass when added
+	SetupFilterType(ENetFilterType::PostPoll_FragmentBased);
 }
 
 bool UMockNetObjectFilterUsingFragmentData::AddObject(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params)

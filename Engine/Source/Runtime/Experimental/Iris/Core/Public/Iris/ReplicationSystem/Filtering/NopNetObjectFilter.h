@@ -18,7 +18,7 @@ class UNopNetObjectFilter final : public UNetObjectFilter
 
 protected:
 	// UNetObjectFilter interface
-	IRISCORE_API virtual void Init(FNetObjectFilterInitParams&) override;
+	IRISCORE_API virtual void OnInit(FNetObjectFilterInitParams&) override;
 	IRISCORE_API virtual bool AddObject(uint32 ObjectIndex, FNetObjectFilterAddObjectParams&) override;
 	IRISCORE_API virtual void RemoveObject(uint32 ObjectIndex, const FNetObjectFilteringInfo&) override;
 	IRISCORE_API virtual void UpdateObjects(FNetObjectFilterUpdateParams&) override;

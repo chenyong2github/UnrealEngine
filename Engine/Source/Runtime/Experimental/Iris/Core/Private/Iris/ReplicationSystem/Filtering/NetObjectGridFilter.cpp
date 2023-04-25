@@ -9,7 +9,7 @@
 #include "Iris/Core/IrisLog.h"
 #include "Iris/Core/IrisProfiler.h"
 
-void UNetObjectGridFilter::Init(FNetObjectFilterInitParams& Params)
+void UNetObjectGridFilter::OnInit(FNetObjectFilterInitParams& Params)
 {
 	Config = TStrongObjectPtr<UNetObjectGridFilterConfig>(CastChecked<UNetObjectGridFilterConfig>(Params.Config));
 	checkf(Config.IsValid(), TEXT("Need config to operate."));
@@ -75,8 +75,6 @@ void UNetObjectGridFilter::RemoveObject(uint32 ObjectIndex, const FNetObjectFilt
 
 void UNetObjectGridFilter::UpdateObjects(FNetObjectFilterUpdateParams& Params)
 {
-	IRIS_PROFILER_SCOPE(UNetObjectGridFilter_UpdateObjects);
-
 	for (SIZE_T ObjectIt = 0, ObjectEndIt = Params.ObjectCount; ObjectIt != ObjectEndIt; ++ObjectIt)
 	{
 		const uint32 ObjectIndex = Params.ObjectIndices[ObjectIt];
@@ -402,9 +400,11 @@ bool UNetObjectGridFilter::DoesCellContainCoord(const UNetObjectGridFilter::FCel
 // UNetObjectGridWorldLocFilter
 //*************************************************************************************************
 
-void UNetObjectGridWorldLocFilter::Init(FNetObjectFilterInitParams& Params)
+void UNetObjectGridWorldLocFilter::OnInit(FNetObjectFilterInitParams& Params)
 {
-	Super::Init(Params);
+	Super::OnInit(Params);
+
+	SetupFilterType(ENetFilterType::PrePoll_Raw);
 
 	WorldLocations = &Params.ReplicationSystem->GetWorldLocations();
 }
@@ -435,9 +435,11 @@ bool UNetObjectGridWorldLocFilter::BuildObjectInfo(uint32 ObjectIndex, FNetObjec
 // UNetObjectGridFragmentLocFilter
 //*************************************************************************************************
 
-void UNetObjectGridFragmentLocFilter::Init(FNetObjectFilterInitParams& InitParams)
+void UNetObjectGridFragmentLocFilter::OnInit(FNetObjectFilterInitParams& InitParams)
 {
-	Super::Init(InitParams);
+	Super::OnInit(InitParams);
+
+	SetupFilterType(ENetFilterType::PostPoll_FragmentBased);
 }
 
 bool UNetObjectGridFragmentLocFilter::BuildObjectInfo(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params)

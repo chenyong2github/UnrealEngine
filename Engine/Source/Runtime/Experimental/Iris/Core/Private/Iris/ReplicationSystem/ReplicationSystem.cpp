@@ -235,22 +235,33 @@ public:
 		ReplicationSystemInternal.GetReplicationBridge()->CallUpdateInstancesWorldLocation();
 	}
 
-	void UpdateFiltering(const FNetBitArrayView& DirtyObjects)
+	void UpdateFilterPrePoll()
 	{
-		IRIS_PROFILER_SCOPE(FReplicationSystem_UpdateFiltering);
+		IRIS_PROFILER_SCOPE(FReplicationSystem_UpdateFilterPrePoll);
 		LLM_SCOPE_BYTAG(Iris);
 
 		FReplicationFiltering& Filtering = ReplicationSystemInternal.GetFiltering();
-		Filtering.Filter(DirtyObjects);
+		Filtering.FilterPrePoll();
+	}
+
+	void UpdateFilterPostPoll()
+	{
+		IRIS_PROFILER_SCOPE(FReplicationSystem_UpdateFilterPostPoll);
+		LLM_SCOPE_BYTAG(Iris);
+
+		FReplicationFiltering& Filtering = ReplicationSystemInternal.GetFiltering();
+		Filtering.FilterPostPoll();
 
 		// Iterate over all valid connections and propagate updated scopes
 		FReplicationConnections& Connections = ReplicationSystemInternal.GetConnections();
+		
 		auto UpdateConnectionScope = [&Filtering, &Connections](uint32 ConnectionId)
 		{
 			FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);
-			const FNetBitArrayView& ObjectsInScope = Filtering.GetObjectsInScope(ConnectionId);
+			const FNetBitArrayView ObjectsInScope = Filtering.GetRelevantObjectsInScope(ConnectionId);
 			Conn->ReplicationWriter->UpdateScope(ObjectsInScope);
 		};
+
 		const FNetBitArray& ValidConnections = Connections.GetValidConnections();
 		ValidConnections.ForAllSetBits(UpdateConnectionScope);
 	}
@@ -327,6 +338,10 @@ public:
 
 		// Copy all ReplicatedObjects with dirty state data
 		DirtyObjects.ForAllSetBits(CopyFunction);
+
+		//$IRIS TODO Only copy relevant objects but keep dirty flag for those not copied.
+		//FNetBitArrayView RelevantObjects = NetRefHandleManager.GetRelevantObjectsInternalIndices();
+		//FNetBitArrayView::ForAllSetBits(DirtyObjects, RelevantObjects, FNetBitArrayView::AndOp, CopyFunction);
 
 		const uint32 ReplicationSystemId = ReplicationSystem->GetId();
 		UE_NET_TRACE_FRAME_STATSCOUNTER(ReplicationSystemId, ReplicationSystem.CopiedObjectCount, CopiedObjectCount, ENetTraceVerbosity::Trace);
@@ -552,11 +567,14 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 		// Refresh dirty object list
 		Impl->UpdateDirtyObjectList();
 
-		// Invoke any operations we need to do before copying state data
-		InternalSys.GetReplicationBridge()->CallPreSendUpdate(DeltaSeconds);
-
 		// Update world locations. We need this to happen before both filtering and prioritization.
 		Impl->UpdateWorldLocations();
+
+		// Filters to reduce the top-level scoped object list
+		Impl->UpdateFilterPrePoll();
+
+		// Invoke any operations we need to do before copying state data
+		InternalSys.GetReplicationBridge()->CallPreSendUpdate(DeltaSeconds);		
 
 		// Update conditionals
 		Impl->UpdateConditionals();
@@ -568,10 +586,7 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 		Impl->ProcessNetObjectAttachmentSendQueue(FNetBlobManager::EProcessMode::ProcessObjectsGoingOutOfScope);
 
 		// Update filtering and scope for all connections
-		{
-			FNetBitArrayView DirtyObjects = InternalSys.GetDirtyNetObjectTracker().GetDirtyNetObjects();
-			Impl->UpdateFiltering(DirtyObjects);
-		}
+		Impl->UpdateFilterPostPoll();
 
 		// Propagate dirty changes to all connections
 		Impl->PropagateDirtyChanges();

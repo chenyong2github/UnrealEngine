@@ -859,22 +859,22 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		return;
 	}
 	
-	// If we poll all scopebable objects
+	// Update every relevant objects from here
 
-	const FNetBitArray& ScopableObjects = LocalNetRefHandleManager.GetScopableInternalIndices();
+	const FNetBitArrayView RelevantObjects = LocalNetRefHandleManager.GetRelevantObjectsInternalIndices();
 	const FNetBitArray& WantToBeDormantObjects = LocalNetRefHandleManager.GetWantToBeDormantInternalIndices();
 
 	// Filter the set of objects considered for pre-update and polling
 	// We always want to consider objects marked as dirty and their subobjects
 	FNetBitArray ObjectsConsideredForPolling(LocalNetRefHandleManager.GetMaxActiveObjectCount());
+	FNetBitArrayView FrequencyBasedObjectsToPollView = MakeNetBitArrayView(ObjectsConsideredForPolling);
 	if (bUseFrequencyBasedPolling)
 	{
-		FNetBitArrayView FrequencyBasedObjectsToPollView = MakeNetBitArrayView(ObjectsConsideredForPolling);
-		PollFrequencyLimiter->Update(MakeNetBitArrayView(ScopableObjects), DirtyObjects, FrequencyBasedObjectsToPollView);
+		PollFrequencyLimiter->Update(RelevantObjects, DirtyObjects, FrequencyBasedObjectsToPollView);
 	}
 	else
 	{
-		ObjectsConsideredForPolling.Copy(ScopableObjects);
+		FrequencyBasedObjectsToPollView.Copy(RelevantObjects);
 	}
 
 	// Mask off objects pending dormancy as we do not want to poll/pre-update them unless they are marked for flush or are dirty
@@ -882,8 +882,8 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 	{
 		IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Dormancy);
 
-		// Mask off objects pending dormancy, masked off dirty objects are restored later
-		ObjectsConsideredForPolling.Combine(WantToBeDormantObjects, FNetBitArrayView::AndNotOp);
+		// Mask off objects pending dormancy that are not dirty
+		FrequencyBasedObjectsToPollView.CombineMultiple(FNetBitArrayView::AndNotOp, MakeNetBitArrayView(WantToBeDormantObjects), FNetBitArrayView::AndOp, DirtyObjects);
 
 		// Add objects that have requested to flush dormancy
 		for (FNetRefHandle HandlePendingFlush : MakeArrayView(DormantHandlesPendingFlush))
@@ -924,10 +924,6 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		auto PropagateOwnerDirtinessToSubObjectsAndDependentObjects = [&LocalNetRefHandleManager, &ObjectsConsideredForPolling](uint32 InternalObjectIndex)
 		{
 			const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
-
-			// Mark owner as well as we might have masked it out in the dormancy pass
-			ObjectsConsideredForPolling.SetBit(InternalObjectIndex);
-
 			for (const FInternalNetRefIndex SubObjectInternalIndex : LocalNetRefHandleManager.GetSubObjects(InternalObjectIndex))
 			{
 				ObjectsConsideredForPolling.SetBit(SubObjectInternalIndex);

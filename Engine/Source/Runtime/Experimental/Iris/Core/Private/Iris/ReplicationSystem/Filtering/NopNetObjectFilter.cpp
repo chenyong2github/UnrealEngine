@@ -2,7 +2,7 @@
 
 #include "Iris/ReplicationSystem/Filtering/NopNetObjectFilter.h"
 
-void UNopNetObjectFilter::Init(FNetObjectFilterInitParams& Params)
+void UNopNetObjectFilter::OnInit(FNetObjectFilterInitParams& Params)
 {
 }
 

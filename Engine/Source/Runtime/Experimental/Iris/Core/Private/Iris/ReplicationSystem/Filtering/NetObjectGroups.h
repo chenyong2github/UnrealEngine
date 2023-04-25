@@ -7,6 +7,7 @@
 #include "Containers/Map.h"
 #include "Containers/SparseArray.h"
 #include "UObject/NameTypes.h"
+#include "Net/Core/NetBitArray.h"
 
 namespace UE::Net
 {
@@ -78,6 +79,12 @@ public:
 	// Destroy Named group
 	void DestroyNamedGroup(FName GroupName);
 
+	/** Returns a list of all objects currently part of a group filter */
+	const FNetBitArrayView GetGroupFilteredObjects() const
+	{
+		return MakeNetBitArrayView(GroupFilteredObjects);
+	}
+
 private:
 	struct FNetObjectGroupMembership
 	{
@@ -96,6 +103,11 @@ private:
 	// Track what groups each internal handle is a member of, we can tighten this up a bit if needed
 	TArray<FNetObjectGroupMembership> GroupMemberships;
 	uint32 MaxGroupCount;
+
+	// List of objects that are filtered by group memberships
+	//$IRIS TODO: This currently assumes all groups are registered to filter. 
+	//Fix this so it only objects in a group that called RepFiltering::AddGroupFilter are set.
+	FNetBitArray GroupFilteredObjects;
 
 	TMap<FName, FNetObjectGroupHandle> NamedGroups;
 };

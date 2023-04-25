@@ -14,6 +14,16 @@ UNetObjectFilter::UNetObjectFilter()
 {
 }
 
+void UNetObjectFilter::Init(FNetObjectFilterInitParams& Params)
+{
+	if (Params.Config)
+	{
+		FilterType = Params.Config->FilterType;
+	}
+
+	OnInit(Params);
+}
+
 void UNetObjectFilter::AddConnection(uint32 ConnectionId)
 {
 }

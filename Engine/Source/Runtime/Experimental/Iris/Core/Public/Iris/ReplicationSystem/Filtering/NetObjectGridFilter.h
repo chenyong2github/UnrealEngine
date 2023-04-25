@@ -56,7 +56,7 @@ class UNetObjectGridFilter : public UNetObjectFilter
 
 protected:
 	// UNetObjectFilter interface
-	IRISCORE_API virtual void Init(FNetObjectFilterInitParams&) override;
+	IRISCORE_API virtual void OnInit(FNetObjectFilterInitParams&) override;
 	IRISCORE_API virtual void AddConnection(uint32 ConnectionId) override;
 	IRISCORE_API virtual void RemoveConnection(uint32 ConnectionId) override;
 	IRISCORE_API virtual bool AddObject(uint32 ObjectIndex, FNetObjectFilterAddObjectParams&) override;
@@ -199,7 +199,7 @@ class UNetObjectGridWorldLocFilter : public UNetObjectGridFilter
 
 protected:
 
-	virtual void Init(FNetObjectFilterInitParams&) override;
+	virtual void OnInit(FNetObjectFilterInitParams&) override;
 	virtual void UpdateObjectInfo(FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol) override;
 	virtual bool BuildObjectInfo(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params) override;
 
@@ -220,7 +220,7 @@ class UNetObjectGridFragmentLocFilter : public UNetObjectGridFilter
 
 protected:
 
-	virtual void Init(FNetObjectFilterInitParams&) override;
+	virtual void OnInit(FNetObjectFilterInitParams&) override;
 	virtual void UpdateObjectInfo(FPerObjectInfo& PerObjectInfo, const UNetObjectGridFilter::FObjectLocationInfo& ObjectLocationInfo, const UE::Net::FReplicationInstanceProtocol* InstanceProtocol) override;
 	virtual bool BuildObjectInfo(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params) override;
 	virtual void OnObjectRemoved(uint32 ObjectIndex) override;

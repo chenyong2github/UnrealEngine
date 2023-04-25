@@ -49,7 +49,7 @@ enum class ENetFilterStatus : uint32
 	Allow,
 };
 
-}
+} // end namespace UE::Net
 
 /**
  * Parameters passed to UNetObjectFilter::Filter.
@@ -70,10 +70,13 @@ struct FNetObjectFilteringParams
 	UE::Net::FNetBitArrayView OutAllowedObjects;
 
 	/** FilteringInfos for all objects. Index using the set bit indices in FilteredObjects. */
-	const FNetObjectFilteringInfo* FilteringInfos;
+	const FNetObjectFilteringInfo* FilteringInfos = nullptr;
 
-	/** State buffers for all objects. Index using the set bit indices in FilteredObjects. */
-	uint8 *const* StateBuffers;
+	/** 
+	* State buffers for all objects. Index using the set bit indices in FilteredObjects. 
+	*/
+	
+	uint8 *const* StateBuffers = nullptr;
 
 	/** ID of the connection that the filtering applies to. */
 	uint32 ConnectionId;
@@ -105,14 +108,39 @@ struct alignas(8) FNetObjectFilteringInfo
 	uint16 Data[4];
 };
 
+/** This configures when a filter gets executed inside PreSendUpdate and what data it has access to. */
+UENUM()
+enum class ENetFilterType : uint8
+{
+	/**
+	 * The default setting of filters.
+	 * This type of filter is applied before we poll objects and copy their data into network fragments.
+	 * Thus a filter cannot operate on fragment data during it's operation, only whatever it stored or is accessing directly from the object.
+	 * The benefit is that objects not relevant to any connection will get culled from being polled and forced to copy their dirty state for nothing.
+	 */
+	PrePoll_Raw,
+
+	/**
+	 * When set to FragmentBased, the filter gets access to the up to date fragment data of an object when it executes.
+	 * Those objects will always be polled and have their dirty state copied even if not relevant.
+	 */
+	PostPoll_FragmentBased,
+};
+
 /**
  * Base class for filter specific configuration.
  * @see FNetObjectFilterDefinition
  */
-UCLASS(Transient, MinimalAPI)
+UCLASS(Transient, MinimalAPI, config=Engine)
 class UNetObjectFilterConfig : public UObject
 {
 	GENERATED_BODY()
+
+public:
+
+	/** Can be used to modify when the filter is executed */
+	UPROPERTY(Config)
+	ENetFilterType FilterType = ENetFilterType::PrePoll_Raw;
 };
 
 /** Parameters passed to the filter's Init() call. */
@@ -150,18 +178,24 @@ struct FNetObjectFilterAddObjectParams
 struct FNetObjectFilterUpdateParams
 {
 	/** Indices of the updated objects. */
-	const uint32* ObjectIndices;
+	const uint32* ObjectIndices = nullptr;
 	/** The number of objects that have been updated. */
-	uint32 ObjectCount;
-
-	/** InstanceProtocols for updated objects. Index using 0..ObjectCount-1. */
-	UE::Net::FReplicationInstanceProtocol const*const* InstanceProtocols;
-
-	/** State buffers for all objects. Index using ObjectIndices[0..ObjectCount-1]. */
-	uint8 *const* StateBuffers;
+	uint32 ObjectCount = 0;
 
 	/** Infos for all objects. Index using ObjectIndices[0..ObjectCount-1]. */
-	FNetObjectFilteringInfo* FilteringInfos;
+	FNetObjectFilteringInfo* FilteringInfos = nullptr;
+
+	/** 
+	* InstanceProtocols for updated objects. Index using 0..ObjectCount-1.
+	* NOTE: Only for filters of type FragmentBased; null for Raw types
+	*/
+	UE::Net::FReplicationInstanceProtocol const* const* InstanceProtocols = nullptr;
+
+	/** 
+	* State buffers for all objects. Index using ObjectIndices[0..ObjectCount-1]. 
+	* NOTE: Only for filters of type FragmentBased; null for Raw types
+	*/
+	uint8* const* StateBuffers = nullptr;
 };
 
 UCLASS(Abstract)
@@ -170,8 +204,7 @@ class UNetObjectFilter : public UObject
 	GENERATED_BODY()
 
 public:
-	/** Called right after constructor for enabled filters. Must be overriden. */ 
-	IRISCORE_API virtual void Init(FNetObjectFilterInitParams&) PURE_VIRTUAL(Init,);
+	IRISCORE_API void Init(FNetObjectFilterInitParams& Params);
 
 	/** A new connection has been added. An opportunity for the filter to allocate per connection info. */
 	IRISCORE_API virtual void AddConnection(uint32 ConnectionId);
@@ -202,6 +235,19 @@ public:
 	 */
 	IRISCORE_API virtual void PostFilter(FNetObjectPostFilteringParams&);
 
+	/** Returns what type of filter it is. Default is to cull and be executed before dirty state copying. */
+	ENetFilterType GetFilterType() const { return FilterType; }
+
 protected:
 	IRISCORE_API UNetObjectFilter();
+
+	/** Called right after constructor for enabled filters. Must be overriden. */
+	IRISCORE_API virtual void OnInit(FNetObjectFilterInitParams&) PURE_VIRTUAL(OnInit, );
+
+	/** Directly set when you want your dynamic filter to be executed. */
+	void SetupFilterType(ENetFilterType NewFilterType) { FilterType = NewFilterType; }
+
+private:
+
+	ENetFilterType FilterType = ENetFilterType::PrePoll_Raw;
 };

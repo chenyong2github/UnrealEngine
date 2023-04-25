@@ -45,14 +45,32 @@ public:
 	void Init(FReplicationFilteringInitParams& Params);
 
 	/**
-	 * Determine which objects are allowed to be replicated to which connections.
-	 * This is done for all connections every tick.
+	 * First pass to determine which objects are relevant to each connection.
+	 * Executes group, owner and connection filtering then any raw dynamic filters.
+	 * At the end any object that is not relevant to at least one connection will be removed from the scoped object list.
+	 * Exception to this rule are always relevant (e.g. non-filtered) objects or objects set to be filtered by a fragment-based dynamic filter.
 	 */
-	void Filter(const FNetBitArrayView& DirtyObjects);
+	void FilterPrePoll();
 
-	FNetBitArrayView GetObjectsInScope(uint32 ConnectionId) const;
+	/**
+	 * Second pass to determine which objects are relevant to each connection.
+	 * Executes only fragment-based dynamic filters.
+	 */
+	void FilterPostPoll();
 
-	FNetBitArrayView GetGroupFilteredOutObjects(uint32 ConnectionId) const;
+	/** 
+	* Returns the list of objects relevant to a given connection.
+	* This represents the global scope list minus the objects that were filtered out for the given connection.
+	*/
+	const FNetBitArrayView GetRelevantObjectsInScope(uint32 ConnectionId) const
+	{
+		return MakeNetBitArrayView(ConnectionInfos[ConnectionId].ObjectsInScope);
+	}
+
+	const FNetBitArrayView GetGroupFilteredOutObjects(uint32 ConnectionId) const
+	{
+		return MakeNetBitArrayView(ConnectionInfos[ConnectionId].GroupFilteredOutObjects);
+	}
 
 	// Who owns what?
 	void SetOwningConnection(FInternalNetRefIndex ObjectIndex, uint32 ConnectionId);
@@ -114,6 +132,9 @@ private:
 
 		// Which objects are filtered out by dynamic filters.
 		FNetBitArray DynamicFilteredOutObjects;
+
+		// List of objects currently filtered out by a either dynamic filter passes
+		FNetBitArray InProgressDynamicFilteredOutObjects;
 	};
 
 	struct FPerObjectInfo
@@ -132,6 +153,7 @@ private:
 
 	struct FFilterInfo
 	{
+		ENetFilterType Type = ENetFilterType::PrePoll_Raw;
 		TStrongObjectPtr<UNetObjectFilter> Filter;
 		FName Name;
 		uint32 ObjectCount = 0;
@@ -151,12 +173,19 @@ private:
 	void UpdateObjectsInScope();
 	void UpdateOwnerAndConnectionFiltering();
 	void UpdateGroupFiltering();
-	void PreUpdateDynamicFiltering();
-	void UpdateDynamicFiltering();
-	void PostUpdateDynamicFiltering();
 	void UpdateSubObjectFilters();
 
+	void UpdateDynamicFilters(ENetFilterType FilterPass, const FNetBitArrayView& DirtyObjects);
+	void PreUpdateDynamicFiltering(ENetFilterType FilterType);
+	void UpdateDynamicFiltering(ENetFilterType FilterType);
+	void PostUpdateDynamicFiltering(ENetFilterType FilterType);
+
+	/** Build the list of always relevant objects + objects that are currently relevant to at least one connection. */
+	void FilterNonRelevantObjects(const FNetBitArrayView& DirtyObjects);
+
 	bool HasDynamicFilters() const;
+	bool HasRawFilters() const;
+	bool HasFragmentFilters() const;
 
 	// Helper to update and reset group filter effects if objects are removed from a filter or after a filter status change, returns true if the group filter was changed
 	bool UpdateGroupFilterEffectsForObject(uint32 ObjectIndex, uint32 ConnectionId, const FNetBitArray& ScopableObjects);
@@ -183,7 +212,7 @@ private:
 
 	void RemoveFromDynamicFilter(uint32 ObjectIndex, uint32 FilterIndex);
 
-	void NotifyFiltersOfDirtyObjects(const FNetBitArrayView& DirtyObjects);
+	void NotifyFiltersOfDirtyObjects(ENetFilterType FilterType, const FNetBitArrayView& DirtyObjects);
 	void BatchNotifyFiltersOfDirtyObjects(FUpdateDirtyObjectsBatchHelper& BatchHelper, const uint32* ObjectIndices, uint32 ObjectCount);
 
 	void InvalidateBaselinesForObject(uint32 ObjectIndex, uint32 NewOwningConnectionId, uint32 PrevOwningConnectionId);
@@ -230,10 +259,13 @@ private:
 	// Groups
 	TArray<FPerGroupInfo> GroupInfos;
 	uint32 MaxGroupCount = 0;
+
+	//$IRIS TODO: These need better documentation
 	FNetBitArray FilterGroups;
 	FNetBitArray DirtyFilterGroups;
 	FNetBitArray SubObjectFilterGroups;
 	FNetBitArray DirtySubObjectFilterGroups;
+	FNetBitArray AllConnectionFilteredObjects;
 
 	TArray<PerObjectInfoIndexType> ObjectIndexToPerObjectInfoIndex;
 	uint32 PerObjectInfoStorageCountForConnections = 0;
@@ -244,6 +276,7 @@ private:
 	TArray<FNetObjectFilteringInfo> NetObjectFilteringInfos;
 	TArray<uint8> ObjectIndexToDynamicFilterIndex;
 	TArray<FFilterInfo> DynamicFilterInfos;
+
 	FNetBitArray DynamicFilterEnabledObjects;
 	FNetBitArray ObjectsRequiringDynamicFilterUpdate;
 
@@ -251,11 +284,23 @@ private:
 	uint32 bHasRemovedConnection : 1;
 	uint32 bHasDirtyConnectionFilter: 1;
 	uint32 bHasDirtyOwner : 1;
+	uint32 bHasDynamicFilters : 1;
+	uint32 bHasDynamicRawFilters : 1;
+	uint32 bHasDynamicFragmentFilters : 1;
 };
 
 inline bool FReplicationFiltering::HasDynamicFilters() const
 {
-	return DynamicFilterInfos.Num() > 0;
+	return bHasDynamicFilters;
+}
+
+inline bool FReplicationFiltering::HasRawFilters() const
+{
+	return bHasDynamicRawFilters;
+}
+inline bool FReplicationFiltering::HasFragmentFilters() const
+{
+	return bHasDynamicFragmentFilters;
 }
 
 }

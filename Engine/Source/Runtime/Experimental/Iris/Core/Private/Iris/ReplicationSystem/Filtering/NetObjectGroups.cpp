@@ -76,6 +76,7 @@ void FNetObjectGroups::Init(const FNetObjectGroupInitParams& Params)
 	Groups.Add(FNetObjectGroup());
 
 	GroupMemberships.SetNumZeroed(Params.MaxObjectCount);
+	GroupFilteredObjects.Init(Params.MaxObjectCount);
 }
 
 FNetObjectGroupHandle FNetObjectGroups::CreateGroup()
@@ -201,6 +202,7 @@ void FNetObjectGroups::AddToGroup(FNetObjectGroupHandle GroupHandle, FInternalNe
 		if (AddGroupMembership(GroupMemberships[InternalIndex], GroupHandle))
 		{
 			Group->Members.AddUnique(InternalIndex);
+			GroupFilteredObjects.SetBit(InternalIndex);
 		}
 		else
 		{
@@ -214,10 +216,22 @@ void FNetObjectGroups::RemoveFromGroup(FNetObjectGroupHandle GroupHandle, FInter
 	FNetObjectGroup* Group = GetGroup(GroupHandle);
 	if (InternalIndex != FNetRefHandleManager::InvalidInternalIndex && Group)
 	{
-		checkSlow(IsMemberOf(GroupMemberships[InternalIndex], GroupHandle));
+		FNetObjectGroupMembership& GroupMembership = GroupMemberships[InternalIndex];
+		checkSlow(IsMemberOf(GroupMembership, GroupHandle));
 
-		RemoveGroupMembership(GroupMemberships[InternalIndex], GroupHandle);
+		RemoveGroupMembership(GroupMembership, GroupHandle);
 		Group->Members.RemoveSingle(InternalIndex);
+
+		bool bIsGroupFiltered = false;
+		for (FNetObjectGroupHandle AssignedGroup : GroupMembership.Groups)
+		{
+			bIsGroupFiltered |= (AssignedGroup != InvalidNetObjectGroupHandle);
+		}
+
+		if (!bIsGroupFiltered)
+		{
+			GroupFilteredObjects.ClearBit(InternalIndex);
+		}
 	}
 }
 
