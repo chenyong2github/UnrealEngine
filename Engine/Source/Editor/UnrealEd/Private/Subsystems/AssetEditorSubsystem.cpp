@@ -125,7 +125,7 @@ void UAssetEditorSubsystem::InitializeRecentAssets()
 	if(RecentAssetsList->GetNumItems() != RecentAssetEditors.Num())
 	{
 		bFoundRecentAssetEditorsCleanly = false;
-		UE_LOG(LogAssetEditorSubsystem, Error, TEXT("Something went wrong while loading recent assets! Num Recent Assets  = %d, Num Recent Asset Editors = %d"), RecentAssetsList->GetNumItems(), RecentAssetEditors.Num());
+		UE_LOG(LogAssetEditorSubsystem, Warning, TEXT("Something went wrong while loading recent assets! Num Recent Assets  = %d, Num Recent Asset Editors = %d"), RecentAssetsList->GetNumItems(), RecentAssetEditors.Num());
 	}
 
 	// If we have corrupt data, simply ignore the asset editor list instead of potentially showing an asset in the wrong asset editor's recents
