@@ -26,14 +26,7 @@ class UAnimBoneCompressionCodec_ACL : public UAnimBoneCompressionCodec_ACLBase
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "ACL Options", Instanced, meta = (EditInline))
-	TObjectPtr<UAnimBoneCompressionCodec> SafetyFallbackCodec;
-
 #if WITH_EDITORONLY_DATA
-	/** The error threshold after which we fallback on a safer encoding. */
-	UPROPERTY(EditAnywhere, Category = "ACL Options", meta = (ClampMin = "0"))
-	float SafetyFallbackThreshold;
-
 	/** The skeletal meshes used to estimate the skinning deformation during compression. */
 	UPROPERTY(EditAnywhere, Category = "ACL Options")
 	TArray<TObjectPtr<class USkeletalMesh>> OptimizationTargets;
@@ -56,12 +49,7 @@ class UAnimBoneCompressionCodec_ACL : public UAnimBoneCompressionCodec_ACLBase
 // @third party code - Epic Games End
 
 	//////////////////////////////////////////////////////////////////////////
-	// UObject implementation
-	virtual void PostInitProperties() override;
-	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
-
 	// UAnimBoneCompressionCodec implementation
-	virtual bool IsCodecValid() const override;
 // @third party code - Epic Games Begin
 	virtual void PopulateDDCKey(const UE::Anim::Compression::FAnimDDCKeyArgs& KeyArgs, FArchive& Ar) override;
 // @third party code - Epic Games End
@@ -71,11 +59,9 @@ class UAnimBoneCompressionCodec_ACL : public UAnimBoneCompressionCodec_ACLBase
 	virtual void GetCompressionSettings(acl::compression_settings& OutSettings, const ITargetPlatform* TargetPlatform) const override;
 // @third party code - Epic Games End
 	virtual TArray<class USkeletalMesh*> GetOptimizationTargets() const override { return OptimizationTargets; }
-	virtual ACLSafetyFallbackResult ExecuteSafetyFallback(acl::iallocator& Allocator, const acl::compression_settings& Settings, const acl::track_array_qvvf& RawClip, const acl::track_array_qvvf& BaseClip, const acl::compressed_tracks& CompressedClipData, const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult);
 #endif
 
 	// UAnimBoneCompressionCodec implementation
-	virtual UAnimBoneCompressionCodec* GetCodec(const FString& DDCHandle);
 	virtual void DecompressPose(FAnimSequenceDecompressionContext& DecompContext, const BoneTrackArray& RotationPairs, const BoneTrackArray& TranslationPairs, const BoneTrackArray& ScalePairs, TArrayView<FTransform>& OutAtoms) const override;
 	virtual void DecompressBone(FAnimSequenceDecompressionContext& DecompContext, int32 TrackIndex, FTransform& OutAtom) const override;
 };
