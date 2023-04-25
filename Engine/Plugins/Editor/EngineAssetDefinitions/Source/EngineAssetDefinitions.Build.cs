@@ -41,7 +41,8 @@ public class EngineAssetDefinitions : ModuleRules
                 "SourceControl",
 				"Blutility",
 				"UMGEditor",
-				"ToolWidgets"
+				"ToolWidgets",
+				"BlueprintGraph"
 			}
 		);
 		
