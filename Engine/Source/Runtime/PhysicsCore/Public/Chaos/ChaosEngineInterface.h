@@ -260,9 +260,6 @@ public:
 		: Shape(nullptr), ActorRef() { }
 	FPhysicsShapeReference_Chaos(Chaos::FPerShapeData* ShapeIn, const FPhysicsActorHandle& ActorRefIn)
 		: Shape(ShapeIn), ActorRef(ActorRefIn) { }
-	FPhysicsShapeReference_Chaos(const FPhysicsShapeReference_Chaos& Other)
-		: Shape(Other.Shape)
-		, ActorRef(Other.ActorRef){}
 
 	bool IsValid() const { return (Shape != nullptr); }
 	bool Equals(const FPhysicsShapeReference_Chaos& Other) const { return Shape == Other.Shape; }
