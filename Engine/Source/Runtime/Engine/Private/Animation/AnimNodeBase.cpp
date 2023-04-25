@@ -76,14 +76,6 @@ FAnimationBaseContext::FAnimationBaseContext(FAnimInstanceProxy* InAnimInstanceP
 {
 }
 
-FAnimationBaseContext::FAnimationBaseContext(const FAnimationBaseContext& InContext)
-	: AnimInstanceProxy(InContext.AnimInstanceProxy)
-	, SharedContext(InContext.SharedContext)
-	, CurrentNodeId(InContext.CurrentNodeId)
-	, PreviousNodeId(InContext.PreviousNodeId)
-{
-}
-
 IAnimClassInterface* FAnimationBaseContext::GetAnimClass() const
 {
 	return AnimInstanceProxy ? AnimInstanceProxy->GetAnimClassInterface() : nullptr;
