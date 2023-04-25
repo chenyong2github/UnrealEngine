@@ -224,8 +224,10 @@ static UMaterialInterface* BakeLandscapeMaterial(const FHLODBuildContext& InHLOD
 		// Use clamp texture addressing to avoid artifacts between tiles
 		if (UTexture2D* Texture = Cast<UTexture2D>(Asset))
 		{
+			Texture->PreEditChange(nullptr);
 			Texture->AddressX = TA_Clamp;
 			Texture->AddressY = TA_Clamp;
+			Texture->PostEditChange();
 		}
 	});
 
