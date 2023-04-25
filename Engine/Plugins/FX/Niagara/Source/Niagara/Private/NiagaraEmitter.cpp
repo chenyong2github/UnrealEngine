@@ -2508,6 +2508,14 @@ FGuid UNiagaraEmitter::AddNewVersion(int32 MajorVersion, int32 MinorVersion)
 	check(MajorVersion != 1 || MinorVersion != 0);
 	Modify();
 
+	FNiagaraSystemUpdateContext UpdateContext;
+	UpdateContext.SetDestroyOnAdd(true);
+	UpdateContext.SetDestroySystemSim(true);
+	if (UNiagaraSystem* Owner = GetTypedOuter<UNiagaraSystem>())
+	{
+		UpdateContext.Add(Owner, true);
+	}
+
 	FVersionedNiagaraEmitterData NewVersionData;
 	FNiagaraAssetVersion NewVersion = { MajorVersion, MinorVersion, FGuid::NewGuid() };
 	

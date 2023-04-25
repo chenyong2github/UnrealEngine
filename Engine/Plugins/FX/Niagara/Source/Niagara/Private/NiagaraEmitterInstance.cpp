@@ -476,15 +476,14 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		if (bAnyRendererBindingsAdded)
 		{
 			if (ParentSystemInstance)
+			{
 				ParentSystemInstance->GetInstanceParameters().Bind(&RendererBindings);
+			}
 
 			if (GPUExecContext && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 			{
 				GPUExecContext->CombinedParamStore.Bind(&RendererBindings);
 			}
-
-			// Handle populating static variable values into the list
-			CachedEmitter.GetEmitterData()->RendererBindings.Bind(&RendererBindings);
 		}
 	}	
 
@@ -703,6 +702,8 @@ void FNiagaraEmitterInstance::UnbindParameters(bool bExternalOnly)
 				}
 			}
 		}
+
+		CachedEmitter.GetEmitterData()->RendererBindings.Unbind(&RendererBindings);
 	}
 	else
 	{
@@ -843,6 +844,8 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 			}
 			ParentSystemInstance->GetInstanceParameters().Bind(&RendererBindings);
 		}
+
+		CachedEmitter.GetEmitterData()->RendererBindings.Bind(&RendererBindings);
 
 		//SystemScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
 		//ScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
