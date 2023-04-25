@@ -87,23 +87,26 @@ bool FNiagaraScriptExecutionContextBase::Init(FNiagaraSystemInstance* Instance, 
 	VectorVMState = AllocVectorVMState(&OptimizeContext);
 #endif
 
-	ENiagaraScriptUsage Usage = Script->GetUsage();
-	for(auto& ResolvedDIInfo : Script->GetResolvedDataInterfaces())
+	if(Script)
 	{
-		if(ResolvedDIInfo.ResolvedDataInterface)
+		ENiagaraScriptUsage Usage = Script->GetUsage();
+		for(auto& ResolvedDIInfo : Script->GetResolvedDataInterfaces())
 		{
-			bHasDIsWithPreStageTick |= (ResolvedDIInfo.ResolvedDataInterface->HasPreStageTick(Usage));
-			bHasDIsWithPostStageTick |= (ResolvedDIInfo.ResolvedDataInterface->HasPostStageTick(Usage));
+			if(ResolvedDIInfo.ResolvedDataInterface)
+			{
+				bHasDIsWithPreStageTick |= (ResolvedDIInfo.ResolvedDataInterface->HasPreStageTick(Usage));
+				bHasDIsWithPostStageTick |= (ResolvedDIInfo.ResolvedDataInterface->HasPostStageTick(Usage));
+			}
+			if(bHasDIsWithPreStageTick && bHasDIsWithPostStageTick)
+			{
+				break;
+			}
 		}
-		if(bHasDIsWithPreStageTick && bHasDIsWithPostStageTick)
-		{
-			break;
-		}
-	}
 
-	if(Instance && (bHasDIsWithPreStageTick || bHasDIsWithPostStageTick))
-	{
-		DIStageTickHandler.Init(Script, Instance);
+		if(Instance && (bHasDIsWithPreStageTick || bHasDIsWithPostStageTick))
+		{
+			DIStageTickHandler.Init(Script, Instance);
+		}
 	}
 
 	return true;
