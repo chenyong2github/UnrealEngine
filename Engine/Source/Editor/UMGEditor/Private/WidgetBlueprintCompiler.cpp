@@ -772,6 +772,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 			FObjectDuplicationParameters DupParams(WidgetBP->WidgetTree, BPGClass);
 			DupParams.DestName = DupParams.SourceObject->GetFName();
 			DupParams.FlagMask = RF_AllFlags & ~RF_DefaultSubObject;
+			DupParams.PortFlags |= PPF_DuplicateVerbatim; // Skip resetting text IDs
 
 			// if we are recompiling the BP on load, skip post load and defer it to the loading process
 			FUObjectSerializeContext* LinkerLoadingContext = nullptr;
