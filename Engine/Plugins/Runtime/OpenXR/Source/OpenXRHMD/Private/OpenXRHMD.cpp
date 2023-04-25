@@ -90,6 +90,12 @@ static TAutoConsoleVariable<int32> CVarOpenXRPreferredViewConfiguration(
 	TEXT("1 = Mono, 2 = Stereo\n"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<bool> CVarOpenXRInvertAlpha(
+	TEXT("xr.OpenXRInvertAlpha"),
+	false,
+	TEXT("Enables alpha inversion of the backgroud layer if the XR_FB_composition_layer_alpha_blend extension is supported.\n"),
+	ECVF_Default);
+
 namespace {
 	static TSet<XrViewConfigurationType> SupportedViewConfigurations{ XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
 
@@ -2191,6 +2197,7 @@ bool FOpenXRHMD::StopSession()
 void FOpenXRHMD::OnBeginPlay(FWorldContext& InWorldContext)
 {
 	bOpenXRForceStereoLayersEmulationCVarCachedValue = CVarOpenXRForceStereoLayerEmulation.GetValueOnGameThread();
+	bOpenXRInvertAlphaCvarCachedValue = CVarOpenXRInvertAlpha.GetValueOnGameThread();
 }
 
 void FOpenXRHMD::OnEndPlay(FWorldContext& InWorldContext)
@@ -3313,6 +3320,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	{
 		TArray<const XrCompositionLayerBaseHeader*> Headers;
 		XrCompositionLayerProjection Layer = {};
+		XrCompositionLayerAlphaBlendFB LayerAlphaBlend = { XR_TYPE_COMPOSITION_LAYER_ALPHA_BLEND_FB };
 		if (EnumHasAnyFlags(PipelinedLayerStateRHI.LayerStateFlags, EOpenXRLayerStateFlags::SubmitBackgroundLayer))
 		{
 			Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
@@ -3322,6 +3330,18 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 			Layer.viewCount = PipelinedLayerStateRHI.ProjectionLayers.Num();
 			Layer.views = PipelinedLayerStateRHI.ProjectionLayers.GetData();
 			Headers.Add(reinterpret_cast<const XrCompositionLayerBaseHeader*>(&Layer));
+
+			if(IsExtensionEnabled(XR_FB_COMPOSITION_LAYER_ALPHA_BLEND_EXTENSION_NAME) &&
+				bOpenXRInvertAlphaCvarCachedValue)
+			{
+				LayerAlphaBlend.next = const_cast<void*>(Layer.next);
+				LayerAlphaBlend.srcFactorColor = PipelinedLayerStateRHI.BasePassLayerBlendParams.srcFactorColor;
+				LayerAlphaBlend.dstFactorColor = PipelinedLayerStateRHI.BasePassLayerBlendParams.dstFactorColor;
+				LayerAlphaBlend.srcFactorAlpha = PipelinedLayerStateRHI.BasePassLayerBlendParams.srcFactorAlpha;
+				LayerAlphaBlend.dstFactorAlpha = PipelinedLayerStateRHI.BasePassLayerBlendParams.dstFactorAlpha;
+
+				Layer.next = &LayerAlphaBlend;
+			}
 
 			for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 			{

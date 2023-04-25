@@ -106,6 +106,25 @@ public:
 		FXRSwapChainPtr EmulationSwapchain;
 	};
 
+	struct FBasePassLayerBlendParameters
+	{
+		// Default constructor inverts the alpha for color blending to make up for the fact that UE uses
+		// alpha = 0 for opaque and alpha = 1 for transparent while OpenXR does the opposite.
+		// Alpha blending passes through the destination alpha instead.
+		FBasePassLayerBlendParameters()
+		{
+			srcFactorColor = XR_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA_FB;
+			dstFactorColor = XR_BLEND_FACTOR_SRC_ALPHA_FB;
+			srcFactorAlpha = XR_BLEND_FACTOR_ZERO_FB;
+			dstFactorAlpha = XR_BLEND_FACTOR_ONE_FB;
+		}
+		
+		XrBlendFactorFB	srcFactorColor;
+		XrBlendFactorFB	dstFactorColor;
+		XrBlendFactorFB	srcFactorAlpha;
+		XrBlendFactorFB	dstFactorAlpha;
+	};
+
 	enum class EOpenXRLayerStateFlags : uint32
 	{
 		None = 0u,
@@ -132,6 +151,7 @@ public:
 		FEmulatedLayerState EmulatedLayerState;
 
 		EOpenXRLayerStateFlags LayerStateFlags = EOpenXRLayerStateFlags::None;
+		FBasePassLayerBlendParameters BasePassLayerBlendParams;
 	};
 
 	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions
@@ -481,6 +501,7 @@ private:
 	FVector					BasePosition;
 
 	bool					bLayerSupportOpenXRCompliant;
+	bool					bOpenXRInvertAlphaCvarCachedValue;
 	bool					bOpenXRForceStereoLayersEmulationCVarCachedValue;
 	TArray<IStereoLayers::FLayerDesc> BackgroundCompositedEmulatedLayers;
 	TArray<IStereoLayers::FLayerDesc> EmulatedFaceLockedLayers;
