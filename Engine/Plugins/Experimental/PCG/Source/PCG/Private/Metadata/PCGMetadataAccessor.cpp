@@ -385,6 +385,16 @@ void UPCGMetadataAccessorHelpers::SetStringAttribute(FPCGPoint& Point, UPCGMetad
 	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
 }
 
+FName UPCGMetadataAccessorHelpers::GetNameAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
+{
+	return GetAttribute<FName>(Point.MetadataEntry, Metadata, AttributeName);
+}
+
+void UPCGMetadataAccessorHelpers::SetNameAttribute(FPCGPoint& Point, UPCGMetadata* Metadata, FName AttributeName, const FName& Value)
+{
+	SetAttribute(Point.MetadataEntry, Metadata, AttributeName, Value);
+}
+
 bool UPCGMetadataAccessorHelpers::GetBoolAttribute(const FPCGPoint& Point, const UPCGMetadata* Metadata, FName AttributeName)
 {
 	return GetAttribute<bool>(Point.MetadataEntry, Metadata, AttributeName);
