@@ -5,6 +5,8 @@
 #include "FrameNumberDisplayFormat.h"
 #include "FrameNumberNumericInterface.h"
 #include "MovieScene.h"
+#include "LevelSequence.h"
+#include "MovieSceneMetaData.h"
 #include "SequencerSettings.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
 #include "Tracks/MovieSceneSubTrack.h"
@@ -447,6 +449,43 @@ bool FSubTrackEditorUtil::CanAddSubSequence(const UMovieSceneSequence* CurrentSe
 	}
 
 	return true;
+}
+
+UMovieSceneMetaData* FSubTrackEditorUtil::FindOrAddMetaData(UMovieSceneSequence* Sequence)
+{
+	if (!Sequence)
+	{
+		return nullptr;
+	}
+
+	ULevelSequence* LevelSequence = Cast<ULevelSequence>(Sequence);
+	return LevelSequence ? LevelSequence->FindOrAddMetaData<UMovieSceneMetaData>() : nullptr;
+}
+
+FText FSubTrackEditorUtil::GetMetaDataText(const UMovieSceneSequence* Sequence)
+{
+	const ULevelSequence* LevelSequence = Cast<const ULevelSequence>(Sequence);
+	if (!LevelSequence)
+	{
+		return FText::GetEmpty();
+	}
+
+	const UMovieSceneMetaData* MetaData = LevelSequence->FindMetaData<const UMovieSceneMetaData>();
+	if (!MetaData)
+	{
+		return FText::GetEmpty();
+	}
+
+	if (MetaData->IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
+
+	return FText::Format(LOCTEXT("ToolTipContentFormat", "Author: {0}\nCreated: {1}\nNotes: {2}"),
+		FText::FromString(MetaData->GetAuthor()),
+		FText::AsDateTime(MetaData->GetCreated()),
+		FText::FromString(MetaData->GetNotes())
+	);
 }
 
 #undef LOCTEXT_NAMESPACE

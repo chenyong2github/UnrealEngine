@@ -4,7 +4,7 @@
 
 
 #include "UObject/Object.h"
-#include "ILevelSequenceMetaData.h"
+#include "IMovieSceneMetaData.h"
 #include "Misc/FrameRate.h"
 #include "VirtualCameraClipsMetaData.generated.h"
 
@@ -15,7 +15,7 @@
  */
 
 UCLASS(BlueprintType)
-class UVirtualCameraClipsMetaData : public UObject, public ILevelSequenceMetaData
+class UVirtualCameraClipsMetaData : public UObject, public IMovieSceneMetaDataInterface
 {
 public: 
 	GENERATED_BODY()

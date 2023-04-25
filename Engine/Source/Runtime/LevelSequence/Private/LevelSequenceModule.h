@@ -7,6 +7,8 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLevelSequence, Log, All);
 
+class ULevelSequence;
+
 /**
  * Implements the LevelSequence module.
  */
@@ -33,4 +35,9 @@ public:
 
 	/** Internal delegate handle used for spawning actors */
 	FDelegateHandle OnCreateMovieSceneObjectSpawnerDelegateHandle;
+
+private:
+	// Weak ptr to the level sequence CDO so we can gracefully remove the meta-data on shutdown module
+	// without crashing when ShutdownModule is called after the CDO has been destroyed.
+	TWeakObjectPtr<ULevelSequence> LevelSequenceCDO;
 };

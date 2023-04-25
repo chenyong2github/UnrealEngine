@@ -7,6 +7,7 @@
 #include "LevelSequenceActor.h"
 #include "LevelSequenceActorSpawner.h"
 #include "LevelSequencePlayer.h"
+#include "MovieSceneMetaData.h"
 #include "UObject/UObjectBaseUtility.h"
 
 DEFINE_LOG_CATEGORY(LogLevelSequence);
@@ -14,10 +15,26 @@ DEFINE_LOG_CATEGORY(LogLevelSequence);
 void FLevelSequenceModule::StartupModule()
 {
 	OnCreateMovieSceneObjectSpawnerDelegateHandle = RegisterObjectSpawner(FOnCreateMovieSceneObjectSpawner::CreateStatic(&FLevelSequenceActorSpawner::CreateObjectSpawner));
+
+#if WITH_EDITOR
+	// Add empty movie scene meta data to the ULevelSequence CDO to ensure that
+	// asset registry tooltips show up in the editor
+	UMovieSceneMetaData* MetaData = GetMutableDefault<ULevelSequence>()->FindOrAddMetaData<UMovieSceneMetaData>();
+	MetaData->SetFlags(RF_Transient);
+
+	LevelSequenceCDO = GetMutableDefault<ULevelSequence>();
+#endif
 }
 
 void FLevelSequenceModule::ShutdownModule()
 {
+#if WITH_EDITOR
+	if (ULevelSequence* CDO = LevelSequenceCDO.Get())
+	{
+		CDO->RemoveMetaData<UMovieSceneMetaData>();
+	}
+#endif
+
 	UnregisterObjectSpawner(OnCreateMovieSceneObjectSpawnerDelegateHandle);
 }
 

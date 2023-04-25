@@ -63,6 +63,7 @@ public class MovieSceneTools : ModuleRules
 				"RHI",
 				"SequenceRecorder",
 				"TimeManagement",
+				"ToolWidgets",
                 "AnimationCore",
 				"TimeManagement",
                 "XmlParser",

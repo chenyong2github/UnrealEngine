@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequence.h"
-#include "ILevelSequenceMetaData.h"
+#include "IMovieSceneMetaData.h"
+#include "MovieSceneMetaData.h"
 #include "Engine/EngineTypes.h"
 #include "HAL/IConsoleManager.h"
 #include "Components/ActorComponent.h"
@@ -36,6 +37,8 @@
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Engine/AssetUserData.h"
+#include "Misc/App.h"
+#include "Misc/DateTime.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequence)
 
@@ -97,6 +100,12 @@ void ULevelSequence::Initialize()
 
 	int32 ClockSource = CVarDefaultClockSource.GetValueOnGameThread();
 	MovieScene->SetClockSource((EUpdateClockSource)ClockSource);
+
+#if WITH_EDITOR
+	UMovieSceneMetaData* MetaData = FindOrAddMetaData<UMovieSceneMetaData>();
+	MetaData->SetCreated(FDateTime::UtcNow());
+	MetaData->SetAuthor(FApp::GetSessionOwner());
+#endif
 }
 
 UObject* ULevelSequence::MakeSpawnableTemplateFromInstance(UObject& InSourceObject, FName ObjectName)
@@ -151,7 +160,7 @@ void ULevelSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 
 	for (UObject* MetaData : MetaDataObjects)
 	{
-		ILevelSequenceMetaData* MetaDataInterface = Cast<ILevelSequenceMetaData>(MetaData);
+		IMovieSceneMetaDataInterface* MetaDataInterface = Cast<IMovieSceneMetaDataInterface>(MetaData);
 		if (MetaDataInterface)
 		{
 			MetaDataInterface->ExtendAssetRegistryTags(OutTags);
@@ -165,7 +174,7 @@ void ULevelSequence::GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMe
 {
 	for (UObject* MetaData : MetaDataObjects)
 	{
-		ILevelSequenceMetaData* MetaDataInterface = Cast<ILevelSequenceMetaData>(MetaData);
+		IMovieSceneMetaDataInterface* MetaDataInterface = Cast<IMovieSceneMetaDataInterface>(MetaData);
 		if (MetaDataInterface)
 		{
 			MetaDataInterface->ExtendAssetRegistryTagMetaData(OutMetadata);

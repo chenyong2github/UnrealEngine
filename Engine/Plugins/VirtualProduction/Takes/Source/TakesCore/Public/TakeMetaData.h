@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UObject/Object.h"
-#include "ILevelSequenceMetaData.h"
+#include "IMovieSceneMetaData.h"
 #include "TakePreset.h"
 #include "Misc/DateTime.h"
 #include "Misc/QualifiedFrameTime.h"
@@ -16,7 +16,7 @@ class UTakePreset;
  * Meta-data is retrieved through ULevelSequence::FindMetaData<UTakeMetaData>()
  */
 UCLASS(config=EditorSettings, PerObjectConfig, BlueprintType)
-class TAKESCORE_API UTakeMetaData : public UObject, public ILevelSequenceMetaData
+class TAKESCORE_API UTakeMetaData : public UObject, public IMovieSceneMetaDataInterface
 {
 public:
 	GENERATED_BODY()

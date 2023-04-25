@@ -22,6 +22,8 @@
 #include "SequencerSectionPainter.h"
 #include "TrackEditors/SubTrackEditorBase.h"
 #include "DragAndDrop/AssetDragDropOp.h"
+#include "MovieSceneMetaData.h"
+#include "MovieSceneSequence.h"
 #include "MovieSceneToolHelpers.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "MovieSceneTimeHelpers.h"
@@ -29,6 +31,10 @@
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Algo/Accumulate.h"
 #include "AssetToolsModule.h"
+#include "Interfaces/IMainFrameModule.h"
+#include "IDetailsView.h"
+#include "IStructureDetailsView.h"
+#include "PropertyEditorModule.h"
 
 #include "CommonMovieSceneTools.h"
 
@@ -100,6 +106,13 @@ public:
 				FUIAction(FExecuteAction::CreateSP(SubTrackEditor.Pin().ToSharedRef(), &FSubTrackEditor::DuplicateSection, Section))
 			);
 		
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("EditMetaData", "Edit Meta Data"),
+				LOCTEXT("EditMetaDataTooltip", "Edit meta data"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(SubTrackEditor.Pin().ToSharedRef(), &FSubTrackEditor::EditMetaData, Section))
+			);
+
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("PlayableDirectly_Label", "Playable Directly"),
 				LOCTEXT("PlayableDirectly_Tip", "When enabled, this sequence will also support being played directly outside of the root sequence. Disable this to save some memory on complex hierarchies of sequences."),
@@ -645,15 +658,82 @@ void FSubTrackEditor::AddTakesMenu(UMovieSceneSubSection* Section, FMenuBuilder&
 			UMovieSceneSequence* Sequence = Cast<UMovieSceneSequence>(ThisAssetData.GetAsset());
 			if (Sequence)
 			{
+				FText MetaDataText = FSubTrackEditorUtil::GetMetaDataText(Sequence);
 				MenuBuilder.AddMenuEntry(
 					FText::Format(LOCTEXT("TakeNumber", "Take {0}"), FText::AsNumber(TakeNumber)),
-					FText::Format(LOCTEXT("TakeNumberTooltip", "Switch to {0}"), FText::FromString(Sequence->GetPathName())),
+					MetaDataText.IsEmpty() ? FText::Format(LOCTEXT("TakeNumberTooltip", "Change to {0}"), FText::FromString(Sequence->GetPathName())) : FText::Format(LOCTEXT("TakeNumberTooltip", "Change to {0}\n\n{1}"), FText::FromString(Sequence->GetPathName()), MetaDataText),
 					TakeNumber == CurrentTakeNumber ? FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Star") : FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Empty"),
 					FUIAction(FExecuteAction::CreateSP(this, &FSubTrackEditor::ChangeTake, Sequence))
 				);
 			}
 		}
 	}
+}
+
+TWeakPtr<SWindow> MetaDataWindow;
+
+void FSubTrackEditor::EditMetaData(UMovieSceneSubSection* Section)
+{
+	UMovieSceneSequence* Sequence = Section->GetSequence();
+	if (!Sequence)
+	{
+		return;
+	}
+
+	UMovieSceneMetaData* MetaData = FSubTrackEditorUtil::FindOrAddMetaData(Sequence);
+	if (!MetaData)
+	{
+		return;
+	}
+
+	TSharedPtr<SWindow> ExistingWindow = MetaDataWindow.Pin();
+	if (ExistingWindow.IsValid())
+	{
+		ExistingWindow->BringToFront();
+	}
+	else
+	{
+		ExistingWindow = SNew(SWindow)
+			.Title(FText::Format(LOCTEXT("MetaDataTitle", "Edit {0}"), FText::FromString(GetSubSectionDisplayName(Section))))
+			.HasCloseButton(true)
+			.SupportsMaximize(false)
+			.SupportsMinimize(false)
+			.ClientSize(FVector2D(400, 200));
+
+		TSharedPtr<SWindow> ParentWindow;
+		if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+		{
+			IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+			ParentWindow = MainFrame.GetParentWindow();
+		}
+
+		if (ParentWindow.IsValid())
+		{
+			FSlateApplication::Get().AddWindowAsNativeChild(ExistingWindow.ToSharedRef(), ParentWindow.ToSharedRef());
+		}
+		else
+		{
+			FSlateApplication::Get().AddWindow(ExistingWindow.ToSharedRef());
+		}
+	}
+
+	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.bAllowSearch = false;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	DetailsViewArgs.bHideSelectionTip = true;
+	DetailsViewArgs.bShowOptions = false;
+	DetailsViewArgs.bShowScrollBar = false;
+
+	TSharedRef<IDetailsView> DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
+	TArray<UObject*> Objects;
+	Objects.Add(MetaData);
+	DetailsView->SetObjects(Objects, true);
+
+	ExistingWindow->SetContent(DetailsView);
+
+	MetaDataWindow = ExistingWindow;
 }
 
 bool FSubTrackEditor::CanAddSubSequence(const UMovieSceneSequence& Sequence) const

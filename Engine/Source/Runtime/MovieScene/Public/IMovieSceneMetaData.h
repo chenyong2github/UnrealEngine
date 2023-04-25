@@ -3,19 +3,19 @@
 #pragma once
 
 #include "UObject/Interface.h"
-#include "ILevelSequenceMetaData.generated.h"
+#include "IMovieSceneMetaData.generated.h"
 
 UINTERFACE()
-class ULevelSequenceMetaData : public UInterface
+class MOVIESCENE_API UMovieSceneMetaDataInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
 /**
- * Interface that may be implemented by meta-data added to a ULevelSequence that can extend the default behavior
+ * Interface that may be implemented by meta-data added movie scene objects that can extend the default behavior
  * such as adding asset registry tags and other meta-data.
  */
-class ILevelSequenceMetaData
+class IMovieSceneMetaDataInterface
 {
 public:
 

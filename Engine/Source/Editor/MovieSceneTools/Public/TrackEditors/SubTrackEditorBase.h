@@ -10,7 +10,10 @@
 #include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ISequencer.h"
+#include "Misc/FrameRate.h"
 #include "Misc/QualifiedFrameTime.h"
+#include "MovieScene.h"
+#include "MovieSceneMetaData.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Rendering/DrawElements.h"
@@ -109,6 +112,10 @@ public:
 	 * @return true if the sequence can be added as a sub-sequence, false otherwise.
 	 */
 	static bool CanAddSubSequence(const UMovieSceneSequence* CurrentSequence, const UMovieSceneSequence& SubSequence);
+
+	static UMovieSceneMetaData* FindOrAddMetaData(UMovieSceneSequence* Sequence);
+
+	static FText GetMetaDataText(const UMovieSceneSequence* Sequence);
 };
 
 /**
@@ -129,6 +136,7 @@ public:
     // ISequencerSection interface
     virtual UMovieSceneSection* GetSectionObject() override;
     virtual FText GetSectionTitle() const override;
+	virtual FText GetSectionToolTip() const override;
 	virtual float GetSectionHeight() const override;
     virtual bool IsReadOnly() const override;
     virtual int32 OnPaintSection( FSequencerSectionPainter& InPainter ) const override;
@@ -193,6 +201,57 @@ FText TSubSectionMixin<ParentSectionClass>::GetSectionTitle() const
     {
         return LOCTEXT("NoSequenceSelected", "No Sequence Selected");
     }
+}
+
+template<typename ParentSectionClass>
+FText TSubSectionMixin<ParentSectionClass>::GetSectionToolTip() const
+{
+	const UMovieScene* MovieScene = SubSectionObject.GetTypedOuter<UMovieScene>();
+	const UMovieSceneSequence* InnerSequence = SubSectionObject.GetSequence();
+	const UMovieScene* InnerMovieScene = InnerSequence ? InnerSequence->GetMovieScene() : nullptr;
+
+	if (!MovieScene || !InnerMovieScene || !SubSectionObject.HasStartFrame() || !SubSectionObject.HasEndFrame())
+	{
+		return FText::GetEmpty();
+	}
+
+	FFrameRate InnerTickResolution = InnerMovieScene->GetTickResolution();
+
+	// Calculate the length of this section and convert it to the timescale of the sequence's internal sequence
+	FFrameTime SectionLength = ConvertFrameTime(SubSectionObject.GetExclusiveEndFrame() - SubSectionObject.GetInclusiveStartFrame(), MovieScene->GetTickResolution(), InnerTickResolution);
+
+	// Calculate the inner start time of the sequence in both full tick resolution and frame number
+	FFrameTime StartOffset = SubSectionObject.GetOffsetTime().Get(0);
+	FFrameTime InnerStartTime = InnerMovieScene->GetPlaybackRange().GetLowerBoundValue() + StartOffset;
+	int32 InnerStartFrame = ConvertFrameTime(InnerStartTime, InnerTickResolution, InnerMovieScene->GetDisplayRate()).RoundToFrame().Value;
+
+	// Calculate the length, which is limited by both the outer section length and internal sequence length, in terms of internal frames
+	int32 InnerFrameLength = ConvertFrameTime(FMath::Min(SectionLength, InnerMovieScene->GetPlaybackRange().GetUpperBoundValue() - InnerStartTime), InnerTickResolution, InnerMovieScene->GetDisplayRate()).RoundToFrame().Value;
+
+	// Calculate the inner frame number of the end frame
+	int32 InnerEndFrame = InnerStartFrame + InnerFrameLength;
+	
+	FText MetaDataText = FSubTrackEditorUtil::GetMetaDataText(InnerSequence);
+
+	if (MetaDataText.IsEmpty())
+	{
+		return FText::Format(LOCTEXT("ToolTipContentFormat", "{0} - {1} ({2} frames @ {3})"),
+			InnerStartFrame,
+			InnerEndFrame,
+			InnerFrameLength,
+			InnerMovieScene->GetDisplayRate().ToPrettyText()
+		);
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("ToolTipContentFormat", "{0} - {1} ({2} frames @ {3})\n\n{4}"),
+			InnerStartFrame,
+			InnerEndFrame,
+			InnerFrameLength,
+			InnerMovieScene->GetDisplayRate().ToPrettyText(),
+			MetaDataText
+		);
+	}
 }
 #undef LOCTEXT_NAMESPACE
 

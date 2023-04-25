@@ -77,6 +77,9 @@ public:
 	/** Generate a menu for takes for this section */
 	virtual void AddTakesMenu(UMovieSceneSubSection* Section, FMenuBuilder& MenuBuilder);
 
+	/** Edit the section's metadata */
+	virtual void EditMetaData(UMovieSceneSubSection* Section);
+
 	/**
 	 * Check whether the given sequence can be added as a sub-sequence.
 	 *
