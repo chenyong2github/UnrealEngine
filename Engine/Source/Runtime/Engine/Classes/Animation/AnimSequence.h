@@ -896,6 +896,7 @@ protected:
 		FDateTime LastWillNeverCook;
 	};
 	TMap<FIoHash, FCompressionRequestTimings> TimingsByKeyHash;
+	TMap<FIoHash, FString> DDCStringByKeyHash;
 protected:
 	bool TryCancelAsyncTasks();
 	void FinishAsyncTasks();
