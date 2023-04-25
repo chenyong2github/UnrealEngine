@@ -10,4 +10,8 @@ UCLASS(MinimalAPI)
 class UAnimNextParameterBlockProcessor : public UAnimNextParameterBlockEntry
 {
 	GENERATED_BODY()
+
+	// UAnimNextParameterBlockEntry interface
+	virtual FText GetDisplayName() const { return FText::GetEmpty(); }
+	virtual FText GetDisplayNameTooltip() const { return FText::GetEmpty(); }
 };

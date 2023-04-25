@@ -10,6 +10,8 @@
 
 class UAssetDefinition_AnimNextParameterBlockBinding;
 class UAnimNextParameter;
+class UAnimNextParameterLibrary;
+class URigVMGraph;
 
 namespace UE::AnimNext::Editor
 {

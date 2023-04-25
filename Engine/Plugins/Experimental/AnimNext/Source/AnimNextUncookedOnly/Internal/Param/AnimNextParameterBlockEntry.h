@@ -17,7 +17,7 @@ struct FParameterBlockViewEntry;
 }
 
 /** Base class that defines an entry in a parameter block, e.g. a parameter binding */
-UCLASS(MinimalAPI, BlueprintType)
+UCLASS(MinimalAPI, BlueprintType, Abstract)
 class UAnimNextParameterBlockEntry : public UObject
 {
 	GENERATED_BODY()

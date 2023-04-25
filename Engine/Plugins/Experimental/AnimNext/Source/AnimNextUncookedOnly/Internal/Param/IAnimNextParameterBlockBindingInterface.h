@@ -7,6 +7,7 @@
 #include "IAnimNextParameterBlockBindingInterface.generated.h"
 
 class UAnimNextParameter;
+class UAnimNextParameterLibrary;
 class UAnimNextParameterBlock_EditorData;
 
 namespace UE::AnimNext::Editor

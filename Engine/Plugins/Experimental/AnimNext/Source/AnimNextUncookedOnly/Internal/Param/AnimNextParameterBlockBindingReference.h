@@ -8,7 +8,9 @@
 #include "IAnimNextParameterBlockBindingInterface.h"
 #include "AnimNextParameterBlockBindingReference.generated.h"
 
+class UAnimNextParameter;
 class UAnimNextParameterBlock;
+class UAnimNextParameterLibrary;
 class UAssetDefinition_AnimNextParameterBlockBindingReference;
 
 namespace UE::AnimNext::Editor
@@ -16,8 +18,6 @@ namespace UE::AnimNext::Editor
 	struct FUtils;
 	class SParameterBlockViewRow;
 }
-
-class UAnimNextParameter;
 
 /** Parameter binding block entry */
 UCLASS(MinimalAPI, BlueprintType)
