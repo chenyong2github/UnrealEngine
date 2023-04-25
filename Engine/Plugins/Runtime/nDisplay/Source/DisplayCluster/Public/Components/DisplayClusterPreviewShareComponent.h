@@ -52,9 +52,6 @@ public:
 	/** Constructor */
 	UDisplayClusterPreviewShareComponent(const FObjectInitializer& ObjectInitializer);
 
-	/** Destructor */
-	~UDisplayClusterPreviewShareComponent();
-
 #if WITH_EDITOR // Bulk wrap with WITH_EDITOR until preview is supported in other modes.
 
 	//~ UActorComponent interface begin

@@ -75,25 +75,6 @@ UDisplayClusterPreviewShareComponent::UDisplayClusterPreviewShareComponent(const
 #endif // WITH_EDITOR
 }
 
-
-UDisplayClusterPreviewShareComponent::~UDisplayClusterPreviewShareComponent()
-{
-#if WITH_EDITOR
-
-	CloseAllMedia();
-
-	// Tell root actor that it doesn't need to keep up the preview enabled for us.
-	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
-	{
-		RootActor->RemovePreviewEnableOverride(reinterpret_cast<uint8*>(this));
-	}
-
-	// We try to leave the root actor as it originally was.
-	RestoreRootActorOriginalSettings();
-
-#endif // WITH_EDITOR
-}
-
 #if WITH_EDITOR // Bulk wrap with WITH_EDITOR until preview is supported in other modes.
 
 bool UDisplayClusterPreviewShareComponent::AllowedToShare() const
@@ -643,6 +624,21 @@ void UDisplayClusterPreviewShareComponent::DestroyComponent(bool bPromoteChildre
 	// Close all media to avoid keeping resources alive even though the component was destroyed (and possibly kept in undo buffer).
 	// This call also restores the dcra original settings.
 	SetMode(EDisplayClusterPreviewShareMode::None);
+
+#if WITH_EDITOR
+
+	CloseAllMedia();
+
+	// Tell root actor that it doesn't need to keep up the preview enabled for us.
+	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
+	{
+		RootActor->RemovePreviewEnableOverride(reinterpret_cast<uint8*>(this));
+	}
+
+	// We try to leave the root actor as it originally was.
+	RestoreRootActorOriginalSettings();
+
+#endif // WITH_EDITOR
 
 	Super::DestroyComponent(bPromoteChildren);
 }
