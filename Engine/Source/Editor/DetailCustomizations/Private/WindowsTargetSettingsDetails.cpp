@@ -65,10 +65,10 @@ static FText GetFriendlyNameFromWindowsShaderPlatform(FName InShaderPlatformName
 		FriendlyRHIName = LOCTEXT("DirectX11", "DirectX 11 & 12 (SM5)");
 		break;
 	case SP_PCD3D_ES3_1:
-		FriendlyRHIName = LOCTEXT("DirectXES31", "DirectX Mobile Emulation (ES3.1)");
+		FriendlyRHIName = LOCTEXT("DirectXMobile", "DirectX Mobile Emulation (Mobile)");
 		break;
 	case SP_D3D_ES3_1_HOLOLENS:
-		FriendlyRHIName = LOCTEXT("DirectXES31HL", "DirectX Hololens (ES3.1)");
+		FriendlyRHIName = LOCTEXT("DirectXMobileHL", "DirectX Hololens (Mobile)");
 		break;
 	case SP_VULKAN_SM5:
 		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5)");
@@ -109,7 +109,7 @@ static FText GetFriendlyNameForWindowsShaderPlatformCheckbox(FName InShaderPlatf
 		FriendlyName = LOCTEXT("SM5", "SM5");
 		break;
 	case SP_PCD3D_ES3_1:
-		FriendlyName = LOCTEXT("ES31", "ES3.1");
+		FriendlyName = LOCTEXT("Mobile", "Mobile");
 		break;
 	default:
 		break;

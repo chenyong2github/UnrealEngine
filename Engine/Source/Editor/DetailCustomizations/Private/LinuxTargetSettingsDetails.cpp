@@ -56,7 +56,7 @@ static FText GetFriendlyNameFromLinuxShaderFormat(const FName InShaderFormat)
 
 	if (InShaderFormat == NAME_GLSL_150_ES31)
 	{
-		FriendlyRHIName = LOCTEXT("OpenGL3ES31", "OpenGL 3 (ES3.1, Experimental)");
+		FriendlyRHIName = LOCTEXT("OpenGL3ES31", "OpenGL 3 (Mobile, Experimental)");
 	}
 	else if (InShaderFormat == NAME_VULKAN_ES3_1_ANDROID || InShaderFormat == NAME_VULKAN_ES3_1)
 	{

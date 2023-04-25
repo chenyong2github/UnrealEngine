@@ -114,22 +114,22 @@ static FText GetFriendlyNameFromRHINameMac(FName InRHIName)
 		FriendlyRHIName = LOCTEXT("D3DSM5", "Direct3D 11+ (SM5)");
 		break;
 	case SP_PCD3D_ES3_1:
-		FriendlyRHIName = LOCTEXT("D3DES31", "Direct3D (ES3.1, Mobile Preview)");
+		FriendlyRHIName = LOCTEXT("D3DESMobile", "Direct3D (Mobile Preview)");
 		break;
 	case SP_OPENGL_PCES3_1:
-		FriendlyRHIName = LOCTEXT("OpenGLES31PC", "OpenGL (ES3.1, Mobile Preview)");
+		FriendlyRHIName = LOCTEXT("OpenGLESMobilePC", "OpenGL (Mobile Preview)");
 		break;
 	case SP_OPENGL_ES3_1_ANDROID:
-		FriendlyRHIName = LOCTEXT("OpenGLES31", "OpenGLES 3.1 (Mobile)");
+		FriendlyRHIName = LOCTEXT("OpenGLESMobile", "OpenGLES (Mobile)");
 		break;
 	case SP_METAL:
-		FriendlyRHIName = LOCTEXT("Metal", "iOS Metal Mobile Renderer (ES3.1, Metal 2.4+, iOS 15.0 or later)");
+		FriendlyRHIName = LOCTEXT("Metal", "iOS Metal Mobile Renderer (Mobile, Metal 2.4+, iOS 15.0 or later)");
 		break;
 	case SP_METAL_MRT:
 		FriendlyRHIName = LOCTEXT("MetalMRT", "iOS Metal Desktop Renderer (SM5, Metal 2.4+, iOS 15.0 or later)");
 		break;
 	case SP_METAL_TVOS:
-		FriendlyRHIName = LOCTEXT("MetalTV", "tvOS Metal Mobile Renderer (ES3.1, Metal 2.4+, tvOS 15.0 or later)");
+		FriendlyRHIName = LOCTEXT("MetalTV", "tvOS Metal Mobile Renderer (Mobile, Metal 2.4+, tvOS 15.0 or later)");
 		break;
 	case SP_METAL_MRT_TVOS:
 		FriendlyRHIName = LOCTEXT("MetalMRTTV", "tvOS Metal Desktop Renderer (SM5, Metal 2.4+, tvOS 15.0 or later)");
@@ -138,7 +138,7 @@ static FText GetFriendlyNameFromRHINameMac(FName InRHIName)
 		FriendlyRHIName = LOCTEXT("MetalSM5", "Mac Metal Desktop Renderer (SM5, Metal 2.4+, macOS Monterey 12.0 or later)");
 		break;
 	case SP_METAL_MACES3_1:
-		FriendlyRHIName = LOCTEXT("MetalES3.1", "Mac Metal High-End Mobile Preview (ES3.1)");
+		FriendlyRHIName = LOCTEXT("MetalMobile", "Mac Metal High-End Mobile Preview (Mobile Preview)");
 		break;
 	case SP_METAL_MRT_MAC:
 		FriendlyRHIName = LOCTEXT("MetalMRTMac", "Mac Metal iOS/tvOS Desktop Renderer Preview (SM5)");
@@ -152,10 +152,10 @@ static FText GetFriendlyNameFromRHINameMac(FName InRHIName)
 		break;
 	case SP_VULKAN_PCES3_1:
 	case SP_VULKAN_ES3_1_ANDROID:
-		FriendlyRHIName = LOCTEXT("VulkanES31", "Vulkan (ES 3.1)");
+		FriendlyRHIName = LOCTEXT("VulkanMobile", "Vulkan (Mobile)");
 		break;
 	case SP_D3D_ES3_1_HOLOLENS:
-		FriendlyRHIName = LOCTEXT("D3DES31HL", "Direct3D (ES3.1, Hololens)");
+		FriendlyRHIName = LOCTEXT("D3DMobileHL", "Direct3D (Mobile, Hololens)");
 		break;
 	default:
 		FriendlyRHIName = FText::FromString(InRHIName.ToString());

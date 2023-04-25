@@ -206,7 +206,7 @@ public:
 	TSharedPtr< FUICommandInfo > QualityLevel_Low;
 
 	TSharedPtr< FUICommandInfo > FeatureLevel_All;
-	TSharedPtr< FUICommandInfo > FeatureLevel_ES31;
+	TSharedPtr< FUICommandInfo > FeatureLevel_Mobile;
 	TSharedPtr< FUICommandInfo > FeatureLevel_SM5;
 	TSharedPtr< FUICommandInfo > FeatureLevel_SM6;
 

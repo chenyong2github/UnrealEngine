@@ -2825,14 +2825,14 @@ static TAutoConsoleVariable<int32> CVarMobileAllowDitheredLODTransition(
 static TAutoConsoleVariable<int32> CVarMobileAllowPixelDepthOffset(
 	TEXT("r.Mobile.AllowPixelDepthOffset"),
 	1,
-	TEXT("Whether to allow 'Pixel Depth Offset' in materials for ES3.1 feature level. Depth modification in pixel shaders may reduce GPU performance"),
+	TEXT("Whether to allow 'Pixel Depth Offset' in materials for Mobile feature level. Depth modification in pixel shaders may reduce GPU performance"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarMobileAllowPerPixelShadingModels(
 	TEXT("r.Mobile.AllowPerPixelShadingModels"),
 	1,
-	TEXT("Whether to allow 'Per-Pixel Shader Models (From Material Expression)' in materials for ES3.1 feature level."),
+	TEXT("Whether to allow 'Per-Pixel Shader Models (From Material Expression)' in materials for Mobile feature level."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
@@ -2858,7 +2858,7 @@ static TAutoConsoleVariable<int32> CVarMobileForwardEnableClusteredReflections(
 static TAutoConsoleVariable<int32> CVarMobileSupportGPUScene(
 	TEXT("r.Mobile.SupportGPUScene"),
 	0,
-	TEXT("Whether to support GPU scene, required for auto-instancing (only ES3.1 feature level)"),
+	TEXT("Whether to support GPU scene, required for auto-instancing (only Mobile feature level)"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
@@ -3451,7 +3451,7 @@ static TAutoConsoleVariable<int32> CVarDisableOpenGLTextureStreamingSupport(
 static FAutoConsoleVariable CVarOpenGLUseEmulatedUBs(
 	TEXT("OpenGL.UseEmulatedUBs"),
 	1,
-	TEXT("If true, enable using emulated uniform buffers on OpenGL ES3.1 mode."),
+	TEXT("If true, enable using emulated uniform buffers on OpenGL Mobile mode."),
 	ECVF_ReadOnly
 	);
 
