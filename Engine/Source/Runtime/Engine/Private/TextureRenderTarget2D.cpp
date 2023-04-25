@@ -14,6 +14,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "GenerateMips.h"
 #include "RenderGraphUtils.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #if WITH_EDITOR
 #include "Components/SceneCaptureComponent2D.h"

@@ -13,6 +13,7 @@
 #include "Engine/VolumeTexture.h"
 #include "HAL/LowLevelMemStats.h"
 #include "RHIUtilities.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTargetVolume)
 

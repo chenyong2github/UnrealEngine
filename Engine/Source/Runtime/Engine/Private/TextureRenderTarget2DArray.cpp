@@ -13,6 +13,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/Texture2DArray.h"
 #include "RHIUtilities.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTarget2DArray)
 

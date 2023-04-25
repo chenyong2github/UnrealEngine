@@ -8,6 +8,7 @@
 #include "HAL/LowLevelMemStats.h"
 #include "RenderingThread.h"
 #include "TextureResource.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "UnrealEngine.h"
 #include "DeviceProfiles/DeviceProfile.h"
