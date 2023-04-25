@@ -412,6 +412,13 @@ TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateAccessor(UP
 		}
 	}
 
+	// Can't create mutable accessor that are read only.
+	if (Accessor && Accessor->IsReadOnly())
+	{
+		UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateAccessor] Accessor is read-only, therefore not mutable."));
+		return TUniquePtr<IPCGAttributeAccessor>();
+	}
+
 	return Accessor;
 }
 

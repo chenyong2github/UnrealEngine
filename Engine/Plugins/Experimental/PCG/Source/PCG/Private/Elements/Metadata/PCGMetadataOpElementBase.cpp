@@ -325,6 +325,12 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			return false;
 		}
 
+		if (OperationData.OutputAccessors[OutputIndex]->IsReadOnly())
+		{
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("OutputAccessorIsReadOnly", "Attribute/Property '{0}' is read only."), OutputTarget.GetDisplayText()));
+			return false;
+		}
+
 		OperationData.OutputKeys[OutputIndex] = PCGAttributeAccessorHelpers::CreateKeys(Cast<UPCGData>(OutputData.Data), OutputTarget);
 
 		return OperationData.OutputKeys[OutputIndex].IsValid();

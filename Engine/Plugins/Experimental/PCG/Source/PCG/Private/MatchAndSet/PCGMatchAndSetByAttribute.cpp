@@ -129,6 +129,18 @@ void UPCGMatchAndSetByAttribute::MatchAndSet_Implementation(
 	TUniquePtr<IPCGAttributeAccessor> SetTargetAccessor = PCGAttributeAccessorHelpers::CreateAccessor(OutPointData, SetTarget);
 	TUniquePtr<IPCGAttributeAccessorKeys> SetTargetKeys = PCGAttributeAccessorHelpers::CreateKeys(OutPointData, SetTarget);
 
+	if (!SetTargetAccessor.IsValid() || !SetTargetKeys.IsValid())
+	{
+		PCGE_LOG_C(Warning, GraphAndLog, &Context, LOCTEXT("FailedToCreateTargetAccessor", "Failed to create output accessor or iterator"));
+		return;
+	}
+
+	if (SetTargetAccessor->IsReadOnly())
+	{
+		PCGE_LOG_C(Warning, GraphAndLog, &Context, FText::Format(LOCTEXT("SetTargetAccessorIsReadOnly", "Attribute/Property '{0}' is read only."), SetTarget.GetDisplayText()));
+		return;
+	}
+
 	auto MatchAndSetOperation = [&InputAccessor, &InputKeys, &EntryMatchSourceAccessors, &EntrySetValueAccessors, &EntryKeys, &SetTargetAccessor, &SetTargetKeys](auto MatchDummy)
 	{
 		using MatchType = decltype(MatchDummy);

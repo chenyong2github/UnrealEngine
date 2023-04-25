@@ -74,12 +74,6 @@ bool FPCGAttributePropertySelector::SetAttributeName(FName InAttributeName, bool
 	}
 }
 
-#if WITH_EDITOR
-bool FPCGAttributePropertySelector::IsValid() const
-{
-	return (Selection != EPCGAttributePropertySelection::Attribute) || FPCGMetadataAttributeBase::IsValidName(AttributeName);
-}
-
 FText FPCGAttributePropertySelector::GetDisplayText() const
 {
 	FString Res;
@@ -104,6 +98,12 @@ FText FPCGAttributePropertySelector::GetDisplayText() const
 	}
 
 	return FText::FromString(Res);
+}
+
+#if WITH_EDITOR
+bool FPCGAttributePropertySelector::IsValid() const
+{
+	return (Selection != EPCGAttributePropertySelection::Attribute) || FPCGMetadataAttributeBase::IsValidName(AttributeName);
 }
 
 bool FPCGAttributePropertySelector::Update(FString NewValue)
