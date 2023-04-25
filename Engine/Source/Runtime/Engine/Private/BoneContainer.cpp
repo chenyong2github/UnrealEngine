@@ -89,6 +89,37 @@ void FBoneContainer::InitializeTo(const TArray<FBoneIndexType>& InRequiredBoneIn
 	Initialize(CurveFilterSettings);
 }
 
+void FBoneContainer::Reset()
+{
+	Asset = nullptr;
+	AssetSkeletalMesh = nullptr;
+	AssetSkeleton = nullptr;
+	RefSkeleton = nullptr;
+	UIDToArrayIndexLUTValidCount = 0;
+	RefPoseOverride = nullptr;
+
+#if DO_CHECK
+	CalculatedForLOD = INDEX_NONE;
+#endif
+
+	bDisableRetargeting = false;
+	bUseRAWData = false;
+	bUseSourceData = false;
+
+	BoneIndicesArray.Empty(0);
+	BoneSwitchArray.Empty(0);
+	SkeletonToPoseBoneIndexArray.Empty(0);
+	PoseToSkeletonBoneIndexArray.Empty(0);
+	CompactPoseToSkeletonIndex.Empty(0);
+	SkeletonToCompactPose.Empty(0);
+	CompactPoseParentBones.Empty(0);
+	VirtualBoneCompactPoseData.Empty(0);
+	UIDToArrayIndexLUT.Empty(0);
+
+	// Container changed and is no longer valid, preserve but update our serial number
+	RegenerateSerialNumber();
+}
+
 struct FBoneContainerScratchArea : public TThreadSingleton<FBoneContainerScratchArea>
 {
 	TArray<int32> MeshIndexToCompactPoseIndex;

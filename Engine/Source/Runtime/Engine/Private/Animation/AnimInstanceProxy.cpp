@@ -65,6 +65,7 @@ FAnimInstanceProxy::FAnimInstanceProxy()
 	, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 	, FrameCounterForUpdate(0)
 	, FrameCounterForNodeUpdate(0)
+	, RequiredBones(MakeShared<FBoneContainer>())	// We sometime query for this before RecalcRequiredBones has been called
 	, CacheBonesRecursionCounter(0)
 	, bUpdatingRoot(false)
 	, bBoneCachesInvalidated(false)
@@ -92,6 +93,7 @@ FAnimInstanceProxy::FAnimInstanceProxy(UAnimInstance* Instance)
 	, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 	, FrameCounterForUpdate(0)
 	, FrameCounterForNodeUpdate(0)
+	, RequiredBones(MakeShared<FBoneContainer>())	// We sometime query for this before RecalcRequiredBones has been called
 	, CacheBonesRecursionCounter(0)
 	, bUpdatingRoot(false)
 	, bBoneCachesInvalidated(false)
@@ -1116,22 +1118,29 @@ void FAnimInstanceProxy::RecalcRequiredBones(USkeletalMeshComponent* Component, 
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	RequiredBones.InitializeTo(Component->RequiredBones, Component->GetCurveFilterSettings(), *Asset);
+	// Use the shared bone container
+	RequiredBones = Component->GetSharedRequiredBones();
 
-	// If there is a ref pose override, we want to replace ref pose in RequiredBones
-	// Update ref pose in required bones structure (either set it, or clear it, depending on if one is set on the Component)
-	RequiredBones.SetRefPoseOverride(Component->GetRefPoseOverride());
+	// The first anim instance will initialize the required bones, all others will re-use it
+	if (!RequiredBones->IsValid())
+	{
+		RequiredBones->InitializeTo(Component->RequiredBones, Component->GetCurveFilterSettings(), *Asset);
+
+		// If there is a ref pose override, we want to replace ref pose in RequiredBones
+		// Update ref pose in required bones structure (either set it, or clear it, depending on if one is set on the Component)
+		RequiredBones->SetRefPoseOverride(Component->GetRefPoseOverride());
+	}
 
 	// If this instance can accept input poses, initialise the input pose container
-	if(DefaultLinkedInstanceInputNode)
+	if (DefaultLinkedInstanceInputNode)
 	{
-		DefaultLinkedInstanceInputNode->CachedInputPose.SetBoneContainer(&RequiredBones);
+		DefaultLinkedInstanceInputNode->CachedInputPose.SetBoneContainer(RequiredBones.Get());
 		
 		// SetBoneContainer allocates space for bone data but leaves it uninitalized.
 		DefaultLinkedInstanceInputNode->bIsCachedInputPoseInitialized = false;
 	}
 
-	// When RequiredBones mapping has changed, AnimNodes need to update their bones caches. 
+	// When RequiredBones mapping has changed, AnimNodes need to update their bones caches.
 	bBoneCachesInvalidated = true;
 }
 
@@ -1139,7 +1148,7 @@ void FAnimInstanceProxy::RecalcRequiredCurves(const UE::Anim::FCurveFilterSettin
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	RequiredBones.CacheRequiredAnimCurves(CurveFilterSettings);
+	RequiredBones->CacheRequiredAnimCurves(CurveFilterSettings);
 	bBoneCachesInvalidated = true;
 }
 
@@ -1148,7 +1157,7 @@ void FAnimInstanceProxy::RecalcRequiredCurves(const FCurveEvaluationOption& Curv
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	RequiredBones.CacheRequiredAnimCurveUids(CurveEvalOption);
+	RequiredBones->CacheRequiredAnimCurveUids(CurveEvalOption);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bBoneCachesInvalidated = true;
 }
@@ -1480,7 +1489,7 @@ void FAnimInstanceProxy::SlotEvaluatePoseWithBlendProfiles(const FName& SlotNode
 	TArray<float>& PerBoneWeightTotals = BlendProfileScratchData.PerBoneWeightTotals;
 	TArray<float>& PerBoneWeightTotalsAdditive = BlendProfileScratchData.PerBoneWeightTotalsAdditive;
 	TArray<float>& BoneBlendProfileScales = BlendProfileScratchData.BoneBlendProfileScales;
-	const int32 NumBones = RequiredBones.GetCompactPoseNumBones();
+	const int32 NumBones = RequiredBones->GetCompactPoseNumBones();
 	PerBoneWeightTotals.Reset(NumBones);
 	PerBoneWeightTotals.AddUninitialized(NumBones);
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
@@ -1531,8 +1540,8 @@ void FAnimInstanceProxy::SlotEvaluatePoseWithBlendProfiles(const FName& SlotNode
 
 			// Bone array has to be allocated prior to calling GetPoseFromAnimTrack.
 			FSlotEvaluationPose NewPose(EvalState.BlendInfo.GetBlendedValue(), AdditiveAnimType);
-			NewPose.Pose.SetBoneContainer(&RequiredBones);
-			NewPose.Curve.InitFrom(RequiredBones);
+			NewPose.Pose.SetBoneContainer(RequiredBones.Get());
+			NewPose.Curve.InitFrom(*RequiredBones);
 
 			// Extract pose from Track.
 			FAnimExtractContext ExtractionContext(static_cast<double>(EvalState.MontagePosition), Montage->HasRootMotion() && RootMotionMode != ERootMotionMode::NoRootMotionExtraction, EvalState.DeltaTimeRecord);
@@ -1541,7 +1550,7 @@ void FAnimInstanceProxy::SlotEvaluatePoseWithBlendProfiles(const FName& SlotNode
 
 			// Add montage curves.
 			FBlendedCurve MontageCurve;
-			MontageCurve.InitFrom(RequiredBones);
+			MontageCurve.InitFrom(*RequiredBones);
 			Montage->EvaluateCurveData(MontageCurve, EvalState.MontagePosition);
 			NewPose.Curve.Combine(MontageCurve);
 
@@ -1565,7 +1574,7 @@ void FAnimInstanceProxy::SlotEvaluatePoseWithBlendProfiles(const FName& SlotNode
 			const float PoseWeight = EvalState.BlendInfo.GetBlendedValue();
 			if (BlendProfile)
 			{
-				BlendProfile->FillBoneScalesArray(BoneBlendProfileScales, RequiredBones);
+				BlendProfile->FillBoneScalesArray(BoneBlendProfileScales, *RequiredBones);
 				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 				{
 					PerBoneWeights[CurrentPoseIndex][BoneIndex] = BlendProfile->CalculateBoneWeight(BoneBlendProfileScales[BoneIndex], BlendProfile->Mode, EvalState.BlendInfo, EvalState.BlendStartAlpha, NewPose.Weight, false);
@@ -1870,8 +1879,8 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 			FSlotEvaluationPose NewPose(MontageWeight, AdditiveAnimType);
 			
 			// Bone array has to be allocated prior to calling GetPoseFromAnimTrack
-			NewPose.Pose.SetBoneContainer(&RequiredBones);
-			NewPose.Curve.InitFrom(RequiredBones);
+			NewPose.Pose.SetBoneContainer(RequiredBones.Get());
+			NewPose.Curve.InitFrom(*RequiredBones);
 
 			// Extract pose from Track
 			FAnimExtractContext ExtractionContext(static_cast<double>(EvalState.MontagePosition), Montage->HasRootMotion() && RootMotionMode != ERootMotionMode::NoRootMotionExtraction, EvalState.DeltaTimeRecord);
@@ -1881,7 +1890,7 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 
 			// add montage curves 
 			FBlendedCurve MontageCurve;
-			MontageCurve.InitFrom(RequiredBones);
+			MontageCurve.InitFrom(*RequiredBones);
 			Montage->EvaluateCurveData(MontageCurve, EvalState.MontagePosition);
 			NewPose.Curve.Combine(MontageCurve);
 
@@ -3436,7 +3445,7 @@ void FAnimInstanceProxy::UpdateCurvesToEvaluationContext(const FAnimationEvaluat
 		AnimationCurves[(uint8)EAnimCurveType::AttributeCurve].Add(InCurveElement.Name, InCurveElement.Value);
 	});
 
-	UE::Anim::FNamedValueArrayUtils::Intersection(InContext.Curve, RequiredBones.GetCurveFlags(), 
+	UE::Anim::FNamedValueArrayUtils::Intersection(InContext.Curve, RequiredBones->GetCurveFlags(), 
 		[this](const UE::Anim::FCurveElement& InCurveElement, const UE::Anim::FCurveElementFlags& InCurveFlagsElement)
 		{
 			if(EnumHasAnyFlags(InCurveFlagsElement.Flags | InCurveElement.Flags, UE::Anim::ECurveElementFlags::MorphTarget))

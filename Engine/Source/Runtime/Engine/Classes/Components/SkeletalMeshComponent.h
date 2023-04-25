@@ -337,6 +337,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Components|SkeletalMesh")
 	USkeletalMesh* GetSkeletalMeshAsset() const;
 
+	/** Gets the shared bone container used between all owned anim instances. Creates it on the first call. */
+	TSharedPtr<struct FBoneContainer> GetSharedRequiredBones();
+
 #if WITH_EDITORONLY_DATA
 	/** The blueprint for creating an AnimationScript. */
 	UPROPERTY()
@@ -420,6 +423,9 @@ private:
 	/** Any running linked anim instances */
 	UPROPERTY(transient)
 	TArray<TObjectPtr<UAnimInstance>> LinkedInstances;
+
+	/** Shared bone container between all anim instances owned by this skeletal mesh component */
+	TSharedPtr<struct FBoneContainer> SharedRequiredBones;
 
 	// Update Rate
 

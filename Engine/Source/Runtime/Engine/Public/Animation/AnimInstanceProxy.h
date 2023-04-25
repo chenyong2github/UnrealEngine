@@ -333,13 +333,13 @@ public:
 	/** const access to required bones array */
 	const FBoneContainer& GetRequiredBones() const 
 	{ 
-		return RequiredBones; 
+		return *RequiredBones; 
 	}
 
 	/** access to required bones array */
 	FBoneContainer& GetRequiredBones() 
 	{ 
-		return RequiredBones;
+		return *RequiredBones;
 	}
 
 	/** Access to LODLevel */
@@ -747,6 +747,7 @@ protected:
 	/** 
 	 * Recalculate Required Bones [RequiredBones]
 	 * Is called when bRequiredBonesUpToDate = false
+	 * The provided asset must be a SkeletalMesh or a Skeleton.
 	 */
 	void RecalcRequiredBones(USkeletalMeshComponent* Component, UObject* Asset);
 
@@ -1084,8 +1085,11 @@ private:
 	// Root motion extracted from animation since the last time ConsumeExtractedRootMotion was called
 	FRootMotionMovementParams ExtractedRootMotion;
 
-	/** Temporary array of bone indices required this frame. Should be subset of Skeleton and Mesh's RequiredBones */
-	FBoneContainer RequiredBones;
+	/**
+	  * Temporary array of bone indices required this frame. Should be subset of Skeleton and Mesh's RequiredBones.
+	  * Shared between all anim instances on a skeletal mesh component if it has a skeletal mesh and a skeleton present.
+	  */
+	TSharedPtr<FBoneContainer> RequiredBones;
 
 	/** LODLevel used by RequiredBones */
 	int32 LODLevel = 0;

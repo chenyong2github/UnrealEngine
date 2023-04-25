@@ -292,6 +292,16 @@ USkeletalMesh* USkeletalMeshComponent::GetSkeletalMeshAsset() const
 	return Cast<USkeletalMesh>(GetSkinnedAsset());
 }
 
+TSharedPtr<FBoneContainer> USkeletalMeshComponent::GetSharedRequiredBones()
+{
+	if (!SharedRequiredBones)
+	{
+		SharedRequiredBones = MakeShared<FBoneContainer>();
+	}
+
+	return SharedRequiredBones;
+}
+
 void USkeletalMeshComponent::Serialize(FArchive& Ar)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1988,9 +1998,18 @@ void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 	}
 
 	ComputeRequiredBones(RequiredBones, FillComponentSpaceTransformsRequiredBones, LODIndex, /*bIgnorePhysicsAsset=*/ false);
+
+	// Reset our animated pose to the reference pose
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	BoneSpaceTransforms = GetSkeletalMeshAsset()->GetRefSkeleton().GetRefBonePose();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	// If we had cached our shared bone container, reset it
+	if (SharedRequiredBones)
+	{
+		SharedRequiredBones->Reset();
+	}
+
 	// make sure animation requiredBone to mark as dirty
 	if (AnimScriptInstance)
 	{
@@ -2007,7 +2026,7 @@ void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 		PostProcessAnimInstance->RecalcRequiredBones();
 	}
 
-	// when recalc requiredbones happend
+	// when RecalcRequiredBones happened
 	// this should always happen
 	MarkRequiredCurveUpToDate();
 	bRequiredBonesUpToDate = true;
