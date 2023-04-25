@@ -54,12 +54,12 @@ public:
 	static FName StaticGetTypeId();
 	virtual FName GetTypeId() const;
 
-	FEdGraphSchemaAction_BlackboardEntry( UBlackboardData* InBlackboardData, FBlackboardEntry& InKey, bool bInIsInherited );
+	FEdGraphSchemaAction_BlackboardEntry( TWeakObjectPtr<UBlackboardData> InBlackboardData, FBlackboardEntry& InKey, bool bInIsInherited );
 
 	void Update();
 
 	/** Blackboard we reference our key in */
-	UBlackboardData* BlackboardData;
+	TWeakObjectPtr<UBlackboardData> BlackboardData;
 
 	/** Actual key */
 	FBlackboardEntry& Key;
@@ -72,7 +72,7 @@ public:
 };
 
 /** Displays blackboard entries */
-class SBehaviorTreeBlackboardView : public SCompoundWidget, public FGCObject
+class SBehaviorTreeBlackboardView : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SBehaviorTreeBlackboardView ) 
@@ -92,13 +92,6 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedRef<FUICommandList> InCommandList, UBlackboardData* InBlackboardData);
-
-	/** FGCObject implementation */
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("SBehaviorTreeBlackboardView");
-	}
 
 	/**
 	 * Retrieves the blackboard item currently selected by the user.
@@ -174,7 +167,7 @@ protected:
 
 protected:
 	/** The blackboard we are editing/viewing */
-	UBlackboardData* BlackboardData;
+	TWeakObjectPtr<UBlackboardData> BlackboardData;
 
 	/** The list of blackboard entries */
 	TSharedPtr<SGraphActionMenu> GraphActionMenu;

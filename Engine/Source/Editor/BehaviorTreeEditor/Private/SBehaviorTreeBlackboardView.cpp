@@ -77,14 +77,14 @@ FName FEdGraphSchemaAction_BlackboardEntry::GetTypeId() const
 	return StaticGetTypeId(); 
 }
 
-FEdGraphSchemaAction_BlackboardEntry::FEdGraphSchemaAction_BlackboardEntry( UBlackboardData* InBlackboardData, FBlackboardEntry& InKey, bool bInIsInherited )
+FEdGraphSchemaAction_BlackboardEntry::FEdGraphSchemaAction_BlackboardEntry( TWeakObjectPtr<UBlackboardData> InBlackboardData, FBlackboardEntry& InKey, bool bInIsInherited )
 	: FEdGraphSchemaAction_Dummy()
 	, BlackboardData(InBlackboardData)
 	, Key(InKey)
 	, bIsInherited(bInIsInherited)
 	, bIsNew(false)
 {
-	check(BlackboardData);
+	check(BlackboardData.IsValid());
 	Update();
 }
 
@@ -228,41 +228,45 @@ private:
 		if(NewName != OldName)
 		{
 			TArray<UObject*> ExternalBTAssetsWithKeyReferences;
-			if(!BlackboardEntryAction->bIsNew && BlackboardEntryAction->BlackboardData)
+			UBlackboardData* BlackboardData = BlackboardEntryAction->BlackboardData.Get();
+			if (BlackboardData)
 			{
-				// Preload behavior trees before we transact otherwise they will add objects to 
-				// the transaction buffer whether we change them or not.
-				// Blueprint regeneration does this in UEdGraphNode::CreatePin.
-				LoadReferencerBehaviorTrees(*(BlackboardEntryAction->BlackboardData), ExternalBTAssetsWithKeyReferences);
+				if (!BlackboardEntryAction->bIsNew)
+				{
+					// Preload behavior trees before we transact otherwise they will add objects to 
+					// the transaction buffer whether we change them or not.
+					// Blueprint regeneration does this in UEdGraphNode::CreatePin.
+					LoadReferencerBehaviorTrees(*(BlackboardData), ExternalBTAssetsWithKeyReferences);
+				}
+
+				const FScopedTransaction Transaction(LOCTEXT("BlackboardEntryRenameTransaction", "Rename Blackboard Entry"));
+				BlackboardData->SetFlags(RF_Transactional);
+				BlackboardData->Modify();
+				BlackboardEntryAction->Key.EntryName = NewName;
+
+				FProperty* KeysArrayProperty = FindFProperty<FProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
+				FProperty* NameProperty = FindFProperty<FProperty>(FBlackboardEntry::StaticStruct(), GET_MEMBER_NAME_CHECKED(FBlackboardEntry, EntryName));
+				FEditPropertyChain PropertyChain;
+				PropertyChain.AddHead(KeysArrayProperty);
+				PropertyChain.AddTail(NameProperty);
+				PropertyChain.SetActiveMemberPropertyNode(KeysArrayProperty);
+				PropertyChain.SetActivePropertyNode(NameProperty);
+
+				BlackboardData->PreEditChange(PropertyChain);
+
+				BlackboardEntryAction->Update();
+
+				OnBlackboardKeyChanged.ExecuteIfBound(BlackboardData, &BlackboardEntryAction->Key);
+
+				if (!BlackboardEntryAction->bIsNew)
+				{
+					UpdateExternalBlackboardKeyReferences(OldName, NewName, ExternalBTAssetsWithKeyReferences);
+				}
+
+				FPropertyChangedEvent PropertyChangedEvent(NameProperty, EPropertyChangeType::ValueSet);
+				FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
+				BlackboardData->PostEditChangeChainProperty(PropertyChangedChainEvent);
 			}
-
-			const FScopedTransaction Transaction(LOCTEXT("BlackboardEntryRenameTransaction", "Rename Blackboard Entry"));
-			BlackboardEntryAction->BlackboardData->SetFlags(RF_Transactional);
-			BlackboardEntryAction->BlackboardData->Modify();
-			BlackboardEntryAction->Key.EntryName = NewName;
-
-			FProperty* KeysArrayProperty = FindFProperty<FProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
-			FProperty* NameProperty = FindFProperty<FProperty>(FBlackboardEntry::StaticStruct(), GET_MEMBER_NAME_CHECKED(FBlackboardEntry, EntryName));
-			FEditPropertyChain PropertyChain;
-			PropertyChain.AddHead(KeysArrayProperty);
-			PropertyChain.AddTail(NameProperty);
-			PropertyChain.SetActiveMemberPropertyNode(KeysArrayProperty);
-			PropertyChain.SetActivePropertyNode(NameProperty);
-
-			BlackboardEntryAction->BlackboardData->PreEditChange(PropertyChain);
-
-			BlackboardEntryAction->Update();
-
-			OnBlackboardKeyChanged.ExecuteIfBound(BlackboardEntryAction->BlackboardData, &BlackboardEntryAction->Key);
-
-			if(!BlackboardEntryAction->bIsNew)
-			{
-				UpdateExternalBlackboardKeyReferences(OldName, NewName, ExternalBTAssetsWithKeyReferences);
-			}
-
-			FPropertyChangedEvent PropertyChangedEvent(NameProperty, EPropertyChangeType::ValueSet);
-			FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
-			BlackboardEntryAction->BlackboardData->PostEditChangeChainProperty(PropertyChangedChainEvent);
 		}
 
 		BlackboardEntryAction->bIsNew = false;
@@ -355,21 +359,25 @@ private:
 		const FString NewTextAsString = InNewText.ToString();
 
 		// check for duplicate keys
-		for(const auto& Key : BlackboardEntryAction->BlackboardData->Keys)
+		const UBlackboardData* BlackboardData = BlackboardEntryAction->BlackboardData.Get();
+		if (BlackboardData)
 		{
-			if(&BlackboardEntryAction->Key != &Key && Key.EntryName.ToString() == NewTextAsString)
+			for(const auto& Key : BlackboardData->Keys)
 			{
-				OutErrorMessage = LOCTEXT("DuplicateKeyWarning", "A key of this name already exists.");
-				return false;
+				if(&BlackboardEntryAction->Key != &Key && Key.EntryName.ToString() == NewTextAsString)
+				{
+					OutErrorMessage = LOCTEXT("DuplicateKeyWarning", "A key of this name already exists.");
+					return false;
+				}
 			}
-		}
 
-		for(const auto& Key : BlackboardEntryAction->BlackboardData->ParentKeys)
-		{
-			if(&BlackboardEntryAction->Key != &Key && Key.EntryName.ToString() == NewTextAsString)
+			for(const auto& Key : BlackboardData->ParentKeys)
 			{
-				OutErrorMessage = LOCTEXT("DuplicateParentKeyWarning", "An inherited key of this name already exists.");
-				return false;
+				if(&BlackboardEntryAction->Key != &Key && Key.EntryName.ToString() == NewTextAsString)
+				{
+					OutErrorMessage = LOCTEXT("DuplicateParentKeyWarning", "An inherited key of this name already exists.");
+					return false;
+				}
 			}
 		}
 
@@ -435,14 +443,6 @@ private:
 	bool bIsReadOnly;
 };
 
-
-void SBehaviorTreeBlackboardView::AddReferencedObjects( FReferenceCollector& Collector )
-{
-	if(BlackboardData != nullptr)
-	{
-		Collector.AddReferencedObject(BlackboardData);
-	}
-}
 
 void SBehaviorTreeBlackboardView::Construct(const FArguments& InArgs, TSharedRef<FUICommandList> InCommandList, UBlackboardData* InBlackboardData)
 {
@@ -609,12 +609,16 @@ int32 SBehaviorTreeBlackboardView::GetSelectedEntryIndex(bool& bOutIsInherited) 
 		FBlackboardEntry* BlackboardEntry = &Entry->Key;
 
 		// check to see what entry index we are using
-		TArray<FBlackboardEntry>& EntryArray = bOutIsInherited ? BlackboardData->ParentKeys : BlackboardData->Keys;
-		for(int32 Index = 0; Index < EntryArray.Num(); Index++)
+		const UBlackboardData* BlackboardDataPtr = BlackboardData.Get();
+		if (BlackboardDataPtr)
 		{
-			if(BlackboardEntry == &EntryArray[Index])
+			const TArray<FBlackboardEntry>& EntryArray = bOutIsInherited ? BlackboardDataPtr->ParentKeys : BlackboardDataPtr->Keys;
+			for (int32 Index = 0; Index < EntryArray.Num(); Index++)
 			{
-				return Index;
+				if (BlackboardEntry == &EntryArray[Index])
+				{
+					return Index;
+				}
 			}
 		}
 	}

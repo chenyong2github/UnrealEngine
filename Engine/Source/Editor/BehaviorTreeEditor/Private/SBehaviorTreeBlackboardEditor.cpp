@@ -123,7 +123,8 @@ TSharedPtr<FExtender> SBehaviorTreeBlackboardEditor::GetToolbarExtender(TSharedR
 
 void SBehaviorTreeBlackboardEditor::HandleDeleteEntry()
 {
-	if (BlackboardData == nullptr)
+	UBlackboardData* BlackboardDataPtr = BlackboardData.Get();
+	if (!BlackboardDataPtr)
 	{
 		UE_LOG(LogBlackboardEditor, Error, TEXT("Trying to delete an entry from a blackboard while no Blackboard Asset is set!"));
 		return;
@@ -136,23 +137,23 @@ void SBehaviorTreeBlackboardEditor::HandleDeleteEntry()
 		if(BlackboardEntry != nullptr && !bIsInherited)
 		{
 			const FScopedTransaction Transaction(LOCTEXT("BlackboardEntryDeleteTransaction", "Delete Blackboard Entry"));
-			BlackboardData->SetFlags(RF_Transactional);
-			BlackboardData->Modify();
+			BlackboardDataPtr->SetFlags(RF_Transactional);
+			BlackboardDataPtr->Modify();
 
 			FProperty* KeysProperty = FindFProperty<FProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
-			BlackboardData->PreEditChange(KeysProperty);
+			BlackboardDataPtr->PreEditChange(KeysProperty);
 		
-			for(int32 ItemIndex = 0; ItemIndex < BlackboardData->Keys.Num(); ItemIndex++)
+			for(int32 ItemIndex = 0; ItemIndex < BlackboardDataPtr->Keys.Num(); ItemIndex++)
 			{
-				if(BlackboardEntry == &BlackboardData->Keys[ItemIndex])
+				if(BlackboardEntry == &BlackboardDataPtr->Keys[ItemIndex])
 				{
-					BlackboardData->Keys.RemoveAt(ItemIndex);
+					BlackboardDataPtr->Keys.RemoveAt(ItemIndex);
 					break;
 				}
 			}
 
 			GraphActionMenu->RefreshAllActions(true);
-			OnBlackboardKeyChanged.ExecuteIfBound(BlackboardData, nullptr);
+			OnBlackboardKeyChanged.ExecuteIfBound(BlackboardDataPtr, nullptr);
 
 			// signal de-selection
 			if(OnEntrySelected.IsBound())
@@ -161,7 +162,7 @@ void SBehaviorTreeBlackboardEditor::HandleDeleteEntry()
 			}
 
 			FPropertyChangedEvent PropertyChangedEvent(KeysProperty, EPropertyChangeType::ArrayRemove);
-			BlackboardData->PostEditChangeProperty(PropertyChangedEvent);
+			BlackboardDataPtr->PostEditChangeProperty(PropertyChangedEvent);
 		}
 	}
 }
@@ -255,7 +256,8 @@ TSharedRef<SWidget> SBehaviorTreeBlackboardEditor::HandleCreateNewEntryMenu() co
 
 void SBehaviorTreeBlackboardEditor::HandleKeyClassPicked(UClass* InClass)
 {
-	if (BlackboardData == nullptr)
+	UBlackboardData* BlackboardDataPtr = BlackboardData.Get();
+	if (BlackboardDataPtr == nullptr)
 	{
 		UE_LOG(LogBlackboardEditor, Error, TEXT("Trying to delete an entry from a blackboard while no Blackboard Asset is set!"));
 		return;
@@ -267,11 +269,11 @@ void SBehaviorTreeBlackboardEditor::HandleKeyClassPicked(UClass* InClass)
 	check(InClass->IsChildOf(UBlackboardKeyType::StaticClass()));
 
 	const FScopedTransaction Transaction(LOCTEXT("BlackboardEntryAddTransaction", "Add Blackboard Entry"));
-	BlackboardData->SetFlags(RF_Transactional);
-	BlackboardData->Modify();
+	BlackboardDataPtr->SetFlags(RF_Transactional);
+	BlackboardDataPtr->Modify();
 
 	FProperty* KeysProperty = FindFProperty<FProperty>(UBlackboardData::StaticClass(), GET_MEMBER_NAME_CHECKED(UBlackboardData, Keys));
-	BlackboardData->PreEditChange(KeysProperty);
+	BlackboardDataPtr->PreEditChange(KeysProperty);
 
 	// create a name for this new key
 	FString NewKeyName = InClass->GetDisplayNameText().ToString();
@@ -296,8 +298,8 @@ void SBehaviorTreeBlackboardEditor::HandleKeyClassPicked(UClass* InClass)
 	};
 
 	// check for existing keys of the same name
-	for(const auto& Key : BlackboardData->Keys) { DuplicateFunction(Key); };
-	for(const auto& Key : BlackboardData->ParentKeys) { DuplicateFunction(Key); };
+	for(const auto& Key : BlackboardDataPtr->Keys) { DuplicateFunction(Key); };
+	for(const auto& Key : BlackboardDataPtr->ParentKeys) { DuplicateFunction(Key); };
 
 	if(IndexSuffix != -1)
 	{
@@ -306,12 +308,12 @@ void SBehaviorTreeBlackboardEditor::HandleKeyClassPicked(UClass* InClass)
 
 	FBlackboardEntry Entry;
 	Entry.EntryName = FName(*NewKeyName);
-	Entry.KeyType = NewObject<UBlackboardKeyType>(BlackboardData, InClass);
+	Entry.KeyType = NewObject<UBlackboardKeyType>(BlackboardDataPtr, InClass);
 
-	BlackboardData->Keys.Add(Entry);
+	BlackboardDataPtr->Keys.Add(Entry);
 
 	GraphActionMenu->RefreshAllActions(true);
-	OnBlackboardKeyChanged.ExecuteIfBound(BlackboardData, &BlackboardData->Keys.Last());
+	OnBlackboardKeyChanged.ExecuteIfBound(BlackboardDataPtr, &BlackboardDataPtr->Keys.Last());
 
 	GraphActionMenu->SelectItemByName(Entry.EntryName, ESelectInfo::OnMouseClick);
 
@@ -326,7 +328,7 @@ void SBehaviorTreeBlackboardEditor::HandleKeyClassPicked(UClass* InClass)
 	GraphActionMenu->OnRequestRenameOnActionNode();
 
 	FPropertyChangedEvent PropertyChangedEvent(KeysProperty, EPropertyChangeType::ArrayAdd);
-	BlackboardData->PostEditChangeProperty(PropertyChangedEvent);
+	BlackboardDataPtr->PostEditChangeProperty(PropertyChangedEvent);
 }
 
 bool SBehaviorTreeBlackboardEditor::CanCreateNewEntry() const
