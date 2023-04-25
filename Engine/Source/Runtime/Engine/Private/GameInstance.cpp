@@ -821,6 +821,16 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(FPlatformUserId UserId, FString& 
 		{
 			for (int32 Id = 0; Id < MaxSplitscreenPlayers; ++Id)
 			{
+				// Iterate until we find a null player. We want the next available platform user ID
+				FInputDeviceId DummyDevice;
+				FPlatformUserId DummyId;
+				IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(Id, OUT DummyId, OUT DummyDevice);
+
+				if (DummyId.IsValid())
+				{
+					UserId = DummyId;
+				}
+				
 				if (FindLocalPlayerFromControllerId(Id) == nullptr)
 				{
 					break;
@@ -983,14 +993,14 @@ void UGameInstance::DebugCreatePlayer(int32 ControllerId)
 {
 #if !UE_BUILD_SHIPPING
 	FString Error;
-	CreateLocalPlayer(ControllerId, Error, true);
-	if (Error.Len() > 0)
+	const ULocalPlayer* LP = CreateLocalPlayer(ControllerId, Error, true);
+	if (Error.Len() > 0 || !LP)
 	{
 		UE_LOG(LogPlayerManagement, Error, TEXT("Failed to DebugCreatePlayer: %s"), *Error);
 	}
 	else
 	{
-		FPlatformUserId UserId = FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerId);
+		FPlatformUserId UserId = LP->GetPlatformUserId();
 		FInputDeviceId InputDevice = INPUTDEVICEID_NONE;
 		IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
 		DeviceMapper.RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, InputDevice);
