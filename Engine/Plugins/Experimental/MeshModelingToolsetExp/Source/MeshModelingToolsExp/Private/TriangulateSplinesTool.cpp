@@ -9,6 +9,8 @@
 #include "Selection/ToolSelectionUtil.h"
 #include "DynamicMesh/MeshTransforms.h"
 
+#include "Engine/World.h"
+
 #include "Components/SplineComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TriangulateSplinesTool)

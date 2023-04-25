@@ -16,7 +16,7 @@
 #include "TriangulateSplinesTool.generated.h"
 
 class USplineComponent;
-
+class UWorld;
 
 
 /**
