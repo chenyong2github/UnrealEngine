@@ -13,24 +13,9 @@ public class VirtualCameraEditor : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-				"CinematicCamera",
-				"EditorWidgets",
 				"Engine",
-				"UnrealEd",
 				"Settings",
-				"PlacementMode",
-				"Projects",
-				"VPUtilities",
-				"VPUtilitiesEditor",
-				"VCamCore",
-				"VirtualCamera",
-			}
-		);
-			
-		PrivateIncludePathModuleNames.AddRange(
-			new string[]
-			{
-				"LevelEditor",
+				"VirtualCamera"
 			}
 		);
 	}

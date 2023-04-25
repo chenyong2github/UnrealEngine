@@ -14,14 +14,6 @@
 	"IsBetaVersion": true,
 	"Installed": false,
 	"EnabledByDefault": false,
-	"SupportedTargetPlatforms": [
-		"Win64",
-		"Linux"
-	],
-	"PlatformAllowList": [
-		"Win64",
-		"Linux"
-	],
 	"Plugins": [
 		{
 			"Name" : "VirtualCameraCore",
@@ -30,6 +22,16 @@
 		{
 			"Name" : "CineCameraRigs",
 			"Enabled": true
+		},
+		{
+			"Name" : "VirtualCameraPixelStreamingPreset",
+			"Enabled": true,
+			"PlatformAllowList" : [ "Win64", "Linux" ]
+		},
+		{
+			"Name" : "VirtualCameraMacPreset",
+			"Enabled": true,
+			"PlatformAllowList" : [ "Mac" ]
 		}
 	]
 }
