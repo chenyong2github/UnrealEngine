@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System;
 
 public class RHICore : ModuleRules
 {
@@ -10,5 +9,10 @@ public class RHICore : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] { "RHI" });
 		PublicDependencyModuleNames.AddRange(new string[] { "RenderCore" });
 		PrivateDependencyModuleNames.AddRange(new string[] { "Core", "Projects", "RHI", "ApplicationCore", "TraceLog" });
+
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		{
+			PublicDefinitions.Add("RHICORE_PLATFORM_DXGI_H=<dxgi.h>");
+		}
 	}
 }

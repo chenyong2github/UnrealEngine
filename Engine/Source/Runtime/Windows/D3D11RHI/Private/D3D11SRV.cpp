@@ -39,7 +39,7 @@ void FD3D11ShaderResourceView::UpdateView()
 		if (!Info.bNullView)
 		{
 			D3DResource = Buffer->Resource;
-			SRVDesc.Format = FindShaderResourceDXGIFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat), false);
+			SRVDesc.Format = UE::DXGIUtilities::FindShaderResourceFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat), false);
 
 			switch (Info.BufferType)
 			{
@@ -72,7 +72,7 @@ void FD3D11ShaderResourceView::UpdateView()
 		FRHITextureDesc const& TextureDesc = Texture->GetDesc();
 		auto const Info = ViewDesc.Texture.SRV.GetViewInfo(Texture);
 
-		SRVDesc.Format = FindShaderResourceDXGIFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat), Info.bSRGB);
+		SRVDesc.Format = UE::DXGIUtilities::FindShaderResourceFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat), Info.bSRGB);
 
 		// No need to use Info.Dimension, since D3D supports mixing Texture2D view types.
 		// Create a view which matches the underlying resource dimension.

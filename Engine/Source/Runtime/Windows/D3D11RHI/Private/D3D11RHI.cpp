@@ -767,8 +767,8 @@ IDXGISwapChain* FD3D11DynamicRHI::RHIGetSwapChain(FRHIViewport* InViewport) cons
 
 DXGI_FORMAT FD3D11DynamicRHI::RHIGetSwapChainFormat(EPixelFormat InFormat) const
 {
-	const DXGI_FORMAT PlatformFormat = ::FindDepthStencilDXGIFormat(static_cast<DXGI_FORMAT>(GPixelFormats[InFormat].PlatformFormat));
-	return ::FindShaderResourceDXGIFormat(PlatformFormat, true);
+	const DXGI_FORMAT PlatformFormat = UE::DXGIUtilities::FindDepthStencilFormat(static_cast<DXGI_FORMAT>(GPixelFormats[InFormat].PlatformFormat));
+	return UE::DXGIUtilities::FindShaderResourceFormat(PlatformFormat, true);
 }
 
 ID3D11Buffer* FD3D11DynamicRHI::RHIGetResource(FRHIBuffer* InBuffer) const

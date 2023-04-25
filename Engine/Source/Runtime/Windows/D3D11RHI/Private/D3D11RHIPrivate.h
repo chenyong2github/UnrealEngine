@@ -18,6 +18,7 @@
 #include "Engine/Engine.h"
 #include "HDRHelper.h"
 #include "BoundShaderStateHistory.h"
+#include "DXGIUtilities.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogD3D11RHI, Log, All);
 
@@ -767,9 +768,6 @@ public:
 	void ConditionalClearShaderResource(FD3D11ViewableResource* Resource, bool bCheckBoundInputAssembler);
 	void ClearAllShaderResources();
 
-
-	static DXGI_FORMAT GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, ETextureCreateFlags InFlags);
-
 	uint32 GetHDRDetectedDisplayIndex() const
 	{
 		return HDRDetectedDisplayIndex;
@@ -1079,90 +1077,6 @@ private:
 	// set MaxSupportedFeatureLevel and ChosenAdapter
 	void FindAdapter();
 };
-
-/** Find an appropriate DXGI format for the input format and SRGB setting. */
-inline DXGI_FORMAT FindShaderResourceDXGIFormat(DXGI_FORMAT InFormat,bool bSRGB)
-{
-	if(bSRGB)
-	{
-		switch(InFormat)
-		{
-		case DXGI_FORMAT_B8G8R8A8_TYPELESS:    return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-		case DXGI_FORMAT_R8G8B8A8_TYPELESS:    return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-		case DXGI_FORMAT_BC1_TYPELESS:         return DXGI_FORMAT_BC1_UNORM_SRGB;
-		case DXGI_FORMAT_BC2_TYPELESS:         return DXGI_FORMAT_BC2_UNORM_SRGB;
-		case DXGI_FORMAT_BC3_TYPELESS:         return DXGI_FORMAT_BC3_UNORM_SRGB;
-		case DXGI_FORMAT_BC7_TYPELESS:         return DXGI_FORMAT_BC7_UNORM_SRGB;
-		};
-	}
-	else
-	{
-		switch(InFormat)
-		{
-		case DXGI_FORMAT_B8G8R8A8_TYPELESS: return DXGI_FORMAT_B8G8R8A8_UNORM;
-		case DXGI_FORMAT_R8G8B8A8_TYPELESS: return DXGI_FORMAT_R8G8B8A8_UNORM;
-		case DXGI_FORMAT_BC1_TYPELESS:      return DXGI_FORMAT_BC1_UNORM;
-		case DXGI_FORMAT_BC2_TYPELESS:      return DXGI_FORMAT_BC2_UNORM;
-		case DXGI_FORMAT_BC3_TYPELESS:      return DXGI_FORMAT_BC3_UNORM;
-		case DXGI_FORMAT_BC7_TYPELESS:      return DXGI_FORMAT_BC7_UNORM;
-		};
-	}
-	switch(InFormat)
-	{
-		case DXGI_FORMAT_R24G8_TYPELESS: return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-		case DXGI_FORMAT_R32_TYPELESS: return DXGI_FORMAT_R32_FLOAT;
-		case DXGI_FORMAT_R16_TYPELESS: return DXGI_FORMAT_R16_UNORM;
-		// Changing Depth Buffers to 32 bit on Dingo as D24S8 is actually implemented as a 32 bit buffer in the hardware
-		case DXGI_FORMAT_R32G8X24_TYPELESS: return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS; 
-	}
-	return InFormat;
-}
-
-/** Find an appropriate DXGI format unordered access of the raw format. */
-inline DXGI_FORMAT FindUnorderedAccessDXGIFormat(DXGI_FORMAT InFormat)
-{
-	switch(InFormat)
-	{
-		case DXGI_FORMAT_B8G8R8A8_TYPELESS: return DXGI_FORMAT_B8G8R8A8_UNORM;
-		case DXGI_FORMAT_R8G8B8A8_TYPELESS: return DXGI_FORMAT_R8G8B8A8_UNORM;
-	}
-	return InFormat;
-}
-
-/** Find the appropriate depth-stencil targetable DXGI format for the given format. */
-inline DXGI_FORMAT FindDepthStencilDXGIFormat(DXGI_FORMAT InFormat)
-{
-	switch(InFormat)
-	{
-		case DXGI_FORMAT_R24G8_TYPELESS:
-			return DXGI_FORMAT_D24_UNORM_S8_UINT;
-		// Changing Depth Buffers to 32 bit on Dingo as D24S8 is actually implemented as a 32 bit buffer in the hardware
-		case DXGI_FORMAT_R32G8X24_TYPELESS:
-			return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-		case DXGI_FORMAT_R32_TYPELESS:
-			return DXGI_FORMAT_D32_FLOAT;
-		case DXGI_FORMAT_R16_TYPELESS:
-			return DXGI_FORMAT_D16_UNORM;
-	};
-	return InFormat;
-}
-
-/** 
- * Returns whether the given format contains stencil information.  
- * Must be passed a format returned by FindDepthStencilDXGIFormat, so that typeless versions are converted to their corresponding depth stencil view format.
- */
-inline bool HasStencilBits(DXGI_FORMAT InFormat)
-{
-	switch(InFormat)
-	{
-	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-		return true;
-	// Changing Depth Buffers to 32 bit on Dingo as D24S8 is actually implemented as a 32 bit buffer in the hardware
-	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-		return true;
-	};
-	return false;
-}
 
 // 1d, 31 bit (uses the sign bit for internal use), O(n) where n is the amount of elements stored
 // does not enforce any alignment

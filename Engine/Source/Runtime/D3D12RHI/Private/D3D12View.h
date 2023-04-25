@@ -53,7 +53,7 @@ struct FD3D12ResourceLayout
 	FD3D12ResourceLayout() = default;
 	FD3D12ResourceLayout(FD3D12ResourceDesc const& ResourceDesc)
 		: NumArraySlices(ResourceDesc.DepthOrArraySize)
-		, NumPlanes     (GetPlaneCount(ResourceDesc.Format))
+		, NumPlanes     (UE::DXGIUtilities::GetPlaneCount(ResourceDesc.Format))
 		, NumMips       (ResourceDesc.MipLevels)
 	{}
 

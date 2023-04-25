@@ -86,9 +86,6 @@ extern D3D11RHI_API void VerifyComRefCount(IUnknown* Object,int32 ExpectedRefs,c
 /** Returns a string for the provided error code, can include device removed information if the device is provided. */
 FString GetD3D11ErrorString(HRESULT ErrorCode, ID3D11Device* Device);
 
-/** Returns a string for the provided DXGI format. */
-const TCHAR* GetD3D11TextureFormatString(DXGI_FORMAT TextureFormat);
-
 /**
 * Convert from ECubeFace to D3DCUBEMAP_FACES type
 * @param Face - ECubeFace type to convert

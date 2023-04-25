@@ -49,9 +49,6 @@ namespace D3D12RHI
 	extern void VerifyComRefCount(IUnknown* Object, int32 ExpectedRefs, const TCHAR* Code, const TCHAR* Filename, int32 Line);
 #define checkComRefCount(Obj,ExpectedRefs) VerifyComRefCount(Obj,ExpectedRefs,TEXT(#Obj),TEXT(__FILE__),__LINE__)
 
-	/** Returns a string for the provided DXGI format. */
-	const TCHAR* GetD3D12TextureFormatString(DXGI_FORMAT TextureFormat);
-
 	/** Checks if given GPU virtual address corresponds to any known resource allocations and logs results */
 	void LogPageFaultData(class FD3D12Adapter* InAdapter, FD3D12Device* InDevice, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress);
 	
@@ -456,91 +453,11 @@ inline D3D12_RESOURCE_STATES DetermineInitialResourceState(D3D12_HEAP_TYPE HeapT
 	}
 }
 
-static bool IsBlockCompressFormat(DXGI_FORMAT Format)
-{
-	// Returns true if BC1, BC2, BC3, BC4, BC5, BC6, BC7
-	return (Format >= DXGI_FORMAT_BC1_TYPELESS && Format <= DXGI_FORMAT_BC5_SNORM) ||
-		(Format >= DXGI_FORMAT_BC6H_TYPELESS && Format <= DXGI_FORMAT_BC7_UNORM_SRGB);
-}
-
 static inline uint64 GetTilesNeeded(uint32 Width, uint32 Height, uint32 Depth, const D3D12_TILE_SHAPE& Shape)
 {
 	return uint64((Width + Shape.WidthInTexels - 1) / Shape.WidthInTexels) *
 		((Height + Shape.HeightInTexels - 1) / Shape.HeightInTexels) *
 		((Depth + Shape.DepthInTexels - 1) / Shape.DepthInTexels);
-}
-
-static uint32 GetWidthAlignment(DXGI_FORMAT Format)
-{
-	switch (Format)
-	{
-	case DXGI_FORMAT_R8G8_B8G8_UNORM: return 2;
-	case DXGI_FORMAT_G8R8_G8B8_UNORM: return 2;
-	case DXGI_FORMAT_NV12: return 2;
-	case DXGI_FORMAT_P010: return 2;
-	case DXGI_FORMAT_P016: return 2;
-	case DXGI_FORMAT_420_OPAQUE: return 2;
-	case DXGI_FORMAT_YUY2: return 2;
-	case DXGI_FORMAT_Y210: return 2;
-	case DXGI_FORMAT_Y216: return 2;
-	case DXGI_FORMAT_BC1_TYPELESS: return 4;
-	case DXGI_FORMAT_BC1_UNORM: return 4;
-	case DXGI_FORMAT_BC1_UNORM_SRGB: return 4;
-	case DXGI_FORMAT_BC2_TYPELESS: return 4;
-	case DXGI_FORMAT_BC2_UNORM: return 4;
-	case DXGI_FORMAT_BC2_UNORM_SRGB: return 4;
-	case DXGI_FORMAT_BC3_TYPELESS: return 4;
-	case DXGI_FORMAT_BC3_UNORM: return 4;
-	case DXGI_FORMAT_BC3_UNORM_SRGB: return 4;
-	case DXGI_FORMAT_BC4_TYPELESS: return 4;
-	case DXGI_FORMAT_BC4_UNORM: return 4;
-	case DXGI_FORMAT_BC4_SNORM: return 4;
-	case DXGI_FORMAT_BC5_TYPELESS: return 4;
-	case DXGI_FORMAT_BC5_UNORM: return 4;
-	case DXGI_FORMAT_BC5_SNORM: return 4;
-	case DXGI_FORMAT_BC6H_TYPELESS: return 4;
-	case DXGI_FORMAT_BC6H_UF16: return 4;
-	case DXGI_FORMAT_BC6H_SF16: return 4;
-	case DXGI_FORMAT_BC7_TYPELESS: return 4;
-	case DXGI_FORMAT_BC7_UNORM: return 4;
-	case DXGI_FORMAT_BC7_UNORM_SRGB: return 4;
-	case DXGI_FORMAT_NV11: return 4;
-	case DXGI_FORMAT_R1_UNORM: return 8;
-	default: return 1;
-	}
-}
-
-static uint32 GetHeightAlignment(DXGI_FORMAT Format)
-{
-	switch (Format)
-	{
-	case DXGI_FORMAT_NV12: return 2;
-	case DXGI_FORMAT_P010: return 2;
-	case DXGI_FORMAT_P016: return 2;
-	case DXGI_FORMAT_420_OPAQUE: return 2;
-	case DXGI_FORMAT_BC1_TYPELESS: return 4;
-	case DXGI_FORMAT_BC1_UNORM: return 4;
-	case DXGI_FORMAT_BC1_UNORM_SRGB: return 4;
-	case DXGI_FORMAT_BC2_TYPELESS: return 4;
-	case DXGI_FORMAT_BC2_UNORM: return 4;
-	case DXGI_FORMAT_BC2_UNORM_SRGB: return 4;
-	case DXGI_FORMAT_BC3_TYPELESS: return 4;
-	case DXGI_FORMAT_BC3_UNORM: return 4;
-	case DXGI_FORMAT_BC3_UNORM_SRGB: return 4;
-	case DXGI_FORMAT_BC4_TYPELESS: return 4;
-	case DXGI_FORMAT_BC4_UNORM: return 4;
-	case DXGI_FORMAT_BC4_SNORM: return 4;
-	case DXGI_FORMAT_BC5_TYPELESS: return 4;
-	case DXGI_FORMAT_BC5_UNORM: return 4;
-	case DXGI_FORMAT_BC5_SNORM: return 4;
-	case DXGI_FORMAT_BC6H_TYPELESS: return 4;
-	case DXGI_FORMAT_BC6H_UF16: return 4;
-	case DXGI_FORMAT_BC6H_SF16: return 4;
-	case DXGI_FORMAT_BC7_TYPELESS: return 4;
-	case DXGI_FORMAT_BC7_UNORM: return 4;
-	case DXGI_FORMAT_BC7_UNORM_SRGB: return 4;
-	default: return 1;
-	}
 }
 
 static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT DXGIFormat, EPixelFormat UEFormat, D3D12_RESOURCE_DIMENSION Dimension, uint32 SampleCount)
@@ -553,7 +470,7 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT DXGIFormat,
 	case D3D12_RESOURCE_DIMENSION_BUFFER:
 	case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
 	{
-		check(!IsBlockCompressFormat(DXGIFormat));
+		check(!UE::DXGIUtilities::IsBlockCompressedFormat(DXGIFormat));
 		pTileShape->WidthInTexels = (BPU == 0) ? 4096 : 4096 * 8 / BPU;
 		pTileShape->HeightInTexels = 1;
 		pTileShape->DepthInTexels = 1;
@@ -562,13 +479,13 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT DXGIFormat,
 	case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
 	{
 		pTileShape->DepthInTexels = 1;
-		if (IsBlockCompressFormat(DXGIFormat))
+		if (UE::DXGIUtilities::IsBlockCompressedFormat(DXGIFormat))
 		{
 			// Currently only supported block sizes are 64 and 128.
 			// These equations calculate the size in texels for a tile. It relies on the fact that 16*16*16 blocks fit in a tile if the block size is 128 bits.
 			check(BPU == 64 || BPU == 128);
-			pTileShape->WidthInTexels = 16 * GetWidthAlignment(DXGIFormat);
-			pTileShape->HeightInTexels = 16 * GetHeightAlignment(DXGIFormat);
+			pTileShape->WidthInTexels = 16 * UE::DXGIUtilities::GetWidthAlignment(DXGIFormat);
+			pTileShape->HeightInTexels = 16 * UE::DXGIUtilities::GetHeightAlignment(DXGIFormat);
 			if (BPU == 64)
 			{
 				// If bits per block are 64 we double width so it takes up the full tile size.
@@ -638,21 +555,21 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT DXGIFormat,
 				check(false);
 			}
 
-			check(GetWidthAlignment(DXGIFormat) == 1);
-			check(GetHeightAlignment(DXGIFormat) == 1);
+			check(UE::DXGIUtilities::GetWidthAlignment(DXGIFormat) == 1);
+			check(UE::DXGIUtilities::GetHeightAlignment(DXGIFormat) == 1);
 		}
 
 		break;
 	}
 	case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
 	{
-		if (IsBlockCompressFormat(DXGIFormat))
+		if (UE::DXGIUtilities::IsBlockCompressedFormat(DXGIFormat))
 		{
 			// Currently only supported block sizes are 64 and 128.
 			// These equations calculate the size in texels for a tile. It relies on the fact that 16*16*16 blocks fit in a tile if the block size is 128 bits.
 			check(BPU == 64 || BPU == 128);
-			pTileShape->WidthInTexels = 8 * GetWidthAlignment(DXGIFormat);
-			pTileShape->HeightInTexels = 8 * GetHeightAlignment(DXGIFormat);
+			pTileShape->WidthInTexels = 8 * UE::DXGIUtilities::GetWidthAlignment(DXGIFormat);
+			pTileShape->HeightInTexels = 8 * UE::DXGIUtilities::GetHeightAlignment(DXGIFormat);
 			pTileShape->DepthInTexels = 4;
 			if (BPU == 64)
 			{
@@ -700,8 +617,8 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT DXGIFormat,
 				check(false);
 			}
 
-			check(GetWidthAlignment(DXGIFormat) == 1);
-			check(GetHeightAlignment(DXGIFormat) == 1);
+			check(UE::DXGIUtilities::GetWidthAlignment(DXGIFormat) == 1);
+			check(UE::DXGIUtilities::GetHeightAlignment(DXGIFormat) == 1);
 		}
 	}
 	break;
@@ -800,209 +717,6 @@ FORCEINLINE_DEBUGGABLE uint32 GetMaxMSAAQuality(uint32 SampleCount)
 
 	// not supported
 	return 0xffffffff;
-}
-
-/** Find the appropriate depth-stencil typeless DXGI format for the given format. */
-inline DXGI_FORMAT FindDepthStencilParentDXGIFormat(DXGI_FORMAT InFormat)
-{
-	switch (InFormat)
-	{
-	case DXGI_FORMAT_D24_UNORM_S8_UINT      : return DXGI_FORMAT_R24G8_TYPELESS;
-	case DXGI_FORMAT_X24_TYPELESS_G8_UINT   : return DXGI_FORMAT_R24G8_TYPELESS;
-
-	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT   : return DXGI_FORMAT_R32G8X24_TYPELESS;
-	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT: return DXGI_FORMAT_R32G8X24_TYPELESS;
-
-	case DXGI_FORMAT_D32_FLOAT              : return DXGI_FORMAT_R32_TYPELESS;
-	case DXGI_FORMAT_D16_UNORM              : return DXGI_FORMAT_R16_TYPELESS;
-	};
-	return InFormat;
-}
-
-static uint8 GetPlaneSliceFromViewFormat(DXGI_FORMAT ResourceFormat, DXGI_FORMAT ViewFormat)
-{
-	// Currently, the only planar resources used are depth-stencil formats
-	switch (FindDepthStencilParentDXGIFormat(ResourceFormat))
-	{
-	case DXGI_FORMAT_R24G8_TYPELESS:
-		switch (ViewFormat)
-		{
-		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS: return 0;
-		case DXGI_FORMAT_X24_TYPELESS_G8_UINT : return 1;
-		}
-		break;
-	
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-		switch (ViewFormat)
-		{
-		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS: return 0;
-		case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT : return 1;
-		}
-		break;
-
-	case DXGI_FORMAT_NV12:
-		switch (ViewFormat)
-		{
-		case DXGI_FORMAT_R8_UNORM  : return 0;
-		case DXGI_FORMAT_R8G8_UNORM: return 1;
-		}
-		break;
-	}
-
-	return 0;
-}
-
-static uint8 GetPlaneCount(DXGI_FORMAT Format)
-{
-	// Currently, the only planar resources used are depth-stencil formats
-	// Note there is a D3D12 helper for this, D3D12GetFormatPlaneCount
-	switch (FindDepthStencilParentDXGIFormat(Format))
-	{
-	case DXGI_FORMAT_R24G8_TYPELESS:
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-		return 2;
-	default:
-		return 1;
-	}
-}
-
-static uint32 D3D12GetFormatSizeInBits(DXGI_FORMAT Format)
-{
-	switch (Format)
-	{
-	default: checkNoEntry(); [[fallthrough]];
-	case DXGI_FORMAT_UNKNOWN:
-		return 0;
-
-	case DXGI_FORMAT_R32G32B32A32_TYPELESS:
-	case DXGI_FORMAT_R32G32B32A32_FLOAT:
-	case DXGI_FORMAT_R32G32B32A32_UINT:
-	case DXGI_FORMAT_R32G32B32A32_SINT:
-	case DXGI_FORMAT_BC2_TYPELESS:
-	case DXGI_FORMAT_BC2_UNORM:
-	case DXGI_FORMAT_BC2_UNORM_SRGB:
-	case DXGI_FORMAT_BC3_TYPELESS:
-	case DXGI_FORMAT_BC3_UNORM:
-	case DXGI_FORMAT_BC3_UNORM_SRGB:
-	case DXGI_FORMAT_BC5_TYPELESS:
-	case DXGI_FORMAT_BC5_UNORM:
-	case DXGI_FORMAT_BC5_SNORM:
-	case DXGI_FORMAT_BC6H_TYPELESS:
-	case DXGI_FORMAT_BC6H_UF16:
-	case DXGI_FORMAT_BC6H_SF16:
-	case DXGI_FORMAT_BC7_TYPELESS:
-	case DXGI_FORMAT_BC7_UNORM:
-	case DXGI_FORMAT_BC7_UNORM_SRGB:
-		return 128;
-
-	case DXGI_FORMAT_R32G32B32_TYPELESS:
-	case DXGI_FORMAT_R32G32B32_FLOAT:
-	case DXGI_FORMAT_R32G32B32_UINT:
-	case DXGI_FORMAT_R32G32B32_SINT:
-		return 96;
-
-	case DXGI_FORMAT_R16G16B16A16_TYPELESS:
-	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-	case DXGI_FORMAT_R16G16B16A16_UNORM:
-	case DXGI_FORMAT_R16G16B16A16_UINT:
-	case DXGI_FORMAT_R16G16B16A16_SNORM:
-	case DXGI_FORMAT_R16G16B16A16_SINT:
-	case DXGI_FORMAT_R32G32_TYPELESS:
-	case DXGI_FORMAT_R32G32_FLOAT:
-	case DXGI_FORMAT_R32G32_UINT:
-	case DXGI_FORMAT_R32G32_SINT:
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-	case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
-	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
-	case DXGI_FORMAT_BC1_TYPELESS:
-	case DXGI_FORMAT_BC1_UNORM:
-	case DXGI_FORMAT_BC1_UNORM_SRGB:
-	case DXGI_FORMAT_BC4_TYPELESS:
-	case DXGI_FORMAT_BC4_UNORM:
-	case DXGI_FORMAT_BC4_SNORM:
-	case DXGI_FORMAT_Y416:
-	case DXGI_FORMAT_Y210:
-	case DXGI_FORMAT_Y216:
-		return 64;
-
-	case DXGI_FORMAT_R10G10B10A2_TYPELESS:
-	case DXGI_FORMAT_R10G10B10A2_UNORM:
-	case DXGI_FORMAT_R10G10B10A2_UINT:
-	case DXGI_FORMAT_R11G11B10_FLOAT:
-	case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-	case DXGI_FORMAT_R8G8B8A8_UINT:
-	case DXGI_FORMAT_R8G8B8A8_SNORM:
-	case DXGI_FORMAT_R8G8B8A8_SINT:
-	case DXGI_FORMAT_R16G16_TYPELESS:
-	case DXGI_FORMAT_R16G16_FLOAT:
-	case DXGI_FORMAT_R16G16_UNORM:
-	case DXGI_FORMAT_R16G16_UINT:
-	case DXGI_FORMAT_R16G16_SNORM:
-	case DXGI_FORMAT_R16G16_SINT:
-	case DXGI_FORMAT_R32_TYPELESS:
-	case DXGI_FORMAT_D32_FLOAT:
-	case DXGI_FORMAT_R32_FLOAT:
-	case DXGI_FORMAT_R32_UINT:
-	case DXGI_FORMAT_R32_SINT:
-	case DXGI_FORMAT_R24G8_TYPELESS:
-	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-	case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
-	case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
-	case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:
-	case DXGI_FORMAT_R8G8_B8G8_UNORM:
-	case DXGI_FORMAT_G8R8_G8B8_UNORM:
-	case DXGI_FORMAT_B8G8R8A8_UNORM:
-	case DXGI_FORMAT_B8G8R8X8_UNORM:
-	case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:
-	case DXGI_FORMAT_B8G8R8A8_TYPELESS:
-	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-	case DXGI_FORMAT_B8G8R8X8_TYPELESS:
-	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
-	case DXGI_FORMAT_AYUV:
-	case DXGI_FORMAT_Y410:
-	case DXGI_FORMAT_P010:
-	case DXGI_FORMAT_P016:
-	case DXGI_FORMAT_YUY2:
-		return 32;
-
-	case DXGI_FORMAT_R8G8_TYPELESS:
-	case DXGI_FORMAT_R8G8_UNORM:
-	case DXGI_FORMAT_R8G8_UINT:
-	case DXGI_FORMAT_R8G8_SNORM:
-	case DXGI_FORMAT_R8G8_SINT:
-	case DXGI_FORMAT_R16_TYPELESS:
-	case DXGI_FORMAT_R16_FLOAT:
-	case DXGI_FORMAT_D16_UNORM:
-	case DXGI_FORMAT_R16_UNORM:
-	case DXGI_FORMAT_R16_UINT:
-	case DXGI_FORMAT_R16_SNORM:
-	case DXGI_FORMAT_R16_SINT:
-	case DXGI_FORMAT_B5G6R5_UNORM:
-	case DXGI_FORMAT_B5G5R5A1_UNORM:
-	case DXGI_FORMAT_B4G4R4A4_UNORM:
-	case DXGI_FORMAT_NV12:
-	case DXGI_FORMAT_NV11:
-		return 16;
-
-	case DXGI_FORMAT_R8_TYPELESS:
-	case DXGI_FORMAT_R8_UNORM:
-	case DXGI_FORMAT_R8_UINT:
-	case DXGI_FORMAT_R8_SNORM:
-	case DXGI_FORMAT_R8_SINT:
-	case DXGI_FORMAT_A8_UNORM:
-		return 8;
-
-	case DXGI_FORMAT_R1_UNORM:
-		return 1;
-	}
-}
-
-static uint32 D3D12GetFormatSizeInBytes(DXGI_FORMAT Format)
-{
-	return D3D12GetFormatSizeInBits(Format) / 8;
 }
 
 struct FD3D12ScopeLock

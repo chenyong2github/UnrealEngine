@@ -620,8 +620,8 @@ ID3D12GraphicsCommandList* FD3D12DynamicRHI::RHIGetGraphicsCommandList(uint32 In
 
 DXGI_FORMAT FD3D12DynamicRHI::RHIGetSwapChainFormat(EPixelFormat InFormat) const
 {
-	const DXGI_FORMAT PlatformFormat = D3D12RHI::FindDepthStencilDXGIFormat(static_cast<DXGI_FORMAT>(GPixelFormats[InFormat].PlatformFormat));
-	return D3D12RHI::FindShaderResourceDXGIFormat(PlatformFormat, true);
+	const DXGI_FORMAT PlatformFormat = UE::DXGIUtilities::FindDepthStencilFormat(static_cast<DXGI_FORMAT>(GPixelFormats[InFormat].PlatformFormat));
+	return UE::DXGIUtilities::FindShaderResourceFormat(PlatformFormat, true);
 }
 
 ID3D12Resource* FD3D12DynamicRHI::RHIGetResource(FRHIBuffer* InBuffer) const

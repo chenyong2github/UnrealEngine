@@ -49,8 +49,8 @@ TArray<DXGI_FORMAT, TInlineAllocator<4>> FD3D12ResourceDesc::GetCastableFormats(
 	TArray<DXGI_FORMAT, TInlineAllocator<4>> Result;
 
 	// We have to add the 'implied' castable formats for SRVs. Since we don't have any sRGB flags here, just add both formats.
-	Result.Emplace(FindShaderResourceDXGIFormat(Format, true));
-	Result.Emplace(FindShaderResourceDXGIFormat(Format, false));
+	Result.Emplace(UE::DXGIUtilities::FindShaderResourceFormat(Format, true));
+	Result.Emplace(UE::DXGIUtilities::FindShaderResourceFormat(Format, false));
 
 	if (UAVPixelFormat != PF_Unknown)
 	{
@@ -97,7 +97,7 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	, Heap(InHeap)
 	, Desc(InDesc)
 	, HeapType(InHeapType)
-	, PlaneCount(::GetPlaneCount(Desc.Format))
+	, PlaneCount(UE::DXGIUtilities::GetPlaneCount(Desc.Format))
 	, bRequiresResourceStateTracking(true)
 	, bDepthStencil(false)
 	, bDeferDelete(true)

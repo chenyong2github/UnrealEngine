@@ -33,7 +33,7 @@ void FD3D11UnorderedAccessView::UpdateView()
 		{
 			D3DResource = Buffer->Resource;
 
-			UAVDesc.Format = FindUnorderedAccessDXGIFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat));
+			UAVDesc.Format = UE::DXGIUtilities::FindUnorderedAccessFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat));
 			UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
 
 			UAVDesc.Buffer.FirstElement = Info.OffsetInBytes / Info.StrideInBytes;
@@ -67,7 +67,7 @@ void FD3D11UnorderedAccessView::UpdateView()
 		FRHITextureDesc const& TextureDesc = Texture->GetDesc();
 		auto const Info = ViewDesc.Texture.UAV.GetViewInfo(Texture);
 
-		UAVDesc.Format = FindUnorderedAccessDXGIFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat));
+		UAVDesc.Format = UE::DXGIUtilities::FindUnorderedAccessFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat));
 
 		// No need to use Info.Dimension, since D3D supports mixing Texture2D view types.
 		// Create a view which matches the underlying resource dimension.

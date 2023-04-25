@@ -25,6 +25,30 @@ static FAutoConsoleVariableRef CVarPSOPrecacheKeepLowLevel(
 
 /// @cond DOXYGEN_WARNINGS
 
+static void TranslateRenderTargetFormats(
+	const FGraphicsPipelineStateInitializer& PsoInit,
+	D3D12_RT_FORMAT_ARRAY& RTFormatArray,
+	DXGI_FORMAT& DSVFormat)
+{
+	RTFormatArray.NumRenderTargets = PsoInit.ComputeNumValidRenderTargets();
+
+	for (uint32 RTIdx = 0; RTIdx < PsoInit.RenderTargetsEnabled; ++RTIdx)
+	{
+		checkSlow(PsoInit.RenderTargetFormats[RTIdx] == PF_Unknown || GPixelFormats[PsoInit.RenderTargetFormats[RTIdx]].Supported);
+
+		DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[PsoInit.RenderTargetFormats[RTIdx]].PlatformFormat;
+		ETextureCreateFlags Flags = PsoInit.RenderTargetFlags[RTIdx];
+
+		RTFormatArray.RTFormats[RTIdx] = UE::DXGIUtilities::FindShaderResourceFormat(UE::DXGIUtilities::GetPlatformTextureResourceFormat(PlatformFormat, Flags), EnumHasAnyFlags(Flags, ETextureCreateFlags::SRGB));
+	}
+
+	checkSlow(PsoInit.DepthStencilTargetFormat == PF_Unknown || GPixelFormats[PsoInit.DepthStencilTargetFormat].Supported);
+
+	DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[PsoInit.DepthStencilTargetFormat].PlatformFormat;
+
+	DSVFormat = UE::DXGIUtilities::FindDepthStencilFormat(UE::DXGIUtilities::GetPlatformTextureResourceFormat(PlatformFormat, PsoInit.DepthStencilTargetFlag));
+}
+
 static FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(const FGraphicsPipelineStateInitializer& Initializer, const FD3D12RootSignature* RootSignature)
 {
 	FD3D12LowLevelGraphicsPipelineStateDesc Desc{};

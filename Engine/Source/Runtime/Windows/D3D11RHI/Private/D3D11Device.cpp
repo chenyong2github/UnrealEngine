@@ -432,17 +432,17 @@ void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 	{
 		FPixelFormatInfo& PixelFormatInfo = GPixelFormats[FormatIndex];
 		const DXGI_FORMAT PlatformFormat = static_cast<DXGI_FORMAT>(PixelFormatInfo.PlatformFormat);
-		const DXGI_FORMAT UAVFormat = FindUnorderedAccessDXGIFormat(PlatformFormat);
+		const DXGI_FORMAT UAVFormat = UE::DXGIUtilities::FindUnorderedAccessFormat(PlatformFormat);
 
 		EPixelFormatCapabilities Capabilities = EPixelFormatCapabilities::None;
 
 		if (PlatformFormat != DXGI_FORMAT_UNKNOWN)
 		{
 			const FFormatSupport FormatSupport    = GetFormatSupport(Direct3DDevice, PlatformFormat);
-			const FFormatSupport SRVFormatSupport = GetFormatSupport(Direct3DDevice, FindShaderResourceDXGIFormat(PlatformFormat, false));
-			const FFormatSupport UAVFormatSupport = GetFormatSupport(Direct3DDevice, FindUnorderedAccessDXGIFormat(PlatformFormat));
-			const FFormatSupport RTVFormatSupport = GetFormatSupport(Direct3DDevice, FindShaderResourceDXGIFormat(PlatformFormat, false));
-			const FFormatSupport DSVFormatSupport = GetFormatSupport(Direct3DDevice, FindDepthStencilDXGIFormat(PlatformFormat));
+			const FFormatSupport SRVFormatSupport = GetFormatSupport(Direct3DDevice, UE::DXGIUtilities::FindShaderResourceFormat(PlatformFormat, false));
+			const FFormatSupport UAVFormatSupport = GetFormatSupport(Direct3DDevice, UE::DXGIUtilities::FindUnorderedAccessFormat(PlatformFormat));
+			const FFormatSupport RTVFormatSupport = GetFormatSupport(Direct3DDevice, UE::DXGIUtilities::FindShaderResourceFormat(PlatformFormat, false));
+			const FFormatSupport DSVFormatSupport = GetFormatSupport(Direct3DDevice, UE::DXGIUtilities::FindDepthStencilFormat(PlatformFormat));
 
 			auto ConvertCap1 = [&Capabilities](const FFormatSupport& InSupport, EPixelFormatCapabilities UnrealCap, D3D11_FORMAT_SUPPORT InFlag)
 			{
@@ -747,7 +747,7 @@ static bool CanFormatBeDisplayed(const FD3D11DynamicRHI* InD3DRHI, EPixelFormat 
 	const HRESULT FormatSupportResult = InD3DRHI->GetDevice()->CheckFormatSupport(DxgiFormat, &FormatSupport);
 	if (FAILED(FormatSupportResult))
 	{
-		const TCHAR* D3DFormatString = GetD3D11TextureFormatString(DxgiFormat);
+		const TCHAR* D3DFormatString = UE::DXGIUtilities::GetFormatString(DxgiFormat);
 		UE_LOG(LogD3D11RHI, Warning, TEXT("CheckFormatSupport(%s) failed: 0x%08x"), D3DFormatString, FormatSupportResult);
 		return false;
 	}

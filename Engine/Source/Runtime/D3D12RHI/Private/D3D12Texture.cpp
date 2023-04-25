@@ -541,7 +541,7 @@ FD3D12ResourceDesc FD3D12DynamicRHI::GetResourceDesc(const FRHITextureDesc& Text
 
 	check(TextureDesc.Extent.X > 0 && TextureDesc.Extent.Y > 0 && TextureDesc.NumMips > 0);
 
-	const DXGI_FORMAT PlatformResourceFormat = GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[TextureDesc.Format].PlatformFormat, TextureDesc.Flags);
+	const DXGI_FORMAT PlatformResourceFormat = UE::DXGIUtilities::GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[TextureDesc.Format].PlatformFormat, TextureDesc.Flags);
 
 	bool bDenyShaderResource = false;
 	if (TextureDesc.Dimension != ETextureDimension::Texture3D)
@@ -869,7 +869,7 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 				TextureDesc.Width,
 				TextureDesc.Height,
 				TextureDesc.DepthOrArraySize,
-				GetD3D12TextureFormatString(TextureDesc.Format),
+				UE::DXGIUtilities::GetFormatString(TextureDesc.Format),
 				(uint32)TextureDesc.Format,
 				TextureDesc.MipLevels
 				);
@@ -899,7 +899,7 @@ FD3D12Texture* FD3D12DynamicRHI::CreateD3D12Texture(const FRHITextureCreateDesc&
 	// Get the resource desc
 	FD3D12ResourceDesc ResourceDesc = GetResourceDesc(CreateDesc);
 
-	const DXGI_FORMAT PlatformResourceFormat = GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[CreateDesc.Format].PlatformFormat, CreateDesc.Flags);
+	const DXGI_FORMAT PlatformResourceFormat = UE::DXGIUtilities::GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[CreateDesc.Format].PlatformFormat, CreateDesc.Flags);
 	bool bCreateRTV = EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 	bool bCreateDSV = EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
@@ -908,14 +908,14 @@ FD3D12Texture* FD3D12DynamicRHI::CreateD3D12Texture(const FRHITextureCreateDesc&
 	D3D12_CLEAR_VALUE ClearValue;
 	if (bCreateDSV && CreateDesc.ClearValue.ColorBinding == EClearBinding::EDepthStencilBound)
 	{
-		const DXGI_FORMAT PlatformDepthStencilFormat = FindDepthStencilDXGIFormat(PlatformResourceFormat);
+		const DXGI_FORMAT PlatformDepthStencilFormat = UE::DXGIUtilities::FindDepthStencilFormat(PlatformResourceFormat);
 		ClearValue = CD3DX12_CLEAR_VALUE(PlatformDepthStencilFormat, CreateDesc.ClearValue.Value.DSValue.Depth, (uint8)CreateDesc.ClearValue.Value.DSValue.Stencil);
 		ClearValuePtr = &ClearValue;
 	}
 	else if (bCreateRTV && CreateDesc.ClearValue.ColorBinding == EClearBinding::EColorBound)
 	{
 		const bool bSRGB = EnumHasAnyFlags(CreateDesc.Flags, TexCreate_SRGB);
-		const DXGI_FORMAT PlatformRenderTargetFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
+		const DXGI_FORMAT PlatformRenderTargetFormat = UE::DXGIUtilities::FindShaderResourceFormat(PlatformResourceFormat, bSRGB);
 		ClearValue = CD3DX12_CLEAR_VALUE(PlatformRenderTargetFormat, CreateDesc.ClearValue.Value.Color);
 		ClearValuePtr = &ClearValue;
 	}
@@ -1106,7 +1106,7 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 		.SetInitialState(ERHIAccess::SRVMask);
 
 	const DXGI_FORMAT PlatformResourceFormat = (DXGI_FORMAT)GPixelFormats[Format].PlatformFormat;
-	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, EnumHasAnyFlags(Flags, TexCreate_SRGB));
+	const DXGI_FORMAT PlatformShaderResourceFormat = UE::DXGIUtilities::FindShaderResourceFormat(PlatformResourceFormat, EnumHasAnyFlags(Flags, TexCreate_SRGB));
 	const D3D12_RESOURCE_DESC TextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
 		PlatformResourceFormat,
 		SizeX,
@@ -1176,7 +1176,7 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 		SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		SRVDesc.Texture2D.MostDetailedMip = 0;
 		SRVDesc.Texture2D.MipLevels = NumMips;
-		SRVDesc.Texture2D.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
+		SRVDesc.Texture2D.PlaneSlice = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
 
 		// Create a wrapper for the SRV and set it on the texture
 		NewTexture->EmplaceSRV(SRVDesc);
@@ -1527,10 +1527,10 @@ void FD3D12Texture::CreateViews()
 	const FRHITextureDesc Desc = GetDesc();
 
 	const bool bSRGB = EnumHasAnyFlags(Desc.Flags, TexCreate_SRGB);
-	const DXGI_FORMAT PlatformResourceFormat = GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[Desc.Format].PlatformFormat, Desc.Flags);
-	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
-	const DXGI_FORMAT PlatformRenderTargetFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
-	const DXGI_FORMAT PlatformDepthStencilFormat = FindDepthStencilDXGIFormat(PlatformResourceFormat);
+	const DXGI_FORMAT PlatformResourceFormat = UE::DXGIUtilities::GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[Desc.Format].PlatformFormat, Desc.Flags);
+	const DXGI_FORMAT PlatformShaderResourceFormat = UE::DXGIUtilities::FindShaderResourceFormat(PlatformResourceFormat, bSRGB);
+	const DXGI_FORMAT PlatformRenderTargetFormat = UE::DXGIUtilities::FindShaderResourceFormat(PlatformResourceFormat, bSRGB);
+	const DXGI_FORMAT PlatformDepthStencilFormat = UE::DXGIUtilities::FindDepthStencilFormat(PlatformResourceFormat);
 
 	const bool bTexture2D = Desc.IsTexture2D();
 	const bool bTexture3D = Desc.IsTexture3D();
@@ -1603,7 +1603,7 @@ void FD3D12Texture::CreateViews()
 						RTVDesc.Texture2DArray.FirstArraySlice = SliceIndex;
 						RTVDesc.Texture2DArray.ArraySize = 1;
 						RTVDesc.Texture2DArray.MipSlice = MipIndex;
-						RTVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, RTVDesc.Format);
+						RTVDesc.Texture2DArray.PlaneSlice = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(PlatformResourceFormat, RTVDesc.Format);
 
 						EmplaceRTV(RTVDesc, RTVIndex++);
 					}
@@ -1629,7 +1629,7 @@ void FD3D12Texture::CreateViews()
 							RTVDesc.Texture2DArray.FirstArraySlice = 0;
 							RTVDesc.Texture2DArray.ArraySize = ResourceDesc.DepthOrArraySize;
 							RTVDesc.Texture2DArray.MipSlice = MipIndex;
-							RTVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, RTVDesc.Format);
+							RTVDesc.Texture2DArray.PlaneSlice = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(PlatformResourceFormat, RTVDesc.Format);
 						}
 					}
 					else
@@ -1643,7 +1643,7 @@ void FD3D12Texture::CreateViews()
 						{
 							RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 							RTVDesc.Texture2D.MipSlice = MipIndex;
-							RTVDesc.Texture2D.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, RTVDesc.Format);
+							RTVDesc.Texture2D.PlaneSlice = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(PlatformResourceFormat, RTVDesc.Format);
 						}
 					}
 
@@ -1659,7 +1659,7 @@ void FD3D12Texture::CreateViews()
 
 		// Create a depth-stencil-view for the texture.
 		D3D12_DEPTH_STENCIL_VIEW_DESC DSVDesc = {};
-		DSVDesc.Format = FindDepthStencilDXGIFormat(PlatformResourceFormat);
+		DSVDesc.Format = UE::DXGIUtilities::FindDepthStencilFormat(PlatformResourceFormat);
 		if (bTextureArray || bCubeTexture)
 		{
 			if (bIsMultisampled)
@@ -1690,7 +1690,7 @@ void FD3D12Texture::CreateViews()
 			}
 		}
 
-		const bool HasStencil = HasStencilBits(DSVDesc.Format);
+		const bool HasStencil = UE::DXGIUtilities::HasStencilBits(DSVDesc.Format);
 		for (uint32 AccessType = 0; AccessType < FExclusiveDepthStencil::MaxIndex; ++AccessType)
 		{
 			// Create a read-only access views for the texture.
@@ -1740,7 +1740,7 @@ void FD3D12Texture::CreateViews()
 				SRVDesc.Texture2DArray.MipLevels = Desc.NumMips;
 				SRVDesc.Texture2DArray.FirstArraySlice = 0;
 				SRVDesc.Texture2DArray.ArraySize = ResourceDesc.DepthOrArraySize;
-				SRVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
+				SRVDesc.Texture2DArray.PlaneSlice = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
 			}
 		}
 		else if (bTexture3D)
@@ -1761,7 +1761,7 @@ void FD3D12Texture::CreateViews()
 				SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 				SRVDesc.Texture2D.MostDetailedMip = 0;
 				SRVDesc.Texture2D.MipLevels = Desc.NumMips;
-				SRVDesc.Texture2D.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
+				SRVDesc.Texture2D.PlaneSlice = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
 			}
 		}
 
@@ -2905,8 +2905,8 @@ FD3D12Texture* FD3D12DynamicRHI::CreateAliasedD3D12Texture2D(FD3D12Texture* Sour
 	const bool bSRGB = EnumHasAnyFlags(SourceTexture->GetFlags(), TexCreate_SRGB);
 
 	const DXGI_FORMAT PlatformResourceFormat = TextureDesc.Format;
-	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
-	const DXGI_FORMAT PlatformRenderTargetFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat, bSRGB);
+	const DXGI_FORMAT PlatformShaderResourceFormat = UE::DXGIUtilities::FindShaderResourceFormat(PlatformResourceFormat, bSRGB);
+	const DXGI_FORMAT PlatformRenderTargetFormat = UE::DXGIUtilities::FindShaderResourceFormat(PlatformResourceFormat, bSRGB);
 
 	const FString Name = SourceTexture->GetName().ToString() + TEXT("Alias");
 	FRHITextureCreateDesc CreateDesc(SourceTexture->GetDesc(), ERHIAccess::SRVMask, *Name);

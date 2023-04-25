@@ -60,50 +60,6 @@ FString GetD3D11ErrorString(HRESULT ErrorCode, ID3D11Device* Device)
 
 #undef D3DERR
 
-const TCHAR* GetD3D11TextureFormatString(DXGI_FORMAT TextureFormat)
-{
-	static const TCHAR* EmptyString = TEXT("");
-	const TCHAR* TextureFormatText = EmptyString;
-#define D3DFORMATCASE(x) case x: TextureFormatText = TEXT(#x); break;
-	switch(TextureFormat)
-	{
-		D3DFORMATCASE(DXGI_FORMAT_R8G8B8A8_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_B8G8R8A8_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_B8G8R8X8_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_BC1_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_BC2_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_BC3_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_BC4_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_R16G16B16A16_FLOAT)
-		D3DFORMATCASE(DXGI_FORMAT_R32G32B32A32_FLOAT)
-		D3DFORMATCASE(DXGI_FORMAT_UNKNOWN)
-		D3DFORMATCASE(DXGI_FORMAT_R8_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_D32_FLOAT_S8X24_UINT)
-		D3DFORMATCASE(DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS)
-		D3DFORMATCASE(DXGI_FORMAT_R32G8X24_TYPELESS)
-		D3DFORMATCASE(DXGI_FORMAT_D24_UNORM_S8_UINT)
-		D3DFORMATCASE(DXGI_FORMAT_R24_UNORM_X8_TYPELESS)
-		D3DFORMATCASE(DXGI_FORMAT_R32_FLOAT)
-		D3DFORMATCASE(DXGI_FORMAT_R16G16_UINT)
-		D3DFORMATCASE(DXGI_FORMAT_R16G16_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_R16G16_SNORM)
-		D3DFORMATCASE(DXGI_FORMAT_R16G16_FLOAT)
-		D3DFORMATCASE(DXGI_FORMAT_R32G32_FLOAT)
-		D3DFORMATCASE(DXGI_FORMAT_R10G10B10A2_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_R16G16B16A16_UINT)
-		D3DFORMATCASE(DXGI_FORMAT_R8G8_SNORM)
-		D3DFORMATCASE(DXGI_FORMAT_BC5_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_R1_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_R8G8B8A8_TYPELESS)
-		D3DFORMATCASE(DXGI_FORMAT_B8G8R8A8_TYPELESS)
-		D3DFORMATCASE(DXGI_FORMAT_BC7_UNORM)
-		D3DFORMATCASE(DXGI_FORMAT_BC6H_UF16)
-		default: TextureFormatText = EmptyString;
-	}
-#undef D3DFORMATCASE
-	return TextureFormatText;
-}
-
 static FString GetD3D11TextureFlagString(uint32 TextureFlags)
 {
 	FString TextureFormatText = TEXT("");
@@ -281,7 +237,7 @@ void VerifyD3D11CreateTextureResult(HRESULT D3DResult, int32 UEFormat,const ANSI
 	check(FAILED(D3DResult));
 
 	const FString ErrorString = GetD3D11ErrorString(D3DResult, 0);
-	const TCHAR* D3DFormatString = GetD3D11TextureFormatString((DXGI_FORMAT)D3DFormat);
+	const TCHAR* D3DFormatString = UE::DXGIUtilities::GetFormatString((DXGI_FORMAT)D3DFormat);
 
 	FString DebugInfoString;
 
@@ -354,8 +310,8 @@ void VerifyD3D11ResizeViewportResult(
 	check(FAILED(D3DResult));
 
 	const FString ErrorString = GetD3D11ErrorString(D3DResult, 0);
-	const TCHAR* OldStateFormat = GetD3D11TextureFormatString(OldState.Format);
-	const TCHAR* NewStateFormat = GetD3D11TextureFormatString(NewState.Format);
+	const TCHAR* OldStateFormat = UE::DXGIUtilities::GetFormatString(OldState.Format);
+	const TCHAR* NewStateFormat = UE::DXGIUtilities::GetFormatString(NewState.Format);
 
 	UE_LOG(LogD3D11RHI, Error,
 		TEXT("%s failed with error %s\n at %s:%u\n (Size=%ix%i Fullscreen=%d Format=%s(0x%08X)) -> (Size=%ix%i Fullscreen=%d Format=%s(0x%08X))"),
@@ -407,7 +363,7 @@ void VerifyD3D11CreateViewResult(HRESULT D3DResult, const ANSICHAR* Code, const 
 	FormatSupport2.InFormat = Desc.Format;
 	Device->CheckFeatureSupport(D3D11_FEATURE_FORMAT_SUPPORT2, &FormatSupport2, sizeof(FormatSupport2));
 
-	const TCHAR* ViewFormat = GetD3D11TextureFormatString(Desc.Format);
+	const TCHAR* ViewFormat = UE::DXGIUtilities::GetFormatString(Desc.Format);
 
 	const FString& ErrorString = GetD3D11ErrorString(D3DResult, Device);
 

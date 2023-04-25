@@ -269,7 +269,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 				D3DRHI->GetFactory()->CreateSwapChain(D3DRHI->GetDevice(), &SwapChainDesc, SwapChain.GetInitReference());
 			if (CreateSwapChainResult == E_INVALIDARG)
 			{
-				const TCHAR* D3DFormatString = GetD3D11TextureFormatString(SwapChainDesc.BufferDesc.Format);
+				const TCHAR* D3DFormatString = UE::DXGIUtilities::GetFormatString(SwapChainDesc.BufferDesc.Format);
 
 				UE_LOG(LogD3D11RHI, Error,
 					TEXT("CreateSwapChain failed with E_INVALIDARG: \n")

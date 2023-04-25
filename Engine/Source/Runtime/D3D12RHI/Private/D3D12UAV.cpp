@@ -28,7 +28,7 @@ void FD3D12UnorderedAccessView::CreateView(FResourceInfo const& InResource, D3D1
 	{
 		StrideInBytes = InD3DViewDesc.Format == DXGI_FORMAT_UNKNOWN
 			? InD3DViewDesc.Buffer.StructureByteStride
-			: D3D12GetFormatSizeInBytes(InD3DViewDesc.Format);
+			: UE::DXGIUtilities::GetFormatSizeInBytes(InD3DViewDesc.Format);
 
 		check(StrideInBytes > 0);
 
@@ -105,7 +105,7 @@ void FD3D12UnorderedAccessView_RHI::CreateView()
 				Flags = EFlags::NeedsCounter;
 
 			UAVDesc.ViewDimension       = D3D12_UAV_DIMENSION_BUFFER;
-			UAVDesc.Format              = FindUnorderedAccessDXGIFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat));
+			UAVDesc.Format              = UE::DXGIUtilities::FindUnorderedAccessFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat));
 			UAVDesc.Buffer.FirstElement = (Info.OffsetInBytes + Buffer->ResourceLocation.GetOffsetFromBaseOfResource()) / Info.StrideInBytes;
 			UAVDesc.Buffer.NumElements  = Info.NumElements;
 
@@ -141,13 +141,13 @@ void FD3D12UnorderedAccessView_RHI::CreateView()
 
 		auto const Info = ViewDesc.Texture.UAV.GetViewInfo(Texture);
 
-		DXGI_FORMAT const ViewFormat = FindUnorderedAccessDXGIFormat   (DXGI_FORMAT(GPixelFormats[Info.Format       ].PlatformFormat));
-		DXGI_FORMAT const BaseFormat = GetPlatformTextureResourceFormat(DXGI_FORMAT(GPixelFormats[TextureDesc.Format].PlatformFormat), TextureDesc.Flags);
+		DXGI_FORMAT const ViewFormat = UE::DXGIUtilities::FindUnorderedAccessFormat(DXGI_FORMAT(GPixelFormats[Info.Format       ].PlatformFormat));
+		DXGI_FORMAT const BaseFormat = UE::DXGIUtilities::GetPlatformTextureResourceFormat(DXGI_FORMAT(GPixelFormats[TextureDesc.Format].PlatformFormat), TextureDesc.Flags);
 
 		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
 		UAVDesc.Format = ViewFormat;
 
-		uint32 const PlaneSlice = GetPlaneSliceFromViewFormat(BaseFormat, ViewFormat);
+		uint32 const PlaneSlice = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(BaseFormat, ViewFormat);
 		FRHIRange8 const PlaneRange(PlaneSlice, 1);
 
 		// No need to use Info.Dimension, since D3D supports mixing Texture2D view types.

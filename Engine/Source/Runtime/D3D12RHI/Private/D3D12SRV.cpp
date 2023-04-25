@@ -28,7 +28,7 @@ void FD3D12ShaderResourceView::CreateView(FResourceInfo const& InResource, D3D12
 	{
 		StrideInBytes = InD3DViewDesc.Format == DXGI_FORMAT_UNKNOWN
 			? InD3DViewDesc.Buffer.StructureByteStride
-			: D3D12GetFormatSizeInBytes(InD3DViewDesc.Format);
+			: UE::DXGIUtilities::GetFormatSizeInBytes(InD3DViewDesc.Format);
 
 		check(StrideInBytes > 0);
 
@@ -134,7 +134,7 @@ void FD3D12ShaderResourceView_RHI::CreateView()
 			else
 			{
 				SRVDesc.ViewDimension       = D3D12_SRV_DIMENSION_BUFFER;
-				SRVDesc.Format              = FindShaderResourceDXGIFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat), false);
+				SRVDesc.Format              = UE::DXGIUtilities::FindShaderResourceFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat), false);
 				SRVDesc.Buffer.FirstElement = (Info.OffsetInBytes + Buffer->ResourceLocation.GetOffsetFromBaseOfResource()) / Info.StrideInBytes;
 				SRVDesc.Buffer.NumElements  = Info.NumElements;
 
@@ -165,14 +165,14 @@ void FD3D12ShaderResourceView_RHI::CreateView()
 
 		auto const Info = ViewDesc.Texture.SRV.GetViewInfo(Texture);
 
-		DXGI_FORMAT const ViewFormat = FindShaderResourceDXGIFormat    (DXGI_FORMAT(GPixelFormats[Info.Format       ].PlatformFormat), Info.bSRGB       );
-		DXGI_FORMAT const BaseFormat = GetPlatformTextureResourceFormat(DXGI_FORMAT(GPixelFormats[TextureDesc.Format].PlatformFormat), TextureDesc.Flags);
+		DXGI_FORMAT const ViewFormat = UE::DXGIUtilities::FindShaderResourceFormat(DXGI_FORMAT(GPixelFormats[Info.Format       ].PlatformFormat), Info.bSRGB       );
+		DXGI_FORMAT const BaseFormat = UE::DXGIUtilities::GetPlatformTextureResourceFormat(DXGI_FORMAT(GPixelFormats[TextureDesc.Format].PlatformFormat), TextureDesc.Flags);
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc{};
 		SRVDesc.Format = ViewFormat;
 		SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-		uint32 const PlaneSlice = GetPlaneSliceFromViewFormat(BaseFormat, ViewFormat);
+		uint32 const PlaneSlice = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(BaseFormat, ViewFormat);
 		FRHIRange8 const PlaneRange(PlaneSlice, 1);
 
 		// No need to use Info.Dimension, since D3D supports mixing Texture2D view types.

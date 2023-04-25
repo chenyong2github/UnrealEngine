@@ -16,8 +16,8 @@ FD3D12ViewRange::FD3D12ViewRange(D3D12_CONSTANT_BUFFER_VIEW_DESC const& ViewDesc
 
 FD3D12ViewRange::FD3D12ViewRange(D3D12_RENDER_TARGET_VIEW_DESC const& ViewDesc)
 {
-	uint32 FirstPlane = GetPlaneSliceFromViewFormat(ViewDesc.Format, ViewDesc.Format);
-	uint32 NumPlanes  = GetPlaneCount(ViewDesc.Format);
+	uint32 FirstPlane = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(ViewDesc.Format, ViewDesc.Format);
+	uint32 NumPlanes  = UE::DXGIUtilities::GetPlaneCount(ViewDesc.Format);
 	Plane = { FirstPlane, NumPlanes - FirstPlane };
 
 	switch (ViewDesc.ViewDimension)
@@ -61,8 +61,8 @@ FD3D12ViewRange::FD3D12ViewRange(D3D12_RENDER_TARGET_VIEW_DESC const& ViewDesc)
 
 FD3D12ViewRange::FD3D12ViewRange(D3D12_SHADER_RESOURCE_VIEW_DESC const& ViewDesc)
 {
-	uint32 FirstPlane = GetPlaneSliceFromViewFormat(ViewDesc.Format, ViewDesc.Format);
-	uint32 NumPlanes  = GetPlaneCount(ViewDesc.Format);
+	uint32 FirstPlane = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(ViewDesc.Format, ViewDesc.Format);
+	uint32 NumPlanes  = UE::DXGIUtilities::GetPlaneCount(ViewDesc.Format);
 	Plane = { FirstPlane, NumPlanes - FirstPlane };
 
 	switch (ViewDesc.ViewDimension)
@@ -128,8 +128,8 @@ FD3D12ViewRange::FD3D12ViewRange(D3D12_SHADER_RESOURCE_VIEW_DESC const& ViewDesc
 
 FD3D12ViewRange::FD3D12ViewRange(D3D12_DEPTH_STENCIL_VIEW_DESC const& ViewDesc)
 {
-	uint32 FirstPlane = GetPlaneSliceFromViewFormat(ViewDesc.Format, ViewDesc.Format);
-	uint32 NumPlanes  = GetPlaneCount(ViewDesc.Format);
+	uint32 FirstPlane = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(ViewDesc.Format, ViewDesc.Format);
+	uint32 NumPlanes  = UE::DXGIUtilities::GetPlaneCount(ViewDesc.Format);
 	Plane = { FirstPlane, NumPlanes - FirstPlane };
 
 	switch (ViewDesc.ViewDimension)
@@ -166,8 +166,8 @@ FD3D12ViewRange::FD3D12ViewRange(D3D12_DEPTH_STENCIL_VIEW_DESC const& ViewDesc)
 
 FD3D12ViewRange::FD3D12ViewRange(D3D12_UNORDERED_ACCESS_VIEW_DESC const& ViewDesc)
 {
-	uint32 FirstPlane = GetPlaneSliceFromViewFormat(ViewDesc.Format, ViewDesc.Format);
-	uint32 NumPlanes  = GetPlaneCount(ViewDesc.Format);
+	uint32 FirstPlane = UE::DXGIUtilities::GetPlaneSliceFromViewFormat(ViewDesc.Format, ViewDesc.Format);
+	uint32 NumPlanes  = UE::DXGIUtilities::GetPlaneCount(ViewDesc.Format);
 	Plane = { FirstPlane, NumPlanes - FirstPlane };
 
 	switch (ViewDesc.ViewDimension)
