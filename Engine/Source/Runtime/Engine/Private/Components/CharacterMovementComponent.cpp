@@ -1771,18 +1771,18 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 			CharacterOwner->RootMotionRepMoves.Reset();
 		}
 
-		// Update replicated movement mode.
-		if (bNetworkMovementModeChanged)
-		{
-			ApplyNetworkMovementMode(CharacterOwner->GetReplicatedMovementMode());
-			bNetworkMovementModeChanged = false;
-		}
-
 		// Update replicated gravity direction
 		if (bNetworkGravityDirectionChanged)
 		{
 			SetGravityDirection(CharacterOwner->GetReplicatedGravityDirection());
 			bNetworkGravityDirectionChanged = false;
+		}
+
+		// Update replicated movement mode.
+		if (bNetworkMovementModeChanged)
+		{
+			ApplyNetworkMovementMode(CharacterOwner->GetReplicatedMovementMode());
+			bNetworkMovementModeChanged = false;
 		}
 
 		// Perform movement
@@ -1805,8 +1805,8 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 			CharacterOwner->RootMotionRepMoves.Empty();
 			CharacterOwner->OnRep_ReplicatedMovement();
 			CharacterOwner->OnRep_ReplicatedBasedMovement();
-			ApplyNetworkMovementMode(GetCharacterOwner()->GetReplicatedMovementMode());
 			SetGravityDirection(CharacterOwner->GetReplicatedGravityDirection());
+			ApplyNetworkMovementMode(GetCharacterOwner()->GetReplicatedMovementMode());
 		}
 
 		if (CharacterOwner->IsReplicatingMovement() && UpdatedComponent)
@@ -1821,18 +1821,18 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 				const FScopedPreventAttachedComponentMove PreventMeshMovement(bPreventMeshMovement ? Mesh : nullptr);
 				if (CharacterOwner->IsPlayingRootMotion())
 				{
-					// Update replicated movement mode.
-					if (bNetworkMovementModeChanged)
-					{
-						ApplyNetworkMovementMode(CharacterOwner->GetReplicatedMovementMode());
-						bNetworkMovementModeChanged = false;
-					}
-
 					// Update replicated gravity direction
 					if (bNetworkGravityDirectionChanged)
 					{
 						SetGravityDirection(CharacterOwner->GetReplicatedGravityDirection());
 						bNetworkGravityDirectionChanged = false;
+					}
+
+					// Update replicated movement mode.
+					if (bNetworkMovementModeChanged)
+					{
+						ApplyNetworkMovementMode(CharacterOwner->GetReplicatedMovementMode());
+						bNetworkMovementModeChanged = false;
 					}
 
 					PerformMovement(DeltaSeconds);
@@ -1899,18 +1899,18 @@ void UCharacterMovementComponent::SimulateRootMotion(float DeltaSeconds, const F
 		AnimRootMotionVelocity = CalcAnimRootMotionVelocity(WorldSpaceRootMotionTransform.GetTranslation(), DeltaSeconds, Velocity);
 		Velocity = ConstrainAnimRootMotionVelocity(AnimRootMotionVelocity, Velocity);
 
-		// Update replicated movement mode.
-		if (bNetworkMovementModeChanged)
-		{
-			ApplyNetworkMovementMode(CharacterOwner->GetReplicatedMovementMode());
-			bNetworkMovementModeChanged = false;
-		}
-
 		// Update replicated gravity direction
 		if (bNetworkGravityDirectionChanged)
 		{
 			SetGravityDirection(CharacterOwner->GetReplicatedGravityDirection());
 			bNetworkGravityDirectionChanged = false;
+		}
+
+		// Update replicated movement mode.
+		if (bNetworkMovementModeChanged)
+		{
+			ApplyNetworkMovementMode(CharacterOwner->GetReplicatedMovementMode());
+			bNetworkMovementModeChanged = false;
 		}
 
 		NumJumpApexAttempts = 0;
@@ -3348,12 +3348,11 @@ float UCharacterMovementComponent::SlideAlongSurface(const FVector& Delta, float
 }
 
 
-void UCharacterMovementComponent::TwoWallAdjust(FVector& Delta, const FHitResult& Hit, const FVector& OldHitNormal) const
+void UCharacterMovementComponent::TwoWallAdjust(FVector& WorldSpaceDelta, const FHitResult& Hit, const FVector& OldHitNormal) const
 {
-	const FVector InDelta = RotateWorldToGravity(Delta);
-	Super::TwoWallAdjust(Delta, Hit, OldHitNormal);
+	Super::TwoWallAdjust(WorldSpaceDelta, Hit, OldHitNormal);
 
-	FVector GravityRelativeDelta = RotateWorldToGravity(Delta);
+	FVector GravityRelativeDelta = RotateWorldToGravity(WorldSpaceDelta);
 	if (IsMovingOnGround())
 	{
 		// Allow slides up walkable surfaces, but not unwalkable ones (treat those as vertical barriers).
@@ -3364,8 +3363,8 @@ void UCharacterMovementComponent::TwoWallAdjust(FVector& Delta, const FHitResult
 			{
 				// Maintain horizontal velocity
 				const float Time = (1.f - Hit.Time);
-				const FVector ScaledDelta = GravityRelativeDelta.GetSafeNormal() * InDelta.Size();
-				GravityRelativeDelta = FVector(InDelta.X, InDelta.Y, ScaledDelta.Z / GravityRelativeHitNormal.Z) * Time;
+				const FVector ScaledDelta = GravityRelativeDelta.GetSafeNormal() * GravityRelativeDelta.Size();
+				GravityRelativeDelta = FVector(GravityRelativeDelta.X, GravityRelativeDelta.Y, ScaledDelta.Z / GravityRelativeHitNormal.Z) * Time;
 
 				// Should never exceed MaxStepHeight in vertical component, so rescale if necessary.
 				// This should be rare (Hit.Normal.Z above would have been very small) but we'd rather lose horizontal velocity than go too high.
@@ -3390,7 +3389,7 @@ void UCharacterMovementComponent::TwoWallAdjust(FVector& Delta, const FHitResult
 		}
 	}
 
-	Delta = RotateGravityToWorld(GravityRelativeDelta);
+	WorldSpaceDelta = RotateGravityToWorld(GravityRelativeDelta);
 }
 
 

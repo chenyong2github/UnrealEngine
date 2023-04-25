@@ -468,6 +468,7 @@ protected:
 	UPROPERTY()
 	bool bInBaseReplication;
 
+	/** Cached version of the replicated gravity direction before replication. Used to compare if the value was changed as a result of replication. */
 	FVector_NetQuantizeNormal PreNetReceivedGravityDirection;
 public:
 	UFUNCTION()

@@ -193,8 +193,8 @@ private:
 	 * and custom movement modes. Gravity direction remaps player input as being within the plane defined by the gravity
 	 * direction. Movement simulation values like velocity and acceleration are maintained in their existing world coordinate
 	 * space but are transformed internally as gravity relative (for instance moving forward up a vertical wall that gravity is
-	 * defined to be perpendicular to and jump "up" from that wall). By default the character's capsule will not be oriented
-	 * to align with the gravity direction.
+	 * defined to be perpendicular to and jump "up" from that wall). If ShouldRemainVertical() is true the character's capsule
+	 * will be oriented to align with the gravity direction.
 	 */
 	UPROPERTY(Category="Character Movement: Gravity", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = true))
 	FVector GravityDirection;
@@ -1952,7 +1952,7 @@ protected:
 	virtual float SlideAlongSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, bool bHandleImpact) override;
 
 	/** Custom version that allows upwards slides when walking if the surface is walkable. */
-	virtual void TwoWallAdjust(FVector& Delta, const FHitResult& Hit, const FVector& OldHitNormal) const override;
+	virtual void TwoWallAdjust(FVector& WorldSpaceDelta, const FHitResult& Hit, const FVector& OldHitNormal) const override;
 
 	/**
 	 * Calculate slide vector along a surface.
