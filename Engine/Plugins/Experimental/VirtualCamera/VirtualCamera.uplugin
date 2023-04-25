@@ -24,12 +24,12 @@
 			"Enabled": true
 		},
 		{
-			"Name" : "VirtualCameraPixelStreamingPreset",
+			"Name" : "VCamPixelStreamingPreset",
 			"Enabled": true,
 			"PlatformAllowList" : [ "Win64", "Linux" ]
 		},
 		{
-			"Name" : "VirtualCameraMacPreset",
+			"Name" : "VCamMacPreset",
 			"Enabled": true,
 			"PlatformAllowList" : [ "Mac" ]
 		}
