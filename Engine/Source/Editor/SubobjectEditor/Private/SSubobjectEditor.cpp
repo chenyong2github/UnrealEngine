@@ -2522,8 +2522,13 @@ void SSubobjectEditor::UpdateTree(bool bRegenerateTreeNodes /* = true */)
 					ParentNode->AddChild(NewNode);
 					TreeWidget->SetItemExpansion(ParentNode, true);
 
-					// Add a seperator after the default scene root, but only if there are more items below it
-					if (Data->IsDefaultSceneRoot() && Data->IsInheritedComponent() && SubobjectData.Find(Handle) < SubobjectData.Num() - 1)
+					const bool bFilteredOut = RefreshFilteredState(NewNode, false);
+
+					// Add a separator after the default scene root, but only it is not filtered out and if there are more items below it
+					if (!bFilteredOut &&
+						Data->IsDefaultSceneRoot() &&
+						Data->IsInheritedComponent() && 
+						SubobjectData.Find(Handle) < SubobjectData.Num() - 1)
 					{
 						SeperatorNode = MakeShareable<FSubobjectEditorTreeNode>(
 							new FSubobjectEditorTreeNode(FSubobjectDataHandle::InvalidHandle, /** bIsSeperator */true));

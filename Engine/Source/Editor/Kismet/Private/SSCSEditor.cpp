@@ -4049,7 +4049,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	[
 		SNew(SComponentClassCombo)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.AddComponent")))
-		.Visibility(HideComponentClassCombo.Get() ? EVisibility::Hidden : EVisibility::Visible)
+		.Visibility(this, &SSCSEditor::GetComponentClassComboButtonVisibility)
 		.OnComponentClassSelected(this, &SSCSEditor::PerformComboAddClass)
 		.ToolTipText(LOCTEXT("AddComponent_Tooltip", "Adds a new component to this actor"))
 		.IsEnabled(AllowEditing)

@@ -76,7 +76,7 @@ void SSubobjectInstanceEditor::Construct(const FArguments& InArgs)
 	[
 		SNew(SComponentClassCombo)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.AddComponent")))
-		.Visibility(HideComponentClassCombo.Get() ? EVisibility::Hidden : EVisibility::Visible)
+		.Visibility(this, &SSubobjectInstanceEditor::GetComponentClassComboButtonVisibility)
 		.OnSubobjectClassSelected(this, &SSubobjectInstanceEditor::PerformComboAddClass)
 		.ToolTipText(LOCTEXT("AddComponent_Tooltip", "Adds a new component to this actor"))
 		.IsEnabled(true)
