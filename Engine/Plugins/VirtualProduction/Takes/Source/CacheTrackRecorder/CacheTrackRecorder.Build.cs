@@ -15,7 +15,6 @@ public class CacheTrackRecorder : ModuleRules
 				"Engine",
 				"LevelEditor",
 				"LevelSequence",
-				"LevelSequenceEditor",
 				"MovieScene",
 				"TakesCore",
 				"TakeMovieScene",

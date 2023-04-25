@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "LevelSequence.h"
+#include "ILevelSequenceEditorToolkit.h"
 #include "MovieScene.h"
 #include "Math/Range.h"
 #include "MovieSceneSection.h"
@@ -15,6 +16,8 @@
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "UObject/SavePackage.h"
+
+#define LOCTEXT_NAMESPACE "TakesUtils"
 
 namespace TakesUtils
 {
@@ -143,4 +146,82 @@ void CreateCameraCutTrack(ULevelSequence* LevelSequence, const FGuid& RecordedCa
 	CameraCutTrack->AddSection(*CameraCutSection);
 }
 
+UWorld* DiscoverSourceWorld()
+{
+	UWorld* SourceWorld = nullptr;
+
+	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+	{
+		if (WorldContext.WorldType == EWorldType::PIE || WorldContext.WorldType == EWorldType::Game )
+		{
+			SourceWorld = WorldContext.World();
+			break;
+		}
+		if (WorldContext.WorldType == EWorldType::Editor)
+		{
+			SourceWorld = WorldContext.World();
+		}
+	}
+
+	check(SourceWorld);
+	return SourceWorld;
 }
+
+TSharedPtr<ISequencer> OpenSequencer(ULevelSequence* LevelSequence, FText* OutError)
+{
+	TSharedPtr<ISequencer> Sequencer;
+	if ( GEditor != nullptr )
+	{
+		// Open the sequence and set the sequencer ptr
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelSequence);
+
+		IAssetEditorInstance*        AssetEditor         = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LevelSequence, false);
+		ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
+
+		Sequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
+
+		if (!Sequencer.IsValid() && OutError)
+		{
+			*OutError = FText::Format(LOCTEXT("FailedToOpenSequencerError", "Failed to open Sequencer for asset '{0}."), FText::FromString(LevelSequence->GetPathName()));
+		}
+	}
+		
+	return Sequencer;
+}
+
+FQualifiedFrameTime GetRecordTime(TSharedPtr<ISequencer> Sequencer, ULevelSequence* SequenceAsset, const FTimecode& TimecodeAtStart, bool bStartAtCurrentTimecode)
+{
+	FQualifiedFrameTime RecordTime;
+
+	if (Sequencer.IsValid())
+	{
+		RecordTime = Sequencer->GetGlobalTime();
+	}
+	else if (SequenceAsset)
+	{
+		if (UMovieScene* MovieScene = SequenceAsset->GetMovieScene())
+		{
+			FFrameRate FrameRate = MovieScene->GetDisplayRate();
+			FFrameRate TickResolution = MovieScene->GetTickResolution();
+
+			FTimecode CurrentTimecode = FApp::GetTimecode();
+		
+			FFrameNumber CurrentFrame = FFrameRate::TransformTime(FFrameTime(CurrentTimecode.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame();
+			FFrameNumber FrameAtStart = FFrameRate::TransformTime(FFrameTime(TimecodeAtStart.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame();
+
+			if (bStartAtCurrentTimecode)
+			{
+				RecordTime = FQualifiedFrameTime(CurrentFrame, TickResolution);
+			}
+			else
+			{
+				RecordTime = FQualifiedFrameTime(CurrentFrame - FrameAtStart, TickResolution);
+			}
+		}
+	}
+
+	return RecordTime;
+}
+}
+
+#undef LOCTEXT_NAMESPACE

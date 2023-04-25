@@ -204,11 +204,6 @@ private:
 	bool SetupDestinationAsset(const FTakeRecorderParameters& InParameters, ULevelSequence* LevelSequenceBase, UTakeRecorderSources* Sources, UTakeMetaData* MetaData, FText* OutError);
 
 	/**
-	 * Attempt to open the sequencer UI for the asset to be recorded
-	 */
-	bool InitializeSequencer(ULevelSequence* LevelSequence, FText* OutError);
-
-	/**
 	 * Discovers the source world to record from, and initializes it for recording
 	 */
 	void DiscoverSourceWorld();

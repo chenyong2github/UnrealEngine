@@ -4,6 +4,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
+#include "ISequencer.h"
 #include "Misc/PackageName.h"
 #include "MovieScene.h"
 #include "Modules/ModuleManager.h"
@@ -15,7 +16,6 @@
 
 class UWorld;
 class ULevelSequence;
-class UMovieScene;
 
 namespace TakesUtils
 {
@@ -157,4 +157,11 @@ namespace TakesUtils
 
 		return nullptr;
 	}
+
+	TAKESCORE_API UWorld* DiscoverSourceWorld();
+
+	TAKESCORE_API TSharedPtr<ISequencer> OpenSequencer(ULevelSequence* LevelSequence, FText* OutError);
+	
+	/* The time at which to record. Taken from the Sequencer global time, otherwise based on timecode */
+	TAKESCORE_API FQualifiedFrameTime GetRecordTime(TSharedPtr<ISequencer> Sequencer, ULevelSequence* SequenceAsset, const FTimecode& TimecodeAtStart, bool bStartAtCurrentTimecode);
 }

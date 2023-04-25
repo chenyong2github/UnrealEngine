@@ -39,7 +39,6 @@
 
 // LevelEditor includes
 #include "IAssetViewport.h"
-#include "ILevelSequenceEditorToolkit.h"
 #include "LevelEditor.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -49,7 +48,6 @@
 
 FCacheRecorderUserParameters::FCacheRecorderUserParameters()
 	: bMaximizeViewport(false)
-	, CountdownSeconds(0.f)
 	, EngineTimeDilation(1.f)
 	, bResetPlayhead(true)
 	, bStopAtPlaybackEnd(true)
@@ -79,9 +77,6 @@ public:
 		WeakRecorder = InCacheTrackRecorder;
 		CacheTrackRecorderState = InCacheTrackRecorder->GetState();
 
-		UTakeMetaData* TakeMetaData = InCacheTrackRecorder->GetSequence()->FindMetaData<UTakeMetaData>();
-		check(TakeMetaData);
-
 		ChildSlot
 		[
 			SNew(SBox)
@@ -101,7 +96,7 @@ public:
 					[
 						SNew(STextBlock)
 						.Font(FCoreStyle::Get().GetFontStyle(TEXT("NotificationList.FontBold")))
-						.Text(FText::Format(LOCTEXT("RecordingTitleFormat", "Take {0} of slate {1}"), FText::AsNumber(TakeMetaData->GetTakeNumber()), FText::FromString(TakeMetaData->GetSlate())))
+						.Text(LOCTEXT("RecordingTitleFormat", "Recording sequencer cache"))
 					]
 
 					+ SHorizontalBox::Slot()
@@ -157,7 +152,7 @@ private:
 		{
 			ECacheTrackRecorderState NewCacheTrackRecorderState = Recorder->GetState();
 
-			if (NewCacheTrackRecorderState == ECacheTrackRecorderState::CountingDown || NewCacheTrackRecorderState == ECacheTrackRecorderState::Started)
+			if (NewCacheTrackRecorderState == ECacheTrackRecorderState::Starting || NewCacheTrackRecorderState == ECacheTrackRecorderState::Started)
 			{
 				// When counting down the text may change on tick
 				TextBlock->SetText(GetDetailText());
@@ -199,9 +194,9 @@ private:
 	{
 		if (UCacheTrackRecorder* Recorder = WeakRecorder.Get())
 		{
-			if (Recorder->GetState() == ECacheTrackRecorderState::CountingDown)
+			if (Recorder->GetState() == ECacheTrackRecorderState::Starting)
 			{
-				return FText::Format(LOCTEXT("CountdownText", "Recording in {0}s..."), FText::AsNumber(FMath::CeilToInt(Recorder->GetCountdownSeconds())));
+				return LOCTEXT("CountdownText", "Starting to record...");
 			}
 			if (Recorder->GetState() == ECacheTrackRecorderState::Stopped)
 			{
@@ -212,18 +207,11 @@ private:
 				return LOCTEXT("CancelledText", "Recording Cancelled");
 			}
 
-			ULevelSequence* LevelSequence = Recorder->GetSequence();
-			if (UTakeMetaData* TakeMetaData = LevelSequence ? LevelSequence->FindMetaData<UTakeMetaData>() : nullptr)
-			{
-				FFrameRate FrameRate = TakeMetaData->GetFrameRate();
-				FTimespan RecordingDuration = FDateTime::UtcNow() - TakeMetaData->GetTimestamp();
-
-				FFrameNumber TotalFrames = FFrameNumber(static_cast<int32>(FrameRate.AsDecimal() * RecordingDuration.GetTotalSeconds()));
-
-				FTimecode Timecode = FTimecode::FromFrameNumber(TotalFrames, FrameRate);
-
-				return FText::Format(LOCTEXT("RecordingTimecodeText", "Recording...{0}"), FText::FromString(Timecode.ToString()));
-			}
+			static const FNumberFormattingOptions SecondFormattingOptions = FNumberFormattingOptions()
+			.SetMinimumFractionalDigits(2)
+			.SetMaximumFractionalDigits(2);
+			FQualifiedFrameTime RecordTime = Recorder->GetRecordTime();
+			return FText::Format(LOCTEXT("RecordingTimecodeText", "Recording... {0}s"), FText::AsNumber(RecordTime.AsSeconds(), &SecondFormattingOptions));
 		}
 
 		return LOCTEXT("RecordingText", "Recording...");
@@ -239,8 +227,6 @@ private:
 	{
 	}
 
-private:
-
 	FReply ButtonClicked()
 	{
 		if (UCacheTrackRecorder* Recorder = WeakRecorder.Get())
@@ -250,11 +236,10 @@ private:
 		return FReply::Handled();
 	}
 
-private:
 	TSharedPtr<SWidget> Button, Throbber, Hyperlink;
 	TSharedPtr<STextBlock> TextBlock;
 
-	ECacheTrackRecorderState CacheTrackRecorderState = ECacheTrackRecorderState::CountingDown;
+	ECacheTrackRecorderState CacheTrackRecorderState = ECacheTrackRecorderState::Starting;
 	TWeakPtr<SNotificationItem> WeakOwningNotification;
 	TWeakObjectPtr<UCacheTrackRecorder> WeakRecorder;
 };
@@ -302,17 +287,11 @@ static TStrongObjectPtr<UCacheTrackRecorder>& GetCurrentRecorder()
 	static TStrongObjectPtr<UCacheTrackRecorder> CurrentRecorder;
 	return CurrentRecorder;
 }
-FOnCacheTrackRecordingInitialized UCacheTrackRecorder::OnRecordingInitializedEvent;
 
 // Static functions for UCacheTrackRecorder
 UCacheTrackRecorder* UCacheTrackRecorder::GetActiveRecorder()
 {
 	return GetCurrentRecorder().Get();
-}
-
-FOnCacheTrackRecordingInitialized& UCacheTrackRecorder::OnRecordingInitialized()
-{
-	return OnRecordingInitializedEvent;
 }
 
 void UCacheTrackRecorder::RecordCacheTrack(IMovieSceneCachedTrack* Track, TSharedPtr<ISequencer> Sequencer, FCacheRecorderParameters Parameters)
@@ -331,7 +310,6 @@ void UCacheTrackRecorder::RecordCacheTracks(const TArray<IMovieSceneCachedTrack*
 	if (LevelSequence && CacheTracks.Num() > 0)
 	{
 		Parameters.StartFrame = LevelSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
-		Parameters.User.CountdownSeconds = 0;
 		Parameters.Project.bStartAtCurrentTimecode = false;
 
 		// If not resetting the playhead, store the current time as the start frame for recording. 
@@ -349,7 +327,7 @@ void UCacheTrackRecorder::RecordCacheTracks(const TArray<IMovieSceneCachedTrack*
 		}
 
 		FText ErrorText = LOCTEXT("UnknownError", "An unknown error occurred when trying to start recording");
-		if (!NewRecorder->Initialize(LevelSequence, CacheTracks, TakeMetaData, Parameters, &ErrorText))
+		if (!NewRecorder->Initialize(CacheTracks, TakeMetaData->GetSlate(), Parameters, &ErrorText))
 		{
 			if (ensure(!ErrorText.IsEmpty()))
 			{
@@ -388,20 +366,12 @@ bool UCacheTrackRecorder::SetActiveRecorder(UCacheTrackRecorder* NewActiveRecord
 
 	GetCurrentRecorder().Reset(NewActiveRecorder);
 	TickableCacheTrackRecorder.WeakRecorder = GetCurrentRecorder().Get();
-	OnRecordingInitializedEvent.Broadcast(NewActiveRecorder);
 	return true;
 }
 
 // Non-static api for UCacheTrackRecorder
 
-UCacheTrackRecorder::UCacheTrackRecorder(const FObjectInitializer& ObjInit)
-	: Super(ObjInit)
-{
-	CountdownSeconds = 0.f;
-	SequenceAsset = nullptr;
-}
-
-bool UCacheTrackRecorder::Initialize(ULevelSequence* LevelSequenceBase, const TArray<IMovieSceneCachedTrack*>& InCacheTracks, const UTakeMetaData* MetaData, const FCacheRecorderParameters& InParameters, FText* OutError)
+bool UCacheTrackRecorder::Initialize(const TArray<IMovieSceneCachedTrack*>& InCacheTracks, const FString& Slate, const FCacheRecorderParameters& InParameters, FText* OutError)
 {
 	FGCObjectScopeGuard GCGuard(this);
 
@@ -414,7 +384,7 @@ bool UCacheTrackRecorder::Initialize(ULevelSequence* LevelSequenceBase, const TA
 		return false;
 	}
 
-	if (MetaData->GetSlate().IsEmpty())
+	if (Slate.IsEmpty())
 	{
 		if (OutError)
 		{
@@ -434,10 +404,9 @@ bool UCacheTrackRecorder::Initialize(ULevelSequence* LevelSequenceBase, const TA
 		CacheTracks.AddDefaulted_GetRef().Track = Track;
 	}
 
-	OnRecordingPreInitializeEvent.Broadcast(this);
-
 	FCacheRecorderParameters FinalParameters = InParameters;
-	if (!InitializeSequencer(LevelSequenceBase, OutError))
+	WeakSequencer = TakesUtils::OpenSequencer(SequenceAsset, OutError);
+	if (!WeakSequencer.IsValid())
 	{
 		return false;
 	}
@@ -453,7 +422,7 @@ bool UCacheTrackRecorder::Initialize(ULevelSequence* LevelSequenceBase, const TA
 	AddToRoot();
 
 	Parameters = FinalParameters;
-	State      = ECacheTrackRecorderState::CountingDown;
+	State      = ECacheTrackRecorderState::Starting;
 
 	// Perform any other parameter-configurable initialization. Must have a valid world at this point.
 	InitializeFromParameters();
@@ -500,25 +469,9 @@ bool UCacheTrackRecorder::Initialize(ULevelSequence* LevelSequenceBase, const TA
 
 void UCacheTrackRecorder::DiscoverSourceWorld()
 {
-	UWorld* WorldToRecordIn = nullptr;
+	WeakWorld = TakesUtils::DiscoverSourceWorld();
 
-	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-	{
-		if (WorldContext.WorldType == EWorldType::PIE || WorldContext.WorldType == EWorldType::Game )
-		{
-			WorldToRecordIn = WorldContext.World();
-			break;
-		}
-		else if (WorldContext.WorldType == EWorldType::Editor)
-		{
-			WorldToRecordIn = WorldContext.World();
-		}
-	}
-
-	check(WorldToRecordIn);
-	WeakWorld = WorldToRecordIn;
-
-	bool bPlayInGame = WorldToRecordIn->WorldType == EWorldType::PIE || WorldToRecordIn->WorldType == EWorldType::Game;
+	bool bPlayInGame = WeakWorld->WorldType == EWorldType::PIE || WeakWorld->WorldType == EWorldType::Game;
 	// If recording via PIE, be sure to stop recording cleanly when PIE ends
 	if ( bPlayInGame )
 	{
@@ -531,36 +484,8 @@ void UCacheTrackRecorder::DiscoverSourceWorld()
 	}
 }
 
-bool UCacheTrackRecorder::InitializeSequencer(ULevelSequence* LevelSequence, FText* OutError)
-{
-	if ( GEditor != nullptr )
-	{
-		// Open the sequence and set the sequencer ptr
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelSequence);
-
-		IAssetEditorInstance*        AssetEditor         = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LevelSequence, false);
-		ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
-
-		WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
-
-		if (!WeakSequencer.Pin().IsValid())
-		{
-			if (OutError)
-			{
-				*OutError = FText::Format(LOCTEXT("FailedToOpenSequencerError", "Failed to open Sequencer for asset '{0}."), FText::FromString(LevelSequence->GetPathName()));
-			}
-			return false;
-		}
-	}
-		
-	return true;
-}
-
 void UCacheTrackRecorder::InitializeFromParameters()
 {
-	// Initialize the countdown delay
-	CountdownSeconds = Parameters.User.CountdownSeconds;
-
 	// Set the end recording frame if enabled
 	StopRecordingFrame = Parameters.User.bStopAtPlaybackEnd ? SequenceAsset->GetMovieScene()->GetPlaybackRange().GetUpperBoundValue() : TOptional<FFrameNumber>();
 
@@ -642,14 +567,9 @@ UWorld* UCacheTrackRecorder::GetWorld() const
 
 void UCacheTrackRecorder::Tick(float DeltaTime)
 {
-	if (State == ECacheTrackRecorderState::CountingDown)
+	if (State == ECacheTrackRecorderState::Starting)
 	{
 		NumberOfTicksAfterPre = 0;
-		CountdownSeconds = FMath::Max(0.f, CountdownSeconds - DeltaTime);
-		if (CountdownSeconds > 0.f)
-		{
-			return;
-		}
 		PreRecord();
 	}
 	else if (State == ECacheTrackRecorderState::PreRecord)
@@ -673,36 +593,7 @@ void UCacheTrackRecorder::Tick(float DeltaTime)
 
 FQualifiedFrameTime UCacheTrackRecorder::GetRecordTime() const
 {
-	FQualifiedFrameTime RecordTime;
-
-	if (TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin(); Sequencer.IsValid())
-	{
-		RecordTime = Sequencer->GetGlobalTime();
-	}
-	else if (SequenceAsset)
-	{
-		if (UMovieScene* MovieScene = SequenceAsset->GetMovieScene())
-		{
-			FFrameRate FrameRate = MovieScene->GetDisplayRate();
-			FFrameRate TickResolution = MovieScene->GetTickResolution();
-
-			FTimecode CurrentTimecode = FApp::GetTimecode();
-		
-			FFrameNumber CurrentFrame = FFrameRate::TransformTime(FFrameTime(CurrentTimecode.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame();
-			FFrameNumber FrameAtStart = FFrameRate::TransformTime(FFrameTime(TimecodeAtStart.ToFrameNumber(FrameRate)), FrameRate, TickResolution).FloorToFrame();
-
-			if (Parameters.Project.bStartAtCurrentTimecode)
-			{
-				RecordTime = FQualifiedFrameTime(CurrentFrame, TickResolution);
-			}
-			else
-			{
-				RecordTime = FQualifiedFrameTime(CurrentFrame - FrameAtStart, TickResolution);
-			}
-		}
-	}
-
-	return RecordTime;
+	return TakesUtils::GetRecordTime(WeakSequencer.Pin(), SequenceAsset, TimecodeAtStart, Parameters.Project.bStartAtCurrentTimecode);
 }
 
 void UCacheTrackRecorder::InternalTick(float DeltaTime)
@@ -778,7 +669,6 @@ void UCacheTrackRecorder::PreRecord()
 	if (AWorldSettings* WorldSettings = RecordingWorld->GetWorldSettings())
 	{
 		const float ExistingCinematicTimeDilation = WorldSettings->CinematicTimeDilation;
-
 		const bool bInvalidTimeDilation = Parameters.User.EngineTimeDilation == 0.f;
 
 		if (bInvalidTimeDilation)
@@ -902,8 +792,6 @@ void UCacheTrackRecorder::Start()
 		// Log in lieu of the notification widget
 		UE_LOG(LogTakesCore, Log, TEXT("Started recording"));
 	}
-
-	OnRecordingStartedEvent.Broadcast(this);
 }
 
 void UCacheTrackRecorder::Stop()
@@ -969,8 +857,6 @@ void UCacheTrackRecorder::StopInternal(const bool bCancelled)
 				UE_LOG(LogTakesCore, Log, TEXT("Recording cancelled"));
 			}
 		}
-
-		OnRecordingStoppedEvent.Broadcast(this);
 
 		if (MovieScene)
 		{
@@ -1046,15 +932,6 @@ void UCacheTrackRecorder::StopInternal(const bool bCancelled)
 	{
 		GetCurrentRecorder().Reset();
 		TickableCacheTrackRecorder.WeakRecorder = nullptr;
-
-		if (bRecordingFinished)
-		{
-			OnRecordingFinishedEvent.Broadcast(this);
-		}
-		else
-		{
-			OnRecordingCancelledEvent.Broadcast(this);
-		}
 	}
 
 	if (SequenceAsset)
@@ -1069,34 +946,9 @@ void UCacheTrackRecorder::StopInternal(const bool bCancelled)
 	RemoveFromRoot();
 }
 
-FOnCacheTrackRecordingPreInitialize& UCacheTrackRecorder::OnRecordingPreInitialize()
-{
-	return OnRecordingPreInitializeEvent;
-}
-
-FOnCacheTrackRecordingStarted& UCacheTrackRecorder::OnRecordingStarted()
-{
-	return OnRecordingStartedEvent;
-}
-
-FOnCacheTrackRecordingStopped& UCacheTrackRecorder::OnRecordingStopped()
-{
-	return OnRecordingStoppedEvent;
-}
-
-FOnCacheTrackRecordingFinished& UCacheTrackRecorder::OnRecordingFinished()
-{
-	return OnRecordingFinishedEvent;
-}
-
-FOnCacheTrackRecordingCancelled& UCacheTrackRecorder::OnRecordingCancelled()
-{
-	return OnRecordingCancelledEvent;
-}
-
 void UCacheTrackRecorder::HandlePIE(bool bIsSimulating)
 {
-	ULevelSequence* FinishedAsset = GetSequence();
+	ULevelSequence* FinishedAsset = SequenceAsset;
 
 	if (ShouldShowNotifications())
 	{

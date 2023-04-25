@@ -9,7 +9,6 @@
 class ULevelSequence;
 class UMovieSceneTrackRecorder;
 class IMovieSceneCachedTrack;
-class UTakeMetaData;
 
 USTRUCT()
 struct CACHETRACKRECORDER_API FCacheRecorderUserParameters
@@ -21,10 +20,6 @@ struct CACHETRACKRECORDER_API FCacheRecorderUserParameters
 	/** Whether to maximize the viewport (enter Immersive Mode) when recording */
 	UPROPERTY(config, EditAnywhere, Category="User Settings")
 	bool bMaximizeViewport;
-
-	/** Delay that we will use before starting recording */
-	UPROPERTY(config, EditAnywhere, Category="User Settings", DisplayName="Countdown", meta=(Units=s, ClampMin="0.0", UIMin="0.0", ClampMax="60.0", UIMax="60.0"))
-	float CountdownSeconds;
 
 	/** The engine time dilation to apply during the recording */
 	UPROPERTY(config, EditAnywhere, Category="User Settings", meta=(Units=Multiplier, ClampMin="0.00001", UIMin="0.00001"))
@@ -103,20 +98,13 @@ struct CACHETRACKRECORDER_API FCacheRecorderParameters
 UENUM(BlueprintType)
 enum class ECacheTrackRecorderState : uint8
 {
-	CountingDown,
+	Starting,
 	PreRecord,
 	TickingAfterPre,
 	Started,
 	Stopped,
 	Cancelled,
 };
-
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheTrackRecordingPreInitialize, UCacheTrackRecorder*);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheTrackRecordingInitialized, UCacheTrackRecorder*);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheTrackRecordingStarted, UCacheTrackRecorder*);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheTrackRecordingStopped, UCacheTrackRecorder*);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheTrackRecordingFinished, UCacheTrackRecorder*);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheTrackRecordingCancelled, UCacheTrackRecorder*);
 
 USTRUCT()
 struct FCachedTrackSource
@@ -136,36 +124,25 @@ public:
 
 	GENERATED_BODY()
 
-	UCacheTrackRecorder(const FObjectInitializer& ObjInit);
-
-public:
-
 	/**
 	 * Retrieve the currently active take recorder instance
 	 */
 	static UCacheTrackRecorder* GetActiveRecorder();
 
 	/**
-	 * Retrieve a multi-cast delegate that is triggered when a new recording begins
-	 */
-	static FOnCacheTrackRecordingInitialized& OnRecordingInitialized();
-
-	/**
-	 * Utility method to quickly record a single cache track
+	 * Utility method to record a single cache track
 	 */
 	static void RecordCacheTrack(IMovieSceneCachedTrack* Track, TSharedPtr<ISequencer> Sequencer, FCacheRecorderParameters Parameters = FCacheRecorderParameters());
+	
+	/**
+	 * Utility method to record several cache tracks at once
+	 */
 	static void RecordCacheTracks(const TArray<IMovieSceneCachedTrack*>& CacheTracks, TSharedPtr<ISequencer> Sequencer, FCacheRecorderParameters Parameters = FCacheRecorderParameters());
-	static void RecordSelectedTracks(TSharedPtr<ISequencer> Sequencer, FCacheRecorderParameters Parameters = FCacheRecorderParameters());
-public:
 
 	/**
-	 * Access the number of seconds remaining before this recording will start
+	 * Utility method to record all the cache tracks selected in sequencer
 	 */
-	UFUNCTION(BlueprintCallable, Category="Cache Recorder")
-	float GetCountdownSeconds() const
-	{
-		return CountdownSeconds;
-	}
+	static void RecordSelectedTracks(TSharedPtr<ISequencer> Sequencer, FCacheRecorderParameters Parameters = FCacheRecorderParameters());
 
 	/**
 	 * Access the sequence asset that this recorder is recording into
@@ -189,7 +166,7 @@ public:
 	 * Initialize a new recording with the specified parameters. Fails if another recording is currently in progress.
 	 *
 	 */
-	bool Initialize(ULevelSequence* LevelSequenceBase, const TArray<IMovieSceneCachedTrack*>& CacheTracks, const UTakeMetaData* MetaData, const FCacheRecorderParameters& InParameters, FText* OutError = nullptr);
+	bool Initialize(const TArray<IMovieSceneCachedTrack*>& CacheTracks, const FString& Slate, const FCacheRecorderParameters& InParameters, FText* OutError = nullptr);
 
 	/**
 	 * Called to stop the recording
@@ -201,30 +178,8 @@ public:
 	 */
 	void Cancel();
 
-	/**
-	 * Retrieve a multi-cast delegate that is triggered before initialization occurs (ie. when the recording button is pressed and before the countdown starts)
-	 */
-	FOnCacheTrackRecordingPreInitialize& OnRecordingPreInitialize();
-
-	/**
-	 * Retrieve a multi-cast delegate that is triggered when this recording starts
-	 */
-	FOnCacheTrackRecordingStarted& OnRecordingStarted();
-
-	/**
-	 * Retrieve a multi-cast delegate that is triggered when this recording is stopped
-	 */
-	FOnCacheTrackRecordingStopped& OnRecordingStopped();
-
-	/**
-	 * Retrieve a multi-cast delegate that is triggered when this recording finishes
-	 */
-	FOnCacheTrackRecordingFinished& OnRecordingFinished();
-
-	/**
-	 * Retrieve a multi-cast delegate that is triggered when this recording is cancelled
-	 */
-	FOnCacheTrackRecordingCancelled& OnRecordingCancelled();
+	/* The time at which to record. Taken from the Sequencer global time, otherwise based on timecode */
+	FQualifiedFrameTime GetRecordTime() const;
 
 private:
 
@@ -254,11 +209,6 @@ private:
 	void HandlePIE(bool bIsSimulating);
 
 	/**
-	 * Attempt to open the sequencer UI for the asset to be recorded
-	 */
-	bool InitializeSequencer(ULevelSequence* LevelSequence, FText* OutError);
-
-	/**
 	 * Discovers the source world to record from, and initializes it for recording
 	 */
 	void DiscoverSourceWorld();
@@ -283,18 +233,10 @@ private:
 	/* Restores the editor tick state if necessary */
 	void RestoreEditorTickState();
 
-	/* The time at which to record. Taken from the Sequencer global time, otherwise based on timecode */
-	FQualifiedFrameTime GetRecordTime() const;
-
 	/** Called by Tick and Start to make sure we record at start */
 	void InternalTick(float DeltaTime);
 
 	virtual UWorld* GetWorld() const override;
-
-private:
-
-	/** The number of seconds remaining before Start() should be called */
-	float CountdownSeconds;
 
 	/** The state of this recorder instance */
 	ECacheTrackRecorderState State;
@@ -326,21 +268,6 @@ private:
 	/** Anonymous array of cleanup functions to perform when a recording has finished */
 	TArray<TFunction<void()>> OnStopCleanup;
 
-	/** Triggered before the recorder is initialized */
-	FOnCacheTrackRecordingPreInitialize OnRecordingPreInitializeEvent;
-
-	/** Triggered when this recorder starts */
-	FOnCacheTrackRecordingStarted OnRecordingStartedEvent;
-
-	/** Triggered when this recorder is stopped */
-	FOnCacheTrackRecordingStopped OnRecordingStoppedEvent;
-
-	/** Triggered when this recorder finishes */
-	FOnCacheTrackRecordingFinished OnRecordingFinishedEvent;
-
-	/** Triggered when this recorder is cancelled */
-	FOnCacheTrackRecordingCancelled OnRecordingCancelledEvent;
-
 	/** Sequencer ptr that controls playback of the desination asset during the recording */
 	TWeakPtr<ISequencer> WeakSequencer;
 
@@ -356,13 +283,7 @@ private:
 	 */
 	static bool SetActiveRecorder(UCacheTrackRecorder* NewActiveRecorder);
 
-	/** Event to trigger when a new recording is initialized */
-	static FOnCacheTrackRecordingInitialized OnRecordingInitializedEvent;
-
-	EAllowEditsMode CachedAllowEditsMode;
-	EAutoChangeMode CachedAutoChangeMode;
 	EUpdateClockSource CachedClockSource;
-	
 	TRange<FFrameNumber> CachedPlaybackRange;
 
 	struct FSavedState

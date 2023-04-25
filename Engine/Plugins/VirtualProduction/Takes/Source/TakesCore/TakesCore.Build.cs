@@ -20,14 +20,15 @@ public class TakesCore : ModuleRules
 				"AssetRegistry",
 				"LevelSequence",
 				"SlateCore",
-                "MovieScene",
-                "MovieSceneTracks",
-                "MovieSceneTools",
+				"MovieScene",
+				"MovieSceneTracks",
+				"MovieSceneTools",
 				"LevelSequence",
+				"LevelSequenceEditor",
 				"Engine",
-                "SerializedRecorderInterface",
+				"SerializedRecorderInterface",
 
-            }
-        );
+			}
+		);
 	}
 }
