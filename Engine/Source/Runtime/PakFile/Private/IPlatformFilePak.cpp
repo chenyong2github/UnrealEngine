@@ -5442,7 +5442,7 @@ FArchive* FPakFile::CreatePakReader(IPlatformFile* LowerLevel, const TCHAR* File
 			Decryptor = MakeUnique<FChunkCacheWorker>(MoveTemp(DecryptorReader), Filename);
 		}
 
-		if (!Decryptor.IsValid())
+		if (!Decryptor.IsValid() || !Decryptor->IsValid())
 		{
 			return nullptr;
 		}
