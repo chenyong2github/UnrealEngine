@@ -254,9 +254,7 @@ struct FRigVMExecuteContext
 		{
 			(*RuntimeSettings.LogFunction)(InSeverity, this, InMessage);
 		}
-#if !UE_RIGVM_DEBUG_EXECUTION
 		else
-#endif
 		{
 			if(InSeverity == EMessageSeverity::Error)
 			{
