@@ -41,6 +41,7 @@
 #include "Dataflow/DataflowGraphEditor.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Selection/PolygonSelectionMechanic.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothWeightMapPaintTool)
 
@@ -157,6 +158,28 @@ void UClothEditorWeightMapPaintTool::Setup()
 	PolyLassoMechanic->SetIsEnabled(false);
 	PolyLassoMechanic->SpacingTolerance = 10.0f;
 	PolyLassoMechanic->OnDrawPolyLassoFinished.AddUObject(this, &UClothEditorWeightMapPaintTool::OnPolyLassoFinished);
+
+
+	// Set up vertex selection mechanic
+	PolygonSelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
+	PolygonSelectionMechanic->bAddSelectionFilterPropertiesToParentTool = false;
+	PolygonSelectionMechanic->Setup(this);
+	PolygonSelectionMechanic->SetIsEnabled(false);
+	PolygonSelectionMechanic->OnSelectionChanged.AddUObject(this, &UClothEditorWeightMapPaintTool::OnSelectionModified);
+
+	// disable CTRL to remove from selection
+	PolygonSelectionMechanic->SetShouldRemoveFromSelectionFunc([]() { return false; });
+
+	PolygonSelectionMechanic->Properties->bSelectEdges = false;
+	PolygonSelectionMechanic->Properties->bSelectFaces = false;
+	PolygonSelectionMechanic->Properties->bSelectVertices = true;
+	
+	constexpr bool bAutoBuild = true;
+	GradientSelectionTopology = MakeUnique<UE::Geometry::FTriangleGroupTopology>(DynamicMeshComponent->GetMesh(), bAutoBuild);
+	
+	MeshSpatial = MakeUnique<UE::Geometry::FDynamicMeshAABBTree3>(DynamicMeshComponent->GetMesh(), bAutoBuild);
+	PolygonSelectionMechanic->Initialize(DynamicMeshComponent, GradientSelectionTopology.Get(), [this]() { return MeshSpatial.Get(); });
+	
 
 	AddWeightMapProperties = NewObject<UClothEditorAddWeightMapProperties>(this);
 	AddWeightMapProperties->Initialize(this);
@@ -330,6 +353,12 @@ void UClothEditorWeightMapPaintTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		PreviewMeshActor->Destroy();
 		PreviewMeshActor = nullptr;
+	}
+
+	if (PolygonSelectionMechanic)
+	{
+		PolygonSelectionMechanic->Shutdown();
+		PolygonSelectionMechanic = nullptr;
 	}
 
 	UMeshSculptToolBase::Shutdown(ShutdownType);
@@ -905,6 +934,96 @@ void UClothEditorWeightMapPaintTool::OnPolyLassoFinished(const FCameraPolyLasso&
 }
 
 
+void UClothEditorWeightMapPaintTool::ComputeGradient()
+{
+	if (!ensure(ActiveWeightMap))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No active weight map"));
+		return;
+	}
+
+	BeginChange();
+
+	const FDynamicMesh3* const Mesh = DynamicMeshComponent->GetMesh();
+	TempROIBuffer.SetNum(0, false);
+	for (int32 vid : Mesh->VertexIndicesItr())
+	{
+		TempROIBuffer.Add(vid);
+	}
+	for (int32 vid : TempROIBuffer)
+	{
+		ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(vid, true);
+	}
+
+
+	for (const int32 VertexIndex : TempROIBuffer)
+	{
+		const FVector3d Vert = Mesh->GetVertex(VertexIndex);
+
+		// (Copied from FClothPaintTool_Gradient::ApplyGradient)
+
+		// Get distances
+		// TODO: Look into surface distance instead of 3D distance? May be necessary for some complex shapes
+		float DistanceToLowSq = MAX_flt;
+		for (const int32& LowIndex : LowValueGradientVertexSelection.SelectedCornerIDs)
+		{
+			const FVector3d LowPoint = Mesh->GetVertex(LowIndex);
+			const float DistanceSq = (LowPoint - Vert).SizeSquared();
+			if (DistanceSq < DistanceToLowSq)
+			{
+				DistanceToLowSq = DistanceSq;
+			}
+		}
+
+		float DistanceToHighSq = MAX_flt;
+		for (const int32& HighIndex : HighValueGradientVertexSelection.SelectedCornerIDs)
+		{
+			const FVector3d HighPoint = Mesh->GetVertex(HighIndex);
+			const float DistanceSq = (HighPoint - Vert).SizeSquared();
+			if (DistanceSq < DistanceToHighSq)
+			{
+				DistanceToHighSq = DistanceSq;
+			}
+		}
+
+		const float Value = FMath::LerpStable(0.0f, 1.0f, DistanceToLowSq / (DistanceToLowSq + DistanceToHighSq));
+		ActiveWeightMap->SetValue(VertexIndex, &Value);
+	}
+
+
+	DynamicMeshComponent->FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexColors);
+	GetToolManager()->PostInvalidation();
+	EndChange();
+
+}
+
+
+void UClothEditorWeightMapPaintTool::OnSelectionModified()
+{
+	const bool bToolTypeIsGradient = (FilterProperties->SubToolType == EClothEditorWeightMapPaintInteractionType::Gradient);
+	if (bToolTypeIsGradient && PolygonSelectionMechanic)
+	{
+		const FGroupTopologySelection NewSelection = PolygonSelectionMechanic->GetActiveSelection();
+
+		const bool bSelectingLowValueGradientVertices = GetCtrlToggle();
+		if (bSelectingLowValueGradientVertices)
+		{
+			LowValueGradientVertexSelection = NewSelection;
+		}
+		else
+		{
+			HighValueGradientVertexSelection = NewSelection;
+		}
+
+		if (LowValueGradientVertexSelection.SelectedCornerIDs.Num() > 0 && HighValueGradientVertexSelection.SelectedCornerIDs.Num() > 0)
+		{
+			ComputeGradient();
+		}
+
+		constexpr bool bBroadcast = false;
+		PolygonSelectionMechanic->SetSelection(FGroupTopologySelection(), bBroadcast);
+	}
+}
 
 
 void UClothEditorWeightMapPaintTool::SetVerticesToWeightMap(const TSet<int32>& Vertices, double WeightValue, bool bIsErase)
@@ -1115,6 +1234,47 @@ void UClothEditorWeightMapPaintTool::DrawHUD(FCanvas* Canvas, IToolsContextRende
 		PolyLassoMechanic->LineColor = GetInEraseStroke() ? FLinearColor::Red : FLinearColor::Green;
 		PolyLassoMechanic->DrawHUD(Canvas, RenderAPI);
 	}
+
+	if (PolygonSelectionMechanic)
+	{
+		PolygonSelectionMechanic->DrawHUD(Canvas, RenderAPI);
+	}
+}
+
+void UClothEditorWeightMapPaintTool::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	UMeshSculptToolBase::Render(RenderAPI);
+
+	if (PolygonSelectionMechanic)
+	{
+		PolygonSelectionMechanic->RenderMarquee(RenderAPI);
+
+		const FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
+		GradientSelectionRenderer.BeginFrame(RenderAPI, RenderCameraState);
+
+		const FTransform Transform = DynamicMeshComponent->GetComponentTransform();
+		GradientSelectionRenderer.SetTransform(Transform);
+			
+		GradientSelectionRenderer.SetPointParameters(FLinearColor::Red, 1.0);
+		PolygonSelectionMechanic->UMeshTopologySelectionMechanic::GetTopologySelector()->DrawSelection(LowValueGradientVertexSelection, &GradientSelectionRenderer, &RenderCameraState);
+
+		GradientSelectionRenderer.SetPointParameters(FLinearColor::Green, 1.0);
+		PolygonSelectionMechanic->UMeshTopologySelectionMechanic::GetTopologySelector()->DrawSelection(HighValueGradientVertexSelection, &GradientSelectionRenderer, &RenderCameraState);
+
+		// Now the current unsaved selection
+		if (GetCtrlToggle())
+		{
+			GradientSelectionRenderer.SetPointParameters(FLinearColor::Red, 1.0);
+		}
+		else
+		{
+			GradientSelectionRenderer.SetPointParameters(FLinearColor::Green, 1.0);
+		}
+
+		PolygonSelectionMechanic->UMeshTopologySelectionMechanic::GetTopologySelector()->DrawSelection(PolygonSelectionMechanic->GetActiveSelection(), &GradientSelectionRenderer, &RenderCameraState);
+
+		GradientSelectionRenderer.EndFrame();
+	}
 }
 
 void UClothEditorWeightMapPaintTool::UpdateStampPendingState()
@@ -1128,8 +1288,13 @@ void UClothEditorWeightMapPaintTool::OnTick(float DeltaTime)
 	UMeshSculptToolBase::OnTick(DeltaTime);
 	MeshElementsDisplay->OnTick(DeltaTime);
 
-	bool bIsLasso = (FilterProperties->SubToolType == EClothEditorWeightMapPaintInteractionType::PolyLasso);
+	const bool bIsLasso = (FilterProperties->SubToolType == EClothEditorWeightMapPaintInteractionType::PolyLasso);
 	PolyLassoMechanic->SetIsEnabled(bIsLasso);
+
+	const bool bIsGradient = (FilterProperties->SubToolType == EClothEditorWeightMapPaintInteractionType::Gradient);
+	PolygonSelectionMechanic->SetIsEnabled(bIsGradient);
+
+	check(!(bIsLasso && bIsGradient));
 
 	ConfigureIndicator(false);
 	SetIndicatorVisibility(bIsLasso == false);
@@ -1591,6 +1756,12 @@ void UClothEditorWeightMapPaintTool::UpdateSubToolType(EClothEditorWeightMapPain
 
 	SetToolPropertySourceEnabled(FilterProperties, true);
 	SetBrushOpPropsVisibility(false);
+
+	if (NewType != EClothEditorWeightMapPaintInteractionType::Gradient)
+	{
+		LowValueGradientVertexSelection.Clear();
+		HighValueGradientVertexSelection.Clear();
+	}
 }
 
 

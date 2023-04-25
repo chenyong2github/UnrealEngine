@@ -20,6 +20,8 @@
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "TransformTypes.h"
+#include "ToolDataVisualizer.h"
+#include "GroupTopology.h"
 
 #include "ClothWeightMapPaintTool.generated.h"
 
@@ -28,6 +30,7 @@ class UWeightMapEraseBrushOpProps;
 class UWeightMapPaintBrushOpProps;
 class UWeightMapSmoothBrushOpProps;
 class UClothEditorContextObject;
+class UPolygonSelectionMechanic;
 
 DECLARE_STATS_GROUP(TEXT("WeightMapPaintTool"), STATGROUP_WeightMapPaintTool, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("WeightMapPaintTool_UpdateROI"), WeightMapPaintTool_UpdateROI, STATGROUP_WeightMapPaintTool);
@@ -68,6 +71,7 @@ enum class EClothEditorWeightMapPaintInteractionType : uint8
 	Brush,
 	Fill,
 	PolyLasso,
+	Gradient,
 
 	LastValue UMETA(Hidden)
 };
@@ -246,6 +250,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual void UpdateStampPendingState() override;
 
@@ -349,6 +354,24 @@ public:
 protected:
 	void OnPolyLassoFinished(const FCameraPolyLasso& Lasso, bool bCanceled);
 
+
+	// 
+	// Gradient Support
+	//
+	UPROPERTY()
+	TObjectPtr<UPolygonSelectionMechanic> PolygonSelectionMechanic;
+
+	TUniquePtr<UE::Geometry::FDynamicMeshAABBTree3> MeshSpatial = nullptr;
+
+	TUniquePtr<UE::Geometry::FTriangleGroupTopology> GradientSelectionTopology = nullptr;
+
+	FToolDataVisualizer GradientSelectionRenderer;
+
+	UE::Geometry::FGroupTopologySelection LowValueGradientVertexSelection;
+	UE::Geometry::FGroupTopologySelection HighValueGradientVertexSelection;
+
+	void ComputeGradient();
+	void OnSelectionModified();
 
 	//
 	// Internals

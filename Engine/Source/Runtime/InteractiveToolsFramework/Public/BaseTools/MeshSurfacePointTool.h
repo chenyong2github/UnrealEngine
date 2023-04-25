@@ -125,10 +125,10 @@ public:
 	/** @return current state of the shift toggle */
 	virtual bool GetShiftToggle() const { return bShiftToggle; }
 
-	/** Called by registered InputBehaviors to set the state of the "shift" button (or device equivalent) */
+	/** Called by registered InputBehaviors to set the state of the "ctrl" button (or device equivalent) */
 	virtual void SetCtrlToggle(bool bCtrlDown);
 
-	/** @return current state of the shift toggle */
+	/** @return current state of the ctrl toggle */
 	virtual bool GetCtrlToggle() const { return bCtrlToggle; }
 
 	/** @return current input device pressure in range 0-1 */

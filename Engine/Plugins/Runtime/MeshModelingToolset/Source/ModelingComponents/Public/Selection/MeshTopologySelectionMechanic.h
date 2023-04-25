@@ -339,6 +339,12 @@ public:
 	 */
 	bool IsCurrentlyMarqueeDragging() { return bCurrentlyMarqueeDragging; }
 
+	/**
+	* Render only the MarqueeMechanic, without rendering the current selection
+	*/
+	void RenderMarquee(IToolsContextRenderAPI* RenderAPI);
+	
+
 	// TODO: Is it worth issuing separate callbacks in normal selection changes and in FChange ones, to
 	// allow the user to bundle in some FChanges into the normal callback?
 

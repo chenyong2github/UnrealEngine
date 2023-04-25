@@ -599,6 +599,13 @@ void UMeshTopologySelectionMechanic::UpdateMarqueeEnabled()
 			|| Properties->bSelectEdgeLoops || Properties->bSelectEdgeRings));
 }
 
+void UMeshTopologySelectionMechanic::RenderMarquee(IToolsContextRenderAPI* RenderAPI)
+{
+	if (MarqueeMechanic)
+	{
+		MarqueeMechanic->Render(RenderAPI);
+	}
+}
 
 void UMeshTopologySelectionMechanic::BeginChange()
 {
