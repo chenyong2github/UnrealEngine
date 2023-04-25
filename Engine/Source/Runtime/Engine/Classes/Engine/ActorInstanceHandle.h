@@ -26,6 +26,9 @@ struct ENGINE_API FActorInstanceHandle
 
 	bool DoesRepresentClass(const UClass* OtherClass) const;
 
+	template<typename T>
+	bool DoesRepresent() const;
+
 	UClass* GetRepresentedClass() const;
 
 	FVector GetLocation() const;
@@ -93,8 +96,29 @@ private:
 	uint32 InstanceUID;
 };
 
+template<typename T>
+bool FActorInstanceHandle::DoesRepresent() const
+{
+	if (const UClass* RepresentedClass = GetRepresentedClass())
+	{
+		if constexpr (TIsIInterface<T>::Value)
+		{
+			return RepresentedClass->ImplementsInterface(T::UClassType::StaticClass());
+		}
+		else
+		{
+			return RepresentedClass->IsChildOf(T::StaticClass());
+		}
+	}
+	return false;
+}
+
 template <typename T>
 T* FActorInstanceHandle::FetchActor() const
 {
-	return Cast<T>(FetchActor());
+	if (DoesRepresent<T>())
+	{
+		return CastChecked<T>(FetchActor());
+	}
+	return nullptr;
 }

@@ -56,21 +56,10 @@ bool FActorInstanceHandle::IsValid() const
 
 bool FActorInstanceHandle::DoesRepresentClass(const UClass* OtherClass) const
 {
-	if (OtherClass == nullptr)
+	if (const UClass* RepresentedClass = GetRepresentedClass())
 	{
-		return false;
+		return RepresentedClass->IsChildOf(OtherClass);
 	}
-
-	if (IsActorValid())
-	{
-		return Actor->IsA(OtherClass);
-	}
-
-	if (Manager.IsValid())
-	{
-		return Manager->DoesRepresentClass(OtherClass);
-	}
-
 	return false;
 }
 
