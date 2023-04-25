@@ -31,11 +31,14 @@ namespace
 		check(InTransform);
 		check(InTransform->ConfigurationOwner);
 
+		const FOpenColorIOConfigWrapper* ConfigWrapper = InTransform->ConfigurationOwner->GetConfigWrapper();
+		ensure(ConfigWrapper);
+
 		EOpenColorIOViewTransformDirection DisplayViewDirection;
 		if (InTransform->GetDisplayViewDirection(DisplayViewDirection))
 		{
 			return FOpenColorIOProcessorWrapper(
-				InTransform->ConfigurationOwner->GetConfigWrapper(),
+				*ConfigWrapper,
 				InTransform->SourceColorSpace,
 				InTransform->Display,
 				InTransform->View,
@@ -46,7 +49,7 @@ namespace
 		else
 		{
 			return FOpenColorIOProcessorWrapper(
-				InTransform->ConfigurationOwner->GetConfigWrapper(),
+				*ConfigWrapper,
 				InTransform->SourceColorSpace,
 				InTransform->DestinationColorSpace,
 				InWCSTrasnformType,

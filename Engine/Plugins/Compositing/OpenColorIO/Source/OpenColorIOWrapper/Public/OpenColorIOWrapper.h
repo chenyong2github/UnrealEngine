@@ -105,9 +105,6 @@ private:
 class OPENCOLORIOWRAPPER_API FOpenColorIOProcessorWrapper final
 {
 public:
-	/** Constructor. */
-	FOpenColorIOProcessorWrapper();
-	
 	/**
 	* Constructor.
 	*
@@ -118,7 +115,7 @@ public:
 	* @param ContextKeyValues (Optional) ContextKeyValues Additional context modifiers.
 	*/
 	FOpenColorIOProcessorWrapper(
-		const FOpenColorIOConfigWrapper* InConfig,
+		const FOpenColorIOConfigWrapper& InConfig,
 		FStringView SourceColorSpace,
 		FStringView DestinationColorSpace,
 		EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::None,
@@ -136,7 +133,7 @@ public:
 	* @param ContextKeyValues (Optional) ContextKeyValues Additional context modifiers.
 	*/
 	FOpenColorIOProcessorWrapper(
-		const FOpenColorIOConfigWrapper* InConfig,
+		const FOpenColorIOConfigWrapper& InConfig,
 		FStringView SourceColorSpace,
 		FStringView Display,
 		FStringView View,
@@ -151,7 +148,7 @@ private:
 
 	TPimplPtr<struct FOpenColorIOProcessorPimpl> Pimpl;
 
-	const FOpenColorIOConfigWrapper* OwnerConfig;
+	const FOpenColorIOConfigWrapper& OwnerConfig;
 
 	EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType;
 
