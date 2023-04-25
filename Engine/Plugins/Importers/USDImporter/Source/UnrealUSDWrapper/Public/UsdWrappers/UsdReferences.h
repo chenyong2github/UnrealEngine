@@ -42,25 +42,31 @@ namespace UE
 		FUsdReferences(const FUsdReferences& Other);
 		FUsdReferences(FUsdReferences&& Other);
 
-		explicit FUsdReferences(const FUsdPrim& InPrim);
-
 		FUsdReferences& operator=(const FUsdReferences& Other);
 		FUsdReferences& operator=(FUsdReferences&& Other);
-		
+
 		~FUsdReferences();
 
 		explicit operator bool() const;
 
-	public:
 #if USE_USD_SDK
 		// Auto conversion from/to pxr::UsdReferences
 		explicit FUsdReferences(const pxr::UsdReferences& InUsdReferences);
 		explicit FUsdReferences(pxr::UsdReferences&& InUsdReferences);
+		FUsdReferences& operator=(const pxr::UsdReferences& InUsdReferences);
+		FUsdReferences& operator=(pxr::UsdReferences&& InUsdReferences);
 
+		operator pxr::UsdReferences();
+		operator const pxr::UsdReferences() const;
+
+	private:
+		// FUsdReferences instances are only constructable by instances of
+		// FUsdPrim.
+		// Use FUsdPrim::GetReferences() to construct an instance.
 		explicit FUsdReferences(const pxr::UsdPrim& InPrim);
 #endif // #if USE_USD_SDK
 
-	// Wrapped pxr::UsdReferences functions, refer to the USD SDK documentation
+		// Wrapped pxr::UsdReferences functions, refer to the USD SDK documentation
 	public:
 		bool AddReference(
 			const FSdfReference& Reference,
@@ -92,5 +98,7 @@ namespace UE
 
 	private:
 		TUniquePtr<Internal::FUsdReferencesImpl> Impl;
+
+		friend class FUsdPrim;
 	};
 }

@@ -40,6 +40,12 @@ namespace UE
 			{
 			}
 
+			pxr::UsdReferences GetInner()
+			{
+				FScopedUsdAllocs UsdAllocs;
+				return PxrUsdPrim.Get().GetReferences();
+			}
+
 			// pxr::UsdReferences has no default constructor, so we store the prim itself.
 			TUsdStore<pxr::UsdPrim> PxrUsdPrim;
 #endif // #if USE_USD_SDK
@@ -54,25 +60,15 @@ namespace UE
 	FUsdReferences::FUsdReferences(const FUsdReferences& Other)
 	{
 #if USE_USD_SDK
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdReferencesImpl>(Other.Impl->PxrUsdPrim.Get());
 #endif // #if USE_USD_SDK
 	}
 
 	FUsdReferences::FUsdReferences(FUsdReferences&& Other) = default;
 
-	FUsdReferences::FUsdReferences(const FUsdPrim& InPrim)
-	{
-#if USE_USD_SDK
-		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique<Internal::FUsdReferencesImpl>(InPrim);
-#endif // #if USE_USD_SDK
-	}
-
 	FUsdReferences& FUsdReferences::operator=(const FUsdReferences& Other)
 	{
 #if USE_USD_SDK
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdReferencesImpl>(Other.Impl->PxrUsdPrim.Get());
 #endif // #if USE_USD_SDK
 
@@ -103,19 +99,39 @@ namespace UE
 #if USE_USD_SDK
 	FUsdReferences::FUsdReferences(const pxr::UsdReferences& InUsdReferences)
 	{
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdReferencesImpl>(InUsdReferences);
 	}
 
 	FUsdReferences::FUsdReferences(pxr::UsdReferences&& InUsdReferences)
 	{
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdReferencesImpl>(MoveTemp(InUsdReferences));
 	}
 
+	FUsdReferences& FUsdReferences::operator=(const pxr::UsdReferences& InUsdReferences)
+	{
+		Impl = MakeUnique<Internal::FUsdReferencesImpl>(InUsdReferences);
+		return *this;
+	}
+
+	FUsdReferences& FUsdReferences::operator=(pxr::UsdReferences&& InUsdReferences)
+	{
+		Impl = MakeUnique<Internal::FUsdReferencesImpl>(MoveTemp(InUsdReferences));
+		return *this;
+	}
+
+	FUsdReferences::operator pxr::UsdReferences()
+	{
+		return Impl->GetInner();
+	}
+
+	FUsdReferences::operator const pxr::UsdReferences() const
+	{
+		return Impl->GetInner();
+	}
+
+	// Private constructor accessible by FUsdPrim.
 	FUsdReferences::FUsdReferences(const pxr::UsdPrim& InPrim)
 	{
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdReferencesImpl>(InPrim);
 	}
 #endif // #if USE_USD_SDK

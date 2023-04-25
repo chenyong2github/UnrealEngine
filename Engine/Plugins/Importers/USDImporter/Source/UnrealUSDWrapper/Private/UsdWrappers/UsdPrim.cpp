@@ -9,6 +9,7 @@
 #include "UsdWrappers/UsdPayloads.h"
 #include "UsdWrappers/UsdReferences.h"
 #include "UsdWrappers/UsdStage.h"
+#include "UsdWrappers/UsdVariantSets.h"
 
 #if USE_USD_SDK
 
@@ -482,6 +483,28 @@ namespace UE
 #endif // #if USE_USD_SDK
 
 		return Children;
+	}
+
+	FUsdVariantSets FUsdPrim::GetVariantSets() const
+	{
+#if USE_USD_SDK
+		return FUsdVariantSets(Impl->PxrUsdPrim.Get());
+#else
+		return FUsdVariantSets{};
+#endif // #if USE_USD_SDK
+	}
+
+	FUsdVariantSet FUsdPrim::GetVariantSet(const FString& VariantSetName) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		const std::string UsdVariantSetName(TCHAR_TO_ANSI(*VariantSetName));
+
+		return FUsdVariantSet(Impl->PxrUsdPrim.Get(), UsdVariantSetName);
+#else
+		return FUsdVariantSet{};
+#endif // #if USE_USD_SDK
 	}
 
 	bool FUsdPrim::HasVariantSets() const

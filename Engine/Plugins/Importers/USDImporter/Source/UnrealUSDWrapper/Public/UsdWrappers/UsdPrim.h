@@ -28,6 +28,8 @@ namespace UE
 	class FUsdAttribute;
 	class FUsdPayloads;
 	class FUsdReferences;
+	class FUsdVariantSet;
+	class FUsdVariantSets;
 
 	namespace Internal
 	{
@@ -116,6 +118,8 @@ namespace UE
 		TArray< FUsdPrim > GetChildren() const;
 		TArray< FUsdPrim > GetFilteredChildren( bool bTraverseInstanceProxies ) const;
 
+		FUsdVariantSets GetVariantSets() const;
+		FUsdVariantSet GetVariantSet(const FString& VariantSetName) const;
 		bool HasVariantSets() const;
 
 		FUsdPayloads GetPayloads() const;

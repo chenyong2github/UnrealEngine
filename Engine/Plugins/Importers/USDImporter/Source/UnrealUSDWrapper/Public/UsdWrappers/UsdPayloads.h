@@ -42,25 +42,31 @@ namespace UE
 		FUsdPayloads(const FUsdPayloads& Other);
 		FUsdPayloads(FUsdPayloads&& Other);
 
-		explicit FUsdPayloads(const FUsdPrim& InPrim);
-
 		FUsdPayloads& operator=(const FUsdPayloads& Other);
 		FUsdPayloads& operator=(FUsdPayloads&& Other);
-		
+
 		~FUsdPayloads();
 
 		explicit operator bool() const;
 
-	public:
 #if USE_USD_SDK
 		// Auto conversion from/to pxr::UsdPayloads
 		explicit FUsdPayloads(const pxr::UsdPayloads& InUsdPayloads);
 		explicit FUsdPayloads(pxr::UsdPayloads&& InUsdPayloads);
+		FUsdPayloads& operator=(const pxr::UsdPayloads& InUsdPayloads);
+		FUsdPayloads& operator=(pxr::UsdPayloads&& InUsdPayloads);
 
+		operator pxr::UsdPayloads();
+		operator const pxr::UsdPayloads() const;
+
+	private:
+		// FUsdPayloads instances are only constructable by instances of
+		// FUsdPrim.
+		// Use FUsdPrim::GetPayloads() to construct an instance.
 		explicit FUsdPayloads(const pxr::UsdPrim& InPrim);
 #endif // #if USE_USD_SDK
 
-	// Wrapped pxr::UsdPayloads functions, refer to the USD SDK documentation
+		// Wrapped pxr::UsdPayloads functions, refer to the USD SDK documentation
 	public:
 		bool AddPayload(
 			const FSdfPayload& Payload,
@@ -92,5 +98,7 @@ namespace UE
 
 	private:
 		TUniquePtr<Internal::FUsdPayloadsImpl> Impl;
+
+		friend class FUsdPrim;
 	};
 }

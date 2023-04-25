@@ -40,6 +40,12 @@ namespace UE
 			{
 			}
 
+			pxr::UsdPayloads GetInner()
+			{
+				FScopedUsdAllocs UsdAllocs;
+				return PxrUsdPrim.Get().GetPayloads();
+			}
+
 			// pxr::UsdPayloads has no default constructor, so we store the prim itself.
 			TUsdStore<pxr::UsdPrim> PxrUsdPrim;
 #endif // #if USE_USD_SDK
@@ -54,25 +60,15 @@ namespace UE
 	FUsdPayloads::FUsdPayloads(const FUsdPayloads& Other)
 	{
 #if USE_USD_SDK
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdPayloadsImpl>(Other.Impl->PxrUsdPrim.Get());
 #endif // #if USE_USD_SDK
 	}
 
 	FUsdPayloads::FUsdPayloads(FUsdPayloads&& Other) = default;
 
-	FUsdPayloads::FUsdPayloads(const FUsdPrim& InPrim)
-	{
-#if USE_USD_SDK
-		FScopedUnrealAllocs UnrealAllocs;
-		Impl = MakeUnique<Internal::FUsdPayloadsImpl>(InPrim);
-#endif // #if USE_USD_SDK
-	}
-
 	FUsdPayloads& FUsdPayloads::operator=(const FUsdPayloads& Other)
 	{
 #if USE_USD_SDK
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdPayloadsImpl>(Other.Impl->PxrUsdPrim.Get());
 #endif // #if USE_USD_SDK
 
@@ -103,19 +99,39 @@ namespace UE
 #if USE_USD_SDK
 	FUsdPayloads::FUsdPayloads(const pxr::UsdPayloads& InUsdPayloads)
 	{
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdPayloadsImpl>(InUsdPayloads);
 	}
 
 	FUsdPayloads::FUsdPayloads(pxr::UsdPayloads&& InUsdPayloads)
 	{
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdPayloadsImpl>(MoveTemp(InUsdPayloads));
 	}
 
+	FUsdPayloads& FUsdPayloads::operator=(const pxr::UsdPayloads& InUsdPayloads)
+	{
+		Impl = MakeUnique<Internal::FUsdPayloadsImpl>(InUsdPayloads);
+		return *this;
+	}
+
+	FUsdPayloads& FUsdPayloads::operator=(pxr::UsdPayloads&& InUsdPayloads)
+	{
+		Impl = MakeUnique<Internal::FUsdPayloadsImpl>(MoveTemp(InUsdPayloads));
+		return *this;
+	}
+
+	FUsdPayloads::operator pxr::UsdPayloads()
+	{
+		return Impl->GetInner();
+	}
+
+	FUsdPayloads::operator const pxr::UsdPayloads() const
+	{
+		return Impl->GetInner();
+	}
+
+	// Private constructor accessible by FUsdPrim.
 	FUsdPayloads::FUsdPayloads(const pxr::UsdPrim& InPrim)
 	{
-		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique<Internal::FUsdPayloadsImpl>(InPrim);
 	}
 #endif // #if USE_USD_SDK
