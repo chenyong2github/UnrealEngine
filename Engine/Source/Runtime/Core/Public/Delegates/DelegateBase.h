@@ -7,6 +7,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "UObject/NameTypes.h"
 #include "Delegates/DelegateAccessHandler.h"
+#include "Delegates/DelegateInstancesImplFwd.h"
 #include "Delegates/DelegateSettings.h"
 #include "Delegates/IDelegateInstance.h"
 
@@ -86,6 +87,27 @@ private:
 
 	template <typename>
 	friend class TMulticastDelegateBase;
+
+	template <class, typename, typename, typename...>
+	friend class TBaseUFunctionDelegateInstance;
+
+	template <bool, class, ESPMode, typename, typename, typename...>
+	friend class TBaseSPMethodDelegateInstance;
+
+	template <bool, class, typename, typename, typename...>
+	friend class TBaseRawMethodDelegateInstance;
+
+	template <bool, class, typename, typename, typename...>
+	friend class TBaseUObjectMethodDelegateInstance;
+
+	template <typename, typename, typename...>
+	friend class TBaseStaticDelegateInstance;
+
+	template <typename, typename, typename, typename...>
+	friend class TBaseFunctorDelegateInstance;
+
+	template <typename, typename, typename, typename, typename...>
+	friend class TWeakBaseFunctorDelegateInstance;
 
 protected:
 	using typename Super::FReadAccessScope;
@@ -252,6 +274,7 @@ public:
 		return DelegateInstance ? DelegateInstance->GetHandle() : FDelegateHandle{};
 	}
 
+protected:
 	/**
 	 * "emplacement" of delegate instance of the given type
 	 */
@@ -269,7 +292,6 @@ public:
 		new(Allocate(sizeof(DelegateInstanceType))) DelegateInstanceType(Forward<DelegateInstanceParams>(Params)...);
 	}
 
-protected:
 	/**
 	 * Gets the delegate instance.  Not intended for use by user code.
 	 *
