@@ -830,6 +830,35 @@ void ACharacter::SaveRelativeBasedMovement(const FVector& NewRelativeLocation, c
 	BasedMovement.bRelativeRotation = bRelativeRotation;
 }
 
+FVector ACharacter::GetGravityDirection() const
+{
+	FVector GravityDirection = UCharacterMovementComponent::DefaultGravityDirection;
+	const UCharacterMovementComponent* const MovementComponent = GetCharacterMovement();
+	if (MovementComponent)
+	{
+		GravityDirection = MovementComponent->GetGravityDirection();
+	}
+
+	return GravityDirection;
+}
+
+FQuat ACharacter::GetGravityTransform() const
+{
+	FQuat GravityTransform = FQuat::Identity;
+	const UCharacterMovementComponent* const MovementComponent = GetCharacterMovement();
+	if (MovementComponent)
+	{
+		GravityTransform = MovementComponent->GetWorldToGravityTransform();
+	}
+
+	return GravityTransform;
+}
+
+FVector ACharacter::GetReplicatedGravityDirection() const
+{
+	return ReplicatedGravityDirection;
+}
+
 FVector ACharacter::GetNavAgentLocation() const
 {
 	FVector AgentLocation = FNavigationSystem::InvalidLocation;
@@ -1140,6 +1169,7 @@ static uint8 SavedMovementMode;
 void ACharacter::PreNetReceive()
 {
 	SavedMovementMode = ReplicatedMovementMode;
+	PreNetReceivedGravityDirection = ReplicatedGravityDirection;
 	Super::PreNetReceive();
 }
 
@@ -1147,8 +1177,9 @@ void ACharacter::PostNetReceive()
 {
 	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{
+		CharacterMovement->bNetworkGravityDirectionChanged = !PreNetReceivedGravityDirection.Equals(ReplicatedGravityDirection);
 		CharacterMovement->bNetworkMovementModeChanged |= ((SavedMovementMode != ReplicatedMovementMode) || (CharacterMovement->PackNetworkMovementMode() != ReplicatedMovementMode));
-		CharacterMovement->bNetworkUpdateReceived |= CharacterMovement->bNetworkMovementModeChanged || CharacterMovement->bJustTeleported;
+		CharacterMovement->bNetworkUpdateReceived |= CharacterMovement->bNetworkMovementModeChanged || CharacterMovement->bJustTeleported || CharacterMovement->bNetworkGravityDirectionChanged;
 	}
 
 	Super::PostNetReceive();
@@ -1520,7 +1551,8 @@ void ACharacter::PreReplication( IRepChangedPropertyTracker & ChangedPropertyTra
 	}
 
 	bProxyIsJumpForceApplied = (JumpForceTimeRemaining > 0.0f);
-	ReplicatedMovementMode = CharacterMovement->PackNetworkMovementMode();	
+	ReplicatedMovementMode = CharacterMovement->PackNetworkMovementMode();
+	ReplicatedGravityDirection = CharacterMovement->GetGravityDirection();
 
 	if(IsReplicatingMovement())
 	{
@@ -1592,6 +1624,7 @@ void ACharacter::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLi
 	DOREPLIFETIME_CONDITION( ACharacter, bIsCrouched,						COND_SimulatedOnly );
 	DOREPLIFETIME_CONDITION( ACharacter, bProxyIsJumpForceApplied,			COND_SimulatedOnly );
 	DOREPLIFETIME_CONDITION( ACharacter, AnimRootMotionTranslationScale,	COND_SimulatedOnly );
+	DOREPLIFETIME_CONDITION( ACharacter, ReplicatedGravityDirection,		COND_SimulatedOnly );
 	DOREPLIFETIME_CONDITION( ACharacter, ReplayLastTransformUpdateTimeStamp, COND_ReplayOnly );
 }
 

@@ -306,9 +306,14 @@ UPawnNoiseEmitterComponent* APawn::GetPawnNoiseEmitterComponent() const
 	 return NoiseEmitterComponent;
 }
 
-FVector APawn::GetGravityDirection()
+FVector APawn::GetGravityDirection() const
 {
 	return FVector(0.f,0.f,-1.f);
+}
+
+FQuat APawn::GetGravityTransform() const
+{
+	return FQuat::Identity;
 }
 
 bool APawn::ShouldTickIfViewportsOnly() const 
