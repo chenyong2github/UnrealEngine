@@ -342,6 +342,11 @@ namespace Horde.Server
 		/// Service version
 		/// </summary>
 		public string? ServiceVersion { get; set; }
+
+		/// <summary>
+		/// Whether to enrich and format telemetry to fit presentation in Datadog
+		/// </summary>
+		public bool EnableDatadogCompatibility { get; set; } = false;
 		
 		/// <summary>
 		/// Extra attributes to set

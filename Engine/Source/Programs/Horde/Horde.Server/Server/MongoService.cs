@@ -21,17 +21,16 @@ using EpicGames.Core;
 using EpicGames.Redis.Utility;
 using Horde.Server.Secrets;
 using Horde.Server.Utilities;
-using Horde.Server.Utiltiies;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Events;
+using OpenTelemetry.Trace;
 using StackExchange.Redis;
 
 namespace Horde.Server.Server
@@ -257,6 +256,11 @@ namespace Horde.Server.Server
 		readonly ILoggerFactory _loggerFactory;
 
 		/// <summary>
+		/// Tracer
+		/// </summary>
+		readonly Tracer _tracer;
+
+		/// <summary>
 		/// Default port for MongoDB connections
 		/// </summary>
 		const int DefaultMongoPort = 27017;
@@ -268,10 +272,12 @@ namespace Horde.Server.Server
 		/// Constructor
 		/// </summary>
 		/// <param name="settingsSnapshot">The settings instance</param>
+		/// <param name="tracer">Tracer</param>
 		/// <param name="loggerFactory">Instance of the logger for this service</param>
-		public MongoService(IOptions<ServerSettings> settingsSnapshot, ILoggerFactory loggerFactory)
+		public MongoService(IOptions<ServerSettings> settingsSnapshot, Tracer tracer, ILoggerFactory loggerFactory)
 		{
 			Settings = settingsSnapshot.Value;
+			_tracer = tracer;
 			_logger = loggerFactory.CreateLogger<MongoService>();
 			_loggerFactory = loggerFactory;
 
@@ -627,7 +633,7 @@ namespace Horde.Server.Server
 		/// <returns></returns>
 		public IMongoCollection<T> GetCollection<T>(string name)
 		{
-			return new MongoTracingCollection<T>(Database.GetCollection<T>(name));
+			return new MongoTracingCollection<T>(Database.GetCollection<T>(name), _tracer);
 		}
 
 		/// <summary>

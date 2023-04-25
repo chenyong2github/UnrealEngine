@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -1023,11 +1024,20 @@ namespace Horde.Server
 		private static void ConfigureOpenTelemetry(IServiceCollection services, OpenTelemetrySettings settings)
 		{
 			// Always configure OpenTelemetry.Trace.Tracer class as it's used in the codebase even when OpenTelemetry is not configured
-			services.AddSingleton(TracerProvider.Default.GetTracer(settings.ServiceName));
+			services.AddSingleton(OpenTelemetryTracers.Horde);
 			
 			if (!settings.Enabled)
 			{
 				return;
+			}
+
+			void DatadogHttpRequestEnricher(Activity activity, HttpRequestMessage message)
+			{
+				activity.AddTag("service.name", settings.ServiceName + "-http-client");
+				activity.AddTag("operation.name", "http.request");
+				string url = $"{message.Method} {message.Headers.Host}{message.RequestUri?.LocalPath}";  
+				activity.DisplayName = url;
+				activity.AddTag("resource.name", url);
 			}
 			
 			List<KeyValuePair<string,object>> attributes = settings.Attributes.Select(x => new KeyValuePair<string, object>(x.Key, x.Value)).ToList();
@@ -1035,8 +1045,14 @@ namespace Horde.Server
 				.WithTracing(builder =>
 				{
 					builder
-						.AddSource("Horde")
-						.AddHttpClientInstrumentation()
+						.AddSource(OpenTelemetryTracers.SourceNames)
+						.AddHttpClientInstrumentation(options =>
+						{
+							if (settings.EnableDatadogCompatibility)
+							{
+								options.EnrichWithHttpRequestMessage = DatadogHttpRequestEnricher;
+							}
+						})
 						.AddAspNetCoreInstrumentation()
 						.AddGrpcClientInstrumentation()
 						//.AddRedisInstrumentation()
