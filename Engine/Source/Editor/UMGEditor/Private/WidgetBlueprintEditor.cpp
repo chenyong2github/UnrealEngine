@@ -1717,7 +1717,11 @@ FGraphAppearanceInfo FWidgetBlueprintEditor::GetGraphAppearance(UEdGraph* InGrap
 {
 	FGraphAppearanceInfo AppearanceInfo = Super::GetGraphAppearance(InGraph);
 
-	if ( GetBlueprintObj()->IsA(UWidgetBlueprint::StaticClass()) )
+	if (FBlueprintEditorUtils::IsEditorUtilityBlueprint(GetBlueprintObj()))
+	{
+		AppearanceInfo.CornerText = LOCTEXT("EditorUtilityWidgetAppearanceCornerText", "EDITOR UTILITY WIDGET");
+	}
+	else if ( GetBlueprintObj()->IsA(UWidgetBlueprint::StaticClass()) )
 	{
 		AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText", "WIDGET BLUEPRINT");
 	}
