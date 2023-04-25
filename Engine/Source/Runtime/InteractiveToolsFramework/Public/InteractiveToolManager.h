@@ -350,6 +350,7 @@ protected:
 
 	FString ActiveLeftToolName;
 	FString ActiveRightToolName;
+	bool bInToolShutdown = false;
 
 	/** 
 	 * Tracks whether the last activated tool has made a request to store a tool selection.

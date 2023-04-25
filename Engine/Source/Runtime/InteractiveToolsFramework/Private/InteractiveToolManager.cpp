@@ -239,6 +239,10 @@ void UInteractiveToolManager::DeactivateTool(EToolSide Side, EToolShutdownType S
 	{
 		return;
 	}
+	if (bInToolShutdown)
+	{
+		return;
+	}
 
 	if (ActiveLeftTool != nullptr)
 	{
@@ -264,6 +268,8 @@ void UInteractiveToolManager::DeactivateToolInternal(EToolSide Side, EToolShutdo
 			return;
 		}
 
+		bInToolShutdown = true;
+
 		InputRouter->ForceTerminateSource(ActiveLeftTool);
 
 		ActiveLeftTool->Shutdown(ShutdownType);
@@ -277,6 +283,8 @@ void UInteractiveToolManager::DeactivateToolInternal(EToolSide Side, EToolShutdo
 		PostInvalidation();
 
 		OnToolEnded.Broadcast(this, DoneTool);
+
+		bInToolShutdown = false;
 	}
 }
 
