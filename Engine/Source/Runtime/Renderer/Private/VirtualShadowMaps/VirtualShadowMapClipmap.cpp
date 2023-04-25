@@ -87,7 +87,6 @@ static float GetLevelRadius(int32 Level)
 FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FLightSceneInfo& InLightSceneInfo,
-	const FMatrix& WorldToLightRotationMatrix,
 	const FViewMatrices& CameraViewMatrices,
 	FIntPoint CameraViewRectSize,
 	const FViewInfo* InDependentView,
@@ -95,9 +94,11 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	: LightSceneInfo(InLightSceneInfo),
 	  DependentView(InDependentView)
 {
-	check(WorldToLightRotationMatrix.GetOrigin() == FVector(0, 0, 0));	// Should not contain translation or scaling
-
 	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager = VirtualShadowMapArray.CacheManager;
+
+	// This math can obviously be simplified/optimized but not a big deal right now
+	const FVector LightDirection = LightSceneInfo.Proxy->GetDirection();
+	const FMatrix WorldToLightRotationMatrix = FInverseRotationMatrix(LightDirection.GetSafeNormal().Rotation());
 
 	const FMatrix FaceMatrix(
 		FPlane( 0, 0, 1, 0 ),
@@ -134,16 +135,15 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	LevelData.Empty();
 	LevelData.AddDefaulted(LevelCount);
 
+	VirtualShadowMapId = VirtualShadowMapArray.Allocate(false, LevelCount);
+
 	WorldOrigin = CameraViewMatrices.GetViewOrigin();
 
-	if (InDependentView && InDependentView->ViewState)	// scene capture views don't have a persistent view state
-	{
-		PerLightCacheEntry = VirtualShadowMapArrayCacheManager->FindCreateLightCacheEntry(LightSceneInfo.Id, InDependentView->ViewState->GetViewKey());
-		if (PerLightCacheEntry.IsValid())
-		{
-			PerLightCacheEntry->UpdateClipmap(WorldToLightRotationMatrix);
-		}
-	}
+	// TODO: We need a light/cache entry for every light/VSM now, but scene captures may not have persistent view state for indexing
+	// This is likely to all change as we refactor the multiple cache managers stuff anyways; for now this is hopefully safe since they do have separate copies
+	const uint32 UniqueViewKey = InDependentView->ViewState ? InDependentView->ViewState->GetViewKey() : 0U;
+	PerLightCacheEntry = VirtualShadowMapArrayCacheManager->FindCreateLightCacheEntry(LightSceneInfo.Id, UniqueViewKey, LevelCount);
+	PerLightCacheEntry->UpdateClipmap(LightDirection, FirstLevel);
 
 	const int RadiusLn = GetLevelRadius(LastLevel);
 	const int RadiiPerLevel = 4;
@@ -156,32 +156,36 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		SnappedOriginLn.Y = OriginSnapUnitsLn.Y * RadiusLn;
 	}
 
+	// We expand the depth range of the clipmap level to allow for camera movement without having to invalidate cached shadow data
+	// (See VirtualShadowMapCacheManager::UpdateClipmap for invalidation logic.)
+	// This also better accomodates SMRT where we want to avoid stepping outside of the Z bounds of a given clipmap
+	// NOTE: It's tempting to use a single global Z range for the entire clipmap (which avoids some SMRT overhead too)
+	// but this can cause precision issues with cached pages very near the camera.
+	const double ViewRadiusZScale = CVarVirtualShadowMapClipmapZRangeScale.GetValueOnRenderThread();
+	const FVector ViewCenter = WorldToLightViewRotationMatrix.TransformPosition(WorldOrigin);
+
 	for (int32 Index = 0; Index < LevelCount; ++Index)
 	{
 		FLevelData& Level = LevelData[Index];
 		const int32 AbsoluteLevel = Index + FirstLevel;		// Absolute (virtual) level index
-
-		// TODO: Allocate these as a chunk if we continue to use one per clipmap level
-		Level.VirtualShadowMap = VirtualShadowMapArray.Allocate(false);
-		ensure(Index == 0 || (Level.VirtualShadowMap->ID == (LevelData[Index-1].VirtualShadowMap->ID + 1)));
 
 		const float RawLevelRadius = GetLevelRadius(AbsoluteLevel);
 
 		double HalfLevelDim = 2.0 * RawLevelRadius;
 		double SnapSize = RawLevelRadius;
 
-		FVector ViewCenter = WorldToLightViewRotationMatrix.TransformPosition(WorldOrigin);
+		FVector SnappedViewCenter = ViewCenter;
 		FVector2D CenterSnapUnits(
 			FMath::RoundToDouble(ViewCenter.X / SnapSize),
 			FMath::RoundToDouble(ViewCenter.Y / SnapSize));
-		ViewCenter.X = CenterSnapUnits.X * SnapSize;
-		ViewCenter.Y = CenterSnapUnits.Y * SnapSize;
+		SnappedViewCenter.X = CenterSnapUnits.X * SnapSize;
+		SnappedViewCenter.Y = CenterSnapUnits.Y * SnapSize;
 
 		FInt64Point CornerOffset;
 		CornerOffset.X = -(int64_t)CenterSnapUnits.X + (RadiiPerLevel/2);
 		CornerOffset.Y =  (int64_t)CenterSnapUnits.Y + (RadiiPerLevel/2);
 
-		const FVector SnappedWorldCenter = ViewToWorldRotationMatrix.TransformPosition(ViewCenter);
+		const FVector SnappedWorldCenter = ViewToWorldRotationMatrix.TransformPosition(SnappedViewCenter);
 
 		Level.WorldCenter = SnappedWorldCenter;
 		Level.CornerOffset = CornerOffset;
@@ -190,59 +194,51 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		// The reference point is WorldOrigin snapped to a grid of GetLevelRadius(LastLevel),
 		// because points on this grid are guaranteed to also be present on lower levels,
 		// therefore allowing the offsets to represented as factors of level radii without precision loss.
-		const FInt64Point SnappedPageOriginLi(-ViewCenter.X, ViewCenter.Y);
+		const FInt64Point SnappedPageOriginLi(-SnappedViewCenter.X, SnappedViewCenter.Y);
 		const FInt64Point SnappedPageOriginLn(-SnappedOriginLn.X, SnappedOriginLn.Y);
 		const FInt64Point RelativeCornerOffset = SnappedPageOriginLi - SnappedPageOriginLn + ((RadiiPerLevel / 2) * (int64_t)SnapSize);
 		Level.RelativeCornerOffset = FIntPoint(RelativeCornerOffset / SnapSize);
 
 		// Check if we have a cache entry for this level
 		// If we do and it covers our required depth range, we can use cached pages. Otherwise we need to invalidate.
-		TSharedPtr<FVirtualShadowMapCacheEntry> CacheEntry = nullptr;
-		if (PerLightCacheEntry.IsValid())
-		{
-			// NOTE: We use the absolute (virtual) level index so that the caching is robust against changes to the chosen level range
-			CacheEntry = PerLightCacheEntry->FindCreateShadowMapEntry(AbsoluteLevel);
-		}
-
-		// We expand the depth range of the clipmap level to allow for camera movement without having to invalidate cached shadow data
-		// (See VirtualShadowMapCacheManager::UpdateClipmap for invalidation logic.)
-		// This also better accomodates SMRT where we want to avoid stepping outside of the Z bounds of a given clipmap
-		// NOTE: It's tempting to use a single global Z range for the entire clipmap (which avoids some SMRT overhead too)
-		// but this can cause precision issues with cached pages very near the camera.
-		const double ViewRadiusZScale = CVarVirtualShadowMapClipmapZRangeScale.GetValueOnRenderThread();
+		FVirtualShadowMapCacheEntry* ClipmapLevelEntry = &PerLightCacheEntry->ShadowMapEntries[Index];
 
 		double ViewRadiusZ = RawLevelRadius * ViewRadiusZScale;
 		double ViewCenterDeltaZ = 0.0f;
 
-		if (CacheEntry)
-		{
-			// We snap to half the size of the VSM at each level
-			check((FVirtualShadowMap::Level0DimPagesXY & 1) == 0);
-			FInt64Point PageOffset(CornerOffset * (FVirtualShadowMap::Level0DimPagesXY >> 2));
+		// We snap to half the size of the VSM at each level
+		check((FVirtualShadowMap::Level0DimPagesXY & 1) == 0);
+		FInt64Point PageOffset(CornerOffset * (FVirtualShadowMap::Level0DimPagesXY >> 2));
 
-			CacheEntry->UpdateClipmap(Level.VirtualShadowMap->ID,
-				PageOffset,
-				CornerOffset,
-				RawLevelRadius,
-				ViewCenter.Z,
-				ViewRadiusZ,
-				*PerLightCacheEntry);
+		ClipmapLevelEntry->UpdateClipmapLevel(
+			VirtualShadowMapArray,
+			*PerLightCacheEntry,
+			GetVirtualShadowMapId(Index),
+			PageOffset,
+			RawLevelRadius,
+			ViewCenter.Z,
+			ViewRadiusZ);
 
-			Level.VirtualShadowMap->VirtualShadowMapCacheEntry = CacheEntry;
-
-			// Update min/max Z based on the cached page (if present and valid)
-			// We need to ensure we use a consistent depth range as the camera moves for each level
-			ViewCenterDeltaZ = ViewCenter.Z - CacheEntry->Clipmap.ViewCenterZ;
-			ViewRadiusZ = CacheEntry->Clipmap.ViewRadiusZ;
-		}
+		// Update min/max Z based on the cached page (if present and valid)
+		// We need to ensure we use a consistent depth range as the camera moves for each level
+		ViewCenterDeltaZ = ViewCenter.Z - ClipmapLevelEntry->Clipmap.ViewCenterZ;
+		ViewRadiusZ = ClipmapLevelEntry->Clipmap.ViewRadiusZ;
 
 		// NOTE: These values are all in regular ranges after being offset
 		const double ZScale = 0.5 / ViewRadiusZ;
 		const double ZOffset = ViewRadiusZ + ViewCenterDeltaZ;
 		Level.ViewToClip = FReversedZOrthoMatrix(HalfLevelDim, HalfLevelDim, ZScale, ZOffset);
+
+		// Update the entry with the new projection data
+		ClipmapLevelEntry->ProjectionData = ComputeProjectionShaderData(Index);
 	}
 
 	ComputeBoundingVolumes(CameraViewMatrices);
+}
+
+const FVirtualShadowMapProjectionShaderData& FVirtualShadowMapClipmap::GetProjectionShaderData(int32 ClipmapIndex) const
+{
+	return PerLightCacheEntry->ShadowMapEntries[ClipmapIndex].ProjectionData;
 }
 
 void FVirtualShadowMapClipmap::ComputeBoundingVolumes(const FViewMatrices& CameraViewMatrices)
@@ -287,7 +283,7 @@ FViewMatrices FVirtualShadowMapClipmap::GetViewMatrices(int32 ClipmapIndex) cons
 	return FViewMatrices(Initializer);
 }
 
-FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionShaderData(int32 ClipmapIndex) const
+FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::ComputeProjectionShaderData(int32 ClipmapIndex) const
 {
 	check(ClipmapIndex >= 0 && ClipmapIndex < LevelData.Num());
 	const FLevelData& Level = LevelData[ClipmapIndex];
@@ -314,11 +310,7 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.ResolutionLodBias = ResolutionLodBias;
 	Data.ClipmapCornerRelativeOffset = Level.RelativeCornerOffset;
 	Data.LightSourceRadius = GetLightSceneInfo().Proxy->GetSourceRadius();
-	Data.Flags = 0U;
-	if (PerLightCacheEntry.IsValid() && PerLightCacheEntry->IsUncached())
-	{
-		Data.Flags |= VSM_PROJ_FLAG_UNCACHED;
-	}
+	Data.Flags = PerLightCacheEntry->IsUncached() ? VSM_PROJ_FLAG_UNCACHED : 0U;
 
 	return Data;
 }

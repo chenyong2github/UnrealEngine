@@ -73,14 +73,9 @@ public:
 	
 	static_assert(MaxMipLevels <= 8, ">8 mips requires more PageFlags bits. See VSM_PAGE_FLAGS_BITS_PER_HMIP in PageAccessCommon.ush");
 
-	FVirtualShadowMap(uint32 InID, bool bInIsSinglePageSM) : ID(InID), bIsSinglePageSM(bInIsSinglePageSM)
-	{
-	}
-
-	const int32 ID = INDEX_NONE;
-	const bool bIsSinglePageSM;
-
-	TSharedPtr<FVirtualShadowMapCacheEntry> VirtualShadowMapCacheEntry;
+	// TODO: Currently only used for these constants... probably rename the cache structure to virtual shadow map now instead
+private:
+	FVirtualShadowMap() {}
 };
 
 // Useful data for both the page mapping shader and the projection shader
@@ -220,16 +215,30 @@ public:
 		return bEnabled;
 	}
 
-	FVirtualShadowMap* Allocate(bool bSinglePageShadowMap);
+	// Returns the first in a continuously allocated range of new VirtualShadowMapIds
+	int32 Allocate(bool bSinglePageShadowMap, int32 Count);
+
+	// TODO: Can probably make this 1:1 with allocate directly
+	void UpdateNextData(int32 PrevVirtualShadowMapId, int32 CurrentVirtualShadowMapId, FInt32Point PageOffset = FInt32Point(0, 0));
+
+	static bool IsSinglePage(int VirtualShadowMapId)
+	{
+		return (VirtualShadowMapId < VSM_MAX_SINGLE_PAGE_SHADOW_MAPS);
+	}
+
+	int32 GetNumShadowMapSlots() const
+	{
+		return NumShadowMapSlots;
+	}
 
 	int32 GetNumFullShadowMaps() const
 	{
-		return FMath::Max(ShadowMaps.Num() - int32(VSM_MAX_SINGLE_PAGE_SHADOW_MAPS), 0);
+		return FMath::Max(GetNumShadowMapSlots() - int32(VSM_MAX_SINGLE_PAGE_SHADOW_MAPS), 0);
 	}
 
 	int32 GetNumSinglePageShadowMaps() const
 	{
-		return NumSinglePageSms;
+		return NumSinglePageShadowMaps;
 	}
 
 	/**
@@ -240,11 +249,6 @@ public:
 		// If not initialized ShadowMaps is empty, but we want it to return at most 0 anyway
 		return GetNumFullShadowMaps() + GetNumSinglePageShadowMaps();
 	}
-
-	/**
-	 * Get configured LOD bias for the local lights, LightMobilityFactor [0,1] selects between (by interpolation) the two LOD biases for static (non-moving) and moving lights.
-	 */
-	float GetResolutionLODBiasLocal(float LightMobilityFactor) const;
 
 	// Raw size of the physical pool, including both static and dynamic pages (if enabled)
 	FIntPoint GetPhysicalPoolSize() const;
@@ -270,7 +274,6 @@ public:
 		const FEngineShowFlags& EngineShowFlags,
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TConstArrayView<FVisibleLightInfo>& VisibleLightInfos,
-		const TFunctionRef<float(int32 LightId)>& GetLightMobilityFactor, // TODO: propagate setup in a better(tm) way
 		const FSingleLayerWaterPrePassResult* SingleLayerWaterPrePassResult,
 		const FFrontLayerTranslucencyData& FrontLayerTranslucencyData);
 
@@ -384,15 +387,25 @@ public:
 	TArray<FVirtualShadowMapVisualizeLightSearch> VisualizeLight;
 
 private:
+	void UpdateVisualizeLight(
+		const TConstArrayView<FViewInfo> &Views,
+		const TConstArrayView<FVisibleLightInfo>& VisibleLightInfos);
+
+	void UploadProjectionData(FRDGBuilder& GraphBuilder);
+
 	void AppendPhysicalPageList(FRDGBuilder& GraphBuilder, bool bEmptyToAvailable);
 
 	uint32 AddRenderViews(const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap, float LODScaleFactor, bool bSetHzbParams, bool bUpdateHZBMetaData, const FVector &CullingViewOrigin, TArray<Nanite::FPackedView, SceneRenderingAllocator>& OutVirtualShadowViews);
 
 	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetUncachedUniformBuffer(FRDGBuilder& GraphBuilder) const;
 	void UpdateCachedUniformBuffer(FRDGBuilder& GraphBuilder);
+			
+	// Track mapping of previous VSM data -> current frame VSM data
+	// This is primarily an indirection that allows us to reallocate/repack VirtualShadowMapIds each frame
+	TArray<FNextVirtualShadowMapData, SceneRenderingAllocator> NextData;
 
-	TArray<TUniquePtr<FVirtualShadowMap>, SceneRenderingAllocator> ShadowMaps;
-	int32 NumSinglePageSms = 0;
+	int32 NumShadowMapSlots = 0;
+	int32 NumSinglePageShadowMaps = 0;
 
 	// Cached copy of the latest uniform parameters
 	// Gets created in dummy form at initialization time, then updated after VSM data is computed

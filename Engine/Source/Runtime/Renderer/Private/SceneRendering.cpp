@@ -472,11 +472,11 @@ TSharedPtr<FVirtualShadowMapClipmap> FVisibleLightInfo::FindShadowClipmapForView
 	return TSharedPtr<FVirtualShadowMapClipmap>();
 }
 
-int32 FVisibleLightInfo::GetVirtualShadowMapId( const FViewInfo* View ) const
+int32 FVisibleLightInfo::GetVirtualShadowMapId(const FViewInfo* View) const
 {
-	if( VirtualShadowMapClipmaps.Num() )
+	if (VirtualShadowMapClipmaps.Num())
 	{
-		return FindShadowClipmapForView( View )->GetVirtualShadowMap(0)->ID;
+		return FindShadowClipmapForView(View)->GetVirtualShadowMapId();
 	}
 	else
 	{

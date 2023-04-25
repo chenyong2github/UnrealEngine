@@ -40,7 +40,7 @@
 #define VSM_PAGE_FLAGS_BITS_PER_HMIP (4U)
 #define VSM_PAGE_FLAGS_BITS_MASK     ((1U<<VSM_PAGE_FLAGS_BITS_PER_HMIP)-1U)
 
-bool IsSinglePageVirtualShadowMap(uint VirtualShadowMapId)
+bool IsSinglePageVirtualShadowMap(int VirtualShadowMapId)
 {
 	return VirtualShadowMapId < VSM_MAX_SINGLE_PAGE_SHADOW_MAPS;
 }

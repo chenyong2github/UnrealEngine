@@ -82,6 +82,8 @@ public:
 	}
 
 private:
+	FVirtualShadowMapProjectionShaderData GetLocalLightProjectionShaderData(float ResolutionLODBiasLocal, const FProjectedShadowInfo* ProjectedShadowInfo, int32 MapIndex) const;
+
 	/**
 	 * Select the budgeted set of distant lights to update this frame.
 	 */
@@ -89,11 +91,10 @@ private:
 
 	struct FLocalLightShadowFrameSetup
 	{
-		TArray<FVirtualShadowMap*, TInlineAllocator<6>> VirtualShadowMaps;
+		TSharedPtr<FVirtualShadowMapPerLightCacheEntry> PerLightCacheEntry;
 		// link to legacy system stuff, to be removed in due time
 		FProjectedShadowInfo* ProjectedShadowInfo = nullptr;
 		FLightSceneInfo* LightSceneInfo = nullptr;
-		TSharedPtr<FVirtualShadowMapPerLightCacheEntry> PerLightCacheEntry;
 	};
 
 	// TODO: maybe we want to keep these in a 1:1 sparse array wrt the light scene infos, for easy crossreference & GPU access (maybe)?

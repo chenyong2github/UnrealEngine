@@ -25,7 +25,6 @@ public:
 	FVirtualShadowMapClipmap(
 		FVirtualShadowMapArray& VirtualShadowMapArray,
 		const FLightSceneInfo& InLightSceneInfo,
-		const FMatrix& WorldToLightRotationMatrix,
 		const FViewMatrices& CameraViewMatrices,
 		FIntPoint CameraViewRectSize,
 		const FViewInfo* InDependentView,
@@ -34,9 +33,9 @@ public:
 
 	FViewMatrices GetViewMatrices(int32 ClipmapIndex) const;
 
-	FVirtualShadowMap* GetVirtualShadowMap(int32 ClipmapIndex = 0)
+	int32 GetVirtualShadowMapId(int32 ClipmapIndex = 0) const
 	{
-		return LevelData[ClipmapIndex].VirtualShadowMap;
+		return VirtualShadowMapId + ClipmapIndex;
 	}
 
 	int32 GetLevelCount() const
@@ -60,7 +59,7 @@ public:
 		return LightSceneInfo;
 	}
 
-	FVirtualShadowMapProjectionShaderData GetProjectionShaderData(int32 ClipmapIndex) const;
+	const FVirtualShadowMapProjectionShaderData& GetProjectionShaderData(int32 ClipmapIndex) const;
 
 	FVector GetWorldOrigin() const
 	{
@@ -99,6 +98,7 @@ public:
 	TSharedPtr<FVirtualShadowMapPerLightCacheEntry>& GetCacheEntry() { return PerLightCacheEntry; }
 
 private:
+	FVirtualShadowMapProjectionShaderData ComputeProjectionShaderData(int32 ClipmapIndex) const;
 	void ComputeBoundingVolumes(const FViewMatrices& CameraViewMatrices);
 
 	const FLightSceneInfo& LightSceneInfo;
@@ -124,7 +124,6 @@ private:
 
 	struct FLevelData
 	{
-		FVirtualShadowMap* VirtualShadowMap;
 		FMatrix ViewToClip;
 		FVector WorldCenter;
 		//Offset from (0,0) to clipmap corner, in level radii
@@ -137,6 +136,7 @@ private:
 	FSphere BoundingSphere;
 	FConvexVolume ViewFrustumBounds;
 
+	int32 VirtualShadowMapId = INDEX_NONE;		// Base ID; levels are contiguous
 	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> PerLightCacheEntry;
 
 	// Rendered primitives are marked during culling (through OnPrimitiveRendered being called).

@@ -17,6 +17,7 @@
 #define VSM_LOG_STATIC_CACHING 0
 
 CSV_DECLARE_CATEGORY_EXTERN(VSM);
+DECLARE_DWORD_COUNTER_STAT(TEXT("VSM Unreferenced Lights"), STAT_VSMUnreferencedLights, STATGROUP_ShadowRendering);
 
 static TAutoConsoleVariable<int32> CVarAccumulateStats(
 	TEXT("r.Shadow.Virtual.AccumulateStats"),
@@ -70,6 +71,13 @@ static FAutoConsoleVariableRef  CVarForceInvalidateDirectionalVSM(
 	TEXT("Forces the clipmap to always invalidate, useful to emulate a moving sun to avoid misrepresenting cache performance."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarCacheMaxUnreferencedLightAge(
+	TEXT("r.Shadow.Virtual.Cache.MaxUnreferencedLightAge"),
+	0,
+	TEXT("The number of frames to keep around cached pages from lights that are unreferenced (usually due to being offscreen or otherwise culled). 0=disabled.\n")
+	TEXT("Higher values potentially allow for more physical page reuse when cache space is available, but setting this too high can add overhead due to maintaining the extra entries."),
+	ECVF_RenderThreadSafe
+);
 
 static TAutoConsoleVariable<int32> CVarVSMReservedResource(
 	TEXT("r.Shadow.Virtual.AllocatePagePoolAsReservedResource"),
@@ -78,20 +86,20 @@ static TAutoConsoleVariable<int32> CVarVSMReservedResource(
 	ECVF_RenderThreadSafe
 );
 
-void FVirtualShadowMapCacheEntry::UpdateClipmap(
+void FVirtualShadowMapCacheEntry::UpdateClipmapLevel(
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	const FVirtualShadowMapPerLightCacheEntry& PerLightEntry,
 	int32 VirtualShadowMapId,
 	FInt64Point PageSpaceLocation,
-	FInt64Point ClipmapCornerOffset,
 	double LevelRadius,
 	double ViewCenterZ,
-	// NOTE: ViewRadiusZ must be constant for a given clipmap level
-	double ViewRadiusZ,
-	const FVirtualShadowMapPerLightCacheEntry& PerLightEntry)
+	double ViewRadiusZ)
 {
-	PrevPageSpaceLocation = CurrentPageSpaceLocation;
+	int32 PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
+	FInt64Point PrevPageSpaceLocation = Clipmap.PageSpaceLocation;
 	PrevHZBMetadata = CurrentHZBMetadata;
 
-	bool bCacheValid = (CurrentVirtualShadowMapId != INDEX_NONE);
+	bool bCacheValid = (PrevVirtualShadowMapId != INDEX_NONE);
 	
 	if (bCacheValid && GClipmapPanning == 0)
 	{
@@ -116,60 +124,62 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	}
 
 	// Not valid if it was never rendered
-	if (PerLightEntry.Prev.RenderedFrameNumber < 0)
-	{
-		bCacheValid = false;
-	}
+	bCacheValid = bCacheValid && (PerLightEntry.Prev.RenderedFrameNumber >= 0);
 
-	bool bRadiusMatches = (ViewRadiusZ == Clipmap.ViewRadiusZ);
+	// Not valid if radius has changed
+	bCacheValid = bCacheValid && (ViewRadiusZ == Clipmap.ViewRadiusZ);
 
-	if (bCacheValid && bRadiusMatches)
+	if (!bCacheValid)
 	{
-		PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
-	}
-	else
-	{
-		if (bCacheValid && !bRadiusMatches)
-		{
-			// These really should be exact by construction currently
-			UE_LOG(LogRenderer, Warning, TEXT("Invalidated clipmap level (VSM %d) due to Z radius mismatch"), VirtualShadowMapId);
-		}
-
-		// New cached level
-		PrevVirtualShadowMapId = INDEX_NONE;
 		Clipmap.ViewCenterZ = ViewCenterZ;
 		Clipmap.ViewRadiusZ = ViewRadiusZ;
 	}
+	else
+	{
+		// NOTE: Leave the view center and radius where they were previously for the cached page
+		FInt64Point CurrentToPreviousPageOffset(PageSpaceLocation - PrevPageSpaceLocation);
+		VirtualShadowMapArray.UpdateNextData(PrevVirtualShadowMapId, VirtualShadowMapId, FInt32Point(CurrentToPreviousPageOffset));
+	}
 	
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
-	CurrentPageSpaceLocation = PageSpaceLocation;
-	// Current HZB metadata gets updated during rendering
-
-	Clipmap.PrevClipmapCornerOffset = Clipmap.CurrentClipmapCornerOffset;
-	Clipmap.CurrentClipmapCornerOffset = ClipmapCornerOffset;
+	Clipmap.PageSpaceLocation = PageSpaceLocation;
 }
 
-void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FVirtualShadowMapPerLightCacheEntry& PerLightEntry)
+void FVirtualShadowMapCacheEntry::Update(
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	const FVirtualShadowMapPerLightCacheEntry& PerLightEntry,
+	int32 VirtualShadowMapId)
 {
 	// Swap previous frame data over.
-	PrevPageSpaceLocation = FInt64Point(0, 0);		// Not used for local lights
-	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
+	int32 PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
+
+	// TODO: This is pretty wrong specifically for unreferenced lights, as the VSM IDs will have changed and not been updated since
+	// this gets updated by rendering! Need to figure out a better way to track this data, and probably not here...
 	PrevHZBMetadata = CurrentHZBMetadata;
+	
+	bool bCacheValid = (PrevVirtualShadowMapId != INDEX_NONE);
 
 	// Not valid if it was never rendered
-	if (PerLightEntry.Prev.RenderedFrameNumber < 0)
+	bCacheValid = bCacheValid && (PerLightEntry.Prev.RenderedFrameNumber >= 0);
+
+	if (bCacheValid)
 	{
-		PrevVirtualShadowMapId = INDEX_NONE;
+		// Invalidate on transition between single page and full
+		bool bPrevSinglePage = FVirtualShadowMapArray::IsSinglePage(PrevVirtualShadowMapId);
+		bool bCurrentSinglePage = FVirtualShadowMapArray::IsSinglePage(VirtualShadowMapId);
+		if (bPrevSinglePage != bCurrentSinglePage)
+		{
+			bCacheValid = false;
+		}
 	}
 
-	// Invalidate on transition from distant to full
-	if (!PerLightEntry.Current.bIsDistantLight && PerLightEntry.Prev.bIsDistantLight)
+	if (bCacheValid)
 	{
-		PrevVirtualShadowMapId = INDEX_NONE;
+		// Update previous/next frame mapping if we have a valid cached shadow map
+		VirtualShadowMapArray.UpdateNextData(PrevVirtualShadowMapId, VirtualShadowMapId);
 	}
 
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
-	CurrentPageSpaceLocation = FInt64Point(0, 0);		// Not used for local lights
 	// Current HZB metadata gets updated during rendering
 }
 
@@ -180,28 +190,25 @@ void FVirtualShadowMapCacheEntry::SetHZBViewParams(Nanite::FPackedViewParams& Ou
 	OutParams.Flags |= NANITE_VIEW_FLAG_HZBTEST;
 }
 
-
-void FVirtualShadowMapCacheEntry::Invalidate()
-{
-	PrevVirtualShadowMapId = INDEX_NONE;
-}
-
-void FVirtualShadowMapPerLightCacheEntry::UpdateClipmap(const FMatrix& WorldToLight)
+void FVirtualShadowMapPerLightCacheEntry::UpdateClipmap(const FVector& LightDirection, int FirstLevel)
 {
 	Prev.bIsUncached = Current.bIsUncached;
 	Prev.RenderedFrameNumber = FMath::Max(Prev.RenderedFrameNumber, Current.RenderedFrameNumber);
 	Current.RenderedFrameNumber = -1;
-	if (GForceInvalidateDirectionalVSM != 0 || WorldToLight != ClipmapCacheKey.WorldToLight)
+
+	if (GForceInvalidateDirectionalVSM != 0 ||
+		LightDirection != ClipmapCacheKey.LightDirection ||
+		FirstLevel != ClipmapCacheKey.FirstLevel)
 	{
 		Prev.RenderedFrameNumber = -1;
-		//UE_LOG(LogRenderer, Display, TEXT("Invalidated clipmap level (VSM %d) due to light movement"), VirtualShadowMapId);
 	}
-	ClipmapCacheKey.WorldToLight = WorldToLight;
+	ClipmapCacheKey.LightDirection = LightDirection;
+	ClipmapCacheKey.FirstLevel = FirstLevel;
 
 	Current.bIsUncached = GForceInvalidateDirectionalVSM != 0 || Prev.RenderedFrameNumber < 0;
 
-	// On transition from uncached -> cached we must invalidate since the static pages are not initialized at this point.
-	if (!Current.bIsUncached && Prev.bIsUncached)
+	// On transition between uncached <-> cached we must invalidate since the static pages may not be initialized
+	if (Current.bIsUncached != Prev.bIsUncached)
 	{
 		Prev.RenderedFrameNumber = -1;
 	}
@@ -230,8 +237,8 @@ bool FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInit
 	Current.ScheduledFrameNumber = -1;
 	Current.bIsUncached = Prev.RenderedFrameNumber < 0;
 
-	// On transition from uncached -> cached we must invalidate since the static pages are not initialized at this point.
-	if (!Current.bIsUncached && Prev.bIsUncached)
+	// On transition between uncached <-> cached we must invalidate since the static pages may not be initialized
+	if (Current.bIsUncached != Prev.bIsUncached)
 	{
 		Prev.RenderedFrameNumber = -1;
 	}
@@ -242,11 +249,6 @@ bool FVirtualShadowMapPerLightCacheEntry::UpdateLocal(const FProjectedShadowInit
 void FVirtualShadowMapPerLightCacheEntry::Invalidate()
 {
 	Prev.RenderedFrameNumber = -1;
-
-	for (TSharedPtr<FVirtualShadowMapCacheEntry>& Entry : ShadowMapEntries)
-	{
-		Entry->Invalidate();
-	}
 }
 
 static inline uint32 EncodeInstanceInvalidationPayload(bool bInvalidateStaticPage, int32 ClipmapVirtualShadowMapId = INDEX_NONE)
@@ -288,7 +290,7 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::AddDyn
 	// SIDE EFFECT GLOBAL
 	GPUScene.DynamicPrimitiveInstancesToInvalidate.Reset();
 
-	for (auto& CacheEntry : Manager.PrevCacheEntries)
+	for (auto& CacheEntry : Manager.CacheEntries)
 	{
 		for (const FVirtualShadowMapPerLightCacheEntry::FInstanceRange& Range : CacheEntry.Value->PrimitiveInstancesToInvalidate)
 		{
@@ -296,12 +298,9 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::AddDyn
 			// TODO: maybe add permutation so we can strip the loop completely.
 			for (const auto& SmCacheEntry : CacheEntry.Value->ShadowMapEntries)
 			{
-				if (SmCacheEntry.IsValid())
-				{
-					// TODO: Do we ever need to invalidate these "post" update?
-					Instances.Add(Range.InstanceSceneDataOffset, Range.NumInstanceSceneDataEntries,
-						EncodeInstanceInvalidationPayload(Range.bInvalidateStaticPage, SmCacheEntry->CurrentVirtualShadowMapId));
-				}
+				// TODO: Do we ever need to invalidate these "post" update?
+				Instances.Add(Range.InstanceSceneDataOffset, Range.NumInstanceSceneDataEntries,
+					EncodeInstanceInvalidationPayload(Range.bInvalidateStaticPage, SmCacheEntry.CurrentVirtualShadowMapId));
 			}
 		}
 		CacheEntry.Value->PrimitiveInstancesToInvalidate.Reset();
@@ -402,7 +401,7 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::AddInv
 		return;
 	}
 
-	for (auto& CacheEntry : Manager.PrevCacheEntries)
+	for (auto& CacheEntry : Manager.CacheEntries)
 	{
 		TBitArray<>& CachedPrimitives = CacheEntry.Value->CachedPrimitives;
 		if (bIsNaniteMesh || (PersistentPrimitiveIndex.Index < CachedPrimitives.Num() && CachedPrimitives[PersistentPrimitiveIndex.Index]))
@@ -418,12 +417,9 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::AddInv
 			// TODO: maybe add permutation so we can strip the loop completely.
 			for (const auto& SmCacheEntry : CacheEntry.Value->ShadowMapEntries)
 			{
-				if (SmCacheEntry.IsValid())
-				{
-					checkSlow(SmCacheEntry->CurrentVirtualShadowMapId != INDEX_NONE);
-					uint32 Payload = EncodeInstanceInvalidationPayload(bPreviouslyCachedAsStatic, SmCacheEntry->CurrentVirtualShadowMapId);
-					Instances.Add(InstanceSceneDataOffset, NumInstanceSceneDataEntries, Payload);
-				}
+				checkSlow(SmCacheEntry.CurrentVirtualShadowMapId != INDEX_NONE);
+				uint32 Payload = EncodeInstanceInvalidationPayload(bPreviouslyCachedAsStatic, SmCacheEntry.CurrentVirtualShadowMapId);
+				Instances.Add(InstanceSceneDataOffset, NumInstanceSceneDataEntries, Payload);
 			}
 		}
 	}
@@ -527,8 +523,8 @@ FVirtualShadowMapArrayCacheManager::FVirtualShadowMapArrayCacheManager(FScene* I
 			static const auto* CVarMaxPhysicalPagesPtr = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.Virtual.MaxPhysicalPages"));
 			const int32 MaxPhysicalPages = CVarMaxPhysicalPagesPtr->GetValueOnRenderThread();
 
-				static const auto* CVarMaxPhysicalPagesSceneCapturePtr = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.Virtual.MaxPhysicalPagesSceneCapture"));
-				const int32 MaxPhysicalPagesSceneCapture = CVarMaxPhysicalPagesSceneCapturePtr->GetValueOnRenderThread();
+			static const auto* CVarMaxPhysicalPagesSceneCapturePtr = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.Virtual.MaxPhysicalPagesSceneCapture"));
+			const int32 MaxPhysicalPagesSceneCapture = CVarMaxPhysicalPagesSceneCapturePtr->GetValueOnRenderThread();
 
 #if !UE_BUILD_SHIPPING
 			if (!bLoggedPageOverflow)
@@ -714,7 +710,6 @@ void FVirtualShadowMapArrayCacheManager::FreeHZBPhysicalPool()
 void FVirtualShadowMapArrayCacheManager::Invalidate()
 {
 	// Clear the cache
-	PrevCacheEntries.Empty();
 	CacheEntries.Reset();
 
 	// Mark globally invalid until the next GPU allocation/metadata update
@@ -750,45 +745,38 @@ bool FVirtualShadowMapArrayCacheManager::IsHZBDataAvailable()
 	return HZBPhysicalPagePool && PrevBuffers.PageTable && PrevBuffers.PageFlags;
 }
 
-TSharedPtr<FVirtualShadowMapCacheEntry> FVirtualShadowMapPerLightCacheEntry::FindCreateShadowMapEntry(int32 Index)
-{
-	check(Index >= 0);
-	ShadowMapEntries.SetNum(FMath::Max(Index + 1, ShadowMapEntries.Num()));
-
-	TSharedPtr<FVirtualShadowMapCacheEntry>& EntryRef = ShadowMapEntries[Index];
-
-	if (!EntryRef.IsValid())
-	{
-		EntryRef = MakeShared<FVirtualShadowMapCacheEntry>();
-	}
-
-	return EntryRef;
-}
-
-TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateLightCacheEntry(int32 LightSceneId, uint32 ViewUniqueID)
+TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManager::FindCreateLightCacheEntry(
+	int32 LightSceneId, uint32 ViewUniqueID, uint32 NumShadowMaps)
 {
 	const uint64 CacheKey = (uint64(ViewUniqueID) << 32U) | uint64(LightSceneId);
 
-	if (TSharedPtr<FVirtualShadowMapPerLightCacheEntry> *LightEntry = CacheEntries.Find(CacheKey))
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> *LightEntryKey = CacheEntries.Find(CacheKey);
+	const int32 FrameNumber = Scene->GetFrameNumberRenderThread();
+
+	if (LightEntryKey)
 	{
-		return *LightEntry;
+		TSharedPtr<FVirtualShadowMapPerLightCacheEntry> LightEntry = *LightEntryKey;
+
+		if (LightEntry->ShadowMapEntries.Num() == NumShadowMaps)
+		{
+			LightEntry->ReferencedFrameNumber = FrameNumber;
+			return LightEntry;
+		}
+		else
+		{
+			// Remove this entry and create a new one below
+			// NOTE: This should only happen for clipmaps currently on cvar changes
+			UE_LOG(LogRenderer, Display, TEXT("Virtual shadow map cache invalidated for light due to clipmap level count change"));
+			CacheEntries.Remove(CacheKey);
+		}
 	}
 
-	// Add to current frame / active set.
-	TSharedPtr<FVirtualShadowMapPerLightCacheEntry>& NewLightEntry = CacheEntries.Add(CacheKey);
+	// Make new entry for this light
+	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> LightEntry = MakeShared<FVirtualShadowMapPerLightCacheEntry>(Scene->GetMaxPersistentPrimitiveIndex(), NumShadowMaps);
+	LightEntry->ReferencedFrameNumber = FrameNumber;	
+	CacheEntries.Add(CacheKey, LightEntry);
 
-	// Copy data if available
-	if (TSharedPtr<FVirtualShadowMapPerLightCacheEntry>* PrevNewLightEntry = PrevCacheEntries.Find(CacheKey))
-	{
-		NewLightEntry = *PrevNewLightEntry;
-	}
-	else
-	{
-		NewLightEntry = MakeShared<FVirtualShadowMapPerLightCacheEntry>(Scene->GetMaxPersistentPrimitiveIndex());
-	}
-
-	// return entry
-	return NewLightEntry;
+	return LightEntry;
 }
 
 void FVirtualShadowMapPerLightCacheEntry::OnPrimitiveRendered(const FPrimitiveSceneInfo* PrimitiveSceneInfo)
@@ -806,6 +794,73 @@ void FVirtualShadowMapPerLightCacheEntry::OnPrimitiveRendered(const FPrimitiveSc
 				PrimitiveSceneInfo->GetNumInstanceSceneDataEntries(),
 				PrimitiveSceneInfo->ShouldCacheShadowAsStatic()
 			});
+		}
+	}
+}
+
+void FVirtualShadowMapArrayCacheManager::UpdateUnreferencedCacheEntries(
+	FVirtualShadowMapArray& VirtualShadowMapArray)
+{
+	const int32 FrameNumber = Scene->GetFrameNumberRenderThread();
+	const int32 MaxAge = CVarCacheMaxUnreferencedLightAge.GetValueOnRenderThread();
+	const bool bAllowUnreferencedEntries = IsCacheEnabled() && MaxAge > 0;
+
+	TArray<uint64, SceneRenderingAllocator> EntriesToRemove;
+	for (auto& LightEntry : CacheEntries)
+	{
+		TSharedPtr<FVirtualShadowMapPerLightCacheEntry> CacheEntry = LightEntry.Value;
+		int32 Age = FrameNumber - CacheEntry->ReferencedFrameNumber;
+		check(CacheEntry->ReferencedFrameNumber >= 0);
+		check(Age >= 0);
+		if (Age == 0)
+		{
+			// Referenced this frame still, leave it alone
+		}
+		else if (bAllowUnreferencedEntries && Age < MaxAge)
+		{
+			INC_DWORD_STAT(STAT_VSMUnreferencedLights);
+
+			int PrevBaseVirtualShadowMapId = CacheEntry->ShadowMapEntries[0].CurrentVirtualShadowMapId;
+			bool bIsSinglePage = FVirtualShadowMapArray::IsSinglePage(PrevBaseVirtualShadowMapId);
+
+			// Keep the entry, reallocate new VSM IDs
+			int32 NumMaps = CacheEntry->ShadowMapEntries.Num();
+			int32 VirtualShadowMapId = VirtualShadowMapArray.Allocate(bIsSinglePage, NumMaps);
+			for (int32 Map = 0; Map < NumMaps; ++Map)
+			{
+				CacheEntry->ShadowMapEntries[Map].Update(VirtualShadowMapArray, *CacheEntry, VirtualShadowMapId + Map);
+				// NOTE: Leave the ProjectionData as whatever it was before
+				// TODO: We may want to add a flag that this is unreferenced so we can prune it from the light grid and skip it in page marking, etc...?
+				// Except in theory if we are marking things from onscreen pixels then we wouldn't have culled it... (small light culling though)?
+			}
+		}
+		else
+		{
+			// Enqueue for remove
+			EntriesToRemove.Add(LightEntry.Key);
+			//UE_LOG(LogRenderer, Display, TEXT("Removed VSM light cache entry (%d, Age %d)"), LightEntry.Key, Age);
+		}
+	}
+
+	for (uint64 Entry : EntriesToRemove)
+	{
+		int32 NumRemoved = CacheEntries.Remove(Entry);
+		check(NumRemoved > 0);
+	}
+}
+
+void FVirtualShadowMapArrayCacheManager::UploadProjectionData(FRDGScatterUploadBuffer& Uploader) const
+{
+	// If we get here, this should be non-empty, otherwise we will upload nothing and the destination buffer
+	// will end up as not having been written in RDG, which makes it upset even if it will never get referenced on the GPU.
+	check(!CacheEntries.IsEmpty());
+
+	for (const auto& LightEntry : CacheEntries)
+	{
+		TSharedPtr<FVirtualShadowMapPerLightCacheEntry> CacheEntry = LightEntry.Value;
+		for (const auto& Entry : CacheEntry->ShadowMapEntries)
+		{
+			Uploader.Add(Entry.CurrentVirtualShadowMapId, &Entry.ProjectionData);
 		}
 	}
 }
@@ -885,8 +940,6 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 			PrevUniformParameters.PageTable = nullptr;
 			PrevUniformParameters.PhysicalPagePool = nullptr;
 		}
-		// Move cache entries to previous frame, this implicitly removes any that were not used
-		PrevCacheEntries = CacheEntries;
 
 		// propagate current-frame primitive state to cache entry
 		for (const auto& LightInfo : SceneRenderer.VisibleLightInfos)
@@ -897,8 +950,6 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 				Clipmap->UpdateCachedFrameData();
 			}
 		}
-
-		CacheEntries.Reset();
 
 		ExtractStats(GraphBuilder, VirtualShadowMapArray);
 	}
@@ -1092,11 +1143,6 @@ void FVirtualShadowMapArrayCacheManager::OnSceneChange()
 	{
 		const int32 MaxPersistentPrimitiveIndex = FMath::Max(1, Scene->GetMaxPersistentPrimitiveIndex());
 
-		for (auto& CacheEntry : PrevCacheEntries)
-		{
-			CacheEntry.Value->CachedPrimitives.SetNum(MaxPersistentPrimitiveIndex, false);
-			CacheEntry.Value->RenderedPrimitives.SetNum(MaxPersistentPrimitiveIndex, false);
-		}
 		for (auto& CacheEntry : CacheEntries)
 		{
 			CacheEntry.Value->CachedPrimitives.SetNum(MaxPersistentPrimitiveIndex, false);
@@ -1108,7 +1154,6 @@ void FVirtualShadowMapArrayCacheManager::OnSceneChange()
 void FVirtualShadowMapArrayCacheManager::OnLightRemoved(int32 LightId)
 {
 	CacheEntries.Remove(LightId);
-	PrevCacheEntries.Remove(LightId);
 }
 
 /**

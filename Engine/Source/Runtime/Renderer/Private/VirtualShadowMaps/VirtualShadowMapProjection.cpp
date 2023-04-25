@@ -568,7 +568,7 @@ void RenderVirtualShadowMapProjection(
 		InputType,
 		VirtualShadowMaskTexture,
 		Clipmap->GetLightSceneInfo().Proxy,
-		Clipmap->GetVirtualShadowMap()->ID,
+		Clipmap->GetVirtualShadowMapId(),
 		TiledVSMProjection);
 	
 	CompositeVirtualShadowMapMask(

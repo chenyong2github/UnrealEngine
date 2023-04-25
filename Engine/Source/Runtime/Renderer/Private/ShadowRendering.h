@@ -435,8 +435,8 @@ public:
 	EMeshPass::Type MeshPassTargetType = EMeshPass::CSMShadowDepth;
 
 	EShadowMeshSelection MeshSelectionMask = EShadowMeshSelection::All;
-	/** */
-	TArray< FVirtualShadowMap*, TInlineAllocator<6> > VirtualShadowMaps;
+
+	int32 VirtualShadowMapId = INDEX_NONE;
 	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> VirtualShadowMapPerLightCacheEntry;
 
 	/** View projection matrices for each cubemap face, used by one pass point light shadows. */
@@ -768,7 +768,7 @@ public:
 		return FShadowDepthType(bDirectionalLight, bOnePassPointLightShadow);
 	}
 
-	bool HasVirtualShadowMap() const { return VirtualShadowMaps.Num() > 0 || VirtualShadowMapClipmap.IsValid(); }
+	bool HasVirtualShadowMap() const { return VirtualShadowMapId != INDEX_NONE || VirtualShadowMapClipmap.IsValid(); }
 
 	FParallelMeshDrawCommandPass& GetShadowDepthPass() { return ShadowDepthPass; }
 

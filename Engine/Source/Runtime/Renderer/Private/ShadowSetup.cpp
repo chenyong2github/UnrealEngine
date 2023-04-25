@@ -3973,7 +3973,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 								FBoxSphereBounds const& Bounds = PrimitiveSceneInfo->Proxy->GetBounds();
 								if (IntersectsConvexHulls(LightViewFrustumConvexHulls, Bounds))
 								{
-									if (ProjectedShadowInfo->AddSubjectPrimitive(TaskData, Interaction->GetPrimitiveSceneInfo(), Views, false) 
+									if (ProjectedShadowInfo->AddSubjectPrimitive(TaskData, Interaction->GetPrimitiveSceneInfo(), Views, false)
 										&& VirtualSmCacheEntry.IsValid())
 									{
 										VirtualSmCacheEntry->OnPrimitiveRendered(PrimitiveSceneInfo);
@@ -4007,12 +4007,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 
 					TSharedPtr<FVirtualShadowMapPerLightCacheEntry> VirtualSmPerLightCacheEntry = ShadowSceneRenderer->AddLocalLightShadow(ProjectedShadowInitializer, ProjectedShadowInfo, LightSceneInfo, MaxScreenRadius);
 
-					if (VirtualSmPerLightCacheEntry)
-					{
-						ProjectedShadowInfo->VirtualShadowMapPerLightCacheEntry = VirtualSmPerLightCacheEntry;
-						ProjectedShadowInfo->bShouldRenderVSM = !VirtualSmPerLightCacheEntry->IsFullyCached();
-					}
-
 					ProjectedShadowInfo->MeshPassTargetType = EMeshPass::VSMShadowDepth;
 					ProjectedShadowInfo->MeshSelectionMask = EShadowMeshSelection::VSM;
 
@@ -4031,7 +4025,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects, EmptyHull, VirtualSmPerLightCacheEntry);
 						ProjectedShadowInfo->bContainsNaniteSubjects = bContainsNaniteSubjects;
 					}
-					VisibleLightInfo.VirtualShadowMapId = ProjectedShadowInfo->VirtualShadowMaps[0]->ID;
+					VisibleLightInfo.VirtualShadowMapId = ProjectedShadowInfo->VirtualShadowMapId;
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 				}
 				
@@ -5184,13 +5178,9 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 			if (bNeedsVirtualShadowMap)
 			{
-				FVector LightDirection = LightSceneInfo.Proxy->GetDirection();
-				FMatrix WorldToLight = FInverseRotationMatrix(LightDirection.GetSafeNormal().Rotation());
-
 				TSharedPtr<FVirtualShadowMapClipmap> VirtualShadowMapClipmap = TSharedPtr<FVirtualShadowMapClipmap>(new FVirtualShadowMapClipmap(
 					VirtualShadowMapArray,
 					LightSceneInfo,
-					WorldToLight,
 					View.ViewMatrices,
 					View.ViewRect.Size(),
 					&View,
@@ -5215,7 +5205,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 				}
 
 				// NOTE: If there are multiple camera views this will simply be associated with "one of them"
-				VisibleLightInfo.VirtualShadowMapId = VirtualShadowMapClipmap->GetVirtualShadowMap(0)->ID;
+				VisibleLightInfo.VirtualShadowMapId = VirtualShadowMapClipmap->GetVirtualShadowMapId();
 			}
 		}
 	}
