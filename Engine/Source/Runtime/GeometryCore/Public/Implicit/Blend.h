@@ -231,7 +231,12 @@ protected:
 					continue;
 				}
 
-				Seeds.Add(Source->GetVertex(VID));
+				FVector3d Seed = Source->GetVertex(VID);
+				// Only add vertices that are inside the spatial bounds (only vertices that are not on any triangles will be outside)
+				if (MarchingCubes.Bounds.Contains(Seed))
+				{
+					Seeds.Add(Seed);
+				}
 			}
 		}
 

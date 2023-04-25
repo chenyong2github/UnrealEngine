@@ -134,7 +134,12 @@ public:
 		TArray<FVector3d> MCSeeds;
 		for ( int32 VertIdx : Source->VertexIndicesItr() )
 		{
-			MCSeeds.Add(Source->GetVertex(VertIdx));
+			FVector3d Vertex = Source->GetVertex(VertIdx);
+			// Only add vertices that are inside the spatial bounds (only vertices that are not on any triangles will be outside)
+			if (MarchingCubes.Bounds.Contains(Vertex))
+			{
+				MCSeeds.Add(Vertex);
+			}
 		}
 		MarchingCubes.GenerateContinuation(MCSeeds);
 
