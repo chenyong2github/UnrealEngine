@@ -97,6 +97,7 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
 	/** @return the documentation location for this editor */
 	virtual FString GetDocumentationLink() const override
@@ -173,6 +174,9 @@ private:
 
 	/** Builds the toolbar widget for the PhysicsAsset editor */
 	void ExtendToolbar();
+
+	/** Extends the viewport menus for the PhysicsAsset editor*/
+	void ExtendViewportMenus();
 	
 	/**	Binds our UI commands to delegates */
 	void BindCommands();

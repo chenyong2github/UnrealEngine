@@ -28,7 +28,9 @@
 #include "PhysicsAssetEditorActions.h"
 #include "PhysicsAssetRenderUtils.h"
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
+#include "PhysicsAssetEditorToolMenuContext.h"
 #include "Templates/TypeHash.h"
+#include "ToolMenus.h"
 
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
@@ -54,6 +56,7 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Engine/Selection.h"
 #include "PersonaModule.h"
+#include "PersonaToolMenuContext.h"
 
 #include "PhysicsAssetEditorAnimInstance.h"
 #include "PhysicsAssetEditorAnimInstanceProxy.h"
@@ -129,6 +132,16 @@ namespace PhysicsAssetEditor
 				::GetTypeHash(ShapeData.PrimitiveType));
 		}
 	};
+
+	static TSharedPtr<FPhysicsAssetEditor> GetPhysicsAssetEditorFromToolContext(const FToolMenuContext& InMenuContext)
+	{
+		if (UPhysicsAssetEditorToolMenuContext* Context = InMenuContext.FindContext<UPhysicsAssetEditorToolMenuContext>())
+		{
+			return Context->PhysicsAssetEditor.Pin();
+		}
+
+		return TSharedPtr<FPhysicsAssetEditor>();
+	}
 }
 
 void FPhysicsAssetEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -246,6 +259,7 @@ void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, 
 	IPhysicsAssetEditorModule* PhysicsAssetEditorModule = &FModuleManager::LoadModuleChecked<IPhysicsAssetEditorModule>( "PhysicsAssetEditor" );
 	ExtendMenu();
 	ExtendToolbar();
+	ExtendViewportMenus();
 	RegenerateMenusAndToolbars();
 }
 
@@ -396,6 +410,21 @@ FString FPhysicsAssetEditor::GetWorldCentricTabPrefix() const
 FLinearColor FPhysicsAssetEditor::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor(0.3f, 0.2f, 0.5f, 0.5f);
+}
+
+void FPhysicsAssetEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UPhysicsAssetEditorToolMenuContext* PhysicsAssetEditorContext = NewObject<UPhysicsAssetEditorToolMenuContext>();
+	PhysicsAssetEditorContext->PhysicsAssetEditor = SharedThis(this);
+	MenuContext.AddObject(PhysicsAssetEditorContext);
+
+	UPersonaToolMenuContext* PersonaContext = NewObject<UPersonaToolMenuContext>();
+	PersonaContext->SetToolkit(GetPersonaToolkit());
+	MenuContext.AddObject(PersonaContext);
+
+	MenuContext.AppendCommandList(ViewportCommandList);
 }
 
 void FPhysicsAssetEditor::OnClose()
@@ -585,72 +614,79 @@ void FPhysicsAssetEditor::ExtendToolbar()
 
 			return MenuBuilder.MakeWidget();
 		}
-
-		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, TSharedPtr<FPhysicsAssetEditorSharedData> SharedData, FPhysicsAssetEditor * PhysicsAssetEditor )
-		{
-			const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
-			TSharedRef<FUICommandList> InCommandList = PhysicsAssetEditor->GetToolkitCommands();
-
-			FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-			FPersonaModule::FCommonToolbarExtensionArgs Args;
-			Args.bReferencePose = true;
-			PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, PhysicsAssetEditor->PersonaToolkit.ToSharedRef(), Args);
-
-			ToolbarBuilder.BeginSection("PhysicsAssetEditorBodyTools");
-			{
-				ToolbarBuilder.AddToolBarButton(Commands.EnableCollision);
-				ToolbarBuilder.AddToolBarButton(Commands.DisableCollision);
-
-				ToolbarBuilder.AddComboButton(
-					FUIAction(FExecuteAction(), FCanExecuteAction::CreateSP(PhysicsAssetEditor, &FPhysicsAssetEditor::IsNotSimulation)),
-					FOnGetContent::CreateLambda([PhysicsAssetEditor]()
-					{
-						return PhysicsAssetEditor->BuildPhysicalMaterialAssetPicker(true);
-					}),
-					Commands.ApplyPhysicalMaterial->GetLabel(), 
-					Commands.ApplyPhysicalMaterial->GetDescription(),
-					Commands.ApplyPhysicalMaterial->GetIcon()
-				);
-			}
-			ToolbarBuilder.EndSection();
-
-			ToolbarBuilder.BeginSection("PhysicsAssetEditorConstraintTools");
-			{
-				ToolbarBuilder.AddToolBarButton(Commands.ConvertToBallAndSocket);
-				ToolbarBuilder.AddToolBarButton(Commands.ConvertToHinge);
-				ToolbarBuilder.AddToolBarButton(Commands.ConvertToPrismatic);
-				ToolbarBuilder.AddToolBarButton(Commands.ConvertToSkeletal);
-			}
-			ToolbarBuilder.EndSection();
-
-			ToolbarBuilder.BeginSection("PhysicsAssetEditorSimulation");
-			{
-				// Simulate
-				ToolbarBuilder.AddToolBarButton( 
-					Commands.RepeatLastSimulation, 
-					NAME_None, 
-					LOCTEXT("RepeatLastSimulation","Simulate"),
-					TAttribute< FText >::Create( TAttribute< FText >::FGetter::CreateSP( PhysicsAssetEditor, &FPhysicsAssetEditor::GetRepeatLastSimulationToolTip) ),
-					TAttribute< FSlateIcon >::Create( TAttribute< FSlateIcon >::FGetter::CreateSP( PhysicsAssetEditor, &FPhysicsAssetEditor::GetRepeatLastSimulationIcon) )
-					);
-
-				//simulate mode combo
-				FUIAction SimulationMode;
-				SimulationMode.CanExecuteAction = FCanExecuteAction::CreateSP(PhysicsAssetEditor, &FPhysicsAssetEditor::IsNotSimulation);
-				{
-					ToolbarBuilder.AddComboButton(
-						SimulationMode,
-						FOnGetContent::CreateStatic( &FillSimulateOptions, InCommandList ),
-						LOCTEXT( "SimulateCombo_Label", "Simulate Options" ),
-						LOCTEXT( "SimulateComboToolTip", "Options for Simulation" ),
-						FSlateIcon(),
-						true
-						);
-				}
-			}
-			ToolbarBuilder.EndSection();
-		}
 	};
+
+
+	FName ParentName;
+	static const FName MenuName = GetToolMenuToolbarName(ParentName);
+
+	UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu(MenuName);
+	const FToolMenuInsert SectionInsertLocation("Asset", EToolMenuInsertType::After);
+
+	ToolMenu->AddDynamicSection("Persona", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InToolMenu)
+	{
+		FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
+		FPersonaModule::FCommonToolbarExtensionArgs Args;
+		Args.bReferencePose = true;
+		PersonaModule.AddCommonToolbarExtensions(InToolMenu, Args);
+	}), SectionInsertLocation);
+
+	ToolMenu->AddDynamicSection("BodyTools", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InToolMenu)
+	{
+		const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
+		TSharedPtr<FPhysicsAssetEditor> PhysicsAssetEditor = PhysicsAssetEditor::GetPhysicsAssetEditorFromToolContext(InToolMenu->Context);
+		if (PhysicsAssetEditor)
+		{
+			FToolMenuSection& Section = InToolMenu->AddSection("BodyTools", FText());
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.EnableCollision));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.DisableCollision));
+			Section.AddEntry(FToolMenuEntry::InitComboButton("ApplyPhysicalMaterial",
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateSP(PhysicsAssetEditor.Get(), &FPhysicsAssetEditor::IsNotSimulation)),
+				FOnGetContent::CreateLambda([PhysicsAssetEditor]()
+			{
+				return PhysicsAssetEditor->BuildPhysicalMaterialAssetPicker(true);
+			}),
+				Commands.ApplyPhysicalMaterial->GetLabel(),
+				Commands.ApplyPhysicalMaterial->GetDescription(),
+				Commands.ApplyPhysicalMaterial->GetIcon()));
+		}
+	}), SectionInsertLocation);
+	{
+		const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
+		FToolMenuSection& Section = ToolMenu->AddSection("ConstraintTools", FText(), SectionInsertLocation);
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.ConvertToBallAndSocket));
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.ConvertToHinge));
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.ConvertToPrismatic));
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.ConvertToSkeletal));
+	}
+
+	ToolMenu->AddDynamicSection("Simulation", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InToolMenu)
+	{
+		const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
+		TSharedPtr<FPhysicsAssetEditor> PhysicsAssetEditor = PhysicsAssetEditor::GetPhysicsAssetEditorFromToolContext(InToolMenu->Context);
+		if (PhysicsAssetEditor)
+		{
+			FToolMenuSection& Section = InToolMenu->AddSection("Simulation", FText());
+			// Simulate
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+				Commands.RepeatLastSimulation,
+				LOCTEXT("RepeatLastSimulation", "Simulate"),
+				TAttribute< FText >::Create(TAttribute< FText >::FGetter::CreateSP(PhysicsAssetEditor.Get(), &FPhysicsAssetEditor::GetRepeatLastSimulationToolTip)),
+				TAttribute< FSlateIcon >::Create(TAttribute< FSlateIcon >::FGetter::CreateSP(PhysicsAssetEditor.Get(), &FPhysicsAssetEditor::GetRepeatLastSimulationIcon))));
+			
+			Section.AddEntry(FToolMenuEntry::InitComboButton("SimulationMode",
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateSP(PhysicsAssetEditor.Get(), &FPhysicsAssetEditor::IsNotSimulation)),
+				FOnGetContent::CreateLambda([PhysicsAssetEditor]()
+			{
+				return Local::FillSimulateOptions(PhysicsAssetEditor->GetToolkitCommands());
+			}),
+				LOCTEXT("SimulateCombo_Label", "Simulate Options"),
+				LOCTEXT("SimulateComboToolTip", "Options for Simulation"),
+				FSlateIcon(),
+				true));
+				
+		}
+	}), SectionInsertLocation);
 
 	// If the ToolbarExtender is valid, remove it before rebuilding it
 	if ( ToolbarExtender.IsValid() )
@@ -660,13 +696,6 @@ void FPhysicsAssetEditor::ExtendToolbar()
 	}
 
 	ToolbarExtender = MakeShareable(new FExtender);
-	
-	ToolbarExtender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateStatic( &Local::FillToolbar, SharedData, this)
-		);
 
 	AddToolbarExtender(ToolbarExtender);
 
@@ -688,54 +717,159 @@ void FPhysicsAssetEditor::ExtendToolbar()
 
 void FPhysicsAssetEditor::ExtendMenu()
 {
-	struct Local
-	{
-		static void FillEdit( FMenuBuilder& MenuBarBuilder )
-		{
-			const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
-			MenuBarBuilder.BeginSection("Selection", LOCTEXT("PhatEditSelection", "Selection"));
-				MenuBarBuilder.AddMenuEntry(Commands.ShowSelected);
-				MenuBarBuilder.AddMenuEntry(Commands.HideSelected);
-				MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlySelected);
-				MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlyColliding);
-				MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlyConstrained);
-				MenuBarBuilder.AddMenuEntry(Commands.ShowAll);
-				MenuBarBuilder.AddMenuEntry(Commands.HideAll);
-				MenuBarBuilder.AddMenuEntry(Commands.DeselectAll);
-				MenuBarBuilder.AddMenuEntry(Commands.ToggleShowSelected);
-			MenuBarBuilder.EndSection();
+	const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
 
-			// Bodies
-			MenuBarBuilder.BeginSection("Bodies & Constraints", LOCTEXT("PhatEditSelectionBodies", "Bodies & Constraints"));
-				MenuBarBuilder.AddMenuEntry(Commands.SelectAllBodies);
-				MenuBarBuilder.AddMenuEntry(Commands.SelectSimulatedBodies);
-				MenuBarBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
-				MenuBarBuilder.AddMenuEntry(Commands.SelectAllConstraints);
-				MenuBarBuilder.AddMenuEntry(Commands.ToggleSelectionType);
-				MenuBarBuilder.AddMenuEntry(Commands.ToggleSelectionTypeWithUserConstraints);
-			MenuBarBuilder.EndSection();
-
-			// Shapes
-			MenuBarBuilder.BeginSection("Shapes", LOCTEXT("PhatEditSelectionShapes", "Shapes"));
-				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesQueryOnly);
-				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesQueryAndPhysics);
-				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesPhysicsOnly);
-				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesQueryAndProbe);
-				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesProbeOnly);
-			MenuBarBuilder.EndSection();
-		}
-	};
 	MenuExtender = MakeShareable(new FExtender);
-	MenuExtender->AddMenuExtension(
-		"EditHistory",
-		EExtensionHook::After,
-		GetToolkitCommands(), 
-		FMenuExtensionDelegate::CreateStatic( &Local::FillEdit ) );
 
 	AddMenuExtender(MenuExtender);
 
 	IPhysicsAssetEditorModule* PhysicsAssetEditorModule = &FModuleManager::LoadModuleChecked<IPhysicsAssetEditorModule>( "PhysicsAssetEditor" );
 	AddMenuExtender(PhysicsAssetEditorModule->GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+
+	FToolMenuOwnerScoped OwnerScoped(this);
+	static const FName EditMenuName = UToolMenus::JoinMenuPaths(GetToolMenuName(), TEXT("Edit"));
+	if (UToolMenu* EditMenu = UToolMenus::Get()->ExtendMenu(EditMenuName))
+	{
+		{
+			FToolMenuSection& Section = EditMenu->AddSection("Selection", LOCTEXT("PhatEditSelection", "Selection"));
+			Section.AddMenuEntry(Commands.ShowSelected);
+			Section.AddMenuEntry(Commands.HideSelected);
+			Section.AddMenuEntry(Commands.ToggleShowOnlySelected);
+			Section.AddMenuEntry(Commands.ToggleShowOnlyColliding);
+			Section.AddMenuEntry(Commands.ToggleShowOnlyConstrained);
+			Section.AddMenuEntry(Commands.ShowAll);
+			Section.AddMenuEntry(Commands.HideAll);
+			Section.AddMenuEntry(Commands.DeselectAll);
+			Section.AddMenuEntry(Commands.ToggleShowSelected);
+		}
+		{
+			FToolMenuSection& Section = EditMenu->AddSection("Bodies & Constraints", LOCTEXT("PhatEditSelectionBodies", "Bodies & Constraints"));
+			Section.AddMenuEntry(Commands.SelectAllBodies);
+			Section.AddMenuEntry(Commands.SelectSimulatedBodies);
+			Section.AddMenuEntry(Commands.SelectKinematicBodies);
+			Section.AddMenuEntry(Commands.SelectAllConstraints);
+			Section.AddMenuEntry(Commands.ToggleSelectionType);
+			Section.AddMenuEntry(Commands.ToggleSelectionTypeWithUserConstraints);
+		}
+		{
+			FToolMenuSection& Section = EditMenu->AddSection("Shapes", LOCTEXT("PhatEditSelectionShapes", "Shapes"));
+			Section.AddMenuEntry(Commands.SelectShapesQueryOnly);
+			Section.AddMenuEntry(Commands.SelectShapesQueryAndPhysics);
+			Section.AddMenuEntry(Commands.SelectShapesPhysicsOnly);
+			Section.AddMenuEntry(Commands.SelectShapesQueryAndProbe);
+			Section.AddMenuEntry(Commands.SelectShapesProbeOnly);
+		}
+	}
+}
+
+void FPhysicsAssetEditor::ExtendViewportMenus()
+{
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	static const FName CharacterMenuName("Persona.AnimViewportCharacterMenu");
+	UToolMenu* ExtendableCharacterMenu = UToolMenus::Get()->ExtendMenu(CharacterMenuName);
+	ExtendableCharacterMenu->AddDynamicSection("PhysicsCharacterMenu", FNewToolMenuDelegate::CreateLambda([](UToolMenu* CharacterMenu)
+	{
+		TSharedPtr<FPhysicsAssetEditor> PhysicsAssetEditor = PhysicsAssetEditor::GetPhysicsAssetEditorFromToolContext(CharacterMenu->Context);
+		if (PhysicsAssetEditor)
+		{
+			FToolMenuSection& Section = CharacterMenu->AddSection("PhysicsAssetShowCommands", LOCTEXT("PhysicsShowCommands", "Physics Rendering"), FToolMenuInsert("AnimViewportSceneElements", EToolMenuInsertType::Before));
+			Section.AddMenuEntry(FPhysicsAssetEditorCommands::Get().ToggleMassProperties);
+			Section.AddSubMenu(TEXT("MeshRenderModeSubMenu"), LOCTEXT("MeshRenderModeSubMenu", "Mesh"), FText::GetEmpty(),
+				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+			{
+				const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
+				{
+					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorRenderingMode", LOCTEXT("MeshRenderModeHeader", "Mesh Drawing (Edit)"));
+					Section.AddMenuEntry(Commands.MeshRenderingMode_Solid);
+					Section.AddMenuEntry(Commands.MeshRenderingMode_Wireframe);
+					Section.AddMenuEntry(Commands.MeshRenderingMode_None);
+				}
+
+				{
+					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorRenderingModeSim", LOCTEXT("MeshRenderModeSimHeader", "Mesh Drawing (Simulation)"));
+					Section.AddMenuEntry(Commands.MeshRenderingMode_Simulation_Solid);
+					Section.AddMenuEntry(Commands.MeshRenderingMode_Simulation_Wireframe);
+					Section.AddMenuEntry(Commands.MeshRenderingMode_Simulation_None);
+				}
+			}));
+
+			Section.AddSubMenu(TEXT("CollisionRenderModeSubMenu"), LOCTEXT("CollisionRenderModeSubMenu", "Bodies"), FText::GetEmpty(),
+				FNewToolMenuDelegate::CreateLambda([PhysicsAssetEditor](UToolMenu* InSubMenu)
+			{
+				const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
+				{
+					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorCollisionRenderSettings", LOCTEXT("CollisionRenderSettingsHeader", "Body Drawing"));
+					Section.AddMenuEntry(Commands.RenderOnlySelectedSolid);
+					Section.AddMenuEntry(Commands.HideSimulatedBodies);
+					Section.AddMenuEntry(Commands.HideKinematicBodies);
+					Section.AddEntry(FToolMenuEntry::InitWidget(TEXT("CollisionOpacity"), PhysicsAssetEditor->MakeCollisionOpacityWidget(), LOCTEXT("CollisionOpacityLabel", "Collision Opacity")));
+				}
+
+				{
+					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorCollisionMode", LOCTEXT("CollisionRenderModeHeader", "Body Drawing (Edit)"));
+					Section.AddMenuEntry(Commands.CollisionRenderingMode_Solid);
+					Section.AddMenuEntry(Commands.CollisionRenderingMode_Wireframe);
+					Section.AddMenuEntry(Commands.CollisionRenderingMode_SolidWireframe);
+					Section.AddMenuEntry(Commands.CollisionRenderingMode_None);
+				}
+
+				{
+					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorCollisionModeSim", LOCTEXT("CollisionRenderModeSimHeader", "Body Drawing (Simulation)"));
+					Section.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_Solid);
+					Section.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_Wireframe);
+					Section.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_SolidWireframe);
+					Section.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_None);
+				}
+			}));
+
+			Section.AddSubMenu(TEXT("ConstraintConstraintModeSubMenu"), LOCTEXT("ConstraintConstraintModeSubMenu", "Constraints"), FText::GetEmpty(),
+				FNewToolMenuDelegate::CreateLambda([PhysicsAssetEditor](UToolMenu* InSubMenu)
+			{
+				const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
+				{
+					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorConstraints", LOCTEXT("ConstraintHeader", "Constraints"));
+					Section.AddMenuEntry(Commands.DrawConstraintsAsPoints);
+					Section.AddMenuEntry(Commands.RenderOnlySelectedConstraints);
+					Section.AddEntry(FToolMenuEntry::InitWidget(TEXT("ConstraintScale"), PhysicsAssetEditor->MakeConstraintScaleWidget(), LOCTEXT("ConstraintScaleLabel", "Constraint Scale")));
+				}
+				{
+					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorConstraintMode", LOCTEXT("ConstraintRenderModeHeader", "Constraint Drawing (Edit)"));
+					Section.AddMenuEntry(Commands.ConstraintRenderingMode_None);
+					Section.AddMenuEntry(Commands.ConstraintRenderingMode_AllPositions);
+					Section.AddMenuEntry(Commands.ConstraintRenderingMode_AllLimits);
+				}
+
+				{
+					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorConstraintModeSim", LOCTEXT("ConstraintRenderModeSimHeader", "Constraint Drawing (Simulation)"));
+					Section.AddMenuEntry(Commands.ConstraintRenderingMode_Simulation_None);
+					Section.AddMenuEntry(Commands.ConstraintRenderingMode_Simulation_AllPositions);
+					Section.AddMenuEntry(Commands.ConstraintRenderingMode_Simulation_AllLimits);
+				}
+			}));
+		}
+	}));
+	static const FName PhysicsMenuName("Persona.AnimViewportPhysicsMenu");
+	UToolMenu* ExtendablePhysicsMenu = UToolMenus::Get()->ExtendMenu(PhysicsMenuName);
+	ExtendablePhysicsMenu->AddDynamicSection("AnimViewportPhysicsMenu", FNewToolMenuDelegate::CreateLambda([](UToolMenu* PhysicsMenu)
+	{
+		TSharedPtr<FPhysicsAssetEditor> PhysicsAssetEditor = PhysicsAssetEditor::GetPhysicsAssetEditorFromToolContext(PhysicsMenu->Context);
+		if (PhysicsAssetEditor)
+		{
+			FToolMenuSection& Section = PhysicsMenu->AddSection("AnimViewportPhysicsMenu", LOCTEXT("ViewMenu_AnimViewportPhysicsMenu", "Physics Menu"));
+
+			FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+			FDetailsViewArgs DetailsViewArgs;
+			DetailsViewArgs.bAllowSearch = false;
+			DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+			TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+			DetailsView->SetObject(PhysicsAssetEditor->GetSharedData()->EditorOptions);
+			DetailsView->OnFinishedChangingProperties().AddLambda([PhysicsAssetEditor](const FPropertyChangedEvent& InEvent) { PhysicsAssetEditor->GetSharedData()->EditorOptions->SaveConfig(); });
+	
+			Section.AddEntry(FToolMenuEntry::InitWidget("PhysicsEditorOptions", DetailsView.ToSharedRef(), FText()));
+		}
+	}));
 }
 
 void FPhysicsAssetEditor::BindCommands()
@@ -1416,16 +1550,23 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 			static void FillPhysicsTypeMenu(FMenuBuilder& InSubMenuBuilder)
 			{
 				const FPhysicsAssetEditorCommands& PhysicsAssetEditorCommands = FPhysicsAssetEditorCommands::Get();
+				const bool bExposeSimulationControls = GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuSimulationControls;
 
 				InSubMenuBuilder.BeginSection("BodyPhysicsTypeActions", LOCTEXT("BodyPhysicsTypeHeader", "Body Physics Type"));
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.MakeBodyKinematic);
-				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.MakeBodySimulated);
+				if (bExposeSimulationControls)
+				{
+					InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.MakeBodySimulated);
+				}
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.MakeBodyDefault);
 				InSubMenuBuilder.EndSection();
 
 				InSubMenuBuilder.BeginSection("BodiesBelowPhysicsTypeActions", LOCTEXT("BodiesBelowPhysicsTypeHeader", "Bodies Below Physics Type"));
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.KinematicAllBodiesBelow);
-				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.SimulatedAllBodiesBelow);
+				if (bExposeSimulationControls)
+				{
+					InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.SimulatedAllBodiesBelow);
+				}
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.MakeAllBodiesBelowDefault);
 				InSubMenuBuilder.EndSection();
 			}
@@ -1435,6 +1576,7 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 			static void FillCollisionMenu(FMenuBuilder& InSubMenuBuilder)
 			{
 				const FPhysicsAssetEditorCommands& PhysicsAssetEditorCommands = FPhysicsAssetEditorCommands::Get();
+				const bool bExposeSimulationControls = GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuSimulationControls;
 
 				InSubMenuBuilder.BeginSection("CollisionHeader", LOCTEXT("CollisionHeader", "Collision"));
 				InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.WeldToBody );
@@ -1445,19 +1587,31 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 				InSubMenuBuilder.EndSection();
 
 				InSubMenuBuilder.BeginSection("CollisionFilteringHeader", LOCTEXT("CollisionFilteringHeader", "Collision Filtering"));
-				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveQueryAndPhysics);
+				if (bExposeSimulationControls)
+				{
+					InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveQueryAndPhysics);
+				}
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveQueryOnly);
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveQueryAndProbe);
-				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitivePhysicsOnly);
+				if (bExposeSimulationControls)
+				{
+					InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitivePhysicsOnly);
+				}
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveProbeOnly);
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveNoCollision);
 				InSubMenuBuilder.EndSection();
 
-				InSubMenuBuilder.BeginSection("MassHeader", LOCTEXT("MassHeader", "Mass"));
-				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveContributeToMass);
-				InSubMenuBuilder.EndSection();
+				if (bExposeSimulationControls)
+				{
+					InSubMenuBuilder.BeginSection("MassHeader", LOCTEXT("MassHeader", "Mass"));
+					InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveContributeToMass);
+					InSubMenuBuilder.EndSection();
+				}
 			}
 		};
+
+		const bool bExposeSimulationControls = GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuSimulationControls;
+		const bool bExposeConstraintControls = GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuConstraintControls;
 
 		InMenuBuilder.BeginSection( "BodyActions", LOCTEXT( "BodyHeader", "Body" ) );
 		InMenuBuilder.AddMenuEntry( Commands.RegenerateBodies );
@@ -1465,9 +1619,12 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 			FNewMenuDelegate::CreateStatic( &FillAddShapeMenu ) );
 		InMenuBuilder.AddSubMenu( LOCTEXT("CollisionMenu", "Collision"), LOCTEXT("CollisionMenu_ToolTip", "Adjust body/body collision"),
 			FNewMenuDelegate::CreateStatic( &FLocal::FillCollisionMenu ) );	
-		InMenuBuilder.AddMenuEntry(Commands.ConstrainChildBodiesToParentBody);
-		InMenuBuilder.AddSubMenu( LOCTEXT("ConstraintMenu", "Constraints"), LOCTEXT("ConstraintMenu_ToolTip", "Constraint Operations"),
-			FNewMenuDelegate::CreateSP( this, &FPhysicsAssetEditor::BuildMenuWidgetNewConstraint ) );	
+		if (bExposeConstraintControls)
+		{
+			InMenuBuilder.AddMenuEntry(Commands.ConstrainChildBodiesToParentBody);
+			InMenuBuilder.AddSubMenu(LOCTEXT("ConstraintMenu", "Constraints"), LOCTEXT("ConstraintMenu_ToolTip", "Constraint Operations"),
+				FNewMenuDelegate::CreateSP(this, &FPhysicsAssetEditor::BuildMenuWidgetNewConstraint));
+		}
 
 		InMenuBuilder.AddSubMenu( LOCTEXT("BodyPhysicsTypeMenu", "Physics Type"), LOCTEXT("BodyPhysicsTypeMenu_ToolTip", "Physics Type"),
 			FNewMenuDelegate::CreateStatic( &FLocal::FillPhysicsTypeMenu ) );	
@@ -1523,6 +1680,11 @@ void FPhysicsAssetEditor::BuildMenuWidgetPrimitives(FMenuBuilder& InMenuBuilder)
 
 void FPhysicsAssetEditor::BuildMenuWidgetConstraint(FMenuBuilder& InMenuBuilder)
 {
+	if (!GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuConstraintControls)
+	{
+		return;
+	}
+
 	InMenuBuilder.PushCommandList(GetToolkitCommands());
 	{
 		const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
@@ -1601,12 +1763,20 @@ void FPhysicsAssetEditor::BuildMenuWidgetSelection(FMenuBuilder& InMenuBuilder)
 	InMenuBuilder.PushCommandList(GetToolkitCommands());
 	{
 		const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
+		const bool bExposeSimulationControls = GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuSimulationControls;
+		const bool bExposeConstraintControls = GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuConstraintControls;
 
-		InMenuBuilder.BeginSection( "Selection", LOCTEXT("Selection", "Selection" ) );
-		InMenuBuilder.AddMenuEntry( Commands.SelectAllBodies );
-		InMenuBuilder.AddMenuEntry( Commands.SelectSimulatedBodies );
-		InMenuBuilder.AddMenuEntry( Commands.SelectKinematicBodies );
-		InMenuBuilder.AddMenuEntry( Commands.SelectAllConstraints );
+		InMenuBuilder.BeginSection("Selection", LOCTEXT("Selection", "Selection"));
+		InMenuBuilder.AddMenuEntry(Commands.SelectAllBodies);
+		if (bExposeSimulationControls)
+		{
+			InMenuBuilder.AddMenuEntry(Commands.SelectSimulatedBodies);
+		}
+		InMenuBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
+		if (bExposeConstraintControls)
+		{
+			InMenuBuilder.AddMenuEntry(Commands.SelectAllConstraints);
+		}
 		InMenuBuilder.AddMenuEntry( Commands.ToggleSelectionType );
 		InMenuBuilder.AddMenuEntry( Commands.ToggleSelectionTypeWithUserConstraints);		
 		InMenuBuilder.AddMenuEntry( Commands.ToggleShowSelected );
@@ -1614,12 +1784,18 @@ void FPhysicsAssetEditor::BuildMenuWidgetSelection(FMenuBuilder& InMenuBuilder)
 		InMenuBuilder.AddMenuEntry( Commands.HideSelected );
 		InMenuBuilder.AddMenuEntry( Commands.ToggleShowOnlySelected );
 		InMenuBuilder.AddMenuEntry( Commands.ToggleShowOnlyColliding );
-		InMenuBuilder.AddMenuEntry( Commands.ToggleShowOnlyConstrained );
+		if (bExposeConstraintControls)
+		{
+			InMenuBuilder.AddMenuEntry(Commands.ToggleShowOnlyConstrained);
+		}
 		InMenuBuilder.AddMenuEntry( Commands.ShowAll );
 		InMenuBuilder.AddMenuEntry( Commands.HideAll );
 		InMenuBuilder.AddMenuEntry( Commands.SelectShapesQueryOnly);
-		InMenuBuilder.AddMenuEntry( Commands.SelectShapesQueryAndPhysics);
-		InMenuBuilder.AddMenuEntry( Commands.SelectShapesPhysicsOnly);
+		if (bExposeSimulationControls)
+		{
+			InMenuBuilder.AddMenuEntry(Commands.SelectShapesQueryAndPhysics);
+			InMenuBuilder.AddMenuEntry(Commands.SelectShapesPhysicsOnly);
+		}
 		InMenuBuilder.AddMenuEntry( Commands.SelectShapesQueryAndProbe);
 		InMenuBuilder.AddMenuEntry( Commands.SelectShapesProbeOnly);
 		InMenuBuilder.EndSection();
@@ -3585,16 +3761,28 @@ void FPhysicsAssetEditor::HandleExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 {
 	const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
 
+	const bool bExposeSimulationControls = GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuSimulationControls;
+	const bool bExposeConstraintControls = GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuConstraintControls;
+
 	InMenuBuilder.PushCommandList(SkeletonTreeCommandList.ToSharedRef());
 	InMenuBuilder.BeginSection(TEXT("PhysicsAssetFilters"), LOCTEXT("PhysicsAssetFiltersHeader", "Physics Asset Filters"));
 	{
 		InMenuBuilder.AddMenuEntry(Commands.ShowBodies);
-		InMenuBuilder.AddMenuEntry(Commands.ShowSimulatedBodies);
+		if (bExposeSimulationControls)
+		{
+			InMenuBuilder.AddMenuEntry(Commands.ShowSimulatedBodies);
+		}
 		InMenuBuilder.AddMenuEntry(Commands.ShowKinematicBodies);
-		InMenuBuilder.AddMenuEntry(Commands.ShowConstraints);
+		if (bExposeConstraintControls)
+		{
+			InMenuBuilder.AddMenuEntry(Commands.ShowConstraints);
+		}
 		InMenuBuilder.AddMenuEntry(Commands.ShowPrimitives);
-		InMenuBuilder.AddSeparator();
-		InMenuBuilder.AddMenuEntry(Commands.ShowConstraintsOnParentBodies);
+		if (bExposeConstraintControls)
+		{
+			InMenuBuilder.AddSeparator();
+			InMenuBuilder.AddMenuEntry(Commands.ShowConstraintsOnParentBodies);
+		}
 	}
 	InMenuBuilder.EndSection();
 	InMenuBuilder.PopCommandList();

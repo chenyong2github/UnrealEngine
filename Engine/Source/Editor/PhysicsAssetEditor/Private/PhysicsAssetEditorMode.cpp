@@ -168,136 +168,14 @@ FPhysicsAssetEditorMode::FPhysicsAssetEditorMode(TSharedRef<FWorkflowCentricAppl
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 	TabFactories.RegisterFactory(PersonaModule.CreateDetailsTabFactory(InHostingApp, FOnDetailsCreated::CreateSP(&PhysicsAssetEditor.Get(), &FPhysicsAssetEditor::HandleDetailsCreated)));
 
-	auto ExtendShowMenu = [this](FMenuBuilder& InMenuBuilder)
-	{
-		const FPhysicsAssetEditorCommands& Actions = FPhysicsAssetEditorCommands::Get();
-
-		InMenuBuilder.PushCommandList(PhysicsAssetEditorPtr.Pin()->GetViewportCommandList().ToSharedRef());
-
-		InMenuBuilder.BeginSection("PhysicsAssetShowCommands", LOCTEXT("PhysicsShowCommands", "Physics Rendering"));
-		{
-			InMenuBuilder.AddMenuEntry(Actions.ToggleMassProperties);
-
-			// Mesh, collision and constraint rendering modes
-			struct Local
-			{
-				static void BuildMeshRenderModeMenu(FMenuBuilder& InSubMenuBuilder)
-				{
-					const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
-
-					InSubMenuBuilder.BeginSection("PhysicsAssetEditorRenderingMode", LOCTEXT("MeshRenderModeHeader", "Mesh Drawing (Edit)"));
-					{
-						InSubMenuBuilder.AddMenuEntry(Commands.MeshRenderingMode_Solid);
-						InSubMenuBuilder.AddMenuEntry(Commands.MeshRenderingMode_Wireframe);
-						InSubMenuBuilder.AddMenuEntry(Commands.MeshRenderingMode_None);
-					}
-					InSubMenuBuilder.EndSection();
-
-					InSubMenuBuilder.BeginSection("PhysicsAssetEditorRenderingModeSim", LOCTEXT("MeshRenderModeSimHeader", "Mesh Drawing (Simulation)"));
-					{
-						InSubMenuBuilder.AddMenuEntry(Commands.MeshRenderingMode_Simulation_Solid);
-						InSubMenuBuilder.AddMenuEntry(Commands.MeshRenderingMode_Simulation_Wireframe);
-						InSubMenuBuilder.AddMenuEntry(Commands.MeshRenderingMode_Simulation_None);
-					}
-					InSubMenuBuilder.EndSection();
-				}
-
-				static void BuildCollisionRenderModeMenu(FMenuBuilder& InSubMenuBuilder, TWeakPtr<FPhysicsAssetEditor> PhysicsAssetEditorPtr)
-				{
-					const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
-				
-					InSubMenuBuilder.BeginSection("PhysicsAssetEditorCollisionRenderSettings", LOCTEXT("CollisionRenderSettingsHeader", "Body Drawing"));
-					{
-						InSubMenuBuilder.AddMenuEntry(Commands.RenderOnlySelectedSolid);
-						InSubMenuBuilder.AddMenuEntry(Commands.HideSimulatedBodies);
-						InSubMenuBuilder.AddMenuEntry(Commands.HideKinematicBodies);
-						InSubMenuBuilder.AddWidget(PhysicsAssetEditorPtr.Pin()->MakeCollisionOpacityWidget(), LOCTEXT("CollisionOpacityLabel", "Collision Opacity"));
-					}
-					InSubMenuBuilder.EndSection();
-
-					InSubMenuBuilder.BeginSection("PhysicsAssetEditorCollisionMode", LOCTEXT("CollisionRenderModeHeader", "Body Drawing (Edit)"));
-					{
-						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Solid);
-						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Wireframe);
-						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_SolidWireframe);
-						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_None);
-					}
-					InSubMenuBuilder.EndSection();
-
-					InSubMenuBuilder.BeginSection("PhysicsAssetEditorCollisionModeSim", LOCTEXT("CollisionRenderModeSimHeader", "Body Drawing (Simulation)"));
-					{
-						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_Solid);
-						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_Wireframe);
-						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_SolidWireframe);
-						InSubMenuBuilder.AddMenuEntry(Commands.CollisionRenderingMode_Simulation_None);
-					}
-					InSubMenuBuilder.EndSection();
-				}
-
-				static void BuildConstraintRenderModeMenu(FMenuBuilder& InSubMenuBuilder, TWeakPtr<FPhysicsAssetEditor> PhysicsAssetEditorPtr)
-				{
-					const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
-
-					InSubMenuBuilder.BeginSection("PhysicsAssetEditorConstraints", LOCTEXT("ConstraintHeader", "Constraints"));
-					{
-						InSubMenuBuilder.AddMenuEntry(Commands.DrawConstraintsAsPoints);
-						InSubMenuBuilder.AddMenuEntry(Commands.RenderOnlySelectedConstraints);
-						InSubMenuBuilder.AddWidget(PhysicsAssetEditorPtr.Pin()->MakeConstraintScaleWidget(), LOCTEXT("ConstraintScaleLabel", "Constraint Scale"));
-					}
-					InSubMenuBuilder.EndSection();
-
-					InSubMenuBuilder.BeginSection("PhysicsAssetEditorConstraintMode", LOCTEXT("ConstraintRenderModeHeader", "Constraint Drawing (Edit)"));
-					{
-						InSubMenuBuilder.AddMenuEntry(Commands.ConstraintRenderingMode_None);
-						InSubMenuBuilder.AddMenuEntry(Commands.ConstraintRenderingMode_AllPositions);
-						InSubMenuBuilder.AddMenuEntry(Commands.ConstraintRenderingMode_AllLimits);
-					}
-					InSubMenuBuilder.EndSection();
-
-					InSubMenuBuilder.BeginSection("PhysicsAssetEditorConstraintModeSim", LOCTEXT("ConstraintRenderModeSimHeader", "Constraint Drawing (Simulation)"));
-					{
-						InSubMenuBuilder.AddMenuEntry(Commands.ConstraintRenderingMode_Simulation_None);
-						InSubMenuBuilder.AddMenuEntry(Commands.ConstraintRenderingMode_Simulation_AllPositions);
-						InSubMenuBuilder.AddMenuEntry(Commands.ConstraintRenderingMode_Simulation_AllLimits);
-					}
-					InSubMenuBuilder.EndSection();
-				}
-			};
-
-			InMenuBuilder.AddSubMenu(LOCTEXT("MeshRenderModeSubMenu", "Mesh"), FText::GetEmpty(), FNewMenuDelegate::CreateStatic(&Local::BuildMeshRenderModeMenu));
-			InMenuBuilder.AddSubMenu(LOCTEXT("CollisionRenderModeSubMenu", "Bodies"), FText::GetEmpty(), FNewMenuDelegate::CreateStatic(&Local::BuildCollisionRenderModeMenu, PhysicsAssetEditorPtr));
-			InMenuBuilder.AddSubMenu(LOCTEXT("ConstraintRenderModeSubMenu", "Constraints"), FText::GetEmpty(), FNewMenuDelegate::CreateStatic(&Local::BuildConstraintRenderModeMenu, PhysicsAssetEditorPtr));
-		}
-		InMenuBuilder.EndSection();
-
-		InMenuBuilder.PopCommandList();
-	};
-
-	auto ExtendMenuBar = [this](FMenuBuilder& InMenuBuilder)
-	{
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-		FDetailsViewArgs DetailsViewArgs;
-		DetailsViewArgs.bAllowSearch = false;
-		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-		TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-		DetailsView->SetObject(PhysicsAssetEditorPtr.Pin()->GetSharedData()->EditorOptions);
-		DetailsView->OnFinishedChangingProperties().AddLambda([this](const FPropertyChangedEvent& InEvent) { PhysicsAssetEditorPtr.Pin()->GetSharedData()->EditorOptions->SaveConfig(); });
-		InMenuBuilder.AddWidget(DetailsView.ToSharedRef(), FText(), true);
-			
-	};
-
 	TArray<TSharedPtr<FExtender>> ViewportExtenders;
 	ViewportExtenders.Add(MakeShared<FExtender>());
-	ViewportExtenders[0]->AddMenuExtension("AnimViewportSceneElements", EExtensionHook::Before, PhysicsAssetEditor->GetToolkitCommands(), FMenuExtensionDelegate::CreateLambda(ExtendShowMenu));
-	ViewportExtenders[0]->AddMenuExtension("AnimViewportPhysicsMenu", EExtensionHook::After, PhysicsAssetEditor->GetToolkitCommands(), FMenuExtensionDelegate::CreateLambda(ExtendMenuBar));
-
 
 	FPersonaViewportArgs ViewportArgs(InPreviewScene);
 	ViewportArgs.bAlwaysShowTransformToolbar = true;
 	ViewportArgs.bShowStats = false;
 	ViewportArgs.bShowTurnTable = false;
-	ViewportArgs.bShowPhysicsMenu = true;
+	ViewportArgs.bShowPhysicsMenu = GetDefault<UPhysicsAssetEditorOptions>()->bExposeLegacyMenuSimulationControls;
 	ViewportArgs.Extenders = ViewportExtenders;
 	ViewportArgs.OnViewportCreated = FOnViewportCreated::CreateLambda([this](const TSharedRef<IPersonaViewport>& InViewport)
 	{
