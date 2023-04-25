@@ -15,12 +15,21 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"AnimNext",
+					"StructUtils"
 				}
 			);
 
 			if (Target.bBuildEditor == true)
 			{
-				PrivateDependencyModuleNames.Add("UnrealEd");
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"UnrealEd",
+						"AnimNextUncookedOnly",
+						"AnimNextEditor",
+						"PythonScriptPlugin"
+					}
+				);
 			}
 		}
 	}
