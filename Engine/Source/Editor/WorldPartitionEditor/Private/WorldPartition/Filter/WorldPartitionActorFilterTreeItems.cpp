@@ -60,6 +60,7 @@ struct SWorldPartitionActorFilterLabel : FSceneOutlinerCommonLabelData, public S
 				[
 					SNew(STextBlock)
 					.Text(this, &SWorldPartitionActorFilterLabel::GetDisplayText)
+					.ToolTipText(this, &SWorldPartitionActorFilterLabel::GetDisplayText)
 					.ColorAndOpacity(this, &SWorldPartitionActorFilterLabel::GetForegroundColor)
 				]
 			]
