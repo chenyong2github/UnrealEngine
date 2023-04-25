@@ -181,7 +181,7 @@ void UTypedElementDatabaseCompatibility::Tick()
 			{
 				TEDS_EVENT_SCOPE(TEXT("Deduplicate ActorsNeedingFullSync"));
 				ActorsNeedingFullSync.Sort();
-				Algo::Unique(ActorsNeedingFullSync);
+				ActorsNeedingFullSync.SetNum(Algo::Unique(ActorsNeedingFullSync));
 			}
 
 			TArray<TypedElementRowHandle> RowHandles;
@@ -209,7 +209,7 @@ void UTypedElementDatabaseCompatibility::Tick()
 			}
 
 			{
-				TEDS_EVENT_SCOPE(TEXT("Add SyncToWorld Tag"));
+				TEDS_EVENT_SCOPE(TEXT("Add SyncFromWorld Tag"));
 				// Tag the rows containing actor data that they need to be synced
 				// Note: Watch out for the performance of this, may end up doing a lot of row moves
 				for (TypedElementRowHandle Row : RowHandles)
