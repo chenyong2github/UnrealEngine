@@ -49,7 +49,6 @@ protected:
 	TSharedRef<FMassEntityManager> EntityManager;
 
 	TSharedRef<FMassProcessingPhaseManager> PhaseManager;
-	FGraphEventRef CompletionEvent;
 
 	FMassProcessingPhaseConfig ProcessingPhasesConfig[(uint8)EMassProcessingPhase::MAX];
 

@@ -123,20 +123,22 @@ void UMassEntityEditorSubsystem::StopAndCleanUp()
 
 void UMassEntityEditorSubsystem::Tick(float DeltaTime)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMassEntityEditorSubsystem::Tick)
 	IsProcessing = true;
-
-	if (CompletionEvent.IsValid())
-	{
-		CompletionEvent->Wait();
-	}
 
 	OnPreTickDelegate.Broadcast(DeltaTime);
 
+	FGraphEventRef CompletionEvent;
 	for (int PhaseIndex = 0; PhaseIndex < (int)EMassProcessingPhase::MAX; ++PhaseIndex)
 	{
 		const FGraphEventArray Prerequisites = { CompletionEvent };
 		CompletionEvent = TGraphTask<UE::Mass::FMassEditorPhaseTickTask>::CreateTask(&Prerequisites)
 			.ConstructAndDispatchWhenReady(PhaseManager, EMassProcessingPhase(PhaseIndex), DeltaTime);
+	}
+
+	if (CompletionEvent.IsValid())
+	{
+		CompletionEvent->Wait();
 	}
 
 	IsProcessing = false;
