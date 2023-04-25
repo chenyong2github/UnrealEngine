@@ -22,7 +22,7 @@ class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 	friend struct FWorldPartitionHandleUtils;
 	friend class FWorldPartitionActorDesc;
 
-	using TNameActorDescMap = TMap<FName, TUniquePtr<FWorldPartitionActorDesc>*>;
+	using FNameActorDescMap = TMap<FName, TUniquePtr<FWorldPartitionActorDesc>*>;
 
 public:
 	/* Struct of parameters passed to Initialize function. */
@@ -111,7 +111,7 @@ public:
 	TArray<FAssetData> InvalidActors;
 
 protected:
-	TNameActorDescMap ActorsByName;
+	FNameActorDescMap ActorsByName;
 
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;

@@ -19,7 +19,7 @@ class ENGINE_API FActorDescList
 		}
 	};
 
-	using TGuidActorDescMap = TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*, FDefaultSetAllocator, FActorGuidKeyFuncs>;
+	using FGuidActorDescMap = TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>*, FDefaultSetAllocator, FActorGuidKeyFuncs>;
 
 public:
 	FActorDescList() {}
@@ -48,7 +48,7 @@ public:
 		static_assert(TIsDerivedFrom<ActorType, AActor>::IsDerived, "Type is not derived from AActor.");
 
 	protected:
-		using MapType = TGuidActorDescMap;
+		using MapType = FGuidActorDescMap;
 		using ValueType = typename FWorldPartitionActorDescType<ActorType>::Type;
 		using IteratorType = typename TChooseClass<bConst, MapType::TConstIterator, MapType::TIterator>::Result;
 		using ListType = typename TChooseClass<bConst, const FActorDescList*, FActorDescList*>::Result;
@@ -167,6 +167,6 @@ protected:
 
 	TChunkedArray<TUniquePtr<FWorldPartitionActorDesc>> ActorDescList;
 
-	TGuidActorDescMap ActorsByGuid;
+	FGuidActorDescMap ActorsByGuid;
 #endif
 };

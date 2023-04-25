@@ -10,11 +10,11 @@
 
 class UActorDescContainer;
 
-class ENGINE_API FWorldPartitionClassDescRegistry : FActorDescList
+class ENGINE_API FWorldPartitionClassDescRegistry : public FActorDescList
 {
-	using TNameClassDescMap = TMap<FTopLevelAssetPath, TUniquePtr<FWorldPartitionActorDesc>*>;
-	using TParentClassMap = TMap<FTopLevelAssetPath, FTopLevelAssetPath>;
-	using TRedirectClassMap = TMap<FTopLevelAssetPath, FTopLevelAssetPath>;
+	using FNameClassDescMap = TMap<FTopLevelAssetPath, TUniquePtr<FWorldPartitionActorDesc>*>;
+	using FParentClassMap = TMap<FTopLevelAssetPath, FTopLevelAssetPath>;
+	using FRedirectClassMap = TMap<FTopLevelAssetPath, FTopLevelAssetPath>;
 
 public:
 	static FWorldPartitionClassDescRegistry& Get();
@@ -29,7 +29,7 @@ public:
 
 	bool IsRegisteredClass(const FTopLevelAssetPath& InClassPath) const;
 
-	const TParentClassMap& GetParentClassMap() const { check(IsInitialized()); return ParentClassMap; }
+	const FParentClassMap& GetParentClassMap() const { check(IsInitialized()); return ParentClassMap; }
 
 private:
 	void PrefetchClassDesc(UClass* InClass);
@@ -62,8 +62,8 @@ private:
 
 	FTopLevelAssetPath RedirectClassPath(const FTopLevelAssetPath& InClassPath) const;
 
-	TNameClassDescMap ClassByPath;
-	TParentClassMap ParentClassMap;
-	TRedirectClassMap RedirectClassMap;
+	FNameClassDescMap ClassByPath;
+	FParentClassMap ParentClassMap;
+	FRedirectClassMap RedirectClassMap;
 };
 #endif
