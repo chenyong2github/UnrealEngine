@@ -4333,6 +4333,16 @@ FShaderCompilingManager::EDumpShaderDebugInfo FShaderCompilingManager::GetDumpSh
 	return static_cast<FShaderCompilingManager::EDumpShaderDebugInfo>(GDumpShaderDebugInfo);
 }
 
+EShaderDebugInfoFlags FShaderCompilingManager::GetDumpShaderDebugInfoFlags() const
+{
+	EShaderDebugInfoFlags Flags = EShaderDebugInfoFlags::Default;
+	if (GDumpShaderDebugInfoSCWCommandLine)
+	{
+		Flags |= EShaderDebugInfoFlags::DirectCompileCommandLine;
+	}
+	return Flags;
+}
+
 FString FShaderCompilingManager::CreateShaderDebugInfoPath(const FShaderCompilerInput& ShaderCompilerInput) const
 {
 	FString DumpDebugInfoPath = ShaderCompilerInput.DumpDebugInfoRootPath / ShaderCompilerInput.DebugGroupName + ShaderCompilerInput.DebugExtension;
@@ -5970,8 +5980,8 @@ void GlobalBeginCompileShader(
 	Input.EntryPointName = FunctionName;
 	Input.bCompilingForShaderPipeline = false;
 	Input.bIncludeUsedOutputs = false;
-	Input.bGenerateDirectCompileFile = (GDumpShaderDebugInfoSCWCommandLine != 0);
 	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / Input.ShaderPlatformName.ToString();
+	Input.DebugInfoFlags = GShaderCompilingManager->GetDumpShaderDebugInfoFlags();
 	// asset material name or "Global"
 	Input.DebugGroupName = DebugGroupName;
 	Input.DebugDescription = DebugDescription;

@@ -10,6 +10,7 @@
 #include "HAL/FileManager.h"
 #include "Stats/Stats.h"
 #include "Templates/RefCounting.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/SecureHash.h"
 #include "Misc/Paths.h"
 #include "Misc/CoreStats.h"
@@ -21,7 +22,7 @@ class FShaderCompileJob;
 class FShaderPipelineCompileJob;
 
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
-inline const int32 ShaderCompileWorkerInputVersion = 18;
+inline const int32 ShaderCompileWorkerInputVersion = 19;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
 inline const int32 ShaderCompileWorkerOutputVersion = 13;
 // this is for the protocol, not the data.
@@ -188,6 +189,13 @@ namespace FOodleDataCompression
 	enum class ECompressionLevel : int8;
 }
 
+enum class EShaderDebugInfoFlags : uint8
+{
+	Default = 0,
+	DirectCompileCommandLine = 1 << 0,
+};
+ENUM_CLASS_FLAGS(EShaderDebugInfoFlags)
+
 /** Struct that gathers all readonly inputs needed for the compilation of a single shader. */
 struct FShaderCompilerInput
 {
@@ -204,7 +212,11 @@ struct FShaderCompilerInput
 	// Skips the preprocessor and instead loads the usf file directly
 	bool bSkipPreprocessedCache;
 
+	UE_DEPRECATED(5.3, "Use DebugInfoFlags field (EDebugInfoFlags::DirectCompileCommandLine)")
 	bool bGenerateDirectCompileFile;
+
+	// Indicates which additional debug outputs should be written for this compile job.
+	EShaderDebugInfoFlags DebugInfoFlags;
 
 	// Shader pipeline information
 	bool bCompilingForShaderPipeline;
@@ -245,11 +257,21 @@ struct FShaderCompilerInput
 	FShaderCompilerInput() :
 		Target(SF_NumFrequencies, SP_NumPlatforms),
 		bSkipPreprocessedCache(false),
-		bGenerateDirectCompileFile(false),
+		DebugInfoFlags(EShaderDebugInfoFlags::Default),
 		bCompilingForShaderPipeline(false),
 		bIncludeUsedOutputs(false)
 	{
 	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Explicitly-defaulted copy/move ctors & assignment operators are needed temporarily due to 
+	// deprecation of bGenerateDirectCompileFile field. These can be removed once the deprecation
+	// window for said field ends.
+	FShaderCompilerInput(FShaderCompilerInput&&) = default;
+	FShaderCompilerInput(const FShaderCompilerInput&) = default;
+	FShaderCompilerInput& operator=(FShaderCompilerInput&&) = default;
+	FShaderCompilerInput& operator=(const FShaderCompilerInput&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool DumpDebugInfoEnabled() const 
 	{

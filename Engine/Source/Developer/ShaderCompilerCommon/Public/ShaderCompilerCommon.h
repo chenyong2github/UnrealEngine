@@ -112,7 +112,12 @@ namespace UE::ShaderCompilerCommon
 		const TCHAR* FilenamePrefix = nullptr;
 		TFunction<FString()> AppendPreSource{};
 		TFunction<FString()> AppendPostSource{};
-		bool bSkipDirectCompileTxt = false;
+		union
+		{
+			bool bSourceOnly = false; // if true, will only output source .usf as directed and skip all other debug data artifacts
+			UE_DEPRECATED(5.3, "bSkipDirectCompileTxt is deprecated, use bSourceOnly flag instead")
+			bool bSkipDirectCompileTxt;
+		};
 	};
 	/*
 	 * Dumps common debug information (preprocessed .usf as constructed by GetDebugShaderContents, and a directcompile.txt file 

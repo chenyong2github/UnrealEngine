@@ -1400,7 +1400,7 @@ namespace UE::ShaderCompilerCommon
 			FString Contents = UE::ShaderCompilerCommon::GetDebugShaderContents(Input, PreprocessedSource, DebugDataOptions);
 			FFileHelper::SaveStringToFile(Contents, *(Input.DumpDebugInfoPath / BaseSourceFilename));
 
-			if (Input.bGenerateDirectCompileFile && !Options.bSkipDirectCompileTxt)
+			if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::DirectCompileCommandLine) && !Options.bSourceOnly)
 			{
 				FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *(Input.DumpDebugInfoPath / FString::Printf(TEXT("%sDirectCompile.txt"), *Prefix)));
 			}
