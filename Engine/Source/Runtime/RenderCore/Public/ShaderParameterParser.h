@@ -48,7 +48,7 @@ public:
 			return !ParsedType.IsEmpty();
 		}
 
-		int32 ParsedPragmaLineoffset = 0;
+		int32 ParsedPragmaLineOffset = 0;
 		int32 ParsedLineOffset = 0;
 
 		/** Character position of the start and end of the parameter decelaration in FParsedShaderParameter::OriginalParsedShader */
@@ -157,7 +157,7 @@ public:
 	/** Gets file and line of the parameter in the shader source code. */
 	void GetParameterFileAndLine(const FParsedShaderParameter& ParsedParameter, FString& OutFile, FString& OutLine) const
 	{
-		return ExtractFileAndLine(ParsedParameter.ParsedPragmaLineoffset, ParsedParameter.ParsedLineOffset, OutFile, OutLine);
+		return ExtractFileAndLine(ParsedParameter.ParsedPragmaLineOffset, ParsedParameter.ParsedLineOffset, OutFile, OutLine);
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FShaderParameterParser& Parser);
