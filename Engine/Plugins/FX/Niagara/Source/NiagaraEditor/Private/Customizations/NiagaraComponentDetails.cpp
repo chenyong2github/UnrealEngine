@@ -425,7 +425,6 @@ void FNiagaraUserParameterNodeBuilder::GenerateRowForUserParameter(IDetailChildr
 			.ObjectPath(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::GetCurrentAssetPath)
 			.AllowedClass(UserParameter.GetType().GetClass())
 			.OnObjectChanged(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnAssetSelectedFromPicker)
-			.AllowClear(false)
 			.DisplayUseSelected(true)
 			.DisplayBrowse(true)
 			.DisplayThumbnail(true)
