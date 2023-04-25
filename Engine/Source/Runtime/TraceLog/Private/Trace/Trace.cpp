@@ -25,6 +25,7 @@ bool	Writer_WriteTo(const ANSICHAR*, uint32);
 bool	Writer_WriteSnapshotTo(const ANSICHAR*);
 bool	Writer_SendSnapshotTo(const ANSICHAR*, uint32);	
 bool	Writer_IsTracing();
+bool	Writer_IsTracingTo(uint32 (&OutSessionGuid)[4], uint32 (&OutTraceGuid)[4]);
 bool	Writer_Stop();
 uint32	Writer_GetThreadId();
 
@@ -120,6 +121,12 @@ bool IsTracing()
 	return Private::Writer_IsTracing();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool IsTracingTo(uint32 (&OutSessionGuid)[4], uint32 (&OutTraceGuid)[4])
+{
+	return Private::Writer_IsTracingTo(OutSessionGuid, OutTraceGuid);
+}
+	
 ////////////////////////////////////////////////////////////////////////////////
 bool Stop()
 {
