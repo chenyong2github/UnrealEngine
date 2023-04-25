@@ -1353,6 +1353,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game", DisplayName = "Suggest Projectile Velocity Custom Arc", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "OverrideGravityZ, ArcParam"))
 	static bool SuggestProjectileVelocity_CustomArc(const UObject* WorldContextObject, FVector& OutLaunchVelocity, FVector StartPos, FVector EndPos, float OverrideGravityZ = 0, float ArcParam = 0.5f);
 
+	/**
+	 * Returns a launch velocity need for a projectile to hit the TargetActor in TimeToTarget seconds based on the TargetActor's current velocity.
+	 * This assumes the projectile is only accelerated by gravity (i.e. no outside forces), and that the TargetActor is moving at a constant velocity.
+	 * 
+	 * @param OutLaunchVelocity			The launch velocity returned from this calculation
+	 * @param ProjectileStartLocation	Location the projectile is launched from
+	 * @param TargetActor				Actor that the projectile should hit in TimeToTarget seconds
+	 * @param TargetLocationOffset		Offset to apply to the location the projectile is aiming for
+	 * @param GravityZOverride			Optional override of WorldGravityZ
+	 * @param TimeToTarget				Time (in seconds) between the projectile being launched and the projectile hitting the TargetActor - clamped to be at least 0.1
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Game", DisplayName = "Suggest Projectile Velocity Moving Target", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "DrawDebugType, DrawDebugTime, DrawDebugColor"))
+	static bool SuggestProjectileVelocity_MovingTarget(const UObject* WorldContextObject, FVector& OutLaunchVelocity, FVector ProjectileStartLocation, AActor* TargetActor, FVector TargetLocationOffset = FVector::ZeroVector, double GravityZOverride = 0.f, double TimeToTarget = 1.f, EDrawDebugTrace::Type DrawDebugType = EDrawDebugTrace::Type::None, float DrawDebugTime = 3.f, FLinearColor DrawDebugColor = FLinearColor::Red);
+
 	/** Returns world origin current location. */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject") )
 	static FIntVector GetWorldOriginLocation(const UObject* WorldContextObject);
