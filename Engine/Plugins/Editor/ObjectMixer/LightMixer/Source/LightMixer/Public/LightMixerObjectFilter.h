@@ -31,6 +31,11 @@ public:
 		};
 	}
 
+	virtual bool GetShowTransientObjects() const override
+	{
+		return true;
+	}
+
 	virtual TSet<FName> GetColumnsToShowByDefault() const override
 	{
 		return 

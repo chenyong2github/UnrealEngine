@@ -74,6 +74,11 @@ FText UObjectMixerObjectFilter::GetRowTooltipText(UObject* InObject, const bool 
 	return FText::GetEmpty();
 }
 
+bool UObjectMixerObjectFilter::GetShowTransientObjects() const
+{
+	return false;
+}
+
 bool UObjectMixerObjectFilter::GetRowEditorVisibility(UObject* InObject) const
 {
 	if (IsValid(InObject))

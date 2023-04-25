@@ -673,7 +673,10 @@ void FObjectMixerOutlinerHierarchy::CreateChildren(const FSceneOutlinerTreeItemP
 	else if (const FActorTreeItem* ParentActorItem = Item->CastTo<FActorTreeItem>())
 	{
 		AActor* ParentActor = ParentActorItem->Actor.Get();
-		check(ParentActor->GetWorld() == RepresentingWorld);
+		if (ParentActor->GetWorld() != RepresentingWorld)
+		{
+			return;
+		}
 
 		CreateComponentItems(ParentActor, OutChildren);
 

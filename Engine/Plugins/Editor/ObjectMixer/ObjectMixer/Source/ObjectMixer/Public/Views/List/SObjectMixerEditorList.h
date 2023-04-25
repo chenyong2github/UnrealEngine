@@ -29,41 +29,40 @@ USTRUCT()
 struct FObjectMixerSceneOutlinerColumnInfo
 {
 	GENERATED_BODY()
-	
+
+	/** The pointer to the actual FProperty */
 	FProperty* PropertyRef = nullptr;
-	
+
+	/** The FName of the property */
 	UPROPERTY()
 	FName PropertyName = NAME_None;
 
+	/** The column identifier for the property. Often this is teh same as PropertyName. */
 	UPROPERTY()
 	FName ColumnID = NAME_None;
 
+	/** What will be displayed in the column header unless another widget is defined. */
 	UPROPERTY()
 	FText PropertyDisplayText = FText::GetEmpty();
 
+	/** Is this a built-in column, a column displaying a property widget or something else? */
 	UPROPERTY()
 	EListViewColumnType PropertyType = EListViewColumnType::PropertyGenerated;
 
+	/**
+	 * The category that holds the property.
+	 * Used for sorting properties in the context menu, similar to the details view.
+	 */
 	UPROPERTY()
 	FName PropertyCategoryName = NAME_None;
 
-	UPROPERTY()
-	bool bIsDesiredForDisplay = false;
-
+	/** If true, this column can be enabled and disabled by the user. */
 	UPROPERTY()
 	bool bCanBeHidden = true;
 
+	/** If true, this column will be shown in a clean environment or when default properties are restored. */
 	UPROPERTY()
-	bool bCanBeSorted = false;
-
-	UPROPERTY()
-	bool bUseFixedWidth = false;
-
-	UPROPERTY()
-	float FixedWidth = 25.0f;
-
-	UPROPERTY()
-	float FillWidth = 1.0f;
+	bool bIsDesiredToBeShownByDefault = false;
 };
 
 struct FObjectMixerEditorListRowData;
@@ -80,7 +79,7 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FObjectMixerEditorList> ListModel);
 
-	virtual ~SObjectMixerEditorList() {}
+	virtual ~SObjectMixerEditorList() override;
 
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 
@@ -160,7 +159,8 @@ public:
 	// Columns
 
 	FObjectMixerSceneOutlinerColumnInfo* GetColumnInfoByPropertyName(const FName& InPropertyName);
-	TSharedRef<SWidget> GenerateHeaderRowContextMenu() const;
+	void RestoreDefaultPropertyColumns();
+	TSharedRef<SWidget> GenerateHeaderRowContextMenu();
 
 	/* Begin SSceneOutliner Interface */
 	virtual void CustomAddToToolbar(TSharedPtr<class SHorizontalBox> Toolbar) override;
@@ -217,4 +217,5 @@ protected:
 	FText GetLevelColumnName() const;
 	void CreateActorTextInfoColumns(FSceneOutlinerInitializationOptions& OutInitOptions);
 	void SetupColumns(FSceneOutlinerInitializationOptions& OutInitOptions);
+	void SortColumnsForHeaderContextMenu();
 };

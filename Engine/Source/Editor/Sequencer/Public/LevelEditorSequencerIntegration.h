@@ -206,6 +206,8 @@ private:
 	};
 	TArray<FSequencerAndOptions> BoundSequencers;
 
+public:
+	
 	TSharedRef< ISceneOutlinerColumn > CreateSequencerInfoColumn( ISceneOutliner& SceneOutliner ) const;
 	TSharedRef< ISceneOutlinerColumn > CreateSequencerSpawnableColumn( ISceneOutliner& SceneOutliner ) const;
 

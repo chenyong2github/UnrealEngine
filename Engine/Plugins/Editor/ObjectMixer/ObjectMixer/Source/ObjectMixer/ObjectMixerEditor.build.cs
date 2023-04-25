@@ -29,6 +29,7 @@ public class ObjectMixerEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AdvancedWidgets",
 				"ApplicationCore",
 				"AssetRegistry",
 				"AssetTools",
@@ -41,8 +42,10 @@ public class ObjectMixerEditor : ModuleRules
 				"InputCore",
 				"Kismet",
 				"LevelEditor",
+				"LevelSequence",
 				"Projects",
 				"SceneOutliner",
+				"Sequencer",
 				"Slate",
 				"SlateCore",
 				"ToolMenus", 

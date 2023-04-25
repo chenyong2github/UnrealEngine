@@ -9,6 +9,7 @@
 #include "Views/List/Modes/ObjectMixerOutlinerHierarchy.h"
 #include "Views/List/Modes/SFilterClassMenuItem.h"
 #include "Views/List/ObjectMixerUtils.h"
+#include "Views/List/RowTypes/ObjectMixerEditorListRowActor.h"
 #include "Views/Widgets/ObjectMixerEditorListMenuContext.h"
 
 #include "ActorDescTreeItem.h"
@@ -454,7 +455,7 @@ FObjectMixerOutlinerMode::FObjectMixerOutlinerMode(
 		{
 			const TSet<FName>& SelectedCollections = ListModel->GetSelectedCollections();
 
-			if (SelectedCollections.Num() == 0)
+			if (SelectedCollections.Num() == 0 || (SelectedCollections.Num() == 1 && SelectedCollections.Find("All")))
 			{
 				// "All" collection selected
 				return true;
@@ -806,7 +807,8 @@ void FObjectMixerOutlinerMode::OnActorLabelChanged(AActor* ChangedActor)
 	if (IsActorDisplayable(ChangedActor) && RepresentingWorld.Get() == ChangedActor->GetWorld())
 	{
 		// Force create the item otherwise the outliner may not be notified of a change to the item if it is filtered out
-		if (FSceneOutlinerTreeItemPtr Item = CreateItemFor<FActorTreeItem>(ChangedActor, true))
+		if (FSceneOutlinerTreeItemPtr Item = CreateItemFor<FObjectMixerEditorListRowActor>(
+			FObjectMixerEditorListRowActor(ChangedActor, GetSceneOutliner()), true))
 		{
 			SceneOutliner->OnItemLabelChanged(Item);
 		}
@@ -820,7 +822,8 @@ void FObjectMixerOutlinerMode::OnObjectsReplaced(const TMap<UObject*, UObject*>&
 		AActor* Actor = Cast<AActor>(Pair.Value);
 		if (Actor && RepresentingWorld.Get() == Actor->GetWorld() && IsActorDisplayable(Actor))
 		{
-			if (FSceneOutlinerTreeItemPtr Item = CreateItemFor<FActorTreeItem>(Actor, true))
+			if (FSceneOutlinerTreeItemPtr Item = CreateItemFor<FObjectMixerEditorListRowActor>(
+				FObjectMixerEditorListRowActor(Actor, GetSceneOutliner()), true))
 			{
 				SceneOutliner->OnItemLabelChanged(Item);
 			}
@@ -1164,7 +1167,7 @@ TSharedRef<SWidget> FObjectMixerOutlinerMode::OnGenerateFilterClassMenu()
 							}
 						}
 
-						PinnedList->CacheAndRebuildFilters();
+						PinnedList->CacheAndRebuildFilters(true);
 					}
 
 					return FReply::Handled();

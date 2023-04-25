@@ -82,6 +82,11 @@ public:
 	virtual FText GetRowTooltipText(UObject* InObject, const bool bIsHybridRow = false) const;
 
 	/**
+	 * Determines if transient objects (such as Sequencer Spawnables) should be shown in the list. False by default.
+	 */
+	virtual bool GetShowTransientObjects() const;
+
+	/**
 	 * Controls how to display the row's visibility icon. Return true if the object should be visible.
 	 * Generally this should work like the Scene Outliner does.
 	 * If not overridden, we use the Editor Visibility of the object's AActor outer (unless it's an actor itself).
@@ -224,6 +229,17 @@ public:
 	FText GetRowTooltipText_Implementation(UObject* InObject, const bool bIsHybridRow) const
 	{
 		return Super::GetRowTooltipText(InObject, bIsHybridRow);
+	}
+
+	/**
+	 * Determines if transient objects (such as Sequencer Spawnables) should be shown in the list. False by default.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
+	bool GetShowTransientObjects() const;
+
+	bool GetShowTransientObjects_Implementation() const
+	{
+		return Super::GetShowTransientObjects();
 	}
 	
 	/**

@@ -31,6 +31,9 @@ public:
 	
 	virtual TSharedPtr<SWidget> MakeObjectMixerDialog(
 		TSubclassOf<UObjectMixerObjectFilter> InDefaultFilterClass = nullptr);
+	
+	/** Build the List widget from scratch. */
+	void RegenerateListWidget();
 
 	/**
 	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
@@ -86,6 +89,8 @@ protected:
 
 	/** The text that appears on the spawned nomad tab */
 	FText TabLabel;
+
+	TSharedPtr<SDockTab> DockTab;
 
 	/** Menu Item variables */
 	FText MenuItemName;

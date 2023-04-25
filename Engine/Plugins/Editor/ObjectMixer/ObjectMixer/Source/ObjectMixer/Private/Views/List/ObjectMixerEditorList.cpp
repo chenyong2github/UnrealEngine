@@ -3,11 +3,13 @@
 #include "Views/List/ObjectMixerEditorList.h"
 
 #include "ObjectMixerEditorLog.h"
+#include "ObjectMixerEditorModule.h"
 #include "ObjectMixerEditorSerializedData.h"
-#include "Views/List/SObjectMixerEditorList.h"
 
-#include "LevelEditorActions.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "LevelEditorActions.h"
+#include "Modules/ModuleManager.h"
+#include "Views/List/SObjectMixerEditorList.h"
 
 void FObjectMixerEditorList::Initialize()
 {
@@ -134,6 +136,11 @@ void FObjectMixerEditorList::RemoveObjectFilterClass(UClass* InObjectFilterClass
 	{
 		CacheAndRebuildFilters();
 	}
+}
+
+FObjectMixerEditorModule* FObjectMixerEditorList::GetModulePtr() const
+{
+	return FModuleManager::GetModulePtr<FObjectMixerEditorModule>(GetModuleName());
 }
 
 UObjectMixerEditorSerializedData* FObjectMixerEditorList::GetSerializedData() const
@@ -334,12 +341,25 @@ TSharedRef<SWidget> FObjectMixerEditorList::GetOrCreateWidget()
 {
 	if (!ListWidget.IsValid())
 	{
-		SAssignNew(ListWidget, SObjectMixerEditorList, SharedThis(this));
+		CreateWidget();
 	}
 
 	RequestRebuildList();
 
 	return ListWidget.ToSharedRef();
+}
+
+TSharedRef<SWidget> FObjectMixerEditorList::CreateWidget()
+{
+	return SAssignNew(ListWidget, SObjectMixerEditorList, SharedThis(this));
+}
+
+void FObjectMixerEditorList::RequestRegenerateListWidget()
+{
+	if (FObjectMixerEditorModule* Module = GetModulePtr())
+	{
+		Module->RegenerateListWidget();
+	}
 }
 
 void FObjectMixerEditorList::OnPostFilterChange()
@@ -369,7 +389,11 @@ void FObjectMixerEditorList::BuildPerformanceCache()
 	TSet<FName> LocalColumnsToShowByDefaultCache;
 	TSet<FName> LocalColumnsToExcludeCache;
 	TSet<FName> LocalForceAddedColumnsCache;
-	
+
+	bShouldIncludeUnsupportedPropertiesCache = false;
+	bShouldShowTransientObjectsCache = false;
+
+	// Aggregate caches - append everything to all-inclusive lists
 	for (const TObjectPtr<UObjectMixerObjectFilter>& FilterInstance : GetObjectFilterInstances())
 	{
 		if (!FilterInstance)
@@ -382,6 +406,16 @@ void FObjectMixerEditorList::BuildPerformanceCache()
 		LocalColumnsToShowByDefaultCache.Append(FilterInstance->GetColumnsToShowByDefault());
 		LocalColumnsToExcludeCache.Append(FilterInstance->GetColumnsToExclude());
 		LocalForceAddedColumnsCache.Append(FilterInstance->GetForceAddedColumns());
+
+		// These are zero-sum - if they're true for any filter, they must remain true
+		if (!bShouldIncludeUnsupportedPropertiesCache)
+		{
+			bShouldIncludeUnsupportedPropertiesCache = FilterInstance->ShouldIncludeUnsupportedProperties();
+		}
+		if (!bShouldShowTransientObjectsCache)
+		{
+			bShouldShowTransientObjectsCache = FilterInstance->GetShowTransientObjects();
+		}
 	}
 
 	if (LocalObjectClassesToFilterCache.Difference(ObjectClassesToFilterCache).Num() > 0 || 
@@ -417,16 +451,16 @@ void FObjectMixerEditorList::BuildPerformanceCache()
 		{
 			PropertyInheritanceInclusionOptionsCache = PropertyInheritanceInclusionOptions;
 		}
-		if (const bool bShouldIncludeUnsupportedProperties = FilterInstance->ShouldIncludeUnsupportedProperties(); 
-			bShouldIncludeUnsupportedProperties != bShouldIncludeUnsupportedPropertiesCache)
-		{
-			bShouldIncludeUnsupportedPropertiesCache = bShouldIncludeUnsupportedProperties;
-		}
 	}
 	else
 	{
 		UE_LOG(LogObjectMixerEditor, Display, TEXT("%hs: No Main UObjectMixerObjectFilter instance found."), __FUNCTION__);
 	}
+}
+
+bool FObjectMixerEditorList::ShouldShowTransientObjects() const
+{
+	return bShouldShowTransientObjectsCache;
 }
 
 void FObjectMixerEditorList::OnRenameCommand()
