@@ -35,6 +35,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "IPlatformFileSandboxWrapper.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformFileManager.h"
 #include "Serialization/ArrayReader.h"
 #include "EdGraphUtilities.h"
@@ -330,6 +331,9 @@ private:
 	//Prints all dependency chains from the PackageName to any dependency of one of the given class names.
 	//If the package name is a path rather than a package, then it will do this for each package in the path.
 	void FindClassDependencies(FName PackagePath, const TArray<FTopLevelAssetPath>& TargetClasses, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags);
+
+	void CopyPackageReferences(const TArray<FAssetData> SelectedPackages);
+	void CopyPackagePaths(const TArray<FAssetData> SelectedPackages);
 
 	bool GetPackageDependencyChain(FName SourcePackage, FName TargetPackage, TArray<FName>& VisitedPackages, TArray<FName>& OutDependencyChain, UE::AssetRegistry::EDependencyQuery RequiredFlags);
 	void GetPackageDependenciesPerClass(FName SourcePackage, const TArray<FTopLevelAssetPath>& TargetClasses, TArray<FName>& VisitedPackages, TArray<FName>& OutDependentPackages, UE::AssetRegistry::EDependencyQuery RequiredDependencyFlags);
@@ -966,11 +970,13 @@ void FAssetManagerEditorModule::ExtendContentBrowserPathSelectionMenu()
 TSharedRef<FExtender> FAssetManagerEditorModule::OnExtendAssetEditor(const TSharedRef<FUICommandList> CommandList, const TArray<UObject*> ContextSensitiveObjects)
 {
 	TArray<FName> PackageNames;
+	TArray<FAssetData> PackageAssets;
 	for (UObject* EditedAsset : ContextSensitiveObjects)
 	{
 		if (IsValid(EditedAsset) && EditedAsset->IsAsset())
 		{
 			PackageNames.AddUnique(EditedAsset->GetOutermost()->GetFName());
+			PackageAssets.AddUnique(FAssetData(EditedAsset));
 		}
 	}
 
@@ -979,6 +985,14 @@ TSharedRef<FExtender> FAssetManagerEditorModule::OnExtendAssetEditor(const TShar
 	if (PackageNames.Num() > 0)
 	{
 		// It's safe to modify the CommandList here because this is run as the editor UI is created and the payloads are safe
+		CommandList->MapAction(
+			FAssetManagerEditorCommands::Get().CopyAssetReferences,
+			FExecuteAction::CreateRaw(this, &FAssetManagerEditorModule::CopyPackageReferences, PackageAssets));
+
+		CommandList->MapAction(
+			FAssetManagerEditorCommands::Get().CopyAssetPaths,
+			FExecuteAction::CreateRaw(this, &FAssetManagerEditorModule::CopyPackagePaths, PackageAssets));
+
 		CommandList->MapAction(
 			FAssetManagerEditorCommands::Get().ViewReferences,
 			FExecuteAction::CreateRaw(this, &FAssetManagerEditorModule::OpenReferenceViewerUI, PackageNames, FReferenceViewerParams()));
@@ -1012,6 +1026,19 @@ void FAssetManagerEditorModule::ExtendAssetEditorMenu()
 			{
 				if (IsValid(EditedAsset) && EditedAsset->IsAsset())
 				{
+					InSection.AddMenuEntry(
+						FAssetManagerEditorCommands::Get().CopyAssetReferences,
+						TAttribute<FText>(), // Use command Label
+						TAttribute<FText>(), // Use command tooltip
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Copy")
+					);
+					InSection.AddMenuEntry(
+						FAssetManagerEditorCommands::Get().CopyAssetPaths,
+						TAttribute<FText>(), // Use command Label
+						TAttribute<FText>(), // Use command tooltip
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Copy")
+					);
+
 					CreateAssetContextMenu(InSection);
 					break;
 				}
@@ -2126,6 +2153,49 @@ void FAssetManagerEditorModule::FindClassDependencies(FName SourcePackageName, c
 			}
 		}
 	}
+}
+
+void FAssetManagerEditorModule::CopyPackageReferences(const TArray<FAssetData> SelectedPackages)
+{
+	TArray<FAssetData> SortedItems = SelectedPackages;
+	SortedItems.Sort([](const FAssetData& One, const FAssetData Two)
+		{
+			return One.PackagePath.Compare(Two.PackagePath) < 0;
+		});
+
+	FString ClipboardText = FString::JoinBy(SortedItems, LINE_TERMINATOR, [](const FAssetData& Item)
+		{
+			return Item.GetExportTextName();
+		});
+
+	FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
+}
+
+void FAssetManagerEditorModule::CopyPackagePaths(const TArray<FAssetData> SelectedPackages)
+{
+	TArray<FAssetData> SortedItems = SelectedPackages;
+	SortedItems.Sort([](const FAssetData& One, const FAssetData Two)
+		{
+			return One.PackagePath.Compare(Two.PackagePath) < 0;
+		});
+
+	FString ClipboardText = FString::JoinBy(SortedItems, LINE_TERMINATOR, [](const FAssetData& Item)
+		{
+			const FString ItemFilename = FPackageName::LongPackageNameToFilename(Item.PackageName.ToString(), FPackageName::GetAssetPackageExtension());
+
+			if (FPaths::FileExists(ItemFilename))
+			{
+				return FPaths::ConvertRelativePathToFull(ItemFilename);
+			}
+			else
+			{
+				// Add a message for when a user tries to copy the path to a file that doesn't exist on disk of the form
+				// <ItemName>: No file on disk
+				return FString::Printf(TEXT("%s: No file on disk"), *Item.AssetName.ToString());
+			}
+		});
+
+	FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
 }
 
 void FAssetManagerEditorModule::WriteProfileFile(const FString& Extension, const FString& FileContents)

@@ -14,6 +14,12 @@ public:
 	virtual void RegisterCommands() override;
 	// End of TCommands<> interface
 
+	// Copy asset references to the clipboard
+	TSharedPtr<FUICommandInfo> CopyAssetReferences;
+
+	// Copy asset file paths to the clipboard
+	TSharedPtr<FUICommandInfo> CopyAssetPaths;
+
 	// Shows the reference viewer for the selected assets
 	TSharedPtr<FUICommandInfo> ViewReferences;
 

@@ -18,6 +18,8 @@ FAssetManagerEditorCommands::FAssetManagerEditorCommands() : TCommands<FAssetMan
 
 void FAssetManagerEditorCommands::RegisterCommands()
 {
+	UI_COMMAND(CopyAssetReferences, "Copy References", "Copy the selected assets' references to the clipboard", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CopyAssetPaths, "Copy Paths", "Copy the selected assets' file paths to the clipboard", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ViewReferences, "Reference Viewer...", "Launches the reference viewer showing the selected assets' references", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift | EModifierKey::Alt, EKeys::R));
 	UI_COMMAND(ViewSizeMap, "Size Map...", "Displays an interactive map showing the approximate size of this asset and everything it references", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift | EModifierKey::Alt, EKeys::M));
 	UI_COMMAND(ViewShaderCookStatistics, "Shader Cook Statistics...", "Show Shader CookStatistics", EUserInterfaceActionType::Button, FInputChord());
