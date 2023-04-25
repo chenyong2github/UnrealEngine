@@ -3908,7 +3908,7 @@ void FAsyncLoadingThread2::IncludePackageInSyncLoadContextRecursive(FAsyncLoadin
 		return;
 	}
 
-	if (Package->AsyncPackageLoadingState > EAsyncPackageLoadingState2::DeferredPostLoadDone)
+	if (Package->AsyncPackageLoadingState >= EAsyncPackageLoadingState2::Complete)
 	{
 		return;
 	}
