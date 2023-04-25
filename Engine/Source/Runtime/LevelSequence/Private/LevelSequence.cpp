@@ -273,6 +273,13 @@ void ULevelSequence::PostDuplicate(bool bDuplicateForPIE)
 		PostDuplicateEvent.Execute(this);
 	}
 #endif
+
+#if WITH_EDITOR
+	UMovieSceneMetaData* MetaData = FindOrAddMetaData<UMovieSceneMetaData>();
+	MetaData->SetCreated(FDateTime::UtcNow());
+	MetaData->SetAuthor(FApp::GetSessionOwner());
+	MetaData->SetNotes(FString()); // Intentionally clear the notes
+#endif
 }
 
 void ULevelSequence::PostLoad()
