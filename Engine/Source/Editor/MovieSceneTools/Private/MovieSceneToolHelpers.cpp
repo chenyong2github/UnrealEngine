@@ -4780,9 +4780,9 @@ void MovieSceneToolHelpers::CalculateFramesBetween(
 	}
 	else
 	{
+		int32 FrameIndex = 0;
 		for (FFrameNumber DisplayFrameNumber = StartTimeInDisplay; DisplayFrameNumber <= EndTimeInDisplay; ++DisplayFrameNumber)
 		{
-			int32 FrameIndex = 0;
 			if (FrameIndex % FrameInc == 0)
 			{
 				FFrameNumber TickFrameNumber = FFrameRate::TransformTime(FFrameTime(DisplayFrameNumber), DisplayResolution, TickResolution).FrameNumber;
