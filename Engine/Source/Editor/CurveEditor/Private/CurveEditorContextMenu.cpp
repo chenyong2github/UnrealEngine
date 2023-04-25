@@ -86,12 +86,35 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 				MenuBuilder.AddMenuSeparator();
 
 				// Tangent Types
-				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationCubicAuto);
-				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationCubicUser);
-				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationCubicBreak);
-				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationLinear);
-				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationConstant);
-				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationToggleWeighted);
+				int32 SupportedTangentTypes = CurveEditor->GetSupportedTangentTypes();
+				if (SupportedTangentTypes & (int32)ECurveEditorTangentTypes::InterpolationCubicSmartAuto)
+				{
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationCubicSmartAuto);
+				};
+				if (SupportedTangentTypes & (int32)ECurveEditorTangentTypes::InterpolationCubicAuto)
+				{
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationCubicAuto);
+				};
+				if (SupportedTangentTypes & (int32)ECurveEditorTangentTypes::InterpolationCubicUser)
+				{
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationCubicUser);
+				}
+				if (SupportedTangentTypes & (int32)ECurveEditorTangentTypes::InterpolationCubicBreak)
+				{
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationCubicBreak);
+				}
+				if (SupportedTangentTypes & (int32)ECurveEditorTangentTypes::InterpolationLinear)
+				{
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationLinear);
+				}
+				if (SupportedTangentTypes & (int32)ECurveEditorTangentTypes::InterpolationConstant)
+				{
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationConstant);
+				}
+				if (SupportedTangentTypes & (int32)ECurveEditorTangentTypes::InterpolationCubicWeighted)
+				{
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().InterpolationToggleWeighted);
+				}
 
 				MenuBuilder.AddMenuSeparator();
 			}

@@ -79,6 +79,9 @@ struct MOVIESCENE_API TMovieSceneCurveChannelImpl
 	/** Adds a cubic interpolation key */
 	static int32 AddCubicKey(ChannelType* InChannel, FFrameNumber InTime, CurveValueType InValue, ERichCurveTangentMode TangentMode = RCTM_Auto, const FMovieSceneTangentData& Tangent = FMovieSceneTangentData());
 
+	/** Calculated smart tangent at that index*/
+	static float CalcSmartTangent(ChannelType* InChannel, int32 Index);
+
 	/** Auto-sets all tangents in the channel's curve */
 	static void AutoSetTangents(ChannelType* InChannel, float Tension = 0.f);
 

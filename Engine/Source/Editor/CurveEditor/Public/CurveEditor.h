@@ -58,6 +58,19 @@ DECLARE_DELEGATE_OneParam(FOnSetBoolean, bool)
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActiveToolChanged, FCurveEditorToolID)
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCurveArrayChanged, FCurveModel*, bool /*displayed*/,const FCurveEditor*);
 
+/** Enums to describe supported tangent types, by default support all but smart auto*/
+enum class ECurveEditorTangentTypes : int32
+{
+	InterpolationConstant = 0x1,
+	InterpolationLinear = 0x2,
+	InterpolationCubicAuto = 0x4,
+
+	InterpolationCubicUser = 0x8,
+	InterpolationCubicBreak = 0x10,
+	InterpolationCubicWeighted = 0x20,
+	InterpolationCubicSmartAuto = 0x40,
+
+};
 
 class CURVEEDITOR_API FCurveEditor 
 	: public FEditorUndoClient
@@ -121,6 +134,8 @@ public:
 
 	void InitCurveEditor(const FCurveEditorInitParams& InInitParams);
 
+	virtual int32 GetSupportedTangentTypes();
+
 public:
 
 	void SetPanel(TSharedPtr<SCurveEditorPanel> InPanel);
@@ -134,6 +149,7 @@ public:
 	FCurveEditorScreenSpaceH GetPanelInputSpace() const;
 
 	void ResetMinMaxes();
+
 public:
 	/**
 	 * Zoom the curve editor to fit all the selected curves (or all curves if none selected)

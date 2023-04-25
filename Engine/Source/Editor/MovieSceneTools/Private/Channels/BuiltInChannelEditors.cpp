@@ -855,6 +855,7 @@ void DrawKeysImpl(ChannelType* Channel, TArrayView<const FKeyHandle> InKeyHandle
 
 			switch (TangentMode)
 			{
+			case RCTM_SmartAuto:  TempParams.FillTint = FLinearColor(0.759f, 0.176f, 0.67f, 1.0f);break; // little vermillion
 			case RCTM_Auto:  TempParams.FillTint = FLinearColor(0.972f, 0.2f, 0.2f, 1.0f);     break; // vermillion
 			case RCTM_Break: TempParams.FillTint = FLinearColor(0.336f, 0.703f, 0.5f, 0.91f);  break; // sky blue
 			case RCTM_User:  TempParams.FillTint = FLinearColor(0.797f, 0.473f, 0.5f, 0.652f); break; // reddish purple
@@ -977,6 +978,18 @@ struct TCurveChannelKeyMenuExtension : TSharedFromThis<TCurveChannelKeyMenuExten
 
 		MenuBuilder.BeginSection("SequencerInterpolation", LOCTEXT("KeyInterpolationMenu", "Key Interpolation"));
 		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("SetKeyInterpolationSmartAuto", "Cubic (Smart Auto)"),
+				LOCTEXT("SetKeyInterpolationSmartAutoTooltip", "Set key interpolation to smart auto"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeySmartAuto"),
+				FUIAction(
+					FExecuteAction::CreateLambda([SharedThis] { SharedThis->SetInterpTangentMode(RCIM_Cubic, RCTM_SmartAuto); }),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateLambda([SharedThis] { return SharedThis->IsInterpTangentModeSelected(RCIM_Cubic, RCTM_SmartAuto); })),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("SetKeyInterpolationAuto", "Cubic (Auto)"),
 				LOCTEXT("SetKeyInterpolationAutoTooltip", "Set key interpolation to auto"),

@@ -472,6 +472,15 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.BeginSection("SequencerInterpolation", LOCTEXT("KeyInterpolationMenu", "Key Interpolation"));
 	
 	MenuBuilder.AddMenuEntry(
+		LOCTEXT("SetKeyInterpolationSmartAuto", "Cubic (Smart Auto)"),
+		LOCTEXT("SetKeyInterpolationSmartAutoTooltip", "Set key interpolation to smart auto"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeySmartAuto"),
+		FUIAction(
+			FExecuteAction::CreateLambda([=] { Shared->SetInterpTangentMode(RCIM_Cubic, RCTM_SmartAuto); }),
+			FCanExecuteAction::CreateLambda([=] { return Shared->CanSetInterpTangentMode(); }))
+	);
+
+	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SetKeyInterpolationAuto", "Cubic (Auto)"),
 		LOCTEXT("SetKeyInterpolationAutoTooltip", "Set key interpolation to auto"),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyAuto"),

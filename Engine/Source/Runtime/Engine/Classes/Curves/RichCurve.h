@@ -20,7 +20,9 @@ enum ERichCurveTangentMode : int
 	/** User specifies the tangent as two separate broken tangents on each side of the key which can allow a sharp change in evaluation before or after. */
 	RCTM_Break UMETA(DisplayName="Break"),
 	/** No tangents. */
-	RCTM_None UMETA(Hidden)
+	RCTM_None UMETA(Hidden),
+	/** New Auto tangent that creates smoother curves than Auto. */
+	RCTM_SmartAuto UMETA(DisplayName = "Smart Auto"),
 };
 
 

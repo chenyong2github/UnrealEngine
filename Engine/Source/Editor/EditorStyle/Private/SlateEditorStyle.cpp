@@ -2312,6 +2312,7 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 	// Sequencer
 	if (IncludeEditorSpecificStyles())
 	{
+		Set("Sequencer.IconKeySmartAuto", new IMAGE_BRUSH("Sequencer/IconKeySmartAuto", Icon12x12));
 		Set("Sequencer.IconKeyAuto", new IMAGE_BRUSH("Sequencer/IconKeyAuto", Icon12x12));
 		Set("Sequencer.IconKeyBreak", new IMAGE_BRUSH("Sequencer/IconKeyBreak", Icon12x12));
 		Set("Sequencer.IconKeyConstant", new IMAGE_BRUSH("Sequencer/IconKeyConstant", Icon12x12));
@@ -7411,6 +7412,8 @@ void FSlateEditorStyle::FStyle::SetupToolkitStyles()
 		Set("GenericCurveEditor.ToggleOutputSnapping.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/AdjustKeySnapValue_48x", Icon24x24));
 
 		// Tangent Types
+		Set("GenericCurveEditor.InterpolationCubicSmartAuto", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentSmartAuto_48x", Icon48x48));
+		Set("GenericCurveEditor.InterpolationCubicSmartAuto.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentSmartAuto_48x", Icon24x24));
 		Set("GenericCurveEditor.InterpolationCubicAuto", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentAuto_48x", Icon48x48));
 		Set("GenericCurveEditor.InterpolationCubicAuto.Small", new IMAGE_BRUSH("GenericCurveEditor/Icons/CubicTangentAuto_48x", Icon24x24));
 		Set("GenericCurveEditor.InterpolationCubicUser", new IMAGE_BRUSH("GenericCurveEditor/Icons/TangentsCubic_48x", Icon48x48));

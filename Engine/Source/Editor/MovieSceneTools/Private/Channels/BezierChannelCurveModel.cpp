@@ -201,6 +201,10 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetKeyAttribu
 		}
 	}
 }
+static bool IsAuto(ERichCurveTangentMode TangentMode)
+{
+	return (TangentMode == RCTM_Auto || TangentMode == RCTM_SmartAuto);
+}
 
 template<typename ChannelType, typename ChannelValue, typename KeyType> 
 void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType)
@@ -229,7 +233,7 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::SetKeyAttribu
 				if (Attributes.HasTangentMode())
 				{
 					KeyValue.TangentMode = Attributes.GetTangentMode();
-					if (KeyValue.TangentMode == RCTM_Auto)
+					if (IsAuto(KeyValue.TangentMode))
 					{
 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
 					}
@@ -269,11 +273,12 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::SetKeyAttribu
 							KeyValue.TangentMode = RCTM_User;
 						}
 					}
+					bAutoSetTangents = true;
 				}
 
 				if (Attributes.HasArriveTangent())
 				{
-					if (KeyValue.TangentMode == RCTM_Auto)
+					if (IsAuto(KeyValue.TangentMode))
 					{
 						KeyValue.TangentMode = RCTM_User;
 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
@@ -284,11 +289,12 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::SetKeyAttribu
 					{
 						KeyValue.Tangent.LeaveTangent = KeyValue.Tangent.ArriveTangent;
 					}
+					bAutoSetTangents = true;
 				}
 
 				if (Attributes.HasLeaveTangent())
 				{
-					if (KeyValue.TangentMode == RCTM_Auto)
+					if (IsAuto(KeyValue.TangentMode))
 					{
 						KeyValue.TangentMode = RCTM_User;
 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
@@ -299,11 +305,12 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::SetKeyAttribu
 					{
 						KeyValue.Tangent.ArriveTangent = KeyValue.Tangent.LeaveTangent;
 					}
+					bAutoSetTangents = true;
 				}
 
 				if (Attributes.HasArriveTangentWeight())
 				{
-					if (KeyValue.TangentMode == RCTM_Auto)
+					if (IsAuto(KeyValue.TangentMode))
 					{
 						KeyValue.TangentMode = RCTM_User;
 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
@@ -314,12 +321,12 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::SetKeyAttribu
 					{
 						KeyValue.Tangent.LeaveTangentWeight = KeyValue.Tangent.ArriveTangentWeight;
 					}
+					bAutoSetTangents = true;
 				}
 
 				if (Attributes.HasLeaveTangentWeight())
 				{
-				
-					if (KeyValue.TangentMode == RCTM_Auto)
+					if (IsAuto(KeyValue.TangentMode))
 					{
 						KeyValue.TangentMode = RCTM_User;
 						KeyValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
@@ -330,6 +337,7 @@ void FBezierChannelCurveModel<ChannelType, ChannelValue, KeyType>::SetKeyAttribu
 					{
 						KeyValue.Tangent.ArriveTangentWeight = KeyValue.Tangent.LeaveTangentWeight;
 					}
+					bAutoSetTangents = true;
 				}
 			}
 		}

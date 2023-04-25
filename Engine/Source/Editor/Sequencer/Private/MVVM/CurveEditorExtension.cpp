@@ -60,6 +60,16 @@ public:
 			}
 		}
 	}
+	int32 GetSupportedTangentTypes() override
+	{
+		return ((int32)ECurveEditorTangentTypes::InterpolationConstant	|
+			(int32)ECurveEditorTangentTypes::InterpolationLinear		|
+			(int32)ECurveEditorTangentTypes::InterpolationCubicAuto		|
+			(int32)ECurveEditorTangentTypes::InterpolationCubicUser		|
+			(int32)ECurveEditorTangentTypes::InterpolationCubicBreak	|
+			(int32)ECurveEditorTangentTypes::InterpolationCubicWeighted |
+			(int32)ECurveEditorTangentTypes::InterpolationCubicSmartAuto);
+	}
 };
 
 struct FSequencerCurveEditorBounds : ICurveEditorBounds
@@ -338,7 +348,9 @@ FKeyAttributes FCurveEditorExtension::GetDefaultKeyAttributes() const
 	case EMovieSceneKeyInterpolation::Break:    return FKeyAttributes().SetInterpMode(RCIM_Cubic).SetTangentMode(RCTM_Break);
 	case EMovieSceneKeyInterpolation::Linear:   return FKeyAttributes().SetInterpMode(RCIM_Linear).SetTangentMode(RCTM_Auto);
 	case EMovieSceneKeyInterpolation::Constant: return FKeyAttributes().SetInterpMode(RCIM_Constant).SetTangentMode(RCTM_Auto);
-	default:                                    return FKeyAttributes().SetInterpMode(RCIM_Cubic).SetTangentMode(RCTM_Auto);
+	case EMovieSceneKeyInterpolation::Auto:     return FKeyAttributes().SetInterpMode(RCIM_Cubic).SetTangentMode(RCTM_Auto);
+	case EMovieSceneKeyInterpolation::SmartAuto:
+	default:                                    return FKeyAttributes().SetInterpMode(RCIM_Cubic).SetTangentMode(RCTM_SmartAuto);
 	}
 }
 

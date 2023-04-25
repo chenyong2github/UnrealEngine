@@ -23,6 +23,12 @@ static TAutoConsoleVariable<int32> CVarSequencerAutoTangentInterpolation(
 	TEXT("If 1 Auto Tangent will use new algorithm to gradually flatten maximum/minimum keys, if 0 Auto Tangent will average all keys (pre 4.23 behavior)."),
 	ECVF_Default);
 
+static TAutoConsoleVariable<float> CVarSequencerSmartAutoBlendLocationPercentage(
+	TEXT("Sequencer.SmartAutoBlendLocationPercentage"),
+	0.8,
+	TEXT("Percentage near the next value that the tangent will blend to the adjacent tangent, if over 1.0 we won't blend. Default to 0.8"),
+	ECVF_Default);
+
 
 namespace UE
 {
@@ -911,6 +917,97 @@ bool TMovieSceneCurveChannelImpl<ChannelType>::EvaluateLegacy(const ChannelType*
 
 	return true;
 }
+template<typename ChannelType>
+float TMovieSceneCurveChannelImpl<ChannelType>::CalcSmartTangent(ChannelType* InChannel, int32 Index)
+{
+	ChannelValueType& ThisKey = InChannel->Values[Index];
+	int32 PrevIndex = Index - 1;
+	ChannelValueType  PrevKey = InChannel->Values[PrevIndex];
+
+	int32 NextIndex = Index + 1;
+	ChannelValueType NextKey = InChannel->Values[NextIndex];
+
+	float NewTangent = 0.0f;
+	// if key doesn't lie between we keep it flat(0.0).
+	if ((ThisKey.Value > PrevKey.Value && ThisKey.Value < NextKey.Value) ||
+		(ThisKey.Value < PrevKey.Value && ThisKey.Value > NextKey.Value))
+	{
+		
+		while (NextIndex <= (InChannel->Values.Num() - 2)
+			&& FMath::IsNearlyZero(NextKey.Tangent.ArriveTangent)
+			&& NextKey.InterpMode == RCIM_Cubic && (NextKey.TangentMode == RCTM_Auto || NextKey.TangentMode == RCTM_SmartAuto)
+			&& ((NextKey.Value > ThisKey.Value && NextKey.Value < InChannel->Values[NextIndex + 1].Value) ||
+				(NextKey.Value < ThisKey.Value && NextKey.Value > InChannel->Values[NextIndex + 1].Value)))
+		{
+			++NextIndex;
+			NextKey = InChannel->Values[NextIndex];
+		}
+		
+
+		const CurveValueType OneThird = 1.0 / 3.0;
+		const CurveValueType TwoThird = 2.0 / 3.0;
+		//we calculate the tangent one third from the previous and next tangents
+		const double TimeToPrevious = FMath::Max<double>(KINDA_SMALL_NUMBER, InChannel->Times[Index].Value - InChannel->Times[PrevIndex].Value);
+		const double OneThirdTimeToPrevious = OneThird * TimeToPrevious;
+		CurveValueType PrevY = PrevKey.Value + (PrevKey.Tangent.LeaveTangent * OneThirdTimeToPrevious);
+
+		const double TimeToNext = FMath::Max<double>(KINDA_SMALL_NUMBER, InChannel->Times[NextIndex].Value - InChannel->Times[Index].Value);
+		const double OneThirdTimeToNext = OneThird * TimeToNext;
+		CurveValueType NextY = NextKey.Value - (NextKey.Tangent.ArriveTangent * OneThirdTimeToNext);
+		
+		//leaving ThisKey.Value - ThisKey.Value there since it is needed if we decide to add any weighting
+		NewTangent = ((ThisKey.Value - PrevY) + (NextY - ThisKey.Value))
+			/ (TwoThird * TimeToPrevious + TwoThird * TimeToNext);
+
+		const double PreviousSlope = (ThisKey.Value - PrevY) / (TwoThird * TimeToPrevious);
+		const double NextSlope = (NextY - ThisKey.Value) / (TwoThird * TimeToNext);
+		/*
+		* Leaving this in for now but averaging is over agressive.
+		
+		if (NextKey.Value > PrevKey.Value)
+		{
+			CurveValueType NextToPrev = NextKey.Value - PrevKey.Value;
+			CurveValueType ToNext = (NextKey.Value - ThisKey.Value) / NextToPrev;
+			CurveValueType ToPrev = (ThisKey.Value - PrevKey.Value) / NextToPrev;
+
+			//NewTangent = (PreviousSlope * ToNext)+ (ToPrev * NextSlope);
+
+		}
+		else
+		{
+			CurveValueType NextToPrev = PrevKey.Value - NextKey.Value;
+			CurveValueType ToNext = (ThisKey.Value - NextKey.Value) / NextToPrev;
+			CurveValueType ToPrev = (PrevKey.Value  - ThisKey.Value) / NextToPrev;
+
+			//NewTangent = (PreviousSlope * ToNext) + (ToPrev * NextSlope);
+		}
+		*/
+		const float BlendToNextRange = CVarSequencerSmartAutoBlendLocationPercentage->GetFloat();
+		const double ValDiff = FMath::Abs<double>(NextKey.Value - PrevKey.Value);
+		const double OurDiff = FMath::Abs<double>(ThisKey.Value - PrevKey.Value);
+		//ValDiff won't be zero ever due to previous check
+		double PercDiff = OurDiff / ValDiff;
+		float NextTangent = (NextKey.InterpMode == RCIM_Cubic && (NextKey.TangentMode == RCTM_Auto || NextKey.TangentMode == RCTM_SmartAuto)) ?
+			0.0 : NextKey.Tangent.ArriveTangent;
+		float PrevTangent = (PrevKey.InterpMode == RCIM_Cubic && (PrevKey.TangentMode == RCTM_Auto || PrevKey.TangentMode == RCTM_SmartAuto)) ?
+			0.0 : PrevKey.Tangent.LeaveTangent;
+		if (BlendToNextRange >= 0.0f || BlendToNextRange <= 1.0f)
+		{
+			NextTangent = PrevTangent = 0.0;
+			if (PercDiff > BlendToNextRange)
+			{
+				PercDiff = (PercDiff - BlendToNextRange) / (1.0 - BlendToNextRange);
+				NewTangent = NewTangent * (1.0 - PercDiff) + (PercDiff * NextTangent);
+			}
+			else if (PercDiff < (1.0 - BlendToNextRange))
+			{
+				PercDiff = PercDiff / (1.0 - BlendToNextRange);
+				NewTangent = NewTangent * PercDiff + (1.0 - PercDiff) * PrevTangent;
+			}
+		}
+	}
+	return NewTangent;
+}
 
 template<typename ChannelType>
 void TMovieSceneCurveChannelImpl<ChannelType>::AutoSetTangents(ChannelType* InChannel, float Tension)
@@ -921,7 +1018,6 @@ void TMovieSceneCurveChannelImpl<ChannelType>::AutoSetTangents(ChannelType* InCh
 	}
 
 	const int UseNewAutoTangent = CVarSequencerAutoTangentInterpolation->GetInt();
-
 	{
 		ChannelValueType& FirstValue = InChannel->Values[0];
 		if (FirstValue.InterpMode == RCIM_Linear)
@@ -932,7 +1028,7 @@ void TMovieSceneCurveChannelImpl<ChannelType>::AutoSetTangents(ChannelType* InCh
 			const double NewTangent = (NextKey.Value - FirstValue.Value) / NextTimeDiff;
 			FirstValue.Tangent.LeaveTangent = NewTangent;
 		}
-		else if (FirstValue.InterpMode == RCIM_Cubic && FirstValue.TangentMode == RCTM_Auto)
+		else if (FirstValue.InterpMode == RCIM_Cubic && (FirstValue.TangentMode == RCTM_Auto || FirstValue.TangentMode == RCTM_SmartAuto))
 		{
 			FirstValue.Tangent.LeaveTangent = FirstValue.Tangent.ArriveTangent = 0.0f;
 			FirstValue.Tangent.TangentWeightMode = RCTWM_WeightedNone; 
@@ -950,27 +1046,54 @@ void TMovieSceneCurveChannelImpl<ChannelType>::AutoSetTangents(ChannelType* InCh
 			const double NewTangent = (LastValue.Value - PrevKey.Value) / PrevTimeDiff;
 			LastValue.Tangent.ArriveTangent = NewTangent;
 		}
-		else if (LastValue.InterpMode == RCIM_Cubic && LastValue.TangentMode == RCTM_Auto)
+		else if (LastValue.InterpMode == RCIM_Cubic && (LastValue.TangentMode == RCTM_Auto || LastValue.TangentMode == RCTM_SmartAuto))
 		{
 			LastValue.Tangent.LeaveTangent = LastValue.Tangent.ArriveTangent = 0.0f;
 			LastValue.Tangent.TangentWeightMode = RCTWM_WeightedNone;
 		}
 	}
-
+	const int32 MaxSmartAutoIterations = 10; // with smart auto we may need to iterate tangent calculations since it depends 
+											 // upon next tangent value which may be 0 since it is new.
+	int32 SmartAutoCount = 0;
 	for (int32 Index = 1; Index < InChannel->Values.Num() - 1; ++Index)
 	{
 		ChannelValueType  PrevKey = InChannel->Values[Index-1];
 		ChannelValueType& ThisKey = InChannel->Values[Index  ];
 
-		if (ThisKey.InterpMode == RCIM_Cubic && ThisKey.TangentMode == RCTM_Auto)
+		if (ThisKey.InterpMode == RCIM_Cubic && (ThisKey.TangentMode == RCTM_Auto || ThisKey.TangentMode == RCTM_SmartAuto))
 		{
-			ChannelValueType& NextKey = InChannel->Values[Index+1];
-			CurveValueType NewTangent = 0.0;
-			const double PrevToNextTimeDiff = FMath::Max<double>(KINDA_SMALL_NUMBER, InChannel->Times[Index + 1].Value - InChannel->Times[Index - 1].Value);
-
-			if (!UseNewAutoTangent)
+			ChannelValueType NextKey = InChannel->Values[Index + 1];
+			float NewTangent = 0.0f; //flat tangent by default
+			double PrevToNextTimeDiff = FMath::Max<double>(KINDA_SMALL_NUMBER, InChannel->Times[Index + 1].Value - InChannel->Times[Index - 1].Value);
+			if (ThisKey.TangentMode == RCTM_SmartAuto)
 			{
-				AutoCalcTangent(PrevKey.Value, ThisKey.Value, NextKey.Value, Tension, NewTangent);
+				NewTangent = CalcSmartTangent(InChannel, Index);
+				//okay we changed our tangent so we need to recalc the previous tangent
+				//but only if it's non zero
+				if (FMath::IsNearlyZero(ThisKey.Tangent.ArriveTangent,1e-3f) == false && FMath::IsNearlyEqual(ThisKey.Tangent.ArriveTangent, NewTangent,1e-3f) == false)
+				{
+					if (SmartAutoCount < MaxSmartAutoIterations && Index >= 2)
+					{
+						++SmartAutoCount;
+						Index -= 2; //go back 2 since we will increment by one
+					}
+					else
+					{
+						SmartAutoCount = 0;
+					}
+				}
+				else
+				{
+					SmartAutoCount = 0;
+				}
+			}
+			else if (!UseNewAutoTangent)
+			{
+				//need to pass in the curve value type since though unfortunately tangents are just always floats (for doubles or floats),
+				//the AutoCalcTangent works with either.
+				CurveValueType ValueNewTangent = 0.0;
+				AutoCalcTangent(PrevKey.Value, ThisKey.Value, NextKey.Value, Tension, ValueNewTangent);
+				NewTangent = ValueNewTangent;
 				NewTangent /= PrevToNextTimeDiff;
 			}
 			else
@@ -979,7 +1102,9 @@ void TMovieSceneCurveChannelImpl<ChannelType>::AutoSetTangents(ChannelType* InCh
 				if ( (ThisKey.Value > PrevKey.Value && ThisKey.Value < NextKey.Value) ||
 					(ThisKey.Value < PrevKey.Value && ThisKey.Value > NextKey.Value))
 				{
-					AutoCalcTangent(PrevKey.Value, ThisKey.Value, NextKey.Value, Tension, NewTangent);
+					CurveValueType ValueNewTangent = 0.0;
+					AutoCalcTangent(PrevKey.Value, ThisKey.Value, NextKey.Value, Tension, ValueNewTangent);
+					NewTangent = ValueNewTangent;
 					NewTangent /= PrevToNextTimeDiff;
 					//if within 0 to 15% or 85% to 100% range we gradually weight tangent to zero
 					const double AverageToZeroRange = 0.85;
@@ -1220,13 +1345,14 @@ FKeyHandle TMovieSceneCurveChannelImpl<ChannelType>::AddKeyToChannel(ChannelType
 		}
 		switch (Interpolation)
 		{
-
+			case EMovieSceneKeyInterpolation::SmartAuto:     ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_SmartAuto);  break;
 			case EMovieSceneKeyInterpolation::Auto:     ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_Auto);  break;
-			case EMovieSceneKeyInterpolation::User:     ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_User, TangentData);  break;
-			case EMovieSceneKeyInterpolation::Break:    ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_Break, TangentData); break;
+			case EMovieSceneKeyInterpolation::User:     ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_User);  break;
+			case EMovieSceneKeyInterpolation::Break:    ExistingIndex = InChannel->AddCubicKey(InFrameNumber, InValue, RCTM_Break); break;
 			case EMovieSceneKeyInterpolation::Linear:   ExistingIndex = InChannel->AddLinearKey(InFrameNumber, InValue);            break;
 			case EMovieSceneKeyInterpolation::Constant: ExistingIndex = InChannel->AddConstantKey(InFrameNumber, InValue);          break;
 		}
+		
 	}
 
 	return InChannel->GetData().GetHandle(ExistingIndex);

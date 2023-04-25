@@ -42,6 +42,7 @@ public:
 	TSharedPtr<FUICommandInfo> InterpolationConstant;
 	TSharedPtr<FUICommandInfo> InterpolationLinear;
 	TSharedPtr<FUICommandInfo> InterpolationCubicAuto;
+	TSharedPtr<FUICommandInfo> InterpolationCubicSmartAuto;
 	TSharedPtr<FUICommandInfo> InterpolationCubicUser;
 	TSharedPtr<FUICommandInfo> InterpolationCubicBreak;
 	TSharedPtr<FUICommandInfo> InterpolationToggleWeighted;

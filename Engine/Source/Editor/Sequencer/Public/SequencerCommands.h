@@ -208,6 +208,9 @@ public:
 	/** Sets a key at the current time for the selected actor */
 	TSharedPtr< FUICommandInfo > SetKey;
 
+	/** Sets the interp tangent mode for the selected keys to smart auto */
+	TSharedPtr< FUICommandInfo > SetInterpolationCubicSmartAuto;
+
 	/** Sets the interp tangent mode for the selected keys to auto */
 	TSharedPtr< FUICommandInfo > SetInterpolationCubicAuto;
 

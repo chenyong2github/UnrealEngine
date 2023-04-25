@@ -2672,6 +2672,17 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 	MenuBuilder.BeginSection("SequencerInterpolation", LOCTEXT("KeyInterpolationMenu", "Default Key Interpolation"));
 	{
 		MenuBuilder.AddMenuEntry(
+			LOCTEXT("SetKeyInterpolationSmartAuto", "Cubic (Smart Auto)"),
+			LOCTEXT("SetKeyInterpolationAutoTooltip", "Set key interpolation to smart auto"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeySmartAuto"),
+			FUIAction(
+				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::SmartAuto); }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::SmartAuto; })),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+		MenuBuilder.AddMenuEntry(
 			LOCTEXT("SetKeyInterpolationAuto", "Cubic (Auto)"),
 			LOCTEXT("SetKeyInterpolationAutoTooltip", "Set key interpolation to auto"),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeyAuto"),

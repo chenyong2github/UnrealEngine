@@ -129,6 +129,17 @@ void FCurveEditor::InitCurveEditor(const FCurveEditorInitParams& InInitParams)
 	GEditor->RegisterForUndo(this);
 }
 
+int32 FCurveEditor::GetSupportedTangentTypes()
+{
+	return ((int32)ECurveEditorTangentTypes::InterpolationConstant |
+		(int32)ECurveEditorTangentTypes::InterpolationLinear |
+		(int32)ECurveEditorTangentTypes::InterpolationCubicAuto |
+		(int32)ECurveEditorTangentTypes::InterpolationCubicUser |
+		(int32)ECurveEditorTangentTypes::InterpolationCubicBreak |
+		(int32)ECurveEditorTangentTypes::InterpolationCubicWeighted);
+		//nope we don't support smart auto by default, FRichCurve doesn't support i
+}
+
 void FCurveEditor::SetPanel(TSharedPtr<SCurveEditorPanel> InPanel)
 {
 	WeakPanel = InPanel;
@@ -1775,7 +1786,7 @@ void FCurveEditor::FlattenSelection()
 				if (Attributes.HasTangentMode() && (Attributes.HasArriveTangent() || Attributes.HasLeaveTangent()))
 				{
 					Attributes.SetArriveTangent(0.f).SetLeaveTangent(0.f);
-					if (Attributes.GetTangentMode() == RCTM_Auto)
+					if (Attributes.GetTangentMode() == RCTM_Auto || Attributes.GetTangentMode() == RCTM_SmartAuto)
 					{
 						Attributes.SetTangentMode(RCTM_User);
 					}
@@ -1852,7 +1863,7 @@ void FCurveEditor::StraightenSelection()
 				{
 					float NewTangent = (Attributes.GetLeaveTangent() + Attributes.GetArriveTangent()) * 0.5f;
 					Attributes.SetArriveTangent(NewTangent).SetLeaveTangent(NewTangent);
-					if (Attributes.GetTangentMode() == RCTM_Auto)
+					if (Attributes.GetTangentMode() == RCTM_Auto || Attributes.GetTangentMode() == RCTM_SmartAuto)
 					{
 						Attributes.SetTangentMode(RCTM_User);
 					}

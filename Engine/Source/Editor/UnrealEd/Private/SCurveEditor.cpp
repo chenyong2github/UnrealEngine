@@ -163,6 +163,11 @@ void SCurveEditor::Construct(const FArguments& InArgs)
 		FCanExecuteAction::CreateSP(this, &SCurveEditor::HasRichCurves),
 		FIsActionChecked::CreateSP(this, &SCurveEditor::IsInterpolationModeSelected, RCIM_Cubic, RCTM_Auto));
 
+	Commands->MapAction(FCurveEditorCommands::Get().InterpolationCubicSmartAuto,
+		FExecuteAction::CreateSP(this, &SCurveEditor::OnSelectInterpolationMode, RCIM_Cubic, RCTM_SmartAuto),
+		FCanExecuteAction::CreateSP(this, &SCurveEditor::HasRichCurves),
+		FIsActionChecked::CreateSP(this, &SCurveEditor::IsInterpolationModeSelected, RCIM_Cubic, RCTM_SmartAuto));
+
 	Commands->MapAction(FCurveEditorCommands::Get().InterpolationCubicUser,
 		FExecuteAction::CreateSP(this, &SCurveEditor::OnSelectInterpolationMode, RCIM_Cubic, RCTM_User),
 		FCanExecuteAction::CreateSP(this, &SCurveEditor::HasRichCurves),
