@@ -99,6 +99,7 @@ class FRenderLightingCacheWithLiveShadingCS : public FMeshMaterialShader
 		// Scene data
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 
 		// Light data
 		SHADER_PARAMETER(int, bApplyEmissionAndTransmittance)
@@ -213,6 +214,7 @@ class FRenderSingleScatteringWithLiveShadingCS : public FMeshMaterialShader
 		// Scene data
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 
 		// Light data
 		SHADER_PARAMETER(int, bApplyEmissionAndTransmittance)
@@ -411,6 +413,7 @@ void RenderLightingCacheWithLiveShading(
 		// Scene data
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
+		PassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 
 		// Light data
 		check(LightSceneInfo != nullptr)
@@ -554,6 +557,7 @@ void RenderSingleScatteringWithLiveShading(
 		// Scene data
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
+		PassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 
 		// Light data
 		PassParameters->bApplyEmissionAndTransmittance = bApplyEmissionAndTransmittance;

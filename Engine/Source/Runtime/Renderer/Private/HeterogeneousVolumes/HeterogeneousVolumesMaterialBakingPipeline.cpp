@@ -18,6 +18,7 @@ class FHeterogeneousVolumesBakeMaterialCS : public FMeshMaterialShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Scene data
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 
 		// Object data
 		SHADER_PARAMETER(FMatrix44f, LocalToWorld)
@@ -132,6 +133,7 @@ void ComputeHeterogeneousVolumeBakeMaterial(
 	{
 		// Scene data
 		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 
 		// Object data
 		FMatrix44f LocalToWorld = FMatrix44f(PrimitiveSceneProxy->GetLocalToWorld());

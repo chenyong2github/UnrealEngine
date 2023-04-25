@@ -12,6 +12,7 @@
 #include "../HashTable.ush"
 #include "HeterogeneousVolumesLiveShadingUtils.ush"
 
+
 #ifndef THREADGROUP_SIZE_3D
 #define THREADGROUP_SIZE_3D 1
 #endif // THREADGROUP_SIZE_3D
