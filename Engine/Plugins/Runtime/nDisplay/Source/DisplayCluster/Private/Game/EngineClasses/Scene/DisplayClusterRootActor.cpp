@@ -1362,22 +1362,6 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 				ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
 			}
 		}
-
-		for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& NodeItem : ConfigData->Cluster->Nodes)
-		{
-			if (!NodeItem.Value)
-			{
-				continue;
-			}
-
-			for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& ViewportItem : NodeItem.Value->Viewports)
-			{
-				if (ViewportItem.Value)
-				{
-					ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
-				}
-			}
-		}
 	}
 
 	return true;

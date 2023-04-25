@@ -109,8 +109,7 @@ protected:
 
 	virtual EMediaState GetState() const override
 	{
-		// @todo fix this
-		return EMediaState::Playing;
+		return PlayerState;
 	}
 
 	virtual EMediaStatus GetStatus() const override
@@ -335,5 +334,8 @@ protected:
 		}
 
 	} ModeState;
+
+	/** Current state of the player */
+	EMediaState PlayerState = EMediaState::Stopped;
 
 };

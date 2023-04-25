@@ -82,8 +82,8 @@ bool FSharedMemoryMediaPlayer::Open(const FString& Url, const IMediaOptions* Opt
 		{
 			UE_LOG(LogSharedMemoryMedia, Error, TEXT("Unfortunately, SharedMemoryMedia doesn't support the current RHI type '%s'"),
 				*FSharedMemoryMediaPlatformFactory::GetRhiTypeString(RhiInterfaceType));
-
-			return false;
+			Close();
+			return true;
 		}
 	}
 
@@ -98,7 +98,8 @@ bool FSharedMemoryMediaPlayer::Open(const FString& Url, const IMediaOptions* Opt
 		if (!UniqueName.Len())
 		{
 			UE_LOG(LogSharedMemoryMedia, Error, TEXT("SharedMemoryMediaSource must have a UniqueName that is not empty, and should match the MediaOutput's UniqueName"));
-			return false;
+			Close();
+			return true;
 		}
 	}
 
@@ -126,8 +127,12 @@ bool FSharedMemoryMediaPlayer::Open(const FString& Url, const IMediaOptions* Opt
 	{
 		UE_LOG(LogSharedMemoryMedia, Error, TEXT("Only one SharedMemoryMediaPlayer the UniqueName '%s' can play at a time"), *UniqueName);
 		UniqueName.Reset(); // Reset the unique name to avoid unregistering when not open
-		return false;
+		Close();
+		return true;
 	}
+
+	// Set a playing state.
+	PlayerState = EMediaState::Playing;
 
 	return true;
 }
@@ -195,6 +200,10 @@ void FSharedMemoryMediaPlayer::Close()
 
 	// Allow this or other players with the given UniqueName to play
 	UnregisterUniqueName(UniqueName);
+
+	// Update our player state
+	PlayerState = EMediaState::Closed;
+
 }
 
 FGuid FSharedMemoryMediaPlayer::GetPlayerPluginGUID() const
@@ -216,6 +225,12 @@ FTimespan FSharedMemoryMediaPlayer::GetTime() const
 void FSharedMemoryMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 {
 	Super::TickFetch(DeltaTime, Timecode);
+
+	// Don't populate anything if we're not playing
+	if (GetState() != EMediaState::Playing)
+	{
+		return;
+	}
 
 	// Make sure we have platform data
 	if (!PlatformData.IsValid())
@@ -411,7 +426,7 @@ void FSharedMemoryMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode
 		SharedMetadataPtr->Receiver.KeepAliveShiftRegister = ~0; // all ones
 	}
 
-	// Create a new media sample and populated with any needed data
+	// Create a new media sample and populate it with any needed data
 	{
 		Samples->CurrentSample = MakeShared<FSharedMemoryMediaSample>();
 		Samples->CurrentSample->Player = AsShared();
