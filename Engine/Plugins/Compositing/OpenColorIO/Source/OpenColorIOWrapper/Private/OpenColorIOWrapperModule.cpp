@@ -45,6 +45,6 @@ private:
 	TUniquePtr<FOpenColorIOConfigWrapper> InterchangeConfig;
 };
 
-IMPLEMENT_MODULE(FOpenColorIOWrapperModule, OpenColorIO);
+IMPLEMENT_MODULE(FOpenColorIOWrapperModule, OpenColorIOWrapper);
 
 #undef LOCTEXT_NAMESPACE
