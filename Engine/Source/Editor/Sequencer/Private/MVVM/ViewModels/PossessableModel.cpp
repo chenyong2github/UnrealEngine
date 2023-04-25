@@ -73,6 +73,13 @@ FText FPossessableModel::GetIconToolTipText() const
 
 const FSlateBrush* FPossessableModel::GetIconOverlayBrush() const
 {
+	UMovieScene*            MovieScene  = OwnerModel ? OwnerModel->GetMovieScene() : nullptr;
+	FMovieScenePossessable* Possessable = MovieScene ? MovieScene->FindPossessable(ObjectBindingID) : nullptr;
+	if (Possessable && Possessable->DynamicBinding.WeakEndpoint.IsValid())
+	{
+		return FAppStyle::GetBrush("Sequencer.DynamicBindingIconOverlay");
+	}
+
 	TSharedPtr<ISequencer> Sequencer = GetEditor()->GetSequencer();
 	if (Sequencer)
 	{
