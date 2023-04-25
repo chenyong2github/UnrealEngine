@@ -1355,7 +1355,7 @@ IMAGECORE_API bool ERawImageFormat::IsHDR(Type Format)
 	return Format == RGBA16F || Format == RGBA32F || Format == R16F || Format == R32F || Format == BGRE8;
 }
 
-IMAGECORE_API FLinearColor ERawImageFormat::GetOnePixelLinear(const void * PixelData,Type Format,bool bSRGB)
+IMAGECORE_API const FLinearColor ERawImageFormat::GetOnePixelLinear(const void * PixelData,ERawImageFormat::Type Format,EGammaSpace Gamma)
 {
 	switch(Format)
 	{
@@ -1363,22 +1363,26 @@ IMAGECORE_API FLinearColor ERawImageFormat::GetOnePixelLinear(const void * Pixel
 	{
 		uint8 Gray = ((const uint8 *)PixelData)[0];
 		FColor Color(Gray,Gray,Gray);
-		if ( bSRGB )
+		if ( Gamma == EGammaSpace::sRGB )
 			return FLinearColor::FromSRGBColor(Color);
+		else if ( Gamma == EGammaSpace::Pow22 )
+			return FLinearColor::FromPow22Color(Color);
 		else
 			return Color.ReinterpretAsLinear();
 	}
 	case G16:
 	{
 		const uint16 * Samples = (const uint16 *)PixelData;
-		float Gray = Samples[0]/65535.f;
+		float Gray = Samples[0]*(1.f/65535.f);
 		return FLinearColor(Gray,Gray,Gray,1.f);
 	}
 	case BGRA8:
 	{
 		FColor Color = *((const FColor *)PixelData);
-		if ( bSRGB )
+		if ( Gamma == EGammaSpace::sRGB )
 			return FLinearColor::FromSRGBColor(Color);
+		else if ( Gamma == EGammaSpace::Pow22 )
+			return FLinearColor::FromPow22Color(Color);
 		else
 			return Color.ReinterpretAsLinear();
 	}
@@ -1391,10 +1395,10 @@ IMAGECORE_API FLinearColor ERawImageFormat::GetOnePixelLinear(const void * Pixel
 	{
 		const uint16 * Samples = (const uint16 *)PixelData;
 		return FLinearColor(
-			Samples[0]/65535.f, 
-			Samples[1]/65535.f, 
-			Samples[2]/65535.f, 
-			Samples[3]/65535.f);
+			Samples[0]*(1.f/65535.f), 
+			Samples[1]*(1.f/65535.f), 
+			Samples[2]*(1.f/65535.f), 
+			Samples[3]*(1.f/65535.f));
 	}
 	case RGBA16F:
 	{
