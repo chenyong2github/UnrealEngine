@@ -751,7 +751,6 @@ TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManag
 	const uint64 CacheKey = (uint64(ViewUniqueID) << 32U) | uint64(LightSceneId);
 
 	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> *LightEntryKey = CacheEntries.Find(CacheKey);
-	const int32 FrameNumber = Scene->GetFrameNumberRenderThread();
 
 	if (LightEntryKey)
 	{
@@ -759,7 +758,7 @@ TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManag
 
 		if (LightEntry->ShadowMapEntries.Num() == NumShadowMaps)
 		{
-			LightEntry->ReferencedFrameNumber = FrameNumber;
+			LightEntry->ReferencedRenderSequenceNumber = RenderSequenceNumber;
 			return LightEntry;
 		}
 		else
@@ -773,7 +772,7 @@ TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FVirtualShadowMapArrayCacheManag
 
 	// Make new entry for this light
 	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> LightEntry = MakeShared<FVirtualShadowMapPerLightCacheEntry>(Scene->GetMaxPersistentPrimitiveIndex(), NumShadowMaps);
-	LightEntry->ReferencedFrameNumber = FrameNumber;	
+	LightEntry->ReferencedRenderSequenceNumber = RenderSequenceNumber;	
 	CacheEntries.Add(CacheKey, LightEntry);
 
 	return LightEntry;
@@ -801,20 +800,23 @@ void FVirtualShadowMapPerLightCacheEntry::OnPrimitiveRendered(const FPrimitiveSc
 void FVirtualShadowMapArrayCacheManager::UpdateUnreferencedCacheEntries(
 	FVirtualShadowMapArray& VirtualShadowMapArray)
 {
-	const int32 FrameNumber = Scene->GetFrameNumberRenderThread();
-	const int32 MaxAge = CVarCacheMaxUnreferencedLightAge.GetValueOnRenderThread();
+	const int64 MaxAge = CVarCacheMaxUnreferencedLightAge.GetValueOnRenderThread();
 	const bool bAllowUnreferencedEntries = IsCacheEnabled() && MaxAge > 0;
 
 	TArray<uint64, SceneRenderingAllocator> EntriesToRemove;
 	for (auto& LightEntry : CacheEntries)
 	{
 		TSharedPtr<FVirtualShadowMapPerLightCacheEntry> CacheEntry = LightEntry.Value;
-		int32 Age = FrameNumber - CacheEntry->ReferencedFrameNumber;
-		check(CacheEntry->ReferencedFrameNumber >= 0);
+		// NOTE: We probably want to decouple the age from render calls at some point, but regardless we need to know
+		// in the first branch that the given light was referenced *this* render, and therefore has already been
+		// (re)allocated a current VSM ID.
+		int64 Age = RenderSequenceNumber - CacheEntry->ReferencedRenderSequenceNumber;
+		check(CacheEntry->ReferencedRenderSequenceNumber >= 0);
 		check(Age >= 0);
 		if (Age == 0)
 		{
 			// Referenced this frame still, leave it alone
+			check(CacheEntry->ShadowMapEntries.Last().CurrentVirtualShadowMapId < VirtualShadowMapArray.GetNumShadowMapSlots());
 		}
 		else if (bAllowUnreferencedEntries && Age < MaxAge)
 		{
@@ -972,6 +974,8 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 		RecentlyRemovedReadIndex = 1 - RecentlyRemovedReadIndex;
 		RecentlyRemovedFrameCounter = 0;
 	}
+
+	++RenderSequenceNumber;
 }
 
 void FVirtualShadowMapArrayCacheManager::ExtractStats(FRDGBuilder& GraphBuilder, FVirtualShadowMapArray &VirtualShadowMapArray)

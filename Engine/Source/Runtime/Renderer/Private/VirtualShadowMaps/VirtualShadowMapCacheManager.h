@@ -100,7 +100,7 @@ public:
 		bool bIsUncached = false;
 		bool bIsDistantLight = false;
 		int32 RenderedFrameNumber = -1;
-		int32 ScheduledFrameNumber = -1;
+		int32 ScheduledFrameNumber = -1;		
 
 	};
 	FFrameState Prev;
@@ -108,7 +108,9 @@ public:
 
 	// Tracks the last time we saw this light referenced.
 	// This allows us to keep entries alive even when they are temporarily not visible or similar, but age them out over time
-	int32 ReferencedFrameNumber = -1;
+	// NOTE: This is not exactly a frame number since multiple "Render" calls may happen per frame, and we need to track
+	// them separately for the purposes of determining whether a given light is actually referenced in the current Render.
+	int64 ReferencedRenderSequenceNumber = -1;
 
 	// Primitives that have been rendered (not culled) the previous frame, when a primitive transitions from being culled to not it must be rendered into the VSM
 	// Key culling reasons are small size or distance cutoff.
@@ -373,6 +375,9 @@ private:
 	TBitArray<> RecentlyRemovedPrimitives[2];
 	int32 RecentlyRemovedReadIndex = 0;
 	int32 RecentlyRemovedFrameCounter = 0;
+
+	// Used for tracking which cache entries are referenced in a given render call
+	int64 RenderSequenceNumber = 0;
 
 	// Stores stats over frames when activated.
 	TRefCountPtr<FRDGPooledBuffer> AccumulatedStatsBuffer;
