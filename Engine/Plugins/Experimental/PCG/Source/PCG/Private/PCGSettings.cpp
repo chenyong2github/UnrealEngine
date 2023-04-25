@@ -80,15 +80,9 @@ void UPCGSettingsInterface::SetEnabled(bool bInEnabled)
 	}
 }
 
-UPCGSettings::UPCGSettings()
+uint32 UPCGSettings::GetTypeNameHash() const
 {
-	TypeNameHash = GetTypeHash(GetClass()->GetFName());
-}
-
-UPCGSettings::UPCGSettings(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	TypeNameHash = GetTypeHash(GetClass()->GetFName());
+	return GetTypeHash(GetClass()->GetFName());
 }
 
 bool UPCGSettings::operator==(const UPCGSettings& Other) const
@@ -153,6 +147,15 @@ void UPCGSettings::PostInitProperties()
 #if WITH_EDITOR
 	InitializeCachedOverridableParams();
 #endif //WITH_EDITOR
+
+	// For new objects, use type hash as a seed so we don't get multiple nodes doing randomness in an identical way (we had a case where
+	// a Point Subset followed by a Density Noise produced uniform densities because the random seeds/streams were correllated).
+	// It is still possible to chain nodes of the same type (Point Subset -> Point Subset) and see correllated behaviour, in which
+	// case the random seed on one of them should be changed in the node settings.
+	if (PCGHelpers::IsNewObjectAndNotDefault(this, /*bCheckHierarchy=*/true))
+	{
+		Seed = GetTypeNameHash();
+	}
 
 	CacheCrc();
 }
@@ -397,11 +400,7 @@ UPCGNode* UPCGSettings::CreateNode() const
 
 int UPCGSettings::GetSeed(const UPCGComponent* InSourceComponent) const
 {
-	// Mix in a type hash so we don't get multiple nodes doing randomness in an identical way (we had a case where
-	// a Point Subset followed by a Density Noise produced uniform densities because the random seeds/streams were correllated).
-	// It is still possible to chain nodes of the same type (Point Subset -> Point Subset) and see correllated behaviour, in which
-	// case the random seed on one of them should be changed in the node settings.
-	return !bUseSeed ? TypeNameHash : (InSourceComponent ? PCGHelpers::ComputeSeed(Seed, InSourceComponent->Seed, TypeNameHash) : Seed);
+	return !bUseSeed ? 42 : (InSourceComponent ? PCGHelpers::ComputeSeed(Seed, InSourceComponent->Seed) : Seed);
 }
 
 #if WITH_EDITOR

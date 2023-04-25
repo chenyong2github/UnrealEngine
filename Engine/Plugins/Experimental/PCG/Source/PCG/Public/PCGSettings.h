@@ -154,9 +154,6 @@ class PCG_API UPCGSettings : public UPCGSettingsInterface
 	friend class UPCGSettingsInterface;
 
 public:
-	UPCGSettings();
-	UPCGSettings(const FObjectInitializer& ObjectInitializer);
-
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Settings; }
 	// ~End UPCGData interface
@@ -252,7 +249,7 @@ public:
 	virtual EPCGDataType GetCurrentPinTypes(const UPCGPin* InPin) const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(EditCondition=bUseSeed, EditConditionHides, PCG_Overridable))
-	int Seed = 0xC35A9631; // random prime number
+	int Seed = 0xC35A9631; // Default seed is a random prime number, but will be overriden for new settings based on the class type name hash, making each settings class have a different default seed.
 
 	/** Warning - this is deprecated and will be removed soon since we have a Filter By Tag node for this specific purpose */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tags")
@@ -294,6 +291,9 @@ protected:
 
 	/** An additional custom version number that external system users can use to track versions. This version will be serialized into the asset and will be provided by UserDataVersion after load. */
 	virtual FGuid GetUserCustomVersionGuid() { return FGuid(); }
+
+	/** Can be overriden by child class if they ever got renamed to avoid changing the default seed for this one. Otherwise default is hash of the class name. */
+	virtual uint32 GetTypeNameHash() const;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -368,10 +368,6 @@ private:
 
 	/** The cached Crc for these settings. */
 	FPCGCrc CachedCrc;
-
-	/** Hash of the derived type name which is of the form 'PCGExecuteBlueprint'. */
-	UPROPERTY(Transient)
-	uint32 TypeNameHash = 0;
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))

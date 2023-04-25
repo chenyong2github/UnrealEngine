@@ -49,4 +49,12 @@ namespace PCGHelpers
 	PCG_API void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth = -1);
 	PCG_API void GatherDependencies(FProperty* Property, const void* InContainer, TSet<TObjectPtr<UObject>>& OutDependencies, int32 MaxDepth);
 #endif
+
+	/** 
+	* Check if an object is a new object and not the CDO.
+	*
+	* Some objects might not have the appropriate flags if they are embedded inside of other objects. 
+	* Use the bCheckHierarchy flag to true to go up the object hierarchy if you want to check for this situation.
+	*/
+	PCG_API bool IsNewObjectAndNotDefault(const UObject* InObject, bool bCheckHierarchy = false);
 };

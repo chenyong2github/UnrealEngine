@@ -3,6 +3,7 @@
 #include "PCGVolume.h"
 #include "PCGComponent.h"
 #include "PCGGraph.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "Components/BrushComponent.h"
 
@@ -13,13 +14,7 @@ APCGVolume::APCGVolume(const FObjectInitializer& ObjectInitializer)
 {
 	PCGComponent = ObjectInitializer.CreateDefaultSubobject<UPCGComponent>(this, TEXT("PCG Component"));
 
-	UObject* ThisObject = this;
-	while (ThisObject && ThisObject->HasAnyFlags(RF_DefaultSubObject))
-	{
-		ThisObject = ThisObject->GetOuter();
-	}
-
-	if (ThisObject && !ThisObject->HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad))
+	if (PCGHelpers::IsNewObjectAndNotDefault(this, /*bCheckHierarchy=*/true))
 	{
 		if (UBrushComponent* MyBrushComponent = GetBrushComponent())
 		{

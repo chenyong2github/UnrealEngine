@@ -1076,21 +1076,9 @@ void UPCGComponent::PostInitProperties()
 	GraphInstance->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 #endif // WITH_EDITOR
 
-	// Note that if the component is a default sub object, we find the first outer that is not a sub object.
-	UObject* CurrentInspectedObject = this;
-	while (CurrentInspectedObject && CurrentInspectedObject->HasAnyFlags(RF_DefaultSubObject))
-	{
-		CurrentInspectedObject = CurrentInspectedObject->GetOuter();
-	}
-
-	// We detect new object if they are not a default object/archetype and/or they do not need load.
-	// In some cases, were the component is a default sub object (like APCGVolume), it has no loading flags
-	// even if it is loading, so we use the outer found above.
-	const bool bIsNewObject = CurrentInspectedObject && !CurrentInspectedObject->HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad);
-
 #if WITH_EDITOR
 	// Force bIsPartitioned at false for new objects
-	if (bIsNewObject)
+	if (PCGHelpers::IsNewObjectAndNotDefault(this, /*bCheckHierarchy=*/true))
 	{
 		bIsPartitioned = false;
 	}

@@ -2,6 +2,8 @@
 
 #include "Elements/PCGTypedGetter.h"
 
+#include "Helpers/PCGHelpers.h"
+
 #include "Landscape.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGTypedGetter)
@@ -14,8 +16,8 @@ UPCGGetLandscapeSettings::UPCGGetLandscapeSettings()
 	Mode = EPCGGetDataFromActorMode::ParseActorComponents;
 
 	// We want to apply different defaults to newly placed nodes. We detect new object if they are not a default object/archetype
-	// and/or they do not need load. Followed similar pattern to UPCGComponent::PostInitProperties().
-	if (!HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad))
+	// and/or they do not need load.
+	if (PCGHelpers::IsNewObjectAndNotDefault(this))
 	{
 		// This setup replicates what was implemented on the Landscape input node pin
 		ActorSelector.ActorFilter = EPCGActorFilter::AllWorldActors;

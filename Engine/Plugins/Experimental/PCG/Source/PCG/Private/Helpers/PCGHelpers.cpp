@@ -391,4 +391,18 @@ namespace PCGHelpers
 		}
 	}
 #endif
+
+	bool IsNewObjectAndNotDefault(const UObject* InObject, bool bCheckHierarchy)
+	{
+		const UObject* CurrentInspectedObject = InObject;
+		while (bCheckHierarchy && CurrentInspectedObject && CurrentInspectedObject->HasAnyFlags(RF_DefaultSubObject))
+		{
+			CurrentInspectedObject = CurrentInspectedObject->GetOuter();
+		}
+
+		// We detect new objects if they are not a default object/archetype and/or they do not need load.
+		// In some cases, where the component is a default sub object (like APCGVolume), it has no loading flags
+		// even if it is loading, so we use the outer found above.
+		return CurrentInspectedObject && !CurrentInspectedObject->HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad);
+	}
 }
