@@ -542,7 +542,7 @@ void FSceneProxyBase::CalculateMinMaxDisplacement()
 	MinMaxMaterialDisplacement = FVector2f::Zero();
 
 	static const auto TessellationEnabledVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Nanite.Tessellation"));
-	const bool bTessellationEnabled = (TessellationEnabledVar && TessellationEnabledVar->GetValueOnRenderThread() != 0);
+	const bool bTessellationEnabled = (TessellationEnabledVar && TessellationEnabledVar->GetValueOnAnyThread() != 0);
 	const bool bUseTessellation = bTessellationEnabled && NaniteTessellationSupported();
 
 	for (const auto& MaterialSection : GetMaterialSections())
