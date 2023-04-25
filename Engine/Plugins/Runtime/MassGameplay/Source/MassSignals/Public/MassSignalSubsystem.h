@@ -95,6 +95,11 @@ public:
 	void DelaySignalEntitiesDeferred(FMassExecutionContext& Context, FName SignalName, TConstArrayView<FMassEntityHandle> Entities, const float DelayInSeconds);
 
 protected:
+	// USubsystem implementation Begin
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	// USubsystem implementation End	
+
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
 
@@ -104,10 +109,13 @@ protected:
 	{
 		FName SignalName;
 		TArray<FMassEntityHandle> Entities;
-		float DelayInSeconds;
+		double TargetTimestamp;
 	};
 
 	TArray<FDelayedSignal> DelayedSignals;
+
+	UPROPERTY(transient)
+	TObjectPtr<UWorld> CachedWorld;
 };
 
 template<>
