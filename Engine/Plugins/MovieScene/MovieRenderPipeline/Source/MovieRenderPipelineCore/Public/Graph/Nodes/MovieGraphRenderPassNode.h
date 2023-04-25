@@ -17,7 +17,7 @@ struct FMovieGraphTimeStepData;
 * number of instances (decoupled from the number of times the node is used in the graph).
 */
 UCLASS(Abstract)
-class UMovieGraphRenderPassNode : public UMovieGraphSettingNode
+class MOVIERENDERPIPELINECORE_API UMovieGraphRenderPassNode : public UMovieGraphSettingNode
 {
 	GENERATED_BODY()
 public:

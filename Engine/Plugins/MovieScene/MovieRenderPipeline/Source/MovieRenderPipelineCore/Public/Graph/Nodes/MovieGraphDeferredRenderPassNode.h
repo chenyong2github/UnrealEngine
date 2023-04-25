@@ -50,7 +50,7 @@ namespace UE::MovieGraph
 }
 
 UCLASS()
-class UMovieGraphDeferredRenderPassNode : public UMovieGraphRenderPassNode
+class MOVIERENDERPIPELINECORE_API UMovieGraphDeferredRenderPassNode : public UMovieGraphRenderPassNode
 {
 	GENERATED_BODY()
 public:

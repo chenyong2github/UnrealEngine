@@ -1,0 +1,140 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "UObject/StrongObjectPtr.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STreeView.h"
+
+class UMovieGraphEvaluatedConfig;
+class UMovieGraphNode;
+
+/**
+ * Represents the data of one element displayed in the tree, which is one of the types in EElementType. Provides a way
+ * of getting the children under the element.
+ */
+class FActiveRenderSettingsTreeElement
+{
+public:
+	/** The type of this element. */
+	enum class EElementType : uint8
+	{
+		Root,			///< A root element; does not represent any actual data within the graph
+		NamedBranch,	///< Represents a named branch (output) within the graph
+		Node,			///< Represents a settings node within the graph
+		Property		///< Represents a property under an element with type EElementType::Node
+	};
+	
+	static const FName RootName_Globals;
+	static const FName RootName_Branches;
+	
+	FActiveRenderSettingsTreeElement(const FName& InName, const EElementType InType);
+
+	/** If this element represents a property, returns the string representation of the value. Otherwise returns an empty string. */
+	FString GetValue() const;
+
+	/** Determines if this element is a branch, and the branch has renderable output. */
+	bool IsBranchRenderable() const;
+
+	/**
+	 * Gets the child elements nested under this element. Returns a cached result if available, otherwise calculates the
+	 * children and returns the result. Call ClearCachedChildren() if the cache needs to be cleared (eg, when the tree
+	 * is being refreshed).
+	 */
+	const TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& GetChildren() const;
+
+	/** Clears the cached result of GetChildren(). */
+	void ClearCachedChildren() const;
+
+public:
+	/** The name of the element as it appears in the tree. */
+	FName Name;
+
+	/** The type of item in the tree this element represents. */
+	EElementType Type = EElementType::Root;
+
+	/**
+	 * If this element represents a node in the graph, this is the pointer to that node. If the element represents a
+	 * property, this is the pointer to the owning node.
+	 */
+	TObjectPtr<UMovieGraphNode> SettingsNode = nullptr;
+
+	/** If this element represents a property on a node, this is the pointer to that property. */
+	FProperty* SettingsProperty = nullptr;
+
+	/** The result of the graph traversal. */
+	TWeakObjectPtr<UMovieGraphEvaluatedConfig> FlattenedGraph = nullptr;
+
+private:
+	/** The (cached) child elements nested under this element. */
+	mutable TArray<TSharedPtr<FActiveRenderSettingsTreeElement>> ChildrenCache;
+};
+
+/**
+ * The widget that is responsible for generating the per-column content for each element in the tree.
+ */
+class SMovieGraphActiveRenderSettingsTreeItem : public SMultiColumnTableRow<TSharedPtr<FActiveRenderSettingsTreeElement>>
+{
+	SLATE_BEGIN_ARGS(SMovieGraphActiveRenderSettingsTreeItem) {}
+	SLATE_END_ARGS()
+
+	static const FName ColumnID_Name;
+	static const FName ColumnID_Value;
+
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable,
+		const TSharedPtr<FActiveRenderSettingsTreeElement>& InTreeElement);
+
+	//~ Begin SMultiColumnTableRow overrides
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
+	//~ End SMultiColumnTableRow overrides
+
+private:
+	/** The element that this tree item is displaying. */
+	TWeakPtr<FActiveRenderSettingsTreeElement> WeakTreeElement;
+};
+
+/**
+ * Contents of the "Active Render Settings" tab in the graph asset editor.
+ */
+class SMovieGraphActiveRenderSettingsTabContent : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SMovieGraphActiveRenderSettingsTabContent)
+		: _Graph(nullptr)
+	
+		{}
+		
+		/** The graph that is currently displayed. */
+		SLATE_ARGUMENT(class UMovieGraphConfig*, Graph)
+	
+	SLATE_END_ARGS();
+	
+	void Construct(const FArguments& InArgs);
+
+private:
+	/** Traverses the graph. Populates the FlattenedGraph member and refreshes the UI view. */
+	void TraverseGraph();
+
+	/** Handles the button click for evaluating the graph. */
+	FReply OnEvaluateGraphClicked();
+
+	/** Generates a row in the tree widget based on the provided element. */
+	TSharedRef<ITableRow> GenerateTreeRow(TSharedPtr<FActiveRenderSettingsTreeElement> InTreeElement, const TSharedRef<STableViewBase>& OwnerTable);
+
+	/** Gets the child elements in the tree for the provided element. */
+	void GetChildrenForTree(TSharedPtr<FActiveRenderSettingsTreeElement> InItem, TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& OutChildren);
+
+private:
+	/** The runtime graph that this UI gets data from. */
+	TWeakObjectPtr<UMovieGraphConfig> CurrentGraph = nullptr;
+
+	/** The main tree widget displayed in the tab. */
+	TSharedPtr<STreeView<TSharedPtr<FActiveRenderSettingsTreeElement>>> TreeView = nullptr;
+
+	/** The last result of a graph traversal. */
+	TStrongObjectPtr<UMovieGraphEvaluatedConfig> FlattenedGraph = nullptr;
+
+	/** The root-most elements in the tree, which are always present. */
+	TArray<TSharedPtr<FActiveRenderSettingsTreeElement>> RootElements;
+};

@@ -407,11 +407,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Experimental")
 	UMovieGraphEvaluatedConfig* CreateFlattenedGraph(const FMovieGraphTraversalContext& InContext);
 
+	/** Given a class and FProperty that belongs to that class, search for a FBoolProperty that matches the name "bOverride_<name of InRealProperty>. */
+	static FBoolProperty* FindOverridePropertyForRealProperty(UClass* InClass, const FProperty* InRealProperty);
+
 protected:
 	/** Copies properties in FromNode that are marked for override into ToNode, but only if ToNode doesn't already override that value. */
 	void CopyOverriddenProperties(UMovieGraphNode* FromNode, UMovieGraphNode* ToNode);
-	/** Given a property you want to override (passes IsPropertyOverrideable) look for a matching bOverride_ named bool property. */
-	FBoolProperty* FindOverridePropertyForRealProperty(UClass* InClass, const FProperty* InRealProperty) const;
+	
 	/** Find all "Overrideable" marked properties, then find their edit condition properties, then set those to false. */
 	void InitializeFlattenedNode(UMovieGraphNode* InNode);
 

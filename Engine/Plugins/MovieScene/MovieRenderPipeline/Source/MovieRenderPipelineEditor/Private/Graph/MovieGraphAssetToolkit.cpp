@@ -8,6 +8,7 @@
 #include "MovieEdGraphNode.h"
 #include "MovieGraphSchema.h"
 #include "PropertyEditorModule.h"
+#include "SMovieGraphActiveRenderSettingsTabContent.h"
 #include "SMovieGraphMembersTabContent.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -19,6 +20,7 @@ const FName FMovieGraphAssetToolkit::AppIdentifier(TEXT("MovieGraphAssetEditorAp
 const FName FMovieGraphAssetToolkit::GraphTabId(TEXT("MovieGraphAssetToolkit"));
 const FName FMovieGraphAssetToolkit::DetailsTabId(TEXT("MovieGraphAssetToolkitDetails"));
 const FName FMovieGraphAssetToolkit::MembersTabId(TEXT("MovieGraphAssetToolkitMembers"));
+const FName FMovieGraphAssetToolkit::ActiveRenderSettingsTabId(TEXT("MovieGraphAssetToolkitActiveRenderSettings"));
 
 // Temporary cvar to enable/disable upgrading to a graph-based configuration
 static TAutoConsoleVariable<bool> CVarMoviePipelineEnableRenderGraph(
@@ -53,6 +55,11 @@ void FMovieGraphAssetToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>&
 		.SetDisplayName(LOCTEXT("MembersTab", "Members"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
+	InTabManager->RegisterTabSpawner(ActiveRenderSettingsTabId, FOnSpawnTab::CreateSP(this, &FMovieGraphAssetToolkit::SpawnTab_RenderGraphActiveRenderSettings))
+		.SetDisplayName(LOCTEXT("ActiveRenderSettingsTab", "Active Render Settings"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Debug"));
 }
 
 void FMovieGraphAssetToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -62,6 +69,7 @@ void FMovieGraphAssetToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager
 	InTabManager->UnregisterTabSpawner(GraphTabId);
 	InTabManager->UnregisterTabSpawner(DetailsTabId);
 	InTabManager->UnregisterTabSpawner(MembersTabId);
+	InTabManager->UnregisterTabSpawner(ActiveRenderSettingsTabId);
 }
 
 void FMovieGraphAssetToolkit::InitMovieGraphAssetToolkit(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UMovieGraphConfig* InitGraph)
@@ -71,7 +79,7 @@ void FMovieGraphAssetToolkit::InitMovieGraphAssetToolkit(const EToolkitMode::Typ
 	// Note: Changes to the layout should include a increment to the layout's ID, i.e.
 	// MoviePipelineRenderGraphEditor[X] -> MoviePipelineRenderGraphEditor[X+1]. Otherwise, layouts may be messed up
 	// without a full reset to layout defaults inside the editor.
-	const FName LayoutString = FName("MoviePipelineRenderGraphEditor1");
+	const FName LayoutString = FName("MoviePipelineRenderGraphEditor2");
 
 	// Override the Default Layout provided by FBaseAssetToolkit to hide the viewport and details panel tabs.
 	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout(FName(LayoutString))
@@ -98,9 +106,21 @@ void FMovieGraphAssetToolkit::InitMovieGraphAssetToolkit(const EToolkitMode::Typ
 				)
 				->Split
 				(
-					FTabManager::NewStack()
+					FTabManager::NewSplitter()
+					->SetOrientation(Orient_Vertical)
 					->SetSizeCoefficient(0.2f)
-					->AddTab(DetailsTabId, ETabState::OpenedTab)
+					->Split
+					(
+					FTabManager::NewStack()
+						->SetSizeCoefficient(0.5f)
+						->AddTab(DetailsTabId, ETabState::OpenedTab)
+					)
+					->Split
+					(
+					FTabManager::NewStack()
+						->SetSizeCoefficient(0.5f)
+						->AddTab(ActiveRenderSettingsTabId, ETabState::OpenedTab)
+					)
 				)
 			)
 		);
@@ -211,6 +231,17 @@ TSharedRef<SDockTab> FMovieGraphAssetToolkit::SpawnTab_RenderGraphDetails(const 
 		.Label(LOCTEXT("DetailsTab_Title", "Details"))
 		[
 			SelectedGraphObjectsDetailsWidget.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FMovieGraphAssetToolkit::SpawnTab_RenderGraphActiveRenderSettings(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.TabColorScale(GetTabColorScale())
+		.Label(LOCTEXT("ActiveRenderSettings_Title", "Active Render Settings"))
+		[
+			SAssignNew(ActiveRenderSettingsTabContent, SMovieGraphActiveRenderSettingsTabContent)
+			.Graph(InitialGraph)
 		];
 }
 

@@ -600,7 +600,7 @@ bool UMovieGraphConfig::DeleteOutputMember(UMovieGraphOutput* OutputMemberToDele
 	return false;
 }
 
-FBoolProperty* UMovieGraphConfig::FindOverridePropertyForRealProperty(UClass* InClass, const FProperty* InRealProperty) const
+FBoolProperty* UMovieGraphConfig::FindOverridePropertyForRealProperty(UClass* InClass, const FProperty* InRealProperty)
 {
 	static const FName EditConditionKey = FName("EditCondition");
 	if (!ensure(InClass && InRealProperty))
@@ -807,6 +807,12 @@ UMovieGraphEvaluatedConfig* UMovieGraphConfig::CreateFlattenedGraph(const FMovie
 		// but we also want each named branch to have a complete, resolved set of configs.
 		for (UMovieGraphPin* InputPin : OutputNode->GetInputPins())
 		{
+			if (!InputPin->Properties.bIsBranch)
+			{
+				// TODO: For now, only branches can be evaluated
+				continue;
+			}
+			
 			const FName BranchName = InputPin->Properties.Label;
 			FMovieGraphEvaluatedBranchConfig& BranchConfig = NewContext->BranchConfigMapping.Add(BranchName);
 			

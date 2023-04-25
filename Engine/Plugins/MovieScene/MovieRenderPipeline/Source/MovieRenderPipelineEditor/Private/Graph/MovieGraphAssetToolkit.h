@@ -31,6 +31,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_RenderGraphEditor(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_RenderGraphMembers(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_RenderGraphDetails(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_RenderGraphActiveRenderSettings(const FSpawnTabArgs& Args);
 
 	/** Register commands used by the editor. */
 	void BindGraphCommands();
@@ -54,6 +55,9 @@ private:
 	/** The widget which encapsulates all of the content in the Members tab */
 	TSharedPtr<class SMovieGraphMembersTabContent> MembersTabContent;
 
+	/** The widget which encapsulates all of the content in the Active Render Settings tab */
+	TSharedPtr<class SMovieGraphActiveRenderSettingsTabContent> ActiveRenderSettingsTabContent;
+	
 	/** The graph that the editor was initialized with */
 	TObjectPtr<UMovieGraphConfig> InitialGraph;
 
@@ -64,4 +68,5 @@ private:
 	static const FName GraphTabId;
 	static const FName DetailsTabId;
 	static const FName MembersTabId;
+	static const FName ActiveRenderSettingsTabId;
 };

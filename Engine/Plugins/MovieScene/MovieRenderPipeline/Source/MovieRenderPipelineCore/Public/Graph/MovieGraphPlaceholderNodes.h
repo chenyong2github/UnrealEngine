@@ -85,7 +85,7 @@ public:
 
 /** A node which configures the global game overrides. */
 UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphGlobalGameOverridesNode : public UMovieGraphNode
+class MOVIERENDERPIPELINECORE_API UMovieGraphGlobalGameOverridesNode : public UMovieGraphSettingNode
 {
 	GENERATED_BODY()
 
