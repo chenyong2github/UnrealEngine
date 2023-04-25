@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
@@ -45,6 +46,11 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
+
+		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
+		}
 	};
 
 	class NNEHLSLSHADERS_API TNeuralPostProcessingPreStepCS : public FGlobalShader
@@ -66,6 +72,11 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
+
+		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
+		}
 	};
 
 	class NNEHLSLSHADERS_API TNeuralPostProcessingPostStepCS : public FGlobalShader
@@ -91,6 +102,11 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
+
+		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
+		}
 	};
 
 	class NNEHLSLSHADERS_API TNeuralPostProcessingWriteOutputPS : public FGlobalShader
@@ -108,5 +124,10 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
+
+		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
+		}
 	};
 } // UE::NNEHlslShaders::Internal

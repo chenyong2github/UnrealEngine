@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
@@ -105,5 +106,10 @@ namespace UE::NNEHlslShaders::Internal
 		static int32 GetNumThreadsPerGroup(EConvTransposeGroupSize GroupSize);
 
 		static TArray<int32> GetGridShape(TArrayView<const int32> YShape, TArrayView<const int32> GroupShape);
+
+		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
+		}
 	};
 } // UE::NNEHlslShaders::Internal

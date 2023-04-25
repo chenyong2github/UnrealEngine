@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
@@ -79,6 +80,11 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
+
+		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
+		}
 
 		static void FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNECore::Internal::FTensor& InputA, const NNECore::Internal::FTensor& InputB, const NNECore::Internal::FTensor* InputC, float CScalar, FParameters& Parameters);
 

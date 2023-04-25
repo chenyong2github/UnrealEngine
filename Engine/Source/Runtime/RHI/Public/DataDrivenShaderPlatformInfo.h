@@ -110,6 +110,7 @@ class FGenericDataDrivenShaderPlatformInfo
 	uint32 bIsPreviewPlatform : 1;
 	uint32 bSupportsSwapchainUAVs : 1;
 	uint32 bSupportsClipDistance : 1;
+	uint32 bSupportsNNEShaders: 1;
 
 #if WITH_EDITOR
 	FText FriendlyName;
@@ -726,6 +727,12 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].bSupportsClipDistance;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsNNEShaders(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].bSupportsNNEShaders;
 	}
 
 #if WITH_EDITOR

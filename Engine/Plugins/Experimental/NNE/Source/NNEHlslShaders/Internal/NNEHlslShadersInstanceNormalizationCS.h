@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
@@ -47,5 +48,10 @@ namespace UE::NNEHlslShaders::Internal
 		static EInstanceNormalizationAlgorithm GetAlgorithm(const FParameters& Parameters);
 
 		static void LexFromString(EInstanceNormalizationAlgorithm& OutValue, const TCHAR* StringVal);
+
+		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
+		}
 	};
 } // UE::NNEHlslShaders::Internal
