@@ -569,8 +569,8 @@ public:
 
 	virtual FRHIDescriptorHandle GetDefaultBindlessHandle() const override final
 	{
-		check(DefaultView);
-		return DefaultView->GetBindlessHandle();
+		check(PartialView);
+		return PartialView->GetBindlessHandle();
 	}
 
 	struct FImageCreateInfo
