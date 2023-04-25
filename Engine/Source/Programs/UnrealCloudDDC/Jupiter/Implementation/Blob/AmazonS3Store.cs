@@ -378,14 +378,11 @@ namespace Jupiter.Implementation
                 newGetRequest.BucketName = _bucketName;
                 newGetRequest.Key = path;
                 newGetRequest.Verb = verb;
+                newGetRequest.Protocol = _settings.CurrentValue.AssumeHttpForRedirectUri ? Protocol.HTTP : Protocol.HTTPS;
                 newGetRequest.Expires = DateTime.UtcNow.AddHours(3.0);
 
                 string url = _amazonS3.GetPreSignedURL(newGetRequest);
 
-                if (_settings.CurrentValue.AssumeHttpForRedirectUri)
-                {
-                    url = url.Replace("https://", "http://", StringComparison.InvariantCultureIgnoreCase);
-                }
                 return new Uri(url);
             }
             catch (Exception ex)

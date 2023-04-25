@@ -457,7 +457,7 @@ namespace Jupiter.FunctionalTests.Storage
             using ByteArrayContent requestContent = new ByteArrayContent(payload);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             requestContent.Headers.ContentLength = payload.Length;
-            BlobIdentifier id = BlobIdentifier.FromBundleLocator(new BlobLocator("locator"));
+            BlobIdentifier id = BlobIdentifier.FromBlobLocator(new BlobLocator("locator"));
             HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestBundleNamespaceName}/{id}", UriKind.Relative), requestContent);
 
             result.EnsureSuccessStatusCode();
@@ -474,7 +474,7 @@ namespace Jupiter.FunctionalTests.Storage
             using ByteArrayContent requestContent = new ByteArrayContent(payload);
             requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             requestContent.Headers.ContentLength = payload.Length;
-            BlobIdentifier id = BlobIdentifier.FromBundleLocator(new BlobLocator("locator"));
+            BlobIdentifier id = BlobIdentifier.FromBlobLocator(new BlobLocator("locator"));
             HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/blobs/{TestNamespaceName}/{id}", UriKind.Relative), requestContent);
 
             Assert.AreEqual(HttpStatusCode.InternalServerError, result.StatusCode);

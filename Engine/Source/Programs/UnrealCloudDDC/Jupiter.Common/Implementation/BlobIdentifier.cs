@@ -154,7 +154,7 @@ namespace Jupiter.Implementation
             return new IoHash(HashData);
         }
 
-        public static BlobIdentifier FromBundleLocator(BlobLocator locator)
+        public static BlobIdentifier FromBlobLocator(BlobLocator locator)
         {
             // Hash the locator string rather then the content itself
             return FromBlob(Encoding.UTF8.GetBytes(locator.BlobId.ToString()));

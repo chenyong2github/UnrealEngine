@@ -19,9 +19,11 @@ using Jupiter.Implementation;
 using Jupiter.Implementation.Blob;
 using Jupiter.Implementation.LeaderElection;
 using Jupiter.Common.Implementation;
+using Jupiter.Implementation.Bundles;
 using Jupiter.Implementation.Objects;
 using Jupiter.Implementation.TransactionLog;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -162,6 +164,9 @@ namespace Jupiter
 
             services.AddSingleton(serviceType: typeof(ISecretResolver), typeof(SecretResolver));
             services.AddSingleton(typeof(IAmazonSecretsManager), CreateAWSSecretsManager);
+
+            services.AddSingleton(typeof(IStorageService), typeof(StorageService));
+            services.AddSingleton(typeof(IMemoryCache), typeof(MemoryCache));
 
             services.AddSingleton<LastAccessServiceReferences>();
             services.AddHostedService<LastAccessServiceReferences>(p => p.GetService<LastAccessServiceReferences>()!);
