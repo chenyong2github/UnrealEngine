@@ -108,6 +108,11 @@ void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USk
 
 void UMLDeformerComponent::ReleaseModelInstance()
 {
+	if (!DeformerAsset)
+	{
+		return;
+	}
+
 	UMLDeformerModel* Model = DeformerAsset->GetModel();
 	if (Model)
 	{
