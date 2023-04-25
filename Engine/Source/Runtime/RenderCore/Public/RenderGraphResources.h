@@ -875,21 +875,6 @@ private:
 /** Descriptor for render graph tracked Buffer. */
 struct FRDGBufferDesc
 {
-	enum class UE_DEPRECATED(5.1, "EUnderlying type has been deprecated.") EUnderlyingType
-	{
-		VertexBuffer,
-		StructuredBuffer,
-		AccelerationStructure
-	};
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FRDGBufferDesc() = default;
-	FRDGBufferDesc(FRDGBufferDesc&&) = default;
-	FRDGBufferDesc(const FRDGBufferDesc&) = default;
-	FRDGBufferDesc& operator=(FRDGBufferDesc&&) = default;
-	FRDGBufferDesc& operator=(const FRDGBufferDesc&) = default;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	static FRDGBufferDesc CreateIndirectDesc(uint32 BytesPerElement, uint32 NumElements)
 	{
 		FRDGBufferDesc Desc;
@@ -1027,12 +1012,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return BytesPerElement * NumElements;
 	}
 
-	UE_DEPRECATED(5.1, "GetTotalNumBytes is deprecated, use GetSize instead.")
-	uint32 GetTotalNumBytes() const
-	{
-		return BytesPerElement * NumElements;
-	}
-
 	friend uint32 GetTypeHash(const FRDGBufferDesc& Desc)
 	{
 		uint32 Hash = GetTypeHash(Desc.BytesPerElement);
@@ -1064,23 +1043,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** Bitfields describing the uses of that buffer. */
 	EBufferUsageFlags Usage = EBufferUsageFlags::None;
 
-	/** The underlying RHI type to use. */
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.1, "EUnderlyingType has been deprecated. Use explicit EBufferUsageFlags instead.")
-	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	/** Meta data of the layout of the buffer for debugging purposes. */
 	const FShaderParametersMetadata* Metadata = nullptr;
 };
-
-UE_DEPRECATED(5.1, "FRDGBuffer::EUnderylingType has been deprecated. Use EBufferCreateFlags instead.")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-inline const TCHAR* GetBufferUnderlyingTypeName(FRDGBufferDesc::EUnderlyingType)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-{
-	return TEXT("");
-}
 
 struct FRDGBufferSRVDesc final
 	: public FRHIBufferSRVCreateInfo

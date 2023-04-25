@@ -18,13 +18,6 @@ public:
 	/** Call once per frame to trim elements from the pool. */
 	void TickPoolElements();
 
-	/** Allocate a buffer from a given descriptor. */
-	UE_DEPRECATED(5.1, "Use FindFreeBuffer without a command list instead.")
-	TRefCountPtr<FRDGPooledBuffer> FindFreeBuffer(FRHICommandList& RHICmdList, const FRDGBufferDesc& Desc, const TCHAR* InDebugName)
-	{
-		return FindFreeBuffer(Desc, InDebugName);
-	}
-
 	TRefCountPtr<FRDGPooledBuffer> FindFreeBuffer(const FRDGBufferDesc& Desc, const TCHAR* InDebugName, ERDGPooledBufferAlignment Alignment = ERDGPooledBufferAlignment::Page);
 
 	void DumpMemoryUsage(FOutputDevice& OutputDevice);

@@ -115,9 +115,6 @@ class FRHIGPUTextureReadback final : public FRHIGPUMemoryReadback
 public:
 	RHI_API FRHIGPUTextureReadback(FName RequestName);
 
-	UE_DEPRECATED(5.1, "EnqueueCopyRDG is deprecated. Use EnqueueCopy instead.")
-	RHI_API void EnqueueCopyRDG(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect());
-
 	RHI_API void EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect()) override;
 
 	UE_DEPRECATED(5.0, "Use FRHIGPUTextureReadback::Lock( int32& OutRowPitchInPixels) instead.")

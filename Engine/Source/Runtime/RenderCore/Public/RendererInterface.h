@@ -494,14 +494,6 @@ struct IPooledRenderTarget
 	 **/
 	virtual uint32 ComputeMemorySize() const = 0;
 
-	/** Get the low level internals (texture/surface) */
-	UE_DEPRECATED(5.1, "GetRenderTargetItem is deprecated. Use GetRHI() and GetUAV() instead.")
-	inline FSceneRenderTargetItem& GetRenderTargetItem() { return RenderTargetItem; }
-
-	/** Get the low level internals (texture/surface) */
-	UE_DEPRECATED(5.1, "GetRenderTargetItem is deprecated. Use GetRHI() and GetUAV() instead.")
-	inline const FSceneRenderTargetItem& GetRenderTargetItem() const { return RenderTargetItem; }
-
 	/** Returns if the render target is tracked by a pool. */
 	virtual bool IsTracked() const = 0;
 

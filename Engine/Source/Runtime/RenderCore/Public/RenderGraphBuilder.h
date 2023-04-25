@@ -400,57 +400,6 @@ public:
 	}
 #endif
 
-	//////////////////////////////////////////////////////////////////////////
-	// Deprecated Functions
-
-	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
-	inline void FinalizeResourceAccess(FRDGTextureAccessArray&& InTextures, FRDGBufferAccessArray&& InBuffers)
-	{
-		for (FRDGTextureAccess Texture : InTextures)
-		{
-			UseExternalAccessMode(Texture.GetTexture(), Texture.GetAccess());
-		}
-
-		for (FRDGBufferAccess Buffer : InBuffers)
-		{
-			UseExternalAccessMode(Buffer.GetBuffer(), Buffer.GetAccess());
-		}
-	}
-
-	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
-	inline void FinalizeTextureAccess(FRDGTextureAccessArray&& InTextures)
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FinalizeResourceAccess(Forward<FRDGTextureAccessArray&&>(InTextures), {});
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
-	inline void FinalizeBufferAccess(FRDGBufferAccessArray&& InBuffers)
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FinalizeResourceAccess({}, Forward<FRDGBufferAccessArray&&>(InBuffers));
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
-	inline void FinalizeTextureAccess(FRDGTextureRef Texture, ERHIAccess Access)
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FinalizeResourceAccess({ FRDGTextureAccess(Texture, Access) }, {});
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
-	inline void FinalizeBufferAccess(FRDGBufferRef Buffer, ERHIAccess Access)
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FinalizeResourceAccess({}, { FRDGBufferAccess(Buffer, Access) });
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-
 private:
 	static const char* const kDefaultUnaccountedCSVStat;
 

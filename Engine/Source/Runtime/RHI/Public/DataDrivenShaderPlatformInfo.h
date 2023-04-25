@@ -289,13 +289,6 @@ public:
 		return Infos[Platform].bSupportsInstancedStereo;
 	}
 
-	UE_DEPRECATED(5.1, "bSupportsMultiView shader platform property has been deprecated. Use SupportsMultiViewport")
-		static FORCEINLINE_DEBUGGABLE const bool GetSupportsMultiView(const FStaticShaderPlatform Platform)
-	{
-		check(IsValid(Platform));
-		return ERHIFeatureSupport(Infos[Platform].SupportsMultiViewport) != ERHIFeatureSupport::Unsupported;
-	}
-
 	static FORCEINLINE_DEBUGGABLE const ERHIFeatureSupport GetSupportsMultiViewport(const FStaticShaderPlatform Platform)
 	{
 		check(IsValid(Platform));
@@ -384,13 +377,6 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].bSupportsRayTracing && Infos[Platform].bSupportsHighEndRayTracingReflections;
-	}
-
-	UE_DEPRECATED(5.1, "This function is no longer in use and will be removed.")
-		static FORCEINLINE_DEBUGGABLE const bool GetSupportsGPUSkinCache(const FStaticShaderPlatform Platform)
-	{
-		check(IsValid(Platform));
-		return true;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsComputeFramework(const FStaticShaderPlatform Platform)
@@ -913,12 +899,6 @@ inline bool RHISupportsSeparateMSAAAndResolveTextures(const FStaticShaderPlatfor
 	return !IsMetalMobilePlatform(Platform);
 }
 
-UE_DEPRECATED(5.1, "This function is no longer in use and will be removed.")
-inline bool RHISupportsComputeShaders(const FStaticShaderPlatform Platform)
-{
-	return true;
-}
-
 inline bool RHISupportsGeometryShaders(const FStaticShaderPlatform Platform)
 {
 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5)
@@ -964,14 +944,6 @@ inline bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)
 inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
-}
-
-UE_DEPRECATED(5.1, "RHISupportsMultiView has been deprecated. Use RHISupportsMultiViewport to avoid confusion.")
-inline bool RHISupportsMultiView(const FStaticShaderPlatform Platform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return FDataDrivenShaderPlatformInfo::GetSupportsMultiView(Platform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /**

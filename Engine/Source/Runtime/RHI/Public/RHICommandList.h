@@ -2388,35 +2388,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	/* LEGACY API */
-
-	UE_DEPRECATED(5.1, "TransitionResource is deprecated. Use Transition instead.")
-	FORCEINLINE_DEBUGGABLE void TransitionResource(ERHIAccess TransitionType, const FTextureRHIRef& InTexture)
-	{
-		Transition(FRHITransitionInfo(InTexture.GetReference(), ERHIAccess::Unknown, TransitionType));
-	}
-
-	UE_DEPRECATED(5.1, "TransitionResource is deprecated. Use Transition instead.")
-	FORCEINLINE_DEBUGGABLE void TransitionResource(ERHIAccess TransitionType, FRHITexture* InTexture)
-	{
-		Transition(FRHITransitionInfo(InTexture, ERHIAccess::Unknown, TransitionType));
-	}
-
-	UE_DEPRECATED(5.1, "TransitionResources is deprecated. Use Transition instead.")
-	inline void TransitionResources(ERHIAccess TransitionType, FRHITexture* const* InTextures, int32 NumTextures)
-	{
-		// Stack allocate the transition descriptors. These will get memcpy()ed onto the RHI command list if required.
-		TArray<FRHITransitionInfo, FConcurrentLinearArrayAllocator> Infos;
-		Infos.Reserve(NumTextures);
-
-		for (int32 Index = 0; Index < NumTextures; ++Index)
-		{
-			Infos.Add(FRHITransitionInfo(InTextures[Index], ERHIAccess::Unknown, TransitionType));
-		}
-
-		Transition(Infos);
-	}
-
 	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap()
 	{
 		if (Bypass())
@@ -3259,33 +3230,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		ALLOC_COMMAND(FRHICommandPollOcclusionQueries)();
 	}
-
-	/* LEGACY API */
-
-	using FRHIComputeCommandList::TransitionResource;
-	using FRHIComputeCommandList::TransitionResources;
-
-	UE_DEPRECATED(5.1, "TransitionResource has been deprecated. Use Transition instead.")
-	FORCEINLINE_DEBUGGABLE void TransitionResource(FExclusiveDepthStencil DepthStencilMode, FRHITexture* DepthTexture)
-	{
-		check(DepthStencilMode.IsUsingDepth() || DepthStencilMode.IsUsingStencil());
-
-		TArray<FRHITransitionInfo, TInlineAllocator<2>> Infos;
-
-		DepthStencilMode.EnumerateSubresources([&](ERHIAccess NewAccess, uint32 PlaneSlice)
-		{
-			FRHITransitionInfo Info;
-			Info.Type = FRHITransitionInfo::EType::Texture;
-			Info.Texture = DepthTexture;
-			Info.AccessAfter = NewAccess;
-			Info.PlaneSlice = PlaneSlice;
-			Infos.Emplace(Info);
-		});
-
-		FRHIComputeCommandList::Transition(MakeArrayView(Infos));
-	}
-
-	/* LEGACY API */
 
 	FORCEINLINE_DEBUGGABLE void BeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* Name)
 	{

@@ -132,11 +132,6 @@ FRHIGPUTextureReadback::FRHIGPUTextureReadback(FName RequestName) : FRHIGPUMemor
 {
 }
 
-void FRHIGPUTextureReadback::EnqueueCopyRDG(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
-{
-	EnqueueCopy(RHICmdList, SourceTexture, Rect);
-}
-
 void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
 {
 	Fence->Clear();

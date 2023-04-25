@@ -677,9 +677,6 @@ struct RENDERCORE_API FComputeShaderUtils
 	 *  Commonly use Divisor <=> number of threads per group.
 	 */
 	static FRDGBufferRef AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGBufferRef& InputCountBuffer, const TCHAR* OutputBufferName, uint32 Divisor, uint32 InputCountOffset = 0U, uint32 Multiplier = 1U);
-
-	UE_DEPRECATED(5.1, "This function now requires a ERHIFeatureLevel argument. You can obtain the correct Feature Level from a Scene or View.")
-	static FRDGBufferRef AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, FRDGBufferRef& InputCountBuffer, const TCHAR* OutputBufferName, uint32 Divisor, uint32 InputCountOffset = 0U, uint32 Multiplier = 1U);
 };
 
 /** Adds a render graph pass to copy a region from one texture to another. Uses RHICopyTexture under the hood.
@@ -770,12 +767,6 @@ RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef
 
 /** Clears parts of UAV specified by an array of screen rects. If no rects are specific, then it falls back to a standard UAV clear. */
 RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4], FRDGBufferSRVRef RectMinMaxBufferSRV, uint32 NumRects);
-
-UE_DEPRECATED(5.1, "AddClearUAVPass needs a Feature Level. Do *NOT* use GMaxRHIFeatureLevel, use the Feature Level from a Scene or View.")
-inline void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4], FRDGBufferSRVRef RectMinMaxBufferSRV, uint32 NumRects)
-{
-	AddClearUAVPass(GraphBuilder, GMaxRHIFeatureLevel, TextureUAV, ClearValues, RectMinMaxBufferSRV, NumRects);
-}
 
 /** Adds a render graph pass to clear a render target to its clear value (single mip, single slice) */
 RENDERCORE_API void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture);
@@ -1130,30 +1121,6 @@ public:
 		return Resources.IsEmpty();
 	}
 
-	UE_DEPRECATED(5.1, "Reserve with two parameters is deprecated.")
-	void Reserve(uint32 TextureCount, uint32 BufferCount)
-	{
-		Resources.Reserve(TextureCount + BufferCount);
-	}
-
-	UE_DEPRECATED(5.1, "Finalize is deprecated. Call Submit instead.")
-	void Finalize(FRDGBuilder& GraphBuilder)
-	{
-		Submit(GraphBuilder);
-	}
-
-	UE_DEPRECATED(5.1, "AddTexture is deprecated. Call Add instead.")
-	void AddTexture(FRDGTextureRef Texture, ERHIAccess Access)
-	{
-		Add(Texture, Access);
-	}
-
-	UE_DEPRECATED(5.1, "AddBuffer is deprecated. Call Add instead.")
-	void AddBuffer(FRDGBufferRef Buffer, ERHIAccess Access)
-	{
-		Add(Buffer, Access);
-	}
-
 private:
 	void Validate(FRDGViewableResource* Resource, ERHIAccess Access, ERHIPipeline Pipelines)
 	{
@@ -1178,9 +1145,6 @@ private:
 
 	TArray<FResource, FRDGArrayAllocator> Resources;
 };
-
-UE_DEPRECATED(5.1, "FRDGResourceAccessFinalizer is deprecated. Use FRDGExternalAccessQueue instead.")
-typedef FRDGExternalAccessQueue FRDGResourceAccessFinalizer;
 
 inline const TRefCountPtr<IPooledRenderTarget>& ConvertToExternalAccessTexture(
 	FRDGBuilder& GraphBuilder,
@@ -1263,52 +1227,3 @@ RENDERCORE_API bool AllocatePooledTexture(
 	const TCHAR* Name);
 
 RENDERCORE_API TRefCountPtr<IPooledRenderTarget> AllocatePooledTexture(const FRDGTextureDesc& Desc, const TCHAR* Name);
-
-//////////////////////////////////////////////////////////////////////////
-//! Deprecated Functions
-
-UE_DEPRECATED(5.1, "GetPooledFreeBuffer is deprecated. Use AllocatePooledBuffer instead.")
-inline bool GetPooledFreeBuffer(FRHICommandList& RHICmdList, const FRDGBufferDesc& Desc, TRefCountPtr<FRDGPooledBuffer>& Out, const TCHAR* Name)
-{
-	return AllocatePooledBuffer(Desc, Out, Name);
-}
-
-UE_DEPRECATED(5.1, "ConvertToFinalizedExternalTexture has been refactored to ConvertToExternalAccessTexture.")
-inline const TRefCountPtr<IPooledRenderTarget>& ConvertToFinalizedExternalTexture(
-	FRDGBuilder& GraphBuilder,
-	FRDGExternalAccessQueue& ExternalAccessQueue,
-	FRDGTextureRef Texture,
-	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
-{
-	return ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, Texture, AccessFinal);
-}
-
-UE_DEPRECATED(5.1, "ConvertToFinalizedExternalBuffer has been refactored to ConvertToExternalAccessBuffer.")
-inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToFinalizedExternalBuffer(
-	FRDGBuilder& GraphBuilder,
-	FRDGExternalAccessQueue& ExternalAccessQueue,
-	FRDGBufferRef Buffer,
-	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
-{
-	return ConvertToExternalAccessBuffer(GraphBuilder, ExternalAccessQueue, Buffer, AccessFinal);
-}
-
-UE_DEPRECATED(5.1, "ConvertToFinalizedExternalTexture has been refactored to ConvertToExternalAccessTexture.")
-inline const TRefCountPtr<IPooledRenderTarget>& ConvertToFinalizedExternalTexture(
-	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef Texture,
-	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
-{
-	return ConvertToExternalAccessTexture(GraphBuilder, Texture, AccessFinal);
-}
-
-UE_DEPRECATED(5.1, "ConvertToFinalizedExternalBuffer has been refactored to ConvertToExternalAccessBuffer.")
-inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToFinalizedExternalBuffer(
-	FRDGBuilder& GraphBuilder,
-	FRDGBufferRef Buffer,
-	ERHIAccess AccessFinal)
-{
-	return ConvertToExternalAccessBuffer(GraphBuilder, Buffer, AccessFinal);
-}
-
-//////////////////////////////////////////////////////////////////////////

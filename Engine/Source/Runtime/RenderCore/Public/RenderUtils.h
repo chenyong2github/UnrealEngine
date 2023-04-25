@@ -192,26 +192,6 @@ RENDERCORE_API void CalcMipMapExtent3D( uint32 TextureSizeX, uint32 TextureSizeY
 RENDERCORE_API FIntPoint CalcMipMapExtent( uint32 TextureSizeX, uint32 TextureSizeY, EPixelFormat Format, uint32 MipIndex );
 
 /**
- * Calculates the width of a mip, in blocks.
- *
- * @param TextureSizeX		Number of horizontal texels (for the base mip-level)
- * @param Format			Texture format
- * @param MipIndex			The index of the mip-map to compute the size of.
- */
-UE_DEPRECATED(5.1, "See GPixelFormats in PixelFormat.h for analogous functions")
-RENDERCORE_API SIZE_T CalcTextureMipWidthInBlocks(uint32 TextureSizeX, EPixelFormat Format, uint32 MipIndex);
-
-/**
- * Calculates the height of a mip, in blocks.
- *
- * @param TextureSizeY		Number of vertical texels (for the base mip-level)
- * @param Format			Texture format
- * @param MipIndex			The index of the mip-map to compute the size of.
- */
-UE_DEPRECATED(5.1, "See GPixelFormats in PixelFormat.h for analogous functions")
-RENDERCORE_API SIZE_T CalcTextureMipHeightInBlocks(uint32 TextureSizeY, EPixelFormat Format, uint32 MipIndex);
-
-/**
  * Calculates the amount of memory used for a single mip-map of a texture.
  * 
  * Use GPixelFormats[Format].Get2DTextureMipSizeInBytes() instead.

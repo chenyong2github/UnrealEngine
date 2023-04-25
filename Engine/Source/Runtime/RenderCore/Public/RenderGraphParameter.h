@@ -73,12 +73,6 @@ public:
 		return MemberType == UBMT_RDG_UNIFORM_BUFFER;
 	}
 
-	UE_DEPRECATED(5.1, "Use IsViewableResource instead.")
-	bool IsParentResource() const
-	{
-		return IsTexture() || IsBuffer();
-	}
-
 	bool IsViewableResource() const
 	{
 		return IsTexture() || IsBuffer();
@@ -105,14 +99,6 @@ public:
 		check(IsUniformBuffer());
 		return *GetAs<FRDGUniformBufferBinding>();
 	}
-
-	UE_DEPRECATED(5.1, "Use IsViewableResource instead.")
-	FRDGViewableResource* GetAsParentResource() const
-	{
-		check(IsViewableResource());
-		return *GetAs<FRDGViewableResource*>();
-	}
-
 
 	FRDGViewableResource* GetAsViewableResource() const
 	{

@@ -259,10 +259,8 @@ TRefCountPtr<FRDGTransientRenderTarget> FRDGTransientResourceAllocator::Allocate
 	RenderTarget->Desc = Translate(Texture->CreateInfo);
 	RenderTarget->Desc.DebugName = Texture->GetName();
 	RenderTarget->LifetimeState = ERDGTransientResourceLifetimeState::Allocated;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	RenderTarget->GetRenderTargetItem().TargetableTexture = Texture->GetRHI();
-	RenderTarget->GetRenderTargetItem().ShaderResourceTexture = Texture->GetRHI();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	RenderTarget->RenderTargetItem.TargetableTexture = Texture->GetRHI();
+	RenderTarget->RenderTargetItem.ShaderResourceTexture = Texture->GetRHI();
 	return RenderTarget;
 }
 

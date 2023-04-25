@@ -942,12 +942,6 @@ FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& Gra
 	return IndirectArgsBuffer;
 }
 
-// Deprecated
-FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, FRDGBufferRef& InputCountBuffer, const TCHAR* OutputBufferName, uint32 Divisor, uint32 InputCountOffset, uint32 Multiplier)
-{
-	return AddIndirectArgsSetupCsPass1D(GraphBuilder, GMaxRHIFeatureLevel, InputCountBuffer, OutputBufferName, Divisor, InputCountOffset, Multiplier);
-}
-
 FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,
 	const TCHAR* Name,
