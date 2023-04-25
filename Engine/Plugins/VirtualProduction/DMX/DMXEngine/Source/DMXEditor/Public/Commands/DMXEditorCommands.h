@@ -35,4 +35,9 @@ public:
 	TSharedPtr<FUICommandInfo> OpenPatchTool;
 	TSharedPtr<FUICommandInfo> ToggleReceiveDMX;
 	TSharedPtr<FUICommandInfo> ToggleSendDMX;
+
+	// Auto assign
+	TSharedPtr<FUICommandInfo> AutoAssignToFirstUniverseInSelection;
+	TSharedPtr<FUICommandInfo> AutoAssignToFirstReachableUniverse;
+	TSharedPtr<FUICommandInfo> AutoAssignAfterLastAddressInLibrary;
 };

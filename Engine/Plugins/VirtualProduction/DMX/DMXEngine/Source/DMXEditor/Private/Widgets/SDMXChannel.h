@@ -28,6 +28,8 @@ public:
 		: _ChannelID(0)
 		, _Value(0)
 		, _bShowChannelIDBottom(false)
+		, _ChannelIDTextColor(FLinearColor::White.CopyWithNewOpacity(.6f))
+		, _ValueTextColor(FLinearColor::White.CopyWithNewOpacity(.9f))
 		{}
 
 		/** The channel ID this widget represents */
@@ -36,16 +38,20 @@ public:
 		/** The current value from the channel */
 		SLATE_ARGUMENT(uint8, Value)
 
-
 		/** If true, draws the channel number below the value */
 		SLATE_ARGUMENT(bool, bShowChannelIDBottom)
+
+		/** Color of the Channel ID Text */
+		SLATE_ATTRIBUTE(FSlateColor, ChannelIDTextColor)
+
+		/** Color of the Value Text */
+		SLATE_ATTRIBUTE(FSlateColor, ValueTextColor)
 
 	SLATE_END_ARGS()
 
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
-public:
 	/** Sets the channel ID this widget represents */
 	void SetChannelID(uint32 NewChannelID);
 
@@ -91,14 +97,6 @@ private:
 
 	/** Used to stop the animation timer once the animation is completed */
 	TWeakPtr<FActiveTimerHandle> AnimationTimerHandle;
-
-	// ~ VISUAL STYLE CONSTANTS
-
-	/** Color of the ID label */
-	static const FLinearColor IDColor;
-
-	/** Color of the Value label */
-	static const FLinearColor ValueColor;
 
 private:
 	/** Returns the channel ID in Text form to display it in the UI */

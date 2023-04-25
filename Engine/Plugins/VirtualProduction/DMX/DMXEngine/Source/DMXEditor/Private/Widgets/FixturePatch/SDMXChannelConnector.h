@@ -29,7 +29,6 @@ public:
 		, _OnDragEnterChannel()
 		, _OnDragLeaveChannel()
 		, _OnDropOntoChannel()
-		, _DMXEditor()
 	{}
 		/** The channel ID this widget stands for */
 		SLATE_ARGUMENT(int32, ChannelID)
@@ -39,6 +38,12 @@ public:
 
 		/** The value of the channel */
 		SLATE_ARGUMENT(uint8, Value)
+
+		/** Called when the widget is hovered */
+		SLATE_EVENT(FSimpleDelegate, OnHovered)
+
+		/** Called when the widget is unhovered */
+		SLATE_EVENT(FSimpleDelegate, OnUnhovered)
 
 		/** Called when Mouse Button was pressed on the Channel */
 		SLATE_EVENT(FOnMouseEventWithReply, OnMouseButtonDownOnChannel)
@@ -58,12 +63,16 @@ public:
 		/** Called when dropped onto the Channel */
 		SLATE_EVENT(FOnDragEventWithReply, OnDropOntoChannel)
 
-		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
+		/** Color of the Channel ID Text */
+		SLATE_ATTRIBUTE(FSlateColor, ChannelIDTextColor)
+
+		/** Color of the Value Text */
+		SLATE_ATTRIBUTE(FSlateColor, ValueTextColor)
 
 	SLATE_END_ARGS()
 
 	/** Constructs this widget */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TWeakPtr<FDMXEditor> InWeakDMXEditor);
 
 	/** Returns the ChannelID of this connector */
 	int32 GetChannelID() const { return ChannelID; }
@@ -79,6 +88,8 @@ public:
 
 protected:
 	// Begin SWidget interface	
+	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent) override;
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -100,9 +111,11 @@ private:
 
 	int32 UniverseID;
 
-	TWeakPtr<FDMXEditor> DMXEditorPtr;
+	TWeakPtr<FDMXEditor> WeakDMXEditor;
 
 	// Slate Arguments
+	FSimpleDelegate OnHovered;
+	FSimpleDelegate OnUnhovered;
 	FOnMouseEventWithReply OnMouseButtonDownOnChannel;
 	FOnMouseEventWithReply OnMouseButtonUpOnChannel;
 	FOnMouseEventWithReply OnDragDetectedOnChannel;

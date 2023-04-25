@@ -5,6 +5,7 @@
 #include "DMXEditor.h"
 #include "DMXEditorSettings.h"
 #include "DMXEditorUtils.h"
+#include "DMXFixturePatchAutoAssignUtility.h"
 #include "DMXFixturePatchSharedData.h"
 #include "DMXRuntimeUtils.h"
 #include "Commands/DMXEditorCommands.h"
@@ -556,9 +557,9 @@ private:
 	TArray<TSharedPtr<FDMXMVRFixtureListItem>> Items;
 };
 
-
-const FName FDMXMVRFixtureListCollumnIDs::Status = "Status";
+const FName FDMXMVRFixtureListCollumnIDs::EditorColor = "EditorColor";
 const FName FDMXMVRFixtureListCollumnIDs::FixturePatchName = "FixturePatchName";
+const FName FDMXMVRFixtureListCollumnIDs::Status = "Status";
 const FName FDMXMVRFixtureListCollumnIDs::FixtureID = "FixtureID";
 const FName FDMXMVRFixtureListCollumnIDs::FixtureType = "FixtureType";
 const FName FDMXMVRFixtureListCollumnIDs::Mode = "Mode";
@@ -940,40 +941,53 @@ void SDMXMVRFixtureList::AdoptSelectionFromFixturePatchSharedData()
 	}
 }
 
-void SDMXMVRFixtureList::AutoAssignFixturePatches()
+void SDMXMVRFixtureList::AutoAssignFixturePatches(EDMXFixturePatchAutoAssignMode AutoAssignMode)
 {
-	if (FixturePatchSharedData.IsValid())
+	TArray<UDMXEntityFixturePatch*> FixturePatchesToAutoAssign;
+	const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
+	for (TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : SelectedFixturePatches)
 	{
-		TArray<UDMXEntityFixturePatch*> FixturePatchesToAutoAssign;
-		const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
-		for (TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : SelectedFixturePatches)
+		if (FixturePatch.IsValid())
 		{
-			if (FixturePatch.IsValid())
-			{
-				FixturePatchesToAutoAssign.Add(FixturePatch.Get());
-			}
+			FixturePatchesToAutoAssign.Add(FixturePatch.Get());
 		}
-
-		if (FixturePatchesToAutoAssign.IsEmpty())
-		{
-			return;
-		}
-
-		constexpr bool bAllowDecrementUniverse = false;
-		constexpr bool bAllowDecrementChannels = true;
-		FDMXEditorUtils::AutoAssignedChannels(bAllowDecrementUniverse, bAllowDecrementChannels, FixturePatchesToAutoAssign);
-		FixturePatchSharedData->SelectUniverse(FixturePatchesToAutoAssign[0]->GetUniverseID());
-
-		RequestListRefresh();
 	}
+
+	if (FixturePatchesToAutoAssign.IsEmpty())
+	{
+		return;
+	}
+
+	FDMXFixturePatchAutoAssignUtility::AutoAssign(FixturePatchesToAutoAssign, AutoAssignMode);
+	FixturePatchSharedData->SelectUniverse(FixturePatchesToAutoAssign[0]->GetUniverseID());
+
+	RequestListRefresh();
+}
+
+bool SDMXMVRFixtureList::DoesDMXLibraryHaveReachableUniverses() const
+{
+	UDMXLibrary* DMXLibrary = WeakDMXEditor.IsValid() ? WeakDMXEditor.Pin()->GetDMXLibrary() : nullptr;
+	if (DMXLibrary)
+	{
+		return !DMXLibrary->GetInputPorts().IsEmpty() && !DMXLibrary->GetOutputPorts().IsEmpty();
+	}
+	return false;
 }
 
 TSharedRef<SHeaderRow> SDMXMVRFixtureList::GenerateHeaderRow()
 {
 	const float StatusColumnWidth = FMath::Max(FAppStyle::GetBrush("Icons.Warning")->GetImageSize().X + 6.f, FAppStyle::GetBrush("Icons.Error")->GetImageSize().X + 6.f);
+	const float EditorColorColumnWidth = StatusColumnWidth;
 
 	HeaderRow = SNew(SHeaderRow);
 	SHeaderRow::FColumn::FArguments ColumnArgs;
+
+	HeaderRow->AddColumn(
+		SHeaderRow::FColumn::FArguments()
+		.ColumnId(FDMXMVRFixtureListCollumnIDs::EditorColor)
+		.DefaultLabel(LOCTEXT("EditorColorColumnLabel", ""))
+		.FixedWidth(EditorColorColumnWidth)
+	);
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
@@ -1215,17 +1229,14 @@ TSharedPtr<SWidget> SDMXMVRFixtureList::OnContextMenuOpening()
 	FMenuBuilder MenuBuilder(bCloseWindowAfterMenuSelection, CommandList);
 
 	// Auto Assign Section
-	MenuBuilder.BeginSection("AutoAssignSection", LOCTEXT("AutoAssignSection", "Auto-Assign"));
+	if (!FixturePatchSharedData->GetSelectedFixturePatches().IsEmpty())
 	{
-		// Auto Assign Entry
-		const FUIAction Action(FExecuteAction::CreateSP(this, &SDMXMVRFixtureList::AutoAssignFixturePatches));
-
-		const FText AutoAssignText = LOCTEXT("AutoAssignContextMenuEntry", "Auto-Assign Selection");
-		const TSharedRef<SWidget> Widget =
-			SNew(STextBlock)
-			.Text(AutoAssignText);
-
-		MenuBuilder.AddMenuEntry(Action, Widget);
+		MenuBuilder.BeginSection("AutoAssignSection", LOCTEXT("AutoAssignSection", "Auto-Assign"));
+		{
+			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignToFirstUniverseInSelection);
+			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignToFirstReachableUniverse);
+			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignAfterLastAddressInLibrary);
+		}
 		MenuBuilder.EndSection();
 	}
 
@@ -1250,7 +1261,6 @@ void SDMXMVRFixtureList::RegisterCommands()
 		return;
 	}
 
-	// listen to common editor shortcuts for copy/paste etc
 	CommandList = MakeShared<FUICommandList>();
 	CommandList->MapAction(FGenericCommands::Get().Cut, 
 		FUIAction(
@@ -1282,6 +1292,24 @@ void SDMXMVRFixtureList::RegisterCommands()
 			FCanExecuteAction::CreateSP(this, &SDMXMVRFixtureList::CanDeleteItems),
 			EUIActionRepeatMode::RepeatEnabled
 		)
+	);
+	CommandList->MapAction
+	(
+		FDMXEditorCommands::Get().AutoAssignToFirstUniverseInSelection,
+		FExecuteAction::CreateSP(this, &SDMXMVRFixtureList::AutoAssignFixturePatches, EDMXFixturePatchAutoAssignMode::FirstUniverseInSelection)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXEditorCommands::Get().AutoAssignToFirstReachableUniverse,
+		FExecuteAction::CreateSP(this, &SDMXMVRFixtureList::AutoAssignFixturePatches, EDMXFixturePatchAutoAssignMode::FirstReachableUniverse),
+		FCanExecuteAction::CreateSP(this, &SDMXMVRFixtureList::DoesDMXLibraryHaveReachableUniverses)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXEditorCommands::Get().AutoAssignAfterLastAddressInLibrary,
+		FExecuteAction::CreateSP(this, &SDMXMVRFixtureList::AutoAssignFixturePatches, EDMXFixturePatchAutoAssignMode::LastAddressInLibrary)
 	);
 }
 

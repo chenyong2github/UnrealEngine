@@ -2,27 +2,25 @@
 
 #include "Widgets/SDMXChannel.h"
 
-#include "Interfaces/IDMXProtocol.h"
 #include "DMXEditorLog.h"
 #include "DMXProtocolConstants.h"
 #include "DMXEditorStyle.h"
 
+#include "Brushes/SlateColorBrush.h"
+#include "Engine/Font.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Images/SImage.h"
-#include "Brushes/SlateColorBrush.h"
+#include "Widgets/Layout/SBox.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Engine/Font.h"
+
 
 #define LOCTEXT_NAMESPACE "SDMXChannel"
 
 const float SDMXChannel::NewValueChangedAnimDuration = 0.8f;
-
-const FLinearColor SDMXChannel::IDColor = FLinearColor(1,1,1, 0.6f);
-const FLinearColor SDMXChannel::ValueColor = FLinearColor(1,1,1, 0.9f);
 
 void SDMXChannel::Construct(const FArguments& InArgs)
 {
@@ -33,24 +31,24 @@ void SDMXChannel::Construct(const FArguments& InArgs)
 	Value = InArgs._Value;
 	NewValueFreshness = 0.0f;
 
-	const float PaddingInfo = 3.0f;
+	constexpr float PaddingInfo = 3.0f;
 
 
 	ChannelIDTextBlock =
 		SNew(STextBlock)
 		.Text(GetChannelIDText())
-		.ColorAndOpacity(FSlateColor(IDColor))
+		.ColorAndOpacity(InArgs._ChannelIDTextColor)
 		.MinDesiredWidth(24.0f)
 		.Justification(ETextJustify::Center)
-		.Font(FDMXEditorStyle::Get().GetFontStyle("DMXEditor.Font.InputChannelID"));
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 
 	ChannelValueTextBlock =
 		SNew(STextBlock)
 		.Text(GetValueText())
-		.ColorAndOpacity(FSlateColor(ValueColor))
+		.ColorAndOpacity(InArgs._ValueTextColor)
 		.MinDesiredWidth(24.0f)
 		.Justification(ETextJustify::Center)
-		.Font(FDMXEditorStyle::Get().GetFontStyle("DMXEditor.Font.InputChannelValue"));
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 
 	// Arrange widgets depending on bInvertChannelDisplay argument
 	TSharedPtr<STextBlock> UpperWidget;
@@ -69,52 +67,47 @@ void SDMXChannel::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		// root
-		SNew(SOverlay)
-
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
+		SNew(SBox)
+		.WidthOverride(36.f)
+		.HeightOverride(36.f)
 		[
+			SNew(SOverlay)
+
 			// Background color image
-			SAssignNew(BarColorBorder, SImage)
-			.Image(FDMXEditorStyle::Get().GetBrush(TEXT("DMXEditor.WhiteBrush")))
-			.ColorAndOpacity(GetBackgroundColor())
-		]
-
-		// Info
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		.Padding(PaddingInfo)
-		[
-			SNew(SVerticalBox)
-
-			// ID Label
-			+ SVerticalBox::Slot()
-			.FillHeight(0.5f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
-			[
-				UpperWidget.ToSharedRef()
-			]
-
-			// Separator
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
 			[
-				SNew(SSeparator)
-				.Orientation(Orient_Horizontal)
+				SAssignNew(BarColorBorder, SImage)
+				.Image(FDMXEditorStyle::Get().GetBrush(TEXT("DMXEditor.WhiteBrush")))
+				.ColorAndOpacity(GetBackgroundColor())
 			]
 
-			// Value Label
-			+ SVerticalBox::Slot()
-			.FillHeight(0.5f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
+			// Info
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.Padding(PaddingInfo)
 			[
-				LowerWidget.ToSharedRef()
+				SNew(SVerticalBox)
+
+				// ID Label
+				+ SVerticalBox::Slot()
+				.FillHeight(0.5f)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					UpperWidget.ToSharedRef()
+				]
+
+				// Value Label
+				+ SVerticalBox::Slot()
+				.FillHeight(0.5f)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					LowerWidget.ToSharedRef()
+				]
 			]
 		]
 	];

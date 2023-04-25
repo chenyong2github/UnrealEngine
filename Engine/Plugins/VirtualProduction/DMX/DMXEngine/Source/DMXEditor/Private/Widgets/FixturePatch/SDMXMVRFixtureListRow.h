@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "Library/DMXEntityReference.h"
-
-#include "CoreMinimal.h"
+#include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 
 enum class EDMXMVRFixtureListEditMode : uint8;
 class UDMXEntityFixturePatch;
+class UDMXEntityFixtureType;
 class FDMXMVRFixtureListItem;
 
 class SInlineEditableTextBlock;
@@ -47,8 +46,14 @@ protected:
 	//~ End SMultiColumnTableRow interface
 
 private:
-	/** Generates the row that displays the Fixture Patch Name */
-	TSharedRef<SWidget> GenerateFixturePatchNameRow();
+	/** Generates the Widget that displays the Editor Color */
+	TSharedRef<SWidget> GenerateEditorColorWidget();
+
+	/** Gets Fixture Patch editor color */
+	FSlateColor GetFixturePatchEditorColor() const;
+
+	/** Generates the Widget that displays the Fixture Patch Name */
+	TSharedRef<SWidget> GenerateFixturePatchNameWidget();
 
 	/** Called when the Fixture Patch Name Border was double-clicked */
 	FReply OnFixturePatchNameBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
@@ -56,11 +61,11 @@ private:
 	/** Called when a Fixture Patch Name was committed */
 	void OnFixturePatchNameCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
 
-	/** Generates the row that displays the Status */
-	TSharedRef<SWidget> GenerateStatusRow();
+	/** Generates the widget that displays the Status */
+	TSharedRef<SWidget> GenerateStatusWidget();
 
-	/** Generates the row that displays the Fixture ID */
-	TSharedRef<SWidget> GenerateFixtureIDRow();
+	/** Generates the Widget that displays the Fixture ID */
+	TSharedRef<SWidget> GenerateFixtureIDWidget();
 
 	/** Called when the Fixture ID Border was double-clicked */
 	FReply OnFixtureIDBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
@@ -68,20 +73,20 @@ private:
 	/** Called when a Fixture ID was committed */
 	void OnFixtureIDCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
 
-	/** Generates the row that displays the Fixture Type */
-	TSharedRef<SWidget> GenerateFixtureTypeRow();
+	/** Generates the Widget that displays the Fixture Type */
+	TSharedRef<SWidget> GenerateFixtureTypeWidget();
 
 	/** Called when a Fixture Type was selected */
 	void OnFixtureTypeSelected(UDMXEntityFixtureType* SelectedFixtureType);
 
-	/** Generates the row that displays the Mode */
-	TSharedRef<SWidget> GenerateModeRow();
+	/** Generates the Widget that displays the Mode */
+	TSharedRef<SWidget> GenerateModeWidget();
 
 	/** Called when a Mode was selected */
 	void OnModeSelected(int32 SelectedModeIndex);
 
-	/** Generates the row that displays the Patch */
-	TSharedRef<SWidget> GeneratePatchRow();
+	/** Generates the Widget that displays the Patch */
+	TSharedRef<SWidget> GeneratePatchWidget();
 
 	/** Called when the Patch Border was double-clicked */
 	FReply OnPatchBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);

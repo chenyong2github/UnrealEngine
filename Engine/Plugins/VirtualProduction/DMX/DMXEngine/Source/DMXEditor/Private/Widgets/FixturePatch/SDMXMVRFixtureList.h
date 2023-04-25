@@ -8,6 +8,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
 
+enum class EDMXFixturePatchAutoAssignMode : uint8;
 class FDMXEditor;
 class FDMXMVRFixtureListItem;
 class FDMXFixturePatchSharedData;
@@ -31,8 +32,9 @@ class STableViewBase;
 /** Collumn IDs in the Fixture Patch List */
 struct FDMXMVRFixtureListCollumnIDs
 {
-	static const FName Status;
+	static const FName EditorColor;
 	static const FName FixturePatchName;
+	static const FName Status;
 	static const FName FixtureID;
 	static const FName FixtureType;
 	static const FName Mode;
@@ -113,7 +115,10 @@ private:
 	void AdoptSelectionFromFixturePatchSharedData();
 
 	/** Auto assigns selected Fixture Patches */
-	void AutoAssignFixturePatches();
+	void AutoAssignFixturePatches(EDMXFixturePatchAutoAssignMode AutoAssignMode);
+
+	/** Returns true if the DMX Library has reachable Universes */
+	bool DoesDMXLibraryHaveReachableUniverses() const;
 
 	/** Sets keyboard focus on this widget */
 	void SetKeyboardFocus();

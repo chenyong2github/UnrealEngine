@@ -9,6 +9,7 @@
 #include "SDMXPatchedUniverse.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
+#include "MVR/Types/DMXMVRFixtureNode.h"
 
 #include "ScopedTransaction.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -22,7 +23,7 @@ class FDMXFixturePatchFragment
 {
 public:
 	/** Creates fragments of a patch spread across a grid */
-	static void CreateFragments(TWeakObjectPtr<UDMXEntityFixturePatch> InFixturePatch, int32 ChannelID, TArray<TSharedPtr<FDMXFixturePatchFragment>>& OutFragments)
+	static void CreateFragments(TWeakObjectPtr<UDMXEntityFixturePatch> InFixturePatch, TArray<TSharedPtr<FDMXFixturePatchFragment>>& OutFragments)
 	{
 		OutFragments.Reset();
 
@@ -72,9 +73,11 @@ public:
 				NewFragment->Row = Row;
 				NewFragment->ColumnSpan = ColumnSpan;
 				NewFragment->bIsConflict = NumConflicts > 0;
-				NewFragment->bIsText = false;
 
 				OutFragments.Add(NewFragment);
+
+				// Link lhs
+				NewFragment->LhsFragment = PrevFragment;
 
 				// Link rhs
 				if (PrevFragment.IsValid())
@@ -88,72 +91,7 @@ public:
 				PrevFragment = NewFragment;
 			} while (ChannelSpan > 0);
 		}
-
-		// Create a text fragment for the first range, from the start to the first increment of conflicts
-		int32 PreviousNumConflicts = TNumericLimits<int32>::Max();
-		int32 TextStartingIndex = INDEX_NONE;
-		int32 TextEndingIndex = INDEX_NONE;
-		for (const TTuple<TRange<int32>, int32>& RangeToNumConflictsPair : RangeToNumConflictsMap)
-		{
-			if (TextStartingIndex == INDEX_NONE)
-			{
-				TextStartingIndex = RangeToNumConflictsPair.Key.GetLowerBoundValue();
-			}
-
-			const int32 NumConflicts = RangeToNumConflictsPair.Value;
-			if (PreviousNumConflicts <= NumConflicts)
-			{
-				break;
-			}
-
-			TextEndingIndex = RangeToNumConflictsPair.Key.GetUpperBoundValue() - 1;
-			PreviousNumConflicts = NumConflicts;
-		}
-
-		TSharedPtr<FDMXFixturePatchFragment> NewTextFragment = MakeShared<FDMXFixturePatchFragment>();
-
-		const int32 Row = TextStartingIndex / FDMXChannelGridSpecs::NumColumns;
-		const int32 Column = TextStartingIndex % FDMXChannelGridSpecs::NumColumns;
-		int32 ChannelSpan = TextEndingIndex + 1 - TextStartingIndex;
-		int32 ColumnSpan = Column + ChannelSpan < FDMXChannelGridSpecs::NumColumns ? ChannelSpan : FDMXChannelGridSpecs::NumColumns - Column;
-
-		NewTextFragment->ChannelIndex = TextStartingIndex;
-		NewTextFragment->Column = Column;
-		NewTextFragment->Row = Row;
-		NewTextFragment->ColumnSpan = ColumnSpan;
-		NewTextFragment->bIsConflict = false;
-		NewTextFragment->bIsText = true;
-		OutFragments.Add(NewTextFragment);
-
-		// Link lhs
-		TSharedPtr<FDMXFixturePatchFragment> LhsLink = OutFragments[0];
-		for (int IndexOfFragment = 1; IndexOfFragment < OutFragments.Num(); IndexOfFragment++)
-		{
-			OutFragments[IndexOfFragment]->LhsFragment = LhsLink;
-			LhsLink = OutFragments[IndexOfFragment];
-		}
 	}
-
-	/** Gets all fragments of a patch */
-	TArray<TSharedPtr<FDMXFixturePatchFragment>> GetFragments()
-	{
-		TArray<TSharedPtr<FDMXFixturePatchFragment>> Fragments;
-		TSharedPtr<FDMXFixturePatchFragment> Root = SharedThis(this);
-		while (Root->LhsFragment.IsValid())
-		{
-			Root = LhsFragment;
-		}
-
-		TSharedPtr<FDMXFixturePatchFragment> Fragment = Root;
-		while (Fragment.IsValid())
-		{
-			Fragments.Add(Fragment);
-			Fragment = Fragment->RhsFragment;
-		}
-
-		return Fragments;
-	}
-
 
 	bool IsHead() const { return !LhsFragment.IsValid(); }
 	bool IsTail() const { return !RhsFragment.IsValid(); }
@@ -172,9 +110,6 @@ public:
 
 	/** True if this fragment conflicts with others */
 	bool bIsConflict = false;
-
-	/** True if this fragment is the text fragment */
-	bool bIsText = false;
 
 	/** The fragment to the left of this fragment */
 	TSharedPtr<FDMXFixturePatchFragment> LhsFragment;
@@ -259,7 +194,11 @@ private:
 		}();
 
 		// Find the conflicts
-		TArray<const UDMXEntityFixturePatch*> ConflictingFixturePatches = [FixturePatch, &OtherFixturePatches]()
+		const int32 MyChannelIndex = FixturePatch->GetStartingChannel() - 1;
+		const int32 MyChannelSpan = FixturePatch->GetChannelSpan();
+		const TRange<int32> MyRange(MyChannelIndex, MyChannelIndex + MyChannelSpan);
+
+		TArray<const UDMXEntityFixturePatch*> ConflictingFixturePatches = [FixturePatch, &OtherFixturePatches, &MyRange]()
 		{
 			TArray<const UDMXEntityFixturePatch*> Result;
 			for (const UDMXEntityFixturePatch* Other : OtherFixturePatches)
@@ -286,12 +225,10 @@ private:
 				const int32 OtherChannelSpan = Other->GetChannelSpan();
 				const TRange<int32> OtherRange(OtherChannelIndex, OtherChannelIndex + OtherChannelSpan);
 
-				if (!OtherRange.Overlaps(OtherRange))
+				if (OtherRange.Overlaps(MyRange))
 				{
-					continue;
+					Result.Add(Other);
 				}
-
-				Result.Add(Other);
 			}
 			return Result;
 		}();
@@ -307,7 +244,7 @@ TSharedPtr<FDMXFixturePatchNode> FDMXFixturePatchNode::Create(TWeakPtr<FDMXEdito
 		return nullptr;
 	}
 
-	TSharedPtr<FDMXFixturePatchNode> NewNode = MakeShared<FDMXFixturePatchNode>();
+	const TSharedRef<FDMXFixturePatchNode> NewNode = MakeShared<FDMXFixturePatchNode>();
 	NewNode->WeakDMXEditor = InDMXEditor;
 	NewNode->FixturePatch= InFixturePatch;
 
@@ -318,19 +255,11 @@ TSharedPtr<FDMXFixturePatchNode> FDMXFixturePatchNode::Create(TWeakPtr<FDMXEdito
 	}
 
 	TSharedPtr<FDMXFixturePatchSharedData> SharedData = DMXEditor->GetFixturePatchSharedData();
-	if (!SharedData.IsValid())
+	if (SharedData.IsValid())
 	{
-		return nullptr;
+		NewNode->UpdateIsSelected();
+		SharedData->OnFixturePatchSelectionChanged.AddSP(NewNode, &FDMXFixturePatchNode::UpdateIsSelected);
 	}
-
-	// Select the new node if it is selected in Fixture Patch Shared Data
-	if (SharedData->GetSelectedFixturePatches().Contains(InFixturePatch))
-	{
-		NewNode->bSelected = true;
-	}
-
-	// Listen to selection changes 
-	SharedData->OnFixturePatchSelectionChanged.AddSP(NewNode.ToSharedRef(), &FDMXFixturePatchNode::OnSelectionChanged);
 
 	return NewNode;
 }
@@ -342,43 +271,32 @@ void FDMXFixturePatchNode::SetAddresses(int32 NewUniverseID, int32 NewStartingCh
 		return;
 	}
 
-	UniverseID = NewUniverseID;
-	StartingChannel = NewStartingChannel;
-	ChannelSpan = NewChannelSpan;
-
 	FixturePatch->SetUniverseID(NewUniverseID);
-	FixturePatch->SetStartingChannel(StartingChannel);
+	FixturePatch->SetStartingChannel(NewStartingChannel);
 }
 
-TArray<TSharedPtr<SDMXFixturePatchFragment>> FDMXFixturePatchNode::GenerateWidgets(const TArray<TSharedPtr<FDMXFixturePatchNode>>& FixturePatchNodeGroup)
+TArray<TSharedRef<SDMXFixturePatchFragment>> FDMXFixturePatchNode::GenerateWidgets(const TSharedRef<SDMXPatchedUniverse>& OwningUniverse, const TArray<TSharedPtr<FDMXFixturePatchNode>>& FixturePatchNodeGroup)
 {
-
-	// Fragment the patch to fit the Addresses
+	// Fragment the patch to fit the grid
 	TArray<TSharedPtr<FDMXFixturePatchFragment>> NewFragments;
-	FDMXFixturePatchFragment::CreateFragments(FixturePatch, StartingChannel, NewFragments);
+	FDMXFixturePatchFragment::CreateFragments(FixturePatch, NewFragments);
 
-	FixturePatchFragmentWidgets.Reset();
+	TArray<TSharedRef<SDMXFixturePatchFragment>> Result;
 	for (const TSharedPtr<FDMXFixturePatchFragment>& Fragment : NewFragments)
 	{
-		const bool bIsHead = !Fragment->LhsFragment.IsValid();
-		const bool bIsTail = !Fragment->RhsFragment.IsValid();
-
-		const FText DisplayName = FixturePatch.IsValid() ? FText::FromString(FixturePatch->GetDisplayName()) : LOCTEXT("InvalidFixturePatchName", "Invalid Fixture Patch");
-		FixturePatchFragmentWidgets.Add(
+		Result.Add(
 			SNew(SDMXFixturePatchFragment, SharedThis(this), FixturePatchNodeGroup)
-			.DMXEditor(WeakDMXEditor)
-			.IsHead(bIsHead)
-			.IsTail(bIsTail)
-			.IsText(Fragment->bIsText)
-			.IsConflicting(Fragment->bIsConflict)
+			.bIsHead(Fragment->IsHead())
+			.bIsTail(Fragment->IsTail())
+			.bIsConflicting(Fragment->bIsConflict)
+			.StartingChannel(Fragment->ChannelIndex + 1)
 			.Column(Fragment->Column)
 			.Row(Fragment->Row)
 			.ColumnSpan(Fragment->ColumnSpan)
-			.bHighlight(bSelected)
 		);
 	}
 
-	return FixturePatchFragmentWidgets;
+	return Result;
 }
 
 bool FDMXFixturePatchNode::OccupiesChannels(int32 Channel, int32 Span) const
@@ -391,14 +309,39 @@ bool FDMXFixturePatchNode::OccupiesChannels(int32 Channel, int32 Span) const
 	return true;
 }
 
-bool FDMXFixturePatchNode::IsPatched() const
-{
-	return UniverseWidget.IsValid();
-}
-
 bool FDMXFixturePatchNode::IsSelected() const
 {
 	return bSelected;
+}
+
+FString FDMXFixturePatchNode::GetFixtureID() const
+{
+	if (!MVRFixtureNode.IsValid())
+	{
+		UDMXLibrary* DMXLibrary = WeakDMXEditor.IsValid() ? WeakDMXEditor.Pin()->GetDMXLibrary() : nullptr;
+		if (!DMXLibrary || !FixturePatch.IsValid())
+		{
+			return FString();
+		}
+
+		TArray<UDMXMVRFixtureNode*> MVRFixtureNodes;
+		DMXLibrary->GetLazyGeneralSceneDescription()->GetFixtureNodes(MVRFixtureNodes);
+		UDMXMVRFixtureNode* const* MVRFixtureNodePtr = Algo::FindByPredicate(MVRFixtureNodes, [this](const UDMXMVRFixtureNode* Node)
+			{
+				return Node->UUID == FixturePatch->GetMVRFixtureUUID();
+			});
+		if (MVRFixtureNodePtr)
+		{
+			MVRFixtureNode = TWeakObjectPtr<UDMXMVRFixtureNode>(*MVRFixtureNodePtr);
+		}
+	}
+
+	if (MVRFixtureNode.IsValid())
+	{
+		return MVRFixtureNode->FixtureID;
+	}
+
+	return FString();
 }
 
 int32 FDMXFixturePatchNode::GetUniverseID() const
@@ -431,42 +374,21 @@ int32 FDMXFixturePatchNode::GetChannelSpan() const
 	return -1;
 }
 
-bool FDMXFixturePatchNode::NeedsUpdateGrid() const
+void FDMXFixturePatchNode::UpdateIsSelected()
 {
-	return 
-		UniverseID != GetUniverseID() ||
-		StartingChannel != GetStartingChannel() ||
-		ChannelSpan != GetChannelSpan();
-}
-
-void FDMXFixturePatchNode::OnSelectionChanged()
-{
-	const TSharedPtr<FDMXEditor> DMXEditor = WeakDMXEditor.Pin();
+	TSharedPtr<FDMXEditor> DMXEditor = WeakDMXEditor.Pin();
 	if (!DMXEditor.IsValid())
 	{
 		return;
 	}
 
-	const TSharedPtr<FDMXFixturePatchSharedData> FixturePatchSharedData = DMXEditor->GetFixturePatchSharedData();
-	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
-	if (SelectedFixturePatches.Contains(FixturePatch))
+	const TSharedPtr<FDMXFixturePatchSharedData> SharedData = DMXEditor->GetFixturePatchSharedData();
+	if (!SharedData.IsValid())
 	{
-		for (const TSharedPtr<SDMXFixturePatchFragment>& Widget : FixturePatchFragmentWidgets)
-		{
-			Widget->SetHighlight(true);
-		}
-
-		bSelected = true;
+		return;
 	}
-	else
-	{
-		for (const TSharedPtr<SDMXFixturePatchFragment>& Widget : FixturePatchFragmentWidgets)
-		{
-			Widget->SetHighlight(false);
-		}
 
-		bSelected = false;
-	}
+	bSelected = SharedData->GetSelectedFixturePatches().Contains(FixturePatch);
 }
 
 #undef LOCTEXT_NAMESPACE

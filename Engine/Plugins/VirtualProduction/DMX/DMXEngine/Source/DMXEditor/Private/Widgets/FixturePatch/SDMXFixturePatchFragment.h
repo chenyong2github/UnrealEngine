@@ -2,109 +2,96 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FDMXEditor;
 class FDMXFixturePatchNode;
-class UDMXEntityFixturePatch;
-class UDMXLibrary;
 
-struct FSlateColorBrush;
-class SBorder;
-template <typename OptionType> class SComboBox;
+class SHorizontalBox;
+class SOverlay;
 
 
 class SDMXFixturePatchFragment
-	: public SCompoundWidget 
+	: public SCompoundWidget
 {
+	DECLARE_DELEGATE_RetVal_TwoParams(FReply, FOnMouseEventWithReply, uint32 /** ChannelID */, const FPointerEvent&);
+
+	DECLARE_DELEGATE_TwoParams(FOnDragEvent, uint32 /** ChannelID */, const FDragDropEvent&);
+
+	DECLARE_DELEGATE_RetVal_TwoParams(FReply, FOnDragEventWithReply, uint32 /** ChannelID */, const FDragDropEvent&);
+
 public:
 	SLATE_BEGIN_ARGS(SDMXFixturePatchFragment)
-		: _DMXEditor(nullptr)
-		, _IsHead(true)
-		, _IsTail(true)
-		, _IsText(false)
-		, _IsConflicting(false)
+		: _bIsHead(true)
+		, _bIsTail(true)
+		, _bIsConflicting(false)
 		, _Column(-1)
 		, _Row(-1)
 		, _ColumnSpan(1)
-		, _bHighlight(false)
 	{}
-		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
+		/** If true displays as head of a patch */
+		SLATE_ARGUMENT(bool, bIsHead)
 
-		SLATE_ARGUMENT(bool, IsHead)
+		/** If true displays as tail of a patch */
+		SLATE_ARGUMENT(bool, bIsTail)
 
-		SLATE_ARGUMENT(bool, IsTail)
+		/** If true displays a conflict */
+		SLATE_ARGUMENT(bool, bIsConflicting)
 
-		SLATE_ARGUMENT(bool, IsText)
+		/** The starting channel of the fragment */
+		SLATE_ARGUMENT(int32, StartingChannel)
 
-		SLATE_ARGUMENT(bool, IsConflicting)
-
+		/** The column in which the fragment should be displayed */
 		SLATE_ARGUMENT(int32, Column)
 
+		/** The row in which the fragment should be displayed */
 		SLATE_ARGUMENT(int32, Row)
 
+		/** The column span of the fragment */
 		SLATE_ARGUMENT(int32, ColumnSpan)
-
-		SLATE_ARGUMENT(bool, bHighlight)
 
 	SLATE_END_ARGS()
 
 	/** Constructs this widget */
 	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXFixturePatchNode>& InFixturePatchNode, const TArray<TSharedPtr<FDMXFixturePatchNode>>& InFixturePatchNodeGroup);
 
-	/** Refreshes the widget */
-	void Refresh(const TArray<TSharedPtr<FDMXFixturePatchNode>>& InFixturePatchNodeGroup);
-
-	/** Sets wether the fragment should be highlit */
-	void SetHighlight(bool bEnabled) { bHighlight = bEnabled; }
-
 	/** Sets if the fragment is conflicting with others */
-	void SetConflicting(bool bConflicting) { bIsConflicting = bConflicting; if (Column == 0 && Row == 0 && bIsConflicting) UE_LOG(LogTemp, Warning, TEXT("%s set to conflicting"), *FixturePatchNameText.ToString()); }
+	void SetConflicting(bool bConflicting) { bIsConflicting = bConflicting; }
 
-	/** Returns the Column of the fragment */
-	int32 GetColumn() const { return Column; }
+	/** Gets the fixture patch node this widget refers to */
+	const TSharedPtr<FDMXFixturePatchNode>& GetFixturePatchNode() const { return FixturePatchNode; }
 
-	/** Sets the Column of the fragment */
-	void SetColumn(int32 NewColumn) { Column = NewColumn; }
+	/** Starting Channel of the Fragment */
+	int32 StartingChannel = -1;
 
-	/** Returns the Row of the fragment */
-	int32 GetRow() const { return Row; }
+	/** Column of the Fragment */
+	int32 Column = -1;
 
-	/** Sets the Row of the fragment */
-	void SetRow(int32 NewRow) { Row = NewRow; }
+	/** Row of the Fragment */
+	int32 Row = -1;
 
-	/** Returns the Column span of the fragment */
-	int32 GetColumnSpan() const { return ColumnSpan; }
-
-	/** Sets the Column span of the fragment */
-	void SetColumnSpan(int32 NewColumnSpan) { ColumnSpan = NewColumnSpan; }
+	/** Column span of the Fragment */
+	int32 ColumnSpan = 1;
 
 private:
-	/** Called when Fixture Patch Shared Data selected a Fixture Patch */
-	void OnFixturePatchSharedDataSelectedFixturePatch();
-
-	/** Updates the Fixture Patch Name Text */
-	void UpdateFixturePatchNameText();
-
-	/** Updates the Node Group Text */
-	void UpdateNodeGroupText();
-
 	/** Updates the Padding of the outermost Border */
-	void UpdateBorderPadding();
+	void InitializeBorderPadding();
 
-	/** Updates the bTopmost memeber from the ZOrder of the node */
-	void UpdateIsTopmost();
+	/** Updates the bTopmost member from the ZOrder of the node */
+	void InitializeIsTopmost();
 
-	/** Returns the Border image */
-	const FSlateBrush& GetBorderImage() const;
+	/** Returns the brush for the border around the widget */
+	const FSlateBrush* GetBorderBrush() const;
 
-	/** Gets the Text Widget */
-	TSharedRef<SWidget> CreateTextWidget();
+	/** Returns the border color of the border around the widget */
+	FSlateColor GetBorderColor() const;
+
+	/** Returns the color of the channel ID texts */
+	FSlateColor GetChannelIDTextColor() const;
+
+	/** Returns the color of the Value texts */
+	FSlateColor GetValueTextColor() const;
 
 	/** If true, the patch has the highest ZOrder in its node group */
 	bool bIsTopmost = false;
@@ -115,38 +102,17 @@ private:
 	/** If true this is the Tail of the Fixture Patch */
 	bool bIsTail = false;
 
-	/** If true, this fragment shows text */
-	bool bIsText;
-
-	/** Column of the Fragment */
-	int32 Column;
-
-	/** Row of the Fragment */
-	int32 Row;
-
-	/** Column span of the Fragment */
-	int32 ColumnSpan;
-
-	/** If true, the Widget shows a highlight */
-	bool bHighlight = false;
-
 	/** If true, the Widget displays a conflict background */
 	bool bIsConflicting = false;
 
-	/** The Fixture Patch Name Text the Node displays */
-	FText FixturePatchNameText;
-
-	/** The Node Group Text the Node displays */
-	FText NodeGroupText;
-
 	/** The padding of the outermost border */
 	FMargin BorderPadding;
-	
-	/** The border that holds the color or text content */
-	TSharedPtr<SBorder> ContentBorder;
 
-	/** Color Brush the widget uses */
-	TSharedPtr<FSlateColorBrush> ColorBrush;
+	/** Horizontal box containing the channels of this fragment */
+	TSharedPtr<SHorizontalBox> ChannelsHorizontalBox;
+
+	/** Overlay for content */
+	TSharedPtr<SOverlay> ContentOverlay;
 
 	/** Fixture Patch Node being displayed by this widget */
 	TSharedPtr<FDMXFixturePatchNode> FixturePatchNode;

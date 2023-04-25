@@ -63,6 +63,7 @@ public:
 				[
 					SNew(STextBlock)
 					.Text(this, &SDMXMVRFixtureFixtureTypePicker::GetSelectedItemText)
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 			];
 
@@ -276,6 +277,7 @@ public:
 						})
 					.OptionsSource(&ModeNames)
 					.OnSelectionChanged(this, &SDMXMVRFixtureModePicker::OnSelectionChanged)
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				]
 
 				+ SVerticalBox::Slot()
@@ -413,20 +415,10 @@ void SDMXMVRFixtureListRow::Construct(const FArguments& InArgs, const TSharedRef
 	OnRowRequestsStatusRefresh = InArgs._OnRowRequestsStatusRefresh;
 	OnRowRequestsListRefresh = InArgs._OnRowRequestsListRefresh;
 	IsSelected = InArgs._IsSelected;
-	
-	SetBorderBackgroundColor(TAttribute<FSlateColor>::CreateLambda([this]()
-		{
-			if (Item.IsValid())
-			{
-				return Item->GetBackgroundColor();
-			}
-			return FLinearColor::Black;
-		}));
-
 
 	SMultiColumnTableRow<TSharedPtr<FDMXMVRFixtureListItem>>::Construct(
 		FSuperRowType::FArguments()
-		.Style(&FDMXEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("MVRFixtureList.Row")), 
+		.Style(&FDMXEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("FixturePatchList.Row")),
 		InOwnerTable);
 }
 
@@ -440,35 +432,56 @@ void SDMXMVRFixtureListRow::EnterFixturePatchNameEditingMode()
 
 TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
+	if (ColumnName == FDMXMVRFixtureListCollumnIDs::EditorColor)
+	{
+		return GenerateEditorColorWidget();
+	}
 	if (ColumnName == FDMXMVRFixtureListCollumnIDs::FixturePatchName)
 	{
-		return GenerateFixturePatchNameRow();
+		return GenerateFixturePatchNameWidget();
 	}
 	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::Status)
 	{
-		return GenerateStatusRow();
+		return GenerateStatusWidget();
 	}
 	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::FixtureID)
 	{
-		return GenerateFixtureIDRow();
+		return GenerateFixtureIDWidget();
 	}
 	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::FixtureType)
 	{
-		return GenerateFixtureTypeRow();
+		return GenerateFixtureTypeWidget();
 	}
 	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::Mode)
 	{
-		return GenerateModeRow();
+		return GenerateModeWidget();
 	}
 	else if (ColumnName == FDMXMVRFixtureListCollumnIDs::Patch)
 	{
-		return GeneratePatchRow();
+		return GeneratePatchWidget();
 	}
 
 	return SNullWidget::NullWidget;
 }
 
-TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateFixturePatchNameRow()
+TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateEditorColorWidget()
+{
+	return
+		SNew(SBorder)
+		.HAlign(HAlign_Fill)
+		.Padding(5.f, 2.f)
+		.BorderImage(FAppStyle::GetBrush("NoBorder"))
+		[
+			SNew(SImage)
+			.Image(FDMXEditorStyle::Get().GetBrush("DMXEditor.WhiteRoundedPropertyBorder"))
+			.ColorAndOpacity_Lambda([this]()
+			{
+				return Item->GetBackgroundColor();
+			})
+		];
+}
+
+TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateFixturePatchNameWidget()
 {
 	return
 		SAssignNew(FixturePatchNameBorder, SBorder)
@@ -489,7 +502,7 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateFixturePatchNameRow()
 					const FString FixturePatchName = Item->GetFixturePatchName();
 					return FText::FromString(FixturePatchName);
 				})
-				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.OnTextCommitted(this, &SDMXMVRFixtureListRow::OnFixturePatchNameCommitted)
 				.IsSelected(IsSelected)
 			]
@@ -521,7 +534,7 @@ void SDMXMVRFixtureListRow::OnFixturePatchNameCommitted(const FText& InNewText, 
 	FixturePatchNameTextBlock->SetText(FText::FromString(ResultingName));
 }
 
-TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateStatusRow()
+TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateStatusWidget()
 {
 	return
 		SNew(SBox)
@@ -531,14 +544,9 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateStatusRow()
 			SNew(SImage)
 			.Image_Lambda([this]()
 				{
-					if (!Item->ErrorStatusText.IsEmpty())
+					if (!Item->ErrorStatusText.IsEmpty() || !Item->WarningStatusText.IsEmpty())
 					{
-						return FAppStyle::GetBrush("Icons.Error");
-					}
-
-					if (!Item->WarningStatusText.IsEmpty())
-					{
-						return FAppStyle::GetBrush("Icons.Warning");
+						return FDMXEditorStyle::Get().GetBrush("Icons.WarningExclamationMark");
 					}
 
 					static const FSlateBrush EmptyBrush = FSlateNoResource();
@@ -560,7 +568,7 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateStatusRow()
 		];
 }
 
-TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateFixtureIDRow()
+TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateFixtureIDWidget()
 {
 	return
 		SNew(SBorder)
@@ -580,7 +588,7 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateFixtureIDRow()
 				{
 					return FText::FromString(Item->GetFixtureID());
 				})
-				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.OnTextCommitted(this, &SDMXMVRFixtureListRow::OnFixtureIDCommitted)
 				.IsSelected(IsSelected)
 			]
@@ -615,7 +623,7 @@ void SDMXMVRFixtureListRow::OnFixtureIDCommitted(const FText& InNewText, ETextCo
 	}
 }
 
-TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateFixtureTypeRow()
+TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateFixtureTypeWidget()
 {
 	UDMXLibrary* DMXLibrary = Item->GetDMXLibrary();
 	if (!ensureAlwaysMsgf(DMXLibrary, TEXT("Tried to set fixture type for MVR Fixture, but fixture type is invalid.")))
@@ -646,7 +654,7 @@ void SDMXMVRFixtureListRow::OnFixtureTypeSelected(UDMXEntityFixtureType* Selecte
 	Item->SetFixtureType(SelectedFixtureType);
 }
 
-TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateModeRow()
+TSharedRef<SWidget> SDMXMVRFixtureListRow::GenerateModeWidget()
 {
 	const TSharedRef<SDMXMVRFixtureModePicker> ModePicker =
 		SNew(SDMXMVRFixtureModePicker)
@@ -673,7 +681,7 @@ void SDMXMVRFixtureListRow::OnModeSelected(int32 SelectedModeIndex)
 	Item->SetModeIndex(SelectedModeIndex);
 }
 
-TSharedRef<SWidget> SDMXMVRFixtureListRow::GeneratePatchRow()
+TSharedRef<SWidget> SDMXMVRFixtureListRow::GeneratePatchWidget()
 {
 	return
 		SNew(SBorder)
@@ -695,6 +703,7 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GeneratePatchRow()
 						const int32 StartingAddress = Item->GetAddress();
 						return FText::Format(LOCTEXT("AddressesText", "{0}.{1}"), UniverseID, StartingAddress);
 					})
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.OnTextCommitted(this, &SDMXMVRFixtureListRow::OnPatchCommitted)
 				.IsSelected(IsSelected)
 			]

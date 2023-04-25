@@ -105,6 +105,7 @@ public:
 	 * @param bCanChangePatchUniverses	If true, the patches can lower their absoulte channel
 	 * @param FixturePatches			The patches that want their channels to be auto assigned
 	 */
+	UE_DEPRECATED(5.2, "AutoAssignedChannels is deprecated without replacement. Please create your own auto assign implementation. See FDMXFixturePatchAutoAssignUtility for an example.")
 	static void AutoAssignedChannels(bool bAllowDecrementUniverse, bool bAllowDecrementChannels, TArray<UDMXEntityFixturePatch*> FixturePatches);
 	
 	/**

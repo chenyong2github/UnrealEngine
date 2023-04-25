@@ -13,16 +13,17 @@
 #include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/SNullWidget.h"
 
 #include "Algo/RemoveIf.h"
 #include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
 
@@ -40,9 +41,7 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 	}
 
 	SharedData = DMXEditorPtr.Pin()->GetFixturePatchSharedData();
-		
-	const UDMXEditorSettings* DMXEditorSettings = GetDefault<UDMXEditorSettings>();
-	const ECheckBoxState InitialDMXMonitorEnabledCheckBoxState = DMXEditorSettings->bFixturePatcherDMXMonitorEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+
 	const FLinearColor BackgroundTint(0.6f, 0.6f, 0.6f, 1.0f);
 	ChildSlot			
 		[
@@ -51,8 +50,6 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 			.ToolTipText(this, &SDMXFixturePatcher::GetTooltipText)
 			[
 				SNew(SVerticalBox)				
-
-				// Settings area
 
 				+ SVerticalBox::Slot()
 				.HAlign(HAlign_Fill)
@@ -64,95 +61,9 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 					.BorderBackgroundColor(BackgroundTint)
 					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 					[
-						SNew(SHorizontalBox)			
-
-						+ SHorizontalBox::Slot()						
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
-						[
-							SNew(STextBlock)							
-							.MinDesiredWidth(75.0f)
-							.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-							.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
-							.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
-							.Text(LOCTEXT("UniverseSelectorLabel", "Universe"))
-						]
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
-						[
-							SNew(SBox)
-							.MinDesiredWidth(210.0f)
-							.MaxDesiredWidth(420.0f)
-							[
-								SNew(SSpinBox<int32>)								
-								.SliderExponent(1000.0f)								
-								.MinSliderValue(0)
-								.MaxSliderValue(DMX_MAX_UNIVERSE - 1)
-								.MinValue(0)
-								.MaxValue(DMX_MAX_UNIVERSE - 1)
-								.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
-								.Value(this, &SDMXFixturePatcher::GetSelectedUniverse)
-								.OnValueChanged(this, &SDMXFixturePatcher::SelectUniverse)
-							]
-						]
-						
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))						
-						[
-							SNew(SSeparator)
-							.Orientation(EOrientation::Orient_Vertical)
-						]
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
-						[
-							SNew(STextBlock)
-							.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-							.Text(LOCTEXT("ShowAllPatchedUniversesLabel", "Show all patched Universes"))
-						]
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
-						[
-							SAssignNew(ShowAllUniversesCheckBox, SCheckBox)
-							.IsChecked(false)
-							.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDisplayAllUniverses)
-						]
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
-						[
-							SNew(STextBlock)
-							.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-							.Text(LOCTEXT("EnableInputMonitorLabel", "Monitor DMX Inputs"))
-							.ToolTipText(LOCTEXT("EnableInputMonitorTooltip", "If checked, monitors DMX Input Ports used in this DMX Library"))
-						]
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
-						[
-							SAssignNew(EnableDMXMonitorCheckBox, SCheckBox)
-							.IsChecked(InitialDMXMonitorEnabledCheckBoxState)
-							.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDMXMonitorEnabled)
-						]
+						CreateToolbar()
 					]
 				]
-
-				// Patched Universes
 
 				+ SVerticalBox::Slot()
 				.HAlign(HAlign_Left)
@@ -190,7 +101,8 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 
 	ShowSelectedUniverse();
 
-	SetDMXMonitorEnabled(DMXEditorSettings->bFixturePatcherDMXMonitorEnabled);
+	const UDMXEditorSettings* DMXEditorSettings = GetDefault<UDMXEditorSettings>();
+	SetDMXMonitorEnabled(DMXEditorSettings->FixturePatcherSettings.bMonitorEnabled);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -243,6 +155,155 @@ FReply SDMXFixturePatcher::OnDrop(const FGeometry& MyGeometry, const FDragDropEv
 	}
 
 	return FReply::Unhandled();
+}
+
+TSharedRef<SWidget> SDMXFixturePatcher::CreateToolbar()
+{
+	TSharedPtr<FUICommandList> CommandList = nullptr;
+	FToolBarBuilder	ToolbarBuilder(CommandList, FMultiBoxCustomization::None);
+
+	ToolbarBuilder.BeginSection("UniverseSelection");
+	{
+		ToolbarBuilder.AddWidget(
+			SNew(STextBlock)
+			.MinDesiredWidth(75.0f)
+			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+			.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+			.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
+			.Text(LOCTEXT("UniverseSelectorLabel", "Universe"))
+		);
+
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
+			.MinDesiredWidth(210.0f)
+			.MaxDesiredWidth(420.0f)
+			[
+				SNew(SSpinBox<int32>)
+				.SliderExponent(1000.0f)
+				.MinSliderValue(0)
+				.MaxSliderValue(DMX_MAX_UNIVERSE - 1)
+				.MinValue(0)
+				.MaxValue(DMX_MAX_UNIVERSE - 1)
+				.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
+				.Value(this, &SDMXFixturePatcher::GetSelectedUniverse)
+				.OnValueChanged(this, &SDMXFixturePatcher::SelectUniverse)
+			]
+		);
+	}
+	ToolbarBuilder.EndSection();
+
+	ToolbarBuilder.BeginSection("ExpandedSettings");
+	{		
+		ToolbarBuilder.AddWidget(
+			SAssignNew(ShowAllUniversesCheckBox, SCheckBox)
+			.IsChecked(false)
+			.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDisplayAllUniverses)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Text(LOCTEXT("ShowAllPatchedUniversesLabel", "Show all patched Universes"))
+			]
+		);
+
+		const UDMXEditorSettings* DMXEditorSettings = GetDefault<UDMXEditorSettings>();
+		const ECheckBoxState InitialDMXMonitorEnabledCheckBoxState = DMXEditorSettings->FixturePatcherSettings.bMonitorEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+
+		ToolbarBuilder.AddWidget(
+			SAssignNew(EnableDMXMonitorCheckBox, SCheckBox)
+			.IsChecked(InitialDMXMonitorEnabledCheckBoxState)
+			.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDMXMonitorEnabled)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+				.Text(LOCTEXT("EnableInputMonitorLabel", "Monitor DMX Inputs"))
+				.ToolTipText(LOCTEXT("EnableInputMonitorTooltip", "If checked, monitors DMX Input Ports used in this DMX Library"))
+			]
+		);
+	}
+	ToolbarBuilder.EndSection();
+
+	ToolbarBuilder.BeginSection("AdvancedSettings");
+	{
+		ToolbarBuilder.AddWidget(
+			SNew(SComboButton)
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButtonWithIcon") // Use the tool bar item style for this button
+			.OnGetMenuContent(this, &SDMXFixturePatcher::CreateDisplaySettingsMenu)
+			.HasDownArrow(false)
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+			]
+		);
+	}
+	ToolbarBuilder.EndSection();
+
+	return ToolbarBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SDMXFixturePatcher::CreateDisplaySettingsMenu()
+{
+	constexpr bool bCloseMenuWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bCloseMenuWindowAfterMenuSelection, nullptr);
+
+	MenuBuilder.BeginSection("PatchNameSection", LOCTEXT("PatchNameSectionLabel", "Displayed Patch Name"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("FixtureID", "Fixture ID"),
+			LOCTEXT("FixtureIDTooltip", "Displays the Fixture IDs of the Patches"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SDMXFixturePatcher::SelectFixturePatchNameDisplayMode, EDMXFixturePatcherNameDisplayMode::FixtureID),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SDMXFixturePatcher::IsUsingFixturePatchNameDisplayMode, EDMXFixturePatcherNameDisplayMode::FixtureID)
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DisplayName", "Patch Name"),
+			LOCTEXT("DisplayNameTooltip", "Displays the Names of the Patches"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SDMXFixturePatcher::SelectFixturePatchNameDisplayMode, EDMXFixturePatcherNameDisplayMode::FixturePatchName),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SDMXFixturePatcher::IsUsingFixturePatchNameDisplayMode, EDMXFixturePatcherNameDisplayMode::FixturePatchName)
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("FixtureIDAndName", "Fixture ID and Patch Name"),
+			LOCTEXT("FixtureIDAndNameTooltip", "Displays the Fixture IDs and Names of the Patches"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SDMXFixturePatcher::SelectFixturePatchNameDisplayMode, EDMXFixturePatcherNameDisplayMode::FixtureIDAndFixturePatchName),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SDMXFixturePatcher::IsUsingFixturePatchNameDisplayMode, EDMXFixturePatcherNameDisplayMode::FixtureIDAndFixturePatchName)
+			),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SDMXFixturePatcher::SelectFixturePatchNameDisplayMode(EDMXFixturePatcherNameDisplayMode DisplayMode)
+{
+	UDMXEditorSettings* EditorSettings = GetMutableDefault<UDMXEditorSettings>();
+	EditorSettings->FixturePatcherSettings.FixturePatchNameDisplayMode = DisplayMode;
+	EditorSettings->SaveConfig();
+}
+
+bool SDMXFixturePatcher::IsUsingFixturePatchNameDisplayMode(EDMXFixturePatcherNameDisplayMode DisplayMode) const
+{
+	const UDMXEditorSettings* EditorSettings = GetDefault<UDMXEditorSettings>();
+	return DisplayMode == EditorSettings->FixturePatcherSettings.FixturePatchNameDisplayMode;
 }
 
 void SDMXFixturePatcher::OnDragEnterChannel(int32 UniverseID, int32 ChannelID, const FDragDropEvent& DragDropEvent)
@@ -616,7 +677,7 @@ void SDMXFixturePatcher::OnToggleDisplayAllUniverses(ECheckBoxState CheckboxStat
 void SDMXFixturePatcher::SetDMXMonitorEnabled(bool bEnabled)
 {
 	UDMXEditorSettings* DMXEditorSettings = GetMutableDefault<UDMXEditorSettings>();
-	DMXEditorSettings->bFixturePatcherDMXMonitorEnabled = bEnabled;
+	DMXEditorSettings->FixturePatcherSettings.bMonitorEnabled = bEnabled;
 	DMXEditorSettings->SaveConfig();
 
 	for (const TTuple<int32, TSharedPtr<SDMXPatchedUniverse>>& UniverseToWidgetPair : PatchedUniversesByID)

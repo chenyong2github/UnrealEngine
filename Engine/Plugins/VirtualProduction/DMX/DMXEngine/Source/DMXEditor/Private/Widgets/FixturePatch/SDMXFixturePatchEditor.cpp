@@ -3,6 +3,7 @@
 #include "Widgets/FixturePatch/SDMXFixturePatchEditor.h"
 
 #include "DMXEditor.h"
+#include "DMXEditorSettings.h"
 #include "DMXFixturePatchSharedData.h"
 #include "DMXSubsystem.h"
 #include "SDMXFixturePatcher.h"
@@ -21,6 +22,15 @@
 
 #define LOCTEXT_NAMESPACE "SDMXFixturePatcher"
 
+SDMXFixturePatchEditor::~SDMXFixturePatchEditor()
+{
+	const float LeftSideWidth = LhsRhsSplitter->SlotAt(0).GetSizeValue();
+
+	UDMXEditorSettings* const DMXEditorSettings = GetMutableDefault<UDMXEditorSettings>();
+	DMXEditorSettings->MVRFixtureListSettings.ListWidth = LeftSideWidth;
+	DMXEditorSettings->SaveConfig();
+}
+
 void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 {
 	SDMXEntityEditor::Construct(SDMXEntityEditor::FArguments());
@@ -32,36 +42,42 @@ void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 
 	FixturePatchDetailsView = GenerateFixturePatchDetailsView();
 
+	const UDMXEditorSettings* const DMXEditorSettings = GetDefault<UDMXEditorSettings>();
+	const float LeftSideWidth = FMath::Clamp(DMXEditorSettings->MVRFixtureListSettings.ListWidth, 0.1f, 0.9f);
+	const float RightSideWidth = FMath::Max(1.f - DMXEditorSettings->MVRFixtureListSettings.ListWidth, .1f);
+
 	ChildSlot
 	.VAlign(VAlign_Fill)
 	.HAlign(HAlign_Fill)
 	[
-		SNew(SSplitter)
+		SAssignNew(LhsRhsSplitter, SSplitter)
 		.Orientation(EOrientation::Orient_Horizontal)
 		.ResizeMode(ESplitterResizeMode::FixedPosition)
 		
 		// Left, MVR Fixture List
 		+ SSplitter::Slot()	
+		.Value(LeftSideWidth)
 		[
 			SAssignNew(MVRFixtureList, SDMXMVRFixtureList, DMXEditorPtr)
 		]
 
 		// Right, Fixture Patcher and Details
 		+ SSplitter::Slot()	
+		.Value(RightSideWidth)
 		[
 			SNew(SSplitter)
 			.Orientation(EOrientation::Orient_Vertical)
 			.ResizeMode(ESplitterResizeMode::FixedPosition)
 
 			+SSplitter::Slot()			
-			.Value(0.6f)
+			.Value(.618f)
 			[
 				SAssignNew(FixturePatcher, SDMXFixturePatcher)
 				.DMXEditor(DMXEditorPtr)
 			]
 	
 			+SSplitter::Slot()
-			.Value(0.4f)
+			.Value(.382f)
 			[
 				FixturePatchDetailsView.ToSharedRef()
 			]

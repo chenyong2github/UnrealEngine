@@ -15,10 +15,11 @@ class UDMXEntityFixturePatch;
 
 struct FPropertyChangedEvent;
 class IDetailsView;
+class SSplitter;
 
 
 /** Editor for Fixture Patches */
-class SDMXFixturePatchEditor
+class SDMXFixturePatchEditor final
 	: public SDMXEntityEditor
 {
 public:
@@ -31,6 +32,9 @@ public:
 	SLATE_END_ARGS()
 
 public:	
+	/** Destructor */
+	~SDMXFixturePatchEditor();
+
 	/** Constructs this widget */
 	void Construct(const FArguments& InArgs);
 
@@ -62,6 +66,9 @@ private:
 
 	/** Details View for the selected Fixture Patches */
 	TSharedPtr<IDetailsView> FixturePatchDetailsView;
+
+	/** The main splitter that divides the view in an left and right side */
+	TSharedPtr<SSplitter> LhsRhsSplitter;
 
 	/** Widget where the user can drag drop fixture patches */
 	TSharedPtr<SDMXFixturePatcher> FixturePatcher;

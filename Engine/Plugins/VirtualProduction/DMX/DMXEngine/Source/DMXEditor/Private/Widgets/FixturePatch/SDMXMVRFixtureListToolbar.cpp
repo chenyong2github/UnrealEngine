@@ -6,6 +6,7 @@
 #include "DMXEditorUtils.h"
 #include "DMXFixturePatchSharedData.h"
 #include "DMXMVRFixtureListItem.h"
+#include "DMXFixturePatchAutoAssignUtility.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Commands/DMXEditorCommands.h"
@@ -351,9 +352,7 @@ void SDMXMVRFixtureListToolbar::OnAddNewMVRFixtureClicked(UDMXEntity* InSelected
 	}
 
 	// Auto assign
-	constexpr bool bAllowDecrementUniverse = false;
-	constexpr bool bAllowDecrementChannels = false;
-	FDMXEditorUtils::AutoAssignedChannels(bAllowDecrementUniverse, bAllowDecrementChannels, NewFixturePatches);
+	FDMXFixturePatchAutoAssignUtility::AutoAssign(NewFixturePatches, EDMXFixturePatchAutoAssignMode::LastAddressInLibrary);
 
 	DMXLibrary->PostEditChange();
 

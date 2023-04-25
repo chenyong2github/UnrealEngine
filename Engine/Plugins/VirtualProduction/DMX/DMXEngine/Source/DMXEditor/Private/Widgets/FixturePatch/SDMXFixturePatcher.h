@@ -9,6 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+enum class EDMXFixturePatcherNameDisplayMode : uint8;
 class FDMXEditor;
 class FDMXEntityFixturePatchDragDropOperation;
 class FDMXFixturePatchNode;
@@ -54,6 +55,19 @@ protected:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	// ~End SWidget Interface
+
+private:
+	/** */
+	TSharedRef<SWidget> CreateToolbar();
+
+	/** Creates the settings menu */
+	TSharedRef<SWidget> CreateDisplaySettingsMenu();
+
+	/** Selects the fixture patch name display mode */
+	void SelectFixturePatchNameDisplayMode(EDMXFixturePatcherNameDisplayMode DisplayMode);
+	
+	/** Returns true if the widget is currently using specified name display mode */
+	bool IsUsingFixturePatchNameDisplayMode(EDMXFixturePatcherNameDisplayMode DisplayMode) const;
 
 	/** Called when drag enters a channel */
 	void OnDragEnterChannel(int32 UniverseID, int32 ChannelID, const FDragDropEvent& DragDropEvent);

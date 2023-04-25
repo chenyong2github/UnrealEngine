@@ -15,6 +15,9 @@ struct FDMXMVRFixtureListSettings
 {
 	GENERATED_BODY()
 
+	/** Width of the entier list. The right side should take the rest of the space */
+	float ListWidth = .5f;
+
 	/** Width of the Fixture ID column */
 	UPROPERTY()
 	float FixtureIDColumnWidth = 0.f;
@@ -31,6 +34,28 @@ struct FDMXMVRFixtureListSettings
 	UPROPERTY()
 	float PatchColumnWidth = 0.f;
 };
+
+UENUM()
+enum class EDMXFixturePatcherNameDisplayMode : uint8
+{
+	FixtureIDAndFixturePatchName,
+	FixtureID,
+	FixturePatchName
+};
+
+/** Settings for the Fixture Patcher */
+USTRUCT()
+struct FDMXMVRFixturePatcherSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bMonitorEnabled = false;
+
+	UPROPERTY()
+	EDMXFixturePatcherNameDisplayMode FixturePatchNameDisplayMode;
+};
+
 
 /** Settings for the Fixture Type Functions Editor */
 USTRUCT()
@@ -117,7 +142,7 @@ struct FDMXMonitorSourceDescriptor
 };
 
 /** Settings that holds editor configurations. Not accessible in Project Settings. TODO: Idealy rename to UDMXEditorConfiguration */
-UCLASS(Config = DMXEditor, DefaultConfig, meta = (DisplayName = "DMXEditor"))
+UCLASS(Config = DMXEditor)
 class DMXEDITOR_API UDMXEditorSettings : public UObject
 {
 	GENERATED_BODY()
@@ -135,16 +160,20 @@ public:
 	UPROPERTY(Config)
 	FString LastMVRExportPath;
 
-	UPROPERTY(Config)
-	FDMXMVRFixtureListSettings MVRFixtureListSettings;
-
 	// DMX Library
 public:
+	/** Deprecated 5.3, moved to FDMXMVRFixturePatcherSettings */
 	UPROPERTY(Config)
-	bool bFixturePatcherDMXMonitorEnabled = false;
+	bool bFixturePatcherDMXMonitorEnabled_DEPRECATED = false;
 
 	UPROPERTY(Config)
 	FDMXFixtureTypeFunctionsEditorSettings FixtureTypeFunctionsEditorSettings;
+
+	UPROPERTY(Config)
+	FDMXMVRFixtureListSettings MVRFixtureListSettings;
+
+	UPROPERTY(Config)
+	FDMXMVRFixturePatcherSettings FixturePatcherSettings;
 
 	// Output Console (DEPRECATED 5.1)
 public:
