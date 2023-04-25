@@ -32,35 +32,77 @@ bool IsHairStrandsDDCLogEnable();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairStrandsRootBulkData>& GroupDatas)
+static void InternalSerializeGuides(FArchive& Ar, UObject* Owner, FHairStrandsRootBulkData& Data)
 {
-	uint32 GroupCount = GroupDatas.Num();
-	Ar << GroupCount;
-	if (Ar.IsLoading())
+	Data.SerializeHeader(Ar, Owner);
+	for (int32 LODIndex = 0, LODCount = Data.GetLODCount(); LODIndex < LODCount; ++LODIndex)
 	{
-		GroupDatas.SetNum(GroupCount);
-	}
-	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
-	{
-		GroupDatas[GroupIt].Serialize(Ar, Owner);
+		Data.SerializeData(Ar, Owner, LODIndex);
 	}
 }
 
-static void InternalSerialize(FArchive& Ar, UObject* Owner, FHairGroupBulkData& GroupData, uint32 Flags)
+static void InternalSerializeStrands(FArchive& Ar, UObject* Owner, FHairStrandsRootBulkData& Data, uint32 Flags, bool bHeader, bool bData)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
-	GroupData.SimRootBulkData.Serialize(Ar, Owner);
-	if (!(Flags & UGroomAsset::CDSF_StrandsStripped))
+
+	const bool bStripped = (Flags & UGroomAsset::CDSF_StrandsStripped);
+	if (!bStripped)
 	{
-		GroupData.RenRootBulkData.Serialize(Ar, Owner);
-	}
-	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairBindingAsset)
-	{
-		InternalSerialize(Ar, Owner, GroupData.CardsRootBulkData);
+		// When cooking data, force loading of *all* bulk data prior to saving them
+		// Note: bFillBulkdata is true for filling in the bulkdata container prior to serialization. This also forces the resources loading 
+		// from the 'start' (i.e., without offset)
+		if (Ar.IsCooking() && Ar.IsSaving())
+		{
+			for (int32 LODIndex = 0, LODCount = Data.GetLODCount(); LODIndex < LODCount; ++LODIndex)
+			{
+				FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, LODIndex, Data, true /*bWait*/, true /*bFillBulkdata*/, Owner->GetFName());
+			}
+		}
+
+		if (bHeader){ Data.SerializeHeader(Ar, Owner); }
+		if (bData)
+		{
+			for (int32 LODIndex = 0, LODCount = Data.GetLODCount(); LODIndex < LODCount; ++LODIndex)
+			{
+				Data.SerializeData(Ar, Owner, LODIndex);
+			}
+		}
 	}
 }
 
-static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairGroupBulkData>& GroupDatas, uint32 Flags)
+static void InternalSerializeCards(FArchive& Ar, UObject* Owner, TArray<FHairStrandsRootBulkData>& Datas)
+{
+	uint32 CardLODCount = Datas.Num();
+	Ar << CardLODCount;
+	if (Ar.IsLoading())
+	{
+		Datas.SetNum(CardLODCount);
+	}
+	for (FHairStrandsRootBulkData& Data : Datas)
+	{
+		Data.SerializeHeader(Ar, Owner);
+		for (int32 LODIndex = 0, LODCount = Data.GetLODCount(); LODIndex < LODCount; ++LODIndex)
+		{
+			Data.SerializeData(Ar, Owner, LODIndex);
+		}
+	}
+}
+
+static void InternalSerializePlatformData(FArchive& Ar, UObject* Owner, UGroomBindingAsset::FHairGroupPlatformData& GroupData, uint32 Flags, bool bHeader, bool bData)
+{
+	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+
+	// Guides
+	InternalSerializeGuides(Ar, Owner, GroupData.SimRootBulkData);
+
+	// Strands
+	InternalSerializeStrands(Ar, Owner, GroupData.RenRootBulkData, Flags, bHeader, bData);
+
+	// Cards
+	InternalSerializeCards(Ar, Owner, GroupData.CardsRootBulkData);
+}
+
+static void InternalSerializePlatformDatas(FArchive& Ar, UObject* Owner, TArray<UGroomBindingAsset::FHairGroupPlatformData>& GroupDatas, uint32 Flags)
 {
 	uint32 GroupCount = GroupDatas.Num();
 	Ar << Flags;
@@ -71,7 +113,7 @@ static void InternalSerialize(FArchive& Ar, UObject* Owner, TArray<FHairGroupBul
 	}
 	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 	{
-		InternalSerialize(Ar, Owner, GroupDatas[GroupIt], Flags);
+		InternalSerializePlatformData(Ar, Owner, GroupDatas[GroupIt], Flags, true /*bHeader*/, true /*bData*/);
 	}
 }
 
@@ -90,10 +132,10 @@ void UGroomBindingAsset::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 #if WITH_EDITOR
-	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::GroomBindingSerialization || Ar.IsCooking())
+	if (Ar.IsCooking())
 #endif
 	{
-		InternalSerialize(Ar, this, HairGroupBulkDatas, Flags);
+		InternalSerializePlatformDatas(Ar, this, HairGroupsPlatformData, Flags);
 		bIsValid = true;
 	}
 }
@@ -105,7 +147,7 @@ void UGroomBindingAsset::InitResource()
 	// Ensure we are releasing binding resources before reallocating them
 	ReleaseResource();
 
-	for (FHairGroupBulkData& BulkData : HairGroupBulkDatas)
+	for (UGroomBindingAsset::FHairGroupPlatformData& BulkData : HairGroupsPlatformData)
 	{
 		const int32 GroupIndex = HairGroupResources.Num();
 		FHairGroupResource& Resource = HairGroupResources.AddDefaulted_GetRef();
@@ -241,7 +283,7 @@ void UGroomBindingAsset::ReleaseResource()
 void UGroomBindingAsset::Reset()
 {
 	ReleaseResource();
-	for (FHairGroupBulkData& Data : HairGroupBulkDatas)
+	for (UGroomBindingAsset::FHairGroupPlatformData& Data : HairGroupsPlatformData)
 	{
 		Data.SimRootBulkData.Reset();
 		Data.RenRootBulkData.Reset();
@@ -661,6 +703,25 @@ void UGroomBindingAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 }
 #endif // WITH_EDITOR
 
+void UpdateGroomBindingAssetInfos(UGroomBindingAsset* In)
+{
+	if (In)
+	{
+		const uint32 GroupCount = In->HairGroupsPlatformData.Num();
+		In->GroupInfos.SetNum(GroupCount);
+		for (uint32 GroupIt=0; GroupIt< GroupCount; ++GroupIt)
+		{
+			FGoomBindingGroupInfo& Info = In->GroupInfos[GroupIt];
+			const UGroomBindingAsset::FHairGroupPlatformData& BulkData = In->HairGroupsPlatformData[GroupIt];
+			Info.SimRootCount = BulkData.SimRootBulkData.GetRootCount();
+			Info.SimLODCount  = BulkData.SimRootBulkData.GetLODCount();
+
+			Info.RenRootCount = BulkData.RenRootBulkData.GetRootCount();
+			Info.RenLODCount  = BulkData.RenRootBulkData.GetLODCount();
+		}
+	}
+}
+
 #if WITH_EDITORONLY_DATA
 
 // If groom binding derived data needs to be rebuilt (new format, serialization
@@ -724,25 +785,68 @@ void UGroomBindingAsset::CacheDerivedDatas()
 		return;
 	}
 
-	// List all the components which will need to be recreated to get the new binding information
-	const FString KeySuffix = BuildDerivedDataKeySuffix(*this);
-	const FString DerivedDataKey = GroomBindingDerivedDataCacheUtils::BuildGroomBindingDerivedDataKey(KeySuffix);
+	// 1. Set group count to the groom target
+	const uint32 GroupCount = Groom->GetNumHairGroups();
+	HairGroupsPlatformData.SetNum(GroupCount);
+	CachedDerivedDataKey.SetNum(GroupCount);
+	GroupInfos.SetNum(GroupCount);
 
-	if (DerivedDataKey != CachedDerivedDataKey)
+	// 2. Prepare main cache key
+	const FString KeySuffix = BuildDerivedDataKeySuffix(*this);
+
+	// 3. Build or retrieve from cache, binding data for each group
+	bIsValid = true;
+	bool bReloadResource = false;
+	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
+	{
+		bool bGroupReloadResource = false;
+		bool bGroupValid = true;
+
+		CacheDerivedDatas(GroupIndex, KeySuffix, bGroupValid, bGroupReloadResource);
+
+		bIsValid = bIsValid && bGroupValid;
+		bReloadResource = bReloadResource || bGroupReloadResource;
+	}
+
+	// 4. Reload resources if needed
+	if (bReloadResource)
+	{
+		InitResource();
+	}
+
+	// 3. Patch hair group info if it does not match the DDC-read/deserialized data
+	UpdateGroomBindingAssetInfos(this);
+}
+
+void UGroomBindingAsset::CacheDerivedDatas(uint32 InGroupIndex, const FString KeySuffix, bool& bOutValid, bool& bOutReloadResource)
+{
+	const FString DerivedDataKey = GroomBindingDerivedDataCacheUtils::BuildGroomBindingDerivedDataKey(KeySuffix + FString(TEXT("_Group")) + FString::FromInt(InGroupIndex));
+
+	bOutValid = false;
+	bOutReloadResource = false;
+	if (DerivedDataKey != CachedDerivedDataKey[InGroupIndex])
 	{
 		using namespace UE::DerivedData;
 
-		const FCacheKey Key = ConvertLegacyCacheKey(DerivedDataKey);
+		const FCacheKey HeaderKey = ConvertLegacyCacheKey(DerivedDataKey + FString(TEXT("_Header")));
 		const FSharedString Name = MakeStringView(GetPathName());
 		FSharedBuffer Data;
 		{
 			FRequestOwner Owner(EPriority::Blocking);
-			GetCache().GetValue({ {Name, Key} }, Owner, [&Data](FCacheGetValueResponse&& Response)
+			GetCache().GetValue({ {Name, HeaderKey} }, Owner, [&Data](FCacheGetValueResponse&& Response)
 			{
 				Data = Response.Value.GetData().Decompress();
 			});
 			Owner.Wait();
 		}
+
+		UGroomBindingAsset::FHairGroupPlatformData& PlatformData = HairGroupsPlatformData[InGroupIndex];
+
+		// Populate key/name for streaming data request
+		auto FillDrivedDataKey = [&DerivedDataKey, &Name](UGroomBindingAsset::FHairGroupPlatformData& In)
+		{
+			In.RenRootBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_Data"));
+		};
 
 		FGroomComponentRecreateRenderStateContext RecreateRenderContext(Groom);
 
@@ -750,51 +854,53 @@ void UGroomBindingAsset::CacheDerivedDatas()
 		{
 			UE_CLOG(IsHairStrandsDDCLogEnable(), LogHairStrands, Log, TEXT("[GroomBinding/DDC] Found (GroomBinding:%s)."), *GetName());
 
-			FMemoryReaderView Ar(Data, /*bIsPersistent*/ true);
-			InternalSerialize(Ar, this, HairGroupBulkDatas, 0);
+			FillDrivedDataKey(PlatformData);
 
-			bIsValid = true;
+			// Header
+			FMemoryReaderView Ar(Data, /*bIsPersistent*/ true);
+			InternalSerializePlatformData(Ar, this, PlatformData, 0 /*Flags*/, true /*bHeader*/, false /*bData*/);
+
+			bOutValid = true;
 		}
 		else
 		{
 			UE_CLOG(IsHairStrandsDDCLogEnable(), LogHairStrands, Log, TEXT("[GroomBinding/DDC] Not found (GroomBinding:%s)."), *GetName());
 
 			// Build groom binding data
-			bIsValid = FGroomBindingBuilder::BuildBinding(this, false);
-			if (bIsValid)
-			{
-				TArray<uint8> WriteData;
-				FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
-				InternalSerialize(Ar, this, HairGroupBulkDatas, 0);
+			bOutValid = FGroomBindingBuilder::BuildBinding(this, InGroupIndex);
 
-				FRequestOwner AsyncOwner(EPriority::Normal);
-				GetCache().PutValue({ {Name, Key, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
-				AsyncOwner.KeepAlive();
+			if (bOutValid)
+			{
+				FillDrivedDataKey(PlatformData);
+
+				// Header
+				{
+					TArray<uint8> WriteData;
+					FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
+					InternalSerializePlatformData(Ar, this, PlatformData, 0 /*Flags*/, true /*bHeader*/, false /*bData*/);
+	
+					FRequestOwner AsyncOwner(EPriority::Normal);
+					GetCache().PutValue({ {Name, HeaderKey, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
+					AsyncOwner.KeepAlive();
+				}
+	
+				// Data
+				for (uint32 LODIt=0, LODCount = PlatformData.RenRootBulkData.GetLODCount(); LODIt<LODCount;++LODIt)
+				{
+					TArray<FCachePutValueRequest> Out;
+					PlatformData.RenRootBulkData.Write_DDC(this, Out, LODIt);
+
+					FRequestOwner AsyncOwner(EPriority::Normal);
+					GetCache().PutValue(Out, AsyncOwner);
+					AsyncOwner.KeepAlive();
+				}
 			}
 		}
 
-		// Patch hair group info if it does not match the DDC-read/deserialized data
-		const uint32 GroupCount = HairGroupBulkDatas.Num();
-		if (GroupInfos.Num() != GroupCount)
+		if (bOutValid)
 		{
-			GroupInfos.SetNum(GroupCount);
-		}
-		for (uint32 GroupIt=0; GroupIt< GroupCount; ++GroupIt)
-		{
-			FGoomBindingGroupInfo& Info = GroupInfos[GroupIt];
-			const FHairGroupBulkData& BulkData = HairGroupBulkDatas[GroupIt];
-			{
-				Info.SimRootCount = BulkData.SimRootBulkData.GetRootCount();
-				Info.SimLODCount  = BulkData.SimRootBulkData.GetLODCount();
-				Info.RenRootCount = BulkData.RenRootBulkData.GetRootCount();
-				Info.RenLODCount  = BulkData.RenRootBulkData.GetLODCount();
-			}
-		}
-
-		if (bIsValid)
-		{
-			CachedDerivedDataKey = DerivedDataKey;
-			InitResource();
+			bOutReloadResource = true;
+			CachedDerivedDataKey[InGroupIndex] = DerivedDataKey;
 		}
 		else
 		{
@@ -806,7 +912,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 
 void UGroomBindingAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupBulkDatas.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsPlatformData.GetAllocatedSize());
 
 	for (const FHairGroupResource& Group : HairGroupResources)
 	{

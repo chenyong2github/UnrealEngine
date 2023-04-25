@@ -126,7 +126,7 @@ namespace HairStrands
 #endif
 }
 
-void FHairStrandsBulkCommon::Write_DDC(UObject* Owner, TArray<UE::DerivedData::FCachePutValueRequest>& Out)
+void FHairStrandsBulkCommon::Write_DDC(UObject* Owner, TArray<UE::DerivedData::FCachePutValueRequest>& Out, int32 InLODIndex)
 {
 #if WITH_EDITORONLY_DATA
 	FHairStrandsBulkCommon::FQuery Q;
@@ -134,6 +134,7 @@ void FHairStrandsBulkCommon::Write_DDC(UObject* Owner, TArray<UE::DerivedData::F
 	Q.OutWriteDDC = &Out;
 	Q.DerivedDataKey = &DerivedDataKey;
 	Q.Owner = Owner;
+	Q.LODIndex = InLODIndex;
 	GetResources(Q);
 #endif
 }
@@ -163,7 +164,7 @@ void FHairStrandsBulkCommon::Read_IO(FHairStreamingRequest* In, FBulkDataBatchRe
 	GetResources(Q);
 	Q.OutReadIO->Issue(Out);
 }
-void FHairStrandsBulkCommon::Write_IO(UObject* Owner, FArchive& Out)
+void FHairStrandsBulkCommon::Write_IO(UObject* Owner, FArchive& Out, int32 InLODIndex)
 {
 	GetResourceVersion(Out);
 
@@ -171,18 +172,19 @@ void FHairStrandsBulkCommon::Write_IO(UObject* Owner, FArchive& Out)
 	Q.Type = FHairStrandsBulkCommon::FQuery::ReadWriteIO;
 	Q.OutWriteIO = &Out;
 	Q.Owner = Owner;
+	Q.LODIndex = InLODIndex;
 	GetResources(Q);
 }
 
 void FHairStrandsBulkCommon::Serialize(FArchive& Ar, UObject* Owner)
 {
 	SerializeHeader(Ar, Owner);
-	SerializeData(Ar, Owner);
+	SerializeData(Ar, Owner, -1 /*InLODIndex*/);
 }
 
-void FHairStrandsBulkCommon::SerializeData(FArchive& Ar, UObject* Owner)
+void FHairStrandsBulkCommon::SerializeData(FArchive& Ar, UObject* Owner, int32 InLODIndex)
 {
-	Write_IO(Owner, Ar);
+	Write_IO(Owner, Ar, InLODIndex);
 }
 
 void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* InSuffix, uint32 InOffset, uint32 InSize) 
@@ -197,10 +199,13 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 		FMemory::Memcpy(WriteData.GetData(), In.Data.Lock(LOCK_READ_ONLY), DataSizeInByte);
 		In.Data.Unlock();
 
+		// Optional LOD suffix
+		const FString InLODSuffix = GetLODIndex() >= 0 ? FString(TEXT("_LOD")) + FString::FromInt(GetLODIndex()) : FString();
+
 		using namespace UE::DerivedData;
 		FCachePutValueRequest& Out = OutWriteDDC->AddDefaulted_GetRef();
 		if (Owner) { Out.Name = Owner->GetPathName(); }
-		Out.Key 	= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix);
+		Out.Key 	= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix + InLODSuffix);
 		Out.Value 	= FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)));
 		Out.Policy 	= ECachePolicy::Default;
 		Out.UserData= 0;
@@ -221,12 +226,15 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 		Chunk.TotalSize = InSize;
 		In.ChunkRequest = &Chunk;
 
+		// Optional LOD suffix
+		const FString InLODSuffix = GetLODIndex() >= 0 ? FString(TEXT("_LOD")) + FString::FromInt(GetLODIndex()) : FString();
+
 		// 2. Fill in actual DDC request
 		check(OutReadDDC);
 		using namespace UE::DerivedData;
 		FCacheGetChunkRequest& Out = OutReadDDC->AddDefaulted_GetRef();
 		Out.Id			= FValueId::Null; 	// HairStrands::HairStrandsValueId : This is only needed for cache record, not cache value.
-		Out.Key			= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix);
+		Out.Key			= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix + InLODSuffix);
 		Out.RawOffset	= InOffset;
 		Out.RawSize		= InSize != 0 ? InSize-InOffset : MAX_uint64;
 		Out.RawHash		= FIoHash();
@@ -317,10 +325,12 @@ void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InReque
 	{
 		CurveCount = 0;
 		PointCount = 0;
+		LODIndex = -1;
 		return;
 	}
 	CurveCount = InRequestedCurveCount;
 	PointCount = InRequestedPointCount;
+	LODIndex = InLODIndex;
 
 #if !WITH_EDITORONLY_DATA
 	{ 
@@ -760,55 +770,42 @@ const TArray<uint32>& FHairStrandsRootBulkData::GetValidSectionIndices(int32 LOD
 	return Header.LODs[LODIndex].UniqueSectionIndices;
 }
 
-void FHairStrandsRootBulkData::SerializeData(FArchive& Ar, UObject* Owner)
+uint32 FHairStrandsRootBulkData::GetResourceCount() const
 {
-	check(Header.LODs.Num() == Data.LODs.Num());
-	for (uint32 LODIt = 0, LODCount=Header.LODs.Num(); LODIt < LODCount; ++LODIt)
-	{
-		const FHeader::FLOD& HeaderLOD = Header.LODs[LODIt];
-		FData::FLOD& DataLOD = Data.LODs[LODIt];
-
-		const int32 ChunkIndex = 0;
-		bool bAttemptFileMapping = false;
-	
-		if (Ar.IsSaving())
-		{
-			const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
-	
-			DataLOD.RootBarycentricBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.RootToUniqueTriangleIndexBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.UniqueTriangleIndexBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.RestUniqueTrianglePositionBuffer.SetBulkDataFlags(BulkFlags);
-	
-			DataLOD.MeshInterpolationWeightsBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.MeshSampleIndicesBuffer.SetBulkDataFlags(BulkFlags);
-			DataLOD.RestSamplePositionsBuffer.SetBulkDataFlags(BulkFlags);
-		}
-
-		DataLOD.RootBarycentricBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		DataLOD.RootToUniqueTriangleIndexBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		DataLOD.UniqueTriangleIndexBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		DataLOD.RestUniqueTrianglePositionBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	
-		if (HeaderLOD.SampleCount)
-		{
-			DataLOD.MeshInterpolationWeightsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-			DataLOD.MeshSampleIndicesBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-			DataLOD.RestSamplePositionsBuffer.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		}
-	}
+	return 7;
 }
 
-void FHairStrandsRootBulkData::Serialize(FArchive& Ar, UObject* Owner)
+void FHairStrandsRootBulkData::GetResources(FQuery& Out)
 {
-	// Root data don't have UObject references
-	if (!Ar.IsLoading() && !Ar.IsSaving() && Ar.IsObjectReferenceCollector())
+	const int32 LODIndex = Out.GetLODIndex();
+	check(LODIndex >= 0);
+	check(Header.LODs.Num() == Data.LODs.Num());
+	check(LODIndex < Data.LODs.Num());
+
+	const FHeader::FLOD& HeaderLOD = Header.LODs[LODIndex];
+	FData::FLOD& DataLOD = Data.LODs[LODIndex];
+
+	// Translate requested curve count into chunk/offset/size to be read
+	// * RBF points are loaded all at once
+	// * Unique triangle data are loaded all at one
+	// * Root data are loaded based on the curve request
+	uint32 RootCount = Header.RootCount;
+	if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC)
 	{
-		return;
+		RootCount = FMath::Min(Header.RootCount, Out.GetCurveCount());
 	}
 
-	SerializeHeader(Ar, Owner);
-	SerializeData(Ar, Owner);
+	Out.Add(DataLOD.RootToUniqueTriangleIndexBuffer, 	TEXT("_RootToUniqueTriangleIndexBuffer"), 		DataLOD.RootToUniqueTriangleIndexBuffer.LoadedSize, 	RootCount * Header.Strides.RootToUniqueTriangleIndexBufferStride);
+	Out.Add(DataLOD.RootBarycentricBuffer, 				TEXT("_RootBarycentricBuffer"), 				DataLOD.RootBarycentricBuffer.LoadedSize, 				RootCount * Header.Strides.RootBarycentricBufferStride);
+	Out.Add(DataLOD.UniqueTriangleIndexBuffer, 			TEXT("_UniqueTriangleIndexBuffer"), 			DataLOD.UniqueTriangleIndexBuffer.LoadedSize, 			HeaderLOD.UniqueTriangleCount * Header.Strides.UniqueTriangleIndexBufferStride);
+	Out.Add(DataLOD.RestUniqueTrianglePositionBuffer, 	TEXT("_RestUniqueTrianglePositionBuffer"), 		DataLOD.RestUniqueTrianglePositionBuffer.LoadedSize, 	HeaderLOD.UniqueTriangleCount * Header.Strides.RestUniqueTrianglePositionBufferStride);
+
+	if (HeaderLOD.SampleCount > 0)
+	{
+		Out.Add(DataLOD.MeshInterpolationWeightsBuffer, TEXT("_MeshInterpolationWeightsBuffer"), 		DataLOD.MeshInterpolationWeightsBuffer.LoadedSize, 		HeaderLOD.SampleCount * Header.Strides.MeshInterpolationWeightsBufferStride);
+		Out.Add(DataLOD.MeshSampleIndicesBuffer, 		TEXT("_MeshSampleIndicesBuffer"), 				DataLOD.MeshSampleIndicesBuffer.LoadedSize, 			HeaderLOD.SampleCount * Header.Strides.MeshSampleIndicesBufferStride);
+		Out.Add(DataLOD.RestSamplePositionsBuffer, 		TEXT("_RestSamplePositionsBuffer"), 			DataLOD.RestSamplePositionsBuffer.LoadedSize, 			HeaderLOD.SampleCount * Header.Strides.RestSamplePositionsBufferStride);
+	}
 }
 
 void FHairStrandsRootBulkData::Reset()
@@ -828,19 +825,19 @@ void FHairStrandsRootBulkData::Reset()
 		LOD.RestUniqueTrianglePositionBuffer.RemoveBulkData();
 
 		// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-		LOD.RootBarycentricBuffer 			 = FByteBulkData();
-		LOD.RootToUniqueTriangleIndexBuffer  = FByteBulkData();
-		LOD.UniqueTriangleIndexBuffer		 = FByteBulkData();
-		LOD.RestUniqueTrianglePositionBuffer = FByteBulkData();
+		LOD.RootBarycentricBuffer 			 = FHairBulkContainer();
+		LOD.RootToUniqueTriangleIndexBuffer  = FHairBulkContainer();
+		LOD.UniqueTriangleIndexBuffer		 = FHairBulkContainer();
+		LOD.RestUniqueTrianglePositionBuffer = FHairBulkContainer();
 
 		// RBF
 		LOD.MeshInterpolationWeightsBuffer.RemoveBulkData();
 		LOD.MeshSampleIndicesBuffer.RemoveBulkData();
 		LOD.RestSamplePositionsBuffer.RemoveBulkData();
 
-		LOD.MeshInterpolationWeightsBuffer 	 = FByteBulkData();
-		LOD.MeshSampleIndicesBuffer 		 = FByteBulkData();
-		LOD.RestSamplePositionsBuffer 		 = FByteBulkData();
+		LOD.MeshInterpolationWeightsBuffer 	 = FHairBulkContainer();
+		LOD.MeshSampleIndicesBuffer 		 = FHairBulkContainer();
+		LOD.RestSamplePositionsBuffer 		 = FHairBulkContainer();
 	}
 	Data.LODs.Empty();
 }

@@ -383,6 +383,7 @@ struct FHairStreamingRequest
 	TArray<FChunk> Chunks;
 	uint32 CurveCount = 0;
 	uint32 PointCount = 0;
+	int32 LODIndex = 0;
 
 	// When enabled, data can be loaded from an offset. Otherwisee, start from the beginning of the resource
 	// This is used when cooking data to force the loading of the entire resource (i.e., bSupportOffsetLoad=false)
@@ -413,11 +414,11 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 	virtual ~FHairStrandsBulkCommon() { }
 	void Serialize(FArchive& Ar, UObject* Owner);
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) = 0;
-	void SerializeData(FArchive& Ar, UObject* Owner);
+	void SerializeData(FArchive& Ar, UObject* Owner, int32 LODIndex=-1);
 
-	void Write_DDC(UObject* Owner, TArray<UE::DerivedData::FCachePutValueRequest>& Out);
+	void Write_DDC(UObject* Owner, TArray<UE::DerivedData::FCachePutValueRequest>& Out, int32 LODIndex=-1);
 	void Read_DDC(FHairStreamingRequest* In, TArray<UE::DerivedData::FCacheGetChunkRequest>& Out);
-	void Write_IO(UObject* Owner, FArchive& Out);
+	void Write_IO(UObject* Owner, FArchive& Out, int32 LODIndex=-1);
 	void Read_IO(FHairStreamingRequest* In, FBulkDataBatchRequest& Out);
 
 	struct FQuery
@@ -425,7 +426,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 		void Add(FHairBulkContainer& In, const TCHAR* InSuffix, uint32 InOffset=0, uint32 InSize=0);
 		uint32 GetCurveCount() const { check(StreamingRequest); return StreamingRequest->CurveCount; }
 		uint32 GetPointCount() const { check(StreamingRequest); return StreamingRequest->PointCount; }
-
+		int32  GetLODIndex() const	 { return StreamingRequest ? StreamingRequest->LODIndex : LODIndex; }
 		enum EQueryType { None, ReadDDC, WriteDDC, ReadIO, ReadWriteIO /* i.e. regular Serialize() */};
 		EQueryType Type = None;
 		FHairStreamingRequest* StreamingRequest = nullptr;
@@ -437,6 +438,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 		FString* DerivedDataKey = nullptr;
 	#endif
 		UObject* Owner = nullptr; 
+		int32 LODIndex = -1;
 	};
 
 	virtual uint32 GetResourceCount() const = 0;
@@ -818,11 +820,11 @@ struct FHairStrandsRootData
 };
 
 /* Bulk data for root resources (GPU resources are stored into FHairStrandsRootResources) */
-struct FHairStrandsRootBulkData
+struct FHairStrandsRootBulkData : FHairStrandsBulkCommon
 {
-	void SerializeHeader(FArchive& Ar, UObject* Owner);
-	void SerializeData(FArchive& Ar, UObject* Owner);
-	void Serialize(FArchive& Ar, UObject* Owner);
+	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
+	virtual uint32 GetResourceCount() const override;
+	virtual void GetResources(FQuery& Out) override;
 
 	void Reset();
 	bool IsValid() const { return Header.RootCount > 0; }
@@ -879,15 +881,15 @@ struct FHairStrandsRootBulkData
 		struct FLOD
 		{
 			// Binding
-			FByteBulkData RootToUniqueTriangleIndexBuffer; 	// Map each root onto the unique triangle Id (per-root)
-			FByteBulkData RootBarycentricBuffer; 			// Root's barycentric (per-root)
-			FByteBulkData UniqueTriangleIndexBuffer; 		// Unique triangles list from skeleton mesh section IDs and triangle IDs (per-unique-triangle)
-			FByteBulkData RestUniqueTrianglePositionBuffer;	// Rest triangle positions (per-unique-triangle)
+			FHairBulkContainer RootToUniqueTriangleIndexBuffer; // Map each root onto the unique triangle Id (per-root)
+			FHairBulkContainer RootBarycentricBuffer; 			// Root's barycentric (per-root)
+			FHairBulkContainer UniqueTriangleIndexBuffer; 		// Unique triangles list from skeleton mesh section IDs and triangle IDs (per-unique-triangle)
+			FHairBulkContainer RestUniqueTrianglePositionBuffer;// Rest triangle positions (per-unique-triangle)
 
 			// RBF
-			FByteBulkData MeshInterpolationWeightsBuffer; 	// Store the hair interpolation weights | Size = SamplesCount * SamplesCount (per-sample
-			FByteBulkData MeshSampleIndicesBuffer; 			// Store the samples vertex indices (per-sample)
-			FByteBulkData RestSamplePositionsBuffer; 		// Store the samples rest positions (per-sample)
+			FHairBulkContainer MeshInterpolationWeightsBuffer; 	// Store the hair interpolation weights | Size = SamplesCount * SamplesCount (per-sample
+			FHairBulkContainer MeshSampleIndicesBuffer; 		// Store the samples vertex indices (per-sample)
+			FHairBulkContainer RestSamplePositionsBuffer; 		// Store the samples rest positions (per-sample)
 		};
 		TArray<FLOD> LODs;
 	} Data;

@@ -479,7 +479,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 		ExtractSkeletalVertexPosition(SkeletalMeshData_Target, MeshLODIndex, MeshVertexPositionsBuffer_Target);
 
 		// Apply RBF deformation to each group of guides and render strands
-		const int32 NumGroups = BindingAsset->HairGroupBulkDatas.Num();
+		const int32 NumGroups = BindingAsset->HairGroupsPlatformData.Num();
 
 		// Use the vertices positions from the HairDescription instead of the GroomAsset since the latter
 		// may contain decimated or auto-generated guides depending on the import settings
@@ -541,7 +541,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			else
 			{
 				FHairStrandsRootData SimRootData;
-				FGroomBindingBuilder::GetRootData(SimRootData, BindingAsset->HairGroupBulkDatas[GroupIndex].SimRootBulkData);
+				FGroomBindingBuilder::GetRootData(SimRootData, BindingAsset->HairGroupsPlatformData[GroupIndex].SimRootBulkData);
 
 				DeformedPositions[GroupIndex].GuideStrands = GetDeformedHairStrandsPositions(
 					MeshVertexPositionsBuffer_Target,
@@ -555,7 +555,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			// Get deformed render strands
 			{
 				FHairStrandsRootData RenRootData;
-				FGroomBindingBuilder::GetRootData(RenRootData, BindingAsset->HairGroupBulkDatas[GroupIndex].RenRootBulkData);
+				FGroomBindingBuilder::GetRootData(RenRootData, BindingAsset->HairGroupsPlatformData[GroupIndex].RenRootBulkData);
 
 				DeformedPositions[GroupIndex].RenderStrands = GetDeformedHairStrandsPositions(
 					MeshVertexPositionsBuffer_Target,
@@ -589,7 +589,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 				Mesh->ConditionalPostLoad();
 
 				FHairStrandsRootData RenRootData;
-				FGroomBindingBuilder::GetRootData(RenRootData, BindingAsset->HairGroupBulkDatas[Desc.GroupIndex].RenRootBulkData);
+				FGroomBindingBuilder::GetRootData(RenRootData, BindingAsset->HairGroupsPlatformData[Desc.GroupIndex].RenRootBulkData);
 
 				DeformStaticMeshPositions(Mesh, MeshVertexPositionsBuffer_Target, RenRootData.MeshProjectionLODs[MeshLODIndex]);
 			}
@@ -608,7 +608,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 				Mesh->ConditionalPostLoad();
 				
 				FHairStrandsRootData RenRootData;
-				FGroomBindingBuilder::GetRootData(RenRootData, BindingAsset->HairGroupBulkDatas[Desc.GroupIndex].RenRootBulkData);
+				FGroomBindingBuilder::GetRootData(RenRootData, BindingAsset->HairGroupsPlatformData[Desc.GroupIndex].RenRootBulkData);
 
 				DeformStaticMeshPositions(Mesh, MeshVertexPositionsBuffer_Target, RenRootData.MeshProjectionLODs[MeshLODIndex]);
 			}

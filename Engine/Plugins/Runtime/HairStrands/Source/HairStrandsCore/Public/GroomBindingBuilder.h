@@ -17,7 +17,8 @@ struct HAIRSTRANDSCORE_API FGroomBindingBuilder
 	static FString GetVersion();
 
 	// Build binding asset data
-	static bool BuildBinding(class UGroomBindingAsset* BindingAsset, bool bInitResources);
+	static bool BuildBinding(class UGroomBindingAsset* BindingAsset, bool bInitResource);
+	static bool BuildBinding(class UGroomBindingAsset* BindingAsset, uint32 InGroupIndex);
 
 	// Extract root data from bulk data
 	static void GetRootData(FHairStrandsRootData& Out, const FHairStrandsRootBulkData& In);

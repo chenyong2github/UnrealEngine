@@ -47,14 +47,6 @@ enum class EGroomBindingMeshType : uint8
 	GeometryCache
 };
 
-/** Binding bulk data */
-struct FHairGroupBulkData
-{
-	FHairStrandsRootBulkData		SimRootBulkData;
-	FHairStrandsRootBulkData		RenRootBulkData;
-	TArray<FHairStrandsRootBulkData>CardsRootBulkData;
-};
-
 /**
  * Implements an asset that can be used to store binding information between a groom and a skeletal mesh
  */
@@ -117,8 +109,16 @@ public:
 	   when the binding asset is recomputed */
 	TQueue<FHairGroupResource> HairGroupResourcesToDelete;
 
+	/** Binding bulk data */
+	struct FHairGroupPlatformData
+	{
+		FHairStrandsRootBulkData		SimRootBulkData;
+		FHairStrandsRootBulkData		RenRootBulkData;
+		TArray<FHairStrandsRootBulkData>CardsRootBulkData;
+
+	};
 	/** Root bulk data for each hair gruops */
-	TArray<FHairGroupBulkData> HairGroupBulkDatas;
+	TArray<FHairGroupPlatformData> HairGroupsPlatformData;
 
 	//~ Begin UObject Interface.
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
@@ -185,12 +185,14 @@ public:
 	void Build();
 
 	void CacheDerivedDatas();
+	void CacheDerivedDatas(uint32 InGroupIndex, const FString KeySuffix, bool& bOutValid, bool& bOutReloadResource);
+
 	void InvalidateBinding();
 	void InvalidateBinding(class USkeletalMesh*);
 	bool bRegisterSourceMeshCallback = false;
 	bool bRegisterTargetMeshCallback = false;
 	bool bRegisterGroomAssetCallback = false;
-	FString CachedDerivedDataKey;
+	TArray<FString> CachedDerivedDataKey;
 #endif
 	bool bIsValid = false;
 };

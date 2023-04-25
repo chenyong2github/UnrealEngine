@@ -109,10 +109,10 @@ struct FHairCommonResource : public FRenderResource
 
 	virtual void InternalAllocate() {}
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) {}
-	virtual void InternalAllocate(FRDGBuilder& GraphBuilder, int32 InLODIndex) { InternalAllocate(GraphBuilder); }
+	virtual void InternalAllocate(FRDGBuilder& GraphBuilder, uint32 InCurveCount, int32 InLODIndex) { InternalAllocate(GraphBuilder); }
 	virtual void InternalRelease() {}
 	virtual bool InternalIsDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) { return true; }
-	virtual bool InternalIsLODDataLoaded(int32 InLODIndex) const { return true; }
+	virtual bool InternalIsLODDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) const { return true; }
 
 	bool bUseRenderGraph = true;
 	bool bIsInitialized = false;
@@ -351,10 +351,10 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	FHairStrandsRestRootResource(FHairStrandsRootBulkData& BulkData, EHairStrandsResourcesType CurveType, const FHairResourceName& ResourceName, const FName& OwnerName);
 
 	/* Init/Release buffers */
-	virtual void InternalAllocate(FRDGBuilder& GraphBuilder, int32 InLODIndex) override;
+	virtual void InternalAllocate(FRDGBuilder& GraphBuilder, uint32 InCurveCount, int32 InLODIndex) override;
 	virtual void InternalRelease() override;
 	virtual bool InternalIsDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) override;
-	virtual bool InternalIsLODDataLoaded(int32 InLODIndex) const override;
+	virtual bool InternalIsLODDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) const override;
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRestRootResource"); }
@@ -390,6 +390,7 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 		const bool IsValid() const { return Status == EStatus::Completed; }
 		EStatus Status = EStatus::Invalid;
 		int32 LODIndex = -1;
+		uint32 AvailableCurveCount = 0;
 
 		/* Triangle on which a root is attached */
 		/* When the projection is done with source to target mesh transfer, the projection indices does not match.
@@ -412,9 +413,6 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	/* Store the hair projection information for each mesh LOD */
 	TArray<FLOD> LODs;
 
-	/* LOD bulk data requests */
-	TArray<FBulkDataBatchRequest> LODRequests;
-
 	/* Store CPU data for root info & root binding */
 	FHairStrandsRootBulkData& BulkData;
 
@@ -430,9 +428,9 @@ struct FHairStrandsDeformedRootResource : public FHairCommonResource
 	FHairStrandsDeformedRootResource(const FHairStrandsRestRootResource* InRestResources, EHairStrandsResourcesType CurveType, const FHairResourceName& ResourceName, const FName& OwnerName);
 
 	/* Init/Release buffers */
-	virtual void InternalAllocate(FRDGBuilder& GraphBuilder, int32 InLODIndex) override;
+	virtual void InternalAllocate(FRDGBuilder& GraphBuilder, uint32 InCurveCount, int32 InLODIndex) override;
 	virtual void InternalRelease() override;
-	virtual bool InternalIsLODDataLoaded(int32 InLODIndex) const override;
+	virtual bool InternalIsLODDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) const override;
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsDeformedRootResource"); }
@@ -480,6 +478,7 @@ struct FHairStrandsDeformedRootResource : public FHairCommonResource
 		const bool IsValid() const { return Status == EStatus::Initialized || Status == EStatus::Completed; }
 		EStatus Status = EStatus::Invalid;
 		int32 LODIndex = -1;
+		uint32 AvailableCurveCount = 0;
 
 		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
 		FRDGExternalBuffer DeformedUniqueTrianglePositionBuffer[2];
