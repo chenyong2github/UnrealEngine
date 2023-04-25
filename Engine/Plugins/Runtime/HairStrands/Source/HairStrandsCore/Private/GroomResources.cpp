@@ -1097,7 +1097,7 @@ FRDGExternalBuffer& FHairStrandsDeformedResource::GetDeformerCurveAttributeBuffe
 	// Deformer curve attributes
 	if (DeformerCurveAttributeBuffer.Buffer == nullptr)
 	{
-		const uint32 AllocSize = FMath::DivideAndRoundUp(BulkData.Header.CurveCount, BulkData.Header.Strides.CurveAttributeChunkElementCount) * BulkData.Header.Strides.CurveAttributeChunkStride;
+		const uint32 AllocSize = BulkData.GetCurveAttributeSizeInBytes();
 		check(AllocSize > 0);
 		InternalCreateByteAddressBufferRDG(GraphBuilder, AllocSize, DeformerCurveAttributeBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformerCurveAttributeBuffer), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
 	}
@@ -1109,7 +1109,7 @@ FRDGExternalBuffer& FHairStrandsDeformedResource::GetDeformerPointAttributeBuffe
 	// Deformer point attributes
 	if (DeformerPointAttributeBuffer.Buffer == nullptr && (BulkData.Header.Flags & FHairStrandsBulkData::DataFlags_HasPointAttribute) && BulkData.Data.PointAttributes.Data.GetBulkDataSize() > 0)
 	{
-		const uint32 AllocSize = FMath::DivideAndRoundUp(BulkData.Header.PointCount, BulkData.Header.Strides.PointAttributeChunkElementCount) * BulkData.Header.Strides.PointAttributeChunkStride;
+		const uint32 AllocSize = BulkData.GetPointAttributeSizeInBytes();
 		check(AllocSize > 0);
 		InternalCreateByteAddressBufferRDG(GraphBuilder, AllocSize, DeformerPointAttributeBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformedt_DeformerPointAttributeBuffer), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
 	}
