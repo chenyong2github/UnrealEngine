@@ -82,7 +82,7 @@ template<typename GEComponentClass, typename LateBindGameplayEffect = UGameplayE
 const GEComponentClass* FindParentComponent(const GEComponentClass& ChildComponent)
 {
 	const LateBindGameplayEffect* ChildGE = ChildComponent.GetOwner();
-	const LateBindGameplayEffect* ParentGE = ChildGE ? CastChecked<LateBindGameplayEffect>(ChildGE->GetClass()->GetArchetypeForCDO(), ECastCheckedType::NullAllowed) : nullptr;
+	const LateBindGameplayEffect* ParentGE = ChildGE ? Cast<LateBindGameplayEffect>(ChildGE->GetClass()->GetArchetypeForCDO()) : nullptr;
 	return ParentGE ? ParentGE->template FindComponent<GEComponentClass>() : nullptr;
 }
 
