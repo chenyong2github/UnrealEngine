@@ -451,6 +451,13 @@ namespace UE::AssetTools::Private
 		return EAdvancedCopyConsolidationMethod::PerAsset;
 	}
 
+	bool bFollowRedirectorsWhenImporting = false;
+	static FAutoConsoleVariableRef CVarFollowRedirectorsWhenImporting(
+		TEXT("AssetTools.FollowRedirectorsWhenImporting"),
+		bFollowRedirectorsWhenImporting,
+		TEXT("When set, if you import an asset at a location with a redirector, you'll instead import to the redirector's destination location")
+	);
+
 	// use a struct as a namespace to allow easier friend declarations
 	struct FPackageMigrationImpl
 	{
@@ -3316,6 +3323,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 			{
 				FImportAssetParameters ImportAssetParameters;
 				ImportAssetParameters.bIsAutomated = bAutomatedImport;
+				ImportAssetParameters.bFollowRedirectors = UE::AssetTools::Private::bFollowRedirectorsWhenImporting;
 				ImportAssetParameters.ReimportAsset = nullptr;
 
 
@@ -3580,6 +3588,24 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 
 			// Check for an existing object
 			UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), Pkg, *Name);
+
+			if (UE::AssetTools::Private::bFollowRedirectorsWhenImporting)
+			{
+				if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(ExistingObject))
+				{
+					if (Redirector->DestinationObject)
+					{
+						ExistingObject = Redirector->DestinationObject;
+						Pkg = Redirector->DestinationObject->GetPackage();
+						if (FPackageName::GetLongPackageAssetName(PackageName) == Name)
+						{
+							Name = FPackageName::GetLongPackageAssetName(Pkg->GetName());
+						}
+						PackageName = Pkg->GetName();
+					}
+				}
+			}
+
 			if(ExistingObject != nullptr)
 			{
 				// If the existing object is one of the imports we've just created we can't replace or overwrite it

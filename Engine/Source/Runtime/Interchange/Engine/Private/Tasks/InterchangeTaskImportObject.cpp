@@ -240,6 +240,15 @@ namespace UE::Interchange::Private
 
 		if (!bSkipAsset)
 		{
+			if (AsyncHelper->TaskData.bFollowRedirectors)
+			{
+				// Check to see if we were redirected. If so, and if the asset name matched the package name, change the name of the asset to match the new package as well
+				if (Pkg->GetName() != PackageName && FPackageName::GetLongPackageAssetName(PackageName) == AssetName)
+				{
+					AssetName = FPackageName::GetLongPackageAssetName(Pkg->GetName());
+				}
+			}
+
 			UInterchangeTranslatorBase* Translator = AsyncHelper->Translators[SourceIndex];
 			//Import Asset describe by the node
 			UInterchangeFactoryBase::FImportAssetObjectParams CreateAssetParams;
@@ -349,6 +358,7 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 		//If the package already exist we must load it so factory can find any existing asset and decide or not to override it
 		{
 			//Try to find the package in memory
+			bool bPackageWasCreated = false;
 			Pkg = FindPackage(nullptr, *PackageName);
 			if (!Pkg)
 			{
@@ -359,6 +369,7 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 					//Create the package
 					Pkg = CreatePackage(*PackageName);
 					Pkg->SetPackageFlags(PKG_NewlyCreated);
+					bPackageWasCreated = true;
 				}
 			}
 
@@ -372,6 +383,21 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 
 				//Skip this asset
 				return;
+			}
+
+			if (!bPackageWasCreated && AsyncHelper->TaskData.bFollowRedirectors)
+			{
+				if (UObjectRedirector* Redirector = FindObject<UObjectRedirector>(Pkg, *AssetName))
+				{
+					if (Redirector->DestinationObject)
+					{
+						Pkg = Redirector->DestinationObject->GetPackage();
+						if (FPackageName::GetLongPackageAssetName(PackageName) == AssetName)
+						{
+							AssetName = FPackageName::GetLongPackageAssetName(Pkg->GetName());
+						}
+					}
+				}
 			}
 		}
 

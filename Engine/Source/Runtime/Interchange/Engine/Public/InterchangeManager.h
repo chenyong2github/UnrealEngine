@@ -82,6 +82,9 @@ namespace UE
 			//True if the import process is unattended. We cannot show UI  if the import is automated
 			bool bIsAutomated = false;
 
+			// True if redirectors will be followed when determining what location to import an asset
+			bool bFollowRedirectors = false;
+
 			//We can import assets or full scene
 			EImportType ImportType = EImportType::ImportType_None;
 
@@ -299,6 +302,10 @@ struct INTERCHANGEENGINE_API FImportAssetParameters
 	// Tell interchange that import is automated and it shouldn't present a model window
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
 	bool bIsAutomated = false;
+
+	// Tell interchange to follow redirectors when determining the location an asset will be imported
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
+	bool bFollowRedirectors = false;
 
 	// Adding some override will tell interchange to use the specific custom set pipelines instead of letting the user or the system chose
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
