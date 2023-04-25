@@ -5835,6 +5835,12 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(
 				{
 					OverrideIndex = UniqueWeights.Num();
 
+					// When writing out 8-bit weights, we want to collect the resulting deviation from fully normalized
+					// weight sum. Once all values are copied, we alter the first, and most prominent, weight, by the 
+					// deviation value so that we end up with completely normalized 8-bit weights.
+					const int32 FirstWeightOffset = InOutSkinWeightOverrideData.BoneWeights.Num();
+					int32 Accumulated8BitDeviation = 255;
+
 					// Write out non-zero weighted influences only
 					for (int32 InfluenceIndex = 0; InfluenceIndex < NumInfluences; ++InfluenceIndex)
 					{
@@ -5861,10 +5867,16 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(
 						else
 						{
 							BoneWeights.Add(static_cast<uint8>(Weight >> 8));
+							Accumulated8BitDeviation -= BoneWeights.Last();
 						}
 					}
 
 					UniqueWeights.Add(SourceSkinWeight);
+
+					if (!bInUseHighPrecisionWeights)
+					{
+						InOutSkinWeightOverrideData.BoneWeights[FirstWeightOffset] += Accumulated8BitDeviation;
+					}
 				}
 
 				InOutSkinWeightOverrideData.VertexIndexToInfluenceOffset.Add(VertexIndex, OverrideIndex);
