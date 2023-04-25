@@ -135,6 +135,19 @@ public:
 };
 
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPolygonsTriangulationOptions
+{
+	GENERATED_BODY()
+public:
+
+	/** Whether to still append the triangulation in error cases -- typically, cases where the input contained intersecting edges. Resulting triangulation likely will appear correct except at the intersecting edges. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool bStillAppendOnTriangulationError = true;
+
+};
+
+
 UCLASS(meta = (ScriptName = "GeometryScript_Primitives"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshPrimitiveFunctions : public UBlueprintFunctionLibrary
 {
@@ -530,6 +543,8 @@ public:
 
 	/**
 	* Generates a Delaunay Triangulation of the provided Polygon List, and appends it to the Target Mesh.
+	* @param bTriangulationError Reports whether the triangulation contains errors, typically due to intersecting edges in the input. Consider pre-processing the PolygonsList with PolygonsUnion to resolve intersections and prevent this error.
+	* @param bStillAppendOnError Whether to still append a best-effort triangulation in error cases. Often this will be a triangulation that does not quite match the polygon shape near intersecting edges in the input, but otherwise is as-expected.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
@@ -538,6 +553,8 @@ public:
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
 		FGeometryScriptGeneralPolygonList PolygonList,
+		FGeometryScriptPolygonsTriangulationOptions TriangulationOptions,
+		bool& bTriangulationError,
 		UGeometryScriptDebug* Debug = nullptr);
 
 

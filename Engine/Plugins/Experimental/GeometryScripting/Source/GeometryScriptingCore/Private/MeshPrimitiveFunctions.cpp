@@ -1318,6 +1318,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendPolygonListTr
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
 	FTransform Transform,
 	FGeometryScriptGeneralPolygonList PolygonList,
+	FGeometryScriptPolygonsTriangulationOptions TriangulationOptions,
+	bool& bTriangulationError,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -1336,14 +1338,22 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendPolygonListTr
 	TriangulationMeshGen.bReverseOrientation = true; // because FDelaunay2 generates triangles with reversed orientation vs what we want
 
 	// Triangulate and append each polygon separately
-	bool bAnyFailed = false;
+	bTriangulationError = false;
 	for (const UE::Geometry::FGeneralPolygon2d& Polygon : *PolygonList.Polygons)
 	{
 		UE::Geometry::FDelaunay2 Delaunay;
 		Delaunay.bAutomaticallyFixEdgesToDuplicateVertices = true;
 		TArray<FIndex3i> Triangles;
 		TArray<FVector2d> Vertices;
-		Delaunay.Triangulate(Polygon, &Triangles, &Vertices);
+		const bool bSuccess = Delaunay.Triangulate(Polygon, &Triangles, &Vertices, true);
+		if (!bSuccess)
+		{
+			bTriangulationError = true;
+			if (!TriangulationOptions.bStillAppendOnTriangulationError)
+			{
+				return TargetMesh;
+			}
+		}
 		int32 VertStart = TriangulationMeshGen.Vertices2D.Num();
 		TriangulationMeshGen.Vertices2D.Append(Vertices);
 		TriangulationMeshGen.Triangles2D.Reserve(TriangulationMeshGen.Triangles2D.Num() + Triangles.Num());
@@ -1355,10 +1365,6 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendPolygonListTr
 	if (TriangulationMeshGen.Vertices2D.Num() > 2 && TriangulationMeshGen.Triangles2D.Num() > 0)
 	{
 		AppendPrimitive(TargetMesh, &TriangulationMeshGen.Generate(), Transform, PrimitiveOptions);
-	}
-	if (bAnyFailed)
-	{
-		UE::Geometry::AppendWarning(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("PrimitiveFunctions_AppendPolygonListTriangulation_TriangulationFailed", "AppendPolygonListTriangulation: Triangulation failed, but may still contain a partial result."));
 	}
 
 	return TargetMesh;

@@ -109,7 +109,7 @@ public:
 	// Note: TrianglesOut may be empty or incomplete if the input is self-intersecting.
 	// Note this clears any previously-held triangulation data, and triangulates the passed-in general polygon from scratch
 	template<typename RealType>
-	bool Triangulate(const TGeneralPolygon2<RealType>& GeneralPolygon, TArray<FIndex3i>* TrianglesOut = nullptr, TArray<TVector2<RealType>>* VerticesOut = nullptr)
+	bool Triangulate(const TGeneralPolygon2<RealType>& GeneralPolygon, TArray<FIndex3i>* TrianglesOut = nullptr, TArray<TVector2<RealType>>* VerticesOut = nullptr, bool bFallbackToGeneralizedWinding = false)
 	{
 		TArray<TVector2<RealType>> AllVertices;
 		TArray<FIndex2i> AllEdges;
@@ -139,7 +139,15 @@ public:
 		bool bSuccess = Triangulate(AllVertices, AllEdges);
 		if (TrianglesOut)
 		{
-			*TrianglesOut = GetFilledTriangles(AllEdges, GeneralPolygon.OuterIsClockwise() ? EFillMode::NegativeWinding : EFillMode::PositiveWinding);
+			EFillMode FillMode = GeneralPolygon.OuterIsClockwise() ? EFillMode::NegativeWinding : EFillMode::PositiveWinding;
+			if (bSuccess || !bFallbackToGeneralizedWinding)
+			{
+				*TrianglesOut = GetFilledTriangles(AllEdges, FillMode);
+			}
+			else
+			{
+				GetFilledTrianglesGeneralizedWinding(*TrianglesOut, AllVertices, AllEdges, FillMode);
+			}
 		}
 		if (VerticesOut)
 		{
@@ -195,6 +203,23 @@ public:
 	 *									Note the triangulation will still be filled by best-effort even if the function returns false.
 	 */
 	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
+
+	/**
+	 * Get (by reference) the triangles that are inside the given edges, using a generalized winding number method to determine which triangles are inside
+	 * Not valid for EFillMode::Solid, will fall back to the above GetFilledTriangles method in that case.
+	 * 
+	 * This method is for triangulations where the edges did not define a fully-closed shape, either by construction or due to un-resolved edge intersections in the input.
+	 * Note that it is slower than the standard GetFilledTriangles, and is worse for closed polygons where all edges were successfully constrained.
+	 *
+	 * @param TrianglesOut				Will be filled with a subset of the triangulation that is 'inside' the given edges, as defined by the FillMode
+	 * @param Vertices					The array of vertices that were used in the triangulation (by the previous call to Triangulate)
+	 * @param Edges						The array of edges that were already constrained in the triangulation (by a previous call to Triangulate or ConstrainEdges)
+	 * @param FillMode					Strategy to use to define which triangles to include in the output
+	 * @return							true if the result was well defined and consistent; false otherwise. Solid fill mode always has a well defined result; Winding-number-based fills do not if the edges have open spans.
+	 *									Note the triangulation will still be filled by best-effort even if the function returns false.
+	 */
+	bool GetFilledTrianglesGeneralizedWinding(TArray<FIndex3i>& TrianglesOut, TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
+	bool GetFilledTrianglesGeneralizedWinding(TArray<FIndex3i>& TrianglesOut, TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
 
 	/**
 	 * Get (by reference) the triangles that are inside the given edges, removing the outside-boundary triangles and the inside-hole triangles
