@@ -13,6 +13,7 @@ public:
 	FWindowsPlatformFeaturesModule();
 
 	virtual IVideoRecordingSystem* GetVideoRecordingSystem() override;
+	virtual class ISaveGameSystem* GetSaveGameSystem() override;
 
 private:
 	void StartupModule() override;

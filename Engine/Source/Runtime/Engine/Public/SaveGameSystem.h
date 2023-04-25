@@ -9,6 +9,7 @@
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 #include "Tasks/Pipe.h"
+#include "Modules/ModuleInterface.h"
 
 /**
  * Interface for platform feature modules
@@ -206,4 +207,15 @@ protected:
 	virtual void WaitForAsyncTask(UE::Tasks::FTask AsyncSaveTask);
 
 };
+
+/**
+ * Save game system Module Interface
+ */
+class ISaveGameSystemModule : public IModuleInterface
+{
+public:
+
+	virtual ISaveGameSystem* GetSaveGameSystem() = 0;
+};
+
 
