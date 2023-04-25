@@ -95,12 +95,12 @@ static void RequestInertialBlend(const FAnimationUpdateContext& Context, float B
 	}
 }
 
-void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, const FMotionMatchingSettings& Settings, const UE::PoseSearch::FSearchResult& Result)
+void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, const UE::PoseSearch::FSearchResult& Result, int32 MaxActiveBlends, float BlendTime)
 {
 	// requesting inertial blending only if blendstack is disabled
-	if (Settings.MaxActiveBlends <= 0)
+	if (MaxActiveBlends <= 0)
 	{
-		RequestInertialBlend(Context, Settings.BlendTime);
+		RequestInertialBlend(Context, BlendTime);
 	}
 
 	// Remember which pose and sequence we're playing from the database
@@ -109,11 +109,11 @@ void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, co
 	bJumpedToPose = true;
 }
 
-void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FMotionMatchingSettings& Settings)
+void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FFloatInterval& PlayRate)
 {
 	if (CurrentSearchResult.IsValid())
 	{
-		if (!FMath::IsNearlyEqual(Settings.PlayRate.Min, 1.f, UE_KINDA_SMALL_NUMBER) || !FMath::IsNearlyEqual(Settings.PlayRate.Max, 1.f, UE_KINDA_SMALL_NUMBER))
+		if (!FMath::IsNearlyEqual(PlayRate.Min, 1.f, UE_KINDA_SMALL_NUMBER) || !FMath::IsNearlyEqual(PlayRate.Max, 1.f, UE_KINDA_SMALL_NUMBER))
 		{
 			if (const FPoseSearchFeatureVectorBuilder* PoseSearchFeatureVectorBuilder = SearchContext.GetCachedQuery(CurrentSearchResult.Database->Schema))
 			{
@@ -122,8 +122,8 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 					TConstArrayView<float> QueryData = PoseSearchFeatureVectorBuilder->GetValues();
 					TConstArrayView<float> ResultData = CurrentSearchResult.Database->GetSearchIndex().GetPoseValues(CurrentSearchResult.PoseIdx);
 					const float EstimatedSpeedRatio = TrajectoryChannel->GetEstimatedSpeedRatio(QueryData, ResultData);
-					check(Settings.PlayRate.Min <= Settings.PlayRate.Max);
-					WantedPlayRate = FMath::Clamp(EstimatedSpeedRatio, Settings.PlayRate.Min, Settings.PlayRate.Max);
+					check(PlayRate.Min <= PlayRate.Max);
+					WantedPlayRate = FMath::Clamp(EstimatedSpeedRatio, PlayRate.Min, PlayRate.Max);
 				}
 				else
 				{
@@ -249,7 +249,12 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,
 	const TArray<TObjectPtr<const UPoseSearchDatabase>>& Databases,
 	const FPoseSearchQueryTrajectory& Trajectory,
-	const FMotionMatchingSettings& Settings,
+	float BlendTime,
+	int32 MaxActiveBlends,
+	float PoseJumpThresholdTime,
+	float PoseReselectHistory,
+	float SearchThrottleTime,
+	const FFloatInterval& PlayRate,
 	FMotionMatchingState& InOutMotionMatchingState,
 	bool bForceInterrupt,
 	bool bShouldSearch,
@@ -291,10 +296,10 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 
 	const FPoseSearchQueryTrajectory TrajectoryCS = GetCharacterRelativeTrajectory(Trajectory, Context.AnimInstanceProxy->GetActorTransform(), Context.AnimInstanceProxy->GetComponentTransform());
 	FSearchContext SearchContext(&TrajectoryCS, History, 0.f, &InOutMotionMatchingState.PoseIndicesHistory, QueryMirrorRequest, 
-		InOutMotionMatchingState.CurrentSearchResult, Settings.PoseJumpThresholdTime, bForceInterrupt, InOutMotionMatchingState.CanAdvance(DeltaTime));
+		InOutMotionMatchingState.CurrentSearchResult, PoseJumpThresholdTime, bForceInterrupt, InOutMotionMatchingState.CanAdvance(DeltaTime));
 
 	// If we can't advance or enough time has elapsed since the last pose jump then search
-	const bool bSearch = !SearchContext.CanAdvance() || (bShouldSearch && (InOutMotionMatchingState.ElapsedPoseSearchTime >= Settings.SearchThrottleTime));
+	const bool bSearch = !SearchContext.CanAdvance() || (bShouldSearch && (InOutMotionMatchingState.ElapsedPoseSearchTime >= SearchThrottleTime));
 	if (bSearch)
 	{
 		InOutMotionMatchingState.ElapsedPoseSearchTime = 0.f;
@@ -325,7 +330,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		if (SearchResult.PoseCost.GetTotalCost() < ContinuingPoseCost.GetTotalCost())
 		{
 			SearchResult.ContinuingPoseCost = ContinuingPoseCost;
-			InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
+			InOutMotionMatchingState.JumpToPose(Context, SearchResult, MaxActiveBlends, BlendTime);
 		}
 		else
 		{
@@ -337,14 +342,14 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 			InOutMotionMatchingState.CurrentSearchResult.ContinuingPoseCost = ContinuingPoseCost;
 		}
 
-		InOutMotionMatchingState.UpdateWantedPlayRate(SearchContext, Settings);
+		InOutMotionMatchingState.UpdateWantedPlayRate(SearchContext, PlayRate);
 	}
 	else
 	{
 		InOutMotionMatchingState.ElapsedPoseSearchTime += DeltaTime;
 	}
 
-	InOutMotionMatchingState.PoseIndicesHistory.Update(InOutMotionMatchingState.CurrentSearchResult, DeltaTime, Settings.PoseReselectHistory);
+	InOutMotionMatchingState.PoseIndicesHistory.Update(InOutMotionMatchingState.CurrentSearchResult, DeltaTime, PoseReselectHistory);
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	// Record debugger details

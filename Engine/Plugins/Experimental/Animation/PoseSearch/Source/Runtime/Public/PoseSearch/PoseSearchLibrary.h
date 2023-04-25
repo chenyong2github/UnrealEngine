@@ -23,44 +23,6 @@ namespace UE::PoseSearch
 struct FAnimationUpdateContext;
 struct FPoseSearchQueryTrajectory;
 
-USTRUCT(BlueprintType, Category = "Animation|Pose Search")
-struct POSESEARCH_API FMotionMatchingSettings
-{
-	GENERATED_BODY()
-
-	// Time in seconds to blend out to the new pose. Uses either inertial blending, requiring an Inertialization node after this node, or the internal blend stack, if MaxActiveBlends is greater than zero.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float BlendTime = 0.2f;
-
-	// Number of max active animation segments being blended together in the blend stack. If MaxActiveBlends is zero then the blend stack is disabled.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	int32 MaxActiveBlends = 4;
-
-	// Set Blend Profiles (editable in the skeleton) to determine how the blending is distributed among your character's bones. It could be used to differentiate between upper body and lower body to blend timing.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(UseAsBlendProfile = true))
-	TObjectPtr<UBlendProfile> BlendProfile;
-
-	// How the blend is applied over time to the bones. Common selections are linear, ease in, ease out, and ease in and out.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	EAlphaBlendOption BlendOption = EAlphaBlendOption::Linear;
-
-	// Don't jump to poses of the same segment that are less than this many seconds away.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float PoseJumpThresholdTime = 0.f;
-
-	// Prevent re-selection of poses that have been selected previously within this much time (in seconds) in the past. This is across all animation segments that have been selected within this time range.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0"))
-	float PoseReselectHistory = 0.3f;
-
-	// Minimum amount of time to wait between searching for a new pose segment. It allows users to define how often the system searches, default for locomotion is searching every update, but you may only want to search once for other situations, like jump.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float SearchThrottleTime = 0.f;
-
-	// Effective range of play rate that can be applied to the animations to account for discrepancies in estimated velocity between the movement modeland the animation.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.5", ClampMax = "2.0", UIMin = "0.5", UIMax = "2.0"))
-	FFloatInterval PlayRate = FFloatInterval(1.f, 1.f);
-};
-
 USTRUCT(BlueprintType, Category="Animation|Pose Search")
 struct POSESEARCH_API FMotionMatchingState
 {
@@ -78,9 +40,9 @@ struct POSESEARCH_API FMotionMatchingState
 	void AdjustAssetTime(float AssetTime);
 
 	// Internally stores the 'jump' to a new pose/sequence index and asset time for evaluation
-	void JumpToPose(const FAnimationUpdateContext& Context, const FMotionMatchingSettings& Settings, const UE::PoseSearch::FSearchResult& Result);
+	void JumpToPose(const FAnimationUpdateContext& Context, const UE::PoseSearch::FSearchResult& Result, int32 MaxActiveBlends, float BlendTime);
 
-	void UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FMotionMatchingSettings& Settings);
+	void UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FFloatInterval& PlayRate);
 
 	UE::PoseSearch::FSearchResult CurrentSearchResult;
 
@@ -143,7 +105,12 @@ public:
 	* @param Context						Input animation update context providing access to the proxy and delta time
 	* @param Databases						Input array of databases to search
 	* @param Trajectory						Input motion trajectory samples for pose search queries. Expected to be in the space of the SkeletalMeshComponent. This is provided with the CharacterMovementTrajectory Component output.
-	* @param Settings						Input motion matching algorithm configuration settings
+	* @param BlendTime						Input time in seconds to blend out to the new pose. Uses either inertial blending, requiring an Inertialization node after this node, or the internal blend stack, if MaxActiveBlends is greater than zero.
+	* @param MaxActiveBlends				Input number of max active animation segments being blended together in the blend stack. If MaxActiveBlends is zero then the blend stack is disabled.
+	* @param PoseJumpThresholdTime			Input don't jump to poses of the same segment that are less than this many seconds away.
+	* @param PoseReselectHistory			Input prevent re-selection of poses that have been selected previously within this much time (in seconds) in the past. This is across all animation segments that have been selected within this time range.
+	* @param SearchThrottleTime				Input minimum amount of time to wait between searching for a new pose segment. It allows users to define how often the system searches, default for locomotion is searching every update, but you may only want to search once for other situations, like jump.
+	* @param PlayRate						Input effective range of play rate that can be applied to the animations to account for discrepancies in estimated velocity between the movement modeland the animation.
 	* @param InOutMotionMatchingState		Input/Output encapsulated motion matching algorithm and state
 	* @param bForceInterrupt				Input force interrupt request (if true the continuing pose will be invalidated)
 	* @param bShouldSearch					Input if false search will happen only if there's no valid continuing pose
@@ -154,7 +121,12 @@ public:
 		const FAnimationUpdateContext& Context,
 		const TArray<TObjectPtr<const UPoseSearchDatabase>>& Databases,
 		const FPoseSearchQueryTrajectory& Trajectory,
-		const FMotionMatchingSettings& Settings,
+		float BlendTime,
+		int32 MaxActiveBlends,
+		float PoseJumpThresholdTime,
+		float PoseReselectHistory,
+		float SearchThrottleTime,
+		const FFloatInterval& PlayRate,
 		FMotionMatchingState& InOutMotionMatchingState,
 		bool bForceInterrupt = false,
 		bool bShouldSearch = true,

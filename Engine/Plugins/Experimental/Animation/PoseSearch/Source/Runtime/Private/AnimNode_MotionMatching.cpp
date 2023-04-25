@@ -114,7 +114,12 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		Context,
 		DatabasesToSearch,
 		Trajectory,
-		Settings,
+		BlendTime,
+		MaxActiveBlends,
+		PoseJumpThresholdTime,
+		PoseReselectHistory,
+		SearchThrottleTime,
+		PlayRate,
 		MotionMatchingState,
 		bForceInterrupt | bForceInterruptNextUpdate,
 		bShouldSearch
@@ -135,7 +140,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 			{
 				BlendStackNode.BlendTo(DatabaseAsset->GetAnimationAsset(), MotionMatchingState.CurrentSearchResult.AssetTime,
 					DatabaseAsset->IsLooping(), SearchIndexAsset->bMirrored, CurrentResultDatabase->Schema->MirrorDataTable.Get(),
-					Settings.MaxActiveBlends, Settings.BlendTime, Settings.BlendProfile, Settings.BlendOption, SearchIndexAsset->BlendParameters, MotionMatchingState.WantedPlayRate);
+					MaxActiveBlends, BlendTime, BlendProfile, BlendOption, SearchIndexAsset->BlendParameters, MotionMatchingState.WantedPlayRate);
 			}
 		}
 	}

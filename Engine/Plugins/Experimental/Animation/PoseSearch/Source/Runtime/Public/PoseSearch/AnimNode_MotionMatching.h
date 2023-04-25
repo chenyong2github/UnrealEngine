@@ -25,12 +25,41 @@ private:
 	TObjectPtr<const UPoseSearchDatabase> Database = nullptr;
 
 	// Motion Trajectory samples for pose search queries in Motion Matching.These are expected to be in the space of the SkeletalMeshComponent.This is provided with the CharacterMovementTrajectory Component output.
-	UPROPERTY(EditAnywhere, Category=Settings, meta=(PinShownByDefault))
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinShownByDefault))
 	FPoseSearchQueryTrajectory Trajectory;
 
 	// Settings for the core motion matching node.
-	UPROPERTY(EditAnywhere, Category=Settings, meta=(PinHiddenByDefault))
-	FMotionMatchingSettings Settings;
+	// Time in seconds to blend out to the new pose. Uses either inertial blending, requiring an Inertialization node after this node, or the internal blend stack, if MaxActiveBlends is greater than zero.
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin="0"))
+	float BlendTime = 0.2f;
+
+	// Number of max active animation segments being blended together in the blend stack. If MaxActiveBlends is zero then the blend stack is disabled.
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin="0"))
+	int32 MaxActiveBlends = 4;
+
+	// Set Blend Profiles (editable in the skeleton) to determine how the blending is distributed among your character's bones. It could be used to differentiate between upper body and lower body to blend timing.
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, UseAsBlendProfile = true))
+	TObjectPtr<UBlendProfile> BlendProfile;
+
+	// How the blend is applied over time to the bones. Common selections are linear, ease in, ease out, and ease in and out.
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
+	EAlphaBlendOption BlendOption = EAlphaBlendOption::Linear;
+
+	// Don't jump to poses of the same segment that are less than this many seconds away.
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin="0"))
+	float PoseJumpThresholdTime = 0.f;
+
+	// Prevent re-selection of poses that have been selected previously within this much time (in seconds) in the past. This is across all animation segments that have been selected within this time range.
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0"))
+	float PoseReselectHistory = 0.3f;
+
+	// Minimum amount of time to wait between searching for a new pose segment. It allows users to define how often the system searches, default for locomotion is searching every update, but you may only want to search once for other situations, like jump.
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin="0"))
+	float SearchThrottleTime = 0.f;
+
+	// Effective range of play rate that can be applied to the animations to account for discrepancies in estimated velocity between the movement modeland the animation.
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0.5", ClampMax = "2.0", UIMin = "0.5", UIMax = "2.0"))
+	FFloatInterval PlayRate = FFloatInterval(1.f, 1.f);
 
 	// Reset the motion matching selection state if it has become relevant to the graph after not being updated on previous frames.
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
@@ -102,7 +131,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	// If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore this node
-	UPROPERTY(EditAnywhere, Category=Relevancy, meta=(FoldProperty, PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, Category = Relevancy, meta = (FoldProperty, PinHiddenByDefault))
 	bool bIgnoreForRelevancyTest = false;
 #endif // WITH_EDITORONLY_DATA
 };
