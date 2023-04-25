@@ -63,7 +63,6 @@ struct MODELINGCOMPONENTS_API FGeometryIdentifier
 	TWeakObjectPtr<UObject> TargetObject = nullptr;
 
 	FGeometryIdentifier() = default;
-	FGeometryIdentifier(const FGeometryIdentifier& Other) = default;
 
 	/**
 	 * @return true if TargetObject is defined and still exists
