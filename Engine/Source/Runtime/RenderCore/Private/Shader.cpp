@@ -1731,6 +1731,19 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 
 		{
+			static FShaderPlatformCachedIniValue<bool> EnableCullBeforeFetchIniValue(TEXT("r.CullBeforeFetch"));
+			if (EnableCullBeforeFetchIniValue.Get(Platform) == 1)
+			{
+				KeyString += TEXT("_CBF");
+			}
+			static FShaderPlatformCachedIniValue<bool> EnableWarpCullingIniValue(TEXT("r.WarpCulling"));
+			if (EnableWarpCullingIniValue.Get(Platform) == 1)
+			{
+				KeyString += TEXT("_WC");
+			}
+		}
+
+		{
 			KeyString += MobileUsesFullDepthPrepass(Platform) ? TEXT("_MobFDP") : TEXT("");
 		}
 	}

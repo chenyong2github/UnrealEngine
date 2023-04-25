@@ -1148,6 +1148,22 @@ static TAutoConsoleVariable<int32> CVarOpenGLForceDXC(
 	TEXT(" 1: Force new compiler for all shaders (default)"),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarWarpCulling(
+	TEXT("r.WarpCulling"),
+	0,
+	TEXT("Enable Warp Culling optimization for platforms that support it.\n")
+	TEXT(" 0: Disable (default)\n")
+	TEXT(" 1: Enable"),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarCullBeforeFetch(
+	TEXT("r.CullBeforeFetch"),
+	0,
+	TEXT("Enable Cull-Before-Fetch optimization for platforms that support it.\n")
+	TEXT(" 0: Disable (default)\n")
+	TEXT(" 1: Enable"),
+	ECVF_ReadOnly);
+
 ENGINE_API int32 GCreateShadersOnLoad = 0;
 static FAutoConsoleVariableRef CVarCreateShadersOnLoad(
 	TEXT("r.CreateShadersOnLoad"),
@@ -6131,6 +6147,18 @@ void GlobalBeginCompileShader(
 		}
 
 		Input.Environment.SetDefine(TEXT("USE_SCENE_DEPTH_AUX"), MobileRequiresSceneDepthAux(ShaderPlatform) ? 1 : 0);
+
+		static FShaderPlatformCachedIniValue<bool> EnableCullBeforeFetchIniValue(TEXT("r.CullBeforeFetch"));
+		if (EnableCullBeforeFetchIniValue.Get((EShaderPlatform)Target.Platform) == 1)
+		{
+			Input.Environment.CompilerFlags.Add(CFLAG_CullBeforeFetch);
+		}
+
+		static FShaderPlatformCachedIniValue<bool> EnableWarpCullingIniValue(TEXT("r.WarpCulling"));
+		if (EnableWarpCullingIniValue.Get((EShaderPlatform)Target.Platform) == 1)
+		{
+			Input.Environment.CompilerFlags.Add(CFLAG_WarpCulling);
+		}
 	}
 
 	if (ShaderPlatform == SP_VULKAN_ES3_1_ANDROID || ShaderPlatform == SP_VULKAN_SM5_ANDROID)

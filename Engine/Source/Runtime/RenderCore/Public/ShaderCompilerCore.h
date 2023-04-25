@@ -131,7 +131,10 @@ enum ECompilerFlags
 	CFLAG_RemoveDeadCode,
 	// Execute shader preprocessing with MCPP (instead of the new STB preprocessor)
 	CFLAG_UseLegacyPreprocessor,
-
+	// Enable CullBeforeFetch optimization on supported platforms
+	CFLAG_CullBeforeFetch,
+	// Enable WarpCulling optimization on supported platforms
+	CFLAG_WarpCulling,
 	CFLAG_Max,
 };
 static_assert(CFLAG_Max < 64, "Out of bitfield space! Modify FShaderCompilerFlags");
