@@ -125,6 +125,8 @@ public:
 	bool ReconnectToStore() const;
 
 	const FString& GetLastStoreHost() const { return LastStoreHost; }
+
+	const bool CanChangeStoreSettings() const { return bCanChangeStoreSettings; }
 	
 	UE::Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
 	FCriticalSection& GetStoreClientCriticalSection() const { return StoreClientCriticalSection; }
@@ -487,4 +489,5 @@ private:
 
 	FString LastStoreHost;
 	uint32 LastStorePort = 0;
+	bool bCanChangeStoreSettings = false;
 };

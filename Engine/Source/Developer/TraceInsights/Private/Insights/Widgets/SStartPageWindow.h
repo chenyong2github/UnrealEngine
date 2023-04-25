@@ -383,6 +383,7 @@ private:
 		ETraceDirOperations Operations;
 	};
 
+	static bool CanChangeStoreSettings();
 	TSharedRef<ITableRow> TraceDirs_OnGenerateRow(TSharedPtr<FTraceDirectoryModel> Item, const TSharedRef<STableViewBase>& Owner) const;
 	FReply StoreSettingsArea_Toggle() const;
 	const FSlateBrush* StoreSettingsToggle_Icon() const;

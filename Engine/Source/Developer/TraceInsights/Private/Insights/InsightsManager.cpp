@@ -461,6 +461,8 @@ bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 	
 	LastStoreHost = Host;
 	LastStorePort = Port;
+	bCanChangeStoreSettings = LastStoreHost.Equals(TEXT("localhost"), ESearchCase::IgnoreCase)
+                              		|| LastStoreHost.Equals(TEXT("127.0.0.1"));
 
 	return true;
 }

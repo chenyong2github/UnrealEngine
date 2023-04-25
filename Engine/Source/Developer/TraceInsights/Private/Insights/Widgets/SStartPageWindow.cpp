@@ -1437,6 +1437,7 @@ TSharedRef<SWidget> STraceDirectoryItem::ConstructOperations()
 				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
 				.ToolTipText(LOCTEXT("WatchDirsRemoveTooltip", "Remove watch directory (files will not be deleted)"))
 				.OnClicked_Raw(this, &STraceDirectoryItem::OnDelete)
+				.IsEnabled_Static(&STraceStoreWindow::CanChangeStoreSettings)
 				[
 					SNew(SImage)
 					.Image(FInsightsStyle::Get().GetBrush("Icons.RemoveWatchDir"))
@@ -1453,6 +1454,7 @@ TSharedRef<SWidget> STraceDirectoryItem::ConstructOperations()
 				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
 				.ToolTipText(LOCTEXT("ExploreTraceStoreDirButtonToolTip", "Explore the Trace Store Directory"))
 				.OnClicked_Raw(this, &STraceDirectoryItem::OnExplore)
+				.IsEnabled_Static(&STraceStoreWindow::CanChangeStoreSettings)
 				[
 					SNew(SImage)
 					.Image(FInsightsStyle::Get().GetBrush("Icons.FolderExplore"))
@@ -1554,7 +1556,7 @@ FReply STraceDirectoryItem::OnDelete()
 bool STraceDirectoryItem::CanModifyStore() const
 {
 	check(Window);
-	return !Window->HasAnyLiveTrace();
+	return !Window->HasAnyLiveTrace() && STraceStoreWindow::CanChangeStoreSettings();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1710,6 +1712,7 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
 				.ToolTipText(LOCTEXT("ExploreTraceStoreDirButtonToolTip", "Explore the Trace Store Directory"))
 				.OnClicked(this, &STraceStoreWindow::ExploreTraceStoreDirectory_OnClicked)
+				.IsEnabled_Static(&STraceStoreWindow::CanChangeStoreSettings)
 				[
 					SNew(SImage)
 					.Image(FInsightsStyle::Get().GetBrush("Icons.FolderExplore"))
@@ -1769,7 +1772,6 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 					SAssignNew(WatchDirsListView, SListView<TSharedPtr<FTraceDirectoryModel>>)
 					.ListItemsSource(&WatchDirectoriesModel)
 					.OnGenerateRow(this, &STraceStoreWindow::TraceDirs_OnGenerateRow)
-					//.Orientation(Orient_Horizontal)
 					.SelectionMode(ESelectionMode::None)
 				]
 
@@ -1779,9 +1781,10 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 				.HAlign(HAlign_Left)
 				[
 					SNew(SButton)
-				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
-				.ToolTipText(LOCTEXT("WatchDirsAddTooltip", "Add additional watch directory..."))
-				.OnClicked(this, &STraceStoreWindow::AddWatchDir_Clicked)
+					.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
+					.ToolTipText(LOCTEXT("WatchDirsAddTooltip", "Add additional watch directory..."))
+					.IsEnabled_Static(&STraceStoreWindow::CanChangeStoreSettings)
+					.OnClicked(this, &STraceStoreWindow::AddWatchDir_Clicked)
 					[
 						SNew(SHorizontalBox)
 
@@ -1789,8 +1792,8 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 						.AutoWidth()
 						[
 							SNew(SImage)
-						.Image(FInsightsStyle::Get().GetBrush("Icons.AddWatchDir"))
-						.ColorAndOpacity(FSlateColor::UseForeground())
+							.Image(FInsightsStyle::Get().GetBrush("Icons.AddWatchDir"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
 						]
 
 						+ SHorizontalBox::Slot()
@@ -3018,6 +3021,13 @@ FReply STraceStoreWindow::ExploreTraceStoreDirectory_OnClicked()
 	FString FullPath(FPaths::ConvertRelativePathToFull(GetStoreDirectory()));
 	FPlatformProcess::ExploreFolder(*FullPath);
 	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STraceStoreWindow::CanChangeStoreSettings()
+{
+	return FInsightsManager::Get()->CanChangeStoreSettings();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
