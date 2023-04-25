@@ -481,7 +481,7 @@ namespace UnrealBuildTool
 				LinkedAction Action = Actions[ActionIndex];
 
 				// Don't allow remote linking if on VPN.
-				bool CanExecuteRemotely = Action.bCanExecuteRemotely;
+				bool CanExecuteRemotely = Action.bCanExecuteRemotely && Action.bCanExecuteRemotelyWithXGE;
 				if(CanExecuteRemotely && Action.ActionType == ActionType.Link)
 				{
 					if (HostOnVpn || !bAllowRemoteLinking)

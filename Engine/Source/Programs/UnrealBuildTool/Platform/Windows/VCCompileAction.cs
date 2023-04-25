@@ -176,6 +176,9 @@ namespace UnrealBuildTool
 		public bool bCanExecuteRemotelyWithSNDBS { get; set; }
 
 		/// <inheritdoc/>
+		public bool bCanExecuteRemotelyWithXGE { get; set; } = true;
+
+		/// <inheritdoc/>
 		public bool bUseActionHistory => true;
 
 		/// <inheritdoc/>
@@ -352,6 +355,7 @@ namespace UnrealBuildTool
 			bShowIncludes = InAction.bShowIncludes;
 			bCanExecuteRemotely = InAction.bCanExecuteRemotely;
 			bCanExecuteRemotelyWithSNDBS = InAction.bCanExecuteRemotelyWithSNDBS;
+			bCanExecuteRemotelyWithXGE = InAction.bCanExecuteRemotelyWithXGE;
 			Architecture = InAction.Architecture;
 			Weight = InAction.Weight;
 
@@ -391,6 +395,8 @@ namespace UnrealBuildTool
 			bShowIncludes = Reader.ReadBool();
 			bCanExecuteRemotely = Reader.ReadBool();
 			bCanExecuteRemotelyWithSNDBS = Reader.ReadBool();
+			bCanExecuteRemotelyWithXGE = Reader.ReadBool();
+
 
 			AdditionalPrerequisiteItems = Reader.ReadList(() => Reader.ReadFileItem())!;
 			AdditionalProducedItems = Reader.ReadList(() => Reader.ReadFileItem())!;
@@ -425,6 +431,7 @@ namespace UnrealBuildTool
 			Writer.WriteBool(bShowIncludes);
 			Writer.WriteBool(bCanExecuteRemotely);
 			Writer.WriteBool(bCanExecuteRemotelyWithSNDBS);
+			Writer.WriteBool(bCanExecuteRemotelyWithXGE);
 
 			Writer.WriteList(AdditionalPrerequisiteItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteList(AdditionalProducedItems, Item => Writer.WriteFileItem(Item));

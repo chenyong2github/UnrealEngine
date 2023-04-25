@@ -114,6 +114,11 @@ namespace UnrealBuildTool
 		bool bCanExecuteRemotelyWithSNDBS { get; }
 
 		/// <summary>
+		/// True if this action is allowed to be run on a remote machine with XGE. Files with #import directives must be compiled locally. Also requires bCanExecuteRemotely = true.
+		/// </summary>
+		bool bCanExecuteRemotelyWithXGE { get; }
+
+		/// <summary>
 		/// True if this action is using the GCC compiler.  Some build systems may be able to optimize for this case.
 		/// </summary>
 		bool bIsGCCCompiler { get; }
@@ -226,6 +231,11 @@ namespace UnrealBuildTool
 		public bool bCanExecuteRemotelyWithSNDBS { get; set; } = true;
 
 		/// <summary>
+		/// True if this action is allowed to be run on a remote machine with XGE. Files with #import directives must be compiled locally. Also requires bCanExecuteRemotely = true.
+		/// </summary>
+		public bool bCanExecuteRemotelyWithXGE { get; set; } = true;
+
+		/// <summary>
 		/// True if this action is using the GCC compiler.  Some build systems may be able to optimize for this case.
 		/// </summary>
 		public bool bIsGCCCompiler { get; set; } = false;
@@ -280,6 +290,7 @@ namespace UnrealBuildTool
 			StatusDescription = InOther.StatusDescription;
 			bCanExecuteRemotely = InOther.bCanExecuteRemotely;
 			bCanExecuteRemotelyWithSNDBS = InOther.bCanExecuteRemotelyWithSNDBS;
+			bCanExecuteRemotelyWithXGE = InOther.bCanExecuteRemotelyWithXGE;
 			bCanCache = InOther.bCanCache;
 			bIsGCCCompiler = InOther.bIsGCCCompiler;
 			bShouldOutputStatusDescription = InOther.bShouldOutputStatusDescription;
@@ -300,6 +311,7 @@ namespace UnrealBuildTool
 			StatusDescription = Reader.ReadString()!;
 			bCanExecuteRemotely = Reader.ReadBool();
 			bCanExecuteRemotelyWithSNDBS = Reader.ReadBool();
+			bCanExecuteRemotelyWithXGE = Reader.ReadBool();
 			bCanCache = Reader.ReadBool();
 			bIsGCCCompiler = Reader.ReadBool();
 			bShouldOutputStatusDescription = Reader.ReadBool();
@@ -328,6 +340,7 @@ namespace UnrealBuildTool
 			Writer.WriteString(StatusDescription);
 			Writer.WriteBool(bCanExecuteRemotely);
 			Writer.WriteBool(bCanExecuteRemotelyWithSNDBS);
+			Writer.WriteBool(bCanExecuteRemotelyWithXGE);
 			Writer.WriteBool(bCanCache);
 			Writer.WriteBool(bIsGCCCompiler);
 			Writer.WriteBool(bShouldOutputStatusDescription);
@@ -395,6 +408,12 @@ namespace UnrealBuildTool
 			if(Object.TryGetBoolField("bCanExecuteRemotelyWithSNDBS", out bCanExecuteRemotelyWithSNDBS))
 			{
 				Action.bCanExecuteRemotelyWithSNDBS = bCanExecuteRemotelyWithSNDBS;
+			}
+
+			bool bCanExecuteRemotelyWithXGE;
+			if (Object.TryGetBoolField("bCanExecuteRemotelyWithXGE", out bCanExecuteRemotelyWithXGE))
+			{
+				Action.bCanExecuteRemotelyWithXGE = bCanExecuteRemotelyWithXGE;
 			}
 
 			bool bCanCache;
@@ -509,6 +528,7 @@ namespace UnrealBuildTool
 			Writer.WriteValue("StatusDescription", Action.StatusDescription);
 			Writer.WriteValue("bCanExecuteRemotely", Action.bCanExecuteRemotely);
 			Writer.WriteValue("bCanExecuteRemotelyWithSNDBS", Action.bCanExecuteRemotelyWithSNDBS);
+			Writer.WriteValue("bCanExecuteRemotelyWithXGE", Action.bCanExecuteRemotelyWithXGE);
 			Writer.WriteValue("bCanCache", Action.bCanCache);
 			Writer.WriteValue("bIsGCCCompiler", Action.bIsGCCCompiler);
 			Writer.WriteValue("bShouldOutputStatusDescription", Action.bShouldOutputStatusDescription);
@@ -630,6 +650,7 @@ namespace UnrealBuildTool
 		public bool bCanCache => Inner.bCanCache;
 		public bool bCanExecuteRemotely => Inner.bCanExecuteRemotely;
 		public bool bCanExecuteRemotelyWithSNDBS => Inner.bCanExecuteRemotelyWithSNDBS;
+		public bool bCanExecuteRemotelyWithXGE => Inner.bCanExecuteRemotelyWithXGE;
 		public bool bIsGCCCompiler => Inner.bIsGCCCompiler;
 		public bool bShouldOutputStatusDescription => Inner.bShouldOutputStatusDescription;
 		public bool bProducesImportLibrary => Inner.bProducesImportLibrary;

@@ -464,8 +464,13 @@ namespace UnrealBuildTool
 				CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
 				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
 
+				CompileAction.bCanExecuteRemotely = true;
+
 				// Disable remote execution to workaround mismatched case on XGE
-				CompileAction.bCanExecuteRemotely = false;
+				CompileAction.bCanExecuteRemotelyWithXGE = false;
+
+				// TODO: Remove, might work
+				CompileAction.bCanExecuteRemotelyWithSNDBS = false;
 
 				List<string> Arguments = new List<string>();
 
@@ -622,8 +627,13 @@ namespace UnrealBuildTool
 				CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
 				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
 
+				CompileAction.bCanExecuteRemotely = true;
+
 				// Disable remote execution to workaround mismatched case on XGE
-				CompileAction.bCanExecuteRemotely = false;
+				CompileAction.bCanExecuteRemotelyWithXGE = false;
+
+				// TODO: Remove, might work
+				CompileAction.bCanExecuteRemotelyWithSNDBS = false;
 
 				List<string> Arguments = new List<string>();
 
