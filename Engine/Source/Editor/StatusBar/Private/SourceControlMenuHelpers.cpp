@@ -151,9 +151,12 @@ void FSourceControlCommands::CheckOutModifiedFiles_Clicked()
 	FEditorFileUtils::GetDirtyWorldPackages(PackagesToSave);
 	FEditorFileUtils::GetDirtyContentPackages(PackagesToSave);
 
-	const bool bCheckDirty = true;
-	const bool bPromptUserToSave = false;
-	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptUserToSave);
+	FEditorFileUtils::FPromptForCheckoutAndSaveParams SaveParams;
+	SaveParams.bCheckDirty = true;
+	SaveParams.bPromptToSave = false;
+	SaveParams.bIsExplicitSave = true;
+
+	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, SaveParams);
 }
 
 bool FSourceControlCommands::RevertAllModifiedFiles_CanExecute()

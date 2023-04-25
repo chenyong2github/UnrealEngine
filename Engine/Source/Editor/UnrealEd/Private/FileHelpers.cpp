@@ -1451,7 +1451,10 @@ void FEditorFileUtils::SaveAssetsAs(const TArray<UObject*>& Assets, TArray<UObje
 		PackagesToSave.Add(Asset->GetOutermost());
 	}
 
-	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, true, false);
+	FEditorFileUtils::FPromptForCheckoutAndSaveParams SaveParams;
+	SaveParams.bCheckDirty = true;
+	SaveParams.bPromptToSave = false;
+	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, SaveParams);
 }
 
 
@@ -3250,7 +3253,7 @@ enum class InternalSavePackageResult : int8
 	Error,
 };
 
-static void PrepareSavePackages(const TArray<UPackage*>& PackagesToSave)
+static void PrepareWorldsForExplicitSave(const TArray<UPackage*>& PackagesToPrepare)
 {
 	if (EditorFileUtils::bIsExplicitSave)
 	{
@@ -3260,7 +3263,7 @@ static void PrepareSavePackages(const TArray<UPackage*>& PackagesToSave)
 		// We use a set here to dedupe in case both the actor and its world are included in the dirty packages
 		bool bFoundActorWorld = false;
 		TSet<UWorld*> WorldsToSave;
-		for (UPackage* Package : PackagesToSave)
+		for (UPackage* Package : PackagesToPrepare)
 		{
 			if (UWorld* WorldToSave = UWorld::FindWorldInPackage(Package))
 			{
@@ -3283,7 +3286,10 @@ static void PrepareSavePackages(const TArray<UPackage*>& PackagesToSave)
 			FEditorFileUtils::PrepareWorldsForExplicitSave(WorldsToSave.Array());
 		}
 	}
+}
 
+static void PrepareSavePackages(const TArray<UPackage*>& PackagesToSave)
+{
 	// Don't call ResetLoaders on newly created world packages as this will prevent future loading of external actor packages to work propertly
 	// Linker will fail to resolve SourceLinker of external actor's world package import (see GetPackageLinker test for PKG_InMemoryOnly on TargetPackage's Package Flag)
 	TArray<UPackage*> PackagesToResetLoaders;
@@ -3789,7 +3795,14 @@ static bool InternalSavePackages(const TArray<UPackage*>& PackagesToSave, bool b
 	if (!bFastSave)
 	{
 		const bool bAlreadyCheckedOut = false;
-		const FEditorFileUtils::EPromptReturnCode Return = FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptUserToSave, nullptr, bAlreadyCheckedOut, bCanBeDeclined);
+		FEditorFileUtils::FPromptForCheckoutAndSaveParams SaveParams;
+		SaveParams.bCheckDirty = bCheckDirty;
+		SaveParams.bPromptToSave = bPromptUserToSave;
+		SaveParams.bAlreadyCheckedOut = bAlreadyCheckedOut;
+		SaveParams.bCanBeDeclined = bCanBeDeclined;
+		SaveParams.bIsExplicitSave = EditorFileUtils::bIsExplicitSave;
+
+		const FEditorFileUtils::EPromptReturnCode Return = FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, SaveParams);
 		if (Return == FEditorFileUtils::EPromptReturnCode::PR_Cancelled)
 		{
 			// Only cancel should return false and stop whatever we were doing before.(like closing the editor)
@@ -4132,6 +4145,8 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
 			}
 		}
 
+		PrepareWorldsForExplicitSave(FinalSaveList);
+
 		// Cleanup packages before saving packages in case we are saving worlds with external packages we could end up with packages being cleaned up by a world package save
 		if (PackagesToClean.Num() > 0)
 		{
@@ -4252,7 +4267,7 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
  *				Save" option on the dialog, the return code will indicate the user has declined out of the prompt. This way calling code can distinguish between a decline and a cancel
  *				and then proceed as planned, or abort its operation accordingly.
  */
-FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( const TArray<UPackage*>& InPackages, bool bCheckDirty, bool bPromptToSave, const FText& Title, const FText& Message, TArray<UPackage*>* OutFailedPackages, bool bAlreadyCheckedOut, bool bCanBeDeclined)
+FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave(const TArray<UPackage*>& InPackages, FPromptForCheckoutAndSaveParams& InOutParams)
 {
 	// Check for re-entrance into this function
 	if ( bIsPromptingForCheckoutAndSave )
@@ -4265,7 +4280,7 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 
 	// When saving a package which owns other packages, add those to the prompt as well,
 	// if we do not check dirty, we aren't already checked out and we prompt
-	if (!bAlreadyCheckedOut && !bCheckDirty && bPromptToSave)
+	if (!InOutParams.bAlreadyCheckedOut && !InOutParams.bCheckDirty && InOutParams.bPromptToSave)
 	{
 		for (UPackage* Package : InPackages)
 		{
@@ -4278,16 +4293,18 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 
 	if (GIsRunningUnattendedScript)
 	{
-		return UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, bCheckDirty) ? PR_Success : PR_Failure;
+		return UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, InOutParams.bCheckDirty) ? PR_Success : PR_Failure;
 	}
 
-	if ( FApp::IsUnattended() && !bAlreadyCheckedOut )
+	if ( FApp::IsUnattended() && !InOutParams.bAlreadyCheckedOut )
 	{
 		return PR_Cancelled;
 	}
 
 	// Prevent re-entrance into this function by setting up a guard value (also used by FEditorFileUtils::PromptToCheckoutPackages)
 	TGuardValue<bool> PromptForCheckoutAndSaveGuard(bIsPromptingForCheckoutAndSave, true);
+
+	TGuardValue<bool> IsExplicitSaveGuard(EditorFileUtils::bIsExplicitSave, InOutParams.bIsExplicitSave);
 
 	// Initialize the value we will return to indicate success
 	FEditorFileUtils::EPromptReturnCode ReturnResponse = PR_Success;
@@ -4300,13 +4317,13 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 	TArray<UPackage*> FilteredPackages;
 
 	// Prompt the user for which packages they would like to save
-	if( bPromptToSave )
+	if(InOutParams.bPromptToSave )
 	{
 		// Set up the save package dialog
 		FPackagesDialogModule& PackagesDialogModule = FModuleManager::LoadModuleChecked<FPackagesDialogModule>( TEXT("PackagesDialog") );
-		PackagesDialogModule.CreatePackagesDialog(Title, Message);
+		PackagesDialogModule.CreatePackagesDialog(InOutParams.Title, InOutParams.Message);
 		PackagesDialogModule.AddButton(DRT_Save, NSLOCTEXT("PackagesDialogModule", "SaveSelectedButton", "Save Selected"), NSLOCTEXT("PackagesDialogModule", "SaveSelectedButtonTip", "Attempt to save the selected content"));
-		if (bCanBeDeclined)
+		if (InOutParams.bCanBeDeclined)
 		{
 			PackagesDialogModule.AddButton(DRT_DontSave, NSLOCTEXT("PackagesDialogModule", "DontSaveSelectedButton", "Don't Save"), NSLOCTEXT("PackagesDialogModule", "DontSaveSelectedButtonTip", "Do not save any content"));
 		}
@@ -4320,7 +4337,7 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 			check( CurPackage );
 
 			// If the caller set bCheckDirty to true, only consider dirty packages
-			if ( !bCheckDirty || ( bCheckDirty && CurPackage->IsDirty() ) )
+			if ( !InOutParams.bCheckDirty || (InOutParams.bCheckDirty && CurPackage->IsDirty() ) )
 			{
 				// Never save the transient package
 				if ( CurPackage != GetTransientPackage() )
@@ -4433,7 +4450,7 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 			check( CurPackage );
 
 			// (Don't consider non-dirty packages if the caller has specified bCheckDirty as true)
-			if ( !bCheckDirty || CurPackage->IsDirty() )
+			if ( !InOutParams.bCheckDirty || CurPackage->IsDirty() )
 			{
 				// Never save the transient package
 				if ( CurPackage != GetTransientPackage() )
@@ -4499,7 +4516,7 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 		bool bUserResponse = true;
 		bool bAutomaticCheckout = UseAlternateCheckoutWorkflow();
 
-		if (!bAlreadyCheckedOut)
+		if (!InOutParams.bAlreadyCheckedOut)
 		{
 			if (bAutomaticCheckout)
 			{
@@ -4513,11 +4530,11 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 			}
 		}
 
-		if( bAlreadyCheckedOut || (bUserResponse && (PackagesCheckedOutOrMadeWritable.Num() > 0 || PackagesNotNeedingCheckout.Num() > 0)) )
+		if(InOutParams.bAlreadyCheckedOut || (bUserResponse && (PackagesCheckedOutOrMadeWritable.Num() > 0 || PackagesNotNeedingCheckout.Num() > 0)) )
 		{
 			TArray<UPackage*> FinalSaveList;
 			
-			if (bAlreadyCheckedOut)
+			if (InOutParams.bAlreadyCheckedOut)
 			{
 				FinalSaveList = PackagesToSave;
 			}
@@ -4534,9 +4551,9 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 
 			// Set the failure array to have the same contents as the local one.
 			// The local one is required so we can always display the error, even if an array is not provided.
-			if (OutFailedPackages)
+			if (InOutParams.OutFailedPackages)
 			{
-				*OutFailedPackages = FailedPackages;
+				*InOutParams.OutFailedPackages = FailedPackages;
 			}
 		}
 		else
@@ -4585,17 +4602,30 @@ FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave( 
 	return ReturnResponse;
 }
 
+FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave(const TArray<UPackage*>& PackagesToSave, bool bCheckDirty, bool bPromptToSave, const FText& Title, const FText& Message, TArray<UPackage*>* OutFailedPackages, bool bAlreadyCheckedOut, bool bCanBeDeclined)
+{
+	FPromptForCheckoutAndSaveParams SaveParams;
+	SaveParams.bCheckDirty = bCheckDirty;
+	SaveParams.bPromptToSave = bPromptToSave;
+	SaveParams.Title = Title;
+	SaveParams.Message = Message;
+	SaveParams.OutFailedPackages = OutFailedPackages;
+	SaveParams.bAlreadyCheckedOut = bAlreadyCheckedOut;
+	SaveParams.bCanBeDeclined = bCanBeDeclined;
+
+	return PromptForCheckoutAndSave(PackagesToSave, SaveParams);
+}
+
 FEditorFileUtils::EPromptReturnCode FEditorFileUtils::PromptForCheckoutAndSave(const TArray<UPackage*>& InPackages, bool bCheckDirty, bool bPromptToSave, TArray<UPackage*>* OutFailedPackages, bool bAlreadyCheckedOut, bool bCanBeDeclined)
 {
-	return PromptForCheckoutAndSave(
-		InPackages,
-		bCheckDirty,
-		bPromptToSave,
-		NSLOCTEXT("PackagesDialogModule", "PackagesDialogTitle", "Save Content"),
-		NSLOCTEXT("PackagesDialogModule", "PackagesDialogMessage", "Select Content to Save"),
-		OutFailedPackages,
-		bAlreadyCheckedOut,
-		bCanBeDeclined);
+	FPromptForCheckoutAndSaveParams SaveParams;
+	SaveParams.bCheckDirty = bCheckDirty;
+	SaveParams.bPromptToSave = bPromptToSave;
+	SaveParams.OutFailedPackages = OutFailedPackages;
+	SaveParams.bAlreadyCheckedOut = bAlreadyCheckedOut;
+	SaveParams.bCanBeDeclined = bCanBeDeclined;
+
+	return PromptForCheckoutAndSave(InPackages, SaveParams);
 }
 
 /* Return 'true' to indicate that the packages (in OutPackagesCheckedOutOrMadeWritable) should be saved, or 'false' to cancel saving. */

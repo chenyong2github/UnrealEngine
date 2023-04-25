@@ -628,9 +628,14 @@ bool SaveAssetFileItems(TArrayView<const TSharedRef<const FContentBrowserAssetFi
 		}
 	}
 
+	FEditorFileUtils::FPromptForCheckoutAndSaveParams SaveParams;
+	SaveParams.bCheckDirty = false;
+	SaveParams.bPromptToSave = false;
+	SaveParams.bIsExplicitSave = true;
+
 	// TODO: Interactive vs non-interactive save?
 	return PackagesToSave.Num() > 0
-		&& FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, /*bCheckDirty*/false, /*bPromptToSave*/false) != FEditorFileUtils::PR_Failure;
+		&& FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, SaveParams) != FEditorFileUtils::PR_Failure;
 }
 
 bool IsRunningPIE(FText* OutErrorMsg)

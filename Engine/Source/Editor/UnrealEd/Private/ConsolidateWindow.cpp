@@ -827,7 +827,12 @@ FReply SConsolidateToolWidget::OnConsolidateButtonClicked()
 		// If the consolidation went off successfully with no failed objects, prompt the user to checkout/save the packages dirtied by the operation
 		if ( ConsResults.DirtiedPackages.Num() > 0 && ConsResults.FailedConsolidationObjs.Num() == 0 && bSavePackagesChecked == true )
 		{
-			FEditorFileUtils::PromptForCheckoutAndSave( ConsResults.DirtiedPackages, false, true );
+			FEditorFileUtils::FPromptForCheckoutAndSaveParams SaveParams;
+			SaveParams.bCheckDirty = false;
+			SaveParams.bPromptToSave = true;
+			SaveParams.bIsExplicitSave = true;
+
+			FEditorFileUtils::PromptForCheckoutAndSave( ConsResults.DirtiedPackages, SaveParams);
 		}
 		// If the consolidation resulted in failed (partially consolidated) objects, do not save, and inform the user no save attempt was made
 		else if ( ConsResults.FailedConsolidationObjs.Num() > 0 && bSavePackagesChecked == true )

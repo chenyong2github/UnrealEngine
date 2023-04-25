@@ -446,6 +446,23 @@ public:
 		PR_Cancelled	/** The user has cancelled out of a prompt; the caller should abort whatever it was doing */
 	};
 
+	struct FPromptForCheckoutAndSaveParams
+	{
+		FPromptForCheckoutAndSaveParams()
+			: Title(NSLOCTEXT("PackagesDialogModule", "PackagesDialogTitle", "Save Content")),
+			  Message(NSLOCTEXT("PackagesDialogModule", "PackagesDialogMessage", "Select Content to Save"))
+		{}
+
+		bool bCheckDirty = false;                       /** If true, only packages that are dirty in PackagesToSave will be saved	*/
+		bool bPromptToSave = false;                     /** If true the user will be prompted with a list of packages to save, otherwise all passed in packages are saved */
+		bool bAlreadyCheckedOut = false;                /** If true, the user will not be prompted with the source control dialog */
+		bool bCanBeDeclined = true;                     /** If true, offer a "Don't Save" option in addition to "Cancel", which will not result in a cancellation return code. */
+		bool bIsExplicitSave = false;                   /** If true, marks the save as explicit. Explicit saves are triggered by user facing actions such as Save As, or ctrl + s*/
+		FText Title;                                    /** If bPromptToSave true provides a dialog title */
+		FText Message;                                  /** If bPromptToSave true provides a dialog message */
+		TArray<UPackage*>* OutFailedPackages = nullptr; /** [out] If specified, will be filled in with all of the packages that failed to save successfully */
+	};
+
 	/**
 	 * Optionally prompts the user for which of the provided packages should be saved, and then additionally prompts the user to check-out any of
 	 * the provided packages which are under source control. If the user cancels their way out of either dialog, no packages are saved. It is possible the user
@@ -469,9 +486,9 @@ public:
 	 *				Save" option on the dialog, the return code will indicate the user has declined out of the prompt. This way calling code can distinguish between a decline and a cancel
 	 *				and then proceed as planned, or abort its operation accordingly.
 	 */
+	UNREALED_API static EPromptReturnCode PromptForCheckoutAndSave(const TArray<UPackage*>& PackagesToSave, FPromptForCheckoutAndSaveParams& InOutParams);
 	UNREALED_API static EPromptReturnCode PromptForCheckoutAndSave(const TArray<UPackage*>& PackagesToSave, bool bCheckDirty, bool bPromptToSave, const FText& Title, const FText& Message, TArray<UPackage*>* OutFailedPackages = NULL, bool bAlreadyCheckedOut = false, bool bCanBeDeclined = true);
 	UNREALED_API static EPromptReturnCode PromptForCheckoutAndSave( const TArray<UPackage*>& PackagesToSave, bool bCheckDirty, bool bPromptToSave, TArray<UPackage*>* OutFailedPackages = NULL, bool bAlreadyCheckedOut = false, bool bCanBeDeclined = true );
-	
 
 	////////////////////////////////////////////////////////////////////////////
 	// Import/Export

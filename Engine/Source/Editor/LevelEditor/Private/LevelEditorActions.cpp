@@ -2898,7 +2898,12 @@ void FLevelEditorActionCallbacks::SaveActor_Clicked()
 
 	if (PackagesToSave.Num())
 	{
-		FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave.Array(), /*bCheckDirty*/false, /*bPromptToSave*/false);
+		FEditorFileUtils::FPromptForCheckoutAndSaveParams SaveParams;
+		SaveParams.bCheckDirty = false;
+		SaveParams.bPromptToSave = false;
+		SaveParams.bIsExplicitSave = true;
+
+		FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave.Array(), SaveParams);
 	}
 }
 
