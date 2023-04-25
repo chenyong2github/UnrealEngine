@@ -1148,6 +1148,8 @@ public:
 	NIAGARA_API void InvalidateCompileResults(const FString& Reason);
 	NIAGARA_API FText GetDescription(const FGuid& VersionGuid);
 
+	NIAGARA_API static bool ShouldUseDDC();
+
 	/** Helper to convert the struct from its binary data out of the DDC to it's actual in-memory version.
 		Do not call this on anything other than the game thread as it depends on the FObjectAndNameAsStringProxyArchive,
 		which calls FindStaticObject which can fail when used in any other thread!*/

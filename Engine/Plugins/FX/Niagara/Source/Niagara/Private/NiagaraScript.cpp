@@ -2625,10 +2625,22 @@ static bool ValidateExecData(const UNiagaraScript* Script, const FNiagaraVMExecu
 	return IsValid;
 }
 
+bool UNiagaraScript::ShouldUseDDC()
+{
+	static const bool bNoNiagaraDDC = FParse::Param(FCommandLine::Get(), TEXT("noniagaraddc"));
+
+	return !bNoNiagaraDDC;
+}
+
 bool UNiagaraScript::BinaryToExecData(const UNiagaraScript* Script, const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData)
 {
 	check(IsInGameThread());
 	if (InBinaryData.Num() == 0)
+	{
+		return false;
+	}
+
+	if (!ShouldUseDDC())
 	{
 		return false;
 	}
@@ -2650,6 +2662,11 @@ bool UNiagaraScript::BinaryToExecData(const UNiagaraScript* Script, const TArray
 bool UNiagaraScript::ExecToBinaryData(const UNiagaraScript* Script, TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData)
 {
 	check(IsInGameThread());
+
+	if (!ShouldUseDDC())
+	{
+		return false;
+	}
 
 	FString ValidationErrors;
 	if (!ValidateExecData(Script, InExecData, ValidationErrors))
