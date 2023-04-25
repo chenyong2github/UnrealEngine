@@ -124,7 +124,6 @@ FAutoConsoleVariableRef CVarGeometryCollectionRemovalTimerMultiplier(TEXT("p.Cha
 // temporary cvar , shoul dbe removed when the root event is no longer no ecessary
 bool GeometryCollectionEmitRootBreakingEvent = true;
 FAutoConsoleVariableRef CVarGeometryCollectionEmitRootBreakingEvent(TEXT("p.Chaos.GC.EmitRootBreakingEvent"), GeometryCollectionEmitRootBreakingEvent, TEXT("When true send a breaking event when root is breaking"));
-
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 extern FGeometryCollectionDynamicDataPool GDynamicDataPool;
@@ -2423,6 +2422,12 @@ void UGeometryCollectionComponent::AsyncPhysicsTickComponent(float DeltaTime, fl
 	}
 }
 
+void UGeometryCollectionComponent::OnHiddenInGameChanged()
+{
+	Super::OnHiddenInGameChanged();
+	RefreshCustomRenderer();
+}
+
 void UGeometryCollectionComponent::OnRegister()
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::OnRegister()[%p]"), this,RestCollection );
@@ -4393,7 +4398,7 @@ void UGeometryCollectionComponent::RefreshCustomRenderer()
 				const int32 RootIndex = GetRootIndex();
 				const bool bIsBroken = DynamicCollection ? !DynamicCollection->Active[RootIndex] : false;
 
-				RendererInterface->UpdateState(*RestCollection, ComponentTransform, bIsBroken);
+				RendererInterface->UpdateState(*RestCollection, ComponentTransform, bIsBroken, !bHiddenInGame);
 
 				if (bIsBroken)
 				{

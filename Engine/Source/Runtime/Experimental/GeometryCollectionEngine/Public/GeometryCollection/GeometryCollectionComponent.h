@@ -481,6 +481,8 @@ public:
 	
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void AsyncPhysicsTickComponent(float DeltaTime, float SimTime) override;
+
+	virtual void OnHiddenInGameChanged() override;
 	//~ Begin USceneComponent Interface.
 
 

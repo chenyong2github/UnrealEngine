@@ -25,26 +25,34 @@ void UGeometryCollectionISMPoolRenderer::OnUnregisterGeometryCollection()
 	ISMPoolActor = nullptr;
 }
 
-void UGeometryCollectionISMPoolRenderer::UpdateState(UGeometryCollection const& InGeometryCollection, FTransform const& InComponentTransform, bool bIsBroken)
+void UGeometryCollectionISMPoolRenderer::UpdateState(UGeometryCollection const& InGeometryCollection, FTransform const& InComponentTransform, bool bIsBroken, bool bIsVisible)
 {
 	ComponentTransform = InComponentTransform;
 
-	if (!bIsBroken && MergedMeshGroup.GroupIndex == INDEX_NONE)
+	if (bIsVisible == false)
 	{
-		// Remove broken primitives.
 		ReleaseGroup(InstancesGroup);
-
-		// Add merged mesh.
-		InitMergedMeshFromGeometryCollection(InGeometryCollection);
-	}
-
-	if (bIsBroken && InstancesGroup.GroupIndex == INDEX_NONE)
-	{
-		// Remove merged mesh.
 		ReleaseGroup(MergedMeshGroup);
+	}
+	else
+	{
+		if (!bIsBroken && MergedMeshGroup.GroupIndex == INDEX_NONE)
+		{
+			// Remove broken primitives.
+			ReleaseGroup(InstancesGroup);
 
-		// Add broken primitives.
-		InitInstancesFromGeometryCollection(InGeometryCollection);
+			// Add merged mesh.
+			InitMergedMeshFromGeometryCollection(InGeometryCollection);
+		}
+
+		if (bIsBroken && InstancesGroup.GroupIndex == INDEX_NONE)
+		{
+			// Remove merged mesh.
+			ReleaseGroup(MergedMeshGroup);
+
+			// Add broken primitives.
+			InitInstancesFromGeometryCollection(InGeometryCollection);
+		}
 	}
 }
 
