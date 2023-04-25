@@ -995,6 +995,19 @@ void UEnhancedInputUserSettings::ResetAllPlayerKeysInRow(const FMapPlayerKeyArgs
 	}
 }
 
+void UEnhancedInputUserSettings::ResetKeyProfileToDefault(const FGameplayTag& ProfileId, FGameplayTagContainer& FailureReason)
+{
+	if (UEnhancedPlayerMappableKeyProfile* KeyProfile = GetKeyProfileWithIdentifier(ProfileId))
+	{
+		KeyProfile->ResetToDefault();
+		OnSettingsChanged.Broadcast(this);
+	}
+	else
+	{
+		FailureReason.AddTag(UE::EnhancedInput::TAG_NoKeyProfile);
+	}
+}
+
 void UEnhancedInputUserSettings::OnKeyMappingUpdated(FPlayerKeyMapping* ChangedMapping, const FMapPlayerKeyArgs& InArgs, const bool bIsBeingUnmapped)
 {
 	// Do nothing by default

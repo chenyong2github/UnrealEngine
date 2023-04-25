@@ -553,6 +553,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (AutoCreateRefTerm = "FailureReason"))
 	virtual void ResetAllPlayerKeysInRow(const FMapPlayerKeyArgs& InArgs, FGameplayTagContainer& FailureReason);
 
+	/**
+	 * Resets the given key profile to default key mappings
+	 *
+	 * @param ProfileId		The ID of the key profile to reset
+	 * @param FailureReason	Populated with failure reasons if the operation fails.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (AutoCreateRefTerm = "FailureReason"))
+	virtual void ResetKeyProfileToDefault(const FGameplayTag& ProfileId, FGameplayTagContainer& FailureReason);
+
 	/** Returns a set of all player key mappings for the given mapping name. */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual const TSet<FPlayerKeyMapping>& FindMappingsInRow(const FName MappingName) const;
