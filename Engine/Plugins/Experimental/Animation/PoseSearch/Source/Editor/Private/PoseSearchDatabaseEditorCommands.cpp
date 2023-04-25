@@ -8,8 +8,6 @@ namespace UE::PoseSearch
 {
 	void FDatabaseEditorCommands::RegisterCommands()
 	{
-		UI_COMMAND(BuildSearchIndex, "Build Index", "Build Index", EUserInterfaceActionType::Button, FInputChord());
-
 		UI_COMMAND(
 			ShowPoseFeaturesNone, "None", "Hide all features",
 			EUserInterfaceActionType::RadioButton, FInputChord());
@@ -27,7 +25,9 @@ namespace UE::PoseSearch
 			ShowAnimationOriginalAndMirrored, "Original and mirrored", "Show original and mirrored animations",
 			EUserInterfaceActionType::RadioButton, FInputChord());
 
-		UI_COMMAND(ShowDisplayRootMotionSpeed, "Display Root Motion Speed", "Show root motion speed for the selected item", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(
+			ShowDisplayRootMotionSpeed, "Display Root Motion Speed", "Show root motion speed for the selected item",
+			EUserInterfaceActionType::ToggleButton, FInputChord());
 	}
 }
 

@@ -44,8 +44,6 @@ namespace UE::PoseSearch
 		void SetQueryVector(TConstArrayView<float> InQueryVector);
 		void SetDrawQueryVector(bool bValue);
 		
-		void BuildSearchIndex();
-
 		void PreviewBackwardEnd();
 		void PreviewBackwardStep();
 		void PreviewBackward();
@@ -63,10 +61,6 @@ namespace UE::PoseSearch
 		TSharedRef<SDockTab> SpawnTab_SelectionDetails(const FSpawnTabArgs& Args);
 		TSharedRef<SDockTab> SpawnTab_StatisticsOverview(const FSpawnTabArgs& Args) const;
 		
-		void BindCommands();
-		void ExtendToolbar();
-		void FillToolbar(FToolBarBuilder& ToolbarBuilder);
-
 		void OnFinishedChangingSelectionProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 		void OnAssetTreeSelectionChanged(
 			const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& SelectedItems,

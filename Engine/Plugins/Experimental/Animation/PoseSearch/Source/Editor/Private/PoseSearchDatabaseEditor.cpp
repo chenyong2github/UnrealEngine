@@ -81,11 +81,6 @@ namespace UE::PoseSearch
 		}
 	}
 
-	void FDatabaseEditor::BuildSearchIndex()
-	{
-		ViewModel->BuildSearchIndex();
-	}
-
 	void FDatabaseEditor::PreviewBackwardEnd()
 	{
 		ViewModel->PreviewBackwardEnd();
@@ -126,9 +121,6 @@ namespace UE::PoseSearch
 		const TSharedPtr<IToolkitHost>& InitToolkitHost,
 		UPoseSearchDatabase* DatabaseAsset)
 	{
-		// Bind Commands
-		BindCommands();
-
 		// Create Preview Scene
 		if (!PreviewScene.IsValid())
 		{
@@ -288,42 +280,7 @@ namespace UE::PoseSearch
 			DatabaseAsset,
 			bIsToolbarFocusableParam);
 
-		ExtendToolbar();
-
 		RegenerateMenusAndToolbars();
-	}
-
-	void FDatabaseEditor::BindCommands()
-	{
-		const FDatabaseEditorCommands& Commands = FDatabaseEditorCommands::Get();
-
-		ToolkitCommands->MapAction(
-			Commands.BuildSearchIndex,
-			FExecuteAction::CreateSP(this, &FDatabaseEditor::BuildSearchIndex),
-			EUIActionRepeatMode::RepeatDisabled);
-	}
-
-	void FDatabaseEditor::ExtendToolbar()
-	{
-		TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
-
-		AddToolbarExtender(ToolbarExtender);
-
-		ToolbarExtender->AddToolBarExtension(
-			"Asset",
-			EExtensionHook::After,
-			GetToolkitCommands(),
-			FToolBarExtensionDelegate::CreateSP(this, &FDatabaseEditor::FillToolbar));
-	}
-
-	void FDatabaseEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
-	{
-		ToolbarBuilder.AddToolBarButton(
-			FDatabaseEditorCommands::Get().BuildSearchIndex,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon());
 	}
 
 	void FDatabaseEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)

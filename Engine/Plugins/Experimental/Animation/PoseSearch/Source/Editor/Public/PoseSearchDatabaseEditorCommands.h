@@ -24,8 +24,6 @@ namespace UE::PoseSearch
 		virtual void RegisterCommands() override;
 
 	public:
-		TSharedPtr<FUICommandInfo> BuildSearchIndex;
-
 		TSharedPtr<FUICommandInfo> ShowPoseFeaturesNone;
 		TSharedPtr<FUICommandInfo> ShowPoseFeaturesAll;
 		TSharedPtr<FUICommandInfo> ShowPoseFeaturesDetailed;
