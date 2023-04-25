@@ -1274,6 +1274,12 @@ private:
 			FPlatformMisc::MemoryBarrier();
 			Subsequents->DispatchSubsequents(NewTasks, CurrentThread);
 		}
+		else
+		{
+			// "fire and forget" tasks don't have an accompanying FGraphEvent that traces completion and destruction
+			TaskTrace::Completed(GetTraceId());
+			TaskTrace::Destroyed(GetTraceId());
+		}
 
 		if (bDeleteOnCompletion)
 		{
