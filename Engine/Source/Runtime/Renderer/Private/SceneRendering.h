@@ -92,6 +92,8 @@ namespace Nanite
 	struct FInstanceDraw;
 }
 
+extern bool ShouldUseStereoLumenOptimizations();
+
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
 DECLARE_GPU_STAT_NAMED_EXTERN(Postprocessing, TEXT("Postprocessing"))
 
@@ -1622,8 +1624,25 @@ public:
 	FTexture2DRHIRef PrimitiveSceneDataTextureOverrideRHI;
 
 	FShaderPrintData ShaderPrintData;
+private:
 	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
+public:
 	FLumenFrontLayerTranslucency LumenFrontLayerTranslucency;
+
+	inline const FLumenTranslucencyGIVolume& GetLumenTranslucencyGIVolume() const
+	{
+		if (UNLIKELY(bIsInstancedStereoEnabled && ShouldUseStereoLumenOptimizations() && IStereoRendering::IsASecondaryPass(StereoPass)))
+		{
+			return GetPrimaryView()->LumenTranslucencyGIVolume;
+		}
+
+		return LumenTranslucencyGIVolume;
+	}
+
+	inline FLumenTranslucencyGIVolume& GetOwnLumenTranslucencyGIVolume()
+	{
+		return LumenTranslucencyGIVolume;
+	}
 
 	FLumenSceneData* ViewLumenSceneData;
 

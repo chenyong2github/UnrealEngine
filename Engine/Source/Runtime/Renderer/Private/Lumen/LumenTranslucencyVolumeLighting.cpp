@@ -889,15 +889,15 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 				View.ViewState->Lumen.TranslucencyVolume1 = GraphBuilder.ConvertToExternalTexture(TranslucencyGIVolumeNewHistory1);
 			}
 
-			View.LumenTranslucencyGIVolume.Texture0 = TranslucencyGIVolume0;
-			View.LumenTranslucencyGIVolume.Texture1 = TranslucencyGIVolume1;
+			View.GetOwnLumenTranslucencyGIVolume().Texture0 = TranslucencyGIVolume0;
+			View.GetOwnLumenTranslucencyGIVolume().Texture1 = TranslucencyGIVolume1;
 
-			View.LumenTranslucencyGIVolume.HistoryTexture0 = TranslucencyGIVolumeNewHistory0;
-			View.LumenTranslucencyGIVolume.HistoryTexture1 = TranslucencyGIVolumeNewHistory1;
+			View.GetOwnLumenTranslucencyGIVolume().HistoryTexture0 = TranslucencyGIVolumeNewHistory0;
+			View.GetOwnLumenTranslucencyGIVolume().HistoryTexture1 = TranslucencyGIVolumeNewHistory1;
 
-			View.LumenTranslucencyGIVolume.GridZParams = (FVector)VolumeParameters.TranslucencyGIGridZParams;
-			View.LumenTranslucencyGIVolume.GridPixelSizeShift = FMath::FloorLog2(GTranslucencyFroxelGridPixelSize);
-			View.LumenTranslucencyGIVolume.GridSize = TranslucencyGridSize;
+			View.GetOwnLumenTranslucencyGIVolume().GridZParams = (FVector)VolumeParameters.TranslucencyGIGridZParams;
+			View.GetOwnLumenTranslucencyGIVolume().GridPixelSizeShift = FMath::FloorLog2(GTranslucencyFroxelGridPixelSize);
+			View.GetOwnLumenTranslucencyGIVolume().GridSize = TranslucencyGridSize;
 		}
 	}
 }

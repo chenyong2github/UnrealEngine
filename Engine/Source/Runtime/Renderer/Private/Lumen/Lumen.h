@@ -20,6 +20,7 @@ extern bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracin
 extern bool ShouldRenderLumenReflectionsWater(const FViewInfo& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
 extern bool ShouldRenderLumenDirectLighting(const FScene* Scene, const FSceneView& View);
 extern bool ShouldRenderAOWithLumenGI();
+extern bool ShouldUseStereoLumenOptimizations();
 
 class FLumenSceneData;
 
