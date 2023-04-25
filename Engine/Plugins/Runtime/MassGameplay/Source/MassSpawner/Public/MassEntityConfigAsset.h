@@ -57,16 +57,16 @@ struct MASSSPAWNER_API FMassEntityConfig
 
 	void SetOwner(UObject& InOwner) { ConfigOwner = &InOwner; }
 
-	UE_DEPRECATED(5.3, "This flavor of GetOrCreateEntityTemplate is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
+	UE_DEPRECATED(5.3, "This flavor of GetOrCreateEntityTemplate is deprecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
 	const FMassEntityTemplate& GetOrCreateEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const;
 
-	UE_DEPRECATED(5.3, "This flavor of DestroyEntityTemplate is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
+	UE_DEPRECATED(5.3, "This flavor of DestroyEntityTemplate is deprecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
 	void DestroyEntityTemplate(const UWorld& World, const UObject& ConfigOwner) const;
 
-	UE_DEPRECATED(5.3, "This flavor of GetEntityTemplateChecked is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
+	UE_DEPRECATED(5.3, "This flavor of GetEntityTemplateChecked is deprecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
 	const FMassEntityTemplate& GetEntityTemplateChecked(const UWorld& World, const UObject& ConfigOwner) const;
 
-	UE_DEPRECATED(5.3, "This flavor of ValidateEntityTemplate is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
+	UE_DEPRECATED(5.3, "This flavor of ValidateEntityTemplate is deprecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
 	bool ValidateEntityTemplate(const UWorld& World, const UObject& ConfigOwner);
 
 	bool IsEmpty() const { return Parent == nullptr && Traits.Num() == 0; }
@@ -76,7 +76,7 @@ protected:
 	void GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited) const;
 
 	/** Combines traits based on the config hierarchy and returns list of unique traits */
-	UE_DEPRECATED(5.3, "This flavor of GetCombinedTraits is deperecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
+	UE_DEPRECATED(5.3, "This flavor of GetCombinedTraits is deprecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
 	void GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited, const UObject& ConfigOwner) const;
 
 	/** Reference to parent config asset */
