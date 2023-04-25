@@ -1551,14 +1551,14 @@ void FCustomizableObjectCompiler::NotifyCompilationErrors() const
 
 void FCustomizableObjectCompiler::CompilerLog(const FText& Message, const TArray<const UCustomizableObjectNode*>& ArrayNode, EMessageSeverity::Type MessageSeverity, bool bAddBaseObjectInfo)
 {
-	// Cache the message for later reference
-	CompilationLogsContainer.AddMessage(Message,ArrayNode,MessageSeverity);
-	
-	FCustomizableObjectEditorLogger::CreateLog(Message)
-	.Severity(MessageSeverity)
-	.Nodes(ArrayNode)
-	.BaseObject(bAddBaseObjectInfo)
-	.Log();
+	if (CompilationLogsContainer.AddMessage(Message, ArrayNode, MessageSeverity)) // Cache the message for later reference
+	{
+		FCustomizableObjectEditorLogger::CreateLog(Message)
+			.Severity(MessageSeverity)
+			.Nodes(ArrayNode)
+			.BaseObject(bAddBaseObjectInfo)
+			.Log();
+	}
 }
 
 

@@ -110,9 +110,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FBeginDestroyNativeDelegate, UCustomizableOb
 
 DECLARE_DELEGATE_OneParam(FProjectorStateChangedDelegate, FString);
 
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FEachComponentAnimInstanceClassDelegate, int32, SlotIndex, TSubclassOf<UAnimInstance>, AnimInstClass);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FEachComponentAnimInstanceClassDelegate, FName, SlotIndex, TSubclassOf<UAnimInstance>, AnimInstClass);
 
-DECLARE_DELEGATE_TwoParams(FEachComponentAnimInstanceClassNativeDelegate, int32 /*SlotIndex*/, TSubclassOf<UAnimInstance> /*AnimInstClass*/);
+DECLARE_DELEGATE_TwoParams(FEachComponentAnimInstanceClassNativeDelegate, FName /*SlotIndex*/, TSubclassOf<UAnimInstance> /*AnimInstClass*/);
 
 
 UCLASS( Blueprintable, BlueprintType, HideCategories=(CustomizableObjectInstance) )
@@ -563,7 +563,7 @@ public:
 	
 	// Returns the animation BP for the parameter component and slot, gathered from all the meshes that compose this instance
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
-	TSubclassOf<UAnimInstance> GetAnimBP(int32 ComponentIndex, int32 SlotIndex) const;
+	TSubclassOf<UAnimInstance> GetAnimBP(int32 ComponentIndex, const FName& Slot) const;
 
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	const FGameplayTagContainer& GetAnimationGameplayTags() const;

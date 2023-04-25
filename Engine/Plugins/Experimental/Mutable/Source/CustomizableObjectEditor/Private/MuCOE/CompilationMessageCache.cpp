@@ -4,13 +4,13 @@
 
 
 
-void FCompilationMessageCache::AddMessage(const FText& InMessage, const TArray<const UCustomizableObjectNode*>& InArrayNode, EMessageSeverity::Type MessageSeverity /* = EMessageSeverity::Warning */)
+bool FCompilationMessageCache::AddMessage(const FText& InMessage, const TArray<const UCustomizableObjectNode*>& InArrayNode, EMessageSeverity::Type MessageSeverity /* = EMessageSeverity::Warning */)
 {
 	// Skip message if an identical one has already been reported
 	const FLoggedMessage Cached = { InMessage, InArrayNode, MessageSeverity };
 	if (LoggedMessages.Contains(Cached))
 	{
-		return;
+		return false;
 	}
 
 	LoggedMessages.Add(Cached);
@@ -33,6 +33,8 @@ void FCompilationMessageCache::AddMessage(const FText& InMessage, const TArray<c
 		checkNoEntry();
 		break;
 	}
+
+	return true;
 }
 
 

@@ -16,8 +16,9 @@ public:
 	 * @param InMessage The message's text.
 	 * @param InArrayNode The node that is related with the InMessage provided.
 	 * @param MessageSeverity Severity of the message.
+	 * @return True if the message is new and had not been added before. If it returns false it means it has not been logged again.
 	 */
-	 void AddMessage(const FText& InMessage, const TArray<const UCustomizableObjectNode*>& InArrayNode, EMessageSeverity::Type MessageSeverity = EMessageSeverity::Warning);
+	 bool AddMessage(const FText& InMessage, const TArray<const UCustomizableObjectNode*>& InArrayNode, EMessageSeverity::Type MessageSeverity = EMessageSeverity::Warning);
 	
 	
 	/** Provides the caller with separated arrays with all the warning and error messages.

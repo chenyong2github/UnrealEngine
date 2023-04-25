@@ -148,9 +148,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	TSoftClassPtr<UAnimInstance> AnimInstance;
 
+	UPROPERTY()
+	int32 AnimBlueprintSlot_DEPRECATED;
+	
 	/** The anim slot associated with the AnimInstance */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	int32 AnimBlueprintSlot = 0;
+	FName AnimBlueprintSlotName;
 
 	/** Animation tags that will be gathered by a Generated instance if it contains this skeletal mesh part,
 		it will not be grouped by component or AnimBlueprintSlot */

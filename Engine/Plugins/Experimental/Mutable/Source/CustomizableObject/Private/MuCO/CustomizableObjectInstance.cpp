@@ -5252,9 +5252,9 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 
 					if (Tag.Split(TEXT("_Slot_"), &SlotIndexString, &AssetPath))
 					{
-						if (SlotIndexString.IsNumeric())
+						if (!SlotIndexString.IsEmpty())
 						{
-							int32 SlotIndex = FCString::Atoi(*SlotIndexString);
+							FName SlotIndex = *SlotIndexString;
 
 							TSoftClassPtr<UAnimInstance>* AnimBPAsset = CustomizableObject->AnimBPAssetsMap.Find(AssetPath);
 
@@ -5276,7 +5276,7 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 								else
 								{
 									// Two submeshes should not have the same animation slot index
-									FString ErrorMsg = FString::Printf(TEXT("Two submeshes have the same anim slot index [%d] in a Mutable Instance."), SlotIndex);
+									FString ErrorMsg = FString::Printf(TEXT("Two submeshes have the same anim slot index [%s] in a Mutable Instance."), *SlotIndex.ToString());
 									UE_LOG(LogMutable, Error, TEXT("%s"), *ErrorMsg);
 #if WITH_EDITOR
 									FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
@@ -5430,7 +5430,7 @@ void UCustomizableInstancePrivateData::AdditionalAssetsAsyncLoaded(UCustomizable
 		ComponentData.ClothingPhysicsAssetsToStream.Empty();
 
 		// Loaded anim BPs
-		for (TPair<int32, TSoftClassPtr<UAnimInstance>>& SlotAnimBP : ComponentData.AnimSlotToBP)
+		for (TPair<FName, TSoftClassPtr<UAnimInstance>>& SlotAnimBP : ComponentData.AnimSlotToBP)
 		{
 			if (TSubclassOf<UAnimInstance> AnimBP = SlotAnimBP.Value.Get())
 			{
@@ -6514,7 +6514,7 @@ bool UCustomizableObjectInstance::HasAnyParameters() const
 }
 
 
-TSubclassOf<UAnimInstance> UCustomizableObjectInstance::GetAnimBP(int32 ComponentIndex, int32 SlotIndex) const
+TSubclassOf<UAnimInstance> UCustomizableObjectInstance::GetAnimBP(int32 ComponentIndex, const FName& SlotName) const
 {
 	FCustomizableInstanceComponentData* ComponentData =	GetPrivate()->GetComponentData(ComponentIndex);
 	
@@ -6533,7 +6533,7 @@ TSubclassOf<UAnimInstance> UCustomizableObjectInstance::GetAnimBP(int32 Componen
 		return nullptr;
 	}
 
-	TSoftClassPtr<UAnimInstance>* Result = ComponentData->AnimSlotToBP.Find(SlotIndex);
+	TSoftClassPtr<UAnimInstance>* Result = ComponentData->AnimSlotToBP.Find(SlotName);
 
 	return Result ? Result->Get() : nullptr;
 }
@@ -6584,9 +6584,9 @@ void UCustomizableObjectInstance::ForEachAnimInstance(int32 ComponentIndex, FEac
 		return;
 	}
 
-	for (const TPair<int32, TSoftClassPtr<UAnimInstance>>& MapElem : ComponentData->AnimSlotToBP)
+	for (const TPair<FName, TSoftClassPtr<UAnimInstance>>& MapElem : ComponentData->AnimSlotToBP)
 	{
-		const int32 Index = MapElem.Key;
+		const FName& Index = MapElem.Key;
 		const TSoftClassPtr<UAnimInstance>& AnimBP = MapElem.Value;
 
 		// if this _can_ resolve to a real AnimBP
@@ -6731,9 +6731,9 @@ void UCustomizableObjectInstance::ForEachAnimInstance(int32 ComponentIndex, FEac
 		return;
 	}
 
-	for (const TPair<int32, TSoftClassPtr<UAnimInstance>>& MapElem : ComponentData->AnimSlotToBP)
+	for (const TPair<FName, TSoftClassPtr<UAnimInstance>>& MapElem : ComponentData->AnimSlotToBP)
 	{
-		const int32 Index = MapElem.Key;
+		const FName& Index = MapElem.Key;
 		const TSoftClassPtr<UAnimInstance>& AnimBP = MapElem.Value;
 
 		// if this _can_ resolve to a real AnimBP

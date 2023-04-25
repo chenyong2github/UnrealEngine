@@ -69,6 +69,8 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectCustomVersion
 		StateTextureCompressionStrategyEnum,
 
 		AddedTableNodesTextureMode,
+		
+		ConvertAnimationSlotToFName,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

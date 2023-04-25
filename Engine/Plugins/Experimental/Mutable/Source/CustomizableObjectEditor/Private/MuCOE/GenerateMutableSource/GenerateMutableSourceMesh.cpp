@@ -2799,7 +2799,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 			if (!TypedNodeSkel->AnimInstance.IsNull())
 			{
-				int32 SlotIndex = TypedNodeSkel->AnimBlueprintSlot;
+				FName SlotIndex = TypedNodeSkel->AnimBlueprintSlotName;
 				GenerationContext.AnimBPAssetsMap.Add(TypedNodeSkel->AnimInstance.ToString(), TypedNodeSkel->AnimInstance);
 
 				AnimBPAssetTag = GenerateAnimationInstanceTag(TypedNodeSkel->AnimInstance.ToString(), SlotIndex);

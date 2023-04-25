@@ -52,7 +52,7 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 
 						if (AnimRowData)
 						{
-							int32 SlotIndex = -1;
+							FName SlotIndex;
 
 							// Getting animation slot row value from data table
 							if (FProperty* AnimSlotProperty = TableNode->Table->FindTableProperty(FName(*AnimSlot)))
@@ -63,12 +63,21 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 								{
 									if (const FIntProperty* IntProperty = CastField<FIntProperty>(AnimSlotProperty))
 									{
-										SlotIndex = IntProperty->GetPropertyValue(AnimSlotData);
+										FString Message = FString::Printf(
+											TEXT("The column with name [%s] for the Anim Slot property should be an FName instead of an Integer, it will be internally converted to FName but should probaly be converted in the table itself."), 
+											*AnimBP);
+										GenerationContext.Compiler->CompilerLog(FText::FromString(Message), TableNode, EMessageSeverity::Info);
+
+										SlotIndex = FName(FString::FromInt(IntProperty->GetPropertyValue(AnimSlotData)));
+									}
+									else if (const FNameProperty* NameProperty = CastField<FNameProperty>(AnimSlotProperty))
+									{
+										SlotIndex = NameProperty->GetPropertyValue(AnimSlotData);
 									}
 								}
 							}
 
-							if (SlotIndex > -1)
+							if (SlotIndex.GetStringLength() != 0)
 							{
 								// Getting animation instance soft class from data table
 								if (FProperty* AnimBPProperty = TableNode->Table->FindTableProperty(FName(*AnimBP)))
@@ -93,7 +102,7 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 							}
 							else
 							{
-								FString msg = FString::Printf(TEXT("Could not found the Slot column of the animation blueprint column [%s] for the mesh column [%s] row [%s]."), *AnimBP, *ColumnName, *RowName);
+								FString msg = FString::Printf(TEXT("Could not find the Slot column of the animation blueprint column [%s] for the mesh column [%s] row [%s]."), *AnimBP, *ColumnName, *RowName);
 								GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 							}
 						}

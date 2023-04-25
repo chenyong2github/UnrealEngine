@@ -125,7 +125,7 @@ struct FCustomizableInstanceComponentData
 
 	// AnimBP data gathered for a component from its constituent meshes
 	UPROPERTY(Transient, Category = CustomizableObjectInstance, editfixedsize, VisibleAnywhere)
-	TMap<int32, TSoftClassPtr<UAnimInstance>> AnimSlotToBP;
+	TMap<FName, TSoftClassPtr<UAnimInstance>> AnimSlotToBP;
 
 #if WITH_EDITORONLY_DATA
 	// Just used for mutable.EnableMutableAnimInfoDebugging command

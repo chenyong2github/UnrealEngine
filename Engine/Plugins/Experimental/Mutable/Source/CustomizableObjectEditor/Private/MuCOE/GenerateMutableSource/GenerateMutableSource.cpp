@@ -1283,9 +1283,9 @@ int32 AddTagToMutableMeshUnique(mu::Mesh& MutableMesh, const FString& Tag)
 	return TagCount;
 }
 
-FString GenerateAnimationInstanceTag(const FString& AnimInstance, int32 SlotIndex)
+FString GenerateAnimationInstanceTag(const FString& AnimInstance, const FName& SlotIndex)
 {
-	return FString("__AnimBP:") + FString::Printf(TEXT("%d_Slot_"), SlotIndex) + AnimInstance;
+	return FString("__AnimBP:") + FString::Printf(TEXT("%s_Slot_"), *SlotIndex.ToString()) + AnimInstance;
 }
 
 

@@ -641,11 +641,11 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 
 						if (ComponentData)
 						{
-							for (TPair<int32, TSoftClassPtr<UAnimInstance>>& Entry : ComponentData->AnimSlotToBP)
+							for (TPair<FName, TSoftClassPtr<UAnimInstance>>& Entry : ComponentData->AnimSlotToBP)
 							{
 								FString AnimBPSlot;
 
-								AnimBPSlot += FString::Printf(TEXT("%d"), Entry.Key) + FString("-") + Entry.Value.GetAssetName();
+								AnimBPSlot += Entry.Key.ToString() + FString("-") + Entry.Value.GetAssetName();
 								GEngine->AddOnScreenDebugMessage(MsgIndex++, .0f, FColor::Green, AnimBPSlot);
 							}
 						}

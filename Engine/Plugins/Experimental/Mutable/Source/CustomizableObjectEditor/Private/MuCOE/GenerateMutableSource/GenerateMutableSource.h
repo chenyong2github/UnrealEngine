@@ -762,7 +762,7 @@ int32 AddTagToMutableMeshUnique(mu::Mesh& MutableMesh, const FString& Tag);
 void AddSocketTagsToMesh(const USkeletalMesh* SourceMesh, mu::MeshPtr MutableMesh, FMutableGraphGenerationContext& GenerationContext);
 
 // Generates the tag for an animation instance
-FString GenerateAnimationInstanceTag(const FString& AnimInstance, int32 SlotIndex);
+FString GenerateAnimationInstanceTag(const FString& AnimInstance, const FName& SlotIndex);
 
 
 FString GenerateGameplayTag(const FString& GameplayTag);
