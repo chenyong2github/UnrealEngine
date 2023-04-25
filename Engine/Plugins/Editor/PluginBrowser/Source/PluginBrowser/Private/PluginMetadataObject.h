@@ -101,6 +101,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Details)
 	FString SupportURL;
 
+	/** Optional custom virtual path to display in editor to better organize. Inserted just before this plugin's directory in the path: /All/Plugins/EditorCustomVirtualPath/PluginName */
+	UPROPERTY(EditAnywhere, Category = Details)
+	FString EditorCustomVirtualPath;
+
 	/** Can this plugin contain content? */
 	UPROPERTY(EditAnywhere, Category = Details)
 	bool bCanContainContent;

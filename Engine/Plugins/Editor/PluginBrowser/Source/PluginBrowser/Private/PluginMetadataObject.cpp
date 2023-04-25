@@ -46,6 +46,7 @@ void UPluginMetadataObject::PopulateFromPlugin(TSharedPtr<IPlugin> InPlugin)
 	DocsURL = InDescriptor.DocsURL;
 	MarketplaceURL = InDescriptor.MarketplaceURL;
 	SupportURL = InDescriptor.SupportURL;
+	EditorCustomVirtualPath = InDescriptor.EditorCustomVirtualPath;
 	bCanContainContent = InDescriptor.bCanContainContent;
 	bIsBetaVersion = InDescriptor.bIsBetaVersion;
 	bIsEnabledByDefault = (InDescriptor.EnabledByDefault == EPluginEnabledByDefault::Enabled);
@@ -70,6 +71,7 @@ void UPluginMetadataObject::CopyIntoDescriptor(FPluginDescriptor& OutDescriptor)
 	OutDescriptor.CreatedByURL = CreatedByURL;
 	OutDescriptor.DocsURL = DocsURL;
 	OutDescriptor.MarketplaceURL = MarketplaceURL;
+	OutDescriptor.EditorCustomVirtualPath = EditorCustomVirtualPath;
 	OutDescriptor.SupportURL = SupportURL;
 	OutDescriptor.bCanContainContent = bCanContainContent;
 	OutDescriptor.bIsBetaVersion = bIsBetaVersion;
