@@ -56,14 +56,14 @@ void UPoseSearchFeatureChannel_FilterCrashingLegs::BuildQuery(UE::PoseSearch::FS
 	const bool bIsCurrentResultValid = SearchContext.GetCurrentResult().IsValid() && SearchContext.GetCurrentResult().Database->Schema == InOutQuery.GetSchema();
 	const bool bSkip = InputQueryPose != EInputQueryPose::UseCharacterPose && bIsCurrentResultValid;
 	
-	if (bSkip || !SearchContext.GetHistory())
+	if (bSkip || !SearchContext.IsHistoryValid())
 	{
 		if (bIsCurrentResultValid)
 		{
 			const float LerpValue = InputQueryPose == EInputQueryPose::UseInterpolatedContinuingPose ? SearchContext.GetCurrentResult().LerpValue : 0.f;
 			FFeatureVectorHelper::EncodeFloat(InOutQuery.EditValues(), ChannelDataOffset, SearchContext.GetCurrentResultPrevPoseVector(), SearchContext.GetCurrentResultPoseVector(), SearchContext.GetCurrentResultNextPoseVector(), LerpValue);
 		}
-		// else leave the InOutQuery set to zero since the SearchContext.GetHistory() is invalid and it'll fail if we continue
+		// else leave the InOutQuery set to zero since the SearchContext.History is invalid and it'll fail if we continue
 	}
 	else
 	{

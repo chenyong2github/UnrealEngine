@@ -350,21 +350,26 @@ FVector FSearchContext::GetSampleVelocity(float SampleTimeOffset, const UPoseSea
 	return LinearVelocity;
 }
 
-FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool bUseHistoryRoot)
+FTransform FSearchContext::GetRootAtTime(float Time, bool bUseHistoryRoot, bool bExtrapolate) const
 {
-	// collecting the RootTransform from the IPoseHistory
 	FTransform RootTransform = FTransform::Identity;
 	if (bUseHistoryRoot)
 	{
 		check(History);
-		History->GetRootTransformAtTime(SampleTime, RootTransform);
+		History->GetRootTransformAtTime(Time, RootTransform);
 	}
 	else
 	{
 		check(Trajectory);
-		const FPoseSearchQueryTrajectorySample TrajectorySample = Trajectory->GetSampleAtTime(SampleTime);
-		RootTransform = TrajectorySample.GetTransform();
+		RootTransform = Trajectory->GetSampleAtTime(Time, bExtrapolate).GetTransform();
 	}
+
+	return RootTransform;
+}
+
+FTransform FSearchContext::GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx, bool bUseHistoryRoot)
+{
+	const FTransform RootTransform = GetRootAtTime(SampleTime, bUseHistoryRoot);
 
 	const FBoneIndexType BoneIndexType = Schema->GetBoneIndexType(SchemaBoneIdx);
 	if (BoneIndexType != RootBoneIndexType)

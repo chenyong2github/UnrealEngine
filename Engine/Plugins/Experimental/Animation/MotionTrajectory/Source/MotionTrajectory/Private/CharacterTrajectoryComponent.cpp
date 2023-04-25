@@ -135,25 +135,6 @@ void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVecto
 #endif // ENABLE_ANIM_DEBUG
 }
 
-FPoseSearchQueryTrajectory UCharacterTrajectoryComponent::GetCharacterRelativeTrajectory() const
-{
-	check(GetOwner());
-
-	FPoseSearchQueryTrajectory CharacterRelativeTrajectory = Trajectory;
-	if (!SkelMeshComponent)
-	{
-		UE_LOG(LogMotionTrajectory, Error, TEXT("UCharacterTrajectoryComponent requires SkelMeshComponent to be initialized"));
-	}
-	else
-	{
-		const FTransform OwnerTransformWS = GetOwner()->GetActorTransform();
-		const FTransform ComponentTransformWS = SkelMeshComponent->GetComponentTransform();
-		const FTransform ReferenceChangeTransform = OwnerTransformWS.GetRelativeTransform(ComponentTransformWS);
-		CharacterRelativeTrajectory.TransformReferenceFrame(ReferenceChangeTransform);
-	}
-	return CharacterRelativeTrajectory;
-}
-
 void UpdateHistorySample(FPoseSearchQueryTrajectorySample& Sample, float DeltaSeconds, const FTransform& DeltaTransformCS)
 {
 	Sample.Facing = DeltaTransformCS.InverseTransformRotation(Sample.Facing);

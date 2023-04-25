@@ -30,9 +30,6 @@ protected:
 	UFUNCTION()
 	void OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity);
 
-	UFUNCTION(BlueprintCallable, Category = "Trajectory", meta = (BlueprintThreadSafe))
-	FPoseSearchQueryTrajectory GetCharacterRelativeTrajectory() const;
-
 	void UpdateHistory(float DeltaSeconds, const FTransform& DeltaTransformCS);
 	void UpdatePrediction(const FVector& VelocityCS, const FVector& AccelerationCS, const FRotator& ControllerRotationRate);
 

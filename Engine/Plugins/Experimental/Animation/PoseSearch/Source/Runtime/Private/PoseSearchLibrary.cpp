@@ -221,13 +221,12 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 		TraceState.CurrentPoseEntryIdx = PoseEntryIdx;
 	}
 
-	if (DeltaTime > SMALL_NUMBER && SearchContext.GetTrajectory())
+	if (DeltaTime > SMALL_NUMBER && SearchContext.IsTrajectoryValid())
 	{
 		// simulation
-		const FPoseSearchQueryTrajectorySample PrevSample = SearchContext.GetTrajectory()->GetSampleAtTime(-DeltaTime);
-		const FPoseSearchQueryTrajectorySample CurrSample = SearchContext.GetTrajectory()->GetSampleAtTime(0.f);
-
-		const FTransform SimDelta = CurrSample.GetTransform().GetRelativeTransform(PrevSample.GetTransform());
+		const FTransform PrevRoot = SearchContext.GetRootAtTime(-DeltaTime);
+		const FTransform CurrRoot = SearchContext.GetRootAtTime(0.f);
+		const FTransform SimDelta = CurrRoot.GetRelativeTransform(PrevRoot);
 
 		TraceState.SimLinearVelocity = SimDelta.GetTranslation().Size() / DeltaTime;
 		TraceState.SimAngularVelocity = FMath::RadiansToDegrees(SimDelta.GetRotation().GetAngle()) / DeltaTime;
@@ -290,7 +289,8 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		QueryMirrorRequest = CurrentIndexAsset->bMirrored ? EPoseSearchBooleanRequest::TrueValue : EPoseSearchBooleanRequest::FalseValue;
 	}
 
-	FSearchContext SearchContext(&Trajectory, History, 0.f, &InOutMotionMatchingState.PoseIndicesHistory, QueryMirrorRequest, 
+	const FPoseSearchQueryTrajectory TrajectoryCS = GetCharacterRelativeTrajectory(Trajectory, Context.AnimInstanceProxy->GetActorTransform(), Context.AnimInstanceProxy->GetComponentTransform());
+	FSearchContext SearchContext(&TrajectoryCS, History, 0.f, &InOutMotionMatchingState.PoseIndicesHistory, QueryMirrorRequest, 
 		InOutMotionMatchingState.CurrentSearchResult, Settings.PoseJumpThresholdTime, bForceInterrupt, InOutMotionMatchingState.CanAdvance(DeltaTime));
 
 	// If we can't advance or enough time has elapsed since the last pose jump then search
@@ -386,6 +386,15 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 #endif
 }
 
+// transforms Trajectory from the SkeletalMeshComponent relative space into Character relative space
+FPoseSearchQueryTrajectory UPoseSearchLibrary::GetCharacterRelativeTrajectory(const FPoseSearchQueryTrajectory& Trajectory, const FTransform& OwnerTransformWS, const FTransform& ComponentTransformWS)
+{
+	const FTransform ReferenceChangeTransform = OwnerTransformWS.GetRelativeTransform(ComponentTransformWS);
+	FPoseSearchQueryTrajectory TrajectoryCS = Trajectory;
+	TrajectoryCS.TransformReferenceFrame(ReferenceChangeTransform);
+	return TrajectoryCS;
+}
+
 void UPoseSearchLibrary::MotionMatch(
 	UAnimInstance* AnimInstance,
 	const UPoseSearchDatabase* Database,
@@ -428,6 +437,8 @@ void UPoseSearchLibrary::MotionMatch(
 
 	if (Database)
 	{
+		const FPoseSearchQueryTrajectory TrajectoryCS = GetCharacterRelativeTrajectory(Trajectory, AnimInstance->GetOwningActor()->GetActorTransform(), AnimInstance->GetOwningComponent()->GetComponentTransform());
+
 		// ExtendedPoseHistory will hold future poses to match AssetSamplerBase (at FutureAnimationStartTime) TimeToFutureAnimationStart seconds in the future
 		FExtendedPoseHistory ExtendedPoseHistory;
 		if (AnimInstance)
@@ -496,7 +507,7 @@ void UPoseSearchLibrary::MotionMatch(
 					FCSPose<FCompactPose> ComponentSpacePose;
 					ComponentSpacePose.InitPose(Pose);
 
-					const FPoseSearchQueryTrajectorySample TrajectorySample = Trajectory.GetSampleAtTime(ExtractionTime);
+					const FPoseSearchQueryTrajectorySample TrajectorySample = TrajectoryCS.GetSampleAtTime(ExtractionTime);
 					const FTransform& ComponentTransform = AnimInstance->GetOwningComponent()->GetComponentTransform();
 					const FTransform FutureComponentTransform = TrajectorySample.GetTransform() * ComponentTransform;
 
@@ -513,7 +524,7 @@ void UPoseSearchLibrary::MotionMatch(
 		}
 
 		// @todo: finish set up SearchContext by exposing or calculating additional members
-		FSearchContext SearchContext(&Trajectory, ExtendedPoseHistory.IsInitialized() ? &ExtendedPoseHistory : nullptr, TimeToFutureAnimationStart);
+		FSearchContext SearchContext(&TrajectoryCS, ExtendedPoseHistory.IsInitialized() ? &ExtendedPoseHistory : nullptr, TimeToFutureAnimationStart);
 
 		FSearchResult SearchResult = Database->Search(SearchContext);
 		if (SearchResult.IsValid())

@@ -165,11 +165,12 @@ struct POSESEARCH_API FSearchContext
 	float GetPoseJumpThresholdTime() const { return PoseJumpThresholdTime; }
 	EPoseSearchBooleanRequest GetQueryMirrorRequest() const { return QueryMirrorRequest; }
 	const FPoseIndicesHistory* GetPoseIndicesHistory() const { return PoseIndicesHistory; }
-	const IPoseHistory* GetHistory() const { return History; }
+	bool IsHistoryValid() const { return History != nullptr; }
 	float GetDesiredPermutationTimeOffset() const { return DesiredPermutationTimeOffset; }
-	const FPoseSearchQueryTrajectory* GetTrajectory() const { return Trajectory; }
+	bool IsTrajectoryValid() const { return Trajectory != nullptr; }
 	bool CanAdvance() const { return bCanAdvance; }
 	bool IsForceInterrupt() const { return bForceInterrupt; }
+	FTransform GetRootAtTime(float Time, bool bUseHistoryRoot = false, bool bExtrapolate = true) const;
 
 private:
 	FTransform GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false);

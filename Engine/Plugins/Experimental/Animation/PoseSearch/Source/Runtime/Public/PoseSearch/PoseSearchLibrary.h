@@ -131,13 +131,18 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 		bool bSearch);
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 
+	static FPoseSearchQueryTrajectory GetCharacterRelativeTrajectory(
+		const FPoseSearchQueryTrajectory& Trajectory,
+		const FTransform& OwnerTransformWS,
+		const FTransform& ComponentTransformWS);
+
 public:
 	/**
 	* Implementation of the core motion matching algorithm
 	*
 	* @param Context						Input animation update context providing access to the proxy and delta time
 	* @param Databases						Input array of databases to search
-	* @param Trajectory						Input motion trajectory samples for pose search queries
+	* @param Trajectory						Input motion trajectory samples for pose search queries. Expected to be in the space of the SkeletalMeshComponent. This is provided with the CharacterMovementTrajectory Component output.
 	* @param Settings						Input motion matching algorithm configuration settings
 	* @param InOutMotionMatchingState		Input/Output encapsulated motion matching algorithm and state
 	* @param bForceInterrupt				Input force interrupt request (if true the continuing pose will be invalidated)
@@ -161,7 +166,7 @@ public:
 	*
 	* @param AnimInstance					Input animation instance
 	* @param Database						Input database to search
-	* @param Trajectory						Input motion trajectory samples for pose search queries
+	* @param Trajectory						Input motion trajectory samples for pose search queries. Expected to be in the space of the SkeletalMeshComponent. This is provided with the CharacterMovementTrajectory Component output.
 	* @param PoseHistoryName				Input tag of the associated PoseSearchHistoryCollector node in the anim graph
 	* @param SelectedAnimation				Output selected animation from the searchable asset
 	* @param SelectedTime					Output selected animation time
