@@ -241,7 +241,11 @@ bool UWorldPartitionBuilderCommandlet::RunBuilder(TSubclassOf<UWorldPartitionBui
 
 bool UWorldPartitionBuilderCommandlet::OnFilesModified(const TArray<FString>& InModifiedFiles, const FString& InChangeDescription)
 {
-	AutoSubmitFiles.Emplace(InChangeDescription, InModifiedFiles);
+	if (!InModifiedFiles.IsEmpty())
+	{
+		AutoSubmitFiles.Emplace(InChangeDescription, InModifiedFiles);
+	}
+
 	return true;
 }
 
