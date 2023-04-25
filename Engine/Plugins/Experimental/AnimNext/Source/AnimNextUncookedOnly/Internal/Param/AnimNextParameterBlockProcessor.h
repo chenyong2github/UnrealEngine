@@ -1,4 +1,5 @@
-﻿
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -12,6 +13,6 @@ class UAnimNextParameterBlockProcessor : public UAnimNextParameterBlockEntry
 	GENERATED_BODY()
 
 	// UAnimNextParameterBlockEntry interface
-	virtual FText GetDisplayName() const { return FText::GetEmpty(); }
-	virtual FText GetDisplayNameTooltip() const { return FText::GetEmpty(); }
+	virtual FText GetDisplayName() const override { return FText::GetEmpty(); }
+	virtual FText GetDisplayNameTooltip() const override { return FText::GetEmpty(); }
 };

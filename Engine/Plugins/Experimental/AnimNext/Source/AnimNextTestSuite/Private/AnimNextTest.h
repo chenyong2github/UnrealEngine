@@ -9,7 +9,7 @@
 
 //// --- Raw type ---
 USTRUCT()
-struct FTestData
+struct FAnimNextTestData
 {
 	GENERATED_BODY()
 
@@ -23,7 +23,7 @@ class UAnimNextInterface_TestData : public UObject, public IAnimNextInterface
 {
 	GENERATED_BODY()
 
-	ANIM_NEXT_INTERFACE_RETURN_TYPE(FTestData)
+	ANIM_NEXT_INTERFACE_RETURN_TYPE(FAnimNextTestData)
 
 	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const override
 	{
@@ -41,7 +41,7 @@ class UAnimNextInterfaceTestDataLiteral : public UAnimNextInterface_TestData
 	// IAnimNextInterface interface
 	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override;
 
-	FTestData Value = {1.f, 1.f};
+	FAnimNextTestData Value = {1.f, 1.f};
 };
 
 // --- TestData multiply operator  ---
