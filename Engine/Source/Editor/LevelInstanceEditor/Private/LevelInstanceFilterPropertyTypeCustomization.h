@@ -32,5 +32,5 @@ private:
 	virtual TSharedPtr<FWorldPartitionActorFilterMode::FFilter> CreateModeFilter(TArray<UObject*> OuterObjects) override;
 	virtual void ApplyFilter(TSharedRef<IPropertyHandle> PropertyHandle, const FWorldPartitionActorFilterMode& Mode) override;
 
-	TArray<ILevelInstanceInterface*> LevelInstances;
+	TMap<ILevelInstanceInterface*, int32> LevelInstances;
 };
