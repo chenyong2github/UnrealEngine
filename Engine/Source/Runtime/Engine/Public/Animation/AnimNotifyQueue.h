@@ -21,19 +21,9 @@ struct FAnimNotifyEventReference
 {
 	GENERATED_BODY()
 
-	FAnimNotifyEventReference()
-		: Notify(nullptr)
-		, MirrorTable(nullptr)
-		, NotifySource(nullptr)
+	FAnimNotifyEventReference() = default;
 
-	{}
-
-	FAnimNotifyEventReference(const FAnimNotifyEventReference& rhs)
-		: ContextData(rhs.ContextData)
-		, Notify(rhs.Notify)
-		, MirrorTable(rhs.MirrorTable)
-		, NotifySource(rhs.NotifySource)
-	{}
+	FAnimNotifyEventReference(const FAnimNotifyEventReference& rhs) = default;
 
 	FAnimNotifyEventReference(const FAnimNotifyEvent* InNotify, const UObject* InNotifySource)
 		: Notify(InNotify)
@@ -108,18 +98,33 @@ struct FAnimNotifyEventReference
 		ContextData->Add(MakeUnique<Type>(Forward<TArgs>(Args)...));
 	}
 
+	// Gets the source object of this notify (e.g. anim sequence), if any
+	const UObject* GetSourceObject() const
+	{
+		return NotifySource;
+	}
+
+	// Gets the current animation's time that this notify was fired at
+	float GetCurrentAnimationTime() const
+	{
+		return CurrentAnimTime;
+	}
+
 private:
 	// Context data gleaned from the tick record
 	TSharedPtr<TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>> ContextData;
 	
-	const FAnimNotifyEvent* Notify;
+	const FAnimNotifyEvent* Notify = nullptr;
 
 	// If set, the Notify has been mirrored.  The mirrored name can be found in MirrorTable->AnimNotifyToMirrorAnimNotifyMap
 	UPROPERTY(transient)
-	TObjectPtr<const UMirrorDataTable> MirrorTable; 
+	TObjectPtr<const UMirrorDataTable> MirrorTable = nullptr; 
 
 	UPROPERTY(transient)
-	TObjectPtr<const UObject> NotifySource;
+	TObjectPtr<const UObject> NotifySource = nullptr;
+
+	// The recorded time from the tick record that this notify event was fired at
+	float CurrentAnimTime = 0.0f;
 };
 
 USTRUCT()

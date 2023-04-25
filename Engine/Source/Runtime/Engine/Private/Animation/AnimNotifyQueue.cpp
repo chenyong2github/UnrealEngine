@@ -18,6 +18,7 @@ bool operator==(const FAnimNotifyEventReference& Lhs, const FAnimNotifyEvent& Rh
 void FAnimNotifyEventReference::GatherTickRecordData(const FAnimTickRecord& InTickRecord)
 {
 	ContextData = InTickRecord.ContextData;
+	CurrentAnimTime = InTickRecord.TimeAccumulator != nullptr ? *InTickRecord.TimeAccumulator : 0.0f;
 }
 
 bool FAnimNotifyQueue::PassesFiltering(const FAnimNotifyEvent* Notify) const

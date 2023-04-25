@@ -25,4 +25,42 @@ public:
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Animation|Notifies" , meta = (ScriptMethod))
 	static bool NotifyStateReachedEnd(const FAnimNotifyEventReference& EventReference);
+
+	/**
+	 * Get the current anim notify time in seconds for when this notify was fired
+	 *
+	 * @param EventReference		The event to inspect
+	 * @return the time in seconds through the current animation for when this notify was fired
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities|Animation|Notifies" , meta = (ScriptMethod))
+	static float GetCurrentAnimationTime(const FAnimNotifyEventReference& EventReference);
+
+	/**
+	 * Get the current anim notify time as a ratio (0 -> 1) through the animation for when this notify was fired
+	 *
+	 * @param EventReference		The event to inspect
+	 * @return the time as a ratio (0 -> 1) through the animation for when this notify was fired
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities|Animation|Notifies" , meta = (ScriptMethod))
+	static float GetCurrentAnimationTimeRatio(const FAnimNotifyEventReference& EventReference);
+	
+	/**
+	 * Gets the current time in seconds relative to the start of the notify state, clamped to the range of the notify
+	 * state
+	 *
+	 * @param EventReference		The event to inspect
+	 * @return  the current time in seconds relative to the start of the notify state, clamped to the range of the
+	 *			notify state
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities|Animation|Notifies" , meta = (ScriptMethod))
+	static float GetCurrentAnimationNotifyStateTime(const FAnimNotifyEventReference& EventReference);
+
+	/**
+	 * Gets the current time as a ratio (0 -> 1) relative to the start of the notify state
+	 *
+	 * @param EventReference		The event to inspect
+	 * @return  the current time as a ratio (0 -> 1) relative to the start of the notify state
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities|Animation|Notifies" , meta = (ScriptMethod))
+	static float GetCurrentAnimationNotifyStateTimeRatio(const FAnimNotifyEventReference& EventReference);
 };
