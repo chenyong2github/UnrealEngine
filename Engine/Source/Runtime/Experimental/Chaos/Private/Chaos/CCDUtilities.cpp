@@ -758,7 +758,10 @@ namespace Chaos
 		
 		for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
 		{ 
-			CCDConstraint->SweptConstraint->SetCCDResults(CCDConstraint->NetImpulse);
+			if (CCDConstraint && CCDConstraint->SweptConstraint)
+			{
+				CCDConstraint->SweptConstraint->SetCCDResults(CCDConstraint->NetImpulse);
+			}
 		}
 		
 		return HasResweptConstraint;
