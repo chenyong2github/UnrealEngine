@@ -123,21 +123,6 @@ namespace InstallBundleUtil
 		}
 	};
 
-	// Helper to safely suppress installer analytics that will restore previous state when going out of scope
-	struct INSTALLBUNDLEMANAGER_API FInstallBundleSuppressAnalytics : FNoncopyable
-	{
-		FInstallBundleSuppressAnalytics();
-		~FInstallBundleSuppressAnalytics();
-
-		void Enable();
-		void Disable();
-
-		static bool AllowAnalytics();
-
-	private:
-		bool bIsEnabled;
-	};
-
 	class INSTALLBUNDLEMANAGER_API FInstallBundleWork : public FNonAbandonableTask
 	{
 	public:
