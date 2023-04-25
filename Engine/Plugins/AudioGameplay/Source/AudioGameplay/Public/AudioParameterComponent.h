@@ -52,6 +52,13 @@ public:
 	virtual void SetParameters(TArray<FAudioParameter>&& InValues) override;
 	/** End IAudioParameterControllerInterface */
 
+#if WITH_EDITORONLY_DATA
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnParameterChanged, const FAudioParameter&, Parameter);
+
+	UPROPERTY(BlueprintAssignable)
+	FOnParameterChanged OnParameterChanged;
+#endif // WITH_EDITORONLY_DATA
+
 private:
 
 	void SetParameterInternal(FAudioParameter&& InParam);
