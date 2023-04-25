@@ -40,6 +40,17 @@ public:
 	}
 
 	/**
+	 * Add all transforms in given sequence to the end of this sequence, ie Seq(P) becomes SequenceToAppend * Seq(P)
+	 */
+	void Append(const TTransformSequence3<RealType>& SequenceToAppend)
+	{
+		for (const TTransformSRT3<RealType>& Transform : SequenceToAppend.Transforms)
+		{
+			Append(Transform);
+		}
+	}
+
+	/**
 	 * @return number of transforms in the sequence
 	 */
 	int32 Num() const { return Transforms.Num(); }

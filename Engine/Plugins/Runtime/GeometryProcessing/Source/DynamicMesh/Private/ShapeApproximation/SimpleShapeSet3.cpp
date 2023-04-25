@@ -389,12 +389,17 @@ static void TransformSphereShape(FSphereShape3d& SphereShape, const TransformTyp
 template<typename TransformType>
 static void TransformBoxShape(FBoxShape3d& BoxShape, const TransformType& Transform)
 {
-	FVector3d CornerVec = BoxShape.Box.Frame.PointAt(BoxShape.Box.Extents) - BoxShape.Box.Frame.Origin;
 	BoxShape.Box.Frame.Transform(Transform);
-	CornerVec = Transform.TransformVector(CornerVec);
-	BoxShape.Box.Extents.X = CornerVec.Dot(BoxShape.Box.AxisX());
-	BoxShape.Box.Extents.Y = CornerVec.Dot(BoxShape.Box.AxisY());
-	BoxShape.Box.Extents.Z = CornerVec.Dot(BoxShape.Box.AxisZ());
+
+	// There isn't a perfect approach to transforming the extents in the presence of non-uniform scaling.
+	// One approach we've done in the past has been to transform the corner vector, but depending on that
+	// vector's orientation relative to scaling axis, the extents could grow/shrink in unexpected ways,
+	// or not change at all if direction happened to be orthogonal.
+	// The approach we now use is to apply the scaling in the reference frame of the box itself, because
+	// this what the editor does for box collision shapes, and it is helpful to have this work the same
+	// way here.
+	// For uniform scaling, it doesn't matter which approach we use.
+	BoxShape.Box.Extents *= Transform.GetScale3D();
 }
 template<typename TransformType>
 static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, const TransformType& Transform)
@@ -436,15 +441,10 @@ static void TransformSphereShapeByArray(FSphereShape3d& SphereShape, const Trans
 template<typename TransformArrayType>
 static void TransformBoxShapeByArray(FBoxShape3d& BoxShape, const TransformArrayType& TransformSequence)
 {
-	FVector3d CornerVec = BoxShape.Box.Frame.PointAt(BoxShape.Box.Extents) - BoxShape.Box.Frame.Origin;
 	for (const auto& XForm : TransformSequence)
 	{
-		BoxShape.Box.Frame.Transform(XForm);
-		CornerVec = XForm.TransformVector(CornerVec);
+		TransformBoxShape(BoxShape, XForm);
 	}
-	BoxShape.Box.Extents.X = CornerVec.Dot(BoxShape.Box.AxisX());
-	BoxShape.Box.Extents.Y = CornerVec.Dot(BoxShape.Box.AxisY());
-	BoxShape.Box.Extents.Z = CornerVec.Dot(BoxShape.Box.AxisZ());
 }
 template<typename TransformArrayType>
 static void TransformCapsuleShapeByArray(UE::Geometry::FCapsuleShape3d& CapsuleShape, const TransformArrayType& TransformSequence)

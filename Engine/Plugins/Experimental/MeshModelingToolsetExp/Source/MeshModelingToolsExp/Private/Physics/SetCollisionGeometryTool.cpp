@@ -45,6 +45,9 @@ class FPhysicsCollectionOp : public TGenericDataOperator<FPhysicsDataCollection>
 public:
 
 	TSharedPtr<FPhysicsDataCollection, ESPMode::ThreadSafe> InitialCollision;
+	TSharedPtr<TArray<FPhysicsDataCollection>, ESPMode::ThreadSafe> OtherInputsCollision;
+	FTransformSequence3d TargetInverseTransform;
+	TSharedPtr<TArray<FTransform3d>, ESPMode::ThreadSafe> OtherInputsTransforms; // null if not using world space
 
 	TUniquePtr<FMeshSimpleShapeApproximation> UseShapeGenerator;
 	// Note: UseShapeGenerator holds raw pointers to these meshes, so we keep the array of shared pointers to prevent them from getting deleted while the op runs
@@ -68,15 +71,42 @@ public:
 		// calculate new collision
 		TUniquePtr<FPhysicsDataCollection> NewCollision = MakeUnique<FPhysicsDataCollection>();
 		NewCollision->InitializeFromExisting(*InitialCollision);
-		if (bAppendToExisting || ComputeType == ECollisionGeometryType::KeepExisting)
+		if (bAppendToExisting)
 		{
 			NewCollision->CopyGeometryFromExisting(*InitialCollision);
 		}
 
 		switch (ComputeType)
 		{
-		case ECollisionGeometryType::KeepExisting:
-		case ECollisionGeometryType::None:
+		case ECollisionGeometryType::Empty:
+			break;
+		case ECollisionGeometryType::CopyFromInputs:
+			if (ensure(OtherInputsCollision))
+			{
+				if (OtherInputsTransforms)
+				{
+					for (int32 i = 0; i < OtherInputsCollision->Num(); ++i)
+					{
+						const FPhysicsDataCollection& Collision = (*OtherInputsCollision)[i];
+						if (!ensure(i < OtherInputsTransforms->Num()))
+						{
+							break;
+						}
+
+						FTransformSequence3d TransformStack;
+						TransformStack.Append((*OtherInputsTransforms)[i]);
+						TransformStack.Append(TargetInverseTransform);
+						NewCollision->Geometry.Append(Collision.Geometry, TransformStack);
+					}
+				}
+				else
+				{
+					for (const FPhysicsDataCollection& Collision : *OtherInputsCollision)
+					{
+						NewCollision->Geometry.Append(Collision.Geometry);
+					}
+				}
+			}
 			break;
 		case ECollisionGeometryType::AlignedBoxes:
 			UseShapeGenerator->Generate_AlignedBoxes(NewCollision->Geometry);
@@ -166,7 +196,6 @@ UMultiSelectionMeshEditingTool* USetCollisionGeometryToolBuilder::CreateNewTool(
 	return NewObject<USetCollisionGeometryTool>(SceneState.ToolManager);
 }
 
-
 void USetCollisionGeometryTool::Setup()
 {
 	UInteractiveTool::Setup();
@@ -186,17 +215,45 @@ void USetCollisionGeometryTool::Setup()
 		}
 	}
 
+	UToolTarget* CollisionTarget = Targets[Targets.Num() - 1];
+	OrigTargetTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(CollisionTarget);
+	
+	// We need an inverse transform for copying simple collision in CopyFromInputs mode. We have
+	// to separate out the scale since we can't represent the inverse properly just in SRT form.
+	FTransform OrigTransformRT = OrigTargetTransform;
+	OrigTransformRT.SetScale3D(FVector3d::One());
+
+	TargetInverseTransform.Append(OrigTransformRT.Inverse());
+	TargetInverseTransform.Append(FTransformSRT3d(FQuaterniond::Identity(), FVector3d::Zero(),
+		OrigTargetTransform.GetScale3D().Reciprocal()));
+
+	// The "OtherInputs" variables are only needed if we have multiple meshes selected. They
+	// do not include the target mesh
+	OtherInputsCollision = MakeShared<TArray<FPhysicsDataCollection>, ESPMode::ThreadSafe>();
+	OtherInputsTransforms = MakeShared<TArray<FTransform3d>, ESPMode::ThreadSafe>();
+	bool bHaveMultipleInputs = Targets.Num() > 1;
+	if (bHaveMultipleInputs)
+	{
+		// The preallocation is so we can do the initialization in the parallel for below
+		OtherInputsCollision->SetNum(SourceObjectIndices.Num());
+		OtherInputsTransforms->SetNum(SourceObjectIndices.Num());
+	}
+
 	// collect input meshes
 	InitialSourceMeshes.SetNum(SourceObjectIndices.Num());
 	ParallelFor(SourceObjectIndices.Num(), [&](int32 k)
 	{
 		InitialSourceMeshes[k] = UE::ToolTarget::GetDynamicMeshCopy(Targets[k]);
+
+		if (bHaveMultipleInputs)
+		{
+			(*OtherInputsCollision)[k].InitializeFromComponent(UE::ToolTarget::GetTargetComponent(Targets[k]), true);
+			(*OtherInputsTransforms)[k] = UE::ToolTarget::GetLocalToWorldTransform(Targets[k]);
+		}
 	});
 
-	UToolTarget* CollisionTarget = Targets[Targets.Num() - 1];
 	PreviewGeom = NewObject<UPreviewGeometry>(this);
-	FTransform PreviewTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(CollisionTarget);
-	OrigTargetTransform = PreviewTransform;
+	FTransform PreviewTransform = OrigTargetTransform;
 	TargetScale3D = PreviewTransform.GetScale3D();
 	PreviewTransform.SetScale3D(FVector::OneVector);
 	PreviewGeom->CreateInWorld(UE::ToolTarget::GetTargetActor(CollisionTarget)->GetWorld(), PreviewTransform);
@@ -209,8 +266,8 @@ void USetCollisionGeometryTool::Setup()
 	// create tool options
 	Settings = NewObject<USetCollisionGeometryToolProperties>(this);
 	Settings->RestoreProperties(this);
+	Settings->bUsingMultipleInputs = Targets.Num() > 1;
 	AddToolPropertySource(Settings);
-	Settings->bUseWorldSpace = (SourceObjectIndices.Num() > 1);
 	Settings->WatchProperty(Settings->InputMode, [this](ESetCollisionGeometryInputMode) { OnInputModeChanged(); });
 	Settings->WatchProperty(Settings->GeometryType, [this](ECollisionGeometryType) { InvalidateCompute(); });
 	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool) { bInputMeshesValid = false; });
@@ -269,6 +326,12 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FPhysicsDataCollection>> USetColli
 	TUniquePtr<FPhysicsCollectionOp> Op = MakeUnique<FPhysicsCollectionOp>();
 
 	Op->InitialCollision = InitialCollision;
+	Op->OtherInputsCollision = OtherInputsCollision;
+	Op->TargetInverseTransform = TargetInverseTransform;
+	if (Settings->bUseWorldSpace)
+	{
+		Op->OtherInputsTransforms = OtherInputsTransforms;
+	}
 
 	// Pick the approximator and input meshes that will be used by the op
 	TSharedPtr<UE::Geometry::FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>* Approximator = nullptr;
@@ -311,6 +374,17 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FPhysicsDataCollection>> USetColli
 
 	Op->ComputeType = Settings->GeometryType;
 	Op->bAppendToExisting = Settings->bAppendToExisting;
+
+	// If we are in single-target mode, the CopyFromInputs option does not make sense because
+	// we don't want to let the user accidentally duplicate all the geometry if bAppendToExisting
+	// is true, and if it is false, the user can do the same thing with Empty and appending.
+	// TODO: add a way to disable this enum option in the UI.
+	if (Targets.Num() <= 1 && Op->ComputeType == ECollisionGeometryType::CopyFromInputs)
+	{
+		Op->ComputeType = ECollisionGeometryType::Empty;
+		Op->bAppendToExisting = true;
+	}
+
 	Op->bUseMaxCount = Settings->bEnableMaxCount;
 	Op->MaxCount = Settings->MaxCount;
 	Op->bRemoveContained = Settings->bRemoveContained;
