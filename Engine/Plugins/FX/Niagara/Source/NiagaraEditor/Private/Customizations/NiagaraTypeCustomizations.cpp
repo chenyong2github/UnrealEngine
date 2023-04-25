@@ -278,6 +278,15 @@ TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(const FVer
 	GraphsToTraverse.Add(Cast<UNiagaraScriptSource>(System->GetSystemUpdateScript()->GetLatestSource())->NodeGraph);
 
 	TSet<FNiagaraVariableBase> Vars;
+
+	if (System)
+	{
+		for (const FNiagaraVariable UserParameter : System->GetExposedParameters().ReadParameterVariables())
+		{
+			Vars.Add(UserParameter);
+		}
+	}
+	
 	TArray<TArray<FNiagaraVariable>> MapHistoryVars;
 	for(UNiagaraGraph* Graph : GraphsToTraverse)
 	{
