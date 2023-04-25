@@ -52,6 +52,11 @@ namespace UE
 			return Left.Timeout == Right.Timeout && (Left.Timeout == FTimespan::MaxValue() || Left.Start == Right.Start);
 		}
 
+		friend bool operator!=(FTimeout Left, FTimeout Right)
+		{
+			return !operator==(Left, Right);
+		}
+
 	private:
 		FTimespan Start{ FTimespan::FromSeconds(FPlatformTime::Seconds()) };
 		FTimespan Timeout;
