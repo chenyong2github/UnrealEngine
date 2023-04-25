@@ -5,6 +5,7 @@
 #include "EdGraphUtilities.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PathViews.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterface.h"
@@ -83,6 +84,23 @@ static FAutoConsoleVariableRef CVarNiagaraEnablePrecompilerNamespaceFixup(
 	ECVF_Default
 );
 
+namespace NiagaraCompileRequestHelper
+{
+	using FDebugGroupNameBuilder = TStringBuilder<512>;
+	static void BuildScriptDebugGroupName(const FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InCompileOptions, FDebugGroupNameBuilder& NameBuilder)
+	{
+		FPathViews::Append(NameBuilder, InCompileRequest->SourceName);
+		FPathViews::Append(NameBuilder, InCompileRequest->EmitterUniqueName);
+		FPathViews::Append(NameBuilder, InCompileRequest->ENiagaraScriptUsageEnum->GetNameStringByValue((int64)InCompileOptions.TargetUsage));
+
+		if (InCompileOptions.TargetUsageId.IsValid())
+		{
+			NameBuilder << TEXT("_");
+			InCompileOptions.TargetUsageId.AppendString(NameBuilder, EGuidFormats::Digits);
+		}
+	}
+
+};
 
 static FCriticalSection TranslationCritSec;
 
@@ -1450,7 +1468,10 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 		}
 	}
 
-	int32 JobID = Compiler->CompileScript(CompileRequest, InCompileOptions, TranslateResults, &Translator.GetTranslateOutput(), Translator.GetTranslatedHLSL());
+	NiagaraCompileRequestHelper::FDebugGroupNameBuilder DebugGroupName;
+	NiagaraCompileRequestHelper::BuildScriptDebugGroupName(CompileRequest, InCompileOptions, DebugGroupName);
+
+	int32 JobID = Compiler->CompileScript(DebugGroupName, InCompileOptions, TranslateResults, &Translator.GetTranslateOutput(), Translator.GetTranslatedHLSL());
 	ActiveCompilations.Add(JobID, Compiler);
 	return JobID;
 	
@@ -1738,7 +1759,15 @@ ENiagaraScriptCompileStatus FNiagaraCompileResults::CompileResultsToSummary(cons
 	return SummaryStatus;
 }
 
-int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput *TranslatorOutput, FString &TranslatedHLSL)
+int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput* TranslatorOutput, FString& TranslatedHLSL)
+{
+	NiagaraCompileRequestHelper::FDebugGroupNameBuilder DebugGroupName;
+	NiagaraCompileRequestHelper::BuildScriptDebugGroupName(InCompileRequest, InOptions, DebugGroupName);
+
+	return CompileScript(DebugGroupName, InOptions, InTranslateResults, TranslatorOutput, TranslatedHLSL);
+}
+
+int32 FHlslNiagaraCompiler::CompileScript(const FStringView GroupName, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput *TranslatorOutput, FString &TranslatedHLSL)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslCompiler_CompileScript);
 
@@ -1768,8 +1797,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush"), TranslatedHLSL);
 	Input.bGenerateDirectCompileFile = CVarDumpCommandLine ? CVarDumpCommandLine->GetBool() : false;
 	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / TEXT("VM");
-	FString UsageIdStr = !InOptions.TargetUsageId.IsValid() ? TEXT("") : (TEXT("_") + InOptions.TargetUsageId.ToString());
-	Input.DebugGroupName = InCompileRequest->SourceName / InCompileRequest->EmitterUniqueName / InCompileRequest->ENiagaraScriptUsageEnum->GetNameStringByValue((int64)InOptions.TargetUsage) + UsageIdStr;
+	Input.DebugGroupName = GroupName;
 	Input.DebugExtension.Empty();
 	Input.DumpDebugInfoPath.Empty();
 

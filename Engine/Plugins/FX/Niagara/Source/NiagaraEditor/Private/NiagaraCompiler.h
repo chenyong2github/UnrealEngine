@@ -6,7 +6,6 @@
 #include "NiagaraCommon.h"
 #include "NiagaraHlslTranslator.h"
 #include "INiagaraCompiler.h"
-#include "Kismet2/CompilerResultsLog.h"
 #include "ShaderCompiler.h"
 
 class Error;
@@ -42,7 +41,10 @@ public:
 	virtual ~FHlslNiagaraCompiler() {}
 
 	//Begin INiagaraCompiler Interface
-	virtual int32 CompileScript(const FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput *TranslatorOutput, FString& TranslatedHLSL) override;
+	UE_DEPRECATED(5.4, "Please update to supply the GroupName directly as this will be removed in a future version.")
+	virtual int32 CompileScript(const class FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput* TranslatorOutput, FString& TranslatedHLSL) override;
+
+	virtual int32 CompileScript(const FStringView GroupName, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput* TranslatorOutput, FString& TranslatedHLSL) override;
 	virtual TOptional<FNiagaraCompileResults> GetCompileResult(int32 JobID, bool bWait = false) override;
 
 	virtual void Error(FText ErrorText) override;

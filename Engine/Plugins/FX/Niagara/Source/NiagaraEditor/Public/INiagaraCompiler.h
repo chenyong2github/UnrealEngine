@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/StringView.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraParameters.h"
 #include "NiagaraScript.h"
@@ -17,9 +18,7 @@ class UNiagaraDataInterface;
 struct FNiagaraTranslateResults;
 struct FNiagaraTranslatorOutput;
 struct FNiagaraVMExecutableData;
-class FNiagaraCompileRequestData;
 class FNiagaraCompileOptions;
-//struct FNiagaraCompileEvent;
 
 /** Defines information about the results of a Niagara script compile. */
 struct FNiagaraCompileResults
@@ -61,8 +60,11 @@ struct FNiagaraCompileResults
 class INiagaraCompiler
 {
 public:
+	UE_DEPRECATED(5.4, "Please update to supply the GroupName directly as this will be removed in a future version.")
+	virtual int32 CompileScript(const class FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput* TranslatorOutput, FString& TranslatedHLSL) = 0;
+
 	/** Starts the async compilation of a script and returns the job handle to retrieve the results */
-	virtual int32 CompileScript(const FNiagaraCompileRequestData* InCompileRequest, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput *TranslatorOutput, FString& TranslatedHLSL) = 0;
+	virtual int32 CompileScript(const FStringView GroupName, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput* TranslatorOutput, FString& TranslatedHLSL) = 0;
 
 	/** Returns the compile result for a given job id once the job has finished compiling. */
 	virtual TOptional<FNiagaraCompileResults> GetCompileResult(int32 JobID, bool bWait = false) = 0;
