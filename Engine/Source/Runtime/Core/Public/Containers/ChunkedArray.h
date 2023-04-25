@@ -213,14 +213,14 @@ public:
 		checkSlow(NumElements>=0);
 
 		const int32 OldNum = NumElements;
-		for (int32 i = 0; i < Count; i++)
+		const int32 NewNumElements = OldNum + Count;
+		const int32 NewNumChunks = (NewNumElements + NumElementsPerChunk - 1)/NumElementsPerChunk;
+		NumElements = NewNumElements;
+		for (int32 NumChunks = Chunks.Num(); NumChunks < NewNumChunks; ++NumChunks)
 		{
-			if (NumElements % NumElementsPerChunk == 0)
-			{
-				Chunks.Add(new FChunk);
-			}
-			NumElements++;
+			Chunks.Add(new FChunk);
 		}
+
 		return OldNum;
 	}
 
