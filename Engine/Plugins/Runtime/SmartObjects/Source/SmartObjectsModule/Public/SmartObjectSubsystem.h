@@ -161,7 +161,7 @@ enum class FSmartObjectSlotEntrySelectionMethod : uint8
 /**
  * Handle describing a specific entrance on a Smart Object slot.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceHandle
 {
 	GENERATED_BODY()
@@ -198,6 +198,7 @@ private:
 	{
 	}
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SmartObject", meta = (AllowPrivateAccess = "true"))
 	FSmartObjectSlotHandle SlotHandle;
 	
 	EType Type = EType::Invalid;
@@ -267,7 +268,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationRequest
 /**
  * Validated result from FindEntranceLocationForSlot().
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationResult
 {
 	GENERATED_BODY()
@@ -279,18 +280,22 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotEntranceLocationResult
 	bool HasNodeRef() const { return NodeRef != INVALID_NAVNODEREF; }
 
 	/** The location to enter the slot. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SmartObject")
 	FVector Location = FVector::ZeroVector;
 
 	/** The expected direction to enter the slot. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SmartObject")
 	FRotator Rotation = FRotator::ZeroRotator;
 	
 	/** Node reference in navigation data (if requested with bMustBeNavigable). */
 	NavNodeRef NodeRef = INVALID_NAVNODEREF;
 
 	/** Gameplay tag associated with the entry. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SmartObject")
 	FGameplayTag Tag;
 
 	/** Handle identifying the entrance that was found. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SmartObject")
 	FSmartObjectSlotEntranceHandle EntranceHandle;
 };
 
