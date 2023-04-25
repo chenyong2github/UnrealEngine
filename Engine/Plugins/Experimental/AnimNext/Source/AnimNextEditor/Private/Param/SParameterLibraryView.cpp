@@ -21,6 +21,9 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "RevisionControlStyle/RevisionControlStyle.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "ScopedTransaction.h"
+#include "Framework/Commands/UICommandList.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AnimNextParameterLibraryView"
 

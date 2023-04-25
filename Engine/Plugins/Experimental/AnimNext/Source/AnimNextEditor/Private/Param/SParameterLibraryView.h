@@ -8,15 +8,13 @@
 class UAnimNextParameterLibrary;
 class UAnimNextParameter;
 struct FAssetData;
+class FUICommandList;
 
 namespace UE::AnimNext::Editor
 {
 
 enum class EFilterParameterResult : int32;
 struct FParameterBindingReference;
-
-
-
 struct FParameterLibraryViewEntry; 
 
 class SParameterLibraryView : public SCompoundWidget

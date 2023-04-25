@@ -16,7 +16,7 @@ class SLinkParametersDialog : public SWindow
 public:
 	SLATE_BEGIN_ARGS(SLinkParametersDialog) {}
 
-	SLATE_EVENT(FOnFilterParameter, OnFilterParameter)
+	SLATE_EVENT(UE::AnimNext::Editor::FOnFilterParameter, OnFilterParameter)
 
 	SLATE_END_ARGS()
 

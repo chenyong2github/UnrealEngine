@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Param/AnimNextParameter.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITORONLY_DATA
 

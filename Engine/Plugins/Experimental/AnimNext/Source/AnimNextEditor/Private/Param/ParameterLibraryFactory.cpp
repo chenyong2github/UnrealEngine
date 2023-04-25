@@ -2,6 +2,7 @@
 
 #include "Param/ParameterLibraryFactory.h"
 #include "Param/AnimNextParameterLibrary.h"
+#include "UObject/Package.h"
 
 UAnimNextParameterLibraryFactory::UAnimNextParameterLibraryFactory()
 {

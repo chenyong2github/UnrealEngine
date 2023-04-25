@@ -4,13 +4,14 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
+#include "AssetRegistry/AssetData.h"
 
 class UAnimNextParameterBlockBinding;
 class UAnimNextParameter;
 class UAnimNextParameterBlock_EditorData;
 class UAnimNextParameterBlockEntry;
 class URigVMGraph;
-struct FAssetData;
+class FUICommandList;
 
 namespace UE::AnimNext::Editor
 {

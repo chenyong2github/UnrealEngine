@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "UObject/NameTypes.h"
 #include "Delegates/DelegateCombinations.h"
-
-struct FAssetData;
+#include "AssetRegistry/AssetData.h"
 
 namespace UE::AnimNext::Editor
 {

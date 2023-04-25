@@ -5,6 +5,7 @@
 #include "Param/ParamType.h"
 #include "Widgets/SWindow.h"
 #include "AssetRegistry/AssetData.h"
+#include "Widgets/Views/SListView.h"
 
 class SWrapBox;
 class UAnimNextParameterLibrary;

@@ -13,6 +13,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Views/SExpanderArrow.h"
+#include "GraphEditor.h"
 
 class SEditableTextBox;
 class SGraphActionMenu;

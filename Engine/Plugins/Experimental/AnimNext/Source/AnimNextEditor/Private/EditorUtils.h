@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Param/AnimNextParameterBlockEntry.h"
 #include "Param/ParamType.h"
+#include "EdGraphSchema_K2.h"
 
 class UAnimNextGraph;
 class UAnimNextGraph_EditorData;

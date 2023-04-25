@@ -27,6 +27,8 @@
 #include "RevisionControlStyle/RevisionControlStyle.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Param/AnimNextParameterBlockBindingReference.h"
+#include "ToolMenus.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "AnimNextParameterBlockView"
 

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+class SWidget;
+
 namespace UE::AnimNext::Editor
 {
 

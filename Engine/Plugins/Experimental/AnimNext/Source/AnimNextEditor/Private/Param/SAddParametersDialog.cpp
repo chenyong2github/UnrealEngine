@@ -23,6 +23,7 @@
 #include "SSimpleComboButton.h"
 #include "Param/AnimNextParameterLibrary.h"
 #include "Param/ParameterLibraryFactory.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SAddParametersDialog"
 
