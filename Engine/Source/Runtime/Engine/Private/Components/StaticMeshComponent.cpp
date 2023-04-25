@@ -2667,11 +2667,18 @@ UMaterialInterface* UStaticMeshComponent::GetMaterial(int32 MaterialIndex, bool 
 		OutMaterial = GetStaticMesh()->GetMaterial(MaterialIndex);
 	}
 
-	// If we have a nanite override, use that
-	if (OutMaterial != nullptr && UseNaniteOverrideMaterials(bDoingNaniteMaterialAudit))
+	if (OutMaterial)
 	{
-		UMaterialInterface* NaniteOverride = OutMaterial->GetNaniteOverride();
-		OutMaterial = NaniteOverride != nullptr ? NaniteOverride : OutMaterial;
+		//@note FH: temporary preemptive PostLoad until zenloader load ordering improvements
+		OutMaterial->ConditionalPostLoad();
+
+		// If we have a nanite override, use that
+		if (UseNaniteOverrideMaterials(bDoingNaniteMaterialAudit))
+		{
+			UMaterialInterface* NaniteOverride = OutMaterial->GetNaniteOverride();
+			OutMaterial = NaniteOverride != nullptr ? NaniteOverride : OutMaterial;
+		}
+
 	}
 
 	return OutMaterial;

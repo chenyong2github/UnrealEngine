@@ -2037,6 +2037,9 @@ void UMaterial::UpdateCachedExpressionData()
 {
 	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialCookStats::MaterialUpdateCachedExpressionDataSec));
 
+	//@note FH: temporary preemptive PostLoad until zenloader load ordering improvements
+	ConditionalPostLoad();
+
 	if (bLoadedCachedExpressionData)
 	{
 		// Don't need to rebuild cached data if it was serialized
