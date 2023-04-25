@@ -220,6 +220,7 @@ private:
 	~FCurlHttpClient() final;
 	void Destroy() final { delete this; }
 
+	static long ConvertVersion(EHttpVersion Version);
 	static long ConvertTlsLevel(EHttpTlsLevel Level);
 
 	FCurlHttpConnectionPool& ConnectionPool;
@@ -627,7 +628,7 @@ void FCurlHttpClient::SetDefaultOptions(CURL* Curl, FCurlHttpHeaders& Headers) c
 {
 	ConnectionPool.SetDefaultOptions(Curl, Headers);
 
-	curl_easy_setopt(Curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+	curl_easy_setopt(Curl, CURLOPT_HTTP_VERSION, ConvertVersion(Params.Version));
 
 	curl_easy_setopt(Curl, CURLOPT_DNS_CACHE_TIMEOUT, FMath::Min<long>(Params.DnsCacheTimeout, MAX_int32));
 	curl_easy_setopt(Curl, CURLOPT_CONNECTTIMEOUT_MS, long(Params.ConnectTimeout));
@@ -640,6 +641,19 @@ void FCurlHttpClient::SetDefaultOptions(CURL* Curl, FCurlHttpHeaders& Headers) c
 		(Params.bFollow302Post ? CURL_REDIR_POST_302 : 0) |
 		(Params.bFollow303Post ? CURL_REDIR_POST_303 : 0)));
 	curl_easy_setopt(Curl, CURLOPT_VERBOSE, long(Params.bVerbose));
+}
+
+long FCurlHttpClient::ConvertVersion(const EHttpVersion Version)
+{
+	switch (Version)
+	{
+	case EHttpVersion::None:   return CURL_HTTP_VERSION_NONE;
+	case EHttpVersion::V1_0:   return CURL_HTTP_VERSION_1_0;
+	case EHttpVersion::V1_1:   return CURL_HTTP_VERSION_1_1;
+	case EHttpVersion::V2:     return CURL_HTTP_VERSION_2_0;
+	case EHttpVersion::V2Only: return CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE;
+	default: checkNoEntry();   return CURL_HTTP_VERSION_NONE;
+	}
 }
 
 long FCurlHttpClient::ConvertTlsLevel(const EHttpTlsLevel Level)

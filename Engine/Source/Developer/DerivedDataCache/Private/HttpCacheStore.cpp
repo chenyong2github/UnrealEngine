@@ -1643,6 +1643,7 @@ FHttpClientParams FHttpCacheStore::GetDefaultClientParams() const
 	ClientParams.ConnectTimeout = 3 * 1000;
 	ClientParams.LowSpeedLimit = 1024;
 	ClientParams.LowSpeedTime = 10;
+	ClientParams.Version = EHttpVersion::V2;
 	ClientParams.TlsLevel = EHttpTlsLevel::All;
 	ClientParams.bFollowRedirects = true;
 	ClientParams.bFollow302Post = true;

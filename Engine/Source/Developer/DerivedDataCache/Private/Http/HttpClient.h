@@ -75,6 +75,20 @@ enum class EHttpMediaType : uint8
 FAnsiStringView LexToString(EHttpMediaType MediaType);
 bool TryLexFromString(EHttpMediaType& OutMediaType, FAnsiStringView View);
 
+enum class EHttpVersion : uint8
+{
+	/** Determine version automatically. */
+	None = 0,
+	/** Use HTTP/1.0 */
+	V1_0,
+	/** Use HTTP/1.1 */
+	V1_1,
+	/** Try HTTP/2 with fallback to HTTP/1.1 */
+	V2,
+	/** Use HTTP/2 */
+	V2Only,
+};
+
 enum class EHttpTlsLevel : uint8
 {
 	/** Do not use TLS. */
@@ -176,6 +190,9 @@ struct FHttpClientParams final
 
 	/** Time in seconds after which a request will abort if it stays below LowSpeedLimit. Use 0 to disable. */
 	uint32 LowSpeedTime = 0;
+
+	/** HTTP version to use for requests created by the client. */
+	EHttpVersion Version = EHttpVersion::None;
 
 	/** Level of TLS to use for requests created by the client. */
 	EHttpTlsLevel TlsLevel = EHttpTlsLevel::None;

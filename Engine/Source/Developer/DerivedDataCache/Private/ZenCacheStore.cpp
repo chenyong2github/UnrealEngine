@@ -1125,6 +1125,7 @@ void FZenCacheStore::Initialize(
 		ConnectionPool = IHttpManager::Get().CreateConnectionPool(ConnectionPoolParams);
 
 		FHttpClientParams ClientParams;
+		ClientParams.Version = EHttpVersion::V2;
 		ClientParams.MaxRequests = RequestPoolSize + RequestPoolOverflowSize;
 		ClientParams.MinRequests = RequestPoolSize;
 		RequestQueue = FHttpRequestQueue(*ConnectionPool, ClientParams);
