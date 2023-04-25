@@ -189,12 +189,6 @@ public:
 	{
 	}
 
-	TOptional& operator=(const TOptional& Other)
-	{
-		Pointer = Other.Pointer;
-		return *this;
-	}
-
 	TOptional& operator=(OptionalType* InPointer)
 	{
 		Pointer = InPointer;
