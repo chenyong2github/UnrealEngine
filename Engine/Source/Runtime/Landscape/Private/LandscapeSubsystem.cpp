@@ -32,7 +32,7 @@
 #include "Algo/Unique.h"
 #include "Misc/App.h"
 #include "Misc/DateTime.h"
-
+#include "AssetCompilingManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeSubsystem)
 
@@ -46,6 +46,12 @@ static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
 	TEXT("grass.UseStreamingManagerForCameras"),
 	GUseStreamingManagerForCameras,
 	TEXT("1: Use Streaming Manager; 0: Use ViewLocationsRenderedLastFrame"));
+
+
+static FAutoConsoleVariable CVarMaxAsyncNaniteProxiesPerSecond(
+	TEXT("landscape.Max"),
+	6.0f,
+	TEXT("Number of Async nanite proxies to dispatch per second"));
 
 DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick, STATGROUP_Landscape);
 
@@ -105,8 +111,17 @@ void ULandscapeSubsystem::Deinitialize()
 		WorldSettings->OnNaniteSettingsChanged.Remove(OnNaniteWorldSettingsChangedHandle);
 		OnNaniteWorldSettingsChangedHandle.Reset();
 	}
+
+	
 	
 #if WITH_EDITOR
+	while (NaniteBuildsInFlight != 0)
+	{
+		ENamedThreads::Type CurrentThread = FTaskGraphInterface::Get().GetCurrentThreadIfKnown();
+		FTaskGraphInterface::Get().ProcessThreadUntilIdle(CurrentThread);
+		FAssetCompilingManager::Get().ProcessAsyncTasks();
+	}
+
 	delete GrassMapsBuilder;
 	delete PhysicalMaterialBuilder;
 	delete NotificationManager;
@@ -254,6 +269,16 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 	}
 
 	int32 InOutNumComponentsCreated = 0;
+#if WITH_EDITOR
+	int32 NumProxiesUpdated = 0;
+	int32 NumMeshesToUpdate = 0;
+	NumNaniteMeshUpdatesAvailable += CVarMaxAsyncNaniteProxiesPerSecond->GetFloat() * DeltaTime;
+	if (NumNaniteMeshUpdatesAvailable > 1.0f)
+	{
+		NumMeshesToUpdate = NumNaniteMeshUpdatesAvailable;
+		NumNaniteMeshUpdatesAvailable -= NumMeshesToUpdate;
+	}
+#endif
 	for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : Proxies)
 	{
 		if (ALandscapeProxy* Proxy = ProxyPtr.Get())
@@ -272,7 +297,18 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 					Proxy->UpdatePhysicalMaterialTasks();
 				}
 			}
-#endif
+
+			Proxy->GetAsyncWorkMonitor().Tick(DeltaTime);
+
+			if (IsLiveNaniteRebuildEnabled())
+			{
+				if (NumProxiesUpdated < NumMeshesToUpdate && Proxy->GetAsyncWorkMonitor().CheckIfUpdateTriggeredAndClear(FAsyncWorkMonitor::EAsyncWorkType::BuildNaniteMeshes))
+				{
+					NumProxiesUpdated++;
+					Proxy->UpdateNaniteRepresentation(nullptr);
+				}
+			}
+#endif //WITH_EDITOR
 			if (Cameras && Proxy->ShouldTickGrass())
 			{
 				Proxy->TickGrass(*Cameras, InOutNumComponentsCreated);
@@ -292,6 +328,9 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 			NotificationManager->Tick();
 		}
 	}
+
+	NaniteMeshBuildEvents.RemoveAllSwap([](const FGraphEventRef& Ref) -> bool { return Ref->IsComplete(); });
+
 #endif
 }
 
@@ -367,6 +406,8 @@ int32 ULandscapeSubsystem::GetOudatedPhysicalMaterialComponentsCount()
 
 void ULandscapeSubsystem::BuildNanite(TArrayView<ALandscapeProxy*> InProxiesToBuild, bool bForceRebuild)
 {
+	TRACE_BOOKMARK(TEXT("ULandscapeSubsystem::BuildNanite"));
+
 	UWorld* World = GetWorld();
 	if (!World || World->IsGameWorld())
 	{
@@ -407,23 +448,41 @@ void ULandscapeSubsystem::BuildNanite(TArrayView<ALandscapeProxy*> InProxiesToBu
 	// Don't keep those that are null or already up to date :
 	FinalProxiesToBuild.SetNum(Algo::RemoveIf(FinalProxiesToBuild, [bForceRebuild](ALandscapeProxy* InProxy) { return (InProxy == nullptr) || (!bForceRebuild && InProxy->IsNaniteMeshUpToDate()); }));
 
-	FScopedSlowTask SlowTask(static_cast<float>(FinalProxiesToBuild.Num()), (LOCTEXT("Landscape_BuildNanite", "Building Nanite Landscape Meshes")));
-	SlowTask.MakeDialog(/*bShowCancelButton = */true);
 
-	for (ALandscapeProxy* Proxy : FinalProxiesToBuild)
+	
+	FGraphEventArray AsyncEvents;
+	for (ALandscapeProxy* LandscapeProxy : FinalProxiesToBuild)
 	{
-		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Landscape_BuildNaniteProgress", "Building Nanite Landscape Mesh ({0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
-		if (SlowTask.ShouldCancel() || GEditor->GetMapBuildCancelled())
+		if (LandscapeProxy->IsNaniteMeshUpToDate())
 		{
-			break;
+			continue;
 		}
+		AsyncEvents.Add(LandscapeProxy->UpdateNaniteRepresentationAsync(nullptr));
+	}
 
-		if (bForceRebuild)
-		{
-			Proxy->InvalidateNaniteRepresentation(/*bInCheckContentId = */false);
-		}
-		Proxy->UpdateNaniteRepresentation(/*InTargetPlatform = */nullptr);
-		Proxy->UpdateRenderingMethod();
+	FGraphEventRef WaitForAllNaniteUpdates = FFunctionGraphTask::CreateAndDispatchWhenReady([]() {},
+		TStatId(),
+		&AsyncEvents,
+		ENamedThreads::GameThread);
+	
+	int32 LastRemainingMeshes = NaniteBuildsInFlight.load();
+	int32 TotalMeshes = LastRemainingMeshes;
+	FScopedSlowTask SlowTask(TotalMeshes, (LOCTEXT("Landscape_BuildNanite", "Building Nanite Landscape Meshes")));
+	// todo [don.boogert] - need mechanism to abort all the current work here
+	const bool bShowCancelButton = false;
+	SlowTask.MakeDialog(bShowCancelButton);
+
+	// we have to drain the game thread tasks and static mesh builds
+	while (NaniteBuildsInFlight != 0)
+	{
+		int32 Remaining = NaniteBuildsInFlight.load();
+		int32 MeshesProcessed = LastRemainingMeshes - Remaining;
+		LastRemainingMeshes = Remaining;
+
+		ENamedThreads::Type CurrentThread = FTaskGraphInterface::Get().GetCurrentThreadIfKnown();
+		FTaskGraphInterface::Get().ProcessThreadUntilIdle(CurrentThread);
+		FAssetCompilingManager::Get().ProcessAsyncTasks();
+		SlowTask.EnterProgressFrame(MeshesProcessed, FText::Format(LOCTEXT("Landscape_BuildNaniteProgress", "Building Nanite Landscape Mesh ({0} of {1})"), FText::AsNumber(TotalMeshes - LastRemainingMeshes), FText::AsNumber(SlowTask.TotalAmountOfWork)));
 	}
 }
 
@@ -601,6 +660,49 @@ void ULandscapeSubsystem::DisplayMessages(FCanvas* Canvas, float& XPos, float& Y
 FDateTime ULandscapeSubsystem::GetAppCurrentDateTime()
 {
 	return AppCurrentDateTime;
+}
+
+
+void ULandscapeSubsystem::AddAsyncEvent(FGraphEventRef GraphEventRef)
+{
+	NaniteMeshBuildEvents.Add(GraphEventRef);
+}
+
+int32 LiveRebuildNaniteOnModification = 1;
+static FAutoConsoleVariableRef CVarLiveRebuildNaniteOnModification(
+	TEXT("landscape.LiveRebuildNaniteOnModification"),
+	LiveRebuildNaniteOnModification,
+	TEXT("Trigger a rebuild of Nanite representation immediately when a modification is performed (World Partition Maps Only)"));
+
+int32 LandscapeMultithreadNaniteBuild = 1;
+static FAutoConsoleVariableRef CVarLandscapeMultithreadNaniteBuild(
+	TEXT("landscape.MultithreadNaniteBuild"),
+	LandscapeMultithreadNaniteBuild,
+	TEXT("Multithread nanite landscape build in (World Partition Maps Only)"));
+
+bool ULandscapeSubsystem::IsMultithreadedNaniteBuildEnabled()
+{
+	return LandscapeMultithreadNaniteBuild > 0;
+}
+
+bool ULandscapeSubsystem::IsLiveNaniteRebuildEnabled()
+{
+	return LiveRebuildNaniteOnModification > 0;
+}
+
+bool ULandscapeSubsystem::AreNaniteBuildsInProgress() const
+{
+	return NaniteBuildsInFlight.load() > 0;
+}
+
+void ULandscapeSubsystem::IncNaniteBuild()
+{
+	NaniteBuildsInFlight++;
+}
+
+void ULandscapeSubsystem::DecNaniteBuild()
+{
+	NaniteBuildsInFlight--;
 }
 
 #endif // WITH_EDITOR

@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "Components/StaticMeshComponent.h"
+#include "LandscapeDataAccess.h"
+#include "StaticMeshAttributes.h"
 
 #include "LandscapeNaniteComponent.generated.h"
 
@@ -13,6 +15,46 @@ class ALandscape;
 class ALandscapeProxy;
 class ULandscapeComponent;
 class FPrimitiveSceneProxy;
+class ULandscapeSubsystem;
+struct FStaticMeshSourceModel;
+struct FLandscapeComponentDataInterfaceBase;
+
+namespace UE::Landscape::Nanite
+{
+	// Copy of Component level data required to generate Nanite asynchronously
+	struct FAsyncComponentData
+	{
+		TArray<FColor> HeightAndNormalData;
+		TArray<uint8> Visibility;
+		TSharedPtr<FLandscapeComponentDataInterfaceBase> ComponentDataInterface;
+		int32 Stride = 0;
+	};
+
+	// Context for an Async Static Mesh (nanite) build
+	struct FAsyncBuildData
+	{
+		using ComponentDataMap = TMap<ULandscapeComponent*, FAsyncComponentData>;
+		ComponentDataMap ComponentData;
+
+		TWeakObjectPtr<ALandscapeProxy> LandscapeWeakRef;
+		TWeakObjectPtr<ULandscapeSubsystem> LandscapeSubSystemWeakRef;
+
+		UStaticMesh* NaniteStaticMesh = nullptr;
+		FMeshDescription* NaniteMeshDescription = nullptr;
+
+		TArray<UMaterialInterface*, TInlineAllocator<4>> InputMaterials;
+		TArray<FName, TInlineAllocator<4>> InputMaterialSlotNames;
+		TInlineComponentArray<ULandscapeComponent*> InputComponents;
+		FStaticMeshSourceModel* SourceModel = nullptr;
+		TSharedPtr<FStaticMeshAttributes> MeshAttributes;
+
+		int32 LOD = 0;
+
+		bool bExportResult = false;
+		bool bIsComplete = false;
+		bool bCancelled = false;
+	};
+}
 
 UCLASS(hidecategories = (Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility, VirtualTexture), showcategories = ("Rendering|Material"), MinimalAPI, Within = LandscapeProxy)
 class ULandscapeNaniteComponent : public UStaticMeshComponent
@@ -33,6 +75,11 @@ public:
 	inline const FGuid& GetProxyContentId() const
 	{
 		return ProxyContentId;
+	}
+
+	void SetProxyContentId(const FGuid& InProxyContentId) 
+	{ 
+		ProxyContentId = InProxyContentId; 
 	}
 
 	void UpdatedSharedPropertiesFromActor();
@@ -66,6 +113,8 @@ public:
 	 * @return true if the Nanite mesh creation was successful
 	 */
 	LANDSCAPE_API bool InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId);
+
+	LANDSCAPE_API FGraphEventRef InitializeForLandscapeAsync(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, bool InIsAsync);
 
 	/**
 	 * Ensures the cooked cached platform data of the Nanite static mesh is finished. It is necessary to ensure that StreamablePages are loaded from DDC

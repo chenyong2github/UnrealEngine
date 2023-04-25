@@ -105,6 +105,18 @@ public:
 	FOnHeightmapStreamedDelegate& GetOnHeightmapStreamedDelegate() { return OnHeightmapStreamed; }
 	LANDSCAPE_API bool AnyViewShowCollisions() const { return bAnyViewShowCollisions; }  //! Returns true if any view has view collisions enabled.
 	FDateTime GetAppCurrentDateTime();
+	LANDSCAPE_API void AddAsyncEvent(FGraphEventRef GraphEventRef);
+
+
+	// Returns true if we should build nanite meshes in parallel asynchronously. 
+	bool IsMultithreadedNaniteBuildEnabled();
+
+	// Returns true if the user has requested Nanite Meshes to be generated on landscape edit. If we return false then the nanite build will happen either on map save or explicit build 
+	bool IsLiveNaniteRebuildEnabled();
+
+	bool AreNaniteBuildsInProgress() const;
+	void IncNaniteBuild();
+	void DecNaniteBuild();
 #endif // WITH_EDITOR
 
 private:
@@ -129,5 +141,11 @@ private:
 	FOnHeightmapStreamedDelegate OnHeightmapStreamed;
 	bool bAnyViewShowCollisions = false;
 	FDateTime AppCurrentDateTime; // Represents FDateTime::Now(), at the beginning of the frame (useful to get a human-readable date/time that is fixed during the frame)
+
+	TArray<FGraphEventRef> NaniteMeshBuildEvents;
+	float NumNaniteMeshUpdatesAvailable = 0.0f;
+
+	std::atomic<int32> NaniteBuildsInFlight;
+	
 #endif // WITH_EDITOR
 };

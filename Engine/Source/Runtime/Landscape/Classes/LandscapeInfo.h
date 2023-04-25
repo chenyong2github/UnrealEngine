@@ -396,6 +396,8 @@ public:
 	 */
 	LANDSCAPE_API void ForEachLandscapeProxy(TFunctionRef<bool(ALandscapeProxy*)> Fn) const;
 
+	void UpdateNanite(const ITargetPlatform* InTargetPlatform);
+
 	/** Associates passed actor with this info object
  *  @param	Proxy		Landscape actor to register
  *  @param  bMapCheck	Whether to warn about landscape errors
