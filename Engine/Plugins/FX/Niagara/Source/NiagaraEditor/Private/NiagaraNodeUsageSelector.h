@@ -51,15 +51,16 @@ public:
 	FGuid AddOutput(FNiagaraTypeDefinition Type, const FName& Name);
 
 	bool AreInputPinsOutdated() const;
+
+	/** Retrieves option values. Required to determine separator entries since we no longer have case information after pin creation. */
+	virtual TArray<int32> GetOptionValues() const;
+
 protected:
 	/** Use this function to add an option pin in allocation or insertion. Optionally at a specific slot. */
 	void AddOptionPin(const FNiagaraVariable& OutputVariable, int32 Value, int32 InsertionSlot = INDEX_NONE);
 	
 	/** Used to determine the text for the separators */
 	virtual FString GetInputCaseName(int32 Case) const;
-	
-	/** Retrieves option values. Required to determine separator entries since we no longer have case information after pin creation. */
-	virtual TArray<int32> GetOptionValues() const;
 	
 	/** Ideally we wouldn't need this due to the separators but to maintain backwards compatibility pin names needs to stay consistent with what they were */
 	virtual FName GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const;

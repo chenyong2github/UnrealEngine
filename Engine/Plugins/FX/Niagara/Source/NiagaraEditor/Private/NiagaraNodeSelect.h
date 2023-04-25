@@ -36,6 +36,8 @@ public:
 	void AddIntegerInputPin();
 	void RemoveIntegerInputPin();
 
+	virtual TArray<int32> GetOptionValues() const override;
+
 private:
 	/** UObject interface */
 	virtual void PostInitProperties() override;
@@ -77,7 +79,6 @@ private:
 
 	/** Checks if the pin is one of the 'static' pins (selector or output) */
 	bool IsPinStatic(const UEdGraphPin* Pin) const;
-	virtual TArray<int32> GetOptionValues() const override;
 	FName GetSelectorPinName() const;
 	
 	FText GetIntegerAddButtonTooltipText() const;

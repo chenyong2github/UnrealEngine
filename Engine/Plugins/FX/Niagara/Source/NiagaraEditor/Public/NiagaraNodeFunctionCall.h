@@ -187,11 +187,11 @@ public:
 		orphaned. This allows a previously available static switch value to be retained on the node even if the the switch is no longer exposed. */
 	void AddOrphanedStaticSwitchPinForDataRetention(FNiagaraVariableBase StaticSwitchVariable, const FString& StaticSwitchPinDefault);
 
+	virtual bool GetValidateDataInterfaces() const { return true; };
+
 	void RemoveAllDynamicPins();
 protected:
 	UEdGraphPin* AddStaticSwitchInputPin(FNiagaraVariable Input);
-
-	virtual bool GetValidateDataInterfaces() const { return true; };
 
 	virtual bool AllowDynamicPins() const override { return Signature.VariadicInput() || Signature.VariadicOutput(); }
 	virtual bool CanModifyPin(const UEdGraphPin* Pin) const override;

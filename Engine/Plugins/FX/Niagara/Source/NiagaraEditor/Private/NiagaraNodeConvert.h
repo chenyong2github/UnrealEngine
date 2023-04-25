@@ -114,6 +114,7 @@ public:
 
 	/** Gets the nodes inner connection. */
 	TArray<FNiagaraConvertConnection>& GetConnections();
+	const TArray<FNiagaraConvertConnection>& GetConnections() const;
 
 	/** Initializes this node as a swizzle by component string. */
 	void InitAsSwizzle(FString Swiz);

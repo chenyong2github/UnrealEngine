@@ -741,6 +741,11 @@ TArray<FNiagaraConvertConnection>& UNiagaraNodeConvert::GetConnections()
 	return Connections;
 }
 
+const TArray<FNiagaraConvertConnection>& UNiagaraNodeConvert::GetConnections() const
+{
+	return Connections;
+}
+
 void UNiagaraNodeConvert::OnPinRemoved(UEdGraphPin* PinToRemove)
 {
 	TSet<FGuid> TypePinIds;
