@@ -47,8 +47,6 @@ namespace mu
 		// Node Interface
 		//-----------------------------------------------------------------------------------------
 
-        
-
         const NODE_TYPE* GetType() const override;
 		static const NODE_TYPE* GetStaticType();
 
@@ -75,12 +73,6 @@ namespace mu
 		//! Get the additional information about the type
 		PARAMETER_DETAILED_TYPE GetDetailedType() const ;
 		void SetDetailedType( PARAMETER_DETAILED_TYPE type );
-
-        //! Set the number of additional description images associated to this parameter.
-        //! These images can be built from a parameter and, for example, they can be used to build
-        //! user-interfaces for customisation.
-        void SetDescImageCount( int i );
-        void SetDescImage( int i, NodeImagePtr pImage );
 
         //! Set the number of ranges (dimensions) for this parameter.
         //! By default a parameter has 0 ranges, meaning it only has one value.

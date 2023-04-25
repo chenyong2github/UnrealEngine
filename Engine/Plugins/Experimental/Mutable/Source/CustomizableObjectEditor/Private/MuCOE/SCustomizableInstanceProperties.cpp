@@ -657,25 +657,6 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 			SAssignNew(SliderBox, SVerticalBox)
 		];
 
-		// Color bar?
-		if (CustomizableObject->GetParameterDescriptionCount(ParamIndexInObject) > 0)
-		{
-			if (UTexture2D* Bar = CustomInstance->GetParameterDescription(ParamIndexInObject, 0))
-			{
-				TSharedRef<FDeferredCleanupSlateBrush> Brush = FDeferredCleanupSlateBrush::CreateBrush(Bar, FVector2D(Bar->GetSizeX(), 12), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), ESlateBrushTileType::NoTile, ESlateBrushImageType::Linear);
-				DynamicBrushes.Add(Brush);
-
-				SliderBox->AddSlot()
-				.AutoHeight()
-				.FillHeight(1.0f)
-				.HAlign(HAlign_Fill)
-				.Padding(0.0f, 0.0f, 0.0f, 2.0f)
-				[
-					SNew(SImage)
-					.Image(Brush->GetSlateBrush())
-				];
-			}
-		}
 
 		TSharedPtr<SSpinBox<float>> Slider;
 
@@ -1257,9 +1238,9 @@ void SCustomizableInstanceProperties::Tick(const FGeometry& AllottedGeometry, co
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
 	// We set this every frame, in case other widgets are also modifying this flag
-	if (!CustomInstance->GetBuildParameterDecorations())
+	if (!CustomInstance->GetBuildParameterRelevancy())
 	{
-		CustomInstance->SetBuildParameterDecorations(true);
+		CustomInstance->SetBuildParameterRelevancy(true);
 		CustomInstance->UpdateSkeletalMeshAsync(true);
 	}
 

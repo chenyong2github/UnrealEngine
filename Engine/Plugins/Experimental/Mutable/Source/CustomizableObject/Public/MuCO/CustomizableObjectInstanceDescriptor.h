@@ -51,9 +51,9 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 
 	void SetCustomizableObject(UCustomizableObject& InCustomizableObject);
 	
-	bool GetBuildParameterDecorations() const;
+	bool GetBuildParameterRelevancy() const;
 	
-	void SetBuildParameterDecorations(bool Value);
+	void SetBuildParameterRelevancy(bool Value);
 	
 	/** Update all parameters to be up to date with the Mutable Core parameters. */
 	void ReloadParameters();
@@ -343,9 +343,8 @@ private:
 	/** Mutable parameters optimization state. */
 	int32 State = 0;
 	
-	/** Flag to control the build of the parameter description images required for customization UI.
-     * These descriptions get generated with every instance update, so it should be disabled when not needed. */
-	bool bBuildParameterDecorations = false;
+	/** If this is set to true, when updating the instance an additional step will be performed to calculate the list of instance parameters that are relevant for the current parameter vaules. */
+	bool bBuildParameterRelevancy = false;
 
 	/** These are the LODs Mutable can generate, they MUST NOT be used in an update (Mutable thread). */
 	int32 MinLOD = 0;

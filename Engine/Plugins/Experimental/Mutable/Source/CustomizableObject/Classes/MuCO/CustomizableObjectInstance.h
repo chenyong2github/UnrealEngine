@@ -194,11 +194,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	UCustomizableObject* GetCustomizableObject() const;
 
-	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance, meta = (DeprecatedFunction, DeprecationMessage = "Parameter decorations have been removed. This method will be removed in future versions."))
 	bool GetBuildParameterDecorations() const;
 
-	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance, meta = (DeprecatedFunction, DeprecationMessage = "Parameter decorations have been removed. This method will be removed in future versions."))
 	void SetBuildParameterDecorations(bool Value);
+
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	bool GetBuildParameterRelevancy() const;
+
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	void SetBuildParameterRelevancy(bool Value);
 
 	int32 GetState() const;
 	void SetState(int32 InState);
@@ -298,20 +304,15 @@ public:
 	// Releases all the mutable resources this instance holds, should only be called when it is not going to be used any more.
 	void ReleaseMutableResources(bool bCalledFromBeginDestroy);
 
-	// Get a description image for a parameter.
-	// The param index is in the range of o to CustomizableObject->GetParameterCount.
-	// This will only be valid if bBuildParameterDecorations was set to true before the last update.
-	UTexture2D* GetParameterDescription(int32 ParamIndex, int32 DescIndex);
-
 	// Returns de description texture (ex: color bar) for this parameter and DescIndex
 	// This will only be valid if bBuildParameterDecorations was set to true before the last update.
-	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance, meta = (DeprecatedFunction, DeprecationMessage = "Parameter decorations have been removed. This method will be removed in future versions."))
 	UTexture2D* GetParameterDescription(const FString& ParamName, int32 DescIndex);
 
-	//! This is only valid if bBuildParameterDecorations has been set before the last update.
+	//! 
 	bool IsParameterRelevant( int32 ParameterIndex ) const;
 
-	//! This is only valid if bBuildParameterDecorations has been set before the last update.
+	//! 
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	bool IsParameterRelevant(const FString& ParamName) const;
 
@@ -753,8 +754,8 @@ private:
    	UPROPERTY()
    	TMap<FName, FMultilayerProjector> MultilayerProjectors_DEPRECATED;
 
-	UPROPERTY()
-	bool bBuildParameterDecorations_DEPRECATED;
+	/** If this is set to true, when updating the instance an additional step will be performed to calculate the list of instance parameters that are relevant for the current parameter vaules. */
+	bool bBuildParameterRelevancy = false;
 };
 
 #if WITH_EDITOR

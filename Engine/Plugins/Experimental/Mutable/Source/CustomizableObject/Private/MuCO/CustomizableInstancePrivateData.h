@@ -75,17 +75,6 @@ struct FGeneratedMaterial
 };
 
 
-// Unreal-side data for the parameter decorations.
-USTRUCT()
-struct FParameterDecorations
-{
-	GENERATED_USTRUCT_BODY();
-
-	UPROPERTY(Transient)
-	TArray< TObjectPtr<UTexture2D> > Images;
-};
-
-
 USTRUCT()
 struct FReferencedPhysicsAssets
 {
@@ -188,10 +177,6 @@ public:
 
 	// Projector state for each parameter name
 	TMap<TPair<FString, int32>, EProjectorState::Type> ProjectorStates;
-
-	// Parameter decoration unreal-side data if generated.
-	UPROPERTY(Transient)
-	TArray<FParameterDecorations> ParameterDecorations;
 
 	// Indices of the parameters that are relevant for the given parameter values.
 	// This only gets updated if parameter decorations are generated.

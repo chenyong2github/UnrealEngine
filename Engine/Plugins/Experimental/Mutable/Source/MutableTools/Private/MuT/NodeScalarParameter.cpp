@@ -30,9 +30,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	int NodeScalarParameter::GetInputCount() const
 	{
-        return int( m_pD->m_additionalImages.Num()
-                    +
-                    m_pD->m_ranges.Num() );
+        return m_pD->m_ranges.Num();
 	}
 
 
@@ -41,16 +39,10 @@ namespace mu
 	{
         check( i<GetInputCount() );
 
-        int imageCount = int(m_pD->m_additionalImages.Num());
         int rangeCount = int(m_pD->m_ranges.Num());
-        if (i<imageCount)
+		if ( i < rangeCount )
         {
-            return m_pD->m_additionalImages[i].get();
-        }
-        else if ( i < imageCount + rangeCount )
-        {
-            int r = i - imageCount;
-            return m_pD->m_ranges[r].get();
+            return m_pD->m_ranges[i].get();
         }
         return nullptr;
 	}
@@ -60,16 +52,10 @@ namespace mu
     void NodeScalarParameter::SetInputNode( int i, NodePtr n )
 	{
         check( i<GetInputCount() );
-        int imageCount = int(m_pD->m_additionalImages.Num());
         int rangeCount = int(m_pD->m_ranges.Num());
-        if (i<imageCount)
+        if ( i < rangeCount )
         {
-            m_pD->m_additionalImages[i] = dynamic_cast<NodeImage*>(n.get());
-        }
-        else if ( i < imageCount + rangeCount )
-        {
-            int r = i - imageCount;
-            m_pD->m_ranges[r] = dynamic_cast<NodeRange*>(n.get());
+            m_pD->m_ranges[i] = dynamic_cast<NodeRange*>(n.get());
         }
     }
 
@@ -140,22 +126,6 @@ namespace mu
 	void NodeScalarParameter::SetDetailedType( PARAMETER_DETAILED_TYPE t )
 	{
 		m_pD->m_detailedType = t;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	void NodeScalarParameter::SetDescImageCount( int i )
-	{
-        check(i>=0);
-        m_pD->m_additionalImages.SetNum(i);
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	void NodeScalarParameter::SetDescImage( int i, NodeImagePtr pImage )
-	{
-		check( i>=0 && i<(int)m_pD->m_additionalImages.Num() );
-		m_pD->m_additionalImages[i] = pImage;
 	}
 
 

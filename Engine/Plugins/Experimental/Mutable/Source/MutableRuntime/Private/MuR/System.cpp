@@ -461,37 +461,6 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ImagePtrConst System::BuildParameterAdditionalImage(const TSharedPtr<const Model>& pModel,
-                                                         const Ptr<const Parameters>& pParams,
-                                                         int32 parameter,
-                                                         int32 ImageIndex )
-    {
-		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
-		MUTABLE_CPUPROFILER_SCOPE(BuildParameterAdditionalImage);
-
-		check(parameter >= 0
-			&&
-			parameter < (int)pModel->GetPrivate()->m_program.m_parameters.Num());
-
-		const FParameterDesc& param = pModel->GetPrivate()->m_program.m_parameters[parameter];
-		check(ImageIndex >= 0 && ImageIndex < (int)param.m_descImages.Num());
-
-		OP::ADDRESS imageAddress = param.m_descImages[ImageIndex];
-
-		ImagePtrConst pResult;
-
-		if (imageAddress)
-		{
-			m_pD->BeginBuild(pModel);
-			pResult = m_pD->BuildImage( pModel, pParams.get(), imageAddress, 0, 0 );
-			m_pD->EndBuild();
-		}
-
-		return pResult;
-	}
-
-
-    //---------------------------------------------------------------------------------------------
     class RelevantParameterVisitor : public UniqueDiscreteCoveredCodeVisitor<>
     {
     public:
@@ -507,15 +476,11 @@ namespace mu
         {
             m_pFlags = pFlags;
 
-            memset( pFlags, 0, sizeof(bool)*pParams->GetCount() );
+            FMemory::Memset( pFlags, 0, sizeof(bool)*pParams->GetCount() );
 
             OP::ADDRESS at = pModel->GetPrivate()->m_program.m_states[0].m_root;
 
-            pSystem->BeginBuild(pModel);
-
             Run( at );
-
-			pSystem->EndBuild();
         }
 
 
@@ -552,61 +517,68 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void System::GetParameterRelevancy(const TSharedPtr<const Model>& pModel,
-                                        const ParametersPtrConst& pParameters,
-                                        bool* pFlags )
+    void System::GetParameterRelevancy( Instance::ID InstanceID,
+                                        const ParametersPtrConst& Parameters,
+                                        bool* Flags )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-        RelevantParameterVisitor visitor( m_pD, pModel, pParameters, pFlags );
+		// Find the live instance
+		Private::FLiveInstance* pLiveInstance = m_pD->FindLiveInstance(InstanceID);
+		check(pLiveInstance);
+		m_pD->m_memory = pLiveInstance->m_memory;
+		
+		RelevantParameterVisitor visitor( m_pD, pLiveInstance->m_pModel, Parameters, Flags );
+
+		m_pD->m_memory = nullptr;
     }
 
 
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-    bool System::Private::CheckUpdatedParameters( const FLiveInstance* pLiveInstance,
-                                 const Ptr<const Parameters>& pParams,
-                                 uint64& updatedParameters )
+    bool System::Private::CheckUpdatedParameters( const FLiveInstance* LiveInstance,
+                                 const Ptr<const Parameters>& Params,
+                                 uint64& UpdatedParameters)
     {
-        bool fullBuild = false;
+        bool bFullBuild = false;
 
-		if (!pLiveInstance->m_pOldParameters)
+		if (!LiveInstance->m_pOldParameters)
 		{
-			updatedParameters = 0xffffffff;
+			UpdatedParameters = AllParametersMask;
 			return true;
 		}
 
         // check what parameters have changed
-        updatedParameters = 0;
-        const FProgram& program = pLiveInstance->m_pModel->GetPrivate()->m_program;
-        const TArray<int>& runtimeParams = program.m_states[ pLiveInstance->m_state ].m_runtimeParameters;
+		UpdatedParameters = 0;
+        const FProgram& program = LiveInstance->m_pModel->GetPrivate()->m_program;
+        const TArray<int>& runtimeParams = program.m_states[ LiveInstance->m_state ].m_runtimeParameters;
 
-        check( pParams->GetCount() == (int)program.m_parameters.Num() );
-        check( !pLiveInstance->m_pOldParameters
-                        ||
-                        pParams->GetCount() == pLiveInstance->m_pOldParameters->GetCount() );
+        check( Params->GetCount() == (int)program.m_parameters.Num() );
+        check( !LiveInstance->m_pOldParameters
+			||
+			Params->GetCount() == LiveInstance->m_pOldParameters->GetCount() );
 
-        for ( int p=0; p<(int)program.m_parameters.Num() && !fullBuild; ++p )
+        for ( int32 p=0; p<program.m_parameters.Num() && !bFullBuild; ++p )
         {
             bool isRuntime = runtimeParams.Contains( p );
-            bool changed = !pParams->HasSameValue( p, pLiveInstance->m_pOldParameters, p );
+            bool changed = !Params->HasSameValue( p, LiveInstance->m_pOldParameters, p );
 
             if (changed && isRuntime)
             {
 				uint64 runtimeIndex = runtimeParams.IndexOfByKey(p);
-                updatedParameters |= uint64(1) << runtimeIndex;
+				UpdatedParameters |= uint64(1) << runtimeIndex;
             }
             else if (changed)
             {
                 // A non-runtime parameter has changed, we need a full build.
                 // TODO: report, or log somehow.
-                fullBuild = true;
-                updatedParameters = 0xffffffffffffffff;
+				bFullBuild = true;
+                UpdatedParameters = AllParametersMask;
             }
         }
 
-        return fullBuild;
+        return bFullBuild;
     }
 
 

@@ -43,28 +43,16 @@ public:
 	
 	// UObject interface.
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void Serialize(FArchive& Ar) override;
 	
 	// Begin EdGraphNode interface
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	FLinearColor GetNodeTitleColor() const override;
 	FText GetTooltipText() const override;
-	void PostPasteNode() override;
 
 	// UCustomizableObjectNode interface
 	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
-	virtual bool IsAffectedByLOD() const override;
+	bool IsAffectedByLOD() const override;
+	void BackwardsCompatibleFixup() override;
 
-	// Own interface
-	int32 GetNumDescriptionImage() const;
-	
-	const UEdGraphPin* GetDescriptionImagePin(int32 Index) const;
-
-private:
-	UPROPERTY()
-	TArray<FEdGraphPinReference> DescriptionImagePinsReferences;
-	
-	UPROPERTY(EditAnywhere, Category=CustomizableObject)
-	TArray<FCustomizableObjectNodeFloatDescription> DescriptionImage;
 };
 

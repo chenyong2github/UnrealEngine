@@ -313,15 +313,6 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	int Parameters::GetAdditionalImageCount( int index ) const
-	{
-		const FProgram& program = m_pD->m_pModel->GetPrivate()->m_program;
-		check( index>=0 && index<(int)program.m_parameters.Num() );
-		return (int)program.m_parameters[index].m_descImages.Num();
-	}
-
-
-	//---------------------------------------------------------------------------------------------
     bool Parameters::GetBoolValue( int index,
                                    const Ptr<const RangeIndex>& pos ) const
 	{

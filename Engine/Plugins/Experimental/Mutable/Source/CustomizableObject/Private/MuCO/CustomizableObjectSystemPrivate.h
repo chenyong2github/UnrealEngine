@@ -34,7 +34,7 @@ class FMutableOperation
 	/** Instance parameters at the time of the operation request. */
 	mu::ParametersPtr Parameters; 
 	
-	bool bBuildParameterDecorations = false;
+	bool bBuildParameterRelevancy = false;
 	bool bMeshNeedsUpdate = false;
 
 	/** Protected constructor. */
@@ -94,9 +94,9 @@ public:
 
 	FInstanceUpdateDelegate UpdateCallback;
 	
-	bool IsBuildParameterDecorations() const
+	bool IsBuildParameterRelevancy() const
 	{
-		return bBuildParameterDecorations;
+		return bBuildParameterRelevancy;
 	}
 
 	/** Read-only access to the mutable instance parameters for this operation. */
@@ -439,24 +439,6 @@ struct FInstanceUpdateData
 };
 
 
-// Mutable data generated during the update steps.
-struct FParameterDecorationsUpdateData
-{
-	struct FParameterDesc
-	{
-		TArray<mu::ImagePtrConst> Images;
-	};
-
-	//! Information about additional images used for parameter UI decoration
-	TArray<FParameterDesc> Parameters;
-
-	void Clear()
-	{
-		Parameters.Empty();
-	}
-};
-
-
 struct FTextureCoverageQueryData
 {
 	uint32 CoveredTexels;
@@ -486,7 +468,6 @@ struct FMutableOperationData
 	FInstanceGeneratedData LastUpdateData;
 
 	FInstanceUpdateData InstanceUpdateData;
-	FParameterDecorationsUpdateData ParametersUpdateData;
 	TArray<int> RelevantParametersInProgress;
 
 	TArray<FString> LowPriorityTextures;

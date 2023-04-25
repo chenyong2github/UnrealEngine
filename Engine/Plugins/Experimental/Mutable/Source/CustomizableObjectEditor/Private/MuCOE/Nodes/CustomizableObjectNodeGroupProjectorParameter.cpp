@@ -116,11 +116,6 @@ void UCustomizableObjectNodeGroupProjectorParameter::BackwardsCompatibleFixup()
 		}
 	}
 
-	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::GroupProjectorImagePin)
-	{
-		ReconstructNode();		
-	}
-
 	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::GroupProjectorImagePinRemoved)
 	{
 		ReconstructNode();		

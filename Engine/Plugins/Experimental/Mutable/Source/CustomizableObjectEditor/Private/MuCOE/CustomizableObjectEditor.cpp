@@ -436,7 +436,7 @@ void FCustomizableObjectEditor::CreatePreviewInstance()
 				// Asset loading works in the Main Thread, there's a risk the sync loading could put to sleep the thread while
 				// waiting for the asset registry to load the content (that never gets executed)
 				Viewport->SetAssetRegistryLoaded(true);
-				PreviewInstance->SetBuildParameterDecorations(true);
+				PreviewInstance->SetBuildParameterRelevancy(true);
 				PreviewInstance->UpdateSkeletalMeshAsync(true, true);
 			}
 			else

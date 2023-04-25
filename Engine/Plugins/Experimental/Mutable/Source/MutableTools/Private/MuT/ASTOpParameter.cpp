@@ -31,10 +31,6 @@ namespace mu
 		{
 			f(c.rangeSize);
 		}
-		for (auto& c : additionalImages)
-		{
-			f(c);
-		}
 	}
 
 
@@ -44,8 +40,7 @@ namespace mu
 		{
 			return type == other->type &&
 				parameter == other->parameter &&
-				ranges == other->ranges &&
-				additionalImages == other->additionalImages;
+				ranges == other->ranges;
 		}
 		return false;
 	}
@@ -59,10 +54,6 @@ namespace mu
 		for (const auto& c : ranges)
 		{
 			n->ranges.Emplace(n.get(), mapChild(c.rangeSize.child()), c.rangeName, c.rangeUID);
-		}
-		for (const auto& c : additionalImages)
-		{
-			n->additionalImages.Emplace(n, mapChild(c.child()));
 		}
 		return n;
 	}
@@ -101,12 +92,6 @@ namespace mu
 				uint16 rangeId = 0;
 				LinkRange(program, d, sizeAt, rangeId);
 				program.m_parameters.Last().m_ranges.Add(rangeId);
-			}
-
-			for (const auto& d : additionalImages)
-			{
-				OP::ADDRESS descAt = d ? d->linkedAddress : 0;
-				program.m_parameters.Last().m_descImages.Add(descAt);
 			}
 
 			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();

@@ -188,13 +188,6 @@ namespace mu
         //! \param instance The id of the instance to destroy.
         void ReleaseInstance( Instance::ID InstanceID);
 
-		//! Build one of the images defined in a model parameter as additional description. These
-		//! images can be used for colour bars, icons, etc...
-		Ptr<const Image> BuildParameterAdditionalImage(const TSharedPtr<const Model>& Model,
-														const Ptr<const Parameters>& Params,
-														int32 Parameter,
-														int32 ImageIndex );
-
 		//! Calculate the relevancy of every parameter. Some parameters may be unused depending on
 		//! the values of other parameters. This method will set to true the flags for parameters
 		//! that are relevant, and to false otherwise. This is useful to hide irrelevant parameters
@@ -203,7 +196,7 @@ namespace mu
         //! \param pParameters Parameter set that we want to find the relevancy of.
         //! \param pFlags is a pointer to a preallocated array of booleans that contains at least
 		//! pParameters->GetCount() elements.
-        void GetParameterRelevancy(const TSharedPtr<const Model>& Model,
+        void GetParameterRelevancy( Instance::ID InstanceID,
 									const Ptr<const Parameters>& Parameters,
 									bool* Flags );
 

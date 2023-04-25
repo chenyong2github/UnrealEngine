@@ -31,9 +31,6 @@ namespace mu
 		//** Ranges adding dimensions to this parameter. */
 		TArray<FRangeData> ranges;
 
-		//! Additional images attached to the parameter
-		TArray<ASTChild> additionalImages;
-
 		/** Index of the parameter in the program parameter list. Generated ar link time. */
 		int32 LinkedParameterIndex = -1;
 

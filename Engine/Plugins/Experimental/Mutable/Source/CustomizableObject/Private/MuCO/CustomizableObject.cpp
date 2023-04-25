@@ -1277,7 +1277,6 @@ void UCustomizableObject::UpdateParameterPropertiesFromModel()
 
 			Data.Name = MutableParameters->GetName(paramIndex);
 			Data.Type = EMutableParameterType::None;
-			Data.ImageDescriptionCount = MutableParameters->GetAdditionalImageCount(paramIndex);
 
 			mu::PARAMETER_TYPE mutableType = MutableParameters->GetType(paramIndex);
 			switch (mutableType)
@@ -1345,24 +1344,9 @@ void UCustomizableObject::UpdateParameterPropertiesFromModel()
 }
 
 
-int UCustomizableObject::GetParameterDescriptionCount(int32 ParamIndex) const
-{
-	if (ParamIndex >= 0 && ParamIndex < ParameterProperties.Num())
-	{
-		return ParameterProperties[ParamIndex].ImageDescriptionCount;
-	}
-	else
-	{
-		UE_LOG(LogMutable, Warning, TEXT("Index [%d] out of ParameterProperties bounds at GetParameterDescriptionCount at CO %s."), ParamIndex, *GetName());
-	}
-
-	return 0;
-}
-
-
 int32 UCustomizableObject::GetParameterDescriptionCount(const FString& ParamName) const
 {
-	return GetParameterDescriptionCount(FindParameter(ParamName));
+	return 0;
 }
 
 

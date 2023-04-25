@@ -472,7 +472,7 @@ void FCustomizableObjectPopulationEditor::TestPopulation()
 				// Attaching the Customizable Skeletal Component to the Skeletal Mesh Component
 				if (PreviewCustomizableSkeletalComponent && PreviewSkeletalMeshComponent && ColliderComponent)
 				{
-					ViewportInstances[i]->SetBuildParameterDecorations(true);
+					ViewportInstances[i]->SetBuildParameterRelevancy(true);
 					ViewportInstances[i]->UpdateSkeletalMeshAsync(true, true);
 
 					PreviewCustomizableSkeletalComponent->CustomizableObjectInstance = ViewportInstances[i];

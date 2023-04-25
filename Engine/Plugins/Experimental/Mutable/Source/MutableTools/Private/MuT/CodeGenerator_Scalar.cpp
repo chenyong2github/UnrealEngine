@@ -158,32 +158,6 @@ namespace mu
 				op->ranges.Emplace(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
 			}
 
-			// Generate the code for the additional images in the parameter
-			for (int32 a = 0; a < node.m_additionalImages.Num(); ++a)
-			{
-				Ptr<ASTOp> descAd;
-				if (node.m_additionalImages[a])
-				{
-					// We take whatever size will be produced
-					IMAGE_STATE newState;
-					FImageDesc desc = CalculateImageDesc(*node.m_additionalImages[a]->GetBasePrivate());
-					newState.m_imageSize = UE::Math::TIntVector2<int32>(desc.m_size);
-					newState.m_imageRect.min[0] = 0;
-					newState.m_imageRect.min[1] = 0;
-					newState.m_imageRect.size = UE::Math::TIntVector2<int32>(desc.m_size);
-					newState.m_layoutBlockId = -1;
-					m_imageState.Add(newState);
-
-					// Generate
-					descAd = Generate(node.m_additionalImages[a]);
-					check(descAd);
-
-					// Restore rect
-					m_imageState.Pop();
-				}
-				op->additionalImages.Emplace(op, descAd);
-			}
-
 			m_nodeVariables[node.m_pNode] = op;
 		}
 		else

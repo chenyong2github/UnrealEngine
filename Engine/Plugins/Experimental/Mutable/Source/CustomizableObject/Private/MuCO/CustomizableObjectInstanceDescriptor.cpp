@@ -440,15 +440,15 @@ void FCustomizableObjectInstanceDescriptor::SetCustomizableObject(UCustomizableO
 }
 
 
-bool FCustomizableObjectInstanceDescriptor::GetBuildParameterDecorations() const
+bool FCustomizableObjectInstanceDescriptor::GetBuildParameterRelevancy() const
 {
-	return bBuildParameterDecorations;
+	return bBuildParameterRelevancy;
 }
 
 
-void FCustomizableObjectInstanceDescriptor::SetBuildParameterDecorations(const bool Value)
+void FCustomizableObjectInstanceDescriptor::SetBuildParameterRelevancy(const bool Value)
 {
-	bBuildParameterDecorations = Value;
+	bBuildParameterRelevancy = Value;
 }
 
 
@@ -2292,7 +2292,7 @@ FDescriptorHash::FDescriptorHash(const FCustomizableObjectInstanceDescriptor& De
 	}
 	
 	Hash = HashCombine(Hash, GetTypeHash(Descriptor.State));
-	Hash = HashCombine(Hash, GetTypeHash(Descriptor.bBuildParameterDecorations));
+	Hash = HashCombine(Hash, GetTypeHash(Descriptor.bBuildParameterRelevancy));
 
 	for (const TTuple<FName, FMultilayerProjector>& Pair : Descriptor.MultilayerProjectors)
 	{

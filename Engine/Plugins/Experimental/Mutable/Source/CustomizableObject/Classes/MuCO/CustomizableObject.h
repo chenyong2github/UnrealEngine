@@ -384,9 +384,6 @@ struct FMutableModelParameterProperties
 	EMutableParameterType Type = EMutableParameterType::None;
 
 	UPROPERTY()
-	int ImageDescriptionCount = 0;
-
-	UPROPERTY()
 	TArray<FMutableModelParameterValue> PossibleValues;
 };
 
@@ -1263,10 +1260,7 @@ public:
 	const FString& GetParameterName(int32 ParamIndex) const;
 
 	// Get the number of description images available for a parameter
-	int32 GetParameterDescriptionCount(int32 ParamIndex) const;
-
-	// Get the number of description images available for a parameter
-	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
+	UFUNCTION(BlueprintCallable, Category = CustomizableObject, meta = (DeprecatedFunction, DeprecationMessage = "Parameter decorations have been removed. This method will be removed in future versions."))
 	int32 GetParameterDescriptionCount(const FString& ParamName) const;
 
 	// Returns how many possible options an int parameter has
@@ -1416,7 +1410,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 381;
+	static const int32 CurrentSupportedVersion = 382;
 
 public:
 

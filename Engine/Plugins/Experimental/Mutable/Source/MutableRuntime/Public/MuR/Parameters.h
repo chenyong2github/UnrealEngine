@@ -239,8 +239,7 @@ namespace mu
 		//! \pre The parameter specified by index is a T_BOOL.
 		//! \param index Index of the parameter from 0 to GetCount()-1
         //! \param pos Only for multidimensional parameters: relevant position to get in the ranges
-        bool GetBoolValue( int index,
-                           const Ptr<const RangeIndex>& pos=nullptr ) const;
+        bool GetBoolValue( int index, const Ptr<const RangeIndex>& pos=nullptr ) const;
 
 		//! Set the value of a parameter of type boolean.
 		//! \pre The parameter specified by index is a T_BOOL.
@@ -248,8 +247,7 @@ namespace mu
 		//! \param value new value of the parameter
         //! \param pos optional parameter to set a specific value for the given multidimensional
         //! position. If null, the value is set for all possible positions.
-        void SetBoolValue( int index, bool value,
-                           const Ptr<const RangeIndex>& pos=nullptr );
+        void SetBoolValue( int index, bool value, const Ptr<const RangeIndex>& pos=nullptr );
 
 		//! Get the number of possible values for this integer parameter.
 		//! If the number is zero, it means any integer value is accepted.
@@ -275,30 +273,26 @@ namespace mu
 		//! \pre The parameter specified by index is a T_INT.
 		//! \param index Index of the parameter from 0 to GetCount()-1
         //! \param pos Only for multidimensional parameters: relevant position to get in the ranges
-        int GetIntValue( int index,
-                         const Ptr<const RangeIndex>& pos=nullptr ) const;
+        int GetIntValue( int index, const Ptr<const RangeIndex>& pos=nullptr ) const;
 
 		//! If the parameter is of the integer type, set its value.
 		//! \param index Index of the parameter from 0 to GetCount()-1
 		//! \param value new value of the parameter. It must be in the possible values for this
 		//! parameter (see GetIntPossibleValue), or the method will leave the value unchanged.
         //! \param pos Only for multidimensional parameters: relevant position to set in the ranges
-        void SetIntValue( int index, int value,
-                          const Ptr<const RangeIndex>& pos=nullptr );
+        void SetIntValue( int index, int value, const Ptr<const RangeIndex>& pos=nullptr );
 
 		//! Return the value of a float parameter.
 		//! \pre The parameter specified by index is a T_FLOAT.
 		//! \param index Index of the parameter from 0 to GetCount()-1
         //! \param pos Only for multidimensional parameters: relevant position to get in the ranges
-        float GetFloatValue( int index,
-                             const Ptr<const RangeIndex>& pos=nullptr ) const;
+        float GetFloatValue( int index, const Ptr<const RangeIndex>& pos=nullptr ) const;
 
 		//! If the parameter is of the float type, set its value.
 		//! \param index Index of the parameter from 0 to GetCount()-1
 		//! \param value new value of the parameter
         //! \param pos Only for multidimensional parameters: relevant position to set in the ranges
-        void SetFloatValue( int index, float value,
-                            const Ptr<const RangeIndex>& pos=nullptr );
+        void SetFloatValue( int index, float value, const Ptr<const RangeIndex>& pos=nullptr );
 
 		//! Return the value of a colour parameter.
 		//! \pre The parameter specified by index is a T_FLOAT.
@@ -377,16 +371,9 @@ namespace mu
         //! \param pos Only for multidimensional parameters: relevant position to set in the ranges
         void SetStringValue( int index, const char* value, const Ptr<const RangeIndex>& pos = nullptr );
 
-        //! Get the number of additional description images defined in the parameter.
-		//! The use of these depends on the game, but it can be used to provide colour bars, etc.
-		//! These images can be built using a system object and the model of these parameters.
-		int GetAdditionalImageCount( int index ) const;
-
         //! Utility method to compare the values of a specific parameter with the values of another
         //! Parameters object. It returns false if type or values are different.
-        bool HasSameValue( int thisParamIndex,
-                           const ParametersPtrConst& other,
-                           int otherParamIndex ) const;
+        bool HasSameValue( int thisParamIndex, const ParametersPtrConst& other, int otherParamIndex ) const;
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

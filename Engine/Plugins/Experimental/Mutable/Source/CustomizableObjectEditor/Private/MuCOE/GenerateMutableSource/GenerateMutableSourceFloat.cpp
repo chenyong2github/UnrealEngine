@@ -95,23 +95,6 @@ mu::NodeScalarPtr GenerateMutableSourceFloat(const UEdGraphPin* Pin, FMutableGra
 		ScalarNode->SetUid(StringCast<ANSICHAR>(*GenerationContext.GetNodeIdUnique(Node).ToString()).Get());
 		ScalarNode->SetDefaultValue(FloatParameterNode->DefaultValue);
 
-		const int32 NumDescriptionImage = FloatParameterNode->GetNumDescriptionImage();
-		ScalarNode->SetDescImageCount(NumDescriptionImage);
-
-		for (int d = 0; d < NumDescriptionImage; ++d)
-		{
-			const UEdGraphPin* DescriptionImagePin = FloatParameterNode->GetDescriptionImagePin(d);
-			if (!DescriptionImagePin)
-			{
-				GenerationContext.Compiler->CompilerLog(LOCTEXT("WrongFloatParameterDescriptionImagePin", "Float parameter in inconsistent state, please refresh the node."), FloatParameterNode);
-			}
-			else if (const UEdGraphPin* ConnectedPin = FollowInputPin(*DescriptionImagePin))
-			{
-				mu::NodeImagePtr TextureNode = GenerateMutableSourceImage(ConnectedPin, GenerationContext, 0.f);
-				ScalarNode->SetDescImage(d, TextureNode);
-			}
-		}
-
 		GenerationContext.ParameterUIDataMap.Add(FloatParameterNode->ParameterName, FParameterUIData(
 			FloatParameterNode->ParameterName,
 			FloatParameterNode->ParamUIMetadata,

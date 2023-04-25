@@ -1268,20 +1268,12 @@ void SPopulationClassConstraint::BuildRangeWidget()
 	// Adding a Texture if the parameter option has one
 	if (ParameterIndex >=0 && PopulationClass->CustomizableObject && PopulationClass->CustomizableObjectInstance)
 	{
-		UTexture2D* Bar = nullptr;
-
-		if (PopulationClass->CustomizableObject->GetParameterDescriptionCount(ParameterIndex) > 0)
-		{
-			Bar = PopulationClass->CustomizableObjectInstance->GetParameterDescription(ParameterIndex, 0);
-		}
-
 		RangeWidget->AddSlot()
 		.AutoHeight()
 		.Padding(0.0f, 10.0f, 0.0f, 5.0f)
 		[
 			SNew(SRangeSquare)
 			.Ranges(&PopulationClass->Characteristics[CharactericticIndex].Constraints[ConstraintIndex].Ranges)
-			.Texture(Bar)
 			.bDiscrete(bDiscrete)
 		];
 	}

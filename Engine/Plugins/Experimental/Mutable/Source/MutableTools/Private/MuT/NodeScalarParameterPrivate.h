@@ -29,20 +29,17 @@ namespace mu
 		string m_uid;
 		PARAMETER_DETAILED_TYPE m_detailedType = PARAMETER_DETAILED_TYPE::UNKNOWN;
 
-        TArray<Ptr<NodeImage>> m_additionalImages;
-
 		TArray<Ptr<NodeRange>> m_ranges;
 
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 4;
+            uint32_t ver = 5;
 			arch << ver;
 
 			arch << m_defaultValue;
 			arch << m_name;
 			arch << m_uid;
-			arch << m_additionalImages;
 			arch << m_detailedType;
             arch << m_ranges;
         }
@@ -52,12 +49,16 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-            check(ver==4);
+            check(ver>=4 && ver<=5);
 
 			arch >> m_defaultValue;
 			arch >> m_name;
             arch >> m_uid;
-			arch >> m_additionalImages;
+			if (ver < 5)
+			{
+				TArray<Ptr<NodeImage>> TempAdditionalImages;
+				arch >> TempAdditionalImages;
+			}
             arch >> m_detailedType;
             arch >> m_ranges;
         }

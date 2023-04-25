@@ -316,9 +316,6 @@ namespace mu
         //! vector of range descriptors.
 		TArray<uint32> m_ranges;
 
-        //! Additional parameter description information
-		TArray<OP::ADDRESS> m_descImages;
-
         //! Possible values of the parameter in case of being an integer, and its names
         struct INT_VALUE_DESC
         {
@@ -356,14 +353,14 @@ namespace mu
         {
             return m_name == other.m_name && m_uid == other.m_uid && m_type == other.m_type &&
                    m_defaultValue == other.m_defaultValue &&
-                   m_ranges == other.m_ranges && m_descImages == other.m_descImages &&
+                   m_ranges == other.m_ranges &&
                    m_possibleValues == other.m_possibleValues;
         }
 
         //!
         void Serialise( OutputArchive& arch ) const
         {
-            const int32 ver = 6;
+            const int32 ver = 7;
             arch << ver;
 
 			arch << m_name;
@@ -371,7 +368,6 @@ namespace mu
             arch << m_type;
             arch << m_defaultValue;
             arch << m_ranges;
-            arch << m_descImages;
             arch << m_possibleValues;
         }
 
@@ -380,14 +376,19 @@ namespace mu
         {
             int32 ver;
             arch >> ver;
-            check( ver == 6 );
+            check( ver >= 6 );
 
 			arch >> m_name;
             arch >> m_uid;
             arch >> m_type;
             arch >> m_defaultValue;
             arch >> m_ranges;
-            arch >> m_descImages;
+
+			if (ver<=6)
+			{ 
+				TArray<OP::ADDRESS> UnusedDescImages;
+				arch >> UnusedDescImages;
+			}
             arch >> m_possibleValues;
         }
     };

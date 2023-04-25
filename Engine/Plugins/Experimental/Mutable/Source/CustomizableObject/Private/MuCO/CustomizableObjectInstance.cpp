@@ -449,11 +449,6 @@ void UCustomizableObjectInstance::Serialize(FArchive& Ar)
 		Descriptor.VectorParameters = VectorParameters_DEPRECATED;
 		Descriptor.ProjectorParameters = ProjectorParameters_DEPRECATED;
 	}
-	
-	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::DescriptorBuildParameterDecorations)
-	{
-		Descriptor.bBuildParameterDecorations = bBuildParameterDecorations_DEPRECATED;
-	}
 
 	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::DescriptorMultilayerProjectors)
 	{
@@ -611,15 +606,28 @@ UCustomizableObject* UCustomizableObjectInstance::GetCustomizableObject() const
 }
 
 
+// Marked as deprecated. Will be removed in future versions.
 bool UCustomizableObjectInstance::GetBuildParameterDecorations() const
 {
-	return Descriptor.GetBuildParameterDecorations();
+	return false;
 }
 
 
+// Marked as deprecated. Will be removed in future versions.
 void UCustomizableObjectInstance::SetBuildParameterDecorations(const bool Value)
 {
-	Descriptor.SetBuildParameterDecorations(Value);
+}
+
+
+bool UCustomizableObjectInstance::GetBuildParameterRelevancy() const
+{
+	return bBuildParameterRelevancy;
+}
+
+
+void UCustomizableObjectInstance::SetBuildParameterRelevancy(bool Value)
+{
+	bBuildParameterRelevancy = Value;
 }
 
 
@@ -683,39 +691,10 @@ EProjectorState::Type UCustomizableObjectInstance::GetProjectorState(const FStri
 }
 
 
-UTexture2D* UCustomizableObjectInstance::GetParameterDescription(int32 ParamIndex, int32 DescIndex)
-{
-	const UCustomizableObject* CustomizableObject = GetCustomizableObject();
-    if (!CustomizableObject)
-    {
-    	return nullptr;
-    }
-	
-	if (CustomizableObject->GetPrivate()->GetModel())
-	{
-		return nullptr;
-	}
-
-	// TODO, make sure the lines below aren't actually needed. They were commented because they made SDetailsViewBase::UpdatePropertyMaps() crash
-	// Make sure this instance is updated
-	//UCustomizableObjectSystem* CustomizableObjectSystem = UCustomizableObjectSystem::GetInstance();
-	//CustomizableObjectSystem->WaitForInstance(this);
-
-	if (GetPrivate()->ParameterDecorations.IsValidIndex(ParamIndex)
-		&&
-		GetPrivate()->ParameterDecorations[ParamIndex].Images.IsValidIndex(DescIndex))
-	{
-		return GetPrivate()->ParameterDecorations[ParamIndex].Images[DescIndex];
-	}
-
-	//UE_LOG(LogMutable, Warning, TEXT("Expected parameter decoration not found in instance [%s]."), *GetName());
-	return nullptr;
-}
-
-
+// Marked as deprecated. Will be removed in future versions.
 UTexture2D* UCustomizableObjectInstance::GetParameterDescription(const FString& ParamName, int32 DescIndex)
 {
-	return GetParameterDescription(GetCustomizableObject()->FindParameter(ParamName), DescIndex);
+	return nullptr;
 }
 
 
@@ -6138,54 +6117,6 @@ void UCustomizableInstancePrivateData::ProcessTextureCoverageQueries(const TShar
 			}
 		}
 	}
-}
-
-
-
-void UCustomizableInstancePrivateData::UpdateParameterDecorationsEngineResources(const TSharedPtr<FMutableOperationData>& OperationData)
-{
-	// This should run in the unreal thread.
-	ParameterDecorations.SetNum(OperationData->ParametersUpdateData.Parameters.Num());
-	for (int32 ParamIndex = 0; ParamIndex < OperationData->ParametersUpdateData.Parameters.Num(); ++ParamIndex)
-	{
-		int32 DescCount = OperationData->ParametersUpdateData.Parameters[ParamIndex].Images.Num();
-		ParameterDecorations[ParamIndex].Images.SetNum(DescCount);
-		for (int32 DescIndex = 0; DescIndex < DescCount; ++DescIndex)
-		{
-			UTexture2D* Tex = nullptr;
-
-			auto Image = OperationData->ParametersUpdateData.Parameters[ParamIndex].Images[DescIndex];
-			if (Image)
-			{
-				check(Image->GetSizeX()>0 && Image->GetSizeY()>0);
-
-				Tex = NewObject<UTexture2D>(UTexture2D::StaticClass());
-				FMutableModelImageProperties Props;
-				Props.Filter = TF_Bilinear;
-				Props.SRGB = true;
-				Props.LODBias = 0;
-
-				ConvertImage(Tex, Image, Props);
-
-#if !PLATFORM_DESKTOP
-				for (int32 i = 0; i < Tex->GetPlatformData()->Mips.Num(); ++i)
-				{
-					uint32 DataFlags = Tex->GetPlatformData()->Mips[i].BulkData.GetBulkDataFlags();
-					Tex->GetPlatformData()->Mips[i].BulkData.SetBulkDataFlags(DataFlags | BULKDATA_SingleUse);
-				}
-#endif
-
-				Tex->UpdateResource();
-			}
-
-			ParameterDecorations[ParamIndex].Images[DescIndex] = Tex;
-		}
-	}
-
-	OperationData->ParametersUpdateData.Clear();
-
-	// Relevancy
-	RelevantParameters = OperationData->RelevantParametersInProgress;
 }
 
 

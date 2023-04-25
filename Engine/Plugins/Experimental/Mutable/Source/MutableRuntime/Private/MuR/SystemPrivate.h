@@ -18,6 +18,9 @@ namespace mu
 {
 	class ExtensionDataStreamer;
 
+	constexpr uint64 AllParametersMask = TNumericLimits<uint64> ::Max();
+
+
 	//! Reference-counted colour to be stored in the cache
 	class Colour : public RefCounted
 	{

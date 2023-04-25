@@ -66,7 +66,6 @@ DEFINE_STAT(STAT_MutableNumAllocatedTextures);
 DEFINE_STAT(STAT_MutableTextureResourceMemory);
 DEFINE_STAT(STAT_MutableTextureGeneratedMemory);
 DEFINE_STAT(STAT_MutableTextureCacheMemory);
-DEFINE_STAT(STAT_MutableTextureParameterDecorationMemory);
 DEFINE_STAT(STAT_MutablePendingInstanceUpdates);
 DEFINE_STAT(STAT_MutableAbandonedInstanceUpdates);
 DEFINE_STAT(STAT_MutableInstanceBuildTime);
@@ -544,7 +543,6 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 
 		TextureMemoryUsed = int64_t(Size / 1024);
 
-		uint64 SizeDecoration = 0;
 		uint64 SizeGenerated = 0;
 		for (TObjectIterator<UCustomizableObjectInstance> CustomizableObjectInstance; CustomizableObjectInstance; ++CustomizableObjectInstance)
 		{
@@ -558,17 +556,6 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 
 				if (bHasResourceForRendering)
 				{
-					for (const FParameterDecorations& ParameterDecoration : CustomizableObjectInstance->GetPrivate()->ParameterDecorations)
-					{
-						for (const UTexture2D* ParameterDecorationImage : ParameterDecoration.Images)
-						{
-							if (ParameterDecorationImage && ParameterDecorationImage->IsValidLowLevel())
-							{
-								SizeDecoration += ParameterDecorationImage->CalcTextureMemorySizeEnum(TMC_AllMips);
-							}
-						}
-					}
-
 					for (const FGeneratedTexture& GeneratedTextures : CustomizableObjectInstance->GetPrivate()->GeneratedTextures)
 					{
 						if (GeneratedTextures.Texture)
@@ -598,7 +585,6 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 		SET_DWORD_STAT(STAT_MutablePendingInstanceUpdates, MutableOperationQueue.Num());
 		SET_DWORD_STAT(STAT_MutableNumAllocatedTextures, CountAllocated);
 		SET_DWORD_STAT(STAT_MutableTextureResourceMemory, Size / 1024.f);
-		SET_DWORD_STAT(STAT_MutableTextureParameterDecorationMemory, SizeDecoration / 1024.f);
 		SET_DWORD_STAT(STAT_MutableTextureGeneratedMemory, SizeGenerated / 1024.f);
 #endif
 
@@ -1174,45 +1160,22 @@ void FCustomizableObjectSystemPrivate::UpdateStreamingLimit()
 namespace impl
 {
 
-	void Subtask_Mutable_UpdateParameterDecorations(const TSharedPtr<FMutableOperationData>& OperationData, const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& MutableModel, const mu::Parameters* MutableParameters)
+	void Subtask_Mutable_UpdateParameterRelevancy(const TSharedPtr<FMutableOperationData>& OperationData, const mu::Parameters* MutableParameters)
 	{
-		MUTABLE_CPUPROFILER_SCOPE(Subtask_Mutable_UpdateParameterDecorations)
+		MUTABLE_CPUPROFILER_SCOPE(Subtask_Mutable_UpdateParameterRelevancy)
 
 		check(OperationData);
-		OperationData->ParametersUpdateData.Clear();
 		OperationData->RelevantParametersInProgress.Empty();
 
 		check(MutableParameters);
+		check(OperationData->InstanceID != 0);
 
 		// This must run in the mutable thread.
 		check(UCustomizableObjectSystem::GetInstance() != nullptr);
 		check(UCustomizableObjectSystem::GetInstance()->GetPrivate() != nullptr);
 		mu::SystemPtr MutableSystem = UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableSystem;
 
-		// Decorations
 		int32 NumParameters = MutableParameters->GetCount();
-
-		{
-			MUTABLE_CPUPROFILER_SCOPE(ParameterDecorations)
-
-				// Generate all the images that decorate the parameters UI, only in the editor.
-				for (int32 ParamIndex = 0; ParamIndex < NumParameters; ++ParamIndex)
-				{
-					FParameterDecorationsUpdateData::FParameterDesc ParamData;
-
-					for (int32 ImageIndex = 0; ImageIndex < MutableParameters->GetAdditionalImageCount(ParamIndex); ++ImageIndex)
-					{
-						mu::ImagePtrConst Image = MutableSystem->BuildParameterAdditionalImage(
-							MutableModel,
-							MutableParameters,
-							ParamIndex, ImageIndex);
-
-						ParamData.Images.Add(Image);
-					};
-
-					OperationData->ParametersUpdateData.Parameters.Add(ParamData);
-				}
-		}
 
 		// Update the parameter relevancy.
 		{
@@ -1220,13 +1183,11 @@ namespace impl
 
 			TArray<bool> Relevant;
 			Relevant.SetNumZeroed(NumParameters);
-			// This prevents live update cache reusal
-			//MutableSystem->GetParameterRelevancy(MutableModel, MutableParameters, Relevant.GetData());
+			MutableSystem->GetParameterRelevancy(OperationData->InstanceID, MutableParameters, Relevant.GetData());
 
 			for (int32 ParamIndex = 0; ParamIndex < NumParameters; ++ParamIndex)
 			{
-				// This prevents live update cache reusal
-				//if (Relevant[ParamIndex])
+				if (Relevant[ParamIndex])
 				{
 					OperationData->RelevantParametersInProgress.Add(ParamIndex);
 				}
@@ -1695,7 +1656,7 @@ namespace impl
 
 
 	// This runs in a worker thread.
-	void Task_Mutable_Update_GetMesh(TSharedPtr<FMutableOperationData> OperationData, TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model, mu::ParametersPtrConst Parameters, bool bBuildParameterDecorations, int32 State)
+	void Task_Mutable_Update_GetMesh(TSharedPtr<FMutableOperationData> OperationData, TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model, mu::ParametersPtrConst Parameters, bool bBuildParameterRelevancy, int32 State)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(Task_Mutable_Update_GetMesh)
 
@@ -1705,21 +1666,19 @@ namespace impl
 
 		check(OperationData.IsValid());
 
-		if (bBuildParameterDecorations)
-		{
-			// This cannot happen inside the beginupdate-endupdate cycle.
-			Subtask_Mutable_UpdateParameterDecorations(OperationData, Model, Parameters.get());
-		}
-		else
-		{
-			OperationData->ParametersUpdateData.Clear();
-			OperationData->RelevantParametersInProgress.Reset();
-		}
-
 		Subtask_Mutable_BeginUpdate_GetMesh(OperationData, Model, Parameters.get(), State);
 
 		// TODO: Not strictly mutable: move to another worker thread task to free mutable access?
 		Subtask_Mutable_PrepareSkeletonData(OperationData);
+
+		if (bBuildParameterRelevancy)
+		{
+			Subtask_Mutable_UpdateParameterRelevancy(OperationData, Parameters.get());
+		}
+		else
+		{
+			OperationData->RelevantParametersInProgress.Reset();
+		}
 
 #if WITH_EDITOR
 		uint32 EndCycles = FPlatformTime::Cycles();
@@ -2013,7 +1972,7 @@ namespace impl
 
 
 	/** "Lock Cached Resources" */
-	void Task_Game_LockCache(TSharedPtr<FMutableOperationData> OperationData, const TWeakObjectPtr<UCustomizableObjectInstance>& CustomizableObjectInstancePtr, mu::Ptr<const mu::Parameters> Parameters, bool bBuildParameterDecorations)
+	void Task_Game_LockCache(TSharedPtr<FMutableOperationData> OperationData, const TWeakObjectPtr<UCustomizableObjectInstance>& CustomizableObjectInstancePtr, mu::Ptr<const mu::Parameters> Parameters, bool bBuildParameterRelevancy)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(Task_Game_LockCache)
 
@@ -2059,10 +2018,10 @@ namespace impl
 
 		check(OperationData.IsValid());
 		
-		// Process the parameter decorations if requested
-		if (bBuildParameterDecorations)
+		if (bBuildParameterRelevancy)
 		{
-			ObjectInstancePrivateData->UpdateParameterDecorationsEngineResources(OperationData);
+			// Relevancy
+			ObjectInstancePrivateData->RelevantParameters = OperationData->RelevantParametersInProgress;
 		}
 
 		if (const TObjectPtr<UDefaultImageProvider> DefaultImageProvider = System->GetDefaultImageProvider())
@@ -2389,15 +2348,15 @@ namespace impl
 			check(CustomizableObjectInstancePtr.IsValid());
 			TSharedPtr<FMutableOperation> CurrentMutableOperation = SystemPrivateData->CurrentMutableOperation;
 			check(CurrentMutableOperation);
-			bool bBuildParameterDecorations = CurrentMutableOperation->IsBuildParameterDecorations();
+			bool bBuildParameterRelevancy = CurrentMutableOperation->IsBuildParameterRelevancy();
 			TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetPrivate()->GetModel();
 			int32 State = CustomizableObjectInstancePtr->GetState();
 
 			Mutable_GetMeshTask = SystemPrivateData->AddMutableThreadTask(
 				TEXT("Task_Mutable_Update_GetMesh"),
-				[CurrentOperationData, bBuildParameterDecorations, Parameters, Model, State]()
+				[CurrentOperationData, bBuildParameterRelevancy, Parameters, Model, State]()
 				{
-					impl::Task_Mutable_Update_GetMesh(CurrentOperationData, Model, Parameters, bBuildParameterDecorations, State);
+					impl::Task_Mutable_Update_GetMesh(CurrentOperationData, Model, Parameters, bBuildParameterRelevancy, State);
 				},
 				UE::Tasks::ETaskPriority::BackgroundHigh);
 		}
@@ -2411,14 +2370,14 @@ namespace impl
 			check(CustomizableObjectInstancePtr.IsValid());
 			TSharedPtr<FMutableOperation> CurrentMutableOperation = SystemPrivateData->CurrentMutableOperation;
 			check(CurrentMutableOperation);
-			bool bBuildParameterDecorations = CurrentMutableOperation->IsBuildParameterDecorations();
+			bool bBuildParameterRelevancy = CurrentMutableOperation->IsBuildParameterRelevancy();
 
 			SystemPrivateData->AddGameThreadTask(
 				{
 				FMutableTaskDelegate::CreateLambda(
-					[CurrentOperationData, CustomizableObjectInstancePtr, bBuildParameterDecorations, Parameters]()
+					[CurrentOperationData, CustomizableObjectInstancePtr, bBuildParameterRelevancy, Parameters]()
 					{
-						impl::Task_Game_LockCache(CurrentOperationData, CustomizableObjectInstancePtr, Parameters, bBuildParameterDecorations);
+						impl::Task_Game_LockCache(CurrentOperationData, CustomizableObjectInstancePtr, Parameters, bBuildParameterRelevancy);
 					}),
 				Mutable_GetMeshTask
 				});
@@ -2733,7 +2692,7 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 	Op.CustomizableObjectInstance = InCustomizableObjectInstance;
 	Op.InstanceDescriptorRuntimeHash = InCustomizableObjectInstance->GetUpdateDescriptorRuntimeHash();
 	Op.bStarted = false;
-	Op.bBuildParameterDecorations = InCustomizableObjectInstance->GetBuildParameterDecorations();
+	Op.bBuildParameterRelevancy = InCustomizableObjectInstance->GetBuildParameterRelevancy();
 	Op.Parameters = InCustomizableObjectInstance->GetPrivate()->GetParameters(InCustomizableObjectInstance);
 	if (UpdateCallback)
 	{

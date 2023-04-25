@@ -104,48 +104,22 @@ class Parameters;
         }
 
 
-        void Traverse( OP::ADDRESS root, FProgram& program, bool visitDecorators = true )
+        void Traverse( OP::ADDRESS root, FProgram& program )
         {
             m_pending.Reserve( program.m_opAddress.Num() );
 
             // Visit the given root
             m_pending.Add( PENDING(root,0) );
             Recurse( program );
+         }
 
-            if (visitDecorators)
-            {
-                // Fix the code used in the parameter descriptions
-                for ( std::size_t p=0; p<program.m_parameters.Num(); ++p )
-                {
-                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.Num(); ++d )
-                    {
-                        m_pending.Add(PENDING(program.m_parameters[p].m_descImages[d],0) );
-                        Recurse( program );
-                    }
-                }
-            }
-        }
-
-        void FullTraverse( FProgram& program, bool visitDecorators = true )
+        void FullTraverse( FProgram& program )
         {
             // Visit all the state roots
             for ( std::size_t p=0; p<program.m_states.Num(); ++p )
             {
                 m_pending.Add(PENDING(program.m_states[p].m_root,0) );
                 Recurse( program );
-            }
-
-            if (visitDecorators)
-            {
-                // Fix the code used in the parameter descriptions
-                for ( std::size_t p=0; p<program.m_parameters.Num(); ++p )
-                {
-                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.Num(); ++d )
-                    {
-                        m_pending.Add(PENDING(program.m_parameters[p].m_descImages[d],0) );
-                        Recurse( program );
-                    }
-                }
             }
         }
 
@@ -307,48 +281,22 @@ class Parameters;
         }
 
 
-        void Traverse( OP::ADDRESS root, FProgram& program, bool visitDecorators = true )
+        void Traverse( OP::ADDRESS root, FProgram& program )
         {
             m_pending.reserve( program.m_opAddress.Num() );
 
             // Visit the given root
             m_pending.Add( PENDING(root,0) );
             Recurse( program );
-
-            if (visitDecorators)
-            {
-                // Fix the code used in the parameter descriptions
-                for ( std::size_t p=0; p<program.m_parameters.Num(); ++p )
-                {
-                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.Num(); ++d )
-                    {
-                        m_pending.Add(PENDING(program.m_parameters[p].m_descImages[d],0) );
-                        Recurse( program );
-                    }
-                }
-            }
         }
 
-        void FullTraverse( FProgram& program, bool visitDecorators = true )
+        void FullTraverse( FProgram& program )
         {
             // Visit all the state roots
             for ( std::size_t p=0; p<program.m_states.Num(); ++p )
             {
                 m_pending.Add(PENDING(program.m_states[p].m_root,0) );
                 Recurse( program );
-            }
-
-            if (visitDecorators)
-            {
-                // Fix the code used in the parameter descriptions
-                for ( std::size_t p=0; p<program.m_parameters.Num(); ++p )
-                {
-                    for ( std::size_t d=0; d<program.m_parameters[p].m_descImages.Num(); ++d )
-                    {
-                        m_pending.Add(PENDING(program.m_parameters[p].m_descImages[d],0) );
-                        Recurse( program );
-                    }
-                }
             }
         }
 
