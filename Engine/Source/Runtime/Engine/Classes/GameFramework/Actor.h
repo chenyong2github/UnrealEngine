@@ -2346,10 +2346,7 @@ public:
 	virtual bool SupportsLayers() const;
 
 	/** Returns if level should keep a reference to the external actor for PIE (used for always loaded actors). */
-	bool IsForceExternalActorLevelReferenceForPIE() const
-	{
-		return bForceExternalActorLevelReferenceForPIE;
-	}
+	bool IsForceExternalActorLevelReferenceForPIE() const;
 
 	void SetForceExternalActorLevelReferenceForPIE(bool bValue)
 	{

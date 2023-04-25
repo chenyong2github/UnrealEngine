@@ -989,6 +989,16 @@ bool AActor::SupportsLayers() const
 	return bIsValid;
 }
 
+bool AActor::IsForceExternalActorLevelReferenceForPIE() const
+{
+	if (const AActor* ParentActor = GetParentActor())
+	{
+		return ParentActor->IsForceExternalActorLevelReferenceForPIE();
+	}
+
+	return bForceExternalActorLevelReferenceForPIE;
+}
+
 bool AActor::IsEditable() const
 {
 	return bEditable;

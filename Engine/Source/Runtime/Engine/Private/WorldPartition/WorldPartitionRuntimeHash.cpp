@@ -153,15 +153,6 @@ bool UWorldPartitionRuntimeHash::ConditionalRegisterAlwaysLoadedActorsForPIE(con
 			if (AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorSoftPath().ToString()))
 			{
 				AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
-
-				// Handle child actors
-				AlwaysLoadedActor->ForEachComponent<UChildActorComponent>(true, [this, &Reference](UChildActorComponent* ChildActorComponent)
-				{
-					if (AActor* ChildActor = ChildActorComponent->GetChildActor())
-					{
-						AlwaysLoadedActorsForPIE.Emplace(Reference, ChildActor);
-					}
-				});
 			}
 		}
 
