@@ -5,8 +5,10 @@
 #include "UnsyncCompression.h"
 #include "UnsyncCore.h"
 #include "UnsyncFile.h"
+#include "UnsyncHashTable.h"
 #include "UnsyncProxy.h"
 #include "UnsyncScan.h"
+#include "UnsyncScavenger.h"
 #include "UnsyncSerialization.h"
 #include "UnsyncThread.h"
 #include "UnsyncUtil.h"
@@ -22,22 +24,13 @@
 UNSYNC_THIRD_PARTY_INCLUDES_START
 #include <blake3.h>
 #include <md5-sse2.h>
-#include <flat_hash_map.hpp>
 UNSYNC_THIRD_PARTY_INCLUDES_END
 
-#define UNSYNC_VERSION_STR "1.0.51-dev"
+#define UNSYNC_VERSION_STR "1.0.51-dev3"
 
 namespace unsync {
 
 bool GDryRun = false;
-
-template<typename K, typename V, typename Hash = std::hash<K>, typename Eq = std::equal_to<K>>
-// using HashMap = std::unordered_map<K,V,Hash,Eq>;
-using HashMap = ska::flat_hash_map<K, V, Hash, Eq>;
-
-template<typename K, typename Hash = std::hash<K>, typename Eq = std::equal_to<K>>
-// using HashSet = std::unordered_set<K, Hash, Eq>;
-using HashSet = ska::flat_hash_set<K, Hash, Eq>;
 
 static const uint32 MAX_ACTIVE_READERS = 64;  // std::max(4, std::thread::hardware_concurrency();
 
@@ -79,9 +72,9 @@ struct FLogProgressScope
 
 	FLogProgressScope(uint64 InTotal, ELogProgressUnits InUnits = ELogProgressUnits::Raw, uint64 InPeriodMilliseconds = 500)
 	: Current(0)
-	, TOTAL(InTotal)
-	, PERIOD_MILLISECONDS(InPeriodMilliseconds)
-	, UNITS(InUnits)
+	, Total(InTotal)
+	, PeriodMilliseconds(InPeriodMilliseconds)
+	, Units(InUnits)
 	, NextProgressLogTime(TimePointNow())
 	, bEnabled(true)
 	{
@@ -100,37 +93,37 @@ struct FLogProgressScope
 		Current += X;
 
 		std::lock_guard<std::mutex> LockGuard(Mutex);
-		const uint64				CurrentClamped = std::min<uint64>(Current, TOTAL);
-		const bool					bComplete	   = (CurrentClamped == TOTAL) || bForceComplete;
+		const uint64				CurrentClamped = std::min<uint64>(Current, Total);
+		const bool					bComplete	   = (CurrentClamped == Total) || bForceComplete;
 		if (bEnabled && GLogVerbose && (TimePointNow() > NextProgressLogTime || bComplete))
 		{
 			const wchar_t* Ending = bComplete ? L"\n" : L"\r";
-			switch (UNITS)
+			switch (Units)
 			{
 				case ELogProgressUnits::GB:
 					LogPrintf(ELogLevel::Debug,
 							  L"%.2f / %.2f GB%ls",
 							  double(CurrentClamped) / double(1_GB),
-							  double(TOTAL) / double(1_GB),
+							  double(Total) / double(1_GB),
 							  Ending);
 					break;
 				case ELogProgressUnits::MB:
 					LogPrintf(ELogLevel::Debug,
 							  L"%.2f / %.2f MB%ls",
 							  double(CurrentClamped) / double(1_MB),
-							  double(TOTAL) / double(1_MB),
+							  double(Total) / double(1_MB),
 							  Ending);
 					break;
 				case ELogProgressUnits::Bytes:
-					LogPrintf(ELogLevel::Debug, L"%llu / %llu bytes%ls", (uint64)CurrentClamped, TOTAL, Ending);
+					LogPrintf(ELogLevel::Debug, L"%llu / %llu bytes%ls", (uint64)CurrentClamped, Total, Ending);
 					break;
 				case ELogProgressUnits::Raw:
 				default:
-					LogPrintf(ELogLevel::Debug, L"%llu / %llu%ls", (uint64)CurrentClamped, TOTAL, Ending);
+					LogPrintf(ELogLevel::Debug, L"%llu / %llu%ls", (uint64)CurrentClamped, Total, Ending);
 					break;
 			}
 
-			NextProgressLogTime = TimePointNow() + std::chrono::milliseconds(PERIOD_MILLISECONDS);
+			NextProgressLogTime = TimePointNow() + std::chrono::milliseconds(PeriodMilliseconds);
 			LogGlobalProgress();
 
 			if (bComplete)
@@ -142,9 +135,9 @@ struct FLogProgressScope
 
 	std::mutex				Mutex;
 	std::atomic<uint64>		Current;
-	const uint64			TOTAL;
-	const uint64			PERIOD_MILLISECONDS;
-	const ELogProgressUnits UNITS;
+	const uint64			Total;
+	const uint64			PeriodMilliseconds;
+	const ELogProgressUnits Units;
 	FTimePoint				NextProgressLogTime;
 	std::atomic<bool>		bEnabled;
 };
@@ -417,8 +410,8 @@ ComputeBlocksVariableT(FIOReader& Reader, uint32 BlockSize, EStrongHashAlgorithm
 
 	uint64 NumTotalBlocks = 0;
 
-	HashSet<FGenericHash> UniqueBlockSet;
-	FGenericBlockArray	  UniqueBlocks;
+	THashSet<FGenericHash> UniqueBlockSet;
+	FGenericBlockArray	   UniqueBlocks;
 	for (const FGenericBlock& It : Result)
 	{
 		auto InsertResult = UniqueBlockSet.insert(It.HashStrong);
@@ -611,7 +604,7 @@ ComputeBlocksFixedT(FIOReader& Reader, uint32 BlockSize, EStrongHashAlgorithmID 
 	double Duration = DurationSec(TimeBegin, TimePointNow());
 	UNSYNC_VERBOSE2(L"Done in %.3f sec (%.3f MB / sec)", Duration, SizeMb((double(Reader.GetSize()) / Duration)));
 
-	HashSet<uint32> UniqueHashes;
+	THashSet<uint32> UniqueHashes;
 	for (const auto& It : Blocks)
 	{
 		UniqueHashes.insert(It.HashWeak);
@@ -750,8 +743,8 @@ DiffManifestBlocksT(const std::vector<BlockType>& SourceBlocks, const std::vecto
 		uint64 Count = 0;
 	};
 
-	HashMap<typename BlockType::StrongHashType, BlockIndexAndCount> BaseBlockMap;
-	HashMap<uint64, uint64>											BaseBlockByOffset;
+	THashMap<typename BlockType::StrongHashType, BlockIndexAndCount> BaseBlockMap;
+	THashMap<uint64, uint64>										 BaseBlockByOffset;
 
 	for (uint64 I = 0; I < BaseBlocks.size(); ++I)
 	{
@@ -844,8 +837,8 @@ DiffBlocksParallelT(FIOReader&				  BaseDataReader,
 
 	const uint64 BaseDataSize = BaseDataReader.GetSize();
 
-	HashSet<uint32, FIdentityHash32>							 SourceWeakHashSet;
-	HashSet<FGenericBlock, FBlockStrongHash, FBlockStrongHashEq> SourceStrongHashSet;
+	THashSet<uint32, FIdentityHash32>							  SourceWeakHashSet;
+	THashSet<FGenericBlock, FBlockStrongHash, FBlockStrongHashEq> SourceStrongHashSet;
 
 	for (uint32 I = 0; I < uint32(SourceBlocks.size()); ++I)
 	{
@@ -857,10 +850,10 @@ DiffBlocksParallelT(FIOReader&				  BaseDataReader,
 
 	struct FTask
 	{
-		uint64														 Offset = 0;
-		uint64														 Size	= 0;
-		std::vector<FHash128>										 Sequence;
-		HashSet<FGenericBlock, FBlockStrongHash, FBlockStrongHashEq> BaseStrongHashSet;
+		uint64														  Offset = 0;
+		uint64														  Size	 = 0;
+		std::vector<FHash128>										  Sequence;
+		THashSet<FGenericBlock, FBlockStrongHash, FBlockStrongHashEq> BaseStrongHashSet;
 	};
 
 	BytesPerTask = std::max<uint64>(BlockSize, BytesPerTask);
@@ -909,9 +902,9 @@ DiffBlocksParallelT(FIOReader&				  BaseDataReader,
 
 					const uint8* TaskEnd = TaskBuffer + Task.Size;
 
-					const uint32							 MaxWeakHashFalsePositives = 8;
-					HashMap<uint32, uint32, FIdentityHash32> WeakHashFalsePositives;
-					HashSet<uint32, FIdentityHash32>		 WeakHashBanList;
+					const uint32							  MaxWeakHashFalsePositives = 8;
+					THashMap<uint32, uint32, FIdentityHash32> WeakHashFalsePositives;
+					THashSet<uint32, FIdentityHash32>		  WeakHashBanList;
 
 					auto ScanFn = [&SourceWeakHashSet,
 								   &WeakHashBanList,
@@ -969,7 +962,7 @@ DiffBlocksParallelT(FIOReader&				  BaseDataReader,
 	BaseDataReader.FlushAll();
 	TaskGroup.wait();
 
-	HashSet<FGenericBlock, FBlockStrongHash, FBlockStrongHashEq> BaseStrongHashSet;
+	THashSet<FGenericBlock, FBlockStrongHash, FBlockStrongHashEq> BaseStrongHashSet;
 
 	for (FTask& Task : Tasks)
 	{
@@ -1083,7 +1076,7 @@ OptimizeNeedList(const std::vector<FNeedBlock>& Input, uint64 MaxMergedBlockSize
 		Result.push_back(Cmd);
 	}
 
-	std::sort(Result.begin(), Result.end(), [](const FCopyCommand& A, const FCopyCommand& B) { return A.SourceOffset < B.SourceOffset; });
+	std::sort(Result.begin(), Result.end(), FCopyCommand::FCompareBySourceOffset());
 
 	for (uint64 I = 1; I < Result.size(); ++I)
 	{
@@ -1118,12 +1111,11 @@ BuildTargetBuffer(const uint8*			 SourceData,
 				  const uint8*			 BaseData,
 				  uint64				 BaseSize,
 				  const FNeedList&		 NeedList,
-				  EStrongHashAlgorithmID StrongHasher,
-				  FProxyPool*			 ProxyPool)
+				  EStrongHashAlgorithmID StrongHasher)
 {
 	FMemReader SourceReader(SourceData, SourceSize);
 	FMemReader BaseReader(BaseData, BaseSize);
-	return BuildTargetBuffer(SourceReader, BaseReader, NeedList, StrongHasher, ProxyPool);
+	return BuildTargetBuffer(SourceReader, BaseReader, NeedList, StrongHasher);
 }
 
 struct FReadSchedule
@@ -1159,35 +1151,25 @@ BuildReadSchedule(const std::vector<FNeedBlock>& Blocks)
 class FBlockCache
 {
 public:
-	FBuffer						   BlockData;
-	HashMap<FHash128, FBufferView> BlockMap;  // Decompressed block data by hash
+	FBuffer							BlockData;
+	THashMap<FHash128, FBufferView> BlockMap;  // Decompressed block data by hash
 };
 
 FBuffer
-BuildTargetBuffer(FIOReader&			 SourceProvider,
-				  FIOReader&			 BaseProvider,
-				  const FNeedList&		 NeedList,
-				  EStrongHashAlgorithmID StrongHasher,
-				  FProxyPool*			 ProxyPool,
-				  FBlockCache*			 BlockCache)
+BuildTargetBuffer(FIOReader& SourceProvider, FIOReader& BaseProvider, const FNeedList& NeedList, EStrongHashAlgorithmID StrongHasher)
 {
 	FBuffer				Result;
 	const FNeedListSize SizeInfo = ComputeNeedListSize(NeedList);
 	Result.Resize(SizeInfo.TotalBytes);
 	FMemReaderWriter ResultWriter(Result.Data(), Result.Size());
-	BuildTarget(ResultWriter, SourceProvider, BaseProvider, NeedList, StrongHasher, ProxyPool, BlockCache);
+	BuildTarget(ResultWriter, SourceProvider, BaseProvider, NeedList, StrongHasher);
 	return Result;
 }
 
-enum EListType {
-	Source,
-	Base
-};
-
-inline void
-AddGlobalProgress(uint64 Size, EListType ListType)
+void
+AddGlobalProgress(uint64 Size, EBlockListType ListType)
 {
-	if (ListType == EListType::Source)
+	if (ListType == EBlockListType::Source)
 	{
 		Size *= GLOBAL_PROGRESS_SOURCE_SCALE;
 	}
@@ -1208,7 +1190,7 @@ DownloadBlocks(FProxyPool&					  ProxyPool,
 	const bool			bParentThreadVerbose = GLogVerbose;
 	std::atomic<uint64> NumActiveLogThreads	 = {};
 
-	HashSet<FHash128>			   DownloadedBlocks;
+	THashSet<FHash128>			   DownloadedBlocks;
 	std::vector<FNeedBlock>		   RemainingNeedBlocks;
 	const std::vector<FNeedBlock>* NeedBlocks = &OriginalUniqueNeedBlocks;
 
@@ -1350,7 +1332,8 @@ BuildTarget(FIOWriter&			   Result,
 			const FNeedList&	   NeedList,
 			EStrongHashAlgorithmID StrongHasher,
 			FProxyPool*			   ProxyPool,
-			FBlockCache*		   BlockCache)
+			FBlockCache*		   BlockCache,
+			FScavengeDatabase*	   ScavengeDatabase)
 {
 	UNSYNC_LOG_INDENT;
 
@@ -1374,21 +1357,40 @@ BuildTarget(FIOWriter&			   Result,
 
 	// Copy the need list as it will be progressively filtered by various sources:
 	// - block cache
+	// - scevenge from external local files
 	// - download from proxy
 	// - read from source file
 	// TODO: could use a bit array to indicate if the entry is valid instead of full copy
-	std::vector<FNeedBlock> FilteredSourceNeedList = NeedList.Source;
+	std::vector<FNeedBlock> FilteredSourceNeedList;
+
+	if (ScavengeDatabase)
+	{
+		THashSet<FHash128> ScavengedBlocks;
+
+		BuildTargetFromScavengedData(Result, NeedList.Source, *ScavengeDatabase, StrongHasher, ScavengedBlocks);
+
+		FilteredSourceNeedList = NeedList.Source;
+		auto FilterResult =
+			std::remove_if(FilteredSourceNeedList.begin(), FilteredSourceNeedList.end(), [&ScavengedBlocks](const FNeedBlock& Block) {
+				return ScavengedBlocks.find(Block.Hash.ToHash128()) != ScavengedBlocks.end();
+			});
+		FilteredSourceNeedList.erase(FilterResult, FilteredSourceNeedList.end());
+	}
+	else
+	{
+		FilteredSourceNeedList = NeedList.Source;
+	}
 
 	auto ProcessNeedList = [bAllowVerboseLog, LogIndent, &Result, &bGotError, &WriteSemaphore, &WriteTasks, &bWaitingForBaseData](
 							   FIOReader&					  DataProvider,
 							   const std::vector<FNeedBlock>& NeedBlocks,
 							   uint64						  TotalCopySize,
-							   EListType					  ListType,
+							   EBlockListType				  ListType,
 							   std::atomic<bool>&			  bCompletionFlag) {
 		FLogIndentScope IndentScope(LogIndent, true);
 		uint64			ReadBytesTotal = 0;
 
-		const wchar_t* ListName = ListType == EListType::Source ? L"source" : L"base";
+		const wchar_t* ListName = ListType == EBlockListType::Source ? L"source" : L"base";
 
 		if (!DataProvider.IsValid())
 		{
@@ -1421,7 +1423,7 @@ BuildTarget(FIOWriter&			   Result,
 
 		while (!ReadSchedule.Requests.empty() && !bGotError)
 		{
-			uint64 BlockIndex;
+			uint64 BlockIndex = ~0ull;
 
 			uint32 LargeRequestSlot = ~0u;
 			for (uint32 I = 0; I < MaxActiveLargeRequests; ++I)
@@ -1491,7 +1493,8 @@ BuildTarget(FIOWriter&			   Result,
 
 			ReadBytesTotal += ReadBytes;
 
-			FLogVerbosityScope VerbosityScope(GLogVerbose || (bAllowVerboseLog && (ListType == EListType::Base && bWaitingForBaseData)));
+			FLogVerbosityScope VerbosityScope(GLogVerbose ||
+											  (bAllowVerboseLog && (ListType == EBlockListType::Base && bWaitingForBaseData)));
 
 			ProgressLogger.Add(ReadBytes);
 
@@ -1515,11 +1518,11 @@ BuildTarget(FIOWriter&			   Result,
 
 		if (SizeInfo.BaseBytes)
 		{
-			ProcessNeedList(Base, NeedList.Base, SizeInfo.BaseBytes, EListType::Base, bBaseDataCopyTaskDone);
+			ProcessNeedList(Base, NeedList.Base, SizeInfo.BaseBytes, EBlockListType::Base, bBaseDataCopyTaskDone);
 		}
 	});
 
-	HashSet<FHash128> CachedBlocks;
+	THashSet<FHash128> CachedBlocks;
 
 	if (BlockCache)
 	{
@@ -1534,7 +1537,7 @@ BuildTarget(FIOWriter&			   Result,
 				FBufferView BlockBuffer = It->second;
 
 				Result.Write(BlockBuffer.Data, NeedBlock.TargetOffset, BlockBuffer.Size);
-				AddGlobalProgress(NeedBlock.Size, EListType::Source);
+				AddGlobalProgress(NeedBlock.Size, EBlockListType::Source);
 			}
 		}
 
@@ -1552,16 +1555,19 @@ BuildTarget(FIOWriter&			   Result,
 	}
 	else if (ProxyPool && ProxyPool->IsValid())
 	{
+		UNSYNC_VERBOSE(L"Downloading blocks");
+		UNSYNC_LOG_INDENT;
+
 		struct FBlockWriteCmd
 		{
 			uint64 TargetOffset = 0;
 			uint64 Size			= 0;
 		};
-		std::mutex							   DownloadedBlocksMutex;
-		HashSet<FHash128>					   DownloadedBlocks;
-		HashMap<FHash128, FBlockWriteCmd>	   BlockWriteMap;
-		HashMap<FHash128, std::vector<uint64>> BlockScatterMap;
-		std::vector<FNeedBlock>				   UniqueNeedList;
+		std::mutex								DownloadedBlocksMutex;
+		THashSet<FHash128>						DownloadedBlocks;
+		THashMap<FHash128, FBlockWriteCmd>		BlockWriteMap;
+		THashMap<FHash128, std::vector<uint64>> BlockScatterMap;
+		std::vector<FNeedBlock>					UniqueNeedList;
 
 		uint64 EstimatedDownloadSize = 0;
 		for (const FNeedBlock& Block : FilteredSourceNeedList)
@@ -1582,14 +1588,13 @@ BuildTarget(FIOWriter&			   Result,
 			}
 		}
 
-		UNSYNC_VERBOSE(L"Downloading blocks");
-		UNSYNC_LOG_INDENT;
-
 		FTaskGroup DecompressTasks;
 
 		FLogProgressScope DownloadProgressLogger(EstimatedDownloadSize, ELogProgressUnits::MB);
 
-		FSemaphore DecompressionSemaphore(256);	 // limit how many decompression tasks can be queued up to avoid memory bloat
+		// limit how many decompression tasks can be queued up to avoid memory bloat
+		const uint64 MaxConcurrentDecompressionTasks = 64;
+		FSemaphore DecompressionSemaphore(MaxConcurrentDecompressionTasks);
 
 		const bool			bParentThreadVerbose = GLogVerbose;
 		const uint32		ParentThreadIndent	 = GLogIndent;
@@ -1680,7 +1685,7 @@ BuildTarget(FIOWriter&			   Result,
 								if (bOk)
 								{
 									uint64 WrittenBytes = Result.Write(DecompressedData.GetData(), Cmd.TargetOffset, Cmd.Size);
-									AddGlobalProgress(Cmd.Size, EListType::Source);
+									AddGlobalProgress(Cmd.Size, EBlockListType::Source);
 
 									if (WrittenBytes != Cmd.Size)
 									{
@@ -1717,7 +1722,7 @@ BuildTarget(FIOWriter&			   Result,
 									}
 								}
 
-								AddGlobalProgress(Cmd.Size * ScatterList.size(), EListType::Source);
+								AddGlobalProgress(Cmd.Size * ScatterList.size(), EBlockListType::Source);
 							}
 						}
 
@@ -1760,7 +1765,7 @@ BuildTarget(FIOWriter&			   Result,
 
 			UNSYNC_LOG_INDENT;
 
-			ProcessNeedList(Source, FilteredSourceNeedList, RemainingBytes, EListType::Source, bSourceDataCopyTaskDone);
+			ProcessNeedList(Source, FilteredSourceNeedList, RemainingBytes, EBlockListType::Source, bSourceDataCopyTaskDone);
 		}
 		else
 		{
@@ -1769,7 +1774,7 @@ BuildTarget(FIOWriter&			   Result,
 	}
 	else if (SizeInfo.SourceBytes)
 	{
-		ProcessNeedList(Source, FilteredSourceNeedList, SizeInfo.SourceBytes, EListType::Source, bSourceDataCopyTaskDone);
+		ProcessNeedList(Source, FilteredSourceNeedList, SizeInfo.SourceBytes, EBlockListType::Source, bSourceDataCopyTaskDone);
 	}
 
 	if (!bBaseDataCopyTaskDone)
@@ -2353,7 +2358,7 @@ ValidateTarget(FIOReader& Reader, const FNeedList& NeedList, EStrongHashAlgorith
 					FGenericHash		 Hash = ComputeHash(CmdBuffer->GetData() + BlockBufferOffset, Block.Size, StrongHasher);
 					if (Hash != Block.HashStrong)
 					{
-						UNSYNC_ERROR(L"Found block hash mismatch");
+						UNSYNC_ERROR(L"Found block hash mismatch at offset %llu", llu(BlockBufferOffset));
 						NumInvalidBlocks++;
 						return;
 					}
@@ -2469,21 +2474,22 @@ SyncFile(const FNeedList&		   NeedList,
 			}
 		}
 
+		LogStatus(TargetFilePath.wstring().c_str(), L"Patching");
+
 		FDeferredOpenReader SourceFile([SourceFilePath, TargetFilePath] {
 			UNSYNC_VERBOSE(L"Opening source file '%ls'", SourceFilePath.wstring().c_str());
 			LogStatus(TargetFilePath.wstring().c_str(), L"Opening source file");
-
 			return std::unique_ptr<NativeFile>(new NativeFile(SourceFilePath, EFileMode::ReadOnlyUnbuffered));
 		});
 
-		LogStatus(TargetFilePath.wstring().c_str(), L"Patching");
 		BuildTarget(*TargetFile,
 					SourceFile,
 					BaseDataReader,
 					NeedList,
 					Options.Algorithm.StrongHashAlgorithmId,
 					Options.ProxyPool,
-					Options.BlockCache);
+					Options.BlockCache,
+					Options.ScavengeDatabase);
 
 		Result.SourceBytes = ComputeSize(NeedList.Source);
 		Result.BaseBytes   = ComputeSize(NeedList.Base);
@@ -3031,24 +3037,6 @@ GetAnonymizedHostName()
 	return Result;
 }
 
-struct FFileSyncTask
-{
-	const FFileManifest* SourceManifest = nullptr;
-	const FFileManifest* BaseManifest	= nullptr;
-	FPath				 OriginalSourceFilePath;
-	FPath				 ResolvedSourceFilePath;
-	FPath				 BaseFilePath;
-	FPath				 TargetFilePath;
-	FPath				 RelativeFilePath;
-	FNeedList			 NeedList;
-
-	uint64 NeedBytesFromSource = 0;
-	uint64 NeedBytesFromBase   = 0;
-	uint64 TotalSizeBytes	   = 0;
-
-	bool IsBaseValid() const { return !BaseFilePath.empty(); }
-};
-
 struct FFileSyncTaskBatch
 {
 	std::vector<const FFileSyncTask*> FileTasks;
@@ -3064,7 +3052,7 @@ struct FFileSyncTaskBatch
 
 		uint64 OutputCursor = 0;
 
-		HashSet<FHash128>		UniqueBlockSet;
+		THashSet<FHash128>		UniqueBlockSet;
 		std::vector<FNeedBlock> UniqueNeedBlocks;
 		for (const FFileSyncTask* Task : FileTasks)
 		{
@@ -3572,6 +3560,22 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	GGlobalProgressTotal =
 		EstimatedNeedBytesFromSource * GLOBAL_PROGRESS_SOURCE_SCALE + EstimatedNeedBytesFromBase * GLOBAL_PROGRESS_BASE_SCALE;
 
+	std::unique_ptr<FScavengeDatabase> ScavengeDatabase;
+	if (!SyncOptions.ScavengeRoot.empty())
+	{
+		UNSYNC_VERBOSE(L"Scavenging blocks from existing data sets");
+		UNSYNC_LOG_INDENT;
+
+		FTimePoint ScavengeDbTimeBegin = TimePointNow();
+
+		TArrayView<FFileSyncTask> AllFileTasksView = MakeView(AllFileTasks.data(), AllFileTasks.size());
+		ScavengeDatabase = std::unique_ptr<FScavengeDatabase>(FScavengeDatabase::BuildFromFileSyncTasks(SyncOptions, AllFileTasksView));
+
+		double Duration = DurationSec(ScavengeDbTimeBegin, TimePointNow());
+
+		UNSYNC_VERBOSE(L"Done in %.3f sec", Duration);
+	}
+
 	LogGlobalProgress();
 
 	if (ProxySettings.IsValid() && ProxyPool.IsValid())
@@ -3694,6 +3698,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 								 &BackgroundTaskStatMutex,
 								 &BackgroundTaskResults,
 								 &NumFailedTasks,
+								 &ScavengeDatabase,
 								 &ProxyPool](const FFileSyncTask& Item, FBlockCache* BlockCache, bool bBackground) {
 			UNSYNC_VERBOSE(L"Copy '%ls' (%ls)", Item.TargetFilePath.wstring().c_str(), (Item.NeedBytesFromBase) ? L"partial" : L"full");
 
@@ -3711,6 +3716,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 			SyncFileOptions.BlockSize			 = SourceBlockSize;
 			SyncFileOptions.ProxyPool			 = &ProxyPool;
 			SyncFileOptions.BlockCache			 = BlockCache;
+			SyncFileOptions.ScavengeDatabase	 = ScavengeDatabase.get();
 			SyncFileOptions.bValidateTargetFiles = SyncOptions.bValidateTargetFiles;
 
 			FFileSyncResult SyncResult =
@@ -4496,10 +4502,10 @@ LogManifestFiles(ELogLevel LogLevel, const FDirectoryManifest& Manifest)
 	}
 }
 
-HashMap<FGenericHash, FGenericBlock>
+THashMap<FGenericHash, FGenericBlock>
 BuildBlockMap(const FDirectoryManifest& Manifest, bool bNeedMacroBlocks)
 {
-	HashMap<FGenericHash, FGenericBlock> Result;
+	THashMap<FGenericHash, FGenericBlock> Result;
 	for (const auto& It : Manifest.Files)
 	{
 		const FFileManifest& File = It.second;
@@ -4524,11 +4530,11 @@ BuildBlockMap(const FDirectoryManifest& Manifest, bool bNeedMacroBlocks)
 void
 LogManifestDiff(ELogLevel LogLevel, const FDirectoryManifest& ManifestA, const FDirectoryManifest& ManifestB)
 {
-	HashMap<FGenericHash, FGenericBlock> BlocksA = BuildBlockMap(ManifestA, false);
-	HashMap<FGenericHash, FGenericBlock> BlocksB = BuildBlockMap(ManifestB, false);
+	THashMap<FGenericHash, FGenericBlock> BlocksA = BuildBlockMap(ManifestA, false);
+	THashMap<FGenericHash, FGenericBlock> BlocksB = BuildBlockMap(ManifestB, false);
 
-	HashMap<FGenericHash, FGenericBlock> MacroBlocksA = BuildBlockMap(ManifestA, true);
-	HashMap<FGenericHash, FGenericBlock> MacroBlocksB = BuildBlockMap(ManifestB, true);
+	THashMap<FGenericHash, FGenericBlock> MacroBlocksA = BuildBlockMap(ManifestA, true);
+	THashMap<FGenericHash, FGenericBlock> MacroBlocksB = BuildBlockMap(ManifestB, true);
 
 	uint32 NumCommonBlocks		= 0;
 	uint64 TotalCommonBlockSize = 0;

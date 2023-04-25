@@ -464,4 +464,9 @@ uint64 ToWindowsFileTime(const std::filesystem::file_time_type& T);
 struct FSyncFilter;
 FFileAttributeCache CreateFileAttributeCache(const FPath& Root, const FSyncFilter* SyncFilter = nullptr);
 
+// Returns extended absolute path of a form \\?\D:\verylongpath or \\?\UNC\servername\verylongpath
+// Expects an absolute path input. Returns original path on non-Windows.
+// https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
+FPath MakeExtendedAbsolutePath(const FPath& InAbsolutePath);
+
 }  // namespace unsync

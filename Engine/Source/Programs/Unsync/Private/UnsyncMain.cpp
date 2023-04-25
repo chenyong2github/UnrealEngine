@@ -69,6 +69,7 @@ InnerMain(int Argc, char** Argv)
 	std::string				 ProtocolName = "jupiter";
 	std::string				 HttpHeaderFilenameUtf8;
 	std::string				 QueryStringUtf8;
+	std::string				 ScavengeRootUtf8;
 	bool					 bForceOperation	 = false;
 	bool					 bAllowInsecureTls	 = false;
 	bool					 bUseTls			 = false;
@@ -217,6 +218,9 @@ InnerMain(int Argc, char** Argv)
 	SubSync->add_flag("--no-output-validation", bNoOutputValidation, "Skip final patched file block hash validation (DANGEROUS)");
 	SubSync->add_flag("--no-space-validation", bNoSpaceValidation, "Skip checking available disk space before sync (DANGEROUS)");
 	SubSync->add_option("-b, --block", HashOrSyncBlockSize, "Block size in bytes (default=64KB)");
+
+	SubSync->add_option("--scavenge", ScavengeRootUtf8, "Search for unsync manifests and reusable blocks in this directory (EXPERIMENTAL)");
+
 	SubCommands.push_back(SubSync);
 
 	CLI::App* SubPatch = Cli.add_subcommand("patch", "Applies a patch generated with 'diff' on top of base file");
@@ -394,6 +398,7 @@ InnerMain(int Argc, char** Argv)
 	FPath SourceFilename		 = NormalizeFilenameUtf8(SourceFilenameUtf8);
 	FPath TargetFilename		 = NormalizeFilenameUtf8(TargetFilenameUtf8);
 	FPath PatchFilename			 = NormalizeFilenameUtf8(PatchFilenameUtf8);
+	FPath ScavengeRoot			 = NormalizeFilenameUtf8(ScavengeRootUtf8);
 	FPath SourceManifestFilename = NormalizeFilenameUtf8(SourceManifestFilenameUtf8);
 
 	UNSYNC_VERBOSE(L"UNSYNC %hs", GetVersionString().c_str());
@@ -657,6 +662,7 @@ InnerMain(int Argc, char** Argv)
 		SyncOptions.Filter				   = &SyncFilter;
 		SyncOptions.bValidateTargetFiles   = !bNoOutputValidation;
 		SyncOptions.bCheckAvailableSpace   = !bNoSpaceValidation;
+		SyncOptions.ScavengeRoot		   = ScavengeRoot;
 
 		for (const std::string& Entry : OverlayArrayUtf8)
 		{

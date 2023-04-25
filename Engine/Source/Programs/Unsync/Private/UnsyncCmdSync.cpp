@@ -130,6 +130,8 @@ CmdSync(const FCmdSyncOptions& Options)
 			SyncOptions.Source				   = ResolvedSource;
 			SyncOptions.Base				   = Options.Target;  // read base data from existing target
 			SyncOptions.Target				   = Options.Target;
+			SyncOptions.ScavengeRoot		   = Options.ScavengeRoot;
+			SyncOptions.ScavengeDepth		   = Options.ScavengeDepth;
 			SyncOptions.Overlays			   = ResolvedOverlays;
 			SyncOptions.SourceManifestOverride = Options.SourceManifestOverride;
 			SyncOptions.Remote				   = &Options.Remote;

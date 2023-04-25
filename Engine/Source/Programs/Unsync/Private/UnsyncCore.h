@@ -21,6 +21,7 @@ extern bool GDryRun;
 class FProxy;
 class FProxyPool;
 class FBlockCache;
+class FScavengeDatabase;
 struct FRemoteDesc;
 struct FIOReader;
 struct FIOWriter;
@@ -59,6 +60,11 @@ struct FCopyCommand
 	uint64 Size			= 0;
 	uint64 SourceOffset = 0;
 	uint64 TargetOffset = 0;
+
+	struct FCompareBySourceOffset
+	{
+		bool operator()(const FCopyCommand& A, const FCopyCommand& B) const { return A.SourceOffset < B.SourceOffset; }
+	};
 };
 
 struct FNeedBlock : FCopyCommand
@@ -250,22 +256,20 @@ void BuildTarget(FIOWriter&				Result,
 				 const FNeedList&		NeedList,
 				 EStrongHashAlgorithmID StrongHasher,
 				 FProxyPool*			ProxyPool = nullptr,
-				 FBlockCache*			BlockCache = nullptr);
+				 FBlockCache*			BlockCache = nullptr,
+				 FScavengeDatabase*		ScavengeDatabase = nullptr);
 
 FBuffer BuildTargetBuffer(FIOReader&			 SourceProvider,
 						  FIOReader&			 BaseProvider,
 						  const FNeedList&		 NeedList,
-						  EStrongHashAlgorithmID StrongHasher,
-						  FProxyPool*			 ProxyPool = nullptr,
-						  FBlockCache*			 BlockCache = nullptr);
+						  EStrongHashAlgorithmID StrongHasher);
 
 FBuffer BuildTargetBuffer(const uint8*			 SourceData,
 						  uint64				 SourceSize,
 						  const uint8*			 BaseData,
 						  uint64				 BaseSize,
 						  const FNeedList&		 NeedList,
-						  EStrongHashAlgorithmID StrongHasher,
-						  FProxyPool*			 ProxyPool = nullptr);
+						  EStrongHashAlgorithmID StrongHasher);
 
 FBuffer BuildTargetWithPatch(const uint8* PatchData, uint64 PatchSize, const uint8* BaseData, uint64 BaseSize);
 
@@ -292,6 +296,24 @@ enum class EFileSyncStatus
 
 const wchar_t* ToString(EFileSyncStatus Status);
 
+struct FFileSyncTask
+{
+	const FFileManifest* SourceManifest = nullptr;
+	const FFileManifest* BaseManifest	= nullptr;
+	FPath				 OriginalSourceFilePath;
+	FPath				 ResolvedSourceFilePath;
+	FPath				 BaseFilePath;
+	FPath				 TargetFilePath;
+	FPath				 RelativeFilePath;
+	FNeedList			 NeedList;
+
+	uint64 NeedBytesFromSource = 0;
+	uint64 NeedBytesFromBase   = 0;
+	uint64 TotalSizeBytes	   = 0;
+
+	bool IsBaseValid() const { return !BaseFilePath.empty(); }
+};
+
 struct FFileSyncResult
 {
 	EFileSyncStatus Status			= EFileSyncStatus::ErrorUnknown;
@@ -310,6 +332,7 @@ struct FSyncFileOptions
 
 	FProxyPool* ProxyPool = nullptr;
 	FBlockCache* BlockCache = nullptr;
+	FScavengeDatabase* ScavengeDatabase = nullptr;
 
 	bool bValidateTargetFiles = true;  // WARNING: turning this off is intended only for testing/profiling
 };
@@ -356,12 +379,21 @@ enum class ESyncSourceType
 	Server,
 };
 
+enum EBlockListType {
+	Source,
+	Base
+};
+
+void AddGlobalProgress(uint64 Size, EBlockListType ListType);
+
 struct FSyncDirectoryOptions
 {
 	ESyncSourceType	   SourceType;
 	FPath			   Source;	  // remote data location
 	FPath			   Target;	  // output target location
 	FPath			   Base;	  // base data location, which typically is the same as sync target
+	FPath			   ScavengeRoot; // base directory where we may want to find reusable blocks
+	uint32			   ScavengeDepth = 5; // how deep to look for unsync manifests
 	std::vector<FPath> Overlays;  // extra source directories to overlay over primary (add extra files, replace existing files)
 	FPath			   SourceManifestOverride;	// force the manifest to be read from a specified file instead of source directory
 	FSyncFilter*	   SyncFilter = nullptr;	// filter callback for partial sync support

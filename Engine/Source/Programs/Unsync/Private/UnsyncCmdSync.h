@@ -15,6 +15,8 @@ struct FCmdSyncOptions
 	FPath Source;
 	FPath Target;
 	FPath SourceManifestOverride;
+	FPath ScavengeRoot;
+	uint32 ScavengeDepth = 5;
 
 	std::vector<FPath> Overlays;
 

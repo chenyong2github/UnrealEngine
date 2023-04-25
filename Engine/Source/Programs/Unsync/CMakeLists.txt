@@ -55,6 +55,7 @@ set(src
 	Private/UnsyncFile.h
 	Private/UnsyncHash.cpp
 	Private/UnsyncHash.h
+	Private/UnsyncHashTable.h
 	Private/UnsyncHttp.cpp
 	Private/UnsyncHttp.h
 	Private/UnsyncJupiter.cpp
@@ -74,6 +75,8 @@ set(src
 	Private/UnsyncRemote.cpp
 	Private/UnsyncRemote.h
 	Private/UnsyncScan.h
+	Private/UnsyncScavenger.cpp
+	Private/UnsyncScavenger.h
 	Private/UnsyncSerialization.cpp
 	Private/UnsyncSerialization.h
 	Private/UnsyncSocket.cpp

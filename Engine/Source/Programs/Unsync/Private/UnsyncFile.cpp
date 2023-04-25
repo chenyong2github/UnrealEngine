@@ -25,9 +25,9 @@ namespace unsync {
 bool GForceBufferedFiles = false;
 
 // Returns extended absolute path of a form \\?\D:\verylongpath or \\?\UNC\servername\verylongpath
-// Expects an absolute path input.
+// Expects an absolute path input. Returns original path on non-Windows.
 // https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
-static FPath
+FPath
 MakeExtendedAbsolutePath(const FPath& InAbsolutePath)
 {
 	if (InAbsolutePath.empty())
