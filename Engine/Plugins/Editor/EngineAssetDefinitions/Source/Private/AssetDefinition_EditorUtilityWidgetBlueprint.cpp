@@ -4,6 +4,7 @@
 
 #include "Algo/RemoveIf.h"
 #include "ContentBrowserMenuContexts.h"
+#include "EditorUtilityLibrary.h"
 #include "EditorUtilitySubsystem.h"
 #include "EditorUtilityWidgetBlueprint.h"
 #include "IBlutilityModule.h"
@@ -98,6 +99,18 @@ namespace MenuExtension_EditorUtilityWidgetBlueprint
 			}
 		}
 	}
+
+	void ExecuteConvertToEditorUtilityBlueprint(const FToolMenuContext& InContext, TArray<FAssetData> AssetData)
+	{
+		if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InContext))
+		{
+			TArray<UWidgetBlueprint*> WidgetBlueprints = Context->LoadSelectedObjects<UWidgetBlueprint>();
+			for(UWidgetBlueprint* WidgetBP : WidgetBlueprints)
+			{
+				UEditorUtilityLibrary::ConvertToEditorUtilityWidget(WidgetBP);
+			}
+		}
+	}
 	
 	FDelayedAutoRegisterHelper DelayedAutoRegister(EDelayedRegisterRunPhase::EndOfEngineInit,[]
 	{
@@ -132,6 +145,35 @@ namespace MenuExtension_EditorUtilityWidgetBlueprint
 					}
 				}
 			}));
+
+			UToolMenu* WigetBPMenu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.WidgetBlueprint.AssetActionsSubMenu");
+
+			FToolMenuSection& WidgetBPSection = WigetBPMenu->FindOrAddSection("AssetContextAdvancedActions");
+			WidgetBPSection.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+				{
+					if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(InSection))
+					{
+						TArray<FAssetData> SelectedAssets(Context->SelectedAssets);
+
+						const int32 EndOfRange = Algo::StableRemoveIf(SelectedAssets, [](const FAssetData& AssetData)
+							{
+								return !AssetData.IsInstanceOf(UWidgetBlueprint::StaticClass());
+							});
+
+						SelectedAssets.SetNum(EndOfRange);
+
+						if (!SelectedAssets.IsEmpty())
+						{
+							const TAttribute<FText> Label = LOCTEXT("EditorUtilityWidget_Convert", "Convert to Editor Utility Widget");
+							const TAttribute<FText> ToolTip = LOCTEXT("ConvertTooltip", "Convert this Widget Blueprint to an Editor Utility Widget");
+							const FSlateIcon Icon = FSlateIcon();
+
+							FToolUIAction UIAction;
+							UIAction.ExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteConvertToEditorUtilityBlueprint, MoveTemp(SelectedAssets));
+							InSection.AddMenuEntry("EditorUtility_Convert", Label, ToolTip, Icon, UIAction);
+						}
+					}
+				}));
 		}));
 	});
 }

@@ -200,5 +200,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Content Browser")
 	static void SyncBrowserToFolders(const TArray<FString>& FolderList);
+	
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Content Browser")
+	static void ConvertToEditorUtilityWidget(class UWidgetBlueprint* WidgetBP);
 #endif
 };

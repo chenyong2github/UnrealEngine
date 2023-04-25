@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorUtilityLibrary.h"
+#include "Blueprint/WidgetTree.h"
+#include "EditorUtilityWidgetBlueprint.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "GameFramework/Actor.h"
@@ -11,7 +13,10 @@
 #include "IAssetTools.h"
 #include "EditorUtilitySubsystem.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Serialization/ArchiveReplaceObjectRef.h"
+#include "Serialization/FindReferencersArchive.h"
 #include "Templates/SubclassOf.h"
+#include "WidgetBlueprint.h"
 
 #define LOCTEXT_NAMESPACE "BlutilityLevelEditorExtensions"
 
@@ -343,6 +348,75 @@ void UEditorUtilityLibrary::SyncBrowserToFolders(const TArray<FString>& FolderLi
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	ContentBrowserModule.Get().SyncBrowserToFolders( FolderList, false, true );
+}
+
+void UEditorUtilityLibrary::ConvertToEditorUtilityWidget(UWidgetBlueprint* WidgetBP)
+{
+	if (!WidgetBP)
+	{
+		return;
+	}
+
+	if (WidgetBP->IsA<UEditorUtilityWidgetBlueprint>())
+	{
+		return;
+	}
+
+	FName BPName = WidgetBP->GetFName();
+	UObject* Outer = WidgetBP->GetOuter();
+	EObjectFlags Flags = WidgetBP->GetFlags();
+
+	// Rename the blueprint out of the way, create a new EUWBP, and then
+	// put all of the blueprints child objects back 'under it'. The Blueprint
+	// generated calss does not require any updating.
+
+	TArray<struct FEditedDocumentInfo> OriginalEditedDocuments = WidgetBP->LastEditedDocuments;
+	WidgetBP->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors|REN_SkipGeneratedClasses|REN_ForceNoResetLoaders);
+	TArray<UObject*> Children;
+	GetObjectsWithOuter(WidgetBP, Children, false);
+
+	UEditorUtilityWidgetBlueprint* EWBP = NewObject<UEditorUtilityWidgetBlueprint>(Outer, BPName, Flags);
+	if (EWBP->WidgetTree)
+	{
+		// WidgetTree is a DSO created as a side effect of construction,
+		// we just want to use the existing one:
+		EWBP->WidgetTree->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
+		EWBP->WidgetTree = WidgetBP->WidgetTree;
+	}
+	for (UObject* Child : Children)
+	{
+		Child->Rename(nullptr, EWBP, REN_DontCreateRedirectors | REN_SkipGeneratedClasses | REN_ForceNoResetLoaders);
+	}
+
+	UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
+	Params.bPerformDuplication = true;
+	Params.bNotifyObjectReplacement = false;
+	Params.bPreserveRootComponent = false;
+	UEngine::CopyPropertiesForUnrelatedObjects(WidgetBP, EWBP);
+	EWBP->LastEditedDocuments = OriginalEditedDocuments; // mangled by UBlueprint::Rename.. unmangle
+
+	EWBP->GeneratedClass->ClassGeneratedBy = EWBP; // update ClassGeneratedBy on the UClass
+	check(EWBP->GeneratedClass == nullptr || EWBP->GeneratedClass->GetOuter() == EWBP->GetOuter());
+
+	TMap<UObject*, UObject*> OldToNew;
+	OldToNew.Add(WidgetBP, EWBP);
+
+	// Update any references to the UBlueprint itself:
+
+	TArray<UObject*> Targets = { WidgetBP, GetTransientPackage() };
+	FArchiveReplaceObjectRef<UObject> ReplaceReferencesInRoot(EWBP, OldToNew);
+	FFindReferencersArchive Archive(EWBP, Targets);
+	check(Archive.GetReferenceCount(WidgetBP) == 0);
+
+	Children.Reset();
+	GetObjectsWithOuter(EWBP->GetOuter(), Children);
+
+	for (UObject* Child : Children)
+	{
+		FArchiveReplaceObjectRef<UObject> ReplaceReferences(Child, OldToNew);
+		FFindReferencersArchive Archive2(Child, Targets);
+		check(Archive2.GetReferenceCount(WidgetBP) == 0);
+	}
 }
 
 #endif
