@@ -257,6 +257,11 @@ FActorFolderTreeItem::FActorFolderTreeItem(const FFolder& InFolder, const TWeakO
 	FFolderTreeItem::SetPath(InFolder.GetPath());
 	// Initialize ActorFolder
 	ActorFolder = InFolder.GetActorFolder();
+
+	if (World.IsValid())
+	{
+		Flags.bIsExpanded = FActorFolders::Get().IsFolderExpanded(*World, GetFolder());
+	}
 }
 
 void FActorFolderTreeItem::OnExpansionChanged()

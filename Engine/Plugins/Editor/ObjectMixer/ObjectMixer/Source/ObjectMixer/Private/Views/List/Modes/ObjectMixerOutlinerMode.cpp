@@ -1759,13 +1759,6 @@ void FObjectMixerOutlinerMode::OnItemAdded(FSceneOutlinerTreeItemPtr Item)
 			}
 		}
 	}
-	else if (FActorFolderTreeItem* FolderItem = Item->CastTo<FActorFolderTreeItem>())
-	{
-		if (FolderItem->World.IsValid())
-		{
-			FolderItem->Flags.bIsExpanded = FActorFolders::Get().IsFolderExpanded(*FolderItem->World, FolderItem->GetFolder());
-		}
-	}
 	else if (Item->IsA<FActorDescTreeItem>())
 	{
 		if (!Item->Flags.bIsFilteredOut)

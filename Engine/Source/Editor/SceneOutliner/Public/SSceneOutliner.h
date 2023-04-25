@@ -864,14 +864,11 @@ private:
 	/** Structure containing information relating to the expansion state of parent items in the tree */
 	typedef TMap<FSceneOutlinerTreeItemID, bool> FParentsExpansionState;
 	
-	/** Cached expansion state info, in case we need to process >500 items so we don't re-fetch from the partially rebuilt tree */
-	FParentsExpansionState CachedExpansionStateInfo;
+	/** Cached expansion state info */
+	mutable FParentsExpansionState CachedExpansionStateInfo;
 
-	/** Gets the current expansion state of parent items */
-	FParentsExpansionState GetParentsExpansionState() const;
-
-	/** Updates the expansion state of parent items after a repopulate, according to the previous state */
-	void SetParentsExpansionState(const FParentsExpansionState& ExpansionStateInfo) const;
+	/** Updates the expansion state of parent items after a repopulate */
+	void SetParentsExpansionState() const;
 
 private:
 

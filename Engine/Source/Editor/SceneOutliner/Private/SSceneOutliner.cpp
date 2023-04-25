@@ -688,12 +688,6 @@ void SSceneOutliner::Populate()
 	// Block events while we clear out the list
  	TGuardValue<bool> ReentrantGuard(bIsReentrant, true);
 
-	// Get a collection of items and folders which were formerly collapsed
-	if (CachedExpansionStateInfo.Num() == 0)
-	{
-		CachedExpansionStateInfo.Append(GetParentsExpansionState());
-	}
-
 	bool bMadeAnySignificantChanges = false;
 	if (bFullRefresh)
 	{
@@ -763,9 +757,8 @@ void SSceneOutliner::Populate()
 	bool bFinalSort = false;
 	if (PendingOperations.Num() == 0)
 	{
-		SetParentsExpansionState(CachedExpansionStateInfo);
-		CachedExpansionStateInfo.Empty();
-		
+		// Update expansion state based on item states
+		SetParentsExpansionState();
 		// When done processing a FullRefresh Scroll to First item in selection as it may have been
 		// scrolled out of view by the Refresh
 		if (bProcessingFullRefresh)
@@ -1050,38 +1043,19 @@ void SSceneOutliner::AddUnfilteredItemToTree(FSceneOutlinerTreeItemRef Item)
 		RootTreeItems.Add(Item);
 	}
 
+	Item->Flags.bIsExpanded = CachedExpansionStateInfo.FindOrAdd(Item->GetID(), Item->Flags.bIsExpanded);
+	
 	Mode->OnItemAdded(Item);
 }
 
-SSceneOutliner::FParentsExpansionState SSceneOutliner::GetParentsExpansionState() const
-{
-	FParentsExpansionState States;
-	for (const auto& Pair : TreeItemMap)
-	{
-		if (Pair.Value->GetChildren().Num())
-		{
-			States.Add(Pair.Key, Pair.Value->Flags.bIsExpanded);
-		}
-	}
-	return States;
-}
-
-void SSceneOutliner::SetParentsExpansionState(const FParentsExpansionState& ExpansionStateInfo) const
+void SSceneOutliner::SetParentsExpansionState() const
 {
 	for (const auto& Pair : TreeItemMap)
 	{
 		auto& Item = Pair.Value;
 		if (Item->GetChildren().Num())
 		{
-			const bool* bIsExpanded = ExpansionStateInfo.Find(Pair.Key);
-			if (bIsExpanded)
-			{
-				OutlinerTreeView->SetItemExpansion(Item, *bIsExpanded);
-			}
-			else
-			{
-				OutlinerTreeView->SetItemExpansion(Item, Item->Flags.bIsExpanded);
-			}
+			OutlinerTreeView->SetItemExpansion(Item, Item->Flags.bIsExpanded);
 		}
 	}
 }
@@ -1984,6 +1958,9 @@ void SSceneOutliner::OnItemExpansionChanged(FSceneOutlinerTreeItemPtr TreeItem, 
 			OutlinerTreeView->SetItemExpansion(Child, true);
 		}
 	}
+
+	// Notify Mode
+	CachedExpansionStateInfo.Add(TreeItem->GetID(), TreeItem->Flags.bIsExpanded);
 }
 
 void SSceneOutliner::OnHierarchyChangedEvent(FSceneOutlinerHierarchyChangedData Event)
