@@ -3515,7 +3515,7 @@ void SSourceControlChangelistsWidget::OnColumnSortModeChanged(const EColumnSortP
 	}
 
 	SortFileView();
-	FileListView->RequestListRefresh();
+	GetActiveFileListView().RequestListRefresh();
 }
 
 bool SSourceControlChangelistsWidget::IsFileViewSortedByFileStatusIcon() const
