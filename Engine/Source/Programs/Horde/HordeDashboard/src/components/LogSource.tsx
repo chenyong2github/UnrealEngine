@@ -196,8 +196,8 @@ export abstract class LogSource {
 
       if (this.active) {
          this.pollID = setTimeout(() => { this.poll(); }, this.pollMS);
-      } 
-      
+      }
+
       if (this.polling) {
          return;
       }
@@ -250,7 +250,7 @@ export abstract class LogSource {
    }
 
    @observable
-   logItemsUpdated = 0;      
+   logItemsUpdated = 0;
 
    get logItems(): LogItem[] {
       // subscribe
@@ -306,10 +306,19 @@ export class JobLogSource extends LogSource {
 
             const details = this.jobDetails;
 
-            const done = () => {
+
+            const done = async () => {
+
                if (details.fatalError) {
                   this.setFatalError(details.fatalError);
                }
+
+               if (this.logData?.id) {
+                  this.setActive(details.getLogActive(this.logData.id));
+               }
+
+               await this.updateArtifacts();
+
                this.detailsUpdated();
                this.refreshJobData();
                this.initComplete();
@@ -391,6 +400,25 @@ export class JobLogSource extends LogSource {
 
    }
 
+   private async updateArtifacts() {
+      const details = this.jobDetails;
+
+      if (!details.jobdata?.useArtifactsV2 || this.artifactsV2 !== undefined || !this.logData?.id || details.getLogActive(this.logData.id)) {
+         return;
+      }
+
+      const step = details.getSteps().find(s => s.logId === this.logId);
+      if (step) {
+         const key = `job:${details.id!}/step:${step.id}`;
+         try {
+            const v = await backend.getJobArtifactsV2(undefined, [key]);
+            this.artifactsV2 = v.artifacts;
+         } catch (err) {
+            console.error(err);
+         }
+      }
+   }
+
    private async detailsUpdated() {
 
       const details = this.jobDetails;
@@ -405,18 +433,7 @@ export class JobLogSource extends LogSource {
       const active = details.getLogActive(this.logData!.id);
 
       if (this.active !== active) {
-         
-         const step = details.getSteps().find(s => s.logId === this.logId);
-         if (step) {
-            const key = `job:${details.id!}/step:${step.id}`;
-            try {
-               const v = await backend.getJobArtifactsV2(undefined, [key]);
-               this.artifactsV2 = v.artifacts;
-            } catch (err) {
-               console.error(err);
-            }                   
-         }
-
+         await this.updateArtifacts();
          this.setActive(active);
       }
    }

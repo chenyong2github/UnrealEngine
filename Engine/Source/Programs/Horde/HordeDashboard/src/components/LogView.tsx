@@ -206,7 +206,7 @@ const StepHistoryModal: React.FC<{ jobDetails: JobDetails, stepId: string | unde
       })
 
       return <Modal isOpen={true} styles={{ main: { padding: 8, width: 1084, height: '624px', backgroundColor: '#FFFFFF' } }} className={hordeClasses.modal} onDismiss={() => { onClose() }}>
-         <Stack style={{paddingTop: 24}} horizontalAlign='center' tokens={{childrenGap: 18}}>
+         <Stack style={{ paddingTop: 24 }} horizontalAlign='center' tokens={{ childrenGap: 18 }}>
             <Stack>
                <Text variant='mediumPlus'>Loading Step History</Text>
             </Stack>
@@ -428,6 +428,19 @@ const StepArtifactsModal: React.FC<{ jobDetails: JobDetails, stepId: string | un
       </Stack>
    </Modal>);
 
+});
+
+const LogProgressIndicator: React.FC<{ logSource: LogSource }> = observer(({ logSource }) => {
+
+   // subscribe
+   const details = (logSource as JobLogSource).jobDetails;
+   if (details?.updated) { }
+
+   const percentComplete = logSource.percentComplete;
+
+   return <Stack>
+      <ProgressIndicator percentComplete={percentComplete} barHeight={2} styles={{ root: { paddingLeft: 12, width: 364 } }} />
+   </Stack>
 });
 
 
@@ -820,9 +833,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
 
       }
 
-   }
-
-   const percentComplete = logSource.percentComplete;
+   }   
 
    // we need job details here, though need to make a better accessor
    const fixme = (logSource as any).jobDetails as JobDetails | undefined;
@@ -1061,7 +1072,7 @@ export const LogList: React.FC<{ logId: string }> = observer(({ logId }) => {
 
                      </Stack>
                      <Stack horizontal >
-                        {logSource.active && <ProgressIndicator percentComplete={percentComplete} barHeight={2} styles={{ root: { paddingLeft: 12, width: 364 } }} />}
+                        {logSource.active && <LogProgressIndicator logSource={logSource} />}
                      </Stack>
                   </Stack>
 

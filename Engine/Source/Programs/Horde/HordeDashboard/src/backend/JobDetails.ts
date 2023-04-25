@@ -20,7 +20,7 @@ export type JobLabel = GetLabelResponse & {
 const defaultUpdateMS = 5000;
 
 /**
- * @deprecated This class evolved over time to be a fragile grab bag of methods related to jobs.  
+ * @deprecated This class evolved over time to be a fragile grab bag of methods related to jobs.
  */
 export class JobDetails {
 
@@ -751,7 +751,7 @@ export class JobDetails {
             }
 
         });
-        
+
         this.jobdata?.batches?.forEach(b => {
             b.steps.forEach(s => s.reports?.forEach(r => {
                 if (s.id === this.stepId) {
@@ -806,9 +806,26 @@ export class JobDetails {
 
             // job timing is very expensive, don't delay load for it until we have job data
             if (this.jobdata) {
-                doTiming = !this.updateTimingInfo;
-                this.updateTimingInfo++;
-                this.updateTimingInfo %= 3;
+
+                let skip = false;
+                if (this.isLogView && this.logId) {
+
+                    if (!this.getLogActive(this.logId)) {
+                        // skippinng timing info on finished log, it is only used for projected finish time
+                        skip = true;                        
+                    }
+
+                    if (this.updateTimingInfo) {
+                        //skippinng timing info already loaded
+                        skip = true;
+                    }
+                }
+
+                if (!skip) {
+                    doTiming = !this.updateTimingInfo;
+                    this.updateTimingInfo++;
+                    this.updateTimingInfo %= 3;
+                }
             }
 
             if (doTiming) {
@@ -1172,7 +1189,7 @@ export const getStepSummaryMarkdown = (jobDetails: JobDetails, stepId: string): 
             aborted += ` by ${jobDetails.jobdata?.abortedByUserInfo.name}.`;
         } else {
             aborted = "The step was canceled";
-            
+
             if (step.error === JobStepError.TimedOut) {
                 aborted = "The step was canceled due to reaching the maximum run time limit";
             }
