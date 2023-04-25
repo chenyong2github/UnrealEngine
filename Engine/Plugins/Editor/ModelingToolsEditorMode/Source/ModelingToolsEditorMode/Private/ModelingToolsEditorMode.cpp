@@ -89,6 +89,7 @@
 #include "ConvertMeshesTool.h"
 #include "SplitMeshesTool.h"
 #include "PatternTool.h"
+#include "TriangulateSplinesTool.h"
 
 #include "Polymodeling/ExtrudeMeshSelectionTool.h"
 #include "Polymodeling/OffsetMeshSelectionTool.h"
@@ -235,10 +236,14 @@ bool UModelingToolsEditorMode::CanAutoSave() const
 
 bool UModelingToolsEditorMode::ShouldDrawWidget() const
 { 
-	// hide standard xform gizmo if we have an active tool
+	// hide standard xform gizmo if we have an active tool, unless it explicitly opts in via the IInteractiveToolEditorGizmoAPI
 	if (GetInteractiveToolsContext() != nullptr && GetToolManager()->HasAnyActiveTool())
 	{
-		return false;
+		IInteractiveToolEditorGizmoAPI* GizmoAPI = Cast<IInteractiveToolEditorGizmoAPI>(GetToolManager()->GetActiveTool(EToolSide::Left));
+		if (!GizmoAPI || !GizmoAPI->GetAllowStandardEditorGizmos())
+		{
+			return false;
+		}
 	}
 
 	// hide standard xform gizmo if we have an active selection
@@ -572,6 +577,9 @@ void UModelingToolsEditorMode::Enter()
 
 	auto CubeGridToolBuilder = NewObject<UCubeGridToolBuilder>();
 	RegisterTool(ToolManagerCommands.BeginCubeGridTool, TEXT("BeginCubeGridTool"), CubeGridToolBuilder);
+
+	auto TriangulateSplinesToolBuilder = NewObject<UTriangulateSplinesToolBuilder>();
+	RegisterTool(ToolManagerCommands.BeginTriangulateSplinesTool, TEXT("BeginTriangulateSplinesTool"), TriangulateSplinesToolBuilder);
 
 	//
 	// vertex deform tools

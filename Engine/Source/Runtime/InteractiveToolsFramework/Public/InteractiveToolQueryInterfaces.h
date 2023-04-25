@@ -151,3 +151,28 @@ class IInteractiveToolExclusiveToolAPI
 
 
 
+// UInterface for IInteractiveToolEditorGizmoAPI
+UINTERFACE(MinimalAPI)
+class UInteractiveToolEditorGizmoAPI : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * IInteractiveToolEditorGizmoAPI provides an API to indicate whether
+ * the standard editor gizmos can be enabled while this tool is active.
+ */
+class IInteractiveToolEditorGizmoAPI
+{
+	GENERATED_BODY()
+public:
+
+	/**
+	 * @return true if the tool implementing this API allows the editor gizmos to be enabled while the tool is active
+	 */
+	virtual bool GetAllowStandardEditorGizmos() { return false; }
+};
+
+
+
+

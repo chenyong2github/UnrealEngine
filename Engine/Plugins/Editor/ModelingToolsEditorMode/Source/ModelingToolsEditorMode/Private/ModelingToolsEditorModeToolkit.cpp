@@ -256,7 +256,8 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 
 		Commands.BeginDrawPolygonTool,
 		Commands.BeginDrawPolyPathTool,
-		Commands.BeginDrawAndRevolveTool
+		Commands.BeginDrawAndRevolveTool,
+		Commands.BeginTriangulateSplinesTool
 	});
 	ToolkitBuilder->AddPalette(
 		MakeShareable( new FToolPalette( Commands.LoadCreateTools.ToSharedRef(), CreatePaletteItems ) ) );
