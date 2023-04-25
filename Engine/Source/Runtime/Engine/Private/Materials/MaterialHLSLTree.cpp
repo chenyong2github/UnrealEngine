@@ -1394,6 +1394,7 @@ void FEmitData::AddInterpolator(const FExpression* Expression, const FRequestedT
 		InterpolatorIndex = VertexInterpolators.Emplace(Expression);
 	}
 
+	bool bAnyComponentRequested = false;
 	const Shader::FType LocalType = PreparedType.GetResultType();
 	FVertexInterpolator& Interpolator = VertexInterpolators[InterpolatorIndex];
 	Interpolator.RequestedType = FRequestedType(RequestedType, false);
@@ -1407,8 +1408,14 @@ void FEmitData::AddInterpolator(const FExpression* Expression, const FRequestedT
 			{
 				// Only request components that need 'Shader' evaluation
 				Interpolator.RequestedType.SetComponentRequest(ComponentIndex);
+				bAnyComponentRequested = true;
 			}
 		}
+	}
+
+	if (bAnyComponentRequested && CachedExpressionData)
+	{
+		CachedExpressionData->bHasVertexInterpolator = true;
 	}
 }
 
