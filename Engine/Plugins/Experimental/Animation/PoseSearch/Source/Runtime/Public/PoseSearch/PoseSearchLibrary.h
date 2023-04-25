@@ -42,7 +42,7 @@ struct POSESEARCH_API FMotionMatchingState
 	// Internally stores the 'jump' to a new pose/sequence index and asset time for evaluation
 	void JumpToPose(const FAnimationUpdateContext& Context, const UE::PoseSearch::FSearchResult& Result, int32 MaxActiveBlends, float BlendTime);
 
-	void UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FFloatInterval& PlayRate);
+	void UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FFloatInterval& PlayRate, float TrajectorySpeedMultiplier);
 
 	UE::PoseSearch::FSearchResult CurrentSearchResult;
 
@@ -93,10 +93,11 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 		bool bSearch);
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 
-	static FPoseSearchQueryTrajectory GetCharacterRelativeTrajectory(
+	static FPoseSearchQueryTrajectory ProcessTrajectory(
 		const FPoseSearchQueryTrajectory& Trajectory,
 		const FTransform& OwnerTransformWS,
-		const FTransform& ComponentTransformWS);
+		const FTransform& ComponentTransformWS,
+		float TrajectorySpeedMultiplier);
 
 public:
 	/**
@@ -121,6 +122,7 @@ public:
 		const FAnimationUpdateContext& Context,
 		const TArray<TObjectPtr<const UPoseSearchDatabase>>& Databases,
 		const FPoseSearchQueryTrajectory& Trajectory,
+		float TrajectorySpeedMultiplier,
 		float BlendTime,
 		int32 MaxActiveBlends,
 		float PoseJumpThresholdTime,
@@ -139,8 +141,9 @@ public:
 	* @param AnimInstance					Input animation instance
 	* @param Database						Input database to search
 	* @param Trajectory						Input motion trajectory samples for pose search queries. Expected to be in the space of the SkeletalMeshComponent. This is provided with the CharacterMovementTrajectory Component output.
+	* @param TrajectorySpeedMultiplier		Input Trajectory velocity will be multiplied by TrajectorySpeedMultiplier: values below 1 will result in selecting animation slower than requested from the original Trajectory
 	* @param PoseHistoryName				Input tag of the associated PoseSearchHistoryCollector node in the anim graph
-	* @param SelectedAnimation				Output selected animation from the searchable asset
+	* @param SelectedAnimation				Output selected animation from the Database asset
 	* @param SelectedTime					Output selected animation time
 	* @param bLoop							Output selected animation looping state
 	* @param bIsMirrored					Output selected animation mirror state
@@ -156,6 +159,7 @@ public:
 		UAnimInstance* AnimInstance,
 		const UPoseSearchDatabase* Database,
 		const FPoseSearchQueryTrajectory Trajectory,
+		float TrajectorySpeedMultiplier,
 		const FName PoseHistoryName,
 		UAnimationAsset*& SelectedAnimation,
 		float& SelectedTime,

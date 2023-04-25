@@ -114,6 +114,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		Context,
 		DatabasesToSearch,
 		Trajectory,
+		TrajectorySpeedMultiplier,
 		BlendTime,
 		MaxActiveBlends,
 		PoseJumpThresholdTime,

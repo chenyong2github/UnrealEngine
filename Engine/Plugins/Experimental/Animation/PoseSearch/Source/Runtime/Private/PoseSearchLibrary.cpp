@@ -109,7 +109,7 @@ void FMotionMatchingState::JumpToPose(const FAnimationUpdateContext& Context, co
 	bJumpedToPose = true;
 }
 
-void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FFloatInterval& PlayRate)
+void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FFloatInterval& PlayRate, float TrajectorySpeedMultiplier)
 {
 	if (CurrentSearchResult.IsValid())
 	{
@@ -132,6 +132,10 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 						*GetNameSafe(CurrentSearchResult.Database->Schema));
 				}
 			}
+		}
+		else if (!FMath::IsNearlyZero(TrajectorySpeedMultiplier))
+		{
+			WantedPlayRate = 1.f / TrajectorySpeedMultiplier;
 		}
 	}
 }
@@ -249,6 +253,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,
 	const TArray<TObjectPtr<const UPoseSearchDatabase>>& Databases,
 	const FPoseSearchQueryTrajectory& Trajectory,
+	float TrajectorySpeedMultiplier,
 	float BlendTime,
 	int32 MaxActiveBlends,
 	float PoseJumpThresholdTime,
@@ -294,7 +299,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		QueryMirrorRequest = CurrentIndexAsset->bMirrored ? EPoseSearchBooleanRequest::TrueValue : EPoseSearchBooleanRequest::FalseValue;
 	}
 
-	const FPoseSearchQueryTrajectory TrajectoryCS = GetCharacterRelativeTrajectory(Trajectory, Context.AnimInstanceProxy->GetActorTransform(), Context.AnimInstanceProxy->GetComponentTransform());
+	const FPoseSearchQueryTrajectory TrajectoryCS = ProcessTrajectory(Trajectory, Context.AnimInstanceProxy->GetActorTransform(), Context.AnimInstanceProxy->GetComponentTransform(), TrajectorySpeedMultiplier);
 	FSearchContext SearchContext(&TrajectoryCS, History, 0.f, &InOutMotionMatchingState.PoseIndicesHistory, QueryMirrorRequest, 
 		InOutMotionMatchingState.CurrentSearchResult, PoseJumpThresholdTime, bForceInterrupt, InOutMotionMatchingState.CanAdvance(DeltaTime));
 
@@ -341,13 +346,13 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 			InOutMotionMatchingState.CurrentSearchResult.PoseCost = ContinuingPoseCost;
 			InOutMotionMatchingState.CurrentSearchResult.ContinuingPoseCost = ContinuingPoseCost;
 		}
-
-		InOutMotionMatchingState.UpdateWantedPlayRate(SearchContext, PlayRate);
 	}
 	else
 	{
 		InOutMotionMatchingState.ElapsedPoseSearchTime += DeltaTime;
 	}
+
+	InOutMotionMatchingState.UpdateWantedPlayRate(SearchContext, PlayRate, TrajectorySpeedMultiplier);
 
 	InOutMotionMatchingState.PoseIndicesHistory.Update(InOutMotionMatchingState.CurrentSearchResult, DeltaTime, PoseReselectHistory);
 
@@ -391,12 +396,20 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 #endif
 }
 
-// transforms Trajectory from the SkeletalMeshComponent relative space into Character relative space
-FPoseSearchQueryTrajectory UPoseSearchLibrary::GetCharacterRelativeTrajectory(const FPoseSearchQueryTrajectory& Trajectory, const FTransform& OwnerTransformWS, const FTransform& ComponentTransformWS)
+// transforms Trajectory from the SkeletalMeshComponent relative space into Character relative space, and scale it by TrajectorySpeedMultiplier
+FPoseSearchQueryTrajectory UPoseSearchLibrary::ProcessTrajectory(const FPoseSearchQueryTrajectory& Trajectory, const FTransform& OwnerTransformWS, const FTransform& ComponentTransformWS, float TrajectorySpeedMultiplier)
 {
 	const FTransform ReferenceChangeTransform = OwnerTransformWS.GetRelativeTransform(ComponentTransformWS);
 	FPoseSearchQueryTrajectory TrajectoryCS = Trajectory;
 	TrajectoryCS.TransformReferenceFrame(ReferenceChangeTransform);
+
+	if (!FMath::IsNearlyEqual(TrajectorySpeedMultiplier, 1.f) && !FMath::IsNearlyZero(TrajectorySpeedMultiplier))
+	{
+		for (FPoseSearchQueryTrajectorySample& Sample : TrajectoryCS.Samples)
+		{
+			Sample.AccumulatedSeconds /= TrajectorySpeedMultiplier;
+		}
+	}
 	return TrajectoryCS;
 }
 
@@ -404,6 +417,7 @@ void UPoseSearchLibrary::MotionMatch(
 	UAnimInstance* AnimInstance,
 	const UPoseSearchDatabase* Database,
 	const FPoseSearchQueryTrajectory Trajectory,
+	float TrajectorySpeedMultiplier,
 	const FName PoseHistoryName,
 	UAnimationAsset*& SelectedAnimation,
 	float& SelectedTime,
@@ -442,7 +456,7 @@ void UPoseSearchLibrary::MotionMatch(
 
 	if (Database)
 	{
-		const FPoseSearchQueryTrajectory TrajectoryCS = GetCharacterRelativeTrajectory(Trajectory, AnimInstance->GetOwningActor()->GetActorTransform(), AnimInstance->GetOwningComponent()->GetComponentTransform());
+		const FPoseSearchQueryTrajectory TrajectoryCS = ProcessTrajectory(Trajectory, AnimInstance->GetOwningActor()->GetActorTransform(), AnimInstance->GetOwningComponent()->GetComponentTransform(), TrajectorySpeedMultiplier);
 
 		// ExtendedPoseHistory will hold future poses to match AssetSamplerBase (at FutureAnimationStartTime) TimeToFutureAnimationStart seconds in the future
 		FExtendedPoseHistory ExtendedPoseHistory;
