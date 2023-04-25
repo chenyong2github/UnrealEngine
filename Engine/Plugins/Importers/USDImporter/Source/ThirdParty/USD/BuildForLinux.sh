@@ -172,8 +172,8 @@ ENGINE_BINARIES_LOCATION="$UE_ENGINE_LOCATION/Binaries/Linux"
 
 # The USD Python modules link first against the USD libraries within the plugin
 # directory followed by libraries in the engine binaries.
-PYTHON_TO_USD_LIBS_REL_PATH=`python -c "import os.path; print os.path.relpath('$USD_LIBS_LOCATION', '$USD_PYTHON_MODULE_LOCATION')"`
-PYTHON_TO_ENGINE_BINARIES_REL_PATH=`python -c "import os.path; print os.path.relpath('$ENGINE_BINARIES_LOCATION', '$USD_PYTHON_MODULE_LOCATION')"`
+PYTHON_TO_USD_LIBS_REL_PATH=`python -c "import os.path; print(os.path.relpath('$USD_LIBS_LOCATION', '$USD_PYTHON_MODULE_LOCATION'))"`
+PYTHON_TO_ENGINE_BINARIES_REL_PATH=`python -c "import os.path; print(os.path.relpath('$ENGINE_BINARIES_LOCATION', '$USD_PYTHON_MODULE_LOCATION'))"`
 
 for PY_SHARED_LIB in `find $INSTALL_CONTENT_LOCATION -name '*.so'`
 do
@@ -182,7 +182,7 @@ done
 
 # The USD libraries link first against sibling libraries in the same directory
 # followed by libraries in the engine binaries.
-USD_LIBS_TO_ENGINE_BINARIES_REL_PATH=`python -c "import os.path; print os.path.relpath('$ENGINE_BINARIES_LOCATION', '$USD_LIBS_LOCATION')"`
+USD_LIBS_TO_ENGINE_BINARIES_REL_PATH=`python -c "import os.path; print(os.path.relpath('$ENGINE_BINARIES_LOCATION', '$USD_LIBS_LOCATION'))"`
 
 for USD_SHARED_LIB in `find $INSTALL_LIB_LOCATION -name '*.so'`
 do
