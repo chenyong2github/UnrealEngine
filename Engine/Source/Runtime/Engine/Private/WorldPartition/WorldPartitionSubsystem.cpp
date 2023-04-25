@@ -16,6 +16,8 @@
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "Engine/Canvas.h"
 #include "Engine/CoreSettings.h"
+#include "Engine/LevelStreaming.h"
+#include "Streaming/LevelStreamingDelegates.h"
 #include "Engine/LevelBounds.h"
 #include "Debug/DebugDrawService.h"
 #include "GameFramework/PlayerController.h"
@@ -405,6 +407,7 @@ void UWorldPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	GetWorld()->OnWorldPartitionInitialized().AddUObject(this, &UWorldPartitionSubsystem::OnWorldPartitionInitialized);
 	GetWorld()->OnWorldPartitionUninitialized().AddUObject(this, &UWorldPartitionSubsystem::OnWorldPartitionUninitialized);
+	FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.AddUObject(this, &UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged);
 }
 
 void UWorldPartitionSubsystem::Deinitialize()
@@ -419,6 +422,7 @@ void UWorldPartitionSubsystem::Deinitialize()
 
 	GetWorld()->OnWorldPartitionInitialized().RemoveAll(this);
 	GetWorld()->OnWorldPartitionUninitialized().RemoveAll(this);
+	FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.RemoveAll(this);
 
 	// At this point World Partition should be uninitialized
 	check(!GetWorldPartition() || !GetWorldPartition()->IsInitialized());
@@ -482,6 +486,25 @@ void UWorldPartitionSubsystem::OnWorldPartitionUninitialized(UWorldPartition* In
 		{
 			UDebugDrawService::Unregister(DrawHandle);
 			DrawHandle.Reset();
+		}
+	}
+}
+
+void UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged(UWorld* World, const ULevelStreaming* StreamingLevel, ULevel* LevelIfLoaded, ELevelStreamingState CurrentState, ELevelStreamingTargetState PrevTarget, ELevelStreamingTargetState NewTarget)
+{
+	if (World != GetWorld())
+	{
+		return;
+	}
+
+	// Make sure when a WorldPartiton is LevelStreamed that changing its state to remove it from world will update the target states of its Cells right away.
+	if(LevelIfLoaded && NewTarget != ELevelStreamingTargetState::LoadedVisible)
+	{
+		// At this point the StreamingLevel should not be visible or the global flag on the world should have been set to unload all streaming levels
+		ensure(!StreamingLevel->ShouldBeVisible() || World->GetShouldForceUnloadStreamingLevels());
+		if (UWorldPartition* WorldPartition = LevelIfLoaded->GetTypedOuter<UWorld>()->GetWorldPartition(); WorldPartition && WorldPartition->IsInitialized())
+		{
+			WorldPartition->UpdateStreamingState();
 		}
 	}
 }

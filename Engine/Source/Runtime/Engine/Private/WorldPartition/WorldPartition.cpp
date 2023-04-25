@@ -17,6 +17,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "LandscapeProxy.h"
+#include "Engine/LevelStreaming.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartition)
 
@@ -766,9 +767,26 @@ bool UWorldPartition::IsStreamingEnabled() const
 
 bool UWorldPartition::CanStream() const
 {
-	// WorldPartition can't stream if not initialized or it it's part of a partitioned 
-	// sub-level that was removed from its owning world.
-	return IsInitialized() && (GetTypedOuter<UWorld>()->PersistentLevel->GetWorld() != nullptr);
+	if (!IsInitialized())
+	{
+		return false;
+	}
+
+	const ULevel* PersistentLevel = GetTypedOuter<UWorld>()->PersistentLevel;
+	// Is it a level streamed World Partition that was removed from its owning world
+	// or is the World requesting unloading of all streaming levels.
+	if (!PersistentLevel->GetWorld() || PersistentLevel->GetWorld()->GetShouldForceUnloadStreamingLevels())
+	{
+		return false;
+	}
+		
+	// Is it part of a Sub-level that should be visible.
+	if (ULevelStreaming* LevelStreaming = ULevelStreaming::FindStreamingLevel(PersistentLevel))
+	{
+		return LevelStreaming->ShouldBeVisible();
+	}
+
+	return true;
 }
 
 bool UWorldPartition::IsMainWorldPartition() const

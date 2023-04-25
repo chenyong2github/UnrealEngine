@@ -16,6 +16,8 @@ class UActorDescContainer;
 class FWorldPartitionActorDesc;
 
 enum class EWorldPartitionRuntimeCellState : uint8;
+enum class ELevelStreamingState : uint8;
+enum class ELevelStreamingTargetState : uint8;
 
 /**
  * Helper to compute streaming source velocity based on position history.
@@ -160,6 +162,7 @@ private:
 
 	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
 	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
+	void OnLevelStreamingTargetStateChanged(UWorld* World, const ULevelStreaming* StreamingLevel, ULevel* LevelIfLoaded, ELevelStreamingState CurrentState, ELevelStreamingTargetState PrevTarget, ELevelStreamingTargetState NewTarget);
 
 	UWorldPartition* GetWorldPartition();
 	const UWorldPartition* GetWorldPartition() const;
