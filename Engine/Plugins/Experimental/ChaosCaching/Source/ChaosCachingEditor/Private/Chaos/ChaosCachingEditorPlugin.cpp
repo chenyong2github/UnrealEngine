@@ -340,9 +340,7 @@ void IChaosCachingEditorPlugin::OnCreateCacheManager()
 
 				check(Manager);
 
-				const FObservedComponent* Existing = Manager->GetObservedComponents().FindByPredicate([PrimitiveComp](const FObservedComponent& InItem) {
-					return InItem.GetComponent() == PrimitiveComp;
-				});
+				const FObservedComponent* Existing = Manager->FindObservedComponent(PrimitiveComp);
 
 				if(!Existing)
 				{

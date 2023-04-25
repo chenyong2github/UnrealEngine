@@ -125,8 +125,12 @@ struct CHAOSCACHING_API FObservedComponent
 	bool IsEnabled(ECacheMode CacheMode) const;
 
 	/** Gets the component from the internal component ref */
-	UPrimitiveComponent* GetComponent();
-	UPrimitiveComponent* GetComponent() const;
+	UPrimitiveComponent* GetComponent(AActor* OwningActor);
+	UPrimitiveComponent* GetComponent(AActor* OwningActor) const;
+	UE_DEPRECATED(5.3, "Use GetComponent(OwningActor) instead.")
+	UPrimitiveComponent* GetComponent() { return GetComponent(nullptr); }
+	UE_DEPRECATED(5.3, "Use GetComponent(OwningActor) instead.")
+	UPrimitiveComponent* GetComponent() const { return GetComponent(nullptr); }
 
 private:
 	friend class AChaosCacheManager;
