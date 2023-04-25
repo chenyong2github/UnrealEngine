@@ -401,6 +401,7 @@ struct FPropertyAccessLibrary
 
 	FPropertyAccessLibrary() = default;
 
+	ENGINE_API FPropertyAccessLibrary(const FPropertyAccessLibrary& Other);
 	ENGINE_API const FPropertyAccessLibrary& operator =(const FPropertyAccessLibrary& Other);
 
 private:

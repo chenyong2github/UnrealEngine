@@ -675,6 +675,9 @@ struct FPropertyAccessSystem
 	}	
 };
 
+// Unlike the copy assignment operator, the copy constructor doesn't take a lock
+FPropertyAccessLibrary::FPropertyAccessLibrary(const FPropertyAccessLibrary& Other) = default;
+
 const FPropertyAccessLibrary& FPropertyAccessLibrary::operator =(const FPropertyAccessLibrary& Other)
 {
 	// Need to perform a lock as copying can race with PatchPropertyOffsets in async loading thread-enabled builds
