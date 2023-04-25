@@ -53,6 +53,13 @@ namespace UE::NNECore
 
 	public:
 		/**
+		 * Construct this symbolic tensor shape from another one.
+		 * 
+		 * @param OtherShape the other symbolic tensor shape to copy from.
+		 */
+		FSymbolicTensorShape(const FSymbolicTensorShape& OtherShape) = default;
+
+		/**
 		 * Construct a symbolic tensor shape with the given dimensions.
 		 *
 		 * @param Data an array of dimensions.
@@ -122,6 +129,13 @@ namespace UE::NNECore
 		TArray<uint32, TInlineAllocator<MaxRank>> Data;
 
 	public:
+
+		/**
+		 * Construct this tensor shape from another one.
+		 * @param OtherShape the other tensor shape to copy from.
+		 */
+		FTensorShape(const FTensorShape& OtherShape) = default;
+
 		/**
 		 * Construct a tensor shape with the given dimensions.
 		 *
