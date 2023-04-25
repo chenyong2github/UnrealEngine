@@ -23,8 +23,6 @@ struct FAnimNotifyEventReference
 
 	FAnimNotifyEventReference() = default;
 
-	FAnimNotifyEventReference(const FAnimNotifyEventReference& rhs) = default;
-
 	FAnimNotifyEventReference(const FAnimNotifyEvent* InNotify, const UObject* InNotifySource)
 		: Notify(InNotify)
 		, MirrorTable(nullptr)
