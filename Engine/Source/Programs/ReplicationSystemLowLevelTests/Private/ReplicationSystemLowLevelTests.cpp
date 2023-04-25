@@ -35,6 +35,9 @@ namespace
 
 GROUP_BEFORE_GLOBAL(Catch::DefaultGroup)
 {
+	// Add command-line options always needed for the tests
+	FCommandLine::Append(TEXT(" -nullrhi -unattended"));
+
 	// Initialize trace
 	FString Parameter;
 	if (FParse::Value(FCommandLine::Get(), TEXT("-trace="), Parameter, false))
