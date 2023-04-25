@@ -274,13 +274,13 @@ TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(const FVer
 	TArray<UNiagaraGraph*> GraphsToTraverse;
 	
 	GraphsToTraverse.Add(Cast<UNiagaraScriptSource>(BaseEmitter.GetEmitterData()->GraphSource)->NodeGraph);
-	UNiagaraSystem* System = BaseEmitter.Emitter->GetTypedOuter<UNiagaraSystem>();
-	GraphsToTraverse.Add(Cast<UNiagaraScriptSource>(System->GetSystemUpdateScript()->GetLatestSource())->NodeGraph);
 
 	TSet<FNiagaraVariableBase> Vars;
 
-	if (System)
+	if(UNiagaraSystem* System = BaseEmitter.Emitter->GetTypedOuter<UNiagaraSystem>())
 	{
+    	GraphsToTraverse.Add(Cast<UNiagaraScriptSource>(System->GetSystemUpdateScript()->GetLatestSource())->NodeGraph);
+	
 		for (const FNiagaraVariable UserParameter : System->GetExposedParameters().ReadParameterVariables())
 		{
 			Vars.Add(UserParameter);
