@@ -10,11 +10,6 @@ FRigVMFunction_AlphaInterp_Execute()
 	ScaleBiasClamp.bClampResult = bClampResult;
 	ScaleBiasClamp.bInterpResult = bInterpResult;
 
-	if (ScaleBiasClamp.bInitialized)
-	{
-		ScaleBiasClamp.Reinitialize();
-	}
-
 	ScaleBiasClamp.InRange = InRange;
 	ScaleBiasClamp.OutRange = OutRange;
 	ScaleBiasClamp.ClampMin = ClampMin;
@@ -55,11 +50,6 @@ FRigVMFunction_AlphaInterpVector_Execute()
 	ScaleBiasClamp.bMapRange = bMapRange;
 	ScaleBiasClamp.bClampResult = bClampResult;
 	ScaleBiasClamp.bInterpResult = bInterpResult;
-
-	if (ScaleBiasClamp.bInitialized)
-	{
-		ScaleBiasClamp.Reinitialize();
-	}
 
 	ScaleBiasClamp.InRange = InRange;
 	ScaleBiasClamp.OutRange = OutRange;
@@ -103,11 +93,6 @@ FRigVMFunction_AlphaInterpQuat_Execute()
 	ScaleBiasClamp.bMapRange = bMapRange;
 	ScaleBiasClamp.bClampResult = bClampResult;
 	ScaleBiasClamp.bInterpResult = bInterpResult;
-
-	if (ScaleBiasClamp.bInitialized)
-	{
-		ScaleBiasClamp.Reinitialize();
-	}
 
 	ScaleBiasClamp.InRange = InRange;
 	ScaleBiasClamp.OutRange = OutRange;
