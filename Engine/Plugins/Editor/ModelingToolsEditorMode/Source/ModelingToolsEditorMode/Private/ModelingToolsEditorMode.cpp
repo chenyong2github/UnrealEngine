@@ -44,6 +44,7 @@
 #include "DrawPolygonTool.h"
 #include "DrawPolyPathTool.h"
 #include "DrawAndRevolveTool.h"
+#include "RevolveSplineTool.h"
 #include "ShapeSprayTool.h"
 #include "VoxelSolidifyMeshesTool.h"
 #include "VoxelBlendMeshesTool.h"
@@ -571,6 +572,9 @@ void UModelingToolsEditorMode::Enter()
 
 	auto DrawAndRevolveToolBuilder = NewObject<UDrawAndRevolveToolBuilder>();
 	RegisterTool(ToolManagerCommands.BeginDrawAndRevolveTool, TEXT("BeginDrawAndRevolveTool"), DrawAndRevolveToolBuilder);
+
+	auto RevolveSplineToolBuilder = NewObject<URevolveSplineToolBuilder>();
+	RegisterTool(ToolManagerCommands.BeginRevolveSplineTool, TEXT("BeginRevolveSplineTool"), RevolveSplineToolBuilder);
 
 	auto ShapeSprayToolBuilder = NewObject<UShapeSprayToolBuilder>();
 	RegisterTool(ToolManagerCommands.BeginShapeSprayTool, TEXT("BeginShapeSprayTool"), ShapeSprayToolBuilder);

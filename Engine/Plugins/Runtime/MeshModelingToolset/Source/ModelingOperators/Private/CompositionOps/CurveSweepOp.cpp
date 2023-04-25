@@ -112,6 +112,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 					ConstrainedDelaunayTriangulate<double>,
 					PlaneOrigin,
 					PlaneNormal);
+				break;
 			default:
 				checkSlow(false);
 			}
