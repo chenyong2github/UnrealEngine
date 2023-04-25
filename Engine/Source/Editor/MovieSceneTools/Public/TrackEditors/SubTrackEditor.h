@@ -68,7 +68,10 @@ public:
 	/** Create a new take of the given section */
 	virtual void CreateNewTake(UMovieSceneSubSection* Section);
 
-	/** Switch the selected section's take */
+	/** Switch the selected section's take sequence */
+	virtual void ChangeTake(UMovieSceneSequence* Sequence);
+
+	UE_DEPRECATED(5.3, "SwitchTake has been deprecated, please use ChangeTake(UMovieSceneSequence*)")
 	virtual void SwitchTake(UObject* TakeObject);
 
 	/** Generate a menu for takes for this section */
