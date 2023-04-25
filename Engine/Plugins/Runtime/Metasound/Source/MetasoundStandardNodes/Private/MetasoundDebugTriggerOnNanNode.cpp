@@ -37,6 +37,8 @@ namespace Metasound
 
 		FTriggerOnNanOperator(const FOperatorSettings& InSettings, const FAudioBufferReadRef& InAudioInput, const FBoolReadRef& InTriggerOnce);
 
+		void Reset(const IOperator::FResetParams&);
+
 		virtual FDataReferenceCollection GetInputs() const override;
 
 		virtual FDataReferenceCollection GetOutputs() const override;
@@ -62,6 +64,12 @@ namespace Metasound
 		, TriggerOutput(FTriggerWriteRef::CreateNew(InSettings))
 		, bHasTriggered(false)
 	{
+	}
+
+	void FTriggerOnNanOperator::Reset(const IOperator::FResetParams&)
+	{
+		TriggerOutput->Reset();
+		bHasTriggered = false;
 	}
 
 	FDataReferenceCollection FTriggerOnNanOperator::GetInputs() const

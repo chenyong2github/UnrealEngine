@@ -177,16 +177,24 @@ namespace Metasound
 				, InputCol.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(MaxOutputValuePin), Settings)
 			};
 
-			return MakeUnique<FLowFrequencyNoiseOperator>(Settings, MoveTemp(Pins));
+			return MakeUnique<FLowFrequencyNoiseOperator>(InParams, MoveTemp(Pins));
 		}
 
-		FLowFrequencyNoiseOperator(const FOperatorSettings& InSettings, FPinReadRefs&& InPins)
-			: BlockRate{ InSettings.GetActualBlockRate() }
-			, Phase{ 0.0f }
+		FLowFrequencyNoiseOperator(const FCreateOperatorParams& InParams, FPinReadRefs&& InPins)
+			: BlockRate{ InParams.OperatorSettings.GetActualBlockRate() }
 			, Pins{ MoveTemp(InPins) }
 			, ScaledOutput{ FFloatWriteRef::CreateNew(0.f) }
 			, NormalizedOutput{ FFloatWriteRef::CreateNew(0.f) }
 		{	
+			Reset(InParams);
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			Phase = 0.f;
+			*ScaledOutput = 0.f;
+			*NormalizedOutput = 0.f;
+
 			SetSeedAndFillValues();
 		}
 

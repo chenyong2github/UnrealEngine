@@ -104,15 +104,6 @@ namespace Metasound
 			const FInputVertexInterfaceData& InputData = InParams.InputData;
 
 			using namespace PerlinNoiseVertexNames;
-
-			// Constructor pin.
-			// If Offset is -1, use system rand as a "seed"
-			float Offset = InputData.GetOrCreateDefaultValue<float>(METASOUND_GET_PARAM_NAME(OffsetPin), InParams.OperatorSettings); 
-			if (FMath::IsNearlyEqual(Offset, -1.f))
-			{
-				Offset = FMath::FRand();
-			}
-
 			FPinReadRefs Pins
 			{
 				  InputData.GetOrCreateDefaultDataReadReference<TDataClass>(METASOUND_GET_PARAM_NAME(XPin), Settings)
@@ -120,21 +111,36 @@ namespace Metasound
 				, InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(MinValuePin), Settings)
 				, InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(MaxValuePin), Settings)
 				, InputData.IsVertexBound(METASOUND_GET_PARAM_NAME(XPin))
-				, Offset
+				, InputData.GetOrCreateDefaultValue<float>(METASOUND_GET_PARAM_NAME(OffsetPin), Settings)
 			};
 
-			return MakeUnique<TThisType>(Settings, MoveTemp(Pins));
+			return MakeUnique<TThisType>(InParams, MoveTemp(Pins));
 		}
 
-		TBasePerlinNoiseOperator(const FOperatorSettings& InSettings, FPinReadRefs&& InPins)
-			: SampleRate{ InSettings.GetSampleRate() }
-			, NumFramesPerBlock{ InSettings.GetNumFramesPerBlock() }
-			, Pins{ MoveTemp(InPins) }
-			, OutputScaled{ TThisType::CreateOutputWriteRef(InSettings) }
-			, OutputNormalized{ TThisType::CreateOutputWriteRef(InSettings) }
+		TBasePerlinNoiseOperator(const FBuildOperatorParams& InParams, FPinReadRefs&& InPins)
+			: Pins{ MoveTemp(InPins) }
+			, OutputScaled{ TThisType::CreateOutputWriteRef(InParams.OperatorSettings) }
+			, OutputNormalized{ TThisType::CreateOutputWriteRef(InParams.OperatorSettings) }
 		{
+			Reset(InParams);
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			// If Offset is -1, use system rand as a "seed"
+			if (FMath::IsNearlyEqual(Pins.Offset, -1.f))
+			{
+				Pins.Offset = FMath::FRand();
+			}
+
+			SampleRate = InParams.OperatorSettings.GetSampleRate();
+			NumFramesPerBlock = InParams.OperatorSettings.GetNumFramesPerBlock();
+
 			check(SampleRate > 0);
 			check(NumFramesPerBlock > 0);
+
+			TThisType::ResetOutputWriteRef(OutputScaled);
+			TThisType::ResetOutputWriteRef(OutputNormalized);
 		}
 
 		FDataReferenceCollection GetInputs() const override { return {}; }
@@ -179,6 +185,8 @@ namespace Metasound
 		using BaseClass::CreateOperator;
 
 		static FFloatWriteRef CreateOutputWriteRef(const FOperatorSettings& InSettings) { return FFloatWriteRef::CreateNew(0.f); }
+		static void ResetOutputWriteRef(FFloatWriteRef& WriteRef) { *WriteRef = 0; };
+
 		static FNodeClassMetadata CreateNodeInfo()
 		{
 			FNodeClassMetadata Info;
@@ -186,6 +194,11 @@ namespace Metasound
 			Info.DisplayName = METASOUND_LOCTEXT("Metasound_PerlinNoiseFloatNodeDisplayName", "Perlin Noise (float)");
 			Info.Description = METASOUND_LOCTEXT("Metasound_PerlinNoiseFloatNodeDescription", "Generates 1D Perlin \"Value noise\" at control rate");
 			return Info;
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			BaseClass::Reset(InParams);
 		}
 
 		void Execute()
@@ -220,6 +233,7 @@ namespace Metasound
 		using BaseClass::CreateOperator;
 
 		static FAudioBufferWriteRef CreateOutputWriteRef(const FOperatorSettings& InSettings) { return FAudioBufferWriteRef::CreateNew(InSettings); }
+		static void ResetOutputWriteRef(FAudioBufferWriteRef& WriteRef) { WriteRef->Zero(); };
 
 		static FNodeClassMetadata CreateNodeInfo()
 		{
@@ -230,9 +244,9 @@ namespace Metasound
 			return Info;
 		}
 
-		FPerlinAudioRate(const FOperatorSettings& InSettings, FPinReadRefs&& InPins)
-			: BaseClass{ InSettings, MoveTemp(InPins) }
-			, TimeBuffer{ InPins.bXConnected ? 0 : InSettings.GetNumFramesPerBlock() }	// Create a scratch buffer if X is not connected.
+		FPerlinAudioRate(const FBuildOperatorParams& InParams, FPinReadRefs&& InPins)
+			: BaseClass{ InParams, MoveTemp(InPins) }
+			, TimeBuffer{ InPins.bXConnected ? 0 : InParams.OperatorSettings.GetNumFramesPerBlock() }	// Create a scratch buffer if X is not connected.
 		{
 		}
 
@@ -260,6 +274,11 @@ namespace Metasound
 				// Output the scaled version.
 				*ScaledPtr++ = FMath::GetMappedRangeValueClamped(NormRange, MinMax, *NormalizedPtr++);
 			}
+		}
+
+		void Reset(const IOperator::FResetParams& InParams)
+		{
+			BaseClass::Reset(InParams);
 		}
 
 		void Execute()
