@@ -57,7 +57,6 @@ FTestMessageLog::~FTestMessageLog()
 		break;
 	case ELogVerbosity::Error:
 		UE_TEST_MESSAGE_LOG_(Error);
-		UE_DEBUG_BREAK();
 		break;
 	case ELogVerbosity::Warning:
 		UE_TEST_MESSAGE_LOG_(Warning);
