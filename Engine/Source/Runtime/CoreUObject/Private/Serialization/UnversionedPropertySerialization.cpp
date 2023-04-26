@@ -50,7 +50,7 @@ public:
 		, Offset(Property->GetOffset_ForInternal() + Property->ElementSize * InArrayIndex)
 		, bSerializeAsInteger(CanSerializeAsInteger(Property))
 		, IntType(GetIntType(Property->GetMinAlignment()))
-		, FastZeroIntNum(CanSerializeAsZero(InProperty, IntType) ? GetIntNum(InProperty, IntType) : uint8(0))
+		, FastZeroIntNum(CanSerializeAsZero(InProperty, IntType) ? static_cast<uint8>(GetIntNum(InProperty, IntType)) : uint8(0))
 #else
 		, ArrayIndex(InArrayIndex)
 #endif
