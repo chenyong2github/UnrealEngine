@@ -275,21 +275,21 @@ void FIKRetargetEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Settings"));
+		FSlateIcon(FIKRetargetEditorStyle::Get().GetStyleSetName(),"IKRetarget.GlobalSettings"));
 
 		ToolbarBuilder.AddToolBarButton(
 		FIKRetargetCommands::Get().ShowRootSettings,
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Settings"));
+		FSlateIcon(FIKRetargetEditorStyle::Get().GetStyleSetName(),"IKRetarget.RootSettings"));
 	}
 	ToolbarBuilder.EndSection();
 
 	ToolbarBuilder.AddSeparator();
 
 	FLinearColor OffColor = FLinearColor::White;
-	FLinearColor OnColor = FLinearColor::Green;
+	FLinearColor OnColor = FLinearColor(.32f, .66f, .32f, 1.f);
 	
 	TSharedPtr<SVerticalBox> Box = SNew(SVerticalBox)
 	+ SVerticalBox::Slot()

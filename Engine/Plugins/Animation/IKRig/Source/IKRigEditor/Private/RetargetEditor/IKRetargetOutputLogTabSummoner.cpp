@@ -2,7 +2,6 @@
 #include "RetargetEditor/IKRetargetOutputLogTabSummoner.h"
 
 #include "IDocumentation.h"
-#include "RigEditor/IKRigEditorStyle.h"
 #include "RetargetEditor/IKRetargetEditor.h"
 #include "RigEditor/SIKRigOutputLog.h"
 #include "Retargeter/IKRetargetProcessor.h"
@@ -19,7 +18,7 @@ FIKRetargetOutputLogTabSummoner::FIKRetargetOutputLogTabSummoner(
 	bIsSingleton = true; // only allow a single instance of this tab
 	
 	TabLabel = LOCTEXT("IKRetargetOutputLogTabLabel", "Retarget Output Log");
-	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.TabIcon");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.CompilerResults");
 
 	ViewMenuDescription = LOCTEXT("IKRetargetOutputLog_ViewMenu_Desc", "Retarget Output Log");
 	ViewMenuTooltip = LOCTEXT("IKRetargetOutputLog_ViewMenu_ToolTip", "Show the Retargeting Output Log Tab");

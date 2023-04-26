@@ -18,7 +18,7 @@ FIKRigSolverStackTabSummoner::FIKRigSolverStackTabSummoner(const TSharedRef<FIKR
 	bIsSingleton = true; // only allow a single instance of this tab
 	
 	TabLabel = LOCTEXT("IKRigSolverStackTabLabel", "Solver Stack");
-	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.TabIcon");
+	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.SolverStack");
 
 	ViewMenuDescription = LOCTEXT("IKRigSolverStack_ViewMenu_Desc", "IK Rig Solver Stack");
 	ViewMenuTooltip = LOCTEXT("IKRigSolverStack_ViewMenu_ToolTip", "Show the IK Rig Solver Stack Tab");

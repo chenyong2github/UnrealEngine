@@ -18,7 +18,7 @@ FIKRigRetargetChainTabSummoner::FIKRigRetargetChainTabSummoner(const TSharedRef<
 	bIsSingleton = true; // only allow a single instance of this tab
 	
 	TabLabel = LOCTEXT("IKRigRetargetChainTabLabel", "IK Retargeting");
-	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.TabIcon");
+	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.IKRetargeting");
 
 	ViewMenuDescription = LOCTEXT("IKRigRetargetChain_ViewMenu_Desc", "IK Rig Retarget Chains");
 	ViewMenuTooltip = LOCTEXT("IKRigRetargetChain_ViewMenu_ToolTip", "Show the IK Rig Retarget Chains Tab");

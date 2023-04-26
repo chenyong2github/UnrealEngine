@@ -19,7 +19,7 @@ FIKRetargetHierarchyTabSummoner::FIKRetargetHierarchyTabSummoner(const TSharedRe
 	bIsSingleton = true; // only allow a single instance of this tab
 	
 	TabLabel = LOCTEXT("IKRetargetHierarchy_TabLabel", "Hierarchy");
-	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.TabIcon");
+	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.Hierarchy");
 
 	ViewMenuDescription = LOCTEXT("IKRetargetHierarchy_ViewMenu_Desc", "Hierarchy");
 	ViewMenuTooltip = LOCTEXT("IKRetargetHierarchy_ViewMenu_ToolTip", "Show the Retarget Hierarchy Tab");

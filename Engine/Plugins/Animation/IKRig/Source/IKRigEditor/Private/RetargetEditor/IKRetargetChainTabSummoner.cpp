@@ -4,6 +4,7 @@
 #include "IDocumentation.h"
 #include "RigEditor/IKRigEditorStyle.h"
 #include "RetargetEditor/IKRetargetEditor.h"
+#include "RetargetEditor/IKRetargetEditorStyle.h"
 #include "RetargetEditor/SIKRetargetChainMapList.h"
 
 #define LOCTEXT_NAMESPACE "RetargetChainTabSummoner"
@@ -17,7 +18,7 @@ FIKRetargetChainTabSummoner::FIKRetargetChainTabSummoner(const TSharedRef<FIKRet
 	bIsSingleton = true; // only allow a single instance of this tab
 	
 	TabLabel = LOCTEXT("IKRetargetChainTabLabel", "Chain Mapping");
-	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.TabIcon");
+	TabIcon = FSlateIcon(FIKRetargetEditorStyle::Get().GetStyleSetName(), "IKRetarget.ChainMapping");
 
 	ViewMenuDescription = LOCTEXT("IKRetargetChain_ViewMenu_Desc", "Chain Mapping");
 	ViewMenuTooltip = LOCTEXT("IKRetargetChain_ViewMenu_ToolTip", "Show the Chain Mapping Tab");

@@ -3,7 +3,6 @@
 
 #include "IDocumentation.h"
 #include "RigEditor/IKRigToolkit.h"
-#include "RigEditor/IKRigEditorStyle.h"
 #include "RigEditor/SIKRigAssetBrowser.h"
 
 #define LOCTEXT_NAMESPACE "RetargetAssetBrowserTabSummoner"
@@ -17,7 +16,7 @@ FIKRigAssetBrowserTabSummoner::FIKRigAssetBrowserTabSummoner(const TSharedRef<FI
 	bIsSingleton = true; // only allow a single instance of this tab
 	
 	TabLabel = LOCTEXT("IKRigAssetBrowserTabLabel", "Asset Browser");
-	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.TabIcon");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.TabIcon");
 
 	ViewMenuDescription = LOCTEXT("IKRigAssetBrowser_ViewMenu_Desc", "Asset Browser");
 	ViewMenuTooltip = LOCTEXT("IKRigAssetBrowser_ViewMenu_ToolTip", "Show the Asset Browser Tab");

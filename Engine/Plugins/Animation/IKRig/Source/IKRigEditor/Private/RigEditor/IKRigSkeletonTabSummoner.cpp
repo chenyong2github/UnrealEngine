@@ -18,7 +18,7 @@ FIKRigSkeletonTabSummoner::FIKRigSkeletonTabSummoner(const TSharedRef<FIKRigEdit
 	bIsSingleton = true; // only allow a single instance of this tab
 	
 	TabLabel = LOCTEXT("IKRigSkeletonTabLabel", "Hierarchy");
-	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.TabIcon");
+	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.Hierarchy");
 
 	ViewMenuDescription = LOCTEXT("IKRigSkeleton_ViewMenu_Desc", "Hierarchy");
 	ViewMenuTooltip = LOCTEXT("IKRigSkeleton_ViewMenu_ToolTip", "Show the IK Rig Hierarchy Tab");

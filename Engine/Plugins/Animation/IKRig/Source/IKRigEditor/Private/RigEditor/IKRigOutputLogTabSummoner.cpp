@@ -4,7 +4,6 @@
 #include "IDocumentation.h"
 #include "Rig/IKRigProcessor.h"
 #include "RigEditor/IKRigToolkit.h"
-#include "RigEditor/IKRigEditorStyle.h"
 #include "RigEditor/SIKRigOutputLog.h"
 
 #define LOCTEXT_NAMESPACE "IKRigOutputLogTabSummoner"
@@ -19,7 +18,7 @@ FIKRigOutputLogTabSummoner::FIKRigOutputLogTabSummoner(
 	bIsSingleton = true; // only allow a single instance of this tab
 	
 	TabLabel = LOCTEXT("IKRigOutputLogTabLabel", "IK Rig Output Log");
-	TabIcon = FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.TabIcon");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.CompilerResults");
 
 	ViewMenuDescription = LOCTEXT("IKRigOutputLog_ViewMenu_Desc", "IK Rig Output Log");
 	ViewMenuTooltip = LOCTEXT("IKRigOutputLog_ViewMenu_ToolTip", "Show the IK Rig Output Log Tab");

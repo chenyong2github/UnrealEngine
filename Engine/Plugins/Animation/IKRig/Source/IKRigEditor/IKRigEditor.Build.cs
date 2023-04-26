@@ -42,8 +42,8 @@ namespace UnrealBuildTool.Rules
                     "ContentBrowser",
                     "AnimationBlueprintLibrary",
                     "MessageLog",
-                    
-					"PropertyEditor",
+
+                    "PropertyEditor",
 					"BlueprintGraph",
 					"AnimGraph",
 					"AnimGraphRuntime",
