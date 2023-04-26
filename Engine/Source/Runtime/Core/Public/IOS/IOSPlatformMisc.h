@@ -73,6 +73,8 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	// Check if notifications are allowed if min iOS version is < 10
 	UE_DEPRECATED(4.21, "IsAllowedRemoteNotifications is deprecated. Use FIOSLocalNotificationService::CheckAllowedNotifications instead.")
 	static bool IsAllowedRemoteNotifications();
+    
+    static bool IsEntitlementEnabled(const char *EntitlementToCheck);
 	
 	static class IPlatformChunkInstall* GetPlatformChunkInstall();
 

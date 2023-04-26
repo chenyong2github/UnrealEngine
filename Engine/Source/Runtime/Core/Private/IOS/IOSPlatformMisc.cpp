@@ -47,6 +47,10 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/CoreDelegates.h"
 
+
+#import <Foundation/Foundation.h>
+#import <mach-o/dyld.h>
+
 #if !defined ENABLE_ADVERTISING_IDENTIFIER
 	#define ENABLE_ADVERTISING_IDENTIFIER 0
 #endif
@@ -1254,6 +1258,154 @@ bool FIOSPlatformMisc::IsAllowedRemoteNotifications()
 void FIOSPlatformMisc::UnregisterForRemoteNotifications()
 {
 
+}
+
+
+// See for more information about the Blobs
+// https://opensource.apple.com/source/xnu/xnu-4570.61.1/osfmk/kern/cs_blobs.h.auto.html
+
+typedef struct __Blob {
+    uint32_t magic;
+    uint32_t length;
+    char data[];
+} CS_GenericBlob;
+
+typedef struct __BlobIndex {
+    uint32_t type;
+    uint32_t offset;
+} CS_BlobIndex;
+
+typedef struct __MultiBlob {
+    uint32_t magic;
+    uint32_t length;
+    uint32_t count;
+    CS_BlobIndex index[];
+} CS_MultiBlob;
+
+extern NSString *EntitlementsData(void)
+{
+    // iterate through the headers to find the executable, since only the executable has the entitlements
+    const struct mach_header_64 *executableHeader = nullptr;
+    char *ImageName = nullptr;
+    for (uint32_t i = 0; i < _dyld_image_count() && executableHeader == nullptr; i++)
+    {
+        const struct mach_header_64 *header = (struct mach_header_64 *)_dyld_get_image_header(i);
+        if (header->filetype == MH_EXECUTE)
+        {
+            ImageName = (char *)_dyld_get_image_name(i);
+            executableHeader = header;
+        }
+    }
+
+    if (executableHeader == nullptr)
+    {
+        return nil;
+    }
+
+    // verify that it's a 64bit app
+    if (executableHeader->magic != MH_MAGIC_64)
+    {
+        NSLog(@"Executable is NOT 64bit. Entitlement retrieval not supported.");
+        return nil;
+    }
+    uintptr_t cursor = (uintptr_t)executableHeader + sizeof(struct mach_header_64);
+    const struct linkedit_data_command *segmentCommand = NULL;
+
+    for (uint32_t i = 0; i < executableHeader->ncmds; i++, cursor += segmentCommand->cmdsize)
+    {
+        segmentCommand = (struct linkedit_data_command *)cursor;
+    
+        switch (segmentCommand->cmd)
+        {
+            case LC_CODE_SIGNATURE:
+                NSLog(@"LC_CODE_SIGNATURE found");
+                break;
+            default:
+                continue;
+        }
+
+        const struct linkedit_data_command *dataCommand = (const struct linkedit_data_command *)segmentCommand;
+
+        FILE *file = fopen(ImageName, "r");
+        if (file == NULL)
+        {
+            NSLog(@"Could not open binary file");
+            return nil;
+        }
+        CS_MultiBlob multiBlob;
+        int isSuccess = fseek(file, UInt64(dataCommand->dataoff), SEEK_SET);
+        size_t Count = fread(&multiBlob, sizeof(CS_MultiBlob), 1, file);
+        uint32 multiBlobCount = ntohl(multiBlob.count);
+        CS_BlobIndex multiBlobIndex[multiBlobCount];
+        fread(&multiBlobIndex[0], sizeof(CS_BlobIndex) * multiBlobCount, 1, file);
+        
+        if (__builtin_bswap32(multiBlob.magic) != 0xfade0cc0)
+        {
+            fclose(file);
+            return nil;
+        }
+        
+        uint32 multiBlobSize = sizeof(multiBlob);
+        uint32 blobSize = sizeof(CS_GenericBlob);
+
+        for (int j = 0; j < multiBlobCount; j++)
+        {
+            uint32_t currentOffset = dataCommand->dataoff;
+            uint32_t blobOffset = ntohl(multiBlobIndex[j].offset);
+            CS_GenericBlob blob;
+            isSuccess = fseek(file, currentOffset + blobOffset, SEEK_SET);
+            Count = fread(&blob, sizeof(CS_GenericBlob), 1, file);
+            
+
+            if (__builtin_bswap32(blob.magic) == 0xfade7171)
+            {
+                uint32 blobLength = ntohl(blob.length);
+                char data[blobLength];
+                fread(&data[0], sizeof(char) * blobLength, 1, file);
+                NSString *stringFromData = [NSString stringWithFormat: @"%s", data];
+                NSLog(@"%@", stringFromData);
+                fclose(file);
+                return stringFromData;
+            }
+            else
+            {
+                continue;
+            }
+        }
+        fclose(file);
+    }
+    return nil;
+}
+
+extern bool IsEntitlementPresentInEmbeddedProvision(NSString *EntitlementsToFind)
+{
+    NSString *mobileprovisionPath = [[[NSBundle mainBundle] bundlePath] stringByAppendingPathComponent:@"embedded.mobileprovision"];
+    NSError* error = nil;
+    NSString *myText = [NSString stringWithContentsOfFile:mobileprovisionPath encoding:NSUTF8StringEncoding error:&error];
+    
+    if ([myText rangeOfString: (@"%s", EntitlementsToFind)].location == NSNotFound)
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}
+
+bool FIOSPlatformMisc::IsEntitlementEnabled(const char * EntitlementToCheck)
+{
+    NSString *EntitlementsToFind = [NSString stringWithFormat: @"%s", EntitlementToCheck];
+    NSString *EntitlementData = EntitlementsData();
+    if ([EntitlementData rangeOfString: (@"%s", EntitlementsToFind)].location == NSNotFound)
+    {
+        NSLog(@"Entitlements not found in binary Mach-O header. Looking at the embedded mobile provision file.");
+        return IsEntitlementPresentInEmbeddedProvision(EntitlementsToFind);
+    }
+    else
+    {
+        return true;
+    }
 }
 
 void FIOSPlatformMisc::GetValidTargetPlatforms(TArray<FString>& TargetPlatformNames)
