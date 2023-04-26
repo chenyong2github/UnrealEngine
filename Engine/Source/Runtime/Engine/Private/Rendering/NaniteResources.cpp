@@ -851,33 +851,37 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UInstancedStaticMe
 	}
 #endif
 
-	InstanceSceneData.SetNum(Component->GetInstanceCount());
+	// NumRenderInstances is the extent that the reorder table can map to.
+	// Temporarily when removing instances from a HISM this can be sparse so that NumInstances < NumRenderInstances.
+	const int32 NumInstances = Component->GetInstanceCount();
+	const int32 NumRenderInstances = FMath::Max<int32>(Component->InstanceUpdateCmdBuffer.NumEditInstances, NumInstances);
+	InstanceSceneData.SetNum(NumRenderInstances);
 
 	bHasPerInstanceLocalBounds = false;
 	bHasPerInstanceHierarchyOffset = false;
 
 	UpdateMaterialDynamicDataUsage();
 
-	bHasPerInstanceDynamicData = Component->PerInstancePrevTransform.Num() == Component->GetInstanceCount();
-	InstanceDynamicData.SetNumUninitialized(bHasPerInstanceDynamicData ? Component->GetInstanceCount() : 0);
+	bHasPerInstanceDynamicData = Component->PerInstancePrevTransform.Num() == NumInstances;
+	InstanceDynamicData.SetNumUninitialized(bHasPerInstanceDynamicData ? NumRenderInstances : 0);
 
 	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
 	bHasPerInstanceLMSMUVBias = bAllowStaticLighting;
-	InstanceLightShadowUVBias.SetNumZeroed(bHasPerInstanceLMSMUVBias ? Component->GetInstanceCount() : 0);
+	InstanceLightShadowUVBias.SetNumZeroed(bHasPerInstanceLMSMUVBias ? NumRenderInstances : 0);
 
-	InstanceRandomID.SetNumZeroed(bHasPerInstanceRandom ? Component->GetInstanceCount() : 0); // Only allocate if material bound which uses this
+	InstanceRandomID.SetNumZeroed(bHasPerInstanceRandom ? NumRenderInstances : 0); // Only allocate if material bound which uses this
 
 #if WITH_EDITOR
 	bHasPerInstanceEditorData = bSupportInstancePicking;// TODO: Would be good to decouple typed element picking from has editor data (i.e. always set this true, regardless)
-	InstanceEditorData.SetNumZeroed(bHasPerInstanceEditorData ? Component->GetInstanceCount() : 0);
+	InstanceEditorData.SetNumZeroed(bHasPerInstanceEditorData ? NumRenderInstances : 0);
 #endif
 
 	// Only allocate if material bound which uses this
 	const int32 NumInstCustDataFloats = Component->NumCustomDataFloats;
 	if (bHasPerInstanceCustomData && NumInstCustDataFloats > 0)
 	{
-		InstanceCustomData.SetNumZeroed(NumInstCustDataFloats * Component->GetInstanceCount());
+		InstanceCustomData.SetNumZeroed(NumInstCustDataFloats * NumRenderInstances);
 		check(InstanceCustomData.Num() == Component->PerInstanceSMCustomData.Num()); // Sanity check on the data packing
 	}
 	else
@@ -887,9 +891,14 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UInstancedStaticMe
 
 	FVector TranslatedSpaceOffset = -Component->GetTranslatedInstanceSpaceOrigin();
 
-	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
+	for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 	{
 		const int32 OutputIndex = Component->GetRenderIndex(InstanceIndex);
+		if (OutputIndex == INDEX_NONE)
+		{
+			// could be skipped by density settings
+			continue;
+		}
 
 		FInstanceSceneData& SceneData = InstanceSceneData[OutputIndex];
 
