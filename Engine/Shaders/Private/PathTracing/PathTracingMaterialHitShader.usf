@@ -46,9 +46,23 @@ float AdjustMaterialRoughness(float Roughness, float PathRoughness)
 	return max(Roughness, PathRoughness);
 }
 
+#if STRATA_ENABLED
+
+float GetRefractionIor(FPixelMaterialInputs PixelMaterialInputs, float3 F0)
+{
+#if REFRACTION_ROOT_NODE_OVERRIDES_DEFAULT
+	float Ior = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
+#else
+	float Ior = DielectricF0RGBToIor(F0);
+#endif
+	return Ior;
+}
+
+#else // STRATA_ENABLED
+
 float GetRefractionIor(FPixelMaterialInputs PixelMaterialInputs)
 {
-#if REFRACTION_ROOT_NODE_OVERRIDES_DEFAULT || STRATA_OPTIMIZED_UNLIT
+#if REFRACTION_ROOT_NODE_OVERRIDES_DEFAULT
 	float Ior = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
 #else
 	float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
@@ -59,6 +73,8 @@ float GetRefractionIor(FPixelMaterialInputs PixelMaterialInputs)
 #endif
 	return Ior;
 }
+
+#endif // STRATA_ENABLED
 
 float3 DecodeSSSProfileRadius(uint ProfileId, float3 DiffuseColor, float Opacity)
 {
@@ -139,6 +155,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	}
 
 #if STRATA_ENABLED
+
+#if MATERIAL_IS_STRATA
 	FStrataData StrataData = PixelMaterialInputs.GetFrontStrataData();
 
 #if STRATA_OPTIMIZED_UNLIT
@@ -152,8 +170,13 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	float3 TotalTransmittancePreCoverage = 0;
 	const float3 V_World = MaterialParameters.CameraVector;
 	StrataPixelHeader.StrataUpdateTree(NullStrataAddressing, StrataData, V_World, IntegrationSettings, TotalCoverage, TotalTransmittancePreCoverage);
-	const float Transparency = 1 - TotalCoverage;
+	const float3 Transparency = 1 - TotalCoverage * TotalTransmittancePreCoverage;
 #endif // STRATA_OPTIMIZED_UNLIT
+
+#else // MATERIAL_IS_STRATA
+	// This only happens for invalid materials
+    const float3 Transparency = 0;
+#endif
 
 #endif // STRATA_ENABLED
 
@@ -379,6 +402,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	// unless proven otherwise, we are a basic unlit material
 	Payload.ShadingModelID = SHADINGMODELID_UNLIT;
 
+#if MATERIAL_IS_STRATA // This can become false if the material is invalid
+
 #if STRATA_OPTIMIZED_UNLIT
 	Payload.Radiance = BSDF_GETEMISSIVE(StrataData.InlinedBSDF);
 #if STRATA_OPAQUE_MATERIAL
@@ -569,6 +594,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #endif // STRATA_CLAMPED_BSDF_COUNT 
 
 
+#if STRATA_CLAMPED_BSDF_COUNT > 0
 			Payload.WorldNormal = StrataPixelHeader.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(BSDF)];
 			Payload.WorldTangent = StrataPixelHeader.SharedLocalBases.Tangents[BSDF_GETSHAREDLOCALBASISID(BSDF)];
 
@@ -627,7 +653,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 					Payload.WeightV             = BSDF.LuminanceWeightV;
 					Payload.TransmittanceN      = BSDF.TransmittanceAboveAlongN;
 					Payload.CoverageAboveAlongN = BSDF.CoverageAboveAlongN;
-					Payload.Ior                 = 0.0; // STRATA_TODO: figure out when to use refraction ...
+					Payload.Ior                 = GetRefractionIor(PixelMaterialInputs, Payload.SpecularColor);
 					break;
 				}
 				case STRATA_BSDF_TYPE_HAIR:
@@ -687,8 +713,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 			Payload.BSDFOpacity /= SlabPdf;
 #endif
 		} // close brace opened by STRATA_CLAMPED_BSDF_COUNT > 1 or STRATA_CLAMPED_BSDF_COUNT == 1 ifdefs above
+#endif // STRATA_CLAMPED_BSDF_COUNT > 0
+
 #undef  BSDF
 	} // if BSDFCount > 0
+
 
 #endif // STRATA_OPTIMIZED_UNLIT
 
@@ -700,6 +729,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		Payload.Radiance = 0;
 	}
 #endif
+
+#endif // MATERIAL_IS_STRATA
 
 #else // STRATA_ENABLED
 	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);

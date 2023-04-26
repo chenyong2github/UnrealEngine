@@ -107,6 +107,8 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 	return Albedo;
 }
 
+#if !SIMPLIFIED_MATERIAL_SHADER
+
 #define ROUGHNESS_WEIGHT(r)		(saturate((r - max(MinRoughness, PathRoughness)) / (MaxRoughness - max(MinRoughness, PathRoughness))))
 
 void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroughput, float PathRoughness, inout float3 Albedo, inout float3 Normal)
@@ -170,17 +172,12 @@ void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroug
 		}
 	}
 #else
+
 	const float RoughnessWeight = ROUGHNESS_WEIGHT(Payload.Roughness);
 	const float BrdfWeight = Payload.BSDFOpacity;
 
 	switch (Payload.ShadingModelID)
 	{
-#if SIMPLIFIED_MATERIAL_SHADER
-	case SHADINGMODELID_TWOSIDED_FOLIAGE:
-		Albedo += BrdfWeight * PathThroughput * (Payload.BaseColor + Payload.SubsurfaceColor);
-		Normal += BrdfWeight * NormThroughput * Payload.WorldNormal;
-		break;
-#else
 	case SHADINGMODELID_TWOSIDED_FOLIAGE:
 	case SHADINGMODELID_SUBSURFACE:
 	case SHADINGMODELID_PREINTEGRATED_SKIN:
@@ -217,7 +214,6 @@ void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroug
 		Normal += BrdfWeight * NormThroughput * Payload.WorldNormal;
 		break;
 	}
-#endif // SIMPLIFIED_MATERIAL_SHADER
 	default:
 		Albedo += BrdfWeight * PathThroughput * Payload.BaseColor;
 		Normal += BrdfWeight * NormThroughput * Payload.WorldNormal;
@@ -225,7 +221,6 @@ void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroug
 	}
 #endif // PATHTRACING_STRATA_PAYLOAD
 }
-
 #undef ROUGHNESS_WEIGHT
 
 void AccumulateAlbedo(float3 SigmaS, float3 PathThroughput, float PathRoughness, inout float3 Albedo)
@@ -243,6 +238,9 @@ void AccumulateAlbedo(float3 SigmaS, float3 PathThroughput, float PathRoughness,
 	Albedo += SigmaS * PathThroughput;
 }
 
+#endif // SIMPLIFIED_MATERIAL_SHADER
+
+
 #define DEBUG_DEPTH_SAMPLING 0
 
 struct FDepthContext
@@ -257,15 +255,12 @@ struct FDepthContext
 
 	void AddHit(FPathTracingPayload Payload)
 	{
-		if (false
 #if DEBUG_DEPTH_SAMPLING
-			|| DebugHitCount == 0
-#endif
-			)
+		if (DebugHitCount == 0)
 		{
 			return;
 		}
-
+#endif
 		// 2. Matching depth output to the rasterizer.
 		if (Payload.ShouldOutputDepth() && HitCount == 0)
 		{
@@ -342,6 +337,7 @@ float GetAverageRoughness(FPathTracingPayload Payload)
 #endif
 }
 
+#if !SIMPLIFIED_MATERIAL_SHADER
 void AdjustPayloadAfterUnpack(inout FPathTracingPayload HitPayload, bool bApplyOverrides)
 {
 	// This function can also do a bit of per-material post-processing to simplify the rest of the code
@@ -350,6 +346,7 @@ void AdjustPayloadAfterUnpack(inout FPathTracingPayload HitPayload, bool bApplyO
 		HitPayload.DiffuseColor  = HitPayload.DiffuseColor  * View.DiffuseOverrideParameter.w + View.DiffuseOverrideParameter.xyz;
 		HitPayload.SpecularColor = HitPayload.SpecularColor * View.SpecularOverrideParameter.w + View.SpecularOverrideParameter.xyz;
 	}
+
 #if PATHTRACING_STRATA_PAYLOAD
 	switch (HitPayload.ShadingModelID)
 	{
@@ -380,14 +377,12 @@ void AdjustPayloadAfterUnpack(inout FPathTracingPayload HitPayload, bool bApplyO
 #else
 	switch (HitPayload.ShadingModelID)
 	{
-#if !SIMPLIFIED_MATERIAL_SHADER
 		case SHADINGMODELID_SUBSURFACE:
 		case SHADINGMODELID_PREINTEGRATED_SKIN:
 		{
 			HitPayload.SubsurfaceRadius = HitPayload.GetSubsurfaceRadius();
 			// fallthrough to case below to avoid over-bright SSS
 		}
-#endif
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 		{
 			HitPayload.SubsurfaceColor = HitPayload.GetSubsurfaceColor();
@@ -408,13 +403,6 @@ void AdjustPayloadAfterUnpack(inout FPathTracingPayload HitPayload, bool bApplyO
 			}
 			break;
 		}
-#if SIMPLIFIED_MATERIAL_SHADER
-		default:
-		{
-			HitPayload.SubsurfaceColor = 0.0;
-			break;
-		}
-#else
 		case SHADINGMODELID_SUBSURFACE_PROFILE:
 		{
 			HitPayload.SubsurfaceRadius = HitPayload.GetSubsurfaceRadius();
@@ -457,7 +445,6 @@ void AdjustPayloadAfterUnpack(inout FPathTracingPayload HitPayload, bool bApplyO
 			}
 			break;
 		}
-#endif
 	}
 #endif // PATHTRACING_STRATA_PAYLOAD
 }
@@ -549,6 +536,8 @@ void RemoveMaterialSSS(inout FPathTracingPayload Payload)
 	Payload.DiffuseColor = saturate(Payload.DiffuseColor);
 	Payload.SubsurfaceColor = 0.0;
 }
+
+#endif // SIMPLIFIED_MATERIAL_SHADER
 
 
 FMaterialSample SampleMaterial(

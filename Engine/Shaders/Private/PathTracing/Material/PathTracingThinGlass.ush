@@ -54,6 +54,7 @@ FThinSlabWeights ComputeThinSlabWeights(float3 SlabColor, float CosV, float Eta,
 	return Result;
 }
 
+#if !SIMPLIFIED_MATERIAL_SHADER
 
 struct FRoughThinGlassData
 {
@@ -286,3 +287,5 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 		return Result;
 	}
 }
+
+#endif

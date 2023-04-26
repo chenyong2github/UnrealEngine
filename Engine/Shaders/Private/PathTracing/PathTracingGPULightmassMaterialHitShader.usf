@@ -15,6 +15,9 @@
 // Ensure that SSS albedo comes through in the material
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
 
+// Not using precomputed lighting
+#define MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING  0
+
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
@@ -32,6 +35,7 @@
 
 #if STRATA_ENABLED
 #define STRATA_GPU_LIGHTMASS 1
+#include "/Engine/Private/Strata/Strata.ush"
 #include "/Engine/Private/Strata/StrataExport.ush"
 #endif
 
@@ -88,16 +92,16 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(GPULightmassMaterialCHS,
 
 #if STRATA_ENABLED
 
-
-
-	FStrataData StrataData = PixelMaterialInputs.GetFrontStrataData();
-	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
-
 	float  Coverage = 0;
 	float3 TransmittancePreCoverage = 0;
 	float3 BaseColorPostCoverage = 0;
 	float3 WorldNormal = 0;
 	float3 EmissiveLuminance = 0;
+
+#if MATERIAL_IS_STRATA
+	FStrataData StrataData = PixelMaterialInputs.GetFrontStrataData();
+	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
+
 
 	FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(true /*bForceFullyRough*/, false /*StrataStruct.bRoughDiffuse*/, -1/*StrataStruct.PeelLayersAboveDepth*/, false/*StrataStruct.bRoughnessTracking*/);
 
@@ -112,6 +116,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(GPULightmassMaterialCHS,
 		BaseColorPostCoverage,
 		WorldNormal,
 		EmissiveLuminance);
+#endif // MATERIAL_IS_STRATA
 
 
 #if MATERIALBLENDING_ANY_TRANSLUCENT
@@ -123,17 +128,20 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(GPULightmassMaterialCHS,
 		PackedPayload.SetRayThroughput(RayThroughput);
 		return;
 	}
+	// STRATA_TODO: Make sure this is correct for all blend modes/glass cases
+	float3 TransparencyColor = saturate((1.0f - Coverage) + Coverage * TransmittancePreCoverage);
+#else
+	float3 TransparencyColor = 0.0;
 #endif
 
 	FPathTracingPayload Payload = (FPathTracingPayload)0;
 
-	Payload.BaseColor = BaseColorPostCoverage;
-	Payload.SubsurfaceColor = 0;							// STRATA_TODO unused by GPU lightmass?
 	Payload.BSDFOpacity = Coverage;
-	Payload.TransparencyColor = 0;							// STRATA_TODO That is not important when not evaluating throughput for IsVisibilityRay() above.
+	Payload.BaseColor = BaseColorPostCoverage;
+	Payload.SubsurfaceColor = 0;							// STRATA_TODO: Figure out how to support old two-sided foliage approximation
+	Payload.ShadingModelID = any(BaseColorPostCoverage > 0.0) ? SHADINGMODELID_DEFAULT_LIT : SHADINGMODELID_UNLIT;
+	Payload.TransparencyColor = TransparencyColor;
 
-	Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;	// STRATA_TODO check that this is enough for GPULightmass
-	
 	const uint PrimitiveFlags = GetPrimitiveData(MaterialParameters.PrimitiveId).Flags;
 	Payload.PrimitiveLightingChannelMask = GetPrimitive_LightingChannelMask_FromFlags(PrimitiveFlags);
 	Payload.HitT = RayTCurrent();

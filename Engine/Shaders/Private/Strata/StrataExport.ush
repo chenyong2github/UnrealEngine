@@ -872,9 +872,6 @@ void StrataMaterialExportOut(
 
 			if (StrataIsBSDFVisible(CurrentBSDF))
 			{
-				// Starting with environment lighting, the context does not specify a light
-				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, FakeV);
-
 				const float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
 				const float3 N = TangentBasis[2];
 
