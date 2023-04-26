@@ -817,6 +817,7 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 				{
 					UUsdMeshAssetUserData* UserData = NewObject<UUsdMeshAssetUserData>(StaticMesh, TEXT("UUSDAssetUserData"));
 					UserData->PrimPath = MeshName;
+					UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;  // We use the same primvar mapping for all LODs
 					StaticMesh->AddAssetUserData(UserData);
 				}
 

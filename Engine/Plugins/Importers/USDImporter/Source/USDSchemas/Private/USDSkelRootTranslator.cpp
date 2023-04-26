@@ -1332,6 +1332,7 @@ namespace UsdSkelRootTranslatorImpl
 					{
 						UUsdMeshAssetUserData* UserData = NewObject<UUsdMeshAssetUserData>(SkeletalMesh, TEXT("USDAssetUserData"));
 						UserData->PrimPath = SkelRootPath;
+						UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;  // We use the same primvar mapping for all LODs
 						SkeletalMesh->AddAssetUserData(UserData);
 
 						const bool bMaterialsHaveChanged = UsdSkelRootTranslatorImpl::ProcessMaterials(
@@ -1523,15 +1524,19 @@ namespace UsdSkelRootTranslatorImpl
 						{
 							FScopedUnrealAllocs UEAllocs;
 
+							FName AnimSequenceName = MakeUniqueObjectName(
+								GetTransientPackage(),
+								UAnimSequence::StaticClass(),
+								*IUsdClassesModule::SanitizeObjectName(UsdToUnreal::ConvertToken(SkelAnimationPrim.GetName()))
+							);
+
 							// The UAnimSequence can't be created with the RF_Transactional flag, or else it will be serialized without
 							// Bone/CurveCompressionSettings. Undoing that transaction would call UAnimSequence::Serialize with nullptr values for both, which crashes.
 							// Besides, this particular asset type is only ever created when we import to content folder assets (so never for realtime), and
 							// in that case we don't need it to be transactional anyway
-							// TODO: I think this changed and now we generate AnimSequences when opening the stage too,
-							// so this may lead to issues
 							AnimSequence = NewObject<UAnimSequence>(
 								GetTransientPackage(),
-								NAME_None,
+								AnimSequenceName,
 								(Context->ObjectFlags & ~EObjectFlags::RF_Transactional) | EObjectFlags::RF_Transient
 							);
 							AnimSequence->SetSkeleton( SkeletalMesh->GetSkeleton() );

@@ -798,6 +798,7 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			{
 				UUsdMeshAssetUserData* UserData = NewObject<UUsdMeshAssetUserData>(GeometryCache.Get(), TEXT("UUSDAssetUserData"));
 				UserData->PrimPath = PrimPathString;
+				UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;  // We use the same primvar mapping for all LODs
 				GeometryCache->AddAssetUserData(UserData);
 
 				// Only the original creator of the prim at creation time gets to set the material assignments
