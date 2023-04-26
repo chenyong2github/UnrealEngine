@@ -42,6 +42,13 @@ enum class EGeometryScriptBakeSamplesPerPixel : uint8
 };
 
 UENUM(BlueprintType)
+enum class EGeometryScriptBakeFilteringType : uint8
+{
+	BSpline UMETA(DisplayName = "B-Spline"),
+	Box UMETA(DisplayName = "Box")
+};
+
+UENUM(BlueprintType)
 enum class EGeometryScriptBakeTypes : uint8
 {
 	/* Normals in tangent space */
@@ -211,6 +218,10 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeTextureOptions
 	/** Mask texture for filtering out samples/pixels from the output texture */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	TObjectPtr<UTexture2D> SampleFilterMask = nullptr;
+
+	/** Filtering Type to perform on samples */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptBakeFilteringType FilteringType = EGeometryScriptBakeFilteringType::BSpline;
 
 	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
 	 * This is only relevant if a separate source mesh is provided. */

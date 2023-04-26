@@ -93,6 +93,19 @@ namespace GeometryScriptBakeLocals
 		return Samples;
 	}
 
+	FMeshMapBaker::EBakeFilterType GetFilter(EGeometryScriptBakeFilteringType FilteringType)
+	{
+		switch (FilteringType)
+		{
+		case EGeometryScriptBakeFilteringType::Box:
+			return FMeshMapBaker::EBakeFilterType::Box;
+		case EGeometryScriptBakeFilteringType::BSpline:
+		default:
+			return FMeshMapBaker::EBakeFilterType::BSpline;
+		}
+	}
+
+
 	FTexture2DBuilder::ETextureType GetTextureType(const FMeshMapEvaluator* Evaluator, const EGeometryScriptBakeBitDepth MapFormat)
 	{
 		FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::Color;
@@ -520,6 +533,7 @@ namespace GeometryScriptBakeLocals
 		Baker.SetDimensions(BakeDimensions);
 		Baker.SetProjectionDistance(BakeOptions.ProjectionDistance);
 		Baker.SetSamplesPerPixel(GetSamplesPerPixel(BakeOptions.SamplesPerPixel));
+		Baker.SetFilter(GetFilter(BakeOptions.FilteringType));
 		TUniquePtr<TImageBuilder<FVector4f>> SampleFilterMask = GetSampleFilterMask(BakeOptions, BakeTexturePrefix, Debug);
 		if (SampleFilterMask)
 		{
