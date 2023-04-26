@@ -247,10 +247,11 @@ void UNiagaraStackSummaryViewCollection::RefreshChildrenInternal(const TArray<UN
 			{
 				FString VariableNameWithModulePrefix = FNiagaraConstants::ModuleNamespaceString + ".";
 				VariableNameWithModulePrefix.Append(InputData->InputName.ToString());
-				
+				FName VariableNameToTestAgainst(VariableNameWithModulePrefix);
+
 				UNiagaraStackFunctionInput* TopLevelInput = FindCurrentChildOfTypeByPredicate<UNiagaraStackFunctionInput>(CurrentChildren, [&](UNiagaraStackFunctionInput* CurrentInput) 
 				{
-					return CurrentInput->GetInputParameterHandle().GetName().ToString() == VariableNameWithModulePrefix && CurrentInput->GetInputType() == InputData->Type && &CurrentInput->GetInputFunctionCallNode() == InputData->FunctionCallNode;
+					return CurrentInput->GetInputParameterHandle() == VariableNameToTestAgainst && CurrentInput->GetInputType() == InputData->Type && &CurrentInput->GetInputFunctionCallNode() == InputData->FunctionCallNode;
 				});
 	
 				if(TopLevelInput == nullptr)
