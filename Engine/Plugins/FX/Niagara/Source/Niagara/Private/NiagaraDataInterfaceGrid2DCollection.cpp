@@ -249,7 +249,7 @@ struct FNiagaraGrid2DLegacyTiled2DInfo
 };
 
 UNiagaraDataInterfaceGrid2DCollection::UNiagaraDataInterfaceGrid2DCollection(FObjectInitializer const& ObjectInitializer)
-	: Super(ObjectInitializer), OverrideBufferFormat(ENiagaraGpuBufferFormat::Float), bOverrideFormat(false)
+	: Super(ObjectInitializer), OverrideBufferFormat(GetDefault<UNiagaraSettings>()->DefaultGridFormat), bOverrideFormat(false)
 #if WITH_EDITORONLY_DATA
 	, bPreviewGrid(false)
 #endif
