@@ -379,6 +379,39 @@ void SCurveEditorViewStacked::DrawBufferedCurves(const FGeometry& AllottedGeomet
 	}
 }
 
+void SCurveEditorViewStacked::UpdateViewToTransformCurves()
+{
+
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (!CurveEditor)
+	{
+		return;
+	}
+	double ValuePerPixel = 1.0 / StackedHeight;
+	double ValueSpacePadding = StackedPadding * ValuePerPixel;
+
+	for (auto It = CurveInfoByID.CreateIterator(); It; ++It)
+	{
+		FCurveModel* Curve = CurveEditor->FindCurve(It.Key());
+		if (!ensureAlways(Curve))
+		{
+			continue;
+		}
+
+		const int32  CurveIndexFromBottom = CurveInfoByID.Num() - It->Value.CurveIndex - 1;
+		const double PaddingToBottomOfView = (CurveIndexFromBottom + 1) * ValueSpacePadding;
+		const double ValueOffset = -CurveIndexFromBottom - PaddingToBottomOfView;
+
+		double CurveOutputMin = 0, CurveOutputMax = 1;
+		Curve->GetValueRange(CurveOutputMin, CurveOutputMax);
+
+		It->Value.ViewToCurveTransform = CalculateViewToCurveTransform(CurveOutputMin, CurveOutputMax, ValueOffset);
+	}
+
+	OutputMax = FMath::Max(OutputMin + CurveInfoByID.Num() + ValueSpacePadding * (CurveInfoByID.Num() + 1), 1.0);
+}
+
+
 void SCurveEditorViewStacked::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
@@ -389,28 +422,7 @@ void SCurveEditorViewStacked::Tick(const FGeometry& AllottedGeometry, const doub
 
 	if (!CurveEditor->AreBoundTransformUpdatesSuppressed())
 	{
-		double ValuePerPixel = 1.0 / StackedHeight;
-		double ValueSpacePadding = StackedPadding * ValuePerPixel;
-
-		for (auto It = CurveInfoByID.CreateIterator(); It; ++It)
-		{
-			FCurveModel* Curve = CurveEditor->FindCurve(It.Key());
-			if (!ensureAlways(Curve))
-			{
-				continue;
-			}
-
-			const int32  CurveIndexFromBottom = CurveInfoByID.Num() - It->Value.CurveIndex - 1;
-			const double PaddingToBottomOfView = (CurveIndexFromBottom + 1)*ValueSpacePadding;
-			const double ValueOffset = -CurveIndexFromBottom - PaddingToBottomOfView;
-
-			double CurveOutputMin = 0, CurveOutputMax = 1;
-			Curve->GetValueRange(CurveOutputMin, CurveOutputMax);
-
-			It->Value.ViewToCurveTransform = CalculateViewToCurveTransform(CurveOutputMin, CurveOutputMax, ValueOffset);
-		}
-
-		OutputMax = FMath::Max(OutputMin + CurveInfoByID.Num() + ValueSpacePadding*(CurveInfoByID.Num()+1), 1.0);
+		UpdateViewToTransformCurves();
 	}
 
 	SInteractiveCurveEditorView::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);

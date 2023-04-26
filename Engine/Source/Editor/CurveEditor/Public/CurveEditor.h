@@ -528,12 +528,6 @@ public:
 	bool CanFlattenOrStraightenSelection() const;
 
 public:
-	/**
-	 * Populate the specified array with curve painting parameters
-	 *
-	 * @param OutDrawParams    An array to populate with curve painting parameters, one per visible curve
-	 */
-	void GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) const;
 
 	/**
 	 * Called by SCurveEditorPanel to update the allocated geometry for this curve editor.

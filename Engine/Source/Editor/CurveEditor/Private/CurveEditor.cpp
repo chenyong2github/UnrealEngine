@@ -712,13 +712,14 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 	for (const TTuple<TSharedRef<SCurveEditorView>, TTuple<double, double>>& ViewAndBounds : ViewToOutputBounds)
 	{
 		TSharedRef<SCurveEditorView> View = ViewAndBounds.Key;
+
 		double OutputMin = ViewAndBounds.Value.Get<0>();
 		double OutputMax = ViewAndBounds.Value.Get<1>();
 
 		// If zooming to the same (or invalid) min/max, keep the same zoom scale and center within the timeline
 		if (OutputMin >= OutputMax)
 		{
-			const double HalfOutputScale = (View->GetOutputMax() - View->GetOutputMin())*0.5;
+			const double HalfOutputScale = (View->GetOutputMax() - View->GetOutputMin()) * 0.5;
 			OutputMin -= HalfOutputScale;
 			OutputMax += HalfOutputScale;
 		}
@@ -731,7 +732,7 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 			{
 				PanelHeight = WeakPanel.Pin()->GetViewContainerGeometry().GetLocalSize().Y;
 			}
-			else 
+			else
 			{
 				PanelHeight = View->GetViewSpace().GetPhysicalHeight();
 			}
@@ -744,8 +745,7 @@ void FCurveEditor::ZoomToFitInternal(EAxisList::Type Axes, const TMap<FCurveMode
 			OutputMin -= OutputPadding;
 			OutputMax = FMath::Max(OutputMin + MinOutputZoom, OutputMax) + OutputPadding;
 		}
-
-		View->SetOutputBounds(OutputMin, OutputMax);
+		View->FrameVertical(OutputMin, OutputMax);
 	}
 }
 

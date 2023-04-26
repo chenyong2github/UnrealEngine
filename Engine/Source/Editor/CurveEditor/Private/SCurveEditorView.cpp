@@ -108,6 +108,12 @@ void SCurveEditorView::RemoveCurve(FCurveModelID CurveID)
 	}
 }
 
+void SCurveEditorView::FrameVertical(double InOutputMin, double InOutputMax)
+{
+	//default just set's output if it can
+	SetOutputBounds(InOutputMin, InOutputMax);
+}
+
 void SCurveEditorView::SetOutputBounds(double InOutputMin, double InOutputMax)
 {
 	if (!bFixedOutputBounds)
@@ -150,8 +156,11 @@ void SCurveEditorView::ZoomAround(const FVector2D& Amount, double InputOrigin, d
 	}
 }
 
-void SCurveEditorView::GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) const
+void SCurveEditorView::GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) 
 {
+	//make sure the transform is set up
+	UpdateViewToTransformCurves();
+
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (!CurveEditor)
 	{
