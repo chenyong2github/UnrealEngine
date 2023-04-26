@@ -783,7 +783,7 @@ bool UWorldPartition::CanStream() const
 	// Is it part of a Sub-level that should be visible.
 	if (ULevelStreaming* LevelStreaming = ULevelStreaming::FindStreamingLevel(PersistentLevel))
 	{
-		return LevelStreaming->ShouldBeVisible();
+		return !LevelStreaming->GetIsRequestingUnloadAndRemoval() && LevelStreaming->ShouldBeVisible();
 	}
 
 	return true;

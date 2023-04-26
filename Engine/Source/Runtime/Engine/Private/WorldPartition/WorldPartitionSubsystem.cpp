@@ -508,12 +508,11 @@ void UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged(UWorld* World,
 		return;
 	}
 
-	// Make sure when a WorldPartiton is LevelStreamed that changing its state to remove it from world will update the target states of its Cells right away.
+	// Make sure when a WorldPartition is LevelStreamed that changing its state to remove it from world will update the target states of its Cells right away.
 	if(LevelIfLoaded && NewTarget != ELevelStreamingTargetState::LoadedVisible)
 	{
-		// At this point the StreamingLevel should not be visible or the global flag on the world should have been set to unload all streaming levels
-		ensure(!StreamingLevel->ShouldBeVisible() || World->GetShouldForceUnloadStreamingLevels());
-		if (UWorldPartition* WorldPartition = LevelIfLoaded->GetTypedOuter<UWorld>()->GetWorldPartition(); WorldPartition && WorldPartition->IsInitialized())
+		UWorldPartition* WorldPartition = LevelIfLoaded->GetTypedOuter<UWorld>()->GetWorldPartition();
+		if (WorldPartition && WorldPartition->IsInitialized() && !WorldPartition->CanStream())
 		{
 			WorldPartition->UpdateStreamingState();
 		}
