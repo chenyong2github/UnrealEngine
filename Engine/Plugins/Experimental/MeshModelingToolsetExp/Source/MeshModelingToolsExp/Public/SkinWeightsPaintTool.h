@@ -47,7 +47,7 @@ namespace SkinPaintTool
 		void UpdateVertexDeformation(USkinWeightsPaintTool* Tool);
 
 		void SetVertexNeedsUpdated(int32 VertexIndex);
-	
+		
 		// which vertices require updating (partially re-calculated skinning deformation while painting)
 		TSet<int32> VerticesWithModifiedWeights;
 		// position of all vertices in the reference pose
@@ -283,7 +283,7 @@ protected:
 	UE::Geometry::TDynamicVerticesOctree3<FDynamicMesh3> VerticesOctree;
 	UE::Geometry::FDynamicMeshOctree3 TrianglesOctree;
 	TFuture<void> TriangleOctreeFuture;
-	TArray<int32> TriangleToReinsert;
+	TArray<int32> TrianglesToReinsert;
 
 	// tool properties
 	UPROPERTY()
