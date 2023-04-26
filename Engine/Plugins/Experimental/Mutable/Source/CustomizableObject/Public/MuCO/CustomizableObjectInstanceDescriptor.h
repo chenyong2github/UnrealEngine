@@ -39,8 +39,6 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	
 	explicit FCustomizableObjectInstanceDescriptor(UCustomizableObject& Object);
 
-	FCustomizableObjectInstanceDescriptor(const FCustomizableObjectInstanceDescriptor& Other) = default;
-
 	/** Serialize this object. Does not support Multilayer Projectors! */
 	void SaveDescriptor(FArchive &Ar);
 
