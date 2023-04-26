@@ -367,13 +367,13 @@ bool FWaveformEditor::RegisterToolbar()
 
 			if (Context && Context->WaveformEditor.IsValid())
 			{
-				FToolMenuEntry ExportEntry = FToolMenuEntry::InitToolBarButton(
-					Commands.ExportWaveform,
+				FToolMenuEntry ReimportEntry = FToolMenuEntry::InitToolBarButton(
+					Commands.ReimportAsset,
 					LOCTEXT("WaveformEditorReimport", ""),
 					TAttribute< FText >::CreateRaw(Context->WaveformEditor.Pin().Get(), &FWaveformEditor::GetReimportButtonToolTip),
 					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"));
 
-				InSection.AddEntry(ExportEntry);
+				InSection.AddEntry(ReimportEntry);
 			}
 		}));
 
