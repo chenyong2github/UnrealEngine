@@ -23,9 +23,9 @@ namespace UE::Net::Private
 
 enum class ENetObjectGroupTraits : uint32
 {
-	None = 0U,
-	IsFindableByName = 1U << None,
-	IsFiltering = 1U << IsFindableByName,
+	None				= 0x0000,
+	IsFindableByName	= 0x0001,
+	IsFiltering			= 0x0002,
 };
 ENUM_CLASS_FLAGS(ENetObjectGroupTraits);
 
