@@ -120,6 +120,18 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 		return Op->GetHandle();
 	}
 
+	// Check for an existing presence lobby
+	if (Params.bPresenceEnabled)
+	{
+		TOnlineResult<FGetPresenceLobby> GetPresenceLobbyResult = GetPresenceLobby({ Params.LocalAccountId });
+		if (GetPresenceLobbyResult.IsOk())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Failed: bPresenceEnabled was set to true, but there is already a presence Lobby"), UTF8_TO_TCHAR(__FUNCTION__));
+			Op->SetError(Errors::InvalidState());
+			return Op->GetHandle();
+		}
+	}
+
 	// Start operation.
 	// Step 1: Call create lobby.
 	Op->Then([this, LobbyIdOverrideStr](TOnlineAsyncOp<FCreateLobby>& InAsyncOp, TPromise<const EOS_Lobby_CreateLobbyCallbackInfo*>&& Promise)
@@ -137,7 +149,7 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 		CreateLobbyOptions.MaxLobbyMembers = Params.MaxMembers;
 		// Prevent lobby from appearing in search results until fully created with all user attributes.
 		CreateLobbyOptions.PermissionLevel = EOS_ELobbyPermissionLevel::EOS_LPL_INVITEONLY;
-		CreateLobbyOptions.bPresenceEnabled = false; // todo: handle
+		CreateLobbyOptions.bPresenceEnabled = Params.bPresenceEnabled;
 		CreateLobbyOptions.bAllowInvites = true; // todo: handle
 		CreateLobbyOptions.BucketId = BucketTanslator.GetBucketIdEOS();
 		CreateLobbyOptions.bDisableHostMigration = false; // todo: handle
@@ -267,7 +279,7 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, UE_ONLINE_LOBBY_EOS_KEY_NAME_LOBBY_DATA);
 
 		// Mark the lobby active.
-		AddActiveLobby(Params.LocalAccountId, LobbyData);
+		AddActiveLobby(Params.LocalAccountId, Params.bPresenceEnabled, LobbyData);
 
 		// Update local cache and fire events.
 		LobbyData->GetLobbyClientData()->CommitClientChanges({ &LobbyEvents });
@@ -353,6 +365,18 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesEOSGS::JoinLobby(FJoinLobby::Params&& I
 		return Op->GetHandle();
 	}
 
+	// Check for an existing presence lobby
+	if (Params.bPresenceEnabled)
+	{
+		TOnlineResult<FGetPresenceLobby> GetPresenceLobbyResult = GetPresenceLobby({ Params.LocalAccountId });
+		if (GetPresenceLobbyResult.IsOk())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Failed: bPresenceEnabled was set to true, but there is already a presence Lobby"), UTF8_TO_TCHAR(__FUNCTION__));
+			Op->SetError(Errors::InvalidState());
+			return Op->GetHandle();
+		}
+	}
+
 	// Lobby data must already exist through local creation, invitation, search, or UI event when joining.
 	TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Params.LobbyId);
 	if (!LobbyData)
@@ -395,7 +419,7 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesEOSGS::JoinLobby(FJoinLobby::Params&& I
 		UE_EOS_CHECK_API_MISMATCH(EOS_LOBBY_JOINLOBBY_API_LATEST, 3);
 		JoinLobbyOptions.LobbyDetailsHandle = LobbyDetails->GetEOSHandle();
 		JoinLobbyOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
-		JoinLobbyOptions.bPresenceEnabled = false; // todo
+		JoinLobbyOptions.bPresenceEnabled = Params.bPresenceEnabled;
 		JoinLobbyOptions.LocalRTCOptions = nullptr;
 
 		EOS_Async(EOS_Lobby_JoinLobby, LobbyPrerequisites->LobbyInterfaceHandle, JoinLobbyOptions, MoveTemp(Promise));
@@ -492,7 +516,7 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesEOSGS::JoinLobby(FJoinLobby::Params&& I
 		const TSharedRef<FLobbyDataEOS>& LobbyData = GetOpDataChecked<TSharedRef<FLobbyDataEOS>>(InAsyncOp, UE_ONLINE_LOBBY_EOS_KEY_NAME_LOBBY_DATA);
 
 		// Mark the lobby active.
-		AddActiveLobby(Params.LocalAccountId, LobbyData);
+		AddActiveLobby(Params.LocalAccountId, Params.bPresenceEnabled, LobbyData);
 
 		// Update local cache and fire events.
 		LobbyData->GetLobbyClientData()->CommitClientChanges({ &LobbyEvents });
@@ -1476,10 +1500,15 @@ void FLobbiesEOSGS::UnregisterHandlers()
 	OnJoinLobbyAcceptedEOSEventRegistration = nullptr;
 }
 
-void FLobbiesEOSGS::AddActiveLobby(FAccountId LocalAccountId, const TSharedRef<FLobbyDataEOS>& LobbyData)
+void FLobbiesEOSGS::AddActiveLobby(FAccountId LocalAccountId, bool bPresenceEnabled, const TSharedRef<FLobbyDataEOS>& LobbyData)
 {
 	// Add bookkeeping for the user.
 	ActiveLobbies.FindOrAdd(LocalAccountId).Add(LobbyData);
+
+	if (bPresenceEnabled)
+	{
+		PresenceLobbiesUserMap.FindOrAdd(LocalAccountId, LobbyData->GetLobbyIdHandle());
+	}
 }
 
 void FLobbiesEOSGS::RemoveActiveLobby(FAccountId LocalAccountId, const TSharedRef<FLobbyDataEOS>& LobbyData)
@@ -1488,6 +1517,16 @@ void FLobbiesEOSGS::RemoveActiveLobby(FAccountId LocalAccountId, const TSharedRe
 	if (TSet<TSharedRef<FLobbyDataEOS>>* Lobbies = ActiveLobbies.Find(LocalAccountId))
 	{
 		Lobbies->Remove(LobbyData);
+	}
+
+	// We'll clear the presence mapping if this was the presence session
+	TOnlineResult<FIsPresenceLobby> IsPresenceLobbyResult = IsPresenceLobby({ LocalAccountId, LobbyData->GetLobbyIdHandle() });
+	if (IsPresenceLobbyResult.IsOk())
+	{
+		if (IsPresenceLobbyResult.GetOkValue().bIsPresenceLobby)
+		{
+			PresenceLobbiesUserMap.Remove(LocalAccountId);
+		}
 	}
 }
 

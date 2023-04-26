@@ -43,6 +43,8 @@ void FLobbiesCommon::RegisterCommands()
 	RegisterCommand(&FLobbiesCommon::ModifyLobbyJoinPolicy);
 	RegisterCommand(&FLobbiesCommon::ModifyLobbyAttributes);
 	RegisterCommand(&FLobbiesCommon::ModifyLobbyMemberAttributes);
+	RegisterCommand(&FLobbiesCommon::GetPresenceLobby);
+	RegisterCommand(&FLobbiesCommon::IsPresenceLobby);
 	RegisterCommand(&FLobbiesCommon::GetJoinedLobbies);
 	RegisterCommand(&FLobbiesCommon::GetReceivedInvitations);
 
@@ -140,6 +142,69 @@ TOnlineAsyncOpHandle<FModifyLobbyMemberAttributes> FLobbiesCommon::ModifyLobbyMe
 	TOnlineAsyncOpRef<FModifyLobbyMemberAttributes> Operation = GetOp<FModifyLobbyMemberAttributes>(MoveTemp(Params));
 	Operation->SetError(Errors::NotImplemented());
 	return Operation->GetHandle();
+}
+
+TOnlineResult<FGetPresenceLobby> FLobbiesCommon::GetPresenceLobby(FGetPresenceLobby::Params&& Params)
+{
+	if (!Params.LocalAccountId.IsValid())
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[%s] Value of Params.LocalAccountId invalid."), UTF8_TO_TCHAR(__FUNCTION__));
+		return TOnlineResult<FGetPresenceLobby>(Errors::InvalidParams());
+	}
+
+	if (const FLobbyId* PresenceLobbyId = PresenceLobbiesUserMap.Find(Params.LocalAccountId))
+	{
+		TOnlineResult<FGetJoinedLobbies> GetJoinedLobbiesResult = GetJoinedLobbies({ Params.LocalAccountId });
+		if (GetJoinedLobbiesResult.IsOk())
+		{
+			const TArray<TSharedRef<const FLobby>>& JoinedLobbies = GetJoinedLobbiesResult.GetOkValue().Lobbies;
+			for (const TSharedRef<const FLobby>& Lobby : JoinedLobbies)
+			{
+				if (Lobby->LobbyId == *PresenceLobbyId)
+				{
+					return TOnlineResult<FGetPresenceLobby>({ Lobby });
+				}
+			}
+			
+			UE_LOG(LogTemp, Verbose, TEXT("[%s] Presence Lobby was not found among Joined Lobbies"), UTF8_TO_TCHAR(__FUNCTION__));
+			return TOnlineResult<FGetPresenceLobby>({ Errors::NotFound() });
+		}
+		else
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[%s] GetJoinedLobbies was not successful"), UTF8_TO_TCHAR(__FUNCTION__));
+			return TOnlineResult<FGetPresenceLobby>(GetJoinedLobbiesResult.GetErrorValue());
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[%s] No data found for user [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
+		return TOnlineResult<FGetPresenceLobby>({ Errors::InvalidState() });
+	}
+}
+
+TOnlineResult<FIsPresenceLobby> FLobbiesCommon::IsPresenceLobby(FIsPresenceLobby::Params&& Params)
+{
+	if (!Params.LocalAccountId.IsValid())
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[%s] Value of Params.LocalAccountId invalid."), UTF8_TO_TCHAR(__FUNCTION__));
+		return TOnlineResult<FIsPresenceLobby>(Errors::InvalidParams());
+	}
+	
+	if (!Params.LobbyId.IsValid())
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[%s] Value of Params.LobbyId invalid."), UTF8_TO_TCHAR(__FUNCTION__));
+		return TOnlineResult<FIsPresenceLobby>(Errors::InvalidParams());
+	}
+
+	if (const FLobbyId* PresenceLobbyId = PresenceLobbiesUserMap.Find(Params.LocalAccountId))
+	{
+		return TOnlineResult<FIsPresenceLobby>(FIsPresenceLobby::Result{ Params.LobbyId == (*PresenceLobbyId) });
+	}
+	else
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[%s] No data found for user [%s]."), UTF8_TO_TCHAR(__FUNCTION__), *ToLogString(Params.LocalAccountId));
+		return TOnlineResult<FIsPresenceLobby>({ Errors::InvalidState() });
+	}
 }
 
 TOnlineResult<FGetJoinedLobbies> FLobbiesCommon::GetJoinedLobbies(FGetJoinedLobbies::Params&& Params)

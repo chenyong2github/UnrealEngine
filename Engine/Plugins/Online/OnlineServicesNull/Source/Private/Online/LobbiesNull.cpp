@@ -50,7 +50,7 @@ FLobbiesNull::FLobbiesNull(FOnlineServicesNull& InServices)
 
 void FLobbiesNull::Initialize()
 {
-
+	FLobbiesCommon::Initialize();
 }
 
 void FLobbiesNull::PreShutdown()
@@ -66,27 +66,42 @@ void FLobbiesNull::Tick(float DeltaSeconds)
 TOnlineAsyncOpHandle<FCreateLobby> FLobbiesNull::CreateLobby(FCreateLobby::Params&& Params)
 {
 	TOnlineAsyncOpRef<FCreateLobby> Op = GetOp<FCreateLobby>(MoveTemp(Params));
+
+	if (Params.bPresenceEnabled)
+	{
+		TOnlineResult<FGetPresenceLobby> GetPresenceLobbyResult = GetPresenceLobby({ Params.LocalAccountId });
+		if (GetPresenceLobbyResult.IsOk())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Failed: bPresenceEnabled was set to true, but there is already a presence Lobby"), UTF8_TO_TCHAR(__FUNCTION__));
+			Op->SetError(Errors::InvalidState());
+			return Op->GetHandle();
+		}
+	}
+
 	TSharedRef<FLobbyNull> Lobby = CreateNamedLobby(Op->GetParams());
 	
 	int Result = UpdateLANStatus();
 
-	if (Result != ONLINE_IO_PENDING)
-	{
-		// Set the game state as pending (not started)
-//		Session->SessionState = EOnlineSessionState::Pending; todo: LobbyState
+	// Set the game state as pending (not started)
+	// Session->SessionState = EOnlineSessionState::Pending; todo: LobbyState
 
-		if (Result != ONLINE_SUCCESS)
-		{
-			// Clean up the session info so we don't get into a confused state
-			RemoveLobbyFromRef(Lobby);
-			Op->SetError(Errors::Unknown()); //todo: error
-		}
-		else
-		{
-			//RegisterLocalPlayers(Lobby); todo: RegisterPlayers
-			Op->SetResult(FCreateLobby::Result{Lobby->Data});
-		}
+	if (Result != ONLINE_SUCCESS)
+	{
+		// Clean up the session info so we don't get into a confused state
+		RemoveLobbyFromRef(Lobby);
+		Op->SetError(Errors::Unknown()); //todo: error
 	}
+	else
+	{
+		if (Params.bPresenceEnabled)
+		{
+			PresenceLobbiesUserMap.FindOrAdd(Params.LocalAccountId, Lobby->Data->LobbyId);
+		}
+
+		//RegisterLocalPlayers(Lobby); todo: RegisterPlayers
+		Op->SetResult(FCreateLobby::Result{Lobby->Data});
+	}
+
 	return Op->GetHandle();
 }
 
@@ -107,6 +122,18 @@ TOnlineAsyncOpHandle<FFindLobbies> FLobbiesNull::FindLobbies(FFindLobbies::Param
 TOnlineAsyncOpHandle<FJoinLobby> FLobbiesNull::JoinLobby(FJoinLobby::Params&& Params)
 {
 	TOnlineAsyncOpRef<FJoinLobby> Op = GetOp<FJoinLobby>(MoveTemp(Params));
+
+	if (Params.bPresenceEnabled)
+	{
+		TOnlineResult<FGetPresenceLobby> GetPresenceLobbyResult = GetPresenceLobby({ Params.LocalAccountId });
+		if (GetPresenceLobbyResult.IsOk())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[%s] Failed: bPresenceEnabled was set to true, but there is already a presence Lobby"), UTF8_TO_TCHAR(__FUNCTION__));
+			Op->SetError(Errors::InvalidState());
+			return Op->GetHandle();
+		}
+	}
+
 	const FName& LobbyName = Op->GetParams().LocalName;
 	TSharedPtr<FLobbyNull> Lobby = GetLobby(Op->GetParams().LobbyId);
 	TSharedPtr<FLobbyNull> ExistingLobby = GetNamedLobby(LobbyName);
@@ -114,6 +141,11 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesNull::JoinLobby(FJoinLobby::Params&& Pa
 	if (!ExistingLobby.IsValid() && Lobby.IsValid())
 	{
 		AddNamedLobby(Lobby.ToSharedRef(), LobbyName);
+
+		if (Params.bPresenceEnabled)
+		{
+			PresenceLobbiesUserMap.FindOrAdd(Params.LocalAccountId, Lobby->Data->LobbyId);
+		}
 	}
 	else
 	{
@@ -138,6 +170,17 @@ TOnlineAsyncOpHandle<FLeaveLobby> FLobbiesNull::LeaveLobby(FLeaveLobby::Params&&
 {
 	TOnlineAsyncOpRef<FLeaveLobby> Op = GetOp<FLeaveLobby>(MoveTemp(Params));
 	RemoveLobbyFromId(Op->GetParams().LobbyId);
+	
+	// We'll clear the presence mapping if this was the presence session
+	TOnlineResult<FIsPresenceLobby> IsPresenceLobbyResult = IsPresenceLobby({ Params.LocalAccountId, Params.LobbyId });
+	if (IsPresenceLobbyResult.IsOk())
+	{
+		if (IsPresenceLobbyResult.GetOkValue().bIsPresenceLobby)
+		{
+			PresenceLobbiesUserMap.Remove(Params.LocalAccountId);
+		}
+	}
+
 	Op->SetResult(FLeaveLobby::Result{});
 	return Op->GetHandle();
 }
@@ -164,6 +207,7 @@ TSharedRef<FLobbyNull> FLobbiesNull::CreateNamedLobby(const FCreateLobby::Params
 	Lobby->Data->Members.Add(Params.LocalAccountId, NewMember);
 
 	AllLobbies.Add(Lobby->Data->LobbyId, Lobby);
+
 	return Lobby;
 }
 

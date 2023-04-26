@@ -221,7 +221,7 @@ protected:
 	void RegisterHandlers();
 	void UnregisterHandlers();
 
-	void AddActiveLobby(FAccountId LocalAccountId, const TSharedRef<FLobbyDataEOS>& LobbyData);
+	void AddActiveLobby(FAccountId LocalAccountId, bool bPresenceEnabled, const TSharedRef<FLobbyDataEOS>& LobbyData);
 	void RemoveActiveLobby(FAccountId LocalAccountId, const TSharedRef<FLobbyDataEOS>& LobbyData);
 
 	// Todo: store list of invites per lobby.

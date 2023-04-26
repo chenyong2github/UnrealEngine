@@ -578,6 +578,7 @@ void UCommonSessionSubsystem::CreateOnlineSessionInternalOSSv2(ULocalPlayer* Loc
 
 	CreateParams.LocalName = SessionName;
 	CreateParams.SchemaId = FSchemaId(TEXT("GameLobby")); // TODO: make a parameter
+	CreateParams.bPresenceEnabled = true;
 	CreateParams.MaxMembers = MaxPlayers;
 	CreateParams.JoinPolicy = ELobbyJoinPolicy::PublicAdvertised; // TODO: Check parameters
 
@@ -1171,6 +1172,7 @@ void UCommonSessionSubsystem::JoinSessionInternalOSSv2(ULocalPlayer* LocalPlayer
 	JoinParams.LocalAccountId = LocalPlayer->GetPreferredUniqueNetId().GetV2();
 	JoinParams.LocalName = SessionName;
 	JoinParams.LobbyId = Request->Lobby->LobbyId;
+	JoinParams.bPresenceEnabled = true;
 
 	// Add any splitscreen players if they exist //@TODO: See UCommonSessionSubsystem::OnJoinSessionComplete
 
