@@ -423,7 +423,10 @@ namespace Gauntlet
 				return Name;
 			}
 
-			return string.Format("{0} ({1})", Name, Context);
+			var Config = GetConfiguration();
+			string RoleContext = (Config is UnrealTestConfiguration) ? Context.GetRoleContext(Config.GetMainRequiredRole().Type).ToString() : Context.ToString();
+
+			return string.Format("{0} ({1})", Name, RoleContext);
 		}
 
 		/// <summary>
