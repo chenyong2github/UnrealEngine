@@ -247,7 +247,7 @@ public:
 
 protected:
 	/** Whether this component can potentially influence navigation */
-	UPROPERTY(EditAnywhere, Category = Collision, AdvancedDisplay, config)
+	UPROPERTY(EditAnywhere, Category = Navigation, AdvancedDisplay, config)
 	uint8 bCanEverAffectNavigation : 1;
 
 public:
