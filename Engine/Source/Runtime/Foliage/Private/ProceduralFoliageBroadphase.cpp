@@ -14,6 +14,9 @@ FProceduralFoliageBroadphase::FProceduralFoliageBroadphase(const FProceduralFoli
 	OtherBroadphase.QuadTree.Duplicate(QuadTree);
 }
 
+// Perhaps this should copy the QuadTree like the copy constructor does...?
+FProceduralFoliageBroadphase& FProceduralFoliageBroadphase::operator=(const FProceduralFoliageBroadphase& OtherBroadphase) = default;
+
 void FProceduralFoliageBroadphase::Empty()
 {
 	QuadTree.Empty();

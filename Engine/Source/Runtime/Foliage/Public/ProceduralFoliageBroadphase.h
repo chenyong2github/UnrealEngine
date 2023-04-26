@@ -11,6 +11,7 @@ class FProceduralFoliageBroadphase
 public:
 	FProceduralFoliageBroadphase(float TileSize = 0.f, float MinimumQuadTreeSize = 100.f);
 	FProceduralFoliageBroadphase(const FProceduralFoliageBroadphase& OtherBroadphase);
+	FProceduralFoliageBroadphase& operator=(const FProceduralFoliageBroadphase& OtherBroadphase);
 
 	bool TestAgainstAABB(FProceduralFoliageInstance* Instance);
 	void Insert(FProceduralFoliageInstance* Instance);
