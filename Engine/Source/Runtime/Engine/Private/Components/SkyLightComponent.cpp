@@ -1113,6 +1113,12 @@ bool USkyLightComponent::IsRealTimeCaptureEnabled() const
 	return bRealTimeCapture && (Mobility == EComponentMobility::Movable || Mobility == EComponentMobility::Stationary) && GSkylightRealTimeReflectionCapture >0 && !bIsMobile;
 }
 
+void USkyLightComponent::SetRealTimeCaptureEnabled(bool bNewRealTimeCaptureEnabled)
+{
+	bRealTimeCapture = bNewRealTimeCaptureEnabled;
+	MarkRenderStateDirty();
+}
+
 void USkyLightComponent::OnVisibilityChanged()
 {
 	Super::OnVisibilityChanged();

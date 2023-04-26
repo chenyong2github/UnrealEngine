@@ -294,6 +294,7 @@ public:
 	/** Whether sky occlusion is supported by current feature level */
 	bool IsOcclusionSupported() const;
 
+	void SetRealTimeCaptureEnabled(bool bNewRealTimeCaptureEnabled);
 	bool IsRealTimeCaptureEnabled() const;
 
 	/** 

@@ -371,6 +371,7 @@ FReply SEnvironmentLightingViewer::OnButtonCreateSkyLight()
 	const FTransform Transform(FVector(0.0f, 0.0f, 0.0f));
 	ASkyLight* SkyLight = Cast<ASkyLight>(GEditor->AddActor(World->GetCurrentLevel(), ASkyLight::StaticClass(), Transform));
 	SkyLight->GetLightComponent()->SetMobility(EComponentMobility::Movable);
+	SkyLight->GetLightComponent()->SetRealTimeCaptureEnabled(true);
 
 	return FReply::Handled();
 }
