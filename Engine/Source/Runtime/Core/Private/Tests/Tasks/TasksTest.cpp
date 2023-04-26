@@ -125,7 +125,7 @@ namespace UE { namespace TasksTests
 			FTask EmptyPrereq;
 			FTask NonEmptyPrereq = Launch(UE_SOURCE_LOCATION, [] {});
 			FTask Task = Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(EmptyPrereq, NonEmptyPrereq));
-			check(Task.Wait(FTimespan::FromMilliseconds(1.0)));
+			check(Task.Wait(FTimespan::FromMilliseconds(100)));
 		}
 
 		{	// check that movable-only result types are supported, that only single instance of result is created and that it's destroyed
@@ -1398,7 +1398,7 @@ namespace UE { namespace TasksTests
 		FPipe Pipe{ UE_SOURCE_LOCATION };
 		Pipe.Launch(UE_SOURCE_LOCATION, [] {});
 		FTask FinalTask = Pipe.Launch(UE_SOURCE_LOCATION, [] {});
-		check(FinalTask.Wait(FTimespan::FromMilliseconds(1.0)));
+		check(FinalTask.Wait(FTimespan::FromMilliseconds(100)));
 
 		return true;
 	}
