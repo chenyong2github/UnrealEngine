@@ -705,7 +705,10 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 	const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 	const TArray<UObject*>& ReplicatedInstances = LocalNetRefHandleManager.GetReplicatedInstances();
 	const bool bIsUsingPushModel = IsIrisPushModelEnabled();
-	FNetBitArrayView DirtyObjects = ReplicationSystemInternal->GetDirtyNetObjectTracker().GetDirtyNetObjects();
+
+	FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystemInternal->GetDirtyNetObjectTracker());
+
+	FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
 
 	struct FPreUpdateAndPollStats
 	{
@@ -951,6 +954,10 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 
 	{
 		IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Poll);
+
+		// From here we call into user code via PreUpdateInstanceFunction, so allow external code to set dirty flags since DirtyObjects is not read anymore.
+		ReplicationSystemInternal->GetDirtyNetObjectTracker().AllowExternalAccess();
+
 		if (IsIrisPushModelEnabled())
 		{
 			ObjectsConsideredForPolling.ForAllSetBits(PushModelUpdateAndPollFunction);
@@ -996,7 +1003,8 @@ void UObjectReplicationBridge::UpdateInstancesWorldLocation()
 		}
 	};
 
-	const FNetBitArrayView DirtyObjects = ReplicationSystemInternal->GetDirtyNetObjectTracker().GetDirtyNetObjects();
+	FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystemInternal->GetDirtyNetObjectTracker());
+	const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
 	DirtyObjects.ForAllSetBits(UpdateInstanceWorldLocation);
 
 }

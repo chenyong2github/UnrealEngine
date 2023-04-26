@@ -48,3 +48,7 @@ IRISCORE_API void SetUseIrisReplication(bool EnableIrisReplication);
 #	define UE_NET_IRIS_VERBOSE_CSV_STATS 0
 #endif
 
+/** Enables code that detects non-thread safe access to network data */
+#ifndef UE_NET_THREAD_SAFETY_CHECK
+#	define UE_NET_THREAD_SAFETY_CHECK DO_CHECK
+#endif

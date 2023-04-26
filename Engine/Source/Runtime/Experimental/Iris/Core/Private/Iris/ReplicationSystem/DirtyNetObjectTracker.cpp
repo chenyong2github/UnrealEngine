@@ -35,7 +35,6 @@ FDirtyNetObjectTracker::FDirtyNetObjectTracker()
 , NetObjectIdRangeStart(0U)
 , NetObjectIdRangeEnd(0U)
 , NetObjectIdCount(0)
-, bHasPolledGlobalDirtyTracker(false)
 {
 }
 
@@ -58,13 +57,15 @@ void FDirtyNetObjectTracker::Init(const FDirtyNetObjectTrackerInitParams& Params
 	 * For now we support all IDs up to RangeEnd. This could be expensive if we partition things more in some way or other.
 	 * In the latter case we would have to add functionality to FNetBitArrayView to handle an offset or add a "FNetSparseBitArray".
 	 */
-	NetObjectIdCount = NetObjectIdRangeEnd + 1;
+	NetObjectIdCount = Params.MaxObjectCount;
 
 	GlobalDirtyTrackerPollHandle = FGlobalDirtyNetObjectTracker::CreatePoller();
 
 	DirtyNetObjectWordCount = (NetObjectIdCount + StorageTypeBitCount - 1)/StorageTypeBitCount;
 	DirtyNetObjectContainer = new StorageType[DirtyNetObjectWordCount];
-	ClearDirtyNetObjects();
+	FMemory::Memzero(DirtyNetObjectContainer, DirtyNetObjectWordCount * sizeof(StorageType));
+
+	AllowExternalAccess();
 
 	UE_LOG_DIRTYOBJECTTRACKER(TEXT("FDirtyNetObjectTracker::Init %u Id, Start:%u, End: %u"), ReplicationSystemId, NetObjectIdRangeStart, NetObjectIdRangeEnd);
 }
@@ -87,6 +88,8 @@ void FDirtyNetObjectTracker::UpdateDirtyNetObjects()
 
 	IRIS_PROFILER_SCOPE(FDirtyNetObjectTracker_UpdateDirtyNetObjects)
 
+	LockExternalAccess();
+
 	bHasPolledGlobalDirtyTracker = true;
 	const TSet<FNetHandle>& GlobalDirtyNetObjects = FGlobalDirtyNetObjectTracker::GetDirtyNetObjects(GlobalDirtyTrackerPollHandle);
 	for (FNetHandle NetHandle : GlobalDirtyNetObjects)
@@ -99,10 +102,16 @@ void FDirtyNetObjectTracker::UpdateDirtyNetObjects()
 			DirtyNetObjectContainer[BitOffset/StorageTypeBitCount] |= BitMask;
 		}
 	}
+
+	AllowExternalAccess();
 }
 
 void FDirtyNetObjectTracker::MarkNetObjectDirty(uint32 NetObjectIndex)
 {
+#if UE_NET_THREAD_SAFETY_CHECK
+	checkf(bIsExternalAccessAllowed, TEXT("Cannot mark objects dirty while the bitarray is locked for modifications."));
+#endif
+
 	if ((NetObjectIndex >= NetObjectIdRangeStart) & (NetObjectIndex <= NetObjectIdRangeEnd))
 	{
 		const uint32 BitOffset = NetObjectIndex;
@@ -115,20 +124,41 @@ void FDirtyNetObjectTracker::MarkNetObjectDirty(uint32 NetObjectIndex)
 	}
 }
 
+void FDirtyNetObjectTracker::LockExternalAccess()
+{
+#if UE_NET_THREAD_SAFETY_CHECK
+	bIsExternalAccessAllowed = false;
+#endif
+}
+
+void FDirtyNetObjectTracker::AllowExternalAccess()
+{
+#if UE_NET_THREAD_SAFETY_CHECK
+	bIsExternalAccessAllowed = true;
+#endif
+}
+
 FNetBitArrayView FDirtyNetObjectTracker::GetDirtyNetObjects() const
 {
+#if UE_NET_THREAD_SAFETY_CHECK
+	checkf(!bIsExternalAccessAllowed, TEXT("Cannot access the DirtyNetObjects bitarray unless its locked for multithread access."));
+#endif
 	return FNetBitArrayView(DirtyNetObjectContainer, NetObjectIdCount);
 }
 
 void FDirtyNetObjectTracker::ClearDirtyNetObjects()
 {
+	LockExternalAccess();
+
 	if (bHasPolledGlobalDirtyTracker)
 	{
 		bHasPolledGlobalDirtyTracker = false;
 		FGlobalDirtyNetObjectTracker::ResetDirtyNetObjects(GlobalDirtyTrackerPollHandle);
 	}
 
-	FMemory::Memset(DirtyNetObjectContainer, 0, DirtyNetObjectWordCount*sizeof(StorageType));
+	FMemory::Memzero(DirtyNetObjectContainer, DirtyNetObjectWordCount*sizeof(StorageType));
+	
+	AllowExternalAccess();
 
 	std::atomic_thread_fence(std::memory_order_seq_cst);
 }

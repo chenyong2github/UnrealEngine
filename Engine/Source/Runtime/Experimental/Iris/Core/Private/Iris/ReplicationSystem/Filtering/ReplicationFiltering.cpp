@@ -297,7 +297,8 @@ void FReplicationFiltering::FilterPrePoll()
 
 	UpdateSubObjectFilters();
 
-	const FNetBitArrayView DirtyObjects = ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker().GetDirtyNetObjects();
+	FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker());
+	const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
 
 	if (HasRawFilters())
 	{
@@ -368,7 +369,9 @@ void FReplicationFiltering::FilterPostPoll()
 {
 	if (HasFragmentFilters())
 	{
-		const FNetBitArrayView DirtyObjects = ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker().GetDirtyNetObjects();
+		FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker());
+		const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
+
 		UpdateDynamicFilters(ENetFilterType::PostPoll_FragmentBased, DirtyObjects);
 	}
 }
@@ -1077,8 +1080,9 @@ void FReplicationFiltering::UpdateGroupFiltering()
 				{
 					FNetBitArray& GroupFilteredOutObjects = LocalConnectionInfos[ConnectionId].GroupFilteredOutObjects;
 					FNetBitArray& ObjectsInScopeBeforeDynamicFiltering = LocalConnectionInfos[ConnectionId].ObjectsInScopeBeforeDynamicFiltering;
-					const FNetBitArray& ScopableObjects = NetRefHandleManager->GetScopableInternalIndices();
-					for (uint32 ObjectIndex : MakeArrayView(Group->Members.GetData(), Group->Members.Num()))
+					const FNetBitArray& GlobalScopableObjects = NetRefHandleManager->GetScopableInternalIndices();
+
+					for (uint32 ObjectIndex : Group->Members)
 					{
 						GroupFilteredOutObjects.SetBit(ObjectIndex);
 						ObjectsInScopeBeforeDynamicFiltering.ClearBit(ObjectIndex);
@@ -1086,7 +1090,7 @@ void FReplicationFiltering::UpdateGroupFiltering()
 						// Filter subobjects
 						for (const FInternalNetRefIndex SubObjectIndex : NetRefHandleManager->GetSubObjects(ObjectIndex))
 						{
-							const bool bIsScopable = ScopableObjects.GetBit(SubObjectIndex);
+							const bool bIsScopable = GlobalScopableObjects.GetBit(SubObjectIndex);
 							GroupFilteredOutObjects.SetBitValue(SubObjectIndex, bIsScopable);
 							ObjectsInScopeBeforeDynamicFiltering.ClearBit(SubObjectIndex);
 						}
@@ -1627,13 +1631,19 @@ bool FReplicationFiltering::GetSubObjectFilterStatus(FNetObjectGroupHandle Group
 
 void FReplicationFiltering::AddGroupFilter(FNetObjectGroupHandle GroupHandle)
 {
-	check(!SubObjectFilterGroups.GetBit(GroupHandle));
+	const bool bIsValidGroup = ensureMsgf(GroupHandle != InvalidNetObjectGroupHandle, TEXT("AddGroupFilter received an invalid group handle"));
 
-	if (ensure(GroupHandle && !FilterGroups.GetBit(GroupHandle)))
+	if (bIsValidGroup)
 	{
-		const bool bGroupExists = FilterGroups.GetBit(GroupHandle);
-		if (ensure(bGroupExists == false))
+		const bool bIsFiltering = FilterGroups.GetBit(GroupHandle);
+		ensureMsgf(!bIsFiltering, TEXT("NetObjectGroup %u was asked to start filtering but it was already doing so."), GroupHandle);
+
+		check(!SubObjectFilterGroups.GetBit(GroupHandle));
+		
+		if (!bIsFiltering)
 		{
+			Groups->AddFilterTrait(GroupHandle);
+
 			FilterGroups.SetBit(GroupHandle);
 			DirtyFilterGroups.SetBit(GroupHandle);
 			GroupInfos[GroupHandle].ConnectionStateIndex = AllocPerObjectInfo();
@@ -1646,18 +1656,23 @@ void FReplicationFiltering::AddGroupFilter(FNetObjectGroupHandle GroupHandle)
 	}
 }
 
-// Remove group from filtered groups
 void FReplicationFiltering::RemoveGroupFilter(FNetObjectGroupHandle GroupHandle)
 {
+	// Remove the filter trait from the group
 	if (GroupHandle && FilterGroups.GetBit(GroupHandle))
 	{
-		ValidConnections.ForAllSetBits( [GroupHandle, this](uint32 ConnectionIndex) { this->SetGroupFilterStatus(GroupHandle, ConnectionIndex, ENetFilterStatus::Allow); } );
+		ValidConnections.ForAllSetBits( [GroupHandle, this](uint32 ConnectionIndex) 
+		{ 
+			this->SetGroupFilterStatus(GroupHandle, ConnectionIndex, ENetFilterStatus::Allow); 
+		});
 
 		// Mark group as no longer a group filter group
 		FilterGroups.ClearBit(GroupHandle);
 		const PerObjectInfoIndexType ConnectionStateIndex = GroupInfos[GroupHandle].ConnectionStateIndex;
 		GroupInfos[GroupHandle].ConnectionStateIndex = 0U;
 		FreePerObjectInfo(ConnectionStateIndex);
+
+		Groups->RemoveFilterTrait(GroupHandle);
 
 		UE_LOG(LogIrisFiltering, Verbose, TEXT("ReplicationFiltering::RemoveGroupFilter GroupIndex: %u"), GroupHandle);
 	}

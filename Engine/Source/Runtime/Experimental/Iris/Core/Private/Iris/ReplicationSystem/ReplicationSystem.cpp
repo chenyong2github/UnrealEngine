@@ -87,6 +87,7 @@ public:
 		{
 			DirtyNetObjectTrackerInitParams.NetRefHandleManager = &NetRefHandleManager;
 			DirtyNetObjectTrackerInitParams.ReplicationSystemId = ReplicationSystemId;
+			DirtyNetObjectTrackerInitParams.MaxObjectCount = MaxObjectCount;
 			DirtyNetObjectTrackerInitParams.NetObjectIndexRangeStart = 1;
 			DirtyNetObjectTrackerInitParams.NetObjectIndexRangeEnd = MaxObjectCount - 1U;
 
@@ -221,7 +222,9 @@ public:
 	{
 		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
 		DirtyNetObjectTracker.UpdateDirtyNetObjects();
-		FNetBitArrayView DirtyObjects = DirtyNetObjectTracker.GetDirtyNetObjects();
+
+		FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystemInternal.GetDirtyNetObjectTracker());
+		FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
 
 		// Due to objects having been marked as dirty and later removed we must make sure that all dirty objects are still in scope.
 		const FNetBitArrayView ScopableInternalIndices = MakeNetBitArrayView(ReplicationSystemInternal.GetNetRefHandleManager().GetScopableInternalIndices());
@@ -331,10 +334,10 @@ public:
 			CopiedObjectCount += FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, Cache, NetRefHandleManager, SerializationContext, DirtyIndex);
 		};
 
-		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
 
-		// Only iterate over dirty objects
-		FNetBitArrayView DirtyObjects = DirtyNetObjectTracker.GetDirtyNetObjects();
+		// Only iterate over dirty and relevant objects
+		FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystemInternal.GetDirtyNetObjectTracker());
+		const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
 
 		// Copy all ReplicatedObjects with dirty state data
 		DirtyObjects.ForAllSetBits(CopyFunction);
@@ -359,7 +362,9 @@ public:
 			FReplicationInstanceOperationsInternal::ResetObjectStateDirtiness(NetRefHandleManager, DirtyIndex);
 		};
 
-		FNetBitArrayView DirtyObjects = DirtyNetObjectTracker.GetDirtyNetObjects();
+		FDirtyObjectsAccessor DirtyObjectsAccessor(DirtyNetObjectTracker);
+		const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
+
 		DirtyObjects.ForAllSetBits(ResetDirtinessFunction);
 
 		DirtyNetObjectTracker.ClearDirtyNetObjects();
@@ -599,7 +604,9 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 	if (bAllowObjectReplication)
 	{
 		// Update object priorities
-		FNetBitArrayView DirtyObjects = InternalSys.GetDirtyNetObjectTracker().GetDirtyNetObjects();
+		FDirtyObjectsAccessor DirtyObjectsAccessor(InternalSys.GetDirtyNetObjectTracker());
+		const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
+
 		Impl->UpdatePrioritization(ReplicatingConnections, DirtyObjects);
 
 		// Delta compression preparations before send

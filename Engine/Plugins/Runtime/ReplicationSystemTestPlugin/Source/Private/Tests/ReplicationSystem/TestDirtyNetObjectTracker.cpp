@@ -19,7 +19,9 @@ public:
 		Super::SetUp();
 		DirtyNetObjectTracker = &ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker();
 		ReplicationSystemId = ReplicationSystem->GetId();
-		NetObjectIndexRangeEnd = DirtyNetObjectTracker->GetDirtyNetObjects().GetNumBits() - 1U;
+		
+		FDirtyObjectsAccessor DirtyObjectsAccessor(*DirtyNetObjectTracker);
+		NetObjectIndexRangeEnd = DirtyObjectsAccessor.GetDirtyNetObjects().GetNumBits() - 1U;
 	}
 
 	virtual void TearDown() override
@@ -39,7 +41,9 @@ protected:
 
 UE_NET_TEST_FIXTURE(FDirtyNetObjectTrackerTestFixture, TestNoObjectIsDirtyFromStart)
 {
-	const FNetBitArrayView& DirtyObjects = DirtyNetObjectTracker->GetDirtyNetObjects();
+	FDirtyObjectsAccessor DirtyObjectsAccessor(*DirtyNetObjectTracker);
+
+	const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
 	UE_NET_ASSERT_EQ(DirtyObjects.GetNumBits(), NetObjectIndexRangeEnd + 1U);
 
 	UE_NET_ASSERT_FALSE_MSG(DirtyObjects.IsAnyBitSet(), "Objects are marked as dirty before marking any object state as dirty");
@@ -50,7 +54,8 @@ UE_NET_TEST_FIXTURE(FDirtyNetObjectTrackerTestFixture, CannotMarkInvalidObjectAs
 	MarkNetObjectStateDirty(ReplicationSystemId, FNetRefHandle().GetId());
 	MarkNetObjectStateDirty(ReplicationSystemId, NetObjectIndexRangeEnd + 1);
 
-	const FNetBitArrayView& DirtyObjects = DirtyNetObjectTracker->GetDirtyNetObjects();
+	FDirtyObjectsAccessor DirtyObjectsAccessor(*DirtyNetObjectTracker);
+	const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
 	UE_NET_ASSERT_FALSE(DirtyObjects.IsAnyBitSet());
 }
 
@@ -61,7 +66,8 @@ UE_NET_TEST_FIXTURE(FDirtyNetObjectTrackerTestFixture, CanMarkValidObjectAsDirty
 	MarkNetObjectStateDirty(ReplicationSystemId, NetObjectIndexRangeStart);
 	MarkNetObjectStateDirty(ReplicationSystemId, NetObjectIndexRangeEnd);
 
-	const FNetBitArrayView& DirtyObjects = DirtyNetObjectTracker->GetDirtyNetObjects();
+	FDirtyObjectsAccessor DirtyObjectsAccessor(*DirtyNetObjectTracker);
+	const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
 	UE_NET_ASSERT_TRUE(DirtyObjects.GetBit(IndexInRange));
 	UE_NET_ASSERT_TRUE(DirtyObjects.GetBit(NetObjectIndexRangeStart));
 	UE_NET_ASSERT_TRUE(DirtyObjects.GetBit(NetObjectIndexRangeEnd));
@@ -73,7 +79,9 @@ UE_NET_TEST_FIXTURE(FDirtyNetObjectTrackerTestFixture, CanClearDirtyObjects)
 	MarkNetObjectStateDirty(ReplicationSystemId, NetObjectIndexRangeEnd);
 
 	DirtyNetObjectTracker->ClearDirtyNetObjects();
-	const FNetBitArrayView& DirtyObjects = DirtyNetObjectTracker->GetDirtyNetObjects();
+
+	FDirtyObjectsAccessor DirtyObjectsAccessor(*DirtyNetObjectTracker);
+	const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
 	UE_NET_ASSERT_FALSE(DirtyObjects.IsAnyBitSet());
 }
 
