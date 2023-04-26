@@ -26,8 +26,8 @@ void FChaosFleshEnginePlugin::StartupModule()
 	const FString PluginShaderDir = 
 		FPaths::Combine(
 			IPluginManager::Get().FindPlugin(TEXT("ChaosFlesh"))->GetBaseDir(), 
-			TEXT("Source/ChaosFleshEngine/Shaders/Private"));
-	AddShaderSourceDirectoryMapping(TEXT("/Plugin/ChaosFleshEngine"), PluginShaderDir);
+			TEXT("Shaders"));
+	AddShaderSourceDirectoryMapping(TEXT("/Plugin/ChaosFlesh"), PluginShaderDir);
 
 	// Self-register for now.
 	// FIXME: Should add a method to IOptimusModule to register interfaces.
