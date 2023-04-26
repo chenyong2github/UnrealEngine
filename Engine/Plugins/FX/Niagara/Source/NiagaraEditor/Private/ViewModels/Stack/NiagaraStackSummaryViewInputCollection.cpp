@@ -75,7 +75,9 @@ void UNiagaraStackSummaryViewCollection::RefreshChildrenInternal(const TArray<UN
 
 	const UNiagaraHierarchyRoot* Root = ViewModel->GetEditorData().GetSummaryRoot();
 	TSharedPtr<FNiagaraHierarchyRootViewModel> RootViewModel = ViewModel->GetSummaryHierarchyViewModel()->GetHierarchyRootViewModel();
-	
+	// we make sure to sync view models to data before refreshing in order to get rid of possibly removed entries
+	RootViewModel->SyncViewModelsToData();
+
 	FNiagaraStackGraphUtilities::FInputDataCollection State;
 	FNiagaraStackGraphUtilities::GatherInputRelationsForStack(State, GetEmitterViewModel().ToSharedRef());
 	

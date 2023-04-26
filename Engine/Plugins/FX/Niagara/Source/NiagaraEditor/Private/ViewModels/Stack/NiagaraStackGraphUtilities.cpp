@@ -1046,7 +1046,7 @@ void FNiagaraStackGraphUtilities::GatherInputRelationsForStack(FInputDataCollect
 		NodeGuidToModuleNodeMap.Add(FunctionCallNode->NodeGuid, FunctionCallNode);
 	}
 
-	// the inputs found in the root are the ones we want to display
+	// the inputs found in the root are the ones we want to display; these might contain outdated entries so it is important to sync the root view model to data before calling this
 	TArray<UNiagaraHierarchyModuleInput*> ModuleInputs;
 	SummaryRoot->GetChildrenOfType(ModuleInputs, true);
 	
