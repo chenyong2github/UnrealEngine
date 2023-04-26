@@ -4662,6 +4662,62 @@ public:
 	{
 		return const_cast<FScriptMapHelper*>(this)->GetPairPtr(Index);
 	}
+	
+	/**
+	* Returns a uint8 pointer to the the Nth valid pair in the map (skipping invalid entries).
+	* NOTE: This is slow, do not use this for iteration! Use CreateIterator() instead.
+	*
+	* @return Pointer to the element, or nullptr if the index is invalid.
+	*/
+	uint8* FindNthPairPtr(int32 N)
+	{
+		const int32 Index = FindInternalIndex(N);
+		
+		checkSlow(IsValidIndex(Index));
+		return (Index != INDEX_NONE) ? GetPairPtr(FindInternalIndex(Index)) : nullptr;
+	}
+	
+	/**
+	* Returns a uint8 pointer to the the Nth valid key in the map (skipping invalid entries).
+	* NOTE: This is slow, do not use this for iteration! Use CreateIterator() instead.
+	*
+	* @return Pointer to the element, or nullptr if the index is invalid.
+	*/
+	uint8* FindNthKeyPtr(int32 N)
+	{
+		const int32 Index = FindInternalIndex(N);
+		
+		checkSlow(IsValidIndex(Index));
+		return (Index != INDEX_NONE) ? GetKeyPtr(FindInternalIndex(Index)) : nullptr;
+	}
+	
+	/**
+	* Returns a uint8 pointer to the the Nth valid value in the map (skipping invalid entries).
+	* NOTE: This is slow, do not use this for iteration! Use CreateIterator() instead.
+	*
+	* @return Pointer to the element, or nullptr if the index is invalid.
+	*/
+	uint8* FindNthValuePtr(int32 N)
+	{
+		const int32 Index = FindInternalIndex(N);
+		
+		checkSlow(IsValidIndex(Index));
+		return (Index != INDEX_NONE) ? GetValuePtr(FindInternalIndex(Index)) : nullptr;
+	}
+	
+	/**
+	* Returns a uint8 pointer to the the Nth valid pair in the map (skipping invalid entries).
+	* NOTE: This is slow, do not use this for iteration! Use CreateIterator() instead.
+	*
+	* @return Pointer to the element, or nullptr if the index is invalid.
+	*/
+	const uint8* FindNthPairPtr(int32 N) const
+	{
+		const int32 Index = FindInternalIndex(N);
+		
+		checkSlow(IsValidIndex(Index));
+		return (Index != INDEX_NONE) ? GetPairPtr(FindInternalIndex(Index)) : nullptr;
+	}
 
 	/**
 	 * Move the allocation from another map and make it our own.
@@ -4798,6 +4854,12 @@ public:
 			if (LocalLogicalIdx < 0 && LocalLogicalIdx > Map->Num())
 			{
 				return INDEX_NONE;
+			}
+
+			// if map is compact, use random access
+			if (Num() == GetMaxIndex())
+			{
+				return LogicalIdx;
 			}
 
 			int32 MaxIndex = Map->GetMaxIndex();
@@ -5352,6 +5414,32 @@ public:
 	}
 
 	/**
+	* Returns a uint8 pointer to the the Nth valid element in the set (skipping invalid entries).
+	* NOTE: This is slow, do not use this for iteration! Use CreateIterator() instead.
+	*
+	* @return Pointer to the element, or nullptr if the index is invalid.
+	*/
+	uint8* FindNthElementPtr(int32 N)
+	{
+		const int32 Index = FindInternalIndex(N);
+		
+		checkSlow(IsValidIndex(Index));
+		return (Index != INDEX_NONE) ? GetElementPtr(FindInternalIndex(Index)) : nullptr;
+	}
+
+	/**
+	* Returns a uint8 pointer to the the Nth valid element in the set (skipping invalid entries).
+	* NOTE: This is slow, do not use this for iteration! Use CreateIterator() instead.
+	*
+	* @return Pointer to the element, or nullptr if the index is invalid.
+	*/
+	const uint8* FindNthElementPtr(int32 N) const
+	{
+		const int32 Index = FindInternalIndex(N);
+		return (Index != INDEX_NONE) ? GetElementPtr(FindInternalIndex(Index)) : nullptr;
+	}
+
+	/**
 	* Move the allocation from another set and make it our own.
 	* @note The sets MUST be of the same type, and this function will NOT validate that!
 	*
@@ -5455,6 +5543,12 @@ public:
 		if (LogicalIdx < 0 && LogicalIdx > Num())
 		{
 			return INDEX_NONE;
+		}
+
+		// if set is compact, use random access
+		if (Num() == GetMaxIndex())
+		{
+			return LogicalIdx;
 		}
 
 		int32 MaxIndex = GetMaxIndex();

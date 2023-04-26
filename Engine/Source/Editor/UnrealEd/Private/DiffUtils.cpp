@@ -128,20 +128,14 @@ FResolvedProperty FPropertySoftPath::Resolve(const UStruct* Struct, const void* 
 			else if( const FSetProperty* SetProperty = CastField<FSetProperty>(Property) )
 			{
 				FScriptSetHelper SetHelper(SetProperty, Property->ContainerPtrToValuePtr<UObject*>(CurrentBlock));
-				if (SetHelper.IsValidIndex(PropertyIndex))
-				{
-					NextProperty = SetProperty->ElementProp;
-					NextBlock = SetHelper.GetElementPtr(PropertyIndex);
-				}
+				NextProperty = SetHelper.GetElementProperty();
+				NextBlock = SetHelper.FindNthElementPtr(PropertyIndex);
 			}
 			else if( const FMapProperty* MapProperty = CastField<FMapProperty>(Property) )
 			{
 				FScriptMapHelper MapHelper(MapProperty, Property->ContainerPtrToValuePtr<UObject*>(CurrentBlock));
-				if (MapHelper.IsValidIndex(PropertyIndex))
-				{
-					NextProperty = MapProperty->ValueProp;
-					NextBlock = MapHelper.GetValuePtr(PropertyIndex);
-				}
+				NextProperty = MapHelper.GetValueProperty();
+				NextBlock = MapHelper.FindNthPairPtr(PropertyIndex);
 			}
 		}
 		

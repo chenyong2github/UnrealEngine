@@ -77,9 +77,10 @@ static bool MapKeysMatch(const TSharedPtr<FDetailTreeNode>& TreeNodeA, const TSh
 	const FResolvedProperty ResolvedMapB = GetResolvedProperty(MapPropertyNodeB, GetObject(TreeNodeB));
 	FScriptMapHelper MapHelperA(MapPropertyA, MapPropertyA->ContainerPtrToValuePtr<UObject*>(ResolvedMapA.Object));
 	FScriptMapHelper MapHelperB(MapPropertyB, MapPropertyB->ContainerPtrToValuePtr<UObject*>(ResolvedMapB.Object));
-
-	const void* KeyA = MapHelperA.GetKeyPtr(KeyIndexA);
-	const void* KeyB = MapHelperB.GetKeyPtr(KeyIndexB);
+	
+	const void* KeyA = MapHelperA.FindNthKeyPtr(KeyIndexA);
+	const void* KeyB = MapHelperB.FindNthKeyPtr(KeyIndexB);
+	
 	if (MapPropertyA->KeyProp->SameType(MapPropertyB->KeyProp))
 	{
 		return MapPropertyA->KeyProp->Identical(KeyA, KeyB, PPF_DeepComparison);
@@ -107,8 +108,9 @@ static bool SetKeysMatch(const TSharedPtr<FDetailTreeNode>& TreeNodeA, const TSh
 	FScriptSetHelper SetHelperA(SetPropertyA, SetPropertyA->ContainerPtrToValuePtr<UObject*>(ResolvedSetA.Object));
 	FScriptSetHelper SetHelperB(SetPropertyB, SetPropertyB->ContainerPtrToValuePtr<UObject*>(ResolvedSetB.Object));
 	
-	const void* KeyA = SetHelperA.GetElementPtr(KeyIndexA);
-	const void* KeyB = SetHelperB.GetElementPtr(KeyIndexB);
+	const void* KeyA = SetHelperA.FindNthElementPtr(KeyIndexA);
+	const void* KeyB = SetHelperB.FindNthElementPtr(KeyIndexB);
+	
 	if (SetPropertyA->ElementProp->SameType(SetPropertyB->ElementProp))
 	{
 		return SetPropertyA->ElementProp->Identical(KeyA, KeyB, PPF_DeepComparison);

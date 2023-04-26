@@ -119,7 +119,7 @@ static void CopyPropertyValueForInsert(TSharedPtr<FDetailTreeNode> SourceDetails
 		FPropertyNode* DestinationPropertyNode;
 		if (ensure(TryGetDestinationContainer(DestinationDetailsNode, DestinationPropertyNode, DestinationSet, InsertIndex)))
 		{
-			const void* SourceData = SourceSet->GetElementPtr(SourceDetailsNode->GetPropertyNode()->GetArrayIndex());
+			const void* SourceData = SourceSet->FindNthElementPtr(SourceDetailsNode->GetPropertyNode()->GetArrayIndex());
 			DestinationSet->AddElement(SourceData);
 		}
 	}
@@ -133,8 +133,9 @@ static void CopyPropertyValueForInsert(TSharedPtr<FDetailTreeNode> SourceDetails
 		FPropertyNode* DestinationPropertyNode;
 		if (ensure(TryGetDestinationContainer(DestinationDetailsNode, DestinationPropertyNode, DestinationMap, InsertIndex)))
 		{
-			const void* SourceKey = SourceMap->GetKeyPtr(SourceDetailsNode->GetPropertyNode()->GetArrayIndex());
-			const void* SourceVal = SourceMap->GetValuePtr(SourceDetailsNode->GetPropertyNode()->GetArrayIndex());
+			const int32 Index = SourceMap->FindInternalIndex(SourceDetailsNode->GetPropertyNode()->GetArrayIndex());
+			const void* SourceKey = SourceMap->GetKeyPtr(Index);
+			const void* SourceVal = SourceMap->GetValuePtr(Index);
 			DestinationMap->AddPair(SourceKey, SourceVal);
 		}
 	}
