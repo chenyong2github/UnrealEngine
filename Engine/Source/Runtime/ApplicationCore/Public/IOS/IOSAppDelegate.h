@@ -173,8 +173,12 @@ APPLICATIONCORE_API
 @property (retain) NSTimer* CommandLineParseTimer;
 @property (atomic) bool bCommandLineReady;
 
+#if !PLATFORM_TVOS
+@property (assign) UIInterfaceOrientation InterfaceOrientation;
+#endif
+
 /** initial launch options */
-@property(retain) NSDictionary* launchOptions;
+@property (retain) NSDictionary* launchOptions;
 
 @property (assign) NSProcessInfoThermalState ThermalState;
 @property (assign) bool bBatteryState;
@@ -209,6 +213,10 @@ APPLICATIONCORE_API
 -(void)CheckForZoomAccessibility;
 -(float)GetBackgroundingMainThreadBlockTime;
 -(void)OverrideBackgroundingMainThreadBlockTime:(float)BlockTime;
+
+#if !PLATFORM_TVOS
+  +(EDeviceScreenOrientation) ConvertFromUIInterfaceOrientation:(UIInterfaceOrientation)Orientation;
+#endif
 
 -(bool)IsUpdateAvailable;
 

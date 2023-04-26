@@ -984,7 +984,8 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	self.bDeviceInPortraitMode = false;
 #else
 	// use the status bar orientation to properly determine landscape vs portrait
-	self.bDeviceInPortraitMode = UIInterfaceOrientationIsPortrait([self.Window.windowScene interfaceOrientation]);
+	self.InterfaceOrientation = [self.Window.windowScene interfaceOrientation];
+	self.bDeviceInPortraitMode = UIInterfaceOrientationIsPortrait(self.InterfaceOrientation);
 	printf("========= This app is in %s mode\n", self.bDeviceInPortraitMode ? "PORTRAIT" : "LANDSCAPE");
 #endif
 
@@ -1241,21 +1242,15 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	return false;
 }
 
-#if !PLATFORM_TVOS
-extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOrientation Orientation);
-#endif
-
 - (void) didRotate:(NSNotification *)notification
 {   
 #if !PLATFORM_TVOS
-	// get the interfaec orientation
+	// get the interface orientation
 	
 	NSLog(@"didRotate orientation = %d", (int)[self.Window.windowScene interfaceOrientation]);
 	
     UIInterfaceOrientation Orientation = [self.Window.windowScene interfaceOrientation];
-	
-	extern UIInterfaceOrientation GInterfaceOrientation;
-	GInterfaceOrientation = Orientation;
+	self.InterfaceOrientation = Orientation;
 	
     if (bEngineInit)
     {
@@ -1263,7 +1258,7 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
 		{
 			FIOSApplication* Application = [IOSAppDelegate GetDelegate].IOSApplication;
 			Application->OrientationChanged(Orientation);
-			FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate.Broadcast((int32)ConvertFromUIInterfaceOrientation(Orientation));
+			FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate.Broadcast((int32)[IOSAppDelegate ConvertFromUIInterfaceOrientation:Orientation]);
 
 			//we also want to fire off the safe frame event
 			FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
@@ -1587,6 +1582,19 @@ extern double GCStartTime;
 #endif
 
 #if !PLATFORM_TVOS
+
++(EDeviceScreenOrientation) ConvertFromUIInterfaceOrientation:(UIInterfaceOrientation)Orientation
+{
+	switch(Orientation)
+	{
+		default:
+		case UIInterfaceOrientationUnknown : return EDeviceScreenOrientation::Unknown; break;
+		case UIInterfaceOrientationPortrait : return EDeviceScreenOrientation::Portrait; break;
+		case UIInterfaceOrientationPortraitUpsideDown : return EDeviceScreenOrientation::PortraitUpsideDown; break;
+		case UIInterfaceOrientationLandscapeLeft : return EDeviceScreenOrientation::LandscapeLeft; break;
+		case UIInterfaceOrientationLandscapeRight : return EDeviceScreenOrientation::LandscapeRight; break;
+	}
+}
 
 void HandleReceivedNotification(UNNotification* notification)
 {
