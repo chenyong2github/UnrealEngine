@@ -47,7 +47,7 @@ public:
 	SStateTreeView();
 	virtual ~SStateTreeView() override;
 
-	void Construct(const FArguments& InArgs, TSharedRef<FStateTreeViewModel> StateTreeViewModel);
+	void Construct(const FArguments& InArgs, TSharedRef<FStateTreeViewModel> StateTreeViewModel, const TSharedRef<FUICommandList>& InCommandList);
 
 	void SavePersistentExpandedStates();
 

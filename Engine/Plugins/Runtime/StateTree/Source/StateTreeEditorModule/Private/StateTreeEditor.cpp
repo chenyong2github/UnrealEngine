@@ -296,7 +296,7 @@ TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_StateTreeView(const FSpawnTabArg
 		.Label(NSLOCTEXT("StateTreeEditor", "StateTreeViewTab", "StateTree"))
 		.TabColorScale(GetTabColorScale())
 		[
-			SAssignNew(StateTreeView, SStateTreeView, StateTreeViewModel.ToSharedRef())
+			SAssignNew(StateTreeView, SStateTreeView, StateTreeViewModel.ToSharedRef(), TreeViewCommandList)
 		];
 }
 
@@ -387,7 +387,7 @@ TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_Debugger(const FSpawnTabArgs& Ar
 		.Label(LOCTEXT("DebuggerTitle", "Debugger"))
 		.TabColorScale(GetTabColorScale())
 		[
-			SAssignNew(DebuggerView, SStateTreeDebuggerView, StateTree, StateTreeViewModel.ToSharedRef(), ToolkitCommands)
+			SAssignNew(DebuggerView, SStateTreeDebuggerView, StateTree, StateTreeViewModel.ToSharedRef(), TreeViewCommandList)
 		];
 }
 #endif // WITH_STATETREE_DEBUGGER

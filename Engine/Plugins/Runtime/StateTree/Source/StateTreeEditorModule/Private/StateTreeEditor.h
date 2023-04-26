@@ -26,6 +26,7 @@ namespace UE::StateTree::Editor
 class FStateTreeEditor : public IStateTreeEditor, public FSelfRegisteringEditorUndoClient, public FGCObject
 {
 public:
+	FStateTreeEditor() : TreeViewCommandList(new FUICommandList()) {}
 
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
@@ -89,11 +90,14 @@ private:
 
 	FText GetStatisticsText() const;
 
-	/* State Tree being edited */
+	/** State Tree being edited */
 	UStateTree* StateTree = nullptr;
 
 	uint32 EditorDataHash = 0;
 	bool bLastCompileSucceeded = true;
+
+	/** The command list used by the tree view. Stored here, so that other windows (e.g. debugger) can add commands to it, even if the tree view is not spawned yet. */
+	TSharedRef<FUICommandList> TreeViewCommandList;
 	
 	/** Selection Property View */
 	TSharedPtr<class IDetailsView> SelectionDetailsView;

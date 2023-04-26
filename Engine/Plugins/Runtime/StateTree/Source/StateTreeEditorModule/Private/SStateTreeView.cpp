@@ -34,7 +34,7 @@ SStateTreeView::~SStateTreeView()
 	}
 }
 
-void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeViewModel> InStateTreeViewModel)
+void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeViewModel> InStateTreeViewModel, const TSharedRef<FUICommandList>& InCommandList)
 {
 	StateTreeViewModel = InStateTreeViewModel;
 
@@ -130,7 +130,7 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 
 	UpdateTree(true);
 
-	CommandList = MakeShared<FUICommandList>();
+	CommandList = InCommandList;
 	BindCommands();
 }
 
