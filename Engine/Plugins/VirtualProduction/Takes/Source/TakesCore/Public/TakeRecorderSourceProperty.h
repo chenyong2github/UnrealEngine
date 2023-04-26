@@ -104,7 +104,6 @@ struct TAKESCORE_API FAudioInputDeviceInfoProperty
 	GENERATED_BODY()
 
 	FAudioInputDeviceInfoProperty() = default;
-	FAudioInputDeviceInfoProperty(const FAudioInputDeviceInfoProperty& InObject) = default;
 
 	FAudioInputDeviceInfoProperty(const FString& InDeviceName, const FString& InDeviceId, int32 InChannelCount, int32 InSampleRate, bool bInIsDefaultDevice)
 		: DeviceName(InDeviceName)
