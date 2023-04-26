@@ -111,6 +111,12 @@ public:
 	/** Create and fill the appropriate proxy mutator for this component */
 	virtual TSharedPtr<FProxyVolumeMutator> CreateMutator() const final;
 
+	//~ Begin UObject Interface
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
+	//~ End UObject Interface
+
 protected:
 
 	//~ Begin UAudioGameplayComponent interface 

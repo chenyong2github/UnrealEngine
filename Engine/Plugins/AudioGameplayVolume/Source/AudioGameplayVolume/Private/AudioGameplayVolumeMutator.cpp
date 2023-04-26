@@ -155,6 +155,18 @@ TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeMutator::CreateMutator() con
 	return ProxyMutator;
 }
 
+#if WITH_EDITOR
+void UAudioGameplayVolumeMutator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property)
+	{
+		NotifyDataChanged();
+	}
+}
+#endif // WITH_EDITOR
+
 void UAudioGameplayVolumeMutator::Enable()
 {
 	Super::Enable();
