@@ -119,7 +119,7 @@ struct DVector
 	{
 	}
 
-	DVector( const DVector& V )
+	DVector( const FVector& V )
 		: X( V.X ), Y( V.Y ), Z( V.Z )
 	{
 	}
