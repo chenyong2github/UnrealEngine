@@ -21,7 +21,6 @@ UEditorSettings::UEditorSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bCopyStarterContentPreference = false;
-	bEditorAnalyticsEnabled_DEPRECATED = true;
 	AutoScalabilityWorkScaleAmount = 1;
 
 	// Read the current state of the environment variables and cache it.
