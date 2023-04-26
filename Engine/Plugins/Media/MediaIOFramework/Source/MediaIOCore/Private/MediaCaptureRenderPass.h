@@ -120,14 +120,30 @@ namespace UE::MediaCapture
 	/** Data related to render passes that live on a capturing frame. **/
 	struct FRenderPassFrameResources
 	{
+		/** Get the render target used by the last render pass in the pipeline. */
 		TRefCountPtr<IPooledRenderTarget> GetLastRenderTarget() const
 		{
 			return PassTextureOutputs.FindRef(LastRenderPassName);
 		}
 
+		/** Get the buffer used by the last render pass in the pipeline. */
 		TRefCountPtr<FRDGPooledBuffer> GetLastBuffer() const
 		{
 			return PassBufferOutputs.FindRef(LastRenderPassName);
+		}
+
+		/** Register and retrieve the final resource used by this capture frame in the render passes. */
+		FRDGViewableResource* GetFinalRDGResource(FRDGBuilder& GraphBuilder) const
+		{
+			if (const TRefCountPtr<IPooledRenderTarget> FinalRT = GetLastRenderTarget())
+			{
+				return GraphBuilder.RegisterExternalTexture(FinalRT, FinalRT->GetDesc().DebugName);
+			}
+			else if (const TRefCountPtr<FRDGPooledBuffer> FinalBuffer = GetLastBuffer())
+			{
+				return GraphBuilder.RegisterExternalBuffer(FinalBuffer, FinalBuffer->GetName());
+			}
+			return nullptr;
 		}
 
 		/** Holds the name of the last render pass. */
@@ -136,8 +152,6 @@ namespace UE::MediaCapture
 		TMap<FName, TRefCountPtr<IPooledRenderTarget>> PassTextureOutputs;
 		/** Map of pass name to output buffer. */
 		TMap<FName, TRefCountPtr<FRDGPooledBuffer>> PassBufferOutputs;
-		/** The final pass' resource that was registered with the graph builder. */
-		FRDGViewableResource* FinalRDGResource;
 	};
 
 	/**

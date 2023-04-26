@@ -572,8 +572,6 @@ namespace UE::MediaCapture
 			}
 
 			RenderPassResources.LastRenderPassName = RenderPasses.Last().Name;
-			// InputResource now points to the output of the final render pass.
-			RenderPassResources.FinalRDGResource = InitializePassOutputArgs.InputResource;
 			CapturingFrame->RenderPassResources = MoveTemp(RenderPassResources);
 		}
 	}

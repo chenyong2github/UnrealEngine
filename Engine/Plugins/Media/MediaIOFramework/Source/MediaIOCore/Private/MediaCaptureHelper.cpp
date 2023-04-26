@@ -141,9 +141,9 @@ bool FMediaCaptureHelper::CaptureFrame(const UE::MediaCaptureData::FCaptureFrame
 		SCOPE_CYCLE_COUNTER(STAT_MediaCaptureHelper_RenderThread_FrameCapture);
 
 		FRDGTextureRef SourceRGBTexture = Args.RDGResourceToCapture;
-
 		// Final pass output resource used by the current capture method (texture or buffer)
-		FRDGViewableResource* FinalPassOutputResource = CapturingFrame->RenderPassResources.FinalRDGResource;
+		FRDGViewableResource* FinalPassOutputResource = CapturingFrame->RenderPassResources.GetFinalRDGResource(Args.GraphBuilder);
+		
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::GraphSetup);
 			SCOPED_DRAW_EVENTF(Args.GraphBuilder.RHICmdList, MediaCapture, TEXT("MediaCapture"));
