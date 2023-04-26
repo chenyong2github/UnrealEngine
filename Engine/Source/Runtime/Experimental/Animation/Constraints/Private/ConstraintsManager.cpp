@@ -502,7 +502,7 @@ int32 FConstraintsManagerController::GetConstraintIndex(const FName& InConstrain
 	
 bool FConstraintsManagerController::RemoveConstraint(UTickableConstraint* InConstraint, bool bDoNotCompensate) const
 {
-	if (FConstraintsManagerController::bDoNotRemoveConstraint == false)
+	if (FConstraintsManagerController::bDoNotRemoveConstraint == true)
 	{
 		return false;
 	}
