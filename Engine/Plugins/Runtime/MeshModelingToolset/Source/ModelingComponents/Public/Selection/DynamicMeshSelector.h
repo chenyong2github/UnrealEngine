@@ -53,7 +53,7 @@ public:
 	//
 
 	virtual void Shutdown() override;
-	virtual bool SupportsSleep() const { return true; }
+	virtual bool SupportsSleep() const;
 	virtual bool Sleep();
 	virtual bool Restore();
 

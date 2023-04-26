@@ -67,6 +67,12 @@ void FBaseDynamicMeshSelector::InvalidateOnMeshChange(FDynamicMeshChangeInfo Cha
 	NotifyGeometryModified();
 }
 
+bool FBaseDynamicMeshSelector::SupportsSleep() const
+{
+	// can only sleep if target mesh is valid
+	return TargetMesh.IsValid();
+}
+
 void FBaseDynamicMeshSelector::Shutdown()
 {
 	if (TargetMesh.IsValid())
@@ -83,7 +89,10 @@ void FBaseDynamicMeshSelector::Shutdown()
 
 bool FBaseDynamicMeshSelector::Sleep()
 {
-	check(TargetMesh.IsValid());
+	if (TargetMesh.IsValid() == false)
+	{
+		return false;
+	}
 
 	TargetMesh->OnMeshChanged().Remove(TargetMesh_OnMeshChangedHandle);
 	TargetMesh_OnMeshChangedHandle.Reset();
@@ -100,7 +109,10 @@ bool FBaseDynamicMeshSelector::Sleep()
 
 bool FBaseDynamicMeshSelector::Restore()
 {
-	check(SleepingTargetMesh.IsValid());
+	if (SleepingTargetMesh.IsValid() == false)
+	{
+		return false;
+	}
 
 	TargetMesh = SleepingTargetMesh.Get();
 	SleepingTargetMesh = nullptr;

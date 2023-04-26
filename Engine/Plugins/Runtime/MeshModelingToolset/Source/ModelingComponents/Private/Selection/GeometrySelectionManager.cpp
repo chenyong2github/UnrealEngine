@@ -47,7 +47,7 @@ void UGeometrySelectionManager::Shutdown()
 
 	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
 	{
-		SleepOrShutdownTarget(Target.Get(), false);
+		SleepOrShutdownTarget(Target, false);
 	}
 
 	ResetTargetCache();
@@ -315,7 +315,7 @@ void UGeometrySelectionManager::ClearActiveTargets()
 
 	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
 	{
-		SleepOrShutdownTarget(Target.Get(), false);
+		SleepOrShutdownTarget(Target, false);
 	}
 
 	ActiveTargetReferences.Reset();
@@ -493,18 +493,22 @@ void UGeometrySelectionManager::SetTargetsOnUndoRedo(TArray<FGeometryIdentifier>
 
 
 
-void UGeometrySelectionManager::SleepOrShutdownTarget(FGeometrySelectionTarget* Target, bool bForceShutdown)
+void UGeometrySelectionManager::SleepOrShutdownTarget(TSharedPtr<FGeometrySelectionTarget> Target, bool bForceShutdown)
 {
 	if (Target->Selector->SupportsSleep() && bForceShutdown == false)
 	{
-		bool bOK = Target->Selector->Sleep();
-		check(bOK);
+		if (Target->Selector->Sleep())
+		{
+			return;
+		}
 	}
-	else
-	{
-		Target->Selector->GetOnGeometryModifed().Remove(Target->OnGeometryModifiedHandle);
-		Target->Selector->Shutdown();
-	}
+
+	// if target cannot sleep or if sleeping failed, make sure it is not in the target
+	// cache so that we do not try to restore it later
+	TargetCache.Remove(Target->TargetIdentifier);
+
+	Target->Selector->GetOnGeometryModifed().Remove(Target->OnGeometryModifiedHandle);
+	Target->Selector->Shutdown();
 }
 
 TSharedPtr<UGeometrySelectionManager::FGeometrySelectionTarget> UGeometrySelectionManager::GetCachedTarget(FGeometryIdentifier TargetIdentifier, const IGeometrySelectorFactory* UseFactory)
@@ -513,15 +517,22 @@ TSharedPtr<UGeometrySelectionManager::FGeometrySelectionTarget> UGeometrySelecti
 	{
 		TSharedPtr<FGeometrySelectionTarget> FoundTarget = TargetCache[TargetIdentifier];
 		FoundTarget->Selection.Reset();
-		FoundTarget->Selector->Restore();
+		bool bRestored = FoundTarget->Selector->Restore();
+		if (bRestored)
+		{
+			// ensure these are current, as they may have changed while Target was asleep
+			FoundTarget->Selection.ElementType = GetSelectionElementType();
+			FoundTarget->Selection.TopologyType = GetSelectionTopologyType();
+			bool bEnableTopologyFilter = (FoundTarget->Selection.TopologyType == EGeometryTopologyType::Polygroup && FoundTarget->Selection.ElementType != EGeometryElementType::Vertex);
+			FoundTarget->SelectionEditor->UpdateQueryConfig(GetCurrentSelectionQueryConfig(), bEnableTopologyFilter);
 
-		// ensure these are current, as they may have changed while Target was asleep
-		FoundTarget->Selection.ElementType = GetSelectionElementType();
-		FoundTarget->Selection.TopologyType = GetSelectionTopologyType();
-		bool bEnableTopologyFilter = (FoundTarget->Selection.TopologyType == EGeometryTopologyType::Polygroup && FoundTarget->Selection.ElementType != EGeometryElementType::Vertex);
-		FoundTarget->SelectionEditor->UpdateQueryConfig(GetCurrentSelectionQueryConfig(), bEnableTopologyFilter);
-
-		return FoundTarget;
+			return FoundTarget;
+		}
+		else
+		{
+			// if restore failed, something is wrong w/ TargetCache, remove this Target
+			TargetCache.Remove(TargetIdentifier);
+		}
 	}
 
 	// if we are in a situation where we don't have a cache, currently we need the Factory to exist?
@@ -556,7 +567,7 @@ void UGeometrySelectionManager::ResetTargetCache()
 {
 	for (TPair<FGeometryIdentifier, TSharedPtr<FGeometrySelectionTarget>> Pair : TargetCache)
 	{
-		SleepOrShutdownTarget(Pair.Value.Get(), true);
+		SleepOrShutdownTarget(Pair.Value, true);
 	}
 	TargetCache.Reset();
 }

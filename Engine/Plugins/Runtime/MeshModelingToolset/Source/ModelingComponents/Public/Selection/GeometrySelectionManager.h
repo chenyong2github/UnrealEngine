@@ -415,7 +415,7 @@ protected:
 	// Functional, but needs to be smarter.
 	//
 	TMap<FGeometryIdentifier, TSharedPtr<FGeometrySelectionTarget>> TargetCache;
-	void SleepOrShutdownTarget(FGeometrySelectionTarget* Target, bool bForceShutdown);
+	void SleepOrShutdownTarget(TSharedPtr<FGeometrySelectionTarget> Target, bool bForceShutdown);
 	TSharedPtr<FGeometrySelectionTarget> GetCachedTarget(FGeometryIdentifier Identifier, const IGeometrySelectorFactory* UseFactory);
 	void ResetTargetCache();
 	void SetTargetsOnUndoRedo(TArray<FGeometryIdentifier> NewTargets);
