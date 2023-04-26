@@ -6,7 +6,7 @@
 #include "Graph/ControlRigGraph.h"
 #include "AnimNextParameterBlock_EdGraph.generated.h"
 
-class UAnimNextGraph_EditorData;
+class UAnimNextParameterBlock_EditorData;
 
 namespace UE::AnimNext::UncookedOnly
 {

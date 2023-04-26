@@ -3,6 +3,7 @@
 #include "Param/AnimNextParameterBlock_EditorData.h"
 
 #include "ControlRigDefines.h"
+#include "Param/AnimNextParameterBlock_EdGraph.h"
 #include "Param/AnimNextParameterBlock_EdGraphSchema.h"
 #include "UncookedOnlyUtils.h"
 #include "Param/ParametersExecuteContext.h"
