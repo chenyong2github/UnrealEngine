@@ -486,12 +486,11 @@ FString FMVVMViewClass_CompiledBinding::ToString(const FMVVMCompiledBindingLibra
 // 
 ///////////////////////////////////////////////////////////////////////
 
-void UMVVMViewClass::Initialize(UUserWidget* UserWidget)
+void UMVVMViewClass::Construct(UUserWidget* UserWidget)
 {
 	++ViewCounter;
 	ensure(ViewCounter <= std::numeric_limits<int32>::max());
 
-	ensure(UserWidget->GetExtension<UMVVMView>() == nullptr);
 	UMVVMView* View = UserWidget->AddExtension<UMVVMView>();
 	if (ensure(View))
 	{
