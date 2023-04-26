@@ -446,6 +446,7 @@ void FUserManagerEOS::LoginViaExternalAuth(int32 LocalUserNum)
 
 				check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
 				TSharedRef<FOnlineAccountCredentials> OnlineAccountCredentials = LocalUserNumToLastLoginCredentials[LocalUserNum];
+				OnlineAccountCredentials->Type = FString(TEXT("externalauth"));
 
 				if (AuthToken.HasTokenData())
 				{
