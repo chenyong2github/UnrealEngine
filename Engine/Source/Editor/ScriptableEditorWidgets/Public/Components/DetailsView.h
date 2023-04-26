@@ -23,7 +23,7 @@ struct FPropertyChangedEvent;
  * The details view allows you to display the value of an object properties.
  */
 UCLASS()
-class UMGEDITOR_API UDetailsView : public UPropertyViewBase, public FNotifyHook
+class SCRIPTABLEEDITORWIDGETS_API UDetailsView : public UPropertyViewBase, public FNotifyHook
 {
 	GENERATED_BODY()
 
