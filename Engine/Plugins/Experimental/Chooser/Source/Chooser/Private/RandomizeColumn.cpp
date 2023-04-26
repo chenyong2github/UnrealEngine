@@ -2,13 +2,13 @@
 #include "RandomizeColumn.h"
 #include "ChooserPropertyAccess.h"
 
-bool FRandomizeContextProperty::GetValue(const UObject* ContextObject, const FChooserRandomizationContext*& OutResult) const
+bool FRandomizeContextProperty::GetValue(FChooserEvaluationContext& Context, const FChooserRandomizationContext*& OutResult) const
 {
 	
-	UStruct* StructType = ContextObject->GetClass();
-	const void* Container = ContextObject;
+	const UStruct* StructType = nullptr;
+	const void* Container = nullptr;
 	
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Context, Binding, Container, StructType))
 	{
 		if (FStructProperty* Property = FindFProperty<FStructProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
@@ -25,15 +25,15 @@ FRandomizeColumn::FRandomizeColumn()
 	InputValue.InitializeAs(FRandomizeContextProperty::StaticStruct());
 }
 
-void FRandomizeColumn::Filter(FChooserDebuggingInfo& DebuggingInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FRandomizeColumn::Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	int Count = IndexListIn.Num();
 	int Selection = 0;
 
 	const FChooserRandomizationContext* RandomizationContext = nullptr;
-	if (ContextObject && InputValue.IsValid())
+	if (InputValue.IsValid())
 	{
-		InputValue.Get<FChooserParameterRandomizeBase>().GetValue(ContextObject,RandomizationContext);
+		InputValue.Get<FChooserParameterRandomizeBase>().GetValue(Context,RandomizationContext);
 	}
 	
 	if (Count > 1)
@@ -99,12 +99,12 @@ void FRandomizeColumn::Filter(FChooserDebuggingInfo& DebuggingInfo, const UObjec
 	}
 }
 
-void FRandomizeColumn::SetOutputs(FChooserDebuggingInfo& DebugInfo, UObject* ContextObject, int RowIndex) const
+void FRandomizeColumn::SetOutputs(FChooserEvaluationContext& Context, int RowIndex) const
 {
-	if (ContextObject && InputValue.IsValid())
+	if (InputValue.IsValid())
 	{
 		const FChooserRandomizationContext* ConstRandomizationContext = nullptr;
-		InputValue.Get<FChooserParameterRandomizeBase>().GetValue(ContextObject,ConstRandomizationContext);
+		InputValue.Get<FChooserParameterRandomizeBase>().GetValue(Context,ConstRandomizationContext);
 		if(ConstRandomizationContext)
 		{
 			FChooserRandomizationContext* RandomizationContext = const_cast<FChooserRandomizationContext*>(ConstRandomizationContext);

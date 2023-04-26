@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "UObject/Interface.h"
 #include "InstancedStruct.h"
 #include "IChooserParameterBase.h"
@@ -27,7 +26,7 @@ struct FChooserParameterEnumBase : public FChooserParameterBase
 {
 	GENERATED_BODY()
 	
-		virtual bool GetValue(const UObject* ContextObject, uint8& OutResult) const { return false; }
+		virtual bool GetValue(FChooserEvaluationContext& Context, uint8& OutResult) const { return false; }
 
 	#if WITH_EDITOR
     	virtual const UEnum* GetEnum() const { return nullptr; }

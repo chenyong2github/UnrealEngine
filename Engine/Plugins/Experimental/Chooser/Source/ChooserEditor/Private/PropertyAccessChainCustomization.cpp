@@ -79,7 +79,7 @@ void FPropertyAccessChainCustomization::CustomizeHeader(TSharedRef<IPropertyHand
          	 				PropertyHandle->NotifyPreChange();
          	 				
          	 				OuterObjects[i]->Modify(true);
-         	 				Chooser::CopyPropertyChain(InBindingChain, PropertyValue->PropertyBindingChain);
+         	 				Chooser::CopyPropertyChain(InBindingChain, *PropertyValue);
          	
          	 				if (TypeFilter == "enum")
          	 				{

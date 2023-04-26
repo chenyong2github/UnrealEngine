@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
 #include "UObject/Interface.h"
 #include "IChooserParameterBase.h"
 #include "InstancedStruct.h"
+#include "IObjectChooser.h"
 #include "IChooserParameterProxyTable.generated.h"
 
 class UProxyTable;
@@ -31,5 +31,5 @@ struct FChooserParameterProxyTableBase : public FChooserParameterBase
 	GENERATED_BODY()
     
 public:
-	virtual bool GetValue(const UObject* ContextObject, const UProxyTable*& OutResult) const { return false; }
+	virtual bool GetValue(FChooserEvaluationContext& Context, const UProxyTable*& OutResult) const { return false; }
 };

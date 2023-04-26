@@ -98,7 +98,7 @@ namespace UE::ChooserEditor
 			TSharedPtr<SWidget> InputValueWidget = nullptr;
 			if (FChooserParameterBase* InputValue = Column->GetInputValue())
 			{
-				InputValueWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column->GetInputType(), Chooser->ContextObjectType, Chooser->OutputObjectType);
+				InputValueWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column->GetInputType(), Chooser->OutputObjectType);
 			}
 			
 			const FSlateBrush* ColumnIcon = FCoreStyle::Get().GetBrush("Icons.Filter");
@@ -215,7 +215,7 @@ namespace UE::ChooserEditor
 		return CellWidget;
 	}
 
-	static TSharedRef<SWidget> CreateObjectPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, UClass* ResultBaseClass)
+	static TSharedRef<SWidget> CreateObjectPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass)
 	{
 		IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
 

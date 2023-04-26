@@ -75,7 +75,7 @@ TSharedRef<SWidget> CreateRandomizeColumnWidget(UChooserTable* Chooser, FChooser
 		+ SHorizontalBox::Slot().FillWidth(1);
 }
 	
-TSharedRef<SWidget> CreateRandomizePropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, UClass* ResultBaseClass)
+TSharedRef<SWidget> CreateRandomizePropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass)
 {
 	IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
 

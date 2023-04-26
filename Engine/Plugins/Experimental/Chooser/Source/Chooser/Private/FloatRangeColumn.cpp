@@ -3,12 +3,12 @@
 
 #include "ChooserPropertyAccess.h"
 
-bool FFloatContextProperty::GetValue(const UObject* ContextObject, float& OutResult) const
+bool FFloatContextProperty::GetValue(FChooserEvaluationContext& Context, float& OutResult) const
 {
-	UStruct* StructType = ContextObject->GetClass();
-	const void* Container = ContextObject;
+	const UStruct* StructType = nullptr;
+	const void* Container = nullptr;
 
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Context, Binding, Container, StructType))
 	{
 		if (const FDoubleProperty* DoubleProperty = FindFProperty<FDoubleProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
@@ -22,7 +22,7 @@ bool FFloatContextProperty::GetValue(const UObject* ContextObject, float& OutRes
 			return true;
 		}
 
-	    if (UClass* ClassType = Cast<UClass>(StructType))
+	    if (const UClass* ClassType = Cast<const UClass>(StructType))
 	    {
 			if (UFunction* Function = ClassType->FindFunctionByName(Binding.PropertyBindingChain.Last()))
 			{
@@ -69,15 +69,15 @@ FFloatRangeColumn::FFloatRangeColumn()
 	InputValue.InitializeAs(FFloatContextProperty::StaticStruct());
 }
 
-void FFloatRangeColumn::Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FFloatRangeColumn::Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
-	if (ContextObject && InputValue.IsValid())
+	if (InputValue.IsValid())
 	{
 		float Result = 0.0f;
-		InputValue.Get<FChooserParameterFloatBase>().GetValue(ContextObject, Result);
+		InputValue.Get<FChooserParameterFloatBase>().GetValue(Context, Result);
 
 #if WITH_EDITOR
-		if (DebugInfo.bCurrentDebugTarget)
+		if (Context.DebuggingInfo.bCurrentDebugTarget)
 		{
 			TestValue = Result;
 		}

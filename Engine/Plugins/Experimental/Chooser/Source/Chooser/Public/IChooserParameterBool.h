@@ -28,6 +28,6 @@ struct FChooserParameterBoolBase : public FChooserParameterBase
 	GENERATED_BODY()
     
     public:
-    	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) const { return false; }
-    	virtual bool SetValue(UObject* ContextObject, bool InValue) const { return false; }
+    	virtual bool GetValue(FChooserEvaluationContext& Context, bool& OutResult) const { return false; }
+    	virtual bool SetValue(FChooserEvaluationContext& Context, bool InValue) const { return false; }
 };

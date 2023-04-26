@@ -2,7 +2,7 @@
 
 #include "ObjectChooser_Class.h"
 
-UObject* FClassChooser::ChooseObject(const UObject* ContextObject) const
+UObject* FClassChooser::ChooseObject(FChooserEvaluationContext& Context) const
 {
 	return Class;
 }

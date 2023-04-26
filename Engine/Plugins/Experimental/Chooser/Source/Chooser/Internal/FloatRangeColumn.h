@@ -13,7 +13,7 @@ struct CHOOSER_API FFloatContextProperty :  public FChooserParameterFloatBase
 {
 	GENERATED_BODY()
 	
-	virtual bool GetValue(const UObject* ContextObject, float& OutResult) const override;
+	virtual bool GetValue(FChooserEvaluationContext& Context, float& OutResult) const override;
 
 	UPROPERTY()
 	TArray<FName> PropertyBindingChain_DEPRECATED;
@@ -41,7 +41,7 @@ struct CHOOSER_API FFloatContextProperty :  public FChooserParameterFloatBase
 	
 	void SetBinding(const TArray<FBindingChainElement>& InBindingChain)
 	{
-		UE::Chooser::CopyPropertyChain(InBindingChain, Binding.PropertyBindingChain);
+		UE::Chooser::CopyPropertyChain(InBindingChain, Binding);
 	}
 
 	virtual void GetDisplayName(FText& OutName) const override
@@ -87,7 +87,7 @@ struct CHOOSER_API FFloatRangeColumn : public FChooserColumnBase
 	// should match the length of the Results array 
 	TArray<FChooserFloatRangeRowData> RowValues;
 	
-	virtual void Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+	virtual void Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
 
 #if WITH_EDITOR
 	mutable float TestValue;

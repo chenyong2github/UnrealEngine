@@ -6,12 +6,12 @@
 #include "IPropertyAccessEditor.h"
 #endif
 
-bool FEnumContextProperty::GetValue(const UObject* ContextObject, uint8& OutResult) const
+bool FEnumContextProperty::GetValue(FChooserEvaluationContext& Context, uint8& OutResult) const
 {
-	UStruct* StructType = ContextObject->GetClass();
-	const void* Container = ContextObject;
+	const UStruct* StructType = nullptr;
+	const void* Container = nullptr;
 
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Context, Binding, Container, StructType))
 	{
 		if (const FEnumProperty* EnumProperty = FindFProperty<FEnumProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
@@ -39,7 +39,7 @@ void FEnumContextProperty::SetBinding(const TArray<FBindingChainElement>& InBind
 	const UEnum* PreviousEnum = Binding.Enum;
 	Binding.Enum = nullptr;
 
-	UE::Chooser::CopyPropertyChain(InBindingChain, Binding.PropertyBindingChain);
+	UE::Chooser::CopyPropertyChain(InBindingChain, Binding);
 
 	const FField* Field = InBindingChain.Last().Field.ToField();
 	if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Field))
@@ -67,15 +67,14 @@ bool FChooserEnumRowData::Evaluate(const uint8 LeftHandSide) const
 	return Equal ^ CompareNotEqual;
 }
 
-void FEnumColumn::Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FEnumColumn::Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	uint8 Result = 0;
-	if (ContextObject != nullptr &&
-		InputValue.IsValid() &&
-		InputValue.Get<FChooserParameterEnumBase>().GetValue(ContextObject, Result))
+	if (InputValue.IsValid() &&
+		InputValue.Get<FChooserParameterEnumBase>().GetValue(Context, Result))
 	{
 #if WITH_EDITOR
-		if (DebugInfo.bCurrentDebugTarget)
+		if (Context.DebuggingInfo.bCurrentDebugTarget)
 		{
 			TestValue = Result;
 		}

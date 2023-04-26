@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/Interface.h"
+#include "IObjectChooser.h"
 #include "IChooserParameterBase.h"
 #include "InstancedStruct.h"
 #include "IChooserColumn.generated.h"
@@ -24,11 +25,6 @@ public:
 
 class UChooserTable;
 
-struct FChooserDebuggingInfo
-{
-	bool bCurrentDebugTarget;
-};
-
 USTRUCT()
 struct CHOOSER_API FChooserColumnBase
 {
@@ -37,12 +33,12 @@ struct CHOOSER_API FChooserColumnBase
 public:
 	virtual ~FChooserColumnBase() {}
 	virtual void PostLoad() {};
-	virtual void Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const {}
+	virtual void Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const {}
 
 	virtual bool HasFilters() const { return true; }
 	virtual bool HasOutputs() const { return false; }
 	
-	virtual void SetOutputs(FChooserDebuggingInfo& DebugInfo, UObject* ContextObject, int RowIndex) const { }
+	virtual void SetOutputs(FChooserEvaluationContext& Context, int RowIndex) const { }
 
 #if WITH_EDITOR
 	virtual FName RowValuesPropertyName() { return FName(); }

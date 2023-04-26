@@ -18,7 +18,7 @@ struct CHOOSER_API FObjectContextProperty : public FChooserParameterObjectBase
 	UPROPERTY(EditAnywhere, Meta = (BindingType = "object", BindingColor = "ObjectPinTypeColor"), Category = "Binding")
 	FChooserObjectPropertyBinding Binding;
 
-	virtual bool GetValue(const UObject* ContextObject, FSoftObjectPath& OutResult) const override;
+	virtual bool GetValue(FChooserEvaluationContext& Context, FSoftObjectPath& OutResult) const override;
 
 #if WITH_EDITOR
 	static bool CanBind(const FProperty& Property)
@@ -84,7 +84,7 @@ struct CHOOSER_API FObjectColumn : public FChooserColumnBase
 	// should match the length of the Results array
 	TArray<FChooserObjectRowData> RowValues;
 
-	virtual void Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+	virtual void Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
 
 #if WITH_EDITOR
 	mutable FSoftObjectPath TestValue;

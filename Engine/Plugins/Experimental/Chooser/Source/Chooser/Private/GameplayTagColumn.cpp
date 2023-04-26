@@ -2,12 +2,12 @@
 #include "GameplayTagColumn.h"
 #include "ChooserPropertyAccess.h"
 
-bool FGameplayTagContextProperty::GetValue(const UObject* ContextObject, const FGameplayTagContainer*& OutResult) const
+bool FGameplayTagContextProperty::GetValue(FChooserEvaluationContext& Context, const FGameplayTagContainer*& OutResult) const
 {
-	UStruct* StructType = ContextObject->GetClass();
-	const void* Container = ContextObject;
+	const UStruct* StructType = nullptr;
+	const void* Container = nullptr;
 	
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Context, Binding, Container, StructType))
 	{
 		if (const FStructProperty* Property = FindFProperty<FStructProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
@@ -24,13 +24,13 @@ FGameplayTagColumn::FGameplayTagColumn()
 	InputValue.InitializeAs(FGameplayTagContextProperty::StaticStruct());
 }
 
-void FGameplayTagColumn::Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FGameplayTagColumn::Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	const FGameplayTagContainer* Result = nullptr;
-	if (ContextObject && InputValue.IsValid() && InputValue.Get<FChooserParameterGameplayTagBase>().GetValue(ContextObject,Result))
+	if (InputValue.IsValid() && InputValue.Get<FChooserParameterGameplayTagBase>().GetValue(Context,Result))
 	{
 #if WITH_EDITOR
-		if (DebugInfo.bCurrentDebugTarget)
+		if (Context.DebuggingInfo.bCurrentDebugTarget)
 		{
 			TestValue = *Result;
 		}

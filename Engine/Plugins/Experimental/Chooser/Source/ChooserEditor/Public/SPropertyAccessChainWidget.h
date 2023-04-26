@@ -34,7 +34,7 @@ public:
 private:
 	TSharedRef<SWidget> CreatePropertyAccessWidget();
 	void UpdateWidget();
-	void ContextClassChanged(UClass* NewContextClass);
+	void ContextClassChanged();
 		
 	FString TypeFilter;
 	FString BindingColor;

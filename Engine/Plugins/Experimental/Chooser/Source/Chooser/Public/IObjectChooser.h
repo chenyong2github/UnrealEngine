@@ -21,6 +21,27 @@ public:
 	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const { }
 };
 
+struct FContextEntry
+{
+	const UStruct* Type = nullptr;
+	void* Data = nullptr;
+};
+
+#if WITH_EDITOR
+struct FChooserDebuggingInfo
+{
+	bool bCurrentDebugTarget = false;
+};
+#endif
+
+struct FChooserEvaluationContext
+{
+#if WITH_EDITOR
+	FChooserDebuggingInfo DebuggingInfo;
+#endif
+
+	TArray<FContextEntry, TFixedAllocator<4>> ContextData;
+};
 
 USTRUCT()
 struct CHOOSER_API FObjectChooserBase
@@ -30,18 +51,18 @@ struct CHOOSER_API FObjectChooserBase
 public:
 	virtual ~FObjectChooserBase() {}
 
-	virtual UObject* ChooseObject(const UObject* ContextObject) const { return nullptr; };
-
 	enum class EIteratorStatus { Continue,Stop };
 
 	DECLARE_DELEGATE_RetVal_OneParam( EIteratorStatus, FObjectChooserIteratorCallback, UObject*);
-	virtual EIteratorStatus ChooseMulti(const UObject* ContextObject, FObjectChooserIteratorCallback Callback) const
+
+	virtual UObject* ChooseObject(FChooserEvaluationContext& Context) const { return nullptr; };
+	virtual EIteratorStatus ChooseMulti(FChooserEvaluationContext& ContextData, FObjectChooserIteratorCallback Callback) const
 	{
 		// fallback implementation just calls the single version
-		if (UObject* Result = ChooseObject(ContextObject))
+		if (UObject* Result = ChooseObject(ContextData))
 		{
 			return Callback.Execute(Result);
 		}
 		return EIteratorStatus::Continue;
-	};
+	}
 };

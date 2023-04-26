@@ -28,8 +28,8 @@ public:
 	UPROPERTY(EditAnywhere, Meta = (BindingType = "bool", BindingAllowFunctions = "true", BindingColor = "BooleanPinTypeColor"), Category = "Binding")
 	FChooserPropertyBinding Binding;
 	
-	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) const override;
-	virtual bool SetValue(UObject* ContextObject, bool InValue) const override;
+	virtual bool GetValue(FChooserEvaluationContext& Context, bool& OutResult) const override;
+	virtual bool SetValue(FChooserEvaluationContext& Context, bool InValue) const override;
 
 	virtual void PostLoad() override
 	{
@@ -51,7 +51,7 @@ public:
 
 	void SetBinding(const TArray<FBindingChainElement>& InBindingChain)
 	{
-		UE::Chooser::CopyPropertyChain(InBindingChain, Binding.PropertyBindingChain);
+		UE::Chooser::CopyPropertyChain(InBindingChain, Binding);
 	}
 
 	virtual void GetDisplayName(FText& OutName) const override
@@ -85,7 +85,7 @@ struct CHOOSER_API FBoolColumn : public FChooserColumnBase
 	UPROPERTY(EditAnywhere, Category= "Data", DisplayName="RowValues");
 	TArray<EBoolColumnCellValue> RowValuesWithAny; 
 	
-	virtual void Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+	virtual void Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
 
 #if WITH_EDITOR
 	mutable bool TestValue;

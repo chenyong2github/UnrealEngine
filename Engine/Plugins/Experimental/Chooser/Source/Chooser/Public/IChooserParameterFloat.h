@@ -28,5 +28,5 @@ struct FChooserParameterFloatBase : public FChooserParameterBase
 	GENERATED_BODY()
     
 public:
-	virtual bool GetValue(const UObject* ContextObject, float& OutResult) const { return false; }
+	virtual bool GetValue(FChooserEvaluationContext& Context, float& OutResult) const { return false; }
 };

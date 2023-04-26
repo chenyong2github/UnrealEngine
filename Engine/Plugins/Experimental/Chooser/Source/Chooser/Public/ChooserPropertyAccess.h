@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "InstancedStruct.h"
+#include "IObjectChooser.h"
 
 #include "ChooserPropertyAccess.generated.h"
 
@@ -17,14 +19,14 @@ class UHasContextClass : public UInterface
 	GENERATED_BODY()
 };
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FContextClassChanged, UClass*)
+DECLARE_MULTICAST_DELEGATE(FContextClassChanged)
 
 class IHasContextClass
 {
 	GENERATED_BODY()
 public:
 	FContextClassChanged OnContextClassChanged;
-	virtual UClass* GetContextClass() { return nullptr; };
+	virtual TConstArrayView<FInstancedStruct> GetContextData() const { return TConstArrayView<FInstancedStruct>(); }
 };
 
 USTRUCT()
@@ -34,6 +36,9 @@ struct FChooserPropertyBinding
 	
 	UPROPERTY()
 	TArray<FName> PropertyBindingChain;
+	
+	UPROPERTY()
+	int ContextIndex = 0;
 };
 
 USTRUCT()
@@ -58,11 +63,50 @@ struct FChooserObjectPropertyBinding : public FChooserPropertyBinding
 #endif
 };
 
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FChooserOutputObjectTypeChanged, const UClass* OutputObjectType);
+UENUM()
+enum class EContextObjectDirection
+{
+	Read,
+	Write,
+	ReadWrite
+};
+
+USTRUCT()
+struct FContextObjectTypeBase
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category="Type")
+	EContextObjectDirection Direction;
+};
+
+
+USTRUCT()
+struct FContextObjectTypeClass : public FContextObjectTypeBase
+{
+	GENERATED_BODY()
+	UPROPERTY(EditAnywhere, Category="Type")
+	TObjectPtr<UClass> Class;
+};
+
+USTRUCT()
+struct FContextObjectTypeStruct : public FContextObjectTypeBase
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, Category="Type")
+	TObjectPtr<UStruct> Struct;
+};
+
+
 namespace UE::Chooser
 {
-	CHOOSER_API bool ResolvePropertyChain(const void*& Container, UStruct*& StructType, const TArray<FName>& PropertyBindingChain);
+	CHOOSER_API bool ResolvePropertyChain(const void*& Container, const UStruct*& StructType, const TArray<FName>& PropertyBindingChain);
+	CHOOSER_API bool ResolvePropertyChain(FChooserEvaluationContext& Context, const FChooserPropertyBinding& Binding, const void*& OutContainer, const UStruct*& OutStructType);
 
 #if WITH_EDITOR
-	CHOOSER_API void CopyPropertyChain(const TArray<FBindingChainElement>& InBindingChain, TArray<FName>& OutPropertyBindingChain);
+	CHOOSER_API void CopyPropertyChain(const TArray<FBindingChainElement>& InBindingChain, FChooserPropertyBinding& OutPropertyBinding);
 #endif
 }

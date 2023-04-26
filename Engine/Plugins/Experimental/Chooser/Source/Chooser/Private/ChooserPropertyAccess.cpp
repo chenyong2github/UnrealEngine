@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChooserPropertyAccess.h"
+
+#include "IObjectChooser.h"
 #include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
@@ -9,7 +11,20 @@
 
 namespace UE::Chooser
 {
-	bool ResolvePropertyChain(const void*& Container, UStruct*& StructType, const TArray<FName>& PropertyBindingChain)
+	bool ResolvePropertyChain(FChooserEvaluationContext& Context, const FChooserPropertyBinding& PropertyBinding, const void*& OutContainer, const UStruct*& OutStructType)
+	{
+		if (PropertyBinding.ContextIndex < Context.ContextData.Num())
+		{
+			OutContainer = Context.ContextData[PropertyBinding.ContextIndex].Data;
+			OutStructType = Context.ContextData[PropertyBinding.ContextIndex].Type;
+
+			return ResolvePropertyChain(OutContainer, OutStructType, PropertyBinding.PropertyBindingChain);
+		}
+
+		return false;
+	}
+	
+	bool ResolvePropertyChain(const void*& Container, const UStruct*& StructType, const TArray<FName>& PropertyBindingChain)
 	{
 		if (PropertyBindingChain.Num() == 0)
 		{
@@ -36,7 +51,7 @@ namespace UE::Chooser
 			else
 			{
 				// check if it's a member function
-				if (UClass* ClassType = Cast<UClass>(StructType))
+				if (const UClass* ClassType = Cast<const UClass>(StructType))
 				{
 					if (UFunction* Function = ClassType->FindFunctionByName(PropertyBindingChain[PropertyChainIndex]))
 					{
@@ -74,16 +89,20 @@ namespace UE::Chooser
 	
 		return true;
 	}
-
-
+	
 #if WITH_EDITOR
-	void CopyPropertyChain(const TArray<FBindingChainElement>& InBindingChain, TArray<FName>& OutPropertyBindingChain)
+	void CopyPropertyChain(const TArray<FBindingChainElement>& InBindingChain, FChooserPropertyBinding& OutPropertyBinding)
 	{
-		OutPropertyBindingChain.Empty();
+		OutPropertyBinding.PropertyBindingChain.Empty();
+
+		if (InBindingChain.Num() > 0)
+		{
+			OutPropertyBinding.ContextIndex = InBindingChain[0].ArrayIndex;
+		}
 
 		for (int32 i = 1; i < InBindingChain.Num(); ++i)
 		{
-			OutPropertyBindingChain.Emplace(InBindingChain[i].Field.GetFName());
+			OutPropertyBinding.PropertyBindingChain.Emplace(InBindingChain[i].Field.GetFName());
 		}
 	}
 #endif

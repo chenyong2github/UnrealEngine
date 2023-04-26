@@ -28,5 +28,5 @@ USTRUCT()
 struct FChooserParameterGameplayTagBase : public FChooserParameterBase
 {
 	GENERATED_BODY()
-	virtual bool GetValue(const UObject* ContextObject, const FGameplayTagContainer*& OutResult) const { return false; }
+	virtual bool GetValue(FChooserEvaluationContext& Context, const FGameplayTagContainer*& OutResult) const { return false; }
 };

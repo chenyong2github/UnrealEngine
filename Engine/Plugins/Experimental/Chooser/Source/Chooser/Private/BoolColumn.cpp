@@ -3,13 +3,13 @@
 #include "ChooserPropertyAccess.h"
 #include "Chooser.h"
 
-bool FBoolContextProperty::GetValue(const UObject* ContextObject, bool& OutResult) const
+bool FBoolContextProperty::GetValue(FChooserEvaluationContext& Context, bool& OutResult) const
 {
 	
-	UStruct* StructType = ContextObject->GetClass();
-	const void* Container = ContextObject;
+	const UStruct* StructType = nullptr;
+	const void* Container = nullptr;
 	
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Context, Binding, Container, StructType))
 	{
 		if (const FBoolProperty* Property = FindFProperty<FBoolProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
@@ -17,7 +17,7 @@ bool FBoolContextProperty::GetValue(const UObject* ContextObject, bool& OutResul
 			return true;
 		}
 		
-	    if (UClass* ClassType = Cast<UClass>(StructType))
+	    if (const UClass* ClassType = Cast<const UClass>(StructType))
 	    {
 			if (UFunction* Function = ClassType->FindFunctionByName(Binding.PropertyBindingChain.Last()))
 			{
@@ -38,12 +38,12 @@ bool FBoolContextProperty::GetValue(const UObject* ContextObject, bool& OutResul
 	return false;
 }
 
-bool FBoolContextProperty::SetValue(UObject* ContextObject, bool InValue) const
+bool FBoolContextProperty::SetValue(FChooserEvaluationContext& Context, bool InValue) const
 {
-	UStruct* StructType = ContextObject->GetClass();
-	const void* Container = ContextObject;
+	const UStruct* StructType = nullptr;
+	const void* Container = nullptr;
 	
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Context, Binding, Container, StructType))
 	{
 		if (FBoolProperty* Property = FindFProperty<FBoolProperty>(StructType, Binding.PropertyBindingChain.Last()))
 		{
@@ -61,15 +61,15 @@ FBoolColumn::FBoolColumn()
 	InputValue.InitializeAs(FBoolContextProperty::StaticStruct());
 }
 
-void FBoolColumn::Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FBoolColumn::Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
-	if (ContextObject && InputValue.IsValid())
+	if (InputValue.IsValid())
 	{
 		bool Result = false;
-		InputValue.Get<FChooserParameterBoolBase>().GetValue(ContextObject,Result);
+		InputValue.Get<FChooserParameterBoolBase>().GetValue(Context,Result);
 
 	#if WITH_EDITOR
-		if (DebugInfo.bCurrentDebugTarget)
+		if (Context.DebuggingInfo.bCurrentDebugTarget)
 		{
 			TestValue = Result;
 		}

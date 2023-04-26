@@ -21,7 +21,7 @@ struct CHOOSER_API FEnumContextProperty : public FChooserParameterEnumBase
 	UPROPERTY(EditAnywhere, Meta = (BindingType = "enum", BindingColor = "BytePinTypeColor"), Category = "Binding")
 	FChooserEnumPropertyBinding Binding;
 
-	virtual bool GetValue(const UObject* ContextObject, uint8& OutResult) const override;
+	virtual bool GetValue(FChooserEvaluationContext& Context, uint8& OutResult) const override;
 
 	virtual void PostLoad() override
 	{
@@ -108,7 +108,7 @@ public:
 	// should match the length of the Results array
 	TArray<FChooserEnumRowData> RowValues;
 
-	virtual void Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+	virtual void Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
 	
 #if WITH_EDITOR
 	mutable int32 TestValue;

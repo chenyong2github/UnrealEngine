@@ -23,12 +23,12 @@ TSharedRef<SWidget> SPropertyAccessChainWidget::CreatePropertyAccessWidget()
 	FPropertyBindingWidgetArgs Args;
 	Args.bAllowPropertyBindings = true;
 
-	UClass* ContextClass = UObject::StaticClass();
+	TConstArrayView<FInstancedStruct> ContextData;
 	if (ContextClassOwner)
 	{
-		ContextClass = ContextClassOwner->GetContextClass();
+		ContextData = ContextClassOwner->GetContextData();
 	}
-
+	
 	Args.bAllowUObjectFunctions = true;
 	Args.bAllowOnlyThreadSafeFunctions = true;
 
@@ -176,11 +176,24 @@ TSharedRef<SWidget> SPropertyAccessChainWidget::CreatePropertyAccessWidget()
 			static FName PropertyIcon(TEXT("Kismet.Tabs.Variables"));
 			return FAppStyle::GetBrush(PropertyIcon);
 		});
+	
+	TArray<FBindingContextStruct> ContextStructs;
+	for (const FInstancedStruct& ContextStruct : ContextData)
+	{
+		if (const FContextObjectTypeClass* ClassType = ContextStruct.GetPtr<FContextObjectTypeClass>())
+		{
+			ContextStructs.SetNum(ContextStructs.Num()+1);
+			ContextStructs.Last().Struct = ClassType->Class;
+		}
+		else if (const FContextObjectTypeStruct* StructType = ContextStruct.GetPtr<FContextObjectTypeStruct>())
+		{
+			ContextStructs.SetNum(ContextStructs.Num()+1);
+			ContextStructs.Last().Struct = StructType->Struct;
+		}
+	}	
 
 	const IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
-	FBindingContextStruct StructInfo;
-	StructInfo.Struct = ContextClass;
-	return  PropertyAccessEditor.MakePropertyBindingWidget({StructInfo}, Args);
+	return  PropertyAccessEditor.MakePropertyBindingWidget(ContextStructs, Args);
 }
 
 void SPropertyAccessChainWidget::UpdateWidget()
@@ -188,7 +201,7 @@ void SPropertyAccessChainWidget::UpdateWidget()
 	ChildSlot[ CreatePropertyAccessWidget() ];
 }
 
-void SPropertyAccessChainWidget::ContextClassChanged(UClass* NewContextClass)
+void SPropertyAccessChainWidget::ContextClassChanged()
 {
 	UpdateWidget();
 }

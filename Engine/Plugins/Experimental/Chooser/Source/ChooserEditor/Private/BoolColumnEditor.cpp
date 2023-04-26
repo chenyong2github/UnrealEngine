@@ -26,7 +26,7 @@ TSharedRef<SWidget> CreateBoolColumnWidget(UChooserTable* Chooser, FChooserColum
 		TSharedPtr<SWidget> InputValueWidget = nullptr;
 		if (FChooserParameterBase* InputValue = Column->GetInputValue())
 		{
-			InputValueWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column->GetInputType(), Chooser->ContextObjectType, Chooser->OutputObjectType);
+			InputValueWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column->GetInputType(), Chooser->OutputObjectType);
 		}
 	
 		const FSlateBrush* ColumnIcon = FCoreStyle::Get().GetBrush("Icons.Filter");
@@ -116,7 +116,7 @@ TSharedRef<SWidget> CreateOutputBoolColumnWidget(UChooserTable* Chooser, FChoose
 		TSharedPtr<SWidget> InputValueWidget = nullptr;
 		if (FChooserParameterBase* InputValue = Column->GetInputValue())
 		{
-			InputValueWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column->GetInputType(), Chooser->ContextObjectType, Chooser->OutputObjectType);
+			InputValueWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column->GetInputType(), Chooser->OutputObjectType);
 		}
 		
 		const FSlateBrush* ColumnIcon = FCoreStyle::Get().GetBrush("Icons.ArrowRight");
@@ -183,7 +183,7 @@ TSharedRef<SWidget> CreateOutputBoolColumnWidget(UChooserTable* Chooser, FChoose
 	+ SHorizontalBox::Slot().FillWidth(1);
 }
 	
-TSharedRef<SWidget> CreateBoolPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, UClass* ResultBaseClass)
+TSharedRef<SWidget> CreateBoolPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass)
 {
 	IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
 

@@ -13,7 +13,7 @@
 
 namespace UE::ChooserEditor
 {
-TSharedRef<SWidget> CreateFloatPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, UClass* ResultBaseClass)
+TSharedRef<SWidget> CreateFloatPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass)
 {
 	IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
 
@@ -40,7 +40,7 @@ TSharedRef<SWidget> CreateFloatRangeColumnWidget(UChooserTable* Chooser, FChoose
 		TSharedPtr<SWidget> InputValueWidget = nullptr;
 		if (FChooserParameterBase* InputValue = Column->GetInputValue())
 		{
-			InputValueWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column->GetInputType(), Chooser->ContextObjectType, Chooser->OutputObjectType);
+			InputValueWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column->GetInputType(), Chooser->OutputObjectType);
 		}
 		
 		const FSlateBrush* ColumnIcon = FCoreStyle::Get().GetBrush("Icons.Filter");

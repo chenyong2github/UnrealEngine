@@ -27,15 +27,15 @@ public:
 
 	// caching the type so that on Undo, we can tell if we should fire the changed delegate
 	UClass* CachedPreviousType = nullptr;
-	UClass* CachedPreviousContextClass = nullptr;
 #endif
 	
 
 	UPROPERTY(EditAnywhere, Category = "Proxy", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> Type;
 	
-	UPROPERTY(EditAnywhere, Category = "Proxy Table Reference")
-	TObjectPtr<UClass> ContextClass;
+	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ContextObjectTypeBase"), Category = "Input")
+	TArray<FInstancedStruct> ContextData;
+
 	
 	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct ="/Script/ProxyTable.ChooserParameterProxyTableBase"), Category = "Proxy Table Reference")
 	FInstancedStruct ProxyTable;
@@ -43,9 +43,12 @@ public:
 	UPROPERTY()
 	FGuid Guid;
 
-	virtual UClass* GetContextClass() override { return ContextClass; }
+	virtual TConstArrayView<FInstancedStruct> GetContextData() const override { return ContextData; }
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TObjectPtr<UClass> ContextClass_DEPRECATED;
+	
 	virtual void PostLoad() override;
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 #endif
@@ -91,7 +94,7 @@ public:
 	UPROPERTY()
 	FInstancedStructContainer Values;
 	
-	UObject* FindProxyObject(const FGuid& Key, const UObject* ContextObject) const;
+	UObject* FindProxyObject(const FGuid& Key, FChooserEvaluationContext& Context) const;
 
 #if WITH_EDITORONLY_DATA
 public:
@@ -126,7 +129,7 @@ public:
 	UPROPERTY(EditAnywhere, Meta = (BindingType = "UProxyTable*"), Category = "Binding")
 	FChooserPropertyBinding Binding;
 
-	virtual bool GetValue(const UObject* ContextObject, const UProxyTable*& OutResult) const override;
+	virtual bool GetValue(FChooserEvaluationContext& Context, const UProxyTable*& OutResult) const override;
 
 #if WITH_EDITOR
 	static bool CanBind(const FProperty& Property)
@@ -136,7 +139,7 @@ public:
 
 	void SetBinding(const TArray<FBindingChainElement>& InBindingChain)
 	{
-		UE::Chooser::CopyPropertyChain(InBindingChain, Binding.PropertyBindingChain);
+		UE::Chooser::CopyPropertyChain(InBindingChain, Binding);
 	}
 #endif
 };
@@ -145,7 +148,7 @@ USTRUCT()
 struct PROXYTABLE_API FLookupProxy : public FObjectChooserBase
 {
 	GENERATED_BODY()
-	virtual UObject* ChooseObject(const UObject* ContextObject) const final override;
+	virtual UObject* ChooseObject(FChooserEvaluationContext& Context) const final override;
 	
 	public:
 	FLookupProxy();

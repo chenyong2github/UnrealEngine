@@ -12,7 +12,7 @@ struct CHOOSER_API FAssetChooser : public FObjectChooserBase
 	GENERATED_BODY()
 	
 	// FObjectChooserBase interface
-	virtual UObject* ChooseObject(const UObject* ContextObject) const final override;
+	virtual UObject* ChooseObject(FChooserEvaluationContext& Context) const final override;
 public: 
 	UPROPERTY(EditAnywhere, Category = "Parameters")
 	TObjectPtr<UObject> Asset;

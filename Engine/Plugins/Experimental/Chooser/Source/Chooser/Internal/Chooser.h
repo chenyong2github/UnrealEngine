@@ -10,8 +10,6 @@
 
 #include "Chooser.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FChooserOutputObjectTypeChanged, const UClass* OutputObjectType);
-
 UCLASS(BlueprintType)
 class CHOOSER_API UChooserTable : public UObject, public IHasContextClass
 {
@@ -33,7 +31,7 @@ public:
 	void SetDebugTarget(TWeakObjectPtr<const UObject> Target) { DebugTarget = Target; }
 	void ResetDebugTarget() { DebugTarget.Reset(); }
 	void IterateRecentContextObjects(TFunction<void(const UObject*)> Callback) const;
-	bool UpdateDebugging(const UObject* ContextObject) const;
+	void UpdateDebugging(FChooserEvaluationContext& Context) const;
 	
 	// enable display of which cells pass/fail based on current TestValue for each column
 	bool bEnableDebugTesting = false;
@@ -42,7 +40,6 @@ public:
 private: 
 	// caching the OutputObjectType and ContextObjectType so that on Undo, we can tell if we should fire the changed delegate
 	UClass* CachedPreviousOutputObjectType;
-	UClass* CachedPreviousContextObjectType;
 	
 	// objects this chooser has been recently evaluated on
 	mutable TSet<TWeakObjectPtr<const UObject>> RecentContextObjects;
@@ -58,6 +55,10 @@ public:
 	// deprecated UObject Results
 	UPROPERTY()
 	TArray<TScriptInterface<IObjectChooser>> Results_DEPRECATED;
+
+	// deprecated single context object
+	UPROPERTY()
+	TObjectPtr<UClass> ContextObjectType_DEPRECATED;
 	
 	// deprecated UObject Columns
 	UPROPERTY()
@@ -71,14 +72,14 @@ public:
 	// Columns which filter Results
 	UPROPERTY(EditAnywhere, DisplayName = "Columns", Category = Hidden, meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserColumnBase"))
 	TArray<FInstancedStruct> ColumnsStructs;
-
-	UPROPERTY(EditAnywhere, Category="Input", Meta = (AllowAbstract=true))
-	TObjectPtr<UClass> ContextObjectType;
 	
+	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ContextObjectTypeBase"), Category = "Input")
+	TArray<FInstancedStruct> ContextData;
+
 	UPROPERTY(EditAnywhere, Category="Output", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> OutputObjectType;
 
-	virtual UClass* GetContextClass() override { return ContextObjectType; }
+	virtual TConstArrayView<FInstancedStruct> GetContextData() const override { return ContextData; }
 };
 
 
@@ -87,8 +88,8 @@ struct CHOOSER_API FEvaluateChooser : public FObjectChooserBase
 {
 	GENERATED_BODY()
 
-	virtual UObject* ChooseObject(const UObject* ContextObject) const final override;
-	virtual EIteratorStatus ChooseMulti(const UObject* ContextObject, FObjectChooserIteratorCallback Callback) const final override;
+	virtual UObject* ChooseObject(FChooserEvaluationContext& Context) const final override;
+	virtual EIteratorStatus ChooseMulti(FChooserEvaluationContext &Context, FObjectChooserIteratorCallback Callback) const final override;
 	public:
 	
 	UPROPERTY(EditAnywhere, Category="Parameters")

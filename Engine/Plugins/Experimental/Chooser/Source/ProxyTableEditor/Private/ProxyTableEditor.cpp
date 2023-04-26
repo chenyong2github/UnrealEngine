@@ -427,11 +427,9 @@ public:
 			}
 			else if (ColumnName == Value) 
 			{
-				UClass* ContextClass = nullptr;
 				UClass* ObjectType = nullptr;
 				if (Row->ProxyTable->Entries[Row->RowIndex].Proxy)
 				{
-					ContextClass = Row->ProxyTable->Entries[Row->RowIndex].Proxy->ContextClass;
 					ObjectType = Row->ProxyTable->Entries[Row->RowIndex].Proxy->Type;
 				}
 				bool bReadOnly = Row->ProxyTable != Editor->GetProxyTable();
@@ -439,7 +437,7 @@ public:
 					Row->ProxyTable, FObjectChooserBase::StaticStruct(),
 					Row->ProxyTable->Entries[Row->RowIndex].ValueStruct.GetMutableMemory(),
 					Row->ProxyTable->Entries[Row->RowIndex].ValueStruct.GetScriptStruct(),
-					ContextClass, ObjectType,
+					ObjectType,
 					FOnStructPicked::CreateLambda([this](const UScriptStruct* ChosenStruct)
 					{
 						{
@@ -450,7 +448,6 @@ public:
 						ChooserEditor::FObjectChooserWidgetFactories::CreateWidget(false, Row->ProxyTable, FObjectChooserBase::StaticStruct(),
 								Row->ProxyTable->Entries[Row->RowIndex].ValueStruct.GetMutableMemory(),
 								Row->ProxyTable->Entries[Row->RowIndex].ValueStruct.GetScriptStruct(),
-								Row->ProxyTable->Entries[Row->RowIndex].Proxy->ContextClass,
 								Row->ProxyTable->Entries[Row->RowIndex].Proxy->Type,
 								FOnStructPicked(), &CacheBorder);
 					}),
@@ -976,7 +973,7 @@ TSharedRef<FProxyTableEditor> FProxyTableEditor::CreateEditor( const EToolkitMod
 
 /// Result widgets
 
-TSharedRef<SWidget> CreateLookupProxyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextObject, UClass* ResultBaseClass)
+TSharedRef<SWidget> CreateLookupProxyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass)
 {
 	FLookupProxy* LookupProxy = static_cast<FLookupProxy*>(Value);
 	

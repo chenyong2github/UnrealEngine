@@ -6,12 +6,12 @@
 	#include "IPropertyAccessEditor.h"
 #endif
 
-bool FObjectContextProperty::GetValue(const UObject* ContextObject, FSoftObjectPath& OutResult) const
+bool FObjectContextProperty::GetValue(FChooserEvaluationContext& Context, FSoftObjectPath& OutResult) const
 {
-	UStruct* StructType = ContextObject->GetClass();
-	const void* Container = ContextObject;
+	const UStruct* StructType = nullptr;
+	const void* Container = nullptr;
 
-	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Context, Binding, Container, StructType))
 	{
 		if (const FObjectPropertyBase* ObjectProperty = FindFProperty<FObjectPropertyBase>(StructType, Binding.PropertyBindingChain.Last()))
 		{
@@ -40,7 +40,7 @@ void FObjectContextProperty::SetBinding(const TArray<FBindingChainElement>& InBi
 	const UClass* PreviousClass = Binding.AllowedClass;
 	Binding.AllowedClass = nullptr;
 
-	UE::Chooser::CopyPropertyChain(InBindingChain, Binding.PropertyBindingChain);
+	UE::Chooser::CopyPropertyChain(InBindingChain, Binding);
 
 	const FField* Field = InBindingChain.Last().Field.ToField();
 	if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Field))
@@ -76,16 +76,15 @@ bool FChooserObjectRowData::Evaluate(const FSoftObjectPath& LeftHandSide) const
 	}
 }
 
-void FObjectColumn::Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FObjectColumn::Filter(FChooserEvaluationContext& Context, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	FSoftObjectPath Result;
-	if (ContextObject != nullptr &&
-		InputValue.IsValid() &&
-		InputValue.Get<FChooserParameterObjectBase>().GetValue(ContextObject, Result))
+	if (InputValue.IsValid() &&
+		InputValue.Get<FChooserParameterObjectBase>().GetValue(Context, Result))
 	{
 		
 #if WITH_EDITOR
-		if (DebugInfo.bCurrentDebugTarget)
+		if (Context.DebuggingInfo.bCurrentDebugTarget)
 		{
 			TestValue = Result;
 		}

@@ -16,16 +16,13 @@ void UChooserTable::PostEditUndo()
 {
 	UObject::PostEditUndo();
 
+
 	if (CachedPreviousOutputObjectType != OutputObjectType)
 	{
 		OnOutputObjectTypeChanged.Broadcast(OutputObjectType);
 		CachedPreviousOutputObjectType = OutputObjectType;
 	}
-	if (CachedPreviousContextObjectType != ContextObjectType)
-	{
-		OnContextClassChanged.Broadcast(ContextObjectType);
-		CachedPreviousContextObjectType = ContextObjectType;
-	}
+	OnContextClassChanged.Broadcast();
 }
 
 void UChooserTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -42,14 +39,10 @@ void UChooserTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		}
 	}
 	
-	static FName ContextPropertyName = "ContextObjectType";
+	static FName ContextPropertyName = "ContextData";
 	if (PropertyChangedEvent.Property->GetName() == ContextPropertyName)
 	{
-		if (CachedPreviousContextObjectType != ContextObjectType)
-		{
-			OnContextClassChanged.Broadcast(ContextObjectType);
-			CachedPreviousContextObjectType = ContextObjectType;
-		}
+		OnContextClassChanged.Broadcast();
 	}
 }
 
@@ -60,6 +53,16 @@ void UChooserTable::PostLoad()
 	CachedPreviousOutputObjectType = OutputObjectType;
 
 	// convert old data if it exists
+
+	if (ContextObjectType_DEPRECATED)
+	{
+		ContextData.SetNum(1);
+		ContextData[0].InitializeAs<FContextObjectTypeClass>();
+		FContextObjectTypeClass& Context = ContextData[0].GetMutable<FContextObjectTypeClass>();
+		Context.Class = ContextObjectType_DEPRECATED;
+		Context.Direction = EContextObjectDirection::ReadWrite;
+		ContextObjectType_DEPRECATED = nullptr;
+	}
 
 	if (Results_DEPRECATED.Num() > 0 || Columns_DEPRECATED.Num() > 0)
 	{
@@ -114,31 +117,39 @@ void UChooserTable::IterateRecentContextObjects(TFunction<void(const UObject*)> 
 	}
 }
 
-bool UChooserTable::UpdateDebugging(const UObject* ContextObject) const
+void UChooserTable::UpdateDebugging(FChooserEvaluationContext& Context) const
 {
 	FScopeLock Lock(&DebugLock);
-	RecentContextObjects.Add(MakeWeakObjectPtr(ContextObject));
-	if (ContextObject == DebugTarget)
+	for (const FContextEntry& Entry : Context.ContextData)
 	{
-		bDebugTestValuesValid = true;
-		return true;
+		if (Entry.Data && Entry.Type && Entry.Type->IsA(UObject::StaticClass()))
+		{
+			UObject* ContextObject = static_cast<UObject*>(Entry.Data);
+			RecentContextObjects.Add(MakeWeakObjectPtr(ContextObject));
+			if (ContextObject == DebugTarget)
+			{
+				bDebugTestValuesValid = true;
+				Context.DebuggingInfo.bCurrentDebugTarget = true;
+				return;
+			}
+		}
 	}
-	return false;
+	Context.DebuggingInfo.bCurrentDebugTarget = false;
 }
 
 #endif
 
-static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser, FObjectChooserBase::FObjectChooserIteratorCallback Callback)
+static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(FChooserEvaluationContext& Context, const UChooserTable* Chooser, FObjectChooserBase::FObjectChooserIteratorCallback Callback)
 {
 	if (Chooser == nullptr)
 	{
 		return FObjectChooserBase::EIteratorStatus::Continue;
 	}
-	
-	FChooserDebuggingInfo DebugInfo;
+
+	// todo validate that parameter types in context data match
 
 #if WITH_EDITOR
-	DebugInfo.bCurrentDebugTarget = Chooser->UpdateDebugging(ContextObject);
+	Chooser->UpdateDebugging(Context);
 #endif
 
 	TArray<uint32> Indices1;
@@ -160,7 +171,7 @@ static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* 
 		{
 			Swap(IndicesIn, IndicesOut);
 			IndicesOut->SetNum(0, false);
-			Column.Filter(DebugInfo, ContextObject, *IndicesIn, *IndicesOut);
+			Column.Filter(Context, *IndicesIn, *IndicesOut);
 		}
 	}
 	
@@ -170,16 +181,16 @@ static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* 
 		if (Chooser->ResultsStructs.Num() > (int32)SelectedIndex)
 		{
 			const FObjectChooserBase& SelectedResult = Chooser->ResultsStructs[SelectedIndex].Get<FObjectChooserBase>();
-			if (SelectedResult.ChooseMulti(ContextObject, Callback) == FObjectChooserBase::EIteratorStatus::Stop)
+			if (SelectedResult.ChooseMulti(Context, Callback) == FObjectChooserBase::EIteratorStatus::Stop)
 			{
 				// trigger all output columns
 				for (const FInstancedStruct& ColumnData : Chooser->ColumnsStructs)
 				{
 					const FChooserColumnBase& Column = ColumnData.Get<FChooserColumnBase>();
-					Column.SetOutputs(DebugInfo, const_cast<UObject*>(ContextObject), SelectedIndex);
+					Column.SetOutputs(Context, SelectedIndex);
 				}
 #if WITH_EDITOR
-				if (DebugInfo.bCurrentDebugTarget)
+				if (Context.DebuggingInfo.bCurrentDebugTarget)
 				{
 					Chooser->SetDebugSelectedRow(SelectedIndex);
 				}
@@ -192,10 +203,10 @@ static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* 
 	return FObjectChooserBase::EIteratorStatus::Continue;
 }
 
-UObject* FEvaluateChooser::ChooseObject(const UObject* ContextObject) const
+UObject* FEvaluateChooser::ChooseObject(FChooserEvaluationContext& Context) const
 {
 	UObject* Result = nullptr;
-	StaticEvaluateChooser(ContextObject, Chooser, FObjectChooserIteratorCallback::CreateLambda([&Result](UObject* InResult)
+	StaticEvaluateChooser(Context, Chooser, FObjectChooserIteratorCallback::CreateLambda([&Result](UObject* InResult)
 	{
 		Result = InResult;
 		return FObjectChooserBase::EIteratorStatus::Stop;
@@ -204,14 +215,22 @@ UObject* FEvaluateChooser::ChooseObject(const UObject* ContextObject) const
 	return Result;
 }
 
-FObjectChooserBase::EIteratorStatus FEvaluateChooser::ChooseMulti(const UObject* ContextObject, FObjectChooserIteratorCallback Callback) const
+FObjectChooserBase::EIteratorStatus FEvaluateChooser::ChooseMulti(FChooserEvaluationContext& Context, FObjectChooserIteratorCallback Callback) const
 {
-	return StaticEvaluateChooser(ContextObject, Chooser, Callback);
+	return StaticEvaluateChooser(Context, Chooser, Callback);
 }
 
 UChooserFunctionLibrary::UChooserFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser, FObjectChooserBase::FObjectChooserIteratorCallback Callback)
+{
+	// Fallback single context object version
+	FChooserEvaluationContext Context;
+	Context.ContextData.Push(FContextEntry{ContextObject->GetClass(), const_cast<void*>(static_cast<const void*>(ContextObject))});
+	return StaticEvaluateChooser(Context, Chooser, Callback);
 }
 
 UObject* UChooserFunctionLibrary::EvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser, TSubclassOf<UObject> ObjectClass)
