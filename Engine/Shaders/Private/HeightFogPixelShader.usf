@@ -67,6 +67,7 @@ void ExponentialPixelMain(
 	float3 CellOffset = UpsampleJitterMultiplier * Rand3D;
 
 	float3 VolumeUV = float3(((SVPos.xy - View.ViewRectMin.xy) + CellOffset.xy) * View.VolumetricFogSVPosToVolumeUV, ZSlice);
+	VolumeUV.xy = min(VolumeUV.xy, View.VolumetricFogUVMax);
 
 	float4 HeightFogInscatteringAndOpacity = CalculateHeightFog(WorldPositionRelativeToCamera);
 
