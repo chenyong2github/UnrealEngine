@@ -65,12 +65,6 @@ struct FDataRegistryType
 		return Name != Other.Name;
 	}
 
-	inline FDataRegistryType& operator=(const FDataRegistryType& Other)
-	{
-		Name = Other.Name;
-		return *this;
-	}
-
 	/** Returns true if this is a valid Type */
 	inline bool IsValid() const
 	{
@@ -163,13 +157,6 @@ struct FDataRegistryId
 	inline bool operator!=(const FDataRegistryId& Other) const
 	{
 		return RegistryType != Other.RegistryType || ItemName != Other.ItemName;
-	}
-
-	inline FDataRegistryId& operator=(const FDataRegistryId& Other)
-	{
-		RegistryType = Other.RegistryType;
-		ItemName = Other.ItemName;
-		return *this;
 	}
 
 
