@@ -522,9 +522,13 @@ namespace UE::CoreUObject::Private
 		return PackedObjectRef;
 	}
 
-	FPackedObjectRef GetPackedObjectRef(const UObject& Object)
+	FPackedObjectRef FindExistingPackedObjectRef(const UObject& Object)
 	{
 		int32 ObjectIndex = GUObjectArray.ObjectToIndex(&Object);
+		if (ObjectIndex == INDEX_NONE)
+		{
+			return FPackedObjectRef {0};
+		}
 		return UE::CoreUObject::Private::GObjectHandleIndex.ObjectIndexToPackedObjectRef[ObjectIndex];
 	}
 }

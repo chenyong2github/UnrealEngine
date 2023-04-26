@@ -352,4 +352,13 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Mal
 }
 #endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Hash Object Without Index", "[CoreUObject][ObjectHandle]")
+{
+	UObject DummyObjectWithInvalidIndex(EC_StaticConstructor, RF_NoFlags);
+	CHECK(DummyObjectWithInvalidIndex.GetUniqueID() == -1);
+
+	FObjectHandle DummyObjectHandle = UE::CoreUObject::Private::MakeObjectHandle(&DummyObjectWithInvalidIndex);
+	CHECK(GetTypeHash(TargetHandle) == GetTypeHash(&DummyObjectWithInvalidIndex));
+}
+
 #endif

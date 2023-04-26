@@ -11,10 +11,10 @@
 #include "Templates/TypeHash.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectHandleTracking.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectRef.h"
 #include "UObject/PackedObjectRef.h"
-#include "UObject/ObjectHandleTracking.h"
 
 
 class UClass;
@@ -60,7 +60,7 @@ namespace UE::CoreUObject::Private
 	};
 
 	/* Returns the packed object ref for this object IF one exists otherwise returns a null PackedObjectRef */
-	COREUOBJECT_API FPackedObjectRef GetPackedObjectRef(const UObject& Object);
+	COREUOBJECT_API FPackedObjectRef FindExistingPackedObjectRef(const UObject& Object);
 
 	/* Creates and ObjectRef from a packed object ref*/
 	COREUOBJECT_API FObjectRef MakeObjectRef(FPackedObjectRef Handle);
@@ -141,7 +141,7 @@ inline bool operator==(UE::CoreUObject::Private::FObjectHandlePrivate LHS, UE::C
 		}
 
 		//if packed ref empty then can't be equal as RHS is an unresolved pointer
-		FPackedObjectRef PackedLhs = GetPackedObjectRef(*Obj);
+		FPackedObjectRef PackedLhs = FindExistingPackedObjectRef(*Obj);
 		if (PackedLhs.EncodedRef == 0)
 		{
 			return false;
@@ -159,7 +159,7 @@ inline bool operator==(UE::CoreUObject::Private::FObjectHandlePrivate LHS, UE::C
 		}
 
 		//if packed ref empty then can't be equal as RHS is an unresolved pointer
-		FPackedObjectRef PackedRhs = GetPackedObjectRef(*Obj);
+		FPackedObjectRef PackedRhs = FindExistingPackedObjectRef(*Obj);
 		if (PackedRhs.EncodedRef == 0)
 		{
 			return false;
@@ -186,7 +186,8 @@ inline uint32 GetTypeHash(UE::CoreUObject::Private::FObjectHandlePrivate Handle)
 	if (IsObjectHandleResolved(Handle))
 	{
 		const UObject* Obj = ReadObjectHandlePointerNoCheck(Handle);
-		FPackedObjectRef PackedObjectRef = GetPackedObjectRef(*Obj);
+
+		FPackedObjectRef PackedObjectRef = FindExistingPackedObjectRef(*Obj);
 		if (PackedObjectRef.EncodedRef == 0)
 		{
 			return GetTypeHash(Obj);
