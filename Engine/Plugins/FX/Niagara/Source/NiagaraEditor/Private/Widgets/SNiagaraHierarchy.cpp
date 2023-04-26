@@ -225,6 +225,7 @@ void SNiagaraHierarchySection::Construct(const FArguments& InArgs, TSharedPtr<FN
 							.OnTextCommitted(this, &SNiagaraHierarchySection::OnRenameSection)
 							.OnVerifyTextChanged(this, &SNiagaraHierarchySection::OnVerifySectionRename)
 							.IsSelected(this, &SNiagaraHierarchySection::IsSectionSelected)
+							.IsReadOnly(this, &SNiagaraHierarchySection::IsSectionReadOnly)
 						]
 					]
 				])
@@ -489,6 +490,11 @@ bool SNiagaraHierarchySection::OnVerifySectionRename(const FText& NewName, FText
 bool SNiagaraHierarchySection::IsSectionSelected() const
 {
 	return GetSectionCheckState() == ECheckBoxState::Checked ? true : false;
+}
+
+bool SNiagaraHierarchySection::IsSectionReadOnly() const
+{
+	return SectionViewModel.IsValid() ? !SectionViewModel->CanRename() : true;
 }
 
 ECheckBoxState SNiagaraHierarchySection::GetSectionCheckState() const

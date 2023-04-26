@@ -60,6 +60,7 @@ private:
 	bool OnVerifySectionRename(const FText& NewName, FText& OutTooltip) const;
 
 	bool IsSectionSelected() const;
+	bool IsSectionReadOnly() const;
 	ECheckBoxState GetSectionCheckState() const;
 	void OnSectionCheckChanged(ECheckBoxState NewState);
 	EActiveTimerReturnType ActivateSectionIfDragging(double CurrentTime, float DeltaTime) const;
