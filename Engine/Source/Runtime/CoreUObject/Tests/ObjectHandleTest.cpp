@@ -358,7 +358,7 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Hash Object
 	CHECK(DummyObjectWithInvalidIndex.GetUniqueID() == -1);
 
 	FObjectHandle DummyObjectHandle = UE::CoreUObject::Private::MakeObjectHandle(&DummyObjectWithInvalidIndex);
-	CHECK(GetTypeHash(TargetHandle) == GetTypeHash(&DummyObjectWithInvalidIndex));
+	CHECK(GetTypeHash(DummyObjectHandle) == GetTypeHash(&DummyObjectWithInvalidIndex));
 }
 
 #endif
