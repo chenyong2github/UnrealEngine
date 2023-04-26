@@ -7,6 +7,7 @@
 #include "ShadowRendering.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapProjection.h"
+#include "SceneCulling/SceneCulling.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "DynamicPrimitiveDrawing.h"
@@ -296,7 +297,7 @@ void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bo
 
 	if (bNaniteEnabled)
 	{
-		VirtualShadowMapArray.RenderVirtualShadowMapsNanite(GraphBuilder, SceneRenderer, bUpdateNaniteStreaming, bNaniteProgrammableRaster, VisibilityResults);
+		VirtualShadowMapArray.RenderVirtualShadowMapsNanite(GraphBuilder, SceneRenderer, bUpdateNaniteStreaming, bNaniteProgrammableRaster, VisibilityResults, VirtualShadowMapViews, SceneInstanceCullingQuery);
 	}
 
 	if (UseNonNaniteVirtualShadowMaps(SceneRenderer.ShaderPlatform, SceneRenderer.FeatureLevel))
@@ -325,6 +326,23 @@ void FShadowSceneRenderer::UpdateDistantLightPriorityRender()
 		LocalLightShadowFrameSetup.PerLightCacheEntry->Current.ScheduledFrameNumber = Scene.GetFrameNumber();
 		// Should trigger invalidations also.
 		LocalLightShadowFrameSetup.PerLightCacheEntry->Invalidate();
+	}
+}
+
+
+void FShadowSceneRenderer::DispatchVirtualShadowMapViewAndCullingSetup(FRDGBuilder& GraphBuilder, TConstArrayView<FProjectedShadowInfo*> VirtualShadowMapShadows)
+{
+	// Don't want to run this more than once in a given frame.
+	check(SceneInstanceCullingQuery == nullptr);
+
+	// Set up view array and collect culling work at the same time.
+	SceneInstanceCullingQuery = SceneRenderer.SceneCullingRenderer.CreateInstanceQuery(GraphBuilder);
+	VirtualShadowMapViews = VirtualShadowMapArray.CreateVirtualShadowMapNaniteViews(GraphBuilder, SceneRenderer.Views, VirtualShadowMapShadows, ComputeNaniteShadowsLODScaleFactor(), SceneInstanceCullingQuery);
+
+	// Dispatch collected query 
+	if (SceneInstanceCullingQuery)
+	{
+		SceneInstanceCullingQuery->Dispatch(GraphBuilder);
 	}
 }
 

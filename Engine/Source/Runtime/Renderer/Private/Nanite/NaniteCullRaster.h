@@ -6,6 +6,7 @@
 
 class FVirtualShadowMapArray;
 class FViewFamilyInfo;
+class FSceneInstanceCullingQuery;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FRasterParameters,)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>,			OutDepthBuffer)
@@ -163,7 +164,42 @@ public:
 		FNaniteRasterPipelines& RasterPipelines,
 		const FNaniteVisibilityResults& VisibilityResults,
 		const FPackedViewArray& ViewArray,
-		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws = nullptr ) = 0;
+		FSceneInstanceCullingQuery* OptionalSceneInstanceCullingQuery,
+		const TConstArrayView<FInstanceDraw>* OptionalInstanceDraws) = 0;
+
+
+	/**
+	 * Draw scene geometry by brute-force culling against all instances in the scene.
+	 */
+	inline void DrawGeometry(FNaniteRasterPipelines& RasterPipelines,
+		const FNaniteVisibilityResults& VisibilityResults,
+		const FPackedViewArray& ViewArray)
+	{
+		DrawGeometry(RasterPipelines, VisibilityResults, ViewArray, nullptr, nullptr);
+	}
+
+	/**
+	 * Draw scene geometry driven by an explicit list FInstanceDraw (instance-id / view-id pairs).
+	 */
+	inline void DrawGeometry(FNaniteRasterPipelines& RasterPipelines,
+		const FNaniteVisibilityResults& VisibilityResults,
+		const FPackedViewArray& ViewArray,
+		const TConstArrayView<FInstanceDraw> &InstanceDraws)
+	{
+		DrawGeometry(RasterPipelines, VisibilityResults, ViewArray, nullptr, &InstanceDraws);
+	}
+
+	/**
+	 * Draw scene geometry with and optional scene instance culling query. If non-null, the culling result is used to drive rendering, 
+	 * otherwise falls back to brute-force culling (as above). 
+	 */
+	inline void DrawGeometry(FNaniteRasterPipelines& RasterPipelines,
+		const FNaniteVisibilityResults& VisibilityResults,
+		const FPackedViewArray& ViewArray,
+		FSceneInstanceCullingQuery* OptionalSceneInstanceCullingQuery)
+	{
+		DrawGeometry(RasterPipelines, VisibilityResults, ViewArray, OptionalSceneInstanceCullingQuery, nullptr);
+	}
 
 	virtual void ExtractResults( FRasterResults& RasterResults ) = 0;
 };

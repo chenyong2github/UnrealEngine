@@ -336,7 +336,7 @@ bool FSceneRenderer::RenderCustomDepthPass(
 				Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 				PrimaryNaniteRasterResults[ViewIndex].VisibilityResults,
 				*Nanite::FPackedViewArray::Create(GraphBuilder, PrimaryNaniteViews[ViewIndex]),
-				&NaniteDrawLists[ViewIndex]
+				NaniteDrawLists[ViewIndex]
 			);
 
 			Nanite::FRasterResults RasterResults;

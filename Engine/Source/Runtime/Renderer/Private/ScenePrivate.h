@@ -90,6 +90,8 @@ class FExponentialHeightFogSceneInfo;
 class FStaticMeshBatch;
 class FShadowScene;
 class FSceneLightInfoUpdates;
+class FSceneCulling;
+
 /**
  * Describes all light modifications to the scene by recording the light scene IDs.
  * TODO: If needed, we could add a reference to the FLightUpdates (which contains the commands) since this would enable systems to consume out the delta updates as they come in.
@@ -3102,6 +3104,8 @@ public:
 
 	virtual ~FScene();
 
+	FString GetFullWorldName() const { return FullWorldName; }
+
 	using FSceneInterface::UpdateAllPrimitiveSceneInfos;
 
 	// FSceneInterface interface.
@@ -3540,6 +3544,8 @@ public:
 	void DebugRender(TArrayView<FViewInfo> Views);
 #endif
 
+	FSceneCulling* SceneCulling = nullptr;
+
 	/**
 	 * Light scene change delegates, may be used to hook in subsystems that need to respond to light scene changes.
 	 * Note, all the light scene changes are applied _before_ all the primitive scene infos are updated.
@@ -3663,6 +3669,7 @@ private:
 	 */
 	void UpdateCachedShadowState(const FScenePreUpdateChangeSet &ScenePreUpdateChangeSet, const FScenePostUpdateChangeSet &ScenePostUpdateChangeSet);
 
+	FString FullWorldName;
 #if RHI_RAYTRACING
 	void UpdateRayTracingGroupBounds_AddPrimitives(const Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
 	void UpdateRayTracingGroupBounds_RemovePrimitives(const Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);

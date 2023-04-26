@@ -92,6 +92,7 @@ public:
 	FRDGBuffer* ResizeBufferIfNeeded(FRDGBuilder& GraphBuilder, int32 InNewMinNumElements, int32 BytesPerElement);
 	FRDGBuffer* Register(FRDGBuilder& GraphBuilder);
 
+	void Empty();
 protected:
 	int32 MinimumNumElementsReserved = 0;
 	const TCHAR *Name = nullptr;

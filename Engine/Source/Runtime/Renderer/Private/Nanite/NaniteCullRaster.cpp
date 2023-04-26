@@ -25,6 +25,7 @@
 #include "DynamicResolutionState.h"
 #include "Lumen/Lumen.h"
 #include "TessellationTable.h"
+#include "SceneCulling/SceneCullingRenderer.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, STATGROUP_Nanite);
 
@@ -63,6 +64,13 @@ static TAutoConsoleVariable<int32> CVarNaniteAsyncRasterizeShadowDepths(
 	TEXT("r.Nanite.AsyncRasterization.ShadowDepths"),
 	1,
 	TEXT("If available, run Nanite compute rasterization of shadows as asynchronous compute."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarNaniteCullInstanceHierarchy(
+	TEXT("r.Nanite.UseSceneInstanceHierarchy"),
+	1,
+	TEXT("Control Nanite use of the insscene tance culling hierarchy, has no effect unless  r.SceneCulling is also enabled."),
 	ECVF_RenderThreadSafe
 );
 
@@ -402,6 +410,18 @@ BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStaticInvalidatingPrimitives)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT( FInstanceWorkGroupParameters, )
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer< uint >, InInstanceWorkArgs)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingGroupWork >, InInstanceWorkGroups)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FViewDrawGroup >, InViewDrawRanges)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, InstanceIdBuffer)
+END_SHADER_PARAMETER_STRUCT()
+
+inline bool IsValid(const FInstanceWorkGroupParameters &InstanceWorkGroupParameters)
+{
+	return InstanceWorkGroupParameters.InInstanceWorkArgs != nullptr;
+}
+
 class FRasterClearCS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRasterClearCS);
@@ -453,6 +473,127 @@ class FPrimitiveFilter_CS : public FNaniteGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FPrimitiveFilter_CS, "/Engine/Private/Nanite/NanitePrimitiveFilter.usf", "PrimitiveFilter", SF_Compute);
 
+class FInstanceHierarchyCull_CS : public FNaniteGlobalShader
+{
+	DECLARE_GLOBAL_SHADER( FInstanceHierarchyCull_CS );
+	SHADER_USE_PARAMETER_STRUCT( FInstanceHierarchyCull_CS, FNaniteGlobalShader);
+
+	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
+	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL( "DEBUG_FLAGS" );
+	class FCullingPassDim : SHADER_PERMUTATION_SPARSE_INT("CULLING_PASS", CULLING_PASS_NO_OCCLUSION, CULLING_PASS_OCCLUSION_MAIN, CULLING_PASS_OCCLUSION_POST);
+
+	using FPermutationDomain = TShaderPermutationDomain<FDebugFlagsDim, FCullingPassDim, FVirtualTextureTargetDim>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
+	{
+		FNaniteGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
+
+		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );
+
+		// Get data from GPUSceneParameters rather than View.
+		OutEnvironment.SetDefine( TEXT( "USE_GLOBAL_GPU_SCENE_DATA" ), 1 );
+		OutEnvironment.SetDefine( TEXT( "NANITE_MULTI_VIEW" ), 1 );
+		OutEnvironment.SetDefine( TEXT("DEPTH_ONLY" ), 1 );
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE( FInstanceHierarchyParameters, InstanceHierarchyParameters )
+		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
+		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
+
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FViewDrawGroup >, InViewDrawRanges)
+		SHADER_PARAMETER(uint32, NumCellDraws)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FCellDraw >, InCellDraws)                //  <-| Mutually exclusive. InCellDraws in Main/unculled pass, 
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FOccludedCellDraw>, InOccludedCellDraws)  //  <-|                     InOccludedCellDraws in post.
+
+		SHADER_PARAMETER(uint32, MaxInstanceWorkGroups)
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FInstanceCullingGroupWork >, OutInstanceWorkGroups )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, OutInstanceWorkArgs )
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FNaniteStats>, OutStatsBuffer )
+
+		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InOccludedCellArgs)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FOccludedCellDraw>, OutOccludedCells)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer< uint >, OutOccludedCellArgs)
+
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FInstanceHierarchyCull_CS, "/Engine/Private/Nanite/NaniteInstanceHierarchyCulling.usf", "HierarchyCellInstanceCull", SF_Compute );
+
+
+class FInstanceHierarchyAppendUncullable_CS : public FNaniteGlobalShader
+{
+	DECLARE_GLOBAL_SHADER( FInstanceHierarchyAppendUncullable_CS );
+	SHADER_USE_PARAMETER_STRUCT( FInstanceHierarchyAppendUncullable_CS, FNaniteGlobalShader);
+
+	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL( "DEBUG_FLAGS" );
+	using FPermutationDomain = TShaderPermutationDomain<FDebugFlagsDim>;
+
+	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
+	{
+		FNaniteGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
+
+		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );
+
+		// These defines might be needed to make sure it compiles.
+		// Get data from GPUSceneParameters rather than View.
+		OutEnvironment.SetDefine( TEXT( "USE_GLOBAL_GPU_SCENE_DATA" ), 1 );
+		OutEnvironment.SetDefine( TEXT( "NANITE_MULTI_VIEW" ), 1 );
+		OutEnvironment.SetDefine( TEXT( "DEPTH_ONLY" ), 1 );
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE( FInstanceHierarchyParameters, InstanceHierarchyParameters )
+
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FViewDrawGroup >, InViewDrawRanges)
+		SHADER_PARAMETER(uint32, NumViewDrawGroups)
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FInstanceCullingGroupWork >, OutInstanceWorkGroups )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, OutInstanceWorkArgs )
+		SHADER_PARAMETER(uint32, MaxInstanceWorkGroups)
+		SHADER_PARAMETER(uint32, UncullableItemChunksOffset)
+		SHADER_PARAMETER(uint32, UncullableNumItemChunks)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FNaniteStats>, OutStatsBuffer )
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FInstanceHierarchyAppendUncullable_CS, "/Engine/Private/Nanite/NaniteInstanceHierarchyCulling.usf", "AppendUncullableInstanceWork", SF_Compute );
+
+class FInitInstanceHierarchyArgs_CS : public FNaniteGlobalShader
+{
+	DECLARE_GLOBAL_SHADER( FInitInstanceHierarchyArgs_CS );
+	SHADER_USE_PARAMETER_STRUCT( FInitInstanceHierarchyArgs_CS, FNaniteGlobalShader);
+
+	class FOcclusionCullingDim : SHADER_PERMUTATION_BOOL( "OCCLUSION_CULLING" );
+	using FPermutationDomain = TShaderPermutationDomain<FOcclusionCullingDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
+		SHADER_PARAMETER(uint32, RenderFlags)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FQueueState >,		OutQueueState )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FUintVector2 >,	InOutTotalPrevDrawClusters )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >,						InOutMainPassRasterizeArgsSWHW )
+		
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, OutOccludedInstancesArgs )
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, OutInstanceWorkArgs0)
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, OutInstanceWorkArgs1)
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, InOutPostPassRasterizeArgsSWHW )
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, OutOccludedCellArgs)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FInitInstanceHierarchyArgs_CS, "/Engine/Private/Nanite/NaniteInstanceHierarchyCulling.usf", "InitArgs", SF_Compute);
+
+
+
 class FInstanceCull_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER( FInstanceCull_CS );
@@ -464,15 +605,11 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL("DEBUG_FLAGS");
 	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FPrimitiveFilterDim, FDebugFlagsDim, FDepthOnlyDim, FVirtualTextureTargetDim>;
+	class FUseGroupWorkBufferDim : SHADER_PERMUTATION_BOOL("INSTANCE_CULL_USE_WORK_GROUP_BUFFER"); // TODO: this permutation is mutually exclusive with NANITE_MULTI_VIEW, but need to be careful around what defines are set. )
+	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FPrimitiveFilterDim, FDebugFlagsDim, FDepthOnlyDim, FVirtualTextureTargetDim, FUseGroupWorkBufferDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (!DoesPlatformSupportNanite(Parameters.Platform))
-		{
-			return false;
-		}
-		
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
 		// Only some platforms support native 64-bit atomics.
@@ -481,11 +618,21 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 			return false;
 		}
 
-		// Skip permutations targeting other culling passes, as they are covered in the specialized VSM instance cull
-		if (PermutationVector.Get<FVirtualTextureTargetDim>() && PermutationVector.Get<FCullingPassDim>() != CULLING_PASS_OCCLUSION_POST)
+		// Skip permutations targeting other culling passes, as they are covered in the specialized VSM instance cull, disable when FUseGroupWorkBufferDim, since that needs all choices 
+		if (PermutationVector.Get<FVirtualTextureTargetDim>() 
+			&& PermutationVector.Get<FCullingPassDim>() != CULLING_PASS_OCCLUSION_POST 
+			&& !PermutationVector.Get<FUseGroupWorkBufferDim>())
 		{
 			return false;
 		}
+
+		// These are mutually exclusive
+		if (PermutationVector.Get<FCullingPassDim>() == CULLING_PASS_EXPLICIT_LIST
+			&& (PermutationVector.Get<FVirtualTextureTargetDim>() || PermutationVector.Get<FUseGroupWorkBufferDim>()))
+		{
+			return false;
+		}
+
 		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
 	}
 
@@ -507,6 +654,7 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FRasterParameters, RasterParameters )
+		SHADER_PARAMETER_STRUCT_INCLUDE( FInstanceWorkGroupParameters, InstanceWorkGroupParameters )
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, ImposterAtlas )
 		
@@ -537,6 +685,9 @@ class FCompactViewsVSM_CS : public FNaniteGlobalShader
 	DECLARE_GLOBAL_SHADER(FCompactViewsVSM_CS);
 	SHADER_USE_PARAMETER_STRUCT(FCompactViewsVSM_CS, FNaniteGlobalShader);
 
+	class FViewRangeInputDim : SHADER_PERMUTATION_BOOL("INPUT_VIEW_RANGES");
+	using FPermutationDomain = TShaderPermutationDomain<FViewRangeInputDim>;
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -556,9 +707,12 @@ class FCompactViewsVSM_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FPackedNaniteView >, CompactedViewsOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FCompactedViewInfo >, CompactedViewInfoOut)
 
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FViewDrawGroup >, InOutViewDrawRanges)
+		SHADER_PARAMETER(uint32, NumViewRanges)
+
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, CompactedViewsAllocationOut)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCompactViewsVSM_CS, "/Engine/Private/Nanite/NaniteInstanceCulling.usf", "CompactViewsVSM_CS", SF_Compute);
 
@@ -602,7 +756,6 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FNaniteStats>, OutStatsBuffer )
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FInstanceDraw >, InOccludedInstances )
-		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InOccludedInstancesArgs )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, InPrimitiveFilterBuffer )
 
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
@@ -1758,8 +1911,55 @@ static void AddPassInitNodesAndClusterBatchesUAV( FRDGBuilder& GraphBuilder, FGl
 	}
 }
 
+class FRenderer;
 
+class FInstanceHierarchyDriver
+{
+public:
+	inline bool IsEnabled() const { return bIsEnabled; }
 
+	bool bIsEnabled = false;
+	// pass around hierarhcy arguments to drive culling etc etc.
+	FInstanceHierarchyParameters ShaderParameters;
+
+	FRDGBuffer* ViewDrawRangesRDG;
+	FRDGBuffer* CellDrawsRDG;
+	FRDGBuffer* InstanceWorkGroupsRDG;
+	FRDGBuffer* OccludedCellArgsRDG;
+	FRDGBuffer* OccludedCellsRDG;
+	//uint32 MaxOccludedCellDraws = 0;
+	FRDGBuffer*	InstanceWorkArgs[2];
+
+	struct FDeferredSetupContext
+	{
+		void Sync()
+		{
+			// Only do the first time
+			if (SceneInstanceCullResult != nullptr)
+			{
+				return;
+			}
+			SceneInstanceCullResult = SceneInstanceCullingQuery->GetResult();
+			NumCellsPo2 = FMath::RoundUpToPowerOfTwo(SceneInstanceCullResult->MaxOccludedCellDraws);
+			check(SceneInstanceCullResult->NumInstanceGroups >= 0 && SceneInstanceCullResult->NumInstanceGroups < 4 * 1024 * 1024);
+			MaxInstanceWorkGroups = FMath::RoundUpToPowerOfTwo(SceneInstanceCullResult->NumInstanceGroups);
+			NumViewDrawRanges = SceneInstanceCullResult->ViewDrawGroups.Num();
+			NumCellDraws = SceneInstanceCullResult->CellDraws.Num();
+		}
+
+		FSceneInstanceCullingQuery* SceneInstanceCullingQuery = nullptr;
+		FSceneInstanceCullResult *SceneInstanceCullResult = nullptr;
+		uint32 NumCellsPo2 = 0u;
+
+		uint32 MaxInstanceWorkGroups = ~0u;
+		uint32 NumViewDrawRanges = ~0u;
+		uint32 NumCellDraws = ~0u;
+	};
+	FDeferredSetupContext *DeferredSetupContext = nullptr;
+
+	void Init(FRDGBuilder& GraphBuilder, bool bInIsEnabled, bool bTwoPassOcclusion, const FGlobalShaderMap* ShaderMap, FSceneInstanceCullingQuery* SceneInstanceCullingQuery);
+	FInstanceWorkGroupParameters DispatchCullingPass(FRDGBuilder& GraphBuilder, uint32 CullingPass, const FRenderer& Renderer);
+};
 
 class FRenderer : public FSceneRenderingAllocatorObject< FRenderer >, public IRenderer
 {
@@ -1774,6 +1974,8 @@ public:
 		const FIntRect&			InViewRect,
 		const TRefCountPtr<IPooledRenderTarget>& InPrevHZB,
 		FVirtualShadowMapArray*	InVirtualShadowMapArray );
+
+	friend class FInstanceHierarchyDriver;
 
 private:
 	using FRasterBinMetaArray = TArray<FNaniteRasterBinMeta, SceneRenderingAllocator>;
@@ -1824,6 +2026,7 @@ private:
 	FGPUSceneParameters			GPUSceneParameters;
 	FCullingParameters			CullingParameters;
 	FVirtualTargetParameters	VirtualTargetParameters;
+	FInstanceHierarchyDriver	InstanceHierarchyDriver;
 
 	void		AddPass_PrimitiveFilter();
 	void		AddPass_InitCullArgs(
@@ -1872,16 +2075,20 @@ private:
 		FNaniteRasterPipelines& RasterPipelines,
 		const FNaniteVisibilityResults& VisibilityResults,
 		const FPackedViewArray& ViewArray,
-		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws );
+		const TConstArrayView<FInstanceDraw>* OptionalInstanceDraws );
+
 	void			DrawGeometry(
 		FNaniteRasterPipelines& RasterPipelines,
 		const FNaniteVisibilityResults& VisibilityResults,
 		const FPackedViewArray& ViewArray,
-		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws );
+		FSceneInstanceCullingQuery* SceneInstanceCullingQuery,
+		const TConstArrayView<FInstanceDraw>* OptionalInstanceDraws );
 
 	void			ExtractStats( const FBinningData& MainPassBinning, const FBinningData& PostPassBinning );
 	void			FeedbackStatus();
 	void			ExtractResults( FRasterResults& RasterResults );
+	
+	inline bool IsUsingVirtualShadowMap() const { return VirtualShadowMapArray != nullptr; }
 };
 
 TUniquePtr< IRenderer > IRenderer::Create(
@@ -2013,8 +2220,8 @@ FRenderer::FRenderer(
 	}
 
 	// TODO: Might this not break if the view has overridden the InstanceSceneData?
-	const uint32 NumSceneInstancesPo2 = FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize());
-
+	const uint32 NumSceneInstancesPo2 = FMath::RoundUpToPowerOfTwo(FMath::Max(1024u * 128u, uint32(Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize())));
+	
 	PageConstants.X					= Scene.GPUScene.InstanceSceneDataSOAStride;
 	PageConstants.Y					= Nanite::GStreamingManager.GetMaxStreamingPages();
 	
@@ -2259,10 +2466,7 @@ void FRenderer::AddPass_NodeAndClusterCull(
 	PassParameters->OutVisibleClustersSWHW			= GraphBuilder.CreateUAV( VisibleClustersSWHW );
 	PassParameters->OutStreamingRequests			= GraphBuilder.CreateUAV( StreamingRequests );
 
-	if (VirtualShadowMapArray)
-	{
-		PassParameters->VirtualShadowMap = VirtualTargetParameters;
-	}
+	PassParameters->VirtualShadowMap = VirtualTargetParameters;
 
 	if (StatsBuffer)
 	{
@@ -2277,7 +2481,7 @@ void FRenderer::AddPass_NodeAndClusterCull(
 	FNodeAndClusterCull_CS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FNodeAndClusterCull_CS::FCullingPassDim>(CullingPass);
 	PermutationVector.Set<FNodeAndClusterCull_CS::FMultiViewDim>(bMultiView);
-	PermutationVector.Set<FNodeAndClusterCull_CS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+	PermutationVector.Set<FNodeAndClusterCull_CS::FVirtualTextureTargetDim>(IsUsingVirtualShadowMap());
 	PermutationVector.Set<FNodeAndClusterCull_CS::FDebugFlagsDim>(DebugFlags != 0);
 	PermutationVector.Set<FNodeAndClusterCull_CS::FCullingTypeDim>(CullingType);
 	auto ComputeShader = SharedContext.ShaderMap->GetShader<FNodeAndClusterCull_CS>(PermutationVector);
@@ -2359,11 +2563,19 @@ void FRenderer::AddPass_InstanceHierarchyAndClusterCull( const FPackedViewArray&
 
 	checkf(GRHIPersistentThreadGroupCount > 0, TEXT("GRHIPersistentThreadGroupCount must be configured correctly in the RHI."));
 
-	const bool bMultiView = ViewArray.NumViews > 1 || VirtualShadowMapArray != nullptr;
+	const bool bMultiView = ViewArray.NumViews > 1 || IsUsingVirtualShadowMap();
 
 	FRDGBufferRef Dummy = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 8);
 
-	if (VirtualShadowMapArray && (CullingPass != CULLING_PASS_OCCLUSION_POST))
+	FInstanceWorkGroupParameters InstanceWorkGroupParameters;
+	// Run hierarchical instance culling pass
+	if (InstanceHierarchyDriver.IsEnabled())
+	{
+		InstanceWorkGroupParameters = InstanceHierarchyDriver.DispatchCullingPass(GraphBuilder, CullingPass, *this);
+	}
+
+	// Run the common path. If InstanceHierarchyArgs, ignore special VSM pass (TODO: remove)
+	if (IsUsingVirtualShadowMap() && (CullingPass != CULLING_PASS_OCCLUSION_POST) && !InstanceHierarchyDriver.IsEnabled())
 	{
 		FInstanceCullVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCullVSM_CS::FParameters >();
 
@@ -2415,89 +2627,108 @@ void FRenderer::AddPass_InstanceHierarchyAndClusterCull( const FPackedViewArray&
 	}
 	else
 	{
-		FInstanceCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCull_CS::FParameters >();
-
-		PassParameters->NumInstances						= NumInstancesPreCull;
-		PassParameters->MaxNodes							= Nanite::FGlobalResources::GetMaxNodes();
-		PassParameters->ImposterMaxPixels					= CVarNaniteImposterMaxPixels.GetValueOnRenderThread();
-
-		PassParameters->GPUSceneParameters = GPUSceneParameters;
-		PassParameters->RasterParameters = RasterContext.Parameters;
-		PassParameters->CullingParameters = CullingParameters;
-
-		PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetImposterDataSRV(GraphBuilder);
-
-		PassParameters->OutQueueState = GraphBuilder.CreateUAV( QueueState );
-		
-		if (VirtualShadowMapArray)
+		auto DispatchInstanceCullPass = [&](const FInstanceWorkGroupParameters &InstanceWorkGroupParameters)
 		{
-			check( CullingPass == CULLING_PASS_OCCLUSION_POST );
+			FInstanceCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCull_CS::FParameters >();
+
+			PassParameters->NumInstances						= NumInstancesPreCull;
+			PassParameters->MaxNodes							= Nanite::FGlobalResources::GetMaxNodes();
+			PassParameters->ImposterMaxPixels					= CVarNaniteImposterMaxPixels.GetValueOnRenderThread();
+
+			PassParameters->GPUSceneParameters = GPUSceneParameters;
+			PassParameters->RasterParameters = RasterContext.Parameters;
+			PassParameters->CullingParameters = CullingParameters;
+
+			PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetImposterDataSRV(GraphBuilder);
+
+			PassParameters->OutQueueState = GraphBuilder.CreateUAV( QueueState );
+
 			PassParameters->VirtualShadowMap = VirtualTargetParameters;
-		}
 
-		if (StatsBuffer)
-		{
-			PassParameters->OutStatsBuffer					= GraphBuilder.CreateUAV(StatsBuffer);
-		}
-
-		PassParameters->OutMainAndPostNodesAndClusterBatches = GraphBuilder.CreateUAV( MainAndPostNodesAndClusterBatchesBuffer );
-		if( CullingPass == CULLING_PASS_NO_OCCLUSION )
-		{
-			if( InstanceDrawsBuffer )
+			if (StatsBuffer)
 			{
-				PassParameters->InInstanceDraws			= GraphBuilder.CreateSRV( InstanceDrawsBuffer );
+				PassParameters->OutStatsBuffer					= GraphBuilder.CreateUAV(StatsBuffer);
 			}
-		}
-		else if( CullingPass == CULLING_PASS_OCCLUSION_MAIN )
-		{
-			PassParameters->OutOccludedInstances		= GraphBuilder.CreateUAV( OccludedInstances );
-			PassParameters->OutOccludedInstancesArgs	= GraphBuilder.CreateUAV( OccludedInstancesArgs );
-		}
-		else
-		{
-			PassParameters->InInstanceDraws				= GraphBuilder.CreateSRV( OccludedInstances );
-			PassParameters->InOccludedInstancesArgs		= GraphBuilder.CreateSRV( OccludedInstancesArgs );
-		}
 
-		if (PrimitiveFilterBuffer)
-		{
-			PassParameters->InPrimitiveFilterBuffer		= GraphBuilder.CreateSRV(PrimitiveFilterBuffer);
-		}
-		
-		check(ViewsBuffer);
+			PassParameters->OutMainAndPostNodesAndClusterBatches = GraphBuilder.CreateUAV(MainAndPostNodesAndClusterBatchesBuffer);
+			if (CullingPass == CULLING_PASS_NO_OCCLUSION)
+			{
+				if( InstanceDrawsBuffer )
+				{
+					PassParameters->InInstanceDraws			= GraphBuilder.CreateSRV( InstanceDrawsBuffer );
+				}
+			}
+			else if (CullingPass == CULLING_PASS_OCCLUSION_MAIN)
+			{
+				PassParameters->OutOccludedInstances		= GraphBuilder.CreateUAV( OccludedInstances );
+				PassParameters->OutOccludedInstancesArgs	= GraphBuilder.CreateUAV( OccludedInstancesArgs );
+			}
+			else if (!IsValid(InstanceWorkGroupParameters))
+			{
+				PassParameters->InInstanceDraws				= GraphBuilder.CreateSRV( OccludedInstances );
+				PassParameters->InOccludedInstancesArgs		= GraphBuilder.CreateSRV( OccludedInstancesArgs );
+			}
 
-		const uint32 InstanceCullingPass = InstanceDrawsBuffer != nullptr ? CULLING_PASS_EXPLICIT_LIST : CullingPass;
-		FInstanceCull_CS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FInstanceCull_CS::FCullingPassDim>(InstanceCullingPass);
-		PermutationVector.Set<FInstanceCull_CS::FMultiViewDim>(bMultiView);
-		PermutationVector.Set<FInstanceCull_CS::FPrimitiveFilterDim>(PrimitiveFilterBuffer != nullptr);
-		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(DebugFlags != 0);
-		PermutationVector.Set<FInstanceCull_CS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
-		PermutationVector.Set<FInstanceCull_CS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+			PassParameters->InstanceWorkGroupParameters = InstanceWorkGroupParameters;
 
-		auto ComputeShader = SharedContext.ShaderMap->GetShader<FInstanceCull_CS>(PermutationVector);
-		if( InstanceCullingPass == CULLING_PASS_OCCLUSION_POST )
-		{
-			PassParameters->IndirectArgs = OccludedInstancesArgs;
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME( "InstanceCull" ),
-				ComputeShader,
-				PassParameters,
-				PassParameters->IndirectArgs,
-				0
-			);
-		}
-		else
-		{
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				InstanceCullingPass == CULLING_PASS_EXPLICIT_LIST ?	RDG_EVENT_NAME( "InstanceCull - Explicit List" ) : RDG_EVENT_NAME( "InstanceCull" ),
-				ComputeShader,
-				PassParameters,
+			if (PrimitiveFilterBuffer)
+			{
+				PassParameters->InPrimitiveFilterBuffer		= GraphBuilder.CreateSRV(PrimitiveFilterBuffer);
+			}
+
+			check(ViewsBuffer);
+			const bool bUseExpplicitListCullingPass = InstanceDrawsBuffer != nullptr;
+			const uint32 InstanceCullingPass = bUseExpplicitListCullingPass ? CULLING_PASS_EXPLICIT_LIST : CullingPass;
+			FInstanceCull_CS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FInstanceCull_CS::FCullingPassDim>(InstanceCullingPass);
+			PermutationVector.Set<FInstanceCull_CS::FMultiViewDim>(bMultiView);
+			PermutationVector.Set<FInstanceCull_CS::FPrimitiveFilterDim>(PrimitiveFilterBuffer != nullptr);
+			PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(DebugFlags != 0);
+			PermutationVector.Set<FInstanceCull_CS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
+			// Make sure these permutations are orthogonally enabled WRT CULLING_PASS_EXPLICIT_LIST as they can never co-exist
+			check(!(IsUsingVirtualShadowMap() && bUseExpplicitListCullingPass));
+			check(!(IsValid(InstanceWorkGroupParameters) && bUseExpplicitListCullingPass));
+			PermutationVector.Set<FInstanceCull_CS::FVirtualTextureTargetDim>(IsUsingVirtualShadowMap() && !bUseExpplicitListCullingPass);
+			PermutationVector.Set<FInstanceCull_CS::FUseGroupWorkBufferDim>(IsValid(InstanceWorkGroupParameters) && !bUseExpplicitListCullingPass);
+
+			auto ComputeShader = SharedContext.ShaderMap->GetShader<FInstanceCull_CS>(PermutationVector);
+			if (IsValid(InstanceWorkGroupParameters))
+			{
+				PassParameters->IndirectArgs = InstanceWorkGroupParameters.InInstanceWorkArgs->GetParent();
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("InstanceCull - GroupWork"), ComputeShader, PassParameters, PassParameters->IndirectArgs, 0);
+			}
+			else if (InstanceCullingPass == CULLING_PASS_OCCLUSION_POST)
+			{
+				PassParameters->IndirectArgs = OccludedInstancesArgs;
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME( "InstanceCull" ),
+					ComputeShader,
+					PassParameters,
+					PassParameters->IndirectArgs,
+					0
+				);
+			}
+			else
+			{
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					InstanceCullingPass == CULLING_PASS_EXPLICIT_LIST ? RDG_EVENT_NAME("InstanceCull - Explicit List") : RDG_EVENT_NAME("InstanceCull"),
+					ComputeShader,
+					PassParameters,
 				FComputeShaderUtils::GetGroupCountWrapped(NumInstancesPreCull, 64)
-			);
+				);
+			}
+		};
+		
+		// We need to add an extra pass to cover for the post-pass occluded instances, this is a workaround for an issue where the instances from 
+		// pre-pass & hierarchy cull were not able to co-exist in the same args, for obscure reasons. We should perhaps re-merge them.
+		if (CullingPass == CULLING_PASS_OCCLUSION_POST && IsValid(InstanceWorkGroupParameters))
+		{
+			static FInstanceWorkGroupParameters DummyInstanceWorkGroupParameters;
+			DispatchInstanceCullPass(DummyInstanceWorkGroupParameters);
 		}
+		DispatchInstanceCullPass(InstanceWorkGroupParameters);
 	}
 
 	AddPass_NodeAndClusterCull( CullingPass, bMultiView );
@@ -2716,7 +2947,7 @@ FBinningData FRenderer::AddPass_Rasterize(
 	const bool bUseMeshShader = UseMeshShader(ShaderPlatform, SharedContext.Pipeline);
 	const bool bUsePrimitiveShader = UsePrimitiveShader() && !bUseMeshShader;
 	const bool bUseProgrammableRaster = (RenderFlags & NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER) != 0;
-	const bool bHasVirtualShadowMap = VirtualShadowMapArray != nullptr;
+	const bool bHasVirtualShadowMap = IsUsingVirtualShadowMap();
 	const bool bPatches = VisiblePatchesArgs != nullptr;
 
 	const uint32 RasterBinCount = bUseProgrammableRaster ? Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinCount() : 0u;
@@ -3186,7 +3417,7 @@ FBinningData FRenderer::AddPass_Rasterize(
 	ViewRect.Min = FIntPoint::ZeroValue;
 	ViewRect.Max = RasterContext.TextureSize;
 
-	if (VirtualShadowMapArray)
+	if (IsUsingVirtualShadowMap())
 	{
 		ViewRect.Min = FIntPoint::ZeroValue;
 		ViewRect.Max = FIntPoint(FVirtualShadowMap::PageSize, FVirtualShadowMap::PageSize) * FVirtualShadowMap::RasterWindowPages;
@@ -3255,10 +3486,7 @@ FBinningData FRenderer::AddPass_Rasterize(
 
 	RasterPassParameters->SplitWorkQueue = SplitWorkQueue;
 
-	if (VirtualShadowMapArray != nullptr)
-	{
-		RasterPassParameters->VirtualShadowMap = VirtualTargetParameters;
-	}
+	RasterPassParameters->VirtualShadowMap = VirtualTargetParameters;
 
 	int32 PassWorkload = FMath::Max(ActiveRasterBinCount, 1);
 	ERDGPassFlags ParallelTranslateFlag = ERDGPassFlags::None;
@@ -3719,7 +3947,7 @@ void FRenderer::DrawGeometryMultiPass(
 	FNaniteRasterPipelines& RasterPipelines,
 	const FNaniteVisibilityResults& VisibilityResults,
 	const FPackedViewArray& ViewArray,
-	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws
+	const TConstArrayView<FInstanceDraw>* OptionalInstanceDraws
 )
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::DrawGeometryMultiPass");
@@ -3778,6 +4006,7 @@ void FRenderer::DrawGeometryMultiPass(
 			RasterPipelines,
 			VisibilityResults,
 			*RangeViews,
+			nullptr,
 			OptionalInstanceDraws
 		);
 	}
@@ -3787,7 +4016,8 @@ void FRenderer::DrawGeometry(
 	FNaniteRasterPipelines& RasterPipelines,
 	const FNaniteVisibilityResults& VisibilityResults,
 	const FPackedViewArray& ViewArray,
-	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws
+	FSceneInstanceCullingQuery* SceneInstanceCullingQuery,
+	const TConstArrayView<FInstanceDraw>* OptionalInstanceDraws
 )
 {
 	LLM_SCOPE_BYTAG(Nanite);
@@ -3810,7 +4040,8 @@ void FRenderer::DrawGeometry(
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::DrawGeometry");
 
 	check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
-
+	// It is not possible to drive rendering from both an explicit list and instance culling at the same time.
+	check(!(SceneInstanceCullingQuery != nullptr && OptionalInstanceDraws != nullptr));
 	// Calling CullRasterize more than once is illegal unless bSupportsMultiplePasses is enabled.
 	check(DrawPassIndex == 0 || Configuration.bSupportsMultiplePasses);
 
@@ -3847,15 +4078,6 @@ void FRenderer::DrawGeometry(
 		NumInstancesPreCull = Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize();
 	}
 
-	if (DebugFlags != 0)
-	{
-		FNaniteStats Stats;
-		FMemory::Memzero(Stats);
-		Stats.NumMainInstancesPreCull = NumInstancesPreCull;
-
-		StatsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Nanite.StatsBuffer"), sizeof(FNaniteStats), 1, &Stats, sizeof(FNaniteStats));
-	}
-
 	{
 		CullingParameters.InViews						= GraphBuilder.CreateSRV(ViewsBuffer);
 		CullingParameters.NumViews						= ViewArray.NumViews;
@@ -3872,7 +4094,7 @@ void FRenderer::DrawGeometry(
 		CullingParameters.CompactedViewsAllocation		= nullptr;
 	}
 
-	if (VirtualShadowMapArray)
+	if (VirtualShadowMapArray != nullptr)
 	{
 		VirtualTargetParameters.VirtualShadowMap = VirtualShadowMapArray->GetUniformBuffer();
 		
@@ -3906,6 +4128,21 @@ void FRenderer::DrawGeometry(
 		GPUSceneParameters.GPUSceneFrameNumber			= ShaderParameters.GPUSceneFrameNumber;
 	}
 	
+	InstanceHierarchyDriver.Init(GraphBuilder, CVarNaniteCullInstanceHierarchy.GetValueOnRenderThread() != 0, Configuration.bTwoPassOcclusion, SharedContext.ShaderMap, SceneInstanceCullingQuery);
+
+	if (DebugFlags != 0)
+	{
+		FNaniteStats Stats;
+		FMemory::Memzero(Stats);
+		// The main pass instances are produced on the GPU if the hierarchy is active.
+		if (!InstanceHierarchyDriver.bIsEnabled)
+		{
+			Stats.NumMainInstancesPreCull =  NumInstancesPreCull;
+		}
+
+		StatsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Nanite.StatsBuffer"), sizeof(FNaniteStats), 1, &Stats, sizeof(FNaniteStats));
+	}
+
 	if (VirtualShadowMapArray != nullptr)
 	{
 		// Compact the views to remove needless (empty) mip views - need to do on GPU as that is where we know what mips have pages.
@@ -3915,7 +4152,8 @@ void FRenderer::DrawGeometry(
 		
 		// Just a pair of atomic counters, zeroed by a clear UAV pass.
 		FRDGBufferRef CompactedViewsAllocation = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2), TEXT("Shadow.Virtual.CompactedViewsAllocation"));
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedViewsAllocation), 0);
+		FRDGBufferUAVRef CompactedViewsAllocationUAV = GraphBuilder.CreateUAV(CompactedViewsAllocation);
+		AddClearUAVPass(GraphBuilder, CompactedViewsAllocationUAV, 0);
 
 		{
 			FCompactViewsVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCompactViewsVSM_CS::FParameters >();
@@ -3926,17 +4164,38 @@ void FRenderer::DrawGeometry(
 
 			PassParameters->CompactedViewsOut			= GraphBuilder.CreateUAV(CompactedViews);
 			PassParameters->CompactedViewInfoOut		= GraphBuilder.CreateUAV(CompactedViewInfo);
-			PassParameters->CompactedViewsAllocationOut	= GraphBuilder.CreateUAV(CompactedViewsAllocation);
+			PassParameters->CompactedViewsAllocationOut = CompactedViewsAllocationUAV;
+
+			// TODO: breach in instance hierarchy confinement
+			//       The view compaction should be moved outside of Nanite render (into VSM specifics)
+			//       Doing so requires some more refactor and is easier done when the non-hierarchy path is removed.
+			FCompactViewsVSM_CS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FCompactViewsVSM_CS::FViewRangeInputDim>(InstanceHierarchyDriver.IsEnabled());
+
+			if (InstanceHierarchyDriver.IsEnabled())
+			{
+				PassParameters->InOutViewDrawRanges = GraphBuilder.CreateUAV(InstanceHierarchyDriver.ViewDrawRangesRDG);
+			}
 
 			check(ViewsBuffer);
-			auto ComputeShader = SharedContext.ShaderMap->GetShader<FCompactViewsVSM_CS>();
+			auto ComputeShader = SharedContext.ShaderMap->GetShader<FCompactViewsVSM_CS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("CompactViewsVSM"),
 				ComputeShader,
 				PassParameters,
-				FComputeShaderUtils::GetGroupCount(ViewArray.NumPrimaryViews, 64)
+				[DeferredSetupContext = InstanceHierarchyDriver.IsEnabled() ? InstanceHierarchyDriver.DeferredSetupContext : nullptr, NumPrimaryViews = ViewArray.NumPrimaryViews, PassParameters]() 
+				{
+					if (DeferredSetupContext)
+					{
+						DeferredSetupContext->Sync();
+						check(DeferredSetupContext->NumViewDrawRanges < ~0u);
+						PassParameters->NumViewRanges = DeferredSetupContext->NumViewDrawRanges;
+					}
+							
+					return FComputeShaderUtils::GetGroupCount(NumPrimaryViews, 64);
+				}
 			);
 		}
 
@@ -4462,5 +4721,204 @@ void FConfiguration::SetViewFlags(const FViewInfo& View)
 	bDrawOnlyVSMInvalidatingGeometry	= !!View.Family->EngineShowFlags.DrawOnlyVSMInvalidatingGeo;
 	bDrawOnlyRootGeometry				= !View.Family->EngineShowFlags.NaniteStreamingGeometry;
 }
+
+void FInstanceHierarchyDriver::Init(FRDGBuilder& GraphBuilder, bool bInIsEnabled, bool bTwoPassOcclusion, const FGlobalShaderMap* ShaderMap, FSceneInstanceCullingQuery* SceneInstanceCullingQuery) 
+{
+	bIsEnabled = bInIsEnabled && SceneInstanceCullingQuery != nullptr;
+
+	if (bIsEnabled)
+	{
+		DeferredSetupContext = GraphBuilder.AllocObject<FDeferredSetupContext>();
+		DeferredSetupContext->SceneInstanceCullingQuery = SceneInstanceCullingQuery;
+
+		CellDrawsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.CellDraws"), [DeferredSetupContext = DeferredSetupContext]() -> const typename FSceneInstanceCullResult::FCellDraws& { DeferredSetupContext->Sync(); return DeferredSetupContext->SceneInstanceCullResult->CellDraws; });
+
+		InstanceWorkArgs[0]			= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("Nanite.InstanceHierarhcy.InstanceWorkArgs[0]"));
+		if (bTwoPassOcclusion)
+		{
+			// Note: 4 element indirect args buffer to enable using the 4th to store the count of singular items (to handle fractional work groups)
+			OccludedCellArgsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("Nanite.InstanceHierarhcy.OccludedCellArgs"));
+			OccludedCellsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FOccludedCellDraw), 1u/*temp*/), TEXT("Nanite.InstanceHierarhcy.OccludedCells"), [DeferredSetupContext = DeferredSetupContext]() { DeferredSetupContext->Sync(); return DeferredSetupContext->NumCellsPo2;});
+			InstanceWorkArgs[1]			= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("Nanite.InstanceHierarhcy.InstanceWorkArgs[1]"));
+		}
+
+		// Instance work, this is what has passed cell culling and needs to enter instance culling.
+		InstanceWorkGroupsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceCullingGroupWork), 1), TEXT("Nanite.InstanceHierarhcy.InstanceWorkGroups"), [DeferredSetupContext = DeferredSetupContext]() 	{ DeferredSetupContext->Sync(); return DeferredSetupContext->MaxInstanceWorkGroups; });
+
+		// Note: This is the sync point for the setup since this is where we demand the shader parameters and thus must have produced the uploaded stuff.
+		ShaderParameters = SceneInstanceCullingQuery->GetSceneCullingRenderer().GetShaderParameters(GraphBuilder);
+
+		// Need to link culling results with views, 
+		ViewDrawRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.ViewDrawRanges"), [DeferredSetupContext = DeferredSetupContext]() -> const typename FSceneInstanceCullResult::FViewDrawGroups& { DeferredSetupContext->Sync(); return DeferredSetupContext->SceneInstanceCullResult->ViewDrawGroups; });
+
+		// These are not known at this time.
+		{
+			FInitInstanceHierarchyArgs_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitInstanceHierarchyArgs_CS::FParameters >();
+
+			PassParameters->OutInstanceWorkArgs0 = GraphBuilder.CreateUAV( InstanceWorkArgs[0] );
+
+			if (bTwoPassOcclusion)
+			{
+				PassParameters->OutInstanceWorkArgs1 = GraphBuilder.CreateUAV( InstanceWorkArgs[1] );
+				PassParameters->OutOccludedCellArgs = GraphBuilder.CreateUAV( OccludedCellArgsRDG);
+			}
+
+			FInitInstanceHierarchyArgs_CS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FInitInstanceHierarchyArgs_CS::FOcclusionCullingDim>(bTwoPassOcclusion);
+		
+			auto ComputeShader = ShaderMap->GetShader< FInitInstanceHierarchyArgs_CS >( PermutationVector );
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME( "InitArgs" ),
+				ComputeShader,
+				PassParameters,
+				FIntVector( 1, 1, 1 )
+			);
+		}
+	}	
+};
+
+FInstanceWorkGroupParameters FInstanceHierarchyDriver::DispatchCullingPass(FRDGBuilder& GraphBuilder, uint32 CullingPass, const FRenderer& Renderer)
+{
+	// Double buffer because the post pass buffer is used as output to in the main pass instance cull (and then in the post pass hierachy cull) so both must exist at the same time
+	FRDGBuffer* PassInstanceWorkArgs = InstanceWorkArgs[CullingPass == CULLING_PASS_OCCLUSION_POST];
+
+	FRDGBufferUAVRef OutInstanceWorkGroupsUAV = GraphBuilder.CreateUAV(InstanceWorkGroupsRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	// Double buffer because the post pass buffer is used as output to in the main pass instance cull (and then in the post pass hierachy cull) so both must exist at the same time
+	FRDGBufferUAVRef OutInstanceWorkArgsUAV = GraphBuilder.CreateUAV(PassInstanceWorkArgs, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier );
+
+	{
+		FInstanceHierarchyCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceHierarchyCull_CS::FParameters >();
+
+		PassParameters->GPUSceneParameters = Renderer.GPUSceneParameters;
+		PassParameters->CullingParameters = Renderer.CullingParameters;
+		PassParameters->VirtualShadowMap = Renderer.VirtualTargetParameters;
+
+		PassParameters->InstanceHierarchyParameters = ShaderParameters;
+
+		PassParameters->InViewDrawRanges = GraphBuilder.CreateSRV(ViewDrawRangesRDG);
+
+		PassParameters->OutInstanceWorkGroups = OutInstanceWorkGroupsUAV;
+		PassParameters->OutInstanceWorkArgs = OutInstanceWorkArgsUAV;
+		
+		if (Renderer.StatsBuffer)
+		{
+			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(Renderer.StatsBuffer);
+		}
+
+		FInstanceHierarchyCull_CS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FInstanceHierarchyCull_CS::FCullingPassDim>(CullingPass);
+		PermutationVector.Set<FInstanceHierarchyCull_CS::FDebugFlagsDim>(Renderer.DebugFlags != 0);
+		PermutationVector.Set<FInstanceHierarchyCull_CS::FVirtualTextureTargetDim>(Renderer.IsUsingVirtualShadowMap());
+
+		auto ComputeShader = Renderer.SharedContext.ShaderMap->GetShader<FInstanceHierarchyCull_CS>(PermutationVector);
+		if( CullingPass == CULLING_PASS_OCCLUSION_POST )
+		{
+
+			PassParameters->InOccludedCellArgs = GraphBuilder.CreateSRV(OccludedCellArgsRDG);
+			PassParameters->InCellDraws = nullptr;
+			PassParameters->InOccludedCellDraws = GraphBuilder.CreateSRV(OccludedCellsRDG );
+
+			PassParameters->IndirectArgs = OccludedCellArgsRDG;
+			PassParameters->OutOccludedCells = nullptr;
+			PassParameters->OutOccludedCellArgs = nullptr;
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME( "HierarchyCellCull" ),
+				ComputeShader,
+				PassParameters,
+				PassParameters->IndirectArgs,
+				0,
+				[DeferredSetupContext = DeferredSetupContext, PassParameters]() 
+				{
+					DeferredSetupContext->Sync();
+					check(DeferredSetupContext->MaxInstanceWorkGroups < ~0u);
+					PassParameters->MaxInstanceWorkGroups = DeferredSetupContext->MaxInstanceWorkGroups;
+				}
+			);
+		}
+		else
+		{
+			PassParameters->InCellDraws = GraphBuilder.CreateSRV(CellDrawsRDG);
+			PassParameters->InOccludedCellDraws = nullptr;
+
+			if (Renderer.Configuration.bTwoPassOcclusion)
+			{
+				PassParameters->OutOccludedCells = GraphBuilder.CreateUAV(OccludedCellsRDG);
+				PassParameters->OutOccludedCellArgs = GraphBuilder.CreateUAV(OccludedCellArgsRDG);
+				//PassParameters->MaxOccludedCellDraws 
+			}
+			PassParameters->IndirectArgs = nullptr;
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME( "HierarchyCellCull" ),
+				ComputeShader,
+				PassParameters,
+				[DeferredSetupContext = DeferredSetupContext, PassParameters]() 
+				{
+					DeferredSetupContext->Sync();
+					check(DeferredSetupContext->NumCellDraws < ~0u);
+					check(DeferredSetupContext->MaxInstanceWorkGroups < ~0u);
+					PassParameters->MaxInstanceWorkGroups = DeferredSetupContext->MaxInstanceWorkGroups;
+					PassParameters->NumCellDraws = DeferredSetupContext->NumCellDraws;
+					
+					return FComputeShaderUtils::GetGroupCountWrapped(DeferredSetupContext->NumCellDraws, 64);
+				}
+			);
+		}
+	}
+	// Run pass to append the uncullable
+	if (CullingPass != CULLING_PASS_OCCLUSION_POST)
+	{
+		FInstanceHierarchyAppendUncullable_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceHierarchyAppendUncullable_CS::FParameters >();
+
+		PassParameters->InstanceHierarchyParameters = ShaderParameters;
+		PassParameters->InViewDrawRanges = GraphBuilder.CreateSRV(ViewDrawRangesRDG);
+		PassParameters->OutInstanceWorkGroups = OutInstanceWorkGroupsUAV;
+		PassParameters->OutInstanceWorkArgs = OutInstanceWorkArgsUAV;
+		
+		if (Renderer.StatsBuffer)
+		{
+			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(Renderer.StatsBuffer);
+		}
+
+		FInstanceHierarchyAppendUncullable_CS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FInstanceHierarchyAppendUncullable_CS::FDebugFlagsDim>(Renderer.DebugFlags != 0);
+
+		auto ComputeShader = Renderer.SharedContext.ShaderMap->GetShader<FInstanceHierarchyAppendUncullable_CS>(PermutationVector);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME( "InstanceHierarchyAppendUncullable" ),
+			ComputeShader,
+			PassParameters,
+			[DeferredSetupContext = DeferredSetupContext, PassParameters]() 
+			{
+				DeferredSetupContext->Sync();
+				check(DeferredSetupContext->MaxInstanceWorkGroups < ~0u);
+				PassParameters->MaxInstanceWorkGroups = DeferredSetupContext->MaxInstanceWorkGroups;
+				PassParameters->NumViewDrawGroups = DeferredSetupContext->SceneInstanceCullResult->ViewDrawGroups.Num();
+				PassParameters->UncullableItemChunksOffset = DeferredSetupContext->SceneInstanceCullResult->UncullableItemChunksOffset;
+				PassParameters->UncullableNumItemChunks = DeferredSetupContext->SceneInstanceCullResult->UncullableNumItemChunks;
+			
+				return FComputeShaderUtils::GetGroupCountWrapped(DeferredSetupContext->SceneInstanceCullResult->ViewDrawGroups.Num(), 64);
+			}
+		);
+	}
+
+	// Set up parameters for the following instance cull pass
+	FInstanceWorkGroupParameters InstanceWorkGroupParameters;
+	InstanceWorkGroupParameters.InInstanceWorkArgs = GraphBuilder.CreateSRV(PassInstanceWorkArgs, PF_R32_UINT);
+	InstanceWorkGroupParameters.InInstanceWorkGroups = GraphBuilder.CreateSRV(InstanceWorkGroupsRDG);
+	InstanceWorkGroupParameters.InstanceIdBuffer = ShaderParameters.InstanceHierarchyItems;
+	InstanceWorkGroupParameters.InViewDrawRanges = GraphBuilder.CreateSRV(ViewDrawRangesRDG);
+
+	return InstanceWorkGroupParameters;
+}
+
+
 
 } // namespace Nanite

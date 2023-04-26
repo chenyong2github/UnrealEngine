@@ -40,6 +40,7 @@
 #include "CanvasTypes.h"
 #include "Shadows/ShadowScene.h"
 #include "LineTypes.h"
+#include "SceneCulling/SceneCulling.h"
 
 using namespace UE::Geometry;
 
@@ -6141,9 +6142,7 @@ void FSceneRenderer::FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynami
 
 	if (!SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.IsEmpty())
 	{
-		const float ShadowsLODScaleFactor = FShadowSceneRenderer::ComputeNaniteShadowsLODScaleFactor();
-
-		SortedShadowsForShadowDepthPass.VirtualShadowMapViews = VirtualShadowMapArray.CreateVirtualShadowMapNaniteViews(GraphBuilder, Views, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, ShadowsLODScaleFactor);
+		ShadowSceneRenderer->DispatchVirtualShadowMapViewAndCullingSetup(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows);
 	}
 
 	if (ShadowSceneRenderer)

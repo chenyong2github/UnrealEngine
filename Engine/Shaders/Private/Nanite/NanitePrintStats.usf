@@ -86,6 +86,10 @@ void PrintStats()
 		PrintLeftAlign(Context, InStatsBuffer[0].NumTotalViews);
 		Newline(Context);
 	}
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("   H-Cells"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumMainHierarchyCellsPreCull);
+	Newline(Context);
 
 	Context.Pos.x = ItemX;
 	Print(Context, TEXT("  Pre-Cull"), FontYellow);
@@ -131,6 +135,11 @@ void PrintStats()
 	// Post Pass
 	Context.Pos.x = HeadlineX;
 	Print(Context, TEXT("Post"), FontOrange);
+	Newline(Context);
+
+	Context.Pos.x = ItemX;
+	Print(Context, TEXT("   H-Cells"), FontYellow);
+	PrintLeftAlign(Context, InStatsBuffer[0].NumPostHierarchyCellsPreCull);
 	Newline(Context);
 
 	Context.Pos.x = ItemX;

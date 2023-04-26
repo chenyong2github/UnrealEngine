@@ -326,6 +326,8 @@ struct FNaniteStats
 	UINT_TYPE NumHelperLanes;
 	UINT_TYPE NumMainPassIndirections;
 	UINT_TYPE NumPostPassIndirections;
+	UINT_TYPE NumMainHierarchyCellsPreCull;
+	UINT_TYPE NumPostHierarchyCellsPreCull;
 };
 
 struct FNanitePickingFeedback

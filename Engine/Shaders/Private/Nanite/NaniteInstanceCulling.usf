@@ -14,6 +14,8 @@
 #include "NaniteWritePixel.ush"
 #include "NaniteImposter.ush"
 
+#include "/Engine/Shared/SceneCullingDefinitions.h"
+
 void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint InstanceId, float3 BoundsCenter, float3 BoundsExtent, uint ImposterIndex, FScreenRect Rect )
 {
 	// High bit flags it as an imposter
@@ -184,6 +186,38 @@ int ImposterMaxPixels;
 StructuredBuffer<FInstanceDraw>			InInstanceDraws;
 Buffer<uint>							InOccludedInstancesArgs;
 
+#if INSTANCE_CULL_USE_WORK_GROUP_BUFFER
+
+Buffer<uint>								InInstanceWorkArgs;
+StructuredBuffer<FInstanceCullingGroupWork> InInstanceWorkGroups;
+StructuredBuffer<uint> InstanceIdBuffer;
+
+// These paths are coupled for the time being
+StructuredBuffer<FViewDrawGroup> InViewDrawRanges;
+
+uint UnpackChunkInstanceCount(uint PackedItemChunkDesc, inout bool bOutIsRLEPackedChunk)
+{
+	bOutIsRLEPackedChunk = (PackedItemChunkDesc & INSTANCE_HIERARCHY_ITEM_CHUNK_COMPRESSED_FLAG) != 0u;
+	uint NumInstances =  bOutIsRLEPackedChunk ? 64u : (PackedItemChunkDesc >> INSTANCE_HIERARCHY_ITEM_CHUNK_COUNT_SHIFT);
+	return NumInstances;
+}
+
+uint UnpackChunkInstanceId(bool bIsRLEPackedChunk, FInstanceCullingGroupWork GroupWorkItem, uint GroupThreadIndex)
+{
+	if (bIsRLEPackedChunk)
+	{
+		uint InstanceDataOffset = GroupWorkItem.PackedItemChunkDesc & INSTANCE_HIERARCHY_ITEM_CHUNK_COMPRESSED_PAYLOAD_MASK;
+		return InstanceDataOffset + GroupThreadIndex;
+	}
+	else
+	{
+		uint ChunkId = GroupWorkItem.PackedItemChunkDesc & INSTANCE_HIERARCHY_ITEM_CHUNK_ID_MASK;
+		return InstanceIdBuffer[ChunkId * INSTANCE_HIERARCHY_MAX_CHUNK_SIZE + GroupThreadIndex];
+	}
+}
+
+#endif 
+
 #if PRIMITIVE_FILTER
 StructuredBuffer<uint>					InPrimitiveFilterBuffer;
 #endif
@@ -209,21 +243,70 @@ void WriteOccludedInstance(uint ViewId, uint InstanceId)
 [numthreads(64, 1, 1)]
 void InstanceCull(
 	uint3 GroupId : SV_GroupID,
-	uint GroupIndex : SV_GroupIndex)
+	uint GroupThreadIndex : SV_GroupIndex)
 {
-	const uint DispatchIndex = GetUnWrappedDispatchThreadId(GroupId, GroupIndex, 64);
+	const uint DispatchIndex = GetUnWrappedDispatchThreadId(GroupId, GroupThreadIndex, 64);
 
-#if DEBUG_FLAGS && CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-	if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
-	{
-		OutStatsBuffer[0].NumPostInstancesPreCull = InOccludedInstancesArgs[3];
-	}
-#endif
+	FViewDrawGroup ViewDrawGroup;
+	ViewDrawGroup.FirstView = 0;
+	ViewDrawGroup.NumViews = 1U;
 
 	const bool bIsPostPass = (CULLING_PASS == CULLING_PASS_OCCLUSION_POST);
 
+#if INSTANCE_CULL_USE_WORK_GROUP_BUFFER
+
+	// First range of groups fetch data from the group work buffer (view-scalar -> refactor to drive by calling helper function? Only affects post-pass)
+	uint NumInstanceWorkGroups = InInstanceWorkArgs[0];
+	//uint NumInstanceWorkGroups = InNumInstanceWorkGroups[0];
+
+#if DEBUG_FLAGS && CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+	if ((DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS) != 0u && DispatchIndex == 0)
+	{
+		InterlockedAdd(OutStatsBuffer[0].NumPostInstancesPreCull, InInstanceWorkArgs[0]);
+	}
+#endif
+
+	FInstanceCullingGroupWork GroupWorkItem = InInstanceWorkGroups[GroupId.x];
+
+	bool bIsRLEPackedChunk = false;
+	uint GroupNumInstances =  UnpackChunkInstanceCount(GroupWorkItem.PackedItemChunkDesc, bIsRLEPackedChunk);
+
+#if DEBUG_FLAGS 
+	if ((DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS) != 0u && GroupThreadIndex == 0)
+	{
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+		// Add the occluded instances to the count
+		InterlockedAdd(OutStatsBuffer[0].NumPostInstancesPreCull, GroupNumInstances);
+#else // CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN/NO_OCCLUSION
+		InterlockedAdd(OutStatsBuffer[0].NumMainInstancesPreCull, GroupNumInstances);
+#endif
+	}
+#endif
+
+	// Kill overflowing threads.
+	if (GroupThreadIndex >= GroupNumInstances)
+	{
+		return;
+	}
+
+	ViewDrawGroup = InViewDrawRanges[GroupWorkItem.ViewGroupId];
+	uint ActiveViewMask = GroupWorkItem.ActiveViewMask;
+
+	// Unpack compressed ID OR load the instance ID from the buffer (this is the ID buffer prepped during hierarchy build).
+	uint InstanceId = UnpackChunkInstanceId(bIsRLEPackedChunk, GroupWorkItem, GroupThreadIndex);
+	{
+
+#else // !INSTANCE_CULL_USE_WORK_GROUP_BUFFER
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 	uint NumInstancesLocal = InOccludedInstancesArgs[3];
+
+#if DEBUG_FLAGS
+	if ((DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS) != 0u && DispatchIndex == 0)
+	{
+		InterlockedAdd(OutStatsBuffer[0].NumPostInstancesPreCull, NumInstancesLocal);
+	}
+#endif
+
 #else
 	uint NumInstancesLocal = NumInstances;
 #endif
@@ -232,9 +315,18 @@ void InstanceCull(
 	{
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST || CULLING_PASS == CULLING_PASS_EXPLICIT_LIST
 		uint InstanceId = InInstanceDraws[DispatchIndex].InstanceId;
+		ViewDrawGroup.FirstView = InInstanceDraws[DispatchIndex].ViewId;;
 #else
 		uint InstanceId = DispatchIndex;
 #endif
+#if NANITE_MULTI_VIEW
+	#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+		ViewDrawGroup.NumViews = NumViews;
+	#endif
+#endif
+
+#endif // INSTANCE_CULL_USE_WORK_GROUP_BUFFER
+
 		uint PrimitiveId;
 		uint InstanceFlags;
 		LoadInstancePrimitiveIdAndFlags(InstanceId, PageConstants.x, PrimitiveId, InstanceFlags);
@@ -279,15 +371,16 @@ void InstanceCull(
 		bool bVisibleAndShouldCacheAsStaticForAnyView = false;
 		bool bAnyEnableWPO = false;
 
-		uint ViewId = 0;
-#if NANITE_MULTI_VIEW
-	#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		for (ViewId = 0; ViewId < NumViews; ++ViewId)
-	#else
-		ViewId = InInstanceDraws[DispatchIndex].ViewId;
-	#endif
-#endif
+		for (uint ViewIndex = 0; ViewIndex < ViewDrawGroup.NumViews; ++ViewIndex)
 		{
+#if INSTANCE_CULL_USE_WORK_GROUP_BUFFER
+			if ((ActiveViewMask & (1U << ViewIndex)) == 0U)
+			{
+				continue;
+			}
+#endif
+			uint ViewId = ViewDrawGroup.FirstView + ViewIndex;
+
 			FNaniteView NaniteView = GetNaniteView(ViewId);
 			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
@@ -414,20 +507,43 @@ struct FCompactedViewInfo
 };
 
 RWStructuredBuffer< FPackedNaniteView > CompactedViewsOut;
-RWStructuredBuffer< FCompactedViewInfo > CompactedViewInfoOut;
 RWStructuredBuffer< uint > CompactedViewsAllocationOut;
 
+#if INPUT_VIEW_RANGES
+RWStructuredBuffer< FViewDrawGroup > InOutViewDrawRanges;
+uint NumViewRanges;
+#else
+RWStructuredBuffer< FCompactedViewInfo > CompactedViewInfoOut;
+#endif
+
+// TODO: Make sure this always runs and prepend to the whole pipeline such that view groups are always a range
+//       TBD how to manage that...
 [numthreads(64, 1, 1)]
-void CompactViewsVSM_CS(uint PrimaryViewId : SV_DispatchThreadID)
+void CompactViewsVSM_CS(uint DispatchThreadId : SV_DispatchThreadID)
 {
-	if (PrimaryViewId >= NumPrimaryViews)
+#if INPUT_VIEW_RANGES
+	uint ViewGroupIndex = DispatchThreadId;
+
+	if (ViewGroupIndex >= NumViewRanges)
 	{
 		return;
 	}
-
-	FNaniteView PrimaryNaniteView = GetNaniteView(PrimaryViewId);
-	uint NumValidViews = 0U;
+	FViewDrawGroup ViewDrawGroup = InOutViewDrawRanges[ViewGroupIndex];
+#else
+	if (DispatchThreadId >= NumPrimaryViews)
 	{
+		return;
+	}
+	FViewDrawGroup ViewDrawGroup;
+	ViewDrawGroup.FirstView = DispatchThreadId;
+	ViewDrawGroup.NumViews = 1U;
+#endif
+
+	uint NumValidViews = 0U;
+	for (uint PrimaryViewId = ViewDrawGroup.FirstView; PrimaryViewId < ViewDrawGroup.FirstView + ViewDrawGroup.NumViews; ++PrimaryViewId)
+	{
+		FNaniteView PrimaryNaniteView = GetNaniteView(PrimaryViewId);
+
 		for (uint TargetMipLevel = 0; TargetMipLevel < (uint)PrimaryNaniteView.TargetNumMipLevels; TargetMipLevel++)
 		{
 			uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
@@ -442,6 +558,17 @@ void CompactViewsVSM_CS(uint PrimaryViewId : SV_DispatchThreadID)
 		}
 	}
 
+#if INPUT_VIEW_RANGES
+	uint CompactedOutputOffset = 0;
+	InterlockedAdd(CompactedViewsAllocationOut[1], NumValidViews, CompactedOutputOffset);
+	{
+		FViewDrawGroup ViewDrawGroupResult;
+		ViewDrawGroupResult.FirstView = CompactedOutputOffset;
+		ViewDrawGroupResult.NumViews = NumValidViews;
+		InOutViewDrawRanges[ViewGroupIndex] = ViewDrawGroupResult;
+	}
+#else
+
 	// Neither primary nor mip views have valid pages
 	if (NumValidViews == 0U)
 	{
@@ -450,26 +577,33 @@ void CompactViewsVSM_CS(uint PrimaryViewId : SV_DispatchThreadID)
 
 	uint CompactedOutputOffset = 0;
 	InterlockedAdd(CompactedViewsAllocationOut[1], NumValidViews, CompactedOutputOffset);
-
-	FCompactedViewInfo CompactedViewInfo;
-	CompactedViewInfo.StartOffset = CompactedOutputOffset;
-	CompactedViewInfo.NumValidViews = NumValidViews;
-
-	uint InfoOutputOffset = 0;
-	InterlockedAdd(CompactedViewsAllocationOut[0], 1, InfoOutputOffset);
-	CompactedViewInfoOut[InfoOutputOffset] = CompactedViewInfo;
-
-	for (uint TargetMipLevel = 0; TargetMipLevel < (uint)PrimaryNaniteView.TargetNumMipLevels; TargetMipLevel++)
 	{
-		uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
-		FNaniteView MipView = GetNaniteView(MipViewId);
+		uint InfoOutputOffset = 0;
+		InterlockedAdd(CompactedViewsAllocationOut[0], 1, InfoOutputOffset);
 
-		uint4 RectPages = VirtualShadowMap.PageRectBounds[MipView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + MipView.TargetMipLevel];
+		FCompactedViewInfo CompactedViewInfo;
+		CompactedViewInfo.StartOffset = CompactedOutputOffset;
+		CompactedViewInfo.NumValidViews = NumValidViews;
 
-		if (all(RectPages.zw >= RectPages.xy))
+		CompactedViewInfoOut[InfoOutputOffset] = CompactedViewInfo;
+	}
+#endif
+	for (uint PrimaryViewId = ViewDrawGroup.FirstView; PrimaryViewId < ViewDrawGroup.FirstView + ViewDrawGroup.NumViews; ++PrimaryViewId)
+	{
+		FNaniteView PrimaryNaniteView = GetNaniteView(PrimaryViewId);
+
+		for (uint TargetMipLevel = 0; TargetMipLevel < (uint)PrimaryNaniteView.TargetNumMipLevels; TargetMipLevel++)
 		{
-			CompactedViewsOut[CompactedOutputOffset] = InViews[MipViewId];
-			CompactedOutputOffset += 1U;
+			uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
+			FNaniteView MipView = GetNaniteView(MipViewId);
+
+			uint4 RectPages = VirtualShadowMap.PageRectBounds[MipView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + MipView.TargetMipLevel];
+
+			if (all(RectPages.zw >= RectPages.xy))
+			{
+				CompactedViewsOut[CompactedOutputOffset] = InViews[MipViewId];
+				CompactedOutputOffset += 1U;
+			}
 		}
 	}
 }
@@ -544,7 +678,7 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 			WaveInterlockedAdd_( OutQueueState[0].PassState[0].NodeWriteOffset, 1U, NodeOffset );
 			WaveInterlockedAdd(  OutQueueState[0].PassState[0].NodeCount, 1U );
 #if DEBUG_FLAGS
-			if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS)
+			if ((DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS) != 0u)
 			{
 				WaveInterlockedAdd(OutStatsBuffer[0].NumMainInstancesPostCull, 1U);
 			}
@@ -585,8 +719,9 @@ void InstanceCullVSM(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex
 
 	// View compaction stats
 #if DEBUG_FLAGS
-	if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
+	if ((DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS) != 0u && DispatchIndex == 0)
 	{
+		OutStatsBuffer[0].NumMainInstancesPreCull = NumInstances * CompactedViewsAllocation[1];
 		OutStatsBuffer[0].NumPrimaryViews = CompactedViewsAllocation[0];
 		OutStatsBuffer[0].NumTotalViews = CompactedViewsAllocation[1];
 	}

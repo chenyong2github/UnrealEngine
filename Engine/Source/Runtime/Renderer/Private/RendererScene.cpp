@@ -74,6 +74,7 @@
 #include "IESTextureManager.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "SceneCulling/SceneCulling.h"
 
 #if RHI_RAYTRACING
 #include "Nanite/NaniteRayTracing.h"
@@ -1880,6 +1881,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	FMemory::Memzero(MobileDirectionalLights);
 	FMemory::Memzero(AtmosphereLights);
 
+	FullWorldName = World->GetFullName();
+
 	check(World);
 	World->Scene = this;
 
@@ -1937,6 +1940,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 
 	SceneLightInfoUpdates = new FSceneLightInfoUpdates;
 
+	SceneCulling = new FSceneCulling(*this);
+
 	// Allocate the shadow scene, it is always present but we use a pointer such that it can be forward declared.
 	ShadowScene = new FShadowScene(*this);
 }
@@ -1977,6 +1982,11 @@ FScene::~FScene()
 	{
 		delete DefaultVirtualShadowMapCache;
 		DefaultVirtualShadowMapCache = nullptr;
+	}
+	if (SceneCulling)
+	{
+		delete SceneCulling;
+		SceneCulling = nullptr;
 	}
 
 	if (ShadowScene)
@@ -5521,6 +5531,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 	RemovedPrimitiveSceneInfos.Empty();
 
 	RemovedLocalPrimitiveSceneInfos.Sort(FPrimitiveArraySortKey());
+	auto &SceneCullingUpdater = SceneCulling->BeginUpdate(GraphBuilder);
+
+	SceneCullingUpdater.OnPreSceneUpdate(GraphBuilder, SceneUpdateChangeSetStorage.GetPreUpdateSet());
 
 	TArray<FVirtualShadowMapArrayCacheManager*, SceneRenderingAllocator> VirtualShadowCacheManagers;
 
@@ -6318,6 +6331,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		SceneUpdateChangeSetStorage.AddedPrimitiveSceneInfos.Add(PrimitiveSceneInfo);
 	}
 
+	SceneCullingUpdater.OnPostSceneUpdate(GraphBuilder, SceneUpdateChangeSetStorage.GetPostUpdateSet());
+
 	UpdateCachedShadowState(SceneUpdateChangeSetStorage.GetPreUpdateSet(), SceneUpdateChangeSetStorage.GetPostUpdateSet());
 
 	if (SceneInfosWithStaticDrawListUpdate.Num() > 0)
@@ -6502,6 +6517,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		PrimitiveOcclusionBounds[SceneInfo->PackedIndex] = NewOccBounds.ExpandBy(OCCLUSION_SLOP + OccSlackDelta.Value);
 	}
 
+	// Need to do this here since we delete the proxy next 
+	// TODO: should refactor to add this as a dependency for a proxy-deletion task instead.
+	SceneCullingUpdater.GetAsyncProxyUseTaskHandle().Wait();
 	{
 		SCOPED_NAMED_EVENT(FScene_DeletePrimitiveSceneInfo, FColor::Red);
 		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : DeletedSceneInfos)
@@ -6552,6 +6570,13 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		checkSlow(PersistentPrimitiveIdToIndexMap[PrimitiveSceneInfo->PersistentIndex.Index] == PrimitiveSceneInfo->PackedIndex);
 	}
 #endif
+
+	// No async going on, we must sync here or there will be buildup of accumulated & unuploaded crap.
+	// As a more robust alternative we may stipulate a list of callbacks that need to be done before the graph builder is executed. These may do cleanup in case no one did along the way.
+	if (AsyncOps == EUpdateAllPrimitiveSceneInfosAsyncOps::None)
+	{
+		SceneCulling->EndUpdate(GraphBuilder, false);
+	}
 }
 
 void FScene::CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* PrimitiveInfo)

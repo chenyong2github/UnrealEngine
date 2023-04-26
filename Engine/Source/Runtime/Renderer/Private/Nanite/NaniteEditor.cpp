@@ -193,7 +193,7 @@ static void GetEditorSelectionVisBuffer(
 			Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 			NaniteRasterResults.VisibilityResults,
 			*Nanite::FPackedViewArray::Create(GraphBuilder, NaniteView),
-			&DrawList
+			DrawList
 		);
 
 		Nanite::FRasterResults RasterResults;

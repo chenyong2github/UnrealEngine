@@ -523,6 +523,7 @@ const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderP
 FDeferredShadingSceneRenderer::FDeferredShadingSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer)
 	: FSceneRenderer(InViewFamily, HitProxyConsumer)
 	, DepthPass(GetDepthPassInfo(Scene))
+	, SceneCullingRenderer(*Scene->SceneCulling)
 	, bAreLightsInLightGrid(false)
 {
 	ViewPipelineStates.SetNum(Views.Num());
@@ -3275,10 +3276,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 							!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB
 						);
 
+						FSceneInstanceCullingQuery *SceneInstanceCullQuery = SceneCullingRenderer.CullInstances(GraphBuilder, View.ViewFrustum);
 						NaniteRenderer->DrawGeometry(
 							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 							RasterResults.VisibilityResults,
-							*NaniteViewsToRender
+							*NaniteViewsToRender,
+							SceneInstanceCullQuery
 						);
 
 						NaniteRenderer->ExtractResults( RasterResults );

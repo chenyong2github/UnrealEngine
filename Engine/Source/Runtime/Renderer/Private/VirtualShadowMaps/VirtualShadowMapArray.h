@@ -22,6 +22,7 @@ class FSceneRenderer;
 class FSceneUniformBuffer;
 struct FShaderCompilerEnvironment;
 struct FFrontLayerTranslucencyData;
+class FSceneInstanceCullingQuery;
 
 namespace Nanite
 {
@@ -289,12 +290,12 @@ public:
 
 	void CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const;
 
-	Nanite::FPackedViewArray* CreateVirtualShadowMapNaniteViews(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, TConstArrayView<FProjectedShadowInfo*> Shadows, float ShadowsLODScaleFactor);
+	Nanite::FPackedViewArray* CreateVirtualShadowMapNaniteViews(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, TConstArrayView<FProjectedShadowInfo*> Shadows, float ShadowsLODScaleFactor, FSceneInstanceCullingQuery* InstanceCullingQuery);
 
 	/**
 	 * Draw Nanite geometry into the VSMs.
 	 */
-	void RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, const FNaniteVisibilityResults& VisibilityResults);
+	void RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, const FNaniteVisibilityResults& VisibilityResults, Nanite::FPackedViewArray* VirtualShadowMapViews, FSceneInstanceCullingQuery* SceneInstanceCullingQuery);
 
 	/**
 	 * Draw Non-Nanite geometry into the VSMs.

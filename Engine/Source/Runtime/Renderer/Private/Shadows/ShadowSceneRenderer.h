@@ -48,6 +48,11 @@ public:
 	 */
 	void PostInitDynamicShadowsSetup();
 
+	/**
+	 * Call to kick off culling tasks for VSMs & prepare views for rendering.
+	 */
+	void DispatchVirtualShadowMapViewAndCullingSetup(FRDGBuilder& GraphBuilder, TConstArrayView<FProjectedShadowInfo*> VirtualShadowMapShadows);
+
 	void PostSetupDebugRender();
 
 	/**
@@ -120,4 +125,6 @@ private:
 	FVirtualShadowMapArray& VirtualShadowMapArray;
 
 	FNaniteVisibilityQuery* NaniteVisibilityQuery = nullptr;
+	Nanite::FPackedViewArray* VirtualShadowMapViews = nullptr;
+	FSceneInstanceCullingQuery *SceneInstanceCullingQuery = nullptr;
 };

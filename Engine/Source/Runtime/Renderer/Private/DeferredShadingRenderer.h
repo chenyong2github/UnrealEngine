@@ -22,6 +22,7 @@
 #include "IndirectLightRendering.h"
 #include "ScreenSpaceRayTracing.h"
 #include "RenderGraphUtils.h"
+#include "SceneCulling/SceneCullingRenderer.h"
 
 enum class ERayTracingPrimaryRaysFlag : uint32;
 
@@ -312,6 +313,7 @@ public:
 	FDepthPassInfo DepthPass;
 
 	FLumenCardRenderer LumenCardRenderer;
+	FSceneCullingRenderer SceneCullingRenderer;
 
 #if RHI_RAYTRACING
 	bool bShouldUpdateRayTracingScene =  false;

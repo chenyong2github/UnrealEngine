@@ -70,6 +70,14 @@ public:
 		PendingFreeSpans.Reset();
 	}
 
+	void Empty()
+	{
+		MaxSize = 0;
+		FirstNonEmptySpan = 0;
+		FreeSpans.Empty();
+		PendingFreeSpans.Empty();
+	}
+
 	inline int32 GetSparselyAllocatedSize() const
 	{
 		int32 AllocatedSize = MaxSize;

@@ -21,6 +21,7 @@
 #include "VirtualShadowMapVisualizationData.h"
 #include "SingleLayerWaterRendering.h"
 #include "RenderUtils.h"
+#include "SceneCulling/SceneCullingRenderer.h"
 
 #define DEBUG_ALLOW_STATIC_SEPARATE_WITHOUT_CACHING 0
 
@@ -2354,8 +2355,9 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 	return CullingResult;
 }
 
-static void AccumulateRenderViewCount(const FProjectedShadowInfo* ProjectedShadowInfo, uint32& NumPrimaryViews, uint32& MaxMipLevels)
+static uint32 CalcRenderViewCount(const FProjectedShadowInfo* ProjectedShadowInfo, uint32& MaxMipLevels)
 {
+	uint32 NumPrimaryViews = 0;
 	if (ProjectedShadowInfo->VirtualShadowMapClipmap)
 	{
 		NumPrimaryViews += ProjectedShadowInfo->VirtualShadowMapClipmap->GetLevelCount();
@@ -2366,6 +2368,7 @@ static void AccumulateRenderViewCount(const FProjectedShadowInfo* ProjectedShado
 		NumPrimaryViews += ProjectedShadowInfo->bOnePassPointLightShadow ? 6u : 1u;
 		MaxMipLevels = FMath::Max(MaxMipLevels, FVirtualShadowMap::MaxMipLevels);
 	}
+	return NumPrimaryViews;
 }
 
 static void AddRasterPass(
@@ -2409,27 +2412,66 @@ static void AddRasterPass(
 		});
 }
 
-Nanite::FPackedViewArray* FVirtualShadowMapArray::CreateVirtualShadowMapNaniteViews(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, TConstArrayView<FProjectedShadowInfo*> Shadows, float ShadowsLODScaleFactor)
+// TODO: replace translation from old system to direct fetching from new, move to shadow scene renderer
+static FCullingVolume GetCullingVolume(const FProjectedShadowInfo* ProjectedShadowInfo)
 {
+	FCullingVolume CullingVolume;
+
 	uint32 NumPrimaryViews = 0;
+	if (ProjectedShadowInfo->VirtualShadowMapClipmap)
+	{
+		const bool bIsCached = ProjectedShadowInfo->VirtualShadowMapClipmap->GetCacheEntry() && !ProjectedShadowInfo->VirtualShadowMapClipmap->GetCacheEntry()->IsUncached();
+
+		// We can only do this culling if the light is both uncached & it is using the accurate bounds (i.e., r.Shadow.Virtual.Clipmap.UseConservativeCulling is turned off).
+		if (!bIsCached && !ProjectedShadowInfo->CascadeSettings.ShadowBoundsAccurate.Planes.IsEmpty())
+		{
+			CullingVolume.ConvexVolume = ProjectedShadowInfo->CascadeSettings.ShadowBoundsAccurate;
+		}
+		else
+		{
+			CullingVolume.Sphere = ProjectedShadowInfo->VirtualShadowMapClipmap->GetBoundingSphere();
+			CullingVolume.ConvexVolume = ProjectedShadowInfo->VirtualShadowMapClipmap->GetViewFrustumBounds();
+		}
+	}
+	else
+	{
+		CullingVolume.Sphere = ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetBoundingSphere();
+	}
+	return CullingVolume;
+}
+
+Nanite::FPackedViewArray* FVirtualShadowMapArray::CreateVirtualShadowMapNaniteViews(FRDGBuilder& GraphBuilder, TConstArrayView<FViewInfo> Views, TConstArrayView<FProjectedShadowInfo*> Shadows, float ShadowsLODScaleFactor, FSceneInstanceCullingQuery* InstanceCullingQuery)
+{
+	uint32 TotalPrimaryViews = 0;
 	uint32 MaxNumMips = 0;
 
-	for (FProjectedShadowInfo* Shadow : Shadows)
+		// TODO: replace with persistent and incrementally updated setup
+	for (FProjectedShadowInfo* ProjectedShadowInfo : Shadows)
 	{
-		if (Shadow->bShouldRenderVSM)
+		if (ProjectedShadowInfo->bShouldRenderVSM)
 		{
-			AccumulateRenderViewCount(Shadow, NumPrimaryViews, MaxNumMips);
+			uint32 NumMips = 0u;
+			uint32 LightNumPrimaryViews = CalcRenderViewCount(ProjectedShadowInfo, NumMips);
+			MaxNumMips = FMath::Max(MaxNumMips, NumMips);
+
+			if (InstanceCullingQuery)
+			{
+				// Add a shadow thingo to be culled, need to know the primary view ranges.
+				// TODO: Move with other connecting-the-dots stuff into shadow scene renderer.
+				InstanceCullingQuery->Add(TotalPrimaryViews, LightNumPrimaryViews, NumMips * LightNumPrimaryViews, GetCullingVolume(ProjectedShadowInfo));
+			}
+			TotalPrimaryViews += LightNumPrimaryViews;
 		}
 	}
 
-	if (NumPrimaryViews == 0)
+	if (TotalPrimaryViews == 0)
 	{
 		return nullptr;
 	}
 
 	return Nanite::FPackedViewArray::CreateWithSetupTask(
 		GraphBuilder,
-		NumPrimaryViews,
+		TotalPrimaryViews,
 		MaxNumMips,
 		[this, Views, Shadows, ShadowsLODScaleFactor] (Nanite::FPackedViewArray::ArrayType& VirtualShadowViews)
 	{
@@ -2454,7 +2496,7 @@ Nanite::FPackedViewArray* FVirtualShadowMapArray::CreateVirtualShadowMapNaniteVi
 	});
 }
 
-void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, const FNaniteVisibilityResults &VisibilityResults)
+void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster, const FNaniteVisibilityResults &VisibilityResults, Nanite::FPackedViewArray* VirtualShadowMapViews, FSceneInstanceCullingQuery* SceneInstanceCullingQuery)
 {
 	bool bCsvLogEnabled = false;
 #if CSV_PROFILER
@@ -2490,9 +2532,9 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 
 	static FString VirtualFilterName = TEXT("VirtualShadowMaps");
 
-	if (Nanite::FPackedViewArray* VirtualShadowViews = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapViews)
+	if (VirtualShadowMapViews)
 	{
-		SET_DWORD_STAT(STAT_VSMNaniteViewsPrimary, VirtualShadowViews->NumPrimaryViews);
+		SET_DWORD_STAT(STAT_VSMNaniteViewsPrimary, VirtualShadowMapViews->NumPrimaryViews);
 
 		// Prev HZB requires previous page tables and similar
 		bool bPrevHZBValid = HZBPhysical != nullptr && CacheManager->GetPrevBuffers().PageTable != nullptr;
@@ -2524,7 +2566,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 		NaniteRenderer->DrawGeometry(
 			Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 			VisibilityResults,
-			*VirtualShadowViews
+			*VirtualShadowMapViews,
+			SceneInstanceCullingQuery
 		);
 
 		if (bCsvLogEnabled)
@@ -2619,8 +2662,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 
 			if (InstanceCullingContext->HasCullingCommands())
 			{
-				uint32 NumPrimaryViews = 0;
-				AccumulateRenderViewCount(ProjectedShadowInfo, NumPrimaryViews, MaxNumMips);
+				uint32 NumPrimaryViews = CalcRenderViewCount(ProjectedShadowInfo, MaxNumMips);
 
 				VSMCullingBatchInfo.NumPrimaryViews = NumPrimaryViews;
 				TotalPrimaryViews += NumPrimaryViews;

@@ -1994,8 +1994,6 @@ struct FSortedShadowMaps
 
 	TArray<FSortedShadowMapAtlas,SceneRenderingAllocator> CompleteShadowMapAtlases;
 
-	Nanite::FPackedViewArray* VirtualShadowMapViews = nullptr;
-
 	void Release();
 
 	int64 ComputeMemorySize() const

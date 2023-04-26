@@ -246,6 +246,11 @@ FRDGBuffer* FPersistentStructuredBuffer::Register(FRDGBuilder& GraphBuilder)
 	return GraphBuilder.RegisterExternalBuffer(PooledBuffer); 
 }
 
+void FPersistentStructuredBuffer::Empty()
+{
+	PooledBuffer.SafeRelease();
+}
+
 void FStructuredBufferScatterUploader::UploadTo(FRDGBuilder& GraphBuilder, FRDGBuffer *DestBuffer, FRDGBuffer *ScatterOffsets, FRDGBuffer *Values, uint32 NumScatters, uint32 NumBytesPerElement, uint32 NumValuesPerScatter)
 {
 	FScatterCopyParams ScatterCopyParams { NumScatters, NumBytesPerElement, NumValuesPerScatter };

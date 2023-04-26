@@ -270,6 +270,11 @@ struct FPersistentPrimitiveIndex
 	int32 Index = INDEX_NONE;
 };
 
+inline bool operator == (FPersistentPrimitiveIndex A, FPersistentPrimitiveIndex B)
+{
+	return A.Index == B.Index;
+}
+
 /**
  * The renderer's internal state for a single UPrimitiveComponent.  This has a one to one mapping with FPrimitiveSceneProxy, which is in the engine module.
  */
