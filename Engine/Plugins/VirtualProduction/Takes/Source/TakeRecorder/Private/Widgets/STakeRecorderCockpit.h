@@ -14,7 +14,6 @@ struct FFrameRate;
 class ULevelSequence;
 class UTakeMetaData;
 class UTakeRecorder;
-class FUICommandList;
 struct FDigitsTypeInterface;
 
 /**
@@ -177,8 +176,6 @@ private:
 
 	FDelegateHandle OnAssetRegistryFilesLoadedHandle;
 	FDelegateHandle OnRecordingInitializedHandle, OnRecordingFinishedHandle;
-
-	TSharedPtr<FUICommandList> CommandList;
 
 	TSharedPtr<FDigitsTypeInterface> DigitsTypeInterface;
 
