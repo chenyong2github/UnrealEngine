@@ -279,12 +279,14 @@ struct CONTROLRIG_API FRigControlHierarchy
 	);
 
 	void PostLoad();
-	
+
+	// Pretty weird that this type is copy/move assignable (needed for USTRUCTs) but not copy/move constructible
+	FRigControlHierarchy(FRigControlHierarchy&& InOther) = delete;
+	FRigControlHierarchy(const FRigControlHierarchy& InOther) = delete;
+	FRigControlHierarchy& operator=(FRigControlHierarchy&& InOther) = default;
+	FRigControlHierarchy& operator=(const FRigControlHierarchy& InOther) = default;
+
 private:
-
-	// disable copy constructor
-	FRigControlHierarchy(const FRigControlHierarchy& InOther) {}
-
 	UPROPERTY(EditAnywhere, Category = FRigControlHierarchy)
 	TArray<FRigControl> Controls;
 

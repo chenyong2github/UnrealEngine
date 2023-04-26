@@ -48,12 +48,14 @@ public:
 	TArray<FRigCurve>::RangedForConstIteratorType end() const   { return Curves.end();   }
 
 	FRigCurve& Add(const FName& InNewName, float InValue);
-	
+
+	// Pretty weird that this type is copy/move assignable (needed for USTRUCTs) but not copy/move constructible
+	FRigCurveContainer(FRigCurveContainer&& InOther) = delete;
+	FRigCurveContainer(const FRigCurveContainer& InOther) = delete;
+	FRigCurveContainer& operator=(FRigCurveContainer&& InOther) = default;
+	FRigCurveContainer& operator=(const FRigCurveContainer& InOther) = default;
+
 private:
-
-	// disable copy constructor
-	FRigCurveContainer(const FRigCurveContainer& InOther) {}
-
 	UPROPERTY(EditAnywhere, Category = FRigCurveContainer)
 	TArray<FRigCurve> Curves;
 

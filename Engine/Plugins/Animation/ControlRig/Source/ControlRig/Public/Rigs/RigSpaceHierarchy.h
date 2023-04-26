@@ -100,12 +100,14 @@ struct CONTROLRIG_API FRigSpaceHierarchy
 	TArray<FRigSpace>::RangedForConstIteratorType end() const   { return Spaces.end();   }
 
 	FRigSpace& Add(const FName& InNewName, ERigSpaceType InSpaceType, const FName& InParentName, const FTransform& InTransform);
-	
+
+	// Pretty weird that this type is copy/move assignable (needed for USTRUCTs) but not copy/move constructible
+	FRigSpaceHierarchy(FRigSpaceHierarchy&& InOther) = delete;
+	FRigSpaceHierarchy(const FRigSpaceHierarchy& InOther) = delete;
+	FRigSpaceHierarchy& operator=(FRigSpaceHierarchy&& InOther) = default;
+	FRigSpaceHierarchy& operator=(const FRigSpaceHierarchy& InOther) = default;
+
 private:
-
-	// disable copy constructor
-	FRigSpaceHierarchy(const FRigSpaceHierarchy& InOther) {}
-
 	UPROPERTY(EditAnywhere, Category = FRigSpaceHierarchy)
 	TArray<FRigSpace> Spaces;
 

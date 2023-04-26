@@ -77,12 +77,14 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	TArray<FRigBone>::RangedForConstIteratorType end() const   { return Bones.end();   }
 
 	FRigBone& Add(const FName& InNewName, const FName& InParentName, ERigBoneType InType, const FTransform& InInitTransform, const FTransform& InLocalTransform, const FTransform& InGlobalTransform);
-	
+
+	// Pretty weird that this type is copy/move assignable (needed for USTRUCTs) but not copy/move constructible
+	FRigBoneHierarchy(FRigBoneHierarchy&& InOther) = delete;
+	FRigBoneHierarchy(const FRigBoneHierarchy& InOther) = delete;
+	FRigBoneHierarchy& operator=(FRigBoneHierarchy&& InOther) = default;
+	FRigBoneHierarchy& operator=(const FRigBoneHierarchy& InOther) = default;
+
 private:
-
-	// disable copy constructor
-	FRigBoneHierarchy(const FRigBoneHierarchy& InOther) {}
-
 	UPROPERTY(EditAnywhere, Category = FRigBoneHierarchy)
 	TArray<FRigBone> Bones;
 
