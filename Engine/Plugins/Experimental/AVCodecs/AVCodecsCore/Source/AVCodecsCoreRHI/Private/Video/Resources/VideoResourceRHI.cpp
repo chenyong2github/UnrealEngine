@@ -20,6 +20,8 @@
 #include "RHIStaticStates.h"
 #include "MediaShaders.h"
 #include "PipelineStateCache.h"
+#include "ColorManagementDefines.h"
+#include "ColorSpace.h"
 
 REGISTER_TYPEID(FVideoContextRHI);
 REGISTER_TYPEID(FVideoResourceRHI);
@@ -315,7 +317,7 @@ TSharedPtr<FVideoResourceRHI> FVideoResourceRHI::TransformResource(FVideoDescrip
 						TShaderMapRef<FNV12ConvertAsBytesPS> ConvertShader(ShaderMap);
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-						SetShaderParametersLegacyPS(RHICmdList, ConvertShader, Source, OutputDim, YUVToRGBMatrix, true, FMatrix44f::Identity, false);
+						SetShaderParametersLegacyPS(RHICmdList, ConvertShader, Source, OutputDim, YUVToRGBMatrix, UE::Color::EEncoding::sRGB, FMatrix44f::Identity, false);
 
 						// draw full size quad into render target
 						FBufferRHIRef VertexBuffer = CreateTempMediaVertexBuffer();
@@ -385,7 +387,7 @@ void FVideoResourceRHI::TransformResourceTo(FRHICommandListImmediate& RHICmdList
 					TShaderMapRef<FNV12ConvertAsBytesPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(RHICmdList, ConvertShader, Raw.Texture, OutputDim, YUVToRGBMatrix, true, FMatrix44f::Identity, false);
+					SetShaderParametersLegacyPS(RHICmdList, ConvertShader, Raw.Texture, OutputDim, YUVToRGBMatrix, UE::Color::EEncoding::sRGB, FMatrix44f::Identity, false);
 
 					// draw full size quad into render target
 					FBufferRHIRef VertexBuffer = CreateTempMediaVertexBuffer();

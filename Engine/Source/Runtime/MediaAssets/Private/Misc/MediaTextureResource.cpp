@@ -1015,14 +1015,14 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 						FIntPoint TexDim = InputTexture->GetSizeXY();
 						TempSRV0 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G8);		// note: the types of the views select the correct planes (offset) "magically"
 						TempSRV1 = RHICreateShaderResourceView(InputTexture, 0, 1, PF_R8G8);
-						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, TempSRV0, TempSRV1, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, ColorSpaceMtx, SampleFormat == EMediaTextureSampleFormat::CharNV21);
+						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, TempSRV0, TempSRV1, OutputDim, YUVMtx, Sample->GetEncodingType(), ColorSpaceMtx, SampleFormat == EMediaTextureSampleFormat::CharNV21);
 					}
 					else
 					{
 						TShaderMapRef<FNV12ConvertAsBytesPS> ConvertShader(ShaderMap);
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-						SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, ColorSpaceMtx, SampleFormat == EMediaTextureSampleFormat::CharNV21);
+						SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType(), ColorSpaceMtx, SampleFormat == EMediaTextureSampleFormat::CharNV21);
 					}
 				}
 				break;
@@ -1043,7 +1043,7 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 
 						FShaderResourceViewRHIRef Y_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16);		// note: the types of the views select the correct planes (offset) "magically"
 						FShaderResourceViewRHIRef UV_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16R16);
-						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, Y_SRV, UV_SRV, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
+						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, Y_SRV, UV_SRV, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType());
 					}
 					else
 					{
@@ -1051,7 +1051,7 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
 
-						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, InputTexture, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
+						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, InputTexture, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType());
 					}
 				}
 				break;
@@ -1070,7 +1070,7 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					TShaderMapRef<FYUVv216ConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx,
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType(), ColorSpaceMtx,
 												SampleFormat!= EMediaTextureSampleFormat::CharYUY2 && SampleFormat != EMediaTextureSampleFormat::CharYVYU,	// Y or Cb first
 												InputTexture->GetFormat() == PF_B8G8R8A8,																	// ARGB vs. ABGR (memory order)
 												SampleFormat == EMediaTextureSampleFormat::CharYVYU															// Cb / Cr swap
@@ -1088,7 +1088,7 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					TShaderMapRef<FYUVv210ConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx,
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType(), ColorSpaceMtx,
 												true);
 				}
 				break;
@@ -1107,7 +1107,8 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
 					FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(InputTexture, 0, 1, (Sample->GetFormat() == EMediaTextureSampleFormat::Y416) ? PF_A16B16G16R16 : PF_A32B32G32R32F);
 
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, SRV, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx, InputTexture->GetFormat() == PF_A8R8G8B8);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, SRV, YUVMtx, Sample->GetEncodingType(), ColorSpaceMtx,
+												InputTexture->GetFormat() == PF_A8R8G8B8);
 				}
 				break;
 
@@ -1123,19 +1124,15 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					// We get here if we detect the need for an inverse EOTF application, CS conversion OR if we need to generate mips for RGBA samples
 
 					// Inverse EOTF?
-					bool bConvertFromSRGB;
-					bool bConvertFromST2084;
+					UE::Color::EEncoding Encoding;
 					if ((uint32)InputTexture->GetFlags() & (uint32)TexCreate_SRGB)
 					{
 						// We do not need one: sRGB will be handled in HW
-						bConvertFromSRGB = false;
-						bConvertFromST2084 = false;
+						Encoding = UE::Color::EEncoding::Linear;
 					}
 					else
 					{
-						// See what we need...
-						bConvertFromSRGB = (Sample->GetEncodingType() == UE::Color::EEncoding::sRGB);
-						bConvertFromST2084 = (Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
+						Encoding = Sample->GetEncodingType();
 					}
 
 					FMatrix44f ColorSpaceMtx;
@@ -1144,7 +1141,7 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, bConvertFromSRGB, bConvertFromST2084, ColorSpaceMtx);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, Encoding, ColorSpaceMtx);
 				}
 				break;
 
@@ -1158,7 +1155,7 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
 					FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_R16G16B16A16_UINT);
 
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, SRV, OutputDim, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, SRV, OutputDim, Sample->GetEncodingType(), ColorSpaceMtx);
 				}
 				break;
 
@@ -1178,16 +1175,15 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					// Note: the shader used here will pass-through alpha data
 					
 					// Inverse EOTF?
-					bool bConvertFromSRGB;
+					UE::Color::EEncoding Encoding;
 					if ((uint32)InputTexture->GetFlags() & (uint32)TexCreate_SRGB)
 					{
 						// We do not need one: sRGB will be handled in HW
-						bConvertFromSRGB = false;
+						Encoding = UE::Color::EEncoding::Linear;
 					}
 					else
 					{
-						// See what we need...
-						bConvertFromSRGB = (Sample->GetEncodingType() == UE::Color::EEncoding::sRGB);
+						Encoding = Sample->GetEncodingType();
 					}
 
 					FMatrix44f ColorSpaceMtx;
@@ -1198,7 +1194,7 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, bConvertFromSRGB, false, ColorSpaceMtx);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, Encoding, ColorSpaceMtx);
 				}
 				break;
 
@@ -1209,23 +1205,22 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, false, false, SplatMtx);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, UE::Color::EEncoding::Linear, SplatMtx);
 				}
 				break;
 
 				case EMediaTextureSampleFormat::YCoCg_DXT5:
 				{
 					// Inverse EOTF?
-					bool bConvertFromSRGB;
+					UE::Color::EEncoding Encoding;
 					if ((uint32)InputTexture->GetFlags() & (uint32)TexCreate_SRGB)
 					{
 						// We do not need one: sRGB will be handled in HW
-						bConvertFromSRGB = false;
+						Encoding = UE::Color::EEncoding::Linear;
 					}
 					else
 					{
-						// See what we need...
-						bConvertFromSRGB = (Sample->GetEncodingType() == UE::Color::EEncoding::sRGB);
+						Encoding = Sample->GetEncodingType();
 					}
 
 					FMatrix44f ColorSpaceMtx;
@@ -1236,7 +1231,7 @@ void FMediaTextureResource::GetColorSpaceConversionMatrixForSample(const TShared
 					TShaderMapRef<FYCoCgConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, bConvertFromSRGB, false, ColorSpaceMtx);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, Encoding, ColorSpaceMtx);
 				}
 				break;
 

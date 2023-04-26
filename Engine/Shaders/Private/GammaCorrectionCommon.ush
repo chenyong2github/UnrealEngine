@@ -177,3 +177,13 @@ LinearToST2084(float3 lin)
 	
 	return P;
 }
+
+//
+// Sony S-Log3
+//
+float3
+SLog3ToLinear(float3 Value)
+{
+	return (Value >= 171.2102946929f / 1023.0f) ? (pow(10.0f, (Value * 1023.0f - 420.f) / 261.5f)) * 0.19f - 0.01f
+												: (Value * 1023.0f - 95.0f) * 0.01125000f / (171.2102946929f - 95.0f);
+}

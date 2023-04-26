@@ -15,7 +15,8 @@ public class AVCodecsCoreRHI : ModuleRules
 			"Engine",
 			"AVCodecsCore",
 			"RHI",
-			"VulkanRHI"
+			"VulkanRHI",
+			"ColorManagement"
 		});
 
 		PublicDependencyModuleNames.AddRange(new string[] {

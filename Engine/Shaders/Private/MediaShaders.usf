@@ -52,13 +52,32 @@ void BMPConvertPS(
 	OutColor.w = RGB.w;
 }
 
+#define UE_Color_EEncoding_Linear		1u
+#define UE_Color_EEncoding_sRGB			2u
+#define UE_Color_EEncoding_ST2084		3u
+#define UE_Color_EEncoding_Gamma22		4u
+#define UE_Color_EEncoding_BT1886		5u
+#define UE_Color_EEncoding_Gamma26		6u
+#define UE_Color_EEncoding_Cineon		7u
+#define UE_Color_EEncoding_REDLog		8u
+#define UE_Color_EEncoding_REDLog3G10	9u
+#define UE_Color_EEncoding_SLog1		10u
+#define UE_Color_EEncoding_SLog2		11u
+#define UE_Color_EEncoding_SLog3		12u
+#define UE_Color_EEncoding_AlexaV3LogC	13u
+#define UE_Color_EEncoding_CanonLog		14u
+#define UE_Color_EEncoding_ProTune		15u
+#define UE_Color_EEncoding_VLog			16u
 
 float3 ApplyColorProcessingRGB(float3 Color, float4x4 CSMtx, uint EOTF)
 {
 	// Go linear
-	if (EOTF != 0)
+	switch(EOTF)
 	{
-		Color = (EOTF == 1) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
+	case UE_Color_EEncoding_sRGB:	Color = sRGBToLinear(Color); break;
+	case UE_Color_EEncoding_ST2084: Color = ST2084ToLinear(Color); break;
+	case UE_Color_EEncoding_SLog3:	Color = SLog3ToLinear(Color); break;
+	default: break;
 	}
 
 	// Adjust colorspace
@@ -100,7 +119,7 @@ void NV12ConvertPS(
 	YUV.yz = NV12ConvertUB.SwapChroma != 0u ? YUV.zy : YUV.yz;
 
 	// Output with solid alpha
-	OutColor = float4(ApplyColorProcessing(YUV, NV12ConvertUB.ColorTransform, NV12ConvertUB.CSTransform, (NV12ConvertUB.SrgbToLinear != 0u) ? 1 : 0), 1.0f); 
+	OutColor = float4(ApplyColorProcessing(YUV, NV12ConvertUB.ColorTransform, NV12ConvertUB.CSTransform, NV12ConvertUB.EOTF), 1.0f); 
 }
 
 
@@ -127,7 +146,7 @@ void NV12ConvertAsBytesPS(
 	YUV.z = NV12ConvertAsBytesUB.Texture.Sample(NV12ConvertAsBytesUB.SamplerP, float2(VPos, ScaledUV.y)).x;
 	YUV.yz = NV12ConvertAsBytesUB.SwapChroma != 0u ? YUV.zy : YUV.yz;
 
-	OutColor = float4(ApplyColorProcessing(YUV, NV12ConvertAsBytesUB.ColorTransform, NV12ConvertAsBytesUB.CSTransform, (NV12ConvertAsBytesUB.SrgbToLinear != 0u) ? 1 : 0), 1.0f); 
+	OutColor = float4(ApplyColorProcessing(YUV, NV12ConvertAsBytesUB.ColorTransform, NV12ConvertAsBytesUB.CSTransform, NV12ConvertAsBytesUB.EOTF), 1.0f); 
 }
 
 
