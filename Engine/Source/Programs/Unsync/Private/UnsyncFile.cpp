@@ -58,6 +58,28 @@ MakeExtendedAbsolutePath(const FPath& InAbsolutePath)
 #endif // UNSYNC_PLATFORM_WINDOWS
 }
 
+FPath
+RemoveExtendedPathPrefix(const FPath& InPath)
+{
+#if UNSYNC_PLATFORM_WINDOWS
+	const std::wstring& InPathString = InPath.native();
+	if (InPathString.starts_with(L"\\\\?\\UNC\\"))
+	{
+		return FPath(InPathString.substr(8));
+	}
+	else if (InPathString.starts_with(L"\\\\?\\"))
+	{
+		return FPath(InPathString.substr(4));
+	}
+	else
+	{
+		return InPath;
+	}
+#else // UNSYNC_PLATFORM_WINDOWS
+	return InPath;
+#endif // UNSYNC_PLATFORM_WINDOWS
+}
+
 #if UNSYNC_PLATFORM_WINDOWS
 inline uint64
 MakeU64(FILETIME Ft)

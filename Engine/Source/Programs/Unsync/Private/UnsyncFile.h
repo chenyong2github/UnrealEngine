@@ -469,4 +469,8 @@ FFileAttributeCache CreateFileAttributeCache(const FPath& Root, const FSyncFilte
 // https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
 FPath MakeExtendedAbsolutePath(const FPath& InAbsolutePath);
 
+// Removes `\\?\` or `\\?\UNC\` prefix from a given path.
+// Returns original path on non-Windows.
+FPath RemoveExtendedPathPrefix(const FPath& InPath);
+
 }  // namespace unsync
