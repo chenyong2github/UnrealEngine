@@ -72,6 +72,7 @@ protected:
 	//~ End UObject Interface.
 
 	//~ Begin AActor Interface.
+	virtual void PreRegisterAllComponents() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual bool IsRuntimeOnly() const override { return true; }

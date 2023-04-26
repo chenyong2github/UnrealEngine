@@ -11,6 +11,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODActor)
 
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
+
 #if WITH_EDITOR
 #include "Misc/ArchiveMD5.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
@@ -132,14 +135,6 @@ void AWorldPartitionHLOD::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GWorldPartitionHLODForceDisableShadows && GetWorld() && GetWorld()->IsGameWorld())
-	{
-		ForEachComponent<UPrimitiveComponent>(false, [](UPrimitiveComponent* PrimitiveComponent)
-		{
-			PrimitiveComponent->SetCastShadow(false);
-		});
-	}
-
 	// If world is instanced, we need to recompute our bounds since they are in the instanced-world space
 	ForEachComponent<USceneComponent>(false, [](USceneComponent* SceneComponent)
 	{
@@ -221,6 +216,32 @@ void AWorldPartitionHLOD::PostLoad()
 	// Update the disk size stat on load, as we can't really know it when saving
 	HLODStats.Add(FWorldPartitionHLODStats::MemoryDiskSizeBytes, FHLODActorDesc::GetPackageSize(this));
 #endif
+}
+
+void AWorldPartitionHLOD::PreRegisterAllComponents()
+{
+	Super::PreRegisterAllComponents();
+
+	if (GWorldPartitionHLODForceDisableShadows && GetWorld() && GetWorld()->IsGameWorld())
+	{
+		ForEachComponent<UPrimitiveComponent>(false, [](UPrimitiveComponent* PrimitiveComponent)
+		{
+			PrimitiveComponent->SetCastShadow(false);
+		});
+	}
+
+	// If world is instanced, we need to recompute our bounds since they are in the instanced-world space
+	if (UWorldPartition* WorldPartition = FWorldPartitionHelpers::GetWorldPartition(this))
+	{
+		if (!WorldPartition->IsMainWorldPartition())
+		{
+			ForEachComponent<USceneComponent>(false, [](USceneComponent* SceneComponent)
+			{
+				// Clear bComputedBoundsOnceForGame so that the bounds are recomputed once
+				SceneComponent->bComputedBoundsOnceForGame = false;
+			});
+		}
+	}
 }
 
 #if WITH_EDITOR
