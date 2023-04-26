@@ -34,6 +34,7 @@ public:
 	void UpdateDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit);
 	void SetPlayheadPosition(const float InNewPosition);
 	void OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle);
+	FReply LaunchContextMenu();
 
 	/** Delegate sent when the user selects a new display unit from the RMB menu*/
 	FOnTimeUnitMenuSelection OnTimeUnitMenuSelection;

@@ -237,6 +237,12 @@ void SFixedSampledSequenceRuler::OnStyleUpdated(const FNotifyingAudioWidgetStyle
 	TicksTextOffset = Style->TicksTextOffset;
 }
 
+FReply SFixedSampledSequenceRuler::LaunchContextMenu()
+{
+	FSlateApplication::Get().PushMenu(AsShared(), FWidgetPath(), MakeContextMenu(), FSlateApplication::Get().GetCursorPos(), FPopupTransitionEffect::ContextMenu);
+	return FReply::Handled();
+}
+
 void SFixedSampledSequenceRuler::DrawPlayheadHandle(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const
 {
 	const float WindowWidth = AllottedGeometry.Size.X;

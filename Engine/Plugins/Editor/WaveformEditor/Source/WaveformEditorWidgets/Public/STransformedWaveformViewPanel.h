@@ -55,6 +55,8 @@ public:
 	void SetOnTimeRulerMouseMove(FPointerEventHandler InEventHandler);
 	void SetOnMouseWheel(FPointerEventHandler InEventHandler);
 
+	FReply LaunchTimeRulerContextMenu();
+
 private:
 	void CreateLayout();
 

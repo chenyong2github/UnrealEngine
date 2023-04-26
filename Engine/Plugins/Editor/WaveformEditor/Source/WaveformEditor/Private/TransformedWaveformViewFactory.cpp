@@ -119,6 +119,13 @@ void FTransformedWaveformViewFactory::SetUpWaveformPanelInteractions(TSharedRef<
 	{
 		TSharedRef<SWidget> WavePanelChildSlot = WaveformPanel->GetChildren()->GetChildAt(0);
 
+		const bool HandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton;
+		
+		if (HandleRightMouseButton)
+		{
+			return WaveformPanel->LaunchTimeRulerContextMenu();
+		}
+
 		for (int32 ChildIndex = 0; ChildIndex < WavePanelChildSlot->GetChildren()->Num(); ++ChildIndex)
 		{
 			TSharedRef<SWidget> RulerWidget = WavePanelChildSlot->GetChildren()->GetChildAt(ChildIndex);

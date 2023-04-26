@@ -221,6 +221,16 @@ void STransformedWaveformViewPanel::SetOnMouseWheel(FPointerEventHandler InEvent
 	InputRoutingOverlay->OnMouseWheelDelegate = InEventHandler;
 }
 
+FReply STransformedWaveformViewPanel::LaunchTimeRulerContextMenu()
+{
+	if (TimeRuler)
+	{
+		return TimeRuler->LaunchContextMenu();
+	}
+
+	return FReply::Unhandled();
+}
+
 void STransformedWaveformViewPanel::UpdateDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit)
 {
 	DisplayUnit = InDisplayUnit;
