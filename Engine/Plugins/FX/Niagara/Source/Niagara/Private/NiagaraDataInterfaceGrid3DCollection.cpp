@@ -312,7 +312,7 @@ int32 UNiagaraDataInterfaceGrid3DCollection::GetComponentCountFromFuncName(const
 UNiagaraDataInterfaceGrid3DCollection::UNiagaraDataInterfaceGrid3DCollection(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, NumAttributes(0)
-	, OverrideBufferFormat(GetDefault<UNiagaraSettings>()->DefaultGridFormat)
+	, OverrideBufferFormat(ENiagaraGpuBufferFormat::Float)
 	, bOverrideFormat(false)
 #if WITH_EDITORONLY_DATA
 	, bPreviewGrid(false)
