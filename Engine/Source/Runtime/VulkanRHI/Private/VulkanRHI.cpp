@@ -1075,7 +1075,7 @@ void FVulkanCommandListContext::RHIBeginFrame()
 
 #if VULKAN_RHI_RAYTRACING
 	Device->GetRayTracingCompactionRequestHandler()->Update(*this);
-#endif // D3D12_RHI_RAYTRACING
+#endif
 }
 
 
