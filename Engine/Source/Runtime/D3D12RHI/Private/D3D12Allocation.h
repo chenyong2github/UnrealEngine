@@ -5,8 +5,11 @@ D3D12Allocation.h: A Collection of allocators
 =============================================================================*/
 
 #pragma once
+
 #include "D3D12Resources.h"
 #include "D3D12PoolAllocator.h"
+
+#define SUB_ALLOCATED_DEFAULT_ALLOCATIONS	1
 
 // Enable pool allocator by default only on Windows until all initial issues have been resolved.
 // Xbox is currently using the buddy allocator with a lot smaller pool sizes so the alignment waste is a lot less

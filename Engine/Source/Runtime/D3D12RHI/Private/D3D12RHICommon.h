@@ -1,20 +1,49 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-D3D12RHICommon.h: Common D3D12 RHI definitions for Windows.
-=============================================================================*/
+  D3D12RHICommon.h: Common D3D12 RHI definitions
+  =============================================================================*/
 
 #pragma once
 
-#include "Stats/Stats2.h"
-#include "MultiGPU.h"
-#include "Containers/StaticArray.h"
+#include "HAL/Platform.h"
 
-#if D3D12_MAX_DEVICE_INTERFACE >= 12
-	#define D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV 1
+#if PLATFORM_WINDOWS
+	#include "Windows/D3D12ThirdParty.h"
 #else
-	#define D3D12RHI_SUPPORTS_UNCOMPRESSED_UAV 0
+	#include "D3D12ThirdParty.h"
 #endif
+
+#include "D3D12RHI.h"
+#include "D3D12RHIDefinitions.h"
+
+#include "Containers/StaticArray.h"
+#include "MultiGPU.h"
+#include "Stats/Stats2.h"
+
+typedef uint16 CBVSlotMask;
+
+static_assert(MAX_ROOT_CBVS <= MAX_CBS, "MAX_ROOT_CBVS must be <= MAX_CBS.");
+static_assert((8 * sizeof(CBVSlotMask)) >= MAX_CBS, "CBVSlotMask isn't large enough to cover all CBs. Please increase the size.");
+static_assert((8 * sizeof(CBVSlotMask)) >= MAX_ROOT_CBVS, "CBVSlotMask isn't large enough to cover all CBs. Please increase the size.");
+static const CBVSlotMask GRootCBVSlotMask = (1 << MAX_ROOT_CBVS) - 1; // Mask for all slots that are used by root descriptors.
+static const CBVSlotMask GDescriptorTableCBVSlotMask = static_cast<CBVSlotMask>(-1) & ~(GRootCBVSlotMask); // Mask for all slots that are used by a root descriptor table.
+
+#if MAX_SRVS > 32
+	typedef uint64 SRVSlotMask;
+#else
+	typedef uint32 SRVSlotMask;
+#endif
+static_assert((8 * sizeof(SRVSlotMask)) >= MAX_SRVS, "SRVSlotMask isn't large enough to cover all SRVs. Please increase the size.");
+
+typedef uint16 SamplerSlotMask;
+static_assert((8 * sizeof(SamplerSlotMask)) >= MAX_SAMPLERS, "SamplerSlotMask isn't large enough to cover all Samplers. Please increase the size.");
+
+typedef uint16 UAVSlotMask;
+static_assert((8 * sizeof(UAVSlotMask)) >= MAX_UAVS, "UAVSlotMask isn't large enough to cover all UAVs. Please increase the size.");
+
+DECLARE_LOG_CATEGORY_EXTERN(LogD3D12RHI, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogD3D12GapRecorder, Log, All);
 
 DECLARE_STATS_GROUP(TEXT("D3D12RHI"), STATGROUP_D3D12RHI, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Memory"), STATGROUP_D3D12Memory, STATCAT_Advanced);

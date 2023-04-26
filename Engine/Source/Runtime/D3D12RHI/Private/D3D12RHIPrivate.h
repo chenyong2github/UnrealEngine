@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include "D3D12RHICommon.h"
+#include "ID3D12DynamicRHI.h"
+
 #include "CoreMinimal.h"
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
@@ -21,21 +24,11 @@
 #include "EngineGlobals.h"
 #include "StaticBoundShaderState.h"
 
-#define D3D12_RHI_RAYTRACING (RHI_RAYTRACING)
-
 // Dependencies.
-#include "CoreMinimal.h"
-#include "ID3D12DynamicRHI.h"
 #include "DXGIUtilities.h"
 #include "GPUProfiler.h"
 #include "ShaderCore.h"
 #include "HDRHelper.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogD3D12RHI, Log, All);
-DECLARE_LOG_CATEGORY_EXTERN(LogD3D12GapRecorder, Log, All);
-
-#include "D3D12RHI.h"
-#include "D3D12RHICommon.h"
 
 // Defines a unique command queue type within a FD3D12Device (owner by the command list managers).
 enum class ED3D12QueueType
@@ -50,9 +43,25 @@ enum class ED3D12QueueType
 #include "D3D12Submission.h"
 
 #if PLATFORM_WINDOWS
-#include "Windows/D3D12RHIBasePrivate.h"
+	#include "Windows/D3D12RHIBasePrivate.h"
 #else
-#include "D3D12RHIBasePrivate.h"
+	#include "D3D12RHIBasePrivate.h"
+#endif
+
+// Note: the following defines depend on D3D12RHIBasePrivate.h
+
+//@TODO: Improve allocator efficiency so we can increase these thresholds and improve performance
+// We measured 149MB of wastage in 340MB of allocations with DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE set to 512KB
+#if !defined(DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE)
+	#if D3D12_RHI_RAYTRACING
+		// #dxr_todo: Reevaluate these values. Currently optimized to reduce number of CreateCommitedResource() calls, at the expense of memory use.
+		#define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE    (64 * 1024 * 1024)
+		#define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (16 * 1024 * 1024)
+	#else
+		// On PC, buffers are 64KB aligned, so anything smaller should be sub-allocated
+		#define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE    (64 * 1024)
+		#define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (8 * 1024 * 1024)
+	#endif //D3D12_RHI_RAYTRACING
 #endif
 
 static constexpr uint32 GD3D12MaxNumQueues = MAX_NUM_GPUS * (uint32)ED3D12QueueType::Count;
@@ -137,65 +146,6 @@ inline const TCHAR* GetD3DCommandQueueTypeName(ED3D12QueueType QueueType)
 #include "D3D12Stats.h"
 #include "D3D12Device.h"
 #include "D3D12Adapter.h"
-
-#define EXECUTE_DEBUG_COMMAND_LISTS 0
-#define NAME_OBJECTS !(UE_BUILD_SHIPPING || UE_BUILD_TEST)	// Name objects in all builds except shipping
-#define LOG_PSO_CREATES (0 && STATS)	// Logs Create Pipeline State timings (also requires STATS)
-#define TRACK_RESOURCE_ALLOCATIONS (PLATFORM_WINDOWS && !UE_BUILD_SHIPPING && !UE_BUILD_TEST)
-
-//@TODO: Improve allocator efficiency so we can increase these thresholds and improve performance
-// We measured 149MB of wastage in 340MB of allocations with DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE set to 512KB
-#if !defined(DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE)
-	#if D3D12_RHI_RAYTRACING
-		// #dxr_todo: Reevaluate these values. Currently optimized to reduce number of CreateCommitedResource() calls, at the expense of memory use.
-		#define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE    (64 * 1024 * 1024)
-		#define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (16 * 1024 * 1024)
-	#else
-		// On PC, buffers are 64KB aligned, so anything smaller should be sub-allocated
-		#define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE    (64 * 1024)
-		#define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (8 * 1024 * 1024)
-	#endif //D3D12_RHI_RAYTRACING
-#endif //DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE
-
-#define READBACK_BUFFER_POOL_MAX_ALLOC_SIZE (64 * 1024)
-#define READBACK_BUFFER_POOL_DEFAULT_POOL_SIZE (4 * 1024 * 1024)
-
-#define TEXTURE_POOL_SIZE (8 * 1024 * 1024)
-
-#define MAX_GPU_BREADCRUMB_DEPTH 1024
-#define MAX_GPU_BREADCRUMB_CONTEXTS 128
-#define MAX_GPU_BREADCRUMB_SIZE 4096
-
-#ifndef FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED
-#define FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED D3D12_HEAP_FLAG_CREATE_NOT_ZEROED
-#endif
-
-#if DEBUG_RESOURCE_STATES
-	#define LOG_EXECUTE_COMMAND_LISTS 1
-	#define LOG_PRESENT 1
-#else
-	#define LOG_EXECUTE_COMMAND_LISTS 0
-	#define LOG_PRESENT 0
-#endif
-
-#define DEBUG_FRAME_TIMING 0
-#if DEBUG_FRAME_TIMING
-	#define LOG_VIEWPORT_EVENTS 1
-	#define LOG_PRESENT 1
-	#define LOG_EXECUTE_COMMAND_LISTS 1
-#else
-	#define LOG_VIEWPORT_EVENTS 0
-#endif
-
-#if EXECUTE_DEBUG_COMMAND_LISTS
-	#define DEBUG_EXECUTE_COMMAND_LIST(scope) if (scope##->ActiveQueries == 0) { scope##->FlushCommands(ED3D12FlushFlags::WaitForCompletion); }
-	#define DEBUG_EXECUTE_COMMAND_CONTEXT(context) if (context.ActiveQueries == 0) { context##.FlushCommands(ED3D12FlushFlags::WaitForCompletion); }
-	#define DEBUG_RHI_EXECUTE_COMMAND_LIST(scope) if (scope##->GetRHIDevice(0)->GetDefaultCommandContext().ActiveQueries == 0) { scope##->GetRHIDevice(0)->GetDefaultCommandContext().FlushCommands(ED3D12FlushFlags::WaitForCompletion); }
-#else
-	#define DEBUG_EXECUTE_COMMAND_LIST(scope) 
-	#define DEBUG_EXECUTE_COMMAND_CONTEXT(context) 
-	#define DEBUG_RHI_EXECUTE_COMMAND_LIST(scope) 
-#endif
 
 template< typename t_A, typename t_B >
 inline t_A RoundUpToNextMultiple(const t_A& a, const t_B& b)
@@ -812,35 +762,3 @@ public:
 
 // Returns the given format as a string. Unsupported formats are treated as DXGI_FORMAT_UNKNOWN.
 const TCHAR* LexToString(DXGI_FORMAT Format);
-
-#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
-
-#ifndef DXGI_PRESENT_ALLOW_TEARING
-#define DXGI_PRESENT_ALLOW_TEARING          0x00000200UL
-#define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING  2048
-
-#endif
-
-
-
-#define EMBED_DXGI_ERROR_LIST(PerEntry, Terminator)	\
-	PerEntry(DXGI_ERROR_UNSUPPORTED) Terminator \
-	PerEntry(DXGI_ERROR_NOT_CURRENT) Terminator \
-	PerEntry(DXGI_ERROR_MORE_DATA) Terminator \
-	PerEntry(DXGI_ERROR_MODE_CHANGE_IN_PROGRESS) Terminator \
-	PerEntry(DXGI_ERROR_ALREADY_EXISTS) Terminator \
-	PerEntry(DXGI_ERROR_SESSION_DISCONNECTED) Terminator \
-	PerEntry(DXGI_ERROR_ACCESS_DENIED) Terminator \
-	PerEntry(DXGI_ERROR_NON_COMPOSITED_UI) Terminator \
-	PerEntry(DXGI_ERROR_CACHE_FULL) Terminator \
-	PerEntry(DXGI_ERROR_NOT_CURRENTLY_AVAILABLE) Terminator \
-	PerEntry(DXGI_ERROR_CACHE_CORRUPT) Terminator \
-	PerEntry(DXGI_ERROR_WAIT_TIMEOUT) Terminator \
-	PerEntry(DXGI_ERROR_FRAME_STATISTICS_DISJOINT) Terminator \
-	PerEntry(DXGI_ERROR_DYNAMIC_CODE_POLICY_VIOLATION) Terminator \
-	PerEntry(DXGI_ERROR_REMOTE_OUTOFMEMORY) Terminator \
-	PerEntry(DXGI_ERROR_ACCESS_LOST) Terminator
-
-
-
-#endif //(PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
