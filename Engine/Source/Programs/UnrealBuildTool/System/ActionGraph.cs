@@ -357,7 +357,7 @@ namespace UnrealBuildTool
 #if __BOXEXECUTOR_AVAILABLE__
 			if (BuildConfiguration.bAllowBoxExecutor)
 			{
-//				return new BoxExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
+				return new BoxExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bAllCores, BuildConfiguration.bCompactOutput, Logger);
 			}
 #endif // #if __BOXEXECUTOR_AVAILABLE__
 
