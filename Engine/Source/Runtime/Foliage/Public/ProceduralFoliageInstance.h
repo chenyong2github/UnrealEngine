@@ -60,7 +60,6 @@ struct FOLIAGE_API FProceduralFoliageInstance
 public:
 	GENERATED_USTRUCT_BODY()
 	FProceduralFoliageInstance();
-	FProceduralFoliageInstance(const FProceduralFoliageInstance& Other);
 
 	static FProceduralFoliageInstance* Domination(FProceduralFoliageInstance* A, FProceduralFoliageInstance* B, ESimulationOverlap::Type OverlapType);
 

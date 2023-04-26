@@ -18,20 +18,6 @@ FProceduralFoliageInstance::FProceduralFoliageInstance()
 {
 }
 
-FProceduralFoliageInstance::FProceduralFoliageInstance(const FProceduralFoliageInstance& Other)
-: Rotation(Other.Rotation)
-, Location(Other.Location)
-, Age(Other.Age)
-, Normal(Other.Normal)
-, Scale(Other.Scale)
-, Type(Other.Type)
-, BaseComponent(Other.BaseComponent)
-, bBlocker(Other.bBlocker)
-, bAlive(Other.bAlive)
-{
-
-}
-
 FProceduralFoliageInstance* GetLessFit(FProceduralFoliageInstance* A, FProceduralFoliageInstance* B)
 {
 	//Blocker is used for culling instances when we overlap tiles. It always wins
