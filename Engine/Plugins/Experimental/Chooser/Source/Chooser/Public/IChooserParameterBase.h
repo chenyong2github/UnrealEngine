@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IObjectChooser.h"
 #include "IChooserParameterBase.generated.h"
 
 USTRUCT()
