@@ -414,7 +414,6 @@ struct UE_DEPRECATED(5.3, "Use FStateTreePropertyPath instead.") STATETREEMODULE
 
 	FStateTreeEditorPropertyPath() = default;
 	FStateTreeEditorPropertyPath(const FGuid& InStructID, const TCHAR* PropertyName) : StructID(InStructID) { Path.Add(PropertyName); }
-	FStateTreeEditorPropertyPath(const FStateTreeEditorPropertyPath& InPath) : StructID(InPath.StructID), Path(InPath.Path) {}
 	
 	/**
 	 * Returns the property path as a one string. Highlight allows to decorate a specific segment.
