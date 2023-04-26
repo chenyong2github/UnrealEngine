@@ -95,7 +95,9 @@ public:
 	const uint8 DEFAULT_GRID_POWER = 5;
 	const double DEFAULT_CURRENT_BLOCK_SIZE = 100;
 
-	/** Determines cube grid scale. Can also be adjusted with Ctrl + E/Q. */
+	//~ Unfortunately it seems that there isn't a way to make the automatic tooltip
+	//~ here platform-specific, so we can't be specific about the hotkeys
+	/** Determines cube grid scale. Can also be adjusted with hotkeys. */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (
 		EditCondition = "bAllowedToEditGrid", HideEditConditionToggle,
 		UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "31"))
@@ -177,7 +179,12 @@ public:
 	FString PushPull = TEXT("E/Q to pull/push, or use Ctrl+drag.");
 
 	UPROPERTY(VisibleAnywhere, Category = ShortcutInfo)
-	FString ResizeGrid = TEXT("Ctrl + E/Q to increase/decrease grid in powers of two.");
+	FString ResizeGrid =
+#if PLATFORM_MAC
+		TEXT("Option + E/Q to increase/decrease grid size.");
+#else
+		TEXT("Ctrl + E/Q to increase/decrease grid size.");
+#endif
 
 	UPROPERTY(VisibleAnywhere, Category = ShortcutInfo)
 	FString SlideSelection = TEXT("Middle mouse drag to slide selection in plane. "

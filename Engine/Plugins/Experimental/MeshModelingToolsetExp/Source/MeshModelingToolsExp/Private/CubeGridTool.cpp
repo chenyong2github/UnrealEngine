@@ -2317,13 +2317,22 @@ void UCubeGridTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		TEXT("DecreaseGridPower"),
 		LOCTEXT("DecreaseGridPowerAction", "Decrease Grid Power"),
 		LOCTEXT("DecreaseGridPowerTooltip", ""),
+		// Note that we can't use Ctrl+Q on Mac because that is mapped to Cmd+Q which kills the editor.
+#if PLATFORM_MAC
+		EModifierKey::Alt, EKeys::Q,
+#else
 		EModifierKey::Control, EKeys::Q,
+#endif
 		[this]() { RequestAction(ECubeGridToolAction::DecreaseGridPower); });
 	ActionSet.RegisterAction(this, ActionID++,
 		TEXT("IncreaseGridPower"),
 		LOCTEXT("IncreaseGridPowerAction", "Increase Grid Power"),
 		LOCTEXT("IncreaseGridPowerTooltip", ""),
+#if PLATFORM_MAC
+		EModifierKey::Alt, EKeys::E,
+#else
 		EModifierKey::Control, EKeys::E,
+#endif
 		[this]() { RequestAction(ECubeGridToolAction::IncreaseGridPower); });
 
 	ActionSet.RegisterAction(this, ActionID++,
