@@ -19,6 +19,7 @@
 #include "Components/StaticMeshComponent.h"
 
 #include "GroupTopology.h"
+#include "Selection/ToolSelectionUtil.h"
 #include "Selection/StoredMeshSelectionUtil.h"
 #include "Selections/GeometrySelectionUtil.h"
 #include "SelectionSet.h"
@@ -108,10 +109,14 @@ void UEditNormalsTool::Setup()
 
 	BasicProperties = NewObject<UEditNormalsToolProperties>(this, TEXT("Mesh Normals Settings"));
 	BasicProperties->RestoreProperties(this);
+	BasicProperties->bToolHasSelection = !InputGeometrySelection.IsEmpty();
 	AddToolPropertySource(BasicProperties);
 
+	// Note: Changes to this property set currently do NOT trigger recomputation. See UEditNormalsTool::OnPropertyModified
 	AdvancedProperties = NewObject<UEditNormalsAdvancedProperties>(this, TEXT("Advanced Settings"));
 	AdvancedProperties->RestoreProperties(this);
+	AdvancedProperties->bToolHasSelection = !InputGeometrySelection.IsEmpty();
+	AdvancedProperties->bToolHasEdgeSelection = (!InputGeometrySelection.IsEmpty() && InputGeometrySelection.ElementType == EGeometryElementType::Edge);
 	AddToolPropertySource(AdvancedProperties);
 
 	// initialize the PreviewMesh+BackgroundCompute object
@@ -133,36 +138,51 @@ void UEditNormalsTool::Setup()
 		});
 		SetToolPropertySourceEnabled(PolygroupLayerProperties, BasicProperties->SplitNormalMethod == ESplitNormalMethod::FaceGroupID);
 
-		if (!InputGeometrySelection.IsEmpty() &&
-			(InputGeometrySelection.ElementType == EGeometryElementType::Vertex ||
-			 InputGeometrySelection.ElementType == EGeometryElementType::Edge))
+		if (!InputGeometrySelection.IsEmpty())
 		{
-			// Convert to a Triangle+Vertex selection and operate on that. If the input selection has Edge elements then
-			// we do this because users will expect this to behave similarly to a vertex selection containing the
-			// touched vertices. If the input selection has Vertex elements then we do this to simplify the
-			// implementation (the reason being that we'd want to use EnumeratePolygroupSelectionVertices but this
-			// visits all vertices in any group touching the corner, which isn't what we want for building the overlay
-			// selection from a Polygroup Topology)
+			// Setup input geometry selection visualization
+			FTransform ApplyTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 
-			TriangleVertexGeometrySelection.InitializeTypes(EGeometryElementType::Vertex, EGeometryTopologyType::Triangle);
+			// Compute group topology if the selection has Polygroup topology, and do nothing otherwise
+			FGroupTopology GroupTopology(OriginalDynamicMeshes[0].Get(),
+				ActiveGroupSet.IsValid() ? ActiveGroupSet->PolygroupAttrib : nullptr,
+				InputGeometrySelection.TopologyType == EGeometryTopologyType::Polygroup);
 
-			if (InputGeometrySelection.TopologyType == EGeometryTopologyType::Polygroup)
+			InputGeometrySelectionRenderer.Initialize(InputGeometrySelection,
+				*OriginalDynamicMeshes[0],
+				&GroupTopology,
+				&ApplyTransform);
+
+			// Special case handling for edge and vertex element selections
+			if (InputGeometrySelection.ElementType == EGeometryElementType::Vertex ||
+				InputGeometrySelection.ElementType == EGeometryElementType::Edge)
 			{
-				const FGroupTopology GroupTopology(OriginalDynamicMeshes[0].Get(),
-					ActiveGroupSet.IsValid() ? ActiveGroupSet->PolygroupAttrib : nullptr,
-					true);
+				// Convert to a Triangle+Vertex selection and operate on that. If the input selection has Edge elements then
+				// we do this because users will expect this to behave similarly to a vertex selection containing the
+				// touched vertices. If the input selection has Vertex elements then we do this to simplify the
+				// implementation (the reason being that we'd want to use EnumeratePolygroupSelectionVertices but this
+				// visits all vertices in any group touching the corner, which isn't what we want for building the overlay
+				// selection from a Polygroup Topology)
 
-				ensure(ConvertSelection(*OriginalDynamicMeshes[0], &GroupTopology, InputGeometrySelection, TriangleVertexGeometrySelection));
-			}
-			else
-			{
-				ensure(ConvertSelection(*OriginalDynamicMeshes[0], nullptr, InputGeometrySelection, TriangleVertexGeometrySelection));
-			}
+				TriangleVertexGeometrySelection.InitializeTypes(EGeometryElementType::Vertex, EGeometryTopologyType::Triangle);
+				bool bSuccess = ConvertSelection(
+					*OriginalDynamicMeshes[0],
+					&GroupTopology, // This argument is ignored if InputGeometrySelection has Triangle topology
+					InputGeometrySelection,
+					TriangleVertexGeometrySelection);
+				ensure(bSuccess == true);
+				ensure(!TriangleVertexGeometrySelection.IsEmpty());
 
-			ensure(!TriangleVertexGeometrySelection.IsEmpty());
+				// Setup debug visualization
+				TriangleVertexGeometrySelectionRenderer.Initialize(
+					TriangleVertexGeometrySelection,
+					*OriginalDynamicMeshes[0],
+					nullptr,
+					&ApplyTransform);
+			}
 		}
 	}
-	
+
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		Preview->InvalidateResult();
@@ -318,6 +338,18 @@ TUniquePtr<FDynamicMeshOperator> UEditNormalsOperatorFactory::MakeNewOperator()
 
 void UEditNormalsTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	if (InputGeometrySelection.IsEmpty() == false && AdvancedProperties->bShowSelection)
+	{
+		if (InputGeometrySelection.ElementType == EGeometryElementType::Edge &&
+			AdvancedProperties->bShowEdgeSelectionAsVertexSelection)
+		{
+			TriangleVertexGeometrySelectionRenderer.Render(RenderAPI);
+		}
+		else
+		{
+			InputGeometrySelectionRenderer.Render(RenderAPI);
+		}
+	}
 }
 
 void UEditNormalsTool::OnTick(float DeltaTime)
@@ -343,6 +375,11 @@ void UEditNormalsTool::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 
 void UEditNormalsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
+	if (PropertySet == AdvancedProperties)
+	{
+		return;
+	}
+
 	UpdateNumPreviews();
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{

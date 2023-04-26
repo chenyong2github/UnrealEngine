@@ -13,6 +13,7 @@
 #include "Spatial/SegmentTree3.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Selection/DynamicMeshPolygroupTransformer.h"
+#include "Selection/ToolSelectionUtil.h"
 #include "ToolDataVisualizer.h"
 
 using namespace UE::Geometry;
@@ -601,35 +602,17 @@ void FBaseDynamicMeshSelector::AccumulateSelectionBounds(const FGeometrySelectio
 
 void FBaseDynamicMeshSelector::AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& Elements, bool bTransformToWorld, bool bIsForPreview)
 {
-	FTransform UseWorldTransform = GetLocalToWorldTransform();
+	const FTransform UseWorldTransform = GetLocalToWorldTransform();
 	const FTransform* ApplyTransform = (bTransformToWorld) ? &UseWorldTransform : nullptr;
+	const bool bMapFacesToEdges = bIsForPreview;
 
-	bool bMapFacesToEdges = bIsForPreview;
-	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
-	{
-		const FGroupTopology* Topology = GetGroupTopology();
-		TargetMesh->ProcessMesh([&](const UE::Geometry::FDynamicMesh3& SourceMesh)
-		{
-			UE::Geometry::EnumeratePolygroupSelectionElements(Selection, SourceMesh, Topology,
-				[&](uint32 VertexID, const FVector3d& Point) { Elements.Points.Add(Point); },
-				[&](uint32 EdgeID, const FSegment3d& Segment) { Elements.Segments.Add(Segment); },
-				[&](uint32 TriangleID, const FTriangle3d& Triangle) { Elements.Triangles.Add(Triangle); },
-				ApplyTransform, bMapFacesToEdges
-			);
-		});
-	}
-	else
-	{
-		TargetMesh->ProcessMesh([&](const UE::Geometry::FDynamicMesh3& SourceMesh)
-		{
-			UE::Geometry::EnumerateTriangleSelectionElements(Selection, SourceMesh, 
-				[&](uint32 VertexID, const FVector3d& Point) { Elements.Points.Add(Point); },
-				[&](uint32 EdgeID, const FSegment3d& Segment) { Elements.Segments.Add(Segment); },
-				[&](uint32 TriangleID, const FTriangle3d& Triangle) { Elements.Triangles.Add(Triangle); },
-				ApplyTransform, bMapFacesToEdges
-			);
-		});
-	}
+	ToolSelectionUtil::AccumulateSelectionElements(
+		Elements,
+		Selection,
+		TargetMesh->GetMeshRef(),
+		Selection.TopologyType == EGeometryTopologyType::Polygroup ? GetGroupTopology() : nullptr,
+		ApplyTransform,
+		bMapFacesToEdges);
 }
 
 

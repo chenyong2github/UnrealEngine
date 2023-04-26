@@ -1055,13 +1055,11 @@ bool UE::Geometry::ConvertSelection(
 
 		// TODO Add a function which gets the Vids only, to remove the matrix-vector multiplication we just ignore
 		const FTransform Transform = FTransform::Identity;
-		EnumerateTriangleSelectionVertices(FromSelectionIn, Mesh, Transform,
+		return EnumerateTriangleSelectionVertices(FromSelectionIn, Mesh, Transform,
 			[&ToSelectionOut](uint64 Vid, const FVector3d& Unused)
 			{
 				ToSelectionOut.Selection.Add( FGeoSelectionID::MeshVertex((int32)Vid).Encoded() );
 			});
-
-		return true;
 	};
 
 
@@ -1079,13 +1077,11 @@ bool UE::Geometry::ConvertSelection(
 
 		// TODO Add a function which gets the Vids only, to remove the matrix-vector multiplication we just ignore
 		const FTransform Transform = FTransform::Identity;
-		EnumeratePolygroupSelectionVertices(FromSelectionIn, Mesh, GroupTopology, Transform,
+		return EnumeratePolygroupSelectionVertices(FromSelectionIn, Mesh, GroupTopology, Transform,
 			[&ToSelectionOut](uint64 Vid, const FVector3d& Unused)
 			{
 				ToSelectionOut.Selection.Add( FGeoSelectionID::MeshVertex((int32)Vid).Encoded() );
 			});
-
-		return true;
 	};
 
 

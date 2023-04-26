@@ -213,13 +213,14 @@ DYNAMICMESH_API bool InitializeSelectionFromTriangles(
  *   ----------------------------------------------------------------
  *   Triangle Vertex      1       .       .      .       .       .   
  *   Triangle Edge        1       1       .      .       .       .   
- *   Triangle Face        1       1       1      4       3       2   
- *   Polygroup Vertex     6       .       .      1       .       .   
- *   Polygroup Edge       5       .       .      .       1       .   
+ *   Triangle Face        1       1       1      4#      3#      2#  
+ *   Polygroup Vertex     6#      .       .      1       .       .   
+ *   Polygroup Edge       5#      .       .      .       1       .   
  *   Polygroup Face       .       .       .      .       .       1   
  *   ================================================================
  *
- *   .  These conversions are not implemented... yet?
+ *   Key:
+ *   .  These conversions are not implemented... yet? GroupTopology is ignored
  *   1  supported. The implementation is obvious/unambiguous
  *   2  supported. Polygroup faces containing any input triangle are selected
  *   3  supported. Polygroup edges containing any input triangle edge are selected, but
@@ -227,6 +228,7 @@ DYNAMICMESH_API bool InitializeSelectionFromTriangles(
  *   4  supported. Polygroup corners coinciding with any input triangle vertex are selected
  *   5  supported. All mesh vertices along the polygroup edge are selected
  *   6  supported. All mesh vertices coinciding with polygroup corners are selected
+ *   #  indicates GroupTopology must not be null for this combination. If this symbol is missing GroupTopology is ignored
  *
  * @return true if conversion is supported and was computed successfully, return false otherwise
  */

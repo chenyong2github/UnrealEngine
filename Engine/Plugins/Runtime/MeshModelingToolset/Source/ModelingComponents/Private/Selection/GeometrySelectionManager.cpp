@@ -3,18 +3,13 @@
 #include "Selection/GeometrySelectionManager.h"
 #include "Engine/Engine.h"
 #include "Selection/DynamicMeshSelector.h"
+#include "Selection/ToolSelectionUtil.h"
 #include "Selection/SelectionEditInteractiveCommand.h"
 #include "InteractiveToolsContext.h"
 #include "InteractiveToolManager.h"
 #include "ToolContextInterfaces.h"
 #include "ToolDataVisualizer.h"
 #include "Selections/GeometrySelectionUtil.h"
-
-// for debug drawing
-#include "SceneManagement.h"
-#include "SceneView.h"
-#include "DynamicMeshBuilder.h"
-#include "ToolSetupUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometrySelectionManager)
 
@@ -1278,87 +1273,11 @@ void UGeometrySelectionManager::DebugRender(IToolsContextRenderAPI* RenderAPI)
 	//const UMaterialInterface* TriangleMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(1.0f, 0, 0, 0.5f), nullptr, 0.5f);
 
 	RebuildSelectionRenderCaches();
-
 	for ( const FGeometrySelectionElements& Elements : CachedSelectionRenderElements )
 	{
-		// batch render all the triangles, vastly more efficient than drawing one by one!
-
-		FPrimitiveDrawInterface* CurrentPDI = RenderAPI->GetPrimitiveDrawInterface();
-		FDynamicMeshBuilder MeshBuilder(CurrentPDI->View->GetFeatureLevel());
-		int32 DepthPriority = SDPG_World; // SDPG_Foreground;  // SDPG_World
-		FVector2f UVs[3] = { FVector2f(0,0), FVector2f(0,1), FVector2f(1,1)	};
-		FVector3f Normal = FVector3f(0, 0, 1);
-		FVector3f Tangent = FVector3f(1, 0, 0);	
-		for (const FTriangle3d& Triangle : Elements.Triangles)
-		{
-			int32 V0 = MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Triangle.V[0], Tangent, Normal, UVs[0], FColor::White));
-			int32 V1 = MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Triangle.V[1], Tangent, Normal, UVs[1], FColor::White));
-			int32 V2 = MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Triangle.V[2], Tangent, Normal, UVs[2], FColor::White));
-			MeshBuilder.AddTriangle(V0, V1, V2);
-		}
-		//FMaterialRenderProxy* MaterialRenderProxy = TriangleMaterial->GetRenderProxy();		// currently does not work, material does not render
-		FMaterialRenderProxy* MaterialRenderProxy = GEngine->ConstraintLimitMaterialX->GetRenderProxy();
-		MeshBuilder.Draw(CurrentPDI, FMatrix::Identity, MaterialRenderProxy, DepthPriority, false, false);
-
-
-		FToolDataVisualizer Visualizer;
-		Visualizer.bDepthTested = false;
-		Visualizer.BeginFrame(RenderAPI);
-
-		Visualizer.SetLineParameters(FLinearColor(0,0.3f,0.95f,1), 3.0f);
-		for (const FSegment3d& Segment : Elements.Segments)
-		{
-			Visualizer.DrawLine(Segment.StartPoint(), Segment.EndPoint());
-		}
-
-		Visualizer.SetPointParameters(FLinearColor(0,0.3f,0.95f,1), 10.0f);
-		for (const FVector3d& Point : Elements.Points)
-		{
-			Visualizer.DrawPoint(Point);
-		}
-
-		Visualizer.EndFrame();
+		ToolSelectionUtil::DebugRenderGeometrySelectionElements(RenderAPI, Elements, false);
 	}
-
-	// draw selection preview
-	{
-		FPrimitiveDrawInterface* CurrentPDI = RenderAPI->GetPrimitiveDrawInterface();
-		FDynamicMeshBuilder MeshBuilder(CurrentPDI->View->GetFeatureLevel());
-		int32 DepthPriority = SDPG_World; // SDPG_Foreground;  // SDPG_World
-		FVector2f UVs[3] = { FVector2f(0,0), FVector2f(0,1), FVector2f(1,1) };
-		FVector3f Normal = FVector3f(0, 0, 1);
-		FVector3f Tangent = FVector3f(1, 0, 0);
-		for (const FTriangle3d& Triangle : CachedPreviewRenderElements.Triangles)
-		{
-			int32 V0 = MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Triangle.V[0], Tangent, Normal, UVs[0], FColor::White));
-			int32 V1 = MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Triangle.V[1], Tangent, Normal, UVs[1], FColor::White));
-			int32 V2 = MeshBuilder.AddVertex(FDynamicMeshVertex((FVector3f)Triangle.V[2], Tangent, Normal, UVs[2], FColor::White));
-			MeshBuilder.AddTriangle(V0, V1, V2);
-		}
-		//FMaterialRenderProxy* MaterialRenderProxy = TriangleMaterial->GetRenderProxy();		// currently does not work, material does not render
-		FMaterialRenderProxy* MaterialRenderProxy = GEngine->ConstraintLimitMaterialX->GetRenderProxy();
-		MeshBuilder.Draw(CurrentPDI, FMatrix::Identity, MaterialRenderProxy, DepthPriority, false, false);
-
-
-		FToolDataVisualizer Visualizer;
-		Visualizer.bDepthTested = false;
-		Visualizer.BeginFrame(RenderAPI);
-
-		Visualizer.SetLineParameters(FLinearColor(1, 1, 0, 1), 1.0f);
-		for (const FSegment3d& Segment : CachedPreviewRenderElements.Segments)
-		{
-			Visualizer.DrawLine(Segment.StartPoint(), Segment.EndPoint());
-		}
-
-		Visualizer.SetPointParameters(FLinearColor(1, 1, 0, 1), 5.0f);
-		for (const FVector3d& Point : CachedPreviewRenderElements.Points)
-		{
-			Visualizer.DrawPoint(Point);
-		}
-
-		Visualizer.EndFrame();
-	}
-
+	ToolSelectionUtil::DebugRenderGeometrySelectionElements(RenderAPI, CachedPreviewRenderElements, true);
 }
 
 
