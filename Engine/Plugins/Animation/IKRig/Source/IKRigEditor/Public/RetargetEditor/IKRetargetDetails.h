@@ -116,6 +116,13 @@ private:
 
 struct FIKRetargetTransformWidgetData
 {
+	FIKRetargetTransformWidgetData(EIKRetargetTransformType InType, FText InLabel, FText InTooltip)
+	{
+		TransformType = InType;
+		ButtonLabel = InLabel;
+		ButtonTooltip = InTooltip;
+	};
+	
 	EIKRetargetTransformType TransformType;
 	FText ButtonLabel;
 	FText ButtonTooltip;
