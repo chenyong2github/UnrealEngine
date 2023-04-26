@@ -45,6 +45,18 @@ inline void GatherPassUAVsForOverlapValidation(const FRDGPass* Pass, TArray<FRHI
 
 #endif
 
+struct FParallelPassSet : public FRHICommandListImmediate::FQueuedCommandList
+{
+	FParallelPassSet() = default;
+
+	TArray<FRDGPass*, FRDGArrayAllocator> Passes;
+	IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbStateBegin{});
+	IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbStateEnd{});
+	int8 bInitialized = 0;
+	bool bDispatchAfterExecute = false;
+	bool bParallelTranslate = false;
+};
+
 inline void BeginUAVOverlap(const FRDGPass* Pass, FRHIComputeCommandList& RHICmdList)
 {
 #if ENABLE_RHI_VALIDATION
