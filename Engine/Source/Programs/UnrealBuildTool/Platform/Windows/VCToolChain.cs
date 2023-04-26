@@ -584,7 +584,7 @@ namespace UnrealBuildTool
 					AddDefinition(Arguments, "USING_ADDRESS_SANITISER=1");
 
 					// Re-evalulate the necessity of these workarounds later
-					if (EnvVars.CompilerVersion < new VersionNumber(14, 35))
+					if (EnvVars.CompilerVersion < new VersionNumber(14, 36))
 					{
 						AddDefinition(Arguments, "_DISABLE_STRING_ANNOTATION=1");
 						AddDefinition(Arguments, "_DISABLE_VECTOR_ANNOTATION=1");
