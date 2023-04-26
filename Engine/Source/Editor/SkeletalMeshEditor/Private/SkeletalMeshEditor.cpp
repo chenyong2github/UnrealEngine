@@ -261,6 +261,12 @@ void FSkeletalMeshEditor::InitSkeletalMeshEditor(const EToolkitMode::Type Mode, 
 	const bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, SkeletalMeshEditorAppIdentifier, FTabManager::FLayout::NullLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, InSkeletalMesh);
 
+	if (TabManager)
+	{
+		TabManager->SetEnforceMainTab(false);
+		TabManager->SetMainTab(FTabId());
+	}
+
 	BindCommands();
 
 	AddApplicationMode(
