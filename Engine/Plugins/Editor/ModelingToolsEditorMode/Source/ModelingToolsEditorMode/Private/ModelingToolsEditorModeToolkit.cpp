@@ -257,6 +257,7 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 		Commands.BeginDrawPolygonTool,
 		Commands.BeginDrawPolyPathTool,
 		Commands.BeginDrawAndRevolveTool,
+		Commands.BeginRevolveSplineTool,
 		Commands.BeginTriangulateSplinesTool
 	});
 	ToolkitBuilder->AddPalette(
@@ -1622,6 +1623,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolygonTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolyPathTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawAndRevolveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginRevolveSplineTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRevolveBoundaryTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginCombineMeshesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDuplicateMeshesTool);
