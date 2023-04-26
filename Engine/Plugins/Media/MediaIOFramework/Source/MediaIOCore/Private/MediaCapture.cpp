@@ -593,6 +593,15 @@ void UMediaCapture::CaptureImmediate_RenderThread(FRDGBuilder& GraphBuilder, FRH
 
 void UMediaCapture::CaptureImmediate_RenderThread(FRDGBuilder& GraphBuilder,  FRDGTextureRef InSourceTextureRef, FIntRect SourceViewRect)
 {
+	// Make sure captureimmediate runs are seen by game thread when stopping is requested. Having a pending render command will cause a flush
+	// hence letting the capture finish. If stopping is in progress, stopped state will be seen by the captureimmediate and early exit.
+	++WaitingForRenderCommandExecutionCounter;
+
+	ON_SCOPE_EXIT
+	{
+		--WaitingForRenderCommandExecutionCounter;
+	};
+	
 	UE::MediaCaptureData::FCaptureFrameArgs CaptureArgs{GraphBuilder};
 	CaptureArgs.MediaCapture = this;
 	CaptureArgs.DesiredSize = DesiredSize;
@@ -636,9 +645,6 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 		UE_LOG(LogMediaIOCore, Error, TEXT("[%s] - Trying to capture a RHI resource with another capture type."), *MediaOutputName);
 		SetState(EMediaCaptureState::Error);
 	}
-	
-	// Keep resource size up to date with incoming resource to capture
-    StaticCastSharedPtr<UE::MediaCapture::Private::FRHIResourceCaptureSource>(CaptureSource)->ResourceDescription.ResourceSize = Args.GetSizeXY();
 
 	if (GetState() != EMediaCaptureState::Capturing && GetState() != EMediaCaptureState::StopRequested)
 	{
@@ -649,6 +655,16 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 	{
 		return;
 	}
+
+	if (CaptureSource.IsValid() == false)
+	{
+		UE_LOG(LogMediaIOCore, Error, TEXT("[%s] - Trying to capture a RHI resource with an invalid source."), *MediaOutputName);
+		SetState(EMediaCaptureState::Error);
+		return;
+	}
+
+	// Keep resource size up to date with incoming resource to capture
+ 	StaticCastSharedPtr<UE::MediaCapture::Private::FRHIResourceCaptureSource>(CaptureSource)->ResourceDescription.ResourceSize = Args.GetSizeXY();
 
 	// Get cached capture data from game thread. We want to find a cached frame matching current render thread frame number
 	bool bFoundMatchingData = false;

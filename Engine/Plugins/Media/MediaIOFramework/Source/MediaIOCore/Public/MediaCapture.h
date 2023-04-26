@@ -653,7 +653,7 @@ private:
 	TPimplPtr<UE::MediaCaptureData::FFrameManager> FrameManager;
 	int32 NumberOfCaptureFrame = 2;
 	int32 CaptureRequestCount = 0;
-	EMediaCaptureState MediaState = EMediaCaptureState::Stopped;
+	std::atomic<EMediaCaptureState> MediaState = EMediaCaptureState::Stopped;
 
 	FCriticalSection AccessingCapturingSource;
 
