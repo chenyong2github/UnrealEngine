@@ -821,7 +821,7 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			}
 
 			// Continue with the import steps
-			return Context->bIsImporting && GeometryCache;
+			return Context->bIsImporting && GeometryCache && bIsNew;
 		});
 
 	// Fill the GeometryCache tracks with the frame data (Async)
