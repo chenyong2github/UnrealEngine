@@ -3166,6 +3166,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 				CullingConfig.bProgrammableRaster = GNaniteProgrammableRasterPrimary != 0;
 
+				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
+				CullingConfig.bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
+
 				const bool bDrawSceneViewsInOneNanitePass = Views.Num() > 1 && Nanite::ShouldDrawSceneViewsInOneNanitePass(Views[0]);
 
 				// creates one or more Nanite views (normally one per view unless drawing multiple views together - e.g. Stereo ISR views)
@@ -3234,9 +3237,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					FIntRect ViewRect = bDrawSceneViewsInOneNanitePass ? FIntRect(0, 0, FamilySize.X, FamilySize.Y) : View.ViewRect;
 					CullingConfig.SetViewFlags(View);
 
-					static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
-					const bool bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
-
 					float LODScaleFactor = 1.0f;
 					if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale &&
 						CVarNaniteViewMeshLODBiasEnable.GetValueOnRenderThread() != 0)
@@ -3278,9 +3278,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						NaniteRenderer->DrawGeometry(
 							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 							RasterResults.VisibilityResults,
-							*NaniteViewsToRender,
-							/*OptionalInstanceDraws*/ nullptr,
-							bExtractStats
+							*NaniteViewsToRender
 						);
 
 						NaniteRenderer->ExtractResults( RasterResults );

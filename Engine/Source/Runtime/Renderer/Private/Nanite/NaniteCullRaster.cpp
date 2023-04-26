@@ -1872,14 +1872,12 @@ private:
 		FNaniteRasterPipelines& RasterPipelines,
 		const FNaniteVisibilityResults& VisibilityResults,
 		const FPackedViewArray& ViewArray,
-		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
-		bool bExtractStats );
+		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws );
 	void			DrawGeometry(
 		FNaniteRasterPipelines& RasterPipelines,
 		const FNaniteVisibilityResults& VisibilityResults,
 		const FPackedViewArray& ViewArray,
-		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
-		bool bExtractStats );
+		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws );
 
 	void			ExtractStats( const FBinningData& MainPassBinning, const FBinningData& PostPassBinning );
 	void			FeedbackStatus();
@@ -3687,33 +3685,32 @@ FRasterContext InitRasterContext(
 	return RasterContext;
 }
 
-static void AllocateNodesAndBatchesBuffers(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferRef* MainAndPostNodesAndClusterBatchesBufferRef)
+template< typename FInit >
+static FRDGBufferRef CreateBufferOnce( FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& Buffer, const FRDGBufferDesc& Desc, const TCHAR* Name, FInit Init )
 {
-	const uint32 MaxNodes				=	Nanite::FGlobalResources::GetMaxNodes();
-	const uint32 MaxClusterBatches		=	Nanite::FGlobalResources::GetMaxClusterBatches();
-	check(MainAndPostNodesAndClusterBatchesBufferRef);
-
-	// Initialize node and cluster batch arrays.
-	// They only have to be initialized once as the culling code reverts nodes/batches to their cleared state after they have been consumed.
+	FRDGBufferRef BufferRDG;
+	if( Buffer.IsValid() && Buffer->Desc == Desc )
 	{
-		FNodesAndClusterBatchesBuffer& MainAndPostNodesAndClusterBatchesBuffer = Nanite::GGlobalResources.GetMainAndPostNodesAndClusterBatchesBuffer();
-		if (MainAndPostNodesAndClusterBatchesBuffer.Buffer.IsValid() && MaxNodes == MainAndPostNodesAndClusterBatchesBuffer.NumNodes && MaxClusterBatches == MainAndPostNodesAndClusterBatchesBuffer.NumClusterBatches)
-		{
-			*MainAndPostNodesAndClusterBatchesBufferRef = GraphBuilder.RegisterExternalBuffer(MainAndPostNodesAndClusterBatchesBuffer.Buffer, TEXT("Nanite.MainAndPostNodesAndClusterBatchesBuffer"));
-		}
-		else
-		{
-			RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
-
-			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxClusterBatches * 2 + MaxNodes * (2 + 3));
-			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
-			*MainAndPostNodesAndClusterBatchesBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.MainAndPostNodesAndClusterBatchesBuffer"));
-			AddPassInitNodesAndClusterBatchesUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(*MainAndPostNodesAndClusterBatchesBufferRef));
-			MainAndPostNodesAndClusterBatchesBuffer.Buffer = GraphBuilder.ConvertToExternalBuffer(*MainAndPostNodesAndClusterBatchesBufferRef);
-			MainAndPostNodesAndClusterBatchesBuffer.NumNodes = MaxNodes;
-			MainAndPostNodesAndClusterBatchesBuffer.NumClusterBatches = MaxClusterBatches;
-		}
+		BufferRDG = GraphBuilder.RegisterExternalBuffer( Buffer, Name );
 	}
+	else
+	{
+		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+		BufferRDG = GraphBuilder.CreateBuffer( Desc, Name );
+		Buffer = GraphBuilder.ConvertToExternalBuffer( BufferRDG );
+		Init( BufferRDG );
+	}
+
+	return BufferRDG;
+}
+
+static FRDGBufferRef CreateBufferOnce( FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& Buffer, const FRDGBufferDesc& Desc, const TCHAR* Name, uint32 ClearValue )
+{
+	return CreateBufferOnce( GraphBuilder, Buffer, Desc, Name,
+		[ &GraphBuilder, ClearValue ]( FRDGBufferRef Buffer )
+		{
+			AddClearUAVPass( GraphBuilder, GraphBuilder.CreateUAV( Buffer ), ClearValue );
+		} );
 }
 
 // Render a large number of views by splitting them into multiple passes. This is only supported for depth-only rendering.
@@ -3722,8 +3719,7 @@ void FRenderer::DrawGeometryMultiPass(
 	FNaniteRasterPipelines& RasterPipelines,
 	const FNaniteVisibilityResults& VisibilityResults,
 	const FPackedViewArray& ViewArray,
-	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
-	bool bExtractStats
+	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws
 )
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::DrawGeometryMultiPass");
@@ -3782,8 +3778,7 @@ void FRenderer::DrawGeometryMultiPass(
 			RasterPipelines,
 			VisibilityResults,
 			*RangeViews,
-			OptionalInstanceDraws,
-			bExtractStats
+			OptionalInstanceDraws
 		);
 	}
 }
@@ -3792,13 +3787,12 @@ void FRenderer::DrawGeometry(
 	FNaniteRasterPipelines& RasterPipelines,
 	const FNaniteVisibilityResults& VisibilityResults,
 	const FPackedViewArray& ViewArray,
-	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
-	bool bExtractStats
+	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws
 )
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
-	const bool bDisplacementEnabled = TessellationEnabled();
+	const bool bTessellationEnabled = TessellationEnabled();
 	
 	// Split rasterization into multiple passes if there are too many views. Only possible for depth-only rendering.
 	if (ViewArray.NumViews > NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
@@ -3808,8 +3802,7 @@ void FRenderer::DrawGeometry(
 			RasterPipelines,
 			VisibilityResults,
 			ViewArray,
-			OptionalInstanceDraws,
-			bExtractStats
+			OptionalInstanceDraws
 		);
 		return;
 	}
@@ -3997,15 +3990,27 @@ void FRenderer::DrawGeometry(
 		);
 	}
 
-	// Allocate buffer for nodes and cluster batches
-	AllocateNodesAndBatchesBuffers(GraphBuilder, SharedContext.ShaderMap, &MainAndPostNodesAndClusterBatchesBuffer);
-
-	// Allocate candidate cluster buffer. Lifetime only duration of CullRasterize
+	// Initialize node and cluster batch arrays.
+	// They only have to be initialized once as the culling code reverts nodes/batches to their cleared state after they have been consumed.
 	{
-		FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, Nanite::FGlobalResources::GetMaxCandidateClusters() * 2);
+		const uint32 MaxNodes				=	Nanite::FGlobalResources::GetMaxNodes();
+		const uint32 MaxClusterBatches		=	Nanite::FGlobalResources::GetMaxClusterBatches();
+
+		FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxClusterBatches * 2 + MaxNodes * (2 + 3));
 		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
-		MainAndPostCandididateClustersBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.MainAndPostCandididateClustersBuffer"));
+
+		MainAndPostNodesAndClusterBatchesBuffer = CreateBufferOnce( GraphBuilder, GGlobalResources.MainAndPostNodesAndClusterBatchesBuffer.Buffer, Desc, TEXT("Nanite.MainAndPostNodesAndClusterBatchesBuffer"),
+			[&]( FRDGBufferRef Buffer )
+			{
+				AddPassInitNodesAndClusterBatchesUAV( GraphBuilder, SharedContext.ShaderMap, GraphBuilder.CreateUAV( Buffer ) );
+	
+				GGlobalResources.MainAndPostNodesAndClusterBatchesBuffer.NumNodes			= MaxNodes;
+				GGlobalResources.MainAndPostNodesAndClusterBatchesBuffer.NumClusterBatches	= MaxClusterBatches;
+			} );
 	}
+
+	// Allocate candidate cluster buffer. Lifetime only duration of DrawGeometry
+	MainAndPostCandididateClustersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateByteAddressDesc(Nanite::FGlobalResources::GetMaxCandidateClusters() * 2 * 4), TEXT("Nanite.MainAndPostCandididateClustersBuffer"));
 
 	FGlobalWorkQueueParameters SplitWorkQueue;
 	FGlobalWorkQueueParameters OccludedPatches;
@@ -4014,56 +4019,34 @@ void FRenderer::DrawGeometry(
 	FRDGBufferRef VisiblePatchesMainArgs = nullptr;
 	FRDGBufferRef VisiblePatchesPostArgs = nullptr;
 
-	if (bDisplacementEnabled)
+	if( NaniteTessellationSupported() )
 	{
-		const uint32 MaxInteriorPatches = 1 << 21;
-		const uint32 MaxVisiblePatches = 1 << 21;
+		FRDGBufferDesc CandidateDesc = FRDGBufferDesc::CreateByteAddressDesc( 16 * FGlobalResources::GetMaxCandidatePatches() );
+		FRDGBufferDesc VisibleDesc   = FRDGBufferDesc::CreateByteAddressDesc( 16 * FGlobalResources::GetMaxVisiblePatches() );
 
+		FRDGBufferRef SplitWorkQueue_DataBuffer  = CreateBufferOnce( GraphBuilder, GGlobalResources.SplitWorkQueueBuffer,  CandidateDesc, TEXT("Nanite.SplitWorkQueue.DataBuffer"),  ~0u );
+		FRDGBufferRef OccludedPatches_DataBuffer = CreateBufferOnce( GraphBuilder, GGlobalResources.OccludedPatchesBuffer, CandidateDesc, TEXT("Nanite.OccludedPatches.DataBuffer"), ~0u );
+
+		FRDGBufferRef SplitWorkQueue_StateBuffer	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 3 * sizeof(uint32), 1 ), TEXT("Nanite.SplitWorkQueue.StateBuffer") );
+		FRDGBufferRef OccludedPatches_StateBuffer	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 3 * sizeof(uint32), 1 ), TEXT("Nanite.OccludedPatches.StateBuffer") );
+
+		SplitWorkQueue.DataBuffer	= GraphBuilder.CreateUAV( SplitWorkQueue_DataBuffer );
+		SplitWorkQueue.StateBuffer	= GraphBuilder.CreateUAV( SplitWorkQueue_StateBuffer );
+		SplitWorkQueue.Size			= FGlobalResources::GetMaxCandidatePatches();
+
+		OccludedPatches.DataBuffer	= GraphBuilder.CreateUAV( OccludedPatches_DataBuffer );
+		OccludedPatches.StateBuffer	= GraphBuilder.CreateUAV( OccludedPatches_StateBuffer );
+		OccludedPatches.Size		= FGlobalResources::GetMaxCandidatePatches();
+
+		AddClearUAVPass( GraphBuilder, SplitWorkQueue.StateBuffer, 0 );
+		AddClearUAVPass( GraphBuilder, OccludedPatches.StateBuffer, 0 );
+
+		if( bTessellationEnabled )
 		{
-			FRDGBufferRef SplitWorkQueue_DataBuffer		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateByteAddressDesc( 16 * MaxInteriorPatches ),	TEXT("Nanite.SplitWorkQueue.DataBuffer") );
-			FRDGBufferRef SplitWorkQueue_StateBuffer	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 3 * sizeof(uint32), 1 ),		TEXT("Nanite.SplitWorkQueue.StateBuffer") );
-
-			SplitWorkQueue.DataBuffer	= GraphBuilder.CreateUAV( SplitWorkQueue_DataBuffer );
-			SplitWorkQueue.StateBuffer	= GraphBuilder.CreateUAV( SplitWorkQueue_StateBuffer );
-			SplitWorkQueue.Size			= MaxInteriorPatches;
-
-			// TODO Don't clear every frame.
-			AddClearUAVPass( GraphBuilder, SplitWorkQueue.DataBuffer, ~0u );
-			AddClearUAVPass( GraphBuilder, SplitWorkQueue.StateBuffer, 0 );
-
-			FRDGBufferRef OccludedPatches_DataBuffer	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateByteAddressDesc( 16 * MaxInteriorPatches ),	TEXT("Nanite.OccludedPatches.DataBuffer") );
-			FRDGBufferRef OccludedPatches_StateBuffer	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 3 * sizeof(uint32), 1 ),		TEXT("Nanite.OccludedPatches.StateBuffer") );
-
-			OccludedPatches.DataBuffer	= GraphBuilder.CreateUAV( OccludedPatches_DataBuffer );
-			OccludedPatches.StateBuffer	= GraphBuilder.CreateUAV( OccludedPatches_StateBuffer );
-			OccludedPatches.Size		= MaxInteriorPatches;
-
-			// TODO Don't clear every frame.
-			AddClearUAVPass( GraphBuilder, OccludedPatches.DataBuffer, ~0u );
-			AddClearUAVPass( GraphBuilder, OccludedPatches.StateBuffer, 0 );
+			VisiblePatches			= GraphBuilder.CreateBuffer( VisibleDesc,							TEXT("Nanite.VisiblePatches") );
+			VisiblePatchesMainArgs	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc(4),	TEXT("Nanite.VisiblePatchesMainArgs") );
+			VisiblePatchesPostArgs	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc(4),	TEXT("Nanite.VisiblePatchesPostArgs") );
 		}
-
-		VisiblePatches			= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateByteAddressDesc( 16 * MaxVisiblePatches ),	TEXT("Nanite.VisiblePatches") );
-		VisiblePatchesMainArgs	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc(4),								TEXT("Nanite.VisiblePatchesMainArgs") );
-		VisiblePatchesPostArgs	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc(4),								TEXT("Nanite.VisiblePatchesPostArgs") );
-	}
-	else
-	{
-		FRDGBufferUAVRef Dummy_DataBuffer = GraphBuilder.CreateUAV(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateByteAddressDesc(16), TEXT("Nanite.SplitWorkQueue.DataBuffer")));
-		FRDGBufferUAVRef Dummy_StateBuffer = GraphBuilder.CreateUAV(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(3 * sizeof(uint32), 1), TEXT("Nanite.SplitWorkQueue.StateBuffer")));
-
-
-		// TODO Don't clear every frame.
-		AddClearUAVPass(GraphBuilder, Dummy_DataBuffer, ~0u);
-		AddClearUAVPass(GraphBuilder, Dummy_StateBuffer, 0);
-
-		SplitWorkQueue.DataBuffer = Dummy_DataBuffer;
-		SplitWorkQueue.StateBuffer = Dummy_StateBuffer;
-		SplitWorkQueue.Size = 0;
-
-		OccludedPatches.DataBuffer = Dummy_DataBuffer;
-		OccludedPatches.StateBuffer = Dummy_StateBuffer;
-		OccludedPatches.Size = 0;
 	}
 
 	// Per-view primitive filtering
@@ -4090,7 +4073,7 @@ void FRenderer::DrawGeometry(
 			true
 		);
 
-		if (bDisplacementEnabled)
+		if (bTessellationEnabled)
 		{
 			AddPass_PatchSplit(
 				ViewArray,
@@ -4178,7 +4161,7 @@ void FRenderer::DrawGeometry(
 			false
 		);
 
-		if (bDisplacementEnabled)
+		if (bTessellationEnabled)
 		{
 			AddPass_PatchSplit(
 				ViewArray,
@@ -4209,7 +4192,7 @@ void FRenderer::DrawGeometry(
 		RenderFlags |= NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA;
 	}
 
-	if (bExtractStats)
+	if( Configuration.bExtractStats )
 	{
 		ExtractStats( MainPassBinning, PostPassBinning );
 	}

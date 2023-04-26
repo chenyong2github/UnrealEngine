@@ -52,6 +52,22 @@ FAutoConsoleVariableRef CVarNaniteMaxVisibleClusters(
 	ECVF_RenderThreadSafe
 );
 
+int32 GNaniteMaxCandidatePatches = 2 * 1048576;
+FAutoConsoleVariableRef CVarNaniteMaxCandidatePatches(
+	TEXT("r.Nanite.MaxCandidatePatches"),
+	GNaniteMaxCandidatePatches,
+	TEXT("Maximum number of Nanite patches considered for splitting."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GNaniteMaxVisiblePatches = 2 * 1048576;
+FAutoConsoleVariableRef CVarNaniteMaxVisiblePatches(
+	TEXT("r.Nanite.MaxVisiblePatches"),
+	GNaniteMaxVisiblePatches,
+	TEXT("Maximum number of visible Nanite patches."),
+	ECVF_RenderThreadSafe
+);
+
 #define MAX_CLUSTERS	(16 * 1024 * 1024)
 
 
@@ -66,17 +82,6 @@ void FPackedView::UpdateLODScales(const float NaniteMaxPixelsPerEdge, const floa
 	const float LODScaleHW = ViewToPixels / MinPixelsPerEdgeHW;
 
 	LODScales = FVector2f(LODScale, LODScaleHW);
-}
-
-FMatrix44f FPackedView::CalcTranslatedWorldToSubpixelClip(const FMatrix44f& TranslatedWorldToClip, const FIntRect& ViewRect)
-{
-	const FVector2f SubpixelScale = FVector2f(0.5f * ViewRect.Width() * NANITE_SUBPIXEL_SAMPLES,
-		-0.5f * ViewRect.Height() * NANITE_SUBPIXEL_SAMPLES);
-
-	const FVector2f SubpixelOffset = FVector2f((0.5f * ViewRect.Width() + ViewRect.Min.X) * NANITE_SUBPIXEL_SAMPLES,
-		(0.5f * ViewRect.Height() + ViewRect.Min.Y) * NANITE_SUBPIXEL_SAMPLES);
-
-	return TranslatedWorldToClip * FScaleMatrix44f(FVector3f(SubpixelScale, 1.0f))* FTranslationMatrix44f(FVector3f(SubpixelOffset, 0.0f));
 }
 
 
@@ -101,7 +106,6 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	FPackedView PackedView;
 	PackedView.TranslatedWorldToView		= FMatrix44f(Params.ViewMatrices.GetOverriddenTranslatedViewMatrix());	// LWC_TODO: Precision loss? (and below)
 	PackedView.TranslatedWorldToClip		= FMatrix44f(Params.ViewMatrices.GetTranslatedViewProjectionMatrix());
-	PackedView.TranslatedWorldToSubpixelClip= FPackedView::CalcTranslatedWorldToSubpixelClip(PackedView.TranslatedWorldToClip, Params.ViewRect);
 	PackedView.ViewToClip					= RelativeMatrices.ViewToClip;
 	PackedView.ClipToRelativeWorld			= RelativeMatrices.ClipToRelativeWorld;
 	PackedView.RelativePreViewTranslation	= FVector3f(Params.ViewMatrices.GetPreViewTranslation() + ViewTileOffset);
@@ -259,6 +263,9 @@ void FGlobalResources::ReleaseRHI()
 
 		PickingBuffers.Reset();
 
+		SplitWorkQueueBuffer.SafeRelease();
+		OccludedPatchesBuffer.SafeRelease();
+
 		MainPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
 		PostPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
 
@@ -302,6 +309,16 @@ uint32 FGlobalResources::GetMaxVisibleClusters()
 uint32 FGlobalResources::GetMaxNodes()
 {
 	return GNaniteMaxNodes & -NANITE_MAX_BVH_NODES_PER_GROUP;
+}
+
+uint32 FGlobalResources::GetMaxCandidatePatches()
+{
+	return GNaniteMaxCandidatePatches;
+}
+
+uint32 FGlobalResources::GetMaxVisiblePatches()
+{
+	return GNaniteMaxVisiblePatches;
 }
 
 TGlobalResource< FGlobalResources > GGlobalResources;

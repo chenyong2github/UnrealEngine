@@ -33,7 +33,6 @@ struct FPackedView
 
 	FMatrix44f	TranslatedWorldToView;
 	FMatrix44f	TranslatedWorldToClip;
-	FMatrix44f	TranslatedWorldToSubpixelClip;
 	FMatrix44f	ViewToClip;
 	FMatrix44f	ClipToRelativeWorld;
 
@@ -75,12 +74,6 @@ struct FPackedView
 	 * Note: depends on the global 'GNaniteMaxPixelsPerEdge'.
 	 */
 	void UpdateLODScales(const float NaniteMaxPixelsPerEdge, const float MinPixelsPerEdgeHW);
-
-
-	/**
-	 * Helper to compute the derived subpixel transform.
-	 */
-	static FMatrix44f CalcTranslatedWorldToSubpixelClip(const FMatrix44f& TranslatedWorldToClip, const FIntRect& ViewRect);
 };
 
 class FPackedViewArray
@@ -228,6 +221,11 @@ public:
 	int32 PickingBufferNumPending = 0;
 	TArray<FRHIGPUBufferReadback*> PickingBuffers;
 
+	TRefCountPtr<FRDGPooledBuffer>	SplitWorkQueueBuffer;
+	TRefCountPtr<FRDGPooledBuffer>	OccludedPatchesBuffer;
+
+	FNodesAndClusterBatchesBuffer	MainAndPostNodesAndClusterBatchesBuffer;
+
 public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -238,11 +236,11 @@ public:
 	static uint32 GetMaxClusterBatches();
 	static uint32 GetMaxVisibleClusters();
 	static uint32 GetMaxNodes();
+	static uint32 GetMaxCandidatePatches();
+	static uint32 GetMaxVisiblePatches();
 
 	inline PassBuffers& GetMainPassBuffers() { return MainPassBuffers; }
 	inline PassBuffers& GetPostPassBuffers() { return PostPassBuffers; }
-
-	FNodesAndClusterBatchesBuffer& GetMainAndPostNodesAndClusterBatchesBuffer() { return MainAndPostNodesAndClusterBatchesBuffer; };
 
 	TRefCountPtr<FRDGPooledBuffer>& GetStatsBufferRef() { return StatsBuffer; }
 	TRefCountPtr<FRDGPooledBuffer>& GetShadingBinMetaBufferRef() { return ShadingBinMetaBuffer; }
@@ -253,8 +251,6 @@ public:
 private:
 	PassBuffers MainPassBuffers;
 	PassBuffers PostPassBuffers;
-
-	FNodesAndClusterBatchesBuffer MainAndPostNodesAndClusterBatchesBuffer;
 
 	// Used for statistics
 	TRefCountPtr<FRDGPooledBuffer> StatsBuffer;

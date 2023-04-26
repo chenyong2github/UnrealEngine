@@ -1933,8 +1933,6 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 
 				MipView.UpdateLODScales(NaniteMaxPixelsPerEdge, NaniteMinPixelsPerEdgeHW);
 				MipView.LODScales.X *= LODScaleFactor;
-
-				MipView.TranslatedWorldToSubpixelClip = Nanite::FPackedView::CalcTranslatedWorldToSubpixelClip(MipView.TranslatedWorldToClip, FIntRect(ViewMin.X, ViewMin.Y, ViewMin.X + ViewSize.X, ViewMin.Y + ViewSize.Y));
 			}
 
 			MipView.HZBTestViewRect = MipView.ViewRect;	// Assumed to always be the same for VSM
@@ -2503,6 +2501,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 		CullingConfig.bUpdateStreaming = bUpdateNaniteStreaming;
 		CullingConfig.bTwoPassOcclusion = UseTwoPassHzbOcclusion();
 		CullingConfig.bProgrammableRaster = bNaniteProgrammableRaster;
+		CullingConfig.bExtractStats = Nanite::IsStatFilterActive(VirtualFilterName);
 		CullingConfig.SetViewFlags(SceneView);
 
 		auto NaniteRenderer = Nanite::IRenderer::Create(
@@ -2522,14 +2521,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 			//CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_WRITE_STATS;	FIXME
 		}
 
-		const bool bExtractStats = Nanite::IsStatFilterActive(VirtualFilterName);
-
 		NaniteRenderer->DrawGeometry(
 			Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 			VisibilityResults,
-			*VirtualShadowViews,
-			/*OptionalInstanceDraws*/ nullptr,
-			bExtractStats
+			*VirtualShadowViews
 		);
 
 		if (bCsvLogEnabled)

@@ -137,6 +137,7 @@ struct FConfiguration
 	uint32 bEditorShowFlag : 1;
 	uint32 bGameShowFlag : 1;
 	uint32 bProgrammableRaster : 1;
+	uint32 bExtractStats : 1;
 
 	void SetViewFlags(const FViewInfo& View);
 };
@@ -162,8 +163,7 @@ public:
 		FNaniteRasterPipelines& RasterPipelines,
 		const FNaniteVisibilityResults& VisibilityResults,
 		const FPackedViewArray& ViewArray,
-		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws = nullptr,
-		bool bExtractStats = false ) = 0;
+		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws = nullptr ) = 0;
 
 	virtual void ExtractResults( FRasterResults& RasterResults ) = 0;
 };

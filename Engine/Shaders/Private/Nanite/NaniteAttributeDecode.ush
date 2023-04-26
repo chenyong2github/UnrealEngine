@@ -105,14 +105,14 @@ struct FBarycentrics
 };
 
 /** Calculates perspective correct barycentric coordinates and partial derivatives using screen derivatives. */
-FBarycentrics CalculateTriangleBarycentrics(float2 Subpixel, float4 PointSubpixelClip0, float4 PointSubpixelClip1, float4 PointSubpixelClip2)
+FBarycentrics CalculateTriangleBarycentrics(float2 PixelClip, float4 PointClip0, float4 PointClip1, float4 PointClip2, float2 ViewInvSize)
 {
 	FBarycentrics Result;
 
-	const float3 RcpW = rcp(float3(PointSubpixelClip0.w, PointSubpixelClip1.w, PointSubpixelClip2.w));
-	const float3 Pos0 = PointSubpixelClip0.xyz * RcpW.x;
-	const float3 Pos1 = PointSubpixelClip1.xyz * RcpW.y;
-	const float3 Pos2 = PointSubpixelClip2.xyz * RcpW.z;
+	const float3 RcpW = rcp(float3(PointClip0.w, PointClip1.w, PointClip2.w));
+	const float3 Pos0 = PointClip0.xyz * RcpW.x;
+	const float3 Pos1 = PointClip1.xyz * RcpW.y;
+	const float3 Pos2 = PointClip2.xyz * RcpW.z;
 
 	const float3 Pos120X = float3(Pos1.x, Pos2.x, Pos0.x);
 	const float3 Pos120Y = float3(Pos1.y, Pos2.y, Pos0.y);
@@ -122,7 +122,7 @@ FBarycentrics CalculateTriangleBarycentrics(float2 Subpixel, float4 PointSubpixe
 	const float3 C_dx = Pos201Y - Pos120Y;
 	const float3 C_dy = Pos120X - Pos201X;
 
-	const float3 C = C_dx * (Subpixel.x - Pos120X) + C_dy * (Subpixel.y - Pos120Y);	// Evaluate the 3 edge functions
+	const float3 C = C_dx * (PixelClip.x - Pos120X) + C_dy * (PixelClip.y - Pos120Y);	// Evaluate the 3 edge functions
 	const float3 G = C * RcpW;
 
 	const float H = dot(C, RcpW);
@@ -142,8 +142,8 @@ FBarycentrics CalculateTriangleBarycentrics(float2 Subpixel, float4 PointSubpixe
 	const float H_dx = dot(C_dx, RcpW);
 	const float H_dy = dot(C_dy, RcpW);
 
-	Result.UVW_dx = (G_dx * H - G * H_dx) * (RcpH * RcpH) * NANITE_SUBPIXEL_SAMPLES;
-	Result.UVW_dy = (G_dy * H - G * H_dy) * (RcpH * RcpH) * NANITE_SUBPIXEL_SAMPLES;
+	Result.UVW_dx = (G_dx * H - G * H_dx) * (RcpH * RcpH) * ( 2.0f * ViewInvSize.x);
+	Result.UVW_dy = (G_dy * H - G * H_dy) * (RcpH * RcpH) * (-2.0f * ViewInvSize.y);
 
 	return Result;
 }
@@ -166,15 +166,16 @@ float3 ClosestPointBarycentrics( float3 p, float3 v0, float3 v1, float3 v2 )
 	return UVW;
 }
 
-void CalculateTriangleBarycentrics(
+FBarycentrics CalculateTriangleBarycentrics(
 	float3 PositionPixel,
+	float3 PositionPixelX,
+	float3 PositionPixelY,
 	float3 Position0,
 	float3 Position1,
 	float3 Position2,
 	float3 Normal0,
 	float3 Normal1,
-	float3 Normal2,
-	inout FBarycentrics Barycentrics )
+	float3 Normal2 )
 {
 	/*
 		Displacement mapping
@@ -212,15 +213,11 @@ void CalculateTriangleBarycentrics(
 		Position2 += Normal2 * Displace;
 	}
 
-	Barycentrics.UVW = ClosestPointBarycentrics( PositionPixel, Position0, Position1, Position2 );
-
-	// TODO this is hacky but works well enough for now.
-	float3 dUVW_dx = ddx( Barycentrics.UVW );
-	float3 dUVW_dy = ddy( Barycentrics.UVW );
-	if( length2( dUVW_dx ) < length2( Barycentrics.UVW_dx ) )
-		Barycentrics.UVW_dx = dUVW_dx;
-	if( length2( dUVW_dy ) < length2( Barycentrics.UVW_dy ) )
-		Barycentrics.UVW_dy = dUVW_dy;
+	FBarycentrics Barycentrics;
+	Barycentrics.UVW	= ClosestPointBarycentrics( PositionPixel,  Position0, Position1, Position2 );
+	Barycentrics.UVW_dx = ClosestPointBarycentrics( PositionPixelX, Position0, Position1, Position2 ) - Barycentrics.UVW;
+	Barycentrics.UVW_dy = ClosestPointBarycentrics( PositionPixelY, Position0, Position1, Position2 ) - Barycentrics.UVW;
+	return Barycentrics;
 }
 
 uint CalculateMaxAttributeBits(uint NumTexCoordInterpolators)

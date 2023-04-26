@@ -1450,6 +1450,12 @@ static void RenderShadowDepthAtlasNanite(
 		CullingConfig.bProgrammableRaster		= GNaniteProgrammableRasterShadows != 0;
 		CullingConfig.SetViewFlags(SceneView);
 
+		if (GNaniteShowStats != 0)
+		{
+			FString AtlasFilterName = FString::Printf(TEXT("ShadowAtlas%d"), AtlasIndex);
+			CullingConfig.bExtractStats = Nanite::IsStatFilterActive(AtlasFilterName);
+		}
+
 		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, ViewFamily, AtlasSize, FullAtlasViewRect, false, Nanite::EOutputBufferMode::DepthOnly);
 
 		TUniquePtr< Nanite::IRenderer > NaniteRenderer = Nanite::IRenderer::Create(
@@ -1463,22 +1469,13 @@ static void RenderShadowDepthAtlasNanite(
 			PrevAtlasHZB
 		);
 
-		bool bExtractStats = false;
-		if (GNaniteShowStats != 0)
-		{
-			FString AtlasFilterName = FString::Printf(TEXT("ShadowAtlas%d"), AtlasIndex);
-			bExtractStats = Nanite::IsStatFilterActive(AtlasFilterName);
-		}
-
 		{
 			FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
 
 			NaniteRenderer->DrawGeometry(
 				Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 				VisibilityResults,
-				*PackedViews,
-				nullptr,	// InstanceDraws
-				bExtractStats
+				*PackedViews
 			);
 		}
 
@@ -1780,6 +1777,15 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					CullingConfig.bProgrammableRaster		= GNaniteProgrammableRasterShadows != 0;
 					CullingConfig.SetViewFlags(SceneView);
 
+					FString CubeFaceFilterName;
+					if (GNaniteShowStats != 0)
+					{
+						CubeFaceFilterName = CubeFilterName;
+						CubeFaceFilterName.AppendInt(CubemapFaceIndex);
+
+						CullingConfig.bExtractStats = Nanite::IsStatFilterActive(CubeFaceFilterName);
+					}
+
 					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, ViewFamily, TargetSize, ShadowViewRect, false, Nanite::EOutputBufferMode::DepthOnly);
 
 					auto NaniteRenderer = Nanite::IRenderer::Create(
@@ -1816,21 +1822,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						PackedViews = Nanite::FPackedViewArray::Create(GraphBuilder, Nanite::CreatePackedView(Params));
 					}
 
-					FString CubeFaceFilterName;
-					if (GNaniteShowStats != 0)
-					{
-						CubeFaceFilterName = CubeFilterName;
-						CubeFaceFilterName.AppendInt(CubemapFaceIndex);
-					}
-
-					const bool bExtractStats = Nanite::IsStatFilterActive(CubeFaceFilterName);
-
 					NaniteRenderer->DrawGeometry(
 						Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 						VisibilityResults,
-						*PackedViews,
-						/*OptionalInstanceDraws*/ nullptr,
-						bExtractStats
+						*PackedViews
 					);
 
 					Nanite::EmitCubemapShadow(
