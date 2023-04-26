@@ -5,11 +5,15 @@
 #include "EditorWidgetsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "MaterialEditor.h"
+#include "StrataDefinitions.h"
+#include <functional>
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SWrapBox.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Notifications/SErrorText.h"
 
 #define LOCTEXT_NAMESPACE "SMaterialEditorStrataWidget"
 
@@ -28,55 +32,102 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 		.Padding(5.0f)
 		.ToolTipText(LOCTEXT("CheckBoxForceFullSimplificationToolTip", "This will force full simplification of the material."));	// Just a test, needs to be more explicit
 
+	DescriptionTextBlock = SNew(STextBlock)
+		.TextStyle(FAppStyle::Get(), "Log.Normal")
+		.ColorAndOpacity(FLinearColor::White)
+		.ShadowColorAndOpacity(FLinearColor::Black)
+		.ShadowOffset(FVector2D::UnitVector)
+		.Text(LOCTEXT("DescriptionTextBlock_Default", "Shader is compiling"));
+
 	if (Strata::IsStrataEnabled())
 	{
 		this->ChildSlot
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
-			.AutoHeight()
+			//.AutoHeight()			// Cannot use that otherwise scrollbars disapear.
 			.Padding(0.0f, 5.0f, 0.0f, 0.0f)
 			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
+				SNew(SScrollBox)
+				.Orientation(Orient_Vertical)
+				.ScrollBarAlwaysVisible(false)
+				+ SScrollBox::Slot()
 				[
-					SNew(SWrapBox)
-					.UseAllottedSize(true)
-					+SWrapBox::Slot()
-					.Padding(5.0f)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
+					SNew(SVerticalBox)
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.0f, 5.0f, 0.0f, 0.0f)
 					[
-						CheckBoxForceFullSimplification->AsShared()
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						[
+							SNew(SWrapBox)
+							.UseAllottedSize(true)
+							+SWrapBox::Slot()
+							.Padding(5.0f)
+							.HAlign(HAlign_Center)
+							.VAlign(VAlign_Center)
+							[
+								CheckBoxForceFullSimplification->AsShared()
+							]
+						]
+						+SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.Padding(16.0f, 0.0f)
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.ColorAndOpacity(FLinearColor::White)
+							.ShadowColorAndOpacity(FLinearColor::Black)
+							.ShadowOffset(FVector2D::UnitVector)
+							.Text(LOCTEXT("FullsimplificationLabel", "Full simplification"))
+						]
 					]
-				]
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.Padding(16.0f, 0.0f)
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.ColorAndOpacity(FLinearColor::White)
-					.ShadowColorAndOpacity(FLinearColor::Black)
-					.ShadowOffset(FVector2D::UnitVector)
-					.Text(LOCTEXT("FullsimplificationLabel", "Full simplification"))
-				]
-			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 5.0f, 0.0f, 0.0f)
-			[
-				SNew(SWrapBox)
-				.UseAllottedSize(true)
-				+SWrapBox::Slot()
-				.Padding(5.0f)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					ButtonApplyToPreview->AsShared()
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.0f, 5.0f, 0.0f, 0.0f)
+					[
+						SNew(SWrapBox)
+						.UseAllottedSize(true)
+						+SWrapBox::Slot()
+						.Padding(5.0f)
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						[
+							ButtonApplyToPreview->AsShared()
+						]
+					]
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.0f, 5.0f, 0.0f, 0.0f)
+					[
+						SNew(SWrapBox)
+						.UseAllottedSize(true)
+						+ SWrapBox::Slot()
+						.Padding(5.0f)
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						[
+							SAssignNew(MaterialBox, SBox)
+						]
+					]
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(0.0f, 5.0f, 0.0f, 0.0f)
+					[
+						SNew(SWrapBox)
+						.UseAllottedSize(true)
+						+SWrapBox::Slot()
+						.Padding(5.0f)
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						[
+							DescriptionTextBlock->AsShared()
+						]
+					]
 				]
 			]
 		];
@@ -119,6 +170,192 @@ SMaterialEditorStrataWidget::~SMaterialEditorStrataWidget()
 
 void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	if (!bUpdateRequested || !Strata::IsStrataEnabled())
+	{
+		return;
+	}
+	bUpdateRequested = false;
+
+	FText StrataMaterialDescription;
+	if (MaterialEditorPtr.IsValid())
+	{
+		auto MaterialEditor = MaterialEditorPtr.Pin();
+
+		UMaterial* MaterialForStats = MaterialEditor->bStatsFromPreviewMaterial ? MaterialEditor->Material : MaterialEditor->OriginalMaterial;
+
+		StrataMaterialDescription = FText::FromString(FString(TEXT("StrataMaterialDescription")));
+
+		const FMaterialResource* MaterialResource = MaterialForStats->GetMaterialResource(GMaxRHIFeatureLevel);
+		if (MaterialResource)
+		{
+			FString MaterialDescription;
+
+			FMaterialShaderMap* ShaderMap = MaterialResource->GetGameThreadShaderMap();
+			if (ShaderMap)
+			{
+				const FStrataMaterialCompilationOutput& CompilationOutput = ShaderMap->GetStrataMaterialCompilationOutput();
+				const uint32 FinalPixelByteCount = CompilationOutput.StrataUintPerPixel * sizeof(uint32);
+
+				if (CompilationOutput.bMaterialOutOfBudgetHasBeenSimplified)
+				{
+					MaterialDescription += FString::Printf(TEXT("The material was OUT-OF-BUDGET so it has been fully simplified: request bytes = %i / budget = %i\r\n"),
+						CompilationOutput.RequestedBytePixePixel, CompilationOutput.PlatformBytePixePixel);
+					MaterialDescription += FString::Printf(TEXT("Final per pixel byte count   = %i\r\n"),
+						FinalPixelByteCount);
+				}
+				else
+				{
+					MaterialDescription += FString::Printf(TEXT("Material per pixel byte count= %i / budget = %i\r\n"),
+						FinalPixelByteCount, CompilationOutput.PlatformBytePixePixel);
+				}
+				MaterialDescription += FString::Printf(TEXT("BSDF Count	                  = %i\r\n"), CompilationOutput.StrataBSDFCount);
+				MaterialDescription += FString::Printf(TEXT("Local bases Count            = %i\r\n"), CompilationOutput.SharedLocalBasesCount);
+
+				switch (CompilationOutput.StrataMaterialType)
+				{
+				case 0:
+					MaterialDescription += FString::Printf(TEXT("Material complexity          = SIMPLE (diffuse, albedo, roughness)\r\n"));
+					break;
+				case 1:
+					MaterialDescription += FString::Printf(TEXT("Material complexity          = SINGLE (BSDF all features except anisotropy)\r\n"));
+					break;
+				case 2:
+					MaterialDescription += FString::Printf(TEXT("Material complexity          = COMPLEX\r\n"));
+					break;
+				default:
+					MaterialDescription += FString::Printf(TEXT("Material complexity          = UNKOWN => ERROR!\r\n"));
+				}
+
+				MaterialDescription += FString::Printf(TEXT(" \r\n"));
+				MaterialDescription += FString::Printf(TEXT(" \r\n"));
+				MaterialDescription += FString::Printf(TEXT("================================================================================\r\n"));
+				MaterialDescription += FString::Printf(TEXT("================================Detailed Output=================================\r\n"));
+				MaterialDescription += FString::Printf(TEXT("================================================================================\r\n"));
+				MaterialDescription += CompilationOutput.StrataMaterialDescription;
+
+				// Now generate a visual representation of the material from the topology tree of operators.
+				{
+					if (CompilationOutput.RootOperatorIndex >= 0)
+					{
+						std::function<const TSharedRef<SWidget>(const FStrataOperator&)> ProcessOperator = [&](const FStrataOperator& Op) -> const TSharedRef<SWidget>
+						{
+							switch (Op.OperatorType)
+							{
+							case STRATA_OPERATOR_WEIGHT:
+								return ProcessOperator(CompilationOutput.Operators[Op.LeftIndex]);
+								break;
+							case STRATA_OPERATOR_VERTICAL:
+							{
+								auto VerticalOperator = SNew(SVerticalBox)
+									+SVerticalBox::Slot()
+									.AutoHeight()
+									.VAlign(VAlign_Fill)
+									.HAlign(HAlign_Fill)
+									.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+									[
+										ProcessOperator(CompilationOutput.Operators[Op.LeftIndex])
+									]
+									+ SVerticalBox::Slot()
+									.AutoHeight()
+									.VAlign(VAlign_Fill)
+									.HAlign(HAlign_Fill)
+									.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+									[
+										ProcessOperator(CompilationOutput.Operators[Op.RightIndex])
+									];
+								return VerticalOperator->AsShared();
+							}
+							break;
+							case STRATA_OPERATOR_HORIZONTAL:
+							{
+								auto HorizontalOperator = SNew(SHorizontalBox)
+									+SHorizontalBox::Slot()
+									.AutoWidth()
+									.VAlign(VAlign_Fill)
+									.HAlign(HAlign_Fill)
+									[
+										ProcessOperator(CompilationOutput.Operators[Op.LeftIndex])
+									]
+									+SHorizontalBox::Slot()
+									.AutoWidth()
+									.VAlign(VAlign_Fill)
+									.HAlign(HAlign_Fill)
+									[
+										ProcessOperator(CompilationOutput.Operators[Op.RightIndex])
+									];
+								return HorizontalOperator->AsShared();
+							}
+							break;
+							case STRATA_OPERATOR_ADD:
+							{
+								auto HorizontalOperator = SNew(SHorizontalBox)
+									+SHorizontalBox::Slot()
+									.AutoWidth()
+									.VAlign(VAlign_Fill)
+									.HAlign(HAlign_Fill)
+									[
+										ProcessOperator(CompilationOutput.Operators[Op.LeftIndex])
+									]
+									+SHorizontalBox::Slot()
+									.AutoWidth()
+									.VAlign(VAlign_Fill)
+									.HAlign(HAlign_Fill)
+									[
+										ProcessOperator(CompilationOutput.Operators[Op.RightIndex])
+									];
+								return HorizontalOperator->AsShared();
+							}
+							break;
+							case STRATA_OPERATOR_BSDF:
+							{
+								auto BSDF = SNew(SErrorText)
+									.ErrorText(LOCTEXT("BSDF", "BSDF"))
+									.BackgroundColor(FSlateColor(EStyleColor::AccentGreen))
+									.ToolTipText(LOCTEXT("BSDFtooltip", "BSDF tool tip"));
+								return BSDF->AsShared();
+							}
+							break;
+							case STRATA_OPERATOR_BSDF_LEGACY:
+							{
+								auto BSDF = SNew(SErrorText)
+									.ErrorText(LOCTEXT("LegacyBSDF", "LegacyBSDF"))
+									.BackgroundColor(FSlateColor(EStyleColor::AccentBlue))
+									.ToolTipText(LOCTEXT("LegacyBSDFtooltip", "LegacyBSDF tool tip"));
+								return BSDF->AsShared();
+							}
+							break;
+							}
+
+							auto TreeOperatorError = SNew(SErrorText)
+								.ErrorText(LOCTEXT("TreeOperatorError", "Tree Operator Error"))
+								.BackgroundColor(FSlateColor(EStyleColor::AccentRed));
+							return TreeOperatorError->AsShared();
+						};
+
+						const FStrataOperator& RootOperator = CompilationOutput.Operators[CompilationOutput.RootOperatorIndex];
+						MaterialBox->SetContent(ProcessOperator(RootOperator));
+					}
+					else
+					{
+						// The tree does not looks sane so generate a visual error without crashing.
+						auto TreeError = SNew(SErrorText)
+							.ErrorText(LOCTEXT("TreeError", "Tree Error"))
+							.BackgroundColor(FSlateColor(EStyleColor::AccentRed));
+
+						const TSharedRef<SWidget>& TreeErrorAsShared = TreeError->AsShared();
+						MaterialBox->SetContent(TreeErrorAsShared);
+					}
+				}
+			}
+			else
+			{
+				MaterialDescription = TEXT("Shader map not found.");
+				MaterialBox->SetContent(SNullWidget::NullWidget);
+			}
+
+			DescriptionTextBlock->SetText(FText::FromString(MaterialDescription));
+		}
+	}
 }
 
 FReply SMaterialEditorStrataWidget::OnButtonApplyToPreview()

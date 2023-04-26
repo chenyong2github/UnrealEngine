@@ -68,6 +68,8 @@ struct FGraphAppearanceInfo
 	FText ReadOnlyText;
 	/** Text to display if the graph is empty (to guide the user on what to do) */
 	FText InstructionText;
+	/** Bottom left warning text used for instance by Substrate */
+	FText WarningText;
 	/** Allows graphs to nicely fade instruction text (or completely hide it). */
 	TAttribute<float> InstructionFade;
 };

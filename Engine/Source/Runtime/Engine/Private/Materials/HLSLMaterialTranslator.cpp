@@ -1848,7 +1848,7 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 			else
 			{
-				MaterialCompilationOutput.StrataMaterialDescription = "";
+				MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataMaterialDescription = "";
 				ResourcesString += "// No Strata material provided\r\n";
 
 				// Adde default strata functions
@@ -2304,7 +2304,8 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 			uint8 RequestedSharedLocalBasesCount = 0;
 			StrataCtx.StrataEvaluateSharedLocalBases(this, RequestedSharedLocalBasesCount, &OutEnvironment);
 
-			// Now write some feedback to the user
+#if WITH_EDITOR
+			// Now write some feedback to the user, but only produce debug string if in editor
 			{
 				// Output some debug info as comment in code and in the material stat window
 				const uint32 StrataBytePerPixel = Strata::GetBytePerPixel(InPlatform);
@@ -2383,9 +2384,15 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 				ResourcesString += TEXT("*/");
 
 				StrataMaterialDescription += StrataMaterialContextDescription;
+
+				if (StrataCompilationContextIndex == EStrataCompilationContext::SCC_Default)
+				{
+					MaterialCompilationOutput.StrataMaterialCompilationOutput.SharedLocalBasesCount = StrataCtx.FinalUsedSharedLocalBasesCount;
+				}
 			}
+#endif // WITH_EDITOR
 		}
-		MaterialCompilationOutput.StrataMaterialDescription = StrataMaterialDescription;
+		MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataMaterialDescription = StrataMaterialDescription;
 	}
 
 	OutEnvironment.SetDefine(TEXT("TEXTURE_SAMPLE_DEBUG"), IsDebugTextureSampleEnabled() ? TEXT("1") : TEXT("0"));
@@ -11763,9 +11770,28 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 			if (CompilationContextIndex == EStrataCompilationContext::SCC_Default)
 			{
 				// Only write those data for the default material
-				Compiler->MaterialCompilationOutput.StrataMaterialType = bStrataMaterialIsSimple ? 0 : bStrataMaterialIsSingle ? 1 : 2;
-				Compiler->MaterialCompilationOutput.StrataBSDFCount = StrataMaterialBSDFCount;
-				Compiler->MaterialCompilationOutput.StrataUintPerPixel = uint8(FMath::Clamp(RequestedSizeInUint, 0u, 0xFF));
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataMaterialType = bStrataMaterialIsSimple ? 0 : bStrataMaterialIsSingle ? 1 : 2;
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataBSDFCount = StrataMaterialBSDFCount;
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataUintPerPixel = uint8(FMath::Clamp(RequestedSizeInUint, 0u, 0xFF));
+
+#if WITH_EDITOR
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.SharedLocalBasesCount = 0; // FinalUsedSharedLocalBasesCount is not valid yet
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.RequestedBytePixePixel = StrataMaterialRequestedSizeByte;
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.PlatformBytePixePixel = StrataBytePerPixel;
+
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.bMaterialOutOfBudgetHasBeenSimplified |= !StrataSimplificationStatus.bMaterialFitsInMemoryBudget;
+
+				if (OperatorCount <= STRATA_COMPILATION_OUTPUT_MAX_OPERATOR)
+				{
+					int32 OperatorIndex = 0;
+					for (auto& It : StrataMaterialExpressionRegisteredOperators)
+					{
+						Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.Operators[OperatorIndex] = StrataMaterialExpressionRegisteredOperators[OperatorIndex];
+						OperatorIndex++;
+					}
+				}
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.RootOperatorIndex = RootIndex;
+#endif // EDITOR_ONLY
 			}
 		}
 	}

@@ -19,7 +19,7 @@ const FName FMaterialEditorApplicationModes::StandardMaterialEditorMode(TEXT("Gr
 
 TSharedPtr<FTabManager::FLayout> FMaterialEditorApplicationModes::GetDefaultEditorLayout(TSharedPtr<FMaterialEditor> InMaterialEditor)
 {
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MaterialEditor_Layout_v13")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MaterialEditor_Layout_v14")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea() ->SetOrientation(Orient_Vertical)
@@ -64,6 +64,7 @@ TSharedPtr<FTabManager::FLayout> FMaterialEditorApplicationModes::GetDefaultEdit
 					->AddTab( FMaterialStats::GetGridStatsTabName(), ETabState::ClosedTab )
 					->AddTab( FMaterialStats::GetGridOldStatsTabName(), ETabState::ClosedTab )
 					->AddTab( FMaterialEditorTabs::FindTabId, ETabState::ClosedTab )
+					->AddTab( FMaterialEditorTabs::StrataTabId, ETabState::OpenedTab )
 				)
 			)
 			->Split
@@ -73,7 +74,6 @@ TSharedPtr<FTabManager::FLayout> FMaterialEditorApplicationModes::GetDefaultEdit
 				(
 					FTabManager::NewStack()
 					->AddTab( FMaterialEditorTabs::PaletteTabId, ETabState::SidebarTab, ESidebarLocation::Right, 0.14f )
-					->AddTab( FMaterialEditorTabs::StrataTabId,  ETabState::SidebarTab, ESidebarLocation::Right, 0.14f)
 				)
 			)
 		)

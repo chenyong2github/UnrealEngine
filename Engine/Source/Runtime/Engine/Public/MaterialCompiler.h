@@ -77,107 +77,6 @@ enum EStrataMaterialExportContext : uint8
 	SMEC_Translucent = 1
 };
 
-struct FStrataRegisteredSharedLocalBasis
-{
-	int32 NormalCodeChunk;
-	int32 TangentCodeChunk;
-	uint64 NormalCodeChunkHash;
-	uint64 TangentCodeChunkHash;
-	uint8 GraphSharedLocalBasisIndex;
-
-	FStrataRegisteredSharedLocalBasis()
-	{
-		NormalCodeChunk = INDEX_NONE;
-		TangentCodeChunk = INDEX_NONE;
-		NormalCodeChunkHash = 0;
-		TangentCodeChunkHash = 0;
-		GraphSharedLocalBasisIndex = 0;
-	}
-};
-
-struct FStrataOperator
-{
-	int32 OperatorType;
-	bool bNodeRequestParameterBlending;
-
-	int32 Index;			// Index into the array of operators
-	int32 ParentIndex;		// Parent operator index
-	int32 LeftIndex;		// Left child operator index
-	int32 RightIndex;		// Right child operator index
-	int32 ThicknessIndex;	// Thickness expression index
-
-	// Data used for BSDF type nodes only
-	int32 BSDFIndex;		// Index in the array of BSDF if a BSDF operator
-	uint8 BSDFType;
-	FStrataRegisteredSharedLocalBasis BSDFRegisteredSharedLocalBasis;
-	bool  bBSDFHasSSS;
-	bool  bBSDFHasMFPPluggedIn;
-	bool  bBSDFHasEdgeColor;
-	bool  bBSDFHasFuzz;
-	bool  bBSDFHasSecondRoughnessOrSimpleClearCoat;
-	bool  bBSDFHasAnisotropy;
-
-	// Data derived after the tree has been built.
-	int32 MaxDistanceFromLeaves;
-	int32 LayerDepth;
-	bool bIsTop;
-	bool bIsBottom;
-	bool bUseParameterBlending;				// True when part of a sub tree where parameter blending is in use
-	bool bRootOfParameterBlendingSubTree;	// True when the root of a sub tree where parameter blending is in use. Only this node will register a BSDF
-
-	FStrataOperator()
-	{
-		OperatorType = INDEX_NONE;
-		bNodeRequestParameterBlending = false;
-		Index = INDEX_NONE;
-		ParentIndex = INDEX_NONE;
-		LeftIndex = INDEX_NONE;
-		RightIndex = INDEX_NONE;
-		ThicknessIndex = INDEX_NONE;
-
-		BSDFIndex = INDEX_NONE;
-		BSDFType = 0;
-		bBSDFHasSSS = false;
-		bBSDFHasMFPPluggedIn = false;
-		bBSDFHasEdgeColor = false;
-		bBSDFHasFuzz = false;
-		bBSDFHasSecondRoughnessOrSimpleClearCoat = false;
-		bBSDFHasAnisotropy = false;
-
-		MaxDistanceFromLeaves = 0;
-		LayerDepth = 0;
-		bIsTop = false;
-		bIsBottom = false;
-		bUseParameterBlending = false;
-		bRootOfParameterBlendingSubTree = false;
-	}
-
-	void CombineFlagsForParameterBlending(FStrataOperator& A, FStrataOperator& B)
-	{
-		bBSDFHasSSS = A.bBSDFHasSSS || B.bBSDFHasSSS;
-		bBSDFHasMFPPluggedIn = A.bBSDFHasMFPPluggedIn || B.bBSDFHasMFPPluggedIn;
-		bBSDFHasEdgeColor = A.bBSDFHasEdgeColor || B.bBSDFHasEdgeColor;
-		bBSDFHasFuzz = A.bBSDFHasFuzz || B.bBSDFHasFuzz;
-		bBSDFHasSecondRoughnessOrSimpleClearCoat = A.bBSDFHasSecondRoughnessOrSimpleClearCoat || B.bBSDFHasSecondRoughnessOrSimpleClearCoat;
-		bBSDFHasAnisotropy = A.bBSDFHasAnisotropy || B.bBSDFHasAnisotropy;
-	}
-
-	void CopyFlagsForParameterBlending(FStrataOperator& A)
-	{
-		bBSDFHasSSS = A.bBSDFHasSSS;
-		bBSDFHasMFPPluggedIn = A.bBSDFHasMFPPluggedIn;
-		bBSDFHasEdgeColor = A.bBSDFHasEdgeColor;
-		bBSDFHasFuzz = A.bBSDFHasFuzz;
-		bBSDFHasSecondRoughnessOrSimpleClearCoat = A.bBSDFHasSecondRoughnessOrSimpleClearCoat;
-		bBSDFHasAnisotropy = A.bBSDFHasAnisotropy;
-	}
-
-	bool IsDiscarded() const
-	{
-		return bUseParameterBlending && !bRootOfParameterBlendingSubTree;
-	}
-};
-
 /** 
  * The interface used to translate material expressions into executable code. 
  * Note: Most member functions should be pure virtual to force a FProxyMaterialCompiler override!
@@ -758,7 +657,11 @@ public:
 protected:
 	FString GetStrataSharedLocalBasisIndexMacroInner(const FStrataRegisteredSharedLocalBasis& SharedLocalBasis, uint32 Mode)
 	{
+#if WITH_EDITOR
 		return FString::Printf(TEXT("SHAREDLOCALBASIS_INDEX_%u_%u"), SharedLocalBasis.GraphSharedLocalBasisIndex, Mode);
+#else
+		return TEXT("");
+#endif
 	}
 
 

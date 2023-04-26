@@ -37,6 +37,7 @@
 #include "ShaderCompilerCore.h"
 #include "PSOPrecache.h"
 #include "UObject/ObjectMacros.h"
+#include "Rendering/StrataMaterialShared.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHI.h"
@@ -673,8 +674,8 @@ public:
 		EstimatedNumVirtualTextureLookups(0),
 		NumUsedUVScalars(0),
 		NumUsedCustomInterpolatorScalars(0),
-		StrataMaterialDescription(),
 #endif
+		StrataMaterialCompilationOutput(),
 		UsedDBufferTextures(0),
 		RuntimeVirtualTextureOutputAttributeMask(0),
 		bNeedsSceneTextures(false),
@@ -690,9 +691,6 @@ public:
 		bUsesVertexInterpolator(false),
 		bHasRuntimeVirtualTextureOutputNode(false),
 		bUsesAnisotropy(false),
-		StrataMaterialType(0),
-		StrataBSDFCount(0),
-		StrataUintPerPixel(0),
 		bUsesDisplacement(false)
 	{}
 
@@ -759,7 +757,7 @@ public:
 	LAYOUT_FIELD_EDITORONLY(uint8, NumUsedCustomInterpolatorScalars);
 
 	/** The Strata material layout */
-	LAYOUT_FIELD_EDITORONLY(FMemoryImageString, StrataMaterialDescription);
+	LAYOUT_FIELD(FStrataMaterialCompilationOutput, StrataMaterialCompilationOutput);
 
 	/** Bitfield of used DBuffer textures . */
 	LAYOUT_FIELD(uint8, UsedDBufferTextures);
@@ -805,15 +803,6 @@ public:
 
 	/** true if the material uses non 0 anisotropy value */
 	LAYOUT_BITFIELD(uint8, bUsesAnisotropy, 1);
-
-	/** Strata material type, at compile time (0:simple, 1:single, 2: complex) */
-	LAYOUT_BITFIELD(uint8, StrataMaterialType, 2);
-
-	/** Strata BSDF count, at compile time (0-7) */
-	LAYOUT_BITFIELD(uint8, StrataBSDFCount, 3);
-
-	/** Strata uint per pixel, at compile time (0-7) */
-	LAYOUT_BITFIELD(uint8, StrataUintPerPixel, 8);
 	
 	/** Whether the material uses scalar displacement. */
 	LAYOUT_BITFIELD(uint8, bUsesDisplacement, 1);
@@ -1377,16 +1366,17 @@ public:
 	bool UsesVelocitySceneTexture() const { return GetContent()->MaterialCompilationOutput.UsesVelocitySceneTexture(); }
 	bool UsesDistanceCullFade() const { return GetContent()->MaterialCompilationOutput.bUsesDistanceCullFade; }
 	bool UsesAnisotropy() const { return GetContent()->MaterialCompilationOutput.bUsesAnisotropy; }
-	uint8 GetStrataMaterialType() const { return GetContent()->MaterialCompilationOutput.StrataMaterialType; }
-	uint8 GetStrataBSDFCount() const { return GetContent()->MaterialCompilationOutput.StrataBSDFCount; }
-	uint8 GetStrataUintPerPixel() const { return GetContent()->MaterialCompilationOutput.StrataUintPerPixel; }
+
+	const FStrataMaterialCompilationOutput& GetStrataMaterialCompilationOutput() const { return GetContent()->MaterialCompilationOutput.StrataMaterialCompilationOutput; }
+	uint8 GetStrataMaterialType() const { return GetStrataMaterialCompilationOutput().StrataMaterialType; }
+	uint8 GetStrataBSDFCount() const { return GetStrataMaterialCompilationOutput().StrataBSDFCount; }
+	uint8 GetStrataUintPerPixel() const { return GetStrataMaterialCompilationOutput().StrataUintPerPixel; }
 	
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return GetContent()->MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return GetContent()->MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
 	void GetEstimatedNumTextureSamples(uint32& VSSamples, uint32& PSSamples) const { VSSamples = GetContent()->MaterialCompilationOutput.EstimatedNumTextureSamplesVS; PSSamples = GetContent()->MaterialCompilationOutput.EstimatedNumTextureSamplesPS; }
 	uint32 GetEstimatedNumVirtualTextureLookups() const { return GetContent()->MaterialCompilationOutput.EstimatedNumVirtualTextureLookups; }
-	const FString GetStrataMaterialDescription() const { return GetContent()->MaterialCompilationOutput.StrataMaterialDescription; }
 #endif
 	uint32 GetNumVirtualTextureStacks() const { return GetContent()->MaterialCompilationOutput.UniformExpressionSet.VTStacks.Num(); }
 	uint8 GetRuntimeVirtualTextureOutputAttributeMask() const { return GetContent()->MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask; }

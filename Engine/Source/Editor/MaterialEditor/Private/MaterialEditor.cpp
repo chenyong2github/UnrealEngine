@@ -3025,7 +3025,7 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 
 				if (FMaterialShaderMap* ShaderMap = MaterialResource->GetGameThreadShaderMap())
 				{
-					const FString StrataMaterialDescription = ShaderMap->GetStrataMaterialDescription();
+					const FString StrataMaterialDescription = ShaderMap->GetStrataMaterialCompilationOutput().StrataMaterialDescription;
 
 					if (StrataMaterialDescription.Len())
 					{
@@ -7031,7 +7031,25 @@ FGraphAppearanceInfo FMaterialEditor::GetGraphAppearance() const
 	}
 	else
 	{
-		AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_Material", "MATERIAL");
+		AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_Material", "MATERIAL"); 
+	}
+
+	UMaterial* MaterialForStats = this->bStatsFromPreviewMaterial ? this->Material : this->OriginalMaterial;
+	const FMaterialResource* MaterialResource = MaterialForStats->GetMaterialResource(GMaxRHIFeatureLevel);
+	if (MaterialResource)
+	{
+		FString MaterialDescription;
+	
+		FMaterialShaderMap* ShaderMap = MaterialResource->GetGameThreadShaderMap();
+		if (ShaderMap)
+		{
+			const FStrataMaterialCompilationOutput& CompilationOutput = ShaderMap->GetStrataMaterialCompilationOutput();
+			if (CompilationOutput.bMaterialOutOfBudgetHasBeenSimplified)
+			{
+				AppearanceInfo.WarningText = LOCTEXT("AppearanceCornerText_Material", "Substrate material was out of budget and has been simplified.");
+
+			}
+		}
 	}
 
 	return AppearanceInfo;
@@ -7504,6 +7522,9 @@ void FMaterialEditor::UpdateStatsMaterials()
 		EmptyMaterial->PreEditChange(NULL);
 		EmptyMaterial->PostEditChange();
 	}
+
+	// Also request to update the Substrate slab.
+	StrataWidget->UpdateFromMaterial();
 }
 
 void FMaterialEditor::NotifyExternalMaterialChange()

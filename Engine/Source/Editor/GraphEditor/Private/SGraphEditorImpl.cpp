@@ -718,6 +718,12 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 			FText OverrideText = Appearance.Get().ReadOnlyText;
 			return !OverrideText.IsEmpty() ? OverrideText : DefaultText;
 		}
+
+		static FText GetWarningText(TAttribute<FGraphAppearanceInfo> Appearance, FText DefaultText)
+		{
+			FText OverrideText = Appearance.Get().WarningText;
+			return !OverrideText.IsEmpty() ? OverrideText : DefaultText;
+		}
 	};
 	
 	FText DefaultPIENotify(LOCTEXT("GraphSimulatingText", "SIMULATING"));
@@ -729,6 +735,11 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 	TAttribute<FText> ReadOnlyText = Appearance.IsBound() ?
 		TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&Local::GetReadOnlyText, Appearance, DefaultReadOnlyText)) :
 		TAttribute<FText>(DefaultReadOnlyText);
+
+	FText DefaultWarningText(LOCTEXT("GraphWarningText", ""));
+	TAttribute<FText> WarningText = Appearance.IsBound() ?
+		TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&Local::GetWarningText, Appearance, DefaultWarningText)) :
+		TAttribute<FText>(DefaultWarningText);
 
 	TSharedPtr<SOverlay> OverlayWidget;
 
@@ -800,6 +811,18 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 					.Text(this, &SGraphEditorImpl::GetInstructionText)
 				]
 			]			
+		]
+
+		// Bottom-left corner text for Substrate
+		+SOverlay::Slot()
+		.Padding(10)
+		.VAlign(VAlign_Bottom)
+		.HAlign(HAlign_Left)
+		[
+			SNew(STextBlock)
+			.Visibility(EVisibility::Visible)
+			.TextStyle(FAppStyle::Get(), "Graph.WarningText")
+			.Text(WarningText)
 		]
 
 		// Bottom-right corner text indicating the type of tool

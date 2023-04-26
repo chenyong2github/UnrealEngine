@@ -4410,6 +4410,12 @@ void FSlateEditorStyle::FStyle::SetupGraphEditorStyles()
 				.SetShadowOffset( FVector2D::ZeroVector )
 			);
 
+			Set("Graph.WarningText", FTextBlockStyle(NormalText)
+				.SetFont(DEFAULT_FONT("BoldCondensed", 20))
+				.SetColorAndOpacity(FLinearColor(0.8, 0.5f, 0.07f, 1.0f))
+				.SetShadowOffset(FVector2D(1, 1))
+			);
+
 			Set( "Graph.SimulatingText", FTextBlockStyle(NormalText)
 				.SetFont( DEFAULT_FONT( "BoldCondensed", 48 ) )
 				.SetColorAndOpacity( FLinearColor(0.8, 0.8f, 0.0f, 0.2f) )
