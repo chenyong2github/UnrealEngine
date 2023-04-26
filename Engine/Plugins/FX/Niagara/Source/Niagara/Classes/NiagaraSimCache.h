@@ -143,6 +143,9 @@ struct FNiagaraSimCacheDataBuffers
 
 	UPROPERTY()
 	TArray<uint32> InterpMapping;
+	
+	bool operator==(const FNiagaraSimCacheDataBuffers& Other) const;
+	bool operator!=(const FNiagaraSimCacheDataBuffers& Other) const;
 };
 
 USTRUCT()
@@ -498,6 +501,13 @@ public:
 	void ReadColorAttribute(TArray<FLinearColor>& OutValues, FName AttributeName = FName("Color"), FName EmitterName = NAME_None, int FrameIndex = 0) const;
 
 	/**
+	Reads Niagara ID attributes by name from the cache frame and appends them into the OutValues array.
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
+	void ReadIDAttribute(TArray<FNiagaraID>& OutValues, FName AttributeName, FName EmitterName, int FrameIndex = 0) const;
+
+	/**
 	Reads Niagara Position attributes by name from the cache frame and appends them into the OutValues array.
 	Local space emitters provide data at local locations unless bLocalSpaceToWorld is true.
 	EmitterName - If left blank will return the system simulation attributes.
@@ -505,7 +515,6 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache, meta=(AdvancedDisplay="bLocalSpaceToWorld"))
 	void ReadPositionAttribute(TArray<FVector>& OutValues, FName AttributeName = FName("Position"), FName EmitterName = NAME_None, bool bLocalSpaceToWorld = true, int FrameIndex = 0) const;
-	
 
 	/**
 	Reads Niagara Position attributes by name from the cache frame and appends them into the OutValues array.
@@ -534,6 +543,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
 	void ReadQuatAttributeWithRebase(TArray<FQuat>& OutValues, FQuat Quat, FName AttributeName = FName("MeshOrientation"), FName EmitterName = NAME_None, int FrameIndex = 0) const;
 
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.3, "For test purposes only, don't use in production code.")
+	bool IsDataEqual(const UNiagaraSimCache& OtherCache, FString& OutDifference) const;
+#endif
+	
 private:
 	UPROPERTY(VisibleAnywhere, Category=SimCache)
 	FGuid CacheGuid;

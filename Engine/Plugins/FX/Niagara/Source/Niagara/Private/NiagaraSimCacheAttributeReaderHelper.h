@@ -156,12 +156,11 @@ struct FNiagaraSimCacheAttributeReaderHelper
 		FMemory::Memcpy(OutBuffer, &DataBuffers->Int32Data[(Variable->Int32Offset + Component) * DataBuffers->NumInstances * sizeof(int32)], sizeof(int32) * DataBuffers->NumInstances);
 	}
 
-	int32 ReadInt(int32 Instance) const
+	int32 ReadInt(int32 Instance, int32 Offset = 0) const
 	{
 		check(IsValid());
-		check(Variable->Int32Offset != INDEX_NONE && Variable->Int32Count == 1);
-
-		const int32 Int32Offset = Instance + (Variable->Int32Offset * DataBuffers->NumInstances);
+		
+		const int32 Int32Offset = Instance + ((Variable->Int32Offset + Offset) * DataBuffers->NumInstances);
 
 		int32 Value;
 		FMemory::Memcpy(&Value, &DataBuffers->Int32Data[Int32Offset * sizeof(int32)], sizeof(int32));
@@ -183,6 +182,12 @@ struct FNiagaraSimCacheAttributeReaderHelper
 	{
 		check(Variable->FloatOffset != INDEX_NONE && Variable->FloatCount == 1);
 		return InternalReadFloat(0, Instance);
+	}
+
+	FNiagaraID ReadID(int32 Instance) const
+	{
+		check(Variable->Int32Offset != INDEX_NONE && Variable->Int32Count == 2);
+		return FNiagaraID(ReadInt(Instance, 0), ReadInt(Instance, 1));
 	}
 
 	FVector2f ReadFloat2f(int32 Instance) const
