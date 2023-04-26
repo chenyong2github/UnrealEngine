@@ -201,8 +201,11 @@ void SActorEditorContext::Rebuild()
 
 bool SActorEditorContext::IsVisible(UWorld* InWorld)
 {
-	TArray<IActorEditorContextClient*> Clients = UActorEditorContextSubsystem::Get()->GetDisplayableClients();
-	return InWorld && Clients.Num() > 0;
+	if (InWorld && GEditor)
+	{
+		return UActorEditorContextSubsystem::Get()->GetDisplayableClients().Num() > 0;
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

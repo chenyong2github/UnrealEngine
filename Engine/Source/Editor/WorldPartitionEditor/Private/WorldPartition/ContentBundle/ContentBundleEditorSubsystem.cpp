@@ -18,12 +18,16 @@
 
 void UContentBundleEditingSubmodule::DoInitialize()
 {
+	check(GEditor);
 	UActorEditorContextSubsystem::Get()->RegisterClient(this);
 }
 
 void UContentBundleEditingSubmodule::DoDenitialize()
 {
-	UActorEditorContextSubsystem::Get()->UnregisterClient(this);
+	if (GEditor)
+	{
+		UActorEditorContextSubsystem::Get()->UnregisterClient(this);
+	}
 
 	EditingContentBundleGuid.Invalidate();
 	EditingContentBundlesStack.Empty();
