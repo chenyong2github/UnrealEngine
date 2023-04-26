@@ -16,6 +16,24 @@ THIRD_PARTY_INCLUDES_END
 
 #define LOCTEXT_NAMESPACE "OpenColorIOWrapper"
 
+namespace OpenColorIOWrapper
+{
+	/** OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE equivalent, since we currently cannot delay-load this definition. */
+	constexpr const ANSICHAR* GetInterchangeName()
+	{
+		return "aces_interchange";
+	}
+
+	// Build routine since there is no FAnsiString
+	TUniquePtr<ANSICHAR[]> MakeAnsiString(const TCHAR* Str)
+	{
+		int32 Num = FCString::Strlen(Str);
+		TUniquePtr<ANSICHAR[]> Ret =  MakeUnique<ANSICHAR[]>(Num);
+		FMemory::Memcpy(Ret.Get(), StringCast<ANSICHAR>(Str).Get(), Num);
+		return Ret;
+	}
+}
+
 const TCHAR* OpenColorIOWrapper::GetVersion()
 {
 #if WITH_OCIO
@@ -116,7 +134,7 @@ TUniquePtr<FOpenColorIOConfigWrapper> FOpenColorIOConfigWrapper::CreateWorkingCo
 	AP0->setEncoding("scene-linear");
 
 	ColorSpaceRcPtr WCS = ColorSpace::Create();
-	WCS->setName(OpenColorIOWrapper::WorkingColorSpaceName);
+	WCS->setName(StringCast<ANSICHAR>(OpenColorIOWrapper::GetWorkingColorSpaceName()).Get());
 	WCS->setBitDepth(BIT_DEPTH_F32);
 	WCS->setEncoding("scene-linear");
 
@@ -142,7 +160,7 @@ FOpenColorIOConfigWrapper::FOpenColorIOConfigWrapper()
 	: Pimpl(MakePimpl<FOpenColorIOConfigPimpl, EPimplPtrMode::DeepCopy>())
 { }
 
-FOpenColorIOConfigWrapper::FOpenColorIOConfigWrapper(FStringView FilePath, FInitializationOptions InOptions)
+FOpenColorIOConfigWrapper::FOpenColorIOConfigWrapper(FStringView InFilePath, FInitializationOptions InOptions)
 	: FOpenColorIOConfigWrapper()
 {
 #if WITH_OCIO
@@ -153,17 +171,18 @@ FOpenColorIOConfigWrapper::FOpenColorIOConfigWrapper(FStringView FilePath, FInit
 	{
 		using namespace OCIO_NAMESPACE;
 
-		ConstConfigRcPtr NewConfig = Config::CreateFromFile(StringCast<ANSICHAR>(FilePath.GetData()).Get());
+		ConstConfigRcPtr NewConfig = Config::CreateFromFile(StringCast<ANSICHAR>(InFilePath.GetData()).Get());
 
 		if (NewConfig && InOptions.bAddWorkingColorSpace)
 		{
-			ConstColorSpaceRcPtr InterchangeCS = NewConfig->getColorSpace(NewConfig->getCanonicalName(OpenColorIOWrapper::InterchangeName));
+			const TUniquePtr<ANSICHAR[]> AnsiWorkingColorSpaceName = OpenColorIOWrapper::MakeAnsiString(OpenColorIOWrapper::GetWorkingColorSpaceName());
+			ConstColorSpaceRcPtr InterchangeCS = NewConfig->getColorSpace(NewConfig->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()));
 
 			// When the aces interchange color space is present, we add the working color space as an additional option.
-			if (InterchangeCS != nullptr && NewConfig->getColorSpace(OpenColorIOWrapper::WorkingColorSpaceName) == nullptr)
+			if (InterchangeCS != nullptr && NewConfig->getColorSpace(AnsiWorkingColorSpaceName.Get()) == nullptr)
 			{
 				ColorSpaceRcPtr WorkingCS = InterchangeCS->createEditableCopy();
-				WorkingCS->setName(OpenColorIOWrapper::WorkingColorSpaceName);
+				WorkingCS->setName(AnsiWorkingColorSpaceName.Get());
 				WorkingCS->setFamily("UE");
 				WorkingCS->clearAliases();
 
@@ -179,7 +198,7 @@ FOpenColorIOConfigWrapper::FOpenColorIOConfigWrapper(FStringView FilePath, FInit
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	catch (OCIO_NAMESPACE::Exception& Exc)
 	{
-		UE_LOG(LogOpenColorIOWrapper, Error, TEXT("Could not create OCIO configuration file for %s. Error message: %s."), FilePath.GetData(), StringCast<TCHAR>(Exc.what()).Get());
+		UE_LOG(LogOpenColorIOWrapper, Error, TEXT("Could not create OCIO configuration file for %s. Error message: %s."), InFilePath.GetData(), StringCast<TCHAR>(Exc.what()).Get());
 	}
 #endif
 #else
@@ -331,29 +350,37 @@ FString FOpenColorIOConfigWrapper::GetCacheID() const
 
 FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(
 	const FOpenColorIOConfigWrapper* InConfig,
-	FStringView SourceColorSpace,
-	FStringView DestinationColorSpace,
-	EOpenColorIOWorkingColorSpaceTransform InWorkingColorSpaceTransformType,
-	const TMap<FString, FString>& ContextKeyValues)
+	FStringView InSourceColorSpace,
+	FStringView InDestinationColorSpace,
+	const TMap<FString, FString>& InContextKeyValues)
 	: Pimpl(MakePimpl<FOpenColorIOProcessorPimpl, EPimplPtrMode::DeepCopy>())
 	, OwnerConfig(InConfig)
-	, WorkingColorSpaceTransformType(InWorkingColorSpaceTransformType)
+	, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
 {
+	if (InSourceColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
+	{
+		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
+	}
+	else if (InDestinationColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
+	{
+		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
+	}
+
 #if WITH_OCIO
 	if (OwnerConfig != nullptr && OwnerConfig->IsValid())
 	{
 		const OCIO_NAMESPACE::ConstConfigRcPtr& Config = OwnerConfig->Pimpl->Config;
 		 OCIO_NAMESPACE::ContextRcPtr Context = Config->getCurrentContext()->createEditableCopy();
 
-		for (const TPair<FString, FString>& KeyValue : ContextKeyValues)
+		for (const TPair<FString, FString>& KeyValue : InContextKeyValues)
 		{
 			Context->setStringVar(TCHAR_TO_ANSI(*KeyValue.Key), TCHAR_TO_ANSI(*KeyValue.Value));
 		}
 
 		Pimpl->Processor = Config->getProcessor(
 			Context,
-			StringCast<ANSICHAR>(SourceColorSpace.GetData()).Get(),
-			StringCast<ANSICHAR>(DestinationColorSpace.GetData()).Get()
+			StringCast<ANSICHAR>(InSourceColorSpace.GetData()).Get(),
+			StringCast<ANSICHAR>(InDestinationColorSpace.GetData()).Get()
 		);
 	}
 #endif // WITH_OCIO
@@ -361,16 +388,27 @@ FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(
 
 FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(
 	const FOpenColorIOConfigWrapper* InConfig,
-	FStringView SourceColorSpace,
-	FStringView Display,
-	FStringView View,
+	FStringView InSourceColorSpace,
+	FStringView InDisplay,
+	FStringView InView,
 	bool bInverseDirection,
-	EOpenColorIOWorkingColorSpaceTransform InWorkingColorSpaceTransformType,
-	const TMap<FString, FString>& ContextKeyValues)
+	const TMap<FString, FString>& InContextKeyValues)
 	: Pimpl(MakePimpl<FOpenColorIOProcessorPimpl, EPimplPtrMode::DeepCopy>())
 	, OwnerConfig(InConfig)
-	, WorkingColorSpaceTransformType(InWorkingColorSpaceTransformType)
+	, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
 {
+	if (InSourceColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
+	{
+		if (bInverseDirection)
+		{
+			WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
+		}
+		else
+		{
+			WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
+		}
+	}
+
 #if WITH_OCIO
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	try
@@ -381,15 +419,15 @@ FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(
 			const OCIO_NAMESPACE::ConstConfigRcPtr& Config = OwnerConfig->Pimpl->Config;
 			OCIO_NAMESPACE::ContextRcPtr Context = Config->getCurrentContext()->createEditableCopy();
 
-			for (const TPair<FString, FString>& KeyValue : ContextKeyValues)
+			for (const TPair<FString, FString>& KeyValue : InContextKeyValues)
 			{
 				Context->setStringVar(TCHAR_TO_ANSI(*KeyValue.Key), TCHAR_TO_ANSI(*KeyValue.Value));
 			}
 
 			Pimpl->Processor = Config->getProcessor(
-				StringCast<ANSICHAR>(SourceColorSpace.GetData()).Get(),
-				StringCast<ANSICHAR>(Display.GetData()).Get(),
-				StringCast<ANSICHAR>(View.GetData()).Get(),
+				StringCast<ANSICHAR>(InSourceColorSpace.GetData()).Get(),
+				StringCast<ANSICHAR>(InDisplay.GetData()).Get(),
+				StringCast<ANSICHAR>(InView.GetData()).Get(),
 				static_cast<OCIO_NAMESPACE::TransformDirection>(bInverseDirection)
 			);
 		}
@@ -437,6 +475,7 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& InOutImag
 			TUniquePtr<PackedImageDesc> ImageDesc = GetImageDesc(InOutImage);
 			if (ImageDesc)
 			{
+				const TUniquePtr<ANSICHAR[]> AnsiWorkingColorSpaceName = OpenColorIOWrapper::MakeAnsiString(OpenColorIOWrapper::GetWorkingColorSpaceName());
 				ConstConfigRcPtr	InterchangeConfig = IOpenColorIOWrapperModule::Get().GetWorkingColorSpaceToInterchangeConfig()->Pimpl->Config;
 				ConstConfigRcPtr Config = ParentProcessor.OwnerConfig->Pimpl->Config;
 
@@ -447,9 +486,9 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& InOutImag
 				{
 					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 						InterchangeConfig,
-						StringCast<ANSICHAR>(OpenColorIOWrapper::WorkingColorSpaceName).Get(),
+						AnsiWorkingColorSpaceName.Get(),
 						Config,
-						Config->getCanonicalName(OpenColorIOWrapper::InterchangeName));
+						Config->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()));
 
 					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
 					InterchangeCPUProcessor->apply(*ImageDesc);
@@ -464,9 +503,9 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& InOutImag
 				{
 					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 						Config,
-						Config->getCanonicalName(OpenColorIOWrapper::InterchangeName),
+						Config->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()),
 						InterchangeConfig,
-						StringCast<ANSICHAR>(OpenColorIOWrapper::WorkingColorSpaceName).Get());
+						AnsiWorkingColorSpaceName.Get());
 
 					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
 					InterchangeCPUProcessor->apply(*ImageDesc);
@@ -503,6 +542,7 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& SrcImage,
 			TUniquePtr<PackedImageDesc> DestImageDesc = GetImageDesc(DestImage);
 			if (SrcImageDesc && DestImageDesc)
 			{
+				const TUniquePtr<ANSICHAR[]> AnsiWorkingColorSpaceName = OpenColorIOWrapper::MakeAnsiString(OpenColorIOWrapper::GetWorkingColorSpaceName());
 				ConstConfigRcPtr	InterchangeConfig = IOpenColorIOWrapperModule::Get().GetWorkingColorSpaceToInterchangeConfig()->Pimpl->Config;
 				ConstConfigRcPtr	Config = ParentProcessor.OwnerConfig->Pimpl->Config;
 
@@ -514,9 +554,9 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& SrcImage,
 				{
 					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 						InterchangeConfig,
-						StringCast<ANSICHAR>(OpenColorIOWrapper::WorkingColorSpaceName).Get(),
+						AnsiWorkingColorSpaceName.Get(),
 						Config,
-						Config->getCanonicalName(OpenColorIOWrapper::InterchangeName));
+						Config->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()));
 
 					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(SrcBitDepth, SrcBitDepth, OPTIMIZATION_DEFAULT);
 					InterchangeCPUProcessor->apply(*SrcImageDesc);
@@ -532,9 +572,9 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& SrcImage,
 				{
 					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 						Config,
-						Config->getCanonicalName(OpenColorIOWrapper::InterchangeName),
+						Config->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()),
 						InterchangeConfig,
-						StringCast<ANSICHAR>(OpenColorIOWrapper::WorkingColorSpaceName).Get());
+						AnsiWorkingColorSpaceName.Get());
 
 					ConstCPUProcessorRcPtr InterchangeCPUProcessor = InterchangeProcessor->getOptimizedCPUProcessor(DestBitDepth, DestBitDepth, OPTIMIZATION_DEFAULT);
 					InterchangeCPUProcessor->apply(*DestImageDesc);
@@ -571,7 +611,7 @@ FOpenColorIOGPUProcessorWrapper::FOpenColorIOGPUProcessorWrapper(FOpenColorIOPro
 
 		GpuShaderDescRcPtr ShaderDescription = GpuShaderDesc::CreateShaderDesc();
 		ShaderDescription->setLanguage(GPU_LANGUAGE_HLSL_DX11);
-		ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOWrapper::ShaderFunctionName).Get());
+		ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOWrapper::GetShaderFunctionName()).Get());
 		ShaderDescription->setResourcePrefix("Ocio");
 
 		ConstGPUProcessorRcPtr GPUProcessor = nullptr;

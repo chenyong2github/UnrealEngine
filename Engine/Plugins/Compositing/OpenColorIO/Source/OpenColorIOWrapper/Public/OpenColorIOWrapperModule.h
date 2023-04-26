@@ -41,7 +41,19 @@ public:
 	/**
 	 * Returns a minimal dynamically-created native config for conversions between interchange and working color spaces.
 	 */
-	virtual const FOpenColorIOConfigWrapper* GetWorkingColorSpaceToInterchangeConfig() = 0;
+	virtual const FOpenColorIOConfigWrapper* GetWorkingColorSpaceToInterchangeConfig() const = 0;
+
+	/**
+	* Load a globally-shared config in the module.
+	*
+	* @param InFilePath Config absolute file path.
+	*/
+	virtual void LoadGlobalConfig(FStringView InFilePath) = 0;
+
+	/**
+	* Returns the globally-shared module config if loaded, nullptr otherwise.
+	*/
+	virtual const FOpenColorIOConfigWrapper* GetGlobalConfig() const = 0;
 
 	/** Virtual destructor */
 	virtual ~IOpenColorIOWrapperModule() = default;

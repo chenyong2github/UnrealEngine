@@ -17,14 +17,17 @@ enum TextureFilter : int;
 
 namespace OpenColorIOWrapper
 {
-	/** OCIO_NAMESPACE::ROLE_INTERCHANGE_SCENE equivalent, since we currently cannot delay-load this definition. */
-	static constexpr ANSICHAR InterchangeName[] = "aces_interchange";
-	
 	/** Color space name of the engine's working color space we insert in OpenColorIO configs. */
-	static constexpr ANSICHAR WorkingColorSpaceName[] = "Working Color Space";
+	constexpr const TCHAR* GetWorkingColorSpaceName()
+	{
+		return TEXT("Working Color Space");
+	}
 
 	/** Default generated shader function name. */
-	static constexpr TCHAR ShaderFunctionName[] = TEXT("OCIOConvert");
+	constexpr const TCHAR* GetShaderFunctionName()
+	{
+		return TEXT("OCIOConvert");
+	}
 
 	/** Default LUT size used in the legacy gpu processor */
 	static constexpr uint32 Legacy3dEdgeLength = 65;
@@ -51,10 +54,10 @@ public:
 	/**
 	* Constructor.
 	* 
-	* @param FilePath Config absolute file path.
+	* @param InFilePath Config absolute file path.
 	* @param InOptions Initialization options.
 	*/
-	FOpenColorIOConfigWrapper(FStringView FilePath, FInitializationOptions InOptions);
+	FOpenColorIOConfigWrapper(FStringView InFilePath, FInitializationOptions InOptions);
 
 	/** Valid when the native config has been successfully created and isn't null. */
 	bool IsValid() const;
@@ -109,37 +112,33 @@ public:
 	* Constructor.
 	*
 	* @param InConfig Owner config.
-	* @param SourceColorSpace Source color space name.
-	* @param DestinationColorSpace Destination color space name.
-	* @param WorkingColorSpaceTransformType (Optional) Type of additional conversion from/to the working color space.
-	* @param ContextKeyValues (Optional) ContextKeyValues Additional context modifiers.
+	* @param InSourceColorSpace Source color space name.
+	* @param InDestinationColorSpace Destination color space name.
+	* @param InContextKeyValues (Optional) Additional context modifiers.
 	*/
 	FOpenColorIOProcessorWrapper(
 		const FOpenColorIOConfigWrapper* InConfig,
-		FStringView SourceColorSpace,
-		FStringView DestinationColorSpace,
-		EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::None,
-		const TMap<FString, FString>& ContextKeyValues = {});
+		FStringView InSourceColorSpace,
+		FStringView InDestinationColorSpace,
+		const TMap<FString, FString>& InContextKeyValues = {});
 
 	/**
 	* Constructor.
 	*
 	* @param InConfig Owner config.
-	* @param SourceColorSpace Source color space name.
-	* @param Display Display name in display-view transform.
-	* @param View View name in display-view transform.
+	* @param InSourceColorSpace Source color space name.
+	* @param InDisplay Display name in display-view transform.
+	* @param InView View name in display-view transform.
 	* @param bInverseDirection Flag for inverse transform direction.
-	* @param WorkingColorSpaceTransformType (Optional) Type of additional conversion from/to the working color space.
-	* @param ContextKeyValues (Optional) ContextKeyValues Additional context modifiers.
+	* @param InContextKeyValues (Optional) Additional context modifiers.
 	*/
 	FOpenColorIOProcessorWrapper(
 		const FOpenColorIOConfigWrapper* InConfig,
-		FStringView SourceColorSpace,
-		FStringView Display,
-		FStringView View,
+		FStringView InSourceColorSpace,
+		FStringView InDisplay,
+		FStringView InView,
 		bool bInverseDirection = false,
-		EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::None,
-		const TMap<FString, FString>& ContextKeyValues = {});
+		const TMap<FString, FString>& InContextKeyValues = {});
 
 	/** Valid when the processor has been successfully created and isn't null. */
 	bool IsValid() const;

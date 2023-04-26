@@ -17,32 +17,39 @@ public:
 	//~ Begin IModuleInterface interface
 	virtual void StartupModule() override
 	{
-		bInitializedLib = FOpenColorIOLibHandler::Initialize();
+		FOpenColorIOLibHandler::Initialize();
+
+		InterchangeConfig = FOpenColorIOConfigWrapper::CreateWorkingColorSpaceToInterchangeConfig();
 	}
 
 	virtual void ShutdownModule() override
 	{
 		FOpenColorIOLibHandler::Shutdown();
-		bInitializedLib = false;
 	}
 	//~ End IModuleInterface interface
 
-	virtual const FOpenColorIOConfigWrapper* GetWorkingColorSpaceToInterchangeConfig() override
+	//~ Begin IOpenColorIOWrapperModule interface
+	virtual const FOpenColorIOConfigWrapper* GetWorkingColorSpaceToInterchangeConfig() const override
 	{
-		check(bInitializedLib);
-
-		if (!InterchangeConfig)
-		{
-			InterchangeConfig = FOpenColorIOConfigWrapper::CreateWorkingColorSpaceToInterchangeConfig();
-		}
-
 		return InterchangeConfig.Get();
 	}
-private:
 
-	bool bInitializedLib = false;
+	virtual void LoadGlobalConfig(FStringView InFilePath) override
+	{
+		FOpenColorIOConfigWrapper::FInitializationOptions Opt;
+		Opt.bAddWorkingColorSpace = true;
+		EngineConfig = MakeUnique<FOpenColorIOConfigWrapper>(InFilePath, Opt);
+	}
+
+	virtual const FOpenColorIOConfigWrapper* GetGlobalConfig() const override
+	{
+		return EngineConfig.Get();
+	}
+	//~ End IOpenColorIOWrapperModule interface
+private:
 	
-	TUniquePtr<FOpenColorIOConfigWrapper> InterchangeConfig;
+	TUniquePtr<FOpenColorIOConfigWrapper> InterchangeConfig = nullptr;
+	TUniquePtr<FOpenColorIOConfigWrapper> EngineConfig = nullptr;
 };
 
 IMPLEMENT_MODULE(FOpenColorIOWrapperModule, OpenColorIOWrapper);

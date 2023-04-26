@@ -26,7 +26,7 @@
 namespace
 {
 	// Note: Since OpenColorIO caches processors automatically, we can recreate them without significant additional costs.
-	FOpenColorIOProcessorWrapper GetTransformProcessor(const UOpenColorIOColorTransform* InTransform, EOpenColorIOWorkingColorSpaceTransform InWCSTrasnformType)
+	FOpenColorIOProcessorWrapper GetTransformProcessor(const UOpenColorIOColorTransform* InTransform)
 	{
 		check(InTransform);
 		check(InTransform->ConfigurationOwner);
@@ -42,7 +42,6 @@ namespace
 				InTransform->Display,
 				InTransform->View,
 				DisplayViewDirection == EOpenColorIOViewTransformDirection::Inverse,
-				InWCSTrasnformType,
 				InTransform->GetContextKeyValues());
 		}
 		else
@@ -51,7 +50,6 @@ namespace
 				ConfigWrapper,
 				InTransform->SourceColorSpace,
 				InTransform->DestinationColorSpace,
-				InWCSTrasnformType,
 				InTransform->GetContextKeyValues());
 		}
 	}
@@ -160,11 +158,11 @@ bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, 
 	ContextKeyValues = InContextKeyValues;
 	
 #if WITH_EDITOR
-	if (InSourceColorSpace == OpenColorIOWrapper::WorkingColorSpaceName)
+	if (InSourceColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
 	{
 		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
 	}
-	else if(InDestinationColorSpace == OpenColorIOWrapper::WorkingColorSpaceName)
+	else if(InDestinationColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
 	{
 		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
 	}
@@ -180,7 +178,7 @@ bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, 
 	ContextKeyValues = InContextKeyValues;
 
 #if WITH_EDITOR
-	if (InSourceColorSpace == OpenColorIOWrapper::WorkingColorSpaceName)
+	if (InSourceColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
 	{
 		if (InDirection == EOpenColorIOViewTransformDirection::Forward)
 		{
@@ -265,7 +263,7 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 #if WITH_EDITOR
 	if (Textures.IsEmpty())
 	{
-		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, WorkingColorSpaceTransformType);
+		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
 		if (TransformProcessor.IsValid())
 		{
 			const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(TransformProcessor);
@@ -476,7 +474,7 @@ bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, 
 #if WITH_EDITOR
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutImage) const
 {
-	const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, WorkingColorSpaceTransformType);
+	const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
 	if (TransformProcessor.IsValid())
 	{
 		const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
@@ -489,7 +487,7 @@ bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutIma
 
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& SrcImage, const FImageView& DestImage) const
 {
-	const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, WorkingColorSpaceTransformType);
+	const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
 	if (TransformProcessor.IsValid())
 	{
 		const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
@@ -588,7 +586,7 @@ FString UOpenColorIOColorTransform::GetTransformFriendlyName()
 bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FString& OutShaderCode, FString& OutRawConfigHash)
 {
 #if WITH_EDITOR
-	const FOpenColorIOProcessorWrapper Processor = GetTransformProcessor(this, WorkingColorSpaceTransformType);
+	const FOpenColorIOProcessorWrapper Processor = GetTransformProcessor(this);
 	const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(Processor);
 
 	if (GPUProcessor.IsValid())
