@@ -27,10 +27,6 @@ public class LinuxArm64TargetPlatform : ModuleRules
             PrivateIncludePathModuleNames.Add("TextureCompressor");
         }
 
-        PrivateIncludePaths.AddRange(
-            new string[] {
-				"Developer/Linux/LinuxTargetPlatform/Private"
-			}
-        );
+		PrivateIncludePathModuleNames.Add("LinuxTargetPlatform");
     }
 }

@@ -8,17 +8,24 @@
 
 #include "GenericWindowsTargetPlatform.h"
 #include "Windows/WindowsPlatformProperties.h"
-#include "LinuxTargetPlatform.h"
-#include "GenericMacTargetPlatform.h"
+
 typedef TGenericWindowsTargetPlatform<FWindowsPlatformProperties<false, false, false>> FWindowsEditorTargetPlatformParent;
+
+#if COOKEDEDITOR_WITH_LINUXTARGETPLATFORM
+#include "LinuxTargetPlatform.h"
 typedef TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, false>> FLinuxEditorTargetPlatformParent;
+#endif
+
+#if COOKEDEDITOR_WITH_MACTARGETPLATFORM
+#include "GenericMacTargetPlatform.h"
+typedef TGenericMacTargetPlatform<false, false, false> FMacEditorTargetPlatformParent;
+#endif
 
 #if PLATFORM_WINDOWS
 typedef FWindowsEditorTargetPlatformParent FHostPlatformEditorTargetPlatformParent;
 #elif PLATFORM_LINUX
 typedef FLinuxEditorTargetPlatformParent FHostPlatformEditorTargetPlatformParent;
 #elif PLATFORM_MAC
-typedef TGenericMacTargetPlatform<false, false, false> FMacEditorTargetPlatformParent;
 typedef FMacEditorTargetPlatformParent FHostPlatformEditorTargetPlatformParent;
 #endif
 
