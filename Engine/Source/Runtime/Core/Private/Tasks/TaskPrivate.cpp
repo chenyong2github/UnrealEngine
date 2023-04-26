@@ -226,16 +226,7 @@ namespace UE::Tasks
 				return true;
 			}
 
-			uint32 WaitForMsecs = MAX_uint32;
-			if (Timeout != FTimeout::Never())
-			{
-				int64 RemainingTicks = Timeout.GetRemainingTime().GetTicks();
-				int64 RemainingMsecs = FMath::DivideAndRoundUp(RemainingTicks, ETimespan::TicksPerMillisecond);
-				int64 RemainingMsecsClamped = FMath::Clamp<int64>(RemainingMsecs, 0, MAX_uint32);
-				WaitForMsecs = (uint32)RemainingMsecsClamped;
-			}
-
-			return CompletionEvent->Wait(WaitForMsecs);
+			return CompletionEvent->Wait(Timeout.GetRemainingRoundedUpMilliseconds());
 		}
 
 		FTaskBase* FTaskBase::TryPushIntoPipe()
