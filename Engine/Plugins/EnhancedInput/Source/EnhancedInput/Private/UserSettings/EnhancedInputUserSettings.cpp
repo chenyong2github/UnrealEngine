@@ -1287,6 +1287,8 @@ bool UEnhancedInputUserSettings::RegisterKeyMappingsToProfile(UEnhancedPlayerMap
 			// We always want to ensure that the metadata on a player key mapping is up to date
 			// from the Input Mapping Context.
 			ExistingMapping.UpdateMetadataFromActionKeyMapping(KeyMapping);
+
+			OnKeyMappingRegistered(ExistingMapping, KeyMapping);
 		}
 
 		// If the mapping was not found in the existing row, then the player has not mapped anything to it.
@@ -1294,7 +1296,8 @@ bool UEnhancedInputUserSettings::RegisterKeyMappingsToProfile(UEnhancedPlayerMap
 		if (!bUpdatedExistingMapping)
 		{
 			// Add a default mapping to this row
-			MappingRow.Mappings.Add({ KeyMapping, MappingSlot, MappingDeviceType });
+			const FSetElementId ElemId = MappingRow.Mappings.Add({ KeyMapping, MappingSlot, MappingDeviceType });
+			OnKeyMappingRegistered(MappingRow.Mappings.Get(ElemId), KeyMapping);
 		}
 
 		// Increment the mapping slot to keep track of how many slots are in use by which hardware device
@@ -1303,6 +1306,11 @@ bool UEnhancedInputUserSettings::RegisterKeyMappingsToProfile(UEnhancedPlayerMap
 
 	UE_LOG(LogEnhancedInput, Verbose, TEXT("Registered IMC with UEnhancedInputUserSettings: %s"), *IMC->GetFName().ToString());
 	return true;
+}
+
+void UEnhancedInputUserSettings::OnKeyMappingRegistered(FPlayerKeyMapping& RegisteredMapping, const FEnhancedActionKeyMapping& SourceMapping)
+{
+	// Does nothing by default
 }
 
 FHardwareDeviceIdentifier UEnhancedInputUserSettings::DetermineHardwareDeviceForActionMapping(const FEnhancedActionKeyMapping& ActionMapping) const

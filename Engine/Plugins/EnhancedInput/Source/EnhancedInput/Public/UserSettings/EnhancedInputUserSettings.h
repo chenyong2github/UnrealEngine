@@ -515,6 +515,21 @@ protected:
 	 */
 	virtual void OnKeyMappingUpdated(FPlayerKeyMapping* ChangedMapping, const FMapPlayerKeyArgs& InArgs, const bool bIsBeingUnmapped);
 
+
+	/**
+	 * A virtual function that will be called whenever a player key mapping is first registered. This will be called once
+	 * by UEnhancedInputUserSettings::RegisterKeyMappingsToProfile for each mapping that is created from the Input Mapping Context.
+	 *
+	 * This is a good place to do any "Post Registration" setup you may want to for you key mappings such as changing the
+	 * key that is mapped based on some other settings or data outside of this system (i.e. you are upgrading to this system
+	 * and already had a key mapping system in place, you can set the key here!)
+	 *
+	 * This does nothing by default.
+	 * @param RegisteredMapping		The newly registered player key mapping
+	 * @param SourceMapping			The source mapping that the registered mapping was created from. 
+	 */
+	virtual void OnKeyMappingRegistered(FPlayerKeyMapping& RegisteredMapping, const FEnhancedActionKeyMapping& SourceMapping);
+
 public:
 	
 	ULocalPlayer* GetLocalPlayer() const;
