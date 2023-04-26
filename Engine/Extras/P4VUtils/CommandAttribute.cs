@@ -12,9 +12,9 @@ namespace P4VUtils
 		Root,
 
 		/// <summary>
-		/// commands that help with submitting files/changelists
+		/// Commands that help with operations relating to content files
 		/// </summary>
-		Submission,
+		Content,
 
 		/// <summary>
 		/// Commands that help with common but simple operations
@@ -22,12 +22,12 @@ namespace P4VUtils
 		Toolbox,
 
 		/// <summary>
-		/// complex commands to facilitate integrations/backout
+		/// Complex commands to facilitate integrations
 		/// </summary>
 		Integrate,
 
 		/// <summary>
-		/// local build and horde preflights
+		/// Local build and horde preflights
 		/// </summary>
 		Horde
 	}

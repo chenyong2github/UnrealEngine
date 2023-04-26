@@ -464,7 +464,7 @@ namespace P4VUtils
 			if (bInstall)
 			{
 				InstallCommandsListInFolder("UE RootHelpers", false/*AddFolderToContextMenu*/, CommandCategory.Root, Document, ExecutableLocation, Logger);
-				InstallCommandsListInFolder("UE Submit", true/*AddFolderToContextMenu*/, CommandCategory.Submission, Document, ExecutableLocation, Logger);
+				InstallCommandsListInFolder("UE Content", true/*AddFolderToContextMenu*/, CommandCategory.Content, Document, ExecutableLocation, Logger);
 				InstallCommandsListInFolder("UE Toolbox", true/*AddFolderToContextMenu*/, CommandCategory.Toolbox, Document, ExecutableLocation, Logger);
 				InstallCommandsListInFolder("UE Integrate", true/*AddFolderToContextMenu*/, CommandCategory.Integrate, Document, ExecutableLocation, Logger);
 				InstallCommandsListInFolder("UE Horde", true/*AddFolderToContextMenu*/, CommandCategory.Horde, Document, ExecutableLocation, Logger);

@@ -58,7 +58,7 @@ namespace P4VUtils.Commands
 		}
 	}
 
-	[Command("submitandvirtualize", CommandCategory.Submission, 0)]
+	[Command("submitandvirtualize", CommandCategory.Content, 0)]
 	class SubmitAndVirtualizeCommand : Command
 	{
 		public override string Description => "Virtualize And Submit";
