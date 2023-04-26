@@ -10,10 +10,9 @@ struct FUAssetMeta;
 struct FProgressiveSurfaces
 {	
 	TArray<AStaticMeshActor*> ActorsInLevel;
-	UMaterialInstanceConstant* PreviewInstance;
+	UMaterialInstanceConstant* PreviewInstance = nullptr;
 	FString PreviewFolderPath;
 	FString PreviewMeshPath;
-
 };
 
 class FImportProgressiveSurfaces

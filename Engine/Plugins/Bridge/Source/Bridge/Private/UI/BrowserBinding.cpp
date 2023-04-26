@@ -393,6 +393,11 @@ void SetupOnActorsDroppedEvent()
 			Filtered3dObjects = Filtered3dObjects.FilterByPredicate([](UObject* Object) { return Object != nullptr; });
 			Filtered3dActors = Filtered3dActors.FilterByPredicate([](AActor* Actor) { return Actor != nullptr; });
 
+			if (Filtered3dIDs.Num() != Filtered3dObjects.Num() || Filtered3dObjects.Num() != Filtered3dActors.Num())
+			{
+				return;
+			}
+			
 			for (int32 i = 0; i < Filtered3dObjects.Num(); i++)
 			{
 				UObject* Object = Filtered3dObjects[i];
