@@ -237,7 +237,7 @@ FReply SMaterialDynamicView::OnCreateDynamicMaterialButtonClicked() const
 		FScopedTransaction Transaction(LOCTEXT("CreateDynamicMaterial", "Create Dynamic Material"));
 
 		// Create Transactional Material. That is allawed create MID with MU and transact the changes
-		UMaterialInstanceDynamic* NewMaterialInstanceDynamic = NewObject<UMaterialInstanceDynamic>(OwnerActorComponent, NAME_None, RF_Transactional);
+		UMaterialInstanceDynamic* NewMaterialInstanceDynamic = NewObject<UMaterialInstanceDynamic>(OwnerActorComponent, NAME_None, RF_Public | RF_Transactional);
 		NewMaterialInstanceDynamic->Parent = MaterialInstance;
 		NewMaterialInstanceDynamic->UpdateCachedData();
 
