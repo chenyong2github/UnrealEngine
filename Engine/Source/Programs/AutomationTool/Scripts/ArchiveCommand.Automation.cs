@@ -41,7 +41,7 @@ namespace AutomationScripts
 				{
 					FileReference Src = new FileReference(Pair.Key);
 					FileReference Dest = FileReference.Combine(SC.ArchiveDirectory, Pair.Value);
-					CopyFileIncremental(Src, Dest);
+					CopyFileOrSymlink(Src, Dest);
 				}
 			}
 		}

@@ -1897,6 +1897,104 @@ namespace AutomationTool
 			}
 		}
 
+		public enum SymlinkMode
+		{
+			Ignore,
+			Follow,
+			Retain,
+		}
+
+		// detemine how the OS wants to handle Symlinks when archiving, by default
+		public static SymlinkMode DefaultSymlinkMode
+		{
+			get
+			{
+				return OperatingSystem.IsMacOS() ? SymlinkMode.Retain :
+				(OperatingSystem.IsLinux() ? SymlinkMode.Ignore :
+				SymlinkMode.Follow);
+			}
+		}
+
+		/// <summary>
+		/// Assumes directory has already been checked to exist, and that it is not a symlink itself
+		/// The SymlinkMode here refers to directory links, as the file symlinks will be dealt with during the copy
+		/// </summary>
+		public static void FindFilesAndSymlinks(string RootPath, string Wildcard, bool bRecursive, SymlinkMode DirSymlinkMode, List<string> FoundFiles)
+		{
+			// default behaviour can just do standard findfiles
+			if (DirSymlinkMode == SymlinkMode.Follow)
+			{
+				FoundFiles.AddRange(Directory.GetFiles(RootPath, Wildcard, bRecursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly));
+			}
+			else if (DirSymlinkMode == SymlinkMode.Retain || DirSymlinkMode == SymlinkMode.Ignore)
+			{
+				DirectoryInfo DirInfo = new DirectoryInfo(RootPath);
+
+				// get all files in this dir
+				FoundFiles.AddRange(Directory.GetFiles(RootPath, Wildcard, SearchOption.TopDirectoryOnly));
+
+				// now walk over the directories, and recurse into true directories, and process the symlinks
+				foreach (DirectoryInfo Dir in DirInfo.EnumerateDirectories(Wildcard, SearchOption.TopDirectoryOnly))
+				{
+					if (Dir.Attributes.HasFlag(FileAttributes.ReparsePoint))
+					{
+						// if mode is Ingore, then do nothing with it
+						if (DirSymlinkMode == SymlinkMode.Retain)
+						{
+							// add the direcetory as a file since we are going to treat it as a file later
+							FoundFiles.Add(Dir.FullName);
+						}
+					}
+					else
+					{
+						FindFilesAndSymlinks(Dir.FullName, Wildcard, bRecursive, DirSymlinkMode, FoundFiles);
+					}
+				}
+			}
+		}
+
+		public static void FindFilesAndSymlinks(string RootPath, string Wildcard, bool bRecursive, List<string> FoundFiles)
+		{
+			FindFilesAndSymlinks(RootPath, Wildcard, bRecursive, DefaultSymlinkMode, FoundFiles);
+		}
+
+		public static void CopyFileOrSymlink(FileReference Source, FileReference Dest, SymlinkMode SymlinkMode)
+		{
+			if (SymlinkMode == SymlinkMode.Retain || SymlinkMode == SymlinkMode.Ignore)
+			{
+				if (File.GetAttributes(Source.FullName).HasFlag(FileAttributes.ReparsePoint))
+				{
+					if (SymlinkMode == SymlinkMode.Retain)
+					{
+						if (OperatingSystem.IsWindows())
+						{
+							throw new AutomationException("Windows ReparsePoint copying is not supported at this time");
+						}
+						else
+						{
+							Logger.LogInformation("Retaining symlink {0} as {1}", Source, Dest);
+							DirectoryReference.CreateDirectory(Dest.Directory);
+							Utils.RunLocalProcessAndReturnStdOut("/usr/bin/env", $"cp -a \"{Source}\" \"{Dest}\"", null);
+						}
+					}
+					else
+					{
+						Logger.LogInformation("Ignoring symlink {0}", Source);
+					}
+					return;
+				}
+			}
+
+			// if we didn't handle a symlink above, just copy it normally
+			InternalUtils.SafeCopyFile(Source.FullName, Dest.FullName, bSafeCreateDirectory: true);
+		}
+
+		public static void CopyFileOrSymlink(FileReference Source, FileReference Dest)
+		{
+			CopyFileOrSymlink(Source, Dest, DefaultSymlinkMode);
+		}
+
+
 		/// <summary>
 		/// Gets environment variable value.
 		/// </summary>
