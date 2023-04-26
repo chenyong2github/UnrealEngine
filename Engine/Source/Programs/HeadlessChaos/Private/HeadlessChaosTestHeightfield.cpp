@@ -765,6 +765,25 @@ namespace ChaosTest {
 			bool Result = Heightfield.SweepGeom(Sphere, StartTM, Dir, 50, TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
 			EXPECT_TRUE(Result);
 		}
+		{
+			const FVec3 Start(180, 500, 700);
+			FRigidTransform3 StartTM(Start, TRotation<FReal, 3>::Identity);
+			FVec3 Dir(1.0, 0.0, -1.0);
+			Dir.Normalize();
+
+			bool Result = Heightfield.SweepGeom(Sphere, StartTM, Dir, 50, TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
+			EXPECT_TRUE(Result);
+		}
+		// Test extent in the opposite direction of the sweep
+		{
+			const FVec3 Start(220, 500, 700);
+			FRigidTransform3 StartTM(Start, TRotation<FReal, 3>::Identity);
+			FVec3 Dir(-1.0, 0.0, 1.0);
+			Dir.Normalize();
+
+			bool Result = Heightfield.SweepGeom(Sphere, StartTM, Dir, 50, TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
+			EXPECT_TRUE(Result);
+		}
 
 	}
 

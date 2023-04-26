@@ -1409,8 +1409,12 @@ namespace Chaos
 		FVec2 ClippedStart;
 		FVec2 ClippedEnd;
 
-		const FVec3 InflateStartPoint = StartPoint - Dir * InHalfExtents;
-		const FVec3 InflateEndPoint = StartPoint + Dir * (InHalfExtents + Length);
+		FVec3 SignDir(0);
+		SignDir[0] = FMath::Sign(Dir[0]);
+		SignDir[1] = FMath::Sign(Dir[1]);
+		const FVec3 InflateStartEnd = SignDir * InHalfExtents;
+		const FVec3 InflateStartPoint = StartPoint - InflateStartEnd;
+		const FVec3 InflateEndPoint = StartPoint + Dir * Length + InflateStartEnd;
 
 		if (InflatedBounds.ClipLine(InflateStartPoint, InflateEndPoint, ClippedStart, ClippedEnd))
 		{
