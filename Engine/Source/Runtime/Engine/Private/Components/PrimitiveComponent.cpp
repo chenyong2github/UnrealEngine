@@ -2920,8 +2920,13 @@ extern float DebugLineLifetime;
 
 bool UPrimitiveComponent::LineTraceComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const struct FCollisionQueryParams& Params)
 {
+	return LineTraceComponent(OutHit, Start, End, DefaultCollisionChannel, Params, FCollisionResponseParams::DefaultResponseParam, FCollisionObjectQueryParams::DefaultObjectQueryParam);
+}
+
+bool UPrimitiveComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
+{
 	bool bHaveHit = false;
-	
+
 	if (FBodyInstance* ThisBodyInstance = GetBodyInstance())
 	{
 		bHaveHit = ThisBodyInstance->LineTrace(OutHit, Start, End, Params.bTraceComplex, Params.bReturnPhysicalMaterial);
@@ -2973,14 +2978,20 @@ bool UPrimitiveComponent::SweepComponent(struct FHitResult& OutHit, const FVecto
 		return ThisBodyInstance->Sweep(OutHit, Start, End, ShapeWorldRotation, CollisionShape, bTraceComplex);
 	}
 
+	FCollisionQueryParams Params = FCollisionQueryParams::DefaultQueryParam;
+	Params.bTraceComplex = bTraceComplex;
+
 	if (CollisionShape.IsNearlyZero())
 	{
-		FCollisionQueryParams Params;
-		Params.bTraceComplex = bTraceComplex;
 		return LineTraceComponent(OutHit, Start, End, Params);
 	}
 
 	FPhysicsShapeAdapter_Chaos ShapeAdapter(ShapeWorldRotation, CollisionShape);
+	return SweepComponent(OutHit, Start, End, ShapeWorldRotation, ShapeAdapter.GetGeometry(), DefaultCollisionChannel, Params, FCollisionResponseParams::DefaultResponseParam, FCollisionObjectQueryParams::DefaultObjectQueryParam);
+}
+
+bool UPrimitiveComponent::SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
+{
 	TArray<Chaos::FPhysicsObjectHandle> Objects = GetAllPhysicsObjects();
 	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(Objects);
 	Objects = Objects.FilterByPredicate(
@@ -2993,14 +3004,14 @@ bool UPrimitiveComponent::SweepComponent(struct FHitResult& OutHit, const FVecto
 	Chaos::FPhysicsObjectCollisionInterface_External CollisionInterface{ Interface.GetInterface() };
 	ChaosInterface::FSweepHit BestHit;
 
-	Chaos::FSweepParameters Params;
-	Params.bSweepComplex = bTraceComplex;
+	Chaos::FSweepParameters SweepParams;
+	SweepParams.bSweepComplex = Params.bTraceComplex;
 
 	// TODO: Expose this even further via parameters in the primitive component.
 	// For now, having this be always true guarantees us identical behavior to tracing via the Chaos SQ
 	// since TSQTraits::GetHitFlags() will always have the MTD flag on.
-	Params.bComputeMTD = true;
-	if (CollisionInterface.ShapeSweep(Objects, ShapeAdapter.GetGeometry(), ShapeAdapter.GetGeomPose(Start), End, Params, BestHit))
+	SweepParams.bComputeMTD = true;
+	if (CollisionInterface.ShapeSweep(Objects, Geometry, FTransform{ ShapeWorldRotation, Start }, End, SweepParams, BestHit))
 	{
 		FCollisionFilterData QueryFilter;
 		QueryFilter.Word1 = 0xFFFFF;
@@ -3136,6 +3147,11 @@ bool UPrimitiveComponent::OverlapComponent(const FVector& Pos, const FQuat& Rot,
 bool UPrimitiveComponent::OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape, TArray<FOverlapResult>& OutOverlap) const
 {
 	FPhysicsShapeAdapter_Chaos ShapeAdapter(Rot, CollisionShape);
+	return OverlapComponentWithResult(Pos, Rot, ShapeAdapter.GetGeometry(), DefaultCollisionChannel, FCollisionQueryParams::DefaultQueryParam, FCollisionResponseParams::DefaultResponseParam, FCollisionObjectQueryParams::DefaultObjectQueryParam, OutOverlap);
+}
+
+bool UPrimitiveComponent::OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& OutOverlap) const
+{
 	TArray<Chaos::FPhysicsObjectHandle> Objects = GetAllPhysicsObjects();
 	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(Objects);
 	Objects = Objects.FilterByPredicate(
@@ -3147,7 +3163,7 @@ bool UPrimitiveComponent::OverlapComponentWithResult(const FVector& Pos, const F
 
 	Chaos::FPhysicsObjectCollisionInterface_External CollisionInterface{ Interface.GetInterface() };
 	TArray<ChaosInterface::FOverlapHit> OverlapHits;
-	if (CollisionInterface.ShapeOverlap(Objects, ShapeAdapter.GetGeometry(), ShapeAdapter.GetGeomPose(Pos), OverlapHits))
+	if (CollisionInterface.ShapeOverlap(Objects, Geometry, FTransform{ Rot, Pos }, OverlapHits))
 	{
 		TArray<FOverlapResult> Overlaps;
 

@@ -2750,6 +2750,19 @@ public:
 	 *  @return true if a hit is found
 	 */
 	virtual bool LineTraceComponent( FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params );
+
+	/**
+	 *  Trace a ray against just this component.
+	 *  @param  OutHit          Information about hit against this component, if true is returned
+	 *  @param  Start           Start location of the ray
+	 *  @param  End             End location of the ray
+	 *  @param  TraceChannel    The 'channel' that this query is in, used to determine which components to hit
+	 *  @param  Params          Additional parameters used for the trace
+	 * 	@param 	ResponseParam	ResponseContainer to be used for this trace
+	 *	@param	ObjectQueryParams	List of object types it's looking for
+	 *  @return true if a hit is found
+	 */
+	virtual bool LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
 	
 	/** 
 	 *  Trace a shape against just this component.
@@ -2762,6 +2775,21 @@ public:
 	 *  @return true if a hit is found
 	 */
 	virtual bool SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FCollisionShape &CollisionShape, bool bTraceComplex=false);
+
+	/**
+	 *  Trace a shape against just this component.
+	 *  @param  OutHit          	Information about hit against this component, if true is returned
+	 *  @param  Start           	Start location of the box
+	 *  @param  End             	End location of the box
+	 *  @param  ShapeWorldRotation  The rotation applied to the collision shape in world space.
+	 *  @param  Geometry			Geometry to sweep with.
+	 *  @param  TraceChannel    The 'channel' that this query is in, used to determine which components to hit
+	 *  @param  Params          Additional parameters used for the trace
+	 * 	@param 	ResponseParam	ResponseContainer to be used for this trace
+	 *	@param	ObjectQueryParams	List of object types it's looking for
+	 *  @return true if a hit is found
+	 */
+	virtual bool SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
 
 	/** 
 	 *  Test the collision of the supplied component at the supplied location/rotation, and determine if it overlaps this component.
@@ -2822,6 +2850,20 @@ public:
 	 */
 	virtual bool OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape, TArray<FOverlapResult>& OutOverlap) const;
 
+	/**
+	 * Test the collision of the supplied shape at the supplied location, and determine if it overlaps this component.
+	 * Also will return information about the overlap.
+	 *  @param  Pos             Location to place PrimComp geometry at
+	 *	@param  Rot             Rotation of PrimComp geometry
+	 *  @param  Geometry		Geometry to use for the overlap check.
+	 *  @param  TraceChannel    The 'channel' that this query is in, used to determine which components to hit
+	 *  @param  Params          Additional parameters used for the trace
+	 * 	@param 	ResponseParam	ResponseContainer to be used for this trace
+	 *	@param	ObjectQueryParams	List of object types it's looking for
+	 *  @param  OutOverlap      Additional information about what exactly was overlapped.
+	 *  @return true if PrimComp overlaps this component at the specified location/rotation
+	 */
+	virtual bool OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& OutOverlap) const;
 
 	/**
 	 * Computes the minimum translation direction (MTD) when an overlap exists between the component and the given shape.

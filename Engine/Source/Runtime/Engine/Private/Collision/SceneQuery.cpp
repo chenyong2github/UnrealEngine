@@ -5,6 +5,7 @@
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 #include "Collision/CollisionConversions.h"
+#include "PhysicsEngine/ClusterUnionComponent.h"
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
 #include "PhysicsEngine/ScopedSQHitchRepeater.h"
 
@@ -294,6 +295,10 @@ struct TSQTraits
 
 	CA_SUPPRESS(6326);
 	constexpr static bool IsSweep() { return GeometryQuery == ESweepOrRay::Sweep;  }
+
+	/** Easy way to query whether this SQ trait is for the GT or the PT based on the based in hit type. */
+	constexpr static bool IsExternalData() { return std::is_base_of_v<ChaosInterface::FActorShape, InHitType>; }
+
 };
 
 enum class EThreadQueryContext
@@ -407,6 +412,63 @@ bool TSceneCastCommonImp(const UWorld* World, typename Traits::TOutHits& OutHits
 				}
 				UE_LOG(LogCollision, Error, TEXT("--------%s"), *Params.ToString());
 #endif
+			}
+
+			// This block is only necessary on the game thread when dealing with cluster unions.
+			// TODO: Is there a way to get this to generalize better to the PT as well? Right now it depends on GT functions on the cluster union component.
+			if constexpr (Traits::IsExternalData())
+			{
+				auto DoClusterUnionTrace = [&GeomInputs, &Start, &End, TraceChannel, &Params, &ResponseParams, &ObjectParams](const FHitResult& OriginalHit, FHitResult& NewHit)
+				{
+					if (UClusterUnionComponent* ClusterUnion = Cast<UClusterUnionComponent>(OriginalHit.GetComponent()))
+					{
+						if constexpr (Traits::IsRay())
+						{
+							return ClusterUnion->LineTraceComponent(NewHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
+						}
+						else
+						{
+							return ClusterUnion->SweepComponent(NewHit, Start, End, *GeomInputs.GetGeometryOrientation(), *GeomInputs.GetGeometry(), TraceChannel, Params, ResponseParams, ObjectParams);
+						}
+					}
+
+					return false;
+				};
+
+				if (bSuccess && Params.bTraceIntoSubComponents)
+				{
+					if constexpr (Traits::IsMulti())
+					{
+						TArray<FHitResult> AllNewHits;
+						TArray<int32> ClusterUnionIndices;
+
+						for (int32 Index = 0; Index < OutHits.Num(); ++Index)
+						{
+							FHitResult NewHit;
+							if (DoClusterUnionTrace(OutHits[Index], NewHit))
+							{
+								AllNewHits.Add(NewHit);
+								ClusterUnionIndices.Add(Index);
+							}
+						}
+
+						for (int32 Index = ClusterUnionIndices.Num() - 1; Index >= 0; --Index)
+						{
+							// No shrinking since we're going to be adding more elements shortly.
+							OutHits.RemoveAtSwap(ClusterUnionIndices[Index], 1, false);
+						}
+
+						OutHits.Append(AllNewHits);
+					}
+					else
+					{
+						FHitResult NewHit;
+						if (DoClusterUnionTrace(OutHits, NewHit))
+						{
+							OutHits = NewHit;
+						}
+					}
+				}
 			}
 		}
 
@@ -630,6 +692,45 @@ bool GeomOverlapMultiImp(const UWorld* World, const FPhysicsGeometry& Geom, cons
 				if(NumHits > 0)
 				{
 					bHaveBlockingHit = ConvertOverlapResults(NumHits, OverlapBuffer.GetHits(), Filter, OutOverlaps);
+
+					// This block is only necessary on the game thread when dealing with cluster unions.
+					// TODO: Is there a way to get this to generalize better to the PT as well? Right now it depends on GT functions on the cluster union component.
+					if constexpr (std::is_base_of_v<ChaosInterface::FActorShape, TOverlapHit>)
+					{
+						auto DoClusterUnionOverlap = [&GeomPose, &Geom, TraceChannel, &Params, &ResponseParams, &ObjectParams](const FOverlapResult& OriginalOverlap, TArray<FOverlapResult>& NewOverlaps)
+						{
+							if (UClusterUnionComponent* ClusterUnion = Cast<UClusterUnionComponent>(OriginalOverlap.GetComponent()))
+							{
+								return ClusterUnion->OverlapComponentWithResult(GeomPose.GetTranslation(), GeomPose.GetRotation(), Geom, TraceChannel, Params, ResponseParams, ObjectParams, NewOverlaps);
+							}
+
+							return false;
+						};
+
+						if (bHaveBlockingHit && Params.bTraceIntoSubComponents)
+						{
+							TArray<FOverlapResult> AllNewOverlaps;
+							TArray<int32> ClusterUnionIndices;
+
+							for (int32 Index = 0; Index < OutOverlaps.Num(); ++Index)
+							{
+								TArray<FOverlapResult> NewOverlaps;
+								if (DoClusterUnionOverlap(OutOverlaps[Index], NewOverlaps))
+								{
+									AllNewOverlaps.Append(NewOverlaps);
+									ClusterUnionIndices.Add(Index);
+								}
+							}
+
+							for (int32 Index = ClusterUnionIndices.Num() - 1; Index >= 0; --Index)
+							{
+								// No shrinking since we're going to be adding more elements shortly.
+								OutOverlaps.RemoveAtSwap(ClusterUnionIndices[Index], 1, false);
+							}
+
+							OutOverlaps.Append(AllNewOverlaps);
+						}
+					}
 				}
 			}
 

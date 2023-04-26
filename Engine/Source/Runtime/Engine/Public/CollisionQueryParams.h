@@ -67,6 +67,9 @@ struct ENGINE_API FCollisionQueryParams
 	/** Whether to skip narrow phase checks (only for overlaps). */
 	bool bSkipNarrowPhase;
 
+	/** Whether to ignore traces to the cluster union and trace against its children instead. */
+	bool bTraceIntoSubComponents;
+
 	/** Filters query by mobility types (static vs stationary/movable)*/
 	EQueryMobilityType MobilityType;
 
@@ -154,6 +157,7 @@ public:
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 		bDebugQuery = false;
 #endif
+		bTraceIntoSubComponents = true;
 	}
 
 	FCollisionQueryParams(FName InTraceTag, bool bInTraceComplex=false, const AActor* InIgnoreActor=NULL)

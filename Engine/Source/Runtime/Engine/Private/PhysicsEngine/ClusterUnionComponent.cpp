@@ -683,64 +683,75 @@ void UClusterUnionComponent::SetSimulatePhysics(bool bSimulate)
 	PhysicsProxy->SetObjectState_External(bSimulate ? Chaos::EObjectStateType::Dynamic : Chaos::EObjectStateType::Kinematic);
 }
 
-bool UClusterUnionComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params)
+bool UClusterUnionComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
 	bool bHasHit = false;
 	OutHit.Distance = TNumericLimits<float>::Max();
-	for (UPrimitiveComponent* Component : GetAllCurrentChildComponents())
-	{
-		if (Component)
+
+	VisitAllCurrentChildComponentsForCollision(TraceChannel, Params, ResponseParams, ObjectParams,
+		[&Start, &End, TraceChannel, &Params, &ResponseParams, &ObjectParams, &bHasHit, &OutHit](UPrimitiveComponent* Component)
 		{
 			FHitResult ComponentHit;
-			if (Component->LineTraceComponent(ComponentHit, Start, End, Params) && ComponentHit.Distance < OutHit.Distance)
+			if (Component->LineTraceComponent(ComponentHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams) && ComponentHit.Distance < OutHit.Distance)
 			{
 				bHasHit = true;
 				OutHit = ComponentHit;
 			}
+
+			return true;
 		}
-	}
+	);
+
 	return bHasHit;
 }
 
-bool UClusterUnionComponent::SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FCollisionShape& CollisionShape, bool bTraceComplex)
+bool UClusterUnionComponent::SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
 	bool bHasHit = false;
 	OutHit.Distance = TNumericLimits<float>::Max();
-	for (UPrimitiveComponent* Component : GetAllCurrentChildComponents())
-	{
-		if (Component)
+
+	VisitAllCurrentChildComponentsForCollision(TraceChannel, Params, ResponseParams, ObjectParams,
+		[&Geometry, &Start, &End, &ShapeWorldRotation, TraceChannel, &Params, &ResponseParams, &ObjectParams, &bHasHit, &OutHit](UPrimitiveComponent* Component)
 		{
 			FHitResult ComponentHit;
-			if (Component->SweepComponent(ComponentHit, Start, End, ShapeWorldRotation, CollisionShape, bTraceComplex) && ComponentHit.Distance < OutHit.Distance)
+			if (Component->SweepComponent(ComponentHit, Start, End, ShapeWorldRotation, Geometry, TraceChannel, Params, ResponseParams, ObjectParams) && ComponentHit.Distance < OutHit.Distance)
 			{
 				bHasHit = true;
 				OutHit = ComponentHit;
 			}
+
+			return true;
 		}
-	}
+	);
+
 	return bHasHit;
 }
 
-bool UClusterUnionComponent::OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape, TArray<FOverlapResult>& OutOverlap) const
+bool UClusterUnionComponent::OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& OutOverlap) const
 {
 	bool bHasOverlap = false;
 
-	FVector QueryHalfExtent = CollisionShape.GetExtent();
+	FVector QueryHalfExtent = Geometry.BoundingBox().Extents();
 	FBoxSphereBounds QueryBounds(FBox(-QueryHalfExtent, QueryHalfExtent));
 	QueryBounds = QueryBounds.TransformBy(FTransform(Rot, Pos));
 
-	for (UPrimitiveComponent* Component : GetAllCurrentChildComponents())
-	{
-		if(Component && FBoxSphereBounds::SpheresIntersect(QueryBounds, Component->Bounds))
+	VisitAllCurrentChildComponentsForCollision(TraceChannel, Params, ResponseParams, ObjectParams,
+		[&QueryBounds, &Geometry, &Pos, &Rot, TraceChannel, &Params, &ResponseParams, &ObjectParams, &bHasOverlap, &OutOverlap](UPrimitiveComponent* Component)
 		{
-			TArray<FOverlapResult> SubOverlaps;
-			if(Component->OverlapComponentWithResult(Pos, Rot, CollisionShape, SubOverlaps))
+			if (FBoxSphereBounds::SpheresIntersect(QueryBounds, Component->Bounds))
 			{
-				bHasOverlap = true;
-				OutOverlap.Append(SubOverlaps);
+				TArray<FOverlapResult> SubOverlaps;
+				if (Component->OverlapComponentWithResult(Pos, Rot, Geometry, TraceChannel, Params, ResponseParams, ObjectParams, SubOverlaps))
+				{
+					bHasOverlap = true;
+					OutOverlap.Append(SubOverlaps);
+				}
 			}
+
+			return true;
 		}
-	}
+	);
+
 	return bHasOverlap;
 }
 
@@ -753,6 +764,71 @@ bool UClusterUnionComponent::ComponentOverlapComponentWithResultImpl(const class
 
 	bool bHasOverlap = false;
 
+	FBoxSphereBounds QueryBounds = PrimComp->Bounds.TransformBy(FTransform(Rot, Pos));
+
+	VisitAllCurrentChildComponentsForCollision(DefaultCollisionChannel, Params, FCollisionResponseParams::DefaultResponseParam, FCollisionObjectQueryParams::DefaultObjectQueryParam,
+		[&QueryBounds, PrimComp, &Pos, &Rot, &Params, &bHasOverlap, &OutOverlap](UPrimitiveComponent* Component)
+		{
+			if (FBoxSphereBounds::SpheresIntersect(QueryBounds, Component->Bounds))
+			{
+				TArray<FOverlapResult> SubOverlaps;
+				if (Component->ComponentOverlapComponentWithResult(PrimComp, Pos, Rot, Params, SubOverlaps))
+				{
+					bHasOverlap = true;
+					OutOverlap.Append(SubOverlaps);
+				}
+			}
+
+			return true;
+		}
+	);
+
+	return bHasOverlap;
+}
+
+TArray<UPrimitiveComponent*> UClusterUnionComponent::GetAllCurrentChildComponents() const
+{
+	TArray<UPrimitiveComponent*> Components;
+	Components.Reserve(ComponentToPhysicsObjects.Num() + PendingComponentSync.Num());
+
+	VisitAllCurrentChildComponents(
+		[&Components](UPrimitiveComponent* Component)
+		{
+			Components.Add(Component);
+			return true;
+		}
+	);
+
+	return Components;
+}
+
+void UClusterUnionComponent::VisitAllCurrentChildComponents(const TFunction<bool(UPrimitiveComponent*)>& Lambda) const
+{
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData>& Kvp : PendingComponentSync)
+	{
+		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr(); Component && Component->HasValidPhysicsState())
+		{
+			if (!Lambda(Component))
+			{
+				return;
+			}
+		}
+	}
+
+	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
+	{
+		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr(); Component && Component->HasValidPhysicsState() && !Kvp.Value.bPendingDeletion)
+		{
+			if (!Lambda(Component))
+			{
+				return;
+			}
+		}
+	}
+}
+
+void UClusterUnionComponent::VisitAllCurrentChildComponentsForCollision(ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TFunction<bool(UPrimitiveComponent*)>& Lambda) const
+{
 	TSet<uint32> IgnoredActors;
 	IgnoredActors.Reserve(Params.GetIgnoredActors().Num());
 	for (uint32 Id : Params.GetIgnoredActors())
@@ -767,58 +843,35 @@ bool UClusterUnionComponent::ComponentOverlapComponentWithResultImpl(const class
 		IgnoredComponents.Add(Id);
 	}
 
-	FBoxSphereBounds QueryBounds = PrimComp->Bounds.TransformBy(FTransform(Rot, Pos));
-
-	for (UPrimitiveComponent* Component : GetAllCurrentChildComponents())
-	{
-		if(Component && FBoxSphereBounds::SpheresIntersect(QueryBounds, Component->Bounds))
+	VisitAllCurrentChildComponents(
+		[TraceChannel, &IgnoredActors, &IgnoredComponents, &Lambda](UPrimitiveComponent* Component)
 		{
-			if(IgnoredComponents.Contains(Component->GetUniqueID()))
+			if (Component)
 			{
-				continue;
-			}
-
-			if(AActor* Owner = Component->GetOwner())
-			{
-				if(IgnoredActors.Contains(Owner->GetUniqueID()))
+				// TODO: Support all the other filters that could exist here.
+				if (IgnoredComponents.Contains(Component->GetUniqueID()))
 				{
-					continue;
+					return true;
 				}
+
+				if (AActor* Owner = Component->GetOwner())
+				{
+					if (IgnoredActors.Contains(Owner->GetUniqueID()))
+					{
+						return true;
+					}
+
+					if (Owner->GetComponentsCollisionResponseToChannel(TraceChannel) == ECollisionResponse::ECR_Ignore)
+					{
+						return true;
+					}
+				}
+
+				Lambda(Component);
 			}
-
-			TArray<FOverlapResult> SubOverlaps;
-			if(Component->ComponentOverlapComponentWithResult(PrimComp, Pos, Rot, Params, SubOverlaps))
-			{
-				bHasOverlap = true;
-				OutOverlap.Append(SubOverlaps);
-			}
+			return true;
 		}
-	}
-	return bHasOverlap;
-}
-
-TArray<UPrimitiveComponent*> UClusterUnionComponent::GetAllCurrentChildComponents() const
-{
-	TArray<UPrimitiveComponent*> Components;
-	Components.Reserve(ComponentToPhysicsObjects.Num() + PendingComponentSync.Num());
-
-	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData>& Kvp : PendingComponentSync)
-	{
-		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr(); Component && Component->HasValidPhysicsState())
-		{
-			Components.Add(Component);
-		}
-	}
-
-	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : ComponentToPhysicsObjects)
-	{
-		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr(); Component && Component->HasValidPhysicsState() && !Kvp.Value.bPendingDeletion)
-		{
-			Components.Add(Component);
-		}
-	}
-
-	return Components;
+	);
 }
 
 TArray<int32> UClusterUnionComponent::GetAddedBoneIdsForComponent(UPrimitiveComponent* Component) const
