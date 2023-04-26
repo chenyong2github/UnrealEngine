@@ -9,11 +9,14 @@
 
 #include "IKRetargetDetails.generated.h"
 
+class UDebugSkelMeshComponent;
+
 enum class EIKRetargetTransformType : int8
 {
 	Current,
 	Reference,
 	RelativeOffset,
+	Bone,
 };
 
 UCLASS(config = Engine, hidecategories = UObject)
@@ -26,6 +29,9 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Selection")
 	FName SelectedBone;
 
+	UPROPERTY()
+	FTransform LocalTransform;
+	
 	UPROPERTY()
 	FTransform OffsetTransform;
 	
@@ -76,13 +82,43 @@ public:
 
 private:
 
+	void CommitValueAsRelativeOffset(
+		UIKRetargeterController* AssetController,
+		const FReferenceSkeleton& RefSkeleton,
+		const ERetargetSourceOrTarget SourceOrTarget,
+		const int32 BoneIndex,
+		UDebugSkelMeshComponent* Mesh,
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent,
+		FVector::FReal Value);
+
+	void CommitValueAsBoneSpace(
+		UIKRetargeterController* AssetController,
+		const FReferenceSkeleton& RefSkeleton,
+		const ERetargetSourceOrTarget SourceOrTarget,
+		const int32 BoneIndex,
+		UDebugSkelMeshComponent* Mesh,
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent,
+		FVector::FReal Value);
+
 	static TOptional<FVector::FReal> CleanRealValue(TOptional<FVector::FReal> InValue);
 	
 	bool IsRootBone() const;
-	
+
+	bool BoneRelative[3] = { false, true, false };
 	bool RelativeOffsetTransformRelative[3] = { false, true, false };
 	bool CurrentTransformRelative[3];
 	bool ReferenceTransformRelative[3];
+};
+
+struct FIKRetargetTransformWidgetData
+{
+	EIKRetargetTransformType TransformType;
+	FText ButtonLabel;
+	FText ButtonTooltip;
 };
 
 struct FIKRetargetTransformUIData
