@@ -51,6 +51,7 @@
 
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "TextureResource.h"
+#include "Toolkits/ToolkitManager.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.
@@ -768,6 +769,12 @@ void FEditorModeTools::DeactivateMode( FEditorModeID InID )
 			ActiveScriptableModes.RemoveAt(Index);
 
 			constexpr bool bIsEnteringMode = false;
+
+			if (const TSharedPtr<FModeToolkit> Toolkit = Mode->GetToolkit().Pin())
+			{
+				FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
+			}
+			
 			BroadcastEditorModeIDChanged(InID, bIsEnteringMode);
 			break;
 		}

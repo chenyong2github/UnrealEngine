@@ -717,16 +717,9 @@ void FModeToolkit::OnModeIDChanged(const FEditorModeID& InID, bool bIsEntering)
 {
 	if (const FEditorModeInfo* ModeInfo = GetEditorModeInfo())
 	{
-		if (ModeInfo->ID != NAME_None && ModeInfo->ID == InID)
+		if (ModeInfo->ID != NAME_None && ModeInfo->ID == InID && bIsEntering)
 		{
-			if (bIsEntering)
-			{
-				FToolkitManager::Get().RegisterNewToolkit(SharedThis(this));
-			}
-			else
-			{
-				FToolkitManager::Get().CloseToolkit(SharedThis(this));
-			}
+			FToolkitManager::Get().RegisterNewToolkit(SharedThis(this));
 		}
 	}
 }
