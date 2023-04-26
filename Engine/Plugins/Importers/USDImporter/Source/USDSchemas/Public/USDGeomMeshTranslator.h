@@ -93,6 +93,11 @@ public:
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override;
 
 	virtual TSet<UE::FSdfPath> CollectAuxiliaryPrims() const override;
+
+protected:
+	// Because of how the GroomTranslator derives the GeometryCacheTranslator that derives this, we may end up in situations where this
+	// translator is not invoked on Mesh prims directly, and so we just yield back to the Xformable translator
+	bool IsMeshPrim() const;
 };
 
 #endif // #if USE_USD_SDK
