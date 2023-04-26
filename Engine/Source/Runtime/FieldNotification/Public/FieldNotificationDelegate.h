@@ -103,6 +103,17 @@ public:
 
 	void Reset();
 
+	struct FDelegateView
+	{
+		FDelegateView(const UObject* Obj, FFieldId Id, FName Function)
+			: Object(Obj), Field(Id), FunctionName(Function)
+		{}
+		const UObject* Object;
+		FFieldId Field;
+		FName FunctionName;
+	};
+	TArray<FDelegateView> GetView() const;
+
 private:
 	int32 LowerBound(FFieldId InFieldId) const
 	{

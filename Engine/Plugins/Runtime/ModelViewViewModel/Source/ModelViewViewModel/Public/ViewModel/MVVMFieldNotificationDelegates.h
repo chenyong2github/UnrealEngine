@@ -21,6 +21,7 @@ public:
 	int32 RemoveAllFieldValueChangedDelegates(UObject* Owner, const void* InUserObject);
 	int32 RemoveAllFieldValueChangedDelegates(UObject* Owner, UE::FieldNotification::FFieldId InFieldId, const void* InUserObject);
 	void BroadcastFieldValueChanged(UObject* Owner, UE::FieldNotification::FFieldId InFieldId);
+	TArray<UE::FieldNotification::FFieldMulticastDelegate::FDelegateView> GetView() const;
 
 private:
 	UE::FieldNotification::FFieldMulticastDelegate Delegates;

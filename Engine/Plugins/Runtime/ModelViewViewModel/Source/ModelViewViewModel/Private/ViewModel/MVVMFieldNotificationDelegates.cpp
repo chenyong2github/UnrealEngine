@@ -97,6 +97,11 @@ void FMVVMFieldNotificationDelegates::BroadcastFieldValueChanged(UObject* InOwne
 	}
 }
 
+TArray<UE::FieldNotification::FFieldMulticastDelegate::FDelegateView> FMVVMFieldNotificationDelegates::GetView() const
+{
+	return Delegates.GetView();
+}
+
 } //namespace
 
 #undef LOCTEXT_NAMESPACE

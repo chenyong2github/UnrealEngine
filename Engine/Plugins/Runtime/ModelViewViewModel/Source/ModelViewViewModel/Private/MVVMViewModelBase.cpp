@@ -54,6 +54,12 @@ int32 UMVVMViewModelBase::RemoveAllFieldValueChangedDelegates(UE::FieldNotificat
 }
 
 
+TArray<UE::FieldNotification::FFieldMulticastDelegate::FDelegateView> UMVVMViewModelBase::GetNotificationDelegateView() const
+{
+	return NotificationDelegates.GetView();
+}
+
+
 const UE::FieldNotification::IClassDescriptor& UMVVMViewModelBase::GetFieldNotificationDescriptor() const
 {
 	static FFieldNotificationClassDescriptor Local;

@@ -506,4 +506,20 @@ void FFieldMulticastDelegate::ExecuteLockOperations()
 	}
 }
 
+
+TArray<FFieldMulticastDelegate::FDelegateView> FFieldMulticastDelegate::GetView() const
+{
+	TArray<FFieldMulticastDelegate::FDelegateView> Result;
+	Result.Reserve(Delegates.Num());
+	for (const FInvocationElement& Element : Delegates)
+	{
+		if (Element.Delegate.IsBound())
+		{
+			//Result.Emplace(Element.Key.Object.Get(), Element.Key.Id, Element.Delegate.TryGetBoundFunctionName());
+			Result.Emplace(Element.Key.Object.Get(), Element.Key.Id, Element.Key.DynamicName);
+		}
+	}
+	return Result;
+}
+
 } //namespace

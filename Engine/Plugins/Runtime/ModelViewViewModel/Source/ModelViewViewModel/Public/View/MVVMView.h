@@ -76,6 +76,11 @@ public:
 		return ClassExtension;
 	}
 
+	const TArrayView<const FMVVMViewSource> GetSources() const
+	{
+		return Sources;
+	}
+
 	void ExecuteDelayedBinding(const FMVVMViewDelayedBinding& DelayedBinding) const;
 	void ExecuteEveryTickBindings() const;
 

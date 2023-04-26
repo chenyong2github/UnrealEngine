@@ -52,6 +52,8 @@ public:
 	virtual void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId) override;
 	//~ End INotifyFieldValueChanged Interface
 
+	TArray<UE::FieldNotification::FFieldMulticastDelegate::FDelegateView> GetNotificationDelegateView() const;
+
 	UFUNCTION(BlueprintCallable, Category = "FieldNotify", meta = (DisplayName = "Add Field Value Changed Delegate", ScriptName = "AddFieldValueChangedDelegate"))
 	void K2_AddFieldValueChangedDelegate(FFieldNotificationId FieldId, FFieldValueChangedDynamicDelegate Delegate);
 
