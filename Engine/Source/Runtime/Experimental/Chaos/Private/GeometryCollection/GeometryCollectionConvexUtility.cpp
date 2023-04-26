@@ -8,6 +8,7 @@
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "GeometryCollection/Facades/CollectionTransformFacade.h"
 #include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
+#include "GeometryCollection/Facades/CollectionMeshFacade.h"
 #include "CompGeom/ConvexHull3.h"
 #include "Templates/Sorting.h"
 #include "Spatial/PointHashGrid3.h"
@@ -1314,14 +1315,21 @@ bool CopyHulls(
 
 // helper to compute the volume of an individual piece of geometry
 double ComputeGeometryVolume(
-	const FGeometryCollection* Collection,
+	const FManagedArrayCollection* Collection,
 	int32 GeometryIdx,
 	const FTransform& GlobalTransform,
 	double ScalePerDimension
 )
 {
-	int32 VStart = Collection->VertexStart[GeometryIdx];
-	int32 VEnd = VStart + Collection->VertexCount[GeometryIdx];
+	GeometryCollection::Facades::FCollectionMeshFacade MeshFacade(*Collection);
+	const TManagedArray<int32>& VertexStart = MeshFacade.VertexStartAttribute.Get();
+	const TManagedArray<int32>& VertexCount = MeshFacade.VertexCountAttribute.Get();
+	const TManagedArray<FVector3f>& Vertex = MeshFacade.VertexAttribute.Get();
+	const TManagedArray<int32>& FaceStart = MeshFacade.FaceStartAttribute.Get();
+	const TManagedArray<int32>& FaceCount = MeshFacade.FaceCountAttribute.Get();
+	const TManagedArray<FIntVector>& Indices = MeshFacade.IndicesAttribute.Get();
+	int32 VStart = VertexStart[GeometryIdx];
+	int32 VEnd = VStart + VertexCount[GeometryIdx];
 	if (VStart == VEnd)
 	{
 		return 0.0;
@@ -1329,19 +1337,19 @@ double ComputeGeometryVolume(
 	FVector3d Center = FVector::ZeroVector;
 	for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
 	{
-		FVector Pos = GlobalTransform.TransformPosition((FVector)Collection->Vertex[VIdx]);
+		FVector Pos = GlobalTransform.TransformPosition((FVector)Vertex[VIdx]);
 		Center += (FVector3d)Pos;
 	}
 	Center /= double(VEnd - VStart);
-	int32 FStart = Collection->FaceStart[GeometryIdx];
-	int32 FEnd = FStart + Collection->FaceCount[GeometryIdx];
+	int32 FStart = FaceStart[GeometryIdx];
+	int32 FEnd = FStart + FaceCount[GeometryIdx];
 	double VolOut = 0;
 	for (int32 FIdx = FStart; FIdx < FEnd; FIdx++)
 	{
-		FIntVector Tri = Collection->Indices[FIdx];
-		FVector3d V0 = (FVector3d)GlobalTransform.TransformPosition((FVector)Collection->Vertex[Tri.X]);
-		FVector3d V1 = (FVector3d)GlobalTransform.TransformPosition((FVector)Collection->Vertex[Tri.Y]);
-		FVector3d V2 = (FVector3d)GlobalTransform.TransformPosition((FVector)Collection->Vertex[Tri.Z]);
+		FIntVector Tri = Indices[FIdx];
+		FVector3d V0 = (FVector3d)GlobalTransform.TransformPosition((FVector)Vertex[Tri.X]);
+		FVector3d V1 = (FVector3d)GlobalTransform.TransformPosition((FVector)Vertex[Tri.Y]);
+		FVector3d V2 = (FVector3d)GlobalTransform.TransformPosition((FVector)Vertex[Tri.Z]);
 
 		// add volume of the tetrahedron formed by the triangles and the reference point
 		FVector3d V1mRef = (V1 - Center) * ScalePerDimension;
@@ -1945,23 +1953,32 @@ static float GetRelativeSizeDimensionFromVolume(const float Volume)
 	return FGenericPlatformMath::Pow(Volume, 1.0f / 3.0f);
 }
 
-void FGeometryCollectionConvexUtility::SetVolumeAttributes(FGeometryCollection* Collection)
+void FGeometryCollectionConvexUtility::SetVolumeAttributes(FManagedArrayCollection* Collection)
 {
 	TManagedArray<float>& Volumes = Collection->AddAttribute<float>("Volume", FTransformCollection::TransformGroup);
 	TManagedArray<float>& Sizes = Collection->AddAttribute<float>("Size", FTransformCollection::TransformGroup);
 
-	const TManagedArray<int32>& SimulationType = Collection->SimulationType;
-	const TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
-	const TManagedArray<int32>& Parent = Collection->Parent;
+	GeometryCollection::Facades::FCollectionMeshFacade MeshFacade(*Collection);
+	GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(*Collection);
+	const TManagedArray<int32>* FoundSimulationType = Collection->FindAttributeTyped<int32>("SimulationType", FTransformCollection::TransformGroup);
+	if (!MeshFacade.IsValid() || !TransformFacade.IsValid() || !FoundSimulationType)
+	{
+		ensureMsgf(false, TEXT("Cannot compute Volume and Size attributes for Collection: Missing required attributes"));
+		return;
+	}
+
+	const TManagedArray<int32>& SimulationType = *FoundSimulationType;
+	const TManagedArray<int32>& TransformToGeometryIndex = MeshFacade.TransformToGeometryIndexAttribute.Get();
+	const TManagedArray<int32>& Parent = *TransformFacade.GetParents();
 
 	TArray<FTransform> Transforms;
-	GeometryCollectionAlgo::GlobalMatrices(Collection->Transform, Collection->Parent, Transforms);
+	GeometryCollectionAlgo::GlobalMatrices(*TransformFacade.FindTransforms(), Parent, Transforms);
 
 	TArray<float> GeoVolumes;
 	GeoVolumes.SetNumZeroed(Collection->NumElements(FGeometryCollection::GeometryGroup));
 	ParallelFor(GeoVolumes.Num(), [&](int32 GeoIdx)
 	{
-		int32 Bone = Collection->TransformIndex[GeoIdx];
+		int32 Bone = MeshFacade.TransformIndexAttribute[GeoIdx];
 		if (SimulationType[Bone] == FGeometryCollection::ESimulationTypes::FST_Rigid)
 		{
 			GeoVolumes[GeoIdx] = (float)ComputeGeometryVolume(Collection, GeoIdx, Transforms[Bone], 1.0);

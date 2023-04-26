@@ -13,6 +13,7 @@ namespace GeometryCollection::Facades
 	FCollectionMeshFacade::FCollectionMeshFacade(FManagedArrayCollection& InCollection)
 		: FCollectionUVFacade(InCollection)
 		, TransformToGeometryIndexAttribute(InCollection, "TransformToGeometryIndex", FGeometryCollection::TransformGroup)
+		, TransformIndexAttribute(InCollection, "TransformIndex", FGeometryCollection::GeometryGroup)
 		, VertexAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup)
 		, TangentUAttribute(InCollection, "TangentU", FGeometryCollection::VerticesGroup)
 		, TangentVAttribute(InCollection, "TangentV", FGeometryCollection::VerticesGroup)
@@ -34,6 +35,7 @@ namespace GeometryCollection::Facades
 	FCollectionMeshFacade::FCollectionMeshFacade(const FManagedArrayCollection& InCollection)
 		: FCollectionUVFacade(InCollection)
 		, TransformToGeometryIndexAttribute(InCollection, "TransformToGeometryIndex", FGeometryCollection::TransformGroup)
+		, TransformIndexAttribute(InCollection, "TransformIndex", FGeometryCollection::GeometryGroup)
 		, VertexAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup)
 		, TangentUAttribute(InCollection, "TangentU", FGeometryCollection::VerticesGroup)
 		, TangentVAttribute(InCollection, "TangentV", FGeometryCollection::VerticesGroup)
@@ -56,6 +58,7 @@ namespace GeometryCollection::Facades
 	{
 		return FCollectionUVFacade::IsValid()
 			&& TransformToGeometryIndexAttribute.IsValid()
+			&& TransformIndexAttribute.IsValid()
 			&& VertexAttribute.IsValid()
 			&& TangentUAttribute.IsValid()
 			&& TangentVAttribute.IsValid()
@@ -78,6 +81,7 @@ namespace GeometryCollection::Facades
 	{
 		FCollectionUVFacade::DefineSchema();
 		TransformToGeometryIndexAttribute.Add();
+		TransformIndexAttribute.Add();
 		VertexAttribute.Add();
 		TangentUAttribute.Add();
 		TangentVAttribute.Add();

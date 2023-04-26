@@ -281,6 +281,6 @@ namespace GeometryCollectionAlgo
 	*/
 	TArray<int32>
 	CHAOS_API
-	ComputeRecursiveOrder(const FGeometryCollection& Collection);
+	ComputeRecursiveOrder(const FManagedArrayCollection& Collection);
 
 }

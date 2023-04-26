@@ -132,6 +132,26 @@ public:
 
 };
 
+/**
+ *
+ * Update the Volume and Size attributes on the target Collection (and add them if they were not present)
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FUpdateVolumeAttributesDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FUpdateVolumeAttributesDataflowNode, "UpdateVolumeAttributes", "GeometryCollection|Utilities", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DataflowOutput))
+	FManagedArrayCollection Collection;
+
+	FUpdateVolumeAttributesDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
 
 namespace Dataflow
 {

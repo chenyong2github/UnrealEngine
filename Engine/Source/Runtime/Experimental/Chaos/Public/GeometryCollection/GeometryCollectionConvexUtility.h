@@ -102,7 +102,7 @@ public:
 	static bool ValidateConvexData(const FGeometryCollection* GeometryCollection);
 
 	/** Set Volume and Size attributes on the Collection (will be called by CreateNonOverlappingConvexHullData -- Volumes must be up to date for convex calc) */
-	static void SetVolumeAttributes(FGeometryCollection* Collection);
+	static void SetVolumeAttributes(FManagedArrayCollection* Collection);
 
 	/**
 	 * Copy convex hulls from *below* FromTransformIdx over to all live at ToTransformIdx.

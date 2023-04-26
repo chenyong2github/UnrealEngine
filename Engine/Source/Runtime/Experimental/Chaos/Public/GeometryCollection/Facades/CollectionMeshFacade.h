@@ -53,6 +53,7 @@ namespace GeometryCollection::Facades
 		 void BakeTransform(int32 TransformIdx, const FTransform& InTransform);
 
 		TManagedArrayAccessor<int32> TransformToGeometryIndexAttribute;
+		TManagedArrayAccessor<int32> TransformIndexAttribute;
 		TManagedArrayAccessor<FVector3f> VertexAttribute;
 		TManagedArrayAccessor<FVector3f> TangentUAttribute;
 		TManagedArrayAccessor<FVector3f> TangentVAttribute;

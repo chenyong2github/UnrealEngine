@@ -6,6 +6,7 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "Async/ParallelFor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(GeometryCollectionAlgoLog, Log, All);
@@ -1423,11 +1424,17 @@ namespace GeometryCollectionAlgo
 	}
 
 
-	TArray<int32> ComputeRecursiveOrder(const FGeometryCollection& Collection)
+	TArray<int32> ComputeRecursiveOrder(const FManagedArrayCollection& Collection)
 	{
 		const int32 NumTransforms = Collection.NumElements(FGeometryCollection::TransformGroup);
-		const TManagedArray<int32>& Parent = Collection.Parent;
-		const TManagedArray<TSet<int32>>& Children = Collection.Children;
+
+		Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(Collection);
+		if (!ensure(HierarchyFacade.IsValid()))
+		{
+			// We cannot compute a recursive ordering without hierarchy attributes
+			TArray<int32> Transforms;
+			return Transforms;
+		}
 
 		//traverse cluster hierarchy in depth first and record order
 		struct FClusterProcessing
@@ -1446,7 +1453,7 @@ namespace GeometryCollectionAlgo
 		//enqueue all roots
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; TransformGroupIndex++)
 		{
-			if (Parent[TransformGroupIndex] == FGeometryCollection::Invalid)
+			if (HierarchyFacade.GetParent(TransformGroupIndex) == FGeometryCollection::Invalid)
 			{
 				ClustersToProcess.Emplace(TransformGroupIndex);
 			}
@@ -1466,13 +1473,14 @@ namespace GeometryCollectionAlgo
 			}
 			else
 			{
-				if (Children[ClusterTransformIdx].Num())
+				const TSet<int32>* ClusterChildren = HierarchyFacade.FindChildren(ClusterTransformIdx);
+				if (ClusterChildren && ClusterChildren->Num())
 				{
 					CurCluster.State = FClusterProcessing::VisitingChildren;
 					ClustersToProcess.Add(CurCluster);
 
 					//order of children doesn't matter as long as all children appear before parent
-					for (int32 ChildIdx : Children[ClusterTransformIdx])
+					for (int32 ChildIdx : *ClusterChildren)
 					{
 						ClustersToProcess.Emplace(ChildIdx);
 					}
