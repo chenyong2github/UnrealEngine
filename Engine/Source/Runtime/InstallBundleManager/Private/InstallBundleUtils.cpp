@@ -78,6 +78,42 @@ namespace InstallBundleUtil
 		}
 	}
 
+	TAtomic<int32> InstallBundleSuppressAnalyticsCounter = 0;
+
+	FInstallBundleSuppressAnalytics::FInstallBundleSuppressAnalytics()
+		: bIsEnabled(false)
+	{
+	}
+
+	FInstallBundleSuppressAnalytics::~FInstallBundleSuppressAnalytics()
+	{
+		Disable();
+	}
+
+	void FInstallBundleSuppressAnalytics::Enable()
+	{
+		if (!bIsEnabled)
+		{
+			bIsEnabled = true;
+			ensure(InstallBundleSuppressAnalyticsCounter++ >= 0);
+		}
+	}
+
+	void FInstallBundleSuppressAnalytics::Disable()
+	{
+		if (bIsEnabled)
+		{
+			bIsEnabled = false;
+			ensure(--InstallBundleSuppressAnalyticsCounter >= 0);
+		}
+	}
+
+	bool FInstallBundleSuppressAnalytics::IsEnabled()
+	{
+		return InstallBundleSuppressAnalyticsCounter > 0;
+	}
+
+
 	void StartInstallBundleAsyncIOTask(TArray<TUniquePtr<FInstallBundleTask>>& Tasks, TUniqueFunction<void()> WorkFunc, TUniqueFunction<void()> OnComplete)
 	{
 		TUniquePtr<FInstallBundleTask> Task = MakeUnique<FInstallBundleTask>(MoveTemp(WorkFunc), MoveTemp(OnComplete));
