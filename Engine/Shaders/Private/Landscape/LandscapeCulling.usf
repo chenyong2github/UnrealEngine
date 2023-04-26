@@ -71,7 +71,7 @@ void BuildLandscapeTileDataCS(uint3 ThreadID : SV_DispatchThreadID)
 	FLWCMatrix LocalToWorld	= MakeLWCMatrix4x3(Section.TilePosition, Section.LocalToRelativeWorld);
 	float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(LocalToWorld, MakeLWCVector3(LandscapeView.ViewTilePosition, LandscapeView.RelativePreViewTranslation));
 	
-	FFrustumCullData CullData = BoxCullFrustum(BoxCenterLocal, BoxExtentLocal, LocalToTranslatedWorld, LandscapeView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipFrustumCull);
+	FFrustumCullData CullData = BoxCullFrustum(BoxCenterLocal, BoxExtentLocal, LocalToTranslatedWorld, LandscapeView.TranslatedWorldToClip, LandscapeView.ViewToClip, bIsOrtho, bNearClip, bSkipFrustumCull);
 	if (CullData.bIsVisible)
 	{
 		uint TileOutputIndex = 0u;
