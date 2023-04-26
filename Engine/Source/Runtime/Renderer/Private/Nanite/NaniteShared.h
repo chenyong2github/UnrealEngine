@@ -845,20 +845,6 @@ class FNaniteVisibilityResults
 public:
 	FNaniteVisibilityResults() = default;
 
-	FNaniteVisibilityResults(const FNaniteVisibilityResults& Other)
-	: RasterBinVisibility(Other.RasterBinVisibility)
-	, ShadingDrawVisibility(Other.ShadingDrawVisibility)
-	, VisibleCustomDepthPrimitives(Other.VisibleCustomDepthPrimitives)
-	, BinIndexTranslator(Other.BinIndexTranslator)
-	, TotalRasterBins(Other.TotalRasterBins)
-	, TotalShadingDraws(Other.TotalShadingDraws)
-	, VisibleRasterBins(Other.VisibleRasterBins)
-	, VisibleShadingDraws(Other.VisibleShadingDraws)
-	, bRasterTestValid(Other.bRasterTestValid)
-	, bShadingTestValid(Other.bShadingTestValid)
-	{
-	}
-
 	bool IsRasterBinVisible(uint16 BinIndex) const;
 	bool IsShadingDrawVisible(uint32 DrawId) const;
 
