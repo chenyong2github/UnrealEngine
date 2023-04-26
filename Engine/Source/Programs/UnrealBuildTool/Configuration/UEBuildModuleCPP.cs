@@ -624,28 +624,28 @@ namespace UnrealBuildTool
 
 				if (Target.bForceUnityBuild)
 				{
-					Logger.LogDebug("Module '{ModuleName}' using unity build mode (bForceUnityBuild enabled for this module)", this.Name);
+					Logger.LogTrace("Module '{ModuleName}' using unity build mode (bForceUnityBuild enabled for this module)", this.Name);
 					bModuleUsesUnityBuild = true;
 				}
 				else if (!Rules.bUseUnity)
 				{
-					Logger.LogDebug("Module '{ModuleName}' not using unity build mode (bUseUnity disabled for this module)", this.Name);
+					Logger.LogTrace("Module '{ModuleName}' not using unity build mode (bUseUnity disabled for this module)", this.Name);
 					bModuleUsesUnityBuild = false;
 				}
 				else if (FileCount < MinSourceFilesForUnityBuild)
 				{
-					Logger.LogDebug("Module '{ModuleName}' not using unity build mode (module with fewer than {NumFiles} source files)", this.Name, MinSourceFilesForUnityBuild);
+					Logger.LogTrace("Module '{ModuleName}' not using unity build mode (module with fewer than {NumFiles} source files)", this.Name, MinSourceFilesForUnityBuild);
 					bModuleUsesUnityBuild = false;
 				}
 				else
 				{
-					Logger.LogDebug("Module '{ModuleName}' using unity build mode", this.Name);
+					Logger.LogTrace("Module '{ModuleName}' using unity build mode", this.Name);
 					bModuleUsesUnityBuild = true;
 				}
 			}
 			else
 			{
-				Logger.LogDebug("Module '{ModuleName}' not using unity build mode", this.Name);
+				Logger.LogTrace("Module '{ModuleName}' not using unity build mode", this.Name);
 			}
 
 			// Compile Generated CPP Files
