@@ -16,8 +16,16 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(new string[]
 			{
 				"ColorManagement",
-				"OpenColorIOLib" // The OpenColorIO third-party library will only be available on desktop editor.
 			});
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("OpenColorIOLib");
+			}
+			else
+			{
+				PrivateDefinitions.Add("WITH_OCIO=0");
+			}
 
 			PublicDependencyModuleNames.AddRange(new string[]
 			{
