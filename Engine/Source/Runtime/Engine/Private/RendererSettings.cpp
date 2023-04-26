@@ -87,7 +87,6 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	bEnableRayTracing = 0;
 	bUseHardwareRayTracingForLumen = 0;
 	bEnableRayTracingShadows = 0;
-	bEnableRayTracingSkylight = 0;
 	bEnablePathTracing = 0;
 	bEnableRayTracingTextureLOD = 0;
 	DefaultBoneInfluenceLimit = 0;
