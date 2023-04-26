@@ -227,7 +227,7 @@ DEFINE_FUNCTION(UDataTableFunctionLibrary::execAddDataTableRow)
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
 			EBlueprintExceptionType::AccessViolation,
-			NSLOCTEXT("GetDataTableRow", "MissingTableInput", "Failed to resolve the DataTable parameter.")
+			NSLOCTEXT("AddDataTableRow", "MissingTableInput", "Failed to resolve the DataTable parameter.")
 		);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 	}
@@ -249,7 +249,7 @@ DEFINE_FUNCTION(UDataTableFunctionLibrary::execAddDataTableRow)
 		{
 			FBlueprintExceptionInfo ExceptionInfo(
 				EBlueprintExceptionType::AccessViolation,
-				NSLOCTEXT("GetDataTableRow", "IncompatibleProperty", "The data table type is incompatible with the RowData parameter.")
+				NSLOCTEXT("AddDataTableRow", "IncompatibleProperty", "The data table type is incompatible with the RowData parameter.")
 			);
 			FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 		}
@@ -258,7 +258,7 @@ DEFINE_FUNCTION(UDataTableFunctionLibrary::execAddDataTableRow)
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
 			EBlueprintExceptionType::AccessViolation,
-			NSLOCTEXT("GetDataTableRow", "MissingOutputProperty", "Failed to resolve the RowData parameter.")
+			NSLOCTEXT("AddDataTableRow", "MissingOutputProperty", "Failed to resolve the RowData parameter.")
 		);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 	}
