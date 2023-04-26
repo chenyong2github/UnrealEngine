@@ -66,7 +66,7 @@ bool FStreamingSparseVolumeTextureData::Initialize(UStreamableSparseVolumeTextur
 {
 	check(InSparseVolumeTexture);
 
-	if (InSparseVolumeTexture->GetFrames().IsEmpty())
+	if (InSparseVolumeTexture->GetNumFrames() == 0)
 	{
 		UE_LOG(LogSparseVolumeTextureStreaming, Error, TEXT("Failed to initialize streaming SparseVolumeTexture due to lack of SVT or serialized stream frames. '%s'"), *InSparseVolumeTexture->GetFullName());
 		return false;
@@ -78,9 +78,8 @@ bool FStreamingSparseVolumeTextureData::Initialize(UStreamableSparseVolumeTextur
 	// Always get the first frame of data so we can play immediately
 	check(LoadedChunks.IsEmpty());
 	check(LoadedChunkIndices.IsEmpty());
-	check(!InSparseVolumeTexture->GetFrames().IsEmpty()); // Must hold at least the first frame
 
-	AddNewLoadedChunk(0, InSparseVolumeTexture->GetFrames()[0].SparseVolumeTextureSceneProxy);
+	AddNewLoadedChunk(0, InSparseVolumeTexture->GetFrame(0)->SceneProxy);
 	LoadedChunkIndices.Add(0);
 
 	return true;
@@ -242,12 +241,11 @@ void FStreamingSparseVolumeTextureData::BeginPendingRequests(const TArray<int32>
 	const int32 NumFrames = SparseVolumeTexture->GetNumFrames();
 	check(NumFrames > 0);
 	const EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_CriticalPath; //Set to Crit temporarily as emergency speculative fix for streaming issue
-	TArrayView<const FSparseVolumeTextureFrame> SVTFrames = SparseVolumeTexture->GetFrames();
 	for (int32 IndexToLoad : IndicesToLoad)
 	{
 		const int32 FrameToLoad = SVTChunkIndexToFrame(IndexToLoad, NumFrames) % NumFrames;
-		const FSparseVolumeTextureFrame& Frame = SVTFrames[FrameToLoad];
-		FSparseVolumeTextureSceneProxy* ExistingProxy = Frame.SparseVolumeTextureSceneProxy;
+		USparseVolumeTextureFrame* Frame = SparseVolumeTexture->GetFrame(FrameToLoad);
+		FSparseVolumeTextureSceneProxy* ExistingProxy = Frame->SceneProxy;
 		FLoadedSparseVolumeTextureChunk& ChunkStorage = AddNewLoadedChunk(IndexToLoad, ExistingProxy);
 
 		if (!ExistingProxy)
@@ -255,7 +253,7 @@ void FStreamingSparseVolumeTextureData::BeginPendingRequests(const TArray<int32>
 			UE_CLOG(ChunkStorage.Proxy.load() != nullptr, LogSparseVolumeTextureStreaming, Fatal, TEXT("Existing render proxy for streaming SparseVolumeTexture frame."));
 			UE_CLOG(ChunkStorage.IORequest, LogSparseVolumeTextureStreaming, Fatal, TEXT("Streaming SparseVolumeTexture frame already has IORequest."));
 
-			const int64 ChunkSize = Frame.RuntimeStreamedInData.GetBulkDataSize();
+			const int64 ChunkSize = Frame->StreamingData.GetBulkDataSize();
 			ChunkStorage.RequestStart = FPlatformTime::Seconds();
 			UE_LOG(LogSparseVolumeTextureStreaming, Warning, TEXT("SparseVolumeTexture streaming request started %s Frame:%i At:%.3f\n"), *SparseVolumeTexture->GetName(), IndexToLoad, ChunkStorage.RequestStart);
 			FBulkDataIORequestCallBack AsyncFileCallBack = [this, IndexToLoad, ChunkSize](bool bWasCancelled, IBulkDataIORequest* Req)
@@ -264,8 +262,8 @@ void FStreamingSparseVolumeTextureData::BeginPendingRequests(const TArray<int32>
 			};
 
 			UE_LOG(LogSparseVolumeTextureStreaming, Warning, TEXT("Loading streaming SparseVolumeTexture %s Frame:%i Offset:%i Size:%i File:%s\n"),
-				*SparseVolumeTexture->GetName(), IndexToLoad, Frame.RuntimeStreamedInData.GetBulkDataOffsetInFile(), Frame.RuntimeStreamedInData.GetBulkDataSize(), *Frame.RuntimeStreamedInData.GetDebugName());
-			ChunkStorage.IORequest = Frame.RuntimeStreamedInData.CreateStreamingRequest(AsyncIOPriority, &AsyncFileCallBack, nullptr);
+				*SparseVolumeTexture->GetName(), IndexToLoad, Frame->StreamingData.GetBulkDataOffsetInFile(), Frame->StreamingData.GetBulkDataSize(), *Frame->StreamingData.GetDebugName());
+			ChunkStorage.IORequest = Frame->StreamingData.CreateStreamingRequest(AsyncIOPriority, &AsyncFileCallBack, nullptr);
 			if (!ChunkStorage.IORequest)
 			{
 				UE_LOG(LogSparseVolumeTextureStreaming, Error, TEXT("SparseVolumeTexture streaming read request failed."));

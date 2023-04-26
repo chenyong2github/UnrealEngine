@@ -209,7 +209,7 @@ void USparseVolumeTextureViewerComponent::TickComponent(float DeltaTime, enum EL
 			FrameIndex = int32(AnimationFrame * float(SparseVolumeTexturePreview->GetNumFrames()));
 		}
 
-		SparseVolumeTextureFrame = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexturePreview, FrameIndex, MipLevel);
+		SparseVolumeTextureFrame = USparseVolumeTextureFrame::GetFrame(SparseVolumeTexturePreview, FrameIndex);
 	}
 	else
 	{

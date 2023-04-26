@@ -44,26 +44,6 @@ struct ENGINE_API FSparseVolumeTextureHeader
 	void Serialize(FArchive& Ar);
 };
 
-struct ENGINE_API FSparseVolumeTextureFrame
-{
-	// The frame data that can be streamed in when in game.
-	FByteBulkData						RuntimeStreamedInData;
-
-	// The render side proxy for the sparse volume texture asset.
-	FSparseVolumeTextureSceneProxy*		SparseVolumeTextureSceneProxy;
-
-#if WITH_EDITORONLY_DATA
-	/** The raw data that can be loaded when we want to update cook the data with different settings or updated code without re importing. */
-	UE::Serialization::FEditorBulkData	RawData;
-#endif
-
-	FSparseVolumeTextureFrame();
-	virtual ~FSparseVolumeTextureFrame();
-	bool BuildDerivedData(const FIntVector3& VolumeResolution, TextureAddress AddressX, TextureAddress AddressY, TextureAddress AddressZ, FSparseVolumeTextureData* OutMippedTextureData);
-	void Serialize(FArchive& Ar, class UStreamableSparseVolumeTexture* Owner, int32 FrameIndex);
-};
-
-
 enum ESparseVolumeTextureShaderUniform
 {
 	ESparseVolumeTexture_TileSize,
@@ -119,7 +99,6 @@ public:
 	/** Getter for the shader uniform parameter type with index as ESparseVolumeTextureShaderUniform. */
 	static UE::Shader::EValueType GetUniformParameterType(int32 Index);
 
-protected:
 #if WITH_EDITOR
 	enum class ENotifyMaterialsEffectOnShaders
 	{
@@ -130,6 +109,58 @@ protected:
 	/** Notify any loaded material instances that the texture has changed. */
 	void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
 #endif // WITH_EDITOR
+};
+
+UCLASS(ClassGroup = Rendering, BlueprintType)
+class ENGINE_API USparseVolumeTextureFrame : public USparseVolumeTexture
+{
+	GENERATED_UCLASS_BODY()
+
+	// SVT_TODO: Remove this once the new streaming manager has been implemented. For now we need this to keep the old system running.
+	friend struct FStreamingSparseVolumeTextureData;
+
+public:
+
+	USparseVolumeTextureFrame();
+	virtual ~USparseVolumeTextureFrame() = default;
+
+	static USparseVolumeTextureFrame* GetFrame(USparseVolumeTexture* SparseVolumeTexture, int32 FrameIndex);
+
+	bool Initialize(USparseVolumeTexture* InOwner, int32 InFrameIndex, FSparseVolumeTextureData& UncookedFrame);
+	bool BuildDerivedData(FSparseVolumeTextureData* OutMippedTextureData);
+	int32 GetFrameIndex() const { return FrameIndex; }
+	void GenerateOrLoadDDCRuntimeData(UE::DerivedData::FRequestOwner& DDCRequestOwner);
+
+	//~ Begin UObject Interface.
+	virtual void PostLoad() override;
+	virtual void FinishDestroy() override;
+	virtual void BeginDestroy() override;
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	//~ End UObject Interface.
+
+	//~ Begin USparseVolumeTexture Interface.
+	virtual int32 GetNumFrames() const override { return 1; }
+	virtual int32 GetNumMipLevels() const { return Owner->GetNumMipLevels(); }
+	virtual FIntVector GetVolumeResolution() const { return Owner->GetVolumeResolution(); }
+	virtual TextureAddress GetTextureAddressX() const { return Owner->GetTextureAddressX(); }
+	virtual TextureAddress GetTextureAddressY() const { return Owner->GetTextureAddressY(); }
+	virtual TextureAddress GetTextureAddressZ() const { return Owner->GetTextureAddressZ(); }
+	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const { return SceneProxy; }
+	//~ End USparseVolumeTexture Interface.
+
+private:
+	UPROPERTY()
+	TObjectPtr<USparseVolumeTexture> Owner;
+	int32 FrameIndex;
+
+	FSparseVolumeTextureSceneProxy* SceneProxy;
+	FByteBulkData StreamingData;
+
+#if WITH_EDITORONLY_DATA
+	/** The raw data that can be loaded when we want to update cook the data with different settings or updated code without re importing. */
+	UE::Serialization::FEditorBulkData	RawData;
+#endif
 };
 
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
@@ -179,7 +210,7 @@ public:
 	virtual bool Initialize(const TArrayView<FSparseVolumeTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
 
 	const FSparseVolumeTextureSceneProxy* GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const;
-	TArrayView<const FSparseVolumeTextureFrame> GetFrames() const { return Frames; };
+	USparseVolumeTextureFrame* GetFrame(int32 FrameIndex) const { return Frames.IsValidIndex(FrameIndex) ? Frames[FrameIndex] : nullptr; }
 
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
@@ -204,7 +235,8 @@ public:
 
 protected:
 
-	TArray<FSparseVolumeTextureFrame> Frames;
+	UPROPERTY()
+	TArray<TObjectPtr<USparseVolumeTextureFrame>> Frames;
 #if WITH_EDITORONLY_DATA
 	FIntVector VolumeBoundsMin;
 	FIntVector VolumeBoundsMax;
@@ -212,7 +244,6 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 	void GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
-	void GenerateOrLoadDDCRuntimeDataForFrame(FSparseVolumeTextureFrame& Frame, UE::DerivedData::FRequestOwner& DDCRequestOwner);
 };
 
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
@@ -253,38 +284,6 @@ public:
 private:
 	int32 PreviewFrameIndex;
 	int32 PreviewMipLevel;
-};
-
-// USparseVolumeTextureFrame inherits from USparseVolumeTexture to be viewed using any given frame of a UAnimatedSparseVolumeTexture (or UStaticSparseVolumeTexture)
-UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
-class ENGINE_API USparseVolumeTextureFrame : public USparseVolumeTexture
-{
-	GENERATED_UCLASS_BODY()
-
-public:
-	USparseVolumeTextureFrame();
-	virtual ~USparseVolumeTextureFrame() = default;
-
-	static USparseVolumeTextureFrame* CreateFrame(USparseVolumeTexture* Texture, int32 FrameIndex, int32 MipLevel);
-
-	void Initialize(const FSparseVolumeTextureSceneProxy* InSceneProxy, const FIntVector& InVolumeResolution, TextureAddress InAddressX, TextureAddress InAddressY, TextureAddress InAddressZ);
-
-	//~ Begin USparseVolumeTexture Interface.
-	virtual int32 GetNumFrames() const override { return 1; }
-	virtual int32 GetNumMipLevels() const override { return 1; }
-	virtual FIntVector GetVolumeResolution() const override { return VolumeResolution; };
-	virtual TextureAddress GetTextureAddressX() const override { return AddressX; }
-	virtual TextureAddress GetTextureAddressY() const override { return AddressY; }
-	virtual TextureAddress GetTextureAddressZ() const override { return AddressZ; }
-	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return SceneProxy; };
-	//~ End USparseVolumeTexture Interface.
-
-private:
-	FIntVector3 VolumeResolution;
-	TEnumAsByte<enum TextureAddress> AddressX;
-	TEnumAsByte<enum TextureAddress> AddressY;
-	TEnumAsByte<enum TextureAddress> AddressZ;
-	const FSparseVolumeTextureSceneProxy* SceneProxy;
 };
 
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))

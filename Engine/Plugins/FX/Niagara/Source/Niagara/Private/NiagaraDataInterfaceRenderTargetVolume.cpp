@@ -826,7 +826,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 	{			
 		UAnimatedSparseVolumeTexture* SVT = Cast<UAnimatedSparseVolumeTexture>(StorageObject);
 		
-		USparseVolumeTextureFrame *SVTFrame = USparseVolumeTextureFrame::CreateFrame(SVT, FrameA, 0);
+		USparseVolumeTextureFrame *SVTFrame = USparseVolumeTextureFrame::GetFrame(SVT, FrameA);
 		
 		FUintVector4 CurrentPackedUniforms0 = FUintVector4();
 		FUintVector4 CurrentPackedUniforms1 = FUintVector4();
