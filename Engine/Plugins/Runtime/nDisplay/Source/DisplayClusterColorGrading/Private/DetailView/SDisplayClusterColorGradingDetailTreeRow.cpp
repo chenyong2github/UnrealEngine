@@ -700,6 +700,12 @@ bool SDisplayClusterColorGradingDetailTreeRow::IsRowEnabled() const
 {
 	if (DetailTreeItem.IsValid())
 	{
+		// Categories are always enabled
+		if (DetailTreeItem.Pin()->IsCategory())
+		{
+			return true;
+		}
+
 		return DetailTreeItem.Pin()->IsPropertyEditingEnabled().Get(true) && 
 			WidgetRow.IsEnabledAttr.Get(true) && 
 			WidgetRow.EditConditionValue.Get(true);

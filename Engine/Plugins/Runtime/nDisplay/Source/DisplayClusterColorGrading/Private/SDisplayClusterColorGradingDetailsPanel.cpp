@@ -103,6 +103,12 @@ private:
 	{
 		if (DetailsSection)
 		{
+			// If there is nothing to display in the title bar, don't display one
+			if (DetailsSection->DisplayName.IsEmpty() && !DetailsSection->EditConditionPropertyHandle.IsValid() && DetailsSection->Subsections.Num() == 0)
+			{
+				return SNullWidget::NullWidget;
+			}
+
 			TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
 
 			if (DetailsSection->EditConditionPropertyHandle.IsValid() && DetailsSection->EditConditionPropertyHandle->IsValidHandle())
@@ -110,7 +116,7 @@ private:
 				HorizontalBox->AddSlot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
-				.Padding(2, 0, 4, 0)
+				.Padding(2, 0, 0, 0)
 				[
 					DetailsSection->EditConditionPropertyHandle->CreatePropertyValueWidget(false)
 				];
@@ -119,7 +125,7 @@ private:
 			HorizontalBox->AddSlot()
 			.FillWidth(1.0f)
 			.VAlign(VAlign_Center)
-			.Padding(2, 0, 0, 0)
+			.Padding(6, 0, 0, 0)
 			[
 				SNew(STextBlock)
 				.Text(DetailsSection->DisplayName)
@@ -136,7 +142,11 @@ private:
 				];
 			}
 
-			return HorizontalBox;
+			return SNew(SBox)
+				.HeightOverride(18)
+				[
+					HorizontalBox
+				];
 		}
 
 		return SNullWidget::NullWidget;

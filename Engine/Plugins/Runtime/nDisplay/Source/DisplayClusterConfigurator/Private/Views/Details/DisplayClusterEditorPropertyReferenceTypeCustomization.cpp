@@ -154,7 +154,10 @@ void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeChildren(
 					for (uint32 Index = 0; Index < NumChildren; ++Index)
 					{
 						TSharedPtr<IPropertyHandle> ChildHandle = ReferencedPropertyHandle->GetChildHandle(Index);
-						InChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+						if (!ChildHandle->IsCustomized())
+						{
+							InChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+						}
 					}
 				}
 				else
