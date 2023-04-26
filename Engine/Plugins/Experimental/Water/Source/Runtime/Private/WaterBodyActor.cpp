@@ -57,9 +57,11 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 
 	WaterInfoMeshComponent = CreateDefaultSubobject<UWaterBodyInfoMeshComponent>(TEXT("WaterInfoMeshComponent"));
 	WaterInfoMeshComponent->SetupAttachment(RootComponent);
+	WaterInfoMeshComponent->SetMobility(EComponentMobility::Movable);
 
 	DilatedWaterInfoMeshComponent = CreateDefaultSubobject<UWaterBodyInfoMeshComponent>(TEXT("DilatedWaterInfoMeshComponent"));
 	DilatedWaterInfoMeshComponent->SetupAttachment(RootComponent);
+	DilatedWaterInfoMeshComponent->SetMobility(EComponentMobility::Movable);
 
 #if WITH_EDITORONLY_DATA
 	bAffectsLandscape_DEPRECATED = true;
