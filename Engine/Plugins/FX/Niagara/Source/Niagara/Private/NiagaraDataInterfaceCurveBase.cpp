@@ -229,6 +229,10 @@ void UNiagaraDataInterfaceCurveBase::PostEditChangeProperty(struct FPropertyChan
 	{
 		UpdateExposedTexture();
 	}
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceCurveBase, CurveAsset))
+	{
+		UpdateLUT();
+	}
 }
 #endif
 
