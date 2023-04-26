@@ -88,7 +88,7 @@ struct FCachePayload
 
 void SerializeCacheSave(FAssetRegistryWriter& Ar, const TArray<TPair<FName, FDiskCachedAssetData*>>& AssetsToSave);
 FCachePayload SerializeCacheLoad(FAssetRegistryReader& Ar);
-FCachePayload LoadCacheFile(FStringView CacheFilename);
+FCachePayload LoadCacheFile(FStringView CacheFilename, bool bIsMonolithicCache);
 
 
 /** InOutResult = Value, but without shrinking the string to fit. */
@@ -3118,7 +3118,7 @@ private:
 	void LoadAsync()
 	{
 		LLM_SCOPE(ELLMTag::AssetRegistry);
-		Payload = LoadCacheFile(GPreloadSettings.GetMonolithicCacheFilename());
+		Payload = LoadCacheFile(GPreloadSettings.GetMonolithicCacheFilename(), true /* bIsMonolithicCache */);
 	}
 
 	TFuture<void> PreloadReady;
@@ -3146,6 +3146,7 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InLongPackageNames
 	, bIsIdle(false)
 	, bFirstTickAfterIdle(true)
 	, bFinishedInitialDiscovery(false)
+	, bAllModuleLoadingPhasesComplete(false)
 	, WaitBatchCount(0)
 	, NumCachedAssetFiles(0)
 	, NumUncachedAssetFiles(0)
@@ -3181,10 +3182,12 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InLongPackageNames
 
 	Discovery = MakeUnique<UE::AssetDataGather::Private::FAssetDataDiscovery>(InLongPackageNamesDenyList, InMountRelativePathsDenyList, bInIsSynchronous);
 	FilesToSearch = MakeUnique<UE::AssetDataGather::Private::FFilesToSearch>();
+	FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddRaw(this, &FAssetDataGatherer::OnAllModuleLoadingPhasesComplete);
 }
 
 FAssetDataGatherer::~FAssetDataGatherer()
 {
+	FCoreDelegates::OnAllModuleLoadingPhasesComplete.RemoveAll(this);
 	EnsureCompletion();
 	NewCachedAssetDataMap.Empty();
 	DiskCachedAssetDataMap.Empty();
@@ -3296,7 +3299,7 @@ void FAssetDataGatherer::InnerTickLoop(bool bInIsSynchronousTick, bool bContribu
 	}
 	if (bShouldSaveMonolithicCache)
 	{
-		SaveCacheFileInternal(GPreloadSettings.GetMonolithicCacheFilename(), AssetsToSave, true /* bIsAsyncCache */);
+		SaveCacheFileInternal(GPreloadSettings.GetMonolithicCacheFilename(), AssetsToSave, true /* bIsAsyncCache */, true /* bIsMonolithicCache */);
 		FGathererScopeLock TickScopeLock(&TickLock);
 		check(CacheInUseCount > 0);
 		CacheInUseCount--;
@@ -3432,7 +3435,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt, double& TickSta
 		else
 #endif
 		{
-			Payload = UE::AssetDataGather::Private::LoadCacheFile(GPreloadSettings.GetMonolithicCacheFilename());
+			Payload = UE::AssetDataGather::Private::LoadCacheFile(GPreloadSettings.GetMonolithicCacheFilename(), true /* bIsMonolithicCache */);
 		}
 		ConsumeCacheFile(MoveTemp(Payload));
 		UE_LOG(LogAssetRegistry, Display, TEXT("AssetDataGatherer spent %.3fs loading %s."),
@@ -3967,7 +3970,7 @@ void FAssetDataGatherer::WaitOnPathsInternal(TArrayView<UE::AssetDataGather::Pri
 			GetAssetsToSave(SaveCacheLongPackageNameDirs, AssetsToSave);
 			CacheInUseCount++;
 		}
-		SaveCacheFileInternal(SaveCacheFilename, AssetsToSave, false /* bIsAsyncCacheSave */);
+		SaveCacheFileInternal(SaveCacheFilename, AssetsToSave, false /* bIsAsyncCacheSave */, false /* bIsMonolithicCache */);
 		{
 			FGathererScopeLock TickScopeLock(&TickLock);
 			check(CacheInUseCount > 0);
@@ -4067,7 +4070,7 @@ void FAssetDataGatherer::LoadCacheFile(FStringView CacheFilename)
 		return;
 	}
 
-	FCachePayload Payload = UE::AssetDataGather::Private::LoadCacheFile(CacheFilename);
+	FCachePayload Payload = UE::AssetDataGather::Private::LoadCacheFile(CacheFilename, false /* bIsMonolithicCache */);
 	FScopedPause ScopedPause(*this);
 	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
 	FGathererScopeLock TickScopeLock(&TickLock);
@@ -4151,7 +4154,7 @@ void FAssetDataGatherer::GetAssetsToSave(TArrayView<const FString> SaveCacheLong
 	}
 }
 
-void FAssetDataGatherer::SaveCacheFileInternal(const FString& CacheFilename, const TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave, bool bIsAsyncCacheSave)
+void FAssetDataGatherer::SaveCacheFileInternal(const FString& CacheFilename, const TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave, bool bIsAsyncCacheSave, bool bIsMonolithicCache)
 {
 	if (CacheFilename.IsEmpty() || !bCacheWriteEnabled)
 	{
@@ -4180,6 +4183,7 @@ void FAssetDataGatherer::SaveCacheFileInternal(const FString& CacheFilename, con
 #else		
 		checkf(false, TEXT("Cannot save asset registry cache in this configuration"));
 #endif
+		int64 CacheSize = FileAr->TotalSize();
 		// Close file handle before moving temp file to target 
 		FileAr.Reset();
 
@@ -4200,6 +4204,11 @@ void FAssetDataGatherer::SaveCacheFileInternal(const FString& CacheFilename, con
 			}
 		}
 		IFileManager::Get().Move(*CacheFilenameStr, *TempFilename);
+
+		if (bIsMonolithicCache)
+		{
+			UE_LOG(LogAssetRegistry, Display, TEXT("Asset registry cache written as %.1f MiB to %s"), CacheSize/1024.f/1024.f, *CacheFilenameStr);
+		}
 	}
 	else
 	{
@@ -4296,7 +4305,7 @@ FCachePayload SerializeCacheLoad(FAssetRegistryReader& Ar)
 	return Result;
 }
 
-FCachePayload LoadCacheFile(FStringView InCacheFilename)
+FCachePayload LoadCacheFile(FStringView InCacheFilename, bool bIsMonolithicCache)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LoadCacheFile);
 	FString CacheFilename(InCacheFilename);
@@ -4327,6 +4336,7 @@ FCachePayload LoadCacheFile(FStringView InCacheFilename)
 		{
 			FChecksumViewReader ChecksummingReader(MoveTemp(FileReader), CacheFilename);
 			Payload = DoLoad(ChecksummingReader);
+			UE_CLOG(bIsMonolithicCache && Payload.bSucceeded, LogAssetRegistry, Display, TEXT("Asset registry cache read as %.1f MiB from %s"), FileReader.GetTotalSize()/1024.f/1024.f, *CacheFilename);
 			UE_CLOG(!Payload.bSucceeded, LogAssetRegistry, Warning, TEXT("There was an error loading the asset registry cache using memory mapping"));
 		}
 
@@ -4344,6 +4354,7 @@ FCachePayload LoadCacheFile(FStringView InCacheFilename)
 			{
 				FChecksumArchiveReader ChecksummingReader(*FileAr);
 				Payload = DoLoad(ChecksummingReader);
+				UE_CLOG(bIsMonolithicCache && Payload.bSucceeded, LogAssetRegistry, Display, TEXT("Asset registry cache read as %.1f MiB from %s"), FileAr->TotalSize()/1024.f/1024.f, *CacheFilename);
 				UE_CLOG(!Payload.bSucceeded, LogAssetRegistry, Warning, TEXT("There was an error loading the asset registry cache"));
 			}
 		}
@@ -4609,7 +4620,7 @@ void FAssetDataGatherer::SetIsIdle(bool bInIsIdle, double& TickStartTime)
 			CurrentSearchTime += FPlatformTime::Seconds() - TickStartTime;
 			TickStartTime = -1.;
 		}
-		if (!bFinishedInitialDiscovery)
+		if (!bFinishedInitialDiscovery && bAllModuleLoadingPhasesComplete)
 		{
 			bFinishedInitialDiscovery = true;
 
@@ -4643,6 +4654,14 @@ FStringView FAssetDataGatherer::NormalizeLongPackageName(FStringView LongPackage
 		LongPackageName = LongPackageName.LeftChop(1);
 	}
 	return LongPackageName;
+}
+
+void FAssetDataGatherer::OnAllModuleLoadingPhasesComplete()
+{
+	CHECK_IS_NOT_LOCKED_CURRENT_THREAD(ResultsLock);
+	FGathererScopeLock ResultsScopeLock(&ResultsLock);
+	bAllModuleLoadingPhasesComplete = true;
+	SetIsIdle(false);
 }
 
 namespace UE::AssetDataGather::Private

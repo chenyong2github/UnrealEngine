@@ -290,7 +290,7 @@ private:
 	 * data from this Gatherer and so can be run outside any critical section.
 	 */
 	void SaveCacheFileInternal(const FString& CacheFilename,
-		const TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave, bool bIsAsyncCacheSave);
+		const TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave, bool bIsAsyncCacheSave, bool bIsMonolithicCache);
 	/**
 	 * Get the list of FDiskCachedAssetData* that have been loaded in the gatherer, for saving into a cachefile.
 	 * Filters the list of assets by child paths of the elements in SaveCacheLongPackageNameDirs, if it is non-empty.
@@ -324,6 +324,7 @@ private:
 	/** Convert the LongPackageName into our normalized version. */
 	static FStringView NormalizeLongPackageName(FStringView LongPackageName);
 
+	void OnAllModuleLoadingPhasesComplete();
 private:
 
 	/**
@@ -426,6 +427,12 @@ private:
 	bool bFirstTickAfterIdle;
 	/** True if we have finished discovering our first wave of files, to report metrics for that most-important wave. */
 	bool bFinishedInitialDiscovery;
+	/**
+	 * Flag to indicate LaunchEngineLoop's AllModuleLoadingPhases is complete; finishing the initial discovery is
+	 * blocked until preloading complete because plugins can be mounted during startup up until that point, and
+	 * we need to wait for all the plugins that will load before declaring completion.
+	 */
+	bool bAllModuleLoadingPhasesComplete = false;
 
 
 	// Variable section for variables that are read/writable only within TickLock.
