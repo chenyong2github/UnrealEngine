@@ -264,6 +264,7 @@ class TelemetryService : BackgroundService
 			catch (Exception ex)
 			{
 				_logger.LogWarning(ex, "Exception in TelemetryService: {Message}", ex.Message);
+				await Task.Delay(TimeSpan.FromSeconds(20), stoppingToken);
 			}
 		}
 	}
