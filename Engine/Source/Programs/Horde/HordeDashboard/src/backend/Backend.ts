@@ -251,7 +251,7 @@ export class Backend {
 
     }
 
-    getJob(id: string, query?: JobQuery): Promise<JobData> {
+    getJob(id: string, query?: JobQuery, includeGraph = true): Promise<JobData> {
 
         return new Promise<JobData>((resolve, reject) => {
 
@@ -260,11 +260,16 @@ export class Backend {
             }).then((value) => {
 
                 const response = value.data as JobData;
-                if (!response.graphHash) {
+                if (includeGraph && !response.graphHash) {
                     return reject(`Job ${id} has undefined graph hash`);
                 }
 
-                graphCache.get({ graphHash: response.graphHash, jobId: id }).then(graph => {
+                if (!includeGraph) {
+                    resolve(response); 
+                    return;
+                }
+
+                graphCache.get({ graphHash: response.graphHash!, jobId: id }).then(graph => {
                     response.graphRef = graph;
                     resolve(response);
                 }).catch(reason => {

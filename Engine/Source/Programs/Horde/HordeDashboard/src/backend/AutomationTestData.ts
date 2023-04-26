@@ -12,7 +12,7 @@ type TestId = string;
 type SuiteId = string;
 type MetaId = string;
 
-type TestStatus = {
+export type TestStatus = {
     suite: boolean;
     refs: GetTestDataRefResponse[];
     success?: number;
@@ -77,7 +77,7 @@ export class TestDataHandler {
                 const streams = this.getAutomationStreams(automation);
                 this.state.streams = streams.map(s => s);
             }
-    
+
         }
 
         if (this.updateSearch()) {
@@ -1288,6 +1288,77 @@ export class TestDataHandler {
         return [];
 
     }
+
+    getStatusStreams(): StreamId[] {
+        return Array.from(this.streamStatus.keys());
+    }
+
+    getStatusStream(streamId: string): Map<TestId | SuiteId, Map<MetaId, TestStatus>> | undefined {
+        return this.streamStatus.get(streamId);
+    }
+
+    getStatusTests(streamIdIn? : string): GetTestResponse[] {
+
+        const testIds = new Set<TestId>();        
+
+        for (let [streamId, streamMap] of this.streamStatus) {
+            if (streamIdIn && streamIdIn !== streamId) {
+                continue;
+            }
+            
+            for (let id of streamMap.keys()) {
+                const test = this.testMap.get(id);
+                if (test) {
+                    testIds.add(test.id);
+                }
+            }
+        }
+    
+        return Array.from(testIds).map(id => this.testMap.get(id)!).sort((a, b) => (a.displayName ?? a.name).localeCompare((b.displayName ?? b.name)));        
+    }
+
+    getStatusSuites(streamIdIn? : string): GetTestSuiteResponse[] {
+
+        const suiteIds = new Set<TestId>();        
+
+        for (let [streamId, streamMap] of this.streamStatus) {
+            if (streamIdIn && streamIdIn !== streamId) {
+                continue;
+            }
+            
+            for (let id of streamMap.keys()) {
+                const suite = this.suiteMap.get(id);
+                if (suite) {
+                    suiteIds.add(suite.id);
+                }
+            }
+        }
+    
+        return Array.from(suiteIds).map(id => this.suiteMap.get(id)!).sort((a, b) =>a.name.localeCompare(b.name));        
+    }
+
+    getStatus(id: TestId | SuiteId): Map<StreamId, Map<MetaId, TestStatus>> | undefined  {
+
+        if (!this.testMap.get(id) && !this.suiteMap.get(id)) {
+            return undefined;
+        }
+
+        const streamMap = new Map<StreamId, Map<MetaId, TestStatus>>();
+
+        for (let [streamId, testMap] of this.streamStatus) {
+            const metaMap = testMap.get(id);
+            if (metaMap && metaMap.size) {
+                streamMap.set(streamId, metaMap);
+            }
+        }
+
+        if (streamMap.size) {
+            return streamMap;
+        }
+
+        return undefined;
+    }
+
 
     @observable
     updated: number = 0;

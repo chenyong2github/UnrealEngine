@@ -31,6 +31,7 @@ import { UserHomeView } from './components/UserHome';
 import { UtilizationReportView } from './components/UtilizationReportView';
 import hordePlugins from './Plugins';
 import { modeColors, preloadFonts } from './styles/Styles';
+import { StepIssueReportTest } from './components/test/IssueStepReport';
 
 
 let router: any;
@@ -149,7 +150,8 @@ const Main: React.FC = () => {
                { path: "tools", element: <ToolView /> },
                { path: "debug/lease/:leaseId", element: <DebugView /> },
                { path: "docs", element: <DocView /> },
-               { path: "docs/*", element: <DocView /> }
+               { path: "docs/*", element: <DocView /> },
+               { path: "test/stepissuereport", element: <StepIssueReportTest /> }
             ]
          }
       ];

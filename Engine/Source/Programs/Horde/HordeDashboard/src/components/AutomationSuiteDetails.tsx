@@ -1,4 +1,4 @@
-import { DetailsList, DetailsListLayoutMode, Dropdown, IColumn, IconButton, IDropdownOption, mergeStyleSets, Modal, SelectionMode, Spinner, SpinnerSize, Stack, Text, TextField } from "@fluentui/react";
+import { DetailsList, DetailsListLayoutMode, DetailsRow, Dropdown, FontIcon, IColumn, IconButton, IDetailsGroupRenderProps, IDetailsListProps, IDropdownOption, IGroup, mergeStyleSets, Modal, SelectionMode, Spinner, SpinnerSize, Stack, Text, TextField } from "@fluentui/react";
 import * as d3 from "d3";
 import { action, makeObservable, observable } from 'mobx';
 import { observer } from 'mobx-react-lite';
@@ -7,9 +7,9 @@ import backend from "../backend";
 import { GetSuiteTestDataResponse, GetTestDataDetailsResponse, GetTestDataRefResponse, GetTestMetaResponse, GetTestResponse, GetTestSuiteResponse, TestOutcome } from "../backend/Api";
 import dashboard, { StatusColor } from "../backend/Dashboard";
 import { projectStore } from "../backend/ProjectStore";
-import { useWindowSize } from "../base/utilities/hooks";
 import { getHumanTime, getShortNiceTime } from "../base/utilities/timeUtils";
 import { hordeClasses, modeColors } from "../styles/Styles";
+import { StatusBar, StatusBarStack } from "./AutomationCommon";
 import { AutomationSuiteTest } from "./AutomationSuiteTest";
 
 type TestId = string;
@@ -21,7 +21,7 @@ type FilterState = {
    text?: string;
 }
 
-const suiteGraphWidth = 1180;
+const suiteGraphWidth = 900;
 
 type TestStatus = {
    testId: string,
@@ -29,6 +29,7 @@ type TestStatus = {
    error?: number;
    skip?: number;
    unspecified?: number;
+   warning?: number;
 }
 
 type TestSelection = {
@@ -43,14 +44,79 @@ type TestMetrics = {
    success: number;
    skipped: number;
    unspecified: number;
+   warning: number;
 }
+
+const suiteStyles = mergeStyleSets({
+   testModal: {
+      selectors: {
+         ".ms-Modal-scrollableContent": {
+            height: "100% !important"
+         }
+      }
+   },
+   group: {
+      selectors: {
+         '.ms-GroupSpacer': {
+            width: "0px !important",
+            height: "18px !important"
+         },
+         '.ms-List-cell .ms-DetailsRow': {
+            paddingTop: 0,
+            paddingBottom: 0,
+            paddingRight: 0,
+            paddingLeft: 4,
+            minHeight: 0
+         }
+      }
+   }
+});
+
+
+/*
+         '.ms-List-cell': {
+            padding: "0 !important",
+            height: "18px !important"
+         },
+         '.ms-DetailsRow-cell': {
+            padding: "0 !important",
+            height: "18px !important",
+            minHeight: "18px !important"
+         },
+         '.ms-DetailsRow-fields': {
+            height: "18px !important"
+         },
+         '.ms-DetailsRow.root': {
+            height: "18px !important"
+         },
+
+*/
+
+type GroupStatus = {
+   error: number;
+   skip: number;
+   unspecified: number;
+   success: number;
+   warning: number;
+   totalError: number;
+   totalSkip: number;
+   totalUnspecified: number;
+   totalSuccess: number;
+   totalWarning: number;
+};
+
+type SuiteGroup = IGroup & {
+   status: GroupStatus;
+   color: string;
+}
+
 
 class SuiteHandler {
 
    constructor(suite: GetTestSuiteResponse, suiteRefs: GetTestDataRefResponse[], metaData: GetTestMetaResponse) {
 
       makeObservable(this);
-      
+
       this.suite = suite;
 
       const dedupe = new Set<number>();
@@ -146,102 +212,120 @@ class SuiteHandler {
          });
       }
 
-      const refs = this.suiteRefs.sort((a, b) => a.buildChangeList - b.buildChangeList).reverse();
+      const streams = Array.from(new Set(this.suiteRefs.map(s => s.streamId))).sort((a, b) => a.localeCompare(b));
 
-      for (const ref of refs) {
-         const details = this.testDetails.get(ref.id);
-         const suiteTests = details?.suiteTests;
-         if (!suiteTests) {
-            return;
+      streams.forEach(streamId => {
+
+         const testStream: TestStream = {
+            testStatus: new Map(),
+            testData: new Map()
          }
 
-         for (const test of suiteTests) {
+         this.testStreams.set(streamId, testStream);
 
-            let testData = this.testData.get(test.testId);
+         const refs = this.suiteRefs.filter(r => r.streamId === streamId).sort((a, b) => a.buildChangeList - b.buildChangeList).reverse();
 
-            if (!testData) {
-               testData = [];
-               this.testData.set(test.testId, testData);
+         for (const ref of refs) {
+            const details = this.testDetails.get(ref.id);
+            const suiteTests = details?.suiteTests;
+            if (!suiteTests) {
+               return;
             }
 
-            testData.push({ ...test, refId: ref.id });
+            for (const test of suiteTests) {
 
-            let status = this.testStatus.get(test.testId);
-            if (!status) {
-               status = { testId: test.testId };
-               this.testStatus.set(test.testId, status);
+               let testData = testStream.testData.get(test.testId);
+
+               if (!testData) {
+                  testData = [];
+                  testStream.testData.set(test.testId, testData);
+               }
+
+               testData.push({ ...test, refId: ref.id });
+
+               let status = testStream.testStatus.get(test.testId);
+               if (!status) {
+                  status = { testId: test.testId };
+                  testStream.testStatus.set(test.testId, status);
+               }
             }
          }
-      }
 
-      for (const [, testData] of this.testData) {
+         for (const [, testData] of testStream.testData) {
 
-
-         for (const test of testData) {
-
-            const error = test.outcome === "Failure";
-            if (!error) {
-               break;
+            if (!testData.length) {
+               continue;
             }
-            const status = this.testStatus.get(test.testId)!;
-            status.error = status.error ? status.error + 1 : 1;
-         }
 
-         for (const test of testData) {
+            const test = testData[0];
 
-            const skipped = test.outcome === "Skipped";
-            if (!skipped) {
-               break;
+            const status = testStream.testStatus.get(test.testId)!;
+
+            if (test.outcome === "Failure") {
+               status.error = 1;
+               continue;
             }
-            const status = this.testStatus.get(test.testId)!;
-            status.skip = status.skip ? status.skip + 1 : 1;
-         }
 
-         for (const test of testData) {
-
-            const unspecified = test.outcome === "Unspecified";
-            if (!unspecified) {
-               break;
+            if (test.outcome === "Skipped") {
+               status.skip = 1;
+               continue;
             }
-            const status = this.testStatus.get(test.testId)!;
-            status.unspecified = status.unspecified ? status.unspecified + 1 : 1;
-         }
 
-
-         for (const test of testData) {
-
-            const success = (test.outcome !== "Failure" && test.outcome !== "Skipped" && test.outcome !== "Unspecified");
-            if (!success) {
-               break;
+            if (test.outcome === "Unspecified") {
+               status.unspecified = 1;
+               continue;
             }
-            const status = this.testStatus.get(test.testId)!;
-            status.success = status.success ? status.success + 1 : 1;
+
+            if (test.warningCount) {
+               status.warning = 1;
+            } else {
+               status.success = 1;
+            }
+
          }
 
-      }
+         const metrics = this.metrics = {
+            total: 0,
+            error: 0,
+            success: 0,
+            skipped: 0,
+            warning: 0,
+            unspecified: 0
+         };
 
-      const metrics = this.metrics = {
-         total: 0,
-         error: 0,
-         success: 0,
-         skipped: 0,
-         unspecified: 0
-      };
+         testStream.testStatus.forEach((v, k) => {
 
-      this.testStatus.forEach((v, k) => {
-         metrics.total++;
-         if (v.error) {
-            metrics.error++;
-         }
-         if (v.success) {
-            metrics.success++;
-         }
-         if (v.skip) {
-            metrics.skipped++;
-         }
-         if (v.unspecified) {
-            metrics.unspecified++;
-         }
+            let gstatus = this.globalStatus.get(k);
+
+            if (!gstatus) {
+               gstatus = { ...v };
+               this.globalStatus.set(k, gstatus);
+            } else {
+               gstatus.error = (gstatus.error ?? 0) + (v.error ?? 0);
+               gstatus.skip = (gstatus.skip ?? 0) + (v.skip ?? 0);
+               gstatus.unspecified = (gstatus.unspecified ?? 0) + (v.unspecified ?? 0);
+               gstatus.success = (gstatus.success ?? 0) + (v.success ?? 0);
+               gstatus.warning = (gstatus.warning ?? 0) + (v.warning ?? 0);
+            }
+
+            metrics.total++;
+            if (v.error) {
+               metrics.error++;
+            }
+            if (v.success) {
+               metrics.success++;
+            }
+            if (v.warning) {
+               metrics.warning++;
+            }
+
+            if (v.skip) {
+               metrics.skipped++;
+            }
+            if (v.unspecified) {
+               metrics.unspecified++;
+            }
+         });
       });
 
       this.loaded = true;
@@ -273,23 +357,29 @@ class SuiteHandler {
    }
 
 
-   getFilteredTestData(testId?: string): TestData[] {
+   getFilteredTestData(streamId: string, testId?: string): TestData[] {
+
+      const testStream = this.testStreams.get(streamId);
+      if (!testStream) {
+         return [];
+      }
+
 
       if (!this.filterState) {
          if (testId) {
-            return this.testData.get(testId)?.flat() ?? [];
+            return testStream.testData.get(testId)?.flat() ?? [];
          }
-         return Array.from(this.testData.values()).flat();
+         return Array.from(testStream.testData.values()).flat();
       }
 
       const testData: TestData[] = [];
 
       const textLowercase = this.filterState.text?.toLowerCase();
 
-      let testStatus = this.testStatus;
+      let testStatus = testStream.testStatus;
 
       if (testId) {
-         const ts = this.testStatus.get(testId);
+         const ts = testStream.testStatus.get(testId);
          testStatus = new Map();
          if (ts) {
             testStatus.set(testId, ts);
@@ -298,7 +388,7 @@ class SuiteHandler {
 
       testStatus.forEach(ts => {
 
-         const sdata = this.testData.get(ts.testId);
+         const sdata = testStream.testData.get(ts.testId);
          if (!sdata) {
             return;
          }
@@ -359,6 +449,10 @@ class SuiteHandler {
 
    }
 
+   get streamIds(): string[] {
+      return Array.from(this.testStreams.keys()).sort((a, b) => a.localeCompare(b));
+   }
+
    @observable
    updated: number = 0;
 
@@ -380,21 +474,26 @@ class SuiteHandler {
    changeDates = new Map<number, Date>();
    refDates = new Map<string, Date>();
 
-
    static tests = new Map<TestId, GetTestResponse>();
 
    private filterState?: FilterState;
 
-   testStatus: Map<TestId, TestStatus> = new Map();
-   private testData: Map<TestId, TestData[]> = new Map();
+   globalStatus = new Map<TestId, TestStatus>();
 
    selection?: TestSelection;
 
-   metrics?: TestMetrics;   
+   metrics?: TestMetrics;
+
+   testStreams: Map<string, TestStream> = new Map();
 
    static fixedTestNames = new Map<TestId, string>();
    static lowerCaseTestNames = new Map<TestId, string>();
 
+}
+
+type TestStream = {
+   testStatus: Map<TestId, TestStatus>;
+   testData: Map<TestId, TestData[]>;
 }
 
 type TestData = GetSuiteTestDataResponse & {
@@ -403,7 +502,8 @@ type TestData = GetSuiteTestDataResponse & {
 
 class SuiteGraphRenderer {
 
-   constructor(handler: SuiteHandler, testId?: string) {
+   constructor(handler: SuiteHandler, streamId?: string, testId?: string) {
+      this.streamId = streamId;
       this.testId = testId;
       this.handler = handler;
       this.margin = { top: 0, right: 8, bottom: 0, left: 16 };
@@ -416,7 +516,12 @@ class SuiteGraphRenderer {
 
       const handler = this.handler;
 
-      this.testData = this.headerOnly ? [] : handler.getFilteredTestData(this.testId);
+      if (this.headerOnly) {
+         this.testData = [];
+      } else {
+         this.testData = this.headerOnly ? [] : handler.getFilteredTestData(this.streamId!, this.testId);
+      }
+
    }
 
    render(container: HTMLDivElement) {
@@ -447,7 +552,7 @@ class SuiteGraphRenderer {
          "Skipped": scolors.get(StatusColor.Skipped)!
       };
 
-      Y = d3.map(this.testData, (d) => d.outcome);
+      Y = d3.map(this.testData, (d) => d.warningCount ? TestOutcome.Warning : d.outcome);
 
       const width = suiteGraphWidth - 32; // important: the 32 offset is to provide more mouse room to roll down latest CL's
       const height = this.headerOnly ? 20 : 16;
@@ -510,7 +615,7 @@ class SuiteGraphRenderer {
 
          if (ticks.length > 14) {
             let nticks = [...ticks];
-            // remove first and last, will be readded 
+            // remove first and last, will be readded
             const first = nticks.shift()!;
             const last = nticks.pop()!;
 
@@ -676,6 +781,7 @@ class SuiteGraphRenderer {
 
    tooltip?: DivSelectionType;
 
+   streamId?: string;
    testId?: string;
    testData: TestData[] = [];
    headerOnly = false;
@@ -689,31 +795,7 @@ class SuiteGraphRenderer {
    forceRender = false;
 }
 
-const styles = mergeStyleSets({
-   list: {
-      selectors: {
-         '.ms-List-cell,.ms-DetailsRow-cell,.ms-DetailsRow': {
-            paddingTop: 0,
-            paddingBottom: 0,
-            paddingRight: 0,
-            paddingLeft: 4,
-            minHeight: 0,
-            height: 20
-         },
-         '.ms-List-cell:nth-child(odd) .ms-DetailsRow': {
-            background: "#DDDFDF",
-         },
-         '.ms-List-cell:nth-child(even) .ms-DetailsRow': {
-            backgroundColor: "#FFFFFF",
-         }
-
-      }
-   }
-});
-
-
-
-const SuiteGraph: React.FC<{ handler: SuiteHandler, testId?: string }> = observer(({ handler, testId }) => {
+const SuiteGraph: React.FC<{ handler: SuiteHandler, streamId?: string, testId?: string }> = observer(({ handler, streamId, testId }) => {
 
    const graph_container_id = `automation_suite_graph_container_${id_counter++}`;
 
@@ -724,7 +806,7 @@ const SuiteGraph: React.FC<{ handler: SuiteHandler, testId?: string }> = observe
    if (handler.updated) { }
 
    if (!state.graph) {
-      setState({ ...state, graph: new SuiteGraphRenderer(handler, testId) })
+      setState({ ...state, graph: new SuiteGraphRenderer(handler, streamId, testId) })
       return null;
    }
 
@@ -749,7 +831,7 @@ const SuiteOperationsBar: React.FC<{ handler: SuiteHandler }> = observer(({ hand
 
    if (handler.updated) { }
 
-   const stateItems: IDropdownOption[] = ["All", "Success", "Failed", "Consecutive Failures", "Skipped", "Unspecified"].map(state => {
+   const stateItems: IDropdownOption[] = ["All", "Success", "Failed", "Skipped", "Unspecified"].map(state => {
       return {
          key: state,
          text: state
@@ -798,7 +880,7 @@ const SuiteOperationsBar: React.FC<{ handler: SuiteHandler }> = observer(({ hand
 
 let id_counter = 0;
 
-const SuiteTestView: React.FC<{ handler: SuiteHandler }> = observer(({ handler }) => {
+const SuiteTestViewModal: React.FC<{ handler: SuiteHandler }> = observer(({ handler }) => {
 
    if (handler.selectionUpdated) { }
 
@@ -813,29 +895,48 @@ const SuiteTestView: React.FC<{ handler: SuiteHandler }> = observer(({ handler }
       return null;
    }
 
-   return <Stack key={`suite_test_view_${id_counter++}`} style={{ flexShrink: 0, height: "100%" }}>
-      <AutomationSuiteTest suite={handler.suite} test={test} testRef={selection.ref} details={selection.details} metaData={handler.metaData} onClose={() => { }} />
+   return <Stack key={`suite_test_view_${id_counter++}`} style={{ height: "100%" }}>
+      <Modal isOpen={true} isBlocking={false} topOffsetFixed={true} styles={{ main: { padding: 8, width: 1180, backgroundColor: modeColors.background, hasBeenOpened: false, top: "128px", position: "absolute", height: "75vh" } }} className={suiteStyles.testModal} onDismiss={(ev) => { handler.setSelection(undefined) }}>
+         <Stack style={{ height: "100%" }}>
+            <Stack horizontal style={{ padding: 18 }}>
+               <Stack>
+                  <Text style={{ fontSize: 16, fontFamily: "Horde Open Sans Semibold" }}>Test Events</Text>
+               </Stack>
+               <Stack grow />
+               <Stack style={{ paddingLeft: 24, paddingTop: 0 }}>
+                  <IconButton
+                     style={{ height: "14px" }}
+                     iconProps={{ iconName: 'Cancel' }}
+                     onClick={() => { handler.setSelection(undefined) }} />
+               </Stack>
+            </Stack>
+
+            <Stack style={{ height: "100%", paddingLeft: 24, paddingRight: 24 }}>
+               <AutomationSuiteTest suite={handler.suite} test={test} testRef={selection.ref} details={selection.details} metaData={handler.metaData} onClose={() => { }} />
+            </Stack>
+         </Stack>
+      </Modal>
    </Stack>
+
 
 });
 
-const SuiteTestList: React.FC<{ handler: SuiteHandler }> = observer(({ handler }) => {
+type TestItem = {
+   key: string;
+   name: string;
+   streamId?: string;
+   testId: string;
+}
 
-   const windowSize = useWindowSize();
+const SuiteTestList: React.FC<{ handler: SuiteHandler, suite: GetTestSuiteResponse }> = observer(({ handler, suite }) => {
 
    if (handler.updated) { }
 
-   interface TestItem {
-      name: string;
-      testId: string;
-   };
-
    const scolors = dashboard.getStatusColors();
 
-
-   const columns = [
-      { key: 'name_column', name: 'Name', minWidth: 320, maxWidth: 320, isResizable: false },
-      { key: 'graph_column', name: 'Graph', minWidth: suiteGraphWidth + 8, maxWidth: suiteGraphWidth + 8, isResizable: false },
+   const columns: IColumn[] = [
+      { key: 'name_column', name: 'Name', minWidth: 308, maxWidth: 308, isResizable: false, isPadded: false, isMultiline: false },
+      { key: 'graph_column', name: 'Graph', minWidth: suiteGraphWidth + 8, maxWidth: suiteGraphWidth + 8, isResizable: false, isPadded: false, isMultiline: false }
    ];
 
    const renderItem = (item: TestItem, index?: number, column?: IColumn) => {
@@ -844,23 +945,61 @@ const SuiteTestList: React.FC<{ handler: SuiteHandler }> = observer(({ handler }
          return null;
       }
 
-      if (column.name === "Name") {
-         //return <Stack horizontal>{<StepRefStatusIcon stepRef={ref} />}<Text>{jobDetails.nodeByStepId(stepId)?.name}</Text></Stack>;
-         const status = handler.testStatus.get(item.testId);
-         let color = dashboard.darktheme ? "#E0E0E0" : undefined;
-         if (status?.success) {
-            //color = scolors.get(StatusColor.Success)!;
-         } else if (status?.error) {
-            if (!dashboard.darktheme) {
-               color = scolors.get(StatusColor.Failure)!;
-            }
-         }
-         return <Stack style={{ height: 18 }} verticalFill={true} verticalAlign="center"><Text style={{ fontSize: 11, fontFamily: "Horde Open Sans Semibold", color: color }}>{item.name}</Text></Stack>;
+      const streamId = item.streamId;
+      let testStream: TestStream | undefined;
+      if (streamId) {
+         testStream = handler.testStreams.get(streamId);
       }
 
-      if (column.name === "Graph") {
 
-         return <Stack style={{ height: 18 }} verticalFill={true} verticalAlign="center"><SuiteGraph handler={handler} testId={item.testId} /></Stack>;
+      if (column.name === "Name") {
+
+         let status: TestStatus | undefined;
+         if (testStream) {
+            status = testStream.testStatus.get(item.testId) ?? ({} as TestStatus);
+         } else {
+            status = handler.globalStatus.get(item.testId);
+         }
+         let color = dashboard.darktheme ? "#E0E0E0" : undefined;
+         if (status?.error) {
+            color = scolors.get(StatusColor.Failure)!;
+         } else if (status?.success) {
+            color = scolors.get(StatusColor.Success)!;
+         } else if (status?.warning) {
+            color = scolors.get(StatusColor.Warnings)!;
+         }
+
+         if (!streamId) {
+            return <Stack horizontal verticalAlign="center" verticalFill>
+               <FontIcon style={{ color: color, paddingRight: 4 }} iconName="Square" />
+               <Stack style={{ height: 18 }} verticalFill={true} verticalAlign="center"><Text style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</Text></Stack>
+            </Stack>
+         }
+         return <Stack style={{ cursor: "pointer" }} onClick={() => {
+
+            // @todo: should be a utility function
+            const data = testStream?.testData.get(item.testId);
+            if (data && data.length) {
+               const d = data[0];
+               const ref = handler.suiteRefs.find(s => s.id === d.refId);
+               if (ref) {
+                  const sdetails = handler.testDetails.get(d.refId);
+                  if (sdetails) {
+                     handler.setSelection({ ref: ref, details: sdetails, testId: item.testId })
+                  }
+               }
+            }
+         }}>
+            <Stack style={{ paddingLeft: 12 }} horizontal verticalAlign="center" verticalFill>
+               <FontIcon style={{ color: color, paddingRight: 4, fontSize: 10 }} iconName="Square" />
+               <Stack style={{ height: 18 }} verticalFill={true} verticalAlign="center"><Text style={{ fontSize: 10 }}>{item.name}</Text></Stack>
+            </Stack>
+         </Stack>
+      }
+
+      if (column.name === "Graph" && item.streamId) {
+
+         return <Stack style={{ height: 18 }} verticalFill={true} verticalAlign="center"><SuiteGraph handler={handler} streamId={item.streamId} testId={item.testId} /></Stack>;
       }
 
       return null;
@@ -869,7 +1008,12 @@ const SuiteTestList: React.FC<{ handler: SuiteHandler }> = observer(({ handler }
 
    const testIds = new Set<TestId>();
 
-   const testData = handler.getFilteredTestData();
+   let testData: TestData[] = [];
+
+   handler.streamIds.forEach(s => {
+      testData.push(...handler.getFilteredTestData(s));
+   });
+
    testData.forEach(d => testIds.add(d.testId));
 
    let tests: GetTestResponse[] = [];
@@ -881,87 +1025,309 @@ const SuiteTestList: React.FC<{ handler: SuiteHandler }> = observer(({ handler }
       }
    }
 
-   tests = tests.sort((a, b) => {
-      const nameA = SuiteHandler.fixedTestNames.get(a.id)!;
-      const nameB = SuiteHandler.fixedTestNames.get(b.id)!
-      return nameA.localeCompare(nameB);
-   });
+   // test id => groupName
+   const groupNames = new Map<string, string>();
+   // groupname => status
+   const groupStatus = new Map<string, GroupStatus>();
 
-   const items = tests.map(t => {
-      return {
-         key: `automation_suite_test_${t.displayName ?? t.name}_${id_counter++}`,
-         name: SuiteHandler.fixedTestNames.get(t.id)!,
-         testId: t.id
+   tests.forEach(t => {
+      const elements = t.name.split(".").map(e => e.trim()).filter(e => !!e).slice(0, -1);
+      let groupName = elements.join(".");
+      const replace = ["Project.Functional Tests.Tests.", "Project.Maps.AllInPIE."];
+      replace.forEach(r => {
+         groupName = groupName.replace(r, "");
+      })
+
+      groupNames.set(t.id, groupName);
+
+      if (groupName) {
+         const status = handler.globalStatus.get(t.id);
+         let gstatus = groupStatus.get(groupName);
+         if (!gstatus) {
+            gstatus = { error: 0, skip: 0, unspecified: 0, success: 0, warning: 0, totalError: 0, totalSkip: 0, totalUnspecified: 0, totalSuccess: 0, totalWarning: 0 };
+            groupStatus.set(groupName, gstatus);
+         }
+
+         gstatus.error += status?.error ? 1 : 0;
+         gstatus.skip += status?.skip ? 1 : 0;
+         gstatus.unspecified += status?.unspecified ? 1 : 0;
+         gstatus.success += status?.success ? 1 : 0;
+         gstatus.warning += status?.warning ? 1 : 0;
+
+         gstatus.totalError += status?.error ?? 0;
+         gstatus.totalSkip += status?.skip ?? 0;
+         gstatus.totalUnspecified += status?.unspecified ?? 0;
+         gstatus.totalWarning += status?.warning ?? 0;
+         gstatus.totalSuccess += status?.success ?? 0;
+
       }
    });
 
-   const wheight = 1000;
-   const flexBasic = windowSize.height < wheight ? "300px" : "400px";
-   const maxHeight = windowSize.height < wheight ? 264 : 364;
-   const metrics = handler.metrics;
+   const sortedGroups = Array.from(groupStatus.keys()).sort((a, b) => {
 
-   return <Stack key={`key_automation_suite_list_${id_counter++}`} className={hordeClasses.raised} style={{ flexBasis: flexBasic, flexShrink: 0 }}>
-      <Stack >
-         <Stack>
-            {!!metrics && <Stack horizontal tokens={{ childrenGap: 24 }} style={{ paddingBottom: 8 }}>
-               <Stack>
-                  <Text>{`Tests: ${metrics.total}`}</Text>
+      const statusA = groupStatus.get(a)!;
+      const statusB = groupStatus.get(b)!;
+
+      const totalA = (statusA.error ?? 0) + (statusA.skip ?? 0) + (statusA.unspecified ?? 0) + (statusA.success ?? 0)
+      const failedFactorA = Math.ceil((statusA.error ?? 0) / (totalA || 1) * 20) / 20;
+      const skipFactorA = Math.ceil(((statusA.skip ?? 0) + (statusA.unspecified ?? 0)) / (totalA || 1) * 20) / 20;
+
+      const totalB = (statusB.error ?? 0) + (statusB.skip ?? 0) + (statusB.unspecified ?? 0) + (statusB.success ?? 0)
+      const failedFactorB = Math.ceil((statusB.error ?? 0) / (totalB || 1) * 20) / 20;
+      const skipFactorB = Math.ceil(((statusB.skip ?? 0) + (statusB.unspecified ?? 0)) / (totalB || 1) * 20) / 20;
+
+      if (failedFactorA !== failedFactorB) {
+         return failedFactorB - failedFactorA;
+      }
+
+      if (skipFactorA !== skipFactorB) {
+         return skipFactorB - skipFactorA;
+      }
+
+      return a.localeCompare(b);
+
+   });
+
+   const testIndexes = new Map<string, number>();
+   tests.forEach(t => {
+      testIndexes.set(t.id, sortedGroups.indexOf(groupNames.get(t.id)!))
+   });
+
+
+   tests = tests.sort((a, b) => {
+
+      const groupA = testIndexes.get(a.id)!;
+      const groupB = testIndexes.get(b.id)!;
+
+      if (groupA !== groupB) {
+         return groupA - groupB;
+      }
+
+      const statusA = handler.globalStatus.get(a.id);
+      const statusB = handler.globalStatus.get(b.id);
+
+
+      let stA = 4;
+      let stB = 4;
+      if (statusA?.error) {
+         stA = 3;
+      } else if (statusA?.skip) {
+         stA = 2;
+      } else if (statusA?.unspecified) {
+         stA = 1;
+      } else if (statusA?.success) {
+         stA = 0;
+      }
+      if (statusB?.error) {
+         stB = 3;
+      } else if (statusB?.skip) {
+         stB = 2;
+      } else if (statusB?.unspecified) {
+         stB = 1;
+      } else if (statusB?.success) {
+         stB = 0;
+      }
+
+      if (stA !== stB) {
+         return stB - stA;
+      }
+
+      const nameA = SuiteHandler.fixedTestNames.get(a.id)!;
+      const nameB = SuiteHandler.fixedTestNames.get(b.id)!;
+      return nameA.localeCompare(nameB);
+   });
+
+   const groups: SuiteGroup[] = [];
+   let cgroup: SuiteGroup | undefined;
+   const colors = dashboard.getStatusColors();
+
+   const items: TestItem[] = [];
+
+   tests.forEach((t) => {
+
+      const groupName = groupNames.get(t.id)!;
+      const status = groupStatus.get(groupName)!
+
+      let color = colors.get(StatusColor.Success)!;
+      if (status.error) {
+         color = colors.get(StatusColor.Failure)!;
+      } else if (status.skip || status.unspecified) {
+         color = colors.get(StatusColor.Skipped)!;
+      }
+
+      if (cgroup?.name !== groupName) {
+
+         if (cgroup) {
+            cgroup.count = items.length - cgroup.startIndex;
+         }
+
+         cgroup = {
+            key: `group_${groupName?.replaceAll(".", "_")}`,
+            name: groupName,
+            startIndex: items.length,
+            count: -1,
+            isCollapsed: !handler.getFilterState()?.text,
+            color: color,
+            status: status
+         }
+
+         groups.push(cgroup);
+
+      }
+
+      items.push({
+         key: `automation_suite_test_${t.displayName ?? t.name}_${id_counter++}`,
+         name: SuiteHandler.fixedTestNames.get(t.id)!.replace(`${groupName}.`, ""),
+         testId: t.id
+      });
+
+      const streams = Array.from(new Set<string>(handler.suiteRefs.map(s => s.streamId))).sort((a, b) => a.localeCompare(b));
+      streams.forEach(streamId => {
+         if (handler.getFilteredTestData(streamId, t.id).length) {
+            items.push({
+               key: `automation_suite_test_${t.displayName ?? t.name}_${id_counter++}`,
+               name: projectStore.streamById(streamId)?.fullname ?? "Unknown Stream",
+               streamId: streamId,
+               testId: t.id
+            });
+         }
+      });
+
+   });
+
+   if (groups.length) {
+      groups[groups.length - 1].count = items.length - groups[groups.length - 1].startIndex;
+   }
+
+   const onRenderGroupHeader: IDetailsGroupRenderProps['onRenderHeader'] = (props) => {
+      if (props) {
+
+         const group = props.group! as SuiteGroup;
+         const status = group.status;
+
+         const total = ((status.totalError ?? 0) + (status.totalSkip ?? 0) + (status.totalUnspecified ?? 0) + (status.totalSuccess ?? 0) + (status.totalWarning ?? 0)) || 1;
+
+         const failedFactor = (status.totalError ?? 0) / total;
+         const skipFactor = ((status.totalSkip ?? 0) + (status.totalUnspecified ?? 0)) / total;
+         const warnFactor = (status.totalWarning ?? 0) / total;
+         const successFactor = (status.totalSuccess ?? 0) / total;
+
+         const stack: StatusBarStack[] = [
+            {
+               value: successFactor * 100,
+               title: "Passed",
+               color: 'transparent'
+            },
+            {
+               value: failedFactor * 100,
+               title: "Failure",
+               color: colors.get(StatusColor.Failure)!,
+               stripes: true
+            },
+            {
+               value: warnFactor * 100,
+               title: "Warnings",
+               color: scolors.get(StatusColor.Warnings)!,
+               stripes: true
+            },
+            {
+               value: skipFactor * 100,
+               title: "Skipped",
+               color: scolors.get(StatusColor.Skipped)!,
+               stripes: true
+            }
+         ]
+
+         let groupName = group.name;
+         const suitePrefix = `${suite.name}.`;
+         if (groupName.startsWith(suitePrefix)) {
+            groupName = groupName.replace(suitePrefix, "");
+         }
+
+         return <Stack style={{ borderTop: dashboard.darktheme ? "1px solid #575E62" : "1px solid #EDEBE9", paddingTop: 4, paddingBottom: 4, cursor: "pointer" }} onClick={() => props.onToggleCollapse!(props.group!)}>
+            <Stack horizontal verticalAlign="center" style={{ paddingBottom: 4 }}>
+               <Stack style={{ paddingRight: 3 }}>
+                  <FontIcon style={{ fontSize: 13 }} iconName={!group.isCollapsed ? "ChevronDown" : "ChevronRight"} />
                </Stack>
-               {!!metrics.success && <Stack>
-                  <Stack>
-                     <Text>{`Success: ${metrics.success} / ${Math.ceil((metrics.success / metrics.total) * 100)}%`}</Text>
-                  </Stack>
-               </Stack>}
-               {!!metrics.error && <Stack>
-                  <Stack>
-                     <Text>{`Error: ${metrics.error} / ${Math.ceil((metrics.error / metrics.total) * 100)}%`}</Text>
-                  </Stack>
-               </Stack>}
-               {!!metrics.skipped && <Stack>
-                  <Stack>
-                     <Text>{`Skipped: ${metrics.skipped} / ${Math.ceil((metrics.skipped / metrics.total) * 100)}%`}</Text>
-                  </Stack>
-               </Stack>}
-               {!!metrics.unspecified && <Stack>
-                  <Stack>
-                     <Text>{`Unspecified: ${metrics.unspecified} / ${Math.ceil((metrics.unspecified / metrics.total) * 100)}%`}</Text>
-                  </Stack>
-               </Stack>}
-            </Stack>}
+               <Stack>
+                  <Text style={{ fontWeight: 600, fontSize: "13px" }}>{groupName}</Text>
+               </Stack>
+            </Stack>
+
+            <Stack style={{ paddingLeft: 17 }}>
+               {StatusBar(stack, 360, 10, colors.get(StatusColor.Success)!, { margin: '0px !important' })}
+            </Stack>
+
          </Stack>
-         <Stack style={{ paddingLeft: 352 }}>
-            <SuiteGraph handler={handler} />
-         </Stack>
-         <Stack>
-            <div style={{ overflowY: 'auto', overflowX: 'hidden', maxHeight: maxHeight }} data-is-scrollable={true}>
-               <DetailsList
-                  styles={{ root: { overflowX: "hidden" } }}
-                  key={`key_automation_suite_detaillist_${id_counter++}`}
-                  className={styles.list}
-                  compact={true}
-                  isHeaderVisible={false}
-                  items={items}
-                  columns={columns}
-                  layoutMode={DetailsListLayoutMode.justified}
-                  onShouldVirtualize={() => true}
-                  selectionMode={SelectionMode.none}
-                  onRenderItemColumn={renderItem}
-               />
-            </div>
+      }
+
+      return null;
+   };
+
+   const renderRow: IDetailsListProps['onRenderRow'] = (props) => {
+
+      if (props) {
+
+         const item = items[props.itemIndex];
+
+         let backgroundColor: string | undefined;
+         if (!item.streamId) {
+            backgroundColor = `${modeColors.crumbs} !important`;
+         } else {
+            const testStream = handler.testStreams.get(item.streamId);
+            const status = testStream?.testStatus.get(item.testId);
+            if (status) {
+               if (status.error) {
+                  backgroundColor = scolors.get(StatusColor.Failure)!;
+                  backgroundColor += (dashboard.darktheme ? "30 " : "30")
+               } else if (status?.success && (!status.skip && !status.unspecified)) {
+                  backgroundColor = scolors.get(StatusColor.Success)!;
+                  backgroundColor += (dashboard.darktheme ? "25 " : "20")
+               } else if (status?.warning && (!status.skip && !status.unspecified)) {
+                  backgroundColor = scolors.get(StatusColor.Warnings)!;
+                  backgroundColor += (dashboard.darktheme ? "25 " : "20")
+               }
+            }
+         }
+
+         return <DetailsRow styles={{ root: { backgroundColor: backgroundColor } }}{...props} />
+      }
+      return null;
+   };
+
+
+
+   return <Stack key={`key_automation_suite_list_${id_counter++}`} className={hordeClasses.raised} style={{ height: "100%" }}>
+      <Stack style={{ paddingLeft: 352, flexBasis: "32px" }}>
+         <SuiteGraph handler={handler} />
+      </Stack>
+      <Stack style={{ overflowY: 'scroll', overflowX: 'hidden', height: "100%" }} data-is-scrollable={true}>
+         <Stack style={{ width: 1256 }}>
+            <DetailsList
+               styles={{ root: { overflowX: "hidden" } }}
+               key={`key_automation_suite_detaillist_${id_counter++}`}
+               className={suiteStyles.group}
+               compact={true}
+               isHeaderVisible={false}
+               items={items}
+               groups={groups}
+               groupProps={{
+                  onRenderHeader: onRenderGroupHeader,
+               }}
+               columns={columns}
+               layoutMode={DetailsListLayoutMode.justified}
+               onShouldVirtualize={() => true}
+               selectionMode={SelectionMode.none}
+               onRenderItemColumn={renderItem}
+               onRenderRow={renderRow}
+            />
          </Stack>
       </Stack>
    </Stack>
 
+
 });
 
-const SuiteTestViewPanel: React.FC<{ handler: SuiteHandler }> = observer(({ handler }) => {
-
-   return <Stack className={hordeClasses.raised} style={{ height: "100%", marginBottom: 8 }}>
-      <Stack style={{ flexShrink: 0, height: "100%" }}>
-         <SuiteTestView handler={handler} />
-      </Stack>
-   </Stack>
-});
 
 export const AutomationSuiteDetails: React.FC<{ suite: GetTestSuiteResponse, suiteRefs: GetTestDataRefResponse[], metaData: GetTestMetaResponse, onClose: () => void }> = observer(({ suite, suiteRefs, metaData, onClose }) => {
 
@@ -979,17 +1345,14 @@ export const AutomationSuiteDetails: React.FC<{ suite: GetTestSuiteResponse, sui
    // subscribe
    if (handler.updated) { }
 
-   const streamId = handler.suiteRefs.find(r => !!r.streamId)?.streamId;
-   const streamName = projectStore.streamById(streamId)?.fullname ?? "Unknown Stream";
-
    return <Stack>
-      <Modal isOpen={true} isBlocking={true} topOffsetFixed={true} styles={{ main: { padding: 8, width: 1700, backgroundColor: modeColors.background, hasBeenOpened: false, top: "24px", position: "absolute", height: "95vh" } }} className={hordeClasses.modal} onDismiss={() => { onClose() }}>
+      <SuiteTestViewModal handler={handler} />
+      <Modal isOpen={true} isBlocking={true} topOffsetFixed={true} styles={{ main: { padding: 8, width: 1420, backgroundColor: modeColors.background, hasBeenOpened: false, top: "24px", position: "absolute", height: "95vh" } }} className={hordeClasses.modal} onDismiss={() => { if (!handler?.selection) onClose() }}>
          <Stack className="horde-no-darktheme" style={{ height: "93vh" }}>
-            <Stack style={{ height: "100%" }} >
+            <Stack style={{ height: "95%" }} >
                <Stack horizontal style={{ paddingLeft: 24, paddingTop: 12, paddingRight: 18 }}>
-                  <Stack tokens={{ childrenGap: 4 }}>
+                  <Stack>
                      <Text style={{ fontSize: 16, fontFamily: "Horde Open Sans Semibold" }}>{handler.metaData?.projectName} - {suite.name} - {handler.metaName}</Text>
-                     <Text style={{ fontSize: 14, fontFamily: "Horde Open Sans Semibold" }}>{streamName}</Text>
                   </Stack>
                   <Stack grow />
                   <Stack>
@@ -1002,9 +1365,9 @@ export const AutomationSuiteDetails: React.FC<{ suite: GetTestSuiteResponse, sui
                         onClick={() => onClose()} />
                   </Stack>
                </Stack>
-               <Stack style={{ flexShrink: 0, flexGrow: 1, paddingLeft: 24, paddingRight: 24, paddingTop: 12 }}>
-                  <div id="root_suite_test_list" style={{ position: "relative", flexShrink: 0, flexGrow: 1 }}>
-                     {!handler.loaded && <Stack style={{ paddingTop: 16 }} horizontalAlign="center" tokens={{ childrenGap: 18 }}>
+               <Stack style={{ height: "100%", paddingLeft: 24, paddingRight: 24, paddingTop: 12 }}>
+                  <div id="root_suite_test_list" style={{ position: "relative", height: "100%" }}>
+                     {!handler.loaded && <Stack style={{ paddingTop: 16, height: "100%" }} horizontalAlign="center" tokens={{ childrenGap: 18 }}>
                         <Stack>
                            <Text variant="mediumPlus">Loading Test Suite</Text>
                         </Stack>
@@ -1013,8 +1376,7 @@ export const AutomationSuiteDetails: React.FC<{ suite: GetTestSuiteResponse, sui
                         </Stack>
                      </Stack>}
                      {!!handler.loaded && <Stack tokens={{ childrenGap: 18 }} style={{ height: "100%" }}>
-                        <SuiteTestList handler={handler} />
-                        <SuiteTestViewPanel handler={handler} />
+                        <SuiteTestList handler={handler} suite={suite} />
                      </Stack>}
                   </div>
                </Stack>
@@ -1022,4 +1384,6 @@ export const AutomationSuiteDetails: React.FC<{ suite: GetTestSuiteResponse, sui
          </Stack>
       </Modal >
    </Stack>
+
+   //<SuiteTestViewPanel handler={handler} />
 });

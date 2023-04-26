@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-import { ComboBox, DefaultButton, Dropdown, FocusZone, FocusZoneDirection, FontIcon, IComboBox, IComboBoxOption, IComboBoxStyles, IContextualMenuItem, IContextualMenuProps, IDropdownOption, Label, PrimaryButton, ScrollablePane, ScrollbarVisibility, SelectableOptionMenuItemType, Spinner, SpinnerSize, Stack, Text } from '@fluentui/react';
+import { ComboBox, DefaultButton, Dropdown, FontIcon, IComboBox, IComboBoxOption, IComboBoxStyles, IContextualMenuItem, IContextualMenuProps, IDropdownOption, Label, PrimaryButton, SelectableOptionMenuItemType, Spinner, SpinnerSize, Stack, Text } from '@fluentui/react';
 import * as d3 from "d3";
 import { observer } from 'mobx-react-lite';
 import moment from 'moment';
@@ -15,6 +15,7 @@ import { useWindowSize } from '../base/utilities/hooks';
 import { getHumanTime, getShortNiceTime, msecToElapsed } from '../base/utilities/timeUtils';
 import { hordeClasses, modeColors } from '../styles/Styles';
 import { AutomationSuiteDetails } from './AutomationSuiteDetails';
+import { AutomationViewSummary } from './AutomationViewSummary';
 import { Breadcrumbs } from './Breadcrumbs';
 import ErrorBoundary from './ErrorBoundary';
 import { TopNav } from './TopNav';
@@ -110,9 +111,9 @@ const MultiOptionChooser: React.FC<{ id: string, optionsIn: IComboBoxOption[], i
 
    options.unshift({ key: 'selectAll', text: 'Select All', itemType: SelectableOptionMenuItemType.SelectAll });
 
-   const comboBoxStyles: Partial<IComboBoxStyles> = { root: { width: 270 } };   
+   const comboBoxStyles: Partial<IComboBoxStyles> = { root: { width: 270 } };
 
-   return <ComboBox componentRef={comboBoxRef} key={`multi_option_${id}_${multiComboBoxId}`} placeholder="None" defaultSelectedKey={initialKeys} multiSelect options={options} onResolveOptions={ () =>options} onMenuDismiss={() => {
+   return <ComboBox componentRef={comboBoxRef} key={`multi_option_${id}_${multiComboBoxId}`} placeholder="None" defaultSelectedKey={initialKeys} multiSelect options={options} onResolveOptions={() => options} onMenuDismiss={() => {
       if (comboBoxRef?.current?.selectedOptions) {
          const selectedKeys = comboBoxRef.current.selectedOptions.map(o => o.key as string).filter(k => k !== 'selectAll');
          setTimeout(() => { multiComboBoxId++; updateKeys(selectedKeys) }, 250);
@@ -489,6 +490,7 @@ const AutomationOperationsBar: React.FC<{ handler: TestDataHandler }> = observer
 
 export const AutomationView: React.FC = observer(() => {
 
+   const windowSize = useWindowSize();
    const [state, setState] = useState<{ handler?: TestDataHandler, search?: string }>({});
    const [searchParams, setSearchParams] = useSearchParams();
 
@@ -522,10 +524,12 @@ export const AutomationView: React.FC = observer(() => {
       const ref = handler.getRef(handler.suiteRef);
       if (ref?.suiteId) {
          metaData = handler.metaData.get(ref.metaId);
-         suiteRefs = handler.getSuiteRefs(ref.suiteId, ref.metaId).filter(r => r.streamId === ref.streamId);
+         suiteRefs = handler.getSuiteRefs(ref.suiteId, ref.metaId);/*.filter(r => r.streamId === ref.streamId);*/
          suite = handler.suiteMap.get(ref.suiteId);
       }
    }
+
+   const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
 
    return (
       <Stack className={hordeClasses.horde}>
@@ -533,21 +537,21 @@ export const AutomationView: React.FC = observer(() => {
          <TopNav />
          <Breadcrumbs items={[{ text: 'Automation' }]} />
          <ErrorBoundary>
-            <Stack horizontalAlign="center" grow styles={{ root: { width: "100%", padding: 12, backgroundColor: modeColors.background } }}>
-               <Stack styles={{ root: { width: 1440 } }}>
-                  {!handler.loaded && <Stack>
-                  </Stack>}
-                  {handler.loaded && <Stack style={{ paddingTop: 8 }}>
-                     <Stack horizontal >
-                        <AutomationSidebarLeft handler={handler} />
-                        <Stack grow>
-                           <Stack style={{ paddingRight: 62 }}>
-                              <AutomationOperationsBar handler={handler} />
+            <Stack horizontal>
+               <div key={`windowsize_automationview_${windowSize.width}_${windowSize.height}`} style={{ width: (vw / 2 - (1440 / 2)) - 12, flexShrink: 0, backgroundColor: modeColors.background }} />
+               <Stack horizontalAlign="center" grow styles={{ root: { width: "100%", padding: 12, backgroundColor: modeColors.background } }}>
+                  <Stack styles={{ root: { width: "100%" } }}>
+                     {!handler.loaded && <Stack>
+                     </Stack>}
+                     {handler.loaded && <Stack style={{ paddingTop: 8 }}>
+                        <Stack horizontal >
+                           <AutomationSidebarLeft handler={handler} />
+                           <Stack grow style={{ overflowX: "auto", overflowY: "visible", minWidth: "1128px" }}>
+                              <AutomationCenter handler={handler} />
                            </Stack>
-                           <AutomationCenter handler={handler} />
                         </Stack>
-                     </Stack>
-                  </Stack>}
+                     </Stack>}
+                  </Stack>
                </Stack>
             </Stack>
          </ErrorBoundary>
@@ -569,23 +573,21 @@ const AutomationCenter: React.FC<{ handler: TestDataHandler }> = observer(({ han
    const height = windowSize.height - 230;
 
    if (handler.queryLoading) {
-      return <Stack horizontalAlign='center' style={{ paddingTop: 24, height: height }} tokens={{ childrenGap: 24 }}>
+      return <Stack horizontalAlign='center' style={{ paddingTop: 24, height: height, width: "1148px" }} tokens={{ childrenGap: 24 }}>
          <Text style={{ fontSize: 24 }}>{!handler.hasQueried ? "Loading Data" : "Refreshing Data"}</Text>
          <Spinner size={SpinnerSize.large} />
       </Stack>
    }
 
    if (handler.hasQueried && !refs?.length) {
-      return <Stack horizontalAlign='center' style={{ paddingTop: 24, height: height }} tokens={{ childrenGap: 24 }}>
-         <Text style={{ fontSize: 24 }}>No Results</Text>
-      </Stack>
+
    }
 
    const streams: Set<string> = new Set();
    const testSet: Set<string> = new Set();
    const suiteSet: Set<string> = new Set();
 
-   refs.forEach(r => {
+   refs?.forEach(r => {
 
       const meta = handler.metaData.get(r.metaId);
 
@@ -605,40 +607,54 @@ const AutomationCenter: React.FC<{ handler: TestDataHandler }> = observer(({ han
 
    const tests = Array.from(testSet).map(tid => handler.testMap.get(tid)!).filter(t => !!t).sort((ta, tb) => ta!.name.localeCompare(tb!.name));
    const suites = Array.from(suiteSet).map(sid => handler.suiteMap.get(sid)!).filter(s => !!s).sort((sa, sb) => sa!.name.localeCompare(sb!.name));
-
-   const testViews = tests.map(t => {
+   
+   const testViews = tests.map(t => {      
       return <Stack key={`test_view_${t.id}_${id_counter++}`}>
-         <AutomationTestView test={t} handler={handler} />
+         
       </Stack>
+      // <AutomationTestView test={t} handler={handler} />
+      
    });
 
    const suiteViews = suites.map(s => {
       return <Stack key={`suite_view_${s.id}_${id_counter++}`}>
-         <AutomationSuiteView suite={s} handler={handler} />
+         
       </Stack>
+
+      // <AutomationSuiteView suite={s} handler={handler} />
    });
 
-   return <Stack style={{ paddingLeft: 12, paddingRight: 24 }}>
-      <FocusZone direction={FocusZoneDirection.vertical}>
-         <div style={{ position: 'relative', height: height }} data-is-scrollable>
-            <ScrollablePane scrollbarVisibility={ScrollbarVisibility.always} onScroll={() => { }}>
-               {!!tests.length &&
-                  <Stack style={{ paddingRight: 24 }}>
-                     <Stack style={{ paddingLeft: 12, paddingTop: 8 }} tokens={{ childrenGap: 8 }}>
-                        {testViews}
-                     </Stack>
-                  </Stack>
-               }
-               {!!suites.length &&
-                  <Stack style={{ paddingRight: 24 }}>
-                     <Stack style={{ paddingLeft: 12, paddingTop: 8 }} tokens={{ childrenGap: 8 }}>
-                        {suiteViews}
-                     </Stack>
-                  </Stack>
-               }
-            </ScrollablePane>
-         </div>
-      </FocusZone>
+   return <Stack style={{ paddingLeft: 12, paddingRight: 24, width: "1148px" }}>
+      <Stack>
+         <Stack style={{ paddingRight: 24 }}>
+            {false && <AutomationOperationsBar handler={handler} />}
+         </Stack>
+      </Stack>
+      {handler.hasQueried && !refs?.length && <Stack horizontalAlign='center' style={{ paddingTop: 24, height: height }} tokens={{ childrenGap: 24 }}>
+         <Text style={{ fontSize: 24 }}>No Results</Text>
+      </Stack>}
+      <div style={{ position: 'relative', height: height }}>
+
+      <Stack>
+         <Stack style={{ paddingLeft: 12, paddingTop: 8 }} tokens={{ childrenGap: 8 }}>
+            <AutomationViewSummary handler={handler} />
+         </Stack>
+      </Stack>
+         {!!tests.length &&
+            <Stack style={{ paddingRight: 24 }}>
+               <Stack style={{ paddingLeft: 12, paddingTop: 8 }} tokens={{ childrenGap: 8 }}>
+                  {testViews}
+               </Stack>
+            </Stack>
+         }
+         {!!suites.length &&
+            <Stack style={{ paddingRight: 24 }}>
+               <Stack style={{ paddingLeft: 12, paddingTop: 8 }} tokens={{ childrenGap: 8 }}>
+                  {suiteViews}
+               </Stack>
+            </Stack>
+         }
+      </div>
    </Stack>
 
 })
@@ -690,7 +706,7 @@ class AutomationGraph {
             if (this.suite) {
                if (cref.suiteErrorCount) {
                   this.metaStatus.set(m, "Failure");
-               } else if (cref.suiteWaringCount) {
+               } else if (cref.suiteWarningCount) {
                   this.metaStatus.set(m, "Warning");
                } else if (cref.suiteSkipCount) {
                   this.metaStatus.set(m, "Skipped");
@@ -762,7 +778,7 @@ class AutomationGraph {
       if (this.suite) {
          Z = d3.map(refs, (r) => {
 
-            if (!r.suiteErrorCount && !r.suiteWaringCount && !r.suiteSkipCount) {
+            if (!r.suiteErrorCount && !r.suiteWarningCount && !r.suiteSkipCount) {
                // If there are skipped, will be a shape with warning/error/success included??
                return "Success";
             }
@@ -770,7 +786,7 @@ class AutomationGraph {
             if (r.suiteErrorCount) {
                return "Failure";
             }
-            if (r.suiteWaringCount) {
+            if (r.suiteWarningCount) {
                return "Warning";
             }
 
@@ -1096,7 +1112,7 @@ const TestGraph: React.FC<{ testId: string, streamId: string, handler: TestDataH
 
 }
 
-const AutomationTestView: React.FC<{ test: GetTestResponse, handler: TestDataHandler }> = observer(({ test, handler }) => {
+export const AutomationTestView: React.FC<{ test: GetTestResponse, handler: TestDataHandler }> = observer(({ test, handler }) => {
 
    const refs = handler.getFilteredRefs(undefined, test.id);
    const streamSet = new Set<string>();
@@ -1233,7 +1249,7 @@ const SuiteGraph: React.FC<{ suiteId: string, streamId: string, handler: TestDat
 })
 
 
-const AutomationSuiteView: React.FC<{ suite: GetTestResponse, handler: TestDataHandler }> = observer(({ suite, handler }) => {
+export const AutomationSuiteView: React.FC<{ suite: GetTestSuiteResponse, handler: TestDataHandler }> = observer(({ suite, handler }) => {
 
    const refs = handler.getFilteredRefs(undefined, suite.id);
    const streamSet = new Set<string>();

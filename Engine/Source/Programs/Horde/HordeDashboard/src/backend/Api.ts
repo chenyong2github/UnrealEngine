@@ -4453,7 +4453,9 @@ export enum TestOutcome {
 	/// The test was skipped
 	Skipped = "Skipped",
 	/// The test had an unspecified result
-	Unspecified = "Unspecified"
+	Unspecified = "Unspecified", 
+	// Warnings
+	Warning = "Warning"
 }
 
 
@@ -4471,6 +4473,12 @@ export type GetSuiteTestDataResponse = {
 
 	/// Test UID for looking up in test details
 	uid: string;
+
+	// The number of test warnings generated
+	warningCount?: number;
+
+	// The number of test warnings generated
+	errorCount?: number;
 }
 
 /// Test details
@@ -4517,10 +4525,14 @@ export type GetTestDataRefResponse = {
 	suiteSkipCount?: number;
 
 	/// The number of suite tests with warnings
-	suiteWaringCount?: number;
+	suiteWarningCount?: number;
 
 	/// The number of suite tests swith errors
 	suiteErrorCount?: number;
+
+	/// The number of suite tests swith errors
+	suiteSuccessCount?: number;
+
 }
 
 /** Summary for a particular tool */

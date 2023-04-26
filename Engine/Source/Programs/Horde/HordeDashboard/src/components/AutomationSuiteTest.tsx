@@ -9,6 +9,7 @@ import { ArtifactData, GetSuiteTestDataResponse, GetTestDataDetailsResponse, Get
 import { TestDataHandler } from "../backend/AutomationTestData";
 import dashboard, { StatusColor } from "../backend/Dashboard";
 import { getShortNiceTime } from "../base/utilities/timeUtils";
+import { projectStore } from "../backend/ProjectStore";
 
 type EventType = "Error" | "Info" | "Warning";
 
@@ -321,7 +322,7 @@ const EventPanel: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler 
          }
 
          return <Stack horizontalAlign="center" style={{ paddingBottom: 12 }}>
-            <Image width="340px" height="190px" src={url} />
+            <Image width="320px" src={url} />
             <Text>{tag}</Text>
          </Stack>
       });
@@ -331,6 +332,10 @@ const EventPanel: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler 
 
       if (e.Type === "Error") {
          color = scolors.get(StatusColor.Failure)!
+      }
+
+      if (e.Type === "Warning") {
+         color = scolors.get(StatusColor.Warnings)!
       }
 
       return <Stack key={`key_test_suite_events_${idCounter++}`} >
@@ -343,17 +348,17 @@ const EventPanel: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler 
                   {images}
                </Stack>}
                <Stack>
-                  <Text style={{ lineBreak: "anywhere", whiteSpace: "pre-wrap", fontSize: 11, lineHeight: "1.65", fontFamily: "Horde Cousine Regular" }}>{e.Message}</Text>
+                  <Text style={{ lineBreak: "anywhere", whiteSpace: "pre-wrap", fontSize: 10, lineHeight: "1.65", fontFamily: "Horde Cousine Regular" }}>{e.Message}</Text>
                </Stack>
             </Stack>
          </Stack>
       </Stack>
    });
 
-   return <Stack grow>
+   return <Stack grow style={{ paddingTop: 8 }} >
       <div style={{ position: 'relative', width: "100%", height: "100%" }} data-is-scrollable>
          <ScrollablePane scrollbarVisibility={ScrollbarVisibility.auto} onScroll={() => { }}>
-            <Stack style={{ paddingRight: 24 }} grow tokens={{ childrenGap: 24 }}>
+            <Stack style={{ padding: 24 }} grow tokens={{ childrenGap: 24 }}>
                {events}
             </Stack>
          </ScrollablePane>
@@ -458,7 +463,7 @@ const MetaChooser: React.FC<{ handler: SuiteTestHandler }> = ({ handler }) => {
 const TestInfoBox: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler }) => {
 
 
-   const labelWidth = 120;
+   const labelWidth = 64;
    const textWidth = 120;
 
    if (handler.updated) { }
@@ -469,41 +474,42 @@ const TestInfoBox: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler
 
    const infoItem = (label: string, textIn: any, link?: string) => {
       const text = textIn.toString();
-      return <Stack key={`test_info_item_${idCounter++}`} horizontal style={{ width: labelWidth + textWidth + 12 }}>
+      return <Stack key={`test_info_item_${idCounter++}`} horizontal verticalAlign="center" style={{ width: labelWidth + textWidth + 12, height: 18 }}>
          <Stack style={{ width: labelWidth }}>
-            <Label>{label}:</Label>
+            <Label style={{ fontSize: 11 }}>{label}:</Label>
          </Stack>
-         <Stack style={{ width: textWidth }}>
+         <Stack style={{ fontSize: 11, width: textWidth }}>
             {!link &&
-               <Text>{text}</Text>}
+               <Text style={{ fontSize: 11 }}>{text}</Text>}
             {!!link &&
-               <Link to={link} target="_blank">{text}</Link>}
+               <Link style={{ fontSize: 11 }} to={link} target="_blank">{text}</Link>}
          </Stack>
       </Stack>
    }
 
-   const errorCount = handler.events?.filter(e => e.Type === "Error").length;
-   const warningCount = handler.events?.filter(e => e.Type === "Warning").length;
+   //const errorCount = handler.events?.filter(e => e.Type === "Error").length;
+   //const warningCount = handler.events?.filter(e => e.Type === "Warning").length;
 
    const infoItems: JSX.Element[] = [];
+
+   const timestamp = handler.cref.id.substring(0, 8)
+   const time = getShortNiceTime(new Date(parseInt(timestamp, 16) * 1000), true);
+   
+   const streamName = projectStore.streamById(handler.cref.streamId)?.fullname ?? "Unknown Stream";
+
+   infoItems.push(infoItem("Stream", streamName));
+   infoItems.push(infoItem("Change", handler.cref.buildChangeList));
+   infoItems.push(infoItem("Date", time));
+
    if (handler.jobId && handler.stepId) {
       infoItems.push(infoItem("Horde", "Job Step", `/job/${handler.jobId}/?step=${handler.stepId}`));
    }
 
-   const timestamp = handler.cref.id.substring(0, 8)
-   const time = getShortNiceTime(new Date(parseInt(timestamp, 16) * 1000), true);
 
-
-   infoItems.push(infoItem("Change", handler.cref.buildChangeList));
-   infoItems.push(infoItem("Date", time));
-   infoItems.push(infoItem("Errors", errorCount));
-   infoItems.push(infoItem("Warnings", warningCount));
-
-   return <Stack style={{ width: 368 }}>
+   return <Stack style={{ width: 320 }}>
       {infoItems}
    </Stack>;
 });
-
 
 const AutomationSuiteTestInner: React.FC<{ handler: SuiteTestHandler }> = observer(({ handler }) => {
 
@@ -533,10 +539,14 @@ const AutomationSuiteTestInner: React.FC<{ handler: SuiteTestHandler }> = observ
    let color = scolors.get(StatusColor.Unspecified);
    if (suiteTest.outcome === TestOutcome.Success) {
       color = scolors.get(StatusColor.Success)!;
+      if (suiteTest.warningCount) {
+         color = scolors.get(StatusColor.Warnings)!;
+      }
    }
    if (suiteTest.outcome === TestOutcome.Failure) {
       color = scolors.get(StatusColor.Failure)!;
    }
+   
 
 
    // @todo: centralize this, and needs to be fixed on client
@@ -553,13 +563,12 @@ const AutomationSuiteTestInner: React.FC<{ handler: SuiteTestHandler }> = observ
 
    const testName = fixName(test.displayName ?? test.name);
 
-
    return <Stack style={{ height: "100%" }} >
-      <Stack horizontal tokens={{ childrenGap: 4 }} verticalAlign="center" style={{ paddingBottom: 12 }}>
+      <Stack horizontal tokens={{ childrenGap: 4 }} verticalAlign="center" style={{ paddingBottom: 0 }}>
          <Stack className="horde-no-darktheme" style={{ paddingTop: 2, paddingRight: 4 }}>
             <FontIcon style={{ color: color }} iconName="Square" />
          </Stack>
-         <Stack tokens={{childrenGap: 4}}>
+         <Stack tokens={{ childrenGap: 4 }}>
             <Stack>
                <Text style={{ fontSize: 13, fontFamily: "Horde Open Sans Semibold" }}>{testName}</Text>
             </Stack>
@@ -567,18 +576,17 @@ const AutomationSuiteTestInner: React.FC<{ handler: SuiteTestHandler }> = observ
                <Text style={{ fontSize: 11, fontFamily: "Horde Open Sans Semibold" }}>{handler.metaNames.get(handler.cmetaData!.id)}</Text>
             </Stack>
          </Stack>
+         <Stack grow />
+         <Stack style={{paddingRight: 8}}>
+            <MetaChooser handler={handler} />
+            </Stack>
       </Stack>
 
-      <Stack grow>
-         <Stack horizontal style={{ height: "100%" }}>
-            <Stack>
-               <Stack style={{ paddingTop: 8, paddingBottom: 18 }}>
-                  <MetaChooser handler={handler} />
-               </Stack>
-               <TestInfoBox handler={handler} />
-            </Stack>
-            <EventPanel handler={handler} />
-         </Stack>
+      <Stack style={{paddingLeft: 22}}>
+         <TestInfoBox handler={handler} />
+      </Stack>
+      <Stack style={{ height: "100%" }}>
+         <EventPanel handler={handler} />
       </Stack>
    </Stack>
 
