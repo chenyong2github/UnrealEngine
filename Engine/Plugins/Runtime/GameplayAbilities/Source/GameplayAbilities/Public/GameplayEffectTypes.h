@@ -1280,6 +1280,9 @@ public:
 		PropertyGuid = Other.PropertyGuid;
 	}
 
+	// Pretty weird that the assignment operator copies the handle when the copy constructor doesn't - bug?
+	FGameplayTagBlueprintPropertyMapping& operator=(const FGameplayTagBlueprintPropertyMapping& Other) = default;
+
 	/** Gameplay tag being counted. */
 	UPROPERTY(EditAnywhere, Category = GameplayTagBlueprintProperty)
 	FGameplayTag TagToMap;
