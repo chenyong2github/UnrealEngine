@@ -53,6 +53,7 @@ struct FContextualAnimRepData
 	uint8 RepCounter = 0;
 
 	void IncrementRepCounter();
+	bool IsValid() const { return RepCounter != 0; }
 };
 
 /** Used to replicate start/stop contextual anim events */
@@ -66,6 +67,13 @@ struct FContextualAnimRepBindingsData : public FContextualAnimRepData
 
 	UPROPERTY()
 	TArray<FContextualAnimWarpTarget> ExternalWarpTargets;
+
+	void Reset()
+	{
+		RepCounter = 0;
+		Bindings.Reset();
+		ExternalWarpTargets.Reset();
+	}
 };
 
 /** Used to replicate a late join event */
@@ -84,6 +92,14 @@ struct FContextualAnimRepLateJoinData : public FContextualAnimRepData
 
 	UPROPERTY()
 	TArray<FContextualAnimWarpTarget> ExternalWarpTargets;
+
+	void Reset()
+	{
+		RepCounter = 0;
+		Actor = nullptr;
+		Role = NAME_None;
+		ExternalWarpTargets.Reset();
+	}
 };
 
 /** Used to transition events */
@@ -103,6 +119,15 @@ struct FContextualAnimRepTransitionData : public FContextualAnimRepData
 
 	UPROPERTY()
 	TArray<FContextualAnimWarpTarget> ExternalWarpTargets;
+
+	void Reset()
+	{
+		RepCounter = 0;
+		Id = 0;
+		SectionIdx = 0;
+		AnimSetIdx = 0;
+		ExternalWarpTargets.Reset();
+	}
 };
 
 UCLASS(meta = (BlueprintSpawnableComponent))
