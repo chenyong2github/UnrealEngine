@@ -629,9 +629,9 @@ const TCHAR* GetDevelopmentAssetRegistryFilename()
 	return TEXT("DevelopmentAssetRegistry.bin");
 }
 
-FAssetData IAssetRegistry::K2_GetAssetByObjectPath(const FSoftObjectPath& ObjectPath, bool bIncludeOnlyOnDiskAssets) const
+FAssetData IAssetRegistry::K2_GetAssetByObjectPath(const FSoftObjectPath& ObjectPath, bool bIncludeOnlyOnDiskAssets, bool bSkipARFilteredAssets) const
 {
-	return GetAssetByObjectPath(ObjectPath, bIncludeOnlyOnDiskAssets);
+	return GetAssetByObjectPath(ObjectPath, bIncludeOnlyOnDiskAssets, bSkipARFilteredAssets);
 }
 
 IAssetRegistry::FLoadPackageRegistryData::FLoadPackageRegistryData(bool bInGetDependencies)
@@ -2185,7 +2185,7 @@ void FAssetRegistryImpl::EnumerateDiskAssets(const FARCompiledFilter& InFilter, 
 
 }
 
-FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FSoftObjectPath& ObjectPath, bool bIncludeOnlyOnDiskAssets) const
+FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FSoftObjectPath& ObjectPath, bool bIncludeOnlyOnDiskAssets, bool bSkipARFilteredAssets) const
 {
 	if (!bIncludeOnlyOnDiskAssets)
 	{
@@ -2195,7 +2195,7 @@ FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FSoftObjectPath& Objec
 
 		if (Asset)
 		{
-			if (!UE::AssetRegistry::FFiltering::ShouldSkipAsset(Asset))
+			if (!bSkipARFilteredAssets || !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Asset))
 			{
 				return FAssetData(Asset, false /* bAllowBlueprintClass */);
 			}
@@ -2210,14 +2210,14 @@ FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FSoftObjectPath& Objec
 		FReadScopeLock InterfaceScopeLock(InterfaceLock);
 		const FAssetRegistryState& State = GuardedData.GetState();
 		const FAssetData* FoundData = State.GetAssetByObjectPath(ObjectPath);
-		return (FoundData && !GuardedData.ShouldSkipAsset(FoundData->AssetClassPath, FoundData->PackageFlags)) ? *FoundData : FAssetData();
+		return (FoundData && (!bSkipARFilteredAssets || !GuardedData.ShouldSkipAsset(FoundData->AssetClassPath, FoundData->PackageFlags))) ? *FoundData : FAssetData();
 	}
 }
 
 FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool bIncludeOnlyOnDiskAssets) const
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	return GetAssetByObjectPath(FSoftObjectPath(ObjectPath.ToString()));
+	return GetAssetByObjectPath(FSoftObjectPath(ObjectPath.ToString()), bIncludeOnlyOnDiskAssets);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 }
 
