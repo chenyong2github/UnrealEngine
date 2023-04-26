@@ -773,6 +773,10 @@ protected:
 	/** Press and Hold values used for Keyboard and Mouse, Gamepad and Touch, depending on the current input type */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Hold", meta = (EditCondition="bRequiresHold", ExposeOnSpawn = true))
 	TSubclassOf<UCommonUIHoldData> HoldData;
+	
+	/** True if this button should play the hover effect when pressed by a touch input */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, AdvancedDisplay)
+	bool bSimulateHoverOnTouchInput = true;
 
 private:
 
