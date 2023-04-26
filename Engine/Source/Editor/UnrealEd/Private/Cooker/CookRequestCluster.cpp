@@ -108,14 +108,28 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 	: FRequestCluster(InCOTFS)
 {
 	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> BufferPlatforms;
+	if (!COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+	{
+		BufferPlatforms = COTFS.PlatformManager->GetSessionPlatforms();
+		BufferPlatforms.Add(CookerLoadingPlatformKey);
+	}
+
 	while (!DiscoveryQueue.IsEmpty())
 	{
 		FDiscoveryQueueElement* Discovery = &DiscoveryQueue.First();
 		FPackageData& PackageData = *Discovery->PackageData;
 
-		TConstArrayView<const ITargetPlatform*> NewReachablePlatforms =
-			Discovery->ReachablePlatforms.GetPlatforms(COTFS, &Discovery->Instigator,
+		TConstArrayView<const ITargetPlatform*> NewReachablePlatforms;
+		if (COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+		{
+			NewReachablePlatforms = Discovery->ReachablePlatforms.GetPlatforms(COTFS, &Discovery->Instigator,
 				TConstArrayView<const ITargetPlatform*>(), &BufferPlatforms);
+		}
+		else
+		{
+			NewReachablePlatforms = BufferPlatforms;
+		}
+
 		if (PackageData.HasReachablePlatforms(NewReachablePlatforms))
 		{
 			// If there are no new reachable platforms, add it to the cluster for cooking if it needs
@@ -148,12 +162,15 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 				}
 
 				COTFS.OnDiscoveredPackageDebug(PackageData.GetPackageName(), Discovery->Instigator);
-				FPackageData* InstigatorPackageData = Discovery->Instigator.Referencer.IsNone() ? nullptr
-					: COTFS.PackageDatas->TryAddPackageDataByPackageName(Discovery->Instigator.Referencer);
-				if (InstigatorPackageData)
+				if (COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
 				{
-					COTFS.DiscoveredDependencies.FindOrAdd(InstigatorPackageData->GetPackageName())
-						.Add(PackageData.GetPackageName());
+					FPackageData* InstigatorPackageData = Discovery->Instigator.Referencer.IsNone() ? nullptr
+						: COTFS.PackageDatas->TryAddPackageDataByPackageName(Discovery->Instigator.Referencer);
+					if (InstigatorPackageData)
+					{
+						COTFS.DiscoveredDependencies.FindOrAdd(InstigatorPackageData->GetPackageName())
+							.Add(PackageData.GetPackageName());
+					}
 				}
 			}
 		}

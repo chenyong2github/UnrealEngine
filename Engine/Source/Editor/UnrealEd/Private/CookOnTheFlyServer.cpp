@@ -2849,9 +2849,19 @@ void UCookOnTheFlyServer::QueueDiscoveredPackage(UE::Cook::FPackageData& Package
 	using namespace UE::Cook;
 
 	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> BufferPlatforms;
-	if (PackageData.HasReachablePlatforms(
-		ReachablePlatforms.GetPlatforms(*this, &Instigator,
-			TConstArrayView<const ITargetPlatform*>(), &BufferPlatforms, true /* bAllowPartialInstigatorResults */)))
+	TConstArrayView<const ITargetPlatform*> DiscoveredPlatforms;
+	if (!bCanSkipEditorReferencedPackagesWhenCooking)
+	{
+		BufferPlatforms = PlatformManager->GetSessionPlatforms();
+		BufferPlatforms.Add(CookerLoadingPlatformKey);
+		DiscoveredPlatforms = BufferPlatforms;
+	}
+	else
+	{
+		DiscoveredPlatforms = ReachablePlatforms.GetPlatforms(*this, &Instigator,
+			TConstArrayView<const ITargetPlatform*>(), &BufferPlatforms, true /* bAllowPartialInstigatorResults */);
+	}
+	if (PackageData.HasReachablePlatforms(DiscoveredPlatforms))
 	{
 		// Not a new discovery; ignore
 		return;
