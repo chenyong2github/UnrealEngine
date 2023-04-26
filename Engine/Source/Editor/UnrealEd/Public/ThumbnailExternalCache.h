@@ -28,6 +28,9 @@ public:
 	/** Get thumbnail external cache */
 	UNREALED_API static FThumbnailExternalCache& Get();
 
+	/** Gets the name of the editor thumbnail cache file */
+	UNREALED_API static const FString& GetCachedEditorThumbnailsFilename();
+
 	/** Load thumbnails for the given object names from external cache */
 	UNREALED_API bool LoadThumbnailsFromExternalCache(const TSet<FName>& InObjectFullNames, FThumbnailMap& InOutThumbnails);
 
@@ -98,6 +101,8 @@ private:
 	bool LoadCacheFileIndex(const FString& Filename);
 
 	bool LoadCacheFileIndex(FArchive& Ar, const TSharedPtr<FThumbnailCacheFile>& CacheFile);
+
+private:
 
 	TMap<FString, TSharedPtr<FThumbnailCacheFile>> CacheFiles;
 
