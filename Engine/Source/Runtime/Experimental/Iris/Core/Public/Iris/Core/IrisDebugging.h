@@ -21,7 +21,7 @@ namespace UE::Net::Private
 #if !UE_BUILD_SHIPPING
 
 namespace UE::Net::IrisDebugHelper
-{ 
+{
 
 /** Dummy methods binding pointers to external methods to avoid them from being stripped by compiler */
 IRISCORE_API uint64 Init();
@@ -113,7 +113,7 @@ extern "C" IRISCORE_API void SetIrisDebugInternalIndex(UE::Net::Private::FIntern
 /** Set the RPC Name to break on */
 extern "C" IRISCORE_API void SetIrisDebugRPCName(const ANSICHAR* NameBuffer);
 
-}; // end of namespaces
+}; // end of UE::Net::IrisDebugHelper
 
 #endif
 

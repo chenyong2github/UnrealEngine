@@ -260,9 +260,13 @@ private:
 	TArray<FPerGroupInfo> GroupInfos;
 	uint32 MaxGroupCount = 0;
 
-	//$IRIS TODO: These need better documentation
+	/** NetObjectGroups who have the group filtering trait enabled */
 	FNetBitArray FilterGroups;
+
+	/** NetObjectGroups who have dirty members and their filtering updated this frame */
 	FNetBitArray DirtyFilterGroups;
+
+	//$IRIS TODO: These need better documentation
 	FNetBitArray SubObjectFilterGroups;
 	FNetBitArray DirtySubObjectFilterGroups;
 	FNetBitArray AllConnectionFilteredObjects;
