@@ -1408,7 +1408,7 @@ void FNiagaraDataInterfaceCurveDetailsBase::OnShowInCurveEditor() const
 
 UCurveBase* FNiagaraDataInterfaceCurveDetailsBase::GetUsedCurveAsset(UNiagaraDataInterfaceCurveBase* CurveDI) const
 {
-	return CurveDI ? CurveDI->CurveAsset.LoadSynchronous() : nullptr;
+	return CurveDI ? CurveDI->CurveAsset : nullptr;
 }
 
 void FNiagaraDataInterfaceCurveDetailsBase::ImportSelectedAsset(UObject* SelectedAsset)
@@ -1429,7 +1429,7 @@ void FNiagaraDataInterfaceCurveDetailsBase::ImportSelectedAsset(UObject* Selecte
 
 		if (!bCopyAssetData)
 		{
-			CurveDataInterfaceWeak->CurveAsset = SelectedAsset;
+			CurveDataInterfaceWeak->CurveAsset = Cast<UCurveBase>(SelectedAsset);
 		}
 		
 		for (int i = 0; i < CurveProperties.Num(); i++)

@@ -51,7 +51,7 @@ protected:
 public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = "Curve")
-	TSoftObjectPtr<UCurveBase> CurveAsset;
+	TObjectPtr<UCurveBase> CurveAsset;
 #endif
 	
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")

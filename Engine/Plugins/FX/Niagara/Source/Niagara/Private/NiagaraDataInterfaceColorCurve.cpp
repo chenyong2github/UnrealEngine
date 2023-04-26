@@ -184,14 +184,14 @@ void UNiagaraDataInterfaceColorCurve::GetFunctions(TArray<FNiagaraFunctionSignat
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceColorCurve::SyncCurvesToAsset()
 {
-	if (UCurveLinearColor* ColorCurve = Cast<UCurveLinearColor>(CurveAsset.LoadSynchronous()))
+	if (UCurveLinearColor* ColorCurve = Cast<UCurveLinearColor>(CurveAsset))
 	{
 		RedCurve = ColorCurve->FloatCurves[0];
 		GreenCurve = ColorCurve->FloatCurves[1];
 		BlueCurve = ColorCurve->FloatCurves[2];
 		AlphaCurve = ColorCurve->FloatCurves[3];
 	}
-	else if (UCurveVector* VecCurve = Cast<UCurveVector>(CurveAsset.LoadSynchronous()))
+	else if (UCurveVector* VecCurve = Cast<UCurveVector>(CurveAsset))
 	{
 		RedCurve = VecCurve->FloatCurves[0];
 		GreenCurve = VecCurve->FloatCurves[1];
@@ -199,7 +199,7 @@ void UNiagaraDataInterfaceColorCurve::SyncCurvesToAsset()
 		AlphaCurve.Reset();
 		AlphaCurve.AddKey(0, 1);
 	}
-	else if (UCurveFloat* FloatCurve = Cast<UCurveFloat>(CurveAsset.LoadSynchronous()))
+	else if (UCurveFloat* FloatCurve = Cast<UCurveFloat>(CurveAsset))
 	{
 		RedCurve = FloatCurve->FloatCurve;
 		GreenCurve = FloatCurve->FloatCurve;

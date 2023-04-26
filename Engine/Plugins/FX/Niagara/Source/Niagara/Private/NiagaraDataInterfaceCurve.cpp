@@ -146,7 +146,7 @@ TArray<float> UNiagaraDataInterfaceCurve::BuildLUT(int32 NumEntries) const
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceCurve::SyncCurvesToAsset()
 {
-	if (UCurveFloat* LoadedCurve = Cast<UCurveFloat>(CurveAsset.LoadSynchronous()))
+	if (UCurveFloat* LoadedCurve = Cast<UCurveFloat>(CurveAsset))
 	{
 		Curve = LoadedCurve->FloatCurve;
 	}

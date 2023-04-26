@@ -175,19 +175,19 @@ void UNiagaraDataInterfaceVectorCurve::GetFunctions(TArray<FNiagaraFunctionSigna
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceVectorCurve::SyncCurvesToAsset()
 {
-	if (UCurveLinearColor* ColorCurve = Cast<UCurveLinearColor>(CurveAsset.LoadSynchronous()))
+	if (UCurveLinearColor* ColorCurve = Cast<UCurveLinearColor>(CurveAsset))
 	{
 		XCurve = ColorCurve->FloatCurves[0];
 		YCurve = ColorCurve->FloatCurves[1];
 		ZCurve = ColorCurve->FloatCurves[2];
 	}
-	else if (UCurveVector* VecCurve = Cast<UCurveVector>(CurveAsset.LoadSynchronous()))
+	else if (UCurveVector* VecCurve = Cast<UCurveVector>(CurveAsset))
 	{
 		XCurve = VecCurve->FloatCurves[0];
 		YCurve = VecCurve->FloatCurves[1];
 		ZCurve = VecCurve->FloatCurves[2];
 	}
-	else if (UCurveFloat* FloatCurve = Cast<UCurveFloat>(CurveAsset.LoadSynchronous()))
+	else if (UCurveFloat* FloatCurve = Cast<UCurveFloat>(CurveAsset))
 	{
 		XCurve = FloatCurve->FloatCurve;
 		YCurve = FloatCurve->FloatCurve;
