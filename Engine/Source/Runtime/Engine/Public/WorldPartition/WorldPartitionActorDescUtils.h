@@ -73,11 +73,7 @@ struct ENGINE_API FWorldPartitionActorDescUtils
 	 */
 	static void ReplaceActorDescriptorPointerFromActor(const AActor* InOldActor, AActor* InNewActor, FWorldPartitionActorDesc* InActorDesc);
 
-	/**
-	 * Resolves the provided asset path using asset redirectors.
-	 * @param	InOutAssetPath	Asset path to resolve [In/Out].
-	 * @return					False if an error occured while trying to resolve, else true.
-	 */
+	UE_DEPRECATED(5.3, "Use FWorldPartitionHelpers::FixupRedirectedAssetPath instead")
 	static bool FixupRedirectedAssetPath(FName& InOutAssetPath);
 };
 #endif

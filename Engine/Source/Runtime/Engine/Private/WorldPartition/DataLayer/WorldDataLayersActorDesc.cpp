@@ -4,7 +4,7 @@
 
 #if WITH_EDITOR
 
-#include "WorldPartition/WorldPartitionActorDescUtils.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "WorldPartition/WorldPartitionActorContainerID.h"
@@ -38,7 +38,7 @@ FArchive& operator<<(FArchive& Ar, FDataLayerInstanceDesc& Desc)
 	// Fixup redirected data layer asset path
 	if (Ar.IsLoading() && Desc.bIsUsingAsset)
 	{
-		FWorldPartitionActorDescUtils::FixupRedirectedAssetPath(Desc.AssetPath);
+		FWorldPartitionHelpers::FixupRedirectedAssetPath(Desc.AssetPath);
 	}
 
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorFilter)

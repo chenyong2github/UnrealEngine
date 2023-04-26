@@ -9,10 +9,10 @@
 #include "WorldPartition/WorldPartitionLog.h"
 #include "Engine/Level.h"
 #include "GameFramework/Actor.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/CoreRedirects.h"
 #include "Misc/Base64.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 
 static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
 static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
@@ -174,53 +174,6 @@ void FWorldPartitionActorDescUtils::ReplaceActorDescriptorPointerFromActor(const
 
 bool FWorldPartitionActorDescUtils::FixupRedirectedAssetPath(FName& InOutAssetPath)
 {
-	const FAssetData* AssetData;
-	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-
-	FSoftObjectPath SoftObjectPath(InOutAssetPath.ToString());
-	FTopLevelAssetPath AssetPath = SoftObjectPath.GetAssetPath();
-
-	for (;;)
-	{
-		TArray<FAssetData> Assets;							
-		AssetRegistry.ScanFilesSynchronous({ AssetPath.GetPackageName().ToString() }, /*bForceRescan*/false);
-		AssetRegistry.GetAssetsByPackageName(AssetPath.GetPackageName(), Assets, /*bIncludeOnlyOnDiskAssets*/true);
-
-		if (!Assets.Num())
-		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find assets for asset path '%s'"), *AssetPath.ToString());
-			return false;
-		}
-
-		AssetData = Assets.FindByPredicate([&AssetPath](const FAssetData& AssetData)
-		{ 
-			return (AssetData.ToSoftObjectPath().GetAssetPath() == AssetPath);
-		});
-
-		if (!AssetData)
-		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find asset for asset path '%s'"), *AssetPath.ToString());
-			return false;
-		}
-
-		if (!AssetData->IsRedirector())
-		{
-			break;
-		}
-
-		FString DestinationObjectPath;
-		if (!AssetData->GetTagValue(TEXT("DestinationObject"), DestinationObjectPath))
-		{
-			UE_LOG(LogWorldPartition, Warning, TEXT("Failed to follow redirector for '%s'"), *AssetPath.ToString());
-			return false;
-		}
-
-		// Update asset path
-		AssetPath = FTopLevelAssetPath(DestinationObjectPath);
-	}
-
-	SoftObjectPath.SetPath(AssetPath, SoftObjectPath.GetSubPathString());	
-	InOutAssetPath = FName(*SoftObjectPath.ToString());
-	return true;
+	return FWorldPartitionHelpers::FixupRedirectedAssetPath(InOutAssetPath);
 }
 #endif

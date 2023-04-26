@@ -11,7 +11,11 @@
 #include "Commandlets/Commandlet.h"
 #include "WorldPartition/WorldPartitionLog.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionHelpers, Log, All);
+#if WITH_EDITOR
+#include "Misc/RedirectCollector.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Modules/ModuleManager.h"
+#endif
 
 namespace FWorldPartitionHelpersPrivate
 {
@@ -58,7 +62,7 @@ bool FWorldPartitionHelpers::IsActorDescClassCompatibleWith(const FWorldPartitio
 
 			if (!ActorBaseClass)
 			{
-				UE_LOG(LogWorldPartitionHelpers, Warning, TEXT("Failed to find actor base class: %s."), *ActorBasePath.ToString());
+				UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find actor base class: %s."), *ActorBasePath.ToString());
 				ActorBaseClass = ActorNativeClass;
 			}
 		}
@@ -294,6 +298,77 @@ bool FWorldPartitionHelpers::ConvertRuntimePathToEditorPath(const FSoftObjectPat
 	else
 	{
 		OutPath = UWorld::RemovePIEPrefix(InPath.ToString());
+		return true;
+	}
+
+	return false;
+}
+
+bool FWorldPartitionHelpers::FixupRedirectedAssetPath(FSoftObjectPath& InOutSoftObjectPath)
+{
+	// Check GRedirectCollector first for faster fixup
+	FSoftObjectPath FoundRedirection = GRedirectCollector.GetAssetPathRedirection(InOutSoftObjectPath.GetWithoutSubPath());
+	if (!FoundRedirection.IsNull())
+	{
+		InOutSoftObjectPath.SetPath(FoundRedirection.GetAssetPath(), InOutSoftObjectPath.GetSubPathString());
+		return true;
+	}
+
+	const FAssetData* AssetData;
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+
+	FTopLevelAssetPath AssetPath = InOutSoftObjectPath.GetAssetPath();
+
+	for (;;)
+	{
+		TArray<FAssetData> Assets;
+		AssetRegistry.ScanFilesSynchronous({ AssetPath.GetPackageName().ToString() }, /*bForceRescan*/false);
+		AssetRegistry.GetAssetsByPackageName(AssetPath.GetPackageName(), Assets, /*bIncludeOnlyOnDiskAssets*/true);
+
+		if (!Assets.Num())
+		{
+			UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find assets for asset path '%s'"), *AssetPath.ToString());
+			return false;
+		}
+
+		AssetData = Assets.FindByPredicate([&AssetPath](const FAssetData& AssetData)
+		{
+			return (AssetData.ToSoftObjectPath().GetAssetPath() == AssetPath);
+		});
+
+		if (!AssetData)
+		{
+			UE_LOG(LogWorldPartition, Warning, TEXT("Failed to find asset for asset path '%s'"), *AssetPath.ToString());
+			return false;
+		}
+
+		if (!AssetData->IsRedirector())
+		{
+			break;
+		}
+
+		FString DestinationObjectPath;
+		if (!AssetData->GetTagValue(TEXT("DestinationObject"), DestinationObjectPath))
+		{
+			UE_LOG(LogWorldPartition, Warning, TEXT("Failed to follow redirector for '%s'"), *AssetPath.ToString());
+			return false;
+		}
+
+		// Update asset path
+		AssetPath = FTopLevelAssetPath(DestinationObjectPath);
+	}
+
+	InOutSoftObjectPath.SetPath(AssetPath, InOutSoftObjectPath.GetSubPathString());
+
+	return true;
+}
+
+bool FWorldPartitionHelpers::FixupRedirectedAssetPath(FName& InOutAssetPath)
+{
+	FSoftObjectPath SoftObjectPath(InOutAssetPath.ToString());
+	if (FixupRedirectedAssetPath(SoftObjectPath))
+	{
+		InOutAssetPath = FName(*SoftObjectPath.ToString());
 		return true;
 	}
 

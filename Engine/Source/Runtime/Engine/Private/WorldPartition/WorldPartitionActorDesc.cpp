@@ -3,7 +3,6 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescArchive.h"
-#include "WorldPartition/WorldPartitionActorDescUtils.h"
 
 #include "Misc/Paths.h"
 #include "Misc/ArchiveMD5.h"
@@ -618,7 +617,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		for (FName& DataLayer : DataLayers)
 		{
-			FWorldPartitionActorDescUtils::FixupRedirectedAssetPath(DataLayer);
+			FWorldPartitionHelpers::FixupRedirectedAssetPath(DataLayer);
 		}
 	}
 }

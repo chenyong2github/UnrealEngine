@@ -2,6 +2,7 @@
 
 #include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 
 #if WITH_EDITORONLY_DATA
 FWorldPartitionActorFilter::FOnWorldPartitionActorFilterChanged FWorldPartitionActorFilter::OnWorldPartitionActorFilterChanged;
@@ -159,7 +160,9 @@ bool FWorldPartitionActorFilter::Serialize(FArchive& Ar)
 			bool bIncluded;
 			Ar << bIncluded;
 
-			DataLayerFilters.Add(FSoftObjectPath(AssetPath)).bIncluded = bIncluded;
+			FSoftObjectPath SoftObjectPath(AssetPath);
+			FWorldPartitionHelpers::FixupRedirectedAssetPath(SoftObjectPath);
+			DataLayerFilters.Add(SoftObjectPath).bIncluded = bIncluded;
 		}
 	}
 	else
