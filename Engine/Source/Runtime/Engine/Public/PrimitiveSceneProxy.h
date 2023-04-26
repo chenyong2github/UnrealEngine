@@ -34,6 +34,7 @@ struct FInstanceUpdateCmdBuffer;
 class FRayTracingGeometry;
 class FVertexFactory;
 class IHeterogeneousVolumeInterface;
+struct FPrimitiveUniformShaderParametersBuilder;
 
 namespace Nanite
 {
@@ -1008,6 +1009,11 @@ public:
 	{
 		UpdateUniformBuffer(FRHICommandListExecutor::GetImmediateCommandList());
 	}
+
+	/**
+	 * Apply the unform shader parameter settings for the proxy to the builder.
+	 */
+	ENGINE_API void BuildUniformShaderParameters(FPrimitiveUniformShaderParametersBuilder &Builder) const;
 
 #if ENABLE_DRAW_DEBUG
 

@@ -33,6 +33,7 @@
 #include "PathTracing.h"
 #include "PostProcess/DrawRectangle.h"
 #include "SceneUniformBuffer.h"
+#include "PrimitiveUniformShaderParametersBuilder.h"
 
 RENDERER_API uint8 BlendModeToRayTracingInstanceMask(const EBlendMode BlendMode, ERayTracingViewMaskMode MaskMode);
 RENDERER_API uint8 ComputeRayTracingInstanceShadowMask(ERayTracingViewMaskMode MaskMode);

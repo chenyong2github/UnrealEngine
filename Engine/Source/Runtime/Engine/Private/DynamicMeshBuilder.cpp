@@ -10,6 +10,7 @@
 #include "MeshBuilderOneFrameResources.h"
 #include "Math/Vector2DHalf.h"
 #include "ResourcePool.h"
+#include "PrimitiveUniformShaderParametersBuilder.h"
 
 class FGlobalDynamicMeshPoolPolicy
 {

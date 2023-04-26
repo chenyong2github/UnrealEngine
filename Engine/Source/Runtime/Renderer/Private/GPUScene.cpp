@@ -27,6 +27,7 @@
 #include "LightSceneData.h"
 #include "LightSceneProxy.h"
 #include "SystemTextures.h"
+#include "SceneDefinitions.h"
 
 #define LOG_INSTANCE_ALLOCATIONS 0
 

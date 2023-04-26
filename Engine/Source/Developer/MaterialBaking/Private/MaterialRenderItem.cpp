@@ -10,6 +10,7 @@
 #include "CanvasRender.h"
 #include "RHIStaticStates.h"
 #include "UnrealClient.h"
+#include "PrimitiveUniformShaderParametersBuilder.h"
 
 #define SHOW_WIREFRAME_MESH 0
 

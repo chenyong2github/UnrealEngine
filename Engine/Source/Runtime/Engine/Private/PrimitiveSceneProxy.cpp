@@ -22,6 +22,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "SceneInterface.h"
+#include "PrimitiveUniformShaderParametersBuilder.h"
 
 #if WITH_EDITOR
 #include "FoliageHelper.h"
@@ -561,79 +562,128 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer(FRHICommandList& RHICmdList)
 	// Skip expensive primitive uniform buffer creation for proxies whose vertex factories only use GPUScene for primitive data
 	if (DoesVFRequirePrimitiveUniformBuffer())
 	{
-		bool bHasPrecomputedVolumetricLightmap;
-		FMatrix PreviousLocalToWorld;
-		int32 SingleCaptureIndex;
-		bool bOutputVelocity;
-
-		Scene->GetPrimitiveUniformShaderParameters_RenderThread(
-			PrimitiveSceneInfo,
-			bHasPrecomputedVolumetricLightmap,
-			PreviousLocalToWorld,
-			SingleCaptureIndex,
-			bOutputVelocity
-		);
-
-		bOutputVelocity |= AlwaysHasVelocity();
-
-		FBoxSphereBounds PreSkinnedLocalBounds;
-		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
-
 		// Update the uniform shader parameters.
-		FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{}
-			.Defaults()
-				.LocalToWorld(LocalToWorld)
-				.PreviousLocalToWorld(PreviousLocalToWorld)
-				.ActorWorldPosition(ActorPosition)
-				.WorldBounds(Bounds)
-				.LocalBounds(LocalBounds)
-				.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
-				.ReceivesDecals(bReceivesDecals)
-				.CacheShadowAsStatic(PrimitiveSceneInfo ? PrimitiveSceneInfo->ShouldCacheShadowAsStatic() : false)
-				.OutputVelocity(bOutputVelocity)
-				.EvaluateWorldPositionOffset(EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
-				.MaxWorldPositionOffsetExtent(GetMaxWorldPositionOffsetExtent())
-				.MinMaxMaterialDisplacement(GetMinMaxMaterialDisplacement())
-				.LightingChannelMask(GetLightingChannelMask())
-				.LightmapDataIndex(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0)
-				.LightmapUVIndex(GetLightMapCoordinateIndex())
-				.SingleCaptureIndex(SingleCaptureIndex)
-				.CustomPrimitiveData(GetCustomPrimitiveData())
-				.HasDistanceFieldRepresentation(HasDistanceFieldRepresentation())
-				.HasCapsuleRepresentation(HasDynamicIndirectShadowCasterRepresentation())
-				.UseSingleSampleShadowFromStationaryLights(UseSingleSampleShadowFromStationaryLights())
-				.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
-				.CastContactShadow(CastsContactShadow())
-				.CastHiddenShadow(CastsHiddenShadow())
-				.CastShadow(CastsDynamicShadow())
-				.Holdout(Holdout())
-				.InstanceSceneDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceSceneDataOffset() : INDEX_NONE)
-				.NumInstanceSceneDataEntries(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceSceneDataEntries() : 0)
-				.InstancePayloadDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataOffset() : INDEX_NONE)
-				.InstancePayloadDataStride(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataStride() : 0);				
-
-		FVector2f InstanceDrawDistanceMinMax;
-		if (GetInstanceDrawDistanceMinMax(InstanceDrawDistanceMinMax))
-		{
-			Builder.InstanceDrawDistance(InstanceDrawDistanceMinMax);
-		}
-
-		float WPODisableDistance;
-		if (GetInstanceWorldPositionOffsetDisableDistance(WPODisableDistance))
-		{
-			Builder.InstanceWorldPositionOffsetDisableDistance(WPODisableDistance);
-		}
-
-		const TConstArrayView<FRenderBounds> InstanceBounds = GetInstanceLocalBounds();
-		if (InstanceBounds.Num() > 0)
-		{
-			Builder.InstanceLocalBounds(InstanceBounds[0]);
-		}
+		FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{};
+		BuildUniformShaderParameters(Builder);
 
 		FPrimitiveUniformShaderParameters PrimitiveParams = Builder.Build();
 
 		check(UniformBuffer);
 		UniformBuffer.UpdateUniformBufferImmediate(RHICmdList, PrimitiveParams);
+	}
+}
+
+void FPrimitiveSceneProxy::BuildUniformShaderParameters(FPrimitiveUniformShaderParametersBuilder &Builder) const
+{
+	bool bHasPrecomputedVolumetricLightmap;
+	FMatrix PreviousLocalToWorld;
+	int32 SingleCaptureIndex;
+	bool bOutputVelocity;
+
+	Scene->GetPrimitiveUniformShaderParameters_RenderThread(
+		PrimitiveSceneInfo,
+		bHasPrecomputedVolumetricLightmap,
+		PreviousLocalToWorld,
+		SingleCaptureIndex,
+		bOutputVelocity
+	);
+
+	bOutputVelocity |= AlwaysHasVelocity();
+
+	FBoxSphereBounds PreSkinnedLocalBounds;
+	GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
+
+	// Update the uniform shader parameters.
+	Builder = FPrimitiveUniformShaderParametersBuilder{}
+		.Defaults()
+			.LocalToWorld(LocalToWorld)
+			.PreviousLocalToWorld(PreviousLocalToWorld)
+			.ActorWorldPosition(ActorPosition)
+			.WorldBounds(Bounds)
+			.LocalBounds(LocalBounds)
+			.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
+			.ReceivesDecals(bReceivesDecals)
+			.OutputVelocity(bOutputVelocity)
+			.EvaluateWorldPositionOffset(EvaluateWorldPositionOffset() && AnyMaterialHasWorldPositionOffset())
+			.MaxWorldPositionOffsetExtent(GetMaxWorldPositionOffsetExtent())
+			.MinMaxMaterialDisplacement(GetMinMaxMaterialDisplacement())
+			.LightingChannelMask(GetLightingChannelMask())
+			.LightmapUVIndex(GetLightMapCoordinateIndex())
+			.SingleCaptureIndex(SingleCaptureIndex)
+			.CustomPrimitiveData(GetCustomPrimitiveData())
+			.HasDistanceFieldRepresentation(HasDistanceFieldRepresentation())
+			.HasCapsuleRepresentation(HasDynamicIndirectShadowCasterRepresentation())
+			.UseSingleSampleShadowFromStationaryLights(UseSingleSampleShadowFromStationaryLights())
+			.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
+			.CastContactShadow(CastsContactShadow())
+			.CastHiddenShadow(CastsHiddenShadow())
+			.CastShadow(CastsDynamicShadow())
+			.Holdout(Holdout())
+			.VisibleInGame(IsDrawnInGame())
+			.VisibleInEditor(IsDrawnInEditor())
+			.VisibleInReflectionCaptures(IsVisibleInReflectionCaptures())
+			.VisibleInRealTimeSkyCaptures(IsVisibleInRealTimeSkyCaptures())
+			.VisibleInRayTracing(IsVisibleInRayTracing())
+			.VisibleInLumenScene(IsVisibleInLumenScene())
+			.VisibleInSceneCaptureOnly(IsVisibleInSceneCaptureOnly())
+			.HiddenInSceneCapture(IsHiddenInSceneCapture())
+			.ForceHidden(IsForceHidden())
+			.PrimitiveComponentId(GetPrimitiveComponentId().PrimIDValue)
+			.EditorColors(GetWireframeColor(), GetLevelColor());
+
+		if (PrimitiveSceneInfo != nullptr)
+		{
+			Builder.LightmapDataIndex(PrimitiveSceneInfo->GetLightmapDataOffset())
+			.CacheShadowAsStatic(PrimitiveSceneInfo->ShouldCacheShadowAsStatic())
+			.InstanceSceneDataOffset(PrimitiveSceneInfo->GetInstanceSceneDataOffset())
+			.NumInstanceSceneDataEntries(PrimitiveSceneInfo->GetNumInstanceSceneDataEntries())
+			.InstancePayloadDataOffset(PrimitiveSceneInfo->GetInstancePayloadDataOffset())
+			.InstancePayloadDataStride(PrimitiveSceneInfo->GetInstancePayloadDataStride())
+			.PersistentPrimitiveIndex(PrimitiveSceneInfo->GetPersistentIndex().Index);
+		}
+
+	if (IsNaniteMesh())
+	{
+		const Nanite::FSceneProxyBase* NaniteProxy = static_cast<const Nanite::FSceneProxyBase*>(this);
+
+		uint32 NaniteResourceID = INDEX_NONE;
+		uint32 NaniteHierarchyOffset = INDEX_NONE;
+		uint32 NaniteImposterIndex = INDEX_NONE;
+		NaniteProxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
+		uint32 NaniteFilterFlags = uint32(NaniteProxy->GetFilterFlags());
+		uint32 NaniteRayTracingDataOffset = NaniteProxy->GetRayTracingDataOffset();
+		bool bReverseCulling = NaniteProxy->IsCullingReversedByComponent(); // needed because Nanite doesn't use raster state
+		
+		Builder.NaniteResourceID(NaniteResourceID)
+			.NaniteHierarchyOffset(NaniteHierarchyOffset)
+			.NaniteImposterIndex(NaniteImposterIndex)
+			.NaniteFilterFlags(NaniteFilterFlags)
+			.NaniteRayTracingDataOffset(NaniteRayTracingDataOffset)
+			.ReverseCulling(bReverseCulling);
+	}
+
+
+	FVector2f InstanceDrawDistanceMinMax;
+	if (GetInstanceDrawDistanceMinMax(InstanceDrawDistanceMinMax))
+	{
+		Builder.InstanceDrawDistance(InstanceDrawDistanceMinMax);
+	}
+
+	float WPODisableDistance;
+	if (GetInstanceWorldPositionOffsetDisableDistance(WPODisableDistance))
+	{
+		Builder.InstanceWorldPositionOffsetDisableDistance(WPODisableDistance);
+	}
+
+	const TConstArrayView<FRenderBounds> InstanceBounds = GetInstanceLocalBounds();
+	if (InstanceBounds.Num() > 0)
+	{
+		Builder.InstanceLocalBounds(InstanceBounds[0]);
+	}
+
+	if (ShouldRenderCustomDepth())
+	{
+		Builder.CustomDepthStencil(GetCustomDepthStencilValue(), GetStencilWriteMask());
 	}
 }
 

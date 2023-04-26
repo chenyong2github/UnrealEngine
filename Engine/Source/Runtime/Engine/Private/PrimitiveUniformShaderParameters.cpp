@@ -7,6 +7,7 @@
 #include "SceneInterface.h"
 #include "UnrealEngine.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "PrimitiveUniformShaderParametersBuilder.h"
 
 FPrimitiveUniformShaderParametersBuilder& FPrimitiveUniformShaderParametersBuilder::InstanceDrawDistance(FVector2f DistanceMinMax)
 {
@@ -133,115 +134,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy* RESTRICT Proxy)
 	: Data(InPlace, NoInit)
 {
-	bool bHasPrecomputedVolumetricLightmap;
-	FMatrix PreviousLocalToWorld;
-	int32 SingleCaptureIndex;
-	bool bOutputVelocity;
-
-	Proxy->GetScene().GetPrimitiveUniformShaderParameters_RenderThread(
-		Proxy->GetPrimitiveSceneInfo(),
-		bHasPrecomputedVolumetricLightmap,
-		PreviousLocalToWorld,
-		SingleCaptureIndex,
-		bOutputVelocity
-	);
-
-	bOutputVelocity |= Proxy->AlwaysHasVelocity();
-
-	FBoxSphereBounds PreSkinnedLocalBounds;
-	Proxy->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
-
-	FPrimitiveSceneInfo* PrimitiveSceneInfo = Proxy->GetPrimitiveSceneInfo();
-
-	uint32 NaniteResourceID = INDEX_NONE;
-	uint32 NaniteHierarchyOffset = INDEX_NONE;
-	uint32 NaniteImposterIndex = INDEX_NONE;
-	uint32 NaniteFilterFlags = 0u;
-	uint32 NaniteRayTracingDataOffset = INDEX_NONE;
-	bool bReverseCulling = false;
-
-	if (Proxy->IsNaniteMesh())
-	{
-		auto NaniteProxy = static_cast<const Nanite::FSceneProxyBase*>(Proxy);
-		NaniteProxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
-		NaniteFilterFlags = uint32(NaniteProxy->GetFilterFlags());
-		NaniteRayTracingDataOffset = NaniteProxy->GetRayTracingDataOffset();
-		bReverseCulling = NaniteProxy->IsCullingReversedByComponent(); // needed because Nanite doesn't use raster state
-	}
-
-	FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{}
-		.Defaults()
-		.LocalToWorld(Proxy->GetLocalToWorld())
-		.PreviousLocalToWorld(PreviousLocalToWorld)
-		.ActorWorldPosition(Proxy->GetActorPosition())
-		.WorldBounds(Proxy->GetBounds())
-		.LocalBounds(Proxy->GetLocalBounds())
-		.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
-		.CustomPrimitiveData(Proxy->GetCustomPrimitiveData())
-		.LightingChannelMask(Proxy->GetLightingChannelMask())
-		.LightmapDataIndex(Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset())
-		.LightmapUVIndex(Proxy->GetLightMapCoordinateIndex())
-		.SingleCaptureIndex(SingleCaptureIndex)
-		.PersistentPrimitiveIndex(Proxy->GetPrimitiveSceneInfo()->GetPersistentIndex().Index)
-		.InstanceSceneDataOffset(Proxy->GetPrimitiveSceneInfo()->GetInstanceSceneDataOffset())
-		.NumInstanceSceneDataEntries(Proxy->GetPrimitiveSceneInfo()->GetNumInstanceSceneDataEntries())
-		.InstancePayloadDataOffset(Proxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataOffset())
-		.InstancePayloadDataStride(Proxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataStride())
-		.HasDistanceFieldRepresentation(Proxy->HasDistanceFieldRepresentation())
-		.HasCapsuleRepresentation(Proxy->HasDynamicIndirectShadowCasterRepresentation())
-		.UseSingleSampleShadowFromStationaryLights(Proxy->UseSingleSampleShadowFromStationaryLights())
-		.ReceivesDecals(Proxy->ReceivesDecals())
-		.CacheShadowAsStatic(PrimitiveSceneInfo->ShouldCacheShadowAsStatic())
-		.OutputVelocity(bOutputVelocity)
-		.EvaluateWorldPositionOffset(Proxy->EvaluateWorldPositionOffset() && Proxy->AnyMaterialHasWorldPositionOffset())
-		.MaxWorldPositionOffsetExtent(Proxy->GetMaxWorldPositionOffsetExtent())
-		.MinMaxMaterialDisplacement(Proxy->GetMinMaxMaterialDisplacement())
-		.CastContactShadow(Proxy->CastsContactShadow())
-		.CastShadow(Proxy->CastsDynamicShadow())
-		.CastHiddenShadow(Proxy->CastsHiddenShadow())
-		.VisibleInGame(Proxy->IsDrawnInGame())
-		.VisibleInEditor(Proxy->IsDrawnInEditor())
-		.VisibleInReflectionCaptures(Proxy->IsVisibleInReflectionCaptures())
-		.VisibleInRealTimeSkyCaptures(Proxy->IsVisibleInRealTimeSkyCaptures())
-		.VisibleInRayTracing(Proxy->IsVisibleInRayTracing())
-		.VisibleInLumenScene(Proxy->IsVisibleInLumenScene())
-		.VisibleInSceneCaptureOnly(Proxy->IsVisibleInSceneCaptureOnly())
-		.HiddenInSceneCapture(Proxy->IsHiddenInSceneCapture())
-		.ForceHidden(Proxy->IsForceHidden())
-		.Holdout(Proxy->Holdout())
-		.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
-		.NaniteResourceID(NaniteResourceID)
-		.NaniteHierarchyOffset(NaniteHierarchyOffset)
-		.NaniteImposterIndex(NaniteImposterIndex)
-		.NaniteFilterFlags(NaniteFilterFlags)
-		.NaniteRayTracingDataOffset(NaniteRayTracingDataOffset)
-		.PrimitiveComponentId(Proxy->GetPrimitiveComponentId().PrimIDValue)
-		.EditorColors(Proxy->GetWireframeColor(), Proxy->GetLevelColor())
-		.ReverseCulling(bReverseCulling);
-
-	FVector2f InstanceDrawDistanceMinMax;
-	if (Proxy->GetInstanceDrawDistanceMinMax(InstanceDrawDistanceMinMax))
-	{
-		Builder.InstanceDrawDistance(InstanceDrawDistanceMinMax);
-	}
-
-	float WPODisableDistance;
-	if (Proxy->GetInstanceWorldPositionOffsetDisableDistance(WPODisableDistance))
-	{
-		Builder.InstanceWorldPositionOffsetDisableDistance(WPODisableDistance);
-	}
-
-	const TConstArrayView<FRenderBounds> InstanceBounds = Proxy->GetInstanceLocalBounds();
-	if (InstanceBounds.Num() > 0)
-	{
-		Builder.InstanceLocalBounds(InstanceBounds[0]);
-	}
-
-	if (Proxy->ShouldRenderCustomDepth())
-	{
-		Builder.CustomDepthStencil(Proxy->GetCustomDepthStencilValue(), Proxy->GetStencilWriteMask());
-	}
-
+	FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{};
+	Proxy->BuildUniformShaderParameters(Builder);
 	Setup(Builder.Build());
 }
 
@@ -346,4 +240,42 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	{
 		Data[CustomPrimitiveDataStartIndex + DataIndex] = PrimitiveUniformShaderParameters.CustomPrimitiveData[DataIndex];
 	}
+}
+
+TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(
+	const FMatrix& LocalToWorld,
+	const FBoxSphereBounds& WorldBounds,
+	const FBoxSphereBounds& LocalBounds,
+	const FBoxSphereBounds& PreSkinnedLocalBounds,
+	bool bReceivesDecals,
+	bool bOutputVelocity
+)
+{
+	check(IsInRenderingThread());
+	return TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(
+		FPrimitiveUniformShaderParametersBuilder{}
+		.Defaults()
+			.LocalToWorld(LocalToWorld)
+			.ActorWorldPosition(WorldBounds.Origin)
+			.WorldBounds(WorldBounds)
+			.LocalBounds(LocalBounds)
+			.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
+			.ReceivesDecals(bReceivesDecals)
+			.OutputVelocity(bOutputVelocity)
+		.Build(),
+		UniformBuffer_MultiFrame
+	);
+}
+
+FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
+{
+	// Don't use FMatrix44f::Identity here as GetIdentityPrimitiveParameters is used by TGlobalResource<FIdentityPrimitiveUniformBuffer> and because
+	// static initialization order is undefined, FMatrix44f::Identity might be all 0's or random data the first time this is called.
+	return FPrimitiveUniformShaderParametersBuilder{}
+		.Defaults()
+			.LocalToWorld(FMatrix(FPlane(1, 0, 0, 0), FPlane(0, 1, 0, 0), FPlane(0, 0, 1, 0), FPlane(0, 0, 0, 1)))
+			.ActorWorldPosition(FVector(0.0, 0.0, 0.0))
+			.WorldBounds(FBoxSphereBounds(EForceInit::ForceInit))
+			.LocalBounds(FBoxSphereBounds(EForceInit::ForceInit))
+		.Build();
 }
