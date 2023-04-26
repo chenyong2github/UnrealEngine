@@ -1434,13 +1434,17 @@ void UWorldPartition::Tick(float DeltaSeconds)
 			{
 				if (ActorDescIterator->GetIsSpatiallyLoadedRaw() || ActorDescIterator->GetActorNativeClass()->IsChildOf<ALandscapeProxy>())
 				{
-					AllActorsBounds += ActorDescIterator->GetEditorBounds();
-
-					// Warn the user if the world becomes larger that 4km in any axis
-					if (AllActorsBounds.GetSize().GetMax() >= UWorldPartition::WorldExtentToEnableStreaming)
+					const FBox EditorBounds = ActorDescIterator->GetEditorBounds();
+					if (EditorBounds.IsValid)
 					{
-						bEnablingStreamingJustified = true;
-						break;
+						AllActorsBounds += EditorBounds;
+
+						// Warn the user if the world becomes larger that 4km in any axis
+						if (AllActorsBounds.GetSize().GetMax() >= UWorldPartition::WorldExtentToEnableStreaming)
+						{
+							bEnablingStreamingJustified = true;
+							break;
+						}
 					}
 				}
 			}

@@ -336,7 +336,12 @@ void UWorldPartitionSubsystem::FActorDescContainerInstanceManager::FActorDescCon
 		{
 			continue;
 		}
-		Bounds += ActorDescIt->GetRuntimeBounds();
+
+		const FBox RuntimeBounds = ActorDescIt->GetRuntimeBounds();
+		if (RuntimeBounds.IsValid)
+		{
+			Bounds += RuntimeBounds;
+		}
 	}
 }
 

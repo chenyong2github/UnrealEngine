@@ -34,6 +34,7 @@ TMap<TSubclassOf<AActor>, FWorldPartitionActorDesc::FActorDescDeprecator> FWorld
 
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	: bIsUsingDataLayerAsset(false)
+	, bIsBoundsValid(false)
 	, SoftRefCount(0)
 	, HardRefCount(0)
 	, Container(nullptr)
@@ -83,8 +84,9 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 
 	check(Guid.IsValid());
 
-	const FBox StreamingBounds = InActor->GetStreamingBounds();
+	const FBox StreamingBounds = !bIsDefaultActorDesc ? InActor->GetStreamingBounds() : FBox(ForceInit);
 	StreamingBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+	bIsBoundsValid = StreamingBounds.IsValid == 1;
 
 	RuntimeGrid = InActor->GetRuntimeGrid();
 	bIsSpatiallyLoaded = InActor->GetIsSpatiallyLoaded();
@@ -241,6 +243,7 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		ActorPackage == Other->ActorPackage &&
 		ActorPath == Other->ActorPath &&
 		ActorLabel == Other->ActorLabel &&
+		bIsBoundsValid == Other->bIsBoundsValid &&
 		BoundsLocation.Equals(Other->BoundsLocation, 0.1f) &&
 		BoundsExtent.Equals(Other->BoundsExtent, 0.1f) &&
 		RuntimeGrid == Other->RuntimeGrid &&
@@ -266,21 +269,11 @@ bool FWorldPartitionActorDesc::ShouldResave(const FWorldPartitionActorDesc* Othe
 	check(ActorPackage == Other->ActorPackage);
 	check(ActorPath == Other->ActorPath);
 
-	// Tolerate up to 5% for bounds change
-	const float BoundsChangeTolerance = 0.05f;
-	const FBox ThisBounds = GetRuntimeBounds();
-	const FBox OtherBounds = Other->GetRuntimeBounds();
-	const FVector BoundsMinChangeRatio = ThisBounds.Min / OtherBounds.Min;
-	const FVector BoundsMaxChangeRatio = ThisBounds.Max / OtherBounds.Max;
-	if (!BoundsMinChangeRatio.Equals(FVector::OneVector, BoundsChangeTolerance) || !BoundsMaxChangeRatio.Equals(FVector::OneVector, BoundsChangeTolerance))
-	{
-		return true;
-	}
-
 	if (RuntimeGrid != Other->RuntimeGrid ||
 		bIsSpatiallyLoaded != Other->bIsSpatiallyLoaded ||
 		bActorIsEditorOnly != Other->bActorIsEditorOnly ||
 		bActorIsRuntimeOnly != Other->bActorIsRuntimeOnly ||
+		bIsBoundsValid != Other->bIsBoundsValid ||
 		HLODLayer != Other->HLODLayer ||
 		ParentActor != Other->ParentActor ||
 		ContentBundleGuid != Other->ContentBundleGuid ||
@@ -288,6 +281,22 @@ bool FWorldPartitionActorDesc::ShouldResave(const FWorldPartitionActorDesc* Othe
 		!CompareUnsortedArrays(References, Other->References))
 	{
 		return true;
+	}
+
+	// Tolerate up to 5% for bounds change
+	if (bIsBoundsValid)
+	{
+		const FBox ThisBounds = GetRuntimeBounds();
+		const FBox OtherBounds = Other->GetRuntimeBounds();
+		const FVector BoundsChangeTolerance = ThisBounds.GetSize() * 0.05f;
+		const FVector MinDiff = FVector(OtherBounds.Min - ThisBounds.Min).GetAbs();
+		const FVector MaxDiff = FVector(OtherBounds.Max - ThisBounds.Max).GetAbs();
+		if ((MinDiff.X > BoundsChangeTolerance.X) || (MaxDiff.X > BoundsChangeTolerance.X) ||
+			(MinDiff.Y > BoundsChangeTolerance.Y) || (MaxDiff.Y > BoundsChangeTolerance.Y) ||
+			(MinDiff.Z > BoundsChangeTolerance.Z) || (MaxDiff.Z > BoundsChangeTolerance.Z))
+		{
+			return true;
+		}
 	}
 
 	// If the actor descriptor says the actor is HLOD relebant but in reality it's not, this will incur a loading time penalty during HLOD generation
@@ -357,15 +366,23 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 	if (Mode >= EToStringMode::Compact)
 	{
 		FString BoundsStr;
-		const FBox EditorBounds = GetEditorBounds();
-		const FBox RuntimeBounds = GetRuntimeBounds();
-		if (EditorBounds.Equals(RuntimeBounds))
+
+		if (bIsBoundsValid)
 		{
-			BoundsStr = RuntimeBounds.ToString();
+			const FBox EditorBounds = GetEditorBounds();
+			const FBox RuntimeBounds = GetRuntimeBounds();
+			if (EditorBounds.Equals(RuntimeBounds))
+			{
+				BoundsStr = RuntimeBounds.ToString();
+			}
+			else
+			{
+				BoundsStr = *FString::Printf(TEXT("(Editor:%s Runtime:%s)"), *EditorBounds.ToString(), *RuntimeBounds.ToString());
+			}
 		}
 		else
 		{
-			BoundsStr = *FString::Printf(TEXT("(Editor:%s Runtime:%s)"), *EditorBounds.ToString(), *RuntimeBounds.ToString());
+			BoundsStr = TEXT("Invalid");
 		}
 
 		Result.Appendf(
@@ -446,10 +463,23 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 		Ar << BoundsLocationFlt << BoundsExtentFlt;
 		BoundsLocation = FVector(BoundsLocationFlt);
 		BoundsExtent = FVector(BoundsExtentFlt);
+		bIsBoundsValid = true;
 	}
 	else if (!bIsDefaultActorDesc)
 	{
-		Ar << BoundsLocation << BoundsExtent;
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeInvalidBounds)
+		{
+			bIsBoundsValid = true;
+		}
+		else
+		{
+			Ar << bIsBoundsValid;
+		}
+
+		if (bIsBoundsValid)
+		{
+			Ar << BoundsLocation << BoundsExtent;
+		}
 	}
 	
 	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ConvertedActorGridPlacementToSpatiallyLoadedFlag)
@@ -595,12 +625,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FBox FWorldPartitionActorDesc::GetEditorBounds() const
 {
-	return FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
+	return bIsBoundsValid ? FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent) : FBox(ForceInit);
 }
 
 FBox FWorldPartitionActorDesc::GetRuntimeBounds() const
 {
-	return FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
+	return bIsBoundsValid ? FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent) : FBox(ForceInit);
 }
 
 FName FWorldPartitionActorDesc::GetActorName() const

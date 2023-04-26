@@ -287,7 +287,11 @@ void FActorDescTreeItem::FocusActorBounds() const
 	if (FWorldPartitionActorDesc const* ActorDesc = ActorDescHandle.Get())
 	{
 		const bool bActiveViewportOnly = true;
-		GEditor->MoveViewportCamerasToBox(ActorDesc->GetEditorBounds(), bActiveViewportOnly, 0.5f);
+		const FBox EditorBounds = ActorDesc->GetEditorBounds();
+		if (EditorBounds.IsValid)
+		{
+			GEditor->MoveViewportCamerasToBox(EditorBounds, bActiveViewportOnly, 0.5f);
+		}
 	}
 }
 

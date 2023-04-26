@@ -301,6 +301,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Moved the water info mesh data and static water body meshes into new static mesh components for water bodies.
 		WaterBodyStaticMeshComponents,
 
+		// Serialize invalid bounds in world partition actor descriptors
+		WorldPartitionActorDescSerializeInvalidBounds,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

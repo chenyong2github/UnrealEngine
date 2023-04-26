@@ -216,7 +216,11 @@ void UWorldPartitionRuntimeHash::PopulateRuntimeCell(UWorldPartitionRuntimeCell*
 	{
 		const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
 		RuntimeCell->AddActorToCell(ActorDescView, ActorInstance.GetContainerID(), ActorInstance.GetTransform(), ActorInstance.GetActorDescContainer());
-		CellContentBounds += ActorDescView.GetRuntimeBounds().TransformBy(ActorInstance.GetTransform());
+		const FBox RuntimeBounds = ActorDescView.GetRuntimeBounds();
+		if (RuntimeBounds.IsValid)
+		{
+			CellContentBounds += RuntimeBounds.TransformBy(ActorInstance.GetTransform());
+		}
 					
 		if (ActorInstance.GetContainerID().IsMainContainer() && RuntimeCell->UnsavedActorsContainer)
 		{

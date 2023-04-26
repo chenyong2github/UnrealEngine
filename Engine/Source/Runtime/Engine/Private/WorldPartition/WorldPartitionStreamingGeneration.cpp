@@ -191,7 +191,11 @@ class FWorldPartitionStreamingGenerator
 					for (const FGuid& ActorGuid : ActorSetInstance.ActorSet->Actors)
 					{
 						const FWorldPartitionActorDescView& ActorDescView = ActorSetContainer.ActorDescViewMap->FindByGuidChecked(ActorGuid);
-						ActorSetInstance.Bounds += ActorDescView.GetRuntimeBounds().TransformBy(ContainerInstanceDescriptor.Transform);
+						const FBox RuntimeBounds = ActorDescView.GetRuntimeBounds();
+						if (RuntimeBounds.IsValid)
+						{
+							ActorSetInstance.Bounds += RuntimeBounds.TransformBy(ContainerInstanceDescriptor.Transform);
+						}
 					}
 				}
 			}
@@ -452,7 +456,10 @@ class FWorldPartitionStreamingGenerator
 			{
 				if (ActorDescView.GetIsSpatiallyLoaded())
 				{
-					ContainerInstanceDescriptor.Bounds += ActorDescView.GetRuntimeBounds().TransformBy(ContainerInstanceDescriptor.Transform);
+					const FBox RuntimeBounds = ActorDescView.GetRuntimeBounds();
+					check(RuntimeBounds.IsValid);
+
+					ContainerInstanceDescriptor.Bounds += RuntimeBounds.TransformBy(ContainerInstanceDescriptor.Transform);
 				}
 			});
 		}
