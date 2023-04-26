@@ -85,6 +85,7 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		ILevelInstanceEditorModule& EditorModule = FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
 		FEditorDelegates::OnAssetsPreDelete.AddUObject(this, &ULevelInstanceSubsystem::OnAssetsPreDelete);
+		FEditorDelegates::PreSaveWorldWithContext.AddUObject(this, &ULevelInstanceSubsystem::OnPreSaveWorldWithContext);
 	}
 #endif
 }
@@ -93,6 +94,7 @@ void ULevelInstanceSubsystem::Deinitialize()
 {
 #if WITH_EDITOR
 	FEditorDelegates::OnAssetsPreDelete.RemoveAll(this);
+	FEditorDelegates::PreSaveWorldWithContext.RemoveAll(this);
 #endif
 }
 
@@ -349,6 +351,17 @@ void ULevelInstanceSubsystem::OnAssetsPreDelete(const TArray<UObject*>& Objects)
 					UnloadLevelInstance(LevelInstancePtr->GetLevelInstanceID());
 				}
 			}
+		}
+	}
+}
+
+void ULevelInstanceSubsystem::OnPreSaveWorldWithContext(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
+{
+	if (!(ObjectSaveContext.GetSaveFlags() & SAVE_FromAutosave) && !ObjectSaveContext.IsProceduralSave())
+	{
+		if (const UPackage* WorldPackage = InWorld->GetPackage())
+		{
+			ResetLoadersForWorldAssetInternal(WorldPackage->GetName());
 		}
 	}
 }
