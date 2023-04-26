@@ -27,8 +27,9 @@
 #include "AnimData/IAnimationDataModel.h"
 #endif // WITH_EDITOR
 
-#include "AnimSequence.generated.h"
+#define UE_DEBUG_ANIMATION_COMPRESSION 1
 
+#include "AnimSequence.generated.h"
 
 typedef TArray<FTransform> FTransformArrayA2;
 
@@ -882,12 +883,12 @@ protected:
 	bool PollCacheDerivedData(const FIoHash& KeyHash) const;
 	void EndCacheDerivedData(const FIoHash& KeyHash);
 
-	void LogCompressionRequestTimings() const;
-
 	FIoHash DataKeyHash;
 	TMap<FIoHash, TUniquePtr<FCompressedAnimSequence>> DataByPlatformKeyHash;
 	TMap<FIoHash, TPimplPtr<UE::Anim::FAnimationSequenceAsyncCacheTask>> CacheTasksByKeyHash;
 
+#if UE_DEBUG_ANIMATION_COMPRESSION
+	void LogCompressionRequestTimings() const;
 	struct FCompressionRequestTimings
 	{
 		FDateTime LastBeginCacheRequest;
@@ -897,6 +898,7 @@ protected:
 	};
 	TMap<FIoHash, FCompressionRequestTimings> TimingsByKeyHash;
 	TMap<FIoHash, FString> DDCStringByKeyHash;
+#endif // UE_DEBUG_ANIMATION_COMPRESSION
 protected:
 	bool TryCancelAsyncTasks();
 	void FinishAsyncTasks();
