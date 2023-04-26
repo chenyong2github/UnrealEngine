@@ -40,13 +40,6 @@ public:
 	{
 	}
 
-	FStylusState(const FStylusState& Other) :
-		Position(Other.Position), Z(Other.Z), Tilt(Other.Tilt), Twist(Other.Twist),
-		Pressure(Other.Pressure), TangentPressure(Other.TangentPressure), Size(Other.Size),
-		IsDown(Other.IsDown), IsInverted(Other.IsInverted)
-	{
-	}
-
 	/**
 	 * The current position of the stylus on (or above) the tablet. Always valid.
 	 * This value is in logical coordinates, not pixels.
