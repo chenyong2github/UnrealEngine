@@ -248,6 +248,11 @@ namespace Audio
 		ensureMsgf(false, TEXT("Unknown runtime sound asset format type."));
 		return nullptr;
 	}
+
+	uint64 GetTransmitterID(uint64 ComponentID, UPTRINT WaveInstanceHash, uint32 PlayOrder)
+	{
+		return HashCombineFast(static_cast<uint32>(ComponentID % TNumericLimits<uint32>::Max()), PlayOrder + WaveInstanceHash);
+	}
 }
 
 namespace AudioDeviceUtils
@@ -5131,7 +5136,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 		{
 			Audio::FParameterTransmitterInitParams TransmitterInitParams
 			{
-				OutActiveSound.GetAudioComponentID(),
+				Audio::GetTransmitterID(OutActiveSound.GetAudioComponentID(), 0, OutActiveSound.GetPlayOrder()),
 				GetSampleRate(),
 				MoveTemp(DefaultParams),
 				DeviceID

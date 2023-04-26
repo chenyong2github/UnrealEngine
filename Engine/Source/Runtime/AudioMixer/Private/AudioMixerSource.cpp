@@ -1117,12 +1117,14 @@ namespace Audio
 
 		// Active sound instance ID is the audio component ID of active sound.
 		uint64 InstanceID = 0;
+		uint32 PlayOrder = 0;
 		bool bActiveSoundIsPreviewSound = false;
 		TArray<FAudioParameter> DefaultParameters;
 		FActiveSound* ActiveSound = WaveInstance->ActiveSound;
 		if (ActiveSound)
 		{
 			InstanceID = ActiveSound->GetAudioComponentID();
+			PlayOrder = ActiveSound->GetPlayOrder();
 			bActiveSoundIsPreviewSound = ActiveSound->bIsPreviewSound;
 			if (Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter())
 			{
@@ -1132,7 +1134,7 @@ namespace Audio
 
 		FMixerSourceBufferInitArgs BufferInitArgs;
 		BufferInitArgs.AudioDeviceID = AudioDevice->DeviceID;
-		BufferInitArgs.InstanceID = InstanceID;
+		BufferInitArgs.InstanceID = GetTransmitterID(InstanceID, WaveInstance->WaveInstanceHash, PlayOrder);
 		BufferInitArgs.SampleRate = AudioDevice->GetSampleRate();
 		BufferInitArgs.AudioMixerNumOutputFrames = MixerDevice->GetNumOutputFrames();
 		BufferInitArgs.Buffer = MixerBuffer;

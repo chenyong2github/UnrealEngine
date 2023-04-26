@@ -97,6 +97,9 @@ namespace Audio
 
 	/** Returns a decoder for the sound assets's given compression type. Will return nullptr if the compression type is platform-dependent. */
 	ENGINE_API ICompressedAudioInfo* CreateSoundAssetDecoder(const FName& InRuntimeFormat);
+
+	/** Creates an ID for use by Parameter Transmitters that can differentiate between multiple voices playing on the same Audio Component. */
+	ENGINE_API uint64 GetTransmitterID(uint64 ComponentID, UPTRINT WaveInstanceHash, uint32 PlayOrder);
 }
 
 /**

@@ -146,7 +146,7 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 			
 			Audio::FParameterTransmitterInitParams Params;
 			Params.DefaultParams = ActiveSound.GetTransmitter()->GetParameters();
-			Params.InstanceID = ActiveSound.GetAudioComponentID();
+			Params.InstanceID = Audio::GetTransmitterID(ActiveSound.GetAudioComponentID(), NodeWaveInstanceHash, ActiveSound.GetPlayOrder()); 
 			Params.SampleRate = AudioDevice->GetSampleRate();
 			Params.AudioDeviceID = AudioDevice->DeviceID;
 
