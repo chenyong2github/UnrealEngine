@@ -231,6 +231,11 @@ FPCGElementPtr UPCGDebugSettings::CreateElement() const
 	return MakeShared<FPCGDebugElement>();
 }
 
+TArray<FPCGPinProperties> UPCGDebugSettings::InputPinProperties() const
+{
+	return Super::DefaultPointInputPinProperties();
+}
+
 TArray<FPCGPinProperties> UPCGDebugSettings::OutputPinProperties() const
 {
 	return TArray<FPCGPinProperties>();
