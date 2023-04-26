@@ -932,6 +932,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UContentBrowserAssetDataSource::CompileFilter);
+
 	FAssetFilterInputParams Params;
 	if (PopulateAssetFilterInputParams(Params, this, AssetRegistry, InFilter, OutCompiledFilter, CollectionManager))
 	{

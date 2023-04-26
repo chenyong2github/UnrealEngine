@@ -565,6 +565,8 @@ void UContentBrowserFileDataSource::BuildRootPathVirtualTree()
 
 void UContentBrowserFileDataSource::CompileFilter(const FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UContentBrowserFileDataSource::CompileFilter);
+
 	const FContentBrowserDataObjectFilter* ObjectFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataObjectFilter>();
 	const FContentBrowserDataPackageFilter* PackageFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataPackageFilter>();
 	const FContentBrowserDataClassFilter* ClassFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataClassFilter>();

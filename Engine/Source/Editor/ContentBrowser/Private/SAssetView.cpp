@@ -4709,6 +4709,8 @@ void SAssetView::OverrideShowLocalizedContent()
 
 void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUpdate> InUpdatedItems)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SAssetView::HandleItemDataUpdated);
+
 	if (InUpdatedItems.Num() == 0)
 	{
 		return;

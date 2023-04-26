@@ -64,6 +64,8 @@ void UContentBrowserAliasDataSource::BuildRootPathVirtualTree()
 
 void UContentBrowserAliasDataSource::CompileFilter(const FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UContentBrowserAliasDataSource::CompileFilter);
+
 	UContentBrowserAssetDataSource::FAssetFilterInputParams Params;
 	if (UContentBrowserAssetDataSource::PopulateAssetFilterInputParams(Params, this, AssetRegistry, InFilter, OutCompiledFilter, &FCollectionManagerModule::GetModule().Get()))
 	{
