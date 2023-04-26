@@ -22,6 +22,7 @@
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectRedirector.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 namespace UE::Interchange::Private
