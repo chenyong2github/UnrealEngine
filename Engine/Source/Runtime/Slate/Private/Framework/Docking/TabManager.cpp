@@ -855,8 +855,9 @@ void FTabManager::SetEnforceMainTab(bool bInEnforceMainTab)
 {
 	bEnforceMainTab = bInEnforceMainTab;
 
-	// Set the main tab to whichever first tab we can find if we don't have one
-	if(bEnforceMainTab && !MainNonCloseableTabID.TabType.IsNone())
+	static const FTabId InvalidTab;
+	// If we already have tabs registered, set the main tab to whichever first tab we can find if we don't have one
+	if(bEnforceMainTab && MainNonCloseableTabID == InvalidTab && !TabSpawner.IsEmpty())
 	{
 		FTabSpawner::TIterator SpawnerIterator(TabSpawner);
 		MainNonCloseableTabID = SpawnerIterator.Key();
@@ -1020,8 +1021,9 @@ FTabSpawnerEntry& FTabManager::RegisterTabSpawner(const FName TabId, const FOnSp
 	TSharedRef<FTabSpawnerEntry> NewSpawnerEntry = MakeShareable(new FTabSpawnerEntry(TabId, OnSpawnTab, CanSpawnTab));
 	TabSpawner.Add(TabId, NewSpawnerEntry);
 
+	static const FTabId InvalidTab;
 	// If this tab manager always wants a non closeable tab, and we don't already have one set this tab to be the main tab
-	if(bEnforceMainTab && MainNonCloseableTabID.TabType.IsNone() && !PendingMainNonClosableTab)
+	if(bEnforceMainTab && MainNonCloseableTabID == InvalidTab && !PendingMainNonClosableTab)
 	{
 		MainNonCloseableTabID = TabId;
 	}

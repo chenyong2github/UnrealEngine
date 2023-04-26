@@ -193,7 +193,7 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 		NewTabManager->SetEnforceMainTab(true);
 
 		FName MainTabName = GetMainTabName();
-		if(MainTabName.IsValid())
+		if(!MainTabName.IsNone())
 		{
 			NewTabManager->SetMainTab(MainTabName);
 		}

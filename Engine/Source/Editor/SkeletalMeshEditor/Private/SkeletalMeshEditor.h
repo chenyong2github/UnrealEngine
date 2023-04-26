@@ -83,6 +83,7 @@ public:
 	
 	//~ Begin FAssetEditorToolkit Interface.
 	virtual bool OnRequestClose() override;
+	virtual FName GetMainTabName() const override;
 	//~ End FAssetEditorToolkit Interface.
 
 	/** FEditorUndoClient interface */
