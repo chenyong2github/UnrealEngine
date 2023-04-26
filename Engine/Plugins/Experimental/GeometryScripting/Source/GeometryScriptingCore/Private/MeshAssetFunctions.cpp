@@ -233,11 +233,12 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 
 #if WITH_EDITOR
 
-	int32 UseLODIndex = FMath::Clamp(TargetLOD.LODIndex, 0, 32);
+	int32 UseLODIndex = FMath::Clamp(TargetLOD.LODIndex, 0, MAX_STATIC_MESH_LODS);
 
-	if (Options.bReplaceMaterials && UseLODIndex != 0)
+	// currently material updates are only applied when writing LODs
+	if (Options.bReplaceMaterials && TargetLOD.bWriteHiResSource)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToStaticMesh_InvalidOptions1", "CopyMeshToStaticMesh: Can only Replace Materials when updating LOD0"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToStaticMesh_InvalidOptions1", "CopyMeshToStaticMesh: Can only Replace Materials when updating LODs"));
 		return FromDynamicMesh;
 	}
 
