@@ -142,6 +142,16 @@ namespace UE::VertexDeltaModel
 		return true;
 	}
 
+
+	void FVertexDeltaGraphDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
+	{
+		if (VertexDeltaModelInstance && VertexDeltaModelInstance->IsValidForDataProvider())
+		{
+			Buffer = VertexDeltaModelInstance->GetOutputRDGBuffer();
+			BufferSRV = GraphBuilder.CreateSRV(Buffer, PF_R32_FLOAT);
+		}
+	}
+
 	void FVertexDeltaGraphDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 	{
 		const FSkeletalMeshRenderData& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();

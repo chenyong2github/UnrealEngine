@@ -80,6 +80,7 @@ namespace UE::VertexDeltaModel
 		// FComputeDataProviderRenderProxy overrides.
 		bool IsValid(FValidationData const& InValidationData) const override;
 		void GatherDispatchData(FDispatchData const& InDispatchData) override;
+		void AllocateResources(FRDGBuilder& GraphBuilder) override;
 		// ~END FComputeDataProviderRenderProxy overrides.
 
 	protected:
