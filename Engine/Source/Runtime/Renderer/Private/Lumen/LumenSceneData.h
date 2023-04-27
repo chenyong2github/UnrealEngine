@@ -30,7 +30,6 @@ class FMeshCardsBuildData;
 class FPrimitiveSceneInfo;
 struct FLumenPageTableEntry;
 
-static constexpr uint32 MaxDistantCards = 8;
 static constexpr uint32 MaxLumenViews = 2;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
@@ -38,14 +37,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER(uint32, NumMeshCards)
 	SHADER_PARAMETER(uint32, NumCardPages)
 	SHADER_PARAMETER(uint32, NumHeightfields)
-	SHADER_PARAMETER(uint32, MaxConeSteps)
 	SHADER_PARAMETER(FVector2f, PhysicalAtlasSize)
 	SHADER_PARAMETER(FVector2f, InvPhysicalAtlasSize)
 	SHADER_PARAMETER(float, IndirectLightingAtlasDownsampleFactor)
-	SHADER_PARAMETER(uint32, NumDistantCards)
-	SHADER_PARAMETER(float, DistantSceneMaxTraceDistance)
-	SHADER_PARAMETER(FVector3f, DistantSceneDirection)
-	SHADER_PARAMETER_SCALAR_ARRAY(uint32, DistantCardIndices, [MaxDistantCards])
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, CardData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, CardPageData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, MeshCardsData)
@@ -116,7 +110,6 @@ public:
 
 	bool bVisible = false;
 	bool bHeightfield = false;
-	bool bDistantScene = false;
 
 	// First and last allocated mip map
 	uint8 MinAllocatedResLevel = UINT8_MAX;
@@ -462,8 +455,6 @@ public:
 	FUniqueIndexList PrimitivesToUpdateMeshCards;
 	TRefCountPtr<FRDGPooledBuffer> SceneInstanceIndexToMeshCardsIndexBuffer;
 	FRDGScatterUploadBuffer SceneInstanceIndexToMeshCardsIndexUploadBuffer;
-
-	TArray<int32, TInlineAllocator<8>> DistantCardIndices;
 
 	// Single card tile per FLumenPageTableEntry. Used for various atlas update operations
 	TRefCountPtr<FRDGPooledBuffer> CardPageBuffer;

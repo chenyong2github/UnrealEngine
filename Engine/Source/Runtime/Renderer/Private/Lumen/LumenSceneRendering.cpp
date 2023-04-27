@@ -27,14 +27,6 @@
 #include "DataDrivenShaderPlatformInfo.h"
 #include "StaticMeshBatch.h"
 
-int32 GLumenSupported = 1;
-FAutoConsoleVariableRef CVarLumenSupported(
-	TEXT("r.Lumen.Supported"),
-	GLumenSupported,
-	TEXT("Whether Lumen is supported at all for the project, regardless of platform.  This can be used to avoid compiling shaders and other load time overhead."),
-	ECVF_ReadOnly
-);
-
 int32 GLumenFastCameraMode = 0;
 FAutoConsoleVariableRef CVarLumenFastCameraMode(
 	TEXT("r.LumenScene.FastCameraMode"),
@@ -65,14 +57,6 @@ FAutoConsoleVariableRef CVarLumenSceneMeshCardsPerTask(
 	GLumenSceneMeshCardsPerTask,
 	TEXT("How many mesh cards to process per single surface cache update task."),
 	ECVF_RenderThreadSafe
-);
-
-int32 GLumenGIMaxConeSteps = 1000;
-FAutoConsoleVariableRef CVarLumenGIMaxConeSteps(
-	TEXT("r.Lumen.MaxConeSteps"),
-	GLumenGIMaxConeSteps,
-	TEXT("Maximum steps to use for Cone Stepping of proxy cards."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GLumenSurfaceCacheFreeze = 0;
@@ -216,22 +200,6 @@ FAutoConsoleVariableRef CVarLumenGIRecaptureLumenSceneEveryFrame(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneGlobalDFResolution = 252;
-FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
-	TEXT("r.LumenScene.GlobalSDF.Resolution"),
-	GLumenSceneGlobalDFResolution,
-	TEXT("Global Distance Field resolution when Lumen is enabled."),
-	ECVF_RenderThreadSafe
-);
-
-float GLumenSceneGlobalDFClipmapExtent = 2500.0f;
-FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
-	TEXT("r.LumenScene.GlobalSDF.ClipmapExtent"),
-	GLumenSceneGlobalDFClipmapExtent,
-	TEXT("Global Distance Field first clipmap extent when Lumen is enabled."),
-	ECVF_RenderThreadSafe
-);
-
 float GLumenSceneFarFieldTexelDensity = 0.001f;
 FAutoConsoleVariableRef CVarLumenSceneFarFieldTexelDensity(
 	TEXT("r.LumenScene.SurfaceCache.FarField.TexelDensity"),
@@ -346,135 +314,6 @@ bool Lumen::IsSurfaceCacheFrozen()
 bool Lumen::IsSurfaceCacheUpdateFrameFrozen()
 {
 	return GLumenSurfaceCacheFreeze != 0 || GLumenSurfaceCacheFreezeUpdateFrame != 0;
-}
-
-namespace Lumen
-{
-	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
-	{
-#if RHI_RAYTRACING
-
-		const bool bLumenGI = ShouldRenderLumenDiffuseGI(Scene, View);
-		const bool bLumenReflections = ShouldRenderLumenReflections(View);
-
-		if (bLumenGI
-			&& (UseHardwareRayTracedScreenProbeGather(*View.Family) || UseHardwareRayTracedRadianceCache(*View.Family) || UseHardwareRayTracedDirectLighting(*View.Family)))
-		{
-			return true;
-		}
-
-		if (bLumenReflections
-			&& UseHardwareRayTracedReflections(*View.Family))
-		{
-			return true;
-		}
-
-		if ((bLumenGI || bLumenReflections) && Lumen::ShouldVisualizeHardwareRayTracing(*View.Family))
-		{
-			return true;
-		}
-
-		if ((bLumenGI || bLumenReflections) && Lumen::ShouldRenderRadiosityHardwareRayTracing(*View.Family))
-		{
-			return true;
-		}
-#endif
-		return false;
-	}
-
-	bool AnyLumenHardwareInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
-	{
-		if (!AnyLumenHardwareRayTracingPassEnabled(Scene, View))
-		{
-			return false;
-		}
-
-		return Lumen::UseHardwareInlineRayTracing(*View.Family);
-	}
-}
-
-bool Lumen::ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily)
-{
-	return Scene->SkyLight
-		&& (Scene->SkyLight->ProcessedTexture || Scene->SkyLight->bRealTimeCaptureEnabled)
-		&& ViewFamily.EngineShowFlags.SkyLighting
-		&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5
-		&& !IsForwardShadingEnabled(Scene->GetShaderPlatform())
-		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling;
-}
-
-bool DoesPlatformSupportLumenGI(EShaderPlatform Platform, bool bSkipProjectCheck)
-{
-	return (bSkipProjectCheck || GLumenSupported)
-		&& FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(Platform)
-		&& !IsForwardShadingEnabled(Platform);
-}
-
-bool DoesRuntimePlatformSupportLumen()
-{
-	return UE::PixelFormat::HasCapabilities(PF_R16_UINT, EPixelFormatCapabilities::TypedUAVLoad);
-}
-
-bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily, bool bSkipProjectCheck)
-{
-	return Scene
-		&& Scene->GetLumenSceneData(*ViewFamily.Views[0])
-		&& ViewFamily.Views.Num() <= MaxLumenViews
-		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform(), bSkipProjectCheck);
-}
-
-bool Lumen::IsSoftwareRayTracingSupported()
-{
-	return DoesProjectSupportDistanceFields();
-}
-
-bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck)
-{
-	return View.Family
-		&& DoesRuntimePlatformSupportLumen()
-		&& ShouldRenderLumenForViewFamily(Scene, *View.Family, bSkipProjectCheck)
-		// Don't update scene lighting for secondary views
-		&& !View.bIsPlanarReflection
-		&& !View.bIsSceneCaptureCube
-		&& !View.bIsReflectionCapture
-		&& View.State
-		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracing(*View.Family) || IsSoftwareRayTracingSupported());
-}
-
-bool Lumen::UseGlobalSDFObjectGrid(const FSceneViewFamily& ViewFamily)
-{
-	if (!Lumen::IsSoftwareRayTracingSupported())
-	{
-		return false;
-	}
-
-	// All features use Hardware RayTracing, no need to update voxel lighting
-	if (Lumen::UseHardwareRayTracedSceneLighting(ViewFamily)
-		&& Lumen::UseHardwareRayTracedScreenProbeGather(ViewFamily)
-		&& Lumen::UseHardwareRayTracedReflections(ViewFamily)
-		&& Lumen::UseHardwareRayTracedRadianceCache(ViewFamily)
-		&& Lumen::UseHardwareRayTracedTranslucencyVolume(ViewFamily)
-		&& Lumen::UseHardwareRayTracedVisualize(ViewFamily))
-	{
-		return false;
-	}
-
-	return true;
-}
-
-int32 Lumen::GetGlobalDFResolution()
-{
-	return GLumenSceneGlobalDFResolution;
-}
-
-float Lumen::GetGlobalDFClipmapExtent(int32 ClipmapIndex)
-{
-	return GLumenSceneGlobalDFClipmapExtent * FMath::Pow(2.0f, ClipmapIndex);
-}
-
-int32 Lumen::GetNumGlobalDFClipmaps(const FSceneView& View)
-{
-	return GlobalDistanceField::GetNumGlobalDistanceFieldClipmaps(/*bLumenEnabled*/ true, View.FinalPostProcessSettings.LumenSceneViewDistance);
 }
 
 float GetCardCameraDistanceTexelDensityScale()
@@ -1035,7 +874,6 @@ FCardPageRenderData::FCardPageRenderData(
 	: PrimitiveGroupIndex(InPrimitiveGroupIndex)
 	, CardIndex(InCardIndex)
 	, PageTableIndex(InPageTableIndex)
-	, bDistantScene(InLumenCard.bDistantScene)
 	, CardUVRect(InCardUVRect)
 	, CardCaptureAtlasRect(InCardCaptureAtlasRect)
 	, SurfaceCacheAtlasRect(InSurfaceCacheAtlasRect)
@@ -1045,11 +883,6 @@ FCardPageRenderData::FCardPageRenderData(
 	ensure(CardIndex >= 0 && PageTableIndex >= 0);
 
 	NaniteLODScaleFactor = GLumenSceneSurfaceCacheCaptureNaniteLODScaleFactor.GetValueOnRenderThread();
-
-	if (InLumenCard.bDistantScene)
-	{
-		NaniteLODScaleFactor = Lumen::GetDistanceSceneNaniteLODScaleFactor();
-	}
 
 	UpdateViewMatrices(InMainView);
 }
@@ -2308,7 +2141,6 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		LumenSceneData.NumHiResPagesToAdd = 0;
 
 		UpdateLumenScenePrimitives(GPUMask, Scene);
-		UpdateDistantScene(Scene, Views[0]);
 
 		if (LumenSceneData.bDebugClearAllCachedState || bReallocateAtlas)
 		{
@@ -2434,24 +2266,9 @@ void UpdateLumenCardSceneUniformBuffer(
 	UniformParameters->NumCards = LumenSceneData.Cards.Num();
 	UniformParameters->NumMeshCards = LumenSceneData.MeshCards.Num();
 	UniformParameters->NumCardPages = LumenSceneData.GetNumCardPages();
-	UniformParameters->MaxConeSteps = GLumenGIMaxConeSteps;	
 	UniformParameters->PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
 	UniformParameters->InvPhysicalAtlasSize = FVector2f(1.0f) / UniformParameters->PhysicalAtlasSize;
 	UniformParameters->IndirectLightingAtlasDownsampleFactor = Lumen::GetRadiosityAtlasDownsampleFactor();
-	UniformParameters->NumDistantCards = LumenSceneData.DistantCardIndices.Num();
-	extern float GLumenDistantSceneMaxTraceDistance;
-	UniformParameters->DistantSceneMaxTraceDistance = GLumenDistantSceneMaxTraceDistance;
-	UniformParameters->DistantSceneDirection = FVector3f::ZeroVector;
-
-	if (Scene->DirectionalLights.Num() > 0)
-	{
-		UniformParameters->DistantSceneDirection = (FVector3f)-Scene->DirectionalLights[0]->Proxy->GetDirection();
-	}
-	
-	for (int32 i = 0; i < LumenSceneData.DistantCardIndices.Num(); i++)
-	{
-		GET_SCALAR_ARRAY_ELEMENT(UniformParameters->DistantCardIndices, i) = LumenSceneData.DistantCardIndices[i];
-	}
 
 	if (FrameTemporaries.CardBufferSRV)
 	{
@@ -3138,30 +2955,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 					}
 				}
 
-				extern float GLumenDistantSceneMinInstanceBoundsRadius;
-
-				// Render entire scene for distant cards
-				for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
-				{
-					if (CardPageRenderData.bDistantScene)
-					{
-						CardPageRenderData.PatchView(Scene, SharedView);
-						Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(
-							*SharedView,
-							DepthStencilAtlasSize,
-							/* Flags */ 0u, // Near clip is intentionally disabled here
-							/*StreamingPriorityCategory*/ 0,
-							GLumenDistantSceneMinInstanceBoundsRadius,
-							Lumen::GetDistanceSceneNaniteLODScaleFactor());
-
-						NaniteRenderer->DrawGeometry(
-							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-							RasterResults.VisibilityResults,
-							*Nanite::FPackedViewArray::Create(GraphBuilder, PackedView)
-						);
-					}
-				}
-
 				NaniteRenderer->ExtractResults( RasterResults );
 
 				if (CVarLumenSceneSurfaceCacheCaptureNaniteMultiView.GetValueOnRenderThread() != 0)
@@ -3228,4 +3021,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(Views[0]);
 	LumenSceneData.CardIndicesToUpdateInBuffer.Empty(1024);
 	LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Empty(1024);
+	LumenSceneData.HeightfieldIndicesToUpdateInBuffer.Empty(1024);
+	LumenSceneData.PrimitivesToUpdateMeshCards.Empty(1024);
 }

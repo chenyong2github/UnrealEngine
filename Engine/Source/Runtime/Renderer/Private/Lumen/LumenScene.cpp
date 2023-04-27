@@ -4,8 +4,52 @@
 #include "RendererPrivate.h"
 #include "Lumen.h"
 #include "MeshCardBuild.h"
+#include "ComponentRecreateRenderStateContext.h"
 
-extern void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveGroup, FMeshCardsBuildData& MeshCardsBuildData, FMatrix& MeshCardsLocalToWorld);
+int32 GLumenSceneGlobalDFResolution = 252;
+FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
+	TEXT("r.LumenScene.GlobalSDF.Resolution"),
+	GLumenSceneGlobalDFResolution,
+	TEXT("Global Distance Field resolution when Lumen is enabled."),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenSceneGlobalDFClipmapExtent = 2500.0f;
+FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
+	TEXT("r.LumenScene.GlobalSDF.ClipmapExtent"),
+	GLumenSceneGlobalDFClipmapExtent,
+	TEXT("Global Distance Field first clipmap extent when Lumen is enabled."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarLumenFarField(
+	TEXT("r.LumenScene.FarField"), 0,
+	TEXT("Enable/Disable Lumen far-field ray tracing."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		// Recreate proxies so that FPrimitiveSceneProxy::UpdateVisibleInLumenScene() can pick up any changed state
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarLumenFarFieldMaxTraceDistance(
+	TEXT("r.LumenScene.FarField.MaxTraceDistance"),
+	1.0e6f,
+	TEXT("Maximum hit-distance for Lumen far-field ray tracing (Default = 1.0e6)."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarLumenFarFieldDitherScale(
+	TEXT("r.LumenScene.FarField.FarFieldDitherScale"),
+	200.0f,
+	TEXT("Dither region between near and far field in world space units."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarLumenFarFieldReferencePosZ(
+	TEXT("r.LumenScene.FarField.ReferencePos.Z"),
+	100000.0f,
+	TEXT("Far-field reference position in Z (default = 100000.0)"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 int32 GLumenSceneUploadEveryFrame = 0;
 FAutoConsoleVariableRef CVarLumenSceneUploadEveryFrame(
@@ -28,6 +72,57 @@ static TAutoConsoleVariable<int32> CVarLumenSceneSurfaceCacheAtlasSize(
 	TEXT("Surface cache card atlas size."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
+
+namespace Lumen
+{
+	bool UseFarField(const FSceneViewFamily& ViewFamily)
+	{
+		return CVarLumenFarField.GetValueOnRenderThread() != 0 
+			&& ViewFamily.EngineShowFlags.LumenFarFieldTraces;
+	}
+
+	float GetFarFieldMaxTraceDistance()
+	{
+		return CVarLumenFarFieldMaxTraceDistance.GetValueOnRenderThread();
+	}
+
+	float GetNearFieldMaxTraceDistanceDitherScale(bool bUseFarField)
+	{
+		return bUseFarField ? CVarLumenFarFieldDitherScale.GetValueOnRenderThread() : 0.0f;
+	}
+
+	float GetNearFieldSceneRadius(const FViewInfo& View, bool bUseFarField)
+	{
+		float SceneRadius = FLT_MAX;
+
+		if (bUseFarField && RayTracing::GetCullingMode(View.Family->EngineShowFlags) != RayTracing::ECullingMode::Disabled)
+		{
+			return GetRayTracingCullingRadius();
+		}
+
+		return SceneRadius;
+	}
+
+	FVector GetFarFieldReferencePos()
+	{
+		return FVector(0.0f, 0.0f, CVarLumenFarFieldReferencePosZ.GetValueOnRenderThread());
+	}
+}
+
+int32 Lumen::GetGlobalDFResolution()
+{
+	return GLumenSceneGlobalDFResolution;
+}
+
+float Lumen::GetGlobalDFClipmapExtent(int32 ClipmapIndex)
+{
+	return GLumenSceneGlobalDFClipmapExtent * FMath::Pow(2.0f, ClipmapIndex);
+}
+
+int32 Lumen::GetNumGlobalDFClipmaps(const FSceneView& View)
+{
+	return GlobalDistanceField::GetNumGlobalDistanceFieldClipmaps(/*bLumenEnabled*/ true, View.FinalPostProcessSettings.LumenSceneViewDistance);
+}
 
 bool Lumen::ShouldUpdateLumenSceneViewOrigin()
 {

@@ -37,7 +37,6 @@ public:
 	// CardData
 	const int32 CardIndex = -1;
 	const int32 PageTableIndex = -1;
-	bool bDistantScene = false;
 	FVector4f CardUVRect;
 	FIntRect CardCaptureAtlasRect;
 	FIntRect SurfaceCacheAtlasRect;

@@ -59,8 +59,6 @@ namespace Lumen
 	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 
-	float GetDistanceSceneNaniteLODScaleFactor();
-
 	bool ShouldUpdateLumenSceneViewOrigin();
 	FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
 
@@ -146,6 +144,5 @@ namespace LumenHardwareRayTracing
 };
 
 extern int32 GLumenFastCameraMode;
-extern int32 GLumenDistantScene;
 
 LLM_DECLARE_TAG(Lumen);

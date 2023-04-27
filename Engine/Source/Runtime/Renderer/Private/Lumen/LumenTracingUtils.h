@@ -183,7 +183,6 @@ extern FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures);
 
-extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
 extern float ComputeMaxCardUpdateDistanceFromCamera(const FViewInfo& View);
 
 extern int32 GLumenIrradianceFieldGather;

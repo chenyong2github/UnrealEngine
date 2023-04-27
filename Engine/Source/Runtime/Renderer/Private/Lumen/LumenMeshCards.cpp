@@ -487,11 +487,6 @@ void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const 
 			LumenSceneData.SceneInstanceIndexToMeshCardsIndexUploadBuffer.ResourceUploadTo(GraphBuilder, SceneInstanceIndexToMeshCardsIndexBuffer);
 		}
 	}
-
-	// Reset arrays, but keep allocated memory for 1024 elements
-	LumenSceneData.HeightfieldIndicesToUpdateInBuffer.Empty(1024);
-	LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Empty(1024);
-	LumenSceneData.PrimitivesToUpdateMeshCards.Empty(1024);
 }
 
 class FLumenMergedMeshCards

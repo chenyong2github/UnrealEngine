@@ -366,8 +366,6 @@ int32 GetNumClipmapUpdatesPerFrame()
 	return GAOGlobalDistanceFieldFastCameraMode ? 1 : GAOGlobalDistanceFieldClipmapUpdatesPerFrame;
 }
 
-extern int32 GLumenDistantScene;
-
 int32 GlobalDistanceField::GetNumGlobalDistanceFieldClipmaps(bool bLumenEnabled, float LumenSceneViewDistance)
 {
 	int32 WantedClipmaps = GAOGlobalDistanceFieldNumClipmaps;
@@ -384,7 +382,7 @@ int32 GlobalDistanceField::GetNumGlobalDistanceFieldClipmaps(bool bLumenEnabled,
 		}
 	}
 
-	if (GAOGlobalDistanceFieldFastCameraMode && GLumenDistantScene == 0)
+	if (GAOGlobalDistanceFieldFastCameraMode)
 	{
 		WantedClipmaps++;
 	}
