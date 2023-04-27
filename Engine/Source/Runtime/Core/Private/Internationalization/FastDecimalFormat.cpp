@@ -205,7 +205,7 @@ void SanitizeNumberFormattingOptions(FNumberFormattingOptions& InOutFormattingOp
 
 int32 IntegralToString_UInt64ToString(
 	const uint64 InVal, 
-	const bool InUseGrouping, const uint8 InPrimaryGroupingSize, const uint8 InSecondaryGroupingSize, const TCHAR InGroupingSeparatorCharacter, const TCHAR* InDigitCharacters, 
+	const bool InUseGrouping, const uint8 InPrimaryGroupingSize, const uint8 InSecondaryGroupingSize, const uint8 InMinimumGroupingDigits, const TCHAR InGroupingSeparatorCharacter, const TCHAR* InDigitCharacters,
 	const int32 InMinDigitsToPrint, const int32 InMaxDigitsToPrint, 
 	TCHAR* InBufferToFill, const int32 InBufferToFillSize
 	)
@@ -249,7 +249,16 @@ int32 IntegralToString_UInt64ToString(
 			}
 
 			TmpBuffer[StringLen++] = InDigitCharacters[0];
+
+			++DigitsPrinted;
 		}
+	}
+
+	// Did we actually write enough digits to warrant a group separator? If not then we need to remove it again
+	if (InUseGrouping && DigitsPrinted > static_cast<int32>(InPrimaryGroupingSize) && DigitsPrinted < static_cast<int32>(InPrimaryGroupingSize + InMinimumGroupingDigits))
+	{
+		FMemory::Memmove(TmpBuffer + InPrimaryGroupingSize, TmpBuffer + InPrimaryGroupingSize + 1, StringLen - InPrimaryGroupingSize - 1);
+		--StringLen;
 	}
 
 	// TmpBuffer is backwards, flip it into the final output buffer
@@ -270,6 +279,7 @@ FORCEINLINE int32 IntegralToString_Common(const uint64 InVal, const FDecimalNumb
 		InFormattingOptions.UseGrouping && InFormattingRules.PrimaryGroupingSize > 0,
 		InFormattingRules.PrimaryGroupingSize, 
 		InFormattingRules.SecondaryGroupingSize, 
+		InFormattingRules.MinimumGroupingDigits, 
 		InFormattingRules.GroupingSeparatorCharacter, 
 		InFormattingRules.DigitCharacters, 
 		InFormattingOptions.MinimumIntegralDigits, 
@@ -557,7 +567,7 @@ void FractionalToString(const double InVal, const FDecimalNumberFormattingRules&
 	int32 FractionalPartLen = 0;
 	if (FractionalPart != 0.0)
 	{
-		FractionalPartLen = IntegralToString_UInt64ToString(static_cast<uint64>(FractionalPart), false, 0, 0, TEXT(' '), InFormattingRules.DigitCharacters, 0, InFormattingOptions.MaximumFractionalDigits, FractionalPartBuffer, UE_ARRAY_COUNT(FractionalPartBuffer));
+		FractionalPartLen = IntegralToString_UInt64ToString(static_cast<uint64>(FractionalPart), false, 0, 0, 1, TEXT(' '), InFormattingRules.DigitCharacters, 0, InFormattingOptions.MaximumFractionalDigits, FractionalPartBuffer, UE_ARRAY_COUNT(FractionalPartBuffer));
 	
 		{
 			// Pad the fractional part with any leading zeros that may have been lost when the number was split

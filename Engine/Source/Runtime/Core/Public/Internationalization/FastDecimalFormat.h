@@ -18,8 +18,9 @@ struct FDecimalNumberFormattingRules
 	FDecimalNumberFormattingRules()
 		: GroupingSeparatorCharacter(TEXT('\0'))
 		, DecimalSeparatorCharacter(TEXT('\0'))
-		, PrimaryGroupingSize(TEXT('\0'))
-		, SecondaryGroupingSize(TEXT('\0'))
+		, PrimaryGroupingSize(0)
+		, SecondaryGroupingSize(0)
+		, MinimumGroupingDigits(1)
 	{
 		DigitCharacters[0] = TEXT('0');
 		DigitCharacters[1] = TEXT('1');
@@ -45,6 +46,7 @@ struct FDecimalNumberFormattingRules
 	TCHAR DecimalSeparatorCharacter;
 	uint8 PrimaryGroupingSize;
 	uint8 SecondaryGroupingSize;
+	uint8 MinimumGroupingDigits;
 	TCHAR DigitCharacters[10];
 
 	/** Default number formatting options for a given culture */

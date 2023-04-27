@@ -10,10 +10,17 @@
 #include "Internationalization/ICUUtilities.h"
 #include "HAL/IConsoleManager.h"
 
-static TAutoConsoleVariable<int32> CVarSpanishUsesRAENumberFormat(
+static TAutoConsoleVariable<bool> CVarSpanishUsesRAENumberFormat(
 	TEXT("Localization.SpanishUsesRAENumberFormat"),
-	1,
-	TEXT("0: Disabled (CLDR format), 1: Enabled (RAE format, default)."),
+	true,
+	TEXT("False: Disabled (CLDR format), True: Enabled (RAE format, default)."),
+	ECVF_Default
+	);
+
+static TAutoConsoleVariable<bool> CVarSpanishUsesMinTwoGrouping(
+	TEXT("Localization.SpanishUsesMinTwoGrouping"),
+	true,
+	TEXT("False: 1234 will use a group separator, True: 1234 will not use a group separator (default)."),
 	ECVF_Default
 	);
 
@@ -675,6 +682,9 @@ FDecimalNumberFormattingRules ExtractNumberFormattingRulesFromICUDecimalFormatte
 	NewUEDecimalNumberFormattingRules.SecondaryGroupingSize			= (InICUDecimalFormat.getSecondaryGroupingSize() < 1) 
 																		? NewUEDecimalNumberFormattingRules.PrimaryGroupingSize 
 																		: static_cast<uint8>(InICUDecimalFormat.getSecondaryGroupingSize());
+#if WITH_ICU_V64
+	NewUEDecimalNumberFormattingRules.MinimumGroupingDigits			= static_cast<uint8>(FMath::Max(InICUDecimalFormat.getMinimumGroupingDigits(), 1));
+#endif
 
 	NewUEDecimalNumberFormattingRules.DigitCharacters[0]			= ExtractFormattingSymbolAsCharacter(icu::DecimalFormatSymbols::kZeroDigitSymbol,	TEXT('0'));
 	NewUEDecimalNumberFormattingRules.DigitCharacters[1]			= ExtractFormattingSymbolAsCharacter(icu::DecimalFormatSymbols::kOneDigitSymbol,	TEXT('1'));
@@ -687,11 +697,20 @@ FDecimalNumberFormattingRules ExtractNumberFormattingRulesFromICUDecimalFormatte
 	NewUEDecimalNumberFormattingRules.DigitCharacters[8]			= ExtractFormattingSymbolAsCharacter(icu::DecimalFormatSymbols::kEightDigitSymbol,	TEXT('8'));
 	NewUEDecimalNumberFormattingRules.DigitCharacters[9]			= ExtractFormattingSymbolAsCharacter(icu::DecimalFormatSymbols::kNineDigitSymbol,	TEXT('9'));
 
-	// The CLDR uses a dot as the group separator for Spanish, however the RAE favor using a space: https://www.rae.es/dpd/n%C3%BAmeros
-	if (FCStringAnsi::Strcmp(InICULocale.getLanguage(), "es") == 0 && CVarSpanishUsesRAENumberFormat.AsVariable()->GetInt())
+	if (FCStringAnsi::Strcmp(InICULocale.getLanguage(), "es") == 0)
 	{
-		NewUEDecimalNumberFormattingRules.GroupingSeparatorCharacter = TEXT('\u00A0'); // No-Break Space
-		NewUEDecimalNumberFormattingRules.DecimalSeparatorCharacter = TEXT(',');
+		// The CLDR uses a dot as the group separator for Spanish, however the RAE favor using a space: https://www.rae.es/dpd/n%C3%BAmeros
+		if (CVarSpanishUsesRAENumberFormat.AsVariable()->GetBool())
+		{
+			NewUEDecimalNumberFormattingRules.GroupingSeparatorCharacter = TEXT('\u00A0'); // No-Break Space
+			NewUEDecimalNumberFormattingRules.DecimalSeparatorCharacter = TEXT(',');
+		}
+
+		// Should we use "min two" grouping for Spanish (eg, "1234" formats as "1234" rather than "1 234", but "12345" still formats as "12 345")
+		if (CVarSpanishUsesMinTwoGrouping.AsVariable()->GetBool())
+		{
+			NewUEDecimalNumberFormattingRules.MinimumGroupingDigits = 2;
+		}
 	}
 
 	return NewUEDecimalNumberFormattingRules;
