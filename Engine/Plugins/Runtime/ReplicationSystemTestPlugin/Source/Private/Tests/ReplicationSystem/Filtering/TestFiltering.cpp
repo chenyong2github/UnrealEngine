@@ -35,11 +35,11 @@ private:
 		const FProperty* DefinitionsProperty = NetObjectFilterDefinitionsClass->FindPropertyByName("NetObjectFilterDefinitions");
 		check(DefinitionsProperty != nullptr);
 
-		// Save NetObjectFilterDefinitions CDO state.
+		// Save CDO state.
 		UNetObjectFilterDefinitions* FilterDefinitions = GetMutableDefault<UNetObjectFilterDefinitions>();
 		DefinitionsProperty->CopyCompleteValue(&OriginalFilterDefinitions, (void*)(UPTRINT(FilterDefinitions) + DefinitionsProperty->GetOffset_ForInternal()));
-
-		// Modify definitions to only include our mock prioritizer. Ugly... 
+		
+		// Modify definitions to only include our filters. Ugly... 
 		TArray<FNetObjectFilterDefinition> NewFilterDefinitions;
 		{
 			FNetObjectFilterDefinition& MockDefinition = NewFilterDefinitions.Emplace_GetRef();
@@ -60,7 +60,7 @@ private:
 
 	void RestoreFilterDefinitions()
 	{
-		// Restore NetObjectPrioritizerDefinitions CDO state from the saved state.
+		// Restore CDO state from the saved state.
 		const UClass* NetObjectFilterDefinitionsClass = UNetObjectFilterDefinitions::StaticClass();
 		const FProperty* DefinitionsProperty = NetObjectFilterDefinitionsClass->FindPropertyByName("NetObjectFilterDefinitions");
 		UNetObjectFilterDefinitions* FilterDefinitions = GetMutableDefault<UNetObjectFilterDefinitions>();

@@ -160,6 +160,22 @@ UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObjectWithDynamicSt
 	return CreatedObject;
 }
 
+UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObjectWithWorldLocation()
+{
+	UTestReplicatedIrisObject* CreatedObject = NewObject<UTestReplicatedIrisObject>();
+	CreatedObjects.Add(TStrongObjectPtr<UObject>(CreatedObject));
+
+	UObjectReplicationBridge::FCreateNetRefHandleParams Params;
+	Params.bCanReceive = true;
+	Params.bNeedsWorldLocationUpdate = true;
+	Params.bAllowDynamicFilter = true;
+
+	// Add it to the bridge for replication
+	ReplicationBridge->BeginReplication(CreatedObject, Params);
+
+	return CreatedObject;
+}
+
 void FReplicationSystemTestNode::DestroyObject(UReplicatedTestObject* Object, EEndReplicationFlags EndReplicationFlags)
 {
 	// Destroy handle

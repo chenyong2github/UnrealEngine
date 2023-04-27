@@ -489,8 +489,8 @@ void UNetObjectGridFragmentLocFilter::UpdateObjectInfo(UNetObjectGridFilter::FPe
 	{
 		const UE::Net::FReplicationInstanceProtocol::FFragmentData& FragmentData = FragmentDatas[ObjectLocationInfo.GetLocationStateIndex()];
 		const uint8* LocationAddress = FragmentData.ExternalSrcBuffer + ObjectLocationInfo.GetLocationStateOffset();
-		const float* LocationComponents = reinterpret_cast<const float*>(LocationAddress);
-		PerObjectInfo.Position = FVector(LocationComponents[0], LocationComponents[1], LocationComponents[2]);
+		const FVector* Location = reinterpret_cast<const FVector*>(LocationAddress);
+		PerObjectInfo.Position = *Location;
 	}
 
 	// Update the culldistance

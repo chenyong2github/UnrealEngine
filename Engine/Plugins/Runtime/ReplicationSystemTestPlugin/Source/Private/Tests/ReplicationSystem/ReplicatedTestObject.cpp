@@ -63,6 +63,20 @@ UE::Net::FNetRefHandle UReplicatedTestObjectBridge::BeginReplication(UReplicated
 	return Handle;
 }
 
+UE::Net::FNetRefHandle UReplicatedTestObjectBridge::BeginReplication(UReplicatedTestObject* Instance, const UObjectReplicationBridge::FCreateNetRefHandleParams& Params)
+{
+	// Create NetRefHandle for the registered fragments
+	FNetRefHandle Handle = Super::BeginReplication(Instance, Params);
+
+	// This is optional but typically we want to cache at least the NetRefHandle in the game instance to avoid doing map lookups to find it
+	if (Handle.IsValid())
+	{
+		Instance->NetRefHandle = Handle;
+	}
+
+	return Handle;
+}
+
 UE::Net::FNetRefHandle UReplicatedTestObjectBridge::BeginReplication(FNetRefHandle OwnerHandle, UReplicatedTestObject* Instance, FNetRefHandle InsertRelativeToSubObjectHandle, ESubObjectInsertionOrder InsertionOrder)
 {
 	// Create NetRefHandle for the registered fragments
@@ -219,6 +233,11 @@ void UReplicatedTestObjectBridge::SetPollFramePeriod(UReplicatedTestObject* Inst
 	{
 		UObjectReplicationBridge::SetPollFramePeriod(InternalObjectIndex, FramePeriod);
 	}
+}
+
+void UReplicatedTestObjectBridge::SetExternalWorldLocationUpdateFunctor(TFunction<void(FNetRefHandle NetHandle, const UObject* ReplicatedObject, FVector& OutLocation, float& OutCullDistance)> LocUpdateFunctor)
+{
+	SetInstanceGetWorldObjectInfoFunction(LocUpdateFunctor);
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -20,6 +20,7 @@ FRepTag MakeRepTag(const char* TagName)
 
 bool HasRepTag(const FReplicationProtocol* Protocol, FRepTag RepTag)
 {
+	check(Protocol);
 	for (const FReplicationStateDescriptor* StateDescriptor : MakeArrayView(Protocol->ReplicationStateDescriptors, Protocol->ReplicationStateCount))
 	{
 		for (const FReplicationStateMemberTagDescriptor& TagDescriptor : MakeArrayView(StateDescriptor->MemberTagDescriptors, StateDescriptor->TagCount))
@@ -36,6 +37,7 @@ bool HasRepTag(const FReplicationProtocol* Protocol, FRepTag RepTag)
 
 bool FindRepTag(const FReplicationStateDescriptor* Descriptor, FRepTag RepTag, FRepTagFindInfo& OutRepTagFindInfo)
 {
+	check(Descriptor);
 	for (const FReplicationStateMemberTagDescriptor& TagDescriptor : MakeArrayView(Descriptor->MemberTagDescriptors, Descriptor->TagCount))
 	{
 		if (TagDescriptor.Tag != RepTag)
@@ -82,6 +84,7 @@ bool FindRepTag(const FReplicationStateDescriptor* Descriptor, FRepTag RepTag, F
 
 bool FindRepTag(const FReplicationProtocol* Protocol, FRepTag RepTag, FRepTagFindInfo& OutRepTagFindInfo)
 {
+	check(Protocol);
 	uint32 InternalOffset = 0;
 	for (const FReplicationStateDescriptor*& StateDescriptor : MakeArrayView(Protocol->ReplicationStateDescriptors, Protocol->ReplicationStateCount))
 	{

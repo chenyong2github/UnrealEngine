@@ -28,6 +28,10 @@
 #include "Templates/AlignmentTemplates.h"
 #include "UObject/UnrealType.h"
 
+#ifndef UE_NET_TEST_FAKE_REP_TAGS
+#	define UE_NET_TEST_FAKE_REP_TAGS 0
+#endif
+
 #if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #	define UE_NET_ENABLE_DESCRIPTORBUILDER_LOG 0
 #else
@@ -2069,10 +2073,17 @@ FRepTag FPropertyReplicationStateDescriptorBuilder::GetRepTagFromProperty(const 
 			UE_LOG_DESCRIPTORBUILDER_WARNING(TEXT("Found NetCullDistanceSquared property that is of type %s instead of a float. This prevents the property from being accessed by networking systems."), ToCStr(Class->GetFName().ToString()));
 		}
 	}
-	// For unit testing purposes. Keep this code last.
-#if IS_PROGRAM
+	//$IRIS TODO: Temp until proper RepTag support is added. 
+	//For unit testing purposes. Keep this code last.
+#if UE_NET_TEST_FAKE_REP_TAGS
 	else
 	{
+		static const FName ReplicationStateDescriptorBuilder_NAME_WorldLocation("WorldLocation");
+		if (PropertyName == ReplicationStateDescriptorBuilder_NAME_WorldLocation)
+		{
+			return RepTag_WorldLocation;
+		}
+
 		ANSICHAR PropertyNameString[NAME_SIZE];
 		PropertyName.GetPlainANSIString(PropertyNameString);
 		if (0 == FCStringAnsi::Strncmp(PropertyNameString, "NetTest_", 8))
@@ -2654,6 +2665,7 @@ SIZE_T FReplicationStateDescriptorBuilder::CreateDescriptorsForClass(FResult& Cr
 	// Add special Actor properties
 	{
 		constexpr bool bExactMatch = true;
+		//$IRIS TODO: Probably should use a cached pointer of the Actor class here.
 		UClass* ActorClass = CastChecked<UClass>(StaticFindObject(UClass::StaticClass(), nullptr, TEXT("/Script/Engine.Actor"), bExactMatch));
 		if (InObjectClass->IsChildOf(ActorClass))
 		{
