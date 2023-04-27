@@ -24,6 +24,7 @@
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #include "Landscape.h"
+#include "Engine/StaticMesh.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Water"
@@ -71,6 +72,8 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 	TargetWaveMaskDepth_DEPRECATED = 2048.f;
 	bCanAffectNavigation_DEPRECATED = false;
 	bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED = false;
+
+	OnPackagingModeChanged.AddUObject(this, &AWaterBody::PackagingModeChanged);
 #endif // WITH_EDITORONLY_DATA
 
 }
@@ -662,6 +665,23 @@ void AWaterBody::GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) con
 	if (AffectsLandscape())
 	{
 		PropertyPairsMap.AddProperty(ALandscape::AffectsLandscapeActorDescProperty);
+	}
+}
+
+void AWaterBody::PackagingModeChanged(AActor* Actor, bool bIsExternal)
+{
+	// All the UStaticMesh are outered to the package, we need to make sure they remain so after the packaging mode of this actor is changed.
+	// If the actor used to be non-external and is now external, we need to ensure the UStaticMesh is outered to the external package of the actor and not the world.
+	// The inverse is true from external -> non external
+	TArray<TObjectPtr<UWaterBodyMeshComponent>> MeshComponents = { WaterInfoMeshComponent, DilatedWaterInfoMeshComponent };
+	MeshComponents.Append(WaterBodyStaticMeshComponents);
+
+	for (TObjectPtr<UWaterBodyMeshComponent> MeshComponent : MeshComponents)
+	{
+		if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
+		{
+			MeshComponent->GetStaticMesh()->Rename(nullptr, GetPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+		}
 	}
 }
 

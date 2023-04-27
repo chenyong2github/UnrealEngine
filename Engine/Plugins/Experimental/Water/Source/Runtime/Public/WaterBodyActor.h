@@ -64,6 +64,8 @@ public:
 	virtual void SetIsTemporarilyHiddenInEditor(bool bIsHidden) override;
 	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer) override;
 	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const override;
+
+	void PackagingModeChanged(AActor* Actor, bool bIsExternal);
 #endif // WITH_EDITOR
 	
 	/** Returns the type of body */
