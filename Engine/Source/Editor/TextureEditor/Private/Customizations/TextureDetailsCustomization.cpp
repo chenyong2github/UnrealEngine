@@ -10,6 +10,7 @@
 #include "IDetailPropertyRow.h"
 #include "DetailCategoryBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "FTextureDetails"
 
@@ -34,9 +35,58 @@ void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	DetailBuilder.EditCategory("Adjustments");
 	DetailBuilder.EditCategory("File Path");
 
+	OodleTextureSdkVersionPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UTexture, OodleTextureSdkVersion));
 	MaxTextureSizePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UTexture, MaxTextureSize));
 	VirtualTextureStreamingPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UTexture, VirtualTextureStreaming));
+		
+	if( OodleTextureSdkVersionPropertyHandle->IsValidHandle() )
+	{
+		IDetailCategoryBuilder& CompressionCategory = DetailBuilder.EditCategory("Compression");
+		IDetailPropertyRow& OodleTextureSdkVersionPropertyRow = CompressionCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UTexture, OodleTextureSdkVersion));
+		TSharedPtr<SWidget> NameWidget;
+		TSharedPtr<SWidget> ValueWidget;
+		FDetailWidgetRow Row;
+		OodleTextureSdkVersionPropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
 
+		const bool bShowChildren = true;
+		OodleTextureSdkVersionPropertyRow.CustomWidget(bShowChildren)
+			.NameContent()
+			.MinDesiredWidth(Row.NameWidget.MinWidth)
+			.MaxDesiredWidth(Row.NameWidget.MaxWidth)
+			[
+				NameWidget.ToSharedRef()
+			]
+			.ValueContent()
+			.MinDesiredWidth(Row.ValueWidget.MinWidth)
+			.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				[
+					ValueWidget.ToSharedRef()
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.OnClicked(this, &FTextureDetails::OnOodleTextureSdkVersionClicked)
+					.ContentPadding(FMargin(2))
+					.Content()
+					[
+						SNew(STextBlock)
+						.Justification(ETextJustify::Center)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+						.Text(LOCTEXT("OodleTextureSdkVersionLatest", "latest"))
+						.ToolTipText(LOCTEXT("OodleTextureSdkVersionLatestTooltip", "Update SDK Version to Latest"))
+					]
+				]
+			];
+	}
+	
 	// Customize MaxTextureSize
 	if( MaxTextureSizePropertyHandle->IsValidHandle() )
 	{
@@ -92,6 +142,20 @@ void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			DetailBuilder.HideProperty(VirtualTextureStreamingPropertyHandle);
 		}
 	}
+}
+
+FReply FTextureDetails::OnOodleTextureSdkVersionClicked()
+{
+	UTexture* Texture = Cast<UTexture>(TextureBeingCustomized.Get());
+	if ( Texture == nullptr )
+	{
+		return FReply::Unhandled();
+	}
+
+	// true = do Pre/PostEditChange
+	Texture->UpdateOodleTextureSdkVersionToLatest(true);
+
+	return FReply::Handled();
 }
 
 /** @return The value or unset if properties with multiple values are viewed */

@@ -472,11 +472,27 @@ bool UTexture::CanEditChange(const FProperty* InProperty) const
 	return true;
 }
 
-void UTexture::UpdateOodleTextureSdkVersionToLatest(void)
+void UTexture::UpdateOodleTextureSdkVersionToLatest(bool bDoPrePostEditChangeIfChanging)
 {
+	FName LatestVersion = CachedGetLatestOodleSdkVersion();
+	if ( OodleTextureSdkVersion == LatestVersion )
+	{
+		return;
+	}
+
+	if ( bDoPrePostEditChangeIfChanging )
+	{
+		PreEditChange(nullptr);
+	}
+
 	// OodleTextureSdkVersion = get latest sdk version
 	//	this needs to get the actual version number so it will be IO'd frozen (not just "latest")
-	OodleTextureSdkVersion = CachedGetLatestOodleSdkVersion();
+	OodleTextureSdkVersion = LatestVersion;
+	
+	if ( bDoPrePostEditChangeIfChanging )
+	{
+		PostEditChange();
+	}
 }
 
 

@@ -7,6 +7,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Types/SlateEnums.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
@@ -30,7 +31,9 @@ private:
 	void OnMaxTextureSizeCommitted(int32 NewValue, ETextCommit::Type CommitInfo);
 	void OnBeginSliderMovement();
 	void OnEndSliderMovement(int32 NewValue);
+	FReply OnOodleTextureSdkVersionClicked();
 
+	TSharedPtr<IPropertyHandle> OodleTextureSdkVersionPropertyHandle;
 	TSharedPtr<IPropertyHandle> MaxTextureSizePropertyHandle;
 	TSharedPtr<IPropertyHandle> VirtualTextureStreamingPropertyHandle;
 	TWeakObjectPtr<UObject> TextureBeingCustomized;

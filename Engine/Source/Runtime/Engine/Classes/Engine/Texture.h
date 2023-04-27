@@ -1630,7 +1630,7 @@ public:
 	/* Change the Oodle Texture Sdk Version used to encode this texture to latest.
 	*  You should do this any time the texture is modified, such as on reimport, since the bits are changing anyway.
 	*/
-	ENGINE_API virtual void UpdateOodleTextureSdkVersionToLatest(void);
+	ENGINE_API virtual void UpdateOodleTextureSdkVersionToLatest(bool bDoPrePostEditChangeIfChanging = false);
 	
 	/** Get TextureFormatName with platform remaps and conditional prefix
 	 *   this is the entry point API for getting the final texture format name
