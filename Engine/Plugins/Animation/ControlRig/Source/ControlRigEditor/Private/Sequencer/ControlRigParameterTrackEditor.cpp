@@ -2307,7 +2307,7 @@ void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* Control
 }
 
 
-FMovieSceneTrackEditor::FFindOrCreateHandleResult FControlRigParameterTrackEditor::FindOrCreateHandleToSceneCompOrOwner(USceneComponent* InComp)
+FMovieSceneTrackEditor::FFindOrCreateHandleResult FControlRigParameterTrackEditor::FindOrCreateHandleToSceneCompOrOwner(USceneComponent* InComp, UControlRig* InControlRig)
 {
 	const bool bCreateHandleIfMissing = false;
 	FName CreatedFolderName = NAME_None;
@@ -2320,12 +2320,15 @@ FMovieSceneTrackEditor::FFindOrCreateHandleResult FControlRigParameterTrackEdito
 
 	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
 
-	// Prioritize a control rig parameter track on this component
+	// Prioritize a control rig parameter track on this component if it matches the handle
 	if (Result.Handle.IsValid())
 	{
-		if (MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Result.Handle, NAME_None))
+		if (UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Result.Handle, NAME_None)))
 		{
-			return Result;
+			if (InControlRig == nullptr || (Track->GetControlRig() == InControlRig))
+			{
+				return Result;
+			}
 		}
 	}
 
@@ -2335,11 +2338,14 @@ FMovieSceneTrackEditor::FFindOrCreateHandleResult FControlRigParameterTrackEdito
 	bHandleWasValid = OwnerHandle.IsValid();
 	if (OwnerHandle.IsValid())
 	{
-		if (MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), OwnerHandle, NAME_None))
+		if (UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), OwnerHandle, NAME_None)))
 		{
-			Result.Handle = OwnerHandle;
-			Result.bWasCreated = bHandleWasValid == false && Result.Handle.IsValid();
-			return Result;
+			if (InControlRig == nullptr || (Track->GetControlRig() == InControlRig))
+			{
+				Result.Handle = OwnerHandle;
+				Result.bWasCreated = bHandleWasValid == false && Result.Handle.IsValid();
+				return Result;
+			}
 		}
 	}
 
@@ -2998,7 +3004,7 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 		}
 		ActorObject = Component->GetOwner();
 		bool bCreateTrack = false;
-		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(Component);
+		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(Component, Subject);
 		FGuid ObjectHandle = HandleResult.Handle;
 		if (!ObjectHandle.IsValid())
 		{
@@ -3562,7 +3568,7 @@ FKeyPropertyResult FControlRigParameterTrackEditor::AddKeysToControlRig(
 		KeyMode == ESequencerKeyMode::ManualKeyForced ||
 		AllowEditsMode == EAllowEditsMode::AllowSequencerEditsOnly;
 
-	FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(InSceneComp);
+	FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(InSceneComp, InControlRig);
 	FGuid ObjectHandle = HandleResult.Handle;
 	KeyPropertyResult.bHandleCreated = HandleResult.bWasCreated;
 	if (ObjectHandle.IsValid())
@@ -3589,7 +3595,7 @@ void FControlRigParameterTrackEditor::AddControlKeys(
 	}
 	bool bCreateTrack = false;
 	bool bCreateHandle = false;
-	FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(InSceneComp);
+	FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(InSceneComp, InControlRig);
 	FGuid ObjectHandle = HandleResult.Handle;
 	if (!ObjectHandle.IsValid())
 	{
