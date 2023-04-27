@@ -656,7 +656,7 @@ namespace UnrealBuildTool
 				int Result;
 				try
 				{
-					Result = Task.Run(() => Mode.ExecuteAsync(Arguments, Logger)).Result;
+					Result = Mode.ExecuteAsync(Arguments, Logger).GetAwaiter().GetResult();
 				}
 				catch (AggregateException AggEx) when (AggEx.InnerExceptions.Count == 1)
 				{
