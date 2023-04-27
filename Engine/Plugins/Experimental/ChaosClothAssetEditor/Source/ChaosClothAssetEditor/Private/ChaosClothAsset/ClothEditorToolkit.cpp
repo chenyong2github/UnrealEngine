@@ -809,6 +809,7 @@ TSharedRef<SDataflowGraphEditor> FChaosClothAssetEditorToolkit::CreateGraphEdito
 		.EvaluateGraph(EvalLambda);
 
 	NewGraphEditor->OnSelectionChangedMulticast.AddSP(this, &FChaosClothAssetEditorToolkit::OnNodeSelectionChanged);
+	NewGraphEditor->OnNodeDeletedMulticast.AddSP(this, &FChaosClothAssetEditorToolkit::OnNodeDeleted);
 
 	return NewGraphEditor;
 }
@@ -935,9 +936,14 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 
 	TSharedPtr<FManagedArrayCollection> Collection = nullptr;
 
+	// Get any selected node with a ClothCollection output
+	// Also, set the selected node(s) to be the Dataflow's RenderTargets
+	// TODO: decide if we want selection to be the mechanism for toggling DataflowComponent rendering, or the switch on the Node
+
 	if (Dataflow)
 	{
-		// Get any selected node with a ClothCollection output
+		Dataflow->RenderTargets.Reset();
+
 		for (const UObject* const Selected : NewSelection)
 		{
 			if (const UDataflowEdNode* const Node = Cast<UDataflowEdNode>(Selected))
@@ -960,8 +966,29 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 		ClothMode->SetSelectedClothCollection(Collection);
 		ClothMode->RefocusRestSpaceViewportClient();
 	}
+}
+
+
+void FChaosClothAssetEditorToolkit::OnNodeDeleted(const TSet<UObject*>& DeletedNodes) const
+{
+	if (Dataflow)
+	{
+		Dataflow->RenderTargets.SetNum(Algo::RemoveIf(Dataflow->RenderTargets, [&DeletedNodes](const UDataflowEdNode* RenderTarget)
+		{
+			return DeletedNodes.Contains(RenderTarget);
+		}));
+	}
+
+
+	UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
+	if (ClothMode)
+	{
+		ClothMode->SetSelectedClothCollection(nullptr);
+		ClothMode->RefocusRestSpaceViewportClient();
+	}
 
 }
+
 
 //~ Ends DataflowEditorActions
 

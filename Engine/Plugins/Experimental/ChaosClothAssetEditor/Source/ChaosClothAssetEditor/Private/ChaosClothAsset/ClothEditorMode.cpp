@@ -320,6 +320,13 @@ void UChaosClothAssetEditorMode::Exit()
 	{
 		WireframeDisplay->Disconnect();
 	}
+
+	if (DataflowComponent)
+	{
+		DataflowComponent->UnregisterComponent();
+		DataflowComponent->DestroyComponent();
+	}
+
 	WireframesToTick.Reset();
 	DynamicMeshComponents.Reset();
 	PropertyObjectsToTick.Empty();
