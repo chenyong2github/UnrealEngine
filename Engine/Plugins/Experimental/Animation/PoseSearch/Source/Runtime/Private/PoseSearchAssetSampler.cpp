@@ -119,7 +119,6 @@ static FTransform ExtractBlendSpaceRootMotion(float StartTime, float DeltaTime, 
 		do
 		{
 			// Disable looping here. Advance to desired position, or beginning / end of animation 
-			check(CachedPlayLength >= 0.f);
 			const ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(false, DesiredDeltaMove, CurrentPosition, CachedPlayLength);
 
 			// Verify position assumptions
@@ -161,7 +160,6 @@ static void ProcessRootTransform(const UBlendSpace* BlendSpace, const FVector& B
 	int32 RootTransformSamplingRate, bool bIsLoopable, TArray<FTransform>& AccumulatedRootTransform)
 {
 	// Pre-compute root motion
-	check(CachedPlayLength >= 0.f);
 	int32 NumRootSamples = FMath::Max(CachedPlayLength * RootTransformSamplingRate + 1, 1);
 	AccumulatedRootTransform.SetNumUninitialized(NumRootSamples);
 
@@ -258,6 +256,19 @@ void FAnimationAssetSampler::Init(TWeakObjectPtr<const UAnimationAsset> InAnimat
 	BlendParameters = InBlendParameters;
 	BoneContainer = InBoneContainer;
 	RootTransformSamplingRate = InRootTransformSamplingRate;
+
+	if (const UAnimationAsset* AnimAsset = AnimationAsset.Get())
+	{
+		if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimAsset))
+		{
+			FMemMark Mark(FMemStack::Get());
+			ProcessPlayLength(BlendSpace, BlendParameters, CachedPlayLength);
+		}
+		else
+		{
+			CachedPlayLength = AnimAsset->GetPlayLength();
+		}
+	}
 }
 
 bool FAnimationAssetSampler::IsInitialized() const
@@ -270,26 +281,20 @@ const UAnimationAsset* FAnimationAssetSampler::GetAsset() const
 	return AnimationAsset.Get();
 }
 
-float FAnimationAssetSampler::GetScaledTime(float Time) const
+float FAnimationAssetSampler::GetTimeToAssetTimeMultiplier() const
 {
-	// Asset player time for blend spaces is normalized [0, 1] so we convert it to scaled time by dividing it by CachedPlayLength
-	if (Cast<UBlendSpace>(AnimationAsset.Get()))
+	// Asset player time for blend spaces is normalized [0, 1] so we convert the sampling / animation time to asset time by dividing it by CachedPlayLength
+	if (CachedPlayLength > UE_KINDA_SMALL_NUMBER && Cast<UBlendSpace>(AnimationAsset.Get()))
 	{
-		check(CachedPlayLength >= 0.f);
-		return CachedPlayLength > UE_KINDA_SMALL_NUMBER ? Time / CachedPlayLength : 0.f;
+		return 1.f / CachedPlayLength;
 	}
 
-	return Time;
+	return 1.f;
 }
 
 float FAnimationAssetSampler::GetPlayLength() const
 {
-	if (Cast<UBlendSpace>(AnimationAsset.Get()))
-	{
-		check(CachedPlayLength >= 0.f);
-		return CachedPlayLength;
-	}
-	return AnimationAsset->GetPlayLength();
+	return CachedPlayLength;
 }
 
 bool FAnimationAssetSampler::IsLoopable() const
@@ -312,7 +317,6 @@ FTransform FAnimationAssetSampler::GetTotalRootTransform() const
 {
 	if (Cast<UBlendSpace>(AnimationAsset.Get()))
 	{
-		check(CachedPlayLength >= 0.f);
 		const FTransform InitialRootTransform = ExtractBlendSpaceRootTrackTransform(0.f, AccumulatedRootTransform, RootTransformSamplingRate);
 		const FTransform LastRootTransform = ExtractBlendSpaceRootTrackTransform(CachedPlayLength, AccumulatedRootTransform, RootTransformSamplingRate);
 		const FTransform TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
@@ -349,7 +353,6 @@ void FAnimationAssetSampler::ExtractPose(const FAnimExtractContext& ExtractionCt
 		int32 TriangulationIndex = 0;
 		if (BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true))
 		{
-			check(CachedPlayLength >= 0.f);
 			for (int32 BlendSampleIdex = 0; BlendSampleIdex < BlendSamples.Num(); BlendSampleIdex++)
 			{
 				float Scale = BlendSamples[BlendSampleIdex].Animation->GetPlayLength() / CachedPlayLength;
@@ -399,7 +402,6 @@ FTransform FAnimationAssetSampler::ExtractRootTransform(float Time) const
 		}
 		else
 		{
-			check(CachedPlayLength >= 0.f);
 			const float ClampedTime = FMath::Clamp(Time, 0.0f, CachedPlayLength);
 			const float ExtrapolationTime = Time - ClampedTime;
 
@@ -533,8 +535,6 @@ void FAnimationAssetSampler::Process()
 	if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset.Get()))
 	{
 		FMemMark Mark(FMemStack::Get());
-
-		ProcessPlayLength(BlendSpace, BlendParameters, CachedPlayLength);
 		ProcessRootTransform(BlendSpace, BlendParameters, CachedPlayLength, BoneContainer, RootTransformSamplingRate, IsLoopable(), AccumulatedRootTransform);
 	}
 }
@@ -556,7 +556,6 @@ void FAnimationAssetSampler::ExtractPoseSearchNotifyStates(float Time, TArray<UA
 				const int32 HighestWeightIndex = GetHighestWeightSample(BlendSamples);
 
 				// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
-				check(CachedPlayLength >= 0.f);
 				SampleTime = Time * (BlendSamples[HighestWeightIndex].Animation->GetPlayLength() / CachedPlayLength);
 
 				// Get notifies for highest weighted

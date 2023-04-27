@@ -132,26 +132,38 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 0))
 	TObjectPtr<UBlendSpace> BlendSpace;
 
-	// This allows users to enable or exclude animations from this database. Useful for debugging.
-	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 5))
-	bool bEnabled = true;
-
 	// This allows users to set if this animation is original only (no mirrored data), original and mirrored, or only the mirrored version of this animation.
 	// It requires the mirror table to be set up in the config file.
 	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 1))
 	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
+	// If true this BlendSpace will output a single segment in the database.
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 2))
+	bool bUseSingleSample = false;
+
 	// When turned on, this will use the set grid samples of the blend space asset for sampling. This will override the Number of Horizontal/Vertical Samples.
-	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 4))
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseSingleSample", EditConditionHides, DisplayPriority = 3))
 	bool bUseGridForSampling = false;
 
 	// Sets the number of horizontal samples in the blend space to pull the animation data coverage from. The larger the samples the more the data, but also the more memory and performance it takes.
-	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25", DisplayPriority = 2))
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseSingleSample && !bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25", DisplayPriority = 4))
 	int32 NumberOfHorizontalSamples = 9;
-
+	
 	// Sets the number of vertical samples in the blend space to pull the animation data coverage from.The larger the samples the more the data, but also the more memory and performance it takes.
-	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25", DisplayPriority = 3))
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "!bUseSingleSample && !bUseGridForSampling", EditConditionHides, ClampMin = "1", UIMin = "1", UIMax = "25", DisplayPriority = 5))
 	int32 NumberOfVerticalSamples = 2;
+
+	// BlendParams used to sample this BlendSpace
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "bUseSingleSample", EditConditionHides, DisplayPriority = 6))
+	float BlendParamX = 0.f;
+
+	// BlendParams used to sample this BlendSpace
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (EditCondition = "bUseSingleSample", EditConditionHides, DisplayPriority = 7))
+	float BlendParamY = 0.f;
+
+	// This allows users to enable or exclude animations from this database. Useful for debugging.
+	UPROPERTY(EditAnywhere, Category = "BlendSpace", meta = (DisplayPriority = 8))
+	bool bEnabled = true;
 
 	UAnimationAsset* GetAnimationAsset() const override;
 	UClass* GetAnimationAssetStaticClass() const override;

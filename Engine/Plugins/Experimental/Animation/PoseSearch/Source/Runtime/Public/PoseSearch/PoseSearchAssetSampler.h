@@ -22,7 +22,7 @@ struct POSESEARCH_API FAnimationAssetSampler
 
 	bool IsInitialized() const;
 	float GetPlayLength() const;
-	float GetScaledTime(float Time) const;
+	float GetTimeToAssetTimeMultiplier() const;
 	bool IsLoopable() const;
 
 	// Gets the final root transformation at the end of the asset's playback time
@@ -50,7 +50,7 @@ protected:
 	FVector BlendParameters = FVector::ZeroVector;
 	FBoneContainer BoneContainer;
 	int32 RootTransformSamplingRate = 30;
-	float CachedPlayLength = -1.f;
+	float CachedPlayLength = 0.f;
 	TArray<FTransform> AccumulatedRootTransform;
 
 	const float ExtrapolationSampleTime = 1.f / 30.f;

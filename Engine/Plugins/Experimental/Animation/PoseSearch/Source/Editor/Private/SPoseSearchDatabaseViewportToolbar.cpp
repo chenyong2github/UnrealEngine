@@ -73,6 +73,7 @@ namespace UE::PoseSearch
 				SubMenuBuilder.BeginSection("Debug", LOCTEXT("ShowMenu_DebugLabel", "Debug"));
 				{
 					SubMenuBuilder.AddMenuEntry(Commands.ShowDisplayRootMotionSpeed);
+					SubMenuBuilder.AddMenuEntry(Commands.ShowQuantizeAnimationToPoseData);
 				}
 				SubMenuBuilder.EndSection();
 			})

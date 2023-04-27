@@ -236,13 +236,22 @@ namespace UE::PoseSearch
 			float CurrentPlayTime = PlayTime + IndexAsset.SamplingInterval.Min + PreviewActor.PlayTimeOffset;
 			FAnimationRuntime::AdvanceTime(false, CurrentPlayTime, CurrentTime, IndexAsset.SamplingInterval.Max);
 
-			AnimInstance->SetPosition(PreviewActor.Sampler.GetScaledTime(CurrentTime));
+			// time to pose index
+			PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, IndexAsset);
+
+			const float TimeToAssetTimeMultiplier = PreviewActor.Sampler.GetTimeToAssetTimeMultiplier();
+			check(!FMath::IsNearlyZero(TimeToAssetTimeMultiplier));
+			const float QuantizedTime = PreviewActor.CurrentPoseIndex >= 0 ? PoseSearchDatabase->GetAssetTime(PreviewActor.CurrentPoseIndex) / TimeToAssetTimeMultiplier : CurrentTime;
+
+			if (bQuantizeAnimationToPoseData)
+			{
+				CurrentTime = QuantizedTime;
+			}
+
+			AnimInstance->SetPosition(CurrentTime * TimeToAssetTimeMultiplier);
 			AnimInstance->SetPlayRate(0.f);
 			AnimInstance->SetBlendSpacePosition(IndexAsset.BlendParameters);
 
-			// time to pose index
-			PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, IndexAsset);
-			const float QuantizedTime = PreviewActor.CurrentPoseIndex >= 0 ? PoseSearchDatabase->GetAssetTime(PreviewActor.CurrentPoseIndex) : CurrentTime;
 			PreviewActor.QuantizedTimeRootMotion = PreviewActor.Sampler.ExtractRootTransform(QuantizedTime);
 			FTransform RootMotion = PreviewActor.Sampler.ExtractRootTransform(CurrentTime);
 			if (AnimInstance->GetMirrorDataTable())
@@ -327,7 +336,12 @@ namespace UE::PoseSearch
 
 	void FDatabaseViewModel::OnToggleDisplayRootMotionSpeed()
 	{
-		DisplayRootMotionSpeed = !DisplayRootMotionSpeed;
+		bDisplayRootMotionSpeed = !bDisplayRootMotionSpeed;
+	}
+
+	void FDatabaseViewModel::OnToggleQuantizeAnimationToPoseData()
+	{
+		bQuantizeAnimationToPoseData = !bQuantizeAnimationToPoseData;
 	}
 
 	void FDatabaseViewModel::AddSequenceToDatabase(UAnimSequence* AnimSequence)

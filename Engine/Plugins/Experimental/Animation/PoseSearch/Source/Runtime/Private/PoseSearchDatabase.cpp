@@ -310,8 +310,21 @@ void FPoseSearchDatabaseBlendSpace::GetBlendSpaceParameterSampleRanges(int32& Ho
 {
 	check(BlendSpace);
 
-	HorizontalBlendNum = bUseGridForSampling ? BlendSpace->GetBlendParameter(0).GridNum + 1 : FMath::Max(NumberOfHorizontalSamples, 1);
-	VerticalBlendNum = BlendSpace->IsA<UBlendSpace1D>() ? 1 : bUseGridForSampling ? BlendSpace->GetBlendParameter(1).GridNum + 1 : FMath::Max(NumberOfVerticalSamples, 1);
+	if (bUseSingleSample)
+	{
+		HorizontalBlendNum = 1;
+		VerticalBlendNum = 1;
+	}
+	else if (bUseGridForSampling)
+	{
+		HorizontalBlendNum = BlendSpace->GetBlendParameter(0).GridNum + 1;
+		VerticalBlendNum = BlendSpace->IsA<UBlendSpace1D>() ? 1 : BlendSpace->GetBlendParameter(1).GridNum + 1;
+	}
+	else
+	{
+		HorizontalBlendNum = FMath::Max(NumberOfHorizontalSamples, 1);
+		VerticalBlendNum = BlendSpace->IsA<UBlendSpace1D>() ? 1 : FMath::Max(NumberOfVerticalSamples, 1);
+	}
 
 	check(HorizontalBlendNum >= 1 && VerticalBlendNum >= 1);
 }
@@ -320,6 +333,12 @@ FVector FPoseSearchDatabaseBlendSpace::BlendParameterForSampleRanges(int32 Horiz
 {
 	check(BlendSpace);
 
+	if (bUseSingleSample)
+	{
+		check(HorizontalBlendIndex == 0 && VerticalBlendIndex == 0);
+		return FVector(BlendParamX, BlendParamY, 0.f);
+	}
+	
 	const bool bWrapInputOnHorizontalAxis = BlendSpace->GetBlendParameter(0).bWrapInput;
 	const bool bWrapInputOnVerticalAxis = BlendSpace->GetBlendParameter(1).bWrapInput;
 
@@ -351,7 +370,7 @@ FVector FPoseSearchDatabaseBlendSpace::BlendParameterForSampleRanges(int32 Horiz
 			VerticalBlendMin + (VerticalBlendMax - VerticalBlendMin) * 
 			((float)VerticalBlendIndex) / (VerticalBlendNum - 1) : 
 		VerticalBlendMin,
-		0.0f);
+		0.f);
 }
 
 //////////////////////////////////////////////////////////////////////////

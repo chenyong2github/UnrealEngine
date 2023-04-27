@@ -102,6 +102,13 @@ namespace UE::PoseSearch
 			FExecuteAction::CreateSP(ViewModelRef, &FDatabaseViewModel::OnToggleDisplayRootMotionSpeed),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateSP(ViewModelRef, &FDatabaseViewModel::IsDisplayRootMotionSpeedChecked));
+
+		CommandList->MapAction(
+			Commands.ShowQuantizeAnimationToPoseData,
+			FExecuteAction::CreateSP(ViewModelRef, &FDatabaseViewModel::OnToggleQuantizeAnimationToPoseData),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewModelRef, &FDatabaseViewModel::IsQuantizeAnimationToPoseDataChecked));
+		
 	}
 
 	TSharedRef<FEditorViewportClient> SDatabaseViewport::MakeEditorViewportClient()

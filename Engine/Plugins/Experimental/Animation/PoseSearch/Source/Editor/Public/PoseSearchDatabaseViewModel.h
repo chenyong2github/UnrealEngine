@@ -94,7 +94,10 @@ namespace UE::PoseSearch
 		bool IsAnimationPreviewMode(EAnimationPreviewMode PreviewMode) const;
 
 		void OnToggleDisplayRootMotionSpeed();
-		bool IsDisplayRootMotionSpeedChecked() const { return DisplayRootMotionSpeed; };
+		bool IsDisplayRootMotionSpeedChecked() const { return bDisplayRootMotionSpeed; };
+
+		void OnToggleQuantizeAnimationToPoseData();
+		bool IsQuantizeAnimationToPoseDataChecked() const { return bQuantizeAnimationToPoseData; };
 
 		void AddSequenceToDatabase(UAnimSequence* AnimSequence);
 		void AddBlendSpaceToDatabase(UBlendSpace* BlendSpace);
@@ -152,8 +155,10 @@ namespace UE::PoseSearch
 		EAnimationPreviewMode AnimationPreviewMode = EAnimationPreviewMode::OriginalAndMirrored;
 
 		/** Is animation debug draw enabled */
-		bool DisplayRootMotionSpeed = false;
-		
+		bool bDisplayRootMotionSpeed = false;
+
+		bool bQuantizeAnimationToPoseData = false;
+
 		int32 SelectedActorIndexAssetIndex = INDEX_NONE;
 
 		UWorld* GetWorld();
