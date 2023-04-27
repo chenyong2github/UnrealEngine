@@ -64,7 +64,7 @@ typedef struct BINKPLUGININITINFO
   // Vulkan only = VkPhysicalDevice
   void * physical_device; 
   
-  // Vulkan only = formats for the sdr and hdr formats
+  // Vulkan/Metal/D3D12 = formats for the sdr and hdr formats
   U32 sdr_and_hdr_render_target_formats[2];
 
   // general CPU allocators (can be zero on most platforms)

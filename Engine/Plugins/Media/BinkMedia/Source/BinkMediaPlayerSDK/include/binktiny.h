@@ -2,6 +2,8 @@
 // Licensed under the terms of a valid Unreal Engine license agreement,
 //   and the separate 'Unreal Engine End User License Agreement for Publishing'.
 
+// Copyright Epic Games Tools, LLC. All Rights Reserved.
+
 #ifndef __BINKH__
 #define __BINKH__
 
