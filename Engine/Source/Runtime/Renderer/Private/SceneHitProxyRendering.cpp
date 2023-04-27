@@ -705,7 +705,6 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, ViewFamily, HitProxyTextureSize, HitProxyTextureRect, false);
 
 		Nanite::FConfiguration CullingConfig = {0};
-		CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 		CullingConfig.bProgrammableRaster = GNaniteProgrammableRasterHitProxy != 0;
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)

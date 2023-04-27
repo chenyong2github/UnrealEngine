@@ -3164,7 +3164,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				CullingConfig.bTwoPassOcclusion = true;
 				CullingConfig.bUpdateStreaming = true;
 				CullingConfig.bPrimaryContext = true;
-				CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 				CullingConfig.bProgrammableRaster = GNaniteProgrammableRasterPrimary != 0;
 
 				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.

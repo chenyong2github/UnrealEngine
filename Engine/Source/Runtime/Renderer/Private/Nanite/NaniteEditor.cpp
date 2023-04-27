@@ -165,7 +165,6 @@ static void GetEditorSelectionVisBuffer(
 	{
 		Nanite::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = true;
-		CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 		CullingConfig.bProgrammableRaster = bProgrammableRaster;
 
 		Nanite::FPackedViewParams NaniteViewParams;

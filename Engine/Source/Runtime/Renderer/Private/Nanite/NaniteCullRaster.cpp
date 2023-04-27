@@ -2156,6 +2156,12 @@ FRenderer::FRenderer(
 		Configuration.bProgrammableRaster = false;
 	}
 
+	if (RasterContext.RasterScheduling == ERasterScheduling::HardwareOnly)
+	{
+		// Force HW Rasterization in the culling config if the RasterConfig is HardwareOnly
+		Configuration.bForceHWRaster = true;
+	}
+
 	RenderFlags |= Configuration.bProgrammableRaster	? NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER : 0u;
 	RenderFlags |= Configuration.bForceHWRaster			? NANITE_RENDER_FLAG_FORCE_HW_RASTER : 0u;
 	RenderFlags |= Configuration.bUpdateStreaming		? NANITE_RENDER_FLAG_OUTPUT_STREAMING_REQUESTS : 0u;

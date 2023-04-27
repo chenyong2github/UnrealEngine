@@ -307,7 +307,6 @@ bool FSceneRenderer::RenderCustomDepthPass(
 
 		Nanite::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = true;
-		CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 		CullingConfig.bProgrammableRaster = bNaniteProgrammableRaster;
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
