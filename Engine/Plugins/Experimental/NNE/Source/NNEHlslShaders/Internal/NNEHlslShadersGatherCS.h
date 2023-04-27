@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "NNEHlslShaderBase.h"
 #include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNECore::Internal { class FTensor; }
 
@@ -20,10 +19,10 @@ namespace UE::NNEHlslShaders::Internal
 	};
 
 	// template <typename DataElementType, typename IndicesElementType>
-	class NNEHLSLSHADERS_API TGatherCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TGatherCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TGatherCS);
-		SHADER_USE_PARAMETER_STRUCT(TGatherCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TGatherCS, FHlslShaderBase)
 
 		class FGatherNumOutputDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_OUTPUT_DIMENSIONS", 1, FGatherConstants::MAX_NUM_DIMENSIONS);
 		using FPermutationDomain = TShaderPermutationDomain<FGatherNumOutputDimensions>;
@@ -43,11 +42,6 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 
 		static void FillInParameters(int32 Axis, const NNECore::Internal::FTensor& Data, const NNECore::Internal::FTensor& Indices, FParameters& Parameters);
 

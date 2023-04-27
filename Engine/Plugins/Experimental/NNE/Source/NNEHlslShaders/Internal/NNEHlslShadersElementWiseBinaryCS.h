@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
-#include "RenderGraphUtils.h"
 #include "NNECoreOperator.h"
+#include "NNEHlslShaderBase.h"
+#include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -18,10 +17,10 @@ namespace UE::NNEHlslShaders::Internal
 		static const int32 NUM_GROUP_THREADS{ 256 };
 	};
 
-	class NNEHLSLSHADERS_API TElementWiseBinaryCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TElementWiseBinaryCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TElementWiseBinaryCS);
-		SHADER_USE_PARAMETER_STRUCT(TElementWiseBinaryCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TElementWiseBinaryCS, FHlslShaderBase)
 
 		class FOperatorType : SHADER_PERMUTATION_ENUM_CLASS("OP_TYPENAME", NNECore::Internal::EElementWiseBinaryOperatorType);
 		class FBinaryNumDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_DIMENSIONS", 1, FElementWiseBinaryConstants::MAX_NUM_DIMENSIONS);
@@ -39,11 +38,6 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 
 	private:
 

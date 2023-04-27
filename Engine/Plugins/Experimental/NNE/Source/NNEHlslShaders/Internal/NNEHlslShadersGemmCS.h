@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "NNEHlslShaderBase.h"
 #include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNECore::Internal { class FTensor; }
 
@@ -46,10 +45,10 @@ namespace UE::NNEHlslShaders::Internal
 		static const int32 MAX_NUM_STACK_DIMENSIONS{8};
 	};
 
-	class NNEHLSLSHADERS_API TGemmCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TGemmCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TGemmCS);
-		SHADER_USE_PARAMETER_STRUCT(TGemmCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TGemmCS, FHlslShaderBase)
 
 		class FGemmCScalar : SHADER_PERMUTATION_ENUM_CLASS("C_SCALAR", EGemmCScalar);
 		class FGemmAlgorithm : SHADER_PERMUTATION_ENUM_CLASS("ALGORITHM", EGemmAlgorithm);
@@ -80,11 +79,6 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 
 		static void FillInParameters(float Alpha, float Beta, int32 TransA, int32 TransB, const NNECore::Internal::FTensor& InputA, const NNECore::Internal::FTensor& InputB, const NNECore::Internal::FTensor* InputC, float CScalar, FParameters& Parameters);
 

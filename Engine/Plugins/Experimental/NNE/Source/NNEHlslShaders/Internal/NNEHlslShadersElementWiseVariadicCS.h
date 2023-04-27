@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
-#include "RenderGraphUtils.h"
 #include "NNECoreOperator.h"
+#include "NNEHlslShaderBase.h"
+#include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -19,10 +18,10 @@ namespace UE::NNEHlslShaders::Internal
 		static const uint32 MAX_NUM_INPUT{ 4 };
 	};
 
-	class NNEHLSLSHADERS_API TElementWiseVariadicCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TElementWiseVariadicCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TElementWiseVariadicCS);
-		SHADER_USE_PARAMETER_STRUCT(TElementWiseVariadicCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TElementWiseVariadicCS, FHlslShaderBase)
 
 		class FOperatorType : SHADER_PERMUTATION_ENUM_CLASS("OP_TYPENAME", NNECore::Internal::EElementWiseVariadicOperatorType);
 		class FApplyScale : SHADER_PERMUTATION_BOOL("APPLYSCALE");
@@ -47,11 +46,6 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 
 	private:
 

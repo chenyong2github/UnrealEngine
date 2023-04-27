@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
-#include "RenderGraphUtils.h"
 #include "NNECoreOperator.h"
+#include "NNEHlslShaderBase.h"
+#include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
+
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -17,10 +17,10 @@ namespace UE::NNEHlslShaders::Internal
 		static const int32 NUM_GROUP_THREADS{ 256 };
 	};
 
-	class NNEHLSLSHADERS_API TBatchNormalizationCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TBatchNormalizationCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TBatchNormalizationCS);
-		SHADER_USE_PARAMETER_STRUCT(TBatchNormalizationCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TBatchNormalizationCS, FHlslShaderBase)
 
 	public:
 
@@ -39,10 +39,5 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 	};
 } // UE::NNEHlslShaders::Internal

@@ -2,17 +2,16 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "NNEHlslShaderBase.h"
 #include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
-	class NNEHLSLSHADERS_API FConvMatmulCS : public FGlobalShader
+	class NNEHLSLSHADERS_API FConvMatmulCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(FConvMatmulCS);
-		SHADER_USE_PARAMETER_STRUCT(FConvMatmulCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(FConvMatmulCS, FHlslShaderBase)
 
 		class FConvMatmulAreWeightsTransposed : SHADER_PERMUTATION_BOOL("WEIGHTS_TRANSPOSED");
 		class FConvMatmulHasBias : SHADER_PERMUTATION_BOOL("HAS_BIAS");
@@ -39,10 +38,5 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static FIntVector GetGroupCount(TConstArrayView<uint32> OutputShape);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 	};
 } // UE::NNEHlslShaders::Internal

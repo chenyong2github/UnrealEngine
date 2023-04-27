@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "NNEHlslShaderBase.h"
 #include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNECore::Internal { class FTensor; }
 
@@ -21,10 +20,10 @@ namespace UE::NNEHlslShaders::Internal
 		MAX
 	};
 
-	class NNEHLSLSHADERS_API TInstanceNormalizationCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TInstanceNormalizationCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TInstanceNormalizationCS);
-		SHADER_USE_PARAMETER_STRUCT(TInstanceNormalizationCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TInstanceNormalizationCS, FHlslShaderBase)
 
 		class FInstanceNormalizationAlgorithm : SHADER_PERMUTATION_ENUM_CLASS("ALGORITHM", EInstanceNormalizationAlgorithm);
 		using FPermutationDomain = TShaderPermutationDomain<FInstanceNormalizationAlgorithm>;
@@ -48,10 +47,5 @@ namespace UE::NNEHlslShaders::Internal
 		static EInstanceNormalizationAlgorithm GetAlgorithm(const FParameters& Parameters);
 
 		static void LexFromString(EInstanceNormalizationAlgorithm& OutValue, const TCHAR* StringVal);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 	};
 } // UE::NNEHlslShaders::Internal

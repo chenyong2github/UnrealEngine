@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "NNEHlslShaderBase.h"
 #include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -40,10 +39,10 @@ namespace UE::NNEHlslShaders::Internal
 		static const int32 MAX_NUM_READS_PER_THREAD_POW2{3};
 	};
 
-	class NNEHLSLSHADERS_API FConvCS : public FGlobalShader
+	class NNEHLSLSHADERS_API FConvCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(FConvCS);
-		SHADER_USE_PARAMETER_STRUCT(FConvCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(FConvCS, FHlslShaderBase)
 
 		class FConvAlgorithm : SHADER_PERMUTATION_ENUM_CLASS("ALGORITHM", EConvAlgorithm);
 		class FConvAreWeightsTransposed : SHADER_PERMUTATION_BOOL("WEIGHTS_TRANSPOSED");
@@ -112,10 +111,5 @@ namespace UE::NNEHlslShaders::Internal
 		static TArray<int32> GetPadding(TArrayView<const uint32> XShape, TArrayView<const uint32> WShape, EConvAutoPad AutoPad, TArrayView<const int32> Dilations, TArrayView<const int32> Strides, TArrayView<const int32> Pads);
 
 		static void LexFromString(EConvAutoPad& OutValue, const TCHAR* StringVal);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 	};
 } // UE::NNEHlslShaders::Internal

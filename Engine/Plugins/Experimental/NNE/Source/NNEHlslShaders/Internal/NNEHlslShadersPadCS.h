@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "NNEHlslShaderBase.h"
 #include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -25,10 +24,10 @@ namespace UE::NNEHlslShaders::Internal
 		static const int32 NUM_GROUP_THREADS{ 256 };
 	};
 
-	class NNEHLSLSHADERS_API FPadCS : public FGlobalShader
+	class NNEHLSLSHADERS_API FPadCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(FPadCS);
-		SHADER_USE_PARAMETER_STRUCT(FPadCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(FPadCS, FHlslShaderBase)
 
 		class FPadMode : SHADER_PERMUTATION_ENUM_CLASS("MODE", EPadMode);
 		class FPadNumDimensions : SHADER_PERMUTATION_RANGE_INT("NUM_DIMENSIONS", 1, FPadConstants::MAX_NUM_DIMENSIONS);
@@ -46,12 +45,6 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
-
 		static void LexFromString(EPadMode& OutValue, const TCHAR* StringVal);
 	};
 } // UE::NNEHlslShaders::Internal

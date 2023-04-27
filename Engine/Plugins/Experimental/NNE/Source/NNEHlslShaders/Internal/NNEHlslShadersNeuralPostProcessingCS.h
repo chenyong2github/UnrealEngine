@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "NNEHlslShaderBase.h"
 #include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -29,10 +28,10 @@ namespace UE::NNEHlslShaders::Internal
 		static const int32 THREAD_GROUP_SIZE{ 32 };
 	};
 
-	class NNEHLSLSHADERS_API TNeuralPostProcessingReadInputCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TNeuralPostProcessingReadInputCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TNeuralPostProcessingReadInputCS);
-		SHADER_USE_PARAMETER_STRUCT(TNeuralPostProcessingReadInputCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TNeuralPostProcessingReadInputCS, FHlslShaderBase)
 
 	public:
 
@@ -46,17 +45,12 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 	};
 
-	class NNEHLSLSHADERS_API TNeuralPostProcessingPreStepCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TNeuralPostProcessingPreStepCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TNeuralPostProcessingPreStepCS);
-		SHADER_USE_PARAMETER_STRUCT(TNeuralPostProcessingPreStepCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TNeuralPostProcessingPreStepCS, FHlslShaderBase)
 
 	public:
 
@@ -72,17 +66,12 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 	};
 
-	class NNEHLSLSHADERS_API TNeuralPostProcessingPostStepCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TNeuralPostProcessingPostStepCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TNeuralPostProcessingPostStepCS);
-		SHADER_USE_PARAMETER_STRUCT(TNeuralPostProcessingPostStepCS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TNeuralPostProcessingPostStepCS, FHlslShaderBase)
 
 		class FNeuralPostProcessingOverwrite : SHADER_PERMUTATION_ENUM_CLASS("OVERWRITE", ENeuralPostProcessingOverwrite);
 		class FNeuralPostProcessingInterpolate : SHADER_PERMUTATION_ENUM_CLASS("INTERPOLATE", ENeuralPostProcessingInterpolate);
@@ -102,17 +91,12 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 	};
 
-	class NNEHLSLSHADERS_API TNeuralPostProcessingWriteOutputPS : public FGlobalShader
+	class NNEHLSLSHADERS_API TNeuralPostProcessingWriteOutputPS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(TNeuralPostProcessingWriteOutputPS);
-		SHADER_USE_PARAMETER_STRUCT(TNeuralPostProcessingWriteOutputPS, FGlobalShader)
+		SHADER_USE_PARAMETER_STRUCT(TNeuralPostProcessingWriteOutputPS, FHlslShaderBase)
 
 	public:
 
@@ -124,10 +108,5 @@ namespace UE::NNEHlslShaders::Internal
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 	};
 } // UE::NNEHlslShaders::Internal

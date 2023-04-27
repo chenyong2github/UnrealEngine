@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "DataDrivenShaderPlatformInfo.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
+#include "NNEHlslShaderBase.h"
 #include "RenderGraphUtils.h"
+#include "ShaderParameterUtils.h"
 
 namespace UE::NNEHlslShaders::Internal
 {
@@ -41,10 +40,10 @@ namespace UE::NNEHlslShaders::Internal
 		static const int32 MAX_NUM_READS_PER_THREAD_POW2{3};
 	};
 
-	class NNEHLSLSHADERS_API FConvTransposeCS : public FGlobalShader
+	class NNEHLSLSHADERS_API FConvTransposeCS : public FHlslShaderBase
 	{
 		DECLARE_GLOBAL_SHADER(FConvTransposeCS);
-		SHADER_USE_PARAMETER_STRUCT(FConvTransposeCS, FGlobalShader);
+		SHADER_USE_PARAMETER_STRUCT(FConvTransposeCS, FHlslShaderBase);
 
 		class FConvTransposeAlgorithm : SHADER_PERMUTATION_ENUM_CLASS("ALGORITHM", EConvTransposeAlgorithm);
 		class FConvTransposeGroupSize : SHADER_PERMUTATION_ENUM_CLASS("GROUP_SIZE", EConvTransposeGroupSize);
@@ -106,10 +105,5 @@ namespace UE::NNEHlslShaders::Internal
 		static int32 GetNumThreadsPerGroup(EConvTransposeGroupSize GroupSize);
 
 		static TArray<int32> GetGridShape(TArrayView<const int32> YShape, TArrayView<const int32> GroupShape);
-
-		static inline bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-		{
-			return FDataDrivenShaderPlatformInfo::GetSupportsNNEShaders(Parameters.Platform);
-		}
 	};
 } // UE::NNEHlslShaders::Internal
