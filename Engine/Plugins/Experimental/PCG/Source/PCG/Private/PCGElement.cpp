@@ -368,6 +368,19 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 #if WITH_EDITOR
 		if (SettingsInterface->bEnabled)
 		{
+			// remove null outputs
+			Context->OutputData.TaggedData.RemoveAll([this, Context](const FPCGTaggedData& TaggedData){
+
+				if (TaggedData.Data == nullptr)
+				{
+					PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("NullPinOutputData", "Invalid output(s) generated for pin '{0}'"), FText::FromName(TaggedData.Pin)));
+					return true;
+				}
+
+				return false;
+			});
+
+
 			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
 			{
 				const int32 MatchIndex = OutputPinProperties.IndexOfByPredicate([&TaggedData](const FPCGPinProperties& InProp) { return TaggedData.Pin == InProp.Label; });
@@ -379,7 +392,7 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 						PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("OutputCannotBeRouted", "Output data generated for non-existent output pin '{0}'"), FText::FromName(TaggedData.Pin)));
 					}
 				}
-				else if (TaggedData.Data)
+				else if (ensure(TaggedData.Data))
 				{
 					// Try to get dynamic current pin types, otherwise settle for static types
 					const UPCGPin* OutputPin = Context->Node ? Context->Node->GetOutputPin(OutputPinProperties[MatchIndex].Label) : nullptr;

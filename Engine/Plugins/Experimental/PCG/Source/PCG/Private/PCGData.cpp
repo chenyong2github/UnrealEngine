@@ -149,6 +149,11 @@ TArray<FPCGTaggedData> FPCGDataCollection::GetInputs() const
 TArray<FPCGTaggedData> FPCGDataCollection::GetInputsByPin(const FName& InPinLabel) const
 {
 	return TaggedData.FilterByPredicate([&InPinLabel](const FPCGTaggedData& Data) {
+		if (!ensure(Data.Data))
+		{
+			return false;
+		}
+
 		return Data.Pin == InPinLabel;
 		});
 }
