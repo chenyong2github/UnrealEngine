@@ -35,6 +35,25 @@ FPCGElementPtr UPCGDataFromActorSettings::CreateElement() const
 	return MakeShared<FPCGDataFromActorElement>();
 }
 
+EPCGDataType UPCGDataFromActorSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
+{
+	check(InPin);
+
+	if (InPin->IsOutputPin())
+	{
+		if (Mode == EPCGGetDataFromActorMode::GetSinglePoint)
+		{
+			return EPCGDataType::Point;
+		}
+		else if (Mode == EPCGGetDataFromActorMode::GetDataFromProperty)
+		{
+			return EPCGDataType::Param;
+		}
+	}
+
+	return Super::GetCurrentPinTypes(InPin);
+}
+
 TArray<FPCGPinProperties> UPCGDataFromActorSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> Pins = Super::OutputPinProperties();
