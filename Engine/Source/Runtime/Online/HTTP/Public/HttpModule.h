@@ -334,6 +334,10 @@ private:
 	 */
 	virtual void ShutdownModule() override;
 
+	/**
+	 * Delegate for config file changes.
+	 */
+	void OnConfigSectionsChanged(const FString& IniFilename, const TSet<FString>& SectionNames);
 
 	/** Keeps track of Http requests while they are being processed */
 	FHttpManager* HttpManager;

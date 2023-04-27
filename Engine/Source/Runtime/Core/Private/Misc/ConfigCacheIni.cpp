@@ -2075,6 +2075,18 @@ void FConfigFile::ProcessPropertyAndWriteForDefaults(int IniCombineThreshold, co
 /*-----------------------------------------------------------------------------
 	FConfigCacheIni
 -----------------------------------------------------------------------------*/
+
+namespace
+{
+	void OnConfigSectionsChanged(const FString& IniFilename, const TSet<FString>& SectionNames)
+	{
+		if (IniFilename == GEngineIni && SectionNames.Contains(TEXT("ConsoleVariables")))
+		{
+			FConfigCacheIni::LoadConsoleVariablesFromINI();
+		}
+	}
+}
+
 #if WITH_EDITOR
 static TMap<FName, TFuture<void>>& GetPlatformConfigFutures()
 {
@@ -3844,6 +3856,8 @@ void FConfigCacheIni::InitializeConfigSystem()
 
 	// load editor, etc config files
 	LoadRemainingConfigFiles(Context);
+
+	FCoreDelegates::OnConfigSectionsChanged.AddStatic(OnConfigSectionsChanged);
 
 	// now we can make use of GConfig
 	GConfig->bIsReadyForUse = true;

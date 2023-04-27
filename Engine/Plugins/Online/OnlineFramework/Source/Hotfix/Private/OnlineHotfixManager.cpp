@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineHotfixManager.h"
-#include "HttpModule.h"
 #include "Online.h"
 #include "OnlineSubsystemUtils.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
-
-#include "Logging/LogSuppressionInterface.h"
-
 
 #include "Misc/PackageName.h"
 #include "Misc/EngineVersion.h"
@@ -919,8 +915,6 @@ FConfigFile* UOnlineHotfixManager::GetConfigFile(const FString& IniName)
 
 bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString& IniData)
 {
-	const bool bIsEngineIni = FileName.Contains(TEXT("Engine.ini"));
-
 	// Flush async loading before modifying GConfig.
 	FlushAsyncLoading();
 
@@ -933,10 +927,6 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	TArray<UObject*> PerObjectConfigObjects;
 	int32 StartIndex = 0;
 	int32 EndIndex = 0;
-	bool bUpdateLogSuppression = false;
-	bool bUpdateConsoleVariables = false;
-	bool bUpdateHttpConfigs = false;
-	TSet<FString> OnlineSubSections;
 	TSet<FString> UpdatedSectionNames;
 	// Find the set of object classes that were affected
 	while (StartIndex >= 0 && StartIndex < IniData.Len() && EndIndex >= StartIndex)
@@ -988,32 +978,6 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 				{
 					// HACK - Make AssetHotfix the last element in the ini file so that this parsing isn't affected by it for now
 					break;
-				}
-
-				if (bIsEngineIni)
-				{
-					// TODO replace all of this with bindees to FCoreDelegates::TSOnConfigSectionsChanged()
-					const TCHAR* LogConfigSection = TEXT("[Core.Log]");
-					const TCHAR* ConsoleVariableSection = TEXT("[ConsoleVariables]");
-					const TCHAR* HttpSection = TEXT("[HTTP"); // note "]" omitted on purpose since we want a partial match
-					const TCHAR* OnlineSubSectionKey = TEXT("[OnlineSubsystem"); // note "]" omitted on purpose since we want a partial match
-					if (!bUpdateLogSuppression && FCString::Strnicmp(*IniData + StartIndex, LogConfigSection, FCString::Strlen(LogConfigSection)) == 0)
-					{
-						bUpdateLogSuppression = true;
-					}
-					else if (!bUpdateConsoleVariables && FCString::Strnicmp(*IniData + StartIndex, ConsoleVariableSection, FCString::Strlen(ConsoleVariableSection)) == 0)
-					{
-						bUpdateConsoleVariables = true;
-					}
-					else if (!bUpdateHttpConfigs &&	FCString::Strnicmp(*IniData + StartIndex, HttpSection, FCString::Strlen(HttpSection)) == 0)
-					{
-						bUpdateHttpConfigs = true;
-					}
-					else if (FCString::Strnicmp(*IniData + StartIndex, OnlineSubSectionKey, FCString::Strlen(OnlineSubSectionKey)) == 0)
-					{
-						FString SectionStr = IniData.Mid(StartIndex, EndIndex - StartIndex + 1);
-						OnlineSubSections.Emplace(MoveTemp(SectionStr));
-					}
 				}
 
 				// Per object config entries will have a space in the name, but classes won't
@@ -1113,31 +1077,6 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 
 	const FString ConfigFileName = ConfigFile->Name.ToString();
 	FCoreDelegates::TSOnConfigSectionsChanged().Broadcast(ConfigFileName, UpdatedSectionNames);
-
-	// Reload log suppression if configs changed
-	if (bUpdateLogSuppression)
-	{
-		FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
-	}
-
-	// Reload console variables if configs changed
-	if (bUpdateConsoleVariables)
-	{
-		FConfigCacheIni::LoadConsoleVariablesFromINI();
-	}
-
-	// Reload configs relevant to the HTTP module
-	if (bUpdateHttpConfigs)
-	{
-		FHttpModule::Get().UpdateConfigs();
-	}
-
-	// Reload configs relevant to OSS config sections that were updated
-	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(OSSName.Len() ? FName(*OSSName, FNAME_Find) : NAME_None);
-	if (OnlineSub != nullptr)
-	{
-		OnlineSub->ReloadConfigs(OnlineSubSections);
-	}
 
 	UE_LOG(LogHotfixManager, Log, TEXT("Updating config from %s took %f seconds and reloaded %d objects"),
 		*FileName, FPlatformTime::Seconds() - StartTime, NumObjectsReloaded);

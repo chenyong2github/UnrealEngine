@@ -2,6 +2,7 @@
 
 #include "OnlineSubsystemImpl.h"
 #include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "NamedInterfaces.h"
 #include "OnlineError.h"
 #include "Interfaces/OnlineIdentityInterface.h"
@@ -44,6 +45,12 @@ FOnlineSubsystemImpl::FOnlineSubsystemImpl(FName InSubsystemName, FName InInstan
 	NamedInterfaces(nullptr),
 	bTickerStarted(true)
 {
+	FCoreDelegates::OnConfigSectionsChanged.AddRaw(this, &FOnlineSubsystemImpl::OnConfigSectionsChanged);
+}
+
+FOnlineSubsystemImpl::~FOnlineSubsystemImpl()
+{
+	FCoreDelegates::OnConfigSectionsChanged.RemoveAll(this);
 }
 
 void FOnlineSubsystemImpl::PreUnload()
@@ -365,6 +372,21 @@ void FOnlineSubsystemImpl::FinalizeReceipts(const FUniqueNetId& UserId)
 					}
 				}
 			}	
+		}
+	}
+}
+
+void FOnlineSubsystemImpl::OnConfigSectionsChanged(const FString& IniFilename, const TSet<FString>& SectionNames)
+{
+	if (IniFilename == GEngineIni)
+	{
+		for (const FString& SectionName : SectionNames)
+		{
+			if (SectionName.StartsWith(TEXT("OnlineSubsystem")))
+			{
+				ReloadConfigs(SectionNames);
+				break;
+			}
 		}
 	}
 }

@@ -12,6 +12,7 @@
 #include "Misc/Parse.h"
 #include "Containers/Map.h"
 #include "Misc/CoreMisc.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceHelper.h"
@@ -482,6 +483,14 @@ class FLogSuppressionImplementation: public FLogSuppressionInterface, private FS
 		}
 	}
 
+	void OnConfigSectionsChanged(const FString& IniFilename, const TSet<FString>& SectionNames)
+	{
+		if (IniFilename == GEngineIni && SectionNames.Contains(TEXT("Core.Log")))
+		{
+			ProcessConfigAndCommandLine();
+		}
+	}
+
 	virtual void ProcessConfigAndCommandLine()
 	{
 		ReverseAssociations.Reserve(PendingAssociations.Num());
@@ -552,6 +561,21 @@ class FLogSuppressionImplementation: public FLogSuppressionInterface, private FS
 		for (TMultiMap<FName, FLogCategoryBase*>::TIterator It(ReverseAssociations); It; ++It)
 		{
 			SetupSuppress(It.Value(), It.Key());
+		}
+
+		if (!bInitialized)
+		{
+			FCoreDelegates::OnConfigSectionsChanged.AddLambda([this](const FString& IniFilename, const TSet<FString>& SectionNames)
+			{
+				if (auto* LogSuppressionImplementation = static_cast<FLogSuppressionImplementation*>(FLogSuppressionInterface::TryGet()))
+				{
+					LogSuppressionImplementation->OnConfigSectionsChanged(IniFilename, SectionNames);
+				}
+				else
+				{
+					FCoreDelegates::OnConfigSectionsChanged.RemoveAll(this);
+				}
+			});
 		}
 
 		bInitialized = true;

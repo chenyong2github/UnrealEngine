@@ -84,7 +84,7 @@ protected:
 
 public:
 	
-	virtual ~FOnlineSubsystemImpl() = default;
+	virtual ~FOnlineSubsystemImpl();
 
 	// IOnlineSubsystem
 	virtual IOnlineGroupsPtr GetGroupsInterface() const override;
@@ -157,6 +157,11 @@ public:
 	{
 		ExecuteDelegateNextTick(FNextTickDelegate::CreateLambda(Forward<LAMBDA_TYPE>(Callback)));
 	}
+
+	/**
+	* Delegate for config file changes.
+	*/
+	virtual void OnConfigSectionsChanged(const FString& IniFilename, const TSet<FString>& SectionNames);
 
 	/** Name given to default OSS instances (disambiguates for PIE) */
 	static const FName DefaultInstanceName;
