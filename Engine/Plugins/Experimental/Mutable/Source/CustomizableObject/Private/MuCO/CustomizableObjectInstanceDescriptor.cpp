@@ -1155,64 +1155,110 @@ const FString& FCustomizableObjectInstanceDescriptor::GetIntParameterSelectedOpt
 	return FCustomizableObjectBoolParameterValue::DEFAULT_PARAMETER_VALUE_NAME;
 }
 
+void FCustomizableObjectInstanceDescriptor::AddUncompiledCOWarning(const FString& AdditionalLoggingInfo)
+{
+	// Send a warning (on-screen notification, log error, and in-editor notification)
+	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+	if (!System || !System->IsValidLowLevel() || System->HasAnyFlags(RF_BeginDestroyed))
+	{
+		return;
+	}
+
+	System->AddUncompiledCOWarning(CustomizableObject.Get(), &AdditionalLoggingInfo);
+}
 
 void FCustomizableObjectInstanceDescriptor::SetIntParameterSelectedOption(const int32 IntParamIndex, const FString& SelectedOption, const int32 RangeIndex)
 {
 	check(CustomizableObject);
 
-	if (IntParameters.IsValidIndex(IntParamIndex))
+	if (!ensureMsgf(CustomizableObject->IsCompiled(), TEXT("Customizable Object (%s) was not compiled."),
+					*GetNameSafe(CustomizableObject)
+				   )
+	   )
 	{
-		const int32 ParameterIndexInObject = CustomizableObject->FindParameter(IntParameters[IntParamIndex].ParameterName);
-		if (ParameterIndexInObject >= 0)
-		{
-			const bool bValid = SelectedOption == TEXT("None") || CustomizableObject->FindIntParameterValue(ParameterIndexInObject, SelectedOption) >= 0;
-			if (!bValid)
-			{
-				const FString Message = FString::Printf(
-					TEXT("LogMutable: Tried to set the invalid value [%s] to parameter [%d, %s]! Value index=[%d]. Correct values=[%s]."), 
-					*SelectedOption, ParameterIndexInObject,
-					*IntParameters[IntParamIndex].ParameterName, 
-					CustomizableObject->FindIntParameterValue(ParameterIndexInObject, SelectedOption), 
-					*GetAvailableOptionsString(*CustomizableObject, ParameterIndexInObject)
-				);
-				UE_LOG(LogMutable, Error, TEXT("%s"), *Message);
-			}
-			
-			if (RangeIndex == -1)
-			{
-				// If this param were multidimensional, it must have a RangeIndex of 0 or more
-				check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); 
-				IntParameters[IntParamIndex].ParameterValueName = SelectedOption;
-			}
-			else
-			{
-				// If this param were not multidimensional, it must have a RangeIndex of -1
-				check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject));
+		FString AdditionalLoggingInfo = FString::Printf(
+			TEXT("Calling function: %hs.  Cannot set parameter (Parameter Index: %d, SelectedOptionName: %s, RangeIndex: %d)."),
+			__FUNCTION__, IntParamIndex, *SelectedOption, RangeIndex
+													   );
 
-				if (!IntParameters[IntParamIndex].ParameterRangeValueNames.IsValidIndex(RangeIndex))
-				{
-					const int32 InsertionIndex = IntParameters[IntParamIndex].ParameterRangeValueNames.Num();
-					const int32 NumInsertedElements = RangeIndex + 1 - IntParameters[IntParamIndex].ParameterRangeValueNames.Num();
-					IntParameters[IntParamIndex].ParameterRangeValueNames.InsertDefaulted(InsertionIndex, NumInsertedElements);
-				}
+		// Send a warning (on-screen notification, log error, and in-editor notification) for each occurrence.
+		AddUncompiledCOWarning(AdditionalLoggingInfo);
 
-				check(IntParameters[IntParamIndex].ParameterRangeValueNames.IsValidIndex(RangeIndex));
-				IntParameters[IntParamIndex].ParameterRangeValueNames[RangeIndex] = SelectedOption;
-			}
-		}
+		// Early out since we can't set any parameters on an uncompiled CO.
+		return;
 	}
-	else
+
+	if (!IntParameters.IsValidIndex(IntParamIndex))
 	{
 		UE_LOG(LogMutable, Error,
 				TEXT("%hs: IntParamIndex (%d) is not valid on CO (%s).  (SelectedOptionName: %s, RangeIndex: %d).  Cannot set parameter."),
 				__FUNCTION__, IntParamIndex, *GetNameSafe(CustomizableObject), *SelectedOption, RangeIndex
 			  );
+
+		return;
+	}
+
+	const int32 ParameterIndexInObject = CustomizableObject->FindParameter(IntParameters[IntParamIndex].ParameterName);
+	if (ParameterIndexInObject >= 0)
+	{
+		const bool bValid = SelectedOption == TEXT("None") || CustomizableObject->FindIntParameterValue(ParameterIndexInObject, SelectedOption) >= 0;
+		if (!bValid)
+		{
+			const FString Message = FString::Printf(
+				TEXT("LogMutable: Tried to set the invalid value [%s] to parameter [%d, %s]! Value index=[%d]. Correct values=[%s]."), 
+				*SelectedOption, ParameterIndexInObject,
+				*IntParameters[IntParamIndex].ParameterName, 
+				CustomizableObject->FindIntParameterValue(ParameterIndexInObject, SelectedOption), 
+				*GetAvailableOptionsString(*CustomizableObject, ParameterIndexInObject)
+			);
+			UE_LOG(LogMutable, Error, TEXT("%s"), *Message);
+		}
+			
+		if (RangeIndex == -1)
+		{
+			// If this param were multidimensional, it must have a RangeIndex of 0 or more
+			check(!CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject)); 
+			IntParameters[IntParamIndex].ParameterValueName = SelectedOption;
+		}
+		else
+		{
+			// If this param were not multidimensional, it must have a RangeIndex of -1
+			check(CustomizableObject->IsParameterMultidimensional(ParameterIndexInObject));
+
+			if (!IntParameters[IntParamIndex].ParameterRangeValueNames.IsValidIndex(RangeIndex))
+			{
+				const int32 InsertionIndex = IntParameters[IntParamIndex].ParameterRangeValueNames.Num();
+				const int32 NumInsertedElements = RangeIndex + 1 - IntParameters[IntParamIndex].ParameterRangeValueNames.Num();
+				IntParameters[IntParamIndex].ParameterRangeValueNames.InsertDefaulted(InsertionIndex, NumInsertedElements);
+			}
+
+			check(IntParameters[IntParamIndex].ParameterRangeValueNames.IsValidIndex(RangeIndex));
+			IntParameters[IntParamIndex].ParameterRangeValueNames[RangeIndex] = SelectedOption;
+		}
 	}
 }
 
-
 void FCustomizableObjectInstanceDescriptor::SetIntParameterSelectedOption(const FString& ParamName, const FString& SelectedOptionName, const int32 RangeIndex)
 {
+	check(CustomizableObject);
+
+	if (!ensureMsgf(CustomizableObject->IsCompiled(), TEXT("Customizable Object (%s) was not compiled."),
+					*GetNameSafe(CustomizableObject)
+				   )
+	   )
+	{
+		FString AdditionalLoggingInfo = FString::Printf(
+			TEXT("Calling function: %hs.  Cannot set parameter (Parameter Name: %s, SelectedOptionName: %s, RangeIndex: %d)."),
+			__FUNCTION__, *ParamName, *SelectedOptionName, RangeIndex
+													   );
+
+		// Send a warning (on-screen notification, log error, and in-editor notification) for each occurrence.
+		AddUncompiledCOWarning(AdditionalLoggingInfo);
+
+		// Early out since we can't set any parameters on an uncompiled CO.
+		return;
+	}
+
 	const int32 IntParamIndex = FindIntParameterNameIndex(ParamName);
 	if (IntParamIndex != INDEX_NONE)
 	{
@@ -1220,6 +1266,15 @@ void FCustomizableObjectInstanceDescriptor::SetIntParameterSelectedOption(const 
 	}
 	else
 	{
+#if !UE_BUILD_SHIPPING
+		// Ensuring to help make sure we catch these critical data mismatches, but since we can handle these gracefully,
+		// don't ensure in Shipping builds.  We need to always log an error afterwards since the ensure will only fire
+		// once per session, and we don't want to always ensure since that might interfere with unrelated debugging.
+		ensureMsgf(false, 
+				TEXT("Failed to find valid parameter index for ParamName (%s) on CO (%s).  (SelectedOptionName: %s, RangeIndex: %d).  Cannot set parameter."),
+				*ParamName, *GetNameSafe(CustomizableObject), *SelectedOptionName, RangeIndex
+				  );
+#endif
 		UE_LOG(LogMutable, Error,
 				TEXT("%hs: Failed to find valid parameter index for ParamName (%s) on CO (%s).  (SelectedOptionName: %s, RangeIndex: %d).  Cannot set parameter."),
 				__FUNCTION__, *ParamName, *GetNameSafe(CustomizableObject), *SelectedOptionName, RangeIndex
