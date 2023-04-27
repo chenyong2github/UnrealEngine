@@ -217,10 +217,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FDistortionHandlerPicker GetDistortionHandlerPicker() const;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-protected:
-	UE_DEPRECATED(5.1, "The use of this callback by this class has been deprecated and it is no longer registered. You can register your own delegate with FWorldDelegates::OnWorldPostActorTick")
-	void OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds);
-
 private:
 	/** Evaluate the LensFile for nodal offset (using the current evaluation mode) and apply it to the latest component to offset */
 	void ApplyNodalOffset();
@@ -357,18 +353,6 @@ protected:
 	UE_DEPRECATED(5.1, "This property has been deprecated. The LensDistortion component no longer tracks the attached camera's original location.")
 	UPROPERTY()
 	FVector OriginalCameraLocation_DEPRECATED;
-
-	UE_DEPRECATED(5.1, "This property has been deprecated. Use the DistortionStateSource to specify whether the lens file should be evaluated for distortion.")
-	UPROPERTY()
-	bool bEvaluateLensFileForDistortion_DEPRECATED = false;
-
-	UE_DEPRECATED(5.1, "This property has been deprecated. Use the LensDistortionHandlerMap to get a handler for the current LensModel.")
-	UPROPERTY(Transient)
-	TObjectPtr<ULensDistortionModelHandlerBase> LensDistortionHandler_DEPRECATED = nullptr;
-
-	UE_DEPRECATED(5.1, "This property has been deprecated. Producer GUIDs are no longer used to identify distortion handlers. Use the LensDistortionHandlerMap to get a handler for the current LensModel.")
-	UPROPERTY(DuplicateTransient)
-	FGuid DistortionProducerID_DEPRECATED;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(5.1, "This property has been deprecated. The handler picker is no longer used to identify a distortion handler. Use the LensDistortionHandlerMap to get a handler for the current LensModel.")

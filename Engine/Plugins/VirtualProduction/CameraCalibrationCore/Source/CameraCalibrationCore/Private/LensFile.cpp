@@ -1005,11 +1005,6 @@ void ULensFile::OnDistortionDerivedDataJobCompleted(const FDerivedDistortionData
 	}
 }
 
-bool ULensFile::IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent) const
-{
-	return true;
-}
-
 void ULensFile::UpdateInputTolerance(const float NewTolerance)
 {
 	InputTolerance = NewTolerance;

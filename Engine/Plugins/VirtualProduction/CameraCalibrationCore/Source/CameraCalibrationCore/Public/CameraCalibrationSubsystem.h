@@ -19,13 +19,6 @@
 
 class UCineCameraComponent;
 
-struct UE_DEPRECATED(5.1, "This struct has been deprecated.") FCachedFocalLength
-{
-public:
-	float OriginalFocalLength = 0.0f;
-	float OverscanFocalLength = 0.0f;
-};
-
 /**
  * Camera Calibration subsystem
  */
@@ -118,28 +111,11 @@ public:
 	/** Remove a Lens Model from the registered model map */
 	void UnregisterDistortionModel(TSubclassOf<ULensModel> LensModel);
 
-	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks original focal length for distortion.")
-	void UpdateOriginalFocalLength(UCineCameraComponent* Component, float InFocalLength);
-
-	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks overscanned focal length for distortion.")
-	void UpdateOverscanFocalLength(UCineCameraComponent* Component, float InFocalLength);
-
 	/** Register a new overlay material name and path that can be queried from camera calibration tools */
 	void RegisterOverlayMaterial(const FName& MaterialName, const FSoftObjectPath& MaterialPath);
 
-	UE_DEPRECATED(5.1, "FNames containing full object paths are deprecated. Use FSoftObjectPath instead.")
-	void RegisterOverlayMaterial(const FName& MaterialName, const FName& MaterialPathName)
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RegisterOverlayMaterial(MaterialName, FSoftObjectPath(MaterialPathName));
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
 	/** Unregister an overlay material */
 	void UnregisterOverlayMaterial(const FName& MaterialName);
-
-	UE_DEPRECATED(5.1, "This function has been deprecated. The subsystem no longer tracks original focal length for distortion.")
-	bool GetOriginalFocalLength(UCineCameraComponent* Component, float& OutFocalLength);
 
 private:
 	/** Default lens file to use when no override has been provided */

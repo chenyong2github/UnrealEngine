@@ -129,22 +129,6 @@ void UCameraCalibrationSubsystem::UnregisterOverlayMaterial(const FName& Materia
 	RegisteredOverlayMaterials.Remove(MaterialName);
 }
 
-void UCameraCalibrationSubsystem::UpdateOriginalFocalLength(UCineCameraComponent* Component, float InFocalLength)
-{
-	// This function has been deprecated.
-}
-
-void UCameraCalibrationSubsystem::UpdateOverscanFocalLength(UCineCameraComponent* Component, float InFocalLength)
-{
-	// This function has been deprecated.
-}
-
-bool UCameraCalibrationSubsystem::GetOriginalFocalLength(UCineCameraComponent* Component, float& OutFocalLength)
-{
-	// This function has been deprecated.
-	return false;
-}
-
 TSubclassOf<ULensModel> UCameraCalibrationSubsystem::GetRegisteredLensModel(FName ModelName) const
 {
 	if (LensModelMap.Contains(ModelName))

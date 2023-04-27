@@ -330,11 +330,6 @@ void ULensComponent::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 }
 #endif //WITH_EDITOR
 
-void ULensComponent::OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds)
-{
-	// The use of this callback by this class has been deprecated
-}
-
 void ULensComponent::ReapplyNodalOffset()
 {
 	// Find the TrackedComponent based on the serialized name
