@@ -40,7 +40,7 @@ public:
 private:	
 	void UpdateInlineContent(const TSharedPtr<IToolkit>& Toolkit, TSharedPtr<SWidget> InlineContent);
 
-	void UpdatePalette(const TSharedRef<FModeToolkit>& InModeToolkit);
+	void UpdatePalette(const TWeakPtr<FModeToolkit>& InWeakToolkit) const;
 
 	// Whether to show the inline content or not.
 	EVisibility GetInlineContentHolderVisibility() const;

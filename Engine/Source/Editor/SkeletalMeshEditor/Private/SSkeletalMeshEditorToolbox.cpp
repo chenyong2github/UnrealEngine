@@ -107,7 +107,7 @@ void SSkeletalMeshEditorToolbox::UpdateInlineContent(const TSharedPtr<IToolkit>&
 		TabIcon = ModeToolkit.Pin()->GetEditorModeIcon().GetSmallIcon();
 		const TSharedRef<FModeToolkit> ModeToolkitPinned = ModeToolkit.Pin().ToSharedRef();
 
-		UpdatePalette(ModeToolkitPinned);
+		UpdatePalette(ModeToolkit);
 
 		// Show the name of the active tool in the statusbar.
 		// FIXME: We should also be showing Ctrl/Shift/Alt LMB/RMB shortcuts.
@@ -135,12 +135,26 @@ void SSkeletalMeshEditorToolbox::UpdateInlineContent(const TSharedPtr<IToolkit>&
 }
 
 
-void SSkeletalMeshEditorToolbox::UpdatePalette(const TSharedRef<FModeToolkit>& InModeToolkit)
+void SSkeletalMeshEditorToolbox::UpdatePalette(const TWeakPtr<FModeToolkit>& InWeakToolkit) const
 {
+	if (!InWeakToolkit.IsValid())
+	{
+		return;
+	}
+	
 	TSharedRef<SSegmentedControl<FName>> PaletteTabBox = SNew(SSegmentedControl<FName>)
 		.UniformPadding(FMargin(8.f, 3.f))
-		.Value_Lambda([InModeToolkit]() { return InModeToolkit->GetCurrentPalette(); })
-		.OnValueChanged_Lambda([InModeToolkit](const FName& Palette) { InModeToolkit->SetCurrentPalette(Palette); });
+		.Value_Lambda([InWeakToolkit]()
+		{
+			return InWeakToolkit.IsValid() ? InWeakToolkit.Pin()->GetCurrentPalette() : NAME_None;
+		})
+		.OnValueChanged_Lambda([InWeakToolkit](const FName& Palette)
+		{
+			if (InWeakToolkit.IsValid())
+			{
+				InWeakToolkit.Pin()->SetCurrentPalette(Palette);
+			}
+		});
 
 	// Only show if there's more than one entry.
 	PaletteTabBox->SetVisibility(TAttribute<EVisibility>::Create(
@@ -148,36 +162,42 @@ void SSkeletalMeshEditorToolbox::UpdatePalette(const TSharedRef<FModeToolkit>& I
 			return PaletteTabBox->NumSlots() > 1 ? EVisibility::Visible : EVisibility::Collapsed;
 		})));
 
+	const TSharedPtr<FModeToolkit> ModeToolkit = InWeakToolkit.Pin();
+	
 	// Also build the toolkit here
 	TArray<FName> PaletteNames;
-	InModeToolkit->GetToolPaletteNames(PaletteNames);
+	ModeToolkit->GetToolPaletteNames(PaletteNames);
 
-	TSharedPtr<FUICommandList> CommandList;
-	CommandList = InModeToolkit->GetToolkitCommands();
+	const TSharedPtr<FUICommandList> CommandList = ModeToolkit->GetToolkitCommands();
 
 	TSharedRef< SWidgetSwitcher > PaletteSwitcher = SNew(SWidgetSwitcher)
-	.WidgetIndex_Lambda( [PaletteNames, InModeToolkit] () -> int32 { 
-		int32 FoundIndex;
-		if (PaletteNames.Find(InModeToolkit->GetCurrentPalette(), FoundIndex))
+	.WidgetIndex_Lambda( [PaletteNames, InWeakToolkit] () -> int32 {
+		if (InWeakToolkit.IsValid())
 		{
-			return FoundIndex;	
+			int32 FoundIndex;
+			if (PaletteNames.Find(InWeakToolkit.Pin()->GetCurrentPalette(), FoundIndex))
+			{
+				return FoundIndex;	
+			}
 		}
 		return 0;
 	} );
 			
 	for(auto Palette : PaletteNames)
 	{
-		FName ToolbarCustomizationName = InModeToolkit->GetEditorMode() ? InModeToolkit->GetEditorMode()->GetModeInfo().ToolbarCustomizationName : InModeToolkit->GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
+		const FName ToolbarCustomizationName = ModeToolkit->GetEditorMode() ?
+			ModeToolkit->GetEditorMode()->GetModeInfo().ToolbarCustomizationName :
+			ModeToolkit->GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
 		FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
 		ModeToolbarBuilder.SetStyle(&FAppStyle::Get(), "PaletteToolBar");
 
-		InModeToolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
+		ModeToolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
 		TSharedRef<SWidget> PaletteWidget = ModeToolbarBuilder.MakeWidget();
 
 		const bool bRebuildChildren = false;
 		PaletteTabBox->AddSlot(Palette, false)
-		.Text(InModeToolkit->GetToolPaletteDisplayName(Palette));
+		.Text(ModeToolkit->GetToolPaletteDisplayName(Palette));
 
 		PaletteSwitcher->AddSlot()
 		[

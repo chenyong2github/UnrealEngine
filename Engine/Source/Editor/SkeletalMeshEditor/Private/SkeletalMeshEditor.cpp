@@ -266,12 +266,6 @@ void FSkeletalMeshEditor::InitSkeletalMeshEditor(const EToolkitMode::Type Mode, 
 	const bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, SkeletalMeshEditorAppIdentifier, FTabManager::FLayout::NullLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, InSkeletalMesh);
 
-	if (TabManager)
-	{
-		TabManager->SetEnforceMainTab(false);
-		TabManager->SetMainTab(FTabId());
-	}
-
 	BindCommands();
 
 	AddApplicationMode(
@@ -373,15 +367,6 @@ void FSkeletalMeshEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChanged
 		// FIXME: We should get the hosted toolkit from here.
 		if (GetEditorModeManager().GetActiveScriptableMode(ModeChangedID)->UsesToolkits())
 		{
-			// for (const FTabId& TabId: DefaultTabs)
-			// {
-			// 	if (const TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(TabId))
-			// 	{
-			// 		TabToRestore.Emplace(TabId, Tab->IsForeground());
-			// 		Tab->RequestCloseTab();
-			// 	}
-			// }
-
 			TabManager->TryInvokeTab(SkeletalMeshEditorTabs::ToolboxDetailsTab);
 		}
 	}
@@ -392,12 +377,6 @@ void FSkeletalMeshEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChanged
 		{
 			ToolboxTab->RequestCloseTab();
 		}
-
-		// for (const TPair<FTabId, bool>& Tab: TabToRestore)
-		// {
-		// 	TabManager->TryInvokeTab(Tab.Get<0>());
-		// }
-		TabToRestore.Empty();
 	}
 }
 
