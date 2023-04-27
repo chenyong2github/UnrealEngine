@@ -2,6 +2,11 @@
 
 #pragma once
 
+#include "Async/TaskGraphInterfaces.h"
+#include "D3D12RHICommon.h"
+#include "D3D12Queue.h"
+#include "Templates/RefCounting.h"
+
 enum class ED3D12SyncPointType
 {
 	// Sync points of this type do not include an FGraphEvent, so cannot

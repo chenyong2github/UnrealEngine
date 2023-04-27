@@ -8,6 +8,9 @@ namespace UnrealBuildTool.Rules
 
 		public D3D12RHI_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PrecompileForTargets = PrecompileTargetsType.None;
+
+			PrivateDefinitions.Add("D3D12RHI_USE_D3DDISASSEMBLE=0");
 		}
 	}
 }

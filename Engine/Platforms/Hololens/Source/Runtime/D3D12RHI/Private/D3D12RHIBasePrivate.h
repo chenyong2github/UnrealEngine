@@ -8,14 +8,6 @@
 
 #include "D3D12ThirdParty.h"
 
-// Standard Hololens implementation, used to mark the type as 'final'.
-struct FD3D12Payload final : public FD3D12PayloadBase
-{
-	FD3D12Payload(FD3D12Device* const Device, ED3D12QueueType const QueueType)
-		: FD3D12PayloadBase(Device, QueueType)
-	{}
-};
-
 // Hololens uses the graphics command list interface for the copy queue.
 typedef ID3D12GraphicsCommandList ID3D12CopyCommandList;
 

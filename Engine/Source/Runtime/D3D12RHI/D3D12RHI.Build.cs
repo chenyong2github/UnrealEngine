@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 
+[SupportedPlatformGroups("Microsoft")]
 public class D3D12RHI : ModuleRules
 {
 	protected virtual bool bUsesWindowsD3D12 { get => Target.Platform.IsInGroup(UnrealPlatformGroup.Windows); }
@@ -24,11 +25,6 @@ public class D3D12RHI : ModuleRules
 
 		PublicIncludePathModuleNames.Add("HeadMountedDisplay");
 
-		if (!Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
-        {
-            PrecompileForTargets = PrecompileTargetsType.None;
-        }
-
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
@@ -47,11 +43,6 @@ public class D3D12RHI : ModuleRules
 				PublicDefinitions.Add("PROFILE");
 				PublicDependencyModuleNames.Add("WinPixEventRuntime");
 			}
-		}
-
-		if (!Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
-		{
-			PrivateDefinitions.Add("D3D12RHI_USE_D3DDISASSEMBLE=0");
 		}
 	}
 }
