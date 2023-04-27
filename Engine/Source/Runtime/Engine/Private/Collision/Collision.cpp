@@ -55,6 +55,7 @@ FCollisionQueryParams::FCollisionQueryParams(FName InTraceTag, const TStatId& In
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 		bDebugQuery = false;
 #endif
+	bTraceIntoSubComponents = true;
 }
 
 
