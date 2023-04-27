@@ -1136,6 +1136,16 @@ public:
 		PBDRigidParticles->ControlFlags(ParticleIdx).SetGravityGroupIndex(GravityGroupIndex);
 	}
 
+	inline bool UpdateKinematicFromSimulation() const
+	{
+		return ControlFlags().GetUpdateKinematicFromSimulation();
+	}
+
+	inline void SetUpdateKinematicFromSimulation(bool bUpdateKinematicFromSimulation)
+	{
+		PBDRigidParticles->ControlFlags(ParticleIdx).SetUpdateKinematicFromSimulation(bUpdateKinematicFromSimulation);
+	}
+
 	inline bool CCDEnabled() const
 	{
 		return ControlFlags().GetCCDEnabled();
@@ -2902,6 +2912,12 @@ public:
 		MMiscData.Modify(true, MDirtyFlags, Proxy, [bInEnabled](auto& Data) { Data.SetGravityEnabled(bInEnabled); });
 	}
 	
+	bool UpdateKinematicFromSimulation() const { return MMiscData.Read().UpdateKinematicFromSimulation(); }
+	void SetUpdateKinematicFromSimulation(const bool bUpdateKinematicFromSimulation)
+	{
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [bUpdateKinematicFromSimulation](auto& Data) { Data.SetUpdateKinematicFromSimulation(bUpdateKinematicFromSimulation); });
+	}
+
 	bool OneWayInteraction() const { return MMiscData.Read().OneWayInteraction(); }
 	void SetOneWayInteraction(const bool bInEnabled)
 	{

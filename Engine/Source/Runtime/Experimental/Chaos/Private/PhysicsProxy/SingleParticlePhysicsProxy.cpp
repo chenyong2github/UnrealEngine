@@ -20,10 +20,17 @@
 namespace Chaos
 {
 
-// This is a temporary workaround to avoid GT copying position from physics results for kinematics, as they are already at target.
-// Velocity and such is still copied. This will be handled better in the future.
-int32 SyncKinematicOnGameThread = 0;
-FAutoConsoleVariableRef CVar_SyncKinematicOnGameThread(TEXT("P.Chaos.SyncKinematicOnGameThread"), SyncKinematicOnGameThread, TEXT("If set to 1, if a kinematic is flagged to send position back to game thread, move component, if 0, do not."));
+// This allows forcing the game thread/actor to get or not get transform updates from the simulation result for
+// kinematics - noting that they may already have been set in the SetKinematicTransform function.
+// Velocity and such will still be copied in any case. The default value of -1 uses the UpdateKinematicFromSimulation 
+// flag on the BodyInstance.
+CHAOS_API int32 SyncKinematicOnGameThread = -1;
+FAutoConsoleVariableRef CVar_SyncKinematicOnGameThread(TEXT("P.Chaos.SyncKinematicOnGameThread"), 
+	SyncKinematicOnGameThread, TEXT(
+		"If set to 1, kinematic bodies will always send their transforms back to the game thread, following the "
+		"simulation step/results. If 0, then they will never do so, and kinematics will be updated immediately "
+		"their kinematic target is set. Any other value (e.g. the default -1) means that the behavior is "
+		"determined on a per-object basis with the UpdateKinematicFromSimulation flag in BodyInstance."));
 
 FSingleParticlePhysicsProxy::FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner)
 	: IPhysicsProxyBase(EPhysicsProxyType::SingleParticleProxy, InOwner, MakeShared<FSingleParticleProxyTimestamp>())
@@ -263,7 +270,22 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 	auto Rigid = Particle ? Particle->CastToRigidParticle() : nullptr;
 	if(Rigid)
 	{
-		const bool bSyncXR = SyncKinematicOnGameThread || (Rigid->ObjectState() != EObjectStateType::Kinematic);
+		// Note that kinematics should either be updated here (following simulation), or when the
+		// kinematic target is set in FChaosEngineInterface::SetKinematicTarget_AssumesLocked If the
+		// logic in one place is changed, it should be checked in the other place too.
+		bool bUpdatePositionFromSimulation = true;
+		if (Rigid->ObjectState() == EObjectStateType::Kinematic)
+		{
+			switch (SyncKinematicOnGameThread)
+			{
+			case 0:
+				bUpdatePositionFromSimulation = false ; break;
+			case 1: 
+				bUpdatePositionFromSimulation = true; break;
+			default:
+				bUpdatePositionFromSimulation = Rigid->UpdateKinematicFromSimulation();
+			}
+		}
 
 		const FSingleParticleProxyTimestamp* ProxyTimestamp = PullData.GetTimestamp();
 		
@@ -279,7 +301,7 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 				return OverwriteProperty.Timestamp <= SolverSyncTimestamp ? (OverwriteProperty.Timestamp < SolverSyncTimestamp ? &Prev : &OverwriteProperty.Value) : nullptr;
 			};
 
-			if (bSyncXR)
+			if (bUpdatePositionFromSimulation)
 			{
 				const float UseResimInterpStrength = InterpolationData.GetInterpChannel_External() == 0 ? ResimInterpStrength : ResimInterpStrength2;
 
@@ -345,7 +367,7 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 		}
 		else
 		{
-			if (bSyncXR)
+			if (bUpdatePositionFromSimulation)
 			{
 				//no interpolation, just ignore if overwrite comes after
 				if (SolverSyncTimestamp >= ProxyTimestamp->OverWriteX.Timestamp)

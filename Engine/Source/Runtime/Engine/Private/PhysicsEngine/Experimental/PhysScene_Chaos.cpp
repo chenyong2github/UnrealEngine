@@ -1806,7 +1806,8 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 			{
 				if (BodyInstance->OwnerComponent.IsValid())
 				{
-					if (Chaos::SyncKinematicOnGameThread == 0 && BodyInstance->IsInstanceSimulatingPhysics() == false)
+					// Skip kinematics, unless they've been flagged to update following simulation
+					if (!BodyInstance->bUpdateKinematicFromSimulation && BodyInstance->IsInstanceSimulatingPhysics() == false)
 					{
 						return;
 					}

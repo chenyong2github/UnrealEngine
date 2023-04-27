@@ -429,6 +429,9 @@ public:
 	bool GravityEnabled() const { return MControlFlags.GetGravityEnabled(); }
 	void SetGravityEnabled(bool bInGravity){ MControlFlags.SetGravityEnabled(bInGravity); }
 
+	bool UpdateKinematicFromSimulation() const { return MControlFlags.GetUpdateKinematicFromSimulation(); }
+	void SetUpdateKinematicFromSimulation(bool bUpdateKinematicFromSimulation) { MControlFlags.SetUpdateKinematicFromSimulation(bUpdateKinematicFromSimulation); }
+
 	bool CCDEnabled() const { return MControlFlags.GetCCDEnabled(); }
 	void SetCCDEnabled(bool bInCCDEnabled) { MControlFlags.SetCCDEnabled(bInCCDEnabled); }
 

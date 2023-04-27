@@ -411,6 +411,7 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngineImp()
 							FActorCreationParams Params;
 							Params.bSimulatePhysics = false;
 							Params.bQueryOnly = false;
+							Params.bUpdateKinematicFromSimulation = false;
 							Params.Scene = Scene;
 							Params.bStatic = false;
 							Params.InitialTM = TargetTM;

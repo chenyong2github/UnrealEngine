@@ -906,8 +906,12 @@ public:
 	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
 	 *        animation and that coming from simulation.
 	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the
-	 *                              skeletal animation, rather than world space. Only relevant if the
-	 *                              body is part of a skeletal mesh.
+	 *        skeletal animation, rather than world space. Only relevant if the body is part of 
+	 *        a skeletal mesh.
+	 * @param bUpdateKinematicFromSimulation Whether the body should be updated from the simulation when
+	 *        it is kinematic, or whether it should track the kinematic target directly. This will be most
+	 *        likely useful when using async physics, in order to make kinematic parts behave the same as 
+	 *        dynamic ones.
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	FName CreateBodyModifier(
@@ -918,7 +922,8 @@ public:
 		const ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics,
 		const float                   GravityMultiplier = 1.0f,
 		const float                   PhysicsBlendWeight = 1.0f,
-		const bool                    bUseSkeletalAnimation = true);
+		const bool                    bUseSkeletalAnimation = true,
+		const bool                    bUpdateKinematicFromSimulation = true);
 
 	/**
 	 * Creates a new body modifier for mesh components
@@ -934,8 +939,12 @@ public:
 	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
 	 *        animation and that coming from simulation.
 	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the
-	 *                              skeletal animation, rather than world space. Only relevant if the
-	 *                              body is part of a skeletal mesh.
+	 *        skeletal animation, rather than world space. Only relevant if the body is part of 
+	 *        a skeletal mesh.
+	 * @param bUpdateKinematicFromSimulation Whether the body should be updated from the simulation when
+	 *        it is kinematic, or whether it should track the kinematic target directly. This will be most
+	 *        likely useful when using async physics, in order to make kinematic parts behave the same as
+	 *        dynamic ones.
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	bool CreateNamedBodyModifier(
@@ -947,7 +956,8 @@ public:
 		const ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics,
 		const float                   GravityMultiplier = 1.0f,
 		const float                   PhysicsBlendWeight = 1.0f,
-		const bool                    bUseSkeletalAnimation = true);
+		const bool                    bUseSkeletalAnimation = true,
+		const bool                    bUpdateKinematicFromSimulation = true);
 
 	/**
 	 * Creates new body modifiers for skeletal mesh components
@@ -963,8 +973,12 @@ public:
 	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
 	 *        animation and that coming from simulation.
 	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the
-	 *                              skeletal animation, rather than world space. Only relevant if the
-	 *                              body is part of a skeletal mesh.
+	 *        skeletal animation, rather than world space. Only relevant if the body is part of
+	 *        a skeletal mesh.
+	 * @param bUpdateKinematicFromSimulation Whether the body should be updated from the simulation when
+	 *        it is kinematic, or whether it should track the kinematic target directly. This will be most
+	 *        likely useful when using async physics, in order to make kinematic parts behave the same as
+	 *        dynamic ones.
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
 	TArray<FName> CreateBodyModifiersFromSkeletalMeshBelow(
@@ -976,7 +990,8 @@ public:
 		const ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics,
 		const float                   GravityMultiplier = 1.0f,
 		const float                   PhysicsBlendWeight = 1.0f,
-		const bool                    bUseSkeletalAnimation = true);
+		const bool                    bUseSkeletalAnimation = true,
+		const bool                    bUpdateKinematicFromSimulation = true);
 
 
 	/**
@@ -991,9 +1006,13 @@ public:
 	 * @param PhysicsBlendWeight The blend weight between the body transform coming from
 	 *        animation and that coming from simulation.
 	 * @param bUseSkeletalAnimation Whether the kinematic target is specified in the frame of the
-	 *                              skeletal animation, rather than world space. Only relevant if the
-	 *                              body is part of a skeletal mesh.
-	 * 
+	 *        skeletal animation, rather than world space. Only relevant if the body is part of
+	 *        a skeletal mesh.
+	 * @param bUpdateKinematicFromSimulation Whether the body should be updated from the simulation when
+	 *        it is kinematic, or whether it should track the kinematic target directly. This will be most
+	 *        likely useful when using async physics, in order to make kinematic parts behave the same as
+	 *        dynamic ones.
+	 *
 	 * @return A map containing the modifiers for each limb
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
@@ -1004,7 +1023,8 @@ public:
 		const ECollisionEnabled::Type                CollisionType = ECollisionEnabled::QueryAndPhysics,
 		const float                                  GravityMultiplier = 1.0f,
 		const float                                  PhysicsBlendWeight = 1.0f,
-		const bool                                   bUseSkeletalAnimation = true);
+		const bool                                   bUseSkeletalAnimation = true,
+		const bool                                   bUpdateKinematicFromSimulation = true);
 
 	/**
 	 * Destroys a BodyModifier
@@ -1238,6 +1258,51 @@ public:
 	void SetBodyModifiersInSetUseSkeletalAnimation(
 		const FName Set,
 		const bool  bUseSkeletalAnimation);
+
+	/**
+	 * Sets whether a body modifier should update kinematics from the simulation results
+	 *
+	 * @param Name The name of the body modifier to access. 
+	 * @param bUpdateKinematicFromSimulation Whether the body should be updated from the simulation when
+	 *        it is kinematic, or whether it should track the kinematic target directly. This will be most
+	 *        likely useful when using async physics, in order to make kinematic parts behave the same as
+	 *        dynamic ones.
+	 * @return true if the body modifier was found, false if not
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	bool SetBodyModifierUpdateKinematicFromSimulation(
+		const FName Name,
+		const bool  bUpdateKinematicFromSimulation);
+
+	/**
+	 * Sets whether body modifiers should update kinematics from the simulation results
+	 *
+	 * @param Names The names of the body modifiers to access. Note that if you have these in a FPhysicsControlNameArray
+	 *        then it can be split.
+	 * @param bUpdateKinematicFromSimulation Whether the body should be updated from the simulation when
+	 *        it is kinematic, or whether it should track the kinematic target directly. This will be most
+	 *        likely useful when using async physics, in order to make kinematic parts behave the same as
+	 *        dynamic ones.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetBodyModifiersUpdateKinematicFromSimulation(
+		const TArray<FName>& Names,
+		const bool           bUpdateKinematicFromSimulation);
+
+	/**
+	 * Sets whether body modifiers should update kinematics from the simulation results
+	 *
+	 * @param Set The set of body modifiers to modify. Standard sets will include "All" and things like
+	 *        "ArmLeft", depending on how body modifiers have been created.
+	 * @param bUpdateKinematicFromSimulation Whether the body should be updated from the simulation when
+	 *        it is kinematic, or whether it should track the kinematic target directly. This will be most
+	 *        likely useful when using async physics, in order to make kinematic parts behave the same as
+	 *        dynamic ones.
+	 */
+	UFUNCTION(BlueprintCallable, Category = PhysicsControl)
+	void SetBodyModifiersInSetUpdateKinematicFromSimulation(
+		const FName Set,
+		const bool  bUpdateKinematicFromSimulation);
 
 	/**
 	 * Creates a collections of controls and body modifiers for a character, based on the description passed in. 

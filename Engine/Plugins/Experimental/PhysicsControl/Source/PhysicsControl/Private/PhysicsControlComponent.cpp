@@ -166,6 +166,8 @@ void UPhysicsControlComponent::UpdateControls(float DeltaTime)
 		// expectation that zero blend weight means to disable physics.
 		BodyInstance->PhysicsBlendWeight = BodyModifier.PhysicsBlendWeight;
 
+		BodyInstance->SetUpdateKinematicFromSimulation(BodyModifier.bUpdateKinematicFromSimulation);
+
 		if (BodyModifier.bResetToCachedTarget)
 		{
 			BodyModifier.bResetToCachedTarget = false;
@@ -1470,12 +1472,13 @@ FName UPhysicsControlComponent::CreateBodyModifier(
 	const ECollisionEnabled::Type CollisionType,
 	const float                   GravityMultiplier,
 	const float                   PhysicsBlendWeight,
-	const bool                    bUseSkeletalAnimation)
+	const bool                    bUseSkeletalAnimation,
+	const bool                    bUpdateKinematicFromSimulation)
 {
 	const FName Name = Implementation->GetUniqueBodyModifierName(BoneName);
 	if (CreateNamedBodyModifier(
 		Name, MeshComponent, BoneName, Set, MovementType, CollisionType, 
-		GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation))
+		GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation, bUpdateKinematicFromSimulation))
 	{
 		return Name;
 	}
@@ -1492,7 +1495,8 @@ bool UPhysicsControlComponent::CreateNamedBodyModifier(
 	const ECollisionEnabled::Type CollisionType,
 	const float                   GravityMultiplier,
 	const float                   PhysicsBlendWeight,
-	const bool                    bUseSkeletalAnimation)
+	const bool                    bUseSkeletalAnimation,
+	const bool                    bUpdateKinematicFromSimulation)
 {
 	if (Implementation->FindBodyModifier(Name))
 	{
@@ -1509,7 +1513,7 @@ bool UPhysicsControlComponent::CreateNamedBodyModifier(
 	FPhysicsBodyModifier& Modifier = Implementation->PhysicsBodyModifiers.Add(
 		Name, FPhysicsBodyModifier(
 			MeshComponent, BoneName, MovementType, CollisionType, 
-			GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation));
+			GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation, bUpdateKinematicFromSimulation));
 
 	USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent);
 	if (SkeletalMeshComponent)
@@ -1533,7 +1537,8 @@ TArray<FName> UPhysicsControlComponent::CreateBodyModifiersFromSkeletalMeshBelow
 	const ECollisionEnabled::Type CollisionType,
 	const float                   GravityMultiplier,
 	const float                   PhysicsBlendWeight,
-	const bool                    bUseSkeletalAnimation)
+	const bool                    bUseSkeletalAnimation,
+	const bool                    bUpdateKinematicFromSimulation)
 {
 	TArray<FName> Result;
 	UPhysicsAsset* PhysicsAsset = SkeletalMeshComponent ? SkeletalMeshComponent->GetPhysicsAsset() : nullptr;
@@ -1546,15 +1551,15 @@ TArray<FName> UPhysicsControlComponent::CreateBodyModifiersFromSkeletalMeshBelow
 		BoneName, bIncludeSelf, /*bSkipCustomType=*/false,
 		[
 			this, PhysicsAsset, SkeletalMeshComponent, Set, MovementType, CollisionType,
-			GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation, &Result
+			GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation, bUpdateKinematicFromSimulation, &Result
 		](const FBodyInstance* BI)
 		{
 			if (USkeletalBodySetup* BodySetup = Cast<USkeletalBodySetup>(BI->BodySetup.Get()))
 			{
 				const FName BoneName = PhysicsAsset->SkeletalBodySetups[BI->InstanceBodyIndex]->BoneName;
 				const FName BodyModifierName = CreateBodyModifier(
-					SkeletalMeshComponent, BoneName, Set, MovementType, 
-					CollisionType, GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation);
+					SkeletalMeshComponent, BoneName, Set, MovementType, CollisionType, 
+					GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation, bUpdateKinematicFromSimulation);
 				Result.Add(BodyModifierName);
 			}
 		});
@@ -1570,7 +1575,8 @@ TMap<FName, FPhysicsControlNames> UPhysicsControlComponent::CreateBodyModifiersF
 	const ECollisionEnabled::Type                CollisionType,
 	const float                                  GravityMultiplier,
 	const float                                  PhysicsBlendWeight,
-	const bool                                   bUseSkeletalAnimation)
+	const bool                                   bUseSkeletalAnimation,
+	const bool                                   bUpdateKinematicFromSimulation)
 {
 	TMap<FName, FPhysicsControlNames> Result;
 	Result.Reserve(LimbBones.Num());
@@ -1595,8 +1601,8 @@ TMap<FName, FPhysicsControlNames> UPhysicsControlComponent::CreateBodyModifiersF
 		for (const FName BoneName : BonesInLimb.BoneNames)
 		{
 			const FName BodyModifierName = CreateBodyModifier(
-				BonesInLimb.SkeletalMeshComponent, BoneName, LimbName, MovementType, 
-				CollisionType, GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation);
+				BonesInLimb.SkeletalMeshComponent, BoneName, LimbName, MovementType, CollisionType, 
+				GravityMultiplier, PhysicsBlendWeight, bUseSkeletalAnimation, bUpdateKinematicFromSimulation);
 			if (!BodyModifierName.IsNone())
 			{
 				LimbResult.Names.Add(BodyModifierName);
@@ -1818,6 +1824,39 @@ void UPhysicsControlComponent::SetBodyModifiersInSetUseSkeletalAnimation(
 	const bool  bUseSkeletalAnimation)
 {
 	SetBodyModifiersUseSkeletalAnimation(GetBodyModifierNamesInSet(SetName), bUseSkeletalAnimation);
+}
+
+//======================================================================================================================
+bool UPhysicsControlComponent::SetBodyModifierUpdateKinematicFromSimulation(
+	const FName Name,
+	const bool  bUpdateKinematicFromSimulation)
+{
+	FPhysicsBodyModifier* PhysicsBodyModifier = Implementation->FindBodyModifier(Name);
+	if (PhysicsBodyModifier)
+	{
+		PhysicsBodyModifier->bUpdateKinematicFromSimulation = bUpdateKinematicFromSimulation;
+		return true;
+	}
+	return false;
+}
+
+//======================================================================================================================
+void UPhysicsControlComponent::SetBodyModifiersUpdateKinematicFromSimulation(
+	const TArray<FName>& Names,
+	const bool           bUpdateKinematicFromSimulation)
+{
+	for (FName Name : Names)
+	{
+		SetBodyModifierUpdateKinematicFromSimulation(Name, bUpdateKinematicFromSimulation);
+	}
+}
+
+//======================================================================================================================
+void UPhysicsControlComponent::SetBodyModifiersInSetUpdateKinematicFromSimulation(
+	const FName SetName,
+	const bool  bUpdateKinematicFromSimulation)
+{
+	SetBodyModifiersUpdateKinematicFromSimulation(GetBodyModifierNamesInSet(SetName), bUpdateKinematicFromSimulation);
 }
 
 //======================================================================================================================

@@ -39,6 +39,10 @@ struct PHYSICSCORE_API FBodyInstanceCore
 	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category = Physics)
 	uint8 bEnableGravity : 1;
 
+	/** When kinematic, whether the actor transform should be updated as a result of movement in the simulation, rather than immediately whenever a target transform is set. */
+	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category = Physics)
+	uint8 bUpdateKinematicFromSimulation : 1;
+
 	/** If true and is attached to a parent, the two bodies will be joined into a single rigid body. Physical settings like collision profile and body settings are determined by the root */
 	UPROPERTY(EditAnywhere,AdvancedDisplay,BlueprintReadWrite,Category = Physics,meta = (editcondition = "!bSimulatePhysics"))
 	uint8 bAutoWeld : 1;

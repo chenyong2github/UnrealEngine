@@ -1184,6 +1184,7 @@ void FInitBodiesHelperBase::CreateActor_AssumesLocked(FBodyInstance* Instance, c
 	ActorParams.DebugName = Instance->CharDebugName.IsValid() ? Instance->CharDebugName->GetData() : nullptr;
 #endif
 	ActorParams.bEnableGravity = Instance->bEnableGravity;
+	ActorParams.bUpdateKinematicFromSimulation = Instance->bUpdateKinematicFromSimulation;
 	ActorParams.bQueryOnly = CollisionType == ECollisionEnabled::QueryOnly;
 	ActorParams.Scene = PhysScene;
 
@@ -3442,6 +3443,25 @@ void FBodyInstance::SetEnableGravity(bool bInGravityEnabled)
 		}
 	}
 }
+
+void FBodyInstance::SetUpdateKinematicFromSimulation(bool bInUpdateKinematicFromSimulation)
+{
+	if (bUpdateKinematicFromSimulation != bInUpdateKinematicFromSimulation)
+	{
+		bUpdateKinematicFromSimulation = bInUpdateKinematicFromSimulation;
+
+		{
+			FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+				{
+					if (FPhysicsInterface::IsRigidBody(Actor))
+					{
+						FPhysicsInterface::SetUpdateKinematicFromSimulation_AssumesLocked(Actor, bUpdateKinematicFromSimulation);
+					}
+				});
+		}
+	}
+}
+
 
 void FBodyInstance::SetContactModification(bool bNewContactModification)
 {

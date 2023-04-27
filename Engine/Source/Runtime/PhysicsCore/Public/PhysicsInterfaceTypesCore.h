@@ -18,6 +18,7 @@ struct FActorCreationParams
 		, bStatic(false)
 		, bQueryOnly(false)
 		, bEnableGravity(false)
+		, bUpdateKinematicFromSimulation(false)
 		, bSimulatePhysics(false)
 		, bStartAwake(true)
 		, DebugName(nullptr)
@@ -27,6 +28,7 @@ struct FActorCreationParams
 	bool bStatic;
 	bool bQueryOnly;
 	bool bEnableGravity;
+	bool bUpdateKinematicFromSimulation;
 	bool bSimulatePhysics;
 	bool bStartAwake;
 	char* DebugName;

@@ -63,7 +63,8 @@ struct FPhysicsBodyModifier
 		ECollisionEnabled::Type    InCollisionType,
 		float                      InGravityMultiplier,
 		float                      InPhysicsBlendWeight,
-		bool                       InUseSkeletalAnimation)
+		bool                       InUseSkeletalAnimation,
+		bool                       InUpdateKinematicFromSimulation)
 		: MeshComponent(InMeshComponent)
 		, BoneName(InBoneName)
 		, MovementType(InMovementType)
@@ -73,6 +74,7 @@ struct FPhysicsBodyModifier
 		, KinematicTargetPosition(FVector::ZeroVector)
 		, KinematicTargetOrientation(FQuat::Identity)
 		, bUseSkeletalAnimation(InUseSkeletalAnimation)
+		, bUpdateKinematicFromSimulation(InUpdateKinematicFromSimulation)
 		, bResetToCachedTarget(false)
 	{}
 
@@ -113,6 +115,13 @@ struct FPhysicsBodyModifier
 
 	/** If true then the target will be applied on top of the skeletal animation (if there is any) */
 	uint8 bUseSkeletalAnimation:1;
+
+	/** 
+	 * If true then the associated actor's transform will be updated from the simulation when it is 
+	 * kinematic. This is most likely useful when using async physics in order to prevent different 
+	 * parts of the skeleton from being torn apart. 
+	 */
+	uint8 bUpdateKinematicFromSimulation:1;
 
 	/** 
 	 * If true then the body will be set to the transform/velocity stored in any cached target (if that

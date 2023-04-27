@@ -846,6 +846,8 @@ public:
 	void SetInstanceNotifyRBCollision(bool bNewNotifyCollision);
 	/** Enables/disables whether this body is affected by gravity. */
 	void SetEnableGravity(bool bGravityEnabled);
+	/** Enables/disables whether this body, when kinematic, is updated from the simulation rather than when setting the kinematic target. */
+	void SetUpdateKinematicFromSimulation(bool bUpdateKinematicFromSimulation);
 	/** Enables/disables contact modification */
 	void SetContactModification(bool bNewContactModification);
 	/** Enables/disabled smoothed edge collisions */

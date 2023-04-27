@@ -22,7 +22,6 @@
 
 namespace Chaos
 {
-extern CHAOS_API int32 SyncKinematicOnGameThread;
 
 class FPBDRigidsEvolutionGBF;
 
@@ -372,6 +371,30 @@ public:
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
 				return Rigid->SetGravityEnabled(InGravityEnabled);
+			}
+		});
+	}
+
+	bool UpdateKinematicFromSimulation() const
+	{
+		return Read([](auto* Particle)
+		{
+			if (auto Rigid = Particle->CastToRigidParticle())
+			{
+				return Rigid->UpdateKinematicFromSimulation();
+			}
+
+			return false;
+		});
+	}
+
+	void SetUpdateKinematicFromSimulation(const bool InUpdateKinematicFromSimulation)
+	{
+		Write([InUpdateKinematicFromSimulation](auto* Particle)
+		{
+			if (auto Rigid = Particle->CastToRigidParticle())
+			{
+				return Rigid->SetUpdateKinematicFromSimulation(InUpdateKinematicFromSimulation);
 			}
 		});
 	}

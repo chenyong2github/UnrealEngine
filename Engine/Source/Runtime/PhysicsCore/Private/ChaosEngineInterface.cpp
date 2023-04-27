@@ -33,6 +33,7 @@ namespace Chaos
 {
 	extern CHAOS_API int32 AccelerationStructureSplitStaticAndDynamic;
 	extern CHAOS_API int32 AccelerationStructureIsolateQueryOnlyObjects;
+	extern CHAOS_API int32 SyncKinematicOnGameThread;
 }
 
 bool bEnableChaosJointConstraints = true;
@@ -1120,6 +1121,15 @@ void FChaosEngineInterface::SetGravityEnabled_AssumesLocked(const FPhysicsActorH
 	InActorReference->GetGameThreadAPI().SetGravityEnabled(bEnabled);
 }
 
+bool FChaosEngineInterface::GetUpdateKinematicFromSimulation_AssumesLocked(const FPhysicsActorHandle& InActorReference)
+{
+	return InActorReference->GetGameThreadAPI().UpdateKinematicFromSimulation();
+}
+void FChaosEngineInterface::SetUpdateKinematicFromSimulation_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bUpdateKinematicFromSimulation)
+{
+	InActorReference->GetGameThreadAPI().SetUpdateKinematicFromSimulation(bUpdateKinematicFromSimulation);
+}
+
 void FChaosEngineInterface::SetOneWayInteraction_AssumesLocked(const FPhysicsActorHandle& InHandle, bool InOneWayInteraction)
 {
 	InHandle->GetGameThreadAPI().SetOneWayInteraction(InOneWayInteraction);
@@ -2002,6 +2012,7 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 		// Create an underlying dynamic particle
 		TUniquePtr<FPBDRigidParticle> Rigid = FPBDRigidParticle::CreateParticle();
 		Rigid->SetGravityEnabled(InParams.bEnableGravity);
+		Rigid->SetUpdateKinematicFromSimulation(InParams.bUpdateKinematicFromSimulation);
 		if(InParams.bSimulatePhysics)
 		{
 			if(InParams.bStartAwake)
@@ -2148,11 +2159,31 @@ void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActor
 	const Chaos::FKinematicTarget NewKinematicTarget = Chaos::FKinematicTarget::MakePositionTarget(InNewTarget);
 	InActorReference->GetGameThreadAPI().SetKinematicTarget(NewKinematicTarget);
 
-	// IMPORTANT : we do not invalidate X and R as they will be properly computed using the kinematic target information 
-	InActorReference->GetGameThreadAPI().SetX(InNewTarget.GetLocation(), false); 
-	InActorReference->GetGameThreadAPI().SetR(InNewTarget.GetRotation(), false); 
-	InActorReference->GetGameThreadAPI().UpdateShapeBounds();
+	// Match the logic in FSingleParticlePhysicsProxy::PullFromPhysicsState - to see if that will be
+	// updating the position. If not, then we need to do it here. Note t
+	bool bUpdatePositionFromSimulation = false;
+	Chaos::FPBDRigidParticle* Rigid = InActorReference->GetRigidParticleUnsafe();
+	if (Rigid && Rigid->ObjectState() == Chaos::EObjectStateType::Kinematic)
+	{
+		switch (Chaos::SyncKinematicOnGameThread)
+		{
+		case 0:
+			bUpdatePositionFromSimulation = false; break;
+		case 1:
+			bUpdatePositionFromSimulation = true; break;
+		default:
+			bUpdatePositionFromSimulation = Rigid->UpdateKinematicFromSimulation();
+		}
+	}
 
-	FChaosScene* Scene = GetCurrentScene(InActorReference);
-	Scene->UpdateActorInAccelerationStructure(InActorReference);
+	if (!bUpdatePositionFromSimulation)
+	{
+		// IMPORTANT : we do not invalidate X and R as they will be properly computed using the kinematic target information 
+		InActorReference->GetGameThreadAPI().SetX(InNewTarget.GetLocation(), false); 
+		InActorReference->GetGameThreadAPI().SetR(InNewTarget.GetRotation(), false); 
+		InActorReference->GetGameThreadAPI().UpdateShapeBounds();
+
+		FChaosScene* Scene = GetCurrentScene(InActorReference);
+		Scene->UpdateActorInAccelerationStructure(InActorReference);
+	}
 }
