@@ -23,6 +23,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category=NiagaraActor)
 	void SetDestroyOnSystemFinish(bool bShouldDestroyOnSystemFinish);
 
+	/** Returns true if the system will destroy on finish */
+	UFUNCTION(BlueprintCallable, Category=NiagaraActor)
+	bool GetDestroyOnSystemFinish() const { return bDestroyOnSystemFinish; }
+
 private:
 	/** Pointer to System component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=NiagaraActor, meta = (AllowPrivateAccess = "true"))
