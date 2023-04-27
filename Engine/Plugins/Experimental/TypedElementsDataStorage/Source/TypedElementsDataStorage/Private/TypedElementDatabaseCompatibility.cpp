@@ -214,7 +214,7 @@ void UTypedElementDatabaseCompatibility::Tick()
 				// Note: Watch out for the performance of this, may end up doing a lot of row moves
 				for (TypedElementRowHandle Row : RowHandles)
 				{
-					Storage->AddTag(Row, FTypedElementSyncFromWorldTag::StaticStruct());
+					Storage->AddColumn<FTypedElementSyncFromWorldTag>(Row);
 				}
 			}
 		}

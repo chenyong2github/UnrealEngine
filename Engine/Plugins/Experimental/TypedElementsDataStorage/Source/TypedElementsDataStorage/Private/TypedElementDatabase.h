@@ -57,14 +57,24 @@ public:
 	bool BatchAddRow(FName TableName, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated) override;
 	void RemoveRow(TypedElementRowHandle Row) override;
 
-	void AddTag(TypedElementRowHandle Row, const UScriptStruct* TagType) override;
-	void AddTag(TypedElementRowHandle Row, FTopLevelAssetPath TagName) override;
+	bool AddColumn(TypedElementRowHandle Row, const UScriptStruct* ColumnType) override;
+	bool AddColumn(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) override;
+	void RemoveColumn(TypedElementRowHandle Row, const UScriptStruct* ColumnType) override;
+	void RemoveColumn(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) override;
 	void* AddOrGetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType) override;
 	ColumnDataResult AddOrGetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) override;
 	void* GetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType) override;
 	ColumnDataResult AddOrGetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName,
 		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments) override;
+	bool AddColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> Columns) override;
+	void RemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> Columns) override;
+	bool AddRemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnsToAdd,
+		TConstArrayView<const UScriptStruct*> ColumnsToRemove) override;
+	bool BatchAddRemoveColumns(TConstArrayView<TypedElementRowHandle> Rows,TConstArrayView<const UScriptStruct*> ColumnsToAdd,
+		TConstArrayView<const UScriptStruct*> ColumnsToRemove) override;
 	ColumnDataResult GetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) override;
+	bool HasColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) const override;
+	bool HasColumns(TypedElementRowHandle Row, TConstArrayView<TWeakObjectPtr<const UScriptStruct>> ColumnTypes) const override;
 
 	void RegisterTickGroup(FName GroupName, EQueryTickPhase Phase, FName BeforeGroup, FName AfterGroup, bool bRequiresMainThread);
 	void UnregisterTickGroup(FName GroupName, EQueryTickPhase Phase);
@@ -101,6 +111,9 @@ private:
 		bool bRequiresMainThread{ false };
 	};
 	
+	/** Converts a set of column types into Mass specific fragment and tag bit sets. Returns true if any values were added. */
+	static bool ColumnsToBitSets(TConstArrayView<const UScriptStruct*> Columns, FMassFragmentBitSet& Fragments, FMassTagBitSet& Tags);
+
 	void PreparePhase(EQueryTickPhase Phase, float DeltaTime);
 	void FinalizePhase(EQueryTickPhase Phase, float DeltaTime);
 	void PhasePreOrPostAmble(EQueryTickPhase Phase, float DeltaTime, TArray<TypedElementQueryHandle>& Queries);

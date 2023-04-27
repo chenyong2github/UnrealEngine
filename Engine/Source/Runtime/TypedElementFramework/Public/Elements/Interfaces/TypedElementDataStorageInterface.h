@@ -69,6 +69,19 @@ class TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageInterface
 	GENERATED_BODY()
 
 public:
+	/** 
+	 * Convenience structure that can be used to pass a lis of columns to functions that don't
+	 * have an dedicate templated version that takes a column list directly, for instance when
+	 * multiple column lists are used.
+	 */
+	template<typename... Columns>
+	struct TColumnTypeList
+	{
+		const UScriptStruct* ColumnTypes[sizeof...(Columns)] = { Columns::StaticStruct()... };
+
+		operator TConstArrayView<const UScriptStruct*>() { return ColumnTypes; }
+	};
+
 	/**
 	 * @section Table management
 	 * 
@@ -109,7 +122,7 @@ public:
 	virtual bool BatchAddRow(TypedElementTableHandle Table, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated) = 0;
 	virtual bool BatchAddRow(FName TableName, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated) = 0;
 	
-	/** Removes a previously added row. */
+	/** Removes a previously added row. If the row handle is invalid or already removed, nothing happens */
 	virtual void RemoveRow(TypedElementRowHandle Row) = 0;
 
 	
@@ -117,25 +130,59 @@ public:
 	 * @section Column management
 	 */
 
-	/** Adds a tag to a row or does nothing if already added. */
-	virtual void AddTag(TypedElementRowHandle Row, const UScriptStruct* TagType) = 0;
-	virtual void AddTag(TypedElementRowHandle Row, FTopLevelAssetPath TagName) = 0;
-	
-	/** Adds a new column to a row. If the column already exists it will be returned instead. */
+	/** Adds a column to a row or does nothing if already added. */
+	virtual bool AddColumn(TypedElementRowHandle Row, const UScriptStruct* ColumnType) = 0;
+	virtual bool AddColumn(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) = 0;
+	/**
+	 * Adds multiple columns from a row. This is typically more efficient than adding columns one 
+	 * at a time.
+	 */
+	virtual bool AddColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> Columns) = 0;
+
+	/** Removes a column from a row or does nothing if already removed. */
+	virtual void RemoveColumn(TypedElementRowHandle Row, const UScriptStruct* ColumnType) = 0;
+	virtual void RemoveColumn(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) = 0;
+	/**
+	 * Removes multiple columns from a row. This is typically more efficient than adding columns one
+	 * at a time.
+	 */
+	virtual void RemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> Columns) = 0;
+	/** 
+	 * Adds and removes the provided column types from the provided row. This is typically more efficient 
+	 * than individually adding and removing columns as well as being faster than adding and removing
+	 * columns separately.
+	 */
+	virtual bool AddRemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnsToAdd,
+		TConstArrayView<const UScriptStruct*> ColumnsToRemove) = 0;
+
+	/** Adds and removes the provided column types from the provided list of rows. */
+	virtual bool BatchAddRemoveColumns(
+		TConstArrayView<TypedElementRowHandle> Rows,
+		TConstArrayView<const UScriptStruct*> ColumnsToAdd,
+		TConstArrayView<const UScriptStruct*> ColumnsToRemove) = 0;
+
+	/**
+	 * Adds a new column to a row. If the column already exists it will be returned instead. If the colum couldn't
+	 * be added or the column type points to a tag an nullptr will be returned.
+	 */
 	virtual void* AddOrGetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType) = 0;
 	virtual ColumnDataResult AddOrGetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) = 0;
-	
 	/**
 	 * Sets the data of a column using the provided argument bag. This is only meant for simple initialization for 
 	 * fragments that use UPROPERTY to expose properties. For complex initialization or when the fragment type is known
-	 * it's recommende to use call that work directly on the type for better performance and a wider range of configuration options.
+	 * it's recommended to use calls that work directly on the type for better performance and a wider range of configuration options.
+	 * If the column couldn't be created or the column name points to a tag, then the result will contain only nullptrs.
 	 */
 	virtual ColumnDataResult AddOrGetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName,
 		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments) = 0;
 	
-	/** Retrieves a pointer to the column of the given row or a nullptr if not found. */
+	/** Retrieves a pointer to the column of the given row or a nullptr if not found or if the column type is a tag. */
 	virtual void* GetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType) = 0;
 	virtual ColumnDataResult GetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) = 0;
+
+	/** Determines if the provided row contains the collection of columsn and tags. */
+	virtual bool HasColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) const = 0;
+	virtual bool HasColumns(TypedElementRowHandle Row, TConstArrayView<TWeakObjectPtr<const UScriptStruct>> ColumnTypes) const = 0;
 	
 
 	/**
@@ -418,7 +465,13 @@ public:
 		/** If true, this query only has simple operations and is guaranteed to be executed fully and at optimal performance. */
 		bool bSimpleQuery{ false };
 	};
+	/** 
+	 * Registers a query with the data storage. The description is processed into an internal format and may be changed. If no valid
+	 * could be created an invalid query handle will be returned. It's recommended to use the Query Builder for a more convenient
+	 * and safer construction of a query.
+	 */
 	virtual TypedElementQueryHandle RegisterQuery(FQueryDescription&& Query) = 0;
+	/** Removes a previous registered. If the query handle is invalid or the query has already been deleted nothing will happen. */
 	virtual void UnregisterQuery(TypedElementQueryHandle Query) = 0;
 	/** Returns the description of a previously registered query. If the query no longer exists an empty description will be returned. */
 	virtual const FQueryDescription& GetQueryDescription(TypedElementQueryHandle Query) const = 0;
@@ -450,8 +503,14 @@ public:
 		uint32 Count{ 0 }; /** The number of rows were processed. */
 		ECompletion Completed{ ECompletion::Unavailable };
 	};
+	/** Directly runs a query. If the query handle is invalid or has been deleted nothing will happen. */
 	virtual FQueryResult RunQuery(TypedElementQueryHandle Query) = 0;
-	virtual FQueryResult RunQuery(TypedElementQueryHandle Query, DirectQueryCallbackRef Callback) = 0;
+	/**
+	 * Directly runs a query. The callback will be called for batches of matching rows. During a single call to RunQuery the callback
+	 * may be called multiple times. If the query handle is invalid or has been deleted nothing happens and the callback won't be called
+	 */
+	virtual FQueryResult RunQuery(TypedElementQueryHandle Query, 
+		DirectQueryCallbackRef Callback) = 0;
 	
 	/**
 	 * @section Misc
@@ -482,10 +541,28 @@ public:
 	 */
 	
 	
-	/** Adds a tag to a row or does nothing if already added. */
-	template<typename TagType>
-	void AddTag(TypedElementRowHandle Row);
+	/** Adds a column to a row or does nothing if already added. */
+	template<typename Column>
+	bool AddColumn(TypedElementRowHandle Row);
+
+	/** Removes a tag from a row or does nothing if already removed. */
+	template<typename Column>
+	void RemoveColumn(TypedElementRowHandle Row);
 	
+	/**
+	 * Adds multiple columns from a row. This is typically more efficient than adding columns one
+	 * at a time.
+	 */
+	template<typename... Columns>
+	void AddColumns(TypedElementRowHandle Row);
+
+	/**
+	 * Removes multiple columns from a row. This is typically more efficient than adding columns one
+	 * at a time.
+	 */
+	template<typename... Columns>
+	void RemoveColumns(TypedElementRowHandle Row);
+
 	/**
 	 * Returns a pointer to the column of the given row or creates a new one if not found. Optionally arguments can be provided
 	 * to update or initialize the column's data.
@@ -496,6 +573,9 @@ public:
 	/** Returns a pointer to the column of the given row or a nullptr if the type couldn't be found or the row doesn't exist. */
 	template<typename ColumnType>
 	ColumnType* GetColumn(TypedElementRowHandle Row);
+
+	template<typename... ColumnTypes>
+	bool HasColumns(TypedElementRowHandle Row) const;
 
 	/** Returns a pointer to the registered external system if found, otherwise null. */
 	template<typename SystemType>
@@ -508,10 +588,28 @@ public:
 
 ENUM_CLASS_FLAGS(ITypedElementDataStorageInterface::EQueryDependencyFlags);
 
-template<typename TagType>
-void ITypedElementDataStorageInterface::AddTag(TypedElementRowHandle Row)
+template<typename Column>
+bool ITypedElementDataStorageInterface::AddColumn(TypedElementRowHandle Row)
 {
-	AddTag(Row, TagType::StaticStruct());
+	return AddColumn(Row, Column::StaticStruct());
+}
+
+template<typename Column>
+void ITypedElementDataStorageInterface::RemoveColumn(TypedElementRowHandle Row)
+{
+	RemoveColumn(Row, Column::StaticStruct());
+}
+
+template<typename... Columns>
+void ITypedElementDataStorageInterface::AddColumns(TypedElementRowHandle Row)
+{
+	AddColumns(Row, { Columns::StaticStruct()...});
+}
+
+template<typename... Columns>
+void ITypedElementDataStorageInterface::RemoveColumns(TypedElementRowHandle Row)
+{
+	RemoveColumns(Row, { Columns::StaticStruct()...});
 }
 
 template<typename ColumnType, typename... Args>
@@ -528,6 +626,30 @@ ColumnType* ITypedElementDataStorageInterface::AddOrGetColumn(TypedElementRowHan
 	return Result;
 }
 
+template<typename ColumnType>
+ColumnType* ITypedElementDataStorageInterface::GetColumn(TypedElementRowHandle Row)
+{
+	return reinterpret_cast<ColumnType*>(GetColumnData(Row, ColumnType::StaticStruct()));
+}
+
+template<typename... ColumnType>
+bool ITypedElementDataStorageInterface::HasColumns(TypedElementRowHandle Row) const
+{
+	return HasColumns(Row, TConstArrayView<const UScriptStruct*>({ ColumnType::StaticStruct()... }));
+}
+
+template<typename SystemType>
+SystemType* ITypedElementDataStorageInterface::GetExternalSystem()
+{
+	return reinterpret_cast<SystemType*>(GetExternalSystemAddress(SystemType::StaticClass()));
+}
+
+
+
+//
+// ITypedElementDataStorageInterface::IQueryContext
+//
+
 template<typename Column>
 const Column* ITypedElementDataStorageInterface::ICommonQueryContext::GetColumn() const
 {
@@ -539,19 +661,6 @@ Column* ITypedElementDataStorageInterface::ICommonQueryContext::GetMutableColumn
 {
 	return reinterpret_cast<Column*>(GetMutableColumn(Column::StaticStruct()));
 }
-
-template<typename ColumnType>
-ColumnType* ITypedElementDataStorageInterface::GetColumn(TypedElementRowHandle Row)
-{
-	return reinterpret_cast<ColumnType*>(GetColumnData(Row, ColumnType::StaticStruct()));
-}
-
-template<typename SystemType>
-SystemType* ITypedElementDataStorageInterface::GetExternalSystem()
-{
-	return reinterpret_cast<SystemType*>(GetExternalSystemAddress(SystemType::StaticClass()));
-}
-
 
 template<typename... Columns>
 void ITypedElementDataStorageInterface::IQueryContext::AddColumns(TypedElementRowHandle Row)

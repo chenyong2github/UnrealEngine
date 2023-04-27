@@ -37,8 +37,6 @@ void FTypedElementWidgetConstructor::ApplyArguments(TConstArrayView<TypedElement
 void FTypedElementWidgetConstructor::AddColumns(
 	ITypedElementDataStorageInterface* DataStorage, TypedElementRowHandle Row, const TSharedPtr<SWidget>& Widget)
 {
-	DataStorage->AddTag<FTypedElementSlateWidgetReferenceDeletesRowTag>(Row);
-	FTypedElementSlateWidgetReferenceColumn* StorageColumn = DataStorage->AddOrGetColumn<FTypedElementSlateWidgetReferenceColumn>(Row);
-	checkf(StorageColumn, TEXT("Expected Typed Element Data Storage to contain a FTypedElementSlateWidgetReferenceFragment for row %llu."), Row);
-	StorageColumn->Widget = Widget;
+	DataStorage->AddColumns<FTypedElementSlateWidgetReferenceColumn, FTypedElementSlateWidgetReferenceDeletesRowTag>(Row);
+	DataStorage->GetColumn<FTypedElementSlateWidgetReferenceColumn>(Row)->Widget = Widget;
 }

@@ -168,13 +168,14 @@ void FTypedElementCounterWidgetConstructor::AddColumns(
 	ITypedElementDataStorageInterface* DataStorage, TypedElementRowHandle Row, const TSharedPtr<SWidget>& Widget)
 {
 	Super::AddColumns(DataStorage, Row, Widget);
+	DataStorage->AddColumns<FTypedElementCounterWidgetColumn, FTypedElementU32IntValueCacheColumn>(Row);
 
-	FTypedElementCounterWidgetColumn* CounterColumn = DataStorage->AddOrGetColumn<FTypedElementCounterWidgetColumn>(Row);
+	FTypedElementCounterWidgetColumn* CounterColumn = DataStorage->GetColumn<FTypedElementCounterWidgetColumn>(Row);
 	checkf(CounterColumn, TEXT("Added a new FTypedElementCounterWidgetColumn to the Typed Elements Data Storage, but didn't get a valid pointer back."));
 	CounterColumn->LabelTextFormatter = LabelText;
 	CounterColumn->Query = Query;
 
-	FTypedElementU32IntValueCacheColumn* CacheColumn = DataStorage->AddOrGetColumn<FTypedElementU32IntValueCacheColumn>(Row);
+	FTypedElementU32IntValueCacheColumn* CacheColumn = DataStorage->GetColumn<FTypedElementU32IntValueCacheColumn>(Row);
 	checkf(CacheColumn, TEXT("Added a new FTypedElementUnsigned32BitIntValueCache to the Typed Elements Data Storage, but didn't get a valid pointer back."));
 	CacheColumn->Value = 0;
 }
