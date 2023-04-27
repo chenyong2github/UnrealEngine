@@ -73,7 +73,7 @@ float4 ScreenPosToFilmGrainTextureUV;
 	StructuredBuffer<float4> FilmGrainTextureConstants;
 #endif // SUPPORTS_FILM_GRAIN
 
-float GrainQuantization;
+float BackbufferQuantizationDithering;
 float EditorNITLevel;
 
 uint bOutputInHDR;
@@ -525,15 +525,8 @@ float4 TonemapCommonPS(
 	}
 #endif
 
-	#if USE_GRAIN_QUANTIZATION && !USE_GAMMA_ONLY
+	#if !USE_GAMMA_ONLY
 	{
-		#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_NoToneCurve
-			#error LinearNoToneCurve device requires no Grain Quantization
-		#endif
-		#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve
-			#error LinearWithToneCurve device requires no Grain Quantization
-		#endif
-
 		// Compute uniform grain on [0;1]
 		half UniformGrainOP = GrainFromUV(GrainUV.zw); //TODO: verify the quality of GrainFromUV()
 
@@ -567,7 +560,7 @@ float4 TonemapCommonPS(
 			OutColor.rgb = OutColor.ggg;
 		}
 		#else
-			OutColor.rgb += FinalGrain * GrainQuantization;
+			OutColor.rgb += FinalGrain * BackbufferQuantizationDithering;
 		#endif
 	}
 	#endif

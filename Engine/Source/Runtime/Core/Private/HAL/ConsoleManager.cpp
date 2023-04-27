@@ -3300,13 +3300,6 @@ static TAutoConsoleVariable<int32> CVarFreeSkeletalMeshBuffers(
 		 "1: Free buffers"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarTonemapperGrainQuantization(
-	TEXT("r.Tonemapper.GrainQuantization"),
-	1,
-	TEXT("0: low (minor performance benefit)\n"
-		 "1: high (default, with high frequency pixel pattern to fight 8 bit color quantization)"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarDetailMode(
 	TEXT("r.DetailMode"),
 	2,

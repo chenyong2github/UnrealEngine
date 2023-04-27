@@ -63,6 +63,12 @@ TAutoConsoleVariable<int32> CVarFilmGrainCacheTextureConstants(
 	TEXT("Wether the constants related to the film grain should be cached."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarBackbufferQuantizationDitheringOverride(
+	TEXT("r.BackbufferQuantizationDitheringOverride"), 0,
+	TEXT("Override the bitdepth in bits of each channel of the backbuffer targeted by the quantization dithering. ")
+	TEXT("Disabled by default. Instead is automatically found out by FSceneViewFamily::RenderTarget's pixel format of the backbuffer."),
+	ECVF_RenderThreadSafe);
+
 const int32 GTonemapComputeTileSizeX = 8;
 const int32 GTonemapComputeTileSizeY = 8;
 
@@ -139,14 +145,12 @@ FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnl
 
 // Desktop renderer permutation dimensions.
 class FTonemapperColorFringeDim       : SHADER_PERMUTATION_BOOL("USE_COLOR_FRINGE");
-class FTonemapperGrainQuantizationDim : SHADER_PERMUTATION_BOOL("USE_GRAIN_QUANTIZATION");
 class FTonemapperOutputDeviceDim      : SHADER_PERMUTATION_ENUM_CLASS("DIM_OUTPUT_DEVICE", EDisplayOutputFormat);
 class FTonemapperOutputLuminance	  : SHADER_PERMUTATION_BOOL("OUTPUT_LUMINANCE");
 
 using FDesktopDomain = TShaderPermutationDomain<
 	FCommonDomain,
 	FTonemapperColorFringeDim,
-	FTonemapperGrainQuantizationDim,
 	FTonemapperOutputLuminance,
 	FTonemapperOutputDeviceDim>;
 
@@ -189,12 +193,6 @@ FDesktopDomain RemapPermutation(FDesktopDomain PermutationVector, ERHIFeatureLev
 		PermutationVector.Set<FTonemapperOutputDeviceDim>(EDisplayOutputFormat::SDR_sRGB);
 	}
 
-	// Disable grain quantization for LinearNoToneCurve and LinearWithToneCurve output device
-	if (PermutationVector.Get<FTonemapperOutputDeviceDim>() == EDisplayOutputFormat::HDR_LinearNoToneCurve || PermutationVector.Get<FTonemapperOutputDeviceDim>() == EDisplayOutputFormat::HDR_LinearWithToneCurve)
-		PermutationVector.Set<FTonemapperGrainQuantizationDim>(false);
-	else
-		PermutationVector.Set<FTonemapperGrainQuantizationDim>(true);
-
 	if (FeatureLevel < ERHIFeatureLevel::SM5)
 	{
 		CommonPermutationVector.Set<FTonemapperFilmGrainDim>(false);
@@ -221,8 +219,7 @@ bool ShouldCompileDesktopPermutation(const FGlobalShaderPermutationParameters& P
 
 	if (CommonPermutationVector.Get<FTonemapperGammaOnlyDim>())
 	{
-		return !PermutationVector.Get<FTonemapperColorFringeDim>() &&
-			!PermutationVector.Get<FTonemapperGrainQuantizationDim>();
+		return !PermutationVector.Get<FTonemapperColorFringeDim>();
 	}
 	return true;
 }
@@ -337,7 +334,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER(float, LUTScale)
 	SHADER_PARAMETER(float, LUTOffset)
 	SHADER_PARAMETER(float, EditorNITLevel)
-	SHADER_PARAMETER(float, GrainQuantization)
+	SHADER_PARAMETER(float, BackbufferQuantizationDithering)
 	SHADER_PARAMETER(uint32, bOutputInHDR)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -654,16 +651,6 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	}
 	#endif
 
-	float GrainQuantization = 1.0f / 1024.0f;
-	if (View.Family->RenderTarget && View.Family->RenderTarget->GetRenderTargetTexture())
-	{
-		EPixelFormat BackbufferPixelFormat = View.Family->RenderTarget->GetRenderTargetTexture()->GetFormat();
-		if (BackbufferPixelFormat == PF_B8G8R8A8 || BackbufferPixelFormat == PF_R8G8B8A8)
-		{
-			GrainQuantization = 1.0 / 256.0;
-		}
-	}
-
 	FTonemapParameters CommonParameters;
 	CommonParameters.View = View.ViewUniformBuffer;
 
@@ -779,7 +766,32 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	CommonParameters.ChromaticAberrationParams = ChromaticAberrationParams;
 	CommonParameters.TonemapperParams = FVector4f(PostProcessSettings.VignetteIntensity, SharpenDiv6, 0.0f, 0.0f);
 	CommonParameters.EditorNITLevel = EditorNITLevel;
-	CommonParameters.GrainQuantization = GrainQuantization;
+	{
+		const bool bSupportsBackbufferQuantizationDithering = EDisplayOutputFormat(CommonParameters.OutputDevice.OutputDevice) != EDisplayOutputFormat::HDR_LinearNoToneCurve && EDisplayOutputFormat(CommonParameters.OutputDevice.OutputDevice) != EDisplayOutputFormat::HDR_LinearWithToneCurve;
+		const int32 BitdepthOverride = CVarBackbufferQuantizationDitheringOverride.GetValueOnRenderThread();
+
+		if (!bSupportsBackbufferQuantizationDithering)
+		{
+			CommonParameters.BackbufferQuantizationDithering = 0.0f;
+		}
+		else if (BitdepthOverride > 0)
+		{
+			CommonParameters.BackbufferQuantizationDithering = 1.0f / (FMath::Pow(2.0f, float(BitdepthOverride)) - 1.0f);
+		}
+		else
+		{
+			CommonParameters.BackbufferQuantizationDithering = 1.0f / 1023.0f;
+
+			if (View.Family->RenderTarget && View.Family->RenderTarget->GetRenderTargetTexture())
+			{
+				EPixelFormat BackbufferPixelFormat = View.Family->RenderTarget->GetRenderTargetTexture()->GetFormat();
+				if (BackbufferPixelFormat == PF_B8G8R8A8 || BackbufferPixelFormat == PF_R8G8B8A8)
+				{
+					CommonParameters.BackbufferQuantizationDithering = 1.0f / 255.0f;
+				}
+			}
+		}
+	}
 	CommonParameters.bOutputInHDR = ViewFamily.bIsHDR;
 	CommonParameters.LUTSize = LUTSize;
 	CommonParameters.InvLUTSize = 1.0f / LUTSize;
@@ -856,13 +868,6 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 
 		if (!CommonDomain.Get<TonemapperPermutation::FTonemapperGammaOnlyDim>())
 		{
-			// Grain Quantization
-			{
-				static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Tonemapper.GrainQuantization"));
-				const int32 Value = CVar->GetValueOnRenderThread();
-				DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperGrainQuantizationDim>(Value > 0);
-			}
-
 			DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperColorFringeDim>(PostProcessSettings.SceneFringeIntensity > 0.01f);
 		}
 
