@@ -24,5 +24,6 @@ protected:
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual FBox GetEditorBounds() const override;
+	virtual void TransferWorldData(const FWorldPartitionActorDesc* From) override;
 };
 #endif

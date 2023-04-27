@@ -64,4 +64,17 @@ FBox FPartitionActorDesc::GetEditorBounds() const
 	const UActorPartitionSubsystem::FCellCoord CellCoord(GridIndexX, GridIndexY, GridIndexZ, 0);
 	return UActorPartitionSubsystem::FCellCoord::GetCellBounds(CellCoord, GridSize);
 }
+
+void FPartitionActorDesc::TransferWorldData(const FWorldPartitionActorDesc* From)
+{
+	FWorldPartitionActorDesc::TransferWorldData(From);
+
+	// TransferWorldData is called for actors that are not added to the world (not registered)
+	// Transfer properties that depend on actor being added to the world (components being registered)
+	const FPartitionActorDesc* FromPartitionActorDesc = (FPartitionActorDesc*)From;
+	GridIndexX = FromPartitionActorDesc->GridIndexX;
+	GridIndexY = FromPartitionActorDesc->GridIndexY;
+	GridIndexZ = FromPartitionActorDesc->GridIndexZ;
+}
+
 #endif
