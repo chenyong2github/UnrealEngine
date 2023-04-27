@@ -493,14 +493,10 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 I
 	const int32 PlatformMaxSources = PlatformSettings.MaxChannels > 0 ? PlatformSettings.MaxChannels : InMaxSources;
 	MaxSources = FMath::Max(PlatformMaxSources, AudioChannelCountCVar);
 	MaxSources = FMath::Max(MaxSources, 1);
-
-	// Ensure and not assert so if in editor, user can change quality setting and re-serialize if so desired.
-	ensureMsgf(MaxSources > 0, TEXT("Neither passed MaxSources nor platform MaxChannel setting was positive value"));
 	UE_LOG(LogAudio, Display, TEXT("AudioDevice MaxSources: %d"), MaxSources);
 
 	MaxChannels = MaxSources;
 	MaxChannels_GameThread = MaxSources;
-
 
 	// Mixed sample rate is set by the platform
 	SampleRate = PlatformSettings.SampleRate;

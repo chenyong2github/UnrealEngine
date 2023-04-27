@@ -313,10 +313,7 @@ int32 UAudioSettings::GetHighestMaxChannels() const
 	int32 HighestMaxChannels = -1;
 	for (const FAudioQualitySettings& Settings : QualityLevels)
 	{
-		if (Settings.MaxChannels > HighestMaxChannels)
-		{
-			HighestMaxChannels = Settings.MaxChannels;
-		}
+		HighestMaxChannels = FMath::Max(Settings.MaxChannels, HighestMaxChannels);
 	}
 
 	return HighestMaxChannels;

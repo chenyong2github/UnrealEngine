@@ -1497,8 +1497,7 @@ FAudioDeviceManager::FAudioDeviceContainer::FAudioDeviceContainer(const FAudioDe
 	// Set to highest max channels initially provided by any quality setting, so that
 	// setting to lower quality but potentially returning to higher quality later at
 	// runtime is supported.
-	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-	const int32 HighestMaxChannels = AudioSettings ? AudioSettings->GetHighestMaxChannels() : 0;
+	const int32 HighestMaxChannels = GetDefault<UAudioSettings>()->GetHighestMaxChannels();
 	if (Device->Init(InDeviceID, HighestMaxChannels, InParams.BufferSizeOverride, InParams.NumBuffersOverride))
 	{
 		const FAudioQualitySettings& QualitySettings = Device->GetQualityLevelSettings();
