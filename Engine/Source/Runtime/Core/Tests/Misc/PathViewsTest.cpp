@@ -6,7 +6,7 @@
 #include "Tests/TestHarnessAdapter.h"
 #include "Misc/StringBuilder.h"
 #if WITH_LOW_LEVEL_TESTS
-#include "TestCommon/Comparisons.h"
+#include "TestCommon/Expectations.h"
 #endif
 
 #if WITH_TESTS

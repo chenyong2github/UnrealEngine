@@ -1,24 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/CompactBinarySerialization.h"
-
-#include "Misc/AutomationTest.h"
+#include "Tests/TestHarnessAdapter.h"
 #include "Serialization/BufferArchive.h"
 #include "Serialization/MemoryReader.h"
+#if WITH_LOW_LEVEL_TESTS
+#include "TestCommon/Expectations.h"
+#endif
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-static constexpr EAutomationTestFlags::Type CompactBinarySerializationTestFlags =
-	EAutomationTestFlags::Type(EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbMeasureTest, "System.Core.Serialization.MeasureCompactBinary", CompactBinarySerializationTestFlags)
-bool FCbMeasureTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbMeasureTest, "System::Core::Serialization::MeasureCompactBinary", "[ApplicationContextMask][SmokeFilter]")
 {
-	const auto TestMeasure = [this](
+	const auto TestMeasure = [&](
 		const TCHAR* Test,
 		std::initializer_list<uint8> Data,
 		bool bExpectedValue,
@@ -29,13 +23,13 @@ bool FCbMeasureTest::RunTest(const FString& Parameters)
 		ECbFieldType ActualType = ECbFieldType(255);
 		uint64 ActualSize = ~uint64(0);
 		const bool bActualValue = TryMeasureCompactBinary(MakeMemoryView(Data), ActualType, ActualSize, ExternalType);
-		TestEqual(FString::Printf(TEXT("TryMeasureCompactBinary(%s)"), Test), bActualValue, bExpectedValue);
-		TestEqual(FString::Printf(TEXT("TryMeasureCompactBinary(%s)->Type"), Test), ActualType, ExpectedType);
-		TestEqual(FString::Printf(TEXT("TryMeasureCompactBinary(%s)->Size"), Test), ActualSize, ExpectedSize);
+		CHECK_EQUALS(FString::Printf(TEXT("TryMeasureCompactBinary(%s)"), Test), bActualValue, bExpectedValue);
+		CHECK_EQUALS(FString::Printf(TEXT("TryMeasureCompactBinary(%s)->Type"), Test), ActualType, ExpectedType);
+		CHECK_EQUALS(FString::Printf(TEXT("TryMeasureCompactBinary(%s)->Size"), Test), ActualSize, ExpectedSize);
 		if (ActualSize == ExpectedSize)
 		{
 			const uint64 MeasureSize = MeasureCompactBinary(MakeMemoryView(Data), ExternalType);
-			TestEqual(FString::Printf(TEXT("MeasureCompactBinary(%s)"), Test), MeasureSize, bExpectedValue ? ExpectedSize : 0);
+			CHECK_EQUALS(FString::Printf(TEXT("MeasureCompactBinary(%s)"), Test), MeasureSize, bExpectedValue ? ExpectedSize : 0);
 		}
 	};
 
@@ -137,16 +131,14 @@ bool FCbMeasureTest::RunTest(const FString& Parameters)
 	TestMeasure(TEXT("CustomByName, Size1BShort"), {uint8(EType::CustomByName)}, false, 2, EType::CustomByName);
 	TestMeasure(TEXT("CustomByName, Size2BShort"), {uint8(EType::CustomByName), 0x80}, false, 3, EType::CustomByName);
 	TestMeasure(TEXT("CustomByName, Size9BShort"), {uint8(EType::CustomByName), 0xff}, false, 10, EType::CustomByName);
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbSaveTest, "System.Core.Serialization.SaveCompactBinary", CompactBinarySerializationTestFlags)
-bool FCbSaveTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbSaveTest, "System::Core::Serialization::SaveCompactBinary", "[ApplicationContextMask][SmokeFilter]")
 {
-	const auto TestSave = [this](const TCHAR* Test, auto Value, FMemoryView ExpectedData)
+
+	const auto TestSave = [&](const TCHAR* Test, auto Value, FMemoryView ExpectedData)
 	{
 		{
 			FBufferArchive WriteAr;
@@ -156,7 +148,7 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 			{
 				FMemoryReader ReadAr(WriteAr);
 				FCbField Field = LoadCompactBinary(ReadAr);
-				TestTrue(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Field.GetOuterBuffer().GetView()));
+				CHECK_MESSAGE(FString::Printf(TEXT("LoadCompactBinary(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Field.GetOuterBuffer().GetView()));
 			}
 		}
 		{
@@ -167,7 +159,7 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 			{
 				FMemoryReader ReadAr(WriteAr);
 				ReadAr << Value;
-				TestTrue(FString::Printf(TEXT("Ar << CompactBinary Load(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Value.GetOuterBuffer().GetView()));
+				CHECK_MESSAGE(FString::Printf(TEXT("Ar << CompactBinary Load(%s)->EqualBytes"), Test), ExpectedData.EqualBytes(Value.GetOuterBuffer().GetView()));
 			}
 		}
 	};
@@ -244,9 +236,8 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 }));
 	}
 
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS

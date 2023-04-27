@@ -9,7 +9,7 @@
 #include "Misc/Paths.h"
 #include "Tests/TestHarnessAdapter.h"
 #if WITH_LOW_LEVEL_TESTS
-#include "TestCommon/Comparisons.h"
+#include "TestCommon/Expectations.h"
 #endif
 
 const FStringView PathTest::BaseDir = TEXTVIEW("/root");

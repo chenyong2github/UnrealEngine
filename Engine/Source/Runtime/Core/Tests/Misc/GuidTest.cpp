@@ -8,7 +8,7 @@
 #include "Tests/TestHarnessAdapter.h"
 #include "Misc/SecureHash.h"
 #if WITH_LOW_LEVEL_TESTS
-#include "TestCommon/Comparisons.h"
+#include "TestCommon/Expectations.h"
 #endif
 
 TEST_CASE_NAMED(FGuidTest, "System::Core::Misc::Guid", "[ApplicationContextMask][SmokeFilter]")

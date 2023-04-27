@@ -15,7 +15,7 @@
 #include "Misc/ScopeExit.h"
 #include "Tests/TestHarnessAdapter.h"
 #if WITH_LOW_LEVEL_TESTS
-#include "TestCommon/Comparisons.h"
+#include "TestCommon/Expectations.h"
 #endif
 
 // These file tests are designed to ensure expected file writing behavior, as well as cross-platform consistency

@@ -16,10 +16,11 @@
 #include "Tests/Benchmark.h"
 #include "HAL/Thread.h"
 #include "Async/Fundamental/Scheduler.h"
+#include "Tests/TestHarnessAdapter.h"
 
 #include <atomic>
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
 
 namespace OldTaskGraphTests
 {
@@ -697,21 +698,15 @@ namespace OldTaskGraphTests
 	);
 
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphOldBenchmark, "System.Core.Async.TaskGraph.OldBenchmark", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext | EAutomationTestFlags::EngineFilter);
-
-	bool FTaskGraphOldBenchmark::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTaskGraphOldBenchmark, "System::Core::Async::TaskGraph::OldBenchmark", "[EditorContext][ClientContext][ServerContext][EngineFilter]")
 	{
 		TArray<FString> Args;
 		TaskGraphBenchmark(Args);
-		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLockFreeTest, "System.Core.Async.TaskGraph.LockFree", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FLockFreeTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FLockFreeTest, "System::Core::Async::TaskGraph::LockFree", "[.][ApplicationContextMask][EngineFilter]")
 	{
 		TestLockFree(3);
-		return true;
 	}
 }
 
@@ -719,9 +714,7 @@ extern int32 GNumForegroundWorkers;
 
 namespace TaskGraphTests
 {
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphGraphEventTest, "System.Core.Async.TaskGraph.GraphEventTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
-
-	bool FTaskGraphGraphEventTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTaskGraphGraphEventTest, "System::Core::Async::TaskGraph::GraphEventTest", "[.][ApplicationContextMask][EngineFilter][Disabled]")
 	{
 		{	// task completes before it's waited for
 			FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
@@ -825,13 +818,9 @@ namespace TaskGraphTests
 			{}
 			Event->Wait(ENamedThreads::GameThread);
 		}
-
-		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphRecursionTest, "System.Core.Async.TaskGraph.RecursionTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
-
-	bool FTaskGraphRecursionTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTaskGraphRecursionTest, "System::Core::Async::TaskGraph::RecursionTest", "[.][ApplicationContextMask][EngineFilter][Disabled]")
 	{
 		{	// recursive call on game thread
 			FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
@@ -855,13 +844,9 @@ namespace TaskGraphTests
 		//	FGraphEventRef Event = FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId{}, nullptr, ENamedThreads::GameThread_Local);
 		//	Event->Wait(ENamedThreads::GameThread);
 		//}
-
-		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphBasicTest, "System.Core.Async.TaskGraph.BasicTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
-
-	bool FTaskGraphBasicTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTaskGraphBasicTest, "System::Core::Async::TaskGraph::BasicTest", "[.][ApplicationContextMask][EngineFilter][Disabled]")
 	{
 		// thread and task priorities
 
@@ -1031,8 +1016,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			FGraphEventRef AnyThreadTask = FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId{}, GTTask);
 			AnyThreadTask->Wait();
 		}
-
-		return true;
 	}
 
 	// it's fast because tasks are too lightweight and so are executed almost as fast
@@ -1294,9 +1277,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphPerfTest, "System.Core.Async.TaskGraph.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
-
-	bool FTaskGraphPerfTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTaskGraphPerfTest, "System::Core::Async::TaskGraph::PerfTest", "[.][ApplicationContextMask][EngineFilter][Disabled]")
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TaskGraphTests_PerfTest);
 
@@ -1314,8 +1295,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		UE_BENCHMARK(5, TestWorkStealing<100, 1000>);
 		UE_BENCHMARK(5, TestSpawning<100000>);
 		UE_BENCHMARK(5, TestBatchSpawning<100000>);
-
-		return true;
 	}
 
 	template<uint32 Num>
@@ -1347,13 +1326,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphOversubscriptionTest, "System.Core.Async.TaskGraph.Oversubscription", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
-
-	bool FTaskGraphOversubscriptionTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTaskGraphOversubscriptionTest, "System::Core::Async::TaskGraph::Oversubscription", "[.][ApplicationContextMask][[EngineFilter][Disabled]")
 	{
 		UE_BENCHMARK(5, OversubscriptionStressTest<10>);
-
-		return true;
 	}
 
 	template<uint32 Nujm>
@@ -1383,18 +1358,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		verify(Event->Wait(FTimespan::FromSeconds(30.f)));
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphSquaredOversubscriptionTest, "System.Core.Async.TaskGraph.SquaredOversubscription", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
-
-	bool FTaskGraphSquaredOversubscriptionTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTaskGraphSquaredOversubscriptionTest, "System::Core::Async::TaskGraph::SquaredOversubscription", "[.][ApplicationContextMask][EngineFilter][Disabled]")
 	{
 		UE_BENCHMARK(5, SquaredOversubscriptionStressTest<10>);
-
-		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphTaskDestructionTest, "System.Core.Async.TaskGraph.TaskDestruction", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
-
-	bool FTaskGraphTaskDestructionTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTaskGraphTaskDestructionTest, "System::Core::Async::TaskGraph::TaskDestruction", "[.][ApplicationContextMask][EngineFilter][Disabled]")
 	{
 		struct FDestructionTest
 		{
@@ -1415,9 +1384,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FFunctionGraphTask::CreateAndDispatchWhenReady([DestructionTest = FDestructionTest{ &bDestroyed }]{})->Wait();
 
 		check(bDestroyed);
-
-		return true;
 	}
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS

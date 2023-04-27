@@ -6,10 +6,11 @@
 #include "Tasks/Pipe.h"
 #include "HAL/Thread.h"
 #include "Async/ParallelFor.h"
+#include "Tests/TestHarnessAdapter.h"
 
 #include <atomic>
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
 
 namespace UE { namespace TasksTests
 {
@@ -19,14 +20,12 @@ namespace UE { namespace TasksTests
 	{
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksBasicTest, "System.Core.Tasks.Basic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTasksBasicTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksBasicTest, "System::Core::Tasks::Basic", "[.][ApplicationContextMask][EngineFilter]")
 	{
 		if (!FPlatformProcess::SupportsMultithreading())
 		{
 			// the new API doesn't support single-threaded execution (`-nothreading`) until it's feature-compatible with the old API and completely replaces it
-			return true;
+			return;
 		}
 
 		{	// basic example, fire and forget a high-pri task
@@ -399,7 +398,6 @@ namespace UE { namespace TasksTests
 		//	Parent.Wait();
 		//}
 
-		return true;
 	}
 
 	template<uint32 SpawnerGroupsNum, uint32 SpawnersPerGroupNum, uint32 RepeatNum>
@@ -456,27 +454,20 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksBasicStressTest, "System.Core.Tasks.BasicStressTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTasksBasicStressTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksBasicStressTest, "System::Core::Tasks::BasicStressTest", "[ApplicationContextMask][EngineFilter]")
 	{
 		UE_BENCHMARK(5, BasicStressTest<100, 100, 100>);
-
-
-		return true;
 	}
-
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPipeTest, "System.Core.Tasks.Pipe", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	template<uint32 SpawnerGroupsNum, uint32 SpawnersPerGroupNum>
 	void PipeStressTest();
 
-	bool FTasksPipeTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksPipeTest, "System::Core::Tasks::Pipe", "[.][ApplicationContextMask][EngineFilter]")
 	{
 		if (!FPlatformProcess::SupportsMultithreading())
 		{
 			// the new API doesn't support single-threaded execution (`-nothreading`) until it's feature-compatible with the new API and completely replaces it
-			return true;
+			return;
 		}
 
 		{	// a basic usage example
@@ -597,7 +588,6 @@ namespace UE { namespace TasksTests
 
 		UE_BENCHMARK(5, PipeStressTest<200, 100>);
 
-		return true;
 	}
 
 	// stress test for named thread tasks, checks spawning a large number of tasks from multiple threads and executing them
@@ -662,9 +652,7 @@ namespace UE { namespace TasksTests
 		check(TasksExecutedNum == TasksNum);
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPipeWaitUntilEmptyTest, "System.Core.Tasks.Pipe.WaitUntilEmpty", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTasksPipeWaitUntilEmptyTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksPipeWaitUntilEmptyTest, "System::Core::Tasks::Pipe::WaitUntilEmpty", "[ApplicationContextMask][EngineFilte]")
 	{
 		//for (int i = 0; i != 100000; ++i)
 		{	// waiting until an empty pipe is empty
@@ -706,8 +694,6 @@ namespace UE { namespace TasksTests
 
 			check(Pipe.WaitUntilEmpty());
 		}
-
-		return true;
 	}
 
 	struct FAutoTlsSlot
@@ -753,17 +739,11 @@ namespace UE { namespace TasksTests
 		TlsValue = Dummy;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTlsTest, "System.Core.Tls", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTlsTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTlsTest, "System::Core::Tls", "[ApplicationContextMask][EngineFilter]")
 	{
 		UE_BENCHMARK(5, UeTlsStressTest<10000000>);
 		UE_BENCHMARK(5, ThreadLocalStressTest<10000000>);
-
-		return true;
 	}
-
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDependenciesTest, "System.Core.Tasks.Dependencies", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	template<uint64 NumBranches, uint64 NumTasks>
 	void DependenciesPerfTest()
@@ -798,7 +778,7 @@ namespace UE { namespace TasksTests
 		Wait(BranchTasks);
 	}
 
-	bool FTasksDependenciesTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksDependenciesTest, "System::Core::Tasks::Dependencies", "[ApplicationContextMask][EngineFilter]")
 	{
 		{	// a task is not executed until its prerequisite (FTaskEvent) is completed
 			FTaskEvent Prereq{ UE_SOURCE_LOCATION };
@@ -936,7 +916,6 @@ namespace UE { namespace TasksTests
 
 		UE_BENCHMARK(5, DependenciesPerfTest<150, 150>);
 
-		return true;
 	}
 
 	// blocks all workers (except reserve workers) until given event is triggered. Returns blocking tasks.
@@ -1004,9 +983,7 @@ namespace UE { namespace TasksTests
 			N11.IsCompleted() && N12.IsCompleted() && N21.IsCompleted() && N22.IsCompleted());
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionTest, "System.Core.Tasks.DeepRetraction", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTasksDeepRetractionTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksDeepRetractionTest, "System::Core::Tasks::DeepRetraction", "[.][ApplicationContextMask][EngineFilter]")
 	{
 		FTaskEvent ResumeEvent{ UE_SOURCE_LOCATION };
 		TArray<LowLevelTasks::FTask> WorkerBlockers = BlockWorkers(ResumeEvent);
@@ -1099,8 +1076,6 @@ namespace UE { namespace TasksTests
 
 		ResumeEvent.Trigger();
 		LowLevelTasks::BusyWaitForTasks<LowLevelTasks::FTask>(WorkerBlockers);
-
-		return true;
 	}
 
 	template<uint32 Num>
@@ -1112,13 +1087,9 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksDeepRetractionStressTest, "System.Core.Tasks.DeepRetraction.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTasksDeepRetractionStressTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksDeepRetractionStressTest, "System::Core::Tasks::DeepRetraction::Stress", "[ApplicationContextMask][EngineFilter]")
 	{
 		UE_BENCHMARK(5, DeepRetractionStressTest<1000>);
-
-		return true;
 	}
 
 	template<uint64 Num>
@@ -1138,13 +1109,9 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksNestedTasksStressTest, "System.Core.Tasks.NestedTasks.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTasksNestedTasksStressTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksNestedTasksStressTest, "System::Core::Tasks::NestedTasks::Stress", "[ApplicationContextMask][EngineFilter]")
 	{
 		UE_BENCHMARK(5, NestedTasksStressTest<10000>);
-
-		return true;
 	}
 
 	template<int NumTasks>
@@ -1329,9 +1296,7 @@ namespace UE { namespace TasksTests
 		}
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPerfTest, "System.Core.Tasks.PerfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTasksPerfTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksPerfTest, "System::Core::Tasks::PerfTest", "[ApplicationContextMask][EngineFilter]")
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TaskGraphTests_PerfTest);
 
@@ -1342,13 +1307,9 @@ namespace UE { namespace TasksTests
 		UE_BENCHMARK(5, TestWorkStealing<100, 100>);
 		UE_BENCHMARK(5, TestSpawning<10000>);
 		UE_BENCHMARK(5, TestBatchSpawning<10000>);
-
-		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPriorityCVarTest, "System.Core.Tasks.PriorityCVar", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTasksPriorityCVarTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksPriorityCVarTest, "System::Core::Tasks::PriorityCVar", "[ApplicationContextMask][EngineFilter]")
 	{
 		// set every combination of task priority and extended task priority
 		const TCHAR* CVarName = TEXT("TasksPriorityTestCVar");
@@ -1382,17 +1343,14 @@ namespace UE { namespace TasksTests
 		CVarPtr->Set(TEXT("Normal"));
 		Launch(UE_SOURCE_LOCATION, [] {}, CVar.GetTaskPriority(), CVar.GetExtendedTaskPriority()).Wait();
 
-		return true;
 	}
 
 	// test Pipe support for `-nothreading` config (`FPlatformProcess::SupportsMultithreading()` is false)
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPipeNoThreadingTest, "System.Core.Tasks.PipeNoThreading", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTasksPipeNoThreadingTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTasksPipeNoThreadingTest, "System::Core::Tasks::PipeNoThreading", "[ApplicationContextMask][EngineFilter]")
 	{
 		if (FPlatformProcess::SupportsMultithreading())
 		{
-			return true; // run with `-nothreading` for this test to make any sense
+			return; // run with `-nothreading` for this test to make any sense
 		}
 
 		FPipe Pipe{ UE_SOURCE_LOCATION };
@@ -1400,8 +1358,7 @@ namespace UE { namespace TasksTests
 		FTask FinalTask = Pipe.Launch(UE_SOURCE_LOCATION, [] {});
 		check(FinalTask.Wait(FTimespan::FromMilliseconds(100)));
 
-		return true;
 	}
 }}
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS

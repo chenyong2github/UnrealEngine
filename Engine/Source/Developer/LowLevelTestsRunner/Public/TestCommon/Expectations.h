@@ -17,6 +17,21 @@
 
 namespace {
 
+	bool TestTrue(const TCHAR* What, bool Value)
+	{
+		if (!Value)
+		{
+			FAIL_CHECK(FString::Printf(TEXT("Expected '%s' to be true."), What));
+			return false;
+		}
+		return true;
+	}
+
+	bool TestTrue(const FString& What, bool Value)
+	{
+		return TestTrue(*What, Value);
+	}
+
 	bool TestEqual(const TCHAR* What, const int32 Actual, const int32 Expected)
 	{
 		if (Actual != Expected)

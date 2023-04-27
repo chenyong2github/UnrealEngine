@@ -9,17 +9,15 @@
 #include "HAL/PlatformProcess.h"
 #include "Containers/Array.h"
 #include "Templates/UniquePtr.h"
+#include "Tests/TestHarnessAdapter.h"
 
 #include <atomic>
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
 
 namespace UE::SemaphoreTests
 {
 	using namespace Tasks;
-
-	// benchmark waking up multiple threads by releasing a semaphore and compare with triggering multiple auto-reset events
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSemaphoreWakeUpPerfTest, "System.Core.Async.Semaphore.WakeUpPerf", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
 	template<uint32 NumThreads, uint32 NumLoops, bool ReleaseAllAtOnce>
 	void TestSemaphoreWakeUpPerf()
@@ -160,13 +158,13 @@ namespace UE::SemaphoreTests
 		}
 	}
 
-	bool FSemaphoreWakeUpPerfTest::RunTest(const FString& Parameters)
+	// benchmark waking up multiple threads by releasing a semaphore and compare with triggering multiple auto-reset events
+	TEST_CASE_NAMED(FSemaphoreWakeUpPerfTest, "System::Core::Async::Semaphore::WakeUpPerf", "[.][ApplicationContextMask][EngineFilter]")
 	{
 		UE_BENCHMARK(5, TestSemaphoreWakeUpPerf<5, 100000, true>);
 		UE_BENCHMARK(5, TestSemaphoreWakeUpPerf<5, 100000, false>);
 		UE_BENCHMARK(5, TestMultiEventWakeUpPerf<5, 100000>);
-		return true;
 	}
 }
 
-#endif
+#endif //WITH_TEST

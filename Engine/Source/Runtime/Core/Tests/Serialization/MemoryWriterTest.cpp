@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "Misc/AutomationTest.h"
+#include "Tests/TestHarnessAdapter.h"
 #include "Misc/ByteSwap.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
 
 namespace MemoryWriterTestUtil
 {
@@ -63,9 +63,7 @@ public:
 
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMemoryWriterTest, "System.Core.Serialization.MemoryWriter", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
-
-bool FMemoryWriterTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FMemoryWriterTest, "System::Core::Serialization::MemoryWriter", "[ApplicationContextMask][SmokeFilter]")
 {
 	// Keeps the 'official' test value as const, to prevent overwriting them.
 	const uint8  TestValueU8   = 0x12;
@@ -270,8 +268,6 @@ bool FMemoryWriterTest::RunTest(const FString& Parameters)
 			check(FMemory::Memcmp(Bytes.GetData() + sizeof(int32), RawStrBytesSwapped, StrByteCount) == 0); // Check the string content.
 		}
 	}
-
-	return true;
 }
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS

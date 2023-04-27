@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Serialization/CompactBinaryWriter.h"
+#if WITH_TESTS
 
+#include "Serialization/CompactBinaryWriter.h"
 #include "IO/IoHash.h"
-#include "Misc/AutomationTest.h"
+#include "Tests/TestHarnessAdapter.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
@@ -11,15 +12,11 @@
 #include "Serialization/BufferArchive.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
+#if WITH_LOW_LEVEL_TESTS
+#include "TestCommon/Expectations.h"
+#endif
 
-#if WITH_DEV_AUTOMATION_TESTS
-
-static constexpr EAutomationTestFlags::Type CompactBinaryWriterTestFlags = EAutomationTestFlags::Type(EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterObjectTest, "System.Core.Serialization.CbWriter.Object", CompactBinaryWriterTestFlags)
-bool FCbWriterObjectTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterObjectTest, "System::Core::Serialization::CbWriter::Object", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -31,8 +28,8 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Empty) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Object, Empty).IsObject()"), Field.IsObject());
-			TestFalse(TEXT("FCbWriter(Object, Empty).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
+			CHECK_MESSAGE(TEXT("FCbWriter(Object, Empty).IsObject()"), Field.IsObject());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Object, Empty).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
 		}
 	}
 
@@ -45,8 +42,8 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Empty, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Object, Empty, Name).IsObject()"), Field.IsObject());
-			TestFalse(TEXT("FCbWriter(Object, Empty, Name).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
+			CHECK_MESSAGE(TEXT("FCbWriter(Object, Empty, Name).IsObject()"), Field.IsObject());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Object, Empty, Name).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
 		}
 	}
 
@@ -60,10 +57,10 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Basic) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Object, Basic).IsObject()"), Field.IsObject());
+			CHECK_MESSAGE(TEXT("FCbWriter(Object, Basic).IsObject()"), Field.IsObject());
 			FCbObjectView Object = Field.AsObjectView();
-			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Integer]"), Object[ANSITEXTVIEW("Integer")].IsInteger());
-			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Float]"), Object[ANSITEXTVIEW("Float")].IsFloat());
+			CHECK_MESSAGE(TEXT("FCbWriter(Object, Basic).AsObjectView()[Integer]"), Object[ANSITEXTVIEW("Integer")].IsInteger());
+			CHECK_MESSAGE(TEXT("FCbWriter(Object, Basic).AsObjectView()[Float]"), Object[ANSITEXTVIEW("Float")].IsFloat());
 		}
 	}
 
@@ -77,20 +74,17 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Uniform) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Object, Uniform).IsObject()"), Field.IsObject());
+			CHECK_MESSAGE(TEXT("FCbWriter(Object, Uniform).IsObject()"), Field.IsObject());
 			FCbObjectView Object = Field.AsObjectView();
-			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field1]"), Object[ANSITEXTVIEW("Field1")].IsInteger());
-			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field2]"), Object[ANSITEXTVIEW("Field2")].IsInteger());
+			CHECK_MESSAGE(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field1]"), Object[ANSITEXTVIEW("Field1")].IsInteger());
+			CHECK_MESSAGE(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field2]"), Object[ANSITEXTVIEW("Field2")].IsInteger());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterArrayTest, "System.Core.Serialization.CbWriter.Array", CompactBinaryWriterTestFlags)
-bool FCbWriterArrayTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterArrayTest, "System::Core::Serialization::CbWriter::Array", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -102,8 +96,8 @@ bool FCbWriterArrayTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Array, Empty) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Array, Empty).IsArray()"), Field.IsArray());
-			TestEqual(TEXT("FCbWriter(Array, Empty).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
+			CHECK_MESSAGE(TEXT("FCbWriter(Array, Empty).IsArray()"), Field.IsArray());
+			CHECK_EQUALS(TEXT("FCbWriter(Array, Empty).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
 		}
 	}
 
@@ -116,8 +110,8 @@ bool FCbWriterArrayTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Array, Empty, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Array, Empty, Name).IsArray()"), Field.IsArray());
-			TestEqual(TEXT("FCbWriter(Array, Empty, Name).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
+			CHECK_MESSAGE(TEXT("FCbWriter(Array, Empty, Name).IsArray()"), Field.IsArray());
+			CHECK_EQUALS(TEXT("FCbWriter(Array, Empty, Name).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
 		}
 	}
 
@@ -131,13 +125,13 @@ bool FCbWriterArrayTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Array, Basic) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Array, Basic).IsArray()"), Field.IsArray());
+			CHECK_MESSAGE(TEXT("FCbWriter(Array, Basic).IsArray()"), Field.IsArray());
 			FCbFieldViewIterator Iterator = Field.AsArrayView().CreateViewIterator();
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Integer]"), Iterator.IsInteger());
+			CHECK_MESSAGE(TEXT("FCbWriter(Array, Basic).AsArrayView()[Integer]"), Iterator.IsInteger());
 			++Iterator;
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Float]"), Iterator.IsFloat());
+			CHECK_MESSAGE(TEXT("FCbWriter(Array, Basic).AsArrayView()[Float]"), Iterator.IsFloat());
 			++Iterator;
-			TestFalse(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
 		}
 	}
 
@@ -151,23 +145,20 @@ bool FCbWriterArrayTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Array, Uniform) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Array, Uniform).IsArray()"), Field.IsArray());
+			CHECK_MESSAGE(TEXT("FCbWriter(Array, Uniform).IsArray()"), Field.IsArray());
 			FCbFieldViewIterator Iterator = Field.AsArrayView().CreateViewIterator();
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field1]"), Iterator.IsInteger());
+			CHECK_MESSAGE(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field1]"), Iterator.IsInteger());
 			++Iterator;
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field2]"), Iterator.IsInteger());
+			CHECK_MESSAGE(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field2]"), Iterator.IsInteger());
 			++Iterator;
-			TestFalse(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterNullTest, "System.Core.Serialization.CbWriter.Null", CompactBinaryWriterTestFlags)
-bool FCbWriterNullTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterNullTest, "System::Core::Serialization::CbWriter::Null", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -178,8 +169,8 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Null) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestFalse(TEXT("FCbWriter(Null).HasName()"), Field.HasName());
-			TestTrue(TEXT("FCbWriter(Null).IsNull()"), Field.IsNull());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Null).HasName()"), Field.HasName());
+			CHECK_MESSAGE(TEXT("FCbWriter(Null).IsNull()"), Field.IsNull());
 		}
 	}
 
@@ -191,9 +182,9 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Null, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Null, Name).GetName()"), Field.GetName(), UTF8TEXTVIEW("Null"));
-			TestTrue(TEXT("FCbWriter(Null, Name).HasName()"), Field.HasName());
-			TestTrue(TEXT("FCbWriter(Null, Name).IsNull()"), Field.IsNull());
+			CHECK_EQUALS(TEXT("FCbWriter(Null, Name).GetName()"), Field.GetName(), UTF8TEXTVIEW("Null"));
+			CHECK_MESSAGE(TEXT("FCbWriter(Null, Name).HasName()"), Field.HasName());
+			CHECK_MESSAGE(TEXT("FCbWriter(Null, Name).IsNull()"), Field.IsNull());
 		}
 	}
 
@@ -214,7 +205,7 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 		Writer.EndObject();
 
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual(TEXT("FCbWriter(Null, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
+		CHECK_EQUALS(TEXT("FCbWriter(Null, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
 	}
 
 	// Test Null with Save(Buffer)
@@ -231,33 +222,24 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 		{
 			for (int Index = 0; Index < NullCount; ++Index)
 			{
-				TestTrue(TEXT("FCbWriter(Null, Memory) IsNull"), Fields.IsNull());
+				CHECK_MESSAGE(TEXT("FCbWriter(Null, Memory) IsNull"), Fields.IsNull());
 				++Fields;
 			}
-			TestFalse(TEXT("FCbWriter(Null, Memory) HasValue"), Fields.HasValue());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Null, Memory) HasValue"), Fields.HasValue());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FCbWriterBinaryTestBase : public FAutomationTestBase
+
+template <typename T, typename Size>
+void TestEqual(const TCHAR* What, TArrayView<T, Size> Actual, TArrayView<T, Size> Expected)
 {
-protected:
-	using FAutomationTestBase::FAutomationTestBase;
-	using FAutomationTestBase::TestEqual;
+	CHECK_MESSAGE(What, Actual.Num() == Expected.Num() && CompareItems(Actual.GetData(), Expected.GetData(), Actual.Num()));
+}
 
-	template <typename T, typename Size>
-	void TestEqual(const TCHAR* What, TArrayView<T, Size> Actual, TArrayView<T, Size> Expected)
-	{
-		TestTrue(What, Actual.Num() == Expected.Num() && CompareItems(Actual.GetData(), Expected.GetData(), Actual.Num()));
-	}
-};
-
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbWriterBinaryTest, FCbWriterBinaryTestBase, "System.Core.Serialization.CbWriter.Binary", CompactBinaryWriterTestFlags)
-bool FCbWriterBinaryTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterBinaryTest, "System::Core::Serialization::CbWriter::Binary", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -268,9 +250,9 @@ bool FCbWriterBinaryTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Binary, Empty) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestFalse(TEXT("FCbWriter(Binary, Empty).HasName()"), Field.HasName());
-			TestTrue(TEXT("FCbWriter(Binary, Empty).IsBinary()"), Field.IsBinary());
-			TestTrue(TEXT("FCbWriter(Binary, Empty).AsBinaryView()"), Field.AsBinaryView().IsEmpty());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Binary, Empty).HasName()"), Field.HasName());
+			CHECK_MESSAGE(TEXT("FCbWriter(Binary, Empty).IsBinary()"), Field.IsBinary());
+			CHECK_MESSAGE(TEXT("FCbWriter(Binary, Empty).AsBinaryView()"), Field.AsBinaryView().IsEmpty());
 		}
 	}
 
@@ -283,20 +265,17 @@ bool FCbWriterBinaryTest::RunTest(const FString& Parameters)
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Binary, Array) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Binary, Array).GetName()"), Field.GetName(), UTF8TEXTVIEW("Binary"));
-			TestTrue(TEXT("FCbWriter(Binary, Array).HasName()"), Field.HasName());
-			TestTrue(TEXT("FCbWriter(Binary, Array).IsBinary()"), Field.IsBinary());
-			TestTrue(TEXT("FCbWriter(Binary, Array).AsBinaryView()"), Field.AsBinaryView().EqualBytes(MakeMemoryView(BinaryValue)));
+			CHECK_EQUALS(TEXT("FCbWriter(Binary, Array).GetName()"), Field.GetName(), UTF8TEXTVIEW("Binary"));
+			CHECK_MESSAGE(TEXT("FCbWriter(Binary, Array).HasName()"), Field.HasName());
+			CHECK_MESSAGE(TEXT("FCbWriter(Binary, Array).IsBinary()"), Field.IsBinary());
+			CHECK_MESSAGE(TEXT("FCbWriter(Binary, Array).AsBinaryView()"), Field.AsBinaryView().EqualBytes(MakeMemoryView(BinaryValue)));
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterStringTest, "System.Core.Serialization.CbWriter.String", CompactBinaryWriterTestFlags)
-bool FCbWriterStringTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterStringTest, "System::Core::Serialization::CbWriter::String", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -310,9 +289,9 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestFalse(TEXT("FCbWriter(String, Empty).HasName()"), Field.HasName());
-				TestTrue(TEXT("FCbWriter(String, Empty).IsString()"), Field.IsString());
-				TestTrue(TEXT("FCbWriter(String, Empty).AsString()"), Field.AsString().IsEmpty());
+				CHECK_FALSE_MESSAGE(TEXT("FCbWriter(String, Empty).HasName()"), Field.HasName());
+				CHECK_MESSAGE(TEXT("FCbWriter(String, Empty).IsString()"), Field.IsString());
+				CHECK_MESSAGE(TEXT("FCbWriter(String, Empty).AsString()"), Field.AsString().IsEmpty());
 			}
 		}
 	}
@@ -327,10 +306,10 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Basic).GetName()"), Field.GetName(), UTF8TEXTVIEW("String"));
-				TestTrue(TEXT("FCbWriter(String, Basic).HasName()"), Field.HasName());
-				TestTrue(TEXT("FCbWriter(String, Basic).IsString()"), Field.IsString());
-				TestEqual(TEXT("FCbWriter(String, Basic).AsString()"), Field.AsString(), UTF8TEXTVIEW("Value"));
+				CHECK_EQUALS(TEXT("FCbWriter(String, Basic).GetName()"), Field.GetName(), UTF8TEXTVIEW("String"));
+				CHECK_MESSAGE(TEXT("FCbWriter(String, Basic).HasName()"), Field.HasName());
+				CHECK_MESSAGE(TEXT("FCbWriter(String, Basic).IsString()"), Field.IsString());
+				CHECK_MESSAGE(TEXT("FCbWriter(String, Basic).AsString()"), Field.AsString() == UTF8TEXTVIEW("Value"));
 			}
 		}
 	}
@@ -351,7 +330,7 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Long).AsString()"), Field.AsString(), Dots.ToView());
+				CHECK_EQUALS(TEXT("FCbWriter(String, Long).AsString()"), Field.AsString(), Dots.ToView());
 			}
 		}
 	}
@@ -367,66 +346,67 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Unicode).AsString()"), Field.AsString(), UTF8TEXTVIEW("\xf0\x9f\x98\x80"));
+				CHECK_EQUALS(TEXT("FCbWriter(String, Unicode).AsString()"), Field.AsString(), UTF8TEXTVIEW("\xf0\x9f\x98\x80"));
 			}
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterIntegerTest, "System.Core.Serialization.CbWriter.Integer", CompactBinaryWriterTestFlags)
-bool FCbWriterIntegerTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterIntegerTest, "System::Core::Serialization::CbWriter::Integer", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
-	auto TestInt32 = [this, &Writer](int32 Value)
+	auto TestInt32 = [&](int32 Value)
 	{
+		FCbWriter Writer;
 		Writer.Reset();
 		Writer.AddInteger(Value);
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Integer, Int32) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Integer, Int32) Value"), Field.AsInt32(), Value);
-			TestFalse(TEXT("FCbWriter(Integer, Int32) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(Integer, Int32) Value"), Field.AsInt32(), Value);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Integer, Int32) Error"), Field.HasError());
 		}
 	};
 
-	auto TestUInt32 = [this, &Writer](uint32 Value)
+	auto TestUInt32 = [&](uint32 Value)
 	{
+		FCbWriter Writer;
 		Writer.Reset();
 		Writer.AddInteger(Value);
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Integer, UInt32) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Integer, UInt32) Value"), Field.AsUInt32(), Value);
-			TestFalse(TEXT("FCbWriter(Integer, UInt32) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(Integer, UInt32) Value"), Field.AsUInt32(), Value);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Integer, UInt32) Error"), Field.HasError());
 		}
 	};
 
-	auto TestInt64 = [this, &Writer](int64 Value)
+	auto TestInt64 = [&](int64 Value)
 	{
+		FCbWriter Writer;
 		Writer.Reset();
 		Writer.AddInteger(Value);
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Integer, Int64) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Integer, Int64) Value"), Field.AsInt64(), Value);
-			TestFalse(TEXT("FCbWriter(Integer, Int64) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(Integer, Int64) Value"), Field.AsInt64(), Value);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Integer, Int64) Error"), Field.HasError());
 		}
 	};
 
-	auto TestUInt64 = [this, &Writer](uint64 Value)
+	auto TestUInt64 = [&](uint64 Value)
 	{
+		FCbWriter Writer;
 		Writer.Reset();
 		Writer.AddInteger(Value);
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Integer, UInt64) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Integer, UInt64) Value"), Field.AsUInt64(), Value);
-			TestFalse(TEXT("FCbWriter(Integer, UInt64) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(Integer, UInt64) Value"), Field.AsUInt64(), Value);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Integer, UInt64) Error"), Field.HasError());
 		}
 	};
 
@@ -462,14 +442,11 @@ bool FCbWriterIntegerTest::RunTest(const FString& Parameters)
 	TestInt64(int64(0x7fff'ffff'ffff'ffff));
 	TestInt64(int64(0x8000'0000'0000'0001));
 	TestInt64(int64(0xffff'ffff'ffff'ffff));
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterFloatTest, "System.Core.Serialization.CbWriter.Float", CompactBinaryWriterTestFlags)
-bool FCbWriterFloatTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterFloatTest, "System::Core::Serialization::CbWriter::Float", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -487,8 +464,8 @@ bool FCbWriterFloatTest::RunTest(const FString& Parameters)
 			const float* CheckValue = Values;
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(Float, Single).AsFloat()"), Field.AsFloat(), *CheckValue++);
-				TestFalse(TEXT("FCbWriter(Float, Single) Error"), Field.HasError());
+				CHECK_EQUALS(TEXT("FCbWriter(Float, Single).AsFloat()"), Field.AsFloat(), *CheckValue++);
+				CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Float, Single) Error"), Field.HasError());
 			}
 		}
 	}
@@ -507,19 +484,16 @@ bool FCbWriterFloatTest::RunTest(const FString& Parameters)
 			const double* CheckValue = Values;
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(Float, Double).AsDouble()"), Field.AsDouble(), *CheckValue++);
-				TestFalse(TEXT("FCbWriter(Float, Double) Error"), Field.HasError());
+				CHECK_EQUALS(TEXT("FCbWriter(Float, Double).AsDouble()"), Field.AsDouble(), *CheckValue++);
+				CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Float, Double) Error"), Field.HasError());
 			}
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterBoolTest, "System.Core.Serialization.CbWriter.Bool", CompactBinaryWriterTestFlags)
-bool FCbWriterBoolTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterBoolTest, "System::Core::Serialization::CbWriter::Bool", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -531,11 +505,11 @@ bool FCbWriterBoolTest::RunTest(const FString& Parameters)
 		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Bool) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestTrue(TEXT("FCbWriter(Bool).AsBool()"), Fields.AsBool());
-			TestFalse(TEXT("FCbWriter(Bool) Error"), Fields.HasError());
+			CHECK_MESSAGE(TEXT("FCbWriter(Bool).AsBool()"), Fields.AsBool());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Bool) Error"), Fields.HasError());
 			++Fields;
-			TestFalse(TEXT("FCbWriter(Bool).AsBool()"), Fields.AsBool());
-			TestFalse(TEXT("FCbWriter(Bool) Error"), Fields.HasError());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Bool).AsBool()"), Fields.AsBool());
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Bool) Error"), Fields.HasError());
 		}
 	}
 
@@ -556,16 +530,13 @@ bool FCbWriterBoolTest::RunTest(const FString& Parameters)
 		Writer.EndObject();
 
 		FCbFieldIterator Fields = Writer.Save();
-		TestEqual(TEXT("FCbWriter(Bool, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
+		CHECK_EQUALS(TEXT("FCbWriter(Bool, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterObjectAttachmentTest, "System.Core.Serialization.CbWriter.ObjectAttachment", CompactBinaryWriterTestFlags)
-bool FCbWriterObjectAttachmentTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterObjectAttachmentTest, "System::Core::Serialization::CbWriter::ObjectAttachment", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -584,18 +555,15 @@ bool FCbWriterObjectAttachmentTest::RunTest(const FString& Parameters)
 		const FIoHash* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(ObjectAttachment).AsObjectAttachment()"), Field.AsObjectAttachment(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(ObjectAttachment) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(ObjectAttachment).AsObjectAttachment()"), Field.AsObjectAttachment(), *CheckValue++);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(ObjectAttachment) Error"), Field.HasError());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterBinaryAttachmentTest, "System.Core.Serialization.CbWriter.BinaryAttachment", CompactBinaryWriterTestFlags)
-bool FCbWriterBinaryAttachmentTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterBinaryAttachmentTest, "System::Core::Serialization::CbWriter::BinaryAttachment", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -614,18 +582,15 @@ bool FCbWriterBinaryAttachmentTest::RunTest(const FString& Parameters)
 		const FIoHash* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(BinaryAttachment).AsBinaryAttachment()"), Field.AsBinaryAttachment(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(BinaryAttachment) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(BinaryAttachment).AsBinaryAttachment()"), Field.AsBinaryAttachment(), *CheckValue++);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(BinaryAttachment) Error"), Field.HasError());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterHashTest, "System.Core.Serialization.CbWriter.Hash", CompactBinaryWriterTestFlags)
-bool FCbWriterHashTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterHashTest, "System::Core::Serialization::CbWriter::Hash", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -644,18 +609,15 @@ bool FCbWriterHashTest::RunTest(const FString& Parameters)
 		const FIoHash* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(Hash).AsHash()"), Field.AsHash(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(Hash) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(Hash).AsHash()"), Field.AsHash(), *CheckValue++);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Hash) Error"), Field.HasError());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterUuidTest, "System.Core.Serialization.CbWriter.Uuid", CompactBinaryWriterTestFlags)
-bool FCbWriterUuidTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterUuidTest, "System::Core::Serialization::CbWriter::Uuid", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -671,18 +633,15 @@ bool FCbWriterUuidTest::RunTest(const FString& Parameters)
 		const FGuid* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(Uuid).AsUuid()"), Field.AsUuid(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(Uuid) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(Uuid).AsUuid()"), Field.AsUuid(), *CheckValue++);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(Uuid) Error"), Field.HasError());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterDateTimeTest, "System.Core.Serialization.CbWriter.DateTime", CompactBinaryWriterTestFlags)
-bool FCbWriterDateTimeTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterDateTimeTest, "System::Core::Serialization::CbWriter::DateTime", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -698,18 +657,15 @@ bool FCbWriterDateTimeTest::RunTest(const FString& Parameters)
 		const FDateTime* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(DateTime).AsDateTime()"), Field.AsDateTime(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(DateTime) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(DateTime).AsDateTime()"), Field.AsDateTime(), *CheckValue++);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(DateTime) Error"), Field.HasError());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterTimeSpanTest, "System.Core.Serialization.CbWriter.TimeSpan", CompactBinaryWriterTestFlags)
-bool FCbWriterTimeSpanTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterTimeSpanTest, "System::Core::Serialization::CbWriter::TimeSpan", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -725,18 +681,15 @@ bool FCbWriterTimeSpanTest::RunTest(const FString& Parameters)
 		const FTimespan* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(TimeSpan).AsTimeSpan()"), Field.AsTimeSpan(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(TimeSpan) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(TimeSpan).AsTimeSpan()"), Field.AsTimeSpan(), *CheckValue++);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(TimeSpan) Error"), Field.HasError());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterObjectIdTest, "System.Core.Serialization.CbWriter.ObjectId", CompactBinaryWriterTestFlags)
-bool FCbWriterObjectIdTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterObjectIdTest, "System::Core::Serialization::CbWriter::ObjectId", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -752,18 +705,15 @@ bool FCbWriterObjectIdTest::RunTest(const FString& Parameters)
 		const FCbObjectId* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestEqual(TEXT("FCbWriter(ObjectId).AsObjectId()"), Field.AsObjectId(), *CheckValue++);
-			TestFalse(TEXT("FCbWriter(ObjectId) Error"), Field.HasError());
+			CHECK_EQUALS(TEXT("FCbWriter(ObjectId).AsObjectId()"), Field.AsObjectId(), *CheckValue++);
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(ObjectId) Error"), Field.HasError());
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterCustomByIdTest, "System.Core.Serialization.CbWriter.CustomById", CompactBinaryWriterTestFlags)
-bool FCbWriterCustomByIdTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterCustomByIdTest, "System::Core::Serialization::CbWriter::CustomById", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -789,19 +739,16 @@ bool FCbWriterCustomByIdTest::RunTest(const FString& Parameters)
 		const FCustomValue* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestTrue(TEXT("FCbWriter(CustomById).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
-			TestFalse(TEXT("FCbWriter(CustomById) Error"), Field.HasError());
+			CHECK_MESSAGE(TEXT("FCbWriter(CustomById).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(CustomById) Error"), Field.HasError());
 			++CheckValue;
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterCustomByNameTest, "System.Core.Serialization.CbWriter.CustomByName", CompactBinaryWriterTestFlags)
-bool FCbWriterCustomByNameTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterCustomByNameTest, "System::Core::Serialization::CbWriter::CustomByName", "[ApplicationContextMask][SmokeFilter]")
 {
 	TCbWriter<256> Writer;
 
@@ -827,19 +774,16 @@ bool FCbWriterCustomByNameTest::RunTest(const FString& Parameters)
 		const FCustomValue* CheckValue = Values;
 		for (FCbFieldView Field : Fields)
 		{
-			TestTrue(TEXT("FCbWriter(CustomByName).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
-			TestFalse(TEXT("FCbWriter(CustomByName) Error"), Field.HasError());
+			CHECK_MESSAGE(TEXT("FCbWriter(CustomByName).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
+			CHECK_FALSE_MESSAGE(TEXT("FCbWriter(CustomByName) Error"), Field.HasError());
 			++CheckValue;
 		}
 	}
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterComplexTest, "System.Core.Serialization.CbWriter.Complex", CompactBinaryWriterTestFlags)
-bool FCbWriterComplexTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterComplexTest, "System::Core::Serialization::CbWriter::Complex", "[ApplicationContextMask][SmokeFilter]")
 {
 	FCbObject Object;
 	FBufferArchive Archive;
@@ -1010,36 +954,30 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Object = Writer.Save().AsObject();
 
 		Writer.Save(Archive);
-		TestEqual(TEXT("FCbWriter(Complex).Save(Ar)->Num()"), uint64(Archive.Num()), Writer.GetSaveSize());
+		CHECK_EQUALS(TEXT("FCbWriter(Complex).Save(Ar)->Num()"), uint64(Archive.Num()), Writer.GetSaveSize());
 	}
 
-	TestEqual(TEXT("FCbWriter(Complex).Save()->Validate"),
+	CHECK_EQUALS(TEXT("FCbWriter(Complex).Save()->Validate"),
 		ValidateCompactBinary(Object.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
 
-	TestEqual(TEXT("FCbWriter(Complex).Save(Ar)->Validate"),
+	CHECK_EQUALS(TEXT("FCbWriter(Complex).Save(Ar)->Validate"),
 		ValidateCompactBinary(MakeMemoryView(Archive), ECbValidateMode::All), ECbValidateError::None);
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterOwnedReadOnlyTest, "System.Core.Serialization.CbWriter.OwnedReadOnly", CompactBinaryWriterTestFlags)
-bool FCbWriterOwnedReadOnlyTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterOwnedReadOnlyTest, "System::Core::Serialization::CbWriter::OwnedReadOnly", "[ApplicationContextMask][SmokeFilter]")
 {
 	FCbWriter Writer;
 	Writer.BeginObject();
 	Writer.EndObject();
 	FCbObject Object = Writer.Save().AsObject();
-	TestTrue(TEXT("FCbWriter().Save().IsOwned()"), Object.IsOwned());
-
-	return true;
+	CHECK_MESSAGE(TEXT("FCbWriter().Save().IsOwned()"), Object.IsOwned());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterStreamTest, "System.Core.Serialization.CbWriter.Stream", CompactBinaryWriterTestFlags)
-bool FCbWriterStreamTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterStreamTest, "System::Core::Serialization::CbWriter::Stream", "[ApplicationContextMask][SmokeFilter]")
 {
 	FCbObject Object;
 	{
@@ -1096,15 +1034,12 @@ bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 		Object = Writer.Save().AsObject();
 	}
 
-	TestEqual(TEXT("FCbWriter(Stream) Validate"), ValidateCompactBinary(Object.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
-
-	return true;
+	CHECK_EQUALS(TEXT("FCbWriter(Stream) Validate"), ValidateCompactBinary(Object.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterStateTest, "System.Core.Serialization.CbWriter.State", CompactBinaryWriterTestFlags)
-bool FCbWriterStateTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FCbWriterStateTest, "System::Core::Serialization::CbWriter::State", "[ApplicationContextMask][SmokeFilter]")
 {
 	FCbWriter Writer;
 
@@ -1168,10 +1103,8 @@ bool FCbWriterStateTest::RunTest(const FString& Parameters)
 
 	// Assert on writing a field with no value.
 	//Writer.Field(FCbFieldView());
-
-	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#endif // WITH_DEV_AUTOMATION_TESTS
+#endif // WITH_TESTS

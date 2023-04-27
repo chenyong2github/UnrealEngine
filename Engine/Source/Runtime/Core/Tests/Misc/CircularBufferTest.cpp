@@ -7,7 +7,7 @@
 #include "Containers/CircularBuffer.h"
 #include "Tests/TestHarnessAdapter.h"
 #if WITH_LOW_LEVEL_TESTS
-#include "TestCommon/Comparisons.h"
+#include "TestCommon/Expectations.h"
 #endif
 
 TEST_CASE_NAMED(FCircularBufferTest, "System::Core::Misc::CircularBuffer", "[ApplicationContextMask][SmokeFilter]")

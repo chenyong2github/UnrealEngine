@@ -4,8 +4,9 @@
 #include "Misc/AutomationTest.h"
 #include "Delegates/Delegate.h"
 #include "Tasks/Task.h"
+#include "Tests/TestHarnessAdapter.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+#if WITH_TESTS
 
 namespace UE { namespace TSDelegatesTest 
 {
@@ -23,9 +24,7 @@ namespace UE { namespace TSDelegatesTest
 		*bExecuted = true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTSMulticastDelegateBasicTest, "System.Core.Delegates.MulticastBasic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTSMulticastDelegateBasicTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTSMulticastDelegateBasicTest, "System::Core::Delegates::MulticastBasic", "[ApplicationContextMask][EngineFilter]")
 	{
 		DECLARE_TS_MULTICAST_DELEGATE(FTestDelegate);
 
@@ -125,12 +124,9 @@ namespace UE { namespace TSDelegatesTest
 			Delegate.Broadcast(0, 0, 0, 0, 0, 0, 0, 0, 0);
 		}
 
-		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTSMulticastDelegateStressTest, "System.Core.Delegates.MulticastStress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
-
-	bool FTSMulticastDelegateStressTest::RunTest(const FString& Parameters)
+	TEST_CASE_NAMED(FTSMulticastDelegateStressTest, "System::Core::Delegates::MulticastStress", "[ApplicationContextMask][EngineFilter]")
 	{
 		DECLARE_TS_MULTICAST_DELEGATE(FTestDelegate);
 
@@ -163,9 +159,7 @@ namespace UE { namespace TSDelegatesTest
 			bQuit = true;
 			Wait(TArray<FTask>{ Binding, Executing });
 		}
-
-		return true;
 	}
 }}
 
-#endif
+#endif //WITH_TESTS

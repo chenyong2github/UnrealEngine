@@ -8,7 +8,7 @@
 #include "Containers/TripleBuffer.h"
 #include "Math/RandomStream.h"
 #if WITH_LOW_LEVEL_TESTS
-#include "TestCommon/Comparisons.h"
+#include "TestCommon/Expectations.h"
 #endif
 
 TEST_CASE_NAMED(FTripleBufferTest, "System::Core::Misc::TripleBuffer", "[ApplicationContextMask][SmokeFilter]")

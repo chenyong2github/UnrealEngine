@@ -4,10 +4,9 @@
 #include "Misc/AutomationTest.h"
 #include "Async/AsyncWork.h"
 #include "Misc/QueuedThreadPool.h"
+#include "Tests/TestHarnessAdapter.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAsyncWorkEnsureCompletionBusyWaitDeadLockTest, "System.Core.AsyncWork.EnsureCompletionBusyWaitDeadlockTest", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled)
+#if WITH_TESTS
 
 namespace AsyncWorkTestImpl
 {
@@ -83,7 +82,7 @@ namespace AsyncWorkTestImpl
 	};
 }
 
-bool FAsyncWorkEnsureCompletionBusyWaitDeadLockTest::RunTest(const FString& Parameters)
+TEST_CASE_NAMED(FAsyncWorkEnsureCompletionBusyWaitDeadLockTest, "System::Core::AsyncWork::EnsureCompletionBusyWaitDeadlockTest", "[.][EditorContext][EngineFilter][Disabled]")
 {
 	using namespace AsyncWorkTestImpl;
 	TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncWorkEnsureCompletionBusyWaitDeadLockTest::RunTest);
@@ -131,7 +130,6 @@ bool FAsyncWorkEnsureCompletionBusyWaitDeadLockTest::RunTest(const FString& Para
 	}
 	OuterTask.EnsureCompletion(false);
 
-	return true;
 }
 
-#endif //WITH_DEV_AUTOMATION_TESTS
+#endif //WITH_TESTS

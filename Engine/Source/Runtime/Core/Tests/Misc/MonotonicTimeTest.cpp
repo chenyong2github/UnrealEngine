@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LOW_LEVEL_TESTS
+#if WITH_TESTS
 
 #include "Misc/MonotonicTime.h"
 
-#include "TestHarness.h"
+#include "Tests/TestHarnessAdapter.h"
 
 namespace UE
 {
 
-TEST_CASE("Core::Time::MonotonicTimeSpan", "[Core][Time][Smoke]")
+TEST_CASE_NAMED(FMonotonicTimeSpanTest, "System::Core::Time::MonotonicTimeSpan", "[Core][Time][SmokeFilter]")
 {
 	SECTION("Constructors")
 	{
@@ -74,7 +74,7 @@ TEST_CASE("Core::Time::MonotonicTimeSpan", "[Core][Time][Smoke]")
 	}
 }
 
-TEST_CASE("Core::Time::MonotonicTimePoint", "[Core][Time][Smoke]")
+TEST_CASE_NAMED(FMonotonicTimePointTest, "System::Core::Time::MonotonicTimePoint", "[Core][Time][SmokeFilter]")
 {
 	SECTION("Constructors")
 	{
@@ -139,4 +139,4 @@ TEST_CASE("Core::Time::MonotonicTimePoint", "[Core][Time][Smoke]")
 
 } // namespace UE
 
-#endif // WITH_LOW_LEVEL_TESTS
+#endif // WITH_TESTS
