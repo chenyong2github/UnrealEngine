@@ -838,7 +838,7 @@ void UClusterUnionComponent::VisitAllCurrentChildComponentsForCollision(ECollisi
 
 	TSet<uint32> IgnoredComponents;
 	IgnoredComponents.Reserve(Params.GetIgnoredComponents().Num());
-	for (uint32 Id : Params.GetIgnoredActors())
+	for (uint32 Id : Params.GetIgnoredComponents())
 	{
 		IgnoredComponents.Add(Id);
 	}
