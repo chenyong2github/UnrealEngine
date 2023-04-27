@@ -243,15 +243,35 @@ bool USocialParty::HasUserBeenInvited(const USocialUser& User) const
 	return false;
 }
 
-bool USocialParty::CanInviteUser(const USocialUser& User) const
+bool USocialParty::CanInviteUser(const USocialUser& User, ESocialPartyInviteMethod InviteMethod) const
 {
-	return CanInviteUserInternal(User) == ESocialPartyInviteFailureReason::Success;
+	return CanInviteUserInternal(User, InviteMethod) == ESocialPartyInviteFailureReason::Success;
 }
 
 ESocialPartyInviteFailureReason USocialParty::CanInviteUserInternal(const USocialUser& User) const
 {
-	// Only users that are online can be invited
-	if (!User.IsOnline() && !User.CanReceiveOfflineInvite())
+	UE_LOG(LogParty, Warning, TEXT("Invoking a deprecated method CanInviteUserInternal, use CanInviteUserInternal(const USocialUser& User, const ESocialPartyInviteMethod InviteMethod) instead!"));
+	return CanInviteUserInternal(User, ESocialPartyInviteMethod::Other);
+}
+
+ESocialPartyInviteFailureReason USocialParty::CanInviteUserInternal(const USocialUser& User, ESocialPartyInviteMethod InviteMethod) const
+{
+	bool bCanOnlyInviteFriend = false;
+	switch (InviteMethod)
+	{
+	case ESocialPartyInviteMethod::Notification:
+	case ESocialPartyInviteMethod::Other:
+		bCanOnlyInviteFriend = true;
+		break;
+	case ESocialPartyInviteMethod::AcceptRequestToJoin:
+		break;
+	default:
+		// Can't really decide here for Custom methods, pass the IsOnline check and let the Game itself do the check
+		check(InviteMethod >= ESocialPartyInviteMethod::Custom0 && InviteMethod < ESocialPartyInviteMethod::MAX);
+		break;
+	}
+
+	if (bCanOnlyInviteFriend && !User.IsOnline() && !User.CanReceiveOfflineInvite())
 	{
 		return ESocialPartyInviteFailureReason::NotOnline;
 	}
@@ -303,7 +323,7 @@ bool USocialParty::IsInviteRateLimited(const USocialUser& User, ESocialSubsystem
 bool USocialParty::TryInviteUser(const USocialUser& UserToInvite, const ESocialPartyInviteMethod InviteMethod, const FString& MetaData)
 {
 	bool bSentInvite = false;
-	ESocialPartyInviteFailureReason CanInviteResult = CanInviteUserInternal(UserToInvite);
+	ESocialPartyInviteFailureReason CanInviteResult = CanInviteUserInternal(UserToInvite, InviteMethod);
 	if (CanInviteResult == ESocialPartyInviteFailureReason::Success)
 	{
 		const bool bPreferPlatformInvite = USocialSettings::ShouldPreferPlatformInvites();

@@ -216,6 +216,8 @@ protected:
 	// Set during shutdown, used to early-out of lingering OnlineSubsystem callbacks that are pending
 	bool bShutdownPending = false;
 
+	TMap<FOnlinePartyTypeId, FJoinPartyAttempt> JoinAttemptsByTypeId;
+
 private:
 	UGameInstance& GetGameInstance() const;
 	USocialToolkit& CreateSocialToolkit(ULocalPlayer& OwningLocalPlayer, int32 LocalPlayerIndex);
@@ -281,7 +283,6 @@ private:
 
 	TMap<FOnlinePartyTypeId, USocialParty*> JoinedPartiesByTypeId;
 	TMap<FOnlinePartyTypeId, USocialParty*> LeavingPartiesByTypeId;
-	TMap<FOnlinePartyTypeId, FJoinPartyAttempt> JoinAttemptsByTypeId;
 
 	FDelegateHandle OnFillJoinRequestInfoHandle;
 

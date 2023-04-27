@@ -89,6 +89,10 @@ enum class EPartyJoinDenialReason : uint8
 	MissingPartyClassForTypeId,
 	/** The target user is blocked by the local user on one or more of the active subsystems */
 	TargetUserBlocked,
+	/** Failed to get party join info from target user */
+	InvalidJoinInfo,
+	/** The join method doesn't support non-friends */
+	NotFriends,
 
 	/**
 	* Customizable denial reasons.
@@ -209,6 +213,15 @@ inline const TCHAR* ToString(EPartyJoinDenialReason Type)
 	case EPartyJoinDenialReason::MissingPartyClassForTypeId:
 		return TEXT("MissingPartyClassForTypeId");
 		break;
+	case EPartyJoinDenialReason::TargetUserBlocked:
+		return TEXT("TargetUserBlocked");
+		break;
+	case EPartyJoinDenialReason::InvalidJoinInfo:
+		return TEXT("InvalidJoinInfo");
+		break;
+	case EPartyJoinDenialReason::NotFriends:
+		return TEXT("NotFriends");
+		break;
 	default:
 		return TEXT("CustomReason");
 		break;
@@ -231,8 +244,21 @@ enum class ESocialPartyInviteMethod : uint8
 	Other = 0,
 	/** Invite was sent from a toast */
 	Notification,
-	/** Invite was sent with a custom method */
-	Custom1
+	/** Invite was sent via accepting "Request To Join" */
+	AcceptRequestToJoin,
+	/** Custom methods */
+	Custom0,
+	Custom1,
+	Custom2,
+	Custom3,
+	Custom4,
+	Custom5,
+	Custom6,
+	Custom7,
+	Custom8,
+	Custom9,
+
+	MAX
 };
 
 UENUM()
