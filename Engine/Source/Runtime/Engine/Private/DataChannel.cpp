@@ -111,6 +111,7 @@ static FAutoConsoleVariableRef CVarDormancyHysteresis(
 namespace UE::Net
 {
 	extern int32 FilterGuidRemapping;
+	extern bool bDiscardTornOffActorRPCs;
 
 	static float QueuedBunchTimeoutSeconds = 30.0f;
 	static FAutoConsoleVariableRef CVarQueuedBunchTimeoutSeconds(
@@ -3039,6 +3040,24 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 				FNetControlMessage<NMT_ActorChannelFailure>::Send(Connection, ChIndex);
 			}
 			return;
+		}
+		else
+		{
+			if (UE::Net::bDiscardTornOffActorRPCs && NewChannelActor->GetTearOff())
+			{
+				UE_LOG(LogNet, Warning, TEXT("UActorChannel::ProcessBunch: SerializeNewActor received an open bunch for a torn off actor. Actor: %s, Channel: %i"), *GetFullNameSafe(NewChannelActor), ChIndex);
+				Broken = 1;
+
+				if (!Connection->IsInternalAck()
+#if !UE_BUILD_SHIPPING
+					&& !bBlockChannelFailure
+#endif
+					)
+				{
+					FNetControlMessage<NMT_ActorChannelFailure>::Send(Connection, ChIndex);
+				}
+				return;
+			}
 		}
 
 		ESetChannelActorFlags Flags = ESetChannelActorFlags::None;

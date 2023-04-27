@@ -327,6 +327,13 @@ namespace UE::Net
 	{
 		return UE::Net::Private::bIgnoreStaticActorDestruction;
 	}
+
+	bool bDiscardTornOffActorRPCs = true;
+	FAutoConsoleVariableRef CVarNetDiscardTornOffActorRPCs(
+		TEXT("net.DiscardTornOffActorRPCs"),
+		bDiscardTornOffActorRPCs,
+		TEXT("If enabled, discard RPCs if the actor has been torn off."),
+		ECVF_Default);
 }
 
 #if UE_BUILD_SHIPPING
@@ -6657,6 +6664,12 @@ void UNetDriver::ProcessRemoteFunction(
 	if (Actor->IsActorBeingDestroyed())
 	{
 		UE_LOG(LogNet, Warning, TEXT("UNetDriver::ProcessRemoteFunction: Remote function %s called from actor %s while actor is being destroyed. Function will not be processed."), *Function->GetName(), *Actor->GetName());
+		return;
+	}
+
+	if (UE::Net::bDiscardTornOffActorRPCs && Actor->GetTearOff())
+	{
+		UE_LOG(LogNet, Warning, TEXT("UNetDriver::ProcessRemoteFunction: Remote function %s called from actor %s while actor is torn off. Function will not be processed."), *Function->GetName(), *Actor->GetName());
 		return;
 	}
 
