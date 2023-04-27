@@ -138,7 +138,9 @@ private:
 
 	/** Helper function to remove a folder from the PathTree including all parent folders that are now empty as a result of the removal */
 	void RemoveFoldersRecursively(FStringView LeafFolder);
-	void MakeItemModifiedUpdate(UObject* Object);
+
+	void UpdateAliasesCachedAssetData(const FAssetData& InAssetData);
+	void MakeItemModifiedUpdate(const FSoftObjectPath& ObjectPath);
 
 	FContentBrowserItemData CreateAssetFolderItem(const FName InFolderPath);
 	FContentBrowserItemData CreateAssetFileItem(const FContentBrowserUniqueAlias& Alias);
