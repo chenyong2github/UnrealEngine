@@ -1090,7 +1090,10 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		StaticLightingResolution = InComponent->GetLandscapeProxy()->StaticLightingResolution;
 	}
 
-	ComponentLightInfo = MakeUnique<FLandscapeLCI>(InComponent, FeatureLevel);
+	// Landscape GPU culling uses VF that requires primitive UB
+	bVFRequiresPrimitiveUniformBuffer |= (!bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()));
+
+	ComponentLightInfo = MakeUnique<FLandscapeLCI>(InComponent, FeatureLevel, bVFRequiresPrimitiveUniformBuffer != 0);
 	check(ComponentLightInfo);
 
 	const bool bHasStaticLighting = ComponentLightInfo->GetLightMap() || ComponentLightInfo->GetShadowMap();
@@ -1172,9 +1175,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 			}
 		}
 	}
-
-	// Landscape GPU culling uses VF that requires primitive UB
-	bVFRequiresPrimitiveUniformBuffer |= (!bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()));
 
 	bSupportsInstanceDataBuffer = true;
 	UpdateDefaultInstanceSceneData();
