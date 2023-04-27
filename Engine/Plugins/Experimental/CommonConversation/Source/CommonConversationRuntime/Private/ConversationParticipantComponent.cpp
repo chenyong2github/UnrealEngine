@@ -65,23 +65,33 @@ void UConversationParticipantComponent::ServerNotifyConversationEnded(UConversat
 	AActor* Owner = GetOwner();
 	if (Owner->GetLocalRole() == ROLE_Authority)
 	{
-		if (Auth_CurrentConversation == Conversation)
+		check(Conversation);
+
+		for (UConversationInstance* ConversationInstance : Auth_Conversations)
 		{
-			check(Conversation);
-			Auth_CurrentConversation = nullptr;
-			Auth_Conversations.Remove(Conversation);
-
-			const int32 OldConversationsActive = ConversationsActive;
-			ConversationsActive--;
-			MARK_PROPERTY_DIRTY_FROM_NAME(UConversationParticipantComponent, ConversationsActive, this);
-
-			OnServerConversationEnded(Conversation);
-
-			ClientUpdateConversations(ConversationsActive);
-
-			if (ConversationsActive == 0)
+			if (Conversation == ConversationInstance)
 			{
-				OnRep_ConversationsActive(OldConversationsActive);
+				if (Conversation == Auth_CurrentConversation)
+				{
+					Auth_CurrentConversation = nullptr;
+				}
+				
+				Auth_Conversations.Remove(Conversation);
+
+				const int32 OldConversationsActive = ConversationsActive;
+				ConversationsActive--;
+				MARK_PROPERTY_DIRTY_FROM_NAME(UConversationParticipantComponent, ConversationsActive, this);
+
+				OnServerConversationEnded(Conversation);
+
+				ClientUpdateConversations(ConversationsActive);
+
+				if (ConversationsActive == 0)
+				{
+					OnRep_ConversationsActive(OldConversationsActive);
+				}
+
+				break;
 			}
 		}
 	}
