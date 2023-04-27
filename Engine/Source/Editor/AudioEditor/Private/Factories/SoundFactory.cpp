@@ -374,8 +374,6 @@ UObject* USoundFactory::CreateObject
 			// Attempt to convert to 16 bit audio
 			if (Audio::ConvertAudioToWav(RawWaveData, ConvertedRawWaveData))
 			{
-				// Icky, Reencoding with SNDFILE will strip the timecode info, so back it up.
-				auto CachedTimeCodeInfo = MoveTemp(WaveInfo.TimecodeInfo);
 				WaveInfo = FWaveModInfo();				
 				if (!WaveInfo.ReadWaveInfo(ConvertedRawWaveData.GetData(), ConvertedRawWaveData.Num(), &ErrorMessage))
 				{
@@ -383,7 +381,6 @@ UObject* USoundFactory::CreateObject
 					GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
 					return nullptr;
 				}
-				WaveInfo.TimecodeInfo = MoveTemp(CachedTimeCodeInfo);
 			}
 
 			// Copy over the data

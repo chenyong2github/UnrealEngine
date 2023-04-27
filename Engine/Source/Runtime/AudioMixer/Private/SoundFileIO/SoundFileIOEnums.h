@@ -26,6 +26,7 @@ namespace Audio
 			ALREADY_INITIALIZED,
 			LOADING,
 			INVALID_STATE,
+			INVALID_CHUNK,
 			UNKNOWN
 		};
 

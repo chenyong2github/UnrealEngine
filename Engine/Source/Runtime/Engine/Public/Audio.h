@@ -921,6 +921,10 @@ public:
 		return ((InDW + 1)& ~1);
 	}
 
+	/** Wave Chunk Id utils */
+	ENGINE_API static const TArray<uint32>& GetRequiredWaveChunkIds();
+	ENGINE_API static const TArray<uint32>& GetOptionalWaveChunkIds();
+
 	// Read headers and load all info pointers in WaveModInfo. 
 	// Returns 0 if invalid data encountered.
 	ENGINE_API bool ReadWaveInfo(const uint8* WaveData, int32 WaveDataSize, FString* ErrorMessage = NULL, bool InHeaderDataOnly = false, void** OutFormatHeader = NULL );

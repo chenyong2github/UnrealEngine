@@ -1332,16 +1332,25 @@ struct FExtendedFormatChunk
 #pragma pack(pop)
 #endif
 
-bool IsKnownChunkId(uint32 ChunkId)
+const TArray<uint32>& FWaveModInfo::GetRequiredWaveChunkIds()
 {
-	uint32 KnownIds[] =
+	static TArray<uint32> RequiredChunkIds =
 	{
 		UE_mmioFOURCC('f', 'm', 't', ' '),
-		UE_mmioFOURCC('d', 'a', 't', 'a'),
+		UE_mmioFOURCC('d', 'a', 't', 'a')
+	};
+	
+	return RequiredChunkIds;
+}
+
+const TArray<uint32>& FWaveModInfo::GetOptionalWaveChunkIds()
+{
+	static TArray<uint32> OptionalChunkIds =
+	{
 		UE_mmioFOURCC('f', 'a', 'c', 't'),
 		UE_mmioFOURCC('c', 'u', 'e', ' '),
 		UE_mmioFOURCC('p', 'l', 's', 't'),
-		UE_mmioFOURCC('l', 'i', 's', 't'),
+		UE_mmioFOURCC('L', 'I', 'S', 'T'),
 		UE_mmioFOURCC('l', 'a', 'b', 'l'),
 		UE_mmioFOURCC('l', 't', 'x', 't'),
 		UE_mmioFOURCC('n', 'o', 't', 'e'),
@@ -1349,10 +1358,18 @@ bool IsKnownChunkId(uint32 ChunkId)
 		UE_mmioFOURCC('i', 'n', 's', 't'),
 		UE_mmioFOURCC('a', 'c', 'i', 'd'),
 		UE_mmioFOURCC('b', 'e', 'x', 't'),
-		UE_mmioFOURCC('i', 'X', 'M', 'L'),
+		UE_mmioFOURCC('i', 'X', 'M', 'L')
 	};
 
-	return Algo::Find(KnownIds, ChunkId) != nullptr;
+	return OptionalChunkIds;
+}
+
+bool IsKnownChunkId(uint32 ChunkId)
+{
+	bool bIsKnown = FWaveModInfo::GetRequiredWaveChunkIds().Contains(ChunkId) ||
+					FWaveModInfo::GetOptionalWaveChunkIds().Contains(ChunkId);
+
+	return bIsKnown;
 }
 
 FRiffChunkOld* FindRiffChunk(FRiffChunkOld* RiffChunkStart, const uint8* RiffChunkEnd, uint32 ChunkId)

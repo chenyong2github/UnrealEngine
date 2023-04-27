@@ -155,6 +155,22 @@ namespace Audio
 		Error = SoundFileWriter->WriteSamples((const float*)ProcessBuffer.GetData(), InputSamplesRead, SamplesWritten);
 		check(Error == ESoundFileError::Type::NONE);
 
+		// The required chunks ('fmt ' and 'data') have been written, now copy over the optional chunks.
+		FSoundFileChunkArray OptionalChunks;
+		Error = InputSoundDataReader->GetOptionalChunks(OptionalChunks);
+		if (Error != ESoundFileError::Type::NONE)
+		{
+			UE_LOG(LogAudioMixer, Error, TEXT("Error encountered while reading optional chunk data...skipping"));
+		}
+		else
+		{
+			Error = SoundFileWriter->WriteOptionalChunks(OptionalChunks);
+			if (Error != ESoundFileError::Type::NONE)
+			{
+				UE_LOG(LogAudioMixer, Error, TEXT("Error encountered while writing optional chunk data...skipping"));
+			}
+		}
+		
 		// Release the sound file handles as soon as we finished converting the file
 		InputSoundDataReader->Release();
 		SoundFileWriter->Release();

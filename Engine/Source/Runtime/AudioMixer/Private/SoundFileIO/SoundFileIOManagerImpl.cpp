@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "Audio.h"
 #include "AudioMixer.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformFileManager.h"
@@ -15,6 +16,7 @@
 namespace Audio
 {
 	typedef struct SoundFileHandleOpaque LibSoundFileHandle;
+	typedef struct SoundFileChunkIteratorOpaque LibSoundFileChunkIterator;
 
 	//	// Virtual Sound File Function Pointers
 	typedef SoundFileCount(*VirtualSoundFileGetLengthFuncPtr)(void* UserData);
@@ -57,6 +59,11 @@ namespace Audio
 	typedef SoundFileCount(*SoundFileReadSamplesDoubleFuncPtr)(LibSoundFileHandle* FileHandle, double* Buffer, SoundFileCount NumSamples);
 	typedef SoundFileCount(*SoundFileWriteSamplesFloatFuncPtr)(LibSoundFileHandle* FileHandle, const float* Buffer, SoundFileCount NumSamples);
 	typedef SoundFileCount(*SoundFileWriteSamplesDoubleFuncPtr)(LibSoundFileHandle* FileHandle, const double* Buffer, SoundFileCount NumSamples);
+	typedef int32(*SoundFileGetChunkSizeFuncPtr)(const LibSoundFileChunkIterator* ChunkIterator, FSoundFileChunkInfo* ChunkInfo);
+	typedef int32(*SoundFileGetChunkDataFuncPtr)(const LibSoundFileChunkIterator* ChunkIterator, FSoundFileChunkInfo* ChunkInfo);
+	typedef LibSoundFileChunkIterator*(*SoundFileGetChunkIteratorFuncPtr)(LibSoundFileHandle* FileHandle, const FSoundFileChunkInfo* ChunkInfo);
+	typedef LibSoundFileChunkIterator*(*SoundFileNextChunkIteratorFuncPtr)(LibSoundFileChunkIterator* ChunkIterator);
+	typedef int32(*SoundFileSetChunkFuncPtr)(LibSoundFileHandle* FileHandle, const FSoundFileChunkInfo* ChunkInfo);
 
 	SoundFileOpenFuncPtr SoundFileOpen = nullptr;
 	SoundFileOpenVirtualFuncPtr SoundFileOpenVirtual = nullptr;
@@ -76,6 +83,11 @@ namespace Audio
 	SoundFileReadSamplesDoubleFuncPtr SoundFileReadSamplesDouble = nullptr;
 	SoundFileWriteSamplesFloatFuncPtr SoundFileWriteSamplesFloat = nullptr;
 	SoundFileWriteSamplesDoubleFuncPtr SoundFileWriteSamplesDouble = nullptr;
+	SoundFileGetChunkSizeFuncPtr SoundFileGetChunkSize = nullptr;
+	SoundFileGetChunkDataFuncPtr SoundFileGetChunkData = nullptr;
+	SoundFileGetChunkIteratorFuncPtr SoundFileGetChunkIterator = nullptr;
+	SoundFileNextChunkIteratorFuncPtr SoundFileNextChunkIterator = nullptr;
+	SoundFileSetChunkFuncPtr SoundFileSetChunk = nullptr;
 
 	void* SoundFileDllHandle;
 	static void* GetSoundFileDllHandle()
@@ -147,6 +159,11 @@ namespace Audio
 		SoundFileReadSamplesDouble = (SoundFileReadSamplesDoubleFuncPtr)GetSoundFileDllExport(TEXT("sf_read_double"), bSuccess);
 		SoundFileWriteSamplesFloat = (SoundFileWriteSamplesFloatFuncPtr)GetSoundFileDllExport(TEXT("sf_write_float"), bSuccess);
 		SoundFileWriteSamplesDouble = (SoundFileWriteSamplesDoubleFuncPtr)GetSoundFileDllExport(TEXT("sf_write_double"), bSuccess);
+		SoundFileGetChunkSize = (SoundFileGetChunkSizeFuncPtr)GetSoundFileDllExport(TEXT("sf_get_chunk_size"), bSuccess);
+		SoundFileGetChunkData = (SoundFileGetChunkDataFuncPtr)GetSoundFileDllExport(TEXT("sf_get_chunk_data"), bSuccess);
+		SoundFileGetChunkIterator = (SoundFileGetChunkIteratorFuncPtr)GetSoundFileDllExport(TEXT("sf_get_chunk_iterator"), bSuccess);
+		SoundFileNextChunkIterator = (SoundFileNextChunkIteratorFuncPtr)GetSoundFileDllExport(TEXT("sf_next_chunk_iterator"), bSuccess);
+		SoundFileSetChunk = (SoundFileSetChunkFuncPtr)GetSoundFileDllExport(TEXT("sf_set_chunk"), bSuccess);
 
 		// make sure we're successful
 		check(bSuccess);
@@ -177,6 +194,11 @@ namespace Audio
 			SoundFileReadSamplesDouble = nullptr;
 			SoundFileWriteSamplesFloat = nullptr;
 			SoundFileWriteSamplesDouble = nullptr;
+			SoundFileGetChunkSize = nullptr;
+			SoundFileGetChunkData = nullptr;
+			SoundFileGetChunkIterator = nullptr;
+			SoundFileNextChunkIterator = nullptr;
+			SoundFileSetChunk = nullptr;
 		}
 		return true;
 	}
@@ -345,6 +367,66 @@ namespace Audio
 		return ESoundFileError::Type::NONE;
 	}
 
+	static ESoundFileError::Type GetOptionalChunksInternal(LibSoundFileHandle* FileHandle, FSoundFileChunkArray& OutChunkInfoArray)
+	{
+		const TArray<uint32>& OptionalChunkIds = FWaveModInfo::GetOptionalWaveChunkIds();
+
+		for (const uint32 Id : OptionalChunkIds)
+		{
+			FSoundFileChunkInfo ChunkLookup;
+			ChunkLookup.ChunkIdSize = sizeof(Id);
+			FCStringAnsi::Strncpy(ChunkLookup.ChunkId, (ANSICHAR*)&(INTEL_ORDER32(Id)), ChunkLookup.ChunkIdSize + 1);
+
+			// Lookup chunk of given Id. Multiple chunks can exist of a given type
+			// so we loop here.
+			LibSoundFileChunkIterator* ChunkItr = SoundFileGetChunkIterator(FileHandle, &ChunkLookup);
+			while (ChunkItr)
+			{
+				FSoundFileChunkInfoWrapper ChunkInfo;
+				// SoundFileGetChunkSize retrieves the chunk data size. Oddly,
+				// it does not fill in the chunk Id.
+				int32 Result = SoundFileGetChunkSize(ChunkItr, ChunkInfo.GetPtr());
+				if (Result == 0 && ChunkInfo.GetPtr()->DataLength > 0)
+				{
+					ChunkInfo.AllocateChunkData();
+					// SoundFileGetChunkData copies in the chunk data and fills
+					// in the ChunkId.
+					Result = SoundFileGetChunkData(ChunkItr, ChunkInfo.GetPtr());
+
+					if (Result == 0)
+					{
+						OutChunkInfoArray.Add(MoveTemp(ChunkInfo));
+					}
+					else
+					{
+						UE_LOG(LogAudioMixer, Error, TEXT("LibSoundFile unable to read invalid chunk: %s"), ChunkLookup.ChunkId);
+						return ESoundFileError::Type::INVALID_CHUNK;
+					}
+				}
+
+				ChunkItr = SoundFileNextChunkIterator(ChunkItr);
+			}
+		}
+
+		return ESoundFileError::Type::NONE;
+	}
+
+	static ESoundFileError::Type WriteOptionalChunksInternal(LibSoundFileHandle* FileHandle, const FSoundFileChunkArray& ChunkInfoArray)
+	{
+		for (const FSoundFileChunkInfoWrapper& ChunkInfo : ChunkInfoArray)
+		{
+			// Note, libsndfile uses 4-byte pad when writing chunk data
+			int32 Result = SoundFileSetChunk(FileHandle, ChunkInfo.GetPtr());
+			if (Result)
+			{
+				UE_LOG(LogAudioMixer, Error, TEXT("LibSoundFile failed to write chunk data; Result = %d"), Result);
+				return ESoundFileError::Type::INVALID_STATE;
+			}
+		}
+
+		return ESoundFileError::Type::NONE;
+	}
+	
 	static SoundFileCount OnSoundFileGetLengthBytes(void* UserData)
 	{
 		SoundFileCount Length = 0;
@@ -636,6 +718,11 @@ namespace Audio
 
 			OutNumSamplesRead = SoundFileReadSamplesDouble(FileHandle, DataPtr, NumSamples);
 			return ESoundFileError::Type::NONE;
+		}
+
+		ESoundFileError::Type GetOptionalChunks(FSoundFileChunkArray& OutChunkInfoArray) override
+		{
+			return GetOptionalChunksInternal(FileHandle, OutChunkInfoArray);
 		}
 
 	private:
@@ -1096,6 +1183,11 @@ namespace Audio
 			return ESoundFileError::Type::NONE;
 		}
 
+		ESoundFileError::Type GetOptionalChunks(FSoundFileChunkArray& OutChunkInfoArray) override
+		{
+			return GetOptionalChunksInternal(FileHandle, OutChunkInfoArray);
+		}
+
 	private:
 
 		ESoundFileError::Type SetError(ESoundFileError::Type InError)
@@ -1429,6 +1521,11 @@ namespace Audio
 		{
 			*OutBulkData = &BulkData;
 			return ESoundFileError::Type::NONE;
+		}
+
+		ESoundFileError::Type WriteOptionalChunks(const FSoundFileChunkArray& ChunkInfoArray) override
+		{
+			return WriteOptionalChunksInternal(FileHandle, ChunkInfoArray);
 		}
 
 	private:
