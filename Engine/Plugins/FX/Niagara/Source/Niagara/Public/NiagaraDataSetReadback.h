@@ -39,7 +39,6 @@ private:
 	//FGuid					SourceUsageId;
 	FNiagaraDataSet			DataSet;
 	FNiagaraParameterStore	ParameterStore;
-	TArray<int32>			IDToIndexTable;
 
 	FOnReadbackReady		OnReadbackReady;
 };
