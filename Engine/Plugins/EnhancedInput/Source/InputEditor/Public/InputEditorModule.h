@@ -96,7 +96,7 @@ public:
 };
 
 UCLASS()
-class INPUTEDITOR_API UPlayerMappableInputConfig_Factory : public UFactory
+class UE_DEPRECATED(5.3, "UPlayerMappableInputConfig has been deprecated, please use the UEnhancedInputUserSettings system instead.") INPUTEDITOR_API UPlayerMappableInputConfig_Factory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 public:
