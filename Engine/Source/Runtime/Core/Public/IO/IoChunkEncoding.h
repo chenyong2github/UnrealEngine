@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "IO/IoOffsetLength.h"
+#include "IO/IoStatus.h"
 #include "Memory/MemoryView.h"
 #include "UObject/NameTypes.h"
 
@@ -71,7 +73,7 @@ public:
 	static bool Decode(const FIoChunkDecodingParams& Params, FMemoryView EncodedBlocks, FMutableMemoryView OutRawData);
 	static bool Decode(FMemoryView EncodedData, FName CompressionFormat, FMemoryView EncryptionKey, FMutableMemoryView OutRawData, uint64 Offset = 0);
 
-	static bool GetEncodedRange(uint64 TotalRawSize, uint32 RawBlockSize, TConstArrayView<uint32> EncodedBlockSize, uint64 RawOffset, uint64 RawSize, uint64& OutEncodedStart, uint64& OutEncodedEnd);
-	static bool GetEncodedRange(const FIoChunkDecodingParams& Params, uint64 RawSize, uint64& OutEncodedStart, uint64& OutEncodedEnd);
+	static TIoStatusOr<FIoOffsetAndLength> GetChunkRange(uint64 TotalRawSize, uint32 RawBlockSize, TConstArrayView<uint32> EncodedBlockSize, uint64 RawOffset, uint64 RawSize);
+	static TIoStatusOr<FIoOffsetAndLength> GetChunkRange(const FIoChunkDecodingParams& Params, uint64 RawSize);
 	static uint64 GetTotalEncodedSize(TConstArrayView<uint32> EncodedBlockSize);
 };

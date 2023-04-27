@@ -10,8 +10,7 @@
 #include "Misc/Compression.h"
 #include <atomic>
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+////////////////////////////////////////////////////////////////////////////////
 bool FIoChunkEncoding::FHeader::IsValid() const
 {
 	return Magic == FIoChunkEncoding::ExpectedMagic
@@ -54,8 +53,7 @@ const FIoChunkEncoding::FHeader* FIoChunkEncoding::FHeader::Decode(FMemoryView H
 	return !Header->IsValid() || HeaderData.GetSize() < Header->GetTotalHeaderSize() ? nullptr : Header;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+////////////////////////////////////////////////////////////////////////////////
 bool FIoChunkEncoding::Encode(const FIoChunkEncodingParams& Params, FMemoryView RawData, FIoBuffer& OutEncodedData)
 {
 	FIoBuffer Encoding, Blocks;
@@ -202,8 +200,7 @@ bool FIoChunkEncoding::Encode(const FIoChunkEncodingParams& Params, FMemoryView 
 	return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+////////////////////////////////////////////////////////////////////////////////
 bool FIoChunkEncoding::Decode(
 	FMemoryView EncodedData,
 	FName CompressionFormat,
@@ -313,23 +310,15 @@ bool FIoChunkEncoding::Decode(const FIoChunkDecodingParams& Params, FMemoryView 
 	return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FIoChunkEncoding::GetEncodedRange(
-	uint64 TotalRawSize,
-	uint32 RawBlockSize,
-	TConstArrayView<uint32> EncodedBlockSize,
-	uint64 RawOffset,
-	uint64 RawSize,
-	uint64& OutEncodedStart,
-	uint64& OutEncodedEnd)
+////////////////////////////////////////////////////////////////////////////////
+TIoStatusOr<FIoOffsetAndLength> FIoChunkEncoding::GetChunkRange(uint64 TotalRawSize, uint32 RawBlockSize, TConstArrayView<uint32> EncodedBlockSize, uint64 RawOffset, uint64 RawSize)
 {
 	check(RawBlockSize > 0);
 	check(EncodedBlockSize.Num() > 0);
 
 	if (TotalRawSize < RawOffset + RawSize)
 	{
-		return false;
+		return FIoStatus(EIoErrorCode::InvalidParameter);
 	}
 
 	const uint64 TotalBlockCount = FMath::DivideAndRoundUp(TotalRawSize, uint64(RawBlockSize));
@@ -338,28 +327,28 @@ bool FIoChunkEncoding::GetEncodedRange(
 
 	if (TotalBlockCount < FirstBlockIndex || TotalBlockCount < LastBlockIndex)
 	{
-		return false;
+		return FIoStatus(EIoErrorCode::InvalidParameter);
 	}
 
-	OutEncodedStart = 0;
+	uint64 Offset = 0;
 	uint32 BlockIndex = 0;
 	while (BlockIndex < FirstBlockIndex)
 	{
-		OutEncodedStart += Align(EncodedBlockSize[BlockIndex++], FAES::AESBlockSize);
+		Offset += Align(EncodedBlockSize[BlockIndex++], FAES::AESBlockSize);
 	}
 
-	OutEncodedEnd = OutEncodedStart;
+	uint64 Length = 0;
 	while (BlockIndex <= LastBlockIndex)
 	{
-		OutEncodedEnd += Align(EncodedBlockSize[BlockIndex++], FAES::AESBlockSize);
+		Length += Align(EncodedBlockSize[BlockIndex++], FAES::AESBlockSize);
 	}
 
-	return true;
+	return FIoOffsetAndLength(Offset, Length);
 }
 
-bool FIoChunkEncoding::GetEncodedRange(const FIoChunkDecodingParams& Params, uint64 RawSize, uint64& OutEncodedStart, uint64& OutEncodedEnd)
+TIoStatusOr<FIoOffsetAndLength> FIoChunkEncoding::GetChunkRange(const FIoChunkDecodingParams& Params, uint64 RawSize)
 {
-	return GetEncodedRange(Params.TotalRawSize, Params.BlockSize, Params.EncodedBlockSize, Params.RawOffset, RawSize, OutEncodedStart, OutEncodedEnd);
+	return GetChunkRange(Params.TotalRawSize, Params.BlockSize, Params.EncodedBlockSize, Params.RawOffset, RawSize);
 }
 
 uint64 FIoChunkEncoding::GetTotalEncodedSize(TConstArrayView<uint32> EncodedBlockSize)

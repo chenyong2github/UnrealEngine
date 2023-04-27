@@ -2,12 +2,21 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 /**
  * Combined offset and length.
  */
 struct FIoOffsetAndLength
 {
-public:
+	FIoOffsetAndLength() = default;
+
+	explicit FIoOffsetAndLength(const uint64 Offset, const uint64 Length)
+	{
+		SetOffset(Offset);
+		SetLength(Length);
+	}
+
 	inline uint64 GetOffset() const
 	{
 		return OffsetAndLength[4]
