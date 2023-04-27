@@ -8,12 +8,13 @@
 
 #include "LyraMappableConfigPair.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 class UPlayerMappableInputConfig;
 
-// TODO: Deprecate
 /** A container to organize loaded player mappable configs to their CommonUI input type */
 USTRUCT(BlueprintType)
-struct FLoadedMappableConfigPair
+struct UE_DEPRECATED(5.3, "FLoadedMappableConfigPair has been deprecated. Please use FInputMappingContextAndPriority instead.") FLoadedMappableConfigPair
 {
 	GENERATED_BODY()
 
@@ -37,10 +38,9 @@ struct FLoadedMappableConfigPair
 	bool bIsActive = false;
 };
 
-// TODO: Deprecate
 /** A container to organize potentially unloaded player mappable configs to their CommonUI input type */
 USTRUCT()
-struct FMappableConfigPair
+struct UE_DEPRECATED(5.3, "FMappableConfigPair has been deprecated. Please use FInputMappingContextAndPriority instead.") FMappableConfigPair
 {
 	GENERATED_BODY()
 	
@@ -91,3 +91,5 @@ struct FMappableConfigPair
 	 */
 	static void UnregisterPair(const FMappableConfigPair& Pair);
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

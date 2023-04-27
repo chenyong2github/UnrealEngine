@@ -17,6 +17,8 @@
 
 #define LOCTEXT_NAMESPACE "GameFeatures_AddInputConfig"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void UGameFeatureAction_AddInputConfig::OnGameFeatureRegistering()
 {
 	Super::OnGameFeatureRegistering();
@@ -186,3 +188,5 @@ void UGameFeatureAction_AddInputConfig::RemoveInputConfig(APawn* Pawn, FPerConte
 }
 
 #undef LOCTEXT_NAMESPACE
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

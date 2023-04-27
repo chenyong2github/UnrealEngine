@@ -7,6 +7,8 @@
 #include "UObject/WeakObjectPtr.h"
 #include "GameFeatureAction_AddInputConfig.generated.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 struct FMappableConfigPair;
 
 class APawn;
@@ -18,7 +20,7 @@ struct FComponentRequestHandle;
  * Expects that local players are set up to use the EnhancedInput system.
  */
 UCLASS(meta = (DisplayName = "Add Input Config"))
-class LYRAGAME_API UGameFeatureAction_AddInputConfig : public UGameFeatureAction_WorldActionBase
+class UE_DEPRECATED(5.3, "UGameFeatureAction_AddInputConfig has been deprecated. Please use UGameFeatureAction_AddInputContextMapping instead.") LYRAGAME_API UGameFeatureAction_AddInputConfig : public UGameFeatureAction_WorldActionBase
 {
 	GENERATED_BODY()
 	
@@ -67,3 +69,5 @@ private:
 	UPROPERTY(EditAnywhere)
 	TArray<FMappableConfigPair> InputConfigs;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
