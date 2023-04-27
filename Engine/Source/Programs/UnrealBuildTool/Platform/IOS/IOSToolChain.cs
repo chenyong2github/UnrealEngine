@@ -1518,7 +1518,7 @@ namespace UnrealBuildTool
 
 			if (UseModernXcode(Target.ProjectFile))
 			{
-				throw new BuildException("Do we get here?");
+				throw new BuildException("Modern xcode mode should not reach this, has broken the PostBuild setup");
 
 			}
 
