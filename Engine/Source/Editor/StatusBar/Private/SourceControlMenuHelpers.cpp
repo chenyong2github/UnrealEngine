@@ -664,7 +664,7 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 			.ContentPadding(FMargin(6.0f, 0.0f))
 			.ToolTipText_Static(&FSourceControlMenuHelpers::GetSourceControlTooltip)
 			.MenuPlacement(MenuPlacement_AboveAnchor)
-			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("StatusBar.StatusBarComboButton"))
+			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
 			.ButtonContent()
 			[
 				SNew(SHorizontalBox)

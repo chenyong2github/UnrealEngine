@@ -146,7 +146,7 @@ void SDerivedDataStatusBarWidget::Construct(const FArguments& InArgs)
 		SNew(SComboButton)
 		.ContentPadding(FMargin(6.0f, 0.0f))
 		.MenuPlacement(MenuPlacement_AboveAnchor)
-		.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("StatusBar.StatusBarComboButton"))
+		.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
 		.ButtonContent()
 		[
 
