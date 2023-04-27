@@ -209,7 +209,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 		static void ExtendEditMenu()
 		{
-			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Edit", "MainFrame.MainMenu.Edit");
+			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Edit", "MainFrame.MainMenu.Edit", EMultiBoxType::Menu, /*bWarnIfAlreadyRegistered*/false);
 			{
 				// Edit Actor
 				{
@@ -228,7 +228,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 		static void ExtendHelpMenu()
 		{
-			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Help", "MainFrame.MainMenu.Help");
+			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Help", "MainFrame.MainMenu.Help", EMultiBoxType::Menu, /*bWarnIfAlreadyRegistered*/false);
 			FToolMenuSection& Section = Menu->AddSection("HelpResources", NSLOCTEXT("MainHelpMenu", "LevelEditorHelpResources", "Level Editor Resources"), FToolMenuInsert("Learn", EToolMenuInsertType::First));
 			{
 				Section.AddMenuEntry( FLevelEditorCommands::Get().BrowseDocumentation );
@@ -297,10 +297,11 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 	};
 
 	UToolMenus* ToolMenus = UToolMenus::Get();
-	ToolMenus->RegisterMenu("LevelEditor.MainMenu", "MainFrame.MainMenu", EMultiBoxType::MenuBar);
-	ToolMenus->RegisterMenu("LevelEditor.MainMenu.File", "MainFrame.MainTabMenu.File");
-	ToolMenus->RegisterMenu("LevelEditor.MainMenu.Window", "MainFrame.MainMenu.Window");
-	ToolMenus->RegisterMenu("LevelEditor.MainMenu.Tools", "MainFrame.MainMenu.Tools");
+	const bool bWarnIfAlreadyRegistered = false;
+	ToolMenus->RegisterMenu("LevelEditor.MainMenu", "MainFrame.MainMenu", EMultiBoxType::MenuBar, bWarnIfAlreadyRegistered);
+	ToolMenus->RegisterMenu("LevelEditor.MainMenu.File", "MainFrame.MainTabMenu.File", EMultiBoxType::Menu, bWarnIfAlreadyRegistered);
+	ToolMenus->RegisterMenu("LevelEditor.MainMenu.Window", "MainFrame.MainMenu.Window", EMultiBoxType::Menu, bWarnIfAlreadyRegistered);
+	ToolMenus->RegisterMenu("LevelEditor.MainMenu.Tools", "MainFrame.MainMenu.Tools", EMultiBoxType::Menu, bWarnIfAlreadyRegistered);
 
 	// Add other top level menus
 	Local::ExtendMenuBar();
@@ -339,7 +340,7 @@ TSharedRef< SWidget > FLevelEditorMenu::MakeLevelEditorMenu( const TSharedPtr<FU
 void FLevelEditorMenu::RegisterBuildMenu()
 {
 	static const FName BaseMenuName = "LevelEditor.MainMenu.Build";
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(BaseMenuName);
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(BaseMenuName, NAME_None, EMultiBoxType::Menu, /*bWarnIfAlreadyRegistered*/false);
 
 	struct FLightingMenus
 	{
@@ -356,7 +357,7 @@ void FLevelEditorMenu::RegisterBuildMenu()
 		/** Generates a lighting quality sub-menu */
 		static void RegisterLightingQualityMenu(const FName InBaseMenuName)
 		{
-			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingQuality"));
+			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingQuality"), NAME_None, EMultiBoxType::Menu, /*bWarnIfAlreadyRegistered*/false);
 
 			{
 				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingQuality", LOCTEXT("LightingQualityHeading", "Quality Level"));
@@ -370,7 +371,7 @@ void FLevelEditorMenu::RegisterBuildMenu()
 		/** Generates a lighting density sub-menu */
 		static void RegisterLightingDensityMenu(const FName InBaseMenuName)
 		{
-			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingDensity"));
+			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingDensity"), NAME_None, EMultiBoxType::Menu, /*bWarnIfAlreadyRegistered*/false);
 
 			{
 				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingDensity", LOCTEXT("LightingDensityHeading", "Density Rendering"));
@@ -436,7 +437,7 @@ void FLevelEditorMenu::RegisterBuildMenu()
 		/** Generates a lighting resolution sub-menu */
 		static void RegisterLightingResolutionMenu(const FName InBaseMenuName)
 		{
-			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingResolution"));
+			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingResolution"), NAME_None, EMultiBoxType::Menu, /*bWarnIfAlreadyRegistered*/false);
 
 			{
 				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingResolution1", LOCTEXT("LightingResolutionHeading1", "Primitive Types"));
@@ -544,7 +545,7 @@ void FLevelEditorMenu::RegisterBuildMenu()
 			RegisterLightingDensityMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingInfo"));
 			RegisterLightingResolutionMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingInfo"));
 
-			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingInfo"));
+			UToolMenu* SubMenu = UToolMenus::Get()->RegisterMenu(UToolMenus::JoinMenuPaths(InBaseMenuName, "LightingInfo"), NAME_None, EMultiBoxType::Menu, /*bWarnIfAlreadyRegistered*/false);
 
 			{
 				FToolMenuSection& Section = SubMenu->AddSection("LevelEditorBuildLightingInfo", LOCTEXT("LightingInfoHeading", "Lighting Info Dialogs"));
@@ -746,7 +747,7 @@ void FLevelEditorMenu::RegisterBuildMenu()
 void FLevelEditorMenu::RegisterSelectMenu()
 {
 	static const FName BaseMenuName = "LevelEditor.MainMenu.Select";
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(BaseMenuName);
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(BaseMenuName, NAME_None, EMultiBoxType::Menu, /*bWarnIfAlreadyRegistered*/false);
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("SelectActorGeneral", NSLOCTEXT("LevelViewportContextMenu", "SelectAnyHeading", "General"));

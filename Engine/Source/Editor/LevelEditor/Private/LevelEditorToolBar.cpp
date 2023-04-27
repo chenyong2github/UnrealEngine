@@ -1281,16 +1281,22 @@ const FSlateBrush* FLevelEditorToolBar::GetActiveModeIcon(TWeakPtr<SLevelEditor>
 
 void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUICommandList>& InCommandList, const TSharedRef<SLevelEditor> InLevelEditor)
 {
-	RegisterSourceControlMenu();
-	RegisterCinematicsMenu();
+	static bool bHasRegistered = false;
+	if (!bHasRegistered)
+	{
+		bHasRegistered = true;
 
-	RegisterQuickSettingsMenu();
-	RegisterOpenBlueprintMenu();
-	RegisterAddMenu();
+		RegisterSourceControlMenu();
+		RegisterCinematicsMenu();
+
+		RegisterQuickSettingsMenu();
+		RegisterOpenBlueprintMenu();
+		RegisterAddMenu();
+	}
 
 #define LOCTEXT_NAMESPACE "LevelEditorToolBar"
 
-	UToolMenu* ModesToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.ModesToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	UToolMenu* ModesToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.ModesToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar, /*warn*/false);
 	ModesToolbar->StyleName = "AssetEditorToolbar";
 	{
 		{
@@ -1438,7 +1444,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 			}));
 	}
 
-	UToolMenu* AssetsToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.AssetsToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	UToolMenu* AssetsToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.AssetsToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar, false);
 	AssetsToolBar->StyleName = "AssetEditorToolbar";
 	{
 		{
@@ -1480,7 +1486,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 	}
 
-	UToolMenu* PlayToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.PlayToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	UToolMenu* PlayToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.PlayToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar, false);
 	PlayToolBar->StyleName = "AssetEditorToolbar";
 	{
 		FToolMenuSection& PlaySection = PlayToolBar->AddSection("Play");
@@ -1495,10 +1501,10 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 	}
 
-	UToolMenu* UserToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.User", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	UToolMenu* UserToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.User", NAME_None, EMultiBoxType::SlimHorizontalToolBar, false);
 	UserToolbar->StyleName = "AssetEditorToolbar";
 
-	UToolMenu* SettingsToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.SettingsToolbar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	UToolMenu* SettingsToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.SettingsToolbar", NAME_None, EMultiBoxType::SlimHorizontalToolBar, false);
 	SettingsToolbar->StyleName = "AssetEditorToolbar";
 	{
 		FToolMenuSection& SettingsSection = SettingsToolbar->AddSection("ProjectSettings");
@@ -1545,7 +1551,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorSecondaryModeToolbar( 
 
 void FLevelEditorToolBar::RegisterLevelEditorSecondaryModeToolbar()
 {
-	UToolMenu* ModesToolbar = UToolMenus::Get()->RegisterMenu(SecondaryModeToolbarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	UToolMenu* ModesToolbar = UToolMenus::Get()->RegisterMenu(SecondaryModeToolbarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar, false);
 	ModesToolbar->StyleName = "SecondaryToolbar";
 }
 
@@ -1705,6 +1711,10 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateQuickSettingsMenu(TSharedRef<
 void FLevelEditorToolBar::RegisterQuickSettingsMenu()
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
+	if (UToolMenus::Get()->IsMenuRegistered("LevelEditor.LevelEditorToolBar.LevelToolbarQuickSettings"))
+	{
+		return;
+	}
 
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.LevelToolbarQuickSettings");
 
@@ -1864,6 +1874,11 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateOpenBlueprintMenuContent( TSh
 void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
+	if (UToolMenus::Get()->IsMenuRegistered("LevelEditor.LevelEditorToolBar.OpenBlueprint"))
+	{
+		return;
+	}
+
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.OpenBlueprint");
 
 	struct FBlueprintMenus
@@ -2009,6 +2024,11 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 void FLevelEditorToolBar::RegisterAddMenu()
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
+	if (UToolMenus::Get()->IsMenuRegistered("LevelEditor.LevelEditorToolBar.AddQuickMenu"))
+	{
+		return;
+	}
+
 	UToolMenu* AddMenu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
 	{
 		FToolMenuSection& Section = AddMenu->FindOrAddSection("Content");
@@ -2063,6 +2083,10 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateAddMenuWidget(TSharedRef<FUIC
 void FLevelEditorToolBar::RegisterCinematicsMenu()
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarCinematicsMenu"
+	if (UToolMenus::Get()->IsMenuRegistered("LevelEditor.LevelEditorToolBar.Cinematics"))
+	{
+		return;
+	}
 
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.Cinematics");
 	Menu->bShouldCloseWindowAfterMenuSelection = true;

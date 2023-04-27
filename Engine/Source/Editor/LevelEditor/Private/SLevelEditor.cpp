@@ -2033,6 +2033,7 @@ void SLevelEditor::OnLevelActorOuterChanged(AActor* InActor, UObject* InOldOuter
 void SLevelEditor::RegisterStatusBarTools()
 {
 #if WITH_LIVE_CODING
+	if (!UToolMenus::Get()->IsMenuRegistered("LevelEditor.StatusBar.ToolBar.CompileComboButton"))
 	{
 		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.StatusBar.ToolBar.CompileComboButton");
 		{
