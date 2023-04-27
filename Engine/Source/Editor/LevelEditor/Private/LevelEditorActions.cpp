@@ -515,6 +515,20 @@ void FLevelEditorActionCallbacks::SaveAllLevels()
 	FEditorFileUtils::SaveDirtyPackages( bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave );
 }
 
+void FLevelEditorActionCallbacks::Browse()
+{
+	if (const ULevel* CurrentLevel = GetWorld()->GetCurrentLevel())
+	{
+		TArray<UObject*> Assets = { CurrentLevel->GetOuter() };
+		GEditor->SyncBrowserToObjects(Assets);
+	}
+}
+
+bool FLevelEditorActionCallbacks::CanBrowse()
+{
+	return !FPackageName::IsTempPackage(GetWorld()->GetPackage()->GetName());
+}
+
 
 void FLevelEditorActionCallbacks::ImportScene_Clicked()
 {
@@ -3541,6 +3555,7 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( Save, "Save Current Level", "Saves the current level to disk", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::S) );
 	UI_COMMAND( SaveAs, "Save Current Level As...", "Save the current level as...", EUserInterfaceActionType::Button, FInputChord( EModifierKey::Control|EModifierKey::Alt, EKeys::S ) );
 	UI_COMMAND( SaveAllLevels, "Save All Levels", "Saves all unsaved levels to disk", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( BrowseLevel, "Browse To Level", "Browses to the associated level and selects it in the most recently used Content Browser (summoning one if necessary)", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( ToggleFavorite, "Toggle Favorite", "Sets whether the currently loaded level will appear in the list of favorite levels", EUserInterfaceActionType::Button, FInputChord() );
 
 	for( int32 CurRecentIndex = 0; CurRecentIndex < FLevelEditorCommands::MaxRecentFiles; ++CurRecentIndex )

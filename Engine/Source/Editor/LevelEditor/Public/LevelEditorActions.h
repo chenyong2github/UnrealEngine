@@ -48,6 +48,7 @@ public:
 	TSharedPtr< FUICommandInfo > Save;
 	TSharedPtr< FUICommandInfo > SaveAs;
 	TSharedPtr< FUICommandInfo > SaveAllLevels;
+	TSharedPtr< FUICommandInfo > BrowseLevel;
 
 	static const int32 MaxRecentFiles = 10;
 	TArray< TSharedPtr< FUICommandInfo > > OpenRecentFileCommands;
@@ -711,6 +712,10 @@ public:
 
 	/** Saves all unsaved maps (but not packages) */
 	static void SaveAllLevels();
+
+	/** Browses to the current map */
+	static void Browse();
+	static bool CanBrowse();
 
 
 	/**

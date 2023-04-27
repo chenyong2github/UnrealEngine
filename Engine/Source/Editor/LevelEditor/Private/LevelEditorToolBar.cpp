@@ -1305,6 +1305,14 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				NAME_None,
 				FName("SaveAllLevels")
 			));
+
+			// Browse Level
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+				FLevelEditorCommands::Get().BrowseLevel,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SystemWideCommands.FindInContentBrowser")
+			));
 		}
 
 		TWeakPtr<SLevelEditor> LevelEditorPtr = InLevelEditor;
