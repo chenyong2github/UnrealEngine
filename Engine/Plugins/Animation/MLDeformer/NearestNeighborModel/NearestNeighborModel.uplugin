@@ -18,12 +18,12 @@
 		{
 			"Name": "NearestNeighborModel",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "NearestNeighborModelEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
