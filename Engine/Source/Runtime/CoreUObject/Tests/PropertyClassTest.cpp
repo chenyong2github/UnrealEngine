@@ -15,16 +15,14 @@
 
 TEST_CASE("UE::CoreUObject::FClassProperty::Identical")
 {
-	bool bAllowRead = false;
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](TArrayView<const UObject* const> Objects)
+	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback([](const FObjectRef&, UPackage*, UObject*)
 		{
-			if (!bAllowRead)
-				FAIL("Unexpected read during CheckValidObject");
+			FAIL("Unexpected resolve during CheckValidObject");
 		});
 	ON_SCOPE_EXIT
 	{
-		UE::CoreUObject::RemoveObjectHandleReadCallback(CallbackHandle);
+		UE::CoreUObject::RemoveObjectHandleReferenceResolvedCallback(CallbackHandle);
 	};
 #endif
 	UClass* Class = UObjectWithClassProperty::StaticClass();

@@ -25,7 +25,16 @@ public:
 	uint32 GetNumResolves() const { return NumResolves; }
 	uint32 GetNumFailedResolves() const { return NumFailedResolves; }
 	uint32 GetNumReads() const { return NumReads; }
-
+	uint32 GetNumReads(const UObject* const Obj)
+	{
+		const auto* N = NumReadsPerObject.Find(Obj);
+		return N ? *N : 0;
+	}
+	TMap<const UObject* const, uint32>& GetNumReadsPerObject()
+	{
+		return NumReadsPerObject;
+	}
+	
 	struct FSnapshotObjectRefMetrics
 	{
 	public:
@@ -34,6 +43,7 @@ public:
 		, OriginalNumResolves(Test.GetNumResolves())
 		, OriginalNumFailedResolves(Test.GetNumFailedResolves())
 		, OriginalNumReads(Test.GetNumReads())
+		, OriginalNumReadsPerObject(Test.GetNumReadsPerObject())
 		{
 			Test.InstallCallbacks();
 		}
@@ -41,6 +51,7 @@ public:
 		~FSnapshotObjectRefMetrics()
 		{
 			Test.RemoveCallbacks();
+			Test.NumReadsPerObject.Empty();
 		}
 
 		void TestNumResolves(const TCHAR* What, uint32 ExpectedDelta)
@@ -73,11 +84,30 @@ public:
 			}
 #endif
 		}
+
+		void TestNumReads(const TCHAR* What, const UObject* const Obj, uint32 ExpectedDelta, bool bAllowAdditionalReads = false)
+		{
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+			bool bValue = false;
+			if (bAllowAdditionalReads)
+			{
+				INFO(What);
+				CHECK(Test.GetNumReads(Obj) >= OriginalNumReadsPerObject.FindOrAdd(Obj, 0) + ExpectedDelta);
+			}
+			else
+			{
+				bValue = OriginalNumReadsPerObject.FindOrAdd(Obj, 0) + ExpectedDelta == Test.GetNumReads(Obj);
+				TEST_TRUE(What, bValue);
+			}
+#endif
+		}
+		
 	private:
 		FObjectRefTrackingTestBase& Test;
 		uint32 OriginalNumResolves;
 		uint32 OriginalNumFailedResolves;
 		uint32 OriginalNumReads;
+		TMap<const UObject* const, uint32> OriginalNumReadsPerObject;
 	};
 
 private:
@@ -93,6 +123,10 @@ private:
 	static void OnRefRead(TArrayView<const UObject* const> Objects)
 	{
 		NumReads++;
+		for (auto Obj : Objects)
+		{
+			++NumReadsPerObject.FindOrAdd(Obj, 0);
+		}
 	}
 #endif
 	
@@ -119,6 +153,7 @@ private:
 	static thread_local uint32 NumResolves;
 	static thread_local uint32 NumFailedResolves;
 	static thread_local uint32 NumReads;
+	static thread_local TMap<const UObject* const, uint32> NumReadsPerObject;
 };
 
 #endif

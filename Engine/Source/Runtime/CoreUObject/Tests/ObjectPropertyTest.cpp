@@ -14,19 +14,18 @@
 #include "LowLevelTestsRunner/WarnFilterScope.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "AssetRegistry/AssetData.h"
+#include "ObjectRefTrackingTestBase.h"
 
 TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddress")
 {
-	bool bAllowRead = false;
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](TArrayView<const UObject* const> Objects)
+	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback([](const FObjectRef&, UPackage*, UObject*)
 		{
-			if (!bAllowRead)
-				FAIL("Unexpected read during CheckValidObject");
+			FAIL("Unexpected resolve during CheckValidObject");
 		});
 	ON_SCOPE_EXIT
 	{
-		UE::CoreUObject::RemoveObjectHandleReadCallback(CallbackHandle);
+		UE::CoreUObject::RemoveObjectHandleReferenceResolvedCallback(CallbackHandle);
 	};
 #endif
 	UClass* Class = UObjectPtrTestClassWithRef::StaticClass();
@@ -42,17 +41,23 @@ TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddress")
 	UObjectPtrTestClassWithRef* Obj = NewObject<UObjectPtrTestClassWithRef>(TestPackage, TEXT("Object"));
 	UObjectPtrTestClass* Other = NewObject<UObjectPtrTestClass>(Obj, TEXT("Other"));
 
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+	FObjectHandle Handle = MakeUnresolvedHandle(Other);
+	TObjectPtr<UObjectPtrTestClass> ObjectPtr = *reinterpret_cast<TObjectPtr<UObjectPtrTestClass>*>(&Handle);
+#else
+	TObjectPtr<UObjectPtrTestClass> ObjectPtr = Other;
+#endif
+
 	//verify nothing happens by default
 	CHECK(!Obj->ObjectPtr);
 	Property->CheckValidObject(&Obj->ObjectPtr, nullptr);
 	CHECK(!Obj->ObjectPtr);
 
 	//valid assignment
-	Obj->ObjectPtr = Other;
+	Obj->ObjectPtr = ObjectPtr;
 	Property->CheckValidObject(&Obj->ObjectPtr, nullptr);
-	CHECK(Obj->ObjectPtr == Other);
+	CHECK(Obj->ObjectPtr == ObjectPtr);
 
-	bAllowRead = true; //has to read the fullpath from the object to make the error message
 	//assign a bad value to the pointer
 	Obj->ObjectPtr = reinterpret_cast<UObjectPtrTestClass*>(Obj);
 	CHECK(Obj->ObjectPtr != nullptr);
@@ -65,7 +70,7 @@ TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddress")
 			}
 			return false;
 		});
-	Property->CheckValidObject(&Obj->ObjectPtr, Other);
+	Property->CheckValidObject(&Obj->ObjectPtr, ObjectPtr);
 	CHECK(!Obj->ObjectPtr); //value should be nulled since the type was not compatible	
 }
 
@@ -73,16 +78,16 @@ TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddressNonNullable")
 {
 	bool bAllowRead = false;
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReadCallback([&bAllowRead](TArrayView<const UObject* const> Objects)
+	auto CallbackHandle = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback([&bAllowRead](const FObjectRef & SourceRef, UPackage * ClassPackage, UObject* Object)
 		{
 			if (!bAllowRead)
 			{
-				FAIL("Unexpected read during CheckValidObject");
+				FAIL("Unexpected resolve during CheckValidObject");
 			}
 		});
 	ON_SCOPE_EXIT
 	{
-		UE::CoreUObject::RemoveObjectHandleReadCallback(CallbackHandle);
+		UE::CoreUObject::RemoveObjectHandleReferenceResolvedCallback(CallbackHandle);
 	};
 #endif
 	UClass* Class = UObjectPtrTestClassWithRef::StaticClass();
@@ -98,17 +103,24 @@ TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddressNonNullable")
 	UObjectPtrTestClassWithRef* Obj = NewObject<UObjectPtrTestClassWithRef>(TestPackage, TEXT("Object"));
 	UObjectPtrTestClass* Other = NewObject<UObjectPtrTestClass>(Obj, TEXT("Other"));
 
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+	FObjectHandle Handle = MakeUnresolvedHandle(Other);
+	TObjectPtr<UObjectPtrTestClass> ObjectPtr = *reinterpret_cast<TObjectPtr<UObjectPtrTestClass>*>(&Handle);
+#else
+	TObjectPtr<UObjectPtrTestClass> ObjectPtr = Other;
+#endif
+
 	//property is already null should stay null
 	CHECK(!Obj->ObjectPtrNonNullable);
-	Property->CheckValidObject(&Obj->ObjectPtrNonNullable, Other);
+	Property->CheckValidObject(&Obj->ObjectPtrNonNullable, ObjectPtr);
 	CHECK(!Obj->ObjectPtrNonNullable);
 
 	//valid assignment
-	Obj->ObjectPtrNonNullable = Other;
+	Obj->ObjectPtrNonNullable = ObjectPtr;
 	Property->CheckValidObject(&Obj->ObjectPtrNonNullable, nullptr);
-	CHECK(Obj->ObjectPtrNonNullable == Other);
+	CHECK(Obj->ObjectPtrNonNullable == ObjectPtr);
 
-	bAllowRead = true; //has to read the fullpath from the object to make the error message
+	bAllowRead = true; //has resolve the old value to construct a new default value for the property
 	//assign a bad value to the pointer
 	Obj->ObjectPtrNonNullable = reinterpret_cast<UObjectPtrTestClass*>(Obj);
 	CHECK(Obj->ObjectPtrNonNullable != nullptr);
@@ -121,8 +133,8 @@ TEST_CASE("UE::CoreUObject::FObjectProperty::CheckValidAddressNonNullable")
 			}
 			return false;
 		});
-	Property->CheckValidObject(&Obj->ObjectPtrNonNullable, Other);
-	CHECK(Obj->ObjectPtrNonNullable == Other); //non nullable properties should be assigned the old value
+	Property->CheckValidObject(&Obj->ObjectPtrNonNullable, ObjectPtr);
+	CHECK(Obj->ObjectPtrNonNullable == ObjectPtr); //non nullable properties should be assigned the old value
 
 	//assign a bad value to the pointer
 	Obj->ObjectPtrNonNullable = reinterpret_cast<UObjectPtrTestClass*>(Obj);
@@ -165,15 +177,15 @@ static void TestSerializeItem(FName ObjectName)
 	ULinkerPlaceholderClass* PlaceHolderClass = NewObject<ULinkerPlaceholderClass>(TestPackage, TEXT("PlaceHolderClass"));
 	PlaceHolderClass->Bind(); //must call bind or crashes on shutdown
 
-	int ReadCount = 0;
+	int ResolveCount = 0;
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-	auto CallbackId = UE::CoreUObject::AddObjectHandleReadCallback([&ReadCount](TArrayView<const UObject* const> Objects)
+	auto CallbackId = UE::CoreUObject::AddObjectHandleReferenceResolvedCallback([&ResolveCount](const FObjectRef&, UPackage*, UObject*)
 		{
-			++ReadCount;
+			++ResolveCount;
 		});
 	ON_SCOPE_EXIT
 	{
-		UE::CoreUObject::RemoveObjectHandleReadCallback(CallbackId);
+		UE::CoreUObject::RemoveObjectHandleReferenceResolvedCallback(CallbackId);
 	};
 #endif
 	{
@@ -188,7 +200,7 @@ static void TestSerializeItem(FName ObjectName)
 		FStructuredArchive Ar(Formatter);
 		FStructuredArchiveSlot Slot = Ar.Open();
 		FObjectPtrProperty::StaticSerializeItem(Property, Slot, &Obj->ObjectPtr, nullptr);
-		CHECK(ReadCount == 0);
+		CHECK(ResolveCount == 0);
 		CHECK(*reinterpret_cast<ULinkerPlaceholderExportObject**>(&Obj->ObjectPtr) == PlaceHolderExport);
 
 	}
@@ -205,7 +217,7 @@ static void TestSerializeItem(FName ObjectName)
 		FStructuredArchiveSlot Slot = Ar.Open();
 		Obj->ObjectPtr = Other;
 		FObjectPtrProperty::StaticSerializeItem(Property, Slot, &Obj->ObjectPtr, nullptr);
-		CHECK(ReadCount == 0);
+		CHECK(ResolveCount == 0);
 		CHECK(*reinterpret_cast<ULinkerPlaceholderClass**>(&Obj->ObjectPtr) == PlaceHolderClass);
 	}
 }

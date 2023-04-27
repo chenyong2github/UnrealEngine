@@ -11,6 +11,7 @@
 thread_local uint32 FObjectRefTrackingTestBase::NumResolves = 0;
 thread_local uint32 FObjectRefTrackingTestBase::NumFailedResolves = 0;
 thread_local uint32 FObjectRefTrackingTestBase::NumReads = 0;
+thread_local TMap<const UObject* const, uint32> FObjectRefTrackingTestBase::NumReadsPerObject{};
 
 #if UE_WITH_OBJECT_HANDLE_TRACKING
 UE::CoreUObject::FObjectHandleTrackingCallbackId FObjectRefTrackingTestBase::ResolvedCallbackHandle;
@@ -235,6 +236,9 @@ TEST_CASE("UE::CoreUObject::ObjectHandleTracking::Callbacks::Verify")
 	//get fires read event
 	CHECK(ObjPtr.Get() != nullptr);
 	CHECK(ReadCount == 1);
+
+	RemoveObjectHandleReadCallback(ReadCallbackHandle1);
+	
 	FObjectRef ObjectRef(Obj1);
 	int32 ClassCount = 0;
 	auto ClassResolvedHandle1 = AddObjectHandleClassResolvedCallback([&](const FObjectRef& SourceRef, UPackage* ClassPackage, UClass* Class)
@@ -274,7 +278,6 @@ TEST_CASE("UE::CoreUObject::ObjectHandleTracking::Callbacks::Verify")
 
 	ON_SCOPE_EXIT
 	{
-		RemoveObjectHandleReadCallback(ReadCallbackHandle1);
 		RemoveObjectHandleClassResolvedCallback(ClassResolvedHandle1);
 		RemoveObjectHandleReferenceResolvedCallback(ReferenceResolvedHandle1);
 		RemoveObjectHandleReferenceLoadedCallback(ReferenceLoadedHandle1);

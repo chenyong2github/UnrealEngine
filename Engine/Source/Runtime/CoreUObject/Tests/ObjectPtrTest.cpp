@@ -187,20 +187,29 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Default Serialize
 
 	ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), 0);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after initializing an FObjectPtr"), 0);
-	ObjectRefMetrics.TestNumReads(TEXT("NumReads should not change when initializing an FObjectPtr"), 0);
+	ObjectRefMetrics.TestNumReads(TEXT("NumReads should not change when initializing an FObjectPtr"),
+																TestPackage,
+																0);
+	ObjectRefMetrics.TestNumReads(TEXT("NumReads should not change when initializing an FObjectPtr"),
+																TestSoftObject,
+																0);
 
 	FArchiveUObject Writer;
 	Writer << DefaultSerializeObjectPtr;
 
 	ObjectRefMetrics.TestNumResolves(TEXT("Serializing an FObjectPtr should force it to resolve"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 1 : 0);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after serializing an FObjectPtr"), 0);
-	ObjectRefMetrics.TestNumReads(TEXT("NumReads should increase after serializing an FObjectPtr"), 1);
+	ObjectRefMetrics.TestNumReads(TEXT("NumReads should increase after serializing an FObjectPtr"),
+																TestSoftObject,
+																1);
 
 	Writer << DefaultSerializeObjectPtr;
 
 	ObjectRefMetrics.TestNumResolves(TEXT("Serializing an FObjectPtr twice should only require it to resolve once"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 1 : 0);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after serializing an FObjectPtr"), 0);
-	ObjectRefMetrics.TestNumReads(TEXT("NumReads should increase after serializing an FObjectPtr"), 2);
+	ObjectRefMetrics.TestNumReads(TEXT("NumReads should increase after serializing an FObjectPtr"),
+																TestSoftObject,
+																2);
 
 	TestPackage->RemoveFromRoot();
 }
@@ -224,12 +233,16 @@ TEST_CASE_METHOD(FObjectPtrTestBase, "CoreUObject::TObjectPtr::Soft Object Path"
 #endif
 	ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), 0);
 	ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after initializing an FObjectPtr"), 0);
-	ObjectRefMetrics.TestNumReads(TEXT("NumReads should not change when initializing an FObjectPtr"), 0);
+	ObjectRefMetrics.TestNumReads(TEXT("NumReads should not change when initializing an FObjectPtr"),
+																TestSoftObject,
+																0);
 
 	// Initializing a soft object path from a TObjectPtr that's unresolved should stay unresolved.
 	FSoftObjectPath DefaultSoftObjPath(DefaultSoftObjPtr);
 	ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FSoftObjectPath from an FObjectPtr"), 0);
-	ObjectRefMetrics.TestNumReads(TEXT("NumReads should have changed when initializing a FSoftObjectPath"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 0 : 1);
+	ObjectRefMetrics.TestNumReads(TEXT("NumReads should have changed when initializing a FSoftObjectPath"),
+																TestSoftObject,
+																UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 0 : 1);
 
 	TEST_EQUAL_STR(TEXT("Soft object path constructed from an FObjectPtr does not have the expected path value"), TEXT("/Engine/Test/ObjectPtrSoftObjectPath/Transient.TestSoftObject"), *DefaultSoftObjPath.ToString());
 
