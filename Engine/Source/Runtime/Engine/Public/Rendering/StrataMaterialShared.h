@@ -91,8 +91,7 @@ public:
 	////
 	//// The following data is only needed when compiling with the editor.
 	////
-
-	// STRATA_TODO Strata Tree topology
+	
 	// STRATA_TODO corresponding uint8 ShadingModel? IsThin?
 
 	/** The Strata verbose description */

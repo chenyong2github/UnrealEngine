@@ -15,8 +15,15 @@ FStrataMaterialCompilationOutput::FStrataMaterialCompilationOutput()
 	, RequestedBytePixePixel(0)
 	, PlatformBytePixePixel(0)
 	, bMaterialOutOfBudgetHasBeenSimplified(0)
+	, RootOperatorIndex(0)
 #endif
 {
+#if WITH_EDITOR
+	for (uint32 i = 0; i < STRATA_COMPILATION_OUTPUT_MAX_OPERATOR; ++i)
+	{
+		Operators[i] = FStrataOperator();
+	}
+#endif
 }
 
 
@@ -35,6 +42,7 @@ FStrataOperator::FStrataOperator()
 
 	BSDFIndex = INDEX_NONE;
 	BSDFType = 0;
+	BSDFRegisteredSharedLocalBasis = FStrataRegisteredSharedLocalBasis();
 	bBSDFHasSSS = false;
 	bBSDFHasMFPPluggedIn = false;
 	bBSDFHasEdgeColor = false;
