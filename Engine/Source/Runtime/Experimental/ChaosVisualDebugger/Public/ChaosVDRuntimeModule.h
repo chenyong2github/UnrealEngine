@@ -8,6 +8,8 @@
 
 struct FChaosVDRecording;
 
+DECLARE_DELEGATE(FRecordingStateChangedDelegate)
+
 class CHAOSVDRUNTIME_API FChaosVDRuntimeModule : public IModuleInterface
 {
 public:
@@ -30,6 +32,9 @@ public:
 	/** Returns a unique ID used to be used to identify CVD (Chaos Visual Debugger) data */
 	int32 GenerateUniqueID();
 
+	static FRecordingStateChangedDelegate& OnRecordingStarted() { return RecordingStartedDelegate; };
+	static FRecordingStateChangedDelegate& OnRecordingStop() { return RecordingStopDelegate;};
+
 private:
 
 	/** Stops the current Trace session */
@@ -44,6 +49,9 @@ private:
 
 	bool bIsRecording = false;
 	bool bRequestedStop = false;
+
+	static FRecordingStateChangedDelegate RecordingStartedDelegate;
+	static FRecordingStateChangedDelegate RecordingStopDelegate;
 
 	FThreadSafeCounter LastGeneratedID;
 };

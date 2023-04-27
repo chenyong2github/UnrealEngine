@@ -111,6 +111,15 @@ public:
 		}
 	}
 
+	int32 GetObjectTag(const void* ObjectPtr) const
+	{
+		if (const int32* SerializedObjectPtrTag = ObjToTag.Find(ObjectPtr))
+		{
+			return *SerializedObjectPtrTag;
+		}
+		return INDEX_NONE;
+	}
+
 private:
 	class FSharedPtrHolder
 	{
@@ -158,10 +167,22 @@ public:
 			int32 Tag;
 			InnerArchive << Tag;
 
+			if (Tag < 0)
+			{
+				InnerArchive.SetCriticalError();
+				return;
+			}
+
 			const int32 SlotsNeeded = Tag + 1 - Context->TagToObject.Num();
 			if (SlotsNeeded > 0)
 			{
 				Context->TagToObject.AddZeroed(SlotsNeeded);
+			}
+
+			if (!Context->TagToObject.IsValidIndex(Tag))
+			{
+				InnerArchive.SetCriticalError();
+				return;
 			}
 
 			if (Context->TagToObject[Tag])
@@ -172,6 +193,7 @@ public:
 			{
 				StaticSerialize(Obj);
 				Context->TagToObject[Tag] = (void*)Obj.Get();
+				Context->ObjToTag.Add((void*)Obj.Get(), Tag);
 			}
 		}
 		else if (InnerArchive.IsSaving() || InnerArchive.IsCountingMemory())

@@ -52,6 +52,19 @@ bool FChaosVDPlaybackController::LoadChaosVDRecordingFromTraceSession(const FStr
 	{
 		GoToRecordedStep(SolversIterator->Key, 0, 0);
 	}
+
+	LoadedRecording->OnGeometryDataLoaded().AddLambda([this](const TSharedPtr<const Chaos::FImplicitObject>& NewGeometry, const int32 GeometryID)
+	{
+		if (const TSharedPtr<FChaosVDScene> ScenePtr = SceneToControl.Pin())
+		{
+			ScenePtr->HandleNewGeometryData(NewGeometry, GeometryID);
+		}
+	});
+	
+	if (TSharedPtr<FChaosVDScene> ScenePtr = SceneToControl.Pin())
+	{
+		ScenePtr->LoadedRecording = LoadedRecording;
+	}
 	
 	OnControllerUpdated().ExecuteIfBound(AsWeak());
 
@@ -124,7 +137,7 @@ void FChaosVDPlaybackController::GoToRecordedStep(const int32 InTrackID, const i
 				const FChaosVDSolverFrameData* SolverFrameData = LoadedRecording->GetFrameForSolver(InTrackID, FrameNumber);
 				if (SolverFrameData && ensure(SolverFrameData->SolverSteps.IsValidIndex(Step)))
 				{
-					SceneToControlSharedPtr->UpdateFromRecordedStepData(InTrackID, SolverFrameData->DebugName, SolverFrameData->SolverSteps[Step]);
+					SceneToControlSharedPtr->UpdateFromRecordedStepData(InTrackID, SolverFrameData->DebugName, SolverFrameData->SolverSteps[Step], *SolverFrameData);
 				}
 			}
 

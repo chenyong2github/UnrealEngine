@@ -2,8 +2,10 @@
 
 #include "Trace/ChaosVDTraceAnalyzer.h"
 
+#include "Chaos/GeometryParticlesfwd.h"
 #include "Trace/ChaosVDTraceProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/Frames.h"
 
 void FChaosVDTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
@@ -15,6 +17,11 @@ void FChaosVDTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	
 	Builder.RouteEvent(RouteId_ChaosVDSolverStepStart, "ChaosVDLogger", "ChaosVDSolverStepStart");
 	Builder.RouteEvent(RouteId_ChaosVDSolverStepEnd, "ChaosVDLogger", "ChaosVDSolverStepEnd");
+	
+	Builder.RouteEvent(RouteId_ChaosVDBinaryDataStart, "ChaosVDLogger", "ChaosVDBinaryDataStart");
+	Builder.RouteEvent(RouteId_ChaosVDBinaryDataContent, "ChaosVDLogger", "ChaosVDBinaryDataContent");
+	Builder.RouteEvent(RouteId_ChaosVDBinaryDataEnd, "ChaosVDLogger", "ChaosVDBinaryDataEnd");
+	Builder.RouteEvent(RouteId_ChaosVDSolverSimulationSpace, "ChaosVDLogger", "ChaosVDSolverSimulationSpace");
 
 	TraceServices::FAnalysisSessionEditScope _(Session);
 	ChaosVDTraceProvider->CreateRecordingInstanceForSession(Session.GetName());
@@ -89,6 +96,63 @@ bool FChaosVDTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEvent
 
 			break;
 		}
+	case RouteId_ChaosVDBinaryDataStart:
+		{
+			const int32 DataID = EventData.GetValue<int32>("DataID");
+			
+			FChaosVDBinaryDataContainer& DataContainer = ChaosVDTraceProvider->FindOrAddUnprocessedData(DataID);
+			DataContainer.bIsCompressed = EventData.GetValue<bool>("IsCompressed");
+			DataContainer.UncompressedSize = EventData.GetValue<uint32>("OriginalSize");
+			DataContainer.DataID = EventData.GetValue<int32>("DataID");
+
+			EventData.GetString("TypeName", DataContainer.TypeName);
+
+			const uint32 DataSize = EventData.GetValue<uint32>("DataSize");
+			DataContainer.RawData.Reserve(DataSize);
+
+			break;
+		}
+	case RouteId_ChaosVDBinaryDataContent:
+		{
+			const int32 DataID = EventData.GetValue<int32>("DataID");	
+
+			FChaosVDBinaryDataContainer& DataContainer = ChaosVDTraceProvider->FindOrAddUnprocessedData(DataID);
+
+			const TArrayView<const uint8> SerializedDataChunk = EventData.GetArrayView<uint8>("RawData");
+			DataContainer.RawData.Append(SerializedDataChunk.GetData(), SerializedDataChunk.Num());
+
+			break;
+		}
+	case RouteId_ChaosVDBinaryDataEnd:
+		{
+			const int32 DataID = EventData.GetValue<int32>("DataID");
+
+			ChaosVDTraceProvider->SetBinaryDataReadyToUse(DataID);
+			break;
+		}
+	case RouteId_ChaosVDSolverSimulationSpace:
+	{
+		const int32 SolverID = EventData.GetValue<int32>("SolverID");
+
+		FVector Position;
+		Position.X = EventData.GetValue<float>("PositionX");
+		Position.Y = EventData.GetValue<float>("PositionY");
+		Position.Z = EventData.GetValue<float>("PositionZ");
+
+		FQuat Rotation;
+		Rotation.X = EventData.GetValue<float>("RotationX");
+		Rotation.Y = EventData.GetValue<float>("RotationY");
+		Rotation.Z = EventData.GetValue<float>("RotationZ");
+		Rotation.W = EventData.GetValue<float>("RotationW");
+
+		// This can be null if the recording started Mid-Frame. In this case we just discard the data for now
+		if (FChaosVDSolverFrameData* FrameData = ChaosVDTraceProvider->GetLastFrame(SolverID))
+		{
+			FrameData->SimulationTransform.SetLocation(Position);
+			FrameData->SimulationTransform.SetRotation(Rotation);
+		}
+		break;
+	}
 	default:
 		break;
 	}
@@ -101,6 +165,7 @@ void FChaosVDTraceAnalyzer::ReadParticleDataFromEvent(const FEventData& InEventD
 	OutParticleData.ParticleType = static_cast<EChaosVDParticleType>(InEventData.GetValue<uint8>("ParticleType"));
 	OutParticleData.ParticleState = static_cast<EChaosVDParticleState>(InEventData.GetValue<int8>("ObjectState"));
 	OutParticleData.ParticleIndex = InEventData.GetValue<int32>("ParticleID");
+	OutParticleData.ImplicitObjectID = InEventData.GetValue<int32>("ImplicitObjectID");
 
 	FWideStringView DebugNameView;
 	InEventData.GetString("DebugName", DebugNameView);

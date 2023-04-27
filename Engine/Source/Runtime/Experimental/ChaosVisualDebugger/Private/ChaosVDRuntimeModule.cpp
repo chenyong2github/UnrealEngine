@@ -2,7 +2,6 @@
 
 #include "ChaosVDRuntimeModule.h"
 
-#include "ChaosVDRecording.h"
 #include "Containers/Array.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
@@ -32,6 +31,9 @@ FAutoConsoleCommand StopVDStartRecordingCommand(
 	})
 );
 
+FRecordingStateChangedDelegate FChaosVDRuntimeModule::RecordingStartedDelegate = FRecordingStateChangedDelegate();
+FRecordingStateChangedDelegate FChaosVDRuntimeModule::RecordingStopDelegate = FRecordingStateChangedDelegate();
+
 FChaosVDRuntimeModule& FChaosVDRuntimeModule::Get()
 {
 	return FModuleManager::Get().LoadModuleChecked<FChaosVDRuntimeModule>(TEXT("ChaosVDRuntime"));
@@ -39,6 +41,11 @@ FChaosVDRuntimeModule& FChaosVDRuntimeModule::Get()
 
 void FChaosVDRuntimeModule::StartupModule()
 {
+#if UE_TRACE_ENABLED
+	// Make sure it is off until we support auto trace
+	UE::Trace::ToggleChannel(TEXT("ChaosVDChannel"), false);
+#endif
+
 	FTraceAuxiliary::OnTraceStopped.AddRaw(this, &FChaosVDRuntimeModule::HandleTraceStopRequest);
 }
 
@@ -76,6 +83,8 @@ void FChaosVDRuntimeModule::StartRecording(const TArray<FString>& Args)
 	{
 		return;
 	}
+
+	OnRecordingStarted().ExecuteIfBound();
 
 #if UE_TRACE_ENABLED
 
@@ -128,6 +137,7 @@ void FChaosVDRuntimeModule::StopRecording()
 	{
 		return;
 	}
+
 #if UE_TRACE_ENABLED
 	
 
@@ -136,6 +146,8 @@ void FChaosVDRuntimeModule::StopRecording()
 
 	StopTrace();
 #endif
+
+	OnRecordingStop().ExecuteIfBound();
 
 	bIsRecording = false;
 }

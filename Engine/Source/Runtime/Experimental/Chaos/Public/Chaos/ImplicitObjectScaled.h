@@ -994,7 +994,6 @@ public:
 		FImplicitObject::SerializeImp(Ar);
 		Ar << MObject << MScale << MInvScale;
 		TBox<FReal,d>::SerializeAsAABB(Ar, MLocalBoundingBox);
-		ensure(OuterMargin == 0);	//not supported: do we care?
 
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ScaledGeometryIsConcrete)

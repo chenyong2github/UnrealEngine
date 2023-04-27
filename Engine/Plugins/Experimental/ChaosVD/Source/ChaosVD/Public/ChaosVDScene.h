@@ -8,6 +8,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/GCObject.h"
 
+class FChaosVDGeometryBuilder;
 class AChaosVDParticleActor;
 class FReferenceCollector;
 class UWorld;
@@ -15,9 +16,11 @@ class UWorld;
 DECLARE_MULTICAST_DELEGATE(FChaosVDSceneUpdatedDelegate)
 
 /** Recreates a UWorld from a recorded Chaos VD Frame */
-class FChaosVDScene : public FGCObject
+class FChaosVDScene : public FGCObject , public TSharedFromThis<FChaosVDScene>
 {
 public:
+	FChaosVDScene();
+	virtual ~FChaosVDScene() override;
 
 	void Initialize();
 	void DeInitialize();
@@ -32,7 +35,9 @@ public:
 	FChaosVDSceneUpdatedDelegate& OnSceneUpdated() { return SceneUpdatedDelegate; }
 
 	/** Updates, Adds and Remove actors to match the provided Step Data */
-	void UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData);
+	void UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData, const FChaosVDSolverFrameData& InFrameData);
+
+	void HandleNewGeometryData(const TSharedPtr<const Chaos::FImplicitObject>&, const int32 GeometryID) const;
 
 	/** Deletes all actors of the Scene and underlying UWorld */
 	void CleanUpScene();
@@ -42,24 +47,34 @@ public:
 
 	bool IsInitialized() const { return  bIsInitialized; }
 
+	const TSharedPtr<FChaosVDGeometryBuilder>& GetGeometryGenerator() { return  GeometryGenerator; }
+
+	FChaosVDGeometryDataLoaded& OnNewGeometryAvailable(){ return NewGeometryAvailableDelegate; }
+
+	TSharedPtr<FChaosVDRecording> LoadedRecording;
+
 private:
 
 	/** Creates an ChaosVDParticle actor for the Provided recorded Particle Data */
-	AChaosVDParticleActor* SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData) const;
+	AChaosVDParticleActor* SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData, const FChaosVDSolverFrameData& InFrameData);
 
 	/** Returns the ID used to track this recorded particle data */
-	uint32 GetIDForRecordedParticleData(const FChaosVDParticleDebugData& InParticleData) const;
+	int32 GetIDForRecordedParticleData(const FChaosVDParticleDebugData& InParticleData) const;
 
 	/** Creates the instance of the World which will be used the recorded data*/
 	UWorld* CreatePhysicsVDWorld() const;
 
 	/** Map of ID-ChaosVDParticle Actor. Used to keep track of actor instances and be able to modify them as needed*/
-	TMap<uint32, AChaosVDParticleActor*> ParticleVDInstancesByID;
+	TMap<int32, AChaosVDParticleActor*> ParticleVDInstancesByID;
 
 	/** UWorld instance used to represent the recorded debug data */
 	UWorld* PhysicsVDWorld = nullptr;
 
 	FChaosVDSceneUpdatedDelegate SceneUpdatedDelegate;
+
+	TSharedPtr<FChaosVDGeometryBuilder> GeometryGenerator;
+
+	FChaosVDGeometryDataLoaded NewGeometryAvailableDelegate;
 
 	bool bIsInitialized = false;
 };

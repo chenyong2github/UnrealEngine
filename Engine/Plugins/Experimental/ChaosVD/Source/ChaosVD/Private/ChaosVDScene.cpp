@@ -3,13 +3,19 @@
 #include "ChaosVDScene.h"
 
 #include "ChaosVDEditorSettings.h"
-#include "ChaosVDModule.h"
+#include "ChaosVDGeometryBuilder.h"
 #include "ChaosVDParticleActor.h"
+#include "Chaos/ImplicitObject.h"
 #include "ChaosVDRecording.h"
 #include "Engine/Engine.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Engine/World.h"
+
 #include "UObject/Package.h"
+
+FChaosVDScene::FChaosVDScene() = default;
+
+FChaosVDScene::~FChaosVDScene() = default;
 
 void FChaosVDScene::Initialize()
 {
@@ -20,6 +26,8 @@ void FChaosVDScene::Initialize()
 
 	PhysicsVDWorld = CreatePhysicsVDWorld();
 
+	GeometryGenerator = MakeShared<FChaosVDGeometryBuilder>();
+
 	bIsInitialized = true;
 }
 
@@ -29,6 +37,8 @@ void FChaosVDScene::DeInitialize()
 	{
 		return;
 	}
+
+	GeometryGenerator.Reset();
 
 	if (PhysicsVDWorld)
 	{
@@ -47,22 +57,22 @@ void FChaosVDScene::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddStableReferenceMap(ParticleVDInstancesByID);
 }
 
-void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData)
+void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData, const FChaosVDSolverFrameData& InFrameData)
 {
-	TSet<uint32> ParticlesIDsInRecordedStepData;
+	TSet<int32> ParticlesIDsInRecordedStepData;
 	ParticlesIDsInRecordedStepData.Reserve(InRecordedStepData.RecordedParticles.Num());
 
 	// Go over existing Particle VD Instances and update them or create them if needed 
 	for (const FChaosVDParticleDebugData& Particle : InRecordedStepData.RecordedParticles)
 	{
-		const uint32 ParticleVDInstanceID = GetIDForRecordedParticleData(Particle);
+		const int32 ParticleVDInstanceID = GetIDForRecordedParticleData(Particle);
 		ParticlesIDsInRecordedStepData.Add(ParticleVDInstanceID);
 
 		if (AChaosVDParticleActor** ExistingParticleVDInstancePtrPtr = ParticleVDInstancesByID.Find(ParticleVDInstanceID))
 		{
 			if (AChaosVDParticleActor* ExistingParticleVDInstancePtr = *ExistingParticleVDInstancePtrPtr)
 			{
-				ExistingParticleVDInstancePtr->UpdateFromRecordedData(Particle);
+				ExistingParticleVDInstancePtr->UpdateFromRecordedData(Particle, InFrameData.SimulationTransform);
 			}
 			else
 			{
@@ -72,7 +82,7 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 		}
 		else
 		{
-			if (AChaosVDParticleActor* NewParticleVDInstance = SpawnParticleFromRecordedData(Particle))
+			if (AChaosVDParticleActor* NewParticleVDInstance = SpawnParticleFromRecordedData(Particle, InFrameData))
 			{
 				FStringFormatOrderedArguments Args {SolverName, FString::FromInt(SolverID)};
 				const FName FolderPath = *FPaths::Combine(FString::Format(TEXT("Solver {0} | ID {1}"), Args), UEnum::GetDisplayValueAsText(Particle.ParticleType).ToString());
@@ -91,7 +101,7 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 	}
 
 	int32 AmountRemoved = 0;
-	for (TMap<uint32, AChaosVDParticleActor*>::TIterator RemoveIterator = ParticleVDInstancesByID.CreateIterator(); RemoveIterator; ++RemoveIterator)
+	for (TMap<int32, AChaosVDParticleActor*>::TIterator RemoveIterator = ParticleVDInstancesByID.CreateIterator(); RemoveIterator; ++RemoveIterator)
 	{
 		if (!ParticlesIDsInRecordedStepData.Contains(RemoveIterator.Key()))
 		{
@@ -109,11 +119,16 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 	OnSceneUpdated().Broadcast();
 }
 
+void FChaosVDScene::HandleNewGeometryData(const TSharedPtr<const Chaos::FImplicitObject>& GeometryData, const int32 GeometryID) const
+{
+	NewGeometryAvailableDelegate.Broadcast(GeometryData, GeometryID);
+}
+
 void FChaosVDScene::CleanUpScene()
 {
 	if (PhysicsVDWorld)
 	{
-		for (const TPair<uint32, AChaosVDParticleActor*>& ParticleVDInstanceWithID : ParticleVDInstancesByID)
+		for (const TPair<int32, AChaosVDParticleActor*>& ParticleVDInstanceWithID : ParticleVDInstancesByID)
 		{
 			PhysicsVDWorld->DestroyActor(ParticleVDInstanceWithID.Value);
 		}
@@ -124,25 +139,31 @@ void FChaosVDScene::CleanUpScene()
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 }
 
-AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData) const
+AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData, const FChaosVDSolverFrameData& InFrameData)
 {
-	// Temp code until we have geometry data
-	const UChaosVDEditorSettings* Settings = GetDefault<UChaosVDEditorSettings>();
-	UStaticMesh* DebugMesh = Settings->DebugMesh.LoadSynchronous();
+	using namespace Chaos;
 
 	FActorSpawnParameters Params;
 	Params.Name = *InParticleData.DebugName;
 	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 	if (AChaosVDParticleActor* NewActor = PhysicsVDWorld->SpawnActor<AChaosVDParticleActor>(Params))
 	{
-		NewActor->UpdateFromRecordedData(InParticleData);
+		NewActor->UpdateFromRecordedData(InParticleData, InFrameData.SimulationTransform);
 
 		if (!InParticleData.DebugName.IsEmpty())
 		{
 			NewActor->SetActorLabel(InParticleData.DebugName);
 		}
 
-		NewActor->SetStaticMesh(DebugMesh);
+		NewActor->SetScene(AsShared());
+		
+		if (ensure(LoadedRecording.IsValid()))
+		{
+			if (const TSharedPtr<const Chaos::FImplicitObject>* Geometry = LoadedRecording->GetGeometryDataMap().Find(InParticleData.ImplicitObjectID))
+			{
+				NewActor->UpdateGeometryData(*Geometry);
+			}
+		}
 
 		return NewActor;
 	}
@@ -150,7 +171,7 @@ AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaos
 	return nullptr;
 }
 
-uint32 FChaosVDScene::GetIDForRecordedParticleData(const FChaosVDParticleDebugData& InParticleData) const
+int32 FChaosVDScene::GetIDForRecordedParticleData(const FChaosVDParticleDebugData& InParticleData) const
 {
 	return InParticleData.ParticleIndex;
 }
@@ -197,5 +218,3 @@ UWorld* FChaosVDScene::CreatePhysicsVDWorld() const
 
 	return NewWorld;
 }
-
-

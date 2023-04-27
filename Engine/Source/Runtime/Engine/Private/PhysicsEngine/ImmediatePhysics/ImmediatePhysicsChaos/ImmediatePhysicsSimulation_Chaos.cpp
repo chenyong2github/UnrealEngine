@@ -799,6 +799,7 @@ namespace ImmediatePhysics_Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ImmediateSimulate_Chaos);
 		CVD_SCOPE_TRACE_SOLVER_FRAME(FSimulation, *this);
+		CVD_TRACE_SOLVER_SIMULATION_SPACE(Implementation->SimulationSpace.Transform);
 
 		using namespace Chaos;
 
@@ -1004,7 +1005,6 @@ namespace ImmediatePhysics_Chaos
 		INC_DWORD_STAT_BY(STAT_ImmediateSimulate_ChaosCounter_NumContacts, Implementation->Collisions.NumConstraints());
 		INC_DWORD_STAT_BY(STAT_ImmediateSimulate_ChaosCounter_NumJoints, Implementation->Joints.NumConstraints());
 	}
-
 	void FSimulation::DebugDrawStaticParticles()
 	{
 #if CHAOS_DEBUG_DRAW

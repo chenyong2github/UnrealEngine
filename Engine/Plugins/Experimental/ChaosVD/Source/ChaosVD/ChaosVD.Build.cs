@@ -14,6 +14,7 @@ public class ChaosVD : ModuleRules
 				"Engine",
 				"ChaosVDRuntime", 
 				"TraceServices",
+				"ChaosVDData"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -32,8 +33,15 @@ public class ChaosVD : ModuleRules
 				"WorkspaceMenuStructure", 
 				"TraceAnalysis", 
 				"TraceInsights",
-				"TraceLog",
+				"TraceLog", 
+				"GeometryFramework",
+				"GeometryCore",
+				"MeshConversion",
+				"MeshDescription",
+				"StaticMeshDescription",
 			}
 			);
+
+		SetupModulePhysicsSupport(Target);
 	}
 }

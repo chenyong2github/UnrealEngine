@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Chaos/Core.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "Chaos/Serializable.h"
 #include "Chaos/Vector.h"
+#include "Containers/Set.h"
 
 #ifndef CHAOS_VISUAL_DEBUGGER_ENABLED
 	#define CHAOS_VISUAL_DEBUGGER_ENABLED (WITH_CHAOS_VISUAL_DEBUGGER && UE_TRACE_ENABLED)
@@ -41,6 +44,14 @@
 	#ifndef CVD_SCOPE_TRACE_SOLVER_STEP
 		#define CVD_SCOPE_TRACE_SOLVER_STEP()
 	#endif
+
+	#ifndef CVD_TRACE_BINARY_DATA
+		#define CVD_TRACE_BINARY_DATA(InData, TypeName)
+	#endif
+
+#ifndef CVD_TRACE_SOLVER_SIMULATION_SPACE
+		#define CVD_TRACE_SOLVER_SIMULATION_SPACE(InSimulationSpace)
+#endif
 #else
 
 #include "Trace/Trace.h"
@@ -100,6 +111,7 @@ UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDParticle)
 	CVD_DEFINE_TRACE_VECTOR(Chaos::FReal, AngularVelocity)
 	UE_TRACE_EVENT_FIELD(int8, ObjectState)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DebugName)
+	UE_TRACE_EVENT_FIELD(int32, ImplicitObjectID)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverStepStart)
@@ -112,6 +124,33 @@ UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverStepEnd)
 	UE_TRACE_EVENT_FIELD(int32, SolverID)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, StepNumber)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataStart, NoSync)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, TypeName)
+	UE_TRACE_EVENT_FIELD(int32, DataID)
+	UE_TRACE_EVENT_FIELD(uint32, DataSize)
+	UE_TRACE_EVENT_FIELD(uint32, OriginalSize)
+	UE_TRACE_EVENT_FIELD(bool, IsCompressed)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataContent, NoSync)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(int32, DataID)
+	UE_TRACE_EVENT_FIELD(uint8[], RawData)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDBinaryDataEnd, NoSync)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(int32, DataID)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN_EXTERN(ChaosVDLogger, ChaosVDSolverSimulationSpace)
+	UE_TRACE_EVENT_FIELD(int32, SolverID)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	CVD_DEFINE_TRACE_VECTOR(Chaos::FReal, Position)
+	CVD_DEFINE_TRACE_ROTATOR(Chaos::FReal, Rotation)
 UE_TRACE_EVENT_END()
 
 #ifndef CVD_TRACE_PARTICLE
@@ -158,10 +197,22 @@ UE_TRACE_EVENT_END()
 		FChaosVDScopeSolverStep ScopeSolverStep;
 #endif
 
+#ifndef CVD_TRACE_BINARY_DATA
+	#define CVD_TRACE_BINARY_DATA(InData, TypeName) \
+	FChaosVisualDebuggerTrace::TraceBinaryData(InData, TypeName);
+#endif
+
+#ifndef CVD_TRACE_SOLVER_SIMULATION_SPACE
+	#define CVD_TRACE_SOLVER_SIMULATION_SPACE(InSimulationSpace) \
+	FChaosVisualDebuggerTrace::TraceSolverSimulationSpace(InSimulationSpace);
+#endif
+
 struct FChaosVDContext;
 
 namespace Chaos
 {
+	class FChaosArchiveContext;
+	class FImplicitObject;
 	class FPhysicsSolverBase;
 	template <typename T, int d>
 	class TGeometryParticleHandles;
@@ -173,18 +224,26 @@ class FChaosVisualDebuggerTrace
 public:
 
 	static CHAOS_API void TraceParticle(const Chaos::FGeometryParticleHandle* ParticleHandle);
-	static CHAOS_API void TraceParticle(const Chaos::FGeometryParticleHandle* ParticleHandle, const FChaosVDContext& ContextData);
+	static CHAOS_API void TraceParticle(Chaos::FGeometryParticleHandle* ParticleHandle, const FChaosVDContext& ContextData);
 	static CHAOS_API void TraceParticles(const Chaos::TGeometryParticleHandles<Chaos::FReal, 3>& ParticleHandles);
 	static CHAOS_API void TraceSolverFrameStart(const FChaosVDContext& ContextData, const FString& InDebugName);
 	static CHAOS_API void TraceSolverFrameEnd(const FChaosVDContext& ContextData);
 	static CHAOS_API void TraceSolverStepStart();
 	static CHAOS_API void TraceSolverStepEnd();
+	static CHAOS_API void TraceSolverSimulationSpace(const Chaos::FRigidTransform3& Transform);
+	
+	static CHAOS_API void TraceBinaryData(const TArray<uint8>& InData, const FString& TypeName);
+	
+	static CHAOS_API int32 TraceImplicitObject(Chaos::TSerializablePtr<Chaos::FImplicitObject> Geometry);
 
 	template<typename T>
 	static void GetCVDContext(T& ObjectWithContext, FChaosVDContext& OutCVDContext);
 
 	template<typename T>
 	static FString GetDebugName(T& ObjectWithContext);
+
+private:
+	static void ResetGeometryTracerContext();
 };
 
 template <typename T>

@@ -848,6 +848,18 @@ namespace Chaos
 		return TNumericLimits<FReal>::Max();
 	}
 
+
+	FVec3 FHeightField::GetPointScaled(int32 InIndex) const
+	{
+		if (CHAOS_ENSURE(InIndex >= 0 && InIndex < GeomData.Heights.Num()))
+		{
+			return GeomData.GetPointScaled(InIndex);
+		}
+		
+		return FVec3::ZeroVector;
+	}
+
+
 	FReal Chaos::FHeightField::GetHeight(int32 InX, int32 InY) const
 	{
 		const int32 Index = InY * GeomData.NumCols + InX;

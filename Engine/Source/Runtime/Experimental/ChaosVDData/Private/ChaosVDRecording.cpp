@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosVDRecording.h"
+#include "Chaos/ImplicitObject.h"
 
 int32 FChaosVDRecording::GetAvailableFramesNumber(const int32 SolverID) const
 {
@@ -50,4 +51,28 @@ EChaosVDFrameLoadState FChaosVDRecording::GetFrameState(const int32 SolverID, co
 	// of the implementation to handle different states there
 
 	return EChaosVDFrameLoadState::Unknown;
+}
+
+void FChaosVDRecording::AddImplicitObject(const int32 ID, const TSharedPtr<Chaos::FImplicitObject>& InImplicitObject)
+{
+	if (ensure(!ImplicitObjects.Contains(ID)))
+	{
+		AddImplicitObject_Internal(ID, InImplicitObject);
+	}
+}
+
+void FChaosVDRecording::AddImplicitObject(const int32 ID, const Chaos::FImplicitObject* InImplicitObject)
+{
+	if (ensure(!ImplicitObjects.Contains(ID)))
+	{
+		// Only take ownership after we know we will add it to the map
+		const TSharedPtr<const Chaos::FImplicitObject> SharedImplicit(InImplicitObject);
+		AddImplicitObject_Internal(ID, SharedImplicit);
+	}
+}
+
+void FChaosVDRecording::AddImplicitObject_Internal(const int32 ID, const TSharedPtr<const Chaos::FImplicitObject>& InImplicitObject)
+{
+	ImplicitObjects.Add(ID, InImplicitObject);
+	GeometryDataLoaded.Broadcast(InImplicitObject, ID);
 }

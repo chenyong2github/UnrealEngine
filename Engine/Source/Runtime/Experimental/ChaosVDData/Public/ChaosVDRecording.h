@@ -1,11 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
+#include "Chaos/Core.h"
+#include "Chaos/Serializable.h"
+#include "Chaos/ShapeInstanceFwd.h"
 #include "UObject/ObjectMacros.h"
 #include "Containers/UnrealString.h"
 #include "ChaosVDRecording.generated.h"
 
+namespace Chaos
+{
+	class FImplicitObject;
+}
+
 DECLARE_MULTICAST_DELEGATE(FChaosVDRecordingUpdated)
+DECLARE_MULTICAST_DELEGATE_TwoParams(FChaosVDGeometryDataLoaded, const TSharedPtr<const Chaos::FImplicitObject>&, const int32 GeometryID)
 
 UENUM()
 enum class EChaosVDParticleType : uint8
@@ -59,6 +69,8 @@ struct FChaosVDParticleDebugData
 	FVector AngularVelocity;
 	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
 	EChaosVDParticleState ParticleState;
+
+	int32 ImplicitObjectID = INDEX_NONE;
 };
 
 struct FChaosVDStepData
@@ -66,10 +78,11 @@ struct FChaosVDStepData
 	TArray<FChaosVDParticleDebugData> RecordedParticles;
 };
 
-struct CHAOSVDRUNTIME_API FChaosVDSolverFrameData
+struct CHAOSVDDATA_API FChaosVDSolverFrameData
 {
 	FString DebugName;
 	int32 SolverID;
+	Chaos::FRigidTransform3 SimulationTransform;
 	TArray<FChaosVDStepData, TInlineAllocator<16>> SolverSteps;
 };
 
@@ -85,7 +98,7 @@ enum class EChaosVDFrameLoadState
  * Struct that represents a recorded Physics simulation.
  * It is currently populated while analyzing a Trace session
  */
-struct CHAOSVDRUNTIME_API FChaosVDRecording
+struct CHAOSVDDATA_API FChaosVDRecording
 {
 	/** Returns the current available recorded frames per recorded solver */
 	int32 GetAvailableFramesNumber(const int32 SolverID) const;
@@ -106,12 +119,30 @@ struct CHAOSVDRUNTIME_API FChaosVDRecording
 	/** Called each time the recording changes - Mainly when a new frame is added from the Trace analysis */
 	FChaosVDRecordingUpdated& OnRecordingUpdated() { return RecordingUpdatedDelegate; };
 
+	FChaosVDGeometryDataLoaded& OnGeometryDataLoaded() { return GeometryDataLoaded; };
+
+	const TMap<int32, TSharedPtr<const Chaos::FImplicitObject>>& GetGeometryDataMap() const { return ImplicitObjects; };
+
+	/** Adds a shared Implicit Object to the recording */
+	void AddImplicitObject(const int32 ID, const TSharedPtr<Chaos::FImplicitObject>& InImplicitObject);
+
 	/** Session name of the trace session used to re-build this recording */
 	FString SessionName;
 
 protected:
 
+	/** Adds an Implicit Object to the recording and takes ownership of it */
+	void AddImplicitObject(const int32 ID, const Chaos::FImplicitObject* InImplicitObject);
+	
+	void AddImplicitObject_Internal(const int32 ID, const TSharedPtr<const Chaos::FImplicitObject>& InImplicitObject);
+	
 	TMap<int32, EChaosVDFrameLoadState> AvailableFramesState;
 	TMap<int32, TArray<FChaosVDSolverFrameData>> RecordedFramesDataPerSolver;
 	FChaosVDRecordingUpdated RecordingUpdatedDelegate;
+	FChaosVDGeometryDataLoaded GeometryDataLoaded;
+
+	/** Id to Ptr map of all shared geometry data required to visualize */
+	TMap<int32, TSharedPtr<const Chaos::FImplicitObject>> ImplicitObjects;
+
+	friend class FChaosVDTraceProvider;
 };

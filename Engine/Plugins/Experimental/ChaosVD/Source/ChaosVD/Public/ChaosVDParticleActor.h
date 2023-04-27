@@ -2,32 +2,43 @@
 
 #pragma once
 #include "ChaosVDRecording.h"
+#include "Chaos/Core.h"
 #include "GameFramework/Actor.h"
 
 #include "ChaosVDParticleActor.generated.h"
 
+class FChaosVDScene;
 struct FChaosVDParticleDebugData;
 class USceneComponent;
 class UStaticMeshComponent;
 class UStaticMesh;
 
 /** Actor used to represent a Chaos Particle in the Visual Debugger's world */
-UCLASS(HideCategories=("Transform"))
+UCLASS()
 class AChaosVDParticleActor : public AActor
 {
 	GENERATED_BODY()
 public:
 	AChaosVDParticleActor(const FObjectInitializer& ObjectInitializer);
 
-	void UpdateFromRecordedData(const FChaosVDParticleDebugData& RecordedData);
+	void UpdateFromRecordedData(const FChaosVDParticleDebugData& RecordedData, const Chaos::FRigidTransform3& SimulationTransform);
+	
+	const FChaosVDParticleDebugData& GetDebugData() const { return RecordedDebugData; }
 
-	void SetStaticMesh(UStaticMesh* NewStaticMesh);
+	void UpdateGeometryData(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject);
+
+	void SetScene(const TSharedPtr<FChaosVDScene>& InScene);
+
+	virtual void BeginDestroy() override;
 
 protected:
 
-	UPROPERTY(EditDefaultsOnly, Category= Debug)
-	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
-
 	UPROPERTY(VisibleAnywhere, Category="Chaos Visual Debugger Data")
 	FChaosVDParticleDebugData RecordedDebugData;
+
+	bool bIsGeometryDataLoaded = false;
+
+	TWeakPtr<FChaosVDScene> OwningScene;
+
+	FDelegateHandle GeometryUpdatedDelegate;
 };
