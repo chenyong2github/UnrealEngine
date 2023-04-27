@@ -677,6 +677,12 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 		}
 	}
 
+	// if occlusion removed all the triangles, fail
+	if (CurResultMesh->TriangleCount() == 0)
+	{
+		Result->ResultCode = IGeometryProcessing_ApproximateActors::EResultCode::MeshGenerationFailed;
+		return Result;
+	}
 
 	TRACE_BOOKMARK(TEXT("ApproximateActors-Clip Ground"));
 
@@ -696,6 +702,13 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 		{
 			UE_LOG(LogApproximateActors, Warning, TEXT("Ground Plane Cut/Fill Policy ignored because no Ground Clip Plane is set"));
 		}
+	}
+
+	// if clipping removed all the triangles, fail
+	if (CurResultMesh->TriangleCount() == 0)
+	{
+		Result->ResultCode = IGeometryProcessing_ApproximateActors::EResultCode::MeshGenerationFailed;
+		return Result;
 	}
 
 	TRACE_BOOKMARK(TEXT("ApproximateActors-Normals and UVs"));
