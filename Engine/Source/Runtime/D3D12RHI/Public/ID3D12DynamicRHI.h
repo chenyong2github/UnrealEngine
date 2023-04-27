@@ -5,11 +5,7 @@
 #include "RHI.h"
 #include "Templates/Function.h"
 
-#if PLATFORM_WINDOWS
-	#include "Windows/D3D12ThirdParty.h"
-#else
-	#include "D3D12ThirdParty.h"
-#endif
+#include COMPILED_PLATFORM_HEADER(D3D12ThirdParty.h)
 
 struct FD3D12MinimalAdapterDesc
 {

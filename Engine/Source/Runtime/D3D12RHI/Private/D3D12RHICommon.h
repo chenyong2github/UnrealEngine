@@ -8,11 +8,7 @@
 
 #include "HAL/Platform.h"
 
-#if PLATFORM_WINDOWS
-	#include "Windows/D3D12ThirdParty.h"
-#else
-	#include "D3D12ThirdParty.h"
-#endif
+#include COMPILED_PLATFORM_HEADER(D3D12ThirdParty.h)
 
 #include "D3D12RHI.h"
 #include "D3D12RHIDefinitions.h"

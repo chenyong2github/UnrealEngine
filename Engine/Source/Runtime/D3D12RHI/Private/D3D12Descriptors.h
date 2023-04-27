@@ -10,12 +10,6 @@
 #include "Containers/Queue.h"
 #include "Containers/List.h"
 
-#if PLATFORM_WINDOWS
-#include "Windows/D3D12ThirdParty.h"
-#else
-#include "D3D12ThirdParty.h"
-#endif
-
 inline D3D12_DESCRIPTOR_HEAP_TYPE Translate(ERHIDescriptorHeapType InHeapType)
 {
 	switch (InHeapType)

@@ -4,7 +4,7 @@
 #include "Module/TextureShareCoreLog.h"
 #include "Templates/RefCounting.h"
 
-#include "Windows/D3D12ThirdParty.h"
+#include COMPILED_PLATFORM_HEADER(D3D12ThirdParty.h)
 
 namespace UE::TextureShareCore::D3D12ResourcesCacheItem
 {
