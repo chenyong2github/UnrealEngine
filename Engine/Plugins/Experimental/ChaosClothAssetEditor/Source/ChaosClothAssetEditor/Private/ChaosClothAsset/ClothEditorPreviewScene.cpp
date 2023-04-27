@@ -32,6 +32,8 @@ FChaosClothPreviewScene::FChaosClothPreviewScene(FPreviewScene::ConstructionValu
 	PreviewSceneDescription = NewObject<UChaosClothPreviewSceneDescription>();
 	PreviewSceneDescription->SetPreviewScene(this);
 
+	SceneActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass());
+
 	if (PreviewSceneDescription->SkeletalMeshAsset)
 	{
 		CreateSkeletalMeshComponent();
@@ -245,26 +247,35 @@ bool FChaosClothPreviewScene::IsComponentSelected(const UPrimitiveComponent* InC
 
 void FChaosClothPreviewScene::SetClothAsset(UChaosClothAsset* Asset)
 {
+	// Clean up old cloth component if it exists
+
+	check(Asset);
+	check(SceneActor);
+
+	bool bShouldClothBeRootComponent = false;
 	if (ClothComponent)
 	{
+		if (SceneActor->GetRootComponent() == ClothComponent)
+		{
+			bShouldClothBeRootComponent = true;
+			SceneActor->SetRootComponent(nullptr);
+		}
+
 		ClothComponent->SelectionOverrideDelegate.Unbind();
+		SceneActor->RemoveOwnedComponent(ClothComponent);
+		ClothComponent->DestroyComponent();
 	}
-
-	if (SceneActor)
-	{
-		SceneActor->UnregisterAllComponents();
-	}
-
-	SceneActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass());
-
-	check(SceneActor);
 
 	ClothComponent = NewObject<UChaosClothComponent>(SceneActor);
 	ClothComponent->SetClothAsset(Asset);
 
 	ClothComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FChaosClothPreviewScene::IsComponentSelected);
 
-	SceneActor->SetRootComponent(ClothComponent);
+	if (bShouldClothBeRootComponent)
+	{
+		SceneActor->SetRootComponent(ClothComponent);
+	}
+
 	SceneActor->RegisterAllComponents();
 
 	ReattachSkeletalMeshAndAnimation();

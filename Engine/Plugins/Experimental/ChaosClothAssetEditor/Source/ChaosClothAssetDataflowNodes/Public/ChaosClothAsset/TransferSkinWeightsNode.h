@@ -25,7 +25,7 @@ public:
 	TObjectPtr<USkeletalMesh> SkeletalMesh;
 
 	UPROPERTY(EditAnywhere, Category = "Source Mesh", Meta = (Dataflowinput, DisplayName = "SkeletalMeshLOD"))
-	int32 SkeletalMeshLOD;
+	int32 SkeletalMeshLOD = 0;
 
 	// The relative transform between the SkeletalMesh and ClothCollection
 	UPROPERTY(EditAnywhere, Category = "Source Mesh", Meta = (Dataflowinput, DisplayName = "Transform"))

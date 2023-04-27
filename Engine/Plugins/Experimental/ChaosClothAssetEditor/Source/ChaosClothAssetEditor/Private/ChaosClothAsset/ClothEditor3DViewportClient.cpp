@@ -148,16 +148,13 @@ void FChaosClothAssetEditor3DViewportClient::EnableRenderMeshWireframe(bool bEna
 {
 	bRenderMeshWireframe = bEnable;
 
-	if (ClothComponent)
+	if (const TSharedPtr<FChaosClothPreviewScene> PinnedClothPreviewScene = ClothPreviewScene.Pin())
 	{
-		ClothComponent->SetForceWireframe(bRenderMeshWireframe);
+		if (UChaosClothComponent* const ClothComponent = PinnedClothPreviewScene->GetClothComponent())
+		{
+			ClothComponent->SetForceWireframe(bRenderMeshWireframe);
+		}
 	}
-}
-
-void FChaosClothAssetEditor3DViewportClient::SetClothComponent(TObjectPtr<UChaosClothComponent> InClothComponent)
-{
-	ClearSelectedComponents();
-	ClothComponent = InClothComponent;
 }
 
 void FChaosClothAssetEditor3DViewportClient::SetClothEdMode(TObjectPtr<UChaosClothAssetEditorMode> InClothEdMode)

@@ -40,7 +40,6 @@ public:
 	void EnableRenderMeshWireframe(bool bEnable);
 	bool RenderMeshWireframeEnabled() const { return bRenderMeshWireframe; }
 
-	void SetClothComponent(TObjectPtr<UChaosClothComponent> ClothComponent);
 	void SetClothEdMode(TObjectPtr<UChaosClothAssetEditorMode> ClothEdMode);
 	void SetClothEditorToolkit(TWeakPtr<const FChaosClothAssetEditorToolkit> ClothToolkit);
 
@@ -74,8 +73,6 @@ private:
 	void ComponentSelectionChanged(UObject* NewSelection);
 
 	TWeakPtr<FChaosClothPreviewScene> ClothPreviewScene;
-
-	TObjectPtr<UChaosClothComponent> ClothComponent;
 
 	TObjectPtr<UChaosClothAssetEditorMode> ClothEdMode;
 
