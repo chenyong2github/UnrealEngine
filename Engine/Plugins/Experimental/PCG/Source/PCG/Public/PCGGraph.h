@@ -255,7 +255,6 @@ private:
 	bool bIsNotifying = false;
 	bool bUserPausedNotificationsInGraphEditor = false;
 	int32 NumberOfUserParametersPreEdit = 0;
-	FName UserParameterModifiedName = NAME_None;
 #endif // WITH_EDITOR
 };
 
@@ -317,8 +316,6 @@ private:
 #if WITH_EDITORONLY_DATA
 	// Transient, to keep track the undo/redo changed the graph.
 	UPCGGraphInterface* UndoRedoGraphCache = nullptr;
-
-	FName UserParameterModifiedName = NAME_None;
 #endif // WITH_EDITORONLY_DATA
 };
 

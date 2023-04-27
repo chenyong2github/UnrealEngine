@@ -823,17 +823,6 @@ void UPCGGraph::PreEditChange(FProperty* InProperty)
 		// We need to keep track of the number of properties, to detect if a property was added/removed/modified
 		NumberOfUserParametersPreEdit = UserParameters.GetNumPropertiesInBag();
 	}
-	else if (InProperty->GetOwnerStruct() == UserParameters.GetPropertyBagStruct())
-	{
-		// This is a bit unconventional, but we have to store the property name that has changed, because how Pre/Post Edit change is called.
-		// First PreEdit change is called twice. Once for the property changed (the one we want to track), and the second time on our UserParameters struct.
-		// Then PostEdit change is also called twice. But at the time of the first call (on the property we want to track), the value is not yet changed in memory of
-		// our UserParameters struct, it is still the old value. We need to wait the second call, PostEdit on our UserParameters struct, to have the memory updated with the new
-		// value. But then, we lost the name of our property.
-		// That's why we store the name here, and will use it in Post to know which property changed its value.
-		// TODO: It might be something that would need to change in StructUtils.
-		UserParameterModifiedName = InProperty->GetFName();
-	}
 }
 
 void UPCGGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -872,11 +861,9 @@ void UPCGGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 
 		OnGraphParametersChanged(ChangeType, NAME_None);
 	}
-	else if (UserParameterModifiedName != NAME_None && MemberPropertyName == GET_MEMBER_NAME_CHECKED(UPCGGraph, UserParameters))
+	else if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetOwnerStruct() == UserParameters.GetPropertyBagStruct())
 	{
-		// cf. PreEditChnage comment to understand why we need UserParameterModifiedName
-		OnGraphParametersChanged(EPCGGraphParameterEvent::ValueModifiedLocally, UserParameterModifiedName);
-		UserParameterModifiedName = NAME_None;
+		OnGraphParametersChanged(EPCGGraphParameterEvent::ValueModifiedLocally, MemberPropertyName);
 	}
 
 	NumberOfUserParametersPreEdit = 0;
@@ -991,11 +978,7 @@ void UPCGGraphInstance::PreEditChange(FProperty* InProperty)
 		return;
 	}
 
-	if (InProperty->GetOwnerStruct() == ParametersOverrides.Parameters.GetPropertyBagStruct())
-	{
-		UserParameterModifiedName = InProperty->GetFName();
-	}
-	else if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, Graph) && Graph)
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, Graph) && Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
 		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
@@ -1018,10 +1001,9 @@ void UPCGGraphInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 		RefreshParameters(EPCGGraphParameterEvent::GraphChanged);
 	}
-	else if (UserParameterModifiedName != NAME_None && PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, ParametersOverrides))
+	else if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetOwnerStruct() == ParametersOverrides.Parameters.GetPropertyBagStruct())
 	{
-		OnGraphParametersChanged(this, EPCGGraphParameterEvent::ValueModifiedLocally, UserParameterModifiedName);
-		UserParameterModifiedName = NAME_None;
+		OnGraphParametersChanged(this, EPCGGraphParameterEvent::ValueModifiedLocally, PropertyChangedEvent.GetMemberPropertyName());
 	}
 }
 
