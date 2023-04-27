@@ -92,6 +92,8 @@ void UTakeRecorderMicrophoneAudioSource::Initialize()
 		{
 			SetCurrentInputChannel(AvailableChannelNumber);
 		}
+
+		AudioInputManager->GetOnNotifySourcesOfDeviceChange().AddUObject(this, &UTakeRecorderMicrophoneAudioSource::OnNotifySourcesOfDeviceChange);
 	}
 }
 
@@ -122,7 +124,7 @@ TUniquePtr<TArray<bool>> UTakeRecorderMicrophoneAudioSource::GetChannelsInUse(co
 		{
 			int32 MicSourceChannelNumber = MicSource->AudioChannel.AudioInputDeviceChannel;
 			int32 ChannelIndex = MicSourceChannelNumber - 1;
-			if (ChannelIndex >= 0)
+			if (ChannelIndex >= 0 && ChannelIndex < InDeviceChannelCount)
 			{
 				(*ChannelsInUse)[ChannelIndex] = true;
 			}
@@ -233,7 +235,6 @@ void UTakeRecorderMicrophoneAudioSource::StartRecording(const FTimecode& InSecti
 				LastChannelInUse = FMath::Max(LastChannelInUse, ChannelIndex + 1);
 			}
 		}
-
 
 		AudioInputManager->StartRecording(LastChannelInUse);
 	}
