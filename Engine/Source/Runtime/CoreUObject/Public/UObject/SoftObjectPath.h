@@ -570,6 +570,12 @@ struct FSoftObjectPathFixupArchive : public FArchiveUObject
 		return *this;
 	}
 
+	virtual FArchive& operator<<(FObjectPtr& Value) override
+	{
+		//do nothing to avoid resolving
+		return *this;
+	}
+
 	void Fixup(UObject* Root)
 	{
 		Root->Serialize(*this);
