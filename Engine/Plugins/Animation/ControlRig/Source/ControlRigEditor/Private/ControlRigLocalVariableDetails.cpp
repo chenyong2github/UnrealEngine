@@ -35,7 +35,7 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 		{
 			GraphBeingCustomized = Cast<URigVMGraph>(ObjectsBeingCustomized[0]->GetSubject());
 		}
-		if (GraphBeingCustomized)
+		if (ensure(GraphBeingCustomized))
 		{
 			BlueprintBeingCustomized = GraphBeingCustomized->GetTypedOuter<UControlRigBlueprint>();
 		}
