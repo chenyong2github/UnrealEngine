@@ -47,7 +47,7 @@ namespace mu
 }
 
 
-CUSTOMIZABLEOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogMutable, Warning, All);
+CUSTOMIZABLEOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogMutable, Log, All);
 
 USTRUCT()
 struct FFParameterOptionsTags

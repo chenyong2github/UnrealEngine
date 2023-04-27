@@ -157,17 +157,17 @@ bool FRunningStressTest::RunStressTestTick(float DeltaTime)
 
 		if (NumUpdatedDone == NumUpdateRequested)
 		{
-			UE_LOG(LogMutable, Warning, TEXT("\t\t\t Final Stress Test results for model %s"), *CustomizableObject->GetName());
+			UE_LOG(LogMutable, Log, TEXT("\t\t\t Final Stress Test results for model %s"), *CustomizableObject->GetName());
 		}
 
 		WriteTestResults();
 
 		PrintMostExpensivePerLOD();
 
-		UE_LOG(LogMutable, Warning, TEXT("///////////////////////////////////////////////////////////////////////////////////"));
+		UE_LOG(LogMutable, Log, TEXT("///////////////////////////////////////////////////////////////////////////////////"));
 
-		UE_LOG(LogMutable, Warning, TEXT("Finished stress test for model [%s]."), *CustomizableObject->GetName());
-		UE_LOG(LogMutable, Warning, TEXT("\n"));
+		UE_LOG(LogMutable, Log, TEXT("Finished stress test for model [%s]."), *CustomizableObject->GetName());
+		UE_LOG(LogMutable, Log, TEXT("\n"));
 
 		FinishTest();
 
@@ -237,7 +237,7 @@ bool FRunningStressTest::RunStressTestTick(float DeltaTime)
 				NextInstanceTimeMs -= remainingTime;
 			}
 
-			UE_LOG(LogMutable, Warning, TEXT("Stress test created instance. [%d active]"), LiveInstances.Num());
+			UE_LOG(LogMutable, Log, TEXT("Stress test created instance. [%d active]"), LiveInstances.Num());
 		}
 
 		// Update instances that need it
@@ -283,7 +283,7 @@ bool FRunningStressTest::RunStressTestTick(float DeltaTime)
 
 		if (ToRemove.Num())
 		{
-			UE_LOG(LogMutable, Warning, TEXT("Stress test removed instance. [%d active]"), LiveInstances.Num());
+			UE_LOG(LogMutable, Log, TEXT("Stress test removed instance. [%d active]"), LiveInstances.Num());
 		}
 	}
 
@@ -326,7 +326,7 @@ void FRunningStressTest::WriteTestResults()
 {
 	FString Line;
 	Line = "///////////////////////////////////////////////////////////////////////////////////";
-	UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+	UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 
 	for (uint32 i = 0; i < NumLOD; ++i)
 	{
@@ -343,7 +343,7 @@ void FRunningStressTest::WriteTestResults()
 
 		Line = "Results for LOD level ";
 		Line += FString::Printf(TEXT("%d"), i);
-		UE_LOG(LogMutable, Warning, TEXT("%s:"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s:"), *Line);
 
 		uint32 MaxLength1 = MaxOffsetName + 25;
 		uint32 MaxLength2 = MaxLength1 + 25;
@@ -355,10 +355,10 @@ void FRunningStressTest::WriteTestResults()
 		Line += "Mean";
 		AppendWhitespace(Line, MaxLength2 - Line.Len());
 		Line += "Max";
-		UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 
 		Line = "\t ---------------------------------------------------------------------------------------------";
-		UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 
 		for (TPair<FString, MeasuredData>& it : ArrayMeasuredDataPerLOD[i])
 		{
@@ -375,7 +375,7 @@ void FRunningStressTest::WriteTestResults()
 			Line += FString::Printf(TEXT("%d"), int32(it.Value.MeanTime));
 			AppendWhitespace(Line, MaxLength2 - Line.Len());
 			Line += FString::Printf(TEXT("%d"), int32(it.Value.MaxTime));
-			UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+			UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 		}
 
 		// Texture size information
@@ -392,7 +392,7 @@ void FRunningStressTest::WriteTestResults()
 		Value = (MaxTextureSize > 1048576) ? float(MaxTextureSize) / 1048576.0f : float(MaxTextureSize) / 1024.0f;
 		Line += FString::Printf(TEXT("%.2f"), Value);
 		Line += (MaxTextureSize > 1048576) ? "(MB)" : "(KB)";
-		UE_LOG(LogMutable, Warning, TEXT("%s\n"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s\n"), *Line);
 	}
 }
 
@@ -459,7 +459,7 @@ void FRunningStressTest::AddInstanceData(MeasureDataMap MapMeasuredParam, Materi
 
 	FString Line = "Test update instance number ";
 	Line += FString::Printf(TEXT("%d"), NumUpdatedDone);
-	UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+	UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 
 	WriteTestResults();
 }
@@ -597,19 +597,19 @@ void FRunningStressTest::PrintMostExpensivePerLOD()
 	for (uint32 i = 0; i < MaxIndexLOD; ++i)
 	{
 		FString Line = "///////////////////////////////////////////////////////////////////////////////////";
-		UE_LOG(LogMutable, Warning, TEXT("%s:"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s:"), *Line);
 
 		Line = "Instance detailed information for LOD level ";
 		Line += FString::Printf(TEXT("%d:"), i);
-		UE_LOG(LogMutable, Warning, TEXT("%s\n"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s\n"), *Line);
 
 		Line = "\t Information for most expensive instance in terms of geometry size";
-		UE_LOG(LogMutable, Warning, TEXT("%s:"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s:"), *Line);
 		MostExpensiveInstanceData& DataGeometry = ArrayLODMostExpensiveGeometry[i];
 		PrintMostExpensiveInstanceData(DataGeometry, i);
 
 		Line = "\t Information for most expensive instance in terms of material texture size";
-		UE_LOG(LogMutable, Warning, TEXT("%s:"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s:"), *Line);
 		MostExpensiveInstanceData& DataTexture = ArrayLODMostExpensiveTexture[i];
 		PrintMostExpensiveInstanceData(DataTexture, i);
 	}
@@ -631,7 +631,7 @@ void FRunningStressTest::PrintParameterData(const MostExpensiveInstanceData& Dat
 			Line = FString::Printf(TEXT("\t\t\t %s"), *it.ParameterName);
 			AppendWhitespace(Line, MaxLength - Line.Len());
 			Line += FString::Printf(TEXT("%d"), it.ParameterValue);
-			UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+			UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 		}
 	}
 
@@ -643,7 +643,7 @@ void FRunningStressTest::PrintParameterData(const MostExpensiveInstanceData& Dat
 			Line = FString::Printf(TEXT("\t\t\t %s"), *it.ParameterName);
 			AppendWhitespace(Line, MaxLength - Line.Len());
 			Line += FString::Printf(TEXT("%s"), *it.ParameterValueName);
-			UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+			UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 		}
 	}
 
@@ -655,7 +655,7 @@ void FRunningStressTest::PrintParameterData(const MostExpensiveInstanceData& Dat
 			Line = FString::Printf(TEXT("\t\t\t %s"), *it.ParameterName);
 			AppendWhitespace(Line, MaxLength - Line.Len());
 			Line += FString::Printf(TEXT("%.2f"), it.ParameterValue);
-			UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+			UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 		}
 	}
 
@@ -667,7 +667,7 @@ void FRunningStressTest::PrintParameterData(const MostExpensiveInstanceData& Dat
 			Line = FString::Printf(TEXT("\t\t\t %s"), *it.ParameterName);
 			AppendWhitespace(Line, MaxLength - Line.Len());
 			Line += FString::Printf(TEXT("%d"), it.ParameterValue);
-			UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+			UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 		}
 	}
 
@@ -682,7 +682,7 @@ void FRunningStressTest::PrintParameterData(const MostExpensiveInstanceData& Dat
 			Line += FString::Printf(TEXT("%.2f,"), it.ParameterValue.G);
 			Line += FString::Printf(TEXT("%.2f,"), it.ParameterValue.B);
 			Line += FString::Printf(TEXT("%.2f)"), it.ParameterValue.A);
-			UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+			UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 		}
 	}
 
@@ -696,7 +696,7 @@ void FRunningStressTest::PrintParameterData(const MostExpensiveInstanceData& Dat
 			Line += FString::Printf(TEXT("(%.2f,"), it.Value.Position.X);
 			Line += FString::Printf(TEXT("%.2f,"), it.Value.Position.Y);
 			Line += FString::Printf(TEXT("%.2f)"), it.Value.Position.Z);
-			UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+			UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 		}
 	}
 }
@@ -742,15 +742,15 @@ void FRunningStressTest::PrintParameterHeader(FString Param, int32 Value, bool A
 {
 	if (AddNewLine)
 	{
-		UE_LOG(LogMutable, Warning, TEXT("\n"));
+		UE_LOG(LogMutable, Log, TEXT("\n"));
 	}
 	FString Line = Param;
-	UE_LOG(LogMutable, Warning, TEXT("\t\t\t %s"), *Line);
+	UE_LOG(LogMutable, Log, TEXT("\t\t\t %s"), *Line);
 	Line = "\t\t\t Name";
 	AppendWhitespace(Line, Value - Line.Len());
 	Line += "Value";
-	UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
-	UE_LOG(LogMutable, Warning, TEXT("\t\t\t ------------------------------------------"));
+	UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
+	UE_LOG(LogMutable, Log, TEXT("\t\t\t ------------------------------------------"));
 }
 
 
@@ -759,7 +759,7 @@ void FRunningStressTest::PrintMostExpensiveInstanceData(const MostExpensiveInsta
 	FString Line;
 	Line = FString::Printf(TEXT("\t\t Number of faces: "));
 	Line += FString::Printf(TEXT("%d"), Data.CurrentLODNumFaces);
-	UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+	UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 
 	// Texture size information
 	Line = "\t\t Texture size: ";
@@ -769,7 +769,7 @@ void FRunningStressTest::PrintMostExpensiveInstanceData(const MostExpensiveInsta
 	Value = (MaxTextureSize > 1048576) ? float(MaxTextureSize) / 1048576.0f : float(MaxTextureSize) / 1024.0f;
 	Line += FString::Printf(TEXT(", max=%.2f"), Value);
 	Line += (MaxTextureSize > 1048576) ? "(MB)" : "(KB)";
-	UE_LOG(LogMutable, Warning, TEXT("%s\n"), *Line);
+	UE_LOG(LogMutable, Log, TEXT("%s\n"), *Line);
 
 	// Material information
 	const TMap<FString, MaterialBriefInfo>& MapMaterialLOD = Data.MapMaterial;
@@ -785,7 +785,7 @@ void FRunningStressTest::PrintMostExpensiveInstanceData(const MostExpensiveInsta
 		Line += FString::Printf(TEXT(" (%d elements):"), MapMaterialLOD.Num());
 	}
 
-	UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+	UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 
 	int32 MaxOffsetName = 0;
 	for (const TPair<FString, MaterialBriefInfo>& itMaterial : MapMaterialLOD)
@@ -800,7 +800,7 @@ void FRunningStressTest::PrintMostExpensiveInstanceData(const MostExpensiveInsta
 	for (const TPair<FString, MaterialBriefInfo>& itMaterial : MapMaterialLOD)
 	{
 		Line = FString::Printf(TEXT("\t\t\t Material %s: "), *(itMaterial.Key));
-		UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 
 		int32 MaxIndex = itMaterial.Value.ArrayTextureName.Num();
 		for (int32 i = 0; i < MaxIndex; ++i)
@@ -812,17 +812,17 @@ void FRunningStressTest::PrintMostExpensiveInstanceData(const MostExpensiveInsta
 			AppendWhitespace(Line, SecondOffsetTexture - Line.Len());
 			TextureFormatString = StringyfyEPixelFormat(itMaterial.Value.ArrayTextureFormat[i]);
 			Line += FString::Printf(TEXT("format=%s"), *TextureFormatString);
-			UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+			UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 		}
 	}
 
-	UE_LOG(LogMutable, Warning, TEXT("\n"));
+	UE_LOG(LogMutable, Log, TEXT("\n"));
 
 	if ((Data.BoolParameters.Num() > 0) || (Data.IntParameters.Num() > 0) || (Data.FloatParameters.Num() > 0) ||
 		(Data.TextureParameters.Num() > 0) || (Data.VectorParameters.Num() > 0) || (Data.ProjectorParameters.Num() > 0))
 	{
 		Line = FString::Printf(TEXT("\t\t Parameter information"));
-		UE_LOG(LogMutable, Warning, TEXT("%s"), *Line);
+		UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 
 		// Parameter information
 		PrintParameterData(Data);

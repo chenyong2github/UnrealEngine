@@ -852,7 +852,7 @@ FString UCustomizableObject::GetDesc()
 
 void UCustomizableObject::SaveEmbeddedData(FArchive& Ar)
 {
-	UE_LOG(LogMutable, Log, TEXT("Saving embedded data for Customizable Object [%s] now at position %d."), *GetName(), int(Ar.Tell()));
+	UE_LOG(LogMutable, Verbose, TEXT("Saving embedded data for Customizable Object [%s] now at position %d."), *GetName(), int(Ar.Tell()));
 
 	int32 InternalVersion = PrivateData->GetModel() ? CurrentSupportedVersion : -1;
 	Ar << InternalVersion;
@@ -880,7 +880,7 @@ void UCustomizableObject::SaveEmbeddedData(FArchive& Ar)
 			mu::Model::Serialise(PrivateData->GetModel().Get(), arch);
 		}
 
-		UE_LOG(LogMutable, Log, TEXT("Saved embedded data for Customizable Object [%s] now at position %d."), *GetName(), int(Ar.Tell()));
+		UE_LOG(LogMutable, Verbose, TEXT("Saved embedded data for Customizable Object [%s] now at position %d."), *GetName(), int(Ar.Tell()));
 	}
 }
 
@@ -1155,7 +1155,7 @@ UCustomizableObjectInstance* UCustomizableObject::CreateInstance()
 	PreviewInstance->SetObject(this);
 	PreviewInstance->bShowOnlyRuntimeParameters = false;
 
-	UE_LOG(LogMutable, Log, TEXT("Created Customizable Object Instance."));
+	UE_LOG(LogMutable, Verbose, TEXT("Created Customizable Object Instance."));
 
 	return PreviewInstance;
 }
@@ -1701,7 +1701,7 @@ void UCustomizableObject::ApplyStateForcedValuesToParameters( int32 State, mu::P
 			}
 			default:
 			{
-				UE_LOG(LogMutable, Log, TEXT("Forced parameter type not supported."));
+				UE_LOG(LogMutable, Warning, TEXT("Forced parameter type not supported."));
 				break;
 			}
 			}
@@ -1764,7 +1764,7 @@ EDataValidationResult UCustomizableObject::IsDataValid(FDataValidationContext& C
 		return Result;
 	}
 
-	UE_LOG(LogMutable,Display,TEXT("Running data validation checks for %s CO."),*this->GetName());
+	UE_LOG(LogMutable,Verbose,TEXT("Running data validation checks for %s CO."),*this->GetName());
 
 	// Bind the post validation method to the post validation delegate if not bound already to be able to know when the validation
 	// operation (for all assets) concludes

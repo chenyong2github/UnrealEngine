@@ -1428,7 +1428,7 @@ void FCustomizableObjectEditor::CompileObject()
 		Compiler.Compile(*CustomizableObject, Options, true);
 	}
 
-	UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] FCustomizableObjectEditor::CompileObject end."), FPlatformTime::Seconds());
+	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] FCustomizableObjectEditor::CompileObject end."), FPlatformTime::Seconds());
 }
 
 

@@ -2493,7 +2493,7 @@ void SMutableCodeViewer::Tick(const FGeometry& AllottedGeometry, const double In
 	
 	default:
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
-		UE_LOG(LogMutable,Display,TEXT("There is no previewer for the selected type of Mutable object"))
+		UE_LOG(LogMutable, Log, TEXT("There is no previewer for the selected type of Mutable object"))
 #endif
 		// There is no viewer for this type.
 		break;
@@ -2649,13 +2649,13 @@ void SMutableCodeViewer::PreviewMutableCurve(const mu::Curve* Curve)
 // TODO: Implement matrix viewer
 void SMutableCodeViewer::PreviewMutableMatrix(const mu::mat4f* Mat)
 {
-	UE_LOG(LogMutable,Warning,TEXT("Previewer for Mutable Matrices not yet implemented"))
+	UE_LOG(LogMutable, Warning, TEXT("Previewer for Mutable Matrices not yet implemented"))
 }
 
 // TODO: Implement shape viewer
 void SMutableCodeViewer::PreviewMutableShape(const mu::FShape* Shape)
 {
-	UE_LOG(LogMutable,Warning,TEXT("Previewer for Mutable Shapes not yet implemented"))
+	UE_LOG(LogMutable, Warning, TEXT("Previewer for Mutable Shapes not yet implemented"))
 }
 
 

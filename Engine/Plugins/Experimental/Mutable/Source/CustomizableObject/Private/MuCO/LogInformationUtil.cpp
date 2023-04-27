@@ -37,7 +37,7 @@ void LogInformationUtil::PrintGeneratedTextures(const TArray<struct FGeneratedTe
 
 	if (Max > 1)
 	{
-		UE_LOG(LogMutable, Warning, TEXT("Case"));
+		UE_LOG(LogMutable, Log, TEXT("Case"));
 	}
 
 	for (i = 0; i < Max; ++i)
@@ -190,7 +190,7 @@ void LogInformationUtil::LogShowInstanceDataFull(const UCustomizableObjectInstan
 		}
 	}
 
-	UE_LOG(LogMutable, Warning, TEXT("%s"), *LogData);
+	UE_LOG(LogMutable, Log, TEXT("%s"), *LogData);
 
 	UWorld* World = GWorld;
 

@@ -202,7 +202,7 @@ UCustomizableObjectSystem* UCustomizableObjectSystem::GetInstance()
 {
 	if (!FCustomizableObjectSystemPrivate::SSystem)
 	{
-		UE_LOG(LogMutable, Log, TEXT("Creating system."));
+		UE_LOG(LogMutable, Log, TEXT("Creating Mutable Customizable Object System."));
 
 		check(IsInGameThread());
 
@@ -274,7 +274,7 @@ void UCustomizableObjectSystem::LogShowData(bool bFullInfo, bool ShowMaterialInf
 		{
 			LogInformationUtil::LogShowInstanceData(ArrayData[i], LogData);
 		}
-		UE_LOG(LogMutable, Warning, TEXT("%s"), *LogData);
+		UE_LOG(LogMutable, Log, TEXT("%s"), *LogData);
 
 		UWorld* World = GWorld;
 
@@ -1246,7 +1246,7 @@ namespace impl
 
 			if (!Instance)
 			{
-				UE_LOG(LogMutable, Log, TEXT("An Instace update has failed."));
+				UE_LOG(LogMutable, Warning, TEXT("An Instace update has failed."));
 				return;
 			}
 		}
@@ -1484,7 +1484,7 @@ namespace impl
 
 			if (bCached)
 			{
-				UE_LOG(LogMutable, Verbose, TEXT("Texture resource with id [%d] is cached."), Image.ImageID);
+				UE_LOG(LogMutable, VeryVerbose, TEXT("Texture resource with id [%d] is cached."), Image.ImageID);
 				INC_DWORD_STAT(STAT_MutableNumCachedTextures);
 			}
 			else

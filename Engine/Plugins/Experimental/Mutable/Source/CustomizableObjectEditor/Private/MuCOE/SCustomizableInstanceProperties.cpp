@@ -1333,7 +1333,7 @@ FReply SCustomizableInstanceProperties::OnCopyAllParameters()
 {
 	ToBinary = new FBufferArchive(false, TEXT("BufferArchive"));
 
-	UE_LOG(LogMutable, Warning, TEXT("Parameters have been copied."));
+	UE_LOG(LogMutable, Log, TEXT("Parameters have been copied."));
 
 	CustomInstance->SaveDescriptor(*ToBinary);
 

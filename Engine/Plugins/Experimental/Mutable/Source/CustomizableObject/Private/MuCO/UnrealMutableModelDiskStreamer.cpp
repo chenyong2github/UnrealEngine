@@ -283,7 +283,7 @@ mu::ModelStreamer::OPERATION_ID FUnrealMutableModelBulkStreamer::BeginReadBlock(
 {
 	MUTABLE_CPUPROFILER_SCOPE(FUnrealMutableModelBulkStreamer::OpenReadFile);
 
-	UE_LOG(LogMutable, Verbose, TEXT("Streaming: reading data %08lx."), Key);
+	UE_LOG(LogMutable, VeryVerbose, TEXT("Streaming: reading data %08lx."), Key);
 
 	// Find the object we are streaming for
 	FObjectData* ObjectData = Objects.FindByPredicate(

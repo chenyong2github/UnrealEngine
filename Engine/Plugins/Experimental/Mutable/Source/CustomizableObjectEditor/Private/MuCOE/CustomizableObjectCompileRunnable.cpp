@@ -45,7 +45,7 @@ uint32 FCustomizableObjectCompileRunnable::Run()
 
 	if (Options.OptimizationLevel > 3)
 	{
-		UE_LOG(LogMutable, Verbose, TEXT("Mutable compile optimization level out of range. Clamping to maximum."));
+		UE_LOG(LogMutable, Log, TEXT("Mutable compile optimization level out of range. Clamping to maximum."));
 		Options.OptimizationLevel = 3;
 	}
 

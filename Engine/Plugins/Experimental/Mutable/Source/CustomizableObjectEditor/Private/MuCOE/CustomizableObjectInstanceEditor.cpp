@@ -786,8 +786,8 @@ void FCustomizableObjectInstanceEditor::OnUpdatePreviewInstance()
 
 void FCustomizableObjectInstanceEditor::CompileObject(UCustomizableObject* Object)
 {
-	UE_LOG(LogMutable, Log, TEXT("PROFILE: -----------------------------------------------------------"));
-	UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] FCustomizableObjectInstanceEditor::CompileObject start."), FPlatformTime::Seconds());
+	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: -----------------------------------------------------------"));
+	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] FCustomizableObjectInstanceEditor::CompileObject start."), FPlatformTime::Seconds());
 
 	if (!AssetRegistryLoaded)
 	{
@@ -809,7 +809,7 @@ void FCustomizableObjectInstanceEditor::CompileObject(UCustomizableObject* Objec
 		Compiler->Compile(*Object, Options, true);
 	}
 
-	UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] FCustomizableObjectInstanceEditor::CompileObject end."), FPlatformTime::Seconds());
+	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] FCustomizableObjectInstanceEditor::CompileObject end."), FPlatformTime::Seconds());
 }
 
 

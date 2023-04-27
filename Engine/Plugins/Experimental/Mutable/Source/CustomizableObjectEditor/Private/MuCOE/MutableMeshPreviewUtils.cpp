@@ -661,7 +661,7 @@ namespace MutableMeshPreviewUtils
 					return nullptr;
 				}
 				
-				UE_LOG(LogMutable,Log,TEXT("Buffers Restructuring was succesfull."));
+				UE_LOG(LogMutable, Verbose, TEXT("Buffers Restructuring was succesfull."));
 			}
 
 			// We should now have a mutable mesh following a buffer structure where the required buffers are there to be

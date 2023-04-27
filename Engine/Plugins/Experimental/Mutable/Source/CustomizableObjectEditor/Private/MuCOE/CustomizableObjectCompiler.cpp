@@ -50,7 +50,7 @@ bool FCustomizableObjectCompiler::Tick()
 
 	if (CompileTask.IsValid() && CompileTask->IsCompleted())
 	{
-		UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] Finishing Compilation task for Object %s."), FPlatformTime::Seconds(), *CurrentObject->GetName());
+		UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] Finishing Compilation task for Object %s."), FPlatformTime::Seconds(), *CurrentObject->GetName());
 
 		FinishCompilation();
 
@@ -67,7 +67,7 @@ bool FCustomizableObjectCompiler::Tick()
 
 			NotifyCompilationErrors();
 		}
-		
+
 		UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] Finished Compilation task."), FPlatformTime::Seconds());
 		UE_LOG(LogMutable, Verbose, TEXT("PROFILE: -----------------------------------------------------------"));
 
@@ -123,7 +123,7 @@ void FCustomizableObjectCompiler::MutableIsDisabledCase(UCustomizableObject* Obj
 		return;
 	}
 
-	UE_LOG(LogMutable, Warning, TEXT("Mutable has been disabled. To reenable it, please deactivate the Disable Mutale Option in the Plugins -> Mutable option"), FPlatformTime::Seconds());
+	UE_LOG(LogMutable, Log, TEXT("Mutable has been disabled. To reenable it, please deactivate the Disable Mutale Option in the Plugins -> Mutable option"), FPlatformTime::Seconds());
 	CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(nullptr, true));
 	CompileTask->MutableIsDisabled = true;
 	LaunchMutableCompile(false);
@@ -157,7 +157,7 @@ bool FCustomizableObjectCompiler::IsRootObject(const UCustomizableObject* Object
 
 void FCustomizableObjectCompiler::PreloadingReferencerAssetsCallback(UCustomizableObject* Object, FCustomizableObjectCompiler* CustomizableObjectCompiler, const FCompilationOptions Options, bool bAsync)
 {
-	UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] Preload asynchronously assets end."), FPlatformTime::Seconds());
+	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] Preload asynchronously assets end."), FPlatformTime::Seconds());
 
 	if (CustomizableObjectCompiler->GetCurrentGAsyncLoadingTimeLimit() != -1.0f)
 	{
@@ -188,7 +188,7 @@ void FCustomizableObjectCompiler::Compile(UCustomizableObject& Object, const FCo
 		return;
 	}
 
-	UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] Preload asynchronously assets start."), FPlatformTime::Seconds());
+	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] Preload asynchronously assets start."), FPlatformTime::Seconds());
 
 	FString Message = FString::Printf(TEXT("Customizable Object %s is already being compiled or updated. Please wait a few seconds and try again."), *Object.GetName());
 	FNotificationInfo Info(LOCTEXT("CustomizableObjectBeingCompilerOrUpdated", "Customizable Object compile and/or update still in process. Please wait a few seconds and try again."));
@@ -537,7 +537,7 @@ mu::NodeObjectPtr FCustomizableObjectCompiler::GenerateMutableRoot(
 		// We cannot load while saving. This should only happen in cooking and all assets should have been preloaded.
 		if (!GIsSavingPackage)
 		{
-			UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] Begin search for children."), FPlatformTime::Seconds());
+			UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] Begin search for children."), FPlatformTime::Seconds());
 
 			TArray<UCustomizableObject*> VisitedObjects;
 			ActualRootObject = Root->ParentObject ? GetFullGraphRootObject(Root, VisitedObjects) : Object;
@@ -552,7 +552,7 @@ mu::NodeObjectPtr FCustomizableObjectCompiler::GenerateMutableRoot(
 			// The object doesn't reference a root object but is a root object, look for all the objects that reference it and get their root nodes
 			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 			ProcessChildObjectsRecursively(ActualRootObject, AssetRegistryModule, GenerationContext);
-			UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] End search for children."), FPlatformTime::Seconds());
+			UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] End search for children."), FPlatformTime::Seconds());
 		}
 	}
 	else
@@ -653,9 +653,9 @@ mu::NodeObjectPtr FCustomizableObjectCompiler::GenerateMutableRoot(
     GenerationContext.RealTimeMorphTargetsOverrides.Reset();
 
 	// Generate the object expression
-	UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] GenerateMutableSource start."), FPlatformTime::Seconds());
+	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] GenerateMutableSource start."), FPlatformTime::Seconds());
 	mu::NodeObjectPtr MutableRoot = GenerateMutableSource(ActualRoot->OutputPin(), GenerationContext, !bOutIsRootObject);
-	UE_LOG(LogMutable, Log, TEXT("PROFILE: [ %16.8f ] GenerateMutableSource end."), FPlatformTime::Seconds());
+	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] GenerateMutableSource end."), FPlatformTime::Seconds());
 
     ActualRoot->RealTimeMorphSelectionOverrides = GenerationContext.RealTimeMorphTargetsOverrides;
 	GenerationContext.GenerateClippingCOInternalTags();
@@ -922,7 +922,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 		return;
 	}
 
-	UE_LOG(LogMutable, Display, TEXT("Started Customizable Object Compile %s."), *Object->GetName());	
+	UE_LOG(LogMutable, Log, TEXT("Started Customizable Object Compile %s."), *Object->GetName());	
 
 	CompilationLogsContainer.ClearMessageCounters();
 
@@ -1345,7 +1345,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 
 mu::NodePtr FCustomizableObjectCompiler::Export(UCustomizableObject* Object, const FCompilationOptions& InCompilerOptions)
 {
-	UE_LOG(LogMutable, Display, TEXT("Started Customizable Object Export %s."), *Object->GetName());
+	UE_LOG(LogMutable, Log, TEXT("Started Customizable Object Export %s."), *Object->GetName());
 
 	FNotificationInfo Info(LOCTEXT("CustomizableObjectExportInProgress", "Exported Customizable Object"));
 	Info.bFireAndForget = true;
