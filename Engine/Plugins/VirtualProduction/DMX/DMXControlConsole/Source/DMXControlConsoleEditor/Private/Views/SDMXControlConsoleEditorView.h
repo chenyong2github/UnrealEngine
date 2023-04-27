@@ -7,6 +7,7 @@
 #include "Engine/EngineTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
+enum class EDMXControlConsoleEditorViewMode : uint8;
 class SDMXControlConsoleEditorFaderGroupRowView;
 class SDMXControlConsoleEditorFixturePatchVerticalBox;
 class SDMXControlConsoleEditorPortSelector;
@@ -54,6 +55,12 @@ private:
 	/** Generates the toolbar for this view */
 	TSharedRef<SWidget> GenerateToolbar();
 
+	/** Generates a widget to select the current view mode */
+	TSharedRef<SWidget> GenerateViewModeMenuWidget();
+
+	/** Generates a widget for selection options */
+	TSharedRef<SWidget> GenerateSelectionMenuWidget();
+
 	/** Restores global search filter text from Constrol Console Data */
 	void RestoreGlobalFilter();
 
@@ -86,6 +93,15 @@ private:
 
 	/** Called to add first first Fader Group */
 	FReply OnAddFirstFaderGroup();
+
+	/** Called when a Fader Groups view mode is selected */
+	void OnFaderGroupsViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const;
+
+	/** Called when a Faders view mode is selected */
+	void OnFadersViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const;
+
+	/** Called when a Selection option is selected */
+	void OnSelectAll(bool bOnlyVisible = false) const;
 
 	/** Called when Port selection changes */
 	void OnSelectedPortsChanged();

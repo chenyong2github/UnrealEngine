@@ -129,7 +129,7 @@ FReply FDMXControlConsoleFaderGroupDetails::OnClearButtonClicked()
 		const FScopedTransaction FaderGroupFixturePatchClearTransaction(LOCTEXT("FaderGroupFixturePatchClearTransaction", "Clear Fixture Patch"));
 		SelectedFaderGroup->PreEditChange(nullptr);
 
-		SelectedFaderGroup->Reset();
+		SelectedFaderGroup->Clear();
 
 		SelectedFaderGroup->PostEditChange();
 	}

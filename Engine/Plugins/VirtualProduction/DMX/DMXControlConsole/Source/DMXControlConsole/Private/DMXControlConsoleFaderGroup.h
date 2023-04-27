@@ -44,8 +44,8 @@ public:
 	/** Clears all Elements in this Group */
 	void ClearElements();
 
-	/** Gets the Faders array of this Fader Group */
-	TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> GetElements() const { return Elements; };
+	/** Gets the Elements array of this Fader Group */
+	TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> GetElements(bool bSortByUniverseAndAddress = false) const;
 
 	/** Gets all single faders from Faders array Fader Group */
 	TArray<UDMXControlConsoleFaderBase*> GetAllFaders() const;
@@ -83,8 +83,14 @@ public:
 	/** Gets a cell coordinate to AttributeName/Value map for the current list of Fixture Patch Matrix Faders */
 	TMap<FIntPoint, TMap<FDMXAttributeName, float>> GetMatrixCoordinateToAttributeMap() const;
 
+	/** Duplicates this Fader Group if there's no Fixture Patch data */
+	void Duplicate() const;
+
+	/** Clears this Fader Group and all its elements */
+	void Clear();
+
 	/** Resets this Fader Group to its default parameters */
-	void Reset();
+	void ResetToDefault();
 
 	/** Destroys this Fader Group */
 	void Destroy();
@@ -130,6 +136,7 @@ protected:
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditUndo() override;
 #endif
 	//~ End UObject interface
 

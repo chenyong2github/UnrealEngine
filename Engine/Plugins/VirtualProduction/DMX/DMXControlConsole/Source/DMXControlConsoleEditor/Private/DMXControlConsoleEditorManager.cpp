@@ -57,6 +57,18 @@ TSharedRef<FDMXControlConsoleEditorSelection> FDMXControlConsoleEditorManager::G
 	return SelectionHandler.ToSharedRef();
 }
 
+void FDMXControlConsoleEditorManager::SetFaderGroupsViewMode(EDMXControlConsoleEditorViewMode ViewMode)
+{
+	FaderGroupsViewMode = ViewMode;
+	OnFaderGroupsViewModeChanged.Broadcast();
+}
+
+void FDMXControlConsoleEditorManager::SetFadersViewMode(EDMXControlConsoleEditorViewMode ViewMode)
+{
+	FadersViewMode = ViewMode;
+	OnFadersViewModeChanged.Broadcast();
+}
+
 void FDMXControlConsoleEditorManager::SendDMX()
 {
 	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();

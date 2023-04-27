@@ -23,7 +23,6 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/NumericTypeInterface.h"
-#include "Widgets/Input/SEditableText.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
@@ -255,45 +254,13 @@ public:
 						.Justification(InArgs._Justification)
 					]
 				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0, -28, 0, 0)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center) 
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SAssignNew(EditableText, SEditableText)
-						.Visibility(EVisibility::Collapsed)
-						.Font(InArgs._Font)
-						.ColorAndOpacity(FSlateColor(FColor::FromHex("d5d6d8")))
-						.SelectAllTextWhenFocused(true)
-						.Text(this, &SDMXControlConsoleEditorSpinBoxVertical<NumericType>::GetValueAsText)
-						.OnIsTypedCharValid(this, &SDMXControlConsoleEditorSpinBoxVertical<NumericType>::IsCharacterValid)
-						.OnTextChanged( this, &SDMXControlConsoleEditorSpinBoxVertical<NumericType>::TextField_OnTextChanged)
-						.OnTextCommitted( this, &SDMXControlConsoleEditorSpinBoxVertical<NumericType>::TextField_OnTextCommitted)
-						.ClearKeyboardFocusOnCommit(InArgs._ClearKeyboardFocusOnCommit)
-						.SelectAllTextOnCommit(InArgs._SelectAllTextOnCommit )
-						.MinDesiredWidth(this, &SDMXControlConsoleEditorSpinBoxVertical<NumericType>::GetTextMinDesiredWidth)
-						.VirtualKeyboardType(EKeyboardType::Keyboard_Number)
-						.Justification(InArgs._Justification)
-						.VirtualKeyboardTrigger(EVirtualKeyboardTrigger::OnAllFocusEvents)
-						.ContextMenuExtender(InArgs._ContextMenuExtender)
-					]
-				]
 			]	
 		];
 	}
 	
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override
 	{
-		const bool bActiveFeedback = bDragging || IsInTextMode();
+		const bool bActiveFeedback = IsEnabled() || bDragging;
 
 		const FSlateBrush* BackgroundImage = bActiveFeedback ?
 			BackgroundHoveredBrush :
@@ -348,17 +315,14 @@ public:
 			}
 			const FVector2D FillSize(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * FractionFilled);
 
-			if (!IsInTextMode())
-			{
-				FSlateDrawElement::MakeBox(
-					OutDrawElements,
-					FilledLayer,
-					AllottedGeometry.ToPaintGeometry(FillSize, FSlateLayoutTransform(AllottedGeometry.GetLocalSize() - FillSize)),
-					FillImage,
-					DrawEffects,
-					FillImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
-				);
-			}
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				FilledLayer,
+				AllottedGeometry.ToPaintGeometry(FillSize, FSlateLayoutTransform(AllottedGeometry.GetLocalSize() - FillSize)),
+				FillImage,
+				DrawEffects,
+				FillImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+			);
 		}
 
 		return FMath::Max(FilledLayer, SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, FilledLayer, InWidgetStyle, bEnabled));
@@ -434,12 +398,6 @@ public:
 			if ( !MouseEvent.IsTouchEvent() )
 			{
 				Reply.SetMousePos(CachedMousePosition);
-			}
-
-			if ( DistanceDragged < FSlateApplication::Get().GetDragTriggerDistance() )
-			{
-				EnterTextMode();
-				Reply.SetUserFocus(EditableText.ToSharedRef(), EFocusCause::SetDirectly);
 			}
 
 			return Reply;
@@ -527,7 +485,6 @@ public:
 				DistanceDragged += FMath::Abs(MouseEvent.GetCursorDelta().Y);
 				if ( DistanceDragged > FSlateApplication::Get().GetDragTriggerDistance() )
 				{
-					ExitTextMode();
 					bDragging = true;
 					OnBeginSliderMovement.ExecuteIfBound();
 				}
@@ -557,11 +514,13 @@ public:
 
 					if (SupportDynamicSliderMaxValue.Get() && InternalValue == GetMaxSliderValue())
 					{
-						ApplySliderMaxValueChanged(DeltaToAdd, false);
+						constexpr bool bUpdateOnlyIfHigher = false;
+						ApplySliderMaxValueChanged(DeltaToAdd, bUpdateOnlyIfHigher);
 					}
 					else if (SupportDynamicSliderMinValue.Get() && InternalValue == GetMinSliderValue())
 					{
-						ApplySliderMinValueChanged(DeltaToAdd, false);
+						constexpr bool bUpdateOnlyIfLower = false;
+						ApplySliderMinValueChanged(DeltaToAdd, bUpdateOnlyIfLower);
 					}
 				}
 				
@@ -658,20 +617,6 @@ public:
 		// SDMXControlConsoleEditorSpinBoxVertical is focusable.
 		return true;
 	}
-
-
-	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override
-	{
-		if ( !bDragging && (InFocusEvent.GetCause() == EFocusCause::Navigation || InFocusEvent.GetCause() == EFocusCause::SetDirectly) )
-		{
-			EnterTextMode();
-			return FReply::Handled().SetUserFocus(EditableText.ToSharedRef(), InFocusEvent.GetCause());
-		}
-		else
-		{
-			return FReply::Unhandled();
-		}
-	}
 	
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override
 	{
@@ -689,32 +634,18 @@ public:
 		{
 			InternalValue = ValueAttribute.Get();
 			CommitValue( InternalValue + Delta.Get(), CommittedViaArrowKey, ETextCommit::OnEnter );
-			ExitTextMode();
 			return FReply::Handled();	
 		}
 		else if ( Key == EKeys::Down || Key == EKeys::Left )
 		{
 			InternalValue = ValueAttribute.Get();
 			CommitValue( InternalValue - Delta.Get(), CommittedViaArrowKey, ETextCommit::OnEnter );
-			ExitTextMode();
 			return FReply::Handled();
-		}
-		else if ( Key == EKeys::Enter )
-		{
-			InternalValue = ValueAttribute.Get();
-			EnterTextMode();
-			return FReply::Handled().SetUserFocus(EditableText.ToSharedRef(), EFocusCause::Navigation);
 		}
 		else
 		{
 			return FReply::Unhandled();
 		}
-	}
-	
-	virtual bool HasKeyboardFocus() const override
-	{
-		// The spinbox is considered focused when we are typing it text.
-		return SCompoundWidget::HasKeyboardFocus() || (EditableText.IsValid() && EditableText->HasKeyboardFocus());
 	}
 
 	/** Return the Value attribute */
@@ -777,20 +708,6 @@ public:
 	void SetMinDesiredWidth(const TAttribute<float>& InMinDesiredWidth) { MinDesiredWidth = InMinDesiredWidth; }
 
 protected:
-	/** Make the spinbox switch to keyboard-based input mode. */
-	void EnterTextMode()
-	{
-		TextBlock->SetVisibility( EVisibility::Collapsed );
-		EditableText->SetVisibility( EVisibility::Visible );
-	}
-	
-	/** Make the spinbox switch to mouse-based input mode. */
-	void ExitTextMode()
-	{
-		TextBlock->SetVisibility( EVisibility::Visible );
-		EditableText->SetVisibility( EVisibility::Collapsed );
-	}
-
 	/** @return the value being observed by the spinbox as a string */
 	FString GetValueAsString() const
 	{
@@ -826,35 +743,8 @@ protected:
 					break;
 				}
 			}
-
-			if (NumValidChars < Data.Len())
-			{
-				FString ValidData = NumValidChars > 0 ? Data.Left(NumValidChars) : GetValueAsString();
-				EditableText->SetText(FText::FromString(ValidData));
-			}
 		}
 	}
-	
-	/**
-	 * Invoked when the text field commits its text.
-	 *
-	 * @param NewText		The value of text coming from the editable text field.
-	 * @param CommitInfo	Information about the source of the commit
-	 */
-	void TextField_OnTextCommitted( const FText& NewText, ETextCommit::Type CommitInfo )
-	{
-		if (CommitInfo != ETextCommit::OnEnter)
-		{
-			ExitTextMode();
-		}
-
-		TOptional<NumericType> NewValue = Interface->FromString(NewText.ToString(), ValueAttribute.Get());
-		if (NewValue.IsSet())
-		{
-			CommitValue( NewValue.GetValue(), CommittedViaTypeIn, CommitInfo );
-		}
-	}
-
 
 	/** How user changed the value in the spinbox */
 	enum ECommitMethod
@@ -947,12 +837,6 @@ protected:
 		OnEndSliderMovement.ExecuteIfBound( CurrentValue );
 	}
 
-	/** @return true when we are in keyboard-based input mode; false otherwise */
-	bool IsInTextMode() const
-	{
-		return ( EditableText->GetVisibility() == EVisibility::Visible );
-	}
-
 	/** Calculates range fraction. Possible to use on full numeric range  */
 	static float Fraction(double InValue, NumericType InMinValue, NumericType InMaxValue)
 	{
@@ -977,7 +861,6 @@ private:
 	FSimpleDelegate OnBeginSliderMovement;
 	FOnValueChanged OnEndSliderMovement;
 	TSharedPtr<STextBlock> TextBlock;
-	TSharedPtr<SEditableText> EditableText;
 
 	/** Interface that defines conversion functionality for the templated type */
 	TSharedPtr< INumericTypeInterface<NumericType> > Interface;

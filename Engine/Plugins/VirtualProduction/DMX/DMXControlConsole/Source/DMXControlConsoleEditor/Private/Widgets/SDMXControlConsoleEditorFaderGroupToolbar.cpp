@@ -1,0 +1,646 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SDMXControlConsoleEditorFaderGroupToolbar.h"
+
+#include "DMXControlConsoleData.h"
+#include "DMXControlConsoleEditorFilterUtils.h"
+#include "DMXControlConsoleEditorManager.h"
+#include "DMXControlConsoleEditorSelection.h"
+#include "DMXControlConsoleFaderBase.h"
+#include "DMXControlConsoleFaderGroup.h"
+#include "DMXEditorStyle.h"
+#include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXEntityReference.h"
+#include "Library/DMXLibrary.h"
+#include "Style/DMXControlConsoleEditorStyle.h"
+#include "Views/SDMXControlConsoleEditorFaderGroupView.h"
+
+#include "ScopedTransaction.h"
+#include "Algo/AnyOf.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/SlateColor.h"
+#include "Styling/StyleColors.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SBorder.h"
+
+
+#define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorFaderGroup"
+
+void SDMXControlConsoleEditorFaderGroupToolbar::Construct(const FArguments& InArgs, const TWeakPtr<SDMXControlConsoleEditorFaderGroupView>& InFaderGroupView)
+{
+	FaderGroupView = InFaderGroupView;
+
+	if (!ensureMsgf(FaderGroupView.IsValid(), TEXT("Invalid fader group view, cannot create fader group widget correctly.")))
+	{
+		return;
+	}
+
+	OnAddFaderGroupDelegate = InArgs._OnAddFaderGroup;
+	OnAddFaderGroupRowDelegate = InArgs._OnAddFaderGroupRow;
+
+	UpdateComboBoxSource();
+
+	ChildSlot
+	[
+		SNew(SHorizontalBox)
+		// Fader Group tag section
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(6.f, 0.f, 4.f, 0.f)
+		.AutoWidth()
+		[
+			SNew(SBox)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.MinDesiredWidth(8.f)
+			.MinDesiredHeight(24.f)
+			[
+				SNew(SImage)
+				.Image(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.FaderGroupTag"))
+				.ColorAndOpacity(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetFaderGroupEditorColor)
+			]
+		]
+
+		// Expand Arrow button section
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.MaxWidth(20.f)
+		.AutoWidth()
+		[
+			SAssignNew(ExpandArrowButton, SDMXControlConsoleEditorExpandArrowButton)
+			.OnExpandClicked(InArgs._OnExpanded)
+			.ToolTipText(LOCTEXT("FaderGroupExpandArrowButton_Tooltip", "Switch between Basic/Advanced mode"))
+		]
+
+		// Fixture Patch ComboBox section
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.MaxWidth(120.f)
+		.Padding(4.f, 8.f)
+		.AutoWidth()
+		[
+			SAssignNew(FixturePatchesComboBox, SComboBox<TSharedPtr<FDMXEntityFixturePatchRef>>)
+			.OptionsSource(&ComboBoxSource)
+			.OnGenerateWidget(this, &SDMXControlConsoleEditorFaderGroupToolbar::GenerateFixturePatchesComboBoxWidget)
+			.OnComboBoxOpening(this, &SDMXControlConsoleEditorFaderGroupToolbar::UpdateComboBoxSource)
+			.OnSelectionChanged(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnComboBoxSelectionChanged)
+			.ComboBoxStyle(&FAppStyle::Get().GetWidgetStyle<FComboBoxStyle>(TEXT("ComboBox")))
+			.ItemStyle(&FDMXControlConsoleEditorStyle::Get().GetWidgetStyle<FTableRowStyle>(TEXT("DMXControlConsole.FaderGroupToolbar")))
+			.Content()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(4.f)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.Image(FDMXEditorStyle::Get().GetBrush("Icons.FixturePatch"))
+					.ColorAndOpacity(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetFaderGroupEditorColor)
+				]
+
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.MaxWidth(56.f)
+				.Padding(4.f, 0.f)
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.MinDesiredWidth(56.f)
+					[
+						SNew(STextBlock)
+						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						.Text(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetFaderGroupFixturePatchNameText)
+						.OverflowPolicy(ETextOverflowPolicy::Clip)
+					]
+				]
+			]
+		]
+
+		//Searchbox section
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.MaxWidth(250.f)
+		.Padding(4.f, 8.f)
+		[
+			SNew(SSearchBox)
+			.MinDesiredWidth(200.f)
+			.OnTextChanged(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged)
+			.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."))
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetAdvancedViewModeVisibility))
+		]
+
+		// Add New button
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(4.f, 8.f, 0.f, 8.f)
+		[
+			SNew(SComboButton)
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
+			.ForegroundColor(FSlateColor::UseStyle())
+			.HasDownArrow(true)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnGetMenuContent(this, &SDMXControlConsoleEditorFaderGroupToolbar::GenerateAddNewFaderGroupMenuWidget)
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetAdvancedViewModeVisibility))
+			.ButtonContent()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FStyleColors::AccentGreen)
+					.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(3.f, 0.f, 0.f, 0.f)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Text(LOCTEXT("AddFaderGroupComboButton", "Add New"))
+					.ToolTipText(LOCTEXT("AddFaderGroupComboButton_ToolTip", "Add a new Fader Group to the Control Console."))
+					.TextStyle(FAppStyle::Get(), "SmallButtonText")
+				]
+			]
+		]
+
+		//Settings section
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.Padding(4.f, 8.f)
+		[
+			SNew(SComboButton)
+			.ContentPadding(0.f)
+			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+			.OnGetMenuContent(this, &SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsMenuWidget)
+			.HasDownArrow(true)
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetAdvancedViewModeVisibility))
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+			]
+		]
+	];
+}
+
+TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsMenuWidget()
+{
+	constexpr bool bShouldCloseWindowAfterClosing = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
+
+	MenuBuilder.BeginSection("Options", LOCTEXT("FaderGroupViewOptionsCategory", "Options"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Select All"))
+			, FText::FromString(TEXT("Select All"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnSelectAllFaders)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Duplicate"))
+			, FText::FromString(TEXT("Duplicate"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnDuplicateFaderGroup)
+				, FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::CanDuplicateFaderGroup)
+				, FIsActionChecked()
+				, FIsActionButtonVisible::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::CanDuplicateFaderGroup)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Remove"))
+			, FText::FromString(TEXT("Remove"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnRemoveFaderGroup)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Controls", LOCTEXT("FaderGroupViewControlsCategory", "Controls"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Reset To Default"))
+			, FText::FromString(TEXT("Reset To Default"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ArrowLeft")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnResetFaderGroup)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Lock"))
+			, FText::FromString(TEXT("Lock"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Lock")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnLockFaderGroup, true)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Unlock"))
+			, FText::FromString(TEXT("Unlock"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Unlock")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnLockFaderGroup, false)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+UDMXControlConsoleFaderGroup* SDMXControlConsoleEditorFaderGroupToolbar::GetFaderGroup() const
+{
+	return FaderGroupView.IsValid() ? FaderGroupView.Pin()->GetFaderGroup() : nullptr;
+}
+
+TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateFixturePatchesComboBoxWidget(const TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef)
+{
+	if (FixturePatchRef.IsValid())
+	{
+		const UDMXEntityFixturePatch* FixturePatch = FixturePatchRef->GetFixturePatch();
+		const FLinearColor EditorTagColor = IsValid(FixturePatch) ? FixturePatch->EditorColor : FLinearColor::White;
+		const FString FixturePatchName = IsValid(FixturePatch) ? FixturePatch->Name : TEXT("Undefined");
+
+		const TSharedRef<SWidget> ComboBoxWidget =
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.MinDesiredWidth(6.f)
+				.MinDesiredHeight(14.f)
+				[
+					SNew(SImage)
+					.Image(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.FaderGroupTag"))
+					.ColorAndOpacity(EditorTagColor)
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.MaxWidth(140.f)
+			.Padding(6.f, 0.f)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Text(FText::FromString(FixturePatchName))
+				.ToolTipText(FText::FromString(FixturePatchName))
+			];
+
+		if (FixturePatch)
+		{
+			ComboBoxWidget->SetEnabled(TAttribute<bool>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::IsFixturePatchStillAvailable, FixturePatch));
+		}
+
+		return ComboBoxWidget;
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateAddNewFaderGroupMenuWidget()
+{
+	constexpr bool bShouldCloseWindowAfterClosing = false;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
+
+	MenuBuilder.BeginSection("Options", LOCTEXT("AddNewFaderGroupMenuCategory", "New Fader Group"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Next"))
+			, FText::FromString(TEXT("Add new Fader Group next"))
+			, FSlateIcon()
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnAddFaderGroup),
+				FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::CanAddFaderGroup)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Next Row"))
+			, FText::FromString(TEXT("Add new Fader Group to next row"))
+			, FSlateIcon()
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnAddFaderGroupRow),
+				FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::CanAddFaderGroupRow)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+bool SDMXControlConsoleEditorFaderGroupToolbar::IsFixturePatchStillAvailable(const UDMXEntityFixturePatch* InFixturePatch) const
+{
+	if (InFixturePatch)
+	{
+		if (const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+		{
+			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
+
+			auto IsFixturePatchInUseLambda = [InFixturePatch](const UDMXControlConsoleFaderGroup* FaderGroup)
+			{
+				if (!FaderGroup)
+				{
+					return false;
+				}
+
+				if (!FaderGroup->HasFixturePatch())
+				{
+					return false;
+				}
+
+				const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+				if (FixturePatch != InFixturePatch)
+				{
+					return false;
+				}
+
+				return true;
+			};
+
+			return !Algo::AnyOf(AllFaderGroups, IsFixturePatchInUseLambda);
+		}
+	}
+
+	return false;
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::UpdateComboBoxSource()
+{
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	DMXLibrary = EditorConsoleData->GetDMXLibrary();
+
+	ComboBoxSource.Reset(ComboBoxSource.Num());
+	ComboBoxSource.Add(MakeShared<FDMXEntityFixturePatchRef>());
+
+	if (DMXLibrary.IsValid())
+	{
+		const TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+		for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesInLibrary)
+		{
+			if (FixturePatch && IsFixturePatchStillAvailable(FixturePatch))
+			{
+				const TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef = MakeShared<FDMXEntityFixturePatchRef>();
+				FixturePatchRef->SetEntity(FixturePatch);
+				ComboBoxSource.Add(FixturePatchRef);
+			}
+		}
+	}
+
+	if (FixturePatchesComboBox.IsValid())
+	{
+		FixturePatchesComboBox->RefreshOptions();
+	}
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::OnComboBoxSelectionChanged(const TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef, ESelectInfo::Type SelectInfo)
+{
+	UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
+	if (FixturePatchRef.IsValid() && FaderGroup)
+	{
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		SelectionHandler->ClearFadersSelection(FaderGroup);
+		
+		UDMXEntityFixturePatch* FixturePatch = FixturePatchRef->GetFixturePatch();
+
+		const FScopedTransaction GenerateFaderGroupFromComboBoxSelectionTransaction(LOCTEXT("GenerateFaderGroupFromComboBoxSelectionTransaction", "Update Fader Group"));
+		FaderGroup->PreEditChange(nullptr);
+		if (FixturePatch)
+		{
+			FaderGroup->GenerateFromFixturePatch(FixturePatch);
+		}
+		else
+		{
+			if (FaderGroup->HasFixturePatch())
+			{
+				SelectionHandler->ClearFadersSelection(FaderGroup);
+				FaderGroup->Clear();
+			}
+		}
+		
+		FaderGroup->PostEditChange();
+
+	}
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged(const FText& SearchText)
+{
+	using namespace UE::DMX::ControlConsoleEditor::FilterUtils::Private;
+
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
+	if (!EditorConsoleData || !FaderGroup)
+	{
+		return;
+	}
+
+	const FString& EditorConsoleFilterString = EditorConsoleData->GetFilterString();
+	const FString& FaderGroupFilterString = SearchText.ToString();
+
+	const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
+	TArray<UObject*> ElementsToRemoveFromSelection;
+	for (UDMXControlConsoleFaderBase* Fader : AllFaders)
+	{
+		if (!Fader)
+		{
+			continue;
+		}
+
+		const bool bMatchFilter =
+			DoesFaderMatchFilter(EditorConsoleFilterString, Fader) &&
+			DoesFaderMatchFilter(FaderGroupFilterString, Fader);
+
+		Fader->SetIsVisibleInEditor(bMatchFilter);
+		if (!bMatchFilter)
+		{
+			// If not visible, remove form selection
+			ElementsToRemoveFromSelection.Add(Fader);
+		}
+	}
+
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	SelectionHandler->RemoveFromSelection(ElementsToRemoveFromSelection);
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::OnAddFaderGroup() const
+{
+	OnAddFaderGroupDelegate.ExecuteIfBound();
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::OnAddFaderGroupRow() const
+{
+	OnAddFaderGroupRowDelegate.ExecuteIfBound();
+}
+
+bool SDMXControlConsoleEditorFaderGroupToolbar::CanAddFaderGroup() const
+{
+	return FaderGroupView.IsValid() ? FaderGroupView.Pin()->CanAddFaderGroup() : false;
+}
+
+bool SDMXControlConsoleEditorFaderGroupToolbar::CanAddFaderGroupRow() const
+{
+	return FaderGroupView.IsValid() ? FaderGroupView.Pin()->CanAddFaderGroupRow() : false;
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::OnSelectAllFaders() const
+{
+	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	{
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		SelectionHandler->AddAllFadersFromFaderGroupToSelection(FaderGroup, true);
+	}
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::OnDuplicateFaderGroup()  const
+{
+	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	{
+		const FScopedTransaction DuplicateFaderGroupOptionTransaction(LOCTEXT("DuplicateFaderGroupOptionTransaction", "Fader Group duplicated"));
+		FaderGroup->PreEditChange(nullptr);
+		FaderGroup->Duplicate();
+		FaderGroup->PostEditChange();
+	}
+}
+
+bool SDMXControlConsoleEditorFaderGroupToolbar::CanDuplicateFaderGroup() const
+{
+	const UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
+	return IsValid(FaderGroup) ? !FaderGroup->HasFixturePatch() : false;
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::OnRemoveFaderGroup() const
+{
+	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	{
+		const FScopedTransaction RemoveFaderGroupOptionTransaction(LOCTEXT("RemoveFaderGroupOptionTransaction", "Fader Group removed"));
+		FaderGroup->PreEditChange(nullptr);
+		FaderGroup->Destroy();
+		FaderGroup->PostEditChange();
+	}
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::OnResetFaderGroup() const
+{
+	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	{
+		const FScopedTransaction ResetFaderGroupOptionTransaction(LOCTEXT("ResetFaderGroupOptionTransaction", "Fader Group reset to default"));
+		FaderGroup->PreEditChange(nullptr);
+		FaderGroup->ResetToDefault();
+		FaderGroup->PostEditChange();
+	}
+}
+
+void SDMXControlConsoleEditorFaderGroupToolbar::OnLockFaderGroup(bool bLock) const
+{
+	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	{
+		const FScopedTransaction LockFaderGroupOptionTransaction(LOCTEXT("LockFaderGroupOptionTransaction", "Edit Fader Group lock state"));
+
+		const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
+		for (UDMXControlConsoleFaderBase* Fader : AllFaders)
+		{
+			if (!Fader)
+			{
+				continue;
+			}
+
+			Fader->PreEditChange(UDMXControlConsoleFaderBase::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderBase::GetIsLockedPropertyName()));
+			Fader->SetLock(bLock);
+			Fader->PostEditChange();
+		}
+	}
+}
+
+FSlateColor SDMXControlConsoleEditorFaderGroupToolbar::GetFaderGroupEditorColor() const
+{
+	if (const UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	{
+		return FaderGroup->GetEditorColor();	
+	}
+
+	return FLinearColor::White;
+}
+
+FText SDMXControlConsoleEditorFaderGroupToolbar::GetFaderGroupFixturePatchNameText() const
+{
+	const UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
+	if (FaderGroup && FaderGroup->HasFixturePatch())
+	{
+		return FText::FromString(FaderGroup->GetFixturePatch()->Name);
+	}
+
+	return FText::FromString(TEXT("Undefined"));
+}
+
+EVisibility SDMXControlConsoleEditorFaderGroupToolbar::GetAdvancedViewModeVisibility() const
+{
+	const bool bIsVisible =
+		FaderGroupView.IsValid() &&
+		FaderGroupView.Pin()->GetViewMode() == EDMXControlConsoleEditorViewMode::Advanced;
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+#undef LOCTEXT_NAMESPACE

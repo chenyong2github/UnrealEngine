@@ -13,150 +13,177 @@
 #include "Widgets/SDMXControlConsoleEditorSpinBoxVertical.h"
 
 #include "ScopedTransaction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/Optional.h"
+#include "Styling/StyleColors.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorFader"
+
+namespace UE::Private::DMXControlConsoleEditorFader
+{
+	static float BasicViewModeHeight = 230.f;
+	static float AdvancedViewModeHeight = 310.f;
+};
 
 void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFaderBase>& InFader)
 {
 	Fader = InFader;
 
 	ChildSlot
-	[
-		SNew(SBox)
-		.WidthOverride(80.f)
-		.HeightOverride(300.f)
-		.Padding(InArgs._Padding)
 		[
-			SNew(SBorder)
-			.BorderBackgroundColor(FLinearColor::White)
-			 [
+			SNew(SBox)
+			.WidthOverride(80.f)
+			.HeightOverride(TAttribute<FOptionalSize>::CreateSP(this, &SDMXControlConsoleEditorFader::GetFaderHeightByViewMode))
+			.Padding(InArgs._Padding)
+			[
 				SNew(SBorder)
 				.BorderImage(this, &SDMXControlConsoleEditorFader::GetBorderImage)
+				.Padding(0.f, 4.f)
 				[
 					SNew(SVerticalBox)
-
 					// Top section
 					+ SVerticalBox::Slot()
 					.HAlign(HAlign_Center)
-					.Padding(1.f, 4.f, 1.f, 0.f)
+					.Padding(0.f, 8.f)
 					.AutoHeight()
-					[			
+					[
 						SNew(SHorizontalBox)
-		
 						// Fader Name
 						+ SHorizontalBox::Slot()
-						.MaxWidth(40.f)
+						.MaxWidth(50.f)
 						.AutoWidth()
 						[
-							SNew(SBorder)
-							.BorderBackgroundColor(FLinearColor::White)
-							[
-								SNew(STextBlock)
-								.Text(this, &SDMXControlConsoleEditorFader::GetFaderNameText)
-								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-								.ColorAndOpacity(FLinearColor::White)
-							]
-						]
-
-						// Delete Button
-						+ SHorizontalBox::Slot()			
-						.Padding(0.8f, 0.f)
-						.AutoWidth()
-						[
-							SNew(SButton)
-							.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-							.OnClicked(this, &SDMXControlConsoleEditorFader::OnDeleteClicked)
-							.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetDeleteButtonVisibility))
-							[
-								SNew(STextBlock)
-								.Text(FText::FromString(TEXT("x")))
-								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-								.ColorAndOpacity(FLinearColor::White)
-							]
+							SNew(STextBlock)
+							.Text(this, &SDMXControlConsoleEditorFader::GetFaderNameText)
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 						]
 					]
 
 					// Middle section
 					+ SVerticalBox::Slot()
 					.HAlign(HAlign_Center)
-					.Padding(0.f, 8.f, 0.f, 0.f)
 					.AutoHeight()
 					[
-						SNew(SBox)
-						.WidthOverride(30.f)
+						SNew(SVerticalBox)
+						// Max Value
+						+ SVerticalBox::Slot()
+						.HAlign(HAlign_Center)
+						.Padding(6.f, 2.f, 6.f, 4.f)
+						.AutoHeight()
 						[
-							SNew(SVerticalBox)
-					
-							// Max Value
-							+ SVerticalBox::Slot()
+							SNew(SEditableTextBox)
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Justification(ETextJustify::Center)
+							.MinDesiredWidth(20.f)
+							.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMaxValueTextCommitted)
+							.Text(this, &SDMXControlConsoleEditorFader::GetMaxValueAsText)
+							.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetAdvancedViewModeVisibility))
+						]
+
+						// Fader Control
+						+ SVerticalBox::Slot()
+							.HAlign(HAlign_Center)
 							.AutoHeight()
 							[
-								SNew(SBorder)
-								.BorderBackgroundColor(FLinearColor::White)
-								.Padding(1.0f)
+								SNew(SHorizontalBox)
+
+								+ SHorizontalBox::Slot()
+								.MaxWidth(40.f)
 								[
-									SNew(STextBlock)
-									.Text(this, &SDMXControlConsoleEditorFader::GetMaxValueAsText)
-									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-									.Justification(ETextJustify::Center)
+									SNew(SOverlay)
+									// Spin Box layer
+									+ SOverlay::Slot()
+									[
+										SNew(SBorder)
+										.BorderImage(this, &SDMXControlConsoleEditorFader::GetSpinBoxBorderImage)
+										[
+											SAssignNew(FaderSpinBox, SDMXControlConsoleEditorSpinBoxVertical<uint32>)
+											.Value(this, &SDMXControlConsoleEditorFader::GetValue)
+											.MinValue(this, &SDMXControlConsoleEditorFader::GetMinValue)
+											.MaxValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
+											.MinSliderValue(this, &SDMXControlConsoleEditorFader::GetMinValue)
+											.MaxSliderValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
+											.OnValueChanged(this, &SDMXControlConsoleEditorFader::HandleValueChanged)
+											.IsEnabled(this, &SDMXControlConsoleEditorFader::IsFaderSpinBoxEnabled)
+											.Style(FDMXControlConsoleEditorStyle::Get(), "DMXControlConsole.Fader")
+											.ToolTipText(this, &SDMXControlConsoleEditorFader::GetToolTipText)
+											.MinDesiredWidth(40.0f)
+										]
+									]
+
+									// Lock Button layer
+									+ SOverlay::Slot()
+									[
+										SNew(SVerticalBox)
+										+ SVerticalBox::Slot()
+										[
+											SNew(SBox)
+										]
+
+										+ SVerticalBox::Slot()
+										.HAlign(HAlign_Center)
+										.VAlign(VAlign_Center)
+										.Padding(0.f, 4.f)
+										.AutoHeight()
+										[
+											GenerateLockButtonWidget()
+										]
+									]
 								]
 							]
-								
-							// Fader Control
+
+							// Fader Value
 							+ SVerticalBox::Slot()
-							.Padding(4.f, 1.0f)
+							.HAlign(HAlign_Center)
+							.Padding(6.f, 4.f)
 							.AutoHeight()
 							[
-								SNew(SBorder)
-								.BorderBackgroundColor(FLinearColor::White)
-								[
-									SAssignNew(FaderSpinBox, SDMXControlConsoleEditorSpinBoxVertical<uint32>)
-									.Value(this, &SDMXControlConsoleEditorFader::GetValue)
-									.MinValue(this, &SDMXControlConsoleEditorFader::GetMinValue)
-									.MaxValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
-									.MinSliderValue(this, &SDMXControlConsoleEditorFader::GetMinValue)
-									.MaxSliderValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
-									.OnValueChanged(this, &SDMXControlConsoleEditorFader::HandleValueChanged)
-									.IsEnabled(this, &SDMXControlConsoleEditorFader::GetFaderSpinBoxEnabled)
-									.Style(FDMXControlConsoleEditorStyle::Get(), "DMXControlConsole.Fader")
-									.MinDesiredWidth(45.0f)
-								]
+								SNew(SEditableTextBox)
+								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								.FocusedForegroundColor(FLinearColor::White)
+								.ForegroundColor(FLinearColor::FromSRGBColor(FColor::FromHex("0088f7")))
+								.Justification(ETextJustify::Center)
+								.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnValueTextCommitted)
+								.MinDesiredWidth(20.f)
+								.Text(this, &SDMXControlConsoleEditorFader::GetValueAsText)
+								.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetAdvancedViewModeVisibility))
 							]
 
 							// Fader Min Value
 							+ SVerticalBox::Slot()
+							.HAlign(HAlign_Center)
+							.Padding(6.f, 4.f)
 							.AutoHeight()
 							[
-								SNew(SBorder)
-								.BorderBackgroundColor(FLinearColor::White)
-								.Padding(1.0f)
-								[
-									SNew(STextBlock)
-									.Text(this, &SDMXControlConsoleEditorFader::GetMinValueAsText)
-									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-									.Justification(ETextJustify::Center)
-								]
+								SNew(SEditableTextBox)
+								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								.Justification(ETextJustify::Center)
+								.MinDesiredWidth(20.f)
+								.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMinValueTextCommitted)
+								.Text(this, &SDMXControlConsoleEditorFader::GetMinValueAsText)
+								.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetAdvancedViewModeVisibility))
+							]
+
+							// Mute CheckBox section
+							+ SVerticalBox::Slot()
+							.HAlign(HAlign_Center)
+							.Padding(6.f, 10.f)
+							.AutoHeight()
+							[
+								SNew(SCheckBox)
+								.IsChecked(this, &SDMXControlConsoleEditorFader::IsMuteChecked)
+								.OnCheckStateChanged(this, &SDMXControlConsoleEditorFader::OnMuteToggleChanged)
 							]
 						]
 					]
-
-					// Bottom section
-					+ SVerticalBox::Slot()
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						GenerateMuteButtonWidget()
-					]
 				]
-			]
-		]
-	];
+			];
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorFader::OnSelectionChanged);
@@ -200,7 +227,7 @@ FReply SDMXControlConsoleEditorFader::OnKeyDown(const FGeometry& MyGeometry, con
 
 		const FScopedTransaction DeleteSelectedFaderTransaction(LOCTEXT("DeleteSelectedFaderTransaction", "Delete selected Faders"));
 
-		// Delete all selected faders
+		// Delete all selected fadersC
 		for (TWeakObjectPtr<UObject> SelectedFaderObject : SelectedFadersObjects)
 		{
 			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
@@ -212,9 +239,12 @@ FReply SDMXControlConsoleEditorFader::OnKeyDown(const FGeometry& MyGeometry, con
 			UDMXControlConsoleFaderGroup& SelectedFaderGroup = SelectedFader->GetOwnerFaderGroupChecked();
 			SelectedFaderGroup.Modify();
 
-			SelectionHandler->RemoveFromSelection(SelectedFader);
+			constexpr bool bNotifyFaderSelectionChange = false;
+			SelectionHandler->RemoveFromSelection(SelectedFader, bNotifyFaderSelectionChange);
 			SelectedFader->Destroy();
 		}
+
+		SelectionHandler->RemoveInvalidObjectsFromSelection();
 
 		return FReply::Handled();
 	}
@@ -250,9 +280,20 @@ FReply SDMXControlConsoleEditorFader::OnMouseButtonDown(const FGeometry& MyGeome
 		}
 		else
 		{
-			SelectionHandler->ClearSelection();
+			constexpr bool bNotifySelectionChange = false;
+			SelectionHandler->ClearSelection(bNotifySelectionChange);
 			SelectionHandler->AddToSelection(Fader.Get());
 		}
+
+		return FReply::Handled();
+	}
+
+	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && Fader.IsValid())
+	{
+		const FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, GenerateFaderOptionsMenuWidget(),
+			FSlateApplication::Get().GetCursorPos(),
+			FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
 
 		return FReply::Handled();
 	}
@@ -260,55 +301,156 @@ FReply SDMXControlConsoleEditorFader::OnMouseButtonDown(const FGeometry& MyGeome
 	return FReply::Unhandled();
 }
 
-TSharedRef<SWidget> SDMXControlConsoleEditorFader::GenerateMuteButtonWidget()
+TSharedRef<SWidget> SDMXControlConsoleEditorFader::GenerateLockButtonWidget()
 {
 	TSharedRef<SWidget> MuteButtonWidget =
-		SNew(SVerticalBox)
-
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Center)
+		SNew(SBox)
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		.MinDesiredWidth(12.f)
+		.MinDesiredHeight(12.f)
+		.Padding(2.f)
 		[
-			SNew(SBorder)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
+			SAssignNew(LockButton, SButton)
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
+			.ClickMethod(EButtonClickMethod::MouseDown)
+			.OnClicked(this, &SDMXControlConsoleEditorFader::OnLockClicked)
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetLockButtonVisibility))
 			[
-				SNew(SBox)
-				.WidthOverride(16)
-				.HeightOverride(16.f)
-				[
-					SNew(SButton)
-					.ButtonColorAndOpacity(this, &SDMXControlConsoleEditorFader::GetMuteButtonColor)
-					.OnClicked(this, &SDMXControlConsoleEditorFader::OnMuteClicked)
-				]
+				SNew(SImage)
+				.Image(this, &SDMXControlConsoleEditorFader::GetLockButtonImage)
+				.ColorAndOpacity(this, &SDMXControlConsoleEditorFader::GetLockButtonColor)
 			]
-		]
-	
-		+SVerticalBox::Slot()
-		.HAlign(HAlign_Center)
-		.Padding(0.f, 4.f, 0.f, 0.f)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("MuteButton", "On/Off"))
-			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 		];
 
 	return MuteButtonWidget;
 }
 
+TSharedRef<SWidget> SDMXControlConsoleEditorFader::GenerateFaderOptionsMenuWidget()
+{
+	constexpr bool bShouldCloseWindowAfterClosing = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
+
+	MenuBuilder.BeginSection("Options", LOCTEXT("FaderOptionsCategory", "Options"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Mute"))
+			, FText::FromString(TEXT("Mute"))
+			, FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Mute")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnMuteFader, true),
+				FCanExecuteAction::CreateLambda([this]() { return Fader.IsValid() ? !Fader->IsMuted() : false; }),
+				FIsActionChecked(),
+				FIsActionButtonVisible::CreateLambda([this]() { return Fader.IsValid() ? !Fader->IsMuted() : false; })
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Unmute"))
+			, FText::FromString(TEXT("Umute"))
+			, FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Unmute")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnMuteFader, false),
+				FCanExecuteAction::CreateLambda([this]() { return Fader.IsValid() ? Fader->IsMuted() : false; }),
+				FIsActionChecked(),
+				FIsActionButtonVisible::CreateLambda([this]() { return Fader.IsValid() ? Fader->IsMuted() : false; })
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Remove"))
+			, FText::FromString(TEXT("Remove"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnRemoveFader),
+				FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::IsRawFader)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Controls", LOCTEXT("FaderControlsCategory", "Controls"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Reset To Default"))
+			, FText::FromString(TEXT("Reset To Default"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ArrowLeft")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnResetFader)
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Lock"))
+			, FText::FromString(TEXT("Lock"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Lock")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnLockFader, true),
+				FCanExecuteAction::CreateLambda([this]() { return Fader.IsValid() ? !Fader->IsLocked() : false; }),
+				FIsActionChecked(),
+				FIsActionButtonVisible::CreateLambda([this]() { return Fader.IsValid() ? !Fader->IsLocked() : false; })
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Unlock"))
+			, FText::FromString(TEXT("Unlock"))
+			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Unlock")
+			, FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnLockFader, false),
+				FCanExecuteAction::CreateLambda([this]() { return Fader.IsValid() ? Fader->IsLocked() : false; }),
+				FIsActionChecked(),
+				FIsActionButtonVisible::CreateLambda([this]() { return Fader.IsValid() ? Fader->IsLocked() : false; })
+			)
+			, NAME_None
+			, EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
 bool SDMXControlConsoleEditorFader::IsSelected() const
 {
-	if (!Fader.IsValid())
+	if (Fader.IsValid())
 	{
-		return false;
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		return SelectionHandler->IsSelected(Fader.Get());
 	}
 
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	return SelectionHandler->IsSelected(Fader.Get());
+	return false;
+}
+
+bool SDMXControlConsoleEditorFader::IsRawFader() const
+{
+	return IsValid(Cast<UDMXControlConsoleRawFader>(Fader));
 }
 
 FString SDMXControlConsoleEditorFader::GetFaderName() const
-{ 
+{
 	return Fader.IsValid() ? Fader->GetFaderName() : FString();
 }
 
@@ -318,8 +460,33 @@ FText SDMXControlConsoleEditorFader::GetFaderNameText() const
 }
 
 uint32 SDMXControlConsoleEditorFader::GetValue() const
-{ 
+{
 	return Fader.IsValid() ? Fader->GetValue() : 0;
+}
+
+FText SDMXControlConsoleEditorFader::GetValueAsText() const
+{
+	if (!Fader.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+
+	const uint32 Value = Fader->GetValue();
+	return FText::FromString(FString::FromInt(Value));
+}
+
+void SDMXControlConsoleEditorFader::OnValueTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
+{
+	if (NewText.IsEmpty())
+	{
+		return;
+	}
+
+	const int32 NewValue = FCString::Atoi(*NewText.ToString());
+	if (NewValue >= 0)
+	{
+		HandleValueChanged(NewValue);
+	}
 }
 
 TOptional<uint32> SDMXControlConsoleEditorFader::GetMinValue() const
@@ -338,6 +505,24 @@ FText SDMXControlConsoleEditorFader::GetMinValueAsText() const
 	return FText::FromString(FString::FromInt(MinValue));
 }
 
+void SDMXControlConsoleEditorFader::OnMinValueTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
+{
+	if (NewText.IsEmpty())
+	{
+		return;
+	}
+
+	if (UDMXControlConsoleRawFader* RawFader = Cast<UDMXControlConsoleRawFader>(Fader))
+	{
+		const int32 NewValue = FCString::Atoi(*NewText.ToString());
+
+		const FScopedTransaction FaderMinValueEditedTransaction(LOCTEXT("FaderMinValueEditedTransaction", "Edit Min Value"));
+		RawFader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetMinValuePropertyName()));
+		RawFader->SetMinValue(NewValue);
+		RawFader->PostEditChange();
+	}
+}
+
 TOptional<uint32> SDMXControlConsoleEditorFader::GetMaxValue() const
 {
 	return Fader.IsValid() ? Fader->GetMaxValue() : 0;
@@ -354,6 +539,24 @@ FText SDMXControlConsoleEditorFader::GetMaxValueAsText() const
 	return FText::FromString(FString::FromInt(MaxValue));
 }
 
+void SDMXControlConsoleEditorFader::OnMaxValueTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
+{
+	if (NewText.IsEmpty())
+	{
+		return;
+	}
+
+	if (UDMXControlConsoleRawFader* RawFader = Cast<UDMXControlConsoleRawFader>(Fader))
+	{
+		const int32 NewValue = FCString::Atoi(*NewText.ToString());
+
+		const FScopedTransaction FaderMaxValueEditedTransaction(LOCTEXT("FaderMaxValueEditedTransaction", "Edit Max Value"));
+		RawFader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetMaxValuePropertyName()));
+		RawFader->SetMaxValue(NewValue);
+		RawFader->PostEditChange();
+	}
+}
+
 void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 {
 	if (!ensureMsgf(Fader.IsValid(), TEXT("Invalid fader, cannot set fader value correctly.")))
@@ -363,43 +566,79 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
-
 	if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
 	{
-		Fader->SetValue(NewValue);
+		if (!Fader->IsMuted() || !Fader->IsLocked())
+		{
+			Fader->SetValue(NewValue);
+		}
 	}
 	else
-	{ 
+	{
 		const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
 		const float Percentage = (NewValue - Fader->GetMinValue()) / Range;
 
 		for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 		{
 			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
-			if (!SelectedFader || SelectedFader->IsMuted())
+			if (!SelectedFader || SelectedFader->IsMuted() || Fader->IsLocked())
 			{
 				continue;
 			}
 
 			const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
-			const uint32 Value = (uint32)(SelectedFaderRange * Percentage);
+			const uint32 Value = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * Percentage);
 			SelectedFader->SetValue(Value);
 		}
 	}
 }
 
+void SDMXControlConsoleEditorFader::OnMuteFader(bool bMute) const
+{
+	if (Fader.IsValid())
+	{
+		const FScopedTransaction MuteFaderOptionTransaction(LOCTEXT("MuteFaderOptionTransaction", "Edit Fader mute state"));
+		Fader->PreEditChange(UDMXControlConsoleFaderBase::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderBase::GetIsMutedPropertyName()));
+		Fader->SetMute(bMute);
+		Fader->PostEditChange();
+	}
+}
+
+void SDMXControlConsoleEditorFader::OnRemoveFader() const
+{
+	if (Fader.IsValid())
+	{
+		const FScopedTransaction RemoveFaderOptionTransaction(LOCTEXT("RemoveFaderOptionTransaction", "Fader removed"));
+		Fader->PreEditChange(nullptr);
+		Fader->Destroy();
+		Fader->PostEditChange();
+	}
+}
+
+void SDMXControlConsoleEditorFader::OnResetFader() const
+{
+	if (Fader.IsValid())
+	{
+		const FScopedTransaction ResetFaderOptionTransaction(LOCTEXT("ResetFaderOptionTransaction", "Fader reset to default"));
+		Fader->PreEditChange(nullptr);
+		Fader->ResetToDefault();
+		Fader->PostEditChange();
+	}
+}
+
+void SDMXControlConsoleEditorFader::OnLockFader(bool bLock) const
+{
+	if (Fader.IsValid())
+	{
+		const FScopedTransaction LockFaderOptionTransaction(LOCTEXT("LockFaderOptionTransaction", "Edit Fader lock state"));
+		Fader->PreEditChange(UDMXControlConsoleFaderBase::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderBase::GetIsLockedPropertyName()));
+		Fader->SetLock(bLock);
+		Fader->PostEditChange();
+	}
+}
+
 void SDMXControlConsoleEditorFader::OnSelectionChanged()
 {
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	
-	// Remove from selection if not visible. Avoids selecting this when filtering
-	const bool bMultiSelecting = SelectionHandler->GetSelectedFaders().Num() + SelectionHandler->GetSelectedFaderGroups().Num() > 1;
-	if (bMultiSelecting && GetVisibility() == EVisibility::Collapsed)
-	{
-		SelectionHandler->RemoveFromSelection(Fader.Get());
-		return;
-	}
-
 	// Set keyboard focus on the Fader, if selected
 	if (IsSelected())
 	{
@@ -438,11 +677,14 @@ FReply SDMXControlConsoleEditorFader::OnDeleteClicked()
 	return FReply::Unhandled();
 }
 
-FReply SDMXControlConsoleEditorFader::OnMuteClicked()
+FReply SDMXControlConsoleEditorFader::OnLockClicked()
 {
 	if (Fader.IsValid())
 	{
-		Fader->ToggleMute();
+		const FScopedTransaction FaderLockStateEditedtTransaction(LOCTEXT("FaderLockStateEditedtTransaction", "Edit Lock state"));
+		Fader->PreEditChange(UDMXControlConsoleFaderBase::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderBase::GetIsLockedPropertyName()));
+		Fader->ToggleLock();
+		Fader->PostEditChange();
 
 		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
@@ -456,7 +698,9 @@ FReply SDMXControlConsoleEditorFader::OnMuteClicked()
 					continue;
 				}
 
-				SelectedFader->SetMute(Fader->IsMuted());
+				SelectedFader->PreEditChange(UDMXControlConsoleFaderBase::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderBase::GetIsLockedPropertyName()));
+				SelectedFader->SetLock(Fader->IsLocked());
+				SelectedFader->PostEditChange();
 			}
 		}
 
@@ -466,35 +710,102 @@ FReply SDMXControlConsoleEditorFader::OnMuteClicked()
 	return FReply::Unhandled();
 }
 
-FSlateColor SDMXControlConsoleEditorFader::GetMuteButtonColor() const
+void SDMXControlConsoleEditorFader::OnMuteToggleChanged(ECheckBoxState CheckState)
 {
 	if (Fader.IsValid())
 	{
-		return Fader->IsMuted() ? FLinearColor(0.1f, 0.1f, 0.1f) : FLinearColor(0.8f, 0.f, 0.f);
-	}
+		const FScopedTransaction FaderMuteStateEditedtTransaction(LOCTEXT("FaderMuteStateEditedtTransaction", "Edit Mute state"));
+		Fader->PreEditChange(UDMXControlConsoleFaderBase::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderBase::GetIsMutedPropertyName()));
+		Fader->ToggleMute();
+		Fader->PostEditChange();
 
-	return FLinearColor::Black;
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+		if (!SelectedFadersObjects.IsEmpty() && SelectedFadersObjects.Contains(Fader))
+		{
+			for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
+			{
+				UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
+				if (!SelectedFader)
+				{
+					continue;
+				}
+
+				SelectedFader->PreEditChange(UDMXControlConsoleFaderBase::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderBase::GetIsMutedPropertyName()));
+				SelectedFader->SetMute(Fader->IsMuted());
+				SelectedFader->PostEditChange();
+			}
+		}
+	}
 }
 
-bool SDMXControlConsoleEditorFader::GetFaderSpinBoxEnabled() const
+ECheckBoxState SDMXControlConsoleEditorFader::IsMuteChecked() const
 {
 	if (Fader.IsValid())
 	{
-		return !Fader->IsMuted();
+		return Fader->IsMuted() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 	}
 
-	return false;
+	return ECheckBoxState::Undetermined;
 }
 
-EVisibility SDMXControlConsoleEditorFader::GetDeleteButtonVisibility() const
+bool SDMXControlConsoleEditorFader::IsFaderSpinBoxEnabled() const
 {
-	if (!Fader.IsValid())
+	return Fader.IsValid() ? !Fader->IsMuted() : false;
+}
+
+FOptionalSize SDMXControlConsoleEditorFader::GetFaderHeightByViewMode() const
+{
+	using namespace UE::Private::DMXControlConsoleEditorFader;
+
+	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
+	return ViewMode == EDMXControlConsoleEditorViewMode::Basic ? BasicViewModeHeight : AdvancedViewModeHeight;
+}
+
+FText SDMXControlConsoleEditorFader::GetToolTipText() const
+{
+	if (Fader.IsValid())
 	{
-		return EVisibility::Collapsed;
+		const FString& FaderName = Fader->GetFaderName();
+		const FString& FaderValeAsString = FString::FromInt(Fader->GetValue());
+		const FString& FaderMaxValueAsString = FString::FromInt(Fader->GetMaxValue());
+		const FString& ToolTipString = FString::Format(TEXT("{0}\n{1}/{2}"), { FaderName, FaderValeAsString, FaderMaxValueAsString });
+		return FText::FromString(ToolTipString);
 	}
 
-	const UDMXControlConsoleRawFader* RawFader = Cast<UDMXControlConsoleRawFader>(Fader);
-	return RawFader ? EVisibility::Visible : EVisibility::Collapsed;
+	return FText::GetEmpty();
+}
+
+FSlateColor SDMXControlConsoleEditorFader::GetLockButtonColor() const
+{
+	if (LockButton.IsValid())
+	{
+		return LockButton->IsHovered() ? FStyleColors::AccentWhite : FLinearColor(1.f, 1.f, 1.f, .4f);
+	}
+
+	return FLinearColor::White;
+}
+
+EVisibility SDMXControlConsoleEditorFader::GetAdvancedViewModeVisibility() const
+{
+	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
+
+	const bool bIsVisible =
+		Fader.IsValid() &&
+		ViewMode == EDMXControlConsoleEditorViewMode::Advanced;
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SDMXControlConsoleEditorFader::GetLockButtonVisibility() const
+{
+	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
+
+	const bool bIsVisible =
+		Fader.IsValid() &&
+		(Fader->IsLocked() || ViewMode == EDMXControlConsoleEditorViewMode::Advanced);
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 const FSlateBrush* SDMXControlConsoleEditorFader::GetBorderImage() const
@@ -508,22 +819,68 @@ const FSlateBrush* SDMXControlConsoleEditorFader::GetBorderImage() const
 	{
 		if (IsSelected())
 		{
-			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.FaderGroup_Highlighted");;
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.Fader_Highlighted");;
 		}
 		else
 		{
-			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.FaderGroup_Hovered");;
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.Fader_Hovered");
 		}
 	}
 	else
 	{
 		if (IsSelected())
 		{
-			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.FaderGroup_Selected");;
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.Fader_Selected");;
 		}
 		else
 		{
-			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.BlackBrush");
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.Fader");
+		}
+	}
+}
+
+const FSlateBrush* SDMXControlConsoleEditorFader::GetLockButtonImage() const
+{
+	if (!Fader.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (Fader->IsLocked())
+	{
+		return FAppStyle::GetBrush("Icons.Lock");
+	}
+	else
+	{
+		return FAppStyle::GetBrush("Icons.Unlock");
+	}
+}
+
+const FSlateBrush* SDMXControlConsoleEditorFader::GetSpinBoxBorderImage() const
+{
+	if (!Fader.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (Fader->IsMuted() || Fader->IsLocked())
+	{
+		return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.DefaultBrush");
+	}
+
+	if (IsHovered())
+	{
+		return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.SpinBoxBorder_Hovered");
+	}
+	else
+	{
+		if (IsSelected())
+		{
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.SpinBoxBorder_Hovered");
+		}
+		else
+		{
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.SpinBoxBorder");
 		}
 	}
 }

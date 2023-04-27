@@ -24,6 +24,7 @@ void SDMXControlConsoleEditorExpandArrowButton::Construct(const FArguments& InAr
 			.IsFocusable(false)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
+			.ToolTipText(InArgs._ToolTipText)
 			.OnClicked(this, &SDMXControlConsoleEditorExpandArrowButton::OnExpandArrowClicked)
 			[
 				SNew(SImage)
@@ -59,30 +60,24 @@ const FSlateBrush* SDMXControlConsoleEditorExpandArrowButton::GetExpandArrowImag
 	{
 		if (IsHovered())
 		{
-			constexpr TCHAR ExpandedHoveredName[] = TEXT("TreeArrow_Collapsed_Hovered");
-			ResourceName = ExpandedHoveredName;
+			return FAppStyle::GetBrush("TreeArrow_Collapsed_Hovered");
 		}
 		else
 		{
-			constexpr TCHAR ExpandedName[] = TEXT("TreeArrow_Collapsed");
-			ResourceName = ExpandedName;
+			return FAppStyle::GetBrush("TreeArrow_Collapsed");
 		}
 	}
 	else
 	{
 		if (IsHovered())
 		{
-			constexpr TCHAR CollapsedHoveredName[] = TEXT("TreeArrow_Expanded_Hovered");
-			ResourceName = CollapsedHoveredName;
+			return FAppStyle::GetBrush("TreeArrow_Expanded_Hovered");
 		}
 		else
 		{
-			constexpr TCHAR CollapsedName[] = TEXT("TreeArrow_Expanded");
-			ResourceName = CollapsedName;
+			return FAppStyle::GetBrush("TreeArrow_Expanded");
 		}
 	}
-
-	return FCoreStyle::Get().GetBrush(ResourceName);
 }
 
 #undef LOCTEXT_NAMESPACE

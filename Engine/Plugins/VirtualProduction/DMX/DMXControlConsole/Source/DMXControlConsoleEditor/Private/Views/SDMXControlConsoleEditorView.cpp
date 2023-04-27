@@ -13,6 +13,7 @@
 #include "DMXEditorStyle.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
 #include "Customizations/DMXControlConsoleDataDetails.h"
+#include "Customizations/DMXControlConsoleFaderDetails.h"
 #include "Customizations/DMXControlConsoleFaderGroupDetails.h"
 #include "Library/DMXEntityReference.h"
 #include "Models/DMXControlConsoleEditorModel.h"
@@ -89,6 +90,9 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	FOnGetDetailCustomizationInstance FaderGroupsCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXControlConsoleFaderGroupDetails::MakeInstance);
 	FaderGroupsDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsoleFaderGroup::StaticClass(), FaderGroupsCustomizationInstance);
 
+	FOnGetDetailCustomizationInstance FadersCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&UE::DMXControlConsole::FDMXControlConsoleFaderDetails::MakeInstance);
+	FadersDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsoleFaderBase::StaticClass(), FadersCustomizationInstance);
+
 	const TSharedRef<SScrollBar> VerticalScrollBar = SNew(SScrollBar)
 		.Orientation(Orient_Vertical);
 
@@ -98,7 +102,6 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	ChildSlot
 		[
 			SNew(SVerticalBox)
-
 			// Toolbar Section
 			+SVerticalBox::Slot()
 			.AutoHeight()
@@ -115,134 +118,135 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 			// Panel Section
 			+ SVerticalBox::Slot()
 			[
-				SNew(SSplitter)
-				.Orientation(Orient_Horizontal)
-				.ResizeMode(ESplitterResizeMode::FixedSize)
-
-				// Fixture Patches VerticalBox Section
-				+ SSplitter::Slot()
-				.Value(.20)
-				.MinSize(10.f)
+				SNew(SBorder)
+				.BorderImage(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.DefaultBrush"))
 				[
-					SNew(SScrollBox)
-					.Orientation(Orient_Vertical)
+					SNew(SSplitter)
+					.Orientation(Orient_Horizontal)
+					.ResizeMode(ESplitterResizeMode::FixedSize)
 
-					+ SScrollBox::Slot()
-					.AutoSize()
+					// Fixture Patches VerticalBox Section
+					+ SSplitter::Slot()
+					.Value(.20)
+					.MinSize(10.f)
 					[
-						SNew(SVerticalBox)
-						+ SVerticalBox::Slot()
-						.AutoHeight()
+						SNew(SScrollBox)
+						.Orientation(Orient_Vertical)
+
+						+ SScrollBox::Slot()
+						.AutoSize()
 						[
-							ControlConsoleDataDetailsView.ToSharedRef()
-						]
-
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						[
-							SAssignNew(FixturePatchVerticalBox, SDMXControlConsoleEditorFixturePatchVerticalBox)
-						]
-					]
-				]
-
-				// DMX Control Console Section
-				+ SSplitter::Slot()
-				.Value(.60f)
-				.MinSize(10.f)
-				[
-
-					SNew(SVerticalBox)
-
-					+ SVerticalBox::Slot()
-					[
-						SNew(SHorizontalBox)
-
-						+SHorizontalBox::Slot()
-						[
-							SNew(SScrollBox)
-							.ExternalScrollbar(HorizontalScrollBar)
-							.Orientation(Orient_Horizontal)
-
-							+ SScrollBox::Slot()
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
 							[
-								SNew(SBorder)
-								.BorderImage(FAppStyle::GetBrush("NoBorder"))
-								.Padding(10.f)
-								[
-									SNew(SScrollBox)
-									.ExternalScrollbar(VerticalScrollBar)
-									.Orientation(Orient_Vertical)
+								ControlConsoleDataDetailsView.ToSharedRef()
+							]
 
-									+ SScrollBox::Slot()
-									.HAlign(HAlign_Left)
-									.VAlign(VAlign_Center)
-									[
-										SNew(SBox)
-										.WidthOverride(50.f)
-										.HeightOverride(50.f)
-										.HAlign(HAlign_Center)
-										.VAlign(VAlign_Center)
-										[
-											SNew(SDMXControlConsoleEditorAddButton)
-											.OnClicked(this, &SDMXControlConsoleEditorView::OnAddFirstFaderGroup)
-											.Visibility(TAttribute<EVisibility>(this, &SDMXControlConsoleEditorView::GetAddButtonVisibility))
-										]
-									]
-
-									+ SScrollBox::Slot()
-									[
-										SAssignNew(FaderGroupRowsVerticalBox, SVerticalBox)
-									]
-								]
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SAssignNew(FixturePatchVerticalBox, SDMXControlConsoleEditorFixturePatchVerticalBox)
 							]
 						]
+					]
+
+					// DMX Control Console Section
+					+ SSplitter::Slot()
+					.Value(.60f)
+					.MinSize(10.f)
+					[
+						SNew(SBorder)
+						.BorderImage(FAppStyle::GetBrush("NoBorder"))
+						.Padding(10.f)
+						[
+
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot()
+							[
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								[
+									SNew(SScrollBox)
+									.ExternalScrollbar(HorizontalScrollBar)
+									.Orientation(Orient_Horizontal)
+
+									+ SScrollBox::Slot()
+									[
+										SNew(SScrollBox)
+										.ExternalScrollbar(VerticalScrollBar)
+										.Orientation(Orient_Vertical)
+
+										+ SScrollBox::Slot()
+										.HAlign(HAlign_Left)
+										.VAlign(VAlign_Center)
+										[
+											SNew(SBox)
+											.WidthOverride(50.f)
+											.HeightOverride(50.f)
+											.HAlign(HAlign_Center)
+											.VAlign(VAlign_Center)
+											[
+												SNew(SDMXControlConsoleEditorAddButton)
+												.OnClicked(this, &SDMXControlConsoleEditorView::OnAddFirstFaderGroup)
+												.Visibility(TAttribute<EVisibility>(this, &SDMXControlConsoleEditorView::GetAddButtonVisibility))
+											]
+										]
+
+										+ SScrollBox::Slot()
+										[
+											SAssignNew(FaderGroupRowsVerticalBox, SVerticalBox)
+										]
+									]
+								]
 						
-						// Horizontal ScrollBar slot
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							VerticalScrollBar
-						]
-					]
+								// Horizontal ScrollBar slot
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									VerticalScrollBar
+								]
+							]
 					
-					// Vertical Scrollbar slot
-					+SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						HorizontalScrollBar
+							// Vertical Scrollbar slot
+							+SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								HorizontalScrollBar
+							]
+						]
 					]
-				]
 
-
-				// Details View Section
-				+ SSplitter::Slot()
-				.Value(.20)
-				.MinSize(10.f)
-				[
-					SNew(SScrollBox)
-					.Orientation(Orient_Vertical)
-					.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorView::GetDetailViewsSectionVisibility))
-
-					+ SScrollBox::Slot()
+					// Details View Section
+					+ SSplitter::Slot()
+					.Value(.20)
+					.MinSize(10.f)
 					[
-						SNew(SVerticalBox)
+						SNew(SScrollBox)
+						.Orientation(Orient_Vertical)
+						.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorView::GetDetailViewsSectionVisibility))
 
-						+SVerticalBox::Slot()
-						.AutoHeight()
+						+ SScrollBox::Slot()
 						[
-							FadersDetailsView.ToSharedRef()
-						]
+							SNew(SVerticalBox)
 
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						[
-							SNew(SSeparator)
-						]
+							+SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								FadersDetailsView.ToSharedRef()
+							]
 
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						[
-							FaderGroupsDetailsView.ToSharedRef()
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SNew(SSeparator)
+							]
+
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								FaderGroupsDetailsView.ToSharedRef()
+							]
 						]
 					]
 				]
@@ -270,7 +274,6 @@ void SDMXControlConsoleEditorView::Tick(const FGeometry& AllottedGeometry, const
 	}
 
 	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsoleData->GetFaderGroupRows();
-
 	if (FaderGroupRows.Num() == FaderGroupRowViews.Num())
 	{
 		return;
@@ -359,8 +362,31 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder = FSlimHorizontalToolBarBuilder(CommandList, FMultiBoxCustomization::None);
 
+	const auto GenerateButtonContentLambda = [](const FSlateColor& ImageColor, const FSlateBrush* ImageBrush, const FText& ButtonText)
+		{
+			return
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.Padding(2.f)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.ColorAndOpacity(ImageColor)
+					.Image(ImageBrush)
+				]
+
+				+ SHorizontalBox::Slot()
+				.Padding(8.f, 2.f, 2.f, 2.f)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(ButtonText)
+				];
+		};
+
 	ToolbarBuilder.BeginSection("AssetActions");
-	{		
+	{
 		ToolbarBuilder.AddToolBarButton(
 			FDMXControlConsoleEditorCommands::Get().CreateNewConsole,
 			NAME_None,
@@ -373,38 +399,78 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	}
 	ToolbarBuilder.EndSection();
 
-	ToolbarBuilder.BeginSection("Clear");
-	{
-		ToolbarBuilder.AddToolBarButton(
-			FDMXControlConsoleEditorCommands::Get().ClearAll,
-			NAME_None, 
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(),
-			FName(TEXT("Clear All"))
-		);
-	}
-	ToolbarBuilder.EndSection();
-
 	ToolbarBuilder.BeginSection("SendDMX");
 	{
 		ToolbarBuilder.AddToolBarButton(
 			FDMXControlConsoleEditorCommands::Get().SendDMX,
-			NAME_None, 
-			TAttribute<FText>(), 
+			NAME_None,
 			TAttribute<FText>(),
-			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.PlayDMX"),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PlayWorld.PlayInViewport"),
 			FName(TEXT("Send DMX"))
 		);
 
 		ToolbarBuilder.AddToolBarButton(
 			FDMXControlConsoleEditorCommands::Get().StopDMX,
-			NAME_None, 
-			TAttribute<FText>(), 
+			NAME_None,
 			TAttribute<FText>(),
-			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.StopPlayingDMX"),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PlayWorld.StopPlaySession.Small"),
 			FName(TEXT("Stop Sending DMX"))
 		);
+	}
+	ToolbarBuilder.EndSection();
+
+	ToolbarBuilder.BeginSection("Clear");
+	{
+		ToolbarBuilder.AddToolBarButton(
+			FDMXControlConsoleEditorCommands::Get().ClearAll,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete"),
+			FName(TEXT("Clear All"))
+		);
+	}
+	ToolbarBuilder.EndSection();
+
+	ToolbarBuilder.BeginSection("View Mode");
+	{
+		const TSharedRef<SComboButton> ViewModeComboButton =
+			SNew(SComboButton)
+			.ContentPadding(0.f)
+			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+			.OnGetMenuContent(this, &SDMXControlConsoleEditorView::GenerateViewModeMenuWidget)
+			.HasDownArrow(true)
+			.ButtonContent()
+			[
+				GenerateButtonContentLambda(
+					FSlateColor::UseForeground(),
+					FAppStyle::Get().GetBrush("Icons.Layout"),
+					LOCTEXT("ViewModeToolbarButtonText", "View Mode"))
+			];
+
+		ToolbarBuilder.AddWidget(ViewModeComboButton);
+	}
+	ToolbarBuilder.EndSection();
+
+	ToolbarBuilder.BeginSection("Selection");
+	{
+		const TSharedRef<SComboButton> SelectionComboButton =
+			SNew(SComboButton)
+			.ContentPadding(0.f)
+			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+			.OnGetMenuContent(this, &SDMXControlConsoleEditorView::GenerateSelectionMenuWidget)
+			.HasDownArrow(true)
+			.ButtonContent()
+			[
+				GenerateButtonContentLambda(
+					FSlateColor::UseForeground(),
+					FAppStyle::GetBrush("LevelEditor.Tabs.Viewports"),
+					LOCTEXT("SelectionToolbarButtonText", "Selection"))
+			];
+
+		ToolbarBuilder.AddWidget(SelectionComboButton);
 	}
 	ToolbarBuilder.EndSection();
 
@@ -413,7 +479,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 		SAssignNew(GlobalFilterSearchBox, SSearchBox)
 			.DelayChangeNotificationsWhileTyping(true)
 			.DelayChangeNotificationsWhileTypingSeconds(.5f)
-			.MinDesiredWidth(400.f)
+			.MinDesiredWidth(300.f)
 			.OnTextChanged(this, &SDMXControlConsoleEditorView::OnSearchTextChanged)
 			.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."));
 
@@ -431,6 +497,95 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	ToolbarBuilder.EndSection();
 
 	return ToolbarBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
+{
+	constexpr bool bShouldCloseWindowAfterClosing = false;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
+
+	MenuBuilder.BeginSection("Fader Groups", LOCTEXT("FaderGroupsViewModeCategory", "Fader Groups"));
+	{
+		const auto AddMenuEntryFn = [&MenuBuilder, this](const FString& Label, EDMXControlConsoleEditorViewMode ViewMode)
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					FText::FromString(Label)
+					, FText::FromString(Label)
+					, FSlateIcon()
+					, FUIAction
+					(
+						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected, ViewMode)
+						, FCanExecuteAction()
+						, FIsActionChecked::CreateLambda([this, ViewMode]() { return FDMXControlConsoleEditorManager::Get().GetFaderGroupsViewMode() == ViewMode; })
+					)
+					, NAME_None
+					, EUserInterfaceActionType::RadioButton
+				);
+			};
+
+		AddMenuEntryFn(TEXT("Basic"), EDMXControlConsoleEditorViewMode::Basic);
+		AddMenuEntryFn(TEXT("Advanced"), EDMXControlConsoleEditorViewMode::Advanced);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Faders", LOCTEXT("FadersViewModeCategory", "Faders"));
+	{
+		const auto AddMenuEntryFn = [&MenuBuilder, this](const FString& Label, EDMXControlConsoleEditorViewMode ViewMode)
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					FText::FromString(Label)
+					, FText::FromString(Label)
+					, FSlateIcon()
+					, FUIAction
+					(
+						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFadersViewModeSelected, ViewMode)
+						, FCanExecuteAction()
+						, FIsActionChecked::CreateLambda([this, ViewMode]() { return FDMXControlConsoleEditorManager::Get().GetFadersViewMode() == ViewMode; })
+					)
+					, NAME_None
+					, EUserInterfaceActionType::RadioButton
+				);
+			};
+
+		AddMenuEntryFn(TEXT("Basic"), EDMXControlConsoleEditorViewMode::Basic);
+		AddMenuEntryFn(TEXT("Advanced"), EDMXControlConsoleEditorViewMode::Advanced);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateSelectionMenuWidget()
+{
+	constexpr bool bShouldCloseWindowAfterClosing = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
+
+	MenuBuilder.BeginSection("Fader Groups", LOCTEXT("FaderGroupsSelectionCategory", "Fader Groups"));
+	{
+		const auto AddMenuEntryFn = [&MenuBuilder, this](const FString& Label, bool bOnlyVisible = false)
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					FText::FromString(Label)
+					, FText::FromString(Label)
+					, FSlateIcon()
+					, FUIAction
+					(
+						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnSelectAll, bOnlyVisible)
+					)
+					, NAME_None
+					, EUserInterfaceActionType::Button
+				);
+			};
+
+		AddMenuEntryFn(TEXT("Select All"));
+		AddMenuEntryFn(TEXT("Select Visible"), true);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 void SDMXControlConsoleEditorView::RestoreGlobalFilter()
@@ -454,6 +609,7 @@ void SDMXControlConsoleEditorView::ApplyGlobalFilter(const FString& InSearchStri
 	}
 
 	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = ControlConsoleData->GetAllFaderGroups();
+	TArray<UObject*> ElementsToRemoveFromSelection;
 	for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
 	{
 		if (!FaderGroup)
@@ -487,9 +643,8 @@ void SDMXControlConsoleEditorView::ApplyGlobalFilter(const FString& InSearchStri
 			}
 			else
 			{
-				// If not visible, remove form selection
-				const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-				SelectionHandler->RemoveFromSelection(Fader);
+				// If not visible, remove from selection
+				ElementsToRemoveFromSelection.Add(Fader);
 			}
 		}
 
@@ -499,10 +654,12 @@ void SDMXControlConsoleEditorView::ApplyGlobalFilter(const FString& InSearchStri
 		// If not visible, remove form selection
 		if (!FaderGroup->GetIsVisibleInEditor())
 		{
-			const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-			SelectionHandler->RemoveFromSelection(FaderGroup);
+			ElementsToRemoveFromSelection.Add(FaderGroup);
 		}
 	}
+
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	SelectionHandler->RemoveFromSelection(ElementsToRemoveFromSelection);
 }
 
 void SDMXControlConsoleEditorView::RequestUpdateDetailsViews()
@@ -696,6 +853,22 @@ FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()
 	return FReply::Handled();
 }
 
+void SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const
+{
+	FDMXControlConsoleEditorManager::Get().SetFaderGroupsViewMode(ViewMode);
+}
+
+void SDMXControlConsoleEditorView::OnFadersViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const
+{
+	FDMXControlConsoleEditorManager::Get().SetFadersViewMode(ViewMode);
+}
+
+void SDMXControlConsoleEditorView::OnSelectAll(bool bOnlyVisible) const
+{
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	SelectionHandler->SelectAll(bOnlyVisible);
+}
+
 void SDMXControlConsoleEditorView::OnSelectedPortsChanged()
 {
 	if (UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
@@ -791,14 +964,14 @@ EVisibility SDMXControlConsoleEditorView::GetFaderGroupRowViewVisibility(UDMXCon
 	}
 
 	const auto IsAnyFaderGroupVisibleLambda = [](const UDMXControlConsoleFaderGroup* FaderGroup)
-	{
-		if (!FaderGroup)
 		{
-			return false;
-		}
+			if (!FaderGroup)
+			{
+				return false;
+			}
 
-		return FaderGroup->GetIsVisibleInEditor();
-	};
+			return FaderGroup->GetIsVisibleInEditor();
+		};
 
 	const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = FaderGroupRow->GetFaderGroups();
 	const bool bIsVisible = Algo::AnyOf(FaderGroups, IsAnyFaderGroupVisibleLambda);

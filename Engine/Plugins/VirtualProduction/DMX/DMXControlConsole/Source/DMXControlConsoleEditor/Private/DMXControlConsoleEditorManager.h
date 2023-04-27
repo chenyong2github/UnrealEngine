@@ -13,6 +13,13 @@ class UDMXControlConsoleEditorModel;
 class FDMXControlConsoleEditorSelection;
 
 
+/** Enum for DMX Control Console widgets layout modes */
+enum class EDMXControlConsoleEditorViewMode : uint8
+{
+	Basic,
+	Advanced
+};
+
 /** Manages lifetime and provides access to the DMX Control Console */
 class FDMXControlConsoleEditorManager final
 	: public TSharedFromThis<FDMXControlConsoleEditorManager>
@@ -33,6 +40,18 @@ public:
 	/** Gets a reference to the Selection Handler*/
 	TSharedRef<FDMXControlConsoleEditorSelection> GetSelectionHandler();
 
+	/**Gets the current View Mode for Fader Groups. */
+	EDMXControlConsoleEditorViewMode GetFaderGroupsViewMode() const { return FaderGroupsViewMode; }
+
+	/** Gets the current View Mode for Faders. */
+	EDMXControlConsoleEditorViewMode GetFadersViewMode() const { return FadersViewMode; }
+
+	/** Sets the current View Mode for Fader Groups. */
+	void SetFaderGroupsViewMode(EDMXControlConsoleEditorViewMode ViewMode);
+
+	/** Sets the current View Mode for Faders. */
+	void SetFadersViewMode(EDMXControlConsoleEditorViewMode ViewMode);
+
 	/** Sends DMX on the Control Console */
 	void SendDMX();
 
@@ -51,12 +70,30 @@ public:
 	/** Resets DMX Control Console */
 	void ClearAll();
 
+	/** Gets a reference to OnFaderGroupsViewModeChanged delegate */
+	FSimpleMulticastDelegate& GetOnFaderGroupsViewModeChanged() { return OnFaderGroupsViewModeChanged; }
+
+	/** Gets a reference to OnFadersViewModeChanged delegate */
+	FSimpleMulticastDelegate& GetOnFadersViewModeChanged() { return OnFadersViewModeChanged; }
+
 private:
 	/** Private constructor. Use FDMXControlConsoleManager::Get() instead. */
 	FDMXControlConsoleEditorManager();
 
 	/** Called before the engine is shut down */
 	void OnEnginePreExit();
+
+	/** Current view mode for FaderGroupView widgets*/
+	EDMXControlConsoleEditorViewMode FaderGroupsViewMode = EDMXControlConsoleEditorViewMode::Basic;
+
+	/** Current view mode for Faders widgets */
+	EDMXControlConsoleEditorViewMode FadersViewMode = EDMXControlConsoleEditorViewMode::Basic;
+
+	/** Called when the Fader Groups view mode is changed */
+	FSimpleMulticastDelegate OnFaderGroupsViewModeChanged;
+
+	/** Called when the Faders view mode is changed */
+	FSimpleMulticastDelegate OnFadersViewModeChanged;
 
 	/** Selection for the DMX Control Console */
 	TSharedPtr<FDMXControlConsoleEditorSelection> SelectionHandler;

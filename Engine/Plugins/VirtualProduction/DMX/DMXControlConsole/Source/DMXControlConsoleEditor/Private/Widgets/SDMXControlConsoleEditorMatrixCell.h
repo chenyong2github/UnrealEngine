@@ -11,6 +11,7 @@ class UDMXControlConsoleFaderBase;
 class UDMXControlConsoleFixturePatchCellAttributeFader;
 class UDMXControlConsoleFixturePatchMatrixCell;
 
+struct FOptionalSize;
 struct FSlateColor;
 class SHorizontalBox;
 class SInlineEditableTextBlock;
@@ -19,15 +20,15 @@ class SInlineEditableTextBlock;
 /** Individual Matrix Cell UI class */
 class SDMXControlConsoleEditorMatrixCell
 	: public SCompoundWidget
-{	
+{
 public:
 	SLATE_BEGIN_ARGS(SDMXControlConsoleEditorMatrixCell)
 	{}
 
 	SLATE_END_ARGS()
 
-	/** Constructs the widget */
-	void Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFixturePatchMatrixCell>& InMatrixCell);
+		/** Constructs the widget */
+		void Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFixturePatchMatrixCell>& InMatrixCell);
 
 	/** Gets reference to the Matrix Cell showned by this widget */
 	UDMXControlConsoleFixturePatchMatrixCell* GetMatrixCell() { return MatrixCell.Get(); }
@@ -59,6 +60,9 @@ private:
 
 	/** Returns true if any of this Matrix Cell's Cell Attribute Fader is selected */
 	bool IsAnyCellAttributeFaderSelected() const;
+
+	/** Gets the height of the Matrix Cell according to the current Faders View Mode  */
+	FOptionalSize GetMatrixCellHeightByFadersViewMode() const;
 
 	/** Gets Matrix Cell ID as text */
 	FText GetMatrixCellLabelText() const;

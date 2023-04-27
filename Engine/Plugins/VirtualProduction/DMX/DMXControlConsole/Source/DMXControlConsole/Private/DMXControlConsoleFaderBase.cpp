@@ -17,6 +17,7 @@ UDMXControlConsoleFaderGroup& UDMXControlConsoleFaderBase::GetOwnerFaderGroupChe
 }
 
 UDMXControlConsoleFaderBase::UDMXControlConsoleFaderBase()
+	: DataType(EDMXFixtureSignalFormat::E8Bit)
 {
 	ThisFaderAsArray.Add(this);
 }
@@ -57,13 +58,36 @@ void UDMXControlConsoleFaderBase::Destroy()
 }
 
 void UDMXControlConsoleFaderBase::SetFaderName(const FString& NewName)
-{ 
+{
 	FaderName = NewName;
 }
 
 void UDMXControlConsoleFaderBase::SetValue(const uint32 NewValue)
 {
-	Value = FMath::Clamp(NewValue, MinValue, MaxValue);
+	if (!bIsLocked)
+	{
+		Value = FMath::Clamp(NewValue, MinValue, MaxValue);
+	}
+}
+
+void UDMXControlConsoleFaderBase::SetMinValue(uint32 NewMinValue)
+{
+	if (NewMinValue >= 0)
+	{
+		MinValue = FMath::Clamp(NewMinValue, 0, MaxValue - 1);
+		Value = FMath::Clamp(Value, MinValue, MaxValue);
+	}
+}
+
+void UDMXControlConsoleFaderBase::SetMaxValue(uint32 NewMaxValue)
+{
+	if (NewMaxValue >= 0)
+	{
+		const uint8 NumChannels = static_cast<uint8>(DataType) + 1;
+		const uint32 ValueRange = static_cast<uint32>(FMath::Pow(2.f, 8.f * NumChannels) - 1);
+		MaxValue = FMath::Clamp(NewMaxValue, MinValue + 1, ValueRange);
+		Value = FMath::Clamp(Value, MinValue, MaxValue);
+	}
 }
 
 void UDMXControlConsoleFaderBase::SetMute(bool bMute)
@@ -76,12 +100,47 @@ void UDMXControlConsoleFaderBase::ToggleMute()
 	bIsMuted = !bIsMuted;
 }
 
+void UDMXControlConsoleFaderBase::SetLock(bool bLock)
+{
+	bIsLocked = bLock;
+}
+
+void UDMXControlConsoleFaderBase::ToggleLock()
+{
+	bIsLocked = !bIsLocked;
+}
+
+void UDMXControlConsoleFaderBase::ResetToDefault()
+{
+	Value = DefaultValue;
+}
+
 void UDMXControlConsoleFaderBase::PostInitProperties()
 {
 	Super::PostInitProperties();
 
 	FaderName = GetName();
+	DefaultValue = MinValue;
 }
+
+#if WITH_EDITOR
+bool UDMXControlConsoleFaderBase::CanEditChange(const FProperty* InProperty) const
+{
+	if (InProperty->NamePrivate == GetFaderNamePropertyName() ||
+		InProperty->NamePrivate == GetMinValuePropertyName() ||
+		InProperty->NamePrivate == GetMaxValuePropertyName() ||
+		InProperty->NamePrivate == GetFloatOscillatorClassPropertyName() ||
+		InProperty->NamePrivate == GetFloatOscillatorPropertyName() ||
+		InProperty->NamePrivate == GetIsLockedPropertyName())
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 void UDMXControlConsoleFaderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -89,11 +148,7 @@ void UDMXControlConsoleFaderBase::PostEditChangeProperty(FPropertyChangedEvent& 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, Value))
-	{
-		SetValue(Value);
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, FloatOscillatorClass))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, FloatOscillatorClass))
 	{
 		if (UClass* StrongFloatOscillatorClass = FloatOscillatorClass.Get())
 		{
@@ -111,31 +166,16 @@ void UDMXControlConsoleFaderBase::Tick(float DeltaTime)
 {
 	if (FloatOscillator)
 	{
-		const EDMXFixtureSignalFormat DataType = GetDataType();
-		uint32 AbsoluteMax;
-		switch (DataType)
-		{
-		case EDMXFixtureSignalFormat::E8Bit:
-			AbsoluteMax = TNumericLimits<uint8>::Max();
-			break;
-		case EDMXFixtureSignalFormat::E16Bit:
-			AbsoluteMax = TNumericLimits<uint16>::Max();
-			break;
-		case EDMXFixtureSignalFormat::E24Bit:
-			AbsoluteMax = 0x00FFFFFF;
-			break;
-		default:
-			AbsoluteMax = TNumericLimits<uint32>::Max();
-		}
-
-		Value = FMath::Clamp(FloatOscillator->GetNormalizedValue(DeltaTime) * AbsoluteMax, 0, AbsoluteMax);
+		const uint32 ValueRange = (MaxValue - MinValue) + 1;
+		Value = FMath::Clamp(MinValue + FloatOscillator->GetNormalizedValue(DeltaTime) * ValueRange, MinValue, MaxValue);
 	}
 }
 
 bool UDMXControlConsoleFaderBase::IsTickable() const
 {
-	return 
+	return
 		!bIsMuted &&
+		!bIsLocked &&
 		FloatOscillator != nullptr;
 }
 
@@ -147,6 +187,31 @@ TStatId UDMXControlConsoleFaderBase::GetStatId() const
 ETickableTickType UDMXControlConsoleFaderBase::GetTickableTickType() const
 {
 	return ETickableTickType::Conditional;
+}
+
+void UDMXControlConsoleFaderBase::SetUniverseID(int32 InUniverseID)
+{
+	UniverseID = FMath::Clamp(InUniverseID, 1, DMX_MAX_UNIVERSE);
+}
+
+void UDMXControlConsoleFaderBase::SetValueRange()
+{
+	const uint8 NumChannels = static_cast<uint8>(DataType) + 1;
+	MaxValue = MinValue + ((uint32)FMath::Pow(2.f, 8.f * NumChannels) - 1);
+}
+
+void UDMXControlConsoleFaderBase::SetDataType(EDMXFixtureSignalFormat InDataType)
+{
+	DataType = InDataType;
+	SetAddressRange(StartingAddress);
+	SetValueRange();
+}
+
+void UDMXControlConsoleFaderBase::SetAddressRange(int32 InStartingAddress)
+{
+	uint8 NumChannels = static_cast<uint8>(DataType);
+	StartingAddress = FMath::Clamp(InStartingAddress, 1, DMX_MAX_ADDRESS - NumChannels);
+	EndingAddress = StartingAddress + NumChannels;
 }
 
 #undef LOCTEXT_NAMESPACE

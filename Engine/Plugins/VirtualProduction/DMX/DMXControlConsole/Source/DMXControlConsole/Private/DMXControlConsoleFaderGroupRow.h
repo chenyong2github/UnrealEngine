@@ -22,6 +22,9 @@ public:
 	/** Adds a Fader Group to this Fader Group Row */
 	UDMXControlConsoleFaderGroup* AddFaderGroup(const int32 Index);
 
+	/** Duplicates the Fader Group at the given index */
+	UDMXControlConsoleFaderGroup* DuplicateFaderGroup(const int32 Index);
+
 	/** Deletes the given Fader Group. If it's the last Fader Group in this Fader Group Row, requests it to be deleted  */
 	void DeleteFaderGroup(UDMXControlConsoleFaderGroup* FaderGroup);
 

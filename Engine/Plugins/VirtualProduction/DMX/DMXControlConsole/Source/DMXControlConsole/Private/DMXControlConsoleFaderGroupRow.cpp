@@ -18,6 +18,24 @@ UDMXControlConsoleFaderGroup* UDMXControlConsoleFaderGroupRow::AddFaderGroup(con
 	return FaderGroup;
 }
 
+UDMXControlConsoleFaderGroup* UDMXControlConsoleFaderGroupRow::DuplicateFaderGroup(const int32 Index)
+{
+	if (!ensureMsgf(FaderGroups.IsValidIndex(Index), TEXT("Invalid index. Cannot duplicate fader group correctly.")))
+	{
+		return nullptr;
+	}
+
+	const UDMXControlConsoleFaderGroup* FaderGroup = FaderGroups[Index];
+	if (!FaderGroup)
+	{
+		return nullptr;
+	}
+
+	UDMXControlConsoleFaderGroup* DuplicatedFaderGroup = DuplicateObject<UDMXControlConsoleFaderGroup>(FaderGroup, this);
+	FaderGroups.Insert(DuplicatedFaderGroup, Index + 1);
+	return DuplicatedFaderGroup;
+}
+
 void UDMXControlConsoleFaderGroupRow::DeleteFaderGroup(UDMXControlConsoleFaderGroup* FaderGroup)
 {
 	if (!ensureMsgf(FaderGroup, TEXT("Invalid fader group, cannot delete from '%s'."), *GetName()))

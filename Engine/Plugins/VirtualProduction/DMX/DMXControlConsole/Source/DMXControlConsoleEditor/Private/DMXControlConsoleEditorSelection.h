@@ -20,16 +20,22 @@ public:
 	FDMXControlConsoleEditorSelection(const TSharedRef<FDMXControlConsoleEditorManager>& InControlConsoleManager);
 
 	/** Adds the given Fader Group to selection */
-	void AddToSelection(UDMXControlConsoleFaderGroup* FaderGroup);
+	void AddToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bNotifySelectionChange = true);
 
 	/** Adds the given Fader to selection */
-	void AddToSelection(UDMXControlConsoleFaderBase* Fader);
+	void AddToSelection(UDMXControlConsoleFaderBase* Fader, bool bNotifySelectionChange = true);
+
+	/** Adds to selection all Faders from the given Fader Group */
+	void AddAllFadersFromFaderGroupToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bOnlyVisible = false, bool bNotifySelectionChange = true);
 
 	/** Removes the given Fader Group from selection */
-	void RemoveFromSelection(UDMXControlConsoleFaderGroup* FaderGroup);
+	void RemoveFromSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bNotifySelectionChange = true);
 
 	/** Removes the given Fader from selection */
-	void RemoveFromSelection(UDMXControlConsoleFaderBase* Fader);
+	void RemoveFromSelection(UDMXControlConsoleFaderBase* Fader, bool bNotifySelectionChange = true);
+
+	/** Removes the all the elements given array from selection */
+	void RemoveFromSelection(const TArray<UObject*> Elements, bool bNotifySelectionChange = true);
 
 	/** Multiselects the Fader or Fader Group and the current selection */
 	void Multiselect(UObject* FaderOrFaderGroupObject);
@@ -46,11 +52,17 @@ public:
 	/** Gets wheter the given Fader is selected or not */
 	bool IsSelected(UDMXControlConsoleFaderBase* Fader) const;
 
+	/** Selects all Fader Groups and Faders in the current Control Console Data */
+	void SelectAll(bool bOnlyVisible = false);
+
+	/** Cleans selection from array elements which are no longer valid */
+	void RemoveInvalidObjectsFromSelection(bool bNotifySelectionChange = true);
+
 	/** Clears from selection alla Faders owned by the given FaderGroup */
-	void ClearFadersSelection(UDMXControlConsoleFaderGroup* FaderGroup);
+	void ClearFadersSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bNotifySelectionChange = true);
 
 	/** Clears all Selected Objects arrays */
-	void ClearSelection();
+	void ClearSelection(bool bNotifySelectionChange = true);
 
 	/** Gets Selected Fader Gorups array */
 	TArray<TWeakObjectPtr<UObject>> GetSelectedFaderGroups() const { return SelectedFaderGroups; }

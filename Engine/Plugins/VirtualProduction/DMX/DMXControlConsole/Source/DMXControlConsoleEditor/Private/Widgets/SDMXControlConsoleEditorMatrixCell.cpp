@@ -24,6 +24,12 @@
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorMatrixCell"
 
+namespace UE::Private::DMXControlConsoleEditorMatrixCell
+{
+	static float BasicViewModeHeight = 200.f;
+	static float AdvancedViewModeHeight = 280.f;
+};
+
 void SDMXControlConsoleEditorMatrixCell::Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFixturePatchMatrixCell>& InMatrixCell)
 {
 	MatrixCell = InMatrixCell;
@@ -31,7 +37,6 @@ void SDMXControlConsoleEditorMatrixCell::Construct(const FArguments& InArgs, con
 	ChildSlot
 		[
 			SNew(SHorizontalBox)
-
 			// Matrix Cell section
 			+ SHorizontalBox::Slot()
 			.Padding(2.f, 0.f)
@@ -39,55 +44,50 @@ void SDMXControlConsoleEditorMatrixCell::Construct(const FArguments& InArgs, con
 			[
 				SNew(SBox)
 				.WidthOverride(20.f)
-				.HeightOverride(270.f)
+				.HeightOverride(TAttribute<FOptionalSize>::CreateSP(this, &SDMXControlConsoleEditorMatrixCell::GetMatrixCellHeightByFadersViewMode))
 				[
 					SNew(SBorder)
-					.BorderBackgroundColor(FLinearColor::White)
+					.BorderImage(this, &SDMXControlConsoleEditorMatrixCell::GetBorderImage)
 					[
-						SNew(SBorder)
-						.BorderImage(this, &SDMXControlConsoleEditorMatrixCell::GetBorderImage)
+						SNew(SVerticalBox)
+						// Matrix Cell Label
+						+ SVerticalBox::Slot()
+						.Padding(0.f, 1.f, 0.f, 0.f)
+						.AutoHeight()
 						[
-							SNew(SVerticalBox)
-
-							// Matrix Cell Label
-							+ SVerticalBox::Slot()
-							.AutoHeight()
+							SNew(SBox)
+							.HeightOverride(8.f)
+							.Padding(1.f)
 							[
-								SNew(SBox)
-								.HeightOverride(5.f)
-								[
-									SNew(SImage)
-									.Image(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.WhiteBrush"))
-									.ColorAndOpacity(this, &SDMXControlConsoleEditorMatrixCell::GetLabelBorderColor)
-								]
+								SNew(SImage)
+								.Image(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.FaderGroupTag"))
+								.ColorAndOpacity(this, &SDMXControlConsoleEditorMatrixCell::GetLabelBorderColor)
 							]
+						]
 
-							// Matrix Cell Text Label
-							+ SVerticalBox::Slot()
-							.AutoHeight()
-							[
-								SNew(SBorder)
-								.BorderImage(FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.BlackBrush"))
-								[
-									SNew(STextBlock)
-									.ColorAndOpacity(FLinearColor::White)
-									.Text(this, &SDMXControlConsoleEditorMatrixCell::GetMatrixCellLabelText)
-									.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-									.Justification(ETextJustify::Center)
-								]
-							]
+						// Matrix Cell Text Label
+						+ SVerticalBox::Slot()
+						.Padding(0.f, 4.f, 0.f, 0.f)
+						.AutoHeight()
+						[
+							SAssignNew(ExpandArrowButton, SDMXControlConsoleEditorExpandArrowButton)
+							.ToolTipText(LOCTEXT("MatrixCellExpandArrowButton_Tooltip", "Switch expansion state of the cell"))
+						]
 
-							// Matrix Cell Expand button
-							+ SVerticalBox::Slot()
-							.AutoHeight()
-							[
-								SAssignNew(ExpandArrowButton, SDMXControlConsoleEditorExpandArrowButton)
-							]
+						// Matrix Cell Expand button
+						+ SVerticalBox::Slot()
+						.Padding(0.f, 2.f, 0.f, 0.f)
+						.AutoHeight()
+						[
+							SNew(STextBlock)
+							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Text(this, &SDMXControlConsoleEditorMatrixCell::GetMatrixCellLabelText)
+							.Justification(ETextJustify::Center)
 						]
 					]
 				]
 			]
-			
+
 			// Matrix Cell Faders section
 			+ SHorizontalBox::Slot()
 			.Padding(2.f, 0.f)
@@ -115,7 +115,7 @@ FReply SDMXControlConsoleEditorMatrixCell::OnMouseButtonDown(const FGeometry& My
 
 		return FReply::Handled();
 	}
-	
+
 	return FReply::Unhandled();
 }
 
@@ -220,20 +220,20 @@ void SDMXControlConsoleEditorMatrixCell::OnCellAttributeFaderRemoved()
 bool SDMXControlConsoleEditorMatrixCell::ContainsCellAttributeFader(UDMXControlConsoleFaderBase* CellAttributeFader)
 {
 	auto IsCellAttributeFaderInUseLambda = [CellAttributeFader](const TWeakPtr<SDMXControlConsoleEditorFader> CellAttributeFaderWidget)
-	{
-		if (!CellAttributeFaderWidget.IsValid())
 		{
-			return false;
-		}
+			if (!CellAttributeFaderWidget.IsValid())
+			{
+				return false;
+			}
 
-		const TWeakObjectPtr<UDMXControlConsoleFaderBase> Other = CellAttributeFaderWidget.Pin()->GetFader();
-		if (!Other.IsValid())
-		{
-			return false;
-		}
+			const TWeakObjectPtr<UDMXControlConsoleFaderBase> Other = CellAttributeFaderWidget.Pin()->GetFader();
+			if (!Other.IsValid())
+			{
+				return false;
+			}
 
-		return Other == CellAttributeFader;
-	};
+			return Other == CellAttributeFader;
+		};
 
 	return CellAttributeFaderWidgets.ContainsByPredicate(IsCellAttributeFaderInUseLambda);
 }
@@ -261,6 +261,14 @@ bool SDMXControlConsoleEditorMatrixCell::IsAnyCellAttributeFaderSelected() const
 	return Algo::FindByPredicate(Faders, IsCellAttributeFaderSelectedLambda) ? true : false;
 }
 
+FOptionalSize SDMXControlConsoleEditorMatrixCell::GetMatrixCellHeightByFadersViewMode() const
+{
+	using namespace UE::Private::DMXControlConsoleEditorMatrixCell;
+
+	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
+	return ViewMode == EDMXControlConsoleEditorViewMode::Basic ? BasicViewModeHeight : AdvancedViewModeHeight;
+}
+
 FText SDMXControlConsoleEditorMatrixCell::GetMatrixCellLabelText() const
 {
 	if (MatrixCell.IsValid())
@@ -278,7 +286,7 @@ FSlateColor SDMXControlConsoleEditorMatrixCell::GetLabelBorderColor() const
 		const UDMXControlConsoleFaderGroup& FaderGroup = MatrixCell->GetOwnerFaderGroupChecked();
 		return FaderGroup.GetEditorColor();
 	}
-	
+
 	return FSlateColor(FLinearColor::White);
 }
 
@@ -305,24 +313,25 @@ const FSlateBrush* SDMXControlConsoleEditorMatrixCell::GetBorderImage() const
 	{
 		if (IsSelected())
 		{
-			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.FaderGroup_Highlighted");;
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.Fader_Highlighted");;
 		}
 		else
 		{
-			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.FaderGroup_Hovered");;
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.Fader_Hovered");;
 		}
 	}
 	else
 	{
 		if (IsSelected())
 		{
-			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.FaderGroup_Selected");;
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.Fader_Selected");;
 		}
 		else
 		{
-			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.BlackBrush");
+			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.Fader");
 		}
 	}
 }
 
 #undef LOCTEXT_NAMESPACE
+
