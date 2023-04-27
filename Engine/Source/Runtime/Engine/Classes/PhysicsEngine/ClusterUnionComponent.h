@@ -205,6 +205,10 @@ private:
 	UPROPERTY(ReplicatedUsing=OnRep_RigidState)
 	FClusterUnionReplicatedData ReplicatedRigidState;
 
+	// Cached local bounds from the physics particle.
+	mutable bool bHasCachedLocalBounds;
+	mutable FBoxSphereBounds CachedLocalBounds;
+
 	// Handles changes to ReplicatedRigidState. Note that this function does not handle replication of X/R since we make use
 	// of the scene component's default replication for that.
 	UFUNCTION()
@@ -269,6 +273,7 @@ public:
 	//~ Begin USceneComponent Interface
 public:
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
 
 	//~ Begin IPhysicsComponent Interface.

@@ -24,7 +24,9 @@ UClusterUnionComponent::UClusterUnionComponent(const FObjectInitializer& ObjectI
 {
 	PhysicsProxy = nullptr;
 	SetIsReplicatedByDefault(true);
+	bComputeBoundsOnceForGame = false;
 	bHasReceivedTransform = false;
+	bHasCachedLocalBounds = false;
 #if WITH_EDITORONLY_DATA
 	bVisualizeComponent = true;
 #endif
@@ -361,6 +363,27 @@ void UClusterUnionComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 	}
 }
 
+FBoxSphereBounds UClusterUnionComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	if (!bHasCachedLocalBounds)
+	{
+		if (!PhysicsProxy)
+		{
+			return Super::CalcBounds(LocalToWorld);
+		}
+		else
+		{
+			Chaos::FPhysicsObjectHandle Handle = PhysicsProxy->GetPhysicsObjectHandle();
+			FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead({ &Handle, 1 });
+			FBoxSphereBounds NewBounds = Interface->GetBounds({ &Handle, 1 });
+			bHasCachedLocalBounds = true;
+			CachedLocalBounds = NewBounds;
+		}
+	}
+
+	return CachedLocalBounds.TransformBy(LocalToWorld);
+}
+
 bool UClusterUnionComponent::ShouldCreatePhysicsState() const
 {
 	return true;
@@ -474,6 +497,9 @@ void UClusterUnionComponent::SyncClusterUnionFromProxy()
 	{
 		HandleRemovedClusteredComponent(Component, true);
 	}
+
+	bHasCachedLocalBounds = false;
+	UpdateBounds();
 }
 
 void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveComponent* ChangedComponent, const TMap<int32, FTransform>& PerBoneChildToParent)
