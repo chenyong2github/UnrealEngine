@@ -8,7 +8,7 @@
 class IDetailTreeNode;
 class FComplexPropertyNode;
 class FStructOnScope;
-
+class IStructureDataProvider;
 
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnValidatePropertyRowGeneratorNodes, const FRootPropertyNodeList&)
@@ -57,6 +57,7 @@ public:
 	 * @param InStruct The structure used to generate rows from.
 	 */
 	virtual void SetStructure(const TSharedPtr<FStructOnScope>& InStruct) = 0;
+	virtual void SetStructure(const TSharedPtr<IStructureDataProvider>& InStruct) = 0;
 
 	/**
 	 * Get the list of objects that were used to generate detail tree nodes

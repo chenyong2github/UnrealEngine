@@ -14,6 +14,7 @@ class FResetToDefaultOverride;
 class IPropertyHandleArray;
 class IPropertyHandleMap;
 class IPropertyHandleSet;
+class IStructureDataProvider;
 
 namespace EPropertyValueSetFlags
 {
@@ -676,6 +677,7 @@ public:
 	 * @return An array of interfaces to the properties that were added
 	 */
 	virtual TArray<TSharedPtr<IPropertyHandle>> AddChildStructure( TSharedRef<FStructOnScope> ChildStructure ) = 0;
+	virtual TArray<TSharedPtr<IPropertyHandle>> AddChildStructure( TSharedRef<IStructureDataProvider> ChildStructure ) = 0;
 
 	/**
 	 * Returns whether or not the property can be set to default

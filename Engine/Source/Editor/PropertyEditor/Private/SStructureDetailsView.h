@@ -13,6 +13,7 @@
 class AActor;
 class FDetailLayoutBuilderImpl;
 class IDetailRootObjectCustomization;
+class IStructureDataProvider;
 
 class SStructureDetailsView : public SDetailsViewBase, public IStructureDetailsView
 {
@@ -65,6 +66,8 @@ public:
 
 	virtual void SetStructureData(TSharedPtr<FStructOnScope> InStructData) override;
 
+	virtual void SetStructureProvider(TSharedPtr<IStructureDataProvider> StructProvider) override;
+
 	virtual FOnFinishedChangingProperties& GetOnFinishedChangingPropertiesDelegate() override
 	{
 		return OnFinishedChangingProperties();
@@ -116,7 +119,7 @@ protected:
 	EVisibility GetPropertyEditingVisibility() const;
 
 private:
-	TSharedPtr<class FStructOnScope> StructData;
+	TSharedPtr<IStructureDataProvider> StructProvider;
 	FRootPropertyNodeList RootNodes;
 	FText CustomName;
 };

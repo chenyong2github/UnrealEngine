@@ -1000,9 +1000,11 @@ void SDetailsView::PostSetObject(const TArray<FDetailsViewObjectRoot>& Roots)
 		RootPropertyNode->InitNode( InitParams );
 	}
 
+	UpdatePropertyMaps();
+
+	// Restore expanded items after handling property customization as some items that require expansion come from the customizations.
 	RestoreAllExpandedItems();
 
-	UpdatePropertyMaps();
 	UpdateFilteredDetails();
 }
 

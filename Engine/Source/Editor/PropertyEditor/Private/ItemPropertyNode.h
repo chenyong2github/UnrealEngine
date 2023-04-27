@@ -12,8 +12,8 @@ public:
 	FItemPropertyNode();
 	virtual ~FItemPropertyNode();
 
-	virtual uint8* GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData) const override;
-	virtual uint8* GetValueAddress(uint8* StartAddress, bool bIsSparseData) const override;
+	virtual uint8* GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData, bool bIsStruct) const override;
+	virtual uint8* GetValueAddress(uint8* StartAddress, bool bIsSparseData, bool bIsStruct) const override;
 
 	/**
 	 * Overridden function to get the derived object node

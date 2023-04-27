@@ -20,6 +20,7 @@ class FComplexPropertyNode;
 class FDetailTreeNode;
 class IPropertyGenerationUtilities;
 class FStructOnScope;
+class IStructureDataProvider;
 
 struct FPropertyNodeMap
 {
@@ -82,6 +83,7 @@ public:
 	/** IPropertyRowGenerator interface */
 	virtual void SetObjects(const TArray<UObject*>& InObjects) override;
 	virtual void SetStructure(const TSharedPtr<FStructOnScope>& InStruct) override;
+	virtual void SetStructure(const TSharedPtr<IStructureDataProvider>& InStructProvider) override;
 	virtual const TArray<TWeakObjectPtr<UObject>>& GetSelectedObjects() const override { return SelectedObjects; }
 	virtual const TArray<TSharedRef<IDetailTreeNode>>& GetRootTreeNodes() const override;
 	virtual TSharedPtr<IDetailTreeNode> FindTreeNode(TSharedPtr<IPropertyHandle> PropertyHandle) const override;

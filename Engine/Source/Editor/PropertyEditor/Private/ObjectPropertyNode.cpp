@@ -428,7 +428,7 @@ bool FObjectPropertyNode::GetReadAddressUncached(const FPropertyNode& InNode, FR
 	return true;
 }
 
-uint8* FObjectPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData) const
+uint8* FObjectPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData, bool bIsStruct) const
 {
 	uint8* Result = StartAddress;
 

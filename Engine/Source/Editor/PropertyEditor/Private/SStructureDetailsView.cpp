@@ -28,7 +28,7 @@ SStructureDetailsView::~SStructureDetailsView()
 
 UStruct* SStructureDetailsView::GetBaseScriptStruct() const
 {
-	const UStruct* Struct = StructData.IsValid() ? StructData->GetStruct() : NULL;
+	const UStruct* Struct = StructProvider.IsValid() ? StructProvider->GetBaseStructure() : nullptr;
 	return const_cast<UStruct*>(Struct);
 }
 
@@ -209,10 +209,16 @@ void SStructureDetailsView::Construct(const FArguments& InArgs)
 
 void SStructureDetailsView::SetStructureData(TSharedPtr<FStructOnScope> InStructData)
 {
+	SetStructureProvider(InStructData ? MakeShared<FStructOnScopeStructureDataProvider>(InStructData) : TSharedPtr<IStructureDataProvider>());
+}
+
+void SStructureDetailsView::SetStructureProvider(TSharedPtr<IStructureDataProvider> InStructProvider)
+{
+
 	TSharedPtr<FComplexPropertyNode> RootNode = GetRootNode();
 	//PRE SET
 	SaveExpandedItems(RootNode.ToSharedRef() );
-	RootNode->AsStructureNode()->SetStructure(nullptr);
+	RootNode->AsStructureNode()->RemoveStructure();
 	RootNodesPendingKill.Add(RootNode);
 
 	RootNodes.Empty(1);
@@ -222,9 +228,9 @@ void SStructureDetailsView::SetStructureData(TSharedPtr<FStructOnScope> InStruct
 	RootNodes.Add(RootNode);
 
 	//SET
-	StructData = InStructData;
-	RootNode->AsStructureNode()->SetStructure(StructData);
-	if (!StructData.IsValid())
+	StructProvider = InStructProvider;
+	RootNode->AsStructureNode()->SetStructure(StructProvider);
+	if (!StructProvider.IsValid())
 	{
 		bIsLocked = false;
 	}
@@ -240,8 +246,8 @@ void SStructureDetailsView::SetStructureData(TSharedPtr<FStructOnScope> InStruct
 	}
 
 	FPropertyNodeInitParams InitParams;
-	InitParams.ParentNode = NULL;
-	InitParams.Property = NULL;
+	InitParams.ParentNode = nullptr;
+	InitParams.Property = nullptr;
 	InitParams.ArrayOffset = 0;
 	InitParams.ArrayIndex = INDEX_NONE;
 	InitParams.bAllowChildren = true;
@@ -265,7 +271,7 @@ void SStructureDetailsView::SetCustomName(const FText& Text)
 
 void SStructureDetailsView::ForceRefresh()
 {
-	SetStructureData(StructData);
+	SetStructureProvider(StructProvider);
 }
 
 void SStructureDetailsView::ClearSearch()
@@ -297,7 +303,7 @@ const FSelectedActorInfo& SStructureDetailsView::GetSelectedActorInfo() const
 bool SStructureDetailsView::IsConnected() const
 {
 	const FStructurePropertyNode* RootNode = GetRootNode().IsValid() ? GetRootNode()->AsStructureNode() : nullptr;
-	return StructData.IsValid() && StructData->IsValid() && RootNode && RootNode->HasValidStructData();
+	return StructProvider.IsValid() && StructProvider->IsValid() && RootNode && RootNode->HasValidStructData();
 }
 
 FRootPropertyNodeList& SStructureDetailsView::GetRootNodes()
@@ -319,13 +325,14 @@ void SStructureDetailsView::CustomUpdatePropertyMap(TSharedPtr<FDetailLayoutBuil
 {
 	FName StructCategoryName = NAME_None;
 	
-	if (StructData.IsValid() && StructData->GetStruct())
+	const UStruct* Struct = StructProvider.IsValid() ? StructProvider->GetBaseStructure() : nullptr;
+	if (Struct)
 	{
 		TArray<FName> CategoryNames;
 		InDetailLayout->GetCategoryNames(CategoryNames);
 
 		int32 StructCategoryNameIndex = INDEX_NONE;
-		CategoryNames.Find(StructData->GetStruct()->GetFName(), StructCategoryNameIndex);
+		CategoryNames.Find(Struct->GetFName(), StructCategoryNameIndex);
 		StructCategoryName = StructCategoryNameIndex != INDEX_NONE ? CategoryNames[StructCategoryNameIndex] : NAME_None;
 	}
 	
@@ -335,7 +342,7 @@ void SStructureDetailsView::CustomUpdatePropertyMap(TSharedPtr<FDetailLayoutBuil
 EVisibility SStructureDetailsView::GetPropertyEditingVisibility() const
 {
 	const FStructurePropertyNode* RootNode = GetRootNode().IsValid() ? GetRootNode()->AsStructureNode() : nullptr;
-	return StructData.IsValid() && StructData->IsValid() && RootNode && RootNode->HasValidStructData() ? EVisibility::Visible : EVisibility::Collapsed;
+	return StructProvider.IsValid() && StructProvider->IsValid() && RootNode && RootNode->HasValidStructData() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

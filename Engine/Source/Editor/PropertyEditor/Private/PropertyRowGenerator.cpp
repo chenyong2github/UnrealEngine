@@ -210,6 +210,16 @@ void FPropertyRowGenerator::SetStructure(const TSharedPtr<FStructOnScope>& InStr
 	PostSetObject();
 }
 
+void FPropertyRowGenerator::SetStructure(const TSharedPtr<IStructureDataProvider>& InStructProvider)
+{
+	PreSetObject(1, /*bHasStructRoots=*/true);
+
+	check(RootPropertyNodes.Num() == 1);
+	RootPropertyNodes[0]->AsStructureNode()->SetStructure(InStructProvider);
+
+	PostSetObject();
+}
+
 const TArray<TSharedRef<IDetailTreeNode>>& FPropertyRowGenerator::GetRootTreeNodes() const
 {
 	return RootTreeNodes;
@@ -420,7 +430,7 @@ bool FPropertyRowGenerator::IsPropertyEditingEnabled() const
 void FPropertyRowGenerator::ForceRefresh()
 {
 	TArray<UObject*> NewObjectList;
-	TSharedPtr<FStructOnScope> StructData = nullptr;
+	TSharedPtr<IStructureDataProvider> StructureProvider = nullptr;
 
 	for (const TSharedPtr<FComplexPropertyNode>& ComplexRootNode : RootPropertyNodes)
 	{
@@ -438,13 +448,13 @@ void FPropertyRowGenerator::ForceRefresh()
 		}
 		else if (FStructurePropertyNode* StructRootNode = ComplexRootNode->AsStructureNode())
 		{
-			StructData = StructRootNode->GetStructData();
+			StructureProvider = StructRootNode->GetStructProvider();
 		}
 	}
-	
-	if (StructData && StructData->IsValid())
+
+	if (StructureProvider)
 	{
-		SetStructure(StructData);
+		SetStructure(StructureProvider);
 	}
 	else
 	{
@@ -483,7 +493,7 @@ void FPropertyRowGenerator::PreSetObject(int32 NumNewObjects, bool bHasStructRoo
 		else
 		{
 			FStructurePropertyNode* RootStructNode = RootNode->AsStructureNode();
-			RootStructNode->SetStructure(nullptr);
+			RootStructNode->RemoveStructure();
 		}
 		RootNode->ClearCachedReadAddresses(true);
 	}

@@ -21,7 +21,7 @@ FItemPropertyNode::~FItemPropertyNode()
 
 }
 
-uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData) const
+uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData, bool bIsStruct) const
 {
 	const FProperty* MyProperty = GetProperty();
 	const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
@@ -31,7 +31,7 @@ uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSpars
 		const FSetProperty* OuterSetProp = MyProperty->GetOwner<FSetProperty>();
 		const FMapProperty* OuterMapProp = MyProperty->GetOwner<FMapProperty>();
 
-		uint8* ValueBaseAddress = ParentNode->GetValueBaseAddress(StartAddress, bIsSparseData);
+		uint8* ValueBaseAddress = ParentNode->GetValueBaseAddress(StartAddress, bIsSparseData, bIsStruct);
 
 		if (OuterArrayProp != nullptr)
 		{
@@ -68,11 +68,11 @@ uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSpars
 		}
 		else
 		{
-			uint8* ValueAddress = ParentNode->GetValueAddress(StartAddress, bIsSparseData);
+			uint8* ValueAddress = ParentNode->GetValueAddress(StartAddress, bIsSparseData, bIsStruct);
 			if (ValueAddress != nullptr && ParentNode->GetProperty() != MyProperty)
 			{
 				// if this is not a fixed size array (in which the parent property and this property are the same), we need to offset from the property (otherwise, the parent already did that for us)
-				ValueAddress = Property->ContainerPtrToValuePtr<uint8>(ValueAddress);
+				ValueAddress = MyProperty->ContainerPtrToValuePtr<uint8>(ValueAddress);
 			}
 
 			if (ValueAddress != nullptr)
@@ -86,9 +86,9 @@ uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSpars
 	return nullptr;
 }
 
-uint8* FItemPropertyNode::GetValueAddress(uint8* StartAddress, bool bIsSparseData) const
+uint8* FItemPropertyNode::GetValueAddress(uint8* StartAddress, bool bIsSparseData, bool bIsStruct) const
 {
-	uint8* Result = GetValueBaseAddress(StartAddress, bIsSparseData);
+	uint8* Result = GetValueBaseAddress(StartAddress, bIsSparseData, bIsStruct);
 	return Result;
 }
 

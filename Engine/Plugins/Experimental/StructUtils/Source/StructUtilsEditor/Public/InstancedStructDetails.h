@@ -11,6 +11,7 @@ class IDetailPropertyRow;
 class FStructOnScope;
 class SWidget;
 struct FInstancedStruct;
+class FInstancedStructProvider;
 
 /**
  * Type customization for FInstancedStruct.
@@ -79,22 +80,19 @@ public:
 	virtual void OnChildRowAdded(IDetailPropertyRow& ChildRow) {}
 
 private:
-	/** Pre/Post change notifications for struct value changes */
-	void OnStructValuePreChange();
-	void OnStructValuePostChange();
 	void OnStructHandlePostChange();
 
-	/** Sync the current state of the editable struct instance from the source instance(s) */
-	void SyncEditableInstanceFromSource(bool* OutStructMismatch = nullptr);
+	/** Returns type of the instanced struct for each instance/object being edited. */
+	TArray<TWeakObjectPtr<const UStruct>> GetInstanceTypes() const;
 
-	/** Outer objects at the time of PreChangeProperties */
-	TArray<FString> PreChangeOuterObjectNames;
+	/** Cached instance types, used to invalidate the layout when types change. */
+	TArray<TWeakObjectPtr<const UStruct>> CachedInstanceTypes;
 	
 	/** Handle to the struct property being edited */
 	TSharedPtr<IPropertyHandle> StructProperty;
 
-	/** Struct instance that is being edited; this is a copy of the source struct data to avoid lifetime issues when the underlying source is updated/deleted */
-	TSharedPtr<FStructOnScope> StructInstanceData;
+	/** Struct provider for the structs. */
+	TSharedPtr<FInstancedStructProvider> StructProvider;
 
 	/** Delegate that can be used to refresh the child rows of the current struct (eg, when changing struct type) */
 	FSimpleDelegate OnRegenerateChildren;

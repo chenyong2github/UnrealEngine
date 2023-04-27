@@ -16,6 +16,7 @@
 #include "Misc/ScopeExit.h"
 #include "Editor.h"
 #include "ObjectPropertyNode.h"
+#include "StructurePropertyNode.h"
 #include "PropertyHandleImpl.h"
 #include "PropertyTextUtilities.h"
 #include "EditorSupportDelegates.h"
@@ -409,6 +410,38 @@ const class FObjectPropertyNode* FPropertyNode::FindObjectItemParent() const
 	{
 		return ParentNodePtr->FindObjectItemParent();
 	}
+	return nullptr;
+}
+
+FStructurePropertyNode* FPropertyNode::FindStructureItemParent()
+{
+	FComplexPropertyNode* ComplexParent = FindComplexParent();
+	if (!ComplexParent)
+	{
+		return nullptr;
+	}
+
+	if (FStructurePropertyNode* StructureNode = ComplexParent->AsStructureNode())
+	{
+		return StructureNode;
+	}
+
+	return nullptr;
+}
+
+const FStructurePropertyNode* FPropertyNode::FindStructureItemParent() const
+{
+	const FComplexPropertyNode* ComplexParent = FindComplexParent();
+	if (!ComplexParent)
+	{
+		return nullptr;
+	}
+
+	if (const FStructurePropertyNode* StructureNode = ComplexParent->AsStructureNode())
+	{
+		return StructureNode;
+	}
+
 	return nullptr;
 }
 
@@ -1531,7 +1564,7 @@ uint8* FPropertyNode::GetValueAddressFromObject(const UObject* Obj) const
 }
 
 
-uint8* FPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData) const
+uint8* FPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData, bool bIsStruct) const
 {
 	uint8* Result = NULL;
 
@@ -1544,15 +1577,15 @@ uint8* FPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseDat
 		const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
 		if (ParentNode.IsValid())
 		{
-			Result = ParentNode->GetValueAddress(StartAddress, bIsSparseData);
+			Result = ParentNode->GetValueAddress(StartAddress, bIsSparseData, bIsStruct);
 		}
 	}
 	return Result;
 }
 
-uint8* FPropertyNode::GetValueAddress(uint8* StartAddress, bool bIsSparseData) const
+uint8* FPropertyNode::GetValueAddress(uint8* StartAddress, bool bIsSparseData, bool bIsStruct) const
 {
-	return GetValueBaseAddress(StartAddress, bIsSparseData);
+	return GetValueBaseAddress(StartAddress, bIsSparseData, bIsStruct);
 }
 
 
@@ -1599,6 +1632,13 @@ public:
 		check(Property);
 		check(PropertyValueRoot.OwnerObject);
 
+		// Do not cache pointers for standalone structures, as we don't have the same guarantees how the provided pointers are invalidated as we have with UObject nodes. 
+		// The default value handling for structure nodes is done in FPropertyNode::GetDefaultValueAsString() and FPropertyNode::GetDiffersFromDefault().
+		if (PropertyNode->FindStructureItemParent())
+		{
+			return;
+		}
+		
 		FPropertyNode* ParentNode = PropertyNode->GetParentNode();
 
 		// if the object specified is a class object, transfer to the CDO instead
@@ -1617,7 +1657,7 @@ public:
 
 		if (IsValidTracker())
 		{
-			 bHasDefaultValue = Private_HasDefaultValue();
+			bHasDefaultValue = Private_HasDefaultValue();
 
 			// calculate the addresses for the default object if it exists
 			if (bHasDefaultValue)
@@ -1736,7 +1776,7 @@ public:
 	uint8* GetPropertyDefaultRootAddress() const { return PropertyDefaultValueRoot.ValueAddress; }
 
 private:
-		/**
+	/**
 	 * Determines whether the property bound to this struct exists in the owning object's archetype.
 	 *
 	 * @return	true if this property exists in the owning object's archetype; false if the archetype is e.g. a
@@ -1757,7 +1797,7 @@ private:
 					UStruct* SparseClassDataArchetypeStruct = OwnerClass->GetSparseClassDataArchetypeStruct();
 
 					if (SparseClassDataStruct == SparseClassDataArchetypeStruct)
-		{
+					{
 						bResult = true;
 					}
 					else
@@ -1797,20 +1837,20 @@ private:
 			else
 			{
 				// Find the member property which contains this item's property
-			FPropertyNode* MemberPropertyNode = PropertyNode;
-			for ( ;MemberPropertyNode != NULL; MemberPropertyNode = MemberPropertyNode->GetParentNode() )
-			{
-				FProperty* MemberProperty = MemberPropertyNode->GetProperty();
-				if ( MemberProperty != NULL )
+				FPropertyNode* MemberPropertyNode = PropertyNode;
+				for ( ;MemberPropertyNode != NULL; MemberPropertyNode = MemberPropertyNode->GetParentNode() )
 				{
-					if ( MemberProperty->GetOwner<UClass>() != NULL )
+					FProperty* MemberProperty = MemberPropertyNode->GetProperty();
+					if ( MemberProperty != NULL )
 					{
-						break;
+						if ( MemberProperty->GetOwner<UClass>() != NULL )
+						{
+							break;
+						}
 					}
 				}
-			}
 				if ( MemberPropertyNode != NULL && MemberPropertyNode->GetProperty())
-			{
+				{
 					// we check to see that this property is in the defaults class
 					bResult = MemberPropertyNode->GetProperty()->IsInContainer(ParentDefault->GetClass());
 				}
@@ -2192,104 +2232,97 @@ private:
 
 };
 
-bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTrackerSlate& ValueTracker, FProperty* InProperty )
-{	
-	check( InProperty );
 
-	bool bDiffersFromDefaultForObject = false;
+bool FPropertyNode::GetDiffersFromDefault(const uint8* PropertyValueAddress, const uint8* PropertyDefaultAddress, const uint8* DefaultPropertyValueBaseAddress, const FProperty* InProperty) const
+{
+	bool bDiffersFromDefaultValue = false;
 
-	bool bIsValidTracker = ValueTracker.IsValidTracker();
-	bool bHasDefaultValue = ValueTracker.HasDefaultValue();
-	bool bHasParent = GetParentNode() != nullptr;
-
-	if (bIsValidTracker && bHasDefaultValue && bHasParent)
+	if (DefaultPropertyValueBaseAddress != nullptr)
 	{
-		//////////////////////////
-		// Check the property against its default.
-		// If the property is an object property, we have to take special measures.
-
-		if (FArrayProperty* OuterArrayProperty = InProperty->GetOwner<FArrayProperty>())
+		if (const FArrayProperty* OuterArrayProperty = InProperty->GetOwner<FArrayProperty>())
 		{
-				// make sure we're not trying to compare against an element that doesn't exist
-			if (ValueTracker.GetPropertyDefaultBaseAddress() != nullptr)
+			// make sure we're not trying to compare against an element that doesn't exist
+			FScriptArrayHelper ArrayHelper(OuterArrayProperty, DefaultPropertyValueBaseAddress);
+			if (!ArrayHelper.IsValidIndex(GetArrayIndex()))
 			{
-				// make sure we're not trying to compare against an element that doesn't exist
-				FScriptArrayHelper ArrayHelper(OuterArrayProperty, ValueTracker.GetPropertyDefaultBaseAddress());
-				if (GetArrayIndex() >= ArrayHelper.Num())
-				{
-					bDiffersFromDefaultForObject = true;
-				}
+				bDiffersFromDefaultValue = true;
 			}
 		}
-		else if (FSetProperty* OuterSetProperty = InProperty->GetOwner<FSetProperty>())
+		else if (const FSetProperty* OuterSetProperty = InProperty->GetOwner<FSetProperty>())
 		{
-			if (ValueTracker.GetPropertyDefaultBaseAddress() != nullptr)
+			FScriptSetHelper SetHelper(OuterSetProperty, DefaultPropertyValueBaseAddress);
+			if (!SetHelper.IsValidIndex(GetArrayIndex()))
 			{
-				FScriptSetHelper SetHelper(OuterSetProperty, ValueTracker.GetPropertyDefaultBaseAddress());
-				if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && (ArrayIndex < 0 || ArrayIndex >= SetHelper.Num()))
-				{
-					bDiffersFromDefaultForObject = true;
-				}
+				bDiffersFromDefaultValue = true;
 			}
 		}
-		else if (FMapProperty* OuterMapProperty = InProperty->GetOwner<FMapProperty>())
+		else if (const FMapProperty* OuterMapProperty = InProperty->GetOwner<FMapProperty>())
 		{
-			if (ValueTracker.GetPropertyDefaultBaseAddress() != nullptr)
+			FScriptMapHelper MapHelper(OuterMapProperty, DefaultPropertyValueBaseAddress);
+			if (!MapHelper.IsValidIndex(GetArrayIndex()))
 			{
-				FScriptMapHelper MapHelper(OuterMapProperty, ValueTracker.GetPropertyDefaultBaseAddress());
-				if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && (ArrayIndex < 0 || ArrayIndex >= MapHelper.Num()))
-				{
-					bDiffersFromDefaultForObject = true;
-				}
-			}
-		}
-
-		// The property is a simple field.  Compare it against the enclosing object's default for that property.
-		if (!bDiffersFromDefaultForObject)
-		{
-			uint32 PortFlags = 0;
-			if (InProperty->ContainsInstancedObjectProperty())
-			{
-				PortFlags |= PPF_DeepComparison;
-			}
-
-			if ( ValueTracker.GetPropertyValueAddress() == NULL || ValueTracker.GetPropertyDefaultAddress() == NULL )
-			{
-				// if either are NULL, we had a dynamic array somewhere in our parent chain and the array doesn't
-				// have enough elements in either the default or the object
-				bDiffersFromDefaultForObject = true;
-			}
-			else if (GetArrayIndex() == INDEX_NONE && InProperty->ArrayDim > 1)
-			{
-				// this is a container; loop through all of its elements and see if any of them differ from the default
-				for (int32 Idx = 0; !bDiffersFromDefaultForObject && Idx < InProperty->ArrayDim; Idx++)
-				{
-					bDiffersFromDefaultForObject = !InProperty->Identical(
-						ValueTracker.GetPropertyValueAddress() + Idx * InProperty->ElementSize,
-						ValueTracker.GetPropertyDefaultAddress() + Idx * InProperty->ElementSize,
-						PortFlags
-						);
-				}
-			}
-			else
-			{
-				// try to compare the values at the current and default property addresses
-				uint8* PropertyValueAddr = ValueTracker.GetPropertyValueAddress();
-				uint8* DefaultPropertyValueAddr = ValueTracker.GetPropertyDefaultAddress();
-
-				if( PropertyValueAddr != NULL && DefaultPropertyValueAddr != NULL )
-				{
-					bDiffersFromDefaultForObject = !InProperty->Identical(
-						PropertyValueAddr,
-						DefaultPropertyValueAddr,
-						PortFlags
-						);
-				}
+				bDiffersFromDefaultValue = true;
 			}
 		}
 	}
 
-	return bDiffersFromDefaultForObject;
+	if (!bDiffersFromDefaultValue)
+	{
+		uint32 PortFlags = 0;
+		if (InProperty->ContainsInstancedObjectProperty())
+		{
+			PortFlags |= PPF_DeepComparison;
+		}
+	
+		if (PropertyValueAddress == nullptr || PropertyDefaultAddress == nullptr)
+		{
+			// if either are NULL, we had a dynamic array somewhere in our parent chain and the array doesn't
+			// have enough elements in either the default or the object
+			bDiffersFromDefaultValue = true;
+		}
+		else if (GetArrayIndex() == INDEX_NONE && InProperty->ArrayDim > 1)
+		{
+			// this is a container; loop through all of its elements and see if any of them differ from the default
+			for (int32 Idx = 0; !bDiffersFromDefault && Idx < InProperty->ArrayDim; Idx++)
+			{
+				bDiffersFromDefaultValue = !InProperty->Identical(
+					PropertyValueAddress + Idx * InProperty->ElementSize,
+					PropertyDefaultAddress + Idx * InProperty->ElementSize,
+					PortFlags
+					);
+			}
+		}
+		else
+		{
+			// try to compare the values at the current and default property addresses
+			if( PropertyValueAddress != nullptr && PropertyDefaultAddress != nullptr )
+			{
+				bDiffersFromDefaultValue = !InProperty->Identical(
+					PropertyValueAddress,
+					PropertyDefaultAddress,
+					PortFlags
+					);
+			}
+		}
+	}
+
+	return bDiffersFromDefaultValue;
+}
+
+bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTrackerSlate& ValueTracker, FProperty* InProperty )
+{	
+	check( InProperty );
+
+	const bool bIsValidTracker = ValueTracker.IsValidTracker();
+	const bool bHasDefaultValue = ValueTracker.HasDefaultValue();
+	const bool bHasParent = GetParentNode() != nullptr;
+
+	if (bIsValidTracker && bHasDefaultValue && bHasParent)
+	{
+		return GetDiffersFromDefault(ValueTracker.GetPropertyValueAddress(), ValueTracker.GetPropertyDefaultAddress(), ValueTracker.GetPropertyDefaultBaseAddress(), InProperty);
+	}
+
+	return false;
 }
 
 /**
@@ -2308,17 +2341,67 @@ bool FPropertyNode::GetDiffersFromDefault()
 			return bDiffersFromDefault;
 		}
 
-		FObjectPropertyNode* ObjectNode = FindObjectItemParent();
-		if (ObjectNode && Property.IsValid())
+		if (const FStructurePropertyNode* StructNode = FindStructureItemParent())
+		{
+			TArray<TSharedPtr<FStructOnScope>> Structs;
+			StructNode->GetAllStructureData(Structs);
+			
+			const bool bIsSparse = HasNodeFlags(EPropertyNodeFlags::IsSparseClassData);
+			const bool bIsContainer = CastField<FArrayProperty>(Prop) || CastField<FSetProperty>(Prop) || CastField<FMapProperty>(Prop);
+			const bool bIsInsideContainerProperty = Property->GetOwner<FArrayProperty>() || Property->GetOwner<FSetProperty>() || Property->GetOwner<FMapProperty>();
+			const FPropertyNode* BaseNode = bIsInsideContainerProperty ? GetParentNode() : this;
+
+			FStructOnScope DefaultStruct;
+
+			for (int32 Index = 0; !bDiffersFromDefault && Index < Structs.Num(); Index++)
+			{
+				const TSharedPtr<FStructOnScope>& StructData = Structs[Index];
+				// Skip empty data.
+				if (!StructData.IsValid())
+				{
+					continue;
+				}
+				const UStruct* Struct = StructData->GetStruct();
+				if (!Struct)
+				{
+					continue;
+				}
+				
+				// Make an instance of the struct to be used as default value to test against.
+				if (DefaultStruct.GetStruct() != Struct)
+				{
+					DefaultStruct.Initialize(Struct);
+				}
+
+				check(DefaultStruct.IsValid());
+
+				const uint8* PropertyValueAddress = GetValueAddress(StructData->GetStructMemory(), bIsSparse, /*bIsStruct=*/true);
+				const uint8* PropertyDefaultAddress = GetValueAddress(DefaultStruct.GetStructMemory(), bIsSparse, /*bIsStruct=*/true);
+				const uint8* PropertyDefaultBaseAddress = BaseNode->GetValueBaseAddress(DefaultStruct.GetStructMemory(), bIsSparse, /*bIsStruct=*/true);
+
+				// If this is a container property, we must take special measures to use the base address of the property's value; for instance,
+				// the array property's PropertyDefaultBaseAddress points to an FScriptArray*, while PropertyDefaultAddress points to the 
+				// FScriptArray's Data pointer.
+				if (bIsContainer)
+				{
+					const uint8* PropertyValueBaseAddress = BaseNode->GetValueBaseAddress(StructData->GetStructMemory(), bIsSparse, /*bIsStruct=*/true);
+					PropertyValueAddress = PropertyValueBaseAddress;
+					PropertyDefaultAddress = PropertyDefaultBaseAddress;
+				}
+
+				bDiffersFromDefault = GetDiffersFromDefault(PropertyValueAddress, PropertyDefaultAddress, PropertyDefaultBaseAddress, Prop);
+			}
+		}
+		else if (FObjectPropertyNode* ObjectNode = FindObjectItemParent())
 		{
 			// Get an iterator for the enclosing objects.
-			for(int32 ObjIndex = 0; ObjIndex < ObjectNode->GetNumObjects(); ++ObjIndex)
+			for (int32 ObjIndex = 0; ObjIndex < ObjectNode->GetNumObjects(); ++ObjIndex)
 			{
 				UObject* Object = ObjectNode->GetUObject(ObjIndex);
 
 				TSharedPtr<FPropertyItemValueDataTrackerSlate> ValueTracker = GetValueTracker(Object, ObjIndex);
 
-				if(ValueTracker.IsValid() && Object && GetDiffersFromDefaultForObject(*ValueTracker, Property.Get()))
+				if (Object && GetDiffersFromDefaultForObject(*ValueTracker, Prop))
 				{
 					// If any object being observed differs from the result then there is no need to keep searching
 					bDiffersFromDefault = true;
@@ -2331,12 +2414,49 @@ bool FPropertyNode::GetDiffersFromDefault()
 	return bDiffersFromDefault;
 }
 
+
+FString FPropertyNode::GetDefaultValueAsString(const uint8* PropertyDefaultAddress, const FProperty* InProperty, const bool bUseDisplayName) const
+{
+	FString DefaultValue;
+
+	uint32 PortFlags = bUseDisplayName ? PPF_PropertyWindow : PPF_None;
+	if (InProperty->ContainsInstancedObjectProperty())
+	{
+		PortFlags |= PPF_DeepComparison;
+	}
+
+	if (!PropertyDefaultAddress)
+	{
+		// no default available, fall back on the default value for our primitive:
+		uint8* TempComplexPropAddr = (uint8*)FMemory::Malloc(InProperty->GetSize(), InProperty->GetMinAlignment());
+		InProperty->InitializeValue(TempComplexPropAddr);
+		ON_SCOPE_EXIT
+		{
+			InProperty->DestroyValue(TempComplexPropAddr);
+			FMemory::Free(TempComplexPropAddr);
+		};
+				
+		InProperty->ExportText_Direct(DefaultValue, TempComplexPropAddr, TempComplexPropAddr, nullptr, PPF_None);
+	}
+	else if ( GetArrayIndex() == INDEX_NONE && InProperty->ArrayDim > 1 )
+	{
+		FArrayProperty::ExportTextInnerItem(DefaultValue, InProperty, PropertyDefaultAddress, InProperty->ArrayDim,
+											PropertyDefaultAddress, InProperty->ArrayDim, nullptr, PortFlags);
+	}
+	else
+	{
+		// Port flags will cause enums to display correctly
+		InProperty->ExportTextItem_Direct(DefaultValue, PropertyDefaultAddress, PropertyDefaultAddress, nullptr, PortFlags, nullptr);
+	}
+
+	return DefaultValue;
+}
+
 FString FPropertyNode::GetDefaultValueAsStringForObject( FPropertyItemValueDataTrackerSlate& ValueTracker, UObject* InObject, FProperty* InProperty, bool bUseDisplayName)
 {
 	check( InObject );
 	check( InProperty );
 
-	bool bDiffersFromDefaultForObject = false;
 	FString DefaultValue;
 
 	// special case for Object class - no defaults to compare against
@@ -2344,36 +2464,7 @@ FString FPropertyNode::GetDefaultValueAsStringForObject( FPropertyItemValueDataT
 	{
 		if ( ValueTracker.IsValidTracker() && ValueTracker.HasDefaultValue() )
 		{
-			uint32 PortFlags = bUseDisplayName ? PPF_PropertyWindow : PPF_None;
-			
-			if (InProperty->ContainsInstancedObjectProperty())
-			{
-				PortFlags |= PPF_DeepComparison;
-			}
-
-			if ( ValueTracker.GetPropertyDefaultAddress() == NULL )
-			{
-				// no default available, fall back on the default value for our primitive:
-				uint8* TempComplexPropAddr = (uint8*)FMemory::Malloc(InProperty->GetSize(), InProperty->GetMinAlignment());
-				InProperty->InitializeValue(TempComplexPropAddr);
-				ON_SCOPE_EXIT
-				{
-					InProperty->DestroyValue(TempComplexPropAddr);
-					FMemory::Free(TempComplexPropAddr);
-				};
-					
-				InProperty->ExportText_Direct(DefaultValue, TempComplexPropAddr, TempComplexPropAddr, nullptr, PPF_None);
-			}
-			else if ( GetArrayIndex() == INDEX_NONE && InProperty->ArrayDim > 1 )
-			{
-				FArrayProperty::ExportTextInnerItem(DefaultValue, InProperty, ValueTracker.GetPropertyDefaultAddress(), InProperty->ArrayDim,
-													ValueTracker.GetPropertyDefaultAddress(), InProperty->ArrayDim, nullptr, PortFlags);
-			}
-			else
-			{
-				// Port flags will cause enums to display correctly
-				InProperty->ExportTextItem_Direct(DefaultValue, ValueTracker.GetPropertyDefaultAddress(), ValueTracker.GetPropertyDefaultAddress(), nullptr, PortFlags, nullptr);
-			}
+			DefaultValue = GetDefaultValueAsString(ValueTracker.GetPropertyDefaultAddress(), InProperty, bUseDisplayName);
 		}
 	}
 
@@ -2384,15 +2475,78 @@ FString FPropertyNode::GetDefaultValueAsString(bool bUseDisplayName)
 {
 	FString DefaultValue;
 	FString DelimitedValue;
-
 	bool bAllSame = true;
-	
-	FObjectPropertyNode* ObjectNode = FindObjectItemParent();
-	if (ObjectNode && Property.IsValid())
-	{
-		TArray<FString> Values;
-		Values.Reserve(ObjectNode->GetNumObjects());
 
+	FProperty* Prop = GetProperty();
+	if (!Prop)
+	{
+		return DefaultValue;
+	}
+
+	if (const FStructurePropertyNode* StructNode = FindStructureItemParent())
+	{
+		TArray<TSharedPtr<FStructOnScope>> Structs;
+		StructNode->GetAllStructureData(Structs);
+
+		const bool bIsSparse = HasNodeFlags(EPropertyNodeFlags::IsSparseClassData);
+		const bool bIsContainer = CastField<FArrayProperty>(Prop) || CastField<FSetProperty>(Prop) || CastField<FMapProperty>(Prop);
+		const bool bIsInsideContainerProperty = Property->GetOwner<FArrayProperty>() || Property->GetOwner<FSetProperty>() || Property->GetOwner<FMapProperty>();
+		const FPropertyNode* BaseNode = bIsInsideContainerProperty ? GetParentNode() : this;
+
+		FStructOnScope DefaultStruct;
+		FString NodeDefaultValue;
+
+		for (const TSharedPtr<FStructOnScope>& StructData : Structs)
+		{
+			if (!StructData.IsValid())
+			{
+				continue;
+			}
+			const UStruct* Struct = StructData->GetStruct();
+			if (!StructData)
+			{
+				continue;
+			}
+
+			if (DefaultStruct.GetStruct() != Struct)
+			{
+				// Make an instance of the struct to be used as default value.
+				DefaultStruct.Initialize(Struct);
+				check(DefaultStruct.IsValid());
+
+				const uint8* PropertyDefaultAddress = GetValueAddress(DefaultStruct.GetStructMemory(), bIsSparse, /*bIsStruct=*/true);
+				const uint8* PropertyDefaultBaseAddress = BaseNode->GetValueBaseAddress(DefaultStruct.GetStructMemory(), bIsSparse, /*bIsStruct=*/true);
+
+				// If this is a container property, we must take special measures to use the base address of the property's value; for instance,
+				// the array property's PropertyDefaultBaseAddress points to an FScriptArray*, while PropertyDefaultAddress points to the 
+				// FScriptArray's Data pointer.
+				if (bIsContainer)
+				{
+					PropertyDefaultAddress = PropertyDefaultBaseAddress;
+				}
+
+				NodeDefaultValue = GetDefaultValueAsString(PropertyDefaultAddress, Prop, bUseDisplayName);
+			}
+			
+			if (DefaultValue.IsEmpty())
+			{
+				DefaultValue = NodeDefaultValue;
+			}
+
+			if (DelimitedValue.Len() > 0 && NodeDefaultValue.Len() > 0)
+			{
+				DelimitedValue += TEXT(", ");
+			}
+			DelimitedValue += NodeDefaultValue;
+
+			if (!ensureAlwaysMsgf(NodeDefaultValue == DefaultValue, TEXT("Default values differ for different objects of property '%s'. First: \"%s\", Other: \"%s\""), *Prop->GetNameCPP(), *DefaultValue, *NodeDefaultValue))
+			{
+				bAllSame = false;
+			}
+		}
+	}
+	else if (FObjectPropertyNode* ObjectNode = FindObjectItemParent())
+	{
 		// Get an iterator for the enclosing objects.
 		for (int32 ObjIndex = 0; ObjIndex < ObjectNode->GetNumObjects(); ++ObjIndex)
 		{
@@ -2401,7 +2555,7 @@ FString FPropertyNode::GetDefaultValueAsString(bool bUseDisplayName)
 
 			if (Object && ValueTracker.IsValid())
 			{
-				const FString NodeDefaultValue = GetDefaultValueAsStringForObject( *ValueTracker, Object, Property.Get(), bUseDisplayName );
+				const FString NodeDefaultValue = GetDefaultValueAsStringForObject( *ValueTracker, Object, Prop, bUseDisplayName );
 
 				if (DefaultValue.IsEmpty())
 				{
@@ -2414,7 +2568,7 @@ FString FPropertyNode::GetDefaultValueAsString(bool bUseDisplayName)
 				}
 				DelimitedValue += NodeDefaultValue;
 
-				if (!ensureAlwaysMsgf(NodeDefaultValue == DefaultValue, TEXT("Default values differ for different objects of property '%s'. First: \"%s\", Other: \"%s\""), *Property->GetNameCPP(), *DefaultValue, *NodeDefaultValue))
+				if (!ensureAlwaysMsgf(NodeDefaultValue == DefaultValue, TEXT("Default values differ for different objects of property '%s'. First: \"%s\", Other: \"%s\""), *Prop->GetNameCPP(), *DefaultValue, *NodeDefaultValue))
 				{
 					bAllSame = false;
 				}

@@ -38,6 +38,13 @@ public:
 	virtual void SetStructureData(TSharedPtr<class FStructOnScope> StructData) = 0;
 
 	/**
+	 * Set the structure data to be displayed in this view.
+	 *
+	 * @param StructProvider Provider of the the structure data to display.
+	 */
+	virtual void SetStructureProvider(TSharedPtr<class IStructureDataProvider> StructProvider) = 0;
+
+	/**
 	 * Set the CustomName used for display purposes.
 	 *
 	 * @param Text The FText to use for setting the Name

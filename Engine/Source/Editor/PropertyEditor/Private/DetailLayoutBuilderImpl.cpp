@@ -840,7 +840,7 @@ void FDetailLayoutBuilderImpl::GetStructsBeingCustomized( TArray< TSharedPtr<FSt
 				FStructurePropertyNode* StructureNode = ParentComplexProperty ? ParentComplexProperty->AsStructureNode() : nullptr;
 				if(StructureNode)
 				{
-					OutStructs.Add(StructureNode->GetStructData());
+					StructureNode->GetAllStructureData(OutStructs);
 				}
 			}
 		}
@@ -848,7 +848,7 @@ void FDetailLayoutBuilderImpl::GetStructsBeingCustomized( TArray< TSharedPtr<FSt
 
 	if(RootStructNode)
 	{
-		OutStructs.Add(RootStructNode->GetStructData());
+		RootStructNode->GetAllStructureData(OutStructs);
 	}
 }
 
