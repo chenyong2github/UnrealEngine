@@ -1061,7 +1061,8 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 		Pin->GetDirection() == ERigVMPinDirection::Visible) &&
 		LinkIndices.Num() == 0)
 	{
-		if (Cast<URigVMVariableNode>(Pin->GetNode()))
+		if (Cast<URigVMVariableNode>(Pin->GetNode()) ||
+			(LibraryNodeBeingCompiled && Cast<URigVMFunctionReturnNode>(Pin->GetNode())))
 		{
 			PinExpr = MakeExpr<FRigVMVarExprAST>(FRigVMExprAST::EType::Var, InPinProxy);
 			FRigVMExprAST* PinLiteralExpr = MakeExpr<FRigVMLiteralExprAST>(InPinProxy);
@@ -2941,6 +2942,29 @@ void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMA
 				{
 					if (IsValidLinkForAST(SourcePinProxy, InPinProxyForMap, OutTraversalInfo))
 					{
+						if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(SourceNode))
+						{
+							if (const FRigVMGraphFunctionData* FunctionData = FunctionReferenceNode->GetReferencedFunctionData())
+							{
+								FString PinName = SourcePin->GetName();
+								PinName.ReplaceInline(TEXT(" "), TEXT("_"));
+								if (const FRigVMFunctionCompilationPropertyDescription* Description = FunctionData->CompilationData.WorkPropertyDescriptions.FindByPredicate([PinName](const FRigVMFunctionCompilationPropertyDescription& Description)
+								{
+									return Description.Name.ToString().EndsWith(PinName);
+								}))
+								{
+									// when asking for the default value of the array - we may need to get the previously stored override
+									URigVMPin::FPinOverrideValue OverrideValue;
+									OverrideValue.DefaultValue = Description->DefaultValue;
+									
+									// we query the default value now since the potential array elements have been visited and their
+									// potential default value override has been stored to the map.
+									OutTraversalInfo.PinOverrides->FindOrAdd(SourcePinProxy) = OverrideValue;
+								}
+								
+							}
+						}
+						
 						FRigVMASTLinkDescription Link(SourcePinProxy, InPinProxyForMap, InSegmentPath);
 						Link.LinkIndex = OutTraversalInfo.Links->Num();
 						OutTraversalInfo.Links->Add(Link);

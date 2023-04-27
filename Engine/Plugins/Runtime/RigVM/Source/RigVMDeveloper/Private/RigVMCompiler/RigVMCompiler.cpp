@@ -1936,7 +1936,9 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 					{
 						continue;
 					}
-					if (!Properties[NumProperties].Name.ToString().Contains(Argument.Name.ToString()))
+					FString PropertyName = Argument.Name.ToString();
+					PropertyName.ReplaceInline(TEXT(" "), TEXT("_"));
+					if (!Properties[NumProperties].Name.ToString().Contains(PropertyName))
 					{
 						continue;
 					}
@@ -1958,7 +1960,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 				FRigVMCompilerWorkData::FFunctionRegisterData Data = {FunctionReferenceNode, MemoryType, PropertyIndex};
 				WorkData.FunctionRegisterToOperand.Add(Data, Operand);
 
-				// @todo Try to reuse literal operands				
+				// @todo Try to reuse literal operands
 			}
 		}		
 	}
@@ -2018,6 +2020,10 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 		FRigVMInstructionArray Instructions = ByteCode.GetInstructions();
 		for (int32 i=InstructionIndexStart; i<=InstructionIndexEnd; ++i)
 		{
+			if (!Instructions.IsValidIndex(i))
+			{
+				return INDEX_NONE;
+			}
 			const FRigVMInstruction& Instruction = Instructions[i];
 			const FRigVMOperandArray OperandArray = ByteCode.GetOperandsForOp(Instruction);
 			uint64 OperandsIndex = ByteCode.GetFirstOperandByteIndex(Instruction);
