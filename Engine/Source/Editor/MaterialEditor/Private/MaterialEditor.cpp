@@ -3025,15 +3025,6 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 
 				if (FMaterialShaderMap* ShaderMap = MaterialResource->GetGameThreadShaderMap())
 				{
-					const FString StrataMaterialDescription = ShaderMap->GetStrataMaterialCompilationOutput().StrataMaterialDescription;
-
-					if (StrataMaterialDescription.Len())
-					{
-						TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Info);
-						Line->AddToken(FTextToken::Create(FText::FromString(StrataMaterialDescription)));
-						Messages.Add(Line);
-					}
-
 					// Add shader count
 					FString ShaderCountString = FString::Printf(TEXT("Shader Count: %u"), ShaderMap->GetShaderNum());
 					TSharedRef<FTokenizedMessage> ShaderCountLine = FTokenizedMessage::Create(EMessageSeverity::Info);

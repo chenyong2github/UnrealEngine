@@ -30,8 +30,13 @@ struct FStrataOperator
 public:
 	FStrataOperator();
 
+	// !!!!!!!!!!
+	// Not using LAYOUT_BITFIELD_EDITORONLY because it seems to cause issue with bit being shifted around when copy happens.
+	// So in the meantime we find it out, LAYOUT_FIELD_EDITORONLY using uint8 is used.
+	// !!!!!!!!!!
+
 	LAYOUT_FIELD_EDITORONLY(int32, OperatorType);
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bNodeRequestParameterBlending, 1);
+	LAYOUT_FIELD_EDITORONLY(uint8, bNodeRequestParameterBlending);
 
 	LAYOUT_FIELD_EDITORONLY(int32, Index);			// Index into the array of operators
 	LAYOUT_FIELD_EDITORONLY(int32, ParentIndex);	// Parent operator index
@@ -43,21 +48,21 @@ public:
 	LAYOUT_FIELD_EDITORONLY(int32, BSDFIndex);		// Index in the array of BSDF if a BSDF operator
 	LAYOUT_FIELD_EDITORONLY(int32, BSDFType);
 	LAYOUT_FIELD_EDITORONLY(FStrataRegisteredSharedLocalBasis, BSDFRegisteredSharedLocalBasis);
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bBSDFHasSSS, 1);
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bBSDFHasMFPPluggedIn, 1);
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bBSDFHasEdgeColor, 1);
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bBSDFHasFuzz, 1);
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bBSDFHasSecondRoughnessOrSimpleClearCoat, 1);
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bBSDFHasAnisotropy, 1);
+	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasSSS);
+	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasMFPPluggedIn);
+	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasEdgeColor);
+	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasFuzz);
+	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasSecondRoughnessOrSimpleClearCoat);
+	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasAnisotropy);
 
 	// Data derived after the tree has been built.
 	LAYOUT_FIELD_EDITORONLY(int32, MaxDistanceFromLeaves);
 	LAYOUT_FIELD_EDITORONLY(int32, LayerDepth);
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bIsTop, 1);
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bIsBottom, 1);
+	LAYOUT_FIELD_EDITORONLY(uint8, bIsTop);
+	LAYOUT_FIELD_EDITORONLY(uint8, bIsBottom);
 
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bUseParameterBlending, 1);			// True when part of a sub tree where parameter blending is in use
-	LAYOUT_BITFIELD_EDITORONLY(uint8, bRootOfParameterBlendingSubTree, 1);	// True when the root of a sub tree where parameter blending is in use. Only this node will register a BSDF
+	LAYOUT_FIELD_EDITORONLY(uint8, bUseParameterBlending);			// True when part of a sub tree where parameter blending is in use
+	LAYOUT_FIELD_EDITORONLY(uint8, bRootOfParameterBlendingSubTree);	// True when the root of a sub tree where parameter blending is in use. Only this node will register a BSDF
 
 	void CombineFlagsForParameterBlending(FStrataOperator& A, FStrataOperator& B);
 
@@ -66,7 +71,7 @@ public:
 	bool IsDiscarded() const;
 };
 
-#define STRATA_COMPILATION_OUTPUT_MAX_OPERATOR 32
+#define STRATA_COMPILATION_OUTPUT_MAX_OPERATOR 24
 
 struct FStrataMaterialCompilationOutput
 {
@@ -80,13 +85,13 @@ public:
 	////
 
 	/** Strata material type, at compile time (0:simple, 1:single, 2: complex) */
-	LAYOUT_BITFIELD(uint8, StrataMaterialType, 2);
+	LAYOUT_FIELD(uint8, StrataMaterialType);
 
 	/** Strata BSDF count, at compile time (0-7) */
-	LAYOUT_BITFIELD(uint8, StrataBSDFCount, 3);
+	LAYOUT_FIELD(uint8, StrataBSDFCount);
 
 	/** Strata uint per pixel, at compile time (0-255) */
-	LAYOUT_BITFIELD(uint8, StrataUintPerPixel, 8);
+	LAYOUT_FIELD(uint8, StrataUintPerPixel);
 
 	////
 	//// The following data is only needed when compiling with the editor.

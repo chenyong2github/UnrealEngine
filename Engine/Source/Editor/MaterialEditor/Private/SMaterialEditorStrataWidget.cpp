@@ -56,7 +56,6 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 					SNew(SVerticalBox)
 					+SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(0.0f, 5.0f, 0.0f, 0.0f)
 					[
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
@@ -85,19 +84,21 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 							.ShadowOffset(FVector2D::UnitVector)
 							.Text(LOCTEXT("FullsimplificationLabel", "Full simplification"))
 						]
-					]
-					+SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(0.0f, 5.0f, 0.0f, 0.0f)
-					[
-						SNew(SWrapBox)
-						.UseAllottedSize(true)
-						+SWrapBox::Slot()
-						.Padding(5.0f)
-						.HAlign(HAlign_Center)
+						+SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.Padding(16.0f, 0.0f)
+						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Center)
 						[
-							ButtonApplyToPreview->AsShared()
+							SNew(SWrapBox)
+							.UseAllottedSize(true)
+							+ SWrapBox::Slot()
+							.Padding(5.0f)
+							.HAlign(HAlign_Center)
+							.VAlign(VAlign_Center)
+							[
+								ButtonApplyToPreview->AsShared()
+							]
 						]
 					]
 					+SVerticalBox::Slot()
@@ -251,7 +252,7 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 									.AutoHeight()
 									.VAlign(VAlign_Fill)
 									.HAlign(HAlign_Fill)
-									.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
 									[
 										ProcessOperator(CompilationOutput.Operators[Op.LeftIndex])
 									]
@@ -259,7 +260,7 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 									.AutoHeight()
 									.VAlign(VAlign_Fill)
 									.HAlign(HAlign_Fill)
-									.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
 									[
 										ProcessOperator(CompilationOutput.Operators[Op.RightIndex])
 									];
@@ -273,6 +274,7 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 									.AutoWidth()
 									.VAlign(VAlign_Fill)
 									.HAlign(HAlign_Fill)
+									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
 									[
 										ProcessOperator(CompilationOutput.Operators[Op.LeftIndex])
 									]
@@ -280,6 +282,7 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 									.AutoWidth()
 									.VAlign(VAlign_Fill)
 									.HAlign(HAlign_Fill)
+									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
 									[
 										ProcessOperator(CompilationOutput.Operators[Op.RightIndex])
 									];
@@ -293,6 +296,7 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 									.AutoWidth()
 									.VAlign(VAlign_Fill)
 									.HAlign(HAlign_Fill)
+									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
 									[
 										ProcessOperator(CompilationOutput.Operators[Op.LeftIndex])
 									]
@@ -300,27 +304,40 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 									.AutoWidth()
 									.VAlign(VAlign_Fill)
 									.HAlign(HAlign_Fill)
+									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
 									[
 										ProcessOperator(CompilationOutput.Operators[Op.RightIndex])
 									];
 								return HorizontalOperator->AsShared();
 							}
 							break;
+							case STRATA_OPERATOR_BSDF_LEGACY:	// legacy BSDF should have been converted to BSDF already.
 							case STRATA_OPERATOR_BSDF:
 							{
+								FString BSDFDesc = FString::Printf(TEXT("BSDF (%s%s%s%s%s%s)")
+									, Op.bBSDFHasEdgeColor ? TEXT("F90 ") : TEXT("")
+									, Op.bBSDFHasSSS ? TEXT("SSS ") : TEXT("")
+									, Op.bBSDFHasMFPPluggedIn ? TEXT("MFP ") : TEXT("")
+									, Op.bBSDFHasAnisotropy ? TEXT("Ani ") : TEXT("")
+									, Op.bBSDFHasSecondRoughnessOrSimpleClearCoat ? TEXT("2Ro ") : TEXT("")
+									, Op.bBSDFHasFuzz ? TEXT("Fuz ") : TEXT("")
+								);
+
+								static FString ToolTip;
+								if (ToolTip.IsEmpty())
+								{
+									ToolTip += TEXT("SSS means the BSDF features subsurface profile or subsurface setup using MFP.\n");
+									ToolTip += TEXT("MFP means the BSDF MFP is specified by the user.\n");
+									ToolTip += TEXT("F90 means the BSDF edge specular color representing reflectivity at grazing angle is used.\n");
+									ToolTip += TEXT("Fuz means the BSDF fuzz layer is enabled.\n");
+									ToolTip += TEXT("2Ro means the BSDF either uses a second specular lob with a second roughness, or the legacy simple clear coat.\n");
+									ToolTip += TEXT("Ani means the BSDF anisotropic specular lighting is used.");
+								}
+
 								auto BSDF = SNew(SErrorText)
-									.ErrorText(LOCTEXT("BSDF", "BSDF"))
+									.ErrorText(FText::FromString(BSDFDesc))
 									.BackgroundColor(FSlateColor(EStyleColor::AccentGreen))
-									.ToolTipText(LOCTEXT("BSDFtooltip", "BSDF tool tip"));
-								return BSDF->AsShared();
-							}
-							break;
-							case STRATA_OPERATOR_BSDF_LEGACY:
-							{
-								auto BSDF = SNew(SErrorText)
-									.ErrorText(LOCTEXT("LegacyBSDF", "LegacyBSDF"))
-									.BackgroundColor(FSlateColor(EStyleColor::AccentBlue))
-									.ToolTipText(LOCTEXT("LegacyBSDFtooltip", "LegacyBSDF tool tip"));
+									.ToolTipText(FText::FromString(ToolTip));
 								return BSDF->AsShared();
 							}
 							break;
