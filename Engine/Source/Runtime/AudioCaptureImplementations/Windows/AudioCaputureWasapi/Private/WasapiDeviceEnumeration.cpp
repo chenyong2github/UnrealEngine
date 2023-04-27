@@ -219,13 +219,12 @@ namespace Audio
 				}
 				else
 				{
-					return false;
+					UE_LOG(LogAudioCaptureCore, Warning, TEXT("Unable to fetch audio capture device properties...skipping"));
 				}
 			}
 			else
 			{
-				WASAPI_CAPTURE_LOG_RESULT("IMMDeviceCollection::Item", Result);
-				return false;
+				UE_LOG(LogAudioCaptureCore, Warning, TEXT("Unable to fetch audio capture device...skipping"));
 			}
 		}
 
