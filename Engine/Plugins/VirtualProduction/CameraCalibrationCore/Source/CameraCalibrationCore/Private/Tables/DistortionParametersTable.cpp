@@ -138,14 +138,14 @@ bool FDistortionTable::BuildParameterCurve(float InFocus, int32 ParameterIndex, 
 	return false;
 }
 
-const FDistortionFocusPoint* FDistortionTable::GetFocusPoint(float InFocus) const
+const FDistortionFocusPoint* FDistortionTable::GetFocusPoint(float InFocus, float InputTolerance) const
 {
-	return FocusPoints.FindByPredicate([InFocus](const FDistortionFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FDistortionFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus, InputTolerance); });
 }
 
-FDistortionFocusPoint* FDistortionTable::GetFocusPoint(float InFocus)
+FDistortionFocusPoint* FDistortionTable::GetFocusPoint(float InFocus, float InputTolerance)
 {
-	return FocusPoints.FindByPredicate([InFocus](const FDistortionFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FDistortionFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus, InputTolerance); });
 }
 
 void FDistortionTable::ForEachPoint(FFocusPointCallback InCallback) const
@@ -176,9 +176,9 @@ void FDistortionTable::RemoveZoomPoint(float InFocus, float InZoom)
 	LensDataTableUtils::RemoveZoomPoint(FocusPoints, InFocus, InZoom);
 }
 
-bool FDistortionTable::DoesFocusPointExists(float InFocus) const
+bool FDistortionTable::DoesFocusPointExists(float InFocus, float InputTolerance) const
 {
-	if (GetFocusPoint(InFocus) != nullptr)
+	if (GetFocusPoint(InFocus, InputTolerance) != nullptr)
 	{
 		return true;
 	}
@@ -225,7 +225,7 @@ bool FDistortionTable::AddPoint(float InFocus, float InZoom, const FDistortionIn
 
 bool FDistortionTable::GetPoint(const float InFocus, const float InZoom, FDistortionInfo& OutData, float InputTolerance) const
 {
-	if (const FDistortionFocusPoint* DistortionFocusPoint = GetFocusPoint(InFocus))
+	if (const FDistortionFocusPoint* DistortionFocusPoint = GetFocusPoint(InFocus, InputTolerance))
 	{
 		FDistortionInfo DistortionInfo;
 		if (DistortionFocusPoint->GetPoint(InZoom, DistortionInfo, InputTolerance))

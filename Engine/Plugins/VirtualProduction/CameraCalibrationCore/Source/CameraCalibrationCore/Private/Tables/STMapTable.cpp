@@ -118,9 +118,9 @@ void FSTMapTable::ForEachPoint(FFocusPointCallback InCallback) const
 	}
 }
 
-bool FSTMapTable::DoesFocusPointExists(float InFocus) const
+bool FSTMapTable::DoesFocusPointExists(float InFocus, float InputTolerance) const
 {
-	if (GetFocusPoint(InFocus) != nullptr)
+	if (GetFocusPoint(InFocus, InputTolerance) != nullptr)
 	{
 		return true;
 	}
@@ -170,14 +170,14 @@ bool FSTMapTable::BuildMapBlendingCurve(float InFocus, FRichCurve& OutCurve)
 	return false;
 }
 
-const FSTMapFocusPoint* FSTMapTable::GetFocusPoint(float InFocus) const
+const FSTMapFocusPoint* FSTMapTable::GetFocusPoint(float InFocus, float InputTolerance) const
 {
-	return FocusPoints.FindByPredicate([InFocus](const FSTMapFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FSTMapFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus, InputTolerance); });
 }
 
-FSTMapFocusPoint* FSTMapTable::GetFocusPoint(float InFocus)
+FSTMapFocusPoint* FSTMapTable::GetFocusPoint(float InFocus, float InputTolerance)
 {
-	return FocusPoints.FindByPredicate([InFocus](const FSTMapFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FSTMapFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus, InputTolerance); });
 }
 
 TConstArrayView<FSTMapFocusPoint> FSTMapTable::GetFocusPoints() const
@@ -219,7 +219,7 @@ bool FSTMapTable::AddPoint(float InFocus, float InZoom, const FSTMapInfo& InData
 
 bool FSTMapTable::GetPoint(const float InFocus, const float InZoom, FSTMapInfo& OutData, float InputTolerance) const
 {
-	if (const FSTMapFocusPoint* STMapFocusPoint = GetFocusPoint(InFocus))
+	if (const FSTMapFocusPoint* STMapFocusPoint = GetFocusPoint(InFocus, InputTolerance))
 	{
 		FSTMapInfo SMapInfo;
 		if (STMapFocusPoint->GetPoint(InZoom, SMapInfo, InputTolerance))

@@ -73,7 +73,7 @@ struct CAMERACALIBRATIONCORE_API FNodalOffsetTable : public FBaseLensTable
 protected:
 	//~ Begin FBaseDataTable Interface
 	virtual TMap<ELensDataCategory, FLinkPointMetadata> GetLinkedCategories() const override;
-	virtual bool DoesFocusPointExists(float InFocus) const override;
+	virtual bool DoesFocusPointExists(float InFocus, float InputTolerance = KINDA_SMALL_NUMBER) const override;
 	virtual bool DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance = KINDA_SMALL_NUMBER) const override;
 	virtual const FBaseFocusPoint* GetBaseFocusPoint(int32 InIndex) const override;
 	//~ End FBaseDataTable Interface
@@ -93,10 +93,10 @@ public:
 	bool BuildParameterCurve(float InFocus, int32 ParameterIndex, EAxis::Type InAxis, FRichCurve& OutCurve) const;
 
 	/** Returns const point for a given focus */
-	const FNodalOffsetFocusPoint* GetFocusPoint(float InFocus) const;
+	const FNodalOffsetFocusPoint* GetFocusPoint(float InFocus, float InputTolerance = KINDA_SMALL_NUMBER) const;
 
 	/** Returns point for a given focus */
-	FNodalOffsetFocusPoint* GetFocusPoint(float InFocus);
+	FNodalOffsetFocusPoint* GetFocusPoint(float InFocus, float InputTolerance = KINDA_SMALL_NUMBER);
 
 	/** Returns all focus points */
 	TConstArrayView<FNodalOffsetFocusPoint> GetFocusPoints() const;

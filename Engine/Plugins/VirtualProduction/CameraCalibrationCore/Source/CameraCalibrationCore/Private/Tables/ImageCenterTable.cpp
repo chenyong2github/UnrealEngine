@@ -98,9 +98,9 @@ void FImageCenterTable::ForEachPoint(FFocusPointCallback InCallback) const
 	}
 }
 
-bool FImageCenterTable::DoesFocusPointExists(float InFocus) const
+bool FImageCenterTable::DoesFocusPointExists(float InFocus, float InputTolerance) const
 {
-	if (GetFocusPoint(InFocus) != nullptr)
+	if (GetFocusPoint(InFocus, InputTolerance) != nullptr)
 	{
 		return true;
 	}
@@ -139,14 +139,14 @@ bool FImageCenterTable::BuildParameterCurve(float InFocus, int32 ParameterIndex,
 	return false;
 }
 
-const FImageCenterFocusPoint* FImageCenterTable::GetFocusPoint(float InFocus) const
+const FImageCenterFocusPoint* FImageCenterTable::GetFocusPoint(float InFocus, float InputTolerance) const
 {
-	return FocusPoints.FindByPredicate([InFocus](const FImageCenterFocusPoint& Points) { return FMath::IsNearlyEqual(Points.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FImageCenterFocusPoint& Points) { return FMath::IsNearlyEqual(Points.Focus, InFocus, InputTolerance); });
 }
 
-FImageCenterFocusPoint* FImageCenterTable::GetFocusPoint(float InFocus)
+FImageCenterFocusPoint* FImageCenterTable::GetFocusPoint(float InFocus, float InputTolerance)
 {
-	return FocusPoints.FindByPredicate([InFocus](const FImageCenterFocusPoint& Points) { return FMath::IsNearlyEqual(Points.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FImageCenterFocusPoint& Points) { return FMath::IsNearlyEqual(Points.Focus, InFocus, InputTolerance); });
 }
 
 TConstArrayView<FImageCenterFocusPoint> FImageCenterTable::GetFocusPoints() const
@@ -210,7 +210,7 @@ bool FImageCenterTable::AddPoint(float InFocus, float InZoom, const FImageCenter
 
 bool FImageCenterTable::GetPoint(const float InFocus, const float InZoom, FImageCenterInfo& OutData, float InputTolerance) const
 {
-	if (const FImageCenterFocusPoint* FocalLengthFocusPoint = GetFocusPoint(InFocus))
+	if (const FImageCenterFocusPoint* FocalLengthFocusPoint = GetFocusPoint(InFocus, InputTolerance))
 	{
 		FImageCenterInfo ImageCenterInfo;
 		if (FocalLengthFocusPoint->GetPoint(InZoom, ImageCenterInfo, InputTolerance))

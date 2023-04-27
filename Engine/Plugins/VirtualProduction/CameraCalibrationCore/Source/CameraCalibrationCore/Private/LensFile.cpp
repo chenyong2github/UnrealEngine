@@ -1037,27 +1037,27 @@ TArray<FNodalOffsetPointInfo> ULensFile::GetNodalOffsetPoints() const
 
 bool ULensFile::GetDistortionPoint(const float InFocus, const float InZoom, FDistortionInfo& OutDistortionInfo) const
 {
-	return DistortionTable.GetPoint(InFocus, InZoom, OutDistortionInfo);
+	return DistortionTable.GetPoint(InFocus, InZoom, OutDistortionInfo, InputTolerance);
 }
 
 bool ULensFile::GetFocalLengthPoint(const float InFocus, const float InZoom, FFocalLengthInfo& OutFocalLengthInfo) const
 {
-	return FocalLengthTable.GetPoint(InFocus, InZoom, OutFocalLengthInfo);
+	return FocalLengthTable.GetPoint(InFocus, InZoom, OutFocalLengthInfo, InputTolerance);
 }
 
 bool ULensFile::GetImageCenterPoint(const float InFocus, const float InZoom, FImageCenterInfo& OutImageCenterInfo) const
 {
-	return ImageCenterTable.GetPoint(InFocus, InZoom, OutImageCenterInfo);
+	return ImageCenterTable.GetPoint(InFocus, InZoom, OutImageCenterInfo, InputTolerance);
 }
 
 bool ULensFile::GetNodalOffsetPoint(const float InFocus, const float InZoom, FNodalPointOffset& OutNodalPointOffset) const
 {
-	return NodalOffsetTable.GetPoint(InFocus, InZoom, OutNodalPointOffset);
+	return NodalOffsetTable.GetPoint(InFocus, InZoom, OutNodalPointOffset, InputTolerance);
 }
 
 bool ULensFile::GetSTMapPoint(const float InFocus, const float InZoom, FSTMapInfo& OutSTMapInfo) const
 {
-	return STMapTable.GetPoint(InFocus, InZoom, OutSTMapInfo);
+	return STMapTable.GetPoint(InFocus, InZoom, OutSTMapInfo, InputTolerance);
 }
 
 void ULensFile::AddDistortionPoint(float NewFocus, float NewZoom, const FDistortionInfo& NewDistortionPoint, const FFocalLengthInfo& NewFocalLength)

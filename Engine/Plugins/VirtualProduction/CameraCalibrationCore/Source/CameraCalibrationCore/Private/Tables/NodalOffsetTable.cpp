@@ -206,14 +206,14 @@ bool FNodalOffsetTable::BuildParameterCurve(float InFocus, int32 ParameterIndex,
 	return false;
 }
 
-const FNodalOffsetFocusPoint* FNodalOffsetTable::GetFocusPoint(float InFocus) const
+const FNodalOffsetFocusPoint* FNodalOffsetTable::GetFocusPoint(float InFocus, float InputTolerance) const
 {
-	return FocusPoints.FindByPredicate([InFocus](const FNodalOffsetFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FNodalOffsetFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus, InputTolerance); });
 }
 
-FNodalOffsetFocusPoint* FNodalOffsetTable::GetFocusPoint(float InFocus)
+FNodalOffsetFocusPoint* FNodalOffsetTable::GetFocusPoint(float InFocus, float InputTolerance)
 {
-	return FocusPoints.FindByPredicate([InFocus](const FNodalOffsetFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FNodalOffsetFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus, InputTolerance); });
 }
 
 TConstArrayView<FNodalOffsetFocusPoint> FNodalOffsetTable::GetFocusPoints() const
@@ -244,9 +244,9 @@ void FNodalOffsetTable::RemoveZoomPoint(float InFocus, float InZoom)
 	LensDataTableUtils::RemoveZoomPoint(FocusPoints, InFocus, InZoom);
 }
 
-bool FNodalOffsetTable::DoesFocusPointExists(float InFocus) const
+bool FNodalOffsetTable::DoesFocusPointExists(float InFocus, float InputTolerance) const
 {
-	if (GetFocusPoint(InFocus) != nullptr)
+	if (GetFocusPoint(InFocus, InputTolerance) != nullptr)
 	{
 		return true;
 	}
@@ -261,7 +261,7 @@ bool FNodalOffsetTable::AddPoint(float InFocus, float InZoom, const FNodalPointO
 
 bool FNodalOffsetTable::GetPoint(const float InFocus, const float InZoom, FNodalPointOffset& OutData, float InputTolerance) const
 {
-	if (const FNodalOffsetFocusPoint* NodalOffsetFocusPoint = GetFocusPoint(InFocus))
+	if (const FNodalOffsetFocusPoint* NodalOffsetFocusPoint = GetFocusPoint(InFocus, InputTolerance))
 	{
 		FNodalPointOffset NodalPointOffset;
 		if (NodalOffsetFocusPoint->GetPoint(InZoom, NodalPointOffset, InputTolerance))

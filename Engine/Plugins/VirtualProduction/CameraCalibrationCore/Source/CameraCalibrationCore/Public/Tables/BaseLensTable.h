@@ -82,7 +82,7 @@ protected:
 	 * @param InFocus focus value to check
 	 * @return true if the point exists
 	 */
-	virtual bool DoesFocusPointExists(float InFocus) const PURE_VIRTUAL(FBaseLensTable::DoesFocusPointExists, return false; );
+	virtual bool DoesFocusPointExists(float InFocus, float InputTolerance = KINDA_SMALL_NUMBER) const PURE_VIRTUAL(FBaseLensTable::DoesFocusPointExists, return false; );
 
 	/**
 	 * Whether the zoom point exists

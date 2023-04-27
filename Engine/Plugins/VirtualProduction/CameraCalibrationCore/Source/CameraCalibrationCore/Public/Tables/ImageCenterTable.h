@@ -67,7 +67,7 @@ struct CAMERACALIBRATIONCORE_API FImageCenterTable : public FBaseLensTable
 protected:
 	//~ Begin FBaseDataTable Interface
 	virtual TMap<ELensDataCategory, FLinkPointMetadata> GetLinkedCategories() const override;
-	virtual bool DoesFocusPointExists(float InFocus) const override;
+	virtual bool DoesFocusPointExists(float InFocus, float InputTolerance = KINDA_SMALL_NUMBER) const override;
 	virtual bool DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance = KINDA_SMALL_NUMBER) const override;
 	virtual const FBaseFocusPoint* GetBaseFocusPoint(int32 InIndex) const override;
 	//~ End FBaseDataTable Interface
@@ -87,10 +87,10 @@ public:
 	bool BuildParameterCurve(float InFocus, int32 ParameterIndex, FRichCurve& OutCurve) const;
 	
 	/** Returns const point for a given focus */
-	const FImageCenterFocusPoint* GetFocusPoint(float InFocus) const;
+	const FImageCenterFocusPoint* GetFocusPoint(float InFocus, float InputTolerance = KINDA_SMALL_NUMBER) const;
 
 	/** Returns const point for a given focus */
-	FImageCenterFocusPoint* GetFocusPoint(float InFocus);
+	FImageCenterFocusPoint* GetFocusPoint(float InFocus, float InputTolerance = KINDA_SMALL_NUMBER);
 
 	/** Returns all focus points */
 	TConstArrayView<FImageCenterFocusPoint> GetFocusPoints() const;

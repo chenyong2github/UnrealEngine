@@ -183,14 +183,14 @@ bool FFocalLengthTable::BuildParameterCurve(float InFocus, int32 ParameterIndex,
 	return false;
 }
 
-const FFocalLengthFocusPoint* FFocalLengthTable::GetFocusPoint(float InFocus) const
+const FFocalLengthFocusPoint* FFocalLengthTable::GetFocusPoint(float InFocus, float InputTolerance) const
 {
-	return FocusPoints.FindByPredicate([InFocus](const FFocalLengthFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FFocalLengthFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus, InputTolerance); });
 }
 
-FFocalLengthFocusPoint* FFocalLengthTable::GetFocusPoint(float InFocus)
+FFocalLengthFocusPoint* FFocalLengthTable::GetFocusPoint(float InFocus, float InputTolerance)
 {
-	return FocusPoints.FindByPredicate([InFocus](const FFocalLengthFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
+	return FocusPoints.FindByPredicate([InFocus, InputTolerance](const FFocalLengthFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus, InputTolerance); });
 }
 
 TConstArrayView<FFocalLengthFocusPoint> FFocalLengthTable::GetFocusPoints() const
@@ -216,9 +216,9 @@ void FFocalLengthTable::RemoveZoomPoint(float InFocus, float InZoom)
 	LensDataTableUtils::RemoveZoomPoint(FocusPoints, InFocus, InZoom);
 }
 
-bool FFocalLengthTable::DoesFocusPointExists(float InFocus) const
+bool FFocalLengthTable::DoesFocusPointExists(float InFocus, float InputTolerance) const
 {
-	if (GetFocusPoint(InFocus) != nullptr)
+	if (GetFocusPoint(InFocus, InputTolerance) != nullptr)
 	{
 		return true;
 	}
@@ -233,7 +233,7 @@ bool FFocalLengthTable::AddPoint(float InFocus, float InZoom, const FFocalLength
 
 bool FFocalLengthTable::GetPoint(const float InFocus, const float InZoom, FFocalLengthInfo& OutData, float InputTolerance) const
 {
-	if (const FFocalLengthFocusPoint* FocalLengthFocusPoint = GetFocusPoint(InFocus))
+	if (const FFocalLengthFocusPoint* FocalLengthFocusPoint = GetFocusPoint(InFocus, InputTolerance))
 	{
 		FFocalLengthZoomPoint ZoomPont;
 		if (FocalLengthFocusPoint->GetPoint(InZoom, ZoomPont, InputTolerance))

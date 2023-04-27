@@ -74,7 +74,7 @@ bool FBaseLensTable::HasLinkedFocusValues(const float InFocus, float InputTolera
 			return false;
 		}
 
-		if (LinkDataTable->DoesFocusPointExists(InFocus))
+		if (LinkDataTable->DoesFocusPointExists(InFocus, InputTolerance))
 		{
 			return true;
 		}
