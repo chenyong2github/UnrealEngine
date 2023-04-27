@@ -413,6 +413,11 @@ FName GetActionNameFromLegacyRow(const FDataTableRowHandle& LegacyRow)
 
 FName FBindUIActionArgs::GetActionName() const
 {
+	if (InputAction.IsValid())
+	{
+		return InputAction->GetFName();
+	}
+	
 	return LegacyActionTableRow.IsNull() ? ActionTag.GetTagName() : GetActionNameFromLegacyRow(LegacyActionTableRow);
 }
 
