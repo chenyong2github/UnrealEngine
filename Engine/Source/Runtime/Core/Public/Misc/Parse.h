@@ -30,8 +30,18 @@ struct CORE_API FParse
 	static bool Value( const TCHAR* Stream, const TCHAR* Match, uint32& Value );
 	/** Parses a globally unique identifier. */
 	static bool Value( const TCHAR* Stream, const TCHAR* Match, struct FGuid& Guid );
-	/** Parses a string from a text string. */
-	static bool Value( const TCHAR* Stream, const TCHAR* Match, TCHAR* Value, int32 MaxLen, bool bShouldStopOnSeparator=true );
+	/** Parses a string from a text string. 
+	 * @param Stream, the string you want to extract the value from.
+	 * @param Match, the identifier for the value in the stream.
+	 * @param Value, the destination to the value to be extracted to.
+	 * @param MaxLen, the maximum size eof the string that can be extracted.
+	 * @param bShouldStopOnSeparator, (default = false) If this is true, and the value doesn't start with a '"'
+				then it may be truncated to ',' or ')' in addition to whitespace.
+	 * @param OptStreamGotTo, (default = nullptr) If this is not null, then its dereference is set to the address
+				of the end of the value within Stream. This permits consuming of stream in a loop where Match may
+				occur multiple times.
+	*/
+	static bool Value( const TCHAR* Stream, const TCHAR* Match, TCHAR* Value, int32 MaxLen, bool bShouldStopOnSeparator=true, const TCHAR** OptStreamGotTo = nullptr);
 	/** Parses a byte. */
 	static bool Value( const TCHAR* Stream, const TCHAR* Match, uint8& Value );
 	/** Parses a signed byte. */
@@ -46,8 +56,17 @@ struct CORE_API FParse
 	static bool Value(const TCHAR* Stream, const TCHAR* Match, double& Value);
 	/** Parses a signed double word. */
 	static bool Value( const TCHAR* Stream, const TCHAR* Match, int32& Value );
-	/** Parses a string. */
-	static bool Value( const TCHAR* Stream, const TCHAR* Match, FString& Value, bool bShouldStopOnSeparator =true );
+	/** Parses a string. 
+	 * @param Stream, the string you want to extract the value from.
+	 * @param Match, the identifier for the value in the stream.
+	 * @param Value, the destination to the value to be extracted to.
+	 * @param bShouldStopOnSeparator, (default = false) If this is true, and the value doesn't start with a '"'
+				then it may be truncated to ',' or ')' in addition to whitespace.
+	 * @param OptStreamGotTo, (default = nullptr) If this is not null, then its dereference is set to the address
+				of the end of the value within Stream. This permits consuming of stream in a loop where Match may
+				occur multiple times.
+	*/
+	static bool Value( const TCHAR* Stream, const TCHAR* Match, FString& Value, bool bShouldStopOnSeparator =true, const TCHAR** OptStreamGotTo = nullptr);
 	/** Parses an FText. */
 	static bool Value( const TCHAR* Stream, const TCHAR* Match, FText& Value, const TCHAR* Namespace = NULL );
 	/** Parses a quadword. */

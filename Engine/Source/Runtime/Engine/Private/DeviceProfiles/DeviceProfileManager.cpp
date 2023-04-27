@@ -472,22 +472,27 @@ void UDeviceProfileManager::SetDeviceProfileCVars(const FString& DeviceProfileNa
 	}
 #endif
 	// pre-apply any -dpcvars= items, so that they override anything in the DPs
-	FString DPCVarString;
-	if (FParse::Value(FCommandLine::Get(), TEXT("DPCVars="), DPCVarString, false) || FParse::Value(FCommandLine::Get(), TEXT("DPCVar="), DPCVarString, false))
+	// Search for all occurrences of dpcvars and dpcvar on the command line.
+	static const TCHAR* DPCVarTags[]{ TEXT("DPCVars="), TEXT("DPCVar=") };
+	for (const TCHAR* Tag : DPCVarTags)
 	{
-		// look over a list of cvars
-		TArray<FString> DPCVars;
-		DPCVarString.ParseIntoArray(DPCVars, TEXT(","), true);
-		for (const FString& DPCVar : DPCVars)
+		FString DPCVarString;
+		for (const TCHAR* Cursor = FCommandLine::Get(); (Cursor != nullptr) && FParse::Value(Cursor, Tag, DPCVarString, false, &Cursor);)
 		{
-			// split up each Key=Value pair
-			FString CVarKey, CVarValue;
-			if (DPCVar.Split(TEXT("="), &CVarKey, &CVarValue))
+			// look over a list of cvars
+			TArray<FString> DPCVars;
+			DPCVarString.ParseIntoArray(DPCVars, TEXT(","), true);
+			for (const FString& DPCVar : DPCVars)
 			{
-				UE_LOG(LogDeviceProfileManager, Log, TEXT("Setting CommandLine Device Profile CVar: [[%s:%s]]"), *CVarKey, *CVarValue);
+				// split up each Key=Value pair
+				FString CVarKey, CVarValue;
+				if (DPCVar.Split(TEXT("="), &CVarKey, &CVarValue))
+				{
+					UE_LOG(LogDeviceProfileManager, Log, TEXT("Setting CommandLine Device Profile CVar: [[%s:%s]]"), *CVarKey, *CVarValue);
 
-				// set it and remember it (no thanks, Ron Popeil)
-				UE::ConfigUtilities::OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, ECVF_SetByDeviceProfile);
+					// set it and remember it (no thanks, Ron Popeil)
+					UE::ConfigUtilities::OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, ECVF_SetByDeviceProfile);
+				}
 			}
 		}
 	}

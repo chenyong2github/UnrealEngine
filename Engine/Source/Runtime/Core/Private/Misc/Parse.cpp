@@ -234,11 +234,17 @@ bool FParse::Value(
 	const TCHAR*	Match,
 	TCHAR*			Value,
 	int32			MaxLen,
-	bool			bShouldStopOnSeparator
+	bool			bShouldStopOnSeparator,
+	const TCHAR**	OptStreamGotTo
 )
 {
 	bool bSuccess = false;
 	int32 MatchLen = FCString::Strlen(Match);
+
+	if (OptStreamGotTo)
+	{
+		*OptStreamGotTo = nullptr;
+	}
 
 	for (const TCHAR* Found = FCString::Strifind(Stream, Match, true); Found != nullptr; Found = FCString::Strifind(Found + MatchLen, Match, true))
 	{
@@ -282,6 +288,11 @@ bool FParse::Value(
 			}
 		}
 
+		if (OptStreamGotTo) 
+		{
+			*OptStreamGotTo = Start + FCString::Strlen(Value);
+		}
+
 		bSuccess = true;
 		break;
 	}
@@ -318,7 +329,7 @@ bool FParse::Param( const TCHAR* Stream, const TCHAR* Param )
 // 
 // Parse a string.
 //
-bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, FString& Value, bool bShouldStopOnSeparator )
+bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, FString& Value, bool bShouldStopOnSeparator, const TCHAR** OptStreamGotTo)
 {
 	if (!Stream)
 	{
@@ -332,7 +343,7 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, FString& Value, boo
 		ValueCharArray.AddUninitialized(StreamLen + 1);
 		ValueCharArray[0] = TCHAR('\0');
 
-		if( FParse::Value(Stream, Match, ValueCharArray.GetData(), ValueCharArray.Num(), bShouldStopOnSeparator) )
+		if( FParse::Value(Stream, Match, ValueCharArray.GetData(), ValueCharArray.Num(), bShouldStopOnSeparator, OptStreamGotTo) )
 		{
 			Value = FString(ValueCharArray.GetData());
 			return true;
