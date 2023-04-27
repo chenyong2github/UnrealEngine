@@ -1642,10 +1642,12 @@ void SLevelViewport::BindShowCommands( FUICommandList& OutCommandList )
 
 	// Show Stat Categories
 	{
+#if STATS
 		// Map 'Hide All' command
 		OutCommandList.MapAction(
 			LevelViewportCommands.HideAllStats,
 			FExecuteAction::CreateSP(this, &SLevelViewport::OnToggleAllStatCommands, false));
+#endif
 
 		for (auto StatCatIt = LevelViewportCommands.ShowStatCatCommands.CreateConstIterator(); StatCatIt; ++StatCatIt)
 		{
