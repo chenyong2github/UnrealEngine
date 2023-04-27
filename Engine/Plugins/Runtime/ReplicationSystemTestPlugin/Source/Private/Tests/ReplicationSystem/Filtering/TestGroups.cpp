@@ -70,7 +70,7 @@ protected:
 
 		// Look if the client received the object as expected
 		UObject* ClientObject = Client->GetReplicationBridge()->GetReplicatedObject(Handle);
-		UE_NET_ASSERT_EQ(ClientObject!=nullptr, bExpectedReplicationAllowed);
+		UE_NET_ASSERT_EQ((ClientObject!=nullptr), bExpectedReplicationAllowed);
 	}
 };
 
