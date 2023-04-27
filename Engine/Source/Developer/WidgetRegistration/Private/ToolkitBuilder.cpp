@@ -321,6 +321,9 @@ void FToolkitBuilder::TogglePalette(TSharedPtr<FToolPalette> Palette)
 	}
 	
 	CreatePalette(Palette);
+
+	// active palette has changed
+	OnActivePaletteChanged.Broadcast();
 }
 
 void FToolkitBuilder::CreatePalette(TSharedPtr<FToolPalette> Palette)

@@ -67,7 +67,7 @@ struct WIDGETREGISTRATION_API FEditablePalette : public FToolPalette
 
 	/** Delegate used by FToolkitBuilder that is called when an item is added/removed from the palette */
 	FSimpleDelegate OnPaletteEdited;
-	
+
 	/**
 	 * Given a reference to a FUICommandInfo, returns whether it is in the current Palette
 	 *
@@ -254,6 +254,12 @@ public:
 	 * @param CommandName the name of the FUICommandInfo we are checking to see if it is the active tool palette
 	 */
 	ECheckBoxState IsActiveToolPalette(FName CommandName) const;
+
+	/** 
+	 * OnActivePaletteChanged is broadcast when the active palette changes to a different palette 
+	 */
+	FSimpleMulticastDelegate OnActivePaletteChanged;
+
 
 	void SetActiveToolDisplayName(FText InActiveToolDisplayName);
 
