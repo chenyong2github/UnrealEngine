@@ -63,6 +63,9 @@ public:
 	UPROPERTY()
 	bool bCanBeModified;
 
+	UPROPERTY()
+	bool bHasCookedPackages;
+
 	UPROPERTY(BlueprintReadOnly, Category = ContentBrowser)
 	bool bContainsUnsupportedAssets = true;
 
