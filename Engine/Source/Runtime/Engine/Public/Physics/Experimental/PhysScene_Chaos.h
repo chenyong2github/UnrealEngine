@@ -275,7 +275,7 @@ private:
 	TArray<FCollisionNotifyInfo> PendingCollisionNotifies;
 
 	// Chaos Event Handlers
-	void HandleEachCollisionEvent(const TArray<int32>& CollisionIndices, IPhysicsProxyBase* PhysicsProxy0, Chaos::FCollisionDataArray const& CollisionData, Chaos::FReal MinDeltaVelocityThreshold);
+	void HandleEachCollisionEvent(const TArray<int32>& CollisionIndices, IPhysicsProxyBase* PhysicsProxy0, UPrimitiveComponent* const Comp0, Chaos::FCollisionDataArray const& CollisionData, Chaos::FReal MinDeltaVelocityThreshold);
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
 
 	void DispatchPendingCollisionNotifies();
