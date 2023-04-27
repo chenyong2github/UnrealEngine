@@ -386,7 +386,7 @@ class ENHANCEDINPUT_API UInputTriggerChordAction : public UInputTrigger
 	GENERATED_BODY()
 public:
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
 protected:
@@ -478,7 +478,7 @@ protected:
 public:
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
 #if  WITH_EDITORONLY_DATA

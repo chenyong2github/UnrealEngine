@@ -29,7 +29,7 @@ class ENHANCEDINPUT_API UPlayerMappableInputConfig : public UPrimaryDataAsset
 public:
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif // WITH_EDITOR
 
 	/** Iterate all the player mappable keys in this config in the default input mapping contexts */

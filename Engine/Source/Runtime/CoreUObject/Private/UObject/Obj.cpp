@@ -5221,8 +5221,18 @@ EDataValidationResult UObject::IsDataValid(TArray<FText>& ValidationErrors)
 
 EDataValidationResult UObject::IsDataValid(FDataValidationContext& Context)
 {
+	// Call the const version
+	return const_cast<const UObject*>(this)->IsDataValid(Context);
+}
+
+EDataValidationResult UObject::IsDataValid(FDataValidationContext& Context) const
+{
 	TArray<FText> ValidationErrors;
-	const EDataValidationResult Result = IsDataValid(ValidationErrors);
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Call the old deprecated TArray<FText> version
+	const EDataValidationResult Result = const_cast<UObject*>(this)->IsDataValid(ValidationErrors);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	for (const FText& Text : ValidationErrors)
 	{

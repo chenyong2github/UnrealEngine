@@ -13,6 +13,10 @@
 #include "GameFramework/Pawn.h"
 #include "Input/LyraMappableConfigPair.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddInputConfig)
 
 #define LOCTEXT_NAMESPACE "GameFeatures_AddInputConfig"
@@ -67,9 +71,9 @@ void UGameFeatureAction_AddInputConfig::OnGameFeatureDeactivating(FGameFeatureDe
 }
 
 #if WITH_EDITOR
-EDataValidationResult UGameFeatureAction_AddInputConfig::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UGameFeatureAction_AddInputConfig::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	int32 EntryIndex = 0;
 	for (const FMappableConfigPair& Pair : InputConfigs)
@@ -77,7 +81,7 @@ EDataValidationResult UGameFeatureAction_AddInputConfig::IsDataValid(TArray<FTex
 		if (Pair.Config.IsNull())
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("NullConfigPointer", "Null Config pointer at index {0} in Pair list"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("NullConfigPointer", "Null Config pointer at index {0} in Pair list"), FText::AsNumber(EntryIndex)));
 		}
 
 		++EntryIndex;

@@ -105,7 +105,7 @@ public:
 	static void RemoveObjectRedirectorIfPresent(UObject* Package, const FString& ClassName, UObject* ObjectBeingMovedIn);
 
 	/* checks if enum variables from given object store proper indexes */
-	static void ValidateEnumProperties(UObject* DefaultObject, FCompilerResultsLog& MessageLog);
+	static void ValidateEnumProperties(const UObject* DefaultObject, FCompilerResultsLog& MessageLog);
 
 	/** checks if the specified pin can default to self */
 	static bool ValidateSelfCompatibility(const UEdGraphPin* Pin, FKismetFunctionContext& Context);

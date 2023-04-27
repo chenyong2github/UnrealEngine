@@ -102,7 +102,7 @@ class UInputModifierScalar : public UInputModifier
 public:
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
 	// TODO: Detail customization to only show modifiable axes for the relevant binding? This thing has no idea what it's bound to...

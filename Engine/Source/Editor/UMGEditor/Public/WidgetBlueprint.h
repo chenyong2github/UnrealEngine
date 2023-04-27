@@ -282,8 +282,8 @@ public:
 #if WITH_EDITOR
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual void NotifyGraphRenamed(class UEdGraph* Graph, FName OldName, FName NewName) override;
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
-	bool DetectSlateWidgetLeaks(TArray<FText>& ValidationErrors);
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+	bool DetectSlateWidgetLeaks(class FDataValidationContext& Context) const;
 	virtual bool FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const override;
 #endif
 

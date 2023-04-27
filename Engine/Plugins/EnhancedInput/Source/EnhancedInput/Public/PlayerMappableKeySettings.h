@@ -23,7 +23,7 @@ public:
 	virtual FName GetMappingName() const { return Name; }
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+	EDataValidationResult IsDataValid(class FDataValidationContext& Context) const;
 
 	/**
 	 * Get the known mapping names that are current in use. This is a helper function if you want to use a "GetOptions" metadata on a UPROPERTY.

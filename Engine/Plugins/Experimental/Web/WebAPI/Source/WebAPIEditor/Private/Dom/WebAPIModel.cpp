@@ -6,6 +6,10 @@
 #include "Dom/WebAPIEnum.h"
 #include "Dom/WebAPIType.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "WebAPIModel"
 
 bool UWebAPIProperty::IsRequired() const
@@ -62,13 +66,13 @@ FString UWebAPIProperty::GetDefaultValue(bool bQualified) const
 }
 
 #if WITH_EDITOR
-EDataValidationResult UWebAPIProperty::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWebAPIProperty::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	if(Name.ToString(true).IsEmpty())
 	{
-		ValidationErrors.Add(LOCTEXT("Missing_Name", "Property missing name"));
+		Context.AddError(LOCTEXT("Missing_Name", "Property missing name"));
 		ValidationResult = EDataValidationResult::Invalid;
 	}
 
@@ -129,13 +133,13 @@ void UWebAPIModel::AppendCodeText(const FString& InCodeText)
 	GeneratedCodeText += TEXT("\n") + InCodeText;
 }
 
-EDataValidationResult UWebAPIModel::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWebAPIModel::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	if(Name.ToString(true).IsEmpty())
 	{
-		ValidationErrors.Add(LOCTEXT("Missing_Model_Name", "Model missing name"));
+		Context.AddError(LOCTEXT("Missing_Model_Name", "Model missing name"));
 		ValidationResult = EDataValidationResult::Invalid;
 	}
 

@@ -66,7 +66,7 @@ public:
 	 * Allow each Gameplay Effect Component to validate its own data.  Any warnings/errors will immediately show up in the Gameplay Effect when in Editor.
 	 * The default implementation ensures we only have a single type of any given class.  Override this function to change that functionality and use Super::Super::IsDataValid if needed.
 	 */
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
 protected:

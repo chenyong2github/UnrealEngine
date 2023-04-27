@@ -20,6 +20,10 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "WebAPIDefinition.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "WebAPIDefinitionAssetEditorToolkit"
 
 // Main details tab
@@ -232,8 +236,8 @@ void FWebAPIDefinitionAssetEditorToolkit::Generate() const
 	}
 
 	// Don't generate if the schema is invalid
-	TArray<FText> ValidationErrors;
-	if(Definition->GetWebAPISchema()->IsDataValid(ValidationErrors) == EDataValidationResult::Invalid)
+	FDataValidationContext Context;
+	if(Definition->GetWebAPISchema()->IsDataValid(Context) == EDataValidationResult::Invalid)
 	{
 		Definition->GetWebAPISchema()->GetMessageLog()->LogWarning(LOCTEXT("SchemaInvalid", "There are one or more validation errors in the asset, cannot Generate code."), LogName);
 		return;

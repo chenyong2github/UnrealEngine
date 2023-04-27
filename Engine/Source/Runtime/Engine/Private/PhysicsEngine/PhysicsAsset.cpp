@@ -800,12 +800,12 @@ void UPhysicsAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	RefreshPhysicsAssetChange();
 }
 
-EDataValidationResult UPhysicsAsset::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UPhysicsAsset::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = EDataValidationResult::Valid;
 	for (USkeletalBodySetup* BodySetup : SkeletalBodySetups)
 	{
-		Result = CombineDataValidationResults(Result, BodySetup->IsDataValid(ValidationErrors));
+		Result = CombineDataValidationResults(Result, BodySetup->IsDataValid(Context));
 	}
 	return Result;
 }

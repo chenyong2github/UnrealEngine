@@ -24,6 +24,10 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "K2Node_WebAPIAsyncOperation"
 
 namespace UE::WebAPI::Private
@@ -710,13 +714,13 @@ bool UK2Node_WebAPIOperation::IsValid() const
 }
 
 #if WITH_EDITOR
-EDataValidationResult UK2Node_WebAPIOperation::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UK2Node_WebAPIOperation::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 	
 	if(OperationClass == nullptr)
 	{
-		ValidationErrors.Add(LOCTEXT("Missing_OperationClass", "OperationClass is invalid or missing"));
+		Context.AddError(LOCTEXT("Missing_OperationClass", "OperationClass is invalid or missing"));
 		ValidationResult = EDataValidationResult::Invalid;
 	}
 

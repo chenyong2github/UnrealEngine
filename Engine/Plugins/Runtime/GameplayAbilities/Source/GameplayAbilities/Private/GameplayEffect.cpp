@@ -132,7 +132,7 @@ void UGameplayEffect::GetBlockedAbilityTags(FGameplayTagContainer& OutTagContain
 }
 
 #if WITH_EDITOR
-EDataValidationResult UGameplayEffect::IsDataValid(FDataValidationContext& Context)
+EDataValidationResult UGameplayEffect::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult ValidationResult = Super::IsDataValid(Context);
 

@@ -6,6 +6,7 @@
 #if WITH_EDITOR
 #include "EdGraph/EdGraph.h"
 #include "Engine/Blueprint.h"
+#include "Misc/DataValidation.h"
 #include "UObject/ObjectSaveContext.h"
 #endif
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -71,9 +72,9 @@ void UConversationDatabase::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	Super::PreSave(ObjectSaveContext);
 }
 
-EDataValidationResult UConversationDatabase::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UConversationDatabase::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult SuperResult = Super::IsDataValid(ValidationErrors);
+	EDataValidationResult SuperResult = Super::IsDataValid(Context);
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
@@ -88,7 +89,7 @@ EDataValidationResult UConversationDatabase::IsDataValid(TArray<FText>& Validati
 		const TSet<FName>* CookedAssetTagsForConversations = SaveOptions.CookFilterlistTagsByClass.Find(UConversationDatabase::StaticClass()->GetClassPathName());
 		if (CookedAssetTagsForConversations == nullptr || !CookedAssetTagsForConversations->Contains(GET_MEMBER_NAME_CHECKED(UConversationDatabase, EntryTags)))
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("Missing_EntryTags", "Missing from DefaultEngine.ini, {0}"),
+			Context.AddError(FText::Format(LOCTEXT("Missing_EntryTags", "Missing from DefaultEngine.ini, {0}"),
 				FText::FromString(TEXT("+CookedTagsWhitelist=(Class=ConversationDatabase,Tag=EntryTags)")))
 			);
 
@@ -96,7 +97,7 @@ EDataValidationResult UConversationDatabase::IsDataValid(TArray<FText>& Validati
 		}
 		if (CookedAssetTagsForConversations == nullptr || !CookedAssetTagsForConversations->Contains(GET_MEMBER_NAME_CHECKED(UConversationDatabase, ExitTags)))
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("Missing_ExitTags", "Missing from DefaultEngine.ini, {0}"),
+			Context.AddError(FText::Format(LOCTEXT("Missing_ExitTags", "Missing from DefaultEngine.ini, {0}"),
 				FText::FromString(TEXT("+CookedTagsWhitelist=(Class=ConversationDatabase,Tag=ExitTags)")))
 			);
 
@@ -104,7 +105,7 @@ EDataValidationResult UConversationDatabase::IsDataValid(TArray<FText>& Validati
 		}
 		if (CookedAssetTagsForConversations == nullptr || !CookedAssetTagsForConversations->Contains(GET_MEMBER_NAME_CHECKED(UConversationDatabase, InternalNodeIds)))
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("Missing_InternalNodeIds", "Missing from DefaultEngine.ini, {0}"),
+			Context.AddError(FText::Format(LOCTEXT("Missing_InternalNodeIds", "Missing from DefaultEngine.ini, {0}"),
 				FText::FromString(TEXT("+CookedTagsWhitelist=(Class=ConversationDatabase,Tag=InternalNodeIds)")))
 			);
 
@@ -112,7 +113,7 @@ EDataValidationResult UConversationDatabase::IsDataValid(TArray<FText>& Validati
 		}
 		if (CookedAssetTagsForConversations == nullptr || !CookedAssetTagsForConversations->Contains(GET_MEMBER_NAME_CHECKED(UConversationDatabase, LinkedToNodeIds)))
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("Missing_LinkedToNodeIds", "Missing from DefaultEngine.ini, {0}"),
+			Context.AddError(FText::Format(LOCTEXT("Missing_LinkedToNodeIds", "Missing from DefaultEngine.ini, {0}"),
 				FText::FromString(TEXT("+CookedTagsWhitelist=(Class=ConversationDatabase,Tag=LinkedToNodeIds)")))
 			);
 

@@ -8,6 +8,10 @@
 #include "DataRegistrySubsystem.h"
 #include "Engine/DataTable.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_DataRegistrySource)
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
@@ -225,28 +229,28 @@ void UGameFeatureAction_DataRegistrySource::AddAdditionalAssetBundleData(FAssetB
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-EDataValidationResult UGameFeatureAction_DataRegistrySource::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UGameFeatureAction_DataRegistrySource::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	int32 EntryIndex = 0;
 	for (const FDataRegistrySourceToAdd& Entry : SourcesToAdd)
 	{
 		if (Entry.CurveTableToAdd.IsNull() && Entry.DataTableToAdd.IsNull())
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("DataRegistrySourceMissingSource", "No valid data table or curve table specified at index {0} in SourcesToAdd"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("DataRegistrySourceMissingSource", "No valid data table or curve table specified at index {0} in SourcesToAdd"), FText::AsNumber(EntryIndex)));
 			Result = EDataValidationResult::Invalid;
 		}
 
 		if (Entry.bServerSource == false && Entry.bClientSource == false)
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("DataRegistrySourceNeverUsed", "Source not specified to load on either client or server, it will be unused at index {0} in SourcesToAdd"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("DataRegistrySourceNeverUsed", "Source not specified to load on either client or server, it will be unused at index {0} in SourcesToAdd"), FText::AsNumber(EntryIndex)));
 			Result = EDataValidationResult::Invalid;
 		}
 
 		if (Entry.RegistryToAddTo.IsNone())
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("DataRegistrySourceInvalidRegistry", "Source specified an invalid name (NONE) as the target registry at index {0} in SourcesToAdd"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("DataRegistrySourceInvalidRegistry", "Source specified an invalid name (NONE) as the target registry at index {0} in SourcesToAdd"), FText::AsNumber(EntryIndex)));
 			Result = EDataValidationResult::Invalid;
 		}
 

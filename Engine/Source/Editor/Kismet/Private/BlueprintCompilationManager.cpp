@@ -29,6 +29,7 @@
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "KismetCompiler.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/DataValidation.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Serialization/ArchiveHasReferences.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
@@ -1641,19 +1642,27 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 						if (CompilerData.ShouldValidateClassDefaultObject())
 						{
 							// Our CDO should be properly constructed by this point and should always exist
-							UObject* ClassDefaultObject = BP->GeneratedClass->GetDefaultObject(false);
+							const UObject* ClassDefaultObject = BP->GeneratedClass->GetDefaultObject(false);
 							if (ensureAlways(ClassDefaultObject))
 							{
 								FKismetCompilerUtilities::ValidateEnumProperties(ClassDefaultObject, *CompilerData.ActiveResultsLog);
 
 								// Make sure any class-specific validation passes on the CDO
-								TArray<FText> ValidationErrors;
-								EDataValidationResult ValidateCDOResult = ClassDefaultObject->IsDataValid(/*out*/ ValidationErrors);
-								if (ValidateCDOResult == EDataValidationResult::Invalid)
+								FDataValidationContext Context;
+								EDataValidationResult ValidateCDOResult = ClassDefaultObject->IsDataValid(/*out*/ Context);
+								if (Context.GetNumErrors() + Context.GetNumWarnings() > 0)
 								{
-									for (const FText& ValidationError : ValidationErrors)
+									TArray<FText> Warnings, Errors;
+									Context.SplitIssues(Warnings, Errors);
+
+									for (const FText& Warning : Warnings)
 									{
-										CompilerData.ActiveResultsLog->Error(*ValidationError.ToString());
+										CompilerData.ActiveResultsLog->Warning(*Warning.ToString());
+									}
+
+									for (const FText& Error : Errors)
+									{
+										CompilerData.ActiveResultsLog->Error(*Error.ToString());
 									}
 								}
 

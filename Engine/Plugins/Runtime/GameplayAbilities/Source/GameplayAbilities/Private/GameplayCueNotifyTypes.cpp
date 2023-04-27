@@ -21,6 +21,7 @@
 #include "GameFramework/InputDeviceSubsystem.h"
 #include "GameFramework/InputDeviceProperties.h"
 #include "Sound/SoundWaveProcedural.h"
+#include "Misc/DataValidation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueNotifyTypes)
 
@@ -439,14 +440,14 @@ bool FGameplayCueNotify_ParticleInfo::PlayParticleEffect(const FGameplayCueNotif
 	return (SpawnedFXSC != nullptr);
 }
 
-void FGameplayCueNotify_ParticleInfo::ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
+void FGameplayCueNotify_ParticleInfo::ValidateBurstAssets(const UObject* ContainingAsset, const FString& Context, FDataValidationContext& ValidationContext) const
 {
 #if WITH_EDITORONLY_DATA
 	if (NiagaraSystem != nullptr)
 	{
 		if (NiagaraSystem->IsLooping())
 		{
-			ValidationErrors.Add(FText::Format(
+			ValidationContext.AddError(FText::Format(
 				LOCTEXT("NiagaraSystem_ShouldNotLoop", "Niagara system [{0}] used in slot [{1}] for asset [{2}] is set to looping, but the slot is a one-shot (the instance will leak)."),
 				FText::AsCultureInvariant(NiagaraSystem->GetPathName()),
 				FText::AsCultureInvariant(Context),
@@ -534,14 +535,14 @@ bool FGameplayCueNotify_SoundInfo::PlaySound(const FGameplayCueNotify_SpawnConte
 	return bSoundPlayed;
 }
 
-void FGameplayCueNotify_SoundInfo::ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
+void FGameplayCueNotify_SoundInfo::ValidateBurstAssets(const UObject* ContainingAsset, const FString& Context, FDataValidationContext& ValidationContext) const
 {
 #if WITH_EDITORONLY_DATA
 	if (Sound != nullptr)
 	{
 		if (!Sound->IsOneShot())
 		{
-			ValidationErrors.Add(FText::Format(
+			ValidationContext.AddError(FText::Format(
 				LOCTEXT("SoundCue_ShouldNotLoop", "Sound [{0}] used in slot [{1}] for asset [{2}] is not a one-shot, but the slot is a one-shot (the instance will be orphaned)."),
 				FText::AsCultureInvariant(Sound->GetPathName()),
 				FText::AsCultureInvariant(Context),
@@ -640,7 +641,7 @@ bool FGameplayCueNotify_CameraShakeInfo::PlayCameraShake(const FGameplayCueNotif
 	return (OutSpawnResult.CameraShakes.Num() > 0);
 }
 
-void FGameplayCueNotify_CameraShakeInfo::ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
+void FGameplayCueNotify_CameraShakeInfo::ValidateBurstAssets(const UObject* ContainingAsset, const FString& Context, FDataValidationContext& ValidationContext) const
 {
 #if WITH_EDITORONLY_DATA
 	if (CameraShake != nullptr)
@@ -650,7 +651,7 @@ void FGameplayCueNotify_CameraShakeInfo::ValidateBurstAssets(UObject* Containing
 		CameraShakeCDO->GetShakeInfo(CameraShakeInfo);
 		if (CameraShakeInfo.Duration.IsInfinite())
 		{
-			ValidationErrors.Add(FText::Format(
+			ValidationContext.AddError(FText::Format(
 				LOCTEXT("CameraShake_ShouldNotLoop", "Camera shake [{0}] used in slot [{1}] for asset [{2}] will oscillate forever, but the slot is a one-shot (the instance will leak)."),
 				FText::AsCultureInvariant(CameraShake->GetPathName()),
 				FText::AsCultureInvariant(Context),
@@ -744,7 +745,7 @@ bool FGameplayCueNotify_CameraLensEffectInfo::PlayCameraLensEffect(const FGamepl
 	return (OutSpawnResult.CameraLensEffects.Num() > 0);
 }
 
-void FGameplayCueNotify_CameraLensEffectInfo::ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
+void FGameplayCueNotify_CameraLensEffectInfo::ValidateBurstAssets(const UObject* ContainingAsset, const FString& Context, FDataValidationContext& ValidationContext) const
 {
 #if WITH_EDITORONLY_DATA
 	if (CameraLensEffect != nullptr)
@@ -753,7 +754,7 @@ void FGameplayCueNotify_CameraLensEffectInfo::ValidateBurstAssets(UObject* Conta
 		{
 			if (CameraLensEffectCDO->IsLooping())
 			{
-				ValidationErrors.Add(FText::Format(
+				ValidationContext.AddError(FText::Format(
 					LOCTEXT("CameraLensEffect_ShouldNotLoop", "Camera lens effect [{0}] used in slot [{1}] for asset [{2}] is set to looping, but the slot is a one-shot (the instance will leak)."),
 					FText::AsCultureInvariant(CameraLensEffect->GetPathName()),
 					FText::AsCultureInvariant(Context),
@@ -878,14 +879,14 @@ bool FGameplayCueNotify_InputDevicePropertyInfo::SetDeviceProperties(const FGame
 	return false;
 }
 
-void FGameplayCueNotify_InputDevicePropertyInfo::ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
+void FGameplayCueNotify_InputDevicePropertyInfo::ValidateBurstAssets(const UObject* ContainingAsset, const FString& Context, FDataValidationContext& ValidationContext) const
 {
 #if WITH_EDITORONLY_DATA
 	for (const TSubclassOf<UInputDeviceProperty> PropClass : DeviceProperties)
 	{
 		if (!PropClass)
 		{
-			ValidationErrors.Add(FText::Format(
+			ValidationContext.AddError(FText::Format(
 				LOCTEXT("InputDeviceProperty_ShouldNotBeNull", "There is a null device property class used in slot [{0}] for asset [{1}]."),
 				FText::AsCultureInvariant(Context),
 				FText::AsCultureInvariant(ContainingAsset->GetPathName())));
@@ -894,14 +895,14 @@ void FGameplayCueNotify_InputDevicePropertyInfo::ValidateBurstAssets(UObject* Co
 #endif
 }
 
-void FGameplayCueNotify_ForceFeedbackInfo::ValidateBurstAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
+void FGameplayCueNotify_ForceFeedbackInfo::ValidateBurstAssets(const UObject* ContainingAsset, const FString& Context, FDataValidationContext& ValidationContext) const
 {
 #if WITH_EDITORONLY_DATA
 	if (ForceFeedbackEffect)
 	{
 		if (bIsLooping)
 		{
-			ValidationErrors.Add(FText::Format(
+			ValidationContext.AddError(FText::Format(
 				LOCTEXT("ForceFeedback_ShouldNotLoop", "Force feedback effect [{0}] used in slot [{1}] for asset [{2}] is set to looping, but the slot is a one-shot (the instance will leak)."),
 				FText::AsCultureInvariant(ForceFeedbackEffect->GetPathName()),
 				FText::AsCultureInvariant(Context),
@@ -1020,22 +1021,22 @@ void FGameplayCueNotify_BurstEffects::ExecuteEffects(const FGameplayCueNotify_Sp
 	BurstDecal.SpawnDecal(SpawnContext, OutSpawnResult);
 }
 
-void FGameplayCueNotify_BurstEffects::ValidateAssociatedAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
+void FGameplayCueNotify_BurstEffects::ValidateAssociatedAssets(const UObject* ContainingAsset, const FString& Context, FDataValidationContext& ValidationContext) const
 {
 	for (const FGameplayCueNotify_ParticleInfo& ParticleInfo : BurstParticles)
 	{
-		ParticleInfo.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstParticles"), ValidationErrors);
+		ParticleInfo.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstParticles"), ValidationContext);
 	}
 
 	for (const FGameplayCueNotify_SoundInfo& SoundInfo : BurstSounds)
 	{
-		SoundInfo.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstSounds"), ValidationErrors);
+		SoundInfo.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstSounds"), ValidationContext);
 	}
 
-	BurstCameraShake.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstCameraShake"), ValidationErrors);
-	BurstCameraLensEffect.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstCameraLensEffect"), ValidationErrors);
-	BurstForceFeedback.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstForceFeedback"), ValidationErrors);
-	BurstDevicePropertyEffect.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstDevicePropertyEffect"), ValidationErrors);
+	BurstCameraShake.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstCameraShake"), ValidationContext);
+	BurstCameraLensEffect.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstCameraLensEffect"), ValidationContext);
+	BurstForceFeedback.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstForceFeedback"), ValidationContext);
+	BurstDevicePropertyEffect.ValidateBurstAssets(ContainingAsset, Context + TEXT(".BurstDevicePropertyEffect"), ValidationContext);
 }
 
 
@@ -1148,7 +1149,7 @@ void FGameplayCueNotify_LoopingEffects::StopEffects(FGameplayCueNotify_SpawnResu
 	SpawnResult.Reset();
 }
 
-void FGameplayCueNotify_LoopingEffects::ValidateAssociatedAssets(UObject* ContainingAsset, const FString& Context, TArray<FText>& ValidationErrors) const
+void FGameplayCueNotify_LoopingEffects::ValidateAssociatedAssets(const UObject* ContainingAsset, const FString& Context, class FDataValidationContext& ValidationErrors) const
 {
 }
 

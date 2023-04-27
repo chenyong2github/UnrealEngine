@@ -129,7 +129,7 @@ void UTargetTagRequirementsGameplayEffectComponent::OnTagChanged(const FGameplay
 /**
  * Validate incompatable configurations
  */
-EDataValidationResult UTargetTagRequirementsGameplayEffectComponent::IsDataValid(FDataValidationContext& Context)
+EDataValidationResult UTargetTagRequirementsGameplayEffectComponent::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

@@ -2197,37 +2197,38 @@ UInheritableComponentHandler* UBlueprint::GetInheritableComponentHandler(bool bC
 }
 
 
-EDataValidationResult UBlueprint::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UBlueprint::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult IsValid = GeneratedClass ? GeneratedClass->GetDefaultObject()->IsDataValid(ValidationErrors) : EDataValidationResult::Invalid;
+	const UObject* GeneratedClassCDO = GeneratedClass ? GeneratedClass->GetDefaultObject() : nullptr;
+	EDataValidationResult IsValid = GeneratedClassCDO ? GeneratedClassCDO->IsDataValid(Context) : EDataValidationResult::Invalid;
 	IsValid = (IsValid == EDataValidationResult::NotValidated) ? EDataValidationResult::Valid : IsValid;
 
 	if (SimpleConstructionScript)
 	{
-		EDataValidationResult IsSCSValid = SimpleConstructionScript->IsDataValid(ValidationErrors);
+		EDataValidationResult IsSCSValid = SimpleConstructionScript->IsDataValid(Context);
 		IsValid = CombineDataValidationResults(IsValid, IsSCSValid);
 	}
 
 	if (InheritableComponentHandler)
 	{
-		EDataValidationResult IsICHValid = InheritableComponentHandler->IsDataValid(ValidationErrors);
+		EDataValidationResult IsICHValid = InheritableComponentHandler->IsDataValid(Context);
 		IsValid = CombineDataValidationResults(IsValid, IsICHValid);
 	}
 
-	for (UActorComponent* Component : ComponentTemplates)
+	for (const UActorComponent* Component : ComponentTemplates)
 	{
 		if (Component)
 		{
-			EDataValidationResult IsComponentValid = Component->IsDataValid(ValidationErrors);
+			EDataValidationResult IsComponentValid = Component->IsDataValid(Context);
 			IsValid = CombineDataValidationResults(IsValid, IsComponentValid);
 		}
 	}
 
-	for (UTimelineTemplate* Timeline : Timelines)
+	for (const UTimelineTemplate* Timeline : Timelines)
 	{
 		if (Timeline)
 		{
-			EDataValidationResult IsTimelineValid = Timeline->IsDataValid(ValidationErrors);
+			EDataValidationResult IsTimelineValid = Timeline->IsDataValid(Context);
 			IsValid = CombineDataValidationResults(IsValid, IsTimelineValid);
 		}
 	}

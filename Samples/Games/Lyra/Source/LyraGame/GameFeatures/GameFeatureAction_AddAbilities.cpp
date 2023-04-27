@@ -8,6 +8,10 @@
 #include "Player/LyraPlayerState.h" //@TODO: For the fname
 #include "GameFeatures/GameFeatureAction_WorldActionBase.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddAbilities)
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
@@ -39,9 +43,9 @@ void UGameFeatureAction_AddAbilities::OnGameFeatureDeactivating(FGameFeatureDeac
 }
 
 #if WITH_EDITOR
-EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	int32 EntryIndex = 0;
 	for (const FGameFeatureAbilitiesEntry& Entry : AbilitiesList)
@@ -49,13 +53,13 @@ EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(TArray<FText>
 		if (Entry.ActorClass.IsNull())
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("EntryHasNullActor", "Null ActorClass at index {0} in AbilitiesList"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("EntryHasNullActor", "Null ActorClass at index {0} in AbilitiesList"), FText::AsNumber(EntryIndex)));
 		}
 
 		if (Entry.GrantedAbilities.IsEmpty() && Entry.GrantedAttributes.IsEmpty() && Entry.GrantedAbilitySets.IsEmpty())
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("EntryHasNoAddOns", "Index {0} in AbilitiesList will do nothing (no granted abilities, attributes, or ability sets)"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("EntryHasNoAddOns", "Index {0} in AbilitiesList will do nothing (no granted abilities, attributes, or ability sets)"), FText::AsNumber(EntryIndex)));
 		}
 
 		int32 AbilityIndex = 0;
@@ -64,7 +68,7 @@ EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(TArray<FText>
 			if (Ability.AbilityType.IsNull())
 			{
 				Result = EDataValidationResult::Invalid;
-				ValidationErrors.Add(FText::Format(LOCTEXT("EntryHasNullAbility", "Null AbilityType at index {0} in AbilitiesList[{1}].GrantedAbilities"), FText::AsNumber(AbilityIndex), FText::AsNumber(EntryIndex)));
+				Context.AddError(FText::Format(LOCTEXT("EntryHasNullAbility", "Null AbilityType at index {0} in AbilitiesList[{1}].GrantedAbilities"), FText::AsNumber(AbilityIndex), FText::AsNumber(EntryIndex)));
 			}
 			++AbilityIndex;
 		}
@@ -75,7 +79,7 @@ EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(TArray<FText>
 			if (Attributes.AttributeSetType.IsNull())
 			{
 				Result = EDataValidationResult::Invalid;
-				ValidationErrors.Add(FText::Format(LOCTEXT("EntryHasNullAttributeSet", "Null AttributeSetType at index {0} in AbilitiesList[{1}].GrantedAttributes"), FText::AsNumber(AttributesIndex), FText::AsNumber(EntryIndex)));
+				Context.AddError(FText::Format(LOCTEXT("EntryHasNullAttributeSet", "Null AttributeSetType at index {0} in AbilitiesList[{1}].GrantedAttributes"), FText::AsNumber(AttributesIndex), FText::AsNumber(EntryIndex)));
 			}
 			++AttributesIndex;
 		}
@@ -86,7 +90,7 @@ EDataValidationResult UGameFeatureAction_AddAbilities::IsDataValid(TArray<FText>
 			if (AttributeSetPtr.IsNull())
 			{
 				Result = EDataValidationResult::Invalid;
-				ValidationErrors.Add(FText::Format(LOCTEXT("EntryHasNullAttributeSet", "Null AbilitySet at index {0} in AbilitiesList[{1}].GrantedAbilitySets"), FText::AsNumber(AttributeSetIndex), FText::AsNumber(EntryIndex)));
+				Context.AddError(FText::Format(LOCTEXT("EntryHasNullAttributeSet", "Null AbilitySet at index {0} in AbilitiesList[{1}].GrantedAbilitySets"), FText::AsNumber(AttributeSetIndex), FText::AsNumber(EntryIndex)));
 			}
 			++AttributeSetIndex;
 		}

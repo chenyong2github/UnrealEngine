@@ -205,9 +205,9 @@ void UStateTree::PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray
 	}
 }
 
-EDataValidationResult UStateTree::IsDataValid(FDataValidationContext& Context)
+EDataValidationResult UStateTree::IsDataValid(FDataValidationContext& Context) const
 {
-	if (!Link())
+	if (!const_cast<UStateTree*>(this)->Link())
 	{
 		Context.AddError(FText::FromString(FString::Printf(TEXT("%s failed to link. Please recompile the State Tree for more details errors."), *GetFullName())));
 		return EDataValidationResult::Invalid;

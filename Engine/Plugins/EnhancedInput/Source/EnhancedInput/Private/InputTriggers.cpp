@@ -4,6 +4,10 @@
 #include "EnhancedInputModule.h"
 #include "EnhancedPlayerInput.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputTriggers)
 
 #define LOCTEXT_NAMESPACE "EnhancedInputTriggers"
@@ -204,15 +208,15 @@ ETriggerState UInputTriggerPulse::UpdateState_Implementation(const UEnhancedPlay
 }
 
 #if WITH_EDITOR
-EDataValidationResult UInputTriggerChordAction::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UInputTriggerChordAction::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 	
 	// You can't evaluate the combo if there are no combo steps!
 	if (!ChordAction)
 	{
 		Result = EDataValidationResult::Invalid;
-		ValidationErrors.Add(LOCTEXT("NullChordedAction", "A valid action is required for the Chorded Action input trigger!"));
+		Context.AddError(LOCTEXT("NullChordedAction", "A valid action is required for the Chorded Action input trigger!"));
 	}
 
 	return Result;
@@ -317,15 +321,15 @@ ETriggerState UInputTriggerCombo::UpdateState_Implementation(const UEnhancedPlay
 };
 
 #if WITH_EDITOR
-EDataValidationResult UInputTriggerCombo::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UInputTriggerCombo::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 	
 	// You can't evaluate the combo if there are no combo steps!
 	if (ComboActions.IsEmpty())
 	{
 		Result = EDataValidationResult::Invalid;
-		ValidationErrors.Add(LOCTEXT("NoComboSteps", "There must be at least one combo step in the Combo Trigger!"));
+		Context.AddError(LOCTEXT("NoComboSteps", "There must be at least one combo step in the Combo Trigger!"));
 	}
 
 	// Making sure combo completion states have at least one state
@@ -334,7 +338,7 @@ EDataValidationResult UInputTriggerCombo::IsDataValid(TArray<FText>& ValidationE
 		if (ComboStep.ComboStepCompletionStates == 0)
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("NoCompletionStates", "There must be at least one completion state in ComboStep Completion States in the {0} combo step in order to progress the combo!"), FText::FromString(ComboStep.ComboStepAction.GetName())));
+			Context.AddError(FText::Format(LOCTEXT("NoCompletionStates", "There must be at least one completion state in ComboStep Completion States in the {0} combo step in order to progress the combo!"), FText::FromString(ComboStep.ComboStepAction.GetName())));
 		}
 	}
 
@@ -344,7 +348,7 @@ EDataValidationResult UInputTriggerCombo::IsDataValid(TArray<FText>& ValidationE
 		if (CancelAction.CancellationStates == 0)
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("NoCancellationStates", "There must be at least one cancellation state in Cancellation States in the {0} cancel action in order to cancel the combo!"), FText::FromString(CancelAction.CancelAction.GetName())));
+			Context.AddError(FText::Format(LOCTEXT("NoCancellationStates", "There must be at least one cancellation state in Cancellation States in the {0} cancel action in order to cancel the combo!"), FText::FromString(CancelAction.CancelAction.GetName())));
 		}
 	}
 

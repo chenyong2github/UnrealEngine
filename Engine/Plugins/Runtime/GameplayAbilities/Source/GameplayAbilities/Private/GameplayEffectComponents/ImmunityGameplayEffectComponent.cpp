@@ -73,7 +73,7 @@ bool UImmunityGameplayEffectComponent::AllowGameplayEffectApplication(const FAct
 }
 
 #if WITH_EDITOR
-EDataValidationResult UImmunityGameplayEffectComponent::IsDataValid(FDataValidationContext& Context)
+EDataValidationResult UImmunityGameplayEffectComponent::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

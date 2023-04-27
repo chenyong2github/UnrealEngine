@@ -1460,7 +1460,7 @@ void USkeletalMesh::UpdateGenerateUpToData()
 	}
 }
 
-EDataValidationResult USkeletalMesh::IsDataValid(class FDataValidationContext& Context)
+EDataValidationResult USkeletalMesh::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult ValidationResult = Super::IsDataValid(Context);
 	// Do not validate a cooked skeletal mesh asset.

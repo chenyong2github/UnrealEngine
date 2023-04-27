@@ -6,6 +6,10 @@
 #include "EnhancedInputModule.h"
 #include "PlayerMappableKeySettings.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputMappingContext)
 
 #define LOCTEXT_NAMESPACE "InputMappingContext"
@@ -16,12 +20,12 @@ namespace UE::EnhancedInput
 }
 
 #if WITH_EDITOR
-EDataValidationResult UInputMappingContext::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UInputMappingContext::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
-	for (FEnhancedActionKeyMapping& Mapping : Mappings)
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
+	for (const FEnhancedActionKeyMapping& Mapping : Mappings)
 	{
-		Result = CombineDataValidationResults(Result, Mapping.IsDataValid(ValidationErrors));
+		Result = CombineDataValidationResults(Result, Mapping.IsDataValid(Context));
 	}
 	return Result;
 }

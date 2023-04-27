@@ -11,6 +11,10 @@
 #include "AbilitySystemComponent.h"
 #include "Engine/PackageMapClient.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayEffectTypes)
 
 
@@ -633,7 +637,7 @@ FGameplayTagBlueprintPropertyMap::~FGameplayTagBlueprintPropertyMap()
 }
 
 #if WITH_EDITOR
-EDataValidationResult FGameplayTagBlueprintPropertyMap::IsDataValid(UObject* Owner, TArray<FText>& ValidationErrors)
+EDataValidationResult FGameplayTagBlueprintPropertyMap::IsDataValid(const UObject* Owner, FDataValidationContext& Context) const
 {
 	UClass* OwnerClass = ((Owner != nullptr) ? Owner->GetClass() : nullptr);
 	if (!OwnerClass)
@@ -646,7 +650,7 @@ EDataValidationResult FGameplayTagBlueprintPropertyMap::IsDataValid(UObject* Own
 	{
 		if (!Mapping.TagToMap.IsValid())
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("GameplayTagBlueprintPropertyMap_BadTag", "The gameplay tag [{0}] for property [{1}] is empty or invalid."),
+			Context.AddError(FText::Format(LOCTEXT("GameplayTagBlueprintPropertyMap_BadTag", "The gameplay tag [{0}] for property [{1}] is empty or invalid."),
 				FText::AsCultureInvariant(Mapping.TagToMap.ToString()),
 				FText::FromName(Mapping.PropertyName)));
 		}
@@ -655,20 +659,20 @@ EDataValidationResult FGameplayTagBlueprintPropertyMap::IsDataValid(UObject* Own
 		{
 			if (!IsPropertyTypeValid(Property))
 			{
-				ValidationErrors.Add(FText::Format(LOCTEXT("GameplayTagBlueprintPropertyMap_BadType", "The property [{0}] for gameplay tag [{1}] is not a supported type.  Supported types are: integer, float, and boolean."),
+				Context.AddError(FText::Format(LOCTEXT("GameplayTagBlueprintPropertyMap_BadType", "The property [{0}] for gameplay tag [{1}] is not a supported type.  Supported types are: integer, float, and boolean."),
 					FText::FromName(Mapping.PropertyName),
 					FText::AsCultureInvariant(Mapping.TagToMap.ToString())));
 			}
 		}
 		else
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("GameplayTagBlueprintPropertyMap_MissingProperty", "The property [{0}] for gameplay tag [{1}] could not be found."),
+			Context.AddError(FText::Format(LOCTEXT("GameplayTagBlueprintPropertyMap_MissingProperty", "The property [{0}] for gameplay tag [{1}] could not be found."),
 				FText::FromName(Mapping.PropertyName),
 				FText::AsCultureInvariant(Mapping.TagToMap.ToString())));
 		}
 	}
 
-	return ((ValidationErrors.Num() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
+	return ((Context.GetNumErrors() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
 }
 #endif // #if WITH_EDITOR
 

@@ -14,6 +14,10 @@
 #include "Animation/PoseAsset.h"
 #include "Animation/AnimNodeBase.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationAsset)
 
 #define LOCTEXT_NAMESPACE "AnimationAsset"
@@ -737,12 +741,12 @@ void UAnimationAsset::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 	OutTags.Add( FAssetRegistryTag("HasParentAsset", HasParentAsset() ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Hidden) );
 }
 
-EDataValidationResult UAnimationAsset::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UAnimationAsset::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = UObject::IsDataValid(ValidationErrors);
-	for (UAssetUserData* Datum : AssetUserData)
+	EDataValidationResult Result = UObject::IsDataValid(Context);
+	for (const UAssetUserData* Datum : AssetUserData)
 	{
-		if(Datum != nullptr && Datum->IsDataValid(ValidationErrors) == EDataValidationResult::Invalid)
+		if(Datum != nullptr && Datum->IsDataValid(Context) == EDataValidationResult::Invalid)
 		{
 			Result = EDataValidationResult::Invalid;
 		}

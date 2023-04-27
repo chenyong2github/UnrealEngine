@@ -8,8 +8,8 @@
 #include "WorldConditions/SmartObjectWorldConditionObjectTagQuery.h"
 #include "SmartObjectUserComponent.h"
 #include "Engine/SCS_Node.h"
+#include "Misc/DataValidation.h"
 #endif
-
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectDefinition)
 
@@ -29,11 +29,17 @@ USmartObjectDefinition::USmartObjectDefinition(const FObjectInitializer& ObjectI
 
 #if WITH_EDITOR
 
-EDataValidationResult USmartObjectDefinition::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult USmartObjectDefinition::IsDataValid(FDataValidationContext& Context) const
 {
-	const EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+	const EDataValidationResult Result = Super::IsDataValid(Context);
 
+	TArray<FText> ValidationErrors;
 	Validate(&ValidationErrors);
+
+	for (const FText& Error : ValidationErrors)
+	{
+		Context.AddError(Error);
+	}
 	
 	return CombineDataValidationResults(Result, bValid ? EDataValidationResult::Valid : EDataValidationResult::Invalid);
 }

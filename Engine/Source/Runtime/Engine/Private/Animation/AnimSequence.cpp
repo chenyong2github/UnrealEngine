@@ -58,6 +58,7 @@ LLM_DEFINE_TAG(SequenceData);
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/MemoryHasher.h"
+#include "Misc/DataValidation.h"
 #endif // WITH_EDITOR
 
 #include "Animation/AnimSequenceHelpers.h"
@@ -968,15 +969,15 @@ void ShowResaveMessage(const UAnimSequence* Sequence)
 	}
 }
 
-EDataValidationResult UAnimSequence::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UAnimSequence::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult ValidationResult = Super::IsDataValid(ValidationErrors);
+	EDataValidationResult ValidationResult = Super::IsDataValid(Context);
 	// Do not validate cooked anim sequence
 	if (GetPackage()->HasAnyPackageFlags(PKG_Cooked) == false)
 	{
 		if (!GetSkeleton())
 		{
-			ValidationErrors.Add(LOCTEXT("AnimSequenceValidation_NoSkeleton", "This anim sequence asset has no Skeleton. Anim sequence asset need a valid skeleton."));
+			Context.AddError(LOCTEXT("AnimSequenceValidation_NoSkeleton", "This anim sequence asset has no Skeleton. Anim sequence asset need a valid skeleton."));
 			ValidationResult = EDataValidationResult::Invalid;
 		}
 	}

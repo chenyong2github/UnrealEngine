@@ -642,7 +642,7 @@ const UFunction* FKismetCompilerUtilities::FindOverriddenImplementableEvent(cons
 	return bFlagsMatch ? FoundEvent : NULL;
 }
 
-void FKismetCompilerUtilities::ValidateEnumProperties(UObject* DefaultObject, FCompilerResultsLog& MessageLog)
+void FKismetCompilerUtilities::ValidateEnumProperties(const UObject* DefaultObject, FCompilerResultsLog& MessageLog)
 {
 	check(DefaultObject);
 	for (TFieldIterator<FProperty> It(DefaultObject->GetClass()); It; ++It)

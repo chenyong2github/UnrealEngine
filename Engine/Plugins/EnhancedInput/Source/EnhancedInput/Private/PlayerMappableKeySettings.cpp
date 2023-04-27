@@ -8,15 +8,16 @@
 
 #if WITH_EDITOR
 
+#include "Misc/DataValidation.h"
 #include "UObject/UObjectIterator.h"
 
-EDataValidationResult UPlayerMappableKeySettings::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UPlayerMappableKeySettings::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 	if (Name == NAME_None)
 	{
 		Result = EDataValidationResult::Invalid;
-		ValidationErrors.Add(LOCTEXT("InvalidPlayerMappableKeySettingsName", "A Player Mappable Key Settings must have a valid 'Name'"));
+		Context.AddError(LOCTEXT("InvalidPlayerMappableKeySettingsName", "A Player Mappable Key Settings must have a valid 'Name'"));
 	}
 	return Result;
 }

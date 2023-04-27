@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dom/WebAPIOperation.h"
 
@@ -121,13 +121,13 @@ void UWebAPIOperation::AppendCodeText(const FString& InCodeText)
 	GeneratedCodeText += TEXT("\n") + InCodeText;
 }
 
-EDataValidationResult UWebAPIOperation::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWebAPIOperation::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult ValidationResult = Request->IsDataValid(ValidationErrors);
+	EDataValidationResult ValidationResult = Request->IsDataValid(Context);
 
 	for(const TObjectPtr<UWebAPIOperationResponse>& Response : Responses)
 	{
-		ValidationResult = CombineDataValidationResults(Response->IsDataValid(ValidationErrors), ValidationResult);
+		ValidationResult = CombineDataValidationResults(Response->IsDataValid(Context), ValidationResult);
 	}
 
 	return ValidationResult;

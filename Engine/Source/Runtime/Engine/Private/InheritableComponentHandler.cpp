@@ -79,9 +79,9 @@ void UInheritableComponentHandler::PostLoad()
 }
 
 #if WITH_EDITOR
-EDataValidationResult UInheritableComponentHandler::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UInheritableComponentHandler::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+	EDataValidationResult Result = Super::IsDataValid(Context);
 
 	// If nothing has performed any validation yet, start with a valid result.
 	if (Result == EDataValidationResult::NotValidated)
@@ -91,9 +91,9 @@ EDataValidationResult UInheritableComponentHandler::IsDataValid(TArray<FText>& V
 
 	for (const FComponentOverrideRecord& Record : Records)
 	{
-		if (Record.ComponentTemplate)
+		if (const UActorComponent* ActorComponent = Record.ComponentTemplate)
 		{
-			EDataValidationResult OverrideResult = Record.ComponentTemplate->IsDataValid(ValidationErrors);
+			EDataValidationResult OverrideResult = ActorComponent->IsDataValid(Context);
 			Result = CombineDataValidationResults(Result, OverrideResult);
 		}
 	}

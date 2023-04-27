@@ -301,13 +301,13 @@ bool UWebAPITypeRegistry::CheckAllNamed(TArray<TObjectPtr<UWebAPITypeInfo>>& Out
 	return OutUnnamedTypes.IsEmpty();
 }
 
-EDataValidationResult UWebAPITypeRegistry::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWebAPITypeRegistry::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	for(const TObjectPtr<UWebAPITypeInfo>& GeneratedType : GeneratedTypes)
 	{
-		ValidationResult = CombineDataValidationResults(GeneratedType->IsDataValid(ValidationErrors), EDataValidationResult::Valid);		
+		ValidationResult = CombineDataValidationResults(GeneratedType->IsDataValid(Context), EDataValidationResult::Valid);
 	}
 
 	return ValidationResult;

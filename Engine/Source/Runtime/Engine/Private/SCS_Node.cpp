@@ -665,15 +665,15 @@ void USCS_Node::ValidateGuid()
 	}
 }
 
-EDataValidationResult USCS_Node::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult USCS_Node::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+	EDataValidationResult Result = Super::IsDataValid(Context);
 	Result = (Result == EDataValidationResult::NotValidated) ? EDataValidationResult::Valid : Result;
 
 	// check the component that this node represents
 	if (ComponentTemplate)
 	{
-		EDataValidationResult ComponentResult = ComponentTemplate->IsDataValid(ValidationErrors);
+		EDataValidationResult ComponentResult = AsConst(*ComponentTemplate).IsDataValid(Context);
 		Result = CombineDataValidationResults(Result, ComponentResult);
 	}
 
@@ -682,7 +682,7 @@ EDataValidationResult USCS_Node::IsDataValid(TArray<FText>& ValidationErrors)
 	{
 		if (Child)
 		{
-			EDataValidationResult ChildResult = Child->IsDataValid(ValidationErrors);
+			EDataValidationResult ChildResult = Child->IsDataValid(Context);
 			Result = CombineDataValidationResults(Result, ChildResult);
 		}
 	}

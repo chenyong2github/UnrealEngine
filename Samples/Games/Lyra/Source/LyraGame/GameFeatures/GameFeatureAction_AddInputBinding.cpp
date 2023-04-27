@@ -12,6 +12,10 @@
 #include "GameFeatures/GameFeatureAction_WorldActionBase.h"
 #include "Input/LyraInputConfig.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddInputBinding)
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
@@ -42,9 +46,9 @@ void UGameFeatureAction_AddInputBinding::OnGameFeatureDeactivating(FGameFeatureD
 }
 
 #if WITH_EDITOR
-EDataValidationResult UGameFeatureAction_AddInputBinding::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UGameFeatureAction_AddInputBinding::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	int32 Index = 0;
 
@@ -53,7 +57,7 @@ EDataValidationResult UGameFeatureAction_AddInputBinding::IsDataValid(TArray<FTe
 		if (Entry.IsNull())
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("NullInputConfig", "Null InputConfig at index {0}."), Index));
+			Context.AddError(FText::Format(LOCTEXT("NullInputConfig", "Null InputConfig at index {0}."), Index));
 		}
 		++Index;
 	}

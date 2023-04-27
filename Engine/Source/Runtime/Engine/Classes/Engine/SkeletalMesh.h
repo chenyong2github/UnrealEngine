@@ -2442,7 +2442,7 @@ public:
 
 	void UpdateGenerateUpToData();
 
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;

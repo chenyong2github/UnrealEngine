@@ -158,7 +158,7 @@ protected:
 	virtual void BeginDestroy() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual void PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const;
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);

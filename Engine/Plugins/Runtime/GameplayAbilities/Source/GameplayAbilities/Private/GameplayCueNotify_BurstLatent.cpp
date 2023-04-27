@@ -4,6 +4,10 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueNotify_BurstLatent)
 
 
@@ -61,11 +65,11 @@ bool AGameplayCueNotify_BurstLatent::OnExecute_Implementation(AActor* Target, co
 }
 
 #if WITH_EDITOR
-EDataValidationResult AGameplayCueNotify_BurstLatent::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult AGameplayCueNotify_BurstLatent::IsDataValid(FDataValidationContext& Context) const
 {
-	BurstEffects.ValidateAssociatedAssets(this, TEXT("BurstEffects"), ValidationErrors);
+	BurstEffects.ValidateAssociatedAssets(this, TEXT("BurstEffects"), Context);
 
-	return ((ValidationErrors.Num() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
+	return ((Context.GetNumErrors() > 0) ? EDataValidationResult::Invalid : EDataValidationResult::Valid);
 }
 #endif // #if WITH_EDITOR
 

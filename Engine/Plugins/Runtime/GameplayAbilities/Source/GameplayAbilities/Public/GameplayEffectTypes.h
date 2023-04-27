@@ -1329,7 +1329,7 @@ public:
 
 #if WITH_EDITOR
 	/** This can optionally be called in the owner's IsDataValid() for data validation. */
-	EDataValidationResult IsDataValid(UObject* ContainingAsset, TArray<FText>& ValidationErrors);
+	EDataValidationResult IsDataValid(const UObject* ContainingAsset, class FDataValidationContext& Context) const;
 #endif // #if WITH_EDITOR
 
 protected:

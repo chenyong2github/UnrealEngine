@@ -131,11 +131,11 @@ const TSharedPtr<FWebAPIMessageLog>& UWebAPIDefinition::GetMessageLog() const
 	return MessageLog;
 }
 
-EDataValidationResult UWebAPIDefinition::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWebAPIDefinition::IsDataValid(FDataValidationContext& Context) const
 {
 	return CombineDataValidationResults(
-		GetWebAPISchema()->IsDataValid(ValidationErrors),
-		GetWebAPISchema()->TypeRegistry->IsDataValid(ValidationErrors));
+		GetWebAPISchema()->IsDataValid(Context),
+		GetWebAPISchema()->TypeRegistry->IsDataValid(Context));
 }
 
 void UWebAPIDefinition::OnNamespaceChanged(const FString& InNewNamespace)

@@ -2126,7 +2126,7 @@ public:
 
 #if WITH_EDITOR
 	/** Allow each Gameplay Effect Component to validate its own data.  Call this version (Super::IsDataValid) _after_ your overridden version to update EditorStatusText. */
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 
 protected:
 	// ----------------------------------------------------------------------
@@ -2358,7 +2358,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** Allow us to show the Status of the class (valid configurations or invalid configurations) while configuring in the Editor */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Status)
-	FText EditorStatusText;
+	mutable FText EditorStatusText;
 
 private:
 	/** The saved version of this package (the value is not inherited from its parents). @see SetVersion and GetVersion. */

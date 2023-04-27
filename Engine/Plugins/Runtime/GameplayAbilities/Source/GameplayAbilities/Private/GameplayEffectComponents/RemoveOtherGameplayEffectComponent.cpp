@@ -58,7 +58,7 @@ void URemoveOtherGameplayEffectComponent::OnGameplayEffectApplied(FActiveGamepla
 }
 
 #if WITH_EDITOR
-EDataValidationResult URemoveOtherGameplayEffectComponent::IsDataValid(FDataValidationContext& Context)
+EDataValidationResult URemoveOtherGameplayEffectComponent::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

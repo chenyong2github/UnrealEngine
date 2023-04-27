@@ -1,9 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dom/WebAPIService.h"
 
 #include "Dom/WebAPIOperation.h"
 #include "Dom/WebAPIType.h"
+
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "WebAPIService"
 
@@ -29,13 +33,13 @@ void UWebAPIService::Visit(const TFunctionRef<void(IWebAPISchemaObjectInterface*
 }
 
 #if WITH_EDITOR
-EDataValidationResult UWebAPIService::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWebAPIService::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult ValidationResult = Super::IsDataValid(ValidationErrors);
+	EDataValidationResult ValidationResult = Super::IsDataValid(Context);
 
 	for(const TObjectPtr<UWebAPIOperation>& Operation : Operations)
 	{
-		ValidationResult = CombineDataValidationResults(Operation->IsDataValid(ValidationErrors), ValidationResult);
+		ValidationResult = CombineDataValidationResults(Operation->IsDataValid(Context), ValidationResult);
 	}
 
 	return ValidationResult;

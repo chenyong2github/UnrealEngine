@@ -231,7 +231,7 @@ void UWebAPIModelBase::SetNamespace(const FString& InNamespace)
 void UWebAPIModelBase::BindToTypeInfo() { }
 
 #if WITH_EDITOR
-EDataValidationResult UWebAPIModelBase::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWebAPIModelBase::IsDataValid(FDataValidationContext& Context) const
 {
 	return EDataValidationResult::Valid;
 }
@@ -395,18 +395,18 @@ void UWebAPISchema::Visit(TFunctionRef<void(IWebAPISchemaObjectInterface*&)> InV
 }
 
 #if WITH_EDITOR
-EDataValidationResult UWebAPISchema::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWebAPISchema::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult ValidationResult = EDataValidationResult::Valid;
 
 	for(const TPair<FString, TObjectPtr<UWebAPIService>>& ServicePair : Services)
 	{
-		ValidationResult = CombineDataValidationResults(ServicePair.Value->IsDataValid(ValidationErrors), ValidationResult);
+		ValidationResult = CombineDataValidationResults(ServicePair.Value->IsDataValid(Context), ValidationResult);
 	}
 	
 	for(const TObjectPtr<UWebAPIModelBase>& Model : Models)
 	{
-		ValidationResult = CombineDataValidationResults(Model->IsDataValid(ValidationErrors), ValidationResult);
+		ValidationResult = CombineDataValidationResults(Model->IsDataValid(Context), ValidationResult);
 	}
 
 	return ValidationResult;

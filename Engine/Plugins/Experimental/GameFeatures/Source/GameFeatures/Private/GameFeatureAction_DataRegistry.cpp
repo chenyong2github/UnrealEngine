@@ -6,6 +6,10 @@
 #include "GameFeaturesSubsystem.h"
 #include "DataRegistrySubsystem.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_DataRegistry)
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
@@ -159,16 +163,16 @@ void UGameFeatureAction_DataRegistry::AddAdditionalAssetBundleData(FAssetBundleD
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-EDataValidationResult UGameFeatureAction_DataRegistry::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UGameFeatureAction_DataRegistry::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	int32 EntryIndex = 0;
 	for (const TSoftObjectPtr<UDataRegistry>& RegistryToAdd : RegistriesToAdd)
 	{
 		if (RegistryToAdd.IsNull())
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("DataRegistryMissingSource", "No valid data registry specified at index {0} in RegistriesToAdd"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("DataRegistryMissingSource", "No valid data registry specified at index {0} in RegistriesToAdd"), FText::AsNumber(EntryIndex)));
 			Result = EDataValidationResult::Invalid;
 		}
 

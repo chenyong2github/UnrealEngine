@@ -8,6 +8,10 @@
 #include "Engine/World.h"
 #include "GameModes/LyraGameMode.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraTeamCreationComponent)
 
 ULyraTeamCreationComponent::ULyraTeamCreationComponent(const FObjectInitializer& ObjectInitializer)
@@ -18,9 +22,9 @@ ULyraTeamCreationComponent::ULyraTeamCreationComponent(const FObjectInitializer&
 }
 
 #if WITH_EDITOR
-EDataValidationResult ULyraTeamCreationComponent::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult ULyraTeamCreationComponent::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+	EDataValidationResult Result = Super::IsDataValid(Context);
 
 	//@TODO: TEAMS: Validate that all display assets have the same properties set!
 

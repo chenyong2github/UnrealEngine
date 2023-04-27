@@ -110,7 +110,7 @@ struct ENHANCEDINPUT_API FEnhancedActionKeyMapping
 	bool IsPlayerMappable() const;
 
 #if WITH_EDITOR
-	EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors);
+	EDataValidationResult IsDataValid(FDataValidationContext& Context) const;
 #endif
 	
 	/** Identical comparison, including Triggers and Modifiers current inner values. */

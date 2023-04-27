@@ -10,6 +10,10 @@
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "AssetRegistry/AssetData.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureData)
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
@@ -34,22 +38,22 @@ void UGameFeatureData::UpdateAssetBundleData()
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-EDataValidationResult UGameFeatureData::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UGameFeatureData::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	int32 EntryIndex = 0;
-	for (UGameFeatureAction* Action : Actions)
+	for (const UGameFeatureAction* Action : Actions)
 	{
 		if (Action)
 		{
-			EDataValidationResult ChildResult = Action->IsDataValid(ValidationErrors);
+			EDataValidationResult ChildResult = Action->IsDataValid(Context);
 			Result = CombineDataValidationResults(Result, ChildResult);
 		}
 		else
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("ActionEntryIsNull", "Null entry at index {0} in Actions"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("ActionEntryIsNull", "Null entry at index {0} in Actions"), FText::AsNumber(EntryIndex)));
 		}
 
 		++EntryIndex;

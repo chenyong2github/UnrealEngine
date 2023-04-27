@@ -28,7 +28,7 @@ public:
 	/**
 	 * There are some fields that are incompatible with one another, so let's catch them during configuration phase. 
 	 */
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif // WITH_EDITOR
 
 

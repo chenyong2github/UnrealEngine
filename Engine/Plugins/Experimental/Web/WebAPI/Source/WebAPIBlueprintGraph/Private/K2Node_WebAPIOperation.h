@@ -72,7 +72,7 @@ public:
 
 #if WITH_EDITOR
 	/** Add node validity to data validation messages. */
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
 protected:

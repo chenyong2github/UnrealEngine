@@ -40,6 +40,10 @@
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/TaperedCapsuleElem.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BodySetup)
 
 /** Enable to verify that the cooked data matches the source data as we cook it */
@@ -1518,7 +1522,7 @@ void UBodySetup::CopyBodySetupProperty(const UBodySetup* Other)
 	BuildScale3D = Other->BuildScale3D;
 }
 
-EDataValidationResult UBodySetup::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UBodySetup::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = EDataValidationResult::Valid;
 
@@ -1526,7 +1530,7 @@ EDataValidationResult UBodySetup::IsDataValid(TArray<FText>& ValidationErrors)
 	int32 NumElements = AggGeom.GetElementCount();
 	if (NumElements == 0)
 	{
-		ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetupHasNoCollision", "Bone {0} requires at least one collision shape"), FText::FromName(BoneName)));
+		Context.AddError(FText::Format(LOCTEXT("UBodySetupHasNoCollision", "Bone {0} requires at least one collision shape"), FText::FromName(BoneName)));
 		Result = EDataValidationResult::Invalid;
 	}
 
@@ -1547,7 +1551,7 @@ EDataValidationResult UBodySetup::IsDataValid(TArray<FText>& ValidationErrors)
 		
 		if (NumMassContributors == 0)
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetupHasNoMass", "Bone {0} requires at least one shape with 'Contribute to Mass' set to 'true'"), FText::FromName(BoneName)));
+			Context.AddError(FText::Format(LOCTEXT("UBodySetupHasNoMass", "Bone {0} requires at least one shape with 'Contribute to Mass' set to 'true'"), FText::FromName(BoneName)));
 			Result = EDataValidationResult::Invalid;
 		}
 	}

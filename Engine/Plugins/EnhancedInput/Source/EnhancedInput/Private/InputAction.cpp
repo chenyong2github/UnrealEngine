@@ -4,6 +4,10 @@
 
 #include "PlayerMappableKeySettings.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputAction)
 
 #define LOCTEXT_NAMESPACE "EnhancedInputAction"
@@ -128,52 +132,52 @@ void UInputAction::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	}
 }
 
-EDataValidationResult UInputAction::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UInputAction::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	// Validate the triggers
 	bool bContainsComboTrigger = false;
 	bool bContainsNonComboTrigger = false;
-	for (const TObjectPtr<UInputTrigger> Trigger : Triggers)
+	for (const UInputTrigger* Trigger : Triggers)
 	{
 		if (Trigger)
 		{
 			// check if it the trigger is a combo or not
-			Trigger.IsA(UInputTriggerCombo::StaticClass()) ? bContainsComboTrigger = true : bContainsNonComboTrigger = true;
+			Trigger->IsA(UInputTriggerCombo::StaticClass()) ? bContainsComboTrigger = true : bContainsNonComboTrigger = true;
 			
-			Result = CombineDataValidationResults(Result, Trigger->IsDataValid(ValidationErrors));
+			Result = CombineDataValidationResults(Result, Trigger->IsDataValid(Context));
 		}
 		else
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(LOCTEXT("NullInputTrigger", "There cannot be a null Input Trigger on an Input Action!"));
+			Context.AddError(LOCTEXT("NullInputTrigger", "There cannot be a null Input Trigger on an Input Action!"));
 		}
 	}
 	if (bContainsComboTrigger && bContainsNonComboTrigger)
 	{
 		Result = EDataValidationResult::Invalid;
-		ValidationErrors.Add(LOCTEXT("ComboAndNonComboInputTrigger", "Combo triggers are not intended to interact with other input triggers. Consider adding the combo and other triggers later in a context or creating a seperate action for the combo."));
+		Context.AddError(LOCTEXT("ComboAndNonComboInputTrigger", "Combo triggers are not intended to interact with other input triggers. Consider adding the combo and other triggers later in a context or creating a seperate action for the combo."));
 	}
 	
 	// Validate the modifiers
-	for (const TObjectPtr<UInputModifier> Modifier : Modifiers)
+	for (const UInputModifier* Modifier : Modifiers)
 	{
 		if (Modifier)
 		{
-			Result = CombineDataValidationResults(Result, Modifier->IsDataValid(ValidationErrors));	
+			Result = CombineDataValidationResults(Result, Modifier->IsDataValid(Context));
 		}
 		else
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(LOCTEXT("NullInputModifier", "There cannot be a null Input Modifier on an Input Action!"));
+			Context.AddError(LOCTEXT("NullInputModifier", "There cannot be a null Input Modifier on an Input Action!"));
 		}		
 	}
 	
 	// Validate Settings
 	if (PlayerMappableKeySettings != nullptr)
 	{
-		Result = CombineDataValidationResults(Result, PlayerMappableKeySettings->IsDataValid(ValidationErrors));
+		Result = CombineDataValidationResults(Result, PlayerMappableKeySettings->IsDataValid(Context));
 	}
 
 	return Result;

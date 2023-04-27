@@ -6,6 +6,10 @@
 #include "WebAPIEditorUtilities.h"
 #include "Dom/WebAPITypeRegistry.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "WebAPITypeInfo"
 
 namespace UE::WebAPI::WebAPISchemaType
@@ -122,13 +126,13 @@ bool operator==(const UWebAPITypeInfo& A, const UWebAPITypeInfo& B)
 }
 
 #if WITH_EDITOR
-EDataValidationResult UWebAPITypeInfo::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWebAPITypeInfo::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult ValidationResult = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	if(ToString(true).IsEmpty())
 	{
-		ValidationErrors.Add(LOCTEXT("Missing_Name", "Unnamed TypeInfo"));
+		Context.AddError(LOCTEXT("Missing_Name", "Unnamed TypeInfo"));
 		ValidationResult = EDataValidationResult::Invalid;
 	}
 

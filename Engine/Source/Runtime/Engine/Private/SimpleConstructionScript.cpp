@@ -1228,16 +1228,16 @@ void USimpleConstructionScript::ValidateSceneRootNodes()
 }
 
 #if WITH_EDITOR
-EDataValidationResult USimpleConstructionScript::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult USimpleConstructionScript::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+	EDataValidationResult Result = Super::IsDataValid(Context);
 	Result = (Result == EDataValidationResult::NotValidated) ? EDataValidationResult::Valid : Result;
 
 	for (USCS_Node* Node : RootNodes)
 	{
 		if (Node)
 		{
-			EDataValidationResult NodeResult = Node->IsDataValid(ValidationErrors);
+			EDataValidationResult NodeResult = Node->IsDataValid(Context);
 			Result = CombineDataValidationResults(Result, NodeResult);
 		}
 	}

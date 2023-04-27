@@ -31,7 +31,7 @@ public:
 	/**
 	 * Validate incompatable configurations
 	 */
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif // WITH_EDITOR
 
 private:

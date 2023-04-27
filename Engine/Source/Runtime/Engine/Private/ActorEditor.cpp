@@ -35,6 +35,7 @@
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Algo/Transform.h"
+#include "Misc/DataValidation.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
@@ -1573,7 +1574,7 @@ bool AActor::GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObject
 	return false;
 }
 
-EDataValidationResult AActor::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult AActor::IsDataValid(FDataValidationContext& Context) const
 {
 	// Do not run asset validation on external actors, validation will be caught through map check
 	if (IsPackageExternal())
@@ -1585,31 +1586,31 @@ EDataValidationResult AActor::IsDataValid(TArray<FText>& ValidationErrors)
 	if (!bSuccess)
 	{
 		FText ErrorMsg = FText::Format(LOCTEXT("IsDataValid_Failed_CheckDefaultSubobjectsInternal", "{0} failed CheckDefaultSubobjectsInternal()"), FText::FromString(GetName()));
-		ValidationErrors.Add(ErrorMsg);
+		Context.AddError(ErrorMsg);
 	}
 
 	int32 OldNumMapWarningsAndErrors = FMessageLog("MapCheck").NumMessages(EMessageSeverity::Warning);
-	CheckForErrors();
+	const_cast<AActor*>(this)->CheckForErrors();
 	int32 NewNumMapWarningsAndErrors = FMessageLog("MapCheck").NumMessages(EMessageSeverity::Warning);
 	if (NewNumMapWarningsAndErrors != OldNumMapWarningsAndErrors)
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("ActorName"), FText::FromString(GetName()));
 		FText ErrorMsg = FText::Format(LOCTEXT("IsDataValid_Failed_CheckForErrors", "{ActorName} is not valid. See the MapCheck log messages for details."), Arguments);
-		ValidationErrors.Add(ErrorMsg);
+		Context.AddError(ErrorMsg);
 		bSuccess = false;
 	}
 
 	EDataValidationResult Result = bSuccess ? EDataValidationResult::Valid : EDataValidationResult::Invalid;
 
 	// check the components
-	for (UActorComponent* Component : GetComponents())
+	for (const UActorComponent* Component : GetComponents())
 	{
 		if (Component)
 		{
 			// if any component is invalid, our result is invalid
 			// in the future we may want to update this to say that the actor was not validated if any of its components returns EDataValidationResult::NotValidated
-			EDataValidationResult ComponentResult = Component->IsDataValid(ValidationErrors);
+			EDataValidationResult ComponentResult = Component->IsDataValid(Context);
 			if (ComponentResult == EDataValidationResult::Invalid)
 			{
 				Result = EDataValidationResult::Invalid;

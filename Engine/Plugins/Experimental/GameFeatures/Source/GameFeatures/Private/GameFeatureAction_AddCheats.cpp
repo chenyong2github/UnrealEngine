@@ -3,6 +3,10 @@
 #include "GameFeatureAction_AddCheats.h"
 #include "GameFramework/CheatManager.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddCheats)
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
@@ -33,9 +37,9 @@ void UGameFeatureAction_AddCheats::OnGameFeatureDeactivating(FGameFeatureDeactiv
 }
 
 #if WITH_EDITOR
-EDataValidationResult UGameFeatureAction_AddCheats::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UGameFeatureAction_AddCheats::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	int32 EntryIndex = 0;
 	for (const TSoftClassPtr<UCheatManagerExtension>& CheatManagerClassPtr : CheatManagers)
@@ -43,7 +47,7 @@ EDataValidationResult UGameFeatureAction_AddCheats::IsDataValid(TArray<FText>& V
 		if (CheatManagerClassPtr.IsNull())
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("CheatEntryIsNull", "Null entry at index {0} in CheatManagers"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("CheatEntryIsNull", "Null entry at index {0} in CheatManagers"), FText::AsNumber(EntryIndex)));
 		}
 		++EntryIndex;
 	}

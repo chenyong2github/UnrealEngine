@@ -3,6 +3,10 @@
 #include "EnhancedInputPlatformSettings.h"
 #include "InputMappingContext.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputPlatformSettings)
 
 #define LOCTEXT_NAMESPACE "EnhancedInputPlatformSettings"
@@ -11,9 +15,9 @@
 // UEnhancedInputPlatformData
 
 #if WITH_EDITOR
-EDataValidationResult UEnhancedInputPlatformData::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UEnhancedInputPlatformData::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+	EDataValidationResult Result = Super::IsDataValid(Context);
 
 	for (const TPair<TObjectPtr<const UInputMappingContext>, TObjectPtr<const UInputMappingContext>> Pair : MappingContextRedirects)
 	{
@@ -24,7 +28,7 @@ EDataValidationResult UEnhancedInputPlatformData::IsDataValid(TArray<FText>& Val
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("AssetPath"), FText::FromString(GetPathName()));
 			const FText NullKeyError = FText::Format(LOCTEXT("NullKeyError", "'{AssetPath}' does not have a valid key in the MappingContextRedirects!"), Args);
-			ValidationErrors.Emplace(NullKeyError);
+			Context.AddError(NullKeyError);
 		}
 		
 		if (!Pair.Value)
@@ -34,7 +38,7 @@ EDataValidationResult UEnhancedInputPlatformData::IsDataValid(TArray<FText>& Val
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("AssetPath"), FText::FromString(GetPathName()));
 			const FText NullValueError = FText::Format(LOCTEXT("NullValueError", "'{AssetPath}' does not have a valid value in the MappingContextRedirects!"), Args);
-			ValidationErrors.Emplace(NullValueError);
+			Context.AddError(NullValueError);
 		}
 	}
 

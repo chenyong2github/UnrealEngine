@@ -4067,7 +4067,7 @@ void UStaticMesh::PostEditUndo()
 
 
 #if WITH_EDITOR
-EDataValidationResult UStaticMesh::IsDataValid(class FDataValidationContext& Context)
+EDataValidationResult UStaticMesh::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult ValidationResult = Super::IsDataValid(Context);
 

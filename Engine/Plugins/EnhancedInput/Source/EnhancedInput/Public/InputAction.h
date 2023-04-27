@@ -25,8 +25,8 @@ public:
 #if WITH_EDITOR
 	// Track actions that have had their ValueType changed to update blueprints referencing them.
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
-	
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+
 	static TSet<const UInputAction*> ActionsWithModifiedValueTypes;
 	static TSet<const UInputAction*> ActionsWithModifiedTriggers;
 	

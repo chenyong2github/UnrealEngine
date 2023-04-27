@@ -27,7 +27,7 @@ public:
 	/**
 	 * Warn about instant Gameplay Effects as they do not persist over time (and therefore cannot grant immunity)
 	 */
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif // WITH_EDITOR
 
 protected:

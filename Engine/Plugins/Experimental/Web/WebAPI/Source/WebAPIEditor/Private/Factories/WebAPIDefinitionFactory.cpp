@@ -21,6 +21,10 @@
 #include "Serialization/ArchiveReplaceObjectRef.h"
 #include "Serialization/FindObjectReferencers.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "UWebAPIDefinitionFactory"
 
 UWebAPIDefinitionFactory::UWebAPIDefinitionFactory(): Super()
@@ -136,14 +140,24 @@ TFuture<void> UWebAPIDefinitionFactory::PostImportWebAPI(UWebAPIDefinition* InDe
 	// Remove stale types from TypeRegistry
 	GeneratedTypes.RemoveAt(FirstUnresolvedObjectIndex, GeneratedTypes.Num() - FirstUnresolvedObjectIndex);
 
-	TArray<FText> ValidationErrors;
-	if(InDefinition->IsDataValid(ValidationErrors) == EDataValidationResult::Invalid)
-	{
-		for(const FText& ValidationError : ValidationErrors)
-		{
-			InDefinition->GetMessageLog()->LogError(ValidationError, LogName);
-		}
+	FDataValidationContext Context;
+	EDataValidationResult ValidationResult = InDefinition->IsDataValid(Context);
 
+	TArray<FText> Warnings, Errors;
+	Context.SplitIssues(Warnings, Errors);
+
+	for (const FText& ValidationWarning : Warnings)
+	{
+		InDefinition->GetMessageLog()->LogWarning(ValidationWarning, LogName);
+	}
+
+	for (const FText& ValidationError : Errors)
+	{
+		InDefinition->GetMessageLog()->LogError(ValidationError, LogName);
+	}
+
+	if(ValidationResult == EDataValidationResult::Invalid)
+	{
 		InDefinition->GetMessageLog()->LogError(LOCTEXT("DataValidationFailed", "There was one or more errors validating the WebAPI InDefinition after reimport."), LogName);
 	}
 

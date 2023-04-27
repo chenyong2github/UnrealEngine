@@ -1035,6 +1035,9 @@ public:
 	 * @return Valid if this object has data validation rules set up for it and the data for this object is valid. Returns Invalid if it does not pass 
 	 *         the rules. Returns NotValidated if no rules are set for this object.
 	 */
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const;
+
+	UE_DEPRECATED(5.3, "Please use the the const version of IsDataValid(FDataValidationContext&)")
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context);
 
 	/**
@@ -1043,8 +1046,8 @@ public:
 	 * @param	ValidationErrors	the array of validation errors.
 	 * @return Valid if this object has data validation rules set up for it and the data for this object is valid. Returns Invalid if it does not pass 
 	 *         the rules. Returns NotValidated if no rules are set for this object.
-	 * @note	Will be deprecated in 5.2 in favor of version taking a FDataValidationContext.
 	 */
+	UE_DEPRECATED(5.3, "Please use IsDataValid(FDataValidationContext&) const as the FDataValidationContext will allow distinguishing between Warnings and Errors.")
 	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors);
 #endif // WITH_EDITOR
 

@@ -22,7 +22,7 @@ UGameplayEffect* UGameplayEffectComponent::GetOwner() const
 }
 
 #if WITH_EDITOR
-EDataValidationResult UGameplayEffectComponent::IsDataValid(FDataValidationContext& Context)
+EDataValidationResult UGameplayEffectComponent::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

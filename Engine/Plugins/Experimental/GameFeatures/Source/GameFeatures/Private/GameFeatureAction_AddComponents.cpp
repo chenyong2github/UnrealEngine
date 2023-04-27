@@ -7,7 +7,9 @@
 #include "GameFeaturesSubsystemSettings.h"
 #include "Engine/AssetManager.h"
 
-//@TODO: Just for log category
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureAction_AddComponents)
 
@@ -66,9 +68,9 @@ void UGameFeatureAction_AddComponents::AddAdditionalAssetBundleData(FAssetBundle
 #endif
 
 #if WITH_EDITOR
-EDataValidationResult UGameFeatureAction_AddComponents::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UGameFeatureAction_AddComponents::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	int32 EntryIndex = 0;
 	for (const FGameFeatureComponentEntry& Entry : ComponentList)
@@ -76,13 +78,13 @@ EDataValidationResult UGameFeatureAction_AddComponents::IsDataValid(TArray<FText
 		if (Entry.ActorClass.IsNull())
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("ComponentEntryHasNullActor", "Null ActorClass at index {0} in ComponentList"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("ComponentEntryHasNullActor", "Null ActorClass at index {0} in ComponentList"), FText::AsNumber(EntryIndex)));
 		}
 
 		if (Entry.ComponentClass.IsNull())
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(FText::Format(LOCTEXT("ComponentEntryHasNullComponent", "Null ComponentClass at index {0} in ComponentList"), FText::AsNumber(EntryIndex)));
+			Context.AddError(FText::Format(LOCTEXT("ComponentEntryHasNullComponent", "Null ComponentClass at index {0} in ComponentList"), FText::AsNumber(EntryIndex)));
 		}
 
 		++EntryIndex;

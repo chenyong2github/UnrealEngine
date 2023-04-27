@@ -3,6 +3,10 @@
 #include "PlayerMappableInputConfig.h"
 #include "InputMappingContext.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerMappableInputConfig)
 
 #define LOCTEXT_NAMESPACE "PlayerMappableInputConfig"
@@ -21,32 +25,32 @@ void UPlayerMappableInputConfig::ResetToDefault()
 
 #if WITH_EDITOR
 
-EDataValidationResult UPlayerMappableInputConfig::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UPlayerMappableInputConfig::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+	EDataValidationResult Result = Super::IsDataValid(Context);
 
 	if(ConfigName == NAME_None)
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("AssetPath"), FText::FromString(GetPathName()));
 		const FText NoNameError = FText::Format(LOCTEXT("NoNameError", "'{AssetPath}' does not have a valid ConfigName!"), Args);
-		ValidationErrors.Emplace(NoNameError);
+		Context.AddError(NoNameError);
 		
 		Result = CombineDataValidationResults(Result, EDataValidationResult::Invalid);
 	}
 	
 	// Check that every context is valid and all player mappable mappings have names
-	for (TPair<TObjectPtr<UInputMappingContext>, int32>& ContextPair : Contexts)
+	for (const TPair<TObjectPtr<UInputMappingContext>, int32>& ContextPair : Contexts)
 	{
 		if (UInputMappingContext* IMC = ContextPair.Key.Get())
 		{
-			Result = CombineDataValidationResults(Result, IMC->IsDataValid(ValidationErrors));
+			Result = CombineDataValidationResults(Result, IMC->IsDataValid(Context));
 			if (Result == EDataValidationResult::Invalid)
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("AssetPath"), FText::FromString(IMC->GetPathName()));
 				const FText NoMappingError = FText::Format(LOCTEXT("NoNamePlayerMappingError", "'{AssetPath}' has an invalid mapping."), Args);
-				ValidationErrors.Emplace(NoMappingError);
+				Context.AddError(NoMappingError);
 			}
 		}
 		else
@@ -57,7 +61,7 @@ EDataValidationResult UPlayerMappableInputConfig::IsDataValid(TArray<FText>& Val
 			Args.Add(TEXT("AssetPath"), FText::FromString(GetPathName()));
 
 			const FText NullContextError = FText::Format(LOCTEXT("NullContextError", "There is a null mapping context in '{AssetPath}'"), Args);
-			ValidationErrors.Emplace(NullContextError);
+			Context.AddError(NullContextError);
 		}
 	}
 	

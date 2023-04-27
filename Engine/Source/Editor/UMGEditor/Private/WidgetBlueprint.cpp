@@ -29,6 +29,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Modules/ModuleManager.h"
 #include "DiffResults.h"
+#include "Misc/DataValidation.h"
 #endif
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "K2Node_CallFunction.h"
@@ -738,16 +739,16 @@ void UWidgetBlueprint::NotifyGraphRenamed(class UEdGraph* Graph, FName OldName, 
 	});
 }
 
-EDataValidationResult UWidgetBlueprint::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWidgetBlueprint::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = UBlueprint::IsDataValid(ValidationErrors);
+	EDataValidationResult Result = UBlueprint::IsDataValid(Context);
 
-	const bool bFoundLeak = DetectSlateWidgetLeaks(ValidationErrors);
+	const bool bFoundLeak = DetectSlateWidgetLeaks(Context);
 
 	return bFoundLeak ? EDataValidationResult::Invalid : Result;
 }
 
-bool UWidgetBlueprint::DetectSlateWidgetLeaks(TArray<FText>& ValidationErrors)
+bool UWidgetBlueprint::DetectSlateWidgetLeaks(FDataValidationContext& Context) const
 {
 	// We can't safely run this in anything but a running editor, since widgets
 	// rely on a functioning slate application.
@@ -784,16 +785,16 @@ bool UWidgetBlueprint::DetectSlateWidgetLeaks(TArray<FText>& ValidationErrors)
 	//       those widgets will be handled by their own validation steps.
 
 	// Verify everything is going to be garbage collected.
-	TempUserWidget->WidgetTree->ForEachWidget([&ValidationErrors, &bFoundLeak](UWidget* Widget) {
+	TempUserWidget->WidgetTree->ForEachWidget([&Context, &bFoundLeak](UWidget* Widget) {
 		if (!bFoundLeak)
 		{
 			TWeakPtr<SWidget> PreviewChildWidget = Widget->GetCachedWidget();
 			if (PreviewChildWidget.IsValid())
 			{
 				bFoundLeak = true;
-				if (UPanelWidget* ParentWidget = Widget->GetParent())
+				if (const UPanelWidget* ParentWidget = Widget->GetParent())
 				{
-					ValidationErrors.Add(
+					Context.AddError(
 						FText::Format(
 							LOCTEXT("LeakingWidgetsWithParent_WarningFmt", "Leak Detected!  {0} ({1}) still has living Slate widgets, it or the parent {2} ({3}) is keeping them in memory.  Make sure all Slate resources (TSharedPtr<SWidget>'s) are being released in the UWidget's ReleaseSlateResources().  Also check the USlot's ReleaseSlateResources()."),
 							FText::FromString(Widget->GetName()),
@@ -805,7 +806,7 @@ bool UWidgetBlueprint::DetectSlateWidgetLeaks(TArray<FText>& ValidationErrors)
 				}
 				else
 				{
-					ValidationErrors.Add(
+					Context.AddError(
 						FText::Format(
 							LOCTEXT("LeakingWidgetsWithoutParent_WarningFmt", "Leak Detected!  {0} ({1}) still has living Slate widgets, it or the parent widget is keeping them in memory.  Make sure all Slate resources (TSharedPtr<SWidget>'s) are being released in the UWidget's ReleaseSlateResources().  Also check the USlot's ReleaseSlateResources()."),
 							FText::FromString(Widget->GetName()),

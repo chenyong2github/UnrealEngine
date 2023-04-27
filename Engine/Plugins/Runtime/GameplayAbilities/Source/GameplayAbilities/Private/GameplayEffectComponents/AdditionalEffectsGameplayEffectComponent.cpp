@@ -126,7 +126,7 @@ void UAdditionalEffectsGameplayEffectComponent::OnActiveGameplayEffectRemoved(co
 }
 
 #if WITH_EDITOR
-EDataValidationResult UAdditionalEffectsGameplayEffectComponent::IsDataValid(FDataValidationContext& Context)
+EDataValidationResult UAdditionalEffectsGameplayEffectComponent::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

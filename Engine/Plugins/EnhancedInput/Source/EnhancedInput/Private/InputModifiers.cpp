@@ -5,6 +5,10 @@
 #include "EnhancedPlayerInput.h"
 #include "GameFramework/PlayerController.h"
 
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputModifiers)
 
 #define LOCTEXT_NAMESPACE "EnhancedInputModifiers"
@@ -14,9 +18,9 @@
 */
 
 #if WITH_EDITOR
-EDataValidationResult UInputModifierScalar::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UInputModifierScalar::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
 	// You cannot scale a boolean value
 	if (UInputAction* IA = Cast<UInputAction>(GetOuter()))
@@ -24,7 +28,7 @@ EDataValidationResult UInputModifierScalar::IsDataValid(TArray<FText>& Validatio
 		if (IA->ValueType == EInputActionValueType::Boolean)
 		{
 			Result = EDataValidationResult::Invalid;
-			ValidationErrors.Add(LOCTEXT("InputScalarInvalidActionType", "A Scalar modifier cannot be used on a 'Boolean' input action"));
+			Context.AddError(LOCTEXT("InputScalarInvalidActionType", "A Scalar modifier cannot be used on a 'Boolean' input action"));
 		}
 	}
 	
