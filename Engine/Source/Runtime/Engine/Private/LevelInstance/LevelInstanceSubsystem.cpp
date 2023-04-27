@@ -126,7 +126,7 @@ FLevelInstanceID::FLevelInstanceID(ULevelInstanceSubsystem* LevelInstanceSubsyst
 	
 	uint64 TmpHash = 0;
 		
-	if (LevelInstanceActor->IsNameStableForNetworking())
+	if (LevelInstanceActor->IsNameStableForNetworking() && LevelInstanceActor->GetWorld()->IsGameWorld())
 	{
 		ActorName = LevelInstanceActor->GetFName();
 		FString NameStr = ActorName.ToString();
