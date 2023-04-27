@@ -44,8 +44,6 @@
 // Disable if you need a little more memory or speed
 #define LLM_ENABLED_TRACK_PEAK_MEMORY 1
 
-
-
 namespace UE
 {
 namespace LLMPrivate
@@ -175,6 +173,15 @@ namespace UE
 {
 namespace LLMPrivate
 {
+	enum class ESizeParams : uint8
+	{
+		Default = 0,
+		ReportCurrent = 0,
+		ReportPeak = 1,
+		RelativeToSnapshot = 2
+	};
+	ENUM_CLASS_FLAGS(ESizeParams);
+
 	/** Size information stored on the tracker for a tag; includes amounts aggregated from threadstates and from external api users */
 	struct FTrackerTagSizeData
 	{
@@ -182,23 +189,39 @@ namespace LLMPrivate
 #if LLM_ENABLED_TRACK_PEAK_MEMORY
 		int64 PeakSize = 0;
 #endif
+		int64 SizeInSnapshot = 0;
 		int64 ExternalAmount = 0;
 		bool bExternalValid = false;
 		bool bExternalAddToTotal = false;
 
-		int64 GetSize(bool bTrackPeaks) const
+		int64 GetSize(ESizeParams SizeParams) const
 		{
+			int64 CurrentSize = Size;
+
 #if LLM_ENABLED_TRACK_PEAK_MEMORY
-			if (bTrackPeaks)
+			if (EnumHasAnyFlags(SizeParams, ESizeParams::ReportPeak))
 			{
-				return PeakSize;
+				CurrentSize = PeakSize;
 			}
-			else
 #endif
+			// Note, this will also subtract the snapshotted size from PeakSize if that flag is enabled
+			if (EnumHasAnyFlags(SizeParams, ESizeParams::RelativeToSnapshot))
 			{
-				return Size;
+				CurrentSize = FMath::Clamp<int64>(CurrentSize - SizeInSnapshot, 0, INT64_MAX);
 			}
+
+			return CurrentSize;
 		};
+
+		void CaptureSnapshot()
+		{
+			SizeInSnapshot = Size;
+		}
+
+		void ClearSnapshot()
+		{
+			SizeInSnapshot = 0;
+		}
 	};
 	typedef TFastPointerLLMMap<const FTagData*, FTrackerTagSizeData> FTrackerTagSizeMap;
 

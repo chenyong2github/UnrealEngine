@@ -748,6 +748,7 @@ private:
 	bool bTagAdded;
 	bool bAutoPublish;
 	bool bPublishSingleFrame;
+	bool bCapturedSizeSnapshot;
 
 	static FLowLevelMemTracker* TrackerInstance;
 public: // really internal but needs to be visible for LLM_IF_ENABLED macro
