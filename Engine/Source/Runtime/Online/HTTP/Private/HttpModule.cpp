@@ -78,7 +78,7 @@ void FHttpModule::StartupModule()
 	HttpThreadIdleMinimumSleepTimeInSeconds = 0.0f;	
 
 	// override the above defaults from configs
-	FCoreDelegates::OnConfigSectionsChanged.AddRaw(this, &FHttpModule::OnConfigSectionsChanged);
+	FCoreDelegates::TSOnConfigSectionsChanged().AddRaw(this, &FHttpModule::OnConfigSectionsChanged);
 	UpdateConfigs();
 
 	if (!FParse::Value(FCommandLine::Get(), TEXT("httpproxy="), ProxyAddress))
@@ -141,7 +141,7 @@ void FHttpModule::ShutdownModule()
 	// at least on Linux, the code in HTTP manager (e.g. request destructors) expects platform to be initialized yet
 	delete HttpManager;	// can be passed NULLs
 
-	FCoreDelegates::OnConfigSectionsChanged.RemoveAll(this);
+	FCoreDelegates::TSOnConfigSectionsChanged().RemoveAll(this);
 
 	FPlatformHttp::Shutdown();
 

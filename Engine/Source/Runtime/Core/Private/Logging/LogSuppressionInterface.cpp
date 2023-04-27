@@ -565,7 +565,7 @@ class FLogSuppressionImplementation: public FLogSuppressionInterface, private FS
 
 		if (!bInitialized)
 		{
-			FCoreDelegates::OnConfigSectionsChanged.AddLambda([this](const FString& IniFilename, const TSet<FString>& SectionNames)
+			FCoreDelegates::TSOnConfigSectionsChanged().AddLambda([this](const FString& IniFilename, const TSet<FString>& SectionNames)
 			{
 				if (auto* LogSuppressionImplementation = static_cast<FLogSuppressionImplementation*>(FLogSuppressionInterface::TryGet()))
 				{
@@ -573,7 +573,7 @@ class FLogSuppressionImplementation: public FLogSuppressionInterface, private FS
 				}
 				else
 				{
-					FCoreDelegates::OnConfigSectionsChanged.RemoveAll(this);
+					FCoreDelegates::TSOnConfigSectionsChanged().RemoveAll(this);
 				}
 			});
 		}

@@ -3857,7 +3857,7 @@ void FConfigCacheIni::InitializeConfigSystem()
 	// load editor, etc config files
 	LoadRemainingConfigFiles(Context);
 
-	FCoreDelegates::OnConfigSectionsChanged.AddStatic(OnConfigSectionsChanged);
+	FCoreDelegates::TSOnConfigSectionsChanged().AddStatic(OnConfigSectionsChanged);
 
 	// now we can make use of GConfig
 	GConfig->bIsReadyForUse = true;

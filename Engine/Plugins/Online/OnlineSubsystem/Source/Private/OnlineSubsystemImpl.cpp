@@ -45,12 +45,12 @@ FOnlineSubsystemImpl::FOnlineSubsystemImpl(FName InSubsystemName, FName InInstan
 	NamedInterfaces(nullptr),
 	bTickerStarted(true)
 {
-	FCoreDelegates::OnConfigSectionsChanged.AddRaw(this, &FOnlineSubsystemImpl::OnConfigSectionsChanged);
+	FCoreDelegates::TSOnConfigSectionsChanged().AddRaw(this, &FOnlineSubsystemImpl::OnConfigSectionsChanged);
 }
 
 FOnlineSubsystemImpl::~FOnlineSubsystemImpl()
 {
-	FCoreDelegates::OnConfigSectionsChanged.RemoveAll(this);
+	FCoreDelegates::TSOnConfigSectionsChanged().RemoveAll(this);
 }
 
 void FOnlineSubsystemImpl::PreUnload()
