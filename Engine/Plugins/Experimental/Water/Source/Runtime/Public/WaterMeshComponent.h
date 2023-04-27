@@ -38,6 +38,10 @@ public:
 #endif // WITH_EDITOR
 	//~ End UPrimitiveComponent Interface
 
+	//~ Begin INavRelevantInterface Interface
+	virtual bool IsNavigationRelevant() const override { return false; }
+	//~ End INavRelevantInterface Interface
+
 	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 
 	void Update();
