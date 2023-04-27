@@ -1249,7 +1249,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// NOTE: We read from hardcoded location where UBT writes to, but we write to CONFIGURATION_BUILD_DIR because
 			// when Archiving, the .app is somewhere else
 			string SourceEnvVar = (Project.Platform == UnrealTargetPlatform.Mac) ? "EXECUTABLE_PATH" : "EXECUTABLE_NAME";
-			string EngineOrProject = Project.UnrealData.UProjectFileLocation == null ? "Engine" : Project.UnrealData.ProductName;
+			string EngineOrProject = Project.UnrealData.UProjectFileLocation == null ? "Engine" : Project.UnrealData.UProjectFileLocation.GetFileNameWithoutAnyExtensions();
 
 			CopyScript.AddRange(new string[]
 			{
@@ -1319,7 +1319,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			{
 				"set -e",
 				"",
-				"# Run the wrapper dsym geneerator",
+				"# Run the wrapper dsym generator",
 				"\\\"${UE_ENGINE_DIR}/Build/BatchFiles/Mac/GenerateUniversalDSYM.sh\\\" \\\"${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_PATH}\\\" \\\"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}\\\"",
 				"strip -no_code_signature_warning -D \\\"${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_PATH}\\\"",
 				"",

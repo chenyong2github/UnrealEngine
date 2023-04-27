@@ -769,6 +769,13 @@ public class IOSPlatform : ApplePlatform
 
 	public override void Package(ProjectParams Params, DeploymentContext SC, int WorkingCL)
 	{
+		// use the shared packaging with modern mode
+		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		{
+			base.Package(Params, SC, WorkingCL);
+			return;
+		}
+
 		Logger.LogInformation("Package {Arg0}", Params.RawProjectPath);
 
 		bool bIsBuiltAsFramework = IsBuiltAsFramework(Params, SC);
@@ -1509,6 +1516,13 @@ public class IOSPlatform : ApplePlatform
 
 	public override void GetFilesToArchive(ProjectParams Params, DeploymentContext SC)
 	{
+		// use the shared archiving with modern mode
+		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		{
+			base.GetFilesToArchive(Params, SC);
+			return;
+		}
+
 		if (SC.StageTargetConfigurations.Count != 1)
 		{
 			throw new AutomationException("iOS is currently only able to package one target configuration at a time, but StageTargetConfigurations contained {0} configurations", SC.StageTargetConfigurations.Count);

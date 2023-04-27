@@ -92,6 +92,35 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Generates a stub xcode project for the given project/platform/target combo, then builds or archives it
+		/// </summary>
+		/// <param name="ProjectFile"></param>
+		/// <param name="Platform"></param>
+		/// <param name="Configuration"></param>
+		/// <param name="TargetName"></param>
+		/// <param name="bArchiveForDistro"></param>
+		/// <param name="Logger"></param>
+		/// <returns></returns>
+		public static bool BuildWithModernXcode(FileReference? ProjectFile, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, 
+			string TargetName, bool bArchiveForDistro, ILogger Logger)
+		{
+			DirectoryReference? GeneratedProjectFile;
+			// we don't use distro flag when making a modern project
+			IOSExports.GenerateRunOnlyXcodeProject(ProjectFile, Platform, TargetName, bForDistribution:false, Logger, out GeneratedProjectFile);
+
+			if (GeneratedProjectFile == null)
+			{
+				return false;
+			}
+
+			// run xcodebuild on the generated project to make the .app
+			IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Platform, TargetName, Configuration.ToString(),
+				bArchiveForDistro ? "archive" : "build", "", bArchiveForDistro, Logger);
+
+			return true;
+		}
+
+		/// <summary>
 		/// Strips symbols from a file
 		/// </summary>
 		/// <param name="SourceFile">The input file</param>

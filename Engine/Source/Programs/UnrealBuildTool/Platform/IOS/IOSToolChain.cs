@@ -1518,38 +1518,8 @@ namespace UnrealBuildTool
 
 			if (UseModernXcode(Target.ProjectFile))
 			{
-				// generate a run-only project file for codesigning, etc
-				DirectoryReference? GeneratedProjectFile;
-				IOSExports.GenerateRunOnlyXcodeProject(Target.ProjectFile, Target.Platform, Target.TargetName, Target.bForDistribution, Logger, out GeneratedProjectFile);
+				throw new BuildException("Do we get here?");
 
-				// @todo - should we move this in to FinalizeAppWithXcode?
-				string ConfigName = Target.Configuration.ToString();
-				if (Target.TargetType != TargetType.Game && Target.TargetType != TargetType.Program)
-				{
-					ConfigName += " " + Target.TargetType.ToString();
-				}
-
-				string SchemeName;
-				if (AppName == "UnrealGame" || AppName == "UnrealClient")
-				{
-					if (Target.bBuildAsFramework)
-					{
-						SchemeName = "UnrealGame";
-					}
-					else
-					{
-						SchemeName = "UE5";
-					}
-				}
-				else
-				{
-					SchemeName = Target.ProjectFile!.GetFileNameWithoutExtension();
-				}
-
-				// run xcodebuild on the generated project to make the .app
-				IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Target.Platform, SchemeName, ConfigName, "", Target.bForDistribution, Logger);
-
-				return;
 			}
 
 

@@ -395,12 +395,6 @@ public class MacPlatform : ApplePlatform
 		}
 	}
 
-	public override void Package(ProjectParams Params, DeploymentContext SC, int WorkingCL)
-	{
-		// package up the program, potentially with an installer for Mac
-		PrintRunTime();
-	}
-
 	private void FixupFrameworks(string TargetPath)
 	{
 		DirectoryReference TargetCEFDir = DirectoryReference.Combine(new DirectoryReference(TargetPath), "Engine/Binaries/ThirdParty/CEF3/Mac");
@@ -433,6 +427,12 @@ public class MacPlatform : ApplePlatform
 
 	public override void ProcessArchivedProject(ProjectParams Params, DeploymentContext SC)
 	{
+		// nothing to do with modern
+		if (MacExports.UseModernXcode(Params.RawProjectPath))
+		{
+			return;
+		}
+
 		if (Params.CreateAppBundle)
 		{
 			string ExeName = SC.StageExecutables[0];

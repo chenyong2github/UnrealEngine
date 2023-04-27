@@ -587,20 +587,8 @@ namespace UnrealBuildTool
 
 		private void PostBuildSync(ApplePostBuildSyncTarget Target, ILogger Logger)
 		{
-			// generate a run-only project file for codesigning, etc
-			DirectoryReference? GeneratedProjectFile;
-			Logger.LogInformation("Generating temporary Xcode project...");
-			DateTime Start = DateTime.Now;
-			IOSExports.GenerateRunOnlyXcodeProject(Target.ProjectFile, Target.Platform, Target.TargetName, false, Logger, out GeneratedProjectFile);
-
-			// run xcodebuild on the generated project to make the .app
-			bool bForDistribution = false;
-			Logger.LogInformation($"Finalizing .app via Xcode... [generation took {(DateTime.Now - Start).TotalMilliseconds / 1000.0}s]");
-			IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Target.Platform, Target.TargetName, Target.Configuration.ToString(), "", bForDistribution, Logger);
+			MacExports.BuildWithModernXcode(Target.ProjectFile, Target.Platform, Target.Configuration, Target.TargetName, bArchiveForDistro: false, Logger);
 		}
-
-
-
 
 		private static FileItem GetPostBuildOutputFile(FileReference Executable, string TargetName, UnrealTargetPlatform Platform)
 		{

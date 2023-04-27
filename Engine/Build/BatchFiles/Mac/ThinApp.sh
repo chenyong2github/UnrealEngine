@@ -20,9 +20,6 @@ function thin {
 				echo "Thinning $1 down to ${keeparches[*]}"
 				mv "$1" "$1.tmp"
 
-				# remove any existing signature or ditto will throw a warning - Xcode will be re-codesigning everything after this runs
-				codesign --remove-signature "$1.tmp"
-
 				archparams=(${keeparches[@]/#/"--arch "})
 				ditto "${archparams[@]}" "$1.tmp" "$1"
 				rm "$1.tmp"

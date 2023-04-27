@@ -290,12 +290,13 @@ namespace UnrealBuildTool
 		/// <param name="Platform">THe platform to make the .app for</param>
 		/// <param name="SchemeName">The name of the scheme (basically the target on the .xcworkspace)</param>
 		/// <param name="Configuration">Which configuration to make (Debug, etc)</param>
+		/// <param name="Action">Action (build, archive, etc)</param>
 		/// <param name="ExtraOptions">Extra options to pass to xcodebuild</param>
 		/// <param name="bForDistribution">True if this is making a bild for uploading to app store</param>
 		/// <param name="Logger">Logging object</param>
-		public static void FinalizeAppWithModernXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration, string ExtraOptions, bool bForDistribution, ILogger Logger)
+		public static void FinalizeAppWithModernXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration, string Action, string ExtraOptions, bool bForDistribution, ILogger Logger)
 		{
-			FinalizeAppWithXcode(XcodeProject, Platform, SchemeName, Configuration, null, null, null, ExtraOptions, false, bForDistribution, bUseModernXcode: true, Logger);
+			FinalizeAppWithXcode(XcodeProject, Platform, SchemeName, Configuration, null, null, null, ExtraOptions, false, bForDistribution, bUseModernXcode: true, Logger, Action);
 		}
 
 		/// <summary>
@@ -313,19 +314,24 @@ namespace UnrealBuildTool
 		/// <param name="bForDistribution">True if this is making a bild for uploading to app store</param>
 		/// <param name="bUseModernXcode">True if the project was made with modern xcode mode</param>
 		/// <param name="Logger">Logging object</param>
+		/// <param name="Action">Action (build, archive, etc). Defaults to build</param>
 		/// <returns></returns>
 		public static int FinalizeAppWithXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration,
-			string? Provision, string? Certificate, string? Team, string ExtraOptions, bool bAutomaticSigning, bool bForDistribution, bool bUseModernXcode, ILogger Logger)
+			string? Provision, string? Certificate, string? Team, string ExtraOptions, bool bAutomaticSigning, bool bForDistribution, bool bUseModernXcode, ILogger Logger, 
+			string Action="build")
 		{
+			int ForDistro = bForDistribution ? 1 : 0;
+
 			List<string> Arguments = new()
 			{
 				"UBT_NO_POST_DEPLOY=true",
 				new IOSToolChainSettings(Logger).XcodeDeveloperDir + "usr/bin/xcodebuild",
-				"build",
+				Action,
 				$"-workspace \"{XcodeProject.FullName}\"",
 				$"-scheme \"{SchemeName}\"",
 				$"-configuration \"{Configuration}\"",
 				$"-destination generic/platform=" + (Platform == UnrealTargetPlatform.TVOS ? "tvOS" : Platform == UnrealTargetPlatform.Mac ? "macOS" : "iOS"),
+				"-hideShellScriptEnvironment",
 				ExtraOptions,
 				//$"-sdk {SDKName}",
 			};
@@ -381,10 +387,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			int ReturnCode;
-			string Output = Utils.RunLocalProcessAndReturnStdOut("/usr/bin/env", string.Join(" ", Arguments), null, out ReturnCode);
-			Logger.LogDebug(Output);
-			DirectoryReference.Delete(XcodeProject, true);
+			int ReturnCode = Utils.RunLocalProcessAndLogOutput("/usr/bin/env", string.Join(" ", Arguments), Logger);
 			return ReturnCode;
 		}
 
