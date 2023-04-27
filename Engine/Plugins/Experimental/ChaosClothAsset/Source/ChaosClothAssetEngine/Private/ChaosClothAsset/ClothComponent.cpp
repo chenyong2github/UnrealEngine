@@ -111,9 +111,15 @@ void UChaosClothComponent::OnRegister()
 			ResetConfigProperties();
 
 			// Create simulation proxy
-			ClothSimulationProxy = MakeUnique<FClothSimulationProxy>(*this);
+			ClothSimulationProxy = CreateClothSimulationProxy();
 		}
 	}
+}
+
+TUniquePtr<UE::Chaos::ClothAsset::FClothSimulationProxy> UChaosClothComponent::CreateClothSimulationProxy()
+{
+	using namespace UE::Chaos::ClothAsset;
+	return MakeUnique<FClothSimulationProxy>(*this);
 }
 
 bool UChaosClothComponent::IsSimulationSuspended() const

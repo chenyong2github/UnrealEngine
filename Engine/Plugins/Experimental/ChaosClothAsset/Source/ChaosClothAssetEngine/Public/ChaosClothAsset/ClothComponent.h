@@ -25,8 +25,8 @@ namespace UE::Chaos::ClothAsset
  */
 UCLASS(
 	ClassGroup = Physics, 
-	Meta = (BlueprintSpawnableComponent, ToolTip = "Chaos cloth simulation component."),
-	DisplayName = "Cloth Simulation",
+	Meta = (BlueprintSpawnableComponent, ToolTip = "Chaos cloth component."),
+	DisplayName = "Chaos cloth component",
 	HideCategories = (Object, "Mesh|SkeletalAsset", Constraints, Advanced, Cooking, Collision, Navigation))
 class CHAOSCLOTHASSETENGINE_API UChaosClothComponent : public USkinnedMeshComponent
 {
@@ -116,6 +116,9 @@ protected:
 	virtual void RefreshBoneTransforms(FActorComponentTickFunction* TickFunction = nullptr) override;
 	virtual void GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutBlendWeight) override;
 	//~ End USkinnedMeshComponent Interface
+
+	/** Override this function for setting up custom simulation proxies when the component is registered. */
+	virtual TUniquePtr<UE::Chaos::ClothAsset::FClothSimulationProxy> CreateClothSimulationProxy();
 
 private:
 	void StartNewParallelSimulation(float DeltaTime);
