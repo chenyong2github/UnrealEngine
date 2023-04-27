@@ -1140,9 +1140,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 		}
 #endif
 
-		// If want to be able to load cooked data in the editor we need to use FAsyncArchive which supports EDL cooked packages,
-		// otherwise the generic file reader is faster in the editor so use that
-		bool bCanUseAsyncLoader = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
+		// We don't need to go through FAsyncArchive in editor even if GAllowCookedDataInEditorBuilds is true
+		// as loading cooked data is handled by iostore now and the async archive has terrible performance causing
+		// heavy ping/pong latency between threads even for small reads.
+		bool bCanUseAsyncLoader = FPlatformProperties::RequiresCookedData();
 
 		if (bCanUseAsyncLoader)
 		{
