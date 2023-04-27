@@ -32,6 +32,7 @@ public:
 	virtual void Serialize(void* Data, int64 Length);
 	virtual FArchive& operator<<(class FName& Name);
 	virtual FArchive& operator<<(class UObject*& Object);
+	virtual FArchive& operator<<(FObjectPtr& ObjectPtr) override;
 	virtual FString GetArchiveName() const { return TEXT("FArchiveObjectCrc32"); }
 	//~ End FArchive Interface
 

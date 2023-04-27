@@ -2,6 +2,7 @@
 
 #include "Serialization/ArchiveObjectCrc32.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogArchiveObjectCrc32, Log, All);
 
@@ -57,6 +58,22 @@ FArchive& FArchiveObjectCrc32::operator<<(class UObject*& Object)
 		ObjectsToSerialize.Enqueue(Object);
 	}
 
+	return Ar;
+}
+
+FArchive& FArchiveObjectCrc32::operator<<(FObjectPtr& ObjectPtr)
+{
+	FArchive& Ar = *this;
+	if (!ObjectPtr.IsResolved())
+	{
+		auto UniqueName = ObjectPtr.GetPathName();
+		Ar << UniqueName;
+	}
+	else
+	{
+		UObject* Object = ObjectPtr.Get();
+		Ar << Object;
+	}
 	return Ar;
 }
 
