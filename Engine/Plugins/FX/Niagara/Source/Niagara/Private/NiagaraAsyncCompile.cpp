@@ -117,8 +117,6 @@ FNiagaraAsyncCompileTask::FNiagaraAsyncCompileTask(UNiagaraSystem* InOwningSyste
 	ScriptPair = InScriptPair;
 
 	CurrentState = ENiagaraCompilationState::CheckDDC;
-
-	bExperimentalVMDisabled = InScriptPair.CompileId.AdditionalDefines.Contains(FNiagaraCompileOptions::ExperimentalVMDisabled);
 }
 
 void FNiagaraAsyncCompileTask::ProcessCurrentState()
@@ -330,7 +328,7 @@ void FNiagaraAsyncCompileTask::OptimizeByteCode()
 	check(ExeData);
 
 #if VECTORVM_SUPPORTS_LEGACY
-	if (bExperimentalVMDisabled)
+	if (ScriptPair.CompileId.AdditionalDefines.Contains(FNiagaraCompileOptions::ExperimentalVMDisabled))
 	{
 		return;
 	}
