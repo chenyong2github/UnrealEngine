@@ -297,15 +297,16 @@ static TSharedPtr<FDetailTreeNode> FindBestFitTreeNodeFromProperty(const TArray<
 
 void SDetailsViewBase::HighlightProperty(const FPropertyPath& Property)
 {
-	if (!Property.IsValid())
-	{
-		return;
-	}
-	
 	TSharedPtr<FDetailTreeNode> PrevHighlightedNodePtr = CurrentlyHighlightedNode.Pin();
 	if (PrevHighlightedNodePtr.IsValid())
 	{
 		PrevHighlightedNodePtr->SetIsHighlighted(false);
+	}
+	
+	if (!Property.IsValid())
+	{
+		CurrentlyHighlightedNode = nullptr;
+		return;
 	}
 
 	const TSharedPtr< FDetailTreeNode > TreeNode = FindBestFitTreeNodeFromProperty(RootTreeNodes, Property);
