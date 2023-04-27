@@ -2,8 +2,6 @@
 #pragma once
 
 #include "MLDeformerMorphModelInstance.h"
-#include "NNECore.h"
-#include "NNECoreRuntimeCPU.h"
 #include "NearestNeighborModelInstance.generated.h"
 
 
@@ -66,11 +64,4 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UNearestNeighborOptimizedNetworkInstance> OptimizedNetworkInstance = nullptr;
-
-private:
-	void CreateNNEModel();
-    void RunNNE();
-	TUniquePtr<UE::NNECore::IModelCPU> ModelCPU;
-	TArray<float> NNEInputTensorBuffer;
-	TArray<float> NNEOutputTensorBuffer;
 };

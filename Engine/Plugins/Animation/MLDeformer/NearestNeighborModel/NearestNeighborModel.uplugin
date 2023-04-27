@@ -14,30 +14,21 @@
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": true,
 	"Installed": false,
-	"SupportedTargetPlatforms": [
-		"Win64", "Linux", "Mac"
-	],
 	"Modules": [
 		{
 			"Name": "NearestNeighborModel",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		},
 		{
 			"Name": "NearestNeighborModelEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "Linux", "Mac" ]
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "GeometryCache",
-			"Enabled": true
-		},
-		{
-			"Name": "NNE",
 			"Enabled": true
 		},
 		{

@@ -16,7 +16,6 @@
 #include "Rendering/MorphTargetVertexInfoBuffers.h"
 #include "ShaderCore.h"
 #include "UObject/UObjectGlobals.h"
-#include "NNECoreModelData.h"
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NearestNeighborModel)
 
 #define LOCTEXT_NAMESPACE "UNearestNeighborModel"
@@ -65,16 +64,6 @@ UMLDeformerInputInfo* UNearestNeighborModel::CreateInputInfo()
 	return NearestNeighborModelInputInfo;
 }
 
-void UNearestNeighborModel::SetNNEModelData(TObjectPtr<UNNEModelData> ModelData)
-{
-	NNEModel = ModelData;
-}
-
-TObjectPtr<UNNEModelData> UNearestNeighborModel::GetNNEModelData() const
-{
-	return NNEModel;
-}
-
 UMLDeformerModelInstance* UNearestNeighborModel::CreateModelInstance(UMLDeformerComponent* Component)
 {
 	return NewObject<UNearestNeighborModelInstance>(Component);
@@ -83,23 +72,6 @@ UMLDeformerModelInstance* UNearestNeighborModel::CreateModelInstance(UMLDeformer
 void UNearestNeighborModel::Serialize(FArchive& Archive)
 {
 	Super::Serialize(Archive);
-	if (Archive.IsCooking())
-	{
-		if (DoesUseOptimizedNetwork())
-		{
-			if (GetNNEModelData() != nullptr)
-			{
-				NNEModel = nullptr;
-			}
-		}
-		else
-		{
-			if (GetOptimizedNetwork() != nullptr)
-			{
-				OptimizedNetwork = nullptr;
-			}
-		}
-	}
 }
 
 void UNearestNeighborModel::PostLoad()
@@ -413,16 +385,8 @@ int32 UNearestNeighborModel::GetNumNeighborsFromAnimSequence(int32 PartId) const
 
 void UNearestNeighborModel::UpdateNetworkSize()
 {
-	if (NNEModel)
-	{
-		const FString RuntimeName = GetNNERuntimeName();
-		TConstArrayView<uint8> ArrayView = NNEModel->GetModelData(RuntimeName);
-		SavedNetworkSize = ArrayView.GetTypeSize() * ArrayView.Num(); 
-	}
-	else
-	{
-		SavedNetworkSize = 0.0f;
-	}
+
+	SavedNetworkSize = 0.0f;
 }
 
 void UNearestNeighborModel::UpdateMorphTargetSize()

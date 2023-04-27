@@ -15,7 +15,6 @@ class UNearestNeighborModel;
 class UNearestNeighborModelInstance;
 class UNearestNeighborTrainingModel;
 class UNearestNeighborModelVizSettings;
-class UNNEModelData;
 
 namespace UE::NearestNeighborModel
 {
@@ -62,7 +61,6 @@ namespace UE::NearestNeighborModel
 		UNearestNeighborModel* GetNearestNeighborModel() const { return static_cast<UNearestNeighborModel*>(Model); }
 		UNearestNeighborModelVizSettings* GetNearestNeighborModelVizSettings() const;
 
-		TObjectPtr<UNNEModelData> LoadNeuralNetworkFromOnnx(const FString& Filename) const;
 		// Recomputes nearest neighbor coeffcients and nearest neighbor vertex offsets. 
 		virtual uint8 UpdateNearestNeighborData();
 

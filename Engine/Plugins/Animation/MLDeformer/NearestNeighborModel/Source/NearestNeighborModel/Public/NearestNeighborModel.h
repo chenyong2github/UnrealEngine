@@ -14,7 +14,6 @@ struct FSkelMeshImportedMeshInfo;
 class USkeletalMesh;
 class UGeometryCache;
 class UAnimSequence;
-class UNNEModelData;
 class UMLDeformerAsset;
 class USkeleton;
 class IPropertyHandle;
@@ -261,11 +260,6 @@ private:
 	void SetOptimizedNetwork(UNearestNeighborOptimizedNetwork* InOptimizedNetwork);
 	bool LoadOptimizedNetwork(const FString& OnnxPath);
 
-	void SetNNEModelData(TObjectPtr<UNNEModelData> ModelData);
-	TObjectPtr<UNNEModelData> GetNNEModelData() const;
-
-	const FString GetNNERuntimeName() const {return TEXT("NNERuntimeORTDml"); }
-
 #if WITH_EDITORONLY_DATA
 	TObjectPtr<UAnimSequence> GetNearestNeighborSkeletons(int32 PartId);
 	const TObjectPtr<UAnimSequence> GetNearestNeighborSkeletons(int32 PartId) const;
@@ -454,10 +448,6 @@ protected:
 private:
 	UPROPERTY()
 	TObjectPtr<UNearestNeighborOptimizedNetwork> OptimizedNetwork = nullptr;
-
-	/** The NNE neural network model. */
-	UPROPERTY()
-	TObjectPtr<UNNEModelData> NNEModel;
 
 	UPROPERTY()
 	bool bUseOptimizedNetwork = true;

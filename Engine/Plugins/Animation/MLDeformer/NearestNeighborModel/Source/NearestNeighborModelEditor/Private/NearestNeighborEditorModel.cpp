@@ -13,8 +13,6 @@
 #include "MLDeformerComponent.h"
 #include "MLDeformerEditorToolkit.h"
 #include "MLDeformerAsset.h"
-#include "NNECore.h"
-#include "NNECoreModelData.h"
 #include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -94,38 +92,6 @@ namespace UE::NearestNeighborModel
 			GetEditor()->GetModelDetailsView()->ForceRefresh();
 		}
 	}
-
-	TObjectPtr<UNNEModelData> FNearestNeighborEditorModel::LoadNeuralNetworkFromOnnx(const FString& Filename) const
-	{
-		const FString OnnxFile = FPaths::ConvertRelativePathToFull(Filename);
-		if (FPaths::FileExists(OnnxFile))
-		{
-			UE_LOG(LogNearestNeighborModel, Display, TEXT("Loading Onnx file '%s'..."), *OnnxFile);
-			TArray<uint8> RawModelData;
-			const bool bIsModelInMem = FFileHelper::LoadFileToArray(RawModelData, *OnnxFile);
-
-			if (bIsModelInMem)
-			{
-				UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
-				TObjectPtr<UNNEModelData> ModelData = NewObject<UNNEModelData>();
-
-				ModelData->Init(NearestNeighborModel->GetNNERuntimeName(), RawModelData);
-				// TODO - add some real verification
-				UE_LOG(LogNearestNeighborModel, Display, TEXT("Successfully loaded Onnx file '%s'..."), *OnnxFile);
-				return ModelData;
-			}
-			else
-			{
-				UE_LOG(LogNearestNeighborModel, Error, TEXT("Failed to load Onnx file '%s'"), *OnnxFile);
-			}
-		}
-		else
-		{
-			UE_LOG(LogNearestNeighborModel, Error, TEXT("Onnx file '%s' does not exist!"), *OnnxFile);
-		}
-
-		return nullptr;
-	}
 	
 	bool FNearestNeighborEditorModel::LoadTrainedNetwork() const
 	{
@@ -147,13 +113,6 @@ namespace UE::NearestNeighborModel
 					}
 				}
 			}
-			else
-			{
-				TObjectPtr<UNNEModelData> NNEModel = LoadNeuralNetworkFromOnnx(OnnxFile);
-				NearestNeighborModel->SetUseOptimizedNetwork(false);
-				NearestNeighborModel->SetNNEModelData(NNEModel);
-				return true;
-			}
 		}
 		return false;
 	}
@@ -163,7 +122,7 @@ namespace UE::NearestNeighborModel
 		const UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
 		if (NearestNeighborModel)
 		{
-			return NearestNeighborModel->DoesUseOptimizedNetwork() ? NearestNeighborModel->GetOptimizedNetwork() != nullptr : NearestNeighborModel->GetNNEModelData().Get() != nullptr;
+			return NearestNeighborModel->DoesUseOptimizedNetwork() && NearestNeighborModel->GetOptimizedNetwork() != nullptr;
 		}
 		return false;
 	}
@@ -873,23 +832,6 @@ namespace UE::NearestNeighborModel
 				UE_LOG(LogNearestNeighborModel, Warning, TEXT("Network output dimension %d is not equal to number of morph targets %d. Network needs to be re-trained and no deformation will be applied."), NumNetworkWeights, NumPCACoeffs);
 				return EUpdateResult::WARNING;
 			}
-		}
-		else
-		{
-			const TObjectPtr<UNNEModelData> NNEModelData = NearestNeighborModel->GetNNEModelData();
-			if (NNEModelData == nullptr)
-			{
-				UE_LOG(LogNearestNeighborModel, Warning, TEXT("NNE network is not loaded. Model needs to be re-trained."));
-				return EUpdateResult::WARNING;
-			}
-
-			if (NNEModelData->GetModelData(NearestNeighborModel->GetNNERuntimeName()).IsEmpty())
-			{
-				UE_LOG(LogNearestNeighborModel, Warning, TEXT("NNE runtime is empty. Model needs to be re-trained."));
-				return EUpdateResult::WARNING;
-			}
-
-			// TODO: check network dimensions			
 		}
 		return EUpdateResult::SUCCESS;
 	}

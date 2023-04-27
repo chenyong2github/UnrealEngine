@@ -3,8 +3,6 @@
 #include "NearestNeighborModelInstance.h"
 #include "NearestNeighborModel.h"
 #include "NearestNeighborModelInputInfo.h"
-#include "NNECore.h"
-#include "NNECoreModelData.h"
 #include "NearestNeighborOptimizedNetwork.h"
 #include "MLDeformerAsset.h"
 #include "Components/ExternalMorphSet.h"
@@ -62,10 +60,7 @@ bool UNearestNeighborModelInstance::SetupInputs()
 	}
 	else
 	{
-		if (!ModelCPU || NNEInputTensorBuffer.IsEmpty() || NNEOutputTensorBuffer.IsEmpty())
-		{
-			return false;
-		}
+		return false;
 	}
 
 	int32 NumNeuralNetInputs = 0;
@@ -106,10 +101,6 @@ void UNearestNeighborModelInstance::Init(USkeletalMeshComponent* SkelMeshCompone
 	{
 		InitOptimizedNetworkInstance();
 	}
-	else
-	{
-		CreateNNEModel(); 
-	}
 }
 
 void UNearestNeighborModelInstance::InitOptimizedNetworkInstance()
@@ -129,10 +120,6 @@ void UNearestNeighborModelInstance::Execute(float ModelWeight)
 	{
 		UNearestNeighborOptimizedNetwork* OptimizedNetwork = NearestNeighborModel->GetOptimizedNetwork();
 		OptimizedNetworkInstance->Run();
-	}
-	else
-	{
-		RunNNE();
 	}
 }
 
@@ -299,45 +286,6 @@ void UNearestNeighborModelInstance::InitPreviousWeights()
 	}
 }
 
-void UNearestNeighborModelInstance::CreateNNEModel()
-{
-	UNearestNeighborModel* NearestNeighborModel = Cast<UNearestNeighborModel>(Model);
-	if (NearestNeighborModel)
-	{
-		TWeakInterfacePtr<INNERuntime> Runtime = UE::NNECore::GetRuntime<INNERuntime>(NearestNeighborModel->GetNNERuntimeName());
-		TWeakInterfacePtr<INNERuntimeCPU> RuntimeCPU = UE::NNECore::GetRuntime<INNERuntimeCPU>(NearestNeighborModel->GetNNERuntimeName());
-
-		if (!Runtime.IsValid())
-		{
-			UE_LOG(LogNNE, Error, TEXT("Can't get %s runtime."), *NearestNeighborModel->GetNNERuntimeName());
-			return;
-		}
-
-		TObjectPtr<UNNEModelData> ModelData = NearestNeighborModel->GetNNEModelData(); 
-		if (ModelData)
-		{
-			if (RuntimeCPU.IsValid())
-			{
-				// allocate tensor inputs and outputs
-				ModelCPU = RuntimeCPU->CreateModelCPU(ModelData);
-
-				// setup inputs
-				TConstArrayView<UE::NNECore::FTensorDesc> InputTensorDescs = ModelCPU->GetInputTensorDescs();
-				UE::NNECore::FTensorShape InputTensorShape = UE::NNECore::FTensorShape::MakeFromSymbolic(InputTensorDescs[0].GetShape());
-				ModelCPU->SetInputTensorShapes({ InputTensorShape });
-				check(InputTensorDescs[0].GetElemByteSize() == sizeof(float)); 
-				NNEInputTensorBuffer.SetNumUninitialized(InputTensorShape.Volume());
-
-				// setup outputs
-				TConstArrayView<UE::NNECore::FTensorDesc> OutputTensorDescs = ModelCPU->GetOutputTensorDescs();
-				UE::NNECore::FTensorShape OutputTensorShape = UE::NNECore::FTensorShape::MakeFromSymbolic(OutputTensorDescs[0].GetShape());
-				check(OutputTensorDescs[0].GetElemByteSize() == sizeof(float));
-				NNEOutputTensorBuffer.SetNumUninitialized(OutputTensorShape.Volume());
-			}
-		}
-	}
-}
-
 void UNearestNeighborModelInstance::GetInputDataPointer(float*& OutInputData, int32& OutNumInputFloats)
 {
 	const UNearestNeighborModel* NearestNeighborModel = Cast<UNearestNeighborModel>(Model);
@@ -350,14 +298,6 @@ void UNearestNeighborModelInstance::GetInputDataPointer(float*& OutInputData, in
 			OutInputData = OptimizedNetworkInstance->GetInputs().GetData();
 			OutNumInputFloats = OptimizedNetwork->GetNumInputs();
 			return;
-		}
-	}
-	else
-	{
-		if (ModelCPU)
-		{
-			OutInputData = NNEInputTensorBuffer.GetData();
-			OutNumInputFloats = NNEInputTensorBuffer.Num(); 
 		}
 	}
 	OutInputData = nullptr;
@@ -375,15 +315,6 @@ void UNearestNeighborModelInstance::GetOutputDataPointer(float*& OutOutputData, 
 		{
 			OutOutputData = OptimizedNetworkInstance->GetOutputs().GetData();
 			OutNumOutputFloats = OptimizedNetwork->GetNumOutputs();
-			return;
-		}
-	}
-	else
-	{
-		if (ModelCPU)
-		{
-			OutOutputData = NNEOutputTensorBuffer.GetData();
-			OutNumOutputFloats = NNEOutputTensorBuffer.Num();
 			return;
 		}
 	}
@@ -427,13 +358,6 @@ FString UNearestNeighborModelInstance::CheckCompatibility(USkeletalMeshComponent
 		}
 
 	}
-	else
-	{
-		if (ModelCPU)
-		{
-			NumNeuralNetInputs = NNEInputTensorBuffer.Num();
-		}
-	}
 
 	// Only check compatibility after the network is loaded. 
 	if (NumNeuralNetInputs >= 0 && NumNeuralNetInputs != NumDeformerAssetInputs) 
@@ -471,17 +395,5 @@ TArray<float> UNearestNeighborModelInstance::Eval(const TArray<float>& InputData
 		TArrayView<float> Outputs = OptimizedNetworkInstance->GetOutputs();
 		return TArray<float>(Outputs.GetData(), Outputs.Num());
 	}
-	else
-	{
-		check(ModelCPU != nullptr);
-		RunNNE();
-		return NNEOutputTensorBuffer;
-	}
-}
-
-void UNearestNeighborModelInstance::RunNNE()
-{
-	UE::NNECore::FTensorBindingCPU InputTensorBinding{NNEInputTensorBuffer.GetData(), NNEInputTensorBuffer.Num()};
-	UE::NNECore::FTensorBindingCPU OutputTensorBinding{NNEOutputTensorBuffer.GetData(), NNEOutputTensorBuffer.Num()};
-	ModelCPU->RunSync({InputTensorBinding}, {OutputTensorBinding});
+	return TArray<float>();
 }
