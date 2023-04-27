@@ -2766,6 +2766,24 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		if (ensure(EnginePhysicalMaterial))
 		{
 			SimulationParameters.PhysicalMaterialHandle = EnginePhysicalMaterial->GetPhysicsMaterial();
+
+			// mass properties are cooked in the GC asset, but component can override physics material with a different density
+			// if the user wants the density to be set from the physics material we need adjust by scaling mass by the ratio override/cooked defined properties
+			SimulationParameters.MaterialOverrideMassScaleMultiplier = 1.0f;
+			if (RestCollection && RestCollection->bDensityFromPhysicsMaterial)
+			{
+				bool bMassAsDensity = false;
+				const float AssetMassOrDensity = RestCollection->GetMassOrDensity(bMassAsDensity);
+				if (ensureMsgf(bMassAsDensity, TEXT("Need a density to be able to compute the mass scale multiplier, this may result in incorrect mass properties")))
+				{
+					if (ensureMsgf(AssetMassOrDensity > SMALL_NUMBER, TEXT("Asset density is set to a too small number, ignoring it for mass adjustment")))
+					{
+						const float OverrideMaterialDensity = Chaos::GCm3ToKgCm3(EnginePhysicalMaterial->Density);
+						SimulationParameters.MaterialOverrideMassScaleMultiplier = OverrideMaterialDensity / AssetMassOrDensity;
+					}
+				}
+				
+			}
 		}
 		GetInitializationCommands(SimulationParameters.InitializationCommands);
 	}
@@ -3251,6 +3269,24 @@ void UGeometryCollectionComponent::BuildInitialFilterData()
 	}
 }
 
+void UGeometryCollectionComponent::ApplyAssetDefaults()
+{
+	if (RestCollection)
+	{
+		// initialize the component per level damage threshold from the asset defaults 
+		DamageThreshold = RestCollection->DamageThreshold;
+		bUseSizeSpecificDamageThreshold = RestCollection->bUseSizeSpecificDamageThreshold;
+
+		// initialize the component damage progataion data from the asset defaults 
+		DamagePropagationData = RestCollection->DamagePropagationData;
+
+		if (RestCollection->PhysicsMaterial)
+		{
+			BodyInstance.SetPhysMaterialOverride(RestCollection->PhysicsMaterial);
+		}
+	}
+}
+
 void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* RestCollectionIn, bool bApplyAssetDefaults)
 {
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::SetRestCollection()"), this);
@@ -3267,12 +3303,7 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 
 		if (bApplyAssetDefaults)
 		{
-			// initialize the component per level damage threshold from the asset defaults 
-			DamageThreshold = RestCollection->DamageThreshold;
-			bUseSizeSpecificDamageThreshold = RestCollection->bUseSizeSpecificDamageThreshold;
-
-			// initialize the component damage progataion data from the asset defaults 
-			DamagePropagationData = RestCollection->DamagePropagationData;
+			ApplyAssetDefaults();
 		}
 	}
 }

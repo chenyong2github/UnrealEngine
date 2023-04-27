@@ -195,6 +195,7 @@ struct FSimulationParameters
 		, bClearCache(false)
 		, ObjectType(EObjectStateTypeEnum::Chaos_NONE)
 		, StartAwake(true)
+		, MaterialOverrideMassScaleMultiplier(1.0f)
 		, bGenerateBreakingData(false)
 		, bGenerateCollisionData(false)
 		, bGenerateTrailingData(false)
@@ -246,6 +247,7 @@ struct FSimulationParameters
 		, ObjectType(Other.ObjectType)
 		, StartAwake(Other.StartAwake)
 		, PhysicalMaterialHandle(Other.PhysicalMaterialHandle)
+		, MaterialOverrideMassScaleMultiplier(Other.MaterialOverrideMassScaleMultiplier)
 		, bGenerateBreakingData(Other.bGenerateBreakingData)
 		, bGenerateCollisionData(Other.bGenerateCollisionData)
 		, bGenerateTrailingData(Other.bGenerateTrailingData)
@@ -318,6 +320,8 @@ struct FSimulationParameters
 	bool StartAwake;
 
 	Chaos::FMaterialHandle PhysicalMaterialHandle;
+
+	float MaterialOverrideMassScaleMultiplier;
 
 	bool bGenerateBreakingData;
 	bool bGenerateCollisionData;

@@ -95,6 +95,24 @@ namespace Chaos
 		const TArray<bool>& bContributesToMass,
 		TFunction<FPerShapeData* (int32 ShapeIndex)> GetShapeDelegate);
 
+	template<typename T>
+	T KgCm3ToKgM3(T Density)
+	{
+		return Density * (T)1000000;
+	}
+
+	template<typename T>
+	T KgM3ToKgCm3(T Density)
+	{
+		return Density / (T)1000000;
+	}
+
+	template<typename T>
+	T GCm3ToKgCm3(T Density)
+	{
+		return Density / (T)1000;
+	}
+
 	template <typename T, int d>
 	using TMassProperties UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FMassProperties instead") = FMassProperties;
 }

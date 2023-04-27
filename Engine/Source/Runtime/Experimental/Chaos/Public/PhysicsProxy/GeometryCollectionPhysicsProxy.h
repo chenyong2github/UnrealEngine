@@ -465,6 +465,11 @@ protected:
 	*/
 	float ComputeDamageThreshold(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex) const;
 
+	/** adjust scalar mass to account for per component scale properties ( from material override and world transform scale ) */ 
+	Chaos::FReal AdjustMassForScale(Chaos::FReal Mass) const;
+
+	/** adjust inertia to account for per component scale properties ( from material override and world transform scale ) */
+	Chaos::FVec3f AdjustInertiaForScale(const Chaos::FVec3f& Inertia) const;
 
 	Chaos::TPBDGeometryCollectionParticleHandle<Chaos::FReal, 3>* BuildNonClusters_Internal(const uint32 CollectionClusterIndex, Chaos::FPBDRigidsSolver* RigidsSolver, float Mass, Chaos::FVec3f Inertia);
 

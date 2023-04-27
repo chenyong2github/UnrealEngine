@@ -727,6 +727,10 @@ public:
 	UPROPERTY(EditAnywhere, NoClear, BlueprintReadOnly, Category = "ChaosPhysics")
 	TObjectPtr<const UGeometryCollection> RestCollection;
 
+	/** Apply default values from asset ( damage related data and physics material ) */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "ChaosPhysics", meta = (EditCondition = "RestCollection != nullptr"))
+	void ApplyAssetDefaults();
+
 	UPROPERTY(EditAnywhere, NoClear, BlueprintReadOnly, Category = "ChaosPhysics")
 	TArray<TObjectPtr<const AFieldSystemActor>> InitializationFields;
 

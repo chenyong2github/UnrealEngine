@@ -497,9 +497,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 		
 	GameThreadCollection.AddExternalAttribute<TUniquePtr<FParticle>>(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup, GTParticles);
 	
-
 	const FVector Scale = Parameters.WorldTransform.GetScale3D();
-	const FVector::FReal MassScale = Scale.X * Scale.Y * Scale.Z;
 	const TManagedArray<float>& Mass = Parameters.RestCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
 
 	TArray<int32> ChildrenToCheckForParentFix;
@@ -515,6 +513,8 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 
 				GTParticles[Index]->SetUniqueIdx(Evolution->GenerateUniqueIdx());
 
+				const Chaos::FReal ScaledMass = AdjustMassForScale(Mass[Index]);
+
 				// Note that this transform must match the physics thread transform computation for initialization.
 				// Take for example, a geometry collection in the editor that is linked with a joint constraint. The joint
 				// constraint will query the game thread particle position/rotation for the geometry collection to compute its
@@ -523,7 +523,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 				const FTransform& T = GameThreadCollection.MassToLocal[Index] * GameThreadCollection.Transform[Index] * Parameters.WorldTransform;
 				P->SetX(T.GetTranslation(), false);
 				P->SetR(T.GetRotation(), false);
-				P->SetM(Mass[Index] * MassScale);
+				P->SetM(ScaledMass);
 				P->SetUserData(Parameters.UserData);
 				P->SetProxy(this);
 
@@ -953,11 +953,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 		const float StrainDefault = Parameters.DamageThreshold.Num() ? Parameters.DamageThreshold[0] : 0;
 		// Add the rigid bodies
 
-		const FVector WorldScale = Parameters.WorldTransform.GetScale3D();
-		const FVector::FReal MassScale = WorldScale.X * WorldScale.Y * WorldScale.Z;
-
 		const Chaos::Facades::FCollectionAnchoringFacade AnchoringFacade(PhysicsThreadCollection);
-
 
 		TArray<float> Masses;
 		TArray<Chaos::FVec3f> Inertias;
@@ -965,8 +961,9 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 
 		for (int32 Index = 0; Index < NumTransforms; Index++)
 		{
-			const Chaos::FVec3f ScaledInertia = Chaos::Utilities::ScaleInertia<float>((Chaos::FVec3f)InertiaTensor[Index], (Chaos::FVec3f)(WorldScale), true);
-			Masses.Add(Mass[Index] * float(MassScale));
+			const float ScaledMass = (float)AdjustMassForScale(Mass[Index]);
+			const Chaos::FVec3f ScaledInertia = AdjustInertiaForScale((Chaos::FVec3f)InertiaTensor[Index]);
+			Masses.Add(ScaledMass);
 			Inertias.Add(ScaledInertia);
 			const FTransform WorldTransform = MassToLocal[Index] * Transform[Index] * Parameters.WorldTransform;
 			Transforms.Add(WorldTransform);
@@ -982,7 +979,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			if (FClusterHandle* Handle = SolverParticleHandles[TransformGroupIndex])
 			{
 				// Mass space -> Composed parent space -> world
-				const Chaos::FVec3f ScaledInertia = Chaos::Utilities::ScaleInertia<float>((Chaos::FVec3f)InertiaTensor[TransformGroupIndex], (Chaos::FVec3f)(WorldScale), true);
+				const Chaos::FReal ScaledMass = AdjustMassForScale(Mass[TransformGroupIndex]);
+				const Chaos::FVec3f ScaledInertia = AdjustInertiaForScale((Chaos::FVec3f)InertiaTensor[TransformGroupIndex]);
 
 				PopulateSimulatedParticle(
 					Handle,
@@ -991,7 +989,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 					Implicits[TransformGroupIndex],
 					SimFilter,
 					QueryFilter,
-					Mass[TransformGroupIndex] * MassScale,
+					ScaledMass,
 					ScaledInertia,
 					Transforms[TransformGroupIndex],
 					static_cast<uint8>(DynamicState[TransformGroupIndex]),
@@ -1376,6 +1374,21 @@ float FGeometryCollectionPhysicsProxy::ComputeDamageThreshold(const FGeometryDyn
 	return DamageThreshold;
 }
 
+Chaos::FReal FGeometryCollectionPhysicsProxy::AdjustMassForScale(Chaos::FReal Mass) const
+{
+	const FVector WorldScale = Parameters.WorldTransform.GetScale3D();
+	Chaos::FReal MassScale = WorldScale.X * WorldScale.Y * WorldScale.Z;
+	MassScale *= Parameters.MaterialOverrideMassScaleMultiplier;
+	return (Mass * MassScale);
+}
+
+Chaos::FVec3f FGeometryCollectionPhysicsProxy::AdjustInertiaForScale(const Chaos::FVec3f& Inertia) const
+{
+	const FVector3f WorldScale(Parameters.WorldTransform.GetScale3D());
+	const FVector3f InertiaScale = WorldScale * Parameters.MaterialOverrideMassScaleMultiplier;
+	return Chaos::Utilities::ScaleInertia<float>(Inertia, InertiaScale, true);
+}
+
 Chaos::TPBDGeometryCollectionParticleHandle<Chaos::FReal, 3>* FGeometryCollectionPhysicsProxy::BuildNonClusters_Internal(const uint32 CollectionClusterIndex, Chaos::FPBDRigidsSolver* RigidsSolver, float Mass, Chaos::FVec3f Inertia)
 {
 	FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
@@ -1581,9 +1594,8 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 	const TManagedArray<FVector3f>& InertiaTensor = 
 		Parameters.RestCollection->GetAttribute<FVector3f>("InertiaTensor", FTransformCollection::TransformGroup);
 
-	const FVector WorldScale = Parameters.WorldTransform.GetScale3D();
-	const FVector::FReal MassScale = WorldScale.X * WorldScale.Y * WorldScale.Z;
-	const Chaos::FVec3f ScaledInertia = Chaos::Utilities::ScaleInertia<float>((Chaos::FVec3f)InertiaTensor[CollectionClusterIndex], FVector3f(WorldScale), true);  
+	const Chaos::FReal ScaledMass = AdjustMassForScale(Mass[CollectionClusterIndex]);
+	const Chaos::FVec3f ScaledInertia = AdjustInertiaForScale((Chaos::FVec3f)InertiaTensor[CollectionClusterIndex]);
 	
 	// NOTE: The particle creation call above (CreateClusterParticle) activates the particle, which does various things including adding
 	// it to the constraint graph. It seems a bit dodgy to be completely changing what the particle is after it has been enabled. Maybe we should fix this.
@@ -1594,7 +1606,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 		nullptr, // Parent->Geometry() ? Parent->Geometry() : Implicits[CollectionClusterIndex], 
 		SimFilter,
 		QueryFilter,
-		Parent->M() > 0.0 ? Parent->M() : Mass[CollectionClusterIndex] * MassScale, 
+		Parent->M() > 0.0 ? Parent->M() : ScaledMass,
 		Parent->I() != Chaos::FVec3f(0.0) ? Parent->I() : ScaledInertia,
 		ParticleTM, 
 		(uint8)DynamicState[CollectionClusterIndex], 

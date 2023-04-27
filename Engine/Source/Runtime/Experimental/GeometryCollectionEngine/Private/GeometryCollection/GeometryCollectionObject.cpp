@@ -38,6 +38,7 @@
 
 #include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
 #include "Chaos/ChaosArchive.h"
+#include "Chaos/MassProperties.h"
 #include "GeometryCollectionProxyData.h"
 #include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "GeometryCollection/Facades/CollectionInstancedMeshFacade.h"
@@ -104,6 +105,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, MaxClusterLevelSetResolution_DEPRECATED(50)
 	, CollisionObjectReductionPercentage_DEPRECATED(0.0f)
 #endif
+	, bDensityFromPhysicsMaterial(false)
 	, bMassAsDensity(true)
 	, Mass(2500.0f)
 	, MinimumMassClamp(0.1f)
@@ -124,6 +126,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	RenderDataGuid = StateGuid;
 	bStripOnCook = GeometryCollectionAssetForceStripOnCook;
 #endif
+	PhysicsMaterial = GEngine? GEngine->DefaultPhysMaterial: nullptr;
 }
 
 FGeometryCollectionLevelSetData::FGeometryCollectionLevelSetData()
@@ -352,22 +355,33 @@ void UGeometryCollection::PostInitProperties()
 	Super::PostInitProperties();
 }
 
-float KgCm3ToKgM3(float Density)
+float UGeometryCollection::GetMassOrDensity(bool& bOutIsDensity) const
 {
-	return Density * 1000000;
-}
-
-float KgM3ToKgCm3(float Density)
-{
-	return Density / 1000000;
+	bOutIsDensity = bMassAsDensity;
+	float MassOrDensity = bMassAsDensity ? Chaos::KgM3ToKgCm3(Mass) : Mass;
+	
+	if (bDensityFromPhysicsMaterial)
+	{
+		UPhysicalMaterial* PhysicsMaterialForDensity = PhysicsMaterial;
+		if (!PhysicsMaterialForDensity)
+		{
+			PhysicsMaterialForDensity = GEngine ? GEngine->DefaultPhysMaterial : nullptr;
+		}
+		if (ensureMsgf(PhysicsMaterialForDensity, TEXT("bDensityFromPhysicsMaterial is true but no physics material has been set (and engine default cannot be found )")))
+		{
+			// materials only provide density
+			bOutIsDensity = true;
+			MassOrDensity = Chaos::GCm3ToKgCm3(PhysicsMaterial->Density);
+		}
+	}
+	return MassOrDensity;
 }
 
 void UGeometryCollection::GetSharedSimulationParams(FSharedSimulationParameters& OutParams) const
 {
 	const FGeometryCollectionSizeSpecificData& SizeSpecificDefault = GetDefaultSizeSpecificData();
 
-	OutParams.bMassAsDensity = bMassAsDensity;
-	OutParams.Mass = bMassAsDensity ? KgM3ToKgCm3(Mass) : Mass;	//todo(ocohen): we still have the solver working in old units. This is mainly to fix ui issues. Long term need to normalize units for best precision
+	OutParams.Mass = GetMassOrDensity(OutParams.bMassAsDensity);
 	OutParams.MinimumMassClamp = MinimumMassClamp;
 
 	FGeometryCollectionSizeSpecificData InfSize;
@@ -866,7 +880,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	{
 		if (bMassAsDensity)
 		{
-			Mass = KgCm3ToKgM3(Mass);
+			Mass = Chaos::KgCm3ToKgM3(Mass);
 		}
 	}
 

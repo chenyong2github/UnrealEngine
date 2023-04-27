@@ -22,6 +22,7 @@ class UDataflow;
 class UGeometryCollectionCache;
 class UMaterial;
 class UMaterialInterface;
+class UPhysicalMaterial;
 
 USTRUCT(BlueprintType)
 struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
@@ -480,6 +481,13 @@ public:
 	/** Fills params struct with parameters used for precomputing content. */
 	void GetSharedSimulationParams(FSharedSimulationParameters& OutParams) const;
 
+	/**
+	* Get Mass or density as set by the asset 
+	* Mass is return in Kg and Density is returned in Kg/Cm3
+	* @param bOutIsDensity  is set to true by the function if the returned value is to be treated as a density
+	*/
+	float GetMassOrDensity(bool& bOutIsDensity) const;
+
 	/** Accessors for the two guids used to identify this collection */
 	FGuid GetIdGuid() const;
 	FGuid GetStateGuid() const;
@@ -624,16 +632,26 @@ public:
 	FSoftObjectPath RootProxy_DEPRECATED;
 #endif
 	
+	/**	Physics material to use for the geometry collection */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
+	TObjectPtr<UPhysicalMaterial> PhysicsMaterial;
+
 	/**
-	* Mass As Density, units are in kg/m^3
+	* Whether to use density ( for mass computation ) from physics material ( if physics material is not set, use the component one or defaults )
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collisions", meta = (EditCondition = "PhysicsMaterial != nullptr"))
+	bool bDensityFromPhysicsMaterial;
+
+	/**
+	* Mass As Density, units are in kg/m^3 ( only enabled if physics material is not set )
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collisions", meta = (EditCondition = "!bDensityFromPhysicsMaterial"))
 	bool bMassAsDensity;
 
 	/**
-	* Total Mass of Collection. If density, units are in kg/m^3
+	* Total Mass of Collection. If density, units are in kg/m^3 ( only enabled if physics material is not set )
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collisions")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collisions", meta = (EditCondition = "!bDensityFromPhysicsMaterial"))
 	float Mass;
 
 	/**
