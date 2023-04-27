@@ -454,7 +454,7 @@ protected:
 	bool bManuallyRedraw;
 
 	/** Has anyone requested we redraw? */
-	UPROPERTY()
+	UPROPERTY(Transient, DuplicateTransient)
 	bool bRedrawRequested;
 
 	/**
@@ -475,7 +475,7 @@ protected:
 	 * The actual draw size, this changes based on DrawSize - or the desired size of the widget if
 	 * bDrawAtDesiredSize is true.
 	 */
-	UPROPERTY()
+	UPROPERTY(Transient, DuplicateTransient)
 	FIntPoint CurrentDrawSize;
 
 	/**
