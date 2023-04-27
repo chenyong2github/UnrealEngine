@@ -2,7 +2,7 @@
 
 #pragma once
 
-//#include "../DeferredShadingCommon.ush"
+#include "../DeferredShadingCommon.ush"
 
 //#dxr-todo: workaround for flickering. UE-87281
 

@@ -8,6 +8,10 @@
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 #endif
 
+#ifndef CULLING_PASS
+#define CULLING_PASS CULLING_PASS_NO_OCCLUSION
+#endif
+
 #include "../SceneData.ush"
 #include "NaniteDataDecode.ush"
 #include "NaniteHZBCull.ush"

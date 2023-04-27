@@ -4,6 +4,8 @@
 	HeightFogCommon.usf: 
 =============================================================================*/
 
+#pragma once
+
 #ifndef PERMUTATION_SUPPORT_FOG_INSCATTERING_TEXTURE
 #define PERMUTATION_SUPPORT_FOG_INSCATTERING_TEXTURE 1
 #endif

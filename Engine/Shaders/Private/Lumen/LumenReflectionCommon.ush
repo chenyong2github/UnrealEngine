@@ -164,19 +164,6 @@ uint2 GetReflectionTracingScreenCoordZOrder(uint TileIndex, uint ThreadIndex)
 Buffer<uint> CompactedTraceTexelAllocator;
 Buffer<uint> CompactedTraceTexelData;
 
-uint EncodeTraceTexel(uint2 ReflectionTracingCoord)
-{
-	return (ReflectionTracingCoord.x & 0xFFFF) | ((ReflectionTracingCoord.y & 0xFFFF) << 16);
-}
-
-FReflectionTracingCoord DecodeTraceTexel(uint2 TraceTexelData)
-{
-	uint2 TraceCoord;
-	TraceCoord.x = TraceTexelData.x & 0xFFFF;
-	TraceCoord.y = (TraceTexelData.x >> 16) & 0xFFFF;
-	return GetReflectionTracingCoord(TraceCoord);
-}
-
 struct FTraceMaterialId
 {
 	bool bNeedsHitLightingPass;

@@ -105,6 +105,19 @@ FReflectionTracingCoord GetReflectionTracingCoord(uint2 InReflectionTracingCoord
 	return Out;
 }
 
+uint EncodeTraceTexel(uint2 ReflectionTracingCoord)
+{
+	return (ReflectionTracingCoord.x & 0xFFFF) | ((ReflectionTracingCoord.y & 0xFFFF) << 16);
+}
+
+FReflectionTracingCoord DecodeTraceTexel(uint TraceTexelData)
+{
+	uint2 TraceCoord;
+	TraceCoord.x = TraceTexelData & 0xFFFF;
+	TraceCoord.y = (TraceTexelData >> 16) & 0xFFFF;
+	return GetReflectionTracingCoord(TraceCoord);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Abstract coord for material data
 struct FLumenMaterialCoord

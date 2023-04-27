@@ -30,6 +30,8 @@
 #endif
 
 #include "LumenReflectionsCombine.ush"
+#include "LumenTracingCommon.ush"
+#include "SurfaceCache/LumenSurfaceCacheSampling.ush"
 
 float3 CalcPrevTranslatedWorldPositionFromGPUSceneInstanceIndex(float3 TranslatedWorldPosition, uint GPUSceneInstanceIndex)
 {

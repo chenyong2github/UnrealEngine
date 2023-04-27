@@ -11,7 +11,6 @@
 #include "../DistanceField/GlobalDistanceFieldObjectGrid.ush"
 #include "../DistanceFieldLightingShared.ush"
 #include "../SceneData.ush"
-#include "SurfaceCache/LumenSurfaceCacheSampling.ush"
 
 #ifndef SDF_TRACING_TRAVERSE_MIPS
 	#define SDF_TRACING_TRAVERSE_MIPS 0

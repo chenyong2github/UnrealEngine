@@ -3,6 +3,7 @@
 #pragma once
 
 #include "LumenSurfaceCache.ush"
+#include "../LumenCardCommon.ush"
 
 Texture2D DirectLightingAtlas;
 Texture2D IndirectLightingAtlas;

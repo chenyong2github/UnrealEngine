@@ -176,7 +176,6 @@ struct FWriteToSliceVertexOutput
 int MinZ;
 float4 ViewSpaceBoundingSphere;
 float4x4 ViewToVolumeClip;
-float2 ClipRatio = float2(1.0f, 1.0f);
 
 /** Vertex shader that writes to a range of slices of a volume texture. */
 void WriteToBoundingSphereVS(
@@ -196,6 +195,7 @@ void WriteToBoundingSphereVS(
 		// Place the quad vertex to tightly bound the circle
 		float3 ViewSpaceVertexPosition = float3(ViewSpaceBoundingSphere.xy + (InUV * 2 - 1) * SliceRadius, SliceDepth);
 		Output.Vertex.Position = mul(float4(ViewSpaceVertexPosition, 1), ViewToVolumeClip);
+		float2 ClipRatio = float2(1.0f, 1.0f);
 
 		// Scale rendered position to account for frustum difference between fog voxelization and rendered scene
 		Output.Vertex.Position.xy *= ClipRatio;

@@ -20,6 +20,10 @@
 	#define RASTER_BIN_RESERVE	1
 #endif
 
+#ifndef VIRTUAL_TEXTURE_TARGET
+#define VIRTUAL_TEXTURE_TARGET 0
+#endif
+
 RWStructuredBuffer<FNaniteRasterBinMeta> OutRasterBinMeta;
 
 FNaniteMaterialFlags GetRasterBinMaterialFlags(uint BinIndex)

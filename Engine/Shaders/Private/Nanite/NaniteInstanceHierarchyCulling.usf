@@ -4,8 +4,6 @@
 #include "../SceneData.ush"
 #include "../WaveOpUtil.ush"
 #include "../ComputeShaderUtils.ush"
-#include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
-#include "../VirtualShadowMaps/VirtualShadowMapPageCacheCommon.ush"
 
 #include "NaniteCullingCommon.ush"
 #include "NaniteCulling.ush"
