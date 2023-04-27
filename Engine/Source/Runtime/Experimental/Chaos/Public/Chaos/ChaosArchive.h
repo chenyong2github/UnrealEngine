@@ -80,18 +80,9 @@ public:
 	int32 TagCount;
 
 
-	FChaosArchiveContext()
-		: TagCount(0)
-	{
-	}
+	FChaosArchiveContext();
 
-	~FChaosArchiveContext()
-	{
-		for (auto Itr : ObjToSharedPtrHolder)
-		{
-			delete Itr.Value;
-		}
-	}
+	~FChaosArchiveContext();
 
 	template <typename T, ESPMode Mode>
 	TSharedPtr<T, Mode>& ToSharedPointerHelper(TSerializablePtr<T>& Obj)

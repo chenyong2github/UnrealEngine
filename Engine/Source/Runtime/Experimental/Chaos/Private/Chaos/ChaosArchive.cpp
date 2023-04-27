@@ -6,6 +6,18 @@
 namespace Chaos
 {
 
+FChaosArchiveContext::FChaosArchiveContext(): TagCount(0)
+{
+}
+
+FChaosArchiveContext::~FChaosArchiveContext()
+{
+	for (auto Itr : ObjToSharedPtrHolder)
+	{
+		delete Itr.Value;
+	}
+}
+
 void FChaosArchive::SerializeLegacy(TUniquePtr<FImplicitObject>& Obj)
 {
 	FImplicitObject::SerializeLegacyHelper(InnerArchive, Obj);
