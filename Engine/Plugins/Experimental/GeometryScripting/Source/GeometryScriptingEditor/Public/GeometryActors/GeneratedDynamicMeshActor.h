@@ -47,6 +47,12 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, CallInEditor, Category = "Events")
 	void OnRebuildGeneratedMesh(UDynamicMesh* TargetMesh);
 
+	/**
+	 * Mark this Actor as modified so that OnRebuildGeneratedMesh runs 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DynamicMeshActor")
+	void MarkForMeshRebuild(bool bImmediate = false, bool bImmediateEvenIfFrozen = false);
+
 
 	/**
 	 * This function will fire the OnRebuildGeneratedMesh event if the actor has been

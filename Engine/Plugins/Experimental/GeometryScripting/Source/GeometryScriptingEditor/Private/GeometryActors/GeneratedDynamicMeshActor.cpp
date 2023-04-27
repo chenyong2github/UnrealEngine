@@ -195,6 +195,28 @@ void AGeneratedDynamicMeshActor::ExecuteRebuildGeneratedMeshIfPending()
 	}
 }
 
+
+void AGeneratedDynamicMeshActor::MarkForMeshRebuild(bool bImmediate, bool bImmediateEvenIfFrozen)
+{
+	if (bImmediate)
+	{
+		bool bRestoreFrozenState = bFrozen;
+		if (bImmediateEvenIfFrozen && bFrozen)
+		{
+			bFrozen = false;
+		}
+
+		bGeneratedMeshRebuildPending = true;
+		ExecuteRebuildGeneratedMeshIfPending();
+
+		bFrozen = bRestoreFrozenState;
+	}
+	else
+	{
+		bGeneratedMeshRebuildPending = true;
+	}
+}
+
 void AGeneratedDynamicMeshActor::IncrementProgress(int NumSteps, FString Message)
 {
 	if (ActiveSlowTask)
