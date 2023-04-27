@@ -142,6 +142,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenHZBScreenTraceParameters, )
 	SHADER_PARAMETER(FVector4f, HZBUVToScreenUVScaleBias)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenScreenSpaceBentNormalParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ScreenBentNormal)
+	SHADER_PARAMETER(uint32, UseShortRangeAO)
+END_SHADER_PARAMETER_STRUCT()
+
 extern void CullHeightfieldObjectsForView(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -192,3 +197,7 @@ namespace LumenIrradianceFieldGather
 	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
 }
 
+namespace LumenDiffuseIndirect
+{
+	bool UseAsyncCompute(const FViewFamilyInfo& ViewFamily);
+}

@@ -49,14 +49,14 @@ FAutoConsoleVariableRef CVarLumenSceneLightingStats(
 	TEXT("r.LumenScene.Lighting.Stats"),
 	GLumenLightingStats,
 	TEXT("GPU print out Lumen lighting update stats."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarLumenSceneLightingAsyncCompute(
 	TEXT("r.LumenScene.Lighting.AsyncCompute"),
 	1,
 	TEXT("Whether to run LumenSceneLighting on the compute pipe if possible."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 namespace LumenSceneLighting

@@ -16,7 +16,7 @@
 #include "PipelineStateCache.h"
 #include "SceneTextureParameters.h"
 #include "SystemTextures.h"
-#include "Lumen/LumenSceneRendering.h"
+#include "Lumen/Lumen.h"
 
 
 // ---------------------------------------------------- Cvars

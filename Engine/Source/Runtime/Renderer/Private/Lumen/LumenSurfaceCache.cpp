@@ -7,6 +7,7 @@
 #include "ShaderParameterStruct.h"
 #include "PixelShaderUtils.h"
 #include "LumenSceneLighting.h"
+#include "LumenSceneCardCapture.h"
 
 int32 GLumenSurfaceCacheCompress = 1;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheCompress(

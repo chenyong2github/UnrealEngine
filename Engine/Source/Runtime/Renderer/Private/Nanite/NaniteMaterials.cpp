@@ -19,7 +19,7 @@
 #include "ClearQuad.h"
 #include "RendererModule.h"
 #include "PixelShaderUtils.h"
-#include "Lumen/LumenSceneRendering.h"
+#include "Lumen/LumenSceneCardCapture.h"
 #include "Strata/Strata.h"
 #include "SystemTextures.h"
 #include "BasePassRendering.h"

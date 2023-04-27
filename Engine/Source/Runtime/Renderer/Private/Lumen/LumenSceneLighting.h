@@ -9,7 +9,6 @@
 #include "RendererPrivateUtils.h"
 #include "Lumen.h"
 #include "Lumen/LumenSceneData.h"
-#include "LumenSceneRendering.h"
 
 class FDeferredLightUniformStruct;
 class FLumenCardRenderer;
@@ -22,15 +21,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardScatterParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, QuadData)
 	SHADER_PARAMETER(uint32, MaxQuadsPerScatterInstance)
 END_SHADER_PARAMETER_STRUCT()
-
-struct FCardCaptureAtlas
-{
-	FIntPoint Size;
-	FRDGTextureRef Albedo;
-	FRDGTextureRef Normal;
-	FRDGTextureRef Emissive;
-	FRDGTextureRef DepthStencil;
-};
 
 class FLumenCardUpdateContext
 {

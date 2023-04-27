@@ -21,6 +21,7 @@ extern bool ShouldRenderLumenReflectionsWater(const FViewInfo& View, bool bSkipT
 extern bool ShouldRenderLumenDirectLighting(const FScene* Scene, const FSceneView& View);
 extern bool ShouldRenderAOWithLumenGI();
 extern bool ShouldUseStereoLumenOptimizations();
+extern bool DoesPlatformSupportLumenGI(EShaderPlatform Platform, bool bSkipProjectCheck = false);
 
 class FLumenSceneData;
 

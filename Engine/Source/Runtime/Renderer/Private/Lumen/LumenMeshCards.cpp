@@ -264,89 +264,6 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 	static_assert(DataStrideInFloat4s == 6, "Data stride doesn't match");
 }
 
-void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, const FSceneViewFamily& ViewFamily, FScene* Scene)
-{
-	LLM_SCOPE_BYTAG(Lumen);
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCardSceneBuffer);
-	QUICK_SCOPE_CYCLE_COUNTER(UpdateCardSceneBuffer);
-	RDG_EVENT_SCOPE(GraphBuilder, "UpdateCardSceneBuffer");
-	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
-
-	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(*ViewFamily.Views[0]);
-
-	// CardBuffer
-	{
-		FRDGBuffer* CardBuffer = nullptr;
-
-		{
-			const int32 NumCardEntries = LumenSceneData.Cards.Num();
-			const uint32 CardSceneNumFloat4s = NumCardEntries * FLumenCardGPUData::DataStrideInFloat4s;
-			const uint32 CardSceneNumBytes = FMath::DivideAndRoundUp(CardSceneNumFloat4s, 16384u) * 16384 * sizeof(FVector4f);
-			CardBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4f), TEXT("Lumen.Cards"));
-			FrameTemporaries.CardBufferSRV = GraphBuilder.CreateSRV(CardBuffer);
-		}
-
-		if (GLumenSceneUploadEveryFrame)
-		{
-			LumenSceneData.CardIndicesToUpdateInBuffer.Reset();
-
-			for (int32 i = 0; i < LumenSceneData.Cards.Num(); i++)
-			{
-				LumenSceneData.CardIndicesToUpdateInBuffer.Add(i);
-			}
-		}
-
-		const int32 NumCardDataUploads = LumenSceneData.CardIndicesToUpdateInBuffer.Num();
-
-		if (NumCardDataUploads > 0)
-		{
-			FLumenCard NullCard;
-
-			LumenSceneData.CardUploadBuffer.Init(GraphBuilder, NumCardDataUploads, FLumenCardGPUData::DataStrideInBytes, true, TEXT("Lumen.CardUploadBuffer"));
-
-			for (int32 Index : LumenSceneData.CardIndicesToUpdateInBuffer)
-			{
-				if (Index < LumenSceneData.Cards.Num())
-				{
-					const FLumenCard& Card = LumenSceneData.Cards.IsAllocated(Index) ? LumenSceneData.Cards[Index] : NullCard;
-
-					FLumenPrimitiveGroup* PrimitiveGroup = nullptr;
-					if (Card.MeshCardsIndex >= 0)
-					{
-						const FLumenMeshCards& MeshCardsInstance = LumenSceneData.MeshCards[Card.MeshCardsIndex];
-						if (MeshCardsInstance.PrimitiveGroupIndex >= 0)
-						{
-							PrimitiveGroup = &LumenSceneData.PrimitiveGroups[MeshCardsInstance.PrimitiveGroupIndex];
-						}
-					}
-
-					FVector4f* Data = (FVector4f*)LumenSceneData.CardUploadBuffer.Add_GetRef(Index);
-					FLumenCardGPUData::FillData(Card, PrimitiveGroup, Data);
-				}
-			}
-
-			LumenSceneData.CardUploadBuffer.ResourceUploadTo(GraphBuilder, CardBuffer);
-		}
-	}
-
-	UpdateLumenMeshCards(GraphBuilder, *Scene, Scene->DistanceFieldSceneData, FrameTemporaries, LumenSceneData);
-}
-
-int32 FLumenSceneData::GetMeshCardsIndex(const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 InstanceIndex) const
-{
-	if (PrimitiveSceneInfo->LumenPrimitiveGroupIndices.Num() > 0)
-	{
-		const int32 IndexInArray = FMath::Min(InstanceIndex, PrimitiveSceneInfo->LumenPrimitiveGroupIndices.Num() - 1);
-		const int32 PrimitiveGroupIndex = PrimitiveSceneInfo->LumenPrimitiveGroupIndices[IndexInArray];
-		const FLumenPrimitiveGroup& PrimitiveGroup = PrimitiveGroups[PrimitiveGroupIndex];
-
-		return PrimitiveGroup.MeshCardsIndex;
-	}
-
-	return -1;
-}
-
 void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneFrameTemporaries& FrameTemporaries, FLumenSceneData& LumenSceneData)
 {
 	LLM_SCOPE_BYTAG(Lumen);
@@ -487,6 +404,89 @@ void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const 
 			LumenSceneData.SceneInstanceIndexToMeshCardsIndexUploadBuffer.ResourceUploadTo(GraphBuilder, SceneInstanceIndexToMeshCardsIndexBuffer);
 		}
 	}
+}
+
+void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, const FSceneViewFamily& ViewFamily, FScene* Scene)
+{
+	LLM_SCOPE_BYTAG(Lumen);
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCardSceneBuffer);
+	QUICK_SCOPE_CYCLE_COUNTER(UpdateCardSceneBuffer);
+	RDG_EVENT_SCOPE(GraphBuilder, "UpdateCardSceneBuffer");
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
+	FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(*ViewFamily.Views[0]);
+
+	// CardBuffer
+	{
+		FRDGBuffer* CardBuffer = nullptr;
+
+		{
+			const int32 NumCardEntries = LumenSceneData.Cards.Num();
+			const uint32 CardSceneNumFloat4s = NumCardEntries * FLumenCardGPUData::DataStrideInFloat4s;
+			const uint32 CardSceneNumBytes = FMath::DivideAndRoundUp(CardSceneNumFloat4s, 16384u) * 16384 * sizeof(FVector4f);
+			CardBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4f), TEXT("Lumen.Cards"));
+			FrameTemporaries.CardBufferSRV = GraphBuilder.CreateSRV(CardBuffer);
+		}
+
+		if (GLumenSceneUploadEveryFrame)
+		{
+			LumenSceneData.CardIndicesToUpdateInBuffer.Reset();
+
+			for (int32 i = 0; i < LumenSceneData.Cards.Num(); i++)
+			{
+				LumenSceneData.CardIndicesToUpdateInBuffer.Add(i);
+			}
+		}
+
+		const int32 NumCardDataUploads = LumenSceneData.CardIndicesToUpdateInBuffer.Num();
+
+		if (NumCardDataUploads > 0)
+		{
+			FLumenCard NullCard;
+
+			LumenSceneData.CardUploadBuffer.Init(GraphBuilder, NumCardDataUploads, FLumenCardGPUData::DataStrideInBytes, true, TEXT("Lumen.CardUploadBuffer"));
+
+			for (int32 Index : LumenSceneData.CardIndicesToUpdateInBuffer)
+			{
+				if (Index < LumenSceneData.Cards.Num())
+				{
+					const FLumenCard& Card = LumenSceneData.Cards.IsAllocated(Index) ? LumenSceneData.Cards[Index] : NullCard;
+
+					FLumenPrimitiveGroup* PrimitiveGroup = nullptr;
+					if (Card.MeshCardsIndex >= 0)
+					{
+						const FLumenMeshCards& MeshCardsInstance = LumenSceneData.MeshCards[Card.MeshCardsIndex];
+						if (MeshCardsInstance.PrimitiveGroupIndex >= 0)
+						{
+							PrimitiveGroup = &LumenSceneData.PrimitiveGroups[MeshCardsInstance.PrimitiveGroupIndex];
+						}
+					}
+
+					FVector4f* Data = (FVector4f*)LumenSceneData.CardUploadBuffer.Add_GetRef(Index);
+					FLumenCardGPUData::FillData(Card, PrimitiveGroup, Data);
+				}
+			}
+
+			LumenSceneData.CardUploadBuffer.ResourceUploadTo(GraphBuilder, CardBuffer);
+		}
+	}
+
+	UpdateLumenMeshCards(GraphBuilder, *Scene, Scene->DistanceFieldSceneData, FrameTemporaries, LumenSceneData);
+}
+
+int32 FLumenSceneData::GetMeshCardsIndex(const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 InstanceIndex) const
+{
+	if (PrimitiveSceneInfo->LumenPrimitiveGroupIndices.Num() > 0)
+	{
+		const int32 IndexInArray = FMath::Min(InstanceIndex, PrimitiveSceneInfo->LumenPrimitiveGroupIndices.Num() - 1);
+		const int32 PrimitiveGroupIndex = PrimitiveSceneInfo->LumenPrimitiveGroupIndices[IndexInArray];
+		const FLumenPrimitiveGroup& PrimitiveGroup = PrimitiveGroups[PrimitiveGroupIndex];
+
+		return PrimitiveGroup.MeshCardsIndex;
+	}
+
+	return -1;
 }
 
 class FLumenMergedMeshCards

@@ -26,7 +26,7 @@
 #include "Rendering/NaniteResources.h"
 #include "NaniteSceneProxy.h"
 #include "Lumen/LumenSceneData.h"
-#include "Lumen/LumenSceneRendering.h"
+#include "Lumen/LumenSceneCardCapture.h"
 #include "RayTracingDefinitions.h"
 #include "RenderCore.h"
 #include "Materials/MaterialRenderProxy.h"
@@ -684,7 +684,7 @@ void BuildNaniteDrawCommands(FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneI
 			}
 
 			// ENaniteMeshPass::LumenCardCapture
-			if (Lumen::HasPrimitiveNaniteMeshBatches(Proxy) && DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(Scene->GetFeatureLevel())))
+			if (LumenScene::HasPrimitiveNaniteMeshBatches(Proxy) && DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(Scene->GetFeatureLevel())))
 			{
 				FMeshPassProcessor* NaniteMeshProcessor = CreateLumenCardNaniteMeshProcessor(Scene->GetFeatureLevel(), Scene, nullptr, &DrawListContext);
 				PassBody(ENaniteMeshPass::LumenCardCapture, NaniteMeshProcessor);

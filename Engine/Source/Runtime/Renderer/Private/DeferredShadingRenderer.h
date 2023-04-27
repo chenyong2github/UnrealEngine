@@ -16,7 +16,7 @@
 #include "DepthRendering.h"
 #include "TranslucentRendering.h"
 #include "ScreenSpaceDenoise.h"
-#include "Lumen/LumenSceneRendering.h"
+#include "Lumen/LumenSceneCardCapture.h"
 #include "Lumen/LumenTracingUtils.h"
 #include "RayTracing/RayTracingLighting.h"
 #include "IndirectLightRendering.h"

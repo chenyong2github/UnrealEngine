@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LumenTracingUtils.h"
-#include "LumenSceneRendering.h"
 #include "ScenePrivate.h"
 #include "SceneRendering.h"
 #include "SystemTextures.h"
