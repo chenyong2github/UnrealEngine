@@ -11624,8 +11624,7 @@ void UCookOnTheFlyServer::ReportHiddenDependency(FName Referencer, FName Depende
 		{
 			AssetDataPtrs.Add(&AssetData);
 		}
-		const FAssetData* PrimaryAssetData = UE::AssetRegistry::GetMostImportantAsset(AssetDataPtrs,
-			false /* bRequireOneTopLevelAsset */);
+		const FAssetData* PrimaryAssetData = UE::AssetRegistry::GetMostImportantAsset(AssetDataPtrs);
 		if (PrimaryAssetData && PrimaryAssetData->AssetClassPath.IsValid())
 		{
 			PrimaryAssetClassPath = FString::Printf(TEXT(", PrimaryAssetClass=%s"),

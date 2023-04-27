@@ -7071,7 +7071,7 @@ UAssetRegistryImpl::FFileLoadProgressUpdatedEvent& UAssetRegistryImpl::OnFileLoa
 
 namespace UE::AssetRegistry
 {
-const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> PackageAssetDatas, bool bRequireOneTopLevelAsset)
+const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> PackageAssetDatas, EGetMostImportantAssetFlags InFlags)
 {
 	if (PackageAssetDatas.Num() == 1) // common case
 	{
@@ -7109,10 +7109,14 @@ const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> Packa
 			return Asset;
 		}
 		// This is after IsUAsset because Blueprints can be the UAsset but also be considered skipable.
-		if (FFiltering::ShouldSkipAsset(Asset->AssetClassPath, Asset->PackageFlags))
+		if (!EnumHasAnyFlags(InFlags, EGetMostImportantAssetFlags::IgnoreSkipClasses))
 		{
-			continue;
+			if (FFiltering::ShouldSkipAsset(Asset->AssetClassPath, Asset->PackageFlags))
+			{
+				continue;
+			}
 		}
+
 		if (Asset->IsTopLevelAsset())
 		{
 			TopLevelAssetCount++;
@@ -7129,7 +7133,7 @@ const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> Packa
 		}
 	}
 
-	if (bRequireOneTopLevelAsset)
+	if (EnumHasAnyFlags(InFlags, EGetMostImportantAssetFlags::RequireOneTopLevelAsset))
 	{
 		if (TopLevelAssetCount == 1)
 		{
@@ -7175,7 +7179,7 @@ void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAsset
 	{
 		if (CurrentPackageName != AssetData.PackageName)
 		{
-			OutPackageToAssetData.FindOrAdd(CurrentPackageName) = *GetMostImportantAsset(PackageAssetDatas, false);
+			OutPackageToAssetData.FindOrAdd(CurrentPackageName) = *GetMostImportantAsset(PackageAssetDatas);
 			PackageAssetDatas.Reset();
 			CurrentPackageName = AssetData.PackageName;
 		}
@@ -7183,7 +7187,7 @@ void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAsset
 		PackageAssetDatas.Push(&AssetData);
 	}
 
-	OutPackageToAssetData.FindOrAdd(CurrentPackageName) = *GetMostImportantAsset(PackageAssetDatas, false);
+	OutPackageToAssetData.FindOrAdd(CurrentPackageName) = *GetMostImportantAsset(PackageAssetDatas);
 
 }
 

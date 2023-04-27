@@ -852,6 +852,19 @@ namespace AssetRegistry
 	 */
 	ASSETREGISTRY_API void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAssetData>& OutPackageToAssetData);
 
+	enum class EGetMostImportantAssetFlags
+	{
+		None = 0,
+		
+		/* Returns nullptr if there are multiple top level assets. */
+		RequireOneTopLevelAsset = 0x1,
+
+		/* Don't skip AR filtered classes (i.e. BP and BPGC). This is cruicial if you are
+		* running in environments where the skip classes can't be initialized (i.e. Programs) as you
+		* could get different results in such cases. */
+		IgnoreSkipClasses = 0x2
+	};
+
 	/**
 	 * Given a list of asset datas for a specific package, find an asset considered "most important" or "representative".
 	 * This is distinct from a Primary asset, and is used for user facing representation of a package or other cases
@@ -861,13 +874,14 @@ namespace AssetRegistry
 	 *	Tries to find the "UAsset" via the FAssetData::IsUAsset() function. (i.e. asset name matches package name)
 	 *	If none exist, tries to find a "Top Level Asset" using FAssetData::IsToplevelAsset(). (i.e. outer == package)
 	 *		If only one exists, use that.
-	 *		Otherwise, if bRequireOneTopLevelAsset is false, gather the set of possibles and return the first sorted on asset class then name.
+	 *		Otherwise, if EGetMostImportantAssetFlags::RequireOneTopLevelAsset isn't set, gather the set of possibles and return the first sorted on asset class then name.
 	 *			If no top level assets, all package assets
 	 *			If multiple top level assets, all top level assets
 	 * 
 	 * A good source for PackageAssetDatas is FAssetRegistryState::GetAssetsByPackageName.
+	 * 
 	 */
-	ASSETREGISTRY_API const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> PackageAssetDatas, bool bRequireOneTopLevelAsset);
+	ASSETREGISTRY_API const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> PackageAssetDatas, EGetMostImportantAssetFlags InFlags = EGetMostImportantAssetFlags::None);
 
 	/*
 	* Returns true if the asset registry should start searching all assets on startup

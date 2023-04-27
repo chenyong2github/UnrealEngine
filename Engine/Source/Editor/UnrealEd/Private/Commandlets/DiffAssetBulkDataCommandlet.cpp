@@ -319,7 +319,7 @@ int32 UDiffAssetBulkDataCommandlet::Main(const FString& FullCommandLine)
 		{
 			// Nothing has anything to use for diff blaming for this package.
 			// Try to find a representative asset class from the assets in the package.
-			FAssetData const* RepresentativeAsset = UE::AssetRegistry::GetMostImportantAsset(CurrentAssetDatas, true);
+			FAssetData const* RepresentativeAsset = UE::AssetRegistry::GetMostImportantAsset(CurrentAssetDatas, UE::AssetRegistry::EGetMostImportantAssetFlags::RequireOneTopLevelAsset);
 			if (RepresentativeAsset == nullptr)
 			{
 				NoTagPackagesByAssumedClass.FindOrAdd(FTopLevelAssetPath()).Add(ChangedPackageName);
@@ -376,7 +376,7 @@ int32 UDiffAssetBulkDataCommandlet::Main(const FString& FullCommandLine)
 			}
 			else
 			{
-				FAssetData const* RepresentativeAsset = UE::AssetRegistry::GetMostImportantAsset(CurrentAssetDatas, true);
+				FAssetData const* RepresentativeAsset = UE::AssetRegistry::GetMostImportantAsset(CurrentAssetDatas, UE::AssetRegistry::EGetMostImportantAssetFlags::RequireOneTopLevelAsset);
 				if (RepresentativeAsset == nullptr)
 				{
 					PackagesWithUnassignableDiffsByAssumedClass.FindOrAdd(FTopLevelAssetPath()).Add(ChangedPackageName);
