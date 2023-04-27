@@ -47,6 +47,11 @@ void FWaterBodyMeshBuilder::BuildWaterInfoMeshes(UWaterBodyComponent* WaterBodyC
 
 	auto BuildWaterInfoMesh = [this, Outer, WaterInfoMID](const FDynamicMesh3& DynamicMesh, UWaterBodyInfoMeshComponent* MeshComponent, FName BaseName) -> UStaticMesh*
 	{
+		if (DynamicMesh.TriangleCount() == 0)
+		{
+			return nullptr;
+		}
+
 		FName WaterInfoMeshName = MakeUniqueObjectName(Outer, UStaticMesh::StaticClass(), BaseName);
 		UStaticMesh* StaticMesh = CreateUStaticMesh(Outer, WaterInfoMeshName);
 
