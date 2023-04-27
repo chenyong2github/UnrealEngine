@@ -2134,10 +2134,18 @@ public:
 	/**
 	 * Synchronizes the content or generic browser's selected objects to the collection specified.
 	 *
-	 * @param	ObjectSet	the list of objects to sync to
+	 * @param	InObjectsToSync	the list of objects to sync to
 	 */
-	void SyncBrowserToObjects( TArray<UObject*>& InObjectsToSync, bool bFocusContentBrowser = true );
-	void SyncBrowserToObjects( TArray<struct FAssetData>& InAssetsToSync, bool bFocusContentBrowser = true );
+	void SyncBrowserToObjects( const TArray<UObject*>& InObjectsToSync, bool bFocusContentBrowser = true );
+	void SyncBrowserToObjects( const TArray<struct FAssetData>& InAssetsToSync, bool bFocusContentBrowser = true );
+
+	/**
+	 * Synchronizes the content or generic browser's selected object to the one specified.
+	 *
+	 * @param	InObjectToSync	the object to sync to
+	 */
+	void SyncBrowserToObject( const UObject* InObjectToSync, bool bFocusContentBrowser = true );
+	void SyncBrowserToObject( const struct FAssetData& InAssetToSync, bool bFocusContentBrowser = true );
 
 	/**
 	 * Syncs the selected actors objects to the content browser

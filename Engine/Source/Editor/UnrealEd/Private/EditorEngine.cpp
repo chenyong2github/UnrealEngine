@@ -3023,17 +3023,27 @@ void UEditorEngine::LoadMapListFromIni(const FString& InSectionName, TArray<FStr
 	}
 }
 
-void UEditorEngine::SyncBrowserToObjects( TArray<UObject*>& InObjectsToSync, bool bFocusContentBrowser )
+void UEditorEngine::SyncBrowserToObjects( const TArray<UObject*>& InObjectsToSync, bool bFocusContentBrowser )
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	ContentBrowserModule.Get().SyncBrowserToAssets( InObjectsToSync, false, bFocusContentBrowser );
 
 }
 
-void UEditorEngine::SyncBrowserToObjects( TArray<struct FAssetData>& InAssetsToSync, bool bFocusContentBrowser )
+void UEditorEngine::SyncBrowserToObjects( const TArray<struct FAssetData>& InAssetsToSync, bool bFocusContentBrowser )
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	ContentBrowserModule.Get().SyncBrowserToAssets( InAssetsToSync, false, bFocusContentBrowser );
+}
+
+void UEditorEngine::SyncBrowserToObject( const UObject* InObjectToSync, bool bFocusContentBrowser )
+{
+	SyncBrowserToObjects({ InObjectToSync }, bFocusContentBrowser);
+}
+
+void UEditorEngine::SyncBrowserToObject( const FAssetData& InAssetToSync, bool bFocusContentBrowser )
+{
+	SyncBrowserToObjects({ InAssetToSync }, bFocusContentBrowser);
 }
 
 
