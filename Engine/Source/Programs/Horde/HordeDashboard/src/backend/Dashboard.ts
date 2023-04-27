@@ -576,6 +576,8 @@ export class Dashboard {
 
     private config?: GetDashboardConfigResponse;
 
+    alertSquelch?: string;
+
 }
 
 const dashboard = new Dashboard();
