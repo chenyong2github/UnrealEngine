@@ -440,14 +440,6 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 
 
 
-	//TArray<TSharedPtr<FUICommandInfo>> VolumePaletteItems({
-
-	//});
-	//ToolkitBuilder->AddPalette(
-	//	MakeShareable( new FToolPalette( Commands.LoadVolumeTools.ToSharedRef(), VolumePaletteItems)) );
-
-
-
 	TArray<TSharedPtr<FUICommandInfo>> LODPaletteItems({
 		Commands.BeginGenerateStaticMeshLODAssetTool,
 		Commands.BeginAddPivotActorTool,
@@ -464,6 +456,12 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 
 	ToolkitBuilder->SetActivePaletteOnLoad(Commands.LoadCreateTools.Get());
 	ToolkitBuilder->UpdateWidget();
+
+	// if selected palette changes, make sure we are showing the palette command buttons, which may be hidden by active Tool
+	ActivePaletteChangedHandle = ToolkitBuilder->OnActivePaletteChanged.AddLambda([this]()
+	{
+		ToolkitBuilder->SetActivePaletteCommandsVisibility(EVisibility::Visible);
+	});
 }
 
 
@@ -2048,7 +2046,13 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 	if (HasToolkitBuilder())
 	{
 		ToolkitBuilder->SetActiveToolDisplayName(ActiveToolName);
-		ToolkitBuilder->SetActivePaletteCommandsVisibility(EVisibility::Collapsed);
+		if (const UModelingToolsModeCustomizationSettings* Settings = GetDefault<UModelingToolsModeCustomizationSettings>())
+		{
+			if (Settings->bAlwaysShowToolButtons == false)
+			{
+				ToolkitBuilder->SetActivePaletteCommandsVisibility(EVisibility::Collapsed);
+			}
+		}
 	}
 
 	// try to update icon
@@ -2125,6 +2129,11 @@ void FModelingToolsEditorModeToolkit::OnActiveViewportChanged(TSharedPtr<IAssetV
 			{
 				GetToolkitHost()->RemoveViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef(), OldViewport);
 			}
+
+			if (SelectionPaletteOverlayWidget.IsValid())
+			{
+				GetToolkitHost()->RemoveViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef(), OldViewport);
+			}
 		}
 
 		// Add the hud to the new viewport
@@ -2133,6 +2142,11 @@ void FModelingToolsEditorModeToolkit::OnActiveViewportChanged(TSharedPtr<IAssetV
 		if (GizmoNumericalUIOverlayWidget.IsValid())
 		{
 			GetToolkitHost()->AddViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef(), NewViewport);
+		}
+
+		if (SelectionPaletteOverlayWidget.IsValid())
+		{
+			GetToolkitHost()->AddViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef(), NewViewport);
 		}
 	}
 }

@@ -834,18 +834,22 @@ void UModelingToolsEditorMode::Enter()
 	{
 		Toolkit->GetToolkitCommands()->MapAction(UICommand,
 			FExecuteAction::CreateLambda([this, TopoMode, ElementMode]() {
-				GetToolManager()->GetContextTransactionsAPI()->BeginUndoTransaction(LOCTEXT("ChangeSelectionMode", "Selection Mode"));
-				GetSelectionManager()->SetMeshTopologyMode(TopoMode); 
-				GetSelectionManager()->SetSelectionElementType(ElementMode);
-				GetToolManager()->GetContextTransactionsAPI()->EndUndoTransaction();
-
-				UModelingToolsModeCustomizationSettings* ModelingEditorSettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>();
-				ModelingEditorSettings->LastMeshSelectionTopologyMode = static_cast<int>(TopoMode);
-				ModelingEditorSettings->LastMeshSelectionElementType = static_cast<int>(ElementMode);
-				ModelingEditorSettings->SaveConfig();
+				if ( GetToolManager() && GetToolManager()->GetContextTransactionsAPI() && GetSelectionManager() )
+				{
+					GetToolManager()->GetContextTransactionsAPI()->BeginUndoTransaction(LOCTEXT("ChangeSelectionMode", "Selection Mode"));
+					GetSelectionManager()->SetMeshTopologyMode(TopoMode); 
+					GetSelectionManager()->SetSelectionElementType(ElementMode);
+					GetToolManager()->GetContextTransactionsAPI()->EndUndoTransaction();
+					if (UModelingToolsModeCustomizationSettings* ModelingEditorSettings = GetMutableDefault<UModelingToolsModeCustomizationSettings>())
+					{
+						ModelingEditorSettings->LastMeshSelectionTopologyMode = static_cast<int>(TopoMode);
+						ModelingEditorSettings->LastMeshSelectionElementType = static_cast<int>(ElementMode);
+						ModelingEditorSettings->SaveConfig();
+					}
+				}
 			}),
-			FCanExecuteAction::CreateLambda([this]() { return GetToolManager()->HasAnyActiveTool() == false; }),
-			FIsActionChecked::CreateLambda([this, TopoMode, ElementMode]() { return GetSelectionManager()->GetMeshTopologyMode() == TopoMode && GetSelectionManager()->GetSelectionElementType() == ElementMode; }),
+			FCanExecuteAction::CreateLambda([this]() { return (GetToolManager() != nullptr && GetToolManager()->HasAnyActiveTool() == false) ? true : false; }),
+			FIsActionChecked::CreateLambda([this, TopoMode, ElementMode]() { return (GetSelectionManager() != nullptr && GetSelectionManager()->GetMeshTopologyMode() == TopoMode && GetSelectionManager()->GetSelectionElementType() == ElementMode); }),
 			EUIActionRepeatMode::RepeatDisabled);
 	};
 	if (GetSelectionManager() != nullptr)

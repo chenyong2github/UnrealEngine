@@ -397,7 +397,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 
 	UI_COMMAND(AddToFavorites, "Add to Favorites", "Add to Favorites", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(RemoveFromFavorites, "Remove from Favorites", "Remove from Favorites", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(LoadFavoritesTools, "Favs", "Favorites", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadFavoritesTools, "Faves", "Favorites", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(LoadSelectionTools, "Select", "Edit Mesh Selections", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(LoadShapesTools, "Shapes", "Shapes", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(LoadCreateTools, "Create", "Create New Shapes", EUserInterfaceActionType::RadioButton, FInputChord());
@@ -423,7 +423,6 @@ void FModelingToolsManagerCommands::RegisterCommands()
 	
 #undef REGISTER_MODELING_TOOL_COMMAND
 }
-
 
 
 

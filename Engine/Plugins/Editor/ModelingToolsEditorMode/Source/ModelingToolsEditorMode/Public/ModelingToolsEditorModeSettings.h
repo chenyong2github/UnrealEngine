@@ -345,6 +345,12 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
 	bool bShowCategoryButtonLabels = true;
 	
+	/**
+	 * If true, Tool buttons will always be shown when in a Tool. By default they will be hidden.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|UI Customization")
+	bool bAlwaysShowToolButtons = false;
+
 public:
 
 	// saved-state for various mode settings that are configured via UI toggles/etc, and not exposed in settings dialog

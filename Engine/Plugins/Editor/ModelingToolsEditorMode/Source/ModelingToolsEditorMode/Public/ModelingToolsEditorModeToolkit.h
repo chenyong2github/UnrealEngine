@@ -117,6 +117,7 @@ private:
 
 	/** A utility function to register the tool palettes with the ToolkitBuilder */
 	void RegisterPalettes();
+	FDelegateHandle ActivePaletteChangedHandle;
 
 	TSharedPtr<SWidget> ToolShutdownViewportOverlayWidget;
 	void MakeToolShutdownOverlayWidget();

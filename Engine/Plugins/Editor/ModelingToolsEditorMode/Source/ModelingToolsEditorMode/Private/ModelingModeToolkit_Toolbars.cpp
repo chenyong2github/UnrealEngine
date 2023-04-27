@@ -726,8 +726,6 @@ void FModelingToolsEditorModeToolkit::MakeSelectionPaletteOverlayWidget()
 		FSlateIcon(FModelingToolsEditorModeStyle::GetStyleSetName(), "SelectionToolBarIcons.UnlockedTarget"));
 
 
-
-
 	TSharedRef<SWidget> Toolbar = ToolbarBuilder.MakeWidget();
 
 	SAssignNew(SelectionPaletteOverlayWidget, SVerticalBox)
@@ -738,24 +736,23 @@ void FModelingToolsEditorModeToolkit::MakeSelectionPaletteOverlayWidget()
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::Get().GetBrush("EditorViewport.OverlayBrush"))
-		.Padding(FMargin(3.0f, 6.0f, 3.f, 6.f))
-		[
-			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(FMargin(0.0, 0.f, 0.f, 0.f))
-		[
-			Toolbar
-		]
-		]
+			.Padding(FMargin(3.0f, 6.0f, 3.f, 6.f))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(FMargin(0.0, 0.f, 0.f, 0.f))
+				[
+					Toolbar
+				]
+			]
 		];
 
 	SelectionPaletteOverlayWidget->SetVisibility( TAttribute<EVisibility>::CreateLambda([this]()
 	{
 		if ( UModelingToolsEditorMode* ModelingMode = Cast<UModelingToolsEditorMode>(GetScriptableEditorMode()) )
 		{
-			return ModelingMode->GetMeshElementSelectionSystemEnabled() ? EVisibility::Visible : EVisibility::Collapsed;
+			return ModelingMode->GetMeshElementSelectionSystemEnabled() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
 		}
 		return EVisibility::Collapsed;
 	}) );
