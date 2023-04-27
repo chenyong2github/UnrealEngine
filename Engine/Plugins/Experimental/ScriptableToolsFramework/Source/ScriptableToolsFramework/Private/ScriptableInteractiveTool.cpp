@@ -923,6 +923,19 @@ void UScriptableInteractiveTool::CreateTRSGizmo(
 	{
 		OnGizmoTransformChanged_Handler(Identifier, NewTransform);
 	});
+	GizmoProxy->OnBeginTransformEdit.AddWeakLambda(this, [this, Identifier](UTransformProxy* Proxy) 
+	{
+		OnGizmoTransformStateChange_Handler(Identifier, Proxy->GetTransform(), EScriptableToolGizmoStateChangeType::BeginTransform);
+	});
+	GizmoProxy->OnEndTransformEdit.AddWeakLambda(this, [this, Identifier](UTransformProxy* Proxy)
+	{
+		OnGizmoTransformStateChange_Handler(Identifier, Proxy->GetTransform(), EScriptableToolGizmoStateChangeType::EndTransform);
+	});
+	GizmoProxy->OnTransformChangedUndoRedo.AddWeakLambda(this, [this, Identifier](UTransformProxy*, FTransform NewTransform)
+	{
+		OnGizmoTransformStateChange_Handler(Identifier, NewTransform, EScriptableToolGizmoStateChangeType::UndoRedo);
+	});
+	
 
 	if (GizmoOptions.bAllowNegativeScaling == false)
 	{
@@ -1020,6 +1033,11 @@ void UScriptableInteractiveTool::OnGizmoTransformChanged_Handler(FString GizmoId
 	OnGizmoTransformChanged(GizmoIdentifier, NewTransform);
 }
 
+void UScriptableInteractiveTool::OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType)
+{
+	// forward to BlueprintImplementableEvent
+	OnGizmoTransformStateChange(GizmoIdentifier, CurrentTransform, ChangeType);
+}
 
 
 

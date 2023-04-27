@@ -11,6 +11,7 @@ class UWorld;
 class UCombinedTransformGizmo;
 class UTransformProxy;
 class UScriptableInteractiveTool;
+class UBaseScriptableToolBuilder;
 class FToolDataVisualizer;
 class FCanvas;
 class FSceneView;
@@ -63,6 +64,14 @@ enum class EScriptableToolGizmoCoordinateSystem : uint8
 	World = 0,
 	Local = 1,
 	FromViewportSettings = 2
+};
+
+UENUM(BlueprintType)
+enum class EScriptableToolGizmoStateChangeType : uint8
+{
+	BeginTransform = 0,
+	EndTransform = 1,
+	UndoRedo = 2
 };
 
 UENUM(BlueprintType, meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
@@ -309,7 +318,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Scriptable Tool Settings", meta=(DisplayName="Shutdown Type"))
 	EScriptableToolShutdownType ToolShutdownType = EScriptableToolShutdownType::Complete;
 
-
 	/**
 	 * Implement OnScriptSetup to do initial setup/configuration of the Tool, such as adding
 	 * Property Sets, creating Gizmos, etc
@@ -374,6 +382,11 @@ public:
 
 protected:
 	virtual void PostInitProperties() override;
+
+
+	// return instance of custom tool builder. Should only be called on CDO.
+	virtual UBaseScriptableToolBuilder* GetNewCustomToolBuilderInstance(UObject* Outer) { return nullptr; }
+	friend class UScriptableToolSet;
 
 
 protected:
@@ -691,12 +704,22 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "ScriptableTool|Events")
 	void OnGizmoTransformChanged(const FString& GizmoIdentifier, FTransform NewTransform);
 
+	/**
+	 * The OnGizmoTransformStateChange event fires whenever the user start/ends a Gizmo transform, or when an Undo/Redo event occurs.
+	 * Note that when Undo/Redo occurs, OnGizmoTransformChanged will also fire.
+	 * The GizmoIdentifier can be used to disambiguate multiple active Gizmos.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "ScriptableTool|Events")
+	void OnGizmoTransformStateChange(const FString& GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType);
+
+
 protected:
 	// trying to avoid making a UStruct for this internal stuff
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional, SkipSerialization)
 	TMap<FString, TObjectPtr<UCombinedTransformGizmo>> Gizmos;
 
 	virtual void OnGizmoTransformChanged_Handler(FString GizmoIdentifier, FTransform NewTransform);
+	virtual void OnGizmoTransformStateChange_Handler(FString GizmoIdentifier, FTransform CurrentTransform, EScriptableToolGizmoStateChangeType ChangeType);
 
 
 

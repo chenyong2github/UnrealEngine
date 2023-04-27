@@ -72,7 +72,12 @@ void UScriptableToolSet::ReinitializeScriptableTools()
 			ToolInfo.ToolClass = Class;
 			ToolInfo.ToolCDO = Class->GetDefaultObject<UScriptableInteractiveTool>();
 
-			UBaseScriptableToolBuilder* ToolBuilder = NewObject<UBaseScriptableToolBuilder>(this);
+			UBaseScriptableToolBuilder* ToolBuilder = ToolInfo.ToolCDO->GetNewCustomToolBuilderInstance(this);
+			if (ToolBuilder == nullptr)
+			{
+				ToolBuilder = NewObject<UBaseScriptableToolBuilder>(this);
+			}
+
 			ToolBuilder->ToolClass = Class;
 			ToolBuilders.Add(ToolBuilder);
 

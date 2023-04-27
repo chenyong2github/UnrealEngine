@@ -15,3 +15,12 @@ class EDITORSCRIPTABLETOOLSFRAMEWORK_API UEditorScriptableInteractiveTool : publ
 public:
 
 };
+
+
+UCLASS(Transient, Blueprintable)
+class EDITORSCRIPTABLETOOLSFRAMEWORK_API UEditorScriptableInteractiveToolPropertySet : public UScriptableInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+
+};
