@@ -1316,6 +1316,7 @@ private:
 	TObjectPtr<UMovieSceneNodeGroupCollection> NodeGroupCollection;
 
 	/** Whether this scene's marked frames should be shown globally */
+	UPROPERTY()
 	bool bGloballyShowMarkedFrames;
 
 private:

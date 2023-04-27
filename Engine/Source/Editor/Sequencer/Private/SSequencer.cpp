@@ -2169,6 +2169,8 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 				FExecuteAction::CreateLambda([FocusedMovieScene, this]() {
 					if (FocusedMovieScene != nullptr)
 					{
+						const FScopedTransaction Transaction(LOCTEXT("ToggleShowMarkedFramesGlobally", "Toggle Show Marked Frames Globally"));
+						FocusedMovieScene->Modify();
 						FocusedMovieScene->ToggleGloballyShowMarkedFrames();
 						SequencerPtr.Pin()->InvalidateGlobalMarkedFramesCache();
 					}
