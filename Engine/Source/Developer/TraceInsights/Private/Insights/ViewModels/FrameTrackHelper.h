@@ -81,6 +81,8 @@ struct FFrameTrackSeries
 	bool bIsVisible;
 	int32 NumAggregatedFrames; // total number of frames aggregated in samples; i.e. sum of all Sample.NumFrames
 	TArray<FFrameTrackSample> Samples; // the aggregated samples
+	FLinearColor Color;
+	FText Name;
 
 	explicit FFrameTrackSeries(int32 InFrameType, EFrameTrackSeriesType InType)
 		: FrameType(InFrameType)
@@ -109,7 +111,6 @@ struct FTimerFrameStatsTrackSeries : public FFrameTrackSeries
 	}
 
 	uint32 TimerId;
-	FText TimerDisplayName;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

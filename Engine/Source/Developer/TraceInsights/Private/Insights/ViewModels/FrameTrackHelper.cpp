@@ -149,7 +149,7 @@ void FFrameTrackDrawHelper::DrawCached(const FFrameTrackSeries& Series) const
 
 	NumFrames += Series.NumAggregatedFrames;
 
-	FLinearColor SeriesColor = GetColorByFrameType(Series.FrameType);
+	FLinearColor SeriesColor = Series.Color;
 
 	const float SampleW = Viewport.GetSampleWidth();
 	const int32 NumSamples = Series.Samples.Num();

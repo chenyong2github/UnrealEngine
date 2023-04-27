@@ -783,6 +783,8 @@ void STimersView::TreeView_BuildPlotTimerMenu(FMenuBuilder& MenuBuilder)
 		return TimingView.IsValid() && NumSelectedNodes == 1 && SelectedNode.IsValid() && SelectedNode->GetType() != ETimerNodeType::Group;
 	};
 
+	MenuBuilder.BeginSection("MainGraphTrack", LOCTEXT("Plot_Series_MainGraphTrack_Section", "Main Graph Track"));
+
 	// Add/remove series to/from graph track
 	{
 		FUIAction Action_ToggleTimerInGraphTrack;
@@ -795,7 +797,7 @@ void STimersView::TreeView_BuildPlotTimerMenu(FMenuBuilder& MenuBuilder)
 		{
 			MenuBuilder.AddMenuEntry
 			(
-				LOCTEXT("ContextMenu_RemoveFromGraphTrack", "Remove series from graph track"),
+				LOCTEXT("ContextMenu_RemoveFromGraphTrack", "Remove instance series from graph track"),
 				LOCTEXT("ContextMenu_RemoveFromGraphTrack_Desc", "Removes the series containing event instances of the selected timer from the Main Graph track."),
 				FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.RemoveGraphSeries"),
 				Action_ToggleTimerInGraphTrack,
@@ -807,7 +809,7 @@ void STimersView::TreeView_BuildPlotTimerMenu(FMenuBuilder& MenuBuilder)
 		{
 			MenuBuilder.AddMenuEntry
 			(
-				LOCTEXT("ContextMenu_AddToGraphTrack", "Add series to graph track"),
+				LOCTEXT("ContextMenu_AddToGraphTrack", "Add instance series to graph track"),
 				LOCTEXT("ContextMenu_AddToGraphTrack_Desc", "Adds a series containing event instances of the selected timer to the Main Graph track."),
 				FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.AddGraphSeries"),
 				Action_ToggleTimerInGraphTrack,
@@ -885,6 +887,9 @@ void STimersView::TreeView_BuildPlotTimerMenu(FMenuBuilder& MenuBuilder)
 		}
 	}
 
+	MenuBuilder.EndSection();
+	MenuBuilder.BeginSection("FrameTrack", LOCTEXT("Plot_Series_FrameTrack_Section", "Frame Track"));
+
 	// Add/remove game frame stats series to/from frame track
 	{
 		FUIAction Action_ToggleFrameStatsTimerInFrameTrack;
@@ -951,6 +956,8 @@ void STimersView::TreeView_BuildPlotTimerMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 	}
+
+	MenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2639,11 +2646,13 @@ void STimersView::ToggleFrameTrackSeries(FTimerNodePtr TimerNode, ETraceFrameTyp
 	if (FrameTrack->HasFrameStatSeries(FrameType, TimerNode->GetTimerId()))
 	{
 		FrameTrack->RemoveTimerFrameStatSeries(FrameType, TimerNode->GetTimerId());
+		TimerNode->OnRemovedFromGraph();
 	}
 	else
 	{
-		TSharedPtr<FTimerFrameStatsTrackSeries> Series = FrameTrack->AddTimerFrameStatSeries(FrameType, TimerNode->GetTimerId());
-		Series->TimerDisplayName = TimerNode->GetDisplayName();
+		FText SeriesName = FText::Format(LOCTEXT("FrameTrackSeriesName_Format", "{0} {1} {2}"), TimerNode->GetDisplayName(), FText::FromString(FFrameTrackDrawHelper::FrameTypeToString(FrameType)), LOCTEXT("Frame", "Frame"));
+		TSharedPtr<FTimerFrameStatsTrackSeries> Series = FrameTrack->AddTimerFrameStatSeries(FrameType, TimerNode->GetTimerId(), TimerNode->GetColor(), SeriesName);
+		TimerNode->OnAddedToGraph();
 	}
 }
 

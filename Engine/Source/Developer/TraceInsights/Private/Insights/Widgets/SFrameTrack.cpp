@@ -229,7 +229,10 @@ TSharedRef<FFrameTrackSeries> SFrameTrack::FindOrAddSeries(ETraceFrameType Frame
 	}
 
 	LLM_SCOPE_BYTAG(Insights);
+
 	TSharedRef<FFrameTrackSeries> SeriesRef = MakeShared<FFrameTrackSeries>(FrameType, EFrameTrackSeriesType::Frame);
+	SeriesRef->Color = FFrameTrackDrawHelper::GetColorByFrameType(FrameType);
+	SeriesRef->Name = FText::Format(LOCTEXT("FrameTrackSeriesName_Format", "{0} {1}"), FText::FromString(FFrameTrackDrawHelper::FrameTypeToString(FrameType)), LOCTEXT("Frame", "Frame"));
 	AllSeries.Add(SeriesRef);
 	return SeriesRef;
 }
@@ -561,18 +564,8 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			// First line: "Rendering Frame 1,234"
 			TStringBuilder<512> StringBuilder;
 
-			if (HoveredSample.Series->Type == EFrameTrackSeriesType::TimerFrameStats)
-			{
-				StringBuilder.Append(StaticCastSharedPtr<FTimerFrameStatsTrackSeries>(HoveredSample.Series)->TimerDisplayName.ToString());
-				StringBuilder.Append(TEXT(" "));
-				StringBuilder.Append(FFrameTrackDrawHelper::FrameTypeToString(HoveredSample.Series->FrameType));
-			}
-			else
-			{
-				StringBuilder.Append(FFrameTrackDrawHelper::FrameTypeToString(HoveredSample.Series->FrameType));
-			}
-
-			StringBuilder.Append(TEXT(" Frame "));
+			StringBuilder.Append(HoveredSample.Series->Name.ToString());
+			StringBuilder.Append(TEXT(" "));
 			StringBuilder.Append(FText::AsNumber(HoveredSample.Sample->LargestFrameIndex).ToString());
 			const FString Text1(StringBuilder);
 
@@ -1269,8 +1262,8 @@ void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 		);
 		MenuBuilder.AddMenuEntry
 		(
-			FrameStatSeries->TimerDisplayName,
-			FText::Format(TooltipTextBase, FrameStatSeries->TimerDisplayName),
+			FText::Format(LOCTEXT("ContextMenu_ShowFrameStatsSeries_Name", "{0}"), FrameStatSeries->Name),
+			FText::Format(TooltipTextBase, FrameStatSeries->Name),
 			FSlateIcon(),
 			Action_ShowRenderingFrames,
 			NAME_None,
@@ -1538,7 +1531,7 @@ bool SFrameTrack::HasFrameStatSeries(ETraceFrameType FrameType, uint32 TimerId)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FTimerFrameStatsTrackSeries> SFrameTrack::AddTimerFrameStatSeries(ETraceFrameType FrameType, uint32 TimerId)
+TSharedPtr<FTimerFrameStatsTrackSeries> SFrameTrack::AddTimerFrameStatSeries(ETraceFrameType FrameType, uint32 TimerId, FLinearColor Color, FText Name)
 {
 	TSharedPtr<FFrameTrackSeries> ExistingSeries = FindFrameStatsSeries(FrameType, TimerId);
 
@@ -1549,6 +1542,8 @@ TSharedPtr<FTimerFrameStatsTrackSeries> SFrameTrack::AddTimerFrameStatSeries(ETr
 
 	TSharedRef<FTimerFrameStatsTrackSeries> SeriesRef = MakeShared<FTimerFrameStatsTrackSeries>(FrameType, TimerId);
 	SeriesRef->TimerId = TimerId;
+	SeriesRef->Color = Color;
+	SeriesRef->Name = Name;
 	AllSeries.Add(SeriesRef);
 
 	bIsStateDirty = true;
