@@ -2526,6 +2526,7 @@ namespace UnrealBuildTool
 		protected void SetDefaultsForCookedEditor(bool bIsCookedCooker, bool bIsForExternalUse)
 		{
 			LinkType = TargetLinkType.Monolithic;
+			BuildEnvironment = TargetBuildEnvironment.Unique;
 
 			if (!bIsCookedCooker)
 			{
