@@ -105,6 +105,10 @@ private:
 	TSharedRef<ITableRow> OnGenerateRow(PCGListviewItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnItemDoubleClicked(PCGListviewItemPtr Item) const;
 
+	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+	EColumnSortMode::Type GetColumnSortMode(const FName InColumnId) const;
+	void RefreshSorting();
+
 	void AddColumn(const UPCGPointData* InPCGPointData, const FName& InColumnId, const FText& ColumnLabel, EHorizontalAlignment HeaderHAlign = HAlign_Center, EHorizontalAlignment CellHAlign = HAlign_Right);
 	void AddIndexColumn();
 	void AddPointDataColumns(const UPCGPointData* InPCGPointData);
@@ -133,4 +137,7 @@ private:
 	TArray<FName> HiddenAttributes;
 
 	TMap<FName, FPCGColumnData> PCGColumnData;
+
+	FName SortingColumn = NAME_None;
+	EColumnSortMode::Type SortMode = EColumnSortMode::Type::Ascending;
 };
