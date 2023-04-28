@@ -47,7 +47,7 @@ FLevelSequenceBindingReference::FLevelSequenceBindingReference(UObject* InObject
 	}
 }
 
-UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, const FTopLevelAssetPath& StreamedLevelAssetPath) const
+UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, const FResolveBindingParams& InResolveBindingParams) const
 {
 	if (InContext && InContext->IsA<AActor>())
 	{
@@ -61,7 +61,7 @@ UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, const FTopL
 			return FindObject<UObject>(InContext, *ObjectPath, false);
 		}
 	}
-	else if (InContext && InContext->IsA<ULevel>() && StreamedLevelAssetPath.IsValid() && ExternalObjectPath.GetAssetPath() == StreamedLevelAssetPath)
+	else if (InContext && InContext->IsA<ULevel>() && InResolveBindingParams.StreamedLevelAssetPath.IsValid() && ExternalObjectPath.GetAssetPath() == InResolveBindingParams.StreamedLevelAssetPath)
 	{
 		if (UE::IsSavingPackage(nullptr) || IsGarbageCollecting())
 		{
@@ -266,7 +266,7 @@ void FLevelSequenceBindingReferences::RemoveObjects(const FGuid& ObjectId, const
 
 	for (int32 ReferenceIndex = 0; ReferenceIndex < ReferenceArray->References.Num(); )
 	{
-		UObject* ResolvedObject = ReferenceArray->References[ReferenceIndex].Resolve(InContext, FTopLevelAssetPath());
+		UObject* ResolvedObject = ReferenceArray->References[ReferenceIndex].Resolve(InContext, FLevelSequenceBindingReference::FResolveBindingParams());
 
 		if (InObjects.Contains(ResolvedObject))
 		{
@@ -289,7 +289,7 @@ void FLevelSequenceBindingReferences::RemoveInvalidObjects(const FGuid& ObjectId
 
 	for (int32 ReferenceIndex = 0; ReferenceIndex < ReferenceArray->References.Num(); )
 	{
-		UObject* ResolvedObject = ReferenceArray->References[ReferenceIndex].Resolve(InContext, FTopLevelAssetPath());
+		UObject* ResolvedObject = ReferenceArray->References[ReferenceIndex].Resolve(InContext, FLevelSequenceBindingReference::FResolveBindingParams());
 
 		if (!IsValid(ResolvedObject))
 		{
@@ -302,13 +302,13 @@ void FLevelSequenceBindingReferences::RemoveInvalidObjects(const FGuid& ObjectId
 	}
 }
 
-void FLevelSequenceBindingReferences::ResolveBinding(const FGuid& ObjectId, UObject* InContext, const FTopLevelAssetPath& StreamedLevelAssetPath, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const
+void FLevelSequenceBindingReferences::ResolveBinding(const FGuid& ObjectId, UObject* InContext, const FLevelSequenceBindingReference::FResolveBindingParams& InResolveBindingParams, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const
 {
 	if (const FLevelSequenceBindingReferenceArray* ReferenceArray = BindingIdToReferences.Find(ObjectId))
 	{
 		for (const FLevelSequenceBindingReference& Reference : ReferenceArray->References)
 		{
-			UObject* ResolvedObject = Reference.Resolve(InContext, StreamedLevelAssetPath);
+			UObject* ResolvedObject = Reference.Resolve(InContext, InResolveBindingParams);
 			if (ResolvedObject && ResolvedObject->GetWorld())
 			{
 				OutObjects.Add(ResolvedObject);

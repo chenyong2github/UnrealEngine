@@ -33,22 +33,31 @@ struct FLevelSequenceBindingReference
 	LEVELSEQUENCE_API FLevelSequenceBindingReference(UObject* InObject, UObject* InContext);
 
 	/**
+	 * Structure that stores additional params that are used for resolving bindings.
+	 */
+	struct FResolveBindingParams
+	{
+		FResolveBindingParams() {}
+
+		// The path to the streamed level asset that contains the level sequence actor playing back the sequence. 'None' for any non - instance - level setups.
+		FTopLevelAssetPath StreamedLevelAssetPath;
+	};
+
+	/**
 	 * Resolve this reference within the specified context
 	 *
-	 * @param InContext		The context to resolve the binding within. Either a UWorld, ULevel (when playing in an instanced level) or an AActor where this binding relates to an actor component
-	 * @param StreamedLevelAssetPath    The path to the streamed level asset that contains the level sequence actor playing back the sequence. A null path for any non-instance-level setups.
-	 * @return The object (usually an Actor or an ActorComponent).
+	 * @param	InContext	The context to resolve the binding within. Either a UWorld, ULevel (when playing in an instanced level) or an AActor where this binding relates to an actor component
+	 * @param	InResolveBindingParams   The struct containing additional resolving params.
+	 * @return	The object (usually an Actor or an ActorComponent).
 	 */
-	LEVELSEQUENCE_API UObject* Resolve(UObject* InContext, const FTopLevelAssetPath& StreamedLevelAssetPath) const;
-	
-	UE_DEPRECATED(5.1, "Asset path FNames are deprecated. Use FTopLevelAssetPath instead.")
-	UObject* Resolve(UObject* InContext, FName StreamedLevelAssetPath) const
+	LEVELSEQUENCE_API UObject* Resolve(UObject* InContext, const FResolveBindingParams& InResolveBindingParams) const;
+		
+	UE_DEPRECATED(5.3, "Use Resolve taking FLevelSequenceBindingReference::FResolveBindingParams param instead")
+	UObject* Resolve(UObject* InContext, const FTopLevelAssetPath& StreamedLevelAssetPath) const
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return Resolve(InContext, FTopLevelAssetPath(StreamedLevelAssetPath));
-PRAGMA_ENABLE_DEPRECATION_WARNINGS		
+		return nullptr;
 	}
-
+	
 	/**
 	 * Check whether this binding reference is equal to the specified object
 	 */
@@ -142,15 +151,19 @@ struct FLevelSequenceBindingReferences
 	 */
 	void AddBinding(const FGuid& ObjectId, UObject* InObject, UObject* InContext);
 
+	UE_DEPRECATED(5.3, "Use ResolveBinding taking FLevelSequenceBindingReference::FResolveBindingParams param instead.")
+	void ResolveBinding(const FGuid& ObjectId, UObject* InContext, const FTopLevelAssetPath& StreamedLevelAssetPath, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const { }
+		
 	/**
 	 * Resolve a binding for the specified ID using a given context
 	 *
 	 * @param ObjectId					The ID to associate the object with
 	 * @param InContext					A context in which InObject resides
-	 * @oaram StreamedLevelAssetPath    The path to the streamed level asset that contains the level sequence actor playing back the sequence. 'None' for any non-instance-level setups.
+	 * @oaram InResolveBindingParams    Struct containing additional resolving params
 	 * @param OutObjects				Array to populate with resolved object bindings
 	 */
-	void ResolveBinding(const FGuid& ObjectId, UObject* InContext, const FTopLevelAssetPath& StreamedLevelAssetPath, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const;
+	void ResolveBinding(const FGuid& ObjectId, UObject* InContext, const FLevelSequenceBindingReference::FResolveBindingParams& InResolveBindingParams, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const;
+
 
 	/**
 	 * Resolve a binding for the specified ID using a given context
