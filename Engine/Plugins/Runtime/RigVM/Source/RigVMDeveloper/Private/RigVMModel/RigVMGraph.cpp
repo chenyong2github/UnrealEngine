@@ -324,8 +324,8 @@ TArray<FRigVMGraphVariableDescription> URigVMGraph::GetLocalVariables(bool bIncl
 	if (bIncludeInputArguments)
 	{
 		TArray<FRigVMGraphVariableDescription> Variables;
-		Variables.Append(LocalVariables);
 		Variables.Append(GetInputArguments());
+		Variables.Append(LocalVariables);
 		return Variables;
 	}
 	
@@ -343,7 +343,7 @@ TArray<FRigVMGraphVariableDescription> URigVMGraph::GetInputArguments() const
 			Description.Name = Pin->GetFName();
 			Description.CPPType = Pin->GetCPPType();
 			Description.CPPTypeObject = Pin->GetCPPTypeObject();
-			Inputs.Add(Description);			
+			Inputs.Add(Description);
 		}
 	}
 	return Inputs;
