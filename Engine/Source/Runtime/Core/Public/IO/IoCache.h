@@ -7,6 +7,8 @@
 #include "Templates/RefCounting.h"
 #include <atomic>
 
+CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoCache, Log, All);
+
 namespace UE::IO::Private
 {
 	/** An abstract base class for implementing cache requests. */

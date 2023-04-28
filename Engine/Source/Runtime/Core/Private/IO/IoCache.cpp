@@ -2,6 +2,8 @@
 
 #include "IO/IoCache.h"
 
+DEFINE_LOG_CATEGORY(LogIoCache);
+
 namespace UE::IO::Private
 {
 	FIoCacheRequestBase::FIoCacheRequestBase(FIoReadCallback&& ReadCallback)
