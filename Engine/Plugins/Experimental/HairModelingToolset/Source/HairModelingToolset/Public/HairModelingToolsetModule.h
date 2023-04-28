@@ -18,4 +18,5 @@ public:
 	virtual FText GetExtensionName() override;
 	virtual FText GetToolSectionName() override;
 	virtual void GetExtensionTools(const FExtensionToolQueryInfo& QueryInfo, TArray<FExtensionToolDescription>& ToolsOut) override;
+	virtual bool GetExtensionExtendedInfo(FModelingModeExtensionExtendedInfo& InfoOut) override;
 };

@@ -21,6 +21,13 @@ protected:
 	};
 	TArray<FStartToolCommand> RegisteredTools;		// Tool start-commands listed below are stored in this list
 
+	struct FDynamicExtensionCommand
+	{
+		FName RegistrationName;
+		TSharedPtr<FUICommandInfo> Command;
+	};
+	TArray<FDynamicExtensionCommand> ExtensionPaletteCommands;
+
 public:
 	/**
 	 * Find Tool start-command below by registered name (tool icon name in Mode palette)
@@ -205,6 +212,19 @@ public:
 	 * Initialize above commands
 	 */
 	virtual void RegisterCommands() override;
+
+
+	/**
+	 * Dynamically register a new UI Command based on the given Name/Label/Tooltip/Icon.
+	 * This is intended to be used outside of RegisterCommands(), eg by Modeling Mode extensions
+	 * loaded when the Toolkit is created.
+	 */
+	static TSharedPtr<FUICommandInfo> RegisterExtensionPaletteCommand(
+		FName Name,
+		const FText& Label,
+		const FText& Tooltip,
+		const FSlateIcon& Icon);
+
 };
 
 

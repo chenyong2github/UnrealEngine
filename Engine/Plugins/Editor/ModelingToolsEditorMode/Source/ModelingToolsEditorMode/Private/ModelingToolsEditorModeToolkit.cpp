@@ -457,6 +457,50 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 	ToolkitBuilder->SetActivePaletteOnLoad(Commands.LoadCreateTools.Get());
 	ToolkitBuilder->UpdateWidget();
 
+
+	if (IModularFeatures::Get().IsModularFeatureAvailable(IModelingModeToolExtension::GetModularFeatureName()))
+	{
+		TArray<IModelingModeToolExtension*> Extensions = IModularFeatures::Get().GetModularFeatureImplementations<IModelingModeToolExtension>(
+			IModelingModeToolExtension::GetModularFeatureName());
+		for (int32 k = 0; k < Extensions.Num(); ++k)
+		{
+			FText ExtensionName = Extensions[k]->GetExtensionName();
+			FText SectionName = Extensions[k]->GetToolSectionName();
+
+			FModelingModeExtensionExtendedInfo ExtensionExtendedInfo;
+			bool bHasExtendedInfo = Extensions[k]->GetExtensionExtendedInfo(ExtensionExtendedInfo);
+
+			TSharedPtr<FUICommandInfo> PaletteCommand;
+			if (bHasExtendedInfo && ExtensionExtendedInfo.ExtensionCommand.IsValid())
+			{
+				PaletteCommand = ExtensionExtendedInfo.ExtensionCommand;
+			}
+			else
+			{
+				FText UseTooltipText = (bHasExtendedInfo && ExtensionExtendedInfo.ToolPaletteButtonTooltip.IsEmpty() == false) ?
+					ExtensionExtendedInfo.ToolPaletteButtonTooltip : SectionName;
+				PaletteCommand = FModelingToolsManagerCommands::RegisterExtensionPaletteCommand(
+					FName(ExtensionName.ToString()),
+					SectionName, UseTooltipText, FSlateIcon());
+			}
+
+			TArray<TSharedPtr<FUICommandInfo>> PaletteItems;
+			FExtensionToolQueryInfo ExtensionQueryInfo;
+			ExtensionQueryInfo.bIsInfoQueryOnly = true;
+			TArray<FExtensionToolDescription> ToolSet;
+			Extensions[k]->GetExtensionTools(ExtensionQueryInfo, ToolSet);
+			for (const FExtensionToolDescription& ToolInfo : ToolSet)
+			{
+				PaletteItems.Add(ToolInfo.ToolCommand);
+			}
+
+			ToolkitBuilder->AddPalette(
+				MakeShareable(new FToolPalette(PaletteCommand.ToSharedRef(), PaletteItems)));
+		}
+	}
+
+
+
 	// if selected palette changes, make sure we are showing the palette command buttons, which may be hidden by active Tool
 	ActivePaletteChangedHandle = ToolkitBuilder->OnActivePaletteChanged.AddLambda([this]()
 	{

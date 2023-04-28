@@ -13,6 +13,8 @@ class HAIRMODELINGTOOLSET_API FHairModelingToolCommands : public TCommands<FHair
 public:
 	FHairModelingToolCommands();
 
+	TSharedPtr<FUICommandInfo> HairToolsTabButton;
+
 	TSharedPtr<FUICommandInfo> BeginGroomToMeshTool;
 	TSharedPtr<FUICommandInfo> BeginGenerateLODMeshesTool;
 	TSharedPtr<FUICommandInfo> BeginGroomCardsEditorTool;

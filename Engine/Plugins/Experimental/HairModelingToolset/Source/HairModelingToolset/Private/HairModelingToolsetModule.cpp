@@ -58,7 +58,13 @@ void FHairModelingToolsetModule::GetExtensionTools(const FExtensionToolQueryInfo
 	GroomCardsEditorToolInfo.ToolCommand = FHairModelingToolCommands::Get().BeginGroomCardsEditorTool;
 	GroomCardsEditorToolInfo.ToolBuilder = NewObject<UGroomCardsEditorToolBuilder>();
 	ToolsOut.Add(GroomCardsEditorToolInfo);
+}
 
+bool FHairModelingToolsetModule::GetExtensionExtendedInfo(FModelingModeExtensionExtendedInfo& InfoOut)
+{
+	InfoOut.ExtensionCommand = FHairModelingToolCommands::Get().HairToolsTabButton;
+	InfoOut.ToolPaletteButtonTooltip = LOCTEXT("HairExtensionTooltip", "Tools for working with Groom meshes and cards");
+	return true;
 }
 
 

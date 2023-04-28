@@ -47,6 +47,18 @@ struct MODELINGTOOLSEDITORMODE_API FExtensionToolDescription
 };
 
 /**
+ * IModelingModeToolExtension implementations can optionally return additional information used in the Eidtor UI
+ * via instances of FModelingModeExtensionExtendedInfo.
+ */
+struct MODELINGTOOLSEDITORMODE_API FModelingModeExtensionExtendedInfo
+{
+	/** Tooltip to use for UI buttons that refer to the Extension */
+	FText ToolPaletteButtonTooltip;
+	/** Command button that will be used for the extension in the Modeling Mode Tab Bar. This can be undefined, in which case a Command button w/ default icon will be created. */
+	TSharedPtr<FUICommandInfo> ExtensionCommand;
+};
+
+/**
  * IModelingModeToolExtension uses the IModularFeature API to allow a Plugin to provide
  * a set of InteractiveTool's to be exposed in Modeling Mode. The Tools will be 
  * included in a section of the Modeling Mode tool list, based on GetToolSectionName().
@@ -80,7 +92,11 @@ public:
 	 */
 	virtual void GetExtensionTools(const FExtensionToolQueryInfo& QueryInfo, TArray<FExtensionToolDescription>& ToolsOut) = 0;
 
-
+	/**
+	 * Query the Extension for extended information. This function is optional, the results will
+	 * be ignored unless it is overridden and returns true.
+	 */
+	virtual bool GetExtensionExtendedInfo(FModelingModeExtensionExtendedInfo& InfoOut) { return false; }
 
 	static FName GetModularFeatureName()
 	{

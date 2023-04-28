@@ -425,5 +425,43 @@ void FModelingToolsManagerCommands::RegisterCommands()
 }
 
 
+TSharedPtr<FUICommandInfo> FModelingToolsManagerCommands::RegisterExtensionPaletteCommand(
+	FName Name,
+	const FText& Label,
+	const FText& Tooltip,
+	const FSlateIcon& Icon)
+{
+	if (Instance.IsValid())
+	{
+		TSharedPtr<FModelingToolsManagerCommands> Commands = Instance.Pin();
+
+		for (FDynamicExtensionCommand& ExtensionCommand : Commands->ExtensionPaletteCommands)
+		{
+			if (ExtensionCommand.RegistrationName == Name)
+			{
+				return ExtensionCommand.Command;
+			}
+		}
+
+		TSharedPtr<FUICommandInfo> NewCommandInfo;
+
+		FUICommandInfo::MakeCommandInfo(
+			Commands->AsShared(),
+			NewCommandInfo,
+			Name, Label, Tooltip, Icon,
+			EUserInterfaceActionType::RadioButton,
+			FInputChord() );
+
+		FDynamicExtensionCommand NewExtensionCommand;
+		NewExtensionCommand.RegistrationName = Name;
+		NewExtensionCommand.Command = NewCommandInfo;
+		Commands->ExtensionPaletteCommands.Add(NewExtensionCommand);
+		return NewCommandInfo;
+	};
+
+	return TSharedPtr<FUICommandInfo>();
+}
+
+
 
 #undef LOCTEXT_NAMESPACE

@@ -22,6 +22,8 @@ FHairModelingToolCommands::FHairModelingToolCommands() :
 
 void FHairModelingToolCommands::RegisterCommands()
 {
+	UI_COMMAND(HairToolsTabButton, "Groom", "Groom Modeling Toolset", EUserInterfaceActionType::RadioButton, FInputChord());
+
 	UI_COMMAND(BeginGroomToMeshTool, "Helmet", "Generate Helmet Mesh for Selected Groom", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(BeginGenerateLODMeshesTool, "HlmLOD", "Generate LODS for Hair Helmet", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(BeginGroomCardsEditorTool, "CardsEd", "Edit Hair Cards", EUserInterfaceActionType::ToggleButton, FInputChord());

@@ -47,6 +47,9 @@ void FHairModelingToolsStyle::Initialize()
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	{
+		StyleSet->Set("HairModelingToolCommands.HairToolsTabButton", new IMAGE_BRUSH_SVG("Icons/HairHelmet", Icon20x20));
+		StyleSet->Set("HairModelingToolCommands.HairToolsTabButton.Small", new IMAGE_BRUSH_SVG("Icons/HairHelmet", Icon20x20));
+
 		StyleSet->Set("HairModelingToolCommands.BeginGroomCardsEditorTool", new IMAGE_BRUSH_SVG("Icons/CardsEditor", Icon20x20));
 		StyleSet->Set("HairModelingToolCommands.BeginGroomCardsEditorTool.Small", new IMAGE_BRUSH_SVG("Icons/CardsEditor", Icon20x20));
 		StyleSet->Set("HairModelingToolCommands.BeginGenerateLODMeshesTool", new IMAGE_BRUSH_SVG("Icons/GenLODs", Icon20x20));
