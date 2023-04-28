@@ -248,13 +248,12 @@ TArray<TObjectPtr<UWaterBodyStaticMeshComponent>> FWaterBodyMeshBuilder::BuildWa
 			TArray<uint32> Indices;
 
 			// Simplification can occur for lakes/rivers since they have flat geometry and no vertex color data.
-			//if (!bHasBoundaryTriangle && (WaterBodyType != EWaterBodyType::River) && Triangles.Num() > 0)
-			//{
-			//	const float MeshZ = ConstantSurfaceZ;
-			//	const uint32 QuadSectionIndex = NumQuadSectionPositions.fetch_add(1);
-			//	QuadSectionPositions[QuadSectionIndex] = FVector(SectionPos.X, SectionPos.Y, ConstantSurfaceZ);
-			//	return;
-			//}
+			if (!bHasBoundaryTriangle && (WaterBodyType != EWaterBodyType::River) && Triangles.Num() > 0)
+			{
+				const uint32 QuadSectionIndex = NumQuadSectionPositions.fetch_add(1);
+				QuadSectionPositions[QuadSectionIndex] = FVector(SectionPos.X, SectionPos.Y, 0);
+				return;
+			}
 
 			TMap<uint32, uint32> VertexMap;
 			for (int32 TriangleID : Triangles)
@@ -370,6 +369,7 @@ TArray<TObjectPtr<UWaterBodyStaticMeshComponent>> FWaterBodyMeshBuilder::BuildWa
 		UWaterBodyStaticMeshComponent* WaterBodyStaticMeshComponent = NewObject<UWaterBodyStaticMeshComponent>(ActorOwner, Name);
 
 		WaterBodyStaticMeshComponent->RegisterComponent();
+		WaterBodyStaticMeshComponent->SetMobility(WaterBodyComponent->Mobility);
 		WaterBodyStaticMeshComponent->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 
 		StaticMeshComponents.Add(WaterBodyStaticMeshComponent);
@@ -404,6 +404,8 @@ TArray<TObjectPtr<UWaterBodyStaticMeshComponent>> FWaterBodyMeshBuilder::BuildWa
 
 			WaterBodyStaticMeshComponent->SetStaticMesh(StaticMesh);
 
+			// Reset any location/scale offsets which might have been set if this component is being reused.
+			WaterBodyStaticMeshComponent->SetRelativeTransform(FTransform::Identity);
 			StaticMeshes.Add(StaticMesh);
 
 			++StaticMeshComponentIndex;

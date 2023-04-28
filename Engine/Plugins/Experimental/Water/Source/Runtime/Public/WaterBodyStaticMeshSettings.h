@@ -14,8 +14,7 @@ struct FWaterBodyStaticMeshSettings
 	bool bEnableWaterBodyStaticMesh = false;
 
 	/** If enabled, the water body static mesh will be split into separate meshes to allow them to stream in and out as needed to save memory. */
-	// #todo_water [roey]: Re-enable this when UE-184177 and UE-184211: 
-	//UPROPERTY(Category = StaticMesh, EditAnywhere, meta = (EditCondition = "bEnableWaterBodyStaticMesh"))
+	UPROPERTY(Category = StaticMesh, EditAnywhere, meta = (EditCondition = "bEnableWaterBodyStaticMesh"))
 	bool bSectionWaterBodyStaticMesh = false;
 
 	/** The size of each section tile if sectioning is enabled. */
