@@ -44,9 +44,6 @@ struct FGCInternals
 {
 	FORCEINLINE static FUObjectItem* GetResolvedOwner(FFieldPath& Path) { return Path.GetResolvedOwnerItemInternal(); }
 	FORCEINLINE static void ClearCachedField(FFieldPath& Path) { Path.ClearCachedFieldInternal(); }
-
-	template<class ObjectID>
-	FORCEINLINE static FWeakObjectPtr& AccessWeakPtr(TPersistentObjectPtr<ObjectID>& Ptr) { return Ptr.WeakPtr; }
 };
 
 /** Interface to allow external systems to trace additional object references, used for bridging GCs */
@@ -310,8 +307,8 @@ enum class ETokenlessId
 	Collector = 1,
 	Class,
 	Outer,
+	ExternalPackage,
 	ClassOuter,
-	Cluster,
 	InitialReference,
 	Max = InitialReference
 };
@@ -488,12 +485,6 @@ struct TDirectDispatcher
 		}
 	}
 
-	FORCEINLINE void HandleWeakReference(FWeakObjectPtr& WeakPtr, UObject* ReferencingObject, FTokenId TokenId, EGCTokenType TokenType) const
-	{
-		UObject* WeakObject = WeakPtr.Get(true);
-		HandleReferenceDirectly(ReferencingObject, WeakObject, TokenId, TokenType, false);
-	}
-
 	FORCEINLINE void FlushQueuedReferences() const {}
 };
 
@@ -581,7 +572,11 @@ StoleContext:
 				// Emit base references
 				Dispatcher.HandleImmutableReference(Class, ETokenlessId::Class, EGCTokenType::Native);
 				Dispatcher.HandleImmutableReference(Outer, ETokenlessId::Outer, EGCTokenType::Native);
-
+#if WITH_EDITOR
+				UObject* Package = CurrentObject->GetExternalPackageInternal();
+				Package = Package != CurrentObject ? Package : nullptr;
+				Dispatcher.HandleImmutableReference(Package, ETokenlessId::ExternalPackage, EGCTokenType::Native);
+#endif
 				if (TokenStream.IsEmpty())
 				{
 					continue;
@@ -774,15 +769,6 @@ StoleContext:
 							// ARO is always last and an implicit terminator
 							goto TokensDone;
 						}
-						case GCRT_ExternalPackage:
-						{
-							TokenReturnCount = ReferenceInfo.ReturnCount;
-							// Test if the object isn't itself, since currently package are their own external and tracking that reference is pointless
-							UObject* Object = CurrentObject->GetExternalPackageInternal();
-							Object = Object != CurrentObject ? Object : nullptr;
-							Dispatcher.HandleImmutableReference( Object, FTokenId(ReferenceTokenStreamIndex), TokenType);
-						}
-						break;
 						case GCRT_FixedArray:
 						{
 							uint8* PreviousData = StackEntryData;

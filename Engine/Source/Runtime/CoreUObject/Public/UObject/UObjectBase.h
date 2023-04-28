@@ -83,11 +83,6 @@ public:
 	 **/
 	virtual ~UObjectBase();
 
-	/**
-	 * Emit GC tokens for UObjectBase, this might be UObject::StaticClass or Default__Class
-	 **/
-	static void EmitBaseReferences(UE::GC::FTokenStreamBuilder& TokenStream);
-
 protected:
 	/**
 	 * Just change the FName and Outer and rehash into name hash tables. For use by higher level rename functions.

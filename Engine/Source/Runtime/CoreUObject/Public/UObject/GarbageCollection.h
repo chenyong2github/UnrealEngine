@@ -325,7 +325,6 @@ public:
 	/** All tokens issues between Begin and End will be replayed Count times. */
 	COREUOBJECT_API void EmitFixedArrayBegin(int32 Offset, FName DebugName, int32 Stride, int32 Count);
 	COREUOBJECT_API void EmitFixedArrayEnd();
-	COREUOBJECT_API void EmitExternalPackageReference();
 
 	void EmitFinalTokens(void(*AddReferencedObjects)(UObject*, FReferenceCollector&));	
 	static FTokenStreamView DropFinalTokens(FTokenStreamView Tokens, void(*DropARO)(UObject*, FReferenceCollector&));

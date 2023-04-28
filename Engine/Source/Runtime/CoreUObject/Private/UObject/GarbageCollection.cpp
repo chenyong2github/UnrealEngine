@@ -316,7 +316,6 @@ namespace TokenDebugNames
 		switch (Type)
 		{
 		case GCRT_Object:								return TEXT("Reference");
-		case GCRT_ExternalPackage:						return TEXT("ExternalPackage");
 		case GCRT_ArrayObject:							return TEXT("Array<Reference>");
 		case GCRT_ArrayStruct:							return TEXT("Array<Struct>");
 		case GCRT_FixedArray:							return TEXT("FixedArray");
@@ -1462,23 +1461,18 @@ struct FReferenceMetadata
 class FReferenceBatcherBase
 {
 protected:
-	template<class ReferenceType>
-	struct TEntry
-	{
-		ReferenceType Reference;
-	};
 
 	template<class ReferenceType, uint32 Capacity, uint32 PrefetchCapacity = 0>
 	struct TBatchQueue
 	{
 		uint32 Num = 0;
-		TEntry<ReferenceType> Entries[Capacity + PrefetchCapacity];
+		ReferenceType Entries[Capacity + PrefetchCapacity];
 
 		FORCEINLINE static constexpr uint32 Max() { return Capacity; }
 		FORCEINLINE bool IsFull() const { return Num == Capacity; }
-		FORCEINLINE void Push(TEntry<ReferenceType> Entry) { Entries[Num++] = Entry; }
+		FORCEINLINE void Push(ReferenceType Entry) { Entries[Num++] = Entry; }
 		FORCEINLINE uint32 Slack() const { return Capacity - Num; }
-		FORCEINLINE TEntry<ReferenceType>& operator[](uint32 Idx) { return Entries[Idx]; }
+		FORCEINLINE ReferenceType& operator[](uint32 Idx) { return Entries[Idx]; }
 
 		TBatchQueue() { FMemory::Memzero(Entries); } // Zero out so prefetching ahead fetches same (near) null addresses
 		~TBatchQueue() { checkf(Num == 0, TEXT("Failed to flush")); }
@@ -1618,14 +1612,14 @@ private:
 	{
 		check(Num <= ArrayBatchSize);
 
-		for (TEntry<FReferenceArray> Entry : MakeArrayView(UnvalidatedArrays.Entries, Num))
+		for (FReferenceArray Entry : MakeArrayView(UnvalidatedArrays.Entries, Num))
 		{
-			FPlatformMisc::Prefetch(Entry.Reference.Array->GetData());
+			FPlatformMisc::Prefetch(Entry.Array->GetData());
 		}
 
-		for (TEntry<FReferenceArray> Entry : MakeArrayView(UnvalidatedArrays.Entries, Num))
+		for (FReferenceArray Entry : MakeArrayView(UnvalidatedArrays.Entries, Num))
 		{
-			PushReferences(*Entry.Reference.Array);
+			PushReferences(*Entry.Array);
 		}
 
 		UnvalidatedArrays.Num = 0;
@@ -1641,7 +1635,7 @@ private:
 	{
 		check((uint32)Range.Num() <= UnvalidatedReferences.Slack());
 
-		TEntry<UnvalidatedReferenceType>* Unvalidated = UnvalidatedReferences.Entries + UnvalidatedReferences.Num;
+		UnvalidatedReferenceType* Unvalidated = UnvalidatedReferences.Entries + UnvalidatedReferences.Num;
 		for (int32 Idx = 0; Idx < Range.Num(); ++Idx)
 		{
 			Unvalidated[Idx] = { MakeReference<UnvalidatedReferenceType>(Range[Idx]) };
@@ -1660,14 +1654,14 @@ private:
 		FValidatedBitmask ValidsA, ValidsB;
 		for (uint32 Idx = 0; Idx < Num; ++Idx)
 		{
-			UObject* Object = GetObject(UnvalidatedReferences[Idx].Reference);
+			UObject* Object = GetObject(UnvalidatedReferences[Idx]);
 			uint64 ObjectAddress = reinterpret_cast<uint64>(Object);
 			ValidsA.Set(Idx, !Permanent.Contains(Object));
 		}
 
 		for (uint32 Idx = 0; Idx < Num; ++Idx)
 		{
-			UObject* Object = GetObject(UnvalidatedReferences[Idx].Reference);
+			UObject* Object = GetObject(UnvalidatedReferences[Idx]);
 			ValidsB.Set(Idx, (!!Object) & IsObjectHandleResolved(reinterpret_cast<FObjectHandle&>(Object))); //-V792
 		}
 		
@@ -1702,7 +1696,7 @@ private:
 		for (uint32 QueueIdx = ValidatedReferences.Num; QueueIdx < NewQueueNum; ++InOutIdx)
 		{
 			bool bIsValid = !!Validations.Get(InOutIdx);
-			ValidatedReferences[QueueIdx].Reference = ToResolvedReference(UnvalidatedReferences[InOutIdx].Reference);
+			ValidatedReferences[QueueIdx] = ToResolvedReference(UnvalidatedReferences[InOutIdx]);
 			QueueIdx += bIsValid;
 		}
 
@@ -1726,23 +1720,23 @@ private:
 		{
 			for (uint32 Idx = 0; Idx < PrefetchAhead; ++Idx)
 			{
-				FPlatformMisc::Prefetch(ValidatedReferences[Idx].Reference.Object, InternalIndexPrefetchOffset);
+				FPlatformMisc::Prefetch(ValidatedReferences[Idx].Object, InternalIndexPrefetchOffset);
 			}
 			for (uint32 Idx = 0; Idx < Num; ++Idx)
 			{
-				ObjectIndices[Idx] = GUObjectArray.ObjectToIndex(ValidatedReferences[Idx].Reference.Object);
-				FPlatformMisc::Prefetch(ValidatedReferences[Idx + PrefetchAhead].Reference.Object, InternalIndexPrefetchOffset);
+				ObjectIndices[Idx] = GUObjectArray.ObjectToIndex(ValidatedReferences[Idx].Object);
+				FPlatformMisc::Prefetch(ValidatedReferences[Idx + PrefetchAhead].Object, InternalIndexPrefetchOffset);
 			}
 		}
 		else
 		{
 			for (uint32 Idx = 0; Idx < Num; ++Idx)
 			{
-				FPlatformMisc::Prefetch(ValidatedReferences[Idx].Reference.Object, InternalIndexPrefetchOffset);
+				FPlatformMisc::Prefetch(ValidatedReferences[Idx].Object, InternalIndexPrefetchOffset);
 			}
 			for (uint32 Idx = 0; Idx < Num; ++Idx)
 			{
-				ObjectIndices[Idx] = GUObjectArray.ObjectToIndex(ValidatedReferences[Idx].Reference.Object);
+				ObjectIndices[Idx] = GUObjectArray.ObjectToIndex(ValidatedReferences[Idx].Object);
 			}
 		}
 
@@ -1781,7 +1775,7 @@ private:
 
 		for (uint32 Idx = 0; Idx < Num; ++Idx)
 		{
-			ProcessorType::HandleBatchedReference(Context, ValidatedReferences[Idx].Reference, Metadatas[Idx]);
+			ProcessorType::HandleBatchedReference(Context, ValidatedReferences[Idx], Metadatas[Idx]);
 		}
 
 		ValidatedReferences.Num = 0;
@@ -2960,12 +2954,6 @@ struct TBatchDispatcher
 	FORCEINLINE void HandleKillableReferences(TArrayView<UObject*> Objects, FTokenId TokenId, EGCTokenType TokenType)
 	{
 		QueueReferences(Context.GetReferencingObject(), Objects, TokenId, ProcessorType::MayKill(TokenType, true));
-	}
-
-	FORCEINLINE void HandleWeakReference(FWeakObjectPtr& WeakPtr, const UObject* ReferencingObject, FTokenId TokenId, EGCTokenType)
-	{
-		UObject* WeakObject = WeakPtr.Get(true);
-		HandleReferenceDirectly(ReferencingObject, WeakObject, TokenId, EKillable::No);
 	}
 
 	FORCENOINLINE void FlushQueuedReferences()
@@ -5438,14 +5426,6 @@ void FTokenStreamBuilder::EmitFixedArrayEnd()
 	EmitReturn();
 }
 
-void FTokenStreamBuilder::EmitExternalPackageReference()
-{
-#if WITH_EDITOR
-	static const FName TokenName("ExternalPackageToken");
-	EmitReferenceInfo(FGCReferenceInfo(GCRT_ExternalPackage, 0), TokenName);
-#endif
-}
-
 // FTokenStreamBuilderIterator helper
 struct FNamedReferenceInfo
 {
@@ -5549,10 +5529,6 @@ void UClass::AssembleReferenceTokenStreamInternal(bool bForce)
 			// Make sure super class has valid token stream.
 			SuperClass->AssembleReferenceTokenStreamInternal();
 			SuperTokens = FTokenStreamBuilder::DropFinalTokens(SuperClass->ReferenceTokens.Strong, GetAROFunc(SuperClass));
-		}
-		else
-		{
-			UObjectBase::EmitBaseReferences(Builder);
 		}
 
 		// Make sure all Blueprint properties are marked as non-native
@@ -5809,8 +5785,8 @@ static FName ToName(ETokenlessId Id)
 		FName("Collector"), // ETokenlessId::Collector
 		FName("Class"), // ETokenlessId::Class
 		FName("Outer"), // ETokenlessId::Outer
+		FName("ExternalPackage"), // ETokenlessId::ExternalPackage
 		FName("ClassOuter"), // ETokenlessId::ClassOuter
-		FName("Cluster"), // ETokenlessId::Cluster
 		FName("InitialReference"), // ETokenlessId::InitialReference
 	};
 

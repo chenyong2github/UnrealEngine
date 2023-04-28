@@ -72,9 +72,6 @@ UClass* Z_Construct_UClass_UObject()
 	{
 		Z_Registration_Info_UClass_UObject.OuterSingleton = UObject::StaticClass();
 		UObjectForceRegistration(Z_Registration_Info_UClass_UObject.OuterSingleton);
-#if WITH_EDITOR
-		static_assert(false, "Need to EmitBaseReferences here");
-#endif
 		Z_Registration_Info_UClass_UObject.OuterSingleton->StaticLink();
 	}
 	check(Z_Registration_Info_UClass_UObject.OuterSingleton->GetClass());

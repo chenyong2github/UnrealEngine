@@ -204,20 +204,17 @@ struct FLeaf
 //
 struct FBspSurf
 {
-public:
-
-	UMaterialInterface*	Material;		// 4 Material.
-	uint32				PolyFlags;		// 4 Polygon flags.
-	int32					pBase;			// 4 Polygon & texture base point index (where U,V==0,0).
-	int32					vNormal;		// 4 Index to polygon normal.
-	int32					vTextureU;		// 4 Texture U-vector index.
-	int32					vTextureV;		// 4 Texture V-vector index.
-	int32					iBrushPoly;		// 4 Editor brush polygon index.
-	ABrush*				Actor;			// 4 Brush actor owning this Bsp surface.
-	FPlane4f				Plane;			// 16 The plane this surface lies on.
-	float				LightMapScale;	// 4 The number of units/lightmap texel on this surface.
-
-	int32					iLightmassIndex;// 4 Index to the lightmass settings
+	TObjectPtr<UMaterialInterface>	Material;		// 4 Material.
+	uint32							PolyFlags;		// 4 Polygon flags.
+	int32							pBase;			// 4 Polygon & texture base point index (where U,V==0,0).
+	int32							vNormal;		// 4 Index to polygon normal.
+	int32							vTextureU;		// 4 Texture U-vector index.
+	int32							vTextureV;		// 4 Texture V-vector index.
+	int32							iBrushPoly;		// 4 Editor brush polygon index.
+	TObjectPtr<ABrush>				Actor;			// 4 Brush actor owning this Bsp surface.
+	FPlane4f						Plane;			// 16 The plane this surface lies on.
+	float							LightMapScale;	// 4 The number of units/lightmap texel on this surface.
+	int32							iLightmassIndex;// 4 Index to the lightmass settings
 
 	bool				bHiddenEdTemporary;	// 1 Marks whether this surface is temporarily hidden in the editor or not. Not serialized.
 	bool				bHiddenEdLevel;		// 1 Marks whether this surface is hidden by the level browser or not. Not serialized.

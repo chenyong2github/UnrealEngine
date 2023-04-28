@@ -388,11 +388,6 @@ bool UObjectBase::IsValidLowLevelFast(bool bRecursive /*= true*/) const
 	return true;
 }
 
-void UObjectBase::EmitBaseReferences(UE::GC::FTokenStreamBuilder& TokenStream)
-{
-	TokenStream.EmitExternalPackageReference();
-}
-
 #if USE_PER_MODULE_UOBJECT_BOOTSTRAP
 static void UObjectReleaseModuleRegistrants(FName Module)
 {
