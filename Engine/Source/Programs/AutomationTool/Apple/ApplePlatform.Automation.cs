@@ -76,7 +76,9 @@ public abstract class ApplePlatform : Platform
 		{
 			foreach (TargetReceipt Target in SC.StageTargets.Select(x => x.Receipt))
 			{
-				MacExports.BuildWithModernXcode(SC.RawProjectPath, Target.Platform, Target.Configuration, Target.TargetName, bArchiveForDistro: false, Logger);
+				// fiddle with some envvars to redirect the .app into root of Staging directory, without going under any build subdirectories
+				string ExtraOptions = $"SYMROOT=\"{SC.StageDirectory.ParentDirectory}\" EFFECTIVE_PLATFORM_NAME={SC.StageDirectory.GetDirectoryName()}";
+				MacExports.BuildWithModernXcode(SC.RawProjectPath, Target.Platform, Target.Configuration, Target.TargetName, bArchiveForDistro: false, Logger, ExtraOptions);
 			}
 		}
 	}
