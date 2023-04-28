@@ -545,7 +545,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.3, "For test purposes only, don't use in production code.")
-	bool IsDataEqual(const UNiagaraSimCache& OtherCache, FString& OutDifference) const;
+	bool IsDataEqual(const UNiagaraSimCache& OtherCache, float ErrorTolerance, FString& OutDifference) const;
 #endif
 	
 private:
