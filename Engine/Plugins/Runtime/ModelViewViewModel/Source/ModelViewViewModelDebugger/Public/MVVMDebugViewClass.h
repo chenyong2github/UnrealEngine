@@ -32,7 +32,7 @@ struct FMVVMViewBindingDebugEntry
 	FString ConversionFunctionFieldPath;
 
 	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
-	int32 CompiledBindingIndex;
+	int32 CompiledBindingIndex = INDEX_NONE;
 };
 
 
