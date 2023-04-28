@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "AudioDefines.h"
 #include "Containers/Union.h"
 #include "Misc/TVariant.h"
 #include "DSP/Dsp.h"
@@ -167,7 +168,7 @@ namespace Metasound
 		METASOUND_PARAM(EntropyPin, "Entropy", "[0,1] Controls how evenly the voices are distributed in pitch")
 		METASOUND_PARAM(FrequencyModPin, "Modulation","Modulation Frequency Input (for doing FM)")
 		METASOUND_PARAM(GlideFactorPin, "Glide", "The amount of glide to use when changing frequencies. 0.0 = no glide, 1.0 = lots of glide.")
-		METASOUND_PARAM(MaxDetunePin, "Detune", "Max pitch offset of any Oscillators in Semitones. Only oscillators 2+ are detuned")
+		METASOUND_PARAM(MaxDetunePin, "Detune", "Max pitch offset of any Oscillators in Semitones, up to four octaves. Only oscillators 2+ are detuned")
 		METASOUND_PARAM(NumVoicesPin, "Voices", "[1,16] The number of Oscillators")
 		METASOUND_PARAM(PulseWidthPin, "Pulse Width", "The Width of the square part of the wave. Only used for square waves.")
 		METASOUND_PARAM(StereoWidthPin, "Width", "[0,1] Stereo Width of the oscillators")
@@ -285,8 +286,11 @@ namespace Metasound
 			const float ClampedFreq = FMath::Clamp(*BaseFrequency, -Nyquist, Nyquist);
 			const float ClampedEntropy = FMath::Clamp(*Entropy, 0.f, 1.f);
 			const float ClampedGlideEase = Audio::GetLogFrequencyClamped(*GlideFactor, { 0.0f, 1.0f }, { 1.0f, 0.0001f });
-			const float DetuneRatio = Audio::GetFrequencyMultiplier(*MaxDetune);
-			const float DetuneChannelGain = Audio::ConvertToLinear(*DetuneDb);
+
+			// allow +- 4 octaves of detune
+			constexpr float DetuneClamp = 12.f * 4.f;
+			const float DetuneRatio = Audio::GetFrequencyMultiplier(FMath::Clamp(*MaxDetune, -DetuneClamp, DetuneClamp));
+			const float DetuneChannelGain = Audio::ConvertToLinear(FMath::Clamp(*DetuneDb, MIN_VOLUME_DECIBELS, 24.f));
 			const float ClampedPulsueWidth = FMath::Clamp(*PulseWidth, 0.01f, 0.99f);
 			
 			const int32 NumFrames = ScratchBuffer.Num();
@@ -639,7 +643,7 @@ namespace Metasound
 			AudioRight->Zero();
 		}
 
-		virtual float GetStereoWidth() const override { return *StereoWidth; }
+		virtual float GetStereoWidth() const override { return FMath::Clamp(*StereoWidth, 0.f, 1.f); }
 		
 		virtual void FillOutputs(const float Gain = 1.f, const float LinearPan = 0.f) final override
 		{

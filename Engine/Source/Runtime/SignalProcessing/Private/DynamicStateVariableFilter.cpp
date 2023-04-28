@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/DynamicStateVariableFilter.h"
+
+#include "AudioDefines.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/Dsp.h"
-#include "HAL/IConsoleManager.h"
 
 namespace Audio
 {
@@ -301,7 +302,7 @@ namespace Audio
 	{
 		if (FMath::IsNearlyEqual(Frequency, InFrequency) == false)
 		{
-			Frequency = FMath::Clamp(InFrequency, 5.0f, (SampleRate * 0.5f) - 1.0f);
+			Frequency = FMath::Clamp(InFrequency, MIN_FILTER_FREQUENCY, (SampleRate * 0.5f) - 1.0f);
 
 			KeyVars.G = FMath::Tan(PI * Frequency * OneOverSampleRate);
 
@@ -313,7 +314,8 @@ namespace Audio
 	{
 		if (FMath::IsNearlyEqual(InQ, Q) == false)
 		{
-			Q = FMath::Max(InQ, KINDA_SMALL_NUMBER);
+			constexpr float Max_Q = 50.f;
+			Q = FMath::Clamp(InQ, KINDA_SMALL_NUMBER, Max_Q);
 			OneOverQ = 1.f / Q;
 			bNeedsUpdate = true;
 		}
@@ -323,7 +325,7 @@ namespace Audio
 	{
 		if (FMath::IsNearlyEqual(GainDb, InGain) == false)
 		{
-			GainDb = InGain;
+			GainDb = FMath::Clamp(InGain, MIN_VOLUME_DECIBELS, -(MIN_VOLUME_DECIBELS));
 			bNeedsUpdate = true;
 		}
 	}
@@ -344,17 +346,17 @@ namespace Audio
 
 	void FDynamicStateVariableFilter::SetAttackTime(const float InAttackTime)
 	{
-		Envelope.SetAttackTime(InAttackTime);
+		Envelope.SetAttackTime(FMath::Clamp(InAttackTime, 0.f, UE_BIG_NUMBER));
 	}
 
 	void FDynamicStateVariableFilter::SetReleaseTime(const float InReleaseTime)
 	{
-		Envelope.SetReleaseTime(InReleaseTime);
+		Envelope.SetReleaseTime(FMath::Clamp(InReleaseTime, 0.f, UE_BIG_NUMBER));
 	}
 
 	void FDynamicStateVariableFilter::SetThreshold(const float InThresholdDb)
 	{
-		ThresholdDb = InThresholdDb;
+		ThresholdDb = FMath::Clamp(InThresholdDb, MIN_VOLUME_DECIBELS, 0.f);
 	}
 
 	void FDynamicStateVariableFilter::SetEnvMode(const EPeakMode::Type InMode)
@@ -364,18 +366,18 @@ namespace Audio
 
 	void FDynamicStateVariableFilter::SetDynamicRange(const float InDynamicRange)
 	{
-		DynamicRangeDb = InDynamicRange;
+		DynamicRangeDb = FMath::Clamp(InDynamicRange, MIN_VOLUME_DECIBELS, -(MIN_VOLUME_DECIBELS));
 	}
 
 	void FDynamicStateVariableFilter::SetRatio(const float InRatio)
 	{
-		Ratio = FMath::Max(InRatio, 1.f + KINDA_SMALL_NUMBER);
+		Ratio = FMath::Clamp(InRatio, 1.f + KINDA_SMALL_NUMBER, 100.f);
 		SlopeFactor = 1.0f - 1.0f / Ratio;
 	}
 
 	void FDynamicStateVariableFilter::SetKnee(const float InKnee)
 	{
-		Knee = InKnee;
+		Knee = FMath::Clamp(InKnee, 0.f, -(MIN_VOLUME_DECIBELS));
 		HalfKnee = Knee * 0.5f;
 	}
 
