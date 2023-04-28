@@ -64,6 +64,7 @@ namespace UnsyncUI
     {
         public BuildPlatformModel Build { get; }
         public string DstPath { get; }
+		public string DstPathBase => Path.GetDirectoryName(DstPath);
         public bool DryRun { get; }
         public string Proxy { get; }
 		public string DFS { get; }
@@ -75,7 +76,7 @@ namespace UnsyncUI
 
         public string Name => $"{Build.Name}{(DryRun ? " - Dry Run" : "")}";
 
-        private double totalProgress = 0;
+		private double totalProgress = 0;
         public double TotalProgress
         {
             get => totalProgress;
@@ -256,6 +257,13 @@ namespace UnsyncUI
 			ProgressMessage = null;
 			StatusColor = ConsoleColor.Red;
 			cts.Cancel();
+		}
+
+		public bool IsDuplicate(JobModel otherJob) 
+		{
+			return (Build.Build.Path == otherJob.Build.Build.Path)
+				&& (Build.Platform == otherJob.Build.Platform)
+				&& (DstPathBase == otherJob.DstPathBase);
 		}
 
         private async void RunAsync()

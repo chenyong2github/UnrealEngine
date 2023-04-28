@@ -278,9 +278,17 @@ namespace UnsyncUI
 				ActiveJob = job;
 				job.StartJob();
 			}
-			else
+			// Don't bother including a job that is already either active or queued up :
+			else if (!ActiveJob.IsDuplicate(job) && (QueuedJobs.FirstOrDefault(j => j.IsDuplicate(job)) == null))
 			{
-				QueuedJobs.Add(job);
+				// Add it after the last platform for that same build if any, so that jobs from the same build end up being processed one after another 
+				JobModel lastJobForBuild = QueuedJobs.LastOrDefault(j => (j.Build.Build.Path == job.Build.Build.Path) && (j.DstPathBase == job.DstPathBase));
+				int insertionIndex = 0;
+				if (lastJobForBuild != null)
+				{
+					insertionIndex = QueuedJobs.IndexOf(lastJobForBuild) + 1;
+				}
+				QueuedJobs.Insert(insertionIndex, job);
 			}
 
 			UpdateProgressValue();
@@ -311,7 +319,8 @@ namespace UnsyncUI
 				ActiveJob = null;
 				if (QueuedJobs.Count > 0)
 				{
-					var newJob = QueuedJobs.Where(q => !q.IsCancelled).LastOrDefault();
+					// Look for a new job to run. Pick the first one rather than the last one for the queue to act as FIFO : 
+					var newJob = QueuedJobs.Where(q => !q.IsCancelled).FirstOrDefault();
 					if (newJob != null)
 					{
 						QueuedJobs.Remove(newJob);
