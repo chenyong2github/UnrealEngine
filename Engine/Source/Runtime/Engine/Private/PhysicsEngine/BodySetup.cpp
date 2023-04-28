@@ -401,12 +401,8 @@ FByteBulkData* UBodySetup::GetCookedFormatData()
 
 void UBodySetup::CreatePhysicsMeshes()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UBodySetup::CreatePhysicsMeshes);
-
-	SCOPE_CYCLE_COUNTER(STAT_CreatePhysicsMeshes);
-
 	// Create meshes from cooked data if not already done
-	if(bCreatedPhysicsMeshes)
+	if (bCreatedPhysicsMeshes)
 	{
 		return;
 	}
@@ -416,6 +412,8 @@ void UBodySetup::CreatePhysicsMeshes()
 	{
 		return;
 	}
+
+	SCOPE_CYCLE_COUNTER(STAT_CreatePhysicsMeshes);
 	
 	bool bClearMeshes = true;
 	bool bSkipProcessFormatData = false;
