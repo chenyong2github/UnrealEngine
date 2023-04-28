@@ -927,10 +927,11 @@ public:
 public:
 	FNaniteVisibility();
 
-	void BeginVisibilityFrame(const FNaniteRasterBinIndexTranslator InTranslator);
+	void BeginVisibilityFrame();
 	void FinishVisibilityFrame();
 
 	FNaniteVisibilityQuery* BeginVisibilityQuery(
+		FScene& Scene,
 		const TConstArrayView<FConvexVolume>& ViewList,
 		const class FNaniteRasterPipelines* RasterPipelines,
 		const class FNaniteMaterialCommands* MaterialCommands = nullptr
@@ -949,7 +950,7 @@ private:
 	// Translator should remain valid between Begin/FinishVisibilityFrame. That is, no adding or removing raster bins
 	FNaniteRasterBinIndexTranslator BinIndexTranslator;
 	TArray<FNaniteVisibilityQuery*, TInlineAllocator<32>> VisibilityQueries;
-	FGraphEventArray ActiveEvents;
+	TArray<UE::Tasks::FTask, SceneRenderingAllocator> ActiveEvents;
 	PrimitiveMapType PrimitiveReferences;
 	uint8 bCalledBegin : 1;
 };
@@ -957,13 +958,13 @@ private:
 class FNaniteScopedVisibilityFrame
 {
 public:
-	FNaniteScopedVisibilityFrame(const bool bInEnabled, FNaniteVisibility& InVisibility, const FNaniteRasterBinIndexTranslator InTranslator)
+	FNaniteScopedVisibilityFrame(const bool bInEnabled, FNaniteVisibility& InVisibility)
 	: Visibility(InVisibility)
 	, bEnabled(bInEnabled)
 	{
 		if (bEnabled)
 		{
-			Visibility.BeginVisibilityFrame(InTranslator);
+			Visibility.BeginVisibilityFrame();
 		}
 	}
 

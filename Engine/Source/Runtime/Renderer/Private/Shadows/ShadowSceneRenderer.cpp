@@ -252,6 +252,7 @@ void FShadowSceneRenderer::PostInitDynamicShadowsSetup()
 			if (!NaniteCullingViewsVolumes.IsEmpty())
 			{
 				NaniteVisibilityQuery = Scene.NaniteVisibility[ENaniteMeshPass::BasePass].BeginVisibilityQuery(
+					Scene,
 					NaniteCullingViewsVolumes,
 					&Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 					&Scene.NaniteMaterials[ENaniteMeshPass::BasePass]

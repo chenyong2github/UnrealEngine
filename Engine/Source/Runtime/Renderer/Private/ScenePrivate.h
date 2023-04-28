@@ -3507,6 +3507,11 @@ public:
 		CreateLightPrimitiveInteractionsTask.Wait();
 	}
 
+	UE::Tasks::FTask GetCreateLightPrimitiveInteractionsTask() const
+	{
+		return CreateLightPrimitiveInteractionsTask;
+	}
+
 	void WaitForCacheMeshDrawCommandsTask()
 	{
 		CacheMeshDrawCommandsTask.Wait();
@@ -3520,6 +3525,11 @@ public:
 	void WaitForCacheNaniteDrawCommandsTask()
 	{
 		CacheNaniteDrawCommandsTask.Wait();
+	}
+
+	UE::Tasks::FTask GetCacheNaniteDrawCommandsTask() const
+	{
+		return CacheNaniteDrawCommandsTask;
 	}
 
 #if RHI_RAYTRACING

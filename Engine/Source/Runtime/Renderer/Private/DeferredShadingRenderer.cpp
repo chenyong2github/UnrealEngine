@@ -2435,10 +2435,11 @@ void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FRDGBuilder& Gr
 		const FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[ENaniteMeshPass::BasePass];
 		const FNaniteRasterPipelines& NaniteRasterPipeline = Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass];
 
-		NaniteVisibility.BeginVisibilityFrame(NaniteRasterPipeline.GetBinIndexTranslator());
+		NaniteVisibility.BeginVisibilityFrame();
 
 		NaniteBasePassVisibility.Visibility = &NaniteVisibility;
 		NaniteBasePassVisibility.Query = NaniteVisibility.BeginVisibilityQuery(
+			*Scene,
 			NaniteCullingViews,
 			&NaniteRasterPipeline,
 			&NaniteMaterials
