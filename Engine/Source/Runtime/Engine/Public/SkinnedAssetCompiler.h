@@ -99,6 +99,9 @@ private:
 
 	void OnPostReachabilityAnalysis();
 	FDelegateHandle PostReachabilityAnalysisHandle;
+	
+	void OnPreGarbageCollect();
+	FDelegateHandle PreGarbageCollectHandle;
 };
 
 #endif // #if WITH_EDITOR

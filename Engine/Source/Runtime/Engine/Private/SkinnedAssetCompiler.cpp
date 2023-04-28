@@ -54,6 +54,7 @@ FSkinnedAssetCompilingManager::FSkinnedAssetCompilingManager()
 {
 	SkinnedAssetCompilingManagerImpl::EnsureInitializedCVars();
 	PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddRaw(this, &FSkinnedAssetCompilingManager::OnPostReachabilityAnalysis);
+	PreGarbageCollectHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FSkinnedAssetCompilingManager::OnPreGarbageCollect);
 }
 
 FName FSkinnedAssetCompilingManager::GetAssetTypeName() const
@@ -149,6 +150,7 @@ void FSkinnedAssetCompilingManager::Shutdown()
 	}
 
 	FCoreUObjectDelegates::PostReachabilityAnalysis.Remove(PostReachabilityAnalysisHandle);
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(PreGarbageCollectHandle);
 }
 
 bool FSkinnedAssetCompilingManager::IsAsyncCompilationEnabled() const
@@ -498,6 +500,11 @@ void FSkinnedAssetCompilingManager::OnPostReachabilityAnalysis()
 
 		FinishCompilation(PendingSkinnedMeshes);
 	}
+}
+
+void FSkinnedAssetCompilingManager::OnPreGarbageCollect()
+{
+	FinishAllCompilation();
 }
 
 #endif // #if WITH_EDITOR
