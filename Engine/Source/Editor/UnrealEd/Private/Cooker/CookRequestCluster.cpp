@@ -82,10 +82,9 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS)
 	}
 }
 
-FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TArray<FFilePlatformRequest>&& InRequests, bool bInExternalRequestsAreUrgent)
+FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TArray<FFilePlatformRequest>&& InRequests)
 	: FRequestCluster(InCOTFS)
 {
-	bExternalRequestsAreUrgent = bInExternalRequestsAreUrgent;
 	ReserveInitialRequests(InRequests.Num());
 	FilePlatformRequests = MoveTemp(InRequests);
 	InRequests.Empty();
@@ -144,24 +143,22 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 			continue;
 		}
 
-		if (NewReachablePlatforms.Contains(CookerLoadingPlatformKey) &&
-			!PackageData.FindOrAddPlatformData(CookerLoadingPlatformKey).IsReachable())
+		// Startup packages and Generated packages do not need to add hidden dependencies or log warnings
+		if (Discovery->Instigator.Category != EInstigator::StartupPackage &&
+			Discovery->Instigator.Category != EInstigator::GeneratedPackage)
 		{
-			// We are adding the expectation that this package will be loaded for something during the cook. Doing so
-			// is only expected from a few types of instigators, or from external package requests, or from cluster
-			// exploration. If not expected, add a diagnostic message, and add it as a hidden dependency.
-			if (Discovery->Instigator.Category != EInstigator::StartupPackage &&
-				Discovery->Instigator.Category != EInstigator::GeneratedPackage)
+			// If there are other discovered packages we have already added to this cluster, then defer this one
+			// until we have explored those; add this one to the next cluster. Exploring those earlier discoveries
+			// might add this one through cluster exploration and not require a hidden dependency.
+			if (!OwnedPackageDatas.IsEmpty())
 			{
-				// If there are other discovered packages we have already added to this cluster, then defer this one
-				// until we have explored those; add this one to the next cluster. Exploring those earlier discoveries
-				// might uncover this one and make it expected.
-				if (!OwnedPackageDatas.IsEmpty())
-				{
-					break;
-				}
+				break;
+			}
 
-				COTFS.OnDiscoveredPackageDebug(PackageData.GetPackageName(), Discovery->Instigator);
+			if (Discovery->ReachablePlatforms.GetSource() == EDiscoveredPlatformSet::CopyFromInstigator)
+			{
+				// Add it as a hidden dependency so that future platforms discovered as reachable in
+				// the instigator will also be marked as reachable in the dependency.
 				if (COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
 				{
 					FPackageData* InstigatorPackageData = Discovery->Instigator.Referencer.IsNone() ? nullptr
@@ -172,6 +169,14 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 							.Add(PackageData.GetPackageName());
 					}
 				}
+			}
+
+			// Adding packages to the cook should happen only for a few types of instigators, from external package
+			// requests, or during cluster exploration. If not expected, add a diagnostic message.
+			if (Discovery->Instigator.Category != EInstigator::SaveTimeHardDependency &&
+				Discovery->Instigator.Category != EInstigator::SaveTimeSoftDependency)
+			{
+				COTFS.OnDiscoveredPackageDebug(PackageData.GetPackageName(), Discovery->Instigator);
 			}
 		}
 		// Add the new reachable platforms
@@ -249,7 +254,7 @@ void FRequestCluster::FetchPackageNames(const FCookerTimer& CookerTimer, bool& b
 		{
 			PackageData->AddReachablePlatforms(*this, Request.GetPlatforms(), MoveTemp(Request.GetInstigator()));
 			PullIntoCluster(*PackageData);
-			PackageData->AddUrgency(bExternalRequestsAreUrgent, false /* bAllowUpdateState */);
+			PackageData->AddUrgency(Request.IsUrgent(), false /* bAllowUpdateState */);
 		}
 		else
 		{
@@ -257,13 +262,13 @@ void FRequestCluster::FetchPackageNames(const FCookerTimer& CookerTimer, bool& b
 			{
 				// If it's already in progress with no new platforms, we don't need to add it to the cluster, but add
 				// add on our urgency setting
-				PackageData->AddUrgency(bExternalRequestsAreUrgent, true /* bAllowUpdateState */);
+				PackageData->AddUrgency(Request.IsUrgent(), true /* bAllowUpdateState */);
 			}
 			else if (PackageData->GetPlatformsNeedingCookingNum() > 0)
 			{
 				// If it's missing cookable platforms and not in progress we need to add it to the cluster for cooking
 				PullIntoCluster(*PackageData);
-				PackageData->AddUrgency(bExternalRequestsAreUrgent, true /* bAllowUpdateState */);
+				PackageData->AddUrgency(Request.IsUrgent(), true /* bAllowUpdateState */);
 			}
 		}
 		// Add on our completion callback, or call it immediately if already done

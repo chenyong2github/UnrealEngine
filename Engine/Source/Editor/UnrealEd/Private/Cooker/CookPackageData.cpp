@@ -176,23 +176,18 @@ bool FPackageData::AreAllReachablePlatformsVisitedByCluster() const
 }
 
 void FPackageData::GetReachablePlatformsForInstigator(UCookOnTheFlyServer& COTFS, FName InInstigator,
-	TArray<const ITargetPlatform*>& Platforms, bool bAllowPartialInstigatorResults)
+	TArray<const ITargetPlatform*>& Platforms)
 {
 	return GetReachablePlatformsForInstigator(COTFS,
-		COTFS.PackageDatas->TryAddPackageDataByPackageName(InInstigator), Platforms, bAllowPartialInstigatorResults);
+		COTFS.PackageDatas->TryAddPackageDataByPackageName(InInstigator), Platforms);
 }
 
 void FPackageData::GetReachablePlatformsForInstigator(UCookOnTheFlyServer& COTFS, UE::Cook::FPackageData* InInstigator,
-	TArray<const ITargetPlatform*>& Platforms, bool bAllowPartialInstigatorResults)
+	TArray<const ITargetPlatform*>& Platforms)
 {
 	if (InInstigator)
 	{
 		InInstigator->GetReachablePlatforms(Platforms);
-		if (Platforms.IsEmpty() && !bAllowPartialInstigatorResults)
-		{
-			UE_LOG(LogCook, Error, TEXT("An instigator package is not marked as reachable for any platform, should be impossible: %s"),
-				*InInstigator->GetPackageName().ToString());
-		}
 	}
 	else
 	{
@@ -270,6 +265,11 @@ void FPackageData::SetInstigator(FRequestCluster& Cluster, FInstigator&& InInsti
 }
 
 void FPackageData::SetInstigator(FCookWorkerClient& Cluster, FInstigator&& InInstigator)
+{
+	SetInstigatorInternal(MoveTemp(InInstigator));
+}
+
+void FPackageData::SetInstigator(FGeneratorPackage& Cluster, FInstigator&& InInstigator)
 {
 	SetInstigatorInternal(MoveTemp(InInstigator));
 }

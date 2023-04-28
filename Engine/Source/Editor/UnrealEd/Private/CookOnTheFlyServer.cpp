@@ -358,8 +358,9 @@ public:
 
 		FName StandardFileName(*FPaths::CreateStandardFilename(CookPackageRequest.Filename));
 		UE_LOG(LogCook, Verbose, TEXT("Enqueing cook request, Filename='%s', Platform='%s'"), *CookPackageRequest.Filename, *CookPackageRequest.PlatformName.ToString());
-		Cooker.WorkerRequests->AddCookOnTheFlyRequest(
-			FFilePlatformRequest(StandardFileName, EInstigator::CookOnTheFly, TargetPlatform, MoveTemp(CookPackageRequest.CompletionCallback)));
+		FFilePlatformRequest Request(StandardFileName, EInstigator::CookOnTheFly, TargetPlatform, MoveTemp(CookPackageRequest.CompletionCallback));
+		Request.SetUrgent(true);
+		Cooker.WorkerRequests->AddCookOnTheFlyRequest(MoveTemp(Request));
 
 		return true;
 	};
@@ -1260,9 +1261,9 @@ bool UCookOnTheFlyServer::RequestPackage(const FName& StandardFileName, const TA
 		}
 	}
 
-	WorkerRequests->AddPublicInterfaceRequest(
-		FFilePlatformRequest(StandardFileName, EInstigator::RequestPackageFunction, TargetPlatforms),
-		bForceFrontOfQueue);
+	FFilePlatformRequest Request(StandardFileName, EInstigator::RequestPackageFunction, TargetPlatforms);
+	Request.SetUrgent(bForceFrontOfQueue);
+	WorkerRequests->AddPublicInterfaceRequest(MoveTemp(Request), bForceFrontOfQueue);
 	return true;
 }
 
@@ -2420,7 +2421,7 @@ void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& Coo
 #endif
 			bool bRequestsAreUrgent = IsCookOnTheFlyMode() && IsUsingLegacyCookOnTheFlyScheduling();
 			TRingBuffer<UE::Cook::FRequestCluster>& RequestClusters = PackageDatas->GetRequestQueue().GetRequestClusters();
-			RequestClusters.Add(UE::Cook::FRequestCluster(*this, MoveTemp(BuildRequests), bRequestsAreUrgent));
+			RequestClusters.Add(UE::Cook::FRequestCluster(*this, MoveTemp(BuildRequests)));
 		}
 	}
 }
@@ -2876,7 +2877,7 @@ void UCookOnTheFlyServer::QueueDiscoveredPackage(UE::Cook::FPackageData& Package
 	else
 	{
 		DiscoveredPlatforms = ReachablePlatforms.GetPlatforms(*this, &Instigator,
-			TConstArrayView<const ITargetPlatform*>(), &BufferPlatforms, true /* bAllowPartialInstigatorResults */);
+			TConstArrayView<const ITargetPlatform*>(), &BufferPlatforms);
 	}
 	if (PackageData.HasReachablePlatforms(DiscoveredPlatforms))
 	{
@@ -2886,10 +2887,7 @@ void UCookOnTheFlyServer::QueueDiscoveredPackage(UE::Cook::FPackageData& Package
 
 	if (bHiddenDependenciesDebug)
 	{
-		if (!PackageData.IsGenerated())
-		{
-			OnDiscoveredPackageDebug(PackageData.GetPackageName(), Instigator);
-		}
+		OnDiscoveredPackageDebug(PackageData.GetPackageName(), Instigator);
 	}
 	WorkerRequests->QueueDiscoveredPackage(*this, PackageData, MoveTemp(Instigator), MoveTemp(ReachablePlatforms));
 }
@@ -3123,7 +3121,9 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::QueueGeneratedPackages(UE::Cook::FGen
 		for (const FCookGenerationInfo& ChildInfo: Generator.GetPackagesToGenerate())
 		{
 			FPackageData* ChildPackageData = ChildInfo.PackageData;
-			QueueDiscoveredPackage(*ChildPackageData, FInstigator(EInstigator::GeneratedPackage, OwnerName),
+			// Set the Instigator now rather than delaying it until the discovery queue is processed.
+			ChildPackageData->SetInstigator(Generator, FInstigator(EInstigator::GeneratedPackage, OwnerName));
+			QueueDiscoveredPackage(*ChildPackageData, FInstigator(ChildPackageData->GetInstigator()),
 				EDiscoveredPlatformSet::CopyFromInstigator);
 		}
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::QueueGeneratedPackages);
@@ -4128,23 +4128,29 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages(TArray<FName>* OutDiscovere
 			}
 		}
 
-		if (!PackageData->FindOrAddPlatformData(CookerLoadingPlatformKey).IsReachable())
+		if (PackageData->FindOrAddPlatformData(CookerLoadingPlatformKey).IsReachable() || Instigator.Category == EInstigator::EditorOnlyLoad)
+		{
+			// This load was expected so we do not need to add a hidden dependency for it.
+			// If we are using legacy WhatGetsCookedRules, queue the package for cooking because it was loaded.
+			if (!bCanSkipEditorReferencedPackagesWhenCooking)
+			{
+				QueueDiscoveredPackage(*PackageData, FInstigator(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
+			}
+		}
+		else if (Instigator.Category == EInstigator::SaveTimeHardDependency || Instigator.Category == EInstigator::SaveTimeSoftDependency)
+		{
+			// A load undeclared in AssetRegistry dependencies, but one that has been marked up as a known issue and needed at runtime.
+			// Queue it for discovery and do not log a warning about it.
+			QueueDiscoveredPackage(*PackageData, FInstigator(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
+		}
+		else
 		{
 			// Possibly an unexpected load, but it might be an expected load after we finish processing some other unexpected loads that were
 			// discovered earlier during the same LoadPackage call. Queue it for discovery and if it is still unreachable when its turn comes
 			// we will add the hidden dependency for it.
 			// as reachable in all of its instigator's reachable platforms
-			QueueDiscoveredPackage(*PackageData, MoveTemp(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
-		}
-		else
-		{
-			// This load was expected so we do not need to add a hidden dependency for it.
-			// ONLYEDITORONLY_TODO: Read the list of Imports in FinishPlatform out of the SavePackage results instead, and then turn off bMarkExpectedLoadsReachableAsWell
-			constexpr bool bMarkExpectedLoadsReachableAsWell = true;
-			if (bMarkExpectedLoadsReachableAsWell)
-			{
-				QueueDiscoveredPackage(*PackageData, MoveTemp(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
-			}
+			QueueDiscoveredPackage(*PackageData, FInstigator(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
+			// TODO: Add diagnostics for this unexpected load
 		}
 	}
 }
@@ -4167,7 +4173,7 @@ private: // Used only by UCookOnTheFlyServer, which has private access
 
 	// General Package Data
 	UCookOnTheFlyServer& COTFS;
-	UE::Cook::FPackageData& PackageData;
+	FPackageData& PackageData;
 	TArrayView<const ITargetPlatform*> PlatformsForPackage;
 	FTickStackData& StackData;
 	UPackage* Package;
@@ -6049,6 +6055,30 @@ void FSaveCookedPackageContext::FinishPlatform()
 			MoveTemp(OverrideAssetPackageData), MoveTemp(OverridePackageDependencies));
 	}
 
+	if (COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+	{
+		// If the save succeeded, add the imports and softobjectpaths from the save to the cook for the platform
+		if (bSuccessful)
+		{
+			FName PackageFName = Package->GetFName();
+			TConstArrayView<const ITargetPlatform*> ReachablePlatforms(&TargetPlatform, 1);
+			for (const TArray<FName>& DependencyNames : { SavePackageResult.ImportPackages, SavePackageResult.SoftPackageReferences })
+			{
+				EInstigator InstigatorType = &DependencyNames == &SavePackageResult.ImportPackages ?
+					EInstigator::SaveTimeHardDependency : EInstigator::SaveTimeSoftDependency;
+				for (FName DependencyName : DependencyNames)
+				{
+					UE::Cook::FPackageData* DependencyData = COTFS.PackageDatas->TryAddPackageDataByPackageName(DependencyName);
+					if (DependencyData)
+					{
+						COTFS.QueueDiscoveredPackage(*DependencyData,
+							UE::Cook::FInstigator(InstigatorType, PackageFName), FDiscoveredPlatformSet(ReachablePlatforms));
+					}
+				}
+			}
+		}
+	}
+
 	// If not retrying, mark the package as cooked, either successfully or with failure
 	bool bIsRetryErrorCode = IsRetryErrorCode(SavePackageResult.Result);
 	if (!bIsRetryErrorCode)
@@ -6132,9 +6162,16 @@ void FSaveCookedPackageContext::FinishPackage()
 			UE::Cook::FPackageData* SoftObjectPackageData = COTFS.PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
 			if (SoftObjectPackageData)
 			{
-				COTFS.QueueDiscoveredPackage(*SoftObjectPackageData,
-					UE::Cook::FInstigator(UE::Cook::EInstigator::SoftDependency, PackageFName),
-					FDiscoveredPlatformSet(ReachablePlatforms));
+				if (!COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+				{
+					COTFS.QueueDiscoveredPackage(*SoftObjectPackageData,
+						UE::Cook::FInstigator(UE::Cook::EInstigator::SoftDependency, PackageFName),
+						FDiscoveredPlatformSet(ReachablePlatforms));
+				}
+				else
+				{
+					// TODO: Add OnlyEditorOnly diagnostic
+				}
 			}
 		}
 	}
@@ -10464,6 +10501,20 @@ void UCookOnTheFlyServer::GenerateInitialRequests(FBeginCookContext& BeginContex
 		UE_SCOPED_HIERARCHICAL_COOKTIMER(GenerateLongPackageName);
 		GenerateLongPackageNames(FilesInPath, FilesInPathInstigators);
 	}
+	TSet<FName> CookFirstPackages;
+	bool bCookFirst = FParse::Param(FCommandLine::Get(), TEXT("CookFirst"));
+	if (bCookFirst)
+	{
+		for (const FString& CookMap : CookMaps)
+		{
+			FString LongPackageName;
+			if (FPackageName::TryConvertFilenameToLongPackageName(CookMap, LongPackageName))
+			{
+				CookFirstPackages.Add(FName(*LongPackageName));
+			}
+		}
+	}
+
 	// add all the files to the cook list for the requested platforms
 	for (FName PackageName : FilesInPath)
 	{
@@ -10477,7 +10528,9 @@ void UCookOnTheFlyServer::GenerateInitialRequests(FBeginCookContext& BeginContex
 		UE::Cook::FInstigator& Instigator = FilesInPathInstigators.FindChecked(PackageName);
 		if (!PackageFileFName.IsNone())
 		{
-			WorkerRequests->AddStartCookByTheBookRequest(UE::Cook::FFilePlatformRequest(PackageFileFName, MoveTemp(Instigator), TargetPlatforms));
+			UE::Cook::FFilePlatformRequest Request(PackageFileFName, MoveTemp(Instigator), TargetPlatforms);
+			Request.SetUrgent(bCookFirst && CookFirstPackages.Contains(PackageName));
+			WorkerRequests->AddStartCookByTheBookRequest(MoveTemp(Request));
 		}
 		else if (!FLinkerLoad::IsKnownMissingPackage(PackageName))
 		{
@@ -11434,7 +11487,8 @@ void UCookOnTheFlyServer::OnDiscoveredPackageDebug(FName PackageName, const UE::
 	}
 	switch (Instigator.Category)
 	{
-	case EInstigator::StartupPackage:
+	case EInstigator::StartupPackage: [[fallthrough]];
+	case EInstigator::GeneratedPackage:
 		// Not a Hidden dependency
 		return;
 	default:

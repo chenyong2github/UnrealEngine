@@ -526,6 +526,7 @@ public:
 	/** Setting the instigator is mostly private - it should only be done during clustering. */
 	void SetInstigator(FRequestCluster& Cluster, FInstigator&& InInstigator);
 	void SetInstigator(FCookWorkerClient& Cluster, FInstigator&& InInstigator);
+	void SetInstigator(FGeneratorPackage& Cluster, FInstigator&& InInstigator);
 
 	/** Get whether COTFS is keeping this package referenced referenced during GC. */
 	bool IsKeepReferencedDuringGC() const { return static_cast<bool>(bKeepReferencedDuringGC); }
@@ -552,9 +553,9 @@ public:
 	 * If the package does not exist, return the COTFS's list of Session platforms
 	 */
 	static void GetReachablePlatformsForInstigator(UCookOnTheFlyServer& COTFS, FPackageData* InInstigator,
-		TArray<const ITargetPlatform*>& Platforms, bool bAllowPartialInstigatorResults=false);
+		TArray<const ITargetPlatform*>& Platforms);
 	static void GetReachablePlatformsForInstigator(UCookOnTheFlyServer& COTFS, FName InInstigator,
-		TArray<const ITargetPlatform*>& Platforms, bool bAllowPartialInstigatorResults=false);
+		TArray<const ITargetPlatform*>& Platforms);
 private:
 	friend struct UE::Cook::FPackageDatas;
 

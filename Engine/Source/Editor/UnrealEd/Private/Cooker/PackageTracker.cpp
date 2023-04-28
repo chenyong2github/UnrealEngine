@@ -140,8 +140,21 @@ void FPackageTracker::NotifyUObjectCreated(const class UObjectBase* Object, int3
 #else
 			FName ReferencerName(NAME_None);
 #endif
-			FInstigator Instigator(EInstigator::Unsolicited, ReferencerName);
-			if (COTFS.bHiddenDependenciesDebug)
+			EInstigator InstigatorType;
+			switch (FCookLoadScope::GetCurrentValue())
+			{
+			case ECookLoadType::EditorOnly:
+				InstigatorType = EInstigator::EditorOnlyLoad;
+				break;
+			case ECookLoadType::UsedInGame:
+				InstigatorType = EInstigator::SaveTimeSoftDependency;
+				break;
+			default:
+				InstigatorType = EInstigator::Unsolicited;
+				break;
+			}
+			FInstigator Instigator(InstigatorType, ReferencerName);
+			if (InstigatorType == EInstigator::Unsolicited && COTFS.bHiddenDependenciesDebug)
 			{
 				COTFS.OnDiscoveredPackageDebug(Package->GetFName(), Instigator);
 			}

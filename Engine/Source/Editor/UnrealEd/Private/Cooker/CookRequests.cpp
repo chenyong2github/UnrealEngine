@@ -56,6 +56,7 @@ FFilePlatformRequest::FFilePlatformRequest(const FFilePlatformRequest& InFilePla
 	: Filename(InFilePlatformRequest.Filename)
 	, Platforms(InFilePlatformRequest.Platforms)
 	, Instigator(InFilePlatformRequest.Instigator)
+	, bUrgent(InFilePlatformRequest.bUrgent)
 {
 	check(!InFilePlatformRequest.CompletionCallback); // CompletionCallbacks can not be copied, so the caller's intent is not clear in this constructor if the input has one
 }
@@ -65,6 +66,7 @@ FFilePlatformRequest::FFilePlatformRequest(FFilePlatformRequest&& InFilePlatform
 	, Platforms(MoveTemp(InFilePlatformRequest.Platforms))
 	, CompletionCallback(MoveTemp(InFilePlatformRequest.CompletionCallback))
 	, Instigator(MoveTemp(InFilePlatformRequest.Instigator))
+	, bUrgent(InFilePlatformRequest.bUrgent)
 {
 }
 
@@ -75,6 +77,7 @@ FFilePlatformRequest& FFilePlatformRequest::operator=(FFilePlatformRequest&& InF
 	check(!CompletionCallback); // We don't support holding multiple completion callbacks
 	CompletionCallback = MoveTemp(InFileRequest.CompletionCallback);
 	Instigator = MoveTemp(InFileRequest.Instigator);
+	bUrgent = InFileRequest.bUrgent;
 	return *this;
 }
 

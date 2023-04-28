@@ -47,8 +47,7 @@ namespace UE::Cook
 class FRequestCluster
 {
 public:
-	FRequestCluster(UCookOnTheFlyServer& COTFS, TArray<FFilePlatformRequest>&& InRequests,
-		bool bInExternalRequestsAreUrgent);
+	FRequestCluster(UCookOnTheFlyServer& COTFS, TArray<FFilePlatformRequest>&& InRequests);
 	FRequestCluster(UCookOnTheFlyServer& COTFS, FPackageDataSet&& InRequests);
 	FRequestCluster(UCookOnTheFlyServer& COTFS, TRingBuffer<FDiscoveryQueueElement>& DiscoveryQueue);
 	FRequestCluster(FRequestCluster&&) = default;
@@ -331,7 +330,6 @@ private:
 	IAssetRegistry& AssetRegistry;
 	FPackageTracker& PackageTracker;
 	FBuildDefinitions& BuildDefinitions;
-	bool bExternalRequestsAreUrgent = false;
 	bool bAllowHardDependencies = true;
 	bool bAllowSoftDependencies = true;
 	bool bHybridIterativeEnabled = true;

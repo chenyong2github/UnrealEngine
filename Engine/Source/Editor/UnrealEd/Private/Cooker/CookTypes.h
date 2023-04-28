@@ -486,8 +486,7 @@ struct FDiscoveredPlatformSet
 	void OnPlatformAddedToSession(const ITargetPlatform* Platform);
 	TConstArrayView<const ITargetPlatform*> GetPlatforms(UCookOnTheFlyServer& COTFS,
 		FInstigator* Instigator, TConstArrayView<const ITargetPlatform*> OrderedPlatforms,
-		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>>* OutBuffer,
-		bool bAllowPartialInstigatorResults=false);
+		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>>* OutBuffer);
 	/** If the current type is EmbeddedBitField, change it to EmbeddedList. */
 	void ConvertFromBitfield(TConstArrayView<const ITargetPlatform*> OrderedPlatforms);
 	/** If the current type is EmbeddedList, change it to EmbeddedBitfield. Asserts if the type is already EmbeddedBitfield. */

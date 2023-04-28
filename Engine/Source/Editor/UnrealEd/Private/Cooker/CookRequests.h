@@ -37,6 +37,7 @@ protected:
 	TArray<const ITargetPlatform*> Platforms;
 	FCompletionCallback CompletionCallback;
 	FInstigator Instigator;
+	bool bUrgent = false;
 
 public:
 	FFilePlatformRequest() = default;
@@ -55,6 +56,9 @@ public:
 	void SetFilename(FString InFilename);
 	const FName& GetFilename() const;
 	FInstigator& GetInstigator();
+
+	void SetUrgent(bool bInUrgent) { bUrgent = bInUrgent; }
+	bool IsUrgent() const { return bUrgent; }
 
 	const TArray<const ITargetPlatform*>& GetPlatforms() const;
 	TArray<const ITargetPlatform*>& GetPlatforms();

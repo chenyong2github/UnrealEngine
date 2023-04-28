@@ -384,6 +384,11 @@ void FCookDirector::AssignRequests(TArray<FWorkerId>&& InWorkers, TArray<TRefCou
 		{
 			WorkerId = WorkerIdConstraint;
 		}
+		// Override the loadbalancer's assignment to force it local if the Package is urgent
+		else if (Requests[RequestIndex]->GetIsUrgent())
+		{
+			WorkerId = FWorkerId::Local();
+		}
 
 		if (!WorkerId.IsLocal())
 		{

@@ -6,6 +6,7 @@
 #include "CookPackageData.h"
 #include "Containers/StringView.h"
 #include "DerivedDataRequest.h"
+#include "Editor.h"
 #include "HAL/PlatformTLS.h"
 #include "HAL/PlatformTime.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -15,6 +16,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "PackageTracker.h"
+#include "Serialization/PackageWriterToSharedBuffer.h"
 
 LLM_DEFINE_TAG(Cooker_CachedPlatformData);
 
@@ -384,8 +386,7 @@ void FDiscoveredPlatformSet::ConvertToBitfield(TConstArrayView<const ITargetPlat
 
 TConstArrayView<const ITargetPlatform*> FDiscoveredPlatformSet::GetPlatforms(UCookOnTheFlyServer& COTFS,
 	FInstigator* Instigator, TConstArrayView<const ITargetPlatform*> OrderedPlatforms,
-	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>>* OutBuffer,
-	bool bAllowPartialInstigatorResults)
+	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>>* OutBuffer)
 {
 	switch (Source)
 	{
@@ -409,8 +410,7 @@ TConstArrayView<const ITargetPlatform*> FDiscoveredPlatformSet::GetPlatforms(UCo
 	case EDiscoveredPlatformSet::CopyFromInstigator:
 		Platforms.Reset();
 		check(Instigator);
-		FPackageData::GetReachablePlatformsForInstigator(COTFS, Instigator->Referencer, Platforms,
-			bAllowPartialInstigatorResults);
+		FPackageData::GetReachablePlatformsForInstigator(COTFS, Instigator->Referencer, Platforms);
 		return Platforms;
 	default:
 		checkNoEntry();
