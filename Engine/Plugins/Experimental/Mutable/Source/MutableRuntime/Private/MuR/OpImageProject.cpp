@@ -206,14 +206,29 @@ namespace
 			const uint8* pTargetData,
 			const uint8* pMaskData,
 			bool bInIsRGBFadingEnabled, bool bInIsAlphaFadingEnabled,
-			float FadeStart, float FadeEnd )
+			float FadeStart, float FadeEnd, float MipSamplingFactor )
         {
-            SourceSizeX = static_cast<uint16>(Source->GetSizeX());
-            SourceSizeY = static_cast<uint16>(Source->GetSizeY());
 
-            SourceDataPtr = (SourceSizeX > 0 && SourceSizeY > 0) ? Source->GetData() : nullptr;
+            Source0SizeX = static_cast<uint16>(Source->GetSizeX());
+            Source0SizeY = static_cast<uint16>(Source->GetSizeY());
 
-			// \TODO: to template parameters?
+			// If we don't have the next mip, use the first mip as a fallback.
+			const bool bHasNextMip = Source->GetLODCount() >= 2;
+
+            Source0DataPtr = (Source0SizeX > 0 && Source0SizeY > 0) ? Source->GetData() : nullptr;
+			Source1DataPtr = bHasNextMip ? Source->GetMipData(1) : Source0DataPtr;
+	
+			FIntVector2 Source1Size = Source->CalculateMipSize(1);
+            Source1SizeX = bHasNextMip ? static_cast<uint16>(Source1Size.X) : Source0SizeX;
+            Source1SizeY = bHasNextMip ? static_cast<uint16>(Source1Size.Y) : Source0SizeY;
+
+			// Invalidate SourceDataPtrs if either of the two is not valid. 
+			if (!(Source0DataPtr && Source1DataPtr))
+			{
+				Source0DataPtr = nullptr;
+				Source1DataPtr = nullptr;
+			}
+
 			bIsRGBFadingEnabled = bInIsRGBFadingEnabled;
 			bIsAlphaFadingEnabled = bInIsAlphaFadingEnabled;
 
@@ -230,14 +245,13 @@ namespace
             TargetDataPtr = pTargetData;
             MaskDataPtr = pMaskData;
 
-
             check(GetImageFormatData(Source->GetFormat() ).m_bytesPerBlock == PIXEL_SIZE);
         }
 
         //-----------------------------------------------------------------------------------------
         inline void ProcessPixel( uint8* BufferPosPtr, float Varying[4] ) const
         {
-			if (!SourceDataPtr)
+			if (!Source0DataPtr)
 			{
 				return;
 			}
@@ -265,68 +279,100 @@ namespace
             if (Factor > 0)
             {
 				const FVector2f Uv = { Varying[0], Varying[1] };
-				const FVector2f SourceSizeF = FVector2f(SourceSizeX, SourceSizeY);
+				const FVector2f Source0SizeF = FVector2f(Source0SizeX, Source0SizeY);
+				const FVector2f Source1SizeF = FVector2f(Source1SizeX, Source1SizeY);
 
                 if ((Uv.X >= 0.0f) & (Uv.X < 1.0f) & (Uv.Y >= 0.0f) & (Uv.Y < 1.0f))
                 {
-					const float CoordsX = FMath::Clamp(Uv.X * SourceSizeF.X - 0.5f, 0.0f, SourceSizeF.X - 1.0f);
-					const float CoordsY = FMath::Clamp(Uv.Y * SourceSizeF.Y - 0.5f, 0.0f, SourceSizeF.Y - 1.0f);
-
-					auto ComputeInterpolator = [](float T) -> uint16
-					{
-						if constexpr (bUseSmoothInterpolator)
-						{
-							return static_cast<uint16>(255.0f * T * T * (3.0f - 2.0f * T));
-						}
-						else
-						{
-							return static_cast<uint16>(255.0f * T);
-						}
-					};
-
-					const uint16 FracX = ComputeInterpolator(FMath::Frac(CoordsX));
-					const uint16 FracY = ComputeInterpolator(FMath::Frac(CoordsY));
-
-					const uint32 X = static_cast<uint32>(CoordsX);
-					const uint32 Y = static_cast<uint32>(CoordsY);
-
-					const uint32 XPlusOne = FMath::Min<uint32>(SourceSizeX - 1, X + 1);
-					const uint32 YPlusOne = FMath::Min<uint32>(SourceSizeY - 1, Y + 1);
-
-					const uint8* Pixel00Ptr = SourceDataPtr + (Y        * SourceSizeX + X)        * PIXEL_SIZE;
-					const uint8* Pixel10Ptr = SourceDataPtr + (Y        * SourceSizeX + XPlusOne) * PIXEL_SIZE;
-					const uint8* Pixel01Ptr = SourceDataPtr + (YPlusOne * SourceSizeX + X)        * PIXEL_SIZE;
-					const uint8* Pixel11Ptr = SourceDataPtr + (YPlusOne * SourceSizeX + XPlusOne) * PIXEL_SIZE;
-
+					using FUInt16Vector2 = UE::Math::TIntVector2<uint16>;
 					struct FPixelData
 					{
 						alignas(8) uint16 Data[PIXEL_SIZE];
 					};
 
-					auto LoadPixel = [](const uint8* Ptr) -> FPixelData
+					auto SampleImageBilinear = [](FVector2f Uv, FUInt16Vector2 Size, const uint8* DataPtr)
 					{
-						FPixelData Result;
+						auto ComputeInterpolator = [](float T) -> uint16
+						{
+							if constexpr (bUseSmoothInterpolator)
+							{
+								return static_cast<uint16>(255.0f * T * T * (3.0f - 2.0f * T));
+							}
+							else
+							{
+								return static_cast<uint16>(255.0f * T);
+							}
+						};
+
+						const FVector2f SizeF(Size.X, Size.Y);
+
+						const FVector2f CoordsF = FVector2f(
+							FMath::Clamp(Uv.X * SizeF.X - 0.5f, 0.0f, SizeF.X - 1.0f),
+							FMath::Clamp(Uv.Y * SizeF.Y - 0.5f, 0.0f, SizeF.Y - 1.0f));
+
+						const FUInt16Vector2 Frac = FUInt16Vector2(
+							ComputeInterpolator(FMath::Frac(CoordsF.X)),
+							ComputeInterpolator(FMath::Frac(CoordsF.Y)));
+
+						const FIntVector2 Coords = FIntVector2(CoordsF.X, CoordsF.Y);
+						const FIntVector2 CoordsPlusOne = FIntVector2( 
+								FMath::Min(Size.X - 1, Coords.X + 1),
+								FMath::Min(Size.Y - 1, Coords.Y + 1));
+
+						uint8 const * const Pixel00Ptr = DataPtr + (Coords.Y        * Size.X + Coords.X)        * PIXEL_SIZE;
+						uint8 const * const Pixel10Ptr = DataPtr + (Coords.Y        * Size.X + CoordsPlusOne.X) * PIXEL_SIZE;
+						uint8 const * const Pixel01Ptr = DataPtr + (CoordsPlusOne.Y * Size.X + Coords.X)        * PIXEL_SIZE;
+						uint8 const * const Pixel11Ptr = DataPtr + (CoordsPlusOne.Y * Size.X + CoordsPlusOne.X) * PIXEL_SIZE;
+
+						auto LoadPixel = [](const uint8* Ptr) -> FPixelData
+						{
+							FPixelData Result;
+							if constexpr (PIXEL_SIZE == 4)
+							{
+								const uint32 PackedData = *reinterpret_cast<const uint32*>(Ptr);
+								
+								Result.Data[0] = static_cast<uint16>((PackedData >> (8 * 0)) & 0xFF);
+								Result.Data[1] = static_cast<uint16>((PackedData >> (8 * 1)) & 0xFF);
+								Result.Data[2] = static_cast<uint16>((PackedData >> (8 * 2)) & 0xFF);
+								Result.Data[3] = static_cast<uint16>((PackedData >> (8 * 3)) & 0xFF);
+							}
+							else
+							{
+								for (int32 C = 0; C < PIXEL_SIZE; ++C)
+								{
+									Result.Data[C] = static_cast<uint16>(Ptr[C]);
+								}
+							}
+							return Result;
+						};
+
+						FPixelData PixelData00 = LoadPixel(Pixel00Ptr);
+						FPixelData PixelData10 = LoadPixel(Pixel10Ptr);
+						FPixelData PixelData01 = LoadPixel(Pixel01Ptr);
+						FPixelData PixelData11 = LoadPixel(Pixel11Ptr);
+
+						FPixelData FilteredPixelData;
+					
 						for (int32 C = 0; C < PIXEL_SIZE; ++C)
 						{
-							Result.Data[C] = static_cast<uint16>(Ptr[C]);
-						}
+							const uint16 LerpY0 = ((PixelData10.Data[C] * Frac.X) + PixelData00.Data[C] * (255 - Frac.X)) / 255;
+							const uint16 LerpY1 = ((PixelData11.Data[C] * Frac.X) + PixelData01.Data[C] * (255 - Frac.X)) / 255;
+							FilteredPixelData.Data[C] = ((LerpY1 * Frac.Y) + LerpY0*(255 - Frac.Y)) / 255;
+						} 
 
-						return Result;
+						return FilteredPixelData;
 					};
 
-					FPixelData PixelData00 = LoadPixel(Pixel00Ptr);
-					FPixelData PixelData10 = LoadPixel(Pixel10Ptr);
-					FPixelData PixelData01 = LoadPixel(Pixel01Ptr);
-					FPixelData PixelData11 = LoadPixel(Pixel11Ptr);
+					FPixelData Sample0 = SampleImageBilinear(Uv, FUInt16Vector2(Source0SizeX, Source0SizeY), Source0DataPtr);
+					FPixelData Sample1 = SampleImageBilinear(Uv, FUInt16Vector2(Source1SizeX, Source1SizeY), Source1DataPtr);
 
-					uint16 FilteredPixelData[PIXEL_SIZE];
-					
+					const uint16 MipFactor = static_cast<uint16>(MipInterpolationFactor * 255.0f);
+
+					FPixelData& FilteredPixelData = Sample0;
 					for (int32 C = 0; C < PIXEL_SIZE; ++C)
 					{
-						const uint16 LerpY0 = ((PixelData10.Data[C] * FracX) + PixelData00.Data[C] * (255 - FracX)) / 255;
-						const uint16 LerpY1 = ((PixelData11.Data[C] * FracX) + PixelData01.Data[C] * (255 - FracX)) / 255;
-						FilteredPixelData[C] = ((LerpY1 * FracY) + LerpY0*(255 - FracY)) / 255;
-					} 
+						FilteredPixelData.Data[C] = ((Sample1.Data[C] * MipFactor) + Sample0.Data[C]*(255 - MipFactor)) / 255;
+					}
 
 					static_assert(PIXEL_SIZE <= 4);
 					const uint16 FadingMask[4] = { 
@@ -338,17 +384,21 @@ namespace
 					for (int32 I = 0; I < PIXEL_SIZE; ++I)
 					{
 						BufferPosPtr[I] = static_cast<uint8>(
-							(FilteredPixelData[I] * (MaskFactor * (1 - FadingMask[I]) + (Factor * FadingMask[I]))) / 255);
+							(FilteredPixelData.Data[I] * (MaskFactor * (1 - FadingMask[I]) + (Factor * FadingMask[I]))) / 255);
 					}				
                 }
             }
         }
 
-        const uint8* SourceDataPtr;
-        uint16 SourceSizeX, SourceSizeY;
+        const uint8* Source0DataPtr;
+        const uint8* Source1DataPtr;
+        uint16 Source0SizeX, Source0SizeY;
+        uint16 Source1SizeX, Source1SizeY;
 
         //! Cosine of the fading angle range
 		float FadeEndCos;
+		float MipInterpolationFactor;
+
 		// precomputation of 255 / (FadeStartCos - FadeEndCos) 
 		float OneOverFadeRangeTimes255;
 
@@ -731,7 +781,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 	const Image* pMask,
 	bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
 	ESamplingMethod SamplingMethod,
-	float fadeStart, float fadeEnd,
+	float fadeStart, float fadeEnd, float MipInterpolationFactor,
 	int layout, int block,
 	UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
 	SCRATCH_IMAGE_PROJECT* scratch )
@@ -763,7 +813,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 					pImage->GetData(),
 					pMask ? pMask->GetData() : nullptr,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-					fadeStart, fadeEnd);
+					fadeStart, fadeEnd, MipInterpolationFactor);
 				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 			}
 			else
@@ -792,7 +842,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 						pImage->GetData(),
 						pMask->GetData(),
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-						fadeStart, fadeEnd);
+						fadeStart, fadeEnd, MipInterpolationFactor);
 					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 				}
 				else
@@ -817,7 +867,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 						pImage->GetData(),
 						nullptr,
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-						fadeStart, fadeEnd);
+						fadeStart, fadeEnd, MipInterpolationFactor);
 					ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 				}
 				else
@@ -843,7 +893,7 @@ void ImageRasterProjectedPlanar( const Mesh* pMesh,
 					pImage->GetData(),
 					pMask ? pMask->GetData() : nullptr,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-					fadeStart, fadeEnd);
+					fadeStart, fadeEnd, MipInterpolationFactor);
 				ImageRasterProjected_Optimised(pMesh, pImage, pixelProc, fadeEnd, CropMin, UncroppedSize, scratch);
 			}
 			else
@@ -871,7 +921,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh, Image* pImage,
 	const Image* pSource, const Image* pMask,
 	bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
 	ESamplingMethod SamplingMethod,
-	float fadeStart, float fadeEnd,
+	float fadeStart, float fadeEnd, float MipInterpolationFactor,
 	int layout, int block,
 	UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
 	SCRATCH_IMAGE_PROJECT* scratch )
@@ -906,7 +956,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh, Image* pImage,
 					pImage->GetData(),
 					pMask ? pMask->GetData() : 0,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-					fadeStart, fadeEnd);
+					fadeStart, fadeEnd, MipInterpolationFactor);
 
 				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 			}
@@ -936,7 +986,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh, Image* pImage,
 						pImage->GetData(),
 						pMask->GetData(),
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-						fadeStart, fadeEnd);
+						fadeStart, fadeEnd, MipInterpolationFactor);
 					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 				}
 				else
@@ -961,7 +1011,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh, Image* pImage,
 						pImage->GetData(),
 						nullptr,
 						bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-						fadeStart, fadeEnd);
+						fadeStart, fadeEnd, MipInterpolationFactor);
 					ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 				}
 				else
@@ -989,7 +1039,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh, Image* pImage,
 					pImage->GetData(),
 					pMask ? pMask->GetData() : 0,
 					bIsRGBFadingEnabled, bIsAlphaFadingEnabled,
-					fadeStart, fadeEnd);
+					fadeStart, fadeEnd, MipInterpolationFactor);
 
 				ImageRasterProjected_OptimisedWrapping(pMesh, pImage, pixelProc, fadeEnd, block, CropMin, UncroppedSize, scratch);
 			}
@@ -1012,7 +1062,7 @@ void ImageRasterProjectedWrapping( const Mesh* pMesh, Image* pImage,
 
 }
 
-int32 ComputeProjectedFootprintBestMip(
+float ComputeProjectedFootprintBestMip(
 	const Mesh* pMesh, const FProjector& Projector, const FVector2f& TargetSize, const FVector2f& SourceSize)
 {
 	// Compute projected mesh footprint on the traget image and extract a desired size for source image.
@@ -1049,10 +1099,13 @@ int32 ComputeProjectedFootprintBestMip(
 
 		const float TriangleTargetArea = ComputeTriangleArea(A.uv, B.uv, C.uv);
 
-		// Set weight to zero if source area is close to zero to prevent posible infinite scaling. 
-		float TriangleWeight = static_cast<float>(!FMath::IsNearlyZero(TriangleSourceArea));
+		// Set weight to zero if source or target area are close to zero to remove outliers.
+		float TriangleWeight = static_cast<float>(!FMath::IsNearlyZero(TriangleSourceArea)) *
+							   static_cast<float>(!FMath::IsNearlyZero(TriangleTargetArea));
 		if (bIsPlanarProjection)
 		{
+			// Scale contribution to total area based on the mean of the projected triangle fade factor, e.i.,
+			// the cosinus of the angle between the projection direction and the vertices normal.
 			TriangleWeight *= FMath::Clamp((A.nor.X + B.nor.X + C.nor.X) * (1.0f / 3.0f), 0.0f, 1.0f);
 		}
 
@@ -1065,32 +1118,13 @@ int32 ComputeProjectedFootprintBestMip(
 		SourceFootprintAreaOnTarget * (TargetSize.X * TargetSize.Y);
 
 	// Find the mip that better adapts to the footprint.
-	// Swipe from the smalles to the largest mip finding the best fitting one.
+	float BestMip = FMath::Log2(FMath::Max(1.0f, SourceSize.X * SourceSize.Y)) * 0.5f - 
+				    FMath::Log2(FMath::Max(1.0f, SourceFootprintAreaOnTargetInPixelsSquared)) * 0.5f;
 
-	const FIntVector2 SourceSizeInt = FIntVector2(SourceSize.X, SourceSize.Y);
-
-	int32 Mip = FMath::CeilToInt(FMath::Log2(FMath::Max(SourceSize.GetMax(), 1.0f)));
-	int32 BestMip = Mip;
-	float BestMipAreaInPixelsSquared = 1.0f;
-	for (; Mip > 0; --Mip)
-	{
-		FIntVector2 SourceMipSize =
-			FIntVector2{ FMath::Max(SourceSizeInt.X >> Mip, 1), FMath::Max(SourceSizeInt.Y >> Mip, 1) };
-
-		float AreaOfMipInPixelsSquared = static_cast<float>(SourceMipSize.X * SourceMipSize.Y);
-
-		const float CurrentMipAreaDifference = FMath::Abs(AreaOfMipInPixelsSquared - SourceFootprintAreaOnTargetInPixelsSquared);
-		const float BestMipAreaDifference = FMath::Abs(BestMipAreaInPixelsSquared - SourceFootprintAreaOnTargetInPixelsSquared);
-
-		if (CurrentMipAreaDifference < BestMipAreaDifference)
-		{
-			BestMip = Mip;
-			BestMipAreaInPixelsSquared = AreaOfMipInPixelsSquared;
-		}
-	}
-
-	return BestMip;
+	// TODO: We probably should allow negative mips to indicate that the image needs magnification.
+	return FMath::Max(0.0f, BestMip);
 }
+
 
 //-------------------------------------------------------------------------------------------------
 void ImageRasterProjectedCylindrical( const Mesh* pMesh, Image* pImage,

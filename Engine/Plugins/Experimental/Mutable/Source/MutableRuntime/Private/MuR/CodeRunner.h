@@ -78,6 +78,12 @@ namespace  mu
 					int32 ResultDescAt;
 					int32 SourceDescAt;
 				} ResizeLike;
+
+				struct
+				{
+					uint8 Mip;
+					float MipValue;
+				} RasterMesh;
 			};
             Ptr<RefCounted> Resource;
         };

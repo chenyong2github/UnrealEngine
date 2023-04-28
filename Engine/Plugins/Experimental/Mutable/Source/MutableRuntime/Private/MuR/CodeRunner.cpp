@@ -72,6 +72,17 @@
 #include "Templates/Tuple.h"
 #include "Trace/Detail/Channel.h"
 
+namespace
+{
+	
+bool bForceBestQualityProjectionSampling = false;
+static FAutoConsoleVariableRef CVarForceBestQualityProjectionSampling (
+	TEXT("mutable.ForceBestQualityProjectionSampling"),
+	bForceBestQualityProjectionSampling,
+	TEXT("force mutable to use the projection algorithm with best projection quality, BiLinear with TotalAreaHeuristic"),
+	ECVF_Default);
+}
+
 
 namespace mu
 {
@@ -4035,10 +4046,17 @@ namespace mu
 				const int32 MipsToSkip = item.ExecutionOptions;
 				int32 ProjectionMip = MipsToSkip;
 
+				FScheduledOpData Data;
+				Data.RasterMesh.Mip = ProjectionMip;
+				Data.RasterMesh.MipValue = static_cast<float>(ProjectionMip);
 				Ptr<const Projector> pProjector = GetMemory().GetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0));
 				if (pProjector)
 				{
-					if (static_cast<EMinFilterMethod>(args.MinFilterMethod) == EMinFilterMethod::TotalAreaHeuristic)
+					EMinFilterMethod MinFilterMethod = bForceBestQualityProjectionSampling
+						? EMinFilterMethod::TotalAreaHeuristic
+						: static_cast<EMinFilterMethod>(args.MinFilterMethod);
+
+					if (MinFilterMethod == EMinFilterMethod::TotalAreaHeuristic)
 					{
 						FVector2f TargetImageSizeF = FVector2f(
 							FMath::Max(args.sizeX >> MipsToSkip, 1),
@@ -4046,8 +4064,11 @@ namespace mu
 						FVector2f SourceImageSizeF = FVector2f(args.SourceSizeX, args.SourceSizeY);
 						
 						if (pMesh)
-						{
-							ProjectionMip = ComputeProjectedFootprintBestMip(pMesh.get(), pProjector->m_value, TargetImageSizeF, SourceImageSizeF);
+						{ 
+							Data.RasterMesh.MipValue =  
+								ComputeProjectedFootprintBestMip(pMesh.get(), pProjector->m_value, TargetImageSizeF, SourceImageSizeF);
+
+							Data.RasterMesh.Mip = static_cast<uint8>(FMath::FloorToInt32(Data.RasterMesh.MipValue));
 						}
 					}
 				}
@@ -4057,11 +4078,14 @@ namespace mu
 				// TODO: Review if this is a good way of reusing data between stages.
 				GetMemory().SetMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0), pMesh);
 				GetMemory().SetProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0), pProjector);
+				
 
-				AddOp(FScheduledOp(item.At, item, 2, ProjectionMip),
+				int32 DataHeapAddress = m_heapData.Add(Data);
+
+				AddOp(FScheduledOp(item.At, item, 2, DataHeapAddress),
 					FScheduledOp::FromOpAndOptions(args.mesh, item, 0),
 					FScheduledOp::FromOpAndOptions(args.projector, item, 0),
-					FScheduledOp::FromOpAndOptions(args.image, item, ProjectionMip),
+					FScheduledOp::FromOpAndOptions(args.image, item, Data.RasterMesh.Mip),
 					FScheduledOp(args.mask, item),
 					FScheduledOp::FromOpAndOptions(args.angleFadeProperties, item, 0));
 
@@ -4111,9 +4135,11 @@ namespace mu
 					--MipsToDrop;
 				}
 
+				FScheduledOpData Data = m_heapData[item.CustomState];
+
 				// Raster with projection
 				Ptr<const Image> pSource = GetMemory().GetImage(
-					FCacheAddress(args.image, item.ExecutionIndex, static_cast<uint8>(item.CustomState)));
+					FCacheAddress(args.image, item.ExecutionIndex, Data.RasterMesh.Mip));
 
 				Ptr<const Image> pMask = nullptr;
 				if (args.mask)
@@ -4158,7 +4184,26 @@ namespace mu
 				// moving the right layout channel to the 0.
 				int layout = 0;
 
-				ESamplingMethod SamplingMethod = static_cast<ESamplingMethod>(args.SamplingMethod);
+				ESamplingMethod SamplingMethod = bForceBestQualityProjectionSampling
+						? ESamplingMethod::BiLinear
+						: static_cast<ESamplingMethod>(args.SamplingMethod);
+
+				if (SamplingMethod == ESamplingMethod::BiLinear)
+				{
+					if (pSource->GetLODCount() < 2 && pSource->GetSizeX() > 1 && pSource->GetSizeY() > 1)
+					{
+						MUTABLE_CPUPROFILER_SCOPE(RunCode_RasterMesh_BilinearMipGen);
+
+						Ptr<Image> NewImage = new Image(pSource->GetSizeX(), pSource->GetSizeY(), 2, pSource->GetFormat());
+
+						check(NewImage->GetDataSize() >= pSource->GetDataSize());
+						FMemory::Memcpy(NewImage->GetData(), pSource->GetData(), pSource->GetDataSize());
+
+						ImageMipmapInPlace(0, NewImage.get(), FMipmapGenerationSettings{});
+
+						pSource = NewImage;
+					}
+				}
 
 				if (args.projector && pSource && pSource->GetSizeX() > 0 && pSource->GetSizeY() > 0)
 				{
@@ -4172,7 +4217,7 @@ namespace mu
 								pSource.get(), pMask.get(),
 								args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
 								SamplingMethod,
-								FadeStartRad, FadeEndRad,
+								FadeStartRad, FadeEndRad, FMath::Frac(Data.RasterMesh.MipValue),
 								layout, args.blockIndex,
 								CropMin, UncroppedSize,
 								&scratch);
@@ -4183,7 +4228,7 @@ namespace mu
 								pSource.get(), pMask.get(),
 								args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
 								SamplingMethod,
-								FadeStartRad, FadeEndRad,
+								FadeStartRad, FadeEndRad, FMath::Frac(Data.RasterMesh.MipValue),
 								layout, args.blockIndex,
 								CropMin, UncroppedSize,
 								&scratch);
@@ -4652,7 +4697,6 @@ namespace mu
             break;
         }
     }
-
 
     //---------------------------------------------------------------------------------------------
     void CodeRunner::RunCode_Int(const FScheduledOp& item, const Parameters* pParams, const Model* pModel )

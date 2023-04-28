@@ -21,7 +21,7 @@ namespace mu
 		const Image* pSource, const Image* pMask,
 		bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
 		ESamplingMethod SamplingMethod,
-		float fadeStart, float fadeEnd,
+		float fadeStart, float fadeEnd, float MipInterpolationFactor,
 		int layout, int block,
 		UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
 		SCRATCH_IMAGE_PROJECT* scratch );
@@ -39,12 +39,12 @@ namespace mu
 		const Image* pSource, const Image* pMask,
 		bool bIsRGBFadingEnabled, bool bIsAlphaFadingEnabled,
 		ESamplingMethod SamplingMethod,
-		float fadeStart, float fadeEnd,
+		float fadeStart, float fadeEnd, float MipInterpolationFactor,
 		int layout, int block,
 		UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
 		SCRATCH_IMAGE_PROJECT* scratch );
 
-	extern int32 ComputeProjectedFootprintBestMip(
+	extern float ComputeProjectedFootprintBestMip(
 			const Mesh* pMesh, const FProjector& Projector, const FVector2f& TargetSize, const FVector2f& SourceSize);
 
     extern MeshPtr MeshProject( const Mesh* pMesh,
