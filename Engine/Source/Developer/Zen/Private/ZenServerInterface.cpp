@@ -2141,13 +2141,13 @@ FZenServiceInstance::RequestGC(const bool* OverrideCollectSmallObjects, const ui
 
 	if (OverrideCollectSmallObjects)
 	{
-		Query << Separators[SeparatorIndex] << LexToString(*OverrideCollectSmallObjects);
+		Query << Separators[SeparatorIndex] << TEXT("smallobjects=") << LexToString(*OverrideCollectSmallObjects);
 		SeparatorIndex = FMath::Min(SeparatorIndex + 1, (int32)UE_ARRAY_COUNT(Separators));
 	}
 
 	if (OverrideMaxCacheDuration)
 	{
-		Query << Separators[SeparatorIndex] << LexToString(*OverrideMaxCacheDuration);
+		Query << Separators[SeparatorIndex] << TEXT("maxcacheduration=") << LexToString(*OverrideMaxCacheDuration);
 		SeparatorIndex = FMath::Min(SeparatorIndex + 1, (int32)UE_ARRAY_COUNT(Separators));
 	}
 
