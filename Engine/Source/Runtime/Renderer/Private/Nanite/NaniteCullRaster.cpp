@@ -114,6 +114,13 @@ static TAutoConsoleVariable<int32> CVarNaniteVSMMeshShaderRasterization(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarNaniteVSMInvalidateOnLODDelta(
+	TEXT("r.Nanite.VSMInvalidateOnLODDelta"),
+	0,
+	TEXT("Experimental: Clusters that are not streamed in to LOD matching the computed Nanite LOD estimate will trigger VSM invalidation such that they are re-rendered when streaming completes.\n")
+	TEXT("  NOTE: May cause a large increase in invalidations in cases where the streamer has difficulty keeping up (a future version will need to throttle the invalidations and/or add a threshold)."),
+	ECVF_RenderThreadSafe
+);
 
 static TAutoConsoleVariable<int32> CVarNanitePrimShaderRasterization(
 	TEXT("r.Nanite.PrimShaderRasterization"),
@@ -2181,6 +2188,11 @@ FRenderer::FRenderer(
 	else if (UsePrimitiveShader())
 	{
 		RenderFlags |= NANITE_RENDER_FLAG_PRIMITIVE_SHADER;
+	}
+
+	if (CVarNaniteVSMInvalidateOnLODDelta.GetValueOnRenderThread() != 0)
+	{
+		RenderFlags |= NANITE_RENDER_FLAG_INVALIDATE_VSM_ON_LOD_DELTA;		
 	}
 
 	// TODO: Exclude from shipping builds
