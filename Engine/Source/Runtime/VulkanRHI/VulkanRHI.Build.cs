@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System;
-using System.IO;
 
+[SupportedPlatformGroups("Desktop", "Android")]
 public class VulkanRHI : ModuleRules
 {
 	public VulkanRHI(ReadOnlyTargetRules Target) : base(Target)
