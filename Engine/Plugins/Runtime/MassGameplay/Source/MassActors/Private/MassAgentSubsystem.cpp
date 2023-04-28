@@ -230,7 +230,7 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 			}
 			else if (ensure(EntityTemplate))
 			{
-				SpawnerSystem->DestroyEntities(EntityTemplate->GetTemplateID(), TArrayView<FMassEntityHandle>(&Entity, 1));
+				SpawnerSystem->DestroyEntities(TArrayView<FMassEntityHandle>(&Entity, 1));
 			}
 		}
 		else if (AgentComp.IsEntityPendingCreation())

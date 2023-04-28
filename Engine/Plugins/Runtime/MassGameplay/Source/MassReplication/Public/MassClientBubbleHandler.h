@@ -382,7 +382,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::UpdateAgentsToRemove()
 template<typename AgentArrayItem>
 void TClientBubbleHandlerBase<AgentArrayItem>::PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize)
 {
-	TMap<FMassEntityTemplateID, TArray<FMassEntityHandle>> EntitiesToDestroy;
+	TArray<FMassEntityHandle> EntitiesToDestroy;
 
 	UWorld* World = Serializer->GetWorld();
 	check(World);
@@ -403,21 +403,14 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PreReplicatedRemove(const TArrayV
 		// We do need to check the ReplicationID in this case
 		if (Entity.IsSet())
 		{
-			TArray<FMassEntityHandle>& EntityArray = EntitiesToDestroy.FindOrAdd(RemovedItem.Agent.GetTemplateID());
-			EntityArray.Push(Entity);
-
+			EntitiesToDestroy.Add(Entity);
+			
 			check(AgentsRemoveDataMap.Find(RemovedItem.Agent.GetNetID()) == nullptr);
 			AgentsRemoveDataMap.Add(RemovedItem.Agent.GetNetID(), FMassAgentRemoveData(World->GetRealTimeSeconds()));
 		}
 	}
 
-	// Batch destroy agents per template
-	for (const TPair<FMassEntityTemplateID, TArray<FMassEntityHandle>>& Item : EntitiesToDestroy)
-	{
-		const FMassEntityTemplateID& TemplateID = Item.Key;
-		const TArray<FMassEntityHandle>& EntityArray = Item.Value;
-		SpawnerSubsystem->DestroyEntities(TemplateID, EntityArray);
-	}
+	SpawnerSubsystem->DestroyEntities(EntitiesToDestroy);
 }
 #endif //UE_REPLICATION_COMPILE_CLIENT_CODE
 

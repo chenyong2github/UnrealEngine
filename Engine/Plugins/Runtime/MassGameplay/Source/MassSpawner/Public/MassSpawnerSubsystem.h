@@ -33,7 +33,13 @@ public:
 
 	void SpawnEntities(FMassEntityTemplateID TemplateID, const uint32 NumberToSpawn, FConstStructView SpawnData, TSubclassOf<UMassProcessor> InitializerClass, TArray<FMassEntityHandle>& OutEntities);
 
-	void DestroyEntities(const FMassEntityTemplateID TemplateID, TConstArrayView<FMassEntityHandle> Entities);
+	void DestroyEntities(TConstArrayView<FMassEntityHandle> Entities);
+
+	UE_DEPRECATED(5.3, "This flavor of DestroyEntities has been deprecated. Use the one without the FMassEntityTemplateID parameter")
+	void DestroyEntities(const FMassEntityTemplateID TemplateID, TConstArrayView<FMassEntityHandle> Entities)
+	{
+		DestroyEntities(Entities);
+	}
 
 	const FMassEntityTemplateRegistry& GetTemplateRegistryInstance() const { return TemplateRegistryInstance; }
 	FMassEntityTemplateRegistry& GetMutableTemplateRegistryInstance() { return TemplateRegistryInstance; }
