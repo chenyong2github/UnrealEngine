@@ -23,7 +23,7 @@ FLevelInstanceEditorModeToolkit::FLevelInstanceEditorModeToolkit()
 
 FLevelInstanceEditorModeToolkit::~FLevelInstanceEditorModeToolkit()
 {
-	if (ViewportOverlayWidget.IsValid())
+	if(IsHosted() && ViewportOverlayWidget.IsValid())
 	{
 		GetToolkitHost()->RemoveViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
 	}
