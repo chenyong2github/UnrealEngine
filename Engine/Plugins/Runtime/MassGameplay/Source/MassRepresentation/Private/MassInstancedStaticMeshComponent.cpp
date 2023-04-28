@@ -7,7 +7,7 @@
 
 UMassInstancedStaticMeshComponent::UMassInstancedStaticMeshComponent()
 {
-	Mobility == EComponentMobility::Stationary;
+	Mobility = EComponentMobility::Stationary;
 }
 
 void UMassInstancedStaticMeshComponent::ApplyVisualChanges(const FMassISMCSharedData& SharedData)
