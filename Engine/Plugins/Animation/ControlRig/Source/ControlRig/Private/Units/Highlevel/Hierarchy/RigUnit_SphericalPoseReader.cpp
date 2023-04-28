@@ -73,13 +73,37 @@ FRigUnit_SphericalPoseReader_Execute()
 	FTransform WorldOffset = LocalDriverTransformInit * GlobalDriverParentTransform;
 	WorldOffset.SetLocation(GlobalDriverTransform.GetLocation());
 
-	// get driver axis
+	// get driver axis in local space of sphere
 	const FVector CurrentGlobalDriverAxis = GlobalDriverTransform.GetRotation().RotateVector(DriverAxis);
 	DriverNormal = WorldOffset.InverseTransformVectorNoScale(CurrentGlobalDriverAxis).GetSafeNormal();
 
+	//
 	// evaluate the interpolation of the output param
-	const float AngleFromForward = FMath::Acos(FVector::DotProduct(DriverNormal, FVector::ZAxisVector));
+	//
+
+	// get angle between the driver direction and the local Z-axis of the sphere
+	float DriverDotZAxis = FVector::DotProduct(DriverNormal, FVector::ZAxisVector);
+	if (FMath::IsNearlyEqual(DriverDotZAxis, -1.0f, KINDA_SMALL_NUMBER))
+	{
+		// avoid singularity at negative pole (back of sphere)
+		OutputParam = 0.0f;
+		Debug.DrawDebug(WorldOffset, ExecuteContext.GetDrawInterface(), InnerRegion, OuterRegion, DriverNormal, Driver2D, OutputParam);
+		return;
+	}
+
+	// remap angle from 0-PI, to 0-1
+	const float AngleFromForward = FMath::Acos(DriverDotZAxis);
 	const float Mag = RemapRange(AngleFromForward, 0.0f, PI, 0.0f, 1.0f);
+	if (FMath::IsNearlyZero(Mag))
+	{
+		// avoid singularity at positive pole (guaranteed to be inside inner ellipse)
+		// causes NaNs in DistanceToEllipse
+		OutputParam = 1.0f;
+		Debug.DrawDebug(WorldOffset, ExecuteContext.GetDrawInterface(), InnerRegion, OuterRegion, DriverNormal, Driver2D, OutputParam);
+		return;
+	}
+
+	// convert to 2d polar coordinates, with magnitude normalized by range 0-PI
 	Driver2D = DriverNormal;
 	if (Mag > SMALL_NUMBER)
 	{
@@ -88,14 +112,6 @@ FRigUnit_SphericalPoseReader_Execute()
 		Driver2D *= Mag;
 	}
 	Driver2D.Z = -1.0f;
-
-	if (FMath::IsNearlyZero(Mag))
-	{
-		// avoid NaNs from DistanceToEllipse, and guaranteed to be inside inner ellipse
-		OutputParam = 1.0f;
-		Debug.DrawDebug(WorldOffset, ExecuteContext.GetDrawInterface(), InnerRegion, OuterRegion, DriverNormal, Driver2D, OutputParam);
-		return;
-	}
 	
 	const float PointX = Driver2D.X;
 	const float PointY = Driver2D.Y;

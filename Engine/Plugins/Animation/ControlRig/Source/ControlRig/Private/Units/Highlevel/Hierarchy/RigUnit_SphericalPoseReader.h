@@ -267,7 +267,7 @@ struct CONTROLRIG_API FSphericalPoseReaderDebugSettings
 /*
  * Outputs a float value between 0-1 based off of the driver item's rotation in a specified region.
  */
-USTRUCT(meta=(DisplayName="Spherical Pose Reader", Category="Hierarchy", Keywords="Pose Reader"))
+USTRUCT(meta=(DisplayName="Spherical Pose Reader", Category="Hierarchy", Keywords="Pose Reader, SPR"))
 struct CONTROLRIG_API FRigUnit_SphericalPoseReader: public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
