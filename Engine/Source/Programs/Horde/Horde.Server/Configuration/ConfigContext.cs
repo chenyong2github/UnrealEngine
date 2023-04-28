@@ -13,7 +13,7 @@ namespace Horde.Server.Configuration
 	/// Context for reading a tree of config files
 	/// </summary>
 	[DebuggerDisplay("{CurrentFile}")]
-	public class ConfigContext
+	class ConfigContext
 	{
 		/// <summary>
 		/// Options for serializing config files

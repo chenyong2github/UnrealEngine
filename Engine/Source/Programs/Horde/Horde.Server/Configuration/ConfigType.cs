@@ -55,10 +55,17 @@ namespace Horde.Server.Configuration
 	/// </summary>
 	public sealed class ConfigException : Exception
 	{
+		readonly ConfigContext _context;
+
 		/// <summary>
-		/// Context for the parser
+		/// Stack of properties
 		/// </summary>
-		public ConfigContext Context { get; }
+		public IEnumerable<string> ScopeStack => _context.ScopeStack;
+
+		/// <summary>
+		/// Stack of objects
+		/// </summary>
+		public IEnumerable<object> IncludeContextStack => _context.IncludeContextStack;
 
 		/// <summary>
 		/// Constructor
@@ -69,8 +76,13 @@ namespace Horde.Server.Configuration
 		internal ConfigException(ConfigContext context, string message, Exception? innerException = null)
 			: base(message, innerException)
 		{
-			Context = context;
+			_context = context;
 		}
+
+		/// <summary>
+		/// Gets the parser context when this exception was thrown. This is not exposed as a public property to avoid serializing the whole thing to Serilog.
+		/// </summary>
+		internal ConfigContext GetContext() => _context;
 	}
 
 	/// <summary>

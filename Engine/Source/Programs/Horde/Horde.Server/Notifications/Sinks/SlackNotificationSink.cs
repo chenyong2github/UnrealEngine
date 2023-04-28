@@ -1959,7 +1959,7 @@ namespace Horde.Server.Notifications.Sinks
 				List<string> details = new List<string>();
 				if (ex is ConfigException configEx)
 				{
-					ConfigContext context = configEx.Context;
+					ConfigContext context = configEx.GetContext();
 					if (context.IncludeStack.TryPeek(out IConfigFile? blame))
 					{
 						string line = String.Empty;
