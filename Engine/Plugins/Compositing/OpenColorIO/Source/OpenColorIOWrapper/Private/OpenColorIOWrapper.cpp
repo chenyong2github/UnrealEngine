@@ -391,7 +391,7 @@ FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	catch (OCIO_NAMESPACE::Exception& Exc)
 	{
-		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to create processor. Error message: %s"), StringCast<TCHAR>(Exc.what()).Get());
+		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to create processor for [%s, %s]. Error message: %s"), InSourceColorSpace.GetData(), InDestinationColorSpace.GetData(), StringCast<TCHAR>(Exc.what()).Get());
 	}
 #endif
 #endif // WITH_OCIO
@@ -446,7 +446,7 @@ FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	catch (OCIO_NAMESPACE::Exception& Exc)
 	{
-		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to create processor. Error message: %s"), StringCast<TCHAR>(Exc.what()).Get());
+		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to create processor for [%s, %s, %s, %s]. Error message: %s"), InSourceColorSpace.GetData(), InDisplay.GetData(), InView.GetData(), (bInverseDirection ? TEXT("Inverse") : TEXT("Forward")), StringCast<TCHAR>(Exc.what()).Get());
 	}
 #endif
 #endif // WITH_OCIO
@@ -481,7 +481,7 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& InOutImag
 	{
 		using namespace OCIO_NAMESPACE;
 
-		if (ParentProcessor.IsValid())
+		if (IsValid())
 		{
 			TUniquePtr<PackedImageDesc> ImageDesc = GetImageDesc(InOutImage);
 			if (ImageDesc)
@@ -547,7 +547,7 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& SrcImage,
 	{
 		using namespace OCIO_NAMESPACE;
 
-		if (ParentProcessor.IsValid())
+		if (IsValid())
 		{
 			TUniquePtr<PackedImageDesc> SrcImageDesc = GetImageDesc(SrcImage);
 			TUniquePtr<PackedImageDesc> DestImageDesc = GetImageDesc(DestImage);
@@ -613,39 +613,42 @@ FOpenColorIOGPUProcessorWrapper::FOpenColorIOGPUProcessorWrapper(FOpenColorIOPro
 	, GPUPimpl(MakePimpl<FOpenColorIOGPUProcessorPimpl, EPimplPtrMode::DeepCopy>())
 {
 #if WITH_OCIO
-	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOGPUProcessorWrapper::FOpenColorIOGPUProcessorWrapper)
+	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOGPUProcessorWrapper::FOpenColorIOGPUProcessorWrapper)	
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	try
 #endif
 	{
 		using namespace OCIO_NAMESPACE;
 
-		GpuShaderDescRcPtr ShaderDescription = GpuShaderDesc::CreateShaderDesc();
-		ShaderDescription->setLanguage(GPU_LANGUAGE_HLSL_DX11);
-		ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOWrapper::GetShaderFunctionName()).Get());
-		ShaderDescription->setResourcePrefix("Ocio");
-
-		ConstGPUProcessorRcPtr GPUProcessor = nullptr;
-		OptimizationFlags OptFlags = FOpenColorIOProcessorPimpl::GetOptimizationFlags();
-
-		if (InShaderParams.bIsLegacy)
+		if (ParentProcessor.IsValid())
 		{
-			unsigned int EdgeLength = static_cast<unsigned int>(OpenColorIOWrapper::Legacy3dEdgeLength);
-			GPUProcessor = ParentProcessor.Pimpl->Processor->getOptimizedLegacyGPUProcessor(OptFlags, EdgeLength);
-		}
-		else
-		{
-			GPUProcessor = ParentProcessor.Pimpl->Processor->getOptimizedGPUProcessor(FOpenColorIOProcessorPimpl::GetOptimizationFlags());
-		}
-		GPUProcessor->extractGpuShaderInfo(ShaderDescription);
+			GpuShaderDescRcPtr ShaderDescription = GpuShaderDesc::CreateShaderDesc();
+			ShaderDescription->setLanguage(GPU_LANGUAGE_HLSL_DX11);
+			ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOWrapper::GetShaderFunctionName()).Get());
+			ShaderDescription->setResourcePrefix("Ocio");
 
-		GPUPimpl->Processor = GPUProcessor;
-		GPUPimpl->ShaderDescription = ShaderDescription;
+			ConstGPUProcessorRcPtr GPUProcessor = nullptr;
+			OptimizationFlags OptFlags = FOpenColorIOProcessorPimpl::GetOptimizationFlags();
+
+			if (InShaderParams.bIsLegacy)
+			{
+				unsigned int EdgeLength = static_cast<unsigned int>(OpenColorIOWrapper::Legacy3dEdgeLength);
+				GPUProcessor = ParentProcessor.Pimpl->Processor->getOptimizedLegacyGPUProcessor(OptFlags, EdgeLength);
+			}
+			else
+			{
+				GPUProcessor = ParentProcessor.Pimpl->Processor->getOptimizedGPUProcessor(FOpenColorIOProcessorPimpl::GetOptimizationFlags());
+			}
+			GPUProcessor->extractGpuShaderInfo(ShaderDescription);
+
+			GPUPimpl->Processor = GPUProcessor;
+			GPUPimpl->ShaderDescription = ShaderDescription;
+		}
 	}
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	catch (OCIO_NAMESPACE::Exception& Exc)
 	{
-		UE_LOG(LogOpenColorIOWrapper, Error, TEXT("Failed to fetch shader info for color transform. Error message: %s"), StringCast<TCHAR>(Exc.what()).Get());
+		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to fetch shader info for color transform. Error message: %s"), StringCast<TCHAR>(Exc.what()).Get());
 	}
 #endif
 #endif // WITH_OCIO

@@ -128,7 +128,7 @@ protected:
 	/**
 	 * Helper function returning the color space transform name based on source and destination color spaces.
 	 */
-	FString GetTransformFriendlyName();
+	FString GetTransformFriendlyName() const;
 
 	/**
 	 * Fetch shader code and hash from the OCIO library

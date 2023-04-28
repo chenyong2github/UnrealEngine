@@ -25,6 +25,21 @@
 
 namespace
 {
+	// Check whether the configuration asset has correctly created its native OpenColorIO config object.
+	bool HasValidConfiguration(const TObjectPtr<UOpenColorIOConfiguration>& InConfiguration)
+	{
+		if (IsValid(InConfiguration))
+		{
+			const FOpenColorIOConfigWrapper* ConfigWrapper = InConfiguration->GetConfigWrapper();
+			if (ConfigWrapper != nullptr)
+			{
+				return ConfigWrapper->IsValid();
+			}
+		}
+
+		return false;
+	}
+
 	// Note: Since OpenColorIO caches processors automatically, we can recreate them without significant additional costs.
 	FOpenColorIOProcessorWrapper GetTransformProcessor(const UOpenColorIOColorTransform* InTransform)
 	{
@@ -263,56 +278,59 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 #if WITH_EDITOR
 	if (Textures.IsEmpty())
 	{
-		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
-		if (TransformProcessor.IsValid())
+		if (HasValidConfiguration(ConfigurationOwner))
 		{
-			const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(TransformProcessor);
-			const FString ProcessorID = GPUProcessor.GetCacheID();
-
-			//In editor, it will use what's on DDC if there's something corresponding to the actual data or use that raw data
-			//that OCIO library has on board. The textures will be serialized only when cooking.
-
-			// Process 3D luts
-			for (uint32 Index = 0; Index < GPUProcessor.GetNum3DTextures(); ++Index)
+			const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
+			if (TransformProcessor.IsValid())
 			{
-				TextureFilter Filter;
-				FName TextureName;
-				uint32 EdgeLength = 0;
-				const float* TextureValues = 0x0;
+				const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(TransformProcessor);
+				const FString ProcessorID = GPUProcessor.GetCacheID();
 
-				bool bSuccess = GPUProcessor.Get3DTexture(Index, TextureName, EdgeLength, Filter, TextureValues);
-				check(bSuccess);
+				//In editor, it will use what's on DDC if there's something corresponding to the actual data or use that raw data
+				//that OCIO library has on board. The textures will be serialized only when cooking.
 
-				TObjectPtr<UTexture> Result = CreateTexture3DLUT(ProcessorID, TextureName, EdgeLength, Filter, TextureValues);
+				// Process 3D luts
+				for (uint32 Index = 0; Index < GPUProcessor.GetNum3DTextures(); ++Index)
+				{
+					TextureFilter Filter;
+					FName TextureName;
+					uint32 EdgeLength = 0;
+					const float* TextureValues = 0x0;
 
-				const int32 SlotIndex = TextureName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
-				Textures.Add(SlotIndex, MoveTemp(Result));
+					bool bSuccess = GPUProcessor.Get3DTexture(Index, TextureName, EdgeLength, Filter, TextureValues);
+					check(bSuccess);
+
+					TObjectPtr<UTexture> Result = CreateTexture3DLUT(ProcessorID, TextureName, EdgeLength, Filter, TextureValues);
+
+					const int32 SlotIndex = TextureName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
+					Textures.Add(SlotIndex, MoveTemp(Result));
+				}
+
+				// Process 1D luts
+				for (uint32 Index = 0; Index < GPUProcessor.GetNumTextures(); ++Index)
+				{
+					FName TextureName;
+					uint32 TextureWidth = 0;
+					uint32 TextureHeight = 0;
+					TextureFilter Filter;
+					bool bRedChannelOnly = false;
+					const float* TextureValues = 0x0;
+
+					bool bSuccess = GPUProcessor.GetTexture(Index, TextureName, TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
+					checkf(bSuccess, TEXT("Failed to read OCIO 1D LUT data."));
+
+					TObjectPtr<UTexture> Result = CreateTexture1DLUT(ProcessorID, TextureName, TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
+
+					const int32 SlotIndex = TextureName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
+					Textures.Add(SlotIndex, MoveTemp(Result));
+				}
+
+				ensureAlwaysMsgf(Textures.Num() <= (int32)OpenColorIOShader::MaximumTextureSlots, TEXT("Color transform %s exceeds our current limit of %u texture slots. Use the legacy processor instead."), *GetTransformFriendlyName(), OpenColorIOShader::MaximumTextureSlots);
 			}
-
-			// Process 1D luts
-			for (uint32 Index = 0; Index < GPUProcessor.GetNumTextures(); ++Index)
-			{
-				FName TextureName;
-				uint32 TextureWidth = 0;
-				uint32 TextureHeight = 0;
-				TextureFilter Filter;
-				bool bRedChannelOnly = false;
-				const float* TextureValues = 0x0;
-
-				bool bSuccess = GPUProcessor.GetTexture(Index, TextureName, TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
-				checkf(bSuccess, TEXT("Failed to read OCIO 1D LUT data."));
-
-				TObjectPtr<UTexture> Result = CreateTexture1DLUT(ProcessorID, TextureName, TextureWidth, TextureHeight, Filter, bRedChannelOnly, TextureValues);
-
-				const int32 SlotIndex = TextureName.GetNumber() - 1; // Rely on FName's index number extraction for convenience
-				Textures.Add(SlotIndex, MoveTemp(Result));
-			}
-
-			ensureAlwaysMsgf(Textures.Num() <= (int32)OpenColorIOShader::MaximumTextureSlots, TEXT("Color transform %s exceeds our current limit of %u texture slots. Use the legacy processor instead."), *GetTransformFriendlyName(), OpenColorIOShader::MaximumTextureSlots);
 		}
 		else
 		{
-			UE_LOG(LogOpenColorIO, Error, TEXT("Failed to cache texture resource(s) for color transform %s. Configuration file [%s] was invalid."), *GetTransformFriendlyName(), *ConfigurationOwner->ConfigurationFile.FilePath);
+			UE_LOG(LogOpenColorIO, Error, TEXT("Failed to cache texture resource(s) for color transform %s. Configuration file [%s] was invalid."), *GetTransformFriendlyName(), ConfigurationOwner ? *ConfigurationOwner->ConfigurationFile.FilePath : TEXT("Missing"));
 		}
 	}
 #endif // WITH_EDITOR
@@ -474,12 +492,19 @@ bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, 
 #if WITH_EDITOR
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutImage) const
 {
-	const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
-	if (TransformProcessor.IsValid())
+	if (HasValidConfiguration(ConfigurationOwner))
 	{
-		const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
+		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
+		if (TransformProcessor.IsValid())
+		{
+			const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
 
-		return CPUProcessor.TransformImage(InOutImage);
+			return CPUProcessor.TransformImage(InOutImage);
+		}
+	}
+	else
+	{
+		UE_LOG(LogOpenColorIO, Error, TEXT("Failed to transform image for color transform %s. Configuration file was invalid."), *GetTransformFriendlyName());
 	}
 
 	return false;
@@ -487,12 +512,19 @@ bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutIma
 
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& SrcImage, const FImageView& DestImage) const
 {
-	const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
-	if (TransformProcessor.IsValid())
+	if (HasValidConfiguration(ConfigurationOwner))
 	{
-		const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
+		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
+		if (TransformProcessor.IsValid())
+		{
+			const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
 
-		return CPUProcessor.TransformImage(SrcImage, DestImage);
+			return CPUProcessor.TransformImage(SrcImage, DestImage);
+		}
+	}
+	else
+	{
+		UE_LOG(LogOpenColorIO, Error, TEXT("Failed to transform image for color transform %s. Configuration file was invalid."), *GetTransformFriendlyName());
 	}
 
 	return false;
@@ -562,7 +594,7 @@ bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSou
 	return false;
 }
 
-FString UOpenColorIOColorTransform::GetTransformFriendlyName()
+FString UOpenColorIOColorTransform::GetTransformFriendlyName() const
 {
 	if (bIsDisplayViewType)
 	{
@@ -586,17 +618,25 @@ FString UOpenColorIOColorTransform::GetTransformFriendlyName()
 bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FString& OutShaderCode, FString& OutRawConfigHash)
 {
 #if WITH_EDITOR
-	const FOpenColorIOProcessorWrapper Processor = GetTransformProcessor(this);
-	const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(Processor);
-
-	if (GPUProcessor.IsValid())
+	if (HasValidConfiguration(ConfigurationOwner))
 	{
-		OutRawConfigHash = ConfigurationOwner->GetConfigWrapper()->GetCacheID();
+		const FOpenColorIOProcessorWrapper Processor = GetTransformProcessor(this);
+		if (Processor.IsValid())
+		{
+			const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(Processor);
+			if (GPUProcessor.IsValid())
+			{
+				OutRawConfigHash = ConfigurationOwner->GetConfigWrapper()->GetCacheID();
 
-		return GPUProcessor.GetShader(OutShaderCode, OutShaderCodeHash);
+				return GPUProcessor.GetShader(OutShaderCode, OutShaderCodeHash);
+			}
+		}
 	}
-	
-	UE_LOG(LogOpenColorIO, Error, TEXT("Failed to fetch shader info for color transform %s. Configuration file [%s] was invalid."), *GetTransformFriendlyName(), *ConfigurationOwner->ConfigurationFile.FilePath);
+	else
+	{
+		UE_LOG(LogOpenColorIO, Error, TEXT("Failed to fetch shader info for color transform %s. Configuration file [%s] was invalid."), *GetTransformFriendlyName(), ConfigurationOwner ? *ConfigurationOwner->ConfigurationFile.FilePath : TEXT("Missing"));
+	}
+
 	return false;
 #else
 	return true; //When not in editor, shaders have been cooked so we're not relying on the library data anymore.
