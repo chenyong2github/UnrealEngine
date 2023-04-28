@@ -1,13 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	D3D12BaseRHIPrivate.h: Private D3D RHI definitions for HoloLens.
-=============================================================================*/
-
 #pragma once
-
-// Hololens uses the graphics command list interface for the copy queue.
-typedef ID3D12GraphicsCommandList ID3D12CopyCommandList;
 
 #define D3D12RHI_PLATFORM_COPY_COMMAND_LIST_TYPE D3D12_COMMAND_LIST_TYPE_COPY
 
@@ -29,8 +22,5 @@ typedef ID3D12GraphicsCommandList ID3D12CopyCommandList;
 #define USE_STATIC_ROOT_SIGNATURE			0
 #define D3D12_USE_DUMMY_BACKBUFFER			1
 
-#include "D3D12Util.h"
-
-// Windows desktop version is used.
-#include "Windows/WindowsD3D12DiskCache.h"
-#include "Windows/WindowsD3D12PipelineState.h"
+// Hololens uses the graphics command list interface for the copy queue.
+typedef ID3D12GraphicsCommandList ID3D12CopyCommandList;

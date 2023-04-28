@@ -30,41 +30,15 @@
 #include "ShaderCore.h"
 #include "HDRHelper.h"
 
+// TODO reorder includes so we just include D3D12Submission.h here
 #include COMPILED_PLATFORM_HEADER(D3D12Submission.h)
 
-#if PLATFORM_WINDOWS
-	#include "Windows/D3D12RHIBasePrivate.h"
-#else
-	#include "D3D12RHIBasePrivate.h"
-#endif
+#include "D3D12RHIDefinitions.h"
 
-// Note: the following defines depend on D3D12RHIBasePrivate.h
+// TODO reorder includes so we just include D3D12PipelineState.h here
+#include COMPILED_PLATFORM_HEADER(D3D12PipelineState.h)
 
-//@TODO: Improve allocator efficiency so we can increase these thresholds and improve performance
-// We measured 149MB of wastage in 340MB of allocations with DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE set to 512KB
-#if !defined(DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE)
-	#if D3D12_RHI_RAYTRACING
-		// #dxr_todo: Reevaluate these values. Currently optimized to reduce number of CreateCommitedResource() calls, at the expense of memory use.
-		#define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE    (64 * 1024 * 1024)
-		#define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (16 * 1024 * 1024)
-	#else
-		// On PC, buffers are 64KB aligned, so anything smaller should be sub-allocated
-		#define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE    (64 * 1024)
-		#define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (8 * 1024 * 1024)
-	#endif //D3D12_RHI_RAYTRACING
-#endif
-
-// TODO: move D3D12RHI_PLATFORM_COPY_COMMAND_LIST_TYPE out of D3D12RHIBasePrivate
-inline D3D12_COMMAND_LIST_TYPE GetD3DCommandListType(ED3D12QueueType QueueType)
-{
-	switch (QueueType)
-	{
-	default: checkNoEntry(); // fallthrough
-	case ED3D12QueueType::Direct: return D3D12_COMMAND_LIST_TYPE_DIRECT;
-	case ED3D12QueueType::Copy:   return D3D12RHI_PLATFORM_COPY_COMMAND_LIST_TYPE;
-	case ED3D12QueueType::Async:  return D3D12_COMMAND_LIST_TYPE_COMPUTE;
-	}
-}
+#include "D3D12DiskCache.h"
 
 #if NV_AFTERMATH
 

@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	D3D12BaseRHIPrivate.h: Private D3D RHI definitions for Windows.
-=============================================================================*/
-
 #pragma once
 
 // Windows uses the graphics command list interface for the copy queue.
@@ -26,7 +22,3 @@ typedef ID3D12GraphicsCommandList ID3D12CopyCommandList;
 
 #define USE_STATIC_ROOT_SIGNATURE			0
 #define D3D12_USE_DUMMY_BACKBUFFER			1
-
-#include "D3D12Util.h"
-#include "WindowsD3D12DiskCache.h"
-#include "WindowsD3D12PipelineState.h"

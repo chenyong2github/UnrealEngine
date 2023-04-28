@@ -4,6 +4,8 @@
 
 #include "RHIDefinitions.h"
 
+#include COMPILED_PLATFORM_HEADER(D3D12RHIDefinitions.h)
+
 // DX12 doesn't support higher MSAA count
 #define DX_MAX_MSAA_COUNT	8
 
@@ -97,4 +99,20 @@
 		PerEntry(DXGI_ERROR_DYNAMIC_CODE_POLICY_VIOLATION) Terminator \
 		PerEntry(DXGI_ERROR_REMOTE_OUTOFMEMORY) Terminator \
 		PerEntry(DXGI_ERROR_ACCESS_LOST) Terminator
+#endif
+
+// Note: the following defines depend on D3D12RHIBasePrivate.h
+
+//@TODO: Improve allocator efficiency so we can increase these thresholds and improve performance
+// We measured 149MB of wastage in 340MB of allocations with DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE set to 512KB
+#if !defined(DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE)
+	#if D3D12_RHI_RAYTRACING
+		// #dxr_todo: Reevaluate these values. Currently optimized to reduce number of CreateCommitedResource() calls, at the expense of memory use.
+		#define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE    (64 * 1024 * 1024)
+		#define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (16 * 1024 * 1024)
+	#else
+		// On PC, buffers are 64KB aligned, so anything smaller should be sub-allocated
+		#define DEFAULT_BUFFER_POOL_MAX_ALLOC_SIZE    (64 * 1024)
+		#define DEFAULT_BUFFER_POOL_DEFAULT_POOL_SIZE (8 * 1024 * 1024)
+	#endif //D3D12_RHI_RAYTRACING
 #endif

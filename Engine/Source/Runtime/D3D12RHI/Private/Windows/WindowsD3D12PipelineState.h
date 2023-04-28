@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "D3D12RHICommon.h"
+
 class FD3D12RootSignature; // forward-declare
 struct FD3D12ComputePipelineStateDesc;
 struct FD3D12LowLevelGraphicsPipelineStateDesc;

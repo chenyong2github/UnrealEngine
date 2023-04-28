@@ -2,10 +2,9 @@
 
 #pragma once
 
+#include "D3D12ThirdParty.h"
 #include "RHI.h"
 #include "Templates/Function.h"
-
-#include COMPILED_PLATFORM_HEADER(D3D12ThirdParty.h)
 
 struct FD3D12MinimalAdapterDesc
 {

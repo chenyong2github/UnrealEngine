@@ -8,7 +8,10 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
+#include "D3D12RHICommon.h"
+#include "DXGIUtilities.h"
 #include "RenderUtils.h"
+#include "ShaderCore.h"
 
 namespace D3D12RHI
 {

@@ -5,10 +5,9 @@
 #pragma once
 
 #include "Async/AsyncWork.h"
+#include "D3D12Util.h"
 
-#if PLATFORM_HOLOLENS
-	#include "d3d12.h"
-#endif
+#include "D3D12DiskCache.h"
 
 class FD3D12VertexShader;
 class FD3D12MeshShader;

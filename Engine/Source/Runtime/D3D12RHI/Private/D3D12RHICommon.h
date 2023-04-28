@@ -8,8 +8,7 @@
 
 #include "HAL/Platform.h"
 
-#include COMPILED_PLATFORM_HEADER(D3D12ThirdParty.h)
-
+#include "D3D12ThirdParty.h"
 #include "D3D12RHI.h"
 #include "D3D12RHIDefinitions.h"
 
