@@ -13,7 +13,7 @@ extern TMap<uint32, FLandscapeRenderSystem*> LandscapeRenderSystems;
 
 static TAutoConsoleVariable<int32> CVarLandscapeSupportCulling(
 	TEXT("landscape.SupportGPUCulling"),
-	0,
+	1,
 	TEXT("Whether to support landscape GPU culling"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
