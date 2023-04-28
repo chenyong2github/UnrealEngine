@@ -7,7 +7,7 @@
 #include "Solvers/MeshLaplacian.h"
 #include "Solvers/MeshLinearization.h"
 #include "Solvers/LaplacianMatrixAssembly.h"
-#include "FSparseMatrixD.h"
+#include "SparseMatrix.h"
 
 // this is a private header
 using namespace UE::Geometry;

@@ -10,7 +10,7 @@
 #include "Math/RandomStream.h"
 #include "MatrixBase.h"
 #include "DenseMatrix.h"
-#include "FSparseMatrixD.h"
+#include "SparseMatrix.h"
 
 namespace UE
 {

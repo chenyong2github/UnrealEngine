@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
 
-#include "FSparseMatrixD.h"
+#include "SparseMatrix.h"
 #include "MatrixSolver.h"
 #include "Math/NumericLimits.h"
 

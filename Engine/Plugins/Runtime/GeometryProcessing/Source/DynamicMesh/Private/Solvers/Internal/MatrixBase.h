@@ -3,7 +3,7 @@
 #pragma once 
 
 #include "CoreMinimal.h"
-#include "FSparseMatrixD.h"
+#include "SparseMatrix.h"
 
 enum class EMatrixSolverType
 {
