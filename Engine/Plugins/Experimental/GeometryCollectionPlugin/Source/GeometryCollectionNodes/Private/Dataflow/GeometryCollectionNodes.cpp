@@ -68,6 +68,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBakeTransformsInCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FTransformMeshDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCompareIntDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCompareFloatDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBranchDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBranchCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetSchemaDataflowNode);
@@ -541,6 +542,32 @@ void FTransformMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 	}
 }
 
+namespace
+{
+	// helper to apply an ECompareOperationEnum operation to various numeric types
+	template <typename T>
+	static bool ApplyDataflowOperationComparison(T A, T B, ECompareOperationEnum Operation)
+	{
+		switch (Operation)
+		{
+		case ECompareOperationEnum::Dataflow_Compare_Equal:
+			return A == B;
+		case ECompareOperationEnum::Dataflow_Compare_Smaller:
+			return A < B;
+		case ECompareOperationEnum::Dataflow_Compare_SmallerOrEqual:
+			return A <= B;
+		case ECompareOperationEnum::Dataflow_Compare_Greater:
+			return A > B;
+		case ECompareOperationEnum::Dataflow_Compare_GreaterOrEqual:
+			return A >= B;
+		default:
+			ensureMsgf(false, TEXT("Invalid ECompareOperationEnum value: %u"), (uint8)Operation);
+		}
+
+		return false;
+	}
+}
+
 
 void FCompareIntDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -548,32 +575,25 @@ void FCompareIntDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 	{
 		int32 IntAValue = GetValue<int32>(Context, &IntA);
 		int32 IntBValue = GetValue<int32>(Context, &IntB);
-		bool ResultValue;
-
-		if (Operation == ECompareOperationEnum::Dataflow_Compare_Equal)
-		{
-			ResultValue = IntAValue == IntBValue ? true : false;
-		}
-		else if (Operation == ECompareOperationEnum::Dataflow_Compare_Smaller)
-		{
-			ResultValue = IntAValue < IntBValue ? true : false;
-		}
-		else if (Operation == ECompareOperationEnum::Dataflow_Compare_SmallerOrEqual)
-		{
-			ResultValue = IntAValue <= IntBValue ? true : false;
-		}
-		else if (Operation == ECompareOperationEnum::Dataflow_Compare_Greater)
-		{
-			ResultValue = IntAValue > IntBValue ? true : false;
-		}
-		else if (Operation == ECompareOperationEnum::Dataflow_Compare_GreaterOrEqual)
-		{
-			ResultValue = IntAValue >= IntBValue ? true : false;
-		}
+		bool ResultValue = ApplyDataflowOperationComparison(IntAValue, IntBValue, Operation);
 
 		SetValue<bool>(Context, ResultValue, &Result);
 	}
 }
+
+
+void FCompareFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&Result))
+	{
+		float AValue = GetValue(Context, &FloatA);
+		float BValue = GetValue(Context, &FloatB);
+		bool ResultValue = ApplyDataflowOperationComparison(AValue, BValue, Operation);
+
+		SetValue<bool>(Context, ResultValue, &Result);
+	}
+}
+
 
 void FBranchDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {

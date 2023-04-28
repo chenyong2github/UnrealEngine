@@ -840,7 +840,7 @@ USTRUCT()
 struct FCompareIntDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FCompareIntDataflowNode, "CompareInt", "Math|Int", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCompareIntDataflowNode, "CompareInt", "Math|Compare", "")
 
 public:
 	/** Comparison operation */
@@ -870,6 +870,49 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 };
+
+
+/**
+ *
+ * Comparison between floats
+ *
+ */
+USTRUCT()
+struct FCompareFloatDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+		DATAFLOW_NODE_DEFINE_INTERNAL(FCompareFloatDataflowNode, "CompareFloat", "Math|Compare", "")
+
+public:
+	/** Comparison operation */
+	UPROPERTY(EditAnywhere, Category = "Compare");
+	ECompareOperationEnum Operation = ECompareOperationEnum::Dataflow_Compare_Equal;
+
+	/** Float input */
+	UPROPERTY(EditAnywhere, Category = "Compare");
+	float FloatA = 0;
+
+	/** Float input */
+	UPROPERTY(EditAnywhere, Category = "Compare");
+	float FloatB = 0;
+
+	/** Boolean result of the comparison */
+	UPROPERTY(meta = (DataflowOutput));
+	bool Result = false;
+
+	FCompareFloatDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&FloatA);
+		RegisterInputConnection(&FloatB);
+		RegisterOutputConnection(&Result);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
 
 
 /**
