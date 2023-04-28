@@ -314,7 +314,7 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 	for (const FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDataInterface : Script->GetResolvedDataInterfaces())
 	{
 		int32 VarOffset = INDEX_NONE;
-		bAdded |= AddParameter(ResolvedDataInterface.ParameterStoreVariable, false, false, &VarOffset);
+		bAdded |= AddParameter(ResolvedDataInterface.SourceVariable, false, false, &VarOffset);
 		SetDataInterface(ResolvedDataInterface.ResolvedDataInterface, VarOffset);
 	}
 

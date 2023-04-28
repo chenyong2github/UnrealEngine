@@ -107,7 +107,7 @@ bool UNiagaraDataInterfaceGrid3DCollectionReader::InitPerInstanceData(void* PerI
 			int32 NumNamedAttribChannelsFound = 0;
 			TArray<FNiagaraVariableBase> Vars;
 			TArray<uint32> Offsets;
-			FindAttributes(Vars, Offsets, NumNamedAttribChannelsFound, nullptr);
+			FindAttributes(Vars, Offsets, NumNamedAttribChannelsFound, nullptr, true);
 
 			// #todo(dmp): slight hack here - these aren't always the same, but we generally can't use unnamed attrs very well
 			NumAttribChannelsFound = NumNamedAttribChannelsFound;
@@ -221,7 +221,7 @@ bool UNiagaraDataInterfaceGrid3DCollectionReader::PerInstanceTickPostSimulate(vo
 		int32 NumNamedAttribChannelsFound = 0;
 		TArray<FNiagaraVariableBase> Vars;
 		TArray<uint32> Offsets;
-		FindAttributes(Vars, Offsets, NumNamedAttribChannelsFound, nullptr);
+		FindAttributes(Vars, Offsets, NumNamedAttribChannelsFound, nullptr, true);
 
 		// #todo(dmp): slight hack here - these aren't always the same, but we generally can't use unnamed attrs very well
 		NumAttribChannelsFound = NumNamedAttribChannelsFound;

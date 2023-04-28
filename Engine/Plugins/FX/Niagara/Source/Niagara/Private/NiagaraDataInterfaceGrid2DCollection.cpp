@@ -1982,15 +1982,26 @@ bool UNiagaraDataInterfaceGrid2DCollection::GetExposedVariableValue(const FNiaga
 	return false;
 }
 
-void UNiagaraDataInterfaceGrid2DCollection::CollectAttributesForScript(UNiagaraScript* Script, const UNiagaraDataInterface* DataInterface, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& TotalAttributes, TArray<FText>* OutWarnings)
+void UNiagaraDataInterfaceGrid2DCollection::CollectAttributesForScript(UNiagaraScript* Script, FName VariableName, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& TotalAttributes, TArray<FText>* OutWarnings, bool UseReader)
 {
 	if (const FNiagaraScriptExecutionParameterStore* ParameterStore = Script->GetExecutionReadyParameterStore(ENiagaraSimTarget::GPUComputeSim))
 	{
-		int32 IndexOfDataInterface = ParameterStore->GetDataInterfaces().IndexOfByKey(DataInterface);
-		if (IndexOfDataInterface != INDEX_NONE)
+		FNiagaraVariableBase DataInterfaceVariable(FNiagaraTypeDefinition(UNiagaraDataInterfaceGrid2DCollection::StaticClass()), VariableName);
+
+		if (UseReader)
+		{
+			DataInterfaceVariable = FNiagaraVariableBase(FNiagaraTypeDefinition(UNiagaraDataInterfaceGrid2DCollectionReader::StaticClass()), VariableName);
+		}
+		else
+		{
+			DataInterfaceVariable = FNiagaraVariableBase(FNiagaraTypeDefinition(UNiagaraDataInterfaceGrid2DCollection::StaticClass()), VariableName);
+		}
+
+		const int32 * IndexOfDataInterface = ParameterStore->FindParameterOffset(DataInterfaceVariable);
+		if (IndexOfDataInterface != nullptr)
 		{
 			TConstArrayView<FNiagaraDataInterfaceGPUParamInfo> ParamInfoArray = Script->GetDataInterfaceGPUParamInfos();
-			for (const FNiagaraDataInterfaceGeneratedFunction& Func : ParamInfoArray[IndexOfDataInterface].GeneratedFunctions)
+			for (const FNiagaraDataInterfaceGeneratedFunction& Func : ParamInfoArray[*IndexOfDataInterface].GeneratedFunctions)
 			{
 				if (const FName* AttributeName = Func.FindSpecifierValue(UNiagaraDataInterfaceRWBase::NAME_Attribute))
 				{
@@ -2023,7 +2034,7 @@ void UNiagaraDataInterfaceGrid2DCollection::CollectAttributesForScript(UNiagaraS
 	}
 }
 
-void UNiagaraDataInterfaceGrid2DCollection::FindAttributes(TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings) const
+void UNiagaraDataInterfaceGrid2DCollection::FindAttributesByName(FName VariableName, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings) const
 {
 	OutNumAttribChannelsFound = 0;
 
@@ -2039,7 +2050,57 @@ void UNiagaraDataInterfaceGrid2DCollection::FindAttributes(TArray<FNiagaraVariab
 		FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetEmitterData();
 		if (EmitterData && EmitterHandle.GetIsEnabled() && EmitterData->IsValid() && (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim))
 		{
-			CollectAttributesForScript(EmitterData->GetGPUComputeScript(), this, OutVariables, OutVariableOffsets, TotalAttributes, OutWarnings);
+			CollectAttributesForScript(EmitterData->GetGPUComputeScript(), VariableName, OutVariables, OutVariableOffsets, TotalAttributes, OutWarnings);
+		}
+	}
+	OutNumAttribChannelsFound = TotalAttributes - NumAttributes;
+}
+
+void UNiagaraDataInterfaceGrid2DCollection::FindAttributes(TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings, bool UseReader) const
+{
+	OutNumAttribChannelsFound = 0;
+
+	UNiagaraSystem* OwnerSystem = GetTypedOuter<UNiagaraSystem>();
+	if (OwnerSystem == nullptr)
+	{
+		return;
+	}
+
+	int32 TotalAttributes = NumAttributes;
+	for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem->GetEmitterHandles())
+	{
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetEmitterData();
+		if (EmitterData && EmitterHandle.GetIsEnabled() && EmitterData->IsValid() && (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim))
+		{
+			// Search scripts for this data interface so we get the variable name
+			auto FindDataInterfaceVariable =
+				[&OwnerSystem, &EmitterData](const UNiagaraDataInterface* DataInterface) -> FName
+				{
+					UNiagaraScript* Scripts[] =
+					{
+						OwnerSystem->GetSystemSpawnScript(),
+						OwnerSystem->GetSystemUpdateScript(),
+						EmitterData->GetGPUComputeScript(),
+					};
+
+					for (UNiagaraScript* Script : Scripts)
+					{
+						for (const FNiagaraScriptResolvedDataInterfaceInfo& DataInterfaceInfo : Script->GetResolvedDataInterfaces())
+						{
+							if (DataInterfaceInfo.ResolvedDataInterface == DataInterface && DataInterfaceInfo.bIsInternal == false)
+							{
+								return DataInterfaceInfo.ResolvedVariable.GetName();
+							}
+						}
+					}
+					return NAME_None;
+				};
+
+			const FName VariableName = FindDataInterfaceVariable(this);
+			if (!VariableName.IsNone() )
+			{
+				CollectAttributesForScript(EmitterData->GetGPUComputeScript(), VariableName, OutVariables, OutVariableOffsets, TotalAttributes, OutWarnings, UseReader);
+			}
 		}
 	}
 	OutNumAttribChannelsFound = TotalAttributes - NumAttributes;
