@@ -9,8 +9,6 @@
 
 #pragma once
 
-#if WITH_EDITOR
-
 #include "Engine/World.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 
@@ -20,6 +18,9 @@ struct FActorContainerID;
 
 class FWorldPartitionLevelHelper
 {
+public:
+	static FString AddActorContainerIDToSubPathString(const FActorContainerID& InContainerID, const FString& InSubPathString);
+#if WITH_EDITOR
 public:
 	static FWorldPartitionLevelHelper& Get();
 
@@ -46,7 +47,6 @@ private:
 	void RemoveReferences(FPackageReferencer* InReferencer);
 	void PreGarbageCollect();
 
-	static FString AddActorContainerIDToSubPathString(const FActorContainerID& InContainerID, const FString& InSubPathString);
 	static FString GetContainerPackage(const FActorContainerID& InContainerID, const FString& InPackageName, const FString& InDestLevelPackageName = FString());
 	static UWorld::InitializationValues GetWorldInitializationValues();
 
@@ -65,6 +65,6 @@ private:
 	TMap<FName, FPackageReference> PackageReferences;
 
 	TSet<TWeakObjectPtr<UPackage>> PreGCPackagesToUnload;
+#endif
 };
 
-#endif

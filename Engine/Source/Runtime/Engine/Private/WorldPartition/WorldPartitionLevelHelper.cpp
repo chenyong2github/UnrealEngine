@@ -8,6 +8,9 @@
 #include "Misc/PackageName.h"
 #include "WorldPartition/WorldPartitionPackageHelper.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "Containers/StringFwd.h"
+#include "WorldPartition/WorldPartitionActorContainerID.h"
+#include "WorldPartition/IWorldPartitionObjectResolver.h"
 
 #if WITH_EDITOR
 
@@ -21,8 +24,50 @@
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 #include "LevelUtils.h"
 #include "ActorFolder.h"
-#include "Containers/StringFwd.h"
 
+#endif
+
+bool FWorldPartitionResolveData::ResolveObject(UWorld* InWorld, const FSoftObjectPath& InObjectPath, UObject*& OutObject)
+{
+	OutObject = nullptr;
+	if (InWorld)
+	{
+		if (IsValid() && SourceWorldAssetPath == InObjectPath.GetAssetPath().ToString())
+		{
+			const FString SubPathString = FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(ContainerID, InObjectPath.GetSubPathString());
+			// We don't read the return value as we always want to return true when using the resolve data.
+			InWorld->ResolveSubobject(*SubPathString, OutObject, /*bLoadIfExists*/false);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FString FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(const FActorContainerID& InContainerID, const FString& InSubPathString)
+{
+	if (!InContainerID.IsMainContainer())
+	{
+		constexpr const TCHAR PersistenLevelName[] = TEXT("PersistentLevel.");
+		constexpr const int32 DotPos = UE_ARRAY_COUNT(PersistenLevelName);
+		if (InSubPathString.StartsWith(PersistenLevelName))
+		{
+			const int32 SubObjectPos = InSubPathString.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart, DotPos);
+			if (SubObjectPos == INDEX_NONE)
+			{
+				return InSubPathString + TEXT("_") + InContainerID.ToShortString();
+			}
+			else
+			{
+				return InSubPathString.Mid(0, SubObjectPos) + TEXT("_") + InContainerID.ToShortString() + InSubPathString.Mid(SubObjectPos);
+			}
+		}
+	}
+
+	return InSubPathString;
+}
+
+#if WITH_EDITOR
 FWorldPartitionLevelHelper& FWorldPartitionLevelHelper::Get()
 {
 	static FWorldPartitionLevelHelper Instance;
@@ -181,29 +226,6 @@ void FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(ULevel* InLevel, UWor
 		}
 	});
 	FixupSerializer.Fixup(InLevel);
-}
-
-FString FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(const FActorContainerID& InContainerID, const FString& InSubPathString)
-{
-	if (!InContainerID.IsMainContainer())
-	{
-		constexpr const TCHAR PersistenLevelName[] = TEXT("PersistentLevel.");
-		constexpr const int32 DotPos = UE_ARRAY_COUNT(PersistenLevelName);
-		if (InSubPathString.StartsWith(PersistenLevelName))
-		{
-			const int32 SubObjectPos = InSubPathString.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart, DotPos);
-			if (SubObjectPos == INDEX_NONE)
-			{
-				return InSubPathString + TEXT("_") + InContainerID.ToShortString();
-			}
-			else
-			{
-				return InSubPathString.Mid(0, SubObjectPos) + TEXT("_") + InContainerID.ToShortString() + InSubPathString.Mid(SubObjectPos);
-			}
-		}
-	}
-
-	return InSubPathString;
 }
 
 FString FWorldPartitionLevelHelper::GetContainerPackage(const FActorContainerID& InContainerID, const FString& InPackageName, const FString& InDestLevelPackageName)
@@ -475,6 +497,11 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOuterWorld, ULevel* InDest
 						}
 					});
 					FixupArchive.Fixup(Actor);
+
+					if (IWorldPartitionObjectResolver* ObjectResolver = Cast<IWorldPartitionObjectResolver>(Actor))
+					{
+						ObjectResolver->SetWorldPartitionResolveData(FWorldPartitionResolveData(PackageObjectMapping->ContainerID, SourceWorldPath));
+					}
 				}
 
 				if (InDestLevel)
