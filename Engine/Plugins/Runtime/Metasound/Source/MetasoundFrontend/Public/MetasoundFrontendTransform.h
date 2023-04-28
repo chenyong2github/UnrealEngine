@@ -130,8 +130,9 @@ namespace Metasound
 		class METASOUNDFRONTEND_API FUpdateRootGraphInterface : public IDocumentTransform
 		{
 		public:
-			FUpdateRootGraphInterface(const FMetasoundFrontendVersion& InInterfaceVersion)
+			FUpdateRootGraphInterface(const FMetasoundFrontendVersion& InInterfaceVersion, const FString& InOwningAssetName=FString(TEXT("Unknown")))
 				: InterfaceVersion(InInterfaceVersion)
+				, OwningAssetName(InOwningAssetName)
 			{
 			}
 
@@ -142,6 +143,7 @@ namespace Metasound
 			bool UpdateDocumentInterface(const TArray<const IInterfaceRegistryEntry*>& InUpgradePath, FDocumentHandle InDocument) const;
 
 			FMetasoundFrontendVersion InterfaceVersion;
+			FString OwningAssetName;
 		};
 
 		/** Completely rebuilds the graph connecting a preset's inputs to the reference

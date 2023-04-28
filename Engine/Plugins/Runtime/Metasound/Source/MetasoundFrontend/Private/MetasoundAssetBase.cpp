@@ -373,7 +373,7 @@ bool FMetasoundAssetBase::VersionAsset()
 			const TArray<FMetasoundFrontendVersion> Versions = Doc->Interfaces.Array();
 			for (const FMetasoundFrontendVersion& Version : Versions)
 			{
-				bPassUpdated |= FUpdateRootGraphInterface(Version).Transform(DocHandle);
+				bPassUpdated |= FUpdateRootGraphInterface(Version, GetOwningAssetName()).Transform(DocHandle);
 			}
 
 			bInterfaceUpdated |= bPassUpdated;

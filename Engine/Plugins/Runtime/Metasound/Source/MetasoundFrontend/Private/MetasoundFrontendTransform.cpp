@@ -474,7 +474,7 @@ namespace Metasound
 			bool bFoundTargetInterface = ISearchEngine::Get().FindInterfaceWithHighestVersion(InterfaceVersion.Name, TargetInterface);
 			if (!bFoundTargetInterface)
 			{
-				UE_LOG(LogMetaSound, Error, TEXT("Target interface is not registered [InterfaceVersion:%s]"), *InterfaceVersion.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Could not check for interface updates. Target interface is not registered [InterfaceVersion:%s] when attempting to update root graph of asset (%s). Ensure that the module which registers the interface has been loaded before the asset is loaded."), *InterfaceVersion.ToString(), *OwningAssetName);
 				return false;
 			}
 
