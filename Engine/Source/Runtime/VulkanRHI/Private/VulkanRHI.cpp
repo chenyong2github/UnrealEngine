@@ -248,18 +248,11 @@ static VkPhysicalDevice SelectPhysicalDevice(VkInstance InInstance)
 
 static uint32 GetVulkanApiVersionForFeatureLevel(ERHIFeatureLevel::Type FeatureLevel, bool bRaytracing)
 {
-	if (FVulkanPlatform::SupportsProfileChecks())
+	const FString ProfileName = FVulkanPlatform::GetVulkanProfileNameForFeatureLevel(FeatureLevel, bRaytracing);
+	const detail::VpProfileDesc* ProfileDesc = detail::vpGetProfileDesc(TCHAR_TO_ANSI(*ProfileName));
+	if (ProfileDesc)
 	{
-		const FString ProfileName = FVulkanPlatform::GetVulkanProfileNameForFeatureLevel(FeatureLevel, bRaytracing);
-		const detail::VpProfileDesc* ProfileDesc = detail::vpGetProfileDesc(TCHAR_TO_ANSI(*ProfileName));
-		if (ProfileDesc)
-		{
-			return ProfileDesc->minApiVersion;
-		}
-
-		UE_LOG(LogVulkanRHI, Warning,
-			TEXT("Profile called [%s] could not be found for feature level [%s]!"),
-			*ProfileName, *LexToString(FeatureLevel));
+		return ProfileDesc->minApiVersion;
 	}
 
 	UE_LOG(LogVulkanRHI, Log, TEXT("Using default apiVersion for platform..."));
@@ -270,6 +263,12 @@ static uint32 GetVulkanApiVersionForFeatureLevel(ERHIFeatureLevel::Type FeatureL
 static bool CheckVulkanProfile(ERHIFeatureLevel::Type FeatureLevel, bool bRaytracing)
 {
 	const FString ProfileName = FVulkanPlatform::GetVulkanProfileNameForFeatureLevel(FeatureLevel, bRaytracing);
+
+	if (!FVulkanGenericPlatform::SupportsProfileChecks())
+	{
+		UE_LOG(LogVulkanRHI, Log, TEXT("Skipping Vulkan Profile check for %s:"), *ProfileName);
+		return true;
+	}
 
 	UE_LOG(LogVulkanRHI, Log, TEXT("Starting Vulkan Profile check for %s:"), *ProfileName);
 	ON_SCOPE_EXIT
@@ -681,7 +680,7 @@ void FVulkanDynamicRHI::CreateInstance()
 	ZeroVulkanStruct(InstInfo, VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
 	InstInfo.pApplicationInfo = &AppInfo;
 
-	FVulkanInstanceExtensionArray UEInstanceExtensions = FVulkanInstanceExtension::GetUESupportedInstanceExtensions();
+	FVulkanInstanceExtensionArray UEInstanceExtensions = FVulkanInstanceExtension::GetUESupportedInstanceExtensions(ApiVersion);
 	InstanceLayers = SetupInstanceLayers(UEInstanceExtensions);
 	for (TUniquePtr<FVulkanInstanceExtension>& Extension : UEInstanceExtensions)
 	{
@@ -879,7 +878,7 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsFirstInstance = true;
 		GRHISupportsDynamicResolution = FVulkanPlatform::SupportsDynamicResolution();
 		GRHISupportsFrameCyclesBubblesRemoval = true;
-		GSupportsDepthBoundsTest = Device->GetPhysicalFeatures().depthBounds != 0;
+		GSupportsDepthBoundsTest = Device->GetPhysicalDeviceFeatures().Core_1_0.depthBounds != 0;
 		GSupportsRenderTargetFormat_PF_G8 = false;	// #todo-rco
 		GRHISupportsTextureStreaming = true;
 		GSupportsTimestampRenderQueries = FVulkanPlatform::SupportsTimestampRenderQueries();
@@ -956,7 +955,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		uint32 VulkanDeviceShaderStageBits = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
 
 		// optional shader stages
-		if (Device->GetPhysicalFeatures().geometryShader) 
+		if (Device->GetPhysicalDeviceFeatures().Core_1_0.geometryShader)
 		{
 			GVulkanDevicePipelineStageBits |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 			VulkanDeviceShaderStageBits |= VK_SHADER_STAGE_GEOMETRY_BIT;

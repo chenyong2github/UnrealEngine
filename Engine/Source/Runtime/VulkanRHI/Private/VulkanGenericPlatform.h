@@ -12,6 +12,7 @@ struct FOptionalVulkanDeviceExtensions;
 class FVulkanDevice;
 class FVulkanRenderTargetLayout;
 struct FGfxPipelineDesc;
+class FVulkanPhysicalDeviceFeatures;
 
 using FVulkanDeviceExtensionArray = TArray<TUniquePtr<class FVulkanDeviceExtension>>;
 using FVulkanInstanceExtensionArray = TArray<TUniquePtr<class FVulkanInstanceExtension>>;
@@ -74,20 +75,7 @@ public:
 	static void WriteCrashMarker(const FOptionalVulkanDeviceExtensions& OptionalExtensions, VkCommandBuffer CmdBuffer, VkBuffer DestBuffer, const TArrayView<uint32>& Entries, bool bAdding) {}
 
 	// Allow the platform code to restrict the device features
-	static void RestrictEnabledPhysicalDeviceFeatures(VkPhysicalDeviceFeatures& InOutFeaturesToEnable)
-	{ 
-		// Disable everything sparse-related
-		InOutFeaturesToEnable.shaderResourceResidency	= VK_FALSE;
-		InOutFeaturesToEnable.shaderResourceMinLod		= VK_FALSE;
-		InOutFeaturesToEnable.sparseBinding				= VK_FALSE;
-		InOutFeaturesToEnable.sparseResidencyBuffer		= VK_FALSE;
-		InOutFeaturesToEnable.sparseResidencyImage2D	= VK_FALSE;
-		InOutFeaturesToEnable.sparseResidencyImage3D	= VK_FALSE;
-		InOutFeaturesToEnable.sparseResidency2Samples	= VK_FALSE;
-		InOutFeaturesToEnable.sparseResidency4Samples	= VK_FALSE;
-		InOutFeaturesToEnable.sparseResidency8Samples	= VK_FALSE;
-		InOutFeaturesToEnable.sparseResidencyAliased	= VK_FALSE;
-	}
+	static void RestrictEnabledPhysicalDeviceFeatures(FVulkanPhysicalDeviceFeatures* InOutFeaturesToEnable);
 
 	static bool SupportParallelRenderingTasks() { return true; }
 
@@ -95,9 +83,6 @@ public:
 	static bool SupportsDynamicResolution() { return false; }
 
 	static bool SupportsVolumeTextureRendering() { return true; }
-
-	// Allow platforms to add extension features to the DeviceInfo pNext chain
-	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo, FVulkanDevice& Device) {}
 
 	static bool RequiresSwapchainGeneralInitialLayout() { return false; }
 

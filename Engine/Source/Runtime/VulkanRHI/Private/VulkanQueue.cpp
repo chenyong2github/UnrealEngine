@@ -155,7 +155,7 @@ void FVulkanQueue::FillSupportedStageBits()
 			VK_PIPELINE_STAGE_TRANSFER_BIT |
 			VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
 
-		if (Device->GetPhysicalFeatures().geometryShader)
+		if (Device->GetPhysicalDeviceFeatures().Core_1_0.geometryShader)
 		{
 			SupportedStages |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 		}

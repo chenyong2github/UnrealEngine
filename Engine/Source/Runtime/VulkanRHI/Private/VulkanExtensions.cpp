@@ -1182,7 +1182,7 @@ private:
 
 
 template <typename ExtensionType>
-static void FlagExtensionSupport(const TArray<VkExtensionProperties>& ExtensionProperties, TArray<TUniquePtr<ExtensionType>>& UEExtensions, const TCHAR* ExtensionTypeName)
+static void FlagExtensionSupport(const TArray<VkExtensionProperties>& ExtensionProperties, TArray<TUniquePtr<ExtensionType>>& UEExtensions, uint32 ApiVersion, const TCHAR* ExtensionTypeName)
 {
 	// Flag the extension support
 	UE_LOG(LogVulkanRHI, Display, TEXT("Found %d available %s extensions :"), ExtensionProperties.Num(), ExtensionTypeName);
@@ -1190,17 +1190,22 @@ static void FlagExtensionSupport(const TArray<VkExtensionProperties>& ExtensionP
 	{
 		const int32 ExtensionIndex = ExtensionType::FindExtension(UEExtensions, Extension.extensionName);
 		const bool bFound = (ExtensionIndex != INDEX_NONE);
+		bool bIsCore = false;
 		if (bFound)
 		{
 			UEExtensions[ExtensionIndex]->SetSupported();
+
+			// Set the core flag if the extension was promoted for our current api version
+			bIsCore = UEExtensions[ExtensionIndex]->SetCore(ApiVersion);
 		}
-		UE_LOG(LogVulkanRHI, Display, TEXT("  %s %s"), bFound ? TEXT("+") : TEXT("-"), ANSI_TO_TCHAR(Extension.extensionName));
+
+		UE_LOG(LogVulkanRHI, Display, TEXT("  %s %s"), bIsCore ? TEXT("*") : bFound ? TEXT("+") : TEXT("-"), ANSI_TO_TCHAR(Extension.extensionName));
 	}
 }
 
 
 
-FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensions(FVulkanDevice* InDevice)
+FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensions(FVulkanDevice* InDevice, uint32 ApiVersion)
 {
 	FVulkanDeviceExtensionArray OutUEDeviceExtensions;
 
@@ -1306,7 +1311,7 @@ FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensio
 	ActivateExternalExtensions(ExternalExtensions, TEXT("Externally"));
 
 	// Now that all the extensions are listed, update their support flags
-	FlagExtensionSupport(GetDriverSupportedDeviceExtensions(InDevice->GetPhysicalHandle()), OutUEDeviceExtensions, TEXT("device"));
+	FlagExtensionSupport(GetDriverSupportedDeviceExtensions(InDevice->GetPhysicalHandle()), OutUEDeviceExtensions, ApiVersion, TEXT("device"));
 
 	#undef ADD_SIMPLE_EXTENSION
 	#undef ADD_EXTERNAL_EXTENSION
@@ -1392,7 +1397,7 @@ private:
 
 
 
-FVulkanInstanceExtensionArray FVulkanInstanceExtension::GetUESupportedInstanceExtensions()
+FVulkanInstanceExtensionArray FVulkanInstanceExtension::GetUESupportedInstanceExtensions(uint32 ApiVersion)
 {
 	FVulkanInstanceExtensionArray OutUEInstanceExtensions;
 
@@ -1447,7 +1452,7 @@ FVulkanInstanceExtensionArray FVulkanInstanceExtension::GetUESupportedInstanceEx
 	ActivateExternalExtensions(ExternalExtensions, TEXT("Externally"));
 
 	// Now that all the extensions are listed, update their support flags
-	FlagExtensionSupport(GetDriverSupportedInstanceExtensions(), OutUEInstanceExtensions, TEXT("instance"));
+	FlagExtensionSupport(GetDriverSupportedInstanceExtensions(), OutUEInstanceExtensions, ApiVersion, TEXT("instance"));
 
 	return OutUEInstanceExtensions;
 }

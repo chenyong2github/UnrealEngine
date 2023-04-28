@@ -86,6 +86,21 @@ TArray<FString> FVulkanGenericPlatform::GetPSOCacheFilenames()
 	return CacheFilenames;
 }
 
+void FVulkanGenericPlatform::RestrictEnabledPhysicalDeviceFeatures(FVulkanPhysicalDeviceFeatures* InOutFeaturesToEnable)
+{
+	// Disable everything sparse-related
+	InOutFeaturesToEnable->Core_1_0.shaderResourceResidency = VK_FALSE;
+	InOutFeaturesToEnable->Core_1_0.shaderResourceMinLod = VK_FALSE;
+	InOutFeaturesToEnable->Core_1_0.sparseBinding = VK_FALSE;
+	InOutFeaturesToEnable->Core_1_0.sparseResidencyBuffer = VK_FALSE;
+	InOutFeaturesToEnable->Core_1_0.sparseResidencyImage2D = VK_FALSE;
+	InOutFeaturesToEnable->Core_1_0.sparseResidencyImage3D = VK_FALSE;
+	InOutFeaturesToEnable->Core_1_0.sparseResidency2Samples = VK_FALSE;
+	InOutFeaturesToEnable->Core_1_0.sparseResidency4Samples = VK_FALSE;
+	InOutFeaturesToEnable->Core_1_0.sparseResidency8Samples = VK_FALSE;
+	InOutFeaturesToEnable->Core_1_0.sparseResidencyAliased = VK_FALSE;
+}
+
 VkResult FVulkanGenericPlatform::Present(VkQueue Queue, VkPresentInfoKHR& PresentInfo)
 {
 	return VulkanRHI::vkQueuePresentKHR(Queue, &PresentInfo);
@@ -140,7 +155,8 @@ void FVulkanGenericPlatform::ClearVulkanInstanceFunctions()
 
 bool FVulkanGenericPlatform::SupportsProfileChecks()
 {
-	return (CVarVulkanUseProfileCheck.GetValueOnAnyThread() != 0);
+	return (CVarVulkanUseProfileCheck.GetValueOnAnyThread() != 0) && 
+		!FParse::Param(FCommandLine::Get(), TEXT("SkipVulkanProfileCheck"));
 }
 
 FString FVulkanGenericPlatform::GetVulkanProfileNameForFeatureLevel(ERHIFeatureLevel::Type FeatureLevel, bool bRaytracing)

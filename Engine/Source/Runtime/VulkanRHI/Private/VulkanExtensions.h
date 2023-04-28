@@ -9,7 +9,7 @@
 #include "CoreMinimal.h"
 #include "VulkanConfiguration.h"
 
-#define VULKAN_EXTENSION_NOT_PROMOTED 0
+#define VULKAN_EXTENSION_NOT_PROMOTED UINT32_MAX
 #define VULKAN_EXTENSION_ENABLED      1
 #define VULKAN_EXTENSION_DISABLED     0
 
@@ -35,16 +35,19 @@ public:
 		, bEnabledInCode(InEnabledInCode == VULKAN_EXTENSION_ENABLED)
 		, bSupported(false)
 		, bActivated(InActivation == EExtensionActivation::AutoActivate)
+		, bCore(false)
 	{}
 
 	virtual ~FVulkanExtensionBase() {}
 
 	inline void SetSupported() { bSupported = true; }
 	inline void SetActivated() { bActivated = true; }
+	inline bool SetCore(uint32 ApiVersion) { return (bCore = (ApiVersion >= PromotedVersion)); }
 
 	inline const ANSICHAR* GetExtensionName() const { return ExtensionName; }
 	inline bool IsEnabled() const { return bEnabledInCode; }
 	inline bool IsSupported() const { return bSupported; }
+	inline bool IsCore() { return bCore; }
 
 	inline bool InUse() const
 	{
@@ -76,6 +79,9 @@ protected:
 
 	// Signals if the runtime currently wants this extension to be loaded.
 	bool bActivated;
+
+	// Signals if the extension has been promoted to core Vulkan for the current instance version
+	bool bCore;
 };
 
 
@@ -91,7 +97,7 @@ public:
 		, bRequirementsPassed(true)
 	{}
 
-	static FVulkanDeviceExtensionArray GetUESupportedDeviceExtensions(FVulkanDevice* InDevice);
+	static FVulkanDeviceExtensionArray GetUESupportedDeviceExtensions(FVulkanDevice* InDevice, uint32 ApiVersion);
 	static TArray<VkExtensionProperties> GetDriverSupportedDeviceExtensions(VkPhysicalDevice Gpu, const ANSICHAR* LayerName = nullptr);
 
 	virtual void PrePhysicalDeviceProperties(VkPhysicalDeviceProperties2KHR& PhysicalDeviceProperties2) {}
@@ -132,7 +138,7 @@ public:
 		, FlagSetter(MoveTemp(InFlagSetter))
 	{}
 
-	static FVulkanInstanceExtensionArray GetUESupportedInstanceExtensions();
+	static FVulkanInstanceExtensionArray GetUESupportedInstanceExtensions(uint32 ApiVersion);
 	static TArray<VkExtensionProperties> GetDriverSupportedInstanceExtensions(const ANSICHAR* LayerName = nullptr);
 
 	virtual void PreCreateInstance(VkInstanceCreateInfo& CreateInfo, FOptionalVulkanInstanceExtensions& ExtensionFlags)

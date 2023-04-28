@@ -128,6 +128,27 @@ struct FOptionalVulkanDeviceExtensionProperties
 #endif // VULKAN_RHI_RAYTRACING
 };
 
+class FVulkanPhysicalDeviceFeatures
+{
+public:
+	FVulkanPhysicalDeviceFeatures()
+	{
+		FMemory::Memzero(*this);
+	}
+
+	void Query(VkPhysicalDevice PhysicalDevice, uint32 APIVersion);
+
+	VkPhysicalDeviceFeatures	     Core_1_0;
+	VkPhysicalDeviceVulkan11Features Core_1_1;
+private:
+	// Anything above Core 1.1 cannot be assumed, they should only be used by the device at init time
+	VkPhysicalDeviceVulkan12Features Core_1_2;
+	VkPhysicalDeviceVulkan13Features Core_1_3;
+
+	friend class FVulkanDevice;
+};
+
+
 namespace VulkanRHI
 {
 	class FDeferredDeletionQueue2 : public FDeviceChild
@@ -316,9 +337,9 @@ public:
 	}
 #endif
 
-	inline const VkPhysicalDeviceFeatures& GetPhysicalFeatures() const
+	inline const FVulkanPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const
 	{
-		return PhysicalFeatures;
+		return PhysicalDeviceFeatures;
 	}
 
 	inline bool HasUnifiedMemory() const
@@ -576,7 +597,7 @@ private:
 	FVulkanRayTracingCompactionRequestHandler* RayTracingCompactionRequestHandler = nullptr;
 #endif // VULKAN_RHI_RAYTRACING
 
-	VkPhysicalDeviceFeatures PhysicalFeatures;
+	FVulkanPhysicalDeviceFeatures PhysicalDeviceFeatures;
 
 	TArray<VkQueueFamilyProperties> QueueFamilyProps;
 	VkFormatProperties FormatProperties[VK_FORMAT_RANGE_SIZE];

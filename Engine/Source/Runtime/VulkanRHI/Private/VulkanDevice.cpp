@@ -203,6 +203,40 @@ static VkExtent2D GetBestMatchedShadingRateExtents(uint32 ShadingRate, const TAr
 #endif
 
 
+void FVulkanPhysicalDeviceFeatures::Query(VkPhysicalDevice PhysicalDevice, uint32 APIVersion)
+{
+	VkPhysicalDeviceFeatures2 PhysicalDeviceFeatures2;
+	ZeroVulkanStruct(PhysicalDeviceFeatures2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+
+	PhysicalDeviceFeatures2.pNext = &Core_1_1;
+	Core_1_1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+
+	if (APIVersion >= VK_API_VERSION_1_2)
+	{
+		Core_1_1.pNext = &Core_1_2;
+		Core_1_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+	}
+
+	if (APIVersion >= VK_API_VERSION_1_3)
+	{
+		Core_1_2.pNext = &Core_1_3;
+		Core_1_3.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+	}
+
+	VulkanRHI::vkGetPhysicalDeviceFeatures2(PhysicalDevice, &PhysicalDeviceFeatures2);
+
+	// Copy features into old struct for convenience
+	Core_1_0 = PhysicalDeviceFeatures2.features;
+
+	// Apply config modifications
+	Core_1_0.robustBufferAccess = GCVarRobustBufferAccess.GetValueOnAnyThread() > 0 ? VK_TRUE : VK_FALSE;
+
+	// Apply platform restrictions
+	FVulkanPlatform::RestrictEnabledPhysicalDeviceFeatures(this);
+}
+
+
+
 FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 	: Device(VK_NULL_HANDLE)
 	, MemoryManager(this)
@@ -220,7 +254,6 @@ FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 {
 	RHI = InRHI;
 	FMemory::Memzero(GpuProps);
-	FMemory::Memzero(PhysicalFeatures);
 	FMemory::Memzero(FormatProperties);
 	FMemory::Memzero(PixelFormatComponentMapping);
 
@@ -286,7 +319,9 @@ void FVulkanDevice::CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanD
 	// Setup extension and layer info
 	VkDeviceCreateInfo DeviceInfo;
 	ZeroVulkanStruct(DeviceInfo, VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
-	
+
+	DeviceInfo.pEnabledFeatures = &PhysicalDeviceFeatures.Core_1_0;
+
 	for (TUniquePtr<FVulkanDeviceExtension>& UEExtension : UEExtensions)
 	{
 		if (UEExtension->InUse())
@@ -380,12 +415,6 @@ void FVulkanDevice::CreateDevice(TArray<const ANSICHAR*>& DeviceLayers, FVulkanD
 
 	DeviceInfo.queueCreateInfoCount = QueueFamilyInfos.Num();
 	DeviceInfo.pQueueCreateInfos = QueueFamilyInfos.GetData();
-
-	PhysicalFeatures.robustBufferAccess = GCVarRobustBufferAccess.GetValueOnAnyThread() > 0 ? VK_TRUE : VK_FALSE;
-	FVulkanPlatform::RestrictEnabledPhysicalDeviceFeatures(PhysicalFeatures);
-	DeviceInfo.pEnabledFeatures = &PhysicalFeatures;
-
-	FVulkanPlatform::EnablePhysicalDeviceFeatureExtensions(DeviceInfo, *this);
 
 #if NV_AFTERMATH && VULKAN_SUPPORTS_NV_DIAGNOSTICS
 	if (GGPUCrashDebuggingEnabled && GVulkanNVAftermathModuleLoaded)
@@ -986,7 +1015,7 @@ void FVulkanDevice::MapImageFormatSupport(FPixelFormatInfo& PixelFormatInfo, con
 		if (EnumHasAllFlags(Capabilities, EPixelFormatCapabilities::AnyTexture))
 		{
 			// We support gather, but some of our shaders assume offsets so check against features
-			if (GetPhysicalFeatures().shaderImageGatherExtended)
+			if (GetPhysicalDeviceFeatures().Core_1_0.shaderImageGatherExtended)
 			{
 				EnumAddFlags(Capabilities, EPixelFormatCapabilities::TextureGather);
 			}
@@ -1076,10 +1105,10 @@ void FVulkanDevice::InitGPU()
 	VulkanRHI::vkGetPhysicalDeviceQueueFamilyProperties(Gpu, &QueueCount, QueueFamilyProps.GetData());
 
 	// Query base features
-	VulkanRHI::vkGetPhysicalDeviceFeatures(Gpu, &PhysicalFeatures);
+	PhysicalDeviceFeatures.Query(Gpu, RHI->GetApiVersion());
 
 	// Setup layers and extensions
-	FVulkanDeviceExtensionArray UEExtensions = FVulkanDeviceExtension::GetUESupportedDeviceExtensions(this);
+	FVulkanDeviceExtensionArray UEExtensions = FVulkanDeviceExtension::GetUESupportedDeviceExtensions(this, RHI->GetApiVersion());
 	TArray<const ANSICHAR*> DeviceLayers = FVulkanDevice::SetupDeviceLayers(Gpu, UEExtensions);
 
 	// Query advanced features
@@ -1132,7 +1161,8 @@ void FVulkanDevice::InitGPU()
 		}
 	}
 
-	UE_LOG(LogVulkanRHI, Display, TEXT("Device properties: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), PhysicalFeatures.geometryShader, OptionalDeviceExtensions.HasKHRShaderAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
+	UE_LOG(LogVulkanRHI, Display, TEXT("Device properties: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), 
+		PhysicalDeviceFeatures.Core_1_0.geometryShader, OptionalDeviceExtensions.HasKHRShaderAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
 
 	CreateDevice(DeviceLayers, UEExtensions);
 

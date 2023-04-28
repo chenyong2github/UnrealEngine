@@ -285,6 +285,11 @@ public:
 		return Viewports;
 	}
 
+	inline uint32 GetApiVersion() const
+	{
+		return ApiVersion;
+	}
+
 public:
 	static void SavePipelineCache();
 
