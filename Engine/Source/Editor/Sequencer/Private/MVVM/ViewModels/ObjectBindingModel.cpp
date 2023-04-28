@@ -623,7 +623,7 @@ TSharedRef<SWidget> FObjectBindingModel::GetAddTrackMenuContent()
 	bool bDefaultCategoryFound = false;
 
 	// Create property menu data based on keyable property paths
-	TSortedMap<FString, TArray<PropertyMenuData>, FDefaultAllocator, FCategorySortPredicate> KeyablePropertyMenuData;
+	TMap<FString, TArray<PropertyMenuData>> KeyablePropertyMenuData;
 	for (const FPropertyPath& KeyablePropertyPath : KeyablePropertyPaths)
 	{
 		FProperty* Property = KeyablePropertyPath.GetRootProperty().Property.Get();
@@ -650,6 +650,8 @@ TSharedRef<SWidget> FObjectBindingModel::GetAddTrackMenuContent()
 			KeyablePropertyMenuData.FindOrAdd(CategoryText).Add(KeyableMenuData);
 		}
 	}
+
+	KeyablePropertyMenuData.KeySort(FCategorySortPredicate());
 
 	// Always add an extension point for Properties section even if none are found (Components rely on this) 
 	if (!bDefaultCategoryFound)
