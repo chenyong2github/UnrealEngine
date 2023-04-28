@@ -442,8 +442,28 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 
 				if (const UEdGraphPin* ConnectedPin = FollowInputPin(*ImagePin))
 				{
-					mu::NodeImagePtr PassThroughImagePtr = GenerateMutableSourceImage(ConnectedPin, GenerationContext, 0);
+					mu::Ptr<mu::NodeImage> PassThroughImagePtr = GenerateMutableSourceImage(ConnectedPin, GenerationContext, 0);
 					SurfNode->SetImage(ImageIndex, PassThroughImagePtr);
+
+					const FString ImageName = TypedNodeMat->GetParameterName(EMaterialParameterType::Texture, ImageIndex).ToString();
+					FString SurfNodeImageName = FString::Printf(TEXT("%d"), GenerationContext.ImageProperties.Num());
+					SurfNode->SetImageName(ImageIndex, StringCast<ANSICHAR>(*SurfNodeImageName).Get());
+					int32 UVLayout = TypedNodeMat->GetImageUVLayout(ImageIndex);
+					if (UVLayout >= 0)
+					{
+						FString msg = FString::Printf(TEXT("Passthrough texture [%s] will ignore layout despite set to use layout [%d]"), *ImageName, UVLayout);
+						GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node, EMessageSeverity::Warning);
+
+					}
+					SurfNode->SetImageLayoutIndex(ImageIndex, -1);
+					SurfNode->SetImageAdditionalNames(ImageIndex, StringCast<ANSICHAR>(*TypedNodeMat->Material->GetName()).Get(), StringCast<ANSICHAR>(*ImageName).Get());
+
+					// We don't need a reference texture or props here, but we do need the parameter name.
+					FGeneratedImageProperties Props;
+					Props.TextureParameterName = ImageName;
+					GenerationContext.ImageProperties.Add(Props);
+					SurfaceData.ImageProperties = Props;
+
 				}
 			}
 			else

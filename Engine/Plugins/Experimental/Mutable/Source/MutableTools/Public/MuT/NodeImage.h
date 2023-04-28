@@ -53,6 +53,7 @@ namespace mu
 			Variation = 32,
 			NormalComposite = 33,
 			Transform = 34,
+			Reference = 35,
 			None
 		};
 

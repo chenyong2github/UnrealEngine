@@ -5714,13 +5714,31 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 							check(Texture);
 						}
 
+						// Check if the image is a reference to an engine texture
+						if (MutableImage && MutableImage->IsReference())
+						{
+							uint32 ReferenceID = MutableImage->GetReferencedTexture();
+							if (CustomizableObject->ReferencedPassThroughTextures.IsValidIndex(ReferenceID))
+							{
+								TSoftObjectPtr<UTexture2D> Ref = CustomizableObject->ReferencedPassThroughTextures[ReferenceID];
+
+								// \TODO: This will force the load of the reference texture, potentially causing a hich. 
+								Texture = Ref.Get();
+							}
+							else
+							{
+								// internal error.
+								UE_LOG(LogMutable, Error, TEXT("Referenced image [%d] was not dtored in the resource array."), ReferenceID);
+							}
+						}
+
 						// Find the additional information for this image
 						int32 ImageKey = FCString::Atoi(*KeyName);
 						if (ImageKey >= 0 && ImageKey < CustomizableObject->ImageProperties.Num())
 						{
 							const FMutableModelImageProperties& Props = CustomizableObject->ImageProperties[ImageKey];
 
-							if (MutableImage)
+							if (!Texture && MutableImage)
 							{
 								TWeakObjectPtr<UTexture2D>* ReusedTexture = bReuseTextures ? TextureReuseCache.Find(TextureReuseCacheRef) : nullptr;
 

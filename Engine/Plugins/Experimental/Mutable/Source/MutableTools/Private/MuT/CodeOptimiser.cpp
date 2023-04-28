@@ -632,6 +632,7 @@ namespace mu
 				switch (n->GetOpType())
 				{
 				case OP_TYPE::IM_BLANKLAYOUT:
+				case OP_TYPE::IM_REFERENCE:
 				case OP_TYPE::IM_COMPOSE:
 				//case OP_TYPE::IM_RASTERMESH:            // TODO review this one
 				case OP_TYPE::ME_MERGE:

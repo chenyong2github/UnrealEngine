@@ -1106,10 +1106,6 @@ void UCustomizableObjectSystem::PurgePendingReleaseSkeletalMesh()
 				Info.SkeletalMesh->ReleaseResources();
 				Info.SkeletalMesh->ReleaseResourcesFence.Wait();
 
-				// TODO: This was done for version 4.18
-				//info.SkeletalMesh->GetImportedResource()->LODModels.Empty();
-				//info.SkeletalMesh->LODInfo.Empty();
-
 				PendingReleaseSkeletalMesh.RemoveAt(InfoIndex);
 			}
 		}
@@ -1512,8 +1508,15 @@ namespace impl
 					Image.Image = System->GetImage(OperationData->InstanceID, Image.ImageID, MipsToSkip, Image.LOD);
 				}
 
-				// We need one mip or the complete chain. Otherwise there was a bug.
 				check(Image.Image);
+
+				// If the image is a reference to an engine texture, we are done.
+				if (Image.Image->IsReference())
+				{
+					continue;
+				}
+
+				// We need one mip or the complete chain. Otherwise there was a bug.
 				int32 FullMipCount = Image.Image->GetMipmapCount(Image.Image->GetSizeX(), Image.Image->GetSizeY());
 				int32 RealMipCount = Image.Image->GetLODCount();
 				if ((RealMipCount != 1) && (RealMipCount != FullMipCount))

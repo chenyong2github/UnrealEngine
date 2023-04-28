@@ -3828,11 +3828,24 @@ namespace mu
             break;
         }
 
-        case OP_TYPE::IM_GPU:
-        {
-            check(false);
-            break;
-        }
+		case OP_TYPE::IM_REFERENCE:
+		{
+			OP::ResourceReferenceArgs Args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceReferenceArgs>(item.At);
+			switch (item.Stage)
+			{
+			case 0:
+			{
+				Ptr<Image> Result = Image::CreateAsReference(Args.ID);
+				GetMemory().SetImage(item, Result);
+				break;
+			}
+
+			default:
+				check(false);
+			}
+
+			break;
+		}
 
         case OP_TYPE::IM_CROP:
         {
@@ -5560,10 +5573,12 @@ namespace mu
 			check(item.Stage == 0);
 			OP::ResourceConstantArgs args = program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
 			int32 ImageIndex = args.value;
-			m_heapImageDesc[item.CustomState].m_format = program.m_constantImages[ImageIndex].ImageFormat;
-			m_heapImageDesc[item.CustomState].m_size[0] = program.m_constantImages[ImageIndex].ImageSizeX;
-			m_heapImageDesc[item.CustomState].m_size[1] = program.m_constantImages[ImageIndex].ImageSizeY;
-			m_heapImageDesc[item.CustomState].m_lods = program.m_constantImages[ImageIndex].LODCount;
+
+			FImageDesc& Result = m_heapImageDesc[item.CustomState];
+			Result.m_format = program.m_constantImages[ImageIndex].ImageFormat;
+			Result.m_size[0] = program.m_constantImages[ImageIndex].ImageSizeX;
+			Result.m_size[1] = program.m_constantImages[ImageIndex].ImageSizeY;
+			Result.m_lods = program.m_constantImages[ImageIndex].LODCount;
 			GetMemory().SetValidDesc(item);
 			break;
 		}
@@ -5575,6 +5590,18 @@ namespace mu
 			EXTERNAL_IMAGE_ID id = pParams->GetImageValue(args.variable);
 			uint8 MipsToSkip = item.ExecutionOptions;
 			m_heapImageDesc[item.CustomState] = GetExternalImageDesc(id, MipsToSkip);
+			GetMemory().SetValidDesc(item);
+			break;
+		}
+
+		case OP_TYPE::IM_REFERENCE:
+		{
+			check(item.Stage == 0);
+			FImageDesc& Result = m_heapImageDesc[item.CustomState];
+			Result.m_format = EImageFormat::IF_NONE;
+			Result.m_size[0] = 0;
+			Result.m_size[1] = 0;
+			Result.m_lods = 0;
 			GetMemory().SetValidDesc(item);
 			break;
 		}

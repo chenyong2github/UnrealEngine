@@ -62,7 +62,7 @@ namespace mu
 			NodeImagePtr m_pImage;
 
 			// It could be negative, to indicate no layout.
-            int8_t m_layoutIndex = 0;
+            int8 m_layoutIndex = 0;
 
             //!
 			void Serialise(OutputArchive& arch) const

@@ -99,6 +99,14 @@ namespace mu
     }
 
 
+	//---------------------------------------------------------------------------------------------
+	Ptr<ASTOp> ImageDescGenerator::Visit( const NodeImageReference::Private& node )
+	{
+		m_desc = MUTABLE_MISSING_IMAGE_DESC;
+		return 0;
+	}
+
+
     //---------------------------------------------------------------------------------------------
     Ptr<ASTOp> ImageDescGenerator::Visit( const NodeImageParameter::Private& )
     {

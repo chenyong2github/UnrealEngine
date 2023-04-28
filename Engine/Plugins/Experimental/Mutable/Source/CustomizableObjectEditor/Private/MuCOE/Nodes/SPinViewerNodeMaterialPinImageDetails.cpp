@@ -70,8 +70,8 @@ int32 UVLayoutModeToUVLayout(const EUVLayoutMode Mode, const int32 UVLayout)
 	case EUVLayoutMode::Index:
 		return UVLayout;
 
-		default:
-			check(false); // Case not contemplated.
+	default:
+		check(false); // Case not contemplated.
 		return 0;
 	}
 }

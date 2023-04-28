@@ -307,8 +307,6 @@ namespace mu
 					pResult = new mu::Image(16, 16, 1, EImageFormat::IF_RGBA_UBYTE);
 				}
 
-				pResult->m_internalId = imageId;
-
 				break;
 			}
 		}
@@ -403,8 +401,6 @@ namespace mu
 				{
 					pResult = new Mesh();
 				}
-
-				pResult->m_internalId = meshId;
 
 				break;
 			}

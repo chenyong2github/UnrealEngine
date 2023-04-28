@@ -17,11 +17,11 @@ namespace mu
 	// Static initialisation
 	//---------------------------------------------------------------------------------------------
 	NODE_TYPE NodeImageConstant::Private::s_type =
-			NODE_TYPE( "ImageConstant", NodeImage::GetStaticType() );
+		NODE_TYPE("ImageConstant", NodeImage::GetStaticType());
 
 
 	//---------------------------------------------------------------------------------------------
-	MUTABLE_IMPLEMENT_NODE( NodeImageConstant, EType::Constant, Node, Node::EType::Image);
+	MUTABLE_IMPLEMENT_NODE(NodeImageConstant, EType::Constant, Node, Node::EType::Image);
 
 
 	//---------------------------------------------------------------------------------------------
@@ -32,40 +32,40 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-    Node* NodeImageConstant::GetInputNode( int ) const
+	Node* NodeImageConstant::GetInputNode(int) const
 	{
-		check( false );
+		check(false);
 		return 0;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-    void NodeImageConstant::SetInputNode( int, NodePtr )
+	void NodeImageConstant::SetInputNode(int, NodePtr)
 	{
-		check( false );
+		check(false);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-    ImagePtrConst NodeImageConstant::GetValue() const
+	ImagePtrConst NodeImageConstant::GetValue() const
 	{
-        Ptr<const Image> pImage;
-        if (m_pD->m_pProxy) pImage = m_pD->m_pProxy->Get();
-        return pImage;
+		Ptr<const Image> pImage;
+		if (m_pD->m_pProxy) pImage = m_pD->m_pProxy->Get();
+		return pImage;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	void NodeImageConstant::SetValue( Ptr<const Image> pValue )
+	void NodeImageConstant::SetValue(Ptr<const Image> pValue)
 	{
-        m_pD->m_pProxy = new ResourceProxyMemory<Image>( pValue );
+		m_pD->m_pProxy = new ResourceProxyMemory<Image>(pValue);
 	}
 
 
-    //---------------------------------------------------------------------------------------------
-    void NodeImageConstant::SetValue( Ptr<ResourceProxy<Image>> pImage )
-    {
-        m_pD->m_pProxy = pImage;
-    }
+	//---------------------------------------------------------------------------------------------
+	void NodeImageConstant::SetValue(Ptr<ResourceProxy<Image>> pImage)
+	{
+		m_pD->m_pProxy = pImage;
+	}
 
 }

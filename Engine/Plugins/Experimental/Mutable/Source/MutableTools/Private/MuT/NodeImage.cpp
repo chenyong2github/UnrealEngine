@@ -33,8 +33,7 @@
 #include "MuT/NodeImageTable.h"
 #include "MuT/NodeImageTransform.h"
 #include "MuT/NodeImageVariation.h"
-
-#include <stdint.h>
+#include "MuT/NodeImageReference.h"
 
 
 namespace mu
@@ -49,10 +48,10 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeImage::Serialise( const NodeImage* p, OutputArchive& arch )
 	{
-        uint32_t ver = 0;
+        uint32 ver = 0;
 		arch << ver;
 
-		arch << uint32_t(p->Type);
+		arch << uint32(p->Type);
 		p->SerialiseWrapper(arch);
     }
 
@@ -60,11 +59,11 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	NodeImagePtr NodeImage::StaticUnserialise( InputArchive& arch )
 	{
-        uint32_t ver;
+        uint32 ver;
 		arch >> ver;
 		check( ver == 0 );
 
-        uint32_t id;
+        uint32 id;
 		arch >> id;
 
 		switch (id)
@@ -98,8 +97,9 @@ namespace mu
         case 31 :  return NodeImageInvert::StaticUnserialise( arch ); break;
         case 32 :  return NodeImageVariation::StaticUnserialise( arch ); break;
         case 33 :  return NodeImageNormalComposite::StaticUnserialise( arch ); break;
-        case 34 :  return NodeImageTransform::StaticUnserialise( arch ); break;
-        default : check(false);
+		case 34:  return NodeImageTransform::StaticUnserialise(arch); break;
+		case 35:  return NodeImageReference::StaticUnserialise(arch); break;
+		default : check(false);
 		}
 
 		return 0;

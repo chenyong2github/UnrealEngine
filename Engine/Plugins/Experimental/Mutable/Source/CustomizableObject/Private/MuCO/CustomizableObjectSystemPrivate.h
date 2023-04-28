@@ -316,17 +316,16 @@ struct FInstanceGeneratedData
 
 // Mutable data generated during the update steps.
 // We keep it from begin to end update, and it is used in several steps.
-// TODO: Flatten this structure into 4 arrays and use indices in fixed-size structs instead of subarrays
 struct FInstanceUpdateData
 {
 	struct FImage
 	{
 		FString Name;
 		mu::RESOURCE_ID ImageID;
-		uint16 FullImageSizeX, FullImageSizeY;
-		mu::ImagePtrConst Image;
-		TWeakObjectPtr<UTexture2D> Cached;
 		int32 LOD;
+		uint16 FullImageSizeX, FullImageSizeY;
+		mu::Ptr<const mu::Image> Image;
+		TWeakObjectPtr<UTexture2D> Cached;
 	};
 
 	struct FVector

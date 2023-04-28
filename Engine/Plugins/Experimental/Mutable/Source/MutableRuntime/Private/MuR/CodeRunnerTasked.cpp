@@ -219,6 +219,8 @@ namespace mu
 		{  20,   0,   0,   0 },	// IM_PARAMETER
 		{   0,   0,   0,   0 },	// ST_PARAMETER
 		    
+		{   0,   0,   0,   0 },	// IM_REFERENCE
+
 		{   0,   0,   0,   0 },	// NU_CONDITIONAL
 		{   0,   0,   0,   0 },	// SC_CONDITIONAL
 		{   0,   0,   0,   0 },	// CO_CONDITIONAL
@@ -272,7 +274,6 @@ namespace mu
 		{   0,   5,   0,   0 },	// IM_GRADIENT
 		{   0,   0,   0,   0 },	// IM_BINARISE
 		{   0,  20,   0,   0 },	// IM_PLAINCOLOUR
-		{   0,   0,   0,   0 },	// IM_GPU
 		{   0, -10,   0,   0 },	// IM_CROP
 		{   0, -10,   0,   0 },	// IM_PATCH
 		{   0,  10,  10,   0 },	// IM_RASTERMESH

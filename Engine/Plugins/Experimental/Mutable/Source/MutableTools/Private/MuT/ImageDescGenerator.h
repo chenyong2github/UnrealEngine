@@ -33,6 +33,7 @@
 #include "MuT/NodeImageTable.h"
 #include "MuT/NodeImageTransform.h"
 #include "MuT/NodeImageVariation.h"
+#include "MuT/NodeImageReference.h"
 #include "MuT/Visitor.h"
 
 namespace mu { class ASTOp; }
@@ -77,7 +78,9 @@ namespace mu
                                public Visitor<NodeImageMultiLayer::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageInvert::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageNormalComposite::Private, Ptr<ASTOp>, true>,
-                               public Visitor<NodeImageTransform::Private, Ptr<ASTOp>, true>
+                               public Visitor<NodeImageTransform::Private, Ptr<ASTOp>, true>, 
+							   public Visitor<NodeImageReference::Private, Ptr<ASTOp>, true>
+
     {
     public:
 
@@ -109,7 +112,8 @@ namespace mu
         Ptr<ASTOp> Visit( const NodeImageMultiLayer::Private& );
         Ptr<ASTOp> Visit( const NodeImageInvert::Private& );
         Ptr<ASTOp> Visit( const NodeImageNormalComposite::Private& );
-        Ptr<ASTOp> Visit( const NodeImageTransform::Private& );
+		Ptr<ASTOp> Visit( const NodeImageTransform::Private& );
+		Ptr<ASTOp> Visit( const NodeImageReference::Private& );
 
     public:
 

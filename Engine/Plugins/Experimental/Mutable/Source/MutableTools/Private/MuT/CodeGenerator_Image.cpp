@@ -20,6 +20,7 @@
 #include "MuT/AST.h"
 #include "MuT/ASTOpConditional.h"
 #include "MuT/ASTOpConstantResource.h"
+#include "MuT/ASTOpReferenceResource.h"
 #include "MuT/ASTOpImageMipmap.h"
 #include "MuT/ASTOpImageLayer.h"
 #include "MuT/ASTOpImageLayerColor.h"
@@ -55,6 +56,7 @@
 #include "MuT/NodeImageConditionalPrivate.h"
 #include "MuT/NodeImageConstant.h"
 #include "MuT/NodeImageConstantPrivate.h"
+#include "MuT/NodeImageReferencePrivate.h"
 #include "MuT/NodeImageDifference.h"
 #include "MuT/NodeImageDifferencePrivate.h"
 #include "MuT/NodeImageFormat.h"
@@ -109,9 +111,6 @@
 #include "MuT/NodeScalarConstant.h"
 #include "MuT/Table.h"
 #include "MuT/TablePrivate.h"
-
-#include <memory>
-#include <utility>
 
 
 namespace mu
@@ -185,6 +184,7 @@ namespace mu
 			case NodeImage::EType::Variation: GenerateImage_Variation(result, static_cast<const NodeImageVariation*>(Node)); break;
 			case NodeImage::EType::NormalComposite: GenerateImage_NormalComposite(result, static_cast<const NodeImageNormalComposite*>(Node)); break;
 			case NodeImage::EType::Transform: GenerateImage_Transform(result, static_cast<const NodeImageTransform*>(Node)); break;
+			case NodeImage::EType::Reference: GenerateImage_Reference(result, static_cast<const NodeImageReference*>(Node)); break;
 			case NodeImage::EType::None: check(false);
 			}
 
@@ -258,6 +258,19 @@ namespace mu
 
 		result.op = op;
     }
+
+	//---------------------------------------------------------------------------------------------
+	void CodeGenerator::GenerateImage_Reference(FImageGenerationResult& result, const NodeImageReference* InNode)
+	{
+		const NodeImageReference::Private& node = *InNode->GetPrivate();
+
+		Ptr<ASTOpReferenceResource> op = new ASTOpReferenceResource();
+		op->type = OP_TYPE::IM_REFERENCE;
+		op->ID = node.ImageReferenceID;
+
+		// TODO: check no crop
+		result.op = op;
+	}
 
 
     //---------------------------------------------------------------------------------------------

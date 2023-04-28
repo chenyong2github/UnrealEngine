@@ -51,6 +51,9 @@ namespace mu
         IM_PARAMETER,
         ST_PARAMETER,
 
+		//! A referenced, but opaque engine resource
+		IM_REFERENCE,
+
         //! Select one value or the other depending on a boolean input
         NU_CONDITIONAL,
         SC_CONDITIONAL,
@@ -197,10 +200,6 @@ namespace mu
 
         //! Generate a plain colour image
         IM_PLAINCOLOUR,
-
-        //! Image resulting from a GPU program
-		//! \TODO: Deprecated?
-		IM_GPU,
 
         //! Cut a rect from an image
         IM_CROP,
@@ -397,7 +396,7 @@ namespace mu
 
         struct IntConstantArgs
         {
-            int value;
+            int32 value;
         };
 
         struct ScalarConstantArgs
@@ -438,6 +437,11 @@ namespace mu
         {
             ADDRESS condition, yes, no;
         };
+
+		struct ResourceReferenceArgs
+		{
+			int32 ID;
+		};
 
         //-------------------------------------------------------------------------------------
         struct BoolLessArgs

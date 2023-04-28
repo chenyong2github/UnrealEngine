@@ -34,7 +34,7 @@ namespace mu
 	//-------------------------------------------------------------------------------------------------
 	bool ASTOpConstantResource::IsEqual(const ASTOp& otherUntyped) const
 	{
-		if (auto other = dynamic_cast<const ASTOpConstantResource*>(&otherUntyped))
+		if (const ASTOpConstantResource* other = dynamic_cast<const ASTOpConstantResource*>(&otherUntyped))
 		{
 			return type == other->type && hash == other->hash &&
 				loadedValue == other->loadedValue && proxy == other->proxy;
@@ -72,7 +72,7 @@ namespace mu
 			if (type == OP_TYPE::ME_CONSTANT)
 			{
 				OP::MeshConstantArgs args;
-				memset(&args, 0, sizeof(args));
+				FMemory::Memset(&args, 0, sizeof(args));
 
 				Ptr<Mesh> pTyped = static_cast<const Mesh*>(GetValue().get())->Clone();
 				check(pTyped);
@@ -80,27 +80,6 @@ namespace mu
 				args.skeleton = -1;
 				if (Ptr<const Skeleton> pSkeleton = pTyped->GetSkeleton())
 				{
-					// See if it can be merged into another skeleton
-	//                for (const auto& pOtherSkeleton : program.m_constantSkeletons)
-	//                {
-	//                    if (true)
-	//                    //if (AreSkeletonsRelated(pOtherSkeleton, pSkeleton))
-	//                    {
-	//                        // \todo : ugly const hack
-	//                        ExtendSkeleton( const_cast<Skeleton*>(pOtherSkeleton.get()),
-	//                                        pSkeleton.get() );
-	//                        pSkeleton = pOtherSkeleton;
-
-	//                        Ptr<Mesh> pRemapped = MeshRemapSkeleton( pTyped.get(),
-	//                                                                 pOtherSkeleton.get() );
-	//                        if (pRemapped)
-	//                        {
-	//                            pTyped = pRemapped;
-	//                        }
-	//                        break;
-	//                    }
-	//                }
-
 					args.skeleton = program.AddConstant(pSkeleton.get());
 					pTyped->SetSkeleton(nullptr);
 				}
@@ -122,7 +101,7 @@ namespace mu
 			else
 			{
 				OP::ResourceConstantArgs args;
-				memset(&args, 0, sizeof(args));
+				FMemory::Memset(&args, 0, sizeof(args));
 
 				bool bValidData = true;
 

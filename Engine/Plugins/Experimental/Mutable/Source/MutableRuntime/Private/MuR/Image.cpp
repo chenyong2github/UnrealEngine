@@ -104,7 +104,6 @@ namespace mu
         m_format = format;
         m_size = FImageSize( (uint16)sizeX, (uint16)sizeY );
         m_lods = (uint8_t)lods;
-        m_internalId = 0;
 
         const FImageFormatData& fdata = GetImageFormatData( format );
         int32 PixelsPerBlock = fdata.m_pixelsPerBlockX*fdata.m_pixelsPerBlockY;
@@ -148,6 +147,16 @@ namespace mu
 			}
         }
     }
+
+
+	//---------------------------------------------------------------------------------------------
+	Ptr<Image> Image::CreateAsReference(uint32 ID)
+	{
+		Ptr<Image> Result = new Image;
+		Result->ReferenceID = ID;
+		Result->m_flags = EImageFlags::IF_IS_REFERENCE;
+		return Result;
+	}
 
 
     //---------------------------------------------------------------------------------------------
@@ -277,38 +286,44 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    const uint8_t* Image::GetData() const
+    const uint8* Image::GetData() const
     {
         return m_data.GetData();
     }
 
 
     //---------------------------------------------------------------------------------------------
-    int32_t Image::GetDataSize() const
+    int32 Image::GetDataSize() const
     {
         return m_data.Num();
     }
 
 
     //---------------------------------------------------------------------------------------------
-    int32_t Image::GetLODDataSize( int lod ) const
+    int32 Image::GetLODDataSize( int lod ) const
     {
         return CalculateDataSize( lod );
     }
 
 
     //---------------------------------------------------------------------------------------------
-    uint8_t* Image::GetData()
+    uint8* Image::GetData()
     {
 		return m_data.GetData();
     }
 
+	//---------------------------------------------------------------------------------------------
+	bool Image::IsReference() const
+	{
+		return m_flags & EImageFlags::IF_IS_REFERENCE;
+	}
 
-    //---------------------------------------------------------------------------------------------
-    uint32_t Image::GetId() const
-    {
-        return m_internalId;
-    }
+	//---------------------------------------------------------------------------------------------
+	uint32 Image::GetReferencedTexture() const
+	{
+		ensure(IsReference());
+		return ReferenceID;
+	}
 
 
     //---------------------------------------------------------------------------------------------

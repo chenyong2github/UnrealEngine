@@ -48,6 +48,7 @@
 #include "MuT/NodeImageTable.h"
 #include "MuT/NodeImageTransform.h"
 #include "MuT/NodeImageVariation.h"
+#include "MuT/NodeImageReference.h"
 #include "MuT/NodeScalarConstant.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
@@ -101,7 +102,7 @@ mu::ImagePtr ConvertTextureUnrealToMutable(UTexture2D* Texture, const UCustomiza
 }
 
 
-mu::NodeImagePtr ResizeToMaxTextureSize(float MaxTextureSize, const UTexture2D* BaseTexture, mu::NodeImageConstantPtr ImageNode)
+mu::Ptr<mu::NodeImage> ResizeToMaxTextureSize(float MaxTextureSize, const UTexture2D* BaseTexture, mu::Ptr<mu::NodeImageConstant> ImageNode)
 {
 	// To scale when above MaxTextureSize if defined
 	if (MaxTextureSize > 0 && BaseTexture
@@ -137,7 +138,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 	const FGeneratedKey Key(reinterpret_cast<void*>(&GenerateMutableSourceImage), *Pin, *Node, GenerationContext, true);
 	if (const FGeneratedData* Generated = GenerationContext.Generated.Find(Key))
 	{
-		return static_cast<mu::NodeImage*>(Generated->Node.get());
+		return dynamic_cast<mu::NodeImage*>(Generated->Node.get());
 	}
 
 	mu::NodeImagePtr Result;
@@ -168,37 +169,6 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		else
 		{
 			GenerationContext.Compiler->CompilerLog(LOCTEXT("MissingImage", "Missing image in texture node."), Node);
-		}
-	}
-
-	else if (const UCustomizableObjectNodePassThroughTexture* TypedNodePassThroughTex = Cast<UCustomizableObjectNodePassThroughTexture>(Node))
-	{
-		UTexture2D* BaseTexture = TypedNodePassThroughTex->Texture;
-		if (BaseTexture)
-		{
-			uint32* FoundIndex = GenerationContext.PassThroughTextureToIndexMap.Find(BaseTexture);
-			uint32 NewId;
-
-			if (!FoundIndex)
-			{
-				NewId = GenerationContext.PassThroughTextureToIndexMap.Num();
-				GenerationContext.PassThroughTextureToIndexMap.Add(BaseTexture, NewId);
-			}
-			else
-			{
-				NewId = *FoundIndex;
-			}
-
-			// TODO: Implement mutable core nodes
-			//mu::NodePassThroughImageConstantPtr PassThroughImageNode;
-			//PassThroughImageNode.SetIndex(NewId);
-
-			//Result = PassThroughImageNode;
-
-		}
-		else
-		{
-			GenerationContext.Compiler->CompilerLog(LOCTEXT("MissingImagePassThrough", "Missing image in pass-through texture node."), Node);
 		}
 	}
 
@@ -397,7 +367,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 				const int32 NumSwitchOptions = TypedNodeTextureSwitch->GetNumElements();
 
-				mu::NodeScalarEnumParameter* EnumParameter = static_cast<mu::NodeScalarEnumParameter*>(SwitchParam.get());
+				mu::NodeScalarEnumParameter* EnumParameter = dynamic_cast<mu::NodeScalarEnumParameter*>(SwitchParam.get());
 				if (NumSwitchOptions != EnumParameter->GetValueCount())
 				{
 					const FText Message = LOCTEXT("MismatchedSwitch", "Switch enum and switch node have different number of options. Please refresh the switch node to make sure the outcomes are labeled properly.");
@@ -423,73 +393,6 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 				}
 
 				Result = SwitchNode;
-				return Result;
-			}
-			else
-			{
-				GenerationContext.Compiler->CompilerLog(LOCTEXT("NoEnumParamInSwitch", "Switch nodes must have an enum switch parameter. Please connect an enum and refesh the switch node."), Node);
-				return Result;
-			}
-		}(); // invoke lambda.
-	}
-
-	else if (const UCustomizableObjectNodePassThroughTextureSwitch* TypedNodePassThroughTextureSwitch = Cast<UCustomizableObjectNodePassThroughTextureSwitch>(Node))
-	{
-		Result = [&]()
-		{
-			const UEdGraphPin* SwitchParameter = TypedNodePassThroughTextureSwitch->SwitchParameter();
-
-			// Check Switch Parameter arity preconditions.
-			if (const UEdGraphPin* ConnectedPin = FollowInputPin(*SwitchParameter))
-			{
-				mu::NodeScalarPtr SwitchParam = GenerateMutableSourceFloat(ConnectedPin, GenerationContext);
-				// Switch Param not generated
-				if (!SwitchParam)
-				{
-					const FText Message = LOCTEXT("FailedToGenerateSwitchParam", "Could not generate switch enum parameter. Please refesh the switch node and connect an enum.");
-					GenerationContext.Compiler->CompilerLog(Message, Node);
-
-					return Result;
-				}
-
-				if (SwitchParam->GetType() != mu::NodeScalarEnumParameter::GetStaticType())
-				{
-					const FText Message = LOCTEXT("WrongSwitchParamType", "Switch parameter of incorrect type.");
-					GenerationContext.Compiler->CompilerLog(Message, Node);
-
-					return Result;
-				}
-
-				const int32 NumSwitchOptions = TypedNodePassThroughTextureSwitch->GetNumElements();
-
-				mu::NodeScalarEnumParameter* EnumParameter = static_cast<mu::NodeScalarEnumParameter*>(SwitchParam.get());
-				if (NumSwitchOptions != EnumParameter->GetValueCount())
-				{
-					const FText Message = LOCTEXT("MismatchedSwitch", "Switch enum and switch node have different number of options. Please refresh the switch node to make sure the outcomes are labeled properly.");
-					GenerationContext.Compiler->CompilerLog(Message, Node);
-				}
-				
-				// TODO: Implement Mutable core pass-through switch nodes
-				//mu::NodePassThroughImageSwitchPtr SwitchNode = new mu::NodePassThroughImageSwitchPtr;
-				//SwitchNode->SetParameter(SwitchParam);
-				//SwitchNode->SetOptionCount(NumSwitchOptions);
-
-				for (int32 SelectorIndex = 0; SelectorIndex < NumSwitchOptions; ++SelectorIndex)
-				{
-					if (const UEdGraphPin* TexturePin = FollowInputPin(*TypedNodePassThroughTextureSwitch->GetElementPin(SelectorIndex)))
-					{
-						mu::NodeImagePtr PassThroughImage = GenerateMutableSourceImage(TexturePin, GenerationContext, MaxTextureSize);
-						//SwitchNode->SetOption(SelectorIndex, PassThroughImage);
-					}
-					else
-					{
-						const FText Message = LOCTEXT("MissingPassThroughTexture", "Unable to generate pass-through texture switch node. Required connection not found.");
-						GenerationContext.Compiler->CompilerLog(Message, Node);
-						return Result;
-					}
-				}
-
-				//Result = SwitchNode;
 				return Result;
 			}
 			else
@@ -905,7 +808,103 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 			SaturateNode->SetFactor(FactorNode); 
 		}
 	}
-	
+
+	else if (const UCustomizableObjectNodePassThroughTexture* TypedNodePassThroughTex = Cast<UCustomizableObjectNodePassThroughTexture>(Node))
+	{
+		UTexture2D* BaseTexture = TypedNodePassThroughTex->Texture;
+		if (BaseTexture)
+		{
+			uint32* FoundIndex = GenerationContext.PassThroughTextureToIndexMap.Find(BaseTexture);
+			uint32 NewId;
+
+			if (!FoundIndex)
+			{
+				NewId = GenerationContext.PassThroughTextureToIndexMap.Num();
+				GenerationContext.PassThroughTextureToIndexMap.Add(BaseTexture, NewId);
+			}
+			else
+			{
+				NewId = *FoundIndex;
+			}
+
+			mu::Ptr<mu::NodeImageReference> ImageNode = new mu::NodeImageReference;
+			ImageNode->SetImageReference(NewId);
+
+			Result = ImageNode;
+		}
+		else
+		{
+			GenerationContext.Compiler->CompilerLog(LOCTEXT("MissingImagePassThrough", "Missing image in pass-through texture node."), Node);
+		}
+	}
+
+	else if (const UCustomizableObjectNodePassThroughTextureSwitch* TypedNodePassThroughTextureSwitch = Cast<UCustomizableObjectNodePassThroughTextureSwitch>(Node))
+	{
+		Result = [&]()
+		{
+			const UEdGraphPin* SwitchParameter = TypedNodePassThroughTextureSwitch->SwitchParameter();
+
+			// Check Switch Parameter arity preconditions.
+			if (const UEdGraphPin* ConnectedPin = FollowInputPin(*SwitchParameter))
+			{
+				mu::NodeScalarPtr SwitchParam = GenerateMutableSourceFloat(ConnectedPin, GenerationContext);
+				// Switch Param not generated
+				if (!SwitchParam)
+				{
+					const FText Message = LOCTEXT("FailedToGenerateSwitchParam", "Could not generate switch enum parameter. Please refesh the switch node and connect an enum.");
+					GenerationContext.Compiler->CompilerLog(Message, Node);
+
+					return Result;
+				}
+
+				if (SwitchParam->GetType() != mu::NodeScalarEnumParameter::GetStaticType())
+				{
+					const FText Message = LOCTEXT("WrongSwitchParamType", "Switch parameter of incorrect type.");
+					GenerationContext.Compiler->CompilerLog(Message, Node);
+
+					return Result;
+				}
+
+				const int32 NumSwitchOptions = TypedNodePassThroughTextureSwitch->GetNumElements();
+
+				mu::NodeScalarEnumParameter* EnumParameter = dynamic_cast<mu::NodeScalarEnumParameter*>(SwitchParam.get());
+				if (NumSwitchOptions != EnumParameter->GetValueCount())
+				{
+					const FText Message = LOCTEXT("MismatchedSwitch", "Switch enum and switch node have different number of options. Please refresh the switch node to make sure the outcomes are labeled properly.");
+					GenerationContext.Compiler->CompilerLog(Message, Node);
+				}
+
+				// TODO: Implement Mutable core pass-through switch nodes
+				mu::Ptr<mu::NodeImageSwitch> SwitchNode = new mu::NodeImageSwitch;
+				SwitchNode->SetParameter(SwitchParam);
+				SwitchNode->SetOptionCount(NumSwitchOptions);
+
+				for (int32 SelectorIndex = 0; SelectorIndex < NumSwitchOptions; ++SelectorIndex)
+				{
+					if (const UEdGraphPin* TexturePin = FollowInputPin(*TypedNodePassThroughTextureSwitch->GetElementPin(SelectorIndex)))
+					{
+						mu::Ptr<mu::NodeImage> PassThroughImage = GenerateMutableSourceImage(TexturePin, GenerationContext, MaxTextureSize);
+						SwitchNode->SetOption(SelectorIndex, PassThroughImage);
+					}
+					else
+					{
+						const FText Message = LOCTEXT("MissingPassThroughTexture", "Unable to generate pass-through texture switch node. Required connection not found.");
+						GenerationContext.Compiler->CompilerLog(Message, Node);
+						return Result;
+					}
+				}
+
+				Result = SwitchNode;
+				return Result;
+			}
+			else
+			{
+				GenerationContext.Compiler->CompilerLog(LOCTEXT("NoEnumParamInSwitch", "Switch nodes must have an enum switch parameter. Please connect an enum and refesh the switch node."), Node);
+				return Result;
+			}
+		}(); // invoke lambda.
+	}
+
 	// If the node is a plain colour node, generate an image out of it
 	else if (Pin->PinType.PinCategory == Schema->PC_Color)
 	{
@@ -993,6 +992,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 	return Result;
 }
+
 
 #undef LOCTEXT_NAMESPACE
 

@@ -59,6 +59,7 @@ namespace mu
 	class NodeImageColourMap;
 	class NodeImageConditional;
 	class NodeImageConstant;
+	class NodeImageReference;
 	class NodeImageDifference;
 	class NodeImageFormat;
 	class NodeImageGradient;
@@ -386,6 +387,7 @@ namespace mu
 
 		void GenerateImage(FImageGenerationResult& result, const NodeImagePtrConst& node);
 		void GenerateImage_Constant(FImageGenerationResult&, const NodeImageConstant*);
+		void GenerateImage_Reference(FImageGenerationResult&, const NodeImageReference*);
 		void GenerateImage_Difference(FImageGenerationResult&, const NodeImageDifference*);
 		void GenerateImage_Interpolate(FImageGenerationResult&, const NodeImageInterpolate*);
 		void GenerateImage_Saturate(FImageGenerationResult&, const NodeImageSaturate*);

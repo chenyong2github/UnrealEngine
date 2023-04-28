@@ -262,6 +262,9 @@ namespace mu
         //!         depends on the image size.
         //! \param format Pixel format.
         Image( uint32 sizeX, uint32 sizeY, uint32 lods, EImageFormat format, EInitializationType Init=EInitializationType::Black);
+		
+		/** */
+		static Ptr<Image> CreateAsReference( uint32 ID );
 
 		/** */
 		ImagePtr ExtractMip(int32 Mip) const;
@@ -300,9 +303,11 @@ namespace mu
         //! Return the size in bytes of a specific LOD of the image.
         int32 GetLODDataSize( int lod ) const;
 
-		//! Get an internal identifier used to reference this image in operations like deferred
-		//! image building, or instance updating.
-        uint32 GetId() const;
+		/** Return true if this is a reference to an engine image. */
+		bool IsReference() const;
+
+		/** Return the id of the engine referenced texture. Only valid if IsReference. */
+		uint32 GetReferencedTexture() const;
 
 	protected:
 
@@ -317,14 +322,11 @@ namespace mu
 		//!
 		FImageSize m_size = FImageSize(0, 0);
 
-		//! Non-persistent internal id
-		mutable uint32 m_internalId = 0;
-
 		//!
-		EImageFormat m_format;
+		EImageFormat m_format = EImageFormat::IF_NONE;
 
 		//! Levels of detail (mipmaps)
-		uint8 m_lods;
+		uint8 m_lods = 0;
 
 		//! These set of flags are used to cache information for images at runtime.
 		typedef enum
@@ -340,6 +342,9 @@ namespace mu
 
 			// If this is set, the image has an updated relevancy map. This flag is not persisent.
 			IF_HAS_RELEVANCY_MAP = 1 << 3,
+
+			/** If this is set, this is a reference to an external image, and the ReferenceID is valid. */
+			IF_IS_REFERENCE = 1 << 4,
 		} EImageFlags;
 
 		//! Persistent flags with some image properties. The meaning will depend of every
@@ -352,6 +357,9 @@ namespace mu
 
 		//! Pixel data
 		TArray<uint8> m_data;
+
+		/** Only valid if the right flags are set, this identifies a referenced image. */
+		uint32 ReferenceID = 0;
 
 
 		// This used to be the methods in the private implementation of the image interface
@@ -366,13 +374,13 @@ namespace mu
 			ImagePtr pResult = new Image();
 
 			pResult->m_size = m_size;
-			pResult->m_internalId = m_internalId;
 			pResult->m_format = m_format;
 			pResult->m_lods = m_lods;
 			pResult->m_flags = m_flags;
 			pResult->RelevancyMinY = RelevancyMinY;
 			pResult->RelevancyMaxY = RelevancyMaxY;
 			pResult->m_data = m_data;
+			pResult->ReferenceID = ReferenceID;
 
 			return pResult;
 		}
@@ -390,7 +398,8 @@ namespace mu
 			return (m_lods == o.m_lods) &&
 				(m_size == o.m_size) &&
 				(m_format == o.m_format) &&
-				(m_data == o.m_data);
+				(m_data == o.m_data) &&
+				(ReferenceID == o.ReferenceID);
 		}
 
 		//-----------------------------------------------------------------------------------------
