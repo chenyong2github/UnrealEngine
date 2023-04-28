@@ -1505,7 +1505,8 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 				CardPageRenderData.NumMeshDrawCommands = LumenCardRenderer.MeshDrawCommands.Num() - CardPageRenderData.StartMeshDrawCommandIndex;
 			}
 		}
-	});
+
+	}, MakeArrayView({ Scene->GetCacheMeshDrawCommandsTask(), Scene->GetCacheNaniteDrawCommandsTask() }), UE::Tasks::ETaskPriority::High);
 }
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, "LumenCardScene");
