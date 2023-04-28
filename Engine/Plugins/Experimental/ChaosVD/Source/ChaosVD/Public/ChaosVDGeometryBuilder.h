@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ChaosVDConvexMeshGenerator.h"
-#include "ChaosVDHeightFieldMeshGenerator.h"
+#include "ChaosVDHeightfieldMeshGenerator.h"
 #include "ChaosVDTriMeshGenerator.h"
 #include "Chaos/HeightField.h"
 #include "Chaos/ImplicitObjectScaled.h"

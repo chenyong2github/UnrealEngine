@@ -2,7 +2,6 @@
 
 #include "ChaosVDGeometryBuilder.h"
 
-#include "ChaosVDHeightFieldMeshGenerator.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
