@@ -1150,6 +1150,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("EditorSettingsViewer"),
 			TEXT("ProjectSettingsViewer"),
 			TEXT("Blutility"),
+			TEXT("ScriptableEditorWidgets"),
 			TEXT("XmlParser"),
 			TEXT("UndoHistory"),
 			TEXT("DeviceProfileEditor"),

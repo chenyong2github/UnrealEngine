@@ -246,6 +246,7 @@ public class UnrealEd : ModuleRules
 				"SettingsEditor",
 				"StringTableEditor",
 				"Blutility",
+				"ScriptableEditorWidgets",
 				"WorkspaceMenuStructure",
 				"PlacementMode",
 				"MeshUtilities",
