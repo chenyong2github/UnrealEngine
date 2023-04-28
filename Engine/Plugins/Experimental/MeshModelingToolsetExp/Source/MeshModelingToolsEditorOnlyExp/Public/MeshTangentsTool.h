@@ -148,4 +148,6 @@ protected:
 	};
 	TArray<FMikktDeviation> Deviations;
 
+private:
+	bool bHasDisplayedNoAttributeError = false;
 };

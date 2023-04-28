@@ -110,6 +110,23 @@ void UMeshTangentsTool::Setup()
 
 	Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshTangentsd>>();
 	Compute->Setup(this);
+	Compute->OnOpCompleted.AddLambda([this](const UE::Geometry::TGenericDataOperator<UE::Geometry::FMeshTangentsd>* Op)
+		{
+			if (((FCalculateTangentsOp*)(Op))->bNoAttributesError)
+			{
+				bHasDisplayedNoAttributeError = true;
+				GetToolManager()->DisplayMessage(
+					LOCTEXT("TangentsNoAttributesError", "Error: Source mesh did not have tangents."),
+					EToolMessageLevel::UserWarning);
+			}
+			else if (bHasDisplayedNoAttributeError)
+			{
+				bHasDisplayedNoAttributeError = false;
+				GetToolManager()->DisplayMessage(
+					FText(),
+					EToolMessageLevel::UserWarning);
+			}
+		});
 	Compute->OnResultUpdated.AddLambda( [this](const TUniquePtr<FMeshTangentsd>& NewResult) { OnTangentsUpdated(NewResult); } );
 	Compute->InvalidateResult();
 

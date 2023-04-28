@@ -78,8 +78,9 @@ void FCalculateTangentsOp::CalculateStandard(FProgressCancel* Progress, TUniqueP
 void FCalculateTangentsOp::CopyFromSource(FProgressCancel* Progress, TUniquePtr<FMeshTangentsd>& Tangents)
 {
 	int32 NumTangents = SourceTangents->GetTangents().Num();
-	if ( ! ensure(NumTangents == SourceMesh->MaxTriangleID() * 3) )
+	if (NumTangents != SourceMesh->MaxTriangleID() * 3)
 	{
+		ensure(NumTangents == 0); // Expect this case to happen only when there aren't any tangents
 		bNoAttributesError = true;
 		Tangents->InitializeTriVertexTangents(true);
 		return;
