@@ -9,6 +9,9 @@
 #if !UE_BUILD_SHIPPING // TODO: Decide whether or not the struct should be entirely stripped out of shipping
 
 class UMaterialInterface;
+class FScene;
+class FViewInfo;
+class FViewCommands;
 
 DECLARE_MULTICAST_DELEGATE(FOnUpdateViewDebugInfo);
 
@@ -17,7 +20,6 @@ DECLARE_MULTICAST_DELEGATE(FOnUpdateViewDebugInfo);
  */
 struct RENDERER_API FViewDebugInfo
 {
-	friend class FSceneRenderer;
 	friend class FDrawPrimitiveDebuggerModule;
 
 private:
@@ -32,7 +34,7 @@ public:
 	 * Gets a reference to the view debug information that is used by the renderer.
 	 * @returns The debug information that is used by the renderer.
 	 */
-	static inline const FViewDebugInfo& Get()
+	static inline FViewDebugInfo& Get()
 	{
 		return Instance;
 	}
@@ -86,7 +88,10 @@ private:
 
 	void DisableLiveCapture();
 
+	static void DumpPrimitives(FScene* Scene, const FViewCommands& ViewCommands);
+
 public:
+	void ProcessPrimitives(FScene* Scene, const FViewInfo& View, const FViewCommands& ViewCommands);
 
 	/**
 	 * Writes the currently stored information out to a CSV file.

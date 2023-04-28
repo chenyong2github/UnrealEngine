@@ -281,6 +281,7 @@ inline bool operator == (FPersistentPrimitiveIndex A, FPersistentPrimitiveIndex 
 class FPrimitiveSceneInfo : public FDeferredCleanupInterface
 {
 	friend class FSceneRenderer;
+	friend struct FViewDebugInfo;
 public:
 
 	/** The render proxy for the primitive. */
