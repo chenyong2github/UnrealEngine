@@ -219,6 +219,11 @@ namespace Gauntlet
 		List<ITargetDevice> ReservedDevices = new List<ITargetDevice>();
 
 		/// <summary>
+		/// List of platforms we've had devices for
+		/// </summary>
+		HashSet<UnrealTargetPlatform?> UsedPlatforms = new HashSet<UnrealTargetPlatform?>();
+
+		/// <summary>
 		/// Device reservation service URL 
 		/// </summary>
 		public string DeviceURL;
@@ -373,7 +378,6 @@ namespace Gauntlet
 					}
 
 					// Additional devices cleanup
-					IEnumerable<UnrealTargetPlatform?> UsedPlatforms = ReservedDevices.Select(D => D.Platform).Distinct();
 					CleanupDevices(UsedPlatforms);
 
 					AvailableDevices.Clear();
@@ -592,6 +596,7 @@ namespace Gauntlet
 				AvailableDevices = AvailableDevices.Where(D => DeviceList.Contains(D) == false).ToList();
 
 				ReservedDevices.AddRange(DeviceList);
+				DeviceList.All(D => UsedPlatforms.Add(D.Platform));
 			}
 			return true;
 		}
@@ -766,6 +771,7 @@ namespace Gauntlet
 					else
 					{						
 						ReservedDevices.Add(TargetDevice);
+						UsedPlatforms.Add(TargetDevice.Platform);
 					}
 
 					ServiceDeviceInfo[TargetDevice] = Def;
