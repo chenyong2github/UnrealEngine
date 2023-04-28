@@ -10,7 +10,7 @@
 class SWindow;
 
 UCLASS(BlueprintType, hidecategories=Object)
-class UIKRigDefinitionFactory : public UFactory
+class IKRIGEDITOR_API UIKRigDefinitionFactory : public UFactory
 {
 	GENERATED_BODY()
 

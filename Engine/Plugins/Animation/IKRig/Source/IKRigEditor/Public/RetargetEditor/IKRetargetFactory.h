@@ -9,8 +9,8 @@
 
 class SWindow;
 
-UCLASS(hidecategories=Object, MinimalAPI)
-class UIKRetargetFactory : public UFactory
+UCLASS(hidecategories=Object)
+class IKRIGEDITOR_API UIKRetargetFactory : public UFactory
 {
 	GENERATED_BODY()
 
