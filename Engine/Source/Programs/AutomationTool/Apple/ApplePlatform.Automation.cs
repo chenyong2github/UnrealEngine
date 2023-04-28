@@ -177,6 +177,7 @@ public abstract class ApplePlatform : Platform
 	{
 		if (!MacExports.UseModernXcode(Params.RawProjectPath))
 		{
+			base.GetFilesToArchive(Params, SC);
 			return;
 		}
 
