@@ -923,7 +923,7 @@ namespace Gauntlet
 				return true;
 			}
 
-			Reg = new Regex(@"RequestExitWithStatus\(\d+,\s*(\d+)\)");
+			Reg = new Regex(@"RequestExitWithStatus\(\d+,\s*(\d+).*\)");
 
 			M = Reg.Match(Content);
 
