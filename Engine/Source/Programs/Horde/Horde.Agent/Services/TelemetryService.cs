@@ -238,7 +238,14 @@ class TelemetryService : BackgroundService
 	{
 		if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 		{
-			_systemMetrics ??= new WindowsSystemMetrics();
+			try
+			{
+				_systemMetrics ??= new WindowsSystemMetrics();
+			}
+			catch (Exception e)
+			{
+				_logger.LogError(e, "Unable to initialize system metric collector for telemetry. Disabling. Reason: {Message}", e.Message);
+			}
 		}
 		else
 		{
