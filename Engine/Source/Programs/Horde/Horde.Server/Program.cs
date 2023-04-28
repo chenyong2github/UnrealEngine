@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Server.Commands;
+using Horde.Server.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -52,15 +53,21 @@ namespace Horde.Server
 
 		public static LoggerConfiguration WithHordeConfig(this LoggerConfiguration configuration, ServerSettings settings)
 		{
-			if (settings.WithDatadog)
+			if (settings.OpenTelemetry.EnableDatadogCompatibility)
 			{
-				configuration = configuration.Enrich.With<DatadogLogEnricher>();
+				configuration = configuration.Enrich.With<OpenTelemetryDatadogLogEnricher>();
 			}
+			else if (settings.WithDatadog)
+			{
+				// OpenTracing is replaced with OpenTelemetry. To be removed.
+				configuration = configuration.Enrich.With<OpenTracingDatadogLogEnricher>();
+			}
+
 			return configuration;
 		}
 	}
 
-	class DatadogLogEnricher : ILogEventEnricher
+	class OpenTracingDatadogLogEnricher : ILogEventEnricher
 	{
 		public void Enrich(Serilog.Events.LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
 		{

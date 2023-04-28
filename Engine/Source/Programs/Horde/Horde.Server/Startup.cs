@@ -98,9 +98,6 @@ using Horde.Server.Notifications.Sinks;
 using StatusCode = Grpc.Core.StatusCode;
 using Horde.Server.Artifacts;
 using Horde.Server.Compute;
-using OpenTelemetry.Exporter;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 
 namespace Horde.Server
 {
@@ -347,7 +344,7 @@ namespace Horde.Server
 			BindServerSettings(settings);
 			settings.Validate();
 
-			ConfigureOpenTelemetry(services, settings.OpenTelemetry);
+			OpenTelemetryHelper.Configure(services, settings.OpenTelemetry);
 
 			if (settings.GlobalThreadPoolMinSize != null)
 			{
@@ -1019,91 +1016,6 @@ namespace Horde.Server
 				BsonSerializer.RegisterSerializationProvider(new StringIdBsonSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new ObjectIdBsonSerializationProvider());
 			}
-		}
-
-		private static void ConfigureOpenTelemetry(IServiceCollection services, OpenTelemetrySettings settings)
-		{
-			// Always configure OpenTelemetry.Trace.Tracer class as it's used in the codebase even when OpenTelemetry is not configured
-			services.AddSingleton(OpenTelemetryTracers.Horde);
-			
-			if (!settings.Enabled)
-			{
-				return;
-			}
-
-			void DatadogHttpRequestEnricher(Activity activity, HttpRequestMessage message)
-			{
-				activity.AddTag("service.name", settings.ServiceName + "-http-client");
-				activity.AddTag("operation.name", "http.request");
-				string url = $"{message.Method} {message.Headers.Host}{message.RequestUri?.LocalPath}";  
-				activity.DisplayName = url;
-				activity.AddTag("resource.name", url);
-			}
-			
-			void DatadogAspNetRequestEnricher(Activity activity, HttpRequest request)
-			{
-				activity.AddTag("service.name", settings.ServiceName);
-				activity.AddTag("operation.name", "http.request");
-				string url = $"{request.Method} {request.Headers.Host}{request.Path}";  
-				activity.DisplayName = url;
-				activity.AddTag("resource.name", url);
-			}
-
-			bool FilterHttpRequests(HttpContext context)
-			{
-				if (context.Request.Path.Value != null && context.Request.Path.Value.Contains("health/", StringComparison.Ordinal))
-				{
-					return false;
-				}
-				
-				return true;
-			}
-			
-			List<KeyValuePair<string,object>> attributes = settings.Attributes.Select(x => new KeyValuePair<string, object>(x.Key, x.Value)).ToList();
-			services.AddOpenTelemetry()
-				.WithTracing(builder =>
-				{
-					builder
-						.AddSource(OpenTelemetryTracers.SourceNames)
-						.AddHttpClientInstrumentation(options =>
-						{
-							if (settings.EnableDatadogCompatibility)
-							{
-								options.EnrichWithHttpRequestMessage = DatadogHttpRequestEnricher;
-							}
-						})
-						.AddAspNetCoreInstrumentation(options =>
-						{
-							options.Filter = FilterHttpRequests;
-							
-							if (settings.EnableDatadogCompatibility)
-							{
-								options.EnrichWithHttpRequest = DatadogAspNetRequestEnricher;
-							}
-						})
-						.AddGrpcClientInstrumentation()
-						//.AddRedisInstrumentation()
-						.SetResourceBuilder(ResourceBuilder.CreateDefault()
-							.AddService(settings.ServiceName, serviceNamespace: settings.ServiceNamespace, serviceVersion: settings.ServiceVersion)
-							.AddAttributes(attributes)
-							.AddTelemetrySdk()
-							.AddEnvironmentVariableDetector());
-
-					if (settings.EnableConsoleExporter)
-					{
-						builder.AddConsoleExporter();
-					}
-					
-					foreach ((string name, OpenTelemetryProtocolExporterSettings exporterSettings) in settings.ProtocolExporters)
-					{
-						builder.AddOtlpExporter(name, exporter =>
-						{
-							exporter.Endpoint = exporterSettings.Endpoint;
-							exporter.Protocol = Enum.TryParse(exporterSettings.Protocol, true, out OtlpExportProtocol protocol) ? protocol : OtlpExportProtocol.Grpc;
-						});
-					}
-				});
-
 		}
 
 		private static void OnAddHealthChecks(IServiceCollection services)
