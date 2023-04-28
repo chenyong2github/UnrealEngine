@@ -98,6 +98,11 @@ FParseCandidate ParseCandidates[] = {
 	{ TEXT("Percent"),				EUnit::Percentage },			{ TEXT("%"),	EUnit::Percentage },
 
 	{ TEXT("times"),				EUnit::Multiplier },			{ TEXT("x"),	EUnit::Multiplier },			{ TEXT("multiplier"),		EUnit::Multiplier },
+
+	{ TEXT("Pascals"),				EUnit::Pascals },				{ TEXT("Pa"),	EUnit::Pascals},
+	{ TEXT("KiloPascals"),			EUnit::KiloPascals},			{ TEXT("kPa"),	EUnit::KiloPascals},
+	{ TEXT("MegaPascals"),			EUnit::MegaPascals},			{ TEXT("MPa"),	EUnit::MegaPascals},
+	{ TEXT("GigaPascals"),			EUnit::GigaPascals},			{ TEXT("GPa"),	EUnit::GigaPascals},
 };
 
 /** Static array of display strings that directly map to EUnit enumerations */
@@ -130,6 +135,8 @@ const TCHAR* const DisplayStrings[] = {
 	TEXT("%"),
 
 	TEXT("x"),
+
+	TEXT("Pa"), TEXT("kPa"), TEXT("MPa"), TEXT("GPa"),
 };
 
 const EUnitType UnitTypes[] = {
@@ -159,6 +166,8 @@ const EUnitType UnitTypes[] = {
 	EUnitType::PixelDensity,
 
 	EUnitType::Multipliers, EUnitType::Multipliers,
+
+	EUnitType::Stress, EUnitType::Stress, EUnitType::Stress, EUnitType::Stress,
 };
 
 
@@ -433,6 +442,7 @@ FUnitSettings::FUnitSettings()
 	DisplayUnits[(uint8)EUnitType::LuminousFlux].Add(EUnit::Lumens);
 	DisplayUnits[(uint8)EUnitType::ExposureValue].Add(EUnit::ExposureValue);
 	DisplayUnits[(uint8)EUnitType::Time].Add(EUnit::Seconds);
+	DisplayUnits[(uint8)EUnitType::Stress].Add(EUnit::MegaPascals);
 }
 
 bool FUnitSettings::ShouldDisplayUnits() const
@@ -680,6 +690,19 @@ namespace UnitConversion
 		}
 	}
 
+	double StressUnificationFactor(EUnit From)
+	{
+		// Convert to Pascals
+		switch (From)
+		{
+		case EUnit::GigaPascals:		return 1000000000.0;
+		case EUnit::MegaPascals:		return 1000000.0;
+		case EUnit::KiloPascals:		return 1000.0;
+		case EUnit::Pascals:			// fallthrough
+		default: 						return 1.0;
+		}
+	}
+
 	TValueOrError<FNumericUnit<double>, FText> TryParseExpression(const TCHAR* InExpression, EUnit From, const FNumericUnit<double>& InExistingValue)
 	{
 		const FUnitExpressionParser Parser(From);
@@ -715,6 +738,8 @@ namespace UnitConversion
 			TArray<FQuantizationInfo> DataSize;
 
 			TArray<FQuantizationInfo> Time;
+
+			TArray<FQuantizationInfo> Stress;
 
 			FStaticBounds()
 			{
@@ -757,6 +782,11 @@ namespace UnitConversion
 				Time.Emplace(EUnit::Days,				365.242f / 12.0f);
 				Time.Emplace(EUnit::Months,			12.0f);
 				Time.Emplace(EUnit::Years,			0.0f);
+
+				Stress.Emplace(EUnit::Pascals,		1000.0f);
+				Stress.Emplace(EUnit::KiloPascals,	1000.0f);
+				Stress.Emplace(EUnit::MegaPascals,	1000.0f);
+				Stress.Emplace(EUnit::GigaPascals,	0.0f);
 			}
 		};
 
@@ -784,6 +814,9 @@ namespace UnitConversion
 
 		case EUnit::Milliseconds: case EUnit::Seconds: case EUnit::Minutes: case EUnit::Hours: case EUnit::Days: case EUnit::Months: case EUnit::Years:
 			return &Bounds.Time;
+
+		case EUnit::Pascals: case EUnit::KiloPascals: case EUnit::MegaPascals: case EUnit::GigaPascals:
+			return &Bounds.Stress;
 
 		default:
 			return TOptional<const TArray<FQuantizationInfo>*>();

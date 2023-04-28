@@ -20,6 +20,39 @@
 struct FPropertyChangedEvent;
 
 /**
+ * Defines the directional strengths of a physical material in term of force per surface area
+ */
+USTRUCT(BlueprintType)
+struct FPhysicalMaterialStrength
+{
+	GENERATED_USTRUCT_BODY()
+
+	FPhysicalMaterialStrength();
+
+	/**
+	* Tensile strength of the material in MegaPascal ( 10^6 N/m2 )
+	* This amount of tension force per area the material can withstand before it fractures
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PhysicalMaterial", meta = (ClampMin = 0, ForceUnits = "MPa"))
+	float TensileStrength;
+
+	/**
+	* Compression strength of the material in MegaPascal ( 10^6 N/m2 )
+	* This amount of compression force per area the material can withstand before it fractures, crumbles or buckles
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PhysicalMaterial", meta = (ClampMin = 0, ForceUnits = "MPa"))
+	float CompressionStrength;
+
+	/**
+	* Shear strength of the material in MegaPascal ( 10^6 N/m2 )
+	* This amount of shear force per area the material can withstand before it fractures
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PhysicalMaterial", meta = (ClampMin = 0, ForceUnits = "MPa"))
+	float ShearStrength;
+};
+
+
+/**
  * Physical materials are used to define the response of a physical object when interacting dynamically with the world.
  */
 UCLASS(BlueprintType, Blueprintable, CollapseCategories, HideCategories = Object)
@@ -103,24 +136,8 @@ class PHYSICSCORE_API UPhysicalMaterial : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalProperties)
 	TEnumAsByte<EPhysicalSurface> SurfaceType;
 
-	/** 
-	* Tensile strength of the material in MegaPascal ( 10^6 N/m2 )
-	* This amount of tension force per area the material can withstand before it fractures
-	*/
-	float TensileStrength;
-
-	/**
-	* Compression strength of the material in MegaPascal ( 10^6 N/m2 )
-	* This amount of compression force per area the material can withstand before it fractures, crumbles or buckles
-	*/
-	float CompressionStrength;
-
-	/**
-	* Shear strength of the material in MegaPascal ( 10^6 N/m2 )
-	* This amount of shear force per area the material can withstand before it fractures
-	*/
-	float ShearStrength;
-
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalProperties)
+	FPhysicalMaterialStrength Strength;
 
 public:
 

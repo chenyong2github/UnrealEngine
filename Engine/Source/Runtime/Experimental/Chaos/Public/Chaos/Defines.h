@@ -39,6 +39,30 @@ typedef int32_t int32;
 
 namespace Chaos
 {
+	// Solver uses Kg for mass, Second for time and Cm for distance
+	// Since a MegaPascal is  force over an Area, and Force = Mass * Acc
+	// we get (Kg.cm)/(cm2.s2) => Kg/(cm.s2)
+	constexpr float MegaPascalToKgPerCmS2(float MegaPascals)
+	{
+		return MegaPascals * 10000;
+	}
+
+	struct FChaosPhysicsMaterialStrength
+	{
+
+		// using concrete as default ( lowest values of it )
+		FChaosPhysicsMaterialStrength()
+			: TensileStrength(MegaPascalToKgPerCmS2(2))
+			, CompressionStrength(MegaPascalToKgPerCmS2(20))
+			, ShearStrength(MegaPascalToKgPerCmS2(6))
+		{}
+
+		// Unit is Kg/(cm.s2)
+		float TensileStrength;
+		float CompressionStrength;
+		float ShearStrength;
+	};
+
 	class FChaosPhysicsMaterial
 	{
 	public:
@@ -69,6 +93,8 @@ namespace Chaos
 		/** Variable defaults are used for \c UChaosPhysicalMaterial \c UPROPERTY defaults. */
 		ECombineMode FrictionCombineMode;
 		ECombineMode RestitutionCombineMode;
+
+		FChaosPhysicsMaterialStrength Strength;
 
 
 		FChaosPhysicsMaterial()

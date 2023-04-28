@@ -233,6 +233,9 @@ void FChaosEngineInterface::UpdateMaterial(FPhysicsMaterialHandle& InHandle,UPhy
 		Material->SleepingLinearThreshold = InMaterial->SleepLinearVelocityThreshold;
 		Material->SleepingAngularThreshold = InMaterial->SleepAngularVelocityThreshold;
 		Material->SleepCounterThreshold = InMaterial->SleepCounterThreshold;
+		Material->Strength.TensileStrength = Chaos::MegaPascalToKgPerCmS2(InMaterial->Strength.TensileStrength);
+		Material->Strength.CompressionStrength = Chaos::MegaPascalToKgPerCmS2(InMaterial->Strength.CompressionStrength);
+		Material->Strength.ShearStrength = Chaos::MegaPascalToKgPerCmS2(InMaterial->Strength.ShearStrength);
 	}
 
 	Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(InHandle);

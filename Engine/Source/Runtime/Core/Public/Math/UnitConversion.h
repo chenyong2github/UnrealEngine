@@ -56,6 +56,9 @@ enum class EUnit : uint8
 	/** Arbitrary multipliers */
 	Percentage,	Multiplier,
 
+	/** Stress units */
+	Pascals, KiloPascals, MegaPascals, GigaPascals,
+
 	/** Symbolic entry, not specifiable on meta data */
 	Unspecified
 };
@@ -63,7 +66,7 @@ enum class EUnit : uint8
 /** Enumeration that specifies particular classes of unit */
 enum class EUnitType
 {
-	Distance, Angle, Speed, Temperature, Mass, Force, Frequency, DataSize, LuminousFlux, LuminousIntensity, Illuminance, Luminance, Time, PixelDensity, Multipliers, ExposureValue,
+	Distance, Angle, Speed, Temperature, Mass, Force, Frequency, DataSize, LuminousFlux, LuminousIntensity, Illuminance, Luminance, Time, PixelDensity, Multipliers, ExposureValue, Stress,
 
 	// Symbolic entry - do not use directly
 	NumberOf,
