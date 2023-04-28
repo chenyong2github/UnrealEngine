@@ -98,10 +98,13 @@ FStreamableTextureResource::FStreamableTextureResource(UTexture* InOwner, const 
 	bSRGB = InOwner->SRGB;
 	bGreyScaleFormat = UE::TextureDefines::ShouldUseGreyScaleEditorVisualization( InOwner->CompressionSettings );
 
-	Filter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(InOwner);
+	const UTextureLODSettings* TextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
+
+	Filter = (ESamplerFilter)TextureLODSettings->GetSamplerFilter(InOwner);
 	AddressU = InOwner->GetTextureAddressX() == TA_Wrap ? AM_Wrap : (InOwner->GetTextureAddressX() == TA_Clamp ? AM_Clamp : AM_Mirror);
 	AddressV = InOwner->GetTextureAddressY() == TA_Wrap ? AM_Wrap : (InOwner->GetTextureAddressY() == TA_Clamp ? AM_Clamp : AM_Mirror);
 	AddressW = InOwner->GetTextureAddressZ() == TA_Wrap ? AM_Wrap : (InOwner->GetTextureAddressZ() == TA_Clamp ? AM_Clamp : AM_Mirror);
+	MaxAniso = TextureLODSettings->GetTextureLODGroup(InOwner->LODGroup).MaxAniso;
 
 	// Get the biggest mips size, might be different from the actual resolution (depending on NumOfResidentLODs).
 	const FTexture2DMipMap& Mip0 = PlatformData->Mips[State.AssetLODBias];
@@ -248,7 +251,8 @@ void FStreamableTextureResource::RefreshSamplerStates()
 		AddressU,
 		AddressV,
 		AddressW,
-		MipBias
+		MipBias,
+		MaxAniso
 	);
 	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 

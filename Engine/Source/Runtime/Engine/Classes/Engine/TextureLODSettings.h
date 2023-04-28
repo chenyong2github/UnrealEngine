@@ -42,6 +42,7 @@ struct ENGINE_API FTextureLODGroup
 		, VirtualTextureTileSizeBias(0)
 		, LossyCompressionAmount(TLCA_Default)
 		, CookPlatformTilingDisabled(false)
+		, MaxAniso(0)
 	{
 		SetupGroup();
 	}
@@ -136,6 +137,10 @@ struct ENGINE_API FTextureLODGroup
 	/** If true textures with CookPlatformTilingSettings set to TCPTS_FromTextureGroup will not be tiled during cook. They will be tiled when uploaded to the GPU if necessary */
 	UPROPERTY()
 	bool CookPlatformTilingDisabled;
+
+	/** Allows us to override max anisotropy. If unspecified, uses r.MaxAnisotropy */
+	UPROPERTY()
+	int32 MaxAniso;
 
 	void SetupGroup();
 

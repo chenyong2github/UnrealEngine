@@ -1027,13 +1027,15 @@ void FSharedSamplerState::InitRHI()
 {
 	const float MipMapBias = UTexture2D::GetGlobalMipMapLODBias();
 
+	const UTextureLODSettings* TextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
 	FSamplerStateInitializerRHI SamplerStateInitializer
 	(
-	(ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(TEXTUREGROUP_World),
+	(ESamplerFilter)TextureLODSettings->GetSamplerFilter(TEXTUREGROUP_World),
 		bWrap ? AM_Wrap : AM_Clamp,
 		bWrap ? AM_Wrap : AM_Clamp,
 		bWrap ? AM_Wrap : AM_Clamp,
-		MipMapBias
+		MipMapBias,
+		TextureLODSettings->GetTextureLODGroup(TEXTUREGROUP_World).MaxAniso
 	);
 	SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 }

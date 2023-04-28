@@ -1890,6 +1890,7 @@ private:
 	// may not have a valid value if FViewInfo is created on the render thread.
 	ESamplerFilter WorldTextureGroupSamplerFilter;
 	ESamplerFilter TerrainWeightmapTextureGroupSamplerFilter;
+	int32 WorldTextureGroupMaxAnisotropy;
 	bool bIsValidTextureGroupSamplerFilters;
 
 	FSceneViewState* GetEyeAdaptationViewState() const;

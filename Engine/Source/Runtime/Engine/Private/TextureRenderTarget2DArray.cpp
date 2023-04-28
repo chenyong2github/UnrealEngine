@@ -268,12 +268,15 @@ void FTextureRenderTarget2DArrayResource::InitDynamicRHI()
 	}
 
 	// Create the sampler state RHI resource.
+	const UTextureLODSettings* TextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
 	FSamplerStateInitializerRHI SamplerStateInitializer
 	(
-		(ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(Owner),
+		(ESamplerFilter)TextureLODSettings->GetSamplerFilter(Owner),
 		AM_Wrap,
 		AM_Wrap,
-		AM_Wrap
+		AM_Wrap,
+		0,
+		TextureLODSettings->GetTextureLODGroup(Owner->LODGroup).MaxAniso
 	);
 	SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 }

@@ -115,6 +115,9 @@ protected:
 	/** Whether this texture should be updated using the virtual address mapping for each mip. */
 	bool bUsePartiallyResidentMips = false;
 
+	/** Max anisotropy. if 0, will use r.MaxAnisotropy */
+	int8 MaxAniso = 0;
+
 #if STATS
 private:
 	void CalcRequestedMipsSize();
