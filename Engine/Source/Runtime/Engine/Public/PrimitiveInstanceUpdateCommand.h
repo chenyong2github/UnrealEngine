@@ -40,9 +40,9 @@ struct FInstanceUpdateCmdBuffer
 	ENGINE_API FInstanceUpdateCmdBuffer();
 
 	// Commands that can modify render data in place
-	void HideInstance(int32 RenderIndex);
-	void AddInstance(const FMatrix& InTransform);
-	void AddInstance(int32 InstanceId, const FMatrix& InTransform, const FMatrix& InPreviousTransform, TConstArrayView<float> InCustomDataFloats);
+	void ENGINE_API HideInstance(int32 RenderIndex);
+	void ENGINE_API AddInstance(const FMatrix& InTransform);
+	void ENGINE_API AddInstance(int32 InstanceId, const FMatrix& InTransform, const FMatrix& InPreviousTransform, TConstArrayView<float> InCustomDataFloats);
 	void UpdateInstance(int32 RenderIndex, const FMatrix& InTransform);
 	void UpdateInstance(int32 RenderIndex, const FMatrix& InTransform, const FMatrix& InPreviousTransform);
 	void SetEditorData(int32 RenderIndex, const FColor& Color, bool bSelected);
@@ -52,7 +52,7 @@ struct FInstanceUpdateCmdBuffer
 	int32 NumInlineCommands() const { return Cmds.Num(); }
 
 	// Command that can't be in-lined and should cause full buffer rebuild
-	void Edit();
+	void ENGINE_API Edit();
 	void Reset();
 	int32 NumTotalCommands() const { return NumEdits; };
 
