@@ -2311,6 +2311,22 @@ void FD3D12DynamicRHI::RHIUnlockTexture2DArray(FRHITexture2DArray* TextureRHI, u
 	Texture->Unlock(nullptr, MipIndex, TextureIndex);
 }
 
+void* FD3D12DynamicRHI::RHILockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* TextureRHI, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail)
+{
+	check(TextureRHI);
+	FD3D12Texture* TextureCube = FD3D12DynamicRHI::ResourceCast(TextureRHI);
+	uint32 D3DFace = GetD3D12CubeFace((ECubeFace)FaceIndex);
+	return TextureCube->Lock(&RHICmdList, MipIndex, D3DFace + ArrayIndex * 6, LockMode, DestStride);
+}
+
+void FD3D12DynamicRHI::RHIUnlockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* TextureRHI, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, bool bLockWithinMiptail)
+{
+	check(TextureRHI);
+	FD3D12Texture* TextureCube = FD3D12DynamicRHI::ResourceCast(TextureRHI);
+	uint32 D3DFace = GetD3D12CubeFace((ECubeFace)FaceIndex);
+	TextureCube->Unlock(&RHICmdList, MipIndex, D3DFace + ArrayIndex * 6);
+}
+
 void FD3D12DynamicRHI::RHIUpdateTexture2D(FRHICommandListBase& RHICmdList, FRHITexture2D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
 {
 	check(TextureRHI);
