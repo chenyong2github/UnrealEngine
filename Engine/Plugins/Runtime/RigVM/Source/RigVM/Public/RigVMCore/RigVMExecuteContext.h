@@ -512,7 +512,10 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		*this = InOther;
 	}
 
-	virtual ~FRigVMExtendedExecuteContext() {}
+	virtual ~FRigVMExtendedExecuteContext()
+	{
+		Reset();
+	}
 
 	void Reset()
 	{

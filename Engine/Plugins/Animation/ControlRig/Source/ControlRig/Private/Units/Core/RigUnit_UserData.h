@@ -88,3 +88,33 @@ struct CONTROLRIG_API FRigUnit_SetupShapeLibraryFromUserData : public FRigUnitMu
 	RIGVM_METHOD()
 	virtual void Execute() override;
 };
+
+/**
+ * Checks whether or not a shape is available in the rig's shape libraries
+ */
+USTRUCT(meta=(DisplayName="Shape Exists", Keywords="Shape,Gizmo,Library,Exists,Contains"))
+struct CONTROLRIG_API FRigUnit_ShapeExists : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_ShapeExists()
+	{
+		ShapeName = NAME_None;
+		Result = false;
+	}
+
+	/*
+	 * The name of the shape to search for
+	 */
+	UPROPERTY(meta = (Input))
+	FName ShapeName;
+
+	/*
+	 * True if the shape name exists in any of the shape libraries 
+	 */
+	UPROPERTY(meta = (Output))
+	bool Result;
+
+	RIGVM_METHOD()
+	virtual void Execute() override;
+};

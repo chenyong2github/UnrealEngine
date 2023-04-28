@@ -228,3 +228,12 @@ FRigUnit_SetupShapeLibraryFromUserData_Execute()
 	}
 #endif
 }
+
+FRigUnit_ShapeExists_Execute()
+{
+	Result = false;
+	if (ExecuteContext.OnShapeExistsDelegate.IsBound())
+	{
+		Result = ExecuteContext.OnShapeExistsDelegate.Execute(ShapeName);
+	}
+}

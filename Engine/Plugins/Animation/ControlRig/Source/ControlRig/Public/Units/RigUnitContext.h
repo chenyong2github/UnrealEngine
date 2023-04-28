@@ -103,6 +103,13 @@ struct FControlRigExecuteContext : public FRigVMExecuteContext
 	{
 	}
 
+	virtual void Reset() override
+	{
+		Super::Reset();
+		OnAddShapeLibraryDelegate.Unbind();
+		OnShapeExistsDelegate.Unbind();
+	}
+
 	virtual void Copy(const FRigVMExecuteContext* InOtherContext) override
 	{
 		Super::Copy(InOtherContext);
@@ -139,7 +146,11 @@ struct FControlRigExecuteContext : public FRigVMExecuteContext
 	TArray<const UAssetUserData*> AssetUserData;
 
 	DECLARE_DELEGATE_FiveParams(FOnAddShapeLibrary, const FControlRigExecuteContext* InContext, const FString&, UControlRigShapeLibrary*, bool /* replace? */, bool /* log results */);
-	FOnAddShapeLibrary OnAddShapeLibraryDelegate; 
+	FOnAddShapeLibrary OnAddShapeLibraryDelegate;
+
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnShapeExists, const FName&);
+	FOnShapeExists OnShapeExistsDelegate;
+	
 	FRigUnitContext UnitContext;
 	URigHierarchy* Hierarchy;
 };

@@ -461,6 +461,7 @@ private:
 	FRigEventDelegate RigEventDelegate;
 
 	void OnAddShapeLibrary(const FControlRigExecuteContext* InContext, const FString& InLibraryName, UControlRigShapeLibrary* InShapeLibrary, bool bReplaceExisting, bool bLogResults);
+	bool OnShapeExists(const FName& InShapeName) const;
 	virtual void InitializeFromCDO() override;
 
 

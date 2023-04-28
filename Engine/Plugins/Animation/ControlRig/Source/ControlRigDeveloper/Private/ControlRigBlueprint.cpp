@@ -313,6 +313,26 @@ void UControlRigBlueprint::PostEditChangeChainProperty(FPropertyChangedChainEven
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 	PostEditChangeChainPropertyEvent.Broadcast(PropertyChangedEvent);
+
+	// Propagate shape libraries
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, ShapeLibraries))
+	{
+		URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false /* create if needed */));
+
+		TArray<UObject*> ArchetypeInstances;
+		CDO->GetArchetypeInstances(ArchetypeInstances);
+		ArchetypeInstances.Add(CDO);
+
+		// Propagate libraries to archetypes
+		for (UObject* Instance : ArchetypeInstances)
+		{
+			if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
+			{
+				InstanceRig->ShapeLibraries = ShapeLibraries;
+			}
+		}
+	}
 }
 
 void UControlRigBlueprint::PostRename(UObject* OldOuter, const FName OldName)

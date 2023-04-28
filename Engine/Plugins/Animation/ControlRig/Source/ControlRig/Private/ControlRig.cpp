@@ -271,6 +271,17 @@ void UControlRig::OnAddShapeLibrary(const FControlRigExecuteContext* InContext, 
 #endif
 }
 
+bool UControlRig::OnShapeExists(const FName& InShapeName) const
+{
+	const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& Libraries = GetShapeLibraries();
+	if (UControlRigShapeLibrary::GetShapeByName(InShapeName, GetShapeLibraries(), ShapeLibraryNameMap))
+	{
+		return true;
+	}
+	
+	return false;
+}
+
 bool UControlRig::InitializeVM(const FName& InEventName)
 {
 	if(!Super::InitializeVM(InEventName))
@@ -520,6 +531,7 @@ bool UControlRig::Execute(const FName& InEventName)
 
 	// allow access to the shape libraries
 	PublicContext.OnAddShapeLibraryDelegate.BindUObject(this, &UControlRig::OnAddShapeLibrary);
+	PublicContext.OnShapeExistsDelegate.BindUObject(this, &UControlRig::OnShapeExists);
 
 	// allow access to the default hierarchy to allow to reset
 	if(!HasAnyFlags(RF_ClassDefaultObject))
