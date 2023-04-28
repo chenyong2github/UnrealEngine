@@ -58,6 +58,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Info", meta = (DisplayName = "Image Resolution"))
 	FIntPoint ImageDimensions = FIntPoint(1920, 1080);
 
+	/** Squeeze Factor (or Pixel Aspect) for anamorphic lenses. Spherical Lenses should keep this default to 1.0f */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Info")
+	float SqueezeFactor = 1.0f;
 };
 
 /**

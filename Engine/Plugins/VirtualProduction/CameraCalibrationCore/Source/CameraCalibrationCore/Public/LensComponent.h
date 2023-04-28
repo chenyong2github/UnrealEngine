@@ -254,6 +254,9 @@ private:
 	/** Updates the camera's filmback based on the filmback override settings */
 	void UpdateCameraFilmback(UCineCameraComponent* CineCameraComponent);
 
+	/** Returns the sensor width of the input CineCamera, factoring in its squeeze factor */
+	float GetDesqueezedSensorWidth(UCineCameraComponent* const CineCameraComponent) const;
+
 protected:
 	/** Lens File used to drive distortion with current camera settings */
 	UPROPERTY(EditAnywhere, Category="Lens File", meta=(ShowOnlyInnerProperties))

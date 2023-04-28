@@ -281,7 +281,7 @@ void FCameraCalibrationStepsController::UpdateCGResolution(bool bCompResized)
 
 	const FIntPoint CGResolution = CGLayerPtr->GetRenderResolution();
 	const float CGLayerAspectRatio = (CGResolution.Y != 0) ? (float)CGResolution.X / (float)CGResolution.Y : 0.0f;
-	const float FilmbackAspectRatio = CineCameraComponentPtr->Filmback.SensorAspectRatio;
+	const float FilmbackAspectRatio = CineCameraComponentPtr->AspectRatio;
 
 	// Early-out if the filmback is somehow 0.0f (which shouldn't be possible)
 	if (FMath::IsNearlyEqual(FilmbackAspectRatio, 0.0f))
@@ -348,7 +348,7 @@ void FCameraCalibrationStepsController::SetCameraFeedDimensionsFromMousePosition
 		if (CineCameraComponent.IsValid())
 		{
 			const float CameraFeedAspectRatio = CameraFeedDimensions.X / (float)CameraFeedDimensions.Y;
-			const float CameraAspectRatio = CineCameraComponent->Filmback.SensorAspectRatio;
+			const float CameraAspectRatio = CineCameraComponent->AspectRatio;
 
 			// If the two aspect ratios are within the acceptable tolerance, attempt to minimize the aspect ratio difference by adjusting the camera feed dimensions
 			constexpr float AspectRatioNudgeTolerance = 0.1f;

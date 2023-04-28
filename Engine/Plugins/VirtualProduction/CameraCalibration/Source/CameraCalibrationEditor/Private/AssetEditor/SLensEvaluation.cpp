@@ -137,7 +137,7 @@ void SLensEvaluation::CacheLensFileEvaluationInputs()
 		FFocalLengthInfo FocalLength;
 		if (LensFile->EvaluateFocalLength(EvalInputs.Focus, EvalInputs.Zoom, FocalLength))
 		{
-			CachedFIZData.EvaluatedZoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
+			CachedFIZData.EvaluatedZoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X * LensFile->LensInfo.SqueezeFactor;
 		}
 	}
 }
@@ -497,7 +497,8 @@ TSharedRef<SWidget> SLensEvaluation::MakeEvaluatedFIZWidget() const
 				{
 					if (CachedFIZData.EvaluatedZoom.IsSet())
 					{
-						const float FOV = FMath::RadiansToDegrees(2.f * FMath::Atan(LensFile->LensInfo.SensorDimensions.X / (2.f * CachedFIZData.EvaluatedZoom.GetValue())));
+						const float DesqueezedSensorWidth = LensFile->LensInfo.SensorDimensions.X * LensFile->LensInfo.SqueezeFactor;
+						const float FOV = FMath::RadiansToDegrees(2.f * FMath::Atan(DesqueezedSensorWidth / (2.f * CachedFIZData.EvaluatedZoom.GetValue())));
 						const FText ValueText = FText::AsNumber(FOV, &FloatOptions);
 						return FText::Format(LOCTEXT("PhysicalUnitsFOVValue", "{0} deg"), ValueText);
 					}

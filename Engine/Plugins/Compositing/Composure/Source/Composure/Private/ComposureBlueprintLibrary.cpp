@@ -92,7 +92,7 @@ void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraCompone
 			}
 			else
 			{
-				const float OverscanSensorWidth = SrcCineCameraComponent->Filmback.SensorWidth * OverscanFactor;
+				const float OverscanSensorWidth = SrcCineCameraComponent->Filmback.SensorWidth * SrcCineCameraComponent->LensSettings.SqueezeFactor * OverscanFactor;
 				Dst->FOVAngle = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * OriginalFocalLength)));
 			}
 		}

@@ -57,6 +57,9 @@ private:
 	/** Determines the visibility of the aspect ratio warning by comparing the camera feed aspect ratio with that of the camera actor */
 	EVisibility HandleAspectRatioWarningVisibility() const;
 
+	/** Determines the visibility of the camera settings warning by comparing the filmback and squeeze factor in the LensFile with that of the camera actor */
+	EVisibility GetFilmbackWarningVisibility() const;
+
 private:
 
 	/** Pointer to the calibration steps controller */

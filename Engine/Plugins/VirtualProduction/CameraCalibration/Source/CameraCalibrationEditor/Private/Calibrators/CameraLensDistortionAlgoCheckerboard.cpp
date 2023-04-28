@@ -448,12 +448,6 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildUI()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("ShowDetection", "Show Detection"), BuildShowDetectionWidget())]
 
-	+ SVerticalBox::Slot() // Pixel Aspect
-		.VAlign(EVerticalAlignment::VAlign_Top)
-		.AutoHeight()
-		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("PixelAspect", "Pixel Aspect"), BuildPixelAspectWidget())]
-
 	+ SVerticalBox::Slot() // Fix Focal Length
 		.VAlign(EVerticalAlignment::VAlign_Top)
 		.AutoHeight()
@@ -643,6 +637,8 @@ bool UCameraLensDistortionAlgoCheckerboard::GetLensDistortion(
 	float TestFocalLength = StepsController->GetLensFileEvaluationInputs().Zoom;
 	float TestSensorWidth = StepsController->GetLensFileEvaluationInputs().Filmback.SensorWidth;
 
+	const float PixelAspect = LensFile->LensInfo.SqueezeFactor;
+
 	if (CVarFixFocalLengthValue.GetValueOnGameThread() > 1.0f)
 	{
 		TestFocalLength = CVarFixFocalLengthValue.GetValueOnGameThread();
@@ -659,6 +655,8 @@ bool UCameraLensDistortionAlgoCheckerboard::GetLensDistortion(
 	{
 		TestImageHeight = CVarImageHeightValue.GetValueOnGameThread();
 	}
+
+	TestSensorWidth = TestSensorWidth * PixelAspect;
 
 	float Fx = TestImageWidth;
 	if (!FMath::IsNearlyZero(TestSensorWidth))
@@ -826,17 +824,6 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildShowDetectionWid
 	{
 		bShouldShowDetectionWindow = (NewState == ECheckBoxState::Checked);
 	});
-}
-
-TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildPixelAspectWidget()
-{
-	return SNew(SNumericEntryBox<float>)
-		.Value_Lambda([&]() { return PixelAspect; })
-		.ToolTipText(LOCTEXT("Pixel Aspect", "Pixel Aspect"))
-		.OnValueChanged_Lambda([&](double InValue)
-		{
-			PixelAspect = InValue;
-		});
 }
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildFixFocalLengthWidget()

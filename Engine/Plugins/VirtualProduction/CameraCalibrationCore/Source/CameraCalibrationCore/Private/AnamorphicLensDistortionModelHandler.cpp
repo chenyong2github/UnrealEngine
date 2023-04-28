@@ -15,7 +15,7 @@ FVector2D UAnamorphicLensDistortionModelHandler::ComputeDistortedUV(const FVecto
 	// The following implementation is based on the 3DE4 Anamorphic - Standard, Degree 4 model for distortion
 
 	// Pre-compute some values that will be useful later
-	const FVector2D FilmbackSize = FVector2D(CameraFilmback.SensorWidth, CameraFilmback.SensorHeight);
+	const FVector2D FilmbackSize = FVector2D(CameraFilmback.SensorWidth * AnamorphicParameters.PixelAspect, CameraFilmback.SensorHeight);
 
 	// Guard against divide-by-zero errors
 	if (FMath::IsNearlyZero(FilmbackSize.X) || FMath::IsNearlyZero(FilmbackSize.Y) || FMath::IsNearlyZero(AnamorphicParameters.PixelAspect))
@@ -95,7 +95,7 @@ void UAnamorphicLensDistortionModelHandler::UpdateMaterialParameters()
 	{
 		MID->SetScalarParameterValue("pixel_aspect", AnamorphicParameters.PixelAspect);
 
- 		MID->SetScalarParameterValue("w_fb", CameraFilmback.SensorWidth);
+ 		MID->SetScalarParameterValue("w_fb", CameraFilmback.SensorWidth * AnamorphicParameters.PixelAspect);
  		MID->SetScalarParameterValue("h_fb", CameraFilmback.SensorHeight);
 
 		MID->SetScalarParameterValue("cx02", AnamorphicParameters.CX02);

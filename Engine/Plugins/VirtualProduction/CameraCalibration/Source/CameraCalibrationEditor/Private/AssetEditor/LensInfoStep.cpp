@@ -2,6 +2,7 @@
 
 #include "LensInfoStep.h"
 
+#include "Camera/CameraActor.h"
 #include "CameraCalibrationStepsController.h"
 #include "IStructureDetailsView.h"
 #include "LensFile.h"
@@ -74,6 +75,18 @@ TSharedRef<SWidget> ULensInfoStep::BuildUI()
 				.OnResetToDefault(FSimpleDelegate::CreateUObject(this, &ULensInfoStep::ResetToDefault))
 				.DiffersFromDefault(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateUObject(this, &ULensInfoStep::DiffersFromDefault)))
 			]
+		]
+
+		+ SVerticalBox::Slot() // Text Warning that the camera info does not match the cine camera's settings
+		.AutoHeight()
+		.Padding(0, 10)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("CameraSettingMismatch", "These filmback settings do not match the settings of the CineCamera.\nIf they are expected to match, set the FilmbackOverride setting on the LensComponent to \"LensFile\"."))
+			.ColorAndOpacity(FSlateColor(FLinearColor::Yellow))
+			.Justification(ETextJustify::Center)
+			.AutoWrapText(true)
+			.Visibility_UObject(this, &ULensInfoStep::GetFilmbackWarningVisibility)
 		]
 
 		+ SVerticalBox::Slot() // Camera Feed information structure
@@ -305,6 +318,39 @@ EVisibility ULensInfoStep::HandleAspectRatioWarningVisibility() const
 			// Display the warning if the difference between the two aspect ratios is higher than the acceptable tolerance
 			constexpr float AspectRatioErrorTolerance = 0.01f;
 			if (!FMath::IsNearlyEqual(CameraFeedAspectRatio, CGCameraAspectRatio, AspectRatioErrorTolerance))
+			{
+				return EVisibility::Visible;
+			}
+		}
+	}
+
+	return EVisibility::Collapsed;
+}
+
+EVisibility ULensInfoStep::GetFilmbackWarningVisibility() const
+{
+	if (TSharedPtr<FCameraCalibrationStepsController> StepsController = CameraCalibrationStepsController.Pin())
+	{
+		ULensFile* LensFile = StepsController->GetLensFile();
+		UCineCameraComponent* CineCameraComponent = nullptr;
+
+		if (ACameraActor* Camera = StepsController->GetCamera())
+		{
+			TInlineComponentArray<UCineCameraComponent*> CameraComponents;
+			Camera->GetComponents(CameraComponents);
+
+			if (CameraComponents.Num() > 0)
+			{
+				CineCameraComponent = CameraComponents[0];
+			}
+		}
+
+		if (LensFile && CineCameraComponent)
+		{
+			const FVector2D LensFileFilmback = LensFile->LensInfo.SensorDimensions;
+			if ((LensFile->LensInfo.SensorDimensions.X != CineCameraComponent->Filmback.SensorWidth) ||
+				(LensFile->LensInfo.SensorDimensions.Y != CineCameraComponent->Filmback.SensorHeight) ||
+				(LensFile->LensInfo.SqueezeFactor != CineCameraComponent->LensSettings.SqueezeFactor))
 			{
 				return EVisibility::Visible;
 			}
