@@ -184,5 +184,17 @@ namespace UnrealBuildTool
 			Arguments.Add("-Wno-unused-value");
 			Arguments.Add("-Wno-bitfield-enum-conversion");
 		}
+
+		// Additional disabled warnings for Intel. Everything below should be checked if it is necessary
+		internal static void GetIntelDisabledWarnings(List<string> Arguments)
+		{
+			Arguments.Add("-Wno-deprecated-copy");
+			Arguments.Add("-Wno-deprecated-copy-with-user-provided-copy");
+			Arguments.Add("-Wno-enum-constexpr-conversion");
+			Arguments.Add("-Wno-format");
+			Arguments.Add("-Wno-implicit-float-size-conversion");
+			Arguments.Add("-Wno-null-pointer-subtraction");
+			Arguments.Add("-Wno-single-bit-bitfield-constant-conversion");
+		}
 	}
 }

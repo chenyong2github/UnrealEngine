@@ -54,6 +54,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly VersionNumberRange[] BannedVisualCppVersions = new VersionNumberRange[]
 		{
+			VersionNumberRange.Parse("14.30.0", "14.33.99999"), // VS2022 17.0.x - 17.3.x
 		};
 
 		static readonly VersionNumber MinimumVisualCppVersion = new VersionNumber(14, 29, 30133);
@@ -64,10 +65,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly VersionNumberRange[] PreferredIntelOneApiVersions =
 		{
-			VersionNumberRange.Parse("2022.2.0", "2022.9999"),
+			VersionNumberRange.Parse("2023.1.0", "2023.9999"),
 		};
 
-		static readonly VersionNumber MinimumIntelOneApiVersion = new VersionNumber(2022, 2, 0);
+		static readonly VersionNumber MinimumIntelOneApiVersion = new VersionNumber(2023, 0, 0);
 
 		/// <inheritdoc/>
 		public override string GetMainVersion()

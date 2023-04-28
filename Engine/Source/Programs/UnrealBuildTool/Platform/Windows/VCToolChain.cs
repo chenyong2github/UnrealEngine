@@ -1008,6 +1008,11 @@ namespace UnrealBuildTool
 				// Additional disabled warnings for msvc. Everything below should be checked if it is necessary
 				ClangWarnings.GetVCDisabledWarnings(Arguments);
 			}
+
+			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
+			{
+				ClangWarnings.GetIntelDisabledWarnings(Arguments);
+			}
 		}
 
 		static void AppendCLArguments_C(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
