@@ -10,6 +10,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
 #include "NiagaraNodeInput.h"
+#include "NiagaraSettings.h"
 #include "SNiagaraNamePropertySelector.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceGrid2DCollectionDetails"
@@ -20,9 +21,7 @@ FNiagaraDataInterfaceGrid2DCollectionDetails::~FNiagaraDataInterfaceGrid2DCollec
 
 void FNiagaraDataInterfaceGrid2DCollectionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	static const FName Grid2DCollectionCategoryName = TEXT("Grid2DCollection");
-
-	LayoutBuilder = &DetailBuilder;
+	static const FName GridCollectionCategoryName = TEXT("Grid");
 
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 	DetailBuilder.GetObjectsBeingCustomized(SelectedObjects);
@@ -37,24 +36,22 @@ void FNiagaraDataInterfaceGrid2DCollectionDetails::CustomizeDetails(IDetailLayou
 	Grid2DInterface->OnChanged().RemoveAll(this);
 	Grid2DInterface->OnChanged().AddSP(this, &FNiagaraDataInterfaceGrid2DCollectionDetails::OnInterfaceChanged);
 
-	Grid2DCollectionCategory = &DetailBuilder.EditCategory(Grid2DCollectionCategoryName, LOCTEXT("Grid2DCollectionCat", "Grid2DCollection"));
+	IDetailCategoryBuilder* GridCollectionCategory = &DetailBuilder.EditCategory(GridCollectionCategoryName);
 	{
 		TArray<TSharedRef<IPropertyHandle>> Properties;
-		Grid2DCollectionCategory->GetDefaultProperties(Properties, true, true);
-
-		TSharedPtr<IPropertyHandle> PreviewAttributeProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid2DCollection, PreviewAttribute));
+		GridCollectionCategory->GetDefaultProperties(Properties, true, true);
 
 		for (TSharedPtr<IPropertyHandle> Property : Properties)
 		{
 			FProperty* PropertyPtr = Property->GetProperty();
 
-			if (PropertyPtr == PreviewAttributeProperty->GetProperty())
+			if (PropertyPtr->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid2DCollection, PreviewAttribute))
 			{
 				TArray<TSharedPtr<FName>> PossibleNames;
 				GeneratePreviewAttributes(PossibleNames);
 				PreviewAttributesBuilder = SNew(SNiagaraNamePropertySelector, Property.ToSharedRef(), PossibleNames);
 
-				IDetailPropertyRow& PropertyRow = Grid2DCollectionCategory->AddProperty(Property);
+				IDetailPropertyRow& PropertyRow = GridCollectionCategory->AddProperty(Property);
 				PropertyRow.CustomWidget(false)
 					.NameContent()
 					[
@@ -66,9 +63,36 @@ void FNiagaraDataInterfaceGrid2DCollectionDetails::CustomizeDetails(IDetailLayou
 						PreviewAttributesBuilder.ToSharedRef()
 					];
 			}
+			else if (PropertyPtr->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid2DCollection, OverrideBufferFormat))
+			{
+				IDetailPropertyRow& PropertyRow = GridCollectionCategory->AddProperty(Property);
+				PropertyRow.CustomWidget(false)
+				.NameContent()
+				[
+					Property->CreatePropertyNameWidget()
+				]
+				.ValueContent()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					[
+						SNew(STextBlock)
+						.Visibility(this, &FNiagaraDataInterfaceGrid2DCollectionDetails::IsOverideFormatInvisibile)
+						.Text(this, &FNiagaraDataInterfaceGrid2DCollectionDetails::GetDefaultFormatText)
+					]
+					+ SHorizontalBox::Slot()
+					[
+						SNew(SBox)
+						.Visibility(this, &FNiagaraDataInterfaceGrid2DCollectionDetails::IsOverideFormatVisibile)
+						[
+							Property->CreatePropertyValueWidget()
+						]
+					]
+				];
+			}
 			else
 			{
-				Grid2DCollectionCategory->AddProperty(Property);
+				GridCollectionCategory->AddProperty(Property);
 			}
 		}
 	}
@@ -137,6 +161,26 @@ void FNiagaraDataInterfaceGrid2DCollectionDetails::GeneratePreviewAttributes(TAr
 			SourceArray.Add(MakeShared<FName>(FName(*AttributeName)));
 		}
 	}
+}
+
+EVisibility FNiagaraDataInterfaceGrid2DCollectionDetails::IsOverideFormatVisibile() const
+{
+	UNiagaraDataInterfaceGrid2DCollection* Grid2D = Grid2DInterfacePtr.Get();
+	return Grid2D && Grid2D->bOverrideFormat ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility FNiagaraDataInterfaceGrid2DCollectionDetails::IsOverideFormatInvisibile() const
+{
+	UNiagaraDataInterfaceGrid2DCollection* Grid2D = Grid2DInterfacePtr.Get();
+	return Grid2D && !Grid2D->bOverrideFormat ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FText FNiagaraDataInterfaceGrid2DCollectionDetails::GetDefaultFormatText() const
+{
+	return FText::Format(
+		LOCTEXT("DefaultGridFormatFormat", "Using Project Default Format - {0}"),
+		StaticEnum<ENiagaraGpuBufferFormat>()->GetDisplayValueAsText(GetDefault<UNiagaraSettings>()->DefaultGridFormat)
+	);
 }
 
 #undef LOCTEXT_NAMESPACE

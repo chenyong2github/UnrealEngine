@@ -29,9 +29,11 @@ private:
 	void OnDataChanged();
 	void GeneratePreviewAttributes(TArray<TSharedPtr<FName>>& SourceArray);
 
+	EVisibility IsOverideFormatVisibile() const;
+	EVisibility IsOverideFormatInvisibile() const;
+	FText GetDefaultFormatText() const;
+
 private:
 	TWeakObjectPtr<UNiagaraDataInterfaceGrid3DCollection> Grid3DInterfacePtr;
 	TSharedPtr<SNiagaraNamePropertySelector> PreviewAttributesBuilder;
-	IDetailLayoutBuilder* LayoutBuilder = nullptr;
-	IDetailCategoryBuilder* Grid3DCollectionCategory = nullptr;
 };

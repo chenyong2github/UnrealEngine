@@ -10,6 +10,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
 #include "NiagaraNodeInput.h"
+#include "NiagaraSettings.h"
 #include "SNiagaraNamePropertySelector.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceGrid3DCollectionDetails"
@@ -20,9 +21,7 @@ FNiagaraDataInterfaceGrid3DCollectionDetails::~FNiagaraDataInterfaceGrid3DCollec
 
 void FNiagaraDataInterfaceGrid3DCollectionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	static const FName Grid3DCollectionCategoryName = TEXT("Grid3DCollection");
-
-	LayoutBuilder = &DetailBuilder;
+	static const FName GridCollectionCategoryName = TEXT("Grid");
 
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 	DetailBuilder.GetObjectsBeingCustomized(SelectedObjects);
@@ -37,24 +36,22 @@ void FNiagaraDataInterfaceGrid3DCollectionDetails::CustomizeDetails(IDetailLayou
 	Grid3DInterface->OnChanged().RemoveAll(this);
 	Grid3DInterface->OnChanged().AddSP(this, &FNiagaraDataInterfaceGrid3DCollectionDetails::OnInterfaceChanged);
 
-	Grid3DCollectionCategory = &DetailBuilder.EditCategory(Grid3DCollectionCategoryName, LOCTEXT("Grid3DCollectionCat", "Grid3DCollection"));
+	IDetailCategoryBuilder* GridCollectionCategory = &DetailBuilder.EditCategory(GridCollectionCategoryName);
 	{
 		TArray<TSharedRef<IPropertyHandle>> Properties;
-		Grid3DCollectionCategory->GetDefaultProperties(Properties, true, true);
-
-		TSharedPtr<IPropertyHandle> PreviewAttributeProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3DCollection, PreviewAttribute));
+		GridCollectionCategory->GetDefaultProperties(Properties, true, true);
 
 		for (TSharedPtr<IPropertyHandle> Property : Properties)
 		{
 			FProperty* PropertyPtr = Property->GetProperty();
 
-			if (PropertyPtr == PreviewAttributeProperty->GetProperty())
+			if (PropertyPtr->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3DCollection, PreviewAttribute))
 			{
 				TArray<TSharedPtr<FName>> PossibleNames;
 				GeneratePreviewAttributes(PossibleNames);
 				PreviewAttributesBuilder = SNew(SNiagaraNamePropertySelector, Property.ToSharedRef(), PossibleNames);
 
-				IDetailPropertyRow& PropertyRow = Grid3DCollectionCategory->AddProperty(Property);
+				IDetailPropertyRow& PropertyRow = GridCollectionCategory->AddProperty(Property);
 				PropertyRow.CustomWidget(false)
 					.NameContent()
 					[
@@ -66,9 +63,36 @@ void FNiagaraDataInterfaceGrid3DCollectionDetails::CustomizeDetails(IDetailLayou
 						PreviewAttributesBuilder.ToSharedRef()
 					];
 			}
+			else if (PropertyPtr->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceGrid3DCollection, OverrideBufferFormat))
+			{
+				IDetailPropertyRow& PropertyRow = GridCollectionCategory->AddProperty(Property);
+				PropertyRow.CustomWidget(false)
+				.NameContent()
+				[
+					Property->CreatePropertyNameWidget()
+				]
+				.ValueContent()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					[
+						SNew(STextBlock)
+						.Visibility(this, &FNiagaraDataInterfaceGrid3DCollectionDetails::IsOverideFormatInvisibile)
+						.Text(this, &FNiagaraDataInterfaceGrid3DCollectionDetails::GetDefaultFormatText)
+					]
+					+ SHorizontalBox::Slot()
+					[
+						SNew(SBox)
+						.Visibility(this, &FNiagaraDataInterfaceGrid3DCollectionDetails::IsOverideFormatVisibile)
+						[
+							Property->CreatePropertyValueWidget()
+						]
+					]
+				];
+			}
 			else
 			{
-				Grid3DCollectionCategory->AddProperty(Property);
+				GridCollectionCategory->AddProperty(Property);
 			}
 		}
 	}
@@ -137,6 +161,26 @@ void FNiagaraDataInterfaceGrid3DCollectionDetails::GeneratePreviewAttributes(TAr
 			SourceArray.Add(MakeShared<FName>(FName(*AttributeName)));
 		}
 	}
+}
+
+EVisibility FNiagaraDataInterfaceGrid3DCollectionDetails::IsOverideFormatVisibile() const
+{
+	UNiagaraDataInterfaceGrid3DCollection* Grid3D = Grid3DInterfacePtr.Get();
+	return Grid3D && Grid3D->bOverrideFormat ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility FNiagaraDataInterfaceGrid3DCollectionDetails::IsOverideFormatInvisibile() const
+{
+	UNiagaraDataInterfaceGrid3DCollection* Grid3D = Grid3DInterfacePtr.Get();
+	return Grid3D && !Grid3D->bOverrideFormat ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FText FNiagaraDataInterfaceGrid3DCollectionDetails::GetDefaultFormatText() const
+{
+	return FText::Format(
+		LOCTEXT("DefaultGridFormatFormat", "Using Project Default Format - {0}"),
+		StaticEnum<ENiagaraGpuBufferFormat>()->GetDisplayValueAsText(GetDefault<UNiagaraSettings>()->DefaultGridFormat)
+	);
 }
 
 #undef LOCTEXT_NAMESPACE
