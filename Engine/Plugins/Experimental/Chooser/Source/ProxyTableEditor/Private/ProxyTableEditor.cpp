@@ -31,6 +31,7 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ProxyTableEditorCommands.h"
+#include "LookupProxy.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "ProxyTableEditor"

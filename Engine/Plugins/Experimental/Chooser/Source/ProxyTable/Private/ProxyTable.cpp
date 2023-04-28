@@ -1,98 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProxyTable.h"
-#include "ProxyTableFunctionLibrary.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "ChooserPropertyAccess.h"
 #include "Logging/LogMacros.h"
-#include "UObject/Package.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogProxyTable,Log,All);
 
-#if WITH_EDITOR
-void UProxyAsset::PostEditUndo()
-{
-	UObject::PostEditUndo();
-
-	if (CachedPreviousType != Type)
-	{
-		OnTypeChanged.Broadcast(Type);
-		CachedPreviousType = Type;
-	}
-	
-	OnContextClassChanged.Broadcast();
-}
-
-void UProxyAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	UObject::PostEditChangeProperty(PropertyChangedEvent);
-	
-	static FName TypeName = "Type";
-	static FName ContextClassName = "ContextData";
-	if (PropertyChangedEvent.Property->GetName() == TypeName)
-	{
-		if (CachedPreviousType != Type)
-		{
-			OnTypeChanged.Broadcast(Type);
-		}
-		CachedPreviousType = Type;
-	}
-	else if (PropertyChangedEvent.Property->GetName() == ContextClassName)
-	{
-		OnContextClassChanged.Broadcast();
-	}
-}
-
-#endif
-
-
-FLookupProxy::FLookupProxy()
-{
-}
-
 #if WITH_EDITORONLY_DATA
-
-/////////////////////////////////////////////////////////////////////////////////////////
-// Proxy Asset
-
-void UProxyAsset::PostLoad()
-{
-	Super::PostLoad();
-
-#if WITH_EDITOR
-	CachedPreviousType = Type;
-#endif
-	
-#if WITH_EDITORONLY_DATA
-	if (ContextClass_DEPRECATED)
-	{
-		
-		ContextData.SetNum(1);
-		ContextData[0].InitializeAs<FContextObjectTypeClass>();
-		FContextObjectTypeClass& Context = ContextData[0].GetMutable<FContextObjectTypeClass>();
-		Context.Class = ContextClass_DEPRECATED;
-		Context.Direction = EContextObjectDirection::ReadWrite;
-		ContextClass_DEPRECATED = nullptr;
-	}
-#endif
-
-	if (!Guid.IsValid())
-	{
-		// if we load a ProxyAsset that was created before the Guid, assign it a deterministic guid based on the name and path.
-		Guid.A = GetTypeHash(GetName());
-		Guid.B = GetTypeHash(GetPackage()->GetPathName());
-	}
-
-}
-
-void UProxyAsset::PostDuplicate(EDuplicateMode::Type DuplicateMode)
-{
-	UObject::PostDuplicate(DuplicateMode);
-	if (DuplicateMode == EDuplicateMode::Normal)
-	{
-		// create a new guid when duplicating
-		Guid = FGuid::NewGuid();
-	}
-}
 
 //////////////////////////////////////////////////////////////////////////////////////
 /// Proxy Entry
@@ -267,91 +180,8 @@ UObject* UProxyTable::FindProxyObject(const FGuid& Key, FChooserEvaluationContex
 	return nullptr;
 }
 
-static UObject* FindProxyObject(const UProxyAsset* Proxy, FChooserEvaluationContext Context)
-{
-	if (Proxy && Proxy->ProxyTable.IsValid())
-	{
-		const UProxyTable* Table;
-		if (Proxy->ProxyTable.Get<FChooserParameterProxyTableBase>().GetValue(Context, Table))
-		{
-			if(Table)
-			{
-				if (UObject* Value = Table->FindProxyObject(Proxy->Guid, Context))
-				{
-					return Value;
-				}
-			}
-		}
-	}
-	
-	return nullptr;
-}
-
-UObject* FLookupProxy::ChooseObject(FChooserEvaluationContext& Context) const
-{
-	return FindProxyObject(Proxy, Context);
-}
-
 UProxyTable::UProxyTable(const FObjectInitializer& Initializer)
 	:Super(Initializer)
 {
 
-}
-
-UProxyAsset::UProxyAsset(const FObjectInitializer& Initializer)
-	: Super(Initializer)
-{
-	ProxyTable.InitializeAs(FProxyTableContextProperty::StaticStruct());
-}
-
-bool FProxyTableContextProperty::GetValue(FChooserEvaluationContext& Context, const UProxyTable*& OutResult) const
-{
-	const UStruct* StructType = nullptr;
-	const void* Container = nullptr;
-	
-	if (UE::Chooser::ResolvePropertyChain(Context, Binding,Container, StructType))
-	{
-		if (const FObjectProperty* Property = FindFProperty<FObjectProperty>(StructType, Binding.PropertyBindingChain.Last()))
-		{
-			OutResult = *Property->ContainerPtrToValuePtr<UProxyTable*>(Container);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////
-// Blueprint Library Functions
-
-UObject* UProxyTableFunctionLibrary::EvaluateProxyAsset(const UObject* ContextObject, const UProxyAsset* Proxy, TSubclassOf<UObject> ObjectClass)
-{
-	FChooserEvaluationContext Context;
-	Context.ContextData.Add({ContextObject->GetClass(), const_cast<UObject*>(ContextObject)});
-	
-	UObject* Result = FindProxyObject(Proxy, Context);
-	if (ObjectClass && Result && !Result->IsA(ObjectClass))
-	{
-		return nullptr;
-	}
-	return Result;
-	
-}
-
-// fallback for FName based Keys:
-UObject* UProxyTableFunctionLibrary::EvaluateProxyTable(const UObject* ContextObject, const UProxyTable* ProxyTable, FName Key)
-{
-	if (ProxyTable)
-	{
-		FGuid Guid;
-		Guid.A = GetTypeHash(Key);
-		FChooserEvaluationContext Context;
-		Context.ContextData.Add({ContextObject->GetClass(), const_cast<UObject*>(ContextObject)});
-		if (UObject* Value = ProxyTable->FindProxyObject(Guid, Context))
-		{
-			return Value;
-		}
-	}
-	
-	return nullptr;
 }
