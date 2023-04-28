@@ -57,12 +57,12 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 	RootComponent = SplineComp;
 
 	WaterInfoMeshComponent = CreateDefaultSubobject<UWaterBodyInfoMeshComponent>(TEXT("WaterInfoMeshComponent"));
+	WaterInfoMeshComponent->SetMobility(EComponentMobility::Static);
 	WaterInfoMeshComponent->SetupAttachment(RootComponent);
-	WaterInfoMeshComponent->SetMobility(EComponentMobility::Movable);
 
 	DilatedWaterInfoMeshComponent = CreateDefaultSubobject<UWaterBodyInfoMeshComponent>(TEXT("DilatedWaterInfoMeshComponent"));
+	DilatedWaterInfoMeshComponent->SetMobility(EComponentMobility::Static);
 	DilatedWaterInfoMeshComponent->SetupAttachment(RootComponent);
-	DilatedWaterInfoMeshComponent->SetMobility(EComponentMobility::Movable);
 
 #if WITH_EDITORONLY_DATA
 	bAffectsLandscape_DEPRECATED = true;
@@ -84,6 +84,11 @@ void AWaterBody::PreRegisterAllComponents()
 
 	SetRootComponent(WaterBodyComponent);
 	SplineComp->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::KeepRelativeTransform);
+	
+	WaterInfoMeshComponent->SetMobility(WaterBodyComponent->Mobility);
+	WaterInfoMeshComponent->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	DilatedWaterInfoMeshComponent->SetMobility(WaterBodyComponent->Mobility);
+	DilatedWaterInfoMeshComponent->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 }
 
 void AWaterBody::NotifyActorBeginOverlap(AActor* OtherActor)
