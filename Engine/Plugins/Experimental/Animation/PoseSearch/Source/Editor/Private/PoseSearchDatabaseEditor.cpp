@@ -1,25 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchDatabaseEditor.h"
-#include "PoseSearchDatabaseAssetTree.h"
-#include "SPoseSearchDatabaseViewport.h"
-#include "PoseSearchDatabasePreviewScene.h"
-#include "PoseSearchDatabaseEditorCommands.h"
-#include "PoseSearchDatabaseViewModel.h"
-#include "PoseSearchDatabaseEditorReflection.h"
-#include "PoseSearchEditor.h"
-#include "PoseSearch/PoseSearchDerivedData.h"
+#include "AdvancedPreviewSceneModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/WorldSettings.h"
-#include "AdvancedPreviewSceneModule.h"
-#include "InstancedStruct.h"
 #include "IStructureDetailsView.h"
-#include "PropertyEditorModule.h"
+#include "InstancedStruct.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Layout/SScrollBox.h"
+#include "PoseSearch/PoseSearchDerivedData.h"
+#include "PoseSearchDatabaseAssetTree.h"
+#include "PoseSearchDatabaseDataDetails.h"
+#include "PoseSearchDatabaseEditorCommands.h"
+#include "PoseSearchDatabaseEditorReflection.h"
+#include "PoseSearchDatabasePreviewScene.h"
+#include "PoseSearchDatabaseViewModel.h"
+#include "PoseSearchEditor.h"
+#include "PropertyEditorModule.h"
+#include "SPoseSearchDatabaseViewport.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchDatabaseEditor"
 
@@ -36,6 +37,7 @@ namespace UE::PoseSearch
 		static const FName AssetTreeViewID;
 		static const FName SelectionDetailsID;
 		static const FName StatisticsOverview;
+		static const FName DataDetailsID;
 	};
 
 	const FName FDatabaseEditorTabs::AssetDetailsID(TEXT("PoseSearchDatabaseEditorAssetDetailsTabID"));
@@ -44,7 +46,8 @@ namespace UE::PoseSearch
 	const FName FDatabaseEditorTabs::AssetTreeViewID(TEXT("PoseSearchDatabaseEditorAssetTreeViewTabID"));
 	const FName FDatabaseEditorTabs::SelectionDetailsID(TEXT("PoseSearchDatabaseEditorSelectionDetailsID"));
 	const FName FDatabaseEditorTabs::StatisticsOverview(TEXT("PoseSearchDatabaseEditorStatisticsOverviewID"));
-	
+	const FName FDatabaseEditorTabs::DataDetailsID(TEXT("PoseSearchDatabaseEditorDataDetailsTabID"));
+
 	const UPoseSearchDatabase* FDatabaseEditor::GetPoseSearchDatabase() const
 	{
 		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
@@ -55,21 +58,13 @@ namespace UE::PoseSearch
 		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
 	}
 
-	void FDatabaseEditor::SetSelectedPoseIdx(int32 PoseIdx)
+	void FDatabaseEditor::SetSelectedPoseIdx(int32 PoseIdx, bool bDrawQuery, TConstArrayView<float> InQueryVector)
 	{
 		if (ViewModel.IsValid())
 		{
 			const bool bClearSelection = !FSlateApplication::Get().GetModifierKeys().IsControlDown() || ViewModel->IsEditorSelection();
-			const int32 SourceAssetIdx = ViewModel->SetSelectedNode(PoseIdx, bClearSelection);
+			const int32 SourceAssetIdx = ViewModel->SetSelectedNode(PoseIdx, bClearSelection, bDrawQuery, InQueryVector);
 			AssetTreeWidget->SetSelectedItem(SourceAssetIdx, bClearSelection);
-		}
-	}
-
-	void FDatabaseEditor::SetQueryVector(TConstArrayView<float> InQueryVector)
-	{
-		if (ViewModel.IsValid())
-		{
-			ViewModel->SetQueryVector(InQueryVector);
 		}
 	}
 
@@ -138,7 +133,15 @@ namespace UE::PoseSearch
 
 		// Create view model
 		ViewModel = MakeShared<FDatabaseViewModel>();
-		ViewModel->Initialize(DatabaseAsset, PreviewScene.ToSharedRef());
+
+		// Create Data Details widget
+		DataDetails = SNew(SDatabaseDataDetails, ViewModel.ToSharedRef());
+
+		// Initialize view model
+		ViewModel->Initialize(DatabaseAsset, PreviewScene.ToSharedRef(), DataDetails.ToSharedRef());
+
+		// Initialize DataDetails
+		DataDetails->Reconstruct();
 
 		// Create viewport widget
 		{
@@ -222,7 +225,7 @@ namespace UE::PoseSearch
 		
 		// Define Editor Layout
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout =
-		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.12")
+		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.13")
 			->AddArea
 			(
 				FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
@@ -262,6 +265,7 @@ namespace UE::PoseSearch
 						->SetSizeCoefficient(0.4f)
 						->AddTab(FDatabaseEditorTabs::StatisticsOverview, ETabState::OpenedTab)
 						->AddTab(FDatabaseEditorTabs::PreviewSettingsID, ETabState::OpenedTab)
+						->AddTab(FDatabaseEditorTabs::DataDetailsID, ETabState::OpenedTab)
 						->AddTab(FDatabaseEditorTabs::SelectionDetailsID, ETabState::OpenedTab)
 					)
 				)
@@ -287,7 +291,7 @@ namespace UE::PoseSearch
 	{
 		WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(
 			LOCTEXT("WorkspaceMenu_PoseSearchDbEditor", "Pose Search Database Editor"));
-		auto WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
+		TSharedRef<FWorkspaceItem> WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
 
 		FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
@@ -327,11 +331,18 @@ namespace UE::PoseSearch
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 
 		InTabManager->RegisterTabSpawner(
-		FDatabaseEditorTabs::StatisticsOverview,
-		FOnSpawnTab::CreateSP(this, &FDatabaseEditor::SpawnTab_StatisticsOverview))
-		.SetDisplayName(LOCTEXT("StatisticsOverviewTab", "Statistics Overview"))
-		.SetGroup(WorkspaceMenuCategoryRef)
-		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
+			FDatabaseEditorTabs::StatisticsOverview,
+			FOnSpawnTab::CreateSP(this, &FDatabaseEditor::SpawnTab_StatisticsOverview))
+			.SetDisplayName(LOCTEXT("StatisticsOverviewTab", "Statistics Overview"))
+			.SetGroup(WorkspaceMenuCategoryRef)
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
+
+		InTabManager->RegisterTabSpawner(
+			FDatabaseEditorTabs::DataDetailsID,
+			FOnSpawnTab::CreateSP(this, &FDatabaseEditor::SpawnTab_DataDetails))
+			.SetDisplayName(LOCTEXT("DataDetailsTab", "Data Details"))
+			.SetGroup(WorkspaceMenuCategoryRef)
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 	}
 
 	void FDatabaseEditor::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -344,6 +355,7 @@ namespace UE::PoseSearch
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::AssetTreeViewID);
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::SelectionDetailsID);
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::StatisticsOverview);
+		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::DataDetailsID);
 	}
 
 	FName FDatabaseEditor::GetToolkitFName() const
@@ -459,6 +471,17 @@ namespace UE::PoseSearch
 		];
 	}
 
+	TSharedRef<SDockTab> FDatabaseEditor::SpawnTab_DataDetails(const FSpawnTabArgs& Args) const
+	{
+		check(Args.GetTabId() == FDatabaseEditorTabs::DataDetailsID);
+		
+		return SNew(SDockTab)
+			.Label(LOCTEXT("DataDetails_Title", "Data Details"))
+			[
+				DataDetails.ToSharedRef()
+			];
+	}
+
 	void FDatabaseEditor::OnFinishedChangingSelectionProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 	{
 	}
@@ -468,7 +491,7 @@ namespace UE::PoseSearch
 		ESelectInfo::Type SelectionType)
 	{
 		// Reset selected objects on all selection widgets
-		for (auto& SelectionWidgetPair : SelectionWidgets)
+		for (TPair<const UScriptStruct*, FSelectionWidget>& SelectionWidgetPair : SelectionWidgets)
 		{
 			SelectionWidgetPair.Value.SelectedReflections.Reset();
 		}
@@ -542,7 +565,7 @@ namespace UE::PoseSearch
 			}
 		}
 
-		for (auto& SelectionWidgetPair : SelectionWidgets)
+		for (TPair<const UScriptStruct*, FSelectionWidget>& SelectionWidgetPair : SelectionWidgets)
 		{
 			FSelectionWidget& SelectionWidget = SelectionWidgetPair.Value;
 

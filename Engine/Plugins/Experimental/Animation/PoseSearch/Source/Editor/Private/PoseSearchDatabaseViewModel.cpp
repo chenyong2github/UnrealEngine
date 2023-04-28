@@ -1,28 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchDatabaseViewModel.h"
-#include "PoseSearchDatabasePreviewScene.h"
-#include "PoseSearchDatabaseAssetTreeNode.h"
-#include "PoseSearchEditor.h"
-#include "PoseSearch/PoseSearchDatabase.h"
-#include "PoseSearch/PoseSearchDefines.h"
-#include "PoseSearch/PoseSearchDerivedData.h"
-#include "PoseSearch/PoseSearchSchema.h"
-#include "Modules/ModuleManager.h"
 #include "AnimPreviewInstance.h"
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/MirrorDataTable.h"
-#include "Animation/BlendSpace.h"
-#include "EngineUtils.h"
-#include "InstancedStruct.h"
-#include "PropertyEditorModule.h"
-#include "Modules/ModuleManager.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
+#include "InstancedStruct.h"
+#include "Modules/ModuleManager.h"
+#include "PoseSearch/PoseSearchDatabase.h"
+#include "PoseSearch/PoseSearchDefines.h"
+#include "PoseSearch/PoseSearchDerivedData.h"
+#include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearchDatabaseAssetTreeNode.h"
+#include "PoseSearchDatabaseDataDetails.h"
+#include "PoseSearchDatabasePreviewScene.h"
+#include "PoseSearchEditor.h"
+#include "PropertyEditorModule.h"
 
 namespace UE::PoseSearch
 {
@@ -73,10 +73,11 @@ namespace UE::PoseSearch
 		Collector.AddReferencedObject(PoseSearchDatabase);
 	}
 
-	void FDatabaseViewModel::Initialize(UPoseSearchDatabase* InPoseSearchDatabase, const TSharedRef<FDatabasePreviewScene>& InPreviewScene)
+	void FDatabaseViewModel::Initialize(UPoseSearchDatabase* InPoseSearchDatabase, const TSharedRef<FDatabasePreviewScene>& InPreviewScene, const TSharedRef<SDatabaseDataDetails>& InDatabaseDataDetails)
 	{
 		PoseSearchDatabase = InPoseSearchDatabase;
 		PreviewScenePtr = InPreviewScene;
+		DatabaseDataDetails = InDatabaseDataDetails;
 
 		RemovePreviewActors();
 
@@ -235,7 +236,7 @@ namespace UE::PoseSearch
 			const FPoseSearchIndexAsset& IndexAsset = SearchIndex.Assets[PreviewActor.IndexAssetIndex];
 			float CurrentPlayTime = PlayTime + IndexAsset.SamplingInterval.Min + PreviewActor.PlayTimeOffset;
 			FAnimationRuntime::AdvanceTime(false, CurrentPlayTime, CurrentTime, IndexAsset.SamplingInterval.Max);
-
+			 
 			// time to pose index
 			PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, IndexAsset);
 
@@ -245,7 +246,7 @@ namespace UE::PoseSearch
 
 			if (bQuantizeAnimationToPoseData)
 			{
-				CurrentTime = QuantizedTime;
+				CurrentTime = QuantizedTime; 
 			}
 
 			AnimInstance->SetPosition(CurrentTime * TimeToAssetTimeMultiplier);
@@ -284,7 +285,7 @@ namespace UE::PoseSearch
 		bIsEditorSelection = true;
 		bDrawQueryVector = false;
 
-		for (auto PreviewActor : PreviewActors)
+		for (FDatabasePreviewActor& PreviewActor : PreviewActors)
 		{
 			// @todo: PreviewActor.Actor is a TWeakObjectPtr so it can be null.
 			PreviewActor.Actor->Destroy();
@@ -395,7 +396,7 @@ namespace UE::PoseSearch
 		return false;
 	}
 
-	int32 FDatabaseViewModel::SetSelectedNode(int32 PoseIdx, bool bClearSelection)
+	int32 FDatabaseViewModel::SetSelectedNode(int32 PoseIdx, bool bClearSelection, bool bDrawQuery, TConstArrayView<float> InQueryVector)
 	{
 		int32 SelectedSourceAssetIdx = -1;
 
@@ -405,6 +406,8 @@ namespace UE::PoseSearch
 		}
 
 		bIsEditorSelection = false;
+		bDrawQueryVector = bDrawQuery;
+		QueryVector = InQueryVector;
 
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
@@ -432,6 +435,8 @@ namespace UE::PoseSearch
 			}
 
 			ParallelFor(PreviewActors.Num(), [this](int32 PreviewActorIndex) { PreviewActors[PreviewActorIndex].Process(); }, ParallelForFlags);
+
+			DatabaseDataDetails.Pin()->Reconstruct();
 
 			UpdatePreviewActors();
 
@@ -478,6 +483,7 @@ namespace UE::PoseSearch
 
 			ParallelFor(PreviewActors.Num(), [this](int32 PreviewActorIndex) { PreviewActors[PreviewActorIndex].Process(); }, ParallelForFlags);
 
+			DatabaseDataDetails.Pin()->Reconstruct();
 			UpdatePreviewActors();
 		}
 
@@ -490,6 +496,15 @@ namespace UE::PoseSearch
 		if (const FDatabasePreviewActor* SelectedPreviewActor = PreviewActors.FindByPredicate([Actor](const FDatabasePreviewActor& PreviewActor) { return PreviewActor.Actor == Actor; }))
 		{
 			SelectedActorIndexAssetIndex = SelectedPreviewActor->IndexAssetIndex;
+		}
+	}
+
+	void FDatabaseViewModel::SetDrawQueryVector(bool bValue)
+	{
+		if (bDrawQueryVector != bValue)
+		{
+			bDrawQueryVector = bValue;
+			DatabaseDataDetails.Pin()->Reconstruct();
 		}
 	}
 

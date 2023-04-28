@@ -162,10 +162,12 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 	using namespace DebuggerDatabaseColumns;
 
 	bool bIsVerbose = false;
-	auto DebuggerView = ParentDebuggerViewPtr.Pin();
-	if (DebuggerView.IsValid())
+
+	TSharedPtr<FDebuggerViewModel> ViewModel;
+	if (TSharedPtr<SDebuggerView> DebuggerView = ParentDebuggerViewPtr.Pin())
 	{
-		bIsVerbose = DebuggerView->GetViewModel()->IsVerbose();
+		ViewModel = DebuggerView->GetViewModel();
+		bIsVerbose = ViewModel->IsVerbose();
 	}
 
 	UnfilteredDatabaseRows.Reset();
@@ -257,7 +259,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 			}
 		};
 
-		for (auto& UnfilteredRow : UnfilteredDatabaseRows)
+		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
 		{
 			ArrayMinMax(UnfilteredRow->CostBreakdowns, MinCostBreakdowns, MaxCostBreakdowns, UE_MAX_FLT);
 		}
@@ -297,7 +299,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 
 		TArray<float> CostBreakdownsColorBlend;
 		CostBreakdownsColorBlend.Init(0, CostBreakdownsCardinality);
-		for (auto& UnfilteredRow : UnfilteredDatabaseRows)
+		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
 		{
 			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
 			{
@@ -312,7 +314,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 
 		float MinCost = UE_MAX_FLT;
 		float MaxCost = -UE_MAX_FLT;
-		for (auto& UnfilteredRow : UnfilteredDatabaseRows)
+		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
 		{
 			const float Cost = UnfilteredRow->PoseCost.GetTotalCost();
 			MinCost = FMath::Min(MinCost, Cost);
@@ -320,7 +322,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		}
 
 		const float DeltaCost = MaxCost - MinCost;
-		for (auto& UnfilteredRow : UnfilteredDatabaseRows)
+		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
 		{
 			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
 			{
@@ -343,10 +345,10 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 
 		// Construct all column types
 		int32 ColumnIdx = 0;
-		AddColumn(MakeShared<FDatabaseName>(ColumnIdx++));
+		AddColumn(MakeShared<FDatabaseName>(ColumnIdx++, ViewModel));
 		AddColumn(MakeShared<FAssetName>(ColumnIdx++));
 
-		auto CostColumn = MakeShared<FCost>(ColumnIdx++);
+		TSharedRef<FCost> CostColumn = MakeShared<FCost>(ColumnIdx++);
 		AddColumn(CostColumn);
 
 		int32 LabelIdx = 0;
@@ -522,7 +524,7 @@ void SDebuggerDatabaseView::PopulateViewRows()
 	const bool bHasNameFilter = !Tokens.IsEmpty();
 	FRegexPattern Pattern(FilterString);
 
-	for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
+	for (const TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
 	{
 		bool bTryAddToFilteredDatabaseViewRows = true;
 		if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::Valid_ContinuingPose))

@@ -23,6 +23,7 @@ class UMirrorDataTable;
 namespace UE::PoseSearch
 {
 	class FDatabaseAssetTreeNode;
+	class SDatabaseDataDetails;
 
 	enum class EFeaturesDrawMode : uint8
 	{
@@ -66,7 +67,7 @@ namespace UE::PoseSearch
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 		virtual FString GetReferencerName() const override { return TEXT("FPoseSearchDatabaseViewModel"); }
 
-		void Initialize(UPoseSearchDatabase* InPoseSearchDatabase, const TSharedRef<FDatabasePreviewScene>& InPreviewScene);
+		void Initialize(UPoseSearchDatabase* InPoseSearchDatabase, const TSharedRef<FDatabasePreviewScene>& InPreviewScene, const TSharedRef<SDatabaseDataDetails>& InDatabaseDataDetails);
 
 		void RemovePreviewActors();
 		void BuildSearchIndex();
@@ -108,13 +109,12 @@ namespace UE::PoseSearch
 		void SetIsEnabled(int32 AnimationAssetIndex, bool bEnabled);
 		bool IsEnabled(int32 AnimationAssetIndex) const;
 
-		int32 SetSelectedNode(int32 PoseIdx, bool bClearSelection);
+		int32 SetSelectedNode(int32 PoseIdx, bool bClearSelection, bool bDrawQuery, TConstArrayView<float> InQueryVector);
 		void SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes);
 		void ProcessSelectedActor(AActor* Actor);
 		
-		void SetQueryVector(TConstArrayView<float> InQueryVector) { QueryVector = InQueryVector; }
 		TConstArrayView<float> GetQueryVector() const { return QueryVector; }
-		void SetDrawQueryVector(bool bValue) { bDrawQueryVector = bValue; }
+		void SetDrawQueryVector(bool bValue);
 		bool ShouldDrawQueryVector() const { return bDrawQueryVector && !bIsEditorSelection; }
 
 		const FPoseSearchIndexAsset* GetSelectedActorIndexAsset() const;
@@ -136,6 +136,9 @@ namespace UE::PoseSearch
 
 		/** Weak pointer to the PreviewScene */
 		TWeakPtr<FDatabasePreviewScene> PreviewScenePtr;
+
+		/** Weak pointer to the SDatabaseDataDetails */
+		TWeakPtr<SDatabaseDataDetails> DatabaseDataDetails;
 
 		/** Actors to be displayed in the preview viewport */
 		TArray<FDatabasePreviewActor> PreviewActors;

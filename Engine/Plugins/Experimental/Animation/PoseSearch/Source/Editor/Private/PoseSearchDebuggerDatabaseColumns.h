@@ -3,13 +3,14 @@
 #pragma once
 
 #include "AnimPreviewInstance.h"
+#include "Animation/DebugSkelMeshComponent.h"
 #include "Editor.h"
 #include "IAnimationEditor.h"
 #include "IPersonaToolkit.h"
 #include "PoseSearchDatabaseEditor.h"
 #include "PoseSearchDatabaseViewModel.h"
 #include "PoseSearchDebuggerDatabaseRowData.h"
-#include "Animation/DebugSkelMeshComponent.h"
+#include "PoseSearchDebuggerViewModel.h"
 #include "Preferences/PersonaOptions.h"
 #include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -108,7 +109,13 @@ struct FPoseIdx : ITextColumn
 
 struct FDatabaseName : IColumn
 {
-	using IColumn::IColumn;
+	TSharedPtr<FDebuggerViewModel> DebuggerViewModel;
+
+	FDatabaseName(int32 InSortIndex, TSharedPtr<FDebuggerViewModel> InDebuggerViewModel)
+	: IColumn(InSortIndex)
+	, DebuggerViewModel(InDebuggerViewModel)
+	{
+	}
 
 	virtual FText GetLabel() const override
 	{
@@ -123,53 +130,55 @@ struct FDatabaseName : IColumn
 	virtual TSharedRef<SWidget> GenerateWidget(const FRowDataRef& RowData) const override
 	{
 		return SNew(SHyperlink)
-			.Text_Lambda([RowData]() -> FText { return FText::FromString(RowData->SharedData->DatabaseName); })
-			.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
-			.ToolTipText_Lambda([RowData]() -> FText
+		.Text_Lambda([RowData]() -> FText
+		{
+			return FText::FromString(RowData->SharedData->DatabaseName);
+		})
+		.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
+		.ToolTipText_Lambda([RowData]() -> FText
+		{
+			return FText::Format(
+				LOCTEXT("DatabaseHyperlinkTooltipFormat", "Open database '{0}'"),
+				FText::FromString(RowData->SharedData->DatabasePath));
+		})
+		.OnNavigate_Lambda([this, RowData]()
+		{
+			UObject* Asset = nullptr;
+
+			// Load asset
+			if (UPackage* Package = LoadPackage(NULL, *RowData->SharedData->DatabasePath, LOAD_NoRedirects))
+			{
+				Package->FullyLoad();
+
+				const FString AssetName = FPaths::GetBaseFilename(RowData->SharedData->DatabasePath);
+				Asset = FindObject<UObject>(Package, *AssetName);
+			}
+			else
+			{
+				// Fallback for unsaved assets
+				Asset = FindObject<UObject>(nullptr, *RowData->SharedData->DatabasePath);
+			}
+
+			// Open editor
+			if (Asset != nullptr)
+			{
+				if (UAssetEditorSubsystem* AssetEditorSS = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
 				{
-					return FText::Format(
-						LOCTEXT("DatabaseHyperlinkTooltipFormat", "Open database '{0}'"),
-						FText::FromString(RowData->SharedData->DatabasePath));
-				})
-			.OnNavigate_Lambda([RowData]()
-				{
-					UObject* Asset = nullptr;
-
-					// Load asset
-					if (UPackage* Package = LoadPackage(NULL, *RowData->SharedData->DatabasePath, LOAD_NoRedirects))
-					{
-						Package->FullyLoad();
-
-						const FString AssetName = FPaths::GetBaseFilename(RowData->SharedData->DatabasePath);
-						Asset = FindObject<UObject>(Package, *AssetName);
-					}
-					else
-					{
-						// Fallback for unsaved assets
-						Asset = FindObject<UObject>(nullptr, *RowData->SharedData->DatabasePath);
-					}
-
-					// Open editor
-					if (Asset != nullptr)
-					{
-						if (UAssetEditorSubsystem* AssetEditorSS = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
-						{
-							AssetEditorSS->OpenEditorForAsset(Asset);
+					AssetEditorSS->OpenEditorForAsset(Asset);
 								
-							if (IAssetEditorInstance* Editor = AssetEditorSS->FindEditorForAsset(Asset, true))
-							{
-								if (Editor->GetEditorName() == FName("PoseSearchDatabaseEditor"))
-								{
-									FDatabaseEditor* DatabaseEditor = static_cast<FDatabaseEditor*>(Editor);
+					if (IAssetEditorInstance* Editor = AssetEditorSS->FindEditorForAsset(Asset, true))
+					{
+						if (Editor->GetEditorName() == FName("PoseSearchDatabaseEditor"))
+						{
+							FDatabaseEditor* DatabaseEditor = static_cast<FDatabaseEditor*>(Editor);
 									
-									// Open asset paused and at specific time as seen on the pose search debugger.
-									DatabaseEditor->SetSelectedPoseIdx(RowData->PoseIdx);
-									DatabaseEditor->SetQueryVector(RowData->SharedData->QueryVector);
-								}
-							}
+							// Open asset paused and at specific time as seen on the pose search debugger.
+							DatabaseEditor->SetSelectedPoseIdx(RowData->PoseIdx, DebuggerViewModel->GetDrawQuery(), RowData->SharedData->QueryVector);
 						}
 					}
-				});
+				}
+			}
+		});
 	}
 };
 

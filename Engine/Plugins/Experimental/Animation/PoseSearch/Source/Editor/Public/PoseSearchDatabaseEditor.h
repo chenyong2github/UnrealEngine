@@ -16,6 +16,7 @@ namespace UE::PoseSearch
 	class FDatabasePreviewScene;
 	class FDatabaseViewModel;
 	class SDatabaseAssetTree;
+	class SDatabaseDataDetails;
 	class SDatabasePreview;
 
 	class FDatabaseEditor : public FAssetEditorToolkit, public FNotifyHook
@@ -40,8 +41,7 @@ namespace UE::PoseSearch
 		FDatabaseViewModel* GetViewModel() const { return ViewModel.Get(); }
 		TSharedPtr<FDatabaseViewModel> GetViewModelSharedPtr() const { return ViewModel; }
 		
-		void SetSelectedPoseIdx(int32 PoseIdx);
-		void SetQueryVector(TConstArrayView<float> InQueryVector);
+		void SetSelectedPoseIdx(int32 PoseIdx, bool bDrawQuery, TConstArrayView<float> InQueryVector);
 		void SetDrawQueryVector(bool bValue);
 		
 		void PreviewBackwardEnd();
@@ -60,6 +60,7 @@ namespace UE::PoseSearch
 		TSharedRef<SDockTab> SpawnTab_AssetTreeView(const FSpawnTabArgs& Args);
 		TSharedRef<SDockTab> SpawnTab_SelectionDetails(const FSpawnTabArgs& Args);
 		TSharedRef<SDockTab> SpawnTab_StatisticsOverview(const FSpawnTabArgs& Args) const;
+		TSharedRef<SDockTab> SpawnTab_DataDetails(const FSpawnTabArgs& Args) const;
 		
 		void OnFinishedChangingSelectionProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 		void OnAssetTreeSelectionChanged(
@@ -79,6 +80,8 @@ namespace UE::PoseSearch
 
 		TSharedPtr<SDatabaseAssetTree> AssetTreeWidget;
 
+		TSharedPtr<SDatabaseDataDetails> DataDetails;
+		
 		TSharedPtr<IDetailsView> EditingAssetWidget;
 
 		TSharedPtr<SVerticalBox> DetailsContainer;
