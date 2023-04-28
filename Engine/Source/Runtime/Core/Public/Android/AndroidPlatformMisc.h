@@ -315,6 +315,9 @@ public:
 
 	static void ShowConsoleWindow();
 
+	static FDelegateHandle AddNetworkListener(FOnNetworkConnectionChangedDelegate&& InNewDelegate);
+	static bool RemoveNetworkListener(FDelegateHandle Handle);
+
 private:
 	static const ANSICHAR* CodeToString(int Signal, int si_code);
 	static EDeviceScreenOrientation DeviceOrientation;

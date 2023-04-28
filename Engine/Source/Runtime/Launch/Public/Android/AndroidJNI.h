@@ -135,6 +135,10 @@ public:
 	// Motion controls
 	static jmethodID AndroidThunkJava_EnableMotion;
 
+	// Network Connection Listener
+	static jmethodID AndroidThunkJava_AddNetworkListener;
+	static jmethodID AndroidThunkJava_RemoveNetworkListener;
+
 	// member fields for getting the launch notification
 	static jclass LaunchNotificationClass;
 	static jfieldID LaunchNotificationUsed;

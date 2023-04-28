@@ -17,6 +17,7 @@
 #endif
 
 class Error;
+class FDelegateHandle;
 class FOutputDevice;
 class FString;
 class FText;
@@ -26,6 +27,7 @@ class IPlatformChunkInstall;
 class IPlatformCompression;
 class IPlatformHostCommunication;
 struct FCustomChunk;
+struct FDefaultDelegateUserPolicy;
 struct FGenericCrashContext;
 struct FGenericMemoryWarningContext;
 struct FGuid;
@@ -34,6 +36,9 @@ enum class ECustomChunkType : uint8;
 
 template <typename FuncType>
 class TFunction;
+
+template <typename FuncType, typename UserPolicy>
+class TDelegate;
 
 #if UE_BUILD_SHIPPING && !WITH_EDITOR
 #define UE_DEBUG_BREAK() ((void)0)
@@ -371,6 +376,8 @@ enum class ENetworkConnectionType : uint8
 	Ethernet,
 };
 
+typedef TDelegate<void(ENetworkConnectionType ConnectionType), FDefaultDelegateUserPolicy> FOnNetworkConnectionChangedDelegate;
+
 enum class EProcessDiagnosticFlags : uint32
 {
 	None            = 0,
@@ -540,6 +547,10 @@ struct CORE_API FGenericPlatformMisc
 	static void PlatformPreInit();
 	static void PlatformInit() { }
 
+
+	static FDelegateHandle AddNetworkListener(FOnNetworkConnectionChangedDelegate&& InNewDelegate);
+	static bool RemoveNetworkListener(FDelegateHandle Handle);
+	
 	/**
 	* Called to dismiss splash screen
 	*/

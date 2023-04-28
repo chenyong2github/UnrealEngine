@@ -76,7 +76,6 @@ protected:
 	void Java_OnDownloadComplete(jobject UnderlyingWorker, FString RequestID, FString CompleteLocation, bool bWasSuccess);
 	void Java_OnAllDownloadsComplete(jobject UnderlyingWorker, bool bDidAllRequestsSucceed);
 	void Java_OnTick(JNIEnv* Env, jobject UnderlyingWorker);
-	void Java_OnNetworkChanged(JNIEnv* Env, bool bNetworkIsConnected);
 
 	//Helper function that completes any un-completed requests in the underlying java tracking layer so that they will
 	//complete on the next Tick. Mostly used to help when the underlying java error hits a failure. Ensures when any
@@ -124,6 +123,9 @@ protected:
 
 	//Rechecks any _GT lists to try and move them to _Java lists if its safe to do so
 	void HandleRequestsWaitingOnJavaThreadsafety();
+
+	void OnNetworkConnectionChanged(ENetworkConnectionType ConnectionType);
+	FDelegateHandle OnNetworkConnectionChangedDelegateHandle;
 
 protected:
 	//Used to determine the state of AndroidBackgroundHTTP in our configrules

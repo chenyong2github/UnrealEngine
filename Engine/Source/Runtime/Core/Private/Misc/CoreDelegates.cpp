@@ -112,6 +112,7 @@ FSimpleMulticastDelegate FCoreDelegates::OnSamplingInput;
 FSimpleMulticastDelegate FCoreDelegates::OnEndFrame;
 FSimpleMulticastDelegate FCoreDelegates::OnBeginFrameRT;
 FSimpleMulticastDelegate FCoreDelegates::OnEndFrameRT;
+FCoreDelegates::FOnNetworkConnectionChanged FCoreDelegates::OnNetworkConnectionChanged;
 TDelegate<EAppReturnType::Type(EAppMsgType::Type, const FText&, const FText&)> FCoreDelegates::ModalErrorMessage;
 TMulticastDelegate<void(const FString&, const FString&)> FCoreDelegates::OnInviteAccepted;
 TMulticastDelegate<void(class UWorld*, FIntVector, FIntVector)> FCoreDelegates::PreWorldOriginOffset;

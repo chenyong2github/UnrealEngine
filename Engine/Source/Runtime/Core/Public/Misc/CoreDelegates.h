@@ -254,6 +254,9 @@ public:
 	/** Called when the OS goes into low power mode */
 	static TMulticastDelegate<void(bool)> OnLowPowerMode;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkConnectionChanged, ENetworkConnectionType /*ConnectionType*/);
+	static FOnNetworkConnectionChanged OnNetworkConnectionChanged;
+
 	static TTSMulticastDelegate<void(const TCHAR* IniFilename, int32& ResponderCount)>& TSCountPreLoadConfigFileRespondersDelegate();
 	static TTSMulticastDelegate<void(const TCHAR* IniFilename, FString& LoadedContents)>& TSPreLoadConfigFileDelegate();
 	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const FString& ContentsToSave, int32& SavedCount)>& TSPreSaveConfigFileDelegate();

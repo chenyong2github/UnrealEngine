@@ -3,6 +3,7 @@
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/CoreDelegates.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeRWLock.h"
@@ -2025,4 +2026,18 @@ void FGenericPlatformMisc::ShowConsoleWindow()
 #if !UE_BUILD_SHIPPING
 	UE_LOG(LogGenericPlatformMisc, Log, TEXT("Show console is not supported or implemented in current platform"));
 #endif
+}
+
+FDelegateHandle FGenericPlatformMisc::AddNetworkListener(FCoreDelegates::FOnNetworkConnectionChanged::FDelegate&& InNewDelegate)
+{
+	UE_LOG(LogGenericPlatformMisc, Warning, TEXT("FGenericPlatformMisc::AddNetworkListener not implemented for this platform"));
+
+	return FDelegateHandle();
+}
+
+bool FGenericPlatformMisc::RemoveNetworkListener(FDelegateHandle Handle)
+{
+	UE_LOG(LogGenericPlatformMisc, Warning, TEXT("FGenericPlatformMisc::RemoveNetworkListener not implemented for this platform"));
+
+	return false;
 }

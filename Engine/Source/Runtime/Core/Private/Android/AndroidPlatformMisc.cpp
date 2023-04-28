@@ -6,6 +6,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "HAL/IConsoleManager.h"
@@ -576,7 +577,11 @@ void FAndroidMisc::PlatformInit()
 	InitializeJavaEventReceivers();
 	AndroidOnBackgroundBinding = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddStatic(EnableJavaEventReceivers, false);
 	AndroidOnForegroundBinding = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddStatic(EnableJavaEventReceivers, true);
+
+	extern void AndroidThunkJava_AddNetworkListener();
+	AndroidThunkJava_AddNetworkListener();
 #endif
+
 
 	InitCpuThermalSensor();
 
@@ -2831,6 +2836,17 @@ bool FAndroidMisc::HasActiveWiFiConnection()
 }
 #endif
 
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeNetworkChanged(JNIEnv* jenv, jobject thiz)
+{
+	if (FTaskGraphInterface::IsRunning())
+	{
+		FFunctionGraphTask::CreateAndDispatchWhenReady([]()
+		{
+			FCoreDelegates::OnNetworkConnectionChanged.Broadcast(FAndroidMisc::GetNetworkConnectionType());
+		}, TStatId(), NULL, ENamedThreads::GameThread);
+	}
+}
+
 static FAndroidMisc::ReInitWindowCallbackType OnReInitWindowCallback;
 
 FAndroidMisc::ReInitWindowCallbackType FAndroidMisc::GetOnReInitWindowCallback()
@@ -3163,3 +3179,32 @@ void FAndroidMisc::ShowConsoleWindow()
 	AndroidThunkCpp_ShowConsoleWindow();
 #endif // !UE_BUILD_SHIPPING && USE_ANDROID_JNI
 }
+
+FDelegateHandle FAndroidMisc::AddNetworkListener(FCoreDelegates::FOnNetworkConnectionChanged::FDelegate&& InNewDelegate)
+{
+	if (!FCoreDelegates::OnNetworkConnectionChanged.IsBound())
+	{
+#if USE_ANDROID_JNI
+		extern void AndroidThunkJava_AddNetworkListener();
+		AndroidThunkJava_AddNetworkListener();
+#endif
+	}
+
+	return FCoreDelegates::OnNetworkConnectionChanged.Add(MoveTemp(InNewDelegate));
+}
+
+bool FAndroidMisc::RemoveNetworkListener(FDelegateHandle Handle)
+{
+	bool bSuccess = FCoreDelegates::OnNetworkConnectionChanged.Remove(Handle);
+
+	if (!FCoreDelegates::OnNetworkConnectionChanged.IsBound())
+	{
+#if USE_ANDROID_JNI
+		extern void AndroidThunkJava_RemoveNetworkListener();
+		AndroidThunkJava_RemoveNetworkListener();
+#endif
+	}
+
+	return bSuccess;
+}
+

@@ -51,7 +51,6 @@ namespace FAndroidBackgroundDownloadDelegates
 	DECLARE_DELEGATE_FourParams(FAndroidBackgroundDownload_OnComplete, jobject /*UnderlyingWorker*/, FString /*RequestID*/, FString /*CompleteLocation*/, bool /*bWasSuccess*/);
 	DECLARE_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnAllComplete, jobject /*UnderlyingWorker*/, bool /*bDidAllRequestsSucceed*/);
 	DECLARE_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnTickWorkerThread, JNIEnv*, jobject /*UnderlyingWorker*/);
-	DECLARE_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnNetworkChanged, JNIEnv*, bool /*bNetworkIsConnected*/);
 
 	//Delegates called by JNI functions to bubble up underlying java work to the manager
 	FAndroidBackgroundDownload_OnWorkerStart AndroidBackgroundDownload_OnWorkerStart;
@@ -60,7 +59,6 @@ namespace FAndroidBackgroundDownloadDelegates
 	FAndroidBackgroundDownload_OnComplete AndroidBackgroundDownload_OnComplete;
 	FAndroidBackgroundDownload_OnAllComplete AndroidBackgroundDownload_OnAllComplete;
 	FAndroidBackgroundDownload_OnTickWorkerThread AndroidBackgroundDownload_OnTickWorkerThread;
-	FAndroidBackgroundDownload_OnNetworkChanged AndroidBackgroundDownload_OnNetworkChanged;
 };
 
 const FString FAndroidPlatformBackgroundHttpManager::BackgroundHTTPWorkID = TEXT("BackgroundHttpDownload");
@@ -120,13 +118,10 @@ FAndroidPlatformBackgroundHttpManager::FAndroidPlatformBackgroundHttpManager()
 	, bWorkerHadTerminalFinish(false)
 	, AndroidBackgroundHTTPManagerDefaultLocalizedText()
 {
-	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	if (!OnNetworkConnectionChangedDelegateHandle.IsValid())
 	{
-		static jmethodID AddNetworkListenerFunc = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_AFBD_AddNetworkListener", "()V", false);
-		if (AddNetworkListenerFunc != nullptr)
-		{
-			FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, AddNetworkListenerFunc);
-		}
+		OnNetworkConnectionChangedDelegateHandle = FPlatformMisc::AddNetworkListener(
+			FCoreDelegates::FOnNetworkConnectionChanged::FDelegate::CreateRaw(this, &FAndroidPlatformBackgroundHttpManager::OnNetworkConnectionChanged));
 	}
 
 	bNetworkConnected = GetNetworkConnected();
@@ -172,7 +167,6 @@ void FAndroidPlatformBackgroundHttpManager::Initialize()
 	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnComplete.BindSP(this, &FAndroidPlatformBackgroundHttpManager::Java_OnDownloadComplete);
 	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnAllComplete.BindSP(this, &FAndroidPlatformBackgroundHttpManager::Java_OnAllDownloadsComplete);
 	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnTickWorkerThread.BindSP(this, &FAndroidPlatformBackgroundHttpManager::Java_OnTick);
-	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnNetworkChanged.BindSP(this, &FAndroidPlatformBackgroundHttpManager::Java_OnNetworkChanged);
 
 	AndroidBackgroundHTTPManagerDefaultLocalizedText.InitFromIniSettings("AndroidFetchBackgroundDownload");
 	FBackgroundHttpManagerImpl::Initialize();
@@ -180,6 +174,9 @@ void FAndroidPlatformBackgroundHttpManager::Initialize()
 
 void FAndroidPlatformBackgroundHttpManager::Shutdown()
 {
+	FPlatformMisc::RemoveNetworkListener(OnNetworkConnectionChangedDelegateHandle);
+	OnNetworkConnectionChangedDelegateHandle.Reset();
+
 	FBackgroundHttpManagerImpl::Shutdown();
 }
 
@@ -895,16 +892,6 @@ void FAndroidPlatformBackgroundHttpManager::Java_OnTick(JNIEnv* Env, jobject Und
 		}
 	}
 }
-void FAndroidPlatformBackgroundHttpManager::Java_OnNetworkChanged(JNIEnv* Env, bool bNetworkIsConnected)
-{
-	if (bNetworkIsConnected)
-	{
-		UE_LOG(LogBackgroundHttpManager, Display, TEXT("Flagging worker for requeue due to network connection re-establishing."));
-		//On reconnecting to the network flag our worker to force requeue to make sure our work is continued
-		FPlatformAtomics::InterlockedExchange(&bShouldForceWorkerRequeue, true);
-	}
-	
-}
 
 void FAndroidPlatformBackgroundHttpManager::ForceCompleteAllUnderlyingJavaActiveRequestsWithError()
 {
@@ -1136,6 +1123,20 @@ void FAndroidPlatformBackgroundHttpManager::FAndroidBackgroundHTTPManagerDefault
 	}
 }
 
+void FAndroidPlatformBackgroundHttpManager::OnNetworkConnectionChanged(ENetworkConnectionType ConnectionType)
+{
+	bool bNewNetworkConnected = GetNetworkConnected();
+
+	if (bNewNetworkConnected != bNetworkConnected)
+	{
+		bNetworkConnected = bNewNetworkConnected;
+
+		UE_LOG(LogBackgroundHttpManager, Display, TEXT("Flagging worker for requeue due to network connection re-establishing."));
+		//On reconnecting to the network flag our worker to force requeue to make sure our work is continued
+		FPlatformAtomics::InterlockedExchange(&bShouldForceWorkerRequeue, true);
+	}
+}
+
 //
 //JNI methods coming from UEDownloadWorker
 //
@@ -1191,21 +1192,6 @@ JNI_METHOD void Java_com_epicgames_unreal_download_UEDownloadWorker_nativeAndroi
 JNI_METHOD void Java_com_epicgames_unreal_download_UEDownloadWorker_nativeAndroidBackgroundDownloadOnTick(JNIEnv* jenv, jobject thiz)
 {
 	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnTickWorkerThread.ExecuteIfBound(jenv, thiz);
-}
-
-//
-//JNI methods coming from GameActivity
-//
-
-JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeAndroidBackgroundDownloadNetworkChanged(JNIEnv* jenv, jobject thiz)
-{
-	bool bNewNetworkConnected = GetNetworkConnected();
-
-	if (bNewNetworkConnected != bNetworkConnected)
-	{
-		bNetworkConnected = bNewNetworkConnected;
-		FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnNetworkChanged.ExecuteIfBound(jenv, bNetworkConnected);
-	}
 }
 
 

@@ -197,6 +197,10 @@ import android.os.Build;
 
 import com.epicgames.unreal.DownloadShim;
 
+// Network connection change tracking
+import com.epicgames.unreal.network.NetworkConnectivityClient;
+import com.epicgames.unreal.network.NetworkChangedManager;
+
 // used in new virtual keyboard
 import android.view.inputmethod.InputMethodManager;
 
@@ -278,6 +282,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	static float[] current_acceleration = new float[]{0, 0, 0};
 
 	public static Logger Log = new Logger("UE", "GameActivity");
+
+	// For Network connection change tracking
+	private NetworkConnectivityClient.Listener NetworkListener = null;
 
 	// From cpufeatures.h AndroidCpuFamily enum
 	private static final int ANDROID_CPU_FAMILY_UNKNOWN = 0;
@@ -5764,7 +5771,36 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 		return bAirplaneMode ? CONNECTION_TYPE_AIRPLANEMODE : CONNECTION_TYPE_NONE;
 	}
-	
+
+	public void AndroidThunkJava_AddNetworkListener()
+	{
+		if (NetworkListener == null)
+		{
+			NetworkListener = new NetworkConnectivityClient.Listener() {
+				@Override
+				public void onNetworkAvailable(NetworkConnectivityClient.NetworkTransportType networkTransportType)
+				{
+					nativeNetworkChanged();
+				}
+				@Override
+				public void onNetworkLost()
+				{
+					nativeNetworkChanged();
+				}
+			};
+			NetworkChangedManager.getInstance().addListener(NetworkListener);
+		}
+	}
+
+	public void AndroidThunkJava_RemoveNetworkListener()
+	{
+		if (NetworkListener != null)
+		{
+			NetworkChangedManager.getInstance().removeListener(NetworkListener);
+			NetworkListener = null;
+		}
+	}
+
 	public boolean AndroidThunkJava_HasMetaDataKey(String key)
 	{
 		if (_bundle == null || key == null)
@@ -6955,6 +6991,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public native void nativeCrashContextSetIntegerKey(String Key, int Value);
 	public native void nativeCrashContextSetFloatKey(String Key, float Value);
 	public native void nativeCrashContextSetDoubleKey(String Key, double Value);
+
+	public native void nativeNetworkChanged();
 
 	static
 	{

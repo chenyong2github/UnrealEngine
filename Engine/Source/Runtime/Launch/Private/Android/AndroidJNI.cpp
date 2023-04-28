@@ -112,6 +112,8 @@ void FJavaWrapper::FindClassesAndMethods(JNIEnv* Env)
 	AndroidThunkJava_LocalNotificationGetLaunchNotification = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_LocalNotificationGetLaunchNotification", "()Lcom/epicgames/unreal/GameActivity$LaunchNotification;", bIsOptional);
 	AndroidThunkJava_LocalNotificationDestroyIfExists = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_LocalNotificationDestroyIfExists", "(I)Z", bIsOptional);
 	AndroidThunkJava_GetNetworkConnectionType = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_GetNetworkConnectionType", "()I", bIsOptional);
+	AndroidThunkJava_AddNetworkListener = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_AddNetworkListener", "()V", bIsOptional);
+	AndroidThunkJava_RemoveNetworkListener = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_AddNetworkListener", "()V", bIsOptional);
 	AndroidThunkJava_GetAndroidId = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_GetAndroidId", "()Ljava/lang/String;", bIsOptional);
 	AndroidThunkJava_ShareURL = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_ShareURL", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;II)V", bIsOptional);
 	AndroidThunkJava_IsPackageInstalled = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_IsPackageInstalled", "(Ljava/lang/String;)Z", bIsOptional);
@@ -468,6 +470,9 @@ jmethodID FJavaWrapper::AndroidThunkJava_RestartApplication;
 jmethodID FJavaWrapper::AndroidThunkJava_GetSupportedNativeDisplayRefreshRates;
 jmethodID FJavaWrapper::AndroidThunkJava_GetNativeDisplayRefreshRate;
 jmethodID FJavaWrapper::AndroidThunkJava_SetNativeDisplayRefreshRate;
+
+jmethodID FJavaWrapper::AndroidThunkJava_AddNetworkListener;
+jmethodID FJavaWrapper::AndroidThunkJava_RemoveNetworkListener;
 
 jmethodID FJavaWrapper::AndroidThunkJava_EnableMotion;
 
@@ -1801,6 +1806,22 @@ TArray<int32> AndroidThunkCpp_GetSupportedNativeDisplayRefreshRates()
 		}
 	}
 	return Result;
+}
+
+void AndroidThunkJava_AddNetworkListener()
+{
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_AddNetworkListener);
+	}
+}
+
+void AndroidThunkJava_RemoveNetworkListener()
+{
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_RemoveNetworkListener);
+	}
 }
 
 bool AndroidThunkCpp_SetNativeDisplayRefreshRate(int32 RefreshRate)
