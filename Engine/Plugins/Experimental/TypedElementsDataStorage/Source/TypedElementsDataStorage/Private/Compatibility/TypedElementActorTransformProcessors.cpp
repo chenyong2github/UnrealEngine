@@ -48,7 +48,7 @@ void UTypedElementActorTransformFactory::RegisterActorLocalTransformToColumn(ITy
 	DataStorage.RegisterQuery(
 		Select(
 			TEXT("Sync actor transform to column"),
-			FProcessor(DSI::EQueryTickPhase::PrePhysics, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncExternalToDataStorage))
+			FProcessor(DSI::EQueryTickPhase::PostPhysics, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncExternalToDataStorage))
 				.ForceToGameThread(true),
 			[](DSI::IQueryContext& Context, TypedElementRowHandle Row, const FMassActorFragment& Actor, FTypedElementLocalTransformColumn& Transform)
 			{
