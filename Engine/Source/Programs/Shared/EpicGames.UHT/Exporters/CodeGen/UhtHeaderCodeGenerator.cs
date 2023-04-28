@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Types;
@@ -528,6 +529,49 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					return ConstructorType.ForbiddenDefault;
 				}
 			}
+		}
+
+		/// <summary>
+		/// A list of sparse data structs that should export accessors for this class.
+		/// This list excludes anything that has already been exported by the super class.
+		/// </summary>
+		/// <param name="classObj">Class in question</param>
+		/// <returns>List of structs</returns>
+		protected static List<UhtScriptStruct> GetSparseDataStructsToExport(UhtClass classObj)
+		{
+			List<UhtScriptStruct> sparseScriptStructs = new List<UhtScriptStruct>();
+
+			string[]? sparseDataTypes = classObj.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
+			if (sparseDataTypes != null)
+			{
+				List<UhtScriptStruct> baseSparseScriptStructs = new List<UhtScriptStruct>();
+				{
+					string[]? baseSparseDataTypes = classObj.SuperClass?.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
+					if (baseSparseDataTypes != null)
+					{
+						foreach (string baseSparseDataType in baseSparseDataTypes)
+						{
+							UhtScriptStruct? baseSparseScriptStruct = classObj.FindType(UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct | UhtFindOptions.NoSelf, baseSparseDataType) as UhtScriptStruct;
+							if (baseSparseScriptStruct != null)
+							{
+								baseSparseScriptStructs.Add(baseSparseScriptStruct);
+							}
+						}
+					}
+				}
+
+				foreach (string sparseDataType in sparseDataTypes)
+				{
+					UhtScriptStruct? sparseScriptStruct = classObj.FindType(UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct | UhtFindOptions.NoSelf, sparseDataType) as UhtScriptStruct;
+					while (sparseScriptStruct != null && !baseSparseScriptStructs.Contains(sparseScriptStruct))
+					{
+						sparseScriptStructs.Add(sparseScriptStruct);
+						sparseScriptStruct = sparseScriptStruct.SuperScriptStruct;
+					}
+				}
+			}
+
+			return sparseScriptStructs;
 		}
 
 		protected static string GetDelegateFunctionExportName(UhtFunction function)

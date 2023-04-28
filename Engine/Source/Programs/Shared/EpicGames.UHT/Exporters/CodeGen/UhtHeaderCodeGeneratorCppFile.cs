@@ -1298,20 +1298,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private static StringBuilder AppendSparseAccessors(StringBuilder builder, UhtClass classObj)
 		{
-			string[]? sparseDataTypes = classObj.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
-			if (sparseDataTypes == null)
-			{
-				return builder;
-			}
+			List<UhtScriptStruct> sparseScriptStructs = GetSparseDataStructsToExport(classObj);
 
-			string[]? baseSparseDataTypes = classObj.SuperClass?.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
-			if (baseSparseDataTypes != null && Enumerable.SequenceEqual(sparseDataTypes, baseSparseDataTypes))
+			foreach (UhtScriptStruct sparseScriptStruct in sparseScriptStructs)
 			{
-				return builder;
-			}
+				string sparseDataType = sparseScriptStruct.EngineName;
 
-			foreach (string sparseDataType in sparseDataTypes)
-			{
 				builder.Append('F').Append(sparseDataType).Append("* ").Append(classObj.SourceName).Append("::Get").Append(sparseDataType).Append("() \r\n");
 				builder.Append("{ \r\n");
 				builder.Append("\treturn static_cast<F").Append(sparseDataType).Append("*>(GetClass()->GetOrCreateSparseClassData()); \r\n");
