@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ChaosVDHeightFieldMeshGenerator.h"
+#include "ChaosVDHeightfieldMeshGenerator.h"
 
 #include "Chaos/HeightField.h"
 
