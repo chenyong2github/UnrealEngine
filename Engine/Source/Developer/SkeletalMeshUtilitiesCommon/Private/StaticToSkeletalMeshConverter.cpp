@@ -246,6 +246,9 @@ static bool AddLODFromStaticMeshSourceModel(
 	CopyBuildSettings(InStaticMeshSourceModel.BuildSettings, SkeletalLODInfo.BuildSettings);
 	CopyReductionSettings(InStaticMeshSourceModel.ReductionSettings, SkeletalLODInfo.ReductionSettings);
 
+	FSkeletalMeshModel* ImportedModels = InSkeletalMesh->GetImportedModel();
+	const int32 LODIndex = ImportedModels->LODModels.Num(); 
+
 	if (InStaticMeshSourceModel.IsMeshDescriptionValid())
 	{
 		FMeshDescription SkeletalMeshGeometry;
@@ -256,6 +259,9 @@ static bool AddLODFromStaticMeshSourceModel(
 		
 		FSkeletalMeshAttributes SkeletalMeshAttributes(SkeletalMeshGeometry);
 		SkeletalMeshAttributes.Register();
+		
+		// Ensure that we don't build this LOD from an earlier LOD, but use the actual model given.
+		SkeletalLODInfo.ReductionSettings.BaseLOD = LODIndex;
 
 		// Full binding to the root bone.
 		FSkinWeightsVertexAttributesRef SkinWeights = SkeletalMeshAttributes.GetVertexSkinWeights();
@@ -274,9 +280,10 @@ static bool AddLODFromStaticMeshSourceModel(
 	}
 	else
 	{
-		FSkeletalMeshModel* ImportedModels = InSkeletalMesh->GetImportedModel();
-		const int32 LODIndex = ImportedModels->LODModels.Num(); 
 		ImportedModels->LODModels.Add(new FSkeletalMeshLODModel);
+		
+		// Base this LOD off of the previous one.
+		SkeletalLODInfo.ReductionSettings.BaseLOD = FMath::Max(0, LODIndex - 1); 
 			
 		FSkeletalMeshUpdateContext UpdateContext;
 		UpdateContext.SkeletalMesh = InSkeletalMesh;

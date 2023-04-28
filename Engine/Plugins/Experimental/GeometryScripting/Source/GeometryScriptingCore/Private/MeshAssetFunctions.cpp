@@ -600,9 +600,25 @@ UDynamicMesh* UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh
 		Converter.Convert(&ReadMesh, MeshDescription, !Options.bEnableRecomputeTangents);
 	});
 
+	// Ensure we have enough LODInfos to cover up to the requested LOD.
+	for (int32 LODIndex = ToSkeletalMeshAsset->GetLODInfoArray().Num(); LODIndex <= TargetLOD.LODIndex; LODIndex++)
+	{
+		FSkeletalMeshLODInfo& LODInfo = ToSkeletalMeshAsset->AddLODInfo();
+		
+		ToSkeletalMeshAsset->GetImportedModel()->LODModels.Add(new FSkeletalMeshLODModel);
+		LODInfo.ReductionSettings.BaseLOD = 0;
+	}
+
 	FSkeletalMeshLODInfo* SkeletalLODInfo = ToSkeletalMeshAsset->GetLODInfo(TargetLOD.LODIndex);
 	SkeletalLODInfo->BuildSettings.bRecomputeNormals = Options.bEnableRecomputeNormals;
 	SkeletalLODInfo->BuildSettings.bRecomputeTangents = Options.bEnableRecomputeTangents;
+	
+	// Prevent decimation of this LOD.
+	SkeletalLODInfo->ReductionSettings.NumOfTrianglesPercentage = 1.0;
+	SkeletalLODInfo->ReductionSettings.NumOfVertPercentage = 1.0;
+	SkeletalLODInfo->ReductionSettings.MaxNumOfTriangles = MAX_int32;
+	SkeletalLODInfo->ReductionSettings.MaxNumOfVerts = MAX_int32; 
+	SkeletalLODInfo->ReductionSettings.BaseLOD = TargetLOD.LODIndex;
 
 	FSkeletalMeshImportData SkeletalMeshImportData = 
 		FSkeletalMeshImportData::CreateFromMeshDescription(MeshDescription);
