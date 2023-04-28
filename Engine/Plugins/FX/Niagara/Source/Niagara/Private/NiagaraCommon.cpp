@@ -883,9 +883,21 @@ void FNiagaraMaterialAttributeBinding::CacheValues(const UNiagaraEmitter* InEmit
 {
 	if (InEmitter != nullptr)
 	{
+		// Resolve emitter alias.
 		ResolvedNiagaraVariable = FNiagaraUtilities::ResolveAliases(NiagaraVariable, 
 			FNiagaraAliasContext(FNiagaraAliasContext::ERapidIterationParameterMode::EmitterOrParticleScript)
 			.ChangeEmitterToEmitterName(InEmitter->GetUniqueEmitterName()));
+		
+		// Resolve DI bindings.
+		if (ResolvedNiagaraVariable.IsDataInterface())
+		{
+			
+			const FNiagaraVariableBase* ResolvedDIBinding = InEmitter->GetLatestEmitterData()->ResolvedDIBindings.Find(ResolvedNiagaraVariable);
+			if (ResolvedDIBinding != nullptr)
+			{
+				ResolvedNiagaraVariable = *ResolvedDIBinding;
+			}
+		}
 	}
 	else
 	{
