@@ -124,7 +124,7 @@ void UAbilitySystemComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 	for (UAttributeSet* AttributeSet : GetSpawnedAttributes())
 	{
 		ITickableAttributeSetInterface* TickableSet = Cast<ITickableAttributeSetInterface>(AttributeSet);
-		if (TickableSet)
+		if (TickableSet && TickableSet->ShouldTick())
 		{
 			TickableSet->Tick(DeltaTime);
 		}
