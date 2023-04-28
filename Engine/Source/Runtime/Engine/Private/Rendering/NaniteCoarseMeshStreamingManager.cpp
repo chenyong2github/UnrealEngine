@@ -261,17 +261,8 @@ namespace Nanite
 		{
 			return;
 		}
-		UStaticMesh* StaticMesh = ((UStaticMeshComponent*)Primitive)->GetStaticMesh();
-		if (StaticMesh == nullptr || !StaticMesh->HasValidNaniteData())
-		{
-			return;
-		}
 
-		const FStreamableRenderResourceState& ResourceState = StaticMesh->GetStreamableResourceState();
-		if (!ResourceState.bSupportsStreaming)
-		{
-			return;
-		}
+		UStaticMesh* StaticMesh = ((UStaticMeshComponent*)Primitive)->GetStaticMesh();
 
 		FScopeLock ScopeLock(&UpdateCS);
 						
@@ -287,8 +278,14 @@ namespace Nanite
 			}
 		}
 
-		// Has new static mesh valid Nanite data?
+		// Still/already registered, then done
 		if (Primitive->bAttachedToCoarseMeshStreamingManager)
+		{
+			return;
+		}
+
+		// Don't need to register if the (new) static mesh isn't set, doesn't have any nanite data or doesn't support streaming
+		if (StaticMesh == nullptr || !StaticMesh->HasValidNaniteData() || !StaticMesh->GetStreamableResourceState().bSupportsStreaming)
 		{
 			return;
 		}
