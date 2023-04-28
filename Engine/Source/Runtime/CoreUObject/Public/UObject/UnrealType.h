@@ -4859,7 +4859,7 @@ public:
 			// if map is compact, use random access
 			if (Num() == GetMaxIndex())
 			{
-				return LogicalIdx;
+				return IsValidIndex(LogicalIdx) ? LogicalIdx : INDEX_NONE;
 			}
 
 			int32 MaxIndex = Map->GetMaxIndex();
@@ -5548,7 +5548,7 @@ public:
 		// if set is compact, use random access
 		if (Num() == GetMaxIndex())
 		{
-			return LogicalIdx;
+			return IsValidIndex(LogicalIdx) ? LogicalIdx : INDEX_NONE;
 		}
 
 		int32 MaxIndex = GetMaxIndex();
