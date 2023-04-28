@@ -32,8 +32,6 @@
 #if STRATA_ENABLED
 #define MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING 0
 #include "/Engine/Private/Strata/StrataExport.ush"
-#else
-#include "/Engine/Private/PathTracing/Material/PathTracingThinGlass.ush"
 #endif
 
 float AdjustMaterialRoughness(float Roughness, float PathRoughness)
@@ -165,12 +163,16 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
 	FStrataIntegrationSettings IntegrationSettings = InitStrataIntegrationSettings();
 	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
+#if STRATA_BLENDING_COLOREDTRANSMITTANCEONLY
+	const uint BSDFCount = 0;
+#else
 	const uint BSDFCount = StrataPixelHeader.StrataTree.BSDFCount;
+#endif
 	float TotalCoverage = 1;
 	float3 TotalTransmittancePreCoverage = 0;
 	const float3 V_World = MaterialParameters.CameraVector;
 	StrataPixelHeader.StrataUpdateTree(NullStrataAddressing, StrataData, V_World, IntegrationSettings, TotalCoverage, TotalTransmittancePreCoverage);
-	const float3 Transparency = 1 - TotalCoverage * TotalTransmittancePreCoverage;
+	const float3 Transparency = saturate((1 - TotalCoverage) + TotalCoverage * TotalTransmittancePreCoverage);
 #endif // STRATA_OPTIMIZED_UNLIT
 
 #else // MATERIAL_IS_STRATA
@@ -417,13 +419,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #else // STRATA_OPTIMIZED_UNLIT
 
 	Payload.BSDFOpacity = 1;
+#if !STRATA_OPAQUE_MATERIAL
+	Payload.TransparencyColor = Transparency;
+#endif
 
 	if (BSDFCount > 0)
 	{
-#if !STRATA_OPAQUE_MATERIAL
-		Payload.TransparencyColor = Transparency;
-#endif
-	
 		{
 #if HAIR_STRAND_MESH_FACTORY
 			Payload.WorldSmoothNormal = Payload.WorldGeoNormal;

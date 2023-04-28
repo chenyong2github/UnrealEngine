@@ -31,7 +31,6 @@
 #include "/Engine/Private/SubsurfaceProfileCommon.ush"
 #include "/Engine/Private/BurleyNormalizedSSSCommon.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingFresnel.ush"
-#include "/Engine/Private/PathTracing/Material/PathTracingThinGlass.ush"
 
 #if STRATA_ENABLED
 #define STRATA_GPU_LIGHTMASS 1

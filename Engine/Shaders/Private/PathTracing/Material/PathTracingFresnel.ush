@@ -126,3 +126,47 @@ float ClearCoatFresnel(float VoH)
 	// from hardcoded logic in ClearCoatBxDF
 	return CLEAR_COAT_F0 + (1.0 - CLEAR_COAT_F0) * Pow5(1 - VoH);
 }
+
+
+struct FThinSlabWeights
+{
+	float3 Reflected;
+	float3 Transmitted;
+};
+
+// return the amount of reflected and transmitted energy for an infinite slab viewed from a particular direction
+// taking into account the (repeated) Fresnel terms and the transmittance through the slab
+FThinSlabWeights ComputeThinSlabWeights(float3 SlabColor, float CosV, float Eta, float F0)
+{
+	// Compute Fresnel reflection off the top of the slab
+	// The Fresnel refletion at the bottom layer is exactly equal so we can assume energy is split into R and T at each bounce
+	// NOTE: we don't need to pass Eta through here because TIR (which could only occur in contrived scenarios) isn't really supported
+	const float R = FresnelReflectance(CosV, 1.0, F0);
+
+	// The slab color is normalized to unit thickness, so we only need to account for the refracted viewing angle
+	// Note that we only allow Eta > 1.0 here so that we don't need to worry about TIR
+	const float3 A = pow(SlabColor, Eta > 1.0 ? Eta * rsqrt(Eta * Eta - 1.0 + CosV * CosV) : rcp(abs(CosV)));
+
+	// figure out how much is reflected/transmitted from a single interaction
+	float3 SlabR = R;
+	float3 SlabT = A - R * A; // (1 - R) * A
+
+#if 1
+	// Enable bounces within the slab
+	if (R < 1.0)
+	{
+		// If there was some transmission we must also account for the infinite series of bounces within the slab
+		// which can be computed exactly with a geometric series. Note that this causes a bit of energy loss because we don't
+		// account for this non-linear fresnel term in the energy conservation calculation. However, this is fairly minimal in
+		// practice, and the added visual richness seems worth it.
+		float3 InvDenom = rcp(1.0 - Pow2(R * A));
+		SlabR += R * Pow2(SlabT) * InvDenom;
+		SlabT *= InvDenom - R * InvDenom; // (1 - R) * InvDenom
+	}
+#endif
+
+	FThinSlabWeights Result = (FThinSlabWeights)0;
+	Result.Reflected = SlabR;
+	Result.Transmitted = SlabT;
+	return Result;
+}
