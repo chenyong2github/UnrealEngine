@@ -20,7 +20,9 @@ class UVPFullScreenUserWidget;
 
 #if WITH_EDITOR
 struct FEditorViewportViewModifierParams;
+struct FSceneViewExtensionContext;
 class FLevelEditorViewportClient;
+class ISceneViewExtension;
 #endif
 
 UCLASS(Abstract, BlueprintType, EditInlineNew)
@@ -210,9 +212,10 @@ private:
 	bool IsOuterComponentEnabled() const;
 
 #if WITH_EDITOR
-
-	/** Passed to FEditorViewportClient::ViewModifiers if DisplayType == PostProcess. */
+	/** Passed to FEditorViewportClient::ViewModifiers whenever DisplayType == EVPWidgetDisplayType::PostProcessWithBlendMaterial. */
 	void ModifyViewportPostProcessSettings(FEditorViewportViewModifierParams& EditorViewportViewModifierParams);
+	/** Callback when DisplayType == EVPWidgetDisplayType::PostProcessSceneViewExtension that decides whether a given viewport should be rendered to. */
+	TOptional<bool> GetRenderWidgetStateInContext(const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context);
 	
 	void StartDetectAndSnapshotWhenConnectionsChange();
 	void StopDetectAndSnapshotWhenConnectionsChange();

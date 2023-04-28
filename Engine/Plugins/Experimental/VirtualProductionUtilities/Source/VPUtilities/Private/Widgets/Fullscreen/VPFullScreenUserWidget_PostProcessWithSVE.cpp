@@ -16,6 +16,7 @@ bool FVPFullScreenUserWidget_PostProcessWithSVE::Display(UWorld* World, UUserWid
 		SceneViewExtension = FSceneViewExtensions::NewExtension<UE::VirtualProductionUtilities::Private::FPostProcessSceneViewExtension>(
 			TAttribute<UMaterialInterface*>::CreateRaw(this, &FVPFullScreenUserWidget_PostProcessWithSVE::GetPostProcessMaterial)
 			);
+		SceneViewExtension->IsActiveThisFrameFunctions = MoveTemp(IsActiveFunctorsToRegister);
 	}
 	return bOk;
 }
@@ -29,6 +30,18 @@ void FVPFullScreenUserWidget_PostProcessWithSVE::Hide(UWorld* World)
 void FVPFullScreenUserWidget_PostProcessWithSVE::Tick(UWorld* World, float DeltaSeconds)
 {
 	TickRenderer(World, DeltaSeconds);
+}
+
+void FVPFullScreenUserWidget_PostProcessWithSVE::RegisterIsActiveFunctor(FSceneViewExtensionIsActiveFunctor IsActiveFunctor)
+{
+	if (SceneViewExtension)
+	{
+		SceneViewExtension->IsActiveThisFrameFunctions.Emplace(MoveTemp(IsActiveFunctor));
+	}
+	else
+	{
+		IsActiveFunctorsToRegister.Emplace(MoveTemp(IsActiveFunctor));
+	}
 }
 
 UMaterialInterface* FVPFullScreenUserWidget_PostProcessWithSVE::GetPostProcessMaterial() const

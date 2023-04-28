@@ -5,8 +5,9 @@
 #include "VPFullScreenUserWidget_PostProcessBase.h"
 #include "VPFullScreenUserWidget_PostProcessWithSVE.generated.h"
 
-class ISceneViewExtension;
+class FSceneViewExtensionBase;
 class UMaterialInterface;
+struct FSceneViewExtensionIsActiveFunctor;
 
 /**
  * Renders widget in post process phase by using Scene View Extensions (SVE).
@@ -20,10 +21,22 @@ struct FVPFullScreenUserWidget_PostProcessWithSVE : public FVPFullScreenUserWidg
 	void Hide(UWorld* World);
 	void Tick(UWorld* World, float DeltaSeconds);
 
+	/**
+	 * Registers a functor that will determine whether the SVE will be applied for a given frame.
+	 * The IsActive functor should only ever return false. If it is fine to render, it should return an empty optional.
+	 *
+	 * Functors may be registered before or after the widget is displayed that is before Display(...) is called.
+	 * All functors are not retained when Hide(...) is called: they are removed
+	 */
+	VPUTILITIES_API void RegisterIsActiveFunctor(FSceneViewExtensionIsActiveFunctor IsActiveFunctor);
+
 private:
 
 	/** Implements the rendering side */
-	TSharedPtr<ISceneViewExtension, ESPMode::ThreadSafe> SceneViewExtension;
+	TSharedPtr<FSceneViewExtensionBase, ESPMode::ThreadSafe> SceneViewExtension;
+
+	/** Functors registered before we were displayed. */
+	TArray<FSceneViewExtensionIsActiveFunctor> IsActiveFunctorsToRegister;
 
 	UMaterialInterface* GetPostProcessMaterial() const;
 };

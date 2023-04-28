@@ -7,13 +7,14 @@
 #include "UI/VCamWidget.h"
 #include "Util/LevelViewportUtils.h"
 #include "VCamCoreCustomVersion.h"
-#include "Algo/RemoveIf.h"
 
+#include "Algo/RemoveIf.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "Framework/Application/SlateApplication.h"
+#include "SceneViewExtensionContext.h"
 #include "Slate/SceneViewport.h"
 #include "UObject/UObjectBaseUtility.h"
 #include "Util/WidgetSnapshotUtils.h"
@@ -37,8 +38,6 @@ DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
 
 namespace UE::VCamCore::Private
 {
-	static const FName LevelEditorName(TEXT("LevelEditor"));
-
 	static bool ValidateOverlayClassAndLogErrors(const TSubclassOf<UUserWidget>& InUMGClass)
 	{
 		// Null IS allowed and means "do not create any class"
@@ -198,6 +197,19 @@ void UVCamOutputProviderBase::CreateUMG()
 	}
 
 #if WITH_EDITOR
+	// Only register in editor because editor has multiple viewports. In games, there is only one viewport (ignore split screen).
+	if (UMGWidget->GetDisplayType(GetWorld()) == EVPWidgetDisplayType::PostProcessSceneViewExtension)
+	{
+		FSceneViewExtensionIsActiveFunctor IsActiveFunctor;
+		IsActiveFunctor.IsActiveFunction = [WeakThis = TWeakObjectPtr<UVCamOutputProviderBase>(this)](const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context) 
+		{
+			return ensure(WeakThis.IsValid())
+				? WeakThis->GetRenderWidgetStateInContext(SceneViewExtension, Context)
+				: TOptional<bool>{};
+		};
+		UMGWidget->GetPostProcessDisplayTypeWithSceneViewExtensionsSettings().RegisterIsActiveFunctor(MoveTemp(IsActiveFunctor));
+	}
+
 	UMGWidget->SetEditorTargetViewport(GetSceneViewport(TargetViewport));
 #endif
 
@@ -342,7 +354,7 @@ void UVCamOutputProviderBase::RestoreOutput()
 bool UVCamOutputProviderBase::NeedsForceLockToViewport() const
 {
 	// The widget is displayed via a post process material, which is applied to the camera's post process settings, hence anything will only be visible when locked.
-	return DisplayType == EVPWidgetDisplayType::PostProcessWithBlendMaterial;
+	return DisplayType == EVPWidgetDisplayType::PostProcessWithBlendMaterial || DisplayType == EVPWidgetDisplayType::Composure;
 }
 
 void UVCamOutputProviderBase::NotifyAboutComponentChange()
@@ -610,6 +622,15 @@ void UVCamOutputProviderBase::ModifyViewportPostProcessSettings(FEditorViewportV
 {
 	// The UMGWidget has put a post process material into PostProcessSettingsForWidget which causes the widget to be rendered 
 	EditorViewportViewModifierParams.AddPostProcessBlend(PostProcessSettingsForWidget, 1.f);
+}
+
+TOptional<bool> UVCamOutputProviderBase::GetRenderWidgetStateInContext(const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)
+{
+	const bool bWillRenderIntoTargetViewport = Context.Viewport && GetTargetLevelViewportClient() == Context.Viewport->GetClient();
+	return bWillRenderIntoTargetViewport
+		// By contract we should only ever return false when it is not ok to render and return empty otherwise
+		? TOptional<bool>{}
+		: false;
 }
 
 void UVCamOutputProviderBase::StartDetectAndSnapshotWhenConnectionsChange()
