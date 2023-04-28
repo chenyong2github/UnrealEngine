@@ -49,6 +49,7 @@ namespace Audio
 	struct FMixerSourceBufferInitArgs
 	{
 		FDeviceId AudioDeviceID = 0;
+		uint64 AudioComponentID = 0;
 		uint32 InstanceID = 0;
 		int32 SampleRate = 0;
 		int32 AudioMixerNumOutputFrames = 0;

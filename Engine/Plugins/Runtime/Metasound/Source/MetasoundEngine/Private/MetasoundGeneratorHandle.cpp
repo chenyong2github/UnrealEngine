@@ -21,6 +21,14 @@ UMetasoundGeneratorHandle* UMetasoundGeneratorHandle::CreateMetaSoundGeneratorHa
 		return nullptr;
 	}
 
+	if (OnComponent->bCanPlayMultipleInstances)
+	{
+		UE_LOG(
+			LogMetaSound,
+			Warning,
+			TEXT("Created a UMetaSoundGeneratorHandle for a UAudioComponent that is allowed to play multiple instances. This may not work as expected."))
+	}
+
 	UMetasoundGeneratorHandle* Result = NewObject<UMetasoundGeneratorHandle>();
 	Result->SetAudioComponent(OnComponent);
 	return Result;

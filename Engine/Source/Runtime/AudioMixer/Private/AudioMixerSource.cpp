@@ -1134,6 +1134,7 @@ namespace Audio
 
 		FMixerSourceBufferInitArgs BufferInitArgs;
 		BufferInitArgs.AudioDeviceID = AudioDevice->DeviceID;
+		BufferInitArgs.AudioComponentID = InstanceID;
 		BufferInitArgs.InstanceID = GetTransmitterID(InstanceID, WaveInstance->WaveInstanceHash, PlayOrder);
 		BufferInitArgs.SampleRate = AudioDevice->GetSampleRate();
 		BufferInitArgs.AudioMixerNumOutputFrames = MixerDevice->GetNumOutputFrames();
