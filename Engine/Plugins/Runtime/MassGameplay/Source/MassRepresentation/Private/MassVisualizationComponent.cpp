@@ -10,6 +10,8 @@
 #include "RenderUtils.h"
 #include "SceneInterface.h"
 
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "MassInstancedStaticMeshComponent.h"
 
 //---------------------------------------------------------------
 // UMassVisualizationComponent
@@ -37,6 +39,14 @@ int16 UMassVisualizationComponent::FindOrAddVisualDesc(const FStaticMeshInstance
 	if (VisualIndex == INDEX_NONE)
 	{
 		VisualIndex = InstancedStaticMeshInfos.Emplace(Desc);
+
+		for (const FMassStaticMeshInstanceVisualizationMeshDesc& MeshDesc : Desc.Meshes)
+		{
+			ISMCSharedData.FindOrAdd(MeshDesc, FMassISMCSharedData());
+		}
+
+		BuildLODSignificanceForInfo(InstancedStaticMeshInfos[VisualIndex]);
+
 		bNeedStaticMeshComponentConstruction = true;
 	}
 	check(VisualIndex < INT16_MAX);
@@ -64,16 +74,14 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 			continue;
 		}
 		for (const FMassStaticMeshInstanceVisualizationMeshDesc& MeshDesc : Info.Desc.Meshes)
-		{			
+		{
 			FMassISMCSharedData* SharedData = ISMCSharedData.Find(MeshDesc);
-			UInstancedStaticMeshComponent* ISMC = SharedData ? SharedData->ISMC : nullptr;
-			if (SharedData)
+			UInstancedStaticMeshComponent* ISMC = SharedData ? SharedData->GetISMComponent() : nullptr;
+
+			if (SharedData == nullptr || SharedData->GetISMComponent() == nullptr)
 			{
-				SharedData->RefCount += 1;
-			}
-			else
-			{
-				ISMC = NewObject<UInstancedStaticMeshComponent>(ActorOwner);
+				ISMC = NewObject<UInstancedStaticMeshComponent>(ActorOwner, MeshDesc.ISMComponentClass);
+				CA_ASSUME(ISMC);
 				ISMC->SetStaticMesh(MeshDesc.Mesh);
 				for (int32 ElementIndex = 0; ElementIndex < MeshDesc.MaterialOverrides.Num(); ++ElementIndex)
 				{
@@ -91,36 +99,56 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 				ISMC->SetReceivesDecals(false);
 				ISMC->RegisterComponent();
 
-				ISMCSharedData.Emplace(MeshDesc, FMassISMCSharedData(ISMC));
+				if (SharedData == nullptr)
+				{
+					SharedData = &ISMCSharedData.Emplace(MeshDesc, FMassISMCSharedData(ISMC));
+				}
+				else
+				{
+					SharedData->SetISMComponent(*ISMC);
+				}
 			}
 
-			Info.InstancedStaticMeshComponents.Add(ISMC);
+			check(SharedData);
+			Info.AddISMComponent(*SharedData);
 		}
 
 		// Build the LOD significance ranges
-		TArray<float> AllLODSignificances;
-		auto UniqueInsertOrdered = [&AllLODSignificances](const float Significance)
+		if (Info.LODSignificanceRanges.Num() == 0)
 		{
-			int i = 0;
-			for (; i < AllLODSignificances.Num(); ++i)
-			{
-				// I did not use epsilon check here on purpose, because it will make it hard later meshes inside.
-				if (Significance == AllLODSignificances[i])
-				{
-					return;
-				}
-				if (AllLODSignificances[i] > Significance)
-				{
-					break;
-				}
-			}
-			AllLODSignificances.Insert(Significance, i);
-		};
-		for (const FMassStaticMeshInstanceVisualizationMeshDesc& MeshDesc : Info.Desc.Meshes)
-		{
-			UniqueInsertOrdered(MeshDesc.MinLODSignificance);
-			UniqueInsertOrdered(MeshDesc.MaxLODSignificance);
+			BuildLODSignificanceForInfo(Info);
 		}
+	}
+}
+
+void UMassVisualizationComponent::BuildLODSignificanceForInfo(FMassInstancedStaticMeshInfo& Info)
+{
+	TArray<float> AllLODSignificances;
+	auto UniqueInsertOrdered = [&AllLODSignificances](const float Significance)
+	{
+		int i = 0;
+		for (; i < AllLODSignificances.Num(); ++i)
+		{
+			// I did not use epsilon check here on purpose, because it will make it hard later meshes inside.
+			if (Significance == AllLODSignificances[i])
+			{
+				return;
+			}
+			if (AllLODSignificances[i] > Significance)
+			{
+				break;
+			}
+		}
+		AllLODSignificances.Insert(Significance, i);
+	};
+	for (const FMassStaticMeshInstanceVisualizationMeshDesc& MeshDesc : Info.Desc.Meshes)
+	{
+		UniqueInsertOrdered(MeshDesc.MinLODSignificance);
+		UniqueInsertOrdered(MeshDesc.MaxLODSignificance);
+	}
+
+	if (AllLODSignificances.Num() > 1)
+	{
 		Info.LODSignificanceRanges.SetNum(AllLODSignificances.Num() - 1);
 		for (int i = 0; i < Info.LODSignificanceRanges.Num(); ++i)
 		{
@@ -139,7 +167,6 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 				}
 			}
 		}
-
 	}
 }
 
@@ -155,7 +182,7 @@ void UMassVisualizationComponent::ClearAllVisualInstances()
 	// Pool should already be empty, got a problem if it's not
 	for (auto It = ISMCSharedData.CreateIterator(); It; ++It)
 	{
-		if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = It.Value().ISMC)
+		if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = It.Value().GetISMComponent())
 		{
 			InstancedStaticMeshComponent->ClearInstances();
 			InstancedStaticMeshComponent->DestroyComponent();
@@ -187,17 +214,6 @@ void UMassVisualizationComponent::BeginVisualChanges()
 		ConstructStaticMeshComponents();
 		bNeedStaticMeshComponentConstruction = false;
 	}
-
-	// Reset instance transform scratch buffers
-	for (auto It = ISMCSharedData.CreateIterator(); It; ++It)
-	{
-		FMassISMCSharedData& SharedData = It.Value();
-		SharedData.UpdateInstanceIds.Reset();
-		SharedData.StaticMeshInstanceCustomFloats.Reset();
-		SharedData.StaticMeshInstanceTransforms.Reset();
-		SharedData.StaticMeshInstancePrevTransforms.Reset();
-		SharedData.WriteIterator = 0;
-	}
 }
 
 void UMassVisualizationComponent::EndVisualChanges()
@@ -208,8 +224,14 @@ void UMassVisualizationComponent::EndVisualChanges()
 	for (auto It = ISMCSharedData.CreateIterator(); It; ++It)
 	{
 		FMassISMCSharedData& SharedData = It.Value();
-		if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = SharedData.ISMC)
+		if (UInstancedStaticMeshComponent* InstancedStaticMeshComponent = SharedData.GetISMComponent())
 		{
+			if (UMassInstancedStaticMeshComponent* MassISMComponent = Cast<UMassInstancedStaticMeshComponent>(InstancedStaticMeshComponent))
+			{
+				MassISMComponent->ApplyVisualChanges(SharedData);
+				continue;
+			}
+
 			const int32 NumCustomDataFloats = SharedData.StaticMeshInstanceCustomFloats.Num() / (FMath::Max(1, SharedData.UpdateInstanceIds.Num()));
 
 			// Ensure InstanceCustomData is passed if NumCustomDataFloats > 0. If it is, also make sure
@@ -223,6 +245,10 @@ void UMassVisualizationComponent::EndVisualChanges()
 			if ((bool)UE::MassRepresentation::GCallUpdateInstances)
 			{
 				InstancedStaticMeshComponent->UpdateInstances(SharedData.UpdateInstanceIds, SharedData.StaticMeshInstanceTransforms, SharedData.StaticMeshInstancePrevTransforms, NumCustomDataFloats, SharedData.StaticMeshInstanceCustomFloats);
+				if (UHierarchicalInstancedStaticMeshComponent* HISMComp = Cast<UHierarchicalInstancedStaticMeshComponent>(InstancedStaticMeshComponent))
+				{
+					HISMComp->BuildTreeIfOutdated(true, false);
+				}
 			}
 			else
 			{
@@ -265,6 +291,13 @@ void UMassVisualizationComponent::EndVisualChanges()
 			}
 		}
 	}
+
+	// Reset instance transform scratch buffers
+	for (auto It = ISMCSharedData.CreateIterator(); It; ++It)
+	{
+		FMassISMCSharedData& SharedData = It.Value();
+		SharedData.ResetAccumulatedData();
+	}
 }
 
 //---------------------------------------------------------------
@@ -276,15 +309,14 @@ void FMassInstancedStaticMeshInfo::ClearVisualInstance(FMassISMCSharedDataMap& I
 	for (int i = 0; i < Desc.Meshes.Num(); i++)
 	{
 		FMassISMCSharedData* SharedData = ISMCSharedData.Find(Desc.Meshes[i]);
-		if (SharedData)
+		if (SharedData && SharedData->ReleaseReference() == 0)
 		{
-			SharedData->RefCount -= 1;
-			if (SharedData->RefCount == 0)
+			if (UInstancedStaticMeshComponent* ISMC = SharedData->GetISMComponent())
 			{
-				SharedData->ISMC->ClearInstances();
-				SharedData->ISMC->DestroyComponent();
-				ISMCSharedData.Remove(Desc.Meshes[i]);
+				ISMC->ClearInstances();
+				ISMC->DestroyComponent();
 			}
+			ISMCSharedData.Remove(Desc.Meshes[i]);
 		}
 	}
 
@@ -326,6 +358,16 @@ void FMassLODSignificanceRange::AddBatchedCustomDataFloats(const TArray<float>& 
 
 		FMassISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
 		SharedData.StaticMeshInstanceCustomFloats.Append(CustomFloats);
+	}
+}
+
+void FMassLODSignificanceRange::RemoveInstance(const int32 InstanceId)
+{
+	check(ISMCSharedDataPtr);
+	for (int i = 0; i < StaticMeshRefs.Num(); i++)
+	{
+		FMassISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
+		SharedData.RemoveInstanceIds.Add(InstanceId);
 	}
 }
 

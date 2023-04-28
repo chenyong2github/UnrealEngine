@@ -54,6 +54,8 @@ protected:
 	/** Overridden to make sure this component is only added to a MassVisualizer actor */
 	virtual void PostInitProperties() override;
 
+	void BuildLODSignificanceForInfo(FMassInstancedStaticMeshInfo& Info);
+
 	/** The information of all the instanced static meshes */
 	UPROPERTY(Transient)
 	TArray<FMassInstancedStaticMeshInfo> InstancedStaticMeshInfos;

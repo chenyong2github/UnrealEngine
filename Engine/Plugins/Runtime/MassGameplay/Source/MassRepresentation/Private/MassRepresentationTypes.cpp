@@ -3,6 +3,7 @@
 #include "MassRepresentationTypes.h"
 #include "MassRepresentationUtils.h"
 #include "MassCommandBuffer.h"
+#include "Components/InstancedStaticMeshComponent.h"
 
 DEFINE_LOG_CATEGORY(LogMassRepresentation);
 
@@ -73,3 +74,12 @@ default: \
 #undef CASE_SWAP_TAGS
 }
 } // UE::MassRepresentation
+
+
+//-----------------------------------------------------------------------------
+// FMassStaticMeshInstanceVisualizationMeshDesc
+//-----------------------------------------------------------------------------
+FMassStaticMeshInstanceVisualizationMeshDesc::FMassStaticMeshInstanceVisualizationMeshDesc()
+{
+	ISMComponentClass = UInstancedStaticMeshComponent::StaticClass();
+}
