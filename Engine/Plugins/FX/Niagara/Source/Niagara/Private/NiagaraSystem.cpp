@@ -1571,7 +1571,7 @@ void UNiagaraSystem::FindDataInterfaceDependencies(FVersionedNiagaraEmitterData*
 					{
 						for (const FNiagaraScriptResolvedDataInterfaceInfo& DataInterfaceInfo : Script->GetResolvedDataInterfaces())
 						{
-							if (DataInterfaceInfo.ResolvedVariable == Variable)
+							if (DataInterfaceInfo.ParameterStoreVariable == Variable)
 							{
 								return DataInterfaceInfo.ResolvedDataInterface;
 							}
@@ -1599,7 +1599,10 @@ void UNiagaraSystem::FindDataInterfaceDependencies(FVersionedNiagaraEmitterData*
 						continue;
 					}
 
-					StoreDataInterfaces[Variable.Offset]->GetEmitterDependencies(this, Dependencies);
+					if (StoreDataInterfaces[Variable.Offset] != nullptr)
+					{
+						StoreDataInterfaces[Variable.Offset]->GetEmitterDependencies(this, Dependencies);
+					}
 				}
 			}
 		}
@@ -1901,7 +1904,7 @@ void UNiagaraSystem::CacheFromCompiledData()
 						{
 							if (DataInterfaceInfo.bIsInternal == false)
 							{
-								DataInterfaceGpuUsage.Add(DataInterfaceInfo.ResolvedVariable.GetName());
+								DataInterfaceGpuUsage.Add(DataInterfaceInfo.ParameterStoreVariable.GetName());
 							}
 						}
 					}
@@ -1937,7 +1940,7 @@ void UNiagaraSystem::CacheFromCompiledData()
 		{
 			if (UNiagaraDataInterface* DataInterface = DataInterfaceInfo.ResolvedDataInterface)
 			{
-				const bool bUsedByGPU = DataInterfaceGpuUsage.Contains(DataInterfaceInfo.ResolvedVariable.GetName());
+				const bool bUsedByGPU = DataInterfaceGpuUsage.Contains(DataInterfaceInfo.ParameterStoreVariable.GetName());
 				DataInterface->CacheStaticBuffers(*StaticBuffers.Get(), DataInterfaceInfo.ResolvedVariable, true, bUsedByGPU);
 			}
 		}
