@@ -44,7 +44,7 @@ void UMVVMWidgetBlueprintExtension_View::PostLoad()
 
 void UMVVMWidgetBlueprintExtension_View::HandlePreloadObjectsForCompilation(UBlueprint* OwningBlueprint)
 {
-	if (BlueprintView)
+	if (IsInGameThread() && BlueprintView)
 	{
 		BlueprintView->ConditionalPostLoad();
 
