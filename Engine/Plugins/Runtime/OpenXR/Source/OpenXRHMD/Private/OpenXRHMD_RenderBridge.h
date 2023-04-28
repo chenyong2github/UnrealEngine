@@ -50,30 +50,13 @@ public:
 	/** FRHICustomPresent */
 	virtual bool Present(int32& InOutSyncInterval) override;
 
-	// Called from RenderThread
-	virtual bool NeedsNativePresent() override
-	{
-		return bNativePresent_RenderThread;
-	}
-
 	virtual bool Support10BitSwapchain() const { return false; }
 
 	virtual bool HDRGetMetaDataForStereo(EDisplayOutputFormat& OutDisplayOutputFormat, EDisplayColorGamut& OutDisplayColorGamut, bool& OutbHDRSupported) { return false; }
 
-	virtual void ShouldNativePresent_RenderThread(bool bPresent)
-	{
-		bNativePresent_RenderThread = bPresent;
-	}
-
-	virtual void ShouldNativePresent_RHIThread(bool bPresent)
-	{
-		bNativePresent_RHIThread = bPresent;
-	}
+	virtual void SetSkipRate(uint32 SkipRate) {}
 
 protected:
-	bool bNativePresent_RenderThread = true;
-	bool bNativePresent_RHIThread = true;
-	
 	XrInstance Instance;
 	FOpenXRHMD* OpenXRHMD;
 

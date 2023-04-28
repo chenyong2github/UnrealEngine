@@ -12,7 +12,7 @@ bool FOpenXRRenderBridge::Present(int32& InOutSyncInterval)
 	if (OpenXRHMD)
 	{
 		OpenXRHMD->OnFinishRendering_RHIThread();
-		bNeedsNativePresent = !OpenXRHMD->IsStandaloneStereoOnlyDevice() && bNativePresent_RHIThread;
+		bNeedsNativePresent = !OpenXRHMD->IsStandaloneStereoOnlyDevice();
 	}
 
 	InOutSyncInterval = 0; // VSync off
