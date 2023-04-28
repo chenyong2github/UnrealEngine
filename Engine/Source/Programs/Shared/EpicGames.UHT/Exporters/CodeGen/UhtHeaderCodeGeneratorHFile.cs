@@ -642,7 +642,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					{
 						string sparseDataType = sparseScriptStruct.EngineName;
 
-						builder.Append(api).Append('F').Append(sparseDataType).Append("* Get").Append(sparseDataType).Append("(); \\\r\n");
 						builder.Append(api).Append('F').Append(sparseDataType).Append("* Get").Append(sparseDataType).Append("() const; \\\r\n");
 						builder.Append(api).Append("const F").Append(sparseDataType).Append("* Get").Append(sparseDataType).Append("(EGetSparseClassDataMethod GetMethod) const; \\\r\n");
 						builder.Append(api).Append("static UScriptStruct* StaticGet").Append(sparseDataType).Append("ScriptStruct(); \\\r\n");
@@ -665,18 +664,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							}
 
 							bool getByRef = sparseProperty.MetaData.ContainsKey(UhtNames.GetByRef);
-
-							if (getByRef)
-							{
-								builder.Append("const ").AppendSparse(sparseProperty).Append("& Get").Append(cleanPropertyName).Append("() \\\r\n");
-							}
-							else
-							{
-								builder.AppendSparse(sparseProperty).Append(" Get").Append(cleanPropertyName).Append("() \\\r\n");
-							}
-							builder.Append("{ \\\r\n");
-							builder.Append("\treturn Get").Append(sparseDataType).Append("()->").Append(propertyName).Append("; \\\r\n");
-							builder.Append("} \\\r\n");
 
 							if (getByRef)
 							{
