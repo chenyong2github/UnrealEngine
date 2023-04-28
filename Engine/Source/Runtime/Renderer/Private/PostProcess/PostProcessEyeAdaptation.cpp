@@ -15,6 +15,7 @@
 #include "Curves/CurveFloat.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "TextureResource.h"
+#include "PostProcessing.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
@@ -1130,9 +1131,22 @@ void FSceneViewState::FEyeAdaptationManager::EnqueueExposureBufferReadback(FRDGB
 	}
 }
 
-void FSceneViewState::UpdatePreExposure(FViewInfo& View)
+void FViewInfo::UpdatePreExposure()
 {
-	const FSceneViewFamily& ViewFamily = *View.Family;
+	const FSceneViewFamily& ViewFamily = *Family;
+
+	const bool bIsPostProcessingEnabled = IsPostProcessingEnabled(*this);
+	const bool bMobilePlatform = IsMobilePlatform(GetShaderPlatform());
+	const bool bEnableAutoExposure = !bMobilePlatform || IsMobileEyeAdaptationEnabled(*this);
+	const float PreExposureOverride = CVarEyeAdaptationPreExposureOverride.GetValueOnRenderThread();
+	const EAutoExposureMethod ExposureMethod = GetAutoExposureMethod(*this);
+	const float FixedExposure = GetEyeAdaptationFixedExposure(*this);
+
+	/** Whether PreExposure is supported at all for a output code path.
+	 *  Mobile LDR renders directly into low bitdepth back buffer. So there the final exposure is directly applied in
+	 *  BasePassPixelShader.usf, and ruse the View.PreExposure code path for code maintenance reason.
+	 */
+	const bool bSupportPreExposureDifferentThanGlobalExposure = !(bMobilePlatform && !IsMobileHDR());
 
 	// One could use the IsRichView functionality to check if we need to update pre-exposure, 
 	// but this is too limiting for certain view. For instance shader preview doesn't have 
@@ -1141,7 +1155,7 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 	const bool bIsPreExposureRelevant = true
 		&& ViewFamily.EngineShowFlags.EyeAdaptation // Controls whether scene luminance is computed at all.
 		&& ViewFamily.EngineShowFlags.Lighting
-		&& ViewFamily.EngineShowFlags.PostProcessing
+		&& bIsPostProcessingEnabled
 		&& ViewFamily.bResolveScene
 		&& !ViewFamily.EngineShowFlags.LightMapDensity
 		&& !ViewFamily.EngineShowFlags.StationaryLightOverlap
@@ -1149,43 +1163,80 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 		&& !ViewFamily.EngineShowFlags.LODColoration
 		&& !ViewFamily.EngineShowFlags.HLODColoration
 		&& !ViewFamily.EngineShowFlags.LevelColoration
-		&& ((!ViewFamily.EngineShowFlags.VisualizeBuffer) || View.CurrentBufferVisualizationMode != NAME_None) // disable pre-exposure for the buffer visualization modes
+		&& ((!ViewFamily.EngineShowFlags.VisualizeBuffer) || CurrentBufferVisualizationMode != NAME_None) // disable pre-exposure for the buffer visualization modes
 		&& !ViewFamily.EngineShowFlags.RayTracingDebug;
 
+	// Compute the PreExposure to use.
+	bool bUpdateLastExposure = false;
 	PreExposure = 1.f;
-	bUpdateLastExposure = false;
-
-	bool bMobilePlatform = IsMobilePlatform(View.GetShaderPlatform());
-	bool bEnableAutoExposure = !bMobilePlatform || IsMobileEyeAdaptationEnabled(View);
-
-	if (bIsPreExposureRelevant && bEnableAutoExposure)
+	if (!ViewState)
 	{
-		const float PreExposureOverride = CVarEyeAdaptationPreExposureOverride.GetValueOnRenderThread();
-		const float LastExposure = View.GetLastEyeAdaptationExposure();
-		if (PreExposureOverride > 0)
+		// NOP: UpdatePreExposure() was not being called if no view state.
+		// TODO: should probably still do best effort on PreExposure when no view state is available, but might impact legacy behavior of USceneCaptureComponent that by default don't have a ViewState.
+	}
+	else if (!bSupportPreExposureDifferentThanGlobalExposure)
+	{
+		// Mobile LDR does not have post-processing and instead directly draws to back buffer. There want to apply the exposure as if it was PreExposure
+		PreExposure = FixedExposure;
+	}
+	else if (!bIsPreExposureRelevant)
+	{
+		// NOP If the pre exposure isn't relevant for the final display image.
+	}
+	else if (PreExposureOverride > 0)
+	{
+		// If the pre-exposure is overriden by cvar, honor it.
+		PreExposure = PreExposureOverride;
+	}
+	else
+	{
+		// How much the SceneColorTint changes the overall brightness of the image.
+		const float SceneColorTint = FinalPostProcessSettings.SceneColorTint.GetLuminance();
+
+		// How much the vignette changes the overall brightness of the image. ComputeVignetteMask() always returns 1 at the center and dim
+		// the edge of the screen.
+		const float VignetteMask = 1.0;
+
+		// How much the local exposure may change the overall image exposure when configured wrongly.
+		const float LocalExposure = 1.0; // TODO(FORT-518192).
+
+		// The global exposure of the scene regardless of the method used.
+		float GlobalExposure = 1.0;
+		if (ExposureMethod == AEM_Manual)
 		{
-			PreExposure = PreExposureOverride;
+			// Bypasses round trip CPU -> GPU -> CPU and instead directly use current frame's manual exposure.
+			GlobalExposure = FixedExposure;
 		}
-		else if (LastExposure > 0)
+		else
 		{
-			PreExposure = LastExposure;
+			const float LastExposure = GetLastEyeAdaptationExposure();
+			if (LastExposure > 0.0)
+			{
+				GlobalExposure = LastExposure;
+			}
 		}
 
-		bUpdateLastExposure = true;
+		// This computation must match FinalLinearColor in PostProcessTonemap.usf.
+		const float FinalPreExposure = SceneColorTint * GlobalExposure * VignetteMask * LocalExposure;
+
+		// Apply the computed PreExposure to view and view state.
+		PreExposure = FinalPreExposure;
+		bUpdateLastExposure = ViewState != nullptr; // TODO: technically not needed when ExposureMethod == AEM_Manual, unless there is transition from AEM_Manual to auto.
 	}
 
-	// Mobile LDR does not support post-processing but still can apply Exposure during basepass
-	if (bMobilePlatform && !IsMobileHDR())
+	// Update the pre-exposure value on the view state
+	if (ViewState)
 	{
-		PreExposure = GetEyeAdaptationFixedExposure(View);
-	}
+		// Update the PreExposure used on the view state
+		ViewState->PreExposure = PreExposure;
 
-	// Update the pre-exposure value on the actual view
-	View.PreExposure = PreExposure;
+		// Requests to read back last PreExposure back from GPU. 
+		ViewState->bUpdateLastExposure = bUpdateLastExposure;
 
-	// Update the pre exposure of all temporal histories.
-	if (!View.bStatePrevViewInfoIsReadOnly)
-	{
-		PrevFrameViewInfo.SceneColorPreExposure = PreExposure;
+		// Update the pre exposure of all temporal histories.
+		if (!bStatePrevViewInfoIsReadOnly)
+		{
+			ViewState->PrevFrameViewInfo.SceneColorPreExposure = PreExposure;
+		}
 	}
 }

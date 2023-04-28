@@ -5166,10 +5166,7 @@ void FDeferredShadingSceneRenderer::BeginInitViews(
 		{
 			FViewInfo& View = Views[ViewIndex];
 			// Set the pre-exposure before initializing the constant buffers.
-			if (View.ViewState)
-			{
-				View.ViewState->UpdatePreExposure(View);
-			}
+			View.UpdatePreExposure();
 
 			// Initialize the view's RHI resources.
 			UpdateHairResources(GraphBuilder, View);

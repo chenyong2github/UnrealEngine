@@ -1732,6 +1732,9 @@ public:
 		return UnscaledViewRect.Size() != GetSecondaryViewRectSize();
 	}
 
+	/** Compute the pre-exposure of internal renderer resources. */
+	void UpdatePreExposure();
+
 	/** Creates ViewUniformShaderParameters given a set of view transforms. */
 	RENDERER_API void SetupUniformBufferParameters(
 		const FViewMatrices& InViewMatrices,

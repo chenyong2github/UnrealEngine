@@ -652,10 +652,7 @@ void FMobileSceneRenderer::InitViews(
 	{
 		FViewInfo& View = Views[ViewIndex];
 		
-		if (View.ViewState)
-		{
-			View.ViewState->UpdatePreExposure(View);
-		}
+		View.UpdatePreExposure();
 
 		// Initialize the view's RHI resources.
 		View.InitRHIResources();

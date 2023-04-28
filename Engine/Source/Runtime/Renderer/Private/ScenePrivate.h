@@ -815,15 +815,14 @@ public:
 	FHLODVisibilityState HLODVisibilityState;
 	TMap<FPrimitiveComponentId, FHLODSceneNodeVisibilityState> HLODSceneNodeVisibilityStates;
 
-	void UpdatePreExposure(FViewInfo& View);
-
-private:
 	/** The current frame PreExposure */
 	float PreExposure;
 
 	/** Whether to get the last exposure from GPU */
 	bool bUpdateLastExposure;
 
+private:
+	
 	// to implement eye adaptation / auto exposure changes over time
 	class FEyeAdaptationManager
 	{
