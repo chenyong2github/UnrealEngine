@@ -306,20 +306,27 @@ FMalloc* FApplePlatformMemory::BaseAllocator()
 #if PLATFORM_IOS || PLATFORM_TVOS
     if (FIOSPlatformMisc::IsEntitlementEnabled("com.apple.developer.kernel.extended-virtual-addressing"))
     {
+        UE_LOG(LogTemp, Display, TEXT("Virtual Address Space entitlement found. Using MallocBinned2 to allocate memory"));
         AllocatorToUse = EMemoryAllocatorToUse::Binned2;
 #undef USE_MALLOC_BINNED2
 #define USE_MALLOC_BINNED2 1
     }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Virtual Address Space entitlement NOT found. Defaulting to Ansi allocator"));
+    }
 #elif USE_MALLOC_BINNED2
     if (USE_MALLOC_BINNED2)
     {
+        UE_LOG(LogTemp, Display, TEXT("Using MallocBinned2 to allocate memory"));
         AllocatorToUse = EMemoryAllocatorToUse::Binned2;
     }
-#endif
     else
     {
+        UE_LOG(LogTemp, Warning, TEXT("Defaulting to Ansi allocator"));
         AllocatorToUse = EMemoryAllocatorToUse::Ansi;
     }
+#endif
     
     switch (AllocatorToUse)
     {
