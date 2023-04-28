@@ -296,12 +296,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	void UnregisterObjectForInput(UObject* Object) const;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	 * Returns a list of all player mappable keys that have been registered
 	 */
-	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
+	UE_DEPRECATED(5.3, "GetPlayerMappableKeys has been deprecated. Please use UEnhancedPlayerMappableKeyProfile::GetPlayerMappingRows instead.")
+	UFUNCTION(BlueprintCallable, Category="VirtualCamera", meta=(DeprecatedFunction, DeprecationMessage="GetPlayerMappableKeys has been deprecated. Please use UEnhancedPlayerMappableKeyProfile::GetPlayerMappingRows instead."))
 	TArray<FEnhancedActionKeyMapping> GetPlayerMappableKeys() const;
-
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	/**
 	 * Injects an input action. 
 	 */

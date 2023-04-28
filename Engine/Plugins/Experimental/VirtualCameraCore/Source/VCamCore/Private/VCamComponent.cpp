@@ -14,6 +14,7 @@
 #include "Engine/InputDelegateBinding.h"
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputSubsystemInterface.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
 #include "Features/IModularFeatures.h"
 #include "GameFramework/InputSettings.h"
 #include "ILiveLinkClient.h"
@@ -578,7 +579,24 @@ bool UVCamComponent::AddInputProfileWithCurrentlyActiveMappings(const FName Prof
 					const FName MappingName = Mapping.GetMappingName();
 
 					// Prefer to use the current mapped key but fallback to the default if no key is mapped
-					FKey CurrentKey = EnhancedInputSubsystemInterface->GetPlayerMappedKeyInSlot(MappingName);
+					FKey CurrentKey = EKeys::Invalid;
+
+					if (const UEnhancedInputUserSettings* Settings = EnhancedInputSubsystemInterface->GetUserSettings())
+					{
+						if (const UEnhancedPlayerMappableKeyProfile* KeyProfile = Settings->GetCurrentKeyProfile())
+						{
+							FPlayerMappableKeyQueryOptions Opts = {};
+							Opts.MappingName = MappingName;
+							
+							TArray<FKey> Keys;
+							KeyProfile->QueryPlayerMappedKeys(Opts, OUT Keys);
+							if (!Keys.IsEmpty())
+							{
+								CurrentKey = Keys[0];
+							}
+						}
+					}
+					
 					if (!CurrentKey.IsValid())
 					{
 						CurrentKey = Mapping.Key;
@@ -627,7 +645,22 @@ FKey UVCamComponent::GetPlayerMappedKey(const FName MappingName) const
 {
 	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
-		return EnhancedInputSubsystemInterface->GetPlayerMappedKeyInSlot(MappingName);
+		if (const UEnhancedInputUserSettings* Settings = EnhancedInputSubsystemInterface->GetUserSettings())
+		{
+			if (const UEnhancedPlayerMappableKeyProfile* KeyProfile = Settings->GetCurrentKeyProfile())
+			{
+				FPlayerMappableKeyQueryOptions Opts = {};
+				Opts.MappingName = MappingName;
+
+				TArray<FKey> Keys;
+				KeyProfile->QueryPlayerMappedKeys(Opts, OUT Keys);
+			
+				if (!Keys.IsEmpty())
+				{
+					return Keys[0];
+				}
+			}
+		}
 	}
 	return EKeys::Invalid;
 }
@@ -1090,6 +1123,7 @@ void UVCamComponent::UnregisterObjectForInput(UObject* Object) const
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TArray<FEnhancedActionKeyMapping> UVCamComponent::GetPlayerMappableKeys() const
 {
 	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
@@ -1098,6 +1132,7 @@ TArray<FEnhancedActionKeyMapping> UVCamComponent::GetPlayerMappableKeys() const
 	}
 	return {};
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UVCamComponent::InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
 {
@@ -1118,9 +1153,12 @@ void UVCamComponent::InjectInputVectorForAction(const UInputAction* Action, FVec
 void UVCamComponent::ApplyInputProfile()
 {
 	IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem();
-	if (EnhancedInputSubsystemInterface)
+	UEnhancedInputUserSettings* Settings = EnhancedInputSubsystemInterface ? EnhancedInputSubsystemInterface->GetUserSettings() : nullptr;
+	if (Settings)
 	{
-		EnhancedInputSubsystemInterface->RemoveAllPlayerMappedKeys();
+		FGameplayTagContainer FailureReason;
+        Settings->ResetKeyProfileToDefault(Settings->GetCurrentKeyProfileIdentifier(), FailureReason);
+		
 		for (const TPair<FName, FKey>& MappableKeyOverride : InputProfile.MappableKeyOverrides)
 		{
 			const FName& MappingName = MappableKeyOverride.Key;
@@ -1129,7 +1167,12 @@ void UVCamComponent::ApplyInputProfile()
 			// Ensure we have a valid name to map
 			if (MappingName != NAME_None)
 			{
-				EnhancedInputSubsystemInterface->AddPlayerMappedKeyInSlot(MappingName, NewKey);
+				FMapPlayerKeyArgs Args = {};
+				Args.MappingName = MappingName;
+            	Args.NewKey = NewKey;
+				Args.Slot = EPlayerMappableKeySlot::First;
+            		
+				Settings->MapPlayerKey(Args, FailureReason);
 			}
 		}
 	}
