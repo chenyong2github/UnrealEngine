@@ -629,6 +629,8 @@ public:
         // Open merge actor command
 	TSharedPtr< FUICommandInfo > OpenMergeActor;
 
+	TSharedPtr< FUICommandInfo > FixupGroupActor;
+
 };
 
 /**
@@ -1422,5 +1424,8 @@ private:
 	 * @param SimActor		Simulating Actor in PIE or SIE
 	 */
 	static bool SaveAnimationFromSkeletalMeshComponent(AActor * EditorActor, AActor * SimActor, TArray<class USkeletalMeshComponent*> & OutEditorComponents);
+
+public:
+	static void FixupGroupActor_Clicked();
 };
 

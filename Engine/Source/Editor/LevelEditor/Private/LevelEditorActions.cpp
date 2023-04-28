@@ -3736,6 +3736,7 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( RemoveActorsFromGroup, "Remove from Group", "Removes the selected actors from the selected groups", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( LockGroup, "Lock", "Locks the selected groups", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( UnlockGroup, "Unlock", "Unlocks the selected groups", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( FixupGroupActor, "Fixup Group Actor", "Removes null actors and deletes the GroupActor if it is empty.", EUserInterfaceActionType::Button, FInputChord());
 
 #if PLATFORM_MAC
 	UI_COMMAND( ShowAll, "Show All Actors", "Shows all actors", EUserInterfaceActionType::Button, FInputChord( EModifierKey::Command, EKeys::H ) );
@@ -3902,5 +3903,13 @@ void FLevelEditorCommands::RegisterCommands()
 }
 
 UE_ENABLE_OPTIMIZATION_SHIP
+
+void FLevelEditorActionCallbacks::FixupGroupActor_Clicked()
+{
+	if (UActorGroupingUtils::IsGroupingActive())
+	{
+		AGroupActor::FixupGroupActor();
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

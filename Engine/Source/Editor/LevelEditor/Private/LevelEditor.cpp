@@ -1843,6 +1843,11 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		Commands.OpenMergeActor,
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::OpenMergeActor_Clicked)
 		);
+
+	ActionList.MapAction(
+		Commands.FixupGroupActor,
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::FixupGroupActor_Clicked)
+	);
 }
 
 TSharedPtr<FLevelEditorOutlinerSettings> FLevelEditorModule::GetLevelEditorOutlinerSettings() const

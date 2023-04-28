@@ -1354,6 +1354,11 @@ void FLevelEditorContextMenuImpl::FillGroupMenu( UToolMenu* Menu )
 		{ 
 			Section.AddMenuEntry( FLevelEditorCommands::Get().AddActorsToGroup );
 		}
+
+		if (AGroupActor::SelectedGroupNeedsFixup())
+		{
+			Section.AddMenuEntry(FLevelEditorCommands::Get().FixupGroupActor);
+		}
 	}
 }
 

@@ -986,5 +986,68 @@ int32 AGroupActor::GetActorNum() const
 	return GroupActors.Num();
 }
 
+namespace UE::Editor::GroupActorUtil
+{
+	TArray<AGroupActor*> GetSelectedGroupActors(TArray<TObjectPtr<AActor>> ActiveGroupActors)
+	{
+		TArray<AGroupActor*> Result;
+		for (TObjectPtr<AActor> Actor : ActiveGroupActors)
+		{
+			if (AGroupActor* SelectedGroup = Cast<AGroupActor>(Actor))
+			{
+				if (SelectedGroup->IsSelected())
+				{
+					Result.Add(SelectedGroup);
+				}
+			}
+		}
+		return Result;
+	}
+}
 
+bool AGroupActor::SelectedGroupNeedsFixup()
+{
+	if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
+	{
+		TArray<AGroupActor*> SelectedGroupActors = UE::Editor::GroupActorUtil::GetSelectedGroupActors(EditorWorld->ActiveGroupActors);
+		if (!SelectedGroupActors.IsEmpty())
+		{
+			//check if there's at least 1 GroupActor contains a nullptr within it's list of Actors
+			return SelectedGroupActors.ContainsByPredicate([](const AGroupActor* SelectedGroupActor)
+				{
+					if (SelectedGroupActor)
+					{
+						return SelectedGroupActor->GroupActors.ContainsByPredicate([](const TObjectPtr<class AActor> Actor) { return Actor == nullptr; });
+					}
+					return false;
+				});
+		}
+	}
+	return false;
+} // namespace UE::Editor::GroupActorUtil
 
+void AGroupActor::FixupGroupActor()
+{
+	if (UWorld* EditorWorld = GEditor->GetEditorWorldContext().World())
+	{
+		TArray<AGroupActor*> SelectedGroupActors = UE::Editor::GroupActorUtil::GetSelectedGroupActors(EditorWorld->ActiveGroupActors);
+		if (!SelectedGroupActors.IsEmpty())
+		{
+			for (AGroupActor* SelectedGroupActor : SelectedGroupActors)
+			{
+				if (SelectedGroupActor && SelectedGroupActor->GroupActors.ContainsByPredicate([](const TObjectPtr<class AActor> Actor) { return Actor == nullptr; }))
+				{
+					//remove all nullptr entries in the GroupActors array.
+					SelectedGroupActor->Modify();
+					SelectedGroupActor->GroupActors.RemoveAll([](const TObjectPtr<class AActor> Actor) { return Actor == nullptr; });
+					SelectedGroupActor->GroupActors.Shrink();
+
+					if (SelectedGroupActor->GroupActors.IsEmpty())
+					{
+						SelectedGroupActor->PostRemove();
+					}
+				}
+			}
+		}
+	}
+}

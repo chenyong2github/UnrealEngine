@@ -221,6 +221,10 @@ private:
 	 * Helper function for Remove() and ClearAndRemove() - cleans up actors when grouping is no longer needed
 	 */
 	void PostRemove();
+
+public:
+	static UNREALED_API bool SelectedGroupNeedsFixup();
+	static UNREALED_API void FixupGroupActor();
 };
 
 namespace GroupActorHelpers
