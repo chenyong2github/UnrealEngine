@@ -2418,36 +2418,40 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 	{
 		LLM_SCOPE_BYTAG(NetConnection);
 
-		checkf(ActorNetGUID.IsValid(), TEXT("UActorChannel::Cleanup: ActorNetGUID is invalid! Channel: %i"), ChIndex);
+		// Allow channels in replays to be cleaned up even if the guid was never set
+		checkf(ActorNetGUID.IsValid() || Connection->IsInternalAck(), TEXT("UActorChannel::Cleanup: ActorNetGUID is invalid! Channel: %i"), ChIndex);
 		
-		TArray<UActorChannel*>& ChannelsStillProcessing = Connection->KeepProcessingActorChannelBunchesMap.FindOrAdd(ActorNetGUID);
-		
-#if DO_CHECK
-		if (ensureMsgf(!ChannelsStillProcessing.Contains(this), TEXT("UActorChannel::CleanUp encountered a channel already within the KeepProcessingActorChannelBunchMap. Channel: %i"), ChIndex))
-#endif // #if DO_CHECK
+		if (ActorNetGUID.IsValid())
 		{
-			UE_LOG(LogNet, VeryVerbose, TEXT("UActorChannel::CleanUp: Adding to KeepProcessingActorChannelBunchesMap. Channel: %i, Num: %i"), ChIndex, Connection->KeepProcessingActorChannelBunchesMap.Num());
+			TArray<UActorChannel*>& ChannelsStillProcessing = Connection->KeepProcessingActorChannelBunchesMap.FindOrAdd(ActorNetGUID);
 
-			// Remember the connection, since CleanUp below will NULL it
-			UNetConnection* OldConnection = Connection;
+#if DO_CHECK
+			if (ensureMsgf(!ChannelsStillProcessing.Contains(this), TEXT("UActorChannel::CleanUp encountered a channel already within the KeepProcessingActorChannelBunchMap. Channel: %i"), ChIndex))
+#endif // #if DO_CHECK
+			{
+				UE_LOG(LogNet, VeryVerbose, TEXT("UActorChannel::CleanUp: Adding to KeepProcessingActorChannelBunchesMap. Channel: %i, Num: %i"), ChIndex, Connection->KeepProcessingActorChannelBunchesMap.Num());
 
-			// This will unregister the channel, and make it free for opening again
-			// We need to do this, since the server will assume this channel is free once we ack this packet
-			Super::CleanUp(bForDestroy, CloseReason);
+				// Remember the connection, since CleanUp below will NULL it
+				UNetConnection* OldConnection = Connection;
 
-			// Restore connection property since we'll need it for processing bunches (the Super::CleanUp call above NULL'd it)
-			Connection = OldConnection;
+				// This will unregister the channel, and make it free for opening again
+				// We need to do this, since the server will assume this channel is free once we ack this packet
+				Super::CleanUp(bForDestroy, CloseReason);
 
-			QueuedCloseReason = CloseReason;
+				// Restore connection property since we'll need it for processing bunches (the Super::CleanUp call above NULL'd it)
+				Connection = OldConnection;
 
-			// Add this channel to the KeepProcessingActorChannelBunchesMap list
-			ChannelsStillProcessing.Add(this);
+				QueuedCloseReason = CloseReason;
 
-			// We set ChIndex to -1 to signify that we've already been "closed" but we aren't done processing bunches
-			ChIndex = -1;
+				// Add this channel to the KeepProcessingActorChannelBunchesMap list
+				ChannelsStillProcessing.Add(this);
 
-			// Return false so we won't do pending kill yet
-			return false;
+				// We set ChIndex to -1 to signify that we've already been "closed" but we aren't done processing bunches
+				ChIndex = -1;
+
+				// Return false so we won't do pending kill yet
+				return false;
+			}
 		}
 	}
 
