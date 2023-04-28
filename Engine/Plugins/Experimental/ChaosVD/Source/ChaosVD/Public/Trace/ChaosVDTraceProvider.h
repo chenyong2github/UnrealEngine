@@ -8,14 +8,11 @@
 #include "Containers/UnrealString.h"
 #include "Containers/Array.h"
 
+#include "Chaos/ChaosArchive.h"
+
 class FChaosVDEngine;
 struct FChaosVDSolverFrameData;
 struct FChaosVDRecording;
-
-namespace Chaos
-{
-	class FChaosArchiveContext;
-}
 
 struct FChaosVDBinaryDataContainer
 {
