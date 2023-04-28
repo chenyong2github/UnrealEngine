@@ -152,7 +152,7 @@ UObjectBase::~UObjectBase()
 		check(IsValidLowLevel());
 		check(GetFName() == NAME_None);
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-		UE::CoreUObject::Private::FreeObjectHandle(*this);
+		UE::CoreUObject::Private::FreeObjectHandle(this);
 #endif 
 		GUObjectArray.FreeUObjectIndex(this);
 	}

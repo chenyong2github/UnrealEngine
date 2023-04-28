@@ -60,7 +60,7 @@ namespace UE::CoreUObject::Private
 	};
 
 	/* Returns the packed object ref for this object IF one exists otherwise returns a null PackedObjectRef */
-	COREUOBJECT_API FPackedObjectRef FindExistingPackedObjectRef(const UObject& Object);
+	COREUOBJECT_API FPackedObjectRef FindExistingPackedObjectRef(const UObject* Object);
 
 	/* Creates and ObjectRef from a packed object ref*/
 	COREUOBJECT_API FObjectRef MakeObjectRef(FPackedObjectRef Handle);
@@ -141,7 +141,7 @@ inline bool operator==(UE::CoreUObject::Private::FObjectHandlePrivate LHS, UE::C
 		}
 
 		//if packed ref empty then can't be equal as RHS is an unresolved pointer
-		FPackedObjectRef PackedLhs = FindExistingPackedObjectRef(*Obj);
+		FPackedObjectRef PackedLhs = FindExistingPackedObjectRef(Obj);
 		if (PackedLhs.EncodedRef == 0)
 		{
 			return false;
@@ -159,7 +159,7 @@ inline bool operator==(UE::CoreUObject::Private::FObjectHandlePrivate LHS, UE::C
 		}
 
 		//if packed ref empty then can't be equal as RHS is an unresolved pointer
-		FPackedObjectRef PackedRhs = FindExistingPackedObjectRef(*Obj);
+		FPackedObjectRef PackedRhs = FindExistingPackedObjectRef(Obj);
 		if (PackedRhs.EncodedRef == 0)
 		{
 			return false;
@@ -187,7 +187,7 @@ inline uint32 GetTypeHash(UE::CoreUObject::Private::FObjectHandlePrivate Handle)
 	{
 		const UObject* Obj = ReadObjectHandlePointerNoCheck(Handle);
 
-		FPackedObjectRef PackedObjectRef = FindExistingPackedObjectRef(*Obj);
+		FPackedObjectRef PackedObjectRef = FindExistingPackedObjectRef(Obj);
 		if (PackedObjectRef.EncodedRef == 0)
 		{
 			return GetTypeHash(Obj);
@@ -343,8 +343,8 @@ namespace UE::CoreUObject::Private
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 	//forward declarations
 	void InitObjectHandles(int32 Size);
-	void FreeObjectHandle(const UObjectBase& Object);
-	void UpdateRenamedObject(const UObject& Obj, FName NewName, UObject* NewOuter);
+	void FreeObjectHandle(const UObjectBase* Object);
+	void UpdateRenamedObject(const UObject* Obj, FName NewName, UObject* NewOuter);
 	UE::CoreUObject::Private::FPackedObjectRef MakePackedObjectRef(const UObject* Object);
 #endif
 }

@@ -345,20 +345,20 @@ namespace UE::CoreUObject::Private
 		}
 	}
 
-	void FreeObjectHandle(const UObjectBase& Object)
+	void FreeObjectHandle(const UObjectBase* Object)
 	{
-		int32 ObjectIndex = GUObjectArray.ObjectToIndex(&Object);
+		int32 ObjectIndex = GUObjectArray.ObjectToIndex(Object);
 		FPackedObjectRef& PackedObjectRef = GObjectHandleIndex.ObjectIndexToPackedObjectRef[ObjectIndex];
 		PackedObjectRef.EncodedRef = 0;
 	}
 
-	void UpdateRenamedObject(const UObject& Object, FName NewName, UObject* NewOuter)
+	void UpdateRenamedObject(const UObject* Object, FName NewName, UObject* NewOuter)
 	{
 		if (!UE::LinkerLoad::IsImportLazyLoadEnabled())
 		{
 			return;
 		}
-		int32 ObjectIndex = GUObjectArray.ObjectToIndex(&Object);
+		int32 ObjectIndex = GUObjectArray.ObjectToIndex(Object);
 		FPackedObjectRef PackedObjectRef = GObjectHandleIndex.ObjectIndexToPackedObjectRef[ObjectIndex];
 		if (PackedObjectRef.EncodedRef == 0)
 		{
@@ -367,7 +367,7 @@ namespace UE::CoreUObject::Private
 
 		check(NewName != NAME_None);
 
-		FMinimalName MinimalName = NameToMinimalName(Object.GetFName());
+		FMinimalName MinimalName = NameToMinimalName(Object->GetFName());
 		FObjectId ObjectId;
 		FPackageId PackageId;
 		Unpack(PackedObjectRef, PackageId, ObjectId);
@@ -375,7 +375,7 @@ namespace UE::CoreUObject::Private
 		FRWScopeLock GlobalLockScope(GObjectHandleIndex.Lock, SLT_Write);
 		FObjectHandlePackageData& PackageData = GObjectHandleIndex.PackageData[PackageId.ToIndex()];
 		FRWScopeLock PackageLockScope(PackageData.Lock, SLT_ReadOnly);
-		if (Object.GetClass() == UPackage::StaticClass())
+		if (Object->GetClass() == UPackage::StaticClass())
 		{
 			//update the package name at existing index. existing object handles will be correct when unpacked
 			//add in the new name pointing the existing index. new object handles will resolve to the existing index
@@ -422,7 +422,7 @@ namespace UE::CoreUObject::Private
 			}
 			else if (CurrentObjectPath == OldObjectPath)
 			{
-				CurrentObjectPath.MakeWeakObjPtr(Object);
+				CurrentObjectPath.MakeWeakObjPtr(*Object);
 				continue;
 			}
 			else if (CurrentObjectPath.IsSimple())
@@ -437,7 +437,7 @@ namespace UE::CoreUObject::Private
 				CurrentObjectPath.Resolve(ResolvedNames);
 
 				//resolve all object along the path and convert the object paths to weak objects
-				const UObject* CurrentObject = Object.GetPackage();
+				const UObject* CurrentObject = Object->GetPackage();
 				for (int32 ObjectPathIndex = 0; ObjectPathIndex < ResolvedNames.Num() && CurrentObject; ++ObjectPathIndex)
 				{
 					CurrentObject = StaticFindObjectFastInternal(nullptr, CurrentObject, ResolvedNames[ObjectPathIndex]);
@@ -522,9 +522,9 @@ namespace UE::CoreUObject::Private
 		return PackedObjectRef;
 	}
 
-	FPackedObjectRef FindExistingPackedObjectRef(const UObject& Object)
+	FPackedObjectRef FindExistingPackedObjectRef(const UObject* Object)
 	{
-		int32 ObjectIndex = GUObjectArray.ObjectToIndex(&Object);
+		int32 ObjectIndex = GUObjectArray.ObjectToIndex(Object);
 		if (ObjectIndex == INDEX_NONE)
 		{
 			return FPackedObjectRef {0};
