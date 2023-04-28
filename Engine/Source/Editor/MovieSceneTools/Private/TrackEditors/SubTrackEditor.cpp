@@ -661,7 +661,9 @@ void FSubTrackEditor::AddTakesMenu(UMovieSceneSubSection* Section, FMenuBuilder&
 				FText MetaDataText = FSubTrackEditorUtil::GetMetaDataText(Sequence);
 				MenuBuilder.AddMenuEntry(
 					FText::Format(LOCTEXT("TakeNumber", "Take {0}"), FText::AsNumber(TakeNumber)),
-					MetaDataText.IsEmpty() ? FText::Format(LOCTEXT("TakeNumberTooltip", "Change to {0}"), FText::FromString(Sequence->GetPathName())) : FText::Format(LOCTEXT("TakeNumberTooltip", "Change to {0}\n\n{1}"), FText::FromString(Sequence->GetPathName()), MetaDataText),
+					MetaDataText.IsEmpty() ? 
+					FText::Format(LOCTEXT("TakeNumberTooltip", "Change to {0}"), FText::FromString(Sequence->GetPathName())) : 
+					FText::Format(LOCTEXT("TakeNumberWithMetaDataTooltip", "Change to {0}\n\n{1}"), FText::FromString(Sequence->GetPathName()), MetaDataText),
 					TakeNumber == CurrentTakeNumber ? FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Star") : FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Empty"),
 					FUIAction(FExecuteAction::CreateSP(this, &FSubTrackEditor::ChangeTake, Sequence))
 				);

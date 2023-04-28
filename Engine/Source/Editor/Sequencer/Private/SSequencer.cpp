@@ -2675,7 +2675,7 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("SetKeyInterpolationSmartAuto", "Cubic (Smart Auto)"),
-			LOCTEXT("SetKeyInterpolationAutoTooltip", "Set key interpolation to smart auto"),
+			LOCTEXT("SetKeyInterpolationSmartAutoTooltip", "Set key interpolation to smart auto"),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.IconKeySmartAuto"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::SmartAuto); }),

@@ -244,7 +244,7 @@ FText TSubSectionMixin<ParentSectionClass>::GetSectionToolTip() const
 	}
 	else
 	{
-		return FText::Format(LOCTEXT("ToolTipContentFormat", "{0} - {1} ({2} frames @ {3})\n\n{4}"),
+		return FText::Format(LOCTEXT("ToolTipContentFormatWithMetaData", "{0} - {1} ({2} frames @ {3})\n\n{4}"),
 			InnerStartFrame,
 			InnerEndFrame,
 			InnerFrameLength,
