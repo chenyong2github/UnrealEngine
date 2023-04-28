@@ -11,6 +11,7 @@
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeRWLock.h"
 #include "Serialization/MemoryWriter.h"
+#include "Templates/UniquePtr.h"
 
 UE_TRACE_EVENT_DEFINE(ChaosVDLogger, ChaosVDSolverFrameStart)
 

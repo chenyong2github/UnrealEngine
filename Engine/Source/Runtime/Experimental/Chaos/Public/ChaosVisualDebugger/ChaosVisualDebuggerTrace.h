@@ -7,6 +7,8 @@
 #include "Chaos/Vector.h"
 #include "Containers/Set.h"
 
+#include "Chaos/ChaosArchive.h"
+
 #ifndef CHAOS_VISUAL_DEBUGGER_ENABLED
 	#define CHAOS_VISUAL_DEBUGGER_ENABLED (WITH_CHAOS_VISUAL_DEBUGGER && UE_TRACE_ENABLED)
 #endif
@@ -211,7 +213,6 @@ struct FChaosVDContext;
 
 namespace Chaos
 {
-	class FChaosArchiveContext;
 	class FImplicitObject;
 	class FPhysicsSolverBase;
 	template <typename T, int d>
