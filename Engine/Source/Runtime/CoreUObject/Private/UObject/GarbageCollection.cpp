@@ -3952,6 +3952,14 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, double TimeLimit)
 		{
 			bCompleted = IncrementalDestroyGarbage(bUseTimeLimit, TimeLimit);
 		}
+		
+		if (bCompleted)
+		{
+			// Broadcast the post-purge garbage delegate to give systems a chance to clean up things
+			// that might have been referenced by purged objects.
+			TRACE_CPUPROFILER_EVENT_SCOPE(BroadcastPostPurgeGarbage);
+			FCoreUObjectDelegates::GetPostPurgeGarbageDelegate().Broadcast();
+		}
 
 		// when running incrementally using a time limit, add one last tick for the memory trim
 		bCompleted = bCompleted && !bUseTimeLimit;

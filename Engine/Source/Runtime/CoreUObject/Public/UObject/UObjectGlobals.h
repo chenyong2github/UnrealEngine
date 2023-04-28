@@ -2886,6 +2886,9 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	/** Called after garbage collection */
 	static FSimpleMulticastDelegate& GetPostGarbageCollect();
 
+	/** Called after purging unreachable objects during garbage collection */
+	static FSimpleMulticastDelegate& GetPostPurgeGarbageDelegate();
+
 #if !UE_BUILD_SHIPPING
 	/** Called when garbage collection detects references to objects that are marked for explicit destruction by MarkAsGarbage */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnReportGarbageReferencers, TConstArrayView<struct FGarbageReferenceInfo>);
