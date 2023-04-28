@@ -242,14 +242,14 @@ void UNiagaraDecalRendererProperties::CacheFromCompiledData(const FNiagaraDataSe
 	UpdateSourceModeDerivates(SourceMode);
 	UpdateMICs();
 
-	PositionDataSetAccessor.Init(CompiledData, PositionBinding.GetDataSetBindableVariable().GetName());
-	DecalOrientationDataSetAccessor.Init(CompiledData, DecalOrientationBinding.GetDataSetBindableVariable().GetName());
-	DecalSizeDataSetAccessor.Init(CompiledData, DecalSizeBinding.GetDataSetBindableVariable().GetName());
-	DecalFadeDataSetAccessor.Init(CompiledData, DecalFadeBinding.GetDataSetBindableVariable().GetName());
-	DecalSortOrderDataSetAccessor.Init(CompiledData, DecalSortOrderBinding.GetDataSetBindableVariable().GetName());
-	DecalColorDataSetAccessor.Init(CompiledData, DecalColorBinding.GetDataSetBindableVariable().GetName());
-	DecalVisibleAccessor.Init(CompiledData, DecalVisibleBinding.GetDataSetBindableVariable().GetName());
-	RendererVisibilityTagAccessor.Init(CompiledData, RendererVisibilityTagBinding.GetDataSetBindableVariable().GetName());
+	InitParticleDataSetAccessor(PositionDataSetAccessor, CompiledData, PositionBinding);
+	InitParticleDataSetAccessor(DecalOrientationDataSetAccessor, CompiledData, DecalOrientationBinding);
+	InitParticleDataSetAccessor(DecalSizeDataSetAccessor, CompiledData, DecalSizeBinding);
+	InitParticleDataSetAccessor(DecalFadeDataSetAccessor, CompiledData, DecalFadeBinding);
+	InitParticleDataSetAccessor(DecalSortOrderDataSetAccessor, CompiledData, DecalSortOrderBinding);
+	InitParticleDataSetAccessor(DecalColorDataSetAccessor, CompiledData, DecalColorBinding);
+	InitParticleDataSetAccessor(DecalVisibleAccessor, CompiledData, DecalVisibleBinding);
+	InitParticleDataSetAccessor(RendererVisibilityTagAccessor, CompiledData, RendererVisibilityTagBinding);
 }
 
 void UNiagaraDecalRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)

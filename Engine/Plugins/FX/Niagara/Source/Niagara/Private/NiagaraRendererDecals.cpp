@@ -180,6 +180,17 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 	TArray<FDeferredDecalUpdateParams> DecalUpdates;
 	DecalUpdates.Reserve(DataToRender->GetNumInstances());
 
+	// Get default values which might be none particle parameters
+	const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
+	const bool LocalDefaultVisible = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalVisibleBinding.GetParamMapBindableVariable(), DefaultVisible).GetValue();
+	const int32 LocalDefaultVisTag = ParameterStore.GetParameterValueOrDefault(RendererProperties->RendererVisibilityTagBinding.GetParamMapBindableVariable(), RendererProperties->RendererVisibility);
+	const FVector3f LocalDefaultSimPos = ParameterStore.GetParameterValueOrDefault(RendererProperties->PositionBinding.GetParamMapBindableVariable(), DefaultPos);
+	const FQuat4f LocalDefaultSimRot = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalOrientationBinding.GetParamMapBindableVariable(), DefaultRot).GetNormalized();
+	const FVector3f LocalDefaultSize = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalSizeBinding.GetParamMapBindableVariable(), DefaultSize);
+	const FLinearColor LocalDefaultDecalColor = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalColorBinding.GetParamMapBindableVariable(), FLinearColor::White);
+	const float LocalDefaultFade = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalFadeBinding.GetParamMapBindableVariable(), DefaultFade);
+	const int32 LocalDefaultSortOrder = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalSortOrderBinding.GetParamMapBindableVariable(), DefaultSortOrder);
+
 	// Particles Source mode?
 	if (RendererProperties->SourceMode == ENiagaraRendererSourceDataMode::Particles)
 	{
@@ -196,22 +207,22 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 		for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ++ParticleIndex)
 		{
 			// Check if the decal is visible
-			const bool bVisible = VisibleReader.GetSafe(ParticleIndex, DefaultVisible).GetValue();
-			const int32 VisTag = VisTagReader.GetSafe(ParticleIndex, RendererProperties->RendererVisibility);
+			const bool bVisible = VisibleReader.GetSafe(ParticleIndex, LocalDefaultVisible).GetValue();
+			const int32 VisTag = VisTagReader.GetSafe(ParticleIndex, LocalDefaultVisTag);
 			if (!bVisible || VisTag != RendererProperties->RendererVisibility)
 			{
 				continue;
 			}
 
 			// Grab Decal Attributes
-			const FVector3f SimPos = PositionReader.GetSafe(ParticleIndex, DefaultPos);
-			const FQuat4f SimRot = RotationReader.GetSafe(ParticleIndex, DefaultRot).GetNormalized();
+			const FVector3f SimPos = PositionReader.GetSafe(ParticleIndex, LocalDefaultSimPos);
+			const FQuat4f SimRot = RotationReader.GetSafe(ParticleIndex, LocalDefaultSimRot).GetNormalized();
 			const FVector Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
 			const FQuat Rotation = bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
-			const FVector Size = FVector(SizeReader.GetSafe(ParticleIndex, DefaultSize) * 0.5f);
-			const FLinearColor DecalColor = ColorReader.GetSafe(ParticleIndex, FLinearColor::White);
-			const float Fade = FadeReader.GetSafe(ParticleIndex, DefaultFade);
-			const int32 SortOrder = SortOrderReader.GetSafe(ParticleIndex, DefaultSortOrder);
+			const FVector Size = FVector(SizeReader.GetSafe(ParticleIndex, LocalDefaultSize) * 0.5f);
+			const FLinearColor DecalColor = ColorReader.GetSafe(ParticleIndex, LocalDefaultDecalColor);
+			const float Fade = FadeReader.GetSafe(ParticleIndex, LocalDefaultFade);
+			const int32 SortOrder = SortOrderReader.GetSafe(ParticleIndex, LocalDefaultSortOrder);
 
 			// Create Update Parameters
 			FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();
@@ -242,19 +253,16 @@ FNiagaraDynamicDataBase* FNiagaraRendererDecals::GenerateDynamicData(const FNiag
 	else
 	{
 		//-OPT: Emitter mode we should be able to cache the parameter offset rather than search each frame
-		const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
-		const bool bVisible = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalVisibleBinding.GetParamMapBindableVariable(), DefaultVisible).GetValue();
-		const int32 VisTag = ParameterStore.GetParameterValueOrDefault(RendererProperties->RendererVisibilityTagBinding.GetParamMapBindableVariable(), RendererProperties->RendererVisibility);
-		if (bVisible && VisTag == RendererProperties->RendererVisibility)
+		if (LocalDefaultVisible && LocalDefaultVisTag == RendererProperties->RendererVisibility)
 		{
-			const FVector3f SimPos = ParameterStore.GetParameterValueOrDefault(RendererProperties->PositionBinding.GetParamMapBindableVariable(), DefaultPos);
-			const FQuat4f SimRot = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalOrientationBinding.GetParamMapBindableVariable(), DefaultRot).GetNormalized();
+			const FVector3f SimPos = LocalDefaultSimPos;
+			const FQuat4f SimRot = LocalDefaultSimRot;
 			const FVector Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
 			const FQuat Rotation = bUseLocalSpace ? LocalToWorld.TransformRotation(FQuat(SimRot)) : FQuat(SimRot);
-			const FVector Size = FVector(ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalSizeBinding.GetParamMapBindableVariable(), DefaultSize) * 0.5f);
-			const FLinearColor DecalColor = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalColorBinding.GetParamMapBindableVariable(), FLinearColor::White);
-			const float Fade = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalFadeBinding.GetParamMapBindableVariable(), DefaultFade);
-			const int32 SortOrder = ParameterStore.GetParameterValueOrDefault(RendererProperties->DecalSortOrderBinding.GetParamMapBindableVariable(), DefaultSortOrder);
+			const FVector Size = FVector(LocalDefaultSize * 0.5f);
+			const FLinearColor DecalColor = LocalDefaultDecalColor;
+			const float Fade = LocalDefaultFade;
+			const int32 SortOrder = LocalDefaultSortOrder;
 
 			// Create Update Parameters
 			FDeferredDecalUpdateParams& UpdateParams = DecalUpdates.AddDefaulted_GetRef();

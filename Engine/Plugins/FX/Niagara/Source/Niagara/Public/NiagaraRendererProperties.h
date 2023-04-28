@@ -444,6 +444,12 @@ protected:
 #if WITH_EDITOR
 	FOnPropertiesChanged OnPropertiesChangedDelegate;
 #endif
+
+	template<typename TAccessorType>
+	void InitParticleDataSetAccessor(TAccessorType& Accessor, const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariableAttributeBinding& Binding)
+	{
+		Accessor.Init(Binding.IsParticleBinding() ? CompiledData : nullptr, Binding.GetDataSetBindableVariable().GetName());
+	}
 };
 
 template<typename TAction>

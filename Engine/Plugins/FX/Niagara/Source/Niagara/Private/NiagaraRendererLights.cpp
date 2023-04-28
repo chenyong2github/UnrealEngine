@@ -102,13 +102,15 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 
 	const bool bUseLocalSpace = UseLocalSpace(Proxy);
 	FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(bUseLocalSpace);
-	const FLinearColor DefaultColor = Properties->ColorBinding.GetDefaultValue<FLinearColor>();
-	const FNiagaraPosition DefaultPos = bUseLocalSpace ? FVector::ZeroVector : LocalToWorld.GetLocation();
-	const float DefaultRadius = Properties->RadiusBinding.GetDefaultValue<float>();
-	const float DefaultScattering = Properties->VolumetricScatteringBinding.GetDefaultValue<float>();
-	const FNiagaraBool DefaultEnabled(true);
-	const int32 DefaultVisibilityTag(0);
-	const float DefaultExponent = Properties->DefaultExponent;
+
+	const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
+	const FVector3f DefaultPos = ParameterStore.GetParameterValueOrDefault(Properties->PositionBinding.GetParamMapBindableVariable(), FVector3f::ZeroVector);
+	const FLinearColor DefaultColor = ParameterStore.GetParameterValueOrDefault(Properties->ColorBinding.GetParamMapBindableVariable(), Properties->ColorBinding.GetDefaultValue<FLinearColor>());
+	const float DefaultRadius = ParameterStore.GetParameterValueOrDefault(Properties->RadiusBinding.GetParamMapBindableVariable(), Properties->RadiusBinding.GetDefaultValue<float>());
+	const float DefaultScattering = ParameterStore.GetParameterValueOrDefault(Properties->VolumetricScatteringBinding.GetParamMapBindableVariable(), Properties->VolumetricScatteringBinding.GetDefaultValue<float>());
+	const FNiagaraBool DefaultEnabled = ParameterStore.GetParameterValueOrDefault(Properties->LightRenderingEnabledBinding.GetParamMapBindableVariable(), FNiagaraBool(true));
+	const int32 DefaultVisibilityTag = ParameterStore.GetParameterValueOrDefault(Properties->RendererVisibilityTagBinding.GetParamMapBindableVariable(), Properties->RendererVisibility);
+	const float DefaultExponent = ParameterStore.GetParameterValueOrDefault(Properties->LightExponentBinding.GetParamMapBindableVariable(), Properties->DefaultExponent);
 
 	const float InverseExposureBlend = Properties->bOverrideInverseExposureBlend ? Properties->InverseExposureBlend : GetDefault<UNiagaraSettings>()->DefaultLightInverseExposureBlend;
 
@@ -127,18 +129,16 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 
 		for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ParticleIndex++)
 		{
-			bool bShouldRenderParticleLight = EnabledReader.GetSafe(ParticleIndex, DefaultEnabled).GetValue();
-			if (bShouldRenderParticleLight && VisTagReader.IsValid())
-			{
-				bShouldRenderParticleLight = VisTagReader.GetSafe(ParticleIndex, DefaultVisibilityTag) == Properties->RendererVisibility;
-			}
-			float LightRadius = RadiusReader.GetSafe(ParticleIndex, DefaultRadius) * Properties->RadiusScale;
-			if (bShouldRenderParticleLight && LightRadius > 0)
+			const int32 VisTag = VisTagReader.GetSafe(ParticleIndex, DefaultVisibilityTag);
+			const bool bShouldRenderParticleLight = EnabledReader.GetSafe(ParticleIndex, DefaultEnabled).GetValue() && (VisTag == Properties->RendererVisibility);
+			const float LightRadius = RadiusReader.GetSafe(ParticleIndex, DefaultRadius) * Properties->RadiusScale;
+			if (bShouldRenderParticleLight && (LightRadius > 0.0f))
 			{
 				SimpleLightData& LightData = DynamicData->LightArray.AddDefaulted_GetRef();
 
 				const FLinearColor Color = ColorReader.GetSafe(ParticleIndex, DefaultColor);
 				const float Brightness = Properties->bAlphaScalesBrightness ? Color.A : 1.0f;
+				const FVector3f SimPos = PositionReader.GetSafe(ParticleIndex, DefaultPos);
 
 				LightData.LightEntry.Radius = LightRadius;
 				LightData.LightEntry.Color = FVector3f(Color) * Brightness + Properties->ColorAdd;
@@ -146,26 +146,21 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 				LightData.LightEntry.InverseExposureBlend = InverseExposureBlend;
 				LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
 				LightData.LightEntry.VolumetricScatteringIntensity = ScatteringReader.GetSafe(ParticleIndex, DefaultScattering);
-				LightData.PerViewEntry.Position = LwcConverter.ConvertSimulationPositionToWorld(PositionReader.GetSafe(ParticleIndex, DefaultPos));
-				if (bUseLocalSpace)
-				{
-					LightData.PerViewEntry.Position = LocalToWorld.TransformPosition(LightData.PerViewEntry.Position);
-				}
+				LightData.PerViewEntry.Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
 			}
 		}
 	}
 	else
 	{
-		const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
-		const bool bEnabled = ParameterStore.GetParameterValueOrDefault(Properties->LightRenderingEnabledBinding.GetParamMapBindableVariable(), FNiagaraBool(true)).GetValue();
-		const int32 VisTag = ParameterStore.GetParameterValueOrDefault(Properties->RendererVisibilityTagBinding.GetParamMapBindableVariable(), Properties->RendererVisibility);
-		const float LightRadius = ParameterStore.GetParameterValueOrDefault(Properties->RadiusBinding.GetParamMapBindableVariable(), DefaultRadius) * Properties->RadiusScale;
+		const bool bEnabled = DefaultEnabled.GetValue();
+		const int32 VisTag = DefaultVisibilityTag;
+		const float LightRadius = DefaultRadius * Properties->RadiusScale;
 		if (bEnabled && VisTag == Properties->RendererVisibility && LightRadius > 0.0f)
 		{
-			const FVector3f SimPos = ParameterStore.GetParameterValueOrDefault(Properties->PositionBinding.GetParamMapBindableVariable(), DefaultPos);
-			const FLinearColor LightColor = ParameterStore.GetParameterValueOrDefault(Properties->ColorBinding.GetParamMapBindableVariable(), DefaultColor);
-			const float LightExponent = ParameterStore.GetParameterValueOrDefault(Properties->LightExponentBinding.GetParamMapBindableVariable(), DefaultExponent);
-			const float LightScattering = ParameterStore.GetParameterValueOrDefault(Properties->VolumetricScatteringBinding.GetParamMapBindableVariable(), DefaultScattering);
+			const FVector3f SimPos = DefaultPos;
+			const FLinearColor LightColor = DefaultColor;
+			const float LightExponent = DefaultExponent;
+			const float LightScattering = DefaultScattering;
 			const float Brightness = Properties->bAlphaScalesBrightness ? LightColor.A : 1.0f;
 
 			SimpleLightData& LightData = DynamicData->LightArray.AddDefaulted_GetRef();
@@ -175,11 +170,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 			LightData.LightEntry.InverseExposureBlend = InverseExposureBlend;
 			LightData.LightEntry.bAffectTranslucency = Properties->bAffectsTranslucency;
 			LightData.LightEntry.VolumetricScatteringIntensity = LightScattering;
-			LightData.PerViewEntry.Position = LwcConverter.ConvertSimulationPositionToWorld(SimPos);
-			if (bUseLocalSpace)
-			{
-				LightData.PerViewEntry.Position = LocalToWorld.TransformPosition(LightData.PerViewEntry.Position);
-			}
+			LightData.PerViewEntry.Position = bUseLocalSpace ? LocalToWorld.TransformPosition(FVector(SimPos)) : LwcConverter.ConvertSimulationPositionToWorld(SimPos);
 		}
 	}
 
