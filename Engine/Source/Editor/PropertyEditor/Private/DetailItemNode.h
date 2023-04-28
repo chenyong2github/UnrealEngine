@@ -26,6 +26,7 @@ public:
 	virtual TSharedPtr<IPropertyHandle> CreatePropertyHandle() const override;
 	virtual void GetFilterStrings(TArray<FString>& OutFilterStrings) const override;
 	virtual bool GetInitiallyCollapsed() const override;
+	virtual void RefreshVisibility() override;
 
 	/**
 	 * Initializes this node                                                              
@@ -57,6 +58,11 @@ public:
 	 * @return The new, uncached visibility of this item.
 	 */
 	EVisibility ComputeItemVisibility() const;
+
+	/**
+	 * updates the cached node visibility and optionally calls a tree refresh if it changed
+	 */
+	void RefreshCachedVisibility(bool bCallChangeDelegate = false);
 
 	/** FDetailTreeNode interface */
 	virtual IDetailsView* GetNodeDetailsView() const override { TSharedPtr<FDetailCategoryImpl> PC = GetParentCategory(); return PC.IsValid() ? PC->GetNodeDetailsView() : nullptr; }

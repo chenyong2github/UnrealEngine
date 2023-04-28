@@ -8,7 +8,6 @@
 #include "IDetailKeyframeHandler.h"
 #include "ObjectPropertyNode.h"
 #include "SConstrainedBox.h"
-#include "PropertyCustomizationHelpers.h"
 #include "PropertyPermissionList.h"
 #include "SDetailCategoryTableRow.h"
 #include "SDetailSingleItemRow.h"
@@ -60,7 +59,7 @@ void FDetailItemNode::Initialize()
 		SetExpansionState(bShouldExpand, bSaveState);
 	}
 
-	CachedItemVisibility = ComputeItemVisibility();
+	RefreshCachedVisibility();
 
 	const bool bUpdateFilteredNodes = false;
 	GenerateChildren( bUpdateFilteredNodes );
@@ -717,16 +716,7 @@ void FDetailItemNode::Tick( float DeltaTime )
 			Customization.CustomBuilderRow->Tick( DeltaTime );
 		}
 
-		// Recache visibility
-		EVisibility NewVisibility = ComputeItemVisibility();
-	
-		if( CachedItemVisibility != NewVisibility )
-		{
-			// The visibility of a node in the tree has changed.  We must refresh the tree to remove the widget
-			CachedItemVisibility = NewVisibility;
-			const bool bRefilterCategory = true;
-			ParentCategory.Pin()->RefreshTree( bRefilterCategory );
-		}
+		RefreshCachedVisibility(true);
 	}
 }
 
@@ -791,6 +781,28 @@ EVisibility FDetailItemNode::ComputeItemVisibility() const
 	}
 
 	return NewVisibility;
+}
+
+void FDetailItemNode::RefreshVisibility()
+{
+	RefreshCachedVisibility();
+}
+
+void FDetailItemNode::RefreshCachedVisibility(bool bCallChangeDelegate)
+{
+	// Recache visibility
+	EVisibility NewVisibility = ComputeItemVisibility();
+	
+	if( CachedItemVisibility != NewVisibility )
+	{
+		// The visibility of a node in the tree has changed.  We must refresh the tree to remove the widget
+		CachedItemVisibility = NewVisibility;
+		if (bCallChangeDelegate)
+		{
+			const bool bRefilterCategory = true;
+			ParentCategory.Pin()->RefreshTree( bRefilterCategory );
+		}
+	}
 }
 
 bool FDetailItemNode::ShouldShowOnlyChildren() const

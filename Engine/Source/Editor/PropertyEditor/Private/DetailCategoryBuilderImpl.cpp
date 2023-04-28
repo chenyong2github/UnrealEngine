@@ -10,15 +10,12 @@
 #include "DetailItemNode.h"
 #include "DetailPropertyRow.h"
 #include "IPropertyGenerationUtilities.h"
-#include "ItemPropertyNode.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectPropertyNode.h"
-#include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "PropertyPermissionList.h"
 #include "SDetailCategoryTableRow.h"
-#include "SDetailSingleItemRow.h"
 #include "StructurePropertyNode.h"
 #include "Styling/StyleColors.h"
  
@@ -646,6 +643,7 @@ void FDetailCategoryImpl::RefreshTree(bool bRefilterCategory)
 		TSharedPtr<FDetailLayoutBuilderImpl> ParentLayout = GetParentLayoutImpl();
 		if (ParentLayout.IsValid())
 		{
+			ParentLayout->RefreshNodeVisbility();
 			FilterNode(ParentLayout->GetCurrentFilter());
 			ParentLayout->GetPropertyGenerationUtilities().RebuildTreeNodes();
 		}

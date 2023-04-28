@@ -112,6 +112,11 @@ public:
 	virtual ENodeVisibility GetVisibility() const = 0;
 
 	/**
+	 * updates the visibility of this node if necessary
+	 */
+	virtual void RefreshVisibility() {}
+
+	/**
 	 * Called each frame if the node requests that it should be ticked
 	 */
 	virtual void Tick(float DeltaTime) = 0;

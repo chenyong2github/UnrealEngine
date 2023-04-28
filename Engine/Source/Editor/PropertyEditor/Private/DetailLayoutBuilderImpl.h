@@ -25,7 +25,7 @@ public:
 		const TSharedPtr<IDetailsViewPrivate>& InDetailsView,
 		bool bIsExternal);
 
-	~FDetailLayoutBuilderImpl();
+	virtual ~FDetailLayoutBuilderImpl() override;
 
 	/** IDetailLayoutBuilder Interface */
 	virtual const IDetailsView* GetDetailsView() const override;
@@ -218,6 +218,8 @@ public:
 	/** Combines the type layout map from our PropertyGenerationUtilities object, with the local InstancePropertyTypeExtensions map - which provides instance based customizations/overrides. */
 	FCustomPropertyTypeLayoutMap GetInstancedPropertyTypeLayoutMap() const;
 
+	void RefreshNodeVisbility();
+	
 private:
 	/**
 	 * Finds a property node for the current property by searching in a fast lookup map or a path search if required

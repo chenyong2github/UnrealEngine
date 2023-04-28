@@ -728,6 +728,14 @@ FCustomPropertyTypeLayoutMap FDetailLayoutBuilderImpl::GetInstancedPropertyTypeL
 	return TypeLayoutMap;
 }
 
+void FDetailLayoutBuilderImpl::RefreshNodeVisbility()
+{
+	for(TSet<FDetailTreeNode*>::TIterator It = TickableNodes.CreateIterator(); It; ++It)
+	{
+		(*It)->RefreshVisibility();
+	}
+}
+
 TSharedPtr<FAssetThumbnailPool> FDetailLayoutBuilderImpl::GetThumbnailPool() const
 {
 	return PropertyDetailsUtilities.Pin()->GetThumbnailPool();
