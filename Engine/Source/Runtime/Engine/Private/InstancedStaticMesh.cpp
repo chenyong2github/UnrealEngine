@@ -277,6 +277,19 @@ public:
 
 TGlobalResource<FDummyFloatBuffer> GDummyFloatBuffer;
 
+// Dummy instance buffer used for PSO pre-caching
+class FDummyStaticMeshInstanceBuffer : public FStaticMeshInstanceBuffer
+{
+public:
+	FDummyStaticMeshInstanceBuffer()
+	: FStaticMeshInstanceBuffer(GMaxRHIFeatureLevel, false /*InRequireCPUAccess*/, true /*bDeferGPUUploadIn*/)
+	{
+		InstanceData = MakeShared<FStaticMeshInstanceData, ESPMode::ThreadSafe>(GVertexElementTypeSupport.IsSupported(VET_Half2));
+	}
+};
+
+TGlobalResource<FDummyStaticMeshInstanceBuffer> GDummyStaticMeshInstanceBuffer;
+
 FInstancedStaticMeshDelegates::FOnInstanceIndexUpdated FInstancedStaticMeshDelegates::OnInstanceIndexUpdated;
 
 /** InstancedStaticMeshInstance hit proxy */
@@ -937,111 +950,21 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 
 	check(HasValidFeatureLevel());
 
+	const ERHIFeatureLevel::Type ThisFeatureLevel = GetFeatureLevel();
+	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, ThisFeatureLevel);
+	const bool bUseManualVertexFetch = GetType()->SupportsManualVertexFetch(ThisFeatureLevel);
+
 	FVertexDeclarationElementList Elements;
-	if(Data.PositionComponent.VertexBuffer != NULL)
-	{
-		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
-	}
+	GetVertexElements(ThisFeatureLevel, EVertexInputStreamType::Default, bUseManualVertexFetch, Data, Elements, Streams);
 
 	// on mobile with GPUScene enabled instanced attributes[8-12] are used for a general auto-instancing
 	// so we add them only for desktop or if mobile has GPUScene disabled
 	// FIXME mobile: instanced attributes encode some editor related data as well (selection etc), need to split it into separate SRV as it's not supported with auto-instancing
+	// FIXME: Need to capture PrimitiveId elements for PSO precaching
 	uint8 AutoInstancingAttr_Mobile = 8;
 	const bool bMobileUsesGPUScene = MobileSupportsGPUScene();
-
-	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GetFeatureLevel());
-	const bool bUseManualVertexFetch = GetType()->SupportsManualVertexFetch(GetFeatureLevel());
-
-	if (!bUseManualVertexFetch)
+	if (ThisFeatureLevel > ERHIFeatureLevel::ES3_1 || !bMobileUsesGPUScene)
 	{
-		// only tangent,normal are used by the stream. the binormal is derived in the shader
-		uint8 TangentBasisAttributes[2] = { 1, 2 };
-		for (int32 AxisIndex = 0; AxisIndex < 2; AxisIndex++)
-		{
-			if (Data.TangentBasisComponents[AxisIndex].VertexBuffer != NULL)
-			{
-				Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex], TangentBasisAttributes[AxisIndex]));
-			}
-		}
-
-		if (Data.ColorComponentsSRV == nullptr)
-		{
-			Data.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
-			Data.ColorIndexMask = 0;
-		}
-
-		if (Data.ColorComponent.VertexBuffer)
-		{
-			Elements.Add(AccessStreamComponent(Data.ColorComponent, 3));
-		}
-		else
-		{
-			//If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
-			//This wastes 4 bytes of bandwidth per vertex, but prevents having to compile out twice the number of vertex factories.
-			FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
-			Elements.Add(AccessStreamComponent(NullColorComponent, 3));
-		}
-
-		if (Data.TextureCoordinates.Num())
-		{
-			const int32 BaseTexCoordAttribute = 4;
-			for (int32 CoordinateIndex = 0; CoordinateIndex < Data.TextureCoordinates.Num(); CoordinateIndex++)
-			{
-				Elements.Add(AccessStreamComponent(
-					Data.TextureCoordinates[CoordinateIndex],
-					BaseTexCoordAttribute + CoordinateIndex
-				));
-			}
-
-			for (int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < (InstancedStaticMeshMaxTexCoord + 1) / 2; CoordinateIndex++)
-			{
-				Elements.Add(AccessStreamComponent(
-					Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
-					BaseTexCoordAttribute + CoordinateIndex
-				));
-			}
-		}
-
-		// PreSkinPosition attribute is only used for GPUSkinPassthrough variation of local vertex factory.
-		// It is not used by ISM so fill with dummy buffer.
-		if (FLocalVertexFactory::IsGPUSkinPassThroughSupported(GMaxRHIShaderPlatform))
-		{
-			FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
-			Elements.Add(AccessStreamComponent(NullComponent, 14));
-		}
-
-		if (Data.LightMapCoordinateComponent.VertexBuffer)
-		{
-			Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent, 15));
-		}
-		else if (Data.TextureCoordinates.Num())
-		{
-			Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0], 15));
-		}
-	}
-
-	if (GetFeatureLevel() > ERHIFeatureLevel::ES3_1 || !bMobileUsesGPUScene)
-	{
-		// toss in the instanced location stream
-		check(bCanUseGPUScene || Data.InstanceOriginComponent.VertexBuffer);
-		if (Data.InstanceOriginComponent.VertexBuffer)
-		{
-			Elements.Add(AccessStreamComponent(Data.InstanceOriginComponent, 8));
-		}
-
-		check(bCanUseGPUScene || Data.InstanceTransformComponent[0].VertexBuffer);
-		if (Data.InstanceTransformComponent[0].VertexBuffer)
-		{
-			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[0], 9));
-			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[1], 10));
-			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[2], 11));
-		}
-
-		if (Data.InstanceLightmapAndShadowMapUVBiasComponent.VertexBuffer)
-		{
-			Elements.Add(AccessStreamComponent(Data.InstanceLightmapAndShadowMapUVBiasComponent, 12));
-		}
-
 		// Do not add general auto-instancing attributes for mobile
 		AutoInstancingAttr_Mobile = 0xff;
 	}
@@ -1060,6 +983,127 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 		UniformParameters.InstanceCustomDataBuffer = GetInstanceCustomDataSRV();
 		UniformParameters.NumCustomDataFloats = Data.NumCustomDataFloats;
 		UniformBuffer = TUniformBufferRef<FInstancedStaticMeshVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
+	}
+}
+
+void FInstancedStaticMeshVertexFactory::GetVertexElements(
+	ERHIFeatureLevel::Type FeatureLevel,
+	EVertexInputStreamType InputStreamType,
+	bool bSupportsManualVertexFetch,
+	FDataType& Data,
+	FVertexDeclarationElementList& Elements)
+{
+	FVertexStreamList VertexStreams;
+	GetVertexElements(FeatureLevel, InputStreamType, bSupportsManualVertexFetch, Data, Elements, VertexStreams);
+}
+
+void FInstancedStaticMeshVertexFactory::GetVertexElements(
+	ERHIFeatureLevel::Type FeatureLevel, 
+	EVertexInputStreamType InputStreamType, 
+	bool bSupportsManualVertexFetch, 
+	FDataType& Data, 
+	FVertexDeclarationElementList& Elements, 
+	FVertexStreamList& Streams)
+{
+	if (Data.PositionComponent.VertexBuffer != NULL)
+	{
+		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0, Streams));
+	}
+
+	if (!bSupportsManualVertexFetch)
+	{
+		// only tangent,normal are used by the stream. the binormal is derived in the shader
+		uint8 TangentBasisAttributes[2] = { 1, 2 };
+		for (int32 AxisIndex = 0; AxisIndex < 2; AxisIndex++)
+		{
+			if (Data.TangentBasisComponents[AxisIndex].VertexBuffer != NULL)
+			{
+				Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex], TangentBasisAttributes[AxisIndex], Streams));
+			}
+		}
+
+		if (Data.ColorComponentsSRV == nullptr)
+		{
+			Data.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
+			Data.ColorIndexMask = 0;
+		}
+
+		if (Data.ColorComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.ColorComponent, 3, Streams));
+		}
+		else
+		{
+			//If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
+			//This wastes 4 bytes of bandwidth per vertex, but prevents having to compile out twice the number of vertex factories.
+			FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
+			Elements.Add(AccessStreamComponent(NullColorComponent, 3, Streams));
+		}
+
+		if (Data.TextureCoordinates.Num())
+		{
+			const int32 BaseTexCoordAttribute = 4;
+			for (int32 CoordinateIndex = 0; CoordinateIndex < Data.TextureCoordinates.Num(); CoordinateIndex++)
+			{
+				Elements.Add(AccessStreamComponent(
+					Data.TextureCoordinates[CoordinateIndex],
+					BaseTexCoordAttribute + CoordinateIndex,
+					Streams
+				));
+			}
+
+			for (int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < (InstancedStaticMeshMaxTexCoord + 1) / 2; CoordinateIndex++)
+			{
+				Elements.Add(AccessStreamComponent(
+					Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
+					BaseTexCoordAttribute + CoordinateIndex,
+					Streams
+				));
+			}
+		}
+
+		// PreSkinPosition attribute is only used for GPUSkinPassthrough variation of local vertex factory.
+		// It is not used by ISM so fill with dummy buffer.
+		if (FLocalVertexFactory::IsGPUSkinPassThroughSupported(GMaxRHIShaderPlatform))
+		{
+			FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
+			Elements.Add(AccessStreamComponent(NullComponent, 14, Streams));
+		}
+
+		if (Data.LightMapCoordinateComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent, 15, Streams));
+		}
+		else if (Data.TextureCoordinates.Num())
+		{
+			Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0], 15, Streams));
+		}
+	}
+
+	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
+	const bool bMobileUsesGPUScene = MobileSupportsGPUScene();
+	
+	if (FeatureLevel > ERHIFeatureLevel::ES3_1 || !bMobileUsesGPUScene)
+	{
+		// toss in the instanced location stream
+		check(bCanUseGPUScene || Data.InstanceOriginComponent.VertexBuffer);
+		if (Data.InstanceOriginComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.InstanceOriginComponent, 8, Streams));
+		}
+
+		check(bCanUseGPUScene || Data.InstanceTransformComponent[0].VertexBuffer);
+		if (Data.InstanceTransformComponent[0].VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[0], 9, Streams));
+			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[1], 10, Streams));
+			Elements.Add(AccessStreamComponent(Data.InstanceTransformComponent[2], 11, Streams));
+		}
+
+		if (Data.InstanceLightmapAndShadowMapUVBiasComponent.VertexBuffer)
+		{
+			Elements.Add(AccessStreamComponent(Data.InstanceLightmapAndShadowMapUVBiasComponent, 12, Streams));
+		}
 	}
 }
 
@@ -1117,17 +1161,53 @@ void FInstancedStaticMeshRenderData::ReleaseResources(FSceneInterface* Scene, co
 	}
 }
 
+void InitInstancedStaticMeshVertexFactoryComponents(
+	const FStaticMeshVertexBuffers& VertexBuffers,
+	const FStaticMeshInstanceBuffer* InstanceBuffer,
+	const FInstancedStaticMeshVertexFactory* VertexFactory,
+	int32 LightMapCoordinateIndex,
+	bool bHasColorVertexData,
+	bool bRHISupportsManualVertexFetch,
+	FInstancedStaticMeshVertexFactory::FDataType& OutData)
+{
+	VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(VertexFactory, OutData);
+	VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(VertexFactory, OutData);
+	VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(VertexFactory, OutData);
+	
+	if (LightMapCoordinateIndex < (int32)VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() && LightMapCoordinateIndex >= 0)
+	{
+		VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(VertexFactory, OutData, LightMapCoordinateIndex);
+	}
+
+	if (bHasColorVertexData)
+	{
+		VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(VertexFactory, OutData);
+	}
+	else
+	{
+		// shouldn't this check if ISM component actually has a color data for override?
+		FColorVertexBuffer::BindDefaultColorVertexBuffer(VertexFactory, OutData, bRHISupportsManualVertexFetch ? FColorVertexBuffer::NullBindStride::FColorSizeForComponentOverride : FColorVertexBuffer::NullBindStride::ZeroForDefaultBufferBind);
+	}
+
+	if (InstanceBuffer)
+	{
+		InstanceBuffer->BindInstanceVertexBuffer(VertexFactory, OutData);
+	}
+}
+
 void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("FInstancedStaticMeshRenderData::BindBuffersToVertexFactories");
 
 	check(IsInRenderingThread());
-
+	
+	FStaticMeshInstanceBuffer* InstanceBuffer = nullptr;
 	const bool bRHISupportsManualVertexFetch = RHISupportsManualVertexFetch(GShaderPlatformForFeatureLevel[FeatureLevel]);
 	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
 	if (!bCanUseGPUScene)
 	{
 		PerInstanceRenderData->InstanceBuffer.FlushGPUUpload();
+		InstanceBuffer = &PerInstanceRenderData->InstanceBuffer;
 	}
 
 	for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
@@ -1137,30 +1217,7 @@ void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 		FInstancedStaticMeshVertexFactory::FDataType Data;
 		// Assign to the vertex factory for this LOD.
 		FInstancedStaticMeshVertexFactory& VertexFactory = VertexFactories[LODIndex];
-
-		RenderData->VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&VertexFactory, Data);
-		RenderData->VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(&VertexFactory, Data);
-		RenderData->VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&VertexFactory, Data);
-		if (LightMapCoordinateIndex < (int32)RenderData->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() && LightMapCoordinateIndex >= 0)
-		{
-			RenderData->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(&VertexFactory, Data, LightMapCoordinateIndex);
-		}
-
-		if (RenderData->bHasColorVertexData)
-		{
-			RenderData->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
-		}
-		else
-		{
-			FColorVertexBuffer::BindDefaultColorVertexBuffer(&VertexFactory, Data, bRHISupportsManualVertexFetch ? FColorVertexBuffer::NullBindStride::FColorSizeForComponentOverride : FColorVertexBuffer::NullBindStride::ZeroForDefaultBufferBind);
-		}
-
-		check(PerInstanceRenderData);
-		if (!bCanUseGPUScene)
-		{
-			PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
-		}
-
+		InitInstancedStaticMeshVertexFactoryComponents(RenderData->VertexBuffers, InstanceBuffer, &VertexFactory, LightMapCoordinateIndex, RenderData->bHasColorVertexData, bRHISupportsManualVertexFetch, Data);
 		VertexFactory.SetData(Data);
 		VertexFactory.InitResource();
 	}
@@ -4721,34 +4778,19 @@ void UInstancedStaticMeshComponent::CollectPSOPrecacheData(const FPSOPrecachePar
 		return;
 	}
 
-	bool bAnySectionCastsShadows = false;
-	TArray<int16, TInlineAllocator<2>> UsedMaterialIndices;
-	for (FStaticMeshLODResources& LODRenderData : GetStaticMesh()->GetRenderData()->LODResources)
-	{
-		for (FStaticMeshSection& RenderSection : LODRenderData.Sections)
-		{
-			UsedMaterialIndices.AddUnique(RenderSection.MaterialIndex);
-			bAnySectionCastsShadows |= RenderSection.bCastShadow;
-		}
-	}
-
-	FPSOPrecacheParams PrecachePSOParams = BasePrecachePSOParams;
-	PrecachePSOParams.bCastShadow = bAnySectionCastsShadows;
-	PrecachePSOParams.bReverseCulling = bReverseCulling;
-	
+	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+	FStaticMeshInstanceBuffer* InstanceBuffer = bCanUseGPUScene ? nullptr : &GDummyStaticMeshInstanceBuffer;
 	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType : &FInstancedStaticMeshVertexFactory::StaticType;
-
-	for (uint16 MaterialIndex : UsedMaterialIndices)
+	int32 LightMapCoordinateIndex = GetStaticMesh()->GetLightMapCoordinateIndex();
+	
+	auto ISMC_GetElements = [LightMapCoordinateIndex, InstanceBuffer](const FStaticMeshLODResources& LODRenderData, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
 	{
-		UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
-		if (MaterialInterface)
-		{
-			FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
-			ComponentParams.MaterialInterface = MaterialInterface;
-			ComponentParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(VFType));
-			ComponentParams.PSOPrecacheParams = PrecachePSOParams;
-		}
-	}
+		FInstancedStaticMeshVertexFactory::FDataType Data;
+		InitInstancedStaticMeshVertexFactoryComponents(LODRenderData.VertexBuffers, InstanceBuffer, nullptr /*VertexFactory*/, LightMapCoordinateIndex, LODRenderData.bHasColorVertexData, bSupportsManualVertexFetch, Data);
+		FInstancedStaticMeshVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, EVertexInputStreamType::Default, bSupportsManualVertexFetch, Data, Elements);
+	};
+
+	CollectPSOPrecacheDataImpl(VFType, BasePrecachePSOParams, ISMC_GetElements, OutParams);
 }
 
 void UInstancedStaticMeshComponent::OnPostLoadPerInstanceData()

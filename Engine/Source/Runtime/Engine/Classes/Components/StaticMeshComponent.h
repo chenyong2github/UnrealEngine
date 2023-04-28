@@ -35,6 +35,7 @@ struct FNavigableGeometryExport;
 struct FNavigationRelevantData;
 struct FStaticMeshComponentLODInfo;
 struct FStaticLightingPrimitiveInfo;
+struct FStaticMeshLODResources;
 
 /** Whether FStaticMeshSceneProxy should to store data and enable codepaths needed for debug rendering */
 #define STATICMESH_ENABLE_DEBUG_RENDERING			ENABLE_DRAW_DEBUG
@@ -690,10 +691,12 @@ private:
 	UMaterialInterface* GetMaterial(int32 MaterialIndex, bool bDoingNaniteMaterialAudit) const;
 
 protected:
-
 	/** Collect all the PSO precache data used by the static mesh component */
 	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
-
+	/** Shared implementation for all StaticMesh derived components */
+	using GetPSOVertexElementsFn = TFunctionRef<void(const FStaticMeshLODResources& LODRenderData, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)>;
+	void CollectPSOPrecacheDataImpl(const FVertexFactoryType* VFType, const FPSOPrecacheParams& BasePrecachePSOParams, GetPSOVertexElementsFn GetVertexElements, FComponentPSOPrecacheParamsList& OutParams) const;
+		
 	/** Whether the component type supports static lighting. */
 	virtual bool SupportsStaticLighting() const override
 	{

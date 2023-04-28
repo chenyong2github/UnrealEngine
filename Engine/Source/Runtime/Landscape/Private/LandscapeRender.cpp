@@ -244,19 +244,23 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 
 	ALandscapeProxy* Actor = GetLandscapeProxy();
 
-	if (Actor != nullptr && Actor->bUseDynamicMaterialInstance)
+	if (GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1)
 	{
-		OutMaterials.Append(MaterialInstancesDynamic.FilterByPredicate([](UMaterialInstanceDynamic* MaterialInstance) { return MaterialInstance != nullptr; }));
-	}
-	else
-	{
-		OutMaterials.Append(MaterialInstances.FilterByPredicate([](UMaterialInstanceConstant* MaterialInstance) { return MaterialInstance != nullptr; }));
+		if (Actor != nullptr && Actor->bUseDynamicMaterialInstance)
+		{
+			OutMaterials.Append(MaterialInstancesDynamic.FilterByPredicate([](UMaterialInstanceDynamic* MaterialInstance) { return MaterialInstance != nullptr; }));
+		}
+		else
+		{
+			OutMaterials.Append(MaterialInstances.FilterByPredicate([](UMaterialInstanceConstant* MaterialInstance) { return MaterialInstance != nullptr; }));
+		}
 	}
 
 	if (MobileMaterialInterfaces.Num())
 	{
 		OutMaterials.Append(MobileMaterialInterfaces.FilterByPredicate([](UMaterialInterface* MaterialInstance) { return MaterialInstance != nullptr; }));
 	}
+
 #if	WITH_EDITORONLY_DATA	
 	if (MobileCombinationMaterialInstances.Num())
 	{
@@ -3097,8 +3101,12 @@ void FLandscapeVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 
 void FLandscapeVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
 {
-	Elements.Add(FVertexElement(0, 0, VET_UByte4, 0, 0, false));
-	Elements.Add(FVertexElement(1, 0, VET_UInt, 1, 0, true));
+	Elements.Add(FVertexElement(0, 0, VET_UByte4, 0, sizeof(FLandscapeVertex), false));
+	
+	if (UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel))
+	{
+		Elements.Add(FVertexElement(1, 0, VET_UInt, 1, sizeof(uint32), true));
+	}
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_Vertex, FLandscapeVertexFactoryVertexShaderParameters);

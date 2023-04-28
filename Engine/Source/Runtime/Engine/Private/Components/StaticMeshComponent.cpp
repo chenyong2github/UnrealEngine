@@ -43,6 +43,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Engine/StaticMesh.h"
+#include "MaterialDomain.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshComponent)
 
@@ -1520,24 +1521,71 @@ void UStaticMeshComponent::InitResources()
 	}
 }
 
-void UStaticMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams)
+void InitStaticMeshVertexFactoryComponents(
+	const FStaticMeshVertexBuffers& VertexBuffers,
+	FLocalVertexFactory* VertexFactory,
+	int32 LightMapCoordinateIndex,
+	bool bOverrideColorVertexBuffer,
+	FLocalVertexFactory::FDataType& OutData)
 {
-	if (StaticMesh == nullptr || StaticMesh->GetRenderData() == nullptr)
+	VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(VertexFactory, OutData);
+	VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(VertexFactory, OutData);
+	VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(VertexFactory, OutData);
+	VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(VertexFactory, OutData, LightMapCoordinateIndex);
+	if (bOverrideColorVertexBuffer)
 	{
-		return;
+		FColorVertexBuffer::BindDefaultColorVertexBuffer(VertexFactory, OutData, FColorVertexBuffer::NullBindStride::FColorSizeForComponentOverride);
 	}
+	else
+	{
+		VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(VertexFactory, OutData);
+	}
+}
+
+void UStaticMeshComponent::CollectPSOPrecacheDataImpl(
+	const FVertexFactoryType* VFType, 
+	const FPSOPrecacheParams& BasePrecachePSOParams, 
+	GetPSOVertexElementsFn GetVertexElements,
+	FComponentPSOPrecacheParamsList& OutParams) const
+{
+	check(StaticMesh != nullptr && StaticMesh->GetRenderData() != nullptr);
 
 	UWorld* World = GetWorld();
 	ERHIFeatureLevel::Type FeatureLevel = World ? World->GetFeatureLevel() : GMaxRHIFeatureLevel;
 
+	bool bSupportsManualVertexFetch = VFType->SupportsManualVertexFetch(GMaxRHIFeatureLevel);
 	bool bAnySectionCastsShadows = false;
-	TArray<int16, TInlineAllocator<2>> UsedMaterialIndices;
-	for (FStaticMeshLODResources& LODRenderData : StaticMesh->GetRenderData()->LODResources)
+
+	FPSOPrecacheVertexFactoryDataPerMaterialIndexList VFTypesPerMaterialIndex;
+	for (FStaticMeshLODResources& LODRenderData : GetStaticMesh()->GetRenderData()->LODResources)
 	{
+		FVertexDeclarationElementList VertexElements;
+		if (!bSupportsManualVertexFetch)
+		{
+			GetVertexElements(LODRenderData, bSupportsManualVertexFetch, VertexElements);
+		}
+
 		for (FStaticMeshSection& RenderSection : LODRenderData.Sections)
 		{
-			UsedMaterialIndices.AddUnique(RenderSection.MaterialIndex);
 			bAnySectionCastsShadows |= RenderSection.bCastShadow;
+
+			int16 MaterialIndex = RenderSection.MaterialIndex;
+			FPSOPrecacheVertexFactoryDataPerMaterialIndex* VFsPerMaterial = VFTypesPerMaterialIndex.FindByPredicate(
+				[MaterialIndex](const FPSOPrecacheVertexFactoryDataPerMaterialIndex& Other) { return Other.MaterialIndex == MaterialIndex; });
+			if (VFsPerMaterial == nullptr)
+			{
+				VFsPerMaterial = &VFTypesPerMaterialIndex.AddDefaulted_GetRef();
+				VFsPerMaterial->MaterialIndex = RenderSection.MaterialIndex;
+			}
+
+			if (bSupportsManualVertexFetch)
+			{
+				VFsPerMaterial->VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(VFType));
+			}
+			else
+			{	
+				VFsPerMaterial->VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(VFType, VertexElements));
+			}			
 		}
 	}
 
@@ -1548,22 +1596,54 @@ void UStaticMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& Base
 	PrecachePSOParams.bReverseCulling = bReverseCulling != bIsLocalToWorldDeterminantNegative;
 	PrecachePSOParams.bForceLODModel = ForcedLodModel > 0;
 
-	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType :  &FLocalVertexFactory::StaticType;
-
-	for (uint16 MaterialIndex : UsedMaterialIndices)
+	for (FPSOPrecacheVertexFactoryDataPerMaterialIndex& VFsPerMaterial : VFTypesPerMaterialIndex)
 	{
-		UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
-		if (MaterialInterface)
+		UMaterialInterface* MaterialInterface = GetMaterial(VFsPerMaterial.MaterialIndex);
+		if (MaterialInterface == nullptr)
 		{
-			PrecachePSOParams.bHasWorldPositionOffsetVelocity = SupportsWorldPositionOffsetVelocity()
-				&& MaterialInterface->GetRelevance_Concurrent(FeatureLevel).bUsesWorldPositionOffset;
-
-			FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
-			ComponentParams.MaterialInterface = MaterialInterface;
-			ComponentParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(VFType));
-			ComponentParams.PSOPrecacheParams = PrecachePSOParams;
+			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
+
+		FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+		ComponentParams.MaterialInterface = MaterialInterface;
+		ComponentParams.VertexFactoryDataList = VFsPerMaterial.VertexFactoryDataList;
+		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
 	}
+
+	if (OverlayMaterial && VFTypesPerMaterialIndex.Num() != 0)
+	{
+		// Overlay is rendered with the same set of VFs
+		FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+		
+		ComponentParams.MaterialInterface = OverlayMaterial;
+		ComponentParams.VertexFactoryDataList = VFTypesPerMaterialIndex[0].VertexFactoryDataList;
+		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
+		ComponentParams.PSOPrecacheParams.bCastShadow = false;
+	}
+}
+
+void UStaticMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams)
+{
+	if (StaticMesh == nullptr || StaticMesh->GetRenderData() == nullptr)
+	{
+		return;
+	}
+
+	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType : &FLocalVertexFactory::StaticType;
+	int32 LightMapCoordinateIndex = StaticMesh->GetLightMapCoordinateIndex();
+	// FIXME: Need a precise per-LOD test
+	bool bOverrideColorVertexBuffer = LODData.Num() != 0 && LODData[0].OverrideVertexColors != nullptr;
+	
+	auto SMC_GetElements = [LightMapCoordinateIndex, bOverrideColorVertexBuffer](const FStaticMeshLODResources& LODRenderData, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
+	{
+		int32 NumTexCoords = (int32)LODRenderData.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+		int32 LODLightMapCoordinateIndex = LightMapCoordinateIndex < NumTexCoords ? LightMapCoordinateIndex : NumTexCoords - 1;
+		FLocalVertexFactory::FDataType Data;
+		InitStaticMeshVertexFactoryComponents(LODRenderData.VertexBuffers, nullptr /*VertexFactory*/, LODLightMapCoordinateIndex, bOverrideColorVertexBuffer, Data);
+		FLocalVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, EVertexInputStreamType::Default, bSupportsManualVertexFetch, Data, Elements);
+	};
+	
+	CollectPSOPrecacheDataImpl(VFType, BasePrecachePSOParams, SMC_GetElements, OutParams);
 }
 
 #if WITH_EDITOR

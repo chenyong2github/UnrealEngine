@@ -20,7 +20,6 @@
 #include "RenderUtils.h"
 #include "SceneInterface.h"
 #include "UObject/UnrealType.h"
-#include "MaterialDomain.h"
 #include "Materials/Material.h"
 
 #if WITH_EDITOR
@@ -131,8 +130,8 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FSplineMeshVertexFactory, "/Engine/Private/LocalVe
 );
 
 void InitSplineMeshVertexFactoryComponents(
-	FStaticMeshVertexBuffers& VertexBuffers, 
-	FSplineMeshVertexFactory* VertexFactory, 
+	const FStaticMeshVertexBuffers& VertexBuffers, 
+	const FSplineMeshVertexFactory* VertexFactory, 
 	int32 LightMapCoordinateIndex, 
 	bool bOverrideColorVertexBuffer,
 	FLocalVertexFactory::FDataType& OutData)
@@ -641,65 +640,18 @@ void USplineMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& Base
 	}
 
 	FVertexFactoryType* VertexFactoryType = &FSplineMeshVertexFactory::StaticType;
-	bool bSupportsManualVertexFetch = VertexFactoryType->SupportsManualVertexFetch(GMaxRHIFeatureLevel);
-
-	// Override color buffer is using same vertex element data as default one
-	bool bOverrideColorVertexBuffer = false;
 	int32 LightMapCoordinateIndex = GetStaticMesh()->GetLightMapCoordinateIndex();
 
-	bool bAnySectionCastsShadows = false;
-	FPSOPrecacheVertexFactoryDataPerMaterialIndexList VFTypesPerMaterialIndex;
-	for (FStaticMeshLODResources& LODRenderData : GetStaticMesh()->GetRenderData()->LODResources)
+	auto SMC_GetElements = [LightMapCoordinateIndex](const FStaticMeshLODResources& LODRenderData, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
 	{
-		FVertexDeclarationElementList VertexElements;
-		if (!bSupportsManualVertexFetch)
-		{
-			FLocalVertexFactory::FDataType Data;
-			InitSplineMeshVertexFactoryComponents(LODRenderData.VertexBuffers, nullptr /*VertexFactory*/, LightMapCoordinateIndex, bOverrideColorVertexBuffer, Data);
-			FSplineMeshVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, EVertexInputStreamType::Default, bSupportsManualVertexFetch, Data, VertexElements);						
-		}
+		// FIXME: This will miss when SM component overrides vertex colors and source StaticMesh does not have vertex colors
+		bool bOverrideColorVertexBuffer = false;
+		FLocalVertexFactory::FDataType Data;
+		InitSplineMeshVertexFactoryComponents(LODRenderData.VertexBuffers, nullptr /*VertexFactory*/, LightMapCoordinateIndex, bOverrideColorVertexBuffer, Data);
+		FLocalVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, EVertexInputStreamType::Default, bSupportsManualVertexFetch, Data, Elements);
+	};
 
-		for (FStaticMeshSection& RenderSection : LODRenderData.Sections)
-		{
-			bAnySectionCastsShadows |= RenderSection.bCastShadow;
-
-			int16 MaterialIndex = RenderSection.MaterialIndex;
-			FPSOPrecacheVertexFactoryDataPerMaterialIndex* VFsPerMaterial = VFTypesPerMaterialIndex.FindByPredicate(
-				[MaterialIndex](const FPSOPrecacheVertexFactoryDataPerMaterialIndex& Other) { return Other.MaterialIndex == MaterialIndex; });
-			if (VFsPerMaterial == nullptr)
-			{
-				VFsPerMaterial = &VFTypesPerMaterialIndex.AddDefaulted_GetRef();
-				VFsPerMaterial->MaterialIndex = RenderSection.MaterialIndex;
-			}
-
-			if (bSupportsManualVertexFetch)
-			{
-				VFsPerMaterial->VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(VertexFactoryType));
-			}
-			else
-			{	
-				VFsPerMaterial->VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(VertexFactoryType, VertexElements));
-			}			
-		}
-	}
-
-	FPSOPrecacheParams PrecachePSOParams = BasePrecachePSOParams;
-	PrecachePSOParams.bCastShadow = bAnySectionCastsShadows;
-	PrecachePSOParams.bReverseCulling = bReverseCulling;
-
-	for (FPSOPrecacheVertexFactoryDataPerMaterialIndex& VFsPerMaterial : VFTypesPerMaterialIndex)
-	{
-		UMaterialInterface* MaterialInterface = GetMaterial(VFsPerMaterial.MaterialIndex);
-		if (MaterialInterface == nullptr)
-		{
-			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-
-		FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
-		ComponentParams.MaterialInterface = MaterialInterface;
-		ComponentParams.VertexFactoryDataList = VFsPerMaterial.VertexFactoryDataList;
-		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
-	}
+	CollectPSOPrecacheDataImpl(VertexFactoryType, BasePrecachePSOParams, SMC_GetElements, OutParams);
 }
 
 FPrimitiveSceneProxy* USplineMeshComponent::CreateSceneProxy()

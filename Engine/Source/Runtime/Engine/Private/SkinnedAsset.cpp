@@ -116,6 +116,9 @@ void USkinnedAsset::PostLoad()
 	}
 }
 
+// TODO: move this to a StaticMeshResources.h?
+extern void InitStaticMeshVertexFactoryComponents(const FStaticMeshVertexBuffers& VertexBuffers, FLocalVertexFactory* VertexFactory, int32 LightMapCoordinateIndex, bool bOverrideColorVertexBuffer, FLocalVertexFactory::FDataType& OutData);
+
 FPSOPrecacheVertexFactoryDataPerMaterialIndexList USkinnedAsset::GetVertexFactoryTypesPerMaterialIndex(
 	USkinnedMeshComponent* SkinnedMeshComponent, int32 MinLODIndex, bool bCPUSkin, ERHIFeatureLevel::Type FeatureLevel)
 {
@@ -154,7 +157,21 @@ FPSOPrecacheVertexFactoryDataPerMaterialIndexList USkinnedAsset::GetVertexFactor
 			if (bCPUSkin)
 			{
 				// Force static from GPU point of view
-				VFsPerMaterial->VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(&FLocalVertexFactory::StaticType));
+				const FVertexFactoryType* CPUSkinVFType = &FLocalVertexFactory::StaticType;
+				bool bSupportsManualVertexFetch = CPUSkinVFType->SupportsManualVertexFetch(GMaxRHIFeatureLevel);
+				if (!bSupportsManualVertexFetch)
+				{
+					FVertexDeclarationElementList VertexElements;
+					bool bOverrideColorVertexBuffer = false;
+					FLocalVertexFactory::FDataType Data;
+					InitStaticMeshVertexFactoryComponents(LODRenderData.StaticVertexBuffers, nullptr /*VertexFactory*/, 0, bOverrideColorVertexBuffer, Data);
+					FLocalVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, EVertexInputStreamType::Default, bSupportsManualVertexFetch, Data, VertexElements);
+					VFsPerMaterial->VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(CPUSkinVFType, VertexElements));
+				}
+				else
+				{
+					VFsPerMaterial->VertexFactoryDataList.AddUnique(FPSOPrecacheVertexFactoryData(CPUSkinVFType));
+				}
 			}
 			else if (!SkelMeshRenderData->RequiresCPUSkinning(FeatureLevel, LODIndex))
 			{

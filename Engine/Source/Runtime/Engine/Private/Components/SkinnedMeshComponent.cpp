@@ -596,6 +596,17 @@ void USkinnedMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& Bas
 		ComponentParams.VertexFactoryDataList = VFsPerMaterial.VertexFactoryDataList;
 		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
 	}
+
+	if (OverlayMaterial && VFsPerMaterials.Num() != 0)
+	{
+		// Overlay is rendered with the same set of VFs
+		FComponentPSOPrecacheParams& ComponentParams = OutParams[OutParams.AddDefaulted()];
+
+		ComponentParams.MaterialInterface = OverlayMaterial;
+		ComponentParams.VertexFactoryDataList = VFsPerMaterials[0].VertexFactoryDataList;
+		ComponentParams.PSOPrecacheParams = PrecachePSOParams;
+		ComponentParams.PSOPrecacheParams.bCastShadow = false;
+	}
 }
 
 void USkinnedMeshComponent::OnRegister()

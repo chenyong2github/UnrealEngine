@@ -229,6 +229,8 @@ void UMeshComponent::SetOverlayMaterial(UMaterialInterface* NewOverlayMaterial)
 	if (OverlayMaterial != NewOverlayMaterial)
 	{
 		OverlayMaterial = NewOverlayMaterial;
+		// Precache PSOs again
+		PrecachePSOs();
 		MarkRenderStateDirty();
 	}
 }
