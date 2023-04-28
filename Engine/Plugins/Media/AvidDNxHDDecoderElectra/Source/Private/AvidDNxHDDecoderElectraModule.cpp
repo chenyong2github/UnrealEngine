@@ -35,6 +35,6 @@ public:
 	}
 };
 
-IMPLEMENT_MODULE(FAvidDNxHDElectraDecoderModule, HAPDecoderElectra);
+IMPLEMENT_MODULE(FAvidDNxHDElectraDecoderModule, AvidDNxHDDecoderElectra);
 
 #undef LOCTEXT_NAMESPACE
