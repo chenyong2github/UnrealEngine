@@ -133,7 +133,7 @@ enum EConstructTextureFlags
 {
 	/** Compress RGBA8 to DXT */
 	CTF_Compress =				0x01,
-	/** Don't actually compress until the pacakge is saved */
+	/** Don't actually compress until the package is saved */
 	CTF_DeferCompression =		0x02,
 	/** Enable SRGB on the texture */
 	CTF_SRGB =					0x04,
@@ -145,6 +145,8 @@ enum EConstructTextureFlags
 	CTF_RemapAlphaAsMasked =	0x20,
 	/** Ensure the alpha channel of the texture is opaque white (255). */
 	CTF_ForceOpaque =			0x40,
+	/** Don't call a post edit change on the texture. */
+	CTF_SkipPostEdit =			0x80,
 
 	/** Default flags (maps to previous defaults to ConstructTexture2D) */
 	CTF_Default = CTF_Compress | CTF_SRGB,

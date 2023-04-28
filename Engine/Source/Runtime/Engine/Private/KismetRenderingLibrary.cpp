@@ -598,7 +598,7 @@ UTexture2D* UKismetRenderingLibrary::RenderTargetCreateStaticTexture2DEditorOnly
 		UObject* NewObj = nullptr;
 
 		// create a static 2d texture
-		NewObj = RenderTarget->ConstructTexture2D(CreatePackage( *PackageName), Name, RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default | CTF_AllowMips, nullptr);
+		NewObj = RenderTarget->ConstructTexture2D(CreatePackage( *PackageName), Name, RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default | CTF_AllowMips | CTF_SkipPostEdit, nullptr);
 		UTexture2D* NewTex = Cast<UTexture2D>(NewObj);
 
 		if (NewTex != nullptr)
@@ -606,13 +606,13 @@ UTexture2D* UKismetRenderingLibrary::RenderTargetCreateStaticTexture2DEditorOnly
 			// package needs saving
 			NewObj->MarkPackageDirty();
 
-			// Notify the asset registry
-			FAssetRegistryModule::AssetCreated(NewObj);
-
 			// Update Compression and Mip settings
 			NewTex->CompressionSettings = CompressionSettings;
 			NewTex->MipGenSettings = MipSettings;
 			NewTex->PostEditChange();
+
+			// Notify the asset registry
+			FAssetRegistryModule::AssetCreated(NewObj);
 
 			return NewTex;
 		}

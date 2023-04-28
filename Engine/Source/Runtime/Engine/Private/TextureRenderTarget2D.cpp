@@ -18,6 +18,7 @@
 #include "UObject/UnrealType.h"
 #if WITH_EDITOR
 #include "Components/SceneCaptureComponent2D.h"
+#include "TextureCompiler.h"
 #include "UObject/UObjectIterator.h"
 #endif
 
@@ -370,7 +371,11 @@ UTexture2D* UTextureRenderTarget2D::ConstructTexture2D(UObject* Outer, const FSt
 		Result->CompressionNone = true;
 		Result->DeferCompression = false;
 	}
-	Result->PostEditChange();
+
+	if ((Flags & CTF_SkipPostEdit) != 0)
+	{
+		Result->PostEditChange();
+	}
 #endif
 
 	return Result;
@@ -539,6 +544,9 @@ void UTextureRenderTarget2D::UpdateTexture2D(UTexture2D* InTexture2D, ETextureSo
 	if (bTextureChanging)
 	{
 		TextureChangingDelegate.ExecuteIfBound(InTexture2D);
+
+		// Ensure the texture is not being compiled
+		FTextureCompilingManager::Get().FinishCompilation({InTexture2D});
 
 		// init to the same size as the 2d texture
 		InTexture2D->Source.Init(SizeX, SizeY, NbSlices, NbMips, InTextureFormat, NewData);
