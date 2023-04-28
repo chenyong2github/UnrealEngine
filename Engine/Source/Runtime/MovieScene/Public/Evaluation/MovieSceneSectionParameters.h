@@ -26,6 +26,9 @@ enum class EMovieSceneSubSectionFlags
 	/** Everything inside this sub-sequence should ignore hierarchical bias and always be relevant */
 	IgnoreHierarchicalBias = 1 << 2,
 
+	/** Blend this sub sequence's hierarchical bias level using a higher -> lower override. Values from higher biases will override those in lower biases until a combined weight of 1 is reached. */
+	BlendHierarchicalBias  = 1 << 3,
+
 	AnyRestoreStateOverride = OverrideKeepState | OverrideRestoreState,
 };
 ENUM_CLASS_FLAGS(EMovieSceneSubSectionFlags)

@@ -9,6 +9,7 @@
 #include "Systems/MovieSceneMaterialSystem.h"
 #include "Systems/MovieSceneInitialValueSystem.h"
 #include "Systems/MovieScenePreAnimatedMaterialParameters.h"
+#include "Systems/WeightAndEasingEvaluatorSystem.h"
 
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectStorage.h"
 
@@ -194,6 +195,8 @@ struct FScalarMixin
 				Linker->EntityManager.AddComponent(SoleContributor, TracksComponents->FloatParameter.InitialValue, InitialValue);
 			}
 		}
+
+		Linker->EntityManager.RemoveComponent(SoleContributor, FBuiltInComponentTypes::Get()->HierarchicalBlendTarget);
 	}
 };
 
@@ -331,6 +334,40 @@ struct TOverlappingMaterialParameterHandler : Mixin
 
 			const FComponentTypeID BlenderTypeTag = System->DoubleBlenderSystem->GetBlenderTypeTag();
 
+			struct FBlendInfo
+			{
+				int16 HBias = TNumericLimits<int16>::Min();
+				bool bBlendHierarchicalBias = true;
+			};
+			FBlendInfo IgnoredBlendInfo;
+			FBlendInfo BlendInfo;
+			for (FMovieSceneEntityID Input : Inputs)
+			{
+				FBlendInfo& BlendInfoToUpdate = Linker->EntityManager.HasComponent(Input, BuiltInComponents->Tags.Ignored) ? IgnoredBlendInfo : BlendInfo;
+
+				TOptionalComponentReader<int16> HBiasComponent = Linker->EntityManager.ReadComponent(Input, BuiltInComponents->HierarchicalBias);
+				const int16 HBias = HBiasComponent ? *HBiasComponent : 0;
+
+				if (HBias > BlendInfoToUpdate.HBias)
+				{
+					BlendInfoToUpdate.HBias = HBias;
+					BlendInfoToUpdate.bBlendHierarchicalBias = Linker->EntityManager.HasComponent(Input, BuiltInComponents->Tags.BlendHierarchicalBias);
+				}
+				else if (HBias == BlendInfoToUpdate.HBias && !BlendInfoToUpdate.bBlendHierarchicalBias)
+				{
+					BlendInfoToUpdate.bBlendHierarchicalBias = Linker->EntityManager.HasComponent(Input, BuiltInComponents->Tags.BlendHierarchicalBias);
+				}
+			}
+
+			if (BlendInfo.HBias == TNumericLimits<int16>::Min())
+			{
+				BlendInfo = IgnoredBlendInfo;
+			}
+			else if (IgnoredBlendInfo.HBias != TNumericLimits<int16>::Min())
+			{
+				BlendInfo.bBlendHierarchicalBias |= IgnoredBlendInfo.bBlendHierarchicalBias;
+			}
+
 			for (FMovieSceneEntityID Input : Inputs)
 			{
 				if (!Linker->EntityManager.HasComponent(Input, BuiltInComponents->BlendChannelInput))
@@ -341,6 +378,18 @@ struct TOverlappingMaterialParameterHandler : Mixin
 				{
 					// If the bound material changed, we might have been re-assigned a different blend channel so make sure it's up to date
 					Linker->EntityManager.WriteComponentChecked(Input, BuiltInComponents->BlendChannelInput, Output->BlendChannelID);
+				}
+
+				if (BlendInfo.bBlendHierarchicalBias)
+				{
+					if (!Linker->EntityManager.HasComponent(Input, BuiltInComponents->HierarchicalBlendTarget))
+					{
+						Linker->EntityManager.AddComponent(Input, BuiltInComponents->HierarchicalBlendTarget, BlendInfo.HBias);
+					}
+					else
+					{
+						Linker->EntityManager.WriteComponentChecked(Input, BuiltInComponents->HierarchicalBlendTarget, BlendInfo.HBias);
+					}
 				}
 
 				// Ensure we have the blender type tag on the inputs.
@@ -392,6 +441,7 @@ UMovieSceneMaterialParameterSystem::UMovieSceneMaterialParameterSystem(const FOb
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineComponentConsumer(GetClass(), TracksComponents->BoundMaterial);
+		DefineComponentProducer(GetClass(), BuiltInComponents->HierarchicalBlendTarget);
 
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UDoubleChannelEvaluatorSystem::StaticClass(), GetClass());
@@ -401,6 +451,7 @@ UMovieSceneMaterialParameterSystem::UMovieSceneMaterialParameterSystem(const FOb
 			DefineComponentConsumer(GetClass(), BuiltInComponents->DoubleResult[Index]);
 		}
 
+		DefineImplicitPrerequisite(UMovieSceneHierarchicalEasingInstantiatorSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(GetClass(), UMovieSceneHierarchicalBiasSystem::StaticClass());
 		DefineImplicitPrerequisite(GetClass(), UMovieSceneInitialValueSystem::StaticClass());

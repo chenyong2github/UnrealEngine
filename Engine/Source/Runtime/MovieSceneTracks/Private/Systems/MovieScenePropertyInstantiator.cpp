@@ -20,6 +20,31 @@ DECLARE_CYCLE_STAT(TEXT("DiscoverInvalidatedProperties"), MovieSceneEval_Discove
 DECLARE_CYCLE_STAT(TEXT("ProcessInvalidatedProperties"), MovieSceneEval_ProcessInvalidatedProperties, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("InitializePropertyMetaData"), MovieSceneEval_InitializePropertyMetaData, STATGROUP_MovieSceneECS);
 
+
+void UMovieScenePropertyInstantiatorSystem::FHierarchicalMetaData::CombineWith(const FHierarchicalMetaData& Other)
+{
+	NumContributors        += Other.NumContributors;
+	bWantsRestoreState     |= Other.bWantsRestoreState;
+	bSupportsFastPath      &= Other.bSupportsFastPath;
+	bNeedsInitialValue     |= Other.bNeedsInitialValue;
+	bBlendHierarchicalBias |= Other.bBlendHierarchicalBias;
+}
+
+void UMovieScenePropertyInstantiatorSystem::FHierarchicalMetaData::ResetTracking()
+{
+	NumContributors = 0;
+	bWantsRestoreState = false;
+	bSupportsFastPath = true;
+	bNeedsInitialValue = false;
+	bBlendHierarchicalBias = false;
+	bInUse = false;
+}
+
+UMovieScenePropertyInstantiatorSystem::FContributorKey UMovieScenePropertyInstantiatorSystem::FPropertyParameters::MakeContributorKey() const
+{
+	return PropertyInfo->HierarchicalMetaData.bBlendHierarchicalBias ? FContributorKey(PropertyInfoIndex) : FContributorKey(PropertyInfoIndex, PropertyInfo->HierarchicalMetaData.HBias);
+}
+
 UMovieScenePropertyInstantiatorSystem::UMovieScenePropertyInstantiatorSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -36,6 +61,7 @@ UMovieScenePropertyInstantiatorSystem::UMovieScenePropertyInstantiatorSystem(con
 	{
 		DefineComponentConsumer(GetClass(), BuiltInComponents->BoundObject);
 		DefineComponentProducer(GetClass(), BuiltInComponents->BlendChannelInput);
+		DefineComponentProducer(GetClass(), BuiltInComponents->HierarchicalBlendTarget);
 		DefineComponentProducer(GetClass(), BuiltInComponents->SymbolicTags.CreatesEntities);
 	}
 }
@@ -149,8 +175,11 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 
 	PropertyStats.SetNum(Properties.Num());
 
-	auto VisitNewProperties = [this, Properties, &OutInvalidatedProperties](const FEntityAllocation* Allocation, const FMovieSceneEntityID* EntityIDs, UObject* const * ObjectPtrs, const FMovieScenePropertyBinding* PropertyPtrs)
+	auto VisitNewProperties = [this, Properties, &OutInvalidatedProperties](FEntityAllocationIteratorItem AllocationItem, const FMovieSceneEntityID* EntityIDs, UObject* const * ObjectPtrs, const FMovieScenePropertyBinding* PropertyPtrs, const int16* HierarchicalBiases)
 	{
+		const FEntityAllocation* Allocation     = AllocationItem.GetAllocation();
+		const FComponentMask&    AllocationType = AllocationItem.GetAllocationType();
+
 		const int32 PropertyDefinitionIndex = Algo::IndexOfByPredicate(Properties, [=](const FPropertyDefinition& InDefinition){ return Allocation->HasComponent(InDefinition.PropertyType); });
 		if (PropertyDefinitionIndex == INDEX_NONE)
 		{
@@ -160,6 +189,15 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 		const FPropertyDefinition& PropertyDefinition = Properties[PropertyDefinitionIndex];
 
 		FCustomAccessorView CustomAccessors = PropertyDefinition.CustomPropertyRegistration ? PropertyDefinition.CustomPropertyRegistration->GetAccessors() : FCustomAccessorView();
+
+		// Figure out the hbias we should use for this allocation.
+		// If the allocation is tagged to ignore hbias, we null out the hbias components and use the ANY_HBIAS symbolic value
+		int16 DefaultHierarchicalBias = 0;
+		if (AllocationType.Contains(this->BuiltInComponents->Tags.IgnoreHierarchicalBias))
+		{
+			HierarchicalBiases = nullptr;
+			DefaultHierarchicalBias = FContributorKey::ANY_HBIAS;
+		}
 
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
@@ -172,8 +210,9 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 
 			if (PropertyIndex != INDEX_NONE)
 			{
-				this->Contributors.Add(PropertyIndex, EntityIDs[Index]);
-				this->NewContributors.Add(PropertyIndex, EntityIDs[Index]);
+				FContributorKey Key { PropertyIndex, HierarchicalBiases ? HierarchicalBiases[Index] : DefaultHierarchicalBias };
+				this->Contributors.Add(Key, EntityIDs[Index]);
+				this->NewContributors.Add(Key, EntityIDs[Index]);
 
 				OutInvalidatedProperties.PadToNum(PropertyIndex + 1, false);
 				OutInvalidatedProperties[PropertyIndex] = true;
@@ -185,6 +224,7 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 	.ReadEntityIDs()
 	.Read(BuiltInComponents->BoundObject)
 	.Read(BuiltInComponents->PropertyBinding)
+	.ReadOptional(BuiltInComponents->HierarchicalBias)
 	.FilterNone({ BuiltInComponents->BlendChannelOutput })
 	.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 	.Iterate_PerAllocation(&Linker->EntityManager, VisitNewProperties);
@@ -202,15 +242,6 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 				OutInvalidatedProperties[PropertyIndex] = true;
 
 				this->Contributors.Remove(PropertyIndex, EntityID);
-				
-				// The output entity of a property could be going away if that property is using the
-				// fast path, which means its sole contributor is that output entity. It can go away when
-				// that track or section gets reimported.
-				FObjectPropertyInfo& PropertyInfo = this->ResolvedProperties[PropertyIndex];
-				if (PropertyInfo.PropertyEntityID == EntityID)
-				{
-					PropertyInfo.PropertyEntityID = FMovieSceneEntityID::Invalid();
-				}
 			}
 
 			// Always remove the entity ID from the LUT
@@ -331,7 +362,8 @@ void UMovieScenePropertyInstantiatorSystem::UpgradeFloatToDoubleProperties(const
 		if (ensure(OldPropertyTag && NewPropertyTag))
 		{
 			// Swap out the property tag
-			for (auto ContribIt = NewContributors.CreateKeyIterator(PropertyIndex); ContribIt; ++ContribIt)
+			FContributorKey Key(PropertyIndex);
+			for (auto ContribIt = NewContributors.CreateKeyIterator(Key); ContribIt; ++ContribIt)
 			{
 				const FMovieSceneEntityID CurID(ContribIt.Value());
 				FComponentMask EntityType = Linker->EntityManager.GetEntityType(CurID);
@@ -385,7 +417,7 @@ void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const T
 			StaleProperties[PropertyIndex] = true;
 		}
 		// Does it support fast path?
-		else if (PropertySupportsFastPath(Params))
+		else if (Params.PropertyInfo->HierarchicalMetaData.bSupportsFastPath)
 		{
 			InitializeFastPath(Params);
 		}
@@ -411,10 +443,10 @@ void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const T
 					const FMovieSceneBlendChannelID BlendChannelID(Blender->GetBlenderSystemID(), PropertyInfo->BlendChannel);
 					Blender->ReleaseBlendChannel(BlendChannelID);
 				}
-				Linker->EntityManager.AddComponents(PropertyInfo->PropertyEntityID, BuiltInComponents->FinishedMask);
+				Linker->EntityManager.AddComponents(PropertyInfo->FinalBlendOutputID, BuiltInComponents->FinishedMask);
 			}
 
-			if (PropertyInfo->EmptyChannels.Find(true) != INDEX_NONE)
+			if (PropertyInfo->bIsPartiallyAnimated)
 			{
 				--PropertyStats[PropertyInfo->PropertyDefinitionIndex].NumPartialProperties;
 			}
@@ -434,6 +466,8 @@ void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const T
 				It.RemoveCurrent();
 			}
 		}
+
+		ResolvedProperties.Shrink();
 	}
 
 	NewContributors.Empty();
@@ -445,129 +479,262 @@ void UMovieScenePropertyInstantiatorSystem::UpdatePropertyInfo(const FPropertyPa
 
 	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(*Params.PropertyDefinition);
 
-	FChannelMask EmptyChannels(true, Params.PropertyDefinition->CompositeSize);
+	// This function updates the meta-data associated with a property for each hbias that it is animated from
+	// There are 3 possible 'modes' for hbias to be considered:
+	//    - Blended means that greater biases are allowed to override lower biases, but still blend with them when the weight is < 1
+	//    - Non-blended hbias simply disables contribution from any lower biases
+	//    - Entities tagged with IgnoreHierarchicalBias will always be relevant and contribute with the highest bias
 
-	bool bWantsRestoreState = false;
-	int32 NumContributors = 0;
 
-	for (auto ContributorIt = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
+	// Channel masks for all entities, entities within the active hbias, and within the 'ignored hbias' buckets
+	// Set bits denote channels that are not animated by entities in these contexts
+	FChannelMask BlendedBiasEmptyChannels(true, Params.PropertyDefinition->CompositeSize);
+	FChannelMask ActiveBiasEmptyChannels(true, Params.PropertyDefinition->CompositeSize);
+	FChannelMask IgnoredBiasEmptyChannels(true, Params.PropertyDefinition->CompositeSize);
+
+	// Key that visits any contributor to this property regardless of hbias
+	FContributorKey AnyContributor(Params.PropertyInfoIndex);
+
+	FHierarchicalMetaData IgnoredHBiasEntry;
+	FHierarchicalMetaData ActiveBiasEntry;
+
+	ActiveBiasEntry.HBias = TNumericLimits<int16>::Lowest();
+
+	// Iterate all contributors for this property to re-generate the meta-data
+	for (auto ContributorIt = Contributors.CreateConstKeyIterator(AnyContributor); ContributorIt; ++ContributorIt)
 	{
-		++NumContributors;
+		FMovieSceneEntityID Contributor = ContributorIt.Value();
+		const int16         ThisHBias   = ContributorIt.Key().HBias;
+		const bool          bIgnoreBias = ThisHBias == FContributorKey::ANY_HBIAS;
 
-		if (!bWantsRestoreState && Linker->EntityManager.HasComponent(ContributorIt.Value(), BuiltInComponents->Tags.RestoreState))
+		FHierarchicalMetaData* MetaDataToUpdate = nullptr;
+		if (bIgnoreBias)
 		{
-			bWantsRestoreState = true;
+			MetaDataToUpdate = &IgnoredHBiasEntry;
+		}
+		else if (ThisHBias >= ActiveBiasEntry.HBias)
+		{
+			MetaDataToUpdate = &ActiveBiasEntry;
+
+			if (ThisHBias > ActiveBiasEntry.HBias)
+			{
+				// We found a greater bias than any we've encountered this far
+				// Reset the empty channel list for the active hbias
+				ActiveBiasEmptyChannels = FChannelMask(true, Params.PropertyDefinition->CompositeSize);
+				ActiveBiasEntry.HBias = ThisHBias;
+
+				MetaDataToUpdate = &ActiveBiasEntry;
+			}
 		}
 
+		const bool bContributorIsActive = MetaDataToUpdate != nullptr;
+
+		// Update the various empty channel masks
 		for (int32 CompositeIndex = 0; CompositeIndex < Params.PropertyDefinition->CompositeSize; ++CompositeIndex)
 		{
-			if (EmptyChannels[CompositeIndex] == false)
-			{
-				continue;
-			}
+			const bool bCheckChannel =
+				BlendedBiasEmptyChannels[CompositeIndex] == true ||
+				(bIgnoreBias && IgnoredBiasEmptyChannels[CompositeIndex] == true) ||
+				(bContributorIsActive && ActiveBiasEmptyChannels[CompositeIndex] == true);
 
-			FComponentTypeID ThisChannel = Composites[CompositeIndex].ComponentTypeID;
-			if (ThisChannel && Linker->EntityManager.HasComponent(ContributorIt.Value(), ThisChannel))
+			if (bCheckChannel)
 			{
-				EmptyChannels[CompositeIndex] = false;
+				FComponentTypeID ThisChannel = Composites[CompositeIndex].ComponentTypeID;
+				if (ThisChannel && Linker->EntityManager.HasComponent(Contributor, ThisChannel))
+				{
+					BlendedBiasEmptyChannels[CompositeIndex] = false;
+					if (bIgnoreBias)
+					{
+						IgnoredBiasEmptyChannels[CompositeIndex] = false;
+					}
+					if (bContributorIsActive)
+					{
+						ActiveBiasEmptyChannels[CompositeIndex] = false;
+					}
+				}
 			}
+		}
+
+		if (!bContributorIsActive)
+		{
+			continue;
+		}
+
+		MetaDataToUpdate->bInUse = true;
+		++MetaDataToUpdate->NumContributors;
+
+		// Update whether this meta-data entry wants restore state
+		if (!MetaDataToUpdate->bWantsRestoreState && Linker->EntityManager.HasComponent(Contributor, BuiltInComponents->Tags.RestoreState))
+		{
+			MetaDataToUpdate->bWantsRestoreState = true;
+		}
+
+		// Update whether this meta-data entry needs an initial value or not
+		if (!MetaDataToUpdate->bNeedsInitialValue && Linker->EntityManager.HasComponent(Contributor, BuiltInComponents->Tags.AlwaysCacheInitialValue))
+		{
+			MetaDataToUpdate->bNeedsInitialValue = true;
+		}
+
+		const FComponentMask& Type = Linker->EntityManager.GetEntityType(Contributor);
+
+		if (!MetaDataToUpdate->bBlendHierarchicalBias && Type.Contains(BuiltInComponents->Tags.BlendHierarchicalBias))
+		{
+			MetaDataToUpdate->bBlendHierarchicalBias = true;
+			MetaDataToUpdate->bSupportsFastPath = false;
+		}
+
+		// Update whether this property supports fast path
+		if (MetaDataToUpdate->bSupportsFastPath)
+		{
+			if (MetaDataToUpdate->NumContributors > 1)
+			{
+				MetaDataToUpdate->bSupportsFastPath = false;
+			}
+			else
+			{
+				if (Type.Contains(BuiltInComponents->Tags.RelativeBlend) || 
+						Type.Contains(BuiltInComponents->Tags.AdditiveBlend) || 
+						Type.Contains(BuiltInComponents->Tags.AdditiveFromBaseBlend) || 
+						Type.Contains(BuiltInComponents->WeightAndEasingResult))
+				{
+					MetaDataToUpdate->bSupportsFastPath = false;
+				}
+			}
+		}
+	}
+
+	// Add any ignored hbias entries to the first tracked meta data that is in use
+	if (IgnoredHBiasEntry.bInUse)
+	{
+		// Combine using a bitwise & since channels are only empty if they are empty in both
+		ActiveBiasEmptyChannels.CombineWithBitwiseAND(IgnoredBiasEmptyChannels, EBitwiseOperatorFlags::MaintainSize);
+		if (ActiveBiasEntry.bInUse)
+		{
+			ActiveBiasEntry.CombineWith(IgnoredHBiasEntry);
+		}
+		else
+		{
+			ActiveBiasEntry = IgnoredHBiasEntry;
 		}
 	}
 
 	// Reset the restore state status of the property if we still have contributors
 	// We do not do this if there are no contributors to ensure that stale properties are restored correctly
-	if (NumContributors > 0)
+	Params.PropertyInfo->EmptyChannels = ActiveBiasEntry.bBlendHierarchicalBias
+		? BlendedBiasEmptyChannels
+		: ActiveBiasEmptyChannels;
+
+	const bool bWasPartial = Params.PropertyInfo->bIsPartiallyAnimated;
+	const bool bIsPartial  = Params.PropertyInfo->EmptyChannels.Find(true) != INDEX_NONE;
+
+	if (bWasPartial != bIsPartial)
 	{
-		const bool bWasPartial = Params.PropertyInfo->EmptyChannels.Find(true) != INDEX_NONE;
-		const bool bIsPartial  = EmptyChannels.Find(true) != INDEX_NONE;
-
-		if (bWasPartial != bIsPartial)
-		{
-			const int32 StatIndex = Params.PropertyInfo->PropertyDefinitionIndex;
-			PropertyStats[StatIndex].NumPartialProperties += bIsPartial ? 1 : -1;
-		}
-
-		Params.PropertyInfo->EmptyChannels = EmptyChannels;
-		Params.PropertyInfo->bWantsRestoreState = bWantsRestoreState;
-	}
-}
-
-bool UMovieScenePropertyInstantiatorSystem::PropertySupportsFastPath(const FPropertyParameters& Params) const
-{
-	using namespace UE::MovieScene;
-
-	// Properties that are already blended, or are currently animated must use the blend path
-	if (ResolvedProperties[Params.PropertyInfoIndex].BlendChannel != INVALID_BLEND_CHANNEL || Params.PropertyInfo->PropertyEntityID.IsValid())
-	{
-		return false;
+		const int32 StatIndex = Params.PropertyInfo->PropertyDefinitionIndex;
+		PropertyStats[StatIndex].NumPartialProperties += bIsPartial ? 1 : -1;
 	}
 
-	int32 NumContributors = 0;
-	for (auto It = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); It; ++It)
-	{
-		++NumContributors;
-		if (NumContributors > 1)
-		{
-			return false;
-		}
-
-		FComponentMask Type = Linker->EntityManager.GetEntityType(It.Value());
-		if (Type.Contains(BuiltInComponents->Tags.RelativeBlend) || 
-				Type.Contains(BuiltInComponents->Tags.AdditiveBlend) || 
-				Type.Contains(BuiltInComponents->Tags.AdditiveFromBaseBlend) || 
-				Type.Contains(BuiltInComponents->WeightAndEasingResult))
-		{
-			return false;
-		}
-	}
-
-	return true;
+	Params.PropertyInfo->bIsPartiallyAnimated = bIsPartial;
+	Params.PropertyInfo->bMaxHBiasHasChanged  = Params.PropertyInfo->HierarchicalMetaData.HBias != ActiveBiasEntry.HBias;
+	Params.PropertyInfo->HierarchicalMetaData = ActiveBiasEntry;
 }
 
 void UMovieScenePropertyInstantiatorSystem::InitializeFastPath(const FPropertyParameters& Params)
 {
 	using namespace UE::MovieScene;
 
-	FMovieSceneEntityID SoleContributor = Contributors.FindChecked(Params.PropertyInfoIndex);
+	FTypelessMutation IgnoredContributorMutation;
+	IgnoredContributorMutation.RemoveMask = CleanFastPathMask;
+	IgnoredContributorMutation.RemoveMask.Set(BuiltInComponents->BlendChannelInput);
+	IgnoredContributorMutation.RemoveMask.Set(Params.PropertyDefinition->InitialValueType);
+	IgnoredContributorMutation.RemoveMask.Set(BuiltInComponents->Tags.HasAssignedInitialValue);
+	IgnoredContributorMutation.AddMask.Set(BuiltInComponents->Tags.Ignored);
 
-	// Have we ever seen this property before?
-	if (SoleContributor == Params.PropertyInfo->PropertyEntityID)
+	// Find the sole contributor with the specific property info and hbias
+	const int16 ActiveHBias = Params.PropertyInfo->HierarchicalMetaData.HBias;
+	FContributorKey AnyContributor(Params.PropertyInfoIndex);
+	for (auto ContributorIt = Contributors.CreateConstKeyIterator(AnyContributor); ContributorIt; ++ContributorIt)
 	{
-		return;
-	}
+		FMovieSceneEntityID Contributor = ContributorIt.Value();
 
-	Params.PropertyInfo->PropertyEntityID = SoleContributor;
-
-	check(Params.PropertyInfo->BlendChannel == INVALID_BLEND_CHANNEL);
-	switch (Params.PropertyInfo->Property.GetIndex())
-	{
-	case 0:
-		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->FastPropertyOffset,  Params.PropertyInfo->Property.template Get<uint16>());
-		break;
-	case 1:
-		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->CustomPropertyIndex, Params.PropertyInfo->Property.template Get<FCustomPropertyIndex>());
-		break;
-	case 2:
-		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->SlowProperty,        Params.PropertyInfo->Property.template Get<FSlowPropertyPtr>());
-		break;
-	}
-
-	if (Linker->EntityManager.HasComponent(SoleContributor, BuiltInComponents->Tags.AlwaysCacheInitialValue))
-	{
-		Linker->EntityManager.AddComponent(SoleContributor, Params.PropertyDefinition->InitialValueType);
-	}
-
-	if (Params.PropertyDefinition->MetaDataTypes.Num() > 0)
-	{
-		InitializePropertyMetaDataTasks.PadToNum(Params.PropertyInfo->PropertyDefinitionIndex+1, false);
-		InitializePropertyMetaDataTasks[Params.PropertyInfo->PropertyDefinitionIndex] = true;
-
-		FComponentMask NewMask;
-		for (FComponentTypeID Component : Params.PropertyDefinition->MetaDataTypes)
+		if (ContributorIt.Key().HBias == ActiveHBias)
 		{
-			NewMask.Set(Component);
+			FTypelessMutation SoleContributorMutation;
+			SoleContributorMutation.RemoveMask.SetAll({ BuiltInComponents->Tags.Ignored, BuiltInComponents->BlendChannelInput, BuiltInComponents->HierarchicalBlendTarget });
+
+			if (Params.PropertyInfo->HierarchicalMetaData.bNeedsInitialValue)
+			{
+				SoleContributorMutation.AddMask.Set(Params.PropertyDefinition->InitialValueType);
+			}
+
+			if (Params.PropertyDefinition->MetaDataTypes.Num() > 0)
+			{
+				InitializePropertyMetaDataTasks.PadToNum(Params.PropertyInfo->PropertyDefinitionIndex+1, false);
+				InitializePropertyMetaDataTasks[Params.PropertyInfo->PropertyDefinitionIndex] = true;
+
+				for (FComponentTypeID Component : Params.PropertyDefinition->MetaDataTypes)
+				{
+					SoleContributorMutation.AddMask.Set(Component);
+				}
+			}
+
+			// Ensure the sole contributor is set up to apply the property as a final output
+			switch (Params.PropertyInfo->Property.GetIndex())
+			{
+			case 0:
+				FEntityBuilder()
+				.Add(BuiltInComponents->FastPropertyOffset, Params.PropertyInfo->Property.template Get<uint16>())
+				.MutateExisting(&Linker->EntityManager, Contributor, SoleContributorMutation);
+				break;
+			case 1:
+				FEntityBuilder()
+				.Add(BuiltInComponents->CustomPropertyIndex, Params.PropertyInfo->Property.template Get<FCustomPropertyIndex>())
+				.MutateExisting(&Linker->EntityManager, Contributor, SoleContributorMutation);
+				break;
+			case 2:
+				FEntityBuilder()
+				.Add(BuiltInComponents->SlowProperty, Params.PropertyInfo->Property.template Get<FSlowPropertyPtr>())
+				.MutateExisting(&Linker->EntityManager, Contributor, SoleContributorMutation);
+				break;
+			}
+
+			// Copy initial values and meta-data back off our old blend output
+			FMovieSceneEntityID OldOutput = Params.PropertyInfo->PreviousFastPathID ? Params.PropertyInfo->PreviousFastPathID : Params.PropertyInfo->FinalBlendOutputID;
+			if (OldOutput)
+			{
+				FComponentMask CopyMask;
+				CopyMask.Set(Params.PropertyDefinition->InitialValueType);
+				CopyMask.Set(BuiltInComponents->Tags.HasAssignedInitialValue);
+				for (FComponentTypeID Component : Params.PropertyDefinition->MetaDataTypes)
+				{
+					CopyMask.Set(Component);
+				}
+
+				Linker->EntityManager.CopyComponents(OldOutput, Contributor, CopyMask);
+			}
+
+			Params.PropertyInfo->PreviousFastPathID = Contributor;
 		}
-		Linker->EntityManager.AddComponents(SoleContributor, NewMask);
+		else
+		{
+			Linker->EntityManager.ChangeEntityType(Contributor, IgnoredContributorMutation.MutateType(Linker->EntityManager.GetEntityType(Contributor)));
+		}
+	}
+
+	// If this was previously blended, destroy the blend output
+	if (Params.PropertyInfo->FinalBlendOutputID)
+	{
+		UMovieSceneBlenderSystem* Blender = Params.PropertyInfo->Blender.Get();
+		if (Blender && Params.PropertyInfo->BlendChannel != INVALID_BLEND_CHANNEL)
+		{
+			const FMovieSceneBlendChannelID BlendChannelID(Blender->GetBlenderSystemID(), Params.PropertyInfo->BlendChannel);
+			Blender->ReleaseBlendChannel(BlendChannelID);
+
+			Params.PropertyInfo->BlendChannel = INVALID_BLEND_CHANNEL;
+			Params.PropertyInfo->Blender = nullptr;
+		}
+
+		Linker->EntityManager.AddComponent(Params.PropertyInfo->FinalBlendOutputID, BuiltInComponents->Tags.NeedsUnlink);
+		Params.PropertyInfo->FinalBlendOutputID = FMovieSceneEntityID();
 	}
 }
 
@@ -581,7 +748,8 @@ UMovieScenePropertyInstantiatorSystem::FSetupBlenderSystemResult UMovieSceneProp
 	int32 BlenderClassPriority = TNumericLimits<int32>::Lowest();
 
 	// Iterate all the contributors to locate the correct blender system by-priority
-	for (auto ContributorIt = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
+	FContributorKey ContributorKey = Params.MakeContributorKey();
+	for (auto ContributorIt = Contributors.CreateConstKeyIterator(ContributorKey); ContributorIt; ++ContributorIt)
 	{
 		FMovieSceneEntityID Contributor = ContributorIt.Value();
 		TOptionalComponentReader<TSubclassOf<UMovieSceneBlenderSystem>> BlenderTypeComponent = Linker->EntityManager.ReadComponent(Contributor, BuiltInComponents->BlenderType);
@@ -648,6 +816,8 @@ UMovieScenePropertyInstantiatorSystem::FSetupBlenderSystemResult UMovieSceneProp
 	return FSetupBlenderSystemResult{NewBlenderInfo, OldBlenderInfo};
 }
 
+
+
 void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyParameters& Params)
 {
 	using namespace UE::MovieScene;
@@ -658,7 +828,7 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 
 	// -----------------------------------------------------------------------------------------------------
 	// Situation 1: New or modified contributors (inputs) but we're already set up for blending using the same system
-	if (SetupResult.CurrentInfo.BlenderSystemClass == SetupResult.PreviousInfo.BlenderSystemClass)
+	if (Params.PropertyInfo->FinalBlendOutputID && SetupResult.CurrentInfo.BlenderSystemClass == SetupResult.PreviousInfo.BlenderSystemClass)
 	{
 		UMovieSceneBlenderSystem* Blender = Params.PropertyInfo->Blender.Get();
 		check(Blender);
@@ -666,16 +836,23 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 		// Ensure the output entity still matches the correct set of channels of all inputs
 		FComponentMask NewEntityType;
 		Params.MakeOutputComponentType(Linker->EntityManager, Composites, NewEntityType);
-		Linker->EntityManager.ChangeEntityType(Params.PropertyInfo->PropertyEntityID, NewEntityType);
+		Linker->EntityManager.ChangeEntityType(Params.PropertyInfo->FinalBlendOutputID, NewEntityType);
 
 		const FMovieSceneBlendChannelID BlendChannel(Blender->GetBlenderSystemID(), Params.PropertyInfo->BlendChannel);
 
 		// Change new contributors to include the blend input components
-		for (auto ContributorIt = NewContributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
+		FContributorKey ContributorKey = Params.MakeContributorKey();
+
+		TMultiMap<FContributorKey, FMovieSceneEntityID>::TConstKeyIterator ContributorIt = Params.PropertyInfo->bMaxHBiasHasChanged
+			? Contributors.CreateConstKeyIterator(ContributorKey)
+			: NewContributors.CreateConstKeyIterator(ContributorKey);
+
+		for (; ContributorIt; ++ContributorIt)
 		{
 			FEntityBuilder()
 			.Add(BuiltInComponents->BlendChannelInput, BlendChannel)
 			.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
+			.AddConditional(BuiltInComponents->HierarchicalBlendTarget, Params.PropertyInfo->HierarchicalMetaData.HBias, Params.PropertyInfo->HierarchicalMetaData.bBlendHierarchicalBias)
 			.MutateExisting(&Linker->EntityManager, ContributorIt.Value());
 		}
 
@@ -690,18 +867,25 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 
 	const FMovieSceneBlendChannelID NewBlendChannel = NewBlender->AllocateBlendChannel();
 
-	Params.PropertyInfo->Blender = NewBlender;
-	Params.PropertyInfo->BlendChannel = NewBlendChannel.ChannelID;
-
 	FTypelessMutation InputMutation;
+	// Clean any previously-fast-path entities
+	InputMutation.RemoveMask = CleanFastPathMask;
+	InputMutation.RemoveMask.Set(Params.PropertyDefinition->InitialValueType);
+	InputMutation.RemoveMask.Set(BuiltInComponents->Tags.HasAssignedInitialValue);
+	for (FComponentTypeID Component : Params.PropertyDefinition->MetaDataTypes)
+	{
+		InputMutation.RemoveMask.Set(Component);
+	}
 
 	// -----------------------------------------------------------------------------------------------------
 	// Situation 2.1: We're already set up for blending, but with a different blender system
 	if (OldBlender)
 	{
 		const FMovieSceneBlendChannelID OldBlendChannel(OldBlender->GetBlenderSystemID(), Params.PropertyInfo->BlendChannel);
-
 		OldBlender->ReleaseBlendChannel(OldBlendChannel);
+
+		Params.PropertyInfo->Blender = NewBlender;
+		Params.PropertyInfo->BlendChannel = NewBlendChannel.ChannelID;
 
 		// Change the output entity by adding the new blend channel and tag, while simultaneously
 		// updating the channels and restore state flags etc added by MakeOutputComponentType
@@ -717,7 +901,7 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 			FEntityBuilder()
 			.Add(BuiltInComponents->BlendChannelOutput, NewBlendChannel)
 			.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
-			.MutateExisting(&Linker->EntityManager, Params.PropertyInfo->PropertyEntityID, OutputMutation);
+			.MutateExisting(&Linker->EntityManager, Params.PropertyInfo->FinalBlendOutputID, OutputMutation);
 		}
 
 		// Ensure that the old blend tag is removed from inputs
@@ -728,6 +912,9 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 	// Situation 2.2: Never encountered blending before - need to create a new output entity to receive the blend result
 	else
 	{
+		Params.PropertyInfo->Blender = NewBlender;
+		Params.PropertyInfo->BlendChannel = NewBlendChannel.ChannelID;
+
 		FComponentMask NewMask;
 		NewMask.Set(Params.PropertyDefinition->InitialValueType);
 
@@ -758,8 +945,7 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 		.Add(BuiltInComponents->PropertyBinding,         Params.PropertyInfo->PropertyBinding)
 		.Add(BuiltInComponents->BoundObject,             Params.PropertyInfo->BoundObject)
 		.Add(BuiltInComponents->BlendChannelOutput,      NewBlendChannel)
-		.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Params.PropertyInfo->PropertyEntityID.IsValid())
-		.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->bWantsRestoreState)
+		.AddTagConditional(BuiltInComponents->Tags.RestoreState, Params.PropertyInfo->HierarchicalMetaData.bWantsRestoreState)
 		.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
 		.AddTag(BuiltInComponents->Tags.NeedsLink)
 		.AddMutualComponents();
@@ -786,29 +972,37 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 			break;
 		}
 
-		// Params.PropertyInfo->PropertyEntityID will be set if the entity was previously using the fast path
-		if (Params.PropertyInfo->PropertyEntityID)
+		if (Params.PropertyInfo->PreviousFastPathID)
 		{
-			// Move any copiable/migratable components over from the existing fast-path entity
-			Linker->EntityManager.CopyComponents(Params.PropertyInfo->PropertyEntityID, NewOutputEntityID, Linker->EntityManager.GetComponents()->GetCopyAndMigrationMask());
+			// If this contributor has the initial values on it, we copy its initial values and meta-data components
+			FComponentMask CopyMask = Linker->EntityManager.GetComponents()->GetCopyAndMigrationMask();
 
-			// Clean the previously-fast-path entity
-			InputMutation.RemoveMask = CleanFastPathMask;
+			CopyMask.Set(Params.PropertyDefinition->InitialValueType);
+			CopyMask.Set(BuiltInComponents->Tags.HasAssignedInitialValue);
+			for (FComponentTypeID Component : Params.PropertyDefinition->MetaDataTypes)
+			{
+				CopyMask.Set(Component);
+			}
+
+			Linker->EntityManager.CopyComponents(Params.PropertyInfo->PreviousFastPathID, NewOutputEntityID, CopyMask);
 		}
 
 		// The property entity ID is now the blend output entity
-		Params.PropertyInfo->PropertyEntityID = NewOutputEntityID;
+		Params.PropertyInfo->FinalBlendOutputID = NewOutputEntityID;
+		Params.PropertyInfo->PreviousFastPathID = FMovieSceneEntityID();
 	}
 
 	// Change *all* contributors (not just new ones because the old ones will have the old blender's channel and tag on them)
 	// to include the new blend channel input, and remove the old blender type. No need to remove the clean fast path mask because
 	// that will have already happened as part of the 'completely new blending' branch below
-	for (auto ContributorIt = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
+	FContributorKey ContributorKey(Params.PropertyInfoIndex);
+	for (auto ContributorIt = Contributors.CreateConstKeyIterator(ContributorKey); ContributorIt; ++ContributorIt)
 	{
-		const FMovieSceneEntityID Contributor = ContributorIt.Value();
+		FMovieSceneEntityID Contributor = ContributorIt.Value();
 
 		FEntityBuilder()
 		.Add(BuiltInComponents->BlendChannelInput, NewBlendChannel)
+		.AddConditional(BuiltInComponents->HierarchicalBlendTarget, Params.PropertyInfo->HierarchicalMetaData.HBias, Params.PropertyInfo->HierarchicalMetaData.bBlendHierarchicalBias)
 		.AddTag(SetupResult.CurrentInfo.BlenderTypeTag)
 		.MutateExisting(&Linker->EntityManager, Contributor, InputMutation);
 	}
@@ -850,17 +1044,20 @@ UE::MovieScene::FPropertyRecomposerPropertyInfo UMovieScenePropertyInstantiatorS
 {
 	using namespace UE::MovieScene;
 
+	TOptionalComponentReader<int16>                      HBiasComponent  = Linker->EntityManager.ReadComponent(EntityID, BuiltInComponents->HierarchicalBias);
 	TOptionalComponentReader<FMovieScenePropertyBinding> PropertyBinding = Linker->EntityManager.ReadComponent(EntityID, BuiltInComponents->PropertyBinding);
 	if (!PropertyBinding)
 	{
 		return FPropertyRecomposerPropertyInfo::Invalid();
 	}
 
+	const int16 HBias = HBiasComponent ? *HBiasComponent : 0;
 	TTuple<UObject*, FName> Key = MakeTuple(Object, PropertyBinding->PropertyPath);
 	if (const int32* PropertyIndex = ObjectPropertyToResolvedIndex.Find(Key))
 	{
+		const uint16 BlendChannel = ResolvedProperties[*PropertyIndex].BlendChannel;
 		const FObjectPropertyInfo& PropertyInfo = ResolvedProperties[*PropertyIndex];
-		return FPropertyRecomposerPropertyInfo { PropertyInfo.BlendChannel, PropertyInfo.Blender.Get(), PropertyInfo.PropertyEntityID };
+		return FPropertyRecomposerPropertyInfo { BlendChannel, PropertyInfo.Blender.Get(), PropertyInfo.FinalBlendOutputID };
 	}
 
 	return FPropertyRecomposerPropertyInfo::Invalid();
@@ -891,18 +1088,28 @@ void UMovieScenePropertyInstantiatorSystem::FPropertyParameters::MakeOutputCompo
 	using namespace UE::MovieScene;
 
 	// Get the existing type
-	OutComponentType = EntityManager.GetEntityType(PropertyInfo->PropertyEntityID);
+	if (PropertyInfo->FinalBlendOutputID)
+	{
+		OutComponentType = EntityManager.GetEntityType(PropertyInfo->FinalBlendOutputID);
+	}
 
 	// Ensure the property has only the exact combination of channels that constitute its animation
 	for (int32 Index = 0; Index < Composites.Num(); ++Index)
 	{
 		FComponentTypeID Composite = Composites[Index].ComponentTypeID;
-		OutComponentType[Composite] = (PropertyInfo->EmptyChannels[Index] != true);
+		if (PropertyInfo->EmptyChannels[Index] != true)
+		{
+			OutComponentType.Set(Composite);
+		}
+		else
+		{
+			OutComponentType.Remove(Composite);
+		}
 	}
 	OutComponentType.Set(PropertyDefinition->PropertyType);
 
 	// Set the restore state tag appropriately
-	if (PropertyInfo->bWantsRestoreState)
+	if (PropertyInfo->HierarchicalMetaData.bWantsRestoreState)
 	{
 		OutComponentType.Set(FBuiltInComponentTypes::Get()->Tags.RestoreState);
 	}

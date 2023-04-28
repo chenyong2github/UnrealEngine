@@ -121,7 +121,8 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 
 	ComponentRegistry->NewComponentType(&Easing,                  TEXT("Easing"));
 	ComponentRegistry->NewComponentType(&EasingResult,            TEXT("Easing Result"));
-	ComponentRegistry->NewComponentType(&HierarchicalEasingChannel, TEXT("Hierarchical Easing Channel"));
+	ComponentRegistry->NewComponentType(&HierarchicalEasingChannel,  TEXT("Hierarchical Easing Channel"));
+	ComponentRegistry->NewComponentType(&HierarchicalBlendTarget,    TEXT("Hierarchical Blend Target"));
 	ComponentRegistry->NewComponentType(&HierarchicalEasingProvider, TEXT("Hierarchical Easing Provider"));
 
 	ComponentRegistry->NewComponentType(&BlenderType,           TEXT("Blender System Type"), EComponentTypeFlags::CopyToChildren);
@@ -177,6 +178,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 
 	Tags.RestoreState            = ComponentRegistry->NewTag(TEXT("Is Restore State Entity"));
 	Tags.IgnoreHierarchicalBias  = ComponentRegistry->NewTag(TEXT("Ignore Hierarchical Bias"));
+	Tags.BlendHierarchicalBias   = ComponentRegistry->NewTag(TEXT("Blend Hierarchical Bias"));
 
 	Tags.AbsoluteBlend           = ComponentRegistry->NewTag(TEXT("Is Absolute Blend"));
 	Tags.RelativeBlend           = ComponentRegistry->NewTag(TEXT("Is Relative Blend"));
@@ -186,7 +188,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	Tags.NeedsLink               = ComponentRegistry->NewTag(TEXT("Needs Link"));
 	Tags.NeedsUnlink             = ComponentRegistry->NewTag(TEXT("Needs Unlink"));
 	Tags.HasUnresolvedBinding    = ComponentRegistry->NewTag(TEXT("Has Unresolved Binding"));
-	Tags.MigratedFromFastPath    = ComponentRegistry->NewTag(TEXT("Migrated From Fast Path"));
+	Tags.HasAssignedInitialValue = ComponentRegistry->NewTag(TEXT("Has Assigned Initial Value"));
 	Tags.Root                    = ComponentRegistry->NewTag(TEXT("Root"));
 	Tags.SubInstance             = ComponentRegistry->NewTag(TEXT("Sub Instance"));
 	Tags.ImportedEntity          = ComponentRegistry->NewTag(TEXT("Imported Entity"));
@@ -215,6 +217,8 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 
 	// Always copy these tags over to children
 	ComponentRegistry->Factories.DefineChildComponent(Tags.RestoreState,  Tags.RestoreState);
+	ComponentRegistry->Factories.DefineChildComponent(Tags.IgnoreHierarchicalBias,  Tags.IgnoreHierarchicalBias);
+	ComponentRegistry->Factories.DefineChildComponent(Tags.BlendHierarchicalBias,  Tags.BlendHierarchicalBias);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.AbsoluteBlend, Tags.AbsoluteBlend);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.RelativeBlend, Tags.RelativeBlend);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.AdditiveBlend, Tags.AdditiveBlend);

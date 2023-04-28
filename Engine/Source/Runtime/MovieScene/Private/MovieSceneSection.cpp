@@ -359,6 +359,7 @@ void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* E
 		.AddConditional(Components->EvalTime,                       Params.EntityMetaData ? Params.EntityMetaData->ForcedTime : 0, bHasForcedTime)
 		.AddTagConditional(Components->Tags.RestoreState,           bShouldRestoreState)
 		.AddTagConditional(Components->Tags.IgnoreHierarchicalBias, EnumHasAnyFlags(Params.Sequence.SubSectionFlags, EMovieSceneSubSectionFlags::IgnoreHierarchicalBias))
+		.AddTagConditional(Components->Tags.BlendHierarchicalBias,  EnumHasAnyFlags(Params.Sequence.SubSectionFlags, EMovieSceneSubSectionFlags::BlendHierarchicalBias))
 		.AddTagConditional(Components->Tags.FixedTime,              bHasForcedTime)
 		.AddTagConditional(Components->Tags.SectionPreRoll,         bHasSectionPreRoll)
 		.AddTagConditional(Components->Tags.PreRoll,                bHasSequencePreRoll || bHasSectionPreRoll)

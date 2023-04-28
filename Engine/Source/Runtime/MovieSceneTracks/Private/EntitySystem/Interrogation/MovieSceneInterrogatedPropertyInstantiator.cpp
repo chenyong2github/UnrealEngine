@@ -238,7 +238,6 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 		FMovieSceneEntityID NewEntityID = FEntityBuilder()
 		.Add(BuiltInComponents->Interrogation.OutputKey, Key)
 		.Add(BuiltInComponents->BlendChannelOutput, BlendChannel)
-		.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Output->PropertyEntityID.IsValid())
 		.AddTag(BuiltInComponents->Tags.NeedsLink)
 		.AddTag(BlenderSystem->GetBlenderTypeTag())
 		.AddMutualComponents()

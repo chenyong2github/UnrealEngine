@@ -440,6 +440,9 @@ public:
 	// The sub-sequence ID that should receive ease in/out as a whole
 	TComponentTypeID<FMovieSceneSequenceID> HierarchicalEasingProvider;
 
+	// Defines an HBias level that is the highest blend target for a given set of components that need to blend together
+	TComponentTypeID<int16>       HierarchicalBlendTarget;
+
 	// A float representing the evaluated easing weight
 	TComponentTypeID<double> WeightAndEasingResult;
 
@@ -475,6 +478,7 @@ public:
 
 		// A tag that specifies this entity should always contribute to the output, regardless of hbias
 		FComponentTypeID IgnoreHierarchicalBias;
+		FComponentTypeID BlendHierarchicalBias;
 
 		FComponentTypeID AbsoluteBlend;
 		FComponentTypeID RelativeBlend;
@@ -487,7 +491,7 @@ public:
 		/** Tag that is added to imported entities with a GenericObjectBinding or SceneComponentBinding whose binding did not resolve */
 		FComponentTypeID HasUnresolvedBinding;
 
-		FComponentTypeID MigratedFromFastPath;
+		FComponentTypeID HasAssignedInitialValue;
 
 		FComponentTypeID ImportedEntity;
 

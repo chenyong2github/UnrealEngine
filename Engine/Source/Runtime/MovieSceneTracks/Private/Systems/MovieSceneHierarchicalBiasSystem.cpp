@@ -47,8 +47,10 @@ struct FHierarchicalBiasTask
 	void ForEachAllocation(FEntityAllocationIteratorItem Iterator, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> RootInstanceHandles, TRead<FMovieSceneBlendChannelID> BlendChannels, TReadOptional<int16> OptHBiases)
 	{
 		const int32 Num = Iterator.GetAllocation()->Num();
+		const FComponentMask& AllocationType = Iterator.GetAllocationType();
+		const bool bIgnoreBias = AllocationType.Contains(FBuiltInComponentTypes::Get()->Tags.IgnoreHierarchicalBias)
+			|| AllocationType.Contains(FBuiltInComponentTypes::Get()->HierarchicalBlendTarget);
 
-		const bool bIgnoreBias = Iterator.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.IgnoreHierarchicalBias);
 		if (bIgnoreBias)
 		{
 			for (int32 Index = 0; Index < Num; ++Index)

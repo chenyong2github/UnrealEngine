@@ -34,12 +34,66 @@ namespace UE::MovieScene
 
 static constexpr uint16 INVALID_EASING_CHANNEL = uint16(-1);
 
+float Factorial(int32 In)
+{
+	check(In >= 0);
+
+	int32 Result = 1;
+	for (; In > 0; --In)
+	{
+		Result *= In;
+	}
+	return static_cast<float>(Result);
+}
+
 enum class EHierarchicalSequenceChannelFlags
 {
 	None = 0,
 	SharedWithParent = 1,
+	BlendTarget = 2,
 };
-ENUM_CLASS_FLAGS(EHierarchicalSequenceChannelFlags)
+ENUM_CLASS_FLAGS(EHierarchicalSequenceChannelFlags);
+
+bool FHierarchicalEasingChannelBuffer::IsEmpty() const
+{
+	return Channels.Num() == 0;
+}
+
+uint16 FHierarchicalEasingChannelBuffer::AddBaseChannel(const FHierarchicalEasingChannelData& InChannelData)
+{
+	checkf(BlendTargetStartIndex == INDEX_NONE, TEXT("Cannot add base channels once blend targets have been added"));
+
+	const uint16 ChannelID = static_cast<uint16>(Channels.Num());
+	Channels.Emplace(InChannelData);
+	return ChannelID;
+}
+
+uint16 FHierarchicalEasingChannelBuffer::AddBlendTargetChannel(const FHierarchicalEasingChannelData& InChannelData)
+{
+	if (BlendTargetStartIndex == INDEX_NONE)
+	{
+		BlendTargetStartIndex = Channels.Num();
+	}
+
+	const uint16 ChannelID = static_cast<uint16>(Channels.Num());
+	Channels.Emplace(InChannelData);
+	return ChannelID;
+}
+
+void FHierarchicalEasingChannelBuffer::Reset()
+{
+	Channels.Empty();
+	BlendTargetStartIndex = INDEX_NONE;
+}
+
+void FHierarchicalEasingChannelBuffer::ResetBlendTargets()
+{
+	if (BlendTargetStartIndex != INDEX_NONE)
+	{
+		Channels.RemoveAtSwap(BlendTargetStartIndex, Channels.Num() - BlendTargetStartIndex);
+		BlendTargetStartIndex = INDEX_NONE;
+	}
+}
 
 /**
  * Class that accumulates active easing data for a particular root sequence hierarchy
@@ -78,7 +132,7 @@ struct FRootSequenceData
 	int32 Add(FMovieSceneSequenceID SequenceID, EHierarchicalSequenceChannelFlags InFlags)
 	{
 		const int32 Index = Algo::LowerBoundBy(SequenceIDs, SequenceID, &FSequenceIDAndChannel::SequenceID);
-		check(!SequenceIDs.IsValidIndex(Index) ||SequenceIDs[Index].SequenceID != SequenceID);
+		check(!SequenceIDs.IsValidIndex(Index) || SequenceIDs[Index].SequenceID != SequenceID);
 
 		SequenceIDs.Insert(FSequenceIDAndChannel{ SequenceID, INVALID_EASING_CHANNEL, InFlags }, Index);
 
@@ -102,9 +156,8 @@ struct FRootSequenceData
 		if (ensure(RootHierarchy))
 		{
 			const FMovieSceneSequenceHierarchyNode* Node = RootHierarchy->FindNode(SequenceID);
-			check(Node);
 
-			if (Node->ParentID != MovieSceneSequenceID::Invalid && AddImplicitChild(Node->ParentID))
+			if (ensure(Node) && Node->ParentID != MovieSceneSequenceID::Invalid && AddImplicitChild(Node->ParentID))
 			{
 				Add(SequenceID, EHierarchicalSequenceChannelFlags::SharedWithParent);
 				return true;
@@ -116,9 +169,10 @@ struct FRootSequenceData
 	/**
 	 * Produce channel IDs in the specified output data, ordered parent-first
 	 */
-	void ProduceChannels(TSparseArray<uint16>& OutInstanceIDToChannel, TArray<FHierarchicalEasingChannelData>& OutData)
+	void ProduceChannels(TSparseArray<uint16>& OutInstanceIDToChannel, FHierarchicalEasingChannelBuffer& OutData)
 	{
 		const FSequenceInstance& RootInstance = InstanceRegistry->GetInstance(RootInstanceHandle);
+
 		for (int32 Index = 0; Index < SequenceIDs.Num(); ++Index)
 		{
 			ProduceChannelForIndex(Index, RootInstance, OutInstanceIDToChannel, OutData);
@@ -128,7 +182,7 @@ struct FRootSequenceData
 	/**
 	 * Produce channels for the specified index within our map, including any of its parents
 	 */
-	uint16 ProduceChannelForIndex(int32 Index, const FSequenceInstance& RootInstance, TSparseArray<uint16>& OutInstanceIDToChannel, TArray<FHierarchicalEasingChannelData>& OutData)
+	uint16 ProduceChannelForIndex(int32 Index, const FSequenceInstance& RootInstance, TSparseArray<uint16>& OutInstanceIDToChannel, FHierarchicalEasingChannelBuffer& OutData)
 	{
 		const uint16 ExistingChannel = SequenceIDs[Index].ChannelID;
 		if (ExistingChannel != INVALID_EASING_CHANNEL)
@@ -141,8 +195,9 @@ struct FRootSequenceData
 		if (ChannelData.SequenceID == MovieSceneSequenceID::Root)
 		{
 			// Add a new channel with no parent
-			const uint16 ChannelID = static_cast<uint16>(OutData.Num());
-			OutData.Add(FHierarchicalEasingChannelData{ INVALID_EASING_CHANNEL });
+			FHierarchicalEasingChannelData NewData;
+
+			const uint16 ChannelID = OutData.AddBaseChannel(NewData);
 			OutInstanceIDToChannel.Insert(RootInstanceHandle.InstanceID, ChannelID);
 
 			SequenceIDs[Index].ChannelID = ChannelID;
@@ -168,7 +223,6 @@ struct FRootSequenceData
 		}
 
 		uint16 ParentChannel = INVALID_EASING_CHANNEL;
-		FMovieSceneSequenceID Parent = MovieSceneSequenceID::Invalid;
 		while (Node)
 		{
 			const int32 ParentIndex = IndexOf(Node->ParentID);
@@ -196,8 +250,11 @@ struct FRootSequenceData
 		}
 		else
 		{
-			const uint16 ChannelID = static_cast<uint16>(OutData.Num());
-			OutData.Add(FHierarchicalEasingChannelData{ ParentChannel });
+			FHierarchicalEasingChannelData NewData;
+			NewData.ParentChannel = ParentChannel;
+			NewData.HBias = SubData->HierarchicalBias;
+
+			const uint16 ChannelID = OutData.AddBaseChannel(NewData);
 			OutInstanceIDToChannel.Insert(SubInstanceHandle.InstanceID, ChannelID);
 			SequenceIDs[Index].ChannelID = ChannelID;
 			return ChannelID;
@@ -288,9 +345,9 @@ struct FProviderEasingChannelMutation : FEasingChannelMutationBase
 
 		TComponentReader<FRootInstanceHandle>   RootInstanceHandles   = Allocation->ReadComponents(BuiltInComponents->RootInstanceHandle);
 		TComponentReader<FMovieSceneSequenceID> EasingProviders       = Allocation->ReadComponents(BuiltInComponents->HierarchicalEasingProvider);
-		TOptionalComponentWriter<uint16>        ExistingEasingHandles = Allocation->TryWriteComponents(BuiltInComponents->HierarchicalEasingChannel, FEntityAllocationWriteContext::NewAllocation());
+		TOptionalComponentWriter<uint16>        ExistingEasingChannels = Allocation->TryWriteComponents(BuiltInComponents->HierarchicalEasingChannel, FEntityAllocationWriteContext::NewAllocation());
 
-		const bool bHasExistingEasing = ExistingEasingHandles.IsValid();
+		const bool bHasExistingEasing = ExistingEasingChannels.IsValid();
 
 		// Loop through each entity and check whether it has easing.
 		// If so, either assign the new easing channel or mark it for mutation.
@@ -304,7 +361,7 @@ struct FProviderEasingChannelMutation : FEasingChannelMutationBase
 			{
 				if (bHasExistingEasing)
 				{
-					ExistingEasingHandles[Index] = ChannelID;
+					ExistingEasingChannels[Index] = ChannelID;
 				}
 				else
 				{
@@ -348,9 +405,10 @@ private:
  */
 struct FConsumerEasingChannelMutation : FEasingChannelMutationBase
 {
-	explicit FConsumerEasingChannelMutation(UMovieSceneEntitySystemLinker* Linker, TSparseArray<uint16>* InInstanceIDToChannel)
+	explicit FConsumerEasingChannelMutation(UMovieSceneEntitySystemLinker* Linker, TSparseArray<uint16>* InInstanceIDToChannel, TMap<TTuple<int16, int16>, uint16>* InCachedHierarchicalBlendTargetChannels)
 		: FEasingChannelMutationBase(Linker)
 		, InstanceIDToChannel(InInstanceIDToChannel)
+		, CachedHierarchicalBlendTargetChannels(InCachedHierarchicalBlendTargetChannels)
 	{}
 
 	/**
@@ -361,32 +419,66 @@ struct FConsumerEasingChannelMutation : FEasingChannelMutationBase
 	{
 		const FMovieSceneEntityID* EntityIDs = Allocation->GetRawEntityIDs();
 
-		TComponentReader<FInstanceHandle> InstanceHandles       = Allocation->ReadComponents(BuiltInComponents->InstanceHandle);
-		TOptionalComponentWriter<uint16>  ExistingEasingHandles = Allocation->TryWriteComponents(BuiltInComponents->HierarchicalEasingChannel, FEntityAllocationWriteContext::NewAllocation());
+		TComponentReader<FInstanceHandle> InstanceHandles        = Allocation->ReadComponents(BuiltInComponents->InstanceHandle);
+		TOptionalComponentWriter<uint16>  ExistingEasingChannels = Allocation->TryWriteComponents(BuiltInComponents->HierarchicalEasingChannel, FEntityAllocationWriteContext::NewAllocation());
+		TOptionalComponentReader<int16>   BlendTargets           = Allocation->TryReadComponents(BuiltInComponents->HierarchicalBlendTarget);
 
-		const bool bHasExistingEasing = ExistingEasingHandles.IsValid();
+		const bool bHasExistingEasing = ExistingEasingChannels.IsValid();
 
 		// Loop through each entity and check whether it has easing.
 		// If so, either assign the new easing channel or mark it for mutation.
 		// If not, mark it for removal
-		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
+		if (BlendTargets)
 		{
-			if (InstanceIDToChannel->IsValidIndex(InstanceHandles[Index].InstanceID))
+			check(CachedHierarchicalBlendTargetChannels);
+			TOptionalComponentReader<int16> HierarchicalBias = Allocation->TryReadComponents(BuiltInComponents->HierarchicalBias);
+
+			for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 			{
-				if (bHasExistingEasing)
+				TTuple<int16, int16> BlendTargetKey = MakeTuple(
+					HierarchicalBias ? HierarchicalBias[Index] : 0, BlendTargets[Index]
+					);
+
+				if (const uint16* BlendTargetChannel = CachedHierarchicalBlendTargetChannels->Find(BlendTargetKey))
 				{
-					ExistingEasingHandles[Index] = (*InstanceIDToChannel)[InstanceHandles[Index].InstanceID];
+					if (bHasExistingEasing)
+					{
+						ExistingEasingChannels[Index] = *BlendTargetChannel;
+					}
+					else
+					{
+						// Mark this entity for mutation
+						OutEntitiesToMutate.PadToNum(Index + 1, false);
+						OutEntitiesToMutate[Index] = true;
+					}
 				}
-				else
+				else if (bHasExistingEasing)
 				{
-					// Mark this entity for mutation
-					OutEntitiesToMutate.PadToNum(Index + 1, false);
-					OutEntitiesToMutate[Index] = true;
+					StaleEntities.Add(EntityIDs[Index]);
 				}
 			}
-			else if (bHasExistingEasing)
+		}
+		else
+		{
+			for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 			{
-				StaleEntities.Add(EntityIDs[Index]);
+				if (InstanceIDToChannel->IsValidIndex(InstanceHandles[Index].InstanceID))
+				{
+					if (bHasExistingEasing)
+					{
+						ExistingEasingChannels[Index] = (*InstanceIDToChannel)[InstanceHandles[Index].InstanceID];
+					}
+					else
+					{
+						// Mark this entity for mutation
+						OutEntitiesToMutate.PadToNum(Index + 1, false);
+						OutEntitiesToMutate[Index] = true;
+					}
+				}
+				else if (bHasExistingEasing)
+				{
+					StaleEntities.Add(EntityIDs[Index]);
+				}
 			}
 		}
 	}
@@ -398,19 +490,40 @@ struct FConsumerEasingChannelMutation : FEasingChannelMutationBase
 	{
 		FEntityAllocationWriteContext NewAllocation = FEntityAllocationWriteContext::NewAllocation();
 
-		TComponentWriter<uint16>              EasingChannels      = EntityRange.Allocation->WriteComponents(BuiltInComponents->HierarchicalEasingChannel, NewAllocation);
-		TComponentReader<FInstanceHandle>     InstanceHandles     = EntityRange.Allocation->ReadComponents(BuiltInComponents->InstanceHandle);
+		TComponentWriter<uint16>          EasingChannels      = EntityRange.Allocation->WriteComponents(BuiltInComponents->HierarchicalEasingChannel, NewAllocation);
+		TComponentReader<FInstanceHandle> InstanceHandles     = EntityRange.Allocation->ReadComponents(BuiltInComponents->InstanceHandle);
+		TOptionalComponentReader<int16>   BlendTargets        = EntityRange.Allocation->TryReadComponents(BuiltInComponents->HierarchicalBlendTarget);
 
-		for (int32 Index = 0; Index < EntityRange.Num; ++Index)
+		if (BlendTargets)
 		{
-			const int32 Offset = EntityRange.ComponentStartOffset + Index;
-			EasingChannels[Offset] = (*InstanceIDToChannel)[InstanceHandles[Offset].InstanceID];
+			check(CachedHierarchicalBlendTargetChannels);
+
+			TOptionalComponentReader<int16> HierarchicalBias = EntityRange.Allocation->TryReadComponents(BuiltInComponents->HierarchicalBias);
+
+			for (int32 Index = 0; Index < EntityRange.Num; ++Index)
+			{
+				const int32 Offset = EntityRange.ComponentStartOffset + Index;
+
+				TTuple<int16, int16> BlendTargetKey
+					= MakeTuple(HierarchicalBias ? HierarchicalBias[Index] : 0, BlendTargets[Index]);
+
+				EasingChannels[Offset] = CachedHierarchicalBlendTargetChannels->FindChecked(BlendTargetKey);
+			}
+		}
+		else
+		{
+			for (int32 Index = 0; Index < EntityRange.Num; ++Index)
+			{
+				const int32 Offset = EntityRange.ComponentStartOffset + Index;
+				EasingChannels[Offset] = (*InstanceIDToChannel)[InstanceHandles[Offset].InstanceID];
+			}
 		}
 	}
 
 private:
 
 	TSparseArray<uint16>* InstanceIDToChannel;
+	TMap<TTuple<int16, int16>, uint16>* CachedHierarchicalBlendTargetChannels;
 };
 
 /**
@@ -486,6 +599,7 @@ struct FHarvestHierarchicalEasings
 		for (FHierarchicalEasingChannelData& Data : ComputationData)
 		{
 			Data.FinalResult = 1.0;
+			Data.UnaccumulatedResult = 1.0;
 		}
 	}
 
@@ -493,6 +607,7 @@ struct FHarvestHierarchicalEasings
 	void ForEachEntity(double Result, uint16 EasingChannel)
 	{
 		ComputationData[EasingChannel].FinalResult *= Result;
+		ComputationData[EasingChannel].UnaccumulatedResult *= Result;
 	}
 
 	// Multiply hierarchical weights with sub sequences
@@ -502,11 +617,55 @@ struct FHarvestHierarchicalEasings
 		// This is possible because the results array is already sorted by depth
 		for (int32 Index = 0; Index < ComputationData.Num(); ++Index)
 		{
-			FHierarchicalEasingChannelData ChannelData = ComputationData[Index];
-			if (ChannelData.ParentChannel != uint16(-1))
+			FHierarchicalEasingChannelData& This = ComputationData[Index];
+			switch (This.BlendMode)
 			{
-				// The parent result has already been multiplied by all its parent weights by this point
-				ComputationData[Index].FinalResult *= ComputationData[ChannelData.ParentChannel].FinalResult;
+#if UE_ENABLE_MOVIESCENE_BEZIER_BLENDING
+			case EHierarchicalBlendMode::BezierSeries:
+			{
+				checkSlow(This.ParentChannel != INVALID_EASING_CHANNEL);
+
+				const float T         = ComputationData[This.ParentChannel].UnaccumulatedResult;
+				const float OneMinusT = 1.f - T;
+
+				// Of the form a(1-t)^b + t^c
+				This.FinalResult = This.CoeffA * FMath::Pow(OneMinusT, This.ExpB) * FMath::Pow(T, This.ExpC);
+
+				// Result channel is not used for bezier blends
+				break;
+			}
+#endif
+			case EHierarchicalBlendMode::ChildFirstBlendTarget:
+			{
+				checkSlow(This.ParentChannel != INVALID_EASING_CHANNEL);
+
+				const float T          = ComputationData[This.ParentChannel].UnaccumulatedResult;
+				const float RemainingT = This.FinalResult;
+				const float Result     = RemainingT*T;
+
+				This.FinalResult = FMath::Clamp(Result, 0.f, 1.f);
+				if (This.ResultChannel != INVALID_EASING_CHANNEL)
+				{
+					// Pass on the remaining T to the next channel
+					ComputationData[This.ResultChannel].FinalResult = FMath::Clamp(RemainingT-Result, 0.f, 1.f);
+				}
+				break;
+			}
+			case EHierarchicalBlendMode::AccumulateParentToChild:
+				if (This.ParentChannel != INVALID_EASING_CHANNEL)
+				{
+					FHierarchicalEasingChannelData Parent = ComputationData[This.ParentChannel];
+
+					// The parent result has already been multiplied by all its parent weights by this point
+					This.FinalResult *= Parent.FinalResult;
+				}
+
+				if (This.ResultChannel != INVALID_EASING_CHANNEL)
+				{
+					// Forward onto the result channel
+					ComputationData[This.ResultChannel].UnaccumulatedResult *= This.FinalResult;
+				}
+				break;
 			}
 		}
 	}
@@ -529,14 +688,13 @@ struct FPropagateHierarchicalEasings
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
 			const uint16 HierarchicalEasingChannel = HierarchicalEasingChannels[Index];
-			if (ensure(ComputationData.IsValidIndex(HierarchicalEasingChannel)))
+			if (ensureAlways(ComputationData.IsValidIndex(HierarchicalEasingChannel)))
 			{
 				WeightAndEasingResults[Index] *= ComputationData[HierarchicalEasingChannel].FinalResult;
 			}
 		}
 	}
 };
-
 
 } // namespace UE::MovieScene
 
@@ -601,7 +759,8 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 	ExpiringSubInstanceFilter.All({ BuiltInComponents->Tags.SubInstance, BuiltInComponents->HierarchicalEasingChannel, BuiltInComponents->Tags.NeedsUnlink });
 
 	// Check if we have any new or expiring easing providers
-	if (Linker->EntityManager.Contains(ChangedProviderFilter) || Linker->EntityManager.Contains(NewSubInstanceFilter) || Linker->EntityManager.Contains(ExpiringSubInstanceFilter))
+	bChannelsHaveBeenInvalidated = Linker->EntityManager.Contains(ChangedProviderFilter) || Linker->EntityManager.Contains(NewSubInstanceFilter) || Linker->EntityManager.Contains(ExpiringSubInstanceFilter);
+	if (bChannelsHaveBeenInvalidated)
 	{
 		FRootSequenceDataMap SequenceDataMap;
 
@@ -656,17 +815,17 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 		.FilterNone({ BuiltInComponents->Tags.NeedsUnlink })
 		.Iterate_PerEntity(&Linker->EntityManager, VisitSubInstance);
 
-		// Step 3: Produce parent-first channel IDs for anything we collected, then pass on the buffer to the evaluator system
+		// Step 3: Produce parent-first channel IDs for anything we collected
 		//
 		{
-			TArray<FHierarchicalEasingChannelData> AllChannels;
+			FHierarchicalEasingChannelBuffer& Buffer = EvaluatorSystem->GetComputationBuffer();
+			Buffer.Reset();
 			CachedInstanceIDToChannel.Empty();
 
 			for (TPair<FRootInstanceHandle, FRootSequenceData>& Pair : SequenceDataMap)
 			{
-				Pair.Value.ProduceChannels(CachedInstanceIDToChannel, AllChannels);
+				Pair.Value.ProduceChannels(CachedInstanceIDToChannel, Buffer);
 			}
-			EvaluatorSystem->SetComputationBuffer(MoveTemp(AllChannels));
 		}
 
 		// Step 4: Assign channel IDs to easing providers, potentially adding or removing invalid ones
@@ -685,12 +844,12 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 		// Step 5: Assign easing channels for anything else that is left and remove stale ones
 		//
 		{
-			FEntityComponentFilter NewFilter;
-			NewFilter.All({ BuiltInComponents->InstanceHandle });
-			NewFilter.None({ BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->HierarchicalEasingProvider });
+			FEntityComponentFilter AssignEasingChannelsFilter;
+			AssignEasingChannelsFilter.All({ BuiltInComponents->InstanceHandle});
+			AssignEasingChannelsFilter.None({ BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->HierarchicalEasingProvider, BuiltInComponents->HierarchicalBlendTarget, BuiltInComponents->Tags.ImportedEntity });
 
-			FConsumerEasingChannelMutation ConsumerMutation(Linker, &CachedInstanceIDToChannel);
-			Linker->EntityManager.MutateConditional(NewFilter, ConsumerMutation, EMutuallyInclusiveComponentType::All);
+			FConsumerEasingChannelMutation ConsumerMutation(Linker, &CachedInstanceIDToChannel, nullptr);
+			Linker->EntityManager.MutateConditional(AssignEasingChannelsFilter, ConsumerMutation, EMutuallyInclusiveComponentType::All);
 
 			ConsumerMutation.RemoveStaleComponents(Linker);
 		}
@@ -698,16 +857,199 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 	else
 	{
 		// Just add easing channels to NeedsLink entities
-		FEntityComponentFilter Filter;
-		Filter.All({ BuiltInComponents->InstanceHandle, BuiltInComponents->Tags.NeedsLink });
-		Filter.None({ BuiltInComponents->HierarchicalEasingProvider });
+		FEntityComponentFilter AssignEasingChannelsFilter;
+		AssignEasingChannelsFilter.All({ BuiltInComponents->InstanceHandle, BuiltInComponents->Tags.NeedsLink  });
+		AssignEasingChannelsFilter.None({ BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->HierarchicalEasingProvider, BuiltInComponents->HierarchicalBlendTarget, BuiltInComponents->Tags.ImportedEntity });
 
-		FConsumerEasingChannelMutation ConsumerMutation(Linker, &CachedInstanceIDToChannel);
-		Linker->EntityManager.MutateConditional(Filter, ConsumerMutation, EMutuallyInclusiveComponentType::All);
+		FConsumerEasingChannelMutation ConsumerMutation(Linker, &CachedInstanceIDToChannel, nullptr);
+		Linker->EntityManager.MutateConditional(AssignEasingChannelsFilter, ConsumerMutation, EMutuallyInclusiveComponentType::All);
 
-		ensure(!ConsumerMutation.HasStaleComponents());
 		ConsumerMutation.RemoveStaleComponents(Linker);
 	}
+}
+
+void UMovieSceneHierarchicalEasingInstantiatorSystem::FinalizeBlendTargets()
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* const BuiltInComponents = FBuiltInComponentTypes::Get();
+
+	FEntityComponentFilter NewBlendTargetFilter;
+	NewBlendTargetFilter.All({ BuiltInComponents->HierarchicalBlendTarget, BuiltInComponents->Tags.NeedsLink });
+
+	if (bChannelsHaveBeenInvalidated || Linker->EntityManager.Contains(NewBlendTargetFilter))
+	{
+		FHierarchicalEasingChannelBuffer& Buffer = EvaluatorSystem->GetComputationBuffer();
+		Buffer.ResetBlendTargets();
+
+		const int32 NumStartingChannels = Buffer.Channels.Num();
+
+		// Map from HBias to whether it is a blend target or not
+		struct FHBiasChannelData
+		{
+			uint16 AccumulatorChannelID = UE::MovieScene::INVALID_EASING_CHANNEL;
+			bool bIsBlendTarget = false;
+		};
+		TSortedMap<int16, FHBiasChannelData, TInlineAllocator<16>, TGreater<>> HBiasToChannelData;
+
+		// Step 1: Gather all the hierarchical blend targets
+		//
+		{
+			auto GatherHierarchicalBlendTargets = [&HBiasToChannelData](const FEntityAllocation* Allocation, const int16* BlendTargets, const int16* HBiases)
+			{
+				const int32 Num = Allocation->Num();
+				if (HBiases)
+				{
+					for (int32 Index = 0; Index < Num; ++Index)
+					{
+						HBiasToChannelData.FindOrAdd(BlendTargets[Index]).bIsBlendTarget = true;
+						HBiasToChannelData.FindOrAdd(HBiases[Index]);
+					}
+				}
+				else
+				{
+					// No HBias components means 0, so add that to the map once
+					HBiasToChannelData.FindOrAdd(0);
+					for (int32 Index = 0; Index < Num; ++Index)
+					{
+						HBiasToChannelData.FindOrAdd(BlendTargets[Index]).bIsBlendTarget = true;
+					}
+				}
+			};
+
+			auto Task = FEntityTaskBuilder()
+			.Read(BuiltInComponents->HierarchicalBlendTarget)
+			.ReadOptional(BuiltInComponents->HierarchicalBias)
+			.FilterNone({ BuiltInComponents->Tags.NeedsUnlink });
+			if (!bChannelsHaveBeenInvalidated)
+			{
+				Task.FilterAll({ BuiltInComponents->Tags.NeedsLink });
+			}
+			Task.Iterate_PerAllocation(&Linker->EntityManager, GatherHierarchicalBlendTargets);
+		}
+
+		// Step 2: Create channels for each blend target sorted by bias
+		//
+		{
+			for (TPair<int16, FHBiasChannelData>& Pair : HBiasToChannelData)
+			{
+				Pair.Value.AccumulatorChannelID = Buffer.AddBlendTargetChannel(FHierarchicalEasingChannelData());
+			}
+
+			// Point any pre-existing easing channels to their HBias outputs
+			for (int32 ChannelIndex = 0; ChannelIndex < NumStartingChannels; ++ChannelIndex)
+			{
+				FHierarchicalEasingChannelData& Channel = Buffer.Channels[ChannelIndex];
+				const FHBiasChannelData* ChannelData = HBiasToChannelData.Find(Channel.HBias);
+				if (ChannelData)
+				{
+					Channel.ResultChannel = ChannelData->AccumulatorChannelID;
+				}
+			}
+		}
+
+		// Step 3: Create chains of channels for each HBias designated as a blend target
+		{
+			CachedHierarchicalBlendTargetChannels.Empty();
+
+			// HBiasToChannelData is a sorted map which is a sorted array internally.
+			// Unfortunately we don't have access to the underlying array, but we can use iterators to achieve the same results.
+			using FSortedMapIterator = TSortedMap<int16, FHBiasChannelData, TInlineAllocator<16>, TGreater<>>::TConstIterator;
+
+			const int32 NumChannels = HBiasToChannelData.Num();
+			int32 Index = 0;
+			for (FSortedMapIterator It = HBiasToChannelData.CreateConstIterator(); It; ++It, ++Index)
+			{
+				if (It.Value().bIsBlendTarget)
+				{
+					const int16 ThisHBias = It.Key();
+					const int32 N = NumChannels - Index - 1;
+					int32 I = N;
+
+					// This is a blend target - create channels for its entire parent chain
+					uint16 ParentChannel = INVALID_EASING_CHANNEL;
+					for (FSortedMapIterator NextIt = It; NextIt; ++NextIt)
+					{
+						const int16 SourceHBias = NextIt.Key();
+
+						FHierarchicalEasingChannelData BlendTargetChannel;
+						// Get our value from the accumulator channel for the source bias which includes all the accumulated weights for that HBias level.
+						// Normally this should just be a single weight
+						BlendTargetChannel.ParentChannel = HBiasToChannelData.FindChecked(SourceHBias).AccumulatorChannelID;
+						BlendTargetChannel.BlendMode = EHierarchicalBlendMode::ChildFirstBlendTarget;
+
+#if UE_ENABLE_MOVIESCENE_BEZIER_BLENDING
+						BlendTargetChannel.CoeffA = Factorial(N) / (Factorial(I) * Factorial(N-I));
+						BlendTargetChannel.ExpB   = static_cast<float>(N-I);
+						BlendTargetChannel.ExpC   = static_cast<float>(I);
+						BlendTargetChannel.BlendMode = EHierarchicalBlendMode::BezierSeries;
+#else
+						BlendTargetChannel.BlendMode = EHierarchicalBlendMode::ChildFirstBlendTarget;
+#endif
+						const uint16 BlendTargetChannelID = Buffer.AddBlendTargetChannel(BlendTargetChannel);
+
+						if (NextIt != It)
+						{
+							// If this isn't the first one, connect the last one to this one so we can
+							// combine weights hierarchically up the chain
+							Buffer.Channels[Buffer.Channels.Num()-2].ResultChannel = BlendTargetChannelID;
+						}
+
+						CachedHierarchicalBlendTargetChannels.Add(MakeTuple(SourceHBias, ThisHBias), BlendTargetChannelID);
+
+						--I;
+					}
+				}
+			}
+		}
+	}
+
+	// Assign easing channels
+	{
+		FEntityComponentFilter AssignEasingChannelsFilter;
+		AssignEasingChannelsFilter.All({ BuiltInComponents->InstanceHandle, BuiltInComponents->HierarchicalBlendTarget });
+		if (bChannelsHaveBeenInvalidated == false)
+		{
+			AssignEasingChannelsFilter.All({ BuiltInComponents->Tags.NeedsLink });
+		}
+		AssignEasingChannelsFilter.None({ BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->HierarchicalEasingProvider, BuiltInComponents->Tags.ImportedEntity });
+
+		FConsumerEasingChannelMutation ConsumerMutation(Linker, &CachedInstanceIDToChannel, &CachedHierarchicalBlendTargetChannels);
+		Linker->EntityManager.MutateConditional(AssignEasingChannelsFilter, ConsumerMutation, EMutuallyInclusiveComponentType::All);
+
+		ensure(bChannelsHaveBeenInvalidated || !ConsumerMutation.HasStaleComponents());
+		ConsumerMutation.RemoveStaleComponents(Linker);
+	}
+}
+
+UMovieSceneHierarchicalEasingFinalizationSystem::UMovieSceneHierarchicalEasingFinalizationSystem(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	using namespace UE::MovieScene;
+
+	SystemCategories = EEntitySystemCategory::Core;
+	RelevantComponent = FBuiltInComponentTypes::Get()->HierarchicalBlendTarget;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// Has to come after property instantiation property instantiation so that initial values get created correctly
+		DefineImplicitPrerequisite(UMovieScenePropertyInstantiatorSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieSceneHierarchicalEasingInstantiatorSystem::StaticClass(), GetClass());
+
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->HierarchicalBlendTarget);
+		DefineComponentProducer(GetClass(), FBuiltInComponentTypes::Get()->WeightAndEasingResult);
+	}
+}
+
+void UMovieSceneHierarchicalEasingFinalizationSystem::OnLink()
+{
+	InstantiatorSystem = Linker->LinkSystem<UMovieSceneHierarchicalEasingInstantiatorSystem>();
+	Linker->SystemGraph.AddReference(this, InstantiatorSystem);
+}
+
+void UMovieSceneHierarchicalEasingFinalizationSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	InstantiatorSystem->FinalizeBlendTargets();
 }
 
 UWeightAndEasingEvaluatorSystem::UWeightAndEasingEvaluatorSystem(const FObjectInitializer& ObjInit)
@@ -739,17 +1081,17 @@ bool UWeightAndEasingEvaluatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLink
 
 void UWeightAndEasingEvaluatorSystem::OnLink()
 {
-	PreAllocatedComputationData.Empty();
+	PreAllocatedComputationData.Reset();
 }
 
 void UWeightAndEasingEvaluatorSystem::OnUnlink()
 {
-	PreAllocatedComputationData.Empty();
+	PreAllocatedComputationData.Reset();
 }
 
-void UWeightAndEasingEvaluatorSystem::SetComputationBuffer(TArray<UE::MovieScene::FHierarchicalEasingChannelData>&& InPreAllocatedComputationData)
+UE::MovieScene::FHierarchicalEasingChannelBuffer& UWeightAndEasingEvaluatorSystem::GetComputationBuffer()
 {
-	PreAllocatedComputationData = MoveTemp(InPreAllocatedComputationData);
+	return PreAllocatedComputationData;
 }
 
 void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -777,6 +1119,8 @@ void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 	.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
 	.Dispatch_PerEntity<FEvaluateEasings>(&Linker->EntityManager, ResetWeightsDependencies, &Subsequents);
 
+	ResetWeightsDependencies.AddComponentTask(Components->EasingResult, EvaluateEasing);
+
 	FGraphEventRef AccumulateManualWeights = FEntityTaskBuilder()
 	.ReadOneOrMoreOf(Components->WeightResult, Components->EasingResult)
 	.Write(Components->WeightAndEasingResult)
@@ -784,7 +1128,7 @@ void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 	.Dispatch_PerAllocation<FAccumulateManualWeights>(&Linker->EntityManager, ResetWeightsDependencies, &Subsequents);
 
 	// If we have hierarchical easing, we initialize all the weights to their hierarchical defaults
-	if (PreAllocatedComputationData.Num() > 0)
+	if (!PreAllocatedComputationData.IsEmpty())
 	{
 		FSystemTaskPrerequisites HarvestPrereqs {InPrerequisites};
 		HarvestPrereqs.AddComponentTask(Components->WeightAndEasingResult, EvaluateEasing);
@@ -797,7 +1141,7 @@ void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 		.Read(Components->HierarchicalEasingChannel)
 		.FilterAll({ Components->HierarchicalEasingProvider })  // Only harvest results from entities that are providing results
 		.SetStat(GET_STATID(MovieSceneEval_HarvestEasingTask))
-		.Dispatch_PerEntity<FHarvestHierarchicalEasings>(&Linker->EntityManager, HarvestPrereqs, nullptr, &PreAllocatedComputationData);
+		.Dispatch_PerEntity<FHarvestHierarchicalEasings>(&Linker->EntityManager, HarvestPrereqs, nullptr, &PreAllocatedComputationData.Channels);
 
 		FSystemTaskPrerequisites PropagatePrereqs {InPrerequisites};
 		PropagatePrereqs.AddRootTask(HarvestTask);
@@ -810,6 +1154,6 @@ void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 		.FilterNone({ Components->HierarchicalEasingProvider }) // Do not propagate hierarchical weights onto providers!
 		.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
 		.Dispatch_PerAllocation<FPropagateHierarchicalEasings>(&Linker->EntityManager, PropagatePrereqs, &Subsequents,
-			PreAllocatedComputationData);
+			PreAllocatedComputationData.Channels);
 	}
 }

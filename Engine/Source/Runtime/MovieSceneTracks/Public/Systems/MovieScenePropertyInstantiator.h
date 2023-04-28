@@ -105,19 +105,74 @@ private:
 	using FChannelMask     = TBitArray<TFixedAllocator< 1 >>;
 	using FSlowPropertyPtr = TSharedPtr<FTrackInstancePropertyBindings>;
 
+	struct FContributorKey
+	{
+		static constexpr int16 ANY_HBIAS = TNumericLimits<int16>::Max();
+
+		FContributorKey(int32 InPropertyIndex)
+			: PropertyIndex(InPropertyIndex)
+			, HBias(ANY_HBIAS)
+		{}
+		FContributorKey(int32 InPropertyIndex, int16 InHBias)
+			: PropertyIndex(InPropertyIndex)
+			, HBias(InHBias)
+		{}
+
+		int32 PropertyIndex;
+		int16 HBias;
+
+		friend uint32 GetTypeHash(FContributorKey In)
+		{
+			return GetTypeHash(In.PropertyIndex);
+		}
+
+		friend bool operator==(FContributorKey A, FContributorKey B)
+		{
+			return A.PropertyIndex == B.PropertyIndex && (
+				A.HBias == B.HBias || A.HBias == ANY_HBIAS || B.HBias == ANY_HBIAS
+			);
+		}
+	};
+
+	struct FHierarchicalMetaData
+	{
+		FHierarchicalMetaData()
+			: NumContributors(0)
+			, HBias(0)
+		{
+			bWantsRestoreState = false;
+			bSupportsFastPath = true;
+			bNeedsInitialValue = false;
+			bBlendHierarchicalBias = false;
+			bInUse = false;
+		}
+
+		int32 NumContributors = 0;
+		int16 HBias = 0;
+		uint8 bWantsRestoreState : 1;
+		uint8 bSupportsFastPath : 1;
+		uint8 bNeedsInitialValue : 1;
+		uint8 bBlendHierarchicalBias : 1;
+		uint8 bInUse : 1;
+
+		void CombineWith(const FHierarchicalMetaData& Other);
+
+		void ResetTracking();
+	};
+
 	struct FObjectPropertyInfo
 	{
 		FObjectPropertyInfo(UE::MovieScene::FResolvedProperty&& InProperty)
 			: Property(MoveTemp(InProperty))
 			, BoundObject(nullptr)
-			, BlendChannel(INVALID_BLEND_CHANNEL)
-			, bWantsRestoreState(false)
+			, BlendChannel(FMovieSceneBlendChannelID::INVALID_BLEND_CHANNEL)
+			, bMaxHBiasHasChanged(false)
+			, bIsPartiallyAnimated(false)
 		{}
 
 		/** Variant of the property itself as either a pointer offset, a custom property index, or slow track instance bindings object */
 		UE::MovieScene::FResolvedProperty Property;
-
-		/** POinter to the blender system to use for this property, if its blended */
+		/** Pointer to the blender system to use for this property, if its blended */
 		TWeakObjectPtr<UMovieSceneBlenderSystem> Blender;
 		/** The object being animated */
 		UObject* BoundObject;
@@ -125,16 +180,18 @@ private:
 		FMovieScenePropertyBinding PropertyBinding;
 		/** Mask of composite channels that are not animated (set bits indicate an unanimated channel) */
 		FChannelMask EmptyChannels;
-		/** The entity that contains the property component itself. For fast path properties this is the actual child entity produced from the bound object instantiators. */
-		UE::MovieScene::FMovieSceneEntityID PropertyEntityID;
-		/** Blend channel allocated from Blender, or INVALID_BLEND_CHANNEL if unblended. */
+		/** The entity that contains the property component itself. Invalid for fast path properties. */
+		UE::MovieScene::FMovieSceneEntityID FinalBlendOutputID;
+		UE::MovieScene::FMovieSceneEntityID PreviousFastPathID;
+		/** Final blend channel for this object. */
 		uint16 BlendChannel;
 		/** The index of this property within FPropertyRegistry::GetProperties. */
 		int32 PropertyDefinitionIndex;
 		/** Index of a float-based property if this property has been set for float-to-double conversion */
 		TOptional<int32> ConvertedFromPropertyDefinitionIndex;
-		/** true if any of the contributors to this property need restore state. */
-		bool bWantsRestoreState;
+		FHierarchicalMetaData HierarchicalMetaData;
+		uint8 bMaxHBiasHasChanged : 1;
+		uint8 bIsPartiallyAnimated : 1;
 	};
 
 private:
@@ -161,6 +218,8 @@ private:
 		/** The index of the PropertyInfo member within UMovieScenePropertyInstantiatorSystem::ResolvedProperties */
 		int32 PropertyInfoIndex;
 
+		FContributorKey MakeContributorKey() const;
+
 		void MakeOutputComponentType(
 			const UE::MovieScene::FEntityManager& EntityManager,
 			TArrayView<const UE::MovieScene::FPropertyCompositeDefinition> Composites,
@@ -170,7 +229,6 @@ private:
 	void UpgradeFloatToDoubleProperties(const TBitArray<>& InvalidatedProperties);
 	void ProcessInvalidatedProperties(const TBitArray<>& InvalidatedProperties);
 	void UpdatePropertyInfo(const FPropertyParameters& Params);
-	bool PropertySupportsFastPath(const FPropertyParameters& Params) const;
 	void InitializeFastPath(const FPropertyParameters& Params);
 	void InitializeBlendPath(const FPropertyParameters& Params);
 
@@ -189,8 +247,8 @@ private:
 	static constexpr uint16 INVALID_BLEND_CHANNEL = uint16(-1);
 
 	TSparseArray<FObjectPropertyInfo> ResolvedProperties;
-	TMultiMap<int32, FMovieSceneEntityID> Contributors;
-	TMultiMap<int32, FMovieSceneEntityID> NewContributors;
+	TMultiMap<FContributorKey, FMovieSceneEntityID> Contributors;
+	TMultiMap<FContributorKey, FMovieSceneEntityID> NewContributors;
 
 	/** Reverse lookup from an entity to the index within ResolvedProperties that it animates.
 	 * @note: can contain INDEX_NONE for properties that have not resolved. */
