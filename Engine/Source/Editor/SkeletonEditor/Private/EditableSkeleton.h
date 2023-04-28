@@ -38,11 +38,12 @@ public:
 	virtual void SetBlendProfileMode(FName InBlendProfileName, EBlendProfileMode ProfileMode);
 	virtual USkeletalMeshSocket* DuplicateSocket(const FSelectedSocketInfo& SocketInfoToDuplicate, const FName& NewParentBoneName, USkeletalMesh* InSkeletalMesh) override;
 	virtual int32 ValidatePreviewAttachedObjects() override;
-	virtual int32 DeleteAnimNotifies(const TArray<FName>& InSelectedNotifyNames) override;
-	virtual void DeleteSyncMarkers(const TArray<FName>& ISyncMarkerNames) override;
+	virtual int32 DeleteAnimNotifies(const TArray<FName>& InSelectedNotifyNames, bool bDeleteFromAnimations = true) override;
+	virtual int32 DeleteSyncMarkers(const TArray<FName>& ISyncMarkerNames, bool bDeleteFromAnimations = true) override;
 	virtual void AddNotify(FName NewName) override;
 	virtual void AddSyncMarker(FName NewName) override;
-	virtual int32 RenameNotify(const FName NewName, const FName OldName) override;
+	virtual int32 RenameNotify(const FName NewName, const FName OldName, bool bRenameInAnimations = true) override;
+	virtual int32 RenameSyncMarker(const FName NewName, const FName OldName, bool bRenameInAnimations = true) override;
 	virtual void BroadcastNotifyChanged() override;
 	virtual void GetCompatibleAnimSequences(TArray<struct FAssetData>& OutAssets) override;
 	virtual void RenameSocket(const FName OldSocketName, const FName NewSocketName, USkeletalMesh* InSkeletalMesh) override;

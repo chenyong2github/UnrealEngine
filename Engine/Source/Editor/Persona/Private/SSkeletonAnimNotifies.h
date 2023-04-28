@@ -16,6 +16,7 @@
 #include "Widgets/Views/SListView.h"
 #include "EditorObjectsTracker.h"
 #include "EditorUndoClient.h"
+#include "Filters/FilterBase.h"
 
 #define LOCTEXT_NAMESPACE "SkeletonAnimnotifies"
 
@@ -60,22 +61,39 @@ public:
 	/** Flag to say whether this is a new item we are creating */
 	bool bIsNew;
 
+	/** Identifies sync markers vs notifies */
+	bool bIsSyncMarker;
+
 	/** Static function for creating a new item, but ensures that you can only have a TSharedRef to one */
-	static TSharedRef<FDisplayedAnimNotifyInfo> Make(const FName& NotifyName)
+	static TSharedRef<FDisplayedAnimNotifyInfo> Make(const FName& NotifyName, bool bInIsSyncMarker)
 	{
-		return MakeShareable(new FDisplayedAnimNotifyInfo(NotifyName));
+		return MakeShareable(new FDisplayedAnimNotifyInfo(NotifyName, bInIsSyncMarker));
 	}
 
 protected:
 	/** Hidden constructor, always use Make above */
-	FDisplayedAnimNotifyInfo(const FName& InNotifyName)
+	FDisplayedAnimNotifyInfo(const FName& InNotifyName, bool bInIsSyncMarker)
 		: Name( InNotifyName )
 		, bIsNew(false)
+		, bIsSyncMarker(bInIsSyncMarker)
 	{}
 
 	/** Hidden constructor, always use Make above */
 	FDisplayedAnimNotifyInfo() {}
 };
+
+// This is a flag that is used to filter UI part
+enum class EAnimNotifyFilterFlags : uint8 
+{
+	// Show none
+	None			= 0, 
+	// Show notifies
+	Notifies		= 0x01, 
+	// Show sync markers
+	SyncMarkers		= 0x02, 
+};
+
+ENUM_CLASS_FLAGS(EAnimNotifyFilterFlags);
 
 /** Widgets list type */
 typedef SListView< TSharedPtr<FDisplayedAnimNotifyInfo> > SAnimNotifyListType;
@@ -85,7 +103,8 @@ class SSkeletonAnimNotifies : public SCompoundWidget, public FGCObject, public F
 public:
 	SLATE_BEGIN_ARGS( SSkeletonAnimNotifies )
 		: _IsPicker(false)
-		, _IsSyncMarker(false)
+		, _ShowSyncMarkers(false)
+		, _ShowNotifies(true)
 	{}
 
 	/** Delegate called to select an object in the details panel */
@@ -97,8 +116,14 @@ public:
 	/** Whether we should use this dialog as a picker or an editor. In picker mode we cant add, remove or rename notifies. */
 	SLATE_ARGUMENT(bool, IsPicker)
 
-	/** Whether we should use this dialog for sync markers instead of notifies */
-	SLATE_ARGUMENT(bool, IsSyncMarker)
+	/** Whether we should show sync markers */
+	SLATE_ARGUMENT_DEPRECATED(bool, IsSyncMarker, 5.3, "Please use ShowSyncMarkers or ShowNotifies instead")
+
+	/** Whether we should show sync markers */
+	SLATE_ARGUMENT(bool, ShowSyncMarkers)
+
+	/** Whether we should show notifies */
+	SLATE_ARGUMENT(bool, ShowNotifies)
 
 	SLATE_END_ARGS()
 public:
@@ -157,21 +182,18 @@ private:
 
 	/** Delegate handler for determining whether we can show the delete menu options */
 	bool CanPerformDelete() const;
-
-	/** Delegate handler for deleting anim notifies */
-	void OnDeleteAnimNotify();
-
-	/** Delegate handler for deleting a sync marker */
-	void OnDeleteSyncMarker();
+	
+	/** Delegate handler for deleting items */
+	void OnDeleteItems();
 
 	/** Delegate handler for determining whether we can show the rename menu options */
 	bool CanPerformRename() const;
 
-	/** Delegate handler for adding anim notifies */
-	void OnAddAnimNotify();
+	/** Delegate handler for adding anim notifies & sync markers */
+	void OnAddItem(bool bIsSyncMarker);
 
-	/** Delegate handler for renaming anim notifies */
-	void OnRenameAnimNotify();
+	/** Delegate handler for renaming items */
+	void OnRenameItem();
 
 	/** Wrapper that populates NotifiesListView using current filter test */
 	void RefreshNotifiesListWithFilter();
@@ -222,10 +244,19 @@ private:
 	TWeakPtr<class FAssetEditorToolkit> WeakHostingApp;
 
 	/** Whether we should use this dialog as a picker or an editor. In picker mode we cant add, remove or rename notifies. */
-	bool bIsPicker;
+	bool bIsPicker = false;
 
-	/** Whether we are using this dialog for sync markers instead of notifies */
-	bool bIsSyncMarker;
+	/** Whether we should display markers */
+	bool bShowSyncMarkers = false;
+
+	/** Whether we should display notifies */
+	bool bShowNotifies = false;
+
+	/** All filters that can be applied to the widget's display */
+	TArray<TSharedRef<FFilterBase<EAnimNotifyFilterFlags>>> Filters;
+
+	/** Current filter flags */
+	EAnimNotifyFilterFlags CurrentFilterFlags = EAnimNotifyFilterFlags::None;
 };
 
 #undef LOCTEXT_NAMESPACE

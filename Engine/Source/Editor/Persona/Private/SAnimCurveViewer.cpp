@@ -3,6 +3,7 @@
 
 #include "SAnimCurveViewer.h"
 
+#include "AnimAssetFindReplaceCurves.h"
 #include "AnimationEditorUtils.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -544,8 +545,8 @@ void SAnimCurveViewer::Construct(const FArguments& InArgs,  const TSharedRef<IPe
 					{
 						if(TSharedPtr<SDockTab> Tab = TabManager->TryInvokeTab(FPersonaTabs::FindReplaceID))
 						{
-							TSharedRef<SAnimAssetFindReplace> FindReplaceWidget = StaticCastSharedRef<SAnimAssetFindReplace>(Tab->GetContent());
-							FindReplaceWidget->SetFindReplaceType(EAnimAssetFindReplaceType::Curves);
+							TSharedRef<IAnimAssetFindReplace> FindReplaceWidget = StaticCastSharedRef<IAnimAssetFindReplace>(Tab->GetContent());
+							FindReplaceWidget->SetCurrentProcessor(UAnimAssetFindReplaceCurves::StaticClass());
 						}
 					}
 				}

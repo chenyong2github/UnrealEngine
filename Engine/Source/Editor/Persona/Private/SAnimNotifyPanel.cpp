@@ -2353,6 +2353,7 @@ void SAnimNotifyTrack::FillNewNotifyMenu(FMenuBuilder& MenuBuilder, bool bIsRepl
 						[
 							SNew(SSkeletonAnimNotifies, EditableSkeleton)
 							.IsPicker(true)
+							.ShowNotifies(true)
 							.OnItemSelected_Lambda([this, bIsReplaceWithMenu](const FName& InNotifyName)
 							{
 								FSlateApplication::Get().DismissAllMenus();
@@ -2411,7 +2412,8 @@ void SAnimNotifyTrack::FillNewSyncMarkerMenu(FMenuBuilder& MenuBuilder)
 					.MaxDesiredHeight(400.0f)
 					[
 						SNew(SSkeletonAnimNotifies, EditableSkeleton)
-						.IsSyncMarker(true)
+						.ShowSyncMarkers(true)
+						.ShowNotifies(false)
 						.OnItemSelected_Lambda([this](const FName& InNotifyName)
 						{
 							FSlateApplication::Get().DismissAllMenus();

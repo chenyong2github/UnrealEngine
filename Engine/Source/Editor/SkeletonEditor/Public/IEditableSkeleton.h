@@ -103,12 +103,13 @@ public:
 	 * Delete anim notifies by name
 	 * @return the number of animations modified
 	 */	
-	virtual int32 DeleteAnimNotifies(const TArray<FName>& InotifyNames) = 0;
+	virtual int32 DeleteAnimNotifies(const TArray<FName>& InotifyNames, bool bDeleteFromAnimations = true) = 0;
 
 	/**
 	 * Delete sync markers from the skeleton cache by name
+	 * @return the number of animations modified
 	 */
-	virtual void DeleteSyncMarkers(const TArray<FName>& ISyncMarkerNames) = 0;
+	virtual int32 DeleteSyncMarkers(const TArray<FName>& ISyncMarkerNames, bool bDeleteFromAnimations = true) = 0;
 
 	/**
 	* Add a notify
@@ -119,13 +120,19 @@ public:
 	 * Rename a notify
 	 * @return the number of animations modified
 	 */	
-	virtual int32 RenameNotify(const FName NewName, const FName OldName) = 0;
+	virtual int32 RenameNotify(const FName NewName, const FName OldName, bool bRenameInAnimations = true) = 0;
 
 	/**
 	* Add a sync marker
 	*/
 	virtual void AddSyncMarker(FName NewName) = 0;
 
+	/**
+	* Rename a sync marker
+	 * @return the number of animations modified
+	*/
+	virtual int32 RenameSyncMarker(FName NewName, const FName OldName, bool bRenameInAnimations = true) = 0;
+	
 	/** Inform the system that something about a notify changed */	
 	virtual void BroadcastNotifyChanged() = 0;
 

@@ -45,6 +45,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 const FName USkeleton::AnimNotifyTag = FName(TEXT("AnimNotifyList"));
 const FString USkeleton::AnimNotifyTagDelimiter = TEXT(";");
 
+const FName USkeleton::AnimSyncMarkerTag = FName(TEXT("AnimSyncMarkerList"));
+const FString USkeleton::AnimSyncMarkerTagDelimiter = TEXT(";");
+
 const FName USkeleton::CurveNameTag = FName(TEXT("CurveNameList"));
 const FString USkeleton::CurveTagDelimiter = TEXT(";");
 
@@ -557,6 +560,44 @@ const FSkeletonRemapping* USkeleton::GetSkeletonRemapping(const USkeleton* Sourc
 {
 	return &UE::Anim::FSkeletonRemappingRegistry::Get().GetRemapping(SourceSkeleton, this);
 }
+
+#if WITH_EDITOR
+
+bool USkeleton::RemoveMarkerName(FName MarkerName)
+{
+	if(ExistingMarkerNames.Contains(MarkerName))
+	{
+		Modify();
+	}
+
+	return ExistingMarkerNames.Remove(MarkerName) != 0;
+}
+
+bool USkeleton::RenameMarkerName(FName InOldName, FName InNewName)
+{
+	if(ExistingMarkerNames.Contains(InOldName))
+	{
+		Modify();
+	}
+
+	if(ExistingMarkerNames.Contains(InNewName))
+	{
+		return ExistingMarkerNames.Remove(InOldName) != 0;
+	}
+
+	for(FName& MarkerName : ExistingMarkerNames)
+	{
+		if(MarkerName == InOldName)
+		{
+			MarkerName = InNewName;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+#endif
 
 bool USkeleton::DoesParentChainMatch(int32 StartBoneIndex, const USkinnedAsset* InSkinnedAsset) const
 {
@@ -2078,6 +2119,30 @@ void USkeleton::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 
 	OutTags.Add(FAssetRegistryTag(USkeleton::CompatibleSkeletonsNameTag, CompatibleSkeletonsBuilder.ToString(), FAssetRegistryTag::TT_Hidden));
 
+	// Output sync notify names we use
+	TStringBuilder<256> NotifiesBuilder;
+	NotifiesBuilder.Append(USkeleton::AnimNotifyTagDelimiter);
+
+	for(FName NotifyName : AnimationNotifies)
+	{
+		NotifiesBuilder.Append(NotifyName.ToString());
+		NotifiesBuilder.Append(USkeleton::AnimNotifyTagDelimiter);
+	}
+
+	OutTags.Add(FAssetRegistryTag(USkeleton::AnimNotifyTag, NotifiesBuilder.ToString(), FAssetRegistryTag::TT_Hidden));
+	
+	// Output sync marker names we use
+	TStringBuilder<256> SyncMarkersBuilder;
+	SyncMarkersBuilder.Append(USkeleton::AnimSyncMarkerTagDelimiter);
+
+	for(FName SyncMarker : ExistingMarkerNames)
+	{
+		SyncMarkersBuilder.Append(SyncMarker.ToString());
+		SyncMarkersBuilder.Append(USkeleton::AnimSyncMarkerTagDelimiter);
+	}
+
+	OutTags.Add(FAssetRegistryTag(USkeleton::AnimSyncMarkerTag, SyncMarkersBuilder.ToString(), FAssetRegistryTag::TT_Hidden));
+	
 	// Allow asset user data to output tags
 	for(UAssetUserData* AssetUserDataItem : AssetUserData)
 	{

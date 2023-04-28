@@ -140,6 +140,7 @@ public:
 			[
 				SNew(SSkeletonAnimNotifies, EditableSkeleton.ToSharedRef())
 				.IsPicker(true)
+				.ShowNotifies(true)
 				.OnItemSelected_Lambda([this](const FName& InNotifyName)
 				{
 					FSlateApplication::Get().DismissAllMenus();

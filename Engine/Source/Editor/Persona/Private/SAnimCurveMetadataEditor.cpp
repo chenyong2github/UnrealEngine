@@ -2,6 +2,8 @@
 
 
 #include "SAnimCurveMetadataEditor.h"
+
+#include "AnimAssetFindReplaceCurves.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -441,8 +443,8 @@ void SAnimCurveMetadataEditor::Construct(const FArguments& InArgs, UObject* InAn
 						{
 							if(TSharedPtr<SDockTab> Tab = TabManager->TryInvokeTab(FPersonaTabs::FindReplaceID))
 							{
-								TSharedRef<SAnimAssetFindReplace> FindReplaceWidget = StaticCastSharedRef<SAnimAssetFindReplace>(Tab->GetContent());
-								FindReplaceWidget->SetFindReplaceType(EAnimAssetFindReplaceType::Curves);
+								TSharedRef<IAnimAssetFindReplace> FindReplaceWidget = StaticCastSharedRef<IAnimAssetFindReplace>(Tab->GetContent());
+								FindReplaceWidget->SetCurrentProcessor(UAnimAssetFindReplaceCurves::StaticClass());
 							}
 						}
 					}

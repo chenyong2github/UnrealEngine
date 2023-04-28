@@ -659,6 +659,14 @@ public:
 	/** Sort the sync markers array by time, earliest first. */
 	void SortSyncMarkers();
 
+#if WITH_EDITOR
+	/** Remove all markers with the specified names */
+	bool RemoveSyncMarkers(const TArray<FName>& MarkersToRemove);
+
+	/** Rename the markers with the specified name */
+	bool RenameSyncMarkers(FName InOldName, FName InNewName);
+#endif
+
 	// Advancing based on markers
 	float GetCurrentTimeFromMarkers(FMarkerPair& PrevMarker, FMarkerPair& NextMarker, float PositionBetweenMarkers) const;
 	virtual void AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, const TArray<FName>& ValidMarkerNames, float& CurrentTime, FMarkerPair& PrevMarker, FMarkerPair& NextMarker, TArray<FPassedMarker>& MarkersPassed, const UMirrorDataTable* MirrorTable) const;

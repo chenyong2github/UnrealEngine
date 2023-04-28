@@ -46,6 +46,7 @@
 #include "ITimeManagementModule.h"
 #include "Animation/SkeletonRemappingRegistry.h"
 #include "Animation/SkeletonRemapping.h"
+#include "Animation/Skeleton.h"
 
 LLM_DEFINE_TAG(SequenceData);
 
@@ -432,6 +433,18 @@ void UAnimSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) con
 		OutTags.Add(FAssetRegistryTag(TEXT("Number of Frames"), TEXT("0"), FAssetRegistryTag::TT_Numerical));
 		OutTags.Add(FAssetRegistryTag(TEXT("Number of Keys"), TEXT("0"), FAssetRegistryTag::TT_Numerical));
 	}
+
+	// Output unique sync marker names we use
+	TStringBuilder<256> SyncMarkersBuilder;
+	SyncMarkersBuilder.Append(USkeleton::AnimSyncMarkerTagDelimiter);
+
+	for(FName SyncMarker : UniqueMarkerNames)
+	{
+		SyncMarkersBuilder.Append(SyncMarker.ToString());
+		SyncMarkersBuilder.Append(USkeleton::AnimSyncMarkerTagDelimiter);
+	}
+
+	OutTags.Add(FAssetRegistryTag(USkeleton::AnimSyncMarkerTag, SyncMarkersBuilder.ToString(), FAssetRegistryTag::TT_Hidden));
 #endif
 
 	OutTags.Add(FAssetRegistryTag(TEXT("Compressed Size (KB)"), FString::Printf(TEXT("%.02f"), (float)GetApproxCompressedSize() / 1024.0f), FAssetRegistryTag::TT_Numerical));
@@ -832,6 +845,60 @@ void UAnimSequence::SortSyncMarkers()
 	// Then refresh data
 	RefreshSyncMarkerDataFromAuthored();
 }
+
+#if WITH_EDITOR
+
+bool UAnimSequence::RemoveSyncMarkers(const TArray<FName>& NotifiesToRemove)
+{
+	bool bSequenceModified = false;
+	for (int32 MarkerIndex = AuthoredSyncMarkers.Num() - 1; MarkerIndex >= 0; --MarkerIndex)
+	{
+		FAnimSyncMarker& Marker = AuthoredSyncMarkers[MarkerIndex];
+		if (NotifiesToRemove.Contains(Marker.MarkerName))
+		{
+			if (!bSequenceModified)
+			{
+				Modify();
+				bSequenceModified = true;
+			}
+			AuthoredSyncMarkers.RemoveAtSwap(MarkerIndex);
+		}
+	}
+
+	if (bSequenceModified)
+	{
+		MarkPackageDirty();
+		RefreshCacheData();
+	}
+	return bSequenceModified;
+}
+
+bool UAnimSequence::RenameSyncMarkers(FName InOldName, FName InNewName)
+{
+	bool bSequenceModified = false;
+	for(FAnimSyncMarker& Marker : AuthoredSyncMarkers)
+	{
+		if(Marker.MarkerName == InOldName)
+		{
+			if (!bSequenceModified)
+			{
+				Modify();
+				bSequenceModified = true;
+			}
+
+			Marker.MarkerName = InNewName;
+		}
+	}
+
+	if (bSequenceModified)
+	{
+		MarkPackageDirty();
+		RefreshCacheData();
+	}
+	return bSequenceModified;
+}
+
+#endif
 
 void UAnimSequence::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {

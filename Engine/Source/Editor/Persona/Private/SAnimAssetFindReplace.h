@@ -14,6 +14,11 @@
 class SBox;
 class SAutoCompleteSearchBox;
 
+namespace AnimAssetFindReplacePrivate
+{
+extern TSharedPtr<SAnimAssetFindReplace> GetWidgetFromContext(const FToolMenuContext& InContext);
+}
+
 struct FAnimAssetFindReplaceSummoner : public FWorkflowTabFactory
 {
 public:
@@ -26,32 +31,32 @@ private:
 	FAnimAssetFindReplaceConfig Config;
 };
 
-class SAnimAssetFindReplace : public SCompoundWidget
+class SAnimAssetFindReplace : public IAnimAssetFindReplace, public FGCObject
 {
 public:
+	friend class UAnimAssetFindReplaceProcessor;
+
 	SLATE_BEGIN_ARGS(SAnimAssetFindReplace) {}
-	
+
 	SLATE_ARGUMENT(FAnimAssetFindReplaceConfig, Config)
 
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 
-	/** Sets the type of thing we are finding/replacing, then flags the UI for a refresh */
-	void SetFindReplaceType(EAnimAssetFindReplaceType InType);
+	// IAnimAssetFindReplace interface
+	virtual void SetCurrentProcessor(TSubclassOf<UAnimAssetFindReplaceProcessor> InProcessor) override;
+	virtual UAnimAssetFindReplaceProcessor* GetCurrentProcessor() const override { return CurrentProcessor; }
+	virtual UAnimAssetFindReplaceProcessor* GetProcessor(TSubclassOf<UAnimAssetFindReplaceProcessor> InProcessor) const override;
 
 private:
+	// FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
+
 	void RefreshSearchResults();
 
 	bool HandleFilterAsset(const FAssetData& InAssetData);
-
-	bool FilterByCurve(const FAssetData& InAssetData, bool& bOutIsOldAsset) const;
-	
-	bool FilterByNotify(const FAssetData& InAssetData, bool& bOutIsOldAsset) const;
-
-	void GetMatchingCurveNamesForAsset(const FAssetData& InAssetData, TArray<FString>& OutCurveNames) const;
-
-	void GetMatchingNotifyNamesForAsset(const FAssetData& InAssetData, TArray<FString>& OutNotifyNames) const;
 
 	FReply HandleReplace();
 
@@ -61,10 +66,6 @@ private:
 
 	void ReplaceInAsset(const FAssetData& InAssetData) const;
 
-	void ReplaceCurvesInAsset(const FAssetData& InAssetData) const;
-
-	void ReplaceNotifiesInAsset(const FAssetData& InAssetData) const;
-	
 	FReply HandleRemove();
 
 	FReply HandleRemoveAll();
@@ -73,30 +74,24 @@ private:
 
 	void RemoveInAsset(const FAssetData& InAssetData) const;
 
-	void RemoveCurvesInAsset(const FAssetData& InAssetData) const;
-
-	void RemoveNotifiesInAsset(const FAssetData& InAssetData) const;
-
 	bool ShouldFilterOutAsset(const FAssetData& InAssetData, bool& bOutIsOldAsset) const;
 
-	bool NameMatches(const FString& InNameString) const;
+	void RequestRefresh() { bRefreshRequested = true; }
 
-	void RefreshAutoCompleteItems();
+	void RequestRefreshSearchResults() { bRefreshSearchResultsRequested = true; }
 
 	FARFilter MakeARFilter() const;
 
-	bool IsAssetWithoutTagOldAsset(FName InTag, const FAssetData& InAssetData) const;
-
 private:
+	FAnimAssetFindReplaceConfig Config;
+
 	FAssetPickerConfig AssetPickerConfig;
 
 	EAnimAssetFindReplaceMode Mode = EAnimAssetFindReplaceMode::Find;
 
-	EAnimAssetFindReplaceType Type = EAnimAssetFindReplaceType::Curves;
+	TMap<TSubclassOf<UAnimAssetFindReplaceProcessor>, UAnimAssetFindReplaceProcessor*> Processors;
 
-	FString FindString;
-
-	FString ReplaceString;
+	UAnimAssetFindReplaceProcessor* CurrentProcessor = nullptr;
 
 	FRefreshAssetViewDelegate RefreshAssetViewDelegate;
 
@@ -104,23 +99,19 @@ private:
 
 	FSetARFilterDelegate SetARFilterDelegate;
 
-	bool bFindWholeWord = true;
-
 	bool bAssetsSelected = false;
 
 	bool bFoundAssets = false;
 
+	bool bRefreshRequested = false;
+
+	bool bRefreshSearchResultsRequested = false;
+
 	TArray<FAssetData> OldAssets;
 
-	ESearchCase::Type SearchCase = ESearchCase::IgnoreCase;
+	UAnimAssetFindReplaceContext* ToolbarContext;
 
-	TStrongObjectPtr<UAnimAssetFindReplaceContext> ToolbarContext;
+	TSharedPtr<SBox> ToolbarContainer;
 
-	TSharedPtr<TArray<TSharedPtr<FString>>> AutoCompleteItems;
-
-	TSharedPtr<SAutoCompleteSearchBox> FindSearchBox;
-	
-	TSharedPtr<SAutoCompleteSearchBox> ReplaceSearchBox;
-
-	FAssetData SkeletonFilter;
+	TSharedPtr<SBox> FindReplaceWidgetContainer;
 };

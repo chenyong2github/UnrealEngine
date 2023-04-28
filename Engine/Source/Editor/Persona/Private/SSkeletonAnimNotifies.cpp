@@ -2,6 +2,9 @@
 
 
 #include "SSkeletonAnimNotifies.h"
+
+#include "AnimAssetFindReplaceNotifies.h"
+#include "AnimAssetFindReplaceSyncMarkers.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -20,13 +23,52 @@
 #include "IAnimationBlueprintEditor.h"
 #include "IAnimationSequenceBrowser.h"
 #include "ISkeletonEditor.h"
+#include "SAnimAssetFindReplace.h"
+#include "Filters/GenericFilter.h"
+#include "Filters/SBasicFilterBar.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "SkeletonAnimNotifies"
 
-//////////////////////////////////////////////////////////////////////////
-// SMorphTargetListRow
-
 typedef TSharedPtr< FDisplayedAnimNotifyInfo > FDisplayedAnimNotifyInfoPtr;
+
+class FSkeletonAnimNotifiesFilter : public FGenericFilter<EAnimNotifyFilterFlags>
+{
+public:
+	FSkeletonAnimNotifiesFilter(EAnimNotifyFilterFlags InFlags, const FString& InName, const FText& InDisplayName, const FText& InToolTipText, FLinearColor InColor, TSharedPtr<FFilterCategory> InCategory)
+		: FGenericFilter<EAnimNotifyFilterFlags>(InCategory, InName, InDisplayName, FGenericFilter<EAnimNotifyFilterFlags>::FOnItemFiltered())
+		, Flags(InFlags)
+	{
+		ToolTip = InToolTipText;
+		Color = InColor;
+	}
+
+	bool IsActive() const
+	{
+		return bIsActive;
+	}
+
+	EAnimNotifyFilterFlags GetFlags() const
+	{
+		return Flags;
+	}
+
+private:
+	// FFilterBase interface
+	virtual void ActiveStateChanged(bool bActive) override
+	{
+		bIsActive = bActive;
+	}
+
+	virtual bool PassesFilter(EAnimNotifyFilterFlags InItem) const override
+	{
+		return EnumHasAnyFlags(InItem, Flags);
+	}
+	
+private:
+	EAnimNotifyFilterFlags Flags;
+	bool bIsActive = false;
+};
 
 /////////////////////////////////////////////////////
 // FSkeletonAnimNotifiesSummoner
@@ -49,6 +91,8 @@ FSkeletonAnimNotifiesSummoner::FSkeletonAnimNotifiesSummoner(TSharedPtr<class FA
 TSharedRef<SWidget> FSkeletonAnimNotifiesSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
 	return SNew(SSkeletonAnimNotifies, EditableSkeleton.Pin().ToSharedRef(), HostingApp.Pin())
+		.ShowNotifies(true)
+		.ShowSyncMarkers(true)
 		.OnObjectsSelected(OnObjectsSelected);
 }
 
@@ -60,52 +104,123 @@ void SSkeletonAnimNotifies::Construct(const FArguments& InArgs, const TSharedRef
 	OnObjectsSelected = InArgs._OnObjectsSelected;
 	OnItemSelected = InArgs._OnItemSelected;
 	bIsPicker = InArgs._IsPicker;
-	bIsSyncMarker = InArgs._IsSyncMarker;
+	bShowSyncMarkers = InArgs._ShowSyncMarkers;
+	bShowNotifies = InArgs._ShowNotifies;
 
 	EditableSkeleton = InEditableSkeleton;
 	WeakHostingApp = InHostingApp;
 
-	if (bIsSyncMarker)
-	{
-		bIsPicker = false; // Sync Markers are never pickers
-	}
-	else
-	{
-		EditableSkeleton->RegisterOnNotifiesChanged(FSimpleDelegate::CreateSP(this, &SSkeletonAnimNotifies::OnNotifiesChanged));
-	}
+	EditableSkeleton->RegisterOnNotifiesChanged(FSimpleDelegate::CreateSP(this, &SSkeletonAnimNotifies::OnNotifiesChanged));
 
 	if(GEditor)
 	{
 		GEditor->RegisterForUndo(this);
 	}
 
-	FOnContextMenuOpening OnContextMenuOpening = (!bIsPicker && !bIsSyncMarker) ? FOnContextMenuOpening::CreateSP(this, &SSkeletonAnimNotifies::OnGetContextMenuContent) : FOnContextMenuOpening();
+	FOnContextMenuOpening OnContextMenuOpening = !bIsPicker ? FOnContextMenuOpening::CreateSP(this, &SSkeletonAnimNotifies::OnGetContextMenuContent) : FOnContextMenuOpening();
 
-	this->ChildSlot
+	NameFilterBox = SNew( SSearchBox )
+		.SelectAllTextWhenFocused( true )
+		.OnTextChanged( this, &SSkeletonAnimNotifies::OnFilterTextChanged )
+		.OnTextCommitted( this, &SSkeletonAnimNotifies::OnFilterTextCommitted );
+
+	NotifiesListView = SNew( SAnimNotifyListType )
+		.ListItemsSource( &NotifyList )
+		.OnGenerateRow( this, &SSkeletonAnimNotifies::GenerateNotifyRow )
+		.OnContextMenuOpening( OnContextMenuOpening )
+		.OnSelectionChanged( this, &SSkeletonAnimNotifies::OnNotifySelectionChanged )
+		.ItemHeight( 18.0f )
+		.OnItemScrolledIntoView( this, &SSkeletonAnimNotifies::OnItemScrolledIntoView );
+	
+	TSharedPtr<FFilterCategory> FilterCategory = MakeShared<FFilterCategory>(LOCTEXT("AnimNotifyFiltersLabel", "Anim Notify Filters"), LOCTEXT("AnimNotifyFiltersLabelToolTip", "Filter what kind fo notifies and sync markers can be displayed."));
+
+	// Hide filter UI if we are only displaying one type of thing
+	const EVisibility FilterVisibility = (bShowNotifies ^ bShowSyncMarkers) ? EVisibility::Collapsed : EVisibility::Visible;
+
+	TSharedRef<SBasicFilterBar<EAnimNotifyFilterFlags>> FilterBar = SNew(SBasicFilterBar<EAnimNotifyFilterFlags>)
+	.Visibility(FilterVisibility)
+	.CustomFilters(Filters)
+	.UseSectionsForCategories(true)
+	.OnFilterChanged_Lambda([this]()
+	{
+		CurrentFilterFlags = EAnimNotifyFilterFlags::None;
+
+		for(const TSharedRef<FFilterBase<EAnimNotifyFilterFlags>>& Filter : Filters)
+		{
+			TSharedRef<FSkeletonAnimNotifiesFilter> AnimNotifiesFilter = StaticCastSharedRef<FSkeletonAnimNotifiesFilter>(Filter);
+			if(AnimNotifiesFilter->IsActive())
+			{
+				CurrentFilterFlags |= AnimNotifiesFilter->GetFlags();
+			}
+		}
+
+		RefreshNotifiesListWithFilter();
+	});
+	
+	if(bShowNotifies)
+	{
+		TSharedRef<FFilterBase<EAnimNotifyFilterFlags>> Filter = Filters.Add_GetRef(MakeShared<FSkeletonAnimNotifiesFilter>(
+			EAnimNotifyFilterFlags::Notifies,
+			"Notifies",
+			LOCTEXT("ShowNotifiesLabel", "Notifies"),
+			LOCTEXT("ShowNotifiesTooltip", "Show notifies"),
+			FLinearColor::Red.Desaturate(0.5f),
+			FilterCategory
+			));
+
+		FilterBar->SetFilterCheckState(Filter, ECheckBoxState::Checked);
+	}
+
+	if(bShowSyncMarkers)
+	{
+		TSharedRef<FFilterBase<EAnimNotifyFilterFlags>> Filter = Filters.Add_GetRef(MakeShared<FSkeletonAnimNotifiesFilter>(
+			EAnimNotifyFilterFlags::SyncMarkers,
+			"SyncMarkers",
+			LOCTEXT("ShowSyncMarkersLabel", "Sync Markers"),
+			LOCTEXT("ShowSyncMarkersTooltip", "Show sync markers"),
+			FLinearColor::Green.Desaturate(0.5f),
+			FilterCategory
+			));
+
+		FilterBar->SetFilterCheckState(Filter, ECheckBoxState::Checked);
+	}
+
+	TSharedRef<SWidget> AddFilterButton = SBasicFilterBar<EAnimNotifyFilterFlags>::MakeAddFilterButton(FilterBar);
+	AddFilterButton->SetVisibility(FilterVisibility);
+	
+	ChildSlot
 	[
 		SNew( SVerticalBox )
 
-		+ SVerticalBox::Slot()
+		+SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding( FMargin( 0.0f, 0.0f, 0.0f, 4.0f ) )
 		[
-			SAssignNew( NameFilterBox, SSearchBox )
-			.SelectAllTextWhenFocused( true )
-			.OnTextChanged( this, &SSkeletonAnimNotifies::OnFilterTextChanged )
-			.OnTextCommitted( this, &SSkeletonAnimNotifies::OnFilterTextCommitted )
-			.HintText( LOCTEXT( "NotifiesSearchBoxHint", "Search Animation Notifies...") )
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2.0f,0.0f)
+			[
+				AddFilterButton
+			]
+
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			[
+				NameFilterBox.ToSharedRef()
+			]
 		]
 
-		+ SVerticalBox::Slot()
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			FilterBar
+		]
+
+		+SVerticalBox::Slot()
 		.FillHeight( 1.0f )		// This is required to make the scrollbar work, as content overflows Slate containers by default
 		[
-			SAssignNew( NotifiesListView, SAnimNotifyListType )
-			.ListItemsSource( &NotifyList )
-			.OnGenerateRow( this, &SSkeletonAnimNotifies::GenerateNotifyRow )
-			.OnContextMenuOpening( OnContextMenuOpening )
-			.OnSelectionChanged( this, &SSkeletonAnimNotifies::OnNotifySelectionChanged )
-			.ItemHeight( 22.0f )
-			.OnItemScrolledIntoView( this, &SSkeletonAnimNotifies::OnItemScrolledIntoView )
+			NotifiesListView.ToSharedRef()
 		]
 	];
 
@@ -153,6 +268,7 @@ TSharedRef<ITableRow> SSkeletonAnimNotifies::GenerateNotifyRow(TSharedPtr<FDispl
 			[
 				SAssignNew(InInfo->InlineEditableText, SInlineEditableTextBlock)
 				.Text(FText::FromName(InInfo->Name))
+				.Font(FAppStyle::Get().GetFontStyle("SmallFont"))
 				.OnVerifyTextChanged(this, &SSkeletonAnimNotifies::OnVerifyNotifyNameCommit, InInfo)
 				.OnTextCommitted(this, &SSkeletonAnimNotifies::OnNotifyNameCommitted, InInfo)
 				.IsSelected(this, &SSkeletonAnimNotifies::IsSelected)
@@ -167,57 +283,50 @@ TSharedPtr<SWidget> SSkeletonAnimNotifies::OnGetContextMenuContent() const
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder( bShouldCloseWindowAfterMenuSelection, NULL);
 
-	if (bIsSyncMarker)
+	MenuBuilder.BeginSection("AnimItemAction", LOCTEXT("ItemActions", "New Item"));
 	{
-		MenuBuilder.BeginSection("AnimNotifyAction", LOCTEXT("SelectedSyncMarkerActions", "Selected Sync Marker Actions"));
+		FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnAddItem, false));
+		const FText Label = LOCTEXT("NewAnimNotifyButtonLabel", "New Notify...");
+		const FText ToolTipText = LOCTEXT("NewAnimNotifyButtonTooltip", "Creates a new anim notify.");
+		MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+	}
+
+	{
+		FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnAddItem, true));
+		const FText Label = LOCTEXT("NewSyncMarkerButtonLabel", "New Sync Marker...");
+		const FText ToolTipText = LOCTEXT("NewSyncMarkerButtonTooltip", "Creates a new sync marker.");
+		MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("AnimNotifyAction", LOCTEXT("SelectedItemActions", "Selected Item Actions"));
+	{
 		{
-			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnDeleteSyncMarker));
-			const FText Label = LOCTEXT("DeleteSyncMarkerButtonLabel", "Delete");
-			const FText ToolTipText = LOCTEXT("DeleteSyncMarkerButtonTooltip", "Deletes the sync marker from the suggestions");
+			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnRenameItem),
+				FCanExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::CanPerformRename));
+			const FText Label = LOCTEXT("RenameAnimNotifyButtonLabel", "Rename");
+			const FText ToolTipText = LOCTEXT("RenameAnimNotifyButtonTooltip", "Renames the selected item.");
 			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 		}
-		MenuBuilder.EndSection();
-	}
-	else
-	{
-		MenuBuilder.BeginSection("AnimNotifyAction", LOCTEXT("AnimNotifyActions", "Notifies"));
+
 		{
-			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnAddAnimNotify));
-			const FText Label = LOCTEXT("NewAnimNotifyButtonLabel", "New...");
-			const FText ToolTipText = LOCTEXT("NewAnimNotifyButtonTooltip", "Creates a new anim notify.");
+			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnDeleteItems),
+				FCanExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::CanPerformDelete));
+			const FText Label = LOCTEXT("DeleteAnimNotifyButtonLabel", "Delete");
+			const FText ToolTipText = LOCTEXT("DeleteAnimNotifyButtonTooltip", "Deletes the selected items.");
 			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 		}
-		MenuBuilder.EndSection();
 
-		MenuBuilder.BeginSection("AnimNotifyAction", LOCTEXT("SelectedAnimNotifyActions", "Selected Notify Actions"));
+		if(WeakHostingApp.IsValid() && NotifiesListView->GetNumItemsSelected() == 1)
 		{
-			{
-				FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnRenameAnimNotify),
-					FCanExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::CanPerformRename));
-				const FText Label = LOCTEXT("RenameAnimNotifyButtonLabel", "Rename");
-				const FText ToolTipText = LOCTEXT("RenameAnimNotifyButtonTooltip", "Renames the selected anim notifies.");
-				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
-			}
-
-			{
-				FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnDeleteAnimNotify),
-					FCanExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::CanPerformDelete));
-				const FText Label = LOCTEXT("DeleteAnimNotifyButtonLabel", "Delete");
-				const FText ToolTipText = LOCTEXT("DeleteAnimNotifyButtonTooltip", "Deletes the selected anim notifies.");
-				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
-			}
-
-			if(WeakHostingApp.IsValid() && NotifiesListView->GetNumItemsSelected() == 1)
-			{
-				FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnFindReferences),
-					FCanExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::CanPerformDelete));
-				const FText Label = LOCTEXT("FindNotifyReferences", "Find References");
-				const FText ToolTipText = LOCTEXT("FindNotifyReferencesTooltip", "Find all references to this skeleton notify in the asset browser");
-				MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
-			}
+			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnFindReferences),
+				FCanExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::CanPerformDelete));
+			const FText Label = LOCTEXT("FindNotifyReferences", "Find References");
+			const FText ToolTipText = LOCTEXT("FindNotifyReferencesTooltip", "Find all references to this item in the asset browser");
+			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 		}
-		MenuBuilder.EndSection();
 	}
+	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }
@@ -226,7 +335,7 @@ void SSkeletonAnimNotifies::OnNotifySelectionChanged(TSharedPtr<FDisplayedAnimNo
 {
 	if(Selection.IsValid())
 	{
-		if (!bIsSyncMarker)
+		if (!Selection->bIsSyncMarker)
 		{
 			ShowNotifyInDetailsView(Selection->Name);
 		}
@@ -245,10 +354,10 @@ bool SSkeletonAnimNotifies::CanPerformRename() const
 	return NotifiesListView->GetNumItemsSelected() == 1;
 }
 
-void SSkeletonAnimNotifies::OnAddAnimNotify()
+void SSkeletonAnimNotifies::OnAddItem(bool bIsSyncMarker)
 {
 	// Find a unique name for this notify
-	const TCHAR* BaseNotifyString = TEXT("NewNotify");
+	const TCHAR* BaseNotifyString = bIsSyncMarker ? TEXT("NewNotify") : TEXT("NewSyncMarker");
 	FString NewNotifyString = BaseNotifyString;
 	int32 NumericExtension = 0;
 
@@ -259,7 +368,7 @@ void SSkeletonAnimNotifies::OnAddAnimNotify()
 	}
 
 	// Add an item. The subsequent rename will commit the item.
-	TSharedPtr<FDisplayedAnimNotifyInfo> NewItem = FDisplayedAnimNotifyInfo::Make(*NewNotifyString);
+	TSharedPtr<FDisplayedAnimNotifyInfo> NewItem = FDisplayedAnimNotifyInfo::Make(*NewNotifyString, bIsSyncMarker);
 	NewItem->bIsNew = true;
 	NotifyList.Add(NewItem);
 
@@ -276,53 +385,53 @@ void SSkeletonAnimNotifies::OnItemScrolledIntoView(TSharedPtr<FDisplayedAnimNoti
 	}
 }
 
-void SSkeletonAnimNotifies::OnDeleteAnimNotify()
+void SSkeletonAnimNotifies::OnDeleteItems()
 {
 	TArray< TSharedPtr< FDisplayedAnimNotifyInfo > > SelectedRows = NotifiesListView->GetSelectedItems();
 
-	// this one deletes all notifies with same name. 
+	TArray<FName> SelectedSyncMarkerNames;
 	TArray<FName> SelectedNotifyNames;
 
-	for(int Selection = 0; Selection < SelectedRows.Num(); ++Selection)
+	for (TSharedPtr< FDisplayedAnimNotifyInfo > Selection : SelectedRows)
 	{
-		SelectedNotifyNames.Add(SelectedRows[Selection]->Name);
+		if(Selection->bIsSyncMarker)
+		{
+			SelectedSyncMarkerNames.Add(Selection->Name);
+		}
+		else
+		{
+			SelectedNotifyNames.Add(Selection->Name);
+		}
 	}
 
-	int32 NumAnimationsModified = EditableSkeleton->DeleteAnimNotifies(SelectedNotifyNames);
+	int32 NumAnimationsModified = 0;
+	
+	if(SelectedSyncMarkerNames.Num())
+	{
+		NumAnimationsModified += EditableSkeleton->DeleteSyncMarkers(SelectedSyncMarkerNames);
+	}
+
+	if(SelectedNotifyNames.Num())
+	{
+		NumAnimationsModified += EditableSkeleton->DeleteAnimNotifies(SelectedNotifyNames);
+	}
 
 	if(NumAnimationsModified > 0)
 	{
-		// Tell the user that the socket is a duplicate
 		FFormatNamedArguments Args;
 		Args.Add( TEXT("NumAnimationsModified"), NumAnimationsModified );
-		FNotificationInfo Info( FText::Format( LOCTEXT( "AnimNotifiesDeleted", "{NumAnimationsModified} animation(s) modified to delete notifications" ), Args ) );
+		FNotificationInfo Info( FText::Format( LOCTEXT( "ItemsDeleted", "{NumAnimationsModified} animation(s) modified to delete items" ), Args ) );
 
 		Info.bUseLargeFont = false;
 		Info.ExpireDuration = 5.0f;
 
 		NotifyUser( Info );
 	}
-
-	CreateNotifiesList( NameFilterBox->GetText().ToString() );
-}
-
-void SSkeletonAnimNotifies::OnDeleteSyncMarker()
-{
-	TArray< TSharedPtr< FDisplayedAnimNotifyInfo > > SelectedRows = NotifiesListView->GetSelectedItems();
-
-	TArray<FName> SelectedSyncMarkerNames;
-
-	for (int Selection = 0; Selection < SelectedRows.Num(); ++Selection)
-	{
-		SelectedSyncMarkerNames.Add(SelectedRows[Selection]->Name);
-	}
-
-	EditableSkeleton->DeleteSyncMarkers(SelectedSyncMarkerNames);
-
+	
 	CreateNotifiesList(NameFilterBox->GetText().ToString());
 }
 
-void SSkeletonAnimNotifies::OnRenameAnimNotify()
+void SSkeletonAnimNotifies::OnRenameItem()
 {
 	TArray< TSharedPtr< FDisplayedAnimNotifyInfo > > SelectedRows = NotifiesListView->GetSelectedItems();
 
@@ -344,10 +453,21 @@ bool SSkeletonAnimNotifies::OnVerifyNotifyNameCommit( const FText& NewName, FTex
 	FName NotifyName( *NewName.ToString() );
 	if(NotifyName != Item->Name || Item->bIsNew)
 	{
-		if(EditableSkeleton->GetSkeleton().AnimationNotifies.Contains(NotifyName))
+		if(Item->bIsSyncMarker)
 		{
-			OutErrorMessage = FText::Format( LOCTEXT("AlreadyInUseMessage", "'{0}' is already in use."), NewName );
-			bValid = false;
+			if(EditableSkeleton->GetSkeleton().GetExistingMarkerNames().Contains(NotifyName))
+			{
+				OutErrorMessage = FText::Format( LOCTEXT("AlreadyInUseMessage", "'{0}' is already in use."), NewName );
+				bValid = false;
+			}
+		}
+		else
+		{
+			if(EditableSkeleton->GetSkeleton().AnimationNotifies.Contains(NotifyName))
+			{
+				OutErrorMessage = FText::Format( LOCTEXT("AlreadyInUseMessage", "'{0}' is already in use."), NewName );
+				bValid = false;
+			}
 		}
 	}
 
@@ -359,28 +479,51 @@ void SSkeletonAnimNotifies::OnNotifyNameCommitted( const FText& NewName, ETextCo
 	FName NewFName = FName(*NewName.ToString());
 	if(Item->bIsNew)
 	{
-		EditableSkeleton->AddNotify(NewFName);
+		if(Item->bIsSyncMarker)
+		{
+			EditableSkeleton->AddNotify(NewFName);
+		}
+		else
+		{
+			EditableSkeleton->AddSyncMarker(NewFName);
+		}
 		Item->bIsNew = false;
 	}
 	else
 	{
 		if(NewFName != Item->Name)
 		{
-			int32 NumAnimationsModified = EditableSkeleton->RenameNotify(FName(*NewName.ToString()), Item->Name);
-
-			if(NumAnimationsModified > 0)
+			if(Item->bIsSyncMarker)
 			{
-				// Tell the user that the socket is a duplicate
-				FFormatNamedArguments Args;
-				Args.Add( TEXT("NumAnimationsModified"), NumAnimationsModified );
-				FNotificationInfo Info( FText::Format( LOCTEXT( "AnimNotifiesRenamed", "{NumAnimationsModified} animation(s) modified to rename notification" ), Args ) );
+				int32 NumAnimationsModified = EditableSkeleton->RenameSyncMarker(FName(*NewName.ToString()), Item->Name);
+				if(NumAnimationsModified > 0)
+				{
+					FFormatNamedArguments Args;
+					Args.Add( TEXT("NumAnimationsModified"), NumAnimationsModified );
+					FNotificationInfo Info( FText::Format( LOCTEXT( "SyncMarkersRenamed", "{NumAnimationsModified} animation(s) modified to rename sync marker" ), Args ) );
 
-				Info.bUseLargeFont = false;
-				Info.ExpireDuration = 5.0f;
+					Info.bUseLargeFont = false;
+					Info.ExpireDuration = 5.0f;
 
-				NotifyUser( Info );
+					NotifyUser( Info );
+				}
 			}
+			else
+			{
+				int32 NumAnimationsModified = EditableSkeleton->RenameNotify(FName(*NewName.ToString()), Item->Name);
+				if(NumAnimationsModified > 0)
+				{
+					FFormatNamedArguments Args;
+					Args.Add( TEXT("NumAnimationsModified"), NumAnimationsModified );
+					FNotificationInfo Info( FText::Format( LOCTEXT( "AnimNotifiesRenamed", "{NumAnimationsModified} animation(s) modified to rename notification" ), Args ) );
 
+					Info.bUseLargeFont = false;
+					Info.ExpireDuration = 5.0f;
+
+					NotifyUser( Info );
+				}
+			}
+			
 			RefreshNotifiesListWithFilter();
 		}
 	}
@@ -397,20 +540,34 @@ void SSkeletonAnimNotifies::CreateNotifiesList( const FString& SearchText )
 
 	const USkeleton& TargetSkeleton = EditableSkeleton->GetSkeleton();
 
-	const TArray<FName>& ItemNames = bIsSyncMarker ? TargetSkeleton.GetExistingMarkerNames() : TargetSkeleton.AnimationNotifies;
-
-	for(const FName& ItemName : ItemNames)
+	auto AddItem = [this, SearchText](FName InItemName, bool bInIsSyncMarker)
 	{
 		if ( !SearchText.IsEmpty() )
 		{
-			if (ItemName.ToString().Contains( SearchText ) )
+			if (InItemName.ToString().Contains( SearchText ) )
 			{
-				NotifyList.Add( FDisplayedAnimNotifyInfo::Make(ItemName) );
+				NotifyList.Add( FDisplayedAnimNotifyInfo::Make(InItemName, bInIsSyncMarker) );
 			}
 		}
 		else
 		{
-			NotifyList.Add( FDisplayedAnimNotifyInfo::Make(ItemName) );
+			NotifyList.Add( FDisplayedAnimNotifyInfo::Make(InItemName, bInIsSyncMarker) );
+		}
+	};
+
+	if(EnumHasAnyFlags(CurrentFilterFlags, EAnimNotifyFilterFlags::Notifies))
+	{
+		for(const FName& ItemName : TargetSkeleton.AnimationNotifies)
+		{
+			AddItem(ItemName, false);
+		}
+	}
+
+	if(EnumHasAnyFlags(CurrentFilterFlags, EAnimNotifyFilterFlags::SyncMarkers))
+	{
+		for(const FName& ItemName : TargetSkeleton.GetExistingMarkerNames())
+		{
+			AddItem(ItemName, true);
 		}
 	}
 
@@ -485,22 +642,12 @@ void SSkeletonAnimNotifies::OnFindReferences()
 		NotifiesListView->GetSelectedItems(SelectedItems);
 		FName Name = SelectedItems[0]->Name;
 
-		HostingApp->InvokeTab(FPersonaTabs::AssetBrowserID);
-
-		if (HostingApp->GetEditorName() == TEXT("AnimationEditor"))
+		if(TSharedPtr<SDockTab> Tab = HostingApp->GetTabManager()->TryInvokeTab(FPersonaTabs::FindReplaceID))
 		{
-			TSharedPtr<IAnimationEditor> AnimationEditor = StaticCastSharedPtr<IAnimationEditor>(HostingApp);
-			AnimationEditor->GetAssetBrowser()->FilterBySkeletonNotify(Name);
-		}
-		else if (HostingApp->GetEditorName() == TEXT("AnimationBlueprintEditor"))
-		{
-			TSharedPtr<IAnimationBlueprintEditor> AnimationBlueprintEditor = StaticCastSharedPtr<IAnimationBlueprintEditor>(HostingApp);
-			AnimationBlueprintEditor->GetAssetBrowser()->FilterBySkeletonNotify(Name);
-		}
-		else if (HostingApp->GetEditorName() == TEXT("SkeletonEditor"))
-		{
-			TSharedPtr<ISkeletonEditor> SkeletonEditor = StaticCastSharedPtr<ISkeletonEditor>(HostingApp);
-			SkeletonEditor->GetAssetBrowser()->FilterBySkeletonNotify(Name);
+			TSharedRef<IAnimAssetFindReplace> FindReplaceWidget = StaticCastSharedRef<IAnimAssetFindReplace>(Tab->GetContent());
+			FindReplaceWidget->SetCurrentProcessor(SelectedItems[0]->bIsSyncMarker ? UAnimAssetFindReplaceSyncMarkers::StaticClass() : UAnimAssetFindReplaceNotifies::StaticClass());
+			UAnimAssetFindReplaceProcessor_StringBase* Processor = Cast<UAnimAssetFindReplaceProcessor_StringBase>(FindReplaceWidget->GetCurrentProcessor());
+			Processor->SetFindString(Name.ToString());
 		}
 	}
 }

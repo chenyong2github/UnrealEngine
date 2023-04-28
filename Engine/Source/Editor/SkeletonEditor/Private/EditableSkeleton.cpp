@@ -888,8 +888,9 @@ TSharedRef<SWidget> FEditableSkeleton::CreateBlendProfilePicker(const FBlendProf
 	return BlendProfilePicker;
 }
 
-int32 FEditableSkeleton::DeleteAnimNotifies(const TArray<FName>& InNotifyNames)
+int32 FEditableSkeleton::DeleteAnimNotifies(const TArray<FName>& InNotifyNames, bool bDeleteFromAnimations)
 {
+	int32 NumAnimationsModified = 0;
 	const FScopedTransaction Transaction(LOCTEXT("DeleteAnimNotify", "Delete Anim Notify"));
 	Skeleton->Modify();
 
@@ -898,42 +899,67 @@ int32 FEditableSkeleton::DeleteAnimNotifies(const TArray<FName>& InNotifyNames)
 		Skeleton->AnimationNotifies.Remove(Notify);
 	}
 
-	TArray<FAssetData> CompatibleAnimSequences;
-	GetCompatibleAnimSequences(CompatibleAnimSequences);
-
-	int32 NumAnimationsModified = 0;
-
-	for (int32 AssetIndex = 0; AssetIndex < CompatibleAnimSequences.Num(); ++AssetIndex)
+	if(bDeleteFromAnimations)
 	{
-		const FAssetData& PossibleAnimSequence = CompatibleAnimSequences[AssetIndex];
-		if(UObject* LoadedAsset = PossibleAnimSequence.GetAsset())
-		{
-			UAnimSequenceBase* Sequence = CastChecked<UAnimSequenceBase>(LoadedAsset);
+		TArray<FAssetData> CompatibleAnimSequences;
+		GetCompatibleAnimSequences(CompatibleAnimSequences);
 
-			if (Sequence->RemoveNotifies(InNotifyNames))
+		for (int32 AssetIndex = 0; AssetIndex < CompatibleAnimSequences.Num(); ++AssetIndex)
+		{
+			const FAssetData& PossibleAnimSequence = CompatibleAnimSequences[AssetIndex];
+			if(UObject* LoadedAsset = PossibleAnimSequence.GetAsset())
 			{
-				++NumAnimationsModified;
+				UAnimSequenceBase* Sequence = CastChecked<UAnimSequenceBase>(LoadedAsset);
+
+				if (Sequence->RemoveNotifies(InNotifyNames))
+				{
+					++NumAnimationsModified;
+				}
 			}
 		}
 	}
 
 	FBlueprintActionDatabase::Get().RefreshAssetActions(Skeleton);
-	
 	OnNotifiesChanged.Broadcast();
 
 	return NumAnimationsModified;
 }
 
-void FEditableSkeleton::DeleteSyncMarkers(const TArray<FName>& InSyncMarkerNames)
+int32 FEditableSkeleton::DeleteSyncMarkers(const TArray<FName>& InSyncMarkerNames, bool bDeleteFromAnimations)
 {
+	int32 NumAnimationsModified = 0;
 	const FScopedTransaction Transaction(LOCTEXT("DeleteSyncMarkers", "Delete Sync Markers"));
-
 	Skeleton->Modify();
 
 	for (FName Marker : InSyncMarkerNames)
 	{
 		Skeleton->RemoveMarkerName(Marker);
 	}
+
+	if(bDeleteFromAnimations)
+	{
+		TArray<FAssetData> CompatibleAnimSequences;
+		GetCompatibleAnimSequences(CompatibleAnimSequences);
+
+		for (int32 AssetIndex = 0; AssetIndex < CompatibleAnimSequences.Num(); ++AssetIndex)
+		{
+			const FAssetData& PossibleAnimSequence = CompatibleAnimSequences[AssetIndex];
+			if(UObject* LoadedAsset = PossibleAnimSequence.GetAsset())
+			{
+				if(UAnimSequence* Sequence = CastChecked<UAnimSequence>(LoadedAsset))
+				{
+					if (Sequence->RemoveSyncMarkers(InSyncMarkerNames))
+					{
+						++NumAnimationsModified;
+					}
+				}
+			}
+		}
+	}
+	
+	OnNotifiesChanged.Broadcast();
+
+	return NumAnimationsModified;
 }
 
 void FEditableSkeleton::AddNotify(FName NewName)
@@ -951,53 +977,113 @@ void FEditableSkeleton::AddSyncMarker(FName NewName)
 	const FScopedTransaction Transaction(LOCTEXT("AddNewSyncMarkerToSkeleton", "Add New Sync Marker To Skeleton"));
 	Skeleton->Modify();
 	Skeleton->RegisterMarkerName(NewName);
+
+	OnNotifiesChanged.Broadcast();
 }
 
-int32 FEditableSkeleton::RenameNotify(const FName NewName, const FName OldName)
+int32 FEditableSkeleton::RenameNotify(const FName NewName, const FName OldName, bool bRenameInAnimations)
 {
-	const FScopedTransaction Transaction(LOCTEXT("RenameAnimNotify", "Rename Anim Notify"));
-	Skeleton->Modify();
-
-	int32 Index = Skeleton->AnimationNotifies.IndexOfByKey(OldName);
-	Skeleton->AnimationNotifies[Index] = NewName;
-
-	TArray<FAssetData> CompatibleAnimSequences;
-	GetCompatibleAnimSequences(CompatibleAnimSequences);
-
 	int32 NumAnimationsModified = 0;
-
-	for (int32 AssetIndex = 0; AssetIndex < CompatibleAnimSequences.Num(); ++AssetIndex)
+	int32 Index = Skeleton->AnimationNotifies.IndexOfByKey(OldName);
+	if(Index != INDEX_NONE)
 	{
-		const FAssetData& PossibleAnimSequence = CompatibleAnimSequences[AssetIndex];
-		if(UObject* Asset = PossibleAnimSequence.GetAsset())
-		{
-			UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Asset);
+		const FScopedTransaction Transaction(LOCTEXT("RenameAnimNotify", "Rename Anim Notify"));
+		Skeleton->Modify();
 
-			bool SequenceModified = false;
-			for (int32 NotifyIndex = Sequence->Notifies.Num() - 1; NotifyIndex >= 0; --NotifyIndex)
+		Skeleton->AnimationNotifies[Index] = NewName;
+
+		if(bRenameInAnimations)
+		{
+			TArray<FAssetData> CompatibleAnimSequences;
+			GetCompatibleAnimSequences(CompatibleAnimSequences);
+			
+			for (int32 AssetIndex = 0; AssetIndex < CompatibleAnimSequences.Num(); ++AssetIndex)
 			{
-				FAnimNotifyEvent& AnimNotify = Sequence->Notifies[NotifyIndex];
-				if (OldName == AnimNotify.NotifyName)
+				const FAssetData& PossibleAnimSequence = CompatibleAnimSequences[AssetIndex];
+				if(UObject* Asset = PossibleAnimSequence.GetAsset())
 				{
-					if (!SequenceModified)
+					UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Asset);
+
+					bool SequenceModified = false;
+					for (int32 NotifyIndex = Sequence->Notifies.Num() - 1; NotifyIndex >= 0; --NotifyIndex)
 					{
-						Sequence->Modify();
-						++NumAnimationsModified;
-						SequenceModified = true;
+						FAnimNotifyEvent& AnimNotify = Sequence->Notifies[NotifyIndex];
+						if (OldName == AnimNotify.NotifyName)
+						{
+							if (!SequenceModified)
+							{
+								Sequence->Modify();
+								++NumAnimationsModified;
+								SequenceModified = true;
+							}
+							AnimNotify.NotifyName = NewName;
+						}
 					}
-					AnimNotify.NotifyName = NewName;
+
+					if (SequenceModified)
+					{
+						Sequence->MarkPackageDirty();
+					}
 				}
 			}
-
-			if (SequenceModified)
-			{
-				Sequence->MarkPackageDirty();
-			}
 		}
+
+		FBlueprintActionDatabase::Get().RefreshAssetActions(Skeleton);
+		OnNotifiesChanged.Broadcast();
 	}
 
-	FBlueprintActionDatabase::Get().RefreshAssetActions(Skeleton);
-	OnNotifiesChanged.Broadcast();
+	return NumAnimationsModified;
+}
+
+int32 FEditableSkeleton::RenameSyncMarker(const FName NewName, const FName OldName, bool bRenameInAnimations)
+{
+	int32 NumAnimationsModified = 0;
+	int32 Index = Skeleton->ExistingMarkerNames.IndexOfByKey(OldName);
+	if(Index != INDEX_NONE)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("RenameSyncMarker", "Rename Sync Marker"));
+		Skeleton->Modify();
+		Skeleton->ExistingMarkerNames[Index] = NewName;
+
+		if(bRenameInAnimations)
+		{
+			TArray<FAssetData> CompatibleAnimSequences;
+			GetCompatibleAnimSequences(CompatibleAnimSequences);
+
+			for (int32 AssetIndex = 0; AssetIndex < CompatibleAnimSequences.Num(); ++AssetIndex)
+			{
+				const FAssetData& PossibleAnimSequence = CompatibleAnimSequences[AssetIndex];
+				if(UObject* Asset = PossibleAnimSequence.GetAsset())
+				{
+					if(UAnimSequence* Sequence = Cast<UAnimSequence>(Asset))
+					{
+						bool SequenceModified = false;
+						for (int32 MarkerIndex = Sequence->AuthoredSyncMarkers.Num() - 1; MarkerIndex >= 0; --MarkerIndex)
+						{
+							FAnimSyncMarker& AnimSyncMarker = Sequence->AuthoredSyncMarkers[MarkerIndex];
+							if (OldName == AnimSyncMarker.MarkerName)
+							{
+								if (!SequenceModified)
+								{
+									Sequence->Modify();
+									++NumAnimationsModified;
+									SequenceModified = true;
+								}
+								AnimSyncMarker.MarkerName = NewName;
+							}
+						}
+
+						if (SequenceModified)
+						{
+							Sequence->MarkPackageDirty();
+						}
+					}
+				}
+			}
+		}
+
+		OnNotifiesChanged.Broadcast();
+	}
 
 	return NumAnimationsModified;
 }

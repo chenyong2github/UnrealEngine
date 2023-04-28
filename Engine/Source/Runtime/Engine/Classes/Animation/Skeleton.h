@@ -38,6 +38,7 @@ class USkeleton;
 typedef SmartName::UID_Type SkeletonAnimCurveUID;
 class USkeleton;
 struct FSkeletonRemapping;
+class FEditableSkeleton;
 
 // Delegate used to control global skeleton compatibility
 DECLARE_DELEGATE_RetVal(bool, FAreAllSkeletonsCompatible);
@@ -472,7 +473,10 @@ public:
 	void RegisterMarkerName(FName MarkerName) { ExistingMarkerNames.AddUnique(MarkerName); ExistingMarkerNames.Sort(FNameLexicalLess()); }
 
 	// Remove a sync marker name
-	void RemoveMarkerName(FName MarkerName) { ExistingMarkerNames.Remove(MarkerName); }
+	ENGINE_API bool RemoveMarkerName(FName MarkerName);
+
+	// Rename a sync marker name
+	ENGINE_API bool RenameMarkerName(FName InOldName, FName InNewName);
 #endif
 
 protected:
@@ -1001,6 +1005,10 @@ public:
 	ENGINE_API static const FName AnimNotifyTag;
 	ENGINE_API static const FString AnimNotifyTagDelimiter;
 
+	// Asset registry information for animation sync markers
+	ENGINE_API static const FName AnimSyncMarkerTag;
+	ENGINE_API static const FString AnimSyncMarkerTagDelimiter;
+	
 	// Asset registry information for animation curves
 	ENGINE_API static const FName CurveNameTag;
 	ENGINE_API static const FString CurveTagDelimiter;
@@ -1051,5 +1059,6 @@ protected:
 	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 	friend struct FReferenceSkeletonModifier;
+	friend class FEditableSkeleton;
 };
 
