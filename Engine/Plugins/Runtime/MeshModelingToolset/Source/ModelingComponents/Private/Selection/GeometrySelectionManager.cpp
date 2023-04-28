@@ -565,9 +565,12 @@ TSharedPtr<UGeometrySelectionManager::FGeometrySelectionTarget> UGeometrySelecti
 
 void UGeometrySelectionManager::ResetTargetCache()
 {
-	for (TPair<FGeometryIdentifier, TSharedPtr<FGeometrySelectionTarget>> Pair : TargetCache)
+	// SleepOrShutdownTarget may modify TargetCache
+	TArray<TSharedPtr<FGeometrySelectionTarget>> ToShutdown;
+	TargetCache.GenerateValueArray(ToShutdown);
+	for (TSharedPtr<FGeometrySelectionTarget> Target : ToShutdown)
 	{
-		SleepOrShutdownTarget(Pair.Value, true);
+		SleepOrShutdownTarget(Target, true);
 	}
 	TargetCache.Reset();
 }
