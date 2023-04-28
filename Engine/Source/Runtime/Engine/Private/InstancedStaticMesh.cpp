@@ -3418,6 +3418,18 @@ bool UInstancedStaticMeshComponent::SetCustomData(int32 InstanceIndex, TArrayVie
 	return true;
 }
 
+void UInstancedStaticMeshComponent::SetNumCustomDataFloats(int32 InNumCustomDataFloats)
+{
+	NumCustomDataFloats = FMath::Max(InNumCustomDataFloats, 0);
+
+	// Clear out and reinit to 0
+	PerInstanceSMCustomData.Empty(PerInstanceSMData.Num() * NumCustomDataFloats);
+	PerInstanceSMCustomData.SetNumZeroed(PerInstanceSMData.Num() * NumCustomDataFloats);
+
+	InstanceUpdateCmdBuffer.Edit();
+	MarkRenderStateDirty();
+}
+
 bool UInstancedStaticMeshComponent::SupportsRemoveSwap() const
 {
 	return bSupportRemoveAtSwap || CVarISMForceRemoveAtSwap.GetValueOnGameThread() != 0;
@@ -5074,14 +5086,7 @@ void UInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChanged
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == "NumCustomDataFloats")
 		{
-			NumCustomDataFloats = FMath::Max(NumCustomDataFloats, 0);
-
-			// Clear out and reinit to 0
-			PerInstanceSMCustomData.Empty(PerInstanceSMData.Num() * NumCustomDataFloats);
-			PerInstanceSMCustomData.SetNumZeroed(PerInstanceSMData.Num() * NumCustomDataFloats);
-
-			InstanceUpdateCmdBuffer.Edit();
-			MarkRenderStateDirty();
+			SetNumCustomDataFloats(NumCustomDataFloats);
 		}
 		else if (PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName() == "PerInstanceSMCustomData")
 		{
