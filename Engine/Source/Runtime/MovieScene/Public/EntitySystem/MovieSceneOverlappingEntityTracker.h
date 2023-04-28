@@ -594,10 +594,11 @@ struct TOverlappingEntityTracker_WithGarbage : TOverlappingEntityTrackerImpl<Out
 			if (OutputIndex != Super::NO_OUTPUT && Linker->EntityManager.HasComponent(EntityID, NeedsUnlink))
 			{
 				this->OutputToEntity.Remove(OutputIndex, EntityID);
-				this->EntityToOutput.Remove(EntityID);
 
 				this->InvalidatedOutputs.PadToNum(OutputIndex + 1, false);
 				this->InvalidatedOutputs[OutputIndex] = true;
+
+				EntityToOutputIt.RemoveCurrent();
 			}
 		}
 	}
