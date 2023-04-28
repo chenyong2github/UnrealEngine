@@ -246,6 +246,12 @@ void FPackageTrailerBuilder::AddPayload(const FIoHash& Identifier, FCompressedBu
 {
 	Callbacks.Emplace(MoveTemp(Callback));
 
+	AddPayload(Identifier, Payload, FilterFlags);
+
+}
+
+void FPackageTrailerBuilder::AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, UE::Virtualization::EPayloadFilterReason FilterFlags)
+{
 	if (!Identifier.IsZero())
 	{
 		// If the payload already exists and the DisableVirtualization flag has been passed in

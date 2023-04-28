@@ -1393,50 +1393,20 @@ FCompressedBuffer FEditorBulkData::LoadFromSidecarFileInternal(ErrorVerbosity Ve
 	FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, EPackageSegment::PayloadSidecar);
 	if (Result.Archive.IsValid() && Result.Format == EPackageFormat::Binary)
 	{
-		uint32 Version = INDEX_NONE;
-		*Result.Archive << Version;
-
-		if (Version != FTocEntry::PayloadSidecarFileVersion)
+		FPackageTrailer Trailer;
+		if (!FPackageTrailer::TryLoadFromArchive(*Result.Archive, Trailer))
 		{
-			UE_CLOG(Verbosity > ErrorVerbosity::None, LogSerialization, Error, TEXT("Unknown payload sidecar version (%u) found in '%s'"), Version, *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
+			UE_CLOG(Verbosity > ErrorVerbosity::None, LogSerialization, Error, TEXT("Unable to parse FPackageTrailer in '%s'"), *PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 			return FCompressedBuffer();
 		}
 
-		// First we load the table of contents so we can find the payload in the file
-		TArray<FTocEntry> TableOfContents;
-		*Result.Archive << TableOfContents;
+		FCompressedBuffer CompressedPayload = Trailer.LoadLocalPayload(PayloadContentId, *Result.Archive);
 
-		const FTocEntry* Entry = TableOfContents.FindByPredicate([&PayloadContentId = PayloadContentId](const FTocEntry& Entry)
-			{
-				return Entry.Identifier == PayloadContentId;
-			});
+		UE_CLOG(CompressedPayload.IsNull(), LogSerialization, Error, TEXT("Could not find the payload '%s' in '%s'"),
+			*LexToString(PayloadContentId),
+			*PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
 
-		if (Entry != nullptr)
-		{
-			if (Entry->OffsetInFile != INDEX_NONE)
-			{
-				// Move the correct location of the data in the file
-				Result.Archive->Seek(Entry->OffsetInFile);
-
-				// Now we can actually serialize it
-				FCompressedBuffer PayloadFromDisk;
-				SerializeData(*Result.Archive, PayloadFromDisk, EFlags::None);
-
-				return PayloadFromDisk;
-			}
-			else if(Verbosity > ErrorVerbosity::None)
-			{
-				UE_LOG(LogSerialization, Error, TEXT("Payload '%s' in '%s' has an invalid OffsetInFile!"), 
-					*LexToString(PayloadContentId), 
-					*PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
-			}
-		}
-		else if(Verbosity > ErrorVerbosity::None)
-		{
-			UE_LOG(LogSerialization, Error, TEXT("Unable to find payload '%s' in '%s'"), 
-				*LexToString(PayloadContentId), 
-				*PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar));
-		}
+		return CompressedPayload;
 	}
 	else if(Verbosity > ErrorVerbosity::None)
 	{
@@ -2388,72 +2358,12 @@ bool FEditorBulkData::ShouldUseLegacySerialization(const FLinkerSave* LinkerSave
 		return true;
 	}
 
+	if (ShouldSaveToPackageSidecar())
+	{
+		return true;
+	}
+
 	return !LinkerSave->PackageTrailerBuilder.IsValid();
-}
-	
-FArchive& operator<<(FArchive& Ar, FTocEntry& Entry)
-{
-	Ar << Entry.Identifier;
-	Ar << Entry.OffsetInFile;
-	Ar << Entry.UncompressedSize;
-
-	return Ar;
-}
-
- void operator<<(FStructuredArchive::FSlot Slot, FTocEntry& Entry)
-{
-	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-
-	Record << SA_VALUE(TEXT("Identifier"), Entry.Identifier);
-	Record << SA_VALUE(TEXT("OffsetInFile"), Entry.OffsetInFile);
-	Record << SA_VALUE(TEXT("UncompressedSize"), Entry.UncompressedSize);
-}
-
-void FPayloadToc::AddEntry(const FEditorBulkData& BulkData)
-{
-	if (!BulkData.GetPayloadId().IsZero())
-	{
-		Contents.Emplace(BulkData);
-	}
-}
-
-bool FPayloadToc::FindEntry(const FIoHash& Identifier, FTocEntry& OutEntry)
-{
-	for (const FTocEntry& Entry : Contents)
-	{
-		if (Entry.Identifier == Identifier)
-		{
-			OutEntry = Entry;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-const TArray<FTocEntry>& FPayloadToc::GetContents() const
-{
-	return Contents;
-}
-
-FArchive& operator<<(FArchive& Ar, FPayloadToc& TableOfContents)
-{
-	FPayloadToc::EVersion Version = FPayloadToc::EVersion::AUTOMATIC_VERSION;
-	Ar << Version;
-
-	Ar << TableOfContents.Contents;
-
-	return Ar;
-}
-
-void operator<<(FStructuredArchive::FSlot Slot, FPayloadToc& TableOfContents)
-{
-	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-
-	FPayloadToc::EVersion Version = FPayloadToc::EVersion::AUTOMATIC_VERSION;
-
-	Record << SA_VALUE(TEXT("Version"), Version);
-	Record << SA_VALUE(TEXT("Entries"), TableOfContents.Contents);
 }
 
 } // namespace UE::Serialization

@@ -252,7 +252,7 @@ public:
 	 * @param Callback		This callback will be invoked once the FPackageTrailer has been built and appended to disk.
 	 */
 	void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, UE::Virtualization::EPayloadFilterReason Filter, AdditionalDataCallback&& Callback);
-
+	void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, UE::Virtualization::EPayloadFilterReason Filter);
 	/**
 	 * Adds an already virtualized payload to the builder to be written to the trailer. When the trailer is written
 	 * the payload will have EPayloadAccessMode::Virtualized set as it's access mode. It is assumed that the payload

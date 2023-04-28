@@ -1934,49 +1934,24 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 	checkf(!Linker.IsCooking(), TEXT("Cannot write a sidecar file during cooking! (%s)"), *PackagePath.GetDebugName());
 	IPackageWriter* PackageWriter = SavePackageContext ? SavePackageContext->PackageWriter : nullptr;
 
-	FLargeMemoryWriter Ar(0, true /* bIsPersistent */);
+	UE::FPackageTrailerBuilder Builder;
 
-	uint32 VersionNumber = UE::Serialization::FTocEntry::PayloadSidecarFileVersion;
-	Ar << VersionNumber;
-
-	int64 TocPosition = Ar.Tell();
-
-	TArray<UE::Serialization::FTocEntry> TableOfContents;
-	TableOfContents.SetNum(Linker.SidecarDataToAppend.Num());
-
-	// First we write an empty table of contents to the file to reserve the space
-	Ar << TableOfContents;
-
-	int32 Index = 0;
 	for (FLinkerSave::FSidecarStorageInfo& Info : Linker.SidecarDataToAppend)
 	{
-		// Fill out the entry to the table of contents
-		TableOfContents[Index].Identifier = Info.Identifier;
-		TableOfContents[Index].OffsetInFile = Ar.Tell();
-		TableOfContents[Index].UncompressedSize = Info.Payload.GetRawSize();
-
-		Index++;
-
-		// Now write the payload to the archive
-		for (const FSharedBuffer& Buffer : Info.Payload.GetCompressed().GetSegments())
-		{
-			// Const cast because FArchive requires a non-const pointer!
-			Ar.Serialize(const_cast<void*>(Buffer.GetData()), static_cast<int64>(Buffer.GetSize()));
-		}
-
-		// Reset each payload reference after it has been written to the archive, this could
-		// potentially release memory and keep our high water mark down.
-		Info.Payload.Reset();
+		Builder.AddPayload(Info.Identifier, Info.Payload, UE::Virtualization::EPayloadFilterReason::None);
 	}
 
-	// Now write out the table of contents again but with valid data
-	int64 EndPos = Ar.Tell();
-	Ar.Seek(TocPosition);
-	Ar << TableOfContents;
-	Ar.Seek(EndPos); 
+	Linker.SidecarDataToAppend.Empty();
+
+	FLargeMemoryWriter Ar(0, true /* bIsPersistent */);
+	if (!Builder.BuildAndAppendTrailer(nullptr, Ar))
+	{
+		UE_LOG(LogSavePackage, Error, TEXT("Failed to build sidecar package trailer for '%s'"), *PackagePath.GetDebugName());
+		return ESavePackageResult::Error;
+	}
 
 	const int64 DataSize = Ar.TotalSize();
-	checkf(DataSize > 0, TEXT("The archive should not be empty at this point!"));
+	checkf(DataSize > 0, TEXT("Sidecar archive should not be empty! (%s)"), *PackagePath.GetDebugName());
 
 	FString TargetFilePath = PackagePath.GetLocalFullPath(EPackageSegment::PayloadSidecar);
 
@@ -1984,7 +1959,7 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 	{
 		IPackageWriter::FAdditionalFileInfo SidecarSegmentInfo;
 		SidecarSegmentInfo.PackageName = PackagePath.GetPackageFName();
-		SidecarSegmentInfo.Filename = TargetFilePath;
+		SidecarSegmentInfo.Filename = MoveTemp(TargetFilePath);
 		FIoBuffer FileData(FIoBuffer::AssumeOwnership, Ar.ReleaseOwnership(), DataSize);
 		PackageWriter->WriteAdditionalFile(SidecarSegmentInfo, FileData);
 	}
@@ -2002,8 +1977,6 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 
 		AdditionalPackageFiles.Emplace(MoveTemp(TargetFilePath), MoveTemp(TempFilePath), DataSize);		
 	}
-
-	Linker.SidecarDataToAppend.Empty();
 
 	return ESavePackageResult::Success;
 }
