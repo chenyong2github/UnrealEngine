@@ -124,7 +124,7 @@ void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs,
 							[
 								SNew(SDMXControlConsoleEditorAddButton)
 								.OnClicked(this, &SDMXControlConsoleEditorFaderGroupView::OnAddFaderGroupRowClicked)
-								.ToolTipText(LOCTEXT("AddFaderGroupButton_ToolTip", "Add a new Fader Group on the next row."))
+								.ToolTipText(LOCTEXT("AddFaderGroupOnNewRowButton_ToolTip", "Add a new Fader Group on the next row."))
 								.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupView::GetAddRowButtonVisibility))
 							]
 						]
