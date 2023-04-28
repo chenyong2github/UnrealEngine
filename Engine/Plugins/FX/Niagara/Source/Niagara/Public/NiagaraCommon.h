@@ -700,7 +700,7 @@ public:
 	FName RegisteredParameterMapRead;
 
 	UPROPERTY()
-	FName RegisteredParameterMapWrite;
+	TArray<FName> RegisteredParameterMapWrites;
 
 	UPROPERTY()
 	FString SourceEmitterName;
@@ -754,7 +754,7 @@ struct NIAGARA_API FNiagaraScriptResolvedDataInterfaceInfo
 	FNiagaraVariableBase ResolvedVariable;
 
 	UPROPERTY()
-	FNiagaraVariableBase ParameterStoreVariable;
+	FNiagaraVariableBase SourceVariable;
 
 	UPROPERTY()
 	bool bIsInternal;
@@ -801,7 +801,7 @@ public:
 	FName RegisteredParameterMapRead;
 
 	UPROPERTY()
-	FName RegisteredParameterMapWrite;
+	TArray<FName> RegisteredParameterMapWrites;
 
 	UPROPERTY()
 	bool bIsPlaceholder;

@@ -11,7 +11,6 @@
 #include "NiagaraConstants.h"
 #include "NiagaraNodeInput.h"
 #include "SNiagaraNamePropertySelector.h"
-#include "NiagaraEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceGrid3DCollectionDetails"
 
@@ -123,16 +122,7 @@ void FNiagaraDataInterfaceGrid3DCollectionDetails::GeneratePreviewAttributes(TAr
 			TArray<FNiagaraVariableBase> FoundVariables;
 			TArray<uint32> FoundVariableOffsets;
 			int32 FoundNumAttribChannelsFound;
-
-			// Finding attributes requires that we use the runtime instance of the data interface, so get that here.
-			UNiagaraSystem* OwningSystem = Grid3DInterface->GetTypedOuter<UNiagaraSystem>();
-			UNiagaraDataInterfaceGrid3DCollection* RuntimeGrid3DInterface = OwningSystem != nullptr
-				? Cast<UNiagaraDataInterfaceGrid3DCollection>(FNiagaraEditorUtilities::GetResolvedRuntimeInstanceForEditorDataInterfaceInstance(*OwningSystem, *Grid3DInterface))
-				: nullptr;
-			if (RuntimeGrid3DInterface != nullptr)
-			{
-				RuntimeGrid3DInterface->FindAttributes(FoundVariables, FoundVariableOffsets, FoundNumAttribChannelsFound);
-			}
+			Grid3DInterface->FindAttributesByName(VariableName, FoundVariables, FoundVariableOffsets, FoundNumAttribChannelsFound);
 
 			for (const FNiagaraVariableBase& Variable : FoundVariables)
 			{

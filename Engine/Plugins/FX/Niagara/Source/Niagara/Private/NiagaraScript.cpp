@@ -1541,7 +1541,7 @@ const FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyPa
 			}
 			return &ScriptExecutionParamStoreCPU;
 		}
-		else if (SimTarget == ENiagaraSimTarget::GPUComputeSim && IsReadyToRun(ENiagaraSimTarget::GPUComputeSim))
+		else if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 		{
 			if (!ScriptExecutionParamStoreGPU.bInitialized)
 			{
@@ -2141,10 +2141,7 @@ void UNiagaraScript::PostLoad()
 
 	for (FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDataInterface : ResolvedDataInterfaces)
 	{
-		if (ResolvedDataInterface.ResolvedDataInterface != nullptr)
-		{
-			ResolvedDataInterface.ResolvedDataInterface->ConditionalPostLoad();
-		}
+		ResolvedDataInterface.ResolvedDataInterface->ConditionalPostLoad();
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -2846,7 +2843,10 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		CachedDefaultDataInterfaces[Idx].Type = Info.Type;
 		CachedDefaultDataInterfaces[Idx].SourceEmitterName = Info.SourceEmitterName;
 		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapRead = ResolveEmitterAlias(Info.RegisteredParameterMapRead, EmitterUniqueName);
-		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapWrite = ResolveEmitterAlias(Info.RegisteredParameterMapWrite, EmitterUniqueName);
+		for (const FName& RegisteredParameterMapWrite : Info.RegisteredParameterMapWrites)
+		{
+			CachedDefaultDataInterfaces[Idx].RegisteredParameterMapWrites.Add(ResolveEmitterAlias(RegisteredParameterMapWrite, EmitterUniqueName));
+		}
 
 		// We compiled it just a bit ago, so we should be able to resolve it from the table that we passed in.
 		UNiagaraDataInterface* FindDIById = ResolveDataInterface(ObjectNameMap, CachedDefaultDataInterfaces[Idx].Name);
@@ -3651,7 +3651,10 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 
 		// also update the MapRead/MapWrite member variables, they seem to typically match the Name parameter, but may be None
 		UpdateName(DataInterfaceInfo.RegisteredParameterMapRead);
-		UpdateName(DataInterfaceInfo.RegisteredParameterMapWrite);
+		for (FName& RegisteredParameterMapWrite : DataInterfaceInfo.RegisteredParameterMapWrites)
+		{
+			UpdateName(RegisteredParameterMapWrite);
+		}
 	}
 }
 

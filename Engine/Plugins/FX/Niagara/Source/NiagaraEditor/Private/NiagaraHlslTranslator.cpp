@@ -2303,7 +2303,7 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 		// If it wasn't previously added, let's go ahead and do so. Maybe they are solely using the StackContext namespace.
 		if (DataInterfaceOwnerIndex == INDEX_NONE && bNeedsDIOwner)
 		{
-			DataInterfaceOwnerIndex = RegisterDataInterface(IterationSourceVar, CDO, true, true);
+			DataInterfaceOwnerIndex = RegisterDataInterface(IterationSourceVar, CDO, true, false);
 		}
 
 		// If we haven't created it by now, bail out. 
@@ -5493,25 +5493,7 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 					}
 
 					FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[Input];
-					if (Info.RegisteredParameterMapWrite == NAME_None)
-					{
-						Info.RegisteredParameterMapWrite = UsageName;
-					}
-					else
-					{
-						// This is a special case where a single data interface is written to multiple parameters.  In order to handle this correctly the data interface
-						// needs it's own registration slot so that it ends up in the parameter store under the correct name so that it can be looked up correctly in various places
-						// and can be bound properly to the renderer parameter stores.
-						UNiagaraDataInterface* CDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(const_cast<UClass*>(Var.GetType().GetClass()));
-						if (CDO)
-						{
-							FString PlaceholderName = FString::Printf(TEXT("Placeholder.Placeholder%i"), CompilationOutput.ScriptData.DataInterfaceInfo.Num());
-							FNiagaraVariable PlaceholderVar(Var.GetType(), *PlaceholderName);
-							int32 PlaceholderIndex = RegisterDataInterface(PlaceholderVar, CDO, true, false);
-							CompilationOutput.ScriptData.DataInterfaceInfo[PlaceholderIndex].RegisteredParameterMapRead = CompilationOutput.ScriptData.DataInterfaceInfo[Input].RegisteredParameterMapWrite;
-							CompilationOutput.ScriptData.DataInterfaceInfo[PlaceholderIndex].RegisteredParameterMapWrite = UsageName;
-						}
-					}
+					Info.RegisteredParameterMapWrites.Add(UsageName);
 				}
 			}
 			else
@@ -6959,17 +6941,9 @@ int32 FHlslNiagaraTranslator::RegisterDataInterface(FNiagaraVariable& Var, UNiag
 		CompilationOutput.ScriptData.bNeedsGPUContextInit = true;
 	}
 
-	FNiagaraVariable ReadVariable;
-	if (bAddParameterMapRead)
-	{
-		ReadVariable = FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var.GetName().ToString())
-			? ActiveHistoryForFunctionCalls.ResolveAliases(Var) 
-			: Var;
-	}
-
 	int32 Idx = CompilationOutput.ScriptData.DataInterfaceInfo.IndexOfByPredicate([&](const FNiagaraScriptDataInterfaceCompileInfo& OtherInfo)
 	{
-		return OtherInfo.Name == DataInterfaceName || (ReadVariable.IsValid() && OtherInfo.RegisteredParameterMapWrite == ReadVariable.GetName());
+		return OtherInfo.Name == DataInterfaceName;
 	});
 
 	if (Idx == INDEX_NONE)
@@ -6995,15 +6969,25 @@ int32 FHlslNiagaraTranslator::RegisterDataInterface(FNiagaraVariable& Var, UNiag
 		{
 			CompilationOutput.ScriptData.DataInterfaceInfo[Idx].UserPtrIdx = CompilationOutput.ScriptData.NumUserPtrs++;
 		}
-
-		if (bAddParameterMapRead)
-		{
-			CompilationOutput.ScriptData.DataInterfaceInfo[Idx].RegisteredParameterMapRead = ReadVariable.GetName();
-		}
 	}
 	else
 	{
 		check(CompilationOutput.ScriptData.DataInterfaceInfo[Idx].Type == Var.GetType());
+	}
+
+	if (bAddParameterMapRead)
+	{
+		FName UsageName;
+		if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var.GetName().ToString()))
+		{
+			FNiagaraVariable AliasedVar = ActiveHistoryForFunctionCalls.ResolveAliases(Var);
+			UsageName = AliasedVar.GetName();
+		}
+		else
+		{
+			UsageName = Var.GetName();
+		}
+		CompilationOutput.ScriptData.DataInterfaceInfo[Idx].RegisteredParameterMapRead = UsageName;
 	}
 
 	return Idx;

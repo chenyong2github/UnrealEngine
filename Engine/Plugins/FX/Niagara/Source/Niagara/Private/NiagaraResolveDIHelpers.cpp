@@ -37,17 +37,17 @@ namespace FNiagaraResolveDIHelpers
 
 		for (const FNiagaraScriptDataInterfaceInfo& CachedDefaultDataInterface : TargetScript->GetCachedDefaultDataInterfaces())
 		{
-			if (CachedDefaultDataInterface.RegisteredParameterMapWrite != NAME_None)
+			for (FName RegisteredParameterMapWrite : CachedDefaultDataInterface.RegisteredParameterMapWrites)
 			{
-				FNiagaraVariable WriteVariable(CachedDefaultDataInterface.Type, CachedDefaultDataInterface.RegisteredParameterMapWrite);
+				FNiagaraVariable WriteVariable(CachedDefaultDataInterface.Type, RegisteredParameterMapWrite);
 				if (EmitterName.IsEmpty() == false)
 				{
 					WriteVariable = FNiagaraUtilities::ResolveAliases(WriteVariable, FNiagaraAliasContext().ChangeEmitterNameToEmitter(EmitterName));
 				}
 
-				// Handle bindings.
 				if (CachedDefaultDataInterface.RegisteredParameterMapRead != NAME_None)
 				{
+					// Handle bindings.
 					FNiagaraVariable ReadVariable(CachedDefaultDataInterface.Type, CachedDefaultDataInterface.RegisteredParameterMapRead);
 					if (EmitterName.IsEmpty() == false)
 					{
@@ -76,25 +76,27 @@ namespace FNiagaraResolveDIHelpers
 						}
 					}
 				}
-		
-				// Handle assignments
-				FDataInterfaceSourceEmitterNamePair* CurrentAssignment = OutVariableAssignmentMap.Find(WriteVariable);
-				if (CurrentAssignment != nullptr)
-				{
-					if (CurrentAssignment->DataInterface != CachedDefaultDataInterface.DataInterface)
-					{
-						OutErrorMessages.Add(FText::Format(
-							LOCTEXT("MultipleAssignmentsFormat", "A data interface parameter was the target of an assignment multiple times in a single system.  The data interface used in the simulation may be incorrect.  Target Parameter: {0} First Assignment: {1} Current Assignment: {2}"),
-							FText::FromName(WriteVariable.GetName()),
-							FText::FromString(CurrentAssignment->DataInterface->GetName()),
-							FText::FromString(CachedDefaultDataInterface.DataInterface->GetName())));
-					}
-				}
 				else
 				{
-					FDataInterfaceSourceEmitterNamePair& NewAssignment = OutVariableAssignmentMap.Add(WriteVariable);
-					NewAssignment.DataInterface = CachedDefaultDataInterface.DataInterface;
-					NewAssignment.SourceEmitterName = CachedDefaultDataInterface.SourceEmitterName;
+					// Handle assignments
+					FDataInterfaceSourceEmitterNamePair* CurrentAssignment = OutVariableAssignmentMap.Find(WriteVariable);
+					if (CurrentAssignment != nullptr)
+					{
+						if (CurrentAssignment->DataInterface != CachedDefaultDataInterface.DataInterface)
+						{
+							OutErrorMessages.Add(FText::Format(
+								LOCTEXT("MultipleAssignmentsFormat", "A data interface parameter was thh target of an assignment multiple times in a single system.  The data interface used in the simulation may be incorrect.  Target Parameter: {0} First Assignment: {1} Current Assignment: {2}"),
+								FText::FromName(WriteVariable.GetName()),
+								FText::FromString(CurrentAssignment->DataInterface->GetName()),
+								FText::FromString(CachedDefaultDataInterface.DataInterface->GetName())));
+						}
+					}
+					else
+					{
+						FDataInterfaceSourceEmitterNamePair& NewAssignment = OutVariableAssignmentMap.Add(WriteVariable);
+						NewAssignment.DataInterface = CachedDefaultDataInterface.DataInterface;
+						NewAssignment.SourceEmitterName = CachedDefaultDataInterface.SourceEmitterName;
+					}
 				}
 			}
 		}
@@ -170,48 +172,18 @@ namespace FNiagaraResolveDIHelpers
 		}
 	}
 
-	void CompactBindings(const TMap<FNiagaraVariableBase, FNiagaraVariableBase> InVariableBindingMap, TMap<FNiagaraVariableBase, FNiagaraVariableBase>& OutCompactedVariableBindingMap, TArray<FText>& OutErrorMessages)
-	{
-		TArray<FNiagaraVariableBase> SourceVariables;
-		InVariableBindingMap.GetKeys(SourceVariables);
-		TMap<FNiagaraVariableBase, FNiagaraVariableBase> CompactedVariableBindingMap;
-		for (const FNiagaraVariableBase& SourceVariable : SourceVariables)
-		{
-			FNiagaraVariableBase BoundVariable;
-			const FNiagaraVariableBase* CurrentBoundVariable = &SourceVariable;
-			TSet<FNiagaraVariableBase> SeenBoundVariables;
-			bool bCircularReferenceDetected = false;
-			while (CurrentBoundVariable != nullptr && bCircularReferenceDetected == false)
-			{
-				SeenBoundVariables.Add(*CurrentBoundVariable);
-				BoundVariable = *CurrentBoundVariable;
-				CurrentBoundVariable = InVariableBindingMap.Find(BoundVariable);
-				if (CurrentBoundVariable != nullptr && SeenBoundVariables.Contains(*CurrentBoundVariable))
-				{
-					bCircularReferenceDetected = true;
-					OutErrorMessages.Add(FText::Format(
-						LOCTEXT("CircularDependencyWarningFormat", "A data interface parameter circular dependency was found.  The data interface used in the simulation may be incorrect.  Target Parameter: {0} Resolved Parameter: {1}"),
-						FText::FromName(SourceVariable.GetName()),
-						FText::FromName(CurrentBoundVariable->GetName())));
-				}
-			}
-			OutCompactedVariableBindingMap.Add(SourceVariable, BoundVariable);
-		}
-	}
-
 	void ResolveDIsForScript(
 		const UNiagaraSystem* System,
 		UNiagaraScript* TargetScript,
 		const FString& EmitterName,
 		const TMap<FNiagaraVariableBase, FDataInterfaceSourceEmitterNamePair>& VariableAssignmentMap,
-		const TMap<FNiagaraVariableBase, FNiagaraVariableBase>& CompactedVariableBindingMap,
+		const TMap<FNiagaraVariableBase, FNiagaraVariableBase>& VariableBindingMap,
 		TArray<FText>& OutErrorMessages)
 	{
 		TArray<FNiagaraScriptResolvedDataInterfaceInfo> ResolvedDataInterfaces;
 		ResolvedDataInterfaces.Reserve(TargetScript->GetCachedDefaultDataInterfaces().Num());
 		TArray<FNiagaraResolvedUserDataInterfaceBinding> UserDataInterfaceBindings;
 		int32 ResolvedDataInterfaceIndex = 0;
-		TSet<FNiagaraVariableBase> ParameterStoreVariables;
 		for (const FNiagaraScriptDataInterfaceInfo& CachedDefaultDataInterface : TargetScript->GetCachedDefaultDataInterfaces())
 		{
 			FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDataInterface = ResolvedDataInterfaces.AddDefaulted_GetRef();
@@ -228,45 +200,44 @@ namespace FNiagaraResolveDIHelpers
 					ReadVariable = FNiagaraUtilities::ResolveAliases(ReadVariable, FNiagaraAliasContext().ChangeEmitterToEmitterName(EmitterName));
 				}
 
-				const FNiagaraVariableBase* BoundVariable = CompactedVariableBindingMap.Find(ReadVariable);
-				if (BoundVariable == nullptr)
+				FNiagaraVariableBase BoundVariable;
+				const FNiagaraVariableBase* CurrentBoundVariable = &ReadVariable;
+				TSet<FNiagaraVariableBase> SeenBoundVariables;
+				bool bCircularReferenceDetected = false;
+				while (CurrentBoundVariable != nullptr && bCircularReferenceDetected == false)
 				{
-					BoundVariable = &ReadVariable;
+					SeenBoundVariables.Add(*CurrentBoundVariable);
+					BoundVariable = *CurrentBoundVariable;
+					CurrentBoundVariable = VariableBindingMap.Find(BoundVariable);
+
+					if (CurrentBoundVariable != nullptr && SeenBoundVariables.Contains(*CurrentBoundVariable))
+					{
+						bCircularReferenceDetected = true;
+						OutErrorMessages.Add(FText::Format(
+							LOCTEXT("CircularDependencyWarningFormat", "A data interface parameter circular dependency found.  The data interface used in the simulation may be incorrect.  Target Parameter: {0} Resolved Parameter: {1}"),
+							FText::FromName(ReadVariable.GetName()),
+							FText::FromName(CurrentBoundVariable->GetName())));
+					}
 				}
 
-				const FDataInterfaceSourceEmitterNamePair* DataInterfaceAssignment = VariableAssignmentMap.Find(*BoundVariable);
-				if (DataInterfaceAssignment != nullptr && ParameterStoreVariables.Contains(ReadVariable) == false)
+				const FDataInterfaceSourceEmitterNamePair* DataInterfaceAssignment = VariableAssignmentMap.Find(BoundVariable);
+				if (DataInterfaceAssignment != nullptr)
 				{
-					ResolvedDataInterface.ResolvedVariable = *BoundVariable;
-					ResolvedDataInterface.ParameterStoreVariable = ReadVariable;
+					ResolvedDataInterface.ResolvedVariable = BoundVariable;
+					ResolvedDataInterface.SourceVariable = ReadVariable;
 					ResolvedDataInterface.bIsInternal = false;
 					ResolvedDataInterface.ResolvedDataInterface = DataInterfaceAssignment->DataInterface;
 					ResolvedDataInterface.ResolvedSourceEmitterName = DataInterfaceAssignment->SourceEmitterName;
-					ParameterStoreVariables.Add(ResolvedDataInterface.ParameterStoreVariable);
 				}
 
-				if (FNiagaraUserRedirectionParameterStore::IsUserParameter(*BoundVariable))
+				if (FNiagaraUserRedirectionParameterStore::IsUserParameter(BoundVariable))
 				{
 					const FNiagaraParameterStore& InstanceParameters = System->GetSystemCompiledData().InstanceParamStore;
-					const int32* UserParameterIndex = InstanceParameters.FindParameterOffset(*BoundVariable);
+					const int32* UserParameterIndex = InstanceParameters.FindParameterOffset(BoundVariable);
 					if (UserParameterIndex != nullptr && *UserParameterIndex != INDEX_NONE)
 					{
 						UserDataInterfaceBindings.Add(FNiagaraResolvedUserDataInterfaceBinding(*UserParameterIndex, ResolvedDataInterfaceIndex));
 					}
-				}
-			}
-			else if (CachedDefaultDataInterface.RegisteredParameterMapWrite != NAME_None)
-			{
-				FNiagaraVariable WriteVariable(CachedDefaultDataInterface.Type, CachedDefaultDataInterface.RegisteredParameterMapWrite);
-				const FDataInterfaceSourceEmitterNamePair* DataInterfaceAssignment = VariableAssignmentMap.Find(WriteVariable);
-				if (DataInterfaceAssignment != nullptr && ParameterStoreVariables.Contains(WriteVariable) == false)
-				{
-					ResolvedDataInterface.ResolvedVariable = WriteVariable;
-					ResolvedDataInterface.ParameterStoreVariable = WriteVariable;
-					ResolvedDataInterface.bIsInternal = false;
-					ResolvedDataInterface.ResolvedDataInterface = DataInterfaceAssignment->DataInterface;
-					ResolvedDataInterface.ResolvedSourceEmitterName = DataInterfaceAssignment->SourceEmitterName;
-					ParameterStoreVariables.Add(ResolvedDataInterface.ParameterStoreVariable);
 				}
 			}
 
@@ -281,7 +252,7 @@ namespace FNiagaraResolveDIHelpers
 
 				FNiagaraVariable InternalVariable(CachedDefaultDataInterface.Type, FName(NameBuilder.ToString()));
 				ResolvedDataInterface.ResolvedVariable = InternalVariable;
-				ResolvedDataInterface.ParameterStoreVariable = InternalVariable;
+				ResolvedDataInterface.SourceVariable = InternalVariable;
 				ResolvedDataInterface.bIsInternal = true;
 				ResolvedDataInterface.ResolvedDataInterface = CachedDefaultDataInterface.DataInterface;
 				ResolvedDataInterface.ResolvedSourceEmitterName = CachedDefaultDataInterface.SourceEmitterName;
@@ -297,13 +268,16 @@ namespace FNiagaraResolveDIHelpers
 	{
 		for (const FNiagaraScriptResolvedDataInterfaceInfo& SourceResolvedDataInterface : SourceResolvedDataInterfaces)
 		{
-			for (FNiagaraScriptResolvedDataInterfaceInfo& TargetResolvedDataInterface : TargetResolvedDataInterfaces)
+			if (SourceResolvedDataInterface.bIsInternal)
 			{
-				if (TargetResolvedDataInterface.bIsInternal && TargetResolvedDataInterface.Name == SourceResolvedDataInterface.Name)
+				for (FNiagaraScriptResolvedDataInterfaceInfo& TargetResolvedDataInterface : TargetResolvedDataInterfaces)
 				{
-					TargetResolvedDataInterface.ResolvedDataInterface = SourceResolvedDataInterface.ResolvedDataInterface;
-					TargetResolvedDataInterface.ResolvedSourceEmitterName = SourceResolvedDataInterface.ResolvedSourceEmitterName;
-					break;
+					if (TargetResolvedDataInterface.bIsInternal && TargetResolvedDataInterface.ResolvedVariable == SourceResolvedDataInterface.ResolvedVariable)
+					{
+						TargetResolvedDataInterface.ResolvedDataInterface = SourceResolvedDataInterface.ResolvedDataInterface;
+						TargetResolvedDataInterface.ResolvedSourceEmitterName = SourceResolvedDataInterface.ResolvedSourceEmitterName;
+						break;
+					}
 				}
 			}
 		}
@@ -321,6 +295,21 @@ namespace FNiagaraResolveDIHelpers
 		ParticleSpawnScript->SetResolvedDataInterfaces(ResolvedSpawnDataInterfaces);
 	}
 
+	/** Handles the special case where internal data interfaces defined in particle spawn or particle update need to be copied to the gpu script so that they're using the same instance. */
+	void ResolveInternalDIsForGpuScripts(UNiagaraScript* ParticleSpawnScript, UNiagaraScript* ParticleUpdateScript, UNiagaraScript* ParticleGpuScript)
+	{
+		TArray<FNiagaraScriptResolvedDataInterfaceInfo> ResolvedGpuDataInterfaces;
+		ResolvedGpuDataInterfaces.Append(ParticleGpuScript->GetResolvedDataInterfaces());
+
+		TArrayView<const FNiagaraScriptResolvedDataInterfaceInfo> ResolvedSpawnDataInterfaces = ParticleSpawnScript->GetResolvedDataInterfaces();
+		SynchronizeMatchingInternalResolvedDataInterfaces(ResolvedSpawnDataInterfaces, ResolvedGpuDataInterfaces);
+
+		TArrayView<const FNiagaraScriptResolvedDataInterfaceInfo> ResolvedUpdateDataInterfaces = ParticleUpdateScript->GetResolvedDataInterfaces();
+		SynchronizeMatchingInternalResolvedDataInterfaces(ResolvedUpdateDataInterfaces, ResolvedGpuDataInterfaces);
+
+		ParticleGpuScript->SetResolvedDataInterfaces(ResolvedGpuDataInterfaces);
+	}
+
 	void ResolveDIsInternal(
 		UNiagaraSystem* System,
 		const TMap<FGuid, TMap<FNiagaraVariableBase, FDataInterfaceSourceEmitterNamePair>>& EmitterIdToVariableAssignmentsMap,
@@ -329,10 +318,8 @@ namespace FNiagaraResolveDIHelpers
 	{
 		TMap<FNiagaraVariableBase, FDataInterfaceSourceEmitterNamePair> VariableAssignmentMap = EmitterIdToVariableAssignmentsMap[FGuid()];
 		TMap<FNiagaraVariableBase, FNiagaraVariableBase> VariableBindingMap = EmitterIdToVariableBindingsMap[FGuid()];
-		TMap<FNiagaraVariableBase, FNiagaraVariableBase> CompactedVariableBindingMap;
-		CompactBindings(VariableBindingMap, CompactedVariableBindingMap, OutErrorMessages);
-		ResolveDIsForScript(System, System->GetSystemSpawnScript(), FString(), VariableAssignmentMap, CompactedVariableBindingMap, OutErrorMessages);
-		ResolveDIsForScript(System, System->GetSystemUpdateScript(), FString(), VariableAssignmentMap, CompactedVariableBindingMap, OutErrorMessages);
+		ResolveDIsForScript(System, System->GetSystemSpawnScript(), FString(), VariableAssignmentMap, VariableBindingMap, OutErrorMessages);
+		ResolveDIsForScript(System, System->GetSystemUpdateScript(), FString(), VariableAssignmentMap, VariableBindingMap, OutErrorMessages);
 
 		for (const FNiagaraEmitterHandle& EmitterHandle : System->GetEmitterHandles())
 		{
@@ -349,20 +336,24 @@ namespace FNiagaraResolveDIHelpers
 
 			TMap<FNiagaraVariableBase, FDataInterfaceSourceEmitterNamePair> EmitterVariableAssignmentMap = EmitterIdToVariableAssignmentsMap[EmitterHandle.GetId()];
 			TMap<FNiagaraVariableBase, FNiagaraVariableBase> EmitterVariableBindingMap = EmitterIdToVariableBindingsMap[EmitterHandle.GetId()];
-			TMap<FNiagaraVariableBase, FNiagaraVariableBase> EmitterCompactedVariableBindingMap;
-			CompactBindings(EmitterVariableBindingMap, EmitterCompactedVariableBindingMap, OutErrorMessages);
-			ResolveDIsForScript(System, VersionedNiagaraEmitterData->SpawnScriptProps.Script, EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterCompactedVariableBindingMap, OutErrorMessages);
-			ResolveDIsForScript(System, VersionedNiagaraEmitterData->UpdateScriptProps.Script, EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterCompactedVariableBindingMap, OutErrorMessages);
-			ResolveDIsForScript(System, VersionedNiagaraEmitterData->GetGPUComputeScript(), EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterCompactedVariableBindingMap, OutErrorMessages);
+
+			ResolveDIsForScript(System, VersionedNiagaraEmitterData->SpawnScriptProps.Script, EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterVariableBindingMap, OutErrorMessages);
+			ResolveDIsForScript(System, VersionedNiagaraEmitterData->UpdateScriptProps.Script, EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterVariableBindingMap, OutErrorMessages);
+			ResolveDIsForScript(System, VersionedNiagaraEmitterData->GetGPUComputeScript(), EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterVariableBindingMap, OutErrorMessages);
 
 			if (VersionedNiagaraEmitterData->bInterpolatedSpawning)
 			{
 				ResolveInternalDIsForInterpolatedSpawning(VersionedNiagaraEmitterData->SpawnScriptProps.Script, VersionedNiagaraEmitterData->UpdateScriptProps.Script);
 			}
 
+			if (VersionedNiagaraEmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+			{
+				ResolveInternalDIsForGpuScripts(VersionedNiagaraEmitterData->SpawnScriptProps.Script, VersionedNiagaraEmitterData->EmitterUpdateScriptProps.Script, VersionedNiagaraEmitterData->GetGPUComputeScript());
+			}
+
 			for (const FNiagaraEventScriptProperties& EventHandler : VersionedNiagaraEmitterData->GetEventHandlers())
 			{
-				ResolveDIsForScript(System, EventHandler.Script, EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterCompactedVariableBindingMap, OutErrorMessages);
+				ResolveDIsForScript(System, EventHandler.Script, EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterVariableBindingMap, OutErrorMessages);
 			}
 
 			for (const UNiagaraSimulationStageBase* SimulationStage : VersionedNiagaraEmitterData->GetSimulationStages())
@@ -371,7 +362,7 @@ namespace FNiagaraResolveDIHelpers
 				{
 					continue;
 				}
-				ResolveDIsForScript(System, SimulationStage->Script, EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterCompactedVariableBindingMap, OutErrorMessages);
+				ResolveDIsForScript(System, SimulationStage->Script, EmitterHandle.GetUniqueInstanceName(), EmitterVariableAssignmentMap, EmitterVariableBindingMap, OutErrorMessages);
 			}
 		}
 	}
@@ -380,8 +371,9 @@ namespace FNiagaraResolveDIHelpers
 	{
 		TMap<FGuid, TMap<FNiagaraVariableBase, FDataInterfaceSourceEmitterNamePair>> EmitterIdToVariableAssignmentsMap;
 		TMap<FGuid, TMap<FNiagaraVariableBase, FNiagaraVariableBase>> EmitterIdToVariableBindingsMap;
-		FNiagaraResolveDIHelpers::CollectDIBindingsAndAssignments(System, EmitterIdToVariableAssignmentsMap, EmitterIdToVariableBindingsMap, OutErrorMessages);
-		FNiagaraResolveDIHelpers::ResolveDIsInternal(System, EmitterIdToVariableAssignmentsMap, EmitterIdToVariableBindingsMap, OutErrorMessages);
+		TArray<FText> ErrorMessages;
+		FNiagaraResolveDIHelpers::CollectDIBindingsAndAssignments(System, EmitterIdToVariableAssignmentsMap, EmitterIdToVariableBindingsMap, ErrorMessages);
+		FNiagaraResolveDIHelpers::ResolveDIsInternal(System, EmitterIdToVariableAssignmentsMap, EmitterIdToVariableBindingsMap, ErrorMessages);
 	}
 }
 

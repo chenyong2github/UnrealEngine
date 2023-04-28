@@ -476,15 +476,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		if (bAnyRendererBindingsAdded)
 		{
 			if (ParentSystemInstance)
-			{
 				ParentSystemInstance->GetInstanceParameters().Bind(&RendererBindings);
-				FNiagaraSystemSimulationPtr ParentSystemSimulation = ParentSystemInstance->GetSystemSimulation();
-				if (ParentSystemSimulation.IsValid())
-				{
-					ParentSystemSimulation->GetSpawnExecutionContext()->Parameters.Bind(&RendererBindings);
-					ParentSystemSimulation->GetUpdateExecutionContext()->Parameters.Bind(&RendererBindings);
-				}
-			}
 
 			if (GPUExecContext && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 			{
