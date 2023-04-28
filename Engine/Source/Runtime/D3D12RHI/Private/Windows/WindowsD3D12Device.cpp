@@ -1511,6 +1511,13 @@ void FD3D12DynamicRHI::Init()
 			GD3D12WorkaroundFlags.bAllowGetShaderIdentifierOnCollectionSubObject = false;
 			UE_LOG(LogD3D12RHI, Warning, TEXT("GD3D12WorkaroundFlags.bAllowGetShaderIdentifierOnCollectionSubObject is disabled due to a known issue with current driver version."));
 		}
+
+		if (DriverVersion < 53141u)
+		{
+			GD3D12WorkaroundFlags.bForceCommittedResourceTextureAllocation = true;
+			UE_LOG(LogD3D12RHI, Log, TEXT("GD3D12WorkaroundFlags.bForceCommittedResourceTextureAllocation is set due to a known issue with current driver version."));
+		}
+
 	} // if NVIDIA
 #endif // NVAPI
 

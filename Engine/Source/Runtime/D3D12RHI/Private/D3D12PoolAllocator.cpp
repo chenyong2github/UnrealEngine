@@ -7,14 +7,6 @@
 #define NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND 0
 #endif
 
-int32 GUseCommittedTexturesNV = 0;
-static FAutoConsoleVariableRef CVarUseCommittedTexturesNV(
-	TEXT("r.D3D12.UseCommittedTexturesNV"),
-	GUseCommittedTexturesNV,
-	TEXT("Force committed resource creation for textures to fix possible driver bug"),
-	ECVF_Default
-);
-
 //-----------------------------------------------------------------------------
 //	FD3D12MemoryPool
 //-----------------------------------------------------------------------------
@@ -332,8 +324,7 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 	// Disable pooling for VRAM allocated textures and force use the committed resource path
 	bool bForceCommittedResourcePath = false;
 #if PLATFORM_WINDOWS
-	const bool bUseCommittedTexturesNV = GUseCommittedTexturesNV && IsRHIDeviceNVIDIA();
-	if (bPoolResource && bUseCommittedTexturesNV && InHeapType == D3D12_HEAP_TYPE_DEFAULT && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
+	if (bPoolResource && GD3D12WorkaroundFlags.bForceCommittedResourceTextureAllocation && InHeapType == D3D12_HEAP_TYPE_DEFAULT && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
 		bForceCommittedResourcePath = true;
 	}

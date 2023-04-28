@@ -182,6 +182,12 @@ struct FD3D12WorkaroundFlags
 	* This is less efficient and can also trigger another known issue with D3D12 Agility version <= 4.
 	*/
 	bool bAllowGetShaderIdentifierOnCollectionSubObject = true;
+
+	/**
+	* Certain drivers can cause texture corruption when sub allocating textures from a shared heap. Committed resource
+	* allocations are used then
+	*/
+	bool bForceCommittedResourceTextureAllocation = false;
 };
 
 extern FD3D12WorkaroundFlags GD3D12WorkaroundFlags;
