@@ -249,6 +249,20 @@ bool UNiagaraGeometryCacheRendererProperties::PopulateRequiredBindings(FNiagaraP
 	return bAnyAdded;
 }
 
+void UNiagaraGeometryCacheRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
+{
+	Super::CacheFromCompiledData(CompiledData);
+
+	InitParticleDataSetAccessor(PositionAccessor, CompiledData, PositionBinding);
+	InitParticleDataSetAccessor(RotationAccessor, CompiledData, RotationBinding);
+	InitParticleDataSetAccessor(ScaleAccessor, CompiledData, ScaleBinding);
+	InitParticleDataSetAccessor(ElapsedTimeAccessor, CompiledData, ElapsedTimeBinding);
+	InitParticleDataSetAccessor(EnabledAccessor, CompiledData, EnabledBinding);
+	InitParticleDataSetAccessor(ArrayIndexAccessor, CompiledData, ArrayIndexBinding);
+	InitParticleDataSetAccessor(VisTagAccessor, CompiledData, RendererVisibilityTagBinding);
+	UniqueIDAccessor.Init(CompiledData, FName("UniqueID"));
+}
+
 #if WITH_EDITORONLY_DATA
 
 const FSlateBrush* UNiagaraGeometryCacheRendererProperties::GetStackIcon() const

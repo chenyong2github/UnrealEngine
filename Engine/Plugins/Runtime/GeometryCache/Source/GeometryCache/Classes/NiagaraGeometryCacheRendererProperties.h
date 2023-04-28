@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraDataSetAccessor.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraGeometryCacheRendererProperties.generated.h"
 
@@ -53,6 +54,7 @@ public:
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return InSimTarget == ENiagaraSimTarget::CPUSim; };
 	virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const override;
 	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)  override;
+	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 
 #if WITH_EDITORONLY_DATA
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
@@ -110,6 +112,15 @@ public:
 	* Disabling this option is faster, but a particle can get a different component each tick, which can lead to problems with for example motion blur. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "GeometryCache")
 	bool bAssignComponentsOnParticleID = true;
+
+	FNiagaraDataSetAccessor<FNiagaraPosition>	PositionAccessor;
+	FNiagaraDataSetAccessor<FVector3f>			RotationAccessor;
+	FNiagaraDataSetAccessor<FVector3f>			ScaleAccessor;
+	FNiagaraDataSetAccessor<float>				ElapsedTimeAccessor;
+	FNiagaraDataSetAccessor<FNiagaraBool>		EnabledAccessor;
+	FNiagaraDataSetAccessor<int32>				ArrayIndexAccessor;
+	FNiagaraDataSetAccessor<int32>				VisTagAccessor;
+	FNiagaraDataSetAccessor<int32>				UniqueIDAccessor;
 
 	virtual bool NeedsSystemPostTick() const override { return true; }
 	virtual bool NeedsSystemCompletion() const override { return true; }
