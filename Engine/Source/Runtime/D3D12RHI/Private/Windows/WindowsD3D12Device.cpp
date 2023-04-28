@@ -1775,6 +1775,14 @@ void FD3D12Device::CreateSamplerInternal(const D3D12_SAMPLER_DESC& Desc, D3D12_C
 }
 
 #if D3D12_RHI_RAYTRACING
+void FD3D12Device::GetRaytracingAccelerationStructurePrebuildInfo(
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS* pDesc,
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO* pInfo)
+{
+	ID3D12Device5* RayTracingDevice = GetDevice5();
+	RayTracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(pDesc, pInfo);
+}
+
 TRefCountPtr<ID3D12StateObject> FD3D12Device::DeserializeRayTracingStateObject(D3D12_SHADER_BYTECODE Bytecode, ID3D12RootSignature* RootSignature)
 {
 	checkNoEntry();
