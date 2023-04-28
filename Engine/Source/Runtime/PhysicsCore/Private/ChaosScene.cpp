@@ -233,7 +233,7 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds, Body_External.SpatialIdx());
 		}
 
-		GetSolver()->UpdateParticleInAccelerationStructure_External(Actor->GetParticle_LowLevel(),/*bDelete=*/false);
+		GetSolver()->UpdateParticleInAccelerationStructure_External(Actor->GetParticle_LowLevel(), EPendingSpatialDataOperation::Update);
 	}
 }
 
@@ -275,7 +275,7 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 			const FPhysicsActorHandle& Actor = Actors[ActorIndex];
 			if(Actor)
 			{
-				GetSolver()->UpdateParticleInAccelerationStructure_External(Actor->GetParticle_LowLevel(),/*bDelete=*/false);
+				GetSolver()->UpdateParticleInAccelerationStructure_External(Actor->GetParticle_LowLevel(), EPendingSpatialDataOperation::Update);
 			}
 		}
 	}

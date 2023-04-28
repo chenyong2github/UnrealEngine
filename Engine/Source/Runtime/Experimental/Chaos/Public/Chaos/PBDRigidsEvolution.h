@@ -453,7 +453,7 @@ public:
 		Particles.EnableParticle(Particle);
 		EnableConstraints(Particle);
 		IslandManager.AddParticle(Particle);
-		DirtyParticle(*Particle);
+		DirtyParticle(*Particle, EPendingSpatialDataOperation::Add);
 	}
 
 	/**
@@ -502,8 +502,9 @@ public:
 	}
 
 	template <bool bPersistent>
-	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& Particle)
+	FORCEINLINE_DEBUGGABLE void DirtyParticle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& Particle, const EPendingSpatialDataOperation Op = EPendingSpatialDataOperation::Update)
 	{
+		ensure(Op != EPendingSpatialDataOperation::Delete); // Don't use the function to delete particles
 		const TPBDRigidParticleHandleImp<FReal, 3, bPersistent>* AsRigid = Particle.CastToRigidParticle();
 		if(AsRigid && AsRigid->Disabled())
 		{
@@ -556,15 +557,17 @@ public:
 		//only add to acceleration structure if it has collision
 		if (Particle.HasCollision() || ForceNoCollisionIntoSQ)
 		{
-			//TODO: distinguish between new particles and dirty particles
+			//TODO: distinguish between new particles and dirty particles - Adds and updates are treated the same right now
 			const FUniqueIdx UniqueIdx = Particle.UniqueIdx();
 			FPendingSpatialData& SpatialData = InternalAccelerationQueue.FindOrAdd(UniqueIdx);
-			ensure(SpatialData.bDelete == false);
+			ensure(SpatialData.Operation != EPendingSpatialDataOperation::Delete);
+
+			SpatialData.Operation = Op;
 			SpatialData.AccelerationHandle = FAccelerationStructureHandle(Particle);
 			SpatialData.SpatialIdx = Particle.SpatialIdx();
 
 			auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
-			ensure(SpatialData.bDelete == false);
+			// ensure(AsyncSpatialData.Operation != EPendingSpatialDataOperation::Delete); // TODO: This may be hit: Potentially due to UniqueIdx reuse?
 			AsyncSpatialData = SpatialData;
 		}
 	}
@@ -952,9 +955,9 @@ public:
 		//TODO: at the moment we don't distinguish between the first time a particle is created and when it's just moved
 		// If we had this distinction we could simply remove the entry for the async queue
 		const FUniqueIdx UniqueIdx = ParticleHandle.UniqueIdx();
-		FPendingSpatialData& SpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
+		FPendingSpatialData& SpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx, EPendingSpatialDataOperation::Delete);
 
-		SpatialData.bDelete = true;
+		SpatialData.Operation = EPendingSpatialDataOperation::Delete;
 		SpatialData.SpatialIdx = ParticleHandle.SpatialIdx();
 		SpatialData.AccelerationHandle = FAccelerationStructureHandle(ParticleHandle);
 

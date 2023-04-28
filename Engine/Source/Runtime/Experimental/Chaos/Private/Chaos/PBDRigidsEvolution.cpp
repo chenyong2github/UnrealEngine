@@ -524,11 +524,12 @@ namespace Chaos
 
 	void FPBDRigidsEvolutionBase::ApplyParticlePendingData(const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache, bool bUpdateDynamicTrees)
 	{
-		if (SpatialData.bDelete)
+		if (SpatialData.Operation ==  EPendingSpatialDataOperation::Delete)
 		{
 			if (bUpdateDynamicTrees || !FDefaultCollectionFactory::IsDynamicTree(SpatialData.SpatialIdx))
 			{
-				AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
+				const bool bExisted = AccelerationStructure.RemoveElementFrom(SpatialData.AccelerationHandle, SpatialData.SpatialIdx);
+				//ensure(bExisted);
 			}
 
 			if (bUpdateCache)
@@ -555,7 +556,15 @@ namespace Chaos
 			if (bUpdateDynamicTrees || !FDefaultCollectionFactory::IsDynamicTree(SpatialData.SpatialIdx))
 			{
 				//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBTreeUpdate)
-				AccelerationStructure.UpdateElementIn(UpdateParticle, UpdateParticle->WorldSpaceInflatedBounds(), UpdateParticle->HasBounds(), SpatialData.SpatialIdx);
+				const bool bExisted = AccelerationStructure.UpdateElementIn(UpdateParticle, UpdateParticle->WorldSpaceInflatedBounds(), UpdateParticle->HasBounds(), SpatialData.SpatialIdx);
+				if (SpatialData.Operation == EPendingSpatialDataOperation::Add)
+				{
+					//ensure(bExisted == false); // TODO use this for ADD/UPDATE Audit
+				}
+				else
+				{
+					//ensure(bExisted == true);	// TODO use this for ADD/UPDATE Audit				
+				}
 			}
 
 			if (bUpdateCache)
@@ -634,9 +643,10 @@ namespace Chaos
 			{
 				//operation still pending so update structure
 				//note: do we care about roll over? if game ticks at 60fps we'd get 385+ days
-				if(SpatialData.bDelete)
+				if(SpatialData.Operation == EPendingSpatialDataOperation::Delete)
 				{
-					Acceleration.RemoveElementFrom(SpatialData.AccelerationHandle,SpatialData.SpatialIdx);
+					const bool bExisted = Acceleration.RemoveElementFrom(SpatialData.AccelerationHandle,SpatialData.SpatialIdx);
+					//ensure(bExisted);
 				}
 				else
 				{
@@ -648,7 +658,15 @@ namespace Chaos
 						TRigidTransform<FReal,3> WorldTM(UpdateParticle->X(),UpdateParticle->R());
 						WorldBounds = UpdateParticle->Geometry()->BoundingBox().TransformedAABB(WorldTM);
 					}
-					Acceleration.UpdateElementIn(UpdateParticle,WorldBounds,bHasBounds,SpatialData.SpatialIdx);
+					const bool bExisted = Acceleration.UpdateElementIn(UpdateParticle,WorldBounds,bHasBounds,SpatialData.SpatialIdx);
+					if (SpatialData.Operation == EPendingSpatialDataOperation::Add)
+					{
+						//ensure(bExisted == false); // TODO use this for ADD/UPDATE Audit
+					}
+					else
+					{
+						//ensure(bExisted == true); // TODO use this for ADD/UPDATE Audit						
+					}
 				}
 			}
 			else
