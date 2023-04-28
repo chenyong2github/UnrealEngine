@@ -984,10 +984,11 @@ public:
 
 	/**
 	 *	"Complete" the event. This grabs the list of subsequents and atomically closes it. Then for each subsequent and for each item in "NewTasks" it reduces the number of prerequisites outstanding and if that drops to zero, the task is queued. 
-	 * @param NewTasks subsequents to add
+	 *	@param NewTasks subsequents to add
 	 *	@param	 CurrentThreadIfKnown if the current thread is known, provide it here. Otherwise it will be determined via TLS if any task ends up being queued.
+	 *	@param bInternal used to distinguish between "internal" graph events that have an accompanying task, and "standalone" graph events created explicitly by `FGraphEvent::CreateGraphEvent()`
 	**/
-	CORE_API void DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread);
+	CORE_API void DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread, bool bInternal = false);
 
 	/**
 	 *	Determine if the event has been completed. This can be used to poll for completion. 
@@ -1043,10 +1044,11 @@ private:
 	**/
 	static CORE_API void Recycle(FGraphEvent* ToRecycle);
 
+	friend struct FGraphEventAndSmallTaskStorage;
+
 	/**
 	 *	Hidden Constructor
 	**/
-	friend struct FGraphEventAndSmallTaskStorage;
 	FGraphEvent()
 		: ThreadToDoGatherOn(ENamedThreads::AnyHiPriThreadHiPriTask)
 	{
@@ -1272,7 +1274,7 @@ private:
 		if (TTask::GetSubsequentsMode() == ESubsequentsMode::TrackSubsequents)
 		{
 			FPlatformMisc::MemoryBarrier();
-			Subsequents->DispatchSubsequents(NewTasks, CurrentThread);
+			Subsequents->DispatchSubsequents(NewTasks, CurrentThread, true);
 		}
 		else
 		{

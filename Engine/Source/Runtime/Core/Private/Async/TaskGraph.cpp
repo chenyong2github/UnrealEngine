@@ -2443,7 +2443,7 @@ void FGraphEvent::DispatchSubsequents(ENamedThreads::Type CurrentThreadIfKnown)
 	DispatchSubsequents(NewTasks, CurrentThreadIfKnown);
 }
 
-void FGraphEvent::DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThreadIfKnown)
+void FGraphEvent::DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThreadIfKnown, bool bInternal/* = false */)
 {
 	if (EventsToWaitFor.Num())
 	{
@@ -2500,6 +2500,10 @@ void FGraphEvent::DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedT
 		NewTask->ConditionalQueueTask(CurrentThreadIfKnown, bWakeUpWorker);
 	}
 
+	if (!bInternal)
+	{
+		TaskTrace::Launched(GetTraceId(), TEXT("Standalone graph event"), true, ENamedThreads::AnyThread, sizeof(FGraphEvent));
+	}
 	TaskTrace::Completed(GetTraceId());
 }
 
