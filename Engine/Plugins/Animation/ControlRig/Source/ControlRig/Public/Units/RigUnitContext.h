@@ -103,13 +103,6 @@ struct FControlRigExecuteContext : public FRigVMExecuteContext
 	{
 	}
 
-	virtual void Reset() override
-	{
-		Super::Reset();
-		OnAddShapeLibraryDelegate.Unbind();
-		OnShapeExistsDelegate.Unbind();
-	}
-
 	virtual void Copy(const FRigVMExecuteContext* InOtherContext) override
 	{
 		Super::Copy(InOtherContext);
