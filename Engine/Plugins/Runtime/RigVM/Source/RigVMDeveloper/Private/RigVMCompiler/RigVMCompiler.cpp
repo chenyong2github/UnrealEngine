@@ -1936,9 +1936,8 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 					{
 						continue;
 					}
-					FString PropertyName = Argument.Name.ToString();
-					PropertyName.ReplaceInline(TEXT(" "), TEXT("_"));
-					if (!Properties[NumProperties].Name.ToString().Contains(PropertyName))
+					const FString PropertyName = FRigVMPropertyDescription::SanitizeName(Argument.Name).ToString();
+					if (!Properties[NumProperties].Name.ToString().EndsWith(PropertyName))
 					{
 						continue;
 					}

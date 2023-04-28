@@ -2946,8 +2946,7 @@ void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMA
 						{
 							if (const FRigVMGraphFunctionData* FunctionData = FunctionReferenceNode->GetReferencedFunctionData())
 							{
-								FString PinName = SourcePin->GetName();
-								PinName.ReplaceInline(TEXT(" "), TEXT("_"));
+								const FString PinName = FRigVMPropertyDescription::SanitizeName(SourcePin->GetFName()).ToString();
 								if (const FRigVMFunctionCompilationPropertyDescription* Description = FunctionData->CompilationData.WorkPropertyDescriptions.FindByPredicate([PinName](const FRigVMFunctionCompilationPropertyDescription& Description)
 								{
 									return Description.Name.ToString().EndsWith(PinName);
