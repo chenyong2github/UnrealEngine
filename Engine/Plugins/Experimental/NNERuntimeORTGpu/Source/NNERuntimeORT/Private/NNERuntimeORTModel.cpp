@@ -371,7 +371,7 @@ namespace UE::NNERuntimeORT::Private
 		DML_CREATE_DEVICE_FLAGS DmlCreateFlags = DML_CREATE_DEVICE_FLAG_NONE;
 
 		// Set debugging flags
-		if (RHI->IsD3DDebugEnabled())
+		if (GRHIGlobals.IsDebugLayerEnabled)
 		{
 			DmlCreateFlags |= DML_CREATE_DEVICE_FLAG_DEBUG;
 		}

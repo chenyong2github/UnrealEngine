@@ -22,8 +22,6 @@ D3D12Util.h: D3D RHI utility implementation.
   #define D3D12RHI_GPU_CRASH_LOG_VERBOSITY Fatal
 #endif
 
-extern bool D3D12RHI_ShouldCreateWithD3DDebug();
-
 template<typename PerDeviceFunction>
 void FD3D12DynamicRHI::ForEachDevice(ID3D12Device* inDevice, const PerDeviceFunction& pfPerDeviceFunction)
 {
@@ -1677,7 +1675,7 @@ bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12Resource* pResou
 	}
 
 	// Can only verify resource states if the debug layer is used
-	static const bool bWithD3DDebug = D3D12RHI_ShouldCreateWithD3DDebug();
+	static const bool bWithD3DDebug = GRHIGlobals.IsDebugLayerEnabled;
 	if (!bWithD3DDebug)
 	{
 		UE_LOG(LogD3D12RHI, Fatal, TEXT("*** AssertResourceState requires the debug layer ***"));

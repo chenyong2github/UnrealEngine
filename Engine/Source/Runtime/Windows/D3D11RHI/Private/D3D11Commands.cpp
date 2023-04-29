@@ -295,9 +295,7 @@ void FD3D11DynamicRHI::RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderS
 		}
 	}
 
-	extern bool D3D11RHI_ShouldCreateWithD3DDebug();
-	static bool bHasD3DDebug = D3D11RHI_ShouldCreateWithD3DDebug();
-	if (GUnbindResourcesBetweenDrawsInDX11 || bHasD3DDebug)
+	if (GUnbindResourcesBetweenDrawsInDX11 || GRHIGlobals.IsDebugLayerEnabled)
 	{
 		ClearAllShaderResources();
 	}

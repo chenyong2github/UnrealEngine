@@ -45,8 +45,6 @@ struct ID3D12DynamicRHI : public FDynamicRHI
 
 	virtual void						RHISignalManualFence(FRHICommandList& RHICmdList, ID3D12Fence* Fence, uint64 Value) = 0;
 	virtual void						RHIWaitManualFence(FRHICommandList& RHICmdList, ID3D12Fence* Fence, uint64 Value) = 0;
-
-	static D3D12RHI_API bool      IsD3DDebugEnabled();
 };
 
 inline bool IsRHID3D12()

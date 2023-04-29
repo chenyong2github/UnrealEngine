@@ -12284,6 +12284,15 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 #endif
 
 #if STATS
+		if (GRHIGlobals.IsDebugLayerEnabled)
+		{
+			SmallTextItem.SetColor(FLinearColor::Red);
+			SmallTextItem.Text = LOCTEXT("GCPROFILINGWARNING", "PROFILING WITH DEBUG DEVICE ON!");
+			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
+			MessageY += FontSizeY;
+			SmallTextItem.SetColor(FLinearColor::White);
+		}
+
 		if (FThreadStats::IsCollectingData())
 		{
 			SmallTextItem.SetColor(FLinearColor::Red);

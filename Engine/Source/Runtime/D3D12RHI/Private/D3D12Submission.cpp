@@ -326,7 +326,7 @@ static int32 GetMaxExecuteBatchSize()
 {
 	return
 #if UE_BUILD_DEBUG
-		D3D12RHI_ShouldCreateWithD3DDebug() ? 1 :
+		GRHIGlobals.IsDebugLayerEnabled ? 1 :
 #endif
 		TNumericLimits<int32>::Max();
 }

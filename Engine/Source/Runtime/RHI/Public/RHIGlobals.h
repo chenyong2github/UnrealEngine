@@ -574,6 +574,9 @@ struct FRHIGlobals
 
 	/** Table for finding out which shader platform corresponds to a given feature level for this RHI. */
 	EShaderPlatform ShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num];
+	
+	/** True if the RHI has initialized a device with the debug layer enabled. */
+	bool IsDebugLayerEnabled = false;
 };
 
 extern RHI_API FRHIGlobals GRHIGlobals;
@@ -733,6 +736,7 @@ extern RHI_API FRHIGlobals GRHIGlobals;
 #define GRHISupportsBindless                                   GRHIGlobals.SupportsBindless
 #define GRHISupportsReservedResources                          GRHIGlobals.SupportsReservedResources
 #define GShaderPlatformForFeatureLevel                         GRHIGlobals.ShaderPlatformForFeatureLevel
+#define GRHIIsDebugLayerEnabled                                GRHIGlobals.IsDebugLayerEnabled
 
 // Utility Getters
 

@@ -48,7 +48,6 @@
 
 IMPLEMENT_MODULE(FD3D12DynamicRHIModule, D3D12RHI);
 
-extern bool D3D12RHI_ShouldCreateWithD3DDebug();
 extern bool D3D12RHI_ShouldCreateWithWarp();
 extern bool D3D12RHI_AllowSoftwareFallback();
 extern bool D3D12RHI_ShouldAllowAsyncResourceCreation();
@@ -1350,6 +1349,27 @@ void FD3D12DynamicRHI::Init()
 		}
 	}
 #endif
+
+	// Use a debug device if specified on the command line.
+	if (FParse::Param(FCommandLine::Get(), TEXT("d3ddebug")) ||
+		FParse::Param(FCommandLine::Get(), TEXT("d3debug")) ||
+		FParse::Param(FCommandLine::Get(), TEXT("dxdebug")))
+	{
+		GD3D12DebugCvar->Set(1, ECVF_SetByCommandline);
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("d3dlogwarnings")))
+	{
+		GD3D12DebugCvar->Set(2, ECVF_SetByCommandline);
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("d3dbreakonwarning")))
+	{
+		GD3D12DebugCvar->Set(3, ECVF_SetByCommandline);
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("d3dcontinueonerrors")))
+	{
+		GD3D12DebugCvar->Set(4, ECVF_SetByCommandline);
+	}
+	GRHIGlobals.IsDebugLayerEnabled = (GD3D12DebugCvar.GetValueOnAnyThread() > 0);
 
 	check(!GIsRHIInitialized);
 

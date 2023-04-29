@@ -64,6 +64,31 @@ static int32 GD3D12EnableDRED = 0;
 static int32 GD3D12EnableLightweightDRED = 1;
 #endif // UE_BUILD_SHIPPING || UE_BUILD_TEST
 
+TAutoConsoleVariable<int32> GD3D12DebugCvar (
+	TEXT("r.D3D12.EnableD3DDebug"),
+	0,
+	TEXT("0 to disable d3ddebug layer (default)\n")
+	TEXT("1 to enable error logging (-d3ddebug) \n")
+	TEXT("2 to enable error & warning logging (-d3dlogwarnings)\n")
+	TEXT("3 to enable breaking on errors & warnings (-d3dbreakonwarning)\n")
+	TEXT("4 to enable CONTINUING on errors (-d3dcontinueonerrors)\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+bool D3D12_ShouldLogD3DDebugWarnings()
+{
+	return GD3D12DebugCvar.GetValueOnAnyThread() > 1;
+}
+
+bool D3D12_ShouldBreakOnD3DDebugErrors()
+{
+	return GD3D12DebugCvar.GetValueOnAnyThread() > 0 && GD3D12DebugCvar.GetValueOnAnyThread() != 4;
+}
+
+bool D3D12_ShouldBreakOnD3DDebugWarnings()
+{
+	return GD3D12DebugCvar.GetValueOnAnyThread() > 3;
+}
+
 static FAutoConsoleVariableRef CVarD3D12EnableGPUBreadCrumbs(
 	TEXT("r.D3D12.BreadCrumbs"),
 	GD3D12EnableGPUBreadCrumbs,
@@ -694,9 +719,9 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		TRefCountPtr<ID3D12InfoQueue> d3dInfoQueue;
 		if (SUCCEEDED(d3dDebug->QueryInterface(__uuidof(ID3D12InfoQueue), (void**)d3dInfoQueue.GetInitReference())))
 		{
-			d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-			d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-			//d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+			d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, D3D12_ShouldBreakOnD3DDebugErrors());
+			d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, D3D12_ShouldBreakOnD3DDebugErrors());
+			d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, D3D12_ShouldBreakOnD3DDebugWarnings());
 		}
 	}
 #endif
@@ -713,7 +738,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			FMemory::Memzero(&NewFilter, sizeof(NewFilter));
 
 			// Turn off info msgs as these get really spewy
-			const bool bLogWarnings = FParse::Param(FCommandLine::Get(), TEXT("d3dbreakonwarning")) || FParse::Param(FCommandLine::Get(), TEXT("d3dlogwarnings"));
+			const bool bLogWarnings = D3D12_ShouldBreakOnD3DDebugWarnings() || D3D12_ShouldLogD3DDebugWarnings();
 			D3D12_MESSAGE_SEVERITY DenySeverity[] = { D3D12_MESSAGE_SEVERITY_INFO, D3D12_MESSAGE_SEVERITY_WARNING };
 			NewFilter.DenyList.NumSeverities = 1 + (bLogWarnings ? 0 : 1);
 			NewFilter.DenyList.pSeverityList = DenySeverity;
@@ -800,7 +825,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			pd3dInfoQueue->PushStorageFilter(&NewFilter);
 
 			// Break on D3D debug errors.
-			pd3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+			pd3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, D3D12_ShouldBreakOnD3DDebugErrors());
 
 			// Enable this to break on a specific id in order to quickly get a callstack
 			//pd3dInfoQueue->SetBreakOnID(D3D12_MESSAGE_ID_DEVICE_DRAW_CONSTANT_BUFFER_TOO_SMALL, true);
@@ -808,7 +833,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			// Break on D3D warnings if warning log or warning breakpoint is enabled
 			if (bLogWarnings)
 			{
-				pd3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+				pd3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, D3D12_ShouldBreakOnD3DDebugWarnings());
 			}
 
 			pd3dInfoQueue->Release();
@@ -844,7 +869,7 @@ void FD3D12Adapter::InitializeDevices()
 	FlushRenderingCommands();
 
 	// Use a debug device if specified on the command line.
-	bool bWithD3DDebug = D3D12RHI_ShouldCreateWithD3DDebug();
+	bool bWithD3DDebug = GRHIGlobals.IsDebugLayerEnabled;
 
 	// If we don't have a device yet, either because this is the first viewport, or the old device was removed, create a device.
 	if (!RootDevice)
@@ -1482,7 +1507,7 @@ FD3D12Adapter::~FD3D12Adapter()
 #endif
 
 #if PLATFORM_WINDOWS
-	if (GetD3DDevice() && D3D12RHI_ShouldCreateWithD3DDebug())
+	if (GetD3DDevice() && GRHIGlobals.IsDebugLayerEnabled)
 	{
 		TRefCountPtr<ID3D12DebugDevice> Debug;
 		if (SUCCEEDED(GetD3DDevice()->QueryInterface(IID_PPV_ARGS(Debug.GetInitReference()))))

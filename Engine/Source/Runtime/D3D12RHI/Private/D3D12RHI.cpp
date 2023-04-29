@@ -715,11 +715,6 @@ void FD3D12DynamicRHI::RHIWaitManualFence(FRHICommandList& RHICmdList, ID3D12Fen
 	Context.WaitManualFence(Fence, Value);
 }
 
-bool ID3D12DynamicRHI::IsD3DDebugEnabled()
-{
-	return D3D12RHI_ShouldCreateWithD3DDebug();
-}
-
 void* FD3D12DynamicRHI::RHIGetNativeDevice()
 {
 	return (void*)GetAdapter().GetD3DDevice();

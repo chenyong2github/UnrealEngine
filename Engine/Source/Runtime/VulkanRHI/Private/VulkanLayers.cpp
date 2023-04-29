@@ -339,6 +339,7 @@ void FVulkanDynamicRHI::SetupValidationRequests()
 		}
 		GGPUValidationCvar->Set(2, ECVF_SetByCommandline);
 	}
+	GRHIGlobals.IsDebugLayerEnabled = (GValidationCvar.GetValueOnAnyThread() > 0);
 #endif
 }
 
@@ -391,7 +392,7 @@ void FVulkanIntanceSetupHelper::AddDebugLayers(const TArray<FLayerWithExtensions
 	}
 
 	// At this point the CVar holds the final value
-	const bool bUseVulkanValidation = (GValidationCvar.GetValueOnAnyThread() > 0);
+	const bool bUseVulkanValidation = GRHIGlobals.IsDebugLayerEnabled;
 	if (!bGfxReconstructOrVkTrace && bUseVulkanValidation)
 	{
 		if (GStandardValidationCvar.GetValueOnAnyThread() != 0)
@@ -497,7 +498,7 @@ void FVulkanDeviceSetupHelper::AddDebugLayers(const TArray<FLayerWithExtensions>
 #endif
 
 	// Verify that all requested debugging device-layers are available. Skip validation layers under RenderDoc
-	if (!GRenderDocFound && (GValidationCvar.GetValueOnAnyThread() > 0) && (GStandardValidationCvar.GetValueOnAnyThread() != 0))
+	if (!GRenderDocFound && GRHIGlobals.IsDebugLayerEnabled && (GStandardValidationCvar.GetValueOnAnyThread() != 0))
 	{
 		// Path for older drivers
 		AddRequestedLayer(STANDARD_VALIDATION_LAYER_NAME, LayerProperties, UEExtensions, OutLayers);

@@ -76,8 +76,6 @@ static FAutoConsoleVariableRef CVarOnlineDescriptorHeapBlockSize(
 	ECVF_ReadOnly
 );
 
-extern bool D3D12RHI_ShouldCreateWithD3DDebug();
-
 inline bool operator!=(D3D12_CPU_DESCRIPTOR_HANDLE lhs, D3D12_CPU_DESCRIPTOR_HANDLE rhs)
 {
 	return lhs.ptr != rhs.ptr;
@@ -946,7 +944,7 @@ bool FD3D12StateCache::AssertResourceStates(ED3D12PipelineType PipelineType)
 	return true;
 #else
 	// Can only verify resource states if the debug layer is used
-	static const bool bWithD3DDebug = D3D12RHI_ShouldCreateWithD3DDebug();
+	static const bool bWithD3DDebug = GRHIGlobals.IsDebugLayerEnabled;
 	if (!bWithD3DDebug)
 	{
 		UE_LOG(LogD3D12RHI, Fatal, TEXT("*** AssertResourceStates requires the debug layer ***"));

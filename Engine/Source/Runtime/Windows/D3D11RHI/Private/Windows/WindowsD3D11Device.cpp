@@ -41,8 +41,7 @@ bool GDX11IntelMetricsDiscoveryEnabled = false;
 
 FD3D11DynamicRHI*	GD3D11RHI = nullptr;
 
-extern bool D3D11RHI_ShouldCreateWithD3DDebug();
-extern bool D3D11RHI_ShouldAllowAsyncResourceCreation();
+bool D3D11RHI_ShouldAllowAsyncResourceCreation();
 
 static bool D3D11RHI_AllowSoftwareFallback()
 {
@@ -63,6 +62,31 @@ struct AmdAgsInfo
 };
 static AmdAgsInfo AmdInfo;
 #endif
+
+TAutoConsoleVariable<int32> GD3D11DebugCvar(
+	TEXT("r.D3D11.EnableD3DDebug"),
+	0,
+	TEXT("0 to disable d3ddebug layer (default)\n")
+	TEXT("1 to enable error logging (-d3ddebug) \n")
+	TEXT("2 to enable error & warning logging (-d3dlogwarnings)\n")
+	TEXT("3 to enable breaking on errors & warnings (-d3dbreakonwarning)\n")
+	TEXT("4 to enable CONTINUING on errors (-d3dcontinueonerrors)\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+bool D3D11_ShouldLogD3DDebugWarnings()
+{
+	return GD3D11DebugCvar.GetValueOnAnyThread() > 1;
+}
+
+bool D3D11_ShouldBreakOnD3DDebugErrors()
+{
+	return GD3D11DebugCvar.GetValueOnAnyThread() > 0 && GD3D11DebugCvar.GetValueOnAnyThread() != 4;
+}
+
+bool D3D11_ShouldBreakOnD3DDebugWarnings()
+{
+	return GD3D11DebugCvar.GetValueOnAnyThread() > 3;
+}
 
 static TAutoConsoleVariable<int32> CVarAMDUseMultiThreadedDevice(
 	TEXT("r.AMDD3D11MultiThreadedDevice"),
@@ -99,7 +123,7 @@ namespace RHIConsoleVariables
 
 static void FD3D11DumpLiveObjects()
 {
-	if (D3D11RHI_ShouldCreateWithD3DDebug())
+	if (GRHIGlobals.IsDebugLayerEnabled)
 	{
 		TRefCountPtr<ID3D11Debug> DebugDevice = nullptr;
 		VERIFYD3D11RESULT_EX(GD3D11RHI->GetDevice()->QueryInterface(__uuidof(ID3D11Debug), (void**)DebugDevice.GetInitReference()), GD3D11RHI->GetDevice());
@@ -332,7 +356,7 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Mi
 	ID3D11DeviceContext* D3DDeviceContext = nullptr;
 	uint32 DeviceFlags = D3D11_CREATE_DEVICE_SINGLETHREADED;
 	// Use a debug device if specified on the command line.
-	if(D3D11RHI_ShouldCreateWithD3DDebug())
+	if(GRHIGlobals.IsDebugLayerEnabled)
 	{
 		DeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 	}
@@ -960,7 +984,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	// Try to create the DXGIFactory1.  This will fail if we're not running Vista SP2 or higher.
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
-	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference(), D3D11RHI_ShouldCreateWithD3DDebug());
+	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference(), GRHIGlobals.IsDebugLayerEnabled);
 	if(!DXGIFactory1)
 	{
 		return;
@@ -1238,7 +1262,8 @@ void FD3D11DynamicRHI::DisableQuadBufferStereo()
 void FD3D11DynamicRHI::FlushPendingLogs()
 {
 #if !(UE_BUILD_SHIPPING && WITH_EDITOR)
-	if (D3D11RHI_ShouldCreateWithD3DDebug())
+
+	if (GRHIGlobals.IsDebugLayerEnabled)
 	{
 		TRefCountPtr<ID3D11InfoQueue> InfoQueue = nullptr;
 		VERIFYD3D11RESULT_EX(Direct3DDevice->QueryInterface(IID_ID3D11InfoQueue, (void**)InfoQueue.GetInitReference()), Direct3DDevice);
@@ -1777,7 +1802,27 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		uint32 DeviceFlags = D3D11RHI_ShouldAllowAsyncResourceCreation() ? 0 : D3D11_CREATE_DEVICE_SINGLETHREADED;
 
 		// Use a debug device if specified on the command line.
-		const bool bWithD3DDebug = D3D11RHI_ShouldCreateWithD3DDebug();
+		if (FParse::Param(FCommandLine::Get(), TEXT("d3ddebug")) ||
+			FParse::Param(FCommandLine::Get(), TEXT("d3debug")) ||
+			FParse::Param(FCommandLine::Get(), TEXT("dxdebug")))
+		{
+			GD3D11DebugCvar->Set(1, ECVF_SetByCommandline);
+		}
+		if (FParse::Param(FCommandLine::Get(), TEXT("d3dlogwarnings")))
+		{
+			GD3D11DebugCvar->Set(2, ECVF_SetByCommandline);
+		}
+		if (FParse::Param(FCommandLine::Get(), TEXT("d3dbreakonwarning")))
+		{
+			GD3D11DebugCvar->Set(3, ECVF_SetByCommandline);
+		}
+		if (FParse::Param(FCommandLine::Get(), TEXT("d3dcontinueonerrors")))
+		{
+			GD3D11DebugCvar->Set(4, ECVF_SetByCommandline);
+		}
+		GRHIGlobals.IsDebugLayerEnabled = (GD3D11DebugCvar.GetValueOnAnyThread() > 0);
+
+		const bool bWithD3DDebug = GRHIGlobals.IsDebugLayerEnabled;
 		FGenericCrashContext::SetEngineData(TEXT("RHI.D3DDebug"), bWithD3DDebug ? TEXT("true") : TEXT("false"));
 
 		if (bWithD3DDebug)
@@ -2076,7 +2121,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 #endif
 
 				/* filter messages */
-				const bool bLogWarnings = FParse::Param(FCommandLine::Get(), TEXT("d3dbreakonwarning")) || FParse::Param(FCommandLine::Get(), TEXT("d3dlogwarnings"));
+				const bool bLogWarnings = D3D11_ShouldBreakOnD3DDebugWarnings() || D3D11_ShouldLogD3DDebugWarnings();
 				D3D11_INFO_QUEUE_FILTER NewFilter;
 				FMemory::Memzero(&NewFilter, sizeof(NewFilter));
 
@@ -2122,11 +2167,11 @@ void FD3D11DynamicRHI::InitD3DDevice()
 				d3dInfoQueue->PushStorageFilter(&NewFilter);
 
 				/* ensure callback is called */
-				d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
-				d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
+				d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, D3D11_ShouldBreakOnD3DDebugErrors());
+				d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, D3D11_ShouldBreakOnD3DDebugErrors());
 				if (bLogWarnings)
 				{
-					d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, true);
+					d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, D3D11_ShouldBreakOnD3DDebugWarnings());
 				}
 			}
 		}

@@ -97,15 +97,7 @@ inline t_A RoundUpToNextMultiple(const t_A& a, const t_B& b)
 
 using namespace D3D12RHI;
 
-static bool D3D12RHI_ShouldCreateWithD3DDebug()
-{
-	// Use a debug device if specified on the command line.
-	static bool bCreateWithD3DDebug =
-		FParse::Param(FCommandLine::Get(), TEXT("d3ddebug")) ||
-		FParse::Param(FCommandLine::Get(), TEXT("d3debug")) ||
-		FParse::Param(FCommandLine::Get(), TEXT("dxdebug"));
-	return bCreateWithD3DDebug;
-}
+extern TAutoConsoleVariable<int32> GD3D12DebugCvar;
 
 static bool D3D12RHI_ShouldCreateWithWarp()
 {

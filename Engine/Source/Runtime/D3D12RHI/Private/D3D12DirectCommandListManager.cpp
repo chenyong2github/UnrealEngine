@@ -3,8 +3,6 @@
 #include "D3D12RHIPrivate.h"
 #include "Windows.h"
 
-extern bool D3D12RHI_ShouldCreateWithD3DDebug();
-
 TLockFreePointerListUnordered<void, PLATFORM_CACHE_LINE_SIZE> FD3D12SyncPoint::MemoryPool;
 
 FD3D12GPUFence::FD3D12GPUFence(FName InName)

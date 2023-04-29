@@ -139,6 +139,8 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("RenderTargetCommitUAV"), STAT_D3D11RenderTargetC
 
 extern TAutoConsoleVariable<int32> GCVarUseSharedKeyedMutex;
 
+extern TAutoConsoleVariable<int32> GD3D11DebugCvar;
+
 struct FD3D11GlobalStats
 {
 	// in bytes, never change after RHI, needed to scale game features
