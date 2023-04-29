@@ -707,7 +707,7 @@ namespace EpicGames.Core
 			}
 		}
 
-		public record class ConditionContext(DirectoryReference BaseDir);
+		record class ConditionContext(DirectoryReference BaseDir);
 
 		/// <summary>
 		/// Evaluate whether the optional MSBuild condition on an XML element evaluates to true. Currently only supports 'ABC' == 'DEF' style expressions, but can be expanded as needed.
