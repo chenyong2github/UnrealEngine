@@ -27,7 +27,7 @@ static FAutoConsoleVariableRef CVarD3D12AsyncPayloadMerge(
 // @todo mgpu - fix crashes when submission thread is enabled)
 static TAutoConsoleVariable<int32> CVarRHIUseSubmissionThread(
 	TEXT("rhi.UseSubmissionThread"),
-	1,
+	2,
 	TEXT("Whether to enable the RHI submission thread.\n")
 	TEXT("  0: No\n")
 	TEXT("  1: Yes, but not when running with multi-gpu.\n")
