@@ -68,6 +68,8 @@ set(src
 	Private/UnsyncMiniCb.cpp
 	Private/UnsyncMiniCb.h
 	Private/UnsyncPool.h
+	Private/UnsyncProgress.cpp
+	Private/UnsyncProgress.h
 	Private/UnsyncProtocol.cpp
 	Private/UnsyncProtocol.h
 	Private/UnsyncProxy.cpp

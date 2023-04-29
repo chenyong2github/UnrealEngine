@@ -3,8 +3,10 @@
 #include "UnsyncScavenger.h"
 #include "UnsyncFile.h"
 #include "UnsyncLog.h"
+#include "UnsyncProgress.h"
 #include "UnsyncSerialization.h"
 #include "UnsyncThread.h"
+
 namespace unsync {
 
 FScavengeDatabase*
@@ -87,6 +89,8 @@ FScavengeDatabase::BuildFromFileSyncTasks(const FSyncDirectoryOptions& SyncOptio
 		}
 	});
 
+	UNSYNC_VERBOSE(L"Building block database");
+
 	THashMap<FScavengeBlockSource, uint64, FScavengeBlockSource::FHash> BlockSourceUseCounts;
 
 	uint32 ManifestIndex = 0;
@@ -96,6 +100,9 @@ FScavengeDatabase::BuildFromFileSyncTasks(const FSyncDirectoryOptions& SyncOptio
 		for (const auto& FileManifestIt : Entry.Manifest.Files)
 		{
 			const FFileManifest& FileManifest = FileManifestIt.second;
+
+			THashSet<FHash128> UniqueBlocksPerFile;
+
 			for (const FGenericBlock& BlockInfo : FileManifest.Blocks)
 			{
 				FHash128 BlockHash = BlockInfo.HashStrong.ToHash128();
@@ -105,10 +112,13 @@ FScavengeDatabase::BuildFromFileSyncTasks(const FSyncDirectoryOptions& SyncOptio
 					FScavengeBlockSource BlockSource;
 					BlockSource.Data.ManifestIndex = ManifestIndex;
 					BlockSource.Data.FileIndex	   = FileIndex;
-					Result->BlockMap.insert(std::make_pair(BlockHash, BlockSource));
-					Result->UniqueUsableBlockHashes.insert(BlockHash);
 
-					BlockSourceUseCounts[BlockSource] += 1;
+					if (UniqueBlocksPerFile.insert(BlockHash).second)
+					{
+						Result->BlockMap.insert(std::make_pair(BlockHash, BlockSource));
+						Result->UniqueUsableBlockHashes.insert(BlockHash);
+						BlockSourceUseCounts[BlockSource] += 1;
+					}
 				}
 			}
 			++FileIndex;
@@ -294,11 +304,11 @@ BuildTargetFromScavengedData(FIOWriter&						Result,
 	THashMap<FScavengeBlockSource, uint64, FScavengeBlockSource::FHash> PossibleSources;
 
 	const FScavengeBlockMap& ScavengeBlockMap = ScavengeDatabase.GetBlockMap();
-	uint64					 TotalNeedSize	  = 0;
+	uint64					 TotalCopySize	  = 0;
 	for (const FNeedBlock& SourceNeedBlock : NeedList)
 	{
 		FHash128 NeedBlockHash = SourceNeedBlock.Hash.ToHash128();
-		TotalNeedSize += SourceNeedBlock.Size;
+		TotalCopySize += SourceNeedBlock.Size;
 		const auto Sources = ScavengeBlockMap.equal_range(NeedBlockHash);
 		if (Sources.first != Sources.second)
 		{
@@ -338,7 +348,9 @@ BuildTargetFromScavengedData(FIOWriter&						Result,
 		return A.NumHits > B.NumHits;
 	});
 
-	const uint64 ScavengeSizeThreshold = uint64(double(TotalNeedSize) * 0.01);
+	FLogProgressScope ProgressLogger(TotalCopySize, ELogProgressUnits::MB);
+
+	const uint64 ScavengeSizeThreshold = uint64(double(TotalCopySize) * 0.01);
 
 	std::vector<FNeedBlock> LocalNeedList;
 	for (const FPossibleSource& PossibleSource : SortedPossibleSources)
@@ -378,58 +390,61 @@ BuildTargetFromScavengedData(FIOWriter&						Result,
 				continue;
 			}
 
-			UNSYNC_VERBOSE(L"Scavenging data from '%s': %.3f MB",
-						   PossibleSource.FullSourceFilePath.wstring().c_str(),
-						   SizeMb(LocalNeedListSize));
+			UNSYNC_VERBOSE(L"Scavenging data from '%s'",
+						   PossibleSource.FullSourceFilePath.wstring().c_str());
 
 			std::sort(LocalNeedList.begin(), LocalNeedList.end(), FNeedBlock::FCompareBySourceOffset());
 
 			std::vector<FCopyCommandWithBlockRange> CopyCommands = OptimizeNeedListWithBlockRange(LocalNeedList, 1_MB);
 
-			auto ReadCallback =
-				[&Result, &OutScavengedBlocks, StrongHasher](FIOBuffer Buffer, uint64 SourceOffset, uint64 ReadSize, uint64 UserData) {
-					const FCopyCommandWithBlockRange& CopyCommand = *reinterpret_cast<const FCopyCommandWithBlockRange*>(UserData);
+			auto ReadCallback = [&Result, &OutScavengedBlocks, &ProgressLogger, StrongHasher](FIOBuffer Buffer,
+																							  uint64	SourceOffset,
+																							  uint64	ReadSize,
+																							  uint64	UserData) {
+				const FCopyCommandWithBlockRange& CopyCommand = *reinterpret_cast<const FCopyCommandWithBlockRange*>(UserData);
 
-					UNSYNC_ASSERT(CopyCommand.BlockRange.Size() != 0);
+				UNSYNC_ASSERT(CopyCommand.BlockRange.Size() != 0);
 
-					const FNeedBlock& FirstBlock = CopyCommand.BlockRange.BeginPtr[0];
+				const FNeedBlock& FirstBlock = CopyCommand.BlockRange.BeginPtr[0];
 
-					uint64 BlockOffset	= 0;
-					bool   bBlockHashOk = true;
-					for (const FNeedBlock& Block : CopyCommand.BlockRange)
-					{
-						const uint8* BlockData	  = Buffer.GetData() + BlockOffset;
-						FGenericHash ActualHash	  = ComputeHash(BlockData, Block.Size, StrongHasher);
-						FGenericHash ExpectedHash = Block.Hash;
+				uint64 BlockOffset	= 0;
+				bool   bBlockHashOk = true;
+				for (const FNeedBlock& Block : CopyCommand.BlockRange)
+				{
+					const uint8* BlockData	  = Buffer.GetData() + BlockOffset;
+					FGenericHash ActualHash	  = ComputeHash(BlockData, Block.Size, StrongHasher);
+					FGenericHash ExpectedHash = Block.Hash;
 
-						UNSYNC_ASSERT(Block.TargetOffset == FirstBlock.TargetOffset + BlockOffset);
+					UNSYNC_ASSERT(Block.TargetOffset == FirstBlock.TargetOffset + BlockOffset);
 
-						if (ActualHash != ExpectedHash)
-						{
-							bBlockHashOk = false;
-							break;
-						}
-
-						BlockOffset += Block.Size;
-					}
-
-					if (CopyCommand.Size != ReadSize)
+					if (ActualHash != ExpectedHash)
 					{
 						bBlockHashOk = false;
+						break;
 					}
 
-					if (bBlockHashOk)
+					BlockOffset += Block.Size;
+				}
+
+				if (CopyCommand.Size != ReadSize)
+				{
+					bBlockHashOk = false;
+				}
+
+				if (bBlockHashOk)
+				{
+					Result.Write(Buffer.GetData(), FirstBlock.TargetOffset, ReadSize);
+
+					for (const FNeedBlock& Block : CopyCommand.BlockRange)
 					{
-						Result.Write(Buffer.GetData(), FirstBlock.TargetOffset, ReadSize);
-
-						for (const FNeedBlock& Block : CopyCommand.BlockRange)
-						{
-							OutScavengedBlocks.insert(Block.Hash.ToHash128());
-						}
-
-						AddGlobalProgress(ReadSize, EBlockListType::Source);
+						OutScavengedBlocks.insert(Block.Hash.ToHash128());
 					}
-				};
+
+					AddGlobalProgress(ReadSize, EBlockListType::Source);
+
+					ProgressLogger.Add(ReadSize);
+				}
+			};
 
 			for (const FCopyCommandWithBlockRange& Command : CopyCommands)
 			{

@@ -12,6 +12,7 @@
 #include "UnsyncSerialization.h"
 #include "UnsyncThread.h"
 #include "UnsyncUtil.h"
+#include "UnsyncProgress.h"
 
 #include <condition_variable>
 #include <deque>
@@ -26,7 +27,7 @@ UNSYNC_THIRD_PARTY_INCLUDES_START
 #include <md5-sse2.h>
 UNSYNC_THIRD_PARTY_INCLUDES_END
 
-#define UNSYNC_VERSION_STR "1.0.51-dev3"
+#define UNSYNC_VERSION_STR "1.0.51-dev4"
 
 namespace unsync {
 
@@ -45,102 +46,6 @@ ComputeMaxVariableBlockSize(uint32 BlockSize)
 {
 	return std::max(BlockSize, 4096u) * 4;	// changing this invalidates cached blocks
 }
-
-// pretend that reading remote files is ~25x slower than local
-const uint64 GLOBAL_PROGRESS_SOURCE_SCALE = 25;
-const uint64 GLOBAL_PROGRESS_BASE_SCALE	  = 1;
-
-std::atomic<uint64> GGlobalProgressCurrent;
-std::atomic<uint64> GGlobalProgressTotal;
-
-inline void
-LogGlobalProgress()
-{
-	LogProgress(nullptr, GGlobalProgressCurrent, GGlobalProgressTotal);
-}
-
-enum class ELogProgressUnits {
-	Raw,
-	Bytes,
-	MB,
-	GB,
-};
-
-struct FLogProgressScope
-{
-	UNSYNC_DISALLOW_COPY_ASSIGN(FLogProgressScope)
-
-	FLogProgressScope(uint64 InTotal, ELogProgressUnits InUnits = ELogProgressUnits::Raw, uint64 InPeriodMilliseconds = 500)
-	: Current(0)
-	, Total(InTotal)
-	, PeriodMilliseconds(InPeriodMilliseconds)
-	, Units(InUnits)
-	, NextProgressLogTime(TimePointNow())
-	, bEnabled(true)
-	{
-		Add(0);
-	}
-
-	void Complete() { Add(0, true); }
-
-	void Add(uint64 X, bool bForceComplete = false)
-	{
-		if (!bEnabled)
-		{
-			return;
-		}
-
-		Current += X;
-
-		std::lock_guard<std::mutex> LockGuard(Mutex);
-		const uint64				CurrentClamped = std::min<uint64>(Current, Total);
-		const bool					bComplete	   = (CurrentClamped == Total) || bForceComplete;
-		if (bEnabled && GLogVerbose && (TimePointNow() > NextProgressLogTime || bComplete))
-		{
-			const wchar_t* Ending = bComplete ? L"\n" : L"\r";
-			switch (Units)
-			{
-				case ELogProgressUnits::GB:
-					LogPrintf(ELogLevel::Debug,
-							  L"%.2f / %.2f GB%ls",
-							  double(CurrentClamped) / double(1_GB),
-							  double(Total) / double(1_GB),
-							  Ending);
-					break;
-				case ELogProgressUnits::MB:
-					LogPrintf(ELogLevel::Debug,
-							  L"%.2f / %.2f MB%ls",
-							  double(CurrentClamped) / double(1_MB),
-							  double(Total) / double(1_MB),
-							  Ending);
-					break;
-				case ELogProgressUnits::Bytes:
-					LogPrintf(ELogLevel::Debug, L"%llu / %llu bytes%ls", (uint64)CurrentClamped, Total, Ending);
-					break;
-				case ELogProgressUnits::Raw:
-				default:
-					LogPrintf(ELogLevel::Debug, L"%llu / %llu%ls", (uint64)CurrentClamped, Total, Ending);
-					break;
-			}
-
-			NextProgressLogTime = TimePointNow() + std::chrono::milliseconds(PeriodMilliseconds);
-			LogGlobalProgress();
-
-			if (bComplete)
-			{
-				bEnabled = false;
-			}
-		}
-	}
-
-	std::mutex				Mutex;
-	std::atomic<uint64>		Current;
-	const uint64			Total;
-	const uint64			PeriodMilliseconds;
-	const ELogProgressUnits Units;
-	FTimePoint				NextProgressLogTime;
-	std::atomic<bool>		bEnabled;
-};
 
 static uint64
 BlockingReadLarge(FIOReader& Reader, uint64 Offset, uint64 Size, uint8* OutputBuffer, uint64 OutputBufferSize)
@@ -1164,21 +1069,6 @@ BuildTargetBuffer(FIOReader& SourceProvider, FIOReader& BaseProvider, const FNee
 	FMemReaderWriter ResultWriter(Result.Data(), Result.Size());
 	BuildTarget(ResultWriter, SourceProvider, BaseProvider, NeedList, StrongHasher);
 	return Result;
-}
-
-void
-AddGlobalProgress(uint64 Size, EBlockListType ListType)
-{
-	if (ListType == EBlockListType::Source)
-	{
-		Size *= GLOBAL_PROGRESS_SOURCE_SCALE;
-	}
-	else
-	{
-		Size *= GLOBAL_PROGRESS_BASE_SCALE;
-	}
-
-	GGlobalProgressCurrent += Size;
 }
 
 void

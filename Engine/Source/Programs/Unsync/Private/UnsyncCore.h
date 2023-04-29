@@ -379,13 +379,6 @@ enum class ESyncSourceType
 	Server,
 };
 
-enum EBlockListType {
-	Source,
-	Base
-};
-
-void AddGlobalProgress(uint64 Size, EBlockListType ListType);
-
 struct FSyncDirectoryOptions
 {
 	ESyncSourceType	   SourceType;
