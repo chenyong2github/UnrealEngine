@@ -124,7 +124,6 @@ Texture2D<uint2> InputSceneStencilTexture;
 Texture2D<tsr_half4> InputSceneTranslucencyTexture;
 
 Texture2D<tsr_half2> HistoryRejectionTexture;
-Texture2D<tsr_half> TranslucencyRejectionTexture;
 
 Texture2D<float2> DilatedVelocityTexture;
 Texture2D<uint> ParallaxFactorTexture;
@@ -136,20 +135,6 @@ Texture2D<tsr_half2> HoleFilledVelocityMaskTexture;
 Texture2D<float2> GrandDilatedVelocityTexture;
 Texture2D<tsr_halfC> GrandPrevColorTexture;
 
-float2 TranslucencyInfo_Extent;
-float2 TranslucencyInfo_ExtentInverse;
-float2 TranslucencyInfo_ScreenPosToViewportScale;
-float2 TranslucencyInfo_ScreenPosToViewportBias;
-uint2  TranslucencyInfo_ViewportMin;
-uint2  TranslucencyInfo_ViewportMax;
-float2 TranslucencyInfo_ViewportSize;
-float2 TranslucencyInfo_ViewportSizeInverse;
-float2 TranslucencyInfo_UVViewportMin;
-float2 TranslucencyInfo_UVViewportMax;
-float2 TranslucencyInfo_UVViewportSize;
-float2 TranslucencyInfo_UVViewportSizeInverse;
-float2 TranslucencyInfo_UVViewportBilinearMin;
-float2 TranslucencyInfo_UVViewportBilinearMax;
 int2   TranslucencyPixelPosMin;
 int2   TranslucencyPixelPosMax;
 
@@ -158,7 +143,6 @@ FScreenTransform HistoryPixelPosToInputPPCo;
 FScreenTransform HistoryPixelPosToTranslucencyPPCo;
 FScreenTransform ScreenPosToGrandPrevHistoryBufferUV;
 float3 HistoryQuantizationError;
-float MinTranslucencyRejection;
 float HistorySampleCount;
 float HistoryHisteresis;
 float WeightClampingRejection;
@@ -531,7 +515,6 @@ void MainCS(
 	#endif
 	tsr_half2 LowFrequencyRejection = tsr_half(1.0).xx;
 	tsr_half2 LowFrequencyClamp = tsr_half(1.0).xx;
-	tsr_half2 TranslucencyRejection = tsr_half(1.0).xx;
 	tsr_half2 OutputPixelVelocity = tsr_half(0.0).xx;
 	tsr_half2 NoiseFiltering = tsr_half(0.0).xx;
 	tsr_half2x2 HoleFilledVelocityMask = dpv_interleave_mono_registers(tsr_half(1.0).xx);
@@ -755,8 +738,6 @@ void MainCS(
 			UNROLL_N(CONFIG_SAMPLES - 1)
 			for (uint NeighborId = 0; NeighborId < (CONFIG_SAMPLES - 1); NeighborId++)
 			{
-				//TranslucencyRejection = min(TranslucencyRejection, dpv_force_interleave_registers_array(RawTranslucencyRejectionNeighborhood[NeighborId]));
-			
 				SceneStencilRef |= dpv_interleave_registers_array(RawSceneStencilRefNeighborhood[NeighborId]);
 			}
 		}
@@ -774,16 +755,10 @@ void MainCS(
 		
 		// Final post processing.
 		{
-			TranslucencyRejection = max(TranslucencyRejection, tsr_half(MinTranslucencyRejection));
-		
 			// Fetch whether the pixel is responsive AA or not.
 			#if CONFIG_RESPONSIVE_STENCIL
 			{
 				bIsResponsiveAAPixel = (SceneStencilRef & ResponsiveStencilMask) != 0;
-
-				#if CONFIG_REJECT_TRANSLUCENCY_ON_RESPONSIVE_AA_ONLY
-					TranslucencyRejection = max(TranslucencyRejection, select(bIsResponsiveAAPixel, tsr_half(0.0).xx, tsr_half(1.0).xx));
-				#endif
 			}
 			#endif
 
@@ -792,16 +767,10 @@ void MainCS(
 				bIsDisoccluded = false;
 				LowFrequencyRejection = tsr_half(1.0).xx;
 				LowFrequencyClamp = tsr_half(1.0).xx;
-				TranslucencyRejection = tsr_half(1.0).xx;
 			}
 			#endif
 		}
 	}
-
-	// Reject the translucency to respond quicker on fireflies.
-	#if CONFIG_TRANSLUCENCY_REJECTION && CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATELY == 0
-		LowFrequencyRejection = min(LowFrequencyRejection, TranslucencyRejection);
-	#endif
 	
 	// Reproject history
 	tsr_halfCx2 PrevHighFrequencyColor;
@@ -1537,18 +1506,6 @@ void MainCS(
 
 		tsr_half4x2 ClampedPrevHistoryTranslucency = fastClamp(PrevHistoryTranslucency, TranslucencyMinColor, TranslucencyMaxColor);
 		
-		#if CONFIG_SCENE_COLOR_ALPHA
-			tsr_half2 HighFrequencyTranslucencyRejection = MeasureRejectionFactor(
-				PrevHistoryTranslucency, ClampedPrevHistoryTranslucency,
-				FilteredTranslucencyColor, TranslucencyMinColor, TranslucencyMaxColor,
-				tsr_half(0.0));
-		#else
-			tsr_half2 HighFrequencyTranslucencyRejection = MeasureRejectionFactor(
-				GetColorChannel(PrevHistoryTranslucency), GetColorChannel(ClampedPrevHistoryTranslucency),
-				GetColorChannel(FilteredTranslucencyColor), GetColorChannel(TranslucencyMinColor), GetColorChannel(TranslucencyMaxColor),
-				tsr_half(0.0));
-		#endif
-
 		tsr_half2 BlendFinal = tsr_half(0.2) * InputPixelAlignement;
 
 		// Antiflicker
@@ -1570,10 +1527,6 @@ void MainCS(
 			// Responsive forces 1/4 of new frame.
 			BlendFinal[0] = bIsResponsiveAAPixel[0] ? tsr_half(1.0/4.0) : BlendFinal[0];
 			BlendFinal[1] = bIsResponsiveAAPixel[1] ? tsr_half(1.0/4.0) : BlendFinal[1];
-		#endif
-		
-		#if CONFIG_LOAD_TRANSLUCENCY_REJECTION
-			BlendFinal = max(BlendFinal, (tsr_half(1.0) - TranslucencyRejection));
 		#endif
 		
 		FLATTEN

@@ -1011,7 +1011,6 @@ uint64 FPreviousViewInfo::GetGPUSizeBytes(bool bLogSizes) const
 		GetRenderTargetGPUSizeBytes(CompressedOpaqueDepth, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(CompressedOpaqueShadingModel, bLogSizes) +
 		GetRenderTargetGPUSizeBytes(ScreenSpaceRayTracingInput, bLogSizes) +
-		GetRenderTargetGPUSizeBytes(SeparateTranslucency, bLogSizes) +
 		TemporalAAHistory.GetGPUSizeBytes(bLogSizes) +
 		TSRHistory.GetGPUSizeBytes(bLogSizes) +
 		GetRenderTargetGPUSizeBytes(HalfResTemporalAAHistory, bLogSizes) +

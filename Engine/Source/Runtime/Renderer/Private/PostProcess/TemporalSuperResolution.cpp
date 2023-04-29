@@ -194,18 +194,6 @@ TAutoConsoleVariable<int32> CVarTSRAsyncCompute(
 	TEXT(" 3: Run all passes on async compute;"),
 	ECVF_RenderThreadSafe);
 
-// TODO: remove this dead code
-//TAutoConsoleVariable<float> CVarTSRTranslucencyHighlightLuminance(
-//	TEXT("r.TSR.Translucency.HighlightLuminance"), -1.0f,
-//	TEXT("Sets the luminance at which translucency is considered an highlights (default=-1.0)."),
-//	ECVF_RenderThreadSafe);
-
-// TODO: remove this dead code
-//TAutoConsoleVariable<int32> CVarTSRTranslucencyPreviousFrameRejection(
-//	TEXT("r.TSR.Translucency.PreviousFrameRejection"), 0,
-//	TEXT("Enable heuristic to reject Separate translucency based on previous frame translucency."),
-//	ECVF_RenderThreadSafe);
-
 // TODO: currently dead code, that is technically relevent for 5.0's r.TSR.History.SeparateTranslucency=1 but that has too many problems on translucency contour around opaque geometry.
 //TAutoConsoleVariable<int32> CVarTSREnableResponiveAA(
 //	TEXT("r.TSR.Translucency.EnableResponiveAA"), 1,
@@ -679,30 +667,6 @@ class FTSRDecimateHistoryCS : public FTSRShader
 	END_SHADER_PARAMETER_STRUCT()
 }; // class FTSRDecimateHistoryCS
 
-class FTSRCompareTranslucencyCS : public FTSRShader
-{
-	DECLARE_GLOBAL_SHADER(FTSRCompareTranslucencyCS);
-	SHADER_USE_PARAMETER_STRUCT(FTSRCompareTranslucencyCS, FTSRShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
-
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, TranslucencyInfo)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevTranslucencyInfo)
-		SHADER_PARAMETER(float, PrevTranslucencyPreExposureCorrection)
-		SHADER_PARAMETER(float, TranslucencyHighlightLuminance)
-
-		SHADER_PARAMETER(FScreenTransform, ScreenPosToPrevTranslucencyTextureUV)
-
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TranslucencyTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevTranslucencyTexture)
-
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TranslucencyRejectionOutput)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, DebugOutput)
-	END_SHADER_PARAMETER_STRUCT()
-}; // class FTSRCompareTranslucencyCS
-
 class FTSRRejectShadingCS : public FTSRShader
 {
 	DECLARE_GLOBAL_SHADER(FTSRRejectShadingCS);
@@ -889,7 +853,6 @@ class FTSRUpdateHistoryCS : public FTSRShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneTranslucencyTexture)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TranslucencyRejectionTexture)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GrandDilatedVelocityTexture)
@@ -899,7 +862,6 @@ class FTSRUpdateHistoryCS : public FTSRShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NoiseFilteringTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HoleFilledVelocityMaskTexture)
 
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, TranslucencyInfo)
 		SHADER_PARAMETER(FIntPoint, TranslucencyPixelPosMin)
 		SHADER_PARAMETER(FIntPoint, TranslucencyPixelPosMax)
 
@@ -908,7 +870,6 @@ class FTSRUpdateHistoryCS : public FTSRShader
 		SHADER_PARAMETER(FScreenTransform, HistoryPixelPosToTranslucencyPPCo)
 
 		SHADER_PARAMETER(FVector3f, HistoryQuantizationError)
-		SHADER_PARAMETER(float, MinTranslucencyRejection)
 		SHADER_PARAMETER(float, HistorySampleCount)
 		SHADER_PARAMETER(float, HistoryHisteresis)
 		SHADER_PARAMETER(float, WeightClampingRejection)
@@ -1058,7 +1019,6 @@ IMPLEMENT_GLOBAL_SHADER(FTSRClearPrevTexturesCS,     "/Engine/Private/TemporalSu
 IMPLEMENT_GLOBAL_SHADER(FTSRForwardScatterDepthCS,   "/Engine/Private/TemporalSuperResolution/TSRForwardScatterDepth.usf",   "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRDilateVelocityCS,        "/Engine/Private/TemporalSuperResolution/TSRDilateVelocity.usf",        "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRDecimateHistoryCS,       "/Engine/Private/TemporalSuperResolution/TSRDecimateHistory.usf",       "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTSRCompareTranslucencyCS,   "/Engine/Private/TemporalSuperResolution/TSRCompareTranslucency.usf",   "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRRejectShadingCS,         "/Engine/Private/TemporalSuperResolution/TSRRejectShading.usf",         "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRSpatialAntiAliasingCS,   "/Engine/Private/TemporalSuperResolution/TSRSpatialAntiAliasing.usf",   "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRFilterAntiAliasingCS,    "/Engine/Private/TemporalSuperResolution/TSRFilterAntiAliasing.usf",    "MainCS", SF_Compute);
@@ -1200,8 +1160,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FTSRUpdateHistoryCS::EQuality UpdateHistoryQuality = FTSRUpdateHistoryCS::EQuality(FMath::Clamp(CVarTSRHistoryUpdateQuality.GetValueOnRenderThread(), 0, int32(FTSRUpdateHistoryCS::EQuality::MAX) - 1));
 
 	bool bIsSeperateTranslucyTexturesValid = PassInputs.PostDOFTranslucencyResources.IsValid();
-
-	const bool bRejectSeparateTranslucency = false; // bIsSeperateTranslucyTexturesValid && CVarTSRTranslucencyPreviousFrameRejection.GetValueOnRenderThread() != 0;
 
 	EPixelFormat ColorFormat = bSupportsAlpha ? PF_FloatRGBA : PF_FloatR11G11B10;
 	EPixelFormat HistoryColorFormat = (CVarTSRR11G11B10History.GetValueOnRenderThread() != 0 && !bSupportsAlpha) ? PF_FloatR11G11B10 : PF_FloatRGBA;
@@ -1873,64 +1831,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		DilatedVelocityTexture = HoleFilledVelocityTexture;
 	}
 
-	FRDGTextureRef TranslucencyRejectionTexture = nullptr;
-	if (bRejectSeparateTranslucency && View.PrevViewInfo.SeparateTranslucency != nullptr)
-	{
-		FRDGTextureRef PrevTranslucencyTexture;
-		FScreenPassTextureViewport PrevTranslucencyViewport;
-
-		if (View.PrevViewInfo.SeparateTranslucency)
-		{
-
-			PrevTranslucencyTexture = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.SeparateTranslucency);
-			PrevTranslucencyViewport = FScreenPassTextureViewport(PrevTranslucencyTexture->Desc.Extent, View.PrevViewInfo.SeparateTranslucencyViewRect);
-
-		}
-		else
-		{
-			PrevTranslucencyTexture = BlackAlphaOneDummy;
-			PrevTranslucencyViewport = FScreenPassTextureViewport(FIntPoint(1, 1), FIntRect(FIntPoint(0, 0), FIntPoint(1, 1)));
-		}
-
-		{
-			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				InputExtent,
-				PF_R8,
-				FClearValueBinding::None,
-				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
-
-			TranslucencyRejectionTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.TranslucencyRejection"));
-		}
-
-		FTSRCompareTranslucencyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRCompareTranslucencyCS::FParameters>();
-		PassParameters->CommonParameters = CommonParameters;
-
-		PassParameters->TranslucencyInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
-			SeparateTranslucencyTexture->Desc.Extent, SeparateTranslucencyRect));
-		PassParameters->PrevTranslucencyInfo = GetScreenPassTextureViewportParameters(PrevTranslucencyViewport);
-		PassParameters->PrevTranslucencyPreExposureCorrection = PrevHistoryParameters.HistoryPreExposureCorrection;
-		PassParameters->TranslucencyHighlightLuminance = -1.0; //CVarTSRTranslucencyHighlightLuminance.GetValueOnRenderThread();
-
-		PassParameters->ScreenPosToPrevTranslucencyTextureUV = FScreenTransform::ChangeTextureBasisFromTo(
-			PrevTranslucencyViewport, FScreenTransform::ETextureBasis::ScreenPosition, FScreenTransform::ETextureBasis::TextureUV);
-
-		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
-		PassParameters->TranslucencyTexture = SeparateTranslucencyTexture;
-		PassParameters->PrevTranslucencyTexture = PrevTranslucencyTexture;
-
-		PassParameters->TranslucencyRejectionOutput = GraphBuilder.CreateUAV(TranslucencyRejectionTexture);
-		PassParameters->DebugOutput = CreateDebugUAV(InputExtent, TEXT("Debug.TSR.CompareTranslucency"));
-
-		TShaderMapRef<FTSRCompareTranslucencyCS> ComputeShader(View.ShaderMap);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("TSR CompareTranslucency %dx%d", InputRect.Width(), InputRect.Height()),
-			AsyncComputePasses >= 3 ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute,
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
-	}
-
 	// Reject the history with frequency decomposition.
 	FRDGTextureRef HistoryRejectionTexture;
 	FRDGTextureRef InputSceneColorLdrLumaTexture = nullptr;
@@ -2106,7 +2006,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			FRDGTextureSRVDesc::CreateWithPixelFormat(PassInputs.SceneDepthTexture, PF_X24_G8));
 		PassParameters->InputSceneTranslucencyTexture = SeparateTranslucencyTexture;
 		PassParameters->HistoryRejectionTexture = HistoryRejectionTexture;
-		PassParameters->TranslucencyRejectionTexture = TranslucencyRejectionTexture ? TranslucencyRejectionTexture : BlackDummy;
 
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
 		PassParameters->GrandDilatedVelocityTexture = GrandHoleFilledVelocityTexture;
@@ -2116,17 +2015,14 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->NoiseFilteringTexture = NoiseFilteringTexture;
 		PassParameters->HoleFilledVelocityMaskTexture = HoleFilledVelocityMaskTexture;
 
-		PassParameters->TranslucencyInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
-			PassParameters->TranslucencyRejectionTexture->Desc.Extent, SeparateTranslucencyRect));
-		PassParameters->TranslucencyPixelPosMin = PassParameters->TranslucencyInfo.ViewportMin;
-		PassParameters->TranslucencyPixelPosMax = PassParameters->TranslucencyInfo.ViewportMax - 1;
+		PassParameters->TranslucencyPixelPosMin = SeparateTranslucencyRect.Min;
+		PassParameters->TranslucencyPixelPosMax = SeparateTranslucencyRect.Max - 1;
 
 		FScreenTransform HistoryPixelPosToViewportUV = (FScreenTransform::Identity + 0.5f) * CommonParameters.HistoryInfo.ViewportSizeInverse;
 		PassParameters->HistoryPixelPosToScreenPos = HistoryPixelPosToViewportUV * FScreenTransform::ViewportUVToScreenPos;
 		PassParameters->HistoryPixelPosToInputPPCo = HistoryPixelPosToViewportUV * CommonParameters.InputInfo.ViewportSize + CommonParameters.InputJitter + CommonParameters.InputPixelPosMin;
-		PassParameters->HistoryPixelPosToTranslucencyPPCo = HistoryPixelPosToViewportUV * PassParameters->TranslucencyInfo.ViewportSize + CommonParameters.InputJitter * PassParameters->TranslucencyInfo.ViewportSize / CommonParameters.InputInfo.ViewportSize + SeparateTranslucencyRect.Min;
+		PassParameters->HistoryPixelPosToTranslucencyPPCo = HistoryPixelPosToViewportUV * SeparateTranslucencyRect.Size() + CommonParameters.InputJitter * SeparateTranslucencyRect.Size() / CommonParameters.InputInfo.ViewportSize + SeparateTranslucencyRect.Min;
 		PassParameters->HistoryQuantizationError = ComputePixelFormatQuantizationError((History.ColorArray ? History.ColorArray : History.Output)->Desc.Format);
-		PassParameters->MinTranslucencyRejection = TranslucencyRejectionTexture == nullptr ? 1.0 : 0.0;
 
 		// All parameters to control the sample count in history.
 		PassParameters->HistorySampleCount = MaxHistorySampleCount / OutputToHistoryResolutionFractionSquare;
@@ -2343,14 +2239,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 					GraphBuilder.QueueTextureExtraction(History.ColorArray, &OutputHistory.PrevColorArray);
 				}
 			}
-		}
-
-		// Extract the translucency buffer to compare it with next frame
-		if (bRejectSeparateTranslucency)
-		{
-			GraphBuilder.QueueTextureExtraction(
-				SeparateTranslucencyTexture, &View.ViewState->PrevFrameViewInfo.SeparateTranslucency);
-			View.ViewState->PrevFrameViewInfo.SeparateTranslucencyViewRect = InputRect;
 		}
 
 		// Extract the output for next frame SSR so that separate translucency shows up in SSR.
