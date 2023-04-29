@@ -43,6 +43,7 @@ FStaticMeshBatchRelevance::FStaticMeshBatchRelevance(const FStaticMeshBatch& Sta
 	, bUseSingleLayerWaterMaterial(bInUseSingleLayerWaterMaterial)
 	, bUseHairStrands(StaticMesh.UseForHairStrands(FeatureLevel))
 	, bUseAnisotropy(bInUseAnisotropy)
+	, bOverlayMaterial(StaticMesh.bOverlayMaterial)
 	, bRenderToVirtualTexture(StaticMesh.bRenderToVirtualTexture)
 	, RuntimeVirtualTextureMaterialType(StaticMesh.RuntimeVirtualTextureMaterialType)
 	, bSupportsCachingMeshDrawCommands(InbSupportsCachingMeshDrawCommands)

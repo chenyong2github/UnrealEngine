@@ -71,6 +71,7 @@ public:
 	uint8 bUseSingleLayerWaterMaterial : 1; // Whether this batch uses a water material or not.
 	uint8 bUseHairStrands : 1; // Whether it contains hair strands geometry.
 	uint8 bUseAnisotropy : 1; // Whether material uses anisotropy parameter.
+	uint8 bOverlayMaterial : 1; // Whether mesh uses overlay material.
 
 	/** Whether the mesh batch can be used for rendering to a virtual texture. */
 	uint8 bRenderToVirtualTexture : 1;
