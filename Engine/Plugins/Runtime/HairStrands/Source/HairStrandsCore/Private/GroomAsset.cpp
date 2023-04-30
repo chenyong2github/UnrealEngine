@@ -2291,18 +2291,23 @@ bool UGroomAsset::IsFullyCached()
 	return GetDerivedDataCacheRef().AllCachedDataProbablyExists(CacheKeys);
 }
 
-FString UGroomAsset::GetDerivedDataKey()
+FString UGroomAsset::GetDerivedDataKey(bool bUseStrandCachedKey)
 {
-	FString Key;
-	const uint32 GroupCount = GetNumHairGroups();
-	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
-	{
-		FString StrandsKey = GetDerivedDataKeyForStrands(GroupIt);
-		Key += StrandsKey;
-		Key += GetDerivedDataKeyForCards(GroupIt, StrandsKey);
-		Key += GetDerivedDataKeyForMeshes(GroupIt);
+	FString OutKey;
+	for (uint32 GroupIt = 0, GroupCount = GetNumHairGroups(); GroupIt < GroupCount; ++GroupIt)
+	{		
+		// Optionnaly use the cached strands key. This is to workaround an issue with legacy HairDescription which uses FEditorBulkData, 
+		// and whose StringId is altered when loaded (only for legacy hair description converted to FEditorBulkData). This StringId modification
+		// changes the DDC key of a groom asset depending if has been loaded or not, causing DDC miss
+		const bool bComputeStrandsKey = !bUseStrandCachedKey || StrandsDerivedDataKey[GroupIt].IsEmpty();
+		const FString StrandsKey = bComputeStrandsKey ? GetDerivedDataKeyForStrands(GroupIt) : StrandsDerivedDataKey[GroupIt];
+
+		// Compute group key
+		OutKey += StrandsKey;
+		OutKey += GetDerivedDataKeyForCards(GroupIt, StrandsKey);
+		OutKey += GetDerivedDataKeyForMeshes(GroupIt);
 	}
-	return Key;
+	return OutKey;
 }
 
 FString UGroomAsset::GetDerivedDataKeyForCards(uint32 GroupIndex, const FString& StrandsKey)

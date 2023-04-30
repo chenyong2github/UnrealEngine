@@ -690,7 +690,7 @@ public:
 	bool CacheCardsData(uint32 GroupIndex, const FString& StrandsKey);
 	bool CacheMeshesData(uint32 GroupIndex);
 
-	FString GetDerivedDataKey();
+	FString GetDerivedDataKey(bool bUseCacheKey=false);
 	FString GetDerivedDataKeyForCards(uint32 GroupIt, const FString& StrandsKey);
 	FString GetDerivedDataKeyForStrands(uint32 GroupIndex);
 	FString GetDerivedDataKeyForMeshes(uint32 GroupIndex);

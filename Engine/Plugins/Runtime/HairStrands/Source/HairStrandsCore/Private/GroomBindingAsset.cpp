@@ -765,7 +765,9 @@ static FString BuildDerivedDataKeySuffix(const UGroomBindingAsset& BindingAsset)
 		SourceKey = BindingAsset.SourceGeometryCache ? BindingAsset.SourceGeometryCache->GetHash() : FString();
 		TargetKey = BindingAsset.TargetGeometryCache ? BindingAsset.TargetGeometryCache->GetHash() : FString();
 	}
-	FString GroomKey  = BindingAsset.Groom ? BindingAsset.Groom->GetDerivedDataKey()  : FString();
+	// When possible, use the GroomAsset 'cached DDC key'. This allows to avoid a bug where the DDC key would change 
+	// when loading GroomAsset's hair description, which would modify the hair description hash ID with legacy content.
+	FString GroomKey  = BindingAsset.Groom ? BindingAsset.Groom->GetDerivedDataKey(true /*bUseCachedKey*/) : FString();
 	FString PointKey  = FString::FromInt(BindingAsset.NumInterpolationPoints);
 	FString SectionKey = FString::FromInt(BindingAsset.MatchingSection);
 
