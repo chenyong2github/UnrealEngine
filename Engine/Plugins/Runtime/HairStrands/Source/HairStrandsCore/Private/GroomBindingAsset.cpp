@@ -547,10 +547,7 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 
 		if (!InBinding->Groom)
 		{
-			if (bIssueWarning)
-			{
-				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) does not reference a groom. Falling back onto non-binding version."), *InBinding->GetName());
-			}
+			UE_CLOG(bIssueWarning, LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) does not reference a groom. Falling back onto non-binding version."), *InBinding->GetName());
 			return false;
 		}
 
@@ -566,55 +563,58 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 		const uint32 GroupCount = InGroom->GetNumHairGroups();
 		if (GroupCount != InBinding->GroupInfos.Num())
 		{
-			if (bIssueWarning)
-			{
-				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same number of groups (%d vs. %d) than the groom (%s). The binding asset will not be used."),
-					*InBinding->GetName(),
-					GroupCount,
-					InBinding->GroupInfos.Num(),
-					*InGroom->GetName());
-			}
+			UE_CLOG(bIssueWarning, LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same number of groups (%d vs. %d) than the groom (%s). The binding asset will not be used."),
+				*InBinding->GetName(),
+				GroupCount,
+				InBinding->GroupInfos.Num(),
+				*InGroom->GetName());
 			return false;
 		}
 
 		for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 		{
+			// Guides
 			{
 				const uint32 GroomCount = InGroom->HairGroupsPlatformData[GroupIt].Guides.BulkData.GetNumCurves();
 				const uint32 BindingCount = InBinding->GroupInfos[GroupIt].SimRootCount;
 
 				if (GroomCount != 0 && GroomCount != BindingCount)
 				{
-					if (bIssueWarning)
-					{
-						UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same guides in group %d (%d vs. %d) than the groom (%s). The binding asset will not be used."),
-							*InBinding->GetName(),
-							GroupIt,
-							GroomCount,
-							BindingCount,
-							*InGroom->GetName());
-					}
+					UE_CLOG(bIssueWarning, LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same guides in group %d (%d vs. %d) than the groom (%s). The binding asset will not be used."),
+						*InBinding->GetName(),
+						GroupIt,
+						GroomCount,
+						BindingCount,
+						*InGroom->GetName());
 					return false;
 				}
 			}
 
+			// Strands
 			if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
 			{
 				const uint32 GroomCount = InGroom->HairGroupsPlatformData[GroupIt].Strands.BulkData.GetNumCurves();
 				const uint32 BindingCount = InBinding->GroupInfos[GroupIt].RenRootCount;
 
-				// Groom may have stripped strands data so GroomCount would be 0
-				if (GroomCount != 0 && GroomCount != BindingCount)
+				bool bNeedStrands = false;
+				for (const FHairLODSettings& LODSettings : InGroom->HairGroupsLOD[GroupIt].LODs)
 				{
-					if (bIssueWarning)
+					if (LODSettings.GeometryType == EGroomGeometryType::Strands)
 					{
-						UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same curves in group %d (%d vs. %d) than the groom (%s). The binding asset will not be used."),
-							*InBinding->GetName(),
-							GroupIt,
-							GroomCount,
-							BindingCount,
-							*InGroom->GetName());
+						bNeedStrands = true;
+						break;
 					}
+				}
+
+				// Groom may have stripped strands data so GroomCount would be 0
+				if (bNeedStrands && GroomCount != 0 && GroomCount != BindingCount)
+				{
+					UE_CLOG(bIssueWarning, LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same curves in group %d (%d vs. %d) than the groom (%s). The binding asset will not be used."),
+						*InBinding->GetName(),
+						GroupIt,
+						GroomCount,
+						BindingCount,
+						*InGroom->GetName());
 					return false;
 				}
 			}

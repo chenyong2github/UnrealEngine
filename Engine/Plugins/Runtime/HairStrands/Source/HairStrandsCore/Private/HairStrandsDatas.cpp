@@ -317,7 +317,7 @@ bool FHairStreamingRequest::IsCompleted()
 #endif
 }
 // Request fullfil 2 use cases:
-// * Load DDC data and upload them to GPU
+// * Load IO/DDC data and upload them to GPU
 // * Load DDC data and store them into bulkdata for serialization
 void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex, FHairStrandsBulkCommon& In, bool bWait, bool bFillBulkdata, const FName& InOwnerName)
 {
