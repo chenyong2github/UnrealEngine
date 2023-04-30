@@ -613,11 +613,23 @@ OwnerName(InOwnerName)
 
 void FHairCommonResource::InitRHI()
 {
-	if (bIsInitialized || AllocationType == EHairStrandsAllocationType::Deferred || GUsingNullRHI) { return; }
+	// 1. If the resource is Updated (ReleaseRHI, IniRHI), reset its loaded data counter
+	if (!bIsInitialized)
+	{
+		InternalResetLoadedSize();
+	}
 
+	// 2. If the resouce creation is deferred, skip the initialization
+	if (bIsInitialized || AllocationType == EHairStrandsAllocationType::Deferred || GUsingNullRHI) 
+	{ 
+		return; 
+	}
+
+	// 3. Loaded the data
 	const int32 DummyLODIndex = -1;
 	check(InternalIsDataLoaded(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, DummyLODIndex));
 
+	// 4. Allocate the resource, and update the data
 	if (bUseRenderGraph)
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -1056,6 +1068,11 @@ void FHairStrandsRestResource::InternalRelease()
 	MaxAvailableCurveCount = 0;
 }
 
+void FHairStrandsRestResource::InternalResetLoadedSize()
+{
+	BulkData.ResetLoadedSize();
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsDeformedResource::FHairStrandsDeformedResource(FHairStrandsBulkData& InBulkData, EHairStrandsResourcesType InCurveType, const FHairResourceName& InResourceName, const FName& InOwnerName) :
@@ -1172,6 +1189,11 @@ void FHairStrandsClusterCullingResource::InternalRelease()
 	MaxAvailableCurveCount = 0;
 }
 
+void FHairStrandsClusterCullingResource::InternalResetLoadedSize()
+{
+	BulkData.ResetLoadedSize();
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsRestRootResource::FHairStrandsRestRootResource(FHairStrandsRootBulkData& InBulkData, EHairStrandsResourcesType InCurveType, const FHairResourceName& InResourceName, const FName& InOwnerName) :
@@ -1283,6 +1305,11 @@ void FHairStrandsRestRootResource::InternalRelease()
 		GPUData.AvailableCurveCount = 0;
 	}
 	LODs.Empty();
+}
+
+void FHairStrandsRestRootResource::InternalResetLoadedSize()
+{
+	BulkData.ResetLoadedSize();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1413,6 +1440,11 @@ void FHairStrandsInterpolationResource::InternalRelease()
 	InterpolationBuffer.Release();
 	SimRootPointIndexBuffer.Release();
 	MaxAvailableCurveCount = 0;
+}
+
+void FHairStrandsInterpolationResource::InternalResetLoadedSize()
+{
+	BulkData.ResetLoadedSize();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

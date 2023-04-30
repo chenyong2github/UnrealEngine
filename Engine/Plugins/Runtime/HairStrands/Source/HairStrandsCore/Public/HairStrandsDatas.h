@@ -444,6 +444,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 	virtual uint32 GetResourceCount() const = 0;
 	virtual void GetResources(FQuery& Out) = 0;
 	virtual void GetResourceVersion(FArchive& Ar) const {}
+	virtual void ResetLoadedSize() = 0;
 
 #if WITH_EDITORONLY_DATA
 	// Transient Name/DDCkey for streaming
@@ -584,6 +585,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 
 	bool IsValid() const { return Header.CurveCount > 0 && Header.PointCount > 0; }
 	void Reset();
+	virtual void ResetLoadedSize() override;
 
 	uint32 GetNumCurves() const { return Header.CurveCount;  };
 	uint32 GetNumPoints() const { return Header.PointCount; };
@@ -680,6 +682,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkC
 	};
 
 	void Reset();
+	virtual void ResetLoadedSize() override;
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
 
 	virtual uint32 GetResourceCount() const override;
@@ -735,6 +738,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulkCommon
 {
 	void Reset();
+	virtual void ResetLoadedSize() override;
 
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
 	virtual uint32 GetResourceCount() const override;
@@ -829,6 +833,7 @@ struct FHairStrandsRootBulkData : FHairStrandsBulkCommon
 	virtual void GetResources(FQuery& Out) override;
 
 	void Reset();
+	virtual void ResetLoadedSize() override;
 	bool IsValid() const { return Header.RootCount > 0; }
 	const TArray<uint32>& GetValidSectionIndices(int32 LODIndex) const;
 	uint32 GetLODCount() const { return Header.LODs.Num(); }

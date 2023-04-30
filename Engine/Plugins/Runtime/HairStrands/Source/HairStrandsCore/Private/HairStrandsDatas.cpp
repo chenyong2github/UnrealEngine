@@ -531,6 +531,14 @@ void FHairStrandsBulkData::Reset()
 	Data.Curves			= FHairBulkContainer();
 }
 
+void FHairStrandsBulkData::ResetLoadedSize()
+{
+	Data.Positions.LoadedSize		= 0;
+	Data.CurveAttributes.LoadedSize	= 0;
+	Data.PointAttributes.LoadedSize	= 0;
+	Data.PointToCurve.LoadedSize	= 0;
+	Data.Curves.LoadedSize			= 0;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // Interpolation bulk data
@@ -583,6 +591,12 @@ void FHairStrandsInterpolationBulkData::GetResources(FHairStrandsBulkCommon::FQu
 	}
 }
 
+void FHairStrandsInterpolationBulkData::ResetLoadedSize()
+{
+	Data.Interpolation.LoadedSize		= 0;
+	Data.SimRootPointIndex.LoadedSize	= 0;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 // Cluster culling bulk data
 
@@ -608,6 +622,14 @@ void FHairStrandsClusterCullingBulkData::Reset()
 	Data.CurveToClusterIds = FHairBulkContainer();
 	Data.ClusterVertexIds 	= FHairBulkContainer();
 	Data.PackedClusterInfos = FHairBulkContainer();
+}
+
+void FHairStrandsClusterCullingBulkData::ResetLoadedSize()
+{
+	Data.ClusterLODInfos.LoadedSize 	= 0;
+	Data.CurveToClusterIds.LoadedSize 	= 0;
+	Data.ClusterVertexIds.LoadedSize 	= 0;
+	Data.PackedClusterInfos.LoadedSize	= 0;
 }
 
 void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
@@ -842,4 +864,21 @@ void FHairStrandsRootBulkData::Reset()
 		LOD.RestSamplePositionsBuffer 		 = FHairBulkContainer();
 	}
 	Data.LODs.Empty();
+}
+
+void FHairStrandsRootBulkData::ResetLoadedSize()
+{
+	for (FData::FLOD& LOD : Data.LODs)
+	{
+		// Binding
+		LOD.RootBarycentricBuffer.LoadedSize 			= 0;
+		LOD.RootToUniqueTriangleIndexBuffer.LoadedSize 	= 0;
+		LOD.UniqueTriangleIndexBuffer.LoadedSize 		= 0;
+		LOD.RestUniqueTrianglePositionBuffer.LoadedSize = 0;
+		      
+		// RBF
+		LOD.MeshInterpolationWeightsBuffer.LoadedSize	= 0;
+		LOD.MeshSampleIndicesBuffer.LoadedSize 			= 0;
+		LOD.RestSamplePositionsBuffer.LoadedSize 		= 0;
+	}
 }
