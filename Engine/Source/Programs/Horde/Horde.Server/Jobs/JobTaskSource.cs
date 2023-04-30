@@ -832,6 +832,7 @@ namespace Horde.Server.Jobs
 
 			// Create a bearer token for the job executor
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();
+			claims.Add(HordeClaims.AgentRoleClaim);
 			claims.Add(new AclClaimConfig(HordeClaimTypes.Lease, leaseId.ToString()));
 
 			string storagePrefix = $"{job.StreamId}/{job.Change}-{job.Id}";

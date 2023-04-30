@@ -231,6 +231,9 @@ namespace Horde.Agent.Execution
 			_token = options.Token;
 			_jobOptions = options.JobOptions;
 
+			_envVars["UE_HORDE_URL"] = options.Session.ServerUrl.ToString();
+			_envVars["UE_HORDE_TOKEN"] = options.Token;
+
 			_logger = logger;
 		}
 
