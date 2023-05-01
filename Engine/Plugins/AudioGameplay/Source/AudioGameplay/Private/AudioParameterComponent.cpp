@@ -129,6 +129,14 @@ void UAudioParameterComponent::SetParameterInternal(FAudioParameter&& InParam)
 	// Optional logging
 	LogParameter(InParam);
 
+	// Optional broadcast (for editor-usage only)
+#if WITH_EDITORONLY_DATA
+	if (OnParameterChanged.IsBound())
+	{
+		OnParameterChanged.Broadcast(InParam);
+	}
+#endif // WITH_EDITORONLY_DATA
+
 	// Forward to any AudioComponents currently playing on this actor (if any)
 	TArray<UAudioComponent*> Components;
 	GetAllAudioComponents(Components);

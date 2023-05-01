@@ -11,6 +11,8 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioParameterComponent, Log, All);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnParameterChanged, const FAudioParameter&, Parameter);
+
 // Forward Declarations
 class UAudioComponent;
 
@@ -51,6 +53,11 @@ public:
 	virtual void SetParameter(FAudioParameter&& InValue) override;
 	virtual void SetParameters(TArray<FAudioParameter>&& InValues) override;
 	/** End IAudioParameterControllerInterface */
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(BlueprintAssignable)
+	FOnParameterChanged OnParameterChanged;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 
