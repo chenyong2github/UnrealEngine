@@ -69,7 +69,7 @@ void UMoviePipelineImagePassBase::TeardownImpl()
 {
 	for (TPair<FIntPoint, TWeakObjectPtr<UTextureRenderTarget2D>>& TileRenderTargetIt : TileRenderTargets)
 	{
-		if (!TileRenderTargetIt.Value.IsValid())
+		if (TileRenderTargetIt.Value.IsValid())
 		{
 			TileRenderTargetIt.Value->RemoveFromRoot();
 		}
