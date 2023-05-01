@@ -527,8 +527,15 @@ bool FBuilderModule::Build(
 		uint32 Time1 = FPlatformTime::Cycles();
 		UE_LOG( LogStaticMesh, Log, TEXT("Adaptive tessellate [%.2fs], tris: %i"), FPlatformTime::ToMilliseconds( Time1 - Time0 ) / 1000.0f, InputMeshData.TriangleCounts[0] );
 	}
+	
+	const uint32 NumInputTriangles = InputMeshData.TriangleIndices.Num() / 3;
+	if (NumInputTriangles == 0)
+	{
+		UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite mesh. Input has 0 triangles."));
+		return false;
+	}
 
-	Resources.NumInputTriangles	= InputMeshData.TriangleIndices.Num() / 3;
+	Resources.NumInputTriangles	= NumInputTriangles;
 	Resources.NumInputVertices	= InputMeshData.Vertices.Position.Num();
 	Resources.NumInputMeshes	= (uint16)InputMeshData.TriangleCounts.Num();
 	Resources.NumInputTexCoords = (uint16)InputMeshData.NumTexCoords;
