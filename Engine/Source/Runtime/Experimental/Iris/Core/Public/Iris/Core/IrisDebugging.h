@@ -110,6 +110,9 @@ extern "C" IRISCORE_API void SetIrisDebugNetRefHandle(uint32 NetHandleId);
 /** Set the InternalIndex to break on */
 extern "C" IRISCORE_API void SetIrisDebugInternalIndex(UE::Net::Private::FInternalNetRefIndex InternalIndex);
 
+/** Set the InternalIndex to break on via it's NetHandle */
+extern "C" IRISCORE_API void SetIrisDebugInternalIndexViaNetHandle(FNetRefHandle RefHandle);
+
 /** Set the RPC Name to break on */
 extern "C" IRISCORE_API void SetIrisDebugRPCName(const ANSICHAR* NameBuffer);
 

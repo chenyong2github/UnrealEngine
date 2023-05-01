@@ -175,6 +175,36 @@ void SetIrisDebugInternalIndex(UE::Net::Private::FInternalNetRefIndex InternalIn
 	IrisDebugHelperInternal::GIrisDebugInternalIndex = InternalIndex;
 }
 
+void SetIrisDebugInternalIndexViaNetHandle(FNetRefHandle RefHandle)
+{
+	using namespace UE::Net::Private;
+
+	if (!RefHandle.IsValid())
+	{
+		IrisDebugHelperInternal::GIrisDebugNetRefHandle = RefHandle;
+		IrisDebugHelperInternal::GIrisDebugInternalIndex = FNetRefHandleManager::InvalidInternalIndex;
+		return;
+	}
+
+	UReplicationSystem* ReplicationSystem = GetReplicationSystem(RefHandle.GetReplicationSystemId());
+	if (!ReplicationSystem)
+	{
+		return;
+	}
+
+	FReplicationSystemInternal* ReplicationSystemInternal = ReplicationSystem->GetReplicationSystemInternal();
+	const FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
+
+	const FInternalNetRefIndex InternalNetRefIndex = NetRefHandleManager.GetInternalIndex(RefHandle);
+	if (!InternalNetRefIndex)
+	{
+		return;
+	}
+
+	IrisDebugHelperInternal::GIrisDebugNetRefHandle = RefHandle;
+	IrisDebugHelperInternal::GIrisDebugInternalIndex = InternalNetRefIndex;
+}
+
 
 UReplicationSystem* GetReplicationSystemForDebug(uint32 Id)
 {
