@@ -31,7 +31,6 @@ FScreenPassTexture AddSelectionOutlinePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FSelectionOutlineInputs& Inputs,
-	const Nanite::FRasterResults* NaniteRasterResults,
-	bool bNaniteProgrammableRaster);
+	const Nanite::FRasterResults* NaniteRasterResults);
 
 #endif

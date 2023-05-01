@@ -27,8 +27,7 @@ void DrawEditorSelection(
 	FScene& Scene,
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
-	const FRasterResults* NaniteRasterResults,
-	bool bProgrammableRaster
+	const FRasterResults* NaniteRasterResults
 );
 
 void DrawEditorVisualizeLevelInstance(
@@ -37,8 +36,7 @@ void DrawEditorVisualizeLevelInstance(
 	FScene& Scene,
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
-	const FRasterResults* NaniteRasterResults,
-	bool bProgrammableRaster
+	const FRasterResults* NaniteRasterResults
 );
 
 #endif

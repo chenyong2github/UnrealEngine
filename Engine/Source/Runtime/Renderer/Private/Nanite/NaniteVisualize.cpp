@@ -160,6 +160,7 @@ class FNaniteVisualizeCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER(uint32, RegularMaterialRasterBinCount)
+		SHADER_PARAMETER(uint32, FixedFunctionBin)
 		SHADER_PARAMETER(FIntPoint, PickingPixelPos)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
@@ -206,6 +207,7 @@ class FNanitePickingCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER(uint32, RegularMaterialRasterBinCount)
+		SHADER_PARAMETER(uint32, FixedFunctionBin)
 		SHADER_PARAMETER(FIntPoint, PickingPixelPos)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
@@ -339,6 +341,7 @@ static FRDGBufferRef PerformPicking(
 		PassParameters->MaxVisibleClusters = Data.MaxVisibleClusters;
 		PassParameters->RenderFlags = Data.RenderFlags;
 		PassParameters->RegularMaterialRasterBinCount = RasterPipelines.GetRegularBinCount();
+		PassParameters->FixedFunctionBin = Data.FixedFunctionBin;
 		PassParameters->PickingPixelPos = FIntPoint((int32)VisualizationData.GetPickingMousePos().X, (int32)VisualizationData.GetPickingMousePos().Y);
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(Data.VisibleClustersSWHW);
 		PassParameters->VisBuffer64 = Data.VisBuffer64;
@@ -369,7 +372,7 @@ static FRDGBufferRef PerformPicking(
 	return PickingFeedback;
 }
 
-void DisplayPicking(const FScene* Scene, const FNanitePickingFeedback& PickingFeedback, FScreenMessageWriter& Writer)
+void DisplayPicking(const FScene* Scene, const FNanitePickingFeedback& PickingFeedback, uint32 RenderFlags, FScreenMessageWriter& Writer)
 {
 	const FNaniteVisualizationData& VisualizationData = GetNaniteVisualizationData();
 	if (VisualizationData.GetActiveModeID() != NANITE_VISUALIZE_PICKING)
@@ -485,7 +488,9 @@ void DisplayPicking(const FScene* Scene, const FNanitePickingFeedback& PickingFe
 		Writer.EmptyLine();
 
 		FMaterialRenderProxy* FixedFunctionProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-		if (PickedMaterialSection.RasterMaterialProxy && PickedMaterialSection.RasterMaterialProxy != FixedFunctionProxy)
+
+		const bool bDisableProgrammable = (RenderFlags & NANITE_RENDER_FLAG_DISABLE_PROGRAMMABLE) != 0;
+		if (!bDisableProgrammable && PickedMaterialSection.RasterMaterialProxy && PickedMaterialSection.RasterMaterialProxy != FixedFunctionProxy)
 		{
 			Writer.DrawLine(FText::FromString(FString::Printf(TEXT("Raster Material [%s]"), *PickedMaterialSection.RasterMaterialProxy->GetMaterialName())), 10, FColor::Yellow);
 			const FMaterial& PickedRasterMaterial = PickedMaterialSection.RasterMaterialProxy->GetIncompleteMaterialWithFallback(Scene->GetFeatureLevel());
@@ -726,6 +731,7 @@ void AddVisualizationPasses(
 				PassParameters->MaxVisibleClusters = Data.MaxVisibleClusters;
 				PassParameters->RenderFlags = Data.RenderFlags;
 				PassParameters->RegularMaterialRasterBinCount = RasterPipelines.GetRegularBinCount();
+				PassParameters->FixedFunctionBin = Data.FixedFunctionBin;
 				PassParameters->PickingPixelPos = FIntPoint((int32)VisualizationData.GetPickingMousePos().X, (int32)VisualizationData.GetPickingMousePos().Y);
 				PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 				PassParameters->VisBuffer64 = VisBuffer64;

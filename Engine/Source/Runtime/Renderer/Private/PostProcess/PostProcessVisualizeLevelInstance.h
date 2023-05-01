@@ -31,8 +31,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FVisualizeLevelInstanceInputs& Inputs,
-	const Nanite::FRasterResults* NaniteRasterResults,
-	bool bNaniteProgrammableRaster
+	const Nanite::FRasterResults* NaniteRasterResults
 );
 
 #endif

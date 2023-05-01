@@ -35,6 +35,7 @@ int4					VisualizeConfig;
 int4					VisualizeScales;
 uint					RegularMaterialRasterBinCount;
 int2					PickingPixelPos;
+uint					FixedFunctionBin;
 
 RWStructuredBuffer<FNanitePickingFeedback> FeedbackBuffer;
 
@@ -251,7 +252,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		else if (VisualizeMode == NANITE_VISUALIZE_RASTER_BINS)
 		{
 			const bool bSecondaryRasterBin = !bWPOEnabled;
-			const uint RasterBin = GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, bSecondaryRasterBin, MaterialSlotTable);
+			const uint RasterBin = GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, RenderFlags, FixedFunctionBin, bSecondaryRasterBin, MaterialSlotTable);
 			Result = IntToColor(RasterBin);
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_SHADING_BINS)
@@ -534,7 +535,7 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		FeedbackResults.TriangleIndex		= TriIndex;
 		FeedbackResults.DepthInt			= DepthInt;
 		FeedbackResults.RasterMode			= DebugValueMax;
-		FeedbackResults.RasterBin			= GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, bSecondaryRasterBin, MaterialSlotTable);
+		FeedbackResults.RasterBin			= GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, RenderFlags, FixedFunctionBin, bSecondaryRasterBin, MaterialSlotTable);
 		FeedbackResults.ShadingBin			= GetMaterialShadingBin(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 		FeedbackResults.LegacyShadingId		= GetMaterialLegacyShadingId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 		FeedbackResults.MaterialDepthId		= GetMaterialDepthId(FeedbackResults.LegacyShadingId, MaterialDepthTable);

@@ -95,7 +95,7 @@ uint FSplitTask::Run()
 
 #if ACCURATE_DISPLACEMENT_BOUNDS
 	const bool bSecondaryBin = !bWPOEnabled; // use secondary bin where applicable when WPO disabled
-	const uint RasterBin = GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, Patch.TriIndex, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
+	const uint RasterBin = GetMaterialRasterBin(Cluster, InstanceData.PrimitiveId, Patch.TriIndex, RegularMaterialRasterBinCount, RenderFlags, FixedFunctionBin, bSecondaryBin, MaterialSlotTable);
 #endif
 
 	uint3 VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
@@ -220,7 +220,7 @@ uint FSplitTask::Run()
 			RWVisiblePatches.Store4( WriteOffset * 16, Encoded );
 
 		#if 0
-			uint RasterBin = GetMaterialRasterBin( Cluster, InstanceData.PrimitiveId, Patch.TriIndex, RegularMaterialRasterBinCount, false, MaterialSlotTable );
+			uint RasterBin = GetMaterialRasterBin( Cluster, InstanceData.PrimitiveId, Patch.TriIndex, RegularMaterialRasterBinCount, RenderFlags, FixedFunctionBin, /* secondary bin */ false, MaterialSlotTable );
 
 			// Scalarize atomics
 			while( true )

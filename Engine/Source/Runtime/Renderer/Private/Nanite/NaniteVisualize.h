@@ -24,6 +24,7 @@ void AddVisualizationPasses(
 void DisplayPicking(
 	const FScene* Scene,
 	const FNanitePickingFeedback& PickingFeedback,
+	uint32 RenderFlags,
 	FScreenMessageWriter& ScreenMessageWriter
 );
 

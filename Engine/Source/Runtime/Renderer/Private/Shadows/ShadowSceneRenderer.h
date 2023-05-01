@@ -57,7 +57,7 @@ public:
 
 	/**
 	 */
-	void RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster);
+	void RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled, bool bUpdateNaniteStreaming);
 
 	/* Does any one pass shadow projection and generates screen space shadow mask bits
 	 * Call before beginning light loop/shadow projection, but after shadow map rendering

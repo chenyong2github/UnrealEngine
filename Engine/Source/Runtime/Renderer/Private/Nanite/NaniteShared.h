@@ -187,6 +187,7 @@ struct FVisualizeResult
 struct FBinningData
 {
 	uint32 BinCount = 0;
+	uint32 FixedFunctionBin = 0;
 
 	FRDGBufferRef DataBuffer = nullptr;
 	FRDGBufferRef MetaBuffer = nullptr;
@@ -392,13 +393,13 @@ public:
 	}
 
 
-	static bool ShouldCompilePixelPermutation(const FMaterialShaderPermutationParameters& Parameters, bool bProgrammableRaster)
+	static bool ShouldCompilePixelPermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
 		// Always compile default material as the fast opaque "fixed function" raster path
 		bool bValidMaterial = Parameters.MaterialParameters.bIsDefaultMaterial;
 
-		// Compile this pixel shader if it requires programmable raster and it's enabled
-		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && FNaniteMaterialShader::IsPixelProgrammable(Parameters.MaterialParameters))
+		// Compile this pixel shader if it requires programmable raster
+		if (Parameters.MaterialParameters.bIsUsedWithNanite && FNaniteMaterialShader::IsPixelProgrammable(Parameters.MaterialParameters))
 		{
 			bValidMaterial = true;
 		}
@@ -409,13 +410,13 @@ public:
 			bValidMaterial;
 	}
 	
-	static bool ShouldCompileVertexPermutation(const FMaterialShaderPermutationParameters& Parameters, bool bProgrammableRaster)
+	static bool ShouldCompileVertexPermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
 		// Always compile default material as the fast opaque "fixed function" raster path
 		bool bValidMaterial = Parameters.MaterialParameters.bIsDefaultMaterial;
 
-		// Compile this vertex shader if it requires programmable raster and it's enabled
-		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && FNaniteMaterialShader::IsVertexProgrammable(Parameters.MaterialParameters))
+		// Compile this vertex shader if it requires programmable raster
+		if (Parameters.MaterialParameters.bIsUsedWithNanite && FNaniteMaterialShader::IsVertexProgrammable(Parameters.MaterialParameters))
 		{
 			bValidMaterial = true;
 		}
@@ -426,13 +427,13 @@ public:
 			bValidMaterial;
 	}
 	
-	static bool ShouldCompileComputePermutation(const FMaterialShaderPermutationParameters& Parameters, bool bProgrammableRaster)
+	static bool ShouldCompileComputePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
 		// Always compile default material as the fast opaque "fixed function" raster path
 		bool bValidMaterial = Parameters.MaterialParameters.bIsDefaultMaterial;
 
-		// Compile this compute shader if it requires programmable raster and it's enabled
-		if (bProgrammableRaster && Parameters.MaterialParameters.bIsUsedWithNanite && (IsVertexProgrammable(Parameters.MaterialParameters) || IsPixelProgrammable(Parameters.MaterialParameters)))
+		// Compile this compute shader if it requires programmable raster
+		if (Parameters.MaterialParameters.bIsUsedWithNanite && (IsVertexProgrammable(Parameters.MaterialParameters) || IsPixelProgrammable(Parameters.MaterialParameters)))
 		{
 			bValidMaterial = true;
 		}

@@ -55,7 +55,6 @@ void AddPostProcessingPasses(
 	const FViewInfo& View, int32 ViewIndex,
 	bool bAnyLumenActive,
 	bool bLumenGIEnabled,
-	bool bNaniteProgrammableRaster,
 	EReflectionsMethod ReflectionsMethod,
 	const FPostProcessingInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults,
@@ -65,7 +64,7 @@ void AddPostProcessingPasses(
 	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
 	FScreenPassTexture TSRMoireInput);
 
-void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults, bool bNaniteProgrammableRaster);
+void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults);
 
 void AddVisualizeCalibrationMaterialPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const UMaterialInterface* InMaterialInterface);
 

@@ -373,15 +373,6 @@ static TAutoConsoleVariable<float> CVarNaniteViewMeshLODBiasMin(
 	TEXT("Minimum LOD offset for rasterizing Nanite meshes for the main viewport (Default = -2)."),
 	ECVF_RenderThreadSafe);
 
-static int32 GNaniteProgrammableRasterPrimary = 1;
-static FAutoConsoleVariableRef CNaniteProgrammableRasterPrimary(
-	TEXT("r.Nanite.ProgrammableRaster.Primary"),
-	GNaniteProgrammableRasterPrimary,
-	TEXT("A toggle that allows Nanite programmable raster in the primary pass.\n")
-	TEXT(" 0: Programmable raster is disabled\n")
-	TEXT(" 1: Programmable raster is enabled (default)"),
-	ECVF_RenderThreadSafe);
-
 namespace Lumen
 {
 	extern bool AnyLumenHardwareRayTracingPassEnabled();
@@ -3137,7 +3128,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				CullingConfig.bTwoPassOcclusion = true;
 				CullingConfig.bUpdateStreaming = true;
 				CullingConfig.bPrimaryContext = true;
-				CullingConfig.bProgrammableRaster = GNaniteProgrammableRasterPrimary != 0;
 
 				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
 				CullingConfig.bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
@@ -3404,7 +3394,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (CustomDepthPassLocation == ECustomDepthPassLocation::BeforeBasePass)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass_BeforeBasePass);
-		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel), NaniteRasterResults, PrimaryNaniteViews, GNaniteProgrammableRasterPrimary != 0))
+		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel), NaniteRasterResults, PrimaryNaniteViews))
 		{
 			SceneTextures.SetupMode |= ESceneTextureSetupMode::CustomDepth;
 			SceneTextures.UniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, FeatureLevel, SceneTextures.SetupMode);
@@ -3547,9 +3537,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					PickingFeedback
 				);
 
-				OnGetOnScreenMessages.AddLambda([this, PickingFeedback, ScenePtr = Scene](FScreenMessageWriter& ScreenMessageWriter)->void
+				OnGetOnScreenMessages.AddLambda([this, PickingFeedback, RenderFlags = NaniteRasterResults[0].RenderFlags, ScenePtr = Scene](FScreenMessageWriter& ScreenMessageWriter)->void
 				{
-					Nanite::DisplayPicking(ScenePtr, PickingFeedback, ScreenMessageWriter);
+					Nanite::DisplayPicking(ScenePtr, PickingFeedback, RenderFlags, ScreenMessageWriter);
 				});
 			}
 		}
@@ -3744,7 +3734,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (CustomDepthPassLocation == ECustomDepthPassLocation::AfterBasePass)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass_AfterBasePass);
-		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel), NaniteRasterResults, PrimaryNaniteViews, GNaniteProgrammableRasterPrimary != 0))
+		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel), NaniteRasterResults, PrimaryNaniteViews))
 		{
 			SceneTextures.SetupMode |= ESceneTextureSetupMode::CustomDepth;
 			SceneTextures.UniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, FeatureLevel, SceneTextures.SetupMode);
@@ -4311,7 +4301,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 				PostProcessingInputs.TranslucencyViewResourcesMap = FTranslucencyViewResourcesMap(TranslucencyResourceMap, ViewIndex);
-				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults, GNaniteProgrammableRasterPrimary != 0);
+				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
 			}
 		}
 		else
@@ -4359,7 +4349,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						View, ViewIndex,
 						bAnyLumenActive,
 						bLumenGIEnabled,
-						GNaniteProgrammableRasterPrimary != 0,
 						ViewPipelineState.ReflectionsMethod,
 						PostProcessingInputs,
 						NaniteResults,

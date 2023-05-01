@@ -136,7 +136,6 @@ static void GetEditorSelectionVisBuffer(
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
 	const FRasterResults& NaniteRasterResults,
-	bool bProgrammableRaster,
 	const FInstanceDrawList& DrawList,
 	FNaniteSelectionOutlineParameters& OutParameters
 )
@@ -165,7 +164,6 @@ static void GetEditorSelectionVisBuffer(
 	{
 		Nanite::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = true;
-		CullingConfig.bProgrammableRaster = bProgrammableRaster;
 
 		Nanite::FPackedViewParams NaniteViewParams;
 		NaniteViewParams.ViewMatrices = EditorView.ViewMatrices;
@@ -215,7 +213,6 @@ static void AddEditorSelectionDepthPass(
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
 	const FRasterResults& NaniteRasterResults,
-	bool bProgrammableRaster,
 	const FInstanceDrawList& DrawList,
 	int32 StencilRefValue
 )
@@ -232,7 +229,6 @@ static void AddEditorSelectionDepthPass(
 		SceneView,
 		EditorView,
 		NaniteRasterResults,
-		bProgrammableRaster,
 		DrawList,
 		*PassParameters);
 
@@ -270,8 +266,7 @@ void DrawEditorSelection(
 	FScene& Scene,
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
-	const FRasterResults* NaniteRasterResults,
-	bool bProgrammableRaster
+	const FRasterResults* NaniteRasterResults
 )
 {
 	if (NaniteRasterResults == nullptr || SceneView.EditorSelectedInstancesNanite.Num() == 0)
@@ -287,7 +282,6 @@ void DrawEditorSelection(
 		SceneView,
 		EditorView,
 		*NaniteRasterResults,
-		bProgrammableRaster,
 		SceneView.EditorSelectedInstancesNanite,
 		3
 	);
@@ -299,8 +293,7 @@ void DrawEditorVisualizeLevelInstance(
 	FScene& Scene,
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
-	const FRasterResults* NaniteRasterResults,
-	bool bProgrammableRaster
+	const FRasterResults* NaniteRasterResults
 )
 {
 	if (NaniteRasterResults == nullptr || SceneView.EditorVisualizeLevelInstancesNanite.Num() == 0)
@@ -316,7 +309,6 @@ void DrawEditorVisualizeLevelInstance(
 		SceneView,
 		EditorView,
 		*NaniteRasterResults,
-		bProgrammableRaster,
 		SceneView.EditorVisualizeLevelInstancesNanite,
 		2
 	);

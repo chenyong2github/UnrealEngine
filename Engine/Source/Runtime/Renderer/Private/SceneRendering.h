@@ -2501,8 +2501,7 @@ protected:
 		FCustomDepthTextures& CustomDepthTextures,
 		const FSceneTextureShaderParameters& SceneTextures,
 		TConstArrayView<Nanite::FRasterResults> PrimaryNaniteRasterResults,
-		TConstArrayView<Nanite::FPackedView> PrimaryNaniteViews,
-		bool bNaniteProgrammableRaster);
+		TConstArrayView<Nanite::FPackedView> PrimaryNaniteViews);
 
 	void OnStartRender(FRHICommandListImmediate& RHICmdList);
 

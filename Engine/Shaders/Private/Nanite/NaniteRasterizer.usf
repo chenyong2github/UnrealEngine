@@ -167,31 +167,10 @@ FTriRange GetIndexAndTriRangeSW( inout uint VisibleIndex )
 {
 	FTriRange Range = { 0, 0 };
 
-	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
-	BRANCH
-	if (bHasRasterBin)
-	{
-		uint4 RasterBin = FetchSWRasterBin(VisibleIndex);
-		VisibleIndex = RasterBin.x;
-		Range.Start = RasterBin.y;
-		Range.Num = RasterBin.z - RasterBin.y;
-	}
-	else
-	{
-		const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
-		BRANCH
-		if (bHasPrevDrawData)
-		{
-			VisibleIndex += InTotalPrevDrawClusters[0].x;
-		}
-
-		const bool bAddClusterOffset = (RenderFlags & NANITE_RENDER_FLAG_ADD_CLUSTER_OFFSET) != 0u;
-		BRANCH
-		if (bAddClusterOffset)
-		{
-			VisibleIndex += InClusterOffsetSWHW[0];
-		}
-	}
+	uint4 RasterBin = FetchSWRasterBin(VisibleIndex);
+	VisibleIndex = RasterBin.x;
+	Range.Start = RasterBin.y;
+	Range.Num = RasterBin.z - RasterBin.y;
 
 	return Range;
 }
@@ -200,33 +179,10 @@ FTriRange GetIndexAndTriRangeHW( inout uint VisibleIndex )
 {
 	FTriRange Range = { 0, 0 };
 
-	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
-	BRANCH
-	if (bHasRasterBin)
-	{
-		uint4 RasterBin = FetchHWRasterBin(VisibleIndex);
-		VisibleIndex = RasterBin.x;
-		Range.Start = RasterBin.y;
-		Range.Num = RasterBin.z - RasterBin.y;
-	}
-	else
-	{
-		const bool bHasPrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA) != 0u;
-		BRANCH
-		if (bHasPrevDrawData)
-		{
-			VisibleIndex += InTotalPrevDrawClusters[0].y;
-		}
-
-		const bool bAddClusterOffset = (RenderFlags & NANITE_RENDER_FLAG_ADD_CLUSTER_OFFSET) != 0u;
-		BRANCH
-		if (bAddClusterOffset)
-		{
-			VisibleIndex += InClusterOffsetSWHW[GetHWClusterCounterIndex(RenderFlags)];
-		}
-
-		VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex; // HW clusters are written from the top (in the visible cluster list)
-	}
+	uint4 RasterBin = FetchHWRasterBin(VisibleIndex);
+	VisibleIndex = RasterBin.x;
+	Range.Start = RasterBin.y;
+	Range.Num = RasterBin.z - RasterBin.y;
 
 	return Range;
 }
@@ -723,14 +679,8 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	
 	bool bPatchPending = VisibleIndex < NumVisiblePatches;
 	
-	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
-	BRANCH
-	if (bHasRasterBin)
-	{
-		uint4 RasterBin = FetchSWRasterBin(VisibleIndex);
-		VisibleIndex = RasterBin.x;
-	}
-
+	uint4 RasterBin = FetchSWRasterBin(VisibleIndex);
+	VisibleIndex = RasterBin.x;
 
 	uint4 PatchEncoded = 0;
 	if( bPatchPending )

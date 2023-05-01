@@ -659,10 +659,8 @@ void NodeAndClusterCull(uint GroupID : SV_GroupID, uint GroupIndex : SV_GroupInd
 // Make sure the indirect args we give to the rasterizer are not out of bounds and that the SW/HW ranges are not overlapping.
 Buffer<uint>				InRasterizerArgsSWHW;
 RWBuffer<uint>				OutSafeRasterizerArgsSWHW;
-#if PROGRAMMABLE_RASTER
 RWStructuredBuffer<uint2>	OutClusterCountSWHW;
 RWBuffer<uint>				OutClusterClassifyArgs;
-#endif
 
 [numthreads(1, 1, 1)]
 void CalculateSafeRasterizerArgs()
@@ -706,15 +704,11 @@ void CalculateSafeRasterizerArgs()
 	}
 
 	const uint ArgsOffset = 0u;
-#if PROGRAMMABLE_RASTER
 	WriteDispatchArgsSWHW(OutSafeRasterizerArgsSWHW, ArgsOffset, NumClustersSW, NumClustersHW);
 	OutClusterCountSWHW[0] = uint2(NumClustersSW, NumClustersHW);
 	OutClusterClassifyArgs[0] = ((NumClustersSW + NumClustersHW) + 63u) / 64u;
 	OutClusterClassifyArgs[1] = 1;
 	OutClusterClassifyArgs[2] = 1;
-#else
-	WriteRasterizerArgsSWHW(OutSafeRasterizerArgsSWHW, ArgsOffset, NumClustersSW, NumClustersHW);
-#endif
 }
 
 RWByteAddressBuffer		OutMainAndPostNodesAndClusterBatches;

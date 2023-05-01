@@ -247,15 +247,6 @@ static TAutoConsoleVariable<int32> CVarLumenScenePropagateGlobalLightingChange(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-static int32 GNaniteProgrammableRasterLumen = 0; // TODO: Not working properly in all cases yet
-static FAutoConsoleVariableRef CNaniteProgrammableRasterLumen(
-	TEXT("r.Nanite.ProgrammableRaster.Lumen"),
-	GNaniteProgrammableRasterLumen,
-	TEXT("A toggle that allows Nanite programmable raster in Lumen passes.\n")
-	TEXT(" 0: Programmable raster is disabled\n")
-	TEXT(" 1: Programmable raster is enabled (default)"),
-	ECVF_RenderThreadSafe);
-
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenSummaryLLM, STATGROUP_LLM);
@@ -2087,7 +2078,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				CullingConfig.bSupportsMultiplePasses	= true;
 				CullingConfig.SetViewFlags(*SharedView);
 				CullingConfig.bIsLumenCapture = true;
-				CullingConfig.bProgrammableRaster = GNaniteProgrammableRasterLumen != 0;
+				CullingConfig.bDisableProgrammable = true;
 
 				auto NaniteRenderer = Nanite::IRenderer::Create(
 					GraphBuilder,

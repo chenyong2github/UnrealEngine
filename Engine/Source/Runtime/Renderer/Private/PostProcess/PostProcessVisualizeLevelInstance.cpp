@@ -48,8 +48,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FVisualizeLevelInstanceInputs& Inputs,
-	const Nanite::FRasterResults* NaniteRasterResults,
-	bool bNaniteProgrammableRaster
+	const Nanite::FRasterResults* NaniteRasterResults
 )
 {
 	check(Inputs.SceneColor.IsValid());
@@ -114,7 +113,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(
 
 		if (bNaniteEnabled)
 		{
-			Nanite::DrawEditorVisualizeLevelInstance(GraphBuilder, DepthStencilTexture, *Scene, View, *EditorView, NaniteRasterResults, bNaniteProgrammableRaster);
+			Nanite::DrawEditorVisualizeLevelInstance(GraphBuilder, DepthStencilTexture, *Scene, View, *EditorView, NaniteRasterResults);
 		}
 	}
 

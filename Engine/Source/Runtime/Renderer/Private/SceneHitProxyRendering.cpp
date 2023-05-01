@@ -35,15 +35,6 @@
 #include "HairStrands/HairStrandsData.h"
 #include "SimpleMeshDrawCommandPass.h"
 
-static int32 GNaniteProgrammableRasterHitProxy = 1;
-static FAutoConsoleVariableRef CNaniteProgrammableRasterHitProxy(
-	TEXT("r.Nanite.ProgrammableRaster.HitProxy"),
-	GNaniteProgrammableRasterHitProxy,
-	TEXT("A toggle that allows Nanite programmable raster in hit proxy passes.\n")
-	TEXT(" 0: Programmable raster is disabled\n")
-	TEXT(" 1: Programmable raster is enabled (default)"),
-	ECVF_RenderThreadSafe);
-
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
 {
 public:
@@ -705,7 +696,6 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, ViewFamily, HitProxyTextureSize, HitProxyTextureRect, false);
 
 		Nanite::FConfiguration CullingConfig = {0};
-		CullingConfig.bProgrammableRaster = GNaniteProgrammableRasterHitProxy != 0;
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{

@@ -84,6 +84,7 @@ struct FRasterResults
 	uint32			MaxVisibleClusters;
 	uint32			MaxNodes;
 	uint32			RenderFlags;
+	uint32			FixedFunctionBin;
 
 	FRDGBufferRef	ViewsBuffer			= nullptr;
 	FRDGBufferRef	VisibleClustersSWHW	= nullptr;
@@ -137,7 +138,7 @@ struct FConfiguration
 	uint32 bIsGameView : 1;
 	uint32 bEditorShowFlag : 1;
 	uint32 bGameShowFlag : 1;
-	uint32 bProgrammableRaster : 1;
+	uint32 bDisableProgrammable : 1;
 	uint32 bExtractStats : 1;
 
 	void SetViewFlags(const FViewInfo& View);

@@ -173,8 +173,7 @@ bool FSceneRenderer::RenderCustomDepthPass(
 	FCustomDepthTextures& CustomDepthTextures,
 	const FSceneTextureShaderParameters& SceneTextures,
 	TConstArrayView<Nanite::FRasterResults> PrimaryNaniteRasterResults,
-	TConstArrayView<Nanite::FPackedView> PrimaryNaniteViews,
-	bool bNaniteProgrammableRaster)
+	TConstArrayView<Nanite::FPackedView> PrimaryNaniteViews)
 {
 	if (!CustomDepthTextures.IsValid())
 	{
@@ -307,7 +306,6 @@ bool FSceneRenderer::RenderCustomDepthPass(
 
 		Nanite::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = true;
-		CullingConfig.bProgrammableRaster = bNaniteProgrammableRaster;
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
