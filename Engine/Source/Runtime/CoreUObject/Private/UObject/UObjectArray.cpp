@@ -18,8 +18,8 @@ FUObjectClusterContainer GUObjectClusters;
 #if STATS || ENABLE_STATNAMEDEVENTS_UOBJECT
 void FUObjectItem::CreateStatID() const
 {
-	LLM_SCOPE_BYNAME(TEXT("Debug/CreateStatID"));
-	SCOPE_CYCLE_COUNTER(STAT_CreateStatID);
+	// @todo can we put this in a header?
+//		SCOPE_CYCLE_COUNTER(STAT_CreateStatID);
 
 	FString LongName;
 	LongName.Reserve(255);
