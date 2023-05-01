@@ -46,7 +46,14 @@ public:
 	virtual FName GetName() const override { return FName(TEXT("ActionMappings")); }
 
 	int32 GetNumGroupedMappings() const;
-	void ReorderMappings(int32 OriginalIndex, int32 NewIndex);
+	int32 GetNumMappings() const;
+
+	enum class EReorderMode : uint8
+	{
+		Group,
+		Single
+	};
+	void ReorderMappings(int32 OriginalIndex, int32 NewIndex, EReorderMode ReorderMode);
 private:
 	void AddActionMappingButton_OnClick();
 	void ClearActionMappingButton_OnClick();
