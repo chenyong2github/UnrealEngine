@@ -518,25 +518,90 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			FARCompiledFilter CompiledInternalPathFilter;
 			{
-				FARFilter InternalPathFilter;
+				/**
+				 * This filter is created by testing the paths while we are recursively going down the path hierarchy
+				 * This effective because it can stop exploring a sub part of the path three when the current path fail the attribute filter
+				 * Also after a certain depth it stop testing the paths against the attribute filter since the result will the same as the parent path
+				 */
+				TRACE_CPUPROFILER_EVENT_SCOPE(UContentBrowserAssetDataSource::CreateAssetFilter::CreateInternalPathFilter);
+			
+				CompiledInternalPathFilter.PackagePaths.Reserve(Params.InternalPaths.Num());
+
+				const int32 MaxDepthPathTestNeeded = ContentBrowserDataUtils::GetMaxFolderDepthRequiredForAttributeFilter();
+
+				// This builder is shared across calls because it is stack allocated and it could cause some issues in depth recursive calls
+				FNameBuilder PathBufferStr;
+				TFunction<void (FName, int32)> TestAndGatherChildPaths;
+				TestAndGatherChildPaths = [&InFilter, &CompiledInternalPathFilter, &TestAndGatherChildPaths, &Params, &PathBufferStr, MaxDepthPathTestNeeded](FName ChildPath, int32 CurrentDepth)
+					{
+						PathBufferStr.Reset();
+						ChildPath.AppendString(PathBufferStr);
+						if (ContentBrowserDataUtils::PathPassesAttributeFilter(PathBufferStr, CurrentDepth, InFilter.ItemAttributeFilter))
+						{
+							CompiledInternalPathFilter.PackagePaths.Add(ChildPath);
+							++CurrentDepth;
+
+							if (CurrentDepth < MaxDepthPathTestNeeded)
+							{
+								constexpr bool bIsRecursive = false;
+								Params.AssetRegistry->EnumerateSubPaths(ChildPath
+									, [&TestAndGatherChildPaths, CurrentDepth](FName ChildPath)
+									{
+										TestAndGatherChildPaths(ChildPath, CurrentDepth);
+										return true;
+									}
+								, bIsRecursive);
+							}
+							else
+							{
+								constexpr bool bIsRecursive = true;
+								Params.AssetRegistry->EnumerateSubPaths(ChildPath
+									, [&CompiledInternalPathFilter](FName ChildPath)
+									{
+										CompiledInternalPathFilter.PackagePaths.Add(ChildPath);
+										return true;
+									}
+								, bIsRecursive);
+							}
+						}
+					};
+
+
 				for (const FName InternalPath : Params.InternalPaths)
 				{
-					InternalPathFilter.PackagePaths.Add(InternalPath);
-				}
-				InternalPathFilter.bRecursivePaths = InFilter.bRecursivePaths;
-				CreateCompiledFilter(InternalPathFilter, CompiledInternalPathFilter);
-
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UContentBrowserAssetDataSource::CreateAssetFilter::RemovePaths);
-			
-					// Remove paths that do not pass item attribute filter (Engine, Plugins, Developer, Localized, __ExternalActors__ etc..)
-					for (auto It = CompiledInternalPathFilter.PackagePaths.CreateIterator(); It; ++It)
+					PathBufferStr.Reset();
+					InternalPath.AppendString(PathBufferStr);
+					FStringView Path(PathBufferStr);
+					if (ContentBrowserDataUtils::PathPassesAttributeFilter(Path, 0, InFilter.ItemAttributeFilter))
 					{
-						FNameBuilder PathStr(*It);
-						FStringView Path(PathStr);
-						if (!ContentBrowserDataUtils::PathPassesAttributeFilter(Path, 0, InFilter.ItemAttributeFilter))
+						CompiledInternalPathFilter.PackagePaths.Add(InternalPath);
+
+						if (InFilter.bRecursivePaths)
 						{
-							It.RemoveCurrent();
+							// Minus one because the test depth start at zero
+							const int32 CurrentDepth = ContentBrowserDataUtils::CalculateFolderDepthOfPath(Path) - 1;
+							if (CurrentDepth < MaxDepthPathTestNeeded)
+							{
+								constexpr bool bIsRecursive = false;
+								Params.AssetRegistry->EnumerateSubPaths(InternalPath
+									, [&TestAndGatherChildPaths, CurrentDepth](FName ChildPath)
+									{
+										TestAndGatherChildPaths(ChildPath, CurrentDepth);
+										return true;
+									}
+								, bIsRecursive);
+							}
+							else
+							{
+								constexpr bool bIsRecursive = true;
+								Params.AssetRegistry->EnumerateSubPaths(InternalPath
+									, [&CompiledInternalPathFilter](FName ChildPath)
+									{
+										CompiledInternalPathFilter.PackagePaths.Add(ChildPath);
+										return true;
+									}
+								, bIsRecursive);
+							}
 						}
 					}
 				}

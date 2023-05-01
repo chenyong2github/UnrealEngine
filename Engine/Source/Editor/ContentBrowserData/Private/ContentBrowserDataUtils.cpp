@@ -61,6 +61,15 @@ bool ContentBrowserDataUtils::IsTopLevelFolder(const FName InFolderPath)
 	return IsTopLevelFolder(FNameBuilder(InFolderPath));
 }
 
+int32 ContentBrowserDataUtils::GetMaxFolderDepthRequiredForAttributeFilter()
+{
+	static const int32 MaxFolderDepthToCheck = FMath::Max(
+			ContentBrowserDataUtils::CalculateFolderDepthOfPath(FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir()).LeftChop(1))
+		, 2);
+
+	return MaxFolderDepthToCheck;
+}
+ 
 bool ContentBrowserDataUtils::PathPassesAttributeFilter(const FStringView InPath, const int32 InAlreadyCheckedDepth, const EContentBrowserItemAttributeFilter InAttributeFilter)
 {
 	static const FString ProjectContentRootName = TEXT("Game");
@@ -69,8 +78,8 @@ bool ContentBrowserDataUtils::PathPassesAttributeFilter(const FStringView InPath
 	static const FString ExternalActorsFolderName = FPackagePath::GetExternalActorsFolderName();
 	static const FString ExternalObjectsFolderName = FPackagePath::GetExternalObjectsFolderName();
 	static const FString DeveloperPathWithoutSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir()).LeftChop(1);
-	static int32 DevelopersFolderDepth = ContentBrowserDataUtils::CalculateFolderDepthOfPath(DeveloperPathWithoutSlash);
-	static int32 MaxFolderDepthToCheck = FMath::Max(DevelopersFolderDepth, 2);
+	static const int32 DevelopersFolderDepth = ContentBrowserDataUtils::CalculateFolderDepthOfPath(DeveloperPathWithoutSlash);
+	const int32 MaxFolderDepthToCheck = ContentBrowserDataUtils::GetMaxFolderDepthRequiredForAttributeFilter();
 
 	static auto GetRootFolderNameFromPath = [](const FStringView InFullPath)
 	{
