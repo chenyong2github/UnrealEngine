@@ -109,6 +109,7 @@ protected:
 	/** Removes the mode ID from the tools manager when a mode is unregistered */
 	void OnModeUnregistered(FEditorModeID ModeID);
 		
+	void DeactivateModeAtIndex(int32 Index);
 public:
 
 	/**
