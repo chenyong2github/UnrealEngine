@@ -3412,41 +3412,41 @@ bool ULandscapeInfo::UpdateLayerInfoMap(ALandscapeProxy* Proxy /*= nullptr*/, bo
  * this avoids guid collisions when you instance a world (and its landscapes) multiple times,
  * while maintaining the same GUID between landscape proxy objects within an instance
  */ 
-namespace LandscapeInstancing
+void ALandscapeProxy::PostLoadFixupLandscapeGuidsIfInstanced()
 {
-	void FixupLandscapeGuidsIfInstanced(ALandscapeProxy* LandscapeProxy)
+	// record the original value before modification
+	check(!OriginalLandscapeGuid.IsValid() || (OriginalLandscapeGuid == LandscapeGuid));
+	OriginalLandscapeGuid = this->LandscapeGuid;
+
+	// we shouldn't be dealing with any instanced landscapes in these cases, early out
+	if (this->IsTemplate() || IsRunningCookCommandlet())
 	{
-		// we shouldn't be dealing with any instanced landscapes in these cases, early out
-		if (LandscapeProxy->IsTemplate() || IsRunningCookCommandlet())
+		return;
+	}
+
+	UWorldPartition* WorldPartition = FWorldPartitionHelpers::GetWorldPartition(this);
+	UWorld* OuterWorld = WorldPartition ? WorldPartition->GetTypedOuter<UWorld>() : this->GetTypedOuter<UWorld>();
+
+	// TODO [chris.tchou] : Note this is not 100% correct, IsInstanced() returns TRUE when using PIE on non-instanced landscapes.
+	// That is generally ok however, as the GUID remaps are still deterministic and landscape still works.
+	if (OuterWorld && OuterWorld->IsInstanced())
+	{
+		FArchiveMD5 Ar;
+		FGuid OldLandscapeGuid = this->LandscapeGuid;
+		Ar << OldLandscapeGuid;
+
+		UPackage* OuterWorldPackage = OuterWorld->GetPackage();
+		if (ensure(OuterWorldPackage))
 		{
-			return;
+			FName PackageName = OuterWorldPackage->GetFName();
+			Ar << PackageName;
 		}
 
-		UWorldPartition* WorldPartition = FWorldPartitionHelpers::GetWorldPartition(LandscapeProxy);
-		UWorld* OuterWorld = WorldPartition ? WorldPartition->GetTypedOuter<UWorld>() : LandscapeProxy->GetTypedOuter<UWorld>();
+		FMD5Hash MD5Hash;
+		Ar.GetHash(MD5Hash);
 
-		// TODO [chris.tchou] : Note this is not 100% correct, IsInstanced() returns TRUE when using PIE on non-instanced landscapes.
-		// That is generally ok however, as the GUID remaps are still deterministic and landscape still works.
-		// the only issue is if some external system is tracking or interacting with landscape via the GUID, as it changes.
-		if (OuterWorld && OuterWorld->IsInstanced())
-		{
-			FArchiveMD5 Ar;
-			FGuid OldLandscapeGuid = LandscapeProxy->GetLandscapeGuid();
-			Ar << OldLandscapeGuid;
-
-			UPackage* OuterWorldPackage = OuterWorld->GetPackage();
-			if (ensure(OuterWorldPackage))
-			{
-				FName PackageName = OuterWorldPackage->GetFName();
-				Ar << PackageName;
-			}
-
-			FMD5Hash MD5Hash;
-			Ar.GetHash(MD5Hash);
-
-			FGuid NewLandscapeGuid = MD5HashToGuid(MD5Hash);
-			LandscapeProxy->SetLandscapeGuid(NewLandscapeGuid);
-		}
+		FGuid NewLandscapeGuid = MD5HashToGuid(MD5Hash);
+		this->LandscapeGuid = NewLandscapeGuid;
 	}
 }
 
@@ -3454,7 +3454,7 @@ void ALandscapeProxy::PostLoad()
 {
 	Super::PostLoad();
 
-	LandscapeInstancing::FixupLandscapeGuidsIfInstanced(this);
+	PostLoadFixupLandscapeGuidsIfInstanced();
 
 	// Temporary
 	if (ComponentSizeQuads == 0 && LandscapeComponents.Num() > 0)
@@ -3659,6 +3659,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		Modify();
 
 		LandscapeGuid = Landscape->LandscapeGuid;
+		OriginalLandscapeGuid = Landscape->OriginalLandscapeGuid;
 
 		//@todo UE merge, landscape, this needs work
 		RootComponent->SetRelativeScale3D(Landscape->GetRootComponent()->GetComponentToWorld().GetScale3D());

@@ -739,8 +739,6 @@ void ULandscapeComponent::PostEditUndo()
 
 		for (ALandscapeProxy* ComponentProxy : Proxies)
 		{
-			check(ComponentProxy->GetLandscapeGuid().IsValid());
-
 			// Here we create and register with the LandscapeInfo early (before PostRegisterAllComponents)
 			ULandscapeInfo* LandscapeInfo = ComponentProxy->GetLandscapeInfo();
 			if (!LandscapeInfo->IsRegistered(ComponentProxy))
@@ -5626,9 +5624,11 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 	if (PropertyName == FName(TEXT("LandscapeActorRef")))
 	{
+		// Landscape Actor reference was changed .. need to update LandscapeGUIDs to match
 		if (LandscapeActorRef && IsValidLandscapeActor(LandscapeActorRef.Get()))
 		{
 			LandscapeGuid = LandscapeActorRef->GetLandscapeGuid();
+			OriginalLandscapeGuid = LandscapeActorRef->GetOriginalLandscapeGuid();
 			if (GIsEditor && GetWorld() && !GetWorld()->IsPlayInEditor())
 			{
 				// TODO - only need to refresh the old and new landscape info

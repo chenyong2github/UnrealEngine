@@ -411,9 +411,16 @@ protected:
 	UPROPERTY()
 	TObjectPtr<ULandscapeSplinesComponent> SplineComponent;
 
-	/** Guid for LandscapeEditorInfo **/
+	/** Guid for LandscapeEditorInfo, all proxies that belong to the same landscape should have the same LandscapeGuid, even if split across world partitions 
+	  * Note that this value may change when the landscape is instanced (or in PIE) in order to allow multiple instances of the same landscape to exist.
+	  **/
 	UPROPERTY()
 	FGuid LandscapeGuid;
+
+	/** 
+	  * The original unmutated LandscapeGuid on the source asset, before instancing modfications.
+	  **/
+	FGuid OriginalLandscapeGuid;
 
 	/** Use Nanite to render landscape as a mesh on supported platforms. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Nanite)
@@ -885,8 +892,23 @@ public:
 	/** Fills an array with height values **/
 	LANDSCAPE_API void GetHeightValues(int32& SizeX, int32& SizeY, TArray<float>& ArrayValue) const;
 
+	/* Return the landscape guid, used to identify landscape proxies (and splines) that belong to the same landscape, even across world partitions.
+	 * Also used as the world partition grid guid.  This value may be modified when the landscape is instanced, to allow multiple instances of the same
+	 * landscape to exist simultaneously.  If you want the original (uninstanced) value, use GetOriginalLandscapeGuid().
+	 */
 	virtual FGuid GetLandscapeGuid() const override { return LandscapeGuid; }
-	void SetLandscapeGuid(const FGuid& Guid) { LandscapeGuid = Guid; }
+	void SetLandscapeGuid(const FGuid& Guid)
+	{
+		// we probably shouldn't be setting the landscape guid on instanced landscapes
+		check((OriginalLandscapeGuid == LandscapeGuid) || !OriginalLandscapeGuid.IsValid());
+		LandscapeGuid = Guid;
+		OriginalLandscapeGuid = Guid;
+	}
+
+	/* Return the original landscape guid, before it was modified by instancing.
+	 * When not instanced, this value is equal to LandscapeGuid.
+	 */
+	const FGuid& GetOriginalLandscapeGuid() const { return OriginalLandscapeGuid; }
 
 	UFUNCTION(BlueprintCallable, Category = "Landscape|Runtime")
 	virtual ALandscape* GetLandscapeActor() PURE_VIRTUAL(GetLandscapeActor, return nullptr;)
@@ -1393,6 +1415,8 @@ private:
 	void CreateNaniteComponent();
 
 #endif
+
+	void PostLoadFixupLandscapeGuidsIfInstanced();
 
 #if WITH_EDITORONLY_DATA
 public:
