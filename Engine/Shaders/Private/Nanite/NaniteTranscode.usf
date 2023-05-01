@@ -271,7 +271,7 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
 								uint CompileTimeNumTexCoords
 )
 {
-	const uint CompileTimeMaxVertexBits = 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS + 4 * NANITE_MAX_COLOR_QUANTIZATION_BITS + CompileTimeNumTexCoords * 2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS;
+	const uint CompileTimeMaxAttributeBits = CalculateMaxAttributeBits(CompileTimeNumTexCoords);
 
 	const uint BaseAddress = GPUPageIndexToGPUOffset(ParentGPUPageIndex);
 
@@ -279,11 +279,16 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
 	const uint Address = bIsParentRef ? (BaseAddress + SrcCluster.AttributeOffset) : (SrcPageBaseOffset + SrcClusterDiskHeader.AttributeDataOffset);
 
 	FBitStreamWriterState OutputStream = BitStreamWriter_Create_Aligned(DstPageBaseOffset + Cluster.AttributeOffset, VertexIndex * Cluster.BitsPerAttribute);	
-	FBitStreamReaderState InputStream = BitStreamReader_Create(Address, SrcCodedVertexIndex * BitsPerAttribute, CompileTimeMaxVertexBits);
+	FBitStreamReaderState InputStream = BitStreamReader_Create(Address, SrcCodedVertexIndex * BitsPerAttribute, CompileTimeMaxAttributeBits);
 
 	// Normal
-    uint PackedNormal = BitStreamReader_Read_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, InputStream, 2 * Cluster.NormalPrecision, 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS);
-    BitStreamWriter_Writer(DstPageBuffer, OutputStream, PackedNormal, 2 * Cluster.NormalPrecision, 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS);
+	const uint PackedNormal = BitStreamReader_Read_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, InputStream, 2 * Cluster.NormalPrecision, 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS);
+	BitStreamWriter_Writer(DstPageBuffer, OutputStream, PackedNormal, 2 * Cluster.NormalPrecision, 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS);
+
+	// Tangent
+	const int NumTangentBits = (Cluster.bHasTangents ? (1 + Cluster.TangentPrecision) : 0);
+	const uint PackedTangent = BitStreamReader_Read_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, InputStream, NumTangentBits, 1 + NANITE_MAX_TANGENT_QUANTIZATION_BITS);
+	BitStreamWriter_Writer(DstPageBuffer, OutputStream, PackedTangent, NumTangentBits, 1 + NANITE_MAX_TANGENT_QUANTIZATION_BITS);
 
 	// Color
     {

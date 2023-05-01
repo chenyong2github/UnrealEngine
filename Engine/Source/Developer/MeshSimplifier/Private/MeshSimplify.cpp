@@ -859,9 +859,18 @@ void FMeshSimplifier::RemoveDuplicateVerts( uint32 Corner )
 	{
 		if( VertIndex == OtherVertIndex )
 			break;
+		
+		const uint32 NumFloats = 3 + NumAttributes;
+		float* OtherVertData = &Verts[ NumFloats * OtherVertIndex ];
 
-		float* OtherVertData = &Verts[ ( 3 + NumAttributes ) * OtherVertIndex ];
-		if( FMemory::Memcmp( VertData, OtherVertData, ( 3 + NumAttributes ) * sizeof( float ) ) == 0 )
+		uint32 i;
+		for( i = 0; i < NumFloats; i++ )
+		{
+			if ( VertData[ i ] != OtherVertData[ i ] )
+				break;
+		}
+
+		if( i == NumFloats )
 		{
 			// First entry in hashtable for this vert value is authoritative.
 			SetVertIndex( Corner, OtherVertIndex );

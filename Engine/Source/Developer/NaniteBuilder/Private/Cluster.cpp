@@ -6,25 +6,49 @@
 namespace Nanite
 {
 
+template< bool bHasTangents, bool bHasColors >
 void CorrectAttributes( float* Attributes )
 {
-	FVector3f& Normal = *reinterpret_cast< FVector3f* >( Attributes );
+	float* AttributesPtr = Attributes;
+
+	FVector3f& Normal = *reinterpret_cast< FVector3f* >( AttributesPtr );
 	Normal.Normalize();
+	AttributesPtr += 3;
+
+	if( bHasTangents )
+	{
+		FVector3f& TangentX = *reinterpret_cast< FVector3f* >( AttributesPtr );
+		AttributesPtr += 3;
+	
+		TangentX -= ( TangentX | Normal ) * Normal;
+		TangentX.Normalize();
+
+		float& TangentYSign = *AttributesPtr++;
+		TangentYSign = TangentYSign < 0.0f ? -1.0f : 1.0f;
+	}
+
+	if( bHasColors )
+	{
+		FLinearColor& Color = *reinterpret_cast< FLinearColor* >( AttributesPtr );
+		AttributesPtr += 3;
+
+		Color = Color.GetClamped();
+	}
 }
 
-void CorrectAttributesColor( float* Attributes )
+typedef void (CorrectAttributesFunction)( float* Attributes );
+
+static CorrectAttributesFunction* CorrectAttributesFunctions[ 2 ][ 2 ] =	// [ bHasTangents ][ bHasColors ]
 {
-	CorrectAttributes( Attributes );
-	
-	FLinearColor& Color = *reinterpret_cast< FLinearColor* >( Attributes + 3 );
-	Color = Color.GetClamped();
-}
+	{	CorrectAttributes<false, false>,	CorrectAttributes<false, true>	},
+	{	CorrectAttributes<true, false>,		CorrectAttributes<true, true>	}
+};
 
 FCluster::FCluster(
 	const FConstMeshBuildVertexView& InVerts,
 	const TConstArrayView< const uint32 >& InIndexes,
 	const TConstArrayView< const int32 >& InMaterialIndexes,
-	uint32 InNumTexCoords, bool bInHasColors, bool bInPreserveArea,
+	uint32 InNumTexCoords, bool bInHasTangents, bool bInHasColors, bool bInPreserveArea,
 	uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency )
 {
 	GUID = (uint64(TriBegin) << 32) | TriEnd;
@@ -32,6 +56,7 @@ FCluster::FCluster(
 	NumTris = TriEnd - TriBegin;
 	//ensure(NumTriangles <= FCluster::ClusterSize);
 	
+	bHasTangents = bInHasTangents;
 	bHasColors = bInHasColors;
 	bPreserveArea = bInPreserveArea;
 	NumTexCoords = InNumTexCoords;
@@ -65,6 +90,13 @@ FCluster::FCluster(
 
 				GetPosition( NewIndex ) = InVerts.Position[OldIndex];
 				GetNormal( NewIndex ) = InVerts.TangentZ[OldIndex];
+
+				if( bHasTangents )
+				{
+					const float TangentYSign = ((InVerts.TangentZ[OldIndex] ^ InVerts.TangentX[OldIndex]) | InVerts.TangentY[OldIndex]);
+					GetTangentX( NewIndex ) = InVerts.TangentX[OldIndex];
+					GetTangentYSign( NewIndex ) = TangentYSign < 0.0f ? -1.0f : 1.0f;
+				}
 	
 				if( bHasColors )
 				{
@@ -74,8 +106,13 @@ FCluster::FCluster(
 				FVector2f* UVs = GetUVs( NewIndex );
 				for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 				{
-					UVs[ UVIndex ] = InVerts.UVs[UVIndex][OldIndex];
+					UVs[UVIndex] = InVerts.UVs[UVIndex][OldIndex];
 				}
+
+				float* Attributes = GetAttributes( NewIndex );
+
+				// Make sure this vertex is valid from the start
+				CorrectAttributesFunctions[ bHasTangents ][ bHasColors ]( Attributes );
 			}
 
 			Indexes.Add( NewIndex );
@@ -105,10 +142,7 @@ FCluster::FCluster(
 		float* Attributes = GetAttributes( VertexIndex );
 
 		// Make sure this vertex is valid from the start
-		if( bHasColors )
-			CorrectAttributesColor( Attributes );
-		else
-			CorrectAttributes( Attributes );
+		CorrectAttributesFunctions[ bHasTangents ][ bHasColors ]( Attributes );
 	}
 
 	Bound();
@@ -121,6 +155,7 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 	GUID = MurmurFinalize64(SrcCluster.GUID) ^ ((uint64(TriBegin) << 32) | TriEnd);
 
 	NumTexCoords	= SrcCluster.NumTexCoords;
+	bHasTangents	= SrcCluster.bHasTangents;
 	bHasColors		= SrcCluster.bHasColors;
 	bPreserveArea	= SrcCluster.bPreserveArea;
 	
@@ -181,6 +216,7 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& MergeList )
 {
 	NumTexCoords	= MergeList[0]->NumTexCoords;
+	bHasTangents	= MergeList[0]->bHasTangents;
 	bHasColors		= MergeList[0]->bHasColors;
 	bPreserveArea	= MergeList[0]->bPreserveArea;
 
@@ -308,23 +344,31 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 
 	uint32 NumAttributes = GetVertSize() - 3;
 	float* AttributeWeights = (float*)FMemory_Alloca( NumAttributes * sizeof( float ) );
+	float* WeightsPtr = AttributeWeights;
 
 	// Normal
-	AttributeWeights[0] = bForNaniteFallback ? 16.f : 1.0f;
-	AttributeWeights[1] = bForNaniteFallback ? 16.f : 1.0f;
-	AttributeWeights[2] = bForNaniteFallback ? 16.f : 1.0f;
+	*WeightsPtr++ = bForNaniteFallback ? 16.f : 1.0f;
+	*WeightsPtr++ = bForNaniteFallback ? 16.f : 1.0f;
+	*WeightsPtr++ = bForNaniteFallback ? 16.f : 1.0f;
+
+	if( bHasTangents )
+	{
+		// Tangent X
+		*WeightsPtr++ = 0.0625f;
+		*WeightsPtr++ = 0.0625f;
+		*WeightsPtr++ = 0.0625f;
+
+		// Tangent Y Sign
+		*WeightsPtr++ = 0.5f;
+	}
 
 	if( bHasColors )
 	{
-		float* ColorWeights = AttributeWeights + 3;
-		ColorWeights[0] = bForNaniteFallback ? 0.1f : 0.0625f;
-		ColorWeights[1] = bForNaniteFallback ? 0.1f : 0.0625f;
-		ColorWeights[2] = bForNaniteFallback ? 0.1f : 0.0625f;
-		ColorWeights[3] = bForNaniteFallback ? 0.1f : 0.0625f;
+		*WeightsPtr++ = bForNaniteFallback ? 0.1f : 0.0625f;
+		*WeightsPtr++ = bForNaniteFallback ? 0.1f : 0.0625f;
+		*WeightsPtr++ = bForNaniteFallback ? 0.1f : 0.0625f;
+		*WeightsPtr++ = bForNaniteFallback ? 0.1f : 0.0625f;
 	}
-	
-	uint32 TexCoordOffset = 3 + ( bHasColors ? 4 : 0 );
-	float* UVWeights = AttributeWeights + TexCoordOffset;
 
 	// Normalize UVWeights
 	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
@@ -359,18 +403,19 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 				MaxUV = FMath::Max(MaxUV, UV2.Y);
 			}
 
-			UVWeights[2 * UVIndex + 0] = 0.5f / FMath::Max(1.f, MaxUV - MinUV);
-			UVWeights[2 * UVIndex + 1] = 0.5f / FMath::Max(1.f, MaxUV - MinUV);
+			*WeightsPtr++ = 0.5f / FMath::Max(1.f, MaxUV - MinUV);
+			*WeightsPtr++ = 0.5f / FMath::Max(1.f, MaxUV - MinUV);
 		}
 		else
 		{
 			float TriangleUVSize = FMath::Sqrt(UVArea[UVIndex] / (float)NumTris);
 			TriangleUVSize = FMath::Max(TriangleUVSize, THRESH_UVS_ARE_SAME);
 
-			UVWeights[2 * UVIndex + 0] = 1.0f / (128.0f * TriangleUVSize);
-			UVWeights[2 * UVIndex + 1] = 1.0f / (128.0f * TriangleUVSize);
+			*WeightsPtr++ = 1.0f / (128.0f * TriangleUVSize);
+			*WeightsPtr++ = 1.0f / (128.0f * TriangleUVSize);
 		}
 	}
+	check( ( WeightsPtr - AttributeWeights ) == NumAttributes );
 
 	FMeshSimplifier Simplifier( Verts.GetData(), NumVerts, Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
 
@@ -394,7 +439,7 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 	}
 
 	Simplifier.SetAttributeWeights( AttributeWeights );
-	Simplifier.SetCorrectAttributes( bHasColors ? CorrectAttributesColor : CorrectAttributes );
+	Simplifier.SetCorrectAttributes( CorrectAttributesFunctions[ bHasTangents ][ bHasColors ] );
 	Simplifier.SetEdgeWeight(bForNaniteFallback ? 512.f : 2.0f );
 
 	if (bForNaniteFallback)
@@ -607,6 +652,16 @@ static void SanitizeFloat( float& X, float MinValue, float MaxValue, float Defau
 		X = DefaultValue;
 }
 
+static void SanitizeVector( FVector3f& V, float MaxValue, FVector3f DefaultValue )
+{
+	if ( !(	V.X >= -MaxValue && V.X <= MaxValue &&
+			V.Y >= -MaxValue && V.Y <= MaxValue &&
+			V.Z >= -MaxValue && V.Z <= MaxValue ) )	// Don't flip condition. This is intentionally written like this to be NaN-safe.
+	{
+		V = DefaultValue;
+	}
+}
+
 void FCluster::SanitizeVertexData()
 {
 	const float FltThreshold = 1e12f;	// Fairly arbitrary threshold for sensible float values.
@@ -622,13 +677,17 @@ void FCluster::SanitizeVertexData()
 		SanitizeFloat( Position.Z, -FltThreshold, FltThreshold, 0.0f );
 
 		FVector3f& Normal = GetNormal( VertexIndex );
-		if( !(  Normal.X >= -FltThreshold && Normal.X <= FltThreshold &&
-				Normal.Y >= -FltThreshold && Normal.Y <= FltThreshold &&
-				Normal.Z >= -FltThreshold && Normal.Z <= FltThreshold ) )	// Don't flip condition. Intentionally written like this to be NaN-safe
+		SanitizeVector( Normal, FltThreshold, FVector3f::UpVector );
+
+		if( bHasTangents )
 		{
-			Normal = FVector3f::UpVector;
-		}	
-		
+			FVector3f& TangentX = GetTangentX( VertexIndex );
+			SanitizeVector( TangentX, FltThreshold, FVector3f::ForwardVector );
+
+			float& TangentYSign = GetTangentYSign( VertexIndex );
+			TangentYSign = TangentYSign < 0.0f ? -1.0f : 1.0f;
+		}
+
 		if( bHasColors )
 		{
 			FLinearColor& Color = GetColor( VertexIndex );

@@ -31,14 +31,18 @@ static FVector3f UserGetDisplacement(
 	UV += Vert1.UVs[0] * Barycentrics.Y;
 	UV += Vert2.UVs[0] * Barycentrics.Z;
 
-	FVector3f Normal;
-	Normal  = Vert0.TangentX * Barycentrics.X;
-	Normal += Vert1.TangentX * Barycentrics.Y;
-	Normal += Vert2.TangentX * Barycentrics.Z;
+	const FVector3f Normal0 = FVector3f(Vert0.UVs[6].X, Vert0.UVs[6].Y, Vert0.UVs[7].X);
+	const FVector3f Normal1 = FVector3f(Vert1.UVs[6].X, Vert1.UVs[6].Y, Vert1.UVs[7].X);
+	const FVector3f Normal2 = FVector3f(Vert2.UVs[6].X, Vert2.UVs[6].Y, Vert2.UVs[7].X);
 
-	if( Vert0.TangentX.IsUnit() &&
-		Vert1.TangentX.IsUnit() &&
-		Vert2.TangentX.IsUnit() )
+	FVector3f Normal;
+	Normal  = Normal0 * Barycentrics.X;
+	Normal += Normal1 * Barycentrics.Y;
+	Normal += Normal2 * Barycentrics.Z;
+
+	if( Normal0.IsUnit() &&
+		Normal1.IsUnit() &&
+		Normal2.IsUnit() )
 	{
 		Normal.Normalize();
 	}
@@ -75,14 +79,18 @@ static FVector2f UserGetErrorBounds(
 	LerpedDisplacement += TAffine< FVector3f, 2 >( Displacement1 ) * Barycentric1;
 	LerpedDisplacement += TAffine< FVector3f, 2 >( Displacement2 ) * Barycentric2;
 
-	TAffine< FVector3f, 2 > Normal;
-	Normal  = TAffine< FVector3f, 2 >( Vert0.TangentX ) * Barycentric0;
-	Normal += TAffine< FVector3f, 2 >( Vert1.TangentX ) * Barycentric1;
-	Normal += TAffine< FVector3f, 2 >( Vert2.TangentX ) * Barycentric2;
+	const FVector3f Normal0 = FVector3f(Vert0.UVs[6].X, Vert0.UVs[6].Y, Vert0.UVs[7].X);
+	const FVector3f Normal1 = FVector3f(Vert1.UVs[6].X, Vert1.UVs[6].Y, Vert1.UVs[7].X);
+	const FVector3f Normal2 = FVector3f(Vert2.UVs[6].X, Vert2.UVs[6].Y, Vert2.UVs[7].X);
 
-	if( Vert0.TangentX.IsUnit() &&
-		Vert1.TangentX.IsUnit() &&
-		Vert2.TangentX.IsUnit() )
+	TAffine< FVector3f, 2 > Normal;
+	Normal  = TAffine< FVector3f, 2 >( Normal0 ) * Barycentric0;
+	Normal += TAffine< FVector3f, 2 >( Normal1 ) * Barycentric1;
+	Normal += TAffine< FVector3f, 2 >( Normal2 ) * Barycentric2;
+
+	if( Normal0.IsUnit() &&
+		Normal1.IsUnit() &&
+		Normal2.IsUnit() )
 	{
 		Normal = Normalize( Normal );
 	}
@@ -167,16 +175,16 @@ bool DisplaceNaniteMesh(
 	// TODO: Make the mesh prepare and displacement logic extensible, and not hardcoded within this plugin
 
 	// START - MESH PREPARE
+	TArray<FVector3f> VertDisplacements;
 	if (Verts.UVs.Num() > 1)
 	{
 		TArray<uint32> VertSamples;
 		VertSamples.SetNumZeroed(Verts.Position.Num());
+		VertDisplacements.SetNumZeroed(Verts.Position.Num());
 
 		ParallelFor(TEXT("Nanite.Displace.Guide"), Verts.Position.Num(), 1024,
 		[&](int32 VertIndex)
 		{
-			Verts.TangentX[VertIndex] = FVector3f::ZeroVector;
-
 			for (int32 GuideVertIndex = 0; GuideVertIndex < Verts.Position.Num(); ++GuideVertIndex)
 			{
 				if (Verts.UVs[1][GuideVertIndex].Y >= 0.0f)
@@ -200,14 +208,13 @@ bool DisplaceNaniteMesh(
 				if (FVector3f::Distance(Verts.Position[VertIndex], GuideVertPos) < 0.1f)
 				{
 					++VertSamples[VertIndex];
-					Verts.TangentX[VertIndex] += Verts.TangentZ[GuideVertIndex];
+					VertDisplacements[VertIndex] += Verts.TangentZ[GuideVertIndex];
 				}
 			}
 
 			if (VertSamples[VertIndex] > 0)
 			{
-				Verts.TangentX[VertIndex] /= VertSamples[VertIndex];
-				Verts.TangentX[VertIndex].Normalize();
+				VertDisplacements[VertIndex].Normalize();
 			}
 		});
 	}
@@ -278,6 +285,16 @@ bool DisplaceNaniteMesh(
 	LerpVerts.AddUninitialized( Verts.Position.Num() );
 	for( int32 i = 0; i < Verts.Position.Num(); i++ )
 		LerpVerts[i] = MakeStaticMeshVertex(Verts, i);
+	
+	if (!VertDisplacements.IsEmpty())
+	{
+		for (int32 i = 0; i < Verts.Position.Num(); i++)
+		{
+			LerpVerts[i].UVs[6].X = VertDisplacements[i].X;
+			LerpVerts[i].UVs[6].Y = VertDisplacements[i].Y;
+			LerpVerts[i].UVs[7].X = VertDisplacements[i].Z;
+		}
+	}
 
 	Nanite::FAdaptiveTessellator Tessellator( LerpVerts, Indexes, MaterialIndexes, TargetError, TargetError, true,
 		[&](const FVector3f& Barycentrics,

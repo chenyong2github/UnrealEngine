@@ -175,10 +175,22 @@ void SetVertexParameterInstanceData(inout FMaterialVertexParameters VertexParame
 	VertexParameters.bEvaluateWorldPositionOffset = bEvaluateWorldPositionOffset;
 }
 
-void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParameters, FNaniteRawAttributeData RawAttributeData, float4x4 LocalToTranslatedWorld, float3x3 LocalToWorld, float3 PointLocalNoWPO)
+void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParameters, FNaniteRawAttributeData RawAttributeData, float4x4 LocalToTranslatedWorld, float3x3 LocalToWorldNoScale, float3 PointLocalNoWPO)
 {
+	half3x3 TangentToLocal;
+
+	BRANCH
+	if(RawAttributeData.TangentX_AndSign.w != 0.0f)
+	{
+		TangentToLocal = NaniteTangentToLocal(RawAttributeData.TangentX_AndSign, RawAttributeData.TangentZ);
+	}
+	else
+	{
+		TangentToLocal = GetTangentBasis(RawAttributeData.TangentZ);
+	}
+
 	VertexParameters.WorldPosition		= mul(float4(PointLocalNoWPO, 1), LocalToTranslatedWorld).xyz;
-	VertexParameters.TangentToWorld		= mul(GetTangentBasis(RawAttributeData.TangentZ), LocalToWorld);
+	VertexParameters.TangentToWorld		= mul(TangentToLocal, LocalToWorldNoScale);
 	VertexParameters.VertexColor		= RawAttributeData.Color;
 	VertexParameters.PreSkinnedPosition = PointLocalNoWPO;
 	VertexParameters.PreSkinnedNormal	= RawAttributeData.TangentZ;

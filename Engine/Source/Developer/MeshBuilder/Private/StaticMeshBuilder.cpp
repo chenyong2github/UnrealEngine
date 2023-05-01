@@ -151,8 +151,7 @@ static bool BuildNanite(
 
 	// compute tangents, lightmap UVs, etc
 
-	// Until the simplifier supports tangents, only 100% fallback meshes will need them
-	const bool bNeedTangents = PercentTriangles.Num() > 0 && NaniteSettings.FallbackPercentTriangles == 1.0f && NaniteSettings.FallbackRelativeError == 0.0f;
+	const bool bNeedTangents = NaniteSettings.bExplicitTangents || (PercentTriangles.Num() > 0 && NaniteSettings.FallbackPercentTriangles == 1.0f && NaniteSettings.FallbackRelativeError == 0.0f);
 	
 	// Nanite does not need the wedge map returned (mainly used by non-Nanite mesh painting).
 	const bool bNeedWedgeMap = false;

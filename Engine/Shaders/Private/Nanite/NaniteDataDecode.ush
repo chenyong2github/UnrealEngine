@@ -54,6 +54,7 @@ struct FCluster
 	int		PosPrecision;
 	uint3	PosBits;
 	uint	NormalPrecision;
+	uint	TangentPrecision;
 
 	float4	LODBounds;
 
@@ -67,6 +68,7 @@ struct FCluster
 	uint	AttributeOffset;
 	uint	BitsPerAttribute;
 	uint	DecodeInfoOffset;
+	bool	bHasTangents;
 	uint	NumUVs;
 	uint	ColorMode;
 	uint	UV_Prec;
@@ -360,6 +362,7 @@ FCluster UnpackCluster(uint4 ClusterData[NANITE_NUM_PACKED_CLUSTER_FLOAT4S])
 	Cluster.PosBits.y			= BitFieldExtractU32(ClusterData[1].w, 5, 14);
 	Cluster.PosBits.z			= BitFieldExtractU32(ClusterData[1].w, 5, 19);
 	Cluster.NormalPrecision		= BitFieldExtractU32(ClusterData[1].w, 4, 24);
+	Cluster.TangentPrecision	= BitFieldExtractU32(ClusterData[1].w, 4, 28);
 
 	Cluster.LODBounds			= asfloat(ClusterData[2]);
 
@@ -373,8 +376,9 @@ FCluster UnpackCluster(uint4 ClusterData[NANITE_NUM_PACKED_CLUSTER_FLOAT4S])
 	Cluster.AttributeOffset		= BitFieldExtractU32(ClusterData[5].x, 22,  0);
 	Cluster.BitsPerAttribute	= BitFieldExtractU32(ClusterData[5].x, 10, 22);
 	Cluster.DecodeInfoOffset	= BitFieldExtractU32(ClusterData[5].y, 22,  0);
-	Cluster.NumUVs				= BitFieldExtractU32(ClusterData[5].y,  3, 22);
-	Cluster.ColorMode			= BitFieldExtractU32(ClusterData[5].y,  2, 22+3);
+	Cluster.bHasTangents		= BitFieldExtractU32(ClusterData[5].y,  1, 22);
+	Cluster.NumUVs				= BitFieldExtractU32(ClusterData[5].y,  3, 23);
+	Cluster.ColorMode			= BitFieldExtractU32(ClusterData[5].y,  2, 26);
 	Cluster.UV_Prec				= ClusterData[5].z;
 	const uint MaterialEncoding = ClusterData[5].w;
 

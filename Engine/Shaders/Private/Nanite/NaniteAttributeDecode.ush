@@ -23,6 +23,7 @@ struct FNaniteAttributeData
 
 struct FNaniteRawAttributeData
 {
+	float4 TangentX_AndSign;
 	float3 TangentZ;
 	float4 Color;
 	float2 TexCoords[NANITE_MAX_UVS];
@@ -31,6 +32,7 @@ struct FNaniteRawAttributeData
 FNaniteRawAttributeData WaveReadLaneAt(FNaniteRawAttributeData In, uint SrcIndex)
 {
 	FNaniteRawAttributeData Out;
+	Out.TangentX_AndSign = WaveReadLaneAt(In.TangentX_AndSign, SrcIndex);
 	Out.TangentZ = WaveReadLaneAt(In.TangentZ, SrcIndex);
 	Out.Color = WaveReadLaneAt(In.Color, SrcIndex);
 	UNROLL
@@ -222,7 +224,12 @@ FBarycentrics CalculateTriangleBarycentrics(
 
 uint CalculateMaxAttributeBits(uint NumTexCoordInterpolators)
 {
-	return (2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS + 4 * NANITE_MAX_COLOR_QUANTIZATION_BITS + NumTexCoordInterpolators * (2 * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS));
+	uint Size = 0u;
+	Size += 2u * NANITE_MAX_NORMAL_QUANTIZATION_BITS;
+	Size += 1u + NANITE_MAX_TANGENT_QUANTIZATION_BITS;
+	Size += 4u * NANITE_MAX_COLOR_QUANTIZATION_BITS;
+	Size += NumTexCoordInterpolators * (2u * NANITE_MAX_TEXCOORD_QUANTIZATION_BITS);
+	return Size;
 }
 
 void DecodeMaterialRange(uint EncodedRange, out uint TriStart, out uint TriLength, out uint MaterialIndex)
@@ -463,6 +470,23 @@ FTexCoord InterpolateTexCoord(float2 TexCoord0, float2 TexCoord1, float2 TexCoor
 	return Result;
 }
 
+float3 UnpackTangentX(float3 TangentZ, uint TangentAngleBits, uint NumTangentBits)
+{
+	const bool bSwapXZ = (abs(TangentZ.z) > abs(TangentZ.x));
+	if (bSwapXZ) TangentZ.xz = TangentZ.zx;
+
+	const float3 TangentRefX = float3(-TangentZ.y, TangentZ.x, 0.0f);
+	const float3 TangentRefY = cross(TangentZ, TangentRefX);
+
+	const float Scale = rsqrt(dot(TangentRefX.xy, TangentRefX.xy));
+	
+	const float TangentAngle = float(TangentAngleBits) * ((2.0f * PI) / (1u << NumTangentBits));
+	float3 TangentX = TangentRefX * (cos(TangentAngle) * Scale) + TangentRefY * (sin(TangentAngle) * Scale);
+	if (bSwapXZ) TangentX.xz = TangentX.zx;
+	return TangentX;
+}
+
+
 // Decodes vertex attributes for N vertices. N must be compile-time constant and <= 3.
 // Decoding multiple vertices from the same cluster simultaneously tends to generate better code than decoding them individually.
 void GetRawAttributeDataN(inout FNaniteRawAttributeData RawAttributeData[3],
@@ -492,6 +516,11 @@ void GetRawAttributeDataN(inout FNaniteRawAttributeData RawAttributeData[3],
 	{
 		RawAttributeData[i].TangentZ = asfloat(ClusterPageData.Load3(ReadOffset[i]));
 		ReadOffset[i] += 12;
+		if(Cluster.bHasTangents)
+		{
+			RawAttributeData[i].TangentX_AndSign = asfloat(ClusterPageData.Load4(ReadOffset[i]));
+			ReadOffset[i] += 16;
+		}
 		RawAttributeData[i].Color = float4(UnpackToUint4(ClusterPageData.Load(ReadOffset[i]), 8)) * (1.0f / 255.0f);
 		ReadOffset[i] += 4;
 	}
@@ -510,7 +539,7 @@ void GetRawAttributeDataN(inout FNaniteRawAttributeData RawAttributeData[3],
 		}
 	}
 #else
-	const uint MaxAttributeBits = CalculateMaxAttributeBits(CompileTimeMaxTexCoords);
+	const uint CompileTimeMaxAttributeBits = CalculateMaxAttributeBits(CompileTimeMaxTexCoords);
 
 	// Watch out! Make sure control flow around BitStreamReader is always compile-time constant or codegen degrades significantly
 
@@ -521,9 +550,26 @@ void GetRawAttributeDataN(inout FNaniteRawAttributeData RawAttributeData[3],
 	UNROLL
 	for (i = 0; i < CompileTimeN; i++)
 	{
-		AttributeStream[i] = BitStreamReader_Create_Aligned(AttributeDataOffset, TriIndices[i] * Cluster.BitsPerAttribute, MaxAttributeBits);
+		AttributeStream[i] = BitStreamReader_Create_Aligned(AttributeDataOffset, TriIndices[i] * Cluster.BitsPerAttribute, CompileTimeMaxAttributeBits);
+
 		const uint NormalBits = BitStreamReader_Read_RO(ClusterPageData, AttributeStream[i], 2 * Cluster.NormalPrecision, 2 * NANITE_MAX_NORMAL_QUANTIZATION_BITS);
-		RawAttributeData[i].TangentZ = UnpackNormal(NormalBits, Cluster.NormalPrecision);
+		const float3 TangentZ = UnpackNormal(NormalBits, Cluster.NormalPrecision);
+		RawAttributeData[i].TangentZ = TangentZ;
+
+		const uint NumTangentBits = Cluster.bHasTangents ? (Cluster.TangentPrecision + 1) : 0u;
+		const uint TangentAngleAndSignBits = BitStreamReader_Read_RO(ClusterPageData, AttributeStream[i], NumTangentBits, NANITE_MAX_TANGENT_QUANTIZATION_BITS + 1);
+	
+		BRANCH
+		if (Cluster.bHasTangents)
+		{
+			const bool bTangentYSign = (TangentAngleAndSignBits & (1u << Cluster.TangentPrecision)) != 0;
+			const uint TangentAngleBits = BitFieldExtractU32(TangentAngleAndSignBits, Cluster.TangentPrecision, 0);
+			RawAttributeData[i].TangentX_AndSign = float4(UnpackTangentX(TangentZ, TangentAngleBits, Cluster.TangentPrecision), bTangentYSign ? -1.0f : 1.0f);
+		}
+		else
+		{
+			RawAttributeData[i].TangentX_AndSign = 0.0f;
+		}
 
 		const uint4 ColorDelta = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream[i], NumComponentBits, NANITE_MAX_COLOR_QUANTIZATION_BITS);
 		RawAttributeData[i].Color = float4(ColorMin + ColorDelta) * (1.0f / 255.0f);
@@ -575,6 +621,12 @@ FNaniteRawAttributeData GetRawAttributeData(
 	return RawAttributeData[0];
 }
 
+half3x3 NaniteTangentToLocal(float4 TangentX_AndSign, float3 UnnormalizedTangentZ)
+{
+	const float3 TangentY = cross(UnnormalizedTangentZ.xyz, TangentX_AndSign.xyz) * TangentX_AndSign.w;
+	return float3x3(TangentX_AndSign.xyz, TangentY, UnnormalizedTangentZ);
+}
+
 FNaniteAttributeData GetAttributeData(
 	FCluster Cluster,
 	float3 PointLocal0,
@@ -593,7 +645,8 @@ FNaniteAttributeData GetAttributeData(
 	// Always process first UV set. Even if it isn't used, we might still need TangentToWorld.
 	CompileTimeMaxTexCoords = max(1, min(NANITE_MAX_UVS, CompileTimeMaxTexCoords));
 
-	float3 TangentZ = normalize(Barycentrics.UVW.x * RawAttributeData0.TangentZ + Barycentrics.UVW.y * RawAttributeData1.TangentZ + Barycentrics.UVW.z * RawAttributeData2.TangentZ);
+	const float3 UnnormalizedTangentZ = Barycentrics.UVW.x * RawAttributeData0.TangentZ + Barycentrics.UVW.y * RawAttributeData1.TangentZ + Barycentrics.UVW.z * RawAttributeData2.TangentZ;
+	const float3 TangentZ = normalize(UnnormalizedTangentZ);
 
 	// Decode vertex color
 	// This needs to happen even if INTERPOLATE_VERTEX_COLOR is not defined as the data might be there regardless of what the shader needs.
@@ -626,55 +679,70 @@ FNaniteAttributeData GetAttributeData(
 			// Generate tangent frame for UV0
 			if (TexCoordIndex == 0)
 			{
-				// Implicit tangent space
-				// Based on Christian Schüler's derivation: http://www.thetenthplanet.de/archives/1180
-				// The technique derives a tangent space from the interpolated normal and (position,uv) deltas in two not necessarily orthogonal directions.
-				// The described technique uses screen space derivatives as a way to obtain these direction deltas in a pixel shader,
-				// but as we have the triangle vertices explicitly available using the local space corner deltas directly is faster and more convenient.
+				float3x3 TangentToLocal;
 
-				float3 PointLocal10 = PointLocal1 - PointLocal0;
-				float3 PointLocal20 = PointLocal2 - PointLocal0;
-				float2 TexCoord10 = RawAttributeData1.TexCoords[0] - RawAttributeData0.TexCoords[0];
-				float2 TexCoord20 = RawAttributeData2.TexCoords[0] - RawAttributeData0.TexCoords[0];
-
-				bool TangentXValid = abs(TexCoord10.x) + abs(TexCoord20.x) > 1e-6;
-
-				float3 TangentX;
-				float3 TangentY;
-				if (TangentXValid)
+				BRANCH
+				if (Cluster.bHasTangents)
 				{
-					float3 Perp2 = cross(TangentZ, PointLocal20);
-					float3 Perp1 = cross(PointLocal10, TangentZ);
-					float3 TangentU = Perp2 * TexCoord10.x + Perp1 * TexCoord20.x;
-					float3 TangentV = Perp2 * TexCoord10.y + Perp1 * TexCoord20.y;
-
-					TangentX = normalize(TangentU);
-					TangentY = cross(TangentZ, TangentX);
-
-					AttributeData.UnMirrored = dot(TangentV, TangentY) < 0.0f ? -1.0f : 1.0f;
-					TangentY *= AttributeData.UnMirrored;
+					const float4 TangentX_AndSign = Barycentrics.UVW.x * RawAttributeData0.TangentX_AndSign + Barycentrics.UVW.y * RawAttributeData1.TangentX_AndSign + Barycentrics.UVW.z * RawAttributeData2.TangentX_AndSign;
+					TangentToLocal = NaniteTangentToLocal(TangentX_AndSign, UnnormalizedTangentZ);
+					AttributeData.UnMirrored = TangentX_AndSign.w;
 				}
 				else
 				{
-					const float Sign = TangentZ.z >= 0 ? 1 : -1;
-					const float a = -rcp( Sign + TangentZ.z );
-					const float b = TangentZ.x * TangentZ.y * a;
-	
-					TangentX = float3(1 + Sign * a * Pow2(TangentZ.x), Sign * b, -Sign * TangentZ.x);
-					TangentY = float3(b,  Sign + a * Pow2(TangentZ.y), -TangentZ.y);
+					// Implicit tangent space
+					// Based on Christian Schüler's derivation: http://www.thetenthplanet.de/archives/1180
+					// The technique derives a tangent space from the interpolated normal and (position,uv) deltas in two not necessarily orthogonal directions.
+					// The described technique uses screen space derivatives as a way to obtain these direction deltas in a pixel shader,
+					// but as we have the triangle vertices explicitly available using the local space corner deltas directly is faster and more convenient.
 
-					AttributeData.UnMirrored = 1;
+					float3 PointLocal10 = PointLocal1 - PointLocal0;
+					float3 PointLocal20 = PointLocal2 - PointLocal0;
+					float2 TexCoord10 = RawAttributeData1.TexCoords[0] - RawAttributeData0.TexCoords[0];
+					float2 TexCoord20 = RawAttributeData2.TexCoords[0] - RawAttributeData0.TexCoords[0];
+
+					bool TangentXValid = abs(TexCoord10.x) + abs(TexCoord20.x) > 1e-6;
+
+					float3 TangentX;
+					float3 TangentY;
+					BRANCH
+					if (TangentXValid)
+					{
+						float3 Perp2 = cross(TangentZ, PointLocal20);
+						float3 Perp1 = cross(PointLocal10, TangentZ);
+						float3 TangentU = Perp2 * TexCoord10.x + Perp1 * TexCoord20.x;
+						float3 TangentV = Perp2 * TexCoord10.y + Perp1 * TexCoord20.y;
+
+						TangentX = normalize(TangentU);
+						TangentY = cross(TangentZ, TangentX);
+
+						AttributeData.UnMirrored = dot(TangentV, TangentY) < 0.0f ? -1.0f : 1.0f;
+						TangentY *= AttributeData.UnMirrored;
+					}
+					else
+					{
+						const float Sign = TangentZ.z >= 0 ? 1 : -1;
+						const float a = -rcp( Sign + TangentZ.z );
+						const float b = TangentZ.x * TangentZ.y * a;
+	
+						TangentX = float3(1 + Sign * a * Pow2(TangentZ.x), Sign * b, -Sign * TangentZ.x);
+						TangentY = float3(b,  Sign + a * Pow2(TangentZ.y), -TangentZ.y);
+
+						AttributeData.UnMirrored = 1;
+					}
+
+					TangentToLocal = float3x3(TangentX, TangentY, TangentZ);
 				}
 
-				float3x3 TangentToLocal = float3x3(TangentX, TangentY, TangentZ);
-
 				// Should be Pow2(InvScale) but that requires renormalization
-				float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
+				float3x3 LocalToWorldNoScale = LWCToFloat3x3(InstanceData.LocalToWorld);
 				float3 InvScale = InstanceData.InvNonUniformScale;
-				LocalToWorld[0] *= InvScale.x;
-				LocalToWorld[1] *= InvScale.y;
-				LocalToWorld[2] *= InvScale.z;
-				AttributeData.TangentToWorld = mul(TangentToLocal, LocalToWorld);
+				LocalToWorldNoScale[0] *= InvScale.x;
+				LocalToWorldNoScale[1] *= InvScale.y;
+				LocalToWorldNoScale[2] *= InvScale.z;
+				AttributeData.TangentToWorld = mul(TangentToLocal, LocalToWorldNoScale);
+
+
 			}
 		}
 		else

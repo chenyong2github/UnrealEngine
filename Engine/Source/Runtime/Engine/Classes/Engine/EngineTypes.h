@@ -2812,6 +2812,9 @@ struct FMeshNaniteSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	uint8 bPreserveArea : 1;
 
+	/** Whether to store explicit tangents instead of using the implicitly derived ones. */
+	uint8 bExplicitTangents : 1;
+
 	/** Position Precision. Step size is 2^(-PositionPrecision) cm. MIN_int32 is auto. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	int32 PositionPrecision = MIN_int32;
@@ -2819,6 +2822,10 @@ struct FMeshNaniteSettings
 	/** Normal Precision in bits. -1 is auto. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	int32 NormalPrecision = -1;
+
+	/** Tangent Precision in bits. -1 is auto. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	int32 TangentPrecision = -1;
 
 	/** How much of the resource should always be resident (In KB). Approximate due to paging. 0: Minimum size (single page). MAX_uint32: Entire mesh.*/
 	UPROPERTY(EditAnywhere, Category = NaniteSettings)
@@ -2854,7 +2861,9 @@ struct FMeshNaniteSettings
 	FMeshNaniteSettings()
 	: bEnabled(false)
 	, bPreserveArea(false)
+	, bExplicitTangents(false) // TODO: Should this be the default?
 	{}
+
 
 	/** Equality operator. */
 	bool operator==(const FMeshNaniteSettings& Other) const
@@ -2870,8 +2879,10 @@ struct FMeshNaniteSettings
 
 		return bEnabled == Other.bEnabled
 			&& bPreserveArea == Other.bPreserveArea
+			&& bExplicitTangents == Other.bExplicitTangents
 			&& PositionPrecision == Other.PositionPrecision
 			&& NormalPrecision == Other.NormalPrecision
+			&& TangentPrecision == Other.TangentPrecision
 			&& TargetMinimumResidencyInKB == Other.TargetMinimumResidencyInKB
 			&& KeepPercentTriangles == Other.KeepPercentTriangles
 			&& TrimRelativeError == Other.TrimRelativeError

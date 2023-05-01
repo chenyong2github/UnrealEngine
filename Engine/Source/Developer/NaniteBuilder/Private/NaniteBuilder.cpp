@@ -321,6 +321,7 @@ static void ClusterTriangles(
 	TArray< FCluster >& Clusters,	// Append
 	const FBounds3f& MeshBounds,
 	uint32 NumTexCoords,
+	bool bHasTangents,
 	bool bHasColors,
 	bool bPreserveArea )
 {
@@ -397,7 +398,13 @@ static void ClusterTriangles(
 	}
 
 	uint32 BoundaryTime = FPlatformTime::Cycles();
-	UE_LOG( LogStaticMesh, Log, TEXT("Adjacency [%.2fs], tris: %i, UVs %i%s"), FPlatformTime::ToMilliseconds( BoundaryTime - Time0 ) / 1000.0f, Indexes.Num() / 3, NumTexCoords, bHasColors ? TEXT(", Color") : TEXT("") );
+	UE_LOG( LogStaticMesh, Log,
+		TEXT("Adjacency [%.2fs], tris: %i, UVs %i%s%s"),
+		FPlatformTime::ToMilliseconds( BoundaryTime - Time0 ) / 1000.0f,
+		Indexes.Num() / 3,
+		NumTexCoords,
+		bHasTangents ? TEXT(", Tangents") : TEXT(""),
+		bHasColors ? TEXT(", Color") : TEXT("") );
 
 	FGraphPartitioner Partitioner( NumTriangles );
 
@@ -462,7 +469,7 @@ static void ClusterTriangles(
 					Verts,
 					Indexes,
 					MaterialIndexes,
-					NumTexCoords, bHasColors, bPreserveArea,
+					NumTexCoords, bHasTangents, bHasColors, bPreserveArea,
 					Range.Begin, Range.End, Partitioner, Adjacency );
 
 				// Negative notes it's a leaf
@@ -564,7 +571,7 @@ bool FBuilderModule::Build(
 					VertexView,
 					TConstArrayView<const uint32>( &InputMeshData.TriangleIndices[BaseTriangle * 3], NumTriangles * 3 ),
 					TConstArrayView<const int32>( &InputMeshData.MaterialIndices[BaseTriangle], NumTriangles ),
-					Clusters, InputMeshData.VertexBounds, InputMeshData.NumTexCoords, bHasVertexColor, Settings.bPreserveArea );
+					Clusters, InputMeshData.VertexBounds, InputMeshData.NumTexCoords, Settings.bExplicitTangents, bHasVertexColor, Settings.bPreserveArea );
 			}
 			ClusterCountPerMesh.Add(Clusters.Num() - NumClustersBefore);
 			BaseTriangle += NumTriangles;
@@ -712,7 +719,7 @@ bool FBuilderModule::Build(
 
 	uint32 EncodeTime0 = FPlatformTime::Cycles();
 
-	Encode( Resources, Settings, Clusters, Groups, MeshBounds, Resources.NumInputMeshes, InputMeshData.NumTexCoords, bHasVertexColor);
+	Encode( Resources, Settings, Clusters, Groups, MeshBounds, Resources.NumInputMeshes, InputMeshData.NumTexCoords, Settings.bExplicitTangents, bHasVertexColor );
 
 	uint32 EncodeTime1 = FPlatformTime::Cycles();
 	UE_LOG( LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds( EncodeTime1 - EncodeTime0 ) / 1000.0f );

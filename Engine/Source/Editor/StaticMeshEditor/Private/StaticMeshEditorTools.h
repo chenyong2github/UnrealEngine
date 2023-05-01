@@ -719,6 +719,16 @@ public:
 	/** Display string to show in menus. */
 	static FString NormalPrecisionValueToDisplayString(int32 Value);
 
+	/** Tangent Precision range selectable in the UI. */
+	static const int32 DisplayTangentPrecisionAuto = -1;
+	static const int32 DisplayTangentPrecisionMin = 4;
+	static const int32 DisplayTangentPrecisionMax = 12;
+
+	static int32 TangentPrecisionIndexToValue(int32 Index);
+	static int32 TangentPrecisionValueToIndex(int32 Value);
+
+	/** Display string to show in menus. */
+	static FString TangentPrecisionValueToDisplayString(int32 Value);
 
 	/** Residency range selectable in the UI. */
 	static const int32 DisplayMinimumResidencyMinimalIndex = 0;
@@ -740,8 +750,12 @@ private:
 	ECheckBoxState IsPreserveAreaChecked() const;
 	void OnPreserveAreaChanged(ECheckBoxState NewState);
 
+	ECheckBoxState IsExplicitTangentsChecked() const;
+	void OnExplicitTangentsChanged(ECheckBoxState NewState);
+
 	void OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 	void OnNormalPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
+	void OnTangentPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 	void OnResidencyChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 
 	float GetKeepPercentTriangles() const;
@@ -780,5 +794,6 @@ private:
 
 	TArray<TSharedPtr<FString> > PositionPrecisionOptions;
 	TArray<TSharedPtr<FString> > NormalPrecisionOptions;
+	TArray<TSharedPtr<FString> > TangentPrecisionOptions;
 	TArray<TSharedPtr<FString> > ResidencyOptions;
 };

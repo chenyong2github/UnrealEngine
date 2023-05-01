@@ -50,7 +50,7 @@ public:
 		const FConstMeshBuildVertexView& InVerts,
 		const TConstArrayView< const uint32 >& InIndexes,
 		const TConstArrayView< const int32 >& InMaterialIndexes,
-		uint32 InNumTexCoords, bool bInHasColors, bool bInPreserveArea,
+		uint32 InNumTexCoords, bool bInHasTangents, bool bInHasColors, bool bInPreserveArea,
 		uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency );
 
 	FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency );
@@ -69,11 +69,15 @@ public:
 	FVector3f&			GetPosition( uint32 VertIndex );
 	float*				GetAttributes( uint32 VertIndex );
 	FVector3f&			GetNormal( uint32 VertIndex );
+	FVector3f&			GetTangentX( uint32 VertIndex );
+	float&				GetTangentYSign( uint32 VertIndex );
 	FLinearColor&		GetColor( uint32 VertIndex );
 	FVector2f*			GetUVs( uint32 VertIndex );
 
 	const FVector3f&	GetPosition( uint32 VertIndex ) const;
 	const FVector3f&	GetNormal( uint32 VertIndex ) const;
+	const FVector3f&	GetTangentX( uint32 VertIndex ) const;
+	const float&		GetTangentYSign( uint32 VertIndex ) const;
 	const FLinearColor&	GetColor( uint32 VertIndex ) const;
 	const FVector2f*	GetUVs( uint32 VertIndex ) const;
 
@@ -86,6 +90,7 @@ public:
 	uint32		NumVerts = 0;
 	uint32		NumTris = 0;
 	uint32		NumTexCoords = 0;
+	bool		bHasTangents = false;
 	bool		bHasColors = false;
 	bool		bPreserveArea = false;
 
@@ -125,7 +130,7 @@ public:
 
 FORCEINLINE uint32 FCluster::GetVertSize() const
 {
-	return 6 + ( bHasColors ? 4 : 0 ) + NumTexCoords * 2;
+	return 6 + ( bHasTangents ? 4 : 0 ) + ( bHasColors ? 4 : 0 ) + NumTexCoords * 2;
 }
 
 FORCEINLINE FVector3f& FCluster::GetPosition( uint32 VertIndex )
@@ -153,24 +158,44 @@ FORCEINLINE const FVector3f& FCluster::GetNormal( uint32 VertIndex ) const
 	return *reinterpret_cast< const FVector3f* >( &Verts[ VertIndex * GetVertSize() + 3 ] );
 }
 
+FORCEINLINE FVector3f& FCluster::GetTangentX( uint32 VertIndex )
+{
+	return *reinterpret_cast< FVector3f* >( &Verts[ VertIndex * GetVertSize() + 6 ] );
+}
+
+FORCEINLINE const FVector3f& FCluster::GetTangentX( uint32 VertIndex ) const
+{
+	return *reinterpret_cast< const FVector3f* >( &Verts[ VertIndex * GetVertSize() + 6 ] );
+}
+
+FORCEINLINE float& FCluster::GetTangentYSign( uint32 VertIndex )
+{
+	return *reinterpret_cast< float* >( &Verts[ VertIndex * GetVertSize() + 9 ] );
+}
+
+FORCEINLINE const float& FCluster::GetTangentYSign( uint32 VertIndex ) const
+{
+	return *reinterpret_cast< const float* >( &Verts[ VertIndex * GetVertSize() + 9 ] );
+}
+
 FORCEINLINE FLinearColor& FCluster::GetColor( uint32 VertIndex )
 {
-	return *reinterpret_cast< FLinearColor* >( &Verts[ VertIndex * GetVertSize() + 6 ] );
+	return *reinterpret_cast< FLinearColor* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasTangents ? 4 : 0 ) ] );
 }
 
 FORCEINLINE const FLinearColor& FCluster::GetColor( uint32 VertIndex ) const
 {
-	return *reinterpret_cast< const FLinearColor* >( &Verts[ VertIndex * GetVertSize() + 6 ] );
+	return *reinterpret_cast< const FLinearColor* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasTangents ? 4 : 0 )] );
 }
 
 FORCEINLINE FVector2f* FCluster::GetUVs( uint32 VertIndex )
 {
-	return reinterpret_cast< FVector2f* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
+	return reinterpret_cast< FVector2f* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasTangents ? 4 : 0 ) + ( bHasColors ? 4 : 0 ) ] );
 }
 
 FORCEINLINE const FVector2f* FCluster::GetUVs( uint32 VertIndex ) const
 {
-	return reinterpret_cast< const FVector2f* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
+	return reinterpret_cast< const FVector2f* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasTangents ? 4 : 0 ) + ( bHasColors ? 4 : 0 ) ] );
 }
 
 } // namespace Nanite

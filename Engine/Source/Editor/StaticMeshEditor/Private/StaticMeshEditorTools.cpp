@@ -5182,11 +5182,19 @@ FNaniteSettingsLayout::FNaniteSettingsLayout(FStaticMeshEditor& InStaticMeshEdit
 	}
 
 	// Normal options
-	const FText NormalAutoTest = FText::Format(LOCTEXT("NormalPrecisionAuto", "Auto ({0} bits)"), 8);	//TODO: Just use Auto=8 for now
-	NormalPrecisionOptions.Add(MakeShared<FString>(NormalAutoTest.ToString()));
+	const FText NormalAutoText = FText::Format(LOCTEXT("NormalPrecisionAuto", "Auto ({0} bits)"), 8);	//TODO: Just use Auto=8 for now
+	NormalPrecisionOptions.Add(MakeShared<FString>(NormalAutoText.ToString()));
 	for (int32 i = DisplayNormalPrecisionMin; i <= DisplayNormalPrecisionMax; i++)
 	{
 		NormalPrecisionOptions.Add(MakeShared<FString>(NormalPrecisionValueToDisplayString(i)));
+	}
+
+	// Tangent options
+	const FText TangentAutoText = FText::Format(LOCTEXT("TangentPrecisionAuto", "Auto ({0} bits)"), 7);	//TODO: Just use Auto=7 for now
+	TangentPrecisionOptions.Add(MakeShared<FString>(TangentAutoText.ToString()));
+	for (int32 i = DisplayTangentPrecisionMin; i <= DisplayTangentPrecisionMax; i++)
+	{
+		TangentPrecisionOptions.Add(MakeShared<FString>(TangentPrecisionValueToDisplayString(i)));
 	}
 
 	// Residency options
@@ -5329,6 +5337,24 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 	}
 
 	{
+		TSharedPtr<SCheckBox> NaniteExplicitTangentsCheck;
+		NaniteSettingsCategory.AddCustomRow(LOCTEXT("Explicit Tangents", "Explicit Tangents"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("Explicit Tangents", "Explicit Tangents"))
+		]
+		.ValueContent()
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(NaniteExplicitTangentsCheck, SCheckBox)
+			.IsChecked(this, &FNaniteSettingsLayout::IsExplicitTangentsChecked)
+			.OnCheckStateChanged(this, &FNaniteSettingsLayout::OnExplicitTangentsChanged)
+		];
+	}
+
+	{
 		TSharedPtr<STextComboBox> ComboBox;
 		NaniteSettingsCategory.AddCustomRow(LOCTEXT("PositionPrecision", "Position Precision"))
 		.RowTag("PositionPrecision")
@@ -5369,6 +5395,32 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 			.InitiallySelectedItem(NormalPrecisionOptions[NormalPrecisionValueToIndex(NaniteSettings.NormalPrecision)])
 			.OnSelectionChanged(this, &FNaniteSettingsLayout::OnNormalPrecisionChanged)
 		];
+	}
+
+	{
+		TSharedPtr<STextComboBox> ComboBox;
+		FDetailWidgetRow& Row = NaniteSettingsCategory.AddCustomRow(LOCTEXT("TangentPrecision", "Tangent Precision"));
+		Row.NameContent()
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("TangentPrecision", "Tangent Precision"))
+			.ToolTipText(LOCTEXT("TangentPrecisionTooltip", "Precision of vertex tangents."))
+			];
+		
+		Row.ValueContent()
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(ComboBox, STextComboBox)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.OptionsSource(&TangentPrecisionOptions)
+			.InitiallySelectedItem(TangentPrecisionOptions[TangentPrecisionValueToIndex(NaniteSettings.TangentPrecision)])
+			.OnSelectionChanged(this, &FNaniteSettingsLayout::OnTangentPrecisionChanged)
+		]
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]()
+			{
+				return NaniteSettings.bExplicitTangents ? EVisibility::Visible : EVisibility::Hidden;
+			})));
 	}
 
 	{
@@ -5758,6 +5810,41 @@ FString FNaniteSettingsLayout::NormalPrecisionValueToDisplayString(int32 Value)
 	return FString::Printf(TEXT("%d bits"), Value);
 }
 
+int32 FNaniteSettingsLayout::TangentPrecisionIndexToValue(int32 Index)
+{
+	check(Index >= 0);
+
+	if (Index == 0)
+	{
+		return DisplayTangentPrecisionAuto;
+	}
+	else
+	{
+		int32 Value = DisplayTangentPrecisionMin + (Index - 1);
+		Value = FMath::Min(Value, DisplayTangentPrecisionMax);
+		return Value;
+	}
+}
+
+int32 FNaniteSettingsLayout::TangentPrecisionValueToIndex(int32 Value)
+{
+	if (Value == DisplayTangentPrecisionAuto)
+	{
+		return 0;
+	}
+	else
+	{
+		Value = FMath::Clamp(Value, DisplayTangentPrecisionMin, DisplayTangentPrecisionMax);
+		return Value - DisplayTangentPrecisionMin + 1;
+	}
+}
+
+FString FNaniteSettingsLayout::TangentPrecisionValueToDisplayString(int32 Value)
+{
+	check(Value != DisplayTangentPrecisionAuto);
+	return FString::Printf(TEXT("%d bits"), Value);
+}
+
 uint32 FNaniteSettingsLayout::MinimumResidencyIndexToValue(int32 Index)
 {
 	if (Index == DisplayMinimumResidencyMinimalIndex)
@@ -5824,6 +5911,16 @@ void FNaniteSettingsLayout::OnPreserveAreaChanged(ECheckBoxState NewState)
 	NaniteSettings.bPreserveArea = NewState == ECheckBoxState::Checked ? true : false;
 }
 
+ECheckBoxState FNaniteSettingsLayout::IsExplicitTangentsChecked() const
+{
+	return NaniteSettings.bExplicitTangents ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FNaniteSettingsLayout::OnExplicitTangentsChanged(ECheckBoxState NewState)
+{
+	NaniteSettings.bExplicitTangents = NewState == ECheckBoxState::Checked ? true : false;
+}
+
 void FNaniteSettingsLayout::OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)
 {
 	int32 NewValueInt = PositionPrecisionIndexToValue(PositionPrecisionOptions.Find(NewValue));
@@ -5850,6 +5947,18 @@ void FNaniteSettingsLayout::OnNormalPrecisionChanged(TSharedPtr<FString> NewValu
 	}
 }
 
+void FNaniteSettingsLayout::OnTangentPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)
+{
+	int32 NewValueInt = TangentPrecisionIndexToValue(TangentPrecisionOptions.Find(NewValue));
+	if (NaniteSettings.TangentPrecision != NewValueInt)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("TangentPrecision"), *NewValue.Get());
+		}
+		NaniteSettings.TangentPrecision = NewValueInt;
+	}
+}
 
 void FNaniteSettingsLayout::OnResidencyChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)
 {

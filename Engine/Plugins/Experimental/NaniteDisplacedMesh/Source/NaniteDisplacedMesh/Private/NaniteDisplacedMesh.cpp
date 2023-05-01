@@ -375,19 +375,20 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		return false;
 	}
 
-	FMeshBuildSettings& BuildSettings = SourceModel.BuildSettings;
-	FMeshDescriptionHelper MeshDescriptionHelper(&BuildSettings);
-	MeshDescriptionHelper.SetupRenderMeshDescription(BaseMesh, MeshDescription, true, false);
-
-	const FMeshSectionInfoMap BeforeBuildSectionInfoMap = BaseMesh->GetSectionInfoMap();
-	const FMeshSectionInfoMap BeforeBuildOriginalSectionInfoMap = BaseMesh->GetOriginalSectionInfoMap();
-
 	// Note: We intentionally ignore BaseMesh->NaniteSettings so we don't couple against a mesh that may
 	// not ever render as Nanite directly. It is expected that anyone using a Nanite displaced mesh asset
 	// will always want Nanite unless the platform, runtime, or "Disallow Nanite" on SMC prevents it.
 	FMeshNaniteSettings NaniteSettings;
 	NaniteSettings.bEnabled = true;
+	NaniteSettings.bExplicitTangents = BaseMesh->NaniteSettings.bExplicitTangents;	// TODO: Expose directly instead of inheriting from base mesh?
 	NaniteSettings.TrimRelativeError = Parameters.RelativeError;
+
+	FMeshBuildSettings& BuildSettings = SourceModel.BuildSettings;
+	FMeshDescriptionHelper MeshDescriptionHelper(&BuildSettings);
+	MeshDescriptionHelper.SetupRenderMeshDescription(BaseMesh, MeshDescription, true, NaniteSettings.bExplicitTangents);
+
+	const FMeshSectionInfoMap BeforeBuildSectionInfoMap = BaseMesh->GetSectionInfoMap();
+	const FMeshSectionInfoMap BeforeBuildOriginalSectionInfoMap = BaseMesh->GetOriginalSectionInfoMap();
 
 	const int32 NumSourceModels = BaseMesh->GetNumSourceModels();
 
@@ -416,7 +417,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 		MeshDescriptionHelper.GetOverlappingCorners(),
 		RemapVerts,
 		MeshBounds,
-		false /* bNeedTangents */,
+		NaniteSettings.bExplicitTangents /* bNeedTangents */,
 		false /* bNeedWedgeMap */
 	);
 
