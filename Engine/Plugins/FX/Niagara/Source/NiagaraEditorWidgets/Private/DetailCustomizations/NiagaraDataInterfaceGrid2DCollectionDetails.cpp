@@ -12,6 +12,7 @@
 #include "NiagaraNodeInput.h"
 #include "NiagaraSettings.h"
 #include "SNiagaraNamePropertySelector.h"
+#include "NiagaraEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceGrid2DCollectionDetails"
 
@@ -146,7 +147,16 @@ void FNiagaraDataInterfaceGrid2DCollectionDetails::GeneratePreviewAttributes(TAr
 			TArray<FNiagaraVariableBase> FoundVariables;
 			TArray<uint32> FoundVariableOffsets;
 			int32 FoundNumAttribChannelsFound;
-			Grid2DInterface->FindAttributesByName(VariableName, FoundVariables, FoundVariableOffsets, FoundNumAttribChannelsFound);
+
+			// Finding attributes requires that we use the runtime instance of the data interface, so get that here.
+			UNiagaraSystem* OwningSystem = Grid2DInterface->GetTypedOuter<UNiagaraSystem>();
+			UNiagaraDataInterfaceGrid2DCollection* RuntimeGrid2DInterface = OwningSystem != nullptr 
+				? Cast<UNiagaraDataInterfaceGrid2DCollection>(FNiagaraEditorUtilities::GetResolvedRuntimeInstanceForEditorDataInterfaceInstance(*OwningSystem, *Grid2DInterface))
+				: nullptr;
+			if (RuntimeGrid2DInterface != nullptr)
+			{
+				RuntimeGrid2DInterface->FindAttributes(FoundVariables, FoundVariableOffsets, FoundNumAttribChannelsFound);
+			}
 
 			for (const FNiagaraVariableBase& Variable : FoundVariables)
 			{

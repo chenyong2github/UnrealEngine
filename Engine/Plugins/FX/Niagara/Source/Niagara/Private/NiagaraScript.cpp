@@ -1541,7 +1541,7 @@ const FNiagaraScriptExecutionParameterStore* UNiagaraScript::GetExecutionReadyPa
 			}
 			return &ScriptExecutionParamStoreCPU;
 		}
-		else if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		else if (SimTarget == ENiagaraSimTarget::GPUComputeSim && IsReadyToRun(ENiagaraSimTarget::GPUComputeSim))
 		{
 			if (!ScriptExecutionParamStoreGPU.bInitialized)
 			{
@@ -1762,7 +1762,7 @@ void UNiagaraScript::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	ScriptExecutionBoundParameters.Empty();
 
 	// Make sure the data interfaces are consistent to prevent crashes in later caching operations.
-	if (CachedScriptVM.DataInterfaceInfo.Num() != CachedDefaultDataInterfaces.Num())
+	if (CachedScriptVM.DataInterfaceInfo.Num() != ResolvedDataInterfaces.Num())
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("Data interface count mismatch during script presave. Invaliding compile results (see full log for details).  Script: %s"), *GetPathName());
 		UE_LOG(LogNiagara, Log, TEXT("Compiled DataInterfaceInfos:"));
@@ -1770,13 +1770,13 @@ void UNiagaraScript::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		{
 			UE_LOG(LogNiagara, Log, TEXT("Name:%s, Type: %s"), *DataInterfaceCompileInfo.Name.ToString(), *DataInterfaceCompileInfo.Type.GetName());
 		}
-		UE_LOG(LogNiagara, Log, TEXT("Cached DataInterfaceInfos:"));
-		for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceCacheInfo : CachedDefaultDataInterfaces)
+		UE_LOG(LogNiagara, Log, TEXT("Resolved DataInterfaceInfos:"));
+		for (const FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDataInterfaceInfo : ResolvedDataInterfaces)
 		{
 			UE_LOG(LogNiagara, Log, TEXT("Name:%s, Type: %s, Path:%s"),
-				*DataInterfaceCacheInfo.Name.ToString(), *DataInterfaceCacheInfo.Type.GetName(),
-				DataInterfaceCacheInfo.DataInterface != nullptr
-					? *DataInterfaceCacheInfo.DataInterface->GetPathName()
+				*ResolvedDataInterfaceInfo.Name.ToString(), *ResolvedDataInterfaceInfo.ResolvedVariable.GetType().GetName(),
+				ResolvedDataInterfaceInfo.ResolvedDataInterface != nullptr
+					? *ResolvedDataInterfaceInfo.ResolvedDataInterface->GetPathName()
 					: TEXT("None"));
 		}
 
@@ -2141,7 +2141,10 @@ void UNiagaraScript::PostLoad()
 
 	for (FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDataInterface : ResolvedDataInterfaces)
 	{
-		ResolvedDataInterface.ResolvedDataInterface->ConditionalPostLoad();
+		if (ResolvedDataInterface.ResolvedDataInterface != nullptr)
+		{
+			ResolvedDataInterface.ResolvedDataInterface->ConditionalPostLoad();
+		}
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -2834,6 +2837,7 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	ResolveParameterCollectionReferences();
 
 	CachedDefaultDataInterfaces.Empty(CachedScriptVM.DataInterfaceInfo.Num());
+	ResolvedDataInterfaces.Empty();
 	for (const FNiagaraScriptDataInterfaceCompileInfo& Info : CachedScriptVM.DataInterfaceInfo)
 	{
 		int32 Idx = CachedDefaultDataInterfaces.AddDefaulted();
@@ -2843,10 +2847,7 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		CachedDefaultDataInterfaces[Idx].Type = Info.Type;
 		CachedDefaultDataInterfaces[Idx].SourceEmitterName = Info.SourceEmitterName;
 		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapRead = ResolveEmitterAlias(Info.RegisteredParameterMapRead, EmitterUniqueName);
-		for (const FName& RegisteredParameterMapWrite : Info.RegisteredParameterMapWrites)
-		{
-			CachedDefaultDataInterfaces[Idx].RegisteredParameterMapWrites.Add(ResolveEmitterAlias(RegisteredParameterMapWrite, EmitterUniqueName));
-		}
+		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapWrite = ResolveEmitterAlias(Info.RegisteredParameterMapWrite, EmitterUniqueName);
 
 		// We compiled it just a bit ago, so we should be able to resolve it from the table that we passed in.
 		UNiagaraDataInterface* FindDIById = ResolveDataInterface(ObjectNameMap, CachedDefaultDataInterfaces[Idx].Name);
@@ -3651,10 +3652,7 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 
 		// also update the MapRead/MapWrite member variables, they seem to typically match the Name parameter, but may be None
 		UpdateName(DataInterfaceInfo.RegisteredParameterMapRead);
-		for (FName& RegisteredParameterMapWrite : DataInterfaceInfo.RegisteredParameterMapWrites)
-		{
-			UpdateName(RegisteredParameterMapWrite);
-		}
+		UpdateName(DataInterfaceInfo.RegisteredParameterMapWrite);
 	}
 }
 
@@ -3682,6 +3680,7 @@ bool UNiagaraScript::SynchronizeExecutablesWithCompilation(const UNiagaraScript*
 		CachedScriptVM.OptimizationTask.State = nullptr;
 		CachedParameterCollectionReferences = Script->CachedParameterCollectionReferences;
 		CachedDefaultDataInterfaces.Empty();
+		ResolvedDataInterfaces.Empty();
 		for (const FNiagaraScriptDataInterfaceInfo& Info : Script->CachedDefaultDataInterfaces)
 		{
 			FNiagaraScriptDataInterfaceInfo AddInfo;
@@ -3719,6 +3718,7 @@ void UNiagaraScript::InvalidateCompileResults(const FString& Reason)
 		GetLastGeneratedVMId().Invalidate();
 	}
 	CachedDefaultDataInterfaces.Reset();
+	ResolvedDataInterfaces.Reset();
 	CachedScriptVM.OptimizationTask.State = nullptr;
 }
 

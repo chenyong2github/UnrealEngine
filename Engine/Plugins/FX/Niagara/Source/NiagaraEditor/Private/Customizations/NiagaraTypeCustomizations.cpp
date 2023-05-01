@@ -975,7 +975,7 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 					TArray<FNiagaraScriptDataInterfaceInfo>& CachedDIs = Script->GetCachedDefaultDataInterfaces();
 					for (const FNiagaraScriptDataInterfaceInfo& Info : CachedDIs)
 					{
-						if (Info.RegisteredParameterMapWrites.Contains(VariableName))
+						if (Info.RegisteredParameterMapWrite == VariableName)
 						{
 							return Info.DataInterface;
 						}
