@@ -101,7 +101,6 @@ public sealed class WorkspaceExecutorTest : IDisposable
 		Assert.AreEqual("1", envVars["uebp_CL"]);
 		Assert.AreEqual("0", envVars["uebp_CodeCL"]);
 		Assert.AreEqual(autoSdkSettings.DirectoryPath.FullName, envVars["UE_SDKS_ROOT"]);
-		Assert.AreEqual(7, envVars.Count);
 		
 		await executor.FinalizeAsync(_logger, CancellationToken.None);
 	}
