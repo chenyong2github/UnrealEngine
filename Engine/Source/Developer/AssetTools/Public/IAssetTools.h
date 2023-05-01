@@ -246,6 +246,8 @@ class IAssetTools
 public:
 	ASSETTOOLS_API static IAssetTools& Get();
 
+	DECLARE_DELEGATE(FOnAssetsDiscovered);
+
 	/** Registers an asset type actions object so it can provide information about and actions for asset types. */
 	virtual void RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions) = 0;
 
@@ -353,6 +355,12 @@ public:
 
 	/** Gets whether assets are being made externally referenceable or not */
 	virtual bool GetCreateAssetsAsExternallyReferenceable() = 0;
+
+	/** Gets whether assets registry is still loading assets or not */
+	virtual bool IsDiscoveringAssetsInProgress() const = 0;
+
+	/** Opens a dialog asking the user to wait while assets are being discovered */
+	virtual void OpenDiscoveringAssetsDialog(const FOnAssetsDiscovered& InOnAssetsDiscovered) = 0;
 
 	/** Renames assets using the specified names. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")

@@ -111,6 +111,11 @@ private:
 	FReply OnCreatePluginClicked();
 
 	/**
+	 * Called when asset discovering completes if the user attempts to create a new plugin while asset discovery is still in progress.
+	 */
+	void DiscoveringAssetsCalback();
+
+	/**
 	 * Generates the expected list view for the plugin wizard, based on the wizard's definition
 	 */
 	void GenerateListViewWidget();
@@ -159,6 +164,9 @@ private:
 
 	/** Whether we want to create a plugin in the engine folder */
 	bool bIsSelectedPathInEngine;
+
+	/** Whether the asset discovery dialog is open and the user needs to wait on it */
+	bool bIsWaitingForAssetDiscoveryToFinish;
 
 	/** Tab that owns this wizard so that we can ask to close after completion */
 	TWeakPtr<SDockTab> OwnerTab;
