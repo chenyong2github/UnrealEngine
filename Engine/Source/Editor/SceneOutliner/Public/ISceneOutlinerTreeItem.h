@@ -96,6 +96,19 @@ public:
 	{
 		return Children;
 	}
+
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FFilterPredicate, const ISceneOutlinerTreeItem& Item);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FInteractivePredicate, const ISceneOutlinerTreeItem& Item);
+
+	bool Filter(FFilterPredicate Pred) const
+	{
+		return Pred.Execute(*this);
+	}
+
+	bool GetInteractiveState(FInteractivePredicate Pred) const
+	{
+		return Pred.Execute(*this);
+	}
 public:
 	/** Attempt to cast this item to another type if it is of that type. Returns nullptr if it fails */
 	template <typename T>
