@@ -117,7 +117,8 @@ namespace Chaos::Softs
 			TArray<T>&& AlphaJMeshArray,
 			const FDeformableXPBDCorotatedParams& InParams,
 			const T& NuMesh = (T).3,
-			const bool bRecordMetricIn = false
+			const bool bRecordMetricIn = false, 
+			const bool bDoColoring = true
 		)
 			: CorotatedParams(InParams), AlphaJArray(MoveTemp(AlphaJMeshArray)), bRecordMetric(bRecordMetricIn), MeshConstraints(InMesh)
 		{
@@ -162,8 +163,9 @@ namespace Chaos::Softs
 					Measure[e] = -Measure[e];
 				}
 			}
-
-			InitColor(InParticles);
+			if (bDoColoring) {
+				InitColor(InParticles);
+			}
 		}
 
 		FXPBDCorotatedConstraints(
@@ -392,7 +394,8 @@ namespace Chaos::Softs
 			return dC2;
 		}
 
-	private:
+
+	protected:
 
 		void InitColor(const ParticleType& Particles)
 		{
@@ -437,10 +440,6 @@ namespace Chaos::Softs
 				DmInverse = MoveTemp(ReorderedDmInverse);
 			}
 		}
-
-	protected:
-
-		
 
 
 		virtual TVec4<TVector<T, 3>> GetDeterminantDelta(const ParticleType& Particles, const T Dt, const int32 ElementIndex, const T Tol = (T)1e-3) const

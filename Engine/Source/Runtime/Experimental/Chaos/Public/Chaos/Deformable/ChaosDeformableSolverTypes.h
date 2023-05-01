@@ -33,7 +33,10 @@ namespace Chaos::Softs
 			FSolverReal InDamping = (FSolverReal)0,
 			bool InbEnableGravity = true, 
 			bool InbEnableCorotatedConstraints = true, 
-			bool InbEnablePositionTargets = true)
+			bool InbEnablePositionTargets = true, 
+			bool InbUseGaussSeidelConstraints = false, 
+			bool InbUseSOR = true,
+			FSolverReal InOmegaSOR = (FSolverReal)1.6)
 			: NumSolverSubSteps(InNumSolverSubSteps)
 			, NumSolverIterations(InNumSolverIterations)
 			, FixTimeStep(InFixTimeStep)
@@ -52,6 +55,9 @@ namespace Chaos::Softs
 			, bEnableGravity(InbEnableGravity)
 			, bEnableCorotatedConstraints(InbEnableCorotatedConstraints)
 			, bEnablePositionTargets(InbEnablePositionTargets)
+			, bUseGaussSeidelConstraints(InbUseGaussSeidelConstraints)
+			, bUseSOR(InbUseSOR)
+			, OmegaSOR(InOmegaSOR)
 		{}
 
 		int32 NumSolverSubSteps = 5;
@@ -72,6 +78,9 @@ namespace Chaos::Softs
 		bool bEnableGravity = true;
 		bool bEnableCorotatedConstraints = true;
 		bool bEnablePositionTargets = true;
+		bool bUseGaussSeidelConstraints = false;
+		bool bUseSOR = true;
+		FSolverReal OmegaSOR = (FSolverReal)1.6;
 	};
 
 

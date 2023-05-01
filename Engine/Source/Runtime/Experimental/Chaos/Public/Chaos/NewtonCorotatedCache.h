@@ -27,4 +27,10 @@ struct CorotatedCache
 
 };
 
+template <typename T>
+T PsiCorotated(const Chaos::PMatrix<T, 3, 3>& F, const T mu, const T lambda);
+
+template <typename T>
+void PCorotated(const Chaos::PMatrix<T, 3, 3>& F, const T mu, const T lambda, Chaos::PMatrix<T, 3, 3>& P);
+
 }

@@ -95,6 +95,44 @@ void CorotatedCache<T>::deltaP(const Chaos::PMatrix<T, 3, 3>& F, const Chaos::PM
 
 }
 
+template <typename T>
+T PsiCorotated(const Chaos::PMatrix<T, 3, 3>& F, const T mu, const T lambda) 
+{
+	Chaos::PMatrix<T, 3, 3> R((T)0.), S((T)0.), b((T)0.);
+	Chaos::PolarDecomposition(F, R, S);
+	T J = F.Determinant();
+	b = F * F.GetTransposed();
+	T STrace = T(0), bTrace = T(0);
+	for (int32 alpha = 0; alpha < 3; alpha++)
+	{
+		STrace += S.GetDiagonal()[alpha];
+		bTrace += b.GetDiagonal()[alpha];
+	}
+	
+	return mu * (bTrace - T(2) * STrace + T(3)) + lambda * (J - T(1)) * (J - T(1)) / T(2);
+}
+
+template <typename T>
+void PCorotated(const Chaos::PMatrix<T, 3, 3>& Fe, const T mu, const T lambda, Chaos::PMatrix<T, 3, 3>& P)
+{
+	Chaos::PMatrix<T, 3, 3> R((T)0.), S((T)0.), JFinvT((T)0.);
+	Chaos::PolarDecomposition(Fe, R, S);
+
+	JFinvT.SetAt(0, 0, Fe.GetAt(1, 1) * Fe.GetAt(2, 2) - Fe.GetAt(2, 1) * Fe.GetAt(1, 2));
+	JFinvT.SetAt(0, 1, Fe.GetAt(2, 0) * Fe.GetAt(1, 2) - Fe.GetAt(1, 0) * Fe.GetAt(2, 2));
+	JFinvT.SetAt(0, 2, Fe.GetAt(1, 0) * Fe.GetAt(2, 1) - Fe.GetAt(2, 0) * Fe.GetAt(1, 1));
+	JFinvT.SetAt(1, 0, Fe.GetAt(2, 1) * Fe.GetAt(0, 2) - Fe.GetAt(0, 1) * Fe.GetAt(2, 2));
+	JFinvT.SetAt(1, 1, Fe.GetAt(0, 0) * Fe.GetAt(2, 2) - Fe.GetAt(2, 0) * Fe.GetAt(0, 2));
+	JFinvT.SetAt(1, 2, Fe.GetAt(2, 0) * Fe.GetAt(0, 1) - Fe.GetAt(0, 0) * Fe.GetAt(2, 1));
+	JFinvT.SetAt(2, 0, Fe.GetAt(0, 1) * Fe.GetAt(1, 2) - Fe.GetAt(1, 1) * Fe.GetAt(0, 2));
+	JFinvT.SetAt(2, 1, Fe.GetAt(1, 0) * Fe.GetAt(0, 2) - Fe.GetAt(0, 0) * Fe.GetAt(1, 2));
+	JFinvT.SetAt(2, 2, Fe.GetAt(0, 0) * Fe.GetAt(1, 1) - Fe.GetAt(1, 0) * Fe.GetAt(0, 1));
+
+	T J = Fe.Determinant();
+
+	P = (T)2. * mu * (Fe - R) + lambda * (J - (T)1.) * JFinvT;
+}
+
 } 
 
 template CHAOS_API void Chaos::Softs::CorotatedCache<Chaos::FRealSingle>::UpdateCache(const Chaos::PMatrix<Chaos::FRealSingle, 3, 3>&);
@@ -103,3 +141,7 @@ template CHAOS_API void Chaos::Softs::CorotatedCache<Chaos::FRealSingle>::deltaP
 template CHAOS_API void Chaos::Softs::CorotatedCache<Chaos::FReal>::UpdateCache(const Chaos::PMatrix<Chaos::FReal, 3, 3>&);
 template CHAOS_API void Chaos::Softs::CorotatedCache<Chaos::FReal>::P(const Chaos::PMatrix<Chaos::FReal, 3, 3>&, const Chaos::FReal, const Chaos::FReal, Chaos::PMatrix<Chaos::FReal, 3, 3>&);
 template CHAOS_API void Chaos::Softs::CorotatedCache<Chaos::FReal>::deltaP(const Chaos::PMatrix<Chaos::FReal, 3, 3>&, const Chaos::PMatrix<Chaos::FReal, 3, 3>&, const Chaos::FReal, const Chaos::FReal, Chaos::PMatrix<Chaos::FReal, 3, 3>&);
+template CHAOS_API void Chaos::Softs::PCorotated<Chaos::FReal>(const Chaos::PMatrix<Chaos::FReal, 3, 3>& Fe, const Chaos::FReal mu, const Chaos::FReal lambda, Chaos::PMatrix<Chaos::FReal, 3, 3>& P);
+template CHAOS_API void Chaos::Softs::PCorotated<Chaos::FRealSingle>(const Chaos::PMatrix<Chaos::FRealSingle, 3, 3>& Fe, const Chaos::FRealSingle mu, const Chaos::FRealSingle lambda, Chaos::PMatrix<Chaos::FRealSingle, 3, 3>& P);
+template CHAOS_API Chaos::FReal Chaos::Softs::PsiCorotated<Chaos::FReal>(const Chaos::PMatrix<Chaos::FReal, 3, 3>& F, const Chaos::FReal mu, const Chaos::FReal lambda);
+template CHAOS_API Chaos::FRealSingle Chaos::Softs::PsiCorotated<Chaos::FRealSingle>(const Chaos::PMatrix<Chaos::FRealSingle, 3, 3>& F, const Chaos::FRealSingle mu, const Chaos::FRealSingle lambda);

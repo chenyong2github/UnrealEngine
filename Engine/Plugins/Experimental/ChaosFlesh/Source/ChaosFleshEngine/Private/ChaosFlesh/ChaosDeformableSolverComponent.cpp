@@ -213,6 +213,9 @@ void UDeformableSolverComponent::Reset()
 			, SolverForces.bEnableGravity
 			, SolverConstraints.CorotatedConstraints.bEnableCorotatedConstraint
 			, SolverConstraints.bEnablePositionTargets
+			, GaussSeidelConstraints.bUseGaussSeidelConstraints
+			, GaussSeidelConstraints.bUseSOR
+			, GaussSeidelConstraints.OmegaSOR
 		}));
 
 		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : ConnectedObjects.DeformableComponents)

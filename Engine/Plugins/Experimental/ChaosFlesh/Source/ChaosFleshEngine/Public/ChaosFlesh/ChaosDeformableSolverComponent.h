@@ -94,6 +94,21 @@ struct FSolverGridBasedCollisionsGroup
 		float GridDx = 25.;
 };
 
+USTRUCT(BlueprintType)
+struct FSolverGaussSeidelConstraintsGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "GaussSeidelConstraints")
+		bool bUseGaussSeidelConstraints = false;
+
+	UPROPERTY(EditAnywhere, Category = "GaussSeidelConstraints")
+		bool bUseSOR = true;
+
+	UPROPERTY(EditAnywhere, Category = "GaussSeidelConstraints")
+		float OmegaSOR = 1.6f;
+};
+
 
 USTRUCT(BlueprintType)
 struct FSolverCollisionsGroup
@@ -207,6 +222,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
 	FSolverConstraintsGroup SolverConstraints;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
+	FSolverGaussSeidelConstraintsGroup GaussSeidelConstraints;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
 	FSolverForcesGroup SolverForces;

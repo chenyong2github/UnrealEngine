@@ -59,6 +59,8 @@ DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeKinematicConstraint")
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeCollisionBodies"), STAT_ChaosDeformableSolver_InitializeCollisionBodies, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeSelfCollisionVariables"), STAT_ChaosDeformableSolver_InitializeSelfCollisionVariables, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeGridBasedConstraintVariables"), STAT_ChaosDeformableSolver_InitializeGridBasedConstraintVariables, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeGaussSeidelConstraintVariables"), STAT_ChaosDeformableSolver_InitializeGaussSeidelConstraintVariables, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.InitializeGaussSeidelConstraint"), STAT_ChaosDeformableSolver_InitializeGaussSeidelConstraint, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.RemoveSimulationObjects"), STAT_ChaosDeformableSolver_RemoveSimulationObjects, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.RemoveProxy"), STAT_ChaosDeformableSolver_RemoveProxy, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos.Deformable.Solver.AddProxy"), STAT_ChaosDeformableSolver_AddProxy, STATGROUP_Chaos);
@@ -141,6 +143,15 @@ namespace Chaos::Softs
 		if (Property.bUseGridBasedConstraints)
 		{
 			AllElements.Reset(new TArray<Chaos::TVec4<int32>>());
+		}
+		if (Property.bUseGaussSeidelConstraints)
+		{
+			AllElements.Reset(new TArray<Chaos::TVec4<int32>>());
+			AllIncidentElements.Reset(new TArray<TArray<int32>>());
+			AllIncidentElementsLocal.Reset(new TArray<TArray<int32>>());
+			AllTetEMeshArray.Reset(new TArray<FSolverReal>());
+			AllTetNuMeshArray.Reset(new TArray<FSolverReal>());
+			AllTetAlphaJArray.Reset(new TArray<FSolverReal>());
 		}
 
 		InitializeKinematicConstraint();
@@ -315,6 +326,11 @@ namespace Chaos::Softs
 					{
 						InitializeGridBasedConstraintVariables();
 					}
+
+					if (Property.bUseGaussSeidelConstraints)
+					{
+						InitializeGaussSeidelConstraintVariables();
+					}
 				}
 				UninitializedProxys_Internal.SetNum(0, true);
 			}
@@ -356,9 +372,11 @@ namespace Chaos::Softs
 					InitializeWeakConstraint(*Proxy);
 					InitializeTetrahedralConstraint(*Proxy);
 					InitializeGidBasedConstraints(*Proxy);
+					InitializeGaussSeidelConstraints(*Proxy);
 				}
 			}
 		}
+
 		if (FCollisionManagerProxy* CollisionManagerProxy = InProxy.As< FCollisionManagerProxy>())
 		{
 			InitializeCollisionBodies(*CollisionManagerProxy);
@@ -418,6 +436,7 @@ namespace Chaos::Softs
 		}
 
 		Evolution->SetDamping(DampingMultiplier, GroupOffset - 1);
+
 
 		// Tet mesh points are in component space.  That means that if our sim space is:
 		//    World:     We need to multiply by the ComponentToWorldXf.
@@ -803,6 +822,22 @@ namespace Chaos::Softs
 					}
 				}
 
+				if (Property.bUseGaussSeidelConstraints)
+				{
+					int32 ElementsOffset = AllTetEMeshArray->Num();
+					AllTetEMeshArray->SetNum(ElementsOffset + NumElements);
+					AllTetNuMeshArray->SetNum(ElementsOffset + NumElements);
+					AllTetAlphaJArray->SetNum(ElementsOffset + NumElements);
+						
+					for (uint32 edx = 0; edx < NumElements; ++edx)
+					{
+						(*AllTetEMeshArray)[edx + ElementsOffset] = TetStiffness[edx];
+						(*AllTetNuMeshArray)[edx + ElementsOffset] = TetNu[edx];
+						(*AllTetAlphaJArray)[edx + ElementsOffset] = AlphaJMesh[edx];
+					}
+				}
+
+
 				if (Property.bEnableCorotatedConstraints)
 				{
 
@@ -851,6 +886,8 @@ namespace Chaos::Softs
 						CorotatedConstraints.Add(TUniquePtr<FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(CorotatedConstraint));
 					}
 				}
+			
+				
 			}
 
 		}
@@ -877,6 +914,50 @@ namespace Chaos::Softs
 				for (uint32 edx = 0; edx < NumElements; ++edx)
 				{
 					(*AllElements)[edx + ElementsOffset] = ChaosTet(Tetrahedron[edx], Range[0]);
+				}
+			}
+		}
+	}
+
+	void FDeformableSolver::InitializeGaussSeidelConstraints(FFleshThreadingProxy& Proxy)
+	{
+		PERF_SCOPE(STAT_ChaosDeformableSolver_InitializeGaussSeidelConstraint);
+
+		if (Property.bUseGaussSeidelConstraints)
+		{
+			auto ChaosTet = [](FIntVector4 V, int32 dp) { return Chaos::TVec4<int32>(dp + V.X, dp + V.Y, dp + V.Z, dp + V.W); };
+
+			const FManagedArrayCollection& Rest = Proxy.GetRestCollection();
+			const TManagedArray<FIntVector4>& Tetrahedron = Rest.GetAttribute<FIntVector4>("Tetrahedron", "Tetrahedral");
+			const TManagedArray<TArray<int32>>& Tetrahedron1 = Rest.GetAttribute<TArray<int32>>("IncidentElements", "Vertices");
+			const TManagedArray<TArray<int32>>& Tetrahedron2 = Rest.GetAttribute<TArray<int32>>("IncidentElementsLocalIndex", "Vertices");
+			const TManagedArray<TArray<int32>>* IncidentElementsPointer = Rest.FindAttribute<TArray<int32>>("IncidentElements", "Vertices");
+			const TManagedArray<TArray<int32>>* IncidentElementsLocalPointer = Rest.FindAttribute<TArray<int32>>("IncidentElementsLocalIndex", "Vertices");
+
+			if (uint32 NumElements = Tetrahedron.Num())
+			{
+				const FIntVector2& Range = Proxy.GetSolverParticleRange();
+
+				int32 ElementsOffset = AllElements->Num();
+				AllElements->SetNum(ElementsOffset + NumElements);
+				for (uint32 edx = 0; edx < NumElements; ++edx)
+				{
+					(*AllElements)[edx + ElementsOffset] = ChaosTet(Tetrahedron[edx], Range[0]);
+				}
+				if (uint32 NumIncident = IncidentElementsPointer->Num())
+				{
+					int32 IncidentOffSet = AllIncidentElements->Num();
+					AllIncidentElements->SetNum(IncidentOffSet + NumIncident); 
+					AllIncidentElementsLocal->SetNum(IncidentOffSet + NumIncident);
+					for (uint32 i = 0; i < NumIncident; ++i)
+					{
+						(*AllIncidentElements)[i + IncidentOffSet] = (*IncidentElementsPointer)[i];
+						for (int32 j = 0; j < (*AllIncidentElements)[i + IncidentOffSet].Num(); j++)
+						{
+							(*AllIncidentElements)[i + IncidentOffSet][j] += ElementsOffset;
+						}
+						(*AllIncidentElementsLocal)[i + IncidentOffSet] = (*IncidentElementsLocalPointer)[i];
+					}
 				}
 			}
 		}
@@ -1064,9 +1145,29 @@ namespace Chaos::Softs
 		{
 			this->GridBasedCorotatedConstraint->TimeStepPostprocessing(InParticles, Dt);
 		};
-	
-	
 	}
+
+	void FDeformableSolver::InitializeGaussSeidelConstraintVariables()
+	{
+		PERF_SCOPE(STAT_ChaosDeformableSolver_InitializeGaussSeidelConstraintVariables);
+
+		GSCorotatedConstraints.Reset(new Chaos::Softs::FGaussSeidelCorotatedConstraints<FSolverReal, FSolverParticles>(
+			Evolution->Particles(), *AllElements, *AllTetEMeshArray, *AllTetNuMeshArray, MoveTemp(*AllTetAlphaJArray), MoveTemp(*AllIncidentElements), MoveTemp(*AllIncidentElementsLocal), 0, Evolution->Particles().Size(), Property.bDoQuasistatics, Property.bUseSOR, Property.OmegaSOR, GDeformableXPBDCorotatedParams));
+		Evolution->ResetConstraintRules();
+		int32 InitIndex1 = Evolution->AddConstraintInitRange(1, true);
+		Evolution->ConstraintInits()[InitIndex1] =
+			[this](FSolverParticles& InParticles, const FSolverReal Dt)
+		{
+			this->GSCorotatedConstraints->Init(Dt, InParticles);
+		};
+		int32 ConstraintIndex1 = Evolution->AddConstraintRuleRange(1, true);
+		Evolution->ConstraintRules()[ConstraintIndex1] =
+			[this](FSolverParticles& InParticles, const FSolverReal Dt)
+		{
+			this->GSCorotatedConstraints->ApplyInParallel(InParticles, Dt);
+		};
+	}
+
 
 	void FDeformableSolver::RemoveSimulationObjects()
 	{
@@ -1131,6 +1232,7 @@ namespace Chaos::Softs
 				{
 					InitializeTetrahedralConstraint(*Proxy);
 					InitializeGidBasedConstraints(*Proxy);
+					InitializeGaussSeidelConstraints(*Proxy);
 				}
 			}
 		}

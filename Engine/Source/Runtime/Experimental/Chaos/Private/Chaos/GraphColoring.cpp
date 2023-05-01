@@ -1370,11 +1370,12 @@ TArray<TArray<int32>> Chaos::ComputeNodalColoring(const TArray<TVec4<int32>>& Gr
 
 	TArray<int32> Particle2Incident;
 	Particle2Incident.Init(-1, GraphParticlesEnd - GraphParticlesStart);
+	//Assuming that offset of Graph is GraphParticlesStart
 	for (int32 i = 0; i < IncidentElements.Num(); i++) 
 	{
 		if (IncidentElements[i].Num() > 0)
 		{
-			Particle2Incident[Graph[IncidentElements[i][0]][IncidentElementsLocalIndex[i][0]]] = i;
+			Particle2Incident[Graph[IncidentElements[i][0]][IncidentElementsLocalIndex[i][0]] - GraphParticlesStart] = i;
 		}
 	}
 
