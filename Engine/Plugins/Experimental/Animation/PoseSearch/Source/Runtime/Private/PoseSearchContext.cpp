@@ -356,7 +356,7 @@ FTransform FSearchContext::GetRootAtTime(float Time, bool bUseHistoryRoot, bool 
 	if (bUseHistoryRoot)
 	{
 		check(History);
-		History->GetRootTransformAtTime(Time, RootTransform);
+		History->GetRootTransformAtTime(Time, RootTransform, bExtrapolate);
 	}
 	else
 	{
