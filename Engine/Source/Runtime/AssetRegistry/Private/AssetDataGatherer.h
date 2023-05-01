@@ -468,4 +468,6 @@ private:
 	bool bIsSynchronousTick;
 	/** True when a thread is saving an async cache and so another save of the cache should not be triggered. */
 	bool bIsSavingAsyncCache;
+	/** Packages can be marked for retry up until bInitialPluginsLoaded is set. After it is set, we retry them once. */
+	bool bFlushedRetryFiles;
 };

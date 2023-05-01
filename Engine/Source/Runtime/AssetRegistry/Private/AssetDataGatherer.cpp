@@ -3153,6 +3153,7 @@ FAssetDataGatherer::FAssetDataGatherer(const TArray<FString>& InLongPackageNames
 	, NumUncachedAssetFiles(0)
 	, CacheInUseCount(0)
 	, bIsSavingAsyncCache(false)
+	, bFlushedRetryFiles(false)
 {
 	using namespace UE::AssetDataGather::Private;
 
@@ -3385,6 +3386,11 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt, double& TickSta
 		}
 
 		IngestDiscoveryResults();
+		if (bInitialPluginsLoaded && !bFlushedRetryFiles)
+		{
+			bFlushedRetryFiles = true;
+			FilesToSearch->RetryLaterRetryFiles();
+		}
 
 		// Take a batch off of the work list. If we're waiting only on the first WaitBatchCount results don't take more than that
 		int32 NumToProcess = FMath::Min<int32>(BatchSize-LocalFilesToSearch.Num(), FilesToSearch->GetNumAvailable());
@@ -4019,7 +4025,6 @@ void FAssetDataGatherer::SetInitialPluginsLoaded()
 	bInitialPluginsLoaded = true;
 	FGathererScopeLock ResultsScopeLock(&ResultsLock);
 	SetIsIdle(false);
-	FilesToSearch->RetryLaterRetryFiles();
 }
 
 bool FAssetDataGatherer::IsGatheringDependencies() const
