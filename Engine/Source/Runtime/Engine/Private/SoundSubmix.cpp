@@ -952,8 +952,6 @@ void UEndpointSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 
 void USoundfieldSubmix::PostLoad()
 {
-#if WITH_EDITOR
-
 	// Make sure the Encoding format is something we can use.
 	// Fallback to something that works otherwise and warn.
 
@@ -966,8 +964,6 @@ void USoundfieldSubmix::PostLoad()
 		SoundfieldEncodingFormat = NoEncoding;
 		SanitizeLinks();
 	}
-
-#endif //WITH_EDITOR
 
 	Super::PostLoad();
 }
