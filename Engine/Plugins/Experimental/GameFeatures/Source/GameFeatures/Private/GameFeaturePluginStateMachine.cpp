@@ -1969,6 +1969,7 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 
 			if (Pair.Value.HasError())
 			{
+				UE_LOG(LogGameFeatures, Error, TEXT("Dependency %s failed to load with error %s"), *RemainingDependency->GetPluginURL(), *Pair.Value.GetError());
 				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, GetErrorResult(TEXT("Failed_Dependency_Register")));
 				return;
 			}
