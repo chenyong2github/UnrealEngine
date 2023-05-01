@@ -175,6 +175,11 @@ void STransformedWaveformViewPanel::ReceiveSequenceView(const FFixedSampledSeque
 		GridData->UpdateDisplayRange(TRange<uint32>(FirstRenderedFrame, FirstRenderedFrame + NumFrames));
 	}
 
+	if (WaveformTransformationsOverlay)
+	{
+		WaveformTransformationsOverlay->UpdateLayerConstraints();
+	}
+
 	if (WaveformViewer)
 	{
 		WaveformViewer->UpdateView(InView.SampleData, InView.NumDimensions);

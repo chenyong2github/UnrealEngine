@@ -765,24 +765,38 @@ bool FWaveformEditor::CreateWaveformView()
 		UE_LOG(LogWaveformEditor, Warning, TEXT("Trying to setup waveform panel from a null SoundWave"));
 		return false;
 	}
-
-	check(ZoomManager)
-	check(TransportCoordinator)
+	
+	if (WaveformView.IsValid())
+	{
+		RemoveWaveformViewDelegates(*WaveformView.DataProvider, *WaveformView.ViewWidget);
+	}
 
 	WaveformView = FTransformedWaveformViewFactory::Get().GetTransformedView(SoundWave, TransportCoordinator.ToSharedRef(), this, ZoomManager);
 
+	check(ZoomManager)
 
-	WaveformView.DataProvider->OnRenderElementsUpdated.AddSP(this, &FWaveformEditor::HandleRenderDataUpdate);
-	TransportCoordinator->OnFocusPointMoved.AddSP(WaveformView.ViewWidget.Get(), &STransformedWaveformViewPanel::SetPlayheadRatio);
+	BindWaveformViewDelegates(*WaveformView.DataProvider, *WaveformView.ViewWidget);
 
-	WaveformView.DataProvider->OnRenderElementsUpdated.AddSP(this, &FWaveformEditor::HandleRenderDataUpdate);
-	
 	ZoomManager->OnZoomRatioChanged.AddSP(TransportCoordinator.ToSharedRef(), &FSparseSampledSequenceTransportCoordinator::SetZoomRatio);
-
 	TransportCoordinator->OnDisplayRangeUpdated.AddSP(this, &FWaveformEditor::HandleDisplayRangeUpdate);
-	TransportCoordinator->OnFocusPointMoved.AddSP(WaveformView.ViewWidget.Get(), &STransformedWaveformViewPanel::SetPlayheadRatio);
 
-	return WaveformView.ViewWidget != nullptr && WaveformView.DataProvider != nullptr;
+	return WaveformView.IsValid();
+}
+
+void FWaveformEditor::BindWaveformViewDelegates(FWaveformEditorSequenceDataProvider& ViewDataProvider, STransformedWaveformViewPanel& ViewWidget)
+{
+	check(TransportCoordinator)
+
+	ViewDataProvider.OnRenderElementsUpdated.AddSP(this, &FWaveformEditor::HandleRenderDataUpdate);
+	TransportCoordinator->OnFocusPointMoved.AddSP(&ViewWidget, &STransformedWaveformViewPanel::SetPlayheadRatio);
+}
+
+void FWaveformEditor::RemoveWaveformViewDelegates(FWaveformEditorSequenceDataProvider& ViewDataProvider, STransformedWaveformViewPanel& ViewWidget)
+{
+	check(TransportCoordinator)
+
+	ViewDataProvider.OnRenderElementsUpdated.RemoveAll(this);
+	TransportCoordinator->OnFocusPointMoved.RemoveAll(&ViewWidget);
 }
 
 bool FWaveformEditor::CreateTransportCoordinator()

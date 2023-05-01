@@ -9,4 +9,9 @@ struct FTransformedWaveformView
 {
 	TSharedPtr<STransformedWaveformViewPanel> ViewWidget;
 	TSharedPtr<FWaveformEditorSequenceDataProvider> DataProvider;
+
+	bool IsValid()
+	{
+		return ViewWidget.IsValid() && DataProvider.IsValid();
+	}
 };

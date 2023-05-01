@@ -38,14 +38,18 @@ FTransformedWaveformView FTransformedWaveformViewFactory::GetTransformedView(TOb
 
 	FFixedSampledSequenceView SequenceView = WaveformDataProvider->RequestSequenceView(TRange<double>::Inclusive(0, 1));
 
-	TSharedPtr<SWaveformTransformationsOverlay> TransformationsOverlay = SNew(SWaveformTransformationsOverlay, WaveformDataProvider->GetTransformLayers(), TransportCoordinator);
+	TFunction<float(const float)> TransformationsOverlayZoomConverter = [TransportCoordinator](const float InAnchorRatio)
+	{
+		return TransportCoordinator->ConvertAbsoluteRatioToZoomed(InAnchorRatio);
+	};
+
+	TSharedPtr<SWaveformTransformationsOverlay> TransformationsOverlay = SNew(SWaveformTransformationsOverlay, WaveformDataProvider->GetTransformLayers()).AnchorsRatioConverter(TransformationsOverlayZoomConverter);
 
 	TSharedPtr<STransformedWaveformViewPanel> WaveformPanel = SNew(STransformedWaveformViewPanel, SequenceView).TransformationsOverlay(TransformationsOverlay);
 	SetUpWaveformPanelInteractions(WaveformPanel.ToSharedRef(), TransportCoordinator, InZoomController, TransformationsOverlay);
 
 	WaveformDataProvider->OnLayersChainGenerated.AddSP(TransformationsOverlay.Get(), &SWaveformTransformationsOverlay::OnLayerChainGenerated);
 	WaveformDataProvider->OnRenderElementsUpdated.AddSP(TransformationsOverlay.Get(), &SWaveformTransformationsOverlay::UpdateLayerConstraints);
-	TransportCoordinator->OnDisplayRangeUpdated.AddSP(TransformationsOverlay.Get(), &SWaveformTransformationsOverlay::OnNewWaveformDisplayRange);
 	WaveformDataProvider->OnDataViewGenerated.AddSP(WaveformPanel.Get(), &STransformedWaveformViewPanel::ReceiveSequenceView);
 
 	return FTransformedWaveformView{ WaveformPanel, WaveformDataProvider};

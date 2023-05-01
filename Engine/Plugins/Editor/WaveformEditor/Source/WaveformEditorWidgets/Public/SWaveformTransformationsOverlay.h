@@ -16,14 +16,20 @@ class WAVEFORMEDITORWIDGETS_API SWaveformTransformationsOverlay : public SCompou
 {
 public:
 
-	SLATE_BEGIN_ARGS(SWaveformTransformationsOverlay) {}
+	SLATE_BEGIN_ARGS(SWaveformTransformationsOverlay) 
+		: _AnchorsRatioConverter([](const float InRatio) {return InRatio; })
+	{
+	}
+
 		SLATE_DEFAULT_SLOT(FArguments, InArgs)
+
+		SLATE_ARGUMENT(TFunction<float(const float)>, AnchorsRatioConverter)
+
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TArrayView< const FTransformationLayerRenderInfo> InTransformationRenderers, TSharedRef<FSparseSampledSequenceTransportCoordinator> InTransportCoordinator);
+	void Construct(const FArguments& InArgs, TArrayView< const FTransformationLayerRenderInfo> InTransformationRenderers);
 	void OnLayerChainGenerated(FTransformationLayerRenderInfo* FirstLayerPtr, const int32 NLayers);
 	void UpdateLayerConstraints();
-	void OnNewWaveformDisplayRange(const TRange<double> NewDisplayRange);
 
 	FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -39,5 +45,5 @@ private:
 	TArray<TSharedPtr<SWidget>> TransformationLayers;
 	TArray<SConstraintCanvas::FSlot*> LayersSlots;
 	TArrayView<const FTransformationLayerRenderInfo> TransformationRenderers;
-	TSharedPtr<FSparseSampledSequenceTransportCoordinator> TransportCoordinator = nullptr;
+	TFunction<float(const float)> AnchorsRatioConverter;
 };

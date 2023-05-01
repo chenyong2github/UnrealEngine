@@ -7,10 +7,10 @@
 #include "SparseSampledSequenceTransportCoordinator.h"
 #include "Widgets/SOverlay.h"
 
-void SWaveformTransformationsOverlay::Construct(const FArguments& InArgs, TArrayView<const FTransformationLayerRenderInfo> InTransformationRenderers, TSharedRef<FSparseSampledSequenceTransportCoordinator> InTransportCoordinator)
+void SWaveformTransformationsOverlay::Construct(const FArguments& InArgs, TArrayView<const FTransformationLayerRenderInfo> InTransformationRenderers)
 {
 	TransformationRenderers = InTransformationRenderers;
-	TransportCoordinator = InTransportCoordinator;
+	AnchorsRatioConverter = InArgs._AnchorsRatioConverter;
 	CreateLayout();
 }
 
@@ -33,8 +33,8 @@ void SWaveformTransformationsOverlay::CreateLayout()
 		
 		if (LayerRenderInfo.Key)
 		{
-			float LeftAnchor = TransportCoordinator->ConvertAbsoluteRatioToZoomed(LayerRenderInfo.Value.Key);
-			float RightAnchor = TransportCoordinator->ConvertAbsoluteRatioToZoomed(LayerRenderInfo.Value.Value);
+			float LeftAnchor = AnchorsRatioConverter(LayerRenderInfo.Value.Key);
+			float RightAnchor = AnchorsRatioConverter(LayerRenderInfo.Value.Value);
 
 			SConstraintCanvas::FSlot* SlotPtr = nullptr;
 
@@ -72,8 +72,8 @@ void SWaveformTransformationsOverlay::UpdateAnchors()
 
 		if (Layer.Key)
 		{
-			float LeftAnchor = TransportCoordinator->ConvertAbsoluteRatioToZoomed(Layer.Value.Key);
-			float RightAnchor = TransportCoordinator->ConvertAbsoluteRatioToZoomed(Layer.Value.Value);
+			float LeftAnchor = AnchorsRatioConverter(Layer.Value.Key);
+			float RightAnchor = AnchorsRatioConverter(Layer.Value.Value);
 
 			LayersSlots[i]->SetAnchors(FAnchors(LeftAnchor, 0.f, RightAnchor, 1.f));
 		}
@@ -87,11 +87,6 @@ void SWaveformTransformationsOverlay::OnLayerChainGenerated(FTransformationLayer
 }
 
 void SWaveformTransformationsOverlay::UpdateLayerConstraints()
-{
-	UpdateAnchors();
-}
-
-void SWaveformTransformationsOverlay::OnNewWaveformDisplayRange(const TRange<double> NewDisplayRange)
 {
 	UpdateAnchors();
 }
