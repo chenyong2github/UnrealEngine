@@ -54,7 +54,6 @@ namespace Horde.Agent.Leases.Handlers
 			}
 		}
 
-
 		readonly ComputeListenerService _listenerService;
 		readonly IMemoryCache _memoryCache;
 		readonly DirectoryReference _sandboxDir;

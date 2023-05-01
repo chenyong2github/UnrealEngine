@@ -9,6 +9,7 @@ using EpicGames.Horde.Storage;
 using Horde.Server.Storage;
 using Microsoft.Extensions.Logging;
 using System.Threading;
+using System;
 
 namespace Horde.Server.Logs
 {
@@ -89,7 +90,14 @@ namespace Horde.Server.Logs
 						await Task.WhenAny(waitTask, moveNextTask);
 						cancellationSource.Cancel();
 
-						response.TailNext = await waitTask;
+						try
+						{
+							response.TailNext = await waitTask;
+						}
+						catch (Exception ex)
+						{
+							_logger.LogWarning(ex, "Exception while waiting for tail next");
+						}
 					}
 				}
 

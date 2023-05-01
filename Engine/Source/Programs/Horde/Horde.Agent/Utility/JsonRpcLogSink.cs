@@ -167,6 +167,8 @@ namespace Horde.Agent.Utility
 
 				// Update the next tailing position
 				int newTailNext = await UpdateLogTailAsync(tailNext, tailData);
+				_logger.LogDebug("Log {LogId} tail next = {TailNext}", _logId, newTailNext);
+
 				if (newTailNext != tailNext)
 				{
 					tailNext = newTailNext;
