@@ -867,6 +867,7 @@ public:
 	void AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flags, const FName& DebugReason = NAME_None);
 	bool HasDirtyAreasQueued() const;
 	int32 GetNumDirtyAreas() const;
+	float GetDirtyAreaWarningSizeThreshold() const { return DirtyAreaWarningSizeThreshold; }
 
 	const FNavigationOctree* GetNavOctree() const { return DefaultOctreeController.GetOctree(); }
 	FNavigationOctree* GetMutableNavOctree() { return DefaultOctreeController.GetMutableOctree(); }
@@ -1103,6 +1104,8 @@ public:
 	void CycleNavigationDataDrawn();
 
 	FNavRegenTimeSliceManager& GetMutableNavRegenTimeSliceManager() { return NavRegenTimeSliceManager; }
+
+	FNavigationSystemRunMode GetOperationMode() const { return OperationMode; }
 
 protected:
 

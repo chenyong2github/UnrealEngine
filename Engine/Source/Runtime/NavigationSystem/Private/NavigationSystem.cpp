@@ -1112,8 +1112,9 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 		DefaultDirtyAreasController.DirtyAreas.Empty();
 	}
 
-	// Report oversized dirty areas only in game mode
-	DefaultDirtyAreasController.SetCanReportOversizedDirtyArea(Mode == FNavigationSystemRunMode::GameMode);
+	// Dirty area controller reports oversized dirty areas only in game mode and if we are not using active tile generation.
+	// When using active tile generation, this is reported only if tiles are actually marked dirty (ex: see MarkDirtyTiles).
+	DefaultDirtyAreasController.SetCanReportOversizedDirtyArea(Mode == FNavigationSystemRunMode::GameMode && !IsActiveTilesGenerationEnabled());
 
 	for (const ANavigationData* NavData : NavDataSet)
 	{
