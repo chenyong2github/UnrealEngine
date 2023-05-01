@@ -6,6 +6,7 @@ D3D12CommandList.h: Implementation of D3D12 Command List functions
 #pragma once
 
 #include "CoreMinimal.h"
+#include "D3D12NvidiaExtensions.h"
 
 #if !defined(D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES)
 	#define D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES 1

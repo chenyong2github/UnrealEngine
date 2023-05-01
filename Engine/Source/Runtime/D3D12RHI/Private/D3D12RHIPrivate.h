@@ -39,32 +39,8 @@
 #include COMPILED_PLATFORM_HEADER(D3D12PipelineState.h)
 
 #include "D3D12DiskCache.h"
-
-#if NV_AFTERMATH
-
-	#define GFSDK_Aftermath_WITH_DX12 1
-		#include "GFSDK_Aftermath.h"
-		#include "GFSDK_Aftermath_GpuCrashdump.h"
-	#undef GFSDK_Aftermath_WITH_DX12
-
-	extern bool GDX12NVAfterMathModuleLoaded;
-	extern int32 GDX12NVAfterMathEnabled;
-	extern int32 GDX12NVAfterMathTrackResources;
-	extern int32 GDX12NVAfterMathMarkers;
-
-#endif // NV_AFTERMATH
-
-#if INTEL_EXTENSIONS
-	extern bool GDX12INTCAtomicUInt64Emulation;
-
-	struct INTCExtensionContext;
-	struct INTCExtensionInfo;
-
-	void DestroyIntelExtensionsContext(INTCExtensionContext* IntelExtensionContext);
-	INTCExtensionContext* CreateIntelExtensionsContext(ID3D12Device* Device, INTCExtensionInfo& INTCExtensionInfo);
-	bool EnableIntelAtomic64Support(INTCExtensionContext* IntelExtensionContext, INTCExtensionInfo& INTCExtensionInfo);
-#endif //INTEL_EXTENSIONS
-
+#include "D3D12NvidiaExtensions.h"
+#include "D3D12IntelExtensions.h"
 #include "D3D12Residency.h"
 
 // D3D RHI public headers.

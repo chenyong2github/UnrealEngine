@@ -8,11 +8,8 @@
 #include "RHIStaticStates.h"
 #include "OneColorShader.h"
 
-#if WITH_AMD_AGS
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "amd_ags.h"
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
+#include "D3D12AmdExtensions.h"
+#include "D3D12IntelExtensions.h"
 
 #if !defined(D3D12_PLATFORM_NEEDS_DISPLAY_MODE_ENUMERATION)
 	#define D3D12_PLATFORM_NEEDS_DISPLAY_MODE_ENUMERATION 1

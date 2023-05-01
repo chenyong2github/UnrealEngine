@@ -5,6 +5,9 @@
 =============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "D3D12AmdExtensions.h"
+#include "D3D12IntelExtensions.h"
+#include "D3D12NvidiaExtensions.h"
 #include "WindowsD3D12Adapter.h"
 #include "Modules/ModuleManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -12,29 +15,7 @@
 #include "HAL/FileManager.h"
 #include "ProfilingDebugging/AssetMetadataTrace.h"
 #include <delayimp.h>
-
-#if WITH_AMD_AGS
-	#include "amd_ags.h"
-#endif
-
-#if WITH_NVAPI
-	#include "nvapi.h"
-	#include "nvShaderExtnEnums.h"
-#endif
-
-#if INTEL_EXTENSIONS
-	bool GDX12INTCAtomicUInt64Emulation = false;
-#endif
-
 #include "Windows/HideWindowsPlatformTypes.h"
-
-#if INTEL_EXTENSIONS
-	#define INTC_IGDEXT_D3D12 1
-
-	THIRD_PARTY_INCLUDES_START
-	#include "igdext.h"
-	THIRD_PARTY_INCLUDES_END
-#endif
 
 #include "HardwareInfo.h"
 #include "IHeadMountedDisplayModule.h"
@@ -52,6 +33,10 @@ extern bool D3D12RHI_ShouldCreateWithWarp();
 extern bool D3D12RHI_AllowSoftwareFallback();
 extern bool D3D12RHI_ShouldAllowAsyncResourceCreation();
 extern bool D3D12RHI_ShouldForceCompatibility();
+
+#if INTEL_EXTENSIONS
+bool GDX12INTCAtomicUInt64Emulation = false;
+#endif
 
 FD3D12DynamicRHI* GD3D12RHI = nullptr;
 

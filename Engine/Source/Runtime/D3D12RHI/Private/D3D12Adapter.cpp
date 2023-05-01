@@ -5,30 +5,21 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 =============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "D3D12AmdExtensions.h"
+#include "D3D12IntelExtensions.h"
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
-#include "DataDrivenShaderPlatformInfo.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformMisc.h"
 #include "Windows/WindowsPlatformStackWalk.h"
 #endif
 #include "Modules/ModuleManager.h"
-
-#if WITH_AMD_AGS
-	#include "amd_ags.h"
-#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
-#if INTEL_EXTENSIONS
-	#define INTC_IGDEXT_D3D12 1
-
-	THIRD_PARTY_INCLUDES_START
-	#include "igdext.h"
-	THIRD_PARTY_INCLUDES_END
-#endif
 
 #if ENABLE_RESIDENCY_MANAGEMENT
 bool GEnableResidencyManagement = true;

@@ -8,6 +8,7 @@
 
 #include "D3D12RHIPrivate.h"
 #include "BoundShaderStateCache.h"
+#include "D3D12NvidiaExtensions.h"
 #include "D3D12ShaderResources.h"
 #include "D3D12Residency.h"
 #include "D3D12Util.h"

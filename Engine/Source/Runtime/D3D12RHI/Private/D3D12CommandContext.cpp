@@ -6,12 +6,7 @@ D3D12CommandContext.cpp: RHI  Command Context implementation.
 
 #include "D3D12RHIPrivate.h"
 
-#if WITH_AMD_AGS
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "amd_ags.h"
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
-
+#include "D3D12AmdExtensions.h"
 #include "D3D12RayTracing.h"
 
 int32 GD3D12MaxCommandsPerCommandList = 10000;

@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-D3D12Stats.h: D3D12 Statistics and Timing Interfaces
-=============================================================================*/
 #pragma once
+
+#include "D3D12NvidiaExtensions.h"
 
 /**
 * The D3D RHI stats.

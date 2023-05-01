@@ -6,13 +6,9 @@
 //	Include Files
 //-----------------------------------------------------------------------------
 #include "D3D12RHIPrivate.h"
+#include "D3D12NvidiaExtensions.h"
 #include "Misc/ScopeRWLock.h"
 #include "Stats/StatsMisc.h"
-
-#if WITH_NVAPI
-	#include "nvapi.h"
-#endif
-
 #include "d3dcompiler.h"
 
 // UE-65533

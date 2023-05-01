@@ -5,17 +5,12 @@
 =============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "D3D12AmdExtensions.h"
 #include "D3D12RootSignatureDefinitions.h"
 #include "RayTracingBuiltInResources.h"
 
 #ifndef FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE
 #define FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE D3D12_ROOT_SIGNATURE_FLAG_NONE
-#endif
-
-#if WITH_AMD_AGS
-#include "Microsoft/AllowMicrosoftPlatformTypes.h"
-#include "amd_ags.h"
-#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
 
 // Allows to automatically bind UEDiagnosticBuffer UAV, available to all shaders.

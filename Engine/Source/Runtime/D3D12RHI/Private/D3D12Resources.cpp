@@ -5,18 +5,11 @@ D3D12Resources.cpp: D3D RHI utility implementation.
 =============================================================================*/
 
 #include "D3D12RHIPrivate.h"
+#include "D3D12IntelExtensions.h"
 #include "EngineModule.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/MemoryTrace.h"
 #include "ProfilingDebugging/AssetMetadataTrace.h"
-
-#if INTEL_EXTENSIONS
-	#define INTC_IGDEXT_D3D12 1
-
-	THIRD_PARTY_INCLUDES_START
-	#include "igdext.h"
-	THIRD_PARTY_INCLUDES_END
-#endif
 
 static TAutoConsoleVariable<int32> CVarD3D12ReservedResourceHeapSizeMB(
 	TEXT("d3d12.ReservedResourceHeapSizeMB"),
