@@ -927,8 +927,30 @@ void USoundfieldSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 		SanitizeLinks();
 	}
 }
-
 #endif // WITH_EDITOR
+
+void USoundfieldSubmix::PostLoad()
+{
+#if WITH_EDITOR
+
+	// Make sure the Encoding format is something we can use.
+	// Fallback to something that works otherwise and warn.
+
+	TArray<FName> FactoryNames = ISoundfieldFactory::GetAvailableSoundfieldFormats();
+	if (!FactoryNames.Contains(SoundfieldEncodingFormat))
+	{
+		const FName NoEncoding = ISoundfieldFactory::GetFormatNameForNoEncoding();
+		UE_LOG(LogAudio, Warning, TEXT("SoundfieldSubmix [%s] has Encoding format [%s] which is not currently currently enabled. Changing to [%s]"),
+			*GetName(), *SoundfieldEncodingFormat.ToString(), *NoEncoding.ToString());
+		SoundfieldEncodingFormat = NoEncoding;
+		SanitizeLinks();
+	}
+
+#endif //WITH_EDITOR
+
+	Super::PostLoad();
+}
+
 
 IAudioEndpointFactory* UEndpointSubmix::GetAudioEndpointForSubmix() const
 {
