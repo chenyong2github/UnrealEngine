@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "Engine/GameViewportClient.h"
 
 class AActor;
 class SWindow;
@@ -61,6 +62,8 @@ namespace AutomationCommon
 	ENGINE_API SWidget* FindWidgetByTag(const FName Tag);
 
 	ENGINE_API UWorld* GetAnyGameWorld();
+
+	ENGINE_API UGameViewportClient* GetAnyGameViewportClient();
 #endif
 }
 

@@ -15,6 +15,7 @@
 #include "Slate/SceneViewport.h"
 #include "UObject/AutomationObjectVersion.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "Tests/AutomationCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ScreenshotFunctionalTest)
 
@@ -74,7 +75,9 @@ void AScreenshotFunctionalTest::RequestScreenshot()
 		FIntPoint ScreenshotViewportSize = UAutomationBlueprintFunctionLibrary::GetAutomationScreenshotSize(ScreenshotOptions);
 		if (Config.SetResolution(ScreenshotViewportSize.X, ScreenshotViewportSize.Y, 1.0f))
 		{
-			GEngine->GameViewport->GetGameViewport()->TakeHighResScreenShot();
+			UGameViewportClient* GameViewportClient = AutomationCommon::GetAnyGameViewportClient();
+			check(GameViewportClient);
+			GameViewportClient->GetGameViewport()->TakeHighResScreenShot();
 		}
 	}
 	else

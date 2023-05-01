@@ -9,6 +9,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Misc/RuntimeErrors.h"
+#include "GameFramework/PlayerController.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FunctionalTestingManager)
 
@@ -166,7 +167,8 @@ void UFunctionalTestingManager::TriggerFirstValidTest()
 
 	const bool bIsWorldInitialized =
 		World->AreActorsInitialized() &&
-		(!World->GetWorldSettings()->IsNavigationSystemEnabled() || !UNavigationSystemV1::IsNavigationBeingBuilt(World));
+		(!World->GetWorldSettings()->IsNavigationSystemEnabled() || !UNavigationSystemV1::IsNavigationBeingBuilt(World)) &&
+		(World->GetNumPlayerControllers() != 0) && World->GetFirstPlayerController()->GetPawnOrSpectator() != nullptr;
 
 	if (bInitialDelayApplied == true && bIsWorldInitialized)
 	{

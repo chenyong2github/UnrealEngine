@@ -349,6 +349,25 @@ namespace AutomationCommon
 
 		return TestWorld;
 	}
+
+	UGameViewportClient* GetAnyGameViewportClient()
+	{
+		if (GEngine->GameViewport)
+		{
+			return GEngine->GameViewport;
+		}
+		// Then Game viewport is attached to another world context than the main Engine one. (ie: PIE Net mode set to As Client)
+		const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+		for (const FWorldContext& Context : WorldContexts)
+		{
+			if ((Context.WorldType == EWorldType::PIE) && Context.World() != nullptr && Context.GameViewport != nullptr)
+			{
+				return Context.GameViewport;
+			}
+		}
+
+		return nullptr;
+	}
 }
 
 bool AutomationOpenMap(const FString& MapName, bool bForceReload)
