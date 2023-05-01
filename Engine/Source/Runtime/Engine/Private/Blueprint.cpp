@@ -1793,6 +1793,11 @@ void UBlueprint::ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& 
 
 	auto FilterFunc = [&](const UActorComponent* TemplateComponent)
 	{
+		if (!TemplateComponent)
+		{
+			return true;
+		}
+
 		if (!InComponentClass.Get() || TemplateComponent->IsA(InComponentClass))
 		{
 			return InFunc(TemplateComponent);
