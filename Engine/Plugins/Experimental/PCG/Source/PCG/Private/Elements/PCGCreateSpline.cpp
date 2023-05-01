@@ -174,7 +174,16 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 		SplinePoints.Reserve(Points.Num());
 
 		const FTransform SplineActorTransform = SplineActor->GetTransform();
-		ESplinePointType::Type PointType = (Settings->bLinear ? ESplinePointType::Linear : ESplinePointType::Curve);
+		
+		ESplinePointType::Type PointType = ESplinePointType::Curve;
+		if (Settings->bLinear)
+		{
+			PointType = ESplinePointType::Linear;
+		}
+		else if (Settings->bApplyCustomTangents)
+		{
+			PointType = ESplinePointType::CurveCustomTangent;
+		}
 
 		for(int32 PointIndex = 0; PointIndex < Points.Num(); ++PointIndex)
 		{
