@@ -927,6 +927,27 @@ void USoundfieldSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 		SanitizeLinks();
 	}
 }
+void UEndpointSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{	
+	if (PropertyChangedEvent.Property != nullptr)
+	{
+		const FName PropertyName = PropertyChangedEvent.Property->GetFName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UEndpointSubmix, EndpointType)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UEndpointSubmix, EndpointSettings)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UEndpointSubmix, EndpointSettingsClass)
+		)
+		{
+			// Remove-re-add submix. Causes reinit with plugins.
+			if (FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager())
+			{
+				AudioDeviceManager->UnregisterSoundSubmix(this);
+				AudioDeviceManager->RegisterSoundSubmix(this);
+			}
+		}
+	}
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
 #endif // WITH_EDITOR
 
 void USoundfieldSubmix::PostLoad()

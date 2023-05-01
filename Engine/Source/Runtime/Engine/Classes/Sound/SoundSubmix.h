@@ -483,6 +483,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Endpoint)
 	TObjectPtr<UAudioEndpointSettingsBase> EndpointSettings;
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 };
 
 /**
