@@ -287,6 +287,23 @@ TSharedPtr<FTrackedActivity> FControlFlow::GetTrackedActivity() const
 	return Activity;
 }
 
+FControlFlow& FControlFlow::QueueDelay(const float InDelay, const FString& NodeName)
+{
+	QueueWait(NodeName).BindLambda([InDelay](FControlFlowNodeRef FlowHandle)
+		{
+			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([FlowHandle](float)
+				{
+					if (FlowHandle->Parent.IsValid() && !FlowHandle->HasCancelBeenRequested())
+					{
+						FlowHandle->ContinueFlow();
+					}
+					return false;
+				}), InDelay);
+		});
+
+	return *this;
+}
+
 FControlFlow& FControlFlow::TrackActivities(TSharedPtr<FTrackedActivity> InActivity)
 {
 	if (!InActivity)

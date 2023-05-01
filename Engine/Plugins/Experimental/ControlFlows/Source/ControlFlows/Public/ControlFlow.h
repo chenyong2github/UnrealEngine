@@ -97,7 +97,7 @@ class FControlFlowTask_BranchLegacy;
  *												.QueueStep(this, &ThisClass::Foo);
  *										});
  * 
- *									return FMath::RandBool() ? 0 : 1;
+ *									return FMath::RandBool() ? EConditionalLoopResult::RunLoop : EConditionalLoopResult::LoopFinished;
  *								})
  *								.QueueStep(this, &ThisClass::Foo);
  *
@@ -148,6 +148,7 @@ public:
 	CONTROLFLOWS_API TSharedPtr<FTrackedActivity> GetTrackedActivity() const;
 
 public:
+	CONTROLFLOWS_API FControlFlow& QueueDelay(const float InDelay, const FString& NodeName = FString());
 
 	template<typename...ArgsT>
 	FControlFlow& QueueStep(const FString& NodeName, ArgsT...Params)
