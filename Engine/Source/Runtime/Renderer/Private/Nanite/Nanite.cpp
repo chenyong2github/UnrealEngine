@@ -218,8 +218,8 @@ class FCalculateShadingStatsCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER(uint32, NumShadingBins)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FUintVector4>, ShadingBinMeta)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FUintVector4>, ShadingBinStats)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNaniteShadingBinMeta>, ShadingBinMeta)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNaniteShadingBinStats>, ShadingBinStats)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, MaterialIndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -386,7 +386,7 @@ void ExtractShadingDebug(
 		}
 		else
 		{
-			ShadingBinMeta = GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder);
+			ShadingBinMeta = GSystemTextures.GetDefaultStructuredBuffer<FNaniteShadingBinMeta>(GraphBuilder);
 		}
 
 		Nanite::GGlobalResources.GetShadingBinMetaBufferRef() = GraphBuilder.ConvertToExternalBuffer(ShadingBinMeta);
@@ -411,8 +411,8 @@ void ExtractShadingDebug(
 		}
 		else
 		{
-			PassParameters->ShadingBinMeta = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder), PF_R32G32B32A32_UINT);
-			PassParameters->ShadingBinStats = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder), PF_R32G32B32A32_UINT);
+			PassParameters->ShadingBinMeta = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FNaniteShadingBinMeta>(GraphBuilder));
+			PassParameters->ShadingBinStats = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer<FNaniteShadingBinStats>(GraphBuilder));
 			PassParameters->MaterialIndirectArgs = GraphBuilder.CreateSRV(MaterialIndirectArgs);
 		}
 

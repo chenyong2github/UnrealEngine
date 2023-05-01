@@ -3419,7 +3419,7 @@ FBinningData FRenderer::AddPass_Rasterize(
 	};
 
 	FRDGBufferRef DummyBuffer8 = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 8);
-	FRDGBufferRef DummyBuffer16 = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, 16);
+	FRDGBufferRef DummyBufferRasterMeta = GSystemTextures.GetDefaultStructuredBuffer<FNaniteRasterBinMeta>(GraphBuilder);
 
 	// Create a new set of UAVs with the SkipBarrier flag enabled to avoid barriers between dispatches.
 	FRasterParameters RasterParameters = RasterContext.Parameters;
@@ -3467,7 +3467,7 @@ FBinningData FRenderer::AddPass_Rasterize(
 
 	if (BinningData.MetaBuffer == nullptr)
 	{
-		BinningData.MetaBuffer = DummyBuffer16;
+		BinningData.MetaBuffer = DummyBufferRasterMeta;
 	}
 
 	FRDGBufferRef BinIndirectArgs = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u ? BinningData.IndirectArgs : IndirectArgs;
@@ -4528,8 +4528,8 @@ class FCalculateRasterStatsCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FQueueState >, QueueState)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, MainPassRasterizeArgsSWHW)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PostPassRasterizeArgsSWHW)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, MainPassRasterBinMeta)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, PostPassRasterBinMeta)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNaniteRasterBinMeta>, MainPassRasterBinMeta)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNaniteRasterBinMeta>, PostPassRasterBinMeta)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCalculateRasterStatsCS, "/Engine/Private/Nanite/NanitePrintStats.usf", "CalculateRasterStats", SF_Compute);
