@@ -424,7 +424,7 @@ bool TSceneCastCommonImp(const UWorld* World, typename Traits::TOutHits& OutHits
 			// TODO: Is there a way to get this to generalize better to the PT as well? Right now it depends on GT functions on the cluster union component.
 			if constexpr (Traits::IsExternalData())
 			{
-				auto DoClusterUnionTrace = [&GeomInputs, &Start, &End, TraceChannel, &Params, &ResponseParams, &ObjectParams](const FHitResult& OriginalHit, FHitResult& NewHit)
+				auto DoClusterUnionTrace = [&GeomInputs, &Start, &End, TraceChannel, &Params, &ResponseParams, &ObjectParams](const FHitResult& OriginalHit, auto& NewHit)
 				{
 					FClusterUnionHit Result;
 					if (UClusterUnionComponent* ClusterUnion = Cast<UClusterUnionComponent>(OriginalHit.GetComponent()))
@@ -452,7 +452,7 @@ bool TSceneCastCommonImp(const UWorld* World, typename Traits::TOutHits& OutHits
 
 						for (int32 Index = 0; Index < OutHits.Num(); ++Index)
 						{
-							FHitResult NewHit;
+							TArray<FHitResult> NewHit;
 							FClusterUnionHit ClusterUnionHit = DoClusterUnionTrace(OutHits[Index], NewHit);
 							if (ClusterUnionHit.bIsClusterUnion)
 							{
@@ -460,7 +460,7 @@ bool TSceneCastCommonImp(const UWorld* World, typename Traits::TOutHits& OutHits
 
 								if (ClusterUnionHit.bHit)
 								{
-									AllNewHits.Add(NewHit);
+									AllNewHits.Append(NewHit);
 								}
 							}
 						}

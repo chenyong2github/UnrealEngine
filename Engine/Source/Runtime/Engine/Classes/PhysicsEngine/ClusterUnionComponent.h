@@ -159,6 +159,10 @@ public:
 
 	bool HasReceivedTransform() const { return bHasReceivedTransform; }
 
+	// Multi-trace/sweep functions that only make sense in the context of a cluster union.
+	bool LineTraceComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
+	bool SweepComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
+
 	friend class UClusterUnionReplicatedProxyComponent;
 protected:
 

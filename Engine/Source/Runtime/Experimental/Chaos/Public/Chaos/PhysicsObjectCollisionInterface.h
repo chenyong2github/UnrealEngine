@@ -139,6 +139,12 @@ namespace Chaos
 		template<typename TOverlapHit>
 		bool ShapeOverlap(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, TArray<TOverlapHit>& OutOverlaps)
 		{
+			return ShapeOverlapWithMTD(InObjects, InGeom, GeomTransform, OutOverlaps, nullptr);
+		}
+
+		template<typename TOverlapHit>
+		bool ShapeOverlapWithMTD(TArrayView<const FConstPhysicsObjectHandle> InObjects, const Chaos::FImplicitObject& InGeom, const FTransform& GeomTransform, TArray<TOverlapHit>& OutOverlaps, FMTDInfo* MTD)
+		{
 			static_assert(std::is_same_v<TOverlapHit, ChaosInterface::TThreadOverlapHit<Id>>);
 			bool bHasOverlap = false;
 			for (const FConstPhysicsObjectHandle Object : InObjects)
@@ -147,15 +153,15 @@ namespace Chaos
 
 				Interface.VisitEveryShape(
 					{ &Object, 1 },
-					[this, &bHasOverlap, &WorldTM, &InGeom, &GeomTransform, &OutOverlaps](const FConstPhysicsObjectHandle IterObject, TThreadShapeInstance<Id>* Shape)
+					[this, &bHasOverlap, &WorldTM, &InGeom, &GeomTransform, &OutOverlaps, MTD](const FConstPhysicsObjectHandle IterObject, TThreadShapeInstance<Id>* Shape)
 					{
 						check(Shape);
 						const bool bOverlap = Chaos::Utilities::CastHelper(
 							InGeom,
 							GeomTransform,
-							[Shape, &WorldTM](const auto& Downcast, const auto& FullTransformB)
+							[Shape, &WorldTM, MTD](const auto& Downcast, const auto& FullTransformB)
 							{
-								return Chaos::OverlapQuery(*Shape->GetGeometry(), WorldTM, Downcast, FullTransformB, 0, nullptr);
+								return Chaos::OverlapQuery(*Shape->GetGeometry(), WorldTM, Downcast, FullTransformB, 0, MTD);
 							}
 						);
 
@@ -183,12 +189,26 @@ namespace Chaos
 			const FVector StartPos = StartTM.GetTranslation();
 			const FVector Delta = EndPos - StartPos;
 			const FReal DeltaMag = Delta.Size();
-			if (DeltaMag < UE_KINDA_SMALL_NUMBER)
-			{
-				return false;
-			}
-			const FVec3 Dir = Delta / DeltaMag;
 
+			// This maintains compatability with SQ querying code (see TSQVisitor::Visit where it checks Sweeps with 0 length).
+			if (DeltaMag < UE_SMALL_NUMBER)
+			{
+				TArray<ChaosInterface::TThreadOverlapHit<Id>> OverlapHits;
+				FMTDInfo MTDInfo;
+				const bool bOverlap = ShapeOverlapWithMTD(InObjects, InGeom, StartTM, OverlapHits, &MTDInfo);
+				if (!OverlapHits.IsEmpty())
+				{
+					const ChaosInterface::TThreadQueryHit<Id>& OverlapQueryHit = OverlapHits[0];
+					ChaosInterface::TThreadQueryHit<Id>& OutQueryHit = OutBestHit;
+					OutQueryHit = OverlapQueryHit;
+					OutBestHit.WorldNormal = MTDInfo.Normal * MTDInfo.Penetration;
+				}
+				return bOverlap;
+			}
+
+			const FVector Dir = Delta / DeltaMag;
+
+			OutBestHit.Distance = TNumericLimits<float>::Max();
 			for (const FConstPhysicsObjectHandle Object : InObjects)
 			{
 				const FTransform WorldTM = Interface.GetTransform(Object);
@@ -220,14 +240,15 @@ namespace Chaos
 								}
 							);
 
-							if (bShapeHit)
+							const float FloatDistance = static_cast<float>(Distance);
+							if (bShapeHit && FloatDistance < OutBestHit.Distance)
 							{
 								bHit = true;
 
 								OutBestHit.Shape = Shape;
 								OutBestHit.WorldPosition = WorldPosition;
 								OutBestHit.WorldNormal = WorldNormal;
-								OutBestHit.Distance = static_cast<float>(Distance);
+								OutBestHit.Distance = FloatDistance;
 								OutBestHit.FaceIndex = FaceIdx;
 								if (OutBestHit.Distance > 0.f)
 								{

@@ -155,6 +155,9 @@ namespace ChaosInterface
 	};
 
 	template<Chaos::EThreadContext Id>
+	using TThreadQueryHit = std::conditional_t<Id == Chaos::EThreadContext::External, FQueryHit, FPTQueryHit>;
+
+	template<Chaos::EThreadContext Id>
 	using TThreadRaycastHit = std::conditional_t<Id == Chaos::EThreadContext::External, FRaycastHit, FPTRaycastHit>;
 
 	template<Chaos::EThreadContext Id>
