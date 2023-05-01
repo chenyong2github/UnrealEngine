@@ -3,11 +3,11 @@
 #pragma once
 
 #include "VPFullScreenUserWidget_PostProcessBase.h"
+#include "SceneViewExtensionContext.h"
 #include "VPFullScreenUserWidget_PostProcessWithSVE.generated.h"
 
 class FSceneViewExtensionBase;
 class UMaterialInterface;
-struct FSceneViewExtensionIsActiveFunctor;
 
 /**
  * Renders widget in post process phase by using Scene View Extensions (SVE).
