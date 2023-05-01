@@ -165,9 +165,9 @@ namespace EpicGames.Horde.Compute
 			lock (_lockObject)
 			{
 				_complete = true;
-				foreach (IComputeBufferWriter writer in _recvBuffers.Values)
+				foreach (IComputeBuffer buffer in _recvBuffers.Values)
 				{
-					writer.MarkComplete();
+					buffer.Writer.MarkComplete();
 				}
 			}
 
