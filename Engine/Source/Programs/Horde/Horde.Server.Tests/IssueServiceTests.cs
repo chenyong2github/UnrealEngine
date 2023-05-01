@@ -20,9 +20,7 @@ using Horde.Server.Projects;
 using Horde.Server.Streams;
 using Horde.Server.Server;
 using Horde.Server.Tests.Stubs.Services;
-using Horde.Server.Utilities;
 using HordeCommon;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
@@ -255,14 +253,14 @@ namespace Horde.Server.Tests
 			IJobStepBatch batch = job.Batches[batchIdx];
 			IJobStep step = batch.Steps[stepIdx];
 
+			JobStepRefId jobStepRefId = new JobStepRefId(job.Id, batch.Id, step.Id);
+			string nodeName = _graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Name;
+			await JobStepRefCollection.InsertOrReplaceAsync(jobStepRefId, "TestJob", nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, null, null, outcome, job.UpdateIssues, null, null, 0.0f, 0.0f, job.CreateTimeUtc, step.StartTimeUtc!.Value, step.StartTimeUtc);
+
 			if (job.UpdateIssues)
 			{
 				await IssueService.UpdateCompleteStep(job, _graph, batch.Id, step.Id);
 			}			
-
-			JobStepRefId jobStepRefId = new JobStepRefId(job.Id, batch.Id, step.Id);
-			string nodeName = _graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Name;
-			await JobStepRefCollection.InsertOrReplaceAsync(jobStepRefId, "TestJob", nodeName, job.StreamId, job.TemplateId, job.Change, step.LogId, null, null, outcome, job.UpdateIssues, null, null, 0.0f, 0.0f, job.CreateTimeUtc, step.StartTimeUtc!.Value, step.StartTimeUtc);
 		}
 
 		async Task AddEvent(IJob job, int batchIdx, int stepIdx, object data, EventSeverity severity = EventSeverity.Error)
@@ -347,11 +345,16 @@ namespace Horde.Server.Tests
 				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
 				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning), message = "" }, EventSeverity.Warning);
 				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+				IJobStepRef? stepRef = await JobStepRefCollection.FindAsync(job.Id, job.Batches[0].Id, job.Batches[0].Steps[0].Id);
+				
 
 				List<IIssue> issues = await IssueCollection.FindIssuesAsync();
 				Assert.AreEqual(1, issues.Count);
 
 				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
+
+				Assert.AreEqual(1, stepRef!.IssueIds!.Count);
+				Assert.AreEqual(1, stepRef!.IssueIds![0], issues[0].Id );
 			}
 
 			// #2

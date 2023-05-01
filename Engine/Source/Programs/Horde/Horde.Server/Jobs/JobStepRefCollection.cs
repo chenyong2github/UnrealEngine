@@ -65,10 +65,14 @@ namespace Horde.Server.Jobs
 			[BsonIgnoreIfNull]
 			public bool? UpdateIssues { get; set; }
 
+			[BsonIgnoreIfNull]
+			public List<int>? IssueIds { get; set; }
+
 			DateTime IJobStepRef.StartTimeUtc => StartTimeUtc ?? StartTime?.UtcDateTime ?? default;
 			DateTime? IJobStepRef.FinishTimeUtc => FinishTimeUtc ?? FinishTime?.UtcDateTime;
 			string IJobStepRef.NodeName => Name;
-			bool IJobStepRef.UpdateIssues => UpdateIssues ?? false;
+			bool IJobStepRef.UpdateIssues => UpdateIssues ?? false;			
+			IReadOnlyList<int>? IJobStepRef.IssueIds => IssueIds;
 
 			public JobStepRef(JobStepRefId id, string jobName, string nodeName, StreamId streamId, TemplateId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, bool updateIssues, int? lastSuccess, int? lastWarning, float batchWaitTime, float batchInitTime, DateTime jobStartTimeUtc, DateTime startTimeUtc, DateTime? finishTimeUtc)
 			{
@@ -139,6 +143,33 @@ namespace Horde.Server.Jobs
 			}
 
 			return newJobStepRef;
+		}
+
+		/// <inheritdoc/>
+		public async Task<IJobStepRef?> UpdateAsync(JobId jobId, SubResourceId batchId, SubResourceId stepId, List<int>? issueIds)
+		{
+			UpdateDefinitionBuilder<JobStepRef> updateBuilder = Builders<JobStepRef>.Update;
+			List<UpdateDefinition<JobStepRef>> updates = new List<UpdateDefinition<JobStepRef>>();
+
+			if (issueIds != null)
+			{
+				updates.Add(updateBuilder.Set(x => x.IssueIds, issueIds));
+			}
+
+			if (updates.Count == 0) 
+			{
+				return await FindAsync(jobId, batchId, stepId);
+			}
+			
+			JobStepRefId id = new JobStepRefId(jobId, batchId, stepId);
+			return await _jobStepRefs.FindOneAndUpdateAsync(x => x.Id.Equals(id), updateBuilder.Combine(updates));
+		}
+
+		/// <inheritdoc/>
+		public async Task<IJobStepRef?> FindAsync(JobId jobId, SubResourceId batchId, SubResourceId stepId)
+		{
+			JobStepRefId id = new JobStepRefId(jobId, batchId, stepId);
+			return await _jobStepRefs.Find(x => x.Id.Equals(id)).FirstOrDefaultAsync();
 		}
 
 		/// <inheritdoc/>

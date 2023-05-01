@@ -597,6 +597,13 @@ namespace Horde.Server.Issues
 					break;
 				}
 			}
+
+			List<IIssue> issues = await Collection.FindIssuesForJobAsync(job, graph, stepId, batchId);
+			if (issues.Count > 0)
+			{
+				await _jobStepRefs.UpdateAsync(job.Id, batchId, stepId, issues.Select(i => i.Id).ToList());
+			}
+
 		}
 
 		/// <summary>

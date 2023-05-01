@@ -8,7 +8,6 @@ using Horde.Server.Agents.Pools;
 using Horde.Server.Jobs.Graphs;
 using Horde.Server.Logs;
 using Horde.Server.Streams;
-using Horde.Server.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 
@@ -41,6 +40,25 @@ namespace Horde.Server.Jobs
 		/// <param name="startTimeUtc">Start time</param>
 		/// <param name="finishTimeUtc">Finish time for the step, if known</param>
 		Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId id, string jobName, string stepName, StreamId streamId, TemplateId templateId, int change, LogId? logId, PoolId? poolId, AgentId? agentId, JobStepOutcome? outcome, bool updateIssues, int? lastSuccess, int? lastWarning, float waitTime, float initTime, DateTime jobStartTimeUtc, DateTime startTimeUtc, DateTime? finishTimeUtc);
+
+		/// <summary>
+		/// Updates a job step ref 
+		/// </summary>
+		/// <param name="jobId"></param>
+		/// <param name="batchId"></param>
+		/// <param name="stepId"></param>
+		/// <param name="issueIds"></param>
+		/// <returns></returns>
+		Task<IJobStepRef?> UpdateAsync(JobId jobId, SubResourceId batchId, SubResourceId stepId, List<int>? issueIds);
+
+		/// <summary>
+		/// Gets a specific job step ref
+		/// </summary>
+		/// <param name="jobId"></param>
+		/// <param name="batchId"></param>
+		/// <param name="stepId"></param>
+		/// <returns></returns>
+		Task<IJobStepRef?> FindAsync(JobId jobId, SubResourceId batchId, SubResourceId stepId);
 
 		/// <summary>
 		/// Gets the history of a given node

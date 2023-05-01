@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using Horde.Server.Agents;
 using Horde.Server.Agents.Pools;
 using Horde.Server.Logs;
 using Horde.Server.Streams;
-using Horde.Server.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
@@ -64,6 +64,12 @@ namespace Horde.Server.Jobs
 		public override string ToString()
 		{
 			return $"{JobId}:{BatchId}:{StepId}";
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(JobStepRefId other)
+		{
+			return JobId.Equals(other.JobId) && BatchId.Equals(other.BatchId) && StepId.Equals(other.StepId);
 		}
 	}
 
@@ -159,6 +165,11 @@ namespace Horde.Server.Jobs
 		/// Whether this step should update issues
 		/// </summary>
 		public bool UpdateIssues { get; }
+
+		/// <summary>
+		/// Issues ids affecting this job step
+		/// </summary>
+		public IReadOnlyList<int>? IssueIds { get; }
 
 		/// <summary>
 		/// The last change that succeeded. Note that this is only set when the ref is updated; it is not necessarily consistent with steps run later.

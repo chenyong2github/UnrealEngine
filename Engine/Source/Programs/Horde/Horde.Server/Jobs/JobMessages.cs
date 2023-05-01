@@ -1123,6 +1123,11 @@ namespace Horde.Server.Jobs
 		public JobStepOutcome? Outcome { get; set; }
 
 		/// <summary>
+		/// The issues which affected this step
+		/// </summary>
+		public List<int>? IssueIds { get; }
+
+		/// <summary>
 		/// Time at which the step started.
 		/// </summary>
 		public DateTimeOffset StartTime { get; }
@@ -1146,6 +1151,7 @@ namespace Horde.Server.Jobs
 			PoolId = jobStepRef.PoolId?.ToString();
 			AgentId = jobStepRef.AgentId?.ToString();
 			Outcome = jobStepRef.Outcome;
+			IssueIds = jobStepRef.IssueIds?.Select(id => id).ToList();
 			StartTime = jobStepRef.StartTimeUtc;
 			FinishTime = jobStepRef.FinishTimeUtc;
 		}
