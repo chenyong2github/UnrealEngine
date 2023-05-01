@@ -111,6 +111,12 @@ static FAutoConsoleVariableRef CVarSlateEnableGamepadEditorNavigation(
 	TEXT("True implies we allow gamepad navigation outside of the game viewport.")
 );
 
+static bool GSlateUseFixedDeltaTime = false;
+static FAutoConsoleVariableRef CVarSlateUseFixedDeltaTime(
+	TEXT("Slate.UseFixedDeltaTime"),
+	GSlateUseFixedDeltaTime,
+	TEXT("True means we use a constant delta time on every widget tick.")
+);
 //////////////////////////////////////////////////////////////////////////
 
 /** 
@@ -777,6 +783,7 @@ void FSlateApplication::Shutdown(bool bShutdownPlatform)
 }
 
 TSharedPtr<FSlateApplication> FSlateApplication::CurrentApplication = nullptr;
+double FSlateApplication::FixedDeltaTime = 1 / 60.0;
 
 FSlateApplication::FSlateApplication()
 	: bAppIsActive(true)
@@ -1504,7 +1511,7 @@ void FSlateApplication::Tick(ESlateTickType TickType)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlateTickTime);
 
-		const float DeltaTime = GetDeltaTime();
+		float DeltaTime = GetDeltaTime();
 
 		// IMPORTANT
 		// Do not add code to these different if-statements, if you need to add additional logic to
@@ -1520,6 +1527,12 @@ void FSlateApplication::Tick(ESlateTickType TickType)
 		if (EnumHasAnyFlags(TickType, ESlateTickType::Time))
 		{
 			TickTime();
+		}
+
+		if (GSlateUseFixedDeltaTime)
+		{
+			DeltaTime = GetFixedDeltaTime();
+
 		}
 
 		if (EnumHasAnyFlags(TickType, ESlateTickType::Widgets))
@@ -4300,6 +4313,10 @@ void FSlateApplication::ForEachUser(TFunctionRef<void(FSlateUser*)> InPredicate,
 		}, bIncludeVirtualUsers);
 }
 
+void FSlateApplication::SetFixedDeltaTime(double InSeconds)
+{
+	FixedDeltaTime = InSeconds;
+}
 /* FSlateApplicationBase interface
  *****************************************************************************/
 

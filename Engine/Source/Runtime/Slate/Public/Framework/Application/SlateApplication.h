@@ -1038,6 +1038,21 @@ public:
 	UE_DEPRECATED(4.23, "ForEachUser now provides an FSlateUser& parameter to the lambda instead of an FSlateUser*")
 	void ForEachUser(TFunctionRef<void(FSlateUser*)> InPredicate, bool bIncludeVirtualUsers = false);
 
+	/**
+	 * Gets time step in seconds if a fixed delta time is wanted.
+	 * @return Time step in seconds for fixed delta time.
+	 */
+	FORCEINLINE static double GetFixedDeltaTime()
+	{
+		return FixedDeltaTime;
+	}
+
+	/**
+	 * Sets time step in seconds if a fixed delta time is wanted.
+	 * @param seconds Time step in seconds for fixed delta time.
+	 */
+	static void SetFixedDeltaTime(double InSeconds);
+
 protected:
 	/**
 	 * Register a new user with Slate.  Normally this is unnecessary as Slate automatically adds
@@ -1993,7 +2008,9 @@ private:
 
 	/** Platform mouse movement event count. */
 	uint64 PlatformMouseMovementEvents = 0;
-		
+
+	/** Constant delta time used on every Slate widget Tick if CVarSlateUseFixedDeltaTime is enabled. */
+	static double FixedDeltaTime;
 	/**
 	 * A helper class to wrap the list of input pre-processors. 
 	 */

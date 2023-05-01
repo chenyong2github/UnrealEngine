@@ -39,7 +39,11 @@ protected:
 	virtual void OnScreenshotTakenAndCompared() override;
 
 	virtual void RequestScreenshot() override;
-	
+
+	virtual bool IsReady_Implementation() override;
+
+	virtual void Tick(float DeltaSeconds) override;
+
 protected:
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<UUserWidget> WidgetClass;
@@ -58,4 +62,8 @@ protected:
 
 private:
 	TOptional<bool> PreviousDebugCanvasVisible;
+	int32 NumTickPassed;
+	bool bWasPreviouslyUsingFixedDeltaTime;
+	double PreviousFixedDeltaTime;
+	const double TestFixedDeltaTime = 1 / 60.0;
 };
