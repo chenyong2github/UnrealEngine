@@ -5,7 +5,6 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/UObjectToken.h"
 #include "WaterBodyActor.h"
-#include "WaterBodyMeshComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyCustomComponent)
 
@@ -83,7 +82,7 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
 	OwnerActor->GetComponents(PrimitiveComponents);
 
-	// Make no assumptions for custom water bodies: all (non-visualization) primitive components will be included in navigation except the water info components
+	// Make no assumptions for custom water bodies: all (non-visualization) primitive components will be included in navigation
 	for (UPrimitiveComponent* Comp : PrimitiveComponents)
 	{
 #if WITH_EDITORONLY_DATA
@@ -92,10 +91,6 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 			continue;
 		}
 #endif // WITH_EDITORONLY_DATA
-		if (Comp->IsA<UWaterBodyMeshComponent>())
-		{
-			continue;
-		}
 
 		CopySharedNavigationSettingsToComponent(Comp);
 
