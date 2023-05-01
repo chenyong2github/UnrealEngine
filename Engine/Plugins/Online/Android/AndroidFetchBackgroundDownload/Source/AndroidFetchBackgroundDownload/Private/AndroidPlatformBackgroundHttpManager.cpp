@@ -4,6 +4,7 @@
 
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/CoreDelegates.h"
 
 #include "UEWorkManagerNativeWrapper.h"
 #include "PlatformBackgroundHttp.h"
