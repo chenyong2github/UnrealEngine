@@ -7,6 +7,7 @@
 #include "GameplayAbilityWorldReticle.generated.h"
 
 class APlayerController;
+class AGameplayAbilityTargetActor;
 
 USTRUCT(BlueprintType)
 struct FWorldReticleParameters
@@ -37,7 +38,7 @@ public:
 
 	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
 
-	void InitializeReticle(AActor* InTargetingActor, APlayerController* PlayerController, FWorldReticleParameters InParameters);
+	void InitializeReticle(AGameplayAbilityTargetActor* InTargetingActor, APlayerController* PlayerController, FWorldReticleParameters InParameters);
 
 	void SetIsTargetValid(bool bNewValue);
 	void SetIsTargetAnActor(bool bNewValue);
@@ -94,5 +95,5 @@ protected:
 
 	/** In the future, we may want to grab things like sockets off of this. */
 	UPROPERTY(BlueprintReadOnly, Category = "Network")
-	TObjectPtr<AActor> TargetingActor;
+	TObjectPtr<AGameplayAbilityTargetActor> TargetingActor;
 };
