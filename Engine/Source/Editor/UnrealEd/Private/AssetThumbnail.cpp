@@ -1295,7 +1295,6 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 	}
 
 	// If we could not render a fresh thumbnail, see if we already have a cached one to load
-	FThumbnailMap ThumbnailMap;
 	if (!FoundThumbnail)
 	{
 		FoundThumbnail = ThumbnailTools::FindCachedThumbnail(AssetData.GetFullName());
