@@ -183,6 +183,13 @@ void UHapticFeedbackEffect_SoundWave::PrepareSoundWaveBuffer()
 	{
 		return;
 	}
+
+	if (SoundWave->LoadingBehavior != ESoundWaveLoadingBehavior::ForceInline)
+	{
+		UE_LOG(LogHaptics, Error, TEXT("The LoadingBehavior of a SoundWave needs to be 'ESoundWaveLoadingBehavior::ForceInline' for use in Haptic Feedback. ('%s' requires a change)"), *GetNameSafe(SoundWave));
+		return;
+	}
+
 	AD->Precache(SoundWave, true, false, true);
 	// Remove call to InitAudioResource because AD->Precache calls the InitAudioResource code and calling it twice causes issues with Bulk data loading. 
 	uint8* PCMData = SoundWave->RawPCMData;
