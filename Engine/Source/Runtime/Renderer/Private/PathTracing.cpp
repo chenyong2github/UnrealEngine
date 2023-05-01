@@ -863,8 +863,6 @@ class FPathTracingRG : public FGlobalShader
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("USE_RECT_LIGHT_TEXTURES"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
-		// @todo - Working around DXC compiler crash UE-165154, should be removed after DXC is updated with a fix.
-		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 	}
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
