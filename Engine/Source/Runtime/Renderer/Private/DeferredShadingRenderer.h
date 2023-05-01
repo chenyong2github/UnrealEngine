@@ -61,7 +61,7 @@ struct FDBufferTextures;
 struct FILCUpdatePrimTaskData;
 struct FLumenDirectLightingTaskData;
 
-struct FVisibilityTaskData;
+class IVisibilityTaskData;
 
 #if RHI_RAYTRACING
 struct FRayTracingRelevantPrimitiveTaskData;
@@ -539,11 +539,11 @@ private:
 
 	struct FInitViewTaskDatas
 	{
-		FInitViewTaskDatas(FVisibilityTaskData* InVisibilityTaskData)
+		FInitViewTaskDatas(IVisibilityTaskData* InVisibilityTaskData)
 			: VisibilityTaskData(InVisibilityTaskData)
 		{}
 
-		FVisibilityTaskData* VisibilityTaskData;
+		IVisibilityTaskData* VisibilityTaskData;
 		FILCUpdatePrimTaskData* ILCUpdatePrim = nullptr;
 	#if RHI_RAYTRACING
 		FRayTracingRelevantPrimitiveTaskData* RayTracingRelevantPrimitives = nullptr;
@@ -553,10 +553,9 @@ private:
 		FLumenSceneFrameTemporaries* LumenFrameTemporaries = nullptr;
 	};
 
-	void PreGatherDynamicMeshElements(FRDGBuilder& GraphBuilder, FInitViewTaskDatas& TaskDatas);
-
 	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder);
 
+	void BeginInitDynamicShadows(FInitViewTaskDatas& TaskDatas);
 	void FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynamicShadowsTaskData*& TaskData, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
 
 	void ComputeLightVisibility();
@@ -581,7 +580,7 @@ private:
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, const FLumenDirectLightingTaskData* DirectLightingTaskData);
 
-	void BeginGatherLumenLights(FLumenDirectLightingTaskData*& TaskData);
+	void BeginGatherLumenLights(FLumenDirectLightingTaskData*& TaskData, IVisibilityTaskData* VisibilityTaskData);
 
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,

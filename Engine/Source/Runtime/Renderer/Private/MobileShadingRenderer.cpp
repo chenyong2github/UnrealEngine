@@ -460,7 +460,6 @@ void FMobileSceneRenderer::InitViews(
 	}
 
 	FILCUpdatePrimTaskData* ILCTaskData = nullptr;
-	FComputeViewVisibilityCallbacks ComputeViewVisibilityCallbacks;
 
 	const FExclusiveDepthStencil::Type BasePassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
@@ -471,8 +470,9 @@ void FMobileSceneRenderer::InitViews(
 		Views[0].InitRHIResources();
 		FXSystem->PostInitViews(GraphBuilder, GetSceneViews(), !ViewFamily.EngineShowFlags.HitProxies);
 	}
-	ComputeViewVisibility(RHICmdList, TaskDatas.VisibilityTaskData, BasePassDepthStencilAccess, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager, VirtualTextureUpdater, ComputeViewVisibilityCallbacks);
-	
+
+	TaskDatas.VisibilityTaskData->ProcessRenderThreadTasks(BasePassDepthStencilAccess, InstanceCullingManager, VirtualTextureUpdater);
+
 	if(ShouldRenderVolumetricFog())
 	{
 		SetupVolumetricFog();
@@ -680,7 +680,9 @@ void FMobileSceneRenderer::InitViews(
 		PrepareViewVisibilityLists();
 	}
 
-	SetupMobileBasePassAfterShadowInit(BasePassDepthStencilAccess, GetViewCommandsPerView(TaskDatas.VisibilityTaskData), InstanceCullingManager);
+	TaskDatas.VisibilityTaskData->Finish();
+
+	SetupMobileBasePassAfterShadowInit(BasePassDepthStencilAccess, TaskDatas.VisibilityTaskData->GetViewCommandsPerView(), InstanceCullingManager);
 
 	// if we kicked off ILC update via task, wait and finalize.
 	if (ILCTaskData)
@@ -828,17 +830,19 @@ void FMobileSceneRenderer::RenderMaskedPrePass(FRHICommandList& RHICmdList, cons
 	}
 }
 
-/** 
-* Renders the view family. 
-*/
 void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
+	if (!ViewFamily.EngineShowFlags.Rendering)
+	{
+		return;
+	}
+
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_SceneStart));
 
 	RDG_RHI_EVENT_SCOPE(GraphBuilder, MobileSceneRender);
 	RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, MobileSceneRender);
 
-	FVisibilityTaskData* VisibilityTaskData = UpdateScene(GraphBuilder);
+	IVisibilityTaskData* VisibilityTaskData = UpdateScene(GraphBuilder, FGlobalDynamicBuffers(DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer));
 
 	FRDGExternalAccessQueue ExternalAccessQueue;
 
@@ -871,13 +875,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMobileSceneRenderer_Render);
-
-	if (!ViewFamily.EngineShowFlags.Rendering)
-	{
-		return;
-	}
-
-	WaitOcclusionTests(GraphBuilder.RHICmdList);
 
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 

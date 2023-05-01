@@ -255,23 +255,6 @@ public:
 		}
 	}
 
-	inline void ReleaseStaleQueries(uint32 FrameNumber, int32 NumBufferedFrames)
-	{
-		// No need to release. FFrameBasedOcclusionQueryPool automatically reuses stale queries
-	}
-
-	inline void ReleaseQuery(uint32 FrameNumber, int32 NumBufferedFrames)
-	{
-		// No need to release. FFrameBasedOcclusionQueryPool automatically reuses stale queries
-	}
-
-	inline FRHIRenderQuery* GetQueryForEviction(uint32 FrameNumber, int32 NumBufferedFrames) const
-	{
-		// No need to release. FFrameBasedOcclusionQueryPool automatically reuses stale queries
-		return nullptr;
-	}
-
-
 	inline FRHIRenderQuery* GetQueryForReading(uint32 FrameNumber, int32 NumBufferedFrames, int32 LagTolerance, bool& bOutGrouped) const
 	{
 		const int32 OldestQueryIndex = bNeedsScanOnRead ? ScanOldestNonStaleQueryIndex(FrameNumber, NumBufferedFrames, LagTolerance)
@@ -1557,8 +1540,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void RemoveLumenSceneData(FSceneInterface* InScene) override;
 	virtual bool HasLumenSceneData() const override;
 
-	/** Information about visibility/occlusion states in past frames for individual primitives. */
-	TSet<FPrimitiveOcclusionHistory,FPrimitiveOcclusionHistoryKeyFuncs> PrimitiveOcclusionHistorySet;
+	struct FOcclusion
+	{
+		/** Information about visibility/occlusion states in past frames for individual primitives. */
+		TSet<FPrimitiveOcclusionHistory, FPrimitiveOcclusionHistoryKeyFuncs> PrimitiveOcclusionHistorySet;
+
+		/** The last occlusion query of last frame to test in the following frame to block the GPU. */
+		FRHIRenderQuery* LastOcclusionQuery = nullptr;
+
+		/** The number of queries requested last frame. */
+		uint32 NumRequestedQueries = 0;
+	
+	} Occlusion;
 };
 
 /** Rendering resource class that manages a cubemap array for reflections. */
@@ -2541,7 +2534,7 @@ public:
 	void RemoveChildNode(FPrimitiveComponentId ParentId, FPrimitiveSceneInfo* ChildSceneInfo);
 
 	void UpdateNodeSceneInfo(FPrimitiveComponentId NodeId, FPrimitiveSceneInfo* SceneInfo);
-	void UpdateVisibilityStates(FViewInfo& View);
+	void UpdateVisibilityStates(FViewInfo& View, UE::Tasks::FTaskEvent& FlushCachedShadowsTaskEvent);
 
 	void ClearVisibilityState(FViewInfo& View);
 

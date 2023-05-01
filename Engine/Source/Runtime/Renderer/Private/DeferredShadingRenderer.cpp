@@ -252,20 +252,6 @@ static FAutoConsoleVariableRef CRayTracingParallelMeshBatchSize(
 	TEXT("Batch size for ray tracing materials parallel jobs."),
 	ECVF_RenderThreadSafe);
 
-static int32 GAsyncCreateLightPrimitiveInteractions = 1;
-static FAutoConsoleVariableRef CVarAsyncCreateLightPrimitiveInteractions(
-	TEXT("r.AsyncCreateLightPrimitiveInteractions"),
-	GAsyncCreateLightPrimitiveInteractions,
-	TEXT("Light primitive interactions are created off the render thread in an async task."),
-	ECVF_RenderThreadSafe);
-
-static int32 GAsyncCacheMeshDrawCommands = 1;
-static FAutoConsoleVariableRef CVarAsyncMeshDrawCommands(
-	TEXT("r.AsyncCacheMeshDrawCommands"),
-	GAsyncCacheMeshDrawCommands,
-	TEXT("Mesh draw command caching is offloaded to an async task."),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<float> CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance(
 	TEXT("r.RayTracing.DynamicGeometryLastRenderTimeUpdateDistance"),
 	5000.0f,
@@ -2383,67 +2369,19 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 #endif // RHI_RAYTRACING
 
-void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements(FRDGBuilder& GraphBuilder, FInitViewTaskDatas& TaskDatas)
+void FDeferredShadingSceneRenderer::BeginInitDynamicShadows(FInitViewTaskDatas& TaskDatas)
 {
-#if RHI_RAYTRACING
-	if (bAnyRayTracingPassEnabled)
-	{
-		const int32 ReferenceViewIndex = 0;
-		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
-
-		Scene->WaitForCacheRayTracingPrimitivesTask();
-
-		TaskDatas.RayTracingRelevantPrimitives = Allocator.Create<FRayTracingRelevantPrimitiveTaskData>();
-		TaskDatas.RayTracingRelevantPrimitives->Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[Scene = Scene, &ReferenceView, &RayTracingRelevantPrimitiveList = TaskDatas.RayTracingRelevantPrimitives->List]()
-		{
-			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
-			GatherRayTracingRelevantPrimitives(*Scene, ReferenceView, RayTracingRelevantPrimitiveList);
-		}, TStatId(), nullptr, ENamedThreads::AnyNormalThreadHiPriTask);
-	}
-#endif // RHI_RAYTRACING
-
 	extern int32 GEarlyInitDynamicShadows;
 
-	if (GEarlyInitDynamicShadows &&
-		ViewFamily.EngineShowFlags.DynamicShadows
+	// This is called from multiple locations and will succeed if the visibility tasks are ready.
+	if (!TaskDatas.DynamicShadows
+		&& GEarlyInitDynamicShadows != 0
+		&& ViewFamily.EngineShowFlags.DynamicShadows
 		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& !HasRayTracedOverlay(ViewFamily))
+		&& !HasRayTracedOverlay(ViewFamily)
+		&& TaskDatas.VisibilityTaskData->IsTaskWaitingAllowed())
 	{
-		TaskDatas.DynamicShadows = BeginInitDynamicShadows(true);
-	}
-
-	if (TaskDatas.LumenFrameTemporaries)
-	{
-		BeginUpdateLumenSceneTasks(GraphBuilder, *TaskDatas.LumenFrameTemporaries);
-	}
-
-	BeginGatherLumenLights(TaskDatas.LumenDirectLighting);
-
-	if (IsNaniteEnabled() && Views.Num() > 0)
-	{
-		TArray<FConvexVolume, TInlineAllocator<2>> NaniteCullingViews;
-
-		// For now we'll share the same visibility results across all views
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			FViewInfo& View = Views[ViewIndex];
-			NaniteCullingViews.Add(View.ViewFrustum);
-		}
-
-		FNaniteVisibility& NaniteVisibility = Scene->NaniteVisibility[ENaniteMeshPass::BasePass];
-		const FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[ENaniteMeshPass::BasePass];
-		const FNaniteRasterPipelines& NaniteRasterPipeline = Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass];
-
-		NaniteVisibility.BeginVisibilityFrame();
-
-		NaniteBasePassVisibility.Visibility = &NaniteVisibility;
-		NaniteBasePassVisibility.Query = NaniteVisibility.BeginVisibilityQuery(
-			*Scene,
-			NaniteCullingViews,
-			&NaniteRasterPipeline,
-			&NaniteMaterials
-		);
+		TaskDatas.DynamicShadows = FSceneRenderer::BeginInitDynamicShadows(true, TaskDatas.VisibilityTaskData);
 	}
 }
 
@@ -2529,6 +2467,11 @@ bool FDeferredShadingSceneRenderer::IsNaniteEnabled() const
 
 void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
+	if (!ViewFamily.EngineShowFlags.Rendering)
+	{
+		return;
+	}
+
 	const bool bNaniteEnabled = IsNaniteEnabled();
 
 #if !UE_BUILD_SHIPPING
@@ -2539,29 +2482,77 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GPU_MESSAGE_SCOPE(GraphBuilder);
 
+	FRDGExternalAccessQueue ExternalAccessQueue;
+	TUniquePtr<FVirtualTextureUpdater> VirtualTextureUpdater;
+	FLumenSceneFrameTemporaries LumenFrameTemporaries;
+
+	FInitViewTaskDatas InitViewTaskDatas = UpdateScene(GraphBuilder, FGlobalDynamicBuffers(DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews));
+
+	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
+
+	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
+
+	if (bUseVirtualTexturing)
+	{
+		FVirtualTextureUpdateSettings Settings;
+		Settings.EnableThrottling(!ViewFamily.bOverrideVirtualTextureThrottle);
+
+		VirtualTextureUpdater = FVirtualTextureSystem::Get().BeginUpdate(GraphBuilder, FeatureLevel, Scene, Settings);
+		VirtualTextureFeedbackBegin(GraphBuilder, Views, GetActiveSceneTexturesConfig().Extent);
+	}
+
 	// Compute & commit the final state of the entire dependency topology of the renderer.
 	CommitFinalPipelineState();
-	
-	FRDGExternalAccessQueue ExternalAccessQueue;
-	FVisibilityTaskData* VisibilityTaskData = nullptr;
+
+	// Initialize global system textures (pass-through if already initialized).
+	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 
 	{
-		EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None;
+		InitViewTaskDatas.LumenFrameTemporaries = &LumenFrameTemporaries;
 
-		if (GAsyncCreateLightPrimitiveInteractions > 0)
+		// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
+		// NOTE: Must be done after  system texture initialization
+		// TODO: This doesn't take into account the potential for split screen views with separate shadow caches
+		const bool bEnableVirtualShadowMaps = UseVirtualShadowMaps(ShaderPlatform, FeatureLevel) && ViewFamily.EngineShowFlags.DynamicShadows;
+		VirtualShadowMapArray.Initialize(GraphBuilder, Scene->GetVirtualShadowMapCache(Views[0]), bEnableVirtualShadowMaps, Views[0].bIsSceneCapture);
+
+		BeginInitDynamicShadows(InitViewTaskDatas);
+
+		if (InitViewTaskDatas.LumenFrameTemporaries)
 		{
-			AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions;
+			BeginUpdateLumenSceneTasks(GraphBuilder, *InitViewTaskDatas.LumenFrameTemporaries);
 		}
 
-		if (GAsyncCacheMeshDrawCommands > 0)
+		BeginGatherLumenLights(InitViewTaskDatas.LumenDirectLighting, InitViewTaskDatas.VisibilityTaskData);
+
+		if (bNaniteEnabled)
 		{
-			AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands;
+			TArray<FConvexVolume, TInlineAllocator<2>> NaniteCullingViews;
+
+			// For now we'll share the same visibility results across all views
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				FViewInfo& View = Views[ViewIndex];
+				NaniteCullingViews.Add(View.ViewFrustum);
+			}
+
+			FNaniteVisibility& NaniteVisibility = Scene->NaniteVisibility[ENaniteMeshPass::BasePass];
+			const FNaniteMaterialCommands& NaniteMaterials = Scene->NaniteMaterials[ENaniteMeshPass::BasePass];
+			const FNaniteRasterPipelines& NaniteRasterPipeline = Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass];
+
+			NaniteVisibility.BeginVisibilityFrame();
+
+			NaniteBasePassVisibility.Visibility = &NaniteVisibility;
+			NaniteBasePassVisibility.Query = NaniteVisibility.BeginVisibilityQuery(
+				*Scene,
+				NaniteCullingViews,
+				&NaniteRasterPipeline,
+				&NaniteMaterials
+			);
 		}
-
-		VisibilityTaskData = UpdateScene(GraphBuilder, AsyncOps);
-
-		PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue);
 	}
+
+	PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue);
 
 	ShaderPrint::BeginViews(GraphBuilder, Views);
 
@@ -2634,10 +2625,23 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				}
 			}
 		}
+
+		if (bAnyRayTracingPassEnabled)
+		{
+			const int32 ReferenceViewIndex = 0;
+			FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+			FGraphEventRef PrereqTask = CreateCompatibilityGraphEvent(MakeArrayView({ Scene->GetCacheRayTracingPrimitivesTask(), InitViewTaskDatas.VisibilityTaskData->GetFrustumCullTask() }));
+
+			InitViewTaskDatas.RayTracingRelevantPrimitives = Allocator.Create<FRayTracingRelevantPrimitiveTaskData>();
+			InitViewTaskDatas.RayTracingRelevantPrimitives->Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
+				[Scene = Scene, &ReferenceView, &RayTracingRelevantPrimitiveList = InitViewTaskDatas.RayTracingRelevantPrimitives->List]()
+			{
+				FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
+				GatherRayTracingRelevantPrimitives(*Scene, ReferenceView, RayTracingRelevantPrimitiveList);
+			}, TStatId(), PrereqTask, ENamedThreads::AnyNormalThreadHiPriTask);
+		}
 	}
 #endif
-
-	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
 
 	bool bUpdateNaniteStreaming = false;
 	bool bVisualizeNanite = false;
@@ -2693,23 +2697,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// By default, limit our GPU usage to only GPUs specified in the view masks.
 	RDG_GPU_MASK_SCOPE(GraphBuilder, ViewFamily.EngineShowFlags.PathTracing ? FRHIGPUMask::All() : AllViewsGPUMask);
-
-	WaitOcclusionTests(GraphBuilder.RHICmdList);
-
-	if (!ViewFamily.EngineShowFlags.Rendering)
-	{
-		return;
-	}
-
 	RDG_EVENT_SCOPE(GraphBuilder, "Scene");
 	RDG_GPU_STAT_SCOPE_VERBOSE(GraphBuilder, Unaccounted, *ViewFamily.ProfileDescription);
 	
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Render_Init);
 		RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, AllocateRendertargets);
-
-		// Initialize global system textures (pass-through if already initialized).
-		GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 
 		// Force the subsurface profile texture to be updated.
 		UpdateSubsurfaceProfileTexture(GraphBuilder, ShaderPlatform);
@@ -2724,24 +2717,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
 	const bool bAllowStaticLighting = !bHasRayTracedOverlay && IsStaticLightingAllowed();
-
-	TUniquePtr<FVirtualTextureUpdater> VirtualTextureUpdater;
-
-	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
-	if (bUseVirtualTexturing)
-	{
-		FVirtualTextureUpdateSettings Settings;
-		Settings.EnableThrottling(!ViewFamily.bOverrideVirtualTextureThrottle);
-
-		VirtualTextureUpdater = FVirtualTextureSystem::Get().BeginUpdate(GraphBuilder, FeatureLevel, Scene, Settings);
-		VirtualTextureFeedbackBegin(GraphBuilder, Views, SceneTexturesConfig.Extent);
-	}
-
-	// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
-	// NOTE: Must be done after  system texture initialization
-	// TODO: This doesn't take into account the potential for split screen views with separate shadow caches
-	const bool bEnableVirtualShadowMaps = UseVirtualShadowMaps(ShaderPlatform, FeatureLevel) && ViewFamily.EngineShowFlags.DynamicShadows;
-	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->GetVirtualShadowMapCache(Views[0]), bEnableVirtualShadowMaps, Views[0].bIsSceneCapture);
 
 	// if DDM_AllOpaqueNoVelocity was used, then velocity should have already been rendered as well
 	const bool bIsEarlyDepthComplete = (DepthPass.EarlyZPassMode == DDM_AllOpaque || DepthPass.EarlyZPassMode == DDM_AllOpaqueNoVelocity);
@@ -2765,11 +2740,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(GetSceneUniforms(), Scene->GPUScene.IsEnabled(), GraphBuilder);
-
-	FLumenSceneFrameTemporaries LumenFrameTemporaries;
-
-	FInitViewTaskDatas InitViewTaskDatas(VisibilityTaskData);
-	InitViewTaskDatas.LumenFrameTemporaries = &LumenFrameTemporaries;
 
 	::Strata::PreInitViews(*Scene);
 
@@ -2991,6 +2961,35 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		AddDitheredStencilFillPass(GraphBuilder, Views, SceneTextures.Depth.Target, DepthPass);
 	}
 
+	if (bNaniteEnabled)
+	{
+		// Must happen before any Nanite rendering in the frame
+		if (bUpdateNaniteStreaming)
+		{
+			Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
+
+			const TSet<uint32> ModifiedResources = Nanite::GStreamingManager.GetAndClearModifiedResources();
+#if RHI_RAYTRACING
+			Nanite::GRayTracingManager.RequestUpdates(ModifiedResources);
+#endif
+		}
+	}
+
+	{
+		{
+			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
+			EndInitViews(GraphBuilder, LumenFrameTemporaries, InstanceCullingManager, ExternalAccessQueue, InitViewTaskDatas);
+		}
+
+		// Dynamic vertex and index buffers need to be committed before rendering.
+		{
+			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
+			DynamicIndexBufferForInitViews.Commit();
+			DynamicVertexBufferForInitViews.Commit();
+			DynamicReadBufferForInitViews.Commit();
+		}
+	}
+
 	FHairStrandsBookmarkParameters& HairStrandsBookmarkParameters = *GraphBuilder.AllocObject<FHairStrandsBookmarkParameters>();
 	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()))
 	{
@@ -3019,35 +3018,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			{
 				View.HairStrandsViewData.UniformBuffer = HairStrands::CreateDefaultHairStrandsViewUniformBuffer(GraphBuilder, View);
 			}
-		}
-	}
-
-	if (bNaniteEnabled)
-	{
-		// Must happen before any Nanite rendering in the frame
-		if (bUpdateNaniteStreaming)
-		{
-			Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
-
-			const TSet<uint32> ModifiedResources = Nanite::GStreamingManager.GetAndClearModifiedResources();
-#if RHI_RAYTRACING
-			Nanite::GRayTracingManager.RequestUpdates(ModifiedResources);
-#endif
-		}
-	}
-
-	{
-		{
-			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-			EndInitViews(GraphBuilder, LumenFrameTemporaries, InstanceCullingManager, ExternalAccessQueue, InitViewTaskDatas);
-		}
-
-		// Dynamic vertex and index buffers need to be committed before rendering.
-		{
-			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
-			DynamicIndexBufferForInitViews.Commit();
-			DynamicVertexBufferForInitViews.Commit();
-			DynamicReadBufferForInitViews.Commit();
 		}
 	}
 
@@ -3096,6 +3066,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
 	TArray<Nanite::FPackedView, SceneRenderingAllocator> PrimaryNaniteViews;
 	{
+		Scene->WaitForCacheNaniteDrawCommandsTask();
+
 		if (bNaniteEnabled && Views.Num() > 0)
 		{
 			LLM_SCOPE_BYTAG(Nanite);

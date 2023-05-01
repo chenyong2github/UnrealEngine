@@ -21,6 +21,7 @@
 #include "BatchedElements.h"
 #include "MeshBatch.h"
 #include "ScenePrivateBase.h"
+#include "SceneVisibility.h"
 #include "PrimitiveSceneInfo.h"
 #include "PrimitiveViewRelevance.h"
 #include "LightShaftRendering.h"
@@ -43,6 +44,7 @@
 #include "SceneUniformBuffer.h"
 #include "TextureFallbacks.h"
 #include "SceneInterface.h"
+#include "Async/Mutex.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstanceBufferUtil.h"
@@ -83,7 +85,6 @@ class FTexture2DResource;
 class FSimpleLightArray;
 struct FNaniteMaterialPassCommand;
 struct FScreenMessageWriter;
-struct FVisibilityTaskData;
 struct FVolumetricFogIntegrationParameterData;
 class FLumenHardwareRayTracingUniformBufferParameters;
 
@@ -291,10 +292,7 @@ struct FOcclusionPrimitive
 class FFrameBasedOcclusionQueryPool
 {
 public:
-	FFrameBasedOcclusionQueryPool()
-		: OcclusionFrameCounter(-1)
-		, NumBufferedFrames(0)
-	{}
+	FFrameBasedOcclusionQueryPool() = default;
 
 	FRHIRenderQuery* AllocateQuery();
 
@@ -315,9 +313,9 @@ private:
 	};
 
 	FFrameOcclusionQueries FrameQueries[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames * 2];
-	uint32 CurrentFrameIndex;
-	uint32 OcclusionFrameCounter;
-	uint32 NumBufferedFrames;
+	uint32 CurrentFrameIndex = 0;
+	uint32 OcclusionFrameCounter = -1;
+	uint32 NumBufferedFrames = 0;
 };
 
 class FRefCountedRHIPooledRenderQuery
@@ -441,7 +439,7 @@ public:
 	 * Batches a primitive's occlusion query for rendering.
 	 * @param Bounds - The primitive's bounds.
 	 */
-	FRHIRenderQuery* BatchPrimitive(const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
+	FRHIRenderQuery* BatchPrimitive(FRHICommandList& RHICmdList, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
 	inline int32 GetNumBatchOcclusionQueries() const
 	{
 		return BatchOcclusionQueries.Num();
@@ -526,7 +524,7 @@ public:
 	virtual void InitDynamicRHI() override;
 	virtual void ReleaseDynamicRHI() override;
 
-	void AddPrimitive(FPrimitiveComponentId PrimitiveId, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
+	void AddPrimitive(FRHICommandList& RHICmdList, FPrimitiveComponentId PrimitiveId, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
 
 	void BeginOcclusionScope(FRDGBuilder& GraphBuilder);
 	void EndOcclusionScope(FRDGBuilder& GraphBuilder);
@@ -1214,24 +1212,6 @@ struct FPreviousViewInfo
 	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
-class FViewCommands
-{
-public:
-	FViewCommands()
-	{
-		for (int32 PassIndex = 0; PassIndex < EMeshPass::Num; ++PassIndex)
-		{
-			NumDynamicMeshCommandBuildRequestElements[PassIndex] = 0;
-		}
-	}
-
-	TStaticArray<FMeshCommandOneFrameArray, EMeshPass::Num> MeshCommands;
-	TStaticArray<int32, EMeshPass::Num> NumDynamicMeshCommandBuildRequestElements;
-	TStaticArray<TArray<const FStaticMeshBatch*, SceneRenderingAllocator>, EMeshPass::Num> DynamicMeshCommandBuildRequests;
-};
-
-typedef TArray<FViewCommands, TInlineAllocator<4>> FViewVisibleCommandsPerView;
-
 #if RHI_RAYTRACING
 
 namespace RayTracing
@@ -1271,6 +1251,7 @@ struct FPrimitiveInstanceRange
 class FViewInfo : public FSceneView
 {
 public:
+	FSceneRenderingBulkObjectAllocator Allocator;
 
 	/* Final position of the view in the final render target (in pixels), potentially scaled by ScreenPercentage */
 	FIntRect ViewRect;
@@ -1337,6 +1318,7 @@ public:
 
 	/** List of visible primitives with dirty indirect lighting cache buffers */
 	TArray<FPrimitiveSceneInfo*,SceneRenderingAllocator> DirtyIndirectLightingCacheBufferPrimitives;
+	UE::FMutex DirtyIndirectLightingCacheBufferPrimitivesMutex; 
 
 	/** Maps a single primitive to it's per view translucent self shadow uniform buffer. */
 	FTranslucentSelfShadowUniformBufferMap TranslucentSelfShadowUniformBufferMap;
@@ -1499,11 +1481,9 @@ public:
 	/** Whether we should submit new queries this frame. (used to disable occlusion queries completely. */
 	uint32 bDisableQuerySubmissions : 1;
 	/** Whether the view has any materials that use the global distance field. */
-	uint32 bUsesGlobalDistanceField : 1;
 	uint32 bUsesLightingChannels : 1;
 	uint32 bTranslucentSurfaceLighting : 1;
 	/** Whether the view has any materials that read from scene depth. */
-	uint32 bUsesSceneDepth : 1;
 	uint32 bCustomDepthStencilValid : 1;
 	uint32 bUsesCustomDepth : 1;
 	uint32 bUsesCustomStencil : 1;
@@ -2117,7 +2097,7 @@ public:
 	DynamicRenderScaling::TMap<float> DynamicResolutionUpperBounds;
 
 	FMeshElementCollector MeshCollector;
-
+	FMeshElementCollector EditorMeshCollector;
 	FMeshElementCollector RayTracingCollector;
 
 	/** Information about the visible lights. */
@@ -2378,9 +2358,9 @@ protected:
 
 	// Shared functionality between all scene renderers
 
-	FVisibilityTaskData* UpdateScene(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None);
+	IVisibilityTaskData* UpdateScene(FRDGBuilder& GraphBuilder, FGlobalDynamicBuffers GlobalDynamicBuffers);
 
-	FDynamicShadowsTaskData* BeginInitDynamicShadows(bool bRunningEarly);
+	FDynamicShadowsTaskData* BeginInitDynamicShadows(bool bRunningEarly, IVisibilityTaskData* VisibilityTaskData);
 	void FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynamicShadowsTaskData* TaskData, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
 	FDynamicShadowsTaskData* InitDynamicShadows(FRDGBuilder& GraphBuilder, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
 
@@ -2469,7 +2449,7 @@ protected:
 	bool CheckForProjectedShadows(const FLightSceneInfo* LightSceneInfo) const;
 
 	/** Gathers the list of primitives used to draw various shadow types */
-	void BeginGatherShadowPrimitives(FDynamicShadowsTaskData* TaskData);
+	void BeginGatherShadowPrimitives(FDynamicShadowsTaskData* TaskData, IVisibilityTaskData* VisibilityTaskData);
 	void FinishGatherShadowPrimitives(FDynamicShadowsTaskData* TaskData);
 
 	void RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
@@ -2501,40 +2481,10 @@ protected:
 	/** Performs once per frame setup prior to visibility determination. */
 	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder);
 
-	struct FComputeViewVisibilityCallbacks
-	{
-		TFunction<void()> PreGatherDynamicMeshElements;
-	};
-
-	/** Computes which primitives are visible and relevant for each view. */
-	void ComputeViewVisibility(
-		FRHICommandListImmediate& RHICmdList,
-		FVisibilityTaskData* TaskData,
-		FExclusiveDepthStencil::Type BasePassDepthStencilAccess,
-		FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
-		FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
-		FGlobalDynamicReadBuffer& DynamicReadBuffer,
-		FInstanceCullingManager& InstanceCullingManager,
-		FVirtualTextureUpdater* VirtualTextureUpdater,
-		const FComputeViewVisibilityCallbacks& Callbacks);
-
-	virtual void ComputeLightVisibility();
-
 	void GatherReflectionCaptureLightMeshElements();
 
 	/** Performs once per frame setup after to visibility determination. */
 	void PostVisibilityFrameSetup(FILCUpdatePrimTaskData*& OutILCTaskData);
-
-	void GatherDynamicMeshElements(
-		TArray<FViewInfo>& InViews, 
-		const FScene* InScene, 
-		const FSceneViewFamily& InViewFamily, 
-		FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
-		FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
-		FGlobalDynamicReadBuffer& DynamicReadBuffer,
-		const FPrimitiveViewMasks& HasDynamicMeshElementsMasks,
-		const FPrimitiveViewMasks& HasDynamicEditorMeshElementsMasks,
-		FMeshElementCollector& Collector);
 
 	/** Initialized the fog constants for each view. */
 	void InitFogConstants();
@@ -2625,19 +2575,17 @@ protected:
 		checkf(bShadowDepthRenderCompleted, TEXT("Shadow depth rendering was not done before shadow projections, this will cause severe shadow artifacts and indicates an engine bug (pass ordering)"));
 	}
 
+	virtual void ComputeLightVisibility();
+
 private:
 	void ComputeFamilySize();
 
-	FVisibilityTaskData* BeginInitVisibility(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
+	friend class FVisibilityTaskData;
+
+	void SetupMeshPasses(IVisibilityTaskData& TaskData, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FInstanceCullingManager& InstanceCullingManager);
 
 	void PrepareViewStateForVisibility(const FSceneTexturesConfig& SceneTexturesConfig);
 
-#if !UE_BUILD_SHIPPING
-	/** Collect the draw data of all visible UPrimitiveComponents in the Scene */
-	void ProcessPrimitives(const FViewInfo& View, const FViewCommands& ViewCommands) const;
-	/** Dump all UPrimitiveComponents in the Scene to a CSV file */
-	void DumpPrimitives(const FViewCommands& ViewCommands);
-#endif
 	bool bShadowDepthRenderCompleted;
 
 	friend class FRendererModule;
@@ -2672,6 +2620,19 @@ UE::Tasks::FTask LaunchSceneRenderTask(const TCHAR* DebugName, LambdaType&& Lamb
 		TaskPriority,
 		bExecuteInParallel ? UE::Tasks::EExtendedTaskPriority::None : UE::Tasks::EExtendedTaskPriority::Inline
 	);
+}
+
+// Creates a FGraphEventRef from UE::Task::FTask prerequisites.
+template <typename PrerequisiteTaskCollectionType>
+FGraphEventRef CreateCompatibilityGraphEvent(PrerequisiteTaskCollectionType&& Prerequisites)
+{
+	FGraphEventRef GraphEvent = FGraphEvent::CreateGraphEvent();
+	UE::Tasks::Launch(UE_SOURCE_LOCATION, [GraphEvent]
+	{
+		GraphEvent->DispatchSubsequents();
+
+	}, Prerequisites, UE::Tasks::ETaskPriority::High);
+	return GraphEvent;
 }
 
 struct FForwardScreenSpaceShadowMaskTextureMobileOutputs
@@ -2723,11 +2684,11 @@ protected:
 
 	struct FInitViewTaskDatas
 	{
-		FInitViewTaskDatas(FVisibilityTaskData* InVisibilityTaskData)
+		FInitViewTaskDatas(IVisibilityTaskData* InVisibilityTaskData)
 			: VisibilityTaskData(InVisibilityTaskData)
 		{}
 
-		FVisibilityTaskData* VisibilityTaskData;
+		IVisibilityTaskData* VisibilityTaskData;
 		FDynamicShadowsTaskData* DynamicShadows = nullptr;
 	};
 
@@ -2919,9 +2880,6 @@ extern FFastVramConfig GFastVRamConfig;
  * after launching the shadow initialization tasks. It will sync the shadow creation task.
  */
 extern bool HasRayTracedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData);
-
-/** Returns the array of view commands associated with the view visibility tasks. */
-extern TArrayView<FViewCommands> GetViewCommandsPerView(FVisibilityTaskData* TaskData);
 
 /** Returns the array of shadows with distance fields. Call only after finishing shadow initialization. */
 extern TConstArrayView<FProjectedShadowInfo*> GetProjectedDistanceFieldShadows(const FDynamicShadowsTaskData* TaskData);

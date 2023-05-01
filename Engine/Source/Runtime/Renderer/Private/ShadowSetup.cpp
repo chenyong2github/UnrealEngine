@@ -14,6 +14,7 @@
 #include "ConvexVolume.h"
 #include "SceneTypes.h"
 #include "SceneInterface.h"
+#include "SceneVisibility.h"
 #include "RendererInterface.h"
 #include "PrimitiveViewRelevance.h"
 #include "SceneManagement.h"
@@ -4861,14 +4862,25 @@ struct FGatherShadowPrimitivesPrepareTask
 	}
 };
 
-void FSceneRenderer::BeginGatherShadowPrimitives(FDynamicShadowsTaskData* TaskData)
+void FSceneRenderer::BeginGatherShadowPrimitives(FDynamicShadowsTaskData* TaskData, IVisibilityTaskData* VisibilityTaskData)
 {
 	SCOPE_CYCLE_COUNTER(STAT_GatherShadowPrimitivesTime);
 
 	check(TaskData);
 
+	UE::Tasks::FTaskEvent ShadowSetupPrerequisites{ UE_SOURCE_LOCATION };
+	if (VisibilityTaskData)
+	{
+		ShadowSetupPrerequisites.AddPrerequisites(VisibilityTaskData->GetComputeRelevanceTask());
+		ShadowSetupPrerequisites.AddPrerequisites(VisibilityTaskData->GetLightVisibilityTask());
+	}
+	ShadowSetupPrerequisites.AddPrerequisites(Scene->GetCreateLightPrimitiveInteractionsTask());
+	ShadowSetupPrerequisites.AddPrerequisites(Scene->GetCacheMeshDrawCommandsTask());
+	ShadowSetupPrerequisites.Trigger();
+
 	if (!TaskData->bMultithreadedCreateAndFilterShadows)
 	{
+		ShadowSetupPrerequisites.Wait();
 		CreateDynamicShadows(*TaskData);
 	}
 
@@ -4876,6 +4888,7 @@ void FSceneRenderer::BeginGatherShadowPrimitives(FDynamicShadowsTaskData* TaskDa
 	{
 		if (TaskData->PreShadows.Num() || TaskData->ViewDependentWholeSceneShadows.Num())
 		{
+			ShadowSetupPrerequisites.Wait();
 			FGatherShadowPrimitivesPrepareTask(*TaskData).AnyThreadTask();
 
 			if (!TaskData->bRunningEarly)
@@ -4898,7 +4911,10 @@ void FSceneRenderer::BeginGatherShadowPrimitives(FDynamicShadowsTaskData* TaskDa
 	}
 	else
 	{
-		TaskData->TaskEvent = TGraphTask<FGatherShadowPrimitivesPrepareTask>::CreateTask().ConstructAndDispatchWhenReady(*TaskData);
+		FGraphEventArray Prereqs;
+		Prereqs.Emplace(CreateCompatibilityGraphEvent(ShadowSetupPrerequisites));
+
+		TaskData->TaskEvent = TGraphTask<FGatherShadowPrimitivesPrepareTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*TaskData);
 	}
 }
 
@@ -6114,7 +6130,7 @@ void FSceneRenderer::FilterDynamicShadows(FDynamicShadowsTaskData& TaskData)
 	);
 }
 
-FDynamicShadowsTaskData* FSceneRenderer::BeginInitDynamicShadows(bool bRunningEarly)
+FDynamicShadowsTaskData* FSceneRenderer::BeginInitDynamicShadows(bool bRunningEarly, IVisibilityTaskData* VisibilityTaskData)
 {
 	SCOPE_CYCLE_COUNTER(STAT_DynamicShadowSetupTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitViews_Shadows);
@@ -6123,7 +6139,7 @@ FDynamicShadowsTaskData* FSceneRenderer::BeginInitDynamicShadows(bool bRunningEa
 	FDynamicShadowsTaskData* DynamicShadowTaskData = Allocator.Create<FDynamicShadowsTaskData>(this, bRunningEarly);
 
 	// Gathers the list of primitives used to draw various shadow types
-	BeginGatherShadowPrimitives(DynamicShadowTaskData);
+	BeginGatherShadowPrimitives(DynamicShadowTaskData, VisibilityTaskData);
 
 	return DynamicShadowTaskData;
 }
@@ -6196,7 +6212,7 @@ void FSceneRenderer::FinishInitDynamicShadows(FRDGBuilder& GraphBuilder, FDynami
 
 FDynamicShadowsTaskData* FSceneRenderer::InitDynamicShadows(FRDGBuilder& GraphBuilder, FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue)
 {
-	FDynamicShadowsTaskData* TaskData = BeginInitDynamicShadows(false);
+	FDynamicShadowsTaskData* TaskData = BeginInitDynamicShadows(false, nullptr);
 	FinishInitDynamicShadows(GraphBuilder, TaskData, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager, ExternalAccessQueue);
 	return TaskData;
 }

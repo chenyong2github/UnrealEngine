@@ -494,8 +494,6 @@ void FIndirectLightingCache::ProcessPrimitiveUpdate(FScene* Scene, FViewInfo& Vi
 	// This also ensures that a primitive does not get added twice to the list, which could create an array reallocation.
 	if (!bIndirectLightingCacheBufferWasDirty && PrimitiveSceneInfo->NeedsIndirectLightingCacheBufferUpdate())
 	{
-		// Since the update can be executed on a threaded job (see GILCUpdatePrimTaskEnabled), no reallocation must happen here.
-		check(View.DirtyIndirectLightingCacheBufferPrimitives.Num() < View.DirtyIndirectLightingCacheBufferPrimitives.Max());
 		View.DirtyIndirectLightingCacheBufferPrimitives.Push(PrimitiveSceneInfo);
 	}
 }
@@ -507,7 +505,12 @@ void FIndirectLightingCache::UpdateCachePrimitivesInternal(FScene* Scene, FScene
 	const TMap<FPrimitiveComponentId, FAttachmentGroupSceneInfo>& AttachmentGroups = Scene->AttachmentGroups;
 
 	if (IndirectLightingAllowed(Scene, Renderer))
-	{		
+	{
+		for (FViewInfo& View : Renderer.Views)
+		{
+			View.DirtyIndirectLightingCacheBufferPrimitivesMutex.Lock();
+		}
+
 		if (bUpdateAllCacheEntries)
 		{
 			const uint32 PrimitiveCount = Scene->Primitives.Num();
@@ -520,7 +523,6 @@ void FIndirectLightingCache::UpdateCachePrimitivesInternal(FScene* Scene, FScene
 				UpdateCachePrimitive(AttachmentGroups, PrimitiveSceneInfo, false, true, OutBlocksToUpdate, OutTransitionsOverTimeToUpdate, OutPrimitivesToUpdateStaticMeshes);
 
 				// If it was already dirty, then the primitive is already in one of the view dirty primitive list at this point.
-				// This also ensures that a primitive does not get added twice to the list, which could create an array reallocation.
 				if (!bIndirectLightingCacheBufferWasDirty)
 				{
 					PrimitiveSceneInfo->MarkIndirectLightingCacheBufferDirty();
@@ -532,8 +534,6 @@ void FIndirectLightingCache::UpdateCachePrimitivesInternal(FScene* Scene, FScene
 
 						if (View.PrimitiveVisibilityMap[PrimitiveIndex])
 						{
-							// Since the update can be executed on a threaded job (see GILCUpdatePrimTaskEnabled), no reallocation must happen here.
-							checkSlow(View.DirtyIndirectLightingCacheBufferPrimitives.Num() < View.DirtyIndirectLightingCacheBufferPrimitives.Max());
 							View.DirtyIndirectLightingCacheBufferPrimitives.Push(PrimitiveSceneInfo);
 							break; // We only need to add it in one of the view list.
 						}
@@ -565,7 +565,12 @@ void FIndirectLightingCache::UpdateCachePrimitivesInternal(FScene* Scene, FScene
 						ProcessPrimitiveUpdate(Scene, View, PrimitiveIndex, bAllowUnbuiltPreview, true, OutBlocksToUpdate, OutTransitionsOverTimeToUpdate, OutPrimitivesToUpdateStaticMeshes);
 					}
 				}
-			}			
+			}
+		}
+
+		for (FViewInfo& View : Renderer.Views)
+		{
+			View.DirtyIndirectLightingCacheBufferPrimitivesMutex.Unlock();
 		}
 
 		bUpdateAllCacheEntries = false;

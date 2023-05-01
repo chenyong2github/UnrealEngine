@@ -2022,6 +2022,7 @@ protected:
 	/** Tracks dynamic primitive data for upload to GPU Scene for every view, when enabled. */
 	TArray<FGPUScenePrimitiveCollector*, TInlineAllocator<2, SceneRenderingAllocator>> DynamicPrimitiveCollectorPerView;
 
+	friend class FVisibilityTaskData;
 	friend class FSceneRenderer;
 	friend class FDeferredShadingSceneRenderer;
 	friend class FProjectedShadowInfo;

@@ -1476,9 +1476,6 @@ protected:
 
 public:
 
-	static const int32 NumBufferedSubIsOccludedArrays = 2;
-	TArray<bool> FrameSubIsOccluded[NumBufferedSubIsOccludedArrays];
-
 	/** Initialization constructor. */
 	FSceneView(const FSceneViewInitOptions& InitOptions);
 

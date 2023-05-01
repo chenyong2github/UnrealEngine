@@ -1491,7 +1491,7 @@ struct FLumenDirectLightingTaskData
 	bool bHasRectLights = false;
 };
 
-void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingTaskData*& TaskData)
+void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingTaskData*& TaskData, IVisibilityTaskData* VisibilityTaskData)
 {
 	bool bAnyLumenActive = false;
 
@@ -1598,7 +1598,8 @@ void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingT
 			LightData.LightingChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
 			LightData.bHasShadowMask = LumenLight.NeedsShadowMask() ? 1 : 0;
 		}
-	});
+
+	}, VisibilityTaskData->GetLightVisibilityTask());
 }
 
 void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(

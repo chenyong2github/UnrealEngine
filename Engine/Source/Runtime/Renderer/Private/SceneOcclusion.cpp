@@ -257,17 +257,11 @@ void FSceneViewState::TrimOcclusionHistory(float CurrentTime, float MinHistoryTi
 	{
 		int32 NumBufferedFrames = FOcclusionQueryHelpers::GetNumBufferedFrames(GetFeatureLevel());
 
-		for(TSet<FPrimitiveOcclusionHistory,FPrimitiveOcclusionHistoryKeyFuncs>::TIterator PrimitiveIt(PrimitiveOcclusionHistorySet);
+		for(TSet<FPrimitiveOcclusionHistory,FPrimitiveOcclusionHistoryKeyFuncs>::TIterator PrimitiveIt(Occlusion.PrimitiveOcclusionHistorySet);
 			PrimitiveIt;
 			++PrimitiveIt
 			)
 		{
-			// If the primitive has an old pending occlusion query, release it.
-			if(PrimitiveIt->LastConsideredTime < MinQueryTime)
-			{
-				PrimitiveIt->ReleaseStaleQueries(FrameNumber, NumBufferedFrames);
-			}
-
 			// If the primitive hasn't been considered for visibility recently, remove its history from the set.
 			if (PrimitiveIt->LastConsideredTime < MinHistoryTime || PrimitiveIt->LastConsideredTime > CurrentTime)
 			{
@@ -326,7 +320,7 @@ SIZE_T FSceneViewState::GetSizeBytes() const
 	return sizeof(*this) 
 		+ ShadowOcclusionQuerySize
 		+ PrimitiveFadingStates.GetAllocatedSize()
-		+ PrimitiveOcclusionHistorySet.GetAllocatedSize();
+		+ Occlusion.PrimitiveOcclusionHistorySet.GetAllocatedSize();
 }
 
 class FOcclusionQueryIndexBuffer : public FIndexBuffer
@@ -490,7 +484,7 @@ void FOcclusionQueryBatcher::Flush(FRHICommandList& RHICmdList)
 	}
 }
 
-FRHIRenderQuery* FOcclusionQueryBatcher::BatchPrimitive(const FVector& BoundsOrigin,const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
+FRHIRenderQuery* FOcclusionQueryBatcher::BatchPrimitive(FRHICommandList& RHICmdList, const FVector& BoundsOrigin,const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
 {
 	// Check if the current batch is full.
 	if(CurrentBatchOcclusionQuery == NULL || NumBatchedPrimitives >= MaxBatchedPrimitives)
@@ -498,7 +492,7 @@ FRHIRenderQuery* FOcclusionQueryBatcher::BatchPrimitive(const FVector& BoundsOri
 		check(OcclusionQueryPool);
 		CurrentBatchOcclusionQuery = new(BatchOcclusionQueries) FOcclusionBatch;
 		CurrentBatchOcclusionQuery->Query = OcclusionQueryPool->AllocateQuery();
-		CurrentBatchOcclusionQuery->VertexAllocation = DynamicVertexBuffer.Allocate(MaxBatchedPrimitives * 8 * sizeof(FVector3f));
+		CurrentBatchOcclusionQuery->VertexAllocation = DynamicVertexBuffer.Allocate(RHICmdList, MaxBatchedPrimitives * 8 * sizeof(FVector3f));
 		check(CurrentBatchOcclusionQuery->VertexAllocation.IsValid());
 		NumBatchedPrimitives = 0;
 	}
@@ -1793,7 +1787,7 @@ void FOcclusionFeedback::ReadbackResults(FRHICommandList& RHICmdList)
 	}
 }
 
-void FOcclusionFeedback::AddPrimitive(FPrimitiveComponentId PrimitiveId, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
+void FOcclusionFeedback::AddPrimitive(FRHICommandList& RHICmdList, FPrimitiveComponentId PrimitiveId, const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
 {
 	constexpr uint32 MaxBatchedPrimitives = 512;
 	constexpr uint32 PrimitiveStride = sizeof(FVector4f) * 2u;
@@ -1803,7 +1797,7 @@ void FOcclusionFeedback::AddPrimitive(FPrimitiveComponentId PrimitiveId, const F
 	{
 		FOcclusionBatch OcclusionBatch;
 		OcclusionBatch.NumBatchedPrimitives = 0u;
-		OcclusionBatch.VertexAllocation = DynamicVertexBuffer.Allocate(MaxBatchedPrimitives * PrimitiveStride);
+		OcclusionBatch.VertexAllocation = DynamicVertexBuffer.Allocate(RHICmdList, MaxBatchedPrimitives * PrimitiveStride);
 		check(OcclusionBatch.VertexAllocation.IsValid());
 		BatchOcclusionQueries.Add(OcclusionBatch);
 	}

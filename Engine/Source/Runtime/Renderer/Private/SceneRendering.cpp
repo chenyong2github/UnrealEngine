@@ -96,6 +96,20 @@
 
 static TGlobalResource<FVirtualTextureFeedbackBuffer> GVirtualTextureFeedbackBuffer;
 
+static int32 GAsyncCreateLightPrimitiveInteractions = 1;
+static FAutoConsoleVariableRef CVarAsyncCreateLightPrimitiveInteractions(
+	TEXT("r.AsyncCreateLightPrimitiveInteractions"),
+	GAsyncCreateLightPrimitiveInteractions,
+	TEXT("Light primitive interactions are created off the render thread in an async task."),
+	ECVF_RenderThreadSafe);
+
+static int32 GAsyncCacheMeshDrawCommands = 1;
+static FAutoConsoleVariableRef CVarAsyncMeshDrawCommands(
+	TEXT("r.AsyncCacheMeshDrawCommands"),
+	GAsyncCacheMeshDrawCommands,
+	TEXT("Mesh draw command caching is offloaded to an async task."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarCachedMeshDrawCommands(
 	TEXT("r.MeshDrawCommands.UseCachedCommands"),
 	1,
@@ -143,16 +157,6 @@ FAutoConsoleVariableRef CVarDumpMeshDrawCommandMemoryStats(
 	GDumpMeshDrawCommandMemoryStats,
 	TEXT("Whether to log mesh draw command memory stats on the next frame"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
-/**
- * Console variable controlling whether or not occlusion queries are allowed.
- */
-static TAutoConsoleVariable<int32> CVarAllowOcclusionQueries(
-	TEXT("r.AllowOcclusionQueries"),
-	1,
-	TEXT("If zero, occlusion queries will not be used to cull primitives."),
-	ECVF_RenderThreadSafe
 	);
 
 static TAutoConsoleVariable<float> CVarDemosaicVposOffset(
@@ -869,10 +873,8 @@ void FViewInfo::Init()
 	bIsViewInfo = true;
 	
 	bStatePrevViewInfoIsReadOnly = true;
-	bUsesGlobalDistanceField = false;
 	bUsesLightingChannels = false;
 	bTranslucentSurfaceLighting = false;
-	bUsesSceneDepth = false;
 	bFogOnlyOnRenderedOpaque = false;
 
 	ExponentialFogParameters = FVector4f(0,1,1,0);
@@ -2425,6 +2427,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyCo
 :	Scene(CheckPointer(InViewFamily->Scene)->GetRenderScene())
 ,	ViewFamily(*CheckPointer(InViewFamily))
 ,	MeshCollector(InViewFamily->GetFeatureLevel(), Allocator)
+,	EditorMeshCollector(InViewFamily->GetFeatureLevel(), Allocator)
 ,	RayTracingCollector(InViewFamily->GetFeatureLevel(), Allocator)
 ,	VirtualShadowMapArray(*CheckPointer(Scene))
 ,	bHasRequestedToggleFreeze(false)
@@ -2738,7 +2741,24 @@ FIntPoint FSceneRenderer::GetDesiredInternalBufferSize(const FSceneViewFamily& V
 	return DesiredBufferSize;
 }
 
-FVisibilityTaskData* FSceneRenderer::UpdateScene(FRDGBuilder& GraphBuilder, EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps)
+inline EUpdateAllPrimitiveSceneInfosAsyncOps GetUpdateAllPrimitiveSceneInfosAsyncOps()
+{
+	EUpdateAllPrimitiveSceneInfosAsyncOps AsyncOps = EUpdateAllPrimitiveSceneInfosAsyncOps::None;
+
+	if (GAsyncCreateLightPrimitiveInteractions > 0)
+	{
+		AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CreateLightPrimitiveInteractions;
+	}
+
+	if (GAsyncCacheMeshDrawCommands > 0)
+	{
+		AsyncOps |= EUpdateAllPrimitiveSceneInfosAsyncOps::CacheMeshDrawCommands;
+	}
+
+	return AsyncOps;
+}
+
+IVisibilityTaskData* FSceneRenderer::UpdateScene(FRDGBuilder& GraphBuilder, FGlobalDynamicBuffers GlobalDynamicBuffers)
 {
 	/**
 	  * UpdateStaticMeshes removes and re-creates cached FMeshDrawCommands.  If there are multiple scene renderers being run together,
@@ -2756,21 +2776,22 @@ FVisibilityTaskData* FSceneRenderer::UpdateScene(FRDGBuilder& GraphBuilder, EUpd
 		FGraphicsMinimalPipelineStateId::FreezeIdTable(true);
 	}
 
-	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, AsyncOps);
+	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, GetUpdateAllPrimitiveSceneInfosAsyncOps());
 
 	if (!bIsFirstSceneRenderer)
 	{
 		FGraphicsMinimalPipelineStateId::FreezeIdTable(false);
 	}
 
-	// Setups the final FViewInfo::ViewRect.
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
-	return BeginInitVisibility(GraphBuilder, SceneTexturesConfig);
+	PrepareViewStateForVisibility(SceneTexturesConfig);
+
+	return LaunchVisibilityTasks(GraphBuilder.RHICmdList, *this, GlobalDynamicBuffers);
 }
 
 void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHICmdList)
@@ -3255,11 +3276,6 @@ void FSceneRenderer::ComputeFamilySize()
 
 	check(FamilySize.X != 0);
 	check(bInitializedExtents);
-}
-
-bool FSceneRenderer::DoOcclusionQueries() const
-{
-	return CVarAllowOcclusionQueries.GetValueOnRenderThread() != 0;
 }
 
 FSceneRenderer::~FSceneRenderer()
@@ -4289,6 +4305,7 @@ void FSceneRenderer::RenderThreadEnd(FRHICommandListImmediate& RHICmdList, const
 			for (FSceneRenderer* SceneRenderer : SceneRenderers)
 			{
 				SceneRenderer->MeshCollector.DeleteTemporaryProxies();
+				SceneRenderer->EditorMeshCollector.DeleteTemporaryProxies();
 				SceneRenderer->RayTracingCollector.DeleteTemporaryProxies();
 			}
 
