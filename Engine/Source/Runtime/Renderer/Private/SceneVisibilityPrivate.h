@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "SceneVisibility.h"
 #include "ScenePrivate.h"
 #include "Containers/ConsumeAllMpmcQueue.h"
