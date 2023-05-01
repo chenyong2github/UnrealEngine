@@ -462,9 +462,9 @@ void FSearchContext::UpdateCurrentBestCost(const FPoseSearchCost& PoseSearchCost
 	};
 }
 
-const FPoseSearchFeatureVectorBuilder* FSearchContext::GetCachedQuery(const UPoseSearchSchema* Schema) const
+const FFeatureVectorBuilder* FSearchContext::GetCachedQuery(const UPoseSearchSchema* Schema) const
 {
-	const FPoseSearchFeatureVectorBuilder* CachedQuery = CachedQueries.FindByPredicate([Schema](const FPoseSearchFeatureVectorBuilder& CachedQuery)
+	const FFeatureVectorBuilder* CachedQuery = CachedQueries.FindByPredicate([Schema](const FFeatureVectorBuilder& CachedQuery)
 	{
 		return CachedQuery.GetSchema() == Schema;
 	});
@@ -476,16 +476,16 @@ const FPoseSearchFeatureVectorBuilder* FSearchContext::GetCachedQuery(const UPos
 	return nullptr;
 }
 
-const FPoseSearchFeatureVectorBuilder& FSearchContext::GetOrBuildQuery(const UPoseSearchSchema* Schema)
+const FFeatureVectorBuilder& FSearchContext::GetOrBuildQuery(const UPoseSearchSchema* Schema)
 {
 	check(Schema && Schema->IsValid());
-	const FPoseSearchFeatureVectorBuilder* CachedFeatureVectorBuilder = GetCachedQuery(Schema);
+	const FFeatureVectorBuilder* CachedFeatureVectorBuilder = GetCachedQuery(Schema);
 	if (CachedFeatureVectorBuilder)
 	{
 		return *CachedFeatureVectorBuilder;
 	}
 	
-	FPoseSearchFeatureVectorBuilder& NewCachedQuery = CachedQueries[CachedQueries.AddDefaulted()];
+	FFeatureVectorBuilder& NewCachedQuery = CachedQueries[CachedQueries.AddDefaulted()];
 	Schema->BuildQuery(*this, NewCachedQuery);
 	return NewCachedQuery;
 }

@@ -9,7 +9,6 @@
 
 class UPoseSearchSchema;
 struct FPoseSearchPoseMetadata;
-struct FPoseSearchFeatureVectorBuilder;
 
 UENUM()
 enum class EComponentStrippingVector : uint8
@@ -60,6 +59,7 @@ namespace UE::PoseSearch
 {
 
 struct FDebugDrawParams;
+struct FFeatureVectorBuilder;
 struct FSearchContext;
 
 #if WITH_EDITOR
@@ -113,7 +113,7 @@ public:
 	virtual void Finalize(UPoseSearchSchema* Schema) PURE_VIRTUAL(UPoseSearchFeatureChannel::Finalize, );
 	
 	// Called at runtime to add this channel's data to the query pose vector
-	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, );
+	virtual void BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, UE::PoseSearch::FFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, );
 
 	// UPoseSearchFeatureChannels can hold sub channels
 	virtual TArrayView<TObjectPtr<UPoseSearchFeatureChannel>> GetSubChannels() { return TArrayView<TObjectPtr<UPoseSearchFeatureChannel>>(); }

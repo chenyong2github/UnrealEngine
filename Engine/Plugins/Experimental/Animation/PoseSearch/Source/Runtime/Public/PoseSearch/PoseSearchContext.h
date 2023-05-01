@@ -152,8 +152,8 @@ struct POSESEARCH_API FSearchContext
 	void UpdateCurrentBestCost(const FPoseSearchCost& PoseSearchCost);
 	float GetCurrentBestTotalCost() const { return CurrentBestTotalCost; }
 
-	const FPoseSearchFeatureVectorBuilder& GetOrBuildQuery(const UPoseSearchSchema* Schema);
-	const FPoseSearchFeatureVectorBuilder* GetCachedQuery(const UPoseSearchSchema* Schema) const;
+	const FFeatureVectorBuilder& GetOrBuildQuery(const UPoseSearchSchema* Schema);
+	const FFeatureVectorBuilder* GetCachedQuery(const UPoseSearchSchema* Schema) const;
 
 	bool IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const;
 
@@ -196,7 +196,7 @@ private:
 
 	// transforms cached in component space
 	FCachedTransforms<FTransform> CachedTransforms;
-	TArray<FPoseSearchFeatureVectorBuilder, TInlineAllocator<8>> CachedQueries;
+	TArray<FFeatureVectorBuilder, TInlineAllocator<8>> CachedQueries;
 
 	float CurrentBestTotalCost = MAX_flt;
 	
@@ -264,7 +264,7 @@ public:
 	private:
 		TArray<FPoseCandidateBase> PoseCandidateHeap;
 		TMap<int32, EPoseCandidateFlags> PoseIdxToFlags;
-		int32 MaxPoseCandidates = 100;
+		int32 MaxPoseCandidates = 200;
 	};
 	
 	FBestPoseCandidates BestCandidates;

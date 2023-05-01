@@ -3,21 +3,20 @@
 #pragma once
 
 #include "PoseSearch/PoseSearchCost.h"
-#include "PoseSearchResult.generated.h"
 
 struct FPoseSearchIndexAsset;
 class UPoseSearchDatabase;
 class UPoseSearchSchema;
 
+namespace UE::PoseSearch
+{
+
 /**
 * float buffer of features according to a UPoseSearchSchema layout.
 * FFeatureVectorBuilder is used to build search queries at runtime and for adding samples during search index construction.
 */
-USTRUCT()
-struct POSESEARCH_API FPoseSearchFeatureVectorBuilder
+struct FFeatureVectorBuilder
 {
-	GENERATED_BODY()
-
 public:
 	void Init(const UPoseSearchSchema* Schema);
 	void Reset();
@@ -28,13 +27,9 @@ public:
 	TConstArrayView<float> GetValues() const { return Values; }
 
 private:
-	UPROPERTY(Transient)
 	TWeakObjectPtr<const UPoseSearchSchema> Schema = nullptr;
 	TArray<float> Values;
 };
-
-namespace UE::PoseSearch
-{
 	
 struct FSearchResult
 {

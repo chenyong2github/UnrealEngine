@@ -35,16 +35,4 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
 	float AnimAngularVelocity;
-
-    UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	TArray<float> QueryPoseVector;
-    	
-    UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	TArray<float> ActivePoseVector;
-
-	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	TArray<float> SelectedPoseVector;
-
-	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	TArray<float> CostVector;
 };

@@ -16,13 +16,45 @@ namespace UE::PoseSearch
 class FChannelItem
 {
 public:
-	FChannelItem(const UPoseSearchFeatureChannel* InChannel, int32 InChannelComponentIdx = -1)
-	: ChannelComponentIdx(InChannelComponentIdx)
-	, Channel(InChannel)
+	FChannelItem(const UPoseSearchFeatureChannel* Channel, int32 ChannelComponentIdx = -1)
+	: Label(ComputeLabel(Channel, ChannelComponentIdx))
+	, DataOffset(ComputeDataOffset(Channel, ChannelComponentIdx))
+	, Cardinality(ComputeCardinality(Channel, ChannelComponentIdx))
 	{
 	}
 
-	const FString GetLabel() const
+	TArray<FChannelItemPtr>& GetChannelItems()
+	{
+		return ChannelItems;
+	}
+
+	FString GetLabel() const
+	{
+		return Label;
+	}
+
+	int32 GetDataOffset() const
+	{
+		return DataOffset;
+	}
+
+	int32 GetCardinality() const
+	{
+		return Cardinality;
+	}
+
+	bool IsExpanded() const
+	{
+		return bExpanded;
+	}
+
+	void SetExpanded(bool bValue)
+	{
+		bExpanded = bValue;
+	}
+
+private:
+	static FString ComputeLabel(const UPoseSearchFeatureChannel* Channel, int32 ChannelComponentIdx)
 	{
 		if (ChannelComponentIdx >= 0)
 		{
@@ -44,14 +76,14 @@ public:
 		return FString();
 	}
 
-	int32 GetDataOffset() const
+	static int32 ComputeDataOffset(const UPoseSearchFeatureChannel* Channel, int32 ChannelComponentIdx)
 	{
 		int32 DataOffset = 0;
 
 		if (Channel != nullptr)
 		{
 			DataOffset = Channel->GetChannelDataOffset();
-			
+
 			if (ChannelComponentIdx > 0)
 			{
 				DataOffset += ChannelComponentIdx;
@@ -61,7 +93,7 @@ public:
 		return DataOffset;
 	}
 
-	int32 GetCardinality() const
+	static int32 ComputeCardinality(const UPoseSearchFeatureChannel* Channel, int32 ChannelComponentIdx)
 	{
 		int32 Cardinality = 0;
 
@@ -77,14 +109,10 @@ public:
 		return Cardinality;
 	}
 
-	TArray<FChannelItemPtr>& GetChannelItems()
-	{
-		return ChannelItems;
-	}
-
-private:
-	int32 ChannelComponentIdx = -1;
-	TWeakObjectPtr<const UPoseSearchFeatureChannel> Channel;
+	const FString Label;
+	const int32 DataOffset = 0;
+	const int32 Cardinality = 0;
+	bool bExpanded = false;
 	TArray<FChannelItemPtr> ChannelItems;
 };
 
@@ -174,47 +202,50 @@ public:
 		.Text_Lambda([this, ColumnName]() -> FText
 		{
 			TStringBuilder<256> StringBuilder;
-			if (const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin())
+			
+			if (!ChannelItem->IsExpanded())
 			{
-				const UPoseSearchDatabase* PoseSearchDatabase = ViewModel->GetPoseSearchDatabase();
-				if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
+				if (const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin())
 				{
-					if (const FDatabasePreviewActor* FoundPreviewActor = ViewModel->GetPreviewActors().FindByPredicate(
-						[ColumnName](const FDatabasePreviewActor& PreviewActor)
-						{ return *PreviewActor.Actor->GetName() == ColumnName; }))
+					const UPoseSearchDatabase* PoseSearchDatabase = ViewModel->GetPoseSearchDatabase();
+					if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 					{
-						const int32 PoseIdx = FoundPreviewActor->CurrentPoseIndex;
-						const int32 NumDimensions = PoseSearchDatabase->Schema->SchemaCardinality;
-						const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
-						TArrayView<float> ReconstructedPoseValuesBuffer((float*)FMemory_Alloca(NumDimensions * sizeof(float)), NumDimensions);
-						const TConstArrayView<float> PoseValues = SearchIndex.Values.IsEmpty() ? SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValuesBuffer) : SearchIndex.GetPoseValues(PoseIdx);
-
-						const int32 DataOffset = ChannelItem->GetDataOffset();
-						const int32 Cardinality = ChannelItem->GetCardinality();
-
-						if (Cardinality > 1)
+						if (const FDatabasePreviewActor* FoundPreviewActor = ViewModel->GetPreviewActors().FindByPredicate(
+							[ColumnName](const FDatabasePreviewActor& PreviewActor)
+							{ return *PreviewActor.Actor->GetName() == ColumnName; }))
 						{
-							// using only one decimal to keep the string compact
-							for (int32 i = 0; i < Cardinality; ++i)
+							const int32 PoseIdx = FoundPreviewActor->CurrentPoseIndex;
+							const int32 NumDimensions = PoseSearchDatabase->Schema->SchemaCardinality;
+							const FPoseSearchIndex& SearchIndex = PoseSearchDatabase->GetSearchIndex();
+							TArrayView<float> ReconstructedPoseValuesBuffer((float*)FMemory_Alloca(NumDimensions * sizeof(float)), NumDimensions);
+							const TConstArrayView<float> PoseValues = SearchIndex.Values.IsEmpty() ? SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValuesBuffer) : SearchIndex.GetPoseValues(PoseIdx);
+
+							const int32 DataOffset = ChannelItem->GetDataOffset();
+							const int32 Cardinality = ChannelItem->GetCardinality();
+
+							if (Cardinality > 1)
 							{
-								if (i != 0)
+								// using only one decimal to keep the string compact
+								for (int32 i = 0; i < Cardinality; ++i)
 								{
-									StringBuilder.Append(TEXT(", "));
+									if (i != 0)
+									{
+										StringBuilder.Append(TEXT(", "));
+									}
+									const float Value = PoseValues[i + DataOffset];
+									StringBuilder.Appendf(TEXT("%.1f"), Value);
 								}
-								const float Value = PoseValues[i + DataOffset];
-								StringBuilder.Appendf(TEXT("%.1f"), Value);
 							}
-						}
-						else
-						{
-							// using all the float digits 
-							const float Value = PoseValues[DataOffset];
-							StringBuilder.Appendf(TEXT("%f"), Value);
+							else
+							{
+								// using all the float digits 
+								const float Value = PoseValues[DataOffset];
+								StringBuilder.Appendf(TEXT("%f"), Value);
+							}
 						}
 					}
 				}
 			}
-
 			return FText::FromString(StringBuilder.ToString());
 		});
 	}
@@ -225,8 +256,36 @@ void SDatabaseDataDetails::Construct(const FArguments& Args, TSharedRef<FDatabas
 	EditorViewModel = InEditorViewModel;
 }
 
+void SDatabaseDataDetails::TrackExpandedItems(const TArray<FChannelItemPtr>& ChannelItems, TMap<const FString, bool>& ExpandedItems)
+{
+	for (const FChannelItemPtr& ChannelItem : ChannelItems)
+	{
+		TrackExpandedItems(ChannelItem->GetChannelItems(), ExpandedItems);
+		ExpandedItems.FindOrAdd(ChannelItem->GetLabel()) = ChannelItem->IsExpanded();
+	}
+}
+
+void SDatabaseDataDetails::SetExpandedItems(TArray<FChannelItemPtr>& ChannelItems, const TMap<const FString, bool>& ExpandedItems, SChannelItemsTreeView* ChannelItemsTreeView)
+{
+	for (const FChannelItemPtr& ChannelItem : ChannelItems)
+	{
+		SetExpandedItems(ChannelItem->GetChannelItems(), ExpandedItems, ChannelItemsTreeView);
+		
+		bool bIsExpanded = false;
+		if (const bool* IsExpandedPtr = ExpandedItems.Find(ChannelItem->GetLabel()))
+		{
+			bIsExpanded = *IsExpandedPtr;
+		}
+
+		ChannelItemsTreeView->SetItemExpansion(ChannelItem, bIsExpanded);
+	}
+};
+
 void SDatabaseDataDetails::Reconstruct()
 {
+	TMap<const FString, bool> ExpandedItems;
+	TrackExpandedItems(ChannelItems, ExpandedItems);
+
 	ChannelItems.Reset();
 
 	if (const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin())
@@ -238,11 +297,14 @@ void SDatabaseDataDetails::Reconstruct()
 		HeaderRow->AddColumn(
 			SHeaderRow::Column(TEXT("ChannelName"))
 				.DefaultLabel(LOCTEXT("ChannelName_Header", "Channel Name"))
-				.ToolTipText(LOCTEXT("ChannelName_ToolTip", "Channel Name")));
+				.ToolTipText(LOCTEXT("ChannelName_ToolTip", "Channel Name"))
+				.FillWidth(0.2f));
+
 		HeaderRow->AddColumn(
 			SHeaderRow::Column(TEXT("DataOffset"))
 			.DefaultLabel(LOCTEXT("DataOffset_Header", "Data Offset"))
-			.ToolTipText(LOCTEXT("DataOffset_ToolTip", "Offset from the beginning of the features data")));
+			.ToolTipText(LOCTEXT("DataOffset_ToolTip", "Offset from the beginning of the features data"))
+			.FillWidth(0.1f));
 
 		if (ViewModel->ShouldDrawQueryVector())
 		{
@@ -269,6 +331,10 @@ void SDatabaseDataDetails::Reconstruct()
 			.OnGetChildren_Lambda([](FChannelItemPtr ChannelItem, TArray<FChannelItemPtr>& OutChildren)
 			{
 				OutChildren.Append(ChannelItem->GetChannelItems());
+			})
+			.OnExpansionChanged_Lambda([](FChannelItemPtr ChannelItem, bool bExpanded)
+			{
+				ChannelItem->SetExpanded(bExpanded);
 			});
 
 		ChildSlot
@@ -281,7 +347,7 @@ void SDatabaseDataDetails::Reconstruct()
 			//]
 		];
 
-	//ChannelItemsTreeView->RequestTreeRefresh();
+		SetExpandedItems(ChannelItems, ExpandedItems, ChannelItemsTreeView.Get());
 	}
 }
 

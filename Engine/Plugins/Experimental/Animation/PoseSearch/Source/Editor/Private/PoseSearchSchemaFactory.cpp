@@ -20,8 +20,8 @@ UObject* UPoseSearchSchemaFactory::FactoryCreateNew(UClass* Class, UObject* InPa
 	UPoseSearchSchema* Schema = NewObject<UPoseSearchSchema>(InParent, Class, Name, Flags);
 
 	// defaulting UPoseSearchSchema for a meaningful locomotion setup
-	Schema->Channels.Add(NewObject<UPoseSearchFeatureChannel_Trajectory>(Schema, NAME_None));
-	Schema->Channels.Add(NewObject<UPoseSearchFeatureChannel_Pose>(Schema, NAME_None));
+	Schema->AddChannel(NewObject<UPoseSearchFeatureChannel_Trajectory>(Schema, NAME_None, RF_Transactional));
+	Schema->AddChannel(NewObject<UPoseSearchFeatureChannel_Pose>(Schema, NAME_None, RF_Transactional));
 
 	return Schema;
 }

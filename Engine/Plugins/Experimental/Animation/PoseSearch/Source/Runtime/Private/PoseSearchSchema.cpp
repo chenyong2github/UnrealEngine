@@ -12,7 +12,18 @@ bool UPoseSearchSchema::IsValid() const
 	return Skeleton != nullptr;
 }
 
-void UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+void UPoseSearchSchema::AddChannel(UPoseSearchFeatureChannel* Channel)
+{
+	Channels.Add(Channel);
+}
+
+void UPoseSearchSchema::AddTemporaryChannel(UPoseSearchFeatureChannel* TemporaryChannel)
+{
+	TemporaryChannel->Finalize(this);
+	FinalizedChannels.Add(TemporaryChannel);
+}
+
+void UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, UE::PoseSearch::FFeatureVectorBuilder& InOutQuery) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_BuildQuery);
 

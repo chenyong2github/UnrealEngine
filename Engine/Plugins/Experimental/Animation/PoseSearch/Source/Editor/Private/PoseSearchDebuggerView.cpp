@@ -106,37 +106,6 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 		Reflection->SimAngularVelocity = State.SimAngularVelocity;
 		Reflection->AnimLinearVelocity = State.AnimLinearVelocity;
 		Reflection->AnimAngularVelocity = State.AnimAngularVelocity;
-
-		// Query pose
-		Reflection->QueryPoseVector.Reset();
-		for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
-		{
-			const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-			if (Database && Database == CurrentDatabase)
-			{
-				Reflection->QueryPoseVector = DbEntry.QueryVector;
-				break;
-			}
-		}
-
-		// Active pose
-		Reflection->ActivePoseVector = CurrentSearchIndex.GetPoseValuesSafe(CurrentDbPoseIdx);
-	}
-
-	auto DebuggerView = ParentDebuggerViewPtr.Pin();
-	if (DebuggerView.IsValid())
-	{
-		TArray<TSharedRef<FDebuggerDatabaseRowData>> SelectedRows = DebuggerView->GetSelectedDatabaseRows();
-		if (!SelectedRows.IsEmpty())
-		{
-			const TSharedRef<FDebuggerDatabaseRowData>& Selected = SelectedRows[0];
-			if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Selected->SharedData->SourceDatabase.Get(), ERequestAsyncBuildFlag::ContinueRequest))
-			{
-				const FPoseSearchIndex& SelectedSearchIndex = Selected->SharedData->SourceDatabase->GetSearchIndex();
-				Reflection->SelectedPoseVector = SelectedSearchIndex.GetPoseValuesSafe(Selected->PoseIdx);
-			}
-			Reflection->CostVector = Selected->CostVector;
-		}
 	}
 }
 
@@ -377,8 +346,9 @@ void SDebuggerView::DrawFeatures(
 			for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 			{
 				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-				if (Database && Database == CurrentDatabase && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality &&
-					FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
+				if (Database && Database == CurrentDatabase && 
+					FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest) &&
+					DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality)
 				{
 					FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, CurrentDatabase, EDebugDrawFlags::DrawQuery);
 					DrawParams.DrawFeatureVector(DbEntry.QueryVector);
@@ -636,7 +606,7 @@ TSharedRef<SWidget> SDebuggerView::GenerateNodeDebuggerView()
 	
 		// Database view
 		+ SSplitter::Slot()
-		.Value(0.65f)
+		.Value(0.8f)
 		[
 			SNew(SVerticalBox)
 			
@@ -656,7 +626,7 @@ TSharedRef<SWidget> SDebuggerView::GenerateNodeDebuggerView()
 
 		// Details panel view
 		+ SSplitter::Slot()
-		.Value(0.35f)
+		.Value(0.2f)
 		[
 			SAssignNew(DetailsView, SDebuggerDetailsView)
 			.Parent(SharedThis(this))

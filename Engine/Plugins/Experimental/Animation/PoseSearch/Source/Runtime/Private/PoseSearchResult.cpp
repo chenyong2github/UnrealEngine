@@ -6,9 +6,12 @@
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchSchema.h"
 
+namespace UE::PoseSearch
+{
+
 //////////////////////////////////////////////////////////////////////////
-// FPoseSearchFeatureVectorBuilder
-void FPoseSearchFeatureVectorBuilder::Init(const UPoseSearchSchema* InSchema)
+// FFeatureVectorBuilder
+void FFeatureVectorBuilder::Init(const UPoseSearchSchema* InSchema)
 {
 	check(InSchema && InSchema->IsValid());
 	Schema = InSchema;
@@ -16,14 +19,12 @@ void FPoseSearchFeatureVectorBuilder::Init(const UPoseSearchSchema* InSchema)
 	Values.SetNumZeroed(Schema->SchemaCardinality);
 }
 
-void FPoseSearchFeatureVectorBuilder::Reset()
+void FFeatureVectorBuilder::Reset()
 {
 	Schema = nullptr;
 	Values.Reset();
 }
 
-namespace UE::PoseSearch
-{
 //////////////////////////////////////////////////////////////////////////
 // FSearchResult
 void FSearchResult::Update(float NewAssetTime)
