@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IO/IoFileCache.h"
-#include "Async/AsyncFileHandle.h"
-#include "Containers/ContainersFwd.h"
 #include "Containers/IntrusiveDoubleLinkedList.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "IO/IoCache.h"
@@ -159,78 +157,6 @@ struct FCacheEntry
 };
 
 using FCacheEntryList = TIntrusiveDoubleLinkedList<FCacheEntry>;
-
-///////////////////////////////////////////////////////////////////////////////
-class FFileIoCacheRequest
-	: public FIoCacheRequestBase
-{
-public:
-	FFileIoCacheRequest(const FString& CacheFilePath, FIoReadCallback&& ReadCallback)
-		: FIoCacheRequestBase(MoveTemp(ReadCallback))
-		, FilePath(CacheFilePath)
-	{ }
-
-	void Issue(FCacheEntry&& Entry, const FIoReadOptions& Options, EAsyncIOPriorityAndFlags Priority);
-	virtual void Wait() override;
-	virtual void Cancel() override;
-
-private:
-	FString FilePath;
-	TUniquePtr<IFileHandle> FileHandle;
-};
-
-void FFileIoCacheRequest::Issue(FCacheEntry&& Entry, const FIoReadOptions& Options, EAsyncIOPriorityAndFlags Priority)
-{
-	if (Entry.Data.GetSize() > 0)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FFileIoCache::ReadPendingEntry);
-		const uint64 ReadOffset = Options.GetOffset();
-		const uint64 ReadSize = FMath::Min(Options.GetSize(), Entry.Data.GetSize());
-		FIoBuffer Buffer = Options.GetTargetVa() ? FIoBuffer(FIoBuffer::Wrap, Options.GetTargetVa(), ReadSize) : FIoBuffer(ReadSize);
-		Buffer.GetMutableView().CopyFrom(Entry.Data.GetView().RightChop(ReadOffset));
-		TRACE_COUNTER_INCREMENT(FFileIoCache_GetCount);
-		CompleteRequest(MoveTemp(Buffer));
-	}
-	else
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FFileIoCache::ReadPersistedEntry);
-		check(Entry.SerialSize > 0);
-		check(Entry.Hash != FIoHash::Zero);
-		//TODO: Make async
-
-		const uint64 ReadSize = FMath::Min(Options.GetSize(), Entry.SerialSize);
-		const uint64 ReadOffset = Entry.SerialOffset + Options.GetOffset();
-		FIoBuffer Buffer = Options.GetTargetVa() ? FIoBuffer(FIoBuffer::Wrap, Options.GetTargetVa(), ReadSize) : FIoBuffer(ReadSize);
-
-		IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
-		FileHandle.Reset(Ipf.OpenRead(*FilePath, true));
-		check(FileHandle);
-		FileHandle->Seek(int64(ReadOffset));
-		FileHandle->Read(Buffer.GetData(), ReadSize);
-
-		const FIoHash& ExpectedHash = Entry.Hash;
-		if (ExpectedHash == FIoHash::HashBuffer(Buffer.GetView()))
-		{
-			TRACE_COUNTER_INCREMENT(FFileIoCache_GetCount);
-			CompleteRequest(MoveTemp(Buffer));
-		}
-		else
-		{
-			TRACE_COUNTER_INCREMENT(FFileIoCache_ErrorCount);
-			CompleteRequest(EIoErrorCode::ReadError);
-		}
-
-		FileHandle.Reset();
-	}
-}
-
-void FFileIoCacheRequest::Wait()
-{
-}
-
-void FFileIoCacheRequest::Cancel()
-{
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 class FCacheMap
@@ -446,6 +372,8 @@ FIoStatus FCacheMap::Save(const FString& FilePath, const uint64 CursorPos)
 	return CacheFileToc.Save(FilePath, CursorPos);
 }
 
+using namespace UE::Tasks;
+
 ////////////////////////////////////////////////////////////////////////////////
 class FFileIoCache final
 	: public FRunnable
@@ -456,7 +384,7 @@ public:
 	virtual ~FFileIoCache();
 
 	virtual bool ContainsChunk(const FIoHash& Key) const override;
-	virtual FIoCacheRequest GetChunk(const FIoHash& Key, const FIoReadOptions& Options, FIoReadCallback&& Callback) override;
+	virtual TTask<TIoStatusOr<FIoBuffer>> GetChunk(const FIoHash& Key, const FIoReadOptions& Options, const FIoCancellationToken* CancellationToken) override;
 	virtual FIoStatus PutChunk(const FIoHash& Key, FMemoryView Data) override;
 
 	// Runnable
@@ -507,18 +435,62 @@ bool FFileIoCache::ContainsChunk(const FIoHash& Key) const
 	return CacheMap.Contains(Key);
 }
 
-FIoCacheRequest FFileIoCache::GetChunk(const FIoHash& Key, const FIoReadOptions& Options, FIoReadCallback&& Callback)
+TTask<TIoStatusOr<FIoBuffer>> FFileIoCache::GetChunk(const FIoHash& Key, const FIoReadOptions& Options, const FIoCancellationToken* CancellationToken)
 {
-	FCacheEntry Entry;
-	if (CacheMap.Get(Key, Entry))
-	{
-		TUniquePtr<FFileIoCacheRequest> Request = MakeUnique<FFileIoCacheRequest>(CacheFilePath, MoveTemp(Callback));
-		Request->Issue(MoveTemp(Entry), Options, EAsyncIOPriorityAndFlags::AIOP_Normal);
+	return Launch(UE_SOURCE_LOCATION,
+		[this, Key, Options, CancellationToken]()
+		{
+			FCacheEntry Entry;
+			if (!CacheMap.Get(Key, Entry))
+			{
+				return TIoStatusOr<FIoBuffer>(FIoStatus(EIoErrorCode::Unknown));
+			}
 
-		return FIoCacheRequest(Request.Release());
-	}
+			if (CancellationToken && CancellationToken->IsCancelled())
+			{
+				return TIoStatusOr<FIoBuffer>(FIoStatus(EIoErrorCode::Cancelled));
+			}
 
-	return FIoCacheRequest();
+			if (Entry.Data.GetSize() > 0)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(FFileIoCache::ReadPendingEntry);
+
+				const uint64 ReadOffset = Options.GetOffset();
+				const uint64 ReadSize = FMath::Min(Options.GetSize(), Entry.Data.GetSize());
+				FIoBuffer Buffer = Options.GetTargetVa() ? FIoBuffer(FIoBuffer::Wrap, Options.GetTargetVa(), ReadSize) : FIoBuffer(ReadSize);
+				Buffer.GetMutableView().CopyFrom(Entry.Data.GetView().RightChop(ReadOffset));
+				TRACE_COUNTER_INCREMENT(FFileIoCache_GetCount);
+
+				return TIoStatusOr<FIoBuffer>(Buffer);
+			}
+			else
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(FFileIoCache::ReadPersistedEntry);
+
+				check(Entry.SerialSize > 0);
+				check(Entry.Hash != FIoHash::Zero);
+
+				const uint64 ReadSize = FMath::Min(Options.GetSize(), Entry.SerialSize);
+				const uint64 ReadOffset = Entry.SerialOffset + Options.GetOffset();
+				FIoBuffer Buffer = Options.GetTargetVa() ? FIoBuffer(FIoBuffer::Wrap, Options.GetTargetVa(), ReadSize) : FIoBuffer(ReadSize);
+
+				IPlatformFile& Ipf = IPlatformFile::GetPlatformPhysical();
+				TUniquePtr<IFileHandle> FileHandle(Ipf.OpenRead(*CacheFilePath, true));
+				check(FileHandle);
+				FileHandle->Seek(int64(ReadOffset));
+				FileHandle->Read(Buffer.GetData(), ReadSize);
+
+				const FIoHash& ExpectedHash = Entry.Hash;
+				if (ExpectedHash == FIoHash::HashBuffer(Buffer.GetView()))
+				{
+					TRACE_COUNTER_INCREMENT(FFileIoCache_GetCount);
+					return TIoStatusOr<FIoBuffer>(Buffer);
+				}
+
+				TRACE_COUNTER_INCREMENT(FFileIoCache_ErrorCount);
+				return TIoStatusOr<FIoBuffer>(FIoStatus(EIoErrorCode::ReadError));
+			}
+		});
 }
 	
 FIoStatus FFileIoCache::PutChunk(const FIoHash& Key, FMemoryView Data)
