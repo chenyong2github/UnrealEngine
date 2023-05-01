@@ -2357,6 +2357,7 @@ static bool CompileWithShaderConductor(
 
 	// Initialize compilation options for ShaderConductor
 	CrossCompiler::FShaderConductorOptions Options;
+	Options.TargetEnvironment = MinTargetEnvironment;
 
 	// VK_EXT_scalar_block_layout is required by raytracing and by Nanite (so expect it to be present in SM6/Vulkan_1_3)
 	Options.bDisableScalarBlockLayout = !(bIsRayTracingShader || 
@@ -2375,10 +2376,6 @@ static bool CompileWithShaderConductor(
 		{
 			Options.TargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_2;
 		}
-	}
-	else
-	{
-		Options.TargetEnvironment = MinTargetEnvironment;
 	}
 
 	UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShader, { CompilerInfo.CCFlags });
