@@ -12,7 +12,7 @@ namespace EpicGames.Horde.Compute.Transports
 	/// <summary>
 	/// Implementation of <see cref="IComputeTransport"/> for communicating over a socket
 	/// </summary>
-	public class TcpTransport : IComputeTransport
+	public sealed class TcpTransport : IComputeTransport
 	{
 		readonly Socket _socket;
 
