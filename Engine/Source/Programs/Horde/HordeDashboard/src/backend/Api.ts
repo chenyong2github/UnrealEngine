@@ -1183,7 +1183,7 @@ export type GetStepResponse = {
 	startTime?: Date | string;
 
 	/**Time at which the run finished (UTC) */
-	finishTime: Date | string;
+	finishTime?: Date | string;
 
 	/** List of reports */
 	reports?: GetReportResponse[];

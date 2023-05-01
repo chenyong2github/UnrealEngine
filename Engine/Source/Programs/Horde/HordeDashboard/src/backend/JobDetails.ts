@@ -629,12 +629,12 @@ export class JobDetails {
 
         const batch = this.batches.find((b) => b.logId === logId);
         if (batch) {
-            return batch.state === JobStepBatchState.Running;
+            return !batch.finishTime;
         }
 
         const step = this.getSteps().find(s => s.logId === logId);
         if (step) {
-            return step.state === JobStepState.Running;
+            return !step.finishTime;
         }
 
         return false;

@@ -67,7 +67,7 @@ export abstract class LogSource {
 
    initComplete() {
       if (this.active) {
-         setTimeout(() => { this.poll(); }, this.pollMS);
+         setTimeout(() => { this.poll(); }, 2000);
       }
    }
 
@@ -194,11 +194,10 @@ export abstract class LogSource {
          return;
       }
 
-      if (this.active) {
-         this.pollID = setTimeout(() => { this.poll(); }, this.pollMS);
-      }
-
       if (this.polling) {
+         if (this.active) {
+            this.pollID = setTimeout(() => { this.poll(); }, !!this._logItems.find(i => !!i.line) ? this.pollMS : 3000);
+         }         
          return;
       }
 
@@ -212,6 +211,8 @@ export abstract class LogSource {
          this.polling = false;
          if (!this.active) {
             this.stopPolling();
+         } else {
+            this.pollID = setTimeout(() => { this.poll(); }, !!this._logItems.find(i => !!i.line) ? this.pollMS : 3000);
          }
       });
 
@@ -272,7 +273,7 @@ export abstract class LogSource {
    trailing?: boolean;
 
    pollID?: any = undefined;
-   pollMS = 10000;
+   private pollMS = 5000;
    polling = false;
 
    startTime?: Moment;
