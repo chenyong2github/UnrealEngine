@@ -1106,6 +1106,7 @@ void UModelingToolsEditorMode::Exit()
 	if (SelectionInteraction != nullptr)
 	{
 		SelectionInteraction->Shutdown();
+		GetInteractiveToolsContext()->InputRouter->ForceTerminateSource(SelectionInteraction);
 		GetInteractiveToolsContext()->InputRouter->DeregisterSource(SelectionInteraction);
 		SelectionInteraction = nullptr;
 	}
