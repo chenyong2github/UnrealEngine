@@ -10,6 +10,9 @@
 #include "Misc/Paths.h"
 #include "LevelSequenceBindingReference.generated.h"
 
+class UWorld;
+struct FWorldPartitionResolveData;
+
 /**
  * An external reference to an level sequence object, resolvable through an arbitrary context.
  * 
@@ -37,10 +40,16 @@ struct FLevelSequenceBindingReference
 	 */
 	struct FResolveBindingParams
 	{
-		FResolveBindingParams() {}
+		FResolveBindingParams() : WorldPartitionResolveData(nullptr), StreamingWorld(nullptr) {}
 
 		// The path to the streamed level asset that contains the level sequence actor playing back the sequence. 'None' for any non - instance - level setups.
 		FTopLevelAssetPath StreamedLevelAssetPath;
+
+		// World Partition Resolve Data
+		const FWorldPartitionResolveData* WorldPartitionResolveData;
+
+		// World Partition Streaming World
+		UWorld* StreamingWorld;
 	};
 
 	/**

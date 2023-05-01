@@ -19,7 +19,7 @@ struct FWorldPartitionResolveData
 
 	bool IsValid() const { return !ContainerID.IsMainContainer(); }
 		
-	bool ResolveObject(UWorld* InWorld, const FSoftObjectPath& InObjectPath, UObject*& OutObject);
+	ENGINE_API bool ResolveObject(UWorld* InWorld, const FSoftObjectPath& InObjectPath, UObject*& OutObject) const;
 
 	UPROPERTY()
 	FActorContainerID ContainerID;

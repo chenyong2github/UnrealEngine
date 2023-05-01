@@ -172,6 +172,9 @@ private:
 	/** The full asset path (/Game/Folder/MapName.MapName) of the streaming level this player resides within. Bindings to actors with the same FSoftObjectPath::GetAssetPath are resolved within the cached level, rather than globally.. */
 	FTopLevelAssetPath StreamedLevelAssetPath;
 
+	/** The world to use for resolving FWorldPartitionResolveData */
+	TWeakObjectPtr<UWorld> StreamingWorld;
+
 	/** The camera settings to use when playing the sequence */
 	FLevelSequenceCameraSettings CameraSettings;
 

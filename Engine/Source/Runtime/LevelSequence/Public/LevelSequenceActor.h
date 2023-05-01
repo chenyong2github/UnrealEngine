@@ -12,6 +12,7 @@
 #include "MovieSceneBindingOwnerInterface.h"
 #include "MovieSceneBindingOverrides.h"
 #include "LevelSequenceCameraSettings.h"
+#include "WorldPartition/IWorldPartitionObjectResolver.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 	#include "LevelSequencePlayer.h"
@@ -70,6 +71,7 @@ class LEVELSEQUENCE_API ALevelSequenceActor
 	: public AActor
 	, public IMovieScenePlaybackClient
 	, public IMovieSceneBindingOwnerInterface
+	, public IWorldPartitionObjectResolver
 {
 public:
 
@@ -286,8 +288,17 @@ protected:
 	//~ End AActor interface
 
 public:
+	const FWorldPartitionResolveData& GetWorldPartitionResolveData() const
+	{
+		return WorldPartitionResolveData;
+	}
 
 #if WITH_EDITOR
+	virtual void SetWorldPartitionResolveData(const FWorldPartitionResolveData& InWorldPartitionResolveData)
+	{
+		WorldPartitionResolveData = InWorldPartitionResolveData;
+	}
+
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 #endif //WITH_EDITOR
 
@@ -311,6 +322,9 @@ private:
 
 	UPROPERTY()
 	bool bShowBurnin;
+
+	UPROPERTY()
+	FWorldPartitionResolveData WorldPartitionResolveData;
 };
 
 USTRUCT()

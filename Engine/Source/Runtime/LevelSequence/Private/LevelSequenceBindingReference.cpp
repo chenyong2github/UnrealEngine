@@ -14,6 +14,7 @@
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/LevelStreamingDynamic.h"
+#include "WorldPartition/IWorldPartitionObjectResolver.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceBindingReference)
 
@@ -49,6 +50,9 @@ FLevelSequenceBindingReference::FLevelSequenceBindingReference(UObject* InObject
 
 UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, const FResolveBindingParams& InResolveBindingParams) const
 {
+	// tidy up todo: StreamedLevelAsset path and WorldPartitionResolveData code paths could probably share most their code
+	//				 InContext could be reverted back to always be the UWorld in both paths and instead StreamedLevelAsset code path could use the StreamingWorld to resolve
+
 	if (InContext && InContext->IsA<AActor>())
 	{
 		if (ExternalObjectPath.IsNull())
@@ -73,6 +77,10 @@ UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, const FReso
 		UObject* ContextOuter = InContext->GetOuter();
 		check(ContextOuter);
 		ContextOuter->ResolveSubobject(*ExternalObjectPath.GetSubPathString(), ResolvedObject, /*bLoadIfExists*/false);
+		return ResolvedObject;
+	} 
+	else if (UObject* ResolvedObject = nullptr; ExternalObjectPath.IsValid() && InResolveBindingParams.WorldPartitionResolveData && InResolveBindingParams.WorldPartitionResolveData->ResolveObject(InResolveBindingParams.StreamingWorld, ExternalObjectPath, ResolvedObject))
+	{
 		return ResolvedObject;
 	}
 	else

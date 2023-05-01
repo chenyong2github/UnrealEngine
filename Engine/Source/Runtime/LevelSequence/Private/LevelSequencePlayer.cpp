@@ -96,12 +96,21 @@ void ULevelSequencePlayer::Initialize(ULevelSequence* InLevelSequence, ULevel* I
 	ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(InLevel);
 	if (LevelStreaming)
 	{
-		// All ULevelStreaming objects live in the owning world but if we are streaming a World Partition persistent level it will be returned as the StreamingWorld for all it's 
-		// ULevelStreaming cells. This streaming world should be used to resolve bindings.
-		if (UWorld* StreamingWorld = LevelStreaming->GetStreamingWorld(); StreamingWorld && (StreamingWorld != World))
+		// If we are streaming the persistent level of a World Partition
+		if (UWorldPartition* WorldPartition = InLevel->GetWorldPartition())
 		{
-			Level = StreamingWorld->PersistentLevel;
-			LevelStreaming = FLevelUtils::FindStreamingLevel(Level.Get());
+			StreamingWorld = InLevel->GetTypedOuter<UWorld>();
+		}
+		else
+		{
+			// All ULevelStreaming objects live in the owning world but if we are streaming a World Partition persistent level it will be returned as the StreamingWorld for all it's 
+			// ULevelStreaming cells. This streaming world should be used to resolve bindings.
+			StreamingWorld = LevelStreaming->GetStreamingWorld();
+			if (StreamingWorld.IsValid() && (StreamingWorld != World))
+			{
+				Level = StreamingWorld->PersistentLevel;
+				LevelStreaming = FLevelUtils::FindStreamingLevel(Level.Get());
+			}
 		}
 	}
 		
@@ -136,6 +145,14 @@ void ULevelSequencePlayer::ResolveBoundObjects(const FGuid& InBindingId, FMovieS
 		{
 			FLevelSequenceBindingReference::FResolveBindingParams Params;
 			Params.StreamedLevelAssetPath = StreamedLevelAssetPath;
+			
+			if (ALevelSequenceActor* LevelSequenceActor = GetTypedOuter<ALevelSequenceActor>(); LevelSequenceActor && LevelSequenceActor->GetWorldPartitionResolveData().IsValid())
+			{
+				Params.WorldPartitionResolveData = &LevelSequenceActor->GetWorldPartitionResolveData();
+				check(StreamingWorld.IsValid());
+				Params.StreamingWorld = StreamingWorld.Get();
+			}
+			
 			LevelSequence->LocateBoundObjects(InBindingId, ResolutionContext, Params, OutObjects);
 		}
 		else

@@ -27,7 +27,7 @@
 
 #endif
 
-bool FWorldPartitionResolveData::ResolveObject(UWorld* InWorld, const FSoftObjectPath& InObjectPath, UObject*& OutObject)
+bool FWorldPartitionResolveData::ResolveObject(UWorld* InWorld, const FSoftObjectPath& InObjectPath, UObject*& OutObject) const
 {
 	OutObject = nullptr;
 	if (InWorld)
