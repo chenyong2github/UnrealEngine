@@ -5,6 +5,7 @@
 #include "ControlFlowTask.h"
 #include "ControlFlowTask_Loop.h"
 #include "ControlFlows.h"
+#include "Containers/Ticker.h"
 #include "Misc/TrackedActivity.h"
 
 static const int32 MAX_FLOW_LOOPS = 10000;
