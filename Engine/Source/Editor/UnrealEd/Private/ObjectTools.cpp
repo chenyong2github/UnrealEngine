@@ -2417,12 +2417,13 @@ namespace ObjectTools
 		// Now delete all packages that have become empty
 		bool bMakeWritable = false;
 		bool bSilent = false;
-		bool bDeletedFileLocallyWritable = false;
 		TArray<FString> SCCFilesToRevert;
 		TArray<FString> SCCFilesToDelete;
 
 		for ( int32 PackageFileIdx = 0; PackageFileIdx < PackageFilesToDelete.Num(); ++PackageFileIdx )
 		{
+			bool bDeletedFileLocallyWritable = false;
+
 			const FString& PackageFilename = PackageFilesToDelete[PackageFileIdx];
 			if ( ISourceControlModule::Get().IsEnabled() )
 			{
