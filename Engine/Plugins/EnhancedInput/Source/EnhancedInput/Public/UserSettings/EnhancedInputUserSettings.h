@@ -43,6 +43,8 @@ enum class EPlayerMappableKeySlot : uint8
 	Max
 };
 
+ENUM_RANGE_BY_FIRST_AND_LAST(EPlayerMappableKeySlot, EPlayerMappableKeySlot::First, EPlayerMappableKeySlot::Seventh);
+
 /** Arguments that can be used when mapping a player key */
 USTRUCT(BlueprintType)
 struct ENHANCEDINPUT_API FMapPlayerKeyArgs final
