@@ -473,7 +473,7 @@ namespace WorldHierarchy
 
 	bool FLevelModelTreeItem::CanChangeParents() const
 	{
-		return Parent.IsValid();
+		return Parent.IsValid() && LevelModel.IsValid() && LevelModel.Pin()->IsUserManaged();
 	}
 
 	void FLevelModelTreeItem::GenerateContextMenu(UToolMenu* Menu, const SWorldHierarchyImpl& Hierarchy)

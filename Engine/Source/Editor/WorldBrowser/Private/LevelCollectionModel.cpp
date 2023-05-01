@@ -136,7 +136,7 @@ void FLevelCollectionModel::BindCommands()
 
 	ActionList.MapAction(Commands.World_UnloadLevel,
 		FExecuteAction::CreateSP(this, &FLevelCollectionModel::UnloadSelectedLevels_Executed),
-		FCanExecuteAction::CreateSP(this, &FLevelCollectionModel::AreAnySelectedLevelsLoaded));
+		FCanExecuteAction::CreateSP(this, &FLevelCollectionModel::AreAllSelectedLevelsUserManaged));
 
 	ActionList.MapAction( Commands.World_MigrateSelectedLevels,
 		FExecuteAction::CreateSP( this, &FLevelCollectionModel::MigrateSelectedLevels_Executed),
@@ -715,7 +715,7 @@ void FLevelCollectionModel::UnloadLevels(const FLevelModelList& InLevelList)
 		TSharedPtr<FLevelModel> LevelModel = (*It);
 		ULevel* Level = LevelModel->GetLevelObject();
 
-		if (Level != nullptr && !LevelModel->IsPersistent())
+		if (Level != nullptr && !LevelModel->IsPersistent() && LevelModel->IsUserManaged())
 		{
 			// Unselect all actors before removing the level
 			// This avoids crashing in areas that rely on getting a selected actors level. The level will be invalid after its removed.
@@ -931,6 +931,19 @@ bool FLevelCollectionModel::AreAnyLevelsSelected() const
 	return SelectedLevelsList.Num() > 0;
 }
 
+bool FLevelCollectionModel::AreAllSelectedLevelsUserManaged() const
+{
+	for (int32 LevelIdx = 0; LevelIdx < SelectedLevelsList.Num(); LevelIdx++)
+	{
+		if (!SelectedLevelsList[LevelIdx]->IsUserManaged())
+		{
+			return false;
+		}
+	}
+
+	return AreAnyLevelsSelected();
+}
+
 bool FLevelCollectionModel::AreAllSelectedLevelsLoaded() const
 {
 	for (int32 LevelIdx = 0; LevelIdx < SelectedLevelsList.Num(); LevelIdx++)
@@ -984,7 +997,7 @@ bool FLevelCollectionModel::AreAllSelectedLevelsEditableAndNotPersistent() const
 {
 	for (auto It = SelectedLevelsList.CreateConstIterator(); It; ++It)
 	{
-		if ((*It)->IsEditable() == false || (*It)->IsPersistent())
+		if ((*It)->IsEditable() == false || (*It)->IsPersistent() || !(*It)->IsUserManaged())
 		{
 			return false;
 		}

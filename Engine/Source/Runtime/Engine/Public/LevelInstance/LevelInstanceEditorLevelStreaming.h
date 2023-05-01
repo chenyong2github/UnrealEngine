@@ -17,7 +17,8 @@ class ULevelStreamingLevelInstanceEditor : public ULevelStreamingAlwaysLoaded
 
 public:
 #if WITH_EDITOR
-	virtual bool ShowInLevelCollection() const override { return false; }
+	virtual bool ShowInLevelCollection() const override { return true; }
+	virtual bool IsUserManaged() const override { return false; }
 	ILevelInstanceInterface* GetLevelInstance() const;
 	const FLevelInstanceID& GetLevelInstanceID() const { return LevelInstanceID; }
 	FBox GetBounds() const;

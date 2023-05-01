@@ -21,6 +21,8 @@ public:
 
 #if WITH_EDITOR
 	virtual bool ShowInLevelCollection() const override { return false; }
+	virtual bool IsUserManaged() const override { return false; }
+
 	FBox GetBounds() const;
 
 	virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const override;

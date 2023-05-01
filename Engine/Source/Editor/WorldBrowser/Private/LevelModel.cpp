@@ -238,6 +238,20 @@ bool FLevelModel::IsFileReadOnly() const
 	return false;
 }
 
+bool FLevelModel::IsUserManaged() const
+{
+	ULevel* Level = GetLevelObject();
+	if (Level)
+	{
+		if (ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(Level))
+		{
+			return StreamingLevel->IsUserManaged();
+		}
+	}
+
+	return true;
+}
+
 void FLevelModel::LoadLevel()
 {
 
@@ -753,7 +767,7 @@ void FLevelModel::SelectActors(bool bSelect, bool bNotify, bool bSelectEvenIfHid
 void FLevelModel::ConvertLevelToExternalActors(bool bUseExternal)
 {
 	ULevel* Level = GetLevelObject();
-	if (Level == nullptr || IsLocked())
+	if (Level == nullptr || IsLocked() || !IsUserManaged())
 	{
 		return;
 	}
@@ -764,7 +778,7 @@ void FLevelModel::ConvertLevelToExternalActors(bool bUseExternal)
 bool FLevelModel::CanConvertLevelToExternalActors(bool bToExternal)
 {
 	ULevel* Level = GetLevelObject();
-	if (Level == nullptr || IsLocked())
+	if (Level == nullptr || IsLocked() || !IsUserManaged())
 	{
 		return false;
 	}

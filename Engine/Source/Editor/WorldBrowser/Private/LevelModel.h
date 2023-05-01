@@ -126,6 +126,9 @@ public:
 	/** @return Whether level package file is read only */
 	bool IsFileReadOnly() const;
 
+	/** @return Whether this level can be add/removed/unloaded by user */
+	bool IsUserManaged() const;
+
 	/** @return Whether the streaming level object is transient */
 	virtual bool IsTransient() const { return false; }
 

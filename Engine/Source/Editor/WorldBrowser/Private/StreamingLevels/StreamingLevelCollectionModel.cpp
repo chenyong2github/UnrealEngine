@@ -294,7 +294,7 @@ void FStreamingLevelCollectionModel::BuildHierarchyMenu(FMenuBuilder& InMenuBuil
 			FNewMenuDelegate::CreateSP(const_cast<FStreamingLevelCollectionModel*>(this), &FStreamingLevelCollectionModel::FillLockSubMenu ) );
 		
 		// Level streaming specific commands
-		if (AreAnyLevelsSelected() && !(IsOneLevelSelected() && GetSelectedLevels()[0]->IsPersistent()))
+		if (AreAllSelectedLevelsUserManaged() && !(IsOneLevelSelected() && GetSelectedLevels()[0]->IsPersistent()))
 		{
 			InMenuBuilder.AddMenuEntry(Commands.World_RemoveSelectedLevels);
 			//
@@ -339,9 +339,12 @@ void FStreamingLevelCollectionModel::BuildHierarchyMenu(FMenuBuilder& InMenuBuil
 			InMenuBuilder.AddMenuEntry( Commands.MoveFoliageToSelected );
 		}
 
-		InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToExternalActors);
-		InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToInternalActors);
-		
+		if (AreAllSelectedLevelsUserManaged())
+		{
+			InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToExternalActors);
+			InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToInternalActors);
+		}
+
 		if (AreAnyLevelsSelected() && !(IsOneLevelSelected() && SelectedLevelsList[0]->IsPersistent()))
 		{
 			InMenuBuilder.AddMenuEntry( Commands.SelectStreamingVolumes );
@@ -584,7 +587,7 @@ bool FStreamingLevelCollectionModel::AreAllSelectedLevelsRemovable() const
 {
 	for (const TSharedPtr<FLevelModel>& LevelModel : SelectedLevelsList)
 	{
-		if (LevelModel->IsLocked() || LevelModel->IsPersistent())
+		if (LevelModel->IsLocked() || LevelModel->IsPersistent() || !LevelModel->IsUserManaged())
 		{
 			return false;
 		}

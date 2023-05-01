@@ -207,6 +207,9 @@ public:
 	/** @return	whether at least one level is selected */
 	bool AreAnyLevelsSelected() const;
 
+	/** @return wether all selected levels are user managed */
+	bool AreAllSelectedLevelsUserManaged() const;
+
 	/** @return whether all the currently selected levels are loaded */
 	bool AreAllSelectedLevelsLoaded() const;
 

@@ -465,6 +465,9 @@ public:
 
 	/** Returns if the streaming level is visible in LevelCollectionModel */
 	virtual bool ShowInLevelCollection() const { return true; }
+
+	/** Returns if the streaming level can be modified by user */
+	virtual bool IsUserManaged() const { return true; }
 #endif
 
 	/** Returns a constant reference to the world asset this streaming level object references  */
