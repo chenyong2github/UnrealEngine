@@ -182,6 +182,7 @@ bool FSourceControlWindows::SyncLatest()
 			FText Message(LOCTEXT("SCC_Sync_Failed", "Failed to sync files!"));
 			FMessageLog("SourceControl").Notify(Message);
 		}
+		return bSuccess;
 	}
 
 	return false;

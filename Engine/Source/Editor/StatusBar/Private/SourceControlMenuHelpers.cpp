@@ -528,8 +528,19 @@ FReply FSourceControlMenuHelpers::OnSourceControlCheckInChangesClicked()
 {
 	if (CanSourceControlCheckIn())
 	{
-		FSourceControlMenuHelpers::SaveUnsavedFiles();
-		FSourceControlWindows::ChoosePackagesToCheckIn();
+		bool bSyncNeeded = FSourceControlWindows::CanSyncLatest();
+		bool bSyncSuccess = true;
+		if (bSyncNeeded)
+		{
+			FBookmarkScoped BookmarkScoped;
+			bSyncSuccess = FSourceControlWindows::SyncLatest();
+		}
+
+		if (bSyncSuccess)
+		{
+			FSourceControlMenuHelpers::SaveUnsavedFiles();
+			FSourceControlWindows::ChoosePackagesToCheckIn();
+		}
 	}
 
 	return FReply::Handled();
