@@ -2,7 +2,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "D3D12RHICommon.h"
 #include "D3D12Descriptors.h"
+#include "D3D12Resources.h"
+#include "RHIResources.h"
 
 class FD3D12Buffer;
 class FD3D12Texture;

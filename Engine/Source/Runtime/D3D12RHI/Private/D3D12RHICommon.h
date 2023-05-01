@@ -16,6 +16,12 @@
 #include "MultiGPU.h"
 #include "Stats/Stats2.h"
 
+class FD3D12Adapter;
+class FD3D12Device;
+
+template <typename ObjectType0, typename ObjectType1>
+class TD3D12DualLinkedObjectIterator;
+
 typedef uint16 CBVSlotMask;
 
 static_assert(MAX_ROOT_CBVS <= MAX_CBS, "MAX_ROOT_CBVS must be <= MAX_CBS.");
@@ -47,9 +53,6 @@ DECLARE_STATS_GROUP(TEXT("D3D12RHI: Resources"), STATGROUP_D3D12Resources, STATC
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Buffer Details"), STATGROUP_D3D12BufferDetails, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Pipeline State (PSO)"), STATGROUP_D3D12PipelineState, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Descriptor Heap (GPU Visible)"), STATGROUP_D3D12DescriptorHeap, STATCAT_Advanced);
-
-class FD3D12Adapter;
-class FD3D12Device;
 
 class FD3D12AdapterChild
 {
@@ -142,10 +145,6 @@ public:
 		check(NodeMask.Intersects(VisibiltyMask));// A GPU objects must be visible on the device it belongs to
 	}
 };
-
-
-template <typename ObjectType0, typename ObjectType1>
-class TD3D12DualLinkedObjectIterator;
 
 template <typename ObjectType>
 class FD3D12LinkedAdapterObject
@@ -351,11 +350,22 @@ private:
 	ObjectType1* Object1;
 };
 
-namespace D3D12RHI
+// Template helper class for converting RHI resource types to D3D12RHI resource types
+template<class T>
+struct TD3D12ResourceTraits
 {
-	template <typename ObjectType0, typename ObjectType1>
-	TD3D12DualLinkedObjectIterator<ObjectType0, ObjectType1> MakeDualLinkedObjectIterator(ObjectType0* InObject0, ObjectType1* InObject1)
+};
+
+// Lock free pointer list that auto-destructs items remaining in the list.
+template <typename TObjectType>
+struct TD3D12ObjectPool : public TLockFreePointerListUnordered<TObjectType, PLATFORM_CACHE_LINE_SIZE>
+{
+	~TD3D12ObjectPool()
 	{
-		return TD3D12DualLinkedObjectIterator<ObjectType0, ObjectType1>(InObject0, InObject1);
+		while (TObjectType* Object = TLockFreePointerListUnordered<TObjectType, PLATFORM_CACHE_LINE_SIZE>::Pop())
+		{
+			delete Object;
+		}
 	}
-}
+};
+

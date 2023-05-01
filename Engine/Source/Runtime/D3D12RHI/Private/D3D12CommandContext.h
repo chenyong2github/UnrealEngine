@@ -7,10 +7,11 @@ D3D12CommandContext.h: D3D12 Command Context Interfaces
 #pragma once
 
 #include "D3D12RHIPrivate.h"
-#include "Windows/AllowWindowsPlatformTypes.h"
-THIRD_PARTY_INCLUDES_START
-#include <delayimp.h>
+#include "D3D12Queue.h"
 
+#include "Windows/AllowWindowsPlatformTypes.h"
+
+THIRD_PARTY_INCLUDES_START
 #if USE_PIX
 	#include "pix3.h"
 #endif

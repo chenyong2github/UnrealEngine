@@ -4,8 +4,19 @@
 
 #include "Async/TaskGraphInterfaces.h"
 #include "D3D12RHICommon.h"
-#include "D3D12Queue.h"
 #include "Templates/RefCounting.h"
+
+enum class ED3D12QueueType;
+
+class FD3D12CommandAllocator;
+class FD3D12CommandList;
+class FD3D12DynamicRHI;
+class FD3D12QueryHeap;
+class FD3D12Queue;
+class FD3D12Timing;
+
+class FD3D12SyncPoint;
+using FD3D12SyncPointRef = TRefCountPtr<FD3D12SyncPoint>;
 
 enum class ED3D12SyncPointType
 {
@@ -48,11 +59,10 @@ struct FD3D12ResolvedFence
 // Sync points are one-shot, meaning they represent a single timeline point, and are released after use, via ref-counting.
 // Use FD3D12SyncPoint::Create() to make a new sync point and hold a reference to it via a FD3D12SyncPointRef object.
 //
-typedef TRefCountPtr<class FD3D12SyncPoint> FD3D12SyncPointRef;
 class FD3D12SyncPoint final : public FThreadSafeRefCountedObject
 {
-	friend class FD3D12DynamicRHI;
-	friend class FD3D12Queue;
+	friend FD3D12DynamicRHI;
+	friend FD3D12Queue;
 
 	static TLockFreePointerListUnordered<void, PLATFORM_CACHE_LINE_SIZE> MemoryPool;
 
@@ -133,7 +143,7 @@ enum class ED3D12QueryType
 struct FD3D12QueryLocation
 {
 	// The heap in which the result is contained.
-	class FD3D12QueryHeap* Heap = nullptr;
+	FD3D12QueryHeap* Heap = nullptr;
 
 	// The index of the query within the heap.
 	uint32 Index = 0;
@@ -147,7 +157,7 @@ struct FD3D12QueryLocation
 	inline uint64 GetResult() const;
 
 	FD3D12QueryLocation() = default;
-	FD3D12QueryLocation(class FD3D12QueryHeap* Heap, uint32 Index, ED3D12QueryType Type, uint64* Target)
+	FD3D12QueryLocation(FD3D12QueryHeap* Heap, uint32 Index, ED3D12QueryType Type, uint64* Target)
 		: Heap	(Heap  )
 		, Index	(Index )
 		, Type	(Type  )
@@ -229,11 +239,11 @@ struct FD3D12PayloadBase
 	TArray<FManualFence> FencesToWait;
 
 	// Execute
-	TArray<class FD3D12CommandList*> CommandListsToExecute;
+	TArray<FD3D12CommandList*> CommandListsToExecute;
 
 	// Signal
 	TArray<FManualFence> FencesToSignal;
-	TOptional<class FD3D12Timing*> Timing;
+	TOptional<FD3D12Timing*> Timing;
 	TArray<FD3D12SyncPointRef> SyncPointsToSignal;
 	uint64 CompletionFenceValue = 0;
 	FGraphEventRef SubmissionEvent;
@@ -243,7 +253,7 @@ struct FD3D12PayloadBase
 	bool bAlwaysSignal = false;
 
 	// Cleanup
-	TArray<class FD3D12CommandAllocator*> AllocatorsToRelease;
+	TArray<FD3D12CommandAllocator*> AllocatorsToRelease;
 	TArray<FD3D12QueryLocation> TimestampQueries;
 	TArray<FD3D12QueryLocation> OcclusionQueries;
 	TArray<FD3D12QueryRange> QueryRanges;
@@ -254,5 +264,7 @@ struct FD3D12PayloadBase
 	virtual ~FD3D12PayloadBase();
 
 protected:
-	FD3D12PayloadBase(FD3D12Device* const Device, ED3D12QueueType const QueueType);
+	FD3D12PayloadBase(FD3D12Device* Device, ED3D12QueueType QueueType);
 };
+
+#include COMPILED_PLATFORM_HEADER(D3D12Submission.h)

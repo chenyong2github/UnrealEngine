@@ -303,25 +303,6 @@ private:
 	TArray<D3D12_RESOURCE_STATES, TInlineAllocator<4>> m_SubresourceState;
 };
 
-//==================================================================================================================================
-// FD3D12ShaderBytecode
-// Encapsulates D3D12 shader bytecode and creates a hash for the shader bytecode
-//==================================================================================================================================
-struct ShaderBytecodeHash
-{
-	uint64 Hash[2];
-
-	bool operator ==(const ShaderBytecodeHash &b) const
-	{
-		return (Hash[0] == b.Hash[0] && Hash[1] == b.Hash[1]);
-	}
-
-	bool operator !=(const ShaderBytecodeHash &b) const
-	{
-		return (Hash[0] != b.Hash[0] || Hash[1] != b.Hash[1]);
-	}
-};
-
 /**
  * The base class of threadsafe reference counted objects.
  */

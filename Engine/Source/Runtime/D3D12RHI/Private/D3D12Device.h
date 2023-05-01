@@ -86,19 +86,6 @@ public:
 	{}
 };
 
-// Lock free pointer list that auto-destructs items remaining in the list.
-template <typename TObjectType>
-struct TD3D12ObjectPool : public TLockFreePointerListUnordered<TObjectType, PLATFORM_CACHE_LINE_SIZE>
-{
-	~TD3D12ObjectPool()
-	{
-		while (TObjectType* Object = TLockFreePointerListUnordered<TObjectType, PLATFORM_CACHE_LINE_SIZE>::Pop())
-		{
-			delete Object;
-		}
-	}
-};
-
 // Encapsulates a single D3D command queue, and maintains the 
 // state required by the submission thread for managing the queue.
 class FD3D12Queue final

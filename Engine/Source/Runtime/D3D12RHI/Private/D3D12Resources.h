@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "D3D12RHIPrivate.h"
 #include "BoundShaderStateCache.h"
 #include "D3D12NvidiaExtensions.h"
 #include "D3D12ShaderResources.h"
@@ -986,10 +985,6 @@ public:
 	TArray<FD3D12SyncPointRef, TInlineAllocator<MAX_NUM_GPUS>> SyncPoints;
 };
 
-template<class T>
-struct TD3D12ResourceTraits
-{
-};
 template<>
 struct TD3D12ResourceTraits<FRHIUniformBuffer>
 {

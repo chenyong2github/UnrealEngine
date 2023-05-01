@@ -5,17 +5,33 @@ D3D12CommandList.h: Implementation of D3D12 Command List functions
 =============================================================================*/
 #pragma once
 
-#include "CoreMinimal.h"
+#include "D3D12RHICommon.h"
+#include "RHICommandList.h"
 #include "D3D12NvidiaExtensions.h"
+#include "D3D12Resources.h"
+#include "D3D12Submission.h"
+#include "D3D12Util.h"
 
 #if !defined(D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES)
 	#define D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES 1
 #endif
 
-class FD3D12Device;
 class FD3D12ContextCommon;
-class FD3D12Queue;
+class FD3D12Device;
+class FD3D12DynamicRHI;
 class FD3D12QueryAllocator;
+class FD3D12Queue;
+class FD3D12ResourceBarrierBatcher;
+
+struct FD3D12ResidencyHandle;
+
+enum class ED3D12QueueType;
+
+namespace D3DX12Residency
+{
+	class ResidencySet;
+}
+typedef D3DX12Residency::ResidencySet FD3D12ResidencySet;
 
 //
 // Wraps a D3D command list allocator object.

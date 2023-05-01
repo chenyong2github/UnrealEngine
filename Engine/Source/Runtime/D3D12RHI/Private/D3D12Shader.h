@@ -6,6 +6,13 @@
 
 #pragma once
 
+#include "D3D12RHICommon.h"
+#include "RHIResources.h"
+#include "ShaderCore.h"
+#include "Templates/UnrealTypeTraits.h"
+
+class FD3D12RootSignature;
+
 template <>
 struct TTypeTraits<D3D12_INPUT_ELEMENT_DESC> : public TTypeTraitsBase < D3D12_INPUT_ELEMENT_DESC >
 {
@@ -37,6 +44,25 @@ public:
 
 	virtual bool GetInitializer(FVertexDeclarationElementList& Init) final override;
 	virtual uint32 GetPrecachePSOHash() const final override { return HashNoStrides;  }
+};
+
+//==================================================================================================================================
+// FD3D12ShaderBytecode
+// Encapsulates D3D12 shader bytecode and creates a hash for the shader bytecode
+//==================================================================================================================================
+struct ShaderBytecodeHash
+{
+	uint64 Hash[2];
+
+	bool operator ==(const ShaderBytecodeHash& b) const
+	{
+		return (Hash[0] == b.Hash[0] && Hash[1] == b.Hash[1]);
+	}
+
+	bool operator !=(const ShaderBytecodeHash& b) const
+	{
+		return (Hash[0] != b.Hash[0] || Hash[1] != b.Hash[1]);
+	}
 };
 
 struct FD3D12ShaderData

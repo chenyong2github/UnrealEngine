@@ -30,9 +30,7 @@
 #include "ShaderCore.h"
 #include "HDRHelper.h"
 
-// TODO reorder includes so we just include D3D12Submission.h here
-#include COMPILED_PLATFORM_HEADER(D3D12Submission.h)
-
+#include "D3D12Submission.h"
 #include "D3D12RHIDefinitions.h"
 
 // TODO reorder includes so we just include D3D12PipelineState.h here

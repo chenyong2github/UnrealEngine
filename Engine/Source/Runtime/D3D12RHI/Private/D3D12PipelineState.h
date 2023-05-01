@@ -5,9 +5,8 @@
 #pragma once
 
 #include "Async/AsyncWork.h"
-#include "D3D12Util.h"
-
 #include "D3D12DiskCache.h"
+#include "D3D12Shader.h"
 
 class FD3D12VertexShader;
 class FD3D12MeshShader;
