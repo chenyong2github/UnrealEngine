@@ -48,6 +48,9 @@ public class IntelTBB : ModuleRules
 				{
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb_debug.dll"), Path.Combine(LibDirTBB, "tbb_debug.dll"));
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb_debug.pdb"), Path.Combine(LibDirTBB, "tbb_debug.pdb"), StagedFileType.DebugNonUFS);
+
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbbmalloc_debug.dll"), Path.Combine(LibDirTBB, "tbbmalloc_debug.dll"));
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbbmalloc_debug.pdb"), Path.Combine(LibDirTBB, "tbbmalloc_debug.pdb"), StagedFileType.DebugNonUFS);
 				}
 			}
 			else
@@ -58,6 +61,9 @@ public class IntelTBB : ModuleRules
 				{
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBBinaries, "tbb.dll"));
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.pdb"), Path.Combine(IntelTBBBinaries, "tbb.pdb"), StagedFileType.DebugNonUFS);
+
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbbmalloc.dll"), Path.Combine(IntelTBBBinaries, "tbbmalloc.dll"));
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbbmalloc.pdb"), Path.Combine(IntelTBBBinaries, "tbbmalloc.pdb"), StagedFileType.DebugNonUFS);
 				}
 			}
 		}
