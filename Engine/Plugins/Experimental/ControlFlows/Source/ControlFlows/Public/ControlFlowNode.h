@@ -50,13 +50,14 @@ public:
 
 	[[nodiscard]] bool HasCancelBeenRequested() const { return bCancelled; }
 
+	virtual FString GetNodeName() const;
+
 protected:
 	friend class FControlFlow;
 	
 	virtual void Execute() {}
 
 	void LogExecution();
-	virtual FString GetNodeName() const;
 
 	TWeakPtr<FControlFlow> Parent = nullptr;
 	FString NodeName;
