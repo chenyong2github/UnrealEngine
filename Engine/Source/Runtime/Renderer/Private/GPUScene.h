@@ -11,6 +11,7 @@
 #include "MeshBatch.h"
 #include "LightSceneData.h"
 #include "SceneUniformBuffer.h"
+#include "UnifiedBuffer.h"
 
 class FRDGExternalAccessQueue;
 class FRHICommandList;

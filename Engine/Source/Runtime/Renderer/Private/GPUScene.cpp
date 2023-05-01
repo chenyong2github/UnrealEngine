@@ -10,7 +10,6 @@
 #include "RHI.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
-#include "UnifiedBuffer.h"
 #include "SpriteIndexBuffer.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "ClearQuad.h"
@@ -28,6 +27,7 @@
 #include "LightSceneProxy.h"
 #include "SystemTextures.h"
 #include "SceneDefinitions.h"
+#include "PrimitiveSceneShaderData.h"
 
 #define LOG_INSTANCE_ALLOCATIONS 0
 

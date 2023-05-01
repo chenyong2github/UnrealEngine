@@ -88,6 +88,7 @@
 #include "SkyAtmosphereRendering.h"
 #include "VolumetricCloudRendering.h"
 #include "VolumetricFog.h"
+#include "PrimitiveSceneShaderData.h"
 
 /*-----------------------------------------------------------------------------
 	Globals

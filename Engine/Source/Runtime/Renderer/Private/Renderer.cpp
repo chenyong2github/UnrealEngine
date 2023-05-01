@@ -42,6 +42,7 @@
 #include "SceneRenderTargetParameters.h"
 #include "EngineModule.h"
 #include "RendererInterface.h"
+#include "PrimitiveSceneShaderData.h"
 
 DEFINE_LOG_CATEGORY(LogRenderer);
 

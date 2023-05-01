@@ -166,7 +166,7 @@ enum class EResourceType
 	BUFFER,
 	STRUCTURED_BUFFER,
 	BYTEBUFFER,
-	TEXTURE
+	TEXTURE // NOTE: Deprecated
 };
 
 template<typename ResourceType>
@@ -184,6 +184,7 @@ struct ResourceTypeTraits<FRWBufferStructured>
 	static const EResourceType Type = EResourceType::STRUCTURED_BUFFER;
 };
 
+// NOTE: Deprecated
 template<>
 struct ResourceTypeTraits<FTextureRWBuffer>
 {
@@ -198,8 +199,12 @@ struct ResourceTypeTraits<FRWByteAddressBuffer>
 
 static uint32 CalculateFloat4sPerLine()
 {
+	// This is a remnant from when primitive scene data used textures to scatter upload, and should be removed once
+	// texture uploads have been fully deprecated
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	uint16 PrimitivesPerTextureLine = (uint16)FMath::Min((int32)MAX_uint16, (int32)GMaxTextureDimensions) / FScatterUploadBuffer::PrimitiveDataStrideInFloat4s;
 	return PrimitivesPerTextureLine * FScatterUploadBuffer::PrimitiveDataStrideInFloat4s;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -408,6 +413,20 @@ void MemsetResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* UAV, con
 		FIntVector(FMath::DivideAndRoundUp(Params.Count / Divisor, 64u), 1, 1));
 }
 
+void MemsetResource(FRDGBuilder& GraphBuilder, FRDGBufferUAV* UAV, const FMemsetResourceParams& Params)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MemsetResource(GraphBuilder, static_cast<FRDGUnorderedAccessView*>(UAV), Params);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void MemsetResource(FRDGBuilder& GraphBuilder, FRDGTextureUAV* UAV, const FMemsetResourceParams& Params)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MemsetResource(GraphBuilder, static_cast<FRDGUnorderedAccessView*>(UAV), Params);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* UAV, FRDGShaderResourceView* SRV, const FMemcpyResourceParams& Params)
 {
 	check(UAV && SRV);
@@ -502,6 +521,20 @@ void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* UAV, FRD
 
 		NumElementsProcessed += NumElementsPerDispatch;
 	}
+}
+
+void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGBufferUAV* UAV, FRDGBufferSRV* SRV, const FMemcpyResourceParams& Params)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MemcpyResource(GraphBuilder, static_cast<FRDGUnorderedAccessView*>(UAV), static_cast<FRDGShaderResourceView*>(SRV), Params);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGTextureUAV* UAV, FRDGTextureSRV* SRV, const FMemcpyResourceParams& Params)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MemcpyResource(GraphBuilder, static_cast<FRDGUnorderedAccessView*>(UAV), static_cast<FRDGShaderResourceView*>(SRV), Params);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FRDGBuffer* ResizeBufferIfNeeded(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer, const FRDGBufferDesc& BufferDesc, const TCHAR* Name)
@@ -774,6 +807,19 @@ void ScatterCopyResource(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstRes
 	}
 }
 
+void ScatterCopyResource(FRDGBuilder& GraphBuilder, FRDGBuffer* DstResource, FRDGBufferSRV* ScatterBufferSRV, FRDGBufferSRV* UploadBufferSRV, const FScatterCopyParams &Params)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ScatterCopyResource(GraphBuilder, static_cast<FRDGViewableResource*>(DstResource), ScatterBufferSRV, UploadBufferSRV, Params);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+void ScatterCopyResource(FRDGBuilder& GraphBuilder, FRDGTexture* DstResource, FRDGBufferSRV* ScatterBufferSRV, FRDGBufferSRV* UploadBufferSRV, const FScatterCopyParams &Params)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ScatterCopyResource(GraphBuilder, static_cast<FRDGViewableResource*>(DstResource), ScatterBufferSRV, UploadBufferSRV, Params);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 
 
 void FRDGScatterUploadBuffer::Init(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* Name)
@@ -825,7 +871,7 @@ void FRDGScatterUploadBuffer::Init(FRDGBuilder& GraphBuilder, uint32 NumElements
 	UploadData = (uint8*)RHILockBuffer(UploadBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
 }
 
-void FRDGScatterUploadBuffer::ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource)
+void FRDGScatterUploadBuffer::ResourceUploadToInternal(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGScatterUploadBuffer::ResourceUploadTo);
 
@@ -845,7 +891,10 @@ void FRDGScatterUploadBuffer::ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGVi
 
 	FRDGBufferSRV* ScatterBufferSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ScatterBuffer));
 	FRDGBufferSRV* UploadBufferSRV  = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(UploadBuffer));
+	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ScatterCopyResource(GraphBuilder, DstResource, ScatterBufferSRV, UploadBufferSRV, FScatterCopyParams { NumScatters, NumBytesPerElement, INDEX_NONE});
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	Reset();
 }
@@ -1199,8 +1248,8 @@ void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, 
 		RHICmdList.EndUAVOverlap(DstBuffer.UAV);
 }
 
-template<>
-RENDERCORE_API bool ResizeResourceIfNeeded<FTextureRWBuffer>(FRHICommandList& RHICmdList, FTextureRWBuffer& Texture, uint32 NumBytes, const TCHAR* DebugName)
+// NOTE: Deprecated
+RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, FTextureRWBuffer& Texture, uint32 NumBytes, const TCHAR* DebugName)
 {
 	check((NumBytes & 15) == 0);
 	uint32 Float4sPerLine = CalculateFloat4sPerLine();
@@ -1225,7 +1274,9 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FTextureRWBuffer>(FRHICommandList& RH
 		Params.Count = NumBytes / BytesPerElement;
 		Params.SrcOffset = 0;
 		Params.DstOffset = 0;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		MemcpyResource(RHICmdList, NewTexture, Texture, Params);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Texture = NewTexture;
 		return true;
 	}
@@ -1780,7 +1831,9 @@ template RENDERCORE_API void MemcpyResource<FRWBuffer>(FRHICommandList& RHICmdLi
 template RENDERCORE_API void MemcpyResource<FRWBufferStructured>(FRHICommandList& RHICmdList, const FRWBufferStructured& DstBuffer, const FRWBufferStructured& SrcBuffer, const FMemcpyResourceParams& Params, bool bAlreadyInUAVOverlap);
 template RENDERCORE_API void MemcpyResource<FRWByteAddressBuffer>(FRHICommandList& RHICmdList, const FRWByteAddressBuffer& DstBuffer, const FRWByteAddressBuffer& SrcBuffer, const FMemcpyResourceParams& Params, bool bAlreadyInUAVOverlap);
 
-template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FTextureRWBuffer>(FRHICommandList& RHICmdList, const FTextureRWBuffer& DstBuffer, bool bFlush);
 template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FRWBuffer>(FRHICommandList& RHICmdList, const FRWBuffer& DstBuffer, bool bFlush);
 template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FRWBufferStructured>(FRHICommandList& RHICmdList, const FRWBufferStructured& DstBuffer, bool bFlush);
 template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FRWByteAddressBuffer>(FRHICommandList& RHICmdList, const FRWByteAddressBuffer& DstBuffer, bool bFlush);
+
+// NOTE: Deprecated
+template RENDERCORE_API void FScatterUploadBuffer::ResourceUploadTo<FTextureRWBuffer>(FRHICommandList& RHICmdList, const FTextureRWBuffer& DstBuffer, bool bFlush);

@@ -50,12 +50,26 @@ extern RENDERCORE_API void MemsetResource(FRHICommandList& RHICmdList, const Res
 template<typename ResourceType>
 extern RENDERCORE_API void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, const ResourceType& SrcBuffer, const FMemcpyResourceParams& Params, bool bAlreadyInUAVOverlap = false);
 
+UE_DEPRECATED(5.3, "MemsetResource will no longer support FTextureRWBuffer in a future release. Either use a buffer target instead, or clear the contents manually.")
+inline void MemsetResource(FRHICommandList& RHICmdList, const FTextureRWBuffer& DstBuffer, const FMemsetResourceParams& Params)
+{
+	MemsetResource<FTextureRWBuffer>(RHICmdList, DstBuffer, Params);
+}
+
+UE_DEPRECATED(5.3, "MemcpyResource will no longer support FTextureRWBuffer in a future release. Either use a buffer target instead, or copy the contents manually.")
+inline void MemcpyResource(FRHICommandList& RHICmdList, const FTextureRWBuffer& DstBuffer, const FTextureRWBuffer& SrcBuffer, const FMemcpyResourceParams& Params, bool bAlreadyInUAVOverlap = false)
+{
+	MemcpyResource<FTextureRWBuffer>(RHICmdList, DstBuffer, SrcBuffer, Params, bAlreadyInUAVOverlap);
+}
+
 template<typename ResourceType>
 extern RENDERCORE_API bool ResizeResourceSOAIfNeeded(FRHICommandList& RHICmdList, ResourceType& Texture, const FResizeResourceSOAParams& Params, const TCHAR* DebugName);
 template<typename ResourceType>
-extern RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, ResourceType& Texture, uint32 NumBytes, const TCHAR* DebugName);
+extern RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, ResourceType& Buffer, uint32 NumBytes, const TCHAR* DebugName);
 RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, FRWBuffer& Buffer, EPixelFormat Format, uint32 NumElements, const TCHAR* DebugName);
 
+UE_DEPRECATED(5.3, "ResizeResourceIfNeeded will no longer support FTextureRWBuffer in a future release. Either use a buffer target instead, or create a new texture and copy the contents manually.")
+RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, FTextureRWBuffer& Texture, uint32 NumBytes, const TCHAR* DebugName);
 
 /**
  * This version will resize/allocate the buffer at once and add a RDG pass to perform the copy on the RDG time-line if there was previous data).
@@ -68,7 +82,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBuffer&
 class FScatterUploadBuffer
 {
 public:
-	enum { PrimitiveDataStrideInFloat4s = 41 };
+	// This is an old dependency upon the primitive data that is no longer used
+	
+	enum
+	UE_DEPRECATED(5.3, "Use PRIMITIVE_SCENE_DATA_STRIDE in SceneDefinitions.h instead.")
+	{
+		PrimitiveDataStrideInFloat4s = 41
+	};
 
 	FByteAddressBuffer ScatterBuffer;
 	FByteAddressBuffer UploadBuffer;
@@ -94,6 +114,12 @@ public:
 
 	template<typename ResourceType>
 	RENDERCORE_API void ResourceUploadTo(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, bool bFlush = false);
+	
+	UE_DEPRECATED(5.3, "Scattered uploads to FTextureRWBuffer will no longer supported in a future release. Use a supported destination buffer type instead.")
+	inline void ResourceUploadTo(FRHICommandList& RHICmdList, const FTextureRWBuffer& DstBuffer, bool bFlush = false)
+	{
+		ResourceUploadTo<FTextureRWBuffer>(RHICmdList, DstBuffer, bFlush);
+	}
 
 	void Add( uint32 Index, const void* Data, uint32 Num = 1 )
 	{
@@ -193,8 +219,17 @@ public:
 extern RENDERCORE_API void MemsetResource(FRDGBuilder& GraphBuilder, FRDGBuffer* DstResource, const FMemsetResourceParams& Params);
 extern RENDERCORE_API void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGBuffer* DstResource, FRDGBuffer* SrcResource, const FMemcpyResourceParams& Params);
 
+extern RENDERCORE_API void MemsetResource(FRDGBuilder& GraphBuilder, FRDGBufferUAV* DstResource, const FMemsetResourceParams& Params);
+extern RENDERCORE_API void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGBufferUAV* DstResource, FRDGBufferSRV* SrcResource, const FMemcpyResourceParams& Params);
+
+UE_DEPRECATED(5.3, "Use the overloads that take FRDGBuffer/FRDGBufferUAV instead.")
 extern RENDERCORE_API void MemsetResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* DstResource, const FMemsetResourceParams& Params);
+UE_DEPRECATED(5.3, "MemsetResource will no longer support FRDGTextureUAV in a future release. Either use a buffer target instead, or clear the contents manually.")
+extern RENDERCORE_API void MemsetResource(FRDGBuilder& GraphBuilder, FRDGTextureUAV* DstResource, const FMemsetResourceParams& Params);
+UE_DEPRECATED(5.3, "Use the overloads that take FRDGBuffer/FRDGBufferUAV instead.")
 extern RENDERCORE_API void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGUnorderedAccessView* DstResource, FRDGShaderResourceView* SrcResource, const FMemcpyResourceParams& Params);
+UE_DEPRECATED(5.3, "MemcpyResource will no longer support FRDGTextureUAV in a future release. Either use a buffer target instead, or copy the contents manually.")
+extern RENDERCORE_API void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGTextureUAV* DstResource, FRDGTextureSRV* SrcResource, const FMemcpyResourceParams& Params);
 
 struct FScatterCopyParams
 {
@@ -203,7 +238,12 @@ struct FScatterCopyParams
 	int32 NumElementsPerScatter = INDEX_NONE; // INDEX_NONE lets the setup figure it out, otherwise it will run NumScatters * NumElementsPerScatter threads to copy the source data.
 };
 
+void RENDERCORE_API ScatterCopyResource(FRDGBuilder& GraphBuilder, FRDGBuffer* DstResource, FRDGBufferSRV* ScatterBufferSRV, FRDGBufferSRV* UploadBufferSRV, const FScatterCopyParams &Params);
+
+UE_DEPRECATED(5.3, "Use the overload that takes FRDGBuffer instead.")
 void RENDERCORE_API ScatterCopyResource(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, FRDGBufferSRV* ScatterBufferSRV, FRDGBufferSRV* UploadBufferSRV, const FScatterCopyParams &Params);
+UE_DEPRECATED(5.3, "ScatterCopyResource will no longer support FRDGTextureUAV in a future release. Either use a buffer target instead, or copy the contents manually.")
+void RENDERCORE_API ScatterCopyResource(FRDGBuilder& GraphBuilder, FRDGTexture* DstResource, FRDGBufferSRV* ScatterBufferSRV, FRDGBufferSRV* UploadBufferSRV, const FScatterCopyParams &Params);
 
 
 extern RENDERCORE_API FRDGBuffer* ResizeBufferIfNeeded(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer, const FRDGBufferDesc& BufferDesc, const TCHAR* Name);
@@ -361,7 +401,14 @@ class RENDERCORE_API FRDGScatterUploadBuffer
 	: public FRDGScatterUploadBase
 {
 public:
-	enum { PrimitiveDataStrideInFloat4s = FScatterUploadBuffer::PrimitiveDataStrideInFloat4s };
+	
+	enum
+	UE_DEPRECATED(5.3, "Use PRIMITIVE_SCENE_DATA_STRIDE in SceneDefinitions.h instead.")
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		PrimitiveDataStrideInFloat4s = FScatterUploadBuffer::PrimitiveDataStrideInFloat4s
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	};
 
 	/**
 	 * Init with presized num scatters, expecting each to be set at a later point. Requires the user to keep track of the offsets to use.
@@ -375,13 +422,23 @@ public:
 
 	void Init(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 NumBytesPerElement, bool bInFloat4Buffer, const TCHAR* Name);
 
-	void ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource);
+	inline void ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGBuffer* DstResource)
+	{
+		ResourceUploadToInternal(GraphBuilder, DstResource);
+	}
+
+	UE_DEPRECATED(5.3, "Scattered uploads to FTextureRWBuffer will no longer supported in a future release. Use a supported destination buffer type instead.")
+	inline void ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGTexture* DstResource)
+	{
+		ResourceUploadToInternal(GraphBuilder, DstResource);
+	}
 
 	void Release();
 
 	uint32 GetNumBytes() const;
 
 private:
+	void ResourceUploadToInternal(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource);
 	void Reset();
 
 	TRefCountPtr<FRDGPooledBuffer> ScatterBuffer;

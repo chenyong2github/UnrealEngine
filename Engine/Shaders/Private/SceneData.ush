@@ -223,9 +223,6 @@ StructuredBuffer<float4> GPUScenePrimitiveSceneData;
 RWStructuredBuffer<float4> GPUScenePrimitiveSceneDataRW;
 #endif
 
-// Stride of a single primitive's data in float4's, must match C++ (FPrimitiveSceneShaderData::DataStrideInFloat4s and FScatterUploadBuffer::PrimitiveDataStrideInFloat4s)
-#define PRIMITIVE_SCENE_DATA_STRIDE 41
-
 float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemIndex)
 {
 	uint TargetIdx = PrimitiveIndex + ItemIndex;
