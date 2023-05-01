@@ -13,6 +13,7 @@ public class CollectionManager : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DirectoryWatcher",
+				"Analytics",
 				"SourceControl"
 			}
 			);

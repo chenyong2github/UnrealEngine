@@ -91,6 +91,9 @@ public:
 	/** Whether the collection has any contents */
 	bool IsEmpty() const;
 
+	/** Whether the Collection uses Source Control */
+	bool IsUsingSourceControl() const;
+
 	/** Logs the contents of the collection */
 	void PrintCollection() const;
 
@@ -212,3 +215,8 @@ private:
 	/** The state of the collection the last time it was loaded from or saved to disk. */
 	FCollectionSnapshot DiskSnapshot;
 };
+
+inline bool FCollection::IsUsingSourceControl() const
+{
+	return bUseSCC;
+}

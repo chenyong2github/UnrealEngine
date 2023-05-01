@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CollectionManagerTelemetry.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/NameTypes.h"
@@ -47,6 +48,8 @@ public:
 		static const FName CollectionManagerModuleName("CollectionManager");
 		return FModuleManager::Get().IsModuleLoaded(CollectionManagerModuleName);
 	}
+
+	UE::CollectionManager::Analytics::FEmitAnalyticsEvent OnAnalyticsEventEmitted;
 
 private:
 	ICollectionManager* CollectionManager;
