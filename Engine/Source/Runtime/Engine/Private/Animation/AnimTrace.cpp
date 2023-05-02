@@ -264,6 +264,7 @@ FCriticalSection GAnimTraceNameCriticalSection;
 void FAnimTrace::Reset()
 {
 	GSkeletalMeshTraceAnnotations.ClearAll();
+	GAnimTraceNames.Reset();
 	GAnimTraceCurrentNameId = 1;
 }
 
