@@ -72,6 +72,7 @@ namespace Horde.Server.Logs
 			{
 				UpdateLogTailRequest request = requestStream.Current;
 				LogId logId = LogId.Parse(request.LogId);
+				_logger.LogDebug("Updating log tail for {LogId}: line {LineIdx}, size {Size}", logId, request.TailNext, request.TailData.Length);
 
 				if (request.TailData.Length > 0)
 				{

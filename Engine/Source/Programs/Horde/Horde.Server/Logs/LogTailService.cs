@@ -223,6 +223,7 @@ namespace Horde.Server.Logs
 		{
 			List<SortedSetEntry<ReadOnlyMemory<byte>>> entries = new List<SortedSetEntry<ReadOnlyMemory<byte>>>();
 			int newLineCount = SplitLogDataToChunks(tailNext, tailData, ChunkLineCount, entries);
+			_logger.LogDebug("New line count = {NewLineCount}, entries = {EntryCount}", newLineCount, entries.Count);
 
 			if (entries.Count > 0)
 			{
