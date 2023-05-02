@@ -18,11 +18,14 @@
 
 #include "AnalyticsBlueprintLibrary.h"
 #include "AnalyticsEventAttribute.h"
+#include "AssetCompilingManager.h"
+#include "ContentStreaming.h"
 #include "CoreMinimal.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
+#include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "InstancedFoliageActor.h"
 #include "ISequencer.h"
@@ -35,6 +38,26 @@ namespace UE
 	{
 		namespace Private
 		{
+			void WaitForAllAsyncAndSteamingTasks(UWorld* World)
+			{
+				FlushAsyncLoading();
+
+				if (World)
+				{
+					World->BlockTillLevelStreamingCompleted();
+
+					if (!FPlatformProperties::RequiresCookedData())
+					{
+						UMaterialInterface::SubmitRemainingJobsForWorld(World);
+						FAssetCompilingManager::Get().FinishAllCompilation();
+					}
+				}
+
+				UTexture::ForceUpdateTextureStreaming();
+
+				IStreamingManager::Get().StreamAllResources(0.0f);
+			}
+
 			void StreamInLevels( ULevel* Level, const TSet<FString>& LevelsToIgnore )
 			{
 				UWorld* InnerWorld = Level->GetTypedOuter<UWorld>();
@@ -133,6 +156,8 @@ namespace UE
 
 				// Synchronously show levels right now
 				InnerWorld->FlushLevelStreaming( EFlushLevelStreamingType::Visibility );
+
+				WaitForAllAsyncAndSteamingTasks(InnerWorld);
 
 				if ( bCreatedContext )
 				{
@@ -249,6 +274,8 @@ void UUsdConversionBlueprintLibrary::StreamOutLevels( UWorld* OwningWorld, const
 			}
 		}
 	}
+
+	UE::UsdConversionBlueprintLibraryImpl::Private::WaitForAllAsyncAndSteamingTasks(OwningWorld);
 
 	if ( bCreatedContext )
 	{

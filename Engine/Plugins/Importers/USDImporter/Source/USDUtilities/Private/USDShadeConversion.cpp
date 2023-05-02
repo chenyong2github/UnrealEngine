@@ -1738,7 +1738,7 @@ namespace UE
 
 					if ( ( NumSamples == 0 || !SampleSize ) && !UserConstantValue )
 					{
-						UE_LOG( LogUsd, Warning, TEXT( "Skipping material property %d as we have no valid data to use." ), Property );
+						UE_LOG( LogUsd, Log, TEXT( "Skipping material property %d as we have no valid data to use." ), Property );
 						continue;
 					}
 
