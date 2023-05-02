@@ -20,7 +20,6 @@ struct FFileIoStoreCompressionContext
 	FFileIoStoreCompressionContext* Next = nullptr;
 	uint64 UncompressedBufferSize = 0;
 	uint8* UncompressedBuffer = nullptr;
-	FGraphEventRef Task;
 };
 
 class FFileIoStoreReader
@@ -145,7 +144,7 @@ private:
 
 		FORCEINLINE static ESubsequentsMode::Type GetSubsequentsMode()
 		{
-			return ESubsequentsMode::TrackSubsequents;
+			return ESubsequentsMode::FireAndForget;
 		}
 
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)

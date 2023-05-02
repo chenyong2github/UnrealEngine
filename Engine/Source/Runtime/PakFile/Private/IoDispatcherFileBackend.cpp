@@ -1829,7 +1829,7 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 		const bool bScatterAsync = bIsMultithreaded && (!BlockToDecompress->CompressionMethod.IsNone() || BlockToDecompress->EncryptionKey.IsValid() || BlockToDecompress->SignatureHash);
 		if (bScatterAsync)
 		{
-			BlockToDecompress->CompressionContext->Task = TGraphTask<FDecompressAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(*this, BlockToDecompress);
+			TGraphTask<FDecompressAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(*this, BlockToDecompress);
 		}
 		else
 		{
@@ -2058,15 +2058,6 @@ uint32 FFileIoStore::Run()
 			PlatformImpl->ServiceWait();
 		}
 	}
-
-	for (TUniquePtr<FFileIoStoreCompressionContext>& CompressionContext : CompressionContexts)
-	{
-		if (CompressionContext->Task)
-		{
-			CompressionContext->Task->Wait();
-		}
-	}
-
 	return 0;
 }
 

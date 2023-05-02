@@ -346,15 +346,13 @@ public:
 
 	~FIoDispatcherImpl()
 	{
+		delete Thread;
 		for (const FBackendAndPriority& Backend : Backends)
 		{
 			Backend.Value->Shutdown();
 		}
 		FCoreDelegates::GetMemoryTrimDelegate().Remove(MemoryTrimDelegateHandle);
 		BackendContext->WakeUpDispatcherThreadDelegate.Unbind();
-		// when all mounted backends have been shutdown and the delegates have been cleared,
-		// then we can go ahead and delete the resolve thread
-		delete Thread;
 		FPlatformProcess::ReturnSynchEventToPool(DispatcherEvent);
 		RequestAllocator->ReleaseRef();
 	}
@@ -829,6 +827,12 @@ private:
 			ProcessIncomingRequests();
 			ProcessCompletedRequests();
 		}
+
+		ProcessIncomingRequests();
+		while (PendingIoRequestsCount > 0)
+		{
+			ProcessCompletedRequests();
+		}
 		return 0;
 	}
 
@@ -961,7 +965,7 @@ FIoDispatcher::InitializePostSettings()
 void
 FIoDispatcher::Shutdown()
 {
-	GIoDispatcher.Reset();
+	TUniquePtr<FIoDispatcher> LocalIoDispatcher(MoveTemp(GIoDispatcher));
 }
 
 FIoDispatcher&
