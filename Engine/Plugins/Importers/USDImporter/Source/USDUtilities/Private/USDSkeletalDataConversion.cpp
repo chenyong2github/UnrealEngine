@@ -82,7 +82,9 @@
 
 #define LOCTEXT_NAMESPACE "UsdSkeletalDataConversion"
 
-static bool bAddCurveMetadataToSkeleton = false;
+// Default to true because as of Apr 2023 baking animations with FKControlRigs will only consider morph targets if the curve metadata is on the
+// skeleton for some reason
+static bool bAddCurveMetadataToSkeleton = true;
 static FAutoConsoleVariableRef CVarAddCurveMetadataToSkeleton(
 	TEXT("USD.AddCurveMetadataToSkeleton"),
 	bAddCurveMetadataToSkeleton,
