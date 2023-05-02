@@ -448,7 +448,7 @@ FRemoteControlPropertyHandle::FRemoteControlPropertyHandle(const TSharedPtr<FRem
 	{
 		if (const UScriptStruct* Struct = Cast<UScriptStruct>(InProperty->GetOwnerUObject()))
 		{
-			FieldPath = InRCProperty->FieldPathInfo.ToPathPropertyString();
+			FieldPath = InRCProperty->FieldPathInfo.ToString();
 		}
 		else
 		{
