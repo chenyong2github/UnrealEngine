@@ -11,6 +11,25 @@ void FRigVMExecuteOp::Serialize(FArchive& Ar)
 {
 	Ar << OpCode;
 	Ar << FunctionIndex;
+
+	if(Ar.IsLoading())
+	{
+		// backwards compatibility for old opcodes
+		if(OpCode >= ERigVMOpCode::Execute_0_Operands && OpCode <= ERigVMOpCode::Execute_64_Operands)
+		{
+			ArgumentCount = uint16(OpCode) - uint16(ERigVMOpCode::Execute_0_Operands);
+			OpCode = ERigVMOpCode::Execute;
+		}
+		else
+		{
+			check(OpCode == ERigVMOpCode::Execute);
+			Ar << ArgumentCount;
+		}
+	}
+	else
+	{
+		Ar << ArgumentCount;
+	}
 }
 
 void FRigVMUnaryOp::Serialize(FArchive& Ar)
@@ -171,7 +190,7 @@ FRigVMInstructionArray::FRigVMInstructionArray(const FRigVMByteCode& InByteCode,
 				}
 			}
 
-			if (OpCode >= ERigVMOpCode::Execute_0_Operands && OpCode < ERigVMOpCode::Execute_64_Operands)
+			if (OpCode == ERigVMOpCode::Execute)
 			{
 				uint64 OperandByteIndex = ByteIndex + (uint64)sizeof(FRigVMExecuteOp);
 
@@ -264,71 +283,7 @@ void FRigVMByteCode::Save(FArchive& Ar) const
 
 		switch (OpCode)
 		{
-			case ERigVMOpCode::Execute_0_Operands:
-			case ERigVMOpCode::Execute_1_Operands:
-			case ERigVMOpCode::Execute_2_Operands:
-			case ERigVMOpCode::Execute_3_Operands:
-			case ERigVMOpCode::Execute_4_Operands:
-			case ERigVMOpCode::Execute_5_Operands:
-			case ERigVMOpCode::Execute_6_Operands:
-			case ERigVMOpCode::Execute_7_Operands:
-			case ERigVMOpCode::Execute_8_Operands:
-			case ERigVMOpCode::Execute_9_Operands:
-			case ERigVMOpCode::Execute_10_Operands:
-			case ERigVMOpCode::Execute_11_Operands:
-			case ERigVMOpCode::Execute_12_Operands:
-			case ERigVMOpCode::Execute_13_Operands:
-			case ERigVMOpCode::Execute_14_Operands:
-			case ERigVMOpCode::Execute_15_Operands:
-			case ERigVMOpCode::Execute_16_Operands:
-			case ERigVMOpCode::Execute_17_Operands:
-			case ERigVMOpCode::Execute_18_Operands:
-			case ERigVMOpCode::Execute_19_Operands:
-			case ERigVMOpCode::Execute_20_Operands:
-			case ERigVMOpCode::Execute_21_Operands:
-			case ERigVMOpCode::Execute_22_Operands:
-			case ERigVMOpCode::Execute_23_Operands:
-			case ERigVMOpCode::Execute_24_Operands:
-			case ERigVMOpCode::Execute_25_Operands:
-			case ERigVMOpCode::Execute_26_Operands:
-			case ERigVMOpCode::Execute_27_Operands:
-			case ERigVMOpCode::Execute_28_Operands:
-			case ERigVMOpCode::Execute_29_Operands:
-			case ERigVMOpCode::Execute_30_Operands:
-			case ERigVMOpCode::Execute_31_Operands:
-			case ERigVMOpCode::Execute_32_Operands:
-			case ERigVMOpCode::Execute_33_Operands:
-			case ERigVMOpCode::Execute_34_Operands:
-			case ERigVMOpCode::Execute_35_Operands:
-			case ERigVMOpCode::Execute_36_Operands:
-			case ERigVMOpCode::Execute_37_Operands:
-			case ERigVMOpCode::Execute_38_Operands:
-			case ERigVMOpCode::Execute_39_Operands:
-			case ERigVMOpCode::Execute_40_Operands:
-			case ERigVMOpCode::Execute_41_Operands:
-			case ERigVMOpCode::Execute_42_Operands:
-			case ERigVMOpCode::Execute_43_Operands:
-			case ERigVMOpCode::Execute_44_Operands:
-			case ERigVMOpCode::Execute_45_Operands:
-			case ERigVMOpCode::Execute_46_Operands:
-			case ERigVMOpCode::Execute_47_Operands:
-			case ERigVMOpCode::Execute_48_Operands:
-			case ERigVMOpCode::Execute_49_Operands:
-			case ERigVMOpCode::Execute_50_Operands:
-			case ERigVMOpCode::Execute_51_Operands:
-			case ERigVMOpCode::Execute_52_Operands:
-			case ERigVMOpCode::Execute_53_Operands:
-			case ERigVMOpCode::Execute_54_Operands:
-			case ERigVMOpCode::Execute_55_Operands:
-			case ERigVMOpCode::Execute_56_Operands:
-			case ERigVMOpCode::Execute_57_Operands:
-			case ERigVMOpCode::Execute_58_Operands:
-			case ERigVMOpCode::Execute_59_Operands:
-			case ERigVMOpCode::Execute_60_Operands:
-			case ERigVMOpCode::Execute_61_Operands:
-			case ERigVMOpCode::Execute_62_Operands:
-			case ERigVMOpCode::Execute_63_Operands:
-			case ERigVMOpCode::Execute_64_Operands:
+			case ERigVMOpCode::Execute:
 			{
 				FRigVMExecuteOp Op = GetOpAt<FRigVMExecuteOp>(Instruction.ByteCodeIndex);
 				Ar << Op;
@@ -493,73 +448,15 @@ void FRigVMByteCode::Load(FArchive& Ar)
 
 		Ar << OpCode;
 
+		// backwards compatibility
+		if(OpCode >= ERigVMOpCode::Execute_0_Operands && OpCode <= ERigVMOpCode::Execute_64_Operands)
+		{
+			OpCode = ERigVMOpCode::Execute;
+		}
+
 		switch (OpCode)
 		{
-			case ERigVMOpCode::Execute_0_Operands:
-			case ERigVMOpCode::Execute_1_Operands:
-			case ERigVMOpCode::Execute_2_Operands:
-			case ERigVMOpCode::Execute_3_Operands:
-			case ERigVMOpCode::Execute_4_Operands:
-			case ERigVMOpCode::Execute_5_Operands:
-			case ERigVMOpCode::Execute_6_Operands:
-			case ERigVMOpCode::Execute_7_Operands:
-			case ERigVMOpCode::Execute_8_Operands:
-			case ERigVMOpCode::Execute_9_Operands:
-			case ERigVMOpCode::Execute_10_Operands:
-			case ERigVMOpCode::Execute_11_Operands:
-			case ERigVMOpCode::Execute_12_Operands:
-			case ERigVMOpCode::Execute_13_Operands:
-			case ERigVMOpCode::Execute_14_Operands:
-			case ERigVMOpCode::Execute_15_Operands:
-			case ERigVMOpCode::Execute_16_Operands:
-			case ERigVMOpCode::Execute_17_Operands:
-			case ERigVMOpCode::Execute_18_Operands:
-			case ERigVMOpCode::Execute_19_Operands:
-			case ERigVMOpCode::Execute_20_Operands:
-			case ERigVMOpCode::Execute_21_Operands:
-			case ERigVMOpCode::Execute_22_Operands:
-			case ERigVMOpCode::Execute_23_Operands:
-			case ERigVMOpCode::Execute_24_Operands:
-			case ERigVMOpCode::Execute_25_Operands:
-			case ERigVMOpCode::Execute_26_Operands:
-			case ERigVMOpCode::Execute_27_Operands:
-			case ERigVMOpCode::Execute_28_Operands:
-			case ERigVMOpCode::Execute_29_Operands:
-			case ERigVMOpCode::Execute_30_Operands:
-			case ERigVMOpCode::Execute_31_Operands:
-			case ERigVMOpCode::Execute_32_Operands:
-			case ERigVMOpCode::Execute_33_Operands:
-			case ERigVMOpCode::Execute_34_Operands:
-			case ERigVMOpCode::Execute_35_Operands:
-			case ERigVMOpCode::Execute_36_Operands:
-			case ERigVMOpCode::Execute_37_Operands:
-			case ERigVMOpCode::Execute_38_Operands:
-			case ERigVMOpCode::Execute_39_Operands:
-			case ERigVMOpCode::Execute_40_Operands:
-			case ERigVMOpCode::Execute_41_Operands:
-			case ERigVMOpCode::Execute_42_Operands:
-			case ERigVMOpCode::Execute_43_Operands:
-			case ERigVMOpCode::Execute_44_Operands:
-			case ERigVMOpCode::Execute_45_Operands:
-			case ERigVMOpCode::Execute_46_Operands:
-			case ERigVMOpCode::Execute_47_Operands:
-			case ERigVMOpCode::Execute_48_Operands:
-			case ERigVMOpCode::Execute_49_Operands:
-			case ERigVMOpCode::Execute_50_Operands:
-			case ERigVMOpCode::Execute_51_Operands:
-			case ERigVMOpCode::Execute_52_Operands:
-			case ERigVMOpCode::Execute_53_Operands:
-			case ERigVMOpCode::Execute_54_Operands:
-			case ERigVMOpCode::Execute_55_Operands:
-			case ERigVMOpCode::Execute_56_Operands:
-			case ERigVMOpCode::Execute_57_Operands:
-			case ERigVMOpCode::Execute_58_Operands:
-			case ERigVMOpCode::Execute_59_Operands:
-			case ERigVMOpCode::Execute_60_Operands:
-			case ERigVMOpCode::Execute_61_Operands:
-			case ERigVMOpCode::Execute_62_Operands:
-			case ERigVMOpCode::Execute_63_Operands:
-			case ERigVMOpCode::Execute_64_Operands:
+			case ERigVMOpCode::Execute:
 			{
 				FRigVMExecuteOp Op;
 				Ar << Op;
@@ -796,71 +693,7 @@ uint32 FRigVMByteCode::GetOperatorHash(const FRigVMInstruction& InInstruction) c
 	const ERigVMOpCode OpCode = GetOpCodeAt(InInstruction.ByteCodeIndex);
 	switch (OpCode)
 	{
-		case ERigVMOpCode::Execute_0_Operands:
-		case ERigVMOpCode::Execute_1_Operands:
-		case ERigVMOpCode::Execute_2_Operands:
-		case ERigVMOpCode::Execute_3_Operands:
-		case ERigVMOpCode::Execute_4_Operands:
-		case ERigVMOpCode::Execute_5_Operands:
-		case ERigVMOpCode::Execute_6_Operands:
-		case ERigVMOpCode::Execute_7_Operands:
-		case ERigVMOpCode::Execute_8_Operands:
-		case ERigVMOpCode::Execute_9_Operands:
-		case ERigVMOpCode::Execute_10_Operands:
-		case ERigVMOpCode::Execute_11_Operands:
-		case ERigVMOpCode::Execute_12_Operands:
-		case ERigVMOpCode::Execute_13_Operands:
-		case ERigVMOpCode::Execute_14_Operands:
-		case ERigVMOpCode::Execute_15_Operands:
-		case ERigVMOpCode::Execute_16_Operands:
-		case ERigVMOpCode::Execute_17_Operands:
-		case ERigVMOpCode::Execute_18_Operands:
-		case ERigVMOpCode::Execute_19_Operands:
-		case ERigVMOpCode::Execute_20_Operands:
-		case ERigVMOpCode::Execute_21_Operands:
-		case ERigVMOpCode::Execute_22_Operands:
-		case ERigVMOpCode::Execute_23_Operands:
-		case ERigVMOpCode::Execute_24_Operands:
-		case ERigVMOpCode::Execute_25_Operands:
-		case ERigVMOpCode::Execute_26_Operands:
-		case ERigVMOpCode::Execute_27_Operands:
-		case ERigVMOpCode::Execute_28_Operands:
-		case ERigVMOpCode::Execute_29_Operands:
-		case ERigVMOpCode::Execute_30_Operands:
-		case ERigVMOpCode::Execute_31_Operands:
-		case ERigVMOpCode::Execute_32_Operands:
-		case ERigVMOpCode::Execute_33_Operands:
-		case ERigVMOpCode::Execute_34_Operands:
-		case ERigVMOpCode::Execute_35_Operands:
-		case ERigVMOpCode::Execute_36_Operands:
-		case ERigVMOpCode::Execute_37_Operands:
-		case ERigVMOpCode::Execute_38_Operands:
-		case ERigVMOpCode::Execute_39_Operands:
-		case ERigVMOpCode::Execute_40_Operands:
-		case ERigVMOpCode::Execute_41_Operands:
-		case ERigVMOpCode::Execute_42_Operands:
-		case ERigVMOpCode::Execute_43_Operands:
-		case ERigVMOpCode::Execute_44_Operands:
-		case ERigVMOpCode::Execute_45_Operands:
-		case ERigVMOpCode::Execute_46_Operands:
-		case ERigVMOpCode::Execute_47_Operands:
-		case ERigVMOpCode::Execute_48_Operands:
-		case ERigVMOpCode::Execute_49_Operands:
-		case ERigVMOpCode::Execute_50_Operands:
-		case ERigVMOpCode::Execute_51_Operands:
-		case ERigVMOpCode::Execute_52_Operands:
-		case ERigVMOpCode::Execute_53_Operands:
-		case ERigVMOpCode::Execute_54_Operands:
-		case ERigVMOpCode::Execute_55_Operands:
-		case ERigVMOpCode::Execute_56_Operands:
-		case ERigVMOpCode::Execute_57_Operands:
-		case ERigVMOpCode::Execute_58_Operands:
-		case ERigVMOpCode::Execute_59_Operands:
-		case ERigVMOpCode::Execute_60_Operands:
-		case ERigVMOpCode::Execute_61_Operands:
-		case ERigVMOpCode::Execute_62_Operands:
-		case ERigVMOpCode::Execute_63_Operands:
-		case ERigVMOpCode::Execute_64_Operands:
+		case ERigVMOpCode::Execute:
 		{
 			const FRigVMExecuteOp& Op = GetOpAt<FRigVMExecuteOp>(InInstruction);
 			uint32 Hash = GetTypeHash(Op);
@@ -991,71 +824,7 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeOper
 	ERigVMOpCode OpCode = GetOpCodeAt(InByteCodeIndex);
 	switch (OpCode)
 	{
-		case ERigVMOpCode::Execute_0_Operands:
-		case ERigVMOpCode::Execute_1_Operands:
-		case ERigVMOpCode::Execute_2_Operands:
-		case ERigVMOpCode::Execute_3_Operands:
-		case ERigVMOpCode::Execute_4_Operands:
-		case ERigVMOpCode::Execute_5_Operands:
-		case ERigVMOpCode::Execute_6_Operands:
-		case ERigVMOpCode::Execute_7_Operands:
-		case ERigVMOpCode::Execute_8_Operands:
-		case ERigVMOpCode::Execute_9_Operands:
-		case ERigVMOpCode::Execute_10_Operands:
-		case ERigVMOpCode::Execute_11_Operands:
-		case ERigVMOpCode::Execute_12_Operands:
-		case ERigVMOpCode::Execute_13_Operands:
-		case ERigVMOpCode::Execute_14_Operands:
-		case ERigVMOpCode::Execute_15_Operands:
-		case ERigVMOpCode::Execute_16_Operands:
-		case ERigVMOpCode::Execute_17_Operands:
-		case ERigVMOpCode::Execute_18_Operands:
-		case ERigVMOpCode::Execute_19_Operands:
-		case ERigVMOpCode::Execute_20_Operands:
-		case ERigVMOpCode::Execute_21_Operands:
-		case ERigVMOpCode::Execute_22_Operands:
-		case ERigVMOpCode::Execute_23_Operands:
-		case ERigVMOpCode::Execute_24_Operands:
-		case ERigVMOpCode::Execute_25_Operands:
-		case ERigVMOpCode::Execute_26_Operands:
-		case ERigVMOpCode::Execute_27_Operands:
-		case ERigVMOpCode::Execute_28_Operands:
-		case ERigVMOpCode::Execute_29_Operands:
-		case ERigVMOpCode::Execute_30_Operands:
-		case ERigVMOpCode::Execute_31_Operands:
-		case ERigVMOpCode::Execute_32_Operands:
-		case ERigVMOpCode::Execute_33_Operands:
-		case ERigVMOpCode::Execute_34_Operands:
-		case ERigVMOpCode::Execute_35_Operands:
-		case ERigVMOpCode::Execute_36_Operands:
-		case ERigVMOpCode::Execute_37_Operands:
-		case ERigVMOpCode::Execute_38_Operands:
-		case ERigVMOpCode::Execute_39_Operands:
-		case ERigVMOpCode::Execute_40_Operands:
-		case ERigVMOpCode::Execute_41_Operands:
-		case ERigVMOpCode::Execute_42_Operands:
-		case ERigVMOpCode::Execute_43_Operands:
-		case ERigVMOpCode::Execute_44_Operands:
-		case ERigVMOpCode::Execute_45_Operands:
-		case ERigVMOpCode::Execute_46_Operands:
-		case ERigVMOpCode::Execute_47_Operands:
-		case ERigVMOpCode::Execute_48_Operands:
-		case ERigVMOpCode::Execute_49_Operands:
-		case ERigVMOpCode::Execute_50_Operands:
-		case ERigVMOpCode::Execute_51_Operands:
-		case ERigVMOpCode::Execute_52_Operands:
-		case ERigVMOpCode::Execute_53_Operands:
-		case ERigVMOpCode::Execute_54_Operands:
-		case ERigVMOpCode::Execute_55_Operands:
-		case ERigVMOpCode::Execute_56_Operands:
-		case ERigVMOpCode::Execute_57_Operands:
-		case ERigVMOpCode::Execute_58_Operands:
-		case ERigVMOpCode::Execute_59_Operands:
-		case ERigVMOpCode::Execute_60_Operands:
-		case ERigVMOpCode::Execute_61_Operands:
-		case ERigVMOpCode::Execute_62_Operands:
-		case ERigVMOpCode::Execute_63_Operands:
-		case ERigVMOpCode::Execute_64_Operands:
+		case ERigVMOpCode::Execute:
 		{
 			uint64 NumBytes = (uint64)sizeof(FRigVMExecuteOp);
 			if(bIncludeOperands)
@@ -1310,71 +1079,7 @@ FString FRigVMByteCode::DumpToText() const
 
 		switch (OpCode)
 		{
-			case ERigVMOpCode::Execute_0_Operands:
-			case ERigVMOpCode::Execute_1_Operands:
-			case ERigVMOpCode::Execute_2_Operands:
-			case ERigVMOpCode::Execute_3_Operands:
-			case ERigVMOpCode::Execute_4_Operands:
-			case ERigVMOpCode::Execute_5_Operands:
-			case ERigVMOpCode::Execute_6_Operands:
-			case ERigVMOpCode::Execute_7_Operands:
-			case ERigVMOpCode::Execute_8_Operands:
-			case ERigVMOpCode::Execute_9_Operands:
-			case ERigVMOpCode::Execute_10_Operands:
-			case ERigVMOpCode::Execute_11_Operands:
-			case ERigVMOpCode::Execute_12_Operands:
-			case ERigVMOpCode::Execute_13_Operands:
-			case ERigVMOpCode::Execute_14_Operands:
-			case ERigVMOpCode::Execute_15_Operands:
-			case ERigVMOpCode::Execute_16_Operands:
-			case ERigVMOpCode::Execute_17_Operands:
-			case ERigVMOpCode::Execute_18_Operands:
-			case ERigVMOpCode::Execute_19_Operands:
-			case ERigVMOpCode::Execute_20_Operands:
-			case ERigVMOpCode::Execute_21_Operands:
-			case ERigVMOpCode::Execute_22_Operands:
-			case ERigVMOpCode::Execute_23_Operands:
-			case ERigVMOpCode::Execute_24_Operands:
-			case ERigVMOpCode::Execute_25_Operands:
-			case ERigVMOpCode::Execute_26_Operands:
-			case ERigVMOpCode::Execute_27_Operands:
-			case ERigVMOpCode::Execute_28_Operands:
-			case ERigVMOpCode::Execute_29_Operands:
-			case ERigVMOpCode::Execute_30_Operands:
-			case ERigVMOpCode::Execute_31_Operands:
-			case ERigVMOpCode::Execute_32_Operands:
-			case ERigVMOpCode::Execute_33_Operands:
-			case ERigVMOpCode::Execute_34_Operands:
-			case ERigVMOpCode::Execute_35_Operands:
-			case ERigVMOpCode::Execute_36_Operands:
-			case ERigVMOpCode::Execute_37_Operands:
-			case ERigVMOpCode::Execute_38_Operands:
-			case ERigVMOpCode::Execute_39_Operands:
-			case ERigVMOpCode::Execute_40_Operands:
-			case ERigVMOpCode::Execute_41_Operands:
-			case ERigVMOpCode::Execute_42_Operands:
-			case ERigVMOpCode::Execute_43_Operands:
-			case ERigVMOpCode::Execute_44_Operands:
-			case ERigVMOpCode::Execute_45_Operands:
-			case ERigVMOpCode::Execute_46_Operands:
-			case ERigVMOpCode::Execute_47_Operands:
-			case ERigVMOpCode::Execute_48_Operands:
-			case ERigVMOpCode::Execute_49_Operands:
-			case ERigVMOpCode::Execute_50_Operands:
-			case ERigVMOpCode::Execute_51_Operands:
-			case ERigVMOpCode::Execute_52_Operands:
-			case ERigVMOpCode::Execute_53_Operands:
-			case ERigVMOpCode::Execute_54_Operands:
-			case ERigVMOpCode::Execute_55_Operands:
-			case ERigVMOpCode::Execute_56_Operands:
-			case ERigVMOpCode::Execute_57_Operands:
-			case ERigVMOpCode::Execute_58_Operands:
-			case ERigVMOpCode::Execute_59_Operands:
-			case ERigVMOpCode::Execute_60_Operands:
-			case ERigVMOpCode::Execute_61_Operands:
-			case ERigVMOpCode::Execute_62_Operands:
-			case ERigVMOpCode::Execute_63_Operands:
-			case ERigVMOpCode::Execute_64_Operands:
+			case ERigVMOpCode::Execute:
 			{
 				const FRigVMExecuteOp& Op = GetOpAt<FRigVMExecuteOp>(Instruction.ByteCodeIndex);
 				Line += FString::Printf(TEXT(", FunctionIndex %d"), (int32)Op.FunctionIndex);
@@ -1562,71 +1267,7 @@ FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InI
 {
 	switch(InInstruction.OpCode)
 	{
-		case ERigVMOpCode::Execute_0_Operands:
-		case ERigVMOpCode::Execute_1_Operands:
-		case ERigVMOpCode::Execute_2_Operands:
-		case ERigVMOpCode::Execute_3_Operands:
-		case ERigVMOpCode::Execute_4_Operands:
-		case ERigVMOpCode::Execute_5_Operands:
-		case ERigVMOpCode::Execute_6_Operands:
-		case ERigVMOpCode::Execute_7_Operands:
-		case ERigVMOpCode::Execute_8_Operands:
-		case ERigVMOpCode::Execute_9_Operands:
-		case ERigVMOpCode::Execute_10_Operands:
-		case ERigVMOpCode::Execute_11_Operands:
-		case ERigVMOpCode::Execute_12_Operands:
-		case ERigVMOpCode::Execute_13_Operands:
-		case ERigVMOpCode::Execute_14_Operands:
-		case ERigVMOpCode::Execute_15_Operands:
-		case ERigVMOpCode::Execute_16_Operands:
-		case ERigVMOpCode::Execute_17_Operands:
-		case ERigVMOpCode::Execute_18_Operands:
-		case ERigVMOpCode::Execute_19_Operands:
-		case ERigVMOpCode::Execute_20_Operands:
-		case ERigVMOpCode::Execute_21_Operands:
-		case ERigVMOpCode::Execute_22_Operands:
-		case ERigVMOpCode::Execute_23_Operands:
-		case ERigVMOpCode::Execute_24_Operands:
-		case ERigVMOpCode::Execute_25_Operands:
-		case ERigVMOpCode::Execute_26_Operands:
-		case ERigVMOpCode::Execute_27_Operands:
-		case ERigVMOpCode::Execute_28_Operands:
-		case ERigVMOpCode::Execute_29_Operands:
-		case ERigVMOpCode::Execute_30_Operands:
-		case ERigVMOpCode::Execute_31_Operands:
-		case ERigVMOpCode::Execute_32_Operands:
-		case ERigVMOpCode::Execute_33_Operands:
-		case ERigVMOpCode::Execute_34_Operands:
-		case ERigVMOpCode::Execute_35_Operands:
-		case ERigVMOpCode::Execute_36_Operands:
-		case ERigVMOpCode::Execute_37_Operands:
-		case ERigVMOpCode::Execute_38_Operands:
-		case ERigVMOpCode::Execute_39_Operands:
-		case ERigVMOpCode::Execute_40_Operands:
-		case ERigVMOpCode::Execute_41_Operands:
-		case ERigVMOpCode::Execute_42_Operands:
-		case ERigVMOpCode::Execute_43_Operands:
-		case ERigVMOpCode::Execute_44_Operands:
-		case ERigVMOpCode::Execute_45_Operands:
-		case ERigVMOpCode::Execute_46_Operands:
-		case ERigVMOpCode::Execute_47_Operands:
-		case ERigVMOpCode::Execute_48_Operands:
-		case ERigVMOpCode::Execute_49_Operands:
-		case ERigVMOpCode::Execute_50_Operands:
-		case ERigVMOpCode::Execute_51_Operands:
-		case ERigVMOpCode::Execute_52_Operands:
-		case ERigVMOpCode::Execute_53_Operands:
-		case ERigVMOpCode::Execute_54_Operands:
-		case ERigVMOpCode::Execute_55_Operands:
-		case ERigVMOpCode::Execute_56_Operands:
-		case ERigVMOpCode::Execute_57_Operands:
-		case ERigVMOpCode::Execute_58_Operands:
-		case ERigVMOpCode::Execute_59_Operands:
-		case ERigVMOpCode::Execute_60_Operands:
-		case ERigVMOpCode::Execute_61_Operands:
-		case ERigVMOpCode::Execute_62_Operands:
-		case ERigVMOpCode::Execute_63_Operands:
-		case ERigVMOpCode::Execute_64_Operands:
+		case ERigVMOpCode::Execute:
 		{
 			return GetOperandsForExecuteOp(InInstruction);
 		}
@@ -1713,7 +1354,7 @@ FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InI
 
 uint64 FRigVMByteCode::GetFirstOperandByteIndex(const FRigVMInstruction& InInstruction) const
 {
-	if (InInstruction.OpCode >= ERigVMOpCode::Execute_0_Operands && InInstruction.OpCode <= ERigVMOpCode::Execute_64_Operands)
+	if (InInstruction.OpCode == ERigVMOpCode::Execute)
 	{
 		const uint64 ByteCodeIndex = InInstruction.ByteCodeIndex;
 		// if the bytecode is not aligned the OperandAlignment needs to be 0
@@ -1824,71 +1465,7 @@ uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
 {
 	switch (InOpCode)
 	{
-		case ERigVMOpCode::Execute_0_Operands:
-		case ERigVMOpCode::Execute_1_Operands:
-		case ERigVMOpCode::Execute_2_Operands:
-		case ERigVMOpCode::Execute_3_Operands:
-		case ERigVMOpCode::Execute_4_Operands:
-		case ERigVMOpCode::Execute_5_Operands:
-		case ERigVMOpCode::Execute_6_Operands:
-		case ERigVMOpCode::Execute_7_Operands:
-		case ERigVMOpCode::Execute_8_Operands:
-		case ERigVMOpCode::Execute_9_Operands:
-		case ERigVMOpCode::Execute_10_Operands:
-		case ERigVMOpCode::Execute_11_Operands:
-		case ERigVMOpCode::Execute_12_Operands:
-		case ERigVMOpCode::Execute_13_Operands:
-		case ERigVMOpCode::Execute_14_Operands:
-		case ERigVMOpCode::Execute_15_Operands:
-		case ERigVMOpCode::Execute_16_Operands:
-		case ERigVMOpCode::Execute_17_Operands:
-		case ERigVMOpCode::Execute_18_Operands:
-		case ERigVMOpCode::Execute_19_Operands:
-		case ERigVMOpCode::Execute_20_Operands:
-		case ERigVMOpCode::Execute_21_Operands:
-		case ERigVMOpCode::Execute_22_Operands:
-		case ERigVMOpCode::Execute_23_Operands:
-		case ERigVMOpCode::Execute_24_Operands:
-		case ERigVMOpCode::Execute_25_Operands:
-		case ERigVMOpCode::Execute_26_Operands:
-		case ERigVMOpCode::Execute_27_Operands:
-		case ERigVMOpCode::Execute_28_Operands:
-		case ERigVMOpCode::Execute_29_Operands:
-		case ERigVMOpCode::Execute_30_Operands:
-		case ERigVMOpCode::Execute_31_Operands:
-		case ERigVMOpCode::Execute_32_Operands:
-		case ERigVMOpCode::Execute_33_Operands:
-		case ERigVMOpCode::Execute_34_Operands:
-		case ERigVMOpCode::Execute_35_Operands:
-		case ERigVMOpCode::Execute_36_Operands:
-		case ERigVMOpCode::Execute_37_Operands:
-		case ERigVMOpCode::Execute_38_Operands:
-		case ERigVMOpCode::Execute_39_Operands:
-		case ERigVMOpCode::Execute_40_Operands:
-		case ERigVMOpCode::Execute_41_Operands:
-		case ERigVMOpCode::Execute_42_Operands:
-		case ERigVMOpCode::Execute_43_Operands:
-		case ERigVMOpCode::Execute_44_Operands:
-		case ERigVMOpCode::Execute_45_Operands:
-		case ERigVMOpCode::Execute_46_Operands:
-		case ERigVMOpCode::Execute_47_Operands:
-		case ERigVMOpCode::Execute_48_Operands:
-		case ERigVMOpCode::Execute_49_Operands:
-		case ERigVMOpCode::Execute_50_Operands:
-		case ERigVMOpCode::Execute_51_Operands:
-		case ERigVMOpCode::Execute_52_Operands:
-		case ERigVMOpCode::Execute_53_Operands:
-		case ERigVMOpCode::Execute_54_Operands:
-		case ERigVMOpCode::Execute_55_Operands:
-		case ERigVMOpCode::Execute_56_Operands:
-		case ERigVMOpCode::Execute_57_Operands:
-		case ERigVMOpCode::Execute_58_Operands:
-		case ERigVMOpCode::Execute_59_Operands:
-		case ERigVMOpCode::Execute_60_Operands:
-		case ERigVMOpCode::Execute_61_Operands:
-		case ERigVMOpCode::Execute_62_Operands:
-		case ERigVMOpCode::Execute_63_Operands:
-		case ERigVMOpCode::Execute_64_Operands:
+		case ERigVMOpCode::Execute:
 		{
 			static const uint64 Alignment = FRigVMExecuteOp::StaticStruct()->GetCppStructOps()->GetAlignment();
 			return Alignment;
@@ -2020,7 +1597,7 @@ void FRigVMByteCode::AlignByteCode()
 		const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
 		BytesToReserve += GetOpAlignment(Instruction.OpCode);
 
-		if (Instruction.OpCode >= ERigVMOpCode::Execute_0_Operands && Instruction.OpCode < ERigVMOpCode::Execute_64_Operands)
+		if (Instruction.OpCode == ERigVMOpCode::Execute)
 		{
 			BytesToReserve += GetOperandAlignment();
 		}
@@ -2055,7 +1632,7 @@ void FRigVMByteCode::AlignByteCode()
 			AlignedByteCode[AlignedByteCodeIndex + ByteIndex] = ByteCode[OriginalByteCodeIndex + ByteIndex];
 		}
 
-		if (Instruction.OpCode >= ERigVMOpCode::Execute_0_Operands && Instruction.OpCode < ERigVMOpCode::Execute_64_Operands)
+		if (Instruction.OpCode == ERigVMOpCode::Execute)
 		{
 			AlignedByteCodeIndex += NumBytesToCopy;
 
