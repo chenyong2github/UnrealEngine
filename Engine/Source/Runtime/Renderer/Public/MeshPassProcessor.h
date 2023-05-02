@@ -1978,6 +1978,22 @@ public:
 		bool bRequired,
 		TArray<FPSOPrecacheData>& PSOInitializers);
 
+	template<typename PassShadersType>
+	void AddGraphicsPipelineStateInitializer(
+		const FPSOPrecacheVertexFactoryData& VertexFactoryData,
+		const FMaterial& RESTRICT MaterialResource,
+		const FMeshPassProcessorRenderState& RESTRICT DrawRenderState,
+		const FGraphicsPipelineRenderTargetsInfo& RESTRICT RenderTargetsInfo,
+		PassShadersType PassShaders,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		EPrimitiveType PrimitiveType,
+		EMeshPassFeatures MeshPassFeatures,
+		ESubpassHint SubpassHint,
+		uint8 SubpassIndex,
+		bool bRequired,
+		TArray<FPSOPrecacheData>& PSOInitializers);
+
 protected:
 	RENDERER_API FMeshDrawCommandPrimitiveIdInfo GetDrawCommandPrimitiveId(
 		const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,

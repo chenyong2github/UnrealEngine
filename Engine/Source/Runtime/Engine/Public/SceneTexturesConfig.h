@@ -128,6 +128,7 @@ struct ENGINE_API FSceneTexturesConfig
 	void Init(const FSceneTexturesConfigInitSettings& InitSettings);
     void BuildSceneColorAndDepthFlags();
 	uint32 GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo, EGBufferLayout Layout = GBL_Default) const;
+	void SetupMobileGBufferFlags(bool bRequiresMultiPass);
 
 	FORCEINLINE bool IsValid() const
 	{

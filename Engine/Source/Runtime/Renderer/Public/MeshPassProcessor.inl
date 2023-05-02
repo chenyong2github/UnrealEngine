@@ -200,7 +200,39 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
 	EPrimitiveType PrimitiveType,
+	EMeshPassFeatures MeshPassFeatures,
+	bool bRequired,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	AddGraphicsPipelineStateInitializer(
+		VertexFactoryData,
+		MaterialResource,
+		DrawRenderState,
+		RenderTargetsInfo,
+		PassShaders,
+		MeshFillMode,
+		MeshCullMode,
+		PrimitiveType,
+		MeshPassFeatures,
+		ESubpassHint::None,
+		0,
+		bRequired,
+		PSOInitializers);
+}
+
+template<typename PassShadersType>
+void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
+	const FPSOPrecacheVertexFactoryData& VertexFactoryData,
+	const FMaterial& RESTRICT MaterialResource,
+	const FMeshPassProcessorRenderState& RESTRICT DrawRenderState,
+	const FGraphicsPipelineRenderTargetsInfo& RESTRICT RenderTargetsInfo,
+	PassShadersType PassShaders,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	EPrimitiveType PrimitiveType,
 	EMeshPassFeatures MeshPassFeatures, 
+	ESubpassHint SubpassHint,
+	uint8 SubpassIndex,
 	bool bRequired,
 	TArray<FPSOPrecacheData>& PSOInitializers)
 {
@@ -249,6 +281,8 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet
 	FGraphicsPipelineStateInitializer PipelineStateInitializer = MinimalPipelineStateInitializer.AsGraphicsPipelineStateInitializer();
 	ApplyTargetsInfo(PipelineStateInitializer, RenderTargetsInfo);
+	PipelineStateInitializer.SubpassHint = SubpassHint;
+	PipelineStateInitializer.SubpassIndex = SubpassIndex;
 
 	FPSOPrecacheData PSOPrecacheData;
 	PSOPrecacheData.bRequired = bRequired;

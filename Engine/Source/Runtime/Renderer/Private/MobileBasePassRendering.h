@@ -312,17 +312,16 @@ namespace MobileBasePass
 		const FMeshBatch& MeshBatch, 
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
 		const FLightSceneInfo* MobileDirectionalLight, 
-		FMaterialShadingModelField ShadingModels, 
 		bool bPrimReceivesCSM, 
 		bool bUsedDeferredShading,
-		bool bIsTranslucent,
-		ERHIFeatureLevel::Type FeatureLevel);
+		bool bIsLitMaterial,
+		bool bIsTranslucent);
 
 	bool GetShaders(
 		ELightMapPolicyType LightMapPolicyType,
 		bool bEnableLocalLights,
 		const FMaterial& MaterialResource,
-		FVertexFactoryType* VertexFactoryType,
+		const FVertexFactoryType* VertexFactoryType,
 		bool bEnableSkyLight, 
 		TShaderRef<TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>>& VertexShader,
 		TShaderRef<TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>>& PixelShader);
@@ -333,20 +332,19 @@ namespace MobileBasePass
 
 	void SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial& Material, FMaterialShadingModelField ShadingModels, bool bEnableReceiveDecalOutput, bool bUsesDeferredShading);
 	void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FMaterial& Material, FMaterialShadingModelField ShadingModels);
+
+	inline bool UseSkylightPermutation(bool bEnableSkyLight, int32 MobileSkyLightPermutationOptions)
+	{
+		if (bEnableSkyLight)
+		{
+			return MobileSkyLightPermutationOptions == 0 || MobileSkyLightPermutationOptions == 2;
+		}
+		else
+		{
+			return MobileSkyLightPermutationOptions == 0 || MobileSkyLightPermutationOptions == 1;
+		}
+	}
 };
-
-
-inline bool UseSkylightPermutation(bool bEnableSkyLight, int32 MobileSkyLightPermutationOptions)
-{
-	if (bEnableSkyLight)
-	{
-		return MobileSkyLightPermutationOptions == 0 || MobileSkyLightPermutationOptions == 2;
-	}
-	else
-	{
-		return MobileSkyLightPermutationOptions == 0 || MobileSkyLightPermutationOptions == 1;
-	}
-}
 
 template< typename LightMapPolicyType, EOutputFormat OutputFormat, bool bEnableSkyLight, bool bEnableLocalLights>
 class TMobileBasePassPS : public TMobileBasePassPSBaseType<LightMapPolicyType>
@@ -363,7 +361,7 @@ public:
 		// Only compile skylight version for lit materials
 		const bool bShouldCacheBySkylight = !bEnableSkyLight || bIsLit;
 		// Only compile skylight permutations when they are enabled
-		if (bIsLit && !UseSkylightPermutation(bEnableSkyLight, MobileSkyLightPermutationOptions))
+		if (bIsLit && !MobileBasePass::UseSkylightPermutation(bEnableSkyLight, MobileSkyLightPermutationOptions))
 		{
 			return false;
 		}
@@ -447,9 +445,24 @@ public:
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
+	virtual void CollectPSOInitializers(const FSceneTexturesConfig& SceneTexturesConfig, const FMaterial& Material, const FPSOPrecacheVertexFactoryData& VertexFactoryData, const FPSOPrecacheParams& PreCacheParams, TArray<FPSOPrecacheData>& PSOInitializers) override;
+
+	void CollectPSOInitializersForLMPolicy(
+		const FPSOPrecacheVertexFactoryData& VertexFactoryData,
+		const FMeshPassProcessorRenderState& RESTRICT DrawRenderState,
+		const FGraphicsPipelineRenderTargetsInfo& RESTRICT RenderTargetsInfo,
+		const FMaterial& RESTRICT MaterialResource,
+		const bool bRenderSkylight,
+		const bool bEnableLocalLights,
+		const ELightMapPolicyType LightMapPolicyType,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		EPrimitiveType PrimitiveType,
+		TArray<FPSOPrecacheData>& PSOInitializers);
 
 private:
 	FMaterialShadingModelField FilterShadingModelsMask(const FMaterialShadingModelField& ShadingModels) const;
+	bool ShouldDraw(const class FMaterial& Material) const;
 
 	bool TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material);
 
@@ -470,7 +483,10 @@ private:
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const EFlags Flags;
 	const bool bTranslucentBasePass;
-	const bool bUsesDeferredShading;
+	// Whether renderer uses deferred shading
+	const bool bDeferredShading; 
+	// Whether this pass uses deferred shading
+	const bool bPassUsesDeferredShading; 
 };
 
 ENUM_CLASS_FLAGS(FMobileBasePassMeshProcessor::EFlags);

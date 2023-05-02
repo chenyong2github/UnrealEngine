@@ -8,6 +8,8 @@
 #include "RenderUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RenderUtils.h"
+#include "RHIGlobals.h"
 
 // This is very ugly, but temporary. We can't include EngineTypes.h because this file is ShaderCore and that
 // file is Engine. But since we will remove this flag anyways, we will copy/paste the enums for now, but remove
@@ -162,6 +164,9 @@ FGBufferBinding FindGBufferBindingByName(const FGBufferInfo& GBufferInfo, const 
 			break;
 		case GBT_Float_16_16_16_16:
 			PixelFormat = PF_FloatRGBA;
+			break;
+		case GBT_Float_32:
+			PixelFormat = PF_R32_FLOAT;
 			break;
 		case GBT_Invalid:
 		default:
@@ -542,10 +547,46 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 }
 
 
+FGBufferInfo RENDERCORE_API FetchMobileGBufferInfo(const FGBufferParams& Params)
+{
+	// for now, take desktop and trim out what we do not require.
+	FGBufferInfo Info = FetchLegacyGBufferInfo(Params);
+	
+	// If we are using GL and don't have FBF support, use PLS
+	bool bUsingPixelLocalStorage = IsAndroidOpenGLESPlatform(Params.ShaderPlatform) && GSupportsPixelLocalStorage && GSupportsShaderDepthStencilFetch;
+	if (bUsingPixelLocalStorage)
+	{
+		Info.NumTargets = 1;
+	}
+	else
+	{
+		Info.NumTargets = 4;
+		if (MobileUsesExtenedGBuffer(Params.ShaderPlatform))
+		{
+			Info.NumTargets++;
+		}
+		
+		if (MobileRequiresSceneDepthAux(Params.ShaderPlatform))
+		{
+			// if used, mobile deferred is always F32.
+			Info.Targets[Info.NumTargets].Init(GBT_Float_32, TEXT("DepthAux"), false, true, true, false);
+			Info.NumTargets++;
+		}
+	}
+
+	return Info;
+}
+
 FGBufferInfo RENDERCORE_API FetchFullGBufferInfo(const FGBufferParams& Params)
 {
 	// For now, we are only doing legacy. But next, we will have a switch between the old and new formats.
-	FGBufferInfo Ret = FetchLegacyGBufferInfo(Params);
-	return Ret;
+	if (IsMobilePlatform(Params.ShaderPlatform))
+	{
+		return FetchMobileGBufferInfo(Params);
+	}
+	else
+	{
+		return FetchLegacyGBufferInfo(Params);
+	}
 }
 

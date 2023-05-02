@@ -219,40 +219,6 @@ static bool PostProcessUsesSceneDepth(const FViewInfo& View)
 	return false;
 }
 
-static void SetupGBufferFlags(FSceneTexturesConfig& SceneTexturesConfig, bool bRequiresMultiPass)
-{
-	ETextureCreateFlags AddFlags = TexCreate_InputAttachmentRead;
-	if (!bRequiresMultiPass)
-	{
-		// use memoryless GBuffer when possible
-		AddFlags |= TexCreate_Memoryless;
-	}
-
-	for (FGBufferBindings& Bindings : SceneTexturesConfig.GBufferBindings)
-	{
-		Bindings.GBufferA.Flags |= AddFlags;
-		Bindings.GBufferB.Flags |= AddFlags;
-		Bindings.GBufferC.Flags |= AddFlags;
-		Bindings.GBufferD.Flags |= AddFlags;
-		Bindings.GBufferE.Flags |= AddFlags;
-
-		// Mobile uses FBF/subpassLoad to fetch data from GBuffer, and FBF does not always work with sRGB targets 
-		Bindings.GBufferA.Flags &= (~TexCreate_SRGB);
-		Bindings.GBufferB.Flags &= (~TexCreate_SRGB);
-		Bindings.GBufferC.Flags &= (~TexCreate_SRGB);
-		Bindings.GBufferD.Flags &= (~TexCreate_SRGB);
-		Bindings.GBufferE.Flags &= (~TexCreate_SRGB);
-
-		// Input attachments with PF_R8G8B8A8 has better support on mobile than PF_B8G8R8A8
-		auto OverrideB8G8R8A8 = [](FGBufferBinding& Binding) { if (Binding.Format == PF_B8G8R8A8) Binding.Format = PF_R8G8B8A8; };
-		OverrideB8G8R8A8(Bindings.GBufferA);
-		OverrideB8G8R8A8(Bindings.GBufferB);
-		OverrideB8G8R8A8(Bindings.GBufferC);
-		OverrideB8G8R8A8(Bindings.GBufferD);
-		OverrideB8G8R8A8(Bindings.GBufferE);
-	}
-}
-
 static void PollOcclusionQueriesPass(FRDGBuilder& GraphBuilder)
 {
 	AddPass(GraphBuilder, RDG_EVENT_NAME("PollOcclusionQueries"), [](FRHICommandListImmediate& RHICmdList)
@@ -557,7 +523,8 @@ void FMobileSceneRenderer::InitViews(
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
 	const bool bPostProcessUsesSceneDepth = PostProcessUsesSceneDepth(Views[0]) || IsMobileDistortionActive(Views[0]);
 	const bool bRequireSeparateViewPass = Views.Num() > 1 && !Views[0].bIsMobileMultiViewEnabled;
-	bRequiresMultiPass = RequiresMultiPass(Views[0]);
+	bRequiresMultiPass = RequiresMultiPass(NumMSAASamples, ShaderPlatform);
+
 	bKeepDepthContent =
 		bRequiresMultiPass ||
 		bForceDepthResolve ||
@@ -590,12 +557,10 @@ void FMobileSceneRenderer::InitViews(
 	// If we render in a single pass MSAA targets can be memoryless
     SceneTexturesConfig.bMemorylessMSAA = !(bRequiresMultiPass || bShouldCompositeEditorPrimitives || bRequireSeparateViewPass);
     SceneTexturesConfig.NumSamples = NumMSAASamples;
-    
     SceneTexturesConfig.BuildSceneColorAndDepthFlags();
-    
 	if (bDeferredShading) 
 	{
-		SetupGBufferFlags(SceneTexturesConfig, bRequiresMultiPass || GraphBuilder.IsDumpingFrame() || bRequireSeparateViewPass);
+		SceneTexturesConfig.SetupMobileGBufferFlags(bRequiresMultiPass || GraphBuilder.IsDumpingFrame() || bRequireSeparateViewPass);
 	}
 
 	// Update the pixel projected reflection extent according to the settings in the PlanarReflectionComponent.
@@ -1792,7 +1757,7 @@ int32 FMobileSceneRenderer::ComputeNumOcclusionQueriesToBatch() const
 }
 
 // Whether we need a separate render-passes for translucency, decals etc
-bool FMobileSceneRenderer::RequiresMultiPass(const FViewInfo& View) const
+bool FMobileSceneRenderer::RequiresMultiPass(int32 NumMSAASamples, EShaderPlatform ShaderPlatform)
 {
 	// Vulkan uses subpasses
 	if (IsVulkanPlatform(ShaderPlatform))

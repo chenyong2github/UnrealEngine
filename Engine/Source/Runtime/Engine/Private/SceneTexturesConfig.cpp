@@ -67,7 +67,7 @@ static EPixelFormat GetMobileSceneColorFormat(bool bRequiresAlphaChannel)
 
 	EPixelFormat Format = DefaultColorFormat;
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SceneColorFormat"));
-	int32 MobileSceneColor = CVar->GetValueOnRenderThread();
+	int32 MobileSceneColor = CVar->GetValueOnAnyThread();
 	switch (MobileSceneColor)
 	{
 	case 1:
@@ -211,6 +211,43 @@ static uint32 GetEditorPrimitiveNumSamples(ERHIFeatureLevel::Type FeatureLevel)
 	return SampleCount;
 }
 
+static void SetupMobileGBufferFlags(FGBufferBindings GBufferBindings[GBL_Num], bool bRequiresMultiPass)
+{
+	ETextureCreateFlags AddFlags = TexCreate_InputAttachmentRead;
+
+	if (!bRequiresMultiPass)
+	{
+		// use memoryless GBuffer when possible
+		AddFlags |= TexCreate_Memoryless;
+	}
+
+	for (uint32 Layout = 0; Layout < GBL_Num; ++Layout)
+	{
+		FGBufferBindings& Bindings = GBufferBindings[Layout];
+
+		Bindings.GBufferA.Flags |= AddFlags;
+		Bindings.GBufferB.Flags |= AddFlags;
+		Bindings.GBufferC.Flags |= AddFlags;
+		Bindings.GBufferD.Flags |= AddFlags;
+		Bindings.GBufferE.Flags |= AddFlags;
+
+		// Mobile uses FBF/subpassLoad to fetch data from GBuffer, and FBF does not always work with sRGB targets 
+		Bindings.GBufferA.Flags &= (~TexCreate_SRGB);
+		Bindings.GBufferB.Flags &= (~TexCreate_SRGB);
+		Bindings.GBufferC.Flags &= (~TexCreate_SRGB);
+		Bindings.GBufferD.Flags &= (~TexCreate_SRGB);
+		Bindings.GBufferE.Flags &= (~TexCreate_SRGB);
+
+		// Input attachments with PF_R8G8B8A8 has better support on mobile than PF_B8G8R8A8
+		auto OverrideB8G8R8A8 = [](FGBufferBinding& Binding) { if (Binding.Format == PF_B8G8R8A8) Binding.Format = PF_R8G8B8A8; };
+		OverrideB8G8R8A8(Bindings.GBufferA);
+		OverrideB8G8R8A8(Bindings.GBufferB);
+		OverrideB8G8R8A8(Bindings.GBufferC);
+		OverrideB8G8R8A8(Bindings.GBufferD);
+		OverrideB8G8R8A8(Bindings.GBufferE);
+	}
+}
+
 void FSceneTexturesConfig::Init(const FSceneTexturesConfigInitSettings& InitSettings)
 {
 	FeatureLevel			= InitSettings.FeatureLevel;
@@ -261,6 +298,12 @@ void FSceneTexturesConfig::Init(const FSceneTexturesConfigInitSettings& InitSett
 
 			BindingCache.GBufferParams = DefaultParams;
 			BindingCache.bInitialized = true;
+
+			if (ShadingPath == EShadingPath::Mobile)
+			{
+				bool bRequiresMultiPass = false; // This will be overriden later when in the renderer InitViews. Does not affect PSO state
+				::SetupMobileGBufferFlags(BindingCache.Bindings, bRequiresMultiPass);
+			}
 		}
 
 		for (uint32 Layout = 0; Layout < GBL_Num; ++Layout)
@@ -268,6 +311,11 @@ void FSceneTexturesConfig::Init(const FSceneTexturesConfigInitSettings& InitSett
 			GBufferBindings[Layout] = BindingCache.Bindings[Layout];
 		}
 	}
+}
+
+void FSceneTexturesConfig::SetupMobileGBufferFlags(bool bRequiresMultiPass)
+{
+	::SetupMobileGBufferFlags(GBufferBindings, bRequiresMultiPass);
 }
 
 void FSceneTexturesConfig::BuildSceneColorAndDepthFlags()

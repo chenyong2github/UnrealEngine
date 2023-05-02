@@ -89,7 +89,8 @@ enum EGBufferType
 	GBT_Unorm_10_10_10_2,
 	GBT_Unorm_16_16_16_16,
 	GBT_Float_16_16,
-	GBT_Float_16_16_16_16,	
+	GBT_Float_16_16_16_16,
+	GBT_Float_32,
 	GBT_Num
 };
 

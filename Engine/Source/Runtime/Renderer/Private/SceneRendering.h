@@ -2672,6 +2672,9 @@ public:
 
 	virtual bool AllowSimpleLights() const override;
 
+	/** Whether platform requires multiple render-passes for SceneColor rendering */
+	static bool RequiresMultiPass(int32 NumMSAASamples, EShaderPlatform ShaderPlatform);
+
 protected:
 	/** Finds the visible dynamic shadows for each view. */
 	FDynamicShadowsTaskData* InitDynamicShadows(FRDGBuilder& GraphBuilder, FInstanceCullingManager& FInstanceCullingManager, FRDGExternalAccessQueue& ExternalAccessQueue);
@@ -2728,8 +2731,6 @@ protected:
 	/** Computes how many queries will be issued this frame */
 	int32 ComputeNumOcclusionQueriesToBatch() const;
 
-	/** Whether platform requires multiple render-passes for SceneColor rendering */
-	bool RequiresMultiPass(const FViewInfo& View) const;
 
 	/** Renders decals. */
 	void RenderDecals(FRHICommandList& RHICmdList, const FViewInfo& View);
