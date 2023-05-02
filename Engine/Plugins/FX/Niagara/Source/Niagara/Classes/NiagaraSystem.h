@@ -30,7 +30,7 @@
 
 #include "NiagaraSystem.generated.h"
 
-class FNiagaraAsyncCompileTask;
+class FNiagaraActiveCompilation;
 class UNiagaraEffectType;
 enum class ENiagaraCullProxyMode : uint32;
 enum class ERendererStencilMask : uint8;
@@ -169,41 +169,6 @@ struct FNiagaraSystemCompiledData
 	FNiagaraParameterDataSetBindingCollection UpdateInstanceOwnerBinding;
 	UPROPERTY()
 	TArray<FNiagaraParameterDataSetBindingCollection> UpdateInstanceEmitterBindings;
-};
-
-USTRUCT()
-struct FNiagaraSystemCompileRequest
-{
-	GENERATED_USTRUCT_BODY()
-
-	double StartTime = 0.0;
-
-	UPROPERTY()
-	TArray<TObjectPtr<UObject>> RootObjects;
-
-	using FAsyncTaskPtr = TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>;
-
-#if WITH_EDITORONLY_DATA
-	void Abort();
-	FAsyncTaskPtr* FindTask(const UNiagaraScript* Script);
-	bool QueryCompileComplete(UNiagaraSystem* OwningSystem, bool bWait, const double& MaxDuration);
-	bool Resolve(UNiagaraSystem* OwningSystem, FNiagaraParameterStore& ExposedParameters);
-	void Reset();
-	void Launch(UNiagaraSystem* OwningSystem, TConstArrayView<UNiagaraScript*> ScriptsNeedingCompile, TConstArrayView<FAsyncTaskPtr> Tasks);
-
-	bool bIsValid = true;
-	bool bForced = false;
-	bool bAllScriptsSynchronized = false;
-	bool bEvaluateParametersPending = false;
-
-	float CombinedCompileTime = 0.0f;
-
-private:
-	TArray<FAsyncTaskPtr> DDCTasks;
-
-	bool bDDCGetCompleted = false;
-
-#endif
 };
 
 struct FNiagaraEmitterExecutionIndex
@@ -805,14 +770,11 @@ private:
 
 	/** Since the shader compilation is done in another process, this is used to check if the result for any ongoing compilations is done.
 	*   If bWait is true then this *blocks* the game thread (and ui) until all shader compilations are finished.
+	*	Results from the compilation will be applied to the system unless there's already another compilation queued up
 	*/
-	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
+	bool QueryCompileComplete(bool bWait);
 
 	void BroadcastOnSystemCompiled();
-
-	void PreProcessWaitingDDCTasks(bool bProcessForWait);
-
-	bool CompilationResultsValid(FNiagaraSystemCompileRequest& CompileRequest) const;
 
 	void EvaluateCompileResultDependencies() const;
 
@@ -868,8 +830,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	bool bCompilationReentrantGuard = false;
 
-	UPROPERTY(Transient)
-	TArray<FNiagaraSystemCompileRequest> ActiveCompilations;
+	TArray<TUniquePtr<FNiagaraActiveCompilation>> ActiveCompilations;
 
 	mutable TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalData;
 #endif

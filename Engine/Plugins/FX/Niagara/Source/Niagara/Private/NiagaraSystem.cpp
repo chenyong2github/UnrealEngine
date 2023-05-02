@@ -11,6 +11,7 @@
 #include "NiagaraAsyncCompile.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBakerSettings.h"
+#include "NiagaraCompilationTypes.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraEditorDataBase.h"
@@ -228,10 +229,7 @@ void UNiagaraSystem::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_EDITORONLY_DATA
-	while (ActiveCompilations.Num() > 0)
-	{
-		KillAllActiveCompilations();
-	}
+	KillAllActiveCompilations();
 #endif
 
 #if WITH_EDITOR
@@ -2258,9 +2256,9 @@ const UNiagaraScript* UNiagaraSystem::GetSystemUpdateScript() const
 void UNiagaraSystem::KillAllActiveCompilations()
 {
 	InvalidateActiveCompiles();
-	for (FNiagaraSystemCompileRequest& Request : ActiveCompilations)
+	for (TUniquePtr<FNiagaraActiveCompilation>& ActiveCompilation : ActiveCompilations)
 	{
-		Request.Abort();
+		ActiveCompilation->Abort();
 	}
 	ActiveCompilations.Empty();
 }
@@ -2347,9 +2345,9 @@ void UNiagaraSystem::WaitForCompilationComplete(bool bIncludingGPUShaders, bool 
 	double TimeLogThreshold = GNiagaraCompileWaitLoggingThreshold;
 	uint32 NumLogIterations = GNiagaraCompileWaitLoggingTerminationCap;
 
-	while (ActiveCompilations.Num() > 0)
+	while (!ActiveCompilations.IsEmpty())
 	{
-		if (QueryCompileComplete(true, ActiveCompilations.Num() == 1))
+		if (QueryCompileComplete(true))
 		{
 			// make sure to only mark progress if we actually have accomplished something in the QueryCompileComplete
 			Progress.EnterProgressFrame();
@@ -2383,9 +2381,9 @@ void UNiagaraSystem::WaitForCompilationComplete(bool bIncludingGPUShaders, bool 
 
 void UNiagaraSystem::InvalidateActiveCompiles()
 {
-	for (FNiagaraSystemCompileRequest& CompileRequest : ActiveCompilations)
+	for (TUniquePtr<FNiagaraActiveCompilation>& ActiveCompilation : ActiveCompilations)
 	{
-		CompileRequest.bIsValid = false;
+		ActiveCompilation->Invalidate();
 	}
 }
 
@@ -2396,78 +2394,7 @@ bool UNiagaraSystem::PollForCompilationComplete(bool bFlushRequestCompile)
 		RequestCompile(false);
 	}
 
-	if (ActiveCompilations.Num() > 0)
-	{
-		return QueryCompileComplete(false, true);
-	}
-	return true;
-}
-
-bool UNiagaraSystem::CompilationResultsValid(FNiagaraSystemCompileRequest& CompileRequest) const
-{
-	// for now the only thing we're concerned about is if we've got results for SystemSpawn and SystemUpdate scripts
-	// then we need to make sure that they agree in terms of the dataset attributes
-	FNiagaraSystemCompileRequest::FAsyncTaskPtr* SpawnScriptRequest = CompileRequest.FindTask(SystemSpawnScript);
-	FNiagaraSystemCompileRequest::FAsyncTaskPtr* UpdateScriptRequest = CompileRequest.FindTask(SystemUpdateScript);
-
-	const bool SpawnScriptValid = SpawnScriptRequest
-		&& SpawnScriptRequest->Get()->GetScriptPair().CompileResults.IsValid()
-		&& SpawnScriptRequest->Get()->GetScriptPair().CompileResults->LastCompileStatus != ENiagaraScriptCompileStatus::NCS_Error;
-
-	const bool UpdateScriptValid = UpdateScriptRequest
-		&& UpdateScriptRequest->Get()->GetScriptPair().CompileResults.IsValid()
-		&& UpdateScriptRequest->Get()->GetScriptPair().CompileResults->LastCompileStatus != ENiagaraScriptCompileStatus::NCS_Error;
-
-	if (SpawnScriptValid && UpdateScriptValid)
-	{
-		const FEmitterCompiledScriptPair& SpawnScriptPair = SpawnScriptRequest->Get()->GetScriptPair();
-		const FEmitterCompiledScriptPair& UpdateScriptPair = UpdateScriptRequest->Get()->GetScriptPair();
-		if (SpawnScriptPair.CompileResults->Attributes != UpdateScriptPair.CompileResults->Attributes)
-		{
-			// if we had requested a full rebuild, then we've got a case where the generated scripts are not compatible.  This indicates
-			// a significant issue where we're allowing graphs to generate invalid collections of scripts.  One known example is using
-			// the Script.Context static switch that isn't fully processed in all scripts, leading to attributes differing between the
-			// SystemSpawnScript and the SystemUpdateScript
-			if (CompileRequest.bForced)
-			{
-				FString MissingAttributes;
-				FString AdditionalAttributes;
-
-				for (const auto& SpawnAttrib : SpawnScriptPair.CompileResults->Attributes)
-				{
-					if (!UpdateScriptPair.CompileResults->Attributes.Contains(SpawnAttrib))
-					{
-						MissingAttributes.Appendf(TEXT("%s%s"), MissingAttributes.Len() ? TEXT(", ") : TEXT(""), *SpawnAttrib.GetName().ToString());
-					}
-				}
-
-				for (const auto& UpdateAttrib : UpdateScriptPair.CompileResults->Attributes)
-				{
-					if (!SpawnScriptPair.CompileResults->Attributes.Contains(UpdateAttrib))
-					{
-						AdditionalAttributes.Appendf(TEXT("%s%s"), AdditionalAttributes.Len() ? TEXT(", ") : TEXT(""), *UpdateAttrib.GetName().ToString());
-					}
-				}
-
-				FNiagaraCompileEvent AttributeMismatchEvent(
-					FNiagaraCompileEventSeverity::Error,
-					FText::Format(LOCTEXT("SystemScriptAttributeMismatchError", "System Spawn/Update scripts have attributes which don't match!\n\tMissing update attributes: {0}\n\tAdditional update attributes: {1}"),
-						FText::FromString(MissingAttributes),
-						FText::FromString(AdditionalAttributes))
-					.ToString());
-
-				SpawnScriptPair.CompileResults->LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Error;
-				SpawnScriptPair.CompileResults->LastCompileEvents.Add(AttributeMismatchEvent);
-			}
-			else
-			{
-				UE_LOG(LogNiagara, Log, TEXT("Failed to generate consistent results for System spawn and update scripts for system %s."), *GetFullName());
-			}
-
-			return false;
-		}
-	}
-	return true;
+	return QueryCompileComplete(false);
 }
 
 void UNiagaraSystem::EvaluateCompileResultDependencies() const
@@ -2710,110 +2637,100 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 	}
 }
 
-bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply)
+bool UNiagaraSystem::QueryCompileComplete(bool bWait)
 {
 	check(IsInGameThread());
-	if (ActiveCompilations.Num() > 0 && !bCompilationReentrantGuard)
+
+	if (ActiveCompilations.IsEmpty() || bCompilationReentrantGuard)
 	{
-		bCompilationReentrantGuard = true;
-		ON_SCOPE_EXIT { bCompilationReentrantGuard = false; };
+		return false;
+	}
 
-		FNiagaraSystemCompileRequest& CompileRequest = ActiveCompilations[0];
+	TGuardValue<bool> ReentrantGuard(bCompilationReentrantGuard, true);
 
-		constexpr double MaxDurationPerIteration = 0.125;
-		bool bAreWeWaitingForAnyResults = !CompileRequest.QueryCompileComplete(this, bWait, MaxDurationPerIteration);
+	FNiagaraQueryCompilationOptions Options;
+	Options.System = this;
+	Options.bWait = bWait;
+	Options.MaxWaitDuration = 0.125;
 
-		// Make sure that we aren't waiting for any results to come back.
-		if (bAreWeWaitingForAnyResults)
-		{
-			return false;
-		}
-		// if we've gotten all the results, run a quick check to see if the data is valid, if it's not then that indicates that
-		// we've run into a compatibility issue and so we should see if we should issue a full rebuild
-		const bool ResultsValid = CompilationResultsValid(CompileRequest);
-		if (!ResultsValid && !CompileRequest.bForced)
-		{
-			CompileRequest.RootObjects.Empty();
-			ActiveCompilations.RemoveAt(0);
-			RequestCompile(true, nullptr);
-			return false;
-		}
+	const bool bCompileComplete = ActiveCompilations[0]->QueryCompileComplete(Options);
 
-		// In the world of do not apply, we're exiting the system completely so let's just kill any active compilations altogether.
-		if (bDoNotApply || CompileRequest.bIsValid == false)
-		{
-			CompileRequest.RootObjects.Empty();
-			ActiveCompilations.RemoveAt(0);
-			return true;
-		}
+	// Make sure that we aren't waiting for any results to come back.
+	if (!bCompileComplete)
+	{
+		return false;
+	}
 
-		// Now that the above code says they are all complete, go ahead and resolve them all at once.
-		bool bHasCompiledJobs = CompileRequest.Resolve(this, ExposedParameters);
-		CompileRequest.Reset();
+	// now that the request is complete we can pull it from the array of ActiveCompilations and
+	// finish processing it
+	TUniquePtr<FNiagaraActiveCompilation> CurrentCompilation = MoveTemp(ActiveCompilations[0]);
+	ActiveCompilations.RemoveAt(0);
 
-		// Once compile results have been set, check dependencies found during compile and evaluate whether dependency compile events should be added.
-		if (FNiagaraCVarUtilities::GetShouldEmitMessagesForFailIfNotSet())
-		{
-			EvaluateCompileResultDependencies();
-		}
+	// if we've gotten all the results, run a quick check to see if the data is valid, if it's not then that indicates that
+	// we've run into a compatibility issue and so we should see if we should issue a full rebuild
+	const bool ResultsValid = CurrentCompilation->Validate(Options);
+	if (!ResultsValid && !CurrentCompilation->WasForced())
+	{
+		RequestCompile(true, nullptr);
+		return false;
+	}
 
-		if (bDoPost)
-		{
-			for (FNiagaraEmitterHandle Handle : EmitterHandles)
-			{
-				if (Handle.GetInstance().Emitter)
-				{
-					if (Handle.GetIsEnabled())
-					{
-						Handle.GetInstance().Emitter->OnPostCompile(Handle.GetInstance().Version);
-					}
-					else
-					{
-						Handle.GetEmitterData()->InvalidateCompileResults();
-					}
-				}
-			}
-		}
-
-		InitEmitterCompiledData();
-		InitSystemCompiledData();
-
-		CompileRequest.RootObjects.Empty();
-
-		ResolveDIBindings();
-		UpdatePostCompileDIInfo();
-		ComputeEmittersExecutionOrder();
-		ComputeRenderersDrawOrder();
-		CacheFromCompiledData();
-		UpdateHasGPUEmitters();
-		UpdateDITickFlags();
-		ResolveScalabilitySettings();
-
-		const float ElapsedWallTime = (float)(FPlatformTime::Seconds() - CompileRequest.StartTime);
-		
-		if (bHasCompiledJobs)
-		{
-			UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (time since issued), %f sec (combined shader worker time)."),
-				*GetFullName(), ElapsedWallTime, CompileRequest.CombinedCompileTime);
-		}
-		else if (CompileRequest.bAllScriptsSynchronized == false)
-		{
-			UE_LOG(LogNiagara, Verbose, TEXT("Retrieving %s from DDC took %f sec."), *GetFullName(), ElapsedWallTime);
-		}
-
-		ActiveCompilations.RemoveAt(0);
-
-		if (bDoPost)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_Niagara_System_CompileScriptResetAfter);
-
-			BroadcastOnSystemCompiled();
-		}
-
+	// In the world of do not apply, we're exiting the system completely so let's just kill any active compilations altogether.
+	if (!CurrentCompilation->ShouldApply())
+	{
 		return true;
 	}
 
-	return false;
+	CurrentCompilation->Apply(Options);
+
+	// Once compile results have been set, check dependencies found during compile and evaluate whether dependency compile events should be added.
+	if (FNiagaraCVarUtilities::GetShouldEmitMessagesForFailIfNotSet())
+	{
+		EvaluateCompileResultDependencies();
+	}
+
+	// we want to run the post compile steps (specifically broadcasting compilations completing) unless
+	// we're in the middle of waiting and we still have more compilations to get through
+	const bool bDoPostCompile = !bWait || ActiveCompilations.IsEmpty();
+
+	if (bDoPostCompile)
+	{
+		for (FNiagaraEmitterHandle Handle : EmitterHandles)
+		{
+			if (Handle.GetInstance().Emitter)
+			{
+				if (Handle.GetIsEnabled())
+				{
+					Handle.GetInstance().Emitter->OnPostCompile(Handle.GetInstance().Version);
+				}
+				else
+				{
+					Handle.GetEmitterData()->InvalidateCompileResults();
+				}
+			}
+		}
+	}
+
+	InitEmitterCompiledData();
+	InitSystemCompiledData();
+
+	ResolveDIBindings();
+	UpdatePostCompileDIInfo();
+	ComputeEmittersExecutionOrder();
+	ComputeRenderersDrawOrder();
+	CacheFromCompiledData();
+	UpdateHasGPUEmitters();
+	UpdateDITickFlags();
+	ResolveScalabilitySettings();
+
+	CurrentCompilation->ReportResults(Options);
+
+	if (bDoPostCompile)
+	{
+		BroadcastOnSystemCompiled();
+	}
+
+	return true;
 }
 
 void UNiagaraSystem::BroadcastOnSystemCompiled()
@@ -3011,140 +2928,37 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 	// we don't want to stack compilations, so we remove requests that have not started processing yet
 	for (int i = ActiveCompilations.Num() - 1; i >= 1; i--)
 	{
-		FNiagaraSystemCompileRequest& Request = ActiveCompilations[i];
-		Request.Abort();
+		ActiveCompilations[i]->Abort();
 		ActiveCompilations.RemoveAt(i);
-	}	
-
-	// Record that we entered this function already.
-	SCOPE_CYCLE_COUNTER(STAT_Niagara_System_CompileScript);
-	bCompilationReentrantGuard = true;
-	ON_SCOPE_EXIT { check(bCompilationReentrantGuard == false); };
-
-	FNiagaraSystemCompileRequest& ActiveCompilation = ActiveCompilations.AddDefaulted_GetRef();
-	ActiveCompilation.bForced = bForce;
-	ActiveCompilation.StartTime = FPlatformTime::Seconds();
-
-	check(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
-
-	// when not compiling for edit mode we will defer preparing rapid iteration parameters till after we get the
-	// results from the DDC search (FNiagaraPrepareCompileTask::Tick())
-	if (ShouldUseRapidIterationParameters())
-	{
-		PrepareRapidIterationParametersForCompilation();
 	}
 
-	TArray<UNiagaraScript*> ScriptsNeedingCompile;
-	bool bAnyCompiled = false;
+	SCOPE_CYCLE_COUNTER(STAT_Niagara_System_CompileScript);
+
+	bool bLaunchedCompilations = false;
+
+	// Record that we entered this function already.
 	{
+		TGuardValue<bool> ReentrantGuard(bCompilationReentrantGuard, true);
+
 		COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeSyncWork());
 		COOK_STAT(Timer.TrackCyclesOnly());
 
-		//Compile all emitters
-		TArray<FNiagaraSystemCompileRequest::FAsyncTaskPtr> Tasks;
+		TUniquePtr<FNiagaraActiveCompilation>& CurrentCompilation = ActiveCompilations.Emplace_GetRef(
+			FNiagaraActiveCompilation::CreateCompilation());
 
-		// Pass one... determine if any need to be compiled.
-		{
-			bool bAnyUnsynchronized = false;
-			for (int32 i = 0; i < EmitterHandles.Num(); i++)
-			{
-				FNiagaraEmitterHandle Handle = EmitterHandles[i];
-				FVersionedNiagaraEmitterData* EmitterData = Handle.GetEmitterData();
-				if (EmitterData && Handle.GetIsEnabled())
-				{
-					TArray<UNiagaraScript*> EmitterScripts;
-					EmitterData->GetScripts(EmitterScripts, false, true);
-					check(EmitterScripts.Num() > 0);
-					for (UNiagaraScript* EmitterScript : EmitterScripts)
-					{
-						FEmitterCompiledScriptPair Pair;
-						Pair.VersionedEmitter = Handle.GetInstance();
-						Pair.CompiledScript = EmitterScript;
+		FNiagaraCompilationOptions Options;
+		Options.System = this;
+		Options.bForced = bForce;
 
-						TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = MakeShared<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>(this, EmitterScript->GetPathName(), Pair);
-						if (EmitterScript->IsCompilable() && !EmitterScript->AreScriptAndSourceSynchronized())
-						{
-							// we need to compute the vmID here to check later in the ddc task before doing the precompile if anything has changed in the meantime.
-							// the compilation id was just calculated during AreScriptAndSourceSynchronized() so we reuse it here
-							AsyncTask->AssignInitialCompilationId(EmitterScript->GetComputedVMCompilationId());
-
-							ScriptsNeedingCompile.Add(EmitterScript);
-							bAnyUnsynchronized = true;
-						}
-						else
-						{
-							AsyncTask->CurrentState = ENiagaraCompilationState::Finished;
-						}
-						AsyncTask->UniqueEmitterName = Handle.GetInstance().Emitter->GetUniqueEmitterName();
-						Tasks.Add(AsyncTask);
-					}
-				}
-			}
-
-			bAnyCompiled = bAnyUnsynchronized || bForce;
-
-			// Now add the system scripts for compilation...
-			{
-				FEmitterCompiledScriptPair Pair;
-				Pair.VersionedEmitter = FVersionedNiagaraEmitter();
-				Pair.CompiledScript = SystemSpawnScript;
-				
-				TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = MakeShared<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>(this, SystemSpawnScript->GetPathName(), Pair);
-				if (!SystemSpawnScript->AreScriptAndSourceSynchronized())
-				{
-					// we need to compute the vmID here to check later in the ddc task before doing the precompile if anything has changed in the meantime.
-					// the compilation id was just calculated during AreScriptAndSourceSynchronized() so we reuse it here
-					AsyncTask->AssignInitialCompilationId(SystemSpawnScript->GetComputedVMCompilationId());
-
-					ScriptsNeedingCompile.Add(SystemSpawnScript);
-					bAnyCompiled = true;
-				}
-				else
-				{
-					AsyncTask->CurrentState = ENiagaraCompilationState::Finished;
-				}
-				Tasks.Add(AsyncTask);
-			}
-
-			{
-				FEmitterCompiledScriptPair Pair;
-				Pair.VersionedEmitter = FVersionedNiagaraEmitter();
-				Pair.CompiledScript = SystemUpdateScript;
-				
-				TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = MakeShared<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>(this, SystemUpdateScript->GetPathName(), Pair);
-				if (!SystemUpdateScript->AreScriptAndSourceSynchronized())
-				{
-					// we need to compute the vmID here to check later in the ddc task before doing the precompile if anything has changed in the meantime.
-					// the compilation id was just calculated during AreScriptAndSourceSynchronized() so we reuse it here
-					AsyncTask->AssignInitialCompilationId(SystemUpdateScript->GetComputedVMCompilationId());
-
-					ScriptsNeedingCompile.Add(SystemUpdateScript);
-					bAnyCompiled = true;
-				}
-				else
-				{
-					AsyncTask->CurrentState = ENiagaraCompilationState::Finished;
-				}
-				Tasks.Add(AsyncTask);
-			}
-		}
-
-		{
-			ActiveCompilation.Launch(this, ScriptsNeedingCompile, Tasks);
-		}
+		bLaunchedCompilations = CurrentCompilation->Launch(Options);
 	}
 
-	// Now record that we are done with this function.
-	bCompilationReentrantGuard = false;
-
 	// We might be able to just complete compilation right now if nothing needed compilation.
-	if (ScriptsNeedingCompile.Num() == 0 && ActiveCompilations.Num() == 1)
+	if (!bLaunchedCompilations && ActiveCompilations.Num() == 1)
 	{
-		ActiveCompilation.bAllScriptsSynchronized = true;
 		PollForCompilationComplete();
 	}
 
-	
 	if (OptionalUpdateContext)
 	{
 		OptionalUpdateContext->Add(this, true);
@@ -3154,7 +2968,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 		FNiagaraSystemUpdateContext UpdateCtx(this, true);
 	}
 
-	return bAnyCompiled;
+	return bLaunchedCompilations;
 }
 
 void UNiagaraSystem::InitEmitterCompiledData()

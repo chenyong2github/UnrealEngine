@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraCompilationTypes.h"
 #include "NiagaraScript.h"
 
 #include "NiagaraAsyncCompile.generated.h"
@@ -112,3 +113,35 @@ public:
 	bool CompilationIdMatchesRequest() const;
 #endif
 };
+
+class FNiagaraActiveCompilationDefault : public FNiagaraActiveCompilation
+{
+public:
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+
+	virtual bool Launch(const FNiagaraCompilationOptions& Options) override;
+	virtual void Abort() override;
+	virtual bool QueryCompileComplete(const FNiagaraQueryCompilationOptions& Options) override;
+	virtual bool Validate(const FNiagaraQueryCompilationOptions& Options) const override;
+	virtual void Apply(const FNiagaraQueryCompilationOptions& Options) override;
+	virtual void ReportResults(const FNiagaraQueryCompilationOptions& Options) const override;
+
+	double StartTime = 0.0;
+
+	TSet<TObjectPtr<UObject>> RootObjects;
+
+	using FAsyncTaskPtr = TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>;
+
+	FAsyncTaskPtr* FindTask(const UNiagaraScript* Script);
+	const FAsyncTaskPtr* FindTask(const UNiagaraScript* Script) const;
+	void Reset();
+
+	bool bAllScriptsSynchronized = false;
+	bool bEvaluateParametersPending = false;
+
+	TArray<FAsyncTaskPtr> Tasks;
+
+private:
+	bool bDDCGetCompleted = false;
+};
+
