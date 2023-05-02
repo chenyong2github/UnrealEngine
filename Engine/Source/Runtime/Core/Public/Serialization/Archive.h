@@ -967,14 +967,6 @@ protected:
 	/** Holds the engine version. */
 	FEngineVersionBase ArEngineVer;
 
-	/** Holds the engine network protocol version. */
-	UE_DEPRECATED(5.2, "Engine net version moved to custom versions")
-	uint32 ArEngineNetVer;
-
-	/** Holds the game network protocol version. */
-	UE_DEPRECATED(5.2, "Game net version moved to custom versions")
-	uint32 ArGameNetVer;
-
 	/**
 	* All the custom versions stored in the archive.
 	* Stored as a pointer to a heap-allocated object because of a 3-way dependency between TArray, FCustomVersionContainer and FArchive, which is too much work to change right now.
@@ -2089,8 +2081,6 @@ private:
 	using FArchiveState::ArUEVer;
 	using FArchiveState::ArLicenseeUEVer;
 	using FArchiveState::ArEngineVer;
-	using FArchiveState::ArEngineNetVer;
-	using FArchiveState::ArGameNetVer;
 	using FArchiveState::CustomVersionContainer;
 protected:
 	using FArchiveState::SetShouldSkipCompilingAssets;
