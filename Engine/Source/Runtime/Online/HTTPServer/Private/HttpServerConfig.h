@@ -21,6 +21,12 @@ struct FHttpServerListenerConfig
 	bool bReuseAddressAndPort = false;
 };
 
+struct FHttpServerConnectionConfig
+{
+	/** Time in milliseconds to wait for data to be available when ticking the connection. */
+	float BeginReadWaitTimeMS = 1;
+};
+
 struct FHttpServerConfig
 {
 	/** 
@@ -30,4 +36,11 @@ struct FHttpServerConfig
 	* @return The per-port configuration if configured, or default configuration
 	*/
 	static const FHttpServerListenerConfig GetListenerConfig(uint32 Port);
+
+	/**
+	* Gets the connection configuration
+	*
+	* @return The configuration if configured, or default configuration
+	*/
+	static const FHttpServerConnectionConfig GetConnectionConfig();
 };

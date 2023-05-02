@@ -6,6 +6,7 @@
 #include "HttpConnectionRequestReadContext.h"
 #include "HttpConnectionResponseWriteContext.h"
 #include "HttpResultCallback.h"
+#include "HttpServerConfig.h"
 #include "HttpServerConstants.h"
 #include "HttpServerHttpVersion.h"
 #include "Misc/Timespan.h"
@@ -252,5 +253,8 @@ private:
 
 	/** The duration (seconds) at which idle keep-alive connections are forcefully timed out */
 	static constexpr float ConnectionKeepAliveTimeout = 15.0f;
+
+	/** Connection configuration data */
+	FHttpServerConnectionConfig Config;
 };
 

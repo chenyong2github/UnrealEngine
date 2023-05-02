@@ -27,6 +27,8 @@ FHttpConnection::FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRo
 	,WriteContext(InSocket)
 {
 	check(nullptr != Socket);
+
+	Config = FHttpServerConfig::GetConnectionConfig();
 }
 
 FHttpConnection::~FHttpConnection()
@@ -98,7 +100,7 @@ void FHttpConnection::TransferState(EHttpConnectionState CurrentState, EHttpConn
 void FHttpConnection::BeginRead(float DeltaTime)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpConnection_BeginRead);
-	const FTimespan WaitTime = FTimespan::FromMilliseconds(1);
+	const FTimespan WaitTime = FTimespan::FromMilliseconds(Config.BeginReadWaitTimeMS);
 	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, WaitTime))
 	{
 		const float SecondsPollingSocketThisFrame = WaitTime.GetTotalSeconds();

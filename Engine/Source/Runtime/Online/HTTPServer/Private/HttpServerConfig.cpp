@@ -54,3 +54,16 @@ const FHttpServerListenerConfig FHttpServerConfig::GetListenerConfig(uint32 Port
 	}
 	return Config;
 }
+
+const FHttpServerConnectionConfig FHttpServerConfig::GetConnectionConfig()
+{
+	static const FString IniSectionName(TEXT("HTTPServer.Connections"));
+
+	// Code default values
+	FHttpServerConnectionConfig Config;
+
+	// Apply default ini configuration
+	GConfig->GetFloat(*IniSectionName, TEXT("BeginReadWaitTimeMS"), Config.BeginReadWaitTimeMS, GEngineIni);
+
+	return Config;
+}
