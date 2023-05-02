@@ -117,6 +117,12 @@ int32 FGenericCrashContext::StaticCrashContextIndex = 0;
 
 const FGuid FGenericCrashContext::ExecutionGuid = FGuid::NewGuid();
 
+FEngineDataResetDelegate FGenericCrashContext::OnEngineDataReset;
+FEngineDataSetDelegate FGenericCrashContext::OnEngineDataSet;
+
+FGameDataResetDelegate FGenericCrashContext::OnGameDataReset;
+FGameDataSetDelegate FGenericCrashContext::OnGameDataSet;
+
 #if WITH_ADDITIONAL_CRASH_CONTEXTS
 FAdditionalCrashContextDelegate FGenericCrashContext::AdditionalCrashContextDelegate;
 #endif //WITH_ADDITIONAL_CRASH_CONTEXTS
@@ -1102,6 +1108,7 @@ void FGenericCrashContext::SetEpicAccountId(const FString& EpicAccountId)
 void FGenericCrashContext::ResetEngineData()
 {
 	NCached::EngineData.Reset();
+	OnEngineDataReset.Broadcast();
 }
 
 void FGenericCrashContext::SetEngineData(const FString& Key, const FString& Value)
@@ -1130,6 +1137,8 @@ void FGenericCrashContext::SetEngineData(const FString& Key, const FString& Valu
 		});
 		OldVal = Value;
 	}
+
+	OnEngineDataSet.Broadcast(Key, Value);
 }
 
 const TMap<FString, FString>& FGenericCrashContext::GetEngineData()
@@ -1146,6 +1155,7 @@ const FString* FGenericCrashContext::GetEngineData(const FString& Key)
 void FGenericCrashContext::ResetGameData()
 {
 	NCached::GameData.Reset();
+	OnGameDataReset.Broadcast();
 }
 
 void FGenericCrashContext::SetGameData(const FString& Key, const FString& Value)
@@ -1174,6 +1184,8 @@ void FGenericCrashContext::SetGameData(const FString& Key, const FString& Value)
 		});
 		OldVal = Value;
 	}
+
+	OnGameDataSet.Broadcast(Key, Value);
 }
 
 const TMap<FString, FString>& FGenericCrashContext::GetGameData()

@@ -259,6 +259,13 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FAdditionalCrashContextDelegate, FCrashConte
 
 #endif //WITH_ADDITIONAL_CRASH_CONTEXTS
 
+/** Delegates for engine and game data set / reset */
+DECLARE_MULTICAST_DELEGATE(FEngineDataResetDelegate);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FEngineDataSetDelegate, const FString&, const FString&);
+
+DECLARE_MULTICAST_DELEGATE(FGameDataResetDelegate);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FGameDataSetDelegate, const FString&, const FString&);
+
 /**
  *	Contains a runtime crash's properties that are common for all platforms.
  *	This may change in the future.
@@ -437,8 +444,14 @@ public:
 	/** Clears the engine data dictionary */
 	CORE_API static void ResetEngineData();
 
+	/** Accessor for engine data reset callback delegate */
+	CORE_API static FEngineDataResetDelegate& OnEngineDataResetDelegate() { return OnEngineDataReset; }
+
 	/** Updates (or adds if not already present) arbitrary engine data to the crash context (will remove the key if passed an empty string) */
 	CORE_API static void SetEngineData(const FString& Key, const FString& Value);
+
+	/** Accessor for engine data change callback delegate */
+	CORE_API static FEngineDataSetDelegate& OnEngineDataSetDelegate() { return OnEngineDataSet; }
 
 	/** Get the engine data dictionary */
 	CORE_API static const TMap<FString, FString>& GetEngineData();
@@ -446,8 +459,14 @@ public:
 	/** Clears the game data dictionary */
 	CORE_API static void ResetGameData();
 
+	/** Accessor for game data reset callback delegate */
+	CORE_API static FGameDataResetDelegate& OnGameDataResetDelegate() { return OnGameDataReset; }
+
 	/** Updates (or adds if not already present) arbitrary game data to the crash context (will remove the key if passed an empty string) */
 	CORE_API static void SetGameData(const FString& Key, const FString& Value);
+
+	/** Accessor for game data change callback delegate */
+	CORE_API static FGameDataSetDelegate& OnGameDataSetDelegate() { return OnGameDataSet; }
 
 	/** Get the game data dictionary */
 	CORE_API static const TMap<FString, FString>& GetGameData();
@@ -659,6 +678,13 @@ private:
 
 	/**	Records which crash context we were using the StaticCrashContextIndex counter */
 	int32 CrashContextIndex;
+
+	/** Engine and game data set / reset delegates */
+	static FEngineDataResetDelegate OnEngineDataReset;
+	static FEngineDataSetDelegate OnEngineDataSet;
+
+	static FGameDataResetDelegate OnGameDataReset;
+	static FGameDataSetDelegate OnGameDataSet;
 
 	// FNoncopyable
 	FGenericCrashContext( const FGenericCrashContext& ) = delete;
