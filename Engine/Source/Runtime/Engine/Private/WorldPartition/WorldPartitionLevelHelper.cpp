@@ -158,7 +158,17 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 
 	check(InLevel);
 	UPackage* LevelPackage = InLevel->GetPackage();
-	
+
+	// Gather existing actors to validate only the one we expect are added to the level
+	TSet<FName> LevelActors;
+	for (AActor* Actor : InLevel->Actors)
+	{
+		if (Actor)
+		{
+			LevelActors.Add(Actor->GetFName());
+		}
+	}
+
 	// Move all actors to Cell level
 	for (const FWorldPartitionRuntimeCellObjectMapping& PackageObjectMapping : InChildPackages)
 	{
@@ -203,10 +213,19 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 			}
 
 			OutModifiedPackages.Add(ActorExternalPackage);
+			LevelActors.Add(Actor->GetFName());
 		}
 		else
 		{
 			UE_LOG(LogWorldPartition, Warning, TEXT("Can't find actor %s."), *PackageObjectMapping.Path.ToString());
+		}
+	}
+
+	for (AActor* Actor : InLevel->Actors)
+	{
+		if (Actor && Actor->HasAllFlags(RF_WasLoaded))
+		{
+			checkf(LevelActors.Contains(Actor->GetFName()), TEXT("Actor %s(%s) was unexpectedly loaded when moving actors to streaming cell"), *Actor->GetActorNameOrLabel(), *Actor->GetName());
 		}
 	}
 }
