@@ -16,13 +16,13 @@ class UInterchangeBaseNodeContainer;
 class UInterchangeMaterialInstanceFactoryNode;
 class UInterchangeShaderGraphNode;
 
-UCLASS(config = Engine, meta = (DisplayName = "Interchange GLTF"))
+UCLASS(config = Engine, meta = (DisplayName = "Interchange glTF"))
 class INTERCHANGEPIPELINES_API UGLTFPipelineSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, config, Category = "GLTFPredefinedMaterialLibrary", meta = (DisplayName = "GLTF Predefined Material Library"))
+	UPROPERTY(EditAnywhere, config, Category = "PredefinedglTFMaterialLibrary", meta = (DisplayName = "Predefined glTF Material Library"))
 	TMap<FString, FSoftObjectPath> MaterialParents;
 
 	TArray<FString> ValidateMaterialInstancesAndParameters() const;
@@ -44,17 +44,17 @@ private:
 };
 
 UCLASS(BlueprintType)
-class INTERCHANGEPIPELINES_API UInterchangeglTFPipeline : public UInterchangePipelineBase
+class INTERCHANGEPIPELINES_API UInterchangeGLTFPipeline : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
 
-	UInterchangeglTFPipeline();
+	UInterchangeGLTFPipeline();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "glTF", meta = (DisplayName = "glTF Pipeline Settings"))
 	TObjectPtr<UGLTFPipelineSettings> GLTFPipelineSettings;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "glTF", meta = (DisplayName = "Use glTF Material Instance Library"))
 	bool bUseGLTFMaterialInstanceLibrary = false;
 
 protected:

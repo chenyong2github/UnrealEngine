@@ -279,7 +279,10 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 		TMap<FName, IDetailGroup*> SubCategoryGroups;
 
 		const FName CategoryName = CategoryAndProperties.Key;
-		IDetailCategoryBuilder& Category = CachedDetailBuilder->EditCategory(CategoryName);
+		
+		//As prior set displaynames are lost with the call of EditCategory,
+		//we make sure that the Category Name is used as is without auto Capital Letter start and automatic spacing.
+		IDetailCategoryBuilder& Category = CachedDetailBuilder->EditCategory(CategoryName, FText::FromString(CategoryName.ToString()));
 		
 		TArray<TSharedRef<IPropertyHandle>> CategoryProperties;
 

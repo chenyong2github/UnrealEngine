@@ -307,12 +307,12 @@ void UGLTFPipelineSettings::BuildMaterialInstance(const UInterchangeShaderGraphN
 	}
 }
 
-UInterchangeglTFPipeline::UInterchangeglTFPipeline()
+UInterchangeGLTFPipeline::UInterchangeGLTFPipeline()
 	: GLTFPipelineSettings(UGLTFPipelineSettings::StaticClass()->GetDefaultObject<UGLTFPipelineSettings>())
 {
 }
 
-void UInterchangeglTFPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
+void UInterchangeGLTFPipeline::AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset)
 {
 	Super::AdjustSettingsForContext(ImportType, ReimportAsset);
 
@@ -323,7 +323,7 @@ void UInterchangeglTFPipeline::AdjustSettingsForContext(EInterchangePipelineCont
 	}
 }
 
-void UInterchangeglTFPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* NodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+void UInterchangeGLTFPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* NodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	Super::ExecutePipeline(NodeContainer, InSourceDatas);
 

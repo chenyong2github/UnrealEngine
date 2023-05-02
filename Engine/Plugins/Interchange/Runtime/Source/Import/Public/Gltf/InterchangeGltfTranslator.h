@@ -20,10 +20,9 @@ class UInterchangeShaderNode;
 class UInterchangeVariantSetNode;
 class UInterchangeMeshNode;
 
-/* Gltf translator class support import of texture, material, static mesh, skeletal mesh, */
-
+/* glTF translator class support import of texture, material, static mesh, skeletal mesh, */
 UCLASS(BlueprintType)
-class UInterchangeGltfTranslator : public UInterchangeTranslatorBase
+class UInterchangeGLTFTranslator : public UInterchangeTranslatorBase
 	, public IInterchangeMeshPayloadInterface
 	, public IInterchangeTexturePayloadInterface
 	, public IInterchangeAnimationPayloadInterface
@@ -32,7 +31,7 @@ class UInterchangeGltfTranslator : public UInterchangeTranslatorBase
 	GENERATED_BODY()
 
 public:
-	UInterchangeGltfTranslator();
+	UInterchangeGLTFTranslator();
 
 	/** Begin UInterchangeTranslatorBase API*/
 	virtual EInterchangeTranslatorType GetTranslatorType() const override;

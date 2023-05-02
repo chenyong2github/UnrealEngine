@@ -25,16 +25,14 @@ void FInterchangeGLTFPipelineCustomization::CustomizeDetails(IDetailLayoutBuilde
 	DetailBuilder.GetObjectsBeingCustomized(EditingObjects);
 	check(EditingObjects.Num() == 1);
 
-	TWeakObjectPtr<UInterchangeglTFPipeline> Pipeline = Cast<UInterchangeglTFPipeline>(EditingObjects[0].Get());
+	TWeakObjectPtr<UInterchangeGLTFPipeline> Pipeline = Cast<UInterchangeGLTFPipeline>(EditingObjects[0].Get());
 
 	if (!ensure(Pipeline.IsValid()))
 	{
 		return;
 	}
 
-	IDetailCategoryBuilder& GLTFCategory = DetailBuilder.EditCategory("GLTF");
-
-	GLTFCategory.SetDisplayName(NSLOCTEXT("InterchangeGLTFPipelineCustomization", "CategoryDisplayName", "GLTF Settings"));
+	IDetailCategoryBuilder& GLTFCategory = DetailBuilder.EditCategory("glTF");
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -80,10 +78,6 @@ void FInterchangeGLTFPipelineSettingsCustomization::CustomizeDetails(IDetailLayo
 
 	DetailBuilder.HideProperty(PairingsHandle);
 
-	IDetailCategoryBuilder& GLTFPredefinedMaterialLibraryCategory = DetailBuilder.EditCategory("GLTFPredefinedMaterialLibrary");
-
-	GLTFPredefinedMaterialLibraryCategory.SetDisplayName(NSLOCTEXT("InterchangeGLTFPipelineSettingsCustomization", "CategoryDisplayName", "GLTF Predefined Material Library"));
-
 	uint32 NumChildren = 0;
 	PairingsHandle->GetNumChildren(NumChildren);
 
@@ -116,6 +110,8 @@ void FInterchangeGLTFPipelineSettingsCustomization::CustomizeDetails(IDetailLayo
 			]
 		];
 	}
+
+	IDetailCategoryBuilder& GLTFPredefinedMaterialLibraryCategory = DetailBuilder.EditCategory("PredefinedglTFMaterialLibrary", FText::FromString("Predefined glTF Material Library"));
 
 	DetailBuilder.HideCategory(GET_MEMBER_NAME_CHECKED(UGLTFPipelineSettings, MaterialParents));
 }
