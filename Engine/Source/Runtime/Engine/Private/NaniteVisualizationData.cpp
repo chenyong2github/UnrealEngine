@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteVisualizationData.h"
+#include "NaniteDefinitions.h"
 #include "GameFramework/PlayerController.h"
 #if WITH_EDITORONLY_DATA
 #include "LevelEditorViewport.h"
