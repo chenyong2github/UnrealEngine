@@ -1100,13 +1100,13 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
 END_SHADER_PARAMETER_STRUCT()
 
-static uint32 PackMaterialBitFlags(const FMaterial& RasterMaterial, bool bMaterialUsesWorldPositionOffset, bool bMaterialUsesPixelDepthOffset, bool bForceDisableWPO)
+static uint32 PackMaterialBitFlags(const FMaterial& RasterMaterial, bool bMaterialUsesWorldPositionOffset, bool bMaterialUsesPixelDepthOffset, bool bMaterialUsesDisplacement, bool bForceDisableWPO)
 {
 	FNaniteMaterialFlags Flags = {0};
 	Flags.bPixelDiscard = RasterMaterial.IsMasked();
 	Flags.bPixelDepthOffset = bMaterialUsesPixelDepthOffset;
 	Flags.bWorldPositionOffset = !bForceDisableWPO && bMaterialUsesWorldPositionOffset;
-	Flags.bDisplacement = TessellationEnabled() && RasterMaterial.MaterialUsesDisplacement_GameThread();
+	Flags.bDisplacement = TessellationEnabled() && bMaterialUsesDisplacement;
 	return PackNaniteMaterialBitFlags(Flags);
 }
 
@@ -1772,7 +1772,13 @@ void CollectRasterPSOInitializersForPipeline(
 	}
 	else
 	{
-		const uint32 MaterialBitFlags = PackMaterialBitFlags(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_GameThread(), RasterMaterial.MaterialUsesPixelDepthOffset_GameThread(), bForceDisableWPO);
+		const uint32 MaterialBitFlags = PackMaterialBitFlags(
+			RasterMaterial,
+			RasterMaterial.MaterialUsesWorldPositionOffset_GameThread(),
+			RasterMaterial.MaterialUsesPixelDepthOffset_GameThread(),
+			RasterMaterial.MaterialUsesDisplacement_GameThread(),
+			bForceDisableWPO
+		);
 		const bool bVertexProgrammable = FNaniteMaterialShader::IsVertexProgrammable(MaterialBitFlags);
 		const bool bPixelProgrammable = FNaniteMaterialShader::IsPixelProgrammable(MaterialBitFlags);
 
@@ -3090,7 +3096,13 @@ FBinningData FRenderer::AddPass_Rasterize(
 			else
 			{
 				const FMaterial& RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(FeatureLevel);
-				MaterialBitFlags = PackMaterialBitFlags(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread(), RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread(), RasterEntry.bForceDisableWPO);
+				MaterialBitFlags = PackMaterialBitFlags(
+					RasterMaterial,
+					RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread(),
+					RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread(),
+					RasterMaterial.MaterialUsesDisplacement_RenderThread(),
+					RasterEntry.bForceDisableWPO
+				);
 				RasterMaterialCache.MaterialBitFlags = MaterialBitFlags;
 			}
 
