@@ -991,18 +991,26 @@ void FUsdGeometryCacheTranslator::UpdateComponents(USceneComponent* SceneCompone
 			GeometryCacheComponent->TickAtThisTime(TimeCode, true, false, true);
 		}
 
+		// If the prim has a GroomBinding schema, apply the target groom to its associated GroomComponent
+		if (UsdUtils::PrimHasSchema(GetPrim(), UnrealIdentifiers::GroomBindingAPI))
+		{
+			UsdGroomTranslatorUtils::SetGroomFromPrim(GetPrim(), *Context->InfoCache, SceneComponent);
+		}
+
+		// Defer to xformable translator to set our transforms, visibility, etc. but only when opening the stage: This will be baked in for import.
+		// Don't go through FUsdGeomMeshTranslator::UpdateComponents as it will want to create a static mesh if PrimPath is an animated mesh prim
+		// (which is likely, given that we're running this FUsdGeometryCacheTranslator for it)
+		if (!Context->bIsImporting)
+		{
+			FUsdGeomXformableTranslator::UpdateComponents(GeometryCacheComponent);
+		}
+
 		// Note how we should only register if our geometry cache changed: If we did this every time we would
 		// register too early during the process of duplicating into PIE, and that would prevent a future RegisterComponent
 		// call from naturally creating the required render state
 		if (bShouldRegister && !GeometryCacheComponent->IsRegistered())
 		{
 			GeometryCacheComponent->RegisterComponent();
-		}
-
-		// If the prim has a GroomBinding schema, apply the target groom to its associated GroomComponent
-		if (UsdUtils::PrimHasSchema(GetPrim(), UnrealIdentifiers::GroomBindingAPI))
-		{
-			UsdGroomTranslatorUtils::SetGroomFromPrim(GetPrim(), *Context->InfoCache, SceneComponent);
 		}
 	}
 }
