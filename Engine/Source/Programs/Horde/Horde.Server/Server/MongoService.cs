@@ -959,16 +959,20 @@ namespace Horde.Server.Server
 		{
 			for (; ; )
 			{
-				Func<CancellationToken, Task> updateIndexTask = await _mongoService.ReadNextUpgradeTask(cancellationToken);
-				for (; ; )
+				try
 				{
-					using (RedisLock schemaLock = new (_redisService.GetDatabase(), s_schemaLockKey))
+					Func<CancellationToken, Task> updateIndexTask = await _mongoService.ReadNextUpgradeTask(cancellationToken);
+					using (RedisLock schemaLock = new(_redisService.GetDatabase(), s_schemaLockKey))
 					{
 						if (await schemaLock.AcquireAsync(TimeSpan.FromMinutes(5.0)) && await UpdateOneAsync(updateIndexTask, cancellationToken))
 						{
 							break;
 						}
 					}
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Exception while running upgrade task: {Message}", ex.Message);
 					await Task.Delay(TimeSpan.FromMinutes(1.0), cancellationToken);
 				}
 			}
