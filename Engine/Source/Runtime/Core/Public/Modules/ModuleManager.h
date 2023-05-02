@@ -416,6 +416,11 @@ public:
 	/** Adds an engine binaries directory. */
 	void AddBinariesDirectory(const TCHAR *InDirectory, bool bIsGameDirectory);
 
+	/** Will load the binary without doing initialization.
+	 *  Calling this will not make it possible to unload the module again
+	 */
+	void LoadModuleBinaryOnly(FName ModuleName);
+
 	/**
 	 *	Set the game binaries directory
 	 *

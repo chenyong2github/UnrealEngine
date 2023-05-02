@@ -472,6 +472,18 @@ public:
 	 */
 	virtual bool IntegratePluginsIntoConfig(FConfigCacheIni& ConfigSystem, const TCHAR* EngineIniName, const TCHAR* PlatformName, const TCHAR* StagedPluginsFile) = 0;
 
+	/**
+	* Set root directories for where to find binaries for plugins.
+	*/
+	virtual void SetBinariesRootDirectories(const FString& EngineBinariesRootDir, const FString& ProjectBinariesRootDir) = 0;
+
+	/**
+	* If preload binaries is set all plugin binaries will be loaded in an early Loading phase.
+	* This is a temporary solution to work around issues with pak/iostore for modular builds
+	*/ 
+	virtual void SetPreloadBinaries() = 0;
+	virtual bool GetPreloadBinaries() = 0;
+
 public:
 
 	/**

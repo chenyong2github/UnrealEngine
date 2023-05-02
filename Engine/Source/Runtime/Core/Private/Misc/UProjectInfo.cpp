@@ -116,6 +116,15 @@ FString FUProjectDictionary::GetRelativeProjectPathForGame(const TCHAR* InGameNa
 	return TEXT("");
 }
 
+FString FUProjectDictionary::GetProjectPathForGame(const TCHAR* InGameName) const
+{
+	if (const FString* ProjectFile = ShortProjectNameDictionary.Find(*(FString(InGameName).ToLower())))
+	{
+		return *ProjectFile;
+	}
+	return {};
+}
+
 TArray<FString> FUProjectDictionary::GetProjectPaths() const
 {
 	TArray<FString> Paths;

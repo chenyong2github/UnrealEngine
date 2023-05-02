@@ -25,6 +25,9 @@ public:
 	/** Gets the project filename for the given game. Empty if not found. */
 	FString GetRelativeProjectPathForGame(const TCHAR* GameName, const FString& BaseDir) const;
 
+	/** Gets the project filename for the given game. Empty if not found. */
+	FString GetProjectPathForGame(const TCHAR* GameName) const;
+
 	/** Gets a list of all the known projects. */
 	TArray<FString> GetProjectPaths() const;
 

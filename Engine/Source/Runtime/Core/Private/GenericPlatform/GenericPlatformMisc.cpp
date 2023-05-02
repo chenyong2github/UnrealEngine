@@ -1412,6 +1412,55 @@ const TCHAR* FGenericPlatformMisc::ProjectDir()
 	return *ProjectDir;
 }
 
+bool FGenericPlatformMisc::GetEngineAndProjectAbsoluteDirsFromExecutable(FString& OutProjectDir, FString& OutEngineDir)
+{
+	IPlatformFile& PlatformFile = IPlatformFile::GetPlatformPhysical();
+
+	FString ExecutableDir = FPaths::GetPath(FPlatformProcess::ExecutablePath());
+	FPaths::NormalizeFilename(ExecutableDir);
+
+	FString AbsoluteEngineDir = FPaths::Combine(ExecutableDir, TEXT("../.."));
+	FPaths::CollapseRelativeDirectories(AbsoluteEngineDir);
+	FString EngineBinariesDir = AbsoluteEngineDir / TEXT("Binaries");
+	if (!PlatformFile.DirectoryExists(*EngineBinariesDir))
+	{
+		return false;
+	}
+
+	OutEngineDir = AbsoluteEngineDir;
+
+
+	// First try the most common placement of projects
+	FString AbsoluteProjectDir = FPaths::Combine(ExecutableDir, TEXT("../../.."), FApp::GetProjectName());
+	FPaths::CollapseRelativeDirectories(AbsoluteProjectDir);
+
+	FString ProjectBinariesDir = AbsoluteProjectDir / TEXT("Binaries");
+	if (PlatformFile.DirectoryExists(*ProjectBinariesDir))
+	{
+		OutProjectDir = AbsoluteProjectDir;
+		return true;
+	}
+
+	// The game binaries folder was *not* found
+	// 
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Failed to find game directory: %s\n"), *ProjectBinariesDir);
+
+	FString RootDir = AbsoluteEngineDir / TEXT("..");
+	FPaths::CollapseRelativeDirectories(RootDir);
+
+	// Use the uprojectdirs
+	FUProjectDictionary Dict(RootDir);
+	FString GameProjectFile = Dict.GetProjectPathForGame(FApp::GetProjectName());
+	if (GameProjectFile.IsEmpty())
+	{
+		return false;
+	}
+	
+	OutProjectDir = FPaths::GetPath(GameProjectFile);
+
+	return true;
+}
+
 FString FGenericPlatformMisc::CloudDir()
 {
 	return FPaths::ProjectSavedDir() + TEXT("Cloud/");

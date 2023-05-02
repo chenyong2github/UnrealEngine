@@ -929,7 +929,7 @@ void FPluginManager::ReadPluginsInDirectory(const FString& PluginsDirectory, con
 		TArray<FString> FileNames;
 		{
 			SlowTask_ReadPlugins.EnterProgressFrame();
-			FindPluginsInDirectory(PluginsDirectory, FileNames);
+			FindPluginsInDirectory(PluginsDirectory, FileNames, FPlatformFileManager::Get().GetPlatformFile());
 		}
 
 		struct FLoadContext
@@ -981,7 +981,7 @@ void FPluginManager::ReadPluginsInDirectory(const FString& PluginsDirectory, con
 	}
 }
 
-void FPluginManager::FindPluginsInDirectory(const FString& PluginsDirectory, TArray<FString>& FileNames)
+void FPluginManager::FindPluginsInDirectory(const FString& PluginsDirectory, TArray<FString>& FileNames, IPlatformFile& PlatformFile)
 {
 	//
 	// Use our own custom file discovery method (over something like `IPlatformFile::IterateDirectoryRecursively()`)
@@ -1044,7 +1044,7 @@ void FPluginManager::FindPluginsInDirectory(const FString& PluginsDirectory, TAr
 			DirectoriesToVisitNext,
 			DirectoriesToVisit.Num(),
 			MinBatchSize,
-			[&FoundFilesLock, &FileNames, &DirectoriesToVisit](TArray<FString>& OutDirectoriesToVisitNext, int32 Index)
+			[&FoundFilesLock, &FileNames, &DirectoriesToVisit, &PlatformFile](TArray<FString>& OutDirectoriesToVisitNext, int32 Index)
 			{
 				// Track where we start pushing sub-directories to because we might want to discard them (if we end up finding a .uplugin).
 				// Because of how `ParallelForWithTaskContext()` works, this array may already be populated from another execution,
@@ -1052,7 +1052,7 @@ void FPluginManager::FindPluginsInDirectory(const FString& PluginsDirectory, TAr
 				const int32 StartingDirIndex = OutDirectoriesToVisitNext.Num();
 
 				FFindPluginsInDirectory_Visitor Visitor(OutDirectoriesToVisitNext); // This visitor writes directly to `OutDirectoriesToVisitNext`, which is why we have to manage its contents
-				FPlatformFileManager::Get().GetPlatformFile().IterateDirectory(*DirectoriesToVisit[Index], Visitor);
+				PlatformFile.IterateDirectory(*DirectoriesToVisit[Index], Visitor);
 				if (!Visitor.FoundPluginFile.IsEmpty())
 				{
 					// Since we found a .uplugin, ignore sub-directories (stop from iterating deeper) -- 
@@ -1269,6 +1269,22 @@ bool FPluginManager::IntegratePluginsIntoConfig(FConfigCacheIni& ConfigSystem, c
 	EngineConfigFile->SetArray(TEXT("BinaryConfig"), TEXT("BinaryConfigPlugins"), IntegratedPlugins);
 
 	return true;
+}
+
+void FPluginManager::SetBinariesRootDirectories(const FString& InEngineBinariesRootDir, const FString& InProjectBinariesRootDir)
+{
+	EngineBinariesRootDir = InEngineBinariesRootDir;
+	ProjectBinariesRootDir = InProjectBinariesRootDir;
+}
+
+void FPluginManager::SetPreloadBinaries()
+{
+	bPreloadedBinaries = true;
+}
+
+bool FPluginManager::GetPreloadBinaries()
+{
+	return bPreloadedBinaries;
 }
 
 bool FPluginManager::ConfigureEnabledPlugins()
@@ -1530,6 +1546,35 @@ bool FPluginManager::ConfigureEnabledPlugins()
 			// Mark all the plugins as enabled
 			SCOPED_BOOT_TIMING("MarkEnabledPlugins");
 
+
+#if !IS_MONOLITHIC
+			TMap<FString, FString> PluginToPhysicalFile;
+
+			// If EngineBinariesRootDir is set it means that we are loading binaries from somewhere else than our basedir.
+			// We need to search for all the plugins under binaries root dir in order to find dlls etc.
+			// TODO: Maybe plugin desc inside pak files should store original relative path?
+			if (!EngineBinariesRootDir.IsEmpty())
+			{
+				TArray<FString> PhysicalFileNames;
+
+				for (const FString& EnginePluginDir : FPaths::GetExtensionDirs(EngineBinariesRootDir, TEXT("Plugins")))
+				{
+					FindPluginsInDirectory(EnginePluginDir, PhysicalFileNames, IPlatformFile::GetPlatformPhysical());
+				}
+
+				for (const FString& ProjectPluginDir : FPaths::GetExtensionDirs(ProjectBinariesRootDir, TEXT("Plugins")))
+				{
+					FindPluginsInDirectory(ProjectPluginDir, PhysicalFileNames, IPlatformFile::GetPlatformPhysical());
+				}
+
+				for (const FString& FileName : PhysicalFileNames)
+				{
+					FString PluginName = FPaths::GetBaseFilename(FileName);
+					PluginToPhysicalFile.Add(PluginName, FileName);
+				}
+			}
+#endif
+
 			for (TPair<FString, FPlugin*>& Pair : EnabledPlugins)
 			{
 				FPlugin& Plugin = *Pair.Value;
@@ -1538,8 +1583,16 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				// Mount the binaries directory, and check the modules are valid
 				if (Plugin.Descriptor.Modules.Num() > 0)
 				{
+					const TCHAR* PluginFile = *Plugin.FileName;
+
+					// If we have a overridden binary path, use that instead
+					if (FString* PhysicalFile = PluginToPhysicalFile.Find(Plugin.Name))
+					{
+						PluginFile = **PhysicalFile;
+					}
+
 					// Mount the binaries directory
-					const FString PluginBinariesPath = FPaths::Combine(*FPaths::GetPath(Plugin.FileName), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
+					const FString PluginBinariesPath = FPaths::Combine(FPaths::GetPath(PluginFile), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
 					FModuleManager::Get().AddBinariesDirectory(*PluginBinariesPath, Plugin.GetLoadedFrom() == EPluginLoadedFrom::Project);
 				}
 
@@ -2316,6 +2369,22 @@ bool FPluginManager::LoadModulesForEnabledPlugins( const ELoadingPhase::Type Loa
 				}
 			}
 		}
+
+		// This is a workaround for crashes when delaying the loading of binaries when using pak files/iostore. Should be removed
+		if (bPreloadedBinaries && LoadingPhase == ELoadingPhase::PostConfigInit)
+		{
+			UE_SCOPED_ENGINE_ACTIVITY("Preloading all plugin binaries");
+			for (const FDiscoveredPluginMap::ElementType& PluginPair : AllPlugins)
+			{
+				for (auto& ModuleName : DiscoveredPluginMapUtils::ResolvePluginFromMapVal(PluginPair.Value)->Descriptor.Modules)
+				{
+					if (ModuleName.IsCompiledInCurrentConfiguration())
+					{
+						FModuleManager::Get().LoadModuleBinaryOnly(ModuleName.Name);
+					}
+				}
+			}
+		}
 	}
 	// Some phases such as ELoadingPhase::PreEarlyLoadingScreen are potentially called multiple times,
 	// but we do not return to an earlier phase after calling LoadModulesForEnabledPlugins on a later phase
@@ -2443,6 +2512,11 @@ TSharedPtr<IPlugin> FPluginManager::FindPluginFromPath(const FString& PluginPath
 	}
 
 	return FindPlugin(PluginName);
+}
+
+void FPluginManager::FindPluginsUnderDirectory(const FString& Directory, TArray<FString>& OutPluginFilePaths)
+{
+	return FindPluginsInDirectory(Directory, OutPluginFilePaths, FPlatformFileManager::Get().GetPlatformFile());
 }
 
 TSharedPtr<IPlugin> FPluginManager::FindPluginFromDescriptor(const FPluginReferenceDescriptor& PluginDesc)

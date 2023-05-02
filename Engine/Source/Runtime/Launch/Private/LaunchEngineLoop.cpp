@@ -1948,6 +1948,26 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		}
 	}
 	
+
+	FString EngineBinariesRootDirectory = FPlatformMisc::EngineDir();
+	FString ProjectBinariesRootDirectory;
+	
+	if (FApp::HasProjectName())
+	{
+		ProjectBinariesRootDirectory = FPlatformMisc::ProjectDir();
+#if !IS_MONOLITHIC
+		FPlatformMisc::GetEngineAndProjectAbsoluteDirsFromExecutable(ProjectBinariesRootDirectory, EngineBinariesRootDirectory);
+
+		// Loading preinit module if it exists. PreInit module can contain things like decryption logic for pak files and things that is project specific but needs to initialize very early
+		FString FileName = FString::Printf(TEXT("%s-%sPreInit.%s"), FPlatformProcess::ExecutableName(), FApp::GetProjectName(), FPlatformProcess::GetModuleExtension());
+		FString PreInitModule = FPaths::Combine(ProjectBinariesRootDirectory, "Binaries", FPlatformProcess::GetBinariesSubdirectory(), FileName);
+		if (FPaths::FileExists(PreInitModule))
+		{
+			FPlatformProcess::GetDllHandle(*PreInitModule);
+		}
+#endif
+	}
+
 	// Initialize trace
 	FTraceAuxiliary::Initialize(CmdLine);
 	FTraceAuxiliary::TryAutoConnect();
@@ -2562,9 +2582,17 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	if (FApp::HasProjectName())
 	{
 		// Tell the module manager what the game binaries folder is
-		const FString ProjectBinariesDirectory = FPaths::Combine(FPlatformMisc::ProjectDir(), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
+		FString ProjectBinariesDirectory = FPaths::Combine(ProjectBinariesRootDirectory, TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory());
 		FPlatformProcess::AddDllDirectory(*ProjectBinariesDirectory);
 		FModuleManager::Get().SetGameBinariesDirectory(*ProjectBinariesDirectory);
+
+#if !IS_MONOLITHIC
+		if (FCString::Strcmp(CurrentPlatformFile->GetName(), TEXT("PakFile")) == 0)
+		{
+			IPluginManager::Get().SetBinariesRootDirectories(EngineBinariesRootDirectory, ProjectBinariesRootDirectory);
+			IPluginManager::Get().SetPreloadBinaries();
+		}
+#endif
 
 		LaunchFixGameNameCase();
 	}
@@ -6253,6 +6281,7 @@ bool LaunchCorrectEditorExecutable(const FString& EditorTargetFileName)
 /* FEngineLoop static interface
  *****************************************************************************/
 
+
 bool FEngineLoop::AppInit( )
 {
 	{
@@ -6356,7 +6385,7 @@ bool FEngineLoop::AppInit( )
 
 	// Check whether the project or any of its plugins are missing or are out of date
 #if UE_EDITOR && !IS_MONOLITHIC
-	if(!GIsBuildMachine && !FApp::IsUnattended() && FPaths::IsProjectFilePathSet())
+	if(!GIsBuildMachine && !FApp::IsUnattended() && FPaths::IsProjectFilePathSet() && !PluginManager.GetPreloadBinaries())
 	{
 		// Check all the plugins are present
 		if(!PluginManager.AreRequiredPluginsAvailable())
@@ -6516,6 +6545,12 @@ bool FEngineLoop::AppInit( )
 	[[IOSAppDelegate GetDelegate] InitializeAudioSession];
 #endif
 
+	// Show log if wanted.
+	if (GLogConsole && FParse::Param(FCommandLine::Get(), TEXT("LOG")))
+	{
+		GLogConsole->Show(true);
+	}
+
 	
 	// NOTE: This is the earliest place to init the online subsystems (via plugins)
 	// Code needs GConfigFile to be valid
@@ -6578,12 +6613,6 @@ bool FEngineLoop::AppInit( )
 	}
 
 #endif // !UE_BUILD_SHIPPING
-
-	// Show log if wanted.
-	if (GLogConsole && FParse::Param(FCommandLine::Get(), TEXT("LOG")))
-	{
-		GLogConsole->Show(true);
-	}
 
 	// Print all initial startup logging
 	FApp::PrintStartupLogMessages();
@@ -6660,7 +6689,6 @@ bool FEngineLoop::AppInit( )
 
 	return true;
 }
-
 
 void FEngineLoop::AppPreExit( )
 {

@@ -43,7 +43,7 @@ namespace ManagedStorageInternal
 	// Same as FPaths::IsUnderDirectory, but assume the paths are already full
 	// Also is *always* case insensitive since we are concerned with filtering and 
 	// not whether a directory actually exists.
-	bool IsUnderDirectory(const FString& InPath, const FString& InDirectory);
+	CORE_API bool IsUnderDirectory(const FString& InPath, const FString& InDirectory);
 }
 
 struct FPersistentManagedFile

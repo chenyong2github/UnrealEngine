@@ -152,10 +152,7 @@ public:
 	virtual TSharedPtr<IPlugin> FindPluginFromPath(const FString& PluginPath) override;
 	virtual TSharedPtr<IPlugin> FindPluginFromDescriptor(const FPluginReferenceDescriptor& PluginDesc) override;
 
-	virtual void FindPluginsUnderDirectory(const FString& Directory, TArray<FString>& OutPluginFilePaths) override
-	{
-		return FindPluginsInDirectory(Directory, OutPluginFilePaths);
-	}
+	virtual void FindPluginsUnderDirectory(const FString& Directory, TArray<FString>& OutPluginFilePaths) override;
 
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPlugins() override;
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContent() const override;
@@ -189,7 +186,11 @@ public:
 #endif // #if UE_USE_VERSE_PATHS
 	virtual bool RequiresTempTargetForCodePlugin(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FText& OutReason) override;
 
-	virtual bool IntegratePluginsIntoConfig(FConfigCacheIni& ConfigSystem, const TCHAR* EngineIniName, const TCHAR* PlatformName, const TCHAR* StagedPluginsFile);
+	virtual bool IntegratePluginsIntoConfig(FConfigCacheIni& ConfigSystem, const TCHAR* EngineIniName, const TCHAR* PlatformName, const TCHAR* StagedPluginsFile) override;
+
+	virtual void SetBinariesRootDirectories(const FString& EngineBinariesRootDir, const FString& ProjectBinariesRootDir) override;
+	virtual void SetPreloadBinaries() override;
+	virtual bool GetPreloadBinaries() override;
 
 private:
 	using FDiscoveredPluginMap = TMap<FString, TArray<TSharedRef<FPlugin>>>;
@@ -208,7 +209,7 @@ private:
 	static void CreatePluginObject(const FString& FileName, const FPluginDescriptor& Descriptor, const EPluginType Type, FDiscoveredPluginMap& Plugins, TArray<TSharedRef<FPlugin>>& ChildPlugins);
 
 	/** Finds all the plugin descriptors underneath a given directory */
-	static void FindPluginsInDirectory(const FString& PluginsDirectory, TArray<FString>& FileNames);
+	static void FindPluginsInDirectory(const FString& PluginsDirectory, TArray<FString>& FileNames, IPlatformFile& PlatformFile);
 
 	/** Finds all the plugin manifests in a given directory */
 	static void FindPluginManifestsInDirectory(const FString& PluginManifestDirectory, TArray<FString>& FileNames);
@@ -303,6 +304,8 @@ private:
 	/** Set if we were asked to load all plugins via the command line */
 	bool bAllPluginsEnabledViaCommandLine = false;
 
+	bool bPreloadedBinaries = false;
+
 	/** List of additional directory paths to search for plugins within */
 	TSet<FString> PluginDiscoveryPaths;
 
@@ -317,6 +320,9 @@ private:
 
 	/** The highest LoadingPhase that has so far completed */
 	ELoadingPhase::Type LastCompletedLoadingPhase = ELoadingPhase::None;
+
+	FString EngineBinariesRootDir;
+	FString ProjectBinariesRootDir;
 };
 
 

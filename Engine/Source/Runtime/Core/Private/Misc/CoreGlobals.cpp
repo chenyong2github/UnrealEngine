@@ -19,6 +19,14 @@
 #define FAST_PATH_UNIQUE_NAME_GENERATION (!WITH_EDITORONLY_DATA)
 #endif
 
+#ifndef UE_PROJECT_NAME
+#define UE_PROJECT_NAME None
+#define UE_IS_GAME_AGNOSTIC true
+#else
+#define UE_IS_GAME_AGNOSTIC false
+#endif
+
+
 #define LOCTEXT_NAMESPACE "Core"
 
 
@@ -107,7 +115,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if UE_GAME || UE_SERVER
 	// In monolithic builds, implemented by the IMPLEMENT_GAME_MODULE macro or by UnrealGame module.
 	#if !IS_MONOLITHIC
-		bool GIsGameAgnosticExe = true;
+		bool GIsGameAgnosticExe = UE_IS_GAME_AGNOSTIC;
 	#endif
 #else
 	// In monolithic Editor builds, implemented by the IMPLEMENT_GAME_MODULE macro or by UnrealGame module.
@@ -116,7 +124,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		#if IS_PROGRAM || IS_MONOLITHIC
 			bool GIsGameAgnosticExe = false;
 		#else
-			bool GIsGameAgnosticExe = true;
+			bool GIsGameAgnosticExe = UE_IS_GAME_AGNOSTIC;
 		#endif
 	#endif //!IS_MONOLITHIC || !UE_EDITOR
 #endif
@@ -258,7 +266,7 @@ UE::CoreUObject::Private::FObjectHandlePackageDebugData*& CORE_API GObjectHandle
 /** Game name, used for base game directory and ini among other things										*/
 #if (!IS_MONOLITHIC && !IS_PROGRAM)
 // In modular game builds, the game name will be set when the application launches
-TCHAR					GInternalProjectName[64]					= TEXT("None");
+TCHAR					GInternalProjectName[64]					= TEXT(PREPROCESSOR_TO_STRING(UE_PROJECT_NAME));
 #elif !IS_MONOLITHIC && IS_PROGRAM
 // In non-monolithic programs builds, the game name will be set by the module, but not just yet, so we need to NOT initialize it!
 TCHAR					GInternalProjectName[64];

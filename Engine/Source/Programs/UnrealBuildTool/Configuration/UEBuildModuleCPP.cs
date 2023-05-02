@@ -1813,16 +1813,13 @@ namespace UnrealBuildTool
 
 			Result.Definitions.AddRange(EngineIncludeOrderHelper.GetDeprecationDefines(Rules.IncludeOrderVersion));
 
-			// For game modules, set the define for the project and target names, which will be used by the IMPLEMENT_PRIMARY_GAME_MODULE macro.
-			if (!Rules.bTreatAsEngineModule)
+			// If module intermediate files are under the project folder we can set UE_PROJECT_NAME and friends.
+			// This makes it possible to create modular builds where you don't have to provide the project name on cmd line
+			if (Target.ProjectFile != null && IntermediateDirectory.IsUnderDirectory(Target.ProjectFile.Directory))
 			{
-				// Make sure we don't set any define for a non-engine module that's under the engine directory (eg. UnrealGame)
-				if (Target.ProjectFile != null && RulesFile.IsUnderDirectory(Target.ProjectFile.Directory))
-				{
-					string ProjectName = Target.ProjectFile.GetFileNameWithoutExtension();
-					Result.Definitions.Add(String.Format("UE_PROJECT_NAME={0}", ProjectName));
-					Result.Definitions.Add(String.Format("UE_TARGET_NAME={0}", Target.Name));
-				}
+				string ProjectName = Target.ProjectFile.GetFileNameWithoutExtension();
+				Result.Definitions.Add(String.Format("UE_PROJECT_NAME={0}", ProjectName));
+				Result.Definitions.Add(String.Format("UE_TARGET_NAME={0}", Target.Name));
 			}
 
 			// Add the module's public and private definitions.

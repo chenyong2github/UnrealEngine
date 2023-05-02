@@ -1201,6 +1201,12 @@ public:
 	static const TCHAR* ProjectDir();
 
 	/**
+	 *	Return the engine and project directory based from the executable.
+	 *  This function would return different results than EngineDir and Project dir if for example -basedir is set on cmd line and/or pak files are used
+	 */
+	static bool GetEngineAndProjectAbsoluteDirsFromExecutable(FString& OutProjectDir, FString& OutEngineDir);
+
+	/**
 	*	Return the CloudDir.  CloudDir can be per-user.
 	*/
 	static FString CloudDir();
