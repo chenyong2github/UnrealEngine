@@ -95,7 +95,7 @@ UE::AssetUtils::ECreateSkeletalMeshResult UE::AssetUtils::CreateSkeletalMeshAsse
 	}
 
 	// ensure there is at least one material
-	if (Materials.Num() == 0 && MaterialView.IsEmpty())
+	if (MaterialView.IsEmpty())
 	{
 		Materials.Add(FSkeletalMaterial());
 		MaterialView = Materials;
