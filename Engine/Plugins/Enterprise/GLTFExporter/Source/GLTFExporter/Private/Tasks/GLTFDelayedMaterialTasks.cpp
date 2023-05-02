@@ -885,7 +885,7 @@ bool FGLTFDelayedMaterialTask::TryGetEmissive(FGLTFJsonMaterial& OutMaterial, co
 				return true;
 			}
 
-			if (!StoreBakedPropertyTexture(OutMaterial.EmissiveTexture, PropertyBakeOutput, TEXT("Emissive")))
+			if (!StoreBakedPropertyTexture(EmissiveProperty, OutMaterial.EmissiveTexture, PropertyBakeOutput, TEXT("Emissive")))
 			{
 				return false;
 			}
@@ -1345,7 +1345,7 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 		return true;
 	}
 
-	if (StoreBakedPropertyTexture(OutTexInfo, PropertyBakeOutput, PropertyName))
+	if (StoreBakedPropertyTexture(Property, OutTexInfo, PropertyBakeOutput, PropertyName))
 	{
 		OutConstant = FGLTFJsonColor3::White; // make sure property is not zero
 		return true;
@@ -1379,7 +1379,7 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 		return true;
 	}
 
-	if (StoreBakedPropertyTexture(OutTexInfo, PropertyBakeOutput, PropertyName))
+	if (StoreBakedPropertyTexture(Property, OutTexInfo, PropertyBakeOutput, PropertyName))
 	{
 		OutConstant = FGLTFJsonColor4::White; // make sure property is not zero
 		return true;
@@ -1413,7 +1413,7 @@ inline bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextu
 		return true;
 	}
 
-	if (StoreBakedPropertyTexture(OutTexInfo, PropertyBakeOutput, PropertyName))
+	if (StoreBakedPropertyTexture(Property, OutTexInfo, PropertyBakeOutput, PropertyName))
 	{
 		OutConstant = 1; // make sure property is not zero
 		return true;
@@ -1443,7 +1443,7 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 			return true;
 		}
 
-		return StoreBakedPropertyTexture(OutTexInfo, PropertyBakeOutput, PropertyName);
+		return StoreBakedPropertyTexture(Property, OutTexInfo, PropertyBakeOutput, PropertyName);
 	}
 
 	const FVector4f MaskedConstant = FVector4f(PropertyBakeOutput.ConstantValue) * FGLTFMaterialUtilities::GetPropertyMask(Property);
@@ -1556,17 +1556,18 @@ FGLTFPropertyBakeOutput FGLTFDelayedMaterialTask::BakeMaterialProperty(const FMa
 		Builder.ExportOptions->bAdjustNormalmaps);
 }
 
-bool FGLTFDelayedMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexInfo, FGLTFPropertyBakeOutput& PropertyBakeOutput, const FString& PropertyName) const
+bool FGLTFDelayedMaterialTask::StoreBakedPropertyTexture(const FMaterialPropertyEx& Property, FGLTFJsonTextureInfo& OutTexInfo, FGLTFPropertyBakeOutput& PropertyBakeOutput, const FString& PropertyName) const
 {
-	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, GetPropertyGroup(PropertyBakeOutput.Property));
-	const TextureFilter TextureFilter = Builder.GetBakeFilterForMaterialProperty(Material, GetPropertyGroup(PropertyBakeOutput.Property));
+	const EGLTFMaterialPropertyGroup PropertyGroup = GetPropertyGroup(Property);
+	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, PropertyGroup);
+	const TextureFilter TextureFilter = Builder.GetBakeFilterForMaterialProperty(Material, PropertyGroup);
 
 	FGLTFJsonTexture* Texture = FGLTFMaterialUtilities::AddTexture(
 		Builder,
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
 		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
-		FGLTFMaterialUtilities::IsNormalMap(PropertyBakeOutput.Property),
+		FGLTFMaterialUtilities::IsNormalMap(Property),
 		GetBakedTextureName(PropertyName),
 		TextureAddress,
 		TextureFilter);

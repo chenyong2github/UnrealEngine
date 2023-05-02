@@ -15,22 +15,22 @@ class UMaterialExpressionCustomOutput;
 
 struct FGLTFPropertyBakeOutput
 {
-	FGLTFPropertyBakeOutput(const FMaterialPropertyEx& Property, EPixelFormat PixelFormat, const TGLTFSharedArray<FColor>& Pixels, FIntPoint Size, float EmissiveScale, bool bIsSRGB)
-		: Property(Property)
-		, PixelFormat(PixelFormat)
-		, Pixels(Pixels)
+	FGLTFPropertyBakeOutput(const TGLTFSharedArray<FColor>& Pixels, FIntPoint Size, float EmissiveScale, bool bSRGB)
+		: Pixels(Pixels)
 		, Size(Size)
 		, EmissiveScale(EmissiveScale)
-		, bIsSRGB(bIsSRGB)
-		, bIsConstant(false)
-	{}
+		, bIsConstant(Pixels->Num() == 1)
+	{
+		if (bIsConstant)
+		{
+			const FColor& Pixel = (*Pixels)[0];
+			ConstantValue = bSRGB ? FLinearColor(Pixel) : Pixel.ReinterpretAsLinear();
+		}
+	}
 
-	const FMaterialPropertyEx& Property;
-	EPixelFormat PixelFormat;
 	TGLTFSharedArray<FColor> Pixels;
 	FIntPoint Size;
 	float EmissiveScale;
-	bool bIsSRGB;
 	bool bIsConstant;
 	FLinearColor ConstantValue;
 };

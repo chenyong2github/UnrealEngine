@@ -164,18 +164,10 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtilities::BakeMaterialProperty(const FIntP
 	}
 
 	bool bFromSRGB = !bIsLinearBake;
+	FGLTFPropertyBakeOutput PropertyBakeOutput(BakedPixels, BakedSize, EmissiveScale, bFromSRGB);
+
 	bool bToSRGB = IsSRGB(Property);
 	FGLTFTextureUtilities::TransformColorSpace(*BakedPixels, bFromSRGB, bToSRGB);
-
-	FGLTFPropertyBakeOutput PropertyBakeOutput(Property, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale, !bIsLinearBake);
-
-	if (BakedPixels->Num() == 1)
-	{
-		const FColor& Pixel = (*BakedPixels)[0];
-
-		PropertyBakeOutput.bIsConstant = true;
-		PropertyBakeOutput.ConstantValue = bToSRGB ? FLinearColor(Pixel) : Pixel.ReinterpretAsLinear();
-	}
 
 	return PropertyBakeOutput;
 }
