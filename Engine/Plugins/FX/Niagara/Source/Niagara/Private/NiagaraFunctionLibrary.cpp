@@ -107,7 +107,7 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(const UObject*
 * Spawns a Niagara System at the specified world location/rotation
 * @return			The spawned UNiagaraComponent
 */
-UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocationWithParams(FFXSystemSpawnParameters& SpawnParams)
+UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocationWithParams(const FFXSystemSpawnParameters& SpawnParams)
 {
 	UNiagaraComponent* PSC = NULL;
 	UNiagaraSystem* NiagaraSystem = Cast<UNiagaraSystem>(SpawnParams.SystemTemplate);
@@ -204,7 +204,7 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 * @return			The spawned UNiagaraComponent
 */
 
-UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttachedWithParams(FFXSystemSpawnParameters& SpawnParams)
+UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttachedWithParams(const FFXSystemSpawnParameters& SpawnParams)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 	

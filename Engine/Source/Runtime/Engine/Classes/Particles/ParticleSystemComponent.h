@@ -334,20 +334,43 @@ struct FFXSystemSpawnParameters
 {
 	GENERATED_BODY()
 
-	const UObject* WorldContextObject = nullptr;
-	UFXSystemAsset* SystemTemplate = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Effects|Components|ParticleSystem")
+	TObjectPtr<const UObject> WorldContextObject;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Components|ParticleSystem")
+	TObjectPtr<UFXSystemAsset> SystemTemplate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Components|ParticleSystem")
 	FVector Location = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Components|ParticleSystem")
 	FRotator Rotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Components|ParticleSystem")
 	FVector Scale = FVector(1.f);
 
-	USceneComponent* AttachToComponent = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Effects|Components|ParticleSystem")
+	TObjectPtr<USceneComponent> AttachToComponent;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Effects|Components|ParticleSystem")
 	FName AttachPointName = NAME_None;
-	EAttachLocation::Type LocationType = EAttachLocation::KeepWorldPosition;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Effects|Components|ParticleSystem")
+	TEnumAsByte<EAttachLocation::Type> LocationType = EAttachLocation::KeepWorldPosition;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Components|ParticleSystem")
 	bool bAutoDestroy = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Components|ParticleSystem")
 	bool bAutoActivate = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Effects|Components|ParticleSystem")
 	EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Effects|Components|ParticleSystem")
 	bool bPreCullCheck = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Effects|Components|ParticleSystem")
 	bool bIsPlayerEffect = false;
 };
 
