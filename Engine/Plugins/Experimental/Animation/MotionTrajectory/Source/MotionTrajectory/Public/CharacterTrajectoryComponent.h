@@ -11,7 +11,7 @@ class UCharacterMovementComponent;
 // Component for generating trajectories usable by Motion Matching. This component generates trajectories from ACharacter.
 // This is intended to provide an example and starting point for using Motion Matching with a common setup using the default UCharacterMovementComponent.
 // It is expected work flow to extend or replace this component for projects that use a custom movement component or custom movement modes.
-UCLASS(BlueprintType, meta = (BlueprintSpawnableComponent), Experimental)
+UCLASS(Blueprintable, BlueprintType, meta = (BlueprintSpawnableComponent), Experimental)
 class MOTIONTRAJECTORY_API UCharacterTrajectoryComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -25,6 +25,10 @@ public:
 	virtual void UninitializeComponent() override;
 	virtual void BeginPlay() override;
 	// End UActorComponent Interface
+
+	// This can be called when bAutoUpdateTrajectory is false to manually control when trajectory updates.
+	UFUNCTION(BlueprintCallable, Category = "Trajectory")
+	void UpdateTrajectory(float DeltaSeconds);
 
 protected:
 	UFUNCTION()
@@ -62,6 +66,11 @@ protected:
 	// with different rotation speeds than the character. This is especially true in cases where the character rotation snaps to movement.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trajectory Settings")
 	float RotateTowardsMovementSpeed = 10.f;
+
+	// By default the component will always update trajectory. If desired, this can be disabled and the game can choose when to update.
+	// For example, a game might want to only update trajectory for characters that are within view or very close to the local player.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trajectory Settings")
+	bool bAutoUpdateTrajectory = true;
 
 	UPROPERTY()
 	TObjectPtr<USkeletalMeshComponent> SkelMeshComponent;

@@ -26,25 +26,31 @@ void UCharacterTrajectoryComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
 
-	if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	if (bAutoUpdateTrajectory)
 	{
-		Character->OnCharacterMovementUpdated.AddDynamic(this, &UCharacterTrajectoryComponent::OnMovementUpdated);
-	}
-	else
-	{
-		UE_LOG(LogMotionTrajectory, Error, TEXT("UCharacterTrajectoryComponent requires its owner to be ACharacter"));
+		if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+		{
+			Character->OnCharacterMovementUpdated.AddDynamic(this, &UCharacterTrajectoryComponent::OnMovementUpdated);
+		}
+		else
+		{
+			UE_LOG(LogMotionTrajectory, Error, TEXT("UCharacterTrajectoryComponent requires its owner to be ACharacter"));
+		}
 	}
 }
 
 void UCharacterTrajectoryComponent::UninitializeComponent()
 {
-	if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+	if (bAutoUpdateTrajectory)
 	{
-		Character->OnCharacterMovementUpdated.RemoveDynamic(this, &UCharacterTrajectoryComponent::OnMovementUpdated);
-	}
-	else
-	{
-		UE_LOG(LogMotionTrajectory, Error, TEXT("UCharacterTrajectoryComponent requires its owner to be ACharacter"));
+		if (ACharacter* Character = Cast<ACharacter>(GetOwner()))
+		{
+			Character->OnCharacterMovementUpdated.RemoveDynamic(this, &UCharacterTrajectoryComponent::OnMovementUpdated);
+		}
+		else
+		{
+			UE_LOG(LogMotionTrajectory, Error, TEXT("UCharacterTrajectoryComponent requires its owner to be ACharacter"));
+		}
 	}
 
 	Super::UninitializeComponent();
@@ -109,9 +115,14 @@ void UCharacterTrajectoryComponent::BeginPlay()
 	}
 }
 
-void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity)
+void UCharacterTrajectoryComponent::UpdateTrajectory(float DeltaSeconds)
 {
 	if (!ensure(CharacterMovementComponent != nullptr && SkelMeshComponent != nullptr))
+	{
+		return;
+	}
+
+	if (!ensure(DeltaSeconds > 0.f))
 	{
 		return;
 	}
@@ -133,6 +144,11 @@ void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVecto
 		Trajectory.DebugDrawTrajectory(GetWorld(), SkelMeshComponentTransformWS);
 	}
 #endif // ENABLE_ANIM_DEBUG
+}
+
+void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity)
+{
+	UpdateTrajectory(DeltaSeconds);
 }
 
 void UpdateHistorySample(FPoseSearchQueryTrajectorySample& Sample, float DeltaSeconds, const FTransform& DeltaTransformCS)
@@ -216,7 +232,7 @@ FRotator UCharacterTrajectoryComponent::CalculateControllerRotationRate(float De
 {
 	check(GetOwner());
 
-	// OnMovementUpdated handles DeltaSeconds == 0.f, so we should never hit this.
+	// UpdateTrajectory handles DeltaSeconds == 0.f, so we should never hit this.
 	check(DeltaSeconds > 0.f);
 
 	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
