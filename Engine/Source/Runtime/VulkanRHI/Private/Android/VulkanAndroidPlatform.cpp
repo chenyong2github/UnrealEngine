@@ -800,7 +800,7 @@ void GetVKStructsFromPNext(const void* pNext, TMap<uint32_t, const void*>& VkStr
 	}
 }
 
-void HandleGraphicsPipelineCreatePNext(VkGraphicsPipelineCreateInfo* PipelineCreateInfo, TArray<char>& MemoryStream)
+void HandleGraphicsPipelineCreatePNext(const VkGraphicsPipelineCreateInfo* PipelineCreateInfo, TArray<char>& MemoryStream)
 {
 	TMap<uint32_t, const void*> VkStructs;
 	GetVKStructsFromPNext(PipelineCreateInfo->pNext, VkStructs);
@@ -859,7 +859,7 @@ void HandleSubpassDescriptionPNext(VkSubpassDescription2* SubpassDescription, TA
 	check(HandledCount == VkStructs.Num());
 }
 
-void PipelineToBinary(FVulkanDevice* Device, VkGraphicsPipelineCreateInfo* PipelineInfo, FGfxPipelineDesc* GfxEntry, const FVulkanRenderTargetLayout* RTLayout, TArray<char>& MemoryStream)
+void PipelineToBinary(FVulkanDevice* Device, const VkGraphicsPipelineCreateInfo* PipelineInfo, FGfxPipelineDesc* GfxEntry, const FVulkanRenderTargetLayout* RTLayout, TArray<char>& MemoryStream)
 {
 	static const unsigned int INITIAL_PSO_STREAM_SIZE = 64 * 1024;
 	MemoryStream.Reserve(INITIAL_PSO_STREAM_SIZE);
@@ -1368,7 +1368,7 @@ namespace AndroidVulkanService
 	std::atomic<bool> bOneTimeErrorEncountered = false;
 }
 
-VkPipelineCache FVulkanAndroidPlatform::PrecompilePSO(FVulkanDevice* Device, VkGraphicsPipelineCreateInfo* PipelineInfo, FGfxPipelineDesc* GfxEntry, const FVulkanRenderTargetLayout* RTLayout, TArrayView<uint32_t> VS, TArrayView<uint32_t> PS, size_t& AfterSize)
+VkPipelineCache FVulkanAndroidPlatform::PrecompilePSO(FVulkanDevice* Device, const VkGraphicsPipelineCreateInfo* PipelineInfo, FGfxPipelineDesc* GfxEntry, const FVulkanRenderTargetLayout* RTLayout, TArrayView<uint32_t> VS, TArrayView<uint32_t> PS, size_t& AfterSize)
 {
 	FString FailureMessageOUT;
 	

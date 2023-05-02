@@ -1303,7 +1303,7 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	// Vertex Input. The structure is mandatory even without vertex attributes.
 	VkPipelineVertexInputStateCreateInfo VBInfo;
 	ZeroVulkanStruct(VBInfo, VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
-	TArray<VkVertexInputBindingDescription> VBBindings;
+	TArray<VkVertexInputBindingDescription, TInlineAllocator<32>> VBBindings;
 	for (const FGfxPipelineDesc::FVertexBinding& SourceBinding : GfxEntry->VertexBindings)
 	{
 		VkVertexInputBindingDescription* Binding = new(VBBindings) VkVertexInputBindingDescription;
@@ -1311,7 +1311,7 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	}
 	VBInfo.vertexBindingDescriptionCount = VBBindings.Num();
 	VBInfo.pVertexBindingDescriptions = VBBindings.GetData();
-	TArray<VkVertexInputAttributeDescription> VBAttributes;
+	TArray<VkVertexInputAttributeDescription, TInlineAllocator<32>> VBAttributes;
 	for (const FGfxPipelineDesc::FVertexAttribute& SourceAttr : GfxEntry->VertexAttributes)
 	{
 		VkVertexInputAttributeDescription* Attr = new(VBAttributes) VkVertexInputAttributeDescription;
@@ -1373,6 +1373,11 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	}
 #endif
 
+	if (Device->SupportsBindless())
+	{
+		PipelineInfo.flags |= VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+	}
+
 	VkResult Result = VK_ERROR_INITIALIZATION_FAILED;
 
 	double BeginTime = FPlatformTime::Seconds();
@@ -1398,16 +1403,11 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	return true;
 }
 
-VkResult FVulkanPipelineStateCacheManager::CreateVKPipeline(FVulkanRHIGraphicsPipelineState* PSO, FVulkanShader* Shaders[ShaderStage::NumStages], VkGraphicsPipelineCreateInfo PipelineInfo, bool bIsPrecompileJob)
+VkResult FVulkanPipelineStateCacheManager::CreateVKPipeline(FVulkanRHIGraphicsPipelineState* PSO, FVulkanShader* Shaders[ShaderStage::NumStages], const VkGraphicsPipelineCreateInfo& PipelineInfo, bool bIsPrecompileJob)
 {
 	VkPipeline* Pipeline = &PSO->VulkanPipeline;
 
 	FPipelineCache& Cache = bIsPrecompileJob ? CurrentPrecompilingPSOCache : GlobalPSOCache;
-
-	if (Device->SupportsBindless())
-	{
-		PipelineInfo.flags |= VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
-	}
 
 	VkPipelineCache LocalPipelineCache = VK_NULL_HANDLE;
 	VkResult Result = VK_ERROR_INITIALIZATION_FAILED;
