@@ -780,6 +780,7 @@ FSlateColor SDetailSingleItemRow::GetInnerBackgroundColor() const
 bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 {
 	FUIAction CopyDisplayNameAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnCopyPropertyDisplayName);
+	CopyDisplayNameAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::CanCopyPropertyDisplayName);
 	FUIAction CopyInternalNameAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnCopyPropertyInternalName);
 	CopyInternalNameAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::CanCopyPropertyInternalName);
 
@@ -931,6 +932,23 @@ void SDetailSingleItemRow::OnCopyPropertyDisplayName()
 			FPlatformApplicationMisc::ClipboardCopy(*PropertyNode->GetDisplayName().ToString());
 		}
 	}
+}
+
+bool SDetailSingleItemRow::CanCopyPropertyDisplayName()
+{
+	if (OwnerTreeNode.IsValid())
+	{
+		TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
+		if (PropertyNode.IsValid())
+		{
+			if (!PropertyNode->GetDisplayName().IsEmpty())
+			{
+				return true;
+			}
+				
+		}
+	}
+	return false;
 }
 
 void SDetailSingleItemRow::OnCopyPropertyInternalName()

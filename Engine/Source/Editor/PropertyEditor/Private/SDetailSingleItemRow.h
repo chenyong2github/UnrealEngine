@@ -72,6 +72,7 @@ protected:
 private:
 	void OnCopyProperty();
 	void OnCopyPropertyDisplayName();
+	bool CanCopyPropertyDisplayName();
 	void OnCopyPropertyInternalName();
 	bool CanCopyPropertyInternalName();
 	void OnPasteProperty();
