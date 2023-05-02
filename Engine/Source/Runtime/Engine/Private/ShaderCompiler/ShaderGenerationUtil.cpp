@@ -649,6 +649,8 @@ static int32 GetBufferNumBits(EGBufferType Format, int32 Channel)
 	case GBT_Float_16_16_16_16:
 		Ret = 16;
 		break;
+	case GBT_Float_32:
+		Ret = 32;
 	default:
 		check(0);
 		break;

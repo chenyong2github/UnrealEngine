@@ -580,7 +580,7 @@ FGBufferInfo RENDERCORE_API FetchMobileGBufferInfo(const FGBufferParams& Params)
 FGBufferInfo RENDERCORE_API FetchFullGBufferInfo(const FGBufferParams& Params)
 {
 	// For now, we are only doing legacy. But next, we will have a switch between the old and new formats.
-	if (IsMobilePlatform(Params.ShaderPlatform))
+	if (IsMobilePlatform(Params.ShaderPlatform) && IsMobileDeferredShadingEnabled(Params.ShaderPlatform))
 	{
 		return FetchMobileGBufferInfo(Params);
 	}
