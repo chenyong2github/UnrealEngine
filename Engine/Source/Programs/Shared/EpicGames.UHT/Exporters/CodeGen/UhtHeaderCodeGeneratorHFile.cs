@@ -674,7 +674,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 								builder.AppendSparse(sparseProperty).Append(" Get").Append(cleanPropertyName).Append("() const \\\r\n");
 							}
 							builder.Append("{ \\\r\n");
-							builder.Append("\treturn Get").Append(sparseDataType).Append("()->").Append(propertyName).Append("; \\\r\n");
+							builder.Append("\treturn Get").Append(sparseDataType).Append("(EGetSparseClassDataMethod::ArchetypeIfNull)->").Append(propertyName).Append("; \\\r\n");
 							builder.Append("} \\\r\n");
 						}
 					}
