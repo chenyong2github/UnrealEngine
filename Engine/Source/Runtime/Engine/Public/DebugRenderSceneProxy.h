@@ -12,13 +12,15 @@
 #include "DynamicMeshBuilder.h"
 
 class APlayerController;
+class FMaterialRenderProxy;
 class FMeshElementCollector;
 class FPrimitiveDrawInterface;
 class FRegisterComponentContext;
 class UCanvas;
+class UMaterial;
 class UPrimitiveComponent;
 
-DECLARE_DELEGATE_TwoParams(FDebugDrawDelegate, class UCanvas*, class APlayerController*);
+DECLARE_DELEGATE_TwoParams(FDebugDrawDelegate, UCanvas*, APlayerController*);
 
 class FDebugRenderSceneProxy : public FPrimitiveSceneProxy
 {
@@ -67,6 +69,17 @@ public:
 		return FVector::DistSquared(Start, View->ViewMatrices.GetViewOrigin()) <= FMath::Square(Range);
 	}
 
+	struct FMaterialCache
+	{
+		FMaterialCache(FMeshElementCollector& InCollector, bool bUseLight = false, UMaterial* InMaterial = nullptr);
+		FMaterialRenderProxy* operator[](FLinearColor Color);
+
+		FMeshElementCollector& Collector;
+		TMap<uint32, FMaterialRenderProxy*> MeshColorInstances;
+		TWeakObjectPtr<UMaterial> SolidMeshMaterial;
+		bool bUseFakeLight = false;
+	};
+
 	/** Struct to hold info about lines to render. */
 	struct FDebugLine
 	{
@@ -80,6 +93,8 @@ public:
 		FVector End;
 		FColor Color;
 		float Thickness;
+
+		ENGINE_API void Draw(FPrimitiveDrawInterface* PDI) const;
 	};
 
 	/** Struct to hold info about boxes to render. */
@@ -95,6 +110,8 @@ public:
 		{
 		}
 
+		ENGINE_API void Draw(FPrimitiveDrawInterface* PDI, EDrawType InDrawType, uint32 InDrawAlpha, FMaterialCache& MaterialCache, int32 ViewIndex, FMeshElementCollector& Collector) const;
+
 		FBox Box;
 		FColor Color;
 		FTransform Transform;
@@ -108,6 +125,8 @@ public:
 		Radius(InRadius),
 		HalfHeight(InHalfHeight),
 		Color(InColor) {}
+
+		ENGINE_API void Draw(FPrimitiveDrawInterface* PDI, EDrawType InDrawType, uint32 InDrawAlpha, FMaterialCache& MaterialCache, int32 ViewIndex, FMeshElementCollector& Collector) const;
 
 		FVector Base;
 		float Radius;
@@ -123,6 +142,8 @@ public:
 		Color(InColor),
 		Size(InSize) {}
 
+		ENGINE_API void Draw(FPrimitiveDrawInterface* PDI) const;
+
 		FVector Position;
 		FColor Color;
 		float Size;
@@ -135,6 +156,8 @@ public:
 		Start(InStart),
 		End(InEnd),
 		Color(InColor) {}
+
+		ENGINE_API void Draw(FPrimitiveDrawInterface* PDI, const float Mag) const;
 
 		FVector Start;
 		FVector End;
@@ -150,6 +173,8 @@ public:
 		Color(InColor),
 		DashSize(InDashSize) {}
 
+		ENGINE_API void Draw(FPrimitiveDrawInterface* PDI) const;
+
 		FVector Start;
 		FVector End;
 		FColor Color;
@@ -164,6 +189,8 @@ public:
 		Radius(InRadius),
 		Location(InLocation),
 		Color(InColor.ToFColor(true)) {}
+
+		ENGINE_API void Draw(FPrimitiveDrawInterface* PDI, EDrawType InDrawType, uint32 InDrawAlpha, FMaterialCache& MaterialCache, int32 ViewIndex, FMeshElementCollector& Collector) const;
 
 		float Radius;
 		FVector Location;
@@ -193,6 +220,8 @@ public:
 			Angle2(InAngle2),
 			Color(InColor.ToFColor(true)) {}
 
+		ENGINE_API void Draw(FPrimitiveDrawInterface* PDI, EDrawType InDrawType, uint32 InDrawAlpha, FMaterialCache& MaterialCache, int32 ViewIndex, FMeshElementCollector& Collector, TArray<FVector>* VertsCache = nullptr) const;
+
 		FMatrix ConeToWorld;
 		float Angle1;
 		float Angle2;
@@ -216,10 +245,9 @@ public:
 			, HalfHeight(InHalfHeight)
 			, X(x)
 			, Y(y)
-			, Z(z)
-		{
+			, Z(z) {}
 
-		}
+		ENGINE_API void Draw(FPrimitiveDrawInterface* PDI, EDrawType InDrawType, uint32 InDrawAlpha, FMaterialCache& MaterialCache, int32 ViewIndex, FMeshElementCollector& Collector) const;
 
 		float Radius;
 		FVector Base; //Center point of the base of the cylinder.
@@ -248,7 +276,10 @@ public:
 	EDrawType DrawType;
 	uint32 DrawAlpha;
 
-	TWeakObjectPtr<class UMaterial> SolidMeshMaterial;
+	TWeakObjectPtr<UMaterial> SolidMeshMaterial;
+
+protected:
+	ENGINE_API virtual void GetDynamicMeshElementsForView(const FSceneView* View, const int32 ViewIndex, const FSceneViewFamily& ViewFamily, const uint32 VisibilityMap, FMeshElementCollector& Collector, FMaterialCache& DefaultMaterialCache, FMaterialCache& SolidMeshMaterialCache) const;
 };
 
 
