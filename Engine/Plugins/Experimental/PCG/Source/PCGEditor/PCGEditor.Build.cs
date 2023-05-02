@@ -14,12 +14,13 @@ namespace UnrealBuildTool.Rules
 			"Projects",
 			"Engine",
 			"CoreUObject",
-			"PlacementMode"
+			"PlacementMode",
 		});
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
-				{					
+				{
+				
 				}
 			);
 
@@ -28,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"AppFramework",
 					"ApplicationCore",
 					"AssetTools",
+					"AssetRegistry",
 					"BlueprintGraph",
 					"DesktopWidgets",
 					"DetailCustomizations",
