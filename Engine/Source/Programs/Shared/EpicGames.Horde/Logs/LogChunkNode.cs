@@ -135,6 +135,13 @@ namespace EpicGames.Horde.Logs
 		public Utf8String GetLine(int idx) => new Utf8String(Data.Slice(LineOffsets[idx], LineOffsets[idx + 1] - LineOffsets[idx] - 1));
 
 		/// <summary>
+		/// Accessor for an individual line, including the trailing newline character
+		/// </summary>
+		/// <param name="idx">Index of the line to retrieve</param>
+		/// <returns>Line at the given index</returns>
+		public Utf8String GetLineWithNewline(int idx) => new Utf8String(Data.Slice(LineOffsets[idx], LineOffsets[idx + 1] - LineOffsets[idx]));
+
+		/// <summary>
 		/// Find the line index for a particular offset
 		/// </summary>
 		/// <param name="offset">Offset within the text</param>
@@ -679,7 +686,7 @@ namespace EpicGames.Horde.Logs
 			{
 				for (; lineIdx < chunk.LineCount; lineIdx++)
 				{
-					yield return chunk.GetLine(lineIdx);
+					yield return chunk.GetLineWithNewline(lineIdx);
 				}
 				lineIdx -= chunk.LineCount;
 			}
