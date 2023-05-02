@@ -3681,7 +3681,7 @@ void FCsvProfiler::Init()
 	}
 
 	FString CsvCategoriesStr;
-	if (FParse::Value(FCommandLine::Get(), TEXT("csvCategories="), CsvCategoriesStr))
+	if (FParse::Value(FCommandLine::Get(), TEXT("csvCategories="), CsvCategoriesStr, /*bShouldStopOnSeparator*/false))
 	{
 		TArray<FString> CsvCategories;
 		CsvCategoriesStr.ParseIntoArray(CsvCategories, TEXT(","), true);
