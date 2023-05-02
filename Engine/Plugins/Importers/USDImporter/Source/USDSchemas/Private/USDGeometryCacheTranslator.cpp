@@ -190,7 +190,7 @@ namespace UsdGeometryCacheTranslatorImpl
 			, RootPrim(InRootPrim)
 		{}
 
-		UE::FUsdStage Stage;
+		UE::FUsdStageWeak Stage;
 		UE::FUsdPrim RootPrim;
 		UsdToUnreal::FUsdMeshConversionOptions Options;
 		int32 StartFrame = 0;
