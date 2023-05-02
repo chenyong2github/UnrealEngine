@@ -105,6 +105,7 @@ namespace Chaos
 #if WITH_EDITOR
 		// Visualization material
 		TObjectPtr<const UMaterial> ClothMaterial = nullptr;
+		TObjectPtr<const UMaterial> ClothMaterialColor = nullptr;
 		TObjectPtr<const UMaterial> ClothMaterialVertex = nullptr;
 		TObjectPtr<const UMaterial> CollisionMaterial = nullptr;
 #endif  // #if WITH_EDITOR

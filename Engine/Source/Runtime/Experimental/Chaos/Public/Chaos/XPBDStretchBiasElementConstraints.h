@@ -97,6 +97,16 @@ public:
 	}
 
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
+	void CalculateUVStretch(const int32 ConstraintIndex, const FSolverVec3& P0, const FSolverVec3& P1, const FSolverVec3& P2, FSolverVec3& dX_dU, FSolverVec3& dX_dV) const;
+	
+	const TArray<TVec3<int32>>& GetConstraints() const { return Constraints; }
+	const TArray<FSolverVec2> GetRestStretchLengths() const { return RestStretchLengths; }
+	FSolverVec2 GetWarpWeftScale(const int32 ConstraintIndex) const 
+	{ 
+		return FSolverVec2(WarpScale.HasWeightMap() ? WarpScale[ConstraintIndex] : (FSolverReal)WarpScale,
+			WeftScale.HasWeightMap() ? WeftScale[ConstraintIndex] : (FSolverReal)WeftScale);
+	}
+	const TArray<int32>& GetConstraintsPerColorStartIndex() const { return ConstraintsPerColorStartIndex; }
 
 private:
 	void InitConstraintsAndRestData(const FSolverParticles& InParticles, const FTriangleMesh& TriangleMesh,

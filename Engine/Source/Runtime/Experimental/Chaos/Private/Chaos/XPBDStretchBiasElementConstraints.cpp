@@ -237,6 +237,8 @@ void FXPBDStretchBiasElementConstraints::InitConstraintsAndRestData(const FSolve
 
 void FXPBDStretchBiasElementConstraints::InitColor(const FSolverParticles& InParticles)
 {
+	ConstraintsPerColorStartIndex.Reset();
+
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
 	if (Constraints.Num() > Chaos_XPBDStretchBias_ParallelConstraintCount)
@@ -274,6 +276,7 @@ void FXPBDStretchBiasElementConstraints::InitColor(const FSolverParticles& InPar
 				++ReorderedIndex;
 			}
 		}
+		check(ReorderedIndex == Constraints.Num());
 		ConstraintsPerColorStartIndex.Add(ReorderedIndex);
 
 		Constraints = MoveTemp(ReorderedConstraints);
@@ -284,6 +287,14 @@ void FXPBDStretchBiasElementConstraints::InitColor(const FSolverParticles& InPar
 		StiffnessWeft.ReorderIndices(OrigToReorderedIndices);
 		StiffnessBias.ReorderIndices(OrigToReorderedIndices);
 		DampingRatio.ReorderIndices(OrigToReorderedIndices);
+	}
+
+	// Ensure we have valid color indices
+	if (ConstraintsPerColorStartIndex.Num() < 2)
+	{
+		ConstraintsPerColorStartIndex.Reset(2);
+		ConstraintsPerColorStartIndex.Add(0);
+		ConstraintsPerColorStartIndex.Add(Constraints.Num());
 	}
 }
 
@@ -429,7 +440,7 @@ void FXPBDStretchBiasElementConstraints::Apply(FSolverParticles& Particles, cons
 	const FSolverReal WarpScaleNoMap = (FSolverReal)WarpScale;
 	const FSolverReal WeftScaleNoMap = (FSolverReal)WeftScale;
 
-	if (ConstraintsPerColorStartIndex.Num() > 0 && Constraints.Num() > Chaos_XPBDStretchBias_ParallelConstraintCount)
+	if (ConstraintsPerColorStartIndex.Num() > 1 && Constraints.Num() > Chaos_XPBDStretchBias_ParallelConstraintCount)
 	{
 		const int32 ConstraintColorNum = ConstraintsPerColorStartIndex.Num() - 1;
 		if (!StiffnessWarpHasWeightMap && !StiffnessWeftHasWeightMap && !StiffnessBiasHasWeightMap && !DampingHasWeightMap && !WarpScaleHasWeightMap && !WeftScaleHasWeightMap)
@@ -635,6 +646,16 @@ void FXPBDStretchBiasElementConstraints::Apply(FSolverParticles& Particles, cons
 	}
 }
 
+void FXPBDStretchBiasElementConstraints::CalculateUVStretch(const int32 ConstraintIndex, const FSolverVec3& P0, const FSolverVec3& P1, const FSolverVec3& P2, FSolverVec3& dX_dU, FSolverVec3& dX_dV) const
+{
+	const FSolverMatrix22& DeltaUVInv = DeltaUVInverse[ConstraintIndex];
+
+	const FSolverVec3 P01 = P1 - P0;
+	const FSolverVec3 P02 = P2 - P0;
+	dX_dU = P01 * DeltaUVInv.M[0] + P02 * DeltaUVInv.M[1];
+	dX_dV = P01 * DeltaUVInv.M[2] + P02 * DeltaUVInv.M[3];
+}
+
 static FSolverReal CalcDLambda(const FSolverReal StiffnessValue, const FSolverReal Dt, const FSolverReal Lambda, const FSolverReal Damping,
 	const FSolverReal InvM1, const FSolverReal InvM2, const FSolverReal InvM3,
 	const FSolverVec3& V1TimesDt, const FSolverVec3& V2TimesDt, const FSolverVec3& V3TimesDt,
@@ -664,12 +685,8 @@ void FXPBDStretchBiasElementConstraints::ApplyHelper(FSolverParticles& Particles
 
 	const FSolverReal CombinedInvMass = Particles.InvM(i0) + Particles.InvM(i1) + Particles.InvM(i2);
 
-	const FSolverMatrix22& DeltaUVInv = DeltaUVInverse[ConstraintIndex];
-
-	const FSolverVec3 P01 = Particles.P(i1) - Particles.P(i0);
-	const FSolverVec3 P02 = Particles.P(i2) - Particles.P(i0);
-	const FSolverVec3 dX_dU = P01 * DeltaUVInv.M[0] + P02 * DeltaUVInv.M[1];
-	const FSolverVec3 dX_dV = P01 * DeltaUVInv.M[2] + P02 * DeltaUVInv.M[3];
+	FSolverVec3 dX_dU, dX_dV;
+	CalculateUVStretch(ConstraintIndex, Particles.P(i0), Particles.P(i1), Particles.P(i2), dX_dU, dX_dV);
 
 	const FSolverReal dX_dU_length = dX_dU.Length();
 	const FSolverReal dX_dV_length = dX_dV.Length();
@@ -691,6 +708,9 @@ void FXPBDStretchBiasElementConstraints::ApplyHelper(FSolverParticles& Particles
 	const FSolverReal Cu = (dX_dU_length - RestStretchLengths[ConstraintIndex][0]*WarpScaleValue); // stretch in warp direction
 	const FSolverReal Cv = (dX_dV_length - RestStretchLengths[ConstraintIndex][1]*WeftScaleValue); // stretch in weft direction
 	const FSolverReal Cs = FSolverVec3::DotProduct(dX_dU_normalized, dX_dV_normalized);
+
+
+	const FSolverMatrix22& DeltaUVInv = DeltaUVInverse[ConstraintIndex];
 
 	const FSolverVec3 dCu_dX1 = dX_dU_normalized * DeltaUVInv.M[0];
 	const FSolverVec3 dCu_dX2 = dX_dU_normalized * DeltaUVInv.M[1];

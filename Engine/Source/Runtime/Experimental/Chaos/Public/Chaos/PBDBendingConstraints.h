@@ -113,6 +113,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const;
 
+	const TArray<int32>& GetConstraintsPerColorStartIndex() const { return ConstraintsPerColorStartIndex; }
+
 private:
 	void InitColor(const FSolverParticles& InParticles);
 	void ApplyHelper(FSolverParticles& InParticles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue, const FSolverReal ExpBucklingValue) const;
