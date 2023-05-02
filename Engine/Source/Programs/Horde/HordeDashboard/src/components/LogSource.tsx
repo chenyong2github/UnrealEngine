@@ -67,7 +67,7 @@ export abstract class LogSource {
 
    initComplete() {
       if (this.active) {
-         setTimeout(() => { this.poll(); }, 2000);
+         setTimeout(() => { this.poll(); }, 250);
       }
    }
 
