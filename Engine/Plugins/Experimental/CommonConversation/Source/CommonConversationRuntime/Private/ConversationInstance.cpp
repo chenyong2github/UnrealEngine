@@ -193,6 +193,9 @@ void UConversationInstance::ServerAdvanceConversation(const FAdvanceConversation
 
 		TArray<FConversationBranchPoint> CandidateDestinations;
 
+		const FConversationContext ServerContext = FConversationContext::CreateServerContext(this, nullptr);
+		const UConversationChoiceNode* ChoiceNodePicked = nullptr;
+
 		if (InChoicePicked.Choice != FConversationChoiceReference::Empty)
 		{
 			if (const FConversationBranchPoint* BranchPoint = FindBranchPointFromClientChoice(InChoicePicked.Choice))
@@ -200,14 +203,14 @@ void UConversationInstance::ServerAdvanceConversation(const FAdvanceConversation
 				UE_LOG(LogCommonConversationRuntime, Verbose, TEXT("User picked option %s, going to try that"), *BranchPoint->ClientChoice.ChoiceReference.ToString());
 				CandidateDestinations = { *BranchPoint };
 
-				FConversationContext Context = FConversationContext::CreateServerContext(this, nullptr);
-				if (const UConversationTaskNode* TaskNode = BranchPoint->ClientChoice.TryToResolveChoiceNode<UConversationTaskNode>(Context))
+				if (const UConversationTaskNode* TaskNode = BranchPoint->ClientChoice.TryToResolveChoiceNode<UConversationTaskNode>(ServerContext))
 				{
 					for (const UConversationNode* SubNode : TaskNode->SubNodes)
 					{
 						if (const UConversationChoiceNode* ChoiceNode = Cast<UConversationChoiceNode>(SubNode))
 						{
-							ChoiceNode->NotifyChoicePickedByUser(Context, BranchPoint->ClientChoice);
+							ChoiceNodePicked = ChoiceNode;
+							ChoiceNode->NotifyChoicePickedByUser(ServerContext, BranchPoint->ClientChoice);
 							break;
 						}
 					}
@@ -255,6 +258,12 @@ void UConversationInstance::ServerAdvanceConversation(const FAdvanceConversation
 					ValidDestinations.Add(BranchPoint);
 				}
 			}
+		}
+
+		// Allow derived conversation instances a chance to respond to a choice being picked
+		if (ChoiceNodePicked)
+		{ 
+			OnChoiceNodePickedByUser(ServerContext, ChoiceNodePicked, ValidDestinations);
 		}
 
 		if (ValidDestinations.Num() == 0)

@@ -9,6 +9,7 @@
 #include "Math/RandomStream.h"
 #include "ConversationInstance.generated.h"
 
+class UConversationChoiceNode;
 class UConversationInstance;
 class UConversationNodeWithLinks;
 class UConversationParticipantComponent;
@@ -98,6 +99,7 @@ protected:
 	void ReturnToCurrentClientChoice(const FConversationContext& Context);
 	void ReturnToStart(const FConversationContext& Context);
 	virtual void PauseConversationAndSendClientChoices(const FConversationContext& Context, const FClientConversationMessage& ClientMessage);
+	virtual void OnChoiceNodePickedByUser(const FConversationContext& Context, const UConversationChoiceNode* ChoiceNode, const TArray<FConversationBranchPoint>& ValidDestinations) {};
 #endif
 
 private:
