@@ -178,39 +178,89 @@ private:
 	/** Updates the dynamic progress bars for this widget */
 	void UpdateDynamicProgressBars()
 	{
-		auto ScopeStack = WeakStack.Pin();
-		if (!ScopeStack.IsValid())
+		TSharedPtr<FSlowTaskStack> ScopeStackPtr = WeakStack.Pin();
+		if (!ScopeStackPtr.IsValid())
 		{
 			return;
 		}
+		const FSlowTaskStack &ScopeStack = *(ScopeStackPtr.Get());
 
 		static const double VisibleScopeThreshold = 0.5;
 
-		DynamicProgressIndices.Reset();
+		DynamicProgressIndices.Reset(MaxNumSecondaryBars + 1); // Add one for the main bar
 		
 		// Always show the first one
-		DynamicProgressIndices.Add(0);
+		DynamicProgressIndices.Emplace(0);
 
-		for (int32 Index = 1; Index < ScopeStack->Num() && DynamicProgressIndices.Num() <= MaxNumSecondaryBars; ++Index)
+		const int32 ScopeCount = ScopeStack.Num();
+
+		// Start from the top of the stack to find the newest Important tasks, if there are any
+		for (int32 ReverseScopeIndex = ScopeCount - 1; ReverseScopeIndex > 0 && DynamicProgressIndices.Num() <= MaxNumSecondaryBars; --ReverseScopeIndex)
 		{
-			const auto* Scope = (*ScopeStack)[Index];
-
-			if (Scope->Visibility == ESlowTaskVisibility::ForceVisible)
+			const FSlowTask *const Scope = ScopeStack[ReverseScopeIndex];
+			if (Scope->Visibility == ESlowTaskVisibility::Important)
 			{
-				DynamicProgressIndices.Add(Index);
-			}
-			else if (Scope->Visibility == ESlowTaskVisibility::Default && !Scope->DefaultMessage.IsEmpty())
-			{
-				const auto TimeOpen = FPlatformTime::Seconds() - Scope->StartTime;
-
-				// We only show visible scopes if they have been opened a while
-				if (TimeOpen > VisibleScopeThreshold)
+				if (Scope->DefaultMessage.IsEmpty())
 				{
-					DynamicProgressIndices.Add(Index);
+					UE_LOG(LogSlate, Warning, TEXT("An important slow task had no default message, if this is intended this warning can be ignored."));
 				}
+
+				DynamicProgressIndices.Emplace(ReverseScopeIndex);
 			}
 		}
 
+		// The Importants were added in reverse order, make sure to skip the first element: Data() + 1
+		Algo::Reverse(DynamicProgressIndices.GetData() + 1, DynamicProgressIndices.Num() - 1);
+				
+		for (int32 ScopeIndex = 1, InsertIndex = 1; ScopeIndex < ScopeCount && DynamicProgressIndices.Num() <= MaxNumSecondaryBars; ++ScopeIndex)
+		{
+			const FSlowTask *const Scope = ScopeStack[ScopeIndex];
+			switch (Scope->Visibility)
+			{
+				case ESlowTaskVisibility::Default:
+				{
+					if (!Scope->DefaultMessage.IsEmpty())
+					{
+						const double TimeOpen = FPlatformTime::Seconds() - Scope->StartTime;
+
+						// We only show default scopes if they have been opened a while
+						if (TimeOpen > VisibleScopeThreshold)
+						{
+							DynamicProgressIndices.EmplaceAt(InsertIndex, ScopeIndex);
+							++InsertIndex;
+						}
+					}
+
+					break;
+				}
+
+				case ESlowTaskVisibility::ForceVisible:
+				{
+					if (Scope->DefaultMessage.IsEmpty())
+					{
+						UE_LOG(LogSlate, Warning, TEXT("A forced visible slow task had no default message, if this is intended this warning can be ignored."));
+					}
+
+					DynamicProgressIndices.EmplaceAt(InsertIndex, ScopeIndex);
+					++InsertIndex;
+
+					break;
+				}
+
+				case ESlowTaskVisibility::Important: // These have already been added
+				{
+					// Increase the insert index to start inserting after the already added Important task
+					++InsertIndex;
+					break;
+				}
+
+				// ESlowTaskVisibility::Invisible:
+				default:
+				{
+					break;
+				}
+			}
+		}
 	}
 
 	/** Create a progress bar for the specified index */
@@ -368,7 +418,7 @@ const int32 SSlowTaskWidget::SecondaryBarHeight;
 
 static void TickSlate(TSharedPtr<SWindow> SlowTaskWindow)
 {
-	// Avoid re-entrancy by ticking the active modal window again. This can happen if thhe slow task window is open and a sibling modal window is open as well.  We only tick slate if we are the active modal window or a child of the active modal window
+	// Avoid re-entrancy by ticking the active modal window again. This can happen if the slow task window is open and a sibling modal window is open as well.  We only tick slate if we are the active modal window or a child of the active modal window
 	if( SlowTaskWindow.IsValid() && ( FSlateApplication::Get().GetActiveModalWindow() == SlowTaskWindow || SlowTaskWindow->IsDescendantOf( FSlateApplication::Get().GetActiveModalWindow() ) ) )
 	{
 		// Mark begin frame

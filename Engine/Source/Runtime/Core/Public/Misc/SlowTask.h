@@ -14,8 +14,10 @@ enum class ESlowTaskVisibility
 {
 	/** Default visibility (inferred by some heuristic of remaining work/time open) */
 	Default,
-	/** Force this particular slow task to be visible on the UI */
+	/** Ignore the required minimum visible time and non-empty text requirement */
 	ForceVisible,
+	/** Force this particular slow task to be visible on the UI, overriding tasks if there is no space in ascending order of recency (newest tasks at the bottom first) */
+	Important,
 	/** Forcibly prevent this slow task from being shown, but still use it for work progress calculations */
 	Invisible,
 };
