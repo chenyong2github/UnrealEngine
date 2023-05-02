@@ -33,7 +33,8 @@ static int32 GRayTracingShadowsEnableMaterials = 1;
 static FAutoConsoleVariableRef CVarRayTracingShadowsEnableMaterials(
 	TEXT("r.RayTracing.Shadows.EnableMaterials"),
 	GRayTracingShadowsEnableMaterials,
-	TEXT("Enables material shader binding for shadow rays. If this is disabled, then a default trivial shader is used. (default = 1)")
+	TEXT("Enables material shader binding for shadow rays. If this is disabled, then a default trivial shader is used. (default = 1)"),
+	ECVF_RenderThreadSafe
 );
 
 static float GRayTracingShadowsAvoidSelfIntersectionTraceDistance = 0.0f;
@@ -505,6 +506,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 						FRayTracingPipelineStateInitializer Initializer;
 
 						Initializer.MaxPayloadSizeInBytes = GetRayTracingPayloadTypeMaxSize(ERayTracingPayloadType::RayTracingMaterial);
+
+						FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader.GetRayTracingShader() };
+						Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
 						FRHIRayTracingShader* HitGroupTable[] = { GetRayTracingDefaultOpaqueShader(View.ShaderMap) };
 						Initializer.SetHitGroupTable(HitGroupTable);
