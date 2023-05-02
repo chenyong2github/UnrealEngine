@@ -33,7 +33,8 @@ namespace Horde.Server.Issues
 			".ush",
 			".uproject",
 			".uplugin",
-			".sln"
+			".sln",
+			".verse"
 		};
 
 		/// <summary>
