@@ -91,7 +91,6 @@ protected:
 	void FillRenderContextSubMenu( FMenuBuilder& MenuBuilder );
 	void FillMaterialPurposeSubMenu( FMenuBuilder& MenuBuilder );
 	void FillRootMotionSubMenu( FMenuBuilder& MenuBuilder );
-	void FillMaterialXOptionsSubMenu( FMenuBuilder& MenuBuilder );
 	void FillCollapsingSubMenu( FMenuBuilder& MenuBuilder );
 	void FillInterpolationTypeSubMenu( FMenuBuilder& MenuBuilder );
 	void FillSelectionSubMenu( FMenuBuilder& MenuBuilder );

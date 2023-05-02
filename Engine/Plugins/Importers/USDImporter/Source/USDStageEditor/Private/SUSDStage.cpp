@@ -1114,11 +1114,6 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillRootMotionSubMenu ) );
 
 		MenuBuilder.AddSubMenu(
-			LOCTEXT("MaterialXOptions", "MaterialX options"),
-			LOCTEXT("MaterialXOptions_ToolTip", "Choose the settings to use when parsing MaterialX materials via Interchange"),
-			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillMaterialXOptionsSubMenu));
-
-		MenuBuilder.AddSubMenu(
 			LOCTEXT( "Collapsing", "Collapsing" ),
 			LOCTEXT( "Collapsing_ToolTip", "Whether to try to combine individual assets and components of the same type on a Kind-per-Kind basis, like multiple Mesh prims into a single Static Mesh" ),
 			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillCollapsingSubMenu ) );
@@ -1590,36 +1585,6 @@ void SUsdStage::FillRootMotionSubMenu( FMenuBuilder& MenuBuilder )
 	AddRootMotionEntry( EUsdRootMotionHandling::NoAdditionalRootMotion, LOCTEXT("NoAdditionalRootMotionText", "No additional root motion"));
 	AddRootMotionEntry( EUsdRootMotionHandling::UseMotionFromSkelRoot, LOCTEXT("UseMotionFromSkelRootText", "Use motion from SkelRoot"));
 	AddRootMotionEntry( EUsdRootMotionHandling::UseMotionFromSkeleton, LOCTEXT("UseMotionFromSkeletonText", "Use motion from Skeleton"));
-}
-
-void SUsdStage::FillMaterialXOptionsSubMenu(FMenuBuilder& MenuBuilder)
-{
-	if (AUsdStageActor* StageActor = GetStageActorOrCDO())
-	{
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-		FSinglePropertyParams InitParams;
-		InitParams.NamePlacement = EPropertyNamePlacement::Hidden;
-
-		TSharedPtr<ISinglePropertyView> PropertyView = PropertyEditorModule.CreateSingleProperty(
-			StageActor,
-			GET_MEMBER_NAME_CHECKED(AUsdStageActor, MaterialXOptions),
-			InitParams
-		);
-
-		TSharedRef<SBox> Box = SNew(SBox)
-			.Padding(FMargin(8.0f, 0.0f))
-			.VAlign(VAlign_Center)
-			[
-				PropertyView.ToSharedRef()
-			];
-
-		if (PropertyView)
-		{
-			const bool bNoIndent = true;
-			MenuBuilder.AddWidget(Box, FText::GetEmpty(), bNoIndent, bNoIndent);
-		}
-	}
 }
 
 void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
