@@ -375,11 +375,7 @@ public:
 		check(BackgroundCompute);
 		if (BackgroundCompute)
 		{
-			typename ComputeSourceType::FStatus Status = BackgroundCompute->CheckStatus();
-			if (Status.TaskStatus == UE::Geometry::EBackgroundComputeTaskStatus::InProgress)
-			{
-				return static_cast<float>(Status.ElapsedTime);
-			}
+			return (float)BackgroundCompute->GetElapsedComputeTime();
 		}
 		return 0.f;
 	}
