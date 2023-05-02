@@ -1221,7 +1221,7 @@ private:
 	{
 		check(
 			(InOp.OpCode > ERigVMOpCode::Execute_64_Operands) && 
-			!(InOp.OpCode >= ERigVMOpCode::ArrayReset && InOp.OpCode <= ERigVMOpCode::ArrayReverse) && 
+			//!(InOp.OpCode >= ERigVMOpCode::ArrayReset && InOp.OpCode <= ERigVMOpCode::ArrayReverse) && 
 			(InOp.OpCode < ERigVMOpCode::Invalid) 
 		);
 		
