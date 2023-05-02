@@ -76,7 +76,7 @@ public:
 	/** Spawns the plugin creator tab with a specific wizard definition */
 	virtual TSharedRef<SDockTab> SpawnPluginCreatorTab(const FSpawnTabArgs& SpawnTabArgs, TSharedPtr<IPluginWizardDefinition> PluginWizardDefinition) override;
 
-	const TArray<TSharedRef<FPluginTemplateDescription>>& GetAddedPluginTemplates() const { return AddedPluginTemplates; }
+	virtual const TArray<TSharedRef<FPluginTemplateDescription>>& GetAddedPluginTemplates() const override { return AddedPluginTemplates; }
 
 	const TArray<TPair<FOnPluginBeingEdited, FPluginEditorExtensionHandle>>& GetCustomizePluginEditingDelegates() { return CustomizePluginEditingDelegates; }
 

@@ -126,6 +126,11 @@ public:
 	virtual void UnregisterPluginEditorExtension(FPluginEditorExtensionHandle ExtensionHandle) = 0;
 
 	/**
+	  * Returns the currently registered plugin templates.
+	  */
+	virtual const TArray<TSharedRef<FPluginTemplateDescription>>& GetAddedPluginTemplates() const = 0;
+
+	/**
 	 * Open the plugin editor for a plugin
 	 */
 	virtual void OpenPluginEditor(TSharedRef<IPlugin> PluginToEdit, TSharedPtr<SWidget> ParentWidget, FSimpleDelegate OnEditCommitted) = 0;
