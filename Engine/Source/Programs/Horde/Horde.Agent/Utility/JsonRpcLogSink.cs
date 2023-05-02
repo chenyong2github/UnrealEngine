@@ -161,13 +161,15 @@ namespace Horde.Agent.Utility
 				// If we don't have any updates for the server, wait until we do.
 				if (tailNext != -1 && tailData.IsEmpty)
 				{
+					_logger.LogInformation("No tail data available for log {LogId} after {TailNext}; waiting for more...", _logId, tailNext);
 					await newTailDataTask;
 					continue;
 				}
 
 				// Update the next tailing position
+				_logger.LogInformation("Setting log {LogId} tail = {TailNext}, data = {TailDataSize} bytes, {NumLines} lines", _logId, tailNext, tailData.Length, CountLines(tailData.Span));
 				int newTailNext = await UpdateLogTailAsync(tailNext, tailData);
-				_logger.LogDebug("Log {LogId} tail next = {TailNext}", _logId, newTailNext);
+				_logger.LogInformation("Log {LogId} tail next = {TailNext}", _logId, newTailNext);
 
 				if (newTailNext != tailNext)
 				{
@@ -175,6 +177,19 @@ namespace Horde.Agent.Utility
 					_logger.LogInformation("Modified tail position for log {LogId} to {TailNext}", _logId, tailNext);
 				}
 			}
+		}
+
+		static int CountLines(ReadOnlySpan<byte> data)
+		{
+			int lines = 0;
+			for (int idx = 0; idx < data.Length; idx++)
+			{
+				if (data[idx] == '\n')
+				{
+					lines++;
+				}
+			}
+			return lines;
 		}
 
 		/// <inheritdoc/>
