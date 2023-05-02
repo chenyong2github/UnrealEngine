@@ -63,8 +63,8 @@ namespace AutomationCommon
 
 	ENGINE_API UWorld* GetAnyGameWorld();
 
-	ENGINE_API UGameViewportClient* GetAnyGameViewportClient();
 #endif
+	ENGINE_API UGameViewportClient* GetAnyGameViewportClient();
 }
 
 #if WITH_AUTOMATION_TESTS
