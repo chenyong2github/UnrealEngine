@@ -64,10 +64,6 @@ struct FVertexFactoryInput
 	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
 		float2	TexCoords3 : ATTRIBUTE8;
 	#endif
-
-	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
-		#error Too many texture coordinate sets defined on Geometry cache vertex input. Max: 4.
-	#endif
 #endif
 
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
