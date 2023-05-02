@@ -11,7 +11,7 @@ class FSlateWindowElementList;
 class FTimeSliderController;
 class SToolTip;
 
-class SCurveTimelineView : public SCompoundWidget
+class GAMEPLAYINSIGHTS_API SCurveTimelineView : public SCompoundWidget
 {
 public:
 	struct FTimelineCurveData
@@ -32,7 +32,7 @@ public:
 		, _RenderFill(false)
 	{}
     	/** View time range */
-    	SLATE_ATTRIBUTE(TRange<double>, ViewRange);
+     	SLATE_ATTRIBUTE(TRange<double>, ViewRange);
 
 		/** Data for curve to render */
 		SLATE_ATTRIBUTE(TSharedPtr<FTimelineCurveData>, CurveData);

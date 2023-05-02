@@ -151,7 +151,7 @@ int32 SCurveTimelineView::PaintCurve(const FGeometry& AllottedGeometry, const FS
 			}
 		}
 		
-		float Range = FMath::Max(1.0,MaxValue - MinValue);
+		const float Range = FMath::Max(UE_KINDA_SMALL_NUMBER, MaxValue - MinValue);
 		
 		auto &CurvePoints = Curve->Points;
 		const int NumPoints = CurvePoints.Num();
