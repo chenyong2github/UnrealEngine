@@ -3481,7 +3481,7 @@ FBinningData FRenderer::AddPass_Rasterize(
 
 	const bool bAllowPrecacheSkip = GSkipDrawOnPSOPrecaching != 0;
 
-	if( !bPatches )
+	if (!bPatches)
 	{
 		FRDGPass* HWPass = GraphBuilder.AddPass(
 			RDG_EVENT_NAME("HW Rasterize"),
@@ -3490,6 +3490,11 @@ FBinningData FRenderer::AddPass_Rasterize(
 			[RasterPassParameters, &PassData, ViewRect, &SceneView = SceneView, FixedMaterialProxy, bAllowPrecacheSkip, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader, RenderFlags = RenderFlags](FRHICommandList& RHICmdList)
 		{
 			auto& RasterizerPasses = PassData.RasterizerPasses;
+			if (RasterizerPasses.Num() == 0)
+			{
+				return;
+			}
+
 			int32 FixedFunctionPassIndex = PassData.FixedFunctionPassIndex;
 
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("HW Rasterize"));
@@ -3597,6 +3602,11 @@ FBinningData FRenderer::AddPass_Rasterize(
 			[RasterPassParameters, &PassData, &SceneView = SceneView, FixedMaterialProxy, RenderFlags = RenderFlags, bAllowPrecacheSkip](FRHIComputeCommandList& RHICmdList)
 		{
 			auto& RasterizerPasses = PassData.RasterizerPasses;
+			if (RasterizerPasses.Num() == 0)
+			{
+				return;
+			}
+
 			int32 FixedFunctionPassIndex = PassData.FixedFunctionPassIndex;
 
 			FRasterizePassParameters Parameters = *RasterPassParameters;
