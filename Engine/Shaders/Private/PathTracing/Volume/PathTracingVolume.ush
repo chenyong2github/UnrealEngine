@@ -171,6 +171,11 @@ float3 VolumeGetTransmittance(float3 StartThroughput, float3 Origin, float3 Dire
 				PATH_TRACER_REFERENCE_TRANSMITTANCE_LOOP(FogGetDensityBounds, FogGetDensity);
 				break;
 			}
+			case VOLUMEID_HETEROGENEOUS_VOLUMES:
+			{
+				PATH_TRACER_REFERENCE_TRANSMITTANCE_LOOP(HeterogeneousVolumesGetDensityBounds, HeterogeneousVolumesGetDensity);
+				break;
+			}
 		}
 	}
 	return Throughput;
@@ -193,6 +198,11 @@ float3 VolumeGetTransmittance(float3 StartThroughput, float3 Origin, float3 Dire
 			case VOLUMEID_FOG:
 			{
 				PATH_TRACER_REFERENCE_TRANSMITTANCE_LOOP(FogGetDensityBounds, FogGetDensity);
+				break;
+			}
+			case VOLUMEID_HETEROGENEOUS_VOLUMES:
+			{
+				PATH_TRACER_REFERENCE_TRANSMITTANCE_LOOP(HeterogeneousVolumesGetDensityBounds, HeterogeneousVolumesGetDensity);
 				break;
 			}
 		}
