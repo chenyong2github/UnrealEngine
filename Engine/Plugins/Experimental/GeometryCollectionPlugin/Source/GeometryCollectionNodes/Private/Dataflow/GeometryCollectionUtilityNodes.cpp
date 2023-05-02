@@ -16,10 +16,52 @@ namespace Dataflow
 	{
 		static const FLinearColor CDefaultNodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f, 0.5f);
 
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateLeafConvexHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateNonOverlappingConvexHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateClusterConvexHullsFromLeafHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateClusterConvexHullsFromChildrenHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FUpdateVolumeAttributesDataflowNode);
+	}
+}
+
+FCreateLeafConvexHullsDataflowNode::FCreateLeafConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FDataflowNode(InParam, InGuid)
+{
+	RegisterInputConnection(&Collection);
+	RegisterInputConnection(&OptionalSelectionFilter);
+	RegisterInputConnection(&SimplificationDistanceThreshold);
+	RegisterOutputConnection(&Collection);
+}
+
+void FCreateLeafConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue(Context, &Collection);
+		if (InCollection.NumElements(FGeometryCollection::TransformGroup) == 0)
+		{
+			SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+			return;
+		}
+
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
+		{
+			TArray<int32> SelectedBones;
+			bool bRestrictToSelection = false;
+			if (IsConnected(&OptionalSelectionFilter))
+			{
+				const FDataflowTransformSelection& InOptionalSelectionFilter = GetValue<FDataflowTransformSelection>(Context, &OptionalSelectionFilter);
+				bRestrictToSelection = true;
+				SelectedBones = InOptionalSelectionFilter.AsArray();
+			}
+
+			float InSimplificationDistanceThreshold = GetValue(Context, &SimplificationDistanceThreshold);
+			FGeometryCollectionConvexUtility::FIntersectionFilters IntersectionFilters;
+			IntersectionFilters.OnlyIntersectIfComputedIsSmallerFactor = IntersectIfComputedIsSmallerByFactor;
+			IntersectionFilters.MinExternalVolumeToIntersect = MinExternalVolumeToIntersect;
+			FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(*GeomCollection, bRestrictToSelection, SelectedBones, InSimplificationDistanceThreshold, GenerateMethod, IntersectionFilters);
+			SetValue(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
+		}
 	}
 }
 
@@ -87,7 +129,8 @@ void FGenerateClusterConvexHullsFromLeafHullsDataflowNode::Evaluate(Dataflow::FC
 					*GeomCollection,
 					InConvexCount,
 					InErrorToleranceInCm,
-					InOptionalSelectionFilter.AsArray()
+					InOptionalSelectionFilter.AsArray(),
+					bPreferExternalCollisionShapes
 				);
 			}
 			else
@@ -95,7 +138,8 @@ void FGenerateClusterConvexHullsFromLeafHullsDataflowNode::Evaluate(Dataflow::FC
 				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(
 					*GeomCollection,
 					InConvexCount,
-					InErrorToleranceInCm
+					InErrorToleranceInCm,
+					bPreferExternalCollisionShapes
 				);
 			}
 
@@ -132,7 +176,8 @@ void FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::Evaluate(Dataflow
 					*GeomCollection,
 					InConvexCount,
 					InErrorToleranceInCm,
-					InOptionalSelectionFilter.AsArray()
+					InOptionalSelectionFilter.AsArray(),
+					bPreferExternalCollisionShapes
 				);
 			}
 			else
@@ -141,7 +186,7 @@ void FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::Evaluate(Dataflow
 					*GeomCollection,
 					InConvexCount,
 					InErrorToleranceInCm,
-					TArrayView<const int32>()
+					bPreferExternalCollisionShapes
 				);
 			}
 

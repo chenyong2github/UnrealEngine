@@ -27,6 +27,17 @@ enum class EConvexOverlapRemoval : int32
 	OnlyClustersVsClusters = 3
 };
 
+UENUM()
+enum class EGenerateConvexMethod : uint8
+{
+	// Convert from external collision shapes (if available)
+	ExternalCollision,
+	// Compute all convex hulls from geometry
+	ComputedFromGeometry,
+	// Intersect external collision shapes with computed convex hulls
+	IntersectExternalWithComputed
+};
+
 namespace UE::GeometryCollectionConvexUtility
 {
 	// Used to pass computed convex hulls along with metadata
@@ -44,6 +55,15 @@ namespace UE::GeometryCollectionConvexUtility
 		// The pivots used for scaling by OverlapRemovalShrinkPercent
 		TArray<FVector> Pivots;
 	};
+
+	// Compute surface area and contact estimates for two convex hulls in the same local space, with the second hull optionally expanded
+	void CHAOS_API HullIntersectionStats(const Chaos::FConvex* HullA, const Chaos::FConvex* HullB, float HullBExpansion, float& OutArea, float& OutMaxArea, float& OutSharpContact, float& OutMaxSharpContact);
+
+	// Compute the intersection of ClipHull and UpdateHull, with ClipHull optionally offset, and place the result in ResultHull. Note ResultHull can point to the same FConvex as UpdateHull.
+	// If optional transforms are provided, ClipHull will be transformed into the local space of UpdateHull, and finally transformed by UpdateToResultTransform. Otherwise, all FConvex are assumed to be in the same coordinate space.
+	void CHAOS_API IntersectConvexHulls(Chaos::FConvex* ResultHull, const Chaos::FConvex* ClipHull, float ClipHullOffset, const Chaos::FConvex* UpdateHull,
+		const FTransform* ClipHullTransform = nullptr, const FTransform* UpdateHullTransform = nullptr, const FTransform* UpdateToResultTransform = nullptr);
+
 }
 
 class CHAOS_API FGeometryCollectionConvexUtility
@@ -79,9 +99,21 @@ public:
 	static FGeometryCollectionConvexData CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FractionAllowRemove = .3, double SimplificationDistanceThreshold = 0.0, double CanExceedFraction = .5, 
 		EConvexOverlapRemoval OverlapRemovalMethod = EConvexOverlapRemoval::All, double OverlapRemovalShrinkPercent = 0.0, UE::GeometryCollectionConvexUtility::FConvexHulls* ComputedLeafHullsToModify = nullptr);
 
-	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> TransformSubset);
-	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> OptionalTransformSubset);
-	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm);
+	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> TransformSubset, bool bUseExternalCollisionIfAvailable = true);
+	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bUseExternalCollisionIfAvailable = true);
+	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> OptionalTransformSubset, bool bUseExternalCollisionIfAvailable = true);
+	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bUseExternalCollisionIfAvailable = true);
+
+	// Additional settings for filtering when the EGenerateConvexMethod::IntersectExternalWithComputed is applied
+	struct FIntersectionFilters
+	{
+		FIntersectionFilters() : OnlyIntersectIfComputedIsSmallerFactor(1.0), MinExternalVolumeToIntersect(0.0)
+		{}
+		double OnlyIntersectIfComputedIsSmallerFactor;
+		double MinExternalVolumeToIntersect;
+	};
+	
+	static void GenerateLeafConvexHulls(FGeometryCollection& Collection, bool bRestrictToSelection, const TArrayView<const int32> TransformSubset, double SimplificationDistanceThreshold, EGenerateConvexMethod GenerateMethod = EGenerateConvexMethod::ExternalCollision, FIntersectionFilters IntersectFilters = FIntersectionFilters());
 
 	/** Returns the convex hull of the vertices contained in the specified geometry. */
 	static TUniquePtr<Chaos::FConvex> FindConvexHull(const FGeometryCollection* GeometryCollection, int32 GeometryIndex);
@@ -121,7 +153,8 @@ public:
 	// This is an initial step of several algorithms: The CreateNonOverlappingConvexHullData function as well as convex-based proximity detection (TODO: and the auto-embed algorithm?)
 	// (TODO: Make auto-embed use this instead of the full hulls?)
 	// @param GlobalTransformArray		GeometryCollection's transforms to global space, as computed by GeometryCollectionAlgo::GlobalMatrices
-	static UE::GeometryCollectionConvexUtility::FConvexHulls ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold = 0.0, double OverlapRemovalShrinkPercent = 0.0);
+	static UE::GeometryCollectionConvexUtility::FConvexHulls ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold = 0.0, double OverlapRemovalShrinkPercent = 0.0,
+		TFunction<bool(int32)> SkipBoneFn = nullptr);
 
 	struct FTransformedConvex
 	{
@@ -149,6 +182,6 @@ private:
 	static void CreateConvexHullAttributesIfNeeded(FManagedArrayCollection& GeometryCollection);
 
 	// Implementation for GenerateClusterConvexHullsFromLeafHulls, supporting the full-collection and subset cases
-	static void GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bOnlySubset, bool bUseDirectChildren, const TArrayView<const int32> OptionalTransformSubset);
+	static void GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bOnlySubset, bool bUseDirectChildren, const TArrayView<const int32> OptionalTransformSubset, bool bUseExternalCollisionIfAvailable = true);
 };
 
