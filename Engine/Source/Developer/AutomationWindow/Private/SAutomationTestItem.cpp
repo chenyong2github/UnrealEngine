@@ -70,7 +70,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 			[
 				SNew(SButton)
 				.ButtonStyle(FAutomationWindowStyle::Get(), "NoBorder")
-				.ToolTipText(LOCTEXT("ToggleExcluded", "Exclude"))
+				.ToolTipText(this, &SAutomationTestItem::GetExcludeReason)
 				.OnClicked(FOnClicked::CreateSP(this, &SAutomationTestItem::SetSkipFlag))
 				[
 					SNew(SImage)
