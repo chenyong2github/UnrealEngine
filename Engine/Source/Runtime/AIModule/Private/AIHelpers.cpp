@@ -2,8 +2,6 @@
 
 #include "AIHelpers.h"
 
-#include "Engine/Blueprint.h"
-
 namespace FAISystem
 {
 	FVector FindClosestLocation(const FVector& Origin, const TArray<FVector>& Locations)
@@ -118,7 +116,7 @@ TOptional<float> GetYawFromQuaternion(const FQuat& Quaternion)
 void GetActorClassDefaultComponents(const TSubclassOf<AActor>& ActorClass, TArray<UActorComponent*>& OutComponents, const TSubclassOf<UActorComponent>& InComponentClass)
 {
 	OutComponents.Reset();
-	UBlueprint::ForEachComponentOfActorClassDefault(ActorClass, InComponentClass, [&OutComponents](const UActorComponent* TemplateComponent)
+	AActor::ForEachComponentOfActorClassDefault(ActorClass, InComponentClass, [&OutComponents](const UActorComponent* TemplateComponent)
 	{
 		OutComponents.Add(const_cast<UActorComponent*>(TemplateComponent));
 		return true;

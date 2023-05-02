@@ -737,6 +737,15 @@ public:
 	 */
 	static bool GetGeneratedClassesHierarchy(const UClass* InClass, TArray<const UBlueprintGeneratedClass*>& OutBPGClasses);
 
+	/**
+	 * Iterate over all BPGCs used to generate this class and its parents, calling InFunc on them. First element is the BPGC used to generate InClass
+	 *
+	 * @param InClass				The class to get the blueprint lineage for
+	 * @param InFunc				Function that will be called for each BPGC. Must return true to continue iteration, or false to stop.
+	 * @return						true if there were no status errors in any of the parent blueprints, otherwise false
+	 */
+	static bool ForEachGeneratedClassInHierarchy(const UClass* InClass, TFunctionRef<bool(const UBlueprintGeneratedClass*)> InFunc);
+
 	UInheritableComponentHandler* GetInheritableComponentHandler(const bool bCreateIfNecessary = false);
 
 	/** Find the object in the TemplateObjects array with the supplied name */

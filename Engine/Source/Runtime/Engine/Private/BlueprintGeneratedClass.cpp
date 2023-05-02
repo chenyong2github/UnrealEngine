@@ -1267,18 +1267,32 @@ void UBlueprintGeneratedClass::UnbindDynamicDelegatesForProperty(UObject* InInst
 bool UBlueprintGeneratedClass::GetGeneratedClassesHierarchy(const UClass* InClass, TArray<const UBlueprintGeneratedClass*>& OutBPGClasses)
 {
 	OutBPGClasses.Empty();
-	bool bNoErrors = true;
-	while(const UBlueprintGeneratedClass* BPGClass = Cast<const UBlueprintGeneratedClass>(InClass))
+
+	return ForEachGeneratedClassInHierarchy(InClass, [&OutBPGClasses](const UBlueprintGeneratedClass* BPGClass)
 	{
+		OutBPGClasses.Add(BPGClass);
+		return true;
+	});
+}
+
+bool UBlueprintGeneratedClass::ForEachGeneratedClassInHierarchy(const UClass* InClass, TFunctionRef<bool(const UBlueprintGeneratedClass*)> InFunc)
+{
+	bool bNoErrors = true;
+	while (const UBlueprintGeneratedClass* BPGClass = Cast<const UBlueprintGeneratedClass>(InClass))
+	{
+		if (!InFunc(BPGClass))
+		{
+			return bNoErrors;
+		}
+
 #if WITH_EDITORONLY_DATA
 		// A cooked class has already been validated and will not have a source Blueprint asset.
-		if(!BPGClass->bCooked)
+		if (!BPGClass->bCooked)
 		{
 			const UBlueprint* BP = Cast<const UBlueprint>(BPGClass->ClassGeneratedBy);
 			bNoErrors &= (NULL != BP) && (BP->Status != BS_Error);
 		}
 #endif
-		OutBPGClasses.Add(BPGClass);
 		InClass = BPGClass->GetSuperClass();
 	}
 	return bNoErrors;

@@ -55,6 +55,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "UObject/MetaData.h"
 #include "Engine/DamageEvents.h"
+#include "Engine/SCS_Node.h"
 
 #if WITH_EDITOR
 #include "FoliageHelper.h"
@@ -6303,6 +6304,113 @@ bool AActor::UseWorldPartitionRuntimeCellDataLayers() const
 
 // DataLayers (end)
 //---------------------------------------------------------------------------
+
+
+void AActor::GetActorClassDefaultComponents(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TArray<const UActorComponent*>& OutComponents)
+{
+	OutComponents.Reset();
+
+	ForEachComponentOfActorClassDefault(InActorClass, InComponentClass, [&](const UActorComponent* TemplateComponent)
+	{
+		OutComponents.Add(TemplateComponent);
+		return true;
+	});
+}
+
+const UActorComponent* AActor::GetActorClassDefaultComponentByName(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, FName InComponentName)
+{
+	const UActorComponent* Result = nullptr;
+
+	ForEachComponentOfActorClassDefault(InActorClass, InComponentClass, [&Result, InComponentName](const UActorComponent* TemplateComponent)
+	{
+		// Try to strip suffix used to identify template component instances
+		FString StrippedName = TemplateComponent->GetName();
+		if (StrippedName.RemoveFromEnd(UActorComponent::ComponentTemplateNameSuffix))
+		{
+			if (StrippedName == InComponentName.ToString())
+			{
+				Result = TemplateComponent;
+				return false;
+			}
+		}
+		else if (TemplateComponent->GetFName() == InComponentName)
+		{
+			Result = TemplateComponent;
+			return false;
+		}
+
+		return true;
+	});
+
+	return Result;
+}
+
+const UActorComponent* AActor::GetActorClassDefaultComponent(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass)
+{
+	const UActorComponent* Result = nullptr;
+
+	ForEachComponentOfActorClassDefault(InActorClass, InComponentClass, [&Result](const UActorComponent* TemplateComponent)
+	{
+		Result = TemplateComponent;
+		return false;
+	});
+
+	return Result;
+}
+
+void AActor::ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& ActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TFunctionRef<bool(const UActorComponent*)> InFunc)
+{
+	if (!ActorClass.Get())
+	{
+		return;
+	}
+
+	auto FilterFunc = [&](const UActorComponent* TemplateComponent)
+	{
+		if (!TemplateComponent)
+		{
+			return true;
+		}
+		
+		if (!InComponentClass.Get() || TemplateComponent->IsA(InComponentClass))
+		{
+			return InFunc(TemplateComponent);
+		}
+
+		return true;
+	};
+
+	// Process native components
+	const AActor* CDO = ActorClass->GetDefaultObject<AActor>();
+	for (const UActorComponent* Component : CDO->GetComponents())
+	{
+		if (!FilterFunc(Component))
+		{
+			return;
+		}
+	}
+
+	// Process blueprint components
+	if (UBlueprintGeneratedClass* ActorBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(ActorClass))
+	{
+		UBlueprintGeneratedClass::ForEachGeneratedClassInHierarchy(ActorClass, [&](const UBlueprintGeneratedClass* CurrentBPGC)
+		{
+			if (const USimpleConstructionScript* const ConstructionScript = CurrentBPGC->SimpleConstructionScript)
+			{
+				// Gets all BP added components
+				for (const USCS_Node* const Node : ConstructionScript->GetAllNodes())
+				{
+					if (!FilterFunc(Node->GetActualComponentTemplate(ActorBlueprintGeneratedClass)))
+					{
+						return false;
+					}
+				}
+			}
+			return true;
+		});
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE
 

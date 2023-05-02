@@ -9,7 +9,6 @@
 
 #include "EngineUtils.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "Engine/Blueprint.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 
@@ -219,7 +218,7 @@ bool UPCGActorHelpers::DeleteActors(UWorld* World, const TArray<TSoftObjectPtr<A
 void UPCGActorHelpers::GetActorClassDefaultComponents(const TSubclassOf<AActor>& ActorClass, TArray<UActorComponent*>& OutComponents, const TSubclassOf<UActorComponent>& InComponentClass)
 {
 	OutComponents.Reset();
-	UBlueprint::ForEachComponentOfActorClassDefault(ActorClass, InComponentClass, [&OutComponents](const UActorComponent* TemplateComponent)
+	AActor::ForEachComponentOfActorClassDefault(ActorClass, InComponentClass, [&OutComponents](const UActorComponent* TemplateComponent)
 	{
 		OutComponents.Add(const_cast<UActorComponent*>(TemplateComponent));
 		return true;

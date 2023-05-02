@@ -148,7 +148,7 @@ UPCGGraphInterface* UPCGSpawnActorSettings::GetSubgraphInterface() const
 
 	UPCGGraphInterface* Result = nullptr;
 
-	UBlueprint::ForEachComponentOfActorClassDefault<UPCGComponent>(TemplateActorClass, [&](const UPCGComponent* PCGComponent)
+	AActor::ForEachComponentOfActorClassDefault<UPCGComponent>(TemplateActorClass, [&](const UPCGComponent* PCGComponent)
 	{
 		// If there is no graph, there is no graph instance
 		if (PCGComponent->GetGraph() && PCGComponent->bActivated)
@@ -445,7 +445,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 			TMap<FPCGISMCBuilderParameters, TArray<FTransform>> MeshDescriptorTransforms;
 
-			UBlueprint::ForEachComponentOfActorClassDefault<UStaticMeshComponent>(Settings->TemplateActorClass, [&](const UStaticMeshComponent* StaticMeshComponent)
+			AActor::ForEachComponentOfActorClassDefault<UStaticMeshComponent>(Settings->TemplateActorClass, [&](const UStaticMeshComponent* StaticMeshComponent)
 			{
 				FPCGISMCBuilderParameters Params;
 				Params.Descriptor.InitFrom(StaticMeshComponent);

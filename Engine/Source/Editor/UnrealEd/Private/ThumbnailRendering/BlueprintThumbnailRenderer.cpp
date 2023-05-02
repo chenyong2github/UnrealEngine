@@ -6,8 +6,6 @@
 #include "SceneView.h"
 #include "Misc/App.h"
 
-#include "Engine/Blueprint.h"
-
 UBlueprintThumbnailRenderer::UBlueprintThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -23,7 +21,7 @@ bool UBlueprintThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 	// Only visualize actor based blueprints
 	if (Blueprint && Blueprint->GeneratedClass && Blueprint->GeneratedClass->IsChildOf(AActor::StaticClass()))
 	{
-		UBlueprint::ForEachComponentOfActorClassDefault<UActorComponent>(TSubclassOf<AActor>(Blueprint->GeneratedClass), [&](const UActorComponent* Component)
+		AActor::ForEachComponentOfActorClassDefault<UActorComponent>(TSubclassOf<AActor>(Blueprint->GeneratedClass), [&](const UActorComponent* Component)
 		{
 			bCanVisualizeAsset = FBlueprintThumbnailScene::IsValidComponentForVisualization(Component);
 			return !bCanVisualizeAsset;

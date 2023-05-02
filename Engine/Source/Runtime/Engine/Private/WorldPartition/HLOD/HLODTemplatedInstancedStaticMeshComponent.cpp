@@ -68,7 +68,7 @@ void UHLODTemplatedInstancedStaticMeshComponent::SetTemplateComponentName(const 
 
 void UHLODTemplatedInstancedStaticMeshComponent::RestoreAssetsFromActorTemplate()
 {
-	const UStaticMeshComponent* TemplateSMC = UBlueprint::GetActorClassDefaultComponentByName<UStaticMeshComponent>(TemplateActorClass, TemplateComponentName);
+	const UStaticMeshComponent* TemplateSMC = AActor::GetActorClassDefaultComponentByName<UStaticMeshComponent>(TemplateActorClass, TemplateComponentName);
 	if (TemplateSMC)
 	{
 		// StaticMesh

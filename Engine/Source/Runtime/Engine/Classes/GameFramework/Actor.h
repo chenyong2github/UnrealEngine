@@ -3837,6 +3837,86 @@ public:
 	/** Tells if an object owned by a component has been registered as a replicated subobject of the component */
 	bool IsActorComponentReplicatedSubObjectRegistered(const UActorComponent* OwnerComponent, const UObject* SubObject) const;
 
+
+	/**
+	* Fetches all the components of ActorClass's CDO, including the ones added via the BP editor (which AActor.GetComponents fails to do for CDOs).
+	* @param InActorClass		Class of AActor for which we will retrieve all components.
+	* @param InComponentClass	Only retrieve components of this type.
+	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
+	*/
+	static void GetActorClassDefaultComponents(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TArray<const UActorComponent*>& OutComponents);
+
+	/**
+	* Fetches the first component of ActorClass's CDO which match the requested component class. Will include the components added via the BP editor (which AActor.GetComponents fails to do for CDOs).
+	* @param InActorClass		Class of AActor for which we will retrieve all components.
+	* @param InComponentClass	Only retrieve components of this type.
+	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
+	*/
+	static const UActorComponent* GetActorClassDefaultComponent(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass);
+
+	/**
+	* Get the component of ActorClass's CDO that matches the given object name. Will consider all components, including the ones added via the BP editor (which AActor.GetComponents fails to do for CDOs).
+	* @param InActorClass		Class of AActor for which we will search all components.
+	* @param InComponentClass	Only consider components of this type.
+	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
+	*/
+	static const UActorComponent* GetActorClassDefaultComponentByName(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, FName InComponentName);
+
+	/**
+	* Iterate over the components of ActorClass's CDO, including the ones added via the BP editor (which AActor.GetComponents fails to return).
+	* @param InActorClass		Class of AActor for which we will retrieve all components.
+	* @param InComponentClass	Only consider components of this type.
+	* @param InFunc				Code that will be executed for each component. Must return true to continue iteration, or false to stop.
+	*/
+	static void ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TFunctionRef<bool(const UActorComponent*)> InFunc);
+
+	/**
+	* Templated version of GetActorClassDefaultComponents()
+	* @see GetActorClassDefaultComponents
+	*/
+	template <typename TComponentClass = UActorComponent, typename = typename TEnableIf<TIsDerivedFrom<TComponentClass, UActorComponent>::IsDerived>::Type>
+	static void GetActorClassDefaultComponents(const TSubclassOf<AActor>& InActorClass, TArray<const TComponentClass*>& OutComponents)
+	{
+		ForEachComponentOfActorClassDefault(InActorClass, TComponentClass::StaticClass(), [&](const UActorComponent* TemplateComponent)
+		{
+			OutComponents.Add(CastChecked<TComponentClass>(TemplateComponent));
+			return true;
+		});
+	}
+
+	/**
+	* Templated version of GetActorClassDefaultComponent()
+	* @see GetActorClassDefaultComponent
+	*/
+	template <typename TComponentClass = UActorComponent, typename = typename TEnableIf<TIsDerivedFrom<TComponentClass, UActorComponent>::IsDerived>::Type>
+	static const TComponentClass* GetActorClassDefaultComponent(const TSubclassOf<AActor>& InActorClass)
+	{
+		return Cast<TComponentClass>(GetActorClassDefaultComponent(InActorClass, TComponentClass::StaticClass()));
+	}
+
+	/**
+	* Templated version of GetActorClassDefaultComponentByName()
+	* @see GetActorClassDefaultComponentByName
+	*/
+	template <typename TComponentClass = UActorComponent, typename = typename TEnableIf<TIsDerivedFrom<TComponentClass, UActorComponent>::IsDerived>::Type>
+	static const TComponentClass* GetActorClassDefaultComponentByName(const TSubclassOf<AActor>& InActorClass, FName InComponentName)
+	{
+		return Cast<TComponentClass>(GetActorClassDefaultComponentByName(InActorClass, TComponentClass::StaticClass(), InComponentName));
+	}
+
+	/**
+	* Templated version of ForEachComponentOfActorClassDefault()
+	* @see ForEachComponentOfActorClassDefault
+	*/
+	template <typename TComponentClass = UActorComponent, typename = typename TEnableIf<TIsDerivedFrom<TComponentClass, UActorComponent>::IsDerived>::Type>
+	static void ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& InActorClass, TFunctionRef<bool(const TComponentClass*)> InFunc)
+	{
+		ForEachComponentOfActorClassDefault(InActorClass, TComponentClass::StaticClass(), [&](const UActorComponent* TemplateComponent)
+		{
+			return InFunc(CastChecked<TComponentClass>(TemplateComponent));
+		});
+	}
+
 private:
 	/** Collection of SubObjects that get replicated when this actor gets replicated. */
 	UE::Net::FSubObjectRegistry ReplicatedSubObjects;
