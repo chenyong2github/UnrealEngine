@@ -2,7 +2,6 @@
 
 #pragma once 
 
-#include "CoreMinimal.h"
 #include "Async/ParallelFor.h"
 
 #include "MatrixBase.h"
@@ -34,7 +33,10 @@ PRAGMA_DEFAULT_VISIBILITY_END
 
 #include "ProfilingDebugging/ScopedTimers.h"
 
-
+namespace UE
+{
+namespace Geometry
+{
 // Matrix Solver Factory
 TUniquePtr<IMatrixSolverBase> ContructMatrixSolver(const EMatrixSolverType& MatrixSolverType);
 
@@ -268,3 +270,5 @@ typedef TIterativeMatrixSolver<Eigen::ConjugateGradient<FSparseMatrixD, Eigen::L
 typedef TIterativeMatrixSolver<Eigen::BiCGSTAB<FSparseMatrixD, Eigen::IncompleteLUT<FSparseMatrixD::Scalar, int> >> FBiCGMatrixSolver;
 
 
+}
+}

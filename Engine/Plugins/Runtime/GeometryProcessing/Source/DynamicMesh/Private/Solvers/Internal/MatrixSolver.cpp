@@ -2,7 +2,10 @@
 
 #include "MatrixSolver.h"
 
-using namespace UE::Geometry;
+namespace UE
+{
+namespace Geometry
+{
 
 IMatrixSolverBase::~IMatrixSolverBase() {};
 IIterativeMatrixSolverBase::~IIterativeMatrixSolverBase() {};
@@ -42,4 +45,7 @@ TUniquePtr<IMatrixSolverBase> ContructMatrixSolver(const EMatrixSolverType& Matr
 	}
 
 	return ResultPtr;
+}
+
+}
 }

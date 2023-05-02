@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Util/ElementLinearization.h"   // TVector3Arrays
 
-#include "Solvers/MatrixInterfaces.h"
-#include "Solvers/LaplacianMatrixAssembly.h"
+#include "Solvers/MatrixInterfaces.h"    // TSparseMatrixAssembler
+
+#include "Containers/Array.h"
 
 // According to http://eigen.tuxfamily.org/index.php?title=Main_Page 
 // SimplicialCholesky, AMD ordering, and constrained_cg are disabled.
@@ -42,6 +42,11 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #pragma warning(pop)
 #endif
 
+
+namespace UE
+{
+namespace Geometry
+{
 
 
 // NB: The LU solver likes ColMajor but the CG sovler likes RowMajor
@@ -121,4 +126,20 @@ public:
 
 };
 
+/** 
+ * Slice the matrix such that OutSlicedMatrix = InMatrix[InRowsToSlice, InColsToSlice].
+ * 
+ * @param InMatrix The matrix we are slicing.
+ * @param InRowsToSlice Rows slice mask. If empty all rows will be used. 
+ * @param InColsToSlice Columns slice mask. If empty all columns will be used.
+ * @param OutSlicedMatrix The sliced matrix.
+ * 
+ * @return true if slicing succeeds, false otherwise. Slicing can fail if one of the input parameters is invalid.
+ */
+bool SliceSparseMatrix(const FSparseMatrixD& InMatrix, 
+					   const TArray<int>& InRowsToSlice,
+					   const TArray<int>& InColsToSlice,
+					   FSparseMatrixD& OutSlicedMatrix);
 
+}
+}

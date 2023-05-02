@@ -2,8 +2,12 @@
 
 #pragma once 
 
-#include "CoreMinimal.h"
 #include "SparseMatrix.h"
+
+namespace UE
+{
+namespace Geometry
+{
 
 enum class EMatrixSolverType
 {
@@ -97,3 +101,5 @@ public:
 
 };
 
+}
+}
