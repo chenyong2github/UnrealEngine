@@ -3572,8 +3572,6 @@ FBinningData FRenderer::AddPass_Rasterize(
 					SetShaderParametersMixedPS(RHICmdList, PassToBind.RasterPixelShader, Parameters, SceneView, PassToBind.PixelMaterialProxy, *PassToBind.PixelMaterial);
 				};
 
-				BindShadersToPSOInit(RasterizerPass);
-
 				if (bAllowPrecacheSkip && (GNaniteTestPrecacheDrawSkipping != 0 || PipelineStateCache::IsPrecaching(GraphicsPSOInit)))
 				{
 					// Programmable raster PSO has not been precached yet, fallback to fixed function in the meantime to avoid hitching.
@@ -3585,6 +3583,7 @@ FBinningData FRenderer::AddPass_Rasterize(
 				}
 				else
 				{
+					BindShadersToPSOInit(RasterizerPass);
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 					BindShaderParameters(RasterizerPass);
 				}
@@ -3627,7 +3626,7 @@ FBinningData FRenderer::AddPass_Rasterize(
 			const bool bShowDrawEvents = CVarNaniteShowDrawEvents.GetValueOnRenderThread() != 0;
 			for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 			{
-				if (RasterizerPass.bHidden)
+				if (RasterizerPass.bHidden || RasterizerPass.RasterComputeShader.IsNull())
 				{
 					continue;
 				}
