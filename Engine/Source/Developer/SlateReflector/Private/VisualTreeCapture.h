@@ -13,6 +13,7 @@ class FPaintArgs;
 struct FGeometry;
 class FSlateRect;
 class FSlateInvalidationRoot;
+enum class EElementType : uint8;
 
 class FVisualEntry
 {
@@ -25,10 +26,11 @@ public:
 	int32 LayerId;
 	int32 ClippingIndex;
 	int32 ElementIndex;
+	EElementType ElementType;
 	bool bFromCache;
 	TWeakPtr<const SWidget> Widget;
 
-	FVisualEntry(const TWeakPtr<const SWidget>& Widget, int32 InElementIndex);
+	FVisualEntry(const TWeakPtr<const SWidget>& Widget, int32 InElementIndex, EElementType InElementType);
 	FVisualEntry(const TSharedRef<const SWidget>& Widget, const FSlateDrawElement& InElement);
 
 	void Resolve(const FSlateWindowElementList& ElementList);
@@ -79,7 +81,7 @@ private:
 	void EndWidgetPaint(const SWidget* Widget, const FSlateWindowElementList& ElementList, int32 LayerId);
 
 	/**  */
-	void ElementAdded(const FSlateWindowElementList& ElementList, int32 InElementIndex);
+	void ElementTypeAdded(const FSlateWindowElementList& ElementList, int32 InElementIndex, EElementType InElementType);
 
 	void OnWindowBeingDestroyed(const SWindow& WindowBeingDestoyed);
 private:
