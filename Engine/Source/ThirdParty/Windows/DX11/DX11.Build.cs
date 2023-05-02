@@ -24,6 +24,9 @@ public class DX11 : ModuleRules
 					// the bundled compiler library to make shader compilation repeatable
 					}
 				);
+
+			PublicDelayLoadDLLs.Add("d3d9.dll");
+			PublicDelayLoadDLLs.Add("d3d11.dll");
 		}
 	}
 }
