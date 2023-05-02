@@ -522,7 +522,6 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void* Alloc(int64 AllocSize, int64 Alignment)
 	{
-		checkSlow(!Bypass() && "Can't use RHICommandList in bypass mode.");
 		return MemManager.Alloc(AllocSize, Alignment);
 	}
 
@@ -569,6 +568,7 @@ public:
 	FORCEINLINE_DEBUGGABLE void* AllocCommand(int32 AllocSize, int32 Alignment)
 	{
 		checkSlow(!IsExecuting());
+		checkfSlow(!Bypass(), TEXT("Invalid attempt to record commands in bypass mode."));
 		FRHICommandBase* Result = (FRHICommandBase*) MemManager.Alloc(AllocSize, Alignment);
 #if RHI_COUNT_COMMANDS
 		++NumCommands;
