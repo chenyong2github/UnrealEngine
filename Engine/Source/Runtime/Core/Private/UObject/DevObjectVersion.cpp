@@ -273,6 +273,7 @@ FDevSystemGuidRegistration GRegisterFortniteShaderworkBranchSystemGuids(FFortnit
 const FGuid FFortniteReleaseBranchCustomObjectVersion::GUID(0xE7086368, 0x6B234C58, 0x84391B70, 0x16265E91);
 // Register Fortnite Release custom version with Core
 FDevVersionRegistration GRegisterFortniteReleaseBranchCustomObjectVersion(FFortniteReleaseBranchCustomObjectVersion::GUID, FFortniteReleaseBranchCustomObjectVersion::LatestVersion, TEXT("FortniteRelease"));
+FDevSystemGuidRegistration GRegisterFortniteReleaseBranchSystemGuids(FFortniteReleaseBranchCustomObjectVersion::GetSystemGuids());
 
 // Unique Enterprise Object version id
 const FGuid FEnterpriseObjectVersion::GUID(0x9DFFBCD6, 0x494F0158, 0xE2211282, 0x3C92A888);

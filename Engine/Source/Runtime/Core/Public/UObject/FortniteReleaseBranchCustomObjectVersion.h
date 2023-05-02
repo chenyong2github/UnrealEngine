@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/Guid.h"
+#include "DevObjectVersion.h"
+#include "Containers/Map.h"
 
 // Custom serialization version for changes made in the //Fortnite/Main stream
 struct CORE_API FFortniteReleaseBranchCustomObjectVersion
@@ -43,6 +43,8 @@ struct CORE_API FFortniteReleaseBranchCustomObjectVersion
 
 	// The GUID for this custom version number
 	const static FGuid GUID;
+
+	static TMap<FGuid, FGuid> GetSystemGuids();
 
 private:
 	FFortniteReleaseBranchCustomObjectVersion() {}
