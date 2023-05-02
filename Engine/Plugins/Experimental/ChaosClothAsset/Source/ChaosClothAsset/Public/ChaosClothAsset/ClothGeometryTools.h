@@ -32,10 +32,12 @@ namespace UE::Chaos::ClothAsset
 		static void CopySimMeshToRenderMesh(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FString& RenderMaterialPathName);
 
 		/** Reverse the mesh normals. Will reverse all normals if pattern selection is empty. */
-		static void ReverseNormals(
+		static void ReverseMesh(
 			const TSharedPtr<FManagedArrayCollection>& ClothCollection,
 			bool bReverseSimMeshNormals,
+			bool bReverseSimMeshWindingOrder,
 			bool bReverseRenderMeshNormals,
+			bool bReverseRenderMeshWindingOrder,
 			const TArray<int32>& PatternSelection);
 
 		/**

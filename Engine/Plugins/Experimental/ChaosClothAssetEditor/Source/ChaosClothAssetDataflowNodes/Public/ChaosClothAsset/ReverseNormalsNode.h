@@ -19,16 +19,24 @@ public:
 	FManagedArrayCollection Collection;
 
 	/** List of patterns to apply the operation on. All patterns will be used if left empty. */
-	UPROPERTY(EditAnywhere, Category = "Pattern Selection")
+	UPROPERTY(EditAnywhere, Category = "Reverse Normals", Meta = (EditCondition = "false"))
 	TArray<int32> Patterns;
 
 	/** Whether to reverse the simulation mesh normals. */
 	UPROPERTY(EditAnywhere, Category = "Reverse Normals")
 	bool bReverseSimMeshNormals = true;
 
+	/** Whether to reverse the simulation mesh triangles' winding order. */
+	UPROPERTY(EditAnywhere, Category = "Reverse Normals")
+	bool bReverseSimMeshWindingOrder = false;
+
 	/** Whether to reverse the render mesh normals. */
 	UPROPERTY(EditAnywhere, Category = "Reverse Normals")
 	bool bReverseRenderMeshNormals = true;
+
+	/** Whether to reverse the render mesh triangles' winding order. */
+	UPROPERTY(EditAnywhere, Category = "Reverse Normals")
+	bool bReverseRenderMeshWindingOrder = false;
 
 	FChaosClothAssetReverseNormalsNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 

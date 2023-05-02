@@ -214,10 +214,12 @@ namespace UE::Chaos::ClothAsset
 		}
 	}
 
-	void FClothGeometryTools::ReverseNormals(
+	void FClothGeometryTools::ReverseMesh(
 		const TSharedPtr<FManagedArrayCollection>& ClothCollection,
 		bool bReverseSimMeshNormals,
+		bool bReverseSimMeshWindingOrder,
 		bool bReverseRenderMeshNormals,
+		bool bReverseRenderMeshWindingOrder,
 		const TArray<int32>& PatternSelection)
 	{
 		auto ReverseSimNormals = [](const TArrayView<FVector3f>& SimRestNormal)
@@ -228,14 +230,21 @@ namespace UE::Chaos::ClothAsset
 				}
 			};
 		auto ReverseRenderNormals = [](const TArrayView<FVector3f>& RenderNormal, const TArrayView<FVector3f>& RenderTangentU)
-		{
-			check(RenderNormal.Num() == RenderTangentU.Num())
-			for (int32 VertexIndex = 0; VertexIndex < RenderNormal.Num(); ++VertexIndex)
 			{
-				RenderNormal[VertexIndex] = -RenderNormal[VertexIndex];      // Equivalent of rotating the normal basis
-				RenderTangentU[VertexIndex] = -RenderTangentU[VertexIndex];  // around tangent V
-			}
-		};
+				check(RenderNormal.Num() == RenderTangentU.Num())
+				for (int32 VertexIndex = 0; VertexIndex < RenderNormal.Num(); ++VertexIndex)
+				{
+					RenderNormal[VertexIndex] = -RenderNormal[VertexIndex];      // Equivalent of rotating the normal basis
+					RenderTangentU[VertexIndex] = -RenderTangentU[VertexIndex];  // around tangent V
+				}
+			};
+		auto ReverseWindingOrder = [](const TArrayView<FIntVector3>& Indices)
+			{
+				for (int32 FaceIndex = 0; FaceIndex < Indices.Num(); ++FaceIndex)
+				{
+					Swap(Indices[FaceIndex][1], Indices[FaceIndex][2]);
+				}
+			};
 
 		FCollectionClothFacade ClothFacade(ClothCollection);
 
@@ -249,9 +258,17 @@ namespace UE::Chaos::ClothAsset
 				{
 					ReverseSimNormals(ClothLodFacade.GetSimRestNormal());
 				}
+				if (bReverseSimMeshWindingOrder)
+				{
+					ReverseWindingOrder(ClothLodFacade.GetSimIndices());
+				}
 				if (bReverseRenderMeshNormals)
 				{
 					ReverseRenderNormals(ClothLodFacade.GetRenderNormal(), ClothLodFacade.GetRenderTangentU());
+				}
+				if (bReverseRenderMeshWindingOrder)
+				{
+					ReverseWindingOrder(ClothLodFacade.GetRenderIndices());
 				}
 			}
 			else
@@ -266,9 +283,17 @@ namespace UE::Chaos::ClothAsset
 						{
 							ReverseSimNormals(ClothPatternFacade.GetSimRestNormal());
 						}
+						if (bReverseSimMeshWindingOrder)
+						{
+							ReverseWindingOrder(ClothPatternFacade.GetSimIndices());
+						}
 						if (bReverseRenderMeshNormals)
 						{
 							ReverseRenderNormals(ClothPatternFacade.GetRenderNormal(), ClothPatternFacade.GetRenderTangentU());
+						}
+						if (bReverseRenderMeshWindingOrder)
+						{
+							ReverseWindingOrder(ClothPatternFacade.GetRenderIndices());
 						}
 					}
 				}

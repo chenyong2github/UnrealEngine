@@ -26,7 +26,13 @@ void FChaosClothAssetReverseNormalsNode::Evaluate(Dataflow::FContext& Context, c
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
-		FClothGeometryTools::ReverseNormals(ClothCollection, bReverseSimMeshNormals, bReverseRenderMeshNormals, Patterns);
+		FClothGeometryTools::ReverseMesh(
+			ClothCollection,
+			bReverseSimMeshNormals,
+			bReverseSimMeshWindingOrder,
+			bReverseRenderMeshNormals,
+			bReverseRenderMeshWindingOrder,
+			Patterns);
 
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}
