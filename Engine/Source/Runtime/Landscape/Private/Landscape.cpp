@@ -62,6 +62,7 @@ Landscape.cpp: Terrain rendering
 #include "ComponentRecreateRenderStateContext.h"
 #include "LandscapeWeightmapUsage.h"
 #include "LandscapeSubsystem.h"
+#include "LandscapeCulling.h"
 #include "ContentStreaming.h"
 #include "UObject/ObjectSaveContext.h"
 #include "GlobalShader.h"
@@ -1038,6 +1039,13 @@ void ULandscapeComponent::PostLoad()
 		if (bNeedsFixedGridVertexFactory)
 		{
 			VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(&FLandscapeFixedGridVertexFactory::StaticType));
+		}
+
+		using namespace UE::Landscape;
+		
+		if (Culling::UseCulling(GMaxRHIShaderPlatform))
+		{
+			VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(Culling::GetTileVertexFactoryType()));
 		}
 
 		TArray<FMaterialPSOPrecacheRequestID> MaterialPrecacheRequestIDs;

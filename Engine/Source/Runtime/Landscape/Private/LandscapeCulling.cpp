@@ -110,8 +110,8 @@ void FLandscapeTileVertexFactory::Copy(const FLandscapeTileVertexFactory& Other)
 
 void FLandscapeTileVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)
 {
-	Elements.Add(FVertexElement(0, 0, VET_UByte4, 0, 0, false)); // Position
-	Elements.Add(FVertexElement(1, 0, VET_UByte4, 1, 0, true)); // Tile per-instance data
+	Elements.Add(FVertexElement(0, 0, VET_UByte4, 0, sizeof(FLandscapeVertex), false)); // Position
+	Elements.Add(FVertexElement(1, 0, VET_UByte4, 1, 4u, true)); // Tile per-instance data
 }
 
 bool FLandscapeTileVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
