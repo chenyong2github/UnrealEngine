@@ -994,7 +994,7 @@ FBox USkeletonEditingTool::GetWorldSpaceFocusBox()
 
 			// get direct children
 			TArray<int32> Children;
-			RefSkeleton.GetDirectChildBones(BoneIndex, Children);
+			RefSkeleton.GetRawDirectChildBones(BoneIndex, Children);
 			AllChildren.Append(Children);
 		}
 

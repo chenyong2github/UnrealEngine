@@ -251,7 +251,7 @@ struct FTransformComposer
 		Transforms[Index] = RefSkeleton.GetRawRefBonePose()[Index];
 		TransformCached[Index] = false;
 
-		TArray<int32> Children; RefSkeleton.GetDirectChildBones(Index, Children);
+		TArray<int32> Children; RefSkeleton.GetRawDirectChildBones(Index, Children);
 		for (const int32 ChildIndex: Children)
 		{
 			Invalidate(ChildIndex);

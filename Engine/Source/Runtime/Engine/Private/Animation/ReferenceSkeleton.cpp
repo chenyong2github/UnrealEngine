@@ -118,7 +118,7 @@ void FReferenceSkeleton::Remove(const FName InBoneName, const bool bRemoveChildr
 
 	// store children indices and sort them from greatest to lowest
 	TArray<int32> Children;
-	GetDirectChildBones(RawBoneIndex, Children);
+	GetRawDirectChildBones(RawBoneIndex, Children);
 	Children.Sort([](const int32 Index0, const int32 Index1) {return Index0 > Index1;} );
 
 	// reindex function
@@ -623,20 +623,31 @@ void FReferenceSkeleton::EnsureParentsExistAndSort(TArray<FBoneIndexType>& InOut
 	InOutBoneUnsortedArray.Sort();
 }
 
-int32 FReferenceSkeleton::GetDirectChildBones(int32 ParentBoneIndex, TArray<int32> & Children) const
+int32 FReferenceSkeleton::GetChildrenInternal(int32 InParentBoneIndex, TArray<int32>& OutChildren, const bool bRaw) const
 {
-	Children.Reset();
+	OutChildren.Reset();
 
-	const int32 NumBones = GetNum();
-	for (int32 ChildIndex = ParentBoneIndex + 1; ChildIndex < NumBones; ChildIndex++)
+	const int32 NumBones = bRaw ? GetRawBoneNum() : GetNum();
+	for (int32 ChildIndex = InParentBoneIndex + 1; ChildIndex < NumBones; ChildIndex++)
 	{
-		if (ParentBoneIndex == GetParentIndex(ChildIndex))
+		const int32 ParentIndex = bRaw ? GetRawParentIndex(ChildIndex) : GetParentIndex(ChildIndex);
+		if (ParentIndex == InParentBoneIndex)
 		{
-			Children.Add(ChildIndex);
+			OutChildren.Add(ChildIndex);
 		}
 	}
 
-	return Children.Num();
+	return OutChildren.Num();	
+}
+
+int32 FReferenceSkeleton::GetDirectChildBones(int32 ParentBoneIndex, TArray<int32> & Children) const
+{
+	return GetChildrenInternal(ParentBoneIndex, Children, false);
+}
+
+int32 FReferenceSkeleton::GetRawDirectChildBones(int32 ParentBoneIndex, TArray<int32> & Children) const
+{
+	return GetChildrenInternal(ParentBoneIndex, Children, true);
 }
 
 FArchive & operator<<(FArchive & Ar, FReferenceSkeleton & F)

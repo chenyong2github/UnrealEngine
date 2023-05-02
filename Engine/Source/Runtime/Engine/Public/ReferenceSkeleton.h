@@ -225,6 +225,9 @@ private:
 	// Help us translate a virtual bone source into a raw bone source (for evaluating virtual bone transform)
 	int32 GetRawSourceBoneIndex(const USkeleton* Skeleton, const FName& SourceBoneName) const;
 
+	// very slow search function for all children (raw or final)
+	int32 GetChildrenInternal(int32 InParentBoneIndex, TArray<int32>& OutChildren, const bool bRaw) const;
+	
 public:
 	ENGINE_API void RebuildRefSkeleton(const USkeleton* Skeleton, bool bRebuildNameMap);
 
@@ -428,6 +431,7 @@ public:
 
 	// very slow search function for all children
 	ENGINE_API int32 GetDirectChildBones(int32 ParentBoneIndex, TArray<int32> & Children) const;
+	ENGINE_API int32 GetRawDirectChildBones(int32 ParentBoneIndex, TArray<int32> & Children) const;
 	ENGINE_API friend FArchive & operator<<(FArchive & Ar, FReferenceSkeleton & F);
 	friend FReferenceSkeletonModifier;
 };

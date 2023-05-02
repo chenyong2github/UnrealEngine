@@ -544,7 +544,7 @@ void USkeletonModifier::GetBonesToMirror(
 
 		if (InOptions.bMirrorChildren)
 		{
-			TArray<int32> Children; ReferenceSkeleton->GetDirectChildBones(BoneIndex, Children);
+			TArray<int32> Children; ReferenceSkeleton->GetRawDirectChildBones(BoneIndex, Children);
 			for (int32 ChildIndex: Children)
 			{
 				GetBonesToMirror2(ChildIndex, GetBonesToMirror2);
@@ -807,7 +807,7 @@ bool USkeletonModifier::SetBonesTransforms(
 		for (int32 Index = 0; Index < BoneIndices.Num(); Index++)
 		{
 			TArray<int32> Children;
-			ReferenceSkeleton->GetDirectChildBones(BoneIndices[Index], Children);
+			ReferenceSkeleton->GetRawDirectChildBones(BoneIndices[Index], Children);
 			for (int32 ChildIndex: Children)
 			{
 				if (!BoneIndices.Contains(ChildIndex))
@@ -888,10 +888,45 @@ bool USkeletonModifier::RemoveBones(const TArray<FName>& InBoneNames, const bool
 	// store initial data
 	const TArray<FMeshBoneInfo> InfosBeforeRemoval = ReferenceSkeleton->GetRawRefBoneInfo();
 
+	TArray<FName> BonesToRemove;
+	if (bRemoveChildren)
+	{
+		const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton->GetRawRefBoneInfo();
+		auto IsParentToBeRemoved = [&](const FName BoneName)
+		{
+			const int32 BoneIndex = ReferenceSkeleton->FindRawBoneIndex(BoneName);
+			if (BoneIndex != INDEX_NONE)
+			{
+				int32 ParentIndex = BoneInfos[BoneIndex].ParentIndex;
+				while (ParentIndex != INDEX_NONE)
+				{
+					if (InBoneNames.Contains(BoneInfos[ParentIndex].Name))
+					{
+						return true;
+					}
+					ParentIndex = BoneInfos[ParentIndex].ParentIndex;
+				}
+			}
+			return false;
+		};
+		
+		for (const FName& BoneName: InBoneNames)
+		{
+			if (!IsParentToBeRemoved(BoneName))
+			{
+				BonesToRemove.Add(BoneName);
+			}
+		}
+	}
+	else
+	{
+		BonesToRemove = InBoneNames;
+	}
+
 	// update reference skeleton
 	{
 		FReferenceSkeletonModifier Modifier(*ReferenceSkeleton, nullptr);
-		for (const FName& BoneName: InBoneNames)
+		for (const FName& BoneName: BonesToRemove)
 		{
 			Modifier.Remove(BoneName, bRemoveChildren);
 		}
@@ -1070,7 +1105,7 @@ bool USkeletonModifier::OrientBones(const TArray<FName>& InBoneNames, const FOri
 		
 		const int32 ParentIndex = BoneIndex != INDEX_NONE ? ReferenceSkeleton->GetRawParentIndex(BoneIndex) : INDEX_NONE;
 
-		TArray<int32> Children; ReferenceSkeleton->GetDirectChildBones(BoneIndex, Children);
+		TArray<int32> Children; ReferenceSkeleton->GetRawDirectChildBones(BoneIndex, Children);
 		const int32 NumChildren = Children.Num();
 		if (NumChildren > 1)
 		{ // we can't align if there are more than one children
@@ -1145,7 +1180,7 @@ void USkeletonModifier::GetBonesToOrient(
 
 		if (InOptions.bOrientChildren)
 		{
-			TArray<int32> Children; ReferenceSkeleton->GetDirectChildBones(BoneIndex, Children);
+			TArray<int32> Children; ReferenceSkeleton->GetRawDirectChildBones(BoneIndex, Children);
 			for (int32 ChildIndex: Children)
 			{
 				GetBonesToOrient2(ChildIndex, GetBonesToOrient2);
