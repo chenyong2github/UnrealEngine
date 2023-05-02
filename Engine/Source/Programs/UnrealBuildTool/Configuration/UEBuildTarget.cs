@@ -3537,7 +3537,7 @@ namespace UnrealBuildTool
 						{
 							foreach (var Module in Instance.Modules)
 							{
-								if (Module.RulesFile.ToFileInfo().IsReadOnly) // support for local module changes
+								if (Module.RulesFile.ToFileInfo().IsReadOnly && !(Target.DisableOptimizeCodeForModules?.Contains(Module.Name) ?? false)) // support for local module changes
 								{
 									Logger.Log(PCHLoggerLevel, $"{Prefix} Module '{Module.Name}': Do not set 'OptimizeCode' to 'CodeOptimization.Never'. This creates PCH permutations.");
 									bFoundIssues = true;
