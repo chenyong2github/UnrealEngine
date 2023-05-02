@@ -60,7 +60,7 @@ public:
 	bool bForceDisableActorParsing = true;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Option==EPCGSpawnActorOption::NoMerging", EditConditionHides))
-	EPCGSpawnActorGenerationTrigger bGenerationTrigger = EPCGSpawnActorGenerationTrigger::Default;
+	EPCGSpawnActorGenerationTrigger GenerationTrigger = EPCGSpawnActorGenerationTrigger::Default;
 
 	/** Warning: inheriting parent actor tags work only in non-collapsed actor hierarchies */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Option!=EPCGSpawnActorOption::CollapseActors", EditConditionHides))
@@ -75,6 +75,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "Option != EPCGSpawnActorOption::CollapseActors", EditConditionHides))
 	TArray<FPCGActorPropertyOverride> ActorOverrides;
 
+protected:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	EPCGSpawnActorGenerationTrigger bGenerationTrigger_DEPRECATED = EPCGSpawnActorGenerationTrigger::Default;
+#endif
+
+public:
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 
