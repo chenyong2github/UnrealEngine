@@ -112,7 +112,7 @@ void FWidgetMockNonTemplate::OnPaintDataValidation(const FGeometry& AllottedGeom
 						{
 						case EElementType::ET_ShapedText:
 						{
-							for (FSlateDrawElement& DrawElements : Container.Elements)
+							for (const FSlateDrawElement& DrawElements : Container.Elements)
 							{
 								FSlateShapedTextPayload ShapedTextPayload = DrawElements.GetDataPayload<FSlateShapedTextPayload>();
 								if (TestJsonObject->GetObjectField("ShapedTextPayload")->GetStringField("Tint") == ShapedTextPayload.GetTint().ToString()
