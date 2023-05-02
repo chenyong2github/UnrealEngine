@@ -372,7 +372,13 @@ void FActionMappingsNodeBuilderEx::GenerateHeaderRowContent(FDetailWidgetRow& No
 	ActionMappingsPropertyHandle->SetOnPropertyValueChanged(RebuildChildrenDelegate);
 	ActionMappingsPropertyHandle->AsArray()->SetOnNumElementsChanged(RebuildChildrenDelegate);
 
+	FUIAction CopyAction;
+	FUIAction PasteAction;
+	ActionMappingsPropertyHandle->CreateDefaultPropertyCopyPasteActions(CopyAction, PasteAction);
+
 	NodeRow
+	.CopyAction(CopyAction)
+	.PasteAction(PasteAction)
 	.FilterString(ActionMappingsPropertyHandle->GetPropertyDisplayName())
 	[
 		SNew(SHorizontalBox)
