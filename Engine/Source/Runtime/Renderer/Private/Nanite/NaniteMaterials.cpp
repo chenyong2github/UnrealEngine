@@ -24,6 +24,7 @@
 #include "SystemTextures.h"
 #include "BasePassRendering.h"
 #include "VariableRateShadingImageManager.h"
+#include "Lumen/Lumen.h"
 
 DECLARE_CYCLE_STAT(TEXT("NaniteBasePass"), STAT_CLP_NaniteBasePass, STATGROUP_ParallelCommandListMarkers);
 
