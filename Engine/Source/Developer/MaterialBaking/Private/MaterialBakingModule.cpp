@@ -1112,13 +1112,13 @@ void FMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
 	{
 		DefaultColorSpace = EPropertyColorSpace::Linear;
 		PerPropertyColorSpace.Add(MP_BaseColor, EPropertyColorSpace::sRGB);
-		PerPropertyColorSpace.Add(MP_EmissiveColor, EPropertyColorSpace::sRGB);
 		PerPropertyColorSpace.Add(MP_SubsurfaceColor, EPropertyColorSpace::sRGB);
 		PerPropertyColorSpace.Add(FMaterialPropertyEx::TransmittanceColor, EPropertyColorSpace::sRGB);
 	}
 	else
 	{
 		DefaultColorSpace = EPropertyColorSpace::sRGB;
+		PerPropertyColorSpace.Add(MP_EmissiveColor, EPropertyColorSpace::Linear); // Always linear because it uses HDR
 		PerPropertyColorSpace.Add(MP_Normal, EPropertyColorSpace::Linear);
 		PerPropertyColorSpace.Add(MP_Refraction, EPropertyColorSpace::Linear);
 		PerPropertyColorSpace.Add(MP_Opacity, EPropertyColorSpace::Linear);

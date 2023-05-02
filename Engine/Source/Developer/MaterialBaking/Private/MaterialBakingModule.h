@@ -46,7 +46,7 @@ public:
 	/** Outputs true HDR version of emissive color */
 	virtual void SetEmissiveHDR(bool bHDR) override;
 
-	/** Bakes all material properties to linear textures, except for colors */
+	/** Bakes all material properties to linear textures, except for non-emissive colors */
 	virtual void SetLinearBake(bool bCorrectLinear) override;
 
 	/** Returns whether a specific material property is baked to a linear texture or not */
