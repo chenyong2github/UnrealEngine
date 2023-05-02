@@ -148,17 +148,26 @@ public:
 
 	FTensorDescDml();
 
-	// Set DML operator tensor minimum and maximum rank.
+	// Set tensor minimum and maximum rank.
 	// By default minimum and maximum range is between 1 and DML_TENSOR_DIMENSION_COUNT_MAX1 (8).
 	FTensorDescDml& SetTensorRank(int32 MinRank, int32 MaxRank);
 
 	// Set tensor shape
 	FTensorDescDml& SetShape(TConstArrayView<uint32> Shape);
 
-	// Utility method that calls SetShape() from above
+	// Utility method that calls SetShape(Shape)
 	FTensorDescDml& SetShape(const UE::NNECore::FTensorShape& Shape)
 	{
 		return SetShape(Shape.GetData());
+	}
+
+	// Set shape that and make sure that it has the given rank
+	FTensorDescDml& SetShape(TConstArrayView<uint32> Shape, int32 Rank);
+
+	// Utility method that calls SetShape(Shape, Rank)
+	FTensorDescDml& SetShape(const UE::NNECore::FTensorShape& Shape, int32 Rank)
+	{
+		return SetShape(Shape.GetData(), Rank);
 	}
 
 	// Set shape and match the broadcast shape
@@ -200,6 +209,14 @@ public:
 	}
 
 	// Utility method to use FTensor to set all the members
+	FTensorDescDml& SetFromTensor(const UE::NNECore::Internal::FTensor& Tensor, int32 Rank)
+	{
+		return SetShape(Tensor.GetShape(), Rank)
+			.SetDataType(Tensor.GetDataType())
+			.SetDataOwnedByDml(Tensor.HasPreparedData());
+	}
+
+	// Utility method to use FTensor to set all the members
 	FTensorDescDml& SetFromTensorBroadcast(const UE::NNECore::Internal::FTensor& Tensor, const UE::NNECore::FTensorShape& BroadcastShape)
 	{
 		return SetShape(Tensor.GetShape(), BroadcastShape)
@@ -210,7 +227,7 @@ public:
 	// Utility method to use FTensor to set all the members
 	FTensorDescDml& SetFromTensor1D(const UE::NNECore::Internal::FTensor& Tensor, int32 Rank)
 	{
-		return SetShape1D(Tensor.GetShape().Rank(), Rank)
+		return SetShape1D(Tensor.GetShape().GetData()[0], Rank)
 			.SetDataType(Tensor.GetDataType())
 			.SetDataOwnedByDml(Tensor.HasPreparedData());
 	}

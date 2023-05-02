@@ -92,7 +92,7 @@ public:
 		}
 
 		if (!DmlIndicesTensorDesc
-				.SetFromTensor(IndicesTensor)
+				.SetFromTensor(IndicesTensor, InputTensor.GetShape().Rank())
 				.Validate())
 		{
 			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));

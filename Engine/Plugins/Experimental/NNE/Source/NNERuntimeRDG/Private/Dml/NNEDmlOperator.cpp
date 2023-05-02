@@ -113,6 +113,39 @@ FTensorDescDml& FTensorDescDml::SetShape(TConstArrayView<uint32> Shape)
 	return *this;
 }
 
+FTensorDescDml& FTensorDescDml::SetShape(TConstArrayView<uint32> Shape, int32 Rank)
+{
+	check(!bIsValidated);
+	
+	if (!bIsValidated)
+	{
+		Sizes.Reset();
+		
+		if (Shape.Num() > 0)
+		{
+			const int32 Offset = Rank - Shape.Num();
+
+			for (int32 Idx = 0; Idx < Offset; ++Idx)
+			{
+				Sizes.Add(1);
+			}
+
+			Sizes.Append(Shape.GetData(), Shape.Num());
+		}
+		// Handle scalar tensors
+		else if (Shape.Num() == 0)
+		{
+			for (int32 Idx = 0; Idx < Rank; ++Idx)
+			{
+				Sizes.Add(1);
+			}
+		}
+	}
+
+	return *this;
+}
+
+
 FTensorDescDml& FTensorDescDml::SetShape(TConstArrayView<uint32> Shape, TConstArrayView<uint32> BroadcastShape)
 {
 	check(!bIsValidated);
@@ -215,7 +248,7 @@ FTensorDescDml& FTensorDescDml::SetDataType(ENNETensorDataType DataType)
 		DML_TENSOR_DATA_TYPE DmlDataType = Util::GetTensorDataType(DataType);
 		check(DmlDataType != DML_TENSOR_DATA_TYPE_UNKNOWN);
 	
-		uint64 ElemByteSize = CalculateBufferSize(UE::NNECore::GetTensorDataTypeSizeInBytes(DataType));
+		uint64 ElemByteSize = UE::NNECore::GetTensorDataTypeSizeInBytes(DataType);
 		check(ElemByteSize > 0)
 
 		BuffDesc.DataType = DmlDataType;

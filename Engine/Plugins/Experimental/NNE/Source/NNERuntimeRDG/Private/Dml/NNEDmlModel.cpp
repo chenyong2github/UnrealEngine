@@ -288,6 +288,8 @@ private:
 	{
 		ID3D12Resource* Resource = DynamicRHI->RHIGetResource(Buffer);
 
+		check(Resource->GetDesc().Width <= Buffer->GetSize());
+
 		return DML_BUFFER_BINDING{ Resource, 0, Buffer->GetSize() };
 	}
 

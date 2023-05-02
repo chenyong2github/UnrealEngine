@@ -59,7 +59,7 @@ public:
 
 			if (!DmlScalingTensorDesc
 					.SetTensorRank(4, 4)
-					.SetFromTensor(ScaleTensor)
+					.SetFromTensor1D(ScaleTensor, InputTensor.GetShape().Rank())
 					.Validate())
 			{
 				UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));
@@ -73,7 +73,7 @@ public:
 
 			if (!DmlBiasTensorDesc
 					.SetTensorRank(4, 4)
-					.SetFromTensor(BiasTensor)
+					.SetFromTensor1D(BiasTensor, InputTensor.GetShape().Rank())
 					.Validate())
 			{
 				UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));

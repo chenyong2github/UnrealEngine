@@ -13,14 +13,21 @@ namespace UE::NNEQA::Private
 {
 namespace FModelQAHelpers
 {
-	FRDGBufferDesc CreateRDGBufferDescForTensorDesc(uint32 ElemByteSize, uint64 SizeInByte)
+	FRDGBufferDesc CreateRDGBufferDescForTensorDesc(uint32 ElemByteSize, uint64 SizeInByte, bool bIsInput)
 	{
 		// FIXME: CreateStructuredDesc() creates a crash on VulkanRHI
 		//FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(ElemByteSize, SizeInByte/ElemByteSize);
 		FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(ElemByteSize, SizeInByte/ElemByteSize);
 
 		// FIXME: We should use BUF_SourceCopy for only output buffers (GPU readback)
-		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy);
+		if (bIsInput)
+		{
+			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_Static);
+		}
+		else
+		{
+			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy | BUF_UnorderedAccess);
+		}
 
 		return Desc;
 	}
@@ -39,7 +46,8 @@ namespace FModelQAHelpers
 	void ConvertBinding(FRDGBuilder& GraphBuilder,
 		TConstArrayView<NNECore::FTensorDesc> InTensorDescs,
 		TConstArrayView<NNECore::FTensorBindingCPU> InBindingsCPU,
-		TArray<NNECore::FTensorBindingRDG>& OutBindingsRDG)
+		TArray<NNECore::FTensorBindingRDG>& OutBindingsRDG,
+		bool bIsInput)
 	{
 		check(IsInRenderingThread());
 		check(InTensorDescs.Num() == InBindingsCPU.Num());
@@ -48,7 +56,7 @@ namespace FModelQAHelpers
 		{
 			const NNECore::FTensorDesc& TensorDesc = InTensorDescs[Idx];
 			const NNECore::FTensorBindingCPU& BindingCPU = InBindingsCPU[Idx];
-			const FRDGBufferDesc Desc = CreateRDGBufferDescForTensorDesc(TensorDesc.GetElemByteSize(), BindingCPU.SizeInBytes);
+			const FRDGBufferDesc Desc = CreateRDGBufferDescForTensorDesc(TensorDesc.GetElemByteSize(), BindingCPU.SizeInBytes, bIsInput);
 			FRDGBufferRef TensorBuffer = GraphBuilder.CreateBuffer(Desc, *TensorDesc.GetName(), ERDGBufferFlags::None);
 
 			NNECore::FTensorBindingRDG& BindingRDG = OutBindingsRDG.Emplace_GetRef();
@@ -193,8 +201,8 @@ int FModelQA::EnqueueRDG(FRDGBuilder& RDGBuilder,
 	TArray<NNECore::FTensorBindingRDG> InputBindingsRDG;
 	TArray<NNECore::FTensorBindingRDG> OutputBindingsRDG;
 			
-	FModelQAHelpers::ConvertBinding(RDGBuilder, ModelRDG->GetInputTensorDescs(), InInputBindings, InputBindingsRDG);
-	FModelQAHelpers::ConvertBinding(RDGBuilder, ModelRDG->GetOutputTensorDescs(), InOutputBindings, OutputBindingsRDG);
+	FModelQAHelpers::ConvertBinding(RDGBuilder, ModelRDG->GetInputTensorDescs(), InInputBindings, InputBindingsRDG, true);
+	FModelQAHelpers::ConvertBinding(RDGBuilder, ModelRDG->GetOutputTensorDescs(), InOutputBindings, OutputBindingsRDG, false);
 			
 	FModelQAHelpers::UploadsBindingToGPU(RDGBuilder, InInputBindings, InputBindingsRDG);
 

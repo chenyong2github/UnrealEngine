@@ -246,7 +246,7 @@ public:
 
 		if (!DmlFilterTensorDesc
 				.SetTensorRank(3, 5)
-				.SetFromTensor(InputTensor)
+				.SetFromTensor(FilterTensor)
 				.Validate())
 		{
 			UE_LOG(LogNNE, Error, TEXT("Failed to initialize tensor(s) for DML inference"));

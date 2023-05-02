@@ -111,6 +111,7 @@
 					"target": "hs_m05",
 					"runtimes": [
 						{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Model not supported yet." },
+						{ "name": "NNERuntimeRDGDml", "relative_tolerance": 5e-3, "absolute_tolerance": 1e-2 },
 						{ "name": "NNERuntimeORTCuda", "relative_tolerance": 5e-2, "absolute_tolerance": 1e-3 }
 					],
 					"absolute_tolerance": 1e-4
@@ -474,7 +475,7 @@
 		{
 			"category": "BatchNormalization",
 			"targets": [
-				{ "target": "BatchNormalization", "relative_tolerance": 5e-1 }
+				{ "target": "BatchNormalization", "relative_tolerance": 5e-3 }
 			]
 		},
 		{

@@ -70,7 +70,7 @@ public:
 		DmlInputTensorDesc.SetStridesFromShape(InputTensors[0].GetShape());
 		DmlInputTensorDesc.SetStrides(PermuteFunc(DmlInputTensorDesc.GetStrides()));
 
-		if (DmlInputTensorDesc.Validate())
+		if (!DmlInputTensorDesc.Validate())
 		{
 			UE_LOG(LogNNE, Error, TEXT("Failed to initialize Transpose input for DML inference"));
 			return false;
