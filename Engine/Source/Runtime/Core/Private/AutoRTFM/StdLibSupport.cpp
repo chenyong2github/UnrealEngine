@@ -115,6 +115,8 @@ UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<const char* (*)(const char*, int)
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<const char* (*)(const char*, const char*)>(&strstr));
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(strlen);
 
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(wcscmp);
+
 // FIXME: This is only correct when:
 // - Str is newly allocated
 // - Format is either newly allocated or not mutated
