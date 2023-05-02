@@ -104,11 +104,12 @@ namespace Audio
 		{
 			FSoundGeneratorInitParams InitParams;
 			InitParams.AudioDeviceID = InArgs.AudioDeviceID;
+			InitParams.AudioComponentId = InArgs.AudioComponentID;
 			InitParams.SampleRate = InArgs.SampleRate;
 			InitParams.AudioMixerNumOutputFrames = InArgs.AudioMixerNumOutputFrames;
 			InitParams.NumChannels = NumChannels;
 			InitParams.NumFramesPerCallback = MONO_PCM_BUFFER_SAMPLES;
-			InitParams.InstanceID = InArgs.AudioComponentID;
+			InitParams.InstanceID = InArgs.InstanceID;
 			InitParams.bIsPreviewSound = InArgs.bIsPreviewSound;
 
 			SoundGenerator = InArgs.SoundWave->CreateSoundGenerator(InitParams, MoveTemp(InDefaultParams));

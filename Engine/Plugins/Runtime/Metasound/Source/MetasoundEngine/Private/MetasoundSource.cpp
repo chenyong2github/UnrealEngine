@@ -603,7 +603,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	};
 
 	TSharedPtr<FMetasoundGenerator> Generator = MakeShared<FMetasoundGenerator>(MoveTemp(InitParams));
-	TrackGenerator(InParams.InstanceID, Generator);
+	TrackGenerator(InParams.AudioComponentId, Generator);
 
 	return ISoundGeneratorPtr(Generator);
 }
