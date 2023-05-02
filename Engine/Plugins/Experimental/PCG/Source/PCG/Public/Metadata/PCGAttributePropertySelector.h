@@ -38,6 +38,10 @@ public:
 	UPROPERTY()
 	TArray<FString> ExtraNames;
 
+	// Force get the "None" attribute instead getting the last attribute
+	UPROPERTY()
+	bool bForceGetNone = false;
+
 	// Setters, retrurn true if something changed.
 	bool SetPointProperty(EPCGPointProperties InPointProperty, bool bResetExtraNames = true);
 	bool SetAttributeName(FName InAttributeName, bool bResetExtraNames = true);

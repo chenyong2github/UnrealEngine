@@ -896,6 +896,7 @@ void SPCGEditorGraphAttributeListView::AddColumn(const UPCGPointData* InPCGPoint
 		const FString ColumnIdString = InColumnId.ToString();
 		
 		FPCGAttributePropertySelector TargetSelector;
+		TargetSelector.bForceGetNone = true;
 		TargetSelector.Update(ColumnIdString);
 	
 		FPCGColumnData& ColumnData = PCGColumnData.Add(InColumnId);
@@ -998,6 +999,7 @@ void SPCGEditorGraphAttributeListView::AddMetadataColumn(const UPCGData* InPCGDa
 	if (InPCGData)
 	{
 		FPCGAttributePropertySelector TargetSelector;
+		TargetSelector.bForceGetNone = true;
 		TargetSelector.Update(OriginalColumnIdString);
 	
 		FPCGColumnData& ColumnData = PCGColumnData.Add(ColumnId);

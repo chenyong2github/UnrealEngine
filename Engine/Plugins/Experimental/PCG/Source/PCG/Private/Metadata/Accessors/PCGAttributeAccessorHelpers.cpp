@@ -17,7 +17,7 @@
 
 namespace PCGAttributeAccessorHelpers
 {
-	void ExtractMetadataAtribute(UPCGData* InData, FName Name, UPCGMetadata*& OutMetadata, FPCGMetadataAttributeBase*& OutAttribute)
+	void ExtractMetadataAtribute(UPCGData* InData, FName Name, UPCGMetadata*& OutMetadata, FPCGMetadataAttributeBase*& OutAttribute, bool bForceGetNone = false)
 	{
 		OutMetadata = nullptr;
 		OutAttribute = nullptr;
@@ -33,8 +33,8 @@ namespace PCGAttributeAccessorHelpers
 
 		if (OutMetadata)
 		{
-			// If Name is None, try ot get the latest attribute
-			if (Name == NAME_None)
+			// If Name is None, try to get the latest attribute
+			if (!bForceGetNone && Name == NAME_None)
 			{
 				Name = OutMetadata->GetLatestAttributeNameOrNone();
 			}
@@ -43,11 +43,11 @@ namespace PCGAttributeAccessorHelpers
 		}
 	}
 
-	void ExtractMetadataAtribute(const UPCGData* InData, FName Name, UPCGMetadata const*& OutMetadata, FPCGMetadataAttributeBase const*& OutAttribute)
+	void ExtractMetadataAtribute(const UPCGData* InData, FName Name, UPCGMetadata const*& OutMetadata, FPCGMetadataAttributeBase const*& OutAttribute, bool bForceGetNone = false)
 	{
 		UPCGMetadata* Metadata = nullptr;
 		FPCGMetadataAttributeBase* Attribute = nullptr;
-		ExtractMetadataAtribute(const_cast<UPCGData*>(InData), Name, Metadata, Attribute);
+		ExtractMetadataAtribute(const_cast<UPCGData*>(InData), Name, Metadata, Attribute, bForceGetNone);
 		OutMetadata = Metadata;
 		OutAttribute = Attribute;
 	}
@@ -306,7 +306,7 @@ TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConst
 		const UPCGMetadata* Metadata = nullptr;
 		const FPCGMetadataAttributeBase* Attribute = nullptr;
 
-		ExtractMetadataAtribute(InData, Name, Metadata, Attribute);
+		ExtractMetadataAtribute(InData, Name, Metadata, Attribute, InSelector.bForceGetNone);
 
 		auto CreateTypedAccessor = [Attribute, Metadata](auto Dummy) -> TUniquePtr<IPCGAttributeAccessor>
 		{
