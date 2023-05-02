@@ -8,11 +8,8 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DebugDrawService)
 
 FCriticalSection UDebugDrawService::DelegatesLock;
-#if ENABLE_MT_DETECTOR
-FRWRecursiveAccessDetector UDebugDrawService::DelegatesDetector;
-#endif
 
-TArray<TArray<FDebugDrawDelegate> > UDebugDrawService::Delegates;
+TArray<UDebugDrawService::FDebugDrawMulticastDelegate> UDebugDrawService::Delegates;
 FEngineShowFlags UDebugDrawService::ObservedFlags(ESFIM_Editor);
 
 UDebugDrawService::UDebugDrawService(const FObjectInitializer& ObjectInitializer)
@@ -28,14 +25,12 @@ FDelegateHandle UDebugDrawService::Register(const TCHAR* Name, const FDebugDrawD
 	FDelegateHandle Result;
 	if (Index != INDEX_NONE)
 	{
-		FScopeLock PathLock(&DelegatesLock);
-		UE_MT_SCOPED_WRITE_ACCESS(DelegatesDetector);
+		FScopeLock ScopeLock(&DelegatesLock);
 		if (Index >= Delegates.Num())
 		{
 			Delegates.AddZeroed(Index - Delegates.Num() + 1);
 		}
-		Delegates[Index].Add(NewDelegate);
-		Result = Delegates[Index].Last().GetHandle();
+		Result = Delegates[Index].Add(NewDelegate);
 		ObservedFlags.SetSingleFlag(Index, true);
 	}
 	return Result;
@@ -43,19 +38,18 @@ FDelegateHandle UDebugDrawService::Register(const TCHAR* Name, const FDebugDrawD
 
 void UDebugDrawService::Unregister(const FDelegateHandle HandleToRemove)
 {
-	UE_MT_SCOPED_WRITE_ACCESS(DelegatesDetector);
-	TArray<FDebugDrawDelegate>* DelegatesArray = Delegates.GetData();
-	for (int32 Flag = 0; Flag < Delegates.Num(); ++Flag, ++DelegatesArray)
+	FScopeLock ScopeLock(&DelegatesLock);
+	for (int32 Flag = 0; Flag < Delegates.Num(); ++Flag)
 	{
-		check(DelegatesArray); //it shouldn't happen, but to be sure
-		const uint32 Index = DelegatesArray->IndexOfByPredicate([=](const FDebugDrawDelegate& Delegate){ return Delegate.GetHandle() == HandleToRemove; });
-		if (Index != INDEX_NONE)
+		FDebugDrawMulticastDelegate& MulticastDelegate = Delegates[Flag];
+		if (MulticastDelegate.Remove(HandleToRemove))
 		{
-			DelegatesArray->RemoveAtSwap(Index, 1, false);
-			if (DelegatesArray->Num() == 0)
+			if (MulticastDelegate.IsBound() == false)
 			{
 				ObservedFlags.SetSingleFlag(Flag, false);
 			}
+
+			break;
 		}
 	}	
 }
@@ -89,24 +83,14 @@ void UDebugDrawService::Draw(const FEngineShowFlags Flags, UCanvas* Canvas)
 		return;
 	}
 
-	UE_MT_SCOPED_WRITE_ACCESS(DelegatesDetector);
+	FScopeLock ScopeLock(&DelegatesLock);
 	for (int32 FlagIndex = 0; FlagIndex < Delegates.Num(); ++FlagIndex)
 	{
-		if (Flags.GetSingleFlag(FlagIndex) && ObservedFlags.GetSingleFlag(FlagIndex) && Delegates[FlagIndex].Num() > 0)
-		{
-			for (int32 i = Delegates[FlagIndex].Num() - 1; i >= 0; --i)
-			{
-				FDebugDrawDelegate& Delegate = Delegates[FlagIndex][i];
+		FDebugDrawMulticastDelegate& MulticastDelegate = Delegates[FlagIndex];
 
-				if (Delegate.IsBound())
-				{
-					Delegate.Execute(Canvas, nullptr);
-				}
-				else
-				{
-					Delegates[FlagIndex].RemoveAtSwap(i, 1, /*bAllowShrinking=*/false);
-				}
-			}
+		if (Flags.GetSingleFlag(FlagIndex) && ObservedFlags.GetSingleFlag(FlagIndex))
+		{
+			MulticastDelegate.Broadcast(Canvas, nullptr);
 		}
 	}
 }
