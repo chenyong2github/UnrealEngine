@@ -209,7 +209,7 @@ void TopLevelGridCalculateVoxelSize(
 
 		// Store minimum voxel rate temporarily as the bottom-level index
 		uint LinearIndex = GetLinearIndex(VoxelIndex, TopLevelGridResolution);
-		if (!IsBottomLevelEmpty(RWTopLevelGridBuffer[LinearIndex]))
+		if (IsBottomLevelAllocated(RWTopLevelGridBuffer[LinearIndex]))
 		{
 			float PrevVoxelSize = GetVoxelSize(RWTopLevelGridBuffer[LinearIndex]);
 			VoxelSize = min(VoxelSize, PrevVoxelSize);
@@ -282,22 +282,17 @@ void AllocateBottomLevelGrid(
 		// Allocate indirection voxels
 		int3 BottomLevelVoxelResolution = MaxVoxelResolution;
 		int3 IndirectionGridResolution = ceil(VoxelResolution / BottomLevelVoxelResolution);
-		// Encoding restricts dimension to be a power-of-2
-		//IndirectionGridResolution = NextPowerOfTwo(IndirectionGridResolution);
-		IndirectionGridResolution.x = clamp(IndirectionGridResolution.x, 1, 4);
-		IndirectionGridResolution.y = clamp(IndirectionGridResolution.y, 1, 4);
-		IndirectionGridResolution.z = clamp(IndirectionGridResolution.z, 1, 4);
-		// Force regular sized voxels so the delineation is tractable for the allocator
+		IndirectionGridResolution = clamp(IndirectionGridResolution, 1, 4);
+		// Force regular sized dimensions so the permutation count is tractable for the allocator
 		IndirectionGridResolution = max(IndirectionGridResolution.x, max(IndirectionGridResolution.y, IndirectionGridResolution.z));
-
 		int IndirectionVoxelCount = IndirectionGridResolution.x * IndirectionGridResolution.y * IndirectionGridResolution.z;
 
 		uint IndirectionGridIndex = EMPTY_VOXEL_INDEX;
 		InterlockedAdd(RWIndirectionGridAllocatorBuffer[0], IndirectionVoxelCount, IndirectionGridIndex);
 
+		// If we over-allocate, eclare the allocator to be full and the voxel contents to be empty
 		if (IndirectionGridIndex + IndirectionVoxelCount > IndirectionGridBufferSize)
 		{
-			// Declare the buffer to be filled
 			uint Dummy;
 			InterlockedExchange(RWIndirectionGridAllocatorBuffer[0], IndirectionGridBufferSize, Dummy);
 
@@ -305,6 +300,7 @@ void AllocateBottomLevelGrid(
 			IndirectionGridResolution = 0;
 		}
 
+		// Write the voxel contents
 		FTopLevelGridData TopLevelGridData;
 		{
 			SetBottomLevelIndex(TopLevelGridData, IndirectionGridIndex);
@@ -315,12 +311,11 @@ void AllocateBottomLevelGrid(
 #else // DIM_ENABLE_INDIRECTION_GRID
 		uint BottomLevelIndex = EMPTY_VOXEL_INDEX;
 
-		VoxelResolution.x = clamp(VoxelResolution.x, 1, MaxVoxelResolution);
-		VoxelResolution.y = clamp(VoxelResolution.y, 1, MaxVoxelResolution);
-		VoxelResolution.z = clamp(VoxelResolution.z, 1, MaxVoxelResolution);
-		// Force regular sized voxels so the delineation is tractable for the allocator
+		VoxelResolution = clamp(VoxelResolution, 1, MaxVoxelResolution);
+		// Force regular sized dimensions so the permutation count is tractable for the allocator
 		VoxelResolution = max(VoxelResolution.x, max(VoxelResolution.y, VoxelResolution.z));
 
+		// Write the voxel contents
 		FTopLevelGridData TopLevelGridData = RWTopLevelGridBuffer[LinearIndex];
 		{
 			SetBottomLevelIndex(TopLevelGridData, BottomLevelIndex);
@@ -360,15 +355,15 @@ void GenerateRasterTiles(
 	if (!IsBottomLevelEmpty(TopLevelGridBuffer[LinearIndex]))
 	{
 		int3 BottomLevelResolution = GetBottomLevelVoxelResolution(TopLevelGridBuffer[LinearIndex]);
-		int BottomLevelLinearResolution = BottomLevelResolution.x * BottomLevelResolution.y * BottomLevelResolution.z;
 
 #if DIM_ENABLE_INDIRECTION_GRID
-		int RasterTileCount = BottomLevelLinearResolution;
-
+		int3 RasterTileCount3 = BottomLevelResolution;
 #else // DIM_ENABLE_INDIRECTION_GRID
+		// NOTE: Always 1, due to limitations of bottom-level grid resolution
 		int3 RasterTileCount3 = ceil(float3(BottomLevelResolution) / RasterTileVoxelResolution);
-		int RasterTileCount = RasterTileCount3.x * RasterTileCount3.y * RasterTileCount3.z;
 #endif // DIM_ENABLE_INDIRECTION_GRID
+
+		int RasterTileCount = RasterTileCount3.x * RasterTileCount3.y * RasterTileCount3.z;
 
 		if (RasterTileCount > 0)
 		{
@@ -648,7 +643,7 @@ void RenderTransmittanceWithVoxelGridCS(
 	}
 
 	// Debug
-	Radiance = Transmittance;
+	Radiance = 1.0 - Transmittance;
 
 	// Output..
 	float3 Opacity = 1.0 - Transmittance;
