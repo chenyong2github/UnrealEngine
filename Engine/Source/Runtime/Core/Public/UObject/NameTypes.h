@@ -1203,7 +1203,7 @@ private:
 
 	FORCEINLINE static bool Equals(FName A, EName B)
 	{
-		return A.GetComparisonIndex() == B && A.GetNumber() == NAME_NO_NUMBER_INTERNAL;
+		return A == FName(B);
 	}
 
 #if UE_FNAME_OUTLINE_NUMBER
