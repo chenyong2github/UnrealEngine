@@ -79,7 +79,7 @@ static TAutoConsoleVariable<bool> CVarOpenXRDoNotCopyEmulatedLayersToSpectatorSc
 
 static TAutoConsoleVariable<int32> CVarOpenXRAcquireMode(
 	TEXT("xr.OpenXRAcquireMode"),
-	0,
+	2,
 	TEXT("Override the swapchain acquire mode. 1 = Acquire on any thread, 2 = Only acquire on RHI thread\n"),
 	ECVF_Default);
 
