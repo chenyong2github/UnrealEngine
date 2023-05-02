@@ -14,7 +14,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieScenePiecewiseDoubleBlenderSystem)
 
-DECLARE_CYCLE_STAT(TEXT("Piecewise Double Blender System"),       MovieSceneEval_PiecewiseDoubleBlenderSystem,  STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Blend double values"),                   MovieSceneEval_BlendDoubleValues,        STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Default combine blended double values"), MovieSceneEval_BlendCombineDoubleValues, STATGROUP_MovieSceneECS);
  
@@ -439,8 +438,6 @@ UMovieScenePiecewiseDoubleBlenderSystem::UMovieScenePiecewiseDoubleBlenderSystem
 void UMovieScenePiecewiseDoubleBlenderSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;
-
-	SCOPE_CYCLE_COUNTER(MovieSceneEval_PiecewiseDoubleBlenderSystem)
 
 	CompactBlendChannels();
 
