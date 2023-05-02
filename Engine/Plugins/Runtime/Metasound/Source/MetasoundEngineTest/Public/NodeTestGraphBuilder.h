@@ -19,7 +19,25 @@ namespace Metasound::Test
 		Frontend::FNodeHandle AddNode(const FNodeClassName& ClassName, int32 MajorVersion) const;
 
 		/** Add an input node to the graph */
-		Frontend::FNodeHandle AddInput(const FName& InputName, const FName& TypeName) const;
+		Frontend::FNodeHandle AddInput(
+			const FName& InputName,
+			const FName& TypeName,
+			EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Reference) const;
+
+		/** Add a constructor input to the graph */
+		template<typename DataType>
+		Frontend::FNodeHandle AddConstructorInput(const FName& InputName, const DataType& Value) const
+		{
+			check(RootGraph->IsValid());
+
+			FMetasoundFrontendClassInput Input;
+			Input.Name = InputName;
+			Input.TypeName = GetMetasoundDataTypeName<DataType>();
+			Input.VertexID = FGuid::NewGuid();
+			Input.AccessType = EMetasoundFrontendVertexAccessType::Value;
+			Input.DefaultLiteral.Set(Value);
+			return RootGraph->AddInputVertex(Input);
+		}
 
 		/** Add an output node to the graph */
 		Frontend::FNodeHandle AddOutput(const FName& OutputName, const FName& TypeName);

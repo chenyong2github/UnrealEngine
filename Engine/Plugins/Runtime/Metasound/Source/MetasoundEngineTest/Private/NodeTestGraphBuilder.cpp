@@ -34,14 +34,19 @@ namespace Metasound::Test
 		return Node;
 	}
 
-	FNodeHandle FNodeTestGraphBuilder::AddInput(const FName& InputName, const FName& TypeName) const
+	FNodeHandle FNodeTestGraphBuilder::AddInput(
+		const FName& InputName,
+		const FName& TypeName,
+		EMetasoundFrontendVertexAccessType AccessType) const
 	{
 		check(RootGraph->IsValid());
 
 		FMetasoundFrontendClassInput Input;
 		Input.Name = InputName;
 		Input.TypeName = TypeName;
+		Input.AccessType = AccessType;
 		Input.VertexID = FGuid::NewGuid();
+		
 		return RootGraph->AddInputVertex(Input);
 	}
 
@@ -122,7 +127,7 @@ namespace Metasound::Test
 		// add the inputs and connect them
 		for (FInputHandle Input : NodeHandle->GetInputs())
 		{
-			FNodeHandle InputNode = Builder.AddInput(Input->GetName(), Input->GetDataType());
+			FNodeHandle InputNode = Builder.AddInput(Input->GetName(), Input->GetDataType(), Input->GetVertexAccessType());
 
 			if (!InputNode->IsValid())
 			{
