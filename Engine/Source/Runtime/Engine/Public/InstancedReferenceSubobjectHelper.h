@@ -119,7 +119,7 @@ public:
 		UObject* NewObject, 
 		TMap<UObject*, UObject*>& ReferenceReplacementMap, 
 		TArray<UObject*>& DuplicatedObjects, 
-		const TMap<UObject*, UObject*>* OptionalMappings);
+		TMap<UObject*, UObject*>* OptionalMappings);
 
 	template<typename T>
 	static void ForEachInstancedSubObject(FInstancedPropertyPath& PropertyPath, T ContainerAddress, TFunctionRef<void(const FInstancedSubObjRef& Ref, T PropertyValueAddress)> ObjRefFunc);

@@ -241,7 +241,7 @@ void FFindInstancedReferenceSubobjectHelper::Duplicate(
 	UObject* NewObject, 
 	TMap<UObject*, UObject*>& ReferenceReplacementMap, 
 	TArray<UObject*>& DuplicatedObjects, 
-	const TMap<UObject*, UObject*>* OptionalMappings)
+	TMap<UObject*, UObject*>* OptionalMappings)
 {
 	if (OldObject->GetClass()->HasAnyClassFlags(CLASS_HasInstancedReference) &&
 		NewObject->GetClass()->HasAnyClassFlags(CLASS_HasInstancedReference))
@@ -279,6 +279,10 @@ void FFindInstancedReferenceSubobjectHelper::Duplicate(
 
 							UObject* NewEditInlineSubobject = StaticDuplicateObject(Obj, NewObject, Obj->GetFName());
 							ReferenceReplacementMap.Add(Obj, NewEditInlineSubobject);
+							if(OptionalMappings)
+							{
+								OptionalMappings->Add(Obj, NewEditInlineSubobject);
+							}
 
 							// NOTE: we cannot patch OldObject's linker table here, since we don't 
 							//       know the relation between the two objects (one could be of a 
