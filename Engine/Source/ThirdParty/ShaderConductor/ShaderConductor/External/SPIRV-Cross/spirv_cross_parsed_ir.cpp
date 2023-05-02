@@ -330,9 +330,11 @@ void ParsedIR::fixup_reserved_names()
 {
 	for (uint32_t id : meta_needing_name_fixup)
 	{
+		// UE CHANGE BEGIN - Rolled back 10f2aa7
 		// Don't rename remapped variables like 'gl_LastFragDepthARM'.
-		if (ids[id].get_type() == TypeVariable && get<SPIRVariable>(id).remapped_variable)
-			continue;
+		//if (ids[id].get_type() == TypeVariable && get<SPIRVariable>(id).remapped_variable)
+		//	continue;
+		// UE CHANGE END - Rolled back 10f2aa7
 
 		auto &m = meta[id];
 		sanitize_identifier(m.decoration.alias, false, false);
@@ -346,6 +348,12 @@ void ParsedIR::set_name(ID id, const string &name)
 {
 	auto &m = meta[id];
 	m.decoration.alias = name;
+
+	// UE CHANGE BEGIN - Rolled back 10f2aa7
+	if (ids[id].get_type() == TypeVariable && get<SPIRVariable>(id).remapped_variable)
+		return;
+	// UE CHANGE END - Rolled back 10f2aa7
+
 	if (!is_valid_identifier(name) || is_reserved_identifier(name, false, false))
 		meta_needing_name_fixup.insert(id);
 }
