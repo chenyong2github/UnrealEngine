@@ -206,6 +206,7 @@ private:
 	TUniquePtr<FReferenceSkeleton> ReferenceSkeleton;
 	TUniquePtr<FTransformComposer> TransformComposer;
 	TArray<int32> BoneIndexTracker;
+	bool bRestricted = false;
 };
 
 struct FTransformComposer

@@ -34,6 +34,12 @@ private:
 
 	void OnPostEngineInit();
 	
+	void RegisterPropertyCustomizations();
+	void UnregisterPropertyCustomizations();
+
+	TArray<FName> CustomizedProperties;
+	TArray<FName> CustomizedClasses;
+	
 	// The handle for the extender delegate we added. Needed for clean module shutdown.
 	FDelegateHandle SkelMeshEditorExtenderHandle;
 

@@ -276,9 +276,9 @@ void USkeletonEditingTool::UpdateGizmo() const
 				if (bWorld)
 				{
 					const FTransform NewLocal = InNewTransform.GetRelativeTransform(ParentGlobal);
-					return Modifier->SetBoneTransform(BoneName, NewLocal, true);
+					return Modifier->SetBoneTransform(BoneName, NewLocal, Properties->bUpdateChildren);
 				}
-				return Modifier->SetBoneTransform(BoneName, InNewTransform, true);
+				return Modifier->SetBoneTransform(BoneName, InNewTransform, Properties->bUpdateChildren);
 			});
 	}
 }
@@ -537,14 +537,14 @@ void USkeletonEditingTool::MoveBones()
 
 void USkeletonEditingTool::RenameBones()
 {
-	const FName CurrentBone = GetCurrentBone();
-	if (CurrentBone == Properties->Name || Properties->Name == NAME_None)
+	const TArray<int32> BoneIndices = GetSelectedBoneIndexes();
+	if (BoneIndices.IsEmpty() || Properties->Name == NAME_None)
 	{
 		return;
 	}
 	
-	const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
-	if (RefSkeleton.FindRawBoneIndex(CurrentBone) == INDEX_NONE)
+	const FName CurrentBone = GetCurrentBone();
+	if (BoneIndices.Num() == 1 && CurrentBone == Properties->Name)
 	{
 		return;
 	}
@@ -552,11 +552,26 @@ void USkeletonEditingTool::RenameBones()
 	TGuardValue OperationGuard(Operation, EEditingOperation::Rename);
 	BeginChange();
 
-	const bool bBoneRenamed = Modifier->RenameBone(CurrentBone, Properties->Name);
+	TArray<FName> ReversedSelection = Selection;
+	Algo::Reverse(ReversedSelection);
+
+	TArray<FName> NewNames;
+	NewNames.Init(Properties->Name, Selection.Num());
+
+	const bool bBoneRenamed = Modifier->RenameBones(ReversedSelection, NewNames);
 	if (bBoneRenamed)
 	{
-		Selection.Last() = Properties->Name;
-
+		// update selection with new names
+		const TArray<FMeshBoneInfo>& BoneInfos = Modifier->GetReferenceSkeleton().GetRawRefBoneInfo();
+		for (int32 Index = 0; Index < BoneIndices.Num(); Index++)
+		{
+			if (BoneIndices[Index] != INDEX_NONE)
+			{
+				Selection[Index] = BoneInfos[BoneIndices[Index]].Name;
+			}
+		}
+		Properties->Name = GetCurrentBone();
+		
 		if (NeedsNotification())
 		{
 			GetNotifier().Notify({CurrentBone}, ESkeletalMeshNotifyType::BonesRenamed);
@@ -636,6 +651,7 @@ void USkeletonEditingTool::OrientBones()
 	const bool bBoneOriented = Modifier->OrientBones(Bones, OrientingProperties->Options);
 	if (bBoneOriented)
 	{
+		UpdateGizmo();
 		// if (NeedsNotification())
 		// {
 		// 	GetNotifier().Notify(Bones, ESkeletalMeshNotifyType::BonesMoved);
@@ -1016,7 +1032,59 @@ FBox USkeletonEditingTool::GetWorldSpaceFocusBox()
 
 TArray<FName> USkeletonEditingTool::GetSelectedBones() const
 {
+	return GetSelection();
+}
+
+const TArray<FName>& USkeletonEditingTool::GetSelection() const
+{
 	return Selection;
+}
+
+const FTransform& USkeletonEditingTool::GetTransform(const FName InBoneName, const bool bWorld) const
+{
+	if (Modifier)
+	{
+		const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
+		return Modifier->GetTransform(RefSkeleton.FindRawBoneIndex(InBoneName), bWorld);
+	}
+	return FTransform::Identity;
+}
+
+void USkeletonEditingTool::SetTransforms(const TArray<FName>& InBones, const TArray<FTransform>& InTransforms, const bool bWorld) const
+{
+	const int32 NumBonesToMove = InBones.Num();
+	if (NumBonesToMove == 0 || NumBonesToMove != InTransforms.Num())
+	{
+		return;
+	}
+	
+	TArray<FTransform> NewTransforms = InTransforms;
+	if (bWorld)
+	{ // switch to local
+		const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
+		const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRawRefBoneInfo();
+		
+		for (int32 Index = 0; Index < InBones.Num(); ++Index)
+		{
+			const int32 BoneIndex = RefSkeleton.FindRawBoneIndex(InBones[Index]);
+			check(BoneIndex != INDEX_NONE);
+
+			const int32 ParentBoneIndex = BoneInfos[BoneIndex].ParentIndex;
+			const int32 ParentToBeSet = ParentBoneIndex != INDEX_NONE ?
+				InBones.IndexOfByKey(BoneInfos[ParentBoneIndex].Name) : INDEX_NONE;
+
+			const FTransform& ParentGlobal = ParentToBeSet != INDEX_NONE ?
+				InTransforms[ParentToBeSet] : Modifier->GetTransform(ParentBoneIndex, true);
+			
+			NewTransforms[Index] = NewTransforms[Index].GetRelativeTransform(ParentGlobal);
+		}
+	}
+
+	const bool bBonesMoved = Modifier->SetBonesTransforms(InBones, NewTransforms, Properties->bUpdateChildren);
+	if (bBonesMoved)
+	{
+		UpdateGizmo();
+	}
 }
 
 FName USkeletonEditingTool::GetCurrentBone() const
@@ -1093,11 +1161,6 @@ void USkeletonEditingProperties::PostEditChangeProperty(FPropertyChangedEvent& P
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(USkeletonEditingProperties, Name))
 		{
 			ParentTool->RenameBones();
-		}
-
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(USkeletonEditingProperties, Transform))
-		{
-			ParentTool->MoveBones();
 		}
 	}
 }

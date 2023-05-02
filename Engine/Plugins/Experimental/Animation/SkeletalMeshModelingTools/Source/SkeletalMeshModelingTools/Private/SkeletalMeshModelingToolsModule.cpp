@@ -15,6 +15,8 @@
 #include "Modules/ModuleManager.h"
 #include "SkeletalMeshToolMenuContext.h"
 #include "ToolMenus.h"
+#include "DetailCustomization/SkeletonEditingToolPropertyCustomizations.h"
+#include "SkeletalMesh/SkeletonEditingTool.h"
 #include "Styling/SlateIconFinder.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
 
@@ -42,10 +44,14 @@ void FSkeletalMeshModelingToolsModule::StartupModule()
 	SkelMeshEditorExtenderHandle = ToolbarExtenders.Last().GetHandle();
 
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FSkeletalMeshModelingToolsModule::OnPostEngineInit);
+
+	RegisterPropertyCustomizations();
 }
 
 void FSkeletalMeshModelingToolsModule::ShutdownModule()
 {
+	UnregisterPropertyCustomizations();
+	
 	if (ISkeletalMeshEditorModule* SkelMeshEditorModule = FModuleManager::GetModulePtr<ISkeletalMeshEditorModule>("SkeletalMeshEditor"))
 	{
 		TArray<ISkeletalMeshEditorModule::FSkeletalMeshEditorToolbarExtender>& Extenders = SkelMeshEditorModule->GetAllSkeletalMeshEditorToolbarExtenders();
@@ -156,6 +162,49 @@ void FSkeletalMeshModelingToolsModule::OnToggleEditingToolsMode(TWeakPtr<ISkelet
 void FSkeletalMeshModelingToolsModule::OnPostEngineInit()
 {
 	FSkeletalMeshModelingToolsActionCommands::RegisterAllToolActions();
+}
+
+void FSkeletalMeshModelingToolsModule::RegisterPropertyCustomizations()
+{
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	auto RegisterPropertyCustomization = [&](FName InStructName, auto InCustomizationFactory)
+	{
+		PropertyModule.RegisterCustomPropertyTypeLayout(
+			InStructName, 
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(InCustomizationFactory)
+			);
+		CustomizedProperties.Add(InStructName);
+	};
+
+	auto RegisterDetailCustomization = [&](FName InStructName, auto InCustomizationFactory)
+	{
+		PropertyModule.RegisterCustomClassLayout(
+			InStructName,
+			FOnGetDetailCustomizationInstance::CreateStatic(InCustomizationFactory)
+		);
+		CustomizedClasses.Add(InStructName);
+	};
+
+	RegisterDetailCustomization(USkeletonEditingProperties::StaticClass()->GetFName(), &FSkeletonEditingPropertiesDetailCustomization::MakeInstance);
+
+	PropertyModule.NotifyCustomizationModuleChanged();
+}
+
+void FSkeletalMeshModelingToolsModule::UnregisterPropertyCustomizations()
+{
+	if (FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor"))
+	{
+		for (const FName& PropertyName: CustomizedProperties)
+		{
+			PropertyModule->UnregisterCustomPropertyTypeLayout(PropertyName);
+		}
+		for (const FName& ClassName : CustomizedClasses)
+		{
+			PropertyModule->UnregisterCustomClassLayout(ClassName);
+		}
+		PropertyModule->NotifyCustomizationModuleChanged();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

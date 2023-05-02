@@ -30,7 +30,11 @@ public class SkeletalMeshModelingTools : ModuleRules
 				"ToolMenus",
 				"ToolWidgets",
 				"UnrealEd",
-				"StatusBar"
+				"StatusBar",
+				"PropertyEditor",
+				"AnimationCore",
+				"AnimationWidgets",
+				"ApplicationCore"
 			}
 		);
 	}

@@ -4,7 +4,6 @@
 #include "SkeletonModifier.h"
 
 #include "BoneWeights.h"
-#include "LODUtilities.h"
 #include "MeshDescription.h"
 #include "Animation/Skeleton.h"
 #include "ReferenceSkeleton.h"
@@ -14,7 +13,8 @@
 #include "Animation/AnimMontage.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
-#include "Rendering/SkeletalMeshModel.h"
+#include "Engine/SkeletalMesh.h"
+#include "RenderingThread.h"
 
 
 namespace USkeletonModifierLocals
@@ -979,7 +979,7 @@ bool USkeletonModifier::RenameBones(const TArray<FName>& InOldBoneNames, const T
 		for (int32 Index = 0; Index < NumBonesToRename; ++Index)
 		{
 			const FName& OldName = InOldBoneNames[Index];
-			const FName& NewName = InNewBoneNames[Index];
+			const FName NewName = GetUniqueName(InNewBoneNames[Index]);
 			if (OldName != NAME_None && OldName != NewName)
 			{
 				Modifier.Rename(OldName, NewName);
@@ -1219,11 +1219,47 @@ void USkeletonModifier::UpdateBoneTracker(const TArray<FMeshBoneInfo>& InOtherIn
 
 FName USkeletonModifier::GetUniqueName(const FName InBoneName) const
 {
-	if (!ReferenceSkeleton)
+	if (!ReferenceSkeleton || InBoneName == NAME_None)
 	{
 		return NAME_None;
 	}
-	
+
+	// remove unwanted characters
+	auto GetSanitizedName = [](const FName InName)
+	{
+		bool bHasAnyGoodChar = false;
+		FString Name = InName.ToString(); 
+		Name.TrimStartAndEndInline();
+		for (int32 i = 0; i < Name.Len(); ++i)
+		{
+			TCHAR& C = Name[i];
+			const bool bGoodChar = FChar::IsAlpha(C) || (C == '_') || ((i > 0) && FChar::IsDigit(C));
+			bHasAnyGoodChar |= bGoodChar;
+			if (!bGoodChar)
+			{
+				C = '_';
+			}
+		}
+		return bHasAnyGoodChar ? FName(*Name) : NAME_None;
+	};
+
+	// remove digits at the end
+	auto GetPrefix = [](const FName InName) -> FName
+	{
+		const FString Name = InName.ToString();
+		const int32 LastNonDigit = Name.FindLastCharByPredicate([](TCHAR C) { return !FChar::IsDigit(C); });
+		if (LastNonDigit == INDEX_NONE)
+		{
+			return NAME_None;
+		}
+		if (LastNonDigit == Name.Len()-1)
+		{
+			return InName;
+		}
+		return FName(*Name.Left(LastNonDigit+1));
+	};
+
+	// check for availability
 	auto IsNameAvailable = [&](const FName Name)
 	{
 		const int32 Index = ReferenceSkeleton->FindRawBoneIndex(Name);
@@ -1234,12 +1270,23 @@ FName USkeletonModifier::GetUniqueName(const FName InBoneName) const
 		return true;
 	};
 
-	FName OutName = InBoneName;
-	int32 CurrentIndex = 0;
+	const FName SanitizedName = GetSanitizedName(InBoneName);
+	if (SanitizedName == NAME_None)
+	{
+		return NAME_None;
+	}
+	
+	const FName Prefix = GetPrefix(SanitizedName);
+	if (Prefix == NAME_None)
+	{
+		return NAME_None;
+	}
 
+	FName OutName = Prefix;
+	int32 CurrentIndex = 0;
 	while (!IsNameAvailable(OutName))
 	{
-		OutName = FName(*FString::Printf(TEXT("%s%d"), *InBoneName.ToString(), CurrentIndex++));
+		OutName = FName(*FString::Printf(TEXT("%s%d"), *Prefix.ToString(), CurrentIndex++));
 	}
 
 	return OutName;

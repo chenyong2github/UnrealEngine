@@ -28,7 +28,7 @@ namespace SkeletonEditingTool
 /**
  * A wrapper change class that stores a reference skeleton and the bones' indexes trackers to be used for undo/redo.
  */
-class FRefSkeletonChange : public FToolCommandChange
+class MESHMODELINGTOOLSEXP_API FRefSkeletonChange : public FToolCommandChange
 {
 public:
 	FRefSkeletonChange(const USkeletonEditingTool* InTool);
@@ -135,6 +135,11 @@ public:
 
 	// ISkeletalMeshEditionInterface overrides
 	virtual TArray<FName> GetSelectedBones() const override;
+
+	const TArray<FName>& GetSelection() const;
+
+	const FTransform& GetTransform(const FName InBoneName, const bool bWorld) const;
+	void SetTransforms(const TArray<FName>& InBones, const TArray<FTransform>& InTransforms, const bool bWorld) const;
 
 	// IModifierToggleBehaviorTarget overrides
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
@@ -248,7 +253,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Details")
 	FName Name;
 
-	UPROPERTY(EditAnywhere, Category = "Details")
+	UPROPERTY()
 	FTransform Transform;
 	
 	UPROPERTY(EditAnywhere, Category = "Move")
@@ -264,7 +269,6 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
 #endif
 	
-private:
 	TWeakObjectPtr<USkeletonEditingTool> ParentTool = nullptr;
 };
 
