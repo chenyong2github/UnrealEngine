@@ -4,15 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "Chaos/Convex.h"
 
 #include "GeometryCollectionConvexUtility.generated.h"
 
 class FGeometryCollection;
-
-namespace Chaos
-{
-	class FConvex;
-}
 
 UENUM()
 enum class EConvexOverlapRemoval : int32
