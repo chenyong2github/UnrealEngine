@@ -116,6 +116,23 @@ void FStoreCborPeer::OnSessionInfo()
 			}
 		}
 	}
+	else if (FStringView TraceGuidStr = Response.GetString("trace_guid", ""); TraceGuidStr.Len() > 0)
+	{
+		FGuid TraceGuid;
+		if (FGuid::ParseGuid(TraceGuidStr, TraceGuid))
+		{
+			for (int i = 0, n = Recorder.GetSessionCount(); i < n; ++i)
+			{
+				const FRecorder::FSession* Candidate = Recorder.GetSessionInfo(i);
+
+					if (FGuid::Equal(Candidate->GetTraceGuid(), TraceGuid))
+					{
+						Session = Candidate;
+						break;
+					}
+			}
+		}
+	}
 
 	if (Session == nullptr)
 	{

@@ -23,6 +23,8 @@ public:
 		uint32				GetTraceId() const;
 		uint32				GetIpAddress() const;
 		uint32				GetControlPort() const;
+		const FGuid&		GetSessionGuid() const;
+		const FGuid&		GetTraceGuid() const;
 
 	private:
 		friend				FRecorder;

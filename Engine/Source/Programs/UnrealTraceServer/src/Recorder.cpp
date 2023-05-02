@@ -22,6 +22,8 @@ public:
 	uint32				GetTraceId() const;
 	uint32				GetIpAddress() const;
 	uint32				GetControlPort() const;
+	const FGuid&		GetSessionGuid() const;
+	const FGuid&		GetTraceGuid() const;
 
 private:
 	virtual void		OnIoComplete(uint32 Id, int32 Size) override;
@@ -149,6 +151,18 @@ uint32 FRecorderRelay::GetIpAddress() const
 uint32 FRecorderRelay::GetControlPort() const
 {
 	return ControlPort;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FGuid& FRecorderRelay::GetSessionGuid() const
+{
+	return SessionGuid;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FGuid& FRecorderRelay::GetTraceGuid() const
+{
+	return TraceGuid;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -339,6 +353,18 @@ uint32 FRecorder::FSession::GetIpAddress() const
 uint32 FRecorder::FSession::GetControlPort() const
 {
 	return Relay->GetControlPort();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FGuid& FRecorder::FSession::GetSessionGuid() const
+{
+	return Relay->GetSessionGuid();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const FGuid& FRecorder::FSession::GetTraceGuid() const
+{
+	return Relay->GetTraceGuid();
 }
 
 
