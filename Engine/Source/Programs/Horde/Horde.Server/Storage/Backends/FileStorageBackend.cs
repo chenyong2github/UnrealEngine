@@ -7,9 +7,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Storage;
-using OpenTracing;
-using OpenTracing.Util;
+using Horde.Server.Utilities;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Storage.Backends
 {
@@ -66,8 +65,8 @@ namespace Horde.Server.Storage.Backends
 		/// <inheritdoc/>
 		public Task<Stream?> TryReadAsync(string path, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("FileSystemStorageBackend.ReadAsync").StartActive();
-			scope.Span.SetTag("Path", path);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(FileSystemStorageBackend)}.{nameof(TryReadAsync)}");
+			span.SetAttribute("path", path);
 			
 			FileReference location = FileReference.Combine(_baseDir, path);
 			if (!FileReference.Exists(location))
@@ -103,8 +102,8 @@ namespace Horde.Server.Storage.Backends
 		/// <inheritdoc/>
 		public async Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("FileSystemStorageBackend.WriteAsync").StartActive();
-			scope.Span.SetTag("Path", path);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(FileSystemStorageBackend)}.{nameof(WriteAsync)}");
+			span.SetAttribute("path", path);
 			
 			FileReference finalLocation = FileReference.Combine(_baseDir, path);
 			if (!FileReference.Exists(finalLocation))
@@ -142,8 +141,8 @@ namespace Horde.Server.Storage.Backends
 		/// <inheritdoc/>
 		public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("FileSystemStorageBackend.ExistsAsync").StartActive();
-			scope.Span.SetTag("Path", path);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(FileSystemStorageBackend)}.{nameof(ExistsAsync)}");
+			span.SetAttribute("path", path);
 			
 			FileReference location = FileReference.Combine(_baseDir, path);
 			return Task.FromResult(FileReference.Exists(location));
@@ -152,8 +151,8 @@ namespace Horde.Server.Storage.Backends
 		/// <inheritdoc/>
 		public Task DeleteAsync(string path, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("FileSystemStorageBackend.DeleteAsync").StartActive();
-			scope.Span.SetTag("Path", path);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(FileSystemStorageBackend)}.{nameof(DeleteAsync)}");
+			span.SetAttribute("path", path);
 			
 			FileReference location = FileReference.Combine(_baseDir, path);
 			FileReference.Delete(location);

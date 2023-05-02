@@ -11,6 +11,7 @@ using Horde.Server.Server;
 using Horde.Server.Utilities;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Tests
 {
@@ -28,7 +29,8 @@ namespace Horde.Server.Tests
 		public async Task TestRedisLogBuilder()
 		{
 			RedisService redisService = GetRedisServiceSingleton();
-			ILogBuilder builder = new RedisLogBuilder(redisService.ConnectionPool, NullLogger.Instance);
+			Tracer tracer = TracerProvider.Default.GetTracer("LogBuilderTests");
+			ILogBuilder builder = new RedisLogBuilder(redisService.ConnectionPool, tracer, NullLogger.Instance);
 			await TestBuilder(builder);
 		}
 

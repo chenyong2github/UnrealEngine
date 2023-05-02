@@ -9,6 +9,7 @@ using HordeCommon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 using StatsdClient;
 
 namespace Horde.Server.Agents.Fleet;
@@ -38,6 +39,7 @@ public sealed class FleetManagerFactory : IFleetManagerFactory
 	private readonly IDogStatsd _dogStatsd;
 	private readonly IServiceProvider _provider;
 	private readonly IOptionsMonitor<ServerSettings> _settings;
+	private readonly Tracer _tracer;
 	private readonly ILoggerFactory _loggerFactory;
 	
 	private IAmazonAutoScaling? _awsAutoScaling;
@@ -46,13 +48,14 @@ public sealed class FleetManagerFactory : IFleetManagerFactory
 	/// <summary>
 	/// Constructor
 	/// </summary>
-	public FleetManagerFactory(IAgentCollection agentCollection, IClock clock, IDogStatsd dogStatsd, IServiceProvider provider, IOptionsMonitor<ServerSettings> settings, ILoggerFactory loggerFactory)
+	public FleetManagerFactory(IAgentCollection agentCollection, IClock clock, IDogStatsd dogStatsd, IServiceProvider provider, IOptionsMonitor<ServerSettings> settings, Tracer tracer, ILoggerFactory loggerFactory)
 	{
 		_agentCollection = agentCollection;
 		_clock = clock;
 		_dogStatsd = dogStatsd;
 		_provider = provider;
 		_settings = settings;
+		_tracer = tracer;
 		_loggerFactory = loggerFactory;
 	}
 	
@@ -66,13 +69,13 @@ public sealed class FleetManagerFactory : IFleetManagerFactory
 			FleetManagerType.NoOp =>
 				new NoOpFleetManager(_loggerFactory.CreateLogger<NoOpFleetManager>()),
 			FleetManagerType.Aws =>
-				new AwsFleetManager(GetAwsEc2(type), _agentCollection, DeserializeSettings<AwsFleetManagerSettings>(config), _loggerFactory.CreateLogger<AwsFleetManager>()),
+				new AwsFleetManager(GetAwsEc2(type), _agentCollection, DeserializeSettings<AwsFleetManagerSettings>(config), _tracer, _loggerFactory.CreateLogger<AwsFleetManager>()),
 			FleetManagerType.AwsReuse =>
-				new AwsReuseFleetManager(GetAwsEc2(type), _agentCollection, DeserializeSettings<AwsReuseFleetManagerSettings>(config), _loggerFactory.CreateLogger<AwsReuseFleetManager>()),
+				new AwsReuseFleetManager(GetAwsEc2(type), _agentCollection, DeserializeSettings<AwsReuseFleetManagerSettings>(config), _tracer, _loggerFactory.CreateLogger<AwsReuseFleetManager>()),
 			FleetManagerType.AwsRecycle =>
-				new AwsRecyclingFleetManager(GetAwsEc2(type), _agentCollection, _dogStatsd, _clock, DeserializeSettings<AwsRecyclingFleetManagerSettings>(config), _loggerFactory.CreateLogger<AwsRecyclingFleetManager>()),
+				new AwsRecyclingFleetManager(GetAwsEc2(type), _agentCollection, _dogStatsd, _clock, DeserializeSettings<AwsRecyclingFleetManagerSettings>(config), _tracer, _loggerFactory.CreateLogger<AwsRecyclingFleetManager>()),
 			FleetManagerType.AwsAsg =>
-				new AwsAsgFleetManager(GetAwsAutoScaling(type), DeserializeSettings<AwsAsgSettings>(config), _loggerFactory.CreateLogger<AwsAsgFleetManager>()),
+				new AwsAsgFleetManager(GetAwsAutoScaling(type), DeserializeSettings<AwsAsgSettings>(config), _tracer, _loggerFactory.CreateLogger<AwsAsgFleetManager>()),
 			_ => throw new ArgumentException("Unknown fleet manager type " + type)
 		};
 	}

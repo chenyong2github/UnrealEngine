@@ -2,12 +2,10 @@
 
 using System;
 using System.Buffers.Binary;
-using System.Globalization;
 using System.IO;
 using EpicGames.Core;
 using ICSharpCode.SharpZipLib.BZip2;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Utilities
 {
@@ -22,8 +20,8 @@ namespace Horde.Server.Utilities
 		/// <returns>The compressed data</returns>
 		public static byte[] CompressBzip2(this ReadOnlyMemory<byte> memory)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("CompressBzip2").StartActive();
-			scope.Span.SetTag("DecompressedSize", memory.Length.ToString(CultureInfo.InvariantCulture));
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(CompressionExtensions)}.{nameof(CompressBzip2)}");
+			span.SetAttribute("decompressedSize", memory.Length);
 
 			byte[] compressedData;
 			using (MemoryStream stream = new MemoryStream())
@@ -40,7 +38,7 @@ namespace Horde.Server.Utilities
 				compressedData = stream.ToArray();
 			}
 
-			scope.Span.SetTag("CompressedSize", compressedData.Length.ToString(CultureInfo.InvariantCulture));
+			span.SetAttribute("compressedSize", compressedData.Length);
 			return compressedData;
 		}
 
@@ -52,9 +50,9 @@ namespace Horde.Server.Utilities
 		{
 			int decompressedSize = BinaryPrimitives.ReadInt32LittleEndian(memory.Span);
 
-			using IScope scope = GlobalTracer.Instance.BuildSpan("DecompressBzip2").StartActive();
-			scope.Span.SetTag("CompressedSize", memory.Length.ToString(CultureInfo.InvariantCulture));
-			scope.Span.SetTag("DecompressedSize", decompressedSize.ToString(CultureInfo.InvariantCulture));
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(CompressionExtensions)}.{nameof(DecompressBzip2)}");
+			span.SetAttribute("compressedSize", memory.Length);
+			span.SetAttribute("decompressedSize", decompressedSize);
 
 			byte[] data = new byte[decompressedSize];
 			using (ReadOnlyMemoryStream stream = new ReadOnlyMemoryStream(memory.Slice(4)))

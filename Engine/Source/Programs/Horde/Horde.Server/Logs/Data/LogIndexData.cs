@@ -7,8 +7,7 @@ using System.Linq;
 using EpicGames.Core;
 using EpicGames.Horde.Logs;
 using Horde.Server.Utilities;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Logs.Data
 {
@@ -185,7 +184,7 @@ namespace Horde.Server.Logs.Data
 		/// <returns>Index data</returns>
 		public static LogIndexData Merge(IEnumerable<LogIndexData> indexes)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("LogIndexData.Merge").StartActive();
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(LogIndexData)}.{nameof(Merge)}");
 
 			// Create the combined block list
 			LogIndexBlock[] newBlocks = indexes.SelectMany(x => x._blocks).ToArray();

@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -10,8 +9,7 @@ using EpicGames.Redis;
 using Horde.Server.Logs.Data;
 using Horde.Server.Utilities;
 using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 using StackExchange.Redis;
 
 namespace Horde.Server.Logs.Builder
@@ -62,6 +60,11 @@ namespace Horde.Server.Logs.Builder
 		readonly RedisConnectionPool _redisConnectionPool;
 
 		/// <summary>
+		/// Tracer
+		/// </summary>
+		readonly Tracer _tracer;
+		
+		/// <summary>
 		/// Logger for debug output
 		/// </summary>
 		readonly ILogger _logger;
@@ -70,10 +73,12 @@ namespace Horde.Server.Logs.Builder
 		/// Constructor
 		/// </summary>
 		/// <param name="redisConnectionPool">The redis database singleton</param>
+		/// <param name="tracer">Tracer</param>
 		/// <param name="logger">Logger for debug output</param>
-		public RedisLogBuilder(RedisConnectionPool redisConnectionPool, ILogger logger)
+		public RedisLogBuilder(RedisConnectionPool redisConnectionPool, Tracer tracer, ILogger logger)
 		{
 			_redisConnectionPool = redisConnectionPool;
+			_tracer = tracer;
 			_logger = logger;
 		}
 
@@ -85,10 +90,10 @@ namespace Horde.Server.Logs.Builder
 
 			if(chunkOffset == writeOffset)
 			{
-				using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.CreateChunk").StartActive();
-				scope.Span.SetTag("LogId", logId.ToString());
-				scope.Span.SetTag("Offset", chunkOffset.ToString(CultureInfo.InvariantCulture));
-				scope.Span.SetTag("WriteOffset", writeOffset.ToString(CultureInfo.InvariantCulture));
+				using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(RedisLogBuilder)}.{nameof(AppendAsync)}.CreateChunk");
+				span.SetAttribute("logId", logId.ToString());
+				span.SetAttribute("offset", chunkOffset);
+				span.SetAttribute("writeOffset", writeOffset);
 
 				ITransaction createTransaction = redisDb.CreateTransaction();
 				createTransaction.AddCondition(Condition.SortedSetNotContains(ItemsKey, keys.Prefix));
@@ -105,10 +110,10 @@ namespace Horde.Server.Logs.Builder
 			}
 
 			{
-				using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.AppendChunk").StartActive();
-				scope.Span.SetTag("LogId", logId.ToString());
-				scope.Span.SetTag("Offset", chunkOffset.ToString(CultureInfo.InvariantCulture));
-				scope.Span.SetTag("WriteOffset", writeOffset.ToString(CultureInfo.InvariantCulture));
+				using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(RedisLogBuilder)}.{nameof(AppendAsync)}.AppendChunk");
+				span.SetAttribute("logId", logId.ToString());
+				span.SetAttribute("offset", chunkOffset);
+				span.SetAttribute("writeOffset", writeOffset);
 
 				ITransaction appendTransaction = redisDb.CreateTransaction();
 				appendTransaction.AddCondition(Condition.SortedSetContains(ItemsKey, keys.Prefix));
@@ -138,9 +143,9 @@ namespace Horde.Server.Logs.Builder
 			int numTries;
 			for (numTries = 0; numTries < MaxRetries; numTries++)
 			{
-				using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.CompleteSubChunk").StartActive();
-				scope.Span.SetTag("LogId", logId.ToString());
-				scope.Span.SetTag("Offset", offset.ToString(CultureInfo.InvariantCulture));
+				using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(RedisLogBuilder)}.{nameof(CompleteSubChunkAsync)}");
+				span.SetAttribute("logId", logId.ToString());
+				span.SetAttribute("offset", offset);
 
 				LogType type = (LogType)(int)await redisDb.StringGetAsync(keys.Type);
 				int length = (int)await redisDb.StringGetAsync(keys.Length);
@@ -194,9 +199,10 @@ namespace Horde.Server.Logs.Builder
 		public async Task CompleteChunkAsync(LogId logId, long offset)
 		{
 			IDatabase redisDb = _redisConnectionPool.GetDatabase();
-			using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.CompleteChunk").StartActive();
-			scope.Span.SetTag("LogId", logId.ToString());
-			scope.Span.SetTag("Offset", offset.ToString(CultureInfo.InvariantCulture));
+			
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(RedisLogBuilder)}.{nameof(CompleteChunkAsync)}");
+			span.SetAttribute("logId", logId.ToString());
+			span.SetAttribute("offset", offset);
 
 			ChunkKeys keys = new ChunkKeys(logId, offset);
 
@@ -216,9 +222,9 @@ namespace Horde.Server.Logs.Builder
 		public async Task RemoveChunkAsync(LogId logId, long offset)
 		{
 			IDatabase redisDb = _redisConnectionPool.GetDatabase();
-			using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.RemoveChunk").StartActive();
-			scope.Span.SetTag("LogId", logId.ToString());
-			scope.Span.SetTag("Offset", offset.ToString(CultureInfo.InvariantCulture));
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(RedisLogBuilder)}.{nameof(RemoveChunkAsync)}");
+			span.SetAttribute("logId", logId.ToString());
+			span.SetAttribute("offset", offset);
 
 			ChunkKeys keys = new ChunkKeys(logId, offset);
 
@@ -243,9 +249,9 @@ namespace Horde.Server.Logs.Builder
 			int numTries;
 			for (numTries = 0; numTries < MaxRetries; numTries++)
 			{
-				using IScope scope = GlobalTracer.Instance.BuildSpan("Redis.GetChunk").StartActive();
-				scope.Span.SetTag("LogId", logId.ToString());
-				scope.Span.SetTag("Offset", offset.ToString(CultureInfo.InvariantCulture));
+				using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(RedisLogBuilder)}.{nameof(GetChunkAsync)}");
+				span.SetAttribute("logId", logId.ToString());
+				span.SetAttribute("offset", offset);
 
 				RedisValue chunkDataValue = await redisDb.StringGetAsync(keys.ChunkData);
 

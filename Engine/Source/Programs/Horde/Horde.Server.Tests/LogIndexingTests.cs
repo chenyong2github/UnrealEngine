@@ -20,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Horde.Server.Logs.Data;
 using EpicGames.Horde.Logs;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Tests
 {
@@ -49,7 +50,8 @@ namespace Horde.Server.Tests
 			_nullLogStorage = new NullLogStorage();
 			_logStorage = new LocalLogStorage(20, _nullLogStorage);
 			TestOptions<ServerSettings> settingsOpts = new (new ServerSettings());
-			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, new FakeClock(), null!, null!, settingsOpts, logger);
+			Tracer tracer = TracerProvider.Default.GetTracer("LogIndexingTests");
+			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, new FakeClock(), null!, null!, settingsOpts, tracer, logger);
 		}
 
 		protected override void Dispose(bool disposing)

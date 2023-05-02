@@ -12,8 +12,7 @@ using Horde.Server.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Caching.Memory;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Agents.Fleet
 {
@@ -152,7 +151,7 @@ namespace Horde.Server.Agents.Fleet
 
 		private async Task<Dictionary<AgentId, AgentData>> GetAgentDataAsync()
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("LeaseUtilizationStrategy.GetAgentDataAsync").StartActive();
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(LeaseUtilizationStrategy)}.{nameof(GetAgentDataAsync)}");
 			
 			// Find all the current agents
 			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok);
@@ -195,13 +194,13 @@ namespace Horde.Server.Agents.Fleet
 				}
 			}
 
-			scope.Span.SetTag("AgentDataCount", agentIdToData.Count);
+			span.SetAttribute("agentDataCount", agentIdToData.Count);
 			return agentIdToData;
 		}
 		
 		private async Task<Dictionary<PoolId, PoolData>> GetPoolDataAsync()
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("LeaseUtilizationStrategy.GetPoolDataAsync").StartActive();
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(LeaseUtilizationStrategy)}.{nameof(GetPoolDataAsync)}");
 
 			Dictionary<AgentId, AgentData> agentIdToData = await GetAgentDataAsync();
 			
@@ -222,7 +221,7 @@ namespace Horde.Server.Agents.Fleet
 				}
 			}
 
-			scope.Span.SetTag("PoolDataCount", agentIdToData.Count);
+			span.SetAttribute("poolDataCount", agentIdToData.Count);
 			return poolToData;
 		}
 
@@ -232,11 +231,9 @@ namespace Horde.Server.Agents.Fleet
 		/// <inheritdoc/>
 		public async Task<PoolSizeResult> CalculatePoolSizeAsync(IPool pool, List<IAgent> agents)
 		{
-			using IScope scope = GlobalTracer.Instance
-				.BuildSpan("LeaseUtilizationStrategy.CalculatePoolSize")
-				.WithTag(Datadog.Trace.OpenTracing.DatadogTags.ResourceName, pool.Id.ToString())
-				.WithTag("CurrentAgentCount", agents.Count)
-				.StartActive();
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(LeaseUtilizationStrategy)}.{nameof(CalculatePoolSizeAsync)}");
+			span.SetAttribute(OpenTelemetryTracers.DatadogResourceAttribute, pool.Id.ToString());
+			span.SetAttribute("currentAgentCount", agents.Count);
 			
 			Dictionary<PoolId, PoolData> poolToData;
 			

@@ -80,8 +80,6 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.Serializers;
-using OpenTracing.Contrib.Grpc.Interceptors;
-using OpenTracing.Util;
 using Serilog;
 using Serilog.Events;
 using StatsdClient;
@@ -98,6 +96,7 @@ using Horde.Server.Notifications.Sinks;
 using StatusCode = Grpc.Core.StatusCode;
 using Horde.Server.Artifacts;
 using Horde.Server.Compute;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server
 {
@@ -378,7 +377,6 @@ namespace Horde.Server
 				options.EnableDetailedErrors = true;
 				options.MaxReceiveMessageSize = 200 * 1024 * 1024; // 100 MB (packaged builds of Horde agent can be large) 
 				options.Interceptors.Add(typeof(GrpcExceptionInterceptor));
-				options.Interceptors.Add<ServerTracingInterceptor>(GlobalTracer.Instance);
 			});
 			services.AddGrpcReflection();
 
@@ -848,7 +846,10 @@ namespace Horde.Server
 				}
 				else
 				{
-					return new RedisLogBuilder(redisService.ConnectionPool, provider.GetRequiredService<ILogger<RedisLogBuilder>>());
+					return new RedisLogBuilder(
+						redisService.ConnectionPool,
+						provider.GetRequiredService<Tracer>(),
+						provider.GetRequiredService<ILogger<RedisLogBuilder>>());
 				}
 			});
 

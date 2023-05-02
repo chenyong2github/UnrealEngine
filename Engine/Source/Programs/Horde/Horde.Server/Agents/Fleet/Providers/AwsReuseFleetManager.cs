@@ -9,8 +9,7 @@ using Amazon.EC2;
 using Amazon.EC2.Model;
 using Horde.Server.Agents.Pools;
 using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Agents.Fleet.Providers
 {
@@ -49,15 +48,17 @@ namespace Horde.Server.Agents.Fleet.Providers
 		
 		private readonly IAmazonEC2 _ec2;
 		private readonly IAgentCollection _agentCollection;
+		private readonly Tracer _tracer;
 		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AwsReuseFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, AwsReuseFleetManagerSettings settings, ILogger<AwsReuseFleetManager> logger)
+		public AwsReuseFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, AwsReuseFleetManagerSettings settings, Tracer tracer, ILogger<AwsReuseFleetManager> logger)
 		{
 			_ec2 = ec2;
 			_agentCollection = agentCollection;
+			_tracer = tracer;
 			_logger = logger;
 			Settings = settings;
 		}
@@ -65,13 +66,13 @@ namespace Horde.Server.Agents.Fleet.Providers
 		/// <inheritdoc/>
 		public async Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int requestedInstancesCount, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("ExpandPool").StartActive();
-			scope.Span.SetTag("poolName", pool.Name);
-			scope.Span.SetTag("numAgents", agents.Count);
-			scope.Span.SetTag("count", requestedInstancesCount);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsReuseFleetManager)}.{nameof(ExpandPoolAsync)}");
+			span.SetAttribute("poolName", pool.Name);
+			span.SetAttribute("numAgents", agents.Count);
+			span.SetAttribute("count", requestedInstancesCount);
 
 			DescribeInstancesResponse describeResponse;
-			using (IScope describeScope = GlobalTracer.Instance.BuildSpan("DescribeInstances").StartActive())
+			using (TelemetrySpan describeSpan = _tracer.StartActiveSpan("DescribeInstances"))
 			{
 				// Find stopped instances in the correct pool
 				DescribeInstancesRequest describeRequest = new ();
@@ -79,8 +80,8 @@ namespace Horde.Server.Agents.Fleet.Providers
 				describeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
 				describeRequest.Filters.Add(new Filter("tag:" + AwsFleetManager.PoolTagName, new List<string> { pool.Name }));
 				describeResponse = await _ec2.DescribeInstancesAsync(describeRequest, cancellationToken);
-				describeScope.Span.SetTag("res.statusCode", (int)describeResponse.HttpStatusCode);
-				describeScope.Span.SetTag("res.numReservations", describeResponse.Reservations.Count);
+				describeSpan.SetAttribute("res.statusCode", (int)describeResponse.HttpStatusCode);
+				describeSpan.SetAttribute("res.numReservations", describeResponse.Reservations.Count);
 			}
 
 			IEnumerable<Instance> stoppedInstances = describeResponse.Reservations.SelectMany(x => x.Instances);
@@ -91,7 +92,7 @@ namespace Horde.Server.Agents.Fleet.Providers
 				foreach (Instance stoppedInstance in stoppedInstances)
 				{
 					if (stoppedInstance.InstanceType == newInstanceType) { continue; }
-					using IScope modifyScope = GlobalTracer.Instance.BuildSpan("ModifyInstanceAttribute").StartActive();
+					using TelemetrySpan modifySpan = _tracer.StartActiveSpan("ModifyInstanceAttribute");
 
 					ModifyInstanceAttributeRequest request = new () { InstanceId = stoppedInstance.InstanceId, InstanceType = newInstanceType };
 					ModifyInstanceAttributeResponse response = await _ec2.ModifyInstanceAttributeAsync(request, cancellationToken);
@@ -106,20 +107,20 @@ namespace Horde.Server.Agents.Fleet.Providers
 				}
 			}
 
-			using (IScope startScope = GlobalTracer.Instance.BuildSpan("StartInstances").StartActive())
+			using (TelemetrySpan startSpan = _tracer.StartActiveSpan("StartInstances"))
 			{
 				// Try to start the given instances
 				StartInstancesRequest startRequest = new ();
 				startRequest.InstanceIds.AddRange(describeResponse.Reservations.SelectMany(x => x.Instances).Select(x => x.InstanceId).Take(requestedInstancesCount));
 				int stoppedInstancesCount = startRequest.InstanceIds.Count;
 				
-				startScope.Span.SetTag("req.instanceIds", String.Join(",", startRequest.InstanceIds));
+				startSpan.SetAttribute("req.instanceIds", String.Join(",", startRequest.InstanceIds));
 				int startedInstancesCount = 0;
 				if (startRequest.InstanceIds.Count > 0)
 				{
 					StartInstancesResponse startResponse = await _ec2.StartInstancesAsync(startRequest, cancellationToken);
-					startScope.Span.SetTag("res.statusCode", (int)startResponse.HttpStatusCode);
-					startScope.Span.SetTag("res.numInstances", startResponse.StartingInstances.Count);
+					startSpan.SetAttribute("res.statusCode", (int)startResponse.HttpStatusCode);
+					startSpan.SetAttribute("res.numInstances", startResponse.StartingInstances.Count);
 					if ((int)startResponse.HttpStatusCode >= 200 && (int)startResponse.HttpStatusCode <= 299)
 					{
 						foreach (InstanceStateChange instanceChange in startResponse.StartingInstances)

@@ -13,8 +13,7 @@ using EpicGames.Core;
 using Horde.Server.Agents.Pools;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 using StatsdClient;
 
 namespace Horde.Server.Agents.Fleet.Providers;
@@ -93,17 +92,19 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	private readonly IAgentCollection _agentCollection;
 	private readonly IDogStatsd _dogStatsd;
 	private readonly IClock _clock;
+	private readonly Tracer _tracer;
 	private readonly ILogger _logger;
 
 	/// <summary>
 	/// Constructor
 	/// </summary>
-	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, IDogStatsd dogStatsd, IClock clock, AwsRecyclingFleetManagerSettings settings, ILogger<AwsRecyclingFleetManager> logger)
+	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, IDogStatsd dogStatsd, IClock clock, AwsRecyclingFleetManagerSettings settings, Tracer tracer, ILogger<AwsRecyclingFleetManager> logger)
 	{
 		_ec2 = ec2;
 		_agentCollection = agentCollection;
 		_dogStatsd = dogStatsd;
 		_clock = clock;
+		_tracer = tracer;
 		_logger = logger;
 		Settings = settings;
 	}
@@ -111,11 +112,11 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	/// <inheritdoc/>
 	public async Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int requestedInstancesCount, CancellationToken cancellationToken)
 	{
-		using IScope scope = GlobalTracer.Instance.BuildSpan("ExpandPool").StartActive();
-		scope.Span.SetTag("PoolId", pool.Id.ToString());
-		scope.Span.SetTag("PoolName", pool.Name);
-		scope.Span.SetTag("NumAgents", agents.Count);
-		scope.Span.SetTag("Count", requestedInstancesCount);
+		using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsRecyclingFleetManager)}.{nameof(ExpandPoolAsync)}");
+		span.SetAttribute("poolId", pool.Id.ToString());
+		span.SetAttribute("poolName", pool.Name);
+		span.SetAttribute("numAgents", agents.Count);
+		span.SetAttribute("count", requestedInstancesCount);
 
 		using IDisposable logScope = _logger.BeginScope(new Dictionary<string, object> { ["PoolId"] = pool.Id });
 
@@ -127,12 +128,12 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 		List<InstanceType>? instanceTypePriority = Settings.InstanceTypes?.Select(InstanceType.FindValue).ToList();
 		int instancesToStartCount = requestCountPerAz.Values.Sum(x => x);
 		
-		scope.Span.SetTag("InstancesToStartCount", instancesToStartCount);
-		scope.Span.SetTag("RequestedInstancesCount", requestedInstancesCount);
-		scope.Span.SetTag("CurrentAgentCount", agents.Count);
-		scope.Span.SetTag("StoppedInstancesMissingCount", stoppedInstancesMissingCount);
-		scope.Span.SetTag("InstancesToStartCount", instancesToStartCount);
-		scope.Span.SetTag("StoppedInstancesMissingCount", stoppedInstancesMissingCount);
+		span.SetAttribute("InstancesToStartCount", instancesToStartCount);
+		span.SetAttribute("RequestedInstancesCount", requestedInstancesCount);
+		span.SetAttribute("CurrentAgentCount", agents.Count);
+		span.SetAttribute("StoppedInstancesMissingCount", stoppedInstancesMissingCount);
+		span.SetAttribute("InstancesToStartCount", instancesToStartCount);
+		span.SetAttribute("StoppedInstancesMissingCount", stoppedInstancesMissingCount);
 
 		if (instancesToStartCount == 0)
 		{
@@ -238,10 +239,9 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	{
 		List<string> instanceIds = instances.Select(x => x.InstanceId).ToList();
 		string instanceTypePriorityString = instanceTypePriority == null ? "" : String.Join(',', instanceTypePriority.Select(x => x.Value));
-		using IScope scope = GlobalTracer.Instance.BuildSpan("StartInstancesWithRetries")
-			.WithTag("Instances", String.Join(',', instanceIds))
-			.WithTag("InstanceTypePriority", instanceTypePriorityString)
-			.StartActive();
+		using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsRecyclingFleetManager)}.{nameof(StartInstancesWithRetriesAsync)}");
+		span.SetAttribute("instances", String.Join(',', instanceIds));
+		span.SetAttribute("instanceTypePriority", instanceTypePriorityString);
 		
 		if (instances.Count == 0) return;
 		
@@ -284,7 +284,7 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 			}
 		}
 
-		scope.Span.SetTag("Success", success);
+		span.SetAttribute("success", success);
 		if (!success)
 		{
 			_logger.LogError("Unable to start instances. Insufficient capacity for all instance types tried");
@@ -294,10 +294,9 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	internal async Task StartInstancesAsync(List<Instance> instances, InstanceType? instanceType, CancellationToken cancellationToken)
 	{
 		List<string> instanceIds = instances.Select(x => x.InstanceId).ToList();
-		using IScope scope = GlobalTracer.Instance.BuildSpan("StartInstances")
-			.WithTag("Instances", String.Join(',', instanceIds))
-			.WithTag("InstanceType", instanceType)
-			.StartActive();
+		using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsRecyclingFleetManager)}.{nameof(StartInstancesAsync)}");
+		span.SetAttribute("instances", String.Join(',', instanceIds));
+		span.SetAttribute("instanceType", instanceType);
 		
 		if (instances.Count == 0) return;
 		if (instanceType != null)
@@ -311,11 +310,11 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 		StartInstancesResponse startResponse;
 		try
 		{
-			using IScope ec2Scope = GlobalTracer.Instance.BuildSpan("StartInstancesEc2").StartActive();
-			ec2Scope.Span.SetTag("Request.InstanceIds", String.Join(",", startRequest.InstanceIds));
+			using TelemetrySpan ec2Span = _tracer.StartActiveSpan("StartInstancesEc2");
+			span.SetAttribute("req.instanceIds", String.Join(',', startRequest.InstanceIds));
 			startResponse = await _ec2.StartInstancesAsync(startRequest, cancellationToken);
-			ec2Scope.Span.SetTag("Response.StatusCode", (int)startResponse.HttpStatusCode);
-			ec2Scope.Span.SetTag("Response.NumInstances", startResponse.StartingInstances.Count);
+			span.SetAttribute("res.statusCode", (int)startResponse.HttpStatusCode);
+			span.SetAttribute("res.numInstances", startResponse.StartingInstances.Count);
 		}
 		catch (AmazonEC2Exception e)
 		{
@@ -355,16 +354,15 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	{
 		foreach (Instance instance in instances)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("ChangeInstanceType")
-				.WithTag("FromInstanceType", instance.InstanceType)
-				.WithTag("ToInstanceType", newInstanceType)
-				.StartActive();
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsRecyclingFleetManager)}.{nameof(ChangeInstanceTypeAsync)}");
+			span.SetAttribute("fromInstanceType", instance.InstanceType);
+			span.SetAttribute("toInstanceType", newInstanceType);
 			
 			if (instance.InstanceType == newInstanceType) { continue; }
 
 			ModifyInstanceAttributeRequest request = new () { InstanceId = instance.InstanceId, InstanceType = newInstanceType };
 			ModifyInstanceAttributeResponse response = await _ec2.ModifyInstanceAttributeAsync(request, cancellationToken);
-			scope.Span.SetTag("Response.StatusCode", (int)response.HttpStatusCode);
+			span.SetAttribute("Response.StatusCode", (int)response.HttpStatusCode);
 			
 			if (IsResponseSuccessful(response))
 			{
@@ -387,8 +385,8 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	{
 		TimeSpan pendingStateTimeout = TimeSpan.FromMinutes(5);
 		
-		using IScope scope = GlobalTracer.Instance.BuildSpan("StopStuckPendingInstances")
-			.WithTag("PoolId", pool.Id.ToString()).StartActive();
+		using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsRecyclingFleetManager)}.{nameof(StopStuckPendingInstancesAsync)}");
+		span.SetAttribute("poolId", pool.Id.ToString());
 		
 		// Find pending instances in the correct pool
 		DescribeInstancesRequest request = new()
@@ -400,8 +398,8 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 			}
 		};
 		DescribeInstancesResponse response = await _ec2.DescribeInstancesAsync(request, cancellationToken);
-		scope.Span.SetTag("res.statusCode", (int)response.HttpStatusCode);
-		scope.Span.SetTag("res.numReservations", response.Reservations.Count);
+		span.SetAttribute("res.statusCode", (int)response.HttpStatusCode);
+		span.SetAttribute("res.numReservations", response.Reservations.Count);
 
 		List<string> stuckInstanceIds = response.Reservations
 			.SelectMany(x => x.Instances)
@@ -413,8 +411,8 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 		{
 			StopInstancesRequest stopRequest = new() { InstanceIds = stuckInstanceIds };
 			StopInstancesResponse stopResponse = await _ec2.StopInstancesAsync(stopRequest, cancellationToken);
-			scope.Span.SetTag("stopRes.statusCode", (int)stopResponse.HttpStatusCode);
-			scope.Span.SetTag("stopRes.numStoppingInstances", stopResponse.StoppingInstances.Count);
+			span.SetAttribute("stopRes.statusCode", (int)stopResponse.HttpStatusCode);
+			span.SetAttribute("stopRes.numStoppingInstances", stopResponse.StoppingInstances.Count);
 		}
 	}
 	
@@ -426,8 +424,8 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	/// <returns>List of instances grouped by availability zone</returns>
 	private async Task<Dictionary<string, List<Instance>>> GetCandidateInstancesAsync(IPool pool, CancellationToken cancellationToken)
 	{
-		using IScope scope = GlobalTracer.Instance.BuildSpan("GetCandidateInstances")
-			.WithTag("PoolId", pool.Id.ToString()).StartActive();
+		using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsRecyclingFleetManager)}.{nameof(GetCandidateInstancesAsync)}");
+		span.SetAttribute("poolId", pool.Id.ToString());
 		
 		// Find stopped instances in the correct pool
 		DescribeInstancesRequest request = new()
@@ -439,8 +437,8 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 			}
 		};
 		DescribeInstancesResponse response = await _ec2.DescribeInstancesAsync(request, cancellationToken);
-		scope.Span.SetTag("res.statusCode", (int)response.HttpStatusCode);
-		scope.Span.SetTag("res.numReservations", response.Reservations.Count);
+		span.SetAttribute("res.statusCode", (int)response.HttpStatusCode);
+		span.SetAttribute("res.numReservations", response.Reservations.Count);
 
 		// Group instance objects by availability zone
 		List<IGrouping<string, Instance>> azInstancePairs = response.Reservations

@@ -17,8 +17,7 @@ using Google.Protobuf.WellKnownTypes;
 using Horde.Server.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Storage.Backends
 {
@@ -271,8 +270,8 @@ namespace Horde.Server.Storage.Backends
 
 		async Task<Stream?> TryReadAsync(string path, ByteRange? byteRange, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.ReadAsync").StartActive();
-			scope.Span.SetTag("Path", path);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(AwsStorageBackend)}.{nameof(TryReadAsync)}");
+			span.SetAttribute("path", path);
 			
 			string fullPath = GetFullPath(path);
 
@@ -313,8 +312,8 @@ namespace Horde.Server.Storage.Backends
 		/// </summary>
 		Uri? GetPresignedUrl(string path, HttpVerb verb)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.TryGetHttpRedirectUrl").StartActive();
-			scope.Span.SetTag("Path", path);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(AwsStorageBackend)}.{nameof(GetPresignedUrl)}");
+			span.SetAttribute("path", path);
 
 			string fullPath = GetFullPath(path);
 
@@ -372,8 +371,8 @@ namespace Horde.Server.Storage.Backends
 		/// <inheritdoc/>
 		public async Task WriteInternalAsync(string fullPath, Stream stream, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.WriteInternalAsync").StartActive();
-			scope.Span.SetTag("Path", fullPath);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(AwsStorageBackend)}.{nameof(WriteInternalAsync)}");
+			span.SetAttribute("path", fullPath);
 			
 			const int MinPartSize = 5 * 1024 * 1024;
 
@@ -481,8 +480,8 @@ namespace Horde.Server.Storage.Backends
 		/// <inheritdoc/>
 		public async Task DeleteAsync(string path, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.DeleteAsync").StartActive();
-			scope.Span.SetTag("Path", path);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(AwsStorageBackend)}.{nameof(DeleteAsync)}");
+			span.SetAttribute("path", path);
 			
 			DeleteObjectRequest newDeleteRequest = new DeleteObjectRequest();
 			newDeleteRequest.BucketName = _options.AwsBucketName;
@@ -493,8 +492,8 @@ namespace Horde.Server.Storage.Backends
 		/// <inheritdoc/>
 		public async Task<bool> ExistsAsync(string path, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsStorageBackend.ExistsAsync").StartActive();
-			scope.Span.SetTag("Path", path);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(AwsStorageBackend)}.{nameof(ExistsAsync)}");
+			span.SetAttribute("path", path);
 			
 			try
 			{

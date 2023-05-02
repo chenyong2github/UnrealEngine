@@ -16,8 +16,7 @@ using Horde.Server.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 using TimeZoneConverter;
 
 namespace Horde.Server.Streams
@@ -35,19 +34,21 @@ namespace Horde.Server.Streams
 		private readonly ITemplateCollection _templateCollection;
 		private readonly IJobStepRefCollection _jobStepRefCollection;
 		private readonly IUserCollection _userCollection;
+		private readonly Tracer _tracer;
 		private readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 		private readonly TimeZoneInfo _timeZone;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StreamsController(IStreamCollection streamCollection, ICommitService commitService, ITemplateCollection templateCollection, IJobStepRefCollection jobStepRefCollection, IUserCollection userCollection, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public StreamsController(IStreamCollection streamCollection, ICommitService commitService, ITemplateCollection templateCollection, IJobStepRefCollection jobStepRefCollection, IUserCollection userCollection, Tracer tracer, IOptionsSnapshot<GlobalConfig> globalConfig)
 		{
 			_streamCollection = streamCollection;
 			_commitService = commitService;
 			_templateCollection = templateCollection;
 			_jobStepRefCollection = jobStepRefCollection;
 			_userCollection = userCollection;
+			_tracer = tracer;
 			_globalConfig = globalConfig;
 
 			string? timeZoneName = _globalConfig.Value.ServerSettings.ScheduleTimeZone;
@@ -179,14 +180,14 @@ namespace Horde.Server.Streams
 		/// <returns>Response object</returns>
 		async Task<GetStreamResponse> CreateGetStreamResponseAsync(IStream stream)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("CreateGetStreamResponse").StartActive();
-			scope.Span.SetTag("streamId", stream.Id);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(StreamsController)}.{nameof(CreateGetStreamResponseAsync)}");
+			span.SetAttribute("streamId", stream.Id);
 
 			List<GetTemplateRefResponse> apiTemplateRefs = new List<GetTemplateRefResponse>();
 			foreach (KeyValuePair<TemplateId, ITemplateRef> pair in stream.Templates)
 			{
-				using IScope templateScope = GlobalTracer.Instance.BuildSpan("CreateGetStreamResponse.Template").StartActive();
-				templateScope.Span.SetTag("templateName", pair.Value.Config.Name);
+				using TelemetrySpan templateScope = _tracer.StartActiveSpan($"{nameof(StreamsController)}.{nameof(CreateGetStreamResponseAsync)}.Template");
+				templateScope.SetAttribute("templateName", pair.Value.Config.Name);
 
 				ITemplateRef templateRef = pair.Value;
 				if (templateRef.Config.Authorize(StreamAclAction.ViewTemplate, User))

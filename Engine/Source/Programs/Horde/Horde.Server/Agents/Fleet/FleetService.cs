@@ -20,8 +20,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 using StatsdClient;
 
 namespace Horde.Server.Agents.Fleet
@@ -80,6 +79,7 @@ namespace Horde.Server.Agents.Fleet
 		private readonly TimeSpan _defaultScaleInCooldown;
 		private readonly IOptions<ServerSettings> _settings;
 		private readonly IOptionsMonitor<GlobalConfig> _globalConfig;
+		private readonly Tracer _tracer;
 		private readonly ILogger<FleetService> _logger;
 		
 		/// <summary>
@@ -99,6 +99,7 @@ namespace Horde.Server.Agents.Fleet
 			IMemoryCache cache,
 			IOptions<ServerSettings> settings,
 			IOptionsMonitor<GlobalConfig> globalConfig,
+			Tracer tracer,
 			ILogger<FleetService> logger)
 		{
 			_agentCollection = agentCollection;
@@ -113,6 +114,7 @@ namespace Horde.Server.Agents.Fleet
 			_clock = clock;
 			_cache = cache;
 			_globalConfig = globalConfig;
+			_tracer = tracer;
 			_logger = logger;
 			_ticker = clock.AddSharedTicker<FleetService>(TimeSpan.FromSeconds(30), TickLeaderAsync, _logger);
 			_tickerHighFrequency = clock.AddSharedTicker("FleetService.TickHighFrequency", TimeSpan.FromSeconds(30), TickHighFrequencyAsync, _logger);
@@ -142,7 +144,8 @@ namespace Horde.Server.Agents.Fleet
 
 		internal async ValueTask TickLeaderAsync(CancellationToken stoppingToken)
 		{
-			ISpan span = GlobalTracer.Instance.BuildSpan("FleetService.Tick").Start();
+			TelemetrySpan span = _tracer.StartSpan($"{nameof(FleetService)}.{nameof(TickLeaderAsync)}");
+
 			try
 			{
 				List<PoolWithAgents> poolsWithAgents = await GetPoolsWithAgentsAsync();
@@ -162,13 +165,13 @@ namespace Horde.Server.Agents.Fleet
 			}
 			finally
 			{
-				span.Finish();
+				span.End();
 			}
 		}
 
 		internal async ValueTask TickHighFrequencyAsync(CancellationToken stoppingToken)
 		{
-			ISpan span = GlobalTracer.Instance.BuildSpan("FleetService.TickHighFrequency").Start();
+			TelemetrySpan span = _tracer.StartSpan($"{nameof(FleetService)}.{nameof(TickHighFrequencyAsync)}");
 			try
 			{
 				// TODO: Re-enable high frequency scaling (only used for experimental scaling of remote execution agents at the moment)
@@ -176,7 +179,7 @@ namespace Horde.Server.Agents.Fleet
 			}
 			finally
 			{
-				span.Finish();
+				span.End();
 			}
 		}
 
@@ -209,14 +212,12 @@ namespace Horde.Server.Agents.Fleet
 
 			IFleetManager fleetManager = CreateFleetManager(pool);
 			
-			using IScope scope = GlobalTracer.Instance
-				.BuildSpan("FleetService.ScalePool")
-				.WithTag(Datadog.Trace.OpenTracing.DatadogTags.ResourceName, pool.Id.ToString())
-				.WithTag("CurrentAgentCount", currentAgentCount)
-				.WithTag("DesiredAgentCount", desiredAgentCount)
-				.WithTag("DeltaAgentCount", deltaAgentCount)
-				.WithTag("FleetManager", fleetManager.GetType().Name)
-				.StartActive();
+			using TelemetrySpan span = _tracer.StartSpan($"{nameof(FleetService)}.{nameof(ScalePoolAsync)}");
+			span.SetAttribute(OpenTelemetryTracers.DatadogResourceAttribute, pool.Id.ToString());
+			span.SetAttribute("currentAgentCount", currentAgentCount);
+			span.SetAttribute("desiredAgentCount", desiredAgentCount);
+			span.SetAttribute("deltaAgentCount", deltaAgentCount);
+			span.SetAttribute("fleetManager", fleetManager.GetType().Name);
 
 			Dictionary<string, object> logScopeMetadata = new()
 			{
@@ -241,14 +242,14 @@ namespace Horde.Server.Agents.Fleet
 			TimeSpan scaleOutCooldown = pool.ScaleOutCooldown ?? _defaultScaleOutCooldown;
 			bool isScaleOutCoolingDown = pool.LastScaleUpTime != null && pool.LastScaleUpTime + scaleOutCooldown > _clock.UtcNow;
 			TimeSpan? scaleOutCooldownTimeLeft = pool.LastScaleUpTime + _defaultScaleOutCooldown - _clock.UtcNow;
-			scope.Span.SetTag("ScaleOutCooldownTimeLeftSecs", scaleOutCooldownTimeLeft?.TotalSeconds ?? -1);
+			span.SetAttribute("scaleOutCooldownTimeLeftSecs", scaleOutCooldownTimeLeft?.TotalSeconds ?? -1);
 			
 			TimeSpan scaleInCooldown = pool.ScaleInCooldown ?? _defaultScaleInCooldown;
 			bool isScaleInCoolingDown = pool.LastScaleDownTime != null && pool.LastScaleDownTime + scaleInCooldown > _clock.UtcNow;
 			TimeSpan? scaleInCooldownTimeLeft = pool.LastScaleDownTime + _defaultScaleInCooldown - _clock.UtcNow;
-			scope.Span.SetTag("ScaleOutCooldownTimeLeftSecs", scaleInCooldownTimeLeft?.TotalSeconds ?? -1);
+			span.SetAttribute("scaleInCooldownTimeLeftSecs", scaleInCooldownTimeLeft?.TotalSeconds ?? -1);
 			
-			scope.Span.SetTag("IsDowntimeActive", _downtimeService.IsDowntimeActive);
+			span.SetAttribute("isDowntimeActive", _downtimeService.IsDowntimeActive);
 			
 			ScaleResult cooldownActiveResult = new(FleetManagerOutcome.NoOp, 0, 0, "Cooldown active");
 			ScaleResult result = new (FleetManagerOutcome.NoOp, 0, 0);
@@ -299,10 +300,10 @@ namespace Horde.Server.Agents.Fleet
 					result.Outcome, result.AgentsAddedCount, result.AgentsAddedCount, result.Message);
 			}
 			
-			scope.Span.SetTag("ResultOutcome", result.Outcome.ToString());
-			scope.Span.SetTag("ResultAgentsAdded", result.AgentsAddedCount);
-			scope.Span.SetTag("ResultAgentsRemoved", result.AgentsRemovedCount);
-			scope.Span.SetTag("ResultOutcome", result.Message);
+			span.SetAttribute("resultOutcome", result.Outcome.ToString());
+			span.SetAttribute("resultAgentsAdded", result.AgentsAddedCount);
+			span.SetAttribute("resultAgentsRemoved", result.AgentsRemovedCount);
+			span.SetAttribute("resultOutcome", result.Message);
 
 			await _poolCollection.TryUpdateAsync(
 				pool,
@@ -445,7 +446,8 @@ namespace Horde.Server.Agents.Fleet
 		{
 			int numShutdownsCancelled = await CancelPendingShutdownsAsync(pool, agentsToAdd);
 			agentsToAdd -= numShutdownsCancelled;
-			GlobalTracer.Instance.ActiveSpan?.SetTag("NumShutdownsCancelled", numShutdownsCancelled);
+
+			Activity.Current?.SetTag("numShutdownsCancelled", numShutdownsCancelled);
 
 			if (agentsToAdd <= 0)
 			{

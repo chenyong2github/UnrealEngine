@@ -132,6 +132,7 @@ namespace Horde.Server.Tests
 		public DashboardController DashboardController => GetDashboardController();
 		public TestDataController TestDataController => GetTestDataController();
 
+		public OpenTelemetry.Trace.Tracer Tracer => ServiceProvider.GetRequiredService<OpenTelemetry.Trace.Tracer>();
 		public ConfigService ConfigService => ServiceProvider.GetRequiredService<ConfigService>();
 		public IOptionsMonitor<GlobalConfig> GlobalConfig => ServiceProvider.GetRequiredService<IOptionsMonitor<GlobalConfig>>();
 		public IOptionsSnapshot<GlobalConfig> GlobalConfigSnapshot => ServiceProvider.GetRequiredService<IOptionsSnapshot<GlobalConfig>>();
@@ -326,7 +327,7 @@ namespace Horde.Server.Tests
 		
 		private LeasesController GetLeasesController()
 		{
-			LeasesController controller = new LeasesController(AgentService, GlobalConfigSnapshot);
+			LeasesController controller = new LeasesController(AgentService, GlobalConfigSnapshot, Tracer);
 			controller.ControllerContext = GetControllerContext();
 			return controller;
 		}

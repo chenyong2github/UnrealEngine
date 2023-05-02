@@ -19,7 +19,6 @@ using Horde.Server.Streams;
 using Horde.Server.Telemetry;
 using Horde.Server.Users;
 using Horde.Server.Utilities;
-using Horde.Common;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
@@ -29,8 +28,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Options;
 using MongoDB.Driver;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Jobs
 {
@@ -348,6 +346,7 @@ namespace Horde.Server.Jobs
 		readonly MongoIndex<JobDocument> _streamThenTemplateThenCreationTimeIndex;
 		readonly ITelemetrySink _telemetrySink;
 		readonly IClock _clock;
+		readonly Tracer _tracer;
 		readonly ILogger<JobCollection> _logger;
 
 		/// <summary>
@@ -356,11 +355,13 @@ namespace Horde.Server.Jobs
 		/// <param name="mongoService">The database service singleton</param>
 		/// <param name="clock"></param>
 		/// <param name="telemetrySink">Telemetry sink for data</param>
+		/// <param name="tracer">Tracer</param>
 		/// <param name="logger">The logger instance</param>
-		public JobCollection(MongoService mongoService, IClock clock, ITelemetrySink telemetrySink, ILogger<JobCollection> logger)
+		public JobCollection(MongoService mongoService, IClock clock, ITelemetrySink telemetrySink, Tracer tracer, ILogger<JobCollection> logger)
 		{
 			_clock = clock;
 			_telemetrySink = telemetrySink;
+			_tracer = tracer;
 			_logger = logger;
 
 			List<MongoIndex<JobDocument>> indexes = new List<MongoIndex<JobDocument>>();
@@ -533,7 +534,7 @@ namespace Horde.Server.Jobs
 			}
 
 			List<JobDocument> results;
-			using (IScope scope = GlobalTracer.Instance.BuildSpan("Jobs.Find").StartActive())
+			using (TelemetrySpan _ = _tracer.StartActiveSpan($"{nameof(JobCollection)}.{nameof(FindAsync)}"))
 			{
 				IMongoCollection<JobDocument> collection = consistentRead ? _jobs : _jobs.WithReadPreference(ReadPreference.SecondaryPreferred);
 				results = await collection.FindWithHint(filter, indexHint, x => x.SortByDescending(x => x.CreateTimeUtc!).Range(index, count).ToListAsync());

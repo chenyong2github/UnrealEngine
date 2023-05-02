@@ -9,9 +9,9 @@ using Amazon.EC2;
 using Amazon.EC2.Model;
 using Horde.Server.Agents.Pools;
 using Horde.Server.Auditing;
+using Horde.Server.Utilities;
 using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Agents.Fleet.Providers
 {
@@ -139,26 +139,28 @@ namespace Horde.Server.Agents.Fleet.Providers
 		
 		private readonly IAmazonEC2 _ec2;
 		private readonly IAgentCollection _agentCollection;
+		private readonly Tracer _tracer;
 		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AwsFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, AwsFleetManagerSettings settings, ILogger<AwsFleetManager> logger)
+		public AwsFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, AwsFleetManagerSettings settings, Tracer tracer, ILogger<AwsFleetManager> logger)
 		{
 			_ec2 = ec2;
 			_agentCollection = agentCollection;
 			Settings = settings;
+			_tracer = tracer;
 			_logger = logger;
 		}
 
 		/// <inheritdoc/>
 		public async Task<ScaleResult> ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("ExpandPool").StartActive();
-			scope.Span.SetTag("poolName", pool.Name);
-			scope.Span.SetTag("numAgents", agents.Count);
-			scope.Span.SetTag("count", count);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsFleetManager)}.{nameof(ExpandPoolAsync)}");
+			span.SetAttribute("poolName", pool.Name);
+			span.SetAttribute("numAgents", agents.Count);
+			span.SetAttribute("count", count);
 
 			List<Tag> tags = Settings.Tags.Select(x => new Tag(x.Key, x.Value)).ToList();
 			tags.Add(new Tag("Horde:RequestedPools", pool.Name));
@@ -197,8 +199,8 @@ namespace Horde.Server.Agents.Fleet.Providers
 
 			RunInstancesResponse response = await _ec2.RunInstancesAsync(request, cancellationToken);
 			int numStartedInstances = response.Reservation.Instances.Count;
-			scope.Span.SetTag("res.statusCode", (int)response.HttpStatusCode);
-			scope.Span.SetTag("res.numInstances", numStartedInstances);
+			span.SetAttribute("res.statusCode", (int)response.HttpStatusCode);
+			span.SetAttribute("res.numInstances", numStartedInstances);
 
 			foreach (Instance i in response.Reservation.Instances)
 			{
@@ -238,9 +240,10 @@ namespace Horde.Server.Agents.Fleet.Providers
 		{
 			_ = cancellationToken;
 
-			using IScope scope = GlobalTracer.Instance.BuildSpan("ShrinkPool").StartActive();
-			scope.Span.SetTag("poolName", pool.Name);
-			scope.Span.SetTag("count", count);
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(AwsFleetManager)}.{nameof(ShrinkPoolViaAgentShutdownRequestAsync)}");
+			span.SetAttribute("poolName", pool.Name);
+			span.SetAttribute("numAgents", agents.Count);
+			span.SetAttribute("count", count);
 			
 			string awsTagProperty = $"{AwsTagPropertyName}={PoolTagName}:{pool.Name}";
 			
@@ -249,10 +252,10 @@ namespace Horde.Server.Agents.Fleet.Providers
 			List<IAgent> agentsWithAwsTags = filteredAgents.Where(x => x.HasProperty(awsTagProperty)).ToList(); 
 			List<IAgent> agentsLimitedByCount = agentsWithAwsTags.Take(count).ToList();
 			
-			scope.Span.SetTag("agents.num", agents.Count);
-			scope.Span.SetTag("agents.filtered.num", filteredAgents.Count);
-			scope.Span.SetTag("agents.withAwsTags.num", agentsWithAwsTags.Count);
-			scope.Span.SetTag("agents.limitedByCount.num", agentsLimitedByCount.Count);
+			span.SetAttribute("agents.num", agents.Count);
+			span.SetAttribute("agents.filtered.num", filteredAgents.Count);
+			span.SetAttribute("agents.withAwsTags.num", agentsWithAwsTags.Count);
+			span.SetAttribute("agents.limitedByCount.num", agentsLimitedByCount.Count);
 
 			foreach (IAgent agent in agentsLimitedByCount)
 			{

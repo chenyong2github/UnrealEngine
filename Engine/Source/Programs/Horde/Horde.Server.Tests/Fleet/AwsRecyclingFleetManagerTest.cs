@@ -219,7 +219,7 @@ namespace Horde.Server.Tests.Fleet
 			ILogger<AwsRecyclingFleetManager> logger = loggerFactory.CreateLogger<AwsRecyclingFleetManager>();
 			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
 			using NoOpDogStatsd dogStatsd = new ();
-			AwsRecyclingFleetManager manager = new (ec2, AgentCollection, dogStatsd, _clock, settings, logger);
+			AwsRecyclingFleetManager manager = new (ec2, AgentCollection, dogStatsd, _clock, settings, Tracer, logger);
 			return await manager.ExpandPoolAsync(pool, new List<IAgent>(), numRequestedInstances, CancellationToken.None);
 		}
 	}

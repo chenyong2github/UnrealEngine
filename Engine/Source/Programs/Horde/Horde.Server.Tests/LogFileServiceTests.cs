@@ -23,6 +23,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Tests
 {
@@ -42,12 +43,13 @@ namespace Horde.Server.Tests
 			_loggerFactory = new LoggerFactory();
             ILogger<LogFileService> logger = _loggerFactory.CreateLogger<LogFileService>();
 
-			ILogBuilder logBuilder = new RedisLogBuilder(GetRedisServiceSingleton().ConnectionPool, NullLogger.Instance);
+            Tracer tracer = TracerProvider.Default.GetTracer("LogFileServiceTest");
+            ILogBuilder logBuilder = new RedisLogBuilder(GetRedisServiceSingleton().ConnectionPool, tracer, NullLogger.Instance);
 			_logStorageBackend = new MemoryStorageBackend();
 			_logStorage = new PersistentLogStorage(_logStorageBackend.ForType<PersistentLogStorage>(), NullLogger<PersistentLogStorage>.Instance);
 			_clock = new FakeClock();
 			TestOptions<ServerSettings> settingsOpts = new (new ServerSettings());
-			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, _clock, null!, null!, settingsOpts, logger);
+			_logFileService = new LogFileService(logFileCollection, null!, logBuilder, _logStorage, _clock, null!, null!, settingsOpts, tracer, logger);
         }
 
 		protected override void Dispose(bool disposing)

@@ -7,16 +7,13 @@ using System.Threading.Tasks;
 using Horde.Server.Server;
 using Horde.Server.Streams;
 using Horde.Server.Utilities;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using OpenTracing.Util;
-using OpenTracing;
-using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Jobs.TestData
 {
@@ -397,6 +394,7 @@ namespace Horde.Server.Jobs.TestData
 		/// </summary>
 		readonly IMongoCollection<TestStreamDocument> _testStreams;
 
+		readonly Tracer _tracer;
 		readonly ILogger _logger;
 
 
@@ -404,10 +402,12 @@ namespace Horde.Server.Jobs.TestData
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService"></param>
+		/// <param name="tracer"></param>
 		/// <param name="logger"></param>
 		/// <param name="settings"></param>
-		public TestDataCollection(MongoService mongoService, ILogger<TestDataCollection> logger, IOptionsMonitor<ServerSettings> settings)
+		public TestDataCollection(MongoService mongoService, Tracer tracer, ILogger<TestDataCollection> logger, IOptionsMonitor<ServerSettings> settings)
 		{
+			_tracer = tracer;
 			_logger = logger;
 
 			List<MongoIndex<TestDataDocument>> indexes = new List<MongoIndex<TestDataDocument>>();
@@ -504,7 +504,8 @@ namespace Horde.Server.Jobs.TestData
 			}
 
 			List<TestDataRefDocument> results;
-			using (IScope scope = GlobalTracer.Instance.BuildSpan("TestData.FindTestRefs").StartActive())
+			
+			using (TelemetrySpan _ = _tracer.StartActiveSpan($"{nameof(TestDataCollection)}.{nameof(FindTestRefs)}"))
 			{
 				results = await _testRefs.Find(filter).ToListAsync();
 			}

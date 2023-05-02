@@ -20,8 +20,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Devices
 {
@@ -86,6 +85,7 @@ namespace Horde.Server.Devices
 		readonly JobService _jobService;
 		readonly IStreamCollection _streamCollection;
 		readonly IUserCollection _userCollection;
+		readonly Tracer _tracer;
 		readonly ILogger<DeviceService> _logger;
 		readonly IDeviceCollection _devices;
 		readonly ITicker _ticker;
@@ -108,7 +108,7 @@ namespace Horde.Server.Devices
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, JobService jobService, IStreamCollection streamCollection, IOptionsMonitor<ServerSettings> settings, IOptionsMonitor<GlobalConfig> globalConfig, INotificationService notificationService, IClock clock, ILogger<DeviceService> logger)
+		public DeviceService(IDeviceCollection devices, ISingletonDocument<DevicePlatformMapV1> platformMapSingleton, IUserCollection userCollection, JobService jobService, IStreamCollection streamCollection, IOptionsMonitor<ServerSettings> settings, IOptionsMonitor<GlobalConfig> globalConfig, INotificationService notificationService, IClock clock, Tracer tracer, ILogger<DeviceService> logger)
 		{
 			_userCollection = userCollection;
 			_devices = devices;
@@ -117,6 +117,7 @@ namespace Horde.Server.Devices
 			_notificationService = notificationService;
 			_ticker = clock.AddSharedTicker<DeviceService>(TimeSpan.FromMinutes(1.0), TickAsync, logger);
 			_telemetryTicker = clock.AddSharedTicker("DeviceService.Telemetry", TimeSpan.FromMinutes(10.0), TickTelemetryAsync, logger);
+			_tracer = tracer;
 			_logger = logger;
 			_settings = settings;
 			_globalConfig = globalConfig;
@@ -182,8 +183,7 @@ namespace Horde.Server.Devices
 
 			if (!stoppingToken.IsCancellationRequested)
 			{
-				using IScope scope = GlobalTracer.Instance.BuildSpan("DeviceService.TickTelemetryAsync").StartActive();
-
+				using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(DeviceService)}.{nameof(TickTelemetryAsync)}");
 				_logger.LogInformation("Updating pool telemetry");
 				await _devices.CreatePoolTelemetrySnapshot();
 			}
@@ -196,7 +196,7 @@ namespace Horde.Server.Devices
 		{
 			if (!stoppingToken.IsCancellationRequested)
 			{
-				using IScope scope = GlobalTracer.Instance.BuildSpan("DeviceService.TickAsync").StartActive();
+				using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(DeviceService)}.{nameof(TickAsync)}");
 
 				GlobalConfig globalConfig = _globalConfig.CurrentValue;
 

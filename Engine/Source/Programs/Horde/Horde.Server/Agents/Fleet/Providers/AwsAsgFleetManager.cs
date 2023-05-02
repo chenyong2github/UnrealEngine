@@ -9,10 +9,8 @@ using System.Threading.Tasks;
 using Amazon.AutoScaling;
 using Amazon.AutoScaling.Model;
 using Horde.Server.Agents.Pools;
-using Horde.Server.Utilities;
 using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Agents.Fleet.Providers
 {
@@ -46,15 +44,17 @@ namespace Horde.Server.Agents.Fleet.Providers
 	{
 		internal AwsAsgSettings Settings { get; }
 		private readonly IAmazonAutoScaling _awsAutoScaling;
+		private readonly Tracer _tracer;
 		private readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AwsAsgFleetManager(IAmazonAutoScaling awsAutoScaling, AwsAsgSettings asgSettings, ILogger<AwsAsgFleetManager> logger)
+		public AwsAsgFleetManager(IAmazonAutoScaling awsAutoScaling, AwsAsgSettings asgSettings, Tracer tracer, ILogger<AwsAsgFleetManager> logger)
 		{
 			_awsAutoScaling = awsAutoScaling;
 			Settings = asgSettings;
+			_tracer = tracer;
 			_logger = logger;
 		}
 
@@ -63,13 +63,13 @@ namespace Horde.Server.Agents.Fleet.Providers
 		{
 			int desiredCapacity = agents.Count + count;
 			
-			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsAsgFleetManager.ExpandPool").StartActive();
-			scope.Span.SetTag("poolName", pool.Name);
-			scope.Span.SetTag("numAgents", agents.Count);
-			scope.Span.SetTag("count", count);
-			scope.Span.SetTag("desiredCapacity", desiredCapacity);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsAsgFleetManager)}.{nameof(ExpandPoolAsync)}");
+			span.SetAttribute("poolName", pool.Name);
+			span.SetAttribute("numAgents", agents.Count);
+			span.SetAttribute("count", count);
+			span.SetAttribute("desiredCapacity", desiredCapacity);
 			
-			await UpdateAsg(pool.Id, desiredCapacity, scope, cancellationToken);
+			await UpdateAsg(pool.Id, desiredCapacity, span, cancellationToken);
 			return new ScaleResult(FleetManagerOutcome.Success, count, 0);
 		}
 
@@ -78,22 +78,23 @@ namespace Horde.Server.Agents.Fleet.Providers
 		{
 			int desiredCapacity = Math.Max(0, agents.Count - count);
 			
-			using IScope scope = GlobalTracer.Instance.BuildSpan("AwsAsgFleetManager.ShrinkPool").StartActive();
-			scope.Span.SetTag("poolName", pool.Name);
-			scope.Span.SetTag("numAgents", agents.Count);
-			scope.Span.SetTag("count", count);
-			scope.Span.SetTag("desiredCapacity", desiredCapacity);
 			
-			await UpdateAsg(pool.Id, desiredCapacity, scope, cancellationToken);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(AwsAsgFleetManager)}.{nameof(ShrinkPoolAsync)}");
+			span.SetAttribute("poolName", pool.Name);
+			span.SetAttribute("numAgents", agents.Count);
+			span.SetAttribute("count", count);
+			span.SetAttribute("desiredCapacity", desiredCapacity);
+			
+			await UpdateAsg(pool.Id, desiredCapacity, span, cancellationToken);
 			return new ScaleResult(FleetManagerOutcome.Success, 0, count);
 		}
 		
-		private async Task UpdateAsg(PoolId poolId, int desiredCapacity, IScope scope, CancellationToken cancellationToken)
+		private async Task UpdateAsg(PoolId poolId, int desiredCapacity, TelemetrySpan span, CancellationToken cancellationToken)
 		{
 			UpdateAutoScalingGroupRequest request = new () { AutoScalingGroupName = Settings.Name, DesiredCapacity = desiredCapacity };
 			UpdateAutoScalingGroupResponse response = await _awsAutoScaling.UpdateAutoScalingGroupAsync(request, cancellationToken);
 			
-			scope.Span.SetTag("res.statusCode", (int)response.HttpStatusCode);
+			span.SetAttribute("res.statusCode", (int)response.HttpStatusCode);
 			if (response.HttpStatusCode != HttpStatusCode.OK)
 			{
 				_logger.LogError("Unable to update auto-scaling group {AutoScalingGroup} for pool {PoolId}.", Settings.Name, poolId);

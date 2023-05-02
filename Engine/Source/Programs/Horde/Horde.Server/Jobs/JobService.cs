@@ -3,14 +3,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Perforce;
 using Horde.Server.Acls;
 using Horde.Server.Agents;
 using Horde.Server.Agents.Leases;
@@ -29,10 +27,7 @@ using Horde.Server.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
-using MongoDB.Driver;
 using OpenTelemetry.Trace;
-using OpenTracing;
-using OpenTracing.Util;
 
 namespace Horde.Server.Jobs
 {

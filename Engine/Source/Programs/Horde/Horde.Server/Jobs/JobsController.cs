@@ -25,8 +25,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
-using OpenTracing;
-using OpenTracing.Util;
 
 namespace Horde.Server.Jobs
 {
@@ -776,12 +774,9 @@ namespace Horde.Server.Jobs
 			}
 
 			List<IJob> jobs;
-			using (IScope _ = GlobalTracer.Instance.BuildSpan("FindJobs").StartActive())
-			{
-				jobs = await _jobService.FindJobsAsync(jobIdValues, streamIdValue, name, templateRefIds, minChange,
-					maxChange, preflightChange, preflightOnly, preflightStartedByUserIdValue, startedByUserIdValue, minCreateTime?.UtcDateTime, maxCreateTime?.UtcDateTime, target, state, outcome,
-					modifiedBefore, modifiedAfter, index, count, false);
-			}
+			jobs = await _jobService.FindJobsAsync(jobIdValues, streamIdValue, name, templateRefIds, minChange,
+				maxChange, preflightChange, preflightOnly, preflightStartedByUserIdValue, startedByUserIdValue, minCreateTime?.UtcDateTime, maxCreateTime?.UtcDateTime, target, state, outcome,
+				modifiedBefore, modifiedAfter, index, count, false);
 
 			return await CreateAuthorizedJobResponsesAsync(jobs, filter);
 		}

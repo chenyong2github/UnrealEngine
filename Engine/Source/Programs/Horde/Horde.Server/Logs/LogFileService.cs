@@ -2,9 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -29,8 +27,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 using Stream = System.IO.Stream;
 
 namespace Horde.Server.Logs
@@ -231,7 +228,8 @@ namespace Horde.Server.Logs
 	public sealed class LogFileService : IHostedService, ILogFileService, IDisposable
 	{
 		private const int MaxConcurrentChunkWrites = 10;
-		
+
+		private readonly Tracer _tracer;
 		private readonly ILogger<LogFileService> _logger;
 		private readonly ILogFileCollection _logFiles;
 		private readonly ILogEventCollection _logEvents;
@@ -562,7 +560,7 @@ namespace Horde.Server.Logs
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogFileService(ILogFileCollection logFiles, ILogEventCollection logEvents, ILogBuilder builder, ILogStorage storage, IClock clock, LogTailService logTailService, StorageService storageService, IOptions<ServerSettings> settings, ILogger<LogFileService> logger)
+		public LogFileService(ILogFileCollection logFiles, ILogEventCollection logEvents, ILogBuilder builder, ILogStorage storage, IClock clock, LogTailService logTailService, StorageService storageService, IOptions<ServerSettings> settings, Tracer tracer, ILogger<LogFileService> logger)
 		{
 			_logFiles = logFiles;
 			_logEvents = logEvents;
@@ -573,6 +571,7 @@ namespace Horde.Server.Logs
 			_logTailService = logTailService;
 			_storageService = storageService;
 			_settings = settings;
+			_tracer = tracer;
 			_logger = logger;
 		}
 
@@ -728,11 +727,11 @@ namespace Horde.Server.Logs
 		/// <inheritdoc/>
 		public async Task<ILogFile?> WriteLogDataAsync(ILogFile logFile, long offset, int lineIndex, ReadOnlyMemory<byte> data, bool flush, int maxChunkLength, int maxSubChunkLineCount, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("WriteLogDataAsync").StartActive();
-			scope.Span.SetTag("LogId", logFile.Id.ToString());
-			scope.Span.SetTag("Offset", offset.ToString(CultureInfo.InvariantCulture));
-			scope.Span.SetTag("Length", data.Length.ToString(CultureInfo.InvariantCulture));
-			scope.Span.SetTag("LineIndex", lineIndex.ToString(CultureInfo.InvariantCulture));
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(WriteLogDataAsync)}");
+			span.SetAttribute("logId", logFile.Id.ToString());
+			span.SetAttribute("offset", offset);
+			span.SetAttribute("length", data.Length);
+			span.SetAttribute("lineIndex", lineIndex);
 
 			// Make sure the data ends in a newline
 			if (data.Length > 0 && data.Span[data.Length - 1] != '\n')
@@ -1045,10 +1044,10 @@ namespace Horde.Server.Logs
 		/// <inheritdoc/>
 		public async Task<ILogEventData> GetEventDataAsync(ILogFile logFile, int lineIndex, int lineCount, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("GetEventDataAsync").StartActive();
-			scope.Span.SetTag("LogId", logFile.Id.ToString());
-			scope.Span.SetTag("LineIndex", lineIndex.ToString(CultureInfo.InvariantCulture));
-			scope.Span.SetTag("LineCount", lineCount.ToString(CultureInfo.InvariantCulture));
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(GetEventDataAsync)}");
+			span.SetAttribute("logId", logFile.Id.ToString());
+			span.SetAttribute("lineIndex", lineIndex);
+			span.SetAttribute("lineCount", lineCount);
 
 			List<Utf8String> lines = await ReadLinesAsync(logFile, lineIndex, lineCount, cancellationToken);
 			List<LogEventLine> eventLines = new List<LogEventLine>(lines.Count);
@@ -1284,7 +1283,7 @@ namespace Horde.Server.Logs
 		/// <param name="stoppingToken">Cancellation token</param>
 		async ValueTask TickAsync(CancellationToken stoppingToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("LogFileService.TickAsync").StartActive();
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(TickAsync)}");
 			
 			lock (_writeLock)
 			{
@@ -1306,12 +1305,12 @@ namespace Horde.Server.Logs
 		/// <returns>Async task</returns>
 		private async Task IncrementalFlushAsync(CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("LogFileService.IncrementalFlush").StartActive();
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(IncrementalFlushAsync)}");
 			
 			// Get all the chunks older than 20 minutes
 			List<(LogId, long)> flushChunks = await _builder.TouchChunksAsync(TimeSpan.FromMinutes(10.0));
 
-			scope.Span.SetTag("numChunks", flushChunks.Count);
+			span.SetAttribute("numChunks", flushChunks.Count);
 
 			// Mark them all as complete
 			foreach ((LogId logId, long offset) in flushChunks)
@@ -1329,7 +1328,7 @@ namespace Horde.Server.Logs
 		/// <returns>Async task</returns>
 		public async Task FlushAsync()
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("LogFileService.FlushAsync").StartActive();
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(FlushAsync)}");
 			_logger.LogInformation("Forcing flush of pending log chunks...");
 
 			// Mark everything in the cache as complete
@@ -1373,7 +1372,8 @@ namespace Horde.Server.Logs
 		/// <param name="createIndex">Create an index for the log</param>
 		private void WriteCompleteChunks(List<(LogId, long)> chunksToWrite, bool createIndex)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("LogFileService.WriteCompleteChunks").StartActive();
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(WriteCompleteChunks)}");
+
 			int numTasksCreated = 0;
 			
 			foreach (IGrouping<LogId, long> group in chunksToWrite.GroupBy(x => x.Item1, x => x.Item2))
@@ -1405,7 +1405,7 @@ namespace Horde.Server.Logs
 				}
 			}
 
-			scope.Span.SetTag("numWriteTasksCreated", numTasksCreated);
+			span.SetAttribute("numWriteTasksCreated", numTasksCreated);
 			_logger.LogInformation("{NumWriteTasksCreated} write tasks created", numTasksCreated);
 		}
 		
@@ -1417,7 +1417,7 @@ namespace Horde.Server.Logs
 		/// <param name="cancellationToken">Cancellation token</param>
 		private async Task WriteCompleteChunksV2Async(List<(LogId, long)> chunksToWrite, bool createIndex, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("LogFileService.WriteCompleteChunksV2Async").StartActive();
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(WriteCompleteChunksV2Async)}");
 			
 			HashSet<(LogId, long)> writeChunks = new ();
 			List<(LogId, List<long>)> offsetsToWrite = new();
@@ -1443,7 +1443,7 @@ namespace Horde.Server.Logs
 				}
 			}
 
-			scope.Span.SetTag("numOffsetsToWrite", offsetsToWrite.Count);
+			span.SetAttribute("numOffsetsToWrite", offsetsToWrite.Count);
 			ParallelOptions opts = new() { MaxDegreeOfParallelism = MaxConcurrentChunkWrites, CancellationToken = cancellationToken };
 			await Parallel.ForEachAsync(offsetsToWrite, opts, async (x, innerCt) =>
 			{
@@ -1480,10 +1480,10 @@ namespace Horde.Server.Logs
 		/// <returns>Async task</returns>
 		private async Task<ILogFile?> WriteCompleteChunksForLogAsync(ILogFile logFileInterface, List<long> offsets, bool createIndex, CancellationToken cancellationToken = default)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("WriteCompleteChunksForLogAsync").StartActive();
-			scope.Span.SetTag("LogId", logFileInterface.Id.ToString());
-			scope.Span.SetTag("NumOffsets", offsets.Count);
-			scope.Span.SetTag("CreateIndex", createIndex);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(WriteCompleteChunksForLogAsync)}");
+			span.SetAttribute("logId", logFileInterface.Id.ToString());
+			span.SetAttribute("numOffsets", offsets.Count);
+			span.SetAttribute("createIndex", createIndex);
 			
 			// Write the data to the storage provider
 			List<Task<LogChunkData?>> chunkWriteTasks = new List<Task<LogChunkData?>>();
@@ -1498,7 +1498,7 @@ namespace Horde.Server.Logs
 				}
 			}
 			
-			scope.Span.SetTag("NumWriteTasks", chunkWriteTasks.Count);
+			span.SetAttribute("numWriteTasks", chunkWriteTasks.Count);
 
 			// Wait for the tasks to complete, periodically updating the log file object
 			ILogFile? logFile = logFileInterface;
@@ -1582,9 +1582,9 @@ namespace Horde.Server.Logs
 			}
 
 			// Save stats for the index creation
-			using IScope scope = GlobalTracer.Instance.BuildSpan("CreateIndexAsync").StartActive();
-			scope.Span.SetTag("LogId", logFile.Id.ToString());
-			scope.Span.SetTag("Length", (lastChunk.Offset + lastChunk.Length).ToString(CultureInfo.InvariantCulture));
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(CreateIndexAsync)}");
+			span.SetAttribute("logId", logFile.Id.ToString());
+			span.SetAttribute("length", lastChunk.Offset + lastChunk.Length);
 
 			long newLength = 0;
 			int newLineCount = 0;
@@ -1863,10 +1863,10 @@ namespace Horde.Server.Logs
 		{
 			Stopwatch timer = Stopwatch.StartNew();
 
-			using IScope scope = GlobalTracer.Instance.BuildSpan("SearchLogDataAsync").StartActive();
-			scope.Span.SetTag("LogId", logFile.Id.ToString());
-			scope.Span.SetTag("Text", text);
-			scope.Span.SetTag("Count", count.ToString(CultureInfo.InvariantCulture));
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(SearchLogDataAsync)}");
+			span.SetAttribute("logId", logFile.Id.ToString());
+			span.SetAttribute("text", text);
+			span.SetAttribute("count", count);
 
 			List<int> results = new List<int>();
 			if (count > 0)
@@ -1984,8 +1984,8 @@ namespace Horde.Server.Logs
 				LogIndexData? indexData = await ReadIndexAsync(logFile, logFile.IndexLength.Value);
 				if(indexData != null && firstLine < indexData.LineCount)
 				{
-					using IScope indexScope = GlobalTracer.Instance.BuildSpan("Indexed").StartActive();
-					indexScope.Span.SetTag("LineCount", indexData.LineCount.ToString(CultureInfo.InvariantCulture));
+					using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LogFileService)}.{nameof(SearchLogDataInternalAsync)}.Indexed");
+					span.SetAttribute("lineCount", indexData.LineCount);
 
 					foreach(int lineIndex in indexData.Search(firstLine, searchText, searchStats))
 					{

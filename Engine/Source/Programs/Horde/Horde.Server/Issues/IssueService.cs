@@ -18,16 +18,13 @@ using Horde.Server.Perforce;
 using Horde.Server.Server;
 using Horde.Server.Streams;
 using Horde.Server.Users;
-using Horde.Server.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Issues
 {
@@ -194,6 +191,12 @@ namespace Horde.Server.Issues
 		Dictionary<StreamId, HashSet<TemplateId>> _cachedDesktopAlerts = new Dictionary<StreamId, HashSet<TemplateId>>();
 
 		/// <summary>
+		/// Tracer
+		/// </summary>
+		/// 
+		readonly Tracer _tracer;
+
+		/// <summary>
 		/// Logger for tracing
 		/// </summary>
 		readonly ILogger<IssueService> _logger;
@@ -208,7 +211,7 @@ namespace Horde.Server.Issues
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssueService(IIssueCollection issueCollection, ICommitService commitService, IJobStepRefCollection jobStepRefs, IStreamCollection streams, IUserCollection userCollection, ILogFileService logFileService, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<IssueService> logger)
+		public IssueService(IIssueCollection issueCollection, ICommitService commitService, IJobStepRefCollection jobStepRefs, IStreamCollection streams, IUserCollection userCollection, ILogFileService logFileService, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, Tracer tracer, ILogger<IssueService> logger)
 		{
 			Type[] issueTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssue).IsAssignableFrom(x)).ToArray();
 			foreach (Type issueType in issueTypes)
@@ -226,6 +229,7 @@ namespace Horde.Server.Issues
 			_clock = clock;
 			_ticker = clock.AddTicker<IssueService>(TimeSpan.FromMinutes(1.0), TickAsync, logger);
 			_globalConfig = globalConfig;
+			_tracer = tracer;
 			_logger = logger;
 
 			// Create all the issue handlers
@@ -499,10 +503,10 @@ namespace Horde.Server.Issues
 		/// <returns>Async task</returns>
 		public async Task UpdateCompleteStep(IJob job, IGraph graph, SubResourceId batchId, SubResourceId stepId)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("UpdateCompleteStep").StartActive();
-			scope.Span.SetTag("JobId", job.Id.ToString());
-			scope.Span.SetTag("BatchId", batchId.ToString());
-			scope.Span.SetTag("StepId", stepId.ToString());
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(IssueService)}.{nameof(UpdateCompleteStep)}");
+			span.SetAttribute("jobId", job.Id.ToString());
+			span.SetAttribute("batchId", batchId.ToString());
+			span.SetAttribute("stepId", stepId.ToString());
 
 			_logger.LogInformation("Updating issues for {JobId}:{BatchId}:{StepId}", job.Id, batchId, stepId);
 
@@ -526,7 +530,7 @@ namespace Horde.Server.Issues
 				throw new ArgumentException($"Invalid step id {stepId}");
 			}
 
-			scope.Span.SetTag("LogId", step.LogId.ToString());
+			span.SetAttribute("logId", step.LogId.ToString());
 
 			// Get all the annotations for this template
 			TemplateRefConfig? templateRef;

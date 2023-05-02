@@ -22,8 +22,7 @@ using Horde.Server.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Perforce
 {
@@ -231,6 +230,7 @@ namespace Horde.Server.Perforce
 
 		readonly PerforceLoadBalancer _loadBalancer;
 		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
+		readonly Tracer _tracer;
 		readonly ILogger _logger;
 
 		// Useful overrides for local debugging with read-only data
@@ -248,12 +248,13 @@ namespace Horde.Server.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PerforceService(PerforceLoadBalancer loadBalancer, IUserCollection userCollection, IOptions<ServerSettings> settings, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<PerforceService> logger)
+		public PerforceService(PerforceLoadBalancer loadBalancer, IUserCollection userCollection, IOptions<ServerSettings> settings, IOptionsMonitor<GlobalConfig> globalConfig, Tracer tracer, ILogger<PerforceService> logger)
 		{
 			_loadBalancer = loadBalancer;
 			_userCollection = userCollection;
 			_settings = settings.Value;
 			_globalConfig = globalConfig;
+			_tracer = tracer;
 			_logger = logger;
 
 			if(settings.Value.UseLocalPerforceEnv)
@@ -521,9 +522,9 @@ namespace Horde.Server.Perforce
 
 		async Task<Credentials> GetTicketAsync(PerforceCluster cluster, string userName, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.TryGetImpersonatedConnectionSettings").StartActive();
-			scope.Span.SetTag("ClusterName", cluster.Name);
-			scope.Span.SetTag("UserName", userName);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(GetTicketAsync)}");
+			span.SetAttribute("clusterName", cluster.Name);
+			span.SetAttribute("userName", userName);
 
 			Credentials? ticketInfo = null;
 
@@ -579,9 +580,9 @@ namespace Horde.Server.Perforce
 
 		public async ValueTask<IUser> FindOrAddUserAsync(PerforceCluster cluster, string userName, CancellationToken cancellationToken = default)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.FindOrAddUserAsync").StartActive();
-			scope.Span.SetTag("ClusterName", cluster.Name);
-			scope.Span.SetTag("UserName", userName);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(FindOrAddUserAsync)}");
+			span.SetAttribute("clusterName", cluster.Name);
+			span.SetAttribute("userName", userName);
 			
 			IUser? user;
 			if (!_userCache.TryGetValue((cluster.Name, userName), out user))
@@ -617,8 +618,8 @@ namespace Horde.Server.Perforce
 
 		async Task<IPerforceServer> GetServerAsync(PerforceCluster cluster)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.SelectServer").StartActive();
-			scope.Span.SetTag("ClusterName", cluster.Name);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(GetServerAsync)}");
+			span.SetAttribute("clusterName", cluster.Name);
 
 			IPerforceServer? server = await _loadBalancer.SelectServerAsync(cluster);
 			if (server == null)
@@ -743,10 +744,10 @@ namespace Horde.Server.Perforce
 		/// <inheritdoc/>
 		public async Task<ICommit> GetChangeDetailsAsync(StreamConfig streamConfig, int changeNumber, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangeDetailsAsync").StartActive();
-			scope.Span.SetTag("ClusterName", streamConfig.ClusterName);
-			scope.Span.SetTag("StreamName", streamConfig.Name);
-			scope.Span.SetTag("ChangeNumber", changeNumber);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(GetChangeDetailsAsync)}");
+			span.SetAttribute("clusterName", streamConfig.ClusterName);
+			span.SetAttribute("streamName", streamConfig.Name);
+			span.SetAttribute("changeNumber", changeNumber);
 
 			PerforceCluster cluster = _globalConfig.CurrentValue.GetPerforceCluster(streamConfig.ClusterName);
 
@@ -767,10 +768,10 @@ namespace Horde.Server.Perforce
 		/// <inheritdoc/>
 		public async Task<(CheckShelfResult, ShelfInfo?)> CheckShelfAsync(StreamConfig streamConfig, int changeNumber, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.CheckPreflightAsync").StartActive();
-			scope.Span.SetTag("ClusterName", streamConfig.ClusterName);
-			scope.Span.SetTag("StreamName", streamConfig.Name);
-			scope.Span.SetTag("ChangeNumber", changeNumber);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(CheckShelfAsync)}");
+			span.SetAttribute("clusterName", streamConfig.ClusterName);
+			span.SetAttribute("streamName", streamConfig.Name);
+			span.SetAttribute("changeNumber", changeNumber);
 			
 			PerforceCluster cluster = _globalConfig.CurrentValue.GetPerforceCluster(streamConfig.ClusterName);
 
@@ -840,9 +841,9 @@ namespace Horde.Server.Perforce
 		/// <inheritdoc/>
 		public async Task DeleteShelvedChangeAsync(string clusterName, int shelvedChange, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.DeleteShelvedChangeAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("ShelvedChange", shelvedChange);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(DeleteShelvedChangeAsync)}");
+			span.SetAttribute("clusterName", clusterName);
+			span.SetAttribute("shelvedChange", shelvedChange);
 			
 			PerforceCluster cluster = _globalConfig.CurrentValue.GetPerforceCluster(clusterName);
 
@@ -856,9 +857,9 @@ namespace Horde.Server.Perforce
 		/// <inheritdoc/>
 		public async Task UpdateChangelistDescriptionAsync(string clusterName, int change, Func<string, string> updateFunc, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.UpdateChangelistDescription").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("Change", change);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(UpdateChangelistDescriptionAsync)}");
+			span.SetAttribute("clusterName", clusterName);
+			span.SetAttribute("change", change);
 
 			try
 			{
@@ -899,10 +900,10 @@ namespace Horde.Server.Perforce
 		/// <inheritdoc/>
 		public async Task<int> CreateNewChangeAsync(string clusterName, string streamName, string filePath, string description, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.CreateNewChangeAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("StreamName", streamName);
-			scope.Span.SetTag("FilePath", filePath);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(CreateNewChangeAsync)}");
+			span.SetAttribute("clusterName", clusterName);
+			span.SetAttribute("streamName", streamName);
+			span.SetAttribute("filePath", filePath);
 			
 			using (PooledConnectionHandle perforce = await ConnectWithStreamClientAsync(clusterName, null, streamName, cancellationToken))
 			{
@@ -1034,10 +1035,10 @@ namespace Horde.Server.Perforce
 		/// <inheritdoc/>
 		public async Task<(int? Change, string Message)> SubmitShelvedChangeAsync(StreamConfig streamConfig, int change, int originalChange, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.SubmitShelvedChangeAsync").StartActive();
-			scope.Span.SetTag("Stream", streamConfig.Id);
-			scope.Span.SetTag("Change", change);
-			scope.Span.SetTag("OriginalChange", originalChange);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(SubmitShelvedChangeAsync)}");
+			span.SetAttribute("stream", streamConfig.Id);
+			span.SetAttribute("change", change);
+			span.SetAttribute("originalChange", originalChange);
 
 			PerforceCluster cluster = _globalConfig.CurrentValue.GetPerforceCluster(streamConfig.ClusterName);
 
@@ -1173,11 +1174,11 @@ namespace Horde.Server.Perforce
 
 			public virtual async IAsyncEnumerable<ICommit> FindAsync(int? minChange, int? maxChange, int? maxResults, IReadOnlyList<CommitTag>? tags, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 			{
-				using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.CommitSource.FindAsync").StartActive();
-				scope.Span.SetTag("ClusterName", _streamConfig.ClusterName);
-				scope.Span.SetTag("MinChange", minChange ?? -2);
-				scope.Span.SetTag("MaxChange", maxChange ?? -2);
-				scope.Span.SetTag("MaxResults", maxResults ?? -1);
+				using TelemetrySpan span = _perforceService._tracer.StartActiveSpan($"{nameof(PerforceService)}.{nameof(CommitSource)}.{nameof(FindAsync)}");
+				span.SetAttribute("stream", _streamConfig.ClusterName);
+				span.SetAttribute("minChange", minChange ?? -2);
+				span.SetAttribute("maxChange", maxChange ?? -2);
+				span.SetAttribute("maxResults", maxResults ?? -1);
 
 				using (PooledConnectionHandle perforce = await _perforceService.ConnectWithStreamClientAsync(_streamConfig, null, cancellationToken))
 				{

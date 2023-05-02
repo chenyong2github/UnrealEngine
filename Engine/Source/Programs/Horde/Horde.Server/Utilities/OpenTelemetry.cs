@@ -217,6 +217,12 @@ public static class OpenTelemetryHelper
 public static class OpenTelemetryTracers
 {
 	/// <summary>
+	/// Name of resource name attribute in Datadog
+	/// Some traces use this for prettier display inside their UI
+	/// </summary>
+	public const string DatadogResourceAttribute = "resource.name";
+	
+	/// <summary>
 	/// Name of default Horde tracer (aka activity source)
 	/// </summary>
 	public const string HordeName = "Horde";
@@ -234,11 +240,13 @@ public static class OpenTelemetryTracers
 	
 	/// <summary>
 	/// Default tracer used in Horde
+	/// Prefer dependency-injected tracer over this static member.
 	/// </summary>
 	public static readonly Tracer Horde = TracerProvider.Default.GetTracer(HordeName);
 	
 	/// <summary>
 	/// Tracer specific to MongoDB
+	/// Prefer StartMongoDbSpan static extension for Tracer.
 	/// </summary>
 	public static readonly Tracer MongoDb = TracerProvider.Default.GetTracer(MongoDbName);
 }

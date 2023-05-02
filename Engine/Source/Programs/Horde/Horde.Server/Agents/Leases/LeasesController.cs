@@ -11,8 +11,7 @@ using Horde.Server.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Agents.Leases
 {
@@ -26,14 +25,16 @@ namespace Horde.Server.Agents.Leases
 	{
 		readonly AgentService _agentService;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
+		readonly Tracer _tracer;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LeasesController(AgentService agentService, IOptionsSnapshot<GlobalConfig> globalConfig)
+		public LeasesController(AgentService agentService, IOptionsSnapshot<GlobalConfig> globalConfig, Tracer tracer)
 		{
 			_agentService = agentService;
 			_globalConfig = globalConfig;
+			_tracer = tracer;
 		}
 
 		/// <summary>
@@ -83,7 +84,7 @@ namespace Horde.Server.Agents.Leases
 
 			List<object> responses = new List<object>();
 
-			using (IScope _ = GlobalTracer.Instance.BuildSpan($"GenerateResponses").StartActive())
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(LeasesController)}.{nameof(FindLeasesAsync)}");
 			{
 				Dictionary<AgentId, double?> cachedAgentRates = new Dictionary<AgentId, double?>();
 				foreach (ILease lease in leases)

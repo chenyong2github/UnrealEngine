@@ -21,9 +21,7 @@ using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MongoDB.Driver;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 using StackExchange.Redis;
 
 namespace Horde.Server.Jobs.Schedules
@@ -63,6 +61,7 @@ namespace Horde.Server.Jobs.Schedules
 		readonly IStreamCollection _streamCollection;
 		readonly ITemplateCollection _templateCollection;
 		readonly IClock _clock;
+		readonly Tracer _tracer;
 		readonly ILogger _logger;
 		readonly RedisService _redis;
 		static readonly RedisKey s_baseLockKey = "scheduler/locks";
@@ -74,7 +73,7 @@ namespace Horde.Server.Jobs.Schedules
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ScheduleService(RedisService redis, IGraphCollection graphs, ICommitService commitService, IJobCollection jobCollection, JobService jobService, IStreamCollection streamCollection, ITemplateCollection templateCollection, MongoService mongoService, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<ScheduleService> logger)
+		public ScheduleService(RedisService redis, IGraphCollection graphs, ICommitService commitService, IJobCollection jobCollection, JobService jobService, IStreamCollection streamCollection, ITemplateCollection templateCollection, MongoService mongoService, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, Tracer tracer, ILogger<ScheduleService> logger)
 		{
 			_graphs = graphs;
 			_commitService = commitService;
@@ -84,6 +83,7 @@ namespace Horde.Server.Jobs.Schedules
 			_templateCollection = templateCollection;
 			_clock = clock;
 			_globalConfig = globalConfig;
+			_tracer = tracer;
 			_logger = logger;
 
 			_redis = redis;
@@ -251,9 +251,9 @@ namespace Horde.Server.Jobs.Schedules
 				return false;
 			}
 
-			using IScope scope = GlobalTracer.Instance.BuildSpan("ScheduleService.TriggerAsync").StartActive();
-			scope.Span.SetTag("StreamId", stream.Id);
-			scope.Span.SetTag("TemplateId", templateId);
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(ScheduleService)}.{nameof(TriggerAsync)}");
+			span.SetAttribute("streamId", stream.Id);
+			span.SetAttribute("templateId", templateId);
 
 			Stopwatch stopwatch = Stopwatch.StartNew();
 			_logger.LogInformation("Updating schedule for {StreamId} template {TemplateId}", stream.Id, templateId);

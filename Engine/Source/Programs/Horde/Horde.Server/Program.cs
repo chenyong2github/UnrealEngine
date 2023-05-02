@@ -13,13 +13,8 @@ using Horde.Server.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OpenTracing;
-using OpenTracing.Propagation;
-using OpenTracing.Util;
 using Serilog;
 using Serilog.Configuration;
-using Serilog.Core;
-using Serilog.Events;
 using Serilog.Exceptions;
 using Serilog.Exceptions.Core;
 using Serilog.Exceptions.Grpc.Destructurers;
@@ -57,56 +52,8 @@ namespace Horde.Server
 			{
 				configuration = configuration.Enrich.With<OpenTelemetryDatadogLogEnricher>();
 			}
-			else if (settings.WithDatadog)
-			{
-				// OpenTracing is replaced with OpenTelemetry. To be removed.
-				configuration = configuration.Enrich.With<OpenTracingDatadogLogEnricher>();
-			}
 
 			return configuration;
-		}
-	}
-
-	class OpenTracingDatadogLogEnricher : ILogEventEnricher
-	{
-		public void Enrich(Serilog.Events.LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
-		{
-			ISpan? span = GlobalTracer.Instance?.ActiveSpan;
-			if (span != null)
-			{
-				logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("dd.trace_id", span.Context.TraceId));
-				logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("dd.span_id", span.Context.SpanId));
-			}
-		}
-	}
-
-	class TestTracer : ITracer
-	{
-		readonly ITracer _inner;
-
-		public TestTracer(ITracer inner)
-		{
-			_inner = inner;
-		}
-
-		public IScopeManager ScopeManager => _inner.ScopeManager;
-
-		public ISpan ActiveSpan => _inner.ActiveSpan;
-
-		public ISpanBuilder BuildSpan(string operationName)
-		{
-			Serilog.Log.Debug("Creating span {Name}", operationName);
-			return _inner.BuildSpan(operationName);
-		}
-
-		public ISpanContext Extract<TCarrier>(IFormat<TCarrier> format, TCarrier carrier)
-		{
-			return _inner.Extract<TCarrier>(format, carrier);
-		}
-
-		public void Inject<TCarrier>(ISpanContext spanContext, IFormat<TCarrier> format, TCarrier carrier)
-		{
-			_inner.Inject<TCarrier>(spanContext, format, carrier);
 		}
 	}
 
@@ -177,12 +124,6 @@ namespace Horde.Server
 				.CreateLogger();
 
 			Serilog.Log.Logger.Information("Server version: {Version}", Version);
-
-			if (hordeSettings.WithDatadog)
-			{
-				GlobalTracer.Register(Datadog.Trace.OpenTracing.OpenTracingTracerFactory.WrapTracer(Datadog.Trace.Tracer.Instance));
-				Serilog.Log.Logger.Information("Enabling datadog tracing (OpenTrace)");
-			}
 
 			ServiceCollection services = new ServiceCollection();
 			services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());

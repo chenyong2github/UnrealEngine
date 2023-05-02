@@ -10,9 +10,9 @@ using Amazon.CloudWatch.Model;
 using EpicGames.Horde.Compute;
 using Horde.Server.Agents.Pools;
 using Horde.Server.Compute;
+using Horde.Server.Utilities;
 using Microsoft.Extensions.Logging;
-using OpenTracing;
-using OpenTracing.Util;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Agents.Fleet
 {
@@ -86,7 +86,9 @@ namespace Horde.Server.Agents.Fleet
 		/// <inheritdoc/>
 		public async Task<PoolSizeResult> CalculatePoolSizeAsync(IPool pool, List<IAgent> agents)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("ComputeQueueAwsMetricStrategy.CalcDesiredPoolSizesAsync").StartActive();
+			using TelemetrySpan span = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(ComputeQueueAwsMetricStrategy)}.{nameof(CalculatePoolSizeAsync)}");
+			span.SetAttribute(OpenTelemetryTracers.DatadogResourceAttribute, pool.Id.ToString());
+			span.SetAttribute("currentAgentCount", agents.Count);
 
 			Dictionary<string, List<MetricDatum>> metricsPerCloudWatchNamespace = new();
 			int numAgents = agents.Count;
@@ -128,12 +130,12 @@ namespace Horde.Server.Agents.Fleet
 
 			foreach ((string ns, List<MetricDatum> metricDatumsNs) in metricsPerCloudWatchNamespace)
 			{
-				using IScope cwScope = GlobalTracer.Instance.BuildSpan("Putting CloudWatch metrics").StartActive();
-				cwScope.Span.SetTag("namespace", ns);
+				using TelemetrySpan cwSpan = OpenTelemetryTracers.Horde.StartActiveSpan($"{nameof(ComputeQueueAwsMetricStrategy)}.{nameof(CalculatePoolSizeAsync)}.PutCloudWatchMetrics");
+				cwSpan.SetAttribute("namespace", ns);
 
 				PutMetricDataRequest request = new() { Namespace = ns, MetricData = metricDatumsNs };
 				PutMetricDataResponse response = await _cloudWatch.PutMetricDataAsync(request);
-				scope.Span.SetTag("res.statusCode", (int)response.HttpStatusCode);
+				cwSpan.SetAttribute("res.statusCode", (int)response.HttpStatusCode);
 				if (response.HttpStatusCode != HttpStatusCode.OK)
 				{
 					_logger.LogError("Unable to put CloudWatch metrics");
