@@ -54,6 +54,8 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleBounds_SetFixedBounds_System;
 	TSharedPtr<FUICommandInfo> SaveThumbnailImage;
 
+	TSharedPtr<FUICommandInfo> ToggleMotion;
+
 	TSharedPtr<FUICommandInfo> ToggleStatPerformance;
 	TSharedPtr<FUICommandInfo> ToggleStatPerformanceGPU;
 	TSharedPtr<FUICommandInfo> ClearStatPerformance;

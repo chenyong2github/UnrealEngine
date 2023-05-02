@@ -583,6 +583,20 @@ void SNiagaraSystemViewport::ToggleOrbit()
 	}
 }
 
+void SNiagaraSystemViewport::ToggleMotion()
+{
+	bMotionEnabled = !bMotionEnabled;
+	if (PreviewComponent && bMotionEnabled == false)
+	{
+		PreviewComponent->SetComponentToWorld(FTransform::Identity);
+	}
+}
+
+bool SNiagaraSystemViewport::IsMotionEnabled() const
+{
+	return bMotionEnabled;
+}
+
 void SNiagaraSystemViewport::RefreshViewport()
 {
 	//reregister the preview components, so if the preview material changed it will be propagated to the render thread
@@ -604,6 +618,18 @@ void SNiagaraSystemViewport::Tick( const FGeometry& AllottedGeometry, const doub
 
 		bShouldActivateOrbitAfterTransitioning = false;
 		bIsViewTransitioning = false;
+	}
+
+	if (PreviewComponent && bMotionEnabled)
+	{
+		const float MotionTime = PreviewComponent->GetDesiredAge();
+
+		UWorld* World = GetWorld();
+		FVector Location;
+		Location.X = MotionRadius * FMath::Sin(FMath::DegreesToRadians(MotionRate) * MotionTime);
+		Location.Y = 0.0f;
+		Location.Z = MotionRadius * FMath::Cos(FMath::DegreesToRadians(MotionRate) * MotionTime);
+		PreviewComponent->SetComponentToWorld(FTransform(Location));
 	}
 }
 
@@ -736,6 +762,11 @@ void SNiagaraSystemViewport::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &SNiagaraSystemViewport::IsToggleOrbitChecked));
 
+	CommandList->MapAction(
+		Commands.ToggleMotion,
+		FExecuteAction::CreateSP(this, &SNiagaraSystemViewport::ToggleMotion),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SNiagaraSystemViewport::IsMotionEnabled));
 }
 
 void SNiagaraSystemViewport::OnFocusViewportToSelection()

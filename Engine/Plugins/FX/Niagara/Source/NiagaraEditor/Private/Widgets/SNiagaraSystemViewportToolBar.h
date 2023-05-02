@@ -33,6 +33,7 @@ public:
 	virtual bool IsViewModeSupported(EViewModeIndex ViewModeIndex) const override;
 
 private:
+	TWeakPtr<class SNiagaraSystemViewport> WeakViewport = nullptr;
 	TWeakPtr<ISequencer> Sequencer = nullptr;
 	bool bIsSimulationRealtime = true;
 	
@@ -40,4 +41,6 @@ private:
 	FReply OnSimulationRealtimeWarningClicked() const;
 
 	FText GetSimulationSpeedText() const;
+
+	void MakeMotionMenu(FMenuBuilder& MenuBuilder) const;
 };

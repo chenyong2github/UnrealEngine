@@ -53,9 +53,6 @@ public:
 	
 	void ToggleRealtime();
 	
-	/** @return The list of commands known by the niagara editor */
-	TSharedRef<FUICommandList> GetNiagaraSystemEditorCommands() const;
-	
 	/** If true, render background object in the preview scene. */
 	bool bShowBackground;
 
@@ -91,9 +88,17 @@ public:
 	void ToggleDrawElement(EDrawElements Element);
 	void CreateThumbnail(UObject* InScreenShotOwner);
 
-
 	bool IsToggleOrbitChecked() const;
 	void ToggleOrbit();
+
+	bool IsMotionEnabled() const;
+	void ToggleMotion();
+
+	float GetMotionRate() const { return MotionRate; }
+	void SetMotionRate(float Rate) { MotionRate = Rate; }
+
+	float GetMotionRadius() const { return MotionRadius; }
+	void SetMotionRadius(float Radius) { MotionRadius = Radius; }
 
 protected:
 	/** SEditorViewport interface */
@@ -138,6 +143,11 @@ private:
 
 	/** True if orbit mode was active before we started a view transition. Used to restore orbit mode at the the end of the transition */
 	bool bShouldActivateOrbitAfterTransitioning = false;
+
+	/** Motion Parameters */
+	bool bMotionEnabled = false;
+	float MotionRate = 90.0f;
+	float MotionRadius = 200.0f;
 
 	FDelegateHandle OnPreviewFeatureLevelChangedHandle;
 };
