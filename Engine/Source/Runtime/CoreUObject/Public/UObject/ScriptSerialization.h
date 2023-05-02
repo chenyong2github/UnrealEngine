@@ -523,6 +523,12 @@
 			while (SerializeExpr(iCode, Ar) != EX_EndMapConst);
 			break;
 		}
+		case EX_BitFieldConst:
+		{
+			XFERPTR(FProperty*);	// Bit property
+			XFER(uint8);			// bit value
+			break;
+		}
 		case EX_ByteConst:
 		case EX_IntConstByte:
 		{

@@ -3781,6 +3781,17 @@ DEFINE_FUNCTION(UObject::execMapConst)
 }
 IMPLEMENT_VM_FUNCTION(EX_MapConst, execMapConst);
 
+DEFINE_FUNCTION(UObject::execBitFieldConst)
+{
+	FBoolProperty* BitProperty = CastFieldChecked<FBoolProperty>((FField*)Stack.ReadObject());
+	uint8 ByteValue = Stack.Read<uint8>();
+	// we could pack the bit into the lower bits of the FProperty pointer, but this instruction is rarely used
+	// and it's likely that a simple implementation will be appreciated by readers, debuggers, and even optimizers:
+	checkSlow(ByteValue == 0 || ByteValue == 1); 
+	BitProperty->SetPropertyValue(RESULT_PARAM, (bool)ByteValue);
+}
+IMPLEMENT_VM_FUNCTION(EX_BitFieldConst, execBitFieldConst);
+
 DEFINE_FUNCTION(UObject::execIntZero)
 {
 	*(int32*)RESULT_PARAM = 0;

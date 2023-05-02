@@ -1632,6 +1632,7 @@ public:
 	DECLARE_FUNCTION(execArrayConst);
 	DECLARE_FUNCTION(execSetConst);
 	DECLARE_FUNCTION(execMapConst);
+	DECLARE_FUNCTION(execBitFieldConst);
 
 	// Object construction
 	DECLARE_FUNCTION(execNew);

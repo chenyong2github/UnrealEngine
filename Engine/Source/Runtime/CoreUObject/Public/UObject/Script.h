@@ -201,7 +201,7 @@ enum EExprToken : uint8
 	//						= 0x0E,
 	EX_Let					= 0x0F,	// Assign an arbitrary size value to a variable.
 	//						= 0x10,
-	//						= 0x11,
+	EX_BitFieldConst		= 0x11, // assign to a single bit, defined by an FProperty
 	EX_ClassContext			= 0x12,	// Class default object context.
 	EX_MetaCast             = 0x13, // Metaclass cast.
 	EX_LetBool				= 0x14, // Let boolean variable.

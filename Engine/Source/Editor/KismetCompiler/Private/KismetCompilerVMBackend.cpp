@@ -469,6 +469,15 @@ public:
 			return Type && (Type->PinCategory == UEdGraphSchema_K2::PC_Boolean);
 		}
 
+		static bool IsBit(const FProperty* Property)
+		{
+			if (Property && Property->GetOwnerStruct() && !CastFieldChecked<FBoolProperty>(Property)->IsNativeBool())
+			{
+				return true;
+			}
+			return false;
+		}
+
 		static bool IsString(const FEdGraphPinType* Type, const FProperty* Property)
 		{
 			if (Property)
@@ -615,7 +624,7 @@ public:
 		}
 	};
 
-	virtual void EmitTermExpr(FBPTerminal* Term, const FProperty* CoerceProperty = NULL, bool bAllowStaticArray = false)
+	void EmitTermExpr(FBPTerminal* Term, const FProperty* CoerceProperty = NULL, bool bAllowStaticArray = false, bool bCallerRequiresBit = false)
 	{
 		if (Term->bIsLiteral)
 		{
@@ -820,8 +829,29 @@ public:
 			}
 			else if (FLiteralTypeHelper::IsBoolean(&Term->Type, CoerceProperty))
 			{
+				// Bitfields in struct literals were being treated as full bytes, but instructions like
+				// EX_LetBool provide the destination as the CoercePoperty, even though they are going
+				// to allocate a full byte for us to write to. To disambiguate I have added bCallerRequiresBit
+				// when a calling expressing allocates only a single bit for us to write to:
 				bool bValue = Term->Name.ToBool();
-				Writer << (bValue ? EX_True : EX_False);
+				const bool bIsBit = bCallerRequiresBit && FLiteralTypeHelper::IsBit(CoerceProperty);
+				
+				if(bIsBit)
+				{
+					check(CoerceProperty);
+					// FArchive const correctness workaround:
+					FProperty* BitProperty = const_cast<FProperty*>(CoerceProperty);
+					uint8 ValueAsByte = bValue;
+
+					// Emit the literal, with enough information to safely write to CoerceProperty:
+					Writer << EX_BitFieldConst;
+					Writer << BitProperty;
+					Writer << ValueAsByte;
+				}
+				else
+				{
+					Writer << (bValue ? EX_True : EX_False);
+				}
 			}
 			else if (FLiteralTypeHelper::IsName(&Term->Type, CoerceProperty))
 			{
@@ -946,7 +976,7 @@ public:
 								NewTerm.ObjectLiteral = CastField<FObjectProperty>(Prop)->GetObjectPropertyValue(Prop->ContainerPtrToValuePtr<void>(StructData));
 							}
 
-							EmitTermExpr(&NewTerm, Prop, true);
+							EmitTermExpr(&NewTerm, Prop, true, true);
 						}
 					}
 					Struct->DestroyStruct(StructData, ArrayDim);

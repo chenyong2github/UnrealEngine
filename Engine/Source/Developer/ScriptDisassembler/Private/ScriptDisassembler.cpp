@@ -972,6 +972,13 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			}
 			break;
 		}
+	case EX_BitFieldConst:
+		{
+			FProperty* BitProperty = ReadPointer<FProperty>(ScriptIndex);
+			uint8 ConstValue = ReadBYTE(ScriptIndex);
+			Ar.Logf(TEXT("%s $%X: set bit property %s to value %d"), *Indents, (int32)Opcode, *GetNameSafe(BitProperty), ConstValue);
+			break;
+		}
 	case EX_ByteConst:
 		{
 			uint8 ConstValue = ReadBYTE(ScriptIndex);
