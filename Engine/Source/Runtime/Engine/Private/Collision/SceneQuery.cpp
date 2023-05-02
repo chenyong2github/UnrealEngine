@@ -472,6 +472,7 @@ bool TSceneCastCommonImp(const UWorld* World, typename Traits::TOutHits& OutHits
 						}
 
 						OutHits.Append(AllNewHits);
+						bBlockingHit &= !OutHits.IsEmpty();
 					}
 					else
 					{
@@ -480,6 +481,7 @@ bool TSceneCastCommonImp(const UWorld* World, typename Traits::TOutHits& OutHits
 						if (ClusterUnionHit.bIsClusterUnion)
 						{
 							Traits::ResetOutHits(OutHits, Start, End);
+							bBlockingHit = ClusterUnionHit.bHit;
 							if (ClusterUnionHit.bHit)
 							{
 								OutHits = NewHit;
