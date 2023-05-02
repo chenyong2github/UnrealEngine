@@ -299,20 +299,6 @@ void UChaosGameplayEventDispatcher::UnRegisterForCrumblingEvents(UPrimitiveCompo
 	}
 }
 
-void UChaosGameplayEventDispatcher::DispatchPendingWakeNotifies()
-{
-	for (auto MapItr = PendingSleepNotifies.CreateIterator(); MapItr; ++MapItr)
-	{
-		FBodyInstance* BodyInstance = MapItr.Key();
-		if (UPrimitiveComponent* PrimitiveComponent = BodyInstance->OwnerComponent.Get())
-		{
-			PrimitiveComponent->DispatchWakeEvents(MapItr.Value(), BodyInstance->BodySetup->BoneName);
-		}
-	}
-
-	PendingSleepNotifies.Empty();
-}
-
 void UChaosGameplayEventDispatcher::RegisterChaosEvents()
 {
 	if (FPhysScene* Scene = GetWorld()->GetPhysicsScene())
@@ -630,25 +616,21 @@ void UChaosGameplayEventDispatcher::HandleSleepingEvents(const Chaos::FSleepingE
 
 	for (const Chaos::FSleepingData& SleepData : SleepingArray)
 	{
-		if (SleepData.Proxy!= nullptr && Scene.GetOwningComponent<UPrimitiveComponent>(SleepData.Proxy) != nullptr)
+		ESleepEvent WakeSleepEvent = SleepData.Sleeping ? ESleepEvent::SET_Sleep : ESleepEvent::SET_Wakeup;
+		if (UPrimitiveComponent* PrimitiveComponent = Scene.GetOwningComponent<UPrimitiveComponent>(SleepData.Proxy))
 		{
+			FName BoneName = NAME_None;
 			if (FBodyInstance* BodyInstance = Scene.GetBodyInstanceFromProxy(SleepData.Proxy))
 			{
-				if (BodyInstance->bGenerateWakeEvents)
-				{
-					ESleepEvent WakeSleepEvent = SleepData.Sleeping ? ESleepEvent::SET_Sleep : ESleepEvent::SET_Wakeup;
-					AddPendingSleepingNotify(BodyInstance, WakeSleepEvent);
-				}
+				BoneName = BodyInstance->BodySetup->BoneName;
+			}
+
+			if (PrimitiveComponent->ShouldDispatchWakeEvents(BoneName))
+			{
+				PrimitiveComponent->DispatchWakeEvents(WakeSleepEvent, BoneName);
 			}
 		}
 	}
-
-	DispatchPendingWakeNotifies();
-}
-
-void UChaosGameplayEventDispatcher::AddPendingSleepingNotify(FBodyInstance* BodyInstance, ESleepEvent SleepEventType)
-{
-	PendingSleepNotifies.FindOrAdd(BodyInstance) = SleepEventType;
 }
 
 void UChaosGameplayEventDispatcher::HandleRemovalEvents(const Chaos::FRemovalEventData& Event)

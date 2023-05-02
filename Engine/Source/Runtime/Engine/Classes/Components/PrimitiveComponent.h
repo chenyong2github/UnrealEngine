@@ -2456,6 +2456,11 @@ public:
 	void DispatchWakeEvents(ESleepEvent WakeEvent, FName BoneName);
 
 	/**
+	 * Whether or not the primitive component should dispatch sleep/wake events.
+	 */
+	virtual bool ShouldDispatchWakeEvents(FName BoneName) const;
+
+	/**
 	 * Set collision params on OutParams (such as CollisionResponse) to match the settings on this PrimitiveComponent.
 	 */
 	virtual void InitSweepCollisionParams(FCollisionQueryParams &OutParams, FCollisionResponseParams& OutResponseParam) const;

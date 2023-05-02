@@ -2848,22 +2848,20 @@ void UPrimitiveComponent::DispatchBlockingHit(AActor& Owner, FHitResult const& B
 
 void UPrimitiveComponent::DispatchWakeEvents(ESleepEvent WakeEvent, FName BoneName)
 {
-	FBodyInstance* RootBI = GetBodyInstance(BoneName, false);
-	if(RootBI)
+	if (ShouldDispatchWakeEvents(BoneName))
 	{
-		if(RootBI->bGenerateWakeEvents)
+		if (WakeEvent == ESleepEvent::SET_Wakeup)
 		{
-			if (WakeEvent == ESleepEvent::SET_Wakeup)
-			{
-				OnComponentWake.Broadcast(this, BoneName);
-			}else
-			{
-				OnComponentSleep.Broadcast(this, BoneName);
-			}
+			OnComponentWake.Broadcast(this, BoneName);
+		}
+		else
+		{
+			OnComponentSleep.Broadcast(this, BoneName);
 		}
 	}
 	
 	//now update children that are welded
+	FBodyInstance* RootBI = GetBodyInstance(BoneName, false);
 	for(USceneComponent* SceneComp : GetAttachChildren())
 	{
 		if(UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(SceneComp))
@@ -2877,6 +2875,16 @@ void UPrimitiveComponent::DispatchWakeEvents(ESleepEvent WakeEvent, FName BoneNa
 			}
 		}
 	}
+}
+
+bool UPrimitiveComponent::ShouldDispatchWakeEvents(FName BoneName) const
+{
+	FBodyInstance* RootBI = GetBodyInstance(BoneName, false);
+	if (RootBI)
+	{
+		return RootBI->bGenerateWakeEvents;
+	}
+	return false;
 }
 
 void UPrimitiveComponent::GetNavigationData(FNavigationRelevantData& OutData) const
@@ -3017,8 +3025,9 @@ bool UPrimitiveComponent::SweepComponent(FHitResult& OutHit, const FVector Start
 		QueryFilter.Word1 = 0xFFFFF;
 		ChaosInterface::SetFlags(BestHit, EHitFlags::Distance | EHitFlags::Normal | EHitFlags::Position | EHitFlags::FaceIndex);
 
-		ConvertQueryImpactHit(GetWorld(), BestHit, OutHit, (End - Start).Size(), QueryFilter, Start, End, &Geometry, FTransform{ Start }, false, false);
-		return true;
+		bool bHasHit = false;
+		ConvertTraceResults<ChaosInterface::FSweepHit>(bHasHit, GetWorld(), 1, &BestHit, (End - Start).Size(), QueryFilter, OutHit, Start, End, Geometry, FTransform{ ShapeWorldRotation, Start }, 0.f, Params.bReturnFaceIndex, Params.bReturnPhysicalMaterial);
+		return bHasHit;
 	}
 
 	return false;

@@ -236,9 +236,6 @@ private:
 	/** Holds the list of pending legacy notifies that are to be processed */
 	TArray<FCollisionNotifyInfo> PendingCollisionNotifies;
 
-	/** Holds the list of pending legacy sleep/wake notifies */
-	TMap<FBodyInstance*, ESleepEvent> PendingSleepNotifies;
-
 public:
 	/** 
 	 * Use to subscribe to collision events. 
@@ -278,7 +275,6 @@ private:
 	float LastCrumblingDataTime = -1.f;
 
 	void DispatchPendingCollisionNotifies();
-	void DispatchPendingWakeNotifies();
 
 	template <typename EventIterator>
 	void FillPhysicsProxy(FPhysScene_Chaos& Scene, TArray<UObject*>& Result, EventIterator& It);
@@ -292,7 +288,6 @@ private:
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
 	void HandleBreakingEvents(const Chaos::FBreakingEventData& BreakingData);
 	void HandleSleepingEvents(const Chaos::FSleepingEventData& SleepingData);
-	void AddPendingSleepingNotify(FBodyInstance* BodyInstance, ESleepEvent SleepEventType);
 	void HandleRemovalEvents(const Chaos::FRemovalEventData& RemovalData);
 	void HandleCrumblingEvents(const Chaos::FCrumblingEventData& CrumblingData);
 

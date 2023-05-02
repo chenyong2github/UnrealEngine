@@ -463,33 +463,38 @@ namespace Chaos
 
 			Chaos::FPBDRigidsSolver* NonConstSolver = const_cast<Chaos::FPBDRigidsSolver*>(Solver);
 
-			NonConstSolver->Particles.GetDynamicParticles().GetSleepDataLock().ReadLock();
-			auto& SolverSleepingData = NonConstSolver->Particles.GetDynamicParticles().GetSleepData();
-			for(const TSleepData<FReal, 3>& SleepData : SolverSleepingData)
+			const TArray<FPBDRigidParticles*> RelevantParticleArrays = {
+				&NonConstSolver->Particles.GetDynamicParticles(),
+				&NonConstSolver->Particles.GetClusteredParticles(),
+				&NonConstSolver->Particles.GetGeometryCollectionParticles()
+			};
+
+			for (FPBDRigidParticles* ParticleArray : RelevantParticleArrays)
 			{
-				if(SleepData.Particle)
+				check(ParticleArray != nullptr);
+				ParticleArray->GetSleepDataLock().ReadLock();
+				const TArray<TSleepData<FReal, 3>>& SolverSleepingData = ParticleArray->GetSleepData();
+				for (const TSleepData<FReal, 3>& SleepData : SolverSleepingData)
 				{
-					FGeometryParticle* Particle = SleepData.Particle->GTGeometryParticle();
-					if (Particle && SleepData.Particle->PhysicsProxy())
+					if (SleepData.Particle)
 					{
-						int32 NewIdx = EventSleepDataArray.Add(FSleepingData());
-						FSleepingData& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
-						SleepingDataArrayItem.Proxy = SleepData.Particle->PhysicsProxy();
-						SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
+						FGeometryParticle* Particle = SleepData.Particle->GTGeometryParticle();
+						if (Particle && SleepData.Particle->PhysicsProxy())
+						{
+							int32 NewIdx = EventSleepDataArray.Add(FSleepingData());
+							FSleepingData& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
+							SleepingDataArrayItem.Proxy = SleepData.Particle->PhysicsProxy();
+							SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
+						}
 					}
 				}
+				ParticleArray->GetSleepDataLock().ReadUnlock();
+				ParticleArray->ClearSleepData();
 			}
-			NonConstSolver->Particles.GetDynamicParticles().GetSleepDataLock().ReadUnlock();
-
-			NonConstSolver->Particles.GetDynamicParticles().ClearSleepData();
 
 			// We don't care about sleep data added to these
 			NonConstSolver->Particles.GetDynamicKinematicParticles().ClearSleepData();
 			NonConstSolver->Particles.GetDynamicDisabledParticles().ClearSleepData();
-
-			// Sleep data is not supported for these particles yet, clear the buffers here so that we don't leak memory
-			NonConstSolver->Particles.GetClusteredParticles().ClearSleepData();
-			NonConstSolver->Particles.GetGeometryCollectionParticles().ClearSleepData(); 
 		});
 	}
 
