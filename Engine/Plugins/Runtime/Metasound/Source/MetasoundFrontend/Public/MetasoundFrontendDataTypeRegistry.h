@@ -23,7 +23,6 @@ namespace Metasound
 		// Function signature for assigning a FLiteral to a FAnyDataReference 
 		using FLiteralAssignmentFunction = void(*)(const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, const FAnyDataReference& OutDataRef);
 
-
 		/** FDataTypeRegsitryInfo contains runtime inspectable behavior of a registered
 		 * MetaSound data type.
 		 */
@@ -74,6 +73,12 @@ namespace Metasound
 
 			// If provided in registration call, UClass this datatype was registered with.
 			UClass* ProxyGeneratorClass = nullptr;
+
+			// Whether the data type can be created from a UObject proxy. 
+			const bool IsDataTypeProxyParsable() const
+			{
+				return bIsProxyParsable || bIsProxyArrayParsable;
+			}
 		};
 
 		/** Interface for metadata of a registered MetaSound enum type. */

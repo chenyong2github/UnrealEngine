@@ -21,7 +21,7 @@ namespace Metasound
 		public:
 			static FMetasoundFrontendVersionNumber GetMaxVersion()
 			{
-				return FMetasoundFrontendVersionNumber { 1, 10 };
+				return FMetasoundFrontendVersionNumber { 1, 11 };
 			}
 
 			FVersionDocument(FName InName, const FString& InPath);

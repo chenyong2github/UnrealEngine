@@ -485,6 +485,32 @@ namespace Metasound
 			}
 		};
 
+		/** Versions document from 1.10 to 1.11. */
+		class FVersionDocument_1_11 : public FVersionDocumentTransform
+		{
+		public:
+			FVersionDocument_1_11() = default;
+
+			FMetasoundFrontendVersionNumber GetTargetVersion() const override
+			{
+				return { 1, 11 };
+			}
+
+			void TransformInternal(FDocumentHandle InDocument) const override
+			{
+				// Clear object literals on inputs that are connected 
+				// to prevent referencing assets that are not used in the graph
+				InDocument->GetRootGraph()->IterateNodes([](FNodeHandle NodeHandle)
+				{
+					TArray<FInputHandle> NodeInputs = NodeHandle->GetInputs();
+					for (FInputHandle NodeInput : NodeInputs)
+					{
+						NodeInput->ClearConnectedObjectLiterals();
+					}
+				});
+			}
+		};
+
 		FVersionDocument::FVersionDocument(FName InName, const FString& InPath)
 			: Name(InName)
 			, Path(InPath)
@@ -515,6 +541,7 @@ namespace Metasound
 			bWasUpdated |= FVersionDocument_1_8(Name, Path).Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_9(Name, Path).Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_10().Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_11().Transform(InDocument);
 
 			if (bWasUpdated)
 			{

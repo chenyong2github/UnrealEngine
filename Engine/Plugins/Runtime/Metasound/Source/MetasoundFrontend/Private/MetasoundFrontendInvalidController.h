@@ -131,6 +131,8 @@ namespace Metasound
 			virtual bool Connect(IOutputController& InController) override { return false; }
 			virtual bool ConnectWithConverterNode(IOutputController& InController, const FConverterNodeInfo& InNodeClassName) override { return false; }
 			virtual bool Disconnect(IOutputController& InController) override { return false; }
+
+			virtual void ClearConnectedObjectLiterals() override { }
 		protected:
 			virtual FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
 			virtual FConstDocumentAccess ShareAccess() const override { return FConstDocumentAccess(); }

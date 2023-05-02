@@ -294,6 +294,8 @@ namespace Metasound
 						Edge->FromNodeID = InController.GetOwningNodeID();
 						Edge->FromVertexID = InController.GetID();
 
+						ClearConnectedObjectLiterals();
+
 						return true;
 					}
 					else
@@ -388,6 +390,21 @@ namespace Metasound
 			}
 
 			return false;
+		}
+		
+		void FBaseInputController::ClearConnectedObjectLiterals()
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			if (IsConnected())
+			{
+				if (IDataTypeRegistry::Get().GetDataTypeInfo(GetDataType(), DataTypeInfo))
+				{
+					if (DataTypeInfo.IsDataTypeProxyParsable())
+					{
+						ClearLiteral();
+					}
+				}
+			}
 		}
 
 		const FMetasoundFrontendEdge* FBaseInputController::FindEdge() const

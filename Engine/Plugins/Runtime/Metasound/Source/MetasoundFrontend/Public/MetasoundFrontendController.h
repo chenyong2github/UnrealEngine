@@ -407,6 +407,9 @@ namespace Metasound
 			 */
 			virtual bool Disconnect() = 0;
 
+			/** Clear object literals to prevent referencing assets
+			 * on connected inputs that are not used in the graph. */
+			virtual void ClearConnectedObjectLiterals() = 0;
 		};
 
 		/* An INodeController provides methods for querying and manipulating a Metasound node. */

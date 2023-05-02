@@ -233,11 +233,6 @@ namespace Metasound
 			Algo::ForEach(InSubgraphs, GatherRequiredEnvironmentVariablesFromClass);
 		}
 
-		static FMetasoundFrontendVersionNumber GetMaxVersion()
-		{
-			return FMetasoundFrontendVersionNumber{ 1, 10 };
-		}
-
 		const FMetasoundFrontendInterface* FindMostSimilarInterfaceSupportingEnvironment(const FMetasoundFrontendGraphClass& InRootGraph, const TArray<FMetasoundFrontendClass>& InDependencies, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendInterface>& InCandidateInterfaces)
 		{
 			using namespace InterfacePrivate;

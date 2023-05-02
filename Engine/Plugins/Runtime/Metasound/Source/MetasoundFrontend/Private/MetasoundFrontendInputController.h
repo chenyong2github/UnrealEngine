@@ -78,6 +78,8 @@ namespace Metasound
 			virtual bool Disconnect(IOutputController& InController) override;
 			virtual bool Disconnect() override;
 
+			virtual void ClearConnectedObjectLiterals() override;
+
 		protected:
 
 
