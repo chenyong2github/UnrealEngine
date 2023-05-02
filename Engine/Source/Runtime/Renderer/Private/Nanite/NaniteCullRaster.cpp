@@ -325,7 +325,7 @@ static bool UsePrimitiveShader()
 
 static bool TessellationEnabled()
 {
-	return CVarNaniteTessellation.GetValueOnRenderThread() != 0 && NaniteTessellationSupported();
+	return CVarNaniteTessellation.GetValueOnAnyThread() != 0 && NaniteTessellationSupported();
 }
 
 static bool UseAsyncComputeForShadowMaps(const FViewFamilyInfo& ViewFamily)
