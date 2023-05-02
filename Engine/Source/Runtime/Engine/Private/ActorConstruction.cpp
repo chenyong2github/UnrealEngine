@@ -182,6 +182,19 @@ void AActor::DestroyConstructedComponents()
 				}
 			}
 
+			if (!bDestroyComponent)
+			{
+				// check for orphaned natively created components:
+				if (Component->CreationMethod == EComponentCreationMethod::Native && Component->HasAnyFlags(RF_DefaultSubObject))
+				{
+					UObject* ComponentArchetype = Component->GetArchetype();
+					if (ComponentArchetype == ComponentArchetype->GetClass()->ClassDefaultObject)
+					{
+						bDestroyComponent = true;
+					}
+				}
+			}
+
 			if (bDestroyComponent)
 			{
 				if (Component == RootComponent)

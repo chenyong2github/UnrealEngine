@@ -354,36 +354,7 @@ void UActorComponent::PostInitProperties()
 	// Instance components will be added during the owner's initialization
 	if (OwnerPrivate && CreationMethod != EComponentCreationMethod::Instance)
 	{
-		if (!FPlatformProperties::RequiresCookedData() && !OwnerPrivate->GetClass()->bCooked && CreationMethod == EComponentCreationMethod::Native && HasAllFlags(RF_NeedLoad|RF_DefaultSubObject))
-		{
-			UObject* MyArchetype = GetArchetype();
-			if (IsValid(MyArchetype) && MyArchetype != GetClass()->ClassDefaultObject)
-			{
-				OwnerPrivate->AddOwnedComponent(this);
-			}
-			else
-			{
-				// else: this is a natively created component that thinks its archetype is the CDO of
-				// this class, rather than a template component and this isn't the template component.
-				// Delete this stale component
-#if WITH_EDITOR
-				if (HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
-				{
-					// Async loading components cannot be pending kill, or the async loading code will assert when trying to postload them.
-					// Instead, wait until the postload and mark pending kill at that time
-					bMarkPendingKillOnPostLoad = true;
-				}
-				else
-#endif // WITH_EDITOR
-				{
-					MarkAsGarbage();
-				}
-			}
-		}
-		else
-		{
-			OwnerPrivate->AddOwnedComponent(this);
-		}
+		OwnerPrivate->AddOwnedComponent(this);
 	}
 }
 

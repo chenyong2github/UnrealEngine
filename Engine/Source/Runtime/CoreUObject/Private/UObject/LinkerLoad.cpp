@@ -5163,21 +5163,10 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 		// default subobjects; that is, the subobject owner's archetype is expected to also contain a matching default subobject
 		// instance with the same type/name. However, if the instanced subobject is based on an archetype that's owned by
 		// something other than it's owner's archetype (e.g. Blueprint-added component archetypes, which are owned by the
-		// Blueprint class object), such a match would not exist, and the export would then fail to be created below as a result.
+		// Blueprint class object), such a match would not exist.
 		if (Export.bIsInheritedInstance && Template->GetOuter()->IsA<UClass>())
 		{
 			Export.bIsInheritedInstance = false;
-		}
-
-		// If this export was an instance inherited from another class, 
-		// it should not be recreated unless the archetype also has it
-		if (Export.bIsInheritedInstance)
-		{
-			if (FindObjectWithOuter(ThisParent->GetArchetype(), LoadClass, NewName) == nullptr)
-			{
-				Export.bExportLoadFailed = true;
-				return nullptr;
-			}
 		}
 
 		LoadClass->GetDefaultObject();
