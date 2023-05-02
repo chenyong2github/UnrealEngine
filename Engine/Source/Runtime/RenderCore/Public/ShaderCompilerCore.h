@@ -289,8 +289,7 @@ struct FShaderCompilerInput
 		}
 		else
 		{
-			// we skip EntryPointName as it's usually not useful
-			Name = DebugGroupName + TEXT(":") + VirtualSourceFilePath;
+			Name = DebugGroupName + TEXT(":") + VirtualSourceFilePath + TEXT("|") + EntryPointName;
 		}
 
 		return Name;
