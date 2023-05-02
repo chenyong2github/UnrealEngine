@@ -38,6 +38,7 @@ class FMaterialRenderProxy;
 class FGPUScenePrimitiveCollector;
 class FViewInfo;
 template<typename ShaderType, typename PointerTableType> class TShaderRefBase;
+class FSceneUniformBuffer;
 
 namespace Nanite
 {
@@ -710,6 +711,9 @@ public:
 	virtual void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources, bool bWorldChanged) = 0;
 
 	virtual void InitializeSystemTextures(FRHICommandListImmediate& RHICmdList) = 0;
+
+	/** Create a Scene Uniform Buffer containing only the scene representation for a single primitive */
+	virtual FSceneUniformBuffer* CreateSinglePrimitiveSceneUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& SceneView, FMeshBatch& Mesh) = 0;
 
 	/** Draws a tile mesh element with the specified view. */
 	virtual void DrawTileMesh(FCanvasRenderContext& RenderContext, struct FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& View, FMeshBatch& Mesh, bool bIsHitTesting, const class FHitProxyId& HitProxyId, bool bUse128bitRT = false) = 0;
