@@ -271,7 +271,7 @@ AActor* UPCGActorHelpers::SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> A
 	}
 
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.Name = MakeUniqueObjectName(World, ActorClass, BaseName);
+	SpawnParams.Name = MakeUniqueObjectName(World->GetCurrentLevel(), ActorClass, BaseName);
 	SpawnParams.Owner = Parent;
 	AActor* NewActor = World->SpawnActor(*ActorClass, &Transform, SpawnParams);
 	
