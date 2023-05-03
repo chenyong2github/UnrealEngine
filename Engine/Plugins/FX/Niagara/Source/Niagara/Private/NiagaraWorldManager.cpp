@@ -1851,7 +1851,8 @@ void FNiagaraWorldManager::PrimePoolForAllSystems()
 		//Prime the pool for all currently loaded systems.
 		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
 		{
-			if (UNiagaraSystem* Sys = *It)
+			UNiagaraSystem* Sys = *It;
+			if (Sys && Sys->bFullyLoaded)
 			{
 				ComponentPool->PrimePool(Sys, World);
 			}
