@@ -34,7 +34,7 @@ struct RIGVMDEVELOPER_API FRigVMReferenceNodeData
 public:
 	
 	FRigVMReferenceNodeData()
-		:ReferenceNodePath()
+		:ReferenceNodePath(), ReferencedFunctionIdentifier()
 	{}
 
 	FRigVMReferenceNodeData(URigVMFunctionReferenceNode* InReferenceNode);
@@ -45,8 +45,11 @@ public:
 	UPROPERTY(meta=(DeprecatedProperty))
 	FString ReferencedFunctionPath_DEPRECATED;
 	
+	UPROPERTY(meta=(DeprecatedProperty))
+	FRigVMGraphFunctionHeader ReferencedHeader_DEPRECATED;
+
 	UPROPERTY()
-	FRigVMGraphFunctionHeader ReferencedHeader;
+	FRigVMGraphFunctionIdentifier ReferencedFunctionIdentifier;
 
 	TSoftObjectPtr<URigVMFunctionReferenceNode> GetReferenceNodeObjectPath();
 	URigVMFunctionReferenceNode* GetReferenceNode();

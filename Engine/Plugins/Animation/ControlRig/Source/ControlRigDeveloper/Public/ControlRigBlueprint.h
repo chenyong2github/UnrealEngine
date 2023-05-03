@@ -246,6 +246,7 @@ public:
 	virtual void ReplaceDeprecatedNodes() override;
 	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 
 	virtual bool SupportsGlobalVariables() const override { return true; }
 	virtual bool SupportsLocalVariables() const override { return true; }
@@ -446,6 +447,8 @@ protected:
 
 	UPROPERTY(transient, DuplicateTransient)
 	TObjectPtr<URigVMController> TemplateController;
+
+	mutable TArray<FAssetRegistryTag> CachedAssetTags;
 
 #endif
 

@@ -870,6 +870,8 @@ void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 	FunctionReferenceNodeData = GetReferenceNodeData();
 	IAssetRegistry::GetChecked().AssetTagsFinalized(*this);
+
+	CachedAssetTags.Reset();
 }
 
 void UControlRigBlueprint::PostLoad()
@@ -2738,6 +2740,19 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 	// now that the data in the new BP is correct, make sure there is a call to PostLoad()
 	// to complete the loading and get the BP ready, including refresh all models, patch function store, and recompile VM
 	check(HasAnyFlags(RF_NeedPostLoad));
+}
+
+void UControlRigBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	if (CachedAssetTags.IsEmpty())
+	{
+		Super::GetAssetRegistryTags(OutTags);
+		CachedAssetTags = OutTags;
+	}
+	else
+	{
+		OutTags = CachedAssetTags;
+	}
 }
 
 FRigVMGraphModifiedEvent& UControlRigBlueprint::OnModified()

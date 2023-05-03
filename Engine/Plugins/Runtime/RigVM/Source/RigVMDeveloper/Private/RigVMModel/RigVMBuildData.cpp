@@ -20,7 +20,7 @@ FRigVMReferenceNodeData::FRigVMReferenceNodeData(URigVMFunctionReferenceNode* In
 	check(InReferenceNode);
 	ReferenceNodePtr = TSoftObjectPtr<URigVMFunctionReferenceNode>(InReferenceNode);
 	ReferenceNodePath = ReferenceNodePtr.ToString();
-	ReferencedHeader = InReferenceNode->GetReferencedFunctionHeader();
+	ReferencedFunctionIdentifier = InReferenceNode->GetReferencedFunctionHeader().LibraryPointer;
 }
 
 TSoftObjectPtr<URigVMFunctionReferenceNode> FRigVMReferenceNodeData::GetReferenceNodeObjectPath()
@@ -142,9 +142,13 @@ void URigVMBuildData::RegisterReferencesFromAsset(const FAssetData& InAssetData)
 			ReferenceNodeDataProperty->ImportText_Direct(*ReferenceNodeDataString, &ReferenceNodeDatas, nullptr, EPropertyPortFlags::PPF_None);	
 			for(FRigVMReferenceNodeData& ReferenceNodeData : ReferenceNodeDatas)
 			{
-				if (ReferenceNodeData.ReferencedHeader.IsValid())
+				if (ReferenceNodeData.ReferencedFunctionIdentifier.LibraryNode.IsValid())
 				{
-					BuildData->RegisterFunctionReference(ReferenceNodeData.ReferencedHeader.LibraryPointer, ReferenceNodeData.GetReferenceNodeObjectPath());
+					BuildData->RegisterFunctionReference(ReferenceNodeData.ReferencedFunctionIdentifier, ReferenceNodeData.GetReferenceNodeObjectPath());
+				}
+				else if (ReferenceNodeData.ReferencedHeader_DEPRECATED.IsValid())
+				{
+					BuildData->RegisterFunctionReference(ReferenceNodeData.ReferencedHeader_DEPRECATED.LibraryPointer, ReferenceNodeData.GetReferenceNodeObjectPath());
 				}
 				else if (!ReferenceNodeData.ReferencedFunctionPath_DEPRECATED.IsEmpty())
 				{
@@ -236,19 +240,24 @@ void URigVMBuildData::RegisterFunctionReference(const FRigVMGraphFunctionIdentif
 
 void URigVMBuildData::RegisterFunctionReference(FRigVMReferenceNodeData InReferenceNodeData)
 {
-	if (InReferenceNodeData.ReferencedHeader.IsValid())
+	if (InReferenceNodeData.ReferencedFunctionIdentifier.LibraryNode.IsValid())
 	{
-		return RegisterFunctionReference(InReferenceNodeData.ReferencedHeader.LibraryPointer, InReferenceNodeData.GetReferenceNodeObjectPath());
+		return RegisterFunctionReference(InReferenceNodeData.ReferencedFunctionIdentifier, InReferenceNodeData.GetReferenceNodeObjectPath());
 	}
 
-	if (!InReferenceNodeData.ReferencedHeader.LibraryPointer.LibraryNode.IsValid())
+	if (!InReferenceNodeData.ReferencedFunctionIdentifier.LibraryNode.IsValid())
 	{
-		InReferenceNodeData.ReferencedHeader.LibraryPointer.LibraryNode = InReferenceNodeData.ReferencedFunctionPath_DEPRECATED;
+		InReferenceNodeData.ReferencedFunctionIdentifier = InReferenceNodeData.ReferencedHeader_DEPRECATED.LibraryPointer;
+	}
+
+	if (!InReferenceNodeData.ReferencedFunctionIdentifier.LibraryNode.IsValid())
+	{
+		InReferenceNodeData.ReferencedFunctionIdentifier.LibraryNode = InReferenceNodeData.ReferencedFunctionPath_DEPRECATED;
 	}
 	
-	check(InReferenceNodeData.ReferencedHeader.LibraryPointer.LibraryNode.IsValid());
+	check(InReferenceNodeData.ReferencedFunctionIdentifier.LibraryNode.IsValid());
 
-	FSoftObjectPath LibraryNodePath = InReferenceNodeData.ReferencedHeader.LibraryPointer.LibraryNode;
+	FSoftObjectPath LibraryNodePath = InReferenceNodeData.ReferencedFunctionIdentifier.LibraryNode;
 	TSoftObjectPtr<URigVMLibraryNode> LibraryNodePtr = TSoftObjectPtr<URigVMLibraryNode>(LibraryNodePath);
 
 	// Try to find a FunctionIdentifier with the same LibraryNodePath
