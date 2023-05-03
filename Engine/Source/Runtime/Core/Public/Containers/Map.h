@@ -722,7 +722,7 @@ public:
 		OutArray.Empty(Pairs.Num());
 		for (typename ElementSetType::TConstIterator PairIt(Pairs); PairIt; ++PairIt)
 		{
-			new(OutArray) KeyType(PairIt->Key);
+			OutArray.Add(PairIt->Key);
 		}
 	}
 
@@ -736,7 +736,7 @@ public:
 		OutArray.Empty(Pairs.Num());
 		for (typename ElementSetType::TConstIterator PairIt(Pairs); PairIt; ++PairIt)
 		{
-			new(OutArray) ValueType(PairIt->Value);
+			OutArray.Add(PairIt->Value);
 		}
 	}
 
@@ -1408,7 +1408,7 @@ public:
 	{
 		for (typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs, Key); It; ++It)
 		{
-			new(OutValues) ValueType(It->Value);
+			OutValues.Add(It->Value);
 		}
 
 		if (bMaintainOrder)

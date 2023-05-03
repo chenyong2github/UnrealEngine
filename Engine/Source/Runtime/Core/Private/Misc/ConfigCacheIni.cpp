@@ -3002,7 +3002,7 @@ int32 FConfigCacheIni::GetSingleLineArray
 	FString NextToken;
 	while ( FParse::Token(RawString, NextToken, false) )
 	{
-		new(out_Arr) FString(NextToken);
+		out_Arr.Add(MoveTemp(NextToken));
 	}
 	return bValueExisted;
 }
@@ -3312,7 +3312,7 @@ struct FConfigMemoryData
 		SizeIndent = FMath::Max(SizeIndent, FString::FromInt((int32)TotalMem).Len());
 		MaxSizeIndent = FMath::Max(MaxSizeIndent, FString::FromInt((int32)MaxMem).Len());
 		
-		new(MemoryData) FConfigFileMemoryData( ConfigFilename, TotalMem, MaxMem );
+		MemoryData.Emplace( ConfigFilename, TotalMem, MaxMem );
 	}
 
 	void SortBySize()

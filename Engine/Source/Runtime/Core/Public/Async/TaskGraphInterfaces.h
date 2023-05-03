@@ -960,7 +960,7 @@ public:
 	void DontCompleteUntil(FGraphEventRef EventToWaitFor)
 	{
 		checkThreadGraph(!IsComplete()); // it is not legal to add a DontCompleteUntil after the event has been completed. Basically, this is only legal within a task function.
-		new (EventsToWaitFor) FGraphEventRef(EventToWaitFor);
+		EventsToWaitFor.Emplace(EventToWaitFor);
 		TaskTrace::SubsequentAdded(EventToWaitFor->GetTraceId(), GetTraceId());
 	}
 
@@ -1866,7 +1866,7 @@ public:
 			// convert the pointer list to a list of handles
 			for (int32 Index = 0; Index < Pending.Num(); Index++)
 			{
-				new (PendingHandles) FGraphEventRef(Pending[Index]); 
+				PendingHandles.Emplace(Pending[Index]);
 				Pending[Index]->Release(); // remove the ref count we added when we added it to the lock free list
 			}
 			// start a new task that won't complete until all of these tasks have executed, plus any tasks that they create when they run

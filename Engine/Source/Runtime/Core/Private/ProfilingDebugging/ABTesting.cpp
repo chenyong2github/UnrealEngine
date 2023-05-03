@@ -123,7 +123,7 @@ const TCHAR* FABTest::TickAndGetCommand()
 		if (ABTestNumSamples < HistoryNum)
 		{
 			check(ABTestNumSamples == Samples.Num());
-			Sample = new (Samples)FSample();
+			Sample = &Samples.AddDefaulted_GetRef();
 		}
 		else
 		{

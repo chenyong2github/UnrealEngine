@@ -307,12 +307,12 @@ void FCommandLine::Parse(const TCHAR* InCmdLine, TArray<FString>& Tokens, TArray
 	{
 		if ((**NextToken == TCHAR('-')))
 		{
-			new(Switches) FString(NextToken.Mid(1));
-			new(Tokens) FString(NextToken.Right(NextToken.Len() - 1));
+			Switches.Add(NextToken.Mid(1));
+			Tokens.Add(NextToken.Right(NextToken.Len() - 1));
 		}
 		else
 		{
-			new(Tokens) FString(NextToken);
+			Tokens.Add(MoveTemp(NextToken));
 		}
 	}
 }

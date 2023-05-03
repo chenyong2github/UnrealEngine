@@ -1858,22 +1858,22 @@ uint32 FMemoryImageSection::Flatten(FMemoryImageResult& OutResult) const
 	OutResult.VTables.Reserve(OutResult.VTables.Num() + VTables.Num());
 	for (const FMemoryImageVTablePointer& VTable : VTables)
 	{
-		FMemoryImageVTablePointer* ResultVTable = new(OutResult.VTables) FMemoryImageVTablePointer(VTable);
-		ResultVTable->Offset += AlignedOffset;
+		FMemoryImageVTablePointer& ResultVTable = OutResult.VTables.Add_GetRef(VTable);
+		ResultVTable.Offset += AlignedOffset;
 	}
 
 	OutResult.ScriptNames.Reserve(OutResult.ScriptNames.Num() + ScriptNames.Num());
 	for (const FMemoryImageNamePointer& Name : ScriptNames)
 	{
-		FMemoryImageNamePointer* ResultName = new(OutResult.ScriptNames) FMemoryImageNamePointer(Name);
-		ResultName->Offset += AlignedOffset;
+		FMemoryImageNamePointer& ResultName = OutResult.ScriptNames.Add_GetRef(Name);
+		ResultName.Offset += AlignedOffset;
 	}
 
 	OutResult.MemoryImageNames.Reserve(OutResult.MemoryImageNames.Num() + MemoryImageNames.Num());
 	for (const FMemoryImageNamePointer& Name : MemoryImageNames)
 	{
-		FMemoryImageNamePointer* ResultName = new(OutResult.MemoryImageNames) FMemoryImageNamePointer(Name);
-		ResultName->Offset += AlignedOffset;
+		FMemoryImageNamePointer& ResultName = OutResult.MemoryImageNames.Add_GetRef(Name);
+		ResultName.Offset += AlignedOffset;
 	}
 
 	return AlignedOffset;

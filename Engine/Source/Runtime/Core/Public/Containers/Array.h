@@ -2515,7 +2515,7 @@ public:
 		Empty(Number);
 		for (SizeType Index = 0; Index < Number; ++Index)
 		{
-			new(*this) ElementType(Element);
+			Add(Element);
 		}
 	}
 
@@ -3488,7 +3488,7 @@ struct TIsTArray
 //
 // Array operator news.
 //
-template <typename T,typename AllocatorType> void* operator new( size_t Size, TArray<T,AllocatorType>& Array )
+template <typename T,typename AllocatorType> void* operator new(size_t Size, TArray<T, AllocatorType>& Array)
 {
 	check(Size == sizeof(T));
 	const auto Index = Array.AddUninitialized();
@@ -3557,7 +3557,7 @@ struct TArrayPrivateFriend
 				A.Empty(SerializeNum);
 				for (SizeType i=0; i<SerializeNum; i++)
 				{
-					Ar << *::new(A) ElementType;
+					Ar << A.AddDefaulted_GetRef();
 				}
 			}
 			else
@@ -3572,7 +3572,7 @@ struct TArrayPrivateFriend
 
 			for (SizeType i=0; i<SerializeNum; i++)
 			{
-				Ar << *::new(A) ElementType;
+				Ar << A.AddDefaulted_GetRef();
 			}
 		}
 		else

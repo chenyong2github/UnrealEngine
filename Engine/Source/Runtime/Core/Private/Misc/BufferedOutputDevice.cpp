@@ -13,7 +13,7 @@ void FBufferedOutputDevice::Serialize(const TCHAR* InData, ELogVerbosity::Type V
 	}
 
 	FScopeLock ScopeLock(&SynchronizationObject);
-	new(BufferedLines) FBufferedLine(InData, Category, Verbosity);
+	BufferedLines.Emplace(InData, Category, Verbosity);
 }
 
 void FBufferedOutputDevice::GetContents(TArray<FBufferedLine>& DestBuffer)
