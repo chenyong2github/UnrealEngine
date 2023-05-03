@@ -512,6 +512,12 @@ void FInstancedStructDetails::OnStructPicked(const UScriptStruct* InStruct)
 
 		StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 		StructProperty->NotifyFinishedChangingProperties();
+
+		// Property tree will be invalid after changing the struct type, force update.
+		if (PropUtils.IsValid())
+		{
+			PropUtils->ForceRefresh();
+		}
 	}
 
 	ComboButton->SetIsOpen(false);
