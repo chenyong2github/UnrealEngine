@@ -9,7 +9,7 @@
 #include "GameFramework/PlayerController.h"
 #include "DefaultXRLoadingScreen.h"
 #include "UObject/UObjectHash.h"
-
+#include "GameFramework/WorldSettings.h"
 
 // Tracking system delegates
 FXRTrackingSystemDelegates::FXRTrackingOriginChanged FXRTrackingSystemDelegates::OnXRTrackingOriginChanged;
@@ -203,7 +203,39 @@ const TSharedPtr<const FARSupportInterface , ESPMode::ThreadSafe> FXRTrackingSys
 
 FTransform FXRTrackingSystemBase::RefreshTrackingToWorldTransform(FWorldContext& WorldContext)
 {
-	CachedTrackingToWorld = ComputeTrackingToWorldTransform(WorldContext);
+	FTransform NewTrackingToWorld = ComputeTrackingToWorldTransform(WorldContext);
+
+	bool bForcePinUpdate = false;
+
+	if (!NewTrackingToWorld.Equals(CachedTrackingToWorld))
+	{
+		CachedTrackingToWorld = NewTrackingToWorld;
+		bForcePinUpdate = true;
+	}
+
+	const AWorldSettings* const WorldSettings = WorldContext.World() ? WorldContext.World()->GetWorldSettings() : nullptr;
+	if (WorldSettings)
+	{
+		float NewWorldToMetersScale = WorldSettings->WorldToMeters;
+		static float CachedWorldToMetersScale = 100.0f;
+		if (NewWorldToMetersScale != CachedWorldToMetersScale)
+		{
+			CachedWorldToMetersScale = NewWorldToMetersScale;
+			bForcePinUpdate = true;
+		}
+	}
+
+	if (bForcePinUpdate)
+	{
+		// Setting the alignment transform forces all pins to update their unreal world transforms.
+		auto ARSystem = TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe>{ StaticCastSharedPtr<FXRTrackingSystemBase>(GEngine->XRSystem)->GetARCompositionComponent() };
+		if (ARSystem.IsValid())
+		{
+			FARSupportInterface* ARSI = ARSystem.Get();
+			ARSI->SetAlignmentTransform(ARSI->GetAlignmentTransform());
+		}
+	}
+
 	return CachedTrackingToWorld;
 }
 

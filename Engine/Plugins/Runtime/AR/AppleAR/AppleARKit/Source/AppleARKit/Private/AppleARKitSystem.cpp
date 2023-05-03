@@ -564,8 +564,8 @@ bool FAppleARKitSystem::OnStartGameFrame(FWorldContext& WorldContext)
 {
 	FXRTrackingSystemBase::OnStartGameFrame(WorldContext);
 	
-	CachedTrackingToWorld = ComputeTrackingToWorldTransform(WorldContext);
-	
+	RefreshTrackingToWorldTransform(WorldContext);
+
 	if (GameThreadFrame.IsValid())
 	{
 		if (GameThreadFrame->LightEstimate.bIsValid)

@@ -128,7 +128,7 @@ bool FGoogleARCoreXRTrackingSystem::OnStartGameFrame(FWorldContext& WorldContext
 			CurrentPose = ARCoreDeviceInstance->GetLatestPose();
 			CurrentPose *= GetARCompositionComponent()->GetAlignmentTransform();
 			bHasValidPose = true;
-			CachedTrackingToWorld = ComputeTrackingToWorldTransform(WorldContext);
+			RefreshTrackingToWorldTransform(WorldContext);
 		}
 
 		if (bHasValidPose)
