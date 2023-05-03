@@ -856,6 +856,9 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 	{
 		if (uint32 InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(Handle))
 		{
+			// From here we call into user code via PreUpdateInstanceFunction, so allow external code to set dirty flags since DirtyObjects is not read anymore.
+			ReplicationSystemInternal->GetDirtyNetObjectTracker().AllowExternalAccess();
+
 			UpdateAndPollFunction(InternalObjectIndex);
 		}
 
