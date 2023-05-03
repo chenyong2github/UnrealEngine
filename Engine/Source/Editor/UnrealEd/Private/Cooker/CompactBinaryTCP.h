@@ -21,6 +21,11 @@ class FCompactBinaryTCPImpl;
 struct FReceiveBuffer;
 struct FSendBuffer;
 
+// Our Socket API restricts us to int32 Count field (Max == 1 << 31 - 1), but we further
+// restrict that by a factor of two to prevent impact from any OS limitations less than that
+// and to allow room for the 16 byte PacketHeader.
+constexpr uint64 MaxOSPacketSize = (1 << 30) - 1;
+
 enum EConnectionStatus
 {
 	/** Connection is still okay or operation succeeded. */

@@ -299,7 +299,7 @@ struct RENDERCORE_API FShaderLibraryCooker
 
 #if WITH_EDITOR
 	/** Called from a CookWorker to send all contents of the ShaderLibrary to the CookDirector */
-	static void CopyToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData);
+	static void CopyToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData, bool& bOutRanOutOfRoom, int64 MaxShaderSize);
 
 	/** Called On the CookDirector to receive ShaderLibrary contents from a CookWorker */
 	static bool AppendFromCompactBinary(FCbFieldView Field);

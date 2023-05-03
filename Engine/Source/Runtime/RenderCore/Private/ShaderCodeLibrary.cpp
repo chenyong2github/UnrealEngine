@@ -1382,12 +1382,8 @@ struct FEditorShaderCodeArchive
 		return bHasCopiedAndCleared ? !ShaderMapsToCopy.IsEmpty() : !SerializedShaders.ShaderMapHashes.IsEmpty();
 	}
 
-	void CopyToCompactBinaryAndClear(FCbWriter& Writer)
+	void CopyToCompactBinary(FCbWriter& Writer, FSerializedShaderArchive& TransferArchive, TArray<uint8>& TransferCode)
 	{
-		FSerializedShaderArchive TransferArchive;
-		TArray<uint8> TransferCode;
-		CopyToArchiveAndClear(TransferArchive, TransferCode);
-
 		Writer.BeginObject();
 		Writer << "SerializedShaders" << TransferArchive;
 		Writer << "ShaderCode";
@@ -1408,8 +1404,10 @@ struct FEditorShaderCodeArchive
 		return AppendFromArchive(MoveTemp(TransferArchive), TransferCode, CodeStats);
 	}
 
-	void CopyToArchiveAndClear(FSerializedShaderArchive& TargetArchive, TArray<uint8>& TargetFlatShaderCode)
+	void CopyToArchiveAndClear(FSerializedShaderArchive& TargetArchive, TArray<uint8>& TargetFlatShaderCode,
+		bool& bOutRanOutOfRoom, int64 MaxShaderSize, int64 MaxShaderCount)
 	{
+		bOutRanOutOfRoom = false;
 		if (!bHasCopiedAndCleared)
 		{
 			// First CopyAndClear adds all shadermaps to ShaderMapsToCopy, because as an optimization we do not write to
@@ -1422,6 +1420,7 @@ struct FEditorShaderCodeArchive
 
 		TArray<int32> LocalShaderMapsToCopy = ShaderMapsToCopy.Array();
 		LocalShaderMapsToCopy.Sort(); // Maintain the same order that the shadermaps were added in
+		int32 NumShadersSentWithCode = 0;
 
 		const FSerializedShaderArchive& SourceArchive = this->SerializedShaders;
 		TArray<TArray<uint8>>& SourceShaderCodes = this->ShaderCode;
@@ -1453,6 +1452,10 @@ struct FEditorShaderCodeArchive
 				TargetArchive.ShaderIndices[TargetEntry.ShaderIndicesOffset + ShaderIndexIndex] = TargetShaderIndex;
 				if (bIsNewShader)
 				{
+					// We rely on the index of the newly added shader being at the end of the list of ShaderEntries,
+					// so we can pop off the added index if we overflow below
+					check(TargetShaderIndex == TargetArchive.ShaderEntries.Num() - 1);
+
 					const FShaderCodeEntry& SourceShaderEntry = SourceArchive.ShaderEntries[SourceShaderIndex];
 					TArray<uint8>& SourceShaderCode = SourceShaderCodes[SourceShaderIndex];
 					FShaderCodeEntry& TargetShaderEntry = TargetArchive.ShaderEntries[TargetShaderIndex];
@@ -1462,6 +1465,23 @@ struct FEditorShaderCodeArchive
 					{
 						TargetShaderEntry.Offset = TargetFlatShaderCode.Num();
 						check(SourceShaderEntry.Size == SourceShaderCode.Num());
+						if ((MaxShaderSize > 0 && TargetFlatShaderCode.Num() + SourceShaderCode.Num() > MaxShaderSize) ||
+							(MaxShaderCount > 0 && NumShadersSentWithCode > MaxShaderCount))
+						{
+							// We have to stop here to avoid overflowing the shader limit. Send the shaders we have accumulated
+							// but do not send&clear any other data.
+							// Remove all ShaderMap data
+							TargetArchive.EmptyShaderMaps();
+							// Remove the ShaderEntry we just added; we are not adding its code so we have to remove it from the
+							// list of shaders contained by the targetarchive
+							check(TargetShaderIndex == TargetArchive.ShaderHashes.Num() - 1);
+							TargetArchive.RemoveLastAddedShader();
+							bOutRanOutOfRoom = true;
+							// Keep any shaders we added before the one we just added
+							return;
+						}
+						++NumShadersSentWithCode;
+
 						TargetFlatShaderCode.Append(SourceShaderCode);
 
 						// Empty the ShaderCode to save memory in the local process. The consumer of the TargetArchive and
@@ -1472,7 +1492,6 @@ struct FEditorShaderCodeArchive
 					{
 						// The shadercode was already copied in an earlier CopyAndClear operation; we just need to note that
 						// ShaderMaps in this call to CopyAndClear reference it.
-						check(bHasCopiedAndCleared);
 						TargetShaderEntry.Offset = INDEX_NONE;
 					}
 				}
@@ -1490,6 +1509,54 @@ struct FEditorShaderCodeArchive
 		FSerializedShaderArchive& TargetArchive = this->SerializedShaders;
 		TArray<TArray<uint8>>& TargetShaderCodes = this->ShaderCode;
 
+		// Add all the shaders; we can sometimes get messages that send the shaders in advance without sending the shadermaps that use them
+		for (int32 SourceShaderIndex = 0; SourceShaderIndex < SourceArchive.ShaderHashes.Num(); ++SourceShaderIndex)
+		{
+			const FSHAHash& SourceShaderHash = SourceArchive.ShaderHashes[SourceShaderIndex];
+			int32 TargetShaderIndex = INDEX_NONE;
+			const bool bShaderIsNew = TargetArchive.FindOrAddShader(SourceShaderHash, TargetShaderIndex);
+			if (!bShaderIsNew)
+			{
+				continue;
+			}
+			check(TargetShaderIndex == TargetArchive.ShaderEntries.Num() - 1 &&
+				TargetShaderCodes.Num() == TargetArchive.ShaderEntries.Num() - 1);
+			TArray<uint8>& TargetShaderCode = TargetShaderCodes.Emplace_GetRef();
+
+			const FShaderCodeEntry& SourceShaderEntry = SourceArchive.ShaderEntries[SourceShaderIndex];
+			FShaderCodeEntry& TargetShaderEntry = TargetArchive.ShaderEntries[TargetShaderIndex];
+			TargetShaderEntry = SourceShaderEntry;
+			TargetShaderEntry.Offset = 0;
+
+			CodeStats.NumUniqueShaders++;
+			CodeStats.ShadersUniqueSize += SourceShaderEntry.Size;
+
+			if (SourceShaderEntry.Offset == INDEX_NONE)
+			{
+				UE_LOG(LogShaderLibrary, Error, TEXT("ShaderMapLibrary transfer received from a remote machine has incomplete record for Shader %s. ")
+					TEXT("The remote machine thought this machine already had the shader and did not send the ShaderCode for the Shader, but the shader is not found. ")
+					TEXT("The ShaderMaps using the shader will be corrupt."),
+					*SourceShaderHash.ToString());
+				bOk = false;
+				TargetShaderEntry.Size = 0;
+			}
+			else if (SourceShaderEntry.Offset + SourceShaderEntry.Size > static_cast<uint64>(SourceFlatShaderCode.Num()))
+			{
+				UE_LOG(LogShaderLibrary, Error, TEXT("ShaderMapLibrary transfer received from a remote machine has corrupt record for Shader %s. ")
+					TEXT("The (Offset, Size) specified by the ShaderEntry does not fit in the TransferCode (an array of bytes that should contain the shader code for all transferred shaders. ")
+					TEXT("The ShaderMaps using the shader will be corrupt."),
+					*SourceShaderHash.ToString());
+				bOk = false;
+				TargetShaderEntry.Size = 0;
+			}
+			else
+			{
+				const TConstArrayView<uint8> SourceShaderCode(SourceFlatShaderCode.GetData() + SourceShaderEntry.Offset, SourceShaderEntry.Size);
+				TargetShaderCode = SourceShaderCode; // Copy from source's flat list to the target's separate TArray<uint8> for each shader
+			}
+		}
+
+		// Add all the shadermaps
 		for (int32 SourceShaderMapIndex = 0; SourceShaderMapIndex < SourceArchive.ShaderMapHashes.Num(); ++SourceShaderMapIndex)
 		{
 			const FSHAHash& SourceShaderMapHash = SourceArchive.ShaderMapHashes[SourceShaderMapIndex];
@@ -1517,46 +1584,8 @@ struct FEditorShaderCodeArchive
 				int32 TargetShaderIndex;
 				const bool bShaderIsNew = TargetArchive.FindOrAddShader(SourceShaderHash, TargetShaderIndex);
 				TargetArchive.ShaderIndices[TargetEntry.ShaderIndicesOffset + ShaderIndexIndex] = TargetShaderIndex;
-				if (!bShaderIsNew)
-				{
-					// Shader has already been loaded for another ShaderMap
-					continue;
-				}
-				check(TargetShaderIndex == TargetArchive.ShaderEntries.Num() - 1 &&
-					TargetShaderCodes.Num() == TargetArchive.ShaderEntries.Num() - 1);
-				TArray<uint8>& TargetShaderCode = TargetShaderCodes.Emplace_GetRef();
-
-				const FShaderCodeEntry& SourceShaderEntry = SourceArchive.ShaderEntries[SourceShaderIndex];
-				FShaderCodeEntry& TargetShaderEntry = TargetArchive.ShaderEntries[TargetShaderIndex];
-				TargetShaderEntry = SourceShaderEntry;
-				TargetShaderEntry.Offset = 0;
-
-				CodeStats.NumUniqueShaders++;
-				CodeStats.ShadersUniqueSize += SourceShaderEntry.Size;
-
-				if (SourceShaderEntry.Offset == INDEX_NONE)
-				{
-					UE_LOG(LogShaderLibrary, Error, TEXT("ShaderMapLibrary transfer received from a remote machine has incomplete record for ShaderMap %s, Shader %s. ")
-						TEXT("The remote machine thought this machine already had the shader and did not send the ShaderCode for the Shader, but the shader is not found. ")
-						TEXT("The ShaderMap will be corrupt."),
-						*SourceShaderMapHash.ToString(), *SourceShaderHash.ToString());
-					bOk = false;
-					TargetShaderEntry.Size = 0;
-				}
-				else if (SourceShaderEntry.Offset + SourceShaderEntry.Size > static_cast<uint64>(SourceFlatShaderCode.Num()))
-				{
-					UE_LOG(LogShaderLibrary, Error, TEXT("ShaderMapLibrary transfer received from a remote machine has corrupt record for ShaderMap %s, Shader %s. ")
-						TEXT("The (Offset, Size) specified by the ShaderEntry does not fit in the TransferCode (an array of bytes that should contain the shader code for all transferred shaders. ")
-						TEXT("The ShaderMap will be corrupt."),
-						*SourceShaderMapHash.ToString(), *SourceShaderHash.ToString());
-					bOk = false;
-					TargetShaderEntry.Size = 0;
-				}
-				else
-				{
-					const TConstArrayView<uint8> SourceShaderCode(SourceFlatShaderCode.GetData() + SourceShaderEntry.Offset, SourceShaderEntry.Size);
-					TargetShaderCode = SourceShaderCode; // Copy from source's flat list to the target's separate TArray<uint8> for each shader
-				}
+				// Every shader in the SourceArchive should have already been added by the loop above over SourceArchive.ShaderHashes
+				check(!bShaderIsNew);
 			}
 
 			CodeStats.NumShaders += TargetEntry.NumShaders; // Sum of shader counts used by each ShaderMap, without removing duplicates
@@ -2919,8 +2948,10 @@ public:
 	}
 
 #if WITH_EDITOR
-	void CopyToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData)
+	void CopyToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData, bool& bOutRanOutOfRoom, int64 MaxShaderSize)
 	{
+		bOutRanOutOfRoom = false;
+
 		TArray<EShaderPlatform, TInlineAllocator<10>> PlatformsToCopy;
 		FScopeLock ScopeLock(&ShaderCodeCS);
 		for (EShaderPlatform Platform = (EShaderPlatform)0; Platform < (EShaderPlatform)UE_ARRAY_COUNT(EditorShaderCodeStats);
@@ -2940,9 +2971,14 @@ public:
 			return;
 		}
 		bOutHasData = true;
+		int64 RemainingSize = MaxShaderSize;
 		Writer.BeginArray();
 		for (EShaderPlatform Platform : PlatformsToCopy)
 		{
+			if (bOutRanOutOfRoom)
+			{
+				break;
+			}
 			Writer.BeginObject();
 			{
 				Writer << "Platform" << (uint32)Platform;
@@ -2951,10 +2987,32 @@ public:
 
 				if ((CodeArchive && CodeArchive->HasDataToCopy()))
 				{
-					Writer.SetName("EditorShaderCodeArchive");
-					CodeArchive->CopyToCompactBinaryAndClear(Writer);
+					FSerializedShaderArchive TransferArchive;
+					TArray<uint8> TransferCode;
+					int64 MaxShaderSizeThisCall = RemainingSize;
+					int64 MaxShaderCount = -1;
+					bool bRanOutOfRoom;
+					CodeArchive->CopyToArchiveAndClear(TransferArchive, TransferCode, bRanOutOfRoom, MaxShaderSizeThisCall, MaxShaderCount);
+					bOutRanOutOfRoom |= bRanOutOfRoom;
+					if (bRanOutOfRoom && TransferCode.IsEmpty() && RemainingSize == MaxShaderSize)
+					{
+						UE_LOG(LogShaderLibrary, Error,
+							TEXT("MaxShaderSize %" INT64_FMT " is too small to read even a single shader. We will ignore it and allow uncapped size, which will possibly cause an overflow in the caller."),
+							MaxShaderSize);
+						MaxShaderSizeThisCall = -1;
+						MaxShaderCount = 1;
+						TransferArchive.Empty();
+						CodeArchive->CopyToArchiveAndClear(TransferArchive, TransferCode, bRanOutOfRoom, MaxShaderSizeThisCall, MaxShaderCount);
+					}
+					if (!TransferArchive.IsEmpty())
+					{
+						RemainingSize -= TransferCode.Num();
+						Writer.SetName("EditorShaderCodeArchive");
+						CodeArchive->CopyToCompactBinary(Writer, TransferArchive, TransferCode);
+					}
+
 				}
-				if (StableInfo && StableInfo->HasDataToCopy())
+				if (!bOutRanOutOfRoom && StableInfo && StableInfo->HasDataToCopy())
 				{
 					Writer.SetName("EditorShaderStableInfo");
 					StableInfo->CopyToCompactBinary(Writer);
@@ -3630,11 +3688,13 @@ bool FShaderLibraryCooker::AddShaderCode(EShaderPlatform ShaderPlatform, const F
 }
 
 #if WITH_EDITOR
-void FShaderLibraryCooker::CopyToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData)
+void FShaderLibraryCooker::CopyToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData,
+	bool& bOutRanOutOfRoom, int64 MaxShaderSize)
 {
 	if (FShaderLibrariesCollection::Impl)
 	{
-		FShaderLibrariesCollection::Impl->CopyToCompactBinaryAndClear(Writer, bOutHasData);
+		FShaderLibrariesCollection::Impl->CopyToCompactBinaryAndClear(Writer, bOutHasData,
+			bOutRanOutOfRoom, MaxShaderSize);
 	}
 }
 

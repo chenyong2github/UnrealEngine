@@ -8542,26 +8542,45 @@ public:
 	virtual void ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message) override;
 
 	static FGuid MessageType;
+	static constexpr ANSICHAR RootObjectID[2]{ "S" };
 };
 FGuid FShaderLibraryCollector::MessageType(TEXT("4DF3B36BBA2F4E04A846E894E24EB2C4"));
 
 void FShaderLibraryCollector::ClientTick(FMPCollectorClientTickContext& Context)
 {
-	FCbWriter Writer;
-	bool bHasData;
-	Writer.BeginObject();
-	Writer.SetName("S");
-	FShaderLibraryCooker::CopyToCompactBinaryAndClear(Writer, bHasData);
-	if (bHasData)
+	constexpr int32 NumLoopsPerWarning = 100;
+	for (int32 NumMessages = 0; ; ++NumMessages)
 	{
-		Writer.EndObject();
-		Context.AddMessage(Writer.Save().AsObject());
+		// Maximum size for a message is 1GB. Caller will crash if we go over that.
+		// Provide a maximum shader size of half that because CopyToCompactBinaryAndClear adds on additional
+		// small amounts of data beyond the shader size limit.
+		const int64 MaximumSize = UE::CompactBinaryTCP::MaxOSPacketSize / 2;
+
+		bool bHasData;
+		bool bRanOutOfRoom;
+		FCbWriter Writer;
+		Writer.BeginObject();
+		Writer.SetName(RootObjectID);
+		FShaderLibraryCooker::CopyToCompactBinaryAndClear(Writer, bHasData, bRanOutOfRoom, MaximumSize);
+		if (bHasData)
+		{
+			Writer.EndObject();
+			Context.AddMessage(Writer.Save().AsObject());
+		}
+		if (!bRanOutOfRoom)
+		{
+			break;
+		}
+		if (NumMessages > 0 && NumMessages % NumLoopsPerWarning == 0)
+		{
+			UE_LOG(LogCook, Warning, TEXT("FShaderLibraryCollector::ClientTick has an unexpectedly high number of loops. Infinite loop?"))
+		}
 	}
 }
 
 void FShaderLibraryCollector::ServerReceiveMessage(FMPCollectorServerMessageContext& Context, FCbObjectView Message)
 {
-	bool bSuccessful = FShaderLibraryCooker::AppendFromCompactBinary(Message["S"]);
+	bool bSuccessful = FShaderLibraryCooker::AppendFromCompactBinary(Message[RootObjectID]);
 	UE_CLOG(!bSuccessful, LogCook, Error,
 		TEXT("Corrupt message received from CookWorker when replicating ShaderLibrary. Shaders will be missing from the cook."));
 }

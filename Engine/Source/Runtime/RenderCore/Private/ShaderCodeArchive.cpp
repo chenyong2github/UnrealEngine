@@ -162,6 +162,16 @@ bool FSerializedShaderArchive::FindOrAddShader(const FSHAHash& Hash, int32& OutI
 	return false;
 }
 
+void FSerializedShaderArchive::RemoveLastAddedShader()
+{
+	check(!ShaderEntries.IsEmpty() && ShaderEntries.Num() == ShaderHashes.Num());
+	int32 ShaderIndex = ShaderEntries.Num() - 1;
+	const uint32 Key = GetTypeHash(ShaderHashes[ShaderIndex]);
+	ShaderHashTable.Remove(Key, ShaderIndex);
+	ShaderHashes.RemoveAt(ShaderIndex);
+	ShaderEntries.RemoveAt(ShaderIndex);
+}
+
 #if WITH_EDITOR
 FCbWriter& operator<<(FCbWriter& Writer, const FSerializedShaderArchive& Archive)
 {

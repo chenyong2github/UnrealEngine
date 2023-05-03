@@ -156,17 +156,23 @@ public:
 
 	void Empty()
 	{
+		EmptyShaderMaps();
+
 		ShaderHashes.Empty();
 		ShaderEntries.Empty();
+		ShaderHashTable.Clear();
+	}
+
+	void EmptyShaderMaps()
+	{
 		ShaderMapHashes.Empty();
 		ShaderMapEntries.Empty();
 		PreloadEntries.Empty();
 		ShaderIndices.Empty();
 		ShaderMapHashTable.Clear();
-		ShaderHashTable.Clear();
 #if WITH_EDITOR
 		ShaderCodeToAssets.Empty();
-#endif // WITH_EDITOR
+#endif
 	}
 
 	int32 GetNumShaderMaps() const
@@ -179,6 +185,15 @@ public:
 		return ShaderEntries.Num();
 	}
 
+	bool IsEmpty() const
+	{
+		return ShaderMapEntries.IsEmpty() && ShaderEntries.IsEmpty() && PreloadEntries.IsEmpty()
+#if WITH_EDITOR
+			&& ShaderCodeToAssets.IsEmpty()
+#endif
+			;
+	}
+
 	int32 FindShaderMapWithKey(const FSHAHash& Hash, uint32 Key) const;
 	int32 FindShaderMap(const FSHAHash& Hash) const;
 	bool FindOrAddShaderMap(const FSHAHash& Hash, int32& OutIndex, const FShaderMapAssetPaths* AssociatedAssets);
@@ -186,6 +201,7 @@ public:
 	int32 FindShaderWithKey(const FSHAHash& Hash, uint32 Key) const;
 	int32 FindShader(const FSHAHash& Hash) const;
 	bool FindOrAddShader(const FSHAHash& Hash, int32& OutIndex);
+	void RemoveLastAddedShader();
 
 	void DecompressShader(int32 Index, const TArray<TArray<uint8>>& ShaderCode, TArray<uint8>& OutDecompressedShader) const;
 
