@@ -346,6 +346,9 @@ void UNiagaraComponentPool::PrimePool(UNiagaraSystem* Template, UWorld* World)
 			for (auto& Comp : NewComps)
 			{
 				Comp = Pool.Acquire(World, Template, ENCPoolMethod::ManualRelease, true);//Force the pool to create a new system.
+#if ENABLE_NC_POOL_DEBUGGING
+				InUseComponents_Manual.Add(Comp);
+#endif
 				Comp->InitializeSystem();
 	
 				if(GNiagaraKeepPooledComponentsRegistered)
