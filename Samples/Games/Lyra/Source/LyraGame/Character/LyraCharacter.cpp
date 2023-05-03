@@ -186,6 +186,11 @@ ULyraAbilitySystemComponent* ALyraCharacter::GetLyraAbilitySystemComponent() con
 
 UAbilitySystemComponent* ALyraCharacter::GetAbilitySystemComponent() const
 {
+	if (PawnExtComponent == nullptr)
+	{
+		return nullptr;
+	}
+
 	return PawnExtComponent->GetLyraAbilitySystemComponent();
 }
 
