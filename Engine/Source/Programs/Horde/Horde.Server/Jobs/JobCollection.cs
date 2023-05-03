@@ -783,6 +783,48 @@ namespace Horde.Server.Jobs
 			return await TryUpdateAsync(jobDocument, updates);
 		}
 
+		/// <summary>
+		/// Marks a node for retry and - if it's a skipped node - all of the nodes that caused it to be skipped
+		/// </summary>
+		static void RetryNodesRecursive(JobDocument jobDocument, IGraph graph, int groupIdx, int nodeIdx, UserId retryByUserId, List<UpdateDefinition<JobDocument>> updates)
+		{
+			HashSet<NodeRef> retryNodes = new HashSet<NodeRef>();
+			retryNodes.Add(new NodeRef(groupIdx, nodeIdx));
+
+			UpdateDefinitionBuilder<JobDocument> updateBuilder = Builders<JobDocument>.Update;
+			for (int batchIdx = jobDocument.Batches.Count - 1; batchIdx >= 0; batchIdx--)
+			{
+				JobStepBatchDocument batch = jobDocument.Batches[batchIdx];
+				for (int stepIdx = batch.Steps.Count - 1; stepIdx >= 0; stepIdx--)
+				{
+					JobStepDocument step = batch.Steps[stepIdx];
+
+					NodeRef nodeRef = new NodeRef(batch.GroupIdx, step.NodeIdx);
+					if (retryNodes.Remove(nodeRef))
+					{
+						if (step.State == JobStepState.Skipped)
+						{
+							// Add all the dependencies to be retried
+							NodeRef[] dependencies = graph.GetNode(nodeRef).InputDependencies;
+							retryNodes.UnionWith(dependencies);
+						}
+						else
+						{
+							// Retry this step
+							int lambdaBatchIdx = batchIdx;
+							int lambdaStepIdx = stepIdx;
+
+							step.Retry = true;
+							updates.Add(updateBuilder.Set(x => x.Batches[lambdaBatchIdx].Steps[lambdaStepIdx].Retry, true));
+
+							step.RetriedByUserId = retryByUserId;
+							updates.Add(updateBuilder.Set(x => x.Batches[lambdaBatchIdx].Steps[lambdaStepIdx].RetriedByUserId, step.RetriedByUserId));
+						}
+					}
+				}
+			}
+		}
+
 		/// <inheritdoc/>
 		public Task<IJob?> TryUpdateStepAsync(IJob job, IGraph graph, SubResourceId batchId, SubResourceId stepId, JobStepState newState, JobStepOutcome newOutcome, JobStepError? newError, bool? newAbortRequested, UserId? newAbortByUserId, LogId? newLogId, ObjectId? newNotificationTriggerId, UserId? newRetryByUserId, Priority? newPriority, List<Report>? newReports, Dictionary<string, string?>? newProperties)
 		{
@@ -887,12 +929,7 @@ namespace Horde.Server.Jobs
 							// Update the retry flag
 							if (newRetryByUserId != null && step.RetriedByUserId == null)
 							{
-								step.Retry = true;
-								updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].Retry, true));
-
-								step.RetriedByUserId = newRetryByUserId;
-								updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].RetriedByUserId, step.RetriedByUserId));
-
+								RetryNodesRecursive(jobDocument, graph, batch.GroupIdx, step.NodeIdx, newRetryByUserId.Value, updates);
 								refreshBatches = true;
 							}
 

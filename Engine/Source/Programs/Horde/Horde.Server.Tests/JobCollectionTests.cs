@@ -483,6 +483,74 @@ namespace Horde.Server.Tests
 		}
 
 		[TestMethod]
+		public async Task RetryDownstreamStepAsync()
+		{
+			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
+			templateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
+
+			List<NewGroup> newGroups = new List<NewGroup>();
+
+			NewGroup group = AddGroup(newGroups);
+			AddNode(group, "Step 1", null);
+			AddNode(group, "Step 2", new[] { "Step 1" });
+			AddNode(group, "Step 3", new[] { "Step 2" });
+
+			IGraph graph = await GraphCollection.AppendAsync(null, newGroups, null, null);
+
+			CreateJobOptions options = new CreateJobOptions();
+			options.Arguments.Add("-Target=Step 3");
+
+			IJob job = await JobCollection.AddAsync(JobId.GenerateNewId(), new StreamId("ue4-main"), new TemplateId("test-build"), ContentHash.SHA1("hello"), graph, "Test job", 123, 123, options);
+
+			// Fail the first step
+			job = await StartBatch(job, graph, 0);
+			job = await RunStep(job, graph, 0, 0, JobStepOutcome.Failure);
+
+			Assert.AreEqual(1, job.Batches.Count);
+			Assert.AreEqual(3, job.Batches[0].Steps.Count);
+
+			IJobStep step = job.Batches[0].Steps[0];
+			Assert.AreEqual(0, step.NodeIdx);
+			Assert.AreEqual(JobStepState.Completed, step.State);
+			Assert.AreEqual(JobStepOutcome.Failure, step.Outcome);
+
+			step = job.Batches[0].Steps[1];
+			Assert.AreEqual(1, step.NodeIdx);
+			Assert.AreEqual(JobStepState.Skipped, step.State);
+			Assert.AreEqual(JobStepOutcome.Failure, step.Outcome);
+
+			step = job.Batches[0].Steps[2];
+			Assert.AreEqual(2, step.NodeIdx);
+			Assert.AreEqual(JobStepState.Skipped, step.State);
+			Assert.AreEqual(JobStepOutcome.Failure, step.Outcome);
+
+			// Retry the last failed step. All the failed upstream steps should run again.
+			job = Deref(await JobCollection.TryUpdateStepAsync(job, graph, job.Batches[0].Id, job.Batches[0].Steps[2].Id, newRetryByUserId: UserId.Anonymous));
+			Assert.AreEqual(1, job.Batches.Count);
+			Assert.AreEqual(4, job.Batches[0].Steps.Count);
+
+			step = job.Batches[0].Steps[0];
+			Assert.AreEqual(0, step.NodeIdx);
+			Assert.AreEqual(JobStepState.Completed, step.State);
+			Assert.AreEqual(JobStepOutcome.Failure, step.Outcome);
+
+			step = job.Batches[0].Steps[1];
+			Assert.AreEqual(0, step.NodeIdx);
+			Assert.AreEqual(JobStepState.Ready, step.State);
+			Assert.AreEqual(JobStepOutcome.Success, step.Outcome);
+
+			step = job.Batches[0].Steps[2];
+			Assert.AreEqual(1, step.NodeIdx);
+			Assert.AreEqual(JobStepState.Waiting, step.State);
+			Assert.AreEqual(JobStepOutcome.Success, step.Outcome);
+
+			step = job.Batches[0].Steps[3];
+			Assert.AreEqual(2, step.NodeIdx);
+			Assert.AreEqual(JobStepState.Waiting, step.State);
+			Assert.AreEqual(JobStepOutcome.Success, step.Outcome);
+		}
+
+		[TestMethod]
 		public async Task UnknownShelfAsync()
 		{
 			Mock<ITemplate> templateMock = new Mock<ITemplate>(MockBehavior.Strict);
