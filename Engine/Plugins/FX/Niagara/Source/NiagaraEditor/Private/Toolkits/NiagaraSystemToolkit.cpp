@@ -1236,7 +1236,7 @@ void FNiagaraSystemToolkit::SaveAssetAs_Execute()
 	SystemViewModel->NotifyPostSave();
 }
 
-bool FNiagaraSystemToolkit::OnRequestClose()
+bool FNiagaraSystemToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	if (GbLogNiagaraSystemChanges > 0)
 	{
@@ -1271,7 +1271,7 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 		}
 	}
 
-	if (bScratchPadChangesDiscarded == false && bHasUnappliedScratchPadChanges)
+	if (InCloseReason != EAssetEditorCloseReason::AssetForceDeleted && bScratchPadChangesDiscarded == false && bHasUnappliedScratchPadChanges)
 	{
 		// find out the user wants to do with their dirty scratch pad scripts.
 		EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel,
@@ -1291,7 +1291,7 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 		}
 	}
 
-	if (SystemToolkitMode == ESystemToolkitMode::Emitter)
+	if (SystemToolkitMode == ESystemToolkitMode::Emitter && InCloseReason != EAssetEditorCloseReason::AssetForceDeleted)
 	{
 		TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterViewModel();
 		if (bChangesDiscarded == false && (EmitterViewModel->GetEmitter().Emitter->GetChangeId() != LastSyncedEmitterChangeId || bEmitterThumbnailUpdated))
@@ -1324,7 +1324,7 @@ bool FNiagaraSystemToolkit::OnRequestClose()
 	}
 	
 	GEngine->ForceGarbageCollection(true);
-	return FAssetEditorToolkit::OnRequestClose();
+	return FAssetEditorToolkit::OnRequestClose(InCloseReason);
 }
 
 void FNiagaraSystemToolkit::EmitterAssetSelected(const FAssetData& AssetData)

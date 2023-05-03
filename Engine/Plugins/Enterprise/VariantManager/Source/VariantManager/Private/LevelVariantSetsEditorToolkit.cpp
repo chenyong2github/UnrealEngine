@@ -39,7 +39,7 @@ void FLevelVariantSetsEditorToolkit::Initialize(const EToolkitMode::Type Mode, c
 
 			if (AssetEditorInstance.IsValid())
 			{
-				InLevelVariantSetsAssetEditor.Pin()->CloseWindow();
+				InLevelVariantSetsAssetEditor.Pin()->CloseWindow(EAssetEditorCloseReason::AssetEditorHostClosed);
 			}
 		}
 	};
@@ -124,7 +124,7 @@ TSharedRef<SDockTab> FLevelVariantSetsEditorToolkit::HandleTabManagerSpawnTab(co
 		.TabRole(ETabRole::PanelTab);
 }
 
-bool FLevelVariantSetsEditorToolkit::OnRequestClose()
+bool FLevelVariantSetsEditorToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	return true;
 }

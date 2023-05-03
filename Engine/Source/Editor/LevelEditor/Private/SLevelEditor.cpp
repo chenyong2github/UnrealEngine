@@ -635,7 +635,7 @@ TSharedPtr<SDockTab> SLevelEditor::AttachSequencer( TSharedPtr<SWidget> Sequence
 
 			if (AssetEditorInstance.IsValid())
 			{
-				InSequencerAssetEditor.Pin()->CloseWindow();
+				InSequencerAssetEditor.Pin()->CloseWindow(EAssetEditorCloseReason::AssetEditorHostClosed);
 			}
 		}
 	};
@@ -653,7 +653,7 @@ TSharedPtr<SDockTab> SLevelEditor::AttachSequencer( TSharedPtr<SWidget> Sequence
 				// Closing the window will invoke this method again but we are handling reopening with a new movie scene ourselves
 				TGuardValue<bool> ReentrantGuard(bIsReentrant, true);
 				// Shutdown cleanly
-				SequencerAssetEditor.Pin()->CloseWindow();
+				SequencerAssetEditor.Pin()->CloseWindow(EAssetEditorCloseReason::AssetEditorHostClosed);
 			}
 
 			if (!FGlobalTabmanager::Get()->OnOverrideDockableAreaRestore_Handler.IsBound())

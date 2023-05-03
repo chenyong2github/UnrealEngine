@@ -178,7 +178,7 @@ void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 		for (const TSharedRef<IBlueprintEditor>& BlueprintEditor : BlueprintEditorModule.GetBlueprintEditors())
 		{
-			BlueprintEditor->CloseWindow();
+			BlueprintEditor->CloseWindow(EAssetEditorCloseReason::EditorRefreshRequested);
 		}
 	}
 

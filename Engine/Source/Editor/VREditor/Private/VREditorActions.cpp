@@ -342,7 +342,7 @@ void FVREditorActionCallbacks::CloseSequencer(UMovieSceneSequence* OpenSequence)
 	IAssetEditorInstance* SequencerEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(OpenSequence, false);
 	if (SequencerEditor != nullptr)
 	{
-		SequencerEditor->CloseWindow();
+		SequencerEditor->CloseWindow(EAssetEditorCloseReason::AssetEditorHostClosed);
 	}
 }
 

@@ -1576,9 +1576,9 @@ void FWidgetBlueprintEditor::Compile()
 	}
 }
 
-bool FWidgetBlueprintEditor::OnRequestClose()
+bool FWidgetBlueprintEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
-	bool bAllowClose = Super::OnRequestClose();
+	bool bAllowClose = Super::OnRequestClose(InCloseReason);
 
 	// Give any active modes a chance to shutdown while the toolkit host is still alive
 	// Note: This along side with the default tool palette extension tab being closed 

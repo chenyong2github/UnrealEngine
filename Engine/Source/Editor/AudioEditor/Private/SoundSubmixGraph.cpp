@@ -49,7 +49,7 @@ void USoundSubmixGraph::SetRootSoundSubmix(USoundSubmixBase* InSoundSubmix)
 							TArray<IAssetEditorInstance*> SubmixEditors = EditorSubsystem->FindEditorsForAsset(Submix);
 							for (IAssetEditorInstance* Editor : SubmixEditors)
 							{
-								Editor->CloseWindow();
+								Editor->CloseWindow(EAssetEditorCloseReason::EditorRefreshRequested);
 							}
 						}
 

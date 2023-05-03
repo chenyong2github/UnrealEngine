@@ -499,7 +499,7 @@ void USoundSubmixGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Ass
 			// (to avoid modification of multiple graph editors representing the same branch of submixes)
 			if (SubmixEditor->GetGraph() != Graph)
 			{
-				Editor->CloseWindow();
+				Editor->CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 			}
 		}
 

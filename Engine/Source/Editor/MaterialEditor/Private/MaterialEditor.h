@@ -487,7 +487,7 @@ protected:
 	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const override;
 	virtual void SaveAsset_Execute() override;
 	virtual void SaveAssetAs_Execute() override;
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 
 protected:
 	/** Called when the selection changes in the GraphEditor */

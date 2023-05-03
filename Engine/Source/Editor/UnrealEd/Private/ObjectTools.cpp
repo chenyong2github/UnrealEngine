@@ -3242,7 +3242,7 @@ namespace ObjectTools
 				TArray<IAssetEditorInstance*> ObjectEditors = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorsForAssetAndSubObjects(Object);
 				for (IAssetEditorInstance* ObjectEditorInstance : ObjectEditors)
 				{
-					if (!ObjectEditorInstance->CloseWindow())
+					if (!ObjectEditorInstance->CloseWindow(EAssetEditorCloseReason::AssetForceDeleted))
 					{
 						bClosedAllEditors = false;
 					}

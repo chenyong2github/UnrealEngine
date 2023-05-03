@@ -327,7 +327,7 @@ public:
 		if (EditorInst != nullptr)
 		{
 			UE_LOG(LogBlueprintAutomationTests, Log, TEXT("Closing '%s' so we don't invalidate the open version when unloading it."), *BlueprintObj->GetName());
-			EditorInst->CloseWindow();
+			EditorInst->CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 		}
 	}
 

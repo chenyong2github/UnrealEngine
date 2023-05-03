@@ -54,7 +54,7 @@ protected:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 	//~ End IToolkit interface
 
 private:

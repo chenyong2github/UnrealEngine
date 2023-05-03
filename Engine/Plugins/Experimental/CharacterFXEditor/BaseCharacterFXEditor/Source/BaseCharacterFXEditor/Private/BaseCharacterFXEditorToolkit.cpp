@@ -84,7 +84,7 @@ void FBaseCharacterFXEditorToolkit::OnToolkitHostingFinished(const TSharedRef<IT
 	ModeUILayer->OnToolkitHostingFinished(Toolkit);
 }
 
-bool FBaseCharacterFXEditorToolkit::OnRequestClose()
+bool FBaseCharacterFXEditorToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	// Note: This needs a bit of adjusting, because currently OnRequestClose seems to be 
 	// called multiple times when the editor itself is being closed. We can take the route 
@@ -105,7 +105,7 @@ bool FBaseCharacterFXEditorToolkit::OnRequestClose()
 	// duplication for each opening event.
 	GetEditorModeManager().DeactivateAllModes();
 
-	return FAssetEditorToolkit::OnRequestClose();
+	return FAssetEditorToolkit::OnRequestClose(InCloseReason);
 }
 
 AssetEditorViewportFactoryFunction FBaseCharacterFXEditorToolkit::GetViewportDelegate()

@@ -42,7 +42,7 @@ void UBlueprintEditorProjectSettings::PostEditChangeProperty(struct FPropertyCha
 		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 		for (const TSharedRef<IBlueprintEditor>& BlueprintEditor : BlueprintEditorModule.GetBlueprintEditors())
 		{
-			BlueprintEditor->CloseWindow();
+			BlueprintEditor->CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 		}
 	}
 }

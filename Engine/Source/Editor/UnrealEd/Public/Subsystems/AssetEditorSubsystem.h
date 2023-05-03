@@ -23,6 +23,28 @@ class IMessageContext;
 class UToolMenu;
 struct FToolMenuSection;
 
+/** The way that editors were requested to close */
+enum class EAssetEditorCloseReason : uint8
+{
+	/* NOTE: All close reasons can be passed into OnRequestClose() and CloseWindow(), but only some are broadcast by
+	 * UAssetEditorSubsystem::AssetEditorRequestCloseEvent currently while others are for the asset editors themselves
+	 */
+	
+	// Close reasons broadcast by UAssetEditorSubsystem
+	
+	CloseAllEditorsForAsset,   // All asset editors operating on a specific asset are being requested to close
+	CloseOtherEditors,         // An asset editor is requesting all asset editors using an asset except itself to close
+	RemoveAssetFromAllEditors, // An asset is being removed from all asset editors (which may or may not actually close)
+	CloseAllAssetEditors,      // Every single Asset Editor is being requested to close 
+
+	// Close reasons for individual asset editors
+	
+	AssetEditorHostClosed,     // The "default" reason for an asset editor to close, e.g when the close button is clicked
+	AssetUnloadingOrInvalid,   // The asset being edited is being unloaded or is no longer valid
+	EditorRefreshRequested,    // The asset editor wants to close and re-open to edit the same asset
+	AssetForceDeleted          // The asset being edited has been force deleted
+};
+
 /**
  * This class keeps track of a currently open asset editor; allowing it to be
  * brought into focus, closed, etc..., without concern for how the editor was
@@ -34,7 +56,17 @@ public:
 
 	virtual FName GetEditorName() const = 0;
 	virtual void FocusWindow(UObject* ObjectToFocusOn = nullptr) = 0;
-	virtual bool CloseWindow() = 0;
+
+	UE_DEPRECATED(5.3, "Use CloseWindow that takes in an EAssetEditorCloseReason instead")
+	virtual bool CloseWindow() { return true; }
+	
+	virtual bool CloseWindow(EAssetEditorCloseReason InCloseReason)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return CloseWindow();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	virtual bool IsPrimaryEditor() const = 0;
 	virtual void InvokeTab(const struct FTabId& TabId) = 0;
 	UE_DEPRECATED(5.0, "Toolbar tab no longer exists and tab ID will return None; do not add it to layouts")
@@ -43,15 +75,6 @@ public:
 	virtual TSharedPtr<class FTabManager> GetAssociatedTabManager() = 0;
 	virtual double GetLastActivationTime() = 0;
 	virtual void RemoveEditingAsset(UObject* Asset) = 0;
-};
-
-/** The way that editors were requested to close */
-enum class EAssetEditorCloseReason : uint8
-{
-	CloseAllEditorsForAsset,
-	CloseOtherEditors,
-	RemoveAssetFromAllEditors,
-	CloseAllAssetEditors,
 };
 
 struct UNREALED_API FRegisteredModeInfo

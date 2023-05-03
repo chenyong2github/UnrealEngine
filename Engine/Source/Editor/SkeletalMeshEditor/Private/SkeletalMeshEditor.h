@@ -82,7 +82,7 @@ public:
 	virtual bool ProcessCommandBindings(const FKeyEvent& InKeyEvent) const override;
 	
 	//~ Begin FAssetEditorToolkit Interface.
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 	virtual FName GetMainTabName() const override;
 	//~ End FAssetEditorToolkit Interface.
 

@@ -222,7 +222,7 @@ void FUVEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabM
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 }
 
-bool FUVEditorToolkit::OnRequestClose()
+bool FUVEditorToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	// Note: This needs a bit of adjusting, because currently OnRequestClose seems to be 
 	// called multiple times when the editor itself is being closed. We can take the route 
@@ -234,6 +234,12 @@ bool FUVEditorToolkit::OnRequestClose()
 		// If we don't have a valid mode, because the OnRequestClose is currently being called multiple times,
 		// simply return true because there's nothing left to do.
 		return true; 
+	}
+
+	// If the asset is being force deleted, we don't want to apply changes
+	if(InCloseReason == EAssetEditorCloseReason::AssetForceDeleted)
+	{
+		return true;
 	}
 
 	bool bHasUnappliedChanges = UVMode->HaveUnappliedChanges();
@@ -282,7 +288,7 @@ bool FUVEditorToolkit::OnRequestClose()
 		}
 	}
 
-	return FAssetEditorToolkit::OnRequestClose();
+	return FAssetEditorToolkit::OnRequestClose(InCloseReason);
 }
 
 void FUVEditorToolkit::OnClose()

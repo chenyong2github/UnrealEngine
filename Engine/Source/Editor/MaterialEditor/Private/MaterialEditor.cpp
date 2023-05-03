@@ -2053,10 +2053,16 @@ void FMaterialEditor::SaveAssetAs_Execute()
 	}
 }
 
-bool FMaterialEditor::OnRequestClose()
+bool FMaterialEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	DestroyColorPicker();
 
+	// If the asset has been deleted, we don't want to show the save changes prompt
+	if(InCloseReason == EAssetEditorCloseReason::AssetForceDeleted)
+	{
+		bMaterialDirty = false;
+	}
+	
 	if (bMaterialDirty)
 	{
 		// find out the user wants to do with this dirty material

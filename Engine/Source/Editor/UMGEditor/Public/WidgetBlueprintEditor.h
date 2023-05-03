@@ -73,7 +73,7 @@ public:
 	//~ End FBlueprintEditor interface
 	
 	//~ Begin FAssetEditorToolkit Interface
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 	// End of FAssetEditorToolkit 
 
 	//~ Begin FGCObjectInterface interface

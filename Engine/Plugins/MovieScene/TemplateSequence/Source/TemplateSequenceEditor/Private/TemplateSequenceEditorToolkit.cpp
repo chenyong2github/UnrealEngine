@@ -275,11 +275,11 @@ void FTemplateSequenceEditorToolkit::HandleMapChanged(UWorld* NewWorld, EMapChan
 	if ((MapChangeType == EMapChangeType::LoadMap || MapChangeType == EMapChangeType::NewMap || MapChangeType == EMapChangeType::TearDownWorld))
 	{
 		Sequencer->GetSpawnRegister().CleanUp(*Sequencer);
-		CloseWindow();
+		CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 	}
 }
 
-bool FTemplateSequenceEditorToolkit::OnRequestClose()
+bool FTemplateSequenceEditorToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	return true;
 }

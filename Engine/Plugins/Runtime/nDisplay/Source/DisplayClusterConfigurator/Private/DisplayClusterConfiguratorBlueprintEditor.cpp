@@ -1075,9 +1075,9 @@ TStatId FDisplayClusterConfiguratorBlueprintEditor::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FDisplayClusterConfiguratorBlueprintEditor, STATGROUP_Tickables);
 }
 
-bool FDisplayClusterConfiguratorBlueprintEditor::OnRequestClose()
+bool FDisplayClusterConfiguratorBlueprintEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
-	return FBlueprintEditor::OnRequestClose();
+	return FBlueprintEditor::OnRequestClose(InCloseReason);
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::OnClose()

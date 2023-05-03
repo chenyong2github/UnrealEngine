@@ -308,7 +308,7 @@ int32 UAssetEditorSubsystem::CloseAllEditorsForAsset(UObject* Asset)
 	{
 		if (EditorInstance)
 		{
-			EditorInstance->CloseWindow();
+			EditorInstance->CloseWindow(EAssetEditorCloseReason::CloseAllEditorsForAsset);
 		}
 	}
 
@@ -342,7 +342,7 @@ void UAssetEditorSubsystem::CloseOtherEditors(UObject* Asset, IAssetEditorInstan
 		IAssetEditorInstance* Editor = It.Value();
 		if (Asset == It.Key().RawPtr && Editor != OnlyEditor)
 		{
-			Editor->CloseWindow();
+			Editor->CloseWindow(EAssetEditorCloseReason::CloseOtherEditors);
 		}
 	}
 
@@ -443,7 +443,7 @@ bool UAssetEditorSubsystem::CloseAllAssetEditors()
 		IAssetEditorInstance* Editor = It.Key();
 		if (Editor != nullptr)
 		{
-			if (!Editor->CloseWindow())
+			if (!Editor->CloseWindow(EAssetEditorCloseReason::CloseAllAssetEditors))
 			{
 				bAllEditorsClosed = false;
 			}

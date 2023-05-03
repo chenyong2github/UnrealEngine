@@ -163,9 +163,9 @@ void FSoundEffectPresetEditor::Init(const EToolkitMode::Type Mode, const TShared
 		bUseSmallIcons);
 }
 
-bool FSoundEffectPresetEditor::CloseWindow()
+bool FSoundEffectPresetEditor::CloseWindow(EAssetEditorCloseReason InCloseReason)
 {
-	if (FAssetEditorToolkit::CloseWindow())
+	if (FAssetEditorToolkit::CloseWindow(InCloseReason))
 	{
 		UserWidgets.Reset();
 		return true;

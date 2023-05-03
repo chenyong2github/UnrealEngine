@@ -105,7 +105,7 @@ void FRemoteControlPresetEditorToolkit::UnregisterTabSpawners(const TSharedRef<F
 	InTabManager->UnregisterTabSpawner(FRemoteControlUIModule::RemoteControlPanelTabName);
 }
 
-bool FRemoteControlPresetEditorToolkit::OnRequestClose()
+bool FRemoteControlPresetEditorToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	return true;
 }
@@ -170,7 +170,7 @@ void FRemoteControlPresetEditorToolkit::InvokePanelTab()
 		{
 			if (const TSharedPtr<IAssetEditorInstance> AssetEditorInstance = InRemoteControlPreset.Pin())
 			{
-				InRemoteControlPreset.Pin()->CloseWindow();
+				InRemoteControlPreset.Pin()->CloseWindow(EAssetEditorCloseReason::AssetEditorHostClosed);
 			}
 		}
 	};

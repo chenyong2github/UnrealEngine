@@ -1152,7 +1152,7 @@ ENGINE_API void SubmixUtils::RefreshEditorForSubmix(const USoundSubmixBase* InSu
 				TArray<IAssetEditorInstance*> SubmixEditors = EditorSubsystem->FindEditorsForAsset(WeakSubmix.Get());
 				for (IAssetEditorInstance* Editor : SubmixEditors)
 				{
-					Editor->CloseWindow();
+					Editor->CloseWindow(EAssetEditorCloseReason::EditorRefreshRequested);
 				}
 
 				EditorSubsystem->OpenEditorForAsset(WeakSubmix.Get());

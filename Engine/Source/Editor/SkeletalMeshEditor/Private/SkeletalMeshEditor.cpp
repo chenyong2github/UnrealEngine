@@ -145,7 +145,7 @@ bool IsReductionParentBaseLODUseSkeletalMeshBuildWorkflow(USkeletalMesh* Skeleta
 	return false;
 }
 
-bool FSkeletalMeshEditor::OnRequestClose()
+bool FSkeletalMeshEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	bool bAllowClose = true;
 
@@ -185,7 +185,7 @@ bool FSkeletalMeshEditor::OnRequestClose()
 			}
 		}
 
-		if (bHaveModifiedLOD)
+		if (bHaveModifiedLOD && InCloseReason != EAssetEditorCloseReason::AssetForceDeleted)
 		{
 			// find out the user wants to do with this dirty material
 			EAppReturnType::Type OkCancelReply = FMessageDialog::Open(

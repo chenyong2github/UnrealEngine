@@ -75,7 +75,7 @@ private:
 	// FAssetEditorToolkit
 	virtual void AddViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
 	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 	virtual void PostInitAssetEditor() override;
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 

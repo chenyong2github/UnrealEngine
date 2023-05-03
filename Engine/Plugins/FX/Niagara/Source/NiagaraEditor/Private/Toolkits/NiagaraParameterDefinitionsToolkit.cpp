@@ -182,9 +182,9 @@ void FNiagaraParameterDefinitionsToolkit::SaveAssetAs_Execute()
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
 
-bool FNiagaraParameterDefinitionsToolkit::OnRequestClose()
+bool FNiagaraParameterDefinitionsToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
-	if (bChangesDiscarded == false && OnApplyEnabled())
+	if (InCloseReason != EAssetEditorCloseReason::AssetForceDeleted && bChangesDiscarded == false && OnApplyEnabled())
 	{
 		// find out the user wants to do with this dirty NiagaraScript
 		EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(

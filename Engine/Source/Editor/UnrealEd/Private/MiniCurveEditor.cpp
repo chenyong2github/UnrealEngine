@@ -71,6 +71,11 @@ void SMiniCurveEditor::FocusWindow(UObject* ObjectToFocusOn)
 
 bool SMiniCurveEditor::CloseWindow()
 {
+	return CloseWindow(EAssetEditorCloseReason::AssetEditorHostClosed);
+}
+
+bool SMiniCurveEditor::CloseWindow(EAssetEditorCloseReason InCloseReason)
+{
 	if(WidgetWindow.IsValid())
 	{
 		WidgetWindow.Pin()->RequestDestroyWindow();

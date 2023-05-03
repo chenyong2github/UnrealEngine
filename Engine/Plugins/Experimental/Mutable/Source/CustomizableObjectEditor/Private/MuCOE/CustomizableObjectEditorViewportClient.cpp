@@ -2805,7 +2805,7 @@ bool FCustomizableObjectEditorViewportClient::ManageBakingAction(const FString& 
 			for (IAssetEditorInstance* ObjectEditorInstance : ObjectEditors)
 			{
 				// Close the editors that contains this asset
-				if (!ObjectEditorInstance->CloseWindow())
+				if (!ObjectEditorInstance->CloseWindow(EAssetEditorCloseReason::AssetEditorHostClosed))
 				{
 					FText Caption = LOCTEXT("OpenExisitngFile", "Open File");
 					FText Message = FText::Format(LOCTEXT("CantCloseAsset", "This Obejct \"{0}\" is open in an editor and can't be closed automatically. Please close the editor and try to bake it again"), FText::FromString(ObjName));

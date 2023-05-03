@@ -223,7 +223,7 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 					}
 					return true;
 				})
-			.OnRequestClose(this, &FAssetEditorToolkit::OnRequestClose)
+			.OnRequestClose(this, &FAssetEditorToolkit::OnRequestClose, EAssetEditorCloseReason::AssetEditorHostClosed)
 			.OnClose(this, &FAssetEditorToolkit::OnClose)
 		);
 
@@ -485,10 +485,22 @@ void FAssetEditorToolkit::FocusWindow(UObject* ObjectToFocusOn)
 	BringToolkitToFront();
 }
 
+bool FAssetEditorToolkit::OnRequestClose(EAssetEditorCloseReason)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return OnRequestClose();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
 
 bool FAssetEditorToolkit::CloseWindow()
 {
-	if (OnRequestClose())
+	// We use AssetEditorHostClosed as the default close reason for legacy cases
+	return CloseWindow(EAssetEditorCloseReason::AssetEditorHostClosed);
+}
+
+bool FAssetEditorToolkit::CloseWindow(EAssetEditorCloseReason InCloseReason)
+{
+	if (OnRequestClose(InCloseReason))
 	{
 		OnClose();
 
@@ -783,7 +795,7 @@ void FAssetEditorToolkit::RemoveEditingAsset(UObject* Asset)
 	// Just close the editor tab if it's the last element
 	if (EditingObjects.Num() == 1 && EditingObjects.Contains(Asset))
 	{
-		CloseWindow();
+		CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 	}
 	else
 	{

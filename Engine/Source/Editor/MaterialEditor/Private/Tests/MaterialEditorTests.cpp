@@ -209,7 +209,7 @@ namespace MaterialEditorPromotionTestHelper
 						MaterialEditor->UpdateMaterialAfterGraphChange();
 						MaterialEditor->bMaterialDirty = false; // Remove dirty flag so window closes without prompt
 						UE_LOG(LogEditorMaterialEditorPromotionTests, Display, TEXT("Compiled the new material"));
-						MaterialEditor->CloseWindow();
+						MaterialEditor->CloseWindow(EAssetEditorCloseReason::AssetEditorHostClosed);
 
 					}
 				}

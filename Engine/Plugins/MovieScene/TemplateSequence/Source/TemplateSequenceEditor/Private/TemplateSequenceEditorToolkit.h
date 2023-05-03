@@ -60,7 +60,7 @@ public:
 		return TEXT("FTemplateSequenceEditorToolkit");
 	}
 
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 	virtual bool CanFindInContentBrowser() const override;
 
 public:

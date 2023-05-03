@@ -126,7 +126,7 @@ protected:
 	//~ FAssetEditorToolkit interface
 	virtual void SaveAsset_Execute() override;
 	virtual void SaveAssetAs_Execute() override;
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 
 	/** Saves editor settings. */
 	void SaveSettings();

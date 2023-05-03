@@ -473,7 +473,7 @@ private:
 	void OnConvexDecomposition();
 
 	//~ Begin FAssetEditorToolkit Interface.
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 	//~ End FAssetEditorToolkit Interface.
 
 	//~ Begin FEditorUndoClient Interface

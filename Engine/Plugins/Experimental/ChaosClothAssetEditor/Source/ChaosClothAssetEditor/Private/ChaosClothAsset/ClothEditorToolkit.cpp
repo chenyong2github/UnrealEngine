@@ -366,7 +366,7 @@ void FChaosClothAssetEditorToolkit::RemoveViewportOverlayWidget(TSharedRef<SWidg
 	ViewportWidget->RemoveOverlayWidget(InViewportOverlayWidget);
 }
 
-bool FChaosClothAssetEditorToolkit::OnRequestClose()
+bool FChaosClothAssetEditorToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	// Note: This needs a bit of adjusting, because currently OnRequestClose seems to be 
 	// called multiple times when the editor itself is being closed. We can take the route 
@@ -386,7 +386,7 @@ bool FChaosClothAssetEditorToolkit::OnRequestClose()
 	// duplication for each opening event.
 	GetEditorModeManager().ActivateDefaultMode();
 
-	return FAssetEditorToolkit::OnRequestClose();
+	return FAssetEditorToolkit::OnRequestClose(InCloseReason);
 }
 
 void FChaosClothAssetEditorToolkit::PostInitAssetEditor()

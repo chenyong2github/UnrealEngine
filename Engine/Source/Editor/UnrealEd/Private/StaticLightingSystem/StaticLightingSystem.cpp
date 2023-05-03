@@ -2530,7 +2530,7 @@ void UEditorEngine::BuildLighting(const FLightingBuildOptions& Options)
 			IAssetEditorInstance* Editor = AssetEditorSubsystem->FindEditorForAsset(EditedAsset, false);
 			if (Editor)
 			{
-				Editor->CloseWindow();
+				Editor->CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 			}
 		}
 	}

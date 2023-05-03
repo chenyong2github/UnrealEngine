@@ -227,7 +227,7 @@ private:
 	bool CanBuildWorld();
 	bool CanCommitWorld();
 
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 
 	/** Create a snapshot of the world and tracked assets */
 	void TakeSnapshot();

@@ -797,9 +797,9 @@ bool FBlueprintEditor::IsInAScriptingMode() const
 	return IsModeCurrent(FBlueprintEditorApplicationModes::StandardBlueprintEditorMode) || IsModeCurrent(FBlueprintEditorApplicationModes::BlueprintMacroMode);
 }
 
-bool FBlueprintEditor::OnRequestClose()
+bool FBlueprintEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
-	return FWorkflowCentricApplication::OnRequestClose();
+	return FWorkflowCentricApplication::OnRequestClose(InCloseReason);
 }
 
 void FBlueprintEditor::OnClose()
@@ -9138,7 +9138,7 @@ void FBlueprintEditor::Tick(float DeltaTime)
 	{
 		IAssetEditorInstance* EditorInst = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(GetBlueprintObj(), /*bFocusIfOpen =*/false);
 		check(EditorInst != nullptr);
-		EditorInst->CloseWindow();
+		EditorInst->CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 	}
 	else
 	{

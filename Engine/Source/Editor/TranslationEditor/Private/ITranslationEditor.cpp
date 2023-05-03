@@ -23,7 +23,7 @@ void ITranslationEditor::OpenTranslationEditor(const FString& InManifestFile, co
 
 		if (!bLoadedSuccessfully)
 		{
-			NewTranslationEditor->CloseWindow();
+			NewTranslationEditor->CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 		}
 	}
 	else
@@ -57,7 +57,7 @@ void ITranslationEditor::OpenTranslationEditor(ULocalizationTarget* const Locali
 
 		if (!bLoadedSuccessfully)
 		{
-			NewTranslationEditor->CloseWindow();
+			NewTranslationEditor->CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 		}
 	}
 	else

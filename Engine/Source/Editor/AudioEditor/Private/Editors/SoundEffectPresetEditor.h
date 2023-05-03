@@ -36,7 +36,7 @@ public:
 	void Init(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, USoundEffectPreset* PresetToEdit, const TArray<UUserWidget*>& InWidgetBlueprints);
 
 	/** FAssetEditorToolkit interface */
-	virtual bool CloseWindow() override;
+	virtual bool CloseWindow(EAssetEditorCloseReason InCloseReason) override;
 	virtual FName GetEditorName() const override;
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;

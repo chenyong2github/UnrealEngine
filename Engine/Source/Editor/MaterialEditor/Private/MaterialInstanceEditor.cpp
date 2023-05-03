@@ -763,9 +763,9 @@ bool FMaterialInstanceEditor::OnApplyVisible() const
 	return MaterialEditorInstance && MaterialEditorInstance->bIsFunctionPreviewMaterial == true;
 }
 
-bool FMaterialInstanceEditor::OnRequestClose()
+bool FMaterialInstanceEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
-	if (MaterialEditorInstance->bIsFunctionInstanceDirty)
+	if (MaterialEditorInstance->bIsFunctionInstanceDirty && InCloseReason != EAssetEditorCloseReason::AssetForceDeleted)
 	{
 		// Find out the user wants to do with this dirty function instance
 		EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel,

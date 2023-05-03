@@ -2451,10 +2451,10 @@ void FStaticMeshEditor::OnConvexDecomposition()
 	TabManager->TryInvokeTab(CollisionTabId);
 }
 
-bool FStaticMeshEditor::OnRequestClose()
+bool FStaticMeshEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	bool bAllowClose = true;
-	if (StaticMeshDetails.IsValid() && StaticMeshDetails.Pin()->IsApplyNeeded())
+	if (InCloseReason != EAssetEditorCloseReason::AssetForceDeleted && StaticMeshDetails.IsValid() && StaticMeshDetails.Pin()->IsApplyNeeded())
 	{
 		// find out the user wants to do with this dirty material
 		EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(

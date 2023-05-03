@@ -140,7 +140,9 @@ public:
 	/** IAssetEditorInstance interface */
 	virtual FName GetEditorName() const override;
 	virtual void FocusWindow(UObject* ObjectToFocusOn = nullptr) override;
+	UE_DEPRECATED(5.3, "Use CloseWindow that takes in an EAssetEditorCloseReason instead")
 	virtual bool CloseWindow() override;
+	virtual bool CloseWindow(EAssetEditorCloseReason InCloseReason) override;
 	virtual bool IsPrimaryEditor() const override { return true; };
 	virtual void InvokeTab(const FTabId& TabId) override;
 	virtual FName GetEditingAssetTypeName() const override;
@@ -352,11 +354,14 @@ protected:
 	virtual bool ShouldPromptForNewFilesOnReload(const UObject& object) const;
 
 	/** Called when this toolkit is requested to close. Returns false if closing should be prevented. */
+	UE_DEPRECATED(5.3, "Use OnRequestClose that takes in an EAssetEditorCloseReason instead")
 	virtual bool OnRequestClose() { return true; }
+
+	/** Called when this toolkit is requested to close. Returns false if closing should be prevented. */
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason);
 
 	/** Called when this toolkit is being closed */
 	virtual void OnClose() {}
-
 	/**
 	  * Static: Called when "Switch to Standalone Editor" is clicked for the asset editor
 	  *

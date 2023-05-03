@@ -33,11 +33,6 @@ void UAssetEditor::FocusWindow(UObject* ObjectToFocusOn /*= nullptr*/)
 {
 }
 
-bool UAssetEditor::CloseWindow()
-{
-	return true;
-}
-
 TSharedPtr<class FTabManager> UAssetEditor::GetAssociatedTabManager()
 {
 	return ToolkitInstance->GetAssociatedTabManager();

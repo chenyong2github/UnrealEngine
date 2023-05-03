@@ -247,7 +247,7 @@ public:
 
 public:
 	//~ Begin FAssetEditorToolkit Interface
-	virtual bool OnRequestClose() override;
+	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 	virtual void OnClose() override;
 	// End of FAssetEditorToolkit 
 

@@ -173,7 +173,7 @@ void FCameraCalibrationToolkit::UnregisterTabSpawners(const TSharedRef<class FTa
 	Super::UnregisterTabSpawners(InTabManager);
 }
 
-bool FCameraCalibrationToolkit::OnRequestClose()
+bool FCameraCalibrationToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	return true;
 }

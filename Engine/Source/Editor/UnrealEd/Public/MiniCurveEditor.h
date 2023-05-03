@@ -32,6 +32,7 @@ public:
 	virtual FName GetEditorName() const override;
 	virtual void FocusWindow(UObject* ObjectToFocusOn) override;
 	virtual bool CloseWindow() override;
+	virtual bool CloseWindow(EAssetEditorCloseReason InCloseReason) override;
 	virtual bool IsPrimaryEditor() const override { return true; };
 	virtual void InvokeTab(const struct FTabId& TabId) override {}
 	virtual TSharedPtr<class FTabManager> GetAssociatedTabManager() override;

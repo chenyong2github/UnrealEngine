@@ -122,7 +122,7 @@ void FWorkflowCentricApplication::PushTabFactories(FWorkflowAllowedTabSet& Facto
 	}
 }
 
-bool FWorkflowCentricApplication::OnRequestClose()
+bool FWorkflowCentricApplication::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	return FSlateApplication::Get().IsNormalExecution();
 }

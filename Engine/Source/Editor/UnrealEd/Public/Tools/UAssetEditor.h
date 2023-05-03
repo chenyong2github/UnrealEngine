@@ -28,7 +28,6 @@ public:
 
 	virtual FName GetEditorName() const override;
 	virtual void FocusWindow(UObject* ObjectToFocusOn = nullptr) override;
-	virtual bool CloseWindow() override;
 	virtual bool IsPrimaryEditor() const override
 	{
 		return true;

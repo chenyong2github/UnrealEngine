@@ -1528,10 +1528,10 @@ void FDataprepEditor::UpdatePreviewPanels(bool bInclude3DViewport)
 	}
 }
 
-bool FDataprepEditor::OnRequestClose()
+bool FDataprepEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	const int ActorCount = PreviewWorld->GetActorCount();
-	if( bWorldBuilt && !bIgnoreCloseRequest && ActorCount > DefaultActorsInPreviewWorld.Num() )
+	if( InCloseReason != EAssetEditorCloseReason::AssetForceDeleted &&  bWorldBuilt && !bIgnoreCloseRequest && ActorCount > DefaultActorsInPreviewWorld.Num() )
 	{
 		// World was imported and is not empty -- show warning message
 		const FText Title( LOCTEXT( "DataprepEditor_ProceedWithClose", "Proceed with close") );

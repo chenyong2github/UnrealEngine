@@ -132,7 +132,7 @@ void FWaveformEditorInstantiator::CreateWaveformEditor(TArray<USoundWave*> Sound
 			if (!WaveformEditor->Init(EToolkitMode::Standalone, nullptr, SoundWavePtr))
 			{
 				UE_LOG(LogWaveformEditor, Warning, TEXT("Could not open waveform editor for soundwave %s, initialization failed"), *(SoundWavePtr->GetName()))
-				WaveformEditor->CloseWindow();
+				WaveformEditor->CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 			}
 		}
 	}

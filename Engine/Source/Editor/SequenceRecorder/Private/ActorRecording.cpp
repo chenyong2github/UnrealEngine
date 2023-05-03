@@ -134,7 +134,7 @@ bool UActorRecording::StartRecording(ULevelSequence* CurrentSequence, float Curr
 			if (EditorInstance)
 			{
 				UE_LOG(LogAnimation, Log, TEXT("Closing '%s' so we don't invalidate the open version when unloading it."), *TargetAnimation->GetName());
-				EditorInstance->CloseWindow();
+				EditorInstance->CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 			}
 		}
 

@@ -912,7 +912,7 @@ void FNiagaraScriptToolkit::UpdateOriginalNiagaraScript()
 }
 
 
-bool FNiagaraScriptToolkit::OnRequestClose()
+bool FNiagaraScriptToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	if (bChangesDiscarded == false && IsEditScriptDifferentFromOriginalScript())
 	{

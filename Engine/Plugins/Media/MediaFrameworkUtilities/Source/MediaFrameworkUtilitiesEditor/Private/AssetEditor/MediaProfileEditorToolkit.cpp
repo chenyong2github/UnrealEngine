@@ -133,7 +133,7 @@ void FMediaProfileEditorToolkit::HandleCoreObjectPropertyChanged(UObject* Object
 
 void FMediaProfileEditorToolkit::HandleMediaProxiesChanged()
 {
-	CloseWindow();
+	CloseWindow(EAssetEditorCloseReason::AssetUnloadingOrInvalid);
 }
 
 
@@ -149,28 +149,35 @@ void FMediaProfileEditorToolkit::SaveAssetAs_Execute()
 	Super::SaveAssetAs_Execute();
 }
 
-bool FMediaProfileEditorToolkit::OnRequestClose()
+bool FMediaProfileEditorToolkit::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 {
 	bool bClose = true;
-	if (UMediaProfile* MediaProfile = Cast<UMediaProfile>(GetEditingObject()))
-	{
-		if (MediaProfile->bNeedToBeReapplied)
-		{
-			// find out the user wants to do with this dirty profile
-			EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel, LOCTEXT("Prompt_EditorClose", "Would you like to apply the modifications?"));
 
-			switch (YesNoCancelReply)
+	// We don't want to apply changes if the asset is being force deleted
+
+	if(InCloseReason != EAssetEditorCloseReason::AssetForceDeleted)
+	{
+		if (UMediaProfile* MediaProfile = Cast<UMediaProfile>(GetEditingObject()))
+		{
+			if (MediaProfile->bNeedToBeReapplied)
 			{
-			case EAppReturnType::Yes:
-				ApplyMediaProfile();
-				break;
-			case EAppReturnType::Cancel:
-				bClose = false;
-				break;
+				// find out the user wants to do with this dirty profile
+				EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel, LOCTEXT("Prompt_EditorClose", "Would you like to apply the modifications?"));
+
+				switch (YesNoCancelReply)
+				{
+				case EAppReturnType::Yes:
+					ApplyMediaProfile();
+					break;
+				case EAppReturnType::Cancel:
+					bClose = false;
+					break;
+				}
 			}
 		}
 	}
-	return Super::OnRequestClose();
+	
+	return Super::OnRequestClose(InCloseReason);
 }
 
 #undef LOCTEXT_NAMESPACE
