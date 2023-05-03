@@ -168,7 +168,7 @@ protected:
 		{}
 
 		FWorldPartitionReference Reference;
-		AActor* Actor;
+		TWeakObjectPtr<AActor> Actor;
 	};
 
 	TArray<FAlwaysLoadedActorForPIE> AlwaysLoadedActorsForPIE;

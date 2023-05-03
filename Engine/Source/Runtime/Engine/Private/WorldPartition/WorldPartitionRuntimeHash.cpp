@@ -361,7 +361,7 @@ void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExt
 	{
 		for (const FAlwaysLoadedActorForPIE& AlwaysLoadedActor : AlwaysLoadedActorsForPIE)
 		{
-			if (AActor* Actor = AlwaysLoadedActor.Actor)
+			if (AActor* Actor = AlwaysLoadedActor.Actor.Get())
 			{
 				Actor->SetForceExternalActorLevelReferenceForPIE(bForceExternalActorLevelReferenceForPIE);
 			}
