@@ -85,9 +85,6 @@ public:
 
 protected:
 #if WITH_EDITOR
-	void RegisterDelegates();
-	void UnregisterDelegates();
-
 	void HandleFoliageInstancePreMove(const FFoliageInstanceId& InstanceId);
 	void HandleFoliageInstancePostMove(const FFoliageInstanceId& InstanceId);
 #endif
@@ -212,12 +209,6 @@ public:
 	// Move instances to a foliage actor in target level
 	FOLIAGE_API void MoveInstancesToLevel(ULevel* InTargetLevel, TSet<int32>& InInstanceList, FFoliageInfo* InCurrentMeshInfo, UFoliageType* InFoliageType, bool bSelect = false);
 
-	// Move instances based on a component that has just been moved.
-	void MoveInstancesForMovedComponent(UActorComponent* InComponent);
-
-	// Move instances that are owned by foliage actor.
-	void MoveInstancesForMovedOwnedActors(AActor* InActor);
-	
 	// Returns a map of Static Meshes and their placed instances attached to a component.
 	FOLIAGE_API TMap<UFoliageType*, TArray<const FFoliageInstancePlacementInfo*>> GetInstancesForComponent(UActorComponent* InComponent);
 
@@ -306,24 +297,23 @@ private:
 	
 #if WITH_EDITOR
 	void ClearSelection();
-	void OnLevelActorMoved(AActor* InActor);
-	void OnLevelActorOuterChanged(AActor* InActor, UObject* OldOuter);
-	void OnLevelActorDeleted(AActor* InActor);
-	void OnApplyLevelTransform(const FTransform& InTransform);
-	void OnPostApplyLevelOffset(ULevel* InLevel, UWorld* InWorld, const FVector& InOffset, bool bWorldShift);
-	void OnPostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
 	void MoveInstancesToNewComponent(UPrimitiveComponent* InOldComponent, UPrimitiveComponent* InNewComponent, TFunctionRef<TArray<int32>(const FFoliageInfo&)> GetInstancesToMoveFunc);
 	bool DeleteInstancesForProceduralFoliageComponentInternal(const FGuid& InProceduralGuid, bool bInRebuildTree, bool bInDeleteAll);
+	
+	friend class UFoliageEditorSubsystem;
+	FOLIAGE_API bool MoveInstancesForMovedComponent(UActorComponent* InComponent);
+	FOLIAGE_API void UpdateInstancePartitioningForMovedComponent(UActorComponent* InComponent);
+	
+	FOLIAGE_API void MoveInstancesForMovedOwnedActors(AActor* InActor);
+
+	FOLIAGE_API void UpdateFoliageActorInstance(AActor* InActor);
+	FOLIAGE_API void DeleteFoliageActorInstance(AActor* InActor);
+
+	FOLIAGE_API void PostApplyLevelOffset(const FVector& InOffset, bool bWorldShift);
+	FOLIAGE_API void PostApplyLevelTransform(const FTransform& InTransform);
 #endif
 private:
 #if WITH_EDITOR
-	FDelegateHandle OnLevelActorMovedDelegateHandle;
-	FDelegateHandle OnLevelActorDeletedDelegateHandle;
-	FDelegateHandle OnLevelActorOuterChangedDelegateHandle;
-	FDelegateHandle OnPostApplyLevelOffsetDelegateHandle;
-	FDelegateHandle OnApplyLevelTransformDelegateHandle;
-	FDelegateHandle OnPostWorldInitializationDelegateHandle;
-	
 	FOnFoliageTypeMeshChanged OnFoliageTypeMeshChangedEvent;
 #endif
 

@@ -14,6 +14,7 @@ public class FoliageEdit : ModuleRules
 				"InputCore",
 				"Engine",
 				"EditorFramework",
+				"EditorSubsystem",
 				"UnrealEd",
 				"Slate",
 				"SlateCore",

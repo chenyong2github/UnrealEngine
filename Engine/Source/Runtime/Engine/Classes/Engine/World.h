@@ -4232,6 +4232,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE_FourParams(FLevelOffsetEvent, ULevel*,  UWorld*, const FVector&, bool);
 	static FLevelOffsetEvent		PostApplyLevelOffset;
 
+	// Called after transform is applied to level
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FLevelTransformEvent, ULevel*, const FTransform&);
+	static FLevelTransformEvent		PostApplyLevelTransform;
+
 	// called by UWorld::GetAssetRegistryTags()
 	static FWorldGetAssetTags GetAssetTags;
 

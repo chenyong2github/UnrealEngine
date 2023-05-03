@@ -525,6 +525,7 @@ void FLevelUtils::ApplyLevelTransform(const FLevelUtils::FApplyLevelTransformPar
 #endif // WITH_EDITOR
 
 		TransformParams.Level->OnApplyLevelTransform.Broadcast(TransformParams.LevelTransform);
+		FWorldDelegates::PostApplyLevelTransform.Broadcast(TransformParams.Level, TransformParams.LevelTransform);
 	}
 }
 
