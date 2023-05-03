@@ -9,6 +9,7 @@
 #include "ChaosClothAsset/ClothEditor3DViewportClient.h"
 #include "ChaosClothAsset/SClothEditorRestSpaceViewport.h"
 #include "ChaosClothAsset/ClothEditorRestSpaceViewportClient.h"
+#include "ChaosClothAsset/ClothEditorSimulationVisualization.h"
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothEditorModeToolkit.h"
@@ -36,6 +37,7 @@
 #include "AdvancedPreviewSceneModule.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Toolkits/AssetEditorToolkitMenuContext.h"
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetEditorToolkit"
 
@@ -178,9 +180,11 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 	ClothPreviewEditorModeManager->SetPreviewScene(ClothPreviewScene.Get());
 	ClothPreviewScene->SetModeManager(ClothPreviewEditorModeManager);
 
+	ClothEditorSimulationVisualization = MakeShared<FClothEditorSimulationVisualization>();
+
 	//ClothPreviewInputRouter = ClothPreviewEditorModeManager->GetInteractiveToolsContext()->InputRouter;
 	ClothPreviewTabContent = MakeShareable(new FEditorViewportTabContent());
-	ClothPreviewViewportClient = MakeShared<FChaosClothAssetEditor3DViewportClient>(ClothPreviewEditorModeManager.Get(), ClothPreviewScene);
+	ClothPreviewViewportClient = MakeShared<FChaosClothAssetEditor3DViewportClient>(ClothPreviewEditorModeManager.Get(), ClothPreviewScene, ClothEditorSimulationVisualization);
 	ClothPreviewViewportClient->RegisterDelegates();
 
 	ClothPreviewViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
@@ -242,6 +246,8 @@ void FChaosClothAssetEditorToolkit::Tick(float DeltaTime)
 			OnClothAssetChanged();
 		}
 	}
+
+	InvalidateViews();
 }
 
 TStatId FChaosClothAssetEditorToolkit::GetStatId() const
@@ -456,6 +462,15 @@ void FChaosClothAssetEditorToolkit::PostInitAssetEditor()
 
 	ClothMode->DataflowGraph = Dataflow;
 	ClothMode->SetDataflowGraphEditor(GraphEditor);
+}
+
+void FChaosClothAssetEditorToolkit::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UAssetEditorToolkitMenuContext* const ClothEditorContext = NewObject<UAssetEditorToolkitMenuContext>();
+	ClothEditorContext->Toolkit = SharedThis(this);
+	MenuContext.AddObject(ClothEditorContext);
 }
 
 //~ End FAssetEditorToolkit overrides
@@ -1025,6 +1040,12 @@ void FChaosClothAssetEditorToolkit::OnClothAssetChanged()
 	{
 		ClothMode->ResumeSimulation();
 	}
+}
+
+void FChaosClothAssetEditorToolkit::InvalidateViews()
+{
+	ViewportClient->Invalidate();
+	ClothPreviewViewportClient->Invalidate();
 }
 
 

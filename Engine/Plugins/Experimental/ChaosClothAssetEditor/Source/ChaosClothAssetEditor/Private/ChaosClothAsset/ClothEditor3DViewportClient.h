@@ -12,6 +12,7 @@ class FChaosClothAssetEditorToolkit;
 class UTransformProxy;
 class UCombinedTransformGizmo;
 class FChaosClothPreviewScene;
+class FClothEditorSimulationVisualization;
 
 /**
  * Viewport client for the 3d sim preview in the cloth editor. Currently same as editor viewport
@@ -21,7 +22,8 @@ class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditor3DViewportClient : public 
 {
 public:
 
-	FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools, TSharedPtr<FChaosClothPreviewScene> InPreviewScene,
+	FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools, TSharedPtr<FChaosClothPreviewScene> InPreviewScene, 
+		TSharedPtr<FClothEditorSimulationVisualization> InVisualization,
 		const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
 
 	// Call this after construction to initialize callbacks when settings change
@@ -48,11 +50,19 @@ public:
 	void SuspendSimulation();
 	void ResumeSimulation();
 	bool IsSimulationSuspended() const;
+	void SetEnableSimulation(bool bEnable);
+	bool IsSimulationEnabled() const;
 
 	FBox PreviewBoundingBox() const;
 
 	TWeakPtr<FChaosClothPreviewScene> GetClothPreviewScene();
 	TWeakPtr<const FChaosClothPreviewScene> GetClothPreviewScene() const;
+	UChaosClothComponent* GetPreviewClothComponent();
+	const UChaosClothComponent* GetPreviewClothComponent() const;
+	TWeakPtr<FClothEditorSimulationVisualization> GetSimulationVisualization() {
+		return ClothEditorSimulationVisualization;
+	}
+	TWeakPtr<const FChaosClothAssetEditorToolkit> GetClothToolKit() const { return ClothToolkit; }
 
 private:
 
@@ -66,6 +76,7 @@ private:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
 	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
+	virtual void DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas) override;
 
 	void OnAssetViewerSettingsChanged(const FName& InPropertyName);
 	void SetAdvancedShowFlagsForScene(const bool bAdvancedShowFlags);
@@ -77,6 +88,8 @@ private:
 	TObjectPtr<UChaosClothAssetEditorMode> ClothEdMode;
 
 	TWeakPtr<const FChaosClothAssetEditorToolkit> ClothToolkit;
+
+	TWeakPtr<FClothEditorSimulationVisualization> ClothEditorSimulationVisualization;
 	
 	bool bSimMeshWireframe = true;
 	bool bRenderMeshWireframe = false;

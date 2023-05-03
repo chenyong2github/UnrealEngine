@@ -65,6 +65,8 @@ public:
 	void SuspendSimulation();
 	void ResumeSimulation();
 	bool IsSimulationSuspended() const;
+	void SetEnableSimulation(bool bEnabled);
+	bool IsSimulationEnabled() const;
 
 	UDataflowComponent* GetDataflowComponent() const;
 

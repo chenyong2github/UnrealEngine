@@ -2,6 +2,8 @@
 
 #include "ChaosClothAsset/SClothEditor3DViewportToolBar.h"
 #include "ChaosClothAsset/SClothEditor3DViewport.h"
+#include "ChaosClothAsset/ClothEditor3DViewportClient.h"
+#include "ChaosClothAsset/ClothEditorSimulationVisualization.h"
 #include "ChaosClothAsset/ClothEditorCommands.h"
 #include "ChaosClothAsset/ClothEditorStyle.h"
 #include "EditorViewportCommands.h"
@@ -139,6 +141,23 @@ TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeToolBar(const T
 	ToolbarBuilder.EndSection();
 
 	return ToolbarBuilder.MakeWidget();
+}
+
+void SChaosClothAssetEditor3DViewportToolBar::ExtendOptionsMenu(FMenuBuilder& OptionsMenuBuilder) const
+{
+	constexpr bool bOpenSubMenuOnClick = false;
+	constexpr bool bShouldCloseWindowAfterMenuSelection = false;
+	OptionsMenuBuilder.AddSubMenu(
+		LOCTEXT("ChaosClothAssetEditor_SimulationVisualization", "Simulation Visualization"),
+		LOCTEXT("ChaosClothAssetEditor_SimulationVisualizationToolTip", "Options to control simulation visualization"),
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& MenuBuilder)
+	{
+		TSharedRef<FChaosClothAssetEditor3DViewportClient> ViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(ChaosClothAssetEditor3DViewportPtr.Pin()->GetViewportClient()).ToSharedRef();
+		if (FClothEditorSimulationVisualization* const Visualization = ViewportClient->GetSimulationVisualization().Pin().Get())
+		{
+			Visualization->ExtendViewportShowMenu(MenuBuilder, ViewportClient);
+		}
+	}), bOpenSubMenuOnClick, FSlateIcon(), bShouldCloseWindowAfterMenuSelection);
 }
 
 #undef LOCTEXT_NAMESPACE

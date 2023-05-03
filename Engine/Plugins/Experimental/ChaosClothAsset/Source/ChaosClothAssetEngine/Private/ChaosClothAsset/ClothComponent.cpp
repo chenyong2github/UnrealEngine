@@ -18,7 +18,7 @@ UChaosClothComponent::UChaosClothComponent(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 	, bUseAttachedParentAsPoseComponent(1)  // By default use the parent component as leader pose component
 	, bWaitForParallelTask(0)
-	, bDisableSimulation(0)
+	, bEnableSimulation(1)
 	, bSuspendSimulation(0)
 	, bBindToLeaderComponent(0)
 {
@@ -129,6 +129,13 @@ bool UChaosClothComponent::IsSimulationSuspended() const
 	return bSuspendSimulation || !ClothSimulationProxy.IsValid() || (CVarClothPhysics && !CVarClothPhysics->GetBool());
 }
 
+bool UChaosClothComponent::IsSimulationEnabled() const
+{
+	static IConsoleVariable* const CVarClothPhysics = IConsoleManager::Get().FindConsoleVariable(TEXT("p.ClothPhysics"));
+	// If the console variable doesn't exist, default to simulation enabled.
+	return bEnableSimulation && ClothSimulationProxy.IsValid() && (!CVarClothPhysics || CVarClothPhysics->GetBool());
+}
+
 void UChaosClothComponent::ResetConfigProperties()
 {
 	using namespace UE::Chaos::ClothAsset;
@@ -161,7 +168,7 @@ void UChaosClothComponent::OnUnregister()
 
 bool UChaosClothComponent::IsComponentTickEnabled() const
 {
-	return !bDisableSimulation && Super::IsComponentTickEnabled();
+	return bEnableSimulation && Super::IsComponentTickEnabled();
 }
 
 void UChaosClothComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -211,7 +218,7 @@ void UChaosClothComponent::GetUpdateClothSimulationData_AnyThread(TMap<int32, FC
 		OutBlendWeight = BlendWeight;
 		OutClothSimulData = LeaderPoseClothComponent->ClothSimulationProxy->GetCurrentSimulationData_AnyThread();
 	}
-	else if (!bDisableSimulation && !bBindToLeaderComponent && ClothSimulationProxy)
+	else if (bEnableSimulation && !bBindToLeaderComponent && ClothSimulationProxy)
 	{
 		OutBlendWeight = BlendWeight;
 		OutClothSimulData = ClothSimulationProxy->GetCurrentSimulationData_AnyThread();

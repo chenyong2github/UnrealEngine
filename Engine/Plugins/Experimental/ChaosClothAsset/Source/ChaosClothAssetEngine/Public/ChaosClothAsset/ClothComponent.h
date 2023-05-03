@@ -74,6 +74,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (Keywords = "Chaos Cloth Simulation Suspend"))
 	bool IsSimulationSuspended() const;
 
+	/** Set whether or not to enable simulation. */
+	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (UnsafeDuringActorConstruction, Keywords = "Chaos Cloth Simulation Enable"))
+	void SetEnableSimulation(bool bEnable) { bEnableSimulation = bEnable; }
+
+	/** Return whether or not the simulation is currently enabled. */
+	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (Keywords = "Chaos Cloth Simulation Enable"))
+	bool IsSimulationEnabled() const;
+
 	/** Reset all cloth simulation config properties to the values stored in the original cloth asset. */
 	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (Keywords = "Chaos Cloth Config Property"))
 	void ResetConfigProperties();
@@ -84,6 +92,8 @@ public:
 	 * This could also be different from the cloth simulation object until the cloth simulation thread synchronise the properties.
 	 */
 	TSharedPtr<const FManagedArrayCollection> GetPropertyCollection() const { return TSharedPtr<const FManagedArrayCollection>(PropertyCollection); }
+
+	const UE::Chaos::ClothAsset::FClothSimulationProxy* GetClothSimulationProxy() const { return ClothSimulationProxy.Get(); }
 
 	/** Pose the cloth component using component space transforms. */
 	void Pose(const TArray<FTransform>& InComponentSpaceTransforms);
@@ -140,9 +150,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = ClothComponent)
 	uint8 bWaitForParallelTask : 1;
 
-	/** Whether to disable the simulation and use the skinned pose instead. */
+	/** Whether to enable the simulation or use the skinned pose instead. */
 	UPROPERTY()
-	uint8 bDisableSimulation : 1;
+	uint8 bEnableSimulation : 1;
 
 	/** Whether to suspend the simulation and use the last simulated pose. */
 	UPROPERTY()

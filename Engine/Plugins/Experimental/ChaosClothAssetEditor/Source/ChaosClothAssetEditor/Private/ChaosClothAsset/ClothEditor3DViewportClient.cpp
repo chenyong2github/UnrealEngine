@@ -3,6 +3,7 @@
 #include "ChaosClothAsset/ClothEditor3DViewportClient.h"
 #include "ChaosClothAsset/ClothEditorMode.h"
 #include "ChaosClothAsset/ClothEditorToolkit.h"
+#include "ChaosClothAsset/ClothEditorSimulationVisualization.h"
 #include "EditorModeManager.h"
 #include "ChaosClothAsset/ClothComponent.h"
 #include "Dataflow/DataflowEdNode.h"
@@ -21,9 +22,11 @@
 
 FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools,
 	TSharedPtr<FChaosClothPreviewScene> InPreviewScene,
+	TSharedPtr<FClothEditorSimulationVisualization> InVisualization,
 	const TWeakPtr<SEditorViewport>& InEditorViewportWidget)
 	: FEditorViewportClient(InModeTools, InPreviewScene.Get(), InEditorViewportWidget),
 	  ClothPreviewScene(InPreviewScene)
+	, ClothEditorSimulationVisualization(InVisualization)
 {
 	// We want our near clip plane to be quite close so that we can zoom in further.
 	OverrideNearClipPlane(KINDA_SMALL_NUMBER);
@@ -148,12 +151,9 @@ void FChaosClothAssetEditor3DViewportClient::EnableRenderMeshWireframe(bool bEna
 {
 	bRenderMeshWireframe = bEnable;
 
-	if (const TSharedPtr<FChaosClothPreviewScene> PinnedClothPreviewScene = ClothPreviewScene.Pin())
+	if (UChaosClothComponent* const ClothComponent = GetPreviewClothComponent())
 	{
-		if (UChaosClothComponent* const ClothComponent = PinnedClothPreviewScene->GetClothComponent())
-		{
-			ClothComponent->SetForceWireframe(bRenderMeshWireframe);
-		}
+		ClothComponent->SetForceWireframe(bRenderMeshWireframe);
 	}
 }
 
@@ -209,9 +209,44 @@ bool FChaosClothAssetEditor3DViewportClient::IsSimulationSuspended() const
 	return false;
 }
 
+void FChaosClothAssetEditor3DViewportClient::SetEnableSimulation(bool bEnable)
+{
+	if (ClothEdMode)
+	{
+		ClothEdMode->SetEnableSimulation(bEnable);
+	}
+}
+
+bool FChaosClothAssetEditor3DViewportClient::IsSimulationEnabled() const
+{
+	if (ClothEdMode)
+	{
+		return ClothEdMode->IsSimulationEnabled();
+	}
+
+	return false;
+}
+
 void FChaosClothAssetEditor3DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
 	FEditorViewportClient::Draw(View, PDI);
+	TSharedPtr<FClothEditorSimulationVisualization> Visualization = ClothEditorSimulationVisualization.Pin();
+	UChaosClothComponent* const ClothComponent = GetPreviewClothComponent();
+	if(Visualization && ClothComponent)
+	{
+		Visualization->DebugDrawSimulation(ClothComponent, PDI);
+	}
+}
+
+void FChaosClothAssetEditor3DViewportClient::DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas)
+{
+	FEditorViewportClient::DrawCanvas(InViewport, View, Canvas);
+	TSharedPtr<FClothEditorSimulationVisualization> Visualization = ClothEditorSimulationVisualization.Pin();
+	UChaosClothComponent* const ClothComponent = GetPreviewClothComponent();
+	if (Visualization && ClothComponent)
+	{
+		Visualization->DebugDrawSimulationTexts(ClothComponent, &Canvas, &View);
+	}
 }
 
 FBox FChaosClothAssetEditor3DViewportClient::PreviewBoundingBox() const
@@ -232,6 +267,24 @@ TWeakPtr<FChaosClothPreviewScene> FChaosClothAssetEditor3DViewportClient::GetClo
 TWeakPtr<const FChaosClothPreviewScene> FChaosClothAssetEditor3DViewportClient::GetClothPreviewScene() const
 {
 	return ClothPreviewScene;
+}
+
+UChaosClothComponent* FChaosClothAssetEditor3DViewportClient::GetPreviewClothComponent()
+{
+	if (ClothPreviewScene.IsValid())
+	{
+		return ClothPreviewScene.Pin()->GetClothComponent();
+	}
+	return nullptr;
+}
+
+const UChaosClothComponent* FChaosClothAssetEditor3DViewportClient::GetPreviewClothComponent() const
+{
+	if (ClothPreviewScene.IsValid())
+	{
+		return ClothPreviewScene.Pin()->GetClothComponent();
+	}
+	return nullptr;
 }
 
 void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)

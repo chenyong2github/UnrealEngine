@@ -18,6 +18,7 @@ class UEdGraphNode;
 class UChaosClothComponent;
 class SChaosClothAssetEditorRestSpaceViewport;
 class SChaosClothAssetEditor3DViewport;
+class FClothEditorSimulationVisualization;
 
 namespace Dataflow
 {
@@ -76,6 +77,7 @@ private:
 	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
 	virtual bool OnRequestClose() override;
 	virtual void PostInitAssetEditor() override;
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
 	// IAssetEditorInstance
 	// TODO: If this returns true then the editor cannot re-open after it's closed. Figure out why.
@@ -103,6 +105,7 @@ private:
 
 	void PopulateOutliner();
 	void OnClothAssetChanged();
+	void InvalidateViews();
 
 	// Dataflow
 	void EvaluateNode(FDataflowNode* Node, FDataflowOutput* Out);
@@ -124,6 +127,7 @@ private:
 	AssetEditorViewportFactoryFunction ClothPreviewViewportDelegate;
 	TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothPreviewViewportClient;
 	TSharedPtr<FAssetEditorModeManager> ClothPreviewEditorModeManager;
+	TSharedPtr<FClothEditorSimulationVisualization> ClothEditorSimulationVisualization;
 
 	TSharedPtr<SChaosClothAssetEditorRestSpaceViewport> RestSpaceViewportWidget;
 	TSharedPtr<SChaosClothAssetEditor3DViewport> PreviewViewportWidget;

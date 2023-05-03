@@ -720,6 +720,24 @@ bool UChaosClothAssetEditorMode::IsSimulationSuspended() const
 	return false;
 }
 
+void UChaosClothAssetEditorMode::SetEnableSimulation(bool bEnable)
+{
+	if (PreviewScene && PreviewScene->GetClothComponent())
+	{
+		PreviewScene->GetClothComponent()->SetEnableSimulation(bEnable);
+	}
+}
+
+bool UChaosClothAssetEditorMode::IsSimulationEnabled() const
+{
+	if (PreviewScene && PreviewScene->GetClothComponent())
+	{
+		return PreviewScene->GetClothComponent()->IsSimulationEnabled();
+	}
+
+	return false;
+}
+
 UDataflowComponent* UChaosClothAssetEditorMode::GetDataflowComponent() const
 {
 	return DataflowComponent;

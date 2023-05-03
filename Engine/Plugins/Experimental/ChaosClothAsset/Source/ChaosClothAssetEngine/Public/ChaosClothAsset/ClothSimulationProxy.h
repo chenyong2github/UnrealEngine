@@ -59,6 +59,8 @@ namespace UE::Chaos::ClothAsset
 
 		FBoxSphereBounds CalculateBounds_AnyThread() const;
 
+		const ::Chaos::FClothVisualization* GetVisualization() const { return Visualization.Get(); }
+
 	protected:
 		void Tick();
 		void WriteSimulationData();
