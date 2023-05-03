@@ -466,26 +466,13 @@ void UAnimSequence::WillNeverCacheCookedPlatformDataAgain()
 {
 	Super::WillNeverCacheCookedPlatformDataAgain();
 
-#if UE_DEBUG_ANIMATION_COMPRESSION
-	const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetPathName());
-	if (bOutputDebugData)
-	{
-		UE_LOG(LogAnimationCompression, Display, TEXT("UAnimSequence::WillNeverCacheCookedPlatformDataAgain %s"), *GetPathName());
-
-		for (TPair<FIoHash, FCompressionRequestTimings>& TimingsPair : TimingsByKeyHash)
-		{
-			TimingsPair.Value.LastWillNeverCook = FDateTime::Now();	
-		}
-	}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
-
 	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});	
 	ClearCompressedCurveData();
 	ClearCompressedBoneData();
 
 	// Clear out current platform, and any target platform data
 	CompressedData.Reset();
-	
+		
 	CacheTasksByKeyHash.Empty();
 	DataByPlatformKeyHash.Empty();
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -496,18 +483,6 @@ void UAnimSequence::WillNeverCacheCookedPlatformDataAgain()
 void UAnimSequence::ClearAllCachedCookedPlatformData()
 {
 	Super::ClearAllCachedCookedPlatformData();
-	
-#if UE_DEBUG_ANIMATION_COMPRESSION
-	const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetPathName());
-	if (bOutputDebugData)
-	{
-		UE_LOG(LogAnimationCompression, Display, TEXT("UAnimSequence::ClearAllCachedCookedPlatformData %s"), *GetPathName());
-		for (TPair<FIoHash, FCompressionRequestTimings>& TimingsPair : TimingsByKeyHash)
-		{
-			TimingsPair.Value.LastClearCache = FDateTime::Now();	
-		}
-	}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
 	
 	// Delete any cache tasks first because the destructor will cancel the cache and build tasks,
 	// and drop their pointers to the data.
@@ -1183,27 +1158,12 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 		EndCacheDerivedData(KeyHash);
 	}
 
-	auto LogCookedDataWarning = [this, TargetPlatform, KeyHash]()
+	auto RecompressForPlatform = [this, TargetPlatform]()
 	{
-#if UE_DEBUG_ANIMATION_COMPRESSION
-		const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugHashes.Contains(LexToString(KeyHash)) || UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetPathName());
-		if (bOutputDebugData)
-		{
-			// This means cooked data is expected, but it it currently invalid and no task is running to generate it
-			UE_LOG(LogAnimationCompression, Warning, TEXT("Expecting either valid compressed Animation Data, or an in-flight compression task for asset %s\nPlatform: %s\nHash: %s"), *GetPathName(), *TargetPlatform->DisplayName().ToString(), *LexToString(KeyHash));
-
-			if (bOutputDebugData)
-			{
-				UE_LOG(LogAnimationCompression, Display, TEXT("UAnimSequence::IsCachedCookedPlatformDataLoaded %s - %s"), *GetPathName(), *LexToString(KeyHash));
-			}
-		}
-		LogCompressionRequestTimings();
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
-
 		if (IsInGameThread())
 		{
-			// Temporary fix for soft-lock, to be removed when root-cause is addressed
-			BeginCacheForCookedPlatformData(TargetPlatform);			
+			// This is required until we can ensure inter-animsequence dependencies are handled correctly (see UE-184634)
+			BeginCacheForCookedPlatformData(TargetPlatform);
 		}
 	};
 
@@ -1215,7 +1175,7 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 		}
 		else if (!CacheTasksByKeyHash.Contains(KeyHash))
 		{
-			LogCookedDataWarning();
+			RecompressForPlatform();
 		}
 	}
 	else
@@ -1228,12 +1188,12 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 			}
 			else if (!CacheTasksByKeyHash.Contains(KeyHash))
 			{
-				LogCookedDataWarning();
+				RecompressForPlatform();
 			}
 		}
 		else if (!CacheTasksByKeyHash.Contains(KeyHash))
 		{
-			LogCookedDataWarning();
+			RecompressForPlatform();
 		}
 	}
 
@@ -5139,16 +5099,7 @@ FIoHash UAnimSequence::CreateDerivedDataKeyHash(const ITargetPlatform* TargetPla
 
 	Writer << Ret;
 
-	const FIoHash FinalHash = Writer.Finalize();
-
-#if UE_DEBUG_ANIMATION_COMPRESSION
-	const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugHashes.Contains(LexToString(FinalHash)) || UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetPathName());
-	if (bOutputDebugData)
-	{
-		DDCStringByKeyHash.FindOrAdd(FinalHash) = Ret;
-	}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
-	return FinalHash;
+	return Writer.Finalize();
 }
 
 FIoHash UAnimSequence::BeginCacheDerivedData(const ITargetPlatform* TargetPlatform)
@@ -5206,15 +5157,6 @@ FIoHash UAnimSequence::BeginCacheDerivedData(const ITargetPlatform* TargetPlatfo
     {
     	TargetData = DataByPlatformKeyHash.Emplace(KeyHash, MakeUnique<FCompressedAnimSequence>()).Get();
     }
-
-#if UE_DEBUG_ANIMATION_COMPRESSION
-	const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugHashes.Contains(LexToString(KeyHash)) || UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetPathName());
-	if (bOutputDebugData)
-	{
-		UE_LOG(LogAnimationCompression, Display, TEXT("UAnimSequence::BeginCacheDerivedData %s - %s"), *GetPathName(), *LexToString(KeyHash));
-		TimingsByKeyHash.FindOrAdd(KeyHash).LastBeginCacheRequest = FDateTime::Now();
-	}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
 	check(TargetData);
 	TargetData->Reset();
 
@@ -5283,40 +5225,10 @@ void UAnimSequence::EndCacheDerivedData(const FIoHash& KeyHash)
 	{
 		return;
 	}
-
-#if UE_DEBUG_ANIMATION_COMPRESSION
-	const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugHashes.Contains(LexToString(KeyHash)) || UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetPathName());
-	if (bOutputDebugData)
-	{
-		UE_LOG(LogAnimationCompression, Display, TEXT("UAnimSequence::EndCacheDerivedData %s - %s"), *GetPathName(), *LexToString(KeyHash));
-	}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
 	
 	UE::Anim::FAnimSequenceCompilingManager::Get().FinishCompilation({this});
 }
-
-#if UE_DEBUG_ANIMATION_COMPRESSION
-void UAnimSequence::LogCompressionRequestTimings() const
-{
-	for (const TPair<FIoHash, FCompressionRequestTimings>& TimingsPair : TimingsByKeyHash)
-	{
-		UE_LOG(LogAnimation, Warning, TEXT("Hash: %s\nBeginCache: %s\nApplyCache: %s\nClearCache: %s\nWillNeverCook: %s"),
-			*LexToString(TimingsPair.Key),
-			*TimingsPair.Value.LastBeginCacheRequest.ToString(),
-			*TimingsPair.Value.LastApplyCacheData.ToString(),
-			*TimingsPair.Value.LastClearCache.ToString(),
-			*TimingsPair.Value.LastWillNeverCook.ToString());
-	}
 	
-	for (const TPair<FIoHash, FString>& StringPair : DDCStringByKeyHash)
-	{
-		UE_LOG(LogAnimation, Warning, TEXT("Hash: %s\nDDC key: %s"),
-		*LexToString(StringPair.Key),
-		*StringPair.Value);
-	}
-}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
-
 FCompressedAnimSequence& UAnimSequence::CacheDerivedData(const ITargetPlatform* TargetPlatform)
 {
 	const FIoHash KeyHash = BeginCacheDerivedData(TargetPlatform);
@@ -5422,15 +5334,6 @@ void UAnimSequence::FinishAsyncTasks()
 					bUseRawDataOnly = false;
                     PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
-
-#if UE_DEBUG_ANIMATION_COMPRESSION
-				const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugHashes.Contains(LexToString(It->Key)) || UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetPathName());
-				if (bOutputDebugData)
-				{
-					UE_LOG(LogAnimationCompression, Display, TEXT("UAnimSequence::FinishAsyncTasks %s - %s"), *GetPathName(), *LexToString(It->Key));					
-					TimingsByKeyHash.FindChecked(It->Key).LastApplyCacheData = FDateTime::Now();
-				}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
 			}
 			else
 			{

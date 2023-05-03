@@ -186,18 +186,6 @@ void UAnimationSequencerDataModel::PostLoad()
 
 		CachedRawDataGUID.Invalidate();
 
-#if UE_DEBUG_ANIMATION_COMPRESSION				
-		const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetOuter()->GetPathName());
-		if (bOutputDebugData)
-		{
-			UE_LOG(LogAnimationCompression, Display, TEXT("CachedRawDataGUID.Invalidate %s"), *GetPathName());
-			FStackTracker TempTracker(nullptr, nullptr, nullptr, true);
-			TempTracker.CaptureStackTrace(1);
-			TempTracker.DumpStackTraces(0, *GLog);
-			TempTracker.ResetTracking();
-		}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
-
 		RemoveOutOfDateControls();
 
 		ValidateData();
@@ -693,19 +681,6 @@ FGuid UAnimationSequencerDataModel::GenerateGuid() const
 		ReturnGuid = Guid;
 	}
 
-
-#if UE_DEBUG_ANIMATION_COMPRESSION
-	const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugGUIDs.Contains(ReturnGuid) || UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetOuter()->GetPathName());
-	if (bOutputDebugData)
-	{
-		UE_LOG(LogAnimationCompression, Display, TEXT("UAnimationSequencerDataModel::GenerateGuid %s - %s"), *GetPathName(), *ReturnGuid.ToString());
-		FStackTracker TempTracker(nullptr, nullptr, nullptr, true);
-		TempTracker.CaptureStackTrace(1);
-		TempTracker.DumpStackTraces(0, *GLog);
-		TempTracker.ResetTracking();
-	}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
-
 	return ReturnGuid;
 }
 
@@ -763,18 +738,7 @@ void UAnimationSequencerDataModel::OnNotify(const EAnimDataModelNotifyType& Noti
 			// Prevent reset when being populated inside of upgrade path (always happens in UAnimSequenceBase::PostLoad)
 			if (CachedRawDataGUID.IsValid() && (!Collector.Contains(EAnimDataModelNotifyType::Populated) || !FUObjectThreadContext::Get().IsRoutingPostLoad))
 			{
-				CachedRawDataGUID.Invalidate();			
-#if UE_DEBUG_ANIMATION_COMPRESSION
-				const bool bOutputDebugData = UAnimationSettings::Get()->CompressionDebugAssetPaths.Contains(GetOuter()->GetPathName());
-				if (bOutputDebugData)
-				{
-					UE_LOG(LogAnimationCompression, Display, TEXT("CachedRawDataGUID.Invalidate %s"), *GetPathName());
-					FStackTracker TempTracker(nullptr, nullptr, nullptr, true);
-					TempTracker.CaptureStackTrace(1);
-					TempTracker.DumpStackTraces(0, *GLog);
-					TempTracker.ResetTracking();
-				}
-#endif // UE_DEBUG_ANIMATION_COMPRESSION
+				CachedRawDataGUID.Invalidate();
 			}
 		};
 

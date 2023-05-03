@@ -103,20 +103,7 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 
 	/** Project specific default frame-rate used when (re)initializing any animation based data */
 	UPROPERTY(config, EditAnywhere, Category = AnimationData)
-	FFrameRate DefaultFrameRate;
-
-	/** Data model GUIDs which should be tracked by animation compression debugging/logging */
-	UPROPERTY(config, EditAnywhere, Category = AnimationData)
-	TArray<FGuid> CompressionDebugGUIDs;
-
-	/** Animation sequence DDC hashes which should be tracked by animation compression debugging/logging */
-	UPROPERTY(config, EditAnywhere, Category = AnimationData)
-	TArray<FString> CompressionDebugHashes;
-
-	/** Animation sequence full paths which should be tracked by animation compression debugging/logging */
-	UPROPERTY(config, EditAnywhere, Category = AnimationData)
-	TArray<FString> CompressionDebugAssetPaths;
-	
+	FFrameRate DefaultFrameRate;	
 public:
 	static UAnimationSettings * Get() { return CastChecked<UAnimationSettings>(UAnimationSettings::StaticClass()->GetDefaultObject()); }
 
