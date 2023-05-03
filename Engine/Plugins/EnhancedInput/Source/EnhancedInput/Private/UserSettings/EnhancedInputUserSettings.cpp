@@ -384,7 +384,7 @@ int32 UEnhancedPlayerMappableKeyProfile::GetMappedKeysInRow(const FName MappingN
 	}
 	else
 	{
-		UE_LOG(LogEnhancedInput, Warning, TEXT("Player Mappable Key Profile '%s' doesn't have any mappings for '%s'"), *ProfileIdentifier.ToString(), *MappingName.ToString());
+		UE_LOG(LogEnhancedInput, Verbose, TEXT("Player Mappable Key Profile '%s' doesn't have any mappings for '%s'"), *ProfileIdentifier.ToString(), *MappingName.ToString());
 	}
 	return OutKeys.Num();
 }
@@ -432,7 +432,7 @@ int32 UEnhancedPlayerMappableKeyProfile::QueryPlayerMappedKeys(const FPlayerMapp
 	}
 	else
 	{
-		UE_LOG(LogEnhancedInput, Warning, TEXT("Player Mappable Key Profile '%s' doesn't have any mappings for '%s'"), *ProfileIdentifier.ToString(), *Options.MappingName.ToString());
+		UE_LOG(LogEnhancedInput, Verbose, TEXT("Player Mappable Key Profile '%s' doesn't have any mappings for '%s'"), *ProfileIdentifier.ToString(), *Options.MappingName.ToString());
 	}
 
 	return OutKeys.Num();
