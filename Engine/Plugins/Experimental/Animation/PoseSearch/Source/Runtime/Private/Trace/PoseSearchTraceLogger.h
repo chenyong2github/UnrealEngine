@@ -66,17 +66,21 @@ struct POSESEARCH_API FTraceMotionMatchingState
 {
 	/** ObjectId of active searchable asset */
 	uint64 SearchableAssetId = 0;
-	
-	/** Amount of time since the last pose switch */
-	float ElapsedPoseSearchTime = 0.0f;
 
-	float AssetPlayerTime = 0.0f;
-	float DeltaTime = 0.0f;
-	float SimLinearVelocity = 0.0f;
-	float SimAngularVelocity = 0.0f;
-	float AnimLinearVelocity = 0.0f;
-	float AnimAngularVelocity = 0.0f;
+	/** Amount of time since the last pose switch */
+	float ElapsedPoseSearchTime = 0.f;
+
+	float AssetPlayerTime = 0.f;
+	float DeltaTime = 0.f;
+	float SimLinearVelocity = 0.f;
+	float SimAngularVelocity = 0.f;
+	float AnimLinearVelocity = 0.f;
+	float AnimAngularVelocity = 0.f;
 	
+	float RecordingTime = 0.f;
+	float SearchBestCost = 0.f;
+	float SearchBruteForceCost = 0.f;
+
 	TArray<FTraceMotionMatchingStateDatabaseEntry> DatabaseEntries;
 
 	/** Index of the current database in DatabaseEntries */

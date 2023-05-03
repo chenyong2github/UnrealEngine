@@ -151,7 +151,10 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 	const UObject* AnimInstance,
 	int32 NodeId,
 	float DeltaTime,
-	bool bSearch)
+	bool bSearch,
+	float RecordingTime,
+	float SearchBestCost,
+	float SearchBruteForceCost)
 {
 	using namespace UE::PoseSearch;
 	
@@ -244,6 +247,10 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 	TraceState.ElapsedPoseSearchTime = ElapsedPoseSearchTime;
 	TraceState.AssetPlayerTime = CurrentResult.AssetTime;
 	TraceState.DeltaTime = DeltaTime;
+
+	TraceState.RecordingTime = RecordingTime;
+	TraceState.SearchBestCost = SearchBestCost;
+	TraceState.SearchBruteForceCost = SearchBruteForceCost;
 
 	TraceState.Output(AnimInstance, NodeId);
 }
@@ -360,9 +367,21 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 	// Record debugger details
 	if (IsTracing(Context))
 	{
+		const UAnimInstance* AnimInstance = Cast<const UAnimInstance>(Context.AnimInstanceProxy->GetAnimInstanceObject());
+
+		const float SearchBestCost = InOutMotionMatchingState.CurrentSearchResult.PoseCost.GetTotalCost();
+		float SearchBruteForceCost = SearchBestCost;
+#if WITH_EDITORONLY_DATA
+		if (Databases[0]->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
+		{
+			SearchBruteForceCost = InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost.GetTotalCost();
+		}
+#endif // WITH_EDITORONLY_DATA
+
 		// @todo: Update this to account for multiple databases.
 		TraceMotionMatchingState(Databases[0], SearchContext, InOutMotionMatchingState.CurrentSearchResult, LastResult, InOutMotionMatchingState.ElapsedPoseSearchTime,
-			InOutMotionMatchingState.RootMotionTransformDelta, Context.AnimInstanceProxy->GetAnimInstanceObject(), Context.GetCurrentNodeId(), DeltaTime, bSearch);
+			InOutMotionMatchingState.RootMotionTransformDelta, Context.AnimInstanceProxy->GetAnimInstanceObject(), Context.GetCurrentNodeId(), DeltaTime, bSearch,
+			AnimInstance ? FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()) : 0.f, SearchBestCost, SearchBruteForceCost);
 	}
 #endif
 
@@ -586,7 +605,16 @@ void UPoseSearchLibrary::MotionMatch(
 #endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-			TraceMotionMatchingState(Database, SearchContext, SearchResult, FSearchResult(), 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier, AnimInstance->GetDeltaSeconds(), true);
+			const float SearchBestCost = SearchResult.PoseCost.GetTotalCost();
+			float SearchBruteForceCost = SearchBestCost;
+#if WITH_EDITORONLY_DATA
+			if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
+			{
+				SearchBruteForceCost = SearchResult.BruteForcePoseCost.GetTotalCost();
+			}
+#endif // WITH_EDITORONLY_DATA
+			TraceMotionMatchingState(Database, SearchContext, SearchResult, FSearchResult(), 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier,
+				AnimInstance->GetDeltaSeconds(), true, FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()), SearchBestCost, SearchBruteForceCost);
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 		}
 	}

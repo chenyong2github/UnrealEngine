@@ -8,6 +8,7 @@
 #include "PoseSearchDebuggerViewModel.h"
 #include "Styling/SlateIconFinder.h"
 #include "Trace/PoseSearchTraceProvider.h"
+#include "Widgets/SOverlay.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchDebugger"
 
@@ -110,13 +111,48 @@ TSharedPtr<SDebuggerView> FDebugger::GenerateInstance(uint64 InAnimInstanceId)
 	return DebuggerView;
 }
 
-
-FText FDebuggerViewCreator::GetTitle() const
+FDebuggerTrack::FDebuggerTrack(uint64 InObjectId)
+: ObjectId(InObjectId)
 {
-	return LOCTEXT("PoseSearchDebuggerTabTitle", "Pose Search");
+	BestCostData = MakeShared<SCurveTimelineView::FTimelineCurveData>();
+	BruteForceCostData = MakeShared<SCurveTimelineView::FTimelineCurveData>();
+
+	BestCostView = SNew(SCurveTimelineView)
+		.CurveColor(FLinearColor::White)
+		.ViewRange_Lambda([]()
+		{
+			return IRewindDebugger::Instance()->GetCurrentViewRange();
+		})
+		.RenderFill(false)
+		.CurveData_Lambda([this]()
+		{
+			return BestCostData;
+		});
+	
+	BruteForceCostView = SNew(SCurveTimelineView)
+		.CurveColor(FLinearColor::Red)
+		.ViewRange_Lambda([]()
+		{
+			return IRewindDebugger::Instance()->GetCurrentViewRange();
+		})
+		.RenderFill(false)
+		.CurveData_Lambda([this]()
+		{
+			return BruteForceCostData;
+		});
+
+	OverlayView = SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			BruteForceCostView.ToSharedRef()
+		]
+		+ SOverlay::Slot()
+		[
+			BestCostView.ToSharedRef()
+		];
 }
 
-FSlateIcon FDebuggerViewCreator::GetIcon() const
+FSlateIcon FDebuggerTrack::GetIconInternal()
 {
 #if WITH_EDITOR
 	return FSlateIconFinder::FindIconForClass(UAnimInstance::StaticClass());
@@ -125,18 +161,110 @@ FSlateIcon FDebuggerViewCreator::GetIcon() const
 #endif
 }
 
-FName FDebuggerViewCreator::GetTargetTypeName() const
+bool FDebuggerTrack::UpdateInternal()
+{
+	IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+	
+	const TraceServices::IAnalysisSession* AnalysisSession = RewindDebugger->GetAnalysisSession();
+	check(AnalysisSession);
+	if (const FTraceProvider* PoseSearchProvider = AnalysisSession->ReadProvider<FTraceProvider>(FTraceProvider::ProviderName))
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+		TArray<SCurveTimelineView::FTimelineCurveData::CurvePoint>& BestCostPoints = BestCostData->Points;
+		BestCostPoints.Reset();
+
+		TArray<SCurveTimelineView::FTimelineCurveData::CurvePoint>& BruteForceCostPoints = BruteForceCostData->Points;
+		BruteForceCostPoints.Reset();
+
+		// convert time range to from rewind debugger times to profiler times
+		TRange<double> TraceTimeRange = RewindDebugger->GetCurrentTraceRange();
+		double StartTime = TraceTimeRange.GetLowerBoundValue();
+		double EndTime = TraceTimeRange.GetUpperBoundValue();
+
+		PoseSearchProvider->EnumerateMotionMatchingStateTimelines(ObjectId, [StartTime, EndTime, &BestCostPoints, &BruteForceCostPoints](const FTraceProvider::FMotionMatchingStateTimeline& InTimeline)
+		{
+			// this isn't very efficient, and it gets called every frame.  will need optimizing
+			InTimeline.EnumerateEvents(StartTime, EndTime, [StartTime, EndTime, &BestCostPoints, &BruteForceCostPoints](double InStartTime, double InEndTime, uint32 InDepth, const FTraceMotionMatchingStateMessage& InMessage)
+			{
+				if (InEndTime > StartTime && InStartTime < EndTime)
+				{
+					BestCostPoints.Add({ InMessage.RecordingTime, InMessage.SearchBestCost });
+					BruteForceCostPoints.Add({ InMessage.RecordingTime, InMessage.SearchBruteForceCost });
+				}
+				return TraceServices::EEventEnumerate::Continue;
+			});
+		});
+
+		float MinValue = UE_MAX_FLT;
+		float MaxValue = -UE_MAX_FLT;
+		for (const SCurveTimelineView::FTimelineCurveData::CurvePoint& CurvePoint : BestCostPoints)
+		{
+			MinValue = FMath::Min(MinValue, CurvePoint.Value);
+			MaxValue = FMath::Max(MaxValue, CurvePoint.Value);
+		}
+		for (const SCurveTimelineView::FTimelineCurveData::CurvePoint& CurvePoint : BruteForceCostPoints)
+		{
+			MinValue = FMath::Min(MinValue, CurvePoint.Value);
+			MaxValue = FMath::Max(MaxValue, CurvePoint.Value);
+		}
+
+		BestCostView->SetFixedRange(MinValue, MaxValue);
+		BruteForceCostView->SetFixedRange(MinValue, MaxValue);
+	}
+
+	if (TSharedPtr<IRewindDebuggerView> PinnedView = View.Pin())
+	{
+		PinnedView->SetTimeMarker(RewindDebugger->CurrentTraceTime());
+	}
+
+	return false;
+}
+
+FName FDebuggerTrack::GetNameInternal() const
+{
+	static const FName Name("PoseSearchDebugger");
+	return Name;
+}
+
+FText FDebuggerTrack::GetDisplayNameInternal() const
+{
+	return LOCTEXT("PoseSearchDebuggerTabTitle", "Pose Search");
+}
+
+TSharedPtr<SWidget> FDebuggerTrack::GetTimelineViewInternal()
+{
+	return OverlayView;
+}
+
+TSharedPtr<SWidget> FDebuggerTrack::GetDetailsViewInternal()
+{
+	TSharedPtr<IRewindDebuggerView> RewindDebuggerView = FDebugger::Get()->GenerateInstance(ObjectId);
+	View = RewindDebuggerView;
+	return RewindDebuggerView;
+}
+
+// FDebuggerTrackCreator
+///////////////////////////////////////////////////
+
+FName FDebuggerTrackCreator::GetTargetTypeNameInternal() const
 {
 	static FName TargetTypeName = "AnimInstance";
 	return TargetTypeName;
 }
 
-TSharedPtr<IRewindDebuggerView> FDebuggerViewCreator::CreateDebugView(uint64 ObjectId, double CurrentTime, const TraceServices::IAnalysisSession& InAnalysisSession) const
+FName FDebuggerTrackCreator::GetNameInternal() const
 {
-	return FDebugger::Get()->GenerateInstance(ObjectId);
+	static const FName Name("PoseSearchDebugger");
+	return Name;
 }
 
-bool FDebuggerViewCreator::HasDebugInfo(uint64 AnimInstanceId) const
+TSharedPtr<RewindDebugger::FRewindDebuggerTrack> FDebuggerTrackCreator::CreateTrackInternal(uint64 ObjectId) const
+{
+	return MakeShared<FDebuggerTrack>(ObjectId);
+}
+
+bool FDebuggerTrackCreator::HasDebugInfoInternal(uint64 ObjectId) const
 {
 	// Get provider and validate
 	const TraceServices::IAnalysisSession* Session = IRewindDebugger::Instance()->GetAnalysisSession();
@@ -149,22 +277,17 @@ bool FDebuggerViewCreator::HasDebugInfo(uint64 AnimInstanceId) const
 	{
 		return false;
 	}
-	
+
 	bool bHasData = false;
-	
-	PoseSearchProvider->EnumerateMotionMatchingStateTimelines(AnimInstanceId, [&bHasData](const FTraceProvider::FMotionMatchingStateTimeline& InTimeline)
+
+	PoseSearchProvider->EnumerateMotionMatchingStateTimelines(ObjectId, [&bHasData](const FTraceProvider::FMotionMatchingStateTimeline& InTimeline)
 	{
 		bHasData = true;
 	});
-	
+
 	return bHasData;
 }
 
-FName FDebuggerViewCreator::GetName() const
-{
-	static const FName Name("PoseSearchDebugger");
-	return Name;
-}
 
 } // namespace UE::PoseSearch
 

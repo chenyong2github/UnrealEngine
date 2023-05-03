@@ -90,7 +90,10 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 		const UObject* AnimInstance,
 		int32 NodeId,
 		float DeltaTime,
-		bool bSearch);
+		bool bSearch,
+		float RecordingTime,
+		float SearchBestCost,
+		float SearchBruteForceCost);
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 
 	static FPoseSearchQueryTrajectory ProcessTrajectory(

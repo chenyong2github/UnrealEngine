@@ -36,8 +36,8 @@ public:
 private:
 	TArray<class IConsoleObject*> ConsoleCommands;
 	
-	/** Creates the view for the Rewind Debugger */
-	TSharedPtr<FDebuggerViewCreator> DebuggerViewCreator;
+	/** Creates the track for the Rewind Debugger */
+	TSharedPtr<FDebuggerTrackCreator> DebuggerTrackCreator;
 	/** Enables dedicated PoseSearch trace module */
 	TSharedPtr<FTraceModule> TraceModule;
 	
@@ -63,9 +63,9 @@ void FEditorModule::StartupModule()
 	{
 		FDebugger::Initialize();
 		TraceModule = MakeShared<FTraceModule>();
-		DebuggerViewCreator = MakeShared<FDebuggerViewCreator>();
+		DebuggerTrackCreator = MakeShared<FDebuggerTrackCreator>();
 
-		IModularFeatures::Get().RegisterModularFeature("RewindDebuggerViewCreator", DebuggerViewCreator.Get());
+		IModularFeatures::Get().RegisterModularFeature(FDebuggerTrackCreator::ModularFeatureName, DebuggerTrackCreator.Get());
 		IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, TraceModule.Get());
 		
 		// Register Ed Mode used by pose search database
