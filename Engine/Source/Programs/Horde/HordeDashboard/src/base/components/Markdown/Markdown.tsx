@@ -35,7 +35,7 @@ const getStyles: IStyleFunction<IMarkdownStyleProps, IMarkdownStyles> = () => {
                lineHeight:"1.6"
             },
             'ul': {
-               margin: "4px 0px 8px 0px"
+               margin: "8px 0px 16px 0px"
             }
 
          }

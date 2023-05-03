@@ -455,25 +455,23 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
          }
       });
 
-      if (getSiteConfig().environment !== "production") {
 
-         const docsItems: IContextualMenuItem[] = [];
-         docsItems.push({
-            key: "server_docs",
-            text: "Documentation",
-            link: `/docs`
-         });
+      const docsItems: IContextualMenuItem[] = [];
+      docsItems.push({
+         key: "server_docs",
+         text: "Documentation",
+         link: `/docs`
+      });
 
-         subItems.push({
-            itemType: ContextualMenuItemType.Section,
-            key: `server_docs_item`,
-            sectionProps: {
-               title: "Documentation",
-               items: docsItems,
-               bottomDivider: true
-            }
-         });
-      }
+      subItems.push({
+         itemType: ContextualMenuItemType.Section,
+         key: `server_docs_item`,
+         sectionProps: {
+            title: "Documentation",
+            items: docsItems,
+            bottomDivider: true
+         }
+      });
 
       // Configuration
       const versionItems: IContextualMenuItem[] = [];
