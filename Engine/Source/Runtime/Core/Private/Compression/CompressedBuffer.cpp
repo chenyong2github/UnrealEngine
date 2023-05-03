@@ -437,13 +437,11 @@ bool FBlockDecoder::TryDecompressTo(
 	const FHeader& Header,
 	const FMemoryView HeaderView,
 	const uint64 RawOffset,
-	FMutableMemoryView DestinationRawView) const
+	FMutableMemoryView RawView) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBlockDecoder::TryDecompressTo);
 
-	// Don't allow an output buffer bigger than we can fill so callers can know it's
-	// all initialized data.
-	if (Header.TotalRawSize < RawOffset + DestinationRawView.GetSize())
+	if (Header.TotalRawSize < RawOffset + RawView.GetSize())
 	{
 		return false;
 	}
@@ -451,144 +449,70 @@ bool FBlockDecoder::TryDecompressTo(
 	const uint64 BlockSize = uint64(1) << Header.BlockSizeExponent;
 	const uint64 LastBlockSize = BlockSize - (BlockSize * Header.BlockCount - Header.TotalRawSize);
 	const uint32 FirstBlockIndex = uint32(RawOffset / BlockSize);
-	const uint32 LastBlockIndex = uint32((RawOffset + DestinationRawView.GetSize() - 1) / BlockSize);
+	const uint32 LastBlockIndex = uint32((RawOffset + RawView.GetSize() - 1) / BlockSize);
 
 	uint64 RawBlockOffset = RawOffset % BlockSize;
 
-	// There's an array of CompressedBlockSizes right after the header, BlockCount uint32s
-	TConstArrayView64<uint32> CompressedBlockSizes(static_cast<const uint32*>(HeaderView.RightChop(sizeof(FHeader)).GetData()), Header.BlockCount);
-
-	// Get the offset for the first block we care about by summing the sizes of the blocks we are ignoring.
-	uint64 CompressedOffset = sizeof(FHeader) + CompressedBlockSizes.Num()*CompressedBlockSizes.GetTypeSize() +
-		Algo::TransformAccumulate(CompressedBlockSizes.Left(FirstBlockIndex),
+	const uint32* const CompressedBlockSizes = static_cast<const uint32*>(HeaderView.RightChop(sizeof(FHeader)).GetData());
+	uint64 CompressedOffset = sizeof(FHeader) + sizeof(uint32) * uint32(Header.BlockCount) +
+		Algo::TransformAccumulate(MakeArrayView(CompressedBlockSizes, FirstBlockIndex),
 			[](uint32 Size) -> uint64 { return NETWORK_ORDER32(Size); }, uint64(0));
 
-	// Virtually all calls are for "decompress entire buffer", so rather than fight with edge cases we
-	// just optimize the known usage.
-	if (RawOffset == 0 && Header.TotalRawSize == DestinationRawView.GetSize())
-	{
-		// Precompute the offsets to each block. 64 entries with 256kb blocks is 16mb uncompressed inline, otherwise we allocate.
-		TArray<uint64, TInlineAllocator<64>> CompressedOffsets;
-		CompressedOffsets.AddUninitialized((LastBlockIndex - FirstBlockIndex) + 1);
-		CompressedOffsets[0] = CompressedOffset;
-		if (LastBlockIndex != FirstBlockIndex)
-		{
-			for (uint32 BlockIndexInWorkingSet = 1; BlockIndexInWorkingSet <= (LastBlockIndex - FirstBlockIndex); BlockIndexInWorkingSet++)
-			{
-				CompressedOffsets[BlockIndexInWorkingSet] = CompressedOffsets[BlockIndexInWorkingSet-1] + NETWORK_ORDER32(CompressedBlockSizes[FirstBlockIndex + BlockIndexInWorkingSet - 1]);
-			}		
-		}
-
-		std::atomic_int32_t FailedBlockCount = 0;
-
-		ParallelFor(TEXT("FCompressedBuffer.DecompressTo.PF"), LastBlockIndex - FirstBlockIndex + 1, 1,
-			[FirstBlockIndex, LastBlockIndex, &Header, DestinationRawView, CompressedBlockSizes, &CompressedOffsets, &Source, &Context, &FailedBlockCount, this](int32 BlockIndexInWorkingSet)
-		{
-			const uint32 BlockIndex = FirstBlockIndex + BlockIndexInWorkingSet;
-			const uint64 BlockSize = uint64(1) << Header.BlockSizeExponent;
-			const uint64 LastBlockSize = BlockSize - (BlockSize * Header.BlockCount - Header.TotalRawSize);
-
-			// We know the output buffer is the same size as the uncompressed output, so this is a lot simpler than
-			// the general case below the parallelfor.
-			const uint64 ThisBlockSize = BlockIndex == Header.BlockCount - 1 ? LastBlockSize : BlockSize;
-			
-			FMutableMemoryView DecompressTo = DestinationRawView.Mid((BlockIndex - FirstBlockIndex) * BlockSize, ThisBlockSize);
-
-			const uint32 CompressedBlockSize = NETWORK_ORDER32(CompressedBlockSizes[BlockIndex]);
-			const bool bIsCompressed = CompressedBlockSize < ThisBlockSize;
-
-			if (bIsCompressed == false)
-			{
-				if (Source.Read(CompressedOffsets[BlockIndexInWorkingSet], DecompressTo) == false)
-				{
-					FailedBlockCount.fetch_add(1, std::memory_order_relaxed);
-					return;
-				}
-			}
-			else
-			{
-				const FMemoryView CompressedBlock = Source.ReadOrView(CompressedOffsets[BlockIndexInWorkingSet], CompressedBlockSize, Context);
-				if (CompressedBlock.IsEmpty() || !DecompressBlock(DecompressTo, CompressedBlock))
-				{
-					FailedBlockCount.fetch_add(1, std::memory_order_relaxed);
-					return;
-				}
-			}
-		});
-
-		return FailedBlockCount.load() == 0;
-	}
+	// @todo : Parallel decoder needed!  This stream is chunked into blocks but this implementation is serial.  This is a bottleneck for large data loading.
 
 	for (uint32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; BlockIndex++)
 	{
-		// How big we're decompressing to.
-		const uint64 ThisBlockSize = BlockIndex == Header.BlockCount - 1 ? LastBlockSize : BlockSize;
-
-		// How much we want from this block.
-		const uint64 RawBlockReadSize = FMath::Min(DestinationRawView.GetSize(), ThisBlockSize - RawBlockOffset);
-
+		const uint64 RawBlockSize = BlockIndex == Header.BlockCount - 1 ? LastBlockSize : BlockSize;
+		const uint64 RawBlockReadSize = FMath::Min(RawView.GetSize(), RawBlockSize - RawBlockOffset);
 		const uint32 CompressedBlockSize = NETWORK_ORDER32(CompressedBlockSizes[BlockIndex]);
-		const bool bIsCompressed = CompressedBlockSize < ThisBlockSize;
+		const bool bIsCompressed = CompressedBlockSize < RawBlockSize;
 
 		if (bIsCompressed)
 		{
-			// Check if we're pulling from a block we've already decompressed.
 			if (Context.RawBlockIndex == BlockIndex)
 			{
-				// Can just copy direct. (Left() is unnecessary?)
-				DestinationRawView.Left(RawBlockReadSize).CopyFrom(Context.RawBlock.GetView().Mid(RawBlockOffset, RawBlockReadSize));
+				RawView.Left(RawBlockReadSize).CopyFrom(Context.RawBlock.GetView().Mid(RawBlockOffset, RawBlockReadSize));
 			}
 			else
 			{
-				// Need to decompress a new block.
-				FMutableMemoryView DecompressTo;
-				if (RawBlockReadSize == ThisBlockSize)
+				FMutableMemoryView RawBlock;
+				if (RawBlockReadSize == RawBlockSize)
 				{
-					// Decompressing a whole block, we can go direct to the output
-					DecompressTo = DestinationRawView.Left(ThisBlockSize);
+					RawBlock = RawView.Left(RawBlockSize);
 				}
 				else
 				{
-					// Otherwise we need to go to an intermediary as the output can't hold the whole
-					// decompressed block.
-					if (Context.RawBlock.GetSize() < ThisBlockSize)
+					if (Context.RawBlock.GetSize() < RawBlockSize)
 					{
 						Context.RawBlock = FUniqueBuffer::Alloc(BlockSize);
 					}
-					DecompressTo = Context.RawBlock.GetView().Left(ThisBlockSize);
-
-					// keep track of what block we've stashed away.
+					RawBlock = Context.RawBlock.GetView().Left(RawBlockSize);
 					Context.RawBlockIndex = BlockIndex;
 				}
 
 				const FMemoryView CompressedBlock = Source.ReadOrView(CompressedOffset, CompressedBlockSize, Context);
-				if (CompressedBlock.IsEmpty() || !DecompressBlock(DecompressTo, CompressedBlock))
+				if (CompressedBlock.IsEmpty() || !DecompressBlock(RawBlock, CompressedBlock))
 				{
 					return false;
 				}
 
-				// If we didn't decompress direct, copy from our cache.
-				if (RawBlockReadSize != ThisBlockSize)
+				if (RawBlockReadSize != RawBlockSize)
 				{
-					DestinationRawView.CopyFrom(DecompressTo.Mid(RawBlockOffset, RawBlockReadSize));
+					RawView.CopyFrom(RawBlock.Mid(RawBlockOffset, RawBlockReadSize));
 				}
 			}
 		}
 		else
 		{
-			// uncompressed means it's just a direct copy.
-			if (Source.Read(CompressedOffset + RawBlockOffset, DestinationRawView.Left(RawBlockReadSize)) == false)
-			{
-				return false;
-			}
+			Source.Read(CompressedOffset + RawBlockOffset, RawView.Left(RawBlockReadSize));
 		}
 
 		RawBlockOffset = 0;
 		CompressedOffset += CompressedBlockSize;
-		DestinationRawView += RawBlockReadSize;
+		RawView += RawBlockReadSize;
 	}
 
-	return DestinationRawView.GetSize() == 0;
+	return RawView.GetSize() == 0;
 }
 
 FCompositeBuffer FBlockDecoder::DecompressToComposite(
