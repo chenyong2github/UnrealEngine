@@ -693,7 +693,10 @@ void FDeferredShadingSceneRenderer::RenderPrePassHMD(FRDGBuilder& GraphBuilder, 
 
 	for (const FViewInfo& View : Views)
 	{
-		if (IStereoRendering::IsStereoEyeView(View))
+		// Don't draw the hidden area mesh in scene captures as they are not displayed
+		// through the HMD lenses.
+		const bool bIsCapture = View.bIsSceneCapture || View.bIsPlanarReflection;
+		if (IStereoRendering::IsStereoEyeView(View) && !bIsCapture)
 		{
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
