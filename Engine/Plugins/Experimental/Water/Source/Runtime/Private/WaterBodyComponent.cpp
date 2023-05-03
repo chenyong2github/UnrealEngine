@@ -1472,7 +1472,7 @@ void UWaterBodyComponent::OnWaterBodyChanged(const FOnWaterBodyChangedParams& In
 	}
 
 #if WITH_EDITOR
-	if (InParams.PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+	if (InParams.PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		UpdateWaterBodyRenderData();
 	}
