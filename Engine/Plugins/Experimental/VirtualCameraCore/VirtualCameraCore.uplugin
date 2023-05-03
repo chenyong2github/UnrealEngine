@@ -16,6 +16,14 @@
 	"EnabledByDefault": false,
 	"Modules": [
 		{
+			"Name": "DecoupledOutputProvider",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformDenyList": [
+				"TVOS"
+			]
+		},
+		{
 			"Name": "PixelStreamingVCam",
 			"Type": "Editor",
 			"LoadingPhase": "PostDefault",

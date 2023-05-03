@@ -386,6 +386,24 @@ void UVCamOutputProviderBase::NotifyAboutComponentChange()
 	}
 }
 
+UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(int32 Index) const
+{
+	if (Index > INDEX_NONE)
+	{
+		if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+		{
+			if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(Index))
+			{
+				return Provider;
+			}
+			
+			UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetOtherOutputProviderByIndex - specified index is out of range"));
+		}
+	}
+
+	return nullptr;
+}
+
 void UVCamOutputProviderBase::Serialize(FArchive& Ar)
 {
 	using namespace UE::VCamCore;
@@ -411,24 +429,6 @@ void UVCamOutputProviderBase::PostLoad()
 		Modify();
 		SetUMGClass(nullptr);
 	}
-}
-
-UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(int32 Index) const
-{
-	if (Index > INDEX_NONE)
-	{
-		if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
-		{
-			if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(Index))
-			{
-				return Provider;
-			}
-			
-			UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetOtherOutputProviderByIndex - specified index is out of range"));
-		}
-	}
-
-	return nullptr;
 }
 
 TSharedPtr<FSceneViewport> UVCamOutputProviderBase::GetSceneViewport(EVCamTargetViewportID InTargetViewport) const

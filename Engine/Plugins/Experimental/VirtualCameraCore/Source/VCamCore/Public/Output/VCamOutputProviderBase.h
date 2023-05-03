@@ -99,6 +99,18 @@ public:
 
 	UVPFullScreenUserWidget* GetUMGWidget() { return UMGWidget; };
 
+	/** Utility that gets the owning VCam component and gets another output provider by its index. */
+	UVCamOutputProviderBase* GetOtherOutputProviderByIndex(int32 Index) const;
+
+	/** Reapplies the override resolution or restores back to the viewport settings. */
+	void ReapplyOverrideResolution();
+
+	/** Gets the scene viewport identified by the currently configured TargetViewport. */
+	TSharedPtr<FSceneViewport> GetTargetSceneViewport() const { return GetSceneViewport(TargetViewport); }
+	/** Gets the viewport identified by the passed in parameters. */
+	TSharedPtr<FSceneViewport> GetSceneViewport(EVCamTargetViewportID InTargetViewport) const;
+	TWeakPtr<SWindow> GetTargetInputWindow() const;
+
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
@@ -138,21 +150,12 @@ protected:
 	/** Called to create the UMG overlay widget. */
 	virtual void CreateUMG();
 	
-	void ReapplyOverrideResolution();
 	/** Removes the override resolution from the given viewport. */
 	void RestoreOverrideResolutionForViewport(EVCamTargetViewportID ViewportToRestore);
 	/** Applies OverrideResolution to the passed in viewport - bUseOverrideResolution was already checked. */
 	void ApplyOverrideResolutionForViewport(EVCamTargetViewportID Viewport);
 	void DisplayUMG();
 	void DestroyUMG();
-
-	UVCamOutputProviderBase* GetOtherOutputProviderByIndex(int32 Index) const;
-
-	/** Gets the scene viewport identified by the currently configured TargetViewport. */
-	TSharedPtr<FSceneViewport> GetTargetSceneViewport() const { return GetSceneViewport(TargetViewport); }
-	/** Gets the viewport identified by the passed in parameters. */
-	TSharedPtr<FSceneViewport> GetSceneViewport(EVCamTargetViewportID InTargetViewport) const;
-	TWeakPtr<SWindow> GetTargetInputWindow() const;
 
 #if WITH_EDITOR
 	FLevelEditorViewportClient* GetTargetLevelViewportClient() const;
