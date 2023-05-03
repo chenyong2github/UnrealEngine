@@ -292,13 +292,15 @@ OptimizeNeedListWithBlockRange(const std::vector<FNeedBlock>& Input, uint64 MaxM
 	return Result;
 }
 
-void
-BuildTargetFromScavengedData(FIOWriter&						Result,
+FScavengedBuildTargetResult
+BuildTargetFromScavengedData(FIOWriter&						Output,
 							 const std::vector<FNeedBlock>& NeedList,
 							 const FScavengeDatabase&		ScavengeDatabase,
 							 EStrongHashAlgorithmID			StrongHasher,
 							 THashSet<FHash128>&			OutScavengedBlocks)
 {
+	FScavengedBuildTargetResult BuildResult;
+
 	std::vector<FNeedBlock> ScavengeNeedList;
 
 	THashMap<FScavengeBlockSource, uint64, FScavengeBlockSource::FHash> PossibleSources;
@@ -390,17 +392,19 @@ BuildTargetFromScavengedData(FIOWriter&						Result,
 				continue;
 			}
 
-			UNSYNC_VERBOSE(L"Scavenging data from '%s'",
-						   PossibleSource.FullSourceFilePath.wstring().c_str());
+			UNSYNC_VERBOSE(L"Scavenging data from '%s'", PossibleSource.FullSourceFilePath.wstring().c_str());
 
 			std::sort(LocalNeedList.begin(), LocalNeedList.end(), FNeedBlock::FCompareBySourceOffset());
 
 			std::vector<FCopyCommandWithBlockRange> CopyCommands = OptimizeNeedListWithBlockRange(LocalNeedList, 1_MB);
 
-			auto ReadCallback = [&Result, &OutScavengedBlocks, &ProgressLogger, StrongHasher](FIOBuffer Buffer,
-																							  uint64	SourceOffset,
-																							  uint64	ReadSize,
-																							  uint64	UserData) {
+			bool bFoundInvalidBlock = false;
+
+			auto ReadCallback = [&Output, &OutScavengedBlocks, &ProgressLogger, &BuildResult, &bFoundInvalidBlock, StrongHasher](
+									FIOBuffer Buffer,
+									uint64	  SourceOffset,
+									uint64	  ReadSize,
+									uint64	  UserData) {
 				const FCopyCommandWithBlockRange& CopyCommand = *reinterpret_cast<const FCopyCommandWithBlockRange*>(UserData);
 
 				UNSYNC_ASSERT(CopyCommand.BlockRange.Size() != 0);
@@ -433,22 +437,33 @@ BuildTargetFromScavengedData(FIOWriter&						Result,
 
 				if (bBlockHashOk)
 				{
-					Result.Write(Buffer.GetData(), FirstBlock.TargetOffset, ReadSize);
+					Output.Write(Buffer.GetData(), FirstBlock.TargetOffset, ReadSize);
 
 					for (const FNeedBlock& Block : CopyCommand.BlockRange)
 					{
 						OutScavengedBlocks.insert(Block.Hash.ToHash128());
 					}
 
+					BuildResult.ScavengedBytes += ReadSize;
 					AddGlobalProgress(ReadSize, EBlockListType::Source);
-
 					ProgressLogger.Add(ReadSize);
 				}
+				else
+				{
+					bFoundInvalidBlock = true;
+				}
+				
 			};
 
 			for (const FCopyCommandWithBlockRange& Command : CopyCommands)
 			{
 				LocalSourceFile.ReadAsync(Command.SourceOffset, Command.Size, (uint64)(&Command), ReadCallback);
+				if (bFoundInvalidBlock)
+				{
+					// If an invalid block is encountered in a source file, then assume that is corrupt and should not be used from this point.
+					// TODO: could also mark the source file as "bad" globally, to avoid using it when patching other files.
+					break;
+				}
 			}
 
 			LocalSourceFile.FlushAll();
@@ -461,6 +476,8 @@ BuildTargetFromScavengedData(FIOWriter&						Result,
 
 		ScavengeNeedList.erase(FilterResult, ScavengeNeedList.end());
 	}
+
+	return BuildResult;
 }
 
 }  // namespace unsync

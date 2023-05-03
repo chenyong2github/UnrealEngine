@@ -648,6 +648,12 @@ InnerMain(int Argc, char** Argv)
 	}
 	else if (Cli.got_subcommand(SubSync))
 	{
+		if (!ScavengeRoot.empty() && !IsDirectory(ScavengeRoot))
+		{
+			UNSYNC_WARNING(L"Scavenge directory '%ls' does not exist", ScavengeRoot.wstring().c_str());
+			ScavengeRoot = FPath{};
+		}
+
 		FCmdSyncOptions SyncOptions;
 
 		SyncOptions.Algorithm			   = Algorithm;

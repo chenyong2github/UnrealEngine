@@ -180,6 +180,7 @@ struct FDirectoryManifest
 struct FDirectoryManifestInfo
 {
 	uint64	 TotalSize		= 0;
+	uint64	 UniqueSize		= 0;
 	uint64	 NumBlocks		= 0;
 	uint64	 NumMacroBlocks = 0;
 	uint64	 NumFiles		= 0;
@@ -250,7 +251,14 @@ FNeedList DiffManifestBlocks(const FGenericBlockArray& SourceBlocks, const FGene
 
 std::vector<FCopyCommand> OptimizeNeedList(const std::vector<FNeedBlock>& Input, uint64 MaxMergedBlockSize = 8_MB);
 
-void BuildTarget(FIOWriter&				Result,
+struct FBuildTargetResult
+{
+	bool   bSuccess	   = false;
+	uint64 SourceBytes = 0;
+	uint64 BaseBytes   = 0;
+};
+
+FBuildTargetResult BuildTarget(FIOWriter&			  Result,
 				 FIOReader&				Source,
 				 FIOReader&				Base,
 				 const FNeedList&		NeedList,

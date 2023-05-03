@@ -73,10 +73,15 @@ private:
 	// THashSet<FScavengeBlockSource, FScavengeBlockSource::FHash> BannedBlockSources;
 };
 
-void BuildTargetFromScavengedData(FIOWriter&					 Result,
-								  const std::vector<FNeedBlock>& NeedList,
-								  const FScavengeDatabase&		 ScavengeDatabase,
-								  EStrongHashAlgorithmID		 StrongHasher,
-								  THashSet<FHash128>&			 OutScavengedBlocks);
+struct FScavengedBuildTargetResult
+{
+	uint64 ScavengedBytes = 0;
+};
+
+FScavengedBuildTargetResult BuildTargetFromScavengedData(FIOWriter&						Output,
+														 const std::vector<FNeedBlock>& NeedList,
+														 const FScavengeDatabase&		ScavengeDatabase,
+														 EStrongHashAlgorithmID			StrongHasher,
+														 THashSet<FHash128>&			OutScavengedBlocks);
 
 }  // namespace unsync
