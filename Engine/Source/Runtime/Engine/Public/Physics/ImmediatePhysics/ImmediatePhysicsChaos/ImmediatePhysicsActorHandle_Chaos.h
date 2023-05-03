@@ -28,8 +28,13 @@ namespace ImmediatePhysics_Chaos
 		/** Sets the world transform, maintains velocity etc.*/
 		void SetWorldTransform(const FTransform& WorldTM);
 
-		/** Make a body kinematic, or non-kinematic */
-		void SetIsKinematic(bool bKinematic);
+		/** 
+		 * Normally used to modify a EParticleType::Rigid between kinematic and dynamic. Returns true if that 
+		 * was possible (even if nothing changed). Returns false if it fails - e.g. because there was no current 
+		 * ParticleHandle, or if the particle type was not EParticleType::Rigid (unless the current type was
+		 * EParticleType::Kinematic and bKinematic was true)
+		 */
+		bool SetIsKinematic(bool bKinematic);
 
 		/** Is the actor kinematic */
 		bool GetIsKinematic() const;
@@ -133,6 +138,14 @@ namespace ImmediatePhysics_Chaos
 
 	private:
 		FKinematicTarget& GetKinematicTarget();
+
+		void CreateParticleHandle(
+			FBodyInstance*                 BodyInstance,
+			const EActorType               ActorType,
+			const FTransform&              WorldTransform,
+			const FReal                    Mass,
+			const Chaos::FVec3             Inertia,
+			const Chaos::FRigidTransform3& CoMTransform);
 
 		friend struct FSimulation;
 		friend struct FJointHandle;

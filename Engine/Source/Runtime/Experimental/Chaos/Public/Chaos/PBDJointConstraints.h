@@ -47,8 +47,9 @@ namespace Chaos
 		const FPBDJointSettings& GetSettings() const;
 		const FPBDJointSettings& GetJointSettings() const { return GetSettings(); }	//needed for property macros
 
+		// Note that setting drive targets etc can be done through the settings
 		void SetSettings(const FPBDJointSettings& Settings);
-		
+
 		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const override final;
 
 		static const FConstraintHandleTypeID& StaticType()

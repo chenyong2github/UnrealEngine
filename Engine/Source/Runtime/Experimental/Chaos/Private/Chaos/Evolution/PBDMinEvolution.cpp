@@ -281,15 +281,24 @@ namespace Chaos
 		check(StepFraction > (FReal)0);
 		check(StepFraction <= (FReal)1);
 
-		// @todo(ccaulfield): optimize. Depending on the number of kinematics relative to the number that have 
-		// targets set, it may be faster to process a command list rather than iterate over them all each frame. 
-		const FReal MinDt = 1e-6f;
-		for (auto& Particle : Particles.GetActiveKinematicParticlesView())
+		const bool IsLastStep = (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER));
+
+		const auto& ApplyDynamicParticleKinematicTarget = 
+		[Dt, StepFraction, IsLastStep]
+		(FTransientPBDRigidParticleHandle& Particle, const int32 ParticleIndex)
+		-> void
 		{
+			if (!Particle.IsKinematic())
+			{
+				return;
+			}
+
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
 			const FVec3 CurrentX = Particle.X();
 			const FRotation3 CurrentR = Particle.R();
+			constexpr FReal MinDt = 1e-6f;
 
+			bool bMoved = false;
 			switch (KinematicTarget.GetMode())
 			{
 			case EKinematicTargetMode::None:
@@ -299,8 +308,8 @@ namespace Chaos
 			case EKinematicTargetMode::Reset:
 			{
 				// Reset velocity and then switch to do-nothing mode
-				Particle.V() = FVec3(0);
-				Particle.W() = FVec3(0);
+				Particle.V() = FVec3(0, 0, 0);
+				Particle.W() = FVec3(0, 0, 0);
 				KinematicTarget.SetMode(EKinematicTargetMode::None);
 				break;
 			}
@@ -311,7 +320,7 @@ namespace Chaos
 				// Target positions only need to be processed once, and we reset the velocity next frame (if no new target is set)
 				FVec3 NewX;
 				FRotation3 NewR;
-				if (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER))
+				if (IsLastStep)
 				{
 					NewX = KinematicTarget.GetTarget().GetLocation();
 					NewR = KinematicTarget.GetTarget().GetRotation();
@@ -322,30 +331,168 @@ namespace Chaos
 					// as a reminder, stepfraction is the remaing fraction of the step from the remaining steps
 					// for total of 4 steps and current step of 2, this will be 1/3 ( 1 step passed, 3 steps remains )
 					NewX = FVec3::Lerp(CurrentX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
-					NewR = FRotation3::Slerp(CurrentR, KinematicTarget.GetTarget().GetRotation(), (decltype(FQuat::X))StepFraction);		// LWC_TODO: Remove decltype cast once FQuat supports variants
+					NewR = FRotation3::Slerp(CurrentR, KinematicTarget.GetTarget().GetRotation(), decltype(FQuat::X)(StepFraction));
 				}
+
+				const bool bPositionChanged = !FVec3::IsNearlyEqual(NewX, CurrentX, UE_SMALL_NUMBER);
+				const bool bRotationChanged = !FRotation3::IsNearlyEqual(NewR, CurrentR, UE_SMALL_NUMBER);
+				bMoved = bPositionChanged || bRotationChanged;
+				FVec3 NewV = FVec3(0);
+				FVec3 NewW = FVec3(0);
 				if (Dt > MinDt)
 				{
-					Particle.V() = FVec3::CalculateVelocity(CurrentX, NewX, Dt);
-					Particle.W() = FRotation3::CalculateAngularVelocity(CurrentR, NewR, Dt);
+					if (bPositionChanged)
+					{
+						NewV = FVec3::CalculateVelocity(CurrentX, NewX, Dt);
+					}
+					if (bRotationChanged)
+					{
+						NewW = FRotation3::CalculateAngularVelocity(CurrentR, NewR, Dt);
+					}
 				}
 				Particle.X() = NewX;
 				Particle.R() = NewR;
+				Particle.V() = NewV;
+				Particle.W() = NewW;
+
 				break;
 			}
 
 			case EKinematicTargetMode::Velocity:
 			{
 				// Move based on velocity
+				bMoved = true;
 				Particle.X() = Particle.X() + Particle.V() * Dt;
-				FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
+				Particle.R() = FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
+				break;
+			}
+			}
+			
+			// Set positions and previous velocities if we can
+			// Note: At present kinematics are in fact rigid bodies
+			Particle.P() = Particle.X();
+			Particle.Q() = Particle.R();
+			Particle.PreV() = Particle.V();
+			Particle.PreW() = Particle.W();
+
+			if (bMoved)
+			{
+				if (!Particle.CCDEnabled())
+				{
+					Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(0));
+				}
+				else
+				{
+					Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(0), -Particle.V() * Dt);
+				}
+			}
+		};
+
+		const auto& ApplyKinematicParticleKinematicTarget =
+		[Dt, StepFraction, IsLastStep]
+		(FTransientKinematicGeometryParticleHandle& Particle, const int32 ParticleIndex)
+		-> void
+		{
+			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
+			const FVec3 CurrentX = Particle.X();
+			const FRotation3 CurrentR = Particle.R();
+			constexpr FReal MinDt = 1e-6f;
+
+			bool bMoved = false;
+			switch (KinematicTarget.GetMode())
+			{
+			case EKinematicTargetMode::None:
+				// Nothing to do
+				break;
+
+			case EKinematicTargetMode::Reset:
+			{
+				// Reset velocity and then switch to do-nothing mode
+				Particle.V() = FVec3(0, 0, 0);
+				Particle.W() = FVec3(0, 0, 0);
+				KinematicTarget.SetMode(EKinematicTargetMode::None);
+				break;
+			}
+
+			case EKinematicTargetMode::Position:
+			{
+				// Move to kinematic target and update velocities to match
+				// Target positions only need to be processed once, and we reset the velocity next frame (if no new target is set)
+				FVec3 NewX;
+				FRotation3 NewR;
+				if (IsLastStep)
+				{
+					NewX = KinematicTarget.GetTarget().GetLocation();
+					NewR = KinematicTarget.GetTarget().GetRotation();
+					KinematicTarget.SetMode(EKinematicTargetMode::Reset);
+				}
+				else
+				{
+					// as a reminder, stepfraction is the remaing fraction of the step from the remaining steps
+					// for total of 4 steps and current step of 2, this will be 1/3 ( 1 step passed, 3 steps remains )
+					NewX = FVec3::Lerp(CurrentX, KinematicTarget.GetTarget().GetLocation(), StepFraction);
+					NewR = FRotation3::Slerp(CurrentR, KinematicTarget.GetTarget().GetRotation(), decltype(FQuat::X)(StepFraction));
+				}
+
+				const bool bPositionChanged = !FVec3::IsNearlyEqual(NewX, CurrentX, UE_SMALL_NUMBER);
+				const bool bRotationChanged = !FRotation3::IsNearlyEqual(NewR, CurrentR, UE_SMALL_NUMBER);
+				bMoved = bPositionChanged || bRotationChanged;
+				FVec3 NewV = FVec3(0);
+				FVec3 NewW = FVec3(0);
+				if (Dt > MinDt)
+				{
+					if (bPositionChanged)
+					{
+						NewV = FVec3::CalculateVelocity(CurrentX, NewX, Dt);
+					}
+					if (bRotationChanged)
+					{
+						NewW = FRotation3::CalculateAngularVelocity(CurrentR, NewR, Dt);
+					}
+				}
+				Particle.X() = NewX;
+				Particle.R() = NewR;
+				Particle.V() = NewV;
+				Particle.W() = NewW;
+
+				break;
+			}
+
+			case EKinematicTargetMode::Velocity:
+			{
+				// Move based on velocity
+				bMoved = true;
+				Particle.X() = Particle.X() + Particle.V() * Dt;
+				Particle.R() = FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
 				break;
 			}
 			}
 
-			// NOTE: we do not expand the bounds of kinematics, only dynamics
-			Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.X(), Particle.R()), FVec3(0));
+			if (bMoved)
+			{
+				Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.X(), Particle.R()), FVec3(0));
+			}
+		};
+
+		// Apply kinematic targets
+		// 
+		// We could run the updates in parallel, but in practice we're more likely to get parallelism benefits
+		// from running multiple characters in parallel, especially as often we'll only have a small number of 
+		// objects to process here.
+		bool bForceSingleThreaded = true;
+		// All the real kinematic particles
+		Particles.GetActiveKinematicParticlesView().ParallelFor(ApplyKinematicParticleKinematicTarget, bForceSingleThreaded);
+		// All the dynamic particles plus kinematic ones.
+		Particles.GetActiveDynamicMovingKinematicParticlesView().ParallelFor(ApplyDynamicParticleKinematicTarget, bForceSingleThreaded);
+
+		// done with update, let's clear the tracking structures
+		if (IsLastStep)
+		{
+			Particles.UpdateAllMovingKinematic();
 		}
+
+		// If we changed any particle state, the views need to be refreshed
+		Particles.UpdateDirtyViews();
 	}
 
 	void FPBDMinEvolution::DetectCollisions(FReal Dt)

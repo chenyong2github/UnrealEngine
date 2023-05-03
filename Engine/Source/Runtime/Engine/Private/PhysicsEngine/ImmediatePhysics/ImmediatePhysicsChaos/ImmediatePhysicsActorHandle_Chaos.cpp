@@ -190,6 +190,84 @@ namespace ImmediatePhysics_Chaos
 		return true;
 	}
 
+	void FActorHandle::CreateParticleHandle(
+		FBodyInstance*                 BodyInstance,
+		const EActorType               ActorType,
+		const FTransform&              WorldTransform,
+		const FReal                    Mass,
+		const Chaos::FVec3             Inertia,
+		const Chaos::FRigidTransform3& CoMTransform)
+	{
+		using namespace Chaos;
+
+		switch (ActorType)
+		{
+		case EActorType::StaticActor:
+			ParticleHandle = Particles.CreateStaticParticles(1, nullptr, FGeometryParticleParameters())[0];
+			break;
+		case EActorType::KinematicActor:
+			ParticleHandle = Particles.CreateKinematicParticles(1, nullptr, FKinematicGeometryParticleParameters())[0];
+			break;
+		case EActorType::DynamicActor:
+			ParticleHandle = Particles.CreateDynamicParticles(1, nullptr, FPBDRigidParticleParameters())[0];
+			break;
+		}
+
+		if (ParticleHandle != nullptr)
+		{
+			SetWorldTransform(WorldTransform);
+
+			ParticleHandle->SetGeometry(MakeSerializable(Geometry));
+
+			// Set the collision filter data for the shapes to collide with everything.
+			// Even though we already tried to do this when we created the original shapes array, 
+			// that gets thrown away and we need to do it here. This is not a good API
+			FCollisionData CollisionData;
+			CollisionData.SimData.Word1 = 0xFFFFF;
+			CollisionData.SimData.Word3 = 0xFFFFF;
+			CollisionData.bSimCollision = 1;
+			for (const TUniquePtr<FPerShapeData>& Shape : ParticleHandle->ShapesArray())
+			{
+				Shape->SetCollisionData(CollisionData);
+			}
+
+			if (Geometry && Geometry->HasBoundingBox())
+			{
+				ParticleHandle->SetHasBounds(true);
+				ParticleHandle->SetLocalBounds(Geometry->BoundingBox());
+				ParticleHandle->UpdateWorldSpaceState(FRigidTransform3(ParticleHandle->X(), ParticleHandle->R()), FVec3(0));
+			}
+
+			if (FKinematicGeometryParticleHandle* Kinematic = ParticleHandle->CastToKinematicParticle())
+			{
+				Kinematic->SetV(FVector3f::ZeroVector);
+				Kinematic->SetW(FVector3f::ZeroVector);
+			}
+
+			FPBDRigidParticleHandle* Dynamic = ParticleHandle->CastToRigidParticle();
+			if (Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
+			{
+				FReal MassInv = (Mass > 0.0f) ? 1.0f / Mass : 0.0f;
+				FVec3 InertiaInv = (Mass > 0.0f) ? Inertia.Reciprocal() : FVec3::ZeroVector;
+				Dynamic->SetM(Mass);
+				Dynamic->SetInvM(MassInv);
+				Dynamic->SetCenterOfMass(CoMTransform.GetTranslation());
+				Dynamic->SetRotationOfMass(CoMTransform.GetRotation());
+				Dynamic->SetI(TVec3<FRealSingle>(Inertia.X, Inertia.Y, Inertia.Z));
+				Dynamic->SetInvI(TVec3<FRealSingle>(InertiaInv.X, InertiaInv.Y, InertiaInv.Z));
+				if (BodyInstance != nullptr)
+				{
+					Dynamic->SetInertiaConditioningEnabled(BodyInstance->IsInertiaConditioningEnabled());
+					Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
+					Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
+					Dynamic->SetGravityEnabled(BodyInstance->bEnableGravity);
+					Dynamic->SetUpdateKinematicFromSimulation(BodyInstance->bUpdateKinematicFromSimulation);
+				}
+				Dynamic->SetDisabled(true);
+			}
+		}
+	}
+
 	//
 	// Actor Handle
 	//
@@ -216,72 +294,7 @@ namespace ImmediatePhysics_Chaos
 		FRigidTransform3 CoMTransform = FRigidTransform3::Identity;
 		if (CreateGeometry(BodyInstance, ActorType, Scale, Mass, Inertia, CoMTransform, Geometry, Shapes))
 		{
-			switch (ActorType)
-			{
-			case EActorType::StaticActor:
-				ParticleHandle = Particles.CreateStaticParticles(1, nullptr, FGeometryParticleParameters())[0];
-				break;
-			case EActorType::KinematicActor:
-				ParticleHandle = Particles.CreateKinematicParticles(1, nullptr, FKinematicGeometryParticleParameters())[0];
-				break;
-			case EActorType::DynamicActor:
-				ParticleHandle = Particles.CreateDynamicParticles(1, nullptr, FPBDRigidParticleParameters())[0];
-				break;
-			}
-
-			if (ParticleHandle != nullptr)
-			{
-				SetWorldTransform(Transform);
-
-				ParticleHandle->SetGeometry(MakeSerializable(Geometry));
-
-				// Set the collision filter data for the shapes to collide with everything.
-				// Even though we already tried to do this when we created the original shapes array, 
-				// that gets thrown away and we need to do it here. This is not a good API
-				FCollisionData CollisionData;
-				CollisionData.SimData.Word1 = 0xFFFFF;
-				CollisionData.SimData.Word3 = 0xFFFFF;
-				CollisionData.bSimCollision = 1;
-				for (const TUniquePtr<FPerShapeData>& Shape : ParticleHandle->ShapesArray())
-				{
-					Shape->SetCollisionData(CollisionData);
-				}
-
-				if (Geometry && Geometry->HasBoundingBox())
-				{
-					ParticleHandle->SetHasBounds(true);
-					ParticleHandle->SetLocalBounds(Geometry->BoundingBox());
-					ParticleHandle->UpdateWorldSpaceState(FRigidTransform3(ParticleHandle->X(), ParticleHandle->R()), FVec3(0));
-				}
-
-				if (FKinematicGeometryParticleHandle* Kinematic = ParticleHandle->CastToKinematicParticle())
-				{
-					Kinematic->SetV(FVector3f::ZeroVector);
-					Kinematic->SetW(FVector3f::ZeroVector);
-				}
-
-				FPBDRigidParticleHandle* Dynamic = ParticleHandle->CastToRigidParticle();
-				if (Dynamic && Dynamic->ObjectState() == EObjectStateType::Dynamic)
-				{
-					FReal MassInv = (Mass > 0.0f) ? 1.0f / Mass : 0.0f;
-					FVec3 InertiaInv = (Mass > 0.0f) ? Inertia.Reciprocal() : FVec3::ZeroVector;
-					Dynamic->SetM(Mass);
-					Dynamic->SetInvM(MassInv);
-					Dynamic->SetCenterOfMass(CoMTransform.GetTranslation());
-					Dynamic->SetRotationOfMass(CoMTransform.GetRotation());
-					Dynamic->SetI(TVec3<FRealSingle>( Inertia.X, Inertia.Y, Inertia.Z ));
-					Dynamic->SetInvI(TVec3<FRealSingle>(InertiaInv.X, InertiaInv.Y, InertiaInv.Z ));
-					if (BodyInstance != nullptr)
-					{
-						Dynamic->SetInertiaConditioningEnabled(BodyInstance->IsInertiaConditioningEnabled());
-						Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
-						Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
-						Dynamic->SetGravityEnabled(BodyInstance->bEnableGravity);
-						Dynamic->SetUpdateKinematicFromSimulation(BodyInstance->bUpdateKinematicFromSimulation);
-					}
-					Dynamic->SetDisabled(true);
-				}
-			}
+			CreateParticleHandle(BodyInstance, ActorType, Transform, Mass, Inertia, CoMTransform);
 		}
 	}
 
@@ -357,11 +370,40 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
-	void FActorHandle::SetIsKinematic(bool bKinematic)
+	bool FActorHandle::SetIsKinematic(bool bKinematic)
 	{
-#if IMMEDIATEPHYSICS_CHAOS_TODO
-		// This needs to destroy and recreate the particle
-#endif
+		using namespace Chaos;
+
+		if (ParticleHandle == nullptr)
+		{
+			return false;
+		}
+
+		EParticleType CurrentParticleType = ParticleHandle->GetParticleType();
+
+		if (CurrentParticleType == EParticleType::Kinematic && bKinematic)
+		{
+			return true;
+		}
+		if (CurrentParticleType == EParticleType::Rigid)
+		{
+			if (FPBDRigidParticleHandle* Dynamic = ParticleHandle->CastToRigidParticle())
+			{
+				// Note that the state might be dynamic, sleeping, or kinematic
+				if (Dynamic->ObjectState() != EObjectStateType::Kinematic && bKinematic)
+				{
+					Dynamic->SetObjectStateLowLevel(EObjectStateType::Kinematic);
+					return true;
+				}
+				else if (Dynamic->ObjectState() == EObjectStateType::Kinematic && !bKinematic)
+				{
+					Dynamic->SetObjectStateLowLevel(EObjectStateType::Dynamic);
+					return true;
+				}
+				return true;
+			}
+		}
+		return false;
 	}
 
 	bool FActorHandle::GetIsKinematic() const

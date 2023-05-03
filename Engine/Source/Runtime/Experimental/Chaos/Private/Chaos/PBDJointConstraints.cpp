@@ -139,7 +139,7 @@ namespace Chaos
 
 	void FPBDJointConstraintHandle::SetSettings(const FPBDJointSettings& InSettings)
 	{
-		// buffer the previous targets so plasticiy can reuse them
+		// buffer the previous targets so plasticity can reuse them
 		FVec3 LinearTarget = GetSettings().LinearDrivePositionTarget;
 		FRotation3 AngularTarget = GetSettings().AngularDrivePositionTarget;
 		if (!bLinearPlasticityInitialized && !FMath::IsNearlyEqual(InSettings.LinearPlasticityLimit, FLT_MAX))
@@ -151,11 +151,10 @@ namespace Chaos
 			bAngularPlasticityInitialized = true;
 		}
 
-
 		ConcreteContainer()->SetConstraintSettings(ConstraintIndex, InSettings);
 
 
-		// transfer the previous targets when controlled by plasticiy
+		// transfer the previous targets when controlled by plasticity
 		if (bLinearPlasticityInitialized)
 		{
 			ConcreteContainer()->SetLinearDrivePositionTarget(ConstraintIndex,LinearTarget);
@@ -757,7 +756,6 @@ namespace Chaos
 	{
 		return ConstraintStates[ConstraintIndex].Color;
 	}
-
 
 	FVec3 FPBDJointConstraints::GetConstraintLinearImpulse(int32 ConstraintIndex) const
 	{
