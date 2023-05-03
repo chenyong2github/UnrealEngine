@@ -38,22 +38,27 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeProperty(FPropertyChan
 	// Call the parent at the first place
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionXPropertyName() ||
-		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetPositionYPropertyName())
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == UDMXPixelMappingOutputComponent::GetPositionXPropertyName() ||
+		PropertyName == UDMXPixelMappingOutputComponent::GetPositionYPropertyName())
 	{
 		HandlePositionChanged();
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary))
+	{
+		OnDMXLibraryChangedDelegate.Broadcast();
+	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
-		PropertyChangedEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeYPropertyName())
+	if (PropertyName == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
+		PropertyName == UDMXPixelMappingOutputComponent::GetSizeYPropertyName())
 	{
 		if (ComponentWidget_DEPRECATED.IsValid())
 		{
 			ComponentWidget_DEPRECATED->SetSize(GetSize());
 		}
 	}
-	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary))
 	{
 		if (ComponentWidget_DEPRECATED.IsValid())
 		{

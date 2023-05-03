@@ -60,12 +60,18 @@ public:
 	UPROPERTY(EditAnywhere, Instanced, Category = "Layout")
 	TObjectPtr<UDMXPixelMappingLayoutScript> LayoutScript;
 
+	/** Returns a delegate broadcasted when the DMX Library changed */
+	FSimpleMulticastDelegate& GetOnDMXLibraryChanged() { return OnDMXLibraryChangedDelegate; }
+
 private:
 	/** Handles changes in position */
 	void HandlePositionChanged();
 
 	/** Holds the last set size */
 	FVector2D LastPosition;
+
+	/** Returns a delegate broadcasted when the DMX Library changed */
+	FSimpleMulticastDelegate OnDMXLibraryChangedDelegate;
 
 	static const FVector2D MinGroupSize;
 };

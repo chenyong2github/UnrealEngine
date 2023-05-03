@@ -89,7 +89,11 @@ void SDMXPixelMappingDetailsView::OnSelectedComponentsChanged()
 	{
 		for (const FDMXPixelMappingComponentReference& ComponentRef : SelectedComponents)
 		{
-			SelectedObjects.Add(ComponentRef.GetComponent());
+			UDMXPixelMappingBaseComponent* Component = ComponentRef.GetComponent();
+			if (Component && Component->GetClass() != UDMXPixelMappingRendererComponent::StaticClass())
+			{
+				SelectedObjects.Add(ComponentRef.GetComponent());
+			}
 		}
 	}
 
@@ -120,12 +124,9 @@ void SDMXPixelMappingDetailsView::RegisterCustomizations()
 
 	FOnGetDetailCustomizationInstance FixtureGroupItemCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_FixtureGroupItem::MakeInstance, ToolkitWeakPtr);
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingFixtureGroupItemComponent::StaticClass(), FixtureGroupItemCustomizationInstance);
-
+	
 	FOnGetDetailCustomizationInstance ScreenCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_Screen::MakeInstance, ToolkitWeakPtr);
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingScreenComponent::StaticClass(), ScreenCustomizationInstance);
-
-	FOnGetDetailCustomizationInstance RendererCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_Renderer::MakeInstance, ToolkitWeakPtr);
-	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingRendererComponent::StaticClass(), RendererCustomizationInstance);
 
 	FOnGetDetailCustomizationInstance MatrixCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_Matrix::MakeInstance, ToolkitWeakPtr);
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixComponent::StaticClass(), MatrixCustomizationInstance);

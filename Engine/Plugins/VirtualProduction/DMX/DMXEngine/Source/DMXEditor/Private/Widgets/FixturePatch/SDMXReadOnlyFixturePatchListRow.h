@@ -20,6 +20,8 @@ public:
 	SLATE_BEGIN_ARGS(SDMXReadOnlyFixturePatchListRow)
 	{}
 
+		SLATE_EVENT(FOnDragDetected, OnRowDragged)
+
 	SLATE_END_ARGS()
 			
 	/** Constructs this widget */

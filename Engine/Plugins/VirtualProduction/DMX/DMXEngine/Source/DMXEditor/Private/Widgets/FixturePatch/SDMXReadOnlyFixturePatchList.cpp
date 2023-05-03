@@ -10,6 +10,7 @@
 
 #include "Editor.h"
 #include "TimerManager.h"
+#include "Algo/Find.h"
 #include "Algo/Sort.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -21,6 +22,46 @@
 
 #define LOCTEXT_NAMESPACE "SDMXReadOnlyFixturePatchList"
 
+namespace UE::DMX::SDMXReadOnlyFixturePatchListNamespace::Private
+{
+	class FScopedRestoreSelection
+	{
+	public:
+		FScopedRestoreSelection(const TSharedRef<SDMXReadOnlyFixturePatchList>& InFixturePatchList)
+			: FixturePatchList(InFixturePatchList)
+		{
+			SelectedItemsToRestore = FixturePatchList->GetSelectedFixturePatchRefs();
+		}
+
+		~FScopedRestoreSelection()
+		{
+			const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> NewListItems = FixturePatchList->GetListItems();
+			
+			TArray<TSharedPtr<FDMXEntityFixturePatchRef>> NewSelection;
+			for (const TSharedPtr<FDMXEntityFixturePatchRef>& ItemToRestore : SelectedItemsToRestore)
+			{
+				const TSharedPtr<FDMXEntityFixturePatchRef>* CorrespondingItemPtr = Algo::FindByPredicate(NewListItems, [ItemToRestore](const TSharedPtr<FDMXEntityFixturePatchRef> NewItem)
+					{
+						return NewItem->GetFixturePatch() == ItemToRestore->GetFixturePatch();
+					});
+				if (CorrespondingItemPtr)
+				{
+					NewSelection.Add(*CorrespondingItemPtr);
+				}
+			}
+
+			FixturePatchList->SelectItems(NewSelection);
+		}
+
+	private:
+		/** Addressed fixture patch list */
+		TSharedRef<SDMXReadOnlyFixturePatchList> FixturePatchList;
+
+		/** Items to restore */
+		TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedItemsToRestore;
+	};
+}
+
 const FName FDMXReadOnlyFixturePatchListCollumnIDs::EditorColor = "EditorColor";
 const FName FDMXReadOnlyFixturePatchListCollumnIDs::FixturePatchName = "Name";
 const FName FDMXReadOnlyFixturePatchListCollumnIDs::FixtureID = "FID";
@@ -31,9 +72,11 @@ const FName FDMXReadOnlyFixturePatchListCollumnIDs::Patch = "Patch";
 void SDMXReadOnlyFixturePatchList::Construct(const FArguments& InArgs)
 {
 	DMXLibrary = InArgs._DMXLibrary;
+	ExcludedFixturePatches = InArgs._ExcludedFixturePatches;
 
 	IsRowEnabledDelegate = InArgs._IsRowEnabled;
 	IsRowVisibleDelegate = InArgs._IsRowVisibile;
+	OnRowDraggedDelegate = InArgs._OnRowDragged;
 
 	UpdateListItems();
 
@@ -109,9 +152,37 @@ void SDMXReadOnlyFixturePatchList::SetDMXLibrary(UDMXLibrary* InDMXLibrary)
 	RequestListRefresh();
 }
 
+void SDMXReadOnlyFixturePatchList::SetExcludedFixturePatches(const TArray<FDMXEntityFixturePatchRef>& NewExcludedFixturePatches)
+{
+	ExcludedFixturePatches = NewExcludedFixturePatches;
+	RequestListRefresh();
+}
+
+void SDMXReadOnlyFixturePatchList::SelectItems(const TArray<TSharedPtr<FDMXEntityFixturePatchRef>>& ItemsToSelect, ESelectInfo::Type SelectInfo)
+{
+	constexpr bool bSelected = true;
+	ListView->ClearSelection();
+	ListView->SetItemSelection(ItemsToSelect, bSelected, SelectInfo);
+}
+
 TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SDMXReadOnlyFixturePatchList::GetSelectedFixturePatchRefs() const
 {
 	return ListView.IsValid() ? ListView->GetSelectedItems() : TArray<TSharedPtr<FDMXEntityFixturePatchRef>>();
+}
+
+TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SDMXReadOnlyFixturePatchList::GetVisibleFixturePatchRefs() const
+{
+	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> VisilbleFixturePatchRefs = ListItems;
+	VisilbleFixturePatchRefs.RemoveAll([this](const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef)
+		{
+			if (FixturePatchRef.IsValid() && IsRowVisibleDelegate.IsBound())
+			{
+				return !IsRowVisibleDelegate.Execute(*FixturePatchRef);
+			}
+			return false;
+		});
+	
+	return VisilbleFixturePatchRefs;
 }
 
 FDMXReadOnlyFixturePatchListDescriptor SDMXReadOnlyFixturePatchList::GetListDescriptor() const
@@ -152,10 +223,13 @@ void SDMXReadOnlyFixturePatchList::RefreshList()
 {	
 	ListRefreshTimerHandle.Invalidate();
 
+	using namespace UE::DMX::SDMXReadOnlyFixturePatchListNamespace::Private;
+	const FScopedRestoreSelection ScopedRestoreSelection(StaticCastSharedRef<SDMXReadOnlyFixturePatchList>(AsShared()));
+
 	UpdateListItems();
 	ListRows.Reset(ListItems.Num());
 
-	SortByColumnID(EColumnSortPriority::Max, SortedByColumnID, EColumnSortMode::Ascending);
+	SortByColumnID(EColumnSortPriority::Max, SortedByColumnID, SortMode);
 
 	if (SearchBox.IsValid())
 	{
@@ -258,7 +332,7 @@ void SDMXReadOnlyFixturePatchList::UpdateListItems()
 	const TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 	for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesInLibrary)
 	{
-		if (!FixturePatch)
+		if (!FixturePatch || ExcludedFixturePatches.Contains(FixturePatch))
 		{
 			continue;
 		}
@@ -278,11 +352,22 @@ TSharedRef<ITableRow> SDMXReadOnlyFixturePatchList::OnGenerateRow(TSharedPtr<FDM
 {
 	const TSharedRef<SDMXReadOnlyFixturePatchListRow> NewRow =
 		SNew(SDMXReadOnlyFixturePatchListRow, OwnerTable, InItem.ToSharedRef())
+		.OnRowDragged(this, &SDMXReadOnlyFixturePatchList::OnRowDragged)
 		.IsEnabled(this, &SDMXReadOnlyFixturePatchList::IsRowEnabled, *InItem.Get())
 		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXReadOnlyFixturePatchList::GetRowVisibility, *InItem.Get()));
 
 	ListRows.Add(NewRow);
 	return NewRow;
+}
+
+FReply SDMXReadOnlyFixturePatchList::OnRowDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (OnRowDraggedDelegate.IsBound())
+	{
+		return OnRowDraggedDelegate.Execute(MyGeometry, MouseEvent);
+	}
+
+	return FReply::Unhandled();
 }
 
 void SDMXReadOnlyFixturePatchList::OnSearchTextChanged(const FText& SearchText)

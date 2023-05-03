@@ -14,10 +14,10 @@ class FDMXPixelMappingToolbar;
 class SDMXPixelMappingHierarchyView;
 class SDMXPixelMappingDesignerView;
 class SDMXPixelMappingDetailsView;
+class SDMXPixelMappingDMXLibraryView;
 class SDMXPixelMappingLayoutView;
-class SDMXPixelMappingPaletteView;
+class SDMXPixelMappingInputSourceView;
 class SDMXPixelMappingPreviewView;
-class FDMXPixelMappingPaletteViewModel;
 class UDMXPixelMapping;
 class UDMXPixelMappingBaseComponent;
 class UDMXPixelMappingMatrixComponent;
@@ -104,12 +104,13 @@ public:
 
 	const TSharedPtr<FUICommandList>& GetDesignerCommandList() const { return DesignerCommandList; }
 
-	const TSharedPtr<FDMXPixelMappingPaletteViewModel>& GetPaletteViewModel() const { return PaletteViewModel; }
-
 	const TSet<FDMXPixelMappingComponentReference>& GetSelectedComponents() const { return SelectedComponents; }
 
-	/** Gets or creates the Palette View for this Pixel Mapping instance */
-	TSharedRef<SWidget> CreateOrGetView_PaletteView();
+	/** Gets or creates the Input Source View for this Pixel Mapping instance */
+	TSharedRef<SWidget> CreateOrGetView_InputSourceView();
+
+	/** Gets or creates the DMX Library View for this Pixel Mapping instance */
+	TSharedRef<SWidget> CreateOrGetView_DMXLibraryView();
 
 	/** Gets or creates the Hierarchy View for this Pixel Mapping instance */
 	TSharedRef<SWidget> CreateOrGetView_HierarchyView();
@@ -139,6 +140,7 @@ public:
 	/** Returns true if the component is selected */
 	bool IsComponentSelected(UDMXPixelMappingBaseComponent* Component) const;
 
+	/** Adds a renderer to the pixel mapping. Sets it as active renderer if a new renderer was created */
 	void AddRenderer();
 
 	void OnComponentRenamed(UDMXPixelMappingBaseComponent* InComponent);
@@ -151,6 +153,15 @@ public:
 
 	/** Deletes the selected Components */
 	void DeleteSelectedComponents();
+
+	/** Zooms to fit */
+	void ZoomToFit();
+
+	/** Returns true if the selected component can be sized to texture */
+	bool CanSizeSelectedComponentToTexture() const;
+
+	/** Sizes the component to the render target of the pixelmapping asset */
+	void SizeSelectedComponentToTexture(bool bTransacted);
 
 private:
 	/** Called when a Component was added to the pixel mapping */
@@ -165,20 +176,17 @@ private:
 
 	void ExecutebTogglePlayDMXAll();
 
-	/** Returns true if the selected component can be sized to texture */
-	bool CanSizeSelectedComponentToTexture() const;
-
-	/** Sizes the component to the render target of the pixelmapping asset */
-	void SizeSelectedComponentToTexture();
-
 	void UpdateBlueprintNodes(UDMXPixelMapping* InDMXPixelMapping);
 
 	void OnSaveThumbnailImage();
 
 	void InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid);
 
-	/** Spawns the Pallette View */
-	TSharedRef<SDockTab> SpawnTab_PaletteView(const FSpawnTabArgs& Args);
+	/** Spawns the Input Source View */
+	TSharedRef<SDockTab> SpawnTab_InputSourceView(const FSpawnTabArgs& Args);
+
+	/** Spawns the DMX Library View */
+	TSharedRef<SDockTab> SpawnTab_DMXLibraryView(const FSpawnTabArgs& Args);
 
 	/** Spawns the Hierarchy View */
 	TSharedRef<SDockTab> SpawnTab_HierarchyView(const FSpawnTabArgs& Args);
@@ -199,8 +207,6 @@ private:
 
 	void ExtendToolbar();
 
-	void CreateInternalViewModels();
-
 	void CreateInternalViews();
 
 	UDMXPixelMapping* DMXPixelMapping;
@@ -208,9 +214,12 @@ private:
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
-	/** The Palette View instance */
-	TSharedPtr<SDMXPixelMappingPaletteView> PaletteView;
+	/** The Input Source View instance */
+	TSharedPtr<SDMXPixelMappingInputSourceView> InputSourceView;
 	
+	/** The Input Source View instance */
+	TSharedPtr<SDMXPixelMappingDMXLibraryView> DMXLibraryView;
+
 	/** The Hierarchy View instance */
 	TSharedPtr<SDMXPixelMappingHierarchyView> HierarchyView;
 
@@ -225,9 +234,6 @@ private:
 
 	/** The Layout View instance */
 	TSharedPtr<SDMXPixelMappingLayoutView> LayoutView;
-
-	/** The Palette View Model instance */
-	TSharedPtr<FDMXPixelMappingPaletteViewModel> PaletteViewModel;
 
 	FOnSelectedComponentsChangedDelegate OnSelectedComponentsChangedDelegate;
 
@@ -258,8 +264,11 @@ private:
 	bool bRemovingComponents = false;
 
 public:
-	/** Name of the Palette View Tab */
-	static const FName PaletteViewTabID;
+	/** Name of the Input Source View Tab */
+	static const FName InputSourceViewTabID;
+
+	/** Name of the DMX Library View Tab */
+	static const FName DMXLibraryViewTabID;
 
 	/** Name of the Hierarchy View Tab */
 	static const FName HierarchyViewTabID;

@@ -51,6 +51,9 @@ public:
 	/** Returns the toolkit used with this surface */
 	FORCEINLINE TSharedPtr<FDMXPixelMappingToolkit> GetToolkit() { return ToolkitWeakPtr.Pin(); }
 
+	/** Zooms to fit content */
+	void ZoomToFit(bool bInstantZoom);
+
 protected:
 	virtual void OnPaintBackground(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
@@ -63,8 +66,6 @@ protected:
 	bool ScrollToLocation(const FGeometry& MyGeometry, FVector2D DesiredCenterPosition, const float InDeltaTime);
 
 	bool ZoomToLocation(const FVector2D& CurrentSizeWithoutZoom, const FVector2D& DesiredSize, bool bDoneScrolling);
-
-	void ZoomToFit(bool bInstantZoom);
 
 	FText GetZoomText() const;
 	FSlateColor GetZoomTextColorAndOpacity() const;

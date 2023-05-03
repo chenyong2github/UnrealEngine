@@ -77,16 +77,21 @@ struct DMXEDITOR_API FDMXReadOnlyFixturePatchListDescriptor
 class DMXEDITOR_API SDMXReadOnlyFixturePatchList
 	: public SCompoundWidget
 {
-	DECLARE_DELEGATE_RetVal_OneParam(bool, FDMXEntityFixturePatchListRowDelegate, const FDMXEntityFixturePatchRef)
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FDMXEntityFixturePatchListRowDelegate, const FDMXEntityFixturePatchRef);
 
 public:
 	SLATE_BEGIN_ARGS(SDMXReadOnlyFixturePatchList)
 		: _ListDescriptor(FDMXReadOnlyFixturePatchListDescriptor())
 	{}
 
+		/** Describes the list behaviour */
 		SLATE_ARGUMENT(FDMXReadOnlyFixturePatchListDescriptor, ListDescriptor)
 
+		/** The displayed DMX Library */
 		SLATE_ARGUMENT(UDMXLibrary*, DMXLibrary)
+
+		/** Fixture patches not displayed in the list */
+		SLATE_ARGUMENT(TArray<FDMXEntityFixturePatchRef>, ExcludedFixturePatches)
 
 		/** Called when a row of the list is right clicked */
 		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
@@ -96,6 +101,9 @@ public:
 
 		/** Called to get the visibility state of each row of the list */
 		SLATE_EVENT(FDMXEntityFixturePatchListRowDelegate, IsRowVisibile)
+
+		/** Delegate executed when a row was dragged */
+		SLATE_EVENT(FOnDragDetected, OnRowDragged)
 
 	SLATE_END_ARGS()
 
@@ -108,6 +116,9 @@ public:
 	/** Gets current selected Fixture Patches from the list */
 	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> GetSelectedFixturePatchRefs() const;
 
+	/** Gets all visible Fixture Patches from the list */
+	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> GetVisibleFixturePatchRefs() const;
+
 	/** Gets the a descriptor for the current parameters for this list */
 	FDMXReadOnlyFixturePatchListDescriptor GetListDescriptor() const;
 
@@ -116,6 +127,15 @@ public:
 
 	/** Sets the displayed DMX library */
 	void SetDMXLibrary(UDMXLibrary* InDMXLibrary);
+
+	/** Sets the excluded fixture patches */
+	void SetExcludedFixturePatches(const TArray<FDMXEntityFixturePatchRef>& NewExcludedFixturePatches);
+
+	/** Returns the items displayed int his list */
+	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> GetListItems() const { return ListItems; }
+
+	/** Selects specified items in the list */
+	void SelectItems(const TArray<TSharedPtr<FDMXEntityFixturePatchRef>>& ItemsToSelect, ESelectInfo::Type SelectInfo = ESelectInfo::Direct);
 
 private:
 	/** Initializes the list parameters using the given ListDescriptor */
@@ -132,6 +152,9 @@ private:
 
 	/** Called when a row in the List gets generated */
 	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FDMXEntityFixturePatchRef> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+
+	/** Called when a row was dragged */
+	FReply OnRowDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 	/** Called when text from searchbox is changed */
 	void OnSearchTextChanged(const FText& SearchText);
@@ -176,7 +199,7 @@ private:
 	bool IsUsingShowMode(EDMXReadOnlyFixturePatchListShowMode ShowModeToCheck) const;
 
 	/** The current Sort Mode */
-	EColumnSortMode::Type SortMode;
+	EColumnSortMode::Type SortMode = EColumnSortMode::Ascending;
 
 	/** The current Show Mode */
 	EDMXReadOnlyFixturePatchListShowMode ShowMode;
@@ -209,6 +232,8 @@ private:
 	TWeakObjectPtr<UDMXLibrary> DMXLibrary;
 
 	// Slate Arguments
+	TArray<FDMXEntityFixturePatchRef> ExcludedFixturePatches;
 	FDMXEntityFixturePatchListRowDelegate IsRowEnabledDelegate;
 	FDMXEntityFixturePatchListRowDelegate IsRowVisibleDelegate;
+	FOnDragDetected OnRowDraggedDelegate;
 };
