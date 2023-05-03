@@ -128,6 +128,17 @@ enum class ECrashTrigger
 	Normal = 0
 };
 
+/**
+ * Tristate to identify a session which is attended or unattended (ie. usually automated testing)
+ * Determination requires command line arguments - therefore if not available, status is unknown 
+ */
+enum class EUnattendedStatus : uint8
+{
+	Unknown,
+	Attended,
+	Unattended
+};
+
 #define CR_MAX_ERROR_MESSAGE_CHARS 2048
 #define CR_MAX_DIRECTORY_CHARS 256
 #define CR_MAX_STACK_FRAMES 256
@@ -183,6 +194,7 @@ struct FSessionContext
 	TCHAR 					CrashReportClientRichText[CR_MAX_RICHTEXT_FIELD_CHARS];
 	TCHAR 					GameStateName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					CrashConfigFilePath[CR_MAX_DIRECTORY_CHARS];
+	TCHAR					AttendedStatus[CR_MAX_GENERIC_FIELD_CHARS];
 	char					PlatformName[CR_MAX_GENERIC_FIELD_CHARS];
 	char					PlatformNameIni[CR_MAX_GENERIC_FIELD_CHARS];
 	FPlatformMemoryStats	MemoryStats;

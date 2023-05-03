@@ -74,6 +74,18 @@ static bool NeedsEscape(FStringView Str)
 	return false;
 }
 
+static const TCHAR* AttendedStatusToString(EUnattendedStatus Status)
+{
+	switch(Status)
+	{
+	case EUnattendedStatus::Attended: return TEXT("Attended");
+	case EUnattendedStatus::Unattended: return TEXT("Unattended");
+	case EUnattendedStatus::Unknown: // fallthrough
+	default:
+		return TEXT("Unknown");
+	}
+}
+
 /*-----------------------------------------------------------------------------
 	FGenericCrashContext
 -----------------------------------------------------------------------------*/
@@ -192,6 +204,7 @@ void FGenericCrashContext::Initialize()
 
 	NCached::Set(NCached::Session.PlatformName, FPlatformProperties::PlatformName());
 	NCached::Set(NCached::Session.PlatformNameIni, FPlatformProperties::IniPlatformName());
+	NCached::Set(NCached::Session.AttendedStatus, AttendedStatusToString(EUnattendedStatus::Unknown));
 
 	// Information that cannot be gathered if command line is not initialized (e.g. crash during static init)
 	if (FCommandLine::IsInitialized())
@@ -221,7 +234,10 @@ void FGenericCrashContext::Initialize()
 			}
 		}
 
-		NCached::UserSettings.bNoDialog = FApp::IsUnattended() || IsRunningDedicatedServer();
+		const bool IsUnattended = FApp::IsUnattended();
+
+		NCached::UserSettings.bNoDialog = IsUnattended|| IsRunningDedicatedServer();
+		NCached::Set(NCached::Session.AttendedStatus, AttendedStatusToString(IsUnattended ? EUnattendedStatus::Unattended : EUnattendedStatus::Attended));
 	}
 
 	// Create a unique base guid for bug report ids
@@ -741,6 +757,7 @@ void FGenericCrashContext::SerializeContentToBuffer() const
 	AddCrashProperty( TEXT( "CrashType" ), GetCrashTypeString(Type) );
 	AddCrashProperty( TEXT( "ErrorMessage" ), ErrorMessage );
 	AddCrashProperty( TEXT( "CrashReporterMessage" ), NCached::Session.CrashReportClientRichText );
+	AddCrashProperty( TEXT( "AttendedStatus"), NCached::Session.AttendedStatus);
 
 	SerializeSessionContext(CommonBuffer);
 
