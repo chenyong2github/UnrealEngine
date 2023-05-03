@@ -440,18 +440,12 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 
 void UNiagaraDataInterfaceCurveBase::CacheStaticBuffers(struct FNiagaraSystemStaticBuffers& StaticBuffers, const FNiagaraVariable& ResolvedVariable, bool bUsedByCPU, bool bUsedByGPU)
 {
-	const uint32 PrevLUTOffset = LUTOffset;
-
 	LUTOffset = INDEX_NONE;
 	if (bUsedByGPU && ResolvedVariable.IsInNameSpace(FNiagaraConstants::UserNamespaceString) == false)
 	{
 		LUTOffset = StaticBuffers.AddGpuData(ShaderLUT);
 	}
-
-	if (PrevLUTOffset != LUTOffset)
-	{
-		MarkRenderDataDirty();
-	}
+	MarkRenderDataDirty();
 }
 
 void UNiagaraDataInterfaceCurveBase::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
