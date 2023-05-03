@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/SortedMap.h"
 #include "CoreMinimal.h"
 #include "DrawDebugHelpers.h"
-#include "Tasks/TargetingTask.h"
-#include "Types/TargetingSystemTypes.h"
 #include "Misc/CoreMisc.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Tasks/TargetingTask.h"
 #include "Tickable.h"
+#include "Types/TargetingSystemTypes.h"
 
 #include "TargetingSubsystem.generated.h"
 
@@ -131,14 +132,14 @@ public:
 	/** Targeting Request Methods */
 public:
 	/** Method to execute an immediate targeting request with a given targeting handle. */
-	TARGETINGSYSTEM_API void ExecuteTargetingRequestWithHandle(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate) const;
+	TARGETINGSYSTEM_API void ExecuteTargetingRequestWithHandle(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate = FTargetingRequestDelegate(), FTargetingRequestDynamicDelegate CompletionDynamicDelegate = FTargetingRequestDynamicDelegate());
 
 	/** Method to execute an immediate targeting request based on a gameplay targeting preset.*/
 	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Targeting System | Instant Request")
-	void ExecuteTargetingRequest(const UTargetingPreset* TargetingPreset, const FTargetingSourceContext& InSourceContext, FTargetingRequestDynamicDelegate CompletionDynamicDelegate) const;
+	void ExecuteTargetingRequest(const UTargetingPreset* TargetingPreset, const FTargetingSourceContext& InSourceContext, FTargetingRequestDynamicDelegate CompletionDynamicDelegate);
 
 	/** Method to queue an async targeting request with a given targeting handle. */
-	TARGETINGSYSTEM_API void StartAsyncTargetingRequestWithHandle(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate);
+	TARGETINGSYSTEM_API void StartAsyncTargetingRequestWithHandle(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate = FTargetingRequestDelegate(), FTargetingRequestDynamicDelegate CompletionDynamicDelegate = FTargetingRequestDynamicDelegate());
 
 	/** Method to remove an async targeting request with a given targeting handle */
 	UFUNCTION(BlueprintCallable, Category = "Targeting System | Async Request")
@@ -167,6 +168,12 @@ private:
 
 	/** Flag indicating the targeting system is currently in its tick processing targeting tasks for async request */
 	bool bTickingAsycnRequests = false;
+
+	/** While we're processing targeting requests, we add any incoming requests to this array to prevent memory stomps */
+	TSortedMap<FTargetingRequestHandle, FTargetingRequestData> PendingTargetingRequests;
+
+	/** (Version for Async Requests) While we're processing targeting requests, we add any incoming requests to this array to prevent memory stomps */
+	TSortedMap<FTargetingRequestHandle, FTargetingRequestData> PendingAsyncTargetingRequests;
 
 	/** ~Targeting Request Methods */
 
@@ -211,6 +218,9 @@ private:
 
 	void AddDebugTrackedImmediateTargetRequests(FTargetingRequestHandle TargetingHandle) const;
 	void AddDebugTrackedAsyncTargetRequests(FTargetingRequestHandle TargetingHandle) const;
+
+	/** Called when we set bTickingAsyncRequests to false, at this point it's safe to perform any queued operations on the Async Requests Array */
+	void OnFinishedTickingAsyncRequests();
 
 	mutable TArray<FTargetingRequestHandle> DebugTrackedImmediateTargetRequests;
 	mutable int32 CurrentImmediateRequestIndex = 0;

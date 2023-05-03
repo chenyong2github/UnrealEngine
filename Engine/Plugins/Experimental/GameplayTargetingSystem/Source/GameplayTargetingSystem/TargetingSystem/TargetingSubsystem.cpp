@@ -215,6 +215,7 @@ void UTargetingSubsystem::Tick(float DeltaTime)
 		}
 
 		bTickingAsycnRequests = false;
+		OnFinishedTickingAsyncRequests();
 	}
 	
 	{
@@ -267,6 +268,22 @@ void UTargetingSubsystem::Tick(float DeltaTime)
 			}
 		}
 	}
+}
+
+void UTargetingSubsystem::OnFinishedTickingAsyncRequests()
+{
+	// Queue all the pending requests once we're safe to add to the Targeting Requests Data Store
+	for (const TPair<FTargetingRequestHandle, FTargetingRequestData>& PendingRequest : PendingTargetingRequests)
+	{
+		ExecuteTargetingRequestWithHandle(PendingRequest.Key, PendingRequest.Value.TargetingRequestDelegate);
+	}
+	PendingTargetingRequests.Reset();
+
+	for (const TPair<FTargetingRequestHandle, FTargetingRequestData>& PendingAsyncRequest : PendingAsyncTargetingRequests)
+	{
+		StartAsyncTargetingRequestWithHandle(PendingAsyncRequest.Key, PendingAsyncRequest.Value.TargetingRequestDelegate, PendingAsyncRequest.Value.TargetingRequestDynamicDelegate);
+	}
+	PendingAsyncTargetingRequests.Reset();
 }
 
 bool UTargetingSubsystem::IsTickable() const
@@ -325,9 +342,16 @@ void UTargetingSubsystem::ReleaseTargetRequestHandle(FTargetingRequestHandle& Ha
 	TARGETING_LOG(Verbose, TEXT("%s: - Releasigng Handle [%d]"), ANSI_TO_TCHAR(__FUNCTION__), CachedHandle.Handle);
 }
 
-void UTargetingSubsystem::ExecuteTargetingRequestWithHandle(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate) const
+void UTargetingSubsystem::ExecuteTargetingRequestWithHandle(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate, FTargetingRequestDynamicDelegate CompletionDynamicDelegate)
 {
-	FTargetingRequestDynamicDelegate CompletionDynamicDelegate;
+	// If we're processing Targeting Requests, queue this one to prevent memory stomps. We'll add it once we finish Ticking Async Requests.
+	if (bTickingAsycnRequests)
+	{
+		FTargetingRequestData& RequestData = PendingTargetingRequests.FindOrAdd(TargetingHandle);
+		RequestData.Initialize(CompletionDelegate, CompletionDynamicDelegate);
+		return;
+	}
+
 	ExecuteTargetingRequestWithHandleInternal(TargetingHandle, CompletionDelegate, CompletionDynamicDelegate);
 
 	// if the caller setup task data to release on completion, lets do it
@@ -340,7 +364,7 @@ void UTargetingSubsystem::ExecuteTargetingRequestWithHandle(FTargetingRequestHan
 	}
 }
 
-void UTargetingSubsystem::ExecuteTargetingRequest(const UTargetingPreset* TargetingPreset, const FTargetingSourceContext& SourceContext, FTargetingRequestDynamicDelegate CompletionDynamicDelegate) const
+void UTargetingSubsystem::ExecuteTargetingRequest(const UTargetingPreset* TargetingPreset, const FTargetingSourceContext& SourceContext, FTargetingRequestDynamicDelegate CompletionDynamicDelegate)
 {
 	FTargetingRequestHandle RequestHandle;
 	if (ensure(TargetingPreset))
@@ -357,15 +381,30 @@ void UTargetingSubsystem::ExecuteTargetingRequest(const UTargetingPreset* Target
 #endif // WITH_EDITORONLY_DATA
 #endif // ENABLE_DRAW_DEBUG
 
+		// If we're processing Targeting Requests, queue this one to prevent memory stomps. We'll add it once we finish Ticking Async Requests.
 		FTargetingRequestDelegate CompletionDelegate;
+		if (bTickingAsycnRequests)
+		{
+			FTargetingRequestData& RequestData = PendingTargetingRequests.FindOrAdd(RequestHandle);
+			RequestData.Initialize(CompletionDelegate, CompletionDynamicDelegate);
+			return;
+		}
+
 		ExecuteTargetingRequestWithHandleInternal(RequestHandle, CompletionDelegate, CompletionDynamicDelegate);
 		UTargetingSubsystem::ReleaseTargetRequestHandle(RequestHandle);
 	}
 }
 
-void UTargetingSubsystem::StartAsyncTargetingRequestWithHandle(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate)
+void UTargetingSubsystem::StartAsyncTargetingRequestWithHandle(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate, FTargetingRequestDynamicDelegate CompletionDynamicDelegate)
 {
-	FTargetingRequestDynamicDelegate CompletionDynamicDelegate;
+	// If we're processing Targeting Requests, queue this one to prevent memory stomps. We'll add it once we finish Ticking Async Requests.
+	if (bTickingAsycnRequests)
+	{
+		FTargetingRequestData& RequestData = PendingAsyncTargetingRequests.FindOrAdd(TargetingHandle);
+		RequestData.Initialize(CompletionDelegate, CompletionDynamicDelegate);
+		return;
+	}
+
 	StartAsyncTargetingRequestWithHandleInternal(TargetingHandle, CompletionDelegate, CompletionDynamicDelegate);
 }
 
@@ -435,6 +474,15 @@ FTargetingRequestHandle UTargetingSubsystem::StartAsyncTargetingRequest(const UT
 #endif // ENABLE_DRAW_DEBUG
 
 		FTargetingRequestDelegate CompletionDelegate;
+
+		// If we're processing Targeting Requests, queue this one to prevent memory stomps. We'll add it once we finish Ticking Async Requests.
+		if (bTickingAsycnRequests)
+		{
+			FTargetingRequestData& RequestData = PendingAsyncTargetingRequests.FindOrAdd(RequestHandle);
+			RequestData.Initialize(CompletionDelegate, CompletionDynamicDelegate);
+			return RequestHandle;
+		}
+
 		StartAsyncTargetingRequestWithHandleInternal(RequestHandle, CompletionDelegate, CompletionDynamicDelegate);
 	}
 	
