@@ -7,13 +7,17 @@
 UContentBundleDescriptor::UContentBundleDescriptor(const FObjectInitializer& ObjectInitializer)
 	: DebugColor(FColor::Black)
 {
+
+}
+
+FString UContentBundleDescriptor::GetPackageRoot() const
+{
+	return FPackageName::GetPackageMountPoint(GetPackage()->GetName()).ToString();
 }
 
 bool UContentBundleDescriptor::IsValid() const
 {
-	return Guid.IsValid()
-		&& !DisplayName.IsEmpty()
-		&& !PackageRoot.IsEmpty();
+	return Guid.IsValid() && !DisplayName.IsEmpty();
 }
 
 FString UContentBundleDescriptor::GetContentBundleCompactString(const FGuid& InContentBundleID)
@@ -23,11 +27,10 @@ FString UContentBundleDescriptor::GetContentBundleCompactString(const FGuid& InC
 }
 
 #if WITH_EDITOR
-void UContentBundleDescriptor::InitializeObject(const FString& InContentBundleName, const FString& InPackageRoot)
+void UContentBundleDescriptor::InitializeObject(const FString& InContentBundleName)
 {
 	Guid = FGuid::NewGuid();
 	DisplayName = InContentBundleName;
-	PackageRoot = InPackageRoot;
 	InitDebugColor();
 }
 
@@ -37,6 +40,19 @@ void UContentBundleDescriptor::PostLoad()
 
 	Super::PostLoad();
 }
+
+#if WITH_EDITOR
+void UContentBundleDescriptor::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+
+	if (!bDuplicateForPIE)
+	{
+		Guid = FGuid::NewGuid();
+		InitDebugColor();
+	}
+}
+#endif
 
 void UContentBundleDescriptor::InitDebugColor()
 {
