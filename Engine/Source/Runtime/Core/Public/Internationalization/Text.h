@@ -821,6 +821,8 @@ public:
 	{
 	}
 
+	FFormatArgumentValue(const class FCbValue& Value);
+
 	FFormatArgumentValue(const int32 Value)
 		: Type(EFormatArgumentType::Int)
 	{
