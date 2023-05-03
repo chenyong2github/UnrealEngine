@@ -1,4 +1,4 @@
-import { Stack } from "@fluentui/react";
+import { Stack, mergeStyleSets } from "@fluentui/react";
 import { action, makeObservable, observable } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useRef, useState } from "react";
@@ -23,6 +23,16 @@ type State = {
    crumbs: BreadcrumbItem[];
    jumpLinks: ISideRailLink[];
 }
+
+
+export const docClasses = mergeStyleSets({
+   raised: {
+      backgroundColor: "#ffffff",
+      boxShadow: "0 1.6px 3.6px 0 rgba(0,0,0,0.132), 0 0.3px 0.9px 0 rgba(0,0,0,0.108)",
+      padding: "16px 32px"      
+   }
+});
+
 
 class LinkState {
 
@@ -63,7 +73,7 @@ const DocPanel: React.FC<{ docName: string }> = ({ docName }) => {
 
                // generate anchors
                let lines = (textContent.match(/[^\r\n]+/g) ?? []) as string[];
-               lines = lines.map(i => i.trim()).filter( i => !!i);
+               lines = lines.map(i => i.trim()).filter(i => !!i);
                lines.forEach(line => {
                   let anchor = "";
 
@@ -77,9 +87,9 @@ const DocPanel: React.FC<{ docName: string }> = ({ docName }) => {
 
                   if (anchor) {
                      anchor = anchor.trim();
-                     anchors.push({text: anchor, anchor: anchor.replace(/[^a-z0-9- ]/gi, '').replace(/ /gi, '-').toLowerCase() })
+                     anchors.push({ text: anchor, anchor: anchor.replace(/[^a-z0-9- ]/gi, '').replace(/ /gi, '-').toLowerCase() })
                   }
-               })               
+               })
 
                // generate crumbs
                if (lines && lines.length) {
@@ -141,23 +151,15 @@ const DocPanel: React.FC<{ docName: string }> = ({ docName }) => {
    let anchors = anchorCache.get(docName) ?? [];
 
    linkState.setState(crumbs, anchors.map(a => {
-      return { text: a.text, url: a.anchor}
+      return { text: a.text, url: a.anchor }
    }));
 
 
-   return <Stack>
-      <Stack styles={{ root: { paddingTop: 0, paddingLeft: 12, paddingRight: 12, width: "100%" } }} >
-         <Stack tokens={{ childrenGap: 12 }}>
-            <Stack style={{ paddingBottom: 24, paddingLeft: 6, paddingRight: 6, paddingTop: 12 }}>
-               <div ref={docRef}>
-                  <Markdown>{text}</Markdown>
-               </div>
-            </Stack>
-         </Stack>
-      </Stack>
+   return <Stack styles={{ root: { width: "100%" } }} >
+      <div ref={docRef}>
+         <Markdown>{text}</Markdown>
+      </div>
    </Stack>;
-
-
 }
 
 const DocRail = observer(() => {
@@ -218,7 +220,7 @@ export const DocView = () => {
             <div style={{ overflowY: 'scroll', overflowX: 'hidden', height: "calc(100vh - 162px)" }} data-is-scrollable={true}>
                <Stack horizontal>
                   <Stack style={{ width: 1240, paddingTop: 6, marginLeft: 4, height: '100%' }}>
-                     <Stack className={hordeClasses.raised}>
+                     <Stack className={docClasses.raised}>
                         <Stack style={{ width: "100%", height: "max-content" }} tokens={{ childrenGap: 18 }}>
                            <DocPanel docName={docName} />
                         </Stack>

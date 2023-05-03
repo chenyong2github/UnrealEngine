@@ -50,7 +50,7 @@ class SideRailBase extends React.Component<ISideRailProps, ISideRailState> {
       return jumpLinkList || relatedLinkList || contactLinkList ? (
          <FocusZone direction={FocusZoneDirection.vertical} className={this._classNames.root}>
             {relatedLinkList}
-            {jumpLinkList}                        
+            {jumpLinkList}
             {contactLinkList}
          </FocusZone>
       ) : null;
@@ -92,8 +92,8 @@ class SideRailBase extends React.Component<ISideRailProps, ISideRailState> {
       ));
       return (
          <div className={css(classNames.section, classNames.jumpLinkSection)}>
-            <Stack style={{paddingBottom: 8}}>
-               <Text variant='medium' style={{fontWeight:600}}>On this page</Text>
+            <Stack style={{ paddingBottom: 8 }}>
+               <Text variant='medium' style={{ fontWeight: 600 }}>On this page</Text>
             </Stack>
             <ul className={classNames.links}>{links}</ul>
          </div>
@@ -124,10 +124,12 @@ class SideRailBase extends React.Component<ISideRailProps, ISideRailState> {
       if (links) {
          return (
             <div className={css(classNames.section)}>
-            <Stack style={{paddingBottom: 8}}>
-               <Text variant='medium' style={{fontWeight:600}}>{title}</Text>
-            </Stack>
-               {links}
+               <Stack style={{ paddingBottom: 8 }}>
+                  <Text variant='medium' style={{ fontWeight: 600 }}>{title}</Text>
+               </Stack>
+               <Stack>
+                  {links}
+               </Stack>
             </div>
          );
       }
