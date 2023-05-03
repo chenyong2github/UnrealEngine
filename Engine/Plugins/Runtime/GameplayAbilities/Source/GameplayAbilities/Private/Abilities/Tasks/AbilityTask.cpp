@@ -185,7 +185,7 @@ bool UAbilityTask::ShouldBroadcastAbilityTaskDelegates() const
 
 	if (!ShouldBroadcast && AbilityTaskWarnIfBroadcastSuppress)
 	{
-		ABILITY_LOG(Warning, TEXT("Suppressing ability task %s broadcsat"), *GetDebugString());
+		ABILITY_LOG(Warning, TEXT("Suppressing ability task %s broadcast"), *GetDebugString());
 	}
 
 	return ShouldBroadcast;
