@@ -406,16 +406,12 @@ namespace UnrealBuildTool
 		protected virtual void GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			Arguments.Add("-x objective-c++");
-			Arguments.Add("-fobjc-abi-version=2");
-			Arguments.Add("-fobjc-legacy-dispatch");
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 		}
 
 		protected virtual void GetCompileArguments_M(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			Arguments.Add("-x objective-c");
-			Arguments.Add("-fobjc-abi-version=2");
-			Arguments.Add("-fobjc-legacy-dispatch");
 			GetCStandardCompileArgument(CompileEnvironment, Arguments);
 		}
 
