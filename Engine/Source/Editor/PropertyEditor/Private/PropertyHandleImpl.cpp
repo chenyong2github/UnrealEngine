@@ -1464,6 +1464,14 @@ void FPropertyValueImpl::InsertChild( TSharedPtr<FPropertyNode> ChildNodeToInser
 
 		ArrayHelper.InsertValues(Index, 1 );
 
+		// check whether the inner type is flagged as a non-nullable. if so, create it.
+		FObjectProperty* InnerObjectProperty = CastField<FObjectProperty>(ArrayProperty->Inner);
+		if (InnerObjectProperty && InnerObjectProperty->HasAnyPropertyFlags(CPF_NonNullable))
+		{
+			UObject* NewItem = NewObject<UObject>(Obj, InnerObjectProperty->PropertyClass);
+			InnerObjectProperty->SetObjectPropertyValue(ArrayHelper.GetRawPtr(Index), NewItem);
+		}
+
 		//set up indices for the coming events
 		TArray< TMap<FString,int32> > ArrayIndicesPerObject;
 		for (int32 ObjectIndex = 0; ObjectIndex < ReadAddresses.Num(); ++ObjectIndex)
