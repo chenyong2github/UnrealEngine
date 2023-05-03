@@ -2,7 +2,7 @@
 
 #pragma once
 
-
+#include "CoreTypes.h"
 #include "Extensions/UserWidgetExtension.h"
 
 #include "MVVMView.generated.h"
@@ -116,8 +116,8 @@ private:
 	void DisableLibraryBinding(const FMVVMViewClass_CompiledBinding& Item, int32 BindingIndex);
 	bool IsLibraryBindingEnabled(int32 InBindindIndex) const;
 
-	bool RegisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding, int32 BindingIndex);
-	void UnregisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding, int32 BindingIndex);
+	FDelegateHandle RegisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding, int32 BindingIndex);
+	void UnregisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Binding, FDelegateHandle Handle, int32 BindingIndex);
 
 	TScriptInterface<INotifyFieldValueChanged> FindSource(const FMVVMViewClass_CompiledBinding& Binding, int32 BindingIndex, bool bAllowNull) const;
 	FMVVMViewSource* FindViewSource(const FName SourceName);
@@ -131,7 +131,7 @@ private:
 	TArray<FMVVMViewSource> Sources;
 
 	/** The binding that are registered by the view to the sources. */
-	TBitArray<> RegisteredLibraryBindings;
+	TArray<FDelegateHandle> RegisteredLibraryBindings;
 
 	/** Should log when a binding is executed. */
 	UPROPERTY(EditAnywhere, Transient, Category = "Viewmodel")
