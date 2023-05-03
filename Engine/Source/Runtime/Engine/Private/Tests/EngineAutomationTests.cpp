@@ -917,6 +917,8 @@ bool FAutomationNullNotNullPtrEXPR::RunTest(const FString& Parameters)
 	UTEST_NULL_EXPR(nullptr);
 	UTEST_NOT_NULL_EXPR(World);
 
+	World->DestroyWorld(false);
+
 	return true;
 }
 
