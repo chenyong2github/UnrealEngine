@@ -2095,9 +2095,12 @@ void FShaderCompileUtilities::WriteGBufferInfoAutogen(EShaderPlatform TargetPlat
 void FShaderCompileUtilities::GenerateBrdfHeaders(EShaderPlatform TargetPlatform)
 {
 	ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(TargetPlatform);
-
-	// Writes the GBuffer format .ush file if it's out of date.
-	WriteGBufferInfoAutogen(TargetPlatform, FeatureLevel);
+	// auto-generated GBuffer layout is not used by mobile rendering
+	if (FeatureLevel > ERHIFeatureLevel::ES3_1)
+	{
+		// Writes the GBuffer format .ush file if it's out of date.
+		WriteGBufferInfoAutogen(TargetPlatform, FeatureLevel);
+	}
 }
 
 void FShaderCompileUtilities::GenerateBrdfHeaders(const FName& ShaderFormat)

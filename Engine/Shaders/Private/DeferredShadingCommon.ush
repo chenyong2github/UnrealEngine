@@ -430,8 +430,9 @@ bool CheckerFromSceneColorUV(float2 UVSceneColor)
 
 #if GBUFFER_REFACTOR
 #include "GBufferHelpers.ush"
-
-#include "/Engine/Generated/ShaderAutogen/AutogenShaderHeaders.ush"
+	#if FEATURE_LEVEL > FEATURE_LEVEL_ES3_1
+	#include "/Engine/Generated/ShaderAutogen/AutogenShaderHeaders.ush"
+	#endif
 #endif
 
 struct FScreenSpaceData

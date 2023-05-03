@@ -7756,7 +7756,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 	if (NewPreviewPlatform.PreviewShaderFormatName != NAME_None)
 	{
 		// Force generation of the autogen files if they don't already exist
-		FShaderCompileUtilities::WriteGBufferInfoAutogen(ShaderPlatform, MaxFeatureLevel);
+		FShaderCompileUtilities::GenerateBrdfHeaders(ShaderPlatform);
 	}
 
 	// Record the new preview platform
