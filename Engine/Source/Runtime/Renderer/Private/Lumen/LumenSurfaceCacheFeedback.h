@@ -1,10 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSurfaceCacheFeedback.h
-=============================================================================*/
-
-
 #pragma once
 
 #include "CoreMinimal.h"

@@ -68,14 +68,12 @@ struct FRayTracingRelevantPrimitiveTaskData;
 #endif
 
 /**   
- * Data for rendering meshes into Lumen Lighting Cards.
+ * Data for rendering meshes into Surface Cache
  */
 class FLumenCardRenderer
 {
 public:
 	TArray<FCardPageRenderData, SceneRenderingAllocator> CardPagesToRender;
-
-	TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> LandscapePrimitivesInRange;
 
 	int32 NumCardTexelsToCapture;
 	FMeshCommandOneFrameArray MeshDrawCommands;

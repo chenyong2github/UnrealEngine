@@ -264,6 +264,35 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 	static_assert(DataStrideInFloat4s == 6, "Data stride doesn't match");
 }
 
+struct FLumenPrimitiveGroupGPUData
+{
+	// Must match LUMEN_PRIMITIVE_GROUP_DATA_STRIDE in LumenScene.usf
+	enum { DataStrideInFloat4s = 2 };
+	enum { DataStrideInBytes = DataStrideInFloat4s * 16 };
+
+	static void FillData(const class FLumenPrimitiveGroup& RESTRICT PrimitiveGroup, FVector4f* RESTRICT OutData);
+};
+
+void FLumenPrimitiveGroupGPUData::FillData(const FLumenPrimitiveGroup& RESTRICT PrimitiveGroup, FVector4f* RESTRICT OutData)
+{
+	// Note: layout must match GetLumenPrimitiveGroupData in usf
+
+	OutData[0] = PrimitiveGroup.WorldSpaceBoundingBox.GetCenter();
+	OutData[1] = PrimitiveGroup.WorldSpaceBoundingBox.GetExtent();
+
+	uint32 MeshCardsIndex = PrimitiveGroup.MeshCardsIndex >= 0 ? PrimitiveGroup.MeshCardsIndex : UINT32_MAX;
+	OutData[0].W = *((float*) &MeshCardsIndex);
+
+	uint32 PackedFlags = 0;
+	PackedFlags |= PrimitiveGroup.bValidMeshCards		? 0x01 : 0;
+	PackedFlags |= PrimitiveGroup.bFarField				? 0x02 : 0;
+	PackedFlags |= PrimitiveGroup.bHeightfield			? 0x04 : 0;
+	PackedFlags |= PrimitiveGroup.bEmissiveLightSource	? 0x08 : 0;
+	OutData[1].W = *((float*) &PackedFlags);
+
+	static_assert(DataStrideInFloat4s == 2, "Data stride doesn't match");
+}
+
 void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneFrameTemporaries& FrameTemporaries, FLumenSceneData& LumenSceneData)
 {
 	LLM_SCOPE_BYTAG(Lumen);
@@ -282,6 +311,47 @@ void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const 
 		for (int32 i = 0; i < LumenSceneData.MeshCards.Num(); ++i)
 		{
 			LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Add(i);
+		}
+
+		LumenSceneData.PrimitiveGroupIndicesToUpdateInBuffer.Reset();
+		for (int32 i = 0; i < LumenSceneData.PrimitiveGroups.Num(); ++i)
+		{
+			LumenSceneData.PrimitiveGroupIndicesToUpdateInBuffer.Add(i);
+		}
+	}
+
+	// Upload primitive groups
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(UpdatePrimitiveGroups);
+
+		const uint32 NumPrimitiveGroups = LumenSceneData.PrimitiveGroups.Num();
+		const uint32 PrimitiveGroupNumFloat4s = FMath::RoundUpToPowerOfTwo(NumPrimitiveGroups * FLumenPrimitiveGroupGPUData::DataStrideInFloat4s);
+		const uint32 PrimitiveGroupNumBytes = PrimitiveGroupNumFloat4s * sizeof(FVector4f);
+		FRDGBuffer* PrimitiveGroupBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LumenSceneData.PrimitiveGroupBuffer, PrimitiveGroupNumBytes, TEXT("Lumen.PrimitiveGroup"));
+		FrameTemporaries.PrimitiveGroupBufferSRV = GraphBuilder.CreateSRV(PrimitiveGroupBuffer);
+
+		const int32 NumPrimitiveGroupUploads = LumenSceneData.PrimitiveGroupIndicesToUpdateInBuffer.Num();
+
+		if (NumPrimitiveGroupUploads > 0)
+		{
+			FLumenPrimitiveGroup NullPrimitiveGroup;
+			NullPrimitiveGroup.WorldSpaceBoundingBox.Min = FVector3f(0.0f, 0.0f, 0.0f);
+			NullPrimitiveGroup.WorldSpaceBoundingBox.Max = FVector3f(0.0f, 0.0f, 0.0f);
+
+			LumenSceneData.PrimitiveGroupUploadBuffer.Init(GraphBuilder, NumPrimitiveGroupUploads, FLumenPrimitiveGroupGPUData::DataStrideInBytes, true, TEXT("Lumen.PrimitiveGroupUpload"));
+
+			for (int32 Index : LumenSceneData.PrimitiveGroupIndicesToUpdateInBuffer)
+			{
+				if (Index < LumenSceneData.PrimitiveGroups.Num())
+				{
+					const FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups.IsAllocated(Index) ? LumenSceneData.PrimitiveGroups[Index] : NullPrimitiveGroup;
+
+					FVector4f* Data = (FVector4f*)LumenSceneData.PrimitiveGroupUploadBuffer.Add_GetRef(Index);
+					FLumenPrimitiveGroupGPUData::FillData(PrimitiveGroup, Data);
+				}
+			}
+
+			LumenSceneData.PrimitiveGroupUploadBuffer.ResourceUploadTo(GraphBuilder, PrimitiveGroupBuffer);
 		}
 	}
 
@@ -730,7 +800,9 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 
 		if (PrimitiveGroup.MeshCardsIndex < 0)
 		{
+			// Can't spawn mesh cards, mark this primitive as invalid
 			PrimitiveGroup.bValidMeshCards = false;
+			PrimitiveGroupIndicesToUpdateInBuffer.Add(PrimitiveGroupIndex);
 		}
 	}
 }
@@ -850,12 +922,16 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 			}
 
 			MeshCardsInstance.UpdateLookup(Cards);
+
+			PrimitiveGroupIndicesToUpdateInBuffer.Add(PrimitiveGroupIndex);
 		}
 	}
 }
 
-void FLumenSceneData::RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup)
+void FLumenSceneData::RemoveMeshCards(int32 PrimitiveGroupIndex)
 {
+	FLumenPrimitiveGroup& PrimitiveGroup = PrimitiveGroups[PrimitiveGroupIndex];
+
 	if (PrimitiveGroup.MeshCardsIndex >= 0)
 	{
 		const FLumenMeshCards& MeshCardsInstance = MeshCards[PrimitiveGroup.MeshCardsIndex];
@@ -884,6 +960,8 @@ void FLumenSceneData::RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup)
 		{
 			PrimitivesToUpdateMeshCards.Add(ScenePrimitive->GetIndex());
 		}
+
+		PrimitiveGroupIndicesToUpdateInBuffer.Add(PrimitiveGroupIndex);
 	}
 }
 

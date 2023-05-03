@@ -238,7 +238,6 @@ class FCompactFeedbackHashTableCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FCompactFeedbackHashTableCS, "/Engine/Private/Lumen/SurfaceCache/LumenSurfaceCacheFeedback.usf", "CompactFeedbackHashTableCS", SF_Compute);
 
-
 void FLumenSurfaceCacheFeedback::SubmitFeedbackBuffer(
 	const FViewInfo& View,
 	FRDGBuilder& GraphBuilder,
@@ -355,7 +354,7 @@ void FLumenSurfaceCacheFeedback::SubmitFeedbackBuffer(
 
 	if (ReadbackBuffers[ReadbackBuffersWriteIndex] == nullptr)
 	{
-		FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("Lumen.FeedbackBuffer"));
+		FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("Lumen.SurfaceCacheFeedbackBuffer"));
 		ReadbackBuffers[ReadbackBuffersWriteIndex] = GPUBufferReadback;
 	}
 

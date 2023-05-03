@@ -249,8 +249,8 @@ class FBuildRadiosityTilesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardPageIndexData)
 		SHADER_PARAMETER(uint32, NumViews)
 		SHADER_PARAMETER(uint32, MaxCardTiles)
-		SHADER_PARAMETER_ARRAY(FMatrix44f, WorldToClip, [MaxLumenViews])
-		SHADER_PARAMETER_ARRAY(FVector4f, PreViewTranslation, [MaxLumenViews])
+		SHADER_PARAMETER_ARRAY(FMatrix44f, WorldToClip, [Lumen::MaxViews])
+		SHADER_PARAMETER_ARRAY(FVector4f, PreViewTranslation, [Lumen::MaxViews])
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)

@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSceneData.h: Private scene manager definitions.
-=============================================================================*/
-
 #pragma once
 
 #include "CoreTypes.h"
@@ -12,6 +8,7 @@
 #include "Lumen/Lumen.h"
 #include "Lumen/LumenHeightfields.h"
 #include "Lumen/LumenSparseSpanArray.h"
+#include "Lumen/LumenSceneGPUDrivenUpdate.h"
 #include "Lumen/LumenSurfaceCacheFeedback.h"
 #include "Lumen/LumenUniqueList.h"
 #include "MeshCardRepresentation.h"
@@ -30,13 +27,12 @@ class FMeshCardsBuildData;
 class FPrimitiveSceneInfo;
 struct FLumenPageTableEntry;
 
-static constexpr uint32 MaxLumenViews = 2;
-
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER(uint32, NumCards)
 	SHADER_PARAMETER(uint32, NumMeshCards)
 	SHADER_PARAMETER(uint32, NumCardPages)
 	SHADER_PARAMETER(uint32, NumHeightfields)
+	SHADER_PARAMETER(uint32, NumPrimitiveGroups)
 	SHADER_PARAMETER(FVector2f, PhysicalAtlasSize)
 	SHADER_PARAMETER(FVector2f, InvPhysicalAtlasSize)
 	SHADER_PARAMETER(float, IndirectLightingAtlasDownsampleFactor)
@@ -44,6 +40,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, CardPageData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, MeshCardsData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, HeightfieldData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, PrimitiveGroupData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, PageTableBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, SceneInstanceIndexToMeshCardsIndexBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
@@ -56,6 +53,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 namespace Lumen
 {
 	constexpr uint32 FeedbackBufferElementStride = 2;
+	constexpr uint32 MaxViews = 2;
 
 	uint32 GetFeedbackBufferSize(const FViewFamilyInfo& ViewFamily);
 	uint32 GetCompactedFeedbackBufferSize();
@@ -383,6 +381,7 @@ struct FLumenSceneFrameTemporaries
 	FRDGBufferSRV* CardBufferSRV = nullptr;
 	FRDGBufferSRV* MeshCardsBufferSRV = nullptr;
 	FRDGBufferSRV* HeightfieldBufferSRV = nullptr;
+	FRDGBufferSRV* PrimitiveGroupBufferSRV = nullptr;
 	FRDGBufferSRV* SceneInstanceIndexToMeshCardsIndexBufferSRV = nullptr;
 	FRDGBufferSRV* PageTableBufferSRV = nullptr;
 	FRDGBufferSRV* CardPageBufferSRV = nullptr;
@@ -396,6 +395,8 @@ struct FLumenSceneFrameTemporaries
 
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = nullptr;
 
+	FRHIGPUBufferReadback* SceneAddOpsReadbackBuffer = nullptr;
+	FRHIGPUBufferReadback* SceneRemoveOpsReadbackBuffer = nullptr;
 	FRHIGPUBufferReadback* SurfaceCacheFeedbackBuffer = nullptr;
 
 	UE::Tasks::FTask UpdateSceneTask;
@@ -432,11 +433,15 @@ public:
 	FRDGScatterUploadBuffer CardUploadBuffer;
 
 	// Primitive groups
+	FUniqueIndexList PrimitiveGroupIndicesToUpdateInBuffer;
 	TSparseSpanArray<FLumenPrimitiveGroup> PrimitiveGroups;
+	TRefCountPtr<FRDGPooledBuffer> PrimitiveGroupBuffer;
+	FRDGScatterUploadBuffer PrimitiveGroupUploadBuffer;
+
 	// Maps RayTracingGroupId to a specific Primitive Group Index
 	Experimental::TRobinHoodHashMap<int32, int32> RayTracingGroups;
 
-	// List of landscape primitive added to the Lumen scene
+	// List of landscape primitives added to the Lumen scene
 	TArray<const FPrimitiveSceneInfo*> LandscapePrimitives;
 
 	// Mesh Cards
@@ -484,6 +489,9 @@ public:
 	TRefCountPtr<IPooledRenderTarget> RadiosityProbeSHGreenAtlas;
 	TRefCountPtr<IPooledRenderTarget> RadiosityProbeSHBlueAtlas;
 
+	// Lumen Scene readback for handling GPU driven updates
+	FLumenSceneReadback SceneReadback;
+
 	// Virtual surface cache feedback
 	FLumenSurfaceCacheFeedback SurfaceCacheFeedback;
 
@@ -520,7 +528,7 @@ public:
 	void AddMeshCards(int32 PrimitiveGroupIndex);
 	void UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCardsIndex, const FMeshCardsBuildData& MeshCardsBuildData);
 	void InvalidateSurfaceCache(FRHIGPUMask GPUMask, int32 MeshCardsIndex);
-	void RemoveMeshCards(FLumenPrimitiveGroup& PrimitiveGroup);
+	void RemoveMeshCards(int32 PrimitiveGroupIndex);
 
 	void RemoveCardFromAtlas(int32 CardIndex);
 

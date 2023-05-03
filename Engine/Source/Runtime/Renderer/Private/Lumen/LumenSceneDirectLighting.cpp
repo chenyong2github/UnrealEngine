@@ -353,8 +353,8 @@ class FBuildLightTilesCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MaxLightsPerTile)
 		SHADER_PARAMETER(uint32, NumLights)
 		SHADER_PARAMETER(uint32, NumViews)
-		SHADER_PARAMETER_ARRAY(FMatrix44f, WorldToClip, [MaxLumenViews])
-		SHADER_PARAMETER_ARRAY(FVector4f, PreViewTranslation, [MaxLumenViews])
+		SHADER_PARAMETER_ARRAY(FMatrix44f, WorldToClip, [Lumen::MaxViews])
+		SHADER_PARAMETER_ARRAY(FVector4f, PreViewTranslation, [Lumen::MaxViews])
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FMaxLightSamples : SHADER_PERMUTATION_SPARSE_INT("MAX_LIGHT_SAMPLES", 1, 2, 4, 8, 16, 32);
@@ -550,7 +550,7 @@ class FLumenCardBatchDirectLightingCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileOffsetNumPerCardTile)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, LightTilesPerCardTile)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWDirectLightingAtlas)
-		SHADER_PARAMETER_ARRAY(FVector4f, PreViewTranslation, [MaxLumenViews])
+		SHADER_PARAMETER_ARRAY(FVector4f, PreViewTranslation, [Lumen::MaxViews])
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FMultiView : SHADER_PERMUTATION_BOOL("HAS_MULTIPLE_VIEWS");
@@ -898,7 +898,7 @@ void CullMeshObjectsForLightCards(
 	FLightTileIntersectionParameters& LightTileIntersectionParameters)
 {
 	const FVector LumenSceneViewOrigin = Lumen::GetLumenSceneViewOrigin(View, Lumen::GetNumGlobalDFClipmaps(View) - 1);
-	const FVector LumenSceneExtent = FVector(ComputeMaxCardUpdateDistanceFromCamera(View));
+	const FVector LumenSceneExtent = FVector(LumenScene::GetCardMaxDistance(View));
 	const FBox LumenSceneBounds(LumenSceneViewOrigin - LumenSceneExtent, LumenSceneViewOrigin + LumenSceneExtent);
 
 	FSphere MeshSDFShadowBounds;
