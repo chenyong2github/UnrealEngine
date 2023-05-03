@@ -27,7 +27,8 @@ bool FUMGDetailKeyframeHandler::IsPropertyAnimated(const IPropertyHandle& Proper
 	TSharedPtr<ISequencer> Sequencer = BlueprintEditor.Pin()->GetSequencer();
 	if (Sequencer.IsValid() && Sequencer->GetFocusedMovieSceneSequence())
 	{
-		FGuid ObjectHandle = Sequencer->GetHandleToObject(ParentObject);
+		constexpr bool bCreateHandleIfMissing = false;
+		FGuid ObjectHandle = Sequencer->GetHandleToObject(ParentObject, bCreateHandleIfMissing);
 		if (ObjectHandle.IsValid()) 
 		{
 			UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();

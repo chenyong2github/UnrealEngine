@@ -546,7 +546,8 @@ bool SControlRigEditModeTools::IsPropertyAnimated(const IPropertyHandle& Propert
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	if (Sequencer.IsValid() && Sequencer->GetFocusedMovieSceneSequence())
 	{
-		FGuid ObjectHandle = Sequencer->GetHandleToObject(ParentObject);
+		constexpr bool bCreateHandleIfMissing = false;
+		FGuid ObjectHandle = Sequencer->GetHandleToObject(ParentObject, bCreateHandleIfMissing);
 		if (ObjectHandle.IsValid()) 
 		{
 			UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
