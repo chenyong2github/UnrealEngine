@@ -902,7 +902,7 @@ inline bool FNetBitArray::IsAnyBitSet() const
 
 inline bool FNetBitArray::IsAnyBitSet(uint32 StartIndex, uint32 Count) const
 {
-	return FNetBitArrayHelper::IsAnyBitSet(Storage.GetData(), BitCount, StartIndex, Count);
+	return ((Count == 1U) ? GetBit(StartIndex) : FNetBitArrayHelper::IsAnyBitSet(Storage.GetData(), BitCount, StartIndex, Count));
 }
 
 inline bool FNetBitArray::IsNoBitSet() const
@@ -1096,7 +1096,7 @@ bool FNetBitArrayView::IsAnyBitSet() const
 
 bool FNetBitArrayView::IsAnyBitSet(uint32 StartIndex, uint32 Count) const
 {
-	return FNetBitArrayHelper::IsAnyBitSet(Storage, BitCount, StartIndex, Count);
+	return ((Count == 1U) ? GetBit(StartIndex) : FNetBitArrayHelper::IsAnyBitSet(GetData(), BitCount, StartIndex, Count));
 }
 
 bool FNetBitArrayView::IsNoBitSet() const

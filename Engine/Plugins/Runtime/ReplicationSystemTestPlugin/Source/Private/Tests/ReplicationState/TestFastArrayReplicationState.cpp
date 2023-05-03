@@ -938,5 +938,59 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestFastArrayWith
 	UE_NET_ASSERT_EQ(ServerObject->FastArray.ExtraInt, ClientObject->FastArray.ExtraInt);
 }
 
+UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestLostDataDirtiesPropertyBitWithDataInFlight)
+{
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ServerObject = Server->CreateObject<UTestFastArrayReplicationState_FastArray_TestClassFastArray>();
+
+	// Add a client
+	FReplicationSystemTestClient* Client = CreateClient();
+
+	// Send and deliver packet
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true);
+	Server->PostSendUpdate();
+
+	// Store Pointer to objects
+	UTestFastArrayReplicationState_FastArray_TestClassFastArray* ClientObject = Cast<UTestFastArrayReplicationState_FastArray_TestClassFastArray>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObject->NetRefHandle));
+
+	// Add entry to array
+	FTestFastArrayReplicationState_FastArrayItem NewEntry;
+	NewEntry.bRepBool = false;
+	NewEntry.RepInt32 = 0U;
+	ServerObject->FastArray.Edit().Add(NewEntry);
+	NewEntry.bRepBool = false;
+	NewEntry.RepInt32 = 3U;
+	ServerObject->FastArray.Edit().Add(NewEntry);
+
+	// Put data on wire, but hold off delivery
+	Server->PreSendUpdate();
+	Server->SendTo(Client);
+	Server->PostSendUpdate();
+
+	// Modify entry to trigger new update
+	++ServerObject->FastArray.Edit()[0].RepInt32;
+
+	// Put latest state on the wire
+	Server->PreSendUpdate();
+	Server->SendTo(Client);
+	Server->PostSendUpdate();
+
+	// Notify that we dropped the first packet, which should mark property dirty even if we already have the latest state in flight
+	Server->DeliverTo(Client, false);
+
+	// Notify that we delivered second packet
+	Server->DeliverTo(Client, true);
+
+	// Send and deliver packet
+	Server->PreSendUpdate();
+	Server->SendAndDeliverTo(Client, true);
+	Server->PostSendUpdate();
+
+	// Verify that we received the expected data, for both elements
+	UE_NET_ASSERT_EQ(ServerObject->FastArray.GetItemArray().Num(), ClientObject->FastArray.GetItemArray().Num());
+	UE_NET_ASSERT_EQ(ServerObject->FastArray.GetItemArray()[0].RepInt32, ClientObject->FastArray.GetItemArray()[0].RepInt32);
+	UE_NET_ASSERT_EQ(ServerObject->FastArray.GetItemArray()[1].RepInt32, ClientObject->FastArray.GetItemArray()[1].RepInt32);
+}
+
 
 }
