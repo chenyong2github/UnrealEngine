@@ -100,6 +100,8 @@ public:
 
 	void GetDesiredWidth( float& OutMinDesiredWidth, float &OutMaxDesiredWidth );
 
+	void OpenComboButton();
+
 	/** Override the tick method so we can check for thumbnail differences & update if necessary */
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 

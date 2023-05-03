@@ -762,6 +762,14 @@ bool SPropertyEditorAsset::IsFilteredActor( const AActor* const Actor ) const
 	return IsAllowed;
 }
 
+void SPropertyEditorAsset::OpenComboButton()
+{
+	if (AssetComboButton.IsValid())
+	{
+		AssetComboButton->SetIsOpen(true);
+	}
+}
+
 void SPropertyEditorAsset::CloseComboButton()
 {
 	AssetComboButton->SetIsOpen(false);

@@ -229,6 +229,8 @@ public:
 
 	PROPERTYEDITOR_API void GetDesiredWidth(float& OutMinDesiredWidth, float &OutMaxDesiredWidth);
 
+	PROPERTYEDITOR_API void OpenEntryBox();
+
 private:
 	/**
 	 * Delegate function called when an object is changed

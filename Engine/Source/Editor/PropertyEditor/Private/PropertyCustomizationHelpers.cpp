@@ -547,6 +547,14 @@ void SObjectPropertyEntryBox::GetDesiredWidth(float& OutMinDesiredWidth, float &
 	PropertyEditorAsset->GetDesiredWidth(OutMinDesiredWidth, OutMaxDesiredWidth);
 }
 
+void SObjectPropertyEntryBox::OpenEntryBox()
+{
+	if (PropertyEditorAsset.IsValid())
+	{
+		PropertyEditorAsset->OpenComboButton();
+	}
+}
+
 FString SObjectPropertyEntryBox::OnGetObjectPath() const
 {
 	FString StringReference;
