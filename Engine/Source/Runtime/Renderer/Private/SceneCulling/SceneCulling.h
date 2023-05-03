@@ -102,6 +102,7 @@ public:
 	using FFootprint32 = FSpatialHash::FFootprint32;
 	using FFootprint64 = FSpatialHash::FFootprint64;	
 private:
+	void ValidateAllInstanceAllocations();
 
 	void Empty();
 
