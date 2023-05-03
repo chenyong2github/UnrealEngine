@@ -44,22 +44,6 @@
 			]
 		},
 		{
-			"Name": "VCamExtensions",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"PlatformDenyList": [
-				"TVOS"
-			]
-		},
-		{
-			"Name": "VCamExtensionsEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformDenyList": [
-				"TVOS"
-			]
-		},
-		{
 			"Name": "VCamInput",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",

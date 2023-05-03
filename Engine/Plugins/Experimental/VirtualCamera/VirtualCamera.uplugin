@@ -22,6 +22,18 @@
  		"Win64",
  		"Linux"
  	],
+	"Modules": [
+		{
+			"Name": "VCamExtensions",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "VCamExtensionsEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	],
 	"Plugins": [
 		{
 			"Name" : "VirtualCameraCore",
