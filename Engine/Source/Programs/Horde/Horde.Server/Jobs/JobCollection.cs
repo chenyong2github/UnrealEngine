@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Server.Acls;
@@ -21,6 +23,7 @@ using Horde.Server.Users;
 using Horde.Server.Utilities;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
@@ -110,6 +113,21 @@ namespace Horde.Server.Jobs
 				Id = id;
 				NodeIdx = nodeIdx;
 			}
+
+			public override string ToString()
+			{
+				StringBuilder description = new StringBuilder($"{Id}: {State}");
+				if (Outcome != JobStepOutcome.Unspecified)
+				{
+					description.Append($" ({Outcome}");
+					if (Error != JobStepError.None)
+					{
+						description.Append($" - {Error}");
+					}
+					description.Append($")");
+				}
+				return description.ToString();
+			}
 		}
 
 		class JobStepBatchDocument : IJobStepBatch
@@ -167,6 +185,17 @@ namespace Horde.Server.Jobs
 			{
 				Id = id;
 				GroupIdx = groupIdx;
+			}
+
+			public override string ToString()
+			{
+				StringBuilder description = new StringBuilder($"{Id}: {State}");
+				if (Error != JobStepBatchError.None)
+				{
+					description.Append($" - {Error}");
+				}
+				description.Append($" ({Steps.Count} steps");
+				return description.ToString();
 			}
 		}
 
@@ -1329,9 +1358,16 @@ namespace Horde.Server.Jobs
 					{
 						failedNodes.Add(node);
 					}
-					else if (step.State == JobStepState.Skipped && (node.InputDependencies.Any(x => failedNodes.Contains(graph.GetNode(x))) || !CanRetryNode(job, batch.GroupIdx, step.NodeIdx)))
+					else if (step.State == JobStepState.Skipped)
 					{
-						failedNodes.Add(node);
+						if(node.InputDependencies.Any(x => failedNodes.Contains(graph.GetNode(x))) || !CanRetryNode(job, batch.GroupIdx, step.NodeIdx))
+						{
+							failedNodes.Add(node);
+						}
+						else
+						{
+							failedNodes.Remove(node);
+						}
 					}
 					else if (step.Outcome == JobStepOutcome.Failure)
 					{
@@ -1511,13 +1547,11 @@ namespace Horde.Server.Jobs
 
 							appendToBatches[groupIdx] = batch;
 						}
-						if (batch.Steps.Count == 0 || nodeIdx > batch.Steps[^1].NodeIdx)
-						{
-							job.NextSubResourceId = job.NextSubResourceId.Next();
 
-							JobStepDocument step = new JobStepDocument(job.NextSubResourceId, nodeIdx);
-							batch.Steps.Add(step);
-						}
+						job.NextSubResourceId = job.NextSubResourceId.Next();
+
+						JobStepDocument step = new JobStepDocument(job.NextSubResourceId, nodeIdx);
+						batch.Steps.Add(step);
 					}
 				}
 			}
