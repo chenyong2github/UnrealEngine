@@ -300,7 +300,7 @@ namespace Metasound
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Error, TEXT("Cannot connect incompatible vertex access types (Input)%s and (Output)%s."), *LexToString(GetVertexAccessType()), *LexToString(InController.GetVertexAccessType()));
+						UE_LOG(LogMetaSound, Error, TEXT("Cannot connect incompatible vertex access types (Input)%s and (Output)%s."), LexToString(GetVertexAccessType()), LexToString(InController.GetVertexAccessType()));
 					}
 				}
 				else
