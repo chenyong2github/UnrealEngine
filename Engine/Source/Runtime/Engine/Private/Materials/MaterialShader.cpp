@@ -1194,8 +1194,9 @@ static void PrepareMaterialShaderCompileJob(EShaderPlatform Platform,
 	const FMaterialShaderMapId& ShaderMapId,
 	FSharedShaderCompilerEnvironment* MaterialEnvironment,
 	const FShaderPipelineType* ShaderPipeline,
-	FString DebugDescription,
-	FString DebugExtension,
+	const FString& DebugGroupName,
+	const FString& DebugDescription,
+	const FString& DebugExtension,
 	FShaderCompileJob* NewJob)
 {
 	const FShaderCompileJobKey& Key = NewJob->Key;
@@ -1217,7 +1218,7 @@ static void PrepareMaterialShaderCompileJob(EShaderPlatform Platform,
 
 	// Compile the shader environment passed in with the shader type's source code.
 	::GlobalBeginCompileShader(
-		Material->GetUniqueAssetName(Platform, ShaderMapId) / LexToString(Material->GetQualityLevel()),
+		DebugGroupName,
 		nullptr,
 		ShaderType,
 		ShaderPipeline,
@@ -1246,6 +1247,7 @@ void FMaterialShaderType::BeginCompileShader(
 	EShaderPlatform Platform,
 	EShaderPermutationFlags PermutationFlags,
 	TArray<FShaderCommonCompileJobPtr>& NewJobs,
+	const FString& DebugGroupName,
 	const TCHAR* DebugDescription,
 	const TCHAR* DebugExtension
 	) const
@@ -1253,7 +1255,7 @@ void FMaterialShaderType::BeginCompileShader(
 	FShaderCompileJob* NewJob = GShaderCompilingManager->PrepareShaderCompileJob(ShaderMapJobId, FShaderCompileJobKey(this, nullptr, PermutationId), Priority);
 	if (NewJob)
 	{
-		PrepareMaterialShaderCompileJob(Platform, PermutationFlags, Material, ShaderMapId, MaterialEnvironment, nullptr, DebugDescription, DebugExtension, NewJob);
+		PrepareMaterialShaderCompileJob(Platform, PermutationFlags, Material, ShaderMapId, MaterialEnvironment, nullptr, DebugGroupName, DebugDescription, DebugExtension, NewJob);
 		NewJobs.Add(FShaderCommonCompileJobPtr(NewJob));
 	}
 }
@@ -1268,6 +1270,7 @@ void FMaterialShaderType::BeginCompileShaderPipeline(
 	FSharedShaderCompilerEnvironment* MaterialEnvironment,
 	const FShaderPipelineType* ShaderPipeline,
 	TArray<FShaderCommonCompileJobPtr>& NewJobs,
+	const FString& DebugGroupName,
 	const TCHAR* DebugDescription,
 	const TCHAR* DebugExtension)
 {
@@ -1280,7 +1283,7 @@ void FMaterialShaderType::BeginCompileShaderPipeline(
 	{
 		for (FShaderCompileJob* StageJob : NewPipelineJob->StageJobs)
 		{
-			PrepareMaterialShaderCompileJob(Platform, PermutationFlags, Material, ShaderMapId, MaterialEnvironment, ShaderPipeline, DebugDescription, DebugExtension, StageJob);
+			PrepareMaterialShaderCompileJob(Platform, PermutationFlags, Material, ShaderMapId, MaterialEnvironment, ShaderPipeline, DebugGroupName, DebugDescription, DebugExtension, StageJob);
 		}
 		NewJobs.Add(FShaderCommonCompileJobPtr(NewPipelineJob));
 	}
@@ -1848,6 +1851,8 @@ int32 FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 	const FMaterialShaderParameters MaterialParameters(Material);
 	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(ShaderPlatform, LocalPermutationFlags, MaterialParameters);
 
+	const FString DebugGroupName = Material->GetUniqueAssetName(ShaderPlatform, GetShaderMapId()) / LexToString(Material->GetQualityLevel());
+
 #if ALLOW_SHADERMAP_DEBUG_DATA
 	FString DebugExtensionStr(TEXT(""));
 	FString DebugDescriptionStr(TEXT(""));
@@ -1909,12 +1914,10 @@ int32 FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 					MaterialEnvironment,
 					MeshLayout.VertexFactoryType,
 					CompileJobs,
+					DebugGroupName,
 					DebugDescription,
 					DebugExtension
 				);
-				//TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ShaderType, Shader.PermutationId);
-				//check(!SharedShaderJobs.Find(ShaderTypePermutation));
-				//SharedShaderJobs.Add(ShaderTypePermutation, Job);
 			}
 		}
 
@@ -1954,6 +1957,7 @@ int32 FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 					MeshLayout.VertexFactoryType,
 					Pipeline,
 					CompileJobs,
+					DebugGroupName,
 					DebugDescription,
 					DebugExtension);
 			}
@@ -2013,13 +2017,10 @@ int32 FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 				ShaderPlatform,
 				LocalPermutationFlags,
 				CompileJobs,
+				DebugGroupName,
 				DebugDescription,
 				DebugExtension
 			);
-
-			//TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ShaderType, Shader.PermutationId);
-			//check(!SharedShaderJobs.Find(ShaderTypePermutation));
-			//SharedShaderJobs.Add(ShaderTypePermutation, Job);
 		}
 		NumShaders++;
 	}
@@ -2050,6 +2051,7 @@ int32 FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 					MaterialEnvironment,
 					Pipeline,
 					CompileJobs,
+					DebugGroupName,
 					DebugDescription,
 					DebugExtension);
 			}

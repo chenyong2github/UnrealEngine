@@ -97,6 +97,7 @@ public:
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		const FVertexFactoryType* VertexFactoryType,
 		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
+		const FString& DebugGroupName,
 		const TCHAR* DebugDescription,
 		const TCHAR* DebugExtension
 		) const;
@@ -113,6 +114,7 @@ public:
 		const FVertexFactoryType* VertexFactoryType,
 		const FShaderPipelineType* ShaderPipeline,
 		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
+		const FString& DebugGroupName,
 		const TCHAR* DebugDescription,
 		const TCHAR* DebugExtension
 		);
