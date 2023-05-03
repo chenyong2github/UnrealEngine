@@ -20,7 +20,7 @@ FAutoConsoleCommandWithWorldAndArgs ResetDataChannelLayouts(
 );
 
 
-FNDIDataChannel_FunctionToDataSetBinding::FNDIDataChannel_FunctionToDataSetBinding(const FNDIDataChannelFunctionInfo& FunctionInfo, const FNiagaraDataSetCompiledData& DataSetLayout)
+FNDIDataChannel_FunctionToDataSetBinding::FNDIDataChannel_FunctionToDataSetBinding(const FNDIDataChannelFunctionInfo& FunctionInfo, const FNiagaraDataSetCompiledData& DataSetLayout, TArray<FNiagaraVariableBase>& OutMissingParams)
 {
 #if DEBUG_NDI_DATACHANNEL
 	DebugFunctionInfo = FunctionInfo;
@@ -47,10 +47,16 @@ FNDIDataChannel_FunctionToDataSetBinding::FNDIDataChannel_FunctionToDataSetBindi
 			else
 			{
 				DataSetLayoutHash = 0;
+
+				#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+				OutMissingParams.Emplace(Param);
+				#else
 				return;
+				#endif
 			}
 		}
 	};
+
 	DoGenVMBindings(FunctionInfo.Inputs);
 	DoGenVMBindings(FunctionInfo.Outputs);
 }
@@ -145,7 +151,7 @@ void FNDIDataChannelLayoutManager::Reset()
 	FunctionToDataSetLayoutMap.Reset();
 }
 
-FNDIDataChannel_FuncToDataSetBindingPtr FNDIDataChannelLayoutManager::GetLayoutInfo(const FNDIDataChannelFunctionInfo& FunctionInfo, const FNiagaraDataSetCompiledData& DataSetLayout)
+FNDIDataChannel_FuncToDataSetBindingPtr FNDIDataChannelLayoutManager::GetLayoutInfo(const FNDIDataChannelFunctionInfo& FunctionInfo, const FNiagaraDataSetCompiledData& DataSetLayout, TArray<FNiagaraVariableBase>& OutMissingParams)
 {
 	uint32 Key = GetLayoutKey(FunctionInfo, DataSetLayout);
 	
@@ -161,10 +167,10 @@ FNDIDataChannel_FuncToDataSetBindingPtr FNDIDataChannelLayoutManager::GetLayoutI
 
 	//No valid existing layout so generate a new one.
 	FRWScopeLock WriteLock(FunctionToDataSetMapLock, SLT_Write);
-	FNDIDataChannel_FuncToDataSetBindingPtr& FuncLayout = FunctionToDataSetLayoutMap.FindOrAdd(Key);
+	FNDIDataChannel_FuncToDataSetBindingPtr FuncLayout = MakeShared<FNDIDataChannel_FunctionToDataSetBinding, ESPMode::ThreadSafe>(FunctionInfo, DataSetLayout, OutMissingParams);
 	if (FuncLayout.IsValid() == false)
 	{
-		FuncLayout = MakeShared<FNDIDataChannel_FunctionToDataSetBinding, ESPMode::ThreadSafe>(FunctionInfo, DataSetLayout);
+		FunctionToDataSetLayoutMap.Add(Key) = FuncLayout;
 	}
 #if DEBUG_NDI_DATACHANNEL
 	else

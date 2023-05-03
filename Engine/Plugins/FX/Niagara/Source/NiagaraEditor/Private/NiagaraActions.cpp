@@ -23,7 +23,6 @@
 #include "Widgets/SToolTip.h"
 
 #include "NiagaraDataChannel.h"
-#include "NiagaraDataChannelDefinitions.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraActions)
 
@@ -681,6 +680,20 @@ void INiagaraDataInterfaceNodeActionProvider::GetNodeContextMenuActions(UClass* 
 	}
 }
 
+void INiagaraDataInterfaceNodeActionProvider::CollectAddPinActions(UClass* DIClass, FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin)
+{
+	if (ensure(DIClass))
+	{
+		while (DIClass && DIClass != UObject::StaticClass())
+		{
+			if (TUniquePtr<INiagaraDataInterfaceNodeActionProvider>* Provider = RegisteredActionProviders.Find(DIClass->GetFName()))
+			{
+				(*Provider)->CollectAddPinActionsImpl(Collector, AddPin);
+			}
+			DIClass = DIClass->GetSuperClass();
+		}
+	}
+}
 ////////////////////////
 
 namespace NiagaraActionsLocal
@@ -701,45 +714,51 @@ void FNiagaraDataInterfaceNodeActionProvider_DataChannelWrite::GetNodeContextMen
 		return;
 	}
 
-	const TArray<UNiagaraDataChannelDefinitions*>& ChannelDefs = UNiagaraDataChannelDefinitions::GetDataChannelDefinitions(false, true);
-	if (ChannelDefs.Num() > 0)
-	{
-		return;
-	}
-
 	FToolMenuSection& Section = Menu->AddSection("DataChannelWrite", InitForDataChannelHeaderText);
 
-	TWeakObjectPtr<UNiagaraNodeFunctionCall> WeakFuncNode = CastChecked<UNiagaraNodeFunctionCall>(Context->Node);
+	UNiagaraNodeFunctionCall* FuncNode = CastChecked<UNiagaraNodeFunctionCall>(Context->Node);
+	TWeakObjectPtr<UNiagaraNodeFunctionCall> WeakNode = FuncNode;
 
-	auto CreateNodeContextMenu = [WeakFuncNode](UToolMenu* InNewToolMenu)
+	auto CreateNodeContextMenu = [WeakNode](UToolMenu* InNewToolMenu)
 	{
 		FToolMenuSection& SubSection = InNewToolMenu->AddSection("InitForDataChannelSection", InitForDataChannelSectionText);
 
-		const TArray<UNiagaraDataChannelDefinitions*>& DataChannelDefs = UNiagaraDataChannelDefinitions::GetDataChannelDefinitions(false, true);
-		for (const UNiagaraDataChannelDefinitions* Def : DataChannelDefs)
+		auto InitForDataChannelSection = [&SubSection, WeakNode](UNiagaraDataChannel* DataChannel)
 		{
-			for (TObjectPtr<const UNiagaraDataChannel> Channel : Def->DataChannels)
+			if (DataChannel->HasAnyFlags(RF_ClassDefaultObject) == false)
 			{
-				TWeakObjectPtr<const UNiagaraDataChannel> WeakChannel = Channel;
-				auto CreateDataChannelActionEntry = [WeakFuncNode, WeakChannel]()
+				TWeakObjectPtr<UNiagaraDataChannel> WeakChannel = DataChannel;
+				auto CreateDataChannelActionEntry = [WeakChannel, WeakNode]()
 				{
-					if (UNiagaraNodeFunctionCall* Node = WeakFuncNode.Get())
+					UNiagaraDataChannel* Channel = WeakChannel.Get();
+					UNiagaraNodeFunctionCall* Node = WeakNode.Get();
+					if(Channel && Node)
 					{
-						if (const UNiagaraDataChannel* ChannelPtr = WeakChannel.Get())
+						Node->RemoveAllDynamicPins();
+						TConstArrayView<FNiagaraVariable> ChannelVars = Channel->GetVariables();
+						for (const FNiagaraVariable& Var : ChannelVars)
 						{
-							TConstArrayView<FNiagaraVariable> ChannelVars = ChannelPtr->GetVariables();
-							for (const FNiagaraVariable& Var : ChannelVars)
+							FNiagaraTypeDefinition Type = Var.GetType();
+							if (Type.IsEnum() == false)
 							{
-								FNiagaraVariable SWCVar(FNiagaraTypeHelper::GetSWCStruct(Var.GetType().GetScriptStruct()), Var.GetName());
-								Node->AddParameter(SWCVar, Node->Pins.Last());
+								Type = FNiagaraTypeDefinition(FNiagaraTypeHelper::GetSWCStruct(Var.GetType().GetScriptStruct()));
 							}
+							FNiagaraVariable SWCVar(Type, Var.GetName());
+							Node->AddParameter(SWCVar, EEdGraphPinDirection::EGPD_Input);
 						}
 					}
 				};
-				SubSection.AddMenuEntry(NAME_None, FText::FromName(Channel->GetChannelName()), FText::FromName(Channel->GetChannelName()), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"),
+				SubSection.AddMenuEntry(
+					NAME_None,
+					FText::FromString(DataChannel->GetAsset()->GetName()),
+					FText::FromString(DataChannel->GetAsset()->GetName()),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"),
 					FUIAction(FExecuteAction::CreateLambda(CreateDataChannelActionEntry), FCanExecuteAction()));
+
 			}
-		}
+		};
+
+		UNiagaraDataChannel::ForEachDataChannel(InitForDataChannelSection);
 	};
 
 	Section.AddSubMenu("InitForDataChannelMenu", InitForDataChannelMenuText, InitForDataChannelMenuTooltipText,	FNewToolMenuDelegate::CreateLambda(CreateNodeContextMenu));
@@ -756,52 +775,106 @@ void FNiagaraDataInterfaceNodeActionProvider_DataChannelRead::GetNodeContextMenu
 		return;
 	}
 
-	const TArray<UNiagaraDataChannelDefinitions*>& ChannelDefs = UNiagaraDataChannelDefinitions::GetDataChannelDefinitions(false, true);
-	if (ChannelDefs.Num() > 0)
-	{
-		return;
-	}
-
 	FToolMenuSection& Section = Menu->AddSection("DataChannelRead", InitForDataChannelHeaderText);
 
-	TWeakObjectPtr<UNiagaraNodeFunctionCall> WeakFuncNode = CastChecked<UNiagaraNodeFunctionCall>(Context->Node);
+	UNiagaraNodeFunctionCall* FuncNode = CastChecked<UNiagaraNodeFunctionCall>(Context->Node);
+	TWeakObjectPtr<UNiagaraNodeFunctionCall> WeakNode = FuncNode;
 
-	auto CreateNodeContextMenu = [WeakFuncNode](UToolMenu* InNewToolMenu)
+	auto CreateNodeContextMenu = [WeakNode](UToolMenu* InNewToolMenu)
 	{
 		FToolMenuSection& SubSection = InNewToolMenu->AddSection("InitForDataChannelSection", InitForDataChannelSectionText);
 
-		const TArray<UNiagaraDataChannelDefinitions*>& DataChannelDefs = UNiagaraDataChannelDefinitions::GetDataChannelDefinitions(false, true);
-		for (const UNiagaraDataChannelDefinitions* Def : DataChannelDefs)
+		auto InitForDataChannelSection = [&SubSection, WeakNode](UNiagaraDataChannel* DataChannel)
 		{
-			for (TObjectPtr<const UNiagaraDataChannel> Channel : Def->DataChannels)
+			if (DataChannel->HasAnyFlags(RF_ClassDefaultObject) == false)
 			{
-				TWeakObjectPtr<const UNiagaraDataChannel> WeakChannel = Channel;
-				auto CreateDataChannelActionEntry = [WeakFuncNode, WeakChannel]()
+				TWeakObjectPtr<UNiagaraDataChannel> WeakChannel = DataChannel;
+				auto CreateDataChannelActionEntry = [WeakChannel, WeakNode]()
 				{
-					if (UNiagaraNodeFunctionCall* Node = WeakFuncNode.Get())
+					UNiagaraDataChannel* Channel = WeakChannel.Get();
+					UNiagaraNodeFunctionCall* Node = WeakNode.Get();
+
+					if (Channel && Node)
 					{
 						Node->RemoveAllDynamicPins();
-						if (const UNiagaraDataChannel* ChannelPtr = WeakChannel.Get())
+						TConstArrayView<FNiagaraVariable> ChannelVars = Channel->GetVariables();
+						for (const FNiagaraVariable& Var : ChannelVars)
 						{
-							TConstArrayView<FNiagaraVariable> ChannelVars = ChannelPtr->GetVariables();
-							for (const FNiagaraVariable& Var : ChannelVars)
+							FNiagaraTypeDefinition Type = Var.GetType();
+							if (Type.IsEnum() == false)
 							{
-								FNiagaraVariable SWCVar(FNiagaraTypeHelper::GetSWCStruct(Var.GetType().GetScriptStruct()), Var.GetName());
-								Node->AddParameter(SWCVar, Node->Pins.Last());
+								Type = FNiagaraTypeDefinition(FNiagaraTypeHelper::GetSWCStruct(Var.GetType().GetScriptStruct()));
 							}
+							FNiagaraVariable SWCVar(Type, Var.GetName());
+							Node->AddParameter(SWCVar, EEdGraphPinDirection::EGPD_Output);
 						}
 					}
 				};
 
-				SubSection.AddMenuEntry(NAME_None, FText::FromName(Channel->GetChannelName()), FText::FromName(Channel->GetChannelName()), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"), 
+				SubSection.AddMenuEntry(NAME_None, FText::FromString(DataChannel->GetAsset()->GetName()), FText::FromString(DataChannel->GetAsset()->GetName()), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"),
 					FUIAction(FExecuteAction::CreateLambda(CreateDataChannelActionEntry), FCanExecuteAction()));
 			}
-		}
+		};
+
+		UNiagaraDataChannel::ForEachDataChannel(InitForDataChannelSection);
 	};
 
 	Section.AddSubMenu("InitForDataChannelMenu", InitForDataChannelMenuText, InitForDataChannelMenuTooltipText,	FNewToolMenuDelegate::CreateLambda(CreateNodeContextMenu));
 }
 
+void FNiagaraDataInterfaceNodeActionProvider_DataChannelRead::CollectAddPinActionsImpl(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin)const
+{
+	FNiagaraFunctionSignature* Sig = nullptr;
+	FString FuncName;
+	if (UNiagaraNodeFunctionCall* FuncNode = Cast<UNiagaraNodeFunctionCall>(AddPin->GetOwningNode()))
+	{
+		Sig = &FuncNode->Signature;
+		FuncName = Sig->GetNameString();
+	}
 
+	auto GatherAddPinsForChannel = [&](UNiagaraDataChannel* Channel)
+	{
+		TConstArrayView<FNiagaraVariable> ChannelVars = Channel->GetVariables();
+		for (const FNiagaraVariable& Var : ChannelVars)
+		{
+			FNiagaraTypeDefinition Type = Var.GetType();
+			if (Type.IsEnum() == false)
+			{
+				Type = FNiagaraTypeDefinition(FNiagaraTypeHelper::GetSWCStruct(Var.GetType().GetScriptStruct()));
+			}
+			FNiagaraVariable SWCVar(Type, Var.GetName());
+			FNiagaraEditorUtilities::ResetVariableToDefaultValue(SWCVar);
+
+			const UEdGraphPin* ConstAddPin = AddPin;
+
+			// The script variable is not a duplicate, add an entry for it.
+			FText Category;
+			FText DisplayName;
+			FText Tooltip;
+			if (FuncName == TEXT("SpawnConditional"))
+			{
+				Category = FText::Format(LOCTEXT("NDIDataChannleReadSpawnCategoryFmt", "Conditions on {0} variables"), FText::FromString(Channel->GetAsset()->GetName()));
+				DisplayName = FText::FromName(SWCVar.GetName());
+				Tooltip = FText::Format(
+					LOCTEXT("NDIDataChannleReadAddParameterFmt", "Make this function conditional on {0} from Data Channel {1}.\nThe function will only have an effect for Data Channel entries that pass the comparisson test with the passed value."),
+					FText::FromName(SWCVar.GetName()),
+					FText::FromString(Channel->GetName()));
+			}
+			else
+			{
+				Category = FText::Format(LOCTEXT("NDIDataChannleReadCategoryFmt", "{0}"), FText::FromString(Channel->GetAsset()->GetName()));
+				DisplayName = FText::FromName(SWCVar.GetName());
+				Tooltip = FText::Format(LOCTEXT("NDIDataChannleReadAddParameterFmt", "Read {0} from Data Channel {1}."), DisplayName, FText::FromString(Channel->GetName()));
+			}
+
+			TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
+				Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
+				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(CastChecked<UNiagaraNodeWithDynamicPins>(AddPin->GetOwningNode()), &UNiagaraNodeWithDynamicPins::AddParameter, SWCVar, ConstAddPin->Direction)));
+			Action->SetParameterVariable(SWCVar);
+			Collector.AddAction(Action, 3);
+		}
+	};
+	UNiagaraDataChannel::ForEachDataChannel(GatherAddPinsForChannel);
+}
 
 #undef LOCTEXT_NAMESPACE

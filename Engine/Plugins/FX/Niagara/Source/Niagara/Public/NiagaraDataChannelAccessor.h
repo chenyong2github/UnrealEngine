@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "NiagaraDataChannelCommon.h"
+#include "NiagaraDataChannelPublic.h"
+#include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelAccessor.generated.h"
 
 class UNiagaraDataChannelHandler;
@@ -16,15 +17,16 @@ Likely to be replaced in the near future with a custom BP node and a helper stru
 
 
 UCLASS(Experimental, BlueprintType)
-class UNiagaraDataChannelReader : public UObject
+class NIAGARA_API UNiagaraDataChannelReader : public UObject
 {
 	GENERATED_BODY()
 private:
 
-	FNiagaraDataChannelGameDataPtr Data = nullptr;
+	FNiagaraDataChannelDataPtr Data = nullptr;
+	bool bReadingPreviousFrame = false;
 
 	template<typename T>
-	T ReadData(const FNiagaraVariableBase& Var, int32 Index)const;
+	bool ReadData(const FNiagaraVariableBase& Var, int32 Index, T& OutData)const;
 
 public:
 
@@ -33,7 +35,7 @@ public:
 	
 	/** Call before each access to the data channel to grab the correct data to read. */
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	bool InitAccess(UActorComponent* OwningComponent);
+	bool InitAccess(FNiagaraDataChannelSearchParameters SearchParams, bool bReadPrevFrameData);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
 	int32 Num()const;
@@ -61,14 +63,18 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
 	bool ReadBool(FName VarName, int32 Index)const;
+
+	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
+	FVector ReadPosition(FName VarName, int32 Index)const;
 };
 
 UCLASS(Experimental, BlueprintType)
-class UNiagaraDataChannelWriter : public UObject
+class NIAGARA_API UNiagaraDataChannelWriter : public UObject
 {
 	GENERATED_BODY()
 private:
 
+	/** Local data buffers we're writing into. */
 	FNiagaraDataChannelGameDataPtr Data = nullptr;
 
 	template<typename T>
@@ -81,7 +87,7 @@ public:
 	
 	/** Call before each batch of writes to allocate the data we'll be writing to. */
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	bool InitWrite(UActorComponent* OwningComponent, int32 Count, bool bVisibleToGame=true, bool bVisibleToCPU=true, bool bVisibleToGPU=true);
+	bool InitWrite(FNiagaraDataChannelSearchParameters SearchParams, int32 Count, bool bVisibleToGame=true, bool bVisibleToCPU=true, bool bVisibleToGPU=true);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
 	int32 Num()const;
@@ -112,4 +118,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
 	void WriteSpawnInfo(FName VarName, int32 Index, FNiagaraSpawnInfo InData);
+
+	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
+	void WritePosition(FName VarName, int32 Index, FVector InData);
 };

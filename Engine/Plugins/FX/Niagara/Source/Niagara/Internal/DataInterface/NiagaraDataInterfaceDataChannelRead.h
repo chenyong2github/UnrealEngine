@@ -24,12 +24,32 @@ There is working code for this already but the concept/API needs more fleshing o
 
 #include "NiagaraDataInterfaceDataChannelCommon.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceEmitterBinding.h"
+#include "NiagaraDataSetAccessor.h"
 #include "NiagaraDataInterfaceDataChannelRead.generated.h"
 
 class UNiagaraDataInterfaceDataChannelWrite;
 struct FNDIDataChannelWriteInstanceData;
 class UNiagaraDataChannelHandler;
 class FNiagaraDataBuffer;
+
+struct FNiagaraDataChannelDataProxy;
+
+/** Mode controlling the behavior of the Spawn function for Niagara's Data Channel Read Data Interface.*/
+UENUM()
+enum class ENDIDataChannelSpawnMode
+{
+	/** This mode will override any previous spawn counts set or accumulated this tick. */
+	Override,
+
+	/** This mode will accumulate spawn counts with other spawns. */
+	Accumulate,
+
+	/** Does nothing. This mode is useful for dynamically skipping spawning based on script logic. */
+	None,
+
+	Max UMETA(Hidden),
+};
 
 UCLASS(Experimental, EditInlineNew, Category = "Data Channels", CollapseCategories, meta = (DisplayName = "Data Channel Reader"))
 class NIAGARA_API UNiagaraDataInterfaceDataChannelRead : public UNiagaraDataInterface
@@ -50,15 +70,37 @@ public:
 
 	/** When reading from external, the channel to consume. */
 	UPROPERTY(EditAnywhere, Category="Data Channel")
-	FNiagaraDataChannelReference Channel;
+	TObjectPtr<UNiagaraDataChannelAsset> Channel;
 	
+	/** A bounds emitter instance when using functions like Spawn. Defaults to Self. */
+	UPROPERTY(EditAnywhere, Category = "Spawning", AdvancedDisplay)
+	FNiagaraDataInterfaceEmitterBinding EmitterBinding;
+
 	/** True if this reader will read the current frame's data. If false, we read the previous frame.
 	* Reading the current frame introduces a tick order dependency but allows for zero latency reads. Any data channel elements that are generated after this reader is used are missed.
 	* Reading the previous frame's data introduces a frame of latency but ensures we never miss any data as we have access to the whole frame.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Data Channel")
+	UPROPERTY(EditAnywhere, Category = "Data Channel", AdvancedDisplay)
 	bool bReadCurrentFrame = false;
 
+	/**
+	Whether this DI should request updated source data from the Data Channel each tick.
+	Some Data Channels have multiple separate source data elements for things such as spatial subdivision. 
+	Each DI will request the correct one for it's owning system instance from the data channel. 
+	Depending on the data channel this could be an expensive search so we should avoid doing this every tick if possible.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Data Channel", AdvancedDisplay)
+	bool bUpdateSourceDataEveryTick = true;
+
+
+	/** When true, Emitter.Spawn group for any spawned particles will be overridden to the index of the data channel element that generated that spawn. This allows particles to read further data from the data channel element that generated them. */
+	UPROPERTY(EditAnywhere, Category = "Spawning", AdvancedDisplay)
+	bool bOverrideSpawnGroupToDataChannelIndex = true;
+
+	/** The spawn info variable we'll read from the data channel to control spawning using the SpawnFromSpawnInfo DI function.*/
+	UPROPERTY(EditAnywhere, Category = "Spawning", AdvancedDisplay)
+	FName SpawnInfoName;
+	
 	//UObject Interface
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
@@ -92,17 +134,26 @@ public:
 	virtual int32 PerInstanceDataSize() const override;
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool HasPostSimulateTick() const override { return true; }
+	virtual bool HasPostStageTick(ENiagaraScriptUsage Usage) const override { return Usage == ENiagaraScriptUsage::EmitterUpdateScript || Usage == ENiagaraScriptUsage::SystemUpdateScript; }
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	virtual void PostStageTick(FNDICpuPostStageContext& Context)override;
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 	virtual void GetEmitterDependencies(UNiagaraSystem* Asset, TArray<FVersionedNiagaraEmitter>& Dependencies) const;
+	
+	//We cannot overlap frames as we must correctly sync up with the data channel manager on Begin/End frame etc.
+	virtual bool PostSimulateCanOverlapFrames() const { return false; }
 	//UNiagaraDataInterface Interface
 
 	//Functions usable anywhere.
 	void Num(FVectorVMExternalFunctionContext& Context);
 	void Read(FVectorVMExternalFunctionContext& Context, int32 FuncIdx);
 	void Consume(FVectorVMExternalFunctionContext& Context, int32 FuncIdx);
-	
+
+	//Emitter only functions.
+	void SpawnFromSpawnInfo(FVectorVMExternalFunctionContext& Context);
+	void SpawnConditional(FVectorVMExternalFunctionContext& Context, int32 FuncIndex);
+
 	FNDIDataChannelCompiledData& GetCompiledData() { return CompiledData; }
 
 protected:
@@ -125,14 +176,9 @@ struct FNDIDataChannelReadInstanceData
 	/** Pointer to the world DataChannel Channel we're reading from, if any. */
 	TWeakObjectPtr<UNiagaraDataChannelHandler> DataChannel;
 
-	/** Pointer to the cpu simulation buffer from the DataChannel if we're reading from there. */
-	FNiagaraDataBufferRef ExternalCPU = nullptr;
+	/** Shared pointer to the actual data channel data pulled from the data channel. */
+	FNiagaraDataChannelDataPtr DataChannelData = nullptr;
 	
-	/** The GPU data set from the DataChannel. We must grab the whole set rather than a buffer here as we don't know which buffer will be contain this frame's channel data. 
-	*	TODO: We'll likely want to improve this GPU sim flow soon. Possibly grab an RT proxy object from the data channel handler and pass that over to the GPU instead of a direct dataset like this.
-	*/
-	FNiagaraDataSet* ExternalGPU = nullptr;
-
 	/** Cached hash to check if the layout of our source data has changed. */
 	uint64 ChachedDataSetLayoutHash = INDEX_NONE;
 
@@ -154,8 +200,22 @@ struct FNDIDataChannelReadInstanceData
 	*/
 	std::atomic<int32> ConsumeIndex = 0;
 
+	/** 
+	Conditional spawns to inject into the bound emitter based on our DI function calls.
+	Each data channel element we read in a particular execution will have an entry in this array and can spawn(or not) independently.
+	*/
+	TArray<FNiagaraSpawnInfo> ConditionalSpawns;
+
+	/*
+	We read a spawn info for future proofing here but currently we only use the spawn count.
+	NOTE: This is 100% dependent on SpawnInfo class not changing. If it does we'll need to update this.
+	*/
+	FNiagaraDataSetAccessor<FNiagaraSpawnInfo> SpawnInfoAccessor;
+	uint32 CachedLayoutHash = INDEX_NONE;
+	FNiagaraEmitterInstance* EmitterInstance = nullptr;
+
 	virtual ~FNDIDataChannelReadInstanceData();
-	FNiagaraDataBuffer* GetReadBufferCPU();
+	FNiagaraDataBuffer* GetReadBufferCPU(bool bPrevFrame);
 	bool Init(UNiagaraDataInterfaceDataChannelRead* Interface, FNiagaraSystemInstance* Instance);
 	bool Tick(UNiagaraDataInterfaceDataChannelRead* Interface, FNiagaraSystemInstance* Instance);
 	bool PostTick(UNiagaraDataInterfaceDataChannelRead* Interface, FNiagaraSystemInstance* Instance);
@@ -171,7 +231,9 @@ struct FNiagaraDataInterfaceProxy_DataChannelRead : public FNiagaraDataInterface
 	{
 		//GPU Dataset from the channel handler. We'll grab the current buffer from this on the RT.
 		//This must be grabbed fresh from the handler each frame as it's lifetime cannot be ensured.
-		FNiagaraDataSet* ChannelDataSet = nullptr;
+		FNiagaraDataChannelDataProxy* ChannelDataRTProxy = nullptr;
+
+		bool bReadPrevFrame = false;
 
 		/**
 		A buffer containing layout information needed to access parameters for each script using this DI.

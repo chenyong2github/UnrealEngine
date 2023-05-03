@@ -279,6 +279,11 @@ void FNiagaraLwcStructConverter::AddConversionStep(int32 InSourceBytes, int32 In
 
 //////////////////////////////////////////////////////////////////////////
 
+FNiagaraTypeDefinition FNiagaraTypeHelper::Vector2DDef;
+FNiagaraTypeDefinition FNiagaraTypeHelper::VectorDef;
+FNiagaraTypeDefinition FNiagaraTypeHelper::Vector4Def;
+FNiagaraTypeDefinition FNiagaraTypeHelper::QuatDef;
+
 FRWLock FNiagaraTypeHelper::RemapTableLock;
 TMap<TWeakObjectPtr<UScriptStruct>, FNiagaraTypeHelper::FRemapEntry> FNiagaraTypeHelper::RemapTable;
 std::atomic<bool> FNiagaraTypeHelper::RemapTableDirty;
@@ -634,11 +639,89 @@ UScriptStruct* FNiagaraTypeHelper::GetLWCStruct(UScriptStruct* SWCStruct)
 
 FNiagaraTypeDefinition FNiagaraTypeHelper::GetSWCType(const FNiagaraTypeDefinition& InType)
 {
+	if (InType.IsEnum() || InType.IsUObject() || InType.IsDataInterface())
+	{
+		return InType;
+	}
+
 	if (IsLWCType(InType))
 	{
 		return FNiagaraTypeDefinition(FindNiagaraFriendlyTopLevelStruct(CastChecked<UScriptStruct>(InType.GetStruct()), ENiagaraStructConversion::Simulation));
 	}
 	return InType;
+}
+
+FNiagaraTypeDefinition FNiagaraTypeHelper::GetLWCType(const FNiagaraTypeDefinition& InType)
+{
+	if(InType.IsEnum() || InType.IsUObject() || InType.IsDataInterface())
+	{
+		return InType;
+	}
+
+	if(InType == FNiagaraTypeDefinition::GetFloatDef())
+	{
+		return FNiagaraTypeDefinition(FNiagaraDouble::StaticStruct(), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+	}
+	else if (InType == FNiagaraTypeDefinition::GetVec2Def())
+	{
+		return Vector2DDef;
+	}
+	else if (InType == FNiagaraTypeDefinition::GetVec3Def())
+	{
+		return VectorDef;
+	}
+	else if (InType == FNiagaraTypeDefinition::GetVec4Def())
+	{
+		return Vector4Def;
+	}
+	else if (InType == FNiagaraTypeDefinition::GetQuatDef())
+	{
+		return QuatDef;
+	}
+
+	if (IsLWCType(InType))
+	{
+		return InType;
+	}
+
+	if(UScriptStruct* LWCStruct = GetLWCStruct(InType.GetScriptStruct()))
+	{
+		return FNiagaraTypeDefinition(LWCStruct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+	}
+	
+	return InType;
+}
+
+void FNiagaraTypeHelper::InitStaticTypes()
+{
+	if (Vector2DDef.IsValid() == false)
+	{
+		UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
+		Vector2DDef = FNiagaraTypeDefinition(FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector2D")), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+		VectorDef = FNiagaraTypeDefinition(FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector")), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+		Vector4Def = FNiagaraTypeDefinition(FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector4")), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+		QuatDef = FNiagaraTypeDefinition(FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Quat")), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+	}
+}
+
+FNiagaraTypeDefinition FNiagaraTypeHelper::GetVector2DDef()
+{
+	return Vector2DDef;
+}
+
+FNiagaraTypeDefinition FNiagaraTypeHelper::GetVectorDef()
+{
+	return VectorDef;
+}
+
+FNiagaraTypeDefinition FNiagaraTypeHelper::GetVector4Def()
+{
+	return Vector4Def;
+}
+
+FNiagaraTypeDefinition FNiagaraTypeHelper::GetQuatDef()
+{
+	return QuatDef;
 }
 
 UScriptStruct* FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion)

@@ -118,6 +118,8 @@ public:
 
 	void Tick(ETickingGroup TickGroup, float DeltaSeconds, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
 
+	void PreActorTick(ELevelTick InLevelTick, float InDeltaSeconds);
+
 	/** Called after all actor tick groups are complete. */
 	void PostActorTick(float DeltaSeconds);
 
@@ -239,6 +241,8 @@ private:
 	// Called when the world begins to be torn down for example by level streaming.
 	static void OnWorldBeginTearDown(UWorld* World);
 
+	static void OnWorldPreActorTick(UWorld* InWorld, ELevelTick InLevelTick, float InDeltaSeconds);
+
 	// Callback for when a world is ticked.
 	static void TickWorld(UWorld* World, ELevelTick TickType, float DeltaSeconds);
 
@@ -277,6 +281,7 @@ private:
 	static FDelegateHandle OnPreWorldFinishDestroyHandle;
 	static FDelegateHandle OnWorldBeginTearDownHandle;
 	static FDelegateHandle TickWorldHandle;
+	static FDelegateHandle OnWorldPreActorTickHandle;
 	static FDelegateHandle OnWorldPreSendAllEndOfFrameUpdatesHandle;
 	static FDelegateHandle PreGCHandle;
 	static FDelegateHandle PostReachabilityAnalysisHandle;

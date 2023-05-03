@@ -3,11 +3,14 @@
 #include "NiagaraDataChannel.h"
 
 #include "NiagaraWorldManager.h"
+#include "NiagaraDataChannelCommon.h"
 #include "NiagaraDataChannelHandler.h"
 #include "NiagaraDataChannelManager.h"
 #include "Engine/Engine.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
+#include "NiagaraDataChannelAccessor.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataChannel)
 
@@ -21,11 +24,16 @@ void FNiagaraDataChannelGameDataLayout::Init(const TArray<FNiagaraVariable>& Var
 	LwcConverters.Reserve(Variables.Num());
 	for (const FNiagaraVariable& Var : Variables)
 	{
-		int32& VarIdx = VariableIndices.Add(Var);
+		//Sigh.
+		//We must convert from the variable stored var in the data channels definition as we currently cannot serialize/store actual LWC types in FNiagawraTypeDefinitions.
+		FNiagaraTypeDefinition LWCType = FNiagaraTypeHelper::GetLWCType(Var.GetType());
+		FNiagaraVariableBase LWCVar(LWCType, Var.GetName());
+
+		int32& VarIdx = VariableIndices.Add(LWCVar);
 		VarIdx = VariableIndices.Num() - 1;
 
 		FNiagaraLwcStructConverter& Converter = LwcConverters.AddDefaulted_GetRef();
-		Converter = FNiagaraTypeRegistry::GetStructConverter(Var.GetType());
+		Converter = FNiagaraTypeRegistry::GetStructConverter(LWCType);
 	}
 }
 
@@ -55,12 +63,14 @@ void FNiagaraDataChannelGameData::Empty()
 	}
 }
 
-void FNiagaraDataChannelGameData::Reset()
+void FNiagaraDataChannelGameData::BeginFrame()
 {
+	bool bKeepPrevious = DataChannel->KeepPreviousFrameData();
+	PrevNumElements = bKeepPrevious ? NumElements : 0;
 	NumElements = 0;
 	for (FNiagaraDataChannelVariableBuffer& VarData : VariableData)
 	{
-		VarData.Reset();
+		VarData.BeginFrame(bKeepPrevious);
 	}
 }
 
@@ -76,14 +86,26 @@ void FNiagaraDataChannelGameData::SetNum(int32 NewNum)
 FNiagaraDataChannelVariableBuffer* FNiagaraDataChannelGameData::FindVariableBuffer(const FNiagaraVariableBase& Var)
 {
 	const FNiagaraDataChannelGameDataLayout& Layout = DataChannel->GetGameDataLayout();
-	if(const int32* Idx = Layout.VariableIndices.Find(Var))
+	const FNiagaraTypeDefinition& VarType = Var.GetType();
+	for(auto& Pair : Layout.VariableIndices)
 	{
-		return &VariableData[*Idx];
+		const FNiagaraVariableBase& LayoutVar = Pair.Key;
+		const FNiagaraTypeDefinition& LayoutVarType = LayoutVar.GetType();
+		int32 Index = Pair.Value;
+		
+		if(Var.GetName() == LayoutVar.GetName())
+		{
+			//For enum variables we'll hack things a little so that correctly named ints also match. This gets around some limitations in calling code not being able to provide the correct enum types.
+			if(VarType == LayoutVarType || (LayoutVarType.IsEnum() && VarType == FNiagaraTypeDefinition::GetIntDef()))
+			{
+				return &VariableData[Index];
+			}
+		}
 	}
 	return nullptr;
 }
 
-void FNiagaraDataChannelGameData::WriteToDataSet(FNiagaraDataBuffer* DestBuffer, int32 DestStartIdx)
+void FNiagaraDataChannelGameData::WriteToDataSet(FNiagaraDataBuffer* DestBuffer, int32 DestStartIdx, FVector3f SimulationLwcTile)
 {
 	const FNiagaraDataSetCompiledData& CompiledData = DestBuffer->GetOwner()->GetCompiledData();
 
@@ -96,16 +118,16 @@ void FNiagaraDataChannelGameData::WriteToDataSet(FNiagaraDataBuffer* DestBuffer,
 		return;
 	}
 	
-	DestBuffer->SetNumInstances(NumInstances);
+	DestBuffer->SetNumInstances(DestStartIdx + NumInstances);
 
 	const FNiagaraDataChannelGameDataLayout& Layout = DataChannel->GetGameDataLayout();
 
 	for (const TPair<FNiagaraVariableBase, int32>& VarIndexPair : Layout.VariableIndices)
 	{
-		const FNiagaraVariableBase& Var = VarIndexPair.Key;
+		FNiagaraVariableBase Var = VarIndexPair.Key;
 		int32 VarIndex = VarIndexPair.Value;
 		FNiagaraDataChannelVariableBuffer& VarBuffer = VariableData[VarIndex];
-		uint8* SrcData = VarBuffer.Data.GetData();
+		uint8* SrcDataBase = VarBuffer.Data.GetData();
 		
 		FNiagaraVariableBase SimVar = Var;
 
@@ -115,22 +137,17 @@ void FNiagaraDataChannelGameData::WriteToDataSet(FNiagaraDataBuffer* DestBuffer,
 			SimVar.SetType(FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(CastChecked<UScriptStruct>(Var.GetType().GetStruct()), ENiagaraStructConversion::Simulation)));
 		}
 
+		//Niagara Positions are a special case where we're actually storing them as FVectors in the game level data and must convert down to actual Positions/FVector3f in the sim data.
+		if(Var.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+		{
+			Var.SetType(FNiagaraTypeHelper::GetVectorDef());
+		}
+
 		int32 SimVarIndex = CompiledData.Variables.IndexOfByKey(SimVar);
 		if (SimVarIndex == INDEX_NONE)
 		{
 			continue; //Did not find this variable in the dataset. Warn?
 		}
-
-		//Convert from LWC types to Niagara Simulation Types where required.
-// 		if (FNiagaraTypeHelper::IsLWCType(Var.GetType()))
-// 		{
-// 			LWCConversionBuffer.SetNumUninitialized(SimVar.GetSizeInBytes() * NumInstances, false);
-// 			
-// 			//TODO: Can we just avoid all this and convert any doubles direct to floats when we transfer the date into the dest buffer?
-// 			FNiagaraLwcStructConverter& Converter = LwcConverters[VarIndex];
-// 			Converter.ConvertDataToSimulation(LWCConversionBuffer.GetData(), SrcData, NumInstances);
-// 			SrcData = LWCConversionBuffer.GetData();
-// 		}
 
 		int32 SrcVarSize = Var.GetSizeInBytes();
 		int32 DestVarSize = SimVar.GetSizeInBytes();
@@ -140,75 +157,100 @@ void FNiagaraDataChannelGameData::WriteToDataSet(FNiagaraDataBuffer* DestBuffer,
 		int32 IntCompIdx = SimLayout.Int32ComponentStart;
 		int32 HalfCompIdx = SimLayout.HalfComponentStart;
 
-		TFunction<void(UScriptStruct*, UScriptStruct*)> WriteData;
-		WriteData = [&](UScriptStruct* SrcStruct, UScriptStruct* DestStruct)
+		TFunction<void(UScriptStruct*, UScriptStruct*, uint8*)> WriteData;
+		WriteData = [&](UScriptStruct* SrcStruct, UScriptStruct* DestStruct, uint8* SrcPropertyBase)
 		{
-			TFieldIterator<FProperty> SrcPropertyIt(SrcStruct, EFieldIteratorFlags::IncludeSuper);
-			TFieldIterator<FProperty> DestPropertyIt(DestStruct, EFieldIteratorFlags::IncludeSuper);
-			for (; SrcPropertyIt; ++SrcPropertyIt, ++DestPropertyIt)
+			//Write all data from the data channel into the data set. Converting into from LWC into the local LWC Tile space as we go.
+
+			uint8* SrcData = SrcPropertyBase;
+
+			//Positions are a special case that are stored as FVectors in game data but converted to an LWCTile local FVector3f in simulation data.
+			if (DestStruct == FNiagaraTypeDefinition::GetPositionStruct())
+			{	
+				float* DestX = (float*)DestBuffer->GetInstancePtrFloat(FloatCompIdx++, DestStartIdx);
+				float* DestY = (float*)DestBuffer->GetInstancePtrFloat(FloatCompIdx++, DestStartIdx);
+				float* DestZ = (float*)DestBuffer->GetInstancePtrFloat(FloatCompIdx++, DestStartIdx);
+								
+				for (int32 i = 0; i < NumInstances; ++i)
+				{
+					FVector* Src = (FVector*)((SrcData + i * SrcVarSize));
+
+					FVector3f SimLocalSWC = FVector3f((*Src) - FVector(SimulationLwcTile) * FLargeWorldRenderScalar::GetTileSize());
+					*DestX++ = SimLocalSWC.X;
+					*DestY++ = SimLocalSWC.Y;
+					*DestZ++ = SimLocalSWC.Z;
+				}
+			}
+			else
 			{
-				FProperty* SrcProperty = *SrcPropertyIt;
-				FProperty* DestProperty = *DestPropertyIt;
-				int32 SrcOffset = SrcProperty->GetOffset_ForInternal();
+				TFieldIterator<FProperty> SrcPropertyIt(SrcStruct, EFieldIteratorFlags::IncludeSuper);
+				TFieldIterator<FProperty> DestPropertyIt(DestStruct, EFieldIteratorFlags::IncludeSuper);
+				for (; SrcPropertyIt; ++SrcPropertyIt, ++DestPropertyIt)
+				{
+					FProperty* SrcProperty = *SrcPropertyIt;
+					FProperty* DestProperty = *DestPropertyIt;
+					int32 SrcOffset = SrcProperty->GetOffset_ForInternal();
+					SrcData = SrcPropertyBase + SrcProperty->GetOffset_ForInternal();
 
-				//Convert any LWC doubles to floats. //TODO: Insert LWCTile... probably need to explicitly check for vectors etc.
-				if (SrcProperty->IsA(FDoubleProperty::StaticClass()))
-				{
-					check(DestProperty->IsA(FFloatProperty::StaticClass()));
-					float* Dest = (float*)DestBuffer->GetComponentPtrFloat(FloatCompIdx++);
-					//Write all instances for this component.
-					for (int32 i = 0; i < NumInstances; ++i)
+					//Convert any LWC doubles to floats. //TODO: Insert LWCTile... probably need to explicitly check for vectors etc.
+					if (SrcProperty->IsA(FDoubleProperty::StaticClass()))
 					{
-						double* Src = (double*)((SrcData + i * SrcVarSize) + SrcOffset);
-						*Dest++ = *Src;
+						check(DestProperty->IsA(FFloatProperty::StaticClass()));
+						float* Dest = (float*)DestBuffer->GetInstancePtrFloat(FloatCompIdx++, DestStartIdx);
+						//Write all instances for this component.
+						for (int32 i = 0; i < NumInstances; ++i)
+						{
+							double* Src = (double*)((SrcData + i * SrcVarSize));
+							*Dest++ = *Src;
+						}
 					}
-				}
-				else if (SrcProperty->IsA(FFloatProperty::StaticClass()))
-				{
-					float* Dest = (float*)DestBuffer->GetComponentPtrFloat(FloatCompIdx++);
+					else if (SrcProperty->IsA(FFloatProperty::StaticClass()))
+					{
+						float* Dest = (float*)DestBuffer->GetInstancePtrFloat(FloatCompIdx++, DestStartIdx);
 
-					//Write all instances for this component.
-					for (int32 i = 0; i < NumInstances; ++i)
-					{
-						float* Src = (float*)((SrcData + i * SrcVarSize) + SrcOffset);
-						*Dest++ = *Src;
+						//Write all instances for this component.
+						for (int32 i = 0; i < NumInstances; ++i)
+						{
+							float* Src = (float*)((SrcData + i * SrcVarSize));
+							*Dest++ = *Src;
+						}
 					}
-				}
-				else if (SrcProperty->IsA(FUInt16Property::StaticClass()))
-				{
-					FFloat16* Dest = (FFloat16*)DestBuffer->GetComponentPtrHalf(HalfCompIdx++);
+					else if (SrcProperty->IsA(FUInt16Property::StaticClass()))
+					{
+						FFloat16* Dest = (FFloat16*)DestBuffer->GetInstancePtrHalf(HalfCompIdx++, DestStartIdx);
 
-					//Write all instances for this component.
-					for (int32 i = 0; i < NumInstances; ++i)
-					{
-						FFloat16* Src = (FFloat16*)((SrcData + i * SrcVarSize) + SrcOffset);
-						*Dest++ = *Src;						
+						//Write all instances for this component.
+						for (int32 i = 0; i < NumInstances; ++i)
+						{
+							FFloat16* Src = (FFloat16*)((SrcData + i * SrcVarSize));
+							*Dest++ = *Src;
+						}
 					}
-				}
-				else if (SrcProperty->IsA(FIntProperty::StaticClass()) || SrcProperty->IsA(FBoolProperty::StaticClass()))
-				{
-					int32* Dest = (int32*)DestBuffer->GetComponentPtrInt32(IntCompIdx++);
+					else if (SrcProperty->IsA(FIntProperty::StaticClass()) || SrcProperty->IsA(FBoolProperty::StaticClass()))
+					{
+						int32* Dest = (int32*)DestBuffer->GetInstancePtrInt32(IntCompIdx++, DestStartIdx);
 
-					//Write all instances for this component.
-					for (int32 i = 0; i < NumInstances; ++i)
-					{
-						int32* Src = (int32*)((SrcData + i * SrcVarSize) + SrcOffset);
-						*Dest++ = *Src;						
+						//Write all instances for this component.
+						for (int32 i = 0; i < NumInstances; ++i)
+						{
+							int32* Src = (int32*)((SrcData + i * SrcVarSize));
+							*Dest++ = *Src;
+						}
 					}
-				}
-				//Should be able to support double easily enough
-				else if (FStructProperty* StructProp = CastField<FStructProperty>(SrcProperty))
-				{
-					FStructProperty* DestStructProp = CastField<FStructProperty>(DestProperty);
-					WriteData(StructProp->Struct, DestStructProp->Struct);
-				}
-				else
-				{
-					checkf(false, TEXT("Property(%s) Class(%s) is not a supported type"), *SrcProperty->GetName(), *SrcProperty->GetClass()->GetName());
+					//Should be able to support double easily enough
+					else if (FStructProperty* StructProp = CastField<FStructProperty>(SrcProperty))
+					{
+						FStructProperty* DestStructProp = CastField<FStructProperty>(DestProperty);
+						WriteData(StructProp->Struct, DestStructProp->Struct, SrcData);
+					}
+					else
+					{
+						checkf(false, TEXT("Property(%s) Class(%s) is not a supported type"), *SrcProperty->GetName(), *SrcProperty->GetClass()->GetName());
+					}
 				}
 			}
 		};
-		WriteData(Var.GetType().GetScriptStruct(), SimVar.GetType().GetScriptStruct());
+		WriteData(Var.GetType().GetScriptStruct(), SimVar.GetType().GetScriptStruct(), SrcDataBase);
 	}
 }
 void FNiagaraDataChannelGameData::AppendFromGameData(const FNiagaraDataChannelGameData& GameData)
@@ -225,7 +267,7 @@ void FNiagaraDataChannelGameData::AppendFromGameData(const FNiagaraDataChannelGa
 	}
 }
 
-void FNiagaraDataChannelGameData::AppendFromDataSet(const FNiagaraDataBuffer* SrcBuffer, FVector3f LwcTile)
+void FNiagaraDataChannelGameData::AppendFromDataSet(const FNiagaraDataBuffer* SrcBuffer, FVector3f SimulationLwcTile)
 {
 	const FNiagaraDataSetCompiledData& CompiledData = SrcBuffer->GetOwner()->GetCompiledData();
 
@@ -238,22 +280,26 @@ void FNiagaraDataChannelGameData::AppendFromDataSet(const FNiagaraDataBuffer* Sr
 	const FNiagaraDataChannelGameDataLayout& Layout = DataChannel->GetGameDataLayout();
 	for (const TPair<FNiagaraVariableBase, int32>& VarIndexPair : Layout.VariableIndices)
 	{
-		const FNiagaraVariableBase& Var = VarIndexPair.Key;
+		FNiagaraVariableBase Var = VarIndexPair.Key;
 		int32 VarIndex = VarIndexPair.Value;
 		FNiagaraDataChannelVariableBuffer& VarBuffer = VariableData[VarIndex];
-
-		int32 VarSize = Var.GetSizeInBytes();
 
 		VarBuffer.SetNum(NumElements);
 
 		uint8* DestDataBase = VarBuffer.Data.GetData();
-		uint8* DestData = DestDataBase;
 		
 		FNiagaraVariableBase SimVar = Var;
 		if (FNiagaraTypeHelper::IsLWCType(Var.GetType()))
 		{
 			SimVar.SetType(FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Var.GetType().GetScriptStruct(), ENiagaraStructConversion::Simulation)));
 		}
+
+		//Niagara Positions are a special case where we're actually storing them as FVectors in the game level data and must convert down to actual Positions/FVector3f in the sim data and visa versa
+		if(Var.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+		{
+			Var.SetType(FNiagaraTypeHelper::GetVectorDef());
+		}
+		int32 VarSize = Var.GetSizeInBytes();
 		
 		int32 SimVarIndex = CompiledData.Variables.IndexOfByKey(SimVar);
 		if (SimVarIndex == INDEX_NONE)
@@ -261,151 +307,433 @@ void FNiagaraDataChannelGameData::AppendFromDataSet(const FNiagaraDataBuffer* Sr
 			continue; //Did not find this variable in the dataset. Warn?
 		}
 
-		//Convert from Niagara Simulation to LWC types where required.
-// 		if (FNiagaraTypeHelper::IsLWCType(Var.GetType()))
-// 		{
-// 			LWCConversionBuffer.SetNumUninitialized(Var.GetSizeInBytes() * NumInstances, false);
-// 
-// 			//Write instead to our intermediate conversion buffer and do the LWC convert after.
-// 			DestData = LWCConversionBuffer.GetData();
-// 		}
-
 		const FNiagaraVariableLayoutInfo& SimLayout = CompiledData.VariableLayouts[SimVarIndex];
 		
 		int32 FloatCompIdx = SimLayout.FloatComponentStart;
 		int32 IntCompIdx = SimLayout.Int32ComponentStart;
 		int32 HalfCompIdx = SimLayout.HalfComponentStart;
 		
-		TFunction<void(UScriptStruct*, UScriptStruct*)> ReadData;
-		ReadData = [&](UScriptStruct* SrcStruct, UScriptStruct* DestStruct)
+		TFunction<void(UScriptStruct*, UScriptStruct*, uint8*)> ReadData;
+		ReadData = [&](UScriptStruct* SrcStruct, UScriptStruct* DestStruct, uint8* DestData)
 		{
-			TFieldIterator<FProperty> SrcPropertyIt(SrcStruct, EFieldIteratorFlags::IncludeSuper);
-			TFieldIterator<FProperty> DestPropertyIt(DestStruct, EFieldIteratorFlags::IncludeSuper);			
-			for (; SrcPropertyIt; ++SrcPropertyIt, ++DestPropertyIt)
+			//Read all data from the simulation and place in the game level buffers. Converting from LWC local tile space where needed.
+
+			//Special case for writing to Niagara Positions. We must offset the data into the simulation local LWC space.
+			if (SrcStruct == FNiagaraTypeDefinition::GetPositionStruct())
 			{
-				FProperty* SrcProperty = *SrcPropertyIt;
-				FProperty* DestProperty = *DestPropertyIt;
-				DestData = DestDataBase + DestProperty->GetOffset_ForInternal();
-				if (DestPropertyIt->IsA(FDoubleProperty::StaticClass()))//TODO: Insert LWCTile... probably need to explicitly check for vectors etc.
-				{
-					double* Dest = (double*)(DestData);
-					float* Src = (float*)SrcBuffer->GetComponentPtrFloat(FloatCompIdx++);
+				float* SrcX = (float*)SrcBuffer->GetComponentPtrFloat(FloatCompIdx++);
+				float* SrcY = (float*)SrcBuffer->GetComponentPtrFloat(FloatCompIdx++);
+				float* SrcZ = (float*)SrcBuffer->GetComponentPtrFloat(FloatCompIdx++);
 
-					//Write all instances for this component.
-					for (int32 i = 0; i < NumInstances; ++i)
-					{
-						Dest = (double*)(DestData + VarSize * i);
-						*Dest = *Src++;
-					}
-				}
-				else if (DestPropertyIt->IsA(FFloatProperty::StaticClass()))
+				for (int32 i = 0; i < NumInstances; ++i)
 				{
-					float* Dest = (float*)(DestData);
-					float* Src = (float*)SrcBuffer->GetComponentPtrFloat(FloatCompIdx++);
+					FVector* Dest = (FVector*)(DestData + VarSize * i);
+					*Dest = FVector(*SrcX++, *SrcY++, *SrcZ++) + FVector(SimulationLwcTile) * FLargeWorldRenderScalar::GetTileSize();
+				}
+			}
+			else
+			{
+				TFieldIterator<FProperty> SrcPropertyIt(SrcStruct, EFieldIteratorFlags::IncludeSuper);
+				TFieldIterator<FProperty> DestPropertyIt(DestStruct, EFieldIteratorFlags::IncludeSuper);
+				for (; SrcPropertyIt; ++SrcPropertyIt, ++DestPropertyIt)
+				{
+					FProperty* SrcProperty = *SrcPropertyIt;
+					FProperty* DestProperty = *DestPropertyIt;
+					DestData += DestProperty->GetOffset_ForInternal();
+					if (DestPropertyIt->IsA(FDoubleProperty::StaticClass()))
+					{
+						double* Dest = (double*)(DestData);
+						float* Src = (float*)SrcBuffer->GetComponentPtrFloat(FloatCompIdx++);
 
-					//Write all instances for this component.
-					for (int32 i = 0; i < NumInstances; ++i)
-					{
-						Dest = (float*)(DestData + VarSize * i);
-						*Dest = *Src++;
+						//Write all instances for this component.
+						for (int32 i = 0; i < NumInstances; ++i)
+						{
+							Dest = (double*)(DestData + VarSize * i);
+							*Dest = *Src++;
+						}
 					}
-				}
-				else if (DestPropertyIt->IsA(FUInt16Property::StaticClass()))
-				{
-					FFloat16* Dest = (FFloat16*)(DestData);
-					FFloat16* Src = (FFloat16*)SrcBuffer->GetComponentPtrHalf(HalfCompIdx++);
+					else if (DestPropertyIt->IsA(FFloatProperty::StaticClass()))
+					{
+						float* Dest = (float*)(DestData);
+						float* Src = (float*)SrcBuffer->GetComponentPtrFloat(FloatCompIdx++);
 
-					//Write all instances for this component.
-					for (int32 i = 0; i < NumInstances; ++i)
-					{
-						Dest = (FFloat16*)(DestData + VarSize * i);
-						*Dest = *Src++;
+						//Write all instances for this component.
+						for (int32 i = 0; i < NumInstances; ++i)
+						{
+							Dest = (float*)(DestData + VarSize * i);
+							*Dest = *Src++;
+						}
 					}
-				}
-				else if (DestPropertyIt->IsA(FIntProperty::StaticClass()) || DestPropertyIt->IsA(FBoolProperty::StaticClass()))
-				{
-					int32* Dest = (int32*)(DestData);
-					int32* Src = (int32*)SrcBuffer->GetComponentPtrInt32(IntCompIdx++);
+					else if (DestPropertyIt->IsA(FUInt16Property::StaticClass()))
+					{
+						FFloat16* Dest = (FFloat16*)(DestData);
+						FFloat16* Src = (FFloat16*)SrcBuffer->GetComponentPtrHalf(HalfCompIdx++);
 
-					//Write all instances for this component.
-					for (int32 i = 0; i < NumInstances; ++i)
-					{
-						Dest = (int32*)(DestData + VarSize * i);
-						*Dest = *Src++;
+						//Write all instances for this component.
+						for (int32 i = 0; i < NumInstances; ++i)
+						{
+							Dest = (FFloat16*)(DestData + VarSize * i);
+							*Dest = *Src++;
+						}
 					}
-				}
-				//Should be able to support double easily enough
-				else if (FStructProperty* SrcStructProp = CastField<FStructProperty>(SrcProperty))
-				{
-					FStructProperty* DestStructProp = CastField<FStructProperty>(DestProperty);
-					ReadData(SrcStructProp->Struct, DestStructProp->Struct);
-				}
-				else
-				{
-					checkf(false, TEXT("Property(%s) Class(%s) is not a supported type"), *SrcProperty->GetName(), *SrcProperty->GetClass()->GetName());
+					else if (DestPropertyIt->IsA(FIntProperty::StaticClass()) || DestPropertyIt->IsA(FBoolProperty::StaticClass()))
+					{
+						int32* Dest = (int32*)(DestData);
+						int32* Src = (int32*)SrcBuffer->GetComponentPtrInt32(IntCompIdx++);
+
+						//Write all instances for this component.
+						for (int32 i = 0; i < NumInstances; ++i)
+						{
+							Dest = (int32*)(DestData + VarSize * i);
+							*Dest = *Src++;
+						}
+					}
+					else if (FStructProperty* SrcStructProp = CastField<FStructProperty>(SrcProperty))
+					{
+						FStructProperty* DestStructProp = CastField<FStructProperty>(DestProperty);
+						ReadData(SrcStructProp->Struct, DestStructProp->Struct, DestData);
+					}
+					else
+					{
+						checkf(false, TEXT("Property(%s) Class(%s) is not a supported type"), *SrcProperty->GetName(), *SrcProperty->GetClass()->GetName());
+					}
 				}
 			}
 		};
-		ReadData(SimVar.GetType().GetScriptStruct(), Var.GetType().GetScriptStruct());
-
-		//For LWC types we're written into an intermediate structure for the sim var. Now convert that into LWC proper.
-		if (FNiagaraTypeHelper::IsLWCType(Var.GetType()))
-		{
-			const FNiagaraLwcStructConverter& Converter = Layout.LwcConverters[VarIndex];
-			VarBuffer.SetNum(NumElements);
-			//TODO: Incorporate the LWC Tile
-			Converter.ConvertDataFromSimulation(VarBuffer.Data.GetData() + Var.GetSizeInBytes() * OrigNumDataChannel, LWCConversionBuffer.GetData(), NumInstances);
-		}
+		ReadData(SimVar.GetType().GetScriptStruct(), Var.GetType().GetScriptStruct(), DestDataBase);
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-FNiagaraWorldDataChannelStore::~FNiagaraWorldDataChannelStore()
+void FNiagaraDataChannelDataProxy::BeginFrame(bool bKeepPreviousFrameData)
 {
-	Empty();
+	check(GPUDataSet);
+	check(GPUDataSet->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim);
+
 }
 
-void FNiagaraWorldDataChannelStore::Empty()
+void FNiagaraDataChannelDataProxy::EndFrame(FNiagaraGpuComputeDispatchInterface* DispathInterface, FRHICommandListImmediate& CmdList, const TArray<FNiagaraDataBufferRef>& BuffersForGPU)
+{
+	check(GPUDataSet);
+	check(GPUDataSet->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim);
+
+	PrevFrameData = GPUDataSet->GetCurrentData();
+
+	uint32 NumInstance = 0;
+	for (auto& Buffer : BuffersForGPU)
+	{
+		NumInstance += Buffer->GetNumInstances();
+	}
+
+	GPUDataSet->BeginSimulate();
+	FNiagaraDataBuffer* DestBuffer = GPUDataSet->GetDestinationData();	
+	DestBuffer->PushCPUBuffersToGPU(BuffersForGPU, true, CmdList, DispathInterface->GetFeatureLevel(), GetDebugName());
+	GPUDataSet->EndSimulate();
+
+	//For now we need not deal with the instance count manager but when we do GPU->GPU writes we will
+	//DestBuffer->SetGPUInstanceCountBufferOffset()
+}
+
+void FNiagaraDataChannelDataProxy::Reset()
+{
+	PrevFrameData = nullptr;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraDataChannelData::FNiagaraDataChannelData(UNiagaraDataChannelHandler* Owner)
+{
+	const UNiagaraDataChannel* DataChannel = Owner->GetDataChannel();
+	check(DataChannel);
+
+	GameData = DataChannel->CreateGameData();
+
+	CPUSimData = new FNiagaraDataSet();
+	GPUSimData = new FNiagaraDataSet();
+
+
+	const FNiagaraDataSetCompiledData& CompiledData = DataChannel->GetCompiledData(ENiagaraSimTarget::CPUSim);
+	const FNiagaraDataSetCompiledData& CompiledDataGPU = DataChannel->GetCompiledData(ENiagaraSimTarget::GPUComputeSim);
+	CPUSimData->Init(&CompiledData);
+	GPUSimData->Init(&CompiledDataGPU);
+
+	//TODO: Send game data to GPU direct without staging.
+	GameDataStaging = new FNiagaraDataSet();
+	GameDataStaging->Init(&CompiledData);
+
+	CPUSimData->BeginSimulate();
+	CPUSimData->EndSimulate();
+
+	RTProxy.Reset(new FNiagaraDataChannelDataProxy());
+	RTProxy->GPUDataSet = GPUSimData;
+	#if !UE_BUILD_SHIPPING
+	RTProxy->DebugName = FString::Printf(TEXT("%s__GPUData"), *DataChannel->GetName());
+	#endif
+}
+
+FNiagaraDataChannelData::~FNiagaraDataChannelData()
 {
 	GameData.Reset();
 
 	/** We defer the deletion of the dataset to the RT to be sure all in-flight RT commands have finished using it.*/
 	ENQUEUE_RENDER_COMMAND(FDeleteContextCommand)(
-		[CPUDataChannelDataSet = CPUSimData, GPUDataChannelDataSet = GPUSimData](FRHICommandListImmediate& RHICmdList)
+		[CPUDataChannelDataSet = CPUSimData, GPUDataChannelDataSet = GPUSimData, ReleasedRTProxy = RTProxy.Release()](FRHICommandListImmediate& RHICmdList)
+	{
+		if (CPUDataChannelDataSet != nullptr)
 		{
-			if (CPUDataChannelDataSet != nullptr)
-			{
-				delete CPUDataChannelDataSet;
-			}
-			if (GPUDataChannelDataSet != nullptr)
-			{
-				delete GPUDataChannelDataSet;
-			}
+			delete CPUDataChannelDataSet;
 		}
+		if (GPUDataChannelDataSet != nullptr)
+		{
+			delete GPUDataChannelDataSet;
+		}
+		if (ReleasedRTProxy)
+		{
+			delete ReleasedRTProxy;
+		}
+	}
 	);
 	CPUSimData = nullptr;
 	GPUSimData = nullptr;
 }
 
-void FNiagaraWorldDataChannelStore::Init(UNiagaraDataChannelHandler* Owner)
+void FNiagaraDataChannelData::Reset()
 {
-	GameData = Owner->GetDataChannel()->CreateGameData();
+	PublishRequests.Reset();
+	BuffersForGPU.Reset();
+	
+	PrevCPUSimData = nullptr;	
 
-	CPUSimData = new FNiagaraDataSet();
-	GPUSimData = new FNiagaraDataSet();
-
-	const FNiagaraDataSetCompiledData& CompiledData = Owner->GetDataChannel()->GetCompiledData(ENiagaraSimTarget::CPUSim);
-	const FNiagaraDataSetCompiledData& CompiledDataGPU = Owner->GetDataChannel()->GetCompiledData(ENiagaraSimTarget::GPUComputeSim);
-	CPUSimData->Init(&CompiledData);
-	GPUSimData->Init(&CompiledDataGPU);
+	GameData->Empty();
+	CPUSimData->ResetBuffers();
+	GPUSimData->ResetBuffers();
+	GameDataStaging->ResetBuffers();
+	ENQUEUE_RENDER_COMMAND(FResetProxyCommand)(
+		[RT_Proxy = RTProxy.Get()](FRHICommandListImmediate& RHICmdList)
+	{
+		if (RT_Proxy)
+		{
+			RT_Proxy->Reset();
+		}
+	}
+	);
 }
 
-void FNiagaraWorldDataChannelStore::Tick(UNiagaraDataChannelHandler* Owner)
+void FNiagaraDataChannelData::BeginFrame(UNiagaraDataChannelHandler* Owner)
 {
+	GameData->BeginFrame();
 
+	bool bRequirePreviousData = Owner->GetDataChannel()->KeepPreviousFrameData();
+	if (bRequirePreviousData)
+	{
+		PrevCPUSimData = CPUSimData->GetCurrentData();
+	}
+
+	//Grab a new buffer to store the CPU data.
+	CPUSimData->BeginSimulate();
+	CPUSimData->EndSimulate();
+	
+	check(RTProxy);
+	FNiagaraGpuComputeDispatchInterface* DispathInterface = FNiagaraGpuComputeDispatchInterface::Get(Owner->GetWorld());
+	ENQUEUE_RENDER_COMMAND(FDataChannelProxyBeginFrame) (
+		[RT_Proxy = RTProxy.Get(), bRequirePreviousData](FRHICommandListImmediate& CmdList)
+	{
+		RT_Proxy->BeginFrame(bRequirePreviousData);
+	});
 }
 
+void FNiagaraDataChannelData::EndFrame(UNiagaraDataChannelHandler* Owner)
+{
+	//We must do one final tick to process any final items generated by the last things to tick this frame.
+	ConsumePublishRequests(Owner);
+
+	check(RTProxy);
+	FNiagaraGpuComputeDispatchInterface* DispathInterface = FNiagaraGpuComputeDispatchInterface::Get(Owner->GetWorld());
+	ENQUEUE_RENDER_COMMAND(FDataChannelProxyEndFrame) (
+		[DispathInterface, RT_Proxy = RTProxy.Get(), RT_BuffersForGPU = MoveTemp(BuffersForGPU)](FRHICommandListImmediate& CmdList)
+	{
+		RT_Proxy->EndFrame(DispathInterface, CmdList, RT_BuffersForGPU);
+	});
+	BuffersForGPU.Reset();
+}
+
+void FNiagaraDataChannelData::ConsumePublishRequests(UNiagaraDataChannelHandler* Owner)
+{
+	check(IsValid(Owner));
+
+	if(PublishRequests.Num() == 0)
+	{
+		return;
+	}
+
+	UWorld* World = Owner->GetWorld();
+	check(IsValid(World));
+
+	int32 GameDataOrigSize = GameData->Num();
+	int32 CPUDataOrigSize = CPUSimData->GetCurrentData()->GetNumInstances();
+	int32 NewGameDataChannel = GameDataOrigSize;
+	int32 NewCPUDataChannel = CPUDataOrigSize;
+
+	//Do a pass to gather the new total size for our DataChannel data.
+
+	//Each DI that generates DataChannel can control whether it's pushed to Game/CPU/GPU.
+	BuffersForGPU.Reserve(BuffersForGPU.Num() + PublishRequests.Num());
+
+	for (FNiagaraDataChannelPublishRequest& PublishRequest : PublishRequests)
+	{
+		uint32 NumInsts = 0;
+
+		if (FNiagaraDataChannelGameData* RequestGameData = PublishRequest.GameData.Get())
+		{
+			NumInsts = RequestGameData->Num();
+			if (RequestGameData->Num() > 0 && PublishRequest.bVisibleToGPUSims)
+			{
+				//We stage the game data into a data set to facilitate easier copy over to the GPU. TODO: Send and copy the game data directly.			
+				FNiagaraDataBuffer* StagingBuf = &GameDataStaging->BeginSimulate();
+				StagingBuf->Allocate(NumInsts);				
+				RequestGameData->WriteToDataSet(StagingBuf, 0, LwcTile);
+				GameDataStaging->EndSimulate();				
+				BuffersForGPU.Emplace(StagingBuf);	
+			}
+		}
+		else if (ensure(PublishRequest.Data))
+		{
+			NumInsts = PublishRequest.Data->GetNumInstances();
+
+			if (NumInsts > 0 && PublishRequest.bVisibleToGPUSims)
+			{
+				BuffersForGPU.Add(PublishRequest.Data);
+			}
+		}
+
+		if (PublishRequest.bVisibleToGame)
+		{
+			NewGameDataChannel += NumInsts;
+		}
+		if (PublishRequest.bVisibleToCPUSims)
+		{
+			NewCPUDataChannel += NumInsts;
+		}
+	}
+
+	//Allocate Sim buffers ready for gather.
+	CPUSimData->BeginSimulate();
+	CPUSimData->Allocate(NewCPUDataChannel, true);
+
+	//Now do the actual data collection.
+
+	GameData->SetNum(NewGameDataChannel);
+
+	for (auto It = PublishRequests.CreateIterator(); It ; ++It)
+	{
+		FNiagaraDataChannelPublishRequest& PublishRequest = *It;
+		if (FNiagaraDataChannelGameData* RequestGameData = PublishRequest.GameData.Get())
+		{
+			if (RequestGameData->Num())
+			{
+				if(PublishRequest.bVisibleToGame)
+				{
+					GameData->AppendFromGameData(*RequestGameData);
+				}
+				if(PublishRequest.bVisibleToCPUSims)
+				{
+					RequestGameData->WriteToDataSet(CPUSimData->GetDestinationData(), CPUSimData->GetDestinationDataChecked().GetNumInstances(), LwcTile);
+				}
+			}
+		}
+
+		if (PublishRequest.Data)
+		{
+			const ENiagaraSimTarget SimTarget = PublishRequest.Data->GetOwner()->GetSimTarget();
+			if (SimTarget == ENiagaraSimTarget::CPUSim)
+			{
+				if (PublishRequest.bVisibleToGame)
+				{
+					GameData->AppendFromDataSet(PublishRequest.Data, PublishRequest.LwcTile);
+				}
+				if (PublishRequest.bVisibleToCPUSims)
+				{
+					PublishRequest.Data->CopyToUnrelated(CPUSimData->GetDestinationDataChecked(), 0, CPUSimData->GetDestinationDataChecked().GetNumInstances(), PublishRequest.Data->GetNumInstances());
+				}
+			}
+			else if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
+			{
+				//TODO: GPU->GPU handling will be done all RT side. GPU->CPU may be done here in future but we'll have to pull the data from the GPU on the RT and pass beck to GT here.
+			}
+			else
+			{
+				check(0);
+			}
+		}
+		
+		It.RemoveCurrentSwap();
+	}
+
+	CPUSimData->EndSimulate();
+
+#if !UE_BUILD_SHIPPING
+	if(Owner->GetDataChannel()->GetVerboseLogging())
+	{
+		FString Label = FString::Printf(TEXT("Data Channel %s"), *Owner->GetDataChannel()->GetName());
+		CPUSimData->GetCurrentData()->Dump(0, CPUSimData->GetCurrentData()->GetNumInstances(), Label);
+	}
+#endif
+
+	PublishRequests.Reset();
+}
+
+FNiagaraDataBufferRef FNiagaraDataChannelData::GetCPUData(bool bPreviousFrame)
+{
+	if(bPreviousFrame)
+	{
+		return PrevCPUSimData;
+	}
+	else
+	{
+		return CPUSimData->GetCurrentData();
+	}
+}
+
+FNiagaraDataChannelGameData* FNiagaraDataChannelData::GetGameData()
+{
+	return GameData.Get();
+}
+
+void FNiagaraDataChannelData::Publish(const FNiagaraDataChannelPublishRequest& Request)
+{
+	PublishRequests.Add(Request);
+}
+
+void FNiagaraDataChannelData::RemovePublishRequests(const FNiagaraDataSet* DataSet)
+{
+	//TODO: Have to ensure lifetime of anything we're holding
+	for (auto It = PublishRequests.CreateIterator(); It; ++It)
+	{
+		const FNiagaraDataChannelPublishRequest& PublishRequest = *It;
+
+		//First remove any buffers we've queued up to push to the GPU
+		for (auto BufferIt = BuffersForGPU.CreateIterator(); BufferIt; ++BufferIt)
+		{
+			FNiagaraDataBuffer* Buffer = *BufferIt;
+			if (Buffer == nullptr || Buffer->GetOwner() == DataSet)
+			{
+				BufferIt.RemoveCurrentSwap();
+			}
+		}
+
+		if (PublishRequest.Data && PublishRequest.Data->GetOwner() == DataSet)
+		{
+			It.RemoveCurrentSwap();
+		}
+	}
+}
+
+const FNiagaraDataSetCompiledData& FNiagaraDataChannelData::GetCompiledData(ENiagaraSimTarget SimTarget)
+{
+	check(CPUSimData && GPUSimData)
+	return SimTarget == ENiagaraSimTarget::CPUSim ? CPUSimData->GetCompiledData() : GPUSimData->GetCompiledData();
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -447,6 +775,18 @@ namespace NiagaraDataChannel
 	}
 }
 
+void UNiagaraDataChannel::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	FNiagaraWorldManager::ForAllWorldManagers(
+		[DataChannel = this](FNiagaraWorldManager& WorldMan)
+		{
+			WorldMan.WaitForAsyncWork();
+			WorldMan.GetDataChannelManager().InitDataChannel(DataChannel, true);
+		});
+}
+
 void UNiagaraDataChannel::PostLoad()
 {
 	Super::PostLoad();
@@ -484,6 +824,7 @@ void UNiagaraDataChannel::PostLoad()
 	FNiagaraWorldManager::ForAllWorldManagers(
 		[DataChannel = this](FNiagaraWorldManager& WorldMan)
 		{
+			WorldMan.WaitForAsyncWork();
 			WorldMan.GetDataChannelManager().InitDataChannel(DataChannel, true);
 		});
 }
@@ -496,7 +837,7 @@ void UNiagaraDataChannel::BeginDestroy()
 		[DataChannel = this](FNiagaraWorldManager& WorldMan)
 		{
 			WorldMan.WaitForAsyncWork();
-			WorldMan.GetDataChannelManager().RemoveDataChannel(DataChannel->GetChannelName());
+			WorldMan.GetDataChannelManager().RemoveDataChannel(DataChannel);
 		});
 }
 
@@ -504,14 +845,12 @@ void UNiagaraDataChannel::BeginDestroy()
 
 void UNiagaraDataChannel::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	//We'll do this for all channels inside the definitions pre edit change.
-	// 
-// 	FNiagaraWorldManager::ForAllWorldManagers(
-// 		[DataChannel = this](FNiagaraWorldManager& WorldMan)
-// 		{
-// 			WorldMan.WaitForAsyncWork();
-// 			WorldMan.GetDataChannelManager().RemoveDataChannel(DataChannel->GetChannelName());
-// 		});
+	FNiagaraWorldManager::ForAllWorldManagers(
+		[DataChannel = this](FNiagaraWorldManager& WorldMan)
+		{
+			WorldMan.WaitForAsyncWork();
+			WorldMan.GetDataChannelManager().RemoveDataChannel(DataChannel);
+		});
 }
 
 void UNiagaraDataChannel::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -528,9 +867,11 @@ void UNiagaraDataChannel::PostEditChangeProperty(FPropertyChangedEvent& Property
 
 	GameDataLayout.Init(Variables);
 
-	OnChangedDelegate.Broadcast(this);
-
-	//We'll reinit this channel with the world managers etc in the PostEditChange of the data channel definitions.
+	FNiagaraWorldManager::ForAllWorldManagers(
+		[DataChannel = this](FNiagaraWorldManager& WorldMan)
+		{
+			WorldMan.GetDataChannelManager().InitDataChannel(DataChannel, true);
+		});
 }
 
 #endif//WITH_EDITOR
@@ -546,7 +887,10 @@ const FNiagaraDataSetCompiledData& UNiagaraDataChannel::GetCompiledData(ENiagara
 			CompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
 			for (FNiagaraVariableBase Var : Variables)
 			{
-				Var.SetType(FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Var.GetType().GetScriptStruct(), ENiagaraStructConversion::Simulation)));
+				if(Var.GetType().IsEnum() == false)
+				{
+					Var.SetType(FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Var.GetType().GetScriptStruct(), ENiagaraStructConversion::Simulation)));
+				}
 				CompiledData.Variables.Add(Var);
 			}
 			CompiledData.BuildLayout();
@@ -563,7 +907,10 @@ const FNiagaraDataSetCompiledData& UNiagaraDataChannel::GetCompiledData(ENiagara
 			CompiledDataGPU.SimTarget = ENiagaraSimTarget::GPUComputeSim;
 			for (FNiagaraVariableBase Var : Variables)
 			{
-				Var.SetType(FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Var.GetType().GetScriptStruct(), ENiagaraStructConversion::Simulation)));
+				if (Var.GetType().IsEnum() == false)
+				{
+					Var.SetType(FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Var.GetType().GetScriptStruct(), ENiagaraStructConversion::Simulation)));
+				}
 				CompiledDataGPU.Variables.Add(Var);
 			}
 			CompiledDataGPU.BuildLayout();
@@ -574,14 +921,14 @@ const FNiagaraDataSetCompiledData& UNiagaraDataChannel::GetCompiledData(ENiagara
 
 FNiagaraDataChannelGameDataPtr UNiagaraDataChannel::CreateGameData()const
 {
-	FNiagaraDataChannelGameDataPtr NewGameData = MakeShared<FNiagaraDataChannelGameData>();
-	NewGameData->Init(this);
-	return NewGameData;
+	FNiagaraDataChannelGameDataPtr NewData = MakeShared<FNiagaraDataChannelGameData>();
+	NewData->Init(this);
+	return NewData;
 }
 
 bool UNiagaraDataChannel::IsValid()const
 {
-	return ChannelName != NAME_None && Variables.Num() > 0 && CompiledData.Variables.Num() == Variables.Num() && CompiledDataGPU.Variables.Num() == Variables.Num();
+	return Variables.Num() > 0 && CompiledData.Variables.Num() == Variables.Num() && CompiledDataGPU.Variables.Num() == Variables.Num();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -591,7 +938,7 @@ UNiagaraDataChannelLibrary::UNiagaraDataChannelLibrary(const FObjectInitializer&
 {
 }
 
-UNiagaraDataChannelHandler* UNiagaraDataChannelLibrary::GetNiagaraDataChannel(const UObject* WorldContextObject, FName Channel)
+UNiagaraDataChannelHandler* UNiagaraDataChannelLibrary::GetNiagaraDataChannel(const UObject* WorldContextObject, UNiagaraDataChannelAsset* Channel)
 {
 	UWorld* World = (WorldContextObject != nullptr) ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull) : nullptr;
 	if (World)
@@ -604,5 +951,83 @@ UNiagaraDataChannelHandler* UNiagaraDataChannelLibrary::GetNiagaraDataChannel(co
 	return nullptr;
 }
 
+UNiagaraDataChannelWriter* UNiagaraDataChannelLibrary::WriteToNiagaraDataChannel(const UObject* WorldContextObject, UNiagaraDataChannelAsset* Channel, FNiagaraDataChannelSearchParameters SearchParams, int32 Count, bool bVisibleToGame, bool bVisibleToCPU, bool bVisibleToGPU)
+{
+	check(IsInGameThread());
+	UWorld* World = (WorldContextObject != nullptr) ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull) : nullptr;
+	if (World && Count > 0)
+	{
+		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		{
+			if(UNiagaraDataChannelHandler* Handler = WorldMan->GetDataChannelManager().FindDataChannelHandler(Channel))
+			{
+				if(UNiagaraDataChannelWriter* Writer = Handler->GetDataChannelWriter())
+				{
+					if(Writer->InitWrite(SearchParams, Count, bVisibleToGame, bVisibleToCPU, bVisibleToGPU))
+					{
+						return Writer;
+					}
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+UNiagaraDataChannelReader* UNiagaraDataChannelLibrary::ReadFromNiagaraDataChannel(const UObject* WorldContextObject, UNiagaraDataChannelAsset* Channel, FNiagaraDataChannelSearchParameters SearchParams, bool bReadPreviousFrame)
+{
+	UWorld* World = (WorldContextObject != nullptr) ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull) : nullptr;
+	if (World)
+	{
+		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		{
+			if (UNiagaraDataChannelHandler* Handler = WorldMan->GetDataChannelManager().FindDataChannelHandler(Channel))
+			{
+				if (UNiagaraDataChannelReader* Reader = Handler->GetDataChannelReader())
+				{
+					if(Reader->InitAccess(SearchParams, bReadPreviousFrame))
+					{
+						return Reader;
+					}
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+FPrimaryAssetId UNiagaraDataChannelAsset::GetPrimaryAssetId()const 
+{
+	return FPrimaryAssetId(GetClass()->GetFName(), GetFName());
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+#if !UE_BUILD_SHIPPING
+void FNiagaraDataChannelDebugUtilities::BeginFrame(FNiagaraWorldManager* WorldMan, float DeltaSeconds)
+{
+	check(WorldMan);
+	WorldMan->GetDataChannelManager().BeginFrame(DeltaSeconds);
+}
+
+void FNiagaraDataChannelDebugUtilities::EndFrame(FNiagaraWorldManager* WorldMan, float DeltaSeconds)
+{
+	check(WorldMan);
+	WorldMan->GetDataChannelManager().EndFrame(DeltaSeconds);
+}
+
+void FNiagaraDataChannelDebugUtilities::Tick(FNiagaraWorldManager* WorldMan, float DeltaSeconds, ETickingGroup TickGroup)
+{
+	check(WorldMan);
+	WorldMan->GetDataChannelManager().Tick(DeltaSeconds, TickGroup);
+}
+
+UNiagaraDataChannelHandler* FNiagaraDataChannelDebugUtilities::FindDataChannelHandler(FNiagaraWorldManager* WorldMan, UNiagaraDataChannel* DataChannel)
+{
+	check(WorldMan);
+	return WorldMan->GetDataChannelManager().FindDataChannelHandler(DataChannel);
+}
+#endif //!UE_BUILD_SHIPPING
 
 #undef LOCTEXT_NAMESPACE
+

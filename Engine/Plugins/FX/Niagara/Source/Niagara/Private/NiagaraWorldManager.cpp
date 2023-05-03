@@ -234,6 +234,7 @@ FDelegateHandle FNiagaraWorldManager::OnPostWorldCleanupHandle;
 FDelegateHandle FNiagaraWorldManager::OnPreWorldFinishDestroyHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldBeginTearDownHandle;
 FDelegateHandle FNiagaraWorldManager::TickWorldHandle;
+FDelegateHandle FNiagaraWorldManager::OnWorldPreActorTickHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldPreSendAllEndOfFrameUpdatesHandle;
 FDelegateHandle FNiagaraWorldManager::PreGCHandle;
 FDelegateHandle FNiagaraWorldManager::PostReachabilityAnalysisHandle;
@@ -366,6 +367,7 @@ void FNiagaraWorldManager::OnStartup()
 	OnPreWorldFinishDestroyHandle = FWorldDelegates::OnPreWorldFinishDestroy.AddStatic(&FNiagaraWorldManager::OnPreWorldFinishDestroy);
 	OnWorldBeginTearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddStatic(&FNiagaraWorldManager::OnWorldBeginTearDown);
 	TickWorldHandle = FWorldDelegates::OnWorldPostActorTick.AddStatic(&FNiagaraWorldManager::TickWorld);
+	OnWorldPreActorTickHandle = FWorldDelegates::OnWorldPreActorTick.AddStatic(&FNiagaraWorldManager::OnWorldPreActorTick);
 	OnWorldPreSendAllEndOfFrameUpdatesHandle = FWorldDelegates::OnWorldPreSendAllEndOfFrameUpdates.AddLambda(
 		[](UWorld* InWorld)
 		{
@@ -838,6 +840,11 @@ void FNiagaraWorldManager::TickWorld(UWorld* World, ELevelTick TickType, float D
 	Get(World)->PostActorTick(DeltaSeconds);
 }
 
+void FNiagaraWorldManager::OnWorldPreActorTick(UWorld* InWorld, ELevelTick InLevelTick, float InDeltaSeconds)
+{
+	Get(InWorld)->PreActorTick(InLevelTick, InDeltaSeconds);
+}
+
 void FNiagaraWorldManager::OnPreGarbageCollect()
 {
 	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
@@ -876,6 +883,11 @@ void FNiagaraWorldManager::OnRefreshOwnerAllowsScalability()
 	{
 		Pair.Value->RefreshOwnerAllowsScalability();
 	}
+}
+
+void FNiagaraWorldManager::PreActorTick(ELevelTick InLevelTick, float InDeltaSeconds)
+{	
+	DataChannelManager->BeginFrame(InDeltaSeconds);
 }
 
 void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
@@ -1012,6 +1024,8 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		}
 	}
 #endif 
+
+	DataChannelManager->EndFrame(DeltaSeconds);
 }
 
 void FNiagaraWorldManager::PreSendAllEndOfFrameUpdates()

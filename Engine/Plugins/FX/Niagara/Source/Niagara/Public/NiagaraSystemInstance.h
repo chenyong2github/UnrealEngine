@@ -352,7 +352,7 @@ public:
 	*/
 	void AdvanceSimulation(int32 TickCountToSimulate, float TickDeltaSeconds);
 
-#if WITH_EDITORONLY_DATA
+#if NIAGARA_SYSTEM_CAPTURE
 	/** Request that this simulation capture a frame. Cannot capture if disabled or already completed.*/
 	bool RequestCapture(const FGuid& RequestId);
 
@@ -515,7 +515,7 @@ private:
 	FOnDestroyed OnDestroyedDelegate;
 #endif
 
-#if WITH_EDITORONLY_DATA
+#if NIAGARA_SYSTEM_CAPTURE
 	TSharedPtr<TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>, ESPMode::ThreadSafe> CurrentCapture;
 	TSharedPtr<FGuid, ESPMode::ThreadSafe> CurrentCaptureGuid;
 	bool bWasSoloPriorToCaptureRequest;

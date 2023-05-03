@@ -116,7 +116,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	  , RandomSeedOffset(0)
 	  , LODDistance(0.0f)
 	  , MaxLODDistance(FLT_MAX)
-#if WITH_EDITORONLY_DATA
+#if NIAGARA_SYSTEM_CAPTURE
 	  , bWasSoloPriorToCaptureRequest(false)
 #endif
 	  , GlobalParameters{}
@@ -334,7 +334,7 @@ void FNiagaraSystemInstance::DumpTickInfo(FOutputDevice& Ar)
 	Ar.Logf(TEXT("\t\t\tInstance%s"), *PrereqInfo);
 }
 
-#if WITH_EDITORONLY_DATA
+#if NIAGARA_SYSTEM_CAPTURE
 bool FNiagaraSystemInstance::RequestCapture(const FGuid& RequestId)
 {
 	if (IsComplete() || CurrentCapture.IsValid())
@@ -476,7 +476,7 @@ bool FNiagaraSystemInstance::ShouldCaptureThisFrame() const
 {
 	return CurrentCapture.IsValid();
 }
-#endif
+#endif//NIAGARA_SYSTEM_CAPTURE
 
 void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 {

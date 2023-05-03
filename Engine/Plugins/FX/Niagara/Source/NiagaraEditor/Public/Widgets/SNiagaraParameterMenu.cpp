@@ -828,6 +828,10 @@ void SNiagaraAddParameterFromPinMenu::Construct(const FArguments& InArgs)
 void SNiagaraAddParameterFromPinMenu::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
 	FNiagaraMenuActionCollector Collector;
+	
+	//First allow the node to add it's own actions.
+	NiagaraNode->CollectAddPinActions(Collector, AddPin);	
+	
 	TArray<FNiagaraTypeDefinition> Types;
 	FNiagaraEditorUtilities::GetAllowedParameterTypes(Types);
 	Types.Sort([](const FNiagaraTypeDefinition& A, const FNiagaraTypeDefinition& B) { return (A.GetNameText().ToLower().ToString() < B.GetNameText().ToLower().ToString()); });
@@ -848,7 +852,7 @@ void SNiagaraAddParameterFromPinMenu::CollectAllActions(FGraphActionListBuilderB
 			const UEdGraphPin* ConstAddPin = AddPin;
 			TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
 				Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
-				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(NiagaraNode, &UNiagaraNodeWithDynamicPins::AddParameter, Var, ConstAddPin)));
+				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(NiagaraNode, &UNiagaraNodeWithDynamicPins::AddParameter, Var, ConstAddPin->Direction)));
 
 			Collector.AddAction(Action, 0);
 		}

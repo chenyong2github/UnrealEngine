@@ -5,7 +5,7 @@
  * Contained in it's own shader file to allow reuse between different invocations with different params.
  */
 
-void Read_{ParameterName}(int ElementIndex, out bool bOutSuccess, {FunctionParameters})
+void {FunctionSymbol}(int ElementIndex, out bool bOutSuccess, {FunctionParameters})
 {
 	if(ElementIndex >= 0 && ElementIndex < {ParameterName}_Num)
 	{

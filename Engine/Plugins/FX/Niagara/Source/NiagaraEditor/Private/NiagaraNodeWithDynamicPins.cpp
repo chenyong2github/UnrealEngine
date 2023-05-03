@@ -396,7 +396,7 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 	}
 }
 
-void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const UEdGraphPin* AddPin)
+void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, TEnumAsByte<EEdGraphPinDirection> Direction)
 {
 	if (this->IsA<UNiagaraNodeParameterMapBase>())
 	{
@@ -416,15 +416,15 @@ void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const
 		Graph->AddParameter(Parameter);
 
 		Modify();
-		UEdGraphPin* Pin = this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
+		UEdGraphPin* Pin = this->RequestNewTypedPin(Direction, Parameter.GetType(), Parameter.GetName());
 	}
 	else
 	{
-		RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
+		RequestNewTypedPin(Direction, Parameter.GetType(), Parameter.GetName());
 	}
 }
 
-void UNiagaraNodeWithDynamicPins::AddParameter(const UNiagaraScriptVariable* ScriptVar, const UEdGraphPin* AddPin)
+void UNiagaraNodeWithDynamicPins::AddParameter(const UNiagaraScriptVariable* ScriptVar, TEnumAsByte<EEdGraphPinDirection> Direction)
 {
 	const FNiagaraVariable& Parameter = ScriptVar->Variable;
 	if (this->IsA<UNiagaraNodeParameterMapBase>())
@@ -439,11 +439,11 @@ void UNiagaraNodeWithDynamicPins::AddParameter(const UNiagaraScriptVariable* Scr
 		Graph->AddParameter(ScriptVar);
 
 		Modify();
-		UEdGraphPin* Pin = this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
+		UEdGraphPin* Pin = this->RequestNewTypedPin(Direction, Parameter.GetType(), Parameter.GetName());
 	}
 	else
 	{
-		RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
+		RequestNewTypedPin(Direction, Parameter.GetType(), Parameter.GetName());
 	}
 }
 

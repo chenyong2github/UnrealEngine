@@ -5,21 +5,35 @@
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
 #include "IDetailCustomization.h"
+#include "NiagaraDataInterfaceDetails.h"
 
-//** Properties customization for FNiagaraDataChannelReference. */
-class FNiagaraDataChannelReferenceDetailsCustomization : public IPropertyTypeCustomization
+class UNiagaraDataInterfaceDataChannelRead;
+class UNiagaraSystem;
+class UNiagaraDataChannel;
+class UNiagaraDataChannel_Islands;
+
+/** Details customization for Niagara data channels. */
+class FNiagaraDataChannelIslandsDetails : public IDetailCustomization
 {
 public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-	{
-		return MakeShared<FNiagaraDataChannelReferenceDetailsCustomization>();
-	}
-
-	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils);
-
-	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils);
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	static TSharedRef<IDetailCustomization> MakeInstance();
 
 private:
-	
-	TSharedPtr<IPropertyHandle> ChannelHandle;
+
+	TWeakObjectPtr<UNiagaraDataChannel_Islands> DataChannel;
+};
+
+
+/** Details customization for Niagara data channel read data interface. */
+class FNiagaraDataInterfaceDataChannelReadDetails : public FNiagaraDataInterfaceDetailsBase
+{
+public:
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+private:
+
+	TWeakObjectPtr<UNiagaraDataInterfaceDataChannelRead> ReadDataInterfaceWeak;
+	TWeakObjectPtr<UNiagaraSystem> NiagaraSystemWeak;
 };

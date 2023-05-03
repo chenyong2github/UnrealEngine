@@ -42,12 +42,15 @@ public:
 	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType, EEdGraphPinDirection InDirection) const { return AllowNiagaraTypeForAddPin(InType); };
 
 	/** Request a new pin. */
-	void AddParameter(FNiagaraVariable Parameter, const UEdGraphPin* AddPin);
-	void AddParameter(const UNiagaraScriptVariable* ScriptVar, const UEdGraphPin* AddPin);
+	void AddParameter(FNiagaraVariable Parameter, TEnumAsByte<EEdGraphPinDirection> Direction);
+	void AddParameter(const UNiagaraScriptVariable* ScriptVar, TEnumAsByte<EEdGraphPinDirection> Direction);
 	void AddExistingParameter(FNiagaraVariable Parameter, const UEdGraphPin* AddPin);
 
 	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */
 	virtual EEdGraphPinDirection GetPinDirectionForNewParameters() { return EEdGraphPinDirection::EGPD_MAX; };
+
+	/** Virtual functions to allow for custom actions in Add Pin menus. */
+	virtual void CollectAddPinActions(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin)const {}
 
 protected:
 	virtual bool AllowDynamicPins() const { return true; }

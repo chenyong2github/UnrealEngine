@@ -48,7 +48,6 @@ struct FNiagaraGraphCachedDataBase;
 #endif
 
 class UNiagaraDataChannel;
-class UNiagaraDataChannelDefinitions;
 
 USTRUCT()
 struct FNiagaraEmitterCompiledData
@@ -87,10 +86,11 @@ struct FNiagaraEmitterCompiledData
 	UPROPERTY()
 	FNiagaraDataSetCompiledData DataSetCompiledData;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	FNiagaraDataSetCompiledData GPUCaptureDataSetCompiledData;
-#endif
+	#if NIAGARA_SYSTEM_CAPTURE
+	/** Debug only data for caputuring from GPU sims, laziliy initialized when needed via GetGPUCaptureDataSetCompiledData().*/
+	mutable FNiagaraDataSetCompiledData GPUCaptureDataSetCompiledData;
+	const FNiagaraDataSetCompiledData& GetGPUCaptureDataSetCompiledData()const;
+	#endif
 };
 
 USTRUCT()
@@ -754,9 +754,6 @@ public:
 	/** Resets internal data leaving it in a state which would have minimal cost to exist in headless builds (servers) */
 	void ResetToEmptySystem();
 
-	/** Registers that this System uses the passed DI. No symmetrical unregister as this is cleared and rebuilt on compile. */
-	void RegisterDataChannelUse(const UNiagaraDataChannel* DataChannel);
-
 	/** Updates any post compile data based upon data interfaces. */
 	void OnCompiledDataInterfaceChanged();
 
@@ -932,9 +929,6 @@ protected:
 
 	UPROPERTY()
 	bool bNeedsGPUContextInitForDataInterfaces;
-
-	UPROPERTY()
-	TArray<TObjectPtr<UNiagaraDataChannelDefinitions>> ReferencedDataChannelDefinitions;
 
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. Please note that some indices may have the top bit set (kStartNewOverlapGroupBit)
 	* to indicate synchronization points in parallel execution, so mask it out before using the values as indices in the emitters array.

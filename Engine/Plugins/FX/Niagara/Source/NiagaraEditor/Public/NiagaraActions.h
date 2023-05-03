@@ -396,8 +396,11 @@ public:
 	INiagaraDataInterfaceNodeActionProvider& operator=(INiagaraDataInterfaceNodeActionProvider&&) = delete;
 	virtual ~INiagaraDataInterfaceNodeActionProvider() = default;
 
-	/** Pure virtual that sub classes should implement to provide menu actions specific to DIs and their functions. */
-	virtual void GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const = 0;
+	/** Allows DIs to add context menu actions for the whole node. */
+	virtual void GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const {}
+
+	/** Allows DIs to add actions for add pins on the DI function call nodes. */
+	virtual void  CollectAddPinActionsImpl(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin) const {}
 
 	template<typename DIClass, typename ActionProviderClass>
 	static void Register();
@@ -408,8 +411,12 @@ public:
 	template<typename DIClass>
 	static void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature);
 
-	/**  */
 	static void GetNodeContextMenuActions(UClass* DIClass, UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature);
+
+	template<typename DIClass>
+	static void CollectAddPinActions(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin);
+
+	static void CollectAddPinActions(UClass* DIClass, FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin);
 
 	/** All currently registered action providers. */
 	static TMap<FName, TUniquePtr<INiagaraDataInterfaceNodeActionProvider>> RegisteredActionProviders;
@@ -437,6 +444,15 @@ void INiagaraDataInterfaceNodeActionProvider::GetNodeContextMenuActions(UToolMen
 	}
 }
 
+template<typename DIClass>
+void INiagaraDataInterfaceNodeActionProvider::CollectAddPinActions(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin)
+{
+	if (TUniquePtr<INiagaraDataInterfaceNodeActionProvider>* Provider = RegisteredActionProviders.Find(DIClass::StaticClass()->GetFName()))
+	{
+		(*Provider)->CollectAddPinActionsImpl(Collector, AddPin);
+	}
+}
+
 ////////////////////////////////
 /// Actions for engine data interfaces.
 /////////////////////////////////
@@ -453,4 +469,5 @@ class FNiagaraDataInterfaceNodeActionProvider_DataChannelRead : public INiagaraD
 public:
 
 	virtual void GetNodeContextMenuActionsImpl(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature) const override;
+	virtual void CollectAddPinActionsImpl(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin)const override;
 };

@@ -53,6 +53,7 @@ namespace FNiagaraDataInterfaceUtilities
 /** Helper context object helping to facilitate data interfaces building their hlsl shader code for GPU simulations. */
 struct FNiagaraDataInterfaceHlslGenerationContext
 {
+	DECLARE_DELEGATE_RetVal_OneParam(FString, FGetFunctionSignatureSymbol, const FNiagaraFunctionSignature& /*Signature*/)
 	DECLARE_DELEGATE_RetVal_OneParam(FString, FGetStructHlslTypeName, const FNiagaraTypeDefinition& /*Type*/)
 	DECLARE_DELEGATE_RetVal_OneParam(FString, FGetPropertyHlslTypeName, const FProperty* /*Property*/)
 	DECLARE_DELEGATE_RetVal_TwoParams(FString, FGetSanitizedSymbolName, FStringView /*SymbolName*/, bool /*bCollapsNamespaces*/)
@@ -66,12 +67,14 @@ struct FNiagaraDataInterfaceHlslGenerationContext
 	TArrayView<const FNiagaraFunctionSignature> Signatures;
 	int32 FunctionInstanceIndex = INDEX_NONE;
 
+	FGetFunctionSignatureSymbol GetFunctionSignatureSymbolDelegate;
 	FGetStructHlslTypeName GetStructHlslTypeNameDelegate;
 	FGetPropertyHlslTypeName GetPropertyHlslTypeNameDelegate;
 	FGetSanitizedSymbolName GetSanitizedSymbolNameDelegate;
 
 	const FNiagaraDataInterfaceGeneratedFunction& GetFunctionInfo() const { return ParameterInfo.GeneratedFunctions[FunctionInstanceIndex]; }
 
+	FString GetFunctionSignatureSymbol(const FNiagaraFunctionSignature& Signature) { return GetFunctionSignatureSymbolDelegate.Execute(Signature); }
 	FString GetStructHlslTypeName(const FNiagaraTypeDefinition& Type) { return GetStructHlslTypeNameDelegate.Execute(Type); }
 	FString GetPropertyHlslTypeName(const FProperty* Property) { return GetPropertyHlslTypeNameDelegate.Execute(Property); }
 	FString GetSanitizedSymbolName(FStringView SymbolName, bool bCollapsNamespaces = false) { return GetSanitizedSymbolNameDelegate.Execute(SymbolName, bCollapsNamespaces); }

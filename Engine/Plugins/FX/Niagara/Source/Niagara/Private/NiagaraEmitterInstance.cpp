@@ -1421,7 +1421,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		check(GPUExecContext->GPUScript_RT == EmitterData->GetGPUComputeScript()->GetRenderThreadScript());
 		GPUExecContext->GPUScript_RT = EmitterData->GetGPUComputeScript()->GetRenderThreadScript();
 
-#if WITH_EDITOR
+#if NIAGARA_SYSTEM_CAPTURE
 		if (ParentSystemInstance->ShouldCaptureThisFrame())
 		{
 			TSharedPtr<FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo = ParentSystemInstance->GetActiveCaptureWrite(CachedIDName, ENiagaraScriptUsage::ParticleGPUComputeScript, FGuid());
@@ -1432,7 +1432,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 				DebugInfo->Parameters = GPUExecContext->CombinedParamStore;
 				
 				//TODO: This layout info can be pulled into the emitter/systems etc and all sets just refer to them. They are becoming an annoyance here.
-				DebugInfo->Frame.Init(&CachedEmitterCompiledData->GPUCaptureDataSetCompiledData);
+				DebugInfo->Frame.Init(&CachedEmitterCompiledData->GetGPUCaptureDataSetCompiledData());
 
 				// Execute a readback
 				ENQUEUE_RENDER_COMMAND(NiagaraReadbackGpuSim)(
@@ -1867,7 +1867,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	}
 
 	//Now pull out any debug info we need.
-#if WITH_EDITORONLY_DATA
+#if NIAGARA_SYSTEM_CAPTURE
 	if (ParentSystemInstance->ShouldCaptureThisFrame())
 	{
 		//Pull out update data.
@@ -1948,7 +1948,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 							EventInstanceData->EventExecContexts[EventScriptIdx].Parameters.Dump();
 						}
 
-	#if WITH_EDITORONLY_DATA
+	#if NIAGARA_SYSTEM_CAPTURE
 						if (ParentSystemInstance->ShouldCaptureThisFrame())
 						{
 							FGuid EventGuid = EventInstanceData->EventExecContexts[EventScriptIdx].Script->GetUsageId();
@@ -2014,7 +2014,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 							EventInstanceData->EventExecContexts[EventScriptIdx].Parameters.Dump();
 						}
 
-#if WITH_EDITORONLY_DATA
+#if NIAGARA_SYSTEM_CAPTURE
 						if (ParentSystemInstance->ShouldCaptureThisFrame())
 						{
 							FGuid EventGuid = EventInstanceData->EventExecContexts[EventScriptIdx].Script->GetUsageId();
@@ -2073,7 +2073,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 // 					}
 // 
 // 
-// #if WITH_EDITORONLY_DATA
+// #if NIAGARA_SYSTEM_CAPTURE
 // 					if (ParentSystemInstance->ShouldCaptureThisFrame())
 // 					{
 // 						FGuid EventGuid = EventExecContexts[EventScriptIdx].Script->GetUsageId();

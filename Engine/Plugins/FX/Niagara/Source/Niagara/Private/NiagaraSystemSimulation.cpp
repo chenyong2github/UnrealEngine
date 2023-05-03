@@ -598,7 +598,7 @@ FNiagaraSystemSimulationTickContext::FNiagaraSystemSimulationTickContext(class F
 
 	bRunningAsync = bAllowAsync && GNiagaraSystemSimulationAllowASync && FApp::ShouldUseThreadingForPerformance();
 
-#if WITH_EDITORONLY_DATA
+#if NIAGARA_SYSTEM_CAPTURE
 	if ( Owner->GetIsSolo() && Instances.Num() == 1 )
 	{
 		bRunningAsync &= Instances[0]->ShouldCaptureThisFrame() == false;
@@ -1778,7 +1778,7 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 			}
 		}
 
-	#if WITH_EDITORONLY_DATA
+	#if NIAGARA_SYSTEM_CAPTURE
 		if (SoloSystemInstance)
 		{
 			SoloSystemInstance->FinishCapture();
@@ -1916,7 +1916,7 @@ void FNiagaraSystemSimulation::SpawnSystemInstances(FNiagaraSystemSimulationTick
 
 	Context.DataSet.EndSimulate();
 
-#if WITH_EDITORONLY_DATA
+#if NIAGARA_SYSTEM_CAPTURE
 	if (SoloSystemInstance && SoloSystemInstance->ShouldCaptureThisFrame())
 	{
 		TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo = SoloSystemInstance->GetActiveCaptureWrite(NAME_None, ENiagaraScriptUsage::SystemSpawnScript, FGuid());
@@ -2014,7 +2014,7 @@ void FNiagaraSystemSimulation::UpdateSystemInstances(FNiagaraSystemSimulationTic
 
 		Context.DataSet.EndSimulate();
 
-#if WITH_EDITORONLY_DATA
+#if NIAGARA_SYSTEM_CAPTURE
 		if (SoloSystemInstance && SoloSystemInstance->ShouldCaptureThisFrame())
 		{
 			TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo = SoloSystemInstance->GetActiveCaptureWrite(NAME_None, ENiagaraScriptUsage::SystemUpdateScript, FGuid());

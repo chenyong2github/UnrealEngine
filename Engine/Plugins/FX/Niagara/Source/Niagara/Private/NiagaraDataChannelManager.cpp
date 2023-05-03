@@ -6,8 +6,10 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelHandler.h"
-#include "NiagaraDataChannelDefinitions.h"
 
+DECLARE_CYCLE_STAT(TEXT("FNiagaraDataChannelManager::BeginFrame"), STAT_DataChannelManager_BeginFrame, STATGROUP_NiagaraDataChannels);
+DECLARE_CYCLE_STAT(TEXT("FNiagaraDataChannelManager::EndFrame"), STAT_DataChannelManager_EndFrame, STATGROUP_NiagaraDataChannels);
+DECLARE_CYCLE_STAT(TEXT("FNiagaraDataChannelManager::Tick"), STAT_DataChannelManager_Tick, STATGROUP_NiagaraDataChannels);
 
 FNiagaraDataChannelManager::FNiagaraDataChannelManager(FNiagaraWorldManager* InWorldMan)
 	: WorldMan(InWorldMan)
@@ -21,13 +23,14 @@ void FNiagaraDataChannelManager::AddReferencedObjects(FReferenceCollector& Colle
 
 void FNiagaraDataChannelManager::Init()
 {
-	for (const UNiagaraDataChannelDefinitions* DataChannelDefs : UNiagaraDataChannelDefinitions::GetDataChannelDefinitions(false, false))
+	//Initialize any existing data channels, more may be initialized later as they are loaded.
+	UNiagaraDataChannel::ForEachDataChannel([&](UNiagaraDataChannel* DataChannel)
 	{
-		for (const UNiagaraDataChannel* DataChannel : DataChannelDefs->DataChannels)
+		if (DataChannel->HasAnyFlags(RF_ClassDefaultObject) == false)
 		{
 			InitDataChannel(DataChannel, true);
 		}
-	}
+	});
 }
 
 void FNiagaraDataChannelManager::Cleanup()
@@ -35,10 +38,37 @@ void FNiagaraDataChannelManager::Cleanup()
 	Channels.Empty();
 }
 
+void FNiagaraDataChannelManager::BeginFrame(float DeltaSeconds)
+{
+	if (INiagaraModule::DataChannelsEnabled())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_DataChannelManager_BeginFrame);
+		//Tick all DataChannel channel handlers.
+		for (auto& ChannelPair : Channels)
+		{
+			ChannelPair.Value->BeginFrame(DeltaSeconds, WorldMan);
+		}
+	}
+}
+
+void FNiagaraDataChannelManager::EndFrame(float DeltaSeconds)
+{
+	if (INiagaraModule::DataChannelsEnabled())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_DataChannelManager_EndFrame);
+		//Tick all DataChannel channel handlers.
+		for (auto& ChannelPair : Channels)
+		{
+			ChannelPair.Value->EndFrame(DeltaSeconds, WorldMan);
+		}
+	}
+}
+
 void FNiagaraDataChannelManager::Tick(float DeltaSeconds, ETickingGroup TickGroup)
 {
 	if(INiagaraModule::DataChannelsEnabled())
 	{
+		SCOPE_CYCLE_COUNTER(STAT_DataChannelManager_Tick);
 		//Tick all DataChannel channel handlers.
 		for (auto& ChannelPair : Channels)
 		{
@@ -51,9 +81,9 @@ void FNiagaraDataChannelManager::Tick(float DeltaSeconds, ETickingGroup TickGrou
 	}
 }
 
-UNiagaraDataChannelHandler* FNiagaraDataChannelManager::FindDataChannelHandler(FName ChannelName)
+UNiagaraDataChannelHandler* FNiagaraDataChannelManager::FindDataChannelHandler(const UNiagaraDataChannel* Channel)
 {
-	if (TObjectPtr<UNiagaraDataChannelHandler>* Found = Channels.Find(ChannelName))
+	if (TObjectPtr<UNiagaraDataChannelHandler>* Found = Channels.Find(Channel))
 	{
 		return (*Found).Get();
 	}
@@ -62,21 +92,21 @@ UNiagaraDataChannelHandler* FNiagaraDataChannelManager::FindDataChannelHandler(F
 
 void FNiagaraDataChannelManager::InitDataChannel(const UNiagaraDataChannel* InChannel, bool bForce)
 {
-	if(INiagaraModule::DataChannelsEnabled() && InChannel->IsValid())
+	UWorld* World = GetWorld();
+	if(INiagaraModule::DataChannelsEnabled() && World && !World->IsNetMode(NM_DedicatedServer) && InChannel->IsValid())
 	{
-		FName Channel = InChannel->GetChannelName();
-		TObjectPtr<UNiagaraDataChannelHandler>& Handler = Channels.FindOrAdd(Channel);
+		TObjectPtr<UNiagaraDataChannelHandler>& Handler = Channels.FindOrAdd(InChannel);
 
 		if (bForce || Handler == nullptr)
 		{
-			Handler = InChannel->CreateHandler();
+			Handler = InChannel->CreateHandler(WorldMan->GetWorld());
 		}
 	}
 }
 
-void FNiagaraDataChannelManager::RemoveDataChannel(FName ChannelName)
+void FNiagaraDataChannelManager::RemoveDataChannel(const UNiagaraDataChannel* InChannel)
 {
-	Channels.Remove(ChannelName);
+	Channels.Remove(InChannel);
 }
 
 UWorld* FNiagaraDataChannelManager::GetWorld()const

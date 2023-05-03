@@ -161,8 +161,10 @@
 
 #include "NiagaraActions.h"
 
-#include "NiagaraDataChannelDefinitions.h"
 #include "NiagaraDataChannel.h"
+
+#include "Engine/AssetManager.h"
+#include "Engine/AssetManagerSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorModule)
 
@@ -948,8 +950,7 @@ void FNiagaraEditorModule::OnPreExit()
 
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-	AssetRegistry.OnInMemoryAssetCreated().Remove(OnAssetCreatedHandle);
-	AssetRegistry.OnInMemoryAssetDeleted().Remove(OnAssetDeletedHandle);
+	AssetRegistry.OnFilesLoaded().Remove(AssetRegistryOnLoadCompleteHandle);
 }
 
 void FNiagaraEditorModule::PostGarbageCollect()
@@ -1566,8 +1567,7 @@ void FNiagaraEditorModule::OnPostEngineInit()
 
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-	OnAssetCreatedHandle = AssetRegistry.OnInMemoryAssetCreated().AddRaw(this, &FNiagaraEditorModule::OnAssetCreated);
-	OnAssetDeletedHandle = AssetRegistry.OnInMemoryAssetDeleted().AddRaw(this, &FNiagaraEditorModule::OnAssetDeleted);
+	AssetRegistryOnLoadCompleteHandle = AssetRegistry.OnFilesLoaded().AddRaw(this, &FNiagaraEditorModule::OnAssetRegistryLoadComplete);
 }
 
 void FNiagaraEditorModule::OnDeviceProfileManagerUpdated()
@@ -2084,19 +2084,21 @@ bool FNiagaraEditorModule::DeferredDestructObjects(float InDeltaTime)
 	return false;
 }
 
-void FNiagaraEditorModule::OnAssetCreated(UObject* CreatedObject)
+void FNiagaraEditorModule::OnAssetRegistryLoadComplete()
 {
-	if (UNiagaraDataChannelDefinitions* DataChannelDef = Cast<UNiagaraDataChannelDefinitions>(CreatedObject))
-	{
-		UNiagaraDataChannelDefinitions::OnAssetCreated(DataChannelDef);
-	}
-}
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-void FNiagaraEditorModule::OnAssetDeleted(UObject* DeletedObject)
-{
-	if (UNiagaraDataChannelDefinitions* DataChannelDef = Cast<UNiagaraDataChannelDefinitions>(DeletedObject))
+	AssetRegistry.OnFilesLoaded().Remove(AssetRegistryOnLoadCompleteHandle);
+
+	check(AssetRegistry.IsLoadingAssets() == false);
+
+	//Ensure All Data Channel Assets are loaded and available for use in editor.
+	TArray<FAssetData> AllDataChannels;
+	AssetRegistry.GetAssetsByClass(UNiagaraDataChannelAsset::StaticClass()->GetClassPathName(), AllDataChannels);
+	for (FAssetData& DataChannelAsset : AllDataChannels)
 	{
-		UNiagaraDataChannelDefinitions::OnAssetDeleted(DataChannelDef);
+		UNiagaraDataChannelAsset* NewAsset = Cast<UNiagaraDataChannelAsset>(DataChannelAsset.GetAsset());
 	}
 }
 

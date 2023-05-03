@@ -415,6 +415,19 @@ public:
 	static FNiagaraTypeDefinition GetSWCType(const FNiagaraTypeDefinition& InType);
 	static void TickTypeRemap();
 
+	/**
+	Attempt to get the actual LWC type for a given type that would be used in the rest of the engine etc.
+	Used for cases where we actually need to store types in LWC format.
+	These cannot be properly serialized currently so must be constructed at runtime from their Niagara Simulation types.
+	*/
+	static FNiagaraTypeDefinition GetLWCType(const FNiagaraTypeDefinition& InType);
+	
+	static FNiagaraTypeDefinition GetVector2DDef();
+	static FNiagaraTypeDefinition GetVectorDef();
+	static FNiagaraTypeDefinition GetVector4Def();
+	static FNiagaraTypeDefinition GetQuatDef();
+
+	static void InitStaticTypes();
 private:
 	struct FRemapEntry
 	{
@@ -436,6 +449,12 @@ private:
 	static FRWLock RemapTableLock;
 	static TMap<TWeakObjectPtr<UScriptStruct>, FRemapEntry> RemapTable;
 	static std::atomic<bool> RemapTableDirty;
+
+	/** LWC Counterparts to Niagara's base simulation types. */
+	static FNiagaraTypeDefinition Vector2DDef;
+	static FNiagaraTypeDefinition VectorDef;
+	static FNiagaraTypeDefinition Vector4Def;
+	static FNiagaraTypeDefinition QuatDef;
 };
 
 /** Information about how this type should be laid out in an FNiagaraDataSet */
@@ -541,10 +560,14 @@ If this changes, all scripts must be recompiled by bumping the NiagaraCustomVers
 UENUM()
 enum class ENiagaraExecutionStateSource : uint32
 {
-	Scalability, //State set by Scalability logic. Lowest precedence.
-	Internal, //Misc internal state. For example becoming inactive after we finish our set loops.
-	Owner, //State requested by the owner. Takes precedence over everything but internal completion logic.
-	InternalCompletion, // Internal completion logic. Has to take highest precedence for completion to be ensured.
+	/** State set by Scalability logic. Lowest precedence. */
+	Scalability,
+	/** Misc internal state. For example becoming inactive after we finish our set loops. */
+	Internal, 
+	/** State requested by the owner. Takes precedence over everything but internal completion logic. */
+	Owner, 
+	/** Internal completion logic. Has to take highest precedence for completion to be ensured. */
+	InternalCompletion,
 };
 
 UENUM()

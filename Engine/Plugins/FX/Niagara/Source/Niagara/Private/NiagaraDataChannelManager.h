@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UObject/ObjectPtr.h"
+#include "NiagaraDataChannelPublic.h"
 
 class FNiagaraWorldManager;
 class UNiagaraDataChannel;
@@ -24,14 +25,18 @@ public:
 	void Cleanup();
 
 	void InitDataChannel(const UNiagaraDataChannel* Channel, bool bForce);
-	void RemoveDataChannel(FName ChannelName);
+	void RemoveDataChannel(const UNiagaraDataChannel* Channel);
+
+	void BeginFrame(float DeltaSeconds);
+	void EndFrame(float DeltaSeconds);
 
 	void Tick(float DeltaSeconds, ETickingGroup TickGroup);
 	
 	/**
 	Return the DataChannel handler for the given channel.
 	*/
-	UNiagaraDataChannelHandler* FindDataChannelHandler(FName ChannelName);
+	UNiagaraDataChannelHandler* FindDataChannelHandler(const UNiagaraDataChannel* Channel);
+	UNiagaraDataChannelHandler* FindDataChannelHandler(const UNiagaraDataChannelAsset* Channel) { return Channel ? FindDataChannelHandler(Channel->Get()) : nullptr; }
 
 	UWorld* GetWorld()const;
 
@@ -39,5 +44,5 @@ private:
 	FNiagaraWorldManager* WorldMan = nullptr;
 
 	/** Runtime handlers for each DataChannel channel. */
-	TMap<FName, TObjectPtr<UNiagaraDataChannelHandler>> Channels;
+	TMap<TObjectPtr<const UNiagaraDataChannel>, TObjectPtr<UNiagaraDataChannelHandler>> Channels;
 };

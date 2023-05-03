@@ -2455,39 +2455,25 @@ void SNiagaraRawVariableTypeSelectMenu::CollectAllActions(FGraphActionListBuilde
 {
 	FNiagaraMenuActionCollector Collector;
 
-	static TArray<FNiagaraTypeDefinition> Types;
-	if(Types.IsEmpty())
+	TArray<FNiagaraTypeDefinition> Types;
+	FNiagaraEditorUtilities::GetAllowedUserVariableTypes(Types);
+	for (const FNiagaraTypeDefinition& Type : Types)
 	{
-		//TODO: Build better list of possible user facing types.
-		UPackage* CorePkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
-		Types.Emplace(FNiagaraTypeDefinition::GetBoolDef());
-		Types.Emplace(FNiagaraTypeDefinition::GetIntDef());
-		Types.Emplace(FNiagaraTypeDefinition(FNiagaraDouble::StaticStruct(), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow));
+		if(Type.IsDataInterface() || Type.GetClass())
+		{
+			continue;
+		}
 
-		Types.Emplace(FNiagaraTypeDefinition(FindObjectChecked<UScriptStruct>(CorePkg, TEXT("Vector2d")), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow));
-		Types.Emplace(FNiagaraTypeDefinition(FindObjectChecked<UScriptStruct>(CorePkg, TEXT("Vector")), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow));
-		Types.Emplace(FNiagaraTypeDefinition(FindObjectChecked<UScriptStruct>(CorePkg, TEXT("Vector4")), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow));
-		Types.Emplace(FNiagaraTypeDefinition(FindObjectChecked<UScriptStruct>(CorePkg, TEXT("Quat")), FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow));
-
-		Types.Emplace(FNiagaraTypeDefinition::GetColorDef());
-		Types.Emplace(FNiagaraTypeDefinition::GetIDDef());
-		Types.Emplace(FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct()));
-	};
-
-	Types.Sort([](const FNiagaraTypeDefinition& A, const FNiagaraTypeDefinition& B) { return (A.GetNameText().ToLower().ToString() < B.GetNameText().ToLower().ToString()); });
-
-	for (const FNiagaraTypeDefinition& RegisteredType : Types)
-	{
-		FNiagaraVariable DefaultVar(RegisteredType, FName(*RegisteredType.GetName()));
+		FNiagaraVariable DefaultVar(Type, FName(*Type.GetName()));
 		FNiagaraEditorUtilities::ResetVariableToDefaultValue(DefaultVar);
 
 		FText Category = FNiagaraEditorUtilities::GetVariableTypeCategory(DefaultVar);
-		const FText DisplayName = RegisteredType.GetNameText();
-		const FText Tooltip = RegisteredType.GetNameText();
+		const FText DisplayName = Type.GetNameText();
+		const FText Tooltip = Type.GetNameText();
 		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
 			Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateLambda(
-			[Var=VarToModify, PropHandle=PropertyHandle, RegisteredType]()
+			[Var=VarToModify, PropHandle=PropertyHandle, Type]()
 			{
 				FScopedTransaction Transaction(LOCTEXT("Set Raw Niagara Variable Type", "Set Variable Type"));
 				check(Var);
@@ -2500,7 +2486,7 @@ void SNiagaraRawVariableTypeSelectMenu::CollectAllActions(FGraphActionListBuilde
 				}
 
 				PropHandle->NotifyPreChange();
-				Var->SetType(RegisteredType);
+				Var->SetType(Type);
 				PropHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 				PropHandle->NotifyFinishedChangingProperties();
 			}
@@ -2511,80 +2497,162 @@ void SNiagaraRawVariableTypeSelectMenu::CollectAllActions(FGraphActionListBuilde
 
 	Collector.AddAllActionsTo(OutAllActions);
 }
+// Copy of private SConstrainedBox defined in PropertyEditor/Private/SConstrainedBox.h
+class SNiagaraConstrainedBox : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SNiagaraConstrainedBox) {}
+	SLATE_DEFAULT_SLOT(FArguments, Content)
+		SLATE_ATTRIBUTE(TOptional<float>, MinWidth)
+		SLATE_ATTRIBUTE(TOptional<float>, MaxWidth)
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs)
+	{
+		MinWidth = InArgs._MinWidth;
+		MaxWidth = InArgs._MaxWidth;
+
+		ChildSlot
+			[
+				InArgs._Content.Widget
+			];
+	}
+
+	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override
+	{
+		const float MinWidthVal = MinWidth.Get().Get(0.0f);
+		const float MaxWidthVal = MaxWidth.Get().Get(0.0f);
+
+		if (MinWidthVal == 0.0f && MaxWidthVal == 0.0f)
+		{
+			return SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier);
+		}
+		else
+		{
+			FVector2D ChildSize = ChildSlot.GetWidget()->GetDesiredSize();
+
+			float XVal = FMath::Max(MinWidthVal, ChildSize.X);
+			if (MaxWidthVal > MinWidthVal)
+			{
+				XVal = FMath::Min(MaxWidthVal, XVal);
+			}
+
+			return FVector2D(XVal, ChildSize.Y);
+		}
+	}
+
+private:
+	TAttribute< TOptional<float> > MinWidth;
+	TAttribute< TOptional<float> > MaxWidth;
+};
 
 void FNiagaraVariableDetailsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	TSharedPtr<IPropertyHandle> NameHandle = PropertyHandle->GetChildHandle(TEXT("Name"));
-	TSharedPtr<IPropertyHandle> TypeDefHandleHandle = PropertyHandle->GetChildHandle(TEXT("TypeDefHandle"));
 	
-	TArray<UObject*> Objects;
-	PropertyHandle->GetOuterObjects(Objects);
-	if (Objects.Num() > 1)
-	{
-		HeaderRow.NameContent()
-		[
-			PropertyHandle->CreatePropertyNameWidget()
-		];
-		HeaderRow.ValueContent()
-		[
-			PropertyHandle->CreatePropertyValueWidget()
-		];
-	}
-	else
-	{		
-		void* VarPtr = nullptr;
-		if (PropertyHandle->GetValueData(VarPtr) == FPropertyAccess::Success)
-		{		
-			FNiagaraVariable* Var = (FNiagaraVariable*)VarPtr;
-
-			HeaderRow.NameContent()
-				.MaxDesiredWidth(200.f)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.FillWidth(0.9f)
-					.Padding(4.0f, 0.0f, 4.0f, 0.0f)
-					[
-						SNew(STextBlock)
-						.Text_Lambda([Var] {	return Var ? Var->GetType().GetNameText() : FText::GetEmpty(); })
-					]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4.0f, 0.0f, 4.0f, 0.0f)
-				[
-					SNew(SComboButton)
-					.ButtonStyle(FAppStyle::Get(), "RoundButton")
-					.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
-					.ContentPadding(FMargin(2, 0))
-					.OnGetMenuContent(this, &FNiagaraVariableDetailsCustomization::GetTypeMenu, TypeDefHandleHandle, Var)
-					//.IsEnabled(this, &SNiagaraParameterPanel::GetCanAddParametersToCategory, Category)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.HasDownArrow(false)
-					.ButtonContent()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(FMargin(0, 1))
-						[
-							SNew(SImage)
-							.Image(FAppStyle::GetBrush("Icons.Edit"))
-						]
-					]
-				]
-			];
-		
-			HeaderRow.ValueContent()
-			[
-				NameHandle->CreatePropertyValueWidget()
-			];					
-		}
-	}	
 }
 
 void FNiagaraVariableDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
+	TSharedPtr<IPropertyHandle> NameHandle = PropertyHandle->GetChildHandle(TEXT("Name"));
+	TSharedPtr<IPropertyHandle> TypeDefHandleHandle = PropertyHandle->GetChildHandle(TEXT("TypeDefHandle"));
+
+	FDetailWidgetRow& Row = ChildBuilder.AddCustomRow(FText::GetEmpty());
+
+	TArray<UObject*> Objects;
+	PropertyHandle->GetOuterObjects(Objects);
+	if (Objects.Num() > 1)
+	{
+		Row.NameContent()
+			[
+				PropertyHandle->CreatePropertyNameWidget()
+			];
+		Row.ValueContent()
+			[
+				PropertyHandle->CreatePropertyValueWidget()
+			];
+
+	}
+	else
+	{
+		void* VarPtr = nullptr;
+		if (PropertyHandle->GetValueData(VarPtr) == FPropertyAccess::Success)
+		{
+			FNiagaraVariable* Var = (FNiagaraVariable*)VarPtr;
+
+			Row.NameContent()
+				[
+					//PropertyHandle->CreatePropertyNameWidget()
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+					[
+						SNew(SComboButton)
+						.ButtonStyle(FAppStyle::Get(), "RoundButton")
+						.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
+						.ContentPadding(FMargin(0, 0))
+						.OnGetMenuContent(this, &FNiagaraVariableDetailsCustomization::GetTypeMenu, TypeDefHandleHandle, Var)
+						//.IsEnabled(this, &SNiagaraParameterPanel::GetCanAddParametersToCategory, Category)
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						.HasDownArrow(false)
+						.ButtonContent()
+						[
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.Padding(FMargin(0, 1))
+							[
+								SNew(SImage)
+								.Image(FAppStyle::GetBrush("Icons.Edit"))
+							]
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+					[
+						SNew(SNiagaraConstrainedBox)
+						.MinWidth(75.0f)
+						[
+							SNew(STextBlock)
+							.Text_Lambda([Var] {return Var ? Var->GetType().GetNameText() : FText::GetEmpty(); })
+						]
+					]
+				];
+
+			Row.ValueContent()
+				[
+					SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+				[
+					SNew(SNiagaraConstrainedBox)
+					.MinWidth(150.0f)
+				[
+					NameHandle->CreatePropertyValueWidget()
+				]
+				]
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Padding(4.0f, 4.0f, 4.0f, 4.0f)
+				[
+					SNew(SNiagaraConstrainedBox)
+					.MinWidth(150.0f)
+				[
+					PropertyHandle->CreateDefaultPropertyButtonWidgets()
+				]
+				]
+			];
+		}
+	}
 }
 
 TSharedRef<SWidget> FNiagaraVariableDetailsCustomization::GetTypeMenu(TSharedPtr<IPropertyHandle> InPropertyHandle, FNiagaraVariable* Var)

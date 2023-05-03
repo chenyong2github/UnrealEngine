@@ -41,7 +41,6 @@
 #include "UObject/Package.h"
 #include "PipelineStateCache.h"
 #include "NiagaraDataChannel.h"
-#include "NiagaraDataChannelDefinitions.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSystem)
@@ -2013,21 +2012,17 @@ void UNiagaraSystem::UpdatePostCompileDIInfo()
 			}
 		}
 	}
-	
-	ReferencedDataChannelDefinitions.Reset();
 
-	//We must include internal DIs in this search so they get correctly PostCompiled.
-	FNiagaraDataInterfaceUtilities::FDataInterfaceSearchOptions SearchOptions;
-	SearchOptions.bIncludeInternal = true;
-	FNiagaraDataInterfaceUtilities::ForEachDataInterface(this, [](const FNiagaraDataInterfaceUtilities::FDataInterfaceUsageContext& Context)
+	ForEachScript([&](UNiagaraScript* Script) 
 	{
-		if (Context.DataInterface)
+		for(const FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDIInfo : Script->GetResolvedDataInterfaces())
 		{
-			Context.DataInterface->PostCompile();
-		}
-		return true;
-	}
-	, SearchOptions);
+			if(ResolvedDIInfo.ResolvedDataInterface)
+			{
+				ResolvedDIInfo.ResolvedDataInterface->PostCompile();
+			}
+		}		
+	});
 }
 
 void UNiagaraSystem::UpdateDITickFlags()
@@ -2085,14 +2080,6 @@ void UNiagaraSystem::UpdateHasGPUEmitters()
 }
 
 #if WITH_EDITORONLY_DATA
-
-void UNiagaraSystem::RegisterDataChannelUse(const UNiagaraDataChannel* DataChannel)
-{
-	if(UNiagaraDataChannelDefinitions* DefinitionsAsset = DataChannel->GetTypedOuter<UNiagaraDataChannelDefinitions>())
-	{
-		ReferencedDataChannelDefinitions.AddUnique(DefinitionsAsset);
-	}
-}
 
 void UNiagaraSystem::OnCompiledDataInterfaceChanged()
 {
@@ -3021,16 +3008,10 @@ void UNiagaraSystem::InitEmitterCompiledData()
 			const FNiagaraEmitterHandle& EmitterHandle = EmitterHandles[EmitterIdx];
 			const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance().Emitter;
 			FNiagaraDataSetCompiledData& EmitterDataSetCompiledData = NewEmitterCompiledData[EmitterIdx]->DataSetCompiledData;
-			FNiagaraDataSetCompiledData& GPUCaptureCompiledData = NewEmitterCompiledData[EmitterIdx]->GPUCaptureDataSetCompiledData;
 			if (ensureMsgf(Emitter != nullptr, TEXT("Failed to get Emitter Instance from Emitter Handle in post compile, please investigate.")))
 			{
-				static FName GPUCaptureDataSetName = TEXT("GPU Capture Dataset");
 				InitEmitterVariableAliasNames(NewEmitterCompiledData[EmitterIdx].Get(), Emitter);
-				InitEmitterDataSetCompiledData(EmitterDataSetCompiledData, EmitterHandle);
-				GPUCaptureCompiledData.ID = FNiagaraDataSetID(GPUCaptureDataSetName, ENiagaraDataSetType::ParticleData);
-				GPUCaptureCompiledData.Variables = EmitterDataSetCompiledData.Variables;
-				GPUCaptureCompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
-				GPUCaptureCompiledData.BuildLayout();				
+				InitEmitterDataSetCompiledData(EmitterDataSetCompiledData, EmitterHandle);			
 			}
 		}
 
@@ -3638,6 +3619,23 @@ void UNiagaraSystem::SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings)
 	}
 }
 
+#endif
+
+
+#if NIAGARA_SYSTEM_CAPTURE
+const FNiagaraDataSetCompiledData& FNiagaraEmitterCompiledData::GetGPUCaptureDataSetCompiledData()const
+{
+	if (GPUCaptureDataSetCompiledData.Variables.Num() == 0)
+	{
+		static FName GPUCaptureDataSetName = TEXT("GPU Capture Dataset");
+		GPUCaptureDataSetCompiledData.ID = FNiagaraDataSetID(GPUCaptureDataSetName, ENiagaraDataSetType::ParticleData);
+		GPUCaptureDataSetCompiledData.Variables = DataSetCompiledData.Variables;
+		GPUCaptureDataSetCompiledData.SimTarget = ENiagaraSimTarget::CPUSim;
+		GPUCaptureDataSetCompiledData.BuildLayout();
+	}
+
+	return GPUCaptureDataSetCompiledData;
+}
 #endif
 
 #undef LOCTEXT_NAMESPACE // NiagaraSystem

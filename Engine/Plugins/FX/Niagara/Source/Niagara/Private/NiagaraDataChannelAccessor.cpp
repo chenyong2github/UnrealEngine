@@ -4,6 +4,8 @@
 
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
+
+#include "NiagaraDataChannelCommon.h"
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelHandler.h"
 
@@ -65,83 +67,99 @@ namespace NiagaraDataChannelAccesorLocal
 
 //////////////////////////////////////////////////////////////////////////
 
-bool UNiagaraDataChannelReader::InitAccess(UActorComponent* OwningComponent)
+bool UNiagaraDataChannelReader::InitAccess(FNiagaraDataChannelSearchParameters SearchParams, bool bReadPreviousFrameData)
 {
 	Data = nullptr;
+	bReadingPreviousFrame = bReadPreviousFrameData;
 	check(Owner);
 
-	if (OwningComponent == nullptr)
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("Call to UNiagaraDataChannelReader::InitAccess did not provide a valid Owning Componet."));
-		return false;
-	}
-
-	Data = Owner->GetGameData(OwningComponent);
-	return true;
+	Data = Owner->FindData(SearchParams, ENiagaraResourceAccess::ReadOnly);
+	return Data.IsValid();
 }
 
 int32 UNiagaraDataChannelReader::Num()const
 {
 	if (Data.IsValid())
 	{
-		return Data->Num();
+		return Data->GetGameData()->Num();
 	}
 	return 0;
 }
 
 template<typename T>
-T UNiagaraDataChannelReader::ReadData(const FNiagaraVariableBase& Var, int32 Index)const
+bool UNiagaraDataChannelReader::ReadData(const FNiagaraVariableBase& Var, int32 Index, T& OutData)const
 {
 	if (ensure(Data.IsValid()))
 	{
-		if (FNiagaraDataChannelVariableBuffer* VarBuffer = Data->FindVariableBuffer(Var))
+		if (FNiagaraDataChannelVariableBuffer* VarBuffer = Data->GetGameData()->FindVariableBuffer(Var))
 		{
-			T OutData;
-			VarBuffer->Read<T>(Index, OutData);
-			return OutData;
+			return VarBuffer->Read<T>(Index, OutData, bReadingPreviousFrame);
 		}
 	}
-	return T();
+	return false;
 }
 
 double UNiagaraDataChannelReader::ReadFloat(FName VarName, int32 Index)const
 {
-	return ReadData<double>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetDoubleDef(), VarName), Index);
+	double RetVal = 0.0f;
+	ReadData<double>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetDoubleDef(), VarName), Index, RetVal);
+	return RetVal;
 }
 
 FVector2D UNiagaraDataChannelReader::ReadVector2D(FName VarName, int32 Index)const
 {
-	return ReadData<FVector2D>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetVector2DDef(), VarName), Index);
+	FVector2D RetVal = FVector2D::ZeroVector;
+	ReadData<FVector2D>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetVector2DDef(), VarName), Index, RetVal);
+	return RetVal;
 }
 
 FVector UNiagaraDataChannelReader::ReadVector(FName VarName, int32 Index)const
 {
-	return ReadData<FVector>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetVectorDef(), VarName), Index);
+	FVector RetVal = FVector::ZeroVector;
+	ReadData<FVector>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetVectorDef(), VarName), Index, RetVal);
+	return RetVal;
 }
 
 FVector4 UNiagaraDataChannelReader::ReadVector4(FName VarName, int32 Index)const
 {
-	return ReadData<FVector4>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetVector4Def(), VarName), Index);
+	FVector4 RetVal = FVector4(0.0f);
+	ReadData<FVector4>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetVector4Def(), VarName), Index, RetVal);
+	return RetVal;
 }
 
 FQuat UNiagaraDataChannelReader::ReadQuat(FName VarName, int32 Index)const
 {
-	return ReadData<FQuat>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetQuatDef(), VarName), Index);
+	FQuat RetVal = FQuat::Identity;
+	ReadData<FQuat>(FNiagaraVariableBase(NiagaraDataChannelAccesorLocal::GetQuatDef(), VarName), Index, RetVal);
+	return RetVal;
 }
 
 FLinearColor UNiagaraDataChannelReader::ReadLinearColor(FName VarName, int32 Index)const
 {
-	return ReadData<FLinearColor>(FNiagaraVariableBase(FNiagaraTypeDefinition::GetColorDef(), VarName), Index);
+	FLinearColor RetVal = FLinearColor::White;
+	ReadData<FLinearColor>(FNiagaraVariableBase(FNiagaraTypeDefinition::GetColorDef(), VarName), Index, RetVal);
+	return RetVal;
 }
 
 int32 UNiagaraDataChannelReader::ReadInt(FName VarName, int32 Index)const
 {
-	return ReadData<int32>(FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), VarName), Index);
+	int32 RetVal = 0;
+	ReadData<int32>(FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), VarName), Index, RetVal);
+	return RetVal;
 }
 
 bool UNiagaraDataChannelReader::ReadBool(FName VarName, int32 Index)const
 {
-	return ReadData<bool>(FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), VarName), Index);
+	bool RetVal = false;
+	ReadData<bool>(FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), VarName), Index, RetVal);
+	return RetVal;
+}
+
+FVector UNiagaraDataChannelReader::ReadPosition(FName VarName, int32 Index)const
+{
+	FVector RetVal = FVector::ZeroVector;
+	ReadData<FVector>(FNiagaraVariableBase(FNiagaraTypeDefinition::GetPositionDef(), VarName), Index, RetVal);
+	return RetVal;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -159,14 +177,8 @@ void UNiagaraDataChannelWriter::WriteData(const FNiagaraVariableBase& Var, int32
 	}
 }
 
-bool UNiagaraDataChannelWriter::InitWrite(UActorComponent* OwningComponent, int32 Count, bool bVisibleToGame, bool bVisibleToCPU, bool bVisibleToGPU)
+bool UNiagaraDataChannelWriter::InitWrite(FNiagaraDataChannelSearchParameters SearchParams, int32 Count, bool bVisibleToGame, bool bVisibleToCPU, bool bVisibleToGPU)
 {
-	if( OwningComponent == nullptr )
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("Call to UNiagaraDataChannelWriter::InitWrite did not provide a valid Owning Componet."));
-		return false;
-	}
-
 	if (Count == 0)
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("Call to UNiagaraDataChannelWriter::InitWrite with Count == 0. Ignored."));
@@ -175,18 +187,23 @@ bool UNiagaraDataChannelWriter::InitWrite(UActorComponent* OwningComponent, int3
 
 	check(Owner);
 
-	Data = Owner->GetDataChannel()->CreateGameData();
+	FNiagaraDataChannelDataPtr DestData = Owner->FindData(SearchParams, ENiagaraResourceAccess::WriteOnly);
+	if(DestData)
+	{
+		//TODO- Dont create a whole new game Data here. Rather grab a pre-made staging/input One from the Data PTR With the relevant publish Flags.
+		Data = Owner->GetDataChannel()->CreateGameData();
+		Data->SetNum(Count);
 
-	FNiagaraDataChannelPublishRequest PublishRequest;
-	PublishRequest.bVisibleToGame = bVisibleToGame;
-	PublishRequest.bVisibleToCPUSims = bVisibleToCPU;
-	PublishRequest.bVisibleToGPUSims = bVisibleToGPU;
-	PublishRequest.GameData = Data;
-	Owner->Publish(PublishRequest);
+		FNiagaraDataChannelPublishRequest PublishRequest;
+		PublishRequest.bVisibleToGame = bVisibleToGame;
+		PublishRequest.bVisibleToCPUSims = bVisibleToCPU;
+		PublishRequest.bVisibleToGPUSims = bVisibleToGPU;
+		PublishRequest.GameData = Data;
+		DestData->Publish(PublishRequest);
+		return true;
+	}
 
-	Data->SetNum(Count);
-
-	return true;
+	return false;
 }
 
 int32 UNiagaraDataChannelWriter::Num()const
@@ -235,7 +252,7 @@ void UNiagaraDataChannelWriter::WriteInt(FName VarName, int32 Index, int32 InDat
 
 void UNiagaraDataChannelWriter::WriteBool(FName VarName, int32 Index, bool InData)
 {
-	WriteData(FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), VarName), Index, InData);
+	WriteData(FNiagaraVariableBase(FNiagaraTypeDefinition::GetBoolDef(), VarName), Index, FNiagaraBool(InData));
 }
 
 void UNiagaraDataChannelWriter::WriteSpawnInfo(FName VarName, int32 Index, FNiagaraSpawnInfo InData)
@@ -243,3 +260,7 @@ void UNiagaraDataChannelWriter::WriteSpawnInfo(FName VarName, int32 Index, FNiag
 	WriteData(FNiagaraVariableBase(FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct()), VarName), Index, InData);
 }
 
+void UNiagaraDataChannelWriter::WritePosition(FName VarName, int32 Index, FVector InData)
+{
+	WriteData(FNiagaraVariableBase(FNiagaraTypeDefinition::GetPositionDef(), VarName), Index, InData);
+}

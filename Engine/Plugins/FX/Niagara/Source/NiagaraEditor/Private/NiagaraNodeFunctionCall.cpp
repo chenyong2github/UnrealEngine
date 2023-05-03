@@ -1198,6 +1198,19 @@ void UNiagaraNodeFunctionCall::GetNodeContextMenuActions(class UToolMenu* Menu, 
 	}
 }
 
+void UNiagaraNodeFunctionCall::CollectAddPinActions(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin)const
+{
+	Super::CollectAddPinActions(Collector, AddPin);
+	if (FunctionScript == nullptr && Signature.Inputs.Num() > 0)
+	{
+		UClass* DIClass = Cast<UClass>(Signature.Inputs[0].GetType().GetClass());
+		if (DIClass)
+		{
+			INiagaraDataInterfaceNodeActionProvider::CollectAddPinActions(DIClass, Collector, AddPin);
+		}
+	}
+}
+
 bool UNiagaraNodeFunctionCall::HasValidScriptAndGraph() const
 {
 	return FunctionScript != nullptr && GetCalledGraph() != nullptr;
@@ -1655,7 +1668,7 @@ void UNiagaraNodeFunctionCall::RefreshSignature()
 					UEdGraphPin* InputPin = FoundPins[i];
 					FNiagaraVariable InputVariable = UEdGraphSchema_Niagara::PinToNiagaraVariable(InputPin);
 
-					if(!BaseSig->Inputs.Contains(InputVariable))
+					if(!BaseSig->Inputs.Contains(InputVariable) && IsAddPin(InputPin) == false && IsExecPin(InputPin) == false)
 					{
 						Signature.AddInput(InputVariable, FText::FromString(InputPin->PinToolTip));
 					}
@@ -1668,7 +1681,7 @@ void UNiagaraNodeFunctionCall::RefreshSignature()
 					UEdGraphPin* OutputPin = FoundPins[i];
 					FNiagaraVariable InputVariable = UEdGraphSchema_Niagara::PinToNiagaraVariable(OutputPin);
 
-					if(!BaseSig->Outputs.Contains(InputVariable))
+					if(!BaseSig->Outputs.Contains(InputVariable) && IsAddPin(OutputPin) == false && IsExecPin(OutputPin) == false)
 					{
 						Signature.AddOutput(UEdGraphSchema_Niagara::PinToNiagaraVariable(OutputPin), FText::FromString(OutputPin->PinToolTip));
 					}
@@ -1692,6 +1705,11 @@ bool UNiagaraNodeFunctionCall::IsBaseSignatureOfDataInterfaceFunction(const UEdG
 		{
 			FPinCollectorArray FoundPins;
 			TArray<FNiagaraVariable> InputOrOutputVariables;
+
+			if(BaseSig->bRequiresExecPin && IsExecPin(Pin))
+			{
+				return true;
+			}
 
 			if(Pin->Direction == EGPD_Input)
 			{

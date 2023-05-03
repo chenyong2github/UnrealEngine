@@ -6,6 +6,7 @@
 #include "NiagaraCompileHash.h"
 #include "Misc/LazySingleton.h"
 #include "NiagaraDataChannelCommon.h"
+#include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceDataChannelCommon.generated.h"
 
 UENUM()
@@ -94,7 +95,7 @@ struct FNDIDataChannel_FunctionToDataSetBinding
 	FNiagaraDataSetCompiledData DebugCompiledData;
 	#endif
 
-	FNDIDataChannel_FunctionToDataSetBinding(const FNDIDataChannelFunctionInfo& FunctionInfo, const FNiagaraDataSetCompiledData& DataSetLayout);
+	FNDIDataChannel_FunctionToDataSetBinding(const FNDIDataChannelFunctionInfo& FunctionInfo, const FNiagaraDataSetCompiledData& DataSetLayout, TArray<FNiagaraVariableBase>& OutMissingParams);
 
 	bool IsValid()const { return DataSetLayoutHash != 0; }
 	void GenVMBindings(const FNiagaraVariableBase& Var, const UStruct* Struct, uint32& FuncFloatRegister, uint32& FuncIntRegister, uint32& FuncHalfRegister, uint32& DataSetFloatRegister, uint32& DataSetIntRegister, uint32& DataSetHalfRegister);
@@ -136,7 +137,7 @@ public:
 	/** 
 	Retrieves, or generates, the layout information that maps from the given function to the data in the given dataset.
 	*/
-	FNDIDataChannel_FuncToDataSetBindingPtr GetLayoutInfo(const FNDIDataChannelFunctionInfo& FunctionInfo, const FNiagaraDataSetCompiledData& DataSetLayout);
+	FNDIDataChannel_FuncToDataSetBindingPtr GetLayoutInfo(const FNDIDataChannelFunctionInfo& FunctionInfo, const FNiagaraDataSetCompiledData& DataSetLayout, TArray<FNiagaraVariableBase>& OutMissingParams);
 };
 
 /** A sorted table of parameters accessed by each GPU script */
@@ -204,3 +205,150 @@ namespace NDIDataChannelUtilities
 {
 	void SortParameters(TArray<FNiagaraVariableBase>& Parameters);	
 }
+
+
+
+/** Handles any number of variadic parameter inputs. */
+template<int32 EXPECTED_NUM_INPUTS>
+struct FNDIVariadicInputHandler
+{
+	TArray<FNDIInputParam<float>, TInlineAllocator<EXPECTED_NUM_INPUTS>> FloatInputs;
+	TArray<FNDIInputParam<int32>, TInlineAllocator<EXPECTED_NUM_INPUTS>> IntInputs;
+	TArray<FNDIInputParam<FFloat16>, TInlineAllocator<EXPECTED_NUM_INPUTS>> HalfInputs;
+
+	FNDIVariadicInputHandler(FVectorVMExternalFunctionContext& Context, const FNDIDataChannel_FunctionToDataSetBinding* BindingPtr)
+	{
+		if(BindingPtr)
+		{
+			FloatInputs.Reserve(BindingPtr->NumFloatComponents);
+			IntInputs.Reserve(BindingPtr->NumInt32Components);
+			HalfInputs.Reserve(BindingPtr->NumHalfComponents);
+			for (const FNDIDataChannelRegisterBinding& VMBinding : BindingPtr->VMRegisterBindings)
+			{
+				switch (VMBinding.DataType)
+				{
+				case (int32)ENiagaraBaseTypes::Float: FloatInputs.Emplace(Context); break;
+				case (int32)ENiagaraBaseTypes::Int32: IntInputs.Emplace(Context); break;
+				case (int32)ENiagaraBaseTypes::Bool: IntInputs.Emplace(Context); break;
+				case (int32)ENiagaraBaseTypes::Half: HalfInputs.Emplace(Context); break;
+				default: check(0);
+				};
+			}
+		}
+	}
+
+	void Reset()
+	{
+		for (FNDIInputParam<float>& Input : FloatInputs) { Input.Reset(); }
+		for (FNDIInputParam<int32>& Input : IntInputs) { Input.Reset(); }
+		for (FNDIInputParam<FFloat16>& Input : HalfInputs) { Input.Reset(); }
+	}
+
+	void Advance()
+	{
+		for (FNDIInputParam<float>& Input : FloatInputs) { Input.Advance(); }
+		for (FNDIInputParam<int32>& Input : IntInputs) { Input.Advance(); }
+		for (FNDIInputParam<FFloat16>& Input : HalfInputs) { Input.Advance(); }
+	}
+
+	template<typename TFloatAction, typename TIntAction, typename THalfAction>
+	bool Process(bool bProcess, const FNDIDataChannel_FunctionToDataSetBinding* BindingInfo, TFloatAction FloatFunc, TIntAction IntFunc, THalfAction HalfFunc)
+	{
+		if (BindingInfo && bProcess)
+		{
+			//TODO: Optimize for long runs of writes to reduce binding/lookup overhead.
+			for (const FNDIDataChannelRegisterBinding& VMBinding : BindingInfo->VMRegisterBindings)
+			{
+				switch(VMBinding.DataType)
+				{
+					case (int32)ENiagaraBaseTypes::Float: FloatFunc(VMBinding, FloatInputs[VMBinding.FunctionRegisterIndex].GetAndAdvance()); break;
+					case (int32)ENiagaraBaseTypes::Int32: IntFunc(VMBinding, IntInputs[VMBinding.FunctionRegisterIndex].GetAndAdvance()); break;
+					case (int32)ENiagaraBaseTypes::Bool: IntFunc(VMBinding, IntInputs[VMBinding.FunctionRegisterIndex].GetAndAdvance()); break;
+					case (int32)ENiagaraBaseTypes::Half: HalfFunc(VMBinding, HalfInputs[VMBinding.FunctionRegisterIndex].GetAndAdvance()); break;
+					default: check(0);
+				};
+			}
+			return true;
+		}
+		
+		Advance();
+		return false;
+	}
+};
+
+
+template<int32 EXPECTED_NUM_INPUTS>
+struct FNDIVariadicOutputHandler
+{
+	TArray<VectorVM::FExternalFuncRegisterHandler<float>, TInlineAllocator<EXPECTED_NUM_INPUTS>> FloatOutputs;
+	TArray<VectorVM::FExternalFuncRegisterHandler<int32>, TInlineAllocator<EXPECTED_NUM_INPUTS>> IntOutputs;
+	TArray<VectorVM::FExternalFuncRegisterHandler<FFloat16>, TInlineAllocator<EXPECTED_NUM_INPUTS>> HalfOutputs;
+
+	FNDIVariadicOutputHandler(FVectorVMExternalFunctionContext& Context, const FNDIDataChannel_FunctionToDataSetBinding* BindingPtr)
+	{
+		//Parse the VM bytecode inputs in order, mapping them to the correct DataChannel data 
+		if(BindingPtr)
+		{
+			FloatOutputs.Reserve(BindingPtr->NumFloatComponents);
+			IntOutputs.Reserve(BindingPtr->NumInt32Components);
+			HalfOutputs.Reserve(BindingPtr->NumHalfComponents);
+			for (const FNDIDataChannelRegisterBinding& VMBinding : BindingPtr->VMRegisterBindings)
+			{
+				switch (VMBinding.DataType)
+				{
+				case (int32)ENiagaraBaseTypes::Float: FloatOutputs.Emplace(Context); break;
+				case (int32)ENiagaraBaseTypes::Int32: IntOutputs.Emplace(Context); break;
+				case (int32)ENiagaraBaseTypes::Bool: IntOutputs.Emplace(Context); break;
+				case (int32)ENiagaraBaseTypes::Half: HalfOutputs.Emplace(Context); break;
+				default: check(0);
+				};
+			}
+		}
+	}
+
+	template<typename TFloatAction, typename TIntAction, typename THalfAction>
+	bool Process(bool bProcess, const FNDIDataChannel_FunctionToDataSetBinding* BindingInfo, TFloatAction FloatFunc, TIntAction IntFunc, THalfAction HalfFunc)
+	{
+		if (BindingInfo && bProcess)
+		{
+			//TODO: Optimize for long runs of writes to reduce binding/lookup overhead.
+			for (const FNDIDataChannelRegisterBinding& VMBinding : BindingInfo->VMRegisterBindings)
+			{
+				switch (VMBinding.DataType)
+				{
+				case (int32)ENiagaraBaseTypes::Float: FloatFunc(VMBinding, FloatOutputs[VMBinding.FunctionRegisterIndex].GetDestAndAdvance()); break;
+				case (int32)ENiagaraBaseTypes::Int32: IntFunc(VMBinding, IntOutputs[VMBinding.FunctionRegisterIndex].GetDestAndAdvance()); break;
+				case (int32)ENiagaraBaseTypes::Bool: IntFunc(VMBinding, IntOutputs[VMBinding.FunctionRegisterIndex].GetDestAndAdvance()); break;
+				case (int32)ENiagaraBaseTypes::Half: HalfFunc(VMBinding, HalfOutputs[VMBinding.FunctionRegisterIndex].GetDestAndAdvance()); break;
+				default: check(0);
+				};
+			}
+			return true;
+		}
+
+		Fallback(1);
+
+		return false;
+	}
+
+	void Fallback(int32 Count)
+	{
+		for (int32 OutIdx = 0; OutIdx < FloatOutputs.Num(); ++OutIdx)
+		{
+			FMemory::Memzero(FloatOutputs[OutIdx].GetDest(), sizeof(float) * Count);
+			FloatOutputs[OutIdx].Advance(Count);
+		}
+
+		for (int32 OutIdx = 0; OutIdx < IntOutputs.Num(); ++OutIdx)
+		{
+			FMemory::Memzero(IntOutputs[OutIdx].GetDest(), sizeof(int32) * Count);
+			IntOutputs[OutIdx].Advance(Count);
+		}
+
+		for (int32 OutIdx = 0; OutIdx < HalfOutputs.Num(); ++OutIdx)
+		{
+			FMemory::Memzero(HalfOutputs[OutIdx].GetDest(), sizeof(FFloat16) * Count);
+			HalfOutputs[OutIdx].Advance(Count);
+		}
+	}
+};

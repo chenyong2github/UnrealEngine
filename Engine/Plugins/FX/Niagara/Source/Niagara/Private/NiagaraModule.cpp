@@ -43,7 +43,6 @@
 #include "DataInterface/NiagaraDataInterfaceDataChannelCommon.h"
 #include "DataInterface/NiagaraDataInterfaceDataChannelWrite.h"
 #include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
-#include "DataInterface/NiagaraDataInterfaceDataChannelSpawn.h"
 
 #if UE_USE_OPENVDB
 #include "NiagaraOpenVDB.h"
@@ -107,7 +106,7 @@ void INiagaraModule::OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable)
 	}
 }
 
-bool INiagaraModule::bDataChannelsEnabled = false;
+bool INiagaraModule::bDataChannelsEnabled = true;
 
 static FAutoConsoleVariableRef CVarDataChannelEnabled(
 	TEXT("fx.Niagara.DataChannels.Enabled"),
@@ -124,7 +123,6 @@ void INiagaraModule::OnDataChannelsEnabledChanged(IConsoleVariable* Variable)
 		ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
 		FNiagaraTypeRegistry::Register(UNiagaraDataInterfaceDataChannelWrite::StaticClass(), Flags);
 		FNiagaraTypeRegistry::Register(UNiagaraDataInterfaceDataChannelRead::StaticClass(), Flags);
-		FNiagaraTypeRegistry::Register(UNiagaraDataInterfaceDataChannelSpawn::StaticClass(), Flags);
 
 		FNiagaraWorldManager::ForAllWorldManagers(
 			[](FNiagaraWorldManager& WorldMan)
@@ -268,6 +266,8 @@ FNiagaraVariable INiagaraModule::Translator_CallID;
 void INiagaraModule::StartupModule()
 {
 	VectorVM::Init();
+	FNiagaraTypeHelper::InitStaticTypes();
+
 #if VECTORVM_SUPPORTS_EXPERIMENTAL
 	InitVectorVM();
 #endif
@@ -1114,7 +1114,9 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(USimCacheClassDef, VarFlags);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), ParamFlags);
 
-	
+
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(StaticEnum<EPhysicalSurface>()), ParamFlags);
+
 	if (!IsRunningCommandlet())
 	{
 		TArray<FSoftObjectPath> DenyList;

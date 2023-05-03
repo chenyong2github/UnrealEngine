@@ -50,6 +50,8 @@ using FNiagaraDataBufferRef = TRefCountPtr<FNiagaraDataBuffer>;
 
 #define NIAGARA_MEMORY_TRACKING	!UE_BUILD_SHIPPING
 
+#define NIAGARA_SYSTEM_CAPTURE (!UE_BUILD_SHIPPING)
+
 #ifndef NIAGARA_COMPUTEDEBUG_ENABLED
 	#define NIAGARA_COMPUTEDEBUG_ENABLED WITH_EDITOR
 #endif
@@ -1706,3 +1708,40 @@ namespace ENiagaraGpuComputeTickStage
 		Last = PostOpaqueRender UMETA(hidden),
 	};
 }
+
+enum class ENiagaraResourceAccess : uint8
+{
+	ReadOnly,
+	WriteOnly,
+	ReadWrite,
+};
+
+UENUM()
+enum class ENiagaraConditionalOperator
+{
+	Equals,
+	NotEqual,
+	LessThan,
+	LessThanOrEqual,
+	GreaterThan,
+	GreaterThanOrEqual,
+
+	Max UMETA(Hidden),
+};
+
+template<typename T>
+bool EvalConditional(ENiagaraConditionalOperator Op, const T& A, const T& B)
+{
+	switch (Op)
+	{
+	case ENiagaraConditionalOperator::Equals: return A == B;
+	case ENiagaraConditionalOperator::NotEqual: return A != B;
+	case ENiagaraConditionalOperator::LessThan: return A < B;
+	case ENiagaraConditionalOperator::LessThanOrEqual: return A <= B;
+	case ENiagaraConditionalOperator::GreaterThan: return A > B;
+	case ENiagaraConditionalOperator::GreaterThanOrEqual: return A >= B;
+	default:check(0);
+	};
+
+	return false;
+};

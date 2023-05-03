@@ -12,7 +12,7 @@ class UNiagaraDataChannel_Global : public UNiagaraDataChannel
 {
 	GENERATED_BODY()
 
-	virtual UNiagaraDataChannelHandler* CreateHandler()const override;
+	virtual UNiagaraDataChannelHandler* CreateHandler(UWorld* OwningWorld)const override;
 };
 
 /**
@@ -23,27 +23,17 @@ class UNiagaraDataChannelHandler_Global : public UNiagaraDataChannelHandler
 {
 	GENERATED_UCLASS_BODY()
 
-	FNiagaraWorldDataChannelStore Data;
+	FNiagaraDataChannelDataPtr Data;
 
 	//UObject Interface
 	virtual void BeginDestroy()override;
 	//UObject Interface End
 
 	virtual void Init(const UNiagaraDataChannel* InChannel) override;
+	virtual void BeginFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
+	virtual void EndFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
 	virtual void Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld) override;
-	virtual FNiagaraDataBufferRef GetData(FNiagaraSystemInstance* SystemInstance, bool bGetLastFrameData) override;
-	virtual FNiagaraDataSet* GetDataGPU(FNiagaraSystemInstance* SystemInstance) override;
-
-	/** Returns the game level DataChannel data store. */
-	virtual FNiagaraDataChannelGameDataPtr GetGameData(UActorComponent* OwningComponent);
-
-private:
-
-	/** Staging buffer for Game level data so we can push it around as a publish request like other niagara data. Simplifying the code. */
-	FNiagaraDataSet* GameDataStaging;
-
-	/** Last Frame's CPU data. */
-	FNiagaraDataBufferRef PrevFrameCPU;
+	virtual FNiagaraDataChannelDataPtr FindData(FNiagaraDataChannelSearchParameters SearchParams, ENiagaraResourceAccess AccessType) override;
 };
 
 /**
