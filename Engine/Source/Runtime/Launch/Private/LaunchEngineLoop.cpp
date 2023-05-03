@@ -1947,26 +1947,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 			return 1;
 		}
 	}
-	
-
-	FString EngineBinariesRootDirectory = FPlatformMisc::EngineDir();
-	FString ProjectBinariesRootDirectory;
-	
-	if (FApp::HasProjectName())
-	{
-		ProjectBinariesRootDirectory = FPlatformMisc::ProjectDir();
-#if !IS_MONOLITHIC
-		FPlatformMisc::GetEngineAndProjectAbsoluteDirsFromExecutable(ProjectBinariesRootDirectory, EngineBinariesRootDirectory);
-
-		// Loading preinit module if it exists. PreInit module can contain things like decryption logic for pak files and things that is project specific but needs to initialize very early
-		FString FileName = FString::Printf(TEXT("%s-%sPreInit.%s"), FPlatformProcess::ExecutableName(), FApp::GetProjectName(), FPlatformProcess::GetModuleExtension());
-		FString PreInitModule = FPaths::Combine(ProjectBinariesRootDirectory, "Binaries", FPlatformProcess::GetBinariesSubdirectory(), FileName);
-		if (FPaths::FileExists(PreInitModule))
-		{
-			FPlatformProcess::GetDllHandle(*PreInitModule);
-		}
-#endif
-	}
 
 	// Initialize trace
 	FTraceAuxiliary::Initialize(CmdLine);
@@ -2110,6 +2090,24 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 				}
 			}
 		}
+	}
+
+	FString EngineBinariesRootDirectory = FPlatformMisc::EngineDir();
+	FString ProjectBinariesRootDirectory;
+	if (FApp::HasProjectName())
+	{
+		ProjectBinariesRootDirectory = FPlatformMisc::ProjectDir();
+#if !IS_MONOLITHIC
+		FPlatformMisc::GetEngineAndProjectAbsoluteDirsFromExecutable(ProjectBinariesRootDirectory, EngineBinariesRootDirectory);
+
+		// Loading preinit module if it exists. PreInit module can contain things like decryption logic for pak files and things that is project specific but needs to initialize very early
+		FString FileName = FString::Printf(TEXT("%s-%sPreInit.%s"), FPlatformProcess::ExecutableName(), FApp::GetProjectName(), FPlatformProcess::GetModuleExtension());
+		FString PreInitModule = FPaths::Combine(ProjectBinariesRootDirectory, "Binaries", FPlatformProcess::GetBinariesSubdirectory(), FileName);
+		if (FPaths::FileExists(PreInitModule))
+		{
+			FPlatformProcess::GetDllHandle(*PreInitModule);
+		}
+#endif
 	}
 
 	// Output devices.
