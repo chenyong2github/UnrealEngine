@@ -3,8 +3,6 @@
 #include "Widgets/UIFTextBlock.h"
 
 #include "Components/TextBlock.h"
-#include "IVerseModule.h"
-#include "Localization/VerseLocalizationProcessor.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
@@ -26,16 +24,16 @@ void UUIFrameworkTextBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Message, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Text, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, TextColor, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Justification, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, OverflowPolicy, Params);
 }
 
-void UUIFrameworkTextBase::SetMessage(FVerseReplicationMessage&& InMessage)
+void UUIFrameworkTextBase::SetText(FText InText)
 {
-	Message = MoveTemp(InMessage);
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Message, this);
+	Text = InText;
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Text, this);
 	ForceNetUpdate();
 }
 
@@ -77,13 +75,8 @@ void UUIFrameworkTextBase::LocalOnUMGWidgetCreated()
 	SetOverflowPolicyToWidget(OverflowPolicy);
 }
 
-void UUIFrameworkTextBase::OnRep_Message()
+void UUIFrameworkTextBase::OnRep_Text()
 {
-	IVerseModule& VerseModule = IVerseModule::Get();
-	verse::FLocalizationProcessor& Processor = VerseModule.GetLocalizationProcessor();
-	TNonNullPtr<verse::message> VerseMessage = Processor.FromReplicationMessage(Message, GetWorld());
-	Text = Processor.Localize(VerseMessage);
-
 	if (LocalGetUMGWidget())
 	{
 		SetTextToWidget(Text);

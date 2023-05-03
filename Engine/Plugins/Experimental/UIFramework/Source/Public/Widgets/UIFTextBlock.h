@@ -5,8 +5,6 @@
 #include "Styling/SlateTypes.h"
 #include "UIFWidget.h"
 
-#include "Localization/VerseReplicationMessage.h"
-
 #include "UIFTextBlock.generated.h"
 
 namespace ETextJustify { enum Type : int; }
@@ -24,7 +22,8 @@ class UIFRAMEWORK_API UUIFrameworkTextBase : public UUIFrameworkWidget
 public:
 	UUIFrameworkTextBase();
 
-	void SetMessage(FVerseReplicationMessage&& InMessage);
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "UI Framework")
+	void SetText(FText Text);
 
 	UFUNCTION(BlueprintCallable, Category = "UI Framework")
 	FText GetText() const
@@ -63,7 +62,7 @@ public:
 
 private:
 	UFUNCTION()
-	void OnRep_Message();
+	void OnRep_Text();
 	
 	UFUNCTION()
 	void OnRep_TextColor();
@@ -89,11 +88,8 @@ protected:
 	}
 
 private:
-	UPROPERTY()
+	UPROPERTY(/*ExposeOnSpawn, */ReplicatedUsing = OnRep_Text)
 	FText Text;
-
-	UPROPERTY(ReplicatedUsing = OnRep_Message)
-	FVerseReplicationMessage Message;
 
 	UPROPERTY(ReplicatedUsing = OnRep_TextColor)
 	FLinearColor TextColor = FLinearColor::Black;
