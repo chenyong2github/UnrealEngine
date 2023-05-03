@@ -18,6 +18,7 @@ public class UIFramework : ModuleRules
 				"SlateCore",
 				"Slate",
 				"UMG",
+				"Verse"
 			}
 		);
 

@@ -3,6 +3,8 @@
 #include "Widgets/UIFSimpleButton.h"
 
 #include "Blueprint/UserWidget.h"
+#include "IVerseModule.h"
+#include "Localization/VerseLocalizationProcessor.h"
 #include "MVVMSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -27,7 +29,7 @@ void UUIFrameworkSimpleButton::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Text, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Message, Params);
 }
 
 
@@ -44,17 +46,21 @@ void UUIFrameworkSimpleButton::LocalOnUMGWidgetCreated()
 }
 
 
-void UUIFrameworkSimpleButton::SetText(FText InText)
+void UUIFrameworkSimpleButton::SetMessage(FVerseReplicationMessage&& InMessage)
 {
-	Text = InText;
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Text, this);
+	Message = MoveTemp(InMessage);
+	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Message, this);
 	ForceNetUpdate();
-	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(Text);
 }
 
 
-void UUIFrameworkSimpleButton::OnRep_Text()
+void UUIFrameworkSimpleButton::OnRep_Message()
 {
+	IVerseModule& VerseModule = IVerseModule::Get();
+	verse::FLocalizationProcessor& Processor = VerseModule.GetLocalizationProcessor();
+	TNonNullPtr<verse::message> VerseMessage = Processor.FromReplicationMessage(Message,GetWorld());
+
+	Text = Processor.Localize(VerseMessage);
 	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(Text);
 }
 

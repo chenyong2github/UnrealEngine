@@ -5,6 +5,8 @@
 #include "Types/UIFEvents.h"
 #include "UIFWidget.h"
 
+#include "Localization/VerseReplicationMessage.h"
+
 #include "UIFSimpleButton.generated.h"
 
 struct FMVVMEventField;
@@ -21,20 +23,23 @@ public:
 	UUIFrameworkSimpleButton();
 
 private:
-	UPROPERTY(ReplicatedUsing=OnRep_Text, EditAnywhere, BlueprintReadOnly, Getter, Setter, FieldNotify, Category="UI Framework", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadOnly, Getter, FieldNotify, Category="UI Framework", meta = (AllowPrivateAccess = "true"))
 	FText Text;
+
+	UPROPERTY(ReplicatedUsing=OnRep_Message, FieldNotify)
+	FVerseReplicationMessage Message;
 
 	UPROPERTY(BlueprintReadOnly, Getter, FieldNotify, Category = "UI Framework", meta = (DisallowedViewAccess = "true", AllowPrivateAccess = "true"))
 	FUIFrameworkClickEventArgument ClickEvent;
 
 public:
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "UI Framework")
-	void SetText(FText Value);
 
 	FText GetText() const
 	{
 		return Text;
 	}
+
+	void SetMessage(FVerseReplicationMessage&& InMessage);
 
 	const FUIFrameworkClickEventArgument& GetClickEvent() const
 	{
@@ -47,8 +52,9 @@ public:
 	void OnClick(FMVVMEventField Field);
 
 private:
+
 	UFUNCTION()
-	void OnRep_Text();
+	void OnRep_Message();
 
 	UFUNCTION(Server, Reliable)
 	void ServerClick(APlayerController* PlayerController);
