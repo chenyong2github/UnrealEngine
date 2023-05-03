@@ -352,6 +352,10 @@ public:
 	// returns true if the template was able to resolve to at least one permutation
 	bool Resolve(FTypeMap& InOutTypes, TArray<int32> & OutPermutationIndices, bool bAllowFloatingPointCasts) const;
 
+	// Will return the hash of the input type map, if it is a valid type map. Otherwise, will return 0.
+	// It is only a valid type map if it includes all arguments, and non of the types is a wildcard.
+	uint32 GetTypesHashFromTypes(const FTypeMap& InTypes) const;
+
 	// returns true if the template was able to resolve to at least one permutation
 	bool ContainsPermutation(const FTypeMap& InTypes) const;
 
@@ -426,7 +430,11 @@ public:
 	{
 		return Delegates.RequestDispatchFunctionDelegate.IsBound() &&
 			Delegates.GetDispatchFactoryDelegate.IsBound();
-	}  
+	}
+
+	void RecomputeTypesHashToPermutations();
+
+	void UpdateTypesHashToPermutation(const int32& InPermutation);
 
 	RIGVM_API friend uint32 GetTypeHash(const FRigVMTemplate& InTemplate);
 
@@ -448,6 +456,7 @@ private:
 	TArray<FRigVMTemplateArgument> Arguments;
 	mutable TArray<FRigVMExecuteArgument> ExecuteArguments;
 	TArray<int32> Permutations;
+	TMap<uint32, int32> TypesHashToPermutation;
 	mutable uint32 Hash;
 
 	FRigVMTemplateDelegates Delegates;

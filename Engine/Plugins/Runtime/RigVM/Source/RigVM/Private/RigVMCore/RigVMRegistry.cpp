@@ -1561,6 +1561,7 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 	{
 		Template.Permutations[Index] = INDEX_NONE;
 	}
+	Template.RecomputeTypesHashToPermutations();
 
 	const int32 Index = Templates.AddElement(Template);
 	Templates[Index].Index = Index;
