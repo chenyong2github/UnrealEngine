@@ -54,7 +54,6 @@ private:
 	void RecreateLODActorsForLevel(ULevel* InLevel, UWorld* InWorld);
 
 	void OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext);
-	void OnWorldCollectSaveReferences(UWorld* World, FArchive& Ar);
 
 	void UnregisterRecreateLODActorsDelegates();
 	void RegisterRecreateLODActorsDelegates();
@@ -65,7 +64,6 @@ private:
 	FDelegateHandle OnPostWorldInitializationDelegateHandle;
 	FDelegateHandle OnLevelAddedToWorldDelegateHandle;
 	FDelegateHandle OnPreSaveWorlDelegateHandle;
-	FDelegateHandle OnWorldCollectSaveReferencesDelegateHandle;
 
 	bool bDisableHLODCleanupOnLoad;
 	bool bDisableHLODSpawningOnLoad;

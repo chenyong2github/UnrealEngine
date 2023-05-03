@@ -33,7 +33,7 @@ public:
 	virtual UPackage* RetrieveLevelHLODPackage(const ULevel* InLevel, const uint32 HLODLevelIndex) override;
 	virtual UHLODProxy* CreateOrRetrieveLevelHLODProxy(const ULevel* InLevel, const uint32 HLODLevelIndex) override;
 	virtual UHLODProxy* RetrieveLevelHLODProxy(const ULevel* InLevel, const uint32 HLODLevelIndex) override;
-	virtual FString GetHLODPackageName(const ULevel* InLevel, const uint32 InHLODLevelIndex) override;
+	virtual FString GetWildcardOfHLODPackagesForPackage(const FString& PackageName) override;
 	virtual FString GetLevelHLODProxyName(const FString& InLevelPackageName, const uint32 HLODLevelIndex) override;
 	UE_DEPRECATED(4.20, "Use different signature containing BaseMaterial parameter")
 	virtual bool BuildStaticMeshForLODActor(ALODActor* LODActor, UPackage* AssetsOuter, const FHierarchicalSimplification& LODSetup) override;

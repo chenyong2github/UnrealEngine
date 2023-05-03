@@ -4138,9 +4138,12 @@ void FAssetRegistryImpl::LoadCalculatedDependencies(FName PackageName,
 		return CompiledFilter;
 	};
 
+	TArray<UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer*, TInlineAllocator<2>> Gatherers;
 	for (const FAssetData* AssetData : State.GetAssetsByPackageName(PackageName))
 	{
-		if (UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer** AssetDependencyGatherer = RegisteredDependencyGathererClasses.Find(AssetData->GetClass()))
+		Gatherers.Reset();
+		RegisteredDependencyGathererClasses.MultiFind(AssetData->GetClass(), Gatherers);
+		for (UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer* Gatherer : Gatherers)
 		{
 			if (!bOutHadActivity)
 			{
@@ -4151,7 +4154,7 @@ void FAssetRegistryImpl::LoadCalculatedDependencies(FName PackageName,
 			TArray<IAssetDependencyGatherer::FGathereredDependency> GatheredDependencies;
 			TArray<FString> DirectoryReferences;
 
-			(*AssetDependencyGatherer)->GatherDependencies(*AssetData, State, GetCompiledFilter, GatheredDependencies, DirectoryReferences);
+			Gatherer->GatherDependencies(*AssetData, State, GetCompiledFilter, GatheredDependencies, DirectoryReferences);
 			
 			if (GatheredDependencies.Num())
 			{
