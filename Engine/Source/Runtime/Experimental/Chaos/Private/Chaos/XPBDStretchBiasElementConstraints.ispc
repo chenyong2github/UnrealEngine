@@ -13,40 +13,40 @@ static inline varying float SafeDivide(const varying float Numerator, const vary
 static void CalcConstraintsAndGrads(const FVector3f& P0, const FVector3f& P1, const FVector3f& P2, const FVector4f& DeltaUVInv,
 	const FVector2f& RestStretchLengths, const float WarpScale, const float WeftScale,
 	float& Cu, float& Cv, float& Cs, 
-	FVector3f& dCu_dX1, FVector3f& dCu_dX2, FVector3f& dCv_dX1, FVector3f& dCv_dX2, FVector3f& dCs_dX1, FVector3f& dCs_dX2)
+	FVector3f& GradCu1, FVector3f& GradCu2, FVector3f& GradCv1, FVector3f& GradCv2, FVector3f& GradCs1, FVector3f& GradCs2)
 {
 	const FVector3f P01 = P1 - P0;
 	const FVector3f P02 = P2 - P0;
-	const FVector3f dX_dU = DeltaUVInv.V[0] * P01 + DeltaUVInv.V[1] * P02;
-	const FVector3f dX_dV = DeltaUVInv.V[2] * P01 + DeltaUVInv.V[3] * P02;
+	const FVector3f DXDu = DeltaUVInv.V[0] * P01 + DeltaUVInv.V[1] * P02;
+	const FVector3f DXDv = DeltaUVInv.V[2] * P01 + DeltaUVInv.V[3] * P02;
 
-	const float dX_dU_length = VectorSize(dX_dU);
-	const float dX_dV_length = VectorSize(dX_dV);
+	const float DXDuLength = VectorSize(DXDu);
+	const float DXDvLength = VectorSize(DXDv);
 
-	const float OneOverDxDuLen = SafeDivide(1.f, dX_dU_length);
-	const float OneOverDxDvLen = SafeDivide(1.f, dX_dV_length);
+	const float OneOverDXDuLen = SafeDivide(1.f, DXDuLength);
+	const float OneOverDXDvLen = SafeDivide(1.f, DXDvLength);
 
-	const FVector3f dX_dU_normalized = OneOverDxDuLen * dX_dU;
-	const FVector3f dX_dV_normalized = OneOverDxDvLen * dX_dV;
+	const FVector3f DXDuNormalized = OneOverDXDuLen * DXDu;
+	const FVector3f DXDvNormalized = OneOverDXDvLen * DXDv;
 
-	Cu = dX_dU_length - RestStretchLengths.V[0] * WarpScale;
-	Cv = dX_dV_length - RestStretchLengths.V[1] * WeftScale;
-	Cs = VectorDot(dX_dU_normalized, dX_dV_normalized);
+	Cu = DXDuLength - RestStretchLengths.V[0] * WarpScale;
+	Cv = DXDvLength - RestStretchLengths.V[1] * WeftScale;
+	Cs = VectorDot(DXDuNormalized, DXDvNormalized);
 
-	dCu_dX1 = dX_dU_normalized * DeltaUVInv.V[0];
-	dCu_dX2 = dX_dU_normalized * DeltaUVInv.V[1];
-	dCv_dX1 = dX_dV_normalized * DeltaUVInv.V[2];
-	dCv_dX2 = dX_dV_normalized * DeltaUVInv.V[3];
-	dCs_dX1 = (dX_dV_normalized * OneOverDxDuLen * DeltaUVInv.V[0] + dX_dU_normalized * OneOverDxDvLen * DeltaUVInv.V[2]);
-	dCs_dX2 = (dX_dV_normalized * OneOverDxDuLen * DeltaUVInv.V[1] + dX_dU_normalized * OneOverDxDvLen * DeltaUVInv.V[3]);
+	GradCu1 = DXDuNormalized * DeltaUVInv.V[0];
+	GradCu2 = DXDuNormalized * DeltaUVInv.V[1];
+	GradCv1 = DXDvNormalized * DeltaUVInv.V[2];
+	GradCv2 = DXDvNormalized * DeltaUVInv.V[3];
+	GradCs1 = (DXDvNormalized * OneOverDXDuLen * DeltaUVInv.V[0] + DXDuNormalized * OneOverDXDvLen * DeltaUVInv.V[2]);
+	GradCs2 = (DXDvNormalized * OneOverDXDuLen * DeltaUVInv.V[1] + DXDuNormalized * OneOverDXDvLen * DeltaUVInv.V[3]);
 }
 
 static inline float CalcDLambda(const float StiffnessValue, const float Dt, const float MinStiffness, const float Lambda,
 	const float InvM0, const float InvM1, const float InvM2,
-	const float C, const FVector3f& dC_dX1, const FVector3f& dC_dX2)
+	const float C, const FVector3f& GradC1, const FVector3f& GradC2)
 {
 	const float Alpha = 1.f / (StiffnessValue  * Dt * Dt);
-	const float Denom = InvM0 * VectorSizeSquared(dC_dX1 + dC_dX2) + InvM1 * VectorSizeSquared(dC_dX1) + InvM2 * VectorSizeSquared(dC_dX2) + Alpha;
+	const float Denom = InvM0 * VectorSizeSquared(GradC1 + GradC2) + InvM1 * VectorSizeSquared(GradC1) + InvM2 * VectorSizeSquared(GradC2) + Alpha;
 	const float DLambda = (C - Alpha * Lambda) / Denom;
 	return select(StiffnessValue < MinStiffness, (uniform float)0, DLambda);
 }
@@ -59,12 +59,12 @@ static inline float CalcDamping(const float StiffnessValue, const float Combined
 static inline float CalcDLambda(const float StiffnessValue, const float Dt, const float MinStiffness, const float Lambda, const float Damping,
 	const float InvM0, const float InvM1, const float InvM2,
 	const FVector3f& V0TimesDt, const FVector3f& V1TimesDt, const FVector3f& V2TimesDt, 
-	const float C, const FVector3f& dC_dX1, const FVector3f& dC_dX2)
+	const float C, const FVector3f& GradC1, const FVector3f& GradC2)
 {
 	const float Alpha = 1.f / (StiffnessValue  * Dt * Dt);
 	const float Gamma = Alpha * Damping * Dt;
-	const float DampingTerm = Gamma * (VectorDot(V1TimesDt, dC_dX1) + VectorDot(V2TimesDt, dC_dX2) - VectorDot(V0TimesDt, dC_dX1 + dC_dX2));
-	const float Denom = (1. + Gamma) * (InvM0 * VectorSizeSquared(dC_dX1 + dC_dX2) + InvM1 * VectorSizeSquared(dC_dX1) + InvM2 * VectorSizeSquared(dC_dX2)) + Alpha;
+	const float DampingTerm = Gamma * (VectorDot(V1TimesDt, GradC1) + VectorDot(V2TimesDt, GradC2) - VectorDot(V0TimesDt, GradC1 + GradC2));
+	const float Denom = (1. + Gamma) * (InvM0 * VectorSizeSquared(GradC1 + GradC2) + InvM1 * VectorSizeSquared(GradC1) + InvM2 * VectorSizeSquared(GradC2)) + Alpha;
 	const float DLambda = (C - Alpha * Lambda + DampingTerm) / Denom;
 	return select(StiffnessValue < MinStiffness, (uniform float)0, DLambda);
 }
@@ -106,24 +106,24 @@ export void ApplyXPBDStretchBiasConstraints(uniform FVector4f PandInvM[],
 		const varying FVector2f RestStretchLength = VectorLoad(&RestStretchLengths[extract(i,0)]);
 
 		varying float Cu, Cv, Cs;
-		varying FVector3f dCu_dX1, dCu_dX2, dCv_dX1, dCv_dX2, dCs_dX1, dCs_dX2;
+		varying FVector3f GradCu1, GradCu2, GradCv1, GradCv2, GradCs1, GradCs2;
 		CalcConstraintsAndGrads(P0, P1, P2, DeltaUVInverse, RestStretchLength, WarpScale, WeftScale, Cu, Cv, Cs,
-			dCu_dX1, dCu_dX2, dCv_dX1, dCv_dX2, dCs_dX1, dCs_dX2);
+			GradCu1, GradCu2, GradCv1, GradCv2, GradCs1, GradCs2);
 		
 		FVector3f Lambda = VectorLoad(&Lambdas[extract(i,0)]);
 		const varying FVector3f StiffnessScale = VectorLoad(&StiffnessScales[extract(i,0)]);
 		const varying FVector3f FinalStiffness = Stiffness * StiffnessScale;
 
-		const varying float DLambdaU = CalcDLambda(FinalStiffness.V[0], Dt, MinStiffness, Lambda.V[0], M0, M1, M2, Cu, dCu_dX1, dCu_dX2);
-		const varying float DLambdaV = CalcDLambda(FinalStiffness.V[1], Dt, MinStiffness, Lambda.V[1], M0, M1, M2, Cv, dCv_dX1, dCv_dX2);
-		const varying float DLambdaS = CalcDLambda(FinalStiffness.V[2], Dt, MinStiffness, Lambda.V[2], M0, M1, M2, Cs, dCs_dX1, dCs_dX2);
+		const varying float DLambdaU = CalcDLambda(FinalStiffness.V[0], Dt, MinStiffness, Lambda.V[0], M0, M1, M2, Cu, GradCu1, GradCu2);
+		const varying float DLambdaV = CalcDLambda(FinalStiffness.V[1], Dt, MinStiffness, Lambda.V[1], M0, M1, M2, Cv, GradCv1, GradCv2);
+		const varying float DLambdaS = CalcDLambda(FinalStiffness.V[2], Dt, MinStiffness, Lambda.V[2], M0, M1, M2, Cs, GradCs1, GradCs2);
 		const varying FVector3f DLambda = {{DLambdaU, DLambdaV, DLambdaS}};
 
 		Lambda = Lambda + DLambda;
 		VectorStore(&Lambdas[extract(i,0)], Lambda);
 		
-		const varying FVector3f DP1 = DLambdaU * dCu_dX1 + DLambdaV * dCv_dX1 + DLambdaS * dCs_dX1;
-		const varying FVector3f DP2 = DLambdaU * dCu_dX2 + DLambdaV * dCv_dX2 + DLambdaS * dCs_dX2;
+		const varying FVector3f DP1 = DLambdaU * GradCu1 + DLambdaV * GradCv1 + DLambdaS * GradCs1;
+		const varying FVector3f DP2 = DLambdaU * GradCu2 + DLambdaV * GradCv2 + DLambdaS * GradCs2;
 
 		if (M0 > 0)
 		{
@@ -179,9 +179,9 @@ export void ApplyXPBDStretchBiasConstraintsWithDamping(uniform FVector4f PandInv
 		const varying FVector2f RestStretchLength = VectorLoad(&RestStretchLengths[extract(i,0)]);
 
 		varying float Cu, Cv, Cs;
-		varying FVector3f dCu_dX1, dCu_dX2, dCv_dX1, dCv_dX2, dCs_dX1, dCs_dX2;
+		varying FVector3f GradCu1, GradCu2, GradCv1, GradCv2, GradCs1, GradCs2;
 		CalcConstraintsAndGrads(P0, P1, P2, DeltaUVInverse, RestStretchLength, WarpScale, WeftScale, Cu, Cv, Cs,
-			dCu_dX1, dCu_dX2, dCv_dX1, dCv_dX2, dCs_dX1, dCs_dX2);
+			GradCu1, GradCu2, GradCv1, GradCv2, GradCs1, GradCs2);
 		
 		const varying FVector3f X0 = VectorGather(&X[i0]);
 		const varying FVector3f X1 = VectorGather(&X[i1]);
@@ -196,20 +196,20 @@ export void ApplyXPBDStretchBiasConstraintsWithDamping(uniform FVector4f PandInv
 		const varying FVector3f FinalStiffness = Stiffness * StiffnessScale;
 		const varying float DLambdaU = CalcDLambda(FinalStiffness.V[0], Dt, MinStiffness, Lambda.V[0], 
 			CalcDamping(FinalStiffness.V[0], CombinedInvMass, DampingRatio),
-			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cu, dCu_dX1, dCu_dX2);
+			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cu, GradCu1, GradCu2);
 		const varying float DLambdaV = CalcDLambda(FinalStiffness.V[1], Dt, MinStiffness, Lambda.V[1], 
 			CalcDamping(FinalStiffness.V[1], CombinedInvMass, DampingRatio),
-			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cv, dCv_dX1, dCv_dX2);
+			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cv, GradCv1, GradCv2);
 		const varying float DLambdaS = CalcDLambda(FinalStiffness.V[2], Dt, MinStiffness, Lambda.V[2], 
 			CalcDamping(FinalStiffness.V[2], CombinedInvMass, DampingRatio),
-			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cs, dCs_dX1, dCs_dX2);
+			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cs, GradCs1, GradCs2);
 		const varying FVector3f DLambda = {{DLambdaU, DLambdaV, DLambdaS}};
 
 		Lambda = Lambda + DLambda;
 		VectorStore(&Lambdas[extract(i,0)], Lambda);
 		
-		const varying FVector3f DP1 = DLambdaU * dCu_dX1 + DLambdaV * dCv_dX1 + DLambdaS * dCs_dX1;
-		const varying FVector3f DP2 = DLambdaU * dCu_dX2 + DLambdaV * dCv_dX2 + DLambdaS * dCs_dX2;
+		const varying FVector3f DP1 = DLambdaU * GradCu1 + DLambdaV * GradCv1 + DLambdaS * GradCs1;
+		const varying FVector3f DP2 = DLambdaU * GradCu2 + DLambdaV * GradCv2 + DLambdaS * GradCs2;
 
 		if (M0 > 0)
 		{
@@ -285,9 +285,9 @@ export void ApplyXPBDStretchBiasConstraintsWithMaps(uniform FVector4f PandInvM[]
 		const varying float WeftScale = WeftScaleTable[WeftScaleIndex];
 
 		varying float Cu, Cv, Cs;
-		varying FVector3f dCu_dX1, dCu_dX2, dCv_dX1, dCv_dX2, dCs_dX1, dCs_dX2;
+		varying FVector3f GradCu1, GradCu2, GradCv1, GradCv2, GradCs1, GradCs2;
 		CalcConstraintsAndGrads(P0, P1, P2, DeltaUVInverse, RestStretchLength, WarpScale, WeftScale, Cu, Cv, Cs,
-			dCu_dX1, dCu_dX2, dCv_dX1, dCv_dX2, dCs_dX1, dCs_dX2);		
+			GradCu1, GradCu2, GradCv1, GradCv2, GradCs1, GradCs2);		
 		
 		#pragma ignore warning(perf)
 		const varying float StiffnessWarp = StiffnessWarpTable[StiffnessWarpIndex];
@@ -301,16 +301,16 @@ export void ApplyXPBDStretchBiasConstraintsWithMaps(uniform FVector4f PandInvM[]
 		const varying FVector3f StiffnessScale = VectorLoad(&StiffnessScales[extract(i,0)]);
 		const varying FVector3f FinalStiffness = Stiffness * StiffnessScale;
 
-		const varying float DLambdaU = CalcDLambda(FinalStiffness.V[0], Dt, MinStiffness, Lambda.V[0], M0, M1, M2, Cu, dCu_dX1, dCu_dX2);
-		const varying float DLambdaV = CalcDLambda(FinalStiffness.V[1], Dt, MinStiffness, Lambda.V[1], M0, M1, M2, Cv, dCv_dX1, dCv_dX2);
-		const varying float DLambdaS = CalcDLambda(FinalStiffness.V[2], Dt, MinStiffness, Lambda.V[2], M0, M1, M2, Cs, dCs_dX1, dCs_dX2);
+		const varying float DLambdaU = CalcDLambda(FinalStiffness.V[0], Dt, MinStiffness, Lambda.V[0], M0, M1, M2, Cu, GradCu1, GradCu2);
+		const varying float DLambdaV = CalcDLambda(FinalStiffness.V[1], Dt, MinStiffness, Lambda.V[1], M0, M1, M2, Cv, GradCv1, GradCv2);
+		const varying float DLambdaS = CalcDLambda(FinalStiffness.V[2], Dt, MinStiffness, Lambda.V[2], M0, M1, M2, Cs, GradCs1, GradCs2);
 		const varying FVector3f DLambda = {{DLambdaU, DLambdaV, DLambdaS}};
 
 		Lambda = Lambda + DLambda;
 		VectorStore(&Lambdas[extract(i,0)], Lambda);
 		
-		const varying FVector3f DP1 = DLambdaU * dCu_dX1 + DLambdaV * dCv_dX1 + DLambdaS * dCs_dX1;
-		const varying FVector3f DP2 = DLambdaU * dCu_dX2 + DLambdaV * dCv_dX2 + DLambdaS * dCs_dX2;
+		const varying FVector3f DP1 = DLambdaU * GradCu1 + DLambdaV * GradCv1 + DLambdaS * GradCs1;
+		const varying FVector3f DP2 = DLambdaU * GradCu2 + DLambdaV * GradCv2 + DLambdaS * GradCs2;
 
 		if (M0 > 0)
 		{
@@ -391,9 +391,9 @@ export void ApplyXPBDStretchBiasConstraintsWithDampingAndMaps(uniform FVector4f 
 		const varying float WeftScale = WeftScaleTable[WeftScaleIndex];
 
 		varying float Cu, Cv, Cs;
-		varying FVector3f dCu_dX1, dCu_dX2, dCv_dX1, dCv_dX2, dCs_dX1, dCs_dX2;
+		varying FVector3f GradCu1, GradCu2, GradCv1, GradCv2, GradCs1, GradCs2;
 		CalcConstraintsAndGrads(P0, P1, P2, DeltaUVInverse, RestStretchLength, WarpScale, WeftScale, Cu, Cv, Cs,
-			dCu_dX1, dCu_dX2, dCv_dX1, dCv_dX2, dCs_dX1, dCs_dX2);
+			GradCu1, GradCu2, GradCv1, GradCv2, GradCs1, GradCs2);
 		
 		const varying FVector3f X0 = VectorGather(&X[i0]);
 		const varying FVector3f X1 = VectorGather(&X[i1]);
@@ -419,20 +419,20 @@ export void ApplyXPBDStretchBiasConstraintsWithDampingAndMaps(uniform FVector4f 
 		const varying FVector3f FinalStiffness = Stiffness * StiffnessScale;
 		const varying float DLambdaU = CalcDLambda(FinalStiffness.V[0], Dt, MinStiffness, Lambda.V[0], 
 			CalcDamping(FinalStiffness.V[0], CombinedInvMass, DampingRatio),
-			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cu, dCu_dX1, dCu_dX2);
+			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cu, GradCu1, GradCu2);
 		const varying float DLambdaV = CalcDLambda(FinalStiffness.V[1], Dt, MinStiffness, Lambda.V[1], 
 			CalcDamping(FinalStiffness.V[1], CombinedInvMass, DampingRatio),
-			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cv, dCv_dX1, dCv_dX2);
+			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cv, GradCv1, GradCv2);
 		const varying float DLambdaS = CalcDLambda(FinalStiffness.V[2], Dt, MinStiffness, Lambda.V[2], 
 			CalcDamping(FinalStiffness.V[2], CombinedInvMass, DampingRatio),
-			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cs, dCs_dX1, dCs_dX2);
+			M0, M1, M2, V0TimesDt, V1TimesDt, V2TimesDt, Cs, GradCs1, GradCs2);
 		const varying FVector3f DLambda = {{DLambdaU, DLambdaV, DLambdaS}};
 
 		Lambda = Lambda + DLambda;
 		VectorStore(&Lambdas[extract(i,0)], Lambda);
 		
-		const varying FVector3f DP1 = DLambdaU * dCu_dX1 + DLambdaV * dCv_dX1 + DLambdaS * dCs_dX1;
-		const varying FVector3f DP2 = DLambdaU * dCu_dX2 + DLambdaV * dCv_dX2 + DLambdaS * dCs_dX2;
+		const varying FVector3f DP1 = DLambdaU * GradCu1 + DLambdaV * GradCv1 + DLambdaS * GradCs1;
+		const varying FVector3f DP2 = DLambdaU * GradCu2 + DLambdaV * GradCv2 + DLambdaS * GradCs2;
 
 		if (M0 > 0)
 		{

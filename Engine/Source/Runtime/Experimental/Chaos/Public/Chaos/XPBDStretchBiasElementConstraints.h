@@ -97,7 +97,7 @@ public:
 	}
 
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
-	void CalculateUVStretch(const int32 ConstraintIndex, const FSolverVec3& P0, const FSolverVec3& P1, const FSolverVec3& P2, FSolverVec3& dX_dU, FSolverVec3& dX_dV) const;
+	void CalculateUVStretch(const int32 ConstraintIndex, const FSolverVec3& P0, const FSolverVec3& P1, const FSolverVec3& P2, FSolverVec3& DXDu, FSolverVec3& DXDv) const;
 	
 	const TArray<TVec3<int32>>& GetConstraints() const { return Constraints; }
 	const TArray<FSolverVec2> GetRestStretchLengths() const { return RestStretchLengths; }

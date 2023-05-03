@@ -205,9 +205,9 @@ void FXPBDStretchBiasElementConstraints::InitConstraintsAndRestData(const FSolve
 			const FSolverVec3 X01 = X1 - X0;
 			const FSolverVec3 X02 = X2 - X0;
 
-			const FSolverVec3 dX_dU = X01 * DeltaUVInv.M[0] + X02 * DeltaUVInv.M[1];
-			const FSolverVec3 dX_dV = X01 * DeltaUVInv.M[2] + X02 * DeltaUVInv.M[3];
-			const FSolverVec2& RestStretch = RestStretchLengths.Add_GetRef(FSolverVec2(dX_dU.Length(), dX_dV.Length()));
+			const FSolverVec3 DXDu = X01 * DeltaUVInv.M[0] + X02 * DeltaUVInv.M[1];
+			const FSolverVec3 DXDv = X01 * DeltaUVInv.M[2] + X02 * DeltaUVInv.M[3];
+			const FSolverVec2& RestStretch = RestStretchLengths.Add_GetRef(FSolverVec2(DXDu.Length(), DXDv.Length()));
 
 			const FSolverReal StiffnessScaleU = RestStretch[0] < UE_SMALL_NUMBER ? 1.f : 1.f / RestStretch[0];
 			const FSolverReal StiffnessScaleV = RestStretch[1] < UE_SMALL_NUMBER ? 1.f : 1.f / RestStretch[1];
@@ -646,14 +646,14 @@ void FXPBDStretchBiasElementConstraints::Apply(FSolverParticles& Particles, cons
 	}
 }
 
-void FXPBDStretchBiasElementConstraints::CalculateUVStretch(const int32 ConstraintIndex, const FSolverVec3& P0, const FSolverVec3& P1, const FSolverVec3& P2, FSolverVec3& dX_dU, FSolverVec3& dX_dV) const
+void FXPBDStretchBiasElementConstraints::CalculateUVStretch(const int32 ConstraintIndex, const FSolverVec3& P0, const FSolverVec3& P1, const FSolverVec3& P2, FSolverVec3& DXDu, FSolverVec3& DXDv) const
 {
 	const FSolverMatrix22& DeltaUVInv = DeltaUVInverse[ConstraintIndex];
 
 	const FSolverVec3 P01 = P1 - P0;
 	const FSolverVec3 P02 = P2 - P0;
-	dX_dU = P01 * DeltaUVInv.M[0] + P02 * DeltaUVInv.M[1];
-	dX_dV = P01 * DeltaUVInv.M[2] + P02 * DeltaUVInv.M[3];
+	DXDu = P01 * DeltaUVInv.M[0] + P02 * DeltaUVInv.M[1];
+	DXDv = P01 * DeltaUVInv.M[2] + P02 * DeltaUVInv.M[3];
 }
 
 static FSolverReal CalcDLambda(const FSolverReal StiffnessValue, const FSolverReal Dt, const FSolverReal Lambda, const FSolverReal Damping,
@@ -685,11 +685,11 @@ void FXPBDStretchBiasElementConstraints::ApplyHelper(FSolverParticles& Particles
 
 	const FSolverReal CombinedInvMass = Particles.InvM(i0) + Particles.InvM(i1) + Particles.InvM(i2);
 
-	FSolverVec3 dX_dU, dX_dV;
-	CalculateUVStretch(ConstraintIndex, Particles.P(i0), Particles.P(i1), Particles.P(i2), dX_dU, dX_dV);
+	FSolverVec3 DXDu, DXDv;
+	CalculateUVStretch(ConstraintIndex, Particles.P(i0), Particles.P(i1), Particles.P(i2), DXDu, DXDv);
 
-	const FSolverReal dX_dU_length = dX_dU.Length();
-	const FSolverReal dX_dV_length = dX_dV.Length();
+	const FSolverReal DXDuLength = DXDu.Length();
+	const FSolverReal DXDvLength = DXDv.Length();
 	auto SafeRecip = [](const FSolverReal Len, const FSolverReal Fallback)
 	{
 		if (Len > UE_SMALL_NUMBER)
@@ -698,29 +698,29 @@ void FXPBDStretchBiasElementConstraints::ApplyHelper(FSolverParticles& Particles
 		}
 		return Fallback;
 	};
-	const FSolverReal OneOverDxDuLen = SafeRecip(dX_dU_length, 0.f);
-	const FSolverReal OneOverDxDvLen = SafeRecip(dX_dV_length, 0.f);
+	const FSolverReal OneOverDXDuLen = SafeRecip(DXDuLength, 0.f);
+	const FSolverReal OneOverDXDvLen = SafeRecip(DXDvLength, 0.f);
 
-	const FSolverVec3 dX_dU_normalized = dX_dU * OneOverDxDuLen;
-	const FSolverVec3 dX_dV_normalized = dX_dV * OneOverDxDvLen;
+	const FSolverVec3 DXDuNormalized = DXDu * OneOverDXDuLen;
+	const FSolverVec3 DXDvNormalized = DXDv * OneOverDXDvLen;
 
 	// constraints
-	const FSolverReal Cu = (dX_dU_length - RestStretchLengths[ConstraintIndex][0]*WarpScaleValue); // stretch in warp direction
-	const FSolverReal Cv = (dX_dV_length - RestStretchLengths[ConstraintIndex][1]*WeftScaleValue); // stretch in weft direction
-	const FSolverReal Cs = FSolverVec3::DotProduct(dX_dU_normalized, dX_dV_normalized);
+	const FSolverReal Cu = (DXDuLength - RestStretchLengths[ConstraintIndex][0]*WarpScaleValue); // stretch in warp direction
+	const FSolverReal Cv = (DXDvLength - RestStretchLengths[ConstraintIndex][1]*WeftScaleValue); // stretch in weft direction
+	const FSolverReal Cs = FSolverVec3::DotProduct(DXDuNormalized, DXDvNormalized);
 
 
 	const FSolverMatrix22& DeltaUVInv = DeltaUVInverse[ConstraintIndex];
 
-	const FSolverVec3 dCu_dX1 = dX_dU_normalized * DeltaUVInv.M[0];
-	const FSolverVec3 dCu_dX2 = dX_dU_normalized * DeltaUVInv.M[1];
-	const FSolverVec3 dCu_dX0 = -dCu_dX1 - dCu_dX2;
-	const FSolverVec3 dCv_dX1 = dX_dV_normalized * DeltaUVInv.M[2];
-	const FSolverVec3 dCv_dX2 = dX_dV_normalized * DeltaUVInv.M[3];
-	const FSolverVec3 dCv_dX0 = -dCv_dX1 - dCv_dX2;
-	const FSolverVec3 dCs_dX1 = (dX_dV_normalized * OneOverDxDuLen * DeltaUVInv.M[0] + dX_dU_normalized * OneOverDxDvLen * DeltaUVInv.M[2]);
-	const FSolverVec3 dCs_dX2 = (dX_dV_normalized * OneOverDxDuLen * DeltaUVInv.M[1] + dX_dU_normalized * OneOverDxDvLen * DeltaUVInv.M[3]);
-	const FSolverVec3 dCs_dX0 = -dCs_dX1 - dCs_dX2;
+	const FSolverVec3 GradCu1 = DXDuNormalized * DeltaUVInv.M[0];
+	const FSolverVec3 GradCu2 = DXDuNormalized * DeltaUVInv.M[1];
+	const FSolverVec3 GradCu0 = -GradCu1 - GradCu2;
+	const FSolverVec3 GradCv1 = DXDvNormalized * DeltaUVInv.M[2];
+	const FSolverVec3 GradCv2 = DXDvNormalized * DeltaUVInv.M[3];
+	const FSolverVec3 GradCv0 = -GradCv1 - GradCv2;
+	const FSolverVec3 GradCs1 = (DXDvNormalized * OneOverDXDuLen * DeltaUVInv.M[0] + DXDuNormalized * OneOverDXDvLen * DeltaUVInv.M[2]);
+	const FSolverVec3 GradCs2 = (DXDvNormalized * OneOverDXDuLen * DeltaUVInv.M[1] + DXDuNormalized * OneOverDXDvLen * DeltaUVInv.M[3]);
+	const FSolverVec3 GradCs0 = -GradCs1 - GradCs2;
 
 	const FSolverVec3 V0TimesDt = Particles.P(i0) - Particles.X(i0);
 	const FSolverVec3 V1TimesDt = Particles.P(i1) - Particles.X(i1);
@@ -735,15 +735,15 @@ void FXPBDStretchBiasElementConstraints::ApplyHelper(FSolverParticles& Particles
 	FSolverVec3& Lambda = Lambdas[ConstraintIndex];
 	FSolverVec3 DLambda;
 	DLambda[0] = CalcDLambda(FinalStiffnesses[0], Dt, Lambda[0], Damping[0], Particles.InvM(i0), Particles.InvM(i1), Particles.InvM(i2),
-		V0TimesDt, V1TimesDt, V2TimesDt, Cu, dCu_dX0, dCu_dX1, dCu_dX2);
+		V0TimesDt, V1TimesDt, V2TimesDt, Cu, GradCu0, GradCu1, GradCu2);
 	DLambda[1] = CalcDLambda(FinalStiffnesses[1], Dt, Lambda[1], Damping[1], Particles.InvM(i0), Particles.InvM(i1), Particles.InvM(i2),
-		V0TimesDt, V1TimesDt, V2TimesDt, Cv, dCv_dX0, dCv_dX1, dCv_dX2);
+		V0TimesDt, V1TimesDt, V2TimesDt, Cv, GradCv0, GradCv1, GradCv2);
 	DLambda[2] = CalcDLambda(FinalStiffnesses[2], Dt, Lambda[2], Damping[2], Particles.InvM(i0), Particles.InvM(i1), Particles.InvM(i2),
-		V0TimesDt, V1TimesDt, V2TimesDt, Cs, dCs_dX0, dCs_dX1, dCs_dX2);
+		V0TimesDt, V1TimesDt, V2TimesDt, Cs, GradCs0, GradCs1, GradCs2);
 
-	Particles.P(i0) -= Particles.InvM(i0) * (DLambda[0] * dCu_dX0 + DLambda[1] * dCv_dX0 + DLambda[2] * dCs_dX0);
-	Particles.P(i1) -= Particles.InvM(i1) * (DLambda[0] * dCu_dX1 + DLambda[1] * dCv_dX1 + DLambda[2] * dCs_dX1);
-	Particles.P(i2) -= Particles.InvM(i2) * (DLambda[0] * dCu_dX2 + DLambda[1] * dCv_dX2 + DLambda[2] * dCs_dX2);
+	Particles.P(i0) -= Particles.InvM(i0) * (DLambda[0] * GradCu0 + DLambda[1] * GradCv0 + DLambda[2] * GradCs0);
+	Particles.P(i1) -= Particles.InvM(i1) * (DLambda[0] * GradCu1 + DLambda[1] * GradCv1 + DLambda[2] * GradCs1);
+	Particles.P(i2) -= Particles.InvM(i2) * (DLambda[0] * GradCu2 + DLambda[1] * GradCv2 + DLambda[2] * GradCs2);
 
 	Lambda += DLambda;
 }
