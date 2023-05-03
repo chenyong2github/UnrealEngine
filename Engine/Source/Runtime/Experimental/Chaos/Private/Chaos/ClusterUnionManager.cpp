@@ -332,7 +332,7 @@ namespace Chaos
 			// The anchored flag is taken care of in UpdateKinematicProperties so it must be set before that is called.
 			Cluster->InternalCluster->SetIsAnchored(true);
 		}
-		UpdateAllClusterUnionProperties(*Cluster, bIsNewCluster, true);
+		UpdateAllClusterUnionProperties(*Cluster, bIsNewCluster);
 
 		if (OldProxy)
 		{
@@ -363,7 +363,7 @@ namespace Chaos
 	void FClusterUnionManager::PostRemovalClusterUnionUpdate(FClusterUnion& Union)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_PostRemovalClusterUnionUpdate);
-		UpdateAllClusterUnionProperties(Union, false, false);
+		UpdateAllClusterUnionProperties(Union, false);
 
 		if (!Union.ChildParticles.IsEmpty())
 		{
@@ -485,7 +485,7 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::UpdateClusterUnionProperties"), STAT_UpdateClusterUnionProperties, STATGROUP_Chaos);
-	void FClusterUnionManager::UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, bool bRecomputeMassOrientation, bool bUpdateKinematicProperties)
+	void FClusterUnionManager::UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, bool bRecomputeMassOrientation)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterUnionProperties);
 		// Update cluster properties.
@@ -497,11 +497,7 @@ namespace Chaos
 
 		const FRigidTransform3 ForceMassOrientation{ ClusterUnion.InternalCluster->X(), ClusterUnion.InternalCluster->R() };
 		UpdateClusterMassProperties(ClusterUnion.InternalCluster, FullChildrenSet, ClusterInertia, (bRecomputeMassOrientation && ClusterUnion.bNeedsXRInitialization) ? nullptr : &ForceMassOrientation);
-
-		if (bUpdateKinematicProperties)
-		{
-			UpdateKinematicProperties(ClusterUnion.InternalCluster, MClustering.GetChildrenMap(), MEvolution);
-		}
+		UpdateKinematicProperties(ClusterUnion.InternalCluster, MClustering.GetChildrenMap(), MEvolution);
 
 		// We must reset collisions etc on this particle since geometry will be changed
 		MEvolution.InvalidateParticle(ClusterUnion.InternalCluster);
@@ -669,7 +665,7 @@ namespace Chaos
 			}
 		}
 
-		UpdateAllClusterUnionProperties(*ClusterUnion, false, true);
+		UpdateAllClusterUnionProperties(*ClusterUnion, false);
 
 		for (TPair<FPBDRigidClusteredParticleHandle*, bool>& Pair : DirtyParticleLockStates)
 		{
