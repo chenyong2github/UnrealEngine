@@ -1173,4 +1173,21 @@ bool UCustomizableObjectNodeTable::IsImagePinDefault(UEdGraphPin* Pin)
 	return true;
 }
 
+
+ETableTextureType UCustomizableObjectNodeTable::GetColumnImageMode(FString ColumnName) const
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (UCustomizableObjectNodeTableImagePinData* PinData = Cast<UCustomizableObjectNodeTableImagePinData>(GetPinData(*(Pin))))
+		{
+			if (PinData->ColumnName == ColumnName)
+			{
+				return PinData->ImageMode;
+			}
+		}
+	}
+
+	return DefaultImageMode;
+}
+
 #undef LOCTEXT_NAMESPACE

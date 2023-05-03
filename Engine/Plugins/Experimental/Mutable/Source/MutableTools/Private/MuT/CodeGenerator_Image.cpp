@@ -259,6 +259,7 @@ namespace mu
 		result.op = op;
     }
 
+
 	//---------------------------------------------------------------------------------------------
 	void CodeGenerator::GenerateImage_Reference(FImageGenerationResult& result, const NodeImageReference* InNode)
 	{
@@ -1856,10 +1857,11 @@ namespace mu
 		result.op = GenerateTableSwitch<NodeImageTable::Private, TCT_IMAGE, OP_TYPE::IM_SWITCH>(node,
 			[this](const NodeImageTable::Private& node, int colIndex, int row, ErrorLog* pErrorLog)
 			{
-				NodeImageConstantPtr pCell = new NodeImageConstant();
+				TABLE_VALUE CellData = node.m_pTable->GetPrivate()->m_rows[row].m_values[colIndex];
 				ImagePtrConst pImage = nullptr;
-				
-				if (Ptr<ResourceProxy<Image>> pProxyImage = node.m_pTable->GetPrivate()->m_rows[row].m_values[colIndex].m_pProxyImage)
+				NodeImagePtr CellImage = nullptr;
+
+				if (Ptr<ResourceProxy<Image>> pProxyImage = CellData.m_pProxyImage)
 				{
 					pImage = pProxyImage->Get();
 				}
@@ -1871,9 +1873,25 @@ namespace mu
 						"Table has a missing image in column %d, row %d.", colIndex, row);
 					pErrorLog->GetPrivate()->Add(temp, ELMT_ERROR, node.m_errorContext);
 				}
+				else
+				{
+					if (pImage->IsReference())
+					{
+						Ptr<NodeImageReference> ImageRef = new NodeImageReference();
+						ImageRef->SetImageReference(pImage->GetReferencedTexture());
 
-				pCell->SetValue(pImage);
-				return Generate(pCell);
+						CellImage = ImageRef;
+					}
+					else
+					{
+						NodeImageConstantPtr ImageConst = new NodeImageConstant();
+						ImageConst->SetValue(pImage);
+
+						CellImage = ImageConst;
+					}
+				}
+
+				return Generate(CellImage);
 			});
 	}
 

@@ -334,7 +334,27 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 				CurrentColumn = MutableTable->AddColumn(StringCast<ANSICHAR>(*ColumnName).Get(), mu::TABLE_COLUMN_TYPE::TCT_IMAGE);
 			}
 
-			GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(MutableTable, Texture, TableNode, CurrentColumn, RowIdx));
+			if (TableNode->GetColumnImageMode(ColumnName) == ETableTextureType::PASSTHROUGH_TEXTURE)
+			{
+				uint32* FoundIndex = GenerationContext.PassThroughTextureToIndexMap.Find(Texture);
+				uint32 ImageReferenceID;
+
+				if (!FoundIndex)
+				{
+					ImageReferenceID = GenerationContext.PassThroughTextureToIndexMap.Num();
+					GenerationContext.PassThroughTextureToIndexMap.Add(Texture, ImageReferenceID);
+				}
+				else
+				{
+					ImageReferenceID = *FoundIndex;
+				}
+
+				MutableTable->SetCell(CurrentColumn, RowIdx, mu::Image::CreateAsReference(ImageReferenceID).get());
+			}
+			else
+			{
+				GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(MutableTable, Texture, TableNode, CurrentColumn, RowIdx));
+			}
 		}
 
 		else if (UMaterialInstance* Material = Cast<UMaterialInstance>(Object))

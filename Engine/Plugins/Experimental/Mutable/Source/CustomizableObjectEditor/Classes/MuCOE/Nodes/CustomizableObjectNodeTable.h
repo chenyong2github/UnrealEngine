@@ -291,6 +291,9 @@ public:
 	// Returns true if the pin is in the default mode (same as node)
 	bool IsImagePinDefault(UEdGraphPin* Pin);
 
+	// Returns the image mode of the column
+	ETableTextureType GetColumnImageMode(FString ColumnName) const;
+
 private:
 
 	/** Number of properties to know when the node needs an update */
