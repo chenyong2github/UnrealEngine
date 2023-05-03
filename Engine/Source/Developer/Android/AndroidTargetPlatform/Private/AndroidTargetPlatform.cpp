@@ -414,13 +414,14 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 		case ETargetPlatformFeatures::DistanceFieldAO:
 			return UsesDistanceFields();
 
+			
 		case ETargetPlatformFeatures::NormalmapLAEncodingMode:
 		{
 			static IConsoleVariable* CompressorCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("cook.ASTCTextureCompressor"));
 			const bool bUsesARMCompressor = (CompressorCVar ? (CompressorCVar->GetInt() != 0) : false);
 			return SupportsTextureFormatCategory(EAndroidTextureFormatCategory::ASTC) && bUsesARMCompressor;
 		}
-			
+
 		default:
 			break;
 	}
