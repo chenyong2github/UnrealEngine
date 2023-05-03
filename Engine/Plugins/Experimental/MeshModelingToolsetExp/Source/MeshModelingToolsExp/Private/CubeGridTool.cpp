@@ -2277,7 +2277,9 @@ void UCubeGridTool::ApplyAction(ECubeGridToolAction ActionType)
 	case ECubeGridToolAction::ResetFromActor:
 		if (ToolActions->GridSourceActor)
 		{
-			UpdateGridGizmo(ToolActions->GridSourceActor->GetTransform());
+			FTransform TransformToUse = ToolActions->GridSourceActor->GetTransform();
+			TransformToUse.SetScale3D(FVector::OneVector);
+			UpdateGridGizmo(TransformToUse);
 		}
 		break;
 	}
@@ -2318,8 +2320,9 @@ void UCubeGridTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		LOCTEXT("DecreaseGridPowerAction", "Decrease Grid Power"),
 		LOCTEXT("DecreaseGridPowerTooltip", ""),
 		// Note that we can't use Ctrl+Q on Mac because that is mapped to Cmd+Q which kills the editor.
+		// At the same time we can't use Option+E because Mac consumes that for typing accented letters
 #if PLATFORM_MAC
-		EModifierKey::Alt, EKeys::Q,
+		EModifierKey::Alt, EKeys::A,
 #else
 		EModifierKey::Control, EKeys::Q,
 #endif
@@ -2329,7 +2332,7 @@ void UCubeGridTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		LOCTEXT("IncreaseGridPowerAction", "Increase Grid Power"),
 		LOCTEXT("IncreaseGridPowerTooltip", ""),
 #if PLATFORM_MAC
-		EModifierKey::Alt, EKeys::E,
+		EModifierKey::Alt, EKeys::D,
 #else
 		EModifierKey::Control, EKeys::E,
 #endif

@@ -181,7 +181,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = ShortcutInfo)
 	FString ResizeGrid =
 #if PLATFORM_MAC
-		TEXT("Option + E/Q to increase/decrease grid size.");
+		TEXT("Option + D/A to increase/decrease grid size.");
 #else
 		TEXT("Ctrl + E/Q to increase/decrease grid size.");
 #endif
