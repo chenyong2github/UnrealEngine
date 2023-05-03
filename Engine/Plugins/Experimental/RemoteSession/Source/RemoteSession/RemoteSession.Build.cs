@@ -6,8 +6,6 @@ public class RemoteSession : ModuleRules
 {
 	public RemoteSession(ReadOnlyTargetRules Target) : base(Target)
 	{
-		DefaultBuildSettings = BuildSettingsVersion.V2;
-
 		PrivateIncludePaths.AddRange(
 			new string[] {
 			}

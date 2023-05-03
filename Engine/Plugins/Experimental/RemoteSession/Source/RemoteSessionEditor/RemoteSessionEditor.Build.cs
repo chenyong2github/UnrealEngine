@@ -14,6 +14,7 @@ public class RemoteSessionEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"RemoteSession",
+				"FieldNotification",
 				"UMG",
 				"UMGEditor",
 			}
