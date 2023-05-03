@@ -106,7 +106,8 @@ struct FCommandLine
 	 * Builds a command line string from the ArgC/ArgV main() arguments, together with
 	 * an optional prefix or suffix, for adding additional command list arguments programmatically.
 	*/
-	CORE_API static FString BuildFromArgV(const TCHAR* Prefix, int32 ArgC, TCHAR* ArgV[], const TCHAR* Suffix);
+	CORE_API static FString BuildFromArgV(const WIDECHAR* Prefix, int32 ArgC, WIDECHAR* ArgV[], const WIDECHAR* Suffix);
+	CORE_API static FString BuildFromArgV(const ANSICHAR* Prefix, int32 ArgC, ANSICHAR* ArgV[], const ANSICHAR* Suffix);
 
 private:
 #if UE_COMMAND_LINE_USES_ALLOW_LIST

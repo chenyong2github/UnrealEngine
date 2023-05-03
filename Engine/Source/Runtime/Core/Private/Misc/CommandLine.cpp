@@ -317,8 +317,8 @@ void FCommandLine::Parse(const TCHAR* InCmdLine, TArray<FString>& Tokens, TArray
 	}
 }
 
-
-FString FCommandLine::BuildFromArgV(const TCHAR* Prefix, int32 ArgC, TCHAR* ArgV[], const TCHAR* Suffix)
+template<typename CharType>
+FString BuildFromArgVImpl(const CharType* Prefix, int32 ArgC, CharType* ArgV[], const CharType* Suffix)
 {
 	FString Result;
 
@@ -351,13 +351,23 @@ FString FCommandLine::BuildFromArgV(const TCHAR* Prefix, int32 ArgC, TCHAR* ArgV
 	// add the prefix and suffix if provided
 	if (Prefix)
 	{
-		Result = FString::Printf(TEXT("%s %s"), Prefix, *Result);
+		Result = FString::Printf(TEXT("%s %s"), StringCast<TCHAR>(Prefix).Get(), *Result);
 	}
 
 	if (Suffix)
 	{
-		Result = FString::Printf(TEXT("%s %s"), *Result, Suffix);
+		Result = FString::Printf(TEXT("%s %s"), *Result, StringCast<TCHAR>(Suffix).Get());
 	}
 
 	return Result;
+}
+
+FString FCommandLine::BuildFromArgV(const WIDECHAR* Prefix, int32 ArgC, WIDECHAR* ArgV[], const WIDECHAR* Suffix)
+{
+	return BuildFromArgVImpl(Prefix, ArgC, ArgV, Suffix);
+}
+
+FString FCommandLine::BuildFromArgV(const ANSICHAR* Prefix, int32 ArgC, ANSICHAR* ArgV[], const ANSICHAR* Suffix)
+{
+	return BuildFromArgVImpl(Prefix, ArgC, ArgV, Suffix);
 }
