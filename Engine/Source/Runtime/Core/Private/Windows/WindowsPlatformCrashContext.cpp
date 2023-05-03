@@ -37,7 +37,6 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START
 #include <strsafe.h>
-THIRD_PARTY_INCLUDES_START
 #include <dbghelp.h>
 #include <Shlwapi.h>
 #include <psapi.h>
