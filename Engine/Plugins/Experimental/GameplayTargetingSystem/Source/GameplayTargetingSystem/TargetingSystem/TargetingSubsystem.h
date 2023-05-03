@@ -162,6 +162,9 @@ private:
 	/** Method to find the currect executing task for the given handle */
 	UTargetingTask* FindCurrentExecutingTask(FTargetingRequestHandle Handle) const;
 
+	/** Called when we set bTickingAsyncRequests to false, at this point it's safe to perform any queued operations on the Async Requests Array */
+	void OnFinishedTickingAsyncRequests();
+
 	/** The set of target requests queued up for async processing */
 	UPROPERTY(Transient)
 	TArray<FTargetingRequestHandle> AsyncTargetingRequests;
@@ -218,9 +221,6 @@ private:
 
 	void AddDebugTrackedImmediateTargetRequests(FTargetingRequestHandle TargetingHandle) const;
 	void AddDebugTrackedAsyncTargetRequests(FTargetingRequestHandle TargetingHandle) const;
-
-	/** Called when we set bTickingAsyncRequests to false, at this point it's safe to perform any queued operations on the Async Requests Array */
-	void OnFinishedTickingAsyncRequests();
 
 	mutable TArray<FTargetingRequestHandle> DebugTrackedImmediateTargetRequests;
 	mutable int32 CurrentImmediateRequestIndex = 0;
