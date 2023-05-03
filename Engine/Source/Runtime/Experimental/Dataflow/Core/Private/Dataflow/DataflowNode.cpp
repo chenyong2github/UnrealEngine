@@ -477,6 +477,30 @@ FString FDataflowNode::GetToolTip()
 	return "";
 }
 
+FText FDataflowNode::GetPinDisplayName(const FName& PropertyName)
+{
+	// GetDisplayNameText() is only available if WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA
+	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
+	{
+		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
+		{
+			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
+			{
+				const FProperty* Property = *PropertyIt;
+
+				if (Property->GetName() == PropertyName.ToString())
+				{
+					return Property->GetDisplayNameText();
+				}
+			}
+		}
+	}
+#endif
+
+	return FText();
+}
+
 FString FDataflowNode::GetPinToolTip(const FName& PropertyName)
 {
 	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))

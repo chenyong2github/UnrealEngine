@@ -354,6 +354,25 @@ FText UDataflowEdNode::GetTooltipText() const
 
 }
 
+FText UDataflowEdNode::GetPinDisplayName(const UEdGraphPin* Pin) const
+{
+	if (Pin && DataflowGraph)
+	{
+		if (DataflowNodeGuid.IsValid())
+		{
+			if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(DataflowNodeGuid))
+			{
+				FText DisplayName = DataflowNode->GetPinDisplayName(Pin->PinName);
+				if (!DisplayName.IsEmpty())
+				{
+					return DisplayName;
+				}
+			}
+		}
+	}
+	return Super::GetPinDisplayName(Pin);
+}
+
 void UDataflowEdNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
 {
 	if (DataflowGraph)

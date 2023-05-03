@@ -77,6 +77,7 @@ struct DATAFLOWCORE_API FDataflowNode
 	virtual FString GetTags() const { return ""; }
 	virtual FString GetToolTip();
 	FString GetPinToolTip(const FName& PropertyName);
+	FText GetPinDisplayName(const FName& PropertyName);
 	TArray<FString> GetPinMetaData(const FName& PropertyName);
 	virtual TArray<Dataflow::FRenderingParameter> GetRenderParameters() const { return GetRenderParametersImpl(); }
 
