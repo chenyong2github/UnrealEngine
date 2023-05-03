@@ -69,7 +69,7 @@ public:
 	//~ End UUserWidgetExtension implementation
 
 	void InitializeBindings();
-	void DeintializeBindings();
+	void DeinitializeBindings();
 
 	const UMVVMViewClass* GetViewClass() const
 	{
