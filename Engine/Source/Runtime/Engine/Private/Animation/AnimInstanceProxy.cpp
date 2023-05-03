@@ -1189,15 +1189,14 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 	ANIM_MT_SCOPE_CYCLE_COUNTER(ProxyUpdateAnimation, !IsInGameThread());
 	FScopeCycleCounterUObject AnimScope(bUpdatingRoot ? nullptr : GetAnimInstanceObject());
 
-#if WITH_EDITORONLY_DATA
-	UpdatedNodesThisFrame.Reset();
-	NodeInputAttributesThisFrame.Reset();
-	NodeOutputAttributesThisFrame.Reset();
-	NodeSyncsThisFrame.Reset();
-#endif
-
 	if(InRootNode == RootNode)
 	{
+#if WITH_EDITORONLY_DATA
+	    UpdatedNodesThisFrame.Reset();
+	    NodeInputAttributesThisFrame.Reset();
+	    NodeOutputAttributesThisFrame.Reset();
+	    NodeSyncsThisFrame.Reset();
+#endif
 		if(bInitializeSubsystems && AnimClassInterface)
 		{
 			AnimClassInterface->ForEachSubsystem(GetAnimInstanceObject(), [this](const FAnimSubsystemInstanceContext& InContext)
