@@ -426,7 +426,7 @@ namespace Metasound::Test::Generator
 		
 		// Subscribe for updates
 		Generator->OnOutputChanged.AddLambda(
-			[this, &NextTriggerReceivedSeconds, &AnalyzerAddress, &CallbackSuccess, &NumTriggersReceived]
+			[this, &NextTriggerReceivedSeconds, &AnalyzerAddress, &CallbackSuccess, &NumTriggersReceived, TriggerIntervalSeconds]
 			(const FName AnalyzerName, const FName OutputName, const FName AnalyzerOutputName, TSharedPtr<IOutputStorage> OutputData)
 			{
 				CallbackSuccess = TestEqual("Data types match", OutputData->GetDataTypeName(), GetMetasoundDataTypeName<FTime>())
