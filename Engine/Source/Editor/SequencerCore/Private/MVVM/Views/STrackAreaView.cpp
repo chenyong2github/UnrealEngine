@@ -317,6 +317,31 @@ int32 STrackAreaView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 	return LayerId;
 }
 
+FReply STrackAreaView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	TSharedPtr<FTrackAreaViewModel> TrackArea = WeakViewModel.Pin();
+	ISequencerEditTool* EditTool = TrackArea ? TrackArea->GetEditTool() : nullptr;
+
+	if (EditTool)
+	{
+		// Always ensure the edit tool is set up
+		InputStack.SetHandlerAt(0, EditTool);
+	}
+	return InputStack.HandleKeyDown(*this, MyGeometry, InKeyEvent);
+}
+
+FReply STrackAreaView::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	TSharedPtr<FTrackAreaViewModel> TrackArea = WeakViewModel.Pin();
+	ISequencerEditTool* EditTool = TrackArea ? TrackArea->GetEditTool() : nullptr;
+
+	if (EditTool)
+	{
+		// Always ensure the edit tool is set up
+		InputStack.SetHandlerAt(0, EditTool);
+	}
+	return InputStack.HandleKeyUp(*this, MyGeometry, InKeyEvent);
+}
 
 FReply STrackAreaView::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {

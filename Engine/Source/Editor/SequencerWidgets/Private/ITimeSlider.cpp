@@ -48,3 +48,12 @@ void ITimeSliderController::SetPlayRange(FFrameNumber RangeStart, int32 RangeDur
 void ITimeSliderController::SetSelectionRange(const TRange<FFrameNumber>& NewRange)
 {
 }
+
+void ITimeSliderController::SetPlaybackStatus(ETimeSliderPlaybackStatus InStatus)
+{
+}
+
+ETimeSliderPlaybackStatus ITimeSliderController::GetPlaybackStatus() const
+{
+	return ETimeSliderPlaybackStatus::Stopped;
+}

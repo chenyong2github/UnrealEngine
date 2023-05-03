@@ -8,6 +8,7 @@
 #include "DragOperations/CurveEditorDragOperation_Marquee.h"
 #include "DragOperations/CurveEditorDragOperation_Pan.h"
 #include "DragOperations/CurveEditorDragOperation_Zoom.h"
+#include "DragOperations/CurveEditorDragOperation_ScrubTime.h"
 #include "GenericPlatform/ICursor.h"
 #include "HAL/PlatformCrt.h"
 #include "ICurveEditorBounds.h"
@@ -36,6 +37,7 @@
 #include "Views/SInteractiveCurveEditorView.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SWidget.h"
+#include "CurveEditorCommands.h"
 
 class FPaintArgs;
 class FSlateRect;
@@ -155,6 +157,23 @@ int32 SCurveEditorViewContainer::OnPaint(const FPaintArgs& Args, const FGeometry
 	return LayerId + CurveViewConstants::ELayerOffset::Last;
 }
 
+bool SCurveEditorViewContainer::IsScrubTimeKeyEvent(const FKeyEvent& InKeyEvent)
+{
+	const FCurveEditorCommands& Commands = FCurveEditorCommands::Get();
+	// Need to iterate through primary and secondary to make sure they are all pressed.
+	for (uint32 i = 0; i < static_cast<uint8>(EMultipleKeyBindingIndex::NumChords); ++i)
+	{
+		EMultipleKeyBindingIndex ChordIndex = static_cast<EMultipleKeyBindingIndex>(i);
+		const FInputChord& Chord = *Commands.ScrubTime->GetActiveChord(ChordIndex);
+		const bool bIsMovingTimeSlider = Chord.IsValidChord() && InKeyEvent.GetKey() == Chord.Key;
+		if (bIsMovingTimeSlider)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 FReply SCurveEditorViewContainer::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape && DragOperation.IsSet())
@@ -163,6 +182,28 @@ FReply SCurveEditorViewContainer::OnKeyDown(const FGeometry& MyGeometry, const F
 		DragOperation.Reset();
 		return FReply::Handled();
 	}
+
+	if (IsScrubTimeKeyEvent(InKeyEvent))
+	{
+		bIsScrubbingTime = true;
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
+FReply SCurveEditorViewContainer::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (IsScrubTimeKeyEvent(InKeyEvent) && bIsScrubbingTime )
+	{
+		bIsScrubbingTime = false;
+		if (DragOperation.IsSet())
+		{
+			DragOperation->DragImpl->CancelDrag();
+			DragOperation.Reset();
+			return FReply::Handled();
+		}
+	}
+	
 	return FReply::Unhandled();
 }
 
@@ -182,11 +223,19 @@ FReply SCurveEditorViewContainer::OnMouseButtonDown(const FGeometry& MyGeometry,
 {
 	FVector2D MousePixel = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
-	// Marquee Selection
+	// Marquee Selection or time scrub
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		DragOperation = FCurveEditorDelayedDrag(MousePixel, MouseEvent.GetEffectingButton());
-		DragOperation->DragImpl = MakeUnique<FCurveEditorDragOperation_Marquee>(CurveEditor.Get());
+		if (bIsScrubbingTime)
+		{
+			DragOperation = FCurveEditorDelayedDrag(MousePixel, MouseEvent.GetEffectingButton());
+			DragOperation->DragImpl = MakeUnique<FCurveEditorDragOperation_ScrubTime>(CurveEditor.Get());
+		}
+		else
+		{
+			DragOperation = FCurveEditorDelayedDrag(MousePixel, MouseEvent.GetEffectingButton());
+			DragOperation->DragImpl = MakeUnique<FCurveEditorDragOperation_Marquee>(CurveEditor.Get());
+		}
 		return FReply::Handled();
 	}
 	// Middle Click + Alt Pan

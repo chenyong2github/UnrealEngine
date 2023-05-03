@@ -66,6 +66,17 @@ struct FPaintViewAreaArgs
 	TOptional<FPaintPlaybackRangeArgs> PlaybackRangeArgs;
 };
 
+enum ETimeSliderPlaybackStatus 
+{
+	Stopped,
+	Playing,
+	Scrubbing,
+	Jumping,
+	Stepping,
+	Paused,
+	MAX
+};
+
 class ITimeSliderController : public ISequencerInputHandler
 {
 public:
@@ -121,6 +132,13 @@ public:
 
 	/** Set the current time for the Scrub handle which indicates what range is being evaluated. */
 	SEQUENCERWIDGETS_API virtual void SetScrubPosition(FFrameTime InTime, bool bEvaluate);
+	
+	/** Set the playback status for the controller*/
+	SEQUENCERWIDGETS_API virtual void SetPlaybackStatus(ETimeSliderPlaybackStatus InStatus);
+
+	/** Get the playback status for the controller, by default it is ETimeSliderPlaybackStatus::Stopped */
+	SEQUENCERWIDGETS_API virtual ETimeSliderPlaybackStatus GetPlaybackStatus() const;
+
 
 	/**
 	 * Set a new range based on a min, max and an interpolation mode

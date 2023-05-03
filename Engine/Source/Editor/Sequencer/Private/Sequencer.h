@@ -725,6 +725,7 @@ public:
 	virtual FFrameTime GetLastEvaluatedLocalTime() const override;
 	virtual void SetGlobalTime(FFrameTime Time, bool bEvaluate = true) override;
 	virtual void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams) override;
+	virtual void SnapSequencerTime(FFrameTime& InOutScrubTime) override;
 	virtual void RestorePlaybackSpeed() override;
 	virtual void SnapToClosestPlaybackSpeed() override;
 	virtual void RequestInvalidateCachedData() override { bNeedsInvalidateCachedData = true; }

@@ -76,6 +76,8 @@ public:
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const = 0;
 	virtual void OnMouseEnter(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) = 0;
 	virtual void OnMouseLeave(SWidget& OwnerWidget, const FPointerEvent& MouseEvent) = 0;
+	virtual FReply OnKeyDown(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) {return FReply::Unhandled();}
+	virtual FReply OnKeyUp(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) {return FReply::Unhandled();}
 	virtual FName GetIdentifier() const = 0;
 	virtual bool CanDeactivate() const = 0;
 	virtual TSharedPtr<ITrackAreaHotspot> GetDragHotspot() const = 0;

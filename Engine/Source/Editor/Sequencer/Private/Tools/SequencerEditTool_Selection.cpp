@@ -9,6 +9,7 @@
 #include "SequencerHotspots.h"
 #include "IKeyArea.h"
 #include "Tools/SequencerEntityVisitor.h"
+#include "SequencerCommands.h"
 #include "MVVM/Views/ISequencerTreeView.h"
 #include "MVVM/Views/ITrackAreaHotspot.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
@@ -102,6 +103,75 @@ private:
 	bool bPinned;
 };
 
+class FScrubTimeDragOperation
+	: public UE::Sequencer::ISequencerEditToolDragOperation
+{
+public:
+
+	FScrubTimeDragOperation(FSequencer& InSequencer, UE::Sequencer::STrackAreaView& InTrackArea)
+		: Sequencer(InSequencer)
+	{}
+
+public:
+
+	// ISequencerEditToolDragOperation interface
+
+	virtual FCursorReply GetCursor() const override
+	{
+		return FCursorReply::Cursor(EMouseCursor::Default);
+	}
+
+	virtual void OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea) override
+	{
+		// Start a new marquee selection
+		InitialPosition = CurrentPosition = VirtualTrackArea.PhysicalToVirtual(LocalMousePos);
+		CurrentMousePos = LocalMousePos;
+
+		Sequencer.SetPlaybackStatus(EMovieScenePlayerStatus::Scrubbing);
+		SequencerStartTime = Sequencer.GetLocalTime();
+		InitialTime = VirtualTrackArea.PixelToSeconds(LocalMousePos.X);
+	}
+
+	virtual void OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea) override
+	{
+		CurrentTime = VirtualTrackArea.PixelToSeconds(LocalMousePos.X);
+		FFrameTime FrameTime = CalculateScrubTime();
+
+		Sequencer.SnapSequencerTime(FrameTime);
+		Sequencer.SetLocalTimeDirectly(FrameTime, true);
+	}
+
+	virtual void OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea) override
+	{
+		Sequencer.SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
+	}
+
+	virtual int32 OnPaint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const override
+	{
+		return LayerId;
+	}
+
+private:
+
+	FFrameTime CalculateScrubTime()
+	{
+		double Diff = CurrentTime - InitialTime;
+		FFrameTime FrameTime= SequencerStartTime.Rate.AsFrameTime(Diff);
+		FrameTime += SequencerStartTime.Time;
+		return FrameTime;
+	}
+
+	/** The sequencer itself */
+	FSequencer& Sequencer;
+
+	FVector2D InitialPosition;
+	FVector2D CurrentPosition;
+	FVector2D CurrentMousePos;
+
+	FQualifiedFrameTime SequencerStartTime;
+	double InitialTime;
+	double CurrentTime;
+};
 
 class FMarqueeDragOperation
 	: public UE::Sequencer::ISequencerEditToolDragOperation
@@ -413,7 +483,14 @@ FReply FSequencerEditTool_Selection::OnMouseMove(SWidget& OwnerWidget, const FGe
 
 			if (!DragOperation.IsValid())
 			{
-				DragOperation = MakeShareable( new FMarqueeDragOperation(Sequencer, TrackArea) );
+				if (bIsScrubbingTime)
+				{
+					DragOperation = MakeShareable(new FScrubTimeDragOperation(Sequencer, TrackArea));
+				}
+				else
+				{
+					DragOperation = MakeShareable(new FMarqueeDragOperation(Sequencer, TrackArea));
+				}
 			}
 
 			if (DragOperation.IsValid())
@@ -482,6 +559,7 @@ void FSequencerEditTool_Selection::OnMouseLeave(SWidget& OwnerWidget, const FPoi
 	{
 		CursorDecorator = nullptr;
 	}
+	bIsScrubbingTime = false;
 }
 
 
@@ -493,9 +571,47 @@ void FSequencerEditTool_Selection::OnMouseCaptureLost()
 		DelayedDrag.Reset();
 		DragOperation = nullptr;
 		CursorDecorator = nullptr;
+		bIsScrubbingTime = false;
 	});
 }
 
+bool FSequencerEditTool_Selection::IsScrubTimeKeyEvent(const FKeyEvent& InKeyEvent)
+{
+	const FSequencerCommands& Commands = FSequencerCommands::Get();
+	// Need to iterate through primary and secondary to make sure they are all pressed.
+	for (uint32 i = 0; i < static_cast<uint8>(EMultipleKeyBindingIndex::NumChords); ++i)
+	{
+		EMultipleKeyBindingIndex ChordIndex = static_cast<EMultipleKeyBindingIndex>(i);
+		const FInputChord& Chord = *Commands.ScrubTimeViewport->GetActiveChord(ChordIndex);
+		const bool bIsMovingTimeSlider = Chord.IsValidChord() && InKeyEvent.GetKey() == Chord.Key;
+		if (bIsMovingTimeSlider)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+FReply FSequencerEditTool_Selection::OnKeyDown(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (IsScrubTimeKeyEvent(InKeyEvent))
+	{
+		bIsScrubbingTime = true;
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
+FReply FSequencerEditTool_Selection::OnKeyUp(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (IsScrubTimeKeyEvent(InKeyEvent) && bIsScrubbingTime)
+	{
+		bIsScrubbingTime = false;
+		//would be nice to cancle the drag but doesn't seem like we can like we can with curve editor drag handlers.
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
 
 FName FSequencerEditTool_Selection::GetIdentifier() const
 {

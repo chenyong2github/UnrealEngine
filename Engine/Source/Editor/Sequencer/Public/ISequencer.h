@@ -428,6 +428,9 @@ public:
 	/** Play from the current time to the requested time */
 	virtual void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams) = 0;
 
+	/*Modify the Sequencer time by any snap settings */
+	virtual void SnapSequencerTime(FFrameTime& InOutScrubTime) = 0;
+
 	/** Invalidate cached data so that it will be reevaluated on the next frame */
 	virtual void RequestInvalidateCachedData() = 0;
 

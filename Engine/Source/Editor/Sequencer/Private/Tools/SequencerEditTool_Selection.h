@@ -42,12 +42,16 @@ public:
 	virtual FName GetIdentifier() const override;
 	virtual bool CanDeactivate() const override;
 	virtual TSharedPtr<UE::Sequencer::ITrackAreaHotspot> GetDragHotspot() const override;
-	
+	virtual FReply OnKeyDown(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnKeyUp(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 private:
 
 	/** Update the software cursor */
 	void UpdateCursor(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
+	/** Are we scrubbing time*/
+	bool IsScrubTimeKeyEvent(const FKeyEvent& InKeyEvent);
 private:
 
 	/** Helper class responsible for handling delayed dragging */
@@ -64,4 +68,7 @@ private:
 
 	/** Software cursor decorator brush */
 	const FSlateBrush* CursorDecorator;
+
+	/** Whether or not we are scrubbing time*/
+	bool bIsScrubbingTime = false;
 };

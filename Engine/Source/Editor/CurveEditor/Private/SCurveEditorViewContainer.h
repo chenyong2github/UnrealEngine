@@ -76,6 +76,7 @@ private:
 
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
 
@@ -84,6 +85,8 @@ private:
 	void OnCurveEditorToolChanged(FCurveEditorToolID InToolId);
 
 	void ExpandInputBounds(float NewWidth);
+
+	bool IsScrubTimeKeyEvent(const FKeyEvent& InKeyEvent);
 
 private:
 
@@ -110,4 +113,7 @@ private:
 
 	/** The minimum height for this container panel. **/
 	float MinimumPanelHeight;
+
+	/** Whether or not we are scrubbing time*/
+	bool bIsScrubbingTime = false;
 };

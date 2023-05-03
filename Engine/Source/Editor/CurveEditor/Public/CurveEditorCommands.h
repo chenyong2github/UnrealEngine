@@ -120,6 +120,7 @@ public:
 	TSharedPtr<FUICommandInfo> StepBackward;
 	TSharedPtr<FUICommandInfo> JumpToStart;
 	TSharedPtr<FUICommandInfo> JumpToEnd;
+	TSharedPtr<FUICommandInfo> ScrubTime;
 
 	// Selection Range
 	TSharedPtr< FUICommandInfo > SetSelectionRangeStart;

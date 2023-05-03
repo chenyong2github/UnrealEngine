@@ -1445,6 +1445,89 @@ int32 FSequencerTimeSliderController::OnPaintViewArea( const FGeometry& Allotted
 	return LayerId;
 }
 
+void FSequencerTimeSliderController::SetPlaybackStatus(ETimeSliderPlaybackStatus InStatus)
+{
+	using namespace UE::Sequencer;
+	if (!WeakSequencer.IsValid())
+	{
+		return;
+	}
+	switch (InStatus)
+	{
+		case ETimeSliderPlaybackStatus::Jumping:
+		{
+			WeakSequencer.Pin()->SetPlaybackStatus(EMovieScenePlayerStatus::Jumping);
+			break;
+		}
+		case ETimeSliderPlaybackStatus::Paused:
+		{
+			WeakSequencer.Pin()->SetPlaybackStatus(EMovieScenePlayerStatus::Paused);
+			break;
+		}
+		case ETimeSliderPlaybackStatus::Playing:
+		{
+			WeakSequencer.Pin()->SetPlaybackStatus(EMovieScenePlayerStatus::Playing);
+			break;
+		}
+		case ETimeSliderPlaybackStatus::Scrubbing:
+		{
+			WeakSequencer.Pin()->SetPlaybackStatus(EMovieScenePlayerStatus::Scrubbing);
+			break;
+		}
+		case ETimeSliderPlaybackStatus::Stepping:
+		{
+			WeakSequencer.Pin()->SetPlaybackStatus(EMovieScenePlayerStatus::Stepping);
+			break;
+		}
+		default:
+		case ETimeSliderPlaybackStatus::Stopped:
+		{
+			WeakSequencer.Pin()->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
+			break;
+		}
+	}
+}
+
+ETimeSliderPlaybackStatus FSequencerTimeSliderController::GetPlaybackStatus() const
+{
+	using namespace UE::Sequencer;
+	if (!WeakSequencer.IsValid())
+	{
+		return ETimeSliderPlaybackStatus::Stopped;
+	}
+	EMovieScenePlayerStatus::Type Status = WeakSequencer.Pin()->GetPlaybackStatus();
+	switch (Status)
+	{
+		case EMovieScenePlayerStatus::Jumping:
+		{
+			return ETimeSliderPlaybackStatus::Jumping;
+		}
+		case EMovieScenePlayerStatus::Paused:
+		{
+			return ETimeSliderPlaybackStatus::Paused;
+		}
+		case EMovieScenePlayerStatus::Playing:
+		{
+			return ETimeSliderPlaybackStatus::Playing;
+		}
+		case EMovieScenePlayerStatus::Scrubbing:
+		{
+			return ETimeSliderPlaybackStatus::Scrubbing;
+		}
+		case EMovieScenePlayerStatus::Stepping:
+		{
+			return ETimeSliderPlaybackStatus::Stepping;
+		}
+		case EMovieScenePlayerStatus::Stopped:
+		{
+			return ETimeSliderPlaybackStatus::Stopped;
+		}
+
+	}
+	return ETimeSliderPlaybackStatus::Stopped;
+
+}
+
 TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();

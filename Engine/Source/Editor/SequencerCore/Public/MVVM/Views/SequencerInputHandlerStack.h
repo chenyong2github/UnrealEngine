@@ -85,10 +85,18 @@ public:
 		return ProcessEvent(&ISequencerInputHandler::OnMouseWheel, OwnerWidget, MyGeometry, MouseEvent);
 	}
 
-
+	FReply HandleKeyDown(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+	{
+		return ProcessKeyEvent(&ISequencerInputHandler::OnKeyDown, OwnerWidget, MyGeometry, InKeyEvent);
+	}
+	FReply HandleKeyUp(SWidget& OwnerWidget, const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+	{
+		return ProcessKeyEvent(&ISequencerInputHandler::OnKeyUp, OwnerWidget, MyGeometry, InKeyEvent);
+	}
 private:
 
 	typedef FReply(ISequencerInputHandler::*InputHandlerFunction)(SWidget&, const FGeometry&, const FPointerEvent&);
+	typedef FReply(ISequencerInputHandler::* KeyInputHandlerFunction)(SWidget&, const FGeometry&, const FKeyEvent&);
 
 	FReply ProcessEvent(InputHandlerFunction Function, SWidget& OwnerWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 	{
@@ -133,6 +141,38 @@ private:
 			CapturedIndex = INDEX_NONE;
 			OnEndCapture.Broadcast();
 		}
+		return Reply;
+	}
+
+	//use mouse capture for the key event
+	FReply ProcessKeyEvent(KeyInputHandlerFunction Function, SWidget& OwnerWidget, const FGeometry& MyGeometry, const FKeyEvent& KeyEvent)
+	{
+		FReply Reply = FReply::Unhandled();
+
+		// Give the captured index priority over everything
+		if (CapturedIndex != INDEX_NONE && Handlers[CapturedIndex])
+		{
+			Reply = (Handlers[CapturedIndex]->*Function)(OwnerWidget, MyGeometry, KeyEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+
+		for (int32 Index = 0; Index < Handlers.Num(); ++Index)
+		{
+			if (!Handlers[Index] || CapturedIndex == Index)
+			{
+				continue;
+			}
+
+			Reply = (Handlers[Index]->*Function)(OwnerWidget, MyGeometry, KeyEvent);
+			if (Reply.IsEventHandled())
+			{
+				return Reply;
+			}
+		}
+
 		return Reply;
 	}
 

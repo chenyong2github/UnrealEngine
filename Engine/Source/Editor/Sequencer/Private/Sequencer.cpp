@@ -3171,6 +3171,34 @@ void FSequencer::PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams)
 	PauseOnFrame = PlayToTime;
 }
 
+void FSequencer::SnapSequencerTime(FFrameTime& ScrubTime)
+{
+	// Clamp first, snap to frame last
+	if (GetSequencerSettings()->ShouldKeepCursorInPlayRangeWhileScrubbing())
+	{
+		TRange<FFrameNumber> PlaybackRange =GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
+		ScrubTime = UE::MovieScene::ClampToDiscreteRange(ScrubTime, PlaybackRange);
+	}
+
+	if (GetSequencerSettings()->GetIsSnapEnabled())
+	{
+		FFrameRate TickResolution = GetFocusedTickResolution();
+		FFrameRate DisplayRate = GetFocusedDisplayRate();
+
+		// Set the style of the scrub handle
+		if (GetScrubStyle() == ESequencerScrubberStyle::FrameBlock)
+		{
+			// Floor to the display frame
+			ScrubTime = ConvertFrameTime(ConvertFrameTime(ScrubTime, TickResolution, DisplayRate).FloorToFrame(), DisplayRate, TickResolution);
+		}
+		else
+		{
+			// Snap (round) to display rate
+			ScrubTime = FFrameRate::Snap(ScrubTime, TickResolution, DisplayRate);
+		}
+	}
+}
+
 void FSequencer::ForceEvaluate()
 {
 	EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());

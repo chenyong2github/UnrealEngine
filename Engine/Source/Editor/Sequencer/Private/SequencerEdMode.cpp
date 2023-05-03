@@ -352,34 +352,6 @@ bool FSequencerEdMode::InputDelta(FEditorViewportClient* InViewportClient, FView
 	return FEdMode::InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
 }
 
-static void SnapSequencerTime(TSharedPtr<FSequencer>& Sequencer, FFrameTime& ScrubTime)
-{
-	// Clamp first, snap to frame last
-	if (Sequencer->GetSequencerSettings()->ShouldKeepCursorInPlayRangeWhileScrubbing())
-	{
-		TRange<FFrameNumber> PlaybackRange = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
-		ScrubTime = UE::MovieScene::ClampToDiscreteRange(ScrubTime, PlaybackRange);
-	}
-
-	if (Sequencer->GetSequencerSettings()->GetIsSnapEnabled())
-	{
-		FFrameRate TickResolution =  Sequencer->GetFocusedTickResolution();
-		FFrameRate DisplayRate = Sequencer->GetFocusedDisplayRate();
-
-		// Set the style of the scrub handle
-		if (Sequencer->GetScrubStyle() == ESequencerScrubberStyle::FrameBlock)
-		{
-			// Floor to the display frame
-			ScrubTime = ConvertFrameTime(ConvertFrameTime(ScrubTime, TickResolution, DisplayRate).FloorToFrame(), DisplayRate, TickResolution);
-		}
-		else
-		{
-			// Snap (round) to display rate
-			ScrubTime = FFrameRate::Snap(ScrubTime, TickResolution, DisplayRate);
-		}
-	}
-}
-
 bool FSequencerEdMode::ProcessCapturedMouseMoves(FEditorViewportClient* InViewportClient, FViewport* InViewport, const TArrayView<FIntPoint>& CapturedMouseMoves)
 {
 	TSharedPtr<FSequencer> ActiveSequencer;
@@ -422,7 +394,7 @@ bool FSequencerEdMode::ProcessCapturedMouseMoves(FEditorViewportClient* InViewpo
 							FFrameNumber FrameDiff = ViewRange.Value - ViewRange.Key;
 							FrameDiff = FrameDiff * FloatViewDiff;
 							FFrameTime ScrubTime = StartFrameNumber + FrameDiff;
-							SnapSequencerTime(ActiveSequencer, ScrubTime);
+							ActiveSequencer->SnapSequencerTime(ScrubTime);
 							ActiveSequencer->SetLocalTime(ScrubTime.GetFrame());
 						}
 					}
