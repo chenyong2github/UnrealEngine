@@ -39,6 +39,11 @@ private:
 	 */
 	FString GetDisplayValueAsString() const;
 
+	/**
+	 * Get the active display value tooltip.
+	 */
+	FText GetValueToolTip() const;
+
 	/** @return True if the property can be edited */
 	bool CanEdit() const;
 private:
@@ -56,4 +61,6 @@ private:
 	 * Indicates that this combo box's values are friendly names for the real values; currently only used for enum drop-downs.
 	 */
 	bool bUsesAlternateDisplayValues;
+	TMap<FString, FString> AlternateDisplayValueToInternalValue;
+	TMap<FString, FString> InternalValueToAlternateDisplayValue;
 };

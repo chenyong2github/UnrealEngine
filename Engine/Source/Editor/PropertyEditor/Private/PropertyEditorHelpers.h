@@ -261,6 +261,15 @@ namespace PropertyEditorHelpers
 	 * @return The array of disallowed enums.
 	 */
 	TArray<FName> GetInvalidEnumsFromPropertyOverride(const FProperty* Property, const UEnum* InEnum);
+
+	/**
+	 * Returns any enums that are have an overridden display name from the "EnumValueDisplayNameOverrides" metadata on FProperty using the specified enum.
+	 *
+	 * @param Property	The property which may contain the "EnumValueDisplayNameOverrides" metadata
+	 * @param InEnum	The enum to search
+	 * @return The map of display name overrides.
+	 */
+	TMap<FName, FText> GetEnumValueDisplayNamesFromPropertyOverride(const FProperty* Property, const UEnum* InEnum);
 	
 	/**
 	 * Whether or not a category is hidden by a given root object

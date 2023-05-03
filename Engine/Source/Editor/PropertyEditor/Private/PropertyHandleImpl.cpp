@@ -3029,6 +3029,7 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 	{
 		const TArray<FName> ValidEnumValues = PropertyEditorHelpers::GetValidEnumsFromPropertyOverride(Property, Enum);
 		const TArray<FName> InvalidEnumValues = PropertyEditorHelpers::GetInvalidEnumsFromPropertyOverride(Property, Enum);
+		const TMap<FName, FText> EnumValueDisplayNameOverrides = PropertyEditorHelpers::GetEnumValueDisplayNamesFromPropertyOverride(Property, Enum);
 
 		//NumEnums() - 1, because the last item in an enum is the _MAX item
 		for( int32 EnumIndex = 0; EnumIndex < Enum->NumEnums() - 1; ++EnumIndex )
@@ -3057,7 +3058,11 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 			{
 				// See if we specified an alternate name for this value using metadata
 				FString EnumName = Enum->GetNameStringByIndex(EnumIndex);
-				FString EnumDisplayName = Enum->GetDisplayNameTextByIndex(EnumIndex).ToString();
+				FString EnumDisplayName = EnumValueDisplayNameOverrides.FindRef(Enum->GetNameByIndex(EnumIndex)).ToString();
+				if (EnumDisplayName.IsEmpty())
+				{
+					EnumDisplayName = Enum->GetDisplayNameTextByIndex(EnumIndex).ToString();
+				}
 
 				FText RestrictionTooltip;
 				const bool bIsRestricted = GenerateRestrictionToolTip(EnumName, RestrictionTooltip);

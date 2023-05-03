@@ -1121,6 +1121,32 @@ namespace PropertyEditorHelpers
 		return InvalidEnumValues;
 	}
 
+	TMap<FName, FText> GetEnumValueDisplayNamesFromPropertyOverride(const FProperty* Property, const UEnum* InEnum)
+	{
+		TMap<FName, FText> DisplayNameOverrides;
+
+		static const FName NAME_EnumValueDisplayNameOverrides = "EnumValueDisplayNameOverrides";
+
+		const FString& DisplayNameOverridesStr = Property->GetMetaData(NAME_EnumValueDisplayNameOverrides);
+		if (DisplayNameOverridesStr.Len() > 0)
+		{
+			TArray<FString> DisplayNameOverridePairs;
+			DisplayNameOverridesStr.ParseIntoArray(DisplayNameOverridePairs, TEXT(";"));
+
+			for (const FString& DisplayNameOverridePair : DisplayNameOverridePairs)
+			{
+				FString DisplayNameKey;
+				FString DisplayNameValue;
+				if (DisplayNameOverridePair.Split(TEXT("="), &DisplayNameKey, &DisplayNameValue))
+				{
+					DisplayNameOverrides.Add(*InEnum->GenerateFullEnumName(*DisplayNameKey), FTextStringHelper::CreateFromBuffer(*DisplayNameValue));
+				}
+			}
+		}
+
+		return DisplayNameOverrides;
+	}
+
 	bool IsCategoryHiddenByClass(const TSharedPtr<FComplexPropertyNode>& InRootNode, FName CategoryName)
 	{
 		return InRootNode->AsObjectNode() && InRootNode->AsObjectNode()->GetHiddenCategories().Contains(CategoryName);
