@@ -899,12 +899,11 @@ static int64 GetBuildRequiredMemoryEstimate(UTexture* InTexture,
 		// for each layer/block :
 		//    generate mips (requires F32 copy)
 		//    output to intermediate format
-		// (at this point source could be freed; currently it is not)
-		// intermediate format copy is then used to make tiles
-		// for each tile :
-		//    make padded tile in intermediate format
-		//    encode to output format
-		//    discard padded tile in intermediate format
+		//    intermediate format copy is then used to make tiles
+		//    for each tile :
+		//       make padded tile in intermediate format
+		//       encode to output format
+		//       discard padded tile in intermediate format
 		// all output tiles are then aggregated
 
 		// Compute the memory it should take to uncompress the bulkdata in memory
@@ -953,7 +952,8 @@ static int64 GetBuildRequiredMemoryEstimate(UTexture* InTexture,
 
 		int64 NumOutputPixelsPerLayer = NumTilesPerLayer * TilePixels;
 
-		int64 VTIntermediateSizeBytes = 0;
+		// intermediate is created just once per block, use max size estimate
+		int64 VTIntermediateSizeBytes = IntermediateFloatColorBytes;
 		int64 OutputSizeBytes = 0;
 	
 		int64 MaxPerPixelEncoderMemUse = 0;
@@ -967,8 +967,6 @@ static int64 GetBuildRequiredMemoryEstimate(UTexture* InTexture,
 			ERawImageFormat::Type IntermediateImageFormat = UE::TextureBuildUtilities::GetVirtualTextureBuildIntermediateFormat(BuildSettings);
 
 			int64 IntermediateBytesPerPixel = ERawImageFormat::GetBytesPerPixel(IntermediateImageFormat);
-
-			VTIntermediateSizeBytes += TotalPixelsPerLayer * IntermediateBytesPerPixel;
 
 			// + output bytes? (but can overlap with IntermediateFloatColorBytes)
 			//	almost always less than IntermediateFloatColorBytes
