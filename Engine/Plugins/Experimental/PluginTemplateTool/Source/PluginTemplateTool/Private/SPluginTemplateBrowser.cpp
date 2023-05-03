@@ -187,3 +187,5 @@ EVisibility SPluginTemplateBrowser::FPluginTemplateListItem::GetVisibilityBasedO
 {
 	return !bIsMounted ? EVisibility::Visible : EVisibility::Hidden;
 }
+
+#undef LOCTEXT_NAMESPACE
