@@ -26,7 +26,6 @@ typedef struct ArPointCloud_ ArPointCloud;
 typedef struct ArAnchor_ ArAnchor;
 #endif
 
-UENUM(BlueprintType)
 enum class EGoogleARCoreAvailability : uint8
 {
 	/* An internal error occurred while determining ARCore availability. */
@@ -51,26 +50,12 @@ enum class EGoogleARCoreAvailability : uint8
 	SupportedInstalled = 203
 };
 
-UENUM(BlueprintType)
 enum class EGoogleARCoreInstallStatus : uint8
 {
 	/* The requested resource is already installed.*/
 	Installed = 0,
 	/* Installation of the resource was requested. The current activity will be paused. */
 	Requrested = 1,
-};
-
-UENUM(BlueprintType)
-enum class EGoogleARCoreInstallRequestResult : uint8
-{
-	/* The ARCore APK is installed*/
-	Installed,
-	/* ARCore APK install request failed because the device is not compatible. */
-	DeviceNotCompatible,
-	/* ARCore APK install request failed because the current version of android is too old to support ARCore. */
-	UserDeclinedInstallation,
-	/* ARCore APK install request failed because unknown error happens while checking or requesting installation. */
-	FatalError
 };
 
 /**
@@ -104,7 +89,6 @@ enum class EGoogleARCoreFunctionStatus : uint8
  * @ingroup GoogleARCoreBase
  * Describes the tracking state of the current ARCore session.
  */
-UENUM(BlueprintType)
 enum class EGoogleARCoreTrackingState : uint8
 {
 	/** Tracking is valid. */
@@ -119,7 +103,6 @@ enum class EGoogleARCoreTrackingState : uint8
 * @ingroup GoogleARCoreBase
 * 2d coordinate systems referenced by ARCore.
 */
-UENUM(BlueprintType)
 enum class EGoogleARCoreCoordinates2DType : uint8
 {
 	/** ARCore normalized pass-through camera texture(for GPU usage) space with top-left (0.0f, 0.0f) and bottom-right(1.0f, 1.0f). */
@@ -134,23 +117,17 @@ enum class EGoogleARCoreCoordinates2DType : uint8
 /**
  * A struct describes the ARCore light estimation.
  */
-USTRUCT(BlueprintType)
 struct FGoogleARCoreLightEstimate
 {
-	GENERATED_BODY()
-
 	/** Whether this light estimation is valid. */
-	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|LightEstimate")
 	bool bIsValid = false;
 
 	/** The average pixel intensity of the passthrough camera image. */
-	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|LightEstimate")
 	float PixelIntensity = 0.0f;
 
 	/**
 	 * The RGB scale to match the color of the light in the real environment.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|LightEstimate")
 	FVector RGBScaleFactor = FVector(0.0f);
 };
 
