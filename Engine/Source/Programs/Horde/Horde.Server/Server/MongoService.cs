@@ -973,8 +973,12 @@ namespace Horde.Server.Server
 							await UpdateOneAsync(updateIndexTask, cancellationToken);
 							break;
 						}
+						else
+						{
+							_logger.LogDebug("Unable to acquire lock for upgrade task; pausing for 1m");
+							await Task.Delay(TimeSpan.FromMinutes(1.0), cancellationToken);
+						}
 					}
-					await Task.Delay(TimeSpan.FromMinutes(1.0), cancellationToken);
 				}
 			}
 		}
