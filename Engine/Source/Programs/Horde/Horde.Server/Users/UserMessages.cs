@@ -3,8 +3,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
 using EpicGames.Core;
+using Horde.Server.Acls;
+using Horde.Server.Agents;
+using Horde.Server.Agents.Pools;
+using Horde.Server.Server;
+using Horde.Server.Server.Notices;
 using MongoDB.Bson;
 
 namespace Horde.Server.Users
@@ -65,6 +71,11 @@ namespace Horde.Server.Users
 		public object? DashboardSettings { get; set; }
 
 		/// <summary>
+		/// Settings for whether various dashboard features should be shown for the current user
+		/// </summary>
+		public GetDashboardFeaturesResponse? DashboardFeatures { get; set; }
+
+		/// <summary>
 		/// List of pinned job ids
 		/// </summary>
 		public List<string>? PinnedJobIds { get; set; }
@@ -92,6 +103,37 @@ namespace Horde.Server.Users
 				DashboardSettings = BsonTypeMapper.MapToDotNetValue(settings.DashboardSettings);
 				PinnedJobIds = settings.PinnedJobIds.ConvertAll(x => x.ToString());
 			}
+		}
+	}
+
+	/// <summary>
+	/// Settings for whether various features should be enabled on the dashboard
+	/// </summary>
+	public class GetDashboardFeaturesResponse
+	{
+		/// <summary>
+		/// Whether the notice editor should be listed in the server menu
+		/// </summary>
+		public bool ShowNoticeEditor { get; set; }
+
+		/// <summary>
+		/// Whether controls for modifying pools should be shown
+		/// </summary>
+		public bool ShowPoolEditor { get; set; }
+
+		/// <summary>
+		/// Whether the remote desktop button should be shown on the agent modal
+		/// </summary>
+		public bool ShowRemoteDesktop { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public GetDashboardFeaturesResponse(GlobalConfig globalConfig, ClaimsPrincipal principal)
+		{
+			ShowNoticeEditor = globalConfig.Authorize(NoticeAclAction.CreateNotice, principal) || globalConfig.Authorize(NoticeAclAction.UpdateNotice, principal);
+			ShowPoolEditor = globalConfig.Authorize(PoolAclAction.CreatePool, principal) || globalConfig.Authorize(PoolAclAction.UpdatePool, principal);
+			ShowRemoteDesktop = globalConfig.Authorize(AgentAclAction.UpdateAgent, principal);
 		}
 	}
 
