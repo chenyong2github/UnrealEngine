@@ -63,7 +63,7 @@ private:
 
 	/** Current bounds of this island. The bounds of any handler systems are modified to match these bounds. */
 	UPROPERTY()
-	FBoxSphereBounds Bounds;
+	FBoxSphereBounds Bounds = FBoxSphereBounds(EForceInit::ForceInit);
 
 	/** Niagara components spawned for this island. */
 	UPROPERTY()
