@@ -389,6 +389,8 @@ bool FAudioDeviceManager::InitializeManager()
 		AudioFormatSettings = MakePimpl<Audio::FAudioFormatSettings>(GConfig, GEngineIni, FPlatformProperties::IniPlatformName());
 		RegisterAudioInfoFactories();
 
+		FModuleManager::Get().LoadModuleChecked(TEXT("AudioMixer"));
+
 #if WITH_EDITOR
 		IAudioEditorModule* AudioEditorModule = &FModuleManager::LoadModuleChecked<IAudioEditorModule>("AudioEditor");
 		AudioEditorModule->RegisterAudioMixerAssetActions();
