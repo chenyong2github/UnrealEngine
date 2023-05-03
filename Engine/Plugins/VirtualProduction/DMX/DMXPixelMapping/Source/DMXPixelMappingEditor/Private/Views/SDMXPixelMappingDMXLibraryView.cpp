@@ -251,7 +251,7 @@ FReply SDMXPixelMappingDMXLibraryView::OnAddDMXLibraryButtonClicked()
 	if (OtherFixtureGroupComponents.IsEmpty())
 	{
 		// If there's no group, add one that scales the current texture to the active renderer component
-		if (Toolkit->CanSizeSelectedComponentToTexture(), TEXT("Unexpected cannot size single fixture group component to texture"))
+		if (Toolkit->CanSizeSelectedComponentToTexture())
 		{
 			Toolkit->SizeSelectedComponentToTexture(true);
 		}
