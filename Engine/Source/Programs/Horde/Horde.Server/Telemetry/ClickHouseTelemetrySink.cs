@@ -42,7 +42,7 @@ namespace Horde.Server.Telemetry
 		public ClickHouseTelemetrySink(ClickHouseTelemetryConfig config, IHttpClientFactory httpClientFactory, IClock clock, ILogger<ClickHouseTelemetrySink> logger)
 		{
 			_httpClientFactory = httpClientFactory;
-			_ticker = clock.AddTicker<ClickHouseTelemetrySink>(TimeSpan.FromSeconds(10.0), FlushAsync, logger);
+			_ticker = clock.AddTicker<ClickHouseTelemetrySink>(TimeSpan.FromSeconds(5.0), FlushAsync, logger);
 			_logger = logger;
 			_uri = config.Url;
 		}
@@ -75,6 +75,7 @@ namespace Horde.Server.Telemetry
 					case AgentMetadataEvent agentMetadata: agentMetadataEvents.Add(agentMetadata); break;
 					case AgentCpuMetricsEvent agentCpu: agentCpuEvents.Add(agentCpu); break;
 					case AgentMemoryMetricsEvent agentMem: agentMemEvents.Add(agentMem); break;
+					default: _logger.LogError("Unable to parse event type for {EventName}", tuple.eventName); break;
 				}
 				c++;
 			}

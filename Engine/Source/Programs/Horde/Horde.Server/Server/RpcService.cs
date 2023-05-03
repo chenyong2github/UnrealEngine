@@ -480,6 +480,7 @@ namespace Horde.Server.Server
 					case WrappedTelemetryEvent.EventOneofCase.AgentMetadata: _telemetrySink.SendEvent("Agent.Metadata", e.AgentMetadata); break;
 					case WrappedTelemetryEvent.EventOneofCase.Cpu: _telemetrySink.SendEvent("Agent.Cpu", e.Cpu); break;
 					case WrappedTelemetryEvent.EventOneofCase.Mem: _telemetrySink.SendEvent("Agent.Memory", e.Mem); break;
+					default: _logger.LogError("Unhandled wrapped telemetry type {Type}", e.EventCase.ToString()); break;
 				}
 			}
 
