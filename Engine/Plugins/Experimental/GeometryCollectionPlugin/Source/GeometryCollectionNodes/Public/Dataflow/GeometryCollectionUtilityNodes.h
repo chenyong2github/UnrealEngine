@@ -6,6 +6,7 @@
 #include "Dataflow/DataflowEngine.h"
 #include "Dataflow/DataflowSelection.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "GeometryCollection/GeometryCollectionConvexUtility.h"
 
 #include "GeometryCollectionUtilityNodes.generated.h"
 
@@ -20,6 +21,42 @@ enum class EConvexOverlapRemovalMethodEnum : uint8
 	//~~~
 	//256th entry
 	Dataflow_Max                UMETA(Hidden)
+};
+
+
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCreateLeafConvexHullsDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCreateLeafConvexHullsDataflowNode, "CreateLeafConvexHulls", "GeometryCollection|Utilities", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DataflowOutput))
+	FManagedArrayCollection Collection;
+
+	/** Optional transform selection to compute leaf hulls on -- if not provided, all leaf hulls will be computed. */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FDataflowTransformSelection OptionalSelectionFilter;
+
+	/** How convex hulls are generated -- computed from geometry, imported from external collision shapes, or an intersection of both options. */
+	UPROPERTY(EditAnywhere, Category = Options)
+	EGenerateConvexMethod GenerateMethod = EGenerateConvexMethod::ExternalCollision;
+
+	/** If GenerateMethod is Intersect, only actually intersect when the volume of the Computed Hull is less than this fraction of the volume of the External Hull(s) */
+	UPROPERTY(EditAnywhere, Category = IntersectionFilters, meta = (ClampMin = 0.0, ClampMax = 1.0, EditCondition = "GenerateMethod == EGenerateConvexMethod::IntersectExternalWithComputed"))
+	float IntersectIfComputedIsSmallerByFactor = 1.0f;
+
+	/** If GenerateMethod is Intersect, only actually intersect if the volume of the External Hull(s) exceed this threshold */
+	UPROPERTY(EditAnywhere, Category = IntersectionFilters, meta = (ClampMin = 0.0, EditCondition = "GenerateMethod == EGenerateConvexMethod::IntersectExternalWithComputed"))
+	float MinExternalVolumeToIntersect = 0.0f;
+
+	/** Computed convex hulls are simplified to keep points spaced at least this far apart (except where needed to keep the hull from collapsing to zero volume) */
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.f, EditCondition = "GenerateMethod != EGenerateConvexMethod::ExternalCollision"))
+	float SimplificationDistanceThreshold = 10.f;
+
+	FCreateLeafConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
 /**
@@ -37,18 +74,23 @@ public:
 	UPROPERTY(meta = (DataflowInput, DataflowOutput))
 	FManagedArrayCollection Collection;
 
+	/** Fraction of the convex hulls for a cluster that we can remove before using the hulls of the children */
 	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.01f, UIMax = 1.f))
 	float CanRemoveFraction = 0.3f;
 
+	/** Computed convex hulls are simplified to keep points spaced at least this far apart (except where needed to keep the hull from collapsing to zero volume) */
 	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.f))
-	float SimplificationDistanceThreshold = 0.f;
+	float SimplificationDistanceThreshold = 10.f;
 
+	/** Fraction (of geometry volume) by which a cluster's convex hull volume can exceed the actual geometry volume before instead using the hulls of the children.  0 means the convex volume cannot exceed the geometry volume; 1 means the convex volume is allowed to be 100% larger (2x) the geometry volume. */
 	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.f))
 	float CanExceedFraction = 0.5f;
 
+	/** Whether and in what cases to automatically cut away overlapping parts of the convex hulls, to avoid the simulation 'popping' to fix the overlaps */
 	UPROPERTY(EditAnywhere, Category = "Convex")
 	EConvexOverlapRemovalMethodEnum OverlapRemovalMethod = EConvexOverlapRemovalMethodEnum::Dataflow_EConvexOverlapRemovalMethod_All;
 
+	/** Overlap removal will be computed as if convex hulls were this percentage smaller (in range 0-100) */
 	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.f, UIMax = 100.f))
 	float OverlapRemovalShrinkPercent = 0.f;
 
@@ -84,6 +126,10 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = "0", UIMax = "100.", Units = cm))
 	double ErrorTolerance = 0.0;
+	
+	/** Whether to prefer available External (imported) collision shapes instead of the computed convex hulls on the Collection */
+	UPROPERTY(EditAnywhere, Category = "Convex")
+	bool bPreferExternalCollisionShapes = true;
 
 	/** Optional transform selection to compute cluster hulls on -- if not provided, all cluster hulls will be computed. */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
@@ -104,7 +150,7 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FGenerateClusterConvexHullsFromChildrenHullsDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FGenerateClusterConvexHullsFromChildrenHullsDataflowNode, "GenerateClusterConvexHullsFromChildrenHullsDataflowNode", "GeometryCollection|Utilities", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGenerateClusterConvexHullsFromChildrenHullsDataflowNode, "GenerateClusterConvexHullsFromChildrenHulls", "GeometryCollection|Utilities", "")
 
 public:
 	UPROPERTY(meta = (DataflowInput, DataflowOutput))
@@ -121,6 +167,10 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = "0", UIMax = "100.", Units = cm))
 	double ErrorTolerance = 0.0;
+	
+	/** Whether to prefer available External (imported) collision shapes instead of the computed convex hulls on the Collection */
+	UPROPERTY(EditAnywhere, Category = "Convex")
+	bool bPreferExternalCollisionShapes = true;
 
 	/** Optional transform selection to compute cluster hulls on -- if not provided, all cluster hulls will be computed. */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
