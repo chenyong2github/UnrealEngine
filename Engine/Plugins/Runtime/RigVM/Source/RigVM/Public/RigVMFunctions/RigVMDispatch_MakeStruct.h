@@ -7,12 +7,17 @@
 #include "RigVMCore/RigVMByteCode.h"
 #include "RigVMDispatch_MakeStruct.generated.h"
 
-USTRUCT(meta=(DisplayName = "Make", Category = "Core", Keywords = "Compose,Composition,Create", NodeColor = "1,1,1,1"))
+USTRUCT(meta=(DisplayName = "Make", Category = "Core", Keywords = "Compose,Composition,Create,Constant", NodeColor = "1,1,1,1"))
 struct RIGVM_API FRigVMDispatch_MakeStruct : public FRigVMDispatch_CoreBase
 {
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_MakeStruct()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+	
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 #if WITH_EDITOR
@@ -38,6 +43,11 @@ struct RIGVM_API FRigVMDispatch_BreakStruct : public FRigVMDispatch_MakeStruct
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_BreakStruct()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 #if WITH_EDITOR
 	virtual FText GetNodeTooltip(const FRigVMTemplateTypeMap& InTypes) const override;

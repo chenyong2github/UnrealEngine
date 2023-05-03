@@ -785,6 +785,33 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 				}
 			}
 
+			if(ModelNode->IsA<URigVMUnitNode>() || ModelNode->IsA<URigVMDispatchNode>())
+			{
+				// Maximum number of operands is 65535
+				int32 NumOperands = 0;
+				for (URigVMPin* Pin : ModelNode->GetPins())
+				{
+					if (Pin->IsExecuteContext())
+					{
+						continue;
+					}
+					
+					if (Pin->IsFixedSizeArray())
+					{
+						NumOperands += Pin->GetSubPins().Num();
+					}
+
+					NumOperands++;
+				}
+
+				if (NumOperands > 65535)
+				{
+					FString Format = FString::Printf(TEXT("Maximum number of operands for node @@ is 65535. Number of operands provided %d."), NumOperands);
+					Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, Format);
+					bEncounteredGraphError = true;
+				}
+			}
+
 			for(URigVMPin* Pin : ModelNode->Pins)
 			{
 				if(!URigVMController::EnsurePinValidity(Pin, true))
@@ -1728,6 +1755,11 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			WorkData.VM->GetByteCode().AddZeroOp(BlockToRunOperand);
 		}
 
+		if (Operands.Num() > 64)
+		{
+			return INDEX_NONE;
+		}
+
 		// setup the instruction
 		const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(Function->GetName());
 		check(FunctionIndex != INDEX_NONE);
@@ -1763,19 +1795,41 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			{
 				continue;
 			}
-			const FRigVMOperand& Operand = Operands[OperandIndex];
-			
-			if(InputPin->GetDirection() == ERigVMPinDirection::Output || InputPin->GetDirection() == ERigVMPinDirection::IO)
+			if (InputPin->IsFixedSizeArray())
 			{
-				OutputOperands.Add(Operand);
-			}
+				for (int32 SubPinIndex=0; SubPinIndex<InputPin->GetSubPins().Num(); ++SubPinIndex)
+				{
+					const URigVMPin* SubPin = InputPin->GetSubPins()[SubPinIndex];
+					const FRigVMOperand& Operand = Operands[OperandIndex+SubPinIndex];
+					if(SubPin->GetDirection() == ERigVMPinDirection::Output || SubPin->GetDirection() == ERigVMPinDirection::IO)
+					{
+						OutputOperands.Add(Operand);
+					}
 
-			if(InputPin->GetDirection() != ERigVMPinDirection::Input && InputPin->GetDirection() != ERigVMPinDirection::IO)
+					if(SubPin->GetDirection() != ERigVMPinDirection::Input && SubPin->GetDirection() != ERigVMPinDirection::IO)
+					{
+						continue;
+					}
+
+					InputsOperands.Add(Operand);
+				}
+			}
+			else
 			{
-				continue;
-			}
+				const FRigVMOperand& Operand = Operands[OperandIndex];
+				
+				if(InputPin->GetDirection() == ERigVMPinDirection::Output || InputPin->GetDirection() == ERigVMPinDirection::IO)
+				{
+					OutputOperands.Add(Operand);
+				}
 
-			InputsOperands.Add(Operand);
+				if(InputPin->GetDirection() != ERigVMPinDirection::Input && InputPin->GetDirection() != ERigVMPinDirection::IO)
+				{
+					continue;
+				}
+
+				InputsOperands.Add(Operand);
+			}
 		}
 
 		WorkData.VM->GetByteCode().SetOperandsForInstruction(

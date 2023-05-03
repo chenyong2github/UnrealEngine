@@ -48,7 +48,6 @@
 #include "EdGraph/EdGraph.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
-#include "Graph/NodeSpawners/ControlRigRerouteNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigTemplateNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigEnumNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigFunctionRefNodeSpawner.h"
@@ -133,6 +132,9 @@
 #include "RigVMFunctions/Math/RigVMMathLibrary.h"
 #include "Constraints/ControlRigTransformableHandle.h"
 #include "Constraints/TransformConstraintChannelInterface.h"
+#include "RigVMFunctions/RigVMDispatch_Array.h"
+#include "RigVMFunctions/RigVMDispatch_MakeStruct.h"
+#include "RigVMFunctions/RigVMDispatch_Constant.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -1109,12 +1111,6 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	};
 
-	UBlueprintNodeSpawner* RerouteNodeSpawner = UControlRigRerouteNodeSpawner::CreateGeneric(
-		LOCTEXT("RerouteSpawnerDesc", "Reroute"),
-		LOCTEXT("RerouteSpawnerCategory", "Organization"), 
-		LOCTEXT("RerouteSpawnerTooltip", "Adds a new reroute node to the graph"));
-	ActionRegistrar.AddBlueprintAction(ActionKey, RerouteNodeSpawner);
-
 	for (TObjectIterator<UEnum> EnumIt; EnumIt; ++EnumIt)
 	{
 		UEnum* EnumToConsider = (*EnumIt);
@@ -1497,6 +1493,60 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						}
 					}
 
+					// menu entries to convert the node
+					if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(ModelPin->GetNode()))
+					{
+						if(RerouteNode->GetLinkedSourceNodes().Num() == 0)
+						{
+							if(const URigVMPin* ValuePin = RerouteNode->FindPin(TEXT("Value")))
+							{
+								if(!ValuePin->IsExecuteContext())
+								{
+									FToolMenuSection& ConversionSection = Menu->AddSection("EdGraphSchemaConversion", LOCTEXT("ConversionHeader", "Conversion"));
+
+									if(ValuePin->IsArray())
+									{
+										ConversionSection.AddMenuEntry(
+											"Convert Reroute to Make Array",
+											LOCTEXT("ConvertReroutetoMakeArray", "Convert Reroute to Make Array"),
+											LOCTEXT("ConvertReroutetoMakeArray_Tooltip", "Converts the Reroute node to a to Make Array node and sustains the value"),
+											FSlateIcon(),
+											FUIAction(FExecuteAction::CreateLambda([Controller, RerouteNode]()
+											{
+												Controller->ConvertRerouteNodeToDispatch(RerouteNode, FRigVMDispatch_ArrayMake().GetTemplateNotation(), true, true);
+											}
+										)));
+									}
+									else if(ValuePin->IsStruct())
+									{
+										ConversionSection.AddMenuEntry(
+											"Convert Reroute to Make Struct",
+											LOCTEXT("ConvertReroutetoMakeStruct", "Convert Reroute to Make Struct"),
+											LOCTEXT("ConvertReroutetoMakeStruct_Tooltip", "Converts the Reroute node to a to Make Struct node and sustains the value"),
+											FSlateIcon(),
+											FUIAction(FExecuteAction::CreateLambda([Controller, RerouteNode]()
+											{
+												Controller->ConvertRerouteNodeToDispatch(RerouteNode, FRigVMDispatch_MakeStruct().GetTemplateNotation(), true, true);
+											}
+										)));
+									}
+									else
+									{
+										ConversionSection.AddMenuEntry(
+											"Convert Reroute to Constant",
+											LOCTEXT("ConvertReroutetoConstant", "Convert Reroute to Constant"),
+											LOCTEXT("ConvertReroutetoConstant_Tooltip", "Converts the Reroute node to a to Constant node and sustains the value"),
+											FSlateIcon(),
+											FUIAction(FExecuteAction::CreateLambda([Controller, RerouteNode]()
+											{
+												Controller->ConvertRerouteNodeToDispatch(RerouteNode, FRigVMDispatch_Constant().GetTemplateNotation(), true, true);
+											}
+										)));
+									}
+								}
+							}
+						}
+					}
 
 					if (ModelPin->GetDirection() == ERigVMPinDirection::Input &&
 							bIsEditablePin)
@@ -2200,6 +2250,46 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								}),
 								FCanExecuteAction::CreateLambda([bCanRunOnce](){ return bCanRunOnce; }))
 							);
+						}
+
+						if(URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(ModelNode))
+						{
+							if(DispatchNode->GetFactory()->GetFactoryName() == FRigVMDispatch_Constant().GetFactoryName())
+							{
+								if(const URigVMPin* ValuePin = DispatchNode->FindPin(TEXT("Value")))
+								{
+									// if the value pin has only links on the root pin
+									if((ValuePin->GetSourceLinks(false).Num() > 0) && (ValuePin->GetTargetLinks(false).Num() > 0))
+									{
+										FToolMenuSection& ConversionSection = Menu->AddSection("EdGraphSchemaConversion", LOCTEXT("ConversionHeader", "Conversion"));
+										ConversionSection.AddMenuEntry(
+											"Convert Constant to Reroute",
+											LOCTEXT("ConvertConstantToReroute", "Convert Constant to Reroute"),
+											LOCTEXT("ConvertConstantToReroute_Tooltip", "Converts the Constant node to a to Reroute node and sustains the value"),
+											FSlateIcon(),
+											FUIAction(FExecuteAction::CreateLambda([Controller, ValuePin, DispatchNode]()
+											{
+												Controller->OpenUndoBracket(TEXT("Replace Constant with Reroute"));
+												TArray<URigVMController::FLinkedPath> LinkedPaths = Controller->GetLinkedPaths(DispatchNode);
+												Controller->FastBreakLinkedPaths(LinkedPaths, true);
+												const FVector2D Position = DispatchNode->GetPosition();
+												const FString NodeName = DispatchNode->GetName();
+												const FString CPPType = ValuePin->GetCPPType();
+												FName CPPTypeObjectPath = NAME_None;
+												if(const UObject* CPPTypeObject = ValuePin->GetCPPTypeObject())
+												{
+													CPPTypeObjectPath = *CPPTypeObject->GetPathName();
+												}
+												
+												Controller->RemoveNode(DispatchNode, true, true);
+												Controller->AddFreeRerouteNode(CPPType, CPPTypeObjectPath, false, NAME_None, FString(), Position, NodeName, true);
+												Controller->RestoreLinkedPaths(LinkedPaths, URigVMController::FRestoreLinkedPathSettings(), true);
+												Controller->CloseUndoBracket();
+											}
+										)));
+									}
+								}
+							}
 						}
 						
 						const TArray<FRigVMUserWorkflow> Workflows = ModelNode->GetSupportedWorkflows(ERigVMUserWorkflowType::NodeContext, ModelNode);

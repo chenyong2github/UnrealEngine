@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RigVMModel/Nodes/RigVMTemplateNode.h"
+#include "RigVMModel/RigVMNode.h"
 #include "RigVMRerouteNode.generated.h"
 
 /**
@@ -13,7 +13,7 @@
  * displayed as full nodes or as small circles.
  */
 UCLASS(BlueprintType)
-class RIGVMDEVELOPER_API URigVMRerouteNode : public URigVMTemplateNode
+class RIGVMDEVELOPER_API URigVMRerouteNode : public URigVMNode
 {
 	GENERATED_BODY()
 
@@ -25,33 +25,15 @@ public:
 	// Override of node title
 	virtual FString GetNodeTitle() const override;
 
-	// Returns true if this node should be shown as a full node,
-	// or false if this node should be shown as a small circle.
-	UFUNCTION(BlueprintCallable, Category = RigVMRerouteNode)
-	bool GetShowsAsFullNode() const;
-
 	virtual FLinearColor GetNodeColor() const override;
-
-	virtual FName GetNotation() const override;
-	virtual const FRigVMTemplate* GetTemplate() const override;
-	virtual bool IsSingleton() const override { return false; }
-
-	// Is a dot node with a root pin source connection
-	bool IsPassThrough() const;
 
 	// Has no source connections
 	bool IsLiteral() const;
-
-	// Is not a passthrough or a literal reroute
-	bool IsCompositionNode() const;
 
 private:
 
 	static const FString RerouteName;
 	static const FString ValueName;
-
-	UPROPERTY()
-	bool bShowAsFullNode;
 
 	friend class URigVMController;
 	friend class URigVMCompiler;

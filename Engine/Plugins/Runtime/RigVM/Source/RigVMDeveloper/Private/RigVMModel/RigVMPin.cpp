@@ -399,7 +399,7 @@ bool URigVMPin::IsExpanded() const
 {
 	if(!bIsExpanded)
 	{
-		if(IsFixedSizeArray())
+		if(ShouldOnlyShowSubPins())
 		{
 			return true;
 		}
@@ -684,6 +684,74 @@ bool URigVMPin::IsFixedSizeArray() const
 		}
 	}
 #endif
+	return false;
+}
+
+bool URigVMPin::ShouldOnlyShowSubPins() const
+{
+#if WITH_EDITOR
+
+	if(IsRootPin())
+	{
+		if(const URigVMNode* Node = GetNode())
+		{
+			if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
+			{
+				if(const UScriptStruct* Struct = UnitNode->GetScriptStruct())
+				{
+					if(const FProperty* Property = Struct->FindPropertyByName(GetFName()))
+					{
+						return Property->HasMetaData(FRigVMStruct::ShowOnlySubPinsMetaName);
+					}
+				}
+			}
+			else if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Node))
+			{
+				if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
+				{
+					return Factory->HasArgumentMetaData(GetFName(), FRigVMStruct::ShowOnlySubPinsMetaName);
+				}
+			}
+		}
+	}
+#endif
+
+	return false;
+}
+
+bool URigVMPin::ShouldHideSubPins() const
+{
+#if WITH_EDITOR
+	if(ShouldOnlyShowSubPins())
+	{
+		return false;
+	}
+	
+	if(IsRootPin())
+	{
+		if(const URigVMNode* Node = GetNode())
+		{
+			if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
+			{
+				if(const UScriptStruct* Struct = UnitNode->GetScriptStruct())
+				{
+					if(const FProperty* Property = Struct->FindPropertyByName(GetFName()))
+					{
+						return Property->HasMetaData(FRigVMStruct::HideSubPinsMetaName);
+					}
+				}
+			}
+			else if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Node))
+			{
+				if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
+				{
+					return Factory->HasArgumentMetaData(GetFName(), FRigVMStruct::HideSubPinsMetaName);
+				}
+			}
+		}
+	}
+#endif
+
 	return false;
 }
 
@@ -1663,7 +1731,25 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		}
 		return false;
 	}
-	
+
+	if(InSourcePin->ShouldOnlyShowSubPins() || InSourcePin->IsFixedSizeArray())
+	{
+		if (OutFailureReason)
+		{
+			*OutFailureReason = TEXT("Source pin only allows links to sub-pins.");
+		}
+		return false;
+	}
+
+	if(InTargetPin->ShouldOnlyShowSubPins() || InTargetPin->IsFixedSizeArray())
+	{
+		if (OutFailureReason)
+		{
+			*OutFailureReason = TEXT("Target pin only allows links to sub-pins.");
+		}
+		return false;
+	}
+
 	URigVMNode* SourceNode = InSourcePin->GetNode();
 	URigVMNode* TargetNode = InTargetPin->GetNode();
 	if (SourceNode == TargetNode)

@@ -7,7 +7,7 @@
 #include "RigVMCore/RigVMByteCode.h"
 #include "RigVMDispatch_Constant.generated.h"
 
-USTRUCT(meta=(DisplayName = "Constant", Category = "Core", Keywords = "Value", NodeColor = "1,1,1,1"))
+USTRUCT(meta=(DisplayName = "Constant", Category = "Core", Keywords = "Value,Reroute", NodeColor = "1,1,1,1"))
 struct RIGVM_API FRigVMDispatch_Constant : public FRigVMDispatch_CoreBase
 {
 	GENERATED_BODY()
@@ -23,7 +23,6 @@ public:
 #if WITH_EDITOR
 	virtual FString GetNodeTitle(const FRigVMTemplateTypeMap& InTypes) const override;
 	virtual FText GetNodeTooltip(const FRigVMTemplateTypeMap& InTypes) const override;
-	virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const override;
 #endif
 	virtual bool IsSingleton() const override { return true; }
 	

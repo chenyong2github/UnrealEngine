@@ -51,7 +51,7 @@ public:
 	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;
 };
 
-USTRUCT(meta=(DisplayName = "Array", Keywords = "Make,MakeArray"))
+USTRUCT(meta=(DisplayName = "Make Array", Keywords = "Make,MakeArray,Constant,Reroute"))
 struct RIGVM_API FRigVMDispatch_ArrayMake : public FRigVMDispatch_ArrayBase
 {
 	GENERATED_BODY()

@@ -792,6 +792,7 @@ FRigVMClientPatchResult FRigVMClient::PatchModelsOnLoad()
 		TGuardValue<bool> GuardSuspendTemplateComputation(Controller->bSuspendTemplateComputation, true);
 		TGuardValue<bool> GuardIsTransacting(Controller->bIsTransacting, true);
 
+		Result.Merge(Controller->PatchRerouteNodesOnLoad());
 		Result.Merge(Controller->PatchUnitNodesOnLoad());
 		Result.Merge(Controller->PatchDispatchNodesOnLoad());
 		Result.Merge(Controller->PatchBranchNodesOnLoad());

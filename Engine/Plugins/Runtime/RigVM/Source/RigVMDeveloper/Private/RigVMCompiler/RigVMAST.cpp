@@ -1236,18 +1236,6 @@ FRigVMExprAST* FRigVMParserAST::TraverseLink(int32 InLinkIndex, FRigVMExprAST* I
 
 	if (!bRequiresCopy)
 	{
-		// Connections from a composition reroute always require a copy
-		if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(SourceRootPin->GetNode()))
-		{
-			if (RerouteNode->IsCompositionNode())
-			{
-				bRequiresCopy = true;
-			}
-		}
-	}
-
-	if (!bRequiresCopy)
-	{
 		if (SourcePin->GetTypeIndex() != TargetPin->GetTypeIndex())
 		{
 			bRequiresCopy = true;
@@ -1681,11 +1669,7 @@ void FRigVMParserAST::FoldAssignments()
 		}
 		
 		// non-input pins on anything but a reroute (passthrough or literal) or array node should be skipped
-		bool bIsReroute = false;
-		if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(TargetPin->GetNode()))
-		{
-			bIsReroute = !RerouteNode->IsCompositionNode();
-		}
+		const bool bIsReroute = TargetPin->GetNode()->IsA<URigVMRerouteNode>();
 		if (TargetPin->GetDirection() != ERigVMPinDirection::Input && !bIsReroute)
 		{
 			continue;
@@ -2583,10 +2567,7 @@ void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMA
 			
 			if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(Node))
 			{
-				if (!RerouteNode->IsCompositionNode())
-				{
-					return true;
-				}
+				return true;
 			}
 			
 			return Node->IsA<URigVMLibraryNode>() ||
@@ -2907,13 +2888,7 @@ void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMA
 				URigVMPin* SourcePin = SourcePinProxy.GetSubjectChecked<URigVMPin>();
 				URigVMNode* SourceNode = SourcePin->GetNode();
 
-				bool bIsPassThroughOrLiteralReroute = false;
-				if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(SourceNode))
-				{
-					bIsPassThroughOrLiteralReroute = RerouteNode->IsPassThrough() || RerouteNode->IsLiteral();
-				}
-				
-				if (bIsPassThroughOrLiteralReroute ||
+				if (SourceNode->IsA<URigVMRerouteNode>() ||
 					SourceNode->IsA<URigVMCollapseNode>() ||
 					SourceNode->IsA<URigVMFunctionReturnNode>())
 				{
@@ -2987,12 +2962,9 @@ void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMA
 
 		static void VisitNode(const FRigVMASTProxy& InNodeProxy, LocalPinTraversalInfo& OutTraversalInfo)
 		{
-			if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNodeProxy.GetSubject()))
+			if (InNodeProxy.GetSubject()->IsA<URigVMRerouteNode>())
 			{
-				if (RerouteNode->IsPassThrough() || RerouteNode->IsLiteral())
-				{
-					return;
-				}
+				return;
 			}
 			
 			const bool bIsCompilingFunction = OutTraversalInfo.LibraryNodeBeingCompiled != nullptr;

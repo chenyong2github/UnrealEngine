@@ -482,6 +482,7 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 {
 	bool bShowPin = true;
+	bool bIsFixedArray = false;
 	FString CPPType;
 	FString BoundVariableName;
 	if(const UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
@@ -496,6 +497,7 @@ void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 			
 			CPPType = ModelPin->GetCPPType();
 			BoundVariableName = ModelPin->GetBoundVariableName();
+			bIsFixedArray = ModelPin->IsFixedSizeArray();
 		}
 	}
 	
@@ -528,6 +530,14 @@ void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 			NewPin->AddMetadata(MakeShared<FPinInfoMetaData>(CPPType, BoundVariableName));
 			check(NewPin.IsValid());
 			PinsToKeep.Remove(CurPin);
+
+			if(bIsFixedArray)
+			{
+				if(TSharedPtr<SWidget> PinImage = NewPin->GetPinImageWidget())
+				{
+					PinImage->SetVisibility(EVisibility::Collapsed);
+				}
+			}
 		}
 		
 		if(const UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
@@ -1315,7 +1325,7 @@ EVisibility SControlRigGraphNode::GetPinVisibility(int32 InPinInfoIndex, bool bA
 {
 	if(PinInfos.IsValidIndex(InPinInfoIndex))
 	{
-		if(PinInfos[InPinInfoIndex].bFixedArray)
+		if(PinInfos[InPinInfoIndex].bShowOnlySubPins)
 		{
 			return bAskingForSubPin ? EVisibility::Visible : EVisibility::Collapsed;
 		}
@@ -1329,7 +1339,7 @@ EVisibility SControlRigGraphNode::GetPinVisibility(int32 InPinInfoIndex, bool bA
 				return ParentPinVisibility;
 			}
 
-			if(!PinInfos[InPinInfoIndex].bFixedArray)
+			if(!PinInfos[InPinInfoIndex].bShowOnlySubPins)
 			{
 				if(!PinInfos[ParentPinIndex].bExpanded)
 				{
@@ -1545,6 +1555,11 @@ void SControlRigGraphNode::UpdatePinTreeView()
 				return;
 			}
 
+			if(InPin->ShouldHideSubPins())
+			{
+				return;
+			}
+
 			if (InPin->GetCPPType() == TEXT("FRotator"))
 			{
 				const TArray<URigVMPin*>& SubPins = InPin->GetSubPins();
@@ -1628,7 +1643,7 @@ void SControlRigGraphNode::UpdatePinTreeView()
 		PinInfo.bExpanded = ModelPin->IsExpanded();
 		PinInfo.ModelPinPath = ModelPin->GetPinPath();
 		PinInfo.bAutoHeight = false;
-		PinInfo.bFixedArray = ModelPin->IsFixedSizeArray();
+		PinInfo.bShowOnlySubPins = ModelPin->ShouldOnlyShowSubPins();
 
 		if(!bSupportSubPins)
 		{
@@ -1661,7 +1676,7 @@ void SControlRigGraphNode::UpdatePinTreeView()
 			}
 			PinInfo.ParentIndex = *ParentIndexPtr;
 			PinInfo.Depth = PinInfos[PinInfo.ParentIndex].Depth + 1;
-			if(PinInfos[PinInfo.ParentIndex].bFixedArray)
+			if(PinInfos[PinInfo.ParentIndex].bShowOnlySubPins)
 			{
 				PinInfo.Depth--;
 			}

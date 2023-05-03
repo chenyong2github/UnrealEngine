@@ -37,7 +37,6 @@ enum class ERigVMGraphNotifType : uint8
 	LinkAdded, // A link has been added (Subject == URigVMLink)
 	LinkRemoved, // A link has been removed (Subject == URigVMLink)
 	CommentTextChanged, // A comment node's text has changed (Subject == URigVMCommentNode)
-	RerouteCompactnessChanged, // A reroute node's compactness has changed (Subject == URigVMRerouteNode)
 	VariableAdded, // A variable has been added (Subject == URigVMVariableNode)
 	VariableRemoved, // A variable has been removed (Subject == URigVMVariableNode)
 	VariableRenamed, // A variable has been renamed (Subject == URigVMVariableNode)

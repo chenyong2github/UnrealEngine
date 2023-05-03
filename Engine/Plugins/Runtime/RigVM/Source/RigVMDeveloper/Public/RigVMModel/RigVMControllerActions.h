@@ -755,33 +755,6 @@ public:
 };
 
 /**
- * An action setting a reroute node's compactness in the graph.
- */
-USTRUCT()
-struct FRigVMSetRerouteCompactnessAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMSetRerouteCompactnessAction();
-	FRigVMSetRerouteCompactnessAction(URigVMController* InController, URigVMRerouteNode* InNode, bool InShowAsFullNode);
-	virtual ~FRigVMSetRerouteCompactnessAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetRerouteCompactnessAction::StaticStruct(); }
-	virtual bool Undo() override;
-	virtual bool Redo() override;
-
-	UPROPERTY()
-	FString NodePath;
-
-	UPROPERTY()
-	bool OldShowAsFullNode;
-
-	UPROPERTY()
-	bool NewShowAsFullNode;
-};
-
-/**
  * An action renaming a variable in the graph.
  */
 USTRUCT(meta=(Deprecated = "5.1"))

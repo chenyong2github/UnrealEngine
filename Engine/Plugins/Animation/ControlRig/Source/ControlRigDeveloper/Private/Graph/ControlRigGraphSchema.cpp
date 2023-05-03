@@ -20,6 +20,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "EulerTransform.h"
+#include "RigVMStringUtils.h"
 #include "Curves/CurveFloat.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
@@ -29,6 +30,10 @@
 #include "RigVMCore/RigVMUnknownType.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Algo/Count.h"
+#include "RigVMFunctions/RigVMDispatch_Array.h"
+#include "RigVMFunctions/RigVMDispatch_Constant.h"
+#include "RigVMFunctions/RigVMDispatch_MakeStruct.h"
+#include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Units/Execution/RigUnit_InverseExecution.h"
@@ -1316,7 +1321,7 @@ void UControlRigGraphSchema::OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdG
 	{
 		if (URigVMLink* Link = Node->GetModel()->FindLink(FString::Printf(TEXT("%s -> %s"), *PinA->GetName(), *PinB->GetName())))
 		{
-			Node->GetController()->AddRerouteNodeOnLink(Link, false, GraphPosition, FString(), true, true);
+			Node->GetController()->AddRerouteNodeOnLink(Link, GraphPosition, FString(), true, true);
 		}
 	}
 }
@@ -2339,6 +2344,47 @@ bool UControlRigGraphSchema::AutowireNewNode(UControlRigGraphNode* NewNode, UEdG
 							if (CanCreateConnection(OppositePin, OldLinkedTo[0]).Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
 							{
 								TryCreateConnection(OppositePin, OldLinkedTo[0]);
+							}
+						}
+					}
+
+					// copy the default value over if the node is a reroute,
+					// a make array, make struct or make constant
+					if(!ModelPin->IsExecuteContext() && FromPin->Direction == EGPD_Input)
+					{
+						if(const URigVMPin* OtherModelPin = ModelPin->GetGraph()->FindPin(FromPin->GetName()))
+						{
+							FString PinNameToSet;
+							if(ModelPin->GetNode()->IsA<URigVMRerouteNode>())
+							{
+								PinNameToSet = TEXT("Value");
+							}
+							else if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(ModelPin->GetNode()))
+							{
+								if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
+								{
+									if(Factory->GetFactoryName() == FRigVMDispatch_Constant().GetFactoryName())
+									{
+										PinNameToSet = TEXT("Value");
+									}
+									else if(Factory->GetFactoryName() == FRigVMDispatch_MakeStruct().GetFactoryName())
+									{
+										PinNameToSet = TEXT("Elements");
+									}
+									else if(Factory->GetFactoryName() == FRigVMDispatch_ArrayMake().GetFactoryName())
+									{
+										PinNameToSet = TEXT("Values");
+									}
+								}
+							}
+
+							if(!PinNameToSet.IsEmpty())
+							{
+								const FString DefaultValue = OtherModelPin->GetDefaultValue();
+								if(!DefaultValue.IsEmpty())
+								{
+									NewNode->GetController()->SetPinDefaultValue(RigVMStringUtils::JoinPinPath(NewNode->GetName(), PinNameToSet), DefaultValue, true, true, false, true);
+								}
 							}
 						}
 					}

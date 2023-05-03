@@ -1698,29 +1698,23 @@ bool UControlRigGraphNode::IsSelectedInEditor() const
 
 bool UControlRigGraphNode::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIndex, int32& OutOutputPinIndex) const
 {
-	if (URigVMRerouteNode* Reroute = Cast<URigVMRerouteNode>(GetModelNode()))
+	if (Cast<URigVMRerouteNode>(GetModelNode()))
 	{
-		if (!Reroute->GetShowsAsFullNode())
-		{
-			if (Pins.Num() >= 2)
-			{
-				OutInputPinIndex = 0;
-				OutOutputPinIndex = Pins.Num()/2;
+		OutInputPinIndex = 0;
+		OutOutputPinIndex = Pins.Num()/2;
 
-				if (Pins[OutOutputPinIndex]->Direction != EGPD_Output || Pins[OutOutputPinIndex]->ParentPin != nullptr)
+		if (Pins[OutOutputPinIndex]->Direction != EGPD_Output || Pins[OutOutputPinIndex]->ParentPin != nullptr)
+		{
+			for (int32 i=0; i<Pins.Num(); ++i)
+			{
+				if (Pins[i]->Direction == EGPD_Output && Pins[i]->ParentPin == nullptr)
 				{
-					for (int32 i=0; i<Pins.Num(); ++i)
-					{
-						if (Pins[i]->Direction == EGPD_Output && Pins[i]->ParentPin == nullptr)
-						{
-							OutOutputPinIndex = i;
-							break;
-						}
-					}
+					OutOutputPinIndex = i;
+					break;
 				}
-				return true;
 			}
 		}
+		return true;
 	}
 	return false;
 }
@@ -1752,9 +1746,9 @@ void UControlRigGraphNode::ConfigurePin(UEdGraphPin* EdGraphPin, const URigVMPin
 	bool bHidden = ModelPin->GetDirection() == ERigVMPinDirection::Hidden;
 	if(!bHidden && !ModelPin->IsRootPin())
 	{
-		if(const URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(ModelPin->GetNode()))
+		if(Cast<URigVMRerouteNode>(ModelPin->GetNode()))
 		{
-			bHidden = !RerouteNode->GetShowsAsFullNode();
+			bHidden = true;
 		}
 	}
 

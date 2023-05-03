@@ -58,15 +58,6 @@ FText FRigVMDispatch_Constant::GetNodeTooltip(const FRigVMTemplateTypeMap& InTyp
 	return LOCTEXT("ConstantToolTip", "Provides a constant value to the graph");
 }
 
-FString FRigVMDispatch_Constant::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
-{
-	if(InArgumentName == ValueName && InMetaDataKey == FRigVMStruct::ConstantMetaName)
-	{
-		return TrueString;
-	}
-	return FRigVMDispatch_CoreBase::GetArgumentMetaData(InArgumentName, InMetaDataKey);
-}
-
 #endif
 
 void FRigVMDispatch_Constant::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)

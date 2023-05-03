@@ -9,7 +9,6 @@ const FString URigVMRerouteNode::RerouteName = TEXT("Reroute");
 const FString URigVMRerouteNode::ValueName = TEXT("Value");
 
 URigVMRerouteNode::URigVMRerouteNode()
-: bShowAsFullNode(true)
 {
 }
 
@@ -56,81 +55,13 @@ FString URigVMRerouteNode::GetNodeTitle() const
 	return RerouteName;
 }
 
-bool URigVMRerouteNode::GetShowsAsFullNode() const
-{
-	return bShowAsFullNode;
-}
-
 FLinearColor URigVMRerouteNode::GetNodeColor() const
 {
 	return FLinearColor::White;
 }
 
-FName URigVMRerouteNode::GetNotation() const
-{
-	static constexpr TCHAR Format[] = TEXT("%s(io %s)");
-	static const FName RerouteNotation = *FString::Printf(Format, *RerouteName, *ValueName);
-	return RerouteNotation;
-}
-
-const FRigVMTemplate* URigVMRerouteNode::GetTemplate() const
-{
-	if(const FRigVMTemplate* SuperTemplate = Super::GetTemplate())
-	{
-		return SuperTemplate;
-	}
-	
-	if(CachedTemplate == nullptr)
-	{
-		static const FRigVMTemplate* RerouteNodeTemplate = nullptr;
-		if(RerouteNodeTemplate)
-		{
-			return RerouteNodeTemplate;
-		}
-
-		static TArray<FRigVMTemplateArgument> Arguments;
-		if(Arguments.IsEmpty())
-		{
-			static const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
-				FRigVMTemplateArgument::ETypeCategory_Execute,
-				FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
-				FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
-			};
-			Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, Categories);
-		}
-
-		FRigVMTemplateDelegates Delegates;
-		Delegates.NewArgumentTypeDelegate = 
-			FRigVMTemplate_NewArgumentTypeDelegate::CreateLambda([](const FRigVMTemplate*, const FName& InArgumentName, int32 InTypeIndex)
-			{
-				// since a reroute has only one argument this is simple
-				FRigVMTemplateTypeMap Types;
-				Types.Add(InArgumentName, InTypeIndex);
-				return Types;
-			});
-
-		RerouteNodeTemplate = CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*RerouteName, Arguments, Delegates);
-	}
-	return CachedTemplate;
-}
-
-bool URigVMRerouteNode::IsPassThrough() const
-{
-	return !GetPins()[0]->GetSourceLinks().IsEmpty();
-}
-
 bool URigVMRerouteNode::IsLiteral() const
 {
 	return GetPins()[0]->GetSourceLinks(true).IsEmpty();
-}
-
-bool URigVMRerouteNode::IsCompositionNode() const
-{
-	if (IsPassThrough() || IsLiteral())
-	{
-		return false;
-	}
-	
-	return true;
 }
 

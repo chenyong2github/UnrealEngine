@@ -342,7 +342,6 @@ private:
 	mutable TMap<FName, FVector2D> NodePositionsDuringStart;
 #endif
 
-	friend class UControlRigRerouteNodeSpawner;
 	friend class UControlRigIfNodeSpawner;
 	friend class UControlRigSelectNodeSpawner;
 	friend class UControlRigUnitNodeSpawner;

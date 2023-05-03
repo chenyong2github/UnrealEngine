@@ -958,44 +958,6 @@ bool FRigVMSetCommentTextAction::Redo()
 	return FRigVMBaseAction::Redo();
 }
 
-FRigVMSetRerouteCompactnessAction::FRigVMSetRerouteCompactnessAction()
-: FRigVMBaseAction(nullptr)
-, NodePath()
-, OldShowAsFullNode(false)
-, NewShowAsFullNode(false)
-{
-
-}
-FRigVMSetRerouteCompactnessAction::FRigVMSetRerouteCompactnessAction(URigVMController* InController, URigVMRerouteNode* InNode, bool InShowAsFullNode)
-: FRigVMBaseAction(InController)
-, NodePath(InNode->GetNodePath())
-, OldShowAsFullNode(InNode->GetShowsAsFullNode())
-, NewShowAsFullNode(InShowAsFullNode)
-{
-}
-
-bool FRigVMSetRerouteCompactnessAction::Undo()
-{
-	if(!FRigVMBaseAction::Undo())
-	{
-		return false;
-	}
-	return GetController()->SetRerouteCompactnessByName(*NodePath, OldShowAsFullNode, false);
-}
-
-bool FRigVMSetRerouteCompactnessAction::Redo()
-{
-	if(!CanUndoRedo())
-	{
-		return false;
-	}
-	if(!GetController()->SetRerouteCompactnessByName(*NodePath, NewShowAsFullNode, false))
-	{
-		return false;
-	}
-	return FRigVMBaseAction::Redo();
-}
-
 FRigVMRenameVariableAction::FRigVMRenameVariableAction()
 : FRigVMBaseAction(nullptr)
 {

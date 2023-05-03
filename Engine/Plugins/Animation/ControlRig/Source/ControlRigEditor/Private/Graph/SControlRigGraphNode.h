@@ -127,7 +127,7 @@ private:
 		TSharedPtr<SGraphPin> OutputPinWidget;
 		bool bExpanded;
 		bool bAutoHeight;
-		bool bFixedArray;
+		bool bShowOnlySubPins;
 	};
 
 	

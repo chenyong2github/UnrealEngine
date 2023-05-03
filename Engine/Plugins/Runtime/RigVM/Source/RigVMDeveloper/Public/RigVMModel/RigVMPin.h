@@ -274,6 +274,14 @@ public:
 	// Returns true if this pin is an array that should be displayed as elements only
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsFixedSizeArray() const;
+
+	// Returns true if this pin is an array that should be displayed as elements only
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool ShouldOnlyShowSubPins() const;
+
+	// Returns true if this pin's subpins should be hidden in the UI
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool ShouldHideSubPins() const;
 	
 	// Returns the default value of the Pin as a string.
 	// Note that this value is computed based on the Pin's

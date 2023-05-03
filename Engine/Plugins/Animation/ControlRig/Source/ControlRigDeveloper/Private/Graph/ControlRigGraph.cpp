@@ -611,28 +611,6 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			}
 			break;
 		}
-		case ERigVMGraphNotifType::RerouteCompactnessChanged:
-		{
-			if (URigVMRerouteNode* ModelNode = Cast<URigVMRerouteNode>(InSubject))
-			{
-				UEdGraphNode* EdNode = Cast<UEdGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName()));
-				if (EdNode)
-				{
-					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
-					{
-						// start at index 2 (the subpins below the top level value pin)
-						// and hide the pins (or show them if they were hidden previously)
-						for (int32 PinIndex = 2; PinIndex < RigNode->Pins.Num(); PinIndex++)
-						{
-							RigNode->Pins[PinIndex]->bHidden = !ModelNode->GetShowsAsFullNode();
-						}
-						NotifyGraphChanged(FEdGraphEditAction(EEdGraphActionType::GRAPHACTION_RemoveNode, EdNode->GetGraph(), EdNode, true));
-						NotifyGraphChanged(FEdGraphEditAction(EEdGraphActionType::GRAPHACTION_AddNode, EdNode->GetGraph(), EdNode, true));
-					}
-				}
-			}
-			break;
-		}
 		case ERigVMGraphNotifType::NodeColorChanged:
 		{
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))

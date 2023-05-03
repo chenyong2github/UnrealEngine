@@ -182,7 +182,6 @@ private:
 	friend class UControlRigUnitNodeSpawner;
 	friend class UControlRigVariableNodeSpawner;
 	friend class UControlRigParameterNodeSpawner;
-	friend class UControlRigRerouteNodeSpawner;
 	friend class UControlRigBranchNodeSpawner;
 	friend class UControlRigIfNodeSpawner;
 	friend class UControlRigSelectNodeSpawner;
