@@ -3,14 +3,30 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "MVVM/CastableTypeTable.h"
 
-#define UE_SEQUENCER_DECLARE_VIEW_MODEL_TYPE_ID(Type) static ::UE::Sequencer::TAutoRegisterViewModelTypeID<Type> ID;
-#define UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(Type) ::UE::Sequencer::TAutoRegisterViewModelTypeID<Type> Type::ID;
+#define UE_SEQUENCER_DECLARE_VIEW_MODEL_TYPE_ID(Type)                                               \
+	static ::UE::Sequencer::TAutoRegisterViewModelTypeID<Type> ID;                                  \
+	static void RegisterTypeID();
+
+#define UE_SEQUENCER_DECLARE_VIEW_MODEL_TYPE_ID_API(MODULE_API, Type)                               \
+	MODULE_API static ::UE::Sequencer::TAutoRegisterViewModelTypeID<Type> ID;                       \
+	MODULE_API static void RegisterTypeID();
+
+#define UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(Type)                                                \
+	::UE::Sequencer::TAutoRegisterViewModelTypeID<Type> Type::ID;                                   \
+	void Type::RegisterTypeID()                                                                     \
+	{                                                                                               \
+		Type::ID.ID        = FViewModelTypeID::RegisterNewID();                                     \
+		Type::ID.TypeTable = FCastableTypeTable::MakeTypeTable<Type>((Type*)0, Type::ID.ID, #Type); \
+	}
 
 namespace UE
 {
 namespace Sequencer
 {
+
+struct FCastableTypeTable;
 
 struct FViewModelTypeID
 {
@@ -29,49 +45,68 @@ struct FViewModelTypeID
 		return A.ID == B.ID;
 	}
 
-protected:
+	uint32 GetTypeID() const
+	{
+		return ID;
+	}
 
-	SEQUENCERCORE_API static FViewModelTypeID RegisterNew();
-	SEQUENCERCORE_API static FViewModelTypeID Invalid();
+	SEQUENCERCORE_API static uint32 RegisterNewID();
+
+	FViewModelTypeID(FCastableTypeTable* InTypeTable, uint32 InID)
+		: TypeTable(InTypeTable)
+		, ID(InID)
+	{}
 
 private:
 
-	FViewModelTypeID(uint32 InID)
-		: ID(InID)
-	{}
-
-	FViewModelTypeID()
-		: ID(~0u)
-	{}
-
+	FCastableTypeTable* TypeTable;
 	uint32 ID;
 };
 
 template<typename T>
-struct TViewModelTypeID : FViewModelTypeID
+struct TViewModelTypeID
 {
-	static TViewModelTypeID<T> RegisterNew()
+	operator FViewModelTypeID() const
 	{
-		return TViewModelTypeID<T>(FViewModelTypeID::RegisterNew());
+		Register();
+		return FViewModelTypeID{ TypeTable, ID };
 	}
 
-	static TViewModelTypeID<T> Invalid()
+	uint32 GetTypeID() const
 	{
-		return TViewModelTypeID<T>(FViewModelTypeID::Invalid());
+		Register();
+		return ID;
+	}
+
+	FCastableTypeTable* GetTypeTable() const
+	{
+		Register();
+		return TypeTable;
+	}
+
+	void Register() const
+	{
+		if (!IsRegistered())
+		{
+			T::RegisterTypeID();
+		}
 	}
 
 protected:
-	explicit TViewModelTypeID(FViewModelTypeID In)
-		: FViewModelTypeID(In)
-	{}
+	friend T;
+
+	bool IsRegistered() const
+	{
+		return ID != ~0u;
+	}
+
+	FCastableTypeTable* TypeTable = nullptr;
+	uint32 ID = ~0u;
 };
 
 template<typename T>
 struct TAutoRegisterViewModelTypeID : TViewModelTypeID<T>
 {
-	TAutoRegisterViewModelTypeID()
-		: TViewModelTypeID<T>(TViewModelTypeID<T>::RegisterNew())
-	{}
 };
 
 } // namespace Sequencer

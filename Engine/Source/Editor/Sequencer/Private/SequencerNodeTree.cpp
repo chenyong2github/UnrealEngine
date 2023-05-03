@@ -433,7 +433,7 @@ bool FSequencerNodeTree::IsNodeMute(const UE::Sequencer::TViewModelPtr<UE::Seque
 	}
 	
 	// Children should follow their parent's behavior unless told otherwise.
-	TViewModelPtr<IOutlinerExtension> ParentNode(InNode.AsModel()->GetParent());
+	TViewModelPtr<IOutlinerExtension> ParentNode = InNode.AsModel()->FindAncestorOfType<IOutlinerExtension>();
 	if (ParentNode)
 	{
 		return IsNodeMute(ParentNode);
@@ -574,7 +574,8 @@ bool FSequencerNodeTree::GetSavedPinnedState(const UE::Sequencer::FViewModel& No
 
 bool FSequencerNodeTree::IsNodeFiltered(const TSharedPtr<UE::Sequencer::FViewModel>& Node) const
 {
-	return FilteredNodes.Contains(Node);
+	using namespace UE::Sequencer;
+	return FilteredNodes.Contains(CastViewModel<IOutlinerExtension>(Node));
 }
 
 TSharedPtr<UE::Sequencer::FSectionModel> FSequencerNodeTree::GetSectionModel(const UMovieSceneSection* Section) const
@@ -988,7 +989,7 @@ bool FSequencerNodeTree::UpdateFilters()
 	// Always include the bottom spacer
 	if (FSequenceModel* SequenceModel = RootNode->CastThis<FSequenceModel>())
 	{
-		FilteredNodes.Add(SequenceModel->GetBottomSpacer());
+		FilteredNodes.Add(CastViewModelChecked<IOutlinerExtension>(SequenceModel->GetBottomSpacer()));
 	}
 
 	// Count the total number of display nodes, and update filtered state.

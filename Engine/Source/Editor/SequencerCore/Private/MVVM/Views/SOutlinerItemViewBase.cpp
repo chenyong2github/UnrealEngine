@@ -58,7 +58,7 @@ void SOutlinerItemViewBase::Construct(
 		const TSharedRef<ISequencerTreeViewRow>& InTableRow )
 {
 	WeakOutlinerExtension = InWeakExtension;
-	WeakRenameExtension   = InWeakExtension.ImplicitCast();
+	WeakRenameExtension   = InWeakExtension.ImplicitPin();
 	WeakEditor            = InWeakEditor;
 
 	ItemStyle              = InArgs._ItemStyle;
@@ -368,7 +368,7 @@ FOptionalSize SOutlinerItemViewBase::GetHeight() const
 
 void SOutlinerItemViewBase::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	TSharedPtr<FViewModel> DataModel = WeakOutlinerExtension.Pin().AsModel();
+	TViewModelPtr<IOutlinerExtension> DataModel = WeakOutlinerExtension.Pin();
 	TSharedPtr<FEditorViewModel> Editor = WeakEditor.Pin();
 	if (DataModel && Editor)
 	{

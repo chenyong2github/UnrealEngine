@@ -15,6 +15,7 @@ namespace UE
 namespace Sequencer
 {
 
+struct FCastableTypeTable;
 class FDynamicExtensionContainer;
 class FViewModel;
 
@@ -42,7 +43,7 @@ DECLARE_DELEGATE_OneParam(FDynamicExtensionCallback, TSharedRef<FViewModel>);
 /**
  * Base class for supporting dynamic extensions that participate in dynamic casting.
  */
-class SEQUENCERCORE_API FDynamicExtensionContainer
+class FDynamicExtensionContainer
 {
 public:
 
@@ -55,7 +56,7 @@ public:
 
 public:
 
-	UE_SEQUENCER_DECLARE_VIEW_MODEL_TYPE_ID(FDynamicExtensionContainer)
+	UE_SEQUENCER_DECLARE_VIEW_MODEL_TYPE_ID_API(SEQUENCERCORE_API, FDynamicExtensionContainer)
 
 	template<typename T>
 	const T* CastDynamic() const
@@ -83,17 +84,7 @@ public:
 		return const_cast<T*>(const_cast<const FDynamicExtensionContainer*>(this)->CastDynamicChecked<T>());
 	}
 
-	const void* CastDynamic(FViewModelTypeID Type) const
-	{
-		for (const TInlineValue<FDynamicExtensionInfo>& DynamicExtension : DynamicExtensions)
-		{
-			if (const void* Result = DynamicExtension->CastDynamic(Type))
-			{
-				return Result;
-			}
-		}
-		return nullptr;
-	}
+	SEQUENCERCORE_API const void* CastDynamic(FViewModelTypeID Type) const;
 
 	const void* CastDynamicChecked(FViewModelTypeID Type) const
 	{
@@ -125,90 +116,37 @@ protected:
 			return static_cast<T&>(*Existing);
 		}
 
-		static_assert(sizeof(FDynamicExtensionInfo) == sizeof(TDynamicExtensionInfo<T>), "Typed extension wrapper can't contain extra data.");
-
 		TSharedRef<T> NewExtension = MakeShared<T>(Forward<InArgTypes>(Args)...);
-		DynamicExtensions.Add(TDynamicExtensionInfo<T>(NewExtension));
+		DynamicExtensions.Emplace(FDynamicExtensionInfo{ T::ID.GetTypeTable(), NewExtension });
 		NewExtension->OnCreated(InOwner);
 		return NewExtension.Get();
 	}
 
 	void PostInitializeExtensions()
 	{
-		for (const TInlineValue<FDynamicExtensionInfo>& DynamicExtension : DynamicExtensions)
+		for (const FDynamicExtensionInfo& DynamicExtension : DynamicExtensions)
 		{
-			check(DynamicExtension.IsValid());
-			DynamicExtension->Extension->OnPostInitialize();
+			DynamicExtension.Extension->OnPostInitialize();
 		}
 	}
 
 	void ReinitializeExtensions()
 	{
-		for (const TInlineValue<FDynamicExtensionInfo>& DynamicExtension : DynamicExtensions)
+		for (const FDynamicExtensionInfo& DynamicExtension : DynamicExtensions)
 		{
-			check(DynamicExtension.IsValid());
-			DynamicExtension->Extension->OnReinitialize();
+			DynamicExtension.Extension->OnReinitialize();
 		}
 	}
-
-public:
-
-	struct Implements{};
 
 private:
 
 	struct FDynamicExtensionInfo
 	{
+		FCastableTypeTable* TypeTable;
 		TSharedRef<IDynamicExtension> Extension;
-		FDynamicExtensionInfo(TSharedRef<IDynamicExtension> InExtension) : Extension(InExtension) {}
-		virtual ~FDynamicExtensionInfo() {}
-		virtual const void* CastDynamic(FViewModelTypeID Type) const { return nullptr; }
 	};
 
-	template<typename T>
-	struct TDynamicExtensionInfo : FDynamicExtensionInfo
-	{
-		TDynamicExtensionInfo(TSharedRef<T> InExtension) 
-			: FDynamicExtensionInfo(StaticCastSharedRef<IDynamicExtension>(InExtension))
-		{
-		}
-		virtual const void* CastDynamic(FViewModelTypeID Type) const
-		{
-			const void* Result = nullptr;
-			TSharedRef<T> TypedExtension = StaticCastSharedRef<T>(Extension);
-			FCastableBoilerplate::CastImplementation(&TypedExtension.Get(), Type, Result);
-			return Result;
-		}
-	};
-
-	TArray<TInlineValue<FDynamicExtensionInfo>> DynamicExtensions;
-};
-
-template<>
-struct TCompositeCast<FDynamicExtensionContainer::Implements>
-{
-	static void Apply(const FDynamicExtensionContainer* This, FViewModelTypeID ToType, const void*& OutResult)
-	{
-		if (OutResult == nullptr)
-		{
-			if (const void* Result = FCastableBoilerplate::DirectCast(This, ToType))
-			{
-				OutResult = Result;
-				return;
-			}
-
-			if (const void* Result = This->CastDynamic(ToType))
-			{
-				OutResult = Result;
-			}
-		}
-	}
-
-	template<typename T>
-	static bool IsAny(const ICastable* This)
-	{
-		return T::ID == FDynamicExtensionContainer::ID;
-	}
+	TArray<FDynamicExtensionInfo> DynamicExtensions;
 };
 
 } // namespace Sequencer

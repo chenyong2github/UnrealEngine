@@ -18,9 +18,7 @@ class FSharedViewModelData;
 class FViewModel;
 struct FViewModelChildren;
 struct FViewModelListHead;
-struct FViewModelPtr;
 struct FViewModelSubListIterator;
-template <typename ExtensionType> struct TViewModelPtr;
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	#define UE_SEQUENCER_DETECT_LINK_LIST_CYCLES 1

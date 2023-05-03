@@ -260,7 +260,7 @@ bool FOutlinerItemModelMixin::IsDimmed() const
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
 	if (Sequencer)
 	{
-		TSharedPtr<FViewModel> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared());
+		TViewModelPtr<IOutlinerExtension> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared(), const_cast<FOutlinerItemModelMixin*>(this));
 		FSequencerNodeTree& ParentTree = Sequencer->GetNodeTree().Get();
 		if (ParentTree.IsNodeMute(ThisShared) || (ParentTree.HasSoloNodes() && !ParentTree.IsNodeSolo(ThisShared)))
 		{
@@ -276,7 +276,7 @@ bool FOutlinerItemModelMixin::IsSolo() const
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
 	if (Sequencer)
 	{
-		TSharedPtr<FViewModel> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared());
+		TViewModelPtr<IOutlinerExtension> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared(), const_cast<FOutlinerItemModelMixin*>(this));
 		return Sequencer->GetNodeTree()->IsNodeSolo(ThisShared);
 	}
 	return false;
@@ -288,7 +288,7 @@ bool FOutlinerItemModelMixin::IsMuted() const
 	TSharedPtr<FSequencer> Sequencer = EditorViewModel ? EditorViewModel->GetSequencerImpl() : nullptr;
 	if (Sequencer)
 	{
-		TSharedPtr<FViewModel> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared());
+		TViewModelPtr<IOutlinerExtension> ThisShared(const_cast<FViewModel*>(AsViewModel())->AsShared(), const_cast<FOutlinerItemModelMixin*>(this));
 		return Sequencer->GetNodeTree()->IsNodeMute(ThisShared);
 	}
 	return false;

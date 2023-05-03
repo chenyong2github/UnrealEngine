@@ -24,7 +24,6 @@ struct FParentFirstChildIterator;
 struct FParentModelIterator;
 struct FViewModelIterationState;
 struct FViewModelListIterator;
-struct FViewModelPtr;
 
 /**
  * Base class for a sequencer data model. This might wrap an underlying UObject, or be a purely
@@ -61,7 +60,10 @@ public:
 		{
 			return *StaticImpl;
 		}
-		return FDynamicExtensionContainer::AddDynamicExtension<T>(AsShared(), Forward<InArgTypes>(Args)...);
+
+		// Assign the dynamic type member so that we can cast directly to these types
+		this->DynamicTypes = this;
+		return FDynamicExtensionContainer::AddDynamicExtension<T>(AsShared(), Forward<InArgTypes>(Args)...);;
 	}
 
 	/** Adds a dynamic extension to this data model */
@@ -73,16 +75,16 @@ public:
 
 	/** Casts this data model to an extension, or to a child class implementation */
 	template<typename T>
-	TSharedPtr<T> CastThisShared()
+	TViewModelPtr<T> CastThisShared()
 	{
-		return TSharedPtr<T>(AsShared(), CastThis<T>());
+		return TViewModelPtr<T>(AsShared(), CastThis<T>());
 	}
 
 	/** Casts this data model to an extension, or to a child class implementation */
 	template<typename T>
-	TSharedPtr<const T> CastThisShared() const
+	TViewModelPtr<const T> CastThisShared() const
 	{
-		return TSharedPtr<const T>(AsShared(), CastThis<T>());
+		return TViewModelPtr<const T>(AsShared(), CastThis<const T>());
 	}
 
 	/** Casts this data model to an extension, or to a child class implementation */
@@ -116,28 +118,18 @@ public:
 	}
 
 	/** Gets the parent data model */
-	TSharedPtr<FViewModel> GetParent() const
-	{
-		return WeakParent.Pin();
-	}
+	FViewModelPtr GetParent() const;
 
 	/** Gets the parent data model */
 	template<typename T>
 	TViewModelPtr<T> CastParent() const
 	{
-		return TViewModelPtr<T>(WeakParent.Pin());
+		TSharedPtr<FViewModel> Parent = WeakParent.Pin();
+		return Parent ? TViewModelPtr<T>(Parent, Parent->CastThis<T>()) : TViewModelPtr<T>();
 	}
 
 	/** Returns the root model of the hierarchy, i.e. the parent model that has no parent */
-	TSharedPtr<FViewModel> GetRoot() const
-	{
-		TSharedPtr<FViewModel> CurrentItem(SharedThis(const_cast<FViewModel*>(this)));
-		while (CurrentItem->GetParent())
-		{
-			CurrentItem = CurrentItem->GetParent();
-		}
-		return CurrentItem;
-	}
+	FViewModelPtr GetRoot() const;
 
 public:
 

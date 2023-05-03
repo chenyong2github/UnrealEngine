@@ -105,7 +105,7 @@ void FFolderModel::RepopulateChildren()
 		if (Sequencer->GetSequencerSettings()->GetShowLayerBars())
 		{
 			LayerBar = MakeShared<FLayerBarModel>(This);
-			LayerBar->SetLinkedOutlinerItem(AsShared());
+			LayerBar->SetLinkedOutlinerItem(SharedThis(this));
 
 			TrackAreaChildren.AddChild(LayerBar);
 		}

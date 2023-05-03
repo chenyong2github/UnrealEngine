@@ -554,7 +554,7 @@ protected:
 	{
 		while (*this)
 		{
-			TypedValue = TViewModelPtr<T>(IteratorType::GetCurrentItem().AsModel());
+			TypedValue = IteratorType::GetCurrentItem()->template CastThisShared<T>();
 			if (TypedValue)
 			{
 				break;

@@ -3468,7 +3468,7 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 			Nodes.Reserve(Sequencer->GetSelection().GetSelectedOutlinerItems().Num());
 			for (const TWeakPtr<FViewModel>& WeakModel : Sequencer->GetSelection().GetSelectedOutlinerItems())
 			{
-				TViewModelPtr<IOutlinerExtension> Model = WeakModel.Pin();
+				TViewModelPtr<IOutlinerExtension> Model = CastViewModel<IOutlinerExtension>(WeakModel.Pin());
 				if (Model)
 				{
 					Nodes.Add(Model);
@@ -3831,7 +3831,7 @@ FPasteContextMenuArgs SSequencer::GeneratePasteArgs(FFrameNumber PasteAtTime, TS
 		{
 			if (SelectedNode->IsA<FCategoryGroupModel>() || SelectedNode->IsA<ITrackExtension>() || SelectedNode->IsA<FChannelGroupModel>())
 			{
-				TViewModelPtr<IOutlinerExtension> TrackModel(SelectedNode);
+				TViewModelPtr<IOutlinerExtension> TrackModel =  CastViewModel<IOutlinerExtension>(SelectedNode);
 				if (TrackModel)
 				{
 					PasteIntoNodes.Add(TrackModel);

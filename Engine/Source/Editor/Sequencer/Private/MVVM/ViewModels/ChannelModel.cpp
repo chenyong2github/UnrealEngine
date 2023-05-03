@@ -309,7 +309,7 @@ void FChannelGroupModel::OnChannelOverridesChanged()
 
 void FChannelGroupModel::CleanupChannels()
 {
-	const int32 NumRemoved = Channels.RemoveAll([](TWeakViewModelPtr<FChannelModel> Item) { return !Item.IsValid(); });
+	const int32 NumRemoved = Channels.RemoveAll([](TWeakViewModelPtr<FChannelModel> Item) { return !Item.Pin().IsValid(); });
 	if (NumRemoved > 0)
 	{
 		++ChannelsSerialNumber;
@@ -827,7 +827,7 @@ bool FChannelGroupOutlinerModel::CanDelete(FText* OutErrorMessage) const
 void FChannelGroupOutlinerModel::Delete()
 {
 	TArray<FName> PathFromTrack;
-	TViewModelPtr<ITrackExtension> Track = GetParentTrackNodeAndNamePath(this, PathFromTrack);
+	TViewModelPtr<ITrackExtension> Track = GetParentTrackNodeAndNamePath(SharedThis(this), PathFromTrack);
 
 	Track->GetTrack()->Modify();
 

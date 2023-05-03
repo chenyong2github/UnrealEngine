@@ -7,15 +7,10 @@ namespace UE
 namespace Sequencer
 {
 
-FViewModelTypeID FViewModelTypeID::RegisterNew()
+uint32 FViewModelTypeID::RegisterNewID()
 {
 	static uint32 ID = 0;
-	return FViewModelTypeID(ID++);
-}
-
-FViewModelTypeID FViewModelTypeID::Invalid()
-{
-	return FViewModelTypeID();
+	return ID++;
 }
 
 } // namespace Sequencer

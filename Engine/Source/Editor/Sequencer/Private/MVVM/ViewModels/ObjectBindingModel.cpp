@@ -203,7 +203,7 @@ void FObjectBindingModel::OnConstruct()
 		if (Sequencer->GetSequencerSettings()->GetShowLayerBars())
 		{
 			LayerBar = MakeShared<FLayerBarModel>(AsShared());
-			LayerBar->SetLinkedOutlinerItem(AsShared());
+			LayerBar->SetLinkedOutlinerItem(SharedThis(this));
 
 			GetChildrenForList(&TrackAreaList).AddChild(LayerBar);
 		}

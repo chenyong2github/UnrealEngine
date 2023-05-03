@@ -215,7 +215,7 @@ bool FCategoryGroupModel::CanDelete(FText* OutErrorMessage) const
 void FCategoryGroupModel::Delete()
 {
 	TArray<FName> PathFromTrack;
-	TViewModelPtr<ITrackExtension> Track = GetParentTrackNodeAndNamePath(this, PathFromTrack);
+	TViewModelPtr<ITrackExtension> Track = GetParentTrackNodeAndNamePath(CastThisShared<IOutlinerExtension>(), PathFromTrack);
 	check(Track);
 
 	Track->GetTrack()->Modify();

@@ -83,7 +83,7 @@ void FOutlinerSpacer::PerformDrop(const FViewModelPtr& TargetModel, const FDragD
 	TViewModelPtr<IOutlinerDropTargetOutlinerExtension> Parent = FindAncestorOfType<IOutlinerDropTargetOutlinerExtension>();
 	if (Parent)
 	{
-		Parent->PerformDrop(this, DragDropEvent, EItemDropZone::AboveItem);
+		Parent->PerformDrop(SharedThis(this), DragDropEvent, EItemDropZone::AboveItem);
 	}
 }
 

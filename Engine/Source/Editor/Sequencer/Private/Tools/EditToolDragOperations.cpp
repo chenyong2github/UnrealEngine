@@ -1126,14 +1126,14 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 	bool bRowIndexChanged = false;
 	for (UMovieSceneSection* Section : Sections)
 	{
-		TSharedPtr<FSectionModel>      SectionModel = SectionStorage->FindModelForSection(Section);
-		TSharedPtr<FViewModel> TrackModel   = SectionModel ? SectionModel->GetParentTrackModel() : nullptr;
-		if (!SectionModel || !TrackModel)
+		TSharedPtr<FSectionModel>      SectionModel  = SectionStorage->FindModelForSection(Section);
+		TViewModelPtr<ITrackExtension> TrackExtModel = SectionModel ? SectionModel->GetParentTrackModel() : nullptr;
+		if (!SectionModel || !TrackExtModel)
 		{
 			continue;
 		}
 
-		UMovieSceneTrack* Track = TrackModel->CastThis<ITrackExtension>()->GetTrack();
+		UMovieSceneTrack* Track = TrackExtModel->GetTrack();
 
 		const TArray<UMovieSceneSection*>& AllSections = Track->GetAllSections();
 
@@ -1146,7 +1146,7 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 			}
 		}
 
-		Tracks.AddUnique(TrackModel);
+		Tracks.AddUnique(TrackExtModel.AsModel());
 
 		int32 TargetRowIndex = Section->GetRowIndex();
 
@@ -1168,12 +1168,12 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 			}
 
 			// Handle sub-track and non-sub-track dragging
-			if (TrackModel->IsA<FTrackModel>())
+			if (TViewModelPtr<FTrackModel> TrackModel = TrackExtModel.ImplicitCast())
 			{
 				const int32 NumRows = FMath::Max(Section->GetRowIndex() + 1, MaxRowIndex);
 
 				// Find the total height of the track - this is necessary because tracks may contain key areas, but they will not use sub tracks unless there is more than one row
-				const FVirtualGeometry VirtualGeometry = TrackModel->CastThis<FTrackModel>()->GetVirtualGeometry();
+				const FVirtualGeometry VirtualGeometry = TrackModel->GetVirtualGeometry();
 
 				// Assume same height rows
 				const float VirtualSectionHeight = VirtualGeometry.NestedBottom - VirtualGeometry.Top;
@@ -1192,9 +1192,9 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 					TargetRowIndex = -1;
 				}
 			}
-			else if (TrackModel->IsA<FTrackRowModel>())
+			else if (TViewModelPtr<FTrackRowModel> TrackRow = TrackExtModel.ImplicitCast())
 			{
-				TSharedPtr<FTrackModel> ParentTrack = TrackModel->FindAncestorOfType<FTrackModel>();
+				TSharedPtr<FTrackModel> ParentTrack = TrackExtModel.AsModel()->FindAncestorOfType<FTrackModel>();
 				if (ensure(ParentTrack.IsValid()))
 				{
 					int32 ChildIndex = 0;
@@ -1212,8 +1212,7 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 						if (ChildIndex == 0 && (VirtualMousePos.Y <= VirtualSectionTop || LocalMousePos.Y <= 0))
 						{
 							TargetRowIndex = 0;
-							FTrackRowModel* TrackRowModel = TrackModel->CastThis<FTrackRowModel>();
-							for (TSharedPtr<FSectionModel> SectionNode : TrackRowModel->GetTrackAreaModelListAs<FSectionModel>())
+							for (TSharedPtr<FSectionModel> SectionNode : TrackRow->GetTrackAreaModelListAs<FSectionModel>())
 							{
 								if (!Sections.Contains(SectionNode->GetSection()))
 								{

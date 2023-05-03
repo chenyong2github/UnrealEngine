@@ -6281,7 +6281,7 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 
 	for ( TWeakPtr<FViewModel> WeakItem : Items)
 	{
-		TSharedPtr<FViewModel> SelectedItem = WeakItem.Pin();
+		TViewModelPtr<FViewModel> SelectedItem = WeakItem.Pin();
 		if (!SelectedItem)
 		{
 			continue;
@@ -6290,8 +6290,8 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 		//HACK for DHI, if we have an active control rig then one is selected so don't find a parent actor or compomonent to select	
 		//but if we do select the actor/compoent directly we still select it.
 		TViewModelPtr<IObjectBindingExtension> ObjectBinding = bHACK_ControlRigEditMode
-			? FViewModelPtr(SelectedItem)
-			: SelectedItem->FindAncestorOfType(IObjectBindingExtension::ID, true);
+			? CastViewModel<IObjectBindingExtension>(SelectedItem)
+			: SelectedItem->FindAncestorOfType<IObjectBindingExtension>(true);
 
 		// If the closest node is an object node, try to get the actor/component nodes from it.
 		if (ObjectBinding)
@@ -6560,13 +6560,13 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 		{
 			for (TWeakPtr<FViewModel> WeakNode : OutlinerSelection)
 			{
-				if (TSharedPtr<FViewModel> Node = WeakNode.Pin())
+				if (TViewModelPtr<IOutlinerExtension> Node = CastViewModel<IOutlinerExtension>(WeakNode.Pin()))
 				{
-					TSharedPtr<FViewModel> Parent = Node->GetParent();
+					TViewModelPtr<IOutlinerExtension> Parent = Node.AsModel()->FindAncestorOfType<IOutlinerExtension>();
 					while (Parent.IsValid())
 					{
-						TreeView->SetItemExpansion(Parent->AsShared(), true);
-						Parent = Parent->GetParent();
+						TreeView->SetItemExpansion(Parent, true);
+						Parent = Parent.AsModel()->FindAncestorOfType<IOutlinerExtension>();
 					}
 
 					TreeView->RequestScrollIntoView(Node);
@@ -6627,15 +6627,15 @@ void FSequencer::SelectNodesByPath(const TSet<FString>& NodePaths)
 
 		TSharedPtr<SOutlinerView> TreeView = SequencerWidget->GetTreeView();
 		const TSet<TWeakPtr<FViewModel>>& OutlinerSelection = GetSelection().GetSelectedOutlinerItems();
-		for (const TWeakPtr<FViewModel>& WeakNode : OutlinerSelection)
+		for (TWeakPtr<FViewModel> WeakNode : OutlinerSelection)
 		{
-			if (TSharedPtr<FViewModel> Node = WeakNode.Pin())
+			if (TViewModelPtr<IOutlinerExtension> Node = CastViewModel<IOutlinerExtension>(WeakNode.Pin()))
 			{
-				TSharedPtr<FViewModel> Parent = Node->GetParent();
+				TViewModelPtr<IOutlinerExtension> Parent = Node.AsModel()->FindAncestorOfType<IOutlinerExtension>();
 				while (Parent.IsValid())
 				{
-					TreeView->SetItemExpansion(Parent->AsShared(), true);
-					Parent = Parent->GetParent();
+					TreeView->SetItemExpansion(Parent, true);
+					Parent = Parent.AsModel()->FindAncestorOfType<IOutlinerExtension>();
 				}
 
 				TreeView->RequestScrollIntoView(Node);
@@ -6993,7 +6993,7 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 
 		if (NodesToSelect.Num() > 0)
 		{
-			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
+			SequencerWidget->GetTreeView()->RequestScrollIntoView(CastViewModel<IOutlinerExtension>(NodesToSelect[0]));
 
 			Selection.AddToSelection(NodesToSelect);
 			Selection.RequestOutlinerNodeSelectionChangedBroadcast();
@@ -7059,7 +7059,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 		if (NodesToSelect.Num() > 0)
 		{
 			//todo hide behind preference 
-			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
+			SequencerWidget->GetTreeView()->RequestScrollIntoView(CastViewModel<IOutlinerExtension>(NodesToSelect[0]));
 		
 			Selection.AddToSelection(NodesToSelect);
 			Selection.RequestOutlinerNodeSelectionChangedBroadcast();
@@ -7130,7 +7130,7 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 
 		if (NodesToSelect.Num() > 0)
 		{
-			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
+			SequencerWidget->GetTreeView()->RequestScrollIntoView(CastViewModel<IOutlinerExtension>(NodesToSelect[0]));
 
 			Selection.AddToSelection(NodesToSelect);
 			Selection.RequestOutlinerNodeSelectionChangedBroadcast();

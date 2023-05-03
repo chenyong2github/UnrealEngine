@@ -2,27 +2,26 @@
 
 #include "MVVM/ViewModelPtr.h"
 
-namespace UE
-{
-namespace Sequencer
+namespace UE::Sequencer
 {
 
-FImplicitViewModelCast FViewModelPtr::ImplicitCast() const
+TViewModelConversions<FViewModel>::operator TSharedPtr<FViewModel>() const
 {
-	return FImplicitViewModelCast{Model};
+	return static_cast<const TViewModelPtr<FViewModel>*>(this)->Storage.GetModel();
+}
+TViewModelConversions<FViewModel>::operator TWeakPtr<FViewModel>() const
+{
+	return static_cast<const TViewModelPtr<FViewModel>*>(this)->Storage.GetModel();
 }
 
-FImplicitWeakViewModelCast FWeakViewModelPtr::ImplicitCast() const
+TViewModelConversions<const FViewModel>::operator TSharedPtr<const FViewModel>() const
 {
-	return FImplicitWeakViewModelCast{WeakModel};
+	return static_cast<const TViewModelPtr<const FViewModel>*>(this)->Storage.GetModel();
+}
+TViewModelConversions<const FViewModel>::operator TWeakPtr<const FViewModel>() const
+{
+	return static_cast<const TViewModelPtr<const FViewModel>*>(this)->Storage.GetModel();
 }
 
-FImplicitWeakViewModelPin FWeakViewModelPtr::ImplicitPin() const
-{
-	return FImplicitWeakViewModelPin{WeakModel};
-}
-
-
-} // namespace Sequencer
-} // namespace UE
+} // namespace UE::Sequencer
 

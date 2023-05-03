@@ -43,19 +43,27 @@ using TViewModelSubListIterator = TTypedIterator<T, FViewModelSubListIterator>;
 /**
  * Shared/weak extension pointer forward declarations - include MVVM/ViewModelPtr.h for complete declarations
  */
-struct FImplicitViewModelCast;
-struct FImplicitWeakViewModelPin;
-struct FImplicitWeakViewModelCast;
+template<typename, bool>
+struct TImplicitViewModelCastImpl;
+template<typename>
+struct TImplicitWeakViewModelPin;
 
-struct FViewModelPtr;
-struct FWeakViewModelPtr;
+template<typename ViewModelType>
+using TImplicitViewModelCast = TImplicitViewModelCastImpl<ViewModelType, false>;
 
-template<typename ExtensionType>
+template<typename ViewModelType>
+using TImplicitViewModelCastChecked = TImplicitViewModelCastImpl<ViewModelType, true>;
+
+template<typename>
 struct TViewModelPtr;
 
-template<typename ExtensionType>
+template<typename>
 struct TWeakViewModelPtr;
 
+using FViewModelPtr = TViewModelPtr<FViewModel>;
+using FConstViewModelPtr = TViewModelPtr<const FViewModel>;
+using FWeakViewModelPtr = TWeakViewModelPtr<FViewModel>;
 
 } // namespace Sequencer
 } // namespace UE
+

@@ -144,7 +144,7 @@ FTrackModelLayoutBuilder::~FTrackModelLayoutBuilder()
 
 void FTrackModelLayoutBuilder::RefreshLayout(TSharedPtr<FSectionModel> InSection)
 {
-	InSection->SetLinkedOutlinerItem(Root);
+	InSection->SetLinkedOutlinerItem(CastViewModelChecked<IOutlinerExtension>(Root));
 
 	// Reset everything
 	OutlinerList.Reset();
@@ -312,11 +312,11 @@ void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channe
 		OutlinerModel->AddChannel(TrackAreaModel);
 		if (bIsTopLevel)
 		{
-			TrackAreaModel->SetLinkedOutlinerItem(OutlinerModel->GetParent());
+			TrackAreaModel->SetLinkedOutlinerItem(OutlinerModel->GetParent().ImplicitCastChecked());
 		}
 		else
 		{
-			TrackAreaModel->SetLinkedOutlinerItem(OutlinerModel.ImplicitCast());
+			TrackAreaModel->SetLinkedOutlinerItem(OutlinerModel.ImplicitCastChecked());
 		}
 		TrackAreaModel->Initialize(SequencerSection, Channel);
 

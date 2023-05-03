@@ -625,7 +625,7 @@ void FSectionContextMenu::SelectAllKeys()
 	FSequencerSelection& Selection = Sequencer->GetSelection();
 	for (const TWeakPtr<FViewModel>& WeakModel : Selection.GetSelectedTrackAreaItems())
 	{
-		TViewModelPtr<FSectionModel> Section = WeakModel.Pin();
+		TViewModelPtr<FSectionModel> Section = CastViewModel<FSectionModel>(WeakModel.Pin());
 		if (Section)
 		{
 			UMovieSceneSection* SectionObject = Section->GetSection();

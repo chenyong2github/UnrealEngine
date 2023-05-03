@@ -77,7 +77,7 @@ void FCurveEditorIntegrationExtension::UpdateCurveEditor()
 	{
 		bool bIsRelevant = false;
 		const FCurveEditorTreeItemID ItemID(It.Value());
-		TViewModelPtr<ICurveEditorTreeItemExtension> ViewModel(It.Key().Pin());
+		TViewModelPtr<ICurveEditorTreeItemExtension> ViewModel = CastViewModel<ICurveEditorTreeItemExtension>(It.Key().Pin());
 		if (ViewModel)
 		{
 			TViewModelPtr<IOutlinerExtension> OutlinerModel = ViewModel.ImplicitCast();
@@ -129,7 +129,7 @@ void FCurveEditorIntegrationExtension::UpdateCurveEditor()
 			const FCurveEditorTreeItemID ItemID = ViewModelToTreeItemIDMap.FindRef(ChildViewModel.AsModel());
 			if (!ItemID.IsValid())
 			{
-				AddToCurveEditor(ChildViewModel.AsModel(), CurveEditor);
+				AddToCurveEditor(ChildViewModel, CurveEditor);
 			}
 		}
 	}
@@ -156,9 +156,9 @@ FCurveEditorTreeItemID FCurveEditorIntegrationExtension::AddToCurveEditor(TViewM
 	}
 
 	// Recursively create any needed parent curve editor items
-	TSharedPtr<FViewModel> Parent = InViewModel.AsModel()->GetParent();
+	TViewModelPtr<ICurveEditorTreeItemExtension> Parent = InViewModel.AsModel()->CastParent<ICurveEditorTreeItemExtension>();
 
-	FCurveEditorTreeItemID ParentID = Parent.IsValid() ?
+	FCurveEditorTreeItemID ParentID = Parent ?
 		AddToCurveEditor(Parent, InCurveEditor) :
 		FCurveEditorTreeItemID::Invalid();
 
@@ -188,10 +188,10 @@ void FCurveEditorIntegrationExtension::ResetCurveEditor()
 		return;
 	}
 
-	for (auto Pair : ViewModelToTreeItemIDMap)
+	for (TPair<TWeakPtr<FViewModel>, FCurveEditorTreeItemID> Pair : ViewModelToTreeItemIDMap)
 	{
 		FCurveEditorTreeItemID ItemID(Pair.Value);
-		TViewModelPtr<ICurveEditorTreeItemExtension> ViewModel(Pair.Key.Pin());
+		TViewModelPtr<ICurveEditorTreeItemExtension> ViewModel = CastViewModel<ICurveEditorTreeItemExtension>(Pair.Key.Pin());
 		if (ViewModel)
 		{
 			ViewModel->OnRemovedFromCurveEditor(CurveEditor);

@@ -77,6 +77,21 @@ FViewModelChildren FViewModel::GetChildList(EViewModelListType InType)
 	return Result.GetValue();
 }
 
+FViewModelPtr FViewModel::GetParent() const
+{
+	return WeakParent.Pin();
+}
+
+FViewModelPtr FViewModel::GetRoot() const
+{
+	TSharedPtr<FViewModel> CurrentItem(SharedThis(const_cast<FViewModel*>(this)));
+	while (CurrentItem->GetParent())
+	{
+		CurrentItem = CurrentItem->GetParent();
+	}
+	return CurrentItem;
+}
+
 FViewModel::ESetParentResult FViewModel::SetParentOnly(const TSharedPtr<FViewModel>& NewParent, bool bReportChanges)
 {
 	ensureAlwaysMsgf(ActiveIterationCount == 0, TEXT("Attempting to make hierarchical changes to a view model while an iteration is active"));

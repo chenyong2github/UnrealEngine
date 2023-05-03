@@ -3,14 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "SequencerCoreFwd.h"
 #include "MVVM/ViewModelTypeID.h"
 
 namespace UE
 {
 namespace Sequencer
 {
-
-template<typename T> struct TViewModelPtr;
 
 class SEQUENCERCORE_API IRecyclableExtension
 {

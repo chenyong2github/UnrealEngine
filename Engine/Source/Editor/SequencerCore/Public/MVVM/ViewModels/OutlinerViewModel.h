@@ -11,7 +11,6 @@
 #include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModelTypeID.h"
 #include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/ViewModels/ViewModel.h"
 #include "Templates/SharedPointer.h"
 
 class FDragDropOperation;

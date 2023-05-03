@@ -382,7 +382,7 @@ void SOutlinerView::ForceSetSelectedItems(const TSet<TWeakPtr<FViewModel>>& InIt
 	Private_ClearSelection();
 	for (const TWeakPtr<FViewModel>& Item : InItems)
 	{
-		TWeakViewModelPtr<IOutlinerExtension> WeakItem(Item);
+		TWeakViewModelPtr<IOutlinerExtension> WeakItem = CastViewModel<IOutlinerExtension>(Item.Pin());
 		if (WeakItem.Pin())
 		{
 			Private_SetItemSelection(WeakItem, true, false);
@@ -853,7 +853,7 @@ void SOutlinerView::Refresh()
 
 		if (bIsPinned == bShowPinnedNodes)
 		{
-			RootNodes.Add(Extension.AsModel());
+			RootNodes.Add(Extension);
 		}
 	}
 
@@ -1156,7 +1156,7 @@ void SOutlinerView::CreateTrackLanesForRow(TSharedRef<SOutlinerViewRow> InRow, T
 	// We also create a lane on the appropriate parent if it doesn't exist, because we could be in a situation
 	// where we jump-scrolled directly to the given row and item without ever having had the parent in view.
 	const bool bIncludeDataModel = true;
-	for (TViewModelPtr<IOutlinerExtension> CurDataModel : InDataModel.AsModel()->GetAncestors(bIncludeDataModel))
+	for (TViewModelPtr<IOutlinerExtension> CurDataModel : InDataModel.AsModel()->GetAncestorsOfType<IOutlinerExtension>(bIncludeDataModel))
 	{
 		if (TSharedPtr<ITrackAreaExtension> TrackAreaExtension = CurDataModel.ImplicitCast())
 		{

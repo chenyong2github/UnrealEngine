@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "SequencerCoreFwd.h"
 #include "MVVM/Views/SOutlinerItemViewBase.h"
 
 class UMovieSceneTrack;

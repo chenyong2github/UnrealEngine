@@ -557,7 +557,7 @@ int32 SChannelView::DrawLane(const FPaintArgs& Args, const FGeometry& AllottedGe
 
 	FLinearColor HighlightColor;
 	bool bDrawHighlight = false;
-	if (Sequencer->GetSelection().NodeHasSelectedKeysOrSections(OutlinerItem.AsModel()))
+	if (Sequencer->GetSelection().NodeHasSelectedKeysOrSections(OutlinerItem))
 	{
 		bDrawHighlight = true;
 		HighlightColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.15f);

@@ -31,7 +31,7 @@ FOutlinerViewModel::FOutlinerViewModel()
 
 void FOutlinerViewModel::Initialize(const FWeakViewModelPtr& InWeakRootDataModel)
 {
-	ensureMsgf(!WeakRootDataModel.IsValid(), TEXT("This outliner has already been initialized"));
+	ensureMsgf(!WeakRootDataModel.Pin().IsValid(), TEXT("This outliner has already been initialized"));
 	ensureMsgf(GetParent().IsValid(), TEXT("This outliner must be parented to an FEditorViewModel before being initialized"));
 	
 	WeakRootDataModel = InWeakRootDataModel;
