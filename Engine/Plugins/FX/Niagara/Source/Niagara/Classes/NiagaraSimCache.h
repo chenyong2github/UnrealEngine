@@ -335,6 +335,7 @@ struct FNiagaraSimCacheDataBuffersLayout
 	mutable bool bNeedsCacheBufferReadInfoUpdateForRT = false;
 	mutable FCacheBufferReadInfo CacheBufferReadInfo_RT;
 
+	bool IsLayoutValid() const { return !LayoutName.IsNone(); }
 	int32 IndexOfCacheVariable(const FNiagaraVariableBase& InVariable) const;
 	const FNiagaraSimCacheVariable* FindCacheVariable(const FNiagaraVariableBase& InVariable) const;
 };
