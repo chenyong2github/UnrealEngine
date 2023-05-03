@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -21,7 +22,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Trace;
-using StatsdClient;
 
 namespace Horde.Server.Agents.Fleet
 {
@@ -69,7 +69,7 @@ namespace Horde.Server.Agents.Fleet
 		private readonly IPoolCollection _poolCollection;
 		private readonly IDowntimeService _downtimeService;
 		private readonly IStreamCollection _streamCollection;
-		private readonly IDogStatsd _dogStatsd;
+		private readonly Meter _meter;
 		private readonly IFleetManagerFactory _fleetManagerFactory;
 		private readonly IClock _clock;
 		private readonly IMemoryCache _cache;
@@ -81,6 +81,8 @@ namespace Horde.Server.Agents.Fleet
 		private readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 		private readonly Tracer _tracer;
 		private readonly ILogger<FleetService> _logger;
+		private readonly Gauge<int> _agentCountCurrentGauge;
+		private readonly Gauge<int> _agentCountTargetGauge;
 		
 		/// <summary>
 		/// Constructor
@@ -93,7 +95,7 @@ namespace Horde.Server.Agents.Fleet
 			IPoolCollection poolCollection,
 			IDowntimeService downtimeService,
 			IStreamCollection streamCollection,
-			IDogStatsd dogStatsd,
+			Meter meter,
 			IFleetManagerFactory fleetManagerFactory,
 			IClock clock,
 			IMemoryCache cache,
@@ -109,7 +111,7 @@ namespace Horde.Server.Agents.Fleet
 			_poolCollection = poolCollection;
 			_downtimeService = downtimeService;
 			_streamCollection = streamCollection;
-			_dogStatsd = dogStatsd;
+			_meter = meter;
 			_fleetManagerFactory = fleetManagerFactory;
 			_clock = clock;
 			_cache = cache;
@@ -121,6 +123,9 @@ namespace Horde.Server.Agents.Fleet
 			_settings = settings;
 			_defaultScaleOutCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleOutCooldownSeconds);
 			_defaultScaleInCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleInCooldownSeconds);
+
+			_agentCountCurrentGauge = _meter.CreateGauge<int>("horde.fleet.agentCountCurrent");
+			_agentCountTargetGauge = _meter.CreateGauge<int>("horde.fleet.agentCountTarget");
 		}
 
 		/// <inheritdoc/>
@@ -233,8 +238,8 @@ namespace Horde.Server.Agents.Fleet
 					pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount);	
 			}
 
-			_dogStatsd.Gauge("agentpools.autoscale.target", desiredAgentCount, tags: new []{"pool:" + pool.Name});
-			_dogStatsd.Gauge("agentpools.autoscale.current", currentAgentCount, tags: new []{"pool:" + pool.Name});
+			_agentCountCurrentGauge.Record(currentAgentCount, KeyValuePair.Create("pool", (object?)pool.Name));
+			_agentCountTargetGauge.Record(desiredAgentCount, KeyValuePair.Create("pool", (object?)pool.Name));
 
 			DateTime? scaleOutTime = null;
 			DateTime? scaleInTime = null;

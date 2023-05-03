@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading;
@@ -26,9 +27,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
-using MongoDB.Driver;
 using StackExchange.Redis;
-using StatsdClient;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Horde.Server.Notifications
@@ -84,11 +83,6 @@ namespace Horde.Server.Notifications
 		private readonly ILogFileService _logFileService;
 		
 		/// <summary>
-		/// Instance of the <see cref="IDogStatsd"/>.
-		/// </summary>
-		private readonly IDogStatsd _dogStatsd;
-		
-		/// <summary>
 		/// Cache for de-duplicating queued notifications
 		/// </summary>
 		private readonly IMemoryCache _cache;
@@ -136,6 +130,9 @@ namespace Horde.Server.Notifications
 
 		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
 
+		readonly Counter<int> _jobCounter;
+		readonly Histogram<double> _jobDurationHistogram;
+
 		static string RedisQueueListKey(string notificationType) => "NotificationService.queued." + notificationType;
 
 		/// <summary>
@@ -153,7 +150,7 @@ namespace Horde.Server.Notifications
 			IStreamCollection streamCollection,
 			IssueService issueService,
 			ILogFileService logFileService,
-			IDogStatsd dogStatsd,
+			Meter meter,
 			IMemoryCache cache,
 			RedisService redisService,
 			ConfigService configService,
@@ -171,7 +168,6 @@ namespace Horde.Server.Notifications
 			_streamCollection = streamCollection;
 			_issueService = issueService;
 			_logFileService = logFileService;
-			_dogStatsd = dogStatsd;
 			_cache = cache;
 			_redisConnectionPool = redisService.ConnectionPool;
 			_globalConfig = globalConfig;
@@ -183,6 +179,8 @@ namespace Horde.Server.Notifications
 			configService.OnConfigUpdate += NotifyConfigUpdate;
 
 			_ticker = clock.AddSharedTicker<NotificationService>(_notificationBatchInterval, TickEveryTwelveHoursAsync, logger);
+			_jobCounter = meter.CreateCounter<int>("horde.notification.job.count");
+			_jobDurationHistogram = meter.CreateHistogram<double>("horde.notification.job.duration");
 		}
 
 		/// <inheritdoc/>
@@ -528,8 +526,15 @@ namespace Horde.Server.Notifications
 					_ => "unspecified"
 				};
 				
-				string[] tags = {"stream:" + job.StreamId, "template:" + job.TemplateId};
-				_dogStatsd.Increment($"horde.{type}.{outcomeStr}.count", 1, tags: tags);
+				KeyValuePair<string, object?>[] tags =
+				{
+					KeyValuePair.Create<string, object?>("stream", job.StreamId.ToString()),
+					KeyValuePair.Create<string, object?>("template", job.TemplateId.ToString()),
+					KeyValuePair.Create<string, object?>("outcome", outcomeStr),
+					KeyValuePair.Create<string, object?>("type", type)
+				};
+
+				_jobCounter.Add(1, tags);
 
 				if (startTime == null || finishTime == null)
 				{
@@ -538,7 +543,7 @@ namespace Horde.Server.Notifications
 				}
 
 				TimeSpan duration = finishTime.Value - startTime.Value;
-				_dogStatsd.Timer($"horde.{type}.{outcomeStr}.duration", duration.TotalSeconds, tags: tags);
+				_jobDurationHistogram.Record(duration.TotalSeconds, tags);
 			}
 
 			JobStepOutcome jobOutcome = job.Batches.SelectMany(x => x.Steps).Min(x => x.Outcome);

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -14,7 +15,6 @@ using Horde.Server.Agents.Pools;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
-using StatsdClient;
 
 namespace Horde.Server.Agents.Fleet.Providers;
 
@@ -90,23 +90,25 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	
 	private readonly IAmazonEC2 _ec2;
 	private readonly IAgentCollection _agentCollection;
-	private readonly IDogStatsd _dogStatsd;
+	private readonly Meter _meter;
 	private readonly IClock _clock;
 	private readonly Tracer _tracer;
 	private readonly ILogger _logger;
+	private readonly Counter<int> _ec2StartInstanceCounter;
 
 	/// <summary>
 	/// Constructor
 	/// </summary>
-	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, IDogStatsd dogStatsd, IClock clock, AwsRecyclingFleetManagerSettings settings, Tracer tracer, ILogger<AwsRecyclingFleetManager> logger)
+	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, Meter meter, IClock clock, AwsRecyclingFleetManagerSettings settings, Tracer tracer, ILogger<AwsRecyclingFleetManager> logger)
 	{
 		_ec2 = ec2;
 		_agentCollection = agentCollection;
-		_dogStatsd = dogStatsd;
+		_meter = meter;
 		_clock = clock;
 		_tracer = tracer;
 		_logger = logger;
 		Settings = settings;
+		_ec2StartInstanceCounter = _meter.CreateCounter<int>("horde.fleet.awsRecycling.startInstance");
 	}
 
 	/// <inheritdoc/>
@@ -264,22 +266,27 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 		bool success = false;
 		foreach (InstanceType? instanceType in instanceTypes)
 		{
-			string[] metricTags = { "instanceType:" + instanceType, "az:" + instances[0].Placement.AvailabilityZone };
+			KeyValuePair<string, object?> instanceTypeTag = KeyValuePair.Create("instanceType", (object?)instanceType);
+			KeyValuePair<string, object?> azTag = KeyValuePair.Create("az", (object?)instances[0].Placement.AvailabilityZone);
+
 			try
 			{
 				await StartInstancesAsync(instances, instanceType, cancellationToken);
 				success = true;
-				_dogStatsd.Increment("horde.fleet.awsRecycling.startInstance.success", tags: metricTags);
+				KeyValuePair<string, object?> statusTag = KeyValuePair.Create("status", (object?)"success");
+				_ec2StartInstanceCounter.Add(1, new [] { instanceTypeTag, azTag, statusTag });
 				break;
 			}
 			catch (AwsInsufficientCapacityException)
 			{
-				_dogStatsd.Increment("horde.fleet.awsRecycling.startInstance.errorCapacity", tags: metricTags);
+				KeyValuePair<string, object?> statusTag = KeyValuePair.Create("status", (object?)"errorCapacity");
+				_ec2StartInstanceCounter.Add(1, new [] { instanceTypeTag, azTag, statusTag });
 				_logger.LogInformation("Insufficient capacity for {InstanceType}", instanceType?.ToString());
 			}
 			catch (Exception)
 			{
-				_dogStatsd.Increment("horde.fleet.awsRecycling.startInstance.error", tags: metricTags);
+				KeyValuePair<string, object?> statusTag = KeyValuePair.Create("status", (object?)"error");
+				_ec2StartInstanceCounter.Add(1, new [] { instanceTypeTag, azTag, statusTag });
 				throw;
 			}
 		}

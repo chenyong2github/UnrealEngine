@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading;
@@ -22,12 +23,8 @@ using Horde.Server.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using MongoDB.Driver;
 using OpenTelemetry.Trace;
-using OpenTracing;
-using OpenTracing.Util;
 using StackExchange.Redis;
-using StatsdClient;
 
 namespace Horde.Server.Agents
 {
@@ -73,11 +70,11 @@ namespace Horde.Server.Agents
 
 		readonly ILeaseCollection _leases;
 		readonly ISessionCollection _sessions;
-		readonly IDogStatsd _dogStatsd;
 		readonly ITaskSource[] _taskSources;
 		readonly IHostApplicationLifetime _applicationLifetime;
 		readonly IClock _clock;
 		readonly Tracer _tracer;
+		readonly Meter _meter;
 		readonly ILogger _logger;
 		readonly ITicker _ticker;
 		
@@ -93,13 +90,15 @@ namespace Horde.Server.Agents
 		// All the agents currently performing a long poll for work on this server
 		readonly Dictionary<AgentId, CancellationTokenSource> _waitingAgents = new Dictionary<AgentId, CancellationTokenSource>();
 
+		readonly Gauge<int> _agentTotalCount;
+
 		// Subscription for update events
 		IAsyncDisposable? _subscription;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentService(IAgentCollection agents, ILeaseCollection leases, ISessionCollection sessions, AclService aclService, IDowntimeService downtimeService, IPoolCollection poolCollection, IDogStatsd dogStatsd, IEnumerable<ITaskSource> taskSources, RedisService redisService, IHostApplicationLifetime applicationLifetime, IClock clock, Tracer tracer, ILogger<AgentService> logger)
+		public AgentService(IAgentCollection agents, ILeaseCollection leases, ISessionCollection sessions, AclService aclService, IDowntimeService downtimeService, IPoolCollection poolCollection, IEnumerable<ITaskSource> taskSources, RedisService redisService, IHostApplicationLifetime applicationLifetime, IClock clock, Tracer tracer, Meter meter, ILogger<AgentService> logger)
 		{
 			Agents = agents;
 			_leases = leases;
@@ -108,14 +107,16 @@ namespace Horde.Server.Agents
 			_downtimeService = downtimeService;
 			_agentRateTable = new AsyncCachedValue<AgentRateTable?>(() => redisService.GetDatabase().StringGetAsync(_agentRateTableData), TimeSpan.FromSeconds(2.0));//.FromMinutes(5.0));
 			_poolsList = new AsyncCachedValue<List<IPool>>(() => poolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
-			_dogStatsd = dogStatsd;
 			_taskSources = taskSources.ToArray();
 			_applicationLifetime = applicationLifetime;
 			_redisService = redisService;
 			_clock = clock;
 			_ticker = clock.AddTicker<AgentService>(TimeSpan.FromSeconds(30.0), TickAsync, logger);
 			_tracer = tracer;
+			_meter = meter;
 			_logger = logger;
+
+			_agentTotalCount = _meter.CreateGauge<int>("horde.agent.count");
 		}
 
 		/// <inheritdoc/>
@@ -1026,14 +1027,13 @@ namespace Horde.Server.Agents
 			int numAgentsTotalUnhealthy = agentList.Count(a => a.Enabled && a.Status == AgentStatus.Unhealthy);
 			int numAgentsTotalUnspecified = agentList.Count(a => a.Enabled && a.Status == AgentStatus.Unspecified);
 			
-			// TODO: utilize tags argument in a smarter way below
-			_dogStatsd.Gauge("agents.total.count", numAgentsTotal);
-			_dogStatsd.Gauge("agents.total.enabled.count", numAgentsTotalEnabled);
-			_dogStatsd.Gauge("agents.total.disabled.count", numAgentsTotalDisabled);
-			_dogStatsd.Gauge("agents.total.ok.count", numAgentsTotalOk);
-			_dogStatsd.Gauge("agents.total.stopping.count", numAgentsTotalStopping);
-			_dogStatsd.Gauge("agents.total.unhealthy.count", numAgentsTotalUnhealthy);
-			_dogStatsd.Gauge("agents.total.unspecified.count", numAgentsTotalUnspecified);
+			_agentTotalCount.Record(numAgentsTotal);
+			_agentTotalCount.Record(numAgentsTotalEnabled, new KeyValuePair<string, object?>("status", "enabled"));
+			_agentTotalCount.Record(numAgentsTotalDisabled, new KeyValuePair<string, object?>("status", "disabled"));
+			_agentTotalCount.Record(numAgentsTotalOk, new KeyValuePair<string, object?>("status", "ok"));
+			_agentTotalCount.Record(numAgentsTotalStopping, new KeyValuePair<string, object?>("status", "stopping"));
+			_agentTotalCount.Record(numAgentsTotalUnhealthy, new KeyValuePair<string, object?>("status", "unhealthy"));
+			_agentTotalCount.Record(numAgentsTotalUnspecified, new KeyValuePair<string, object?>("status", "unspecified"));
 		}
 
 		/// <summary>

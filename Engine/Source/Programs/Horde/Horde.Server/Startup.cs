@@ -82,7 +82,6 @@ using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.Serializers;
 using Serilog;
 using Serilog.Events;
-using StatsdClient;
 using Status = Grpc.Core.Status;
 using Horde.Server.Users;
 using Horde.Server.Perforce;
@@ -448,24 +447,6 @@ namespace Horde.Server
 			services.AddSingleton<CredentialService>();
 			services.AddSingleton<MongoService>();
 			services.AddSingleton<GlobalsService>();
-			services.AddSingleton<IDogStatsd>(ctx =>
-			{
-				string? datadogAgentHost = Environment.GetEnvironmentVariable("DD_AGENT_HOST");
-				if (datadogAgentHost != null)
-				{
-					// Datadog agent is configured, enable DogStatsD for metric collection
-					StatsdConfig config = new StatsdConfig
-					{
-						StatsdServerName = datadogAgentHost,
-						StatsdPort = 8125,
-					};
-
-					DogStatsdService dogStatsdService = new DogStatsdService();
-					dogStatsdService.Configure(config);
-					return dogStatsdService;
-				}
-				return new NoOpDogStatsd();
-			});
 			services.AddSingleton<ICommitService, CommitService>();
 			services.AddSingleton<IClock, Clock>();
 			services.AddSingleton<IDowntimeService, DowntimeService>();

@@ -39,7 +39,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using StatsdClient;
 using Horde.Server.Users;
 using Horde.Server.Agents.Software;
 using Horde.Server.Ugs;
@@ -133,6 +132,7 @@ namespace Horde.Server.Tests
 		public TestDataController TestDataController => GetTestDataController();
 
 		public OpenTelemetry.Trace.Tracer Tracer => ServiceProvider.GetRequiredService<OpenTelemetry.Trace.Tracer>();
+		public Meter Meter => ServiceProvider.GetRequiredService<Meter>();
 		public ConfigService ConfigService => ServiceProvider.GetRequiredService<ConfigService>();
 		public IOptionsMonitor<GlobalConfig> GlobalConfig => ServiceProvider.GetRequiredService<IOptionsMonitor<GlobalConfig>>();
 		public IOptionsSnapshot<GlobalConfig> GlobalConfigSnapshot => ServiceProvider.GetRequiredService<IOptionsSnapshot<GlobalConfig>>();
@@ -244,7 +244,6 @@ namespace Horde.Server.Tests
 			services.AddSingleton<CredentialService>();
 			services.AddSingleton<JobTaskSource>();
 			services.AddSingleton<IDowntimeService, DowntimeServiceStub>();
-			services.AddSingleton<IDogStatsd, NoOpDogStatsd>();
 			services.AddSingleton<IssueService>();
 			services.AddSingleton<JobService>();
 			services.AddSingleton<LifetimeService>();
