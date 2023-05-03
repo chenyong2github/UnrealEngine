@@ -386,9 +386,9 @@ FFieldMulticastDelegate::FRemoveAllResult FFieldMulticastDelegate::RemoveAll(con
 			{
 				Delegates.RemoveAt(Index);
 			}
-			else if (Element.Key.Id == InFieldId && Element.Key.Object == InObject)
+			else if (Element.Key.Object == InObject)
 			{
-				if (Element.Delegate.IsBoundToObject(InUserObject))
+				if (Element.Key.Id == InFieldId && Element.Delegate.IsBoundToObject(InUserObject))
 				{
 					Delegates.RemoveAt(Index);
 					++Result.RemoveCount;
