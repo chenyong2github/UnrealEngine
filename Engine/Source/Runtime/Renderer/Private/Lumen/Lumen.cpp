@@ -13,7 +13,7 @@ FAutoConsoleVariableRef CVarLumenSupported(
 	TEXT("r.Lumen.Supported"),
 	GLumenSupported,
 	TEXT("Whether Lumen is supported at all for the project, regardless of platform.  This can be used to avoid compiling shaders and other load time overhead."),
-	ECVF_ReadOnly
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarLumenAsyncCompute(
