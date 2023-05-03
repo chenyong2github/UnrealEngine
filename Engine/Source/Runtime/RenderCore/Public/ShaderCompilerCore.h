@@ -15,9 +15,12 @@
 #include "Misc/Paths.h"
 #include "Misc/CoreStats.h"
 #include "ShaderCore.h"
+#include "ShaderParameterMetadata.h"
+#include "ShaderParameterParser.h"
 
 class Error;
 class IShaderFormat;
+class FShaderCommonCompileJob;
 class FShaderCompileJob;
 class FShaderPipelineCompileJob;
 
@@ -193,6 +196,8 @@ enum class EShaderDebugInfoFlags : uint8
 {
 	Default = 0,
 	DirectCompileCommandLine = 1 << 0,
+	InputHash = 1 << 1,
+	Diagnostics = 1 << 2,
 };
 ENUM_CLASS_FLAGS(EShaderDebugInfoFlags)
 
@@ -218,6 +223,12 @@ struct FShaderCompilerInput
 	// Indicates which additional debug outputs should be written for this compile job.
 	EShaderDebugInfoFlags DebugInfoFlags;
 
+	// True if the cache key for this job should be based on preprocessed source. If so,
+	// preprocessing will be executed in the cook process independent of compilation (and
+	// as such this will only ever be set for jobs whose shader format supports independent
+	// preprocessing)
+	bool bCachePreprocessed;
+	
 	// Shader pipeline information
 	bool bCompilingForShaderPipeline;
 	bool bIncludeUsedOutputs;
@@ -258,6 +269,7 @@ struct FShaderCompilerInput
 		Target(SF_NumFrequencies, SP_NumPlatforms),
 		bSkipPreprocessedCache(false),
 		DebugInfoFlags(EShaderDebugInfoFlags::Default),
+		bCachePreprocessed(false),
 		bCompilingForShaderPipeline(false),
 		bIncludeUsedOutputs(false)
 	{
@@ -307,13 +319,17 @@ struct FShaderCompilerInput
 	{
 		check(!SharedEnvironment || SharedEnvironment->IncludeVirtualPathToExternalContentsMap.Num() == 0);
 
-		for (const auto& It : Environment.IncludeVirtualPathToExternalContentsMap)
+		// If the input is already preprocessed we don't need to serialize includes when writing worker input files
+		if (!bCachePreprocessed)
 		{
-			FString* FoundEntry = ExternalIncludes.Find(It.Key);
-
-			if (!FoundEntry)
+			for (const auto& It : Environment.IncludeVirtualPathToExternalContentsMap)
 			{
-				ExternalIncludes.Add(It.Key, *It.Value);
+				FString* FoundEntry = ExternalIncludes.Find(It.Key);
+
+				if (!FoundEntry)
+				{
+					ExternalIncludes.Add(It.Key, *It.Value);
+				}
 			}
 		}
 
@@ -332,15 +348,18 @@ struct FShaderCompilerInput
 	{
 		check(Ar.IsSaving());
 
-		TArray<FString> ReferencedExternalIncludes;
-		ReferencedExternalIncludes.Empty(Environment.IncludeVirtualPathToExternalContentsMap.Num());
-
-		for (const auto& It : Environment.IncludeVirtualPathToExternalContentsMap)
+		if (!bCachePreprocessed)
 		{
-			ReferencedExternalIncludes.Add(It.Key);
-		}
+			TArray<FString> ReferencedExternalIncludes;
+			ReferencedExternalIncludes.Empty(Environment.IncludeVirtualPathToExternalContentsMap.Num());
 
-		Ar << ReferencedExternalIncludes;
+			for (const auto& It : Environment.IncludeVirtualPathToExternalContentsMap)
+			{
+				ReferencedExternalIncludes.Add(It.Key);
+			}
+
+			Ar << ReferencedExternalIncludes;
+		}
 
 		int32 SharedEnvironmentIndex = SharedEnvironments.Find(SharedEnvironment);
 		Ar << SharedEnvironmentIndex;
@@ -362,14 +381,17 @@ struct FShaderCompilerInput
 	{
 		check(Ar.IsLoading());
 
-		TArray<FString> ReferencedExternalIncludes;
-		Ar << ReferencedExternalIncludes;
-
-		Environment.IncludeVirtualPathToExternalContentsMap.Reserve(ReferencedExternalIncludes.Num());
-
-		for (int32 i = 0; i < ReferencedExternalIncludes.Num(); i++)
+		if (!bCachePreprocessed)
 		{
-			Environment.IncludeVirtualPathToExternalContentsMap.Add(ReferencedExternalIncludes[i], ExternalIncludes.FindChecked(ReferencedExternalIncludes[i]));
+			TArray<FString> ReferencedExternalIncludes;
+			Ar << ReferencedExternalIncludes;
+
+			Environment.IncludeVirtualPathToExternalContentsMap.Reserve(ReferencedExternalIncludes.Num());
+
+			for (int32 i = 0; i < ReferencedExternalIncludes.Num(); i++)
+			{
+				Environment.IncludeVirtualPathToExternalContentsMap.Add(ReferencedExternalIncludes[i], ExternalIncludes.FindChecked(ReferencedExternalIncludes[i]));
+			}
 		}
 
 		int32 SharedEnvironmentIndex = 0;
@@ -609,6 +631,9 @@ struct RENDERCORE_API FSCWErrorCode
 extern RENDERCORE_API int HandleShaderCompileException(Windows::LPEXCEPTION_POINTERS Info, FString& OutExMsg, FString& OutCallStack);
 #endif
 extern RENDERCORE_API const IShaderFormat* FindShaderFormat(FName Format, TArray<const IShaderFormat*> ShaderFormats);
+
+// Executes preprocessing for the given job, if the job is marked to be preprocessed independently prior to compilation.
+extern RENDERCORE_API void ConditionalPreprocessShader(FShaderCommonCompileJob* Job);
 UE_DEPRECATED(5.3, "Use CompileShader overload which takes an FShaderCompileJob& rather than passing input/output directly.")
 extern RENDERCORE_API void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCompilerInput& Input, FShaderCompilerOutput& Output, const FString& WorkingDirectory, int32* CompileCount = nullptr);
 extern RENDERCORE_API void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCompileJob& Job, const FString& WorkingDirectory, int32* CompileCount = nullptr);

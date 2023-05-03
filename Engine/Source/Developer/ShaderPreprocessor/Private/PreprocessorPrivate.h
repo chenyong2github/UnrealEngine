@@ -6,6 +6,7 @@
 #include "ShaderCore.h"
 #include "mcpp.h"
 #include "ShaderCompilerCore.h"
+#include "ShaderPreprocessTypes.h"
 
 enum class EMessageType
 {
@@ -61,7 +62,7 @@ static void ExtractDirective(FString& OutString, FString WarningString)
  * @param ShaderOutput - Shader output to which to add errors.
  * @param McppErrors - MCPP error output.
  */
-static bool ParseMcppErrors(TArray<FShaderCompilerError>& OutErrors, TArray<FString>& OutStrings, const FString& McppErrors)
+static bool ParseMcppErrors(FShaderPreprocessOutput& Output, const FString& McppErrors)
 {
 	bool bSuccess = true;
 	if (McppErrors.Len() > 0)
@@ -70,7 +71,7 @@ static bool ParseMcppErrors(TArray<FShaderCompilerError>& OutErrors, TArray<FStr
 		McppErrors.ParseIntoArray(Lines, TEXT("\n"), true);
 		for (int32 LineIndex = 0; LineIndex < Lines.Num(); ++LineIndex)
 		{
-			const FString& Line = Lines[LineIndex];
+			FString& Line = Lines[LineIndex];
 			int32 SepIndex1 = Line.Find(TEXT(":"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 2);
 			int32 SepIndex2 = Line.Find(TEXT(":"), ESearchCase::CaseSensitive, ESearchDir::FromStart, SepIndex1 + 1);
 			if (SepIndex1 != INDEX_NONE && SepIndex2 != INDEX_NONE && SepIndex1 < SepIndex2)
@@ -92,10 +93,7 @@ static bool ParseMcppErrors(TArray<FShaderCompilerError>& OutErrors, TArray<FStr
 					{
 						case EMessageType::Error:
 						{
-							FShaderCompilerError* CompilerError = new(OutErrors) FShaderCompilerError;
-							CompilerError->ErrorVirtualFilePath = Filename;
-							CompilerError->ErrorLineString = LineNumStr;
-							CompilerError->StrippedErrorMessage = Message;
+							Output.LogError(MoveTemp(Filename), MoveTemp(Message), MoveTemp(LineNumStr));
 							bSuccess = false;
 						}
 							break;
@@ -108,7 +106,7 @@ static bool ParseMcppErrors(TArray<FShaderCompilerError>& OutErrors, TArray<FStr
 						{
 							FString Directive;
 							ExtractDirective(Directive, Message);
-							OutStrings.Add(Directive);
+							Output.AddDirective(MoveTemp(Directive));
 						}
 							break;
 						default:
@@ -118,16 +116,14 @@ static bool ParseMcppErrors(TArray<FShaderCompilerError>& OutErrors, TArray<FStr
 				else
 				{
 					// Presume message is an error
-					FShaderCompilerError* CompilerError = new(OutErrors) FShaderCompilerError;
-					CompilerError->StrippedErrorMessage = Line;
+					Output.LogError(MoveTemp(Line));
 					bSuccess = false;
 				}
 			}
 			else
 			{
 				// Presume message is an error
-				FShaderCompilerError* CompilerError = new(OutErrors) FShaderCompilerError;
-				CompilerError->StrippedErrorMessage = Line;
+				Output.LogError(MoveTemp(Line));
 				bSuccess = false;
 			}
 		}

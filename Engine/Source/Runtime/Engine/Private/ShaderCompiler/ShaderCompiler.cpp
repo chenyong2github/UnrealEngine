@@ -111,6 +111,13 @@ static FAutoConsoleVariableRef CVarShaderCompilerMaxJobCacheMemoryPercent(
 	ECVF_Default
 );
 
+static TAutoConsoleVariable<bool> CVarPreprocessedJobCache(
+	TEXT("r.ShaderCompiler.PreprocessedJobCache"),
+	false,
+	TEXT("EXPERIMENTAL: if enabled will preprocess jobs up-front when the job is queued and generate job input hashes based on preprocessed source."),
+	ECVF_Default
+);
+
 static TAutoConsoleVariable<bool> CVarJobCacheDDC(
 	TEXT("r.ShaderCompiler.JobCacheDDC"),
 	true,
@@ -127,6 +134,18 @@ static TAutoConsoleVariable<bool> CVarDebugDumpWorkerInputs(
 	TEXT("r.ShaderCompiler.DebugDumpWorkerInputs"),
 	false,
 	TEXT("If true, worker input files will be saved for each individual compile job alongside other debug data (note that r.DumpShaderDebugInfo must also be enabled for this to function)"),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<bool> CVarDebugDumpJobInputHashes(
+	TEXT("r.ShaderCompiler.DebugDumpJobInputHashes"),
+	false,
+	TEXT("If true, the job input hash will be dumped alongside other debug data (in InputHash.txt)"),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<bool> CVarDebugDumpJobDiagnostics(
+	TEXT("r.ShaderCompiler.DebugDumpJobDiagnostics"),
+	false,
+	TEXT("If true, all diagnostic messages (errors and warnings) for each shader job will be dumped alongside other debug data (in Diagnostics.txt)"),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<bool> CVarCompileParallelInProcess(
@@ -582,6 +601,8 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 				check(Job->JobIndex != INDEX_NONE);
 				check(Job->Priority != EShaderCompileJobPriority::None);
 				check(Job->PendingPriority == EShaderCompileJobPriority::None);
+				
+				ConditionalPreprocessShader(Job);
 
 				const int32 PriorityIndex = (int32)Job->Priority;
 				bool bNewJob = true;
@@ -692,6 +713,8 @@ void FShaderCompileJobCollection::HandlePrintStats()
 TRACE_DECLARE_INT_COUNTER(Shaders_Compiled, TEXT("Shaders/Compiled"));
 void FShaderCompileJobCollection::ProcessFinishedJob(FShaderCommonCompileJob* FinishedJob, bool bWasCached)
 {
+	FinishedJob->OnComplete();
+
 	if (!bWasCached)
 	{
 		GShaderCompilerStats->RegisterFinishedJob(*FinishedJob);
@@ -1586,7 +1609,7 @@ bool DoWriteTasksInner(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FAr
 		// Serialize all the batched jobs
 		for (int32 JobIndex = 0; JobIndex < QueuedSingleJobs.Num(); JobIndex++)
 		{
-			TransferFile << QueuedSingleJobs[JobIndex]->Input;
+			QueuedSingleJobs[JobIndex]->SerializeWorkerInput(TransferFile);
 			QueuedSingleJobs[JobIndex]->Input.SerializeSharedInputs(TransferFile, SharedEnvironments, AllShaderParameterStructures);
 		}
 	}
@@ -1607,7 +1630,7 @@ bool DoWriteTasksInner(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FAr
 			TransferFile << NumStageJobs;
 			for (int32 Index = 0; Index < NumStageJobs; Index++)
 			{
-				TransferFile << PipelineJob->StageJobs[Index]->GetSingleShaderJob()->Input;
+				PipelineJob->StageJobs[Index]->SerializeWorkerInput(TransferFile);
 				PipelineJob->StageJobs[Index]->Input.SerializeSharedInputs(TransferFile, SharedEnvironments, AllShaderParameterStructures);
 			}
 		}
@@ -4327,6 +4350,17 @@ EShaderDebugInfoFlags FShaderCompilingManager::GetDumpShaderDebugInfoFlags() con
 	{
 		Flags |= EShaderDebugInfoFlags::DirectCompileCommandLine;
 	}
+	
+	if (CVarDebugDumpJobInputHashes.GetValueOnAnyThread())
+	{
+		Flags |= EShaderDebugInfoFlags::InputHash;
+	}
+
+	if (CVarDebugDumpJobDiagnostics.GetValueOnAnyThread())
+	{
+		Flags |= EShaderDebugInfoFlags::Diagnostics;
+	}
+
 	return Flags;
 }
 
@@ -6726,6 +6760,10 @@ void GlobalBeginCompileShader(
 
 	if (CVarShadersUseLegacyPreprocessor.GetValueOnAnyThread())
 	{
+		if (CVarPreprocessedJobCache.GetValueOnAnyThread())
+		{
+			UE_LOG(LogShaderCompilers, Fatal, TEXT("r.Shaders.UseLegacyPreprocessor cannot be used in conjunction with r.ShaderCompiler.PreprocessedJobCache (legacy preprocessor is not thread-safe)."));
+		}
 		Input.Environment.CompilerFlags.Add(CFLAG_UseLegacyPreprocessor);
 	}
 
@@ -6779,6 +6817,11 @@ void GlobalBeginCompileShader(
 	const IShaderFormat* Format = GetTargetPlatformManagerRef().FindShaderFormat(ShaderFormatName);
 	checkf(Format, TEXT("Shader format %s cannot be found"), *ShaderFormatName.ToString());
 	Format->ModifyShaderCompilerInput(Input);
+
+	if (Format->SupportsIndependentPreprocessing() && CVarPreprocessedJobCache.GetValueOnAnyThread())
+	{
+		Input.bCachePreprocessed = true;
+	}
 
 	// Allow the GBuffer and other shader defines to cause dependend environment changes, but minimizing the #ifdef magic in the shaders, which
 	// is nearly impossible to debug when it goes wrong.

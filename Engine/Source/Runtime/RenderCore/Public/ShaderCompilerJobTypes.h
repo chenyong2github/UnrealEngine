@@ -6,6 +6,7 @@
 #include "Hash/Blake3.h"
 #include "Shader.h"
 #include "ShaderCompilerCore.h"
+#include "ShaderPreprocessTypes.h"
 #include "VertexFactory.h"
 #include "Templates/Function.h"
 
@@ -115,6 +116,9 @@ public:
 	FShaderPipelineCompileJob* GetShaderPipelineJob();
 	const FShaderPipelineCompileJob* GetShaderPipelineJob() const;
 
+	// Executed for all jobs (including those read from cache) on completion.
+	virtual void OnComplete() = 0;
+
 	bool Equals(const FShaderCommonCompileJob& Rhs) const;
 
 	/** Calls the specified predicate for each single compile job, i.e. FShaderCompileJob and each stage of FShaderPipelineCompileJob. */
@@ -196,6 +200,7 @@ public:
 
 	/** Input for the shader compile */
 	FShaderCompilerInput Input;
+	FShaderPreprocessOutput PreprocessOutput;
 	FShaderCompilerOutput Output;
 
 	// List of pipelines that are sharing this job.
@@ -204,8 +209,13 @@ public:
 	virtual RENDERCORE_API FInputHash GetInputHash() override;
 	virtual RENDERCORE_API void SerializeOutput(FArchive& Ar) override;
 
+	virtual RENDERCORE_API void OnComplete() override;
+
 	// Serializes only the subset of data written by SCW/read back from ShaderCompiler when using worker processes.
 	RENDERCORE_API void SerializeWorkerOutput(FArchive& Ar);
+	
+	// Serializes only the subset of data written by ShaderCompiler and read from SCW when using worker processes.
+	RENDERCORE_API void SerializeWorkerInput(FArchive& Ar);
 
 	RENDERCORE_API FShaderCompileJob() : FShaderCommonCompileJob(Type, 0u, 0u, EShaderCompileJobPriority::Num)
 	{}
@@ -250,6 +260,7 @@ public:
 
 	virtual RENDERCORE_API FInputHash GetInputHash() override;
 	virtual RENDERCORE_API void SerializeOutput(FArchive& Ar) override;
+	virtual RENDERCORE_API void OnComplete() override;
 
 	RENDERCORE_API FShaderPipelineCompileJob(int32 NumStages);
 	RENDERCORE_API FShaderPipelineCompileJob(uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriroity, const FShaderPipelineCompileJobKey& InKey);

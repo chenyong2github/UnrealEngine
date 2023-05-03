@@ -605,7 +605,7 @@ private:
 			{
 				FShaderCompileJob& Job = *new(OutSingleJobs) FShaderCompileJob;
 				// Deserialize the job's inputs.
-				InputFile << Job.Input;
+				Job.SerializeWorkerInput(InputFile);
 				Job.Input.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
 
 				// SCW doesn't run DDPI, GShaderHasCache Initialize is run  at start with no knowledge of the CustomPlatforms
@@ -649,7 +649,7 @@ private:
 				{
 					// Deserialize the job's inputs.
 					FShaderCompileJob* Job = PipelineJob->StageJobs[StageIndex]->GetSingleShaderJob();
-					InputFile << Job->Input;
+					Job->SerializeWorkerInput(InputFile);
 					Job->Input.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
 
 					// SCW doesn't run DDPI, GShaderHasCache Initialize is run  at start with no knowledge of the CustomPlatforms

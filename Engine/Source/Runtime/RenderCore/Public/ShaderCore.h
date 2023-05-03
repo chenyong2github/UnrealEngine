@@ -643,6 +643,16 @@ struct FShaderCompilerEnvironment
 		Ar << FullPrecisionInPS;
 	}
 
+	// Serializes the portions of the environment that are used as input to the backend compilation process (i.e. after all preprocessing)
+	inline void SerializeCompilationDependencies(FArchive& Ar)
+	{
+		Ar << CompileArgs;
+		Ar << CompilerFlags;
+		Ar << ResourceTableMap;
+		Ar << UniformBufferMap;
+		Ar << FullPrecisionInPS;
+	}
+
 	friend FArchive& operator<<(FArchive& Ar,FShaderCompilerEnvironment& Environment)
 	{
 		// Note: this serialize is used to pass between UE and the shader compile worker, recompile both when modifying

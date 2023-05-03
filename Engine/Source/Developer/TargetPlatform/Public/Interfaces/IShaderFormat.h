@@ -17,14 +17,14 @@ class IShaderFormat
 public:
 
 	/** 
-	 * Compile the specified shader.
+	 * Compile the specified shader. Only called if SupportsIndependentPreprocessing returns false.
 	 *
 	 * @param Format The desired format
 	 * @param Input The input to the shader compiler.
 	 * @param Output The output from shader compiler.
 	 * @param WorkingDirectory The working directory.
 	 */
-	virtual void CompileShader( FName Format, const struct FShaderCompilerInput& Input, struct FShaderCompilerOutput& Output,const FString& WorkingDirectory ) const = 0;
+	virtual void CompileShader(FName Format, const struct FShaderCompilerInput& Input, struct FShaderCompilerOutput& Output, const FString& WorkingDirectory) const {};
 
 	/**
 	 * Gets the current version of the specified shader format.
@@ -127,6 +127,33 @@ public:
 	 * @returns True if the shader compiler can use the HLSLcc library when compiling shaders, otherwise false.
 	 */
 	virtual bool UsesHLSLcc(const struct FShaderCompilerInput& Input) const { return false; }
+
+	/**
+	 * Executes all shader preprocessing steps; only called if SupportsIndependentPreprocessing returns true
+	 */
+	virtual bool PreprocessShader(const struct FShaderCompilerInput& Input, const struct FShaderCompilerEnvironment& Environment, class FShaderPreprocessOutput& PreprocessOutput) const { return false; };
+
+	/**
+	 * Compile the specified preprocessed shader; only called if SupportsIndependentPreprocessing returns true
+	 */
+	virtual void CompilePreprocessedShader(const struct FShaderCompilerInput& Input, const class FShaderPreprocessOutput& PreprocessOutput, struct FShaderCompilerOutput& Output, const FString& WorkingDirectory) const {}
+
+	/* 
+	 * Output debug info for a single compile job; only called if SupportsIndependentPreprocessing returns true.
+	 * This will be called for all jobs (including those found in the job cache) but only if debug info is enabled for the job.
+	 * Note that any debug info output in CompilePreprocessedShader will only be done for the job that actually executes the
+	 * compile step, as such any debug outputs that are desirable for all jobs should be written by this function.
+	 * A BaseShaderFormat implementation is provided in ShaderCompilerCommon which dumps preprocessed and stripped USFs along
+	 * with the hash of the shader code in an OutputHash.txt file; if no additional custom debug output is required the shader 
+	 * format can inherit from BaseShaderFormat instead of IShaderFormat.
+	 */
+	virtual void OutputDebugData(const FString& InputHash, const struct FShaderCompilerInput& Input, const class FShaderPreprocessOutput& PreprocessOutput, const struct FShaderCompilerOutput& Output) const {};
+
+	/**
+	 * Return true if preprocessing for this format can be executed independent of compilation (i.e. the format has an
+	 * implementation of the PreprocessShader function). 
+	 */
+	virtual bool SupportsIndependentPreprocessing() const { return false; }
 
 public:
 	/** Virtual destructor. */

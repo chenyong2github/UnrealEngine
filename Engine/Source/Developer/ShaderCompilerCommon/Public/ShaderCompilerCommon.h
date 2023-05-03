@@ -11,7 +11,7 @@
 #include "ShaderParameterParser.h"
 #endif
 #include "Templates/Function.h"
-
+#include "Interfaces/IShaderFormat.h"
 
 class FShaderParameterParser;
 
@@ -61,6 +61,12 @@ extern SHADERCOMPILERCOMMON_API int16 GetNumUniformBuffersUsed(const FShaderComp
 
 namespace UE::ShaderCompilerCommon
 {
+	class FBaseShaderFormat : public IShaderFormat
+	{
+	public:
+		virtual SHADERCOMPILERCOMMON_API void OutputDebugData(const FString& InputHash, const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const override;
+	};
+
 	UE_DEPRECATED(5.3, "Deprecated; use FShaderCompilerInput::ShouldUseStableContantBuffer directly")
 	inline bool ShouldUseStableConstantBuffer(const FShaderCompilerInput& Input)
 	{

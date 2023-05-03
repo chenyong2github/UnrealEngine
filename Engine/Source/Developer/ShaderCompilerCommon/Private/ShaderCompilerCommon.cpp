@@ -9,6 +9,7 @@
 #include "HlslccDefinitions.h"
 #include "HAL/FileManager.h"
 #include "String/RemoveFrom.h"
+#include "ShaderPreprocessTypes.h"
 #include "ShaderSymbolExport.h"
 #include "ShaderMinifier.h"
 
@@ -1388,6 +1389,32 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 
 namespace UE::ShaderCompilerCommon
 {
+	void BaseShaderFormat::OutputDebugData(const FString& InputHash, const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const
+	{
+		DumpDebugShaderData(Input, PreprocessOutput.GetOriginalSource());
+		FString OutputHashFileName = FPaths::Combine(Input.DumpDebugInfoPath, TEXT("OutputHash.txt"));
+		FFileHelper::SaveStringToFile(Output.OutputHash.ToString(), *OutputHashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
+
+		if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::Diagnostics))
+		{
+			FString Merged;
+			for (const FShaderCompilerError& Diag : Output.Errors)
+			{
+				Merged += Diag.GetErrorStringWithLineMarker() + "\n";
+			}
+			if (!Merged.IsEmpty())
+			{
+				FFileHelper::SaveStringToFile(Merged, *(Input.DumpDebugInfoPath / TEXT("Diagnostics.txt")));
+			}
+		}
+
+		if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::InputHash))
+		{
+			FString InputHashFileName = FPaths::Combine(Input.DumpDebugInfoPath, TEXT("InputHash.txt"));
+			FFileHelper::SaveStringToFile(InputHash, *InputHashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
+		}
+	}
+
 	void DumpDebugShaderData(const FShaderCompilerInput& Input, const FString& PreprocessedSource, const FDebugShaderDataOptions& Options)
 	{
 		if (Input.DumpDebugInfoEnabled())

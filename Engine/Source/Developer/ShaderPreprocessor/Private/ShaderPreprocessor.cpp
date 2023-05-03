@@ -15,14 +15,11 @@ namespace
 {
 	const FString PlatformHeader = TEXT("/Engine/Public/Platform.ush");
 	const FString PlatformHeaderLowerCase = PlatformHeader.ToLower();
-	void LogMandatoryHeaderError(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output)
+	void LogMandatoryHeaderError(const FShaderCompilerInput& Input, FShaderPreprocessOutput& Output)
 	{
-		FShaderCompilerError Error;
-		Error.ErrorVirtualFilePath = Input.VirtualSourceFilePath;
-		Error.ErrorLineString = TEXT("1");
-		Error.StrippedErrorMessage = FString::Printf(TEXT("Error: Shader is required to include %s"), *PlatformHeader);
-
-		Output.Errors.Add(Error);
+		FString Path = Input.VirtualSourceFilePath;
+		FString Message = FString::Printf(TEXT("Error: Shader is required to include %s"), *PlatformHeader);
+		Output.LogError(MoveTemp(Path), MoveTemp(Message), 1);
 	}
 }
 
@@ -48,9 +45,9 @@ class FMcppFileLoader
 {
 public:
 	/** Initialization constructor. */
-	explicit FMcppFileLoader(const FShaderCompilerInput& InShaderInput, FShaderCompilerOutput& InShaderOutput)
-		: ShaderInput(InShaderInput)
-		, ShaderOutput(InShaderOutput)
+	explicit FMcppFileLoader(const FShaderCompilerInput& InShaderInput, FShaderPreprocessOutput& InShaderOutput)
+		: Input(InShaderInput)
+		, Output(InShaderOutput)
 	{
 		FString InputShaderSource;
 		if (LoadShaderSourceFile(*InShaderInput.VirtualSourceFilePath, InShaderInput.Target.GetPlatform(),  &InputShaderSource, nullptr, &InShaderInput.ShaderPlatformName))
@@ -87,10 +84,10 @@ private:
 		FString VirtualFilePath = UTF8Converter.Get();
 
 		// Substitute virtual platform path here to make sure that #line directives refer to the platform-specific file.
-		ReplaceVirtualFilePathForShaderPlatform(VirtualFilePath, This->ShaderInput.Target.GetPlatform());
+		ReplaceVirtualFilePathForShaderPlatform(VirtualFilePath, This->Input.Target.GetPlatform());
 
 		// Fixup autogen file
-		ReplaceVirtualFilePathForShaderAutogen(VirtualFilePath, This->ShaderInput.Target.GetPlatform(), &This->ShaderInput.ShaderPlatformName);
+		ReplaceVirtualFilePathForShaderAutogen(VirtualFilePath, This->Input.Target.GetPlatform(), &This->Input.ShaderPlatformName);
 
 		// Collapse any relative directories to allow #include "../MyFile.ush"
 		FPaths::CollapseRelativeDirectories(VirtualFilePath);
@@ -100,19 +97,20 @@ private:
 		{
 			FString FileContents;
 
-			if (This->ShaderInput.Environment.IncludeVirtualPathToContentsMap.Contains(VirtualFilePath))
+			if (This->Input.Environment.IncludeVirtualPathToContentsMap.Contains(VirtualFilePath))
 			{
-				FileContents = This->ShaderInput.Environment.IncludeVirtualPathToContentsMap.FindRef(VirtualFilePath);
+				FileContents = This->Input.Environment.IncludeVirtualPathToContentsMap.FindRef(VirtualFilePath);
 			}
-			else if (This->ShaderInput.Environment.IncludeVirtualPathToExternalContentsMap.Contains(VirtualFilePath))
+			else if (This->Input.Environment.IncludeVirtualPathToExternalContentsMap.Contains(VirtualFilePath))
 			{
-				FileContents = *This->ShaderInput.Environment.IncludeVirtualPathToExternalContentsMap.FindRef(VirtualFilePath);
+				FileContents = *This->Input.Environment.IncludeVirtualPathToExternalContentsMap.FindRef(VirtualFilePath);
 			}
 			else
 			{
-				CheckShaderHashCacheInclude(VirtualFilePath, This->ShaderInput.Target.GetPlatform(), This->ShaderInput.ShaderFormat.ToString());
+				CheckShaderHashCacheInclude(VirtualFilePath, This->Input.Target.GetPlatform(), This->Input.ShaderFormat.ToString());
 
-				LoadShaderSourceFile(*VirtualFilePath, This->ShaderInput.Target.GetPlatform(), &FileContents, &This->ShaderOutput.Errors, &This->ShaderInput.ShaderPlatformName);
+				TArray<FShaderCompilerError>& OutErrors = This->Output.EditErrors();
+				LoadShaderSourceFile(*VirtualFilePath, This->Input.Target.GetPlatform(), &FileContents, &OutErrors, &This->Input.ShaderPlatformName);
 			}
 
 			if (FileContents.Len() > 0)
@@ -138,9 +136,9 @@ private:
 	}
 
 	/** Shader input data. */
-	const FShaderCompilerInput& ShaderInput;
+	const FShaderCompilerInput& Input;
 	/** Shader output data. */
-	FShaderCompilerOutput& ShaderOutput;
+	FShaderPreprocessOutput& Output;
 	/** File contents are cached as needed. */
 	TMap<FString,FShaderContents> CachedFileContents;
 };
@@ -215,10 +213,9 @@ static void AddStbDefines(stb_arena* MacroArena, macro_definition**& StbDefines,
 class FShaderPreprocessorUtilities
 {
 public:
-	static void DumpShaderDefinesAsCommentedCode(const FShaderCompilerInput& ShaderInput, FString* OutDefines)
+	static void DumpShaderDefinesAsCommentedCode(const FShaderCompilerEnvironment& Environment, FString* OutDefines)
 	{
-		const TMap<FString, FString>& Definitions = ShaderInput.Environment.Definitions.GetDefinitionMap();
-
+		const TMap<FString, FString>& Definitions = Environment.Definitions.GetDefinitionMap();
 		TArray<FString> Keys;
 		Definitions.GetKeys(/* out */ Keys);
 		Keys.Sort();
@@ -229,7 +226,7 @@ public:
 			Defines += FString::Printf(TEXT("// #define %s %s\n"), *Key, *Definitions[Key]);
 		}
 
-		*OutDefines = MakeInjectedShaderCodeBlock(TEXT("DumpShaderDefinesAsCommentedCode"), Defines);
+		*OutDefines += MakeInjectedShaderCodeBlock(TEXT("DumpShaderDefinesAsCommentedCode"), Defines);
 	}
 
 	static void PopulateDefinesMcpp(const FShaderCompilerInput& Input, const FShaderCompilerDefinitions& AdditionalDefines, TArray<TArray<ANSICHAR>>& OutDefines)
@@ -238,9 +235,9 @@ public:
 		AddMcppDefines(OutDefines, AdditionalDefines.GetDefinitionMap());
 	}
 
-	static void PopulateDefinesStb(const FShaderCompilerInput& Input, const FShaderCompilerDefinitions& AdditionalDefines, stb_arena* MacroArena, macro_definition**& OutDefines)
+	static void PopulateDefinesStb(const FShaderCompilerEnvironment& Environment, const FShaderCompilerDefinitions& AdditionalDefines, stb_arena* MacroArena, macro_definition**& OutDefines)
 	{
-		AddStbDefines(MacroArena, OutDefines, Input.Environment.Definitions.GetDefinitionMap());
+		AddStbDefines(MacroArena, OutDefines, Environment.Definitions.GetDefinitionMap());
 		AddStbDefines(MacroArena, OutDefines, AdditionalDefines.GetDefinitionMap());
 		AddStbDefine(MacroArena, OutDefines, TEXT("_STB_PREPROCESS"), TEXT("1"));
 	}
@@ -249,9 +246,8 @@ public:
 //////////////////////////////////////////////////////////////////////////
 
 bool InnerPreprocessShaderMcpp(
-	FString& OutPreprocessedShader,
-	FShaderCompilerOutput& ShaderOutput,
-	const FShaderCompilerInput& ShaderInput,
+	FShaderPreprocessOutput& Output,
+	const FShaderCompilerInput& Input,
 	const FShaderCompilerDefinitions& AdditionalDefines)
 {
 	int32 McppResult = 0;
@@ -261,10 +257,10 @@ bool InnerPreprocessShaderMcpp(
 
 	bool bHasIncludedMandatoryHeaders = false;
 	{
-		FMcppFileLoader FileLoader(ShaderInput, ShaderOutput);
+		FMcppFileLoader FileLoader(Input, Output);
 
 		TArray<TArray<ANSICHAR>> McppOptions;
-		FShaderPreprocessorUtilities::PopulateDefinesMcpp(ShaderInput, AdditionalDefines, McppOptions);
+		FShaderPreprocessorUtilities::PopulateDefinesMcpp(Input, AdditionalDefines, McppOptions);
 
 		// MCPP is not threadsafe.
 
@@ -296,7 +292,7 @@ bool InnerPreprocessShaderMcpp(
 			McppResult = mcpp_run(
 				McppOptionsANSI.GetData(),
 				McppOptionsANSI.Num(),
-				TCHAR_TO_ANSI(*ShaderInput.VirtualSourceFilePath),
+				TCHAR_TO_ANSI(*Input.VirtualSourceFilePath),
 				&McppOutAnsi,
 				&McppErrAnsi,
 				FileLoader.GetMcppInterface()
@@ -309,7 +305,7 @@ bool InnerPreprocessShaderMcpp(
 		bHasIncludedMandatoryHeaders = FileLoader.HasIncludedMandatoryHeaders();
 	}
 
-	if (!ParseMcppErrors(ShaderOutput.Errors, ShaderOutput.PragmaDirectives, McppErrors))
+	if (!ParseMcppErrors(Output, McppErrors))
 	{
 		return false;
 	}
@@ -317,20 +313,19 @@ bool InnerPreprocessShaderMcpp(
 	// Report unhandled mcpp failure that didn't generate any errors
 	if (McppResult != 0)
 	{
-		FShaderCompilerError* CompilerError = new(ShaderOutput.Errors) FShaderCompilerError;
-		CompilerError->ErrorVirtualFilePath = ShaderInput.VirtualSourceFilePath;
-		CompilerError->ErrorLineString = TEXT("0");
-		CompilerError->StrippedErrorMessage = FString::Printf(TEXT("PreprocessShader mcpp_run failed with error code %d"), McppResult);
+		FString Path = Input.VirtualSourceFilePath;
+		FString Message = FString::Printf(TEXT("PreprocessShader mcpp_run failed with error code %d"), McppResult);
+		Output.LogError(MoveTemp(Path), MoveTemp(Message), 0);
 		return false;
 	}
 
 	if (!bHasIncludedMandatoryHeaders)
 	{
-		LogMandatoryHeaderError(ShaderInput, ShaderOutput);
+		LogMandatoryHeaderError(Input, Output);
 		return false;
 	}
 
-	OutPreprocessedShader += McppOutput;
+	Output.EditSource() += McppOutput;
 
 	return true;
 }
@@ -370,6 +365,7 @@ extern "C"
 struct FStbPreprocessContext
 {
 	const FShaderCompilerInput& ShaderInput;
+	const FShaderCompilerEnvironment& Environment;
 	TMap<FString, TArray<ANSICHAR>> LoadedIncludesCache;
 	TMap<FString, TUniquePtr<ANSICHAR[]>> SeenPathsLowerCase;
 
@@ -467,6 +463,17 @@ void ConvertAndStripComments(const FString& ShaderSource, TArray<ANSICHAR>& OutS
 	OutStripped.SetNum(CurrentOut - OutStripped.GetData(), /* bAllowShrinking */false);
 }
 
+const FString* FindInMemorySource(const FShaderCompilerEnvironment& Environment, const FString& FilenameConverted)
+{
+	const FString* InMemorySource = Environment.IncludeVirtualPathToContentsMap.Find(FilenameConverted);
+	if (!InMemorySource)
+	{
+		const FThreadSafeSharedStringPtr* SharedPtr = Environment.IncludeVirtualPathToExternalContentsMap.Find(FilenameConverted);
+		InMemorySource = SharedPtr ? SharedPtr->Get() : nullptr;
+	}
+	return InMemorySource;
+}
+
 static const ANSICHAR* StbLoadFile(const ANSICHAR* Filename, void* RawContext, size_t* OutLength)
 {
 	FStbPreprocessContext& Context = *reinterpret_cast<FStbPreprocessContext*>(RawContext);
@@ -474,24 +481,21 @@ static const ANSICHAR* StbLoadFile(const ANSICHAR* Filename, void* RawContext, s
 	TArray<ANSICHAR>* ContentsCached = Context.LoadedIncludesCache.Find(FilenameConverted);
 	if (!ContentsCached)
 	{
-		FString ShaderSource;
+		ContentsCached = &Context.LoadedIncludesCache.Add(FilenameConverted);
+		// Local FString used for the LoadShaderSourceFile path; we should consider retrieving source from the shader file cache as a reference
+		// (avoid an extra alloc+copy)
+		FString SourceCopy;
 
-		if (Context.ShaderInput.Environment.IncludeVirtualPathToContentsMap.Contains(FilenameConverted))
-		{
-			ShaderSource = Context.ShaderInput.Environment.IncludeVirtualPathToContentsMap.FindRef(FilenameConverted);
-		}
-		else if (Context.ShaderInput.Environment.IncludeVirtualPathToExternalContentsMap.Contains(FilenameConverted))
-		{
-			ShaderSource = *Context.ShaderInput.Environment.IncludeVirtualPathToExternalContentsMap.FindRef(FilenameConverted);
-		}
-		else
+		const FString* InMemorySource = FindInMemorySource(Context.Environment, FilenameConverted);
+
+		if (!InMemorySource)
 		{
 			CheckShaderHashCacheInclude(FilenameConverted, Context.ShaderInput.Target.GetPlatform(), Context.ShaderInput.ShaderFormat.ToString());
-			LoadShaderSourceFile(*FilenameConverted, Context.ShaderInput.Target.GetPlatform(), &ShaderSource, nullptr);
+			LoadShaderSourceFile(*FilenameConverted, Context.ShaderInput.Target.GetPlatform(), &SourceCopy, nullptr);
+			InMemorySource = &SourceCopy;
 		}
-		check(!ShaderSource.IsEmpty());
-		ContentsCached = &Context.LoadedIncludesCache.Add(FilenameConverted);
-		ConvertAndStripComments(ShaderSource, *ContentsCached);
+		check(InMemorySource && !InMemorySource->IsEmpty());
+		ConvertAndStripComments(*InMemorySource, *ContentsCached);
 	}
 	check(ContentsCached);
 	*OutLength = ContentsCached->Num();
@@ -533,8 +537,8 @@ static const ANSICHAR* StbResolveInclude(const ANSICHAR* PathInSource, uint32 Pa
 	}
 
 	bool bExists =
-		Context.ShaderInput.Environment.IncludeVirtualPathToContentsMap.Contains(PathModified) ||
-		Context.ShaderInput.Environment.IncludeVirtualPathToExternalContentsMap.Contains(PathModified) ||
+		Context.Environment.IncludeVirtualPathToContentsMap.Contains(PathModified) ||
+		Context.Environment.IncludeVirtualPathToExternalContentsMap.Contains(PathModified) ||
 		// LoadShaderSourceFile will load the file if it exists, but then cache it internally, so the next call in StbLoadFile will be cheap
 		// (and hence this is not overly wasteful)
 		LoadShaderSourceFile(*PathModified, Context.ShaderInput.Target.GetPlatform(), nullptr, nullptr);
@@ -580,19 +584,19 @@ static void AddStbDefines(stb_arena* MacroArena, macro_definition**& StbDefines,
 }
 
 bool InnerPreprocessShaderStb(
-	FString& OutPreprocessedShader,
-	FShaderCompilerOutput& ShaderOutput,
-	const FShaderCompilerInput& ShaderInput,
+	FShaderPreprocessOutput& Output,
+	const FShaderCompilerInput& Input,
+	const FShaderCompilerEnvironment& Environment,
 	const FShaderCompilerDefinitions& AdditionalDefines
 )
 {
 	stb_arena MacroArena = { 0 };
 	macro_definition** StbDefines = nullptr;
-	FShaderPreprocessorUtilities::PopulateDefinesStb(ShaderInput, AdditionalDefines, &MacroArena, StbDefines);
+	FShaderPreprocessorUtilities::PopulateDefinesStb(Environment, AdditionalDefines, &MacroArena, StbDefines);
 
-	FStbPreprocessContext Context{ ShaderInput };
+	FStbPreprocessContext Context{ Input, Environment };
 
-	auto InFilename = StringCast<ANSICHAR>(*ShaderInput.VirtualSourceFilePath);
+	auto InFilename = StringCast<ANSICHAR>(*Input.VirtualSourceFilePath);
 	int NumDiagnostics = 0;
 	pp_diagnostic* Diagnostics = nullptr;
 	
@@ -609,10 +613,8 @@ bool InnerPreprocessShaderStb(
 			// as we do with MCPP, we are ignoring warnings (for now?)
 			if (Diagnostic->error_level == PP_RESULT_MODE_error)
 			{
-				FShaderCompilerError* CompilerError = new(ShaderOutput.Errors) FShaderCompilerError;
-				CompilerError->ErrorVirtualFilePath = Diagnostic->where->filename;
-				CompilerError->ErrorLineString = FString::Printf(TEXT("%d"), Diagnostic->where->line_number);
-				CompilerError->StrippedErrorMessage = Message;
+				FString Filename = Diagnostic->where->filename;
+				Output.LogError(MoveTemp(Filename), MoveTemp(Message), Diagnostic->where->line_number);
 			}
 			else
 			{
@@ -621,17 +623,20 @@ bool InnerPreprocessShaderStb(
 				{
 					FString Directive;
 					ExtractDirective(Directive, Message);
-					ShaderOutput.PragmaDirectives.Add(Directive);
+					Output.AddDirective(MoveTemp(Directive));
 				}
 			}
 		}
 	}
 
-	OutPreprocessedShader = StringCast<TCHAR>(OutPreprocessedAnsi).Get();
+	if (!HasError)
+	{
+		Output.EditSource().Append(OutPreprocessedAnsi);
+	}
 
 	if (!HasError && !Context.HasIncludedMandatoryHeaders())
 	{
-		LogMandatoryHeaderError(ShaderInput, ShaderOutput);
+		LogMandatoryHeaderError(Input, Output);
 		HasError = true;
 	}
 
@@ -640,6 +645,28 @@ bool InnerPreprocessShaderStb(
 	stb_arena_free(&MacroArena);
 
 	return !HasError;
+}
+
+bool PreprocessShader(
+	FString& OutPreprocessedShader,
+	FShaderCompilerOutput& ShaderOutput,
+	const FShaderCompilerInput& ShaderInput,
+	const FShaderCompilerDefinitions& AdditionalDefines,
+	EDumpShaderDefines DefinesPolicy)
+{
+	FShaderPreprocessOutput Output;
+	// when called via this overload, environment is assumed to be already merged in input struct
+	const FShaderCompilerEnvironment& Environment = ShaderInput.Environment;
+	bool bSucceeded = PreprocessShader(Output, ShaderInput, Environment, AdditionalDefines, DefinesPolicy);
+
+	OutPreprocessedShader = MoveTemp(Output.EditSource());
+
+	Output.MoveDirectives(ShaderOutput.PragmaDirectives);
+	for (FShaderCompilerError& Error : Output.EditErrors())
+	{
+		ShaderOutput.Errors.Add(MoveTemp(Error));
+	}
+	return bSucceeded;
 }
 
 /**
@@ -652,9 +679,9 @@ bool InnerPreprocessShaderStb(
  * @returns true if the shader is preprocessed without error.
  */
 bool PreprocessShader(
-	FString& OutPreprocessedShader,
-	FShaderCompilerOutput& ShaderOutput,
-	const FShaderCompilerInput& ShaderInput,
+	FShaderPreprocessOutput& Output,
+	const FShaderCompilerInput& Input,
+	const FShaderCompilerEnvironment& Environment,
 	const FShaderCompilerDefinitions& AdditionalDefines,
 	EDumpShaderDefines DefinesPolicy
 )
@@ -662,33 +689,34 @@ bool PreprocessShader(
 	TRACE_CPUPROFILER_EVENT_SCOPE(PreprocessShader);
 
 	// Skip the cache system and directly load the file path (used for debugging)
-	if (ShaderInput.bSkipPreprocessedCache)
+	if (Input.bSkipPreprocessedCache)
 	{
-		return FFileHelper::LoadFileToString(OutPreprocessedShader, *ShaderInput.VirtualSourceFilePath);
+		return FFileHelper::LoadFileToString(Output.EditSource(), *Input.VirtualSourceFilePath);
 	}
 	else
 	{
-		check(CheckVirtualShaderFilePath(ShaderInput.VirtualSourceFilePath));
+		check(CheckVirtualShaderFilePath(Input.VirtualSourceFilePath));
+	}
+
+	// List the defines used for compilation in the preprocessed shaders, especially to know which permutation vector this shader is.
+	if (DefinesPolicy == EDumpShaderDefines::AlwaysIncludeDefines || (DefinesPolicy == EDumpShaderDefines::DontCare && Input.DumpDebugInfoPath.Len() > 0))
+	{
+		FShaderPreprocessorUtilities::DumpShaderDefinesAsCommentedCode(Environment, &Output.EditSource());
 	}
 
 	bool bResult = false;
-	bool bLegacyPreprocess = ShaderInput.Environment.CompilerFlags.Contains(CFLAG_UseLegacyPreprocessor);
-	FString PreprocessorOutput;
+	bool bLegacyPreprocess = Environment.CompilerFlags.Contains(CFLAG_UseLegacyPreprocessor);
 	if (!bLegacyPreprocess)
 	{
-		bResult |= InnerPreprocessShaderStb(PreprocessorOutput, ShaderOutput, ShaderInput, AdditionalDefines);
+		bResult |= InnerPreprocessShaderStb(Output, Input, Environment, AdditionalDefines);
 	}
 	else
 	{
-		bResult |= InnerPreprocessShaderMcpp(PreprocessorOutput, ShaderOutput, ShaderInput, AdditionalDefines);
+		// note: ignoring explicit Environment parameter for the MCPP case; it's enforced upstream that
+		// the preprocessed job cache cannot be enabled at the same time as the legacy preprocessor, and
+		// so this environment will always match the one in FShaderCompilerInput
+		bResult |= InnerPreprocessShaderMcpp(Output, Input, AdditionalDefines);
 	}
 
-	// List the defines used for compilation in the preprocessed shaders, especially to know witch permutation vector this shader is.
-	if (DefinesPolicy == EDumpShaderDefines::AlwaysIncludeDefines || (DefinesPolicy == EDumpShaderDefines::DontCare && ShaderInput.DumpDebugInfoPath.Len() > 0))
-	{
-		FShaderPreprocessorUtilities::DumpShaderDefinesAsCommentedCode(ShaderInput, &OutPreprocessedShader);
-	}
-
-	OutPreprocessedShader += PreprocessorOutput;
 	return bResult;
 }
